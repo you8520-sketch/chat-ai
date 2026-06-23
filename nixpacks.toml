@@ -1,4 +1,4 @@
 # Railway / Nixpacks — better-sqlite3 native compile (node-gyp needs Python + make)
-# Node 20: prebuilt linux x64 binaries usually available; python3/gcc fallback if not.
+# Node 22.12+ required by @exodus/bytes (isomorphic-dompurify/jsdom chain); nodejs_22 in this nixpkgs = 22.12.0.
 [phases.setup]
-nixPkgs = ["nodejs_20", "python3", "gcc", "gnumake"]
+nixPkgs = ["nodejs_22", "python3", "gcc", "gnumake"]
