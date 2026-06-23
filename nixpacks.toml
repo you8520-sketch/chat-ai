@@ -1,0 +1,4 @@
+# Railway / Nixpacks — better-sqlite3 native compile (node-gyp needs Python + make)
+# Node 20: prebuilt linux x64 binaries usually available; python3/gcc fallback if not.
+[phases.setup]
+nixPkgs = ["nodejs_20", "python3", "gcc", "gnumake"]
