@@ -1,0 +1,2 @@
+export const CHARACTER_NAME_LIMIT = 20;
+export const CREATOR_COMMENT_LIMIT = 3000;

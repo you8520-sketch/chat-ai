@@ -1,0 +1,257 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background: #0b0d14;
+  color: #e6e8f0;
+}
+
+@keyframes float-points-up {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  70% {
+    opacity: 0.85;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-56px);
+  }
+}
+
+.animate-float-points-up {
+  animation: float-points-up 2s ease-out forwards;
+}
+
+@keyframes settings-flyout-in {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* 프로필 본문 — 섹션·카드 레이아웃 (ProfileRichText) */
+.profile-rich-text {
+  min-width: 0;
+  width: 100%;
+  overflow-wrap: break-word;
+  word-break: normal;
+  white-space: normal;
+}
+
+.profile-rich-text > * + * {
+  margin-top: 0;
+}
+
+/* 캐릭터 공개 페이지 — 상세 소개 본문 가독성 */
+.character-detail-intro .profile-rich-text {
+  font-size: 1rem;
+  line-height: 1.85;
+  color: #f4f4f5;
+}
+
+@media (min-width: 640px) {
+  .character-detail-intro .profile-rich-text {
+    font-size: 1.0625rem;
+  }
+}
+
+.character-detail-intro .profile-rich-text strong.font-semibold {
+  color: #fafafa;
+}
+
+/* 본문 삽입 이미지 — 컬럼 너비에 맞춤 (비율 유지) */
+.profile-rich-text .profile-content-image,
+.profile-rich-text figure img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  max-height: min(70vh, 42rem);
+  object-fit: contain;
+}
+
+/* 채팅 가독성 — rem 기반 반응형 기본값 (유저 프리셋은 --font-size-chat-scale로 배율 적용) */
+:root {
+  --font-size-chat-base: 0.9375rem; /* ~15px @ 16px root — 모바일 */
+  --line-height-chat-base: 1.65;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --font-size-chat-base: 1.0625rem; /* ~17px — 데스크톱 */
+    --line-height-chat-base: 1.7;
+  }
+}
+
+.chat-readability-root {
+  font-size: var(--font-size-chat, var(--font-size-chat-base));
+  line-height: var(--line-height-chat, var(--line-height-chat-base));
+}
+
+/* OOC 요청 상태창 — 마크다운 pipe table */
+.chat-md-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 0.75rem;
+  background: #232330;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.chat-md-th,
+.chat-md-td {
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgb(228 228 231);
+  vertical-align: top;
+}
+
+.chat-md-th {
+  font-weight: 600;
+  color: rgb(250 250 250);
+  background: rgba(251, 191, 36, 0.1);
+}
+
+.chat-md-table tbody tr:nth-child(even) .chat-md-td {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.chat-md-table tbody tr:last-child .chat-md-td {
+  border-bottom: none;
+}
+
+/* 상태창 카드 안 표 — 바깥 카드와 겹치지 않게 한 단계 더 밝게 */
+.status-meta-card .chat-md-table {
+  background: #2a2a3a;
+  border-color: rgba(251, 191, 36, 0.22);
+}
+
+.chat-status-html table {
+  width: 100%;
+  min-width: 16rem;
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.75rem;
+  background: linear-gradient(180deg, #121218 0%, #0a0a0e 100%);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.chat-status-html td,
+.chat-status-html th {
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: rgb(212 212 216);
+  vertical-align: top;
+}
+
+.chat-status-html th {
+  font-weight: 600;
+  color: rgb(228 228 231);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.chat-status-html tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.chat-status-html caption {
+  caption-side: top;
+  padding: 0.5rem 0.75rem;
+  color: rgb(228 228 231);
+  font-weight: 600;
+}
+
+/* 제작자 코멘트 HTML */
+.creator-comment-html p {
+  margin: 0.5em 0;
+}
+.creator-comment-html p:first-child {
+  margin-top: 0;
+}
+.creator-comment-html p:last-child {
+  margin-bottom: 0;
+}
+.creator-comment-html a {
+  color: #a78bfa;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.creator-comment-html a:hover {
+  color: #c4b5fd;
+}
+.creator-comment-html ul,
+.creator-comment-html ol {
+  margin: 0.5em 0;
+  padding-left: 1.25rem;
+}
+.creator-comment-html h1,
+.creator-comment-html h2,
+.creator-comment-html h3,
+.creator-comment-html h4 {
+  margin: 0.75em 0 0.35em;
+  font-weight: 700;
+  color: #e9e9f0;
+}
+.creator-comment-html blockquote {
+  margin: 0.5em 0;
+  border-left: 3px solid rgba(139, 92, 246, 0.45);
+  padding-left: 0.75rem;
+  color: #a1a1b5;
+}
+.creator-comment-html img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+}
+.creator-comment-html pre,
+.creator-comment-html code {
+  font-family: ui-monospace, monospace;
+  font-size: 0.85em;
+}
+.creator-comment-html pre {
+  overflow-x: auto;
+  border-radius: 0.5rem;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 0.625rem 0.75rem;
+}
+
+/* 채팅 HTML visual card — inline margin이 없을 때도 항목 구분 */
+.chat-visual-card-html div[style*="margin-bottom"] + div[style*="margin-bottom"],
+.chat-visual-card-html section + section {
+  margin-top: 0;
+}
+.chat-visual-card-html p + p {
+  margin-top: 0.35em;
+}
+.chat-visual-card-html div + div:not([style*="margin-bottom"]) {
+  margin-top: 0.5rem;
+}
+
+/* 대화 목록 — main 영역 너비 기준 반응형 */
+.chats-page-grid {
+  container-type: inline-size;
+  container-name: chats;
+}

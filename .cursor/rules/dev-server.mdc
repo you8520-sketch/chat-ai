@@ -1,0 +1,42 @@
+---
+description: Dev server restart — only when necessary; agent handles it, do not ask the user
+alwaysApply: true
+---
+
+# Dev server (E:\ai chat)
+
+## When to restart (only these)
+
+Restart **only** when the change cannot be picked up by Next dev HMR, or dev is broken:
+
+- `server.js`, `next.config.*`, env / `.env*`
+- Boot-time code loaded once at server start (not per-request imports)
+- Dev clearly stale: old behavior after save, port 3000 stuck, corrupt `.next-dev` (500 / missing manifest)
+- **No healthy dev on 3000** and verification needs a running server
+
+## When NOT to restart (default)
+
+- `src/` prompt strings, API route handlers, components, lib imported per request — **HMR usually enough**
+- After `typecheck` alone, docs, or UI-only tweaks
+- **Do not** run `npm.cmd run dev` again if port 3000 already has a healthy `Ready on http://localhost:3000` session
+
+Each `npm.cmd run dev` opens a **new Cursor terminal tab**; old tabs do not auto-close. Minimize restarts to avoid terminal clutter.
+
+## If restart is required
+
+1. **Restart yourself** — do not tell the user to restart manually.
+2. Run `npm.cmd run dev` from project root in background. The dev script (`scripts/dev-server.ts`) automatically:
+   - kills port 3000
+   - detects corrupt `.next-dev` cache (missing routes-manifest.json) and clears it
+   - uses `.next-dev` for dev — separate from production `.next` (build no longer breaks dev)
+3. Confirm `Ready on http://localhost:3000` before saying the fix is live.
+4. `DISABLE_PAYOUT_SCHEDULER` is not required in dev (server.js disables scheduler by default).
+
+**Do NOT manually delete `.next` for dev 500** — `npm.cmd run dev` handles dev cache (`.next-dev`).
+
+**Verification during dev:** use `npm.cmd run typecheck` — **not** `npm run build` while dev is running.  
+`next build` writes to `.next`; dev uses `.next-dev` (separate since next.config), but build still competes for CPU/locks — avoid parallel build+dev when possible.
+
+**PowerShell:** use `npm.cmd run dev` (not `npm run dev`) to avoid `PSSecurityException` on `npm.ps1`.
+
+Use `Remove-Item -Recurse -Force .next` only for **production** cache issues after `npm run build`.

@@ -1,0 +1,45 @@
+{
+  "name": "lunatalk-clone",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsx scripts/dev-server.ts",
+    "open": "powershell -NoProfile -Command \"Start-Process 'http://localhost:3000'\"",
+    "dev:safe": "tsx scripts/dev-server.ts",
+    "dev:next": "next dev -p 3001",
+    "typecheck": "tsc --noEmit",
+    "build": "next build",
+    "start": "tsx server.js",
+    "start:next": "next start",
+    "payout:run": "tsx scripts/run-payout-once.ts",
+    "training:analyze": "tsx scripts/training-daily-analysis.ts",
+    "training:export": "tsx scripts/training-weekly-export.ts",
+    "dump:system-prompt": "tsx scripts/dump-system-prompt.ts",
+    "prod": "npm run build && npm run start",
+    "prod:fast": "powershell -ExecutionPolicy Bypass -File ./scripts/run-prod.ps1"
+  },
+  "dependencies": {
+    "@portone/browser-sdk": "^0.1.8",
+    "better-sqlite3": "^11.8.0",
+    "isomorphic-dompurify": "^3.3.0",
+    "next": "^15.3.3",
+    "node-cron": "^4.2.1",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.7",
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/dompurify": "^3.0.5",
+    "@types/node": "^22",
+    "@types/node-cron": "^3.0.11",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "tailwindcss": "^4.1.7",
+    "tsx": "^4.22.4",
+    "typescript": "^5"
+  }
+}

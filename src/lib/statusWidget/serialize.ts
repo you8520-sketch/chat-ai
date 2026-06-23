@@ -1,0 +1,66 @@
+import { statusValueKeyFromLabel } from "./fieldKeys";
+import { DEFAULT_STATUS_WIDGET } from "./defaultTemplate";
+import type { StatusWidget, StatusWidgetSourceMode, StatusWidgetStackOrder } from "./types";
+
+export function parseStatusWidgetJson(raw: string | null | undefined): StatusWidget | null {
+  if (!raw?.trim()) return null;
+  try {
+    const parsed = JSON.parse(raw) as StatusWidget;
+    if (parsed?.version !== 1 || !parsed.htmlTemplate?.trim() || !Array.isArray(parsed.fields)) {
+      return null;
+    }
+    if (parsed.fields.length === 0) return null;
+    return {
+      version: 1,
+      name: String(parsed.name || "상태창").slice(0, 80),
+      htmlTemplate: parsed.htmlTemplate,
+      fields: parsed.fields
+        .map((f) => {
+          const label = String(f.label || "").trim().slice(0, 40);
+          const instruction = String(f.instruction || "").trim().slice(0, 500);
+          const storedId = String(f.id || "").trim().slice(0, 64);
+          const id = storedId || statusValueKeyFromLabel(label);
+          return {
+            id,
+            label,
+            instruction,
+          };
+        })
+        .filter((f) => f.id && f.label),
+      placement: parsed.placement === "top" ? "top" : "bottom",
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function serializeStatusWidget(widget: StatusWidget): string {
+  return JSON.stringify({
+    ...widget,
+    fields: widget.fields.map(({ id, label, instruction }) => ({ id, label, instruction })),
+  });
+}
+
+export function parseStatusWidgetMode(raw: string | null | undefined): StatusWidgetSourceMode {
+  switch (raw) {
+    case "off":
+    case "character_only":
+    case "user_only":
+    case "both":
+      return raw;
+    default:
+      return "character_only";
+  }
+}
+
+export function parseStatusWidgetStackOrder(raw: string | null | undefined): StatusWidgetStackOrder {
+  return raw === "user_first" ? "user_first" : "character_first";
+}
+
+export function hasCharacterStatusWidget(raw: string | null | undefined): boolean {
+  return parseStatusWidgetJson(raw) !== null;
+}
+
+export function characterStatusWidgetOrDefault(raw: string | null | undefined): StatusWidget {
+  return parseStatusWidgetJson(raw) ?? DEFAULT_STATUS_WIDGET;
+}
