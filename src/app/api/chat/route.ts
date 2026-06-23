@@ -31,10 +31,10 @@ import { loadCharacterChunksForPrompt } from "@/lib/characterChunks";
 import { buildContext } from "@/services/contextBuilder";
 import { auditAssembledPrompt, formatPromptAuditLog } from "@/services/promptAudit";
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
-import { deductPoints, getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, resolveDeepSeekWaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiProTurnCost, type DeductionSlice } from "@/lib/points";
+import { deductPoints, getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGemini25WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiProTurnCost, type DeductionSlice } from "@/lib/points";
 import { createChatSession } from "@/lib/chatSessionCreate";
 import { incrementCharacterTotalTurns } from "@/lib/characterEngagementStats";
-import { isDeepSeekV4ProModel, isGeminiProOpenRouterModel } from "@/lib/chatModels";
+import { isDeepSeekV4ProModel, isGemini25ProModel, isGemini31ProModel, isGeminiProOpenRouterModel, isQwenModel } from "@/lib/chatModels";
 import { openRouterNormalizedRawCostKrw, openRouterRawCostKrw } from "@/lib/billingRawCost";
 import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
 import { maybeCreditCreatorReward } from "@/lib/creatorPoints";
@@ -1798,15 +1798,30 @@ export async function POST(req: Request) {
           });
         let cost = billingWaiverReason ? 0 : billing.total;
 
-        if (
-          billingWaiverReason &&
-          !isMockApiMode() &&
-          isDeepSeekV4ProModel(openRouterModelId ?? "")
-        ) {
-          const waiverMin = resolveDeepSeekWaiverMinimumCharge(savedText, billingWaiverReason, {
-            degenerationAborted,
-            targetResponseChars: targetResponseCharsRef,
-          });
+        if (billingWaiverReason && !isMockApiMode()) {
+          const modelId = openRouterModelId ?? "";
+          let waiverMin = 0;
+          if (isDeepSeekV4ProModel(modelId)) {
+            waiverMin = resolveDeepSeekWaiverMinimumCharge(savedText, billingWaiverReason, {
+              degenerationAborted,
+              targetResponseChars: targetResponseCharsRef,
+            });
+          } else if (isQwenModel(modelId)) {
+            waiverMin = resolveQwenWaiverMinimumCharge(savedText, billingWaiverReason, {
+              degenerationAborted,
+              targetResponseChars: targetResponseCharsRef,
+            });
+          } else if (isGemini25ProModel(modelId)) {
+            waiverMin = resolveGemini25WaiverMinimumCharge(savedText, billingWaiverReason, {
+              degenerationAborted,
+              targetResponseChars: targetResponseCharsRef,
+            });
+          } else if (isGemini31ProModel(modelId)) {
+            waiverMin = resolveGemini31WaiverMinimumCharge(savedText, billingWaiverReason, {
+              degenerationAborted,
+              targetResponseChars: targetResponseCharsRef,
+            });
+          }
           if (waiverMin > 0) cost = waiverMin;
         }
 

@@ -1,9 +1,11 @@
 import {
-  CLAUDE_OPUS_MODEL,
   CLAUDE_OPUS_MODEL_LEGACY,
+  DEFAULT_SELECTED_AI,
   OPENROUTER_CLAUDE_DEFAULT,
   OPENROUTER_GEMINI_31_PRO_MODEL,
+  coerceUserSelectableAI,
   isOpenRouterSelectedAI,
+  type SelectedAI,
 } from "@/lib/chatModels";
 
 /** OpenRouter에서 endpoint가 제거된 구 slug → 현재 사용 가능한 slug */
@@ -51,15 +53,18 @@ export function normalizeOpenRouterModelId(modelId: string): string {
 
 /**
  * OpenRouter 호출용 model slug.
- * selectedAI(openrouter 계열) → OPENROUTER_MODEL env → CLAUDE_OPUS_MODEL 기본값
+ * selectedAI(openrouter 계열) → OPENROUTER_MODEL env → DEFAULT_SELECTED_AI 기본값
  */
 export function resolveOpenRouterModelId(selectedAI?: string | null): string {
   const trimmed = selectedAI ? stripEnvQuotes(selectedAI) : null;
-  const fromSelection = trimmed && isOpenRouterSelectedAI(trimmed) ? trimmed : null;
+  const fromSelection =
+    trimmed && isOpenRouterSelectedAI(trimmed)
+      ? coerceUserSelectableAI(trimmed as SelectedAI)
+      : null;
   const fromEnv = process.env.OPENROUTER_MODEL
     ? stripEnvQuotes(process.env.OPENROUTER_MODEL)
     : null;
-  const raw = fromSelection ?? fromEnv ?? CLAUDE_OPUS_MODEL;
+  const raw = fromSelection ?? fromEnv ?? DEFAULT_SELECTED_AI;
   const normalized = normalizeOpenRouterModelId(raw);
   const mapped = DEPRECATED_OPENROUTER_MODELS[normalized] ?? normalized;
   if (mapped !== normalized) {

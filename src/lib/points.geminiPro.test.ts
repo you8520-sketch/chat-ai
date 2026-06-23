@@ -1,68 +1,44 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  OPENROUTER_GEMINI_PRO_GROSS_MARGIN,
+  OPENROUTER_GEMINI_31_POINTS_PER_OUTPUT_TOKEN,
+  GEMINI_31_WAIVER_SUCCESS_MIN_COST,
   computeOpenRouterTurnCost,
   computeTurnBilling,
   explainOpenRouterGeminiProTurnCost,
+  resolveGemini31WaiverMinimumCharge,
 } from "@/lib/points";
-import {
-  OPENROUTER_GEMINI_25_PRO_MODEL,
-  OPENROUTER_GEMINI_31_PRO_MODEL,
-} from "@/lib/chatModels";
+import { OPENROUTER_GEMINI_31_PRO_MODEL } from "@/lib/chatModels";
 
-describe("OpenRouter Gemini Pro billing", () => {
-  it("uses 55% gross margin floor", () => {
-    assert.equal(OPENROUTER_GEMINI_PRO_GROSS_MARGIN, 0.55);
+describe("OpenRouter Gemini 3.1 Pro billing", () => {
+  const modelId = OPENROUTER_GEMINI_31_PRO_MODEL;
+
+  it("uses 0.072P per output token", () => {
+    assert.equal(OPENROUTER_GEMINI_31_POINTS_PER_OUTPUT_TOKEN, 0.072);
+    assert.equal(GEMINI_31_WAIVER_SUCCESS_MIN_COST, 65);
   });
 
-  for (const modelId of [OPENROUTER_GEMINI_25_PRO_MODEL, OPENROUTER_GEMINI_31_PRO_MODEL]) {
-    it(`margin charge = rawCost ÷ 0.45 (${modelId})`, () => {
-      const explain = explainOpenRouterGeminiProTurnCost(1000, 800, modelId);
-      const marginDivisor = 1 - OPENROUTER_GEMINI_PRO_GROSS_MARGIN;
-      assert.equal(
-        explain.costPlusMarginKrw,
-        Math.ceil(explain.rawCostKrw / marginDivisor - 1e-9)
-      );
-      assert.equal(explain.charFloorKrw, 0);
-    });
-  }
+  it("token floor = outputTokens × 0.072", () => {
+    const outputTokens = 2000;
+    const explain = explainOpenRouterGeminiProTurnCost(1000, outputTokens, modelId);
+    assert.equal(explain.charFloorKrw, Math.ceil(outputTokens * 0.072 - 1e-9));
+    assert.equal(explain.costPlusMarginKrw, 0);
+  });
 
-  it("charges from upstream USD when provided (matches receipt API cost)", () => {
-    const modelId = OPENROUTER_GEMINI_31_PRO_MODEL;
-    const upstreamCostUsd = 0.066;
-    const tokenOnly = explainOpenRouterGeminiProTurnCost(100, 50, modelId);
-    const withUpstream = explainOpenRouterGeminiProTurnCost(100, 50, modelId, undefined, {
-      upstreamCostUsd,
-      apiPromptTokens: 12000,
-      apiCompletionTokens: 2500,
-    });
-    assert.ok(withUpstream.rawCostKrw > tokenOnly.rawCostKrw);
-    assert.equal(
-      withUpstream.total,
-      Math.max(5, Math.ceil(withUpstream.rawCostKrw / 0.45 - 1e-9))
-    );
+  it("charges output token floor only", () => {
+    const outputTokens = 2000;
+    const lowUsage = computeOpenRouterTurnCost(100, outputTokens, modelId);
+    const explain = explainOpenRouterGeminiProTurnCost(100, outputTokens, modelId);
+    assert.equal(lowUsage, explain.total);
+  });
+
+  it("no user note surcharge when note body large", () => {
     const billing = computeTurnBilling({
       provider: "openrouter",
       openRouterModelId: modelId,
-      inputTokens: 8000,
-      outputTokens: 400,
-      upstreamCostUsd,
-      apiPromptTokens: 12000,
-      apiCompletionTokens: 2500,
-      userContextChars: 0,
-    });
-    assert.equal(billing.contextSurcharge, 0);
-    assert.equal(billing.total, withUpstream.total);
-  });
-
-  it("no user note surcharge when note body empty", () => {
-    const billing = computeTurnBilling({
-      provider: "openrouter",
-      openRouterModelId: OPENROUTER_GEMINI_31_PRO_MODEL,
       inputTokens: 5000,
       outputTokens: 800,
-      userContextChars: 0,
+      userContextChars: 8000,
       upstreamCostUsd: 0.05,
       apiPromptTokens: 5000,
       apiCompletionTokens: 800,
@@ -70,5 +46,13 @@ describe("OpenRouter Gemini Pro billing", () => {
     assert.equal(billing.contextSurcharge, 0);
     assert.equal(billing.multiplier, 1);
     assert.equal(billing.total, billing.baseCost);
+  });
+
+  it("waiver with meaningful text charges minimum 65P", () => {
+    const min = resolveGemini31WaiverMinimumCharge(
+      "유의미한 본문이 있는 응답입니다.",
+      "forced_abort"
+    );
+    assert.equal(min, 65);
   });
 });

@@ -40,6 +40,7 @@ import type { Usage } from "@/lib/chatUsage";
 import { dispatchPointsDeducted } from "@/lib/pointsEvents";
 import {
   SELECTED_AI_OPTIONS,
+  USER_SELECTABLE_AI_OPTIONS,
   CHAT_MESSAGE_MAX,
   ASSISTANT_MESSAGE_MAX,
   DEFAULT_TARGET_RESPONSE_CHARS,
@@ -2804,7 +2805,7 @@ export default function ChatClient({
               disabled={loading}
               className="rounded-md border border-white/10 bg-[#1a1a1a] px-1.5 py-1 text-[11px] text-zinc-200 outline-none focus:border-violet-500/50 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {SELECTED_AI_OPTIONS.map((o) => (
+              {USER_SELECTABLE_AI_OPTIONS.map((o) => (
                 <option key={o.id} value={o.id}>
                   {selectedAIShortLabel(o.id)}
                 </option>

@@ -5,6 +5,8 @@ import { isSubscribed } from "@/lib/auth-types";
 import {
   billingModelId,
   isDeepSeekV4ProModel,
+  isGemini25ProModel,
+  isGemini31ProModel,
   isGeminiProOpenRouterModel,
   isQwenModel,
   type SelectedAI,
@@ -13,7 +15,6 @@ import {
 import { savedVisibleTextForReceipt } from "./chatRichContent";
 import { resolveResponseLengthTarget, isCatastrophicallyShortResponse, type GenerationFailureReason } from "./responseLength";
 import { isDegenerateOutput } from "./gibberishGuard";
-import { userContextSurcharge } from "./userContextBilling";
 import { PLANS, type PlanId, FREE_MEMORY_LIMIT, FREE_POINTS_VALID_MONTHS } from "./plans";
 import type { StageUsage } from "./ai";
 import { HTML_FLASH_MAX_OUTPUT_TOKENS } from "./htmlVisualCardRecovery";
@@ -49,6 +50,15 @@ export const OPENROUTER_ADULT_FIXED_TURN_COST = 20;
 
 /** DeepSeek — 0P 면제 턴이라도 유의미한 본문이 전달되면 최소 차감 */
 export const DEEPSEEK_WAIVER_SUCCESS_MIN_COST = 20;
+
+/** Qwen — 0P 면제 턴이라도 유의미한 본문이 전달되면 최소 차감 */
+export const QWEN_WAIVER_SUCCESS_MIN_COST = 50;
+
+/** Gemini 2.5 Pro — 0P 면제 턴이라도 유의미한 본문이 전달되면 최소 차감 (Qwen과 동일) */
+export const GEMINI_25_WAIVER_SUCCESS_MIN_COST = 50;
+
+/** Gemini 3.1 Pro — 0P 면제 턴이라도 유의미한 본문이 전달되면 최소 65P 차감 */
+export const GEMINI_31_WAIVER_SUCCESS_MIN_COST = 65;
 
 /** OpenRouter Claude Opus 4.x — OpenRouter 공시 $/1M (2025–2026, claude-opus-4.5/4.6) */
 export const OPENROUTER_CLAUDE_OPUS_INPUT_USD_PER_M = 5;
@@ -146,31 +156,18 @@ export function resolveOpenRouterOpusTurnCharge(
   outputChars: number
 ): OpusTurnChargeResult {
   const charCapPoints = openRouterOpusCharFloorKrw(outputChars);
-  const marginChargePoints = openRouterOpusMarginChargeKrw(actualApiCostKrw);
-  const preferred = explainOpenRouterOpusPreferredTurnCost(charCapPoints, marginChargePoints);
-  const uncappedChargePoints = preferred.preferredKrw;
-  const actualCostPoints = chargePoints(Math.max(0, actualApiCostKrw));
-
-  if (actualApiCostKrw > 0 && actualCostPoints > charCapPoints) {
-    const costBlendPoints = opusCostCharCapBlendPoints(actualApiCostKrw, outputChars);
-    return {
-      total: Math.max(OPENROUTER_MIN_TURN_COST, costBlendPoints),
-      uncappedChargePoints,
-      charCapPoints,
-      marginChargePoints,
-      costBlendApplied: true,
-      costBlendPoints,
-      applied: "cost_blend",
-    };
+  const total = Math.max(OPENROUTER_MIN_TURN_COST, charCapPoints);
+  let applied: OpusTurnChargeResult["applied"] = "char_floor";
+  if (total === OPENROUTER_MIN_TURN_COST && charCapPoints < OPENROUTER_MIN_TURN_COST) {
+    applied = "min_turn";
   }
-
   return {
-    total: uncappedChargePoints,
-    uncappedChargePoints,
+    total,
+    uncappedChargePoints: total,
     charCapPoints,
-    marginChargePoints,
+    marginChargePoints: 0,
     costBlendApplied: false,
-    applied: preferred.applied,
+    applied,
   };
 }
 
@@ -246,7 +243,7 @@ export const OPENROUTER_OPUS_GROSS_MARGIN =
 /** @deprecated OPENROUTER_OPUS_GROSS_MARGIN 사용 (markup ≠ gross margin) */
 export const OPENROUTER_OPUS_COST_MARKUP = OPENROUTER_OPUS_GROSS_MARGIN;
 
-/** DeepSeek V4 Pro — 출력 1토큰당 최소 청구 (P) — max(출력토큰×0.022, 원가÷0.45) */
+/** DeepSeek V4 Pro — 출력 1토큰당 청구 (P) */
 export const OPENROUTER_DEEPSEEK_POINTS_PER_OUTPUT_TOKEN = (() => {
   const perToken = process.env.OPENROUTER_DEEPSEEK_POINTS_PER_OUTPUT_TOKEN?.trim();
   if (perToken) return Number(perToken) || 0.022;
@@ -270,21 +267,39 @@ export const OPENROUTER_DEEPSEEK_GROSS_MARGIN =
 /** @deprecated OPENROUTER_DEEPSEEK_GROSS_MARGIN 사용 */
 export const OPENROUTER_DEEPSEEK_COST_MARKUP = OPENROUTER_DEEPSEEK_GROSS_MARGIN;
 
-/** Qwen 3.7 — 출력 1토큰당 최소 청구 (P) — max(출력토큰×0.07, 원가÷0.55) */
+/** Qwen 3.7 — 출력 1토큰당 청구 (P) */
 export const OPENROUTER_QWEN_POINTS_PER_OUTPUT_TOKEN = (() => {
   const perToken = process.env.OPENROUTER_QWEN_POINTS_PER_OUTPUT_TOKEN?.trim();
-  if (perToken) return Number(perToken) || 0.07;
-  return 0.07;
+  if (perToken) return Number(perToken) || 0.065;
+  return 0.065;
 })();
 
 /** @deprecated OPENROUTER_QWEN_POINTS_PER_OUTPUT_TOKEN 사용 (구 1자당 과금) */
 export const OPENROUTER_QWEN_POINTS_PER_CHAR = OPENROUTER_QWEN_POINTS_PER_OUTPUT_TOKEN;
 
-/** Qwen — API 원가 대비 최저 매출총이익률 (45% → 원가÷0.55) */
+/** Qwen — API 원가 대비 최저 매출총이익률 (55% → 원가÷0.45) */
 export const OPENROUTER_QWEN_GROSS_MARGIN =
-  Number(process.env.OPENROUTER_QWEN_GROSS_MARGIN) || 0.45;
+  Number(process.env.OPENROUTER_QWEN_GROSS_MARGIN) || 0.55;
 
-/** OpenRouter Gemini Pro (2.5/3.1) — API 원가 대비 최저 매출총이익률 (55% → 원가÷0.45) */
+/** Gemini 2.5 Pro — 출력 1토큰당 청구 (P) — Qwen과 동일 단가 */
+export const OPENROUTER_GEMINI_25_POINTS_PER_OUTPUT_TOKEN = (() => {
+  const perToken = process.env.OPENROUTER_GEMINI_25_POINTS_PER_OUTPUT_TOKEN?.trim();
+  if (perToken) return Number(perToken) || 0.065;
+  return 0.065;
+})();
+
+/** Gemini 2.5 Pro — API 원가 대비 최저 매출총이익률 (55% → 원가÷0.45) */
+export const OPENROUTER_GEMINI_25_GROSS_MARGIN =
+  Number(process.env.OPENROUTER_GEMINI_25_GROSS_MARGIN) || 0.55;
+
+/** Gemini 3.1 Pro — 출력 1토큰당 청구 (P) */
+export const OPENROUTER_GEMINI_31_POINTS_PER_OUTPUT_TOKEN = (() => {
+  const perToken = process.env.OPENROUTER_GEMINI_31_POINTS_PER_OUTPUT_TOKEN?.trim();
+  if (perToken) return Number(perToken) || 0.072;
+  return 0.072;
+})();
+
+/** @deprecated OPENROUTER_GEMINI_PRO_GROSS_MARGIN — 마진 과금 제거, 토큰 단가만 사용 */
 export const OPENROUTER_GEMINI_PRO_GROSS_MARGIN =
   Number(process.env.OPENROUTER_GEMINI_PRO_GROSS_MARGIN) ||
   Number(process.env.OPENROUTER_GEMINI_31_PRO_GROSS_MARGIN) ||
@@ -492,12 +507,9 @@ function geminiTier(modelId: string): number {
 
 function applyUserNoteSurcharge(
   baseCost: number,
-  userContextChars?: number
+  _userContextChars?: number
 ): { contextSurcharge: number; multiplier: number; total: number } {
-  const contextSurcharge = userContextSurcharge(userContextChars ?? 0);
-  const multiplier = 1 + contextSurcharge;
-  const total = chargePoints(baseCost * multiplier);
-  return { contextSurcharge, multiplier, total };
+  return { contextSurcharge: 0, multiplier: 1, total: chargePoints(baseCost) };
 }
 
 /** Gemini explicit cache read — 입력 단가 90% 할인 */
@@ -558,6 +570,18 @@ function openRouterQwenTokenFloorKrw(outputTokens: number): number {
   return chargePoints(Math.max(0, outputTokens) * OPENROUTER_QWEN_POINTS_PER_OUTPUT_TOKEN);
 }
 
+function openRouterGemini25TokenFloorKrw(outputTokens: number): number {
+  return chargePoints(Math.max(0, outputTokens) * OPENROUTER_GEMINI_25_POINTS_PER_OUTPUT_TOKEN);
+}
+
+function openRouterGemini31TokenFloorKrw(outputTokens: number): number {
+  return chargePoints(Math.max(0, outputTokens) * OPENROUTER_GEMINI_31_POINTS_PER_OUTPUT_TOKEN);
+}
+
+function openRouterTokenOnlyTurnCost(tokenFloorKrw: number): number {
+  return Math.max(OPENROUTER_MIN_TURN_COST, tokenFloorKrw);
+}
+
 function openRouterGrossMarginChargeKrw(rawCostKrw: number, grossMargin: number): number {
   const margin = Math.min(0.95, Math.max(0, grossMargin));
   return margin < 1
@@ -575,6 +599,10 @@ function openRouterDeepSeekMarginChargeKrw(rawCostKrw: number): number {
 
 function openRouterQwenMarginChargeKrw(rawCostKrw: number): number {
   return openRouterGrossMarginChargeKrw(rawCostKrw, OPENROUTER_QWEN_GROSS_MARGIN);
+}
+
+function openRouterGemini25MarginChargeKrw(rawCostKrw: number): number {
+  return openRouterGrossMarginChargeKrw(rawCostKrw, OPENROUTER_GEMINI_25_GROSS_MARGIN);
 }
 
 function openRouterGeminiProMarginChargeKrw(rawCostKrw: number): number {
@@ -626,6 +654,10 @@ function openRouterMaxFloorTurnCost(charFloorKrw: number, costPlusMarginKrw: num
   return Math.max(OPENROUTER_MIN_TURN_COST, Math.max(charFloorKrw, costPlusMarginKrw));
 }
 
+function openRouterMinFloorTurnCost(floorKrw: number, costPlusMarginKrw: number): number {
+  return Math.max(OPENROUTER_MIN_TURN_COST, Math.min(floorKrw, costPlusMarginKrw));
+}
+
 /** Opus — min(글자 상한, 마진 floor) — 1자당 OPENROUTER_OPUS_POINTS_PER_CHAR P 초과 청구 없음 */
 function openRouterOpusPreferredTurnCost(charFloorKrw: number, costPlusMarginKrw: number): number {
   return Math.max(
@@ -646,72 +678,36 @@ export function computeOpenRouterTurnCost(
     return OPENROUTER_ADULT_FIXED_TURN_COST;
   }
 
-  const costKrw = isGeminiProOpenRouterModel(modelId ?? "")
-    ? resolveOpenRouterTurnRawCostKrw(inputTokens, outputTokens, modelId, cache, opts?.billingBasis)
-    : roundCostIntermediate(
-        openRouterUsdCostDetailed({
-          promptTokens: inputTokens,
-          outputTokens,
-          modelId,
-          cacheReadTokens: cache?.cacheReadTokens,
-          cacheWriteTokens: cache?.cacheWriteTokens,
-        }) * getEffectiveKrwPerUsd()
-      );
-
   if (isOpenRouterOpusModel(modelId)) {
-    const actualCostKrw = roundCostIntermediate(
-      openRouterUsdCostDetailed({
-        promptTokens: inputTokens,
-        outputTokens,
-        modelId,
-        cacheReadTokens: cache?.cacheReadTokens,
-        cacheWriteTokens: cache?.cacheWriteTokens,
-      }) * getEffectiveKrwPerUsd()
-    );
-    const cacheRead = Math.max(0, cache?.cacheReadTokens ?? 0);
-    const cacheWrite = Math.max(0, cache?.cacheWriteTokens ?? 0);
-    const standardInputTokens = Math.max(0, inputTokens - cacheRead - cacheWrite);
-    const normalized = openRouterNormalizedUsdCostFromRates({
-      promptTokens: inputTokens,
-      outputTokens,
-      modelId,
-    });
-    const normalizedCostKrw = roundCostIntermediate(normalized.usdCost * getEffectiveKrwPerUsd());
-    logBillingNormalized({
-      modelId,
-      standardInputTokens,
-      cacheReadTokens: cacheRead,
-      cacheWriteTokens: cacheWrite,
-      virtualInputTokens: normalized.virtualInputTokens,
-      cacheHitRateUsdPerM: normalized.cacheHitRateUsdPerM,
-      outputRateUsdPerM: normalized.outputRateUsdPerM,
-      actualApiCostKrw: actualCostKrw,
-      normalizedCostKrw,
-    });
-    const resolved = resolveOpenRouterOpusTurnCharge(actualCostKrw, opts?.outputChars ?? 0);
-    return resolved.total;
+    return openRouterTokenOnlyTurnCost(openRouterOpusCharFloorKrw(opts?.outputChars ?? 0));
   }
 
   if (isDeepSeekV4ProModel(modelId ?? "")) {
-    const tokenFloor = openRouterDeepSeekTokenFloorKrw(outputTokens);
-    const marginCharge = openRouterDeepSeekMarginChargeKrw(costKrw);
-    return openRouterMaxFloorTurnCost(tokenFloor, marginCharge);
+    return openRouterTokenOnlyTurnCost(openRouterDeepSeekTokenFloorKrw(outputTokens));
   }
 
   if (isQwenModel(modelId ?? "")) {
-    const tokenFloor = openRouterQwenTokenFloorKrw(outputTokens);
-    const marginCharge = openRouterQwenMarginChargeKrw(costKrw);
-    return openRouterMaxFloorTurnCost(tokenFloor, marginCharge);
+    return openRouterTokenOnlyTurnCost(openRouterQwenTokenFloorKrw(outputTokens));
   }
 
-  if (isGeminiProOpenRouterModel(modelId ?? "")) {
-    const marginCharge = openRouterGeminiProMarginChargeKrw(costKrw);
-    return Math.max(OPENROUTER_MIN_TURN_COST, chargePoints(marginCharge));
+  if (isGemini25ProModel(modelId ?? "")) {
+    return openRouterTokenOnlyTurnCost(openRouterGemini25TokenFloorKrw(outputTokens));
   }
 
-  const margin = Math.min(0.95, Math.max(0, OPENROUTER_GROSS_MARGIN));
-  const chargeKrw = margin < 1 ? costKrw / (1 - margin) : costKrw;
-  return Math.max(OPENROUTER_MIN_TURN_COST, chargePoints(chargeKrw));
+  if (isGemini31ProModel(modelId ?? "")) {
+    return openRouterTokenOnlyTurnCost(openRouterGemini31TokenFloorKrw(outputTokens));
+  }
+
+  const costKrw = roundCostIntermediate(
+    openRouterUsdCostDetailed({
+      promptTokens: inputTokens,
+      outputTokens,
+      modelId,
+      cacheReadTokens: cache?.cacheReadTokens,
+      cacheWriteTokens: cache?.cacheWriteTokens,
+    }) * getEffectiveKrwPerUsd()
+  );
+  return Math.max(OPENROUTER_MIN_TURN_COST, chargePoints(costKrw));
 }
 
 export type OpenRouterTurnCostBreakdown = {
@@ -752,6 +748,52 @@ function explainOpenRouterMaxFloorTurnCost(
   if (total === OPENROUTER_MIN_TURN_COST && candidate < OPENROUTER_MIN_TURN_COST) {
     applied = "min_turn";
   } else if (floorKrw >= costPlusMarginKrw) {
+    applied = "char_floor";
+  }
+  return { rawCostKrw, charFloorKrw: floorKrw, costPlusMarginKrw, applied, total };
+}
+
+function explainOpenRouterMinFloorTurnCost(
+  inputTokens: number,
+  outputTokens: number,
+  modelId: string,
+  floorKrw: number,
+  marginChargeFn: (rawCostKrw: number) => number,
+  cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">
+): OpenRouterTurnCostBreakdown & { total: number } {
+  const rawCostKrw = roundCostIntermediate(
+    openRouterUsdCostDetailed({
+      promptTokens: inputTokens,
+      outputTokens,
+      modelId,
+      cacheReadTokens: cache?.cacheReadTokens,
+      cacheWriteTokens: cache?.cacheWriteTokens,
+    }) * getEffectiveKrwPerUsd()
+  );
+  const costPlusMarginKrw = marginChargeFn(rawCostKrw);
+  const candidate = Math.min(floorKrw, costPlusMarginKrw);
+  const total = chargePoints(Math.max(OPENROUTER_MIN_TURN_COST, candidate));
+  let applied: OpenRouterTurnCostBreakdown["applied"] = "cost_plus_margin";
+  if (total === OPENROUTER_MIN_TURN_COST && candidate < OPENROUTER_MIN_TURN_COST) {
+    applied = "min_turn";
+  } else if (floorKrw <= costPlusMarginKrw) {
+    applied = "char_floor";
+  }
+  return { rawCostKrw, charFloorKrw: floorKrw, costPlusMarginKrw, applied, total };
+}
+
+function explainOpenRouterMinFloorFromRawCost(
+  rawCostKrw: number,
+  floorKrw: number,
+  marginChargeFn: (rawCostKrw: number) => number
+): OpenRouterTurnCostBreakdown & { total: number } {
+  const costPlusMarginKrw = marginChargeFn(rawCostKrw);
+  const candidate = Math.min(floorKrw, costPlusMarginKrw);
+  const total = chargePoints(Math.max(OPENROUTER_MIN_TURN_COST, candidate));
+  let applied: OpenRouterTurnCostBreakdown["applied"] = "cost_plus_margin";
+  if (total === OPENROUTER_MIN_TURN_COST && candidate < OPENROUTER_MIN_TURN_COST) {
+    applied = "min_turn";
+  } else if (floorKrw <= costPlusMarginKrw) {
     applied = "char_floor";
   }
   return { rawCostKrw, charFloorKrw: floorKrw, costPlusMarginKrw, applied, total };
@@ -964,7 +1006,7 @@ function logOpusTurnPricingTrace(opts: {
   });
 }
 
-/** Opus 과금 상세 — min(글자 상한, 45% 마진) + 원가>상한 시 (원가+상한)/2 */
+/** Opus 과금 상세 — 출력 1자당 0.142P */
 export function explainOpenRouterOpusTurnCost(
   inputTokens: number,
   outputTokens: number,
@@ -990,50 +1032,71 @@ export function explainOpenRouterOpusTurnCost(
   });
   const normalizedRawCostKrw = roundCostIntermediate(normalized.usdCost * getEffectiveKrwPerUsd());
   const charFloorKrw = openRouterOpusCharFloorKrw(outputChars);
-  const costPlusMarginKrw = openRouterOpusMarginChargeKrw(rawCostKrw);
   const resolved = resolveOpenRouterOpusTurnCharge(rawCostKrw, outputChars);
-  logBillingCostDefense({
-    modelId,
-    cacheWriteTokens: cacheWrite,
-    outputChars,
-    actualApiCostPoints: chargePoints(rawCostKrw),
-    charCapPoints: resolved.charCapPoints,
-    uncappedChargePoints: resolved.uncappedChargePoints,
-    costBlendPoints: resolved.costBlendPoints,
-    finalChargePoints: resolved.total,
-    costBlendApplied: resolved.costBlendApplied,
-  });
   return {
     rawCostKrw,
     normalizedRawCostKrw,
     charFloorKrw,
-    costPlusMarginKrw,
+    costPlusMarginKrw: 0,
     applied: resolved.applied,
     total: resolved.total,
     uncappedChargePoints: resolved.uncappedChargePoints,
-    coldStartShieldApplied: resolved.costBlendApplied,
-    coldStartCostFloorPoints: resolved.costBlendPoints,
+    coldStartShieldApplied: false,
+    coldStartCostFloorPoints: undefined,
   };
 }
 
-/** DeepSeek V4 Pro 과금 상세 — max(출력토큰×0.022P, 원가÷0.45) */
+function explainOpenRouterTokenOnlyTurnCost(
+  inputTokens: number,
+  outputTokens: number,
+  modelId: string,
+  floorKrw: number,
+  cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">,
+  billingBasis?: OpenRouterTurnBillingBasis
+): OpenRouterTurnCostBreakdown & { total: number } {
+  const rawCostKrw =
+    isGemini25ProModel(modelId) || isGemini31ProModel(modelId)
+      ? resolveOpenRouterTurnRawCostKrw(inputTokens, outputTokens, modelId, cache, billingBasis)
+      : roundCostIntermediate(
+          openRouterUsdCostDetailed({
+            promptTokens: inputTokens,
+            outputTokens,
+            modelId,
+            cacheReadTokens: cache?.cacheReadTokens,
+            cacheWriteTokens: cache?.cacheWriteTokens,
+          }) * getEffectiveKrwPerUsd()
+        );
+  const total = openRouterTokenOnlyTurnCost(floorKrw);
+  let applied: OpenRouterTurnCostBreakdown["applied"] = "char_floor";
+  if (total === OPENROUTER_MIN_TURN_COST && floorKrw < OPENROUTER_MIN_TURN_COST) {
+    applied = "min_turn";
+  }
+  return {
+    rawCostKrw,
+    charFloorKrw: floorKrw,
+    costPlusMarginKrw: 0,
+    applied,
+    total,
+  };
+}
+
+/** DeepSeek V4 Pro 과금 상세 — 출력토큰×0.022P */
 export function explainOpenRouterDeepSeekTurnCost(
   inputTokens: number,
   outputTokens: number,
   modelId: string,
   cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">
 ): OpenRouterTurnCostBreakdown & { total: number } {
-  return explainOpenRouterMaxFloorTurnCost(
+  return explainOpenRouterTokenOnlyTurnCost(
     inputTokens,
     outputTokens,
     modelId,
     openRouterDeepSeekTokenFloorKrw(outputTokens),
-    openRouterDeepSeekMarginChargeKrw,
     cache
   );
 }
 
-/** Qwen 3.7 과금 상세 — max(출력토큰×0.07P, 원가÷0.55) */
+/** Qwen 3.7 과금 상세 — 출력토큰×0.065P */
 export function explainOpenRouterQwenTurnCost(
   inputTokens: number,
   outputTokens: number,
@@ -1041,17 +1104,52 @@ export function explainOpenRouterQwenTurnCost(
   _outputChars?: number,
   cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">
 ): OpenRouterTurnCostBreakdown & { total: number } {
-  return explainOpenRouterMaxFloorTurnCost(
+  return explainOpenRouterTokenOnlyTurnCost(
     inputTokens,
     outputTokens,
     modelId,
     openRouterQwenTokenFloorKrw(outputTokens),
-    openRouterQwenMarginChargeKrw,
     cache
   );
 }
 
-/** OpenRouter Gemini Pro — 실제 API 원가÷0.45 (55% gross margin floor) */
+/** OpenRouter Gemini 2.5 Pro — 출력토큰×0.065P */
+export function explainOpenRouterGemini25TurnCost(
+  inputTokens: number,
+  outputTokens: number,
+  modelId: string,
+  cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">,
+  billingBasis?: OpenRouterTurnBillingBasis
+): OpenRouterTurnCostBreakdown & { total: number } {
+  return explainOpenRouterTokenOnlyTurnCost(
+    inputTokens,
+    outputTokens,
+    modelId,
+    openRouterGemini25TokenFloorKrw(outputTokens),
+    cache,
+    billingBasis
+  );
+}
+
+/** OpenRouter Gemini 3.1 Pro — 출력토큰×0.072P */
+export function explainOpenRouterGemini31TurnCost(
+  inputTokens: number,
+  outputTokens: number,
+  modelId: string,
+  cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">,
+  billingBasis?: OpenRouterTurnBillingBasis
+): OpenRouterTurnCostBreakdown & { total: number } {
+  return explainOpenRouterTokenOnlyTurnCost(
+    inputTokens,
+    outputTokens,
+    modelId,
+    openRouterGemini31TokenFloorKrw(outputTokens),
+    cache,
+    billingBasis
+  );
+}
+
+/** OpenRouter Gemini Pro — 2.5/3.1 토큰 단가 과금 상세 */
 export function explainOpenRouterGeminiProTurnCost(
   inputTokens: number,
   outputTokens: number,
@@ -1059,14 +1157,22 @@ export function explainOpenRouterGeminiProTurnCost(
   cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">,
   billingBasis?: OpenRouterTurnBillingBasis
 ): OpenRouterTurnCostBreakdown & { total: number } {
-  const rawCostKrw = resolveOpenRouterTurnRawCostKrw(
+  if (isGemini25ProModel(modelId)) {
+    return explainOpenRouterGemini25TurnCost(
+      inputTokens,
+      outputTokens,
+      modelId,
+      cache,
+      billingBasis
+    );
+  }
+  return explainOpenRouterGemini31TurnCost(
     inputTokens,
     outputTokens,
     modelId,
     cache,
     billingBasis
   );
-  return explainOpenRouterMarginOnlyFromRawCost(rawCostKrw, OPENROUTER_GEMINI_PRO_GROSS_MARGIN);
 }
 
 export function computeOpenRouterTurnBilling(opts: {
@@ -1272,13 +1378,10 @@ export function shouldWaiveTurnBilling(
   return null;
 }
 
-/**
- * DeepSeek — 과금 면제 턴이어도 본문이 유의미하게 전달됐으면 최소 차감.
- * (LOOP_ABORT 면제는 극단적 단문·퇴화만 — 대부분 정상 과금으로 처리됨)
- */
-export function resolveDeepSeekWaiverMinimumCharge(
+function resolveModelWaiverMinimumCharge(
   savedText: string,
   waiverReason: BillingWaiverReason,
+  minCost: number,
   opts?: {
     degenerationAborted?: boolean;
     targetResponseChars?: number | null;
@@ -1298,7 +1401,78 @@ export function resolveDeepSeekWaiverMinimumCharge(
   if (!trimmed || isDegenerateOutput(trimmed)) return 0;
   if (isCatastrophicallyShortResponse(trimmed, opts?.targetResponseChars)) return 0;
 
-  return DEEPSEEK_WAIVER_SUCCESS_MIN_COST;
+  return minCost;
+}
+
+/**
+ * DeepSeek — 과금 면제 턴이어도 본문이 유의미하게 전달됐으면 최소 차감.
+ * (LOOP_ABORT 면제는 극단적 단문·퇴화만 — 대부분 정상 과금으로 처리됨)
+ */
+export function resolveDeepSeekWaiverMinimumCharge(
+  savedText: string,
+  waiverReason: BillingWaiverReason,
+  opts?: {
+    degenerationAborted?: boolean;
+    targetResponseChars?: number | null;
+  }
+): number {
+  return resolveModelWaiverMinimumCharge(
+    savedText,
+    waiverReason,
+    DEEPSEEK_WAIVER_SUCCESS_MIN_COST,
+    opts
+  );
+}
+
+/** Qwen — 과금 면제 턴이어도 본문이 유의미하게 전달됐으면 최소 50P 차감 */
+export function resolveQwenWaiverMinimumCharge(
+  savedText: string,
+  waiverReason: BillingWaiverReason,
+  opts?: {
+    degenerationAborted?: boolean;
+    targetResponseChars?: number | null;
+  }
+): number {
+  return resolveModelWaiverMinimumCharge(
+    savedText,
+    waiverReason,
+    QWEN_WAIVER_SUCCESS_MIN_COST,
+    opts
+  );
+}
+
+/** Gemini 2.5 Pro — 과금 면제 턴이어도 본문이 유의미하게 전달됐으면 최소 50P 차감 */
+export function resolveGemini25WaiverMinimumCharge(
+  savedText: string,
+  waiverReason: BillingWaiverReason,
+  opts?: {
+    degenerationAborted?: boolean;
+    targetResponseChars?: number | null;
+  }
+): number {
+  return resolveModelWaiverMinimumCharge(
+    savedText,
+    waiverReason,
+    GEMINI_25_WAIVER_SUCCESS_MIN_COST,
+    opts
+  );
+}
+
+/** Gemini 3.1 Pro — 과금 면제 턴이어도 본문이 유의미하게 전달됐으면 최소 65P 차감 */
+export function resolveGemini31WaiverMinimumCharge(
+  savedText: string,
+  waiverReason: BillingWaiverReason,
+  opts?: {
+    degenerationAborted?: boolean;
+    targetResponseChars?: number | null;
+  }
+): number {
+  return resolveModelWaiverMinimumCharge(
+    savedText,
+    waiverReason,
+    GEMINI_31_WAIVER_SUCCESS_MIN_COST,
+    opts
+  );
 }
 
 const GEMINI_BILLING_MODEL = /^gemini/i;
@@ -1384,7 +1558,7 @@ export function computeTurnBilling(opts: {
   upstreamCostUsd?: number;
   apiPromptTokens?: number;
   apiCompletionTokens?: number;
-  /** OpenRouter Opus — 1자당 0.142P 상한 / DeepSeek — 출력토큰×0.022P / Qwen — 출력토큰×0.07P + 45% 마진 */
+  /** OpenRouter Opus — 1자당 0.142P / DeepSeek·Qwen·Gemini — 출력토큰 단가만 (마진·노트 할증 없음) */
   savedTextChars?: number;
   /** pricing-debug — 완료 턴 수 (messageCount = completedTurnsBeforeRequest + 1) */
   completedTurnsBeforeRequest?: number;

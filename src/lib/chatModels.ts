@@ -36,13 +36,18 @@ export const OPENROUTER_GEMINI_25_PRO_MODEL = "google/gemini-2.5-pro";
 export const OPENROUTER_GEMINI_31_PRO_MODEL = "google/gemini-3.1-pro-preview";
 
 /** 유저-facing 표시명 (채팅 선택·영수증) */
-export const DEEPSEEK_DISPLAY_NAME = "딥 하비";
+export const DEEPSEEK_DISPLAY_NAME = "DeepSeek V4 Pro";
 
 export const QWEN_DISPLAY_NAME = "하비 max";
 
 export const GEMINI_25_PRO_DISPLAY_NAME = "Gemini 2.5 Pro";
 
 export const GEMINI_31_PRO_DISPLAY_NAME = "Gemini 3.1 Pro";
+
+/** 채팅 UI에 Claude Opus 노출 — `OPENROUTER_OPUS_USER_SELECTABLE=1`로 재활성화 */
+export function isOpusUserSelectable(): boolean {
+  return process.env.OPENROUTER_OPUS_USER_SELECTABLE?.trim() === "1";
+}
 
 export const SELECTED_AI_OPTIONS = [
   {
@@ -82,11 +87,6 @@ export function isAnthropicModel(modelId: string): boolean {
   return modelId.toLowerCase().startsWith("anthropic/");
 }
 
-/** selectedAI가 OpenRouter 라우팅 대상인지 (유저 채팅은 전부 OpenRouter) */
-export function isOpenRouterSelectedAI(selected: string): boolean {
-  return isValidSelectedAI(selected);
-}
-
 /** Anthropic(Claude) 전용 — prefill·캐시 breakpoint 적용 기준 */
 export function isClaudeSelectedAI(selected: string): boolean {
   return isAnthropicModel(selected);
@@ -96,6 +96,23 @@ export type SelectedAI = (typeof SELECTED_AI_OPTIONS)[number]["id"];
 export type SelectedAITier = (typeof SELECTED_AI_OPTIONS)[number]["tier"];
 
 export const DEFAULT_SELECTED_AI: SelectedAI = OPENROUTER_DEEPSEEK_V4_PRO_MODEL;
+
+/** 채팅 모델 선택 UI에만 노출 (Opus는 기본 숨김) */
+export const USER_SELECTABLE_AI_OPTIONS = SELECTED_AI_OPTIONS.filter(
+  (o) => isOpusUserSelectable() || !isClaudeSelectedAI(o.id)
+);
+
+export function coerceUserSelectableAI(id: SelectedAI): SelectedAI {
+  if (!isOpusUserSelectable() && isClaudeSelectedAI(id)) {
+    return DEFAULT_SELECTED_AI;
+  }
+  return id;
+}
+
+/** selectedAI가 OpenRouter 라우팅 대상인지 (유저 채팅은 전부 OpenRouter) */
+export function isOpenRouterSelectedAI(selected: string): boolean {
+  return isValidSelectedAI(selected);
+}
 
 /** OpenRouter DeepSeek V4 Pro — generation·prompt·style tuning 대상 */
 export function isDeepSeekV4ProModel(modelId: string): boolean {
@@ -164,11 +181,13 @@ export function isValidSelectedAI(v: unknown): v is SelectedAI {
 }
 
 export function resolveSelectedAI(value: unknown, fallback?: string): SelectedAI {
-  if (isValidSelectedAI(value)) return value;
-  if (typeof value === "string" && LEGACY_TO_SELECTED[value]) return LEGACY_TO_SELECTED[value];
-  if (fallback && isValidSelectedAI(fallback)) return fallback;
-  if (typeof fallback === "string" && LEGACY_TO_SELECTED[fallback]) return LEGACY_TO_SELECTED[fallback];
-  return DEFAULT_SELECTED_AI;
+  let resolved: SelectedAI;
+  if (isValidSelectedAI(value)) resolved = value;
+  else if (typeof value === "string" && LEGACY_TO_SELECTED[value]) resolved = LEGACY_TO_SELECTED[value];
+  else if (fallback && isValidSelectedAI(fallback)) resolved = fallback;
+  else if (typeof fallback === "string" && LEGACY_TO_SELECTED[fallback]) resolved = LEGACY_TO_SELECTED[fallback];
+  else resolved = DEFAULT_SELECTED_AI;
+  return coerceUserSelectableAI(resolved);
 }
 
 /** UI·영수증 표시용 */
