@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createSession } from "@/lib/auth";
 import { isDemoEnv } from "@/lib/demo";
 import { resolvePostGoogleDest, sanitizeOAuthReturnTo, upsertGoogleUser } from "@/lib/googleAuth";
+import { resolvePublicOrigin } from "@/lib/publicOrigin";
 
 const DEV_GOOGLE_SUB = "dev-google-oauth-sub";
 const DEV_GOOGLE_EMAIL = "dev-google@playai.local";
@@ -10,7 +11,7 @@ const DEV_GOOGLE_NAME = "구글데모";
 /** GOOGLE_CLIENT_ID 미설정 시 로컬 개발용 구글 가입/로그인 */
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const origin = url.origin;
+  const origin = resolvePublicOrigin(req);
   const returnTo = sanitizeOAuthReturnTo(url.searchParams.get("returnTo"));
   const redirectAfter = sanitizeOAuthReturnTo(url.searchParams.get("redirect"), "/");
 

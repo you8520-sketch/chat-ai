@@ -2,12 +2,6 @@ import "server-only";
 import { getDb } from "@/lib/db";
 import { creditPoints } from "@/lib/points";
 import { SIGNUP_BONUS_POINTS } from "@/lib/plans";
-import {
-  BETA_INVITE_INVALID_MESSAGE,
-  BETA_INVITE_REQUIRED_MESSAGE,
-  isBetaInviteGateEnabled,
-  isValidBetaInviteCode,
-} from "@/lib/betaInvite";
 
 const SAFE_RETURN_PATH = /^\/(?!\/)[^?#]*$/;
 
@@ -27,15 +21,6 @@ export type GoogleUserInfo = {
   name?: string;
 };
 
-export class BetaInviteRejectedError extends Error {
-  readonly code: "invite_required" | "invite_invalid";
-
-  constructor(code: "invite_required" | "invite_invalid", message: string) {
-    super(message);
-    this.code = code;
-  }
-}
-
 function findExistingGoogleUser(info: GoogleUserInfo): { id: number; pref: string | null } | null {
   const db = getDb();
   const byGoogle = db.prepare("SELECT id, pref FROM users WHERE google_id = ?").get(info.sub) as
@@ -49,20 +34,8 @@ function findExistingGoogleUser(info: GoogleUserInfo): { id: number; pref: strin
   return byEmail ?? null;
 }
 
-export function upsertGoogleUser(
-  info: GoogleUserInfo,
-  inviteCode?: string | null
-): { userId: number; isNew: boolean; pref: string | null } {
+export function upsertGoogleUser(info: GoogleUserInfo): { userId: number; isNew: boolean; pref: string | null } {
   const existing = findExistingGoogleUser(info);
-  if (!existing && isBetaInviteGateEnabled()) {
-    if (!inviteCode?.trim()) {
-      throw new BetaInviteRejectedError("invite_required", BETA_INVITE_REQUIRED_MESSAGE);
-    }
-    if (!isValidBetaInviteCode(inviteCode)) {
-      throw new BetaInviteRejectedError("invite_invalid", BETA_INVITE_INVALID_MESSAGE);
-    }
-  }
-
   const db = getDb();
 
   let user = existing;

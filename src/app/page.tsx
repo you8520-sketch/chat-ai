@@ -1,9 +1,10 @@
+import Link from "next/link";
 import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import HomeCreateEventBanner from "@/components/HomeCreateEventBanner";
 import CharacterCard, { type CharacterRow } from "@/components/CharacterCard";
 import UserPreferenceControls from "@/components/UserPreferenceControls";
-import { fetchHomeSections } from "@/lib/homeSections";
+import { fetchHomeSections, fetchUserCreatedCharacters } from "@/lib/homeSections";
 
 export const dynamic = "force-dynamic";
 
@@ -12,16 +13,25 @@ function Section({
   chars,
   blurNsfw,
   loggedIn,
+  headerLink,
 }: {
   title: string;
   chars: CharacterRow[];
   blurNsfw: boolean;
   loggedIn: boolean;
+  headerLink?: { href: string; label: string };
 }) {
   if (chars.length === 0) return null;
   return (
     <section className="mt-8">
-      <h2 className="mb-3 text-lg font-bold text-white">{title}</h2>
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-lg font-bold text-white">{title}</h2>
+        {headerLink && (
+          <Link href={headerLink.href} className="text-xs text-violet-400 hover:underline">
+            {headerLink.label}
+          </Link>
+        )}
+      </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {chars.map((c) => (
           <CharacterCard key={c.id} c={c} blurNsfw={blurNsfw} loggedIn={loggedIn} />
@@ -38,6 +48,7 @@ export default async function Home() {
   const loggedIn = !!user;
 
   const { recommended, hotNew, newest } = fetchHomeSections(db, user, blurNsfw);
+  const myCharacters = user ? fetchUserCreatedCharacters(db, user.id) : [];
 
   const tasteFilter = (
     <UserPreferenceControls
@@ -52,6 +63,13 @@ export default async function Home() {
   return (
     <div>
       <HomeCreateEventBanner />
+      <Section
+        title="내 제작 캐릭터"
+        chars={myCharacters}
+        blurNsfw={blurNsfw}
+        loggedIn={loggedIn}
+        headerLink={{ href: "/studio", label: "제작 메뉴 →" }}
+      />
       <section className="mt-8">
         {tasteFilter}
         <h2 className="mt-4 mb-3 text-lg font-bold text-white">취향 기반 추천</h2>

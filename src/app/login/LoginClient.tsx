@@ -78,7 +78,9 @@ function LoginForm({ showDemo }: { showDemo: boolean }) {
           로그인
         </button>
       </form>
-      {showDemo && <DemoLoginButton redirectTo={redirectTo} />}
+      {showDemo && (
+        <DemoLoginButton redirectTo={redirectTo === "/" ? "/studio" : redirectTo} />
+      )}
       <p className="mt-4 text-center text-sm text-gray-500">
         계정이 없나요?{" "}
         <Link href="/signup" className="text-violet-400 hover:underline">

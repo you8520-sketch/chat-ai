@@ -14,13 +14,11 @@ function SignupForm() {
     nickname: string;
     password: string;
     pref: "" | "female" | "male" | "all";
-    inviteCode: string;
   }>({
     email: "",
     nickname: "",
     password: "",
     pref: "",
-    inviteCode: "",
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -40,7 +38,6 @@ function SignupForm() {
       body: JSON.stringify({
         ...rest,
         pref: pref === "all" ? null : pref,
-        inviteCode: form.inviteCode.trim() || undefined,
       }),
     });
     setLoading(false);
@@ -62,18 +59,7 @@ function SignupForm() {
         가입 즉시 {SIGNUP_BONUS_POINTS.toLocaleString("ko-KR")}P 지급!
       </p>
       <div className="mt-6">
-        <input
-          placeholder="베타 초대 코드"
-          className={`${cls} mb-3`}
-          value={form.inviteCode}
-          onChange={(e) => setForm({ ...form, inviteCode: e.target.value })}
-          autoComplete="off"
-        />
-        <GoogleButton
-          label="Google 계정으로 가입"
-          returnTo="/signup"
-          inviteCode={form.inviteCode}
-        />
+        <GoogleButton label="Google 계정으로 가입" returnTo="/signup" />
         <Suspense>
           <GoogleAuthError />
         </Suspense>

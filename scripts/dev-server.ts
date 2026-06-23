@@ -60,6 +60,15 @@ const env: NodeJS.ProcessEnv = {
   NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --max-old-space-size=8192`.trim(),
 };
 
+const defaultDataDir = join(root, "data");
+const rawDataDir = env.DATA_DIR?.trim();
+if (!rawDataDir || /[/\\]tmp-/i.test(rawDataDir)) {
+  if (rawDataDir && /[/\\]tmp-/i.test(rawDataDir)) {
+    console.warn(`[dev] Overriding shell DATA_DIR (${rawDataDir}) → ${defaultDataDir}`);
+  }
+  env.DATA_DIR = defaultDataDir;
+}
+
 const child = spawn("tsx", ["server.js"], {
   cwd: root,
   stdio: "inherit",

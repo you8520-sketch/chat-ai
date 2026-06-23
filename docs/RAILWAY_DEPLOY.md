@@ -1,6 +1,6 @@
 # Railway closed-beta deployment
 
-Manual steps in Railway dashboard and Google Console, plus env vars and invite codes.
+Manual steps in Railway dashboard and Google Console, plus env vars for closed beta (open signup, payments off).
 
 ---
 
@@ -49,8 +49,8 @@ Set these before going live (values you provide separately):
 | `OPENROUTER_APP_TITLE` | `PlayAI` (optional) |
 | `GOOGLE_CLIENT_ID` | Google OAuth client ID |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
-| `BETA_INVITE_CODES` | See **Part C** — comma-separated, no spaces |
-| `PORTONE_CHARGE_ENABLED` | `0` |
+| `PORTONE_CHARGE_ENABLED` | `0` — hides shop / blocks charge APIs during closed beta |
+| `NEXT_PUBLIC_PAYMENTS_ENABLED` | `0` — client UI (header shop icon, charge buttons) |
 | `DISABLE_PAYOUT_SCHEDULER` | `1` |
 | `HOSTNAME` | `0.0.0.0` (optional; server defaults to this in production) |
 
@@ -107,18 +107,12 @@ Payout scheduler is **disabled** when `DISABLE_PAYOUT_SCHEDULER=1`.
 
 ---
 
-## Part C — Beta invite codes (distribute one per tester)
+## Part C — Closed beta (no payments)
 
-Set in `BETA_INVITE_CODES` (comma-separated):
-
-```
-BETA-K7M2XN4Q,BETA-H9P3W8RL,BETA-T5J6C1VD,BETA-M8F4Y2KH,BETA-R3N7B9XP,BETA-W6L1Q5ZT,BETA-D4V8S2NJ,BETA-G7X3M6KP
-```
-
-- Case-insensitive at signup.
-- **Existing users** can log in without a code.
-- **New** email or Google signups require a valid code when `BETA_INVITE_CODES` is set.
-- Leave `BETA_INVITE_CODES` empty locally to disable the gate during development.
+- **Signup:** anyone can register (email or Google). No invite code.
+- **Points:** testers apply via main banner → **무료 포인트 신청** → admin approves with custom amount.
+- **Payments:** with `PORTONE_CHARGE_ENABLED=0` and `NEXT_PUBLIC_PAYMENTS_ENABLED=0`, point purchase UI and APIs are disabled (no PortOne checkout, no mock charge).
+- **Re-enable payments after business registration:** set both to `1` (and configure `PORTONE_API_SECRET` for live checkout).
 
 ---
 
@@ -146,11 +140,10 @@ This app uses a **long-running Node `server.js`**, not Vercel serverless functio
 ## Part F — Verify after deploy
 
 1. `https://<domain>/api/health` → `{"ok":true,"service":"playai"}`
-2. Signup without code → rejected (when `BETA_INVITE_CODES` set)
-3. Signup with valid code → success
-4. Google signup with code entered first → success
-5. Send a chat message → streaming works
-6. Restart service in Railway → data still present (volume)
+2. Signup (email or Google) → success without invite code
+3. `/points` → no charge packages; link to 무료 포인트 신청
+4. Send a chat message → streaming works
+5. Restart service in Railway → data still present (volume)
 
 ---
 

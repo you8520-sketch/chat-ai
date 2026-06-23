@@ -95,7 +95,7 @@ app.prepare().then(() => {
     console.log(
       `[boot-timing] listen at ${Date.now()} (+${Date.now() - bootStart}ms from process start)`
     );
-    console.log(`> Ready on http://${hostname}:${port}${dev ? " (dev)" : ""}`);
+    console.log(`> Ready on http://${hostname === "0.0.0.0" ? "localhost" : hostname}:${port}${dev ? " (dev)" : ""}`);
     void runBackgroundInitialization();
   });
 });

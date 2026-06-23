@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { PLANS, type PlanId } from "@/lib/plans";
+import { isPaymentsEnabled, PAYMENTS_DISABLED_MESSAGE } from "@/lib/portoneConfig";
 import {
   activateSubscription,
   canSubscribe,
@@ -20,6 +21,10 @@ function lastPointLogId(db: ReturnType<typeof getDb>, userId: number): number {
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+
+  if (!isPaymentsEnabled()) {
+    return NextResponse.json({ error: PAYMENTS_DISABLED_MESSAGE }, { status: 403 });
+  }
 
   processDueRenewals();
 

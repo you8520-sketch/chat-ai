@@ -12,6 +12,7 @@ import PointsShopLink from "./PointsShopLink";
 import HeaderMainNavRow from "./HeaderMainNavRow";
 import UserPreferenceControls from "./UserPreferenceControls";
 import { getPointBalance } from "@/lib/points";
+import { isPaymentsEnabled } from "@/lib/portoneConfig";
 const topLinks = [
   { href: "/board/notice", label: "공지사항", noticeBadge: true },
   { href: "/board/inquiry", label: "문의 게시판" },
@@ -28,6 +29,7 @@ export default async function Header() {
   const unreadNotice = hasUnreadNotices(latestNoticeId, readId);
   const unreadCount = getTotalUnreadCount(db, user?.id ?? null, readId);
   const pointBalance = user ? getPointBalance(user.id) : null;
+  const paymentsEnabled = isPaymentsEnabled();
 
   return (
     <>
@@ -66,7 +68,7 @@ export default async function Header() {
                   initialPaid={pointBalance?.paid ?? 0}
                   initialFree={pointBalance?.free ?? 0}
                 />
-                <PointsShopLink />
+                {paymentsEnabled && <PointsShopLink />}
               </div>
               {!user.is_adult && (
                 <Link href="/verify" className="text-amber-300 hover:underline">

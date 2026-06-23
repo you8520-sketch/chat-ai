@@ -66,10 +66,10 @@ export default function SettingsClient({ user }: Props) {
               무료 포인트 지급
             </Link>
             <Link
-              href="/admin/create-migration"
+              href="/admin/beta-free-points"
               className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-white/5"
             >
-              캐릭터 이식 이벤트 검수
+              클로즈베타 포인트 신청 관리
             </Link>
             <Link
               href="/admin/payout"

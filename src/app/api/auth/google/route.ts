@@ -2,15 +2,14 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { isDemoEnv } from "@/lib/demo";
 import { isGoogleAuthConfigured, sanitizeOAuthReturnTo } from "@/lib/googleAuth";
+import { googleOAuthCallbackUrl, resolvePublicOrigin } from "@/lib/publicOrigin";
 
 // 구글 로그인/회원가입 시작: 구글 동의 화면으로 리다이렉트
 export async function GET(req: Request) {
   const url = new URL(req.url);
-  const origin = url.origin;
+  const origin = resolvePublicOrigin(req);
   const returnTo = sanitizeOAuthReturnTo(url.searchParams.get("returnTo"));
   const redirectAfter = sanitizeOAuthReturnTo(url.searchParams.get("redirect"), "/");
-  const inviteCode = url.searchParams.get("inviteCode")?.trim() ?? "";
-
   if (!isGoogleAuthConfigured()) {
     if (isDemoEnv()) {
       const devUrl = new URL(`${origin}/api/auth/google/dev`);
@@ -25,7 +24,7 @@ export async function GET(req: Request) {
   const state = crypto.randomBytes(16).toString("hex");
   const params = new URLSearchParams({
     client_id: clientId,
-    redirect_uri: `${origin}/api/auth/google/callback`,
+    redirect_uri: googleOAuthCallbackUrl(origin),
     response_type: "code",
     scope: "openid email profile",
     state,
@@ -40,13 +39,5 @@ export async function GET(req: Request) {
     maxAge: 600,
     path: "/",
   });
-  if (inviteCode) {
-    res.cookies.set("oauth_invite_code", inviteCode, {
-      httpOnly: true,
-      sameSite: "lax",
-      maxAge: 600,
-      path: "/",
-    });
-  }
   return res;
 }

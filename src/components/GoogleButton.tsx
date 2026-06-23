@@ -2,16 +2,13 @@ export default function GoogleButton({
   label,
   returnTo = "/login",
   redirect,
-  inviteCode,
 }: {
   label: string;
   returnTo?: string;
   redirect?: string;
-  inviteCode?: string;
 }) {
   const params = new URLSearchParams({ returnTo });
   if (redirect?.trim()) params.set("redirect", redirect.trim());
-  if (inviteCode?.trim()) params.set("inviteCode", inviteCode.trim());
 
   return (
     <a

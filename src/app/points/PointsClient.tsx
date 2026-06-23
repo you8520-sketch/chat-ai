@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import AttendanceBanner from "@/components/AttendanceBanner";
@@ -170,6 +171,7 @@ export default function PointsClient({
   freeTotalPages: initialFreeTotalPages,
   initialCheckedIn,
   portoneEnabled = false,
+  paymentsEnabled = true,
   userEmail = "",
   userNickname = "",
 }: {
@@ -190,6 +192,7 @@ export default function PointsClient({
   freeTotalPages: number;
   initialCheckedIn: boolean;
   portoneEnabled?: boolean;
+  paymentsEnabled?: boolean;
   userEmail?: string;
   userNickname?: string;
 }) {
@@ -428,6 +431,23 @@ export default function PointsClient({
         <AttendanceBanner loggedIn initialCheckedIn={initialCheckedIn} />
       </div>
 
+      {!paymentsEnabled && (
+        <div className="mt-8 rounded-2xl border border-violet-500/25 bg-violet-950/30 p-5">
+          <p className="text-sm font-bold text-violet-200">클로즈베타 기간</p>
+          <p className="mt-2 text-sm text-gray-400">
+            포인트 구매·결제는 오픈 전까지 제공되지 않습니다. 무료 포인트가 필요하면 신청해 주세요.
+          </p>
+          <Link
+            href="/events/beta-free-points"
+            className="mt-4 inline-block rounded-xl bg-emerald-500 px-5 py-2.5 text-sm font-bold text-black hover:bg-emerald-400"
+          >
+            무료 포인트 신청하기
+          </Link>
+        </div>
+      )}
+
+      {paymentsEnabled && (
+        <>
       <h2 className="mt-8 text-lg font-bold text-white">포인트 충전</h2>
       <p className="mt-1 text-xs text-gray-500">
         결제 금액과 동일한 <b className="text-gray-300">유료 포인트</b>가 지급됩니다 (₩10,000 = 10,000P). 보너스는{" "}
@@ -464,6 +484,8 @@ export default function PointsClient({
           ? "※ PortOne V2 결제창으로 충전합니다. (테스트 카드는 포트원 문서 참고)"
           : "※ PortOne 미설정 — 모의 결제로 즉시 충전됩니다."}
       </p>
+        </>
+      )}
 
       <h2 className="mt-8 text-lg font-bold text-white">포인트 선물</h2>
       <div className="mt-3 rounded-2xl border border-white/5 bg-[#131626] p-5">

@@ -3,25 +3,11 @@ import { getDb } from "@/lib/db";
 import { hashPassword, createSession } from "@/lib/auth";
 import { creditPoints } from "@/lib/points";
 import { SIGNUP_BONUS_POINTS } from "@/lib/plans";
-import {
-  BETA_INVITE_INVALID_MESSAGE,
-  BETA_INVITE_REQUIRED_MESSAGE,
-  isBetaInviteGateEnabled,
-  isValidBetaInviteCode,
-} from "@/lib/betaInvite";
 
 export async function POST(req: Request) {
-  const { email, nickname, password, pref, inviteCode } = await req.json();
+  const { email, nickname, password, pref } = await req.json();
   if (!email || !nickname || !password || password.length < 6) {
     return NextResponse.json({ error: "이메일, 닉네임, 비밀번호(6자 이상)를 입력하세요." }, { status: 400 });
-  }
-  if (isBetaInviteGateEnabled()) {
-    if (!inviteCode?.trim()) {
-      return NextResponse.json({ error: BETA_INVITE_REQUIRED_MESSAGE }, { status: 403 });
-    }
-    if (!isValidBetaInviteCode(inviteCode)) {
-      return NextResponse.json({ error: BETA_INVITE_INVALID_MESSAGE }, { status: 403 });
-    }
   }
   const storedPref = pref === "all" || pref === null ? null : pref;
   if (!["female", "male", null].includes(storedPref)) {

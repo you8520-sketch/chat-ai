@@ -4,6 +4,7 @@
  * Usage:
  *   npx tsx scripts/set-admin.ts --list
  *   npx tsx scripts/set-admin.ts --email you@example.com
+ *   npx tsx scripts/set-admin.ts --email you@example.com --dev
  *   npx tsx scripts/set-admin.ts --email you@example.com --revoke
  *   npx tsx scripts/set-admin.ts --id 1
  */
@@ -17,6 +18,7 @@ function parseArgs(argv: string[]) {
   let id: number | null = null;
   let revoke = false;
   let list = false;
+  let dev = false;
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -24,13 +26,14 @@ function parseArgs(argv: string[]) {
     else if (arg === "--id" && argv[i + 1]) id = Number(argv[++i]);
     else if (arg === "--revoke") revoke = true;
     else if (arg === "--list") list = true;
+    else if (arg === "--dev") dev = true;
   }
 
-  return { email, id, revoke, list };
+  return { email, id, revoke, list, dev };
 }
 
 function main() {
-  const { email, id, revoke, list } = parseArgs(process.argv.slice(2));
+  const { email, id, revoke, list, dev } = parseArgs(process.argv.slice(2));
   const db = new Database(dbPath);
 
   if (list) {
@@ -73,14 +76,31 @@ function main() {
   const next = revoke ? 0 : 1;
   db.prepare("UPDATE users SET is_admin=? WHERE id=?").run(next, user.id);
 
+  if (dev && !revoke) {
+    db.prepare(
+      `UPDATE users SET is_adult=1, nsfw_on=1,
+       real_name=COALESCE(NULLIF(real_name, ''), nickname) WHERE id=?`
+    ).run(user.id);
+  }
+
+  const flags = db
+    .prepare("SELECT is_admin, is_adult, nsfw_on, real_name FROM users WHERE id=?")
+    .get(user.id) as { is_admin: number; is_adult: number; nsfw_on: number; real_name: string };
+
   console.log(
     revoke
       ? `Revoked admin: #${user.id} ${user.email} (${user.nickname})`
       : `Granted admin: #${user.id} ${user.email} (${user.nickname})`
   );
+  if (dev && !revoke) {
+    console.log(
+      `Dev adult flags: is_adult=${flags.is_adult} nsfw_on=${flags.nsfw_on} real_name=${flags.real_name || "(nickname)"}`
+    );
+  }
   console.log("\nAdmin pages:");
-  console.log("  http://localhost:3000/admin/create-migration");
-  console.log("  http://localhost:3000/admin/payout");
+  console.log("  http://localhost:8092/admin/beta-free-points");
+  console.log("  http://localhost:8092/admin/point-grant");
+  console.log("  http://localhost:8092/admin/payout");
 }
 
 main();

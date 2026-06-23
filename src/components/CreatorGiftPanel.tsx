@@ -8,6 +8,7 @@ import {
   MIN_POINT_GIFT_AMOUNT,
   POINT_GIFT_FEE_RATE,
 } from "@/lib/pointGiftsShared";
+import { isPaymentsEnabledClient } from "@/lib/paymentsEnabledClient";
 
 type Props = {
   recipientId: number;
@@ -217,9 +218,15 @@ export default function CreatorGiftPanel({
                 {paidPoints < MIN_POINT_GIFT_AMOUNT && (
                   <p className="mt-3 text-xs text-amber-300/90">
                     유료 포인트가 부족합니다.{" "}
-                    <Link href="/points" className="underline hover:text-amber-200">
-                      포인트 충전
-                    </Link>
+                    {isPaymentsEnabledClient() ? (
+                      <Link href="/points" className="underline hover:text-amber-200">
+                        포인트 충전
+                      </Link>
+                    ) : (
+                      <Link href="/events/beta-free-points" className="underline hover:text-amber-200">
+                        무료 포인트 신청
+                      </Link>
+                    )}
                   </p>
                 )}
 

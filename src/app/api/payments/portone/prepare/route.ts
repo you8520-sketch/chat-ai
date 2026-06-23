@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
-import { isPortOneBrowserConfigured } from "@/lib/portoneConfig";
+import { isPortOneBrowserConfigured, isPaymentsEnabled, PAYMENTS_DISABLED_MESSAGE } from "@/lib/portoneConfig";
 import { createPortoneCheckout } from "@/lib/portoneCheckout";
 import type { PointChargePackageId } from "@/lib/plans";
 
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+
+  if (!isPaymentsEnabled()) {
+    return NextResponse.json({ error: PAYMENTS_DISABLED_MESSAGE }, { status: 403 });
+  }
 
   if (!isPortOneBrowserConfigured()) {
     return NextResponse.json({ error: "PortOne 결제 설정이 없습니다." }, { status: 503 });

@@ -138,6 +138,7 @@ function migrate(db: Database.Database) {
   };
   addColumn("users", "google_id", "TEXT");
   addColumn("users", "pref", "TEXT");
+  addColumn("users", "sub_until", "TEXT");
   addColumn("users", "sub_plan", "TEXT");
   addColumn("users", "sub_auto_renew", "INTEGER NOT NULL DEFAULT 0");
   addColumn("users", "notice_last_read_id", "INTEGER NOT NULL DEFAULT 0");
@@ -385,15 +386,6 @@ function migrate(db: Database.Database) {
       ON point_transactions(user_id, point_type, expires_at);
   `);
   migratePointsLedger(db);
-  db.prepare(
-    "UPDATE posts SET content=? WHERE board='faq' AND title='포인트는 어떻게 차감되나요?'"
-  ).run("대화에 사용된 LLM 토큰만큼 차감됩니다. 일반 대화는 1,000토큰당 입력 18P/출력 54P, NSFW 대화는 입력 20P/출력 60P입니다. 평균 1회 대화 기준 약 225P가 차감되며, 메시지 하단 비용 버튼에서 상세 내역을 확인할 수 있습니다.");
-  db.prepare(
-    "UPDATE posts SET title=?, content=? WHERE board='faq' AND title='월 구독은 어떤 혜택이 있나요?'"
-  ).run(
-    "멤버십은 어떤 혜택이 있나요?",
-    "베이직(월 19,000원)은 무료 포인트 20,000P(지급일로부터 2개월 유효) + 장기 기억 5,000자, 프로(월 47,500원)는 무료 포인트 50,000P(지급일로부터 2개월 유효) + 장기 기억 10,000자 혜택이 제공됩니다. 모든 무료 포인트(멤버십·충전 보너스·이벤트 포함)는 지급일로부터 2개월간 사용 가능합니다. 구독은 월 1회 정기결제이며, 구독 기간 중 연장·재결제는 불가하고 만료 후에만 갱신됩니다. (무료 회원 장기 기억: 2,000자)"
-  );
   db.exec(`
     CREATE TABLE IF NOT EXISTS comments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -413,6 +405,37 @@ function migrate(db: Database.Database) {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+  db.prepare(
+    "DELETE FROM comments WHERE post_id IN (SELECT id FROM posts WHERE board='faq' AND title != '캐릭터 제작은 누구나 가능한가요?')"
+  ).run();
+  db.prepare(
+    "DELETE FROM posts WHERE board='faq' AND title != '캐릭터 제작은 누구나 가능한가요?'"
+  ).run();
+  const charCreateFaq = db
+    .prepare("SELECT id FROM posts WHERE board='faq' AND title='캐릭터 제작은 누구나 가능한가요?'")
+    .get() as { id: number } | undefined;
+  if (!charCreateFaq) {
+    db.prepare("INSERT INTO posts (board, title, content, author_name) VALUES (?,?,?,?)").run(
+      "faq",
+      "캐릭터 제작은 누구나 가능한가요?",
+      "캐릭터 제작은 성인인증을 완료한 회원만 가능합니다.",
+      "운영팀"
+    );
+  }
+  db.prepare(
+    "DELETE FROM posts WHERE board='notice' AND title IN ('서비스 오픈 안내', 'NSFW 콘텐츠 이용 안내')"
+  ).run();
+  const betaNotice = db
+    .prepare("SELECT id FROM posts WHERE board='notice' AND title='클로즈베타 테스트중'")
+    .get() as { id: number } | undefined;
+  if (!betaNotice) {
+    db.prepare("INSERT INTO posts (board, title, content, author_name) VALUES (?,?,?,?)").run(
+      "notice",
+      "클로즈베타 테스트중",
+      "클로즈베타 테스트가 진행 중입니다. 메인 화면의 「무료 포인트 신청하기」에서 신청하시면 관리자 검토 후 무료 포인트가 지급됩니다.",
+      "운영팀"
+    );
+  }
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_chats_character_created
       ON chats(character_id, created_at);
@@ -646,6 +669,22 @@ function migrate(db: Database.Database) {
       ON create_migration_event_applications(user_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_cme_status
       ON create_migration_event_applications(status, created_at DESC);
+  `);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS beta_free_point_applications (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')),
+      reward_amount REAL,
+      admin_note TEXT NOT NULL DEFAULT '',
+      reviewed_by INTEGER,
+      reviewed_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_beta_free_point_user
+      ON beta_free_point_applications(user_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_beta_free_point_status
+      ON beta_free_point_applications(status, created_at DESC);
   `);
   db.exec(`
     CREATE TABLE IF NOT EXISTS portone_checkouts (
@@ -966,11 +1005,18 @@ function seed(db: Database.Database) {
   const tx = db.transaction(() => {
     for (const c of chars) ins.run({ ...c, audience: audienceMap[c.name] ?? "all" });
     const post = db.prepare("INSERT INTO posts (board, title, content, author_name) VALUES (?,?,?,?)");
-    post.run("notice", "서비스 오픈 안내", "AI 캐릭터 챗 서비스가 오픈했습니다. 신규 가입 시 1,000P가 지급됩니다.", "운영팀");
-    post.run("notice", "NSFW 콘텐츠 이용 안내", "NSFW 콘텐츠는 성인인증 완료 후 마이페이지에서 NSFW 표시를 켜야 이용할 수 있습니다.", "운영팀");
-    post.run("faq", "포인트는 어떻게 차감되나요?", "대화에 사용된 LLM 토큰만큼 차감됩니다. 일반 대화는 1,000토큰당 입력 18P/출력 54P, NSFW 대화는 입력 20P/출력 60P입니다. 평균 1회 대화 기준 약 225P가 차감되며, 메시지 하단 비용 버튼에서 상세 내역을 확인할 수 있습니다.", "운영팀");
-    post.run("faq", "캐릭터 제작은 누구나 가능한가요?", "캐릭터 제작은 성인인증을 완료한 회원만 가능합니다.", "운영팀");
-    post.run("faq", "멤버십은 어떤 혜택이 있나요?", "베이직(월 19,000원)은 무료 포인트 20,000P(지급일로부터 2개월 유효) + 장기 기억 5,000자, 프로(월 47,500원)는 무료 포인트 50,000P(지급일로부터 2개월 유효) + 장기 기억 10,000자 혜택이 제공됩니다. 모든 무료 포인트(멤버십·충전 보너스·이벤트 포함)는 지급일로부터 2개월간 사용 가능합니다. 구독은 월 1회 정기결제이며, 구독 기간 중 연장·재결제는 불가하고 만료 후에만 갱신됩니다. (무료 회원 장기 기억: 2,000자)", "운영팀");
+    post.run(
+      "notice",
+      "클로즈베타 테스트중",
+      "클로즈베타 테스트가 진행 중입니다. 메인 화면의 「무료 포인트 신청하기」에서 신청하시면 관리자 검토 후 무료 포인트가 지급됩니다.",
+      "운영팀"
+    );
+    post.run(
+      "faq",
+      "캐릭터 제작은 누구나 가능한가요?",
+      "캐릭터 제작은 성인인증을 완료한 회원만 가능합니다.",
+      "운영팀"
+    );
   });
   tx();
 }

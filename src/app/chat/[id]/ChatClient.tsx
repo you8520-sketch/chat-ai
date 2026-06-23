@@ -13,6 +13,7 @@ import ChatRoomDisplayQuickRail from "@/components/ChatRoomDisplayQuickRail";
 import RelationshipMetaDock from "@/components/RelationshipMetaDock";
 import { CONTINUE_USER_DISPLAY, isContinueUserMessage } from "@/lib/continueNarrative";
 import { GEMINI_TRAFFIC_OVERLOAD_MESSAGE } from "@/lib/geminiTrafficError";
+import { isPaymentsEnabledClient } from "@/lib/paymentsEnabledClient";
 import FloatingPointsDeduction from "@/components/FloatingPointsDeduction";
 import BookmarksPanel from "@/components/BookmarksPanel";
 import MessageBubbleToolbar from "@/components/MessageBubbleToolbar";
@@ -1845,7 +1846,9 @@ export default function ChatClient({
       if (!res.ok) {
         setError(data.error || "오류가 발생했습니다.");
         if (data.needVerify) router.push("/verify");
-        if (data.needCharge) router.push("/points");
+        if (data.needCharge) {
+          router.push(isPaymentsEnabledClient() ? "/points" : "/events/beta-free-points");
+        }
         rollback();
         if (restoreInput != null) setInput(restoreInput);
       }

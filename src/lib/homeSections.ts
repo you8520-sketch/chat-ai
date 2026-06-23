@@ -226,6 +226,18 @@ export function fetchNewestCharacters(
     .all(...filter.params, ...excludeParams, limit) as CharacterRow[];
 }
 
+export function fetchUserCreatedCharacters(
+  db: Database.Database,
+  userId: number,
+  limit = 10
+): CharacterRow[] {
+  return db
+    .prepare(
+      `SELECT * FROM characters WHERE creator_id = ? ORDER BY created_at DESC, id DESC LIMIT ?`
+    )
+    .all(userId, limit) as CharacterRow[];
+}
+
 export function fetchHomeSections(
   db: Database.Database,
   user: { id?: number; pref?: string | null } | null | undefined,
