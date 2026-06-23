@@ -137,7 +137,7 @@ type OpusTurnChargeResult = {
   marginChargePoints: number;
   costBlendApplied: boolean;
   costBlendPoints?: number;
-  applied: "char_floor" | "cost_plus_margin" | "min_turn" | "cost_blend";
+  applied: "char_floor" | "cost_plus_margin" | "min_turn" | "cost_blend" | "cold_start_shield";
 };
 
 /** Opus — min(45% 마진, 0.142P/자); 원가>0.142P/자 상한이면 (원가+글자수×0.135P)/2 */

@@ -204,7 +204,7 @@ export function scheduleStatusMetaExtraction(opts: {
       writeMeta(
         opts.messageId,
         {
-          tableMarkdown: rebalanceTableMarkdownWithFormatSpec(prefilled, formatSpec),
+          tableMarkdown: rebalanceTableMarkdownWithFormatSpec(prefilled, formatSpec ?? ""),
           datetime: "",
           location: "",
           relationship: "",

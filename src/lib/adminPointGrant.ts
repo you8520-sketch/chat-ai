@@ -2,11 +2,19 @@ import type Database from "better-sqlite3";
 import { getDb } from "./db";
 import { creditPointsWithIds, type PointBalance } from "./points";
 import { notifyAdminPointGrant } from "./userNotifications";
+import {
+  ADMIN_FREE_POINT_GRANT_REASON_PREFIX,
+  MAX_ADMIN_FREE_POINT_GRANT,
+  MAX_ADMIN_FREE_POINT_GRANT_NOTE_LENGTH,
+  MIN_ADMIN_FREE_POINT_GRANT,
+} from "./adminPointGrantConstants";
 
-export const ADMIN_FREE_POINT_GRANT_REASON_PREFIX = "관리자 무료 포인트 지급";
-export const MIN_ADMIN_FREE_POINT_GRANT = 1;
-export const MAX_ADMIN_FREE_POINT_GRANT = 1_000_000;
-export const MAX_ADMIN_FREE_POINT_GRANT_NOTE_LENGTH = 120;
+export {
+  ADMIN_FREE_POINT_GRANT_REASON_PREFIX,
+  MAX_ADMIN_FREE_POINT_GRANT,
+  MAX_ADMIN_FREE_POINT_GRANT_NOTE_LENGTH,
+  MIN_ADMIN_FREE_POINT_GRANT,
+} from "./adminPointGrantConstants";
 
 export class AdminPointGrantError extends Error {
   constructor(

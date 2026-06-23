@@ -910,24 +910,17 @@ export async function generateHtmlVisualCardWithFlash(
         { maxTokens }
       );
 
-    let usage: TokenUsage | null = null;
-    let text = "";
+    const first = await callFlash(system);
+    let accumulatedFlashUsage: TokenUsage = first.usage;
+    let text = first.text;
     const mergeUsage = (next: TokenUsage) => {
-      if (!usage) {
-        usage = next;
-        return;
-      }
-      usage = {
-        ...usage,
-        inputTokens: usage.inputTokens + next.inputTokens,
-        outputTokens: usage.outputTokens + next.outputTokens,
-        estimated: usage.estimated || next.estimated,
+      accumulatedFlashUsage = {
+        ...accumulatedFlashUsage,
+        inputTokens: accumulatedFlashUsage.inputTokens + next.inputTokens,
+        outputTokens: accumulatedFlashUsage.outputTokens + next.outputTokens,
+        estimated: accumulatedFlashUsage.estimated || next.estimated,
       };
     };
-
-    const first = await callFlash(system);
-    mergeUsage(first.usage);
-    text = first.text;
     let block = normalizeHtmlFlashOutput(text, oocCustomHtml, opts.userMessage);
     if (oocCustomHtml && block && !oocFlashBlockAccepted(block, opts.userMessage)) block = null;
 
@@ -985,9 +978,9 @@ Build a Twitter/X-style **anonymous message inbox** UI:
 
     console.log("[html-flash] API usage", {
       chatId: opts.chatId,
-      inputTokens: usage?.inputTokens,
-      outputTokens: usage?.outputTokens,
-      estimated: usage?.estimated,
+      inputTokens: accumulatedFlashUsage.inputTokens,
+      outputTokens: accumulatedFlashUsage.outputTokens,
+      estimated: accumulatedFlashUsage.estimated,
     });
 
     if (block) {
@@ -998,17 +991,17 @@ Build a Twitter/X-style **anonymous message inbox** UI:
           });
           block = null;
         } else {
-          return flashGenerateResult(block, usage, promptEstimateTokens);
+          return flashGenerateResult(block, accumulatedFlashUsage, promptEstimateTokens);
         }
       }
-      if (opts.policy.statusFieldLabels.length > 0) {
+      if (block && opts.policy.statusFieldLabels.length > 0) {
         const enforced = enforceHtmlStatusWindowFieldLabels(
           block,
           opts.policy.statusFieldLabels
         );
-        if (enforced) return flashGenerateResult(enforced, usage, promptEstimateTokens);
+        if (enforced) return flashGenerateResult(enforced, accumulatedFlashUsage, promptEstimateTokens);
       }
-      return flashGenerateResult(block, usage, promptEstimateTokens);
+      return flashGenerateResult(block, accumulatedFlashUsage, promptEstimateTokens);
     }
 
     if (!oocCustomHtml) {
@@ -1027,9 +1020,9 @@ Build a Twitter/X-style **anonymous message inbox** UI:
           partialRebuild,
           opts.policy.statusFieldLabels
         );
-        if (enforced) return flashGenerateResult(enforced, usage, promptEstimateTokens);
+        if (enforced) return flashGenerateResult(enforced, accumulatedFlashUsage, promptEstimateTokens);
       }
-      return flashGenerateResult(partialRebuild, usage, promptEstimateTokens);
+      return flashGenerateResult(partialRebuild, accumulatedFlashUsage, promptEstimateTokens);
     }
     }
 

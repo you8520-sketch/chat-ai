@@ -7,7 +7,7 @@ import {
   MAX_ADMIN_FREE_POINT_GRANT,
   MAX_ADMIN_FREE_POINT_GRANT_NOTE_LENGTH,
   MIN_ADMIN_FREE_POINT_GRANT,
-} from "@/lib/adminPointGrant";
+} from "@/lib/adminPointGrantConstants";
 import { FREE_POINTS_VALID_MONTHS } from "@/lib/plans";
 
 export default function AdminPointGrantClient() {

@@ -157,6 +157,7 @@ export function buildBillingReceipt(usage: {
   output?: number;
   apiInputTokens?: number;
   apiOutputTokens?: number;
+  apiContentOutputTokens?: number;
   baseCost?: number;
   surchargeAmount?: number;
   noteSurcharge?: number;

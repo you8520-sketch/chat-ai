@@ -284,7 +284,7 @@ export async function analyzeTurnMemory(
 turnSummary 형식: 서술형 문장 금지. 음슴체(-음/-ㅁ) 키워드 나열, · 구분, 200자 이내 완결 형태.
 예: 유저 질문함 · 캐릭터 경계심→호기심 · "..." 대사 언급 · ○○ 사건 발생
 순수 JSON만 출력:
-{"turnSummary":"200자 이내 음슴체 키워드 요약","honorifics":["캐릭터→유저: 오빠"],"items":["${userName}: 반지, 펜던트"],"thoughts":["${charName}: 왜 이렇게 떨리지","NPC이름: 숨기면 안 되는데"],"promisesAdd":[{"text":"약속 내용","deadline":"기한"}],"promisesRemove":[]}
+{"turnSummary":"200자 이내 음슴체 키워드 요약","honorifics":["캐릭터→유저: 오빠"],"items":["\${userName}: 반지, 펜던트"],"thoughts":["${charName}: 왜 이렇게 떨리지","NPC이름: 숨기면 안 되는데"],"promisesAdd":[{"text":"약속 내용","deadline":"기한"}],"promisesRemove":[]}
 ${RELATIONSHIP_THOUGHT_EXTRACT_RULES.replace(/캐릭터이름/g, charName)}
 (속마음 본문 목표 ${THOUGHT_CONTENT_MAX_CHARS}자 — 문장 완결까지 ${THOUGHT_CONTENT_HARD_MAX_CHARS}자 이내)
 없는 항목은 빈 배열. turnSummary는 반드시 200자 이내 완결 형태.`;

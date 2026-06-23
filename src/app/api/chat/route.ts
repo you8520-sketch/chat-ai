@@ -859,7 +859,7 @@ export async function POST(req: Request) {
     personaName: personaDisplayName,
     userMessage: messageText,
     userNote: effectiveUserNote,
-    userPersona: userPersonaPrompt,
+    userPersona: userPersonaPrompt ?? undefined,
     characterSetting: settingText,
     memoryBlock: memoryFeatureOn ? memoryInjection.text : "",
     archiveMemory: memoryFeatureOn ? memoryInjection.archiveText : "",
@@ -1623,7 +1623,16 @@ export async function POST(req: Request) {
 
         let totalInput: number;
         let totalOutput: number;
-        let billing: ReturnType<typeof computeTurnBilling>;
+        let billing: {
+          modelId: string;
+          baseCost: number;
+          contextSurcharge: number;
+          multiplier: number;
+          total: number;
+          coldStartShieldApplied?: boolean;
+          uncappedChargePoints?: number;
+          coldStartCostFloorPoints?: number;
+        };
 
         if (htmlFlashOnlyTurn) {
           const flashBilling = computeHtmlFlashOnlyTurnBilling({

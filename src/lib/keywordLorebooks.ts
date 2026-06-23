@@ -89,7 +89,7 @@ export function parseStoredLorebookEntries(json: string): KeywordLorebookEntry[]
       .map((e) => ({
         keywords: Array.isArray(e.keywords)
           ? e.keywords.filter((k): k is string => typeof k === "string").slice(0, LOREBOOK_KEYWORDS_PER_ENTRY)
-          : parseKeywordField(String((e as { keywords?: string }).keywords ?? "")),
+          : parseKeywordField(String((e as unknown as { keywords?: string }).keywords ?? "")),
         content: String(e.content ?? "").trim().slice(0, LOREBOOK_CONTENT_MAX),
       }))
       .filter((e) => e.keywords.length > 0 && e.content);

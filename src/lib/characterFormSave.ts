@@ -56,6 +56,7 @@ export type ParsedCharacterForm = {
   systemPrompt: string;
   world: string;
   worldId: number | null;
+  lorebookId: number | null;
   statusWindowPrompt: string;
   statusWidgetJson: string;
   exampleDialog: string;

@@ -72,9 +72,9 @@ import {
 import { stripLeakedDocumentMarkup } from "@/lib/chatHtmlSanitize";
 import { stripAllStatusWindowOutputArtifacts, type StripStatusArtifactsOptions } from "@/lib/statusMeta/stripArtifacts";
 import { captureDeepSeekStatusWidgetValuesFromModelText } from "@/lib/statusWidget/deepseekCapture";
+import type { ParsedStatusWidgetTurnValues } from "@/lib/statusWidget/types";
 import {
   captureStatusWidgetValuesFromModelText,
-  type ParsedStatusWidgetTurnValues,
 } from "@/lib/statusWidget/parseValues";
 import { sanitizePrimaryModelAssistantHistory } from "@/lib/flashOwnedOutputFirewall";
 import { peelIncompleteTailForLengthCap } from "@/lib/statusWindowTemplate";
@@ -1631,7 +1631,7 @@ export async function streamOpenRouterAdultToClient(
     targetResponseChars,
     charName: messageOpts?.charName ?? "",
     turnApiBudget,
-    sessionId: messageOpts?.sessionId,
+    sessionId: messageOpts?.sessionId ?? undefined,
   });
   if (recoveryResult.stage) {
     recoveryStage = recoveryResult.stage;
