@@ -222,10 +222,17 @@ function migrate(db: Database.Database) {
   addColumn("chats", "status_widget_mode", "TEXT NOT NULL DEFAULT 'character_only'");
   addColumn("chats", "user_status_widget_json", "TEXT NOT NULL DEFAULT ''");
   addColumn("chats", "status_widget_stack_order", "TEXT NOT NULL DEFAULT 'character_first'");
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS bookmarks (
+      user_id INTEGER NOT NULL,
+      message_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, message_id)
+    );
+  `);
   addColumn("bookmarks", "title", "TEXT NOT NULL DEFAULT ''");
   addColumn("messages", "status_widget_values_json", "TEXT NOT NULL DEFAULT ''");
   addColumn("messages", "status_widget_turn_active", "INTEGER NOT NULL DEFAULT 0");
-  addColumn("character_memories", "summarized_turn_count", "INTEGER NOT NULL DEFAULT 0");
   addColumn("messages", "usage", "TEXT");
   addColumn("messages", "status", "TEXT NOT NULL DEFAULT 'ok'");
   addColumn("messages", "is_refunded", "INTEGER NOT NULL DEFAULT 0");
@@ -378,14 +385,6 @@ function migrate(db: Database.Database) {
       ON point_transactions(user_id, point_type, expires_at);
   `);
   migratePointsLedger(db);
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS bookmarks (
-      user_id INTEGER NOT NULL,
-      message_id INTEGER NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      PRIMARY KEY (user_id, message_id)
-    );
-  `);
   db.prepare(
     "UPDATE posts SET content=? WHERE board='faq' AND title='포인트는 어떻게 차감되나요?'"
   ).run("대화에 사용된 LLM 토큰만큼 차감됩니다. 일반 대화는 1,000토큰당 입력 18P/출력 54P, NSFW 대화는 입력 20P/출력 60P입니다. 평균 1회 대화 기준 약 225P가 차감되며, 메시지 하단 비용 버튼에서 상세 내역을 확인할 수 있습니다.");
