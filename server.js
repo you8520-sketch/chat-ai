@@ -25,7 +25,7 @@ if (dev && process.env.ENABLE_PAYOUT_SCHEDULER !== "1") {
 if (dev && process.env.ENABLE_TRAINING_PIPELINE !== "1") {
   process.env.DISABLE_TRAINING_PIPELINE = "1";
 }
-const hostname = process.env.HOSTNAME || (dev ? "localhost" : "0.0.0.0");
+const hostname = "0.0.0.0";
 const port = parseInt(process.env.PORT || "3000", 10);
 
 const app = next({ dev, hostname, port });
