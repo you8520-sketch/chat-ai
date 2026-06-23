@@ -140,9 +140,6 @@ function migrate(db: Database.Database) {
   addColumn("users", "pref", "TEXT");
   addColumn("users", "sub_plan", "TEXT");
   addColumn("users", "sub_auto_renew", "INTEGER NOT NULL DEFAULT 0");
-  addColumn("user_personas", "memo", "TEXT NOT NULL DEFAULT ''");
-  addColumn("user_personas", "gender", "TEXT NOT NULL DEFAULT 'other'");
-  addColumn("user_personas", "speech_examples", "TEXT NOT NULL DEFAULT ''");
   addColumn("users", "notice_last_read_id", "INTEGER NOT NULL DEFAULT 0");
   addColumn("characters", "audience", "TEXT NOT NULL DEFAULT 'all'");
   addColumn("characters", "gender", "TEXT NOT NULL DEFAULT 'other'");
@@ -330,6 +327,9 @@ function migrate(db: Database.Database) {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+  addColumn("user_personas", "memo", "TEXT NOT NULL DEFAULT ''");
+  addColumn("user_personas", "gender", "TEXT NOT NULL DEFAULT 'other'");
+  addColumn("user_personas", "speech_examples", "TEXT NOT NULL DEFAULT ''");
   migrateLegacyPersonas(db);
   db.exec(`
     CREATE TABLE IF NOT EXISTS user_note_presets (
