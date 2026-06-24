@@ -1,15 +1,9 @@
 import { getSessionUser } from "./auth";
 import type { User } from "./auth-types";
 import { getDb } from "./db";
+import { isAdminUser } from "./isAdminUser";
 
-export function isAdminUser(user: Pick<User, "email"> & { is_admin?: number }): boolean {
-  if (user.is_admin === 1) return true;
-  const allow = process.env.ADMIN_EMAILS?.split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  if (!allow?.length) return false;
-  return allow.includes(user.email.toLowerCase());
-}
+export { isAdminUser } from "./isAdminUser";
 
 export async function requireAdminUser(): Promise<(User & { is_admin: number }) | null> {
   const session = await getSessionUser();
