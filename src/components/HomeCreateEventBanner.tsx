@@ -1,22 +1,112 @@
+"use client";
+
 import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
+
+import { CREATE_MIGRATION_EVENT_REWARD } from "@/lib/plans";
+
+const SLIDE_INTERVAL_MS = 5500;
+
+type Slide = {
+  id: string;
+  badge: string;
+  badgeClass: string;
+  gradient: string;
+  title: string;
+  description: string;
+  ctaHref: string;
+  ctaLabel: string;
+  ctaClass: string;
+  hint: string;
+};
+
+const SLIDES: Slide[] = [
+  {
+    id: "closed-beta",
+    badge: "CLOSED BETA",
+    badgeClass: "text-violet-300/90",
+    gradient: "from-violet-900/55 via-fuchsia-900/40 to-emerald-900/45",
+    title: "클로즈베타 테스트중",
+    description:
+      "클로즈베타 참여자에게 무료 포인트를 지급합니다. 신청 후 관리자 승인 시 포인트가 지급됩니다.",
+    ctaHref: "/events/beta-free-points",
+    ctaLabel: "무료 포인트 신청하기",
+    ctaClass: "bg-emerald-500 text-black hover:bg-emerald-400",
+    hint: "신청 → 관리자 검토 → 승인 후 지급",
+  },
+  {
+    id: "create-character",
+    badge: "CREATE EVENT",
+    badgeClass: "text-emerald-300/90",
+    gradient: "from-emerald-900/50 via-teal-900/40 to-violet-900/45",
+    title: `캐릭터 제작 시 ${CREATE_MIGRATION_EVENT_REWARD.toLocaleString()}P 증정`,
+    description:
+      "공개 캐릭터를 제작하고 이벤트에 신청하세요. 관리자 승인 후 무료 포인트가 지급됩니다.",
+    ctaHref: "/events/create-migration",
+    ctaLabel: "캐릭터 제작 포인트 신청",
+    ctaClass: "bg-violet-600 text-white hover:bg-violet-500",
+    hint: "캐릭터 제작 → 공개 저장 → 신청",
+  },
+];
 
 export default function HomeCreateEventBanner() {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+
+  const goTo = useCallback((index: number) => {
+    setActiveIndex(index % SLIDES.length);
+  }, []);
+
+  const next = useCallback(() => {
+    setActiveIndex((i) => (i + 1) % SLIDES.length);
+  }, []);
+
+  useEffect(() => {
+    if (paused) return;
+    const id = window.setInterval(next, SLIDE_INTERVAL_MS);
+    return () => window.clearInterval(id);
+  }, [paused, next]);
+
+  const slide = SLIDES[activeIndex];
+
   return (
-    <div className="mt-2 rounded-2xl bg-gradient-to-r from-violet-900/55 via-fuchsia-900/40 to-emerald-900/45 p-6">
-      <p className="text-xs font-bold uppercase tracking-wider text-violet-300/90">CLOSED BETA</p>
-      <h1 className="mt-1 text-2xl font-black text-white">클로즈베타 테스트중</h1>
-      <p className="mt-2 text-sm leading-relaxed text-gray-300">
-        클로즈베타 참여자에게 무료 포인트를 지급합니다. 신청 후 관리자 승인 시 포인트가 지급됩니다.
-      </p>
+    <div
+      className={`mt-2 rounded-2xl bg-gradient-to-r p-6 transition-[background] duration-500 ${slide.gradient}`}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocus={() => setPaused(true)}
+      onBlur={() => setPaused(false)}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className={`text-xs font-bold uppercase tracking-wider ${slide.badgeClass}`}>{slide.badge}</p>
+          <h1 className="mt-1 text-2xl font-black text-white">{slide.title}</h1>
+          <p className="mt-2 text-sm leading-relaxed text-gray-300">{slide.description}</p>
+        </div>
+        <div className="flex shrink-0 gap-1.5 pt-1">
+          {SLIDES.map((s, i) => (
+            <button
+              key={s.id}
+              type="button"
+              aria-label={`${i + 1}번째 배너`}
+              aria-current={i === activeIndex ? "true" : undefined}
+              onClick={() => goTo(i)}
+              className={`h-2 w-2 rounded-full transition ${
+                i === activeIndex ? "bg-white" : "bg-white/35 hover:bg-white/60"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <Link
-          href="/events/beta-free-points"
-          className="rounded-xl bg-emerald-500 px-5 py-2.5 text-sm font-bold text-black hover:bg-emerald-400"
+          href={slide.ctaHref}
+          className={`rounded-xl px-5 py-2.5 text-sm font-bold ${slide.ctaClass}`}
         >
-          무료 포인트 신청하기
+          {slide.ctaLabel}
         </Link>
-        <p className="text-xs text-zinc-500">신청 → 관리자 검토 → 승인 후 지급</p>
+        <p className="text-xs text-zinc-500">{slide.hint}</p>
       </div>
     </div>
   );

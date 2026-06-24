@@ -451,6 +451,7 @@ export default function ChatClient({
   initialUserWidgetJson = "",
   initialStatusWidgetStackOrder = "character_first",
   characterWidgetAllowUserOverride = true,
+  showFullBillingReceipt = false,
 }: {
   character: { id: number; name: string; emoji: string; hue: number; nsfw: number };
   creatorName: string;
@@ -484,6 +485,7 @@ export default function ChatClient({
   initialUserWidgetJson?: string;
   initialStatusWidgetStackOrder?: StatusWidgetStackOrder;
   characterWidgetAllowUserOverride?: boolean;
+  showFullBillingReceipt?: boolean;
 }) {
   const router = useRouter();
   const [messages, setMessages] = useState<Msg[]>(initialMessages);
@@ -500,8 +502,10 @@ export default function ChatClient({
   const hasBookmarkScrollTarget =
     initialScrollMessageId != null && initialScrollMessageId > 0;
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingUserId, setEditingUserId] = useState<number | null>(null);
   const [editingRole, setEditingRole] = useState<"user" | "assistant" | null>(null);
   const [editDraft, setEditDraft] = useState("");
+  const [editUserDraft, setEditUserDraft] = useState("");
   const [editSaving, setEditSaving] = useState(false);
   const [mode, setMode] = useState(initialMode);
   const [input, setInput] = useState(() => loadChatMessageDraft(character.id, initialChatId));
@@ -2215,31 +2219,78 @@ export default function ChatClient({
     setEditingId(messageId);
     setEditingRole(role);
     setEditDraft(content);
+    if (role === "assistant") {
+      const idx = messages.findIndex((m) => m.id === messageId);
+      const userMsg = idx > 0 && messages[idx - 1]?.role === "user" ? messages[idx - 1] : null;
+      if (userMsg?.id) {
+        setEditingUserId(userMsg.id);
+        setEditUserDraft(userMsg.content);
+      } else {
+        setEditingUserId(null);
+        setEditUserDraft("");
+      }
+    } else {
+      setEditingUserId(null);
+      setEditUserDraft("");
+    }
   }
 
   function cancelEdit() {
     setEditingId(null);
+    setEditingUserId(null);
     setEditingRole(null);
     setEditDraft("");
+    setEditUserDraft("");
   }
 
   async function saveEdit(messageId: number) {
-    const text = editDraft.trim();
-    if (!text) {
+    const assistantText = editDraft.trim();
+    const userText = editUserDraft.trim();
+    const turnEdit = editingRole === "assistant" && editingUserId != null;
+
+    if (turnEdit) {
+      if (!userText) {
+        setToastMsg("유저 입력을 입력하세요.");
+        return;
+      }
+      if (userText.length > CHAT_MESSAGE_MAX) {
+        setToastMsg(`유저 입력은 ${CHAT_MESSAGE_MAX.toLocaleString()}자까지 입력할 수 있습니다.`);
+        return;
+      }
+    }
+
+    if (!assistantText) {
       setToastMsg("내용을 입력하세요.");
       return;
     }
     const maxLen = editingRole === "assistant" ? ASSISTANT_MESSAGE_MAX : CHAT_MESSAGE_MAX;
-    if (text.length > maxLen) {
+    if (assistantText.length > maxLen) {
       setToastMsg(`메시지는 ${maxLen.toLocaleString()}자까지 입력할 수 있습니다.`);
       return;
     }
+
     setEditSaving(true);
     try {
+      if (turnEdit && editingUserId) {
+        const userRes = await fetch("/api/chat/message", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messageId: editingUserId, content: userText }),
+        });
+        const userData = await userRes.json();
+        if (!userRes.ok) {
+          setToastMsg(userData.error || "유저 입력 수정에 실패했습니다.");
+          return;
+        }
+        setMessages((prev) =>
+          prev.map((m) => (m.id === editingUserId ? { ...m, content: userData.content } : m))
+        );
+      }
+
       const res = await fetch("/api/chat/message", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messageId, content: text }),
+        body: JSON.stringify({ messageId, content: assistantText }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -2249,9 +2300,7 @@ export default function ChatClient({
       setMessages((prev) =>
         prev.map((m) => (m.id === messageId ? { ...m, content: data.content } : m))
       );
-      setEditingId(null);
-      setEditingRole(null);
-      setEditDraft("");
+      cancelEdit();
     } catch {
       setToastMsg("네트워크 오류가 발생했습니다.");
     } finally {
@@ -2287,7 +2336,11 @@ export default function ChatClient({
 
   function renderEditActions(messageId: number, role: "user" | "assistant") {
     const maxLen = role === "assistant" ? ASSISTANT_MESSAGE_MAX : CHAT_MESSAGE_MAX;
-    const overLimit = editDraft.length > maxLen;
+    const userOver = editingUserId != null && editUserDraft.length > CHAT_MESSAGE_MAX;
+    const overLimit =
+      role === "assistant"
+        ? editDraft.length > ASSISTANT_MESSAGE_MAX || userOver
+        : editDraft.length > maxLen;
     return (
       <>
         <div className="mt-2 flex justify-center gap-2">
@@ -2314,7 +2367,12 @@ export default function ChatClient({
           }`}
         >
           {role === "assistant"
-            ? formatAssistantLengthLabel(visibleAssistantMessageLength(editDraft), targetResponseChars)
+            ? editingUserId != null
+              ? `유저 ${editUserDraft.length.toLocaleString()} / ${CHAT_MESSAGE_MAX.toLocaleString()}자 · AI ${formatAssistantLengthLabel(
+                  visibleAssistantMessageLength(editDraft),
+                  targetResponseChars
+                )}`
+              : formatAssistantLengthLabel(visibleAssistantMessageLength(editDraft), targetResponseChars)
             : `${editDraft.length.toLocaleString()} / ${maxLen.toLocaleString()}자`}
         </p>
       </>
@@ -2369,6 +2427,7 @@ export default function ChatClient({
           lengthHint={lengthHint}
           variantPicker={variantPicker}
           compact={!showCharacterPortrait}
+          showFullReceipt={showFullBillingReceipt}
           onToast={setToastMsg}
           onBookmarkChange={(id, on) => {
             setBookmarkedIds((prev) => {
@@ -2553,6 +2612,13 @@ export default function ChatClient({
           )}
           {messages.map((m, i) => {
             const isEditing = editingId != null && m.id === editingId;
+            const editingAssistantIdx =
+              editingId != null ? messages.findIndex((x) => x.id === editingId) : -1;
+            const isUserTurnEdit =
+              editingAssistantIdx > 0 &&
+              i === editingAssistantIdx - 1 &&
+              m.role === "user" &&
+              messages[editingAssistantIdx]?.role === "assistant";
             const showToolbar = !!m.id && m.id > 0 && !!chatId;
             const onLastTurn = isLastTurnMessage(i, m);
 
@@ -2575,16 +2641,18 @@ export default function ChatClient({
                   className={showCharacterPortrait ? "my-10 first:mt-2" : "my-5 first:mt-1 last:mb-0"}
                 >
                   <div className="mb-3 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-                  {isEditing ? (
+                  {isUserTurnEdit ? (
                     <div className="px-2">
+                      <p className="mb-1.5 text-center text-[11px] font-semibold text-zinc-500">유저 입력</p>
                       <textarea
-                        value={editDraft}
+                        value={editUserDraft}
                         maxLength={CHAT_MESSAGE_MAX}
-                        onChange={(e) => setEditDraft(e.target.value.slice(0, CHAT_MESSAGE_MAX))}
+                        onChange={(e) =>
+                          setEditUserDraft(e.target.value.slice(0, CHAT_MESSAGE_MAX))
+                        }
                         rows={3}
-                        className="w-full resize-none rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-center text-[13px] text-zinc-300 outline-none focus:border-orange-500/40"
+                        className="w-full resize-none rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-[13px] text-zinc-300 outline-none focus:border-orange-500/40"
                       />
-                      {renderEditActions(m.id!, "user")}
                     </div>
                   ) : isContinueUserMessage(m.content) ? (
                     <p className="px-2 text-center text-xs italic text-zinc-500">⟳ {CONTINUE_USER_DISPLAY}</p>
@@ -2593,37 +2661,9 @@ export default function ChatClient({
                       content={toDisplay(m.content)}
                       display={displayPrefs}
                       variant="user"
-                      centered
                     />
                   )}
-                  {showToolbar && !isEditing && (
-                    <MessageBubbleToolbar
-                      role="user"
-                      messageId={m.id}
-                      chatId={chatId}
-                      content={m.content}
-                      bookmarked={bookmarkedIds.has(m.id!)}
-                      showDelete={onLastTurn}
-                      showRegenerate={false}
-                      showFork={false}
-                      disabled={loading}
-                      compact={!showCharacterPortrait}
-                      onToast={setToastMsg}
-                      onBookmarkChange={(id, on) => {
-                        setBookmarkedIds((prev) => {
-                          const next = new Set(prev);
-                          if (on) next.add(id);
-                          else next.delete(id);
-                          return next;
-                        });
-                      }}
-                      onEditStart={() => startEdit(m.id!, m.content, "user")}
-                      onTurnDeleted={handleTurnDeleted}
-                      onFork={() => {}}
-                    onRegenerate={() => {}}
-                  />
-                )}
-                <div className="mt-3 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                  <div className="mt-3 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                 </div>
               );
             }

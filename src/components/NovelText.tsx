@@ -173,7 +173,6 @@ export default function NovelText({
   if (centered) {
     return (
       <p className="text-center" style={typography}>
-        <span className="text-zinc-600">— </span>
         {displayParagraphs.map((para, i) => (
           <span
             key={i}
@@ -195,7 +194,6 @@ export default function NovelText({
             />
           </span>
         ))}
-        <span className="text-zinc-600"> —</span>
       </p>
     );
   }

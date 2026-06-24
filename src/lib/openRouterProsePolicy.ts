@@ -46,7 +46,11 @@ ${outputLang}
 - 허용: 장면 안 자연스러운 서술·대사·감각 묘사 (세계관·말투에 맞는 표현 포함)
 
 Prose layout & pacing: [KOREAN_WEBNOVEL_STYLE] in <PROSE_STYLE_POLICY>.
-19+ intimacy (when NSFW): [ADVANCED PROSE & NSFW GUIDELINES].`;
+19+ intimacy (when NSFW): [ADVANCED PROSE & NSFW GUIDELINES].
+
+[RP SPEED — NO INTERNAL REASONING]
+Do NOT use internal reasoning, chain-of-thought, or redacted_thinking blocks.
+Output the final Korean narrative immediately — first visible token must be story prose or dialogue.`;
 }
 
 /** @deprecated buildOpenRouterKoreanProseTopBlock() 사용 */

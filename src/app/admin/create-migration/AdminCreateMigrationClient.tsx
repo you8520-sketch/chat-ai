@@ -73,7 +73,7 @@ export default function AdminCreateMigrationClient() {
       <Link href="/" className="text-sm text-violet-400 hover:underline">
         ← 홈
       </Link>
-      <h1 className="mt-4 text-2xl font-black text-white">캐릭터 이식 이벤트 — 관리</h1>
+      <h1 className="mt-4 text-2xl font-black text-white">캐릭터 제작 포인트 신청 — 관리</h1>
       <p className="mt-1 text-sm text-gray-400">
         승인 시 신청자에게 {CREATE_MIGRATION_EVENT_REWARD.toLocaleString()}P(무료) 지급
       </p>

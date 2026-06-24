@@ -64,6 +64,25 @@ function hasRelationshipDelta(delta: RelationshipMetaDelta): boolean {
   );
 }
 
+function applyRelationshipDeltaToChat(opts: {
+  chatId: number;
+  names: HonorificNames;
+  delta: RelationshipMetaDelta;
+}): MemoryMeta {
+  const prev = loadChatRelationshipMeta(opts.chatId);
+  const prevNormalized = normalizeMemoryMeta(prev, opts.names);
+  if (!hasRelationshipDelta(opts.delta)) {
+    if (JSON.stringify(prev) !== JSON.stringify(prevNormalized)) {
+      saveChatRelationshipMeta(opts.chatId, prevNormalized);
+    }
+    return prevNormalized;
+  }
+
+  const merged = mergeMemoryMeta(prevNormalized, opts.delta, opts.names);
+  saveChatRelationshipMeta(opts.chatId, merged);
+  return merged;
+}
+
 /** 턴 종료 후 호칭·물건·속마음·약속 추출 → chats.memory_meta 병합 */
 export async function mergeRelationshipMetaFromTurn(opts: {
   chatId: number;
@@ -72,9 +91,21 @@ export async function mergeRelationshipMetaFromTurn(opts: {
   assistantMessage: string;
   route: Route;
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
+  /** DeepSeek/Qwen — 메인 모델 JSON tail 파싱 성공 시 Flash 생략 */
+  mainModelTailParsed?: boolean;
+  mainModelDelta?: RelationshipMetaDelta | null;
 }): Promise<MemoryMeta> {
   if (!isMemoryFeatureEnabled()) return loadChatRelationshipMeta(opts.chatId);
   const names = opts.names;
+
+  if (opts.mainModelTailParsed === true) {
+    return applyRelationshipDeltaToChat({
+      chatId: opts.chatId,
+      names,
+      delta: opts.mainModelDelta ?? {},
+    });
+  }
+
   const prev = loadChatRelationshipMeta(opts.chatId);
   const prevNormalized = normalizeMemoryMeta(prev, names);
   const delta = await extractRelationshipMetaFromTurn(

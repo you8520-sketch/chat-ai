@@ -3,23 +3,45 @@ import { isAnthropicModel } from "@/lib/chatModels";
 import { isGeminiIsolationMode } from "@/lib/geminiIsolationMode";
 import { estimateTokens } from "@/lib/tokenEstimate";
 
-/** Recovery sub-calls (under-length, truncation, status-window) — off */
-export const RECOVERY_SUB_CALLS_ENABLED = false;
+/**
+ * 분량 보강·under-length 복구 등 서버 추가 API — 전 모델 OFF.
+ * 유저 1턴 = OpenRouter/Gemini 본 호출 1회만 (HTML Flash 등 별도 경로는 유지).
+ */
+export const TURN_LENGTH_SUPPLEMENT_API_ENABLED = false;
 
-/** 분량 이어쓰기 sub-call — off (유저 턴당 OpenRouter 1회만) */
-export const NARRATIVE_LENGTH_CONTINUATION_ENABLED = false;
+/** Recovery sub-calls (under-length, truncation, status-window) */
+export const RECOVERY_SUB_CALLS_ENABLED = TURN_LENGTH_SUPPLEMENT_API_ENABLED;
 
-/** 85% 미달 clean stop 시 서버 1회 이어쓰기 — OFF (프롬프트 length-forcing 제거 후 비활성) */
-export const SERVER_UNDER_LENGTH_RECOVERY_ENABLED = false;
+/** 분량 이어쓰기 sub-call */
+export const NARRATIVE_LENGTH_CONTINUATION_ENABLED = TURN_LENGTH_SUPPLEMENT_API_ENABLED;
 
-/** @deprecated HTML visual card는 Gemini Flash(background) — main turn sub-call 미사용 */
-export const HTML_RECOVERY_SUB_CALLS_ENABLED = false;
+/** 85% 미달 clean stop 시 서버 1회 이어쓰기 */
+export const SERVER_UNDER_LENGTH_RECOVERY_ENABLED = TURN_LENGTH_SUPPLEMENT_API_ENABLED;
 
-/** 유저 1턴당 내부 API 재호출 상한 — 초기 1회 제외 */
-export const MAX_TURN_SUB_API_CALLS =
-  (RECOVERY_SUB_CALLS_ENABLED ? 1 : 0) +
-  (NARRATIVE_LENGTH_CONTINUATION_ENABLED ? 1 : 0) +
-  (SERVER_UNDER_LENGTH_RECOVERY_ENABLED ? 1 : 0);
+export const HTML_RECOVERY_SUB_CALLS_ENABLED = TURN_LENGTH_SUPPLEMENT_API_ENABLED;
+
+/** 유저 1턴당 내부 API 재호출 상한 — 초기 1회(본 호출) 제외 */
+export const MAX_TURN_SUB_API_CALLS = TURN_LENGTH_SUPPLEMENT_API_ENABLED
+  ? (RECOVERY_SUB_CALLS_ENABLED ? 1 : 0) +
+    (NARRATIVE_LENGTH_CONTINUATION_ENABLED ? 1 : 0) +
+    (SERVER_UNDER_LENGTH_RECOVERY_ENABLED ? 1 : 0)
+  : 0;
+
+const LENGTH_SUPPLEMENT_REQUEST_KIND =
+  /continuation|truncation-recovery|under-length|length-recovery|narrative-length/i;
+
+/** 분량 보강·복구 sub-call requestKind — TURN_LENGTH_SUPPLEMENT_API_ENABLED=false면 금지 */
+export function isLengthSupplementRequestKind(requestKind?: string | null): boolean {
+  return LENGTH_SUPPLEMENT_REQUEST_KIND.test(requestKind ?? "");
+}
+
+export function assertLengthSupplementApiAllowed(requestKind?: string | null): void {
+  if (!TURN_LENGTH_SUPPLEMENT_API_ENABLED && isLengthSupplementRequestKind(requestKind)) {
+    throw new Error(
+      `[turn-api-budget] Length supplement API disabled for all models (${requestKind ?? "unknown"})`
+    );
+  }
+}
 
 /** 루프 버그로 payload가 비정상 팽창할 때 API 호출 전 차단 */
 export const MAX_PAYLOAD_INPUT_TOKENS = 150_000;
@@ -211,6 +233,7 @@ export class TurnApiBudget {
   }
 
   canSubCall(): boolean {
+    if (!TURN_LENGTH_SUPPLEMENT_API_ENABLED) return false;
     if (isGeminiIsolationMode()) return this.fetchCount < 1;
     return this.fetchCount <= MAX_TURN_SUB_API_CALLS;
   }

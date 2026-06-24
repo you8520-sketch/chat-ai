@@ -12,7 +12,7 @@ import {
   type BillingReceipt,
 } from "@/lib/billingDisplay";
 import type { Usage } from "@/lib/chatUsage";
-import { isGeminiProOpenRouterModel } from "@/lib/chatModels";
+import { isGemini31ProModel, isGeminiProOpenRouterModel } from "@/lib/chatModels";
 import { IconInfo } from "./ChatToolbarIcons";
 
 function ReceiptBody({
@@ -21,15 +21,43 @@ function ReceiptBody({
   apiRawCostKrw,
   cacheReceipt,
   exchangeRateLabel,
+  showFullReceipt,
 }: {
   receipt: BillingReceipt;
   usage: Usage;
   apiRawCostKrw: number | null;
   cacheReceipt: ReturnType<typeof resolveOpenRouterCacheReceipt>;
   exchangeRateLabel: string;
+  showFullReceipt: boolean;
 }) {
   const reasoningExcludedFromBilling =
-    usage.provider === "openrouter" && isGeminiProOpenRouterModel(usage.model ?? "");
+    usage.provider === "openrouter" &&
+    isGeminiProOpenRouterModel(usage.model ?? "") &&
+    !isGemini31ProModel(usage.model ?? "");
+
+  if (!showFullReceipt) {
+    return (
+      <div className="space-y-1 text-[11px] leading-relaxed text-zinc-300">
+        <p>
+          <span className="text-zinc-500">모델:</span> {receipt.modelLabel}
+        </p>
+        <p>
+          <span className="text-zinc-500">과금 기준 입력/출력:</span>{" "}
+          {receipt.inputTokens.toLocaleString()} / {receipt.outputTokens.toLocaleString()}
+          {receipt.estimated ? " (추정)" : ""}
+        </p>
+        {receipt.waived ? (
+          <p className="font-semibold text-emerald-300/95">
+            <span className="text-zinc-500">포인트 차감:</span> 0 P (면제)
+          </p>
+        ) : (
+          <p className="font-semibold text-zinc-100">
+            <span className="text-zinc-500">포인트 차감:</span> {formatPoints(receipt.totalCost)} P
+          </p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-1 text-[11px] leading-relaxed text-zinc-300">
@@ -43,26 +71,31 @@ function ReceiptBody({
         </p>
       )}
       <p>
-        <span className="text-zinc-500">
-          {usage.provider === "openrouter" && usage.apiOutputTokens != null
-            ? "사용모델 API 입력/출력:"
-            : "입력/출력 (과금):"}
-        </span>{" "}
+        <span className="text-zinc-500">과금 기준 입력/출력:</span>{" "}
         {receipt.inputTokens.toLocaleString()} / {receipt.outputTokens.toLocaleString()}
         {receipt.estimated ? " (추정)" : ""}
+        {usage.provider === "openrouter" &&
+        usage.apiOutputTokens != null &&
+        usage.apiOutputTokens !== receipt.outputTokens ? (
+          <span className="text-zinc-600"> (content·조립 입력 — API raw와 다름)</span>
+        ) : null}
       </p>
-      {!reasoningExcludedFromBilling &&
-        usage.apiReasoningOutputTokens != null &&
-        usage.apiReasoningOutputTokens > 0 && (
+      {usage.apiReasoningOutputTokens != null && usage.apiReasoningOutputTokens > 0 && (
         <>
           <p>
-            <span className="text-zinc-500">reasoning:</span>{" "}
+            <span className="text-zinc-500">thinking (API):</span>{" "}
             {usage.apiReasoningOutputTokens.toLocaleString()} tokens
           </p>
           <p>
             <span className="text-zinc-500">content (표시 RP):</span>{" "}
-            {(usage.apiContentOutputTokens ?? 0).toLocaleString()} tokens
-            <span className="text-zinc-600"> (reasoning은 과금·미저장)</span>
+            {(usage.apiContentOutputTokens ?? receipt.outputTokens).toLocaleString()} tokens
+            <span className="text-zinc-600">
+              {reasoningExcludedFromBilling
+                ? " (reasoning은 과금·미저장)"
+                : isGemini31ProModel(usage.model ?? "")
+                  ? " (3.1 Pro thinking — 과금·미저장, low 최저)"
+                  : " (과금·미저장)"}
+            </span>
           </p>
         </>
       )}
@@ -70,9 +103,28 @@ function ReceiptBody({
         <p>
           <span className="text-zinc-500">저장 RP:</span>{" "}
           {usage.savedOutputChars.toLocaleString()}자
-          <span className="text-zinc-600"> (표시 텍스트 · tier cap)</span>
+          <span className="text-zinc-600"> (화면 표시 · HTML·마크업 코드 제외)</span>
         </p>
       )}
+      {usage.outputLeakage &&
+        usage.outputLeakage.chars.modelDelivered >
+          Math.max(usage.savedOutputChars ?? 0, usage.outputLeakage.chars.savedVisibleBillable) +
+            150 && (
+          <p className="text-[10px] leading-relaxed text-amber-200/90">
+            <span className="text-zinc-500">모델 raw → 저장:</span>{" "}
+            {usage.outputLeakage.chars.modelDelivered.toLocaleString()}자 →{" "}
+            {usage.outputLeakage.chars.savedVisibleBillable.toLocaleString()}자
+            <span className="text-zinc-600">
+              {" "}
+              (sanitize·상태창 분리·clamp 등으로{" "}
+              {(
+                usage.outputLeakage.chars.modelDelivered -
+                usage.outputLeakage.chars.savedVisibleBillable
+              ).toLocaleString()}
+              자 제거 — API completion에는 raw 전부 포함)
+            </span>
+          </p>
+        )}
       {usage.outputLeakage?.hiddenArtifacts.detected && (
         <p className="text-[10px] leading-relaxed text-amber-200/90">
           <span className="text-zinc-500">숨은 출력(strip):</span>{" "}
@@ -101,8 +153,10 @@ function ReceiptBody({
         (usage.apiInputTokens !== receipt.inputTokens ||
           usage.apiOutputTokens !== receipt.outputTokens) && (
           <p>
-            <span className="text-zinc-500">API 합산{usage.apiCallCount != null && usage.apiCallCount > 1 ? ` (${usage.apiCallCount}회)` : ""}:</span>{" "}
-            {usage.apiInputTokens.toLocaleString()} / {usage.apiOutputTokens.toLocaleString()}
+            <span className="text-zinc-500">API completion 합산{usage.apiCallCount != null && usage.apiCallCount > 1 ? ` (${usage.apiCallCount}회)` : ""}:</span>{" "}
+            {usage.apiInputTokens != null ? `${usage.apiInputTokens.toLocaleString()} / ` : ""}
+            {usage.apiOutputTokens.toLocaleString()} tokens
+            <span className="text-zinc-600"> (thinking+content+strip된 본문)</span>
           </p>
         )}
       {cacheReceipt?.cacheReadLine && (
@@ -225,9 +279,12 @@ function ReceiptTrigger({
 export default function BillingReceiptTooltip({
   usage,
   triggerVariant = "coin",
+  showFullReceipt = false,
 }: {
   usage: Usage;
   triggerVariant?: "coin" | "info";
+  /** 관리자·데모유저 — thinking·API raw·strip 등 전체 영수증 */
+  showFullReceipt?: boolean;
 }) {
   const receipt = buildBillingReceipt(usage);
   const apiRawCostKrw = resolveApiRawCostKrw(usage);
@@ -262,6 +319,7 @@ export default function BillingReceiptTooltip({
   if (!receipt) return null;
 
   async function copyReceipt() {
+    if (!showFullReceipt) return;
     const text = formatBillingReceiptText(receipt!, {
       route: usage.route,
       breakdown: usage.breakdown,
@@ -308,6 +366,7 @@ export default function BillingReceiptTooltip({
             apiRawCostKrw={apiRawCostKrw}
             cacheReceipt={cacheReceipt}
             exchangeRateLabel={exchangeRateLabel}
+            showFullReceipt={showFullReceipt}
           />
           {usage.breakdown?.some((b) => b.tokens > 0) && (
             <div className="mt-2 space-y-0.5 border-t border-white/10 pt-2 text-[10px] text-zinc-500">
@@ -321,16 +380,18 @@ export default function BillingReceiptTooltip({
                 ))}
             </div>
           )}
-          <div className="mt-2 flex items-center justify-end gap-2 border-t border-white/10 pt-2">
-            {copied && <span className="text-[10px] text-emerald-400">복사됨</span>}
-            <button
-              type="button"
-              onClick={() => void copyReceipt()}
-              className="rounded-md bg-white/10 px-2 py-1 text-[10px] font-semibold text-zinc-200 transition hover:bg-white/15"
-            >
-              복사
-            </button>
-          </div>
+          {showFullReceipt && (
+            <div className="mt-2 flex items-center justify-end gap-2 border-t border-white/10 pt-2">
+              {copied && <span className="text-[10px] text-emerald-400">복사됨</span>}
+              <button
+                type="button"
+                onClick={() => void copyReceipt()}
+                className="rounded-md bg-white/10 px-2 py-1 text-[10px] font-semibold text-zinc-200 transition hover:bg-white/15"
+              >
+                복사
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -7,6 +7,7 @@ import {
   sanitizePrimaryModelHistoryMessages,
   sanitizePrimaryModelOutputArtifacts,
 } from "@/lib/flashOwnedOutputFirewall";
+import { RELATIONSHIP_MEMORY_SELF_EXTRACT_BLOCK } from "@/lib/relationshipMemoryTailPrompt";
 
 describe("flashOwnedOutputFirewall", () => {
   it("firewall block forbids html json status when Flash owns all UI", () => {
@@ -18,16 +19,32 @@ describe("flashOwnedOutputFirewall", () => {
     assert.match(block, /<<<STATUS_VALUES>>>/);
   });
 
-  it("firewall block still allows STATUS_VALUES when statusWidgetActive", () => {
+  it("firewall block references STATUS WIDGET without duplicating markers when statusWidgetActive", () => {
     const block = buildPrimaryModelFlashFirewallBlock({ statusWidgetActive: true });
-    assert.match(block, /<<<STATUS_VALUES>>>/);
+    assert.match(block, /\[STATUS WIDGET\]/);
+    assert.doesNotMatch(block, /<<<STATUS_VALUES>>>/);
     assert.doesNotMatch(block, /<<<STATUS_VALUES>>> markers/);
+  });
+
+  it("firewall block allows main model html when mainModelOwnsHtmlVisualCard", () => {
+    const block = buildPrimaryModelFlashFirewallBlock({ mainModelOwnsHtmlVisualCard: true });
+    assert.match(block, /MAIN MODEL OUTPUT/);
+    assert.match(block, /YOU output/);
+    assert.doesNotMatch(block, /Gemini Flash generates ALL/);
   });
 
   it("firewall block allows plain status when modelOutputsPlainStatus", () => {
     const block = buildPrimaryModelFlashFirewallBlock({ modelOutputsPlainStatus: true });
     assert.match(block, /YOU output plain-text/);
     assert.match(block, /ALLOWED at the very end/);
+  });
+
+  it("firewall appends relationship self-extract for DeepSeek/Qwen path", () => {
+    const block = buildPrimaryModelFlashFirewallBlock({
+      mainModelOwnsRelationshipExtract: true,
+    });
+    assert.match(block, /RELATIONSHIP MEMORY — SELF-EXTRACT/);
+    assert.ok(block.includes(RELATIONSHIP_MEMORY_SELF_EXTRACT_BLOCK));
   });
 
   it("strips html and pipe tables from primary output by default", () => {

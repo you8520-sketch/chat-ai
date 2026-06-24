@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getDb } from "@/lib/db";
 
 import { getSessionUser } from "@/lib/auth";
+import { canShowFullBillingReceipt } from "@/lib/billingReceiptAccess";
 
 import { parseAssets, chatAssets } from "@/lib/characterAssets";
 
@@ -116,6 +117,14 @@ export default async function ChatPage({
   if (!access.ok) redirect(`/character/${c.id}`);
 
   if (c.nsfw === 1 && !user.is_adult) redirect("/verify");
+
+  const adminRow = db
+    .prepare("SELECT is_admin FROM users WHERE id = ?")
+    .get(user.id) as { is_admin: number } | undefined;
+  const showFullBillingReceipt = canShowFullBillingReceipt({
+    ...user,
+    is_admin: adminRow?.is_admin ?? 0,
+  });
 
   const assets = chatAssets(parseAssets(c.assets));
   const isCharacterCreator = c.creator_id === user.id;
@@ -384,6 +393,7 @@ export default async function ChatPage({
       characterWidgetAllowUserOverride={
         (c as { status_widget_allow_user_override?: number }).status_widget_allow_user_override !== 0
       }
+      showFullBillingReceipt={showFullBillingReceipt}
     />
   );
 }

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
+import { isDemoEnv } from "@/lib/demo";
 import VerifyClient from "./VerifyClient";
 
 export const dynamic = "force-dynamic";
@@ -19,5 +20,5 @@ export default async function VerifyPage({
     );
   }
 
-  return <VerifyClient redirectTo={redirectTo} />;
+  return <VerifyClient redirectTo={redirectTo} showDemo={isDemoEnv()} />;
 }

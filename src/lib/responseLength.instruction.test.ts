@@ -152,6 +152,8 @@ describe("buildLengthInstruction", () => {
     assert.equal(lastSection?.id, "rule-terminal-length-override");
     assert.match(lastSection!.text, /\[최우선 절대 지침/);
     assert.match(lastSection!.text, /최소 3,000자 이상 절대 보장 필수/);
+    assert.match(lastSection!.text, /필터링된 감정 표현 \(Anti-OOC\)/);
+    assert.match(lastSection!.text, /유저의 입력 길이에 동조\(Mirroring\)하지 말 것/);
     assert.ok(
       built.systemPrompt.trimEnd().endsWith(buildTerminalLengthOverrideBlock().trim()),
       "terminal override must be last block in full system prompt"

@@ -36,11 +36,6 @@ function jsonExample(widget: StatusWidget): string {
   return JSON.stringify(obj);
 }
 
-export function buildStatusWidgetAppendInstruction(): string {
-  return `[STATUS WIDGET — append after RP prose]
-Append the <<<STATUS_VALUES>>> block at the end. Values only — no status HTML in prose.`;
-}
-
 export function buildStatusWidgetPromptBlock(resolved: ResolvedStatusWidgetTurn): string {
   if (!resolved.active) return "";
 

@@ -66,6 +66,7 @@ export default function MessageBubbleToolbar({
   lengthHint,
   variantPicker,
   compact = false,
+  showFullReceipt = false,
 }: {
   role: "user" | "assistant";
   messageId?: number;
@@ -91,6 +92,8 @@ export default function MessageBubbleToolbar({
   variantPicker?: ReactNode;
   /** 초상 OFF — 툴바·본문 간격 축소 */
   compact?: boolean;
+  /** 관리자·데모유저 — 영수증 전체 필드 */
+  showFullReceipt?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [confirmKind, setConfirmKind] = useState<ConfirmKind | null>(null);
@@ -276,7 +279,11 @@ export default function MessageBubbleToolbar({
             <div className="ml-auto flex shrink-0 items-center gap-1.5">
               {lengthHint}
               {receipt && (
-                <BillingReceiptTooltip usage={usage!} triggerVariant="info" />
+                <BillingReceiptTooltip
+                  usage={usage!}
+                  triggerVariant="info"
+                  showFullReceipt={showFullReceipt}
+                />
               )}
             </div>
           )}

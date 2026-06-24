@@ -54,7 +54,7 @@ import {
   extractVisualAppearancePolicyFromChunks,
   sanitizeVisualAppearance,
 } from "@/lib/visualAnchor";
-import { formatMemoryMetaForPrompt, normalizeMemoryMeta, parseMemoryMeta } from "@/lib/chatMemory";
+import { formatMemoryMetaForPrompt, normalizeMemoryMeta, parseMemoryMeta, type RelationshipMetaDelta } from "@/lib/chatMemory";
 import { resolveRelationshipMetaNames } from "@/lib/relationshipMetaCharacterName";
 import {
   messagesToTurns,
@@ -64,7 +64,6 @@ import {
 } from "@/lib/hybridMemory";
 import {
   extractGreetingFromMessageRows,
-  prependOpeningSceneToHistory,
 } from "@/lib/chatGreetingContext";
 import {
   filterOutMessageIds,
@@ -112,6 +111,10 @@ import { estimateUserContextChars } from "@/lib/userContextBilling";
 import { formatUserNoteForPrompt } from "@/lib/persona";
 import { validateUserNoteCombined, userNoteCombinedCharCount, parseUserNoteCombined, extractFocusZoneNote } from "@/lib/userNoteStatusWindow";
 import { resolveStatusWidgetReservedChars } from "@/lib/statusWidget";
+import {
+  isMainModelRelationshipSelfExtractModel,
+} from "@/lib/relationshipMemoryTailPrompt";
+import { splitAndNormalizeRelationshipMemoryTail } from "@/lib/relationshipMemoryTail";
 import { parseUserChatPrefs, normalizeNovelModeEnabled } from "@/lib/userChatPrefs";
 import {
   ensureDefaultPersona,
@@ -171,16 +174,13 @@ import {
   buildStatusWidgetPromptBlock,
   resolveStatusWidgetTurn,
   serializeStatusWidgetValuesJson,
-  splitProseAndStatusWidgetValues,
-  inferWidgetValuesFromProse,
-  captureStatusWidgetValuesFromModelText,
-  statusWidgetValuesHasContent,
-  statusWidgetValuesAreCorrupt,
-  sanitizeParsedStatusWidgetValues,
 } from "@/lib/statusWidget";
-import { splitProseAndStatusWidgetValuesDeepSeek } from "@/lib/statusWidget/deepseekCapture";
-import { loadPreviousStatusWidgetValues } from "@/lib/statusWidget/loadPrevious";
-import { extractStatusWidgetValuesForTurn } from "@/lib/statusWidget/extract";
+import type { ParsedStatusWidgetTurnValues } from "@/lib/statusWidget/types";
+import {
+  logStatusWidgetTurnTelemetry,
+  resolveStatusWidgetTurnValues,
+} from "@/lib/statusWidget/telemetry";
+import { captureStatusWidgetValuesFromModelText } from "@/lib/statusWidget/parseValues";
 import { userMessageRequestsStatusWindowOoc } from "@/lib/statusMeta/ooc";
 import { isOocHtmlRequest } from "@/lib/oocHtmlRequest";
 import { isHtmlDisplayOnlyTurn, isHtmlFlashOnlyTurn, isOocCreativeHtmlTurn, chatInputSuppressesStatusWidget } from "@/lib/htmlDisplayOnlyTurn";
@@ -639,9 +639,7 @@ export async function POST(req: Request) {
     ...m,
     content: replaceUserPlaceholder(m.content, personaDisplayName, user.nickname),
   }));
-  const shortTermHistory = openingSceneGreeting
-    ? prependOpeningSceneToHistory(openingSceneGreeting, recentHistory)
-    : recentHistory;
+  const shortTermHistory = recentHistory;
 
   const memoryInjection = await buildMemoryContextForChat({
     chatId: chat.id,
@@ -738,6 +736,13 @@ export async function POST(req: Request) {
         markdownStatusWindowActive,
         statusWidgetActive,
       });
+  /** Gemini 3.1 Pro — Flash HTML 2차 호출 없이 메인 모델이 상태창 ```html 직접 출력 (DeepSeek·Qwen·2.5와 동일 체감) */
+  const gemini31MainModelOwnsHtml =
+    isGemini31ProModel(openRouterModelId) &&
+    htmlVisualCardPolicy.enabled &&
+    !chatOocRpUnrelated;
+  const mainModelOwnsRelationshipExtract =
+    memoryFeatureOn && isMainModelRelationshipSelfExtractModel(openRouterModelId);
   /** Flash HTML ON이면 메인 모델 inline HTML(oocHtmlMode) 금지 — Flash가 ```html``` 소유 */
   const oocHtmlMode =
     !autoContinueContext &&
@@ -751,7 +756,8 @@ export async function POST(req: Request) {
   ]
     .filter(Boolean)
     .join("\n");
-  const globalLorebookBlock = htmlVisualCardPolicy.enabled || chatOocRpUnrelated
+  const globalLorebookBlock =
+    (htmlVisualCardPolicy.enabled && !gemini31MainModelOwnsHtml) || chatOocRpUnrelated
     ? HTML_FLASH_SERVER_ONLY_BLOCK
     : loadGlobalLorebookPromptBlock(db, globalLorebookScanText, globalLorebookScanText);
 
@@ -803,6 +809,8 @@ export async function POST(req: Request) {
     ...contextBuildInput,
     statusWidgetActive: statusWidgetActive,
     statusWidgetPromptBlock: statusWidgetPromptBlock || undefined,
+    mainModelOwnsHtmlVisualCard: gemini31MainModelOwnsHtml,
+    mainModelOwnsRelationshipExtract,
     contextualLore: memoryLayers.contextualLore || undefined,
     promptDumpSource: "db",
     promptDumpDetail: `chat=${chat.id} user=${user.id} character=${ch.id}`,
@@ -846,8 +854,10 @@ export async function POST(req: Request) {
   const statusWindowPolicyRef = built.statusWindowPolicy;
   const statusArtifactOpts = {
     modelOutputsPlainStatus: false,
+    modelOutputsHtmlVisualCard: gemini31MainModelOwnsHtml,
+    stripRelationshipMemoryTail: mainModelOwnsRelationshipExtract,
   };
-  const htmlFlashReserveChars = oocHtmlMode
+  const htmlFlashReserveChars = oocHtmlMode || gemini31MainModelOwnsHtml
     ? 0
     : htmlVisualCardPolicy.enabled
       ? resolveHtmlFlashOutputReserveChars(htmlVisualCardPolicy.statusFieldLabels)
@@ -1063,6 +1073,8 @@ export async function POST(req: Request) {
         let savedText: string;
         let capturedStatusTable: string | null;
         let capturedStatusHtml: string | null;
+        let relationshipTailParsed = false;
+        let relationshipDeltaFromMain: RelationshipMetaDelta | null = null;
 
         if (oocHtmlMode) {
           statusArtifacts = {
@@ -1269,6 +1281,7 @@ export async function POST(req: Request) {
         const savedBeforeHtmlFlash = savedText;
         if (
           !oocHtmlMode &&
+          !gemini31MainModelOwnsHtml &&
           (htmlVisualCardPolicyRef.enabled || chatOocRpUnrelated || htmlFlashOnlyTurn)
         ) {
           const beforeHtmlPass = savedText;
@@ -2047,72 +2060,39 @@ export async function POST(req: Request) {
             : {}),
         };
 
-        let statusWidgetValuesPayload: ReturnType<typeof splitProseAndStatusWidgetValues>["values"] | null =
-          sanitizeParsedStatusWidgetValues(
-            capturedStatusWidgetFromStream ??
-              statusArtifacts.capturedStatusWidgetValues ??
-              null
-          );
-        if (!statusWidgetValuesHasContent(statusWidgetValuesPayload)) {
-          statusWidgetValuesPayload = null;
-        }
         const rawWidgetSourceText = rawModelTextForWidgetRef || preStatusPartitionText;
+        if (mainModelOwnsRelationshipExtract) {
+          const relSplit = splitAndNormalizeRelationshipMemoryTail(
+            savedText,
+            `${messageText}\n${savedText}`,
+            relationshipNames
+          );
+          if (relSplit.parseOk) {
+            relationshipTailParsed = true;
+            relationshipDeltaFromMain = relSplit.delta;
+            savedText = relSplit.prose;
+          }
+        }
+        let statusWidgetValuesPayload: ParsedStatusWidgetTurnValues | null = null;
         if (statusWidgetActive) {
-          const splitWidgetValues =
-            isDeepSeekV4ProModel(openRouterModelId) || isGeminiProOpenRouterModel(openRouterModelId)
-            ? splitProseAndStatusWidgetValuesDeepSeek
-            : splitProseAndStatusWidgetValues;
-
-          const widgetSplit = splitWidgetValues(savedText);
-          savedText = widgetSplit.prose;
-          if (widgetSplit.values.character || widgetSplit.values.user) {
-            statusWidgetValuesPayload = sanitizeParsedStatusWidgetValues(widgetSplit.values);
-          }
-          if (!statusWidgetValuesHasContent(statusWidgetValuesPayload)) {
-            const fromRaw = splitWidgetValues(rawWidgetSourceText);
-            if (fromRaw.values.character || fromRaw.values.user) {
-              statusWidgetValuesPayload = sanitizeParsedStatusWidgetValues(fromRaw.values);
-            }
-          }
-          if (!statusWidgetValuesHasContent(statusWidgetValuesPayload) && statusWidgetTurn.characterWidget) {
-            const inferred = inferWidgetValuesFromProse(
-              rawWidgetSourceText,
-              statusWidgetTurn.characterWidget
-            );
-            if (inferred) {
-              statusWidgetValuesPayload = sanitizeParsedStatusWidgetValues({
-                character: inferred,
-                user: statusWidgetValuesPayload?.user ?? null,
-              });
-            }
-          }
-          if (
-            (isDeepSeekV4ProModel(openRouterModelId) || isGeminiProOpenRouterModel(openRouterModelId)) &&
-            (!statusWidgetValuesHasContent(statusWidgetValuesPayload) ||
-              statusWidgetValuesAreCorrupt(statusWidgetValuesPayload))
-          ) {
-            try {
-              const flashValues = await extractStatusWidgetValuesForTurn({
-                charName: ch.name,
-                personaName: personaDisplayName,
-                userMessage: messageText,
-                assistantProse: savedText,
-                resolved: statusWidgetTurn,
-                previousValues: loadPreviousStatusWidgetValues(chatRef.id, regenerateMessageId ?? undefined),
-                userNote: effectiveUserNote,
-              });
-              if (statusWidgetValuesHasContent(flashValues)) {
-                console.info("[status-widget] flash backfill", {
-                  chatId: chatRef.id,
-                  hasCharacter: Boolean(flashValues.character),
-                  hasUser: Boolean(flashValues.user),
-                });
-                statusWidgetValuesPayload = flashValues;
-              }
-            } catch (e) {
-              console.warn("[status-widget] flash backfill failed", (e as Error).message);
-            }
-          }
+          const widgetResolved = await resolveStatusWidgetTurnValues({
+            chatId: chatRef.id,
+            modelId: openRouterModelId,
+            regenerate: !!regenerateMessageId,
+            savedText,
+            rawWidgetSourceText,
+            statusWidgetTurn,
+            streamCapture: capturedStatusWidgetFromStream,
+            statusArtifactCapture: statusArtifacts.capturedStatusWidgetValues ?? null,
+            charName: ch.name,
+            personaName: personaDisplayName,
+            userMessage: messageText,
+            userNote: effectiveUserNote,
+            regenerateMessageId: regenerateMessageId ?? undefined,
+          });
+          savedText = widgetResolved.prose;
+          statusWidgetValuesPayload = widgetResolved.values;
+          logStatusWidgetTurnTelemetry(widgetResolved.telemetry);
         }
 
         const createdAt = new Date().toISOString();
@@ -2343,6 +2323,8 @@ export async function POST(req: Request) {
               isRegenerate: !!regenerateMessageId,
               previousAssistantMessage: rejectedAssistantDraft ?? undefined,
               route: nextMode,
+              relationshipTailParsed,
+              relationshipDeltaFromMain,
             });
           } catch (e) {
             console.error("[/api/chat] 후처리 실패:", (e as Error).message);

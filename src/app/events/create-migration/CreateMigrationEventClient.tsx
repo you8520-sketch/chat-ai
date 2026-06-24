@@ -79,8 +79,8 @@ export default function CreateMigrationEventClient() {
       <Link href="/" className="text-sm text-violet-400 hover:underline">
         ← 홈
       </Link>
-      <p className="mt-4 text-xs font-bold uppercase tracking-wider text-emerald-300/90">EVENT</p>
-      <h1 className="mt-1 text-2xl font-black text-white">캐릭터 제작 · 이식 이벤트 신청</h1>
+      <p className="mt-4 text-xs font-bold uppercase tracking-wider text-emerald-300/90">CLOSED BETA</p>
+      <h1 className="mt-1 text-2xl font-black text-white">클로즈베타 캐릭터 제작 포인트 신청</h1>
       <p className="mt-2 text-sm leading-relaxed text-gray-400">
         공개로 저장한 내 캐릭터를 선택해 신청하세요. 관리자 승인 후 무료 포인트{" "}
         <span className="font-bold text-emerald-300">{CREATE_MIGRATION_EVENT_REWARD.toLocaleString()}P</span>가

@@ -96,6 +96,10 @@ export type ContextBuildInput = {
   openingSceneGreeting?: string | null;
   /** 제작자 상태창 위젯 ON — Flash 방화벽·상태 정책 분기 */
   statusWidgetActive?: boolean;
+  /** Gemini 3.1 Pro — HTML 상태창을 Flash 2차 호출 없이 메인 모델이 직접 출력 */
+  mainModelOwnsHtmlVisualCard?: boolean;
+  /** DeepSeek/Qwen — 메인 모델이 관계메모 JSON tail 출력 */
+  mainModelOwnsRelationshipExtract?: boolean;
   /** 제작자 상태창 필드 지시 — [rule-length-control] 직후 주입 (route에서 조립) */
   statusWidgetPromptBlock?: string | null;
   /** debug/prompt_dump.txt 출처 — chat route=db, audit scripts=audit, mock fixture=mock */
@@ -182,5 +186,7 @@ export const MODEL_SYSTEM_BUDGETS: Record<string, number> = {
   "deepseek/deepseek-v4-pro": 28_000,
   "qwen/qwen3.7-max": 28_000,
   "google/gemini-2.5-pro": 28_000,
+  "google/gemini-2.5-flash": 28_000,
+  "google/gemini-3.1-flash-lite": 28_000,
   default: DEFAULT_SYSTEM_TOKEN_BUDGET,
 };

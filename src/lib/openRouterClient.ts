@@ -1,6 +1,11 @@
 import { resolveMaxOutputTokensForTarget } from "@/lib/responseLength";
 import { normalizeOpenRouterModelId } from "@/lib/openRouterConfig";
-import { isAnthropicModel, isGeminiProOpenRouterModel } from "@/lib/chatModels";
+import {
+  isAnthropicModel,
+  isGemini31ProModel,
+  isGeminiFlashOpenRouterModel,
+  isGeminiProOpenRouterModel,
+} from "@/lib/chatModels";
 
 /** OpenRouter — temperature + max_tokens + Claude 반복 억제 */
 export const EURYALE_GENERATION_PARAMS = {
@@ -92,7 +97,8 @@ export function isQwenOpenRouterModel(modelId: string): boolean {
 
 /**
  * RP primary·continuation — DeepSeek/Qwen: reasoning OFF (effort none).
- * Gemini 2.5 / 3.1 Pro: mandatory reasoning — cap max_tokens + exclude (effort none → 400).
+ * Gemini 2.5 Pro: mandatory reasoning — thinkingBudget cap (max_tokens) + exclude.
+ * Gemini 3.1 Pro: mandatory thinkingLevel — effort low (3.1 Pro는 minimal 미지원, 무시 시 high 기본).
  */
 export function isOpenRouterRpReasoningDisabledModel(modelId: string): boolean {
   return isDeepSeekOpenRouterModel(modelId) || isQwenOpenRouterModel(modelId);
@@ -108,11 +114,31 @@ export const OPENROUTER_RP_REASONING_OFF = {
   exclude: true,
 } as const;
 
-/** Gemini Pro RP — mandatory reasoning; cap at API min (effort none → 400). */
+/** Gemini 2.5 Pro RP — thinkingBudget cap (effort none → 400). */
 export const OPENROUTER_RP_REASONING_GEMINI_CAP = {
   max_tokens: 64,
   exclude: true,
 } as const;
+
+/** Gemini 3.1 Pro RP — thinkingLevel API. Pro는 minimal 미지원 → low가 최저. */
+export const OPENROUTER_RP_REASONING_GEMINI_31 = {
+  effort: "low",
+  exclude: true,
+} as const;
+
+type Gemini31ReasoningEffort = "low" | "medium" | "high";
+
+function resolveGemini31ReasoningEffort(): Gemini31ReasoningEffort {
+  const raw = process.env.OPENROUTER_GEMINI_31_REASONING_EFFORT?.trim().toLowerCase();
+  if (raw === "minimal") {
+    console.warn(
+      "[openrouter-reasoning] gemini-3.1-pro does not support minimal — using low instead"
+    );
+    return "low";
+  }
+  if (raw === "low" || raw === "medium" || raw === "high") return raw;
+  return OPENROUTER_RP_REASONING_GEMINI_31.effort;
+}
 
 function resolveGeminiOpenRouterReasoningMaxTokens(): number {
   const raw = process.env.OPENROUTER_GEMINI_REASONING_MAX_TOKENS?.trim();
@@ -125,20 +151,46 @@ function resolveGeminiOpenRouterReasoningMaxTokens(): number {
   return OPENROUTER_RP_REASONING_GEMINI_CAP.max_tokens;
 }
 
+/** Gemini Flash RP — thinking minimal + exclude (Pro mandatory thinking 회피용 라우팅) */
+export const OPENROUTER_RP_REASONING_GEMINI_FLASH = {
+  effort: "minimal",
+  exclude: true,
+} as const;
+
 function applyOpenRouterRpReasoningPolicy(body: Record<string, unknown>, modelId: string): void {
   delete body.reasoning_effort;
-  delete body.include_reasoning;
+  body.include_reasoning = false;
   const normalized = normalizeOpenRouterModelId(modelId);
 
-  if (isOpenRouterRpReasoningMandatoryModel(modelId)) {
-    const max_tokens = resolveGeminiOpenRouterReasoningMaxTokens();
-    body.reasoning = { max_tokens, exclude: true };
-    console.log("[openrouter-reasoning] mandatory-cap", {
+  if (isGeminiFlashOpenRouterModel(modelId)) {
+    body.reasoning = { ...OPENROUTER_RP_REASONING_GEMINI_FLASH };
+    console.log("[openrouter-reasoning] gemini-flash-minimal", {
       model: normalized,
-      family: "gemini",
-      max_tokens,
+      effort: OPENROUTER_RP_REASONING_GEMINI_FLASH.effort,
       exclude: true,
+      include_reasoning: false,
     });
+    return;
+  }
+
+  if (isOpenRouterRpReasoningMandatoryModel(modelId)) {
+    if (isGemini31ProModel(modelId)) {
+      const effort = resolveGemini31ReasoningEffort();
+      body.reasoning = { effort, exclude: true };
+      console.log("[openrouter-reasoning] gemini-3.1-thinkingLevel", {
+        model: normalized,
+        effort,
+        exclude: true,
+      });
+    } else {
+      const max_tokens = resolveGeminiOpenRouterReasoningMaxTokens();
+      body.reasoning = { max_tokens, exclude: true };
+      console.log("[openrouter-reasoning] gemini-2.5-budget-cap", {
+        model: normalized,
+        max_tokens,
+        exclude: true,
+      });
+    }
     return;
   }
 
@@ -291,7 +343,8 @@ export function buildOpenRouterRequestBody(
 
   if (
     isOpenRouterRpReasoningMandatoryModel(modelId) ||
-    isOpenRouterRpReasoningDisabledModel(modelId)
+    isOpenRouterRpReasoningDisabledModel(modelId) ||
+    isGeminiFlashOpenRouterModel(modelId)
   ) {
     applyOpenRouterRpReasoningPolicy(body, modelId);
   }

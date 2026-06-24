@@ -2,6 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import crypto from "crypto";
 import { getDb } from "./db";
+import { effectiveIsAdult } from "./adultVerification";
 import { type User, isSubscribed } from "./auth-types";
 
 export type { User } from "./auth-types";
@@ -40,5 +41,7 @@ export async function getSessionUser(): Promise<User | null> {
        WHERE s.token = ? AND s.expires_at > datetime('now')`
     )
     .get(token) as User | undefined;
-  return row ?? null;
+  if (!row) return null;
+  if (!effectiveIsAdult(row.is_adult)) return row;
+  return { ...row, is_adult: 1 };
 }

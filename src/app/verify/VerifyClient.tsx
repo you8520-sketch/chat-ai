@@ -8,9 +8,10 @@ const CARRIERS = ["SKT", "KT", "LG U+", "알뜰폰"];
 
 type Props = {
   redirectTo: string;
+  showDemo?: boolean;
 };
 
-export default function VerifyClient({ redirectTo }: Props) {
+export default function VerifyClient({ redirectTo, showDemo = false }: Props) {
   const router = useRouter();
   const fromCharacter = redirectTo.startsWith("/character/");
   const [form, setForm] = useState({ name: "", birth: "", carrier: "SKT" });
@@ -109,10 +110,15 @@ export default function VerifyClient({ redirectTo }: Props) {
         >
           휴대폰 본인인증 (모의)
         </button>
-        <DemoAdultSkip redirectTo={redirectTo} label="데모: 바로 성인인증 완료" />
-        <p className="text-center text-[11px] text-gray-600">
-          ※ 모의 인증은 생년월일이 만 19세 이상이어야 합니다. 안 되면 위 「데모: 바로 성인인증 완료」를 누르세요.
-        </p>
+        {showDemo && (
+          <>
+            <DemoAdultSkip redirectTo={redirectTo} label="데모: 바로 성인인증 완료" />
+            <p className="text-center text-[11px] text-gray-600">
+              ※ 모의 인증은 생년월일이 만 19세 이상이어야 합니다. 안 되면 위 「데모: 바로 성인인증
+              완료」를 누르세요.
+            </p>
+          </>
+        )}
       </form>
     </div>
   );

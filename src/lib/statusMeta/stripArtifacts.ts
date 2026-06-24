@@ -6,6 +6,7 @@ import {
   splitProseAndStatusWidgetValues,
   stripIncompleteStatusWidgetTail,
 } from "@/lib/statusWidget/parseValues";
+import { stripRelationshipMemoryTailForStream } from "@/lib/relationshipMemoryTailParse";
 import { stripEmojisAndDecorators } from "@/lib/htmlVisualCardPolicy";
 import type { StatusWindowPlacement } from "@/lib/statusWindowPlacement";
 import { isPlainTextStatusFormatSpec, plainTextStatusFieldLines } from "./formatSpec";
@@ -591,6 +592,10 @@ export type StripStatusArtifactsOptions = {
   stripModelHtml?: boolean;
   /** true — plain/markdown 상태창은 모델 출력 유지(HTML·JSON만 제거) */
   modelOutputsPlainStatus?: boolean;
+  /** 메인 모델이 ```html 상태창 직접 출력 (Gemini 3.1 Pro) */
+  modelOutputsHtmlVisualCard?: boolean;
+  /** DeepSeek/Qwen — 스트림·strip 경로에서 관계메모 JSON tail 숨김 */
+  stripRelationshipMemoryTail?: boolean;
 };
 
 export type PartitionModelStatusResult = {
@@ -610,6 +615,19 @@ export function partitionModelStatusArtifacts(
   const capturedStatusWidgetValues =
     widgetSplit.values.character || widgetSplit.values.user ? widgetSplit.values : null;
   let working = widgetSplit.prose;
+
+  if (opts?.modelOutputsHtmlVisualCard) {
+    working = stripStatusWindowJsonBlock(working);
+    const { prose: afterTables, tables } = splitStatusMarkdownTables(working);
+    working = stripTrailingGluedPipeTable(afterTables);
+    working = working.replace(/\n```json\s*[\s\S]*$/i, "").trimEnd();
+    return {
+      prose: working.trimEnd(),
+      capturedTableMarkdown: tables.length > 0 ? tables[tables.length - 1]! : null,
+      capturedHtmlFence: null,
+      capturedStatusWidgetValues,
+    };
+  }
 
   if (opts?.modelOutputsPlainStatus) {
     working = stripStatusWindowJsonBlock(working);
@@ -649,5 +667,9 @@ export function stripAllStatusWindowOutputArtifacts(
   text: string,
   opts?: StripStatusArtifactsOptions
 ): string {
-  return partitionModelStatusArtifacts(stripIncompleteStatusWidgetTail(text), opts).prose;
+  let work = text;
+  if (opts?.stripRelationshipMemoryTail) {
+    work = stripRelationshipMemoryTailForStream(work);
+  }
+  return partitionModelStatusArtifacts(stripIncompleteStatusWidgetTail(work), opts).prose;
 }

@@ -116,9 +116,6 @@ import { isDeepSeekV4ProModel } from "@/lib/chatModels";
 import { buildCoNarrationKoreanRule } from "@/lib/openRouterAdult";
 import { buildOpenRouterKoreanProseTopBlock } from "@/lib/openRouterProsePolicy";
 import {
-  buildStatusWidgetAppendInstruction,
-} from "@/lib/statusWidget/prompt";
-import {
   createDeepSeekXmlBuffers,
   flushDeepSeekXmlBuffers,
   logDeepSeekContextStructure,
@@ -126,7 +123,6 @@ import {
   resolveDeepSeekLoreXmlGroup,
   type DeepSeekXmlGroup,
 } from "@/lib/deepseekPromptStructure";
-import { DEEPSEEK_STATUS_WIDGET_BOTTOM_REMINDER } from "@/lib/statusWidget/deepseekCapture";
 
 type SectionTarget = "dynamic" | "cacheRules" | "cacheCharacter";
 
@@ -728,6 +724,8 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
 
   // ───── Tail — operational constraints ─────
   const modelOutputsPlainStatus = modelPlainStatusEveryTurnActive(statusWindowPolicy);
+  const mainModelOwnsHtmlVisualCard = input.mainModelOwnsHtmlVisualCard === true;
+  const mainModelOwnsRelationshipExtract = input.mainModelOwnsRelationshipExtract === true;
   if (statusWindowPolicy.policyBlock.trim() && !input.statusWidgetActive) {
     pushSection(
       "state-window-policy",
@@ -736,6 +734,20 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
         : "State window policy",
       "systemRules",
       statusWindowPolicy.policyBlock,
+      "dynamic"
+    );
+  }
+
+  if (
+    mainModelOwnsHtmlVisualCard &&
+    htmlVisualCardPolicy.enabled &&
+    htmlVisualCardPolicy.policyBlock.trim()
+  ) {
+    pushSection(
+      "html-visual-card-policy",
+      "HTML visual card policy (main model — every turn)",
+      "systemRules",
+      htmlVisualCardPolicy.policyBlock,
       "dynamic"
     );
   }
@@ -763,7 +775,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
 
   const lengthInstructionOpts = {
     statusWindowEveryTurn: statusWindowPolicy.everyTurn,
-    htmlFlashOwned: isOpenRouter,
+    htmlFlashOwned: isOpenRouter && !mainModelOwnsHtmlVisualCard,
     proseStylePolicyOwnsSceneExpansion: isOpenRouter,
     statusWidgetActive: input.statusWidgetActive === true,
   };
@@ -795,13 +807,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const statusWidgetFields = input.statusWidgetPromptBlock?.trim() ?? "";
   if (input.statusWidgetActive && statusWidgetFields) {
     pushSection(
-      "status-widget-append-instruction",
-      "Status widget append (after length control)",
-      "systemRules",
-      buildStatusWidgetAppendInstruction(),
-      "dynamic"
-    );
-    pushSection(
       "status-widget-fields",
       "Status widget fields",
       "systemRules",
@@ -818,6 +823,8 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       buildPrimaryModelFlashFirewallBlock({
         modelOutputsPlainStatus,
         statusWidgetActive: input.statusWidgetActive === true,
+        mainModelOwnsHtmlVisualCard,
+        mainModelOwnsRelationshipExtract,
       }),
       "dynamic"
     );
@@ -940,9 +947,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     const deepSeekTailParts = [userPersonaAppearance].filter((p): p is string =>
       Boolean(p?.trim())
     );
-    if (input.statusWidgetActive) {
-      deepSeekTailParts.push(DEEPSEEK_STATUS_WIDGET_BOTTOM_REMINDER);
-    }
     userTurnContent = prependDeepSeekBottomReminder(
       userTurnContent,
       deepSeekTailParts.length > 0 ? deepSeekTailParts.join("\n\n") : undefined
@@ -984,6 +988,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   if (isOpenRouter) {
     history = sanitizePrimaryModelHistoryMessages(history, {
       modelOutputsPlainStatus: modelPlainStatusEveryTurnActive(statusWindowPolicy),
+      modelOutputsHtmlVisualCard: mainModelOwnsHtmlVisualCard,
     });
   }
 

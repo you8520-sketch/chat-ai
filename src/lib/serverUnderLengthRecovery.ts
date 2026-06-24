@@ -10,6 +10,7 @@ import {
   buildRecoveryContinuationRequest,
   buildRecoveryContinuationSystemPrompt,
   SERVER_UNDER_LENGTH_RECOVERY_ENABLED,
+  TURN_LENGTH_SUPPLEMENT_API_ENABLED,
   type TurnApiBudget,
 } from "@/lib/turnApiBudget";
 
@@ -39,9 +40,15 @@ export async function tryServerUnderLengthRecovery(
   const prior = opts.prose.trim();
   const charsBefore = visibleAssistantDisplayCharCount(prior);
 
-  const shouldTrigger =
-    SERVER_UNDER_LENGTH_RECOVERY_ENABLED &&
-    needsServerUnderLengthRecovery(prior, opts.finishReason, opts.targetResponseChars);
+  if (!TURN_LENGTH_SUPPLEMENT_API_ENABLED || !SERVER_UNDER_LENGTH_RECOVERY_ENABLED) {
+    return { prose: prior, triggered: false, charsBefore, charsAfter: charsBefore };
+  }
+
+  const shouldTrigger = needsServerUnderLengthRecovery(
+    prior,
+    opts.finishReason,
+    opts.targetResponseChars
+  );
 
   if (!shouldTrigger) {
     console.log("[under-length-server-recovery]", {

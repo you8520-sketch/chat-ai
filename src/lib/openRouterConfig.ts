@@ -2,7 +2,12 @@ import {
   CLAUDE_OPUS_MODEL_LEGACY,
   DEFAULT_SELECTED_AI,
   OPENROUTER_CLAUDE_DEFAULT,
+  OPENROUTER_GEMINI_25_FLASH_MODEL,
+  OPENROUTER_GEMINI_25_PRO_MODEL,
+  OPENROUTER_GEMINI_31_FLASH_MODEL,
   OPENROUTER_GEMINI_31_PRO_MODEL,
+  isGemini25ProModel,
+  isGemini31ProModel,
   coerceUserSelectableAI,
   isOpenRouterSelectedAI,
   type SelectedAI,
@@ -71,6 +76,25 @@ export function resolveOpenRouterModelId(selectedAI?: string | null): string {
     console.warn("[OpenRouter] deprecated model slug remapped", { from: normalized, to: mapped });
   }
   return mapped;
+}
+
+/**
+ * RP 채팅 OpenRouter 호출용 — Gemini Pro UI 선택은 Flash로 라우팅 (mandatory thinking·TTFT 회피).
+ * 과금·영수증·DB selectedAI는 billingModelId(Pro slug) 유지.
+ * `OPENROUTER_RP_ROUTE_GEMINI_PRO_TO_FLASH=0`으로 Pro 직접 호출 복원.
+ */
+export function resolveRpOpenRouterModelId(modelId: string): string {
+  const normalized = normalizeOpenRouterModelId(modelId);
+  if (process.env.OPENROUTER_RP_ROUTE_GEMINI_PRO_TO_FLASH === "0") {
+    return normalized;
+  }
+  if (isGemini25ProModel(normalized)) {
+    return OPENROUTER_GEMINI_25_FLASH_MODEL;
+  }
+  if (isGemini31ProModel(normalized)) {
+    return OPENROUTER_GEMINI_31_FLASH_MODEL;
+  }
+  return normalized;
 }
 
 export function resolveOpenRouterApiKey(): string {

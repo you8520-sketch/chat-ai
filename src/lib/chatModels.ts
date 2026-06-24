@@ -35,6 +35,12 @@ export const OPENROUTER_GEMINI_25_PRO_MODEL = "google/gemini-2.5-pro";
 /** OpenRouter — Google Gemini 3.1 Pro Preview (balanced tier) */
 export const OPENROUTER_GEMINI_31_PRO_MODEL = "google/gemini-3.1-pro-preview";
 
+/** OpenRouter RP — Gemini 2.5 Pro UI 선택 시 실제 호출 (thinking 없음) */
+export const OPENROUTER_GEMINI_25_FLASH_MODEL = "google/gemini-2.5-flash";
+
+/** OpenRouter RP — Gemini 3.1 Pro UI 선택 시 실제 호출 (Pro mandatory thinking 회피) */
+export const OPENROUTER_GEMINI_31_FLASH_MODEL = "google/gemini-3.1-flash-lite";
+
 /** 유저-facing 표시명 (채팅 선택·영수증) */
 export const DEEPSEEK_DISPLAY_NAME = "DeepSeek V4 Pro";
 
@@ -129,6 +135,20 @@ export function isGemini25ProModel(modelId: string): boolean {
 export function isGemini31ProModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
   return id === OPENROUTER_GEMINI_31_PRO_MODEL || id.includes("gemini-3.1-pro");
+}
+
+/** OpenRouter Gemini Flash (RP 라우팅·배경 작업) */
+export function isGeminiFlashOpenRouterModel(modelId: string): boolean {
+  const id = modelId.trim().toLowerCase();
+  if (!id.includes("gemini") || !id.includes("flash")) return false;
+  return (
+    id === OPENROUTER_GEMINI_25_FLASH_MODEL ||
+    id === OPENROUTER_GEMINI_31_FLASH_MODEL ||
+    id === GEMINI_CHAT_FLASH_25 ||
+    id.includes("gemini-2.5-flash") ||
+    id.includes("gemini-3.1-flash") ||
+    id.includes("gemini-3-flash")
+  );
 }
 
 /** OpenRouter Gemini Pro — 2.5 Pro · 3.1 Pro (유저 선택·과금·reasoning 정책 공통) */

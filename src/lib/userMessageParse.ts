@@ -121,7 +121,7 @@ export function splitPlainUserChunk(text: string): UserMessagePart[] {
 
   const pushSlice = (start: number, end: number) => {
     if (end <= start) return;
-    const slice = text.slice(start, end);
+    const slice = trimmed.slice(start, end);
     if (!slice.trim()) return;
 
     const sentences = slice

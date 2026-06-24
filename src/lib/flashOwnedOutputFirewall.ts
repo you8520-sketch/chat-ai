@@ -14,25 +14,52 @@ import {
   extractModelHtmlVisualFences,
 } from "@/lib/statusMeta/stripArtifacts";
 import { stripPromotedStatusWindowContent } from "@/lib/statusWindowNotePolicy";
+import { RELATIONSHIP_MEMORY_SELF_EXTRACT_BLOCK } from "@/lib/relationshipMemoryTailPrompt";
 
 export type FlashFirewallOpts = {
   /** plain 줄글 매턴 상태창 — 메인 모델이 하단 출력, Flash는 HTML만 */
   modelOutputsPlainStatus?: boolean;
   /** 제작자 상태창 위젯 — RP 후 <<<STATUS_VALUES>>> JSON만 허용 */
   statusWidgetActive?: boolean;
+  /** Gemini 3.1 Pro — 메인 모델이 ```html 상태창 직접 출력 (Flash 2차 호출 없음) */
+  mainModelOwnsHtmlVisualCard?: boolean;
+  /** DeepSeek/Qwen — 관계메모 JSON tail을 메인 모델이 출력 (Flash 추출 생략) */
+  mainModelOwnsRelationshipExtract?: boolean;
 };
 
 function buildFlashOwnedForbiddenList(
   modelOutputsPlainStatus: boolean,
-  statusWidgetActive?: boolean
+  statusWidgetActive?: boolean,
+  mainModelOwnsHtmlVisualCard?: boolean,
+  mainModelOwnsRelationshipExtract?: boolean
 ): string {
-  if (statusWidgetActive) {
-    return `Creator status widget is ON. Gemini Flash handles user-note HTML/plain status when needed.
+  if (mainModelOwnsHtmlVisualCard) {
+    return `YOU output RP prose + \`\`\`html visual cards per [SYSTEM: HTML OUTPUT MODE] above.
 
 FORBIDDEN in RP prose:
-- Inline status lines, pipe tables, \`\`\`html, \`\`\`json fences, bare trailing { ... } objects in prose
+- | pipe tables |, plain status panels, \`\`\`json / trailing { ... } status objects
+- <<<STATUS_VALUES>>> markers (creator widget path only)
 
-Status values: see [STATUS WIDGET] field spec above.`;
+ALLOWED after RP (per policy):
+- \`\`\`html blocks for status window / messenger / alert / card UI`;
+  }
+
+  if (statusWidgetActive) {
+    return `Gemini Flash handles user-note HTML/plain status when explicitly requested.
+Creator widget: obey [STATUS WIDGET] above — do not repeat status in RP prose.
+Do not translate character lore, user notes, or prior turns.`;
+  }
+
+  if (mainModelOwnsRelationshipExtract) {
+    return `Gemini Flash (background) still owns status/HTML UI when applicable — see policies above.
+YOU append relationship-memory JSON per [RELATIONSHIP MEMORY — SELF-EXTRACT] after RP prose.
+
+FORBIDDEN in RP prose:
+- | pipe tables |, status panels, unrelated \`\`\`json / trailing status objects
+- <<<STATUS_VALUES>>> markers (unless creator widget policy above applies)
+
+ALLOWED after RP (in addition to widget/status policies above):
+- One-line relationship memory JSON per [RELATIONSHIP MEMORY — SELF-EXTRACT]`;
   }
 
   if (modelOutputsPlainStatus) {
@@ -70,20 +97,38 @@ Do NOT copy status/HTML/JSON templates from character setting, user note, person
 export function buildPrimaryModelFlashFirewallBlock(opts?: FlashFirewallOpts): string {
   const modelOutputsPlainStatus = opts?.modelOutputsPlainStatus === true;
   const statusWidgetActive = opts?.statusWidgetActive === true;
-  const ownedBlock = statusWidgetActive
-    ? `[STATUS WIDGET — CREATOR (SERVER RENDERS HTML)]
-You fill JSON values in <<<STATUS_VALUES>>> after RP prose. Flash/server render the widget UI.`
+  const mainModelOwnsHtmlVisualCard = opts?.mainModelOwnsHtmlVisualCard === true;
+  const mainModelOwnsRelationshipExtract = opts?.mainModelOwnsRelationshipExtract === true;
+
+  const forbiddenList = buildFlashOwnedForbiddenList(
+    modelOutputsPlainStatus,
+    statusWidgetActive,
+    mainModelOwnsHtmlVisualCard,
+    mainModelOwnsRelationshipExtract
+  );
+
+  if (statusWidgetActive) {
+    const base = `[FLASH-OWNED — PRIMARY MODEL MUST NOT DO THESE]
+${forbiddenList}`;
+    return mainModelOwnsRelationshipExtract
+      ? `${base}\n\n${RELATIONSHIP_MEMORY_SELF_EXTRACT_BLOCK}`
+      : base;
+  }
+
+  const ownedBlock = mainModelOwnsHtmlVisualCard
+    ? `[HTML VISUAL CARD — MAIN MODEL OUTPUT]
+User enabled HTML visual output. YOU output \`\`\`html blocks per [SYSTEM: HTML OUTPUT MODE] in the same reply after RP prose.`
     : modelOutputsPlainStatus
-    ? `[HTML VISUAL CARD — SERVER GENERATED]
+      ? `[HTML VISUAL CARD — SERVER GENERATED]
 User enabled HTML visual output. Gemini Flash generates \`\`\`html blocks when HTML is explicitly requested.
 
 Plain-text / markdown status windows (no HTML keyword) = YOU output at the bottom of your reply.`
-    : HTML_FLASH_SERVER_ONLY_BLOCK;
+      : HTML_FLASH_SERVER_ONLY_BLOCK;
 
   return `${ownedBlock}
 
 [FLASH-OWNED — PRIMARY MODEL MUST NOT DO THESE]
-${buildFlashOwnedForbiddenList(modelOutputsPlainStatus, statusWidgetActive)}`;
+${forbiddenList}${mainModelOwnsRelationshipExtract ? `\n\n${RELATIONSHIP_MEMORY_SELF_EXTRACT_BLOCK}` : ""}`;
 }
 
 /** @deprecated use buildPrimaryModelFlashFirewallBlock(opts) */
@@ -91,6 +136,7 @@ export const PRIMARY_MODEL_FLASH_OWNED_BLOCK = buildPrimaryModelFlashFirewallBlo
 
 export type SanitizePrimaryModelOpts = {
   modelOutputsPlainStatus?: boolean;
+  modelOutputsHtmlVisualCard?: boolean;
 };
 
 /** Primary 모델 **출력** 후처리 — HTML/JSON 제거 · plain 상태창은 모델 출력 시 유지 */
@@ -98,6 +144,9 @@ export function sanitizePrimaryModelOutputArtifacts(
   text: string,
   opts?: SanitizePrimaryModelOpts
 ): string {
+  if (opts?.modelOutputsHtmlVisualCard) {
+    return stripAllStatusWindowOutputArtifacts(text, { modelOutputsHtmlVisualCard: true });
+  }
   if (opts?.modelOutputsPlainStatus) {
     let out = stripStatusWindowJsonBlock(text);
     out = extractModelHtmlVisualFences(out).prose;
@@ -126,7 +175,7 @@ export function sanitizePrimaryModelAssistantHistory(
   const trimmed = content.trim();
   if (!trimmed) return trimmed;
   const cleaned = sanitizePrimaryModelOutputArtifacts(trimmed, opts).trim();
-  if (opts?.modelOutputsPlainStatus) return cleaned;
+  if (opts?.modelOutputsPlainStatus || opts?.modelOutputsHtmlVisualCard) return cleaned;
   return cleaned || HISTORY_STRIPPED_PLACEHOLDER;
 }
 

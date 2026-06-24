@@ -35,6 +35,7 @@ import {
   buildOpenRouterHeaders,
   resolveOpenRouterApiKey,
   resolveOpenRouterModelId,
+  resolveRpOpenRouterModelId,
   normalizeOpenRouterModelId,
   assertOpenRouterEndpoint,
 } from "@/lib/openRouterConfig";
@@ -61,7 +62,9 @@ import {
   parseOpenRouterAffordableMaxTokens,
 } from "@/lib/apiErrors";
 import {
+  assertLengthSupplementApiAllowed,
   assertPayloadWithinTokenLimit,
+  SERVER_UNDER_LENGTH_RECOVERY_ENABLED,
   type TurnApiBudget,
 } from "@/lib/turnApiBudget";
 import { resolveMaxPayloadInputTokens } from "@/lib/contextTrack";
@@ -1022,16 +1025,24 @@ export async function* streamOpenRouterAdult(
   messageOpts?: OpenRouterMessageOpts,
   debugMeta?: PromptDebugMeta
 ): AsyncGenerator<string, TokenUsage> {
-  const resolvedModelId = normalizeOpenRouterModelId(modelId);
+  const billingModelId = normalizeOpenRouterModelId(modelId);
+  const apiModelId = resolveRpOpenRouterModelId(billingModelId);
+  if (apiModelId !== billingModelId) {
+    console.info("[openrouter-rp-routing] gemini-pro→flash", {
+      billing: billingModelId,
+      api: apiModelId,
+    });
+  }
   console.log("[OpenRouter] streaming request", {
-    model: resolvedModelId,
+    model: apiModelId,
+    billingModel: billingModelId,
     endpoint: OPENROUTER_CHAT_COMPLETIONS_URL,
     historyMessages: history.length,
     novelMode: messageOpts?.novelMode === true,
   });
 
   const key = openRouterKey();
-  assertPayloadWithinTokenLimit(system, history, 0, resolveMaxPayloadInputTokens(modelId));
+  assertPayloadWithinTokenLimit(system, history, 0, resolveMaxPayloadInputTokens(billingModelId));
   const oocHtmlMode = messageOpts?.oocHtmlMode === true;
   const effectiveSystem = oocHtmlMode
     ? `${system.trim()}
@@ -1052,7 +1063,7 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
       : undefined;
 
   const canRetryWithoutPrefill =
-    isAnthropicModel(resolvedModelId) &&
+    isAnthropicModel(apiModelId) &&
     !messageOpts?.recoveryAssistantPrefill?.trim() &&
     !messageOpts?.skipAssistantPrefill;
 
@@ -1066,14 +1077,14 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
       console.warn("[OpenRouter] empty stop response — retrying stream", {
         attempt: emptyAttempt + 1,
         skipAssistantPrefill,
-        model: resolvedModelId,
+        model: apiModelId,
       });
     }
 
     // Claude(Anthropic): system 블록 캐싱 + assistant prefill (그 외 모델은 no-op)
     const { messages, prefill } = applyAnthropicCacheAndPrefill(
       baseMessages,
-      resolvedModelId,
+      apiModelId,
       messageOpts?.charName,
       {
         recoveryAssistantPrefill: messageOpts?.recoveryAssistantPrefill,
@@ -1081,7 +1092,7 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
       }
     );
   const requestBody = buildOpenRouterRequestBody(
-    resolvedModelId,
+    apiModelId,
     messages,
     true,
     targetResponseChars,
@@ -1092,23 +1103,27 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
   const lengthTarget = resolveResponseLengthTarget(targetResponseChars);
   const configuredMaxTokens =
     messageOpts?.maxTokensOverride ??
-    resolveMaxOutputTokensForTarget(targetResponseChars, resolvedModelId);
+    resolveMaxOutputTokensForTarget(targetResponseChars, billingModelId);
   console.log("[OUTPUT TOKEN CONFIG]", {
     lengthMode: lengthTarget.target,
     max_tokens: configuredMaxTokens,
     requestKind: debugMeta?.requestKind ?? "openrouter-stream",
+    apiModel: apiModelId,
+    billingModel: billingModelId,
   });
   dumpOpenRouterRequest(requestBody as Record<string, unknown>, {
     ...debugMeta,
     requestKind: debugMeta?.requestKind ?? "openrouter-stream",
-    stage: debugMeta?.stage ?? resolvedModelId,
+    stage: debugMeta?.stage ?? apiModelId,
   });
   console.log("[OPENROUTER REQUEST]", summarizeOpenRouterPayload(requestBody as Record<string, unknown>));
   logOpenRouterSystemPromptBeforeFetch(requestBody as Record<string, unknown>);
 
   assertOpenRouterEndpoint(OPENROUTER_CHAT_COMPLETIONS_URL);
+  const requestKind = debugMeta?.requestKind ?? "openrouter-stream";
+  assertLengthSupplementApiAllowed(requestKind);
   if (debugMeta?.chargeTurnBudget !== false && emptyAttempt === 0) {
-    debugMeta?.turnApiBudget?.beforeFetch(debugMeta.requestKind ?? "openrouter-stream");
+    debugMeta?.turnApiBudget?.beforeFetch(requestKind);
   }
   let res: Response;
   if (isMockApiMode()) {
@@ -1116,7 +1131,7 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
     recordMockApiPayload({
       provider: "openrouter",
       requestKind: debugMeta?.requestKind ?? "openrouter-stream",
-      model: resolvedModelId,
+      model: apiModelId,
       payloadChars: chars,
       payloadTokens: tokens,
       historyMessages: Array.isArray((requestBody as { messages?: unknown }).messages)
@@ -1125,7 +1140,7 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
       payload: requestBody,
     });
     const mockText = getMockResponseText();
-    const sseChunks = buildMockOpenRouterStreamChunks(mockText, resolvedModelId);
+    const sseChunks = buildMockOpenRouterStreamChunks(mockText, apiModelId);
     res = new Response(mockReadableStreamFromText(sseChunks), {
       status: 200,
       headers: { "Content-Type": "text/event-stream" },
@@ -1389,7 +1404,7 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
 
   try {
     console.warn("[OpenRouter] empty stream — non-stream fallback", {
-      model: resolvedModelId,
+      model: apiModelId,
     });
     const fallback = await callOpenRouterAdult(
       system,
@@ -1623,29 +1638,31 @@ export async function streamOpenRouterAdultToClient(
 
   let recoveryStage: StageUsage | undefined;
   let lengthRecoveryPasses = 0;
-  const recoveryResult = await tryServerUnderLengthRecovery({
-    prose: mergedText,
-    finishReason: usage.finishReason,
-    system,
-    modelId,
-    targetResponseChars,
-    charName: messageOpts?.charName ?? "",
-    turnApiBudget,
-    sessionId: messageOpts?.sessionId ?? undefined,
-  });
-  if (recoveryResult.stage) {
-    recoveryStage = recoveryResult.stage;
-  }
-  if (recoveryResult.prose.length > mergedText.trim().length) {
-    mergedText = recoveryResult.prose;
-    lengthRecoveryPasses = 1;
-    const recoveredForClient = stripLiveStreamForClient(mergedText);
-    if (
-      recoveredForClient.trim() &&
-      recoveredForClient.trimEnd() !== lastCleanSent.trimEnd() &&
-      !shouldSkipStreamEndShrink(streamVisibleText, recoveredForClient)
-    ) {
-      lastCleanSent = pushLiveStreamUpdate(send, lastCleanSent, recoveredForClient);
+  if (SERVER_UNDER_LENGTH_RECOVERY_ENABLED) {
+    const recoveryResult = await tryServerUnderLengthRecovery({
+      prose: mergedText,
+      finishReason: usage.finishReason,
+      system,
+      modelId,
+      targetResponseChars,
+      charName: messageOpts?.charName ?? "",
+      turnApiBudget,
+      sessionId: messageOpts?.sessionId ?? undefined,
+    });
+    if (recoveryResult.stage) {
+      recoveryStage = recoveryResult.stage;
+    }
+    if (recoveryResult.prose.length > mergedText.trim().length) {
+      mergedText = recoveryResult.prose;
+      lengthRecoveryPasses = 1;
+      const recoveredForClient = stripLiveStreamForClient(mergedText);
+      if (
+        recoveredForClient.trim() &&
+        recoveredForClient.trimEnd() !== lastCleanSent.trimEnd() &&
+        !shouldSkipStreamEndShrink(streamVisibleText, recoveredForClient)
+      ) {
+        lastCleanSent = pushLiveStreamUpdate(send, lastCleanSent, recoveredForClient);
+      }
     }
   }
 
@@ -1800,16 +1817,24 @@ export async function callOpenRouterAdult(
   messageOpts?: OpenRouterMessageOpts,
   debugMeta?: PromptDebugMeta
 ): Promise<{ text: string; usage: TokenUsage }> {
-  const resolvedModelId = normalizeOpenRouterModelId(modelId);
+  const billingModelId = normalizeOpenRouterModelId(modelId);
+  const apiModelId = resolveRpOpenRouterModelId(billingModelId);
+  if (apiModelId !== billingModelId) {
+    console.info("[openrouter-rp-routing] gemini-pro→flash", {
+      billing: billingModelId,
+      api: apiModelId,
+    });
+  }
   console.log("[OpenRouter] generate request", {
-    model: resolvedModelId,
+    model: apiModelId,
+    billingModel: billingModelId,
     stream: false,
   });
 
   const key = openRouterKey();
   const baseMessages = buildOpenRouterMessages(system, history, messageOpts);
   const canRetryWithoutPrefill =
-    isAnthropicModel(resolvedModelId) &&
+    isAnthropicModel(apiModelId) &&
     !messageOpts?.recoveryAssistantPrefill?.trim() &&
     !messageOpts?.skipAssistantPrefill;
 
@@ -1819,13 +1844,13 @@ export async function callOpenRouterAdult(
     if (attempt > 0) {
       console.warn("[OpenRouter] empty generate — retry without prefill", {
         attempt: attempt + 1,
-        model: resolvedModelId,
+        model: apiModelId,
       });
     }
 
     const { messages, prefill } = applyAnthropicCacheAndPrefill(
       baseMessages,
-      resolvedModelId,
+      apiModelId,
       messageOpts?.charName,
       {
         recoveryAssistantPrefill: messageOpts?.recoveryAssistantPrefill,
@@ -1833,7 +1858,7 @@ export async function callOpenRouterAdult(
       }
     );
     const requestBody = buildOpenRouterRequestBody(
-      resolvedModelId,
+      apiModelId,
       messages,
       false,
       targetResponseChars,
@@ -1844,7 +1869,7 @@ export async function callOpenRouterAdult(
     dumpOpenRouterRequest(requestBody as Record<string, unknown>, {
       ...debugMeta,
       requestKind: debugMeta?.requestKind ?? "openrouter-generate",
-      stage: debugMeta?.stage ?? resolvedModelId,
+      stage: debugMeta?.stage ?? apiModelId,
     });
     logOpenRouterSystemPromptBeforeFetch(requestBody as Record<string, unknown>);
 
@@ -1855,7 +1880,7 @@ export async function callOpenRouterAdult(
     recordMockApiPayload({
       provider: "openrouter",
       requestKind: debugMeta?.requestKind ?? "openrouter-generate",
-      model: resolvedModelId,
+      model: apiModelId,
       payloadChars: chars,
       payloadTokens: tokens,
       historyMessages: Array.isArray((requestBody as { messages?: unknown }).messages)
@@ -1864,13 +1889,15 @@ export async function callOpenRouterAdult(
       payload: requestBody,
     });
     const mockText = getMockResponseText();
-    res = new Response(JSON.stringify(buildMockOpenRouterGenerateJson(mockText, resolvedModelId)), {
+    res = new Response(JSON.stringify(buildMockOpenRouterGenerateJson(mockText, apiModelId)), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
     } else {
+      const requestKind = debugMeta?.requestKind ?? "openrouter-generate";
+      assertLengthSupplementApiAllowed(requestKind);
       if (debugMeta?.chargeTurnBudget !== false && attempt === 0) {
-        debugMeta?.turnApiBudget?.beforeFetch(debugMeta.requestKind ?? "openrouter-generate");
+        debugMeta?.turnApiBudget?.beforeFetch(requestKind);
       }
       res = await fetchOpenRouterChatWithCreditRetry(
         OPENROUTER_CHAT_COMPLETIONS_URL,
@@ -1921,13 +1948,13 @@ export async function callOpenRouterAdult(
 
   if (messageOpts?.systemSplit) {
     logTurnOpenRouterCacheDiagnostics(
-      resolvedModelId,
+      apiModelId,
       system,
       usage,
       messageOpts.systemSplit
     );
   } else {
-    logTurnOpenRouterCacheDiagnostics(resolvedModelId, system, usage);
+    logTurnOpenRouterCacheDiagnostics(apiModelId, system, usage);
   }
 
   return { text, usage };

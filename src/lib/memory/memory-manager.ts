@@ -254,6 +254,9 @@ export async function scheduleMemoryUpdate(opts: {
   previousAssistantMessage?: string;
   route?: Route;
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
+  /** DeepSeek/Qwen — 메인 JSON tail 파싱 성공 시 Flash 관계메모 추출 생략 */
+  relationshipTailParsed?: boolean;
+  relationshipDeltaFromMain?: import("@/lib/chatMemory").RelationshipMetaDelta | null;
 }): Promise<void> {
   if (!isMemoryFeatureEnabled()) return;
   if (isGeminiIsolationMode()) {
@@ -287,6 +290,8 @@ export async function scheduleMemoryUpdate(opts: {
         assistantMessage: opts.assistantMessage,
         route: opts.route ?? "safe",
         turnTrace: opts.turnTrace,
+        mainModelTailParsed: opts.relationshipTailParsed,
+        mainModelDelta: opts.relationshipDeltaFromMain,
       });
     }
   } catch (e) {
