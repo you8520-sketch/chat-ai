@@ -2,7 +2,6 @@ import { resolveMaxOutputTokensForTarget } from "@/lib/responseLength";
 import { normalizeOpenRouterModelId } from "@/lib/openRouterConfig";
 import {
   isAnthropicModel,
-  isGemini31ProModel,
   isGeminiFlashOpenRouterModel,
   isGeminiProOpenRouterModel,
 } from "@/lib/chatModels";
@@ -97,14 +96,13 @@ export function isQwenOpenRouterModel(modelId: string): boolean {
 
 /**
  * RP primary·continuation — DeepSeek/Qwen: reasoning OFF (effort none).
- * Gemini 2.5 Pro: mandatory reasoning — thinkingBudget cap (max_tokens) + exclude.
- * Gemini 3.1 Pro: mandatory thinkingLevel — effort low (3.1 Pro는 minimal 미지원, 무시 시 high 기본).
+ * Gemini Pro: google thinking type none via provider (no reasoning cap).
  */
 export function isOpenRouterRpReasoningDisabledModel(modelId: string): boolean {
   return isDeepSeekOpenRouterModel(modelId) || isQwenOpenRouterModel(modelId);
 }
 
-/** OpenRouter mandatory-reasoning endpoints (cannot send effort: "none"). */
+/** Gemini Pro — RP payload에 thinking-kill 정책 적용 */
 export function isOpenRouterRpReasoningMandatoryModel(modelId: string): boolean {
   return isGeminiProOpenRouterModel(modelId);
 }
@@ -114,53 +112,39 @@ export const OPENROUTER_RP_REASONING_OFF = {
   exclude: true,
 } as const;
 
-/** Gemini 2.5 Pro RP — thinkingBudget cap (effort none → 400). */
-export const OPENROUTER_RP_REASONING_GEMINI_CAP = {
-  max_tokens: 64,
-  exclude: true,
+/** Gemini Pro RP — OpenRouter provider routing: Google thinking fully off */
+export const OPENROUTER_GEMINI_PRO_KILL_THINKING_PROVIDER = {
+  require_parameters: true,
+  google: { thinking: { type: "none" } },
 } as const;
 
-/** Gemini 3.1 Pro RP — thinkingLevel API. Pro는 minimal 미지원 → low가 최저. */
-export const OPENROUTER_RP_REASONING_GEMINI_31 = {
-  effort: "low",
-  exclude: true,
-} as const;
-
-type Gemini31ReasoningEffort = "low" | "medium" | "high";
-
-function resolveGemini31ReasoningEffort(): Gemini31ReasoningEffort {
-  const raw = process.env.OPENROUTER_GEMINI_31_REASONING_EFFORT?.trim().toLowerCase();
-  if (raw === "minimal") {
-    console.warn(
-      "[openrouter-reasoning] gemini-3.1-pro does not support minimal — using low instead"
-    );
-    return "low";
-  }
-  if (raw === "low" || raw === "medium" || raw === "high") return raw;
-  return OPENROUTER_RP_REASONING_GEMINI_31.effort;
-}
-
-function resolveGeminiOpenRouterReasoningMaxTokens(): number {
-  const raw = process.env.OPENROUTER_GEMINI_REASONING_MAX_TOKENS?.trim();
-  if (raw) {
-    const n = Number(raw);
-    if (Number.isFinite(n) && n >= 64) {
-      return Math.min(4096, Math.floor(n));
-    }
-  }
-  return OPENROUTER_RP_REASONING_GEMINI_CAP.max_tokens;
-}
-
-/** Gemini Flash RP — thinking minimal + exclude (Pro mandatory thinking 회피용 라우팅) */
+/** Gemini Flash RP — thinking minimal + exclude */
 export const OPENROUTER_RP_REASONING_GEMINI_FLASH = {
   effort: "minimal",
   exclude: true,
 } as const;
 
+function applyGeminiProKillThinking(body: Record<string, unknown>, modelId: string): void {
+  delete body.reasoning;
+  delete body.reasoning_effort;
+  body.include_reasoning = false;
+  body.provider = { ...OPENROUTER_GEMINI_PRO_KILL_THINKING_PROVIDER };
+  console.log("[openrouter-reasoning] gemini-pro-thinking-off", {
+    model: normalizeOpenRouterModelId(modelId),
+    include_reasoning: false,
+    provider: body.provider,
+  });
+}
+
 function applyOpenRouterRpReasoningPolicy(body: Record<string, unknown>, modelId: string): void {
   delete body.reasoning_effort;
   body.include_reasoning = false;
   const normalized = normalizeOpenRouterModelId(modelId);
+
+  if (isGeminiProOpenRouterModel(modelId)) {
+    applyGeminiProKillThinking(body, modelId);
+    return;
+  }
 
   if (isGeminiFlashOpenRouterModel(modelId)) {
     body.reasoning = { ...OPENROUTER_RP_REASONING_GEMINI_FLASH };
@@ -170,27 +154,6 @@ function applyOpenRouterRpReasoningPolicy(body: Record<string, unknown>, modelId
       exclude: true,
       include_reasoning: false,
     });
-    return;
-  }
-
-  if (isOpenRouterRpReasoningMandatoryModel(modelId)) {
-    if (isGemini31ProModel(modelId)) {
-      const effort = resolveGemini31ReasoningEffort();
-      body.reasoning = { effort, exclude: true };
-      console.log("[openrouter-reasoning] gemini-3.1-thinkingLevel", {
-        model: normalized,
-        effort,
-        exclude: true,
-      });
-    } else {
-      const max_tokens = resolveGeminiOpenRouterReasoningMaxTokens();
-      body.reasoning = { max_tokens, exclude: true };
-      console.log("[openrouter-reasoning] gemini-2.5-budget-cap", {
-        model: normalized,
-        max_tokens,
-        exclude: true,
-      });
-    }
     return;
   }
 

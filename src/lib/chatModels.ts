@@ -35,10 +35,10 @@ export const OPENROUTER_GEMINI_25_PRO_MODEL = "google/gemini-2.5-pro";
 /** OpenRouter — Google Gemini 3.1 Pro Preview (balanced tier) */
 export const OPENROUTER_GEMINI_31_PRO_MODEL = "google/gemini-3.1-pro-preview";
 
-/** OpenRouter RP — Gemini 2.5 Pro UI 선택 시 실제 호출 (thinking 없음) */
+/** OpenRouter — Gemini 2.5 Flash (HTML·백그라운드 등 직접 호출용) */
 export const OPENROUTER_GEMINI_25_FLASH_MODEL = "google/gemini-2.5-flash";
 
-/** OpenRouter RP — Gemini 3.1 Pro UI 선택 시 실제 호출 (Pro mandatory thinking 회피) */
+/** OpenRouter — Gemini 3.1 Flash Lite (백그라운드·비-RP 직접 호출용) */
 export const OPENROUTER_GEMINI_31_FLASH_MODEL = "google/gemini-3.1-flash-lite";
 
 /** 유저-facing 표시명 (채팅 선택·영수증) */

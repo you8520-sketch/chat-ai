@@ -95,6 +95,14 @@ export const OPENROUTER_GROSS_MARGIN = Number(process.env.OPENROUTER_GROSS_MARGI
 /** usage 과금 최소 1턴 차감 */
 export const OPENROUTER_MIN_TURN_COST = 5;
 
+/** 입력 토큰 8,000 이상 — 초과 1,000토큰당 추가 청구 (P) */
+export const OPENROUTER_INPUT_SURCHARGE_THRESHOLD_TOKENS = 8000;
+export const OPENROUTER_INPUT_SURCHARGE_PER_1000_TOKENS = (() => {
+  const per1000 = process.env.OPENROUTER_INPUT_SURCHARGE_PER_1000_TOKENS?.trim();
+  if (per1000) return Number(per1000) || 1.5;
+  return 1.5;
+})();
+
 /** Claude Opus — 출력 1자당 청구 상한 (P) */
 export const OPENROUTER_OPUS_POINTS_PER_CHAR = (() => {
   const perChar = process.env.OPENROUTER_OPUS_POINTS_PER_CHAR?.trim();
@@ -578,8 +586,20 @@ function openRouterGemini31TokenFloorKrw(outputTokens: number): number {
   return chargePoints(Math.max(0, outputTokens) * OPENROUTER_GEMINI_31_POINTS_PER_OUTPUT_TOKEN);
 }
 
-function openRouterTokenOnlyTurnCost(tokenFloorKrw: number): number {
-  return Math.max(OPENROUTER_MIN_TURN_COST, tokenFloorKrw);
+/** 입력 8k+ — 초과 1,000토큰 단위 × 1.5P (블록 올림) */
+export function openRouterInputTokenSurchargeKrw(inputTokens: number): number {
+  if (inputTokens < OPENROUTER_INPUT_SURCHARGE_THRESHOLD_TOKENS) return 0;
+  const excess = inputTokens - OPENROUTER_INPUT_SURCHARGE_THRESHOLD_TOKENS;
+  const blocks = Math.ceil(excess / 1000);
+  return chargePoints(blocks * OPENROUTER_INPUT_SURCHARGE_PER_1000_TOKENS);
+}
+
+function openRouterTokenOnlyTurnCost(tokenFloorKrw: number, inputTokens = 0): number {
+  const inputSurcharge = openRouterInputTokenSurchargeKrw(inputTokens);
+  return Math.max(
+    OPENROUTER_MIN_TURN_COST,
+    chargePoints(tokenFloorKrw + inputSurcharge)
+  );
 }
 
 function openRouterGrossMarginChargeKrw(rawCostKrw: number, grossMargin: number): number {
@@ -679,23 +699,38 @@ export function computeOpenRouterTurnCost(
   }
 
   if (isOpenRouterOpusModel(modelId)) {
-    return openRouterTokenOnlyTurnCost(openRouterOpusCharFloorKrw(opts?.outputChars ?? 0));
+    return openRouterTokenOnlyTurnCost(
+      openRouterOpusCharFloorKrw(opts?.outputChars ?? 0),
+      inputTokens
+    );
   }
 
   if (isDeepSeekV4ProModel(modelId ?? "")) {
-    return openRouterTokenOnlyTurnCost(openRouterDeepSeekTokenFloorKrw(outputTokens));
+    return openRouterTokenOnlyTurnCost(
+      openRouterDeepSeekTokenFloorKrw(outputTokens),
+      inputTokens
+    );
   }
 
   if (isQwenModel(modelId ?? "")) {
-    return openRouterTokenOnlyTurnCost(openRouterQwenTokenFloorKrw(outputTokens));
+    return openRouterTokenOnlyTurnCost(
+      openRouterQwenTokenFloorKrw(outputTokens),
+      inputTokens
+    );
   }
 
   if (isGemini25ProModel(modelId ?? "")) {
-    return openRouterTokenOnlyTurnCost(openRouterGemini25TokenFloorKrw(outputTokens));
+    return openRouterTokenOnlyTurnCost(
+      openRouterGemini25TokenFloorKrw(outputTokens),
+      inputTokens
+    );
   }
 
   if (isGemini31ProModel(modelId ?? "")) {
-    return openRouterTokenOnlyTurnCost(openRouterGemini31TokenFloorKrw(outputTokens));
+    return openRouterTokenOnlyTurnCost(
+      openRouterGemini31TokenFloorKrw(outputTokens),
+      inputTokens
+    );
   }
 
   const costKrw = roundCostIntermediate(
@@ -707,7 +742,7 @@ export function computeOpenRouterTurnCost(
       cacheWriteTokens: cache?.cacheWriteTokens,
     }) * getEffectiveKrwPerUsd()
   );
-  return Math.max(OPENROUTER_MIN_TURN_COST, chargePoints(costKrw));
+  return openRouterTokenOnlyTurnCost(chargePoints(costKrw), inputTokens);
 }
 
 export type OpenRouterTurnCostBreakdown = {
@@ -715,6 +750,8 @@ export type OpenRouterTurnCostBreakdown = {
   /** Opus — cache-hit-normalized API 원가 (로그·비교용) */
   normalizedRawCostKrw?: number;
   charFloorKrw: number;
+  /** 입력 8k+ 초과 1,000토큰당 1.5P */
+  inputSurchargeKrw?: number;
   costPlusMarginKrw: number;
   applied: "char_floor" | "cost_plus_margin" | "min_turn" | "cost_blend" | "cold_start_shield";
   /** min(마진, 글자상한) 적용 전 청구 (P) */
@@ -1032,15 +1069,22 @@ export function explainOpenRouterOpusTurnCost(
   });
   const normalizedRawCostKrw = roundCostIntermediate(normalized.usdCost * getEffectiveKrwPerUsd());
   const charFloorKrw = openRouterOpusCharFloorKrw(outputChars);
+  const inputSurchargeKrw = openRouterInputTokenSurchargeKrw(inputTokens);
   const resolved = resolveOpenRouterOpusTurnCharge(rawCostKrw, outputChars);
+  const total = openRouterTokenOnlyTurnCost(charFloorKrw, inputTokens);
+  let applied = resolved.applied;
+  if (total === OPENROUTER_MIN_TURN_COST && charFloorKrw + inputSurchargeKrw < OPENROUTER_MIN_TURN_COST) {
+    applied = "min_turn";
+  }
   return {
     rawCostKrw,
     normalizedRawCostKrw,
     charFloorKrw,
+    inputSurchargeKrw,
     costPlusMarginKrw: 0,
-    applied: resolved.applied,
-    total: resolved.total,
-    uncappedChargePoints: resolved.uncappedChargePoints,
+    applied,
+    total,
+    uncappedChargePoints: total,
     coldStartShieldApplied: false,
     coldStartCostFloorPoints: undefined,
   };
@@ -1066,14 +1110,16 @@ function explainOpenRouterTokenOnlyTurnCost(
             cacheWriteTokens: cache?.cacheWriteTokens,
           }) * getEffectiveKrwPerUsd()
         );
-  const total = openRouterTokenOnlyTurnCost(floorKrw);
+  const inputSurchargeKrw = openRouterInputTokenSurchargeKrw(inputTokens);
+  const total = openRouterTokenOnlyTurnCost(floorKrw, inputTokens);
   let applied: OpenRouterTurnCostBreakdown["applied"] = "char_floor";
-  if (total === OPENROUTER_MIN_TURN_COST && floorKrw < OPENROUTER_MIN_TURN_COST) {
+  if (total === OPENROUTER_MIN_TURN_COST && floorKrw + inputSurchargeKrw < OPENROUTER_MIN_TURN_COST) {
     applied = "min_turn";
   }
   return {
     rawCostKrw,
     charFloorKrw: floorKrw,
+    inputSurchargeKrw,
     costPlusMarginKrw: 0,
     applied,
     total,

@@ -194,7 +194,7 @@ import {
   convertToOpenRouterFormat,
 } from "@/lib/openRouterAdult";
 import { formatClientApiError } from "@/lib/apiErrors";
-import { resolveOpenRouterModelId, resolveRpOpenRouterModelId } from "@/lib/openRouterConfig";
+import { resolveOpenRouterModelId } from "@/lib/openRouterConfig";
 import { resolveRegenerateGenerationOverrides } from "@/lib/openRouterClient";
 import { resolveRawRecentTurnWindowForHistory } from "@/lib/contextTrack";
 import { sanitizePrimaryModelAssistantHistory } from "@/lib/flashOwnedOutputFirewall";
@@ -618,13 +618,7 @@ export async function POST(req: Request) {
   const summarizedTurnCount = chatMemory?.summarized_turn_count ?? 0;
 
   const billingOpenRouterModelId = resolveOpenRouterModelId(selectedAI);
-  const openRouterApiModelId = resolveRpOpenRouterModelId(billingOpenRouterModelId);
-  if (openRouterApiModelId !== billingOpenRouterModelId) {
-    console.info("[/api/chat] gemini-pro→flash api routing", {
-      billing: billingOpenRouterModelId,
-      api: openRouterApiModelId,
-    });
-  }
+  const openRouterApiModelId = billingOpenRouterModelId;
   const contextProvider = "openrouter" as const;
   const contextModelId = openRouterApiModelId;
   const rawTurnWindow = resolveRawRecentTurnWindowForHistory(
@@ -1689,7 +1683,7 @@ export async function POST(req: Request) {
           billing = computeTurnBilling({
             provider: billingProvider,
             selectedAI: selectedAIRef,
-            billingOpenRouterModelId,
+            openRouterModelId: billingOpenRouterModelId,
             inputTokens: totalInput,
             outputTokens: totalOutput,
             cacheReadTokens: primaryStage?.cacheReadTokens ?? primaryStage?.cachedContentTokens,

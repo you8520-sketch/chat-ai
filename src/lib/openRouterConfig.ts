@@ -2,12 +2,7 @@ import {
   CLAUDE_OPUS_MODEL_LEGACY,
   DEFAULT_SELECTED_AI,
   OPENROUTER_CLAUDE_DEFAULT,
-  OPENROUTER_GEMINI_25_FLASH_MODEL,
-  OPENROUTER_GEMINI_25_PRO_MODEL,
-  OPENROUTER_GEMINI_31_FLASH_MODEL,
   OPENROUTER_GEMINI_31_PRO_MODEL,
-  isGemini25ProModel,
-  isGemini31ProModel,
   coerceUserSelectableAI,
   isOpenRouterSelectedAI,
   type SelectedAI,
@@ -78,24 +73,9 @@ export function resolveOpenRouterModelId(selectedAI?: string | null): string {
   return mapped;
 }
 
-/**
- * RP 채팅 OpenRouter 실제 HTTP 호출용 — Gemini Pro UI·env slug는 Flash로 라우팅 (thinking 원가 회피).
- * 과금·영수증·DB selectedAI는 billing slug(Pro) 유지 — resolveOpenRouterModelId().
- */
+/** RP OpenRouter HTTP model slug — UI·과금과 동일 Pro slug (Flash 우회 없음) */
 export function resolveRpOpenRouterModelId(modelId: string): string {
-  const normalized = normalizeOpenRouterModelId(modelId);
-  if (process.env.OPENROUTER_RP_ROUTE_GEMINI_PRO_TO_FLASH === "0") {
-    console.warn(
-      "[openrouter-rp-routing] OPENROUTER_RP_ROUTE_GEMINI_PRO_TO_FLASH=0 ignored — Gemini Pro always routes to Flash for RP API"
-    );
-  }
-  if (isGemini25ProModel(normalized)) {
-    return OPENROUTER_GEMINI_25_FLASH_MODEL;
-  }
-  if (isGemini31ProModel(normalized)) {
-    return OPENROUTER_GEMINI_31_FLASH_MODEL;
-  }
-  return normalized;
+  return normalizeOpenRouterModelId(modelId);
 }
 
 export function resolveOpenRouterApiKey(): string {

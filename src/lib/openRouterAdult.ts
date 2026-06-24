@@ -35,7 +35,6 @@ import {
   buildOpenRouterHeaders,
   resolveOpenRouterApiKey,
   resolveOpenRouterModelId,
-  resolveRpOpenRouterModelId,
   normalizeOpenRouterModelId,
   assertOpenRouterEndpoint,
 } from "@/lib/openRouterConfig";
@@ -1026,13 +1025,7 @@ export async function* streamOpenRouterAdult(
   debugMeta?: PromptDebugMeta
 ): AsyncGenerator<string, TokenUsage> {
   const billingModelId = normalizeOpenRouterModelId(modelId);
-  const apiModelId = resolveRpOpenRouterModelId(billingModelId);
-  if (apiModelId !== billingModelId) {
-    console.info("[openrouter-rp-routing] gemini-pro→flash", {
-      billing: billingModelId,
-      api: apiModelId,
-    });
-  }
+  const apiModelId = billingModelId;
   console.log("[OpenRouter] streaming request", {
     model: apiModelId,
     billingModel: billingModelId,
@@ -1818,13 +1811,7 @@ export async function callOpenRouterAdult(
   debugMeta?: PromptDebugMeta
 ): Promise<{ text: string; usage: TokenUsage }> {
   const billingModelId = normalizeOpenRouterModelId(modelId);
-  const apiModelId = resolveRpOpenRouterModelId(billingModelId);
-  if (apiModelId !== billingModelId) {
-    console.info("[openrouter-rp-routing] gemini-pro→flash", {
-      billing: billingModelId,
-      api: apiModelId,
-    });
-  }
+  const apiModelId = billingModelId;
   console.log("[OpenRouter] generate request", {
     model: apiModelId,
     billingModel: billingModelId,
