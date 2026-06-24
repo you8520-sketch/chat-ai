@@ -194,7 +194,7 @@ import {
   convertToOpenRouterFormat,
 } from "@/lib/openRouterAdult";
 import { formatClientApiError } from "@/lib/apiErrors";
-import { resolveOpenRouterModelId } from "@/lib/openRouterConfig";
+import { resolveOpenRouterModelId, resolveRpOpenRouterModelId } from "@/lib/openRouterConfig";
 import { resolveRegenerateGenerationOverrides } from "@/lib/openRouterClient";
 import { resolveRawRecentTurnWindowForHistory } from "@/lib/contextTrack";
 import { sanitizePrimaryModelAssistantHistory } from "@/lib/flashOwnedOutputFirewall";
@@ -617,9 +617,16 @@ export async function POST(req: Request) {
     : null;
   const summarizedTurnCount = chatMemory?.summarized_turn_count ?? 0;
 
-  const openRouterModelId = resolveOpenRouterModelId(selectedAI);
+  const billingOpenRouterModelId = resolveOpenRouterModelId(selectedAI);
+  const openRouterApiModelId = resolveRpOpenRouterModelId(billingOpenRouterModelId);
+  if (openRouterApiModelId !== billingOpenRouterModelId) {
+    console.info("[/api/chat] gemini-pro→flash api routing", {
+      billing: billingOpenRouterModelId,
+      api: openRouterApiModelId,
+    });
+  }
   const contextProvider = "openrouter" as const;
-  const contextModelId = openRouterModelId;
+  const contextModelId = openRouterApiModelId;
   const rawTurnWindow = resolveRawRecentTurnWindowForHistory(
     contextModelId,
     contextProvider,
@@ -738,11 +745,11 @@ export async function POST(req: Request) {
       });
   /** Gemini 3.1 Pro — Flash HTML 2차 호출 없이 메인 모델이 상태창 ```html 직접 출력 (DeepSeek·Qwen·2.5와 동일 체감) */
   const gemini31MainModelOwnsHtml =
-    isGemini31ProModel(openRouterModelId) &&
+    isGemini31ProModel(billingOpenRouterModelId) &&
     htmlVisualCardPolicy.enabled &&
     !chatOocRpUnrelated;
   const mainModelOwnsRelationshipExtract =
-    memoryFeatureOn && isMainModelRelationshipSelfExtractModel(openRouterModelId);
+    memoryFeatureOn && isMainModelRelationshipSelfExtractModel(billingOpenRouterModelId);
   /** Flash HTML ON이면 메인 모델 inline HTML(oocHtmlMode) 금지 — Flash가 ```html``` 소유 */
   const oocHtmlMode =
     !autoContinueContext &&
@@ -783,7 +790,7 @@ export async function POST(req: Request) {
           normalizeMemoryMeta(parseMemoryMeta(chat.memory_meta), relationshipNames)
         )
       : "",
-    modelId: openRouterModelId,
+    modelId: openRouterApiModelId,
     userImpersonation,
     novelModeEnabled,
     personaDisplayName,
@@ -896,7 +903,8 @@ export async function POST(req: Request) {
           chatMode: chatRef.mode,
           userAdultVerified: !!user.is_adult,
           strategy: "openrouter-direct",
-          openRouterModel: openRouterModelId,
+          openRouterModel: openRouterApiModelId,
+          billingOpenRouterModel: billingOpenRouterModelId,
           selectedAI: selectedAIRef,
           hasOpenRouterKey: Boolean(process.env.OPENROUTER_API_KEY?.trim()),
         });
@@ -944,7 +952,7 @@ export async function POST(req: Request) {
             send,
             systemRef,
             orHistory,
-            openRouterModelId,
+            openRouterApiModelId,
             selectedAILabel(selectedAIRef),
             targetResponseCharsRef,
             {
@@ -961,7 +969,7 @@ export async function POST(req: Request) {
               statusWidgetReserveTail: statusWidgetActive || undefined,
               statusArtifactsOpts: statusArtifactOpts,
               generationOverrides: regenerateMessageId
-                ? resolveRegenerateGenerationOverrides(openRouterModelId, targetResponseCharsRef)
+                ? resolveRegenerateGenerationOverrides(openRouterApiModelId, targetResponseCharsRef)
                 : undefined,
             },
             turnApiBudget
@@ -1249,7 +1257,7 @@ export async function POST(req: Request) {
           const contResult = await continueNarrativeIfUnderMinimum({
             prose: proseOnly,
             system: systemRef,
-            modelId: openRouterModelId,
+            modelId: openRouterApiModelId,
             targetResponseChars: targetResponseCharsRef,
             charName: ch.name,
             turnApiBudget,
@@ -1624,7 +1632,7 @@ export async function POST(req: Request) {
             ? summedApiOutput
             : primaryStage?.apiOutputTokens ?? primaryStage?.output ?? 0;
         const billableApiOutputTokens = billableOpenRouterOutputTokens(
-          openRouterModelId ?? "",
+          billingOpenRouterModelId ?? "",
           opusApiOutputTokens,
           summedApiReasoning
         );
@@ -1681,7 +1689,7 @@ export async function POST(req: Request) {
           billing = computeTurnBilling({
             provider: billingProvider,
             selectedAI: selectedAIRef,
-            openRouterModelId,
+            billingOpenRouterModelId,
             inputTokens: totalInput,
             outputTokens: totalOutput,
             cacheReadTokens: primaryStage?.cacheReadTokens ?? primaryStage?.cachedContentTokens,
@@ -1729,21 +1737,21 @@ export async function POST(req: Request) {
             cacheWriteTokens: primaryStage?.cacheWriteTokens,
           };
           const opusExplain =
-            openRouterModelId && /opus/i.test(openRouterModelId)
+            billingOpenRouterModelId && /opus/i.test(billingOpenRouterModelId)
               ? explainOpenRouterOpusTurnCost(
                   totalInput,
                   totalOutput,
-                  openRouterModelId,
+                  billingOpenRouterModelId,
                   billableChars,
                   cacheOpts
                 )
               : null;
           const deepSeekExplain =
-            openRouterModelId && isDeepSeekV4ProModel(openRouterModelId)
+            billingOpenRouterModelId && isDeepSeekV4ProModel(billingOpenRouterModelId)
               ? explainOpenRouterDeepSeekTurnCost(
                   totalInput,
                   totalOutput,
-                  openRouterModelId,
+                  billingOpenRouterModelId,
                   cacheOpts
                 )
               : null;
@@ -1756,11 +1764,11 @@ export async function POST(req: Request) {
                 }
               : undefined;
           const geminiProExplain =
-            openRouterModelId && isGeminiProOpenRouterModel(openRouterModelId)
+            billingOpenRouterModelId && isGeminiProOpenRouterModel(billingOpenRouterModelId)
               ? explainOpenRouterGeminiProTurnCost(
                   totalInput,
                   totalOutput,
-                  openRouterModelId,
+                  billingOpenRouterModelId,
                   cacheOpts,
                   geminiBillingBasis
                 )
@@ -1812,7 +1820,7 @@ export async function POST(req: Request) {
         let cost = billingWaiverReason ? 0 : billing.total;
 
         if (billingWaiverReason && !isMockApiMode()) {
-          const modelId = openRouterModelId ?? "";
+          const modelId = billingOpenRouterModelId ?? "";
           let waiverMin = 0;
           if (isDeepSeekV4ProModel(modelId)) {
             waiverMin = resolveDeepSeekWaiverMinimumCharge(savedText, billingWaiverReason, {
@@ -1923,7 +1931,7 @@ export async function POST(req: Request) {
         const orCacheReceipt =
           billingProvider === "openrouter"
             ? buildOpenRouterCacheReceiptInfo({
-                modelId: openRouterModelId ?? undefined,
+                modelId: billingOpenRouterModelId ?? undefined,
                 promptTokens: totalInput,
                 cacheReadTokens:
                   primaryStage?.cacheReadTokens ?? primaryStage?.cachedContentTokens,
@@ -2038,7 +2046,7 @@ export async function POST(req: Request) {
                 apiRawCostKrw: openRouterRawCostKrw({
                   promptTokens: apiInputTokens,
                   outputTokens: apiOutputTokens,
-                  modelId: openRouterModelId,
+                  modelId: billingOpenRouterModelId,
                   cacheReadTokens:
                     primaryStage?.cacheReadTokens ?? primaryStage?.cachedContentTokens,
                   cacheWriteTokens: primaryStage?.cacheWriteTokens,
@@ -2046,12 +2054,12 @@ export async function POST(req: Request) {
                     summedUpstreamUsd > 0 ? summedUpstreamUsd : primaryStage?.upstreamCostUsd,
                   exchangeRate: billingExchangeRate,
                 }),
-                ...(openRouterModelId && /opus/i.test(openRouterModelId)
+                ...(billingOpenRouterModelId && /opus/i.test(billingOpenRouterModelId)
                   ? {
                       normalizedRawCostKrw: openRouterNormalizedRawCostKrw({
                         promptTokens: apiInputTokens,
                         outputTokens: apiOutputTokens,
-                        modelId: openRouterModelId,
+                        modelId: billingOpenRouterModelId,
                         exchangeRate: billingExchangeRate,
                       }),
                     }
@@ -2077,7 +2085,7 @@ export async function POST(req: Request) {
         if (statusWidgetActive) {
           const widgetResolved = await resolveStatusWidgetTurnValues({
             chatId: chatRef.id,
-            modelId: openRouterModelId,
+            modelId: openRouterApiModelId,
             regenerate: !!regenerateMessageId,
             savedText,
             rawWidgetSourceText,

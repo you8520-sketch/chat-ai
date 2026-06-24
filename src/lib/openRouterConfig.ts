@@ -79,14 +79,15 @@ export function resolveOpenRouterModelId(selectedAI?: string | null): string {
 }
 
 /**
- * RP 채팅 OpenRouter 호출용 — Gemini Pro UI 선택은 Flash로 라우팅 (mandatory thinking·TTFT 회피).
- * 과금·영수증·DB selectedAI는 billingModelId(Pro slug) 유지.
- * `OPENROUTER_RP_ROUTE_GEMINI_PRO_TO_FLASH=0`으로 Pro 직접 호출 복원.
+ * RP 채팅 OpenRouter 실제 HTTP 호출용 — Gemini Pro UI·env slug는 Flash로 라우팅 (thinking 원가 회피).
+ * 과금·영수증·DB selectedAI는 billing slug(Pro) 유지 — resolveOpenRouterModelId().
  */
 export function resolveRpOpenRouterModelId(modelId: string): string {
   const normalized = normalizeOpenRouterModelId(modelId);
   if (process.env.OPENROUTER_RP_ROUTE_GEMINI_PRO_TO_FLASH === "0") {
-    return normalized;
+    console.warn(
+      "[openrouter-rp-routing] OPENROUTER_RP_ROUTE_GEMINI_PRO_TO_FLASH=0 ignored — Gemini Pro always routes to Flash for RP API"
+    );
   }
   if (isGemini25ProModel(normalized)) {
     return OPENROUTER_GEMINI_25_FLASH_MODEL;
