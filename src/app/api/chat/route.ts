@@ -178,6 +178,7 @@ import {
   resolveStatusWidgetTurnValues,
 } from "@/lib/statusWidget/telemetry";
 import { appendStatusWidgetExtractToUsageRecord } from "@/lib/statusWidget/receiptUsage";
+import type { Usage } from "@/lib/chatUsage";
 import { userMessageRequestsStatusWindowOoc } from "@/lib/statusMeta/ooc";
 import { isOocHtmlRequest } from "@/lib/oocHtmlRequest";
 import { isHtmlDisplayOnlyTurn, isHtmlFlashOnlyTurn, isOocCreativeHtmlTurn, chatInputSuppressesStatusWidget } from "@/lib/htmlDisplayOnlyTurn";
@@ -1957,7 +1958,7 @@ export async function POST(req: Request) {
               })
             : null;
 
-        let usageRecord = {
+        let usageRecord: Usage = {
           input: totalInput,
           output: totalOutput,
           ...(htmlFlashOnlyTurn ? { htmlFlashOnly: true } : {}),
@@ -2288,7 +2289,7 @@ export async function POST(req: Request) {
               skippedChunkIds: built.meta.skippedChunkIds,
               truncatedMemory: built.meta.truncatedMemory,
               model: usageRecord.model,
-              provider: usageRecord.provider,
+              provider: usageRecord.provider ?? billingProvider,
               route: usageRecord.route,
               nsfw: isAdultMode,
               regenerate: !!regenerateMessageId,
@@ -2302,7 +2303,7 @@ export async function POST(req: Request) {
               variantIndex: snapshotVariantIndex,
               userMessageId,
               model: usageRecord.model,
-              provider: usageRecord.provider,
+              provider: usageRecord.provider ?? billingProvider,
               route: usageRecord.route,
               writingStyle: "unified",
               nsfw: isAdultMode ? 1 : 0,

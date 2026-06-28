@@ -1,4 +1,5 @@
 import type { OutputLeakageAudit } from "@/lib/outputLeakageAudit";
+import type { BillingWaiverReason } from "@/lib/points";
 
 export type Usage = {
   input: number;
@@ -53,7 +54,7 @@ export type Usage = {
   fallback?: string | null;
   /** 0P 면제 턴 — 영수증에 면제 사유 표시 */
   billingWaived?: boolean;
-  billingWaiverReason?: string;
+  billingWaiverReason?: BillingWaiverReason;
   /** Opus cold start — 85% 원가 방어선 적용 여부 */
   coldStartShieldApplied?: boolean;
   uncappedChargePoints?: number;

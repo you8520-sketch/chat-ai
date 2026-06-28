@@ -182,9 +182,9 @@ export function rawRecentTurnsToHistory(
  */
 export function splitTurnsForGeminiCache(
   turns: DialogueTurn[],
-  _summarizedTurnCount?: number,
   formatUser: (userText: string) => string,
-  stripAssistant: (assistantText: string) => string = (t) => t
+  stripAssistant: (assistantText: string) => string = (t) => t,
+  _summarizedTurnCount?: number
 ): { dynamicHistory: ChatMsg[] } {
   void _summarizedTurnCount;
   const { pool } = resolveRawRecentTurnPool(turns);
