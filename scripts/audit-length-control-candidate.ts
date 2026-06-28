@@ -13,7 +13,7 @@ import { estimateTokens } from "../src/lib/tokenEstimate";
 import { analyzeOutput } from "./audit-output-compression-causes";
 import {
   buildLengthInstruction,
-  buildLengthInstructionProductionCandidate,
+  buildLengthInstruction,
   type LengthInstructionOpts,
 } from "../src/lib/responseLength";
 
@@ -48,7 +48,7 @@ function rebuildSystem(
       if (condition === "PRODUCTION") {
         return buildLengthInstruction(targetResponseChars, lengthOpts);
       }
-      return buildLengthInstructionProductionCandidate(targetResponseChars, lengthOpts);
+      return buildLengthInstruction(targetResponseChars, lengthOpts);
     })
     .join("\n\n");
 }
@@ -201,7 +201,7 @@ function buildReport(rows: TurnLog[], runs: number, logPath: string): string {
     "",
     "## Candidate wording (soft layer only)",
     "",
-    "- `buildLengthInstructionProductionCandidate()` in `responseLength.ts`",
+    "- `buildLengthInstruction()` in `responseLength.ts`",
     "- Replaces advisory soft guideline with mandatory scene-completion scope",
     "- No numeric min chars, beat quotas, or paragraph quotas",
     "- NO_INPUT_ECHO, agency, handoff, CEILING unchanged",
@@ -275,7 +275,7 @@ async function main() {
   };
 
   const prodBlock = buildLengthInstruction(2500, lengthOpts);
-  const candBlock = buildLengthInstructionProductionCandidate(2500, lengthOpts);
+  const candBlock = buildLengthInstruction(2500, lengthOpts);
   console.log("=== Phase 6 length block diff ===");
   console.log({
     production_chars: prodBlock.length,

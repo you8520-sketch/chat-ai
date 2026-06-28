@@ -10,6 +10,7 @@ import {
   rowToGlobalLorebookEntry,
   seedGlobalLorebookEntries,
 } from "@/lib/globalLorebook";
+import { HTML_OUTPUT_OWNERSHIP_BLOCK } from "@/lib/htmlVisualCardPolicy";
 
 function createTestDb(): Database.Database {
   const db = new Database(":memory:");
@@ -54,14 +55,14 @@ describe("globalLorebook", () => {
         id: 1,
         name: GLOBAL_LOREBOOK_HTML_VISUAL_CARD_NAME,
         triggers: ["HTML"],
-        content: "[HTML VISUAL CARD — SERVER GENERATED]",
+        content: HTML_OUTPUT_OWNERSHIP_BLOCK,
         depth: 0,
         enabled: true,
         sortOrder: 0,
       },
     ]);
     assert.match(block, /GLOBAL LOREBOOK/);
-    assert.match(block, /SERVER GENERATED/);
+    assert.match(block, /HTML OUTPUT OWNERSHIP/);
   });
 
   it("seedGlobalLorebookEntries creates single unified HTML entry", () => {
@@ -85,7 +86,7 @@ describe("globalLorebook", () => {
     };
     assert.deepEqual(JSON.parse(htmlRow.triggers_json), GLOBAL_LOREBOOK_HTML_TRIGGERS);
     assert.equal(htmlRow.depth, 0);
-    assert.match(htmlRow.content, /SERVER GENERATED/);
+    assert.match(htmlRow.content, /HTML OUTPUT OWNERSHIP/);
     assert.doesNotMatch(htmlRow.content, /HTML OUTPUT MODE/);
   });
 
@@ -106,8 +107,8 @@ describe("globalLorebook", () => {
       "HTML을 사용해서 맛집 TOP5를 띄워줘",
       "HTML을 사용해서 맛집 TOP5를 띄워줘"
     );
-    assert.match(restaurant, /SERVER GENERATED/);
-    assert.match(restaurant, /FORBIDDEN/);
+    assert.match(restaurant, /HTML OUTPUT OWNERSHIP/);
+    assert.match(restaurant, /Never generate/);
     assert.doesNotMatch(restaurant, /상태창 템플릿/);
     assert.doesNotMatch(restaurant, /REFERENCE TEMPLATE/);
     assert.doesNotMatch(restaurant, /HTML OUTPUT MODE/);
@@ -118,21 +119,21 @@ describe("globalLorebook", () => {
       "HTML을 사용해서 카톡 내역을 출력해줘",
       "HTML을 사용해서 카톡 내역을 출력해줘"
     );
-    assert.match(messenger, /FORBIDDEN/);
+    assert.match(messenger, /Never generate/);
 
     const alert = loadGlobalLorebookPromptBlock(
       db,
       "HTML을 사용해서 경고창을 표기해줘",
       "HTML을 사용해서 경고창을 표기해줘"
     );
-    assert.match(alert, /FORBIDDEN/);
+    assert.match(alert, /Never generate/);
   });
 
   it("loadGlobalLorebookPromptBlock injects when scan text contains HTML output intent", () => {
     const db = createTestDb();
     seedGlobalLorebookEntries(db);
     const block = loadGlobalLorebookPromptBlock(db, "ooc: HTML 카드로 출력");
-    assert.match(block, /SERVER GENERATED/);
+    assert.match(block, /HTML OUTPUT OWNERSHIP/);
     assert.equal(loadGlobalLorebookPromptBlock(db, "안녕"), "");
   });
 });

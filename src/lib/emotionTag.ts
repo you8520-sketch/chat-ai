@@ -42,6 +42,13 @@ Append ONE line at end: [태그: tagname]
 NO invented tags. Default if unsure: [태그: ${fallback}]`;
 }
 
+/** User-turn overlay — Flash-owned display asset (not main system rules cache). */
+export function buildFlashOwnedEmotionTagUserOverlay(allowedTags: string[]): string {
+  const core = buildEmotionTagPrompt(allowedTags);
+  if (!core.trim()) return "";
+  return `[FLASH-OWNED — emotion display asset]\n${core}`;
+}
+
 /** 저장 전 — 없는 태그는 제거, 비슷한 태그만 유지 */
 export function sanitizeEmotionTagInText(text: string, allowedTags: string[]): string {
   if (allowedTags.length === 0) {

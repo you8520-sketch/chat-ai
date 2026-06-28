@@ -38,8 +38,8 @@ import {
   resolveRagHitLimit,
   resolveRecentNarrativeContextLimit,
   shouldIncludeArchiveAlways,
-  usesFullLoreInjection,
 } from "@/lib/contextTrack";
+import { filterCharacterChunksForRag } from "@/lib/characterCoreIdentity";
 import { buildRecentNarrativeContextBlock } from "./memory-narrative-context";
 import { search as vectorStoreSearch, buildContextualLoreBlock } from "./vectorStore";
 import type { CharacterChunk } from "@/types";
@@ -152,17 +152,14 @@ export function buildHierarchicalMemoryPromptLayers(opts: {
   const ragLimit = opts.ragLimitOverride ?? resolveRagHitLimit(opts.modelId, opts.provider);
   const narrativeLimit = resolveRecentNarrativeContextLimit(opts.modelId, opts.provider);
   const narrativeMin = resolveMinNarrativeContext(opts.modelId, opts.provider);
-  const skipRag = usesFullLoreInjection(opts.modelId, opts.provider);
-  const ragHits = skipRag
-    ? []
-    : vectorStoreSearch(
-        opts.characterChunks,
-        opts.userMessage,
-        opts.recentContext ?? "",
-        ragLimit
-      );
+  const ragHits = vectorStoreSearch(
+    filterCharacterChunksForRag(opts.characterChunks),
+    opts.userMessage,
+    opts.recentContext ?? "",
+    ragLimit
+  );
   return {
-    contextualLore: skipRag ? "" : buildContextualLoreBlock(ragHits),
+    contextualLore: buildContextualLoreBlock(ragHits),
     recentNarrativeContext: buildRecentNarrativeContextBlock(
       opts.chatId,
       opts.completedTurns,

@@ -6,10 +6,17 @@ import {
   isOpenRouterRpReasoningDisabledModel,
   isOpenRouterRpReasoningMandatoryModel,
   isQwenOpenRouterModel,
-  OPENROUTER_GEMINI_PRO_KILL_THINKING_PROVIDER,
+  GEMINI_PRO_GENERATION_PARAMS,
   OPENROUTER_RP_REASONING_GEMINI_FLASH,
+  OPENROUTER_RP_REASONING_GEMINI_25_PRO_CAP,
+  OPENROUTER_RP_REASONING_GEMINI_3_PRO,
   OPENROUTER_RP_REASONING_OFF,
 } from "@/lib/openRouterClient";
+import {
+  OPENROUTER_GEMINI_31_PRO_MAX_OUTPUT_TOKENS,
+  resolveMaxOutputTokensForTarget,
+  resolveOpenRouterTierMaxOutputTokens,
+} from "@/lib/responseLength";
 import {
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_25_FLASH_MODEL,
@@ -82,6 +89,7 @@ describe("buildOpenRouterRequestBody — RP reasoning policy", () => {
     assert.deepEqual(body.reasoning, OPENROUTER_RP_REASONING_OFF);
     assert.equal(body.reasoning_effort, undefined);
     assert.equal(body.include_reasoning, false);
+    assert.equal(body.max_tokens, resolveOpenRouterTierMaxOutputTokens());
   });
 
   it("uses minimal reasoning for Gemini Flash", () => {
@@ -107,9 +115,10 @@ describe("buildOpenRouterRequestBody — RP reasoning policy", () => {
     assert.deepEqual(body.reasoning, OPENROUTER_RP_REASONING_OFF);
     assert.equal(body.reasoning_effort, undefined);
     assert.equal(body.include_reasoning, false);
+    assert.equal(body.max_tokens, resolveOpenRouterTierMaxOutputTokens());
   });
 
-  it("kills thinking for Gemini 2.5 Pro via provider google thinking none", () => {
+  it("caps Gemini 2.5 Pro reasoning at 128 tokens", () => {
     const body = buildOpenRouterRequestBody(
       OPENROUTER_GEMINI_25_PRO_MODEL,
       [{ role: "user", content: "test" }],
@@ -117,14 +126,20 @@ describe("buildOpenRouterRequestBody — RP reasoning policy", () => {
       3500,
       "chat-1"
     ) as Record<string, unknown>;
-    assert.equal(body.reasoning, undefined);
+    assert.deepEqual(body.reasoning, OPENROUTER_RP_REASONING_GEMINI_25_PRO_CAP);
     assert.equal(body.reasoning_effort, undefined);
     assert.equal(body.include_reasoning, false);
-    assert.deepEqual(body.provider, OPENROUTER_GEMINI_PRO_KILL_THINKING_PROVIDER);
+    assert.equal(body.provider, undefined);
+    assert.equal(body.max_tokens, resolveOpenRouterTierMaxOutputTokens());
+    assert.equal(
+      resolveMaxOutputTokensForTarget(3500, OPENROUTER_GEMINI_25_PRO_MODEL),
+      resolveOpenRouterTierMaxOutputTokens()
+    );
+    assert.equal(body.temperature, GEMINI_PRO_GENERATION_PARAMS.temperature);
     assert.equal(body.model, OPENROUTER_GEMINI_25_PRO_MODEL);
   });
 
-  it("kills thinking for Gemini 3.1 Pro via provider google thinking none", () => {
+  it("uses effort low for Gemini 3.1 Pro reasoning (thinkingLevel path)", () => {
     const body = buildOpenRouterRequestBody(
       OPENROUTER_GEMINI_31_PRO_MODEL,
       [{ role: "user", content: "test" }],
@@ -132,9 +147,15 @@ describe("buildOpenRouterRequestBody — RP reasoning policy", () => {
       3500,
       "chat-1"
     ) as Record<string, unknown>;
-    assert.equal(body.reasoning, undefined);
+    assert.deepEqual(body.reasoning, OPENROUTER_RP_REASONING_GEMINI_3_PRO);
     assert.equal(body.include_reasoning, false);
-    assert.deepEqual(body.provider, OPENROUTER_GEMINI_PRO_KILL_THINKING_PROVIDER);
+    assert.equal(body.provider, undefined);
+    assert.equal(body.max_tokens, OPENROUTER_GEMINI_31_PRO_MAX_OUTPUT_TOKENS);
+    assert.equal(
+      resolveMaxOutputTokensForTarget(3500, OPENROUTER_GEMINI_31_PRO_MODEL),
+      8192
+    );
+    assert.equal(body.temperature, GEMINI_PRO_GENERATION_PARAMS.temperature);
     assert.equal(body.model, OPENROUTER_GEMINI_31_PRO_MODEL);
   });
 

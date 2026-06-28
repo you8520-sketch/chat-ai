@@ -34,7 +34,7 @@ export type StatusMetaRecord = {
 
   extractedAt: string;
 
-  source: "background-flash";
+  source: "background-deepseek";
 
   pending?: boolean;
 
@@ -128,7 +128,10 @@ export function parseStatusMetaRecord(raw: string | null | undefined): StatusMet
 
       extractedAt: typeof parsed.extractedAt === "string" ? parsed.extractedAt : "",
 
-      source: "background-flash",
+      source:
+        parsed.source === "background-deepseek" || parsed.source === "background-flash"
+          ? parsed.source
+          : "background-deepseek",
 
       pending: parsed.pending === true,
 

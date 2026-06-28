@@ -243,11 +243,32 @@ function buildFullSettingChunk(characterId: string, combined: string): Character
   };
 }
 
-/** 10,000자 설정 — 형식과 무관하게 원문 전체를 CRITICAL 1청크로 보존 */
+/** 10,000자 설정 — 섹션 분할 후 importance 분류 (코어/RAG 분리) */
 export function parseCharacterSetting(input: CharacterSettingInput): CharacterChunk[] {
   const combined = buildCombinedCharacterSettingSource(input);
   if (!combined) return [];
-  return [buildFullSettingChunk(input.characterId, combined)];
+
+  const sections = splitIntoSections(combined);
+  if (sections.length <= 1 && combined.length <= 2500) {
+    return [buildFullSettingChunk(input.characterId, combined)];
+  }
+
+  let chunks = sections.map((section, index) =>
+    sectionToChunk(input.characterId, index, section)
+  );
+  chunks = mergeTinyChunks(chunks, input.characterId);
+  return chunks;
+}
+
+/** 코어 아이덴티티 빌더용 — 설정 원문 섹션 분할 */
+export function parseCharacterSettingIntoSections(combined: string): {
+  title: string;
+  body: string;
+  hint?: ChunkCategory;
+}[] {
+  const trimmed = combined.trim();
+  if (!trimmed) return [];
+  return splitIntoSections(trimmed);
 }
 
 function mergeTinyChunks(chunks: CharacterChunk[], characterId: string): CharacterChunk[] {

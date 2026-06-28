@@ -1,4 +1,4 @@
-import { estimateTokens } from "@/lib/ai";
+import { estimateTokens } from "@/lib/tokenEstimate";
 import { visibleAssistantDisplayCharCount } from "@/lib/chatDisplayLength";
 import {
   resolveResponseLengthTarget,
@@ -15,7 +15,7 @@ const BANNED_ENDING_VERB_PATTERN =
 
 /** Anti-resolution / turn-end forbid rules — index in assembled system prompt */
 export function probeAntiResolutionRuleIndex(systemPrompt: string): number | null {
-  const markers = ["[FORBIDDEN AT END]", "observer closing beats", "[EXIT RULE — LENGTH SHORTFALL]"];
+  const markers = ["[조기 종료 금지]", "[FORBIDDEN EARLY STOP]", "관찰자 붕괴", "observer closing beats", "[EXIT RULE — LENGTH SHORTFALL]"];
   let best: number | null = null;
   for (const marker of markers) {
     const idx = systemPrompt.indexOf(marker);

@@ -1,21 +1,19 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
-  isDeepSeekV4ProModel,
-  isGemini25ProModel,
   isGeminiProOpenRouterModel,
   isAnthropicModel,
   isQwenModel,
+  isDeepSeekV4ProModel,
 } from "@/lib/chatModels";
 import type { ParsedStatusWidgetTurnValues, ResolvedStatusWidgetTurn } from "./types";
-import {
-  inferWidgetValuesFromProse,
-  sanitizeParsedStatusWidgetValues,
-  splitProseAndStatusWidgetValues,
-  statusWidgetValuesAreCorrupt,
-} from "./parseValues";
-import { splitProseAndStatusWidgetValuesDeepSeek } from "./deepseekCapture";
+import { statusWidgetValuesAreCorrupt } from "./parseValues";
 import { statusWidgetValuesHasContent } from "./displayPolicy";
+import type { TokenUsage } from "@/lib/ai";
+import {
+  stripStatusWidgetFromAssistantProse,
+  WIDGET_EXTRACT_NARRATIVE_CHAR_BUDGET,
+} from "./proseStrip";
 
 export type StatusWidgetModelFamily =
   | "deepseek"
@@ -28,6 +26,7 @@ export type StatusWidgetModelFamily =
 export type StatusWidgetParserMode = "standard" | "deepseek";
 
 export type StatusWidgetResolutionSource =
+  | "v3_extract"
   | "stream_capture"
   | "split_saved"
   | "split_raw"
@@ -49,7 +48,7 @@ export type StatusWidgetTurnTelemetry = {
   backfillAttempted: boolean;
   backfillSuccess: boolean;
   backfillSkippedReason: string | null;
-  /** <<<STATUS_VALUES>>> / legacy trailing JSON parse succeeded (split path) */
+  /** Main model leaked STATUS_VALUES / widget JSON — stripped before save */
   jsonParseSuccess: boolean;
   resolutionSource: StatusWidgetResolutionSource;
   finalHasContent: boolean;
@@ -58,6 +57,8 @@ export type StatusWidgetTurnTelemetry = {
 };
 
 export const STATUS_WIDGET_TELEMETRY_LOG_PREFIX = "[status-widget-telemetry]";
+
+export { WIDGET_EXTRACT_NARRATIVE_CHAR_BUDGET } from "./proseStrip";
 
 export function resolveStatusWidgetModelFamily(modelId: string): StatusWidgetModelFamily {
   const id = modelId.toLowerCase();
@@ -77,15 +78,8 @@ export function resolveStatusWidgetParserMode(modelId: string): StatusWidgetPars
     : "standard";
 }
 
-function pickSplitFn(modelId: string) {
-  return resolveStatusWidgetParserMode(modelId) === "deepseek"
-    ? splitProseAndStatusWidgetValuesDeepSeek
-    : splitProseAndStatusWidgetValues;
-}
-
-function hasSplitValues(values: ParsedStatusWidgetTurnValues): boolean {
-  return Boolean(values.character || values.user);
-}
+/** Strip widget tails the main RP model may have leaked — prose only for save & V3 extract */
+export { stripStatusWidgetFromAssistantProse } from "./proseStrip";
 
 export type ResolveStatusWidgetTurnValuesInput = {
   chatId: number;
@@ -94,8 +88,6 @@ export type ResolveStatusWidgetTurnValuesInput = {
   savedText: string;
   rawWidgetSourceText: string;
   statusWidgetTurn: ResolvedStatusWidgetTurn;
-  streamCapture: ParsedStatusWidgetTurnValues | null;
-  statusArtifactCapture: ParsedStatusWidgetTurnValues | null;
   charName: string;
   personaName: string;
   userMessage: string;
@@ -106,6 +98,7 @@ export type ResolveStatusWidgetTurnValuesInput = {
 export type ResolveStatusWidgetTurnValuesResult = {
   prose: string;
   values: ParsedStatusWidgetTurnValues | null;
+  widgetExtractUsage: TokenUsage | null;
   telemetry: StatusWidgetTurnTelemetry;
 };
 
@@ -113,129 +106,54 @@ export async function resolveStatusWidgetTurnValues(
   input: ResolveStatusWidgetTurnValuesInput
 ): Promise<ResolveStatusWidgetTurnValuesResult> {
   const parserMode = resolveStatusWidgetParserMode(input.modelId);
-  const splitWidgetValues = pickSplitFn(input.modelId);
 
-  let prose = input.savedText;
-  let valuesPayload: ParsedStatusWidgetTurnValues | null = sanitizeParsedStatusWidgetValues(
-    input.streamCapture ?? input.statusArtifactCapture ?? null
-  );
-  if (!statusWidgetValuesHasContent(valuesPayload)) {
-    valuesPayload = null;
-  }
+  const proseFromSaved = stripStatusWidgetFromAssistantProse(input.savedText);
+  const proseFromRaw = stripStatusWidgetFromAssistantProse(input.rawWidgetSourceText);
+  const prose = proseFromSaved || proseFromRaw;
 
-  const streamCaptureHit = statusWidgetValuesHasContent(
-    sanitizeParsedStatusWidgetValues(input.streamCapture ?? null)
-  );
-  const streamArtifactHit =
-    !streamCaptureHit &&
-    statusWidgetValuesHasContent(
-      sanitizeParsedStatusWidgetValues(input.statusArtifactCapture ?? null)
+  const strippedLeak =
+    proseFromSaved !== input.savedText.trimEnd() ||
+    proseFromRaw !== input.rawWidgetSourceText.trimEnd();
+
+  let v3ExtractAttempted = true;
+  let v3ExtractSuccess = false;
+  let valuesPayload: ParsedStatusWidgetTurnValues | null = null;
+  let widgetExtractUsage: TokenUsage | null = null;
+  let resolutionSource: StatusWidgetResolutionSource = "none";
+
+  try {
+    const { extractStatusWidgetValuesForTurn } = await import("./extract");
+    const { loadPreviousStatusWidgetValues, loadPreviousAssistantProse } = await import(
+      "./loadPrevious"
     );
-
-  let splitSavedHit = false;
-  let splitRawHit = false;
-  let inferHit = false;
-  let backfillAttempted = false;
-  let backfillSuccess = false;
-  let backfillSkippedReason: string | null = null;
-  let jsonParseSuccess = false;
-  let resolutionSource: StatusWidgetResolutionSource = streamCaptureHit
-    ? "stream_capture"
-    : streamArtifactHit
-      ? "stream_capture"
-      : "none";
-
-  if (streamCaptureHit || streamArtifactHit) {
-    jsonParseSuccess = true;
-  }
-
-  const widgetSplitSaved = splitWidgetValues(prose);
-  prose = widgetSplitSaved.prose;
-  if (hasSplitValues(widgetSplitSaved.values)) {
-    valuesPayload = sanitizeParsedStatusWidgetValues(widgetSplitSaved.values);
-    splitSavedHit = true;
-    jsonParseSuccess = true;
-    resolutionSource = "split_saved";
-  }
-
-  if (!statusWidgetValuesHasContent(valuesPayload)) {
-    const fromRaw = splitWidgetValues(input.rawWidgetSourceText);
-    if (hasSplitValues(fromRaw.values)) {
-      valuesPayload = sanitizeParsedStatusWidgetValues(fromRaw.values);
-      splitRawHit = true;
-      jsonParseSuccess = true;
-      resolutionSource = "split_raw";
+    const v3Result = await extractStatusWidgetValuesForTurn({
+      charName: input.charName,
+      personaName: input.personaName,
+      userMessage: input.userMessage,
+      assistantProse: prose,
+      resolved: input.statusWidgetTurn,
+      previousValues: loadPreviousStatusWidgetValues(
+        input.chatId,
+        input.regenerateMessageId
+      ),
+      previousAssistantProse: loadPreviousAssistantProse(
+        input.chatId,
+        input.regenerateMessageId
+      ),
+      userNote: input.userNote,
+    });
+    widgetExtractUsage = v3Result.usage;
+    if (statusWidgetValuesHasContent(v3Result.values)) {
+      v3ExtractSuccess = true;
+      valuesPayload = v3Result.values;
+      resolutionSource = "v3_extract";
     }
-  }
-
-  if (
-    !statusWidgetValuesHasContent(valuesPayload) &&
-    input.statusWidgetTurn.characterWidget
-  ) {
-    const inferred = inferWidgetValuesFromProse(
-      input.rawWidgetSourceText,
-      input.statusWidgetTurn.characterWidget
-    );
-    if (inferred) {
-      inferHit = true;
-      valuesPayload = sanitizeParsedStatusWidgetValues({
-        character: inferred,
-        user: valuesPayload?.user ?? null,
-      });
-      resolutionSource = "infer";
-    }
-  }
-
-  const corruptBeforeBackfill = statusWidgetValuesAreCorrupt(valuesPayload);
-  const backfillEligible =
-    isDeepSeekV4ProModel(input.modelId) || isGemini25ProModel(input.modelId);
-
-  if (!backfillEligible) {
-    backfillSkippedReason = "model_not_eligible";
-  } else if (
-    statusWidgetValuesHasContent(valuesPayload) &&
-    !corruptBeforeBackfill
-  ) {
-    backfillSkippedReason = "values_ok";
-  } else if (
-    !statusWidgetValuesHasContent(valuesPayload) &&
-    !corruptBeforeBackfill
-  ) {
-    backfillSkippedReason = "values_empty";
-  }
-
-  if (
-    backfillEligible &&
-    (!statusWidgetValuesHasContent(valuesPayload) || corruptBeforeBackfill)
-  ) {
-    backfillAttempted = true;
-    backfillSkippedReason = null;
-    try {
-      const { extractStatusWidgetValuesForTurn } = await import("./extract");
-      const { loadPreviousStatusWidgetValues } = await import("./loadPrevious");
-      const flashValues = await extractStatusWidgetValuesForTurn({
-        charName: input.charName,
-        personaName: input.personaName,
-        userMessage: input.userMessage,
-        assistantProse: prose,
-        resolved: input.statusWidgetTurn,
-        previousValues: loadPreviousStatusWidgetValues(
-          input.chatId,
-          input.regenerateMessageId
-        ),
-        userNote: input.userNote,
-      });
-      if (statusWidgetValuesHasContent(flashValues)) {
-        backfillSuccess = true;
-        valuesPayload = flashValues;
-        resolutionSource = "backfill";
-      }
-    } catch (e) {
-      console.warn("[status-widget] flash backfill failed", (e as Error).message);
-    }
+  } catch (e) {
+    console.warn("[status-widget] V3 extract failed", (e as Error).message);
   }
 
   const finalHasContent = statusWidgetValuesHasContent(valuesPayload);
+  const corruptBeforeExtract = statusWidgetValuesAreCorrupt(valuesPayload);
 
   const telemetry: StatusWidgetTurnTelemetry = {
     event: "status_widget_turn",
@@ -243,23 +161,24 @@ export async function resolveStatusWidgetTurnValues(
     modelId: input.modelId,
     modelFamily: resolveStatusWidgetModelFamily(input.modelId),
     parserMode,
-    streamCaptureHit,
-    splitSavedHit,
-    splitRawHit,
-    inferHit,
-    backfillAttempted,
-    backfillSuccess,
-    backfillSkippedReason,
-    jsonParseSuccess,
+    streamCaptureHit: false,
+    splitSavedHit: strippedLeak,
+    splitRawHit: false,
+    inferHit: false,
+    backfillAttempted: v3ExtractAttempted,
+    backfillSuccess: v3ExtractSuccess,
+    backfillSkippedReason: v3ExtractSuccess ? null : "v3_extract_empty",
+    jsonParseSuccess: strippedLeak,
     resolutionSource: finalHasContent ? resolutionSource : "none",
     finalHasContent,
-    finalCorruptBeforeBackfill: corruptBeforeBackfill,
+    finalCorruptBeforeBackfill: corruptBeforeExtract,
     regenerate: input.regenerate === true,
   };
 
   return {
     prose,
     values: finalHasContent ? valuesPayload : null,
+    widgetExtractUsage,
     telemetry,
   };
 }

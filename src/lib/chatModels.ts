@@ -9,7 +9,7 @@ export {
   MAX_TARGET_RESPONSE_CHARS,
 } from "./responseLengthConstants";
 
-/** 배경·저가 작업 전용 (UI 선택 불가) */
+/** @deprecated UI 선택용 Flash — 백그라운드 작업은 OPENROUTER_DEEPSEEK_V3_MODEL */
 export const GEMINI_CHAT_FLASH_25 = "gemini-2.5-flash";
 /** @deprecated LEGACY — gemini-3-flash-preview */
 export const GEMINI_CHAT_FLASH = "gemini-3-flash-preview";
@@ -26,6 +26,9 @@ export const CLAUDE_OPUS_MODEL = OPENROUTER_CLAUDE_DEFAULT;
 /** OpenRouter — DeepSeek V4 Pro */
 export const OPENROUTER_DEEPSEEK_V4_PRO_MODEL = "deepseek/deepseek-v4-pro";
 
+/** OpenRouter — DeepSeek V3 (백그라운드 기억·상태창·번역 등) */
+export const OPENROUTER_DEEPSEEK_V3_MODEL = "deepseek/deepseek-chat-v3-0324";
+
 /** OpenRouter — Qwen3.7 Max (2026-05 flagship, OpenRouter slug) */
 export const OPENROUTER_QWEN_37_MAX_MODEL = "qwen/qwen3.7-max";
 
@@ -34,6 +37,9 @@ export const OPENROUTER_GEMINI_25_PRO_MODEL = "google/gemini-2.5-pro";
 
 /** OpenRouter — Google Gemini 3.1 Pro Preview (balanced tier) */
 export const OPENROUTER_GEMINI_31_PRO_MODEL = "google/gemini-3.1-pro-preview";
+
+/** OpenRouter — Gemini 2.0 Flash (백그라운드 비전: 이미지 검열·에셋 태그) */
+export const OPENROUTER_GEMINI_20_FLASH_MODEL = "google/gemini-2.0-flash-001";
 
 /** OpenRouter — Gemini 2.5 Flash (HTML·백그라운드 등 직접 호출용) */
 export const OPENROUTER_GEMINI_25_FLASH_MODEL = "google/gemini-2.5-flash";
@@ -131,10 +137,15 @@ export function isGemini25ProModel(modelId: string): boolean {
   return id === OPENROUTER_GEMINI_25_PRO_MODEL || id.includes("gemini-2.5-pro");
 }
 
-/** OpenRouter Google Gemini 3.1 Pro Preview */
+/** OpenRouter Gemini 3.1 Pro Preview */
 export function isGemini31ProModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
   return id === OPENROUTER_GEMINI_31_PRO_MODEL || id.includes("gemini-3.1-pro");
+}
+
+/** Gemini 3.x Pro on OpenRouter — native thinkingLevel (2.5 Pro thinkingBudget cap과 별도) */
+export function isGemini3ProOpenRouterModel(modelId: string): boolean {
+  return isGeminiProOpenRouterModel(modelId) && !isGemini25ProModel(modelId);
 }
 
 /** OpenRouter Gemini Flash (RP 라우팅·배경 작업) */

@@ -35,15 +35,26 @@ import { ABSOLUTE_MAX_RESPONSE_CHARS, clampTextToCharCap } from "@/lib/responseL
 /** 본문 ↔ 상태창(HTML) 사이 빈 줄 2줄 이상 */
 export const STATUS_WINDOW_BODY_GAP = "\n\n\n";
 const PROSE_HTML_SEPARATOR = STATUS_WINDOW_BODY_GAP;
-/** Flash HTML 생성 — 입력 컨텍스트 상한 (넉넉히) */
+/** HTML visual card 생성 — 입력 컨텍스트 상한 (넉넉히) */
 const FLASH_ASSISTANT_PROSE_MAX = 12_000;
 const FLASH_CHARACTER_SETTING_MAX = 10_000;
 const FLASH_RECENT_HISTORY_MAX = 10_000;
 const FLASH_MEMORY_MAX = 8_000;
 const FLASH_LOREBOOK_MAX = 8_000;
 const FLASH_PREVIOUS_HTML_MAX = 5_000;
-/** Flash HTML 출력 — 상태창·OOC 커스텀 HTML 공통 상한 */
+/** HTML 전용 턴 — 입력 컨텍스트(시스템+유저 블록) 상한 */
+export const HTML_ONLY_TURN_MAX_INPUT_TOKENS = 30_000;
+/** HTML 전용 턴 — 섹션별 char 상한 (합산 후 30k 입력 토큰에 맞게 스케일·trim) */
+const HTML_ONLY_CHARACTER_SETTING_MAX = 20_000;
+const HTML_ONLY_MEMORY_MAX = 20_000;
+const HTML_ONLY_RECENT_HISTORY_MAX = 28_000;
+const HTML_ONLY_LOREBOOK_MAX = 14_000;
+/** RP 후 2차 HTML — 출력 상한 (메인 prose cap 보호) */
 export const HTML_FLASH_MAX_OUTPUT_TOKENS = 6000;
+/** HTML 전용 턴 — 출력 상한 (2차 HTML과 동일; 실제 출력량으로 과금) */
+export const HTML_ONLY_TURN_MAX_OUTPUT_TOKENS = HTML_FLASH_MAX_OUTPUT_TOKENS;
+/** 영수증·UI 표시명 (실제 API: DeepSeek V3) */
+export const HTML_ONLY_MODEL_LABEL = "HTML전용모델";
 
 /** Flash ```html 부착 시 RP prose cap에서 뺄 최소·최대 예약 */
 export const HTML_FLASH_OUTPUT_RESERVE_MIN_CHARS = 900;
@@ -556,7 +567,7 @@ function buildHtmlFlashCreativeStatusWindowPrompt(
       ? "Render BELOW RP prose (status window area)"
       : "Render ABOVE RP prose";
   const doodleFieldIdx = policy.statusFieldLabels.findIndex((f) => /낙서|카오모지|이모지/.test(f));
-  return `[HTML STATUS WINDOW — FLASH CREATIVE DESIGN]
+  return `[HTML STATUS WINDOW — CREATIVE DESIGN]
 You design a clean, minimal, mobile-friendly HTML status card for this RP turn.
 - ${placementHint}.
 - One visually distinct section/block per listed field — label text must match [STATUS FIELD LABELS] exactly (same order).
@@ -572,16 +583,36 @@ ${policy.statusFieldLabels.map((f, i) => `${i + 1}. ${f}`).join("\n")}`;
 function buildHtmlFlashSystemPrompt(
   policy: HtmlVisualCardPolicy,
   placement: HtmlFlashPlacement,
-  flashMode?: { displayUserInputOnly?: boolean; oocCreativeBrief?: boolean; chatOocExclusive?: boolean }
+  flashMode?: {
+    displayUserInputOnly?: boolean;
+    oocCreativeBrief?: boolean;
+    chatOocExclusive?: boolean;
+    htmlOnlyDedicatedTurn?: boolean;
+  }
 ): string {
+  const htmlOutputBudget = HTML_FLASH_MAX_OUTPUT_TOKENS;
   const oocCustomHtml =
     flashMode?.oocCreativeBrief === true || flashMode?.chatOocExclusive === true;
 
+  if (flashMode?.displayUserInputOnly === true) {
+    return `[HTML 전용 출력]
+You generate ONLY a \`\`\`html visual card for this turn. The main RP model was NOT used.
+- [USER MESSAGE — this turn] is the primary layout and content spec — implement exactly what the user asks for in HTML.
+- Ground content in [LONG-TERM MEMORY], [USER NOTE], [USER PERSONA], [CHARACTER & WORLD SETTING], [ACTIVE LORE / LOREBOOK], and [RECENT CHAT HISTORY] when the user references them.
+- Do NOT invent RP narration outside the \`\`\`html block.
+- Output exactly ONE \`\`\`html fenced block. No text before or after the fence.
+- HTML output budget: up to ${htmlOutputBudget.toLocaleString()} output tokens — use as much as needed within that cap (not a character target).
+- Input context may include up to ${HTML_ONLY_TURN_MAX_INPUT_TOKENS.toLocaleString()} tokens of memory, persona, setting, lore, and history — use what you need.
+- Dark body text (#111–#333) on light backgrounds; mobile-responsive (max-width, padding, readable font-size).
+- Korean preferred when the scene is Korean. Never leave requested sections empty — infer accurately from provided context.`;
+  }
+
   if (oocCustomHtml) {
-    return `[OOC CREATIVE HTML — FLASH ONLY]
+    return `[OOC CREATIVE HTML — HTML 전용]
 The user's OOC in [USER MESSAGE — this turn] is the ONLY layout/content spec — NOT user-note standing status window, NOT REFERENCE card templates.
 - Main RP prose is intentionally empty. Do NOT add scene narration outside the \`\`\`html block.
 - Implement the exact UI/layout/content the OOC describes (e.g. anonymous message inbox / 트위터·X 네임드 계정 익명 메시지함 mockup referencing real anonymous-message-site UX).
+- Use [LONG-TERM MEMORY], [USER NOTE], [USER PERSONA], [CHARACTER & WORLD SETTING], [ACTIVE LORE / LOREBOOK], and [RECENT CHAT HISTORY] as grounding when the OOC asks to reference them.
 - If OOC says HTML without code fences — output raw HTML inside ONE \`\`\`html fence anyway (server requirement; chat renders it as formatted HTML).
 - When OOC lists bracketed categories (e.g. [외형 · 키워드 · …]), copy the [REFERENCE] skeleton from the user block — one \`<section>\` per category with visible gaps. Never cram all fields into one paragraph.
 - Default OOC card style: white rounded card, soft section boxes, indigo category labels — simple and pretty (see REFERENCE in user block when present).
@@ -593,7 +624,7 @@ The user's OOC in [USER MESSAGE — this turn] is the ONLY layout/content spec �
 - NEVER reuse RP status-window field slots — build the OOC UI (message threads, cards, inbox rows, Q&A blocks).
 - User note / persona may appear only as lore context — never as the output format when OOC specifies a different UI.
 - Output exactly ONE \`\`\`html fenced block. No text before or after the fence.
-- HTML output budget: up to 6,000 tokens. Write rich, scene-specific Korean content.`;
+- HTML output budget: up to ${htmlOutputBudget.toLocaleString()} tokens. Write rich, scene-specific Korean content.`;
   }
 
   const cardKind = policy.standing
@@ -605,7 +636,7 @@ The user's OOC in [USER MESSAGE — this turn] is the ONLY layout/content spec �
   if (flashUsesCreativeStatusDesign(policy)) {
     return `${buildHtmlFlashCreativeStatusWindowPrompt(policy, placement)}
 
-[HTML GENERATION — FLASH ONLY]
+[HTML GENERATION]
 You generate ONLY the \`\`\`html visual card for this turn (${cardKind}).
 - RP prose is already complete in [ASSISTANT REPLY — prose only]. Do NOT rewrite or continue RP.
 - Output exactly ONE \`\`\`html fenced block. No text before or after the fence.
@@ -628,7 +659,7 @@ You generate ONLY the \`\`\`html visual card for this turn (${cardKind}).
     statusFieldLabels: policy.statusFieldLabels,
   })}
 
-[HTML GENERATION — FLASH ONLY]
+[HTML GENERATION]
 You generate ONLY the \`\`\`html visual card for this turn (${cardKind}).
 - RP prose is already complete in [ASSISTANT REPLY — prose only]. Do NOT rewrite or continue RP.
 - Output exactly ONE \`\`\`html fenced block. No text before or after the fence.
@@ -660,11 +691,33 @@ export function buildHtmlVisualCardFlashUserBlock(
   ctx: HtmlVisualCardFlashContext,
   policy?: Pick<HtmlVisualCardPolicy, "standing" | "statusFieldLabels">,
   placement?: HtmlFlashPlacement,
-  flashMode?: { displayUserInputOnly?: boolean; oocCreativeBrief?: boolean; chatOocExclusive?: boolean }
+  flashMode?: {
+    displayUserInputOnly?: boolean;
+    oocCreativeBrief?: boolean;
+    chatOocExclusive?: boolean;
+    htmlOnlyDedicatedTurn?: boolean;
+    /** HTML 전용 — 30k 입력 토큰 fit 시 섹션 char 상한 스케일 (0–1) */
+    htmlContextCharScale?: number;
+  }
 ): string {
   const displayUserInputOnly = flashMode?.displayUserInputOnly === true;
   const oocCreativeBrief = flashMode?.oocCreativeBrief === true;
   const chatOocExclusive = flashMode?.chatOocExclusive === true;
+  const htmlOnlyDedicated = flashMode?.htmlOnlyDedicatedTurn === true;
+  const contextScale =
+    htmlOnlyDedicated
+      ? Math.min(1, Math.max(0.2, flashMode?.htmlContextCharScale ?? 1))
+      : 1;
+  const memoryMax = htmlOnlyDedicated
+    ? Math.floor(HTML_ONLY_MEMORY_MAX * contextScale)
+    : FLASH_MEMORY_MAX;
+  const loreMax = htmlOnlyDedicated ? Math.floor(HTML_ONLY_LOREBOOK_MAX * contextScale) : FLASH_LOREBOOK_MAX;
+  const settingMax = htmlOnlyDedicated
+    ? Math.floor(HTML_ONLY_CHARACTER_SETTING_MAX * contextScale)
+    : FLASH_CHARACTER_SETTING_MAX;
+  const historyMax = htmlOnlyDedicated
+    ? Math.floor(HTML_ONLY_RECENT_HISTORY_MAX * contextScale)
+    : FLASH_RECENT_HISTORY_MAX;
   const rel = loadChatRelationshipMeta(ctx.chatId);
   const memoryHints = [
     rel.thoughts?.length ? `NPC thoughts (memory): ${rel.thoughts.slice(-5).join(" · ")}` : "",
@@ -682,7 +735,7 @@ export function buildHtmlVisualCardFlashUserBlock(
 
   const memoryParts = [ctx.memoryBlock?.trim(), ctx.archiveMemory?.trim()].filter(Boolean);
   const memoryCombined = memoryParts.join("\n\n").trim();
-  const recentHistoryBlock = formatRecentHistoryForFlash(ctx.recentHistory, FLASH_RECENT_HISTORY_MAX);
+  const recentHistoryBlock = formatRecentHistoryForFlash(ctx.recentHistory, historyMax);
   const previousHtml = formatPreviousHtmlFromHistory(ctx.recentHistory, FLASH_PREVIOUS_HTML_MAX);
   const userNoteRaw = ctx.userNote?.trim() ?? "";
   const userNoteForFlash =
@@ -732,22 +785,22 @@ Use clean card layout: white rounded container, one soft-gradient section per ca
     !chatOocExclusive && previousHtml
       ? `[PREVIOUS TURN HTML CARD — style & continuity reference]\n${previousHtml}`
       : "",
-    userNoteForFlash
-      ? chatOocExclusive
-        ? `[USER NOTE — lore/world context ONLY; ignore status-window & HTML display format lines; OOC UI spec wins]\n${userNoteForFlash}`
-        : `[USER NOTE]\n${userNoteForFlash}`
+    ctx.characterSetting?.trim()
+      ? `[CHARACTER & WORLD SETTING — CORE IDENTITY]\n${clipTail(ctx.characterSetting.trim(), settingMax)}`
       : "",
     ctx.userPersona?.trim() ? `[USER PERSONA]\n${ctx.userPersona.trim()}` : "",
     memoryCombined
-      ? `[LONG-TERM MEMORY]\n${clipTail(memoryCombined, FLASH_MEMORY_MAX)}`
+      ? `[LONG-TERM MEMORY]\n${clipTail(memoryCombined, memoryMax)}`
       : memoryHints
         ? `[MEMORY HINTS]\n${memoryHints}`
         : "",
-    ctx.loreBlock?.trim()
-      ? `[ACTIVE LORE / LOREBOOK]\n${clipTail(ctx.loreBlock.trim(), FLASH_LOREBOOK_MAX)}`
+    userNoteForFlash
+      ? chatOocExclusive
+        ? `[USER NOTE — lore/world context ONLY; ignore status-window & HTML display format lines; OOC UI spec wins]\n${userNoteForFlash}`
+        : `[USER NOTE — reference RAG]\n${userNoteForFlash}`
       : "",
-    ctx.characterSetting?.trim()
-      ? `[CHARACTER & WORLD SETTING]\n${clipTail(ctx.characterSetting.trim(), FLASH_CHARACTER_SETTING_MAX)}`
+    ctx.loreBlock?.trim()
+      ? `[ACTIVE LORE / LOREBOOK — contextual RAG]\n${clipTail(ctx.loreBlock.trim(), loreMax)}`
       : "",
     `[CHARACTER] ${ctx.charName}`,
     `[USER PERSONA NAME] ${ctx.personaName}`,
@@ -755,9 +808,9 @@ Use clean card layout: white rounded container, one soft-gradient section per ca
     `[USER MESSAGE — this turn]\n${ctx.userMessage.trim()}`,
     displayUserInputOnly
       ? `[DISPLAY ONLY — NO RP]
-The user asked to display their input as HTML only — no new RP prose.
-Fill the HTML card primarily from [USER MESSAGE — this turn]. Reproduce the user's content faithfully in the requested UI template.
-Do NOT invent scene narration or dialogue beyond what the user message contains.`
+The user asked for HTML-only output — no new RP prose.
+Follow [USER MESSAGE — this turn] as the layout and content spec. Use [LONG-TERM MEMORY], [USER NOTE], [USER PERSONA], [CHARACTER & WORLD SETTING], and [ACTIVE LORE / LOREBOOK] when the user asks to reference them.
+Do NOT invent scene narration or dialogue beyond what the user message and provided context support.`
       : oocCreativeBrief
         ? `[OOC CREATIVE BRIEF — this turn]
 Read [USER MESSAGE — this turn] OOC instructions carefully. Use RECENT CHAT, MEMORY, CHARACTER SETTING, and PREVIOUS HTML (if any) only as context to fill the OOC-requested UI and messages.
@@ -827,6 +880,8 @@ export type GenerateHtmlVisualCardOpts = HtmlVisualCardFlashContext & {
   oocCreativeBrief?: boolean;
   /** 채팅 OOC rp_unrelated — 유저노트 상태창/HTML 무시 */
   chatOocExclusive?: boolean;
+  /** HTML 전용 턴 — 메인 RP 미호출, 30k 입력 컨텍스트·6k 출력 */
+  htmlOnlyDedicatedTurn?: boolean;
 };
 
 export type HtmlVisualCardFlashGenerateResult = {
@@ -844,7 +899,7 @@ function flashGenerateResult(
   return { html, usage, promptEstimateTokens };
 }
 
-/** Gemini Flash — HTML visual card 생성 (상태창 meta extract와 동일 패턴) */
+/** DeepSeek V3 — HTML visual card 생성 (상태창 meta extract와 동일 패턴) */
 export async function generateHtmlVisualCardWithFlash(
   opts: GenerateHtmlVisualCardOpts
 ): Promise<HtmlVisualCardFlashGenerateResult> {
@@ -853,7 +908,8 @@ export async function generateHtmlVisualCardWithFlash(
   const flashEmptyProseOk =
     opts.displayUserInputOnly === true ||
     opts.oocCreativeBrief === true ||
-    opts.chatOocExclusive === true;
+    opts.chatOocExclusive === true ||
+    opts.htmlOnlyDedicatedTurn === true;
   if (!prose && !flashEmptyProseOk) return flashGenerateResult(null, null, 0);
 
   const placement: HtmlFlashPlacement =
@@ -864,26 +920,37 @@ export async function generateHtmlVisualCardWithFlash(
       userPersona: opts.userPersona,
       characterSetting: opts.characterSetting,
     });
-  const system = buildHtmlFlashSystemPrompt(opts.policy, placement, {
+  const flashMode = {
     displayUserInputOnly: opts.displayUserInputOnly,
     oocCreativeBrief: opts.oocCreativeBrief,
     chatOocExclusive: opts.chatOocExclusive,
-  });
+    htmlOnlyDedicatedTurn: opts.htmlOnlyDedicatedTurn,
+  };
+  const system = buildHtmlFlashSystemPrompt(opts.policy, placement, flashMode);
   const oocCustomHtml = opts.oocCreativeBrief === true || opts.chatOocExclusive === true;
-  const userBlock = buildHtmlVisualCardFlashUserBlock(
+  let userBlock = buildHtmlVisualCardFlashUserBlock(
     opts,
     oocCustomHtml ? { standing: false, statusFieldLabels: [] } : opts.policy,
     placement,
-    {
-      displayUserInputOnly: opts.displayUserInputOnly,
-      oocCreativeBrief: opts.oocCreativeBrief,
-      chatOocExclusive: opts.chatOocExclusive,
-    }
+    flashMode
   );
+
+  if (opts.htmlOnlyDedicatedTurn) {
+    let scale = 1;
+    while (estimateTokens(`${system}\n${userBlock}`) > HTML_ONLY_TURN_MAX_INPUT_TOKENS && scale > 0.25) {
+      scale *= 0.88;
+      userBlock = buildHtmlVisualCardFlashUserBlock(
+        opts,
+        oocCustomHtml ? { standing: false, statusFieldLabels: [] } : opts.policy,
+        placement,
+        { ...flashMode, htmlContextCharScale: scale }
+      );
+    }
+  }
 
   const promptEstimateTokens = estimateTokens(`${system}\n${userBlock}`);
 
-  console.log("[html-flash] generating ```html visual card", {
+  console.log("[html-visual-card] generating ```html visual card", {
     chatId: opts.chatId,
     proseChars: prose.length,
     userBlockChars: userBlock.length,

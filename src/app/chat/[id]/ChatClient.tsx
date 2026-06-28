@@ -358,16 +358,71 @@ function toChatMessageLike(messages: Msg[]): ChatMessageLike[] {
   return messages.filter((m) => m.role !== "system") as ChatMessageLike[];
 }
 
+/** variant usage와 row usage가 어긋날 때 위젯 V3 원가 필드 보존 */
+function enrichUsageWithBillingExtras(
+  primary: Usage | null | undefined,
+  supplemental: Usage | null | undefined
+): Usage | null {
+  if (!primary) return supplemental ?? null;
+  if (!supplemental?.statusWidgetExtract) return primary;
+  if (primary.statusWidgetExtract) return primary;
+  return {
+    ...primary,
+    statusWidgetExtract: supplemental.statusWidgetExtract,
+    mainApiRawCostKrw: supplemental.mainApiRawCostKrw ?? primary.mainApiRawCostKrw,
+    apiRawCostKrw: supplemental.apiRawCostKrw ?? primary.apiRawCostKrw,
+    apiInputTokens: supplemental.apiInputTokens ?? primary.apiInputTokens,
+    apiOutputTokens: supplemental.apiOutputTokens ?? primary.apiOutputTokens,
+    apiCallCount: supplemental.apiCallCount ?? primary.apiCallCount,
+    upstreamCostUsd: supplemental.upstreamCostUsd ?? primary.upstreamCostUsd,
+    stages: supplemental.stages ?? primary.stages,
+  };
+}
+
 function resolveActiveUsage(
   usage: Usage | null | undefined,
   variants?: MessageVariant[],
   activeVariant?: number
 ): Usage | null {
+  let fromVariant: Usage | null = null;
   if (variants?.length && activeVariant != null && activeVariant >= 0) {
-    const v = variants[activeVariant]?.usage;
-    if (v) return v;
+    fromVariant = variants[activeVariant]?.usage ?? null;
   }
-  return usage ?? null;
+  const fromRow = usage ?? null;
+  const base = fromVariant ?? fromRow;
+  if (!base) return null;
+  return enrichUsageWithBillingExtras(base, fromRow) ?? enrichUsageWithBillingExtras(base, fromVariant);
+}
+
+/** router.refresh 후 SSR usage(위젯 V3 원가)가 클라이언트에 안 붙은 경우 DB 스냅샷으로 보강 */
+function mergeBillingUsageFromServer<T extends Msg>(prev: T[], server: T[]): T[] {
+  const serverById = new Map(
+    server.filter((m) => m.id != null && m.id > 0).map((m) => [m.id!, m])
+  );
+  if (serverById.size === 0) return prev;
+
+  return prev.map((m) => {
+    if (m.id == null || m.id <= 0) return m;
+    const s = serverById.get(m.id);
+    if (!s) return m;
+
+    const serverUsage = resolveActiveUsage(s.usage, s.variants, s.activeVariant);
+    if (!serverUsage?.statusWidgetExtract) return m;
+
+    const clientUsage = resolveActiveUsage(m.usage, m.variants, m.activeVariant);
+    if (clientUsage?.statusWidgetExtract) return m;
+
+    const mergedUsage =
+      enrichUsageWithBillingExtras(clientUsage ?? serverUsage, serverUsage) ?? serverUsage;
+
+    return {
+      ...m,
+      usage: mergedUsage,
+      variants: s.variants ?? m.variants,
+      activeVariant: s.activeVariant ?? m.activeVariant,
+      variantCount: s.variantCount ?? m.variantCount,
+    };
+  });
 }
 
 function findLastTurnIndices(msgs: Msg[]) {
@@ -1011,10 +1066,12 @@ export default function ChatClient({
     clientMaxMessageId,
   ]);
 
-  /** 재생성 — message id 동일 · router.refresh 후 SSR status_meta 반영 */
+  /** 재생성 — message id 동일 · router.refresh 후 SSR status_meta·영수증 usage 반영 */
   useEffect(() => {
     if (loadingRef.current || inFlightRef.current) return;
-    setMessages((prev) => mergeStatusMetaFieldsById(prev, initialMessages));
+    setMessages((prev) =>
+      mergeStatusMetaFieldsById(mergeBillingUsageFromServer(prev, initialMessages), initialMessages)
+    );
   }, [initialMessages]);
 
   const portraitRoomRef = useRef<number | null | undefined>(undefined);
@@ -1539,11 +1596,10 @@ export default function ChatClient({
         }
         const cur = copy[aiIndex];
         if (cur?.role === "assistant") {
-          const resolvedUsage = resolveActiveUsage(
-            data.usage ?? null,
-            data.variants,
-            data.activeVariant
-          );
+          const resolvedUsage =
+            data.usage?.statusWidgetExtract
+              ? data.usage
+              : resolveActiveUsage(data.usage ?? null, data.variants, data.activeVariant);
           const userMsg =
             copy[aiIndex - 1]?.role === "user" ? copy[aiIndex - 1]!.content : "";
           const htmlFlashTurn =

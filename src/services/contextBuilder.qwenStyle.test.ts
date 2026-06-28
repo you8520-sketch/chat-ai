@@ -1,12 +1,20 @@
+import Module from "module";
+
+const originalLoad = Module._load;
+Module._load = function (request, parent, isMain) {
+  if (request === "server-only") return {};
+  return originalLoad.call(this, request, parent, isMain);
+} as typeof Module._load;
+
 import assert from "node:assert/strict";
 
-import { describe, it } from "node:test";
+import { describe, it, before } from "node:test";
 
-import { buildContext } from "./contextBuilder";
+import type { buildContext as BuildContextFn } from "./contextBuilder";
 
 import { OPENROUTER_KOREAN_PROSE_TOP_BLOCK } from "@/lib/openRouterProsePolicy";
 
-import { KOREAN_WEBNOVEL_STYLE } from "@/lib/writingStylePreset";
+import { KOREAN_WEBNOVEL_STYLE_BLOCK } from "@/lib/writingStylePreset";
 
 import { buildNarrativeStyleLayer } from "@/lib/narrativeStyle";
 
@@ -15,6 +23,12 @@ import { buildTurnHandoffAndPacingBlock } from "@/lib/turnHandoffAndPacing";
 import { OPENROUTER_QWEN_37_MAX_MODEL } from "@/lib/chatModels";
 
 import type { CharacterChunk } from "@/types";
+
+let buildContext: typeof BuildContextFn;
+
+before(async () => {
+  ({ buildContext } = await import("./contextBuilder"));
+});
 
 
 
@@ -65,17 +79,29 @@ describe("buildContext — Qwen OpenRouter prose rules", () => {
 
 
     assert.ok(built.systemPrompt.includes(OPENROUTER_KOREAN_PROSE_TOP_BLOCK));
-    assert.ok(built.systemPrompt.includes("[NO FOREIGN LANGUAGE MIXING]"));
+    assert.ok(built.systemPrompt.includes("외국어 혼용 금지"));
 
-    assert.ok(built.systemPrompt.includes("=== 설정 적용 우선순위 (필독) ==="));
+    assert.ok(built.systemPrompt.includes("=== 설정 적용 우선순위 ==="));
 
-    assert.ok(built.systemPrompt.includes("<PROSE_STYLE_POLICY>"));
-
-    assert.ok(built.systemPrompt.includes(KOREAN_WEBNOVEL_STYLE));
+    assert.ok(!built.systemPrompt.includes("<PROSE_STYLE_POLICY>"));
+    assert.ok(built.systemPrompt.includes(KOREAN_WEBNOVEL_STYLE_BLOCK));
 
     assert.ok(built.systemPrompt.includes("[ADVANCED PROSE & NSFW GUIDELINES]"));
+    assert.equal(
+      (built.systemPrompt.match(/\[ADVANCED PROSE & NSFW GUIDELINES\]/g) ?? []).length,
+      1
+    );
+    assert.equal(
+      (built.systemPrompt.match(/\[KOREAN WEBNOVEL STYLE\]/g) ?? []).length,
+      1
+    );
+    assert.equal(
+      (built.systemPrompt.match(/\[DIALOGUE & NARRATION\]/g) ?? []).length,
+      1
+    );
 
-    assert.ok(built.systemPrompt.includes("Explicit Sensory Mode"));
+    assert.ok(built.systemPrompt.includes("표현 규칙"));
+    assert.ok(!built.systemPrompt.includes("Explicit Sensory Mode"));
     assert.ok(!built.systemPrompt.includes("=== 19+ 컨텍스트 ==="));
     assert.ok(!built.systemPrompt.includes("=== 19+ 플랫폼 컨텍스트 ==="));
 
@@ -115,21 +141,14 @@ describe("buildContext — Qwen OpenRouter prose rules", () => {
 
     assert.ok(!built.systemPrompt.includes("[ANTI-RESOLUTION RULE]"));
     assert.ok(!built.systemPrompt.includes("[early_scene t="));
-    assert.match(built.systemPrompt, /\[EARLY t=\d+\]/);
-
-
+    assert.ok(!built.systemPrompt.match(/\[EARLY t=\d+\]/));
 
     const narrativeStyleSection = built.meta?.trackedSections?.find(
-
       (s) => s.id === "narrative-style"
-
     );
-
-    assert.ok(narrativeStyleSection);
-
-    assert.ok(!narrativeStyleSection.text.includes(KOREAN_WEBNOVEL_STYLE));
-
-    assert.ok(!buildNarrativeStyleLayer({ omitFormatRules: true }).includes(KOREAN_WEBNOVEL_STYLE));
+    // Format rules live in prose bundle — narrative-style is genre hints only when present
+    assert.ok(!narrativeStyleSection || !narrativeStyleSection.text.includes("[KOREAN WEBNOVEL STYLE]"));
+    assert.ok(!buildNarrativeStyleLayer({ omitFormatRules: true }).includes(KOREAN_WEBNOVEL_STYLE_BLOCK));
 
   });
 

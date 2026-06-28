@@ -3,33 +3,28 @@ import { describe, it } from "node:test";
 import {
   DYNAMIC_PROSE_STYLING_BLOCK,
   KOREAN_WEBNOVEL_STYLE,
+  KOREAN_WEBNOVEL_STYLE_BLOCK,
 } from "@/lib/writingStylePreset";
 
-describe("KOREAN_WEBNOVEL_STYLE", () => {
-  it("includes dynamic prose dual-engine styling", () => {
-    assert.match(KOREAN_WEBNOVEL_STYLE, /\[DYNAMIC PROSE STYLING & SCENE EXPANSION\]/);
-    assert.match(KOREAN_WEBNOVEL_STYLE, /일상 및 텐션 빌드업 구간 \(Mode A\)/);
-    assert.match(KOREAN_WEBNOVEL_STYLE, /본격적인 19금 육체적 접촉 구간 \(Mode B\)/);
-    assert.match(KOREAN_WEBNOVEL_STYLE, /긍정적 행동 지침/);
-    assert.match(KOREAN_WEBNOVEL_STYLE, /입체적으로 증폭/);
-    assert.match(KOREAN_WEBNOVEL_STYLE, /Bullet-time/);
+describe("KOREAN WEBNOVEL STYLE", () => {
+  it("includes 모드 A/B in single style block", () => {
+    assert.match(KOREAN_WEBNOVEL_STYLE_BLOCK, /\[KOREAN WEBNOVEL STYLE\]/);
+    assert.match(KOREAN_WEBNOVEL_STYLE, /모드 A \(일상·텐션\)/);
+    assert.match(KOREAN_WEBNOVEL_STYLE, /모드 B \(19금 접촉\)/);
+    assert.match(KOREAN_WEBNOVEL_STYLE, /슬로 모션/);
+    assert.doesNotMatch(KOREAN_WEBNOVEL_STYLE, /불릿 타임/);
+    assert.doesNotMatch(KOREAN_WEBNOVEL_STYLE, /\[DYNAMIC PROSE STYLING & SCENE EXPANSION\]/);
     assert.doesNotMatch(KOREAN_WEBNOVEL_STYLE, /Balance dialogue, action, emotion/);
-    assert.doesNotMatch(DYNAMIC_PROSE_STYLING_BLOCK, /금지/);
-    assert.doesNotMatch(DYNAMIC_PROSE_STYLING_BLOCK, /배제/);
   });
 
-  it("exports standalone dynamic styling block", () => {
-    assert.match(DYNAMIC_PROSE_STYLING_BLOCK, /해부학적 명칭/);
-    assert.match(DYNAMIC_PROSE_STYLING_BLOCK, /4단계로 팽창/);
+  it("deprecated DYNAMIC_PROSE_STYLING_BLOCK aliases unified block", () => {
+    assert.equal(DYNAMIC_PROSE_STYLING_BLOCK, KOREAN_WEBNOVEL_STYLE_BLOCK);
   });
 
-  it("keeps compact layout rules not covered by DYNAMIC PROSE", () => {
+  it("keeps compact layout rules", () => {
     assert.match(KOREAN_WEBNOVEL_STYLE, /해체\(-다/);
-    assert.match(KOREAN_WEBNOVEL_STYLE, /noun-fragment lines/);
-    assert.match(KOREAN_WEBNOVEL_STYLE, /Ellipsis:/);
-    assert.doesNotMatch(KOREAN_WEBNOVEL_STYLE, /one complete utterance or thought/);
-    assert.doesNotMatch(KOREAN_WEBNOVEL_STYLE, /2–8 connected narration/);
-    assert.doesNotMatch(KOREAN_WEBNOVEL_STYLE, /Scene or time shift/);
-    assert.doesNotMatch(KOREAN_WEBNOVEL_STYLE, /Writing principles:/);
+    assert.match(KOREAN_WEBNOVEL_STYLE, /명사 단편 행/);
+    assert.match(KOREAN_WEBNOVEL_STYLE, /말줄임 \.\.\./);
+    assert.doesNotMatch(KOREAN_WEBNOVEL_STYLE, /^Ellipsis:/m);
   });
 });

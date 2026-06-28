@@ -60,6 +60,18 @@ export type Usage = {
   coldStartCostFloorPoints?: number;
   /** 턴별 숨은 출력 audit — status/JSON/HTML strip 여부 */
   outputLeakage?: OutputLeakageAudit;
-  /** Gemini Flash HTML-only — 메인 RP 모델 미사용 */
+  /** HTML 전용 턴 — DeepSeek V3, 메인 RP 모델 미사용 */
   htmlFlashOnly?: boolean;
+  /** 메인 RP OpenRouter 원가 (KRW) — 위젯 V3 분리 표시용 */
+  mainApiRawCostKrw?: number;
+  /** 상태창 위젯 V3 추출 — 관리자·데모 영수증 */
+  statusWidgetExtract?: {
+    model: string;
+    modelLabel: string;
+    input: number;
+    output: number;
+    apiRawCostKrw: number;
+    upstreamCostUsd?: number;
+    estimated?: boolean;
+  };
 };

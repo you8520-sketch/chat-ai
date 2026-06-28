@@ -14,7 +14,7 @@ import { formatPreviousTurnStatusContext } from "./previousStatusContext";
 import type { StatusMeta } from "./types";
 import { EMPTY_STATUS_META, normalizeStatusMeta } from "./types";
 
-/** Flash background-status-meta-extract ONLY — never inject into Opus/main RP system prompt */
+/** DeepSeek V3 background-status-meta-extract ONLY — never inject into main RP system prompt */
 export const EXTRACT_TIMEKEEPER_RULE = `[TIMEKEEPER RULE: NARRATIVE TIME PROGRESSION]
 1. You are the Timekeeper of this roleplay. You must calculate the current time dynamically based ONLY on the actions and narrative flow described in the recent text.
 2. Analyze the 'in-universe duration' of the recent actions:

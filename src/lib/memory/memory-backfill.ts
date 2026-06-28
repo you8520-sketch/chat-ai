@@ -1,4 +1,4 @@
-import { ROLLING_SUMMARY_INTERVAL } from "@/lib/hybridMemory";
+import { ROLLING_SUMMARY_INTERVAL, countPlayableTurns } from "@/lib/hybridMemory";
 import {
   catchUpRollingSummaries,
   loadTurnsForChat,
@@ -39,6 +39,8 @@ export function syncMemoryFromChat(opts: {
   const turns = loadTurnsForChat(opts.chatId);
   if (turns.length === 0) return false;
 
+  const playableCount = countPlayableTurns(turns);
+
   const bufferCount = getBufferCount(opts.chatId);
   if (bufferCount > 0) {
     clearBuffer(opts.chatId);
@@ -46,20 +48,23 @@ export function syncMemoryFromChat(opts: {
 
   const hasLegacySummary = Boolean(memory.recent_summary.trim() || memory.last_compressed_at);
   const summarizedTurnCount = hasLegacySummary
-    ? Math.floor(turns.length / ROLLING_SUMMARY_INTERVAL) * ROLLING_SUMMARY_INTERVAL
+    ? Math.floor(playableCount / ROLLING_SUMMARY_INTERVAL) * ROLLING_SUMMARY_INTERVAL
     : 0;
 
   updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
-    message_count: turns.length,
+    message_count: playableCount,
     summarized_turn_count: summarizedTurnCount,
     membership_tier: opts.tier,
   });
 
   console.info(
-    `[memory] synced counts chat=${opts.chatId} turns=${turns.length} summarized=${summarizedTurnCount}`
+    `[memory] synced counts chat=${opts.chatId} playable=${playableCount} summarized=${summarizedTurnCount}`
   );
 
-  if (turns.length >= ROLLING_SUMMARY_INTERVAL && shouldTriggerRollingSummary(turns.length, summarizedTurnCount)) {
+  if (
+    playableCount >= ROLLING_SUMMARY_INTERVAL &&
+    shouldTriggerRollingSummary(playableCount, summarizedTurnCount)
+  ) {
     scheduleCharacterRollingSummary({
       chatId: opts.chatId,
       userId: opts.userId,

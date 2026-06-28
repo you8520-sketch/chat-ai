@@ -58,13 +58,12 @@ import { formatMemoryMetaForPrompt, normalizeMemoryMeta, parseMemoryMeta, type R
 import { resolveRelationshipMetaNames } from "@/lib/relationshipMetaCharacterName";
 import {
   messagesToTurns,
+  countPlayableTurns,
   rawRecentTurnsToHistory,
-  resolveLorebookExcludeTurnStart,
-  resolveRawRecentTurnPool,
+  resolveLorebookExcludeFromTrimmedHistory,
+  trimHistoryToBudget,
 } from "@/lib/hybridMemory";
-import {
-  extractGreetingFromMessageRows,
-} from "@/lib/chatGreetingContext";
+import { resolveHistoryTokenBudget } from "@/lib/contextTrack";
 import {
   filterOutMessageIds,
   purgeOrphanUserMessages,
@@ -86,7 +85,7 @@ import {
 import { stealthReceiptModelFields } from "@/lib/billingDisplay";
 import { loadKeywordLorebookPromptBlock } from "@/lib/keywordLorebooks";
 import { loadGlobalLorebookPromptBlock } from "@/lib/globalLorebook";
-import { resolveHtmlVisualCardPolicyFromSources, HTML_FLASH_SERVER_ONLY_BLOCK, resolveHtmlFlashPlacement, htmlPolicyReplacesMarkdownStatus, applyChatOocExclusiveHtmlPolicy, oocFlashHtmlMustBeRejected, isOocCreativeHtmlRichEnough } from "@/lib/htmlVisualCardPolicy";
+import { resolveHtmlVisualCardPolicyFromSources, resolveHtmlFlashPlacement, htmlPolicyReplacesMarkdownStatus, applyChatOocExclusiveHtmlPolicy, oocFlashHtmlMustBeRejected, isOocCreativeHtmlRichEnough } from "@/lib/htmlVisualCardPolicy";
 import {
   resolveStatusWindowPolicyFromSources,
   markdownPipeTableStatusWindowActive,
@@ -100,10 +99,12 @@ import {
   unwrapHtmlVisualCardInner,
   extractProseWithoutHtml,
   resolveHtmlFlashOutputReserveChars,
+  HTML_ONLY_MODEL_LABEL,
   resolveProseBaselineForHtmlFlash,
   stripBrokenHtmlFragmentAtEnd,
   stripBrokenHtmlFragmentPreservingOocBody,
 } from "@/lib/htmlVisualCardRecovery";
+import { buildCoreIdentityBlock } from "@/lib/characterCoreIdentity";
 import { continueNarrativeIfUnderMinimum, needsVisibleLengthContinuation } from "@/lib/narrativeLengthContinuation";
 import { responseHasHtmlVisualCard, splitChatRichBlocks } from "@/lib/chatRichContent";
 import { buildOpenRouterCacheReceiptInfo } from "@/lib/openRouterModelPricing";
@@ -111,9 +112,6 @@ import { estimateUserContextChars } from "@/lib/userContextBilling";
 import { formatUserNoteForPrompt } from "@/lib/persona";
 import { validateUserNoteCombined, userNoteCombinedCharCount, parseUserNoteCombined, extractFocusZoneNote } from "@/lib/userNoteStatusWindow";
 import { resolveStatusWidgetReservedChars } from "@/lib/statusWidget";
-import {
-  isMainModelRelationshipSelfExtractModel,
-} from "@/lib/relationshipMemoryTailPrompt";
 import { splitAndNormalizeRelationshipMemoryTail } from "@/lib/relationshipMemoryTail";
 import { parseUserChatPrefs, normalizeNovelModeEnabled } from "@/lib/userChatPrefs";
 import {
@@ -171,7 +169,6 @@ import { resolveStatusMetaExtractionEnabled } from "@/lib/statusMeta/displayPoli
 import {
   applyStatusWidgetSystemPromptOverrides,
   patchOpenRouterSplitForStatusWidget,
-  buildStatusWidgetPromptBlock,
   resolveStatusWidgetTurn,
   serializeStatusWidgetValuesJson,
 } from "@/lib/statusWidget";
@@ -180,7 +177,7 @@ import {
   logStatusWidgetTurnTelemetry,
   resolveStatusWidgetTurnValues,
 } from "@/lib/statusWidget/telemetry";
-import { captureStatusWidgetValuesFromModelText } from "@/lib/statusWidget/parseValues";
+import { appendStatusWidgetExtractToUsageRecord } from "@/lib/statusWidget/receiptUsage";
 import { userMessageRequestsStatusWindowOoc } from "@/lib/statusMeta/ooc";
 import { isOocHtmlRequest } from "@/lib/oocHtmlRequest";
 import { isHtmlDisplayOnlyTurn, isHtmlFlashOnlyTurn, isOocCreativeHtmlTurn, chatInputSuppressesStatusWidget } from "@/lib/htmlDisplayOnlyTurn";
@@ -196,7 +193,6 @@ import {
 import { formatClientApiError } from "@/lib/apiErrors";
 import { resolveOpenRouterModelId } from "@/lib/openRouterConfig";
 import { resolveRegenerateGenerationOverrides } from "@/lib/openRouterClient";
-import { resolveRawRecentTurnWindowForHistory } from "@/lib/contextTrack";
 import { sanitizePrimaryModelAssistantHistory } from "@/lib/flashOwnedOutputFirewall";
 
 const SSE_HEADERS = {
@@ -528,16 +524,16 @@ export async function POST(req: Request) {
   const msgRows = filterOutMessageIds(msgRowsWithId, [...regenerateHistoryDropIds]).map(
     ({ role, content, model }) => ({ role, content, model })
   );
-  const openingSceneGreeting = extractGreetingFromMessageRows(msgRowsWithId);
-  const completedTurns = messagesToTurns(msgRows);
+  const dialogueTurns = messagesToTurns(msgRows);
+  const playableTurnCount = countPlayableTurns(dialogueTurns);
   const storedUserMessage = messageText;
   const personaUsesBanmal = personaUsesInformalSpeech(selectedPersona?.description ?? "");
   const autoContinueContext =
     isContinue || (regenerate && isContinueUserMessage(storedUserMessage));
   const autoContinueHistory = autoContinueContext
-    ? resolveAutoContinueHistoryTurns(completedTurns)
+    ? resolveAutoContinueHistoryTurns(dialogueTurns)
     : null;
-  const turnsForRecentHistory = autoContinueHistory?.historyTurns ?? completedTurns;
+  const turnsForRecentHistory = autoContinueHistory?.historyTurns ?? dialogueTurns;
   const continueResumeCtx = autoContinueHistory?.resumeCtx ?? null;
   const displayUserMessage = replaceUserPlaceholder(
     storedUserMessage,
@@ -615,31 +611,21 @@ export async function POST(req: Request) {
   const chatMemory = memoryFeatureOn
     ? getOrCreateChatMemory(chat.id, user.id, ch.id, memoryTier)
     : null;
-  const summarizedTurnCount = chatMemory?.summarized_turn_count ?? 0;
 
   const billingOpenRouterModelId = resolveOpenRouterModelId(selectedAI);
   const openRouterApiModelId = billingOpenRouterModelId;
   const contextProvider = "openrouter" as const;
   const contextModelId = openRouterApiModelId;
-  const rawTurnWindow = resolveRawRecentTurnWindowForHistory(
-    contextModelId,
-    contextProvider,
-    completedTurns.length
-  );
-  const rawTurnPool = resolveRawRecentTurnPool(
-    turnsForRecentHistory,
-    summarizedTurnCount,
-    rawTurnWindow
-  );
+  const historyTokenBudget = resolveHistoryTokenBudget(contextModelId, contextProvider);
 
-  const recentHistory: ChatMsg[] = rawRecentTurnsToHistory(
-    turnsForRecentHistory,
-    summarizedTurnCount,
-    rawTurnWindow
-  ).map((m) => ({
-    ...m,
-    content: replaceUserPlaceholder(m.content, personaDisplayName, user.nickname),
-  }));
+  const recentHistoryFull: ChatMsg[] = rawRecentTurnsToHistory(turnsForRecentHistory).map(
+    (m) => ({
+      ...m,
+      content: replaceUserPlaceholder(m.content, personaDisplayName, user.nickname),
+    })
+  );
+  const trimmedHistoryForLorebook = trimHistoryToBudget(recentHistoryFull, historyTokenBudget);
+  const recentHistory: ChatMsg[] = recentHistoryFull;
   const shortTermHistory = recentHistory;
 
   const memoryInjection = await buildMemoryContextForChat({
@@ -652,9 +638,9 @@ export async function POST(req: Request) {
     modelId: contextModelId,
     provider: contextProvider,
     turnTrace: undefined,
-    excludeSummaryTurnStartGte: resolveLorebookExcludeTurnStart(
-      summarizedTurnCount,
-      rawTurnPool
+    excludeSummaryTurnStartGte: resolveLorebookExcludeFromTrimmedHistory(
+      turnsForRecentHistory,
+      trimmedHistoryForLorebook
     ),
   });
   const characterGenres = sanitizeCharacterGenres(
@@ -668,7 +654,6 @@ export async function POST(req: Request) {
   );
 
   const recentContextForRag = recentHistory
-    .slice(-(rawTurnWindow * 2))
     .map((m) =>
       contextProvider === "openrouter" && m.role === "assistant"
         ? sanitizePrimaryModelAssistantHistory(m.content)
@@ -681,7 +666,7 @@ export async function POST(req: Request) {
     characterChunks,
     userMessage: autoContinueContext ? CONTINUE_USER_DISPLAY : displayUserMessage,
     recentContext: recentContextForRag,
-    completedTurns: completedTurns.length,
+    completedTurns: playableTurnCount,
     modelId: contextModelId,
     provider: contextProvider,
   } as const;
@@ -700,9 +685,6 @@ export async function POST(req: Request) {
   });
   const chatOocHtmlOutputTurn = chatInputSuppressesStatusWidget(storedUserMessage);
   const statusWidgetActive = statusWidgetTurn.active && !chatOocHtmlOutputTurn;
-  const statusWidgetPromptBlock = statusWidgetActive
-    ? buildStatusWidgetPromptBlock(statusWidgetTurn)
-    : "";
 
   const keywordLorebookBlock = loadKeywordLorebookPromptBlock(
     db,
@@ -742,8 +724,8 @@ export async function POST(req: Request) {
     isGemini31ProModel(billingOpenRouterModelId) &&
     htmlVisualCardPolicy.enabled &&
     !chatOocRpUnrelated;
-  const mainModelOwnsRelationshipExtract =
-    memoryFeatureOn && isMainModelRelationshipSelfExtractModel(billingOpenRouterModelId);
+  /** Relationship meta — post-process Flash extract (not main-model JSON tail) */
+  const mainModelOwnsRelationshipExtract = false;
   /** Flash HTML ON이면 메인 모델 inline HTML(oocHtmlMode) 금지 — Flash가 ```html``` 소유 */
   const oocHtmlMode =
     !autoContinueContext &&
@@ -757,9 +739,8 @@ export async function POST(req: Request) {
   ]
     .filter(Boolean)
     .join("\n");
-  const globalLorebookBlock =
-    (htmlVisualCardPolicy.enabled && !gemini31MainModelOwnsHtml) || chatOocRpUnrelated
-    ? HTML_FLASH_SERVER_ONLY_BLOCK
+  const globalLorebookBlock = chatOocRpUnrelated
+    ? ""
     : loadGlobalLorebookPromptBlock(db, globalLorebookScanText, globalLorebookScanText);
 
   const contextBuildInput = {
@@ -774,7 +755,6 @@ export async function POST(req: Request) {
     longTermMemory: memoryFeatureOn ? memoryInjection.text : "",
     archiveMemory: memoryFeatureOn ? memoryInjection.archiveText : "",
     shortTermHistory,
-    openingSceneGreeting,
     currentUserMessage: promptUserMessage,
     nsfw: isAdultMode,
     gender: resolveCharacterGender(ch.gender),
@@ -789,7 +769,7 @@ export async function POST(req: Request) {
     novelModeEnabled,
     personaDisplayName,
     targetResponseChars,
-    completedTurns: completedTurns.length,
+    completedTurns: playableTurnCount,
     userPersonaGender: selectedPersona?.gender ?? "other",
     provider: "openrouter" as const,
     genres: characterGenres,
@@ -809,7 +789,6 @@ export async function POST(req: Request) {
   const built = buildContext({
     ...contextBuildInput,
     statusWidgetActive: statusWidgetActive,
-    statusWidgetPromptBlock: statusWidgetPromptBlock || undefined,
     mainModelOwnsHtmlVisualCard: gemini31MainModelOwnsHtml,
     mainModelOwnsRelationshipExtract,
     contextualLore: memoryLayers.contextualLore || undefined,
@@ -871,7 +850,7 @@ export async function POST(req: Request) {
     userMessage: messageText,
     userNote: effectiveUserNote,
     userPersona: userPersonaPrompt ?? undefined,
-    characterSetting: settingText,
+    characterSetting: buildCoreIdentityBlock(settingText),
     memoryBlock: memoryFeatureOn ? memoryInjection.text : "",
     archiveMemory: memoryFeatureOn ? memoryInjection.archiveText : "",
     recentHistory: recentHistory,
@@ -885,10 +864,6 @@ export async function POST(req: Request) {
       const stages: StageUsage[] = [];
       let fullText = "";
       let streamVisibleTextRef = "";
-      let rawModelTextForWidgetRef = "";
-      let capturedStatusWidgetFromStream: ReturnType<
-        typeof captureStatusWidgetValuesFromModelText
-      > = null;
 
       try {
         console.log("[/api/chat] routing decision", {
@@ -930,7 +905,7 @@ export async function POST(req: Request) {
 
         try {
           if (htmlFlashOnlyTurn) {
-            console.info("[/api/chat] HTML Flash-only turn — skipping OpenRouter main model", {
+            console.info("[/api/chat] HTML 전용 턴 — skipping OpenRouter main model", {
               chatId: chatRef.id,
               displayOnly: htmlDisplayOnlyTurn,
               oocCreative: oocCreativeHtmlTurn,
@@ -960,7 +935,6 @@ export async function POST(req: Request) {
                   : undefined,
               htmlFlashReserveChars: htmlFlashReserveChars > 0 ? htmlFlashReserveChars : undefined,
               oocHtmlMode: oocHtmlMode || undefined,
-              statusWidgetReserveTail: statusWidgetActive || undefined,
               statusArtifactsOpts: statusArtifactOpts,
               generationOverrides: regenerateMessageId
                 ? resolveRegenerateGenerationOverrides(openRouterApiModelId, targetResponseCharsRef)
@@ -970,8 +944,6 @@ export async function POST(req: Request) {
           );
           fullText = result.text;
           streamVisibleTextRef = result.streamVisibleText ?? fullText;
-          rawModelTextForWidgetRef = result.rawStreamText ?? fullText;
-          capturedStatusWidgetFromStream = result.capturedStatusWidgetValues ?? null;
           stages.push(result.stage);
           openRouterRemovalTraceSteps = result.removalTraceSteps;
           if (result.recoveryStage) stages.push(result.recoveryStage);
@@ -1341,13 +1313,14 @@ export async function POST(req: Request) {
               displayUserInputOnly: htmlDisplayOnlyTurn,
               oocCreativeBrief: oocCreativeHtmlTurn && !htmlDisplayOnlyTurn,
               chatOocExclusive: chatOocRpUnrelated,
+              htmlOnlyDedicatedTurn: htmlFlashOnlyTurn,
             });
             htmlBlock = flashGen.html;
             flashHtmlUsage = flashGen.usage;
             flashPromptEstimateTokens = flashGen.promptEstimateTokens;
             htmlBlockBeforeEnsure = htmlBlock;
           } catch (htmlErr) {
-            console.warn("[/api/chat] HTML Flash failed — using server fallback", {
+            console.warn("[/api/chat] HTML visual card failed — using server fallback", {
               error: (htmlErr as Error).message,
             });
           }
@@ -1365,7 +1338,8 @@ export async function POST(req: Request) {
             chatOocRpUnrelated || oocCreativeHtmlTurn ? [] : htmlVisualCardPolicyRef.statusFieldLabels,
             hardMax,
             {
-              skipGenericFallback: oocCreativeHtmlTurn || chatOocRpUnrelated,
+              skipGenericFallback:
+                htmlFlashOnlyTurn || oocCreativeHtmlTurn || chatOocRpUnrelated,
               oocUserMessage: oocFlashUserMessage,
             }
           );
@@ -1376,10 +1350,11 @@ export async function POST(req: Request) {
                 proseOnly,
                 htmlBlock,
                 placement,
-                resolveResponseLengthTarget(targetResponseCharsRef).hardMax,
+                hardMax,
                 chatOocRpUnrelated || oocCreativeHtmlTurn ? [] : htmlVisualCardPolicyRef.statusFieldLabels,
                 {
-                  skipCompactRebuild: oocCreativeHtmlTurn || chatOocRpUnrelated,
+                  skipCompactRebuild:
+                    htmlFlashOnlyTurn || oocCreativeHtmlTurn || chatOocRpUnrelated,
                 }
               )
             : proseOnly;
@@ -1389,11 +1364,13 @@ export async function POST(req: Request) {
             savedText,
             "attachHtmlBlockAtPlacement — HTML visual card appended at resolved placement"
           );
-          savedText = clampFullResponsePreservingHtml(
-            savedText,
-            resolveResponseLengthTarget(targetResponseCharsRef).hardMax,
-            oocCreativeHtmlTurn || chatOocRpUnrelated ? storedUserMessage : undefined
-          );
+          savedText = htmlFlashOnlyTurn
+            ? savedText.trim()
+            : clampFullResponsePreservingHtml(
+                savedText,
+                hardMax,
+                oocCreativeHtmlTurn || chatOocRpUnrelated ? storedUserMessage : undefined
+              );
           traceStep(
             "htmlFlashClamp",
             afterHtmlAttach,
@@ -1595,7 +1572,7 @@ export async function POST(req: Request) {
             finishReason: primaryStage?.finishReason,
             outputChars: savedText.length,
             targetResponseChars: targetResponseCharsRef,
-            routedTo: htmlFlashOnlyTurn ? "flash-html-only" : "openrouter",
+            routedTo: htmlFlashOnlyTurn ? "html-only" : "openrouter",
           });
           // 이미 스트리밍된 본문이 있으면 reset 금지 — 화면이 비었다가 에러만 남는 현상 방지
           if (savedText.trim().length < CATASTROPHIC_MIN_RESPONSE_CHARS) {
@@ -1656,6 +1633,9 @@ export async function POST(req: Request) {
             inputTokens: flashHtmlUsage?.inputTokens,
             outputTokens: flashHtmlUsage?.outputTokens,
             promptEstimateTokens: flashPromptEstimateTokens,
+            upstreamCostUsd: flashHtmlUsage?.upstreamCostUsd,
+            cacheReadTokens: flashHtmlUsage?.cacheReadTokens,
+            cacheWriteTokens: flashHtmlUsage?.cacheWriteTokens,
           });
           totalInput = flashBilling.estimatedInputTokens;
           totalOutput = flashBilling.estimatedOutputTokens;
@@ -1690,7 +1670,7 @@ export async function POST(req: Request) {
             cacheWriteTokens: primaryStage?.cacheWriteTokens,
             userContextChars,
             savedTextChars: billableChars,
-            completedTurnsBeforeRequest: completedTurns.length,
+            completedTurnsBeforeRequest: playableTurnCount,
             modelLabel: selectedAILabel(selectedAIRef),
             upstreamCostUsd: summedUpstreamUsd > 0 ? summedUpstreamUsd : undefined,
             apiPromptTokens: apiPromptTokensForCost,
@@ -1891,13 +1871,13 @@ export async function POST(req: Request) {
           currentMemoryEst = memoryEst;
         }
 
-        // 요약 구간은 장기기억, 미요약만 raw — trimHistoryToBudget가 8K~20K 상한 적용
+        // raw = 전체 대화 → trimHistoryToBudget(DeepSeek 16K / others 8K)
         const historyEst =
           audit?.breakdown.recentConversation ??
           historyRef.reduce((s, m) => s + estimateTokens(m.content ?? ""), 0);
 
         const sections = [
-          { label: "최근 raw 턴 (미요약)", est: historyEst },
+          { label: "최근 raw 턴", est: historyEst },
           ...(narrativeContextEst > 0
             ? [{ label: "요약·내러티브 (이전 대화)", est: narrativeContextEst }]
             : []),
@@ -1960,9 +1940,24 @@ export async function POST(req: Request) {
           htmlFlashPasses;
 
         const usageModel = htmlFlashOnlyTurn ? billing.modelId : receiptFields.model;
-        const usageModelLabel = htmlFlashOnlyTurn ? "Flash HTML" : receiptFields.modelLabel;
+        const usageModelLabel = htmlFlashOnlyTurn ? HTML_ONLY_MODEL_LABEL : receiptFields.modelLabel;
 
-        const usageRecord = {
+        const mainOpenRouterApiRawCostKrw =
+          billingProvider === "openrouter" && billingExchangeRate
+            ? openRouterRawCostKrw({
+                promptTokens: apiInputTokens,
+                outputTokens: apiOutputTokens,
+                modelId: billingOpenRouterModelId,
+                cacheReadTokens:
+                  primaryStage?.cacheReadTokens ?? primaryStage?.cachedContentTokens,
+                cacheWriteTokens: primaryStage?.cacheWriteTokens,
+                upstreamCostUsd:
+                  summedUpstreamUsd > 0 ? summedUpstreamUsd : primaryStage?.upstreamCostUsd,
+                exchangeRate: billingExchangeRate,
+              })
+            : null;
+
+        let usageRecord = {
           input: totalInput,
           output: totalOutput,
           ...(htmlFlashOnlyTurn ? { htmlFlashOnly: true } : {}),
@@ -2037,17 +2032,12 @@ export async function POST(req: Request) {
                 exchangeRateDateKey: billingExchangeRate.dateKey,
                 exchangeRateMode: billingExchangeRate.mode,
                 exchangeRateSource: billingExchangeRate.source,
-                apiRawCostKrw: openRouterRawCostKrw({
-                  promptTokens: apiInputTokens,
-                  outputTokens: apiOutputTokens,
-                  modelId: billingOpenRouterModelId,
-                  cacheReadTokens:
-                    primaryStage?.cacheReadTokens ?? primaryStage?.cachedContentTokens,
-                  cacheWriteTokens: primaryStage?.cacheWriteTokens,
-                  upstreamCostUsd:
-                    summedUpstreamUsd > 0 ? summedUpstreamUsd : primaryStage?.upstreamCostUsd,
-                  exchangeRate: billingExchangeRate,
-                }),
+                ...(mainOpenRouterApiRawCostKrw != null
+                  ? {
+                      apiRawCostKrw: mainOpenRouterApiRawCostKrw,
+                      mainApiRawCostKrw: mainOpenRouterApiRawCostKrw,
+                    }
+                  : {}),
                 ...(billingOpenRouterModelId && /opus/i.test(billingOpenRouterModelId)
                   ? {
                       normalizedRawCostKrw: openRouterNormalizedRawCostKrw({
@@ -2062,7 +2052,7 @@ export async function POST(req: Request) {
             : {}),
         };
 
-        const rawWidgetSourceText = rawModelTextForWidgetRef || preStatusPartitionText;
+        const rawWidgetSourceText = preStatusPartitionText;
         if (mainModelOwnsRelationshipExtract) {
           const relSplit = splitAndNormalizeRelationshipMemoryTail(
             savedText,
@@ -2084,8 +2074,6 @@ export async function POST(req: Request) {
             savedText,
             rawWidgetSourceText,
             statusWidgetTurn,
-            streamCapture: capturedStatusWidgetFromStream,
-            statusArtifactCapture: statusArtifacts.capturedStatusWidgetValues ?? null,
             charName: ch.name,
             personaName: personaDisplayName,
             userMessage: messageText,
@@ -2095,6 +2083,17 @@ export async function POST(req: Request) {
           savedText = widgetResolved.prose;
           statusWidgetValuesPayload = widgetResolved.values;
           logStatusWidgetTurnTelemetry(widgetResolved.telemetry);
+          if (
+            widgetResolved.widgetExtractUsage &&
+            billingProvider === "openrouter" &&
+            billingExchangeRate
+          ) {
+            usageRecord = appendStatusWidgetExtractToUsageRecord(
+              usageRecord,
+              widgetResolved.widgetExtractUsage,
+              billingExchangeRate
+            );
+          }
         }
 
         const createdAt = new Date().toISOString();
@@ -2282,7 +2281,7 @@ export async function POST(req: Request) {
             const contextJson = buildGenerationContextJson({
               promptAudit: built.meta.promptAudit,
               writingStyle: "unified",
-              completedTurns: completedTurns.length,
+              completedTurns: playableTurnCount,
               targetResponseChars: targetResponseCharsRef,
               userImpersonation: !!userImpersonation,
               includedChunkIds: built.meta.includedChunkIds,

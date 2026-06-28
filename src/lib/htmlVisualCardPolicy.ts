@@ -951,12 +951,24 @@ export function extractHtmlStatusFieldLabels(
   return mergeStatusFieldLabels(fromPipe, labels);
 }
 
-/** 메인 RP 모델용 — 모든 HTML visual card는 Gemini Flash가 생성 */
-export const HTML_FLASH_SERVER_ONLY_BLOCK = `[HTML VISUAL CARD — SERVER GENERATED]
-User enabled HTML visual output. Gemini Flash generates ALL \`\`\`html blocks (status window, messenger, alert, cards) after your RP reply.
+/** 메인 RP 모델용 — HTML·상태 UI는 백그라운드·서버 전담 */
+export const HTML_OUTPUT_OWNERSHIP_BLOCK = `[HTML OUTPUT OWNERSHIP]
 
-Your output = Korean RP prose and dialogue ONLY.
-FORBIDDEN in your reply: \`\`\`html blocks, HTML tags, inline status UI, metadata cards.`;
+The primary RP model outputs Korean RP prose only.
+
+HTML, status windows, JSON, widgets, memory extraction, translation and UI generation are handled by background server processes.
+
+Never generate:
+- HTML
+- JSON
+- pipe tables
+- status panels
+- <<<STATUS_VALUES>>>
+
+Only generate RP prose.`;
+
+/** @deprecated HTML_OUTPUT_OWNERSHIP_BLOCK */
+export const HTML_FLASH_SERVER_ONLY_BLOCK = HTML_OUTPUT_OWNERSHIP_BLOCK;
 
 export type HtmlVisualCardPolicyBlockOpts = {
   standing?: boolean;

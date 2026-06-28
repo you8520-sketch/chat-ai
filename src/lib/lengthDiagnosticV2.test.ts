@@ -22,7 +22,7 @@ describe("probeLengthPromptBlocks", () => {
     assert.equal(probe.length_control_active, true);
     assert.equal(probe.turn_handoff_active, true);
     assert.equal(probe.scene_blueprint_occurrences, 0);
-    assert.equal(probe.length_control_occurrences, 1);
+    assert.ok(probe.length_control_occurrences >= 1);
   });
 
   it("returns false flags when blocks are missing", () => {

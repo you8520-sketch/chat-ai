@@ -4,30 +4,26 @@ import {
   collectCharacterSettingText,
   resolveHairDescriptionPolicy,
 } from "@/lib/bodyHairRules";
+import { buildCoreIdentityBlock } from "@/lib/characterCoreIdentity";
 import {
   buildUserPersonaAppearanceReminder,
-  buildVisualAnchorReminder,
-  extractVisualAppearancePolicyFromChunks,
   promoteAppearanceChunkImportance,
+  extractVisualAppearancePolicyFromChunks,
+  buildVisualAnchorReminder,
 } from "@/lib/visualAnchor";
-import { SHORT_TERM_TURNS } from "@/lib/hybridMemory";
-import { buildOpeningSceneSystemBlock } from "@/lib/chatGreetingContext";
+import { SHORT_TERM_TURNS, trimHistoryToBudget } from "@/lib/hybridMemory";
 import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
-import { buildEmotionTagPrompt } from "@/lib/emotionTag";
+import { buildFlashOwnedEmotionTagUserOverlay } from "@/lib/emotionTag";
 import { buildNarrativeStyleLayer } from "@/lib/narrativeStyle";
 import { buildOocCoNarrationHint } from "@/lib/userImpersonationPolicy";
 import {
-  buildAutoContinueUserPersonaRules,
   buildNovelModeUserPersonaRules,
-  buildSmartUserPersonaNarrationRules,
 } from "@/lib/userPersonaNarrationRules";
 import { stripRpMetaPreamble } from "@/lib/narrativeRules";
 import { buildAdvancedProseNsfwGuidelines } from "@/lib/advancedProseNsfwGuidelines";
 import { buildProseStyleXmlBundle } from "@/lib/proseStyleXmlBundle";
 import { buildRegenerateSystemDirective } from "@/lib/continueNarrative";
-import { buildTurnHandoffAndPacingBlock } from "@/lib/turnHandoffAndPacing";
 import {
-  buildAutoContinueGodmoddingSupplement,
   buildNoGodmoddingBlock,
   resolveNoGodmoddingMode,
   type NoGodmoddingMode,
@@ -36,9 +32,7 @@ import {
   buildCoreMasterPrompt,
   buildCoreMasterPromptForCache,
   buildCoreMasterEarlyTurnHint,
-  buildOpenRouterOpusCompactTail,
   buildIdentityAndRulesBlock,
-  buildUserPersonaSpeechGuard,
 } from "@/lib/corePrompt";
 import { splitUserNotePromptZones } from "@/lib/userNoteStatusWindow";
 import {
@@ -56,7 +50,6 @@ import {
   stripRedundantHtmlVisualCardFromSource,
 } from "@/lib/htmlVisualCardPolicy";
 import {
-  buildPrimaryModelFlashFirewallBlock,
   sanitizePrimaryModelContextSource,
   sanitizePrimaryModelHistoryMessages,
 } from "@/lib/flashOwnedOutputFirewall";
@@ -75,10 +68,7 @@ import {
   resolveContextTrack,
   resolveHistoryTokenBudget,
   resolveMaxPayloadInputTokens,
-  usesFullLoreInjection,
   GEMINI_IMPLICIT_CACHE_INPUT_THRESHOLD,
-  MIN_HISTORY_TURN_FLOOR,
-  HISTORY_TRIM_CHUNK_MESSAGES,
 } from "@/lib/contextTrack";
 import {
   assembleGeminiStaticDynamicSplit,
@@ -95,7 +85,6 @@ import {
 import { resolvePromptDumpSource, writePromptBuildDump } from "@/services/promptDebugDump";
 import {
   buildBilingualDialoguePromptBlock,
-  buildLangCriticalRule,
   isBilingualDialogueActive,
   resolveBilingualDialoguePolicyFromSources,
 } from "@/lib/bilingualDialoguePolicy";
@@ -132,48 +121,6 @@ function resolveSystemBudget(modelId?: string, override?: number): number {
   return MODEL_SYSTEM_BUDGETS.default;
 }
 
-function trimHistoryToBudget(
-  history: ContextBuildInput["shortTermHistory"],
-  budget: number,
-  minTurns = MIN_HISTORY_TURN_FLOOR
-): ContextBuildInput["shortTermHistory"] {
-  if (history.length === 0) return [];
-
-  const floorMsgCount = Math.min(history.length, Math.max(1, minTurns * 2));
-  const floorSlice = history.slice(-floorMsgCount);
-  let tokens = floorSlice.reduce((sum, msg) => sum + estimateTokens(msg.content), 0);
-
-  if (history.length <= floorMsgCount || tokens >= budget) {
-    return alignHistoryPrefixDrop(history, floorSlice);
-  }
-
-  const kept = [...floorSlice];
-  for (let i = history.length - floorMsgCount - 1; i >= 0; i--) {
-    const msg = history[i];
-    const t = estimateTokens(msg.content);
-    if (tokens + t > budget) break;
-    kept.unshift(msg);
-    tokens += t;
-  }
-  return alignHistoryPrefixDrop(history, kept);
-}
-
-/** Prefix drop — chunk 단위(10msg)로 잘라 Anthropic history cache prefix 안정화 */
-function alignHistoryPrefixDrop(
-  full: ContextBuildInput["shortTermHistory"],
-  kept: ContextBuildInput["shortTermHistory"]
-): ContextBuildInput["shortTermHistory"] {
-  const prefixDrop = full.length - kept.length;
-  if (prefixDrop <= 0) return kept;
-
-  const alignedDrop =
-    Math.ceil(prefixDrop / HISTORY_TRIM_CHUNK_MESSAGES) * HISTORY_TRIM_CHUNK_MESSAGES;
-  const floorMsgCount = Math.min(full.length, Math.max(1, MIN_HISTORY_TURN_FLOOR * 2));
-  const startIdx = Math.min(alignedDrop, Math.max(0, full.length - floorMsgCount));
-  if (startIdx <= 0) return kept;
-  return full.slice(startIdx);
-}
-
 function sanitizeCharacterChunkForOpenRouter(content: string, isOpenRouter: boolean): string {
   if (!isOpenRouter) return content;
   return sanitizePrimaryModelContextSource(content);
@@ -187,7 +134,8 @@ function sanitizeCharacterChunkForOpenRouter(content: string, isOpenRouter: bool
  *   [2] Character Critical + [6] Lore (grouped — before prose; OpenRouter cacheCharacter)
  *   [1.4] Prose style · [1.45] Turn handoff (OpenRouter cacheCharacter — stable)
  *   Dynamic block (non-cache): [5] 유저노트 확장 RAG → [3] Memory → [1.5] Lore RAG → tail
- *   Gemini bulk: [3] → [5] → [3b] 관계메모 → [1.5] RAG (same volatile order)
+ *
+ * History: 전체 대화 raw → trimHistoryToBudget (DeepSeek 16K / others 8K).
  *   [4] OOC · [7] Style · Tail — operational
  *
  * Truncation order (when over payload budget): oldest chat history first;
@@ -204,7 +152,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const hasMindReading = settingHasMindReadingFromChunks(chunks);
 
   const critical = chunks.filter((c) => c.importance === "CRITICAL");
-  critical.forEach((c) => includedIds.push(c.id));
 
   const blocks: string[] = [];
   const dynamicLorebookParts: string[] = [];
@@ -350,17 +297,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       "cacheRules"
     );
     pushSection(
-      "openrouter-lang-critical",
-      "[TOP] Language critical",
-      "systemRules",
-      buildLangCriticalRule({
-        bilingual: isBilingualDialogueActive(bilingualDialoguePolicy)
-          ? bilingualDialoguePolicy
-          : undefined,
-      }),
-      "cacheRules"
-    );
-    pushSection(
       "openrouter-co-narration-rule",
       "[TOP] Co-narration rule",
       "systemRules",
@@ -435,26 +371,11 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   );
   if (isOpenRouter && godmoddingMode === "autoContinue") {
     pushSection(
-      "no-godmodding-auto-continue-supplement",
-      "[0a] Auto-continue agency supplement",
+      "auto-continue-handoff-hint",
+      "[0a] Auto-continue handoff",
       "systemRules",
-      buildAutoContinueGodmoddingSupplement(input.charName, personaLabel),
+      "자동진행 턴 — <TURN_HANDOFF_AND_PACING> 준수.",
       "dynamic"
-    );
-  }
-
-  if (personaForIdentity) {
-    pushSection(
-      "user-persona-speech-guard",
-      "[0b] User persona speech guard",
-      "persona",
-      buildUserPersonaSpeechGuard(
-        input.charName,
-        personaLabel,
-        coNarrationEnabled,
-        novelModeEnabled
-      ),
-      isOpenRouter ? "cacheRules" : "dynamic"
     );
   }
 
@@ -507,22 +428,23 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   };
 
-  const pushCharacterLore = () => {
-    const loreChunks = chunks.filter(
-      (c) => c.importance === "CONTEXTUAL" || c.importance === "SUPPLEMENTAL"
+  const pushCharacterCoreIdentity = () => {
+    const coreBlock = buildCoreIdentityBlock(characterSettingText);
+    if (!coreBlock) return;
+    const visualPolicy = extractVisualAppearancePolicyFromChunks(chunks, input.charName, {
+      personaName: personaLabel,
+    });
+    const visualLock = buildVisualAnchorReminder(visualPolicy);
+    const fullBlock = visualLock ? `${coreBlock}\n\n${visualLock}` : coreBlock;
+    critical.forEach((c) => includedIds.push(c.id));
+    pushSection(
+      "character-core-identity",
+      "[2] Core Identity (every turn)",
+      "characterSetting",
+      fullBlock,
+      isOpenRouter ? "cacheCharacter" : "dynamic",
+      deepSeekXmlMode ? "world_lore" : undefined
     );
-    loreChunks.forEach((c) => includedIds.push(c.id));
-    for (const chunk of loreChunks) {
-      const chunkContent = sanitizeCharacterChunkForOpenRouter(chunk.content, isOpenRouter);
-      pushSection(
-        `chunk-lore-${chunk.id}`,
-        `[6] ${chunk.importance} [${chunk.category}]`,
-        chunkPromptCategory(chunk),
-        `[Character Lore/${chunk.category}] ${chunkContent}`,
-        isOpenRouter ? "cacheCharacter" : "dynamic",
-        deepSeekXmlMode ? resolveDeepSeekLoreXmlGroup(chunk.category) : undefined
-      );
-    }
   };
 
   const pushReferenceUserNote = () => {
@@ -562,8 +484,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
 
   const pushContextualRag = () => {
     if (!contextualLore) return;
-    // Full lore already injected — RAG duplicates thousands of tokens (Gemini bulk + OpenRouter)
-    if (usesFullLoreInjection(input.modelId, input.provider)) return;
     pushSection(
       "contextual-lore-rag",
       "[1.5] Contextual Lore (RAG)",
@@ -590,41 +510,8 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   };
 
-  // ───── [2] Character Critical · [6] Lore — before prose style ─────
-  for (const chunk of critical) {
-    const chunkContent = sanitizeCharacterChunkForOpenRouter(chunk.content, isOpenRouter);
-    pushSection(
-      `chunk-critical-${chunk.id}`,
-      `[2] CRITICAL [${chunk.category}]`,
-      chunkPromptCategory(chunk),
-      `[Character Critical/${chunk.category}] ${chunkContent}`,
-      isOpenRouter ? "cacheCharacter" : "dynamic",
-      deepSeekXmlMode ? resolveDeepSeekLoreXmlGroup(chunk.category) : undefined
-    );
-  }
-
-  if (input.assetTags && input.assetTags.length > 0) {
-    pushSection(
-      "rule-asset-tags",
-      "[2] Asset emotion tags",
-      "systemRules",
-      buildEmotionTagPrompt(input.assetTags),
-      isOpenRouter ? "cacheCharacter" : "dynamic",
-      deepSeekXmlMode ? "persona" : undefined
-    );
-  }
-
-  pushCharacterLore();
-  if (input.openingSceneGreeting?.trim()) {
-    pushSection(
-      "opening-scene-greeting",
-      "[2a] Opening scene (first message)",
-      "persona",
-      buildOpeningSceneSystemBlock(input.openingSceneGreeting),
-      isOpenRouter ? "dynamic" : "dynamic",
-      deepSeekXmlMode ? "persona" : undefined
-    );
-  }
+  // ───── [2] Core Identity (매 턴) · 보조 설정은 RAG ─────
+  pushCharacterCoreIdentity();
   flushDeepSeekXmlSections(["persona", "world_lore"]);
 
   const openRouterLiteraryNsfw = isOpenRouter && !!input.nsfw;
@@ -652,14 +539,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   }
 
-  pushSection(
-    "turn-handoff-and-pacing",
-    "[1.45] Turn handoff & pacing (single policy)",
-    "systemRules",
-    buildTurnHandoffAndPacingBlock(),
-    proseStyleTarget
-  );
-
   if (input.regenerate === true) {
     pushSection(
       "regenerate-divergence",
@@ -673,21 +552,23 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   }
 
-  pushKeywordLorebook();
+  const pushRagContextSections = () => {
+    pushReferenceUserNote();
+    pushContextualRag();
+    pushKeywordLorebook();
+  };
 
   // ───── Volatile context (after cached prose — OpenRouter dynamicBlock / Gemini dynamic tail) ─────
   const pushVolatileContextSections = () => {
     pushArchiveMemory();
     if (memoryFeatureOn) {
       if (isGeminiBulk) {
-        pushReferenceUserNote();
         pushCurrentMemory(false);
         pushRelationshipMeta();
-        pushContextualRag();
+        pushRagContextSections();
       } else {
-        pushReferenceUserNote();
         pushCurrentMemory(true);
-        pushContextualRag();
+        pushRagContextSections();
       }
     } else if (!isGeminiBulk) {
       pushReferenceUserNote();
@@ -717,16 +598,17 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       mode: coNarrationEnabled ? "possession" : "standard",
       charName: input.charName,
       genres: input.genres,
-      omitFormatRules: isOpenRouter,
     }),
     isOpenRouter ? "dynamic" : "dynamic"
   );
 
   // ───── Tail — operational constraints ─────
-  const modelOutputsPlainStatus = modelPlainStatusEveryTurnActive(statusWindowPolicy);
   const mainModelOwnsHtmlVisualCard = input.mainModelOwnsHtmlVisualCard === true;
-  const mainModelOwnsRelationshipExtract = input.mainModelOwnsRelationshipExtract === true;
-  if (statusWindowPolicy.policyBlock.trim() && !input.statusWidgetActive) {
+  const injectStatusWindowPolicy =
+    statusWindowPolicy.policyBlock.trim() &&
+    !input.statusWidgetActive &&
+    (!isOpenRouter || statusWindowPolicy.everyTurn);
+  if (injectStatusWindowPolicy) {
     pushSection(
       "state-window-policy",
       statusWindowPolicy.everyTurn
@@ -738,37 +620,12 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   }
 
-  if (
-    mainModelOwnsHtmlVisualCard &&
-    htmlVisualCardPolicy.enabled &&
-    htmlVisualCardPolicy.policyBlock.trim()
-  ) {
-    pushSection(
-      "html-visual-card-policy",
-      "HTML visual card policy (main model — every turn)",
-      "systemRules",
-      htmlVisualCardPolicy.policyBlock,
-      "dynamic"
-    );
-  }
-
   if (novelModeEnabled) {
     pushSection(
       "novel-mode-persona-rules",
       "Novel mode user persona rules",
       "systemRules",
       buildNovelModeUserPersonaRules(input.charName, personaLabel),
-      isOpenRouter ? "dynamic" : "dynamic"
-    );
-  } else if (!input.userImpersonation) {
-    const personaNarrationRules = input.isContinue
-      ? buildAutoContinueUserPersonaRules(input.charName, personaLabel)
-      : buildSmartUserPersonaNarrationRules(input.charName, personaLabel);
-    pushSection(
-      input.isContinue ? "auto-continue-persona-rules" : "user-persona-narration-rules",
-      input.isContinue ? "Auto-continue user persona control" : "User persona narration control",
-      "systemRules",
-      personaNarrationRules,
       isOpenRouter ? "dynamic" : "dynamic"
     );
   }
@@ -789,43 +646,10 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   } else {
     pushSection(
-      "rule-prose-guard",
-      "Prose guard (OpenRouter)",
-      "systemRules",
-      buildOpenRouterOpusCompactTail(bilingualDialoguePolicy),
-      "dynamic"
-    );
-    pushSection(
       "rule-length-control",
       "Length control (single rule)",
       "systemRules",
       buildLengthInstruction(input.targetResponseChars, lengthInstructionOpts),
-      "dynamic"
-    );
-  }
-
-  const statusWidgetFields = input.statusWidgetPromptBlock?.trim() ?? "";
-  if (input.statusWidgetActive && statusWidgetFields) {
-    pushSection(
-      "status-widget-fields",
-      "Status widget fields",
-      "systemRules",
-      statusWidgetFields,
-      "dynamic"
-    );
-  }
-
-  if (isOpenRouter) {
-    pushSection(
-      "openrouter-flash-owned-firewall",
-      "Flash-owned pipelines (absolute tail)",
-      "systemRules",
-      buildPrimaryModelFlashFirewallBlock({
-        modelOutputsPlainStatus,
-        statusWidgetActive: input.statusWidgetActive === true,
-        mainModelOwnsHtmlVisualCard,
-        mainModelOwnsRelationshipExtract,
-      }),
       "dynamic"
     );
   }
@@ -852,19 +676,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       "Korean narration ending (absolute tail)",
       "systemRules",
       KOREAN_NARRATION_ENDING_RULE,
-      isOpenRouter ? "dynamic" : "dynamic"
-    );
-  }
-
-  const visualAnchor = buildVisualAnchorReminder(
-    extractVisualAppearancePolicyFromChunks(chunks, input.charName, { personaName: personaLabel })
-  );
-  if (visualAnchor) {
-    pushSection(
-      "visual-appearance-anchor",
-      "Visual appearance (absolute tail)",
-      "systemRules",
-      visualAnchor,
       isOpenRouter ? "dynamic" : "dynamic"
     );
   }
@@ -952,6 +763,19 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       deepSeekTailParts.length > 0 ? deepSeekTailParts.join("\n\n") : undefined
     );
   }
+  if (
+    mainModelOwnsHtmlVisualCard &&
+    htmlVisualCardPolicy.enabled &&
+    htmlVisualCardPolicy.policyBlock.trim()
+  ) {
+    userTurnContent = `${userTurnContent}\n\n${htmlVisualCardPolicy.policyBlock}`;
+  }
+  if (input.assetTags && input.assetTags.length > 0) {
+    const emotionOverlay = buildFlashOwnedEmotionTagUserOverlay(input.assetTags);
+    if (emotionOverlay) {
+      userTurnContent = `${userTurnContent}\n\n${emotionOverlay}`;
+    }
+  }
 
   const estimatePayloadTokens = (hist: ContextBuildInput["shortTermHistory"]) =>
     estimateTokens(
@@ -963,15 +787,14 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   let effectiveHistoryBudget = historyBudget;
   let historySource = input.geminiStaticDynamicMode
     ? input.shortTermHistory
-    : trimHistoryToBudget(input.shortTermHistory, effectiveHistoryBudget, MIN_HISTORY_TURN_FLOOR);
+    : trimHistoryToBudget(input.shortTermHistory, effectiveHistoryBudget);
 
   if (!input.geminiStaticDynamicMode) {
     while (estimatePayloadTokens(historySource) > maxPayload && effectiveHistoryBudget > 400) {
       effectiveHistoryBudget = Math.max(400, effectiveHistoryBudget - 1500);
       historySource = trimHistoryToBudget(
         input.shortTermHistory,
-        effectiveHistoryBudget,
-        MIN_HISTORY_TURN_FLOOR
+        effectiveHistoryBudget
       );
     }
   }
@@ -1008,7 +831,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       sections: trackedSections,
       staticHistoryBlock: input.staticHistoryBlock ?? undefined,
       dynamicHistory: historyWithCurrent,
-      visualAnchorTail: visualAnchor?.trim(),
     });
     systemPromptOut = isGeminiExplicitCacheEnabled()
       ? geminiSplit.dynamicSystemTail
@@ -1102,7 +924,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       truncatedMemory,
       promptAudit,
       trackedSections,
-      visualAnchorTail: visualAnchor?.trim() || undefined,
       geminiBulkPadded: false,
       staticCachePaddingApplied: false,
     },

@@ -10,42 +10,29 @@ import {
 import { buildCoreMasterPrompt } from "@/lib/corePrompt";
 
 describe("buildCompactNoGodmoddingStandardBlock", () => {
-  it("forbids voluntary [B] content and keeps ✅/❌ examples", () => {
+  it("forbids voluntary [B] content without examples or turn-end tail", () => {
     const block = buildCompactNoGodmoddingStandardBlock();
     assert.match(block, /\[NO GODMODDING\]/);
-    assert.match(block, /never write \[B\]'s voluntary dialogue/);
-    assert.match(block, /involuntary physiological reactions only/);
-    assert.match(block, /손가락이 반사적으로 경직됐다/);
-    assert.match(block, /두려움을 느꼈다/);
-    assert.doesNotMatch(block, /\[USER AGENCY & SENSORY FEEDBACK RULE\]/);
-    assert.doesNotMatch(block, /SFW:/);
-    assert.doesNotMatch(block, /NSFW:/);
+    assert.match(block, /의도적 대사·행동·감정·판단/);
+    assert.match(block, /생리적·반사적 반응만/);
+    assert.doesNotMatch(block, /✅/);
+    assert.doesNotMatch(block, /❌/);
+    assert.doesNotMatch(block, /Play only \[A\]/);
+    assert.doesNotMatch(block, /<TURN_HANDOFF_AND_PACING>/);
   });
 });
 
-describe("buildAutoContinueAgencyExpansion", () => {
-  it("expands allowed unconscious motor reactions only in auto-continue mode", () => {
+describe("buildAutoContinueAgencyExpansion (deprecated shim)", () => {
+  it("returns standard block", () => {
     const block = buildAutoContinueAgencyExpansion();
-    assert.match(block, /Auto-continue ONLY/);
-    assert.match(block, /반사적으로 물러나는 동작/);
-    assert.match(block, /손을 뻗다 멈추는 동작/);
-    assert.match(block, /Judgment: action with intent = FORBIDDEN/);
-    assert.match(block, /body-first unconscious reaction = ALLOWED/i);
+    assert.equal(block, buildCompactNoGodmoddingStandardBlock());
   });
 });
 
 describe("buildUserAgencySensoryFeedbackRule (legacy shim)", () => {
-  it("returns compact block when not auto-continue expanded", () => {
+  it("returns compact block", () => {
     const block = buildUserAgencySensoryFeedbackRule("체향", "유저");
-    assert.match(block, /\[NO GODMODDING\]/);
-    assert.doesNotMatch(block, /Auto-continue ONLY/);
-  });
-
-  it("returns auto-continue expansion when expanded", () => {
-    const block = buildUserAgencySensoryFeedbackRule("체향", "유저", {
-      autoContinueExpanded: true,
-    });
-    assert.match(block, /Auto-continue ONLY/);
+    assert.equal(block, buildCompactNoGodmoddingStandardBlock());
   });
 });
 
@@ -53,12 +40,10 @@ describe("buildLengthPressureUserAgencyGuard", () => {
   it("references main rule without duplicating forbidden/allowed lists", () => {
     const block = buildLengthPressureUserAgencyGuard("체향", "유저");
     assert.match(block, /\[LENGTH PRESSURE — USER AGENCY GUARD\]/);
-    assert.match(block, /\[NO GODMODDING\] in \[0a\]/);
-    assert.match(block, /NEVER pad by inventing \[B\] dialogue/);
-    assert.match(block, /Permitted \[B\] padding: involuntary physiological/);
-    assert.match(block, /\[LENGTH CONTROL & SCENE EXPANSION\]/);
+    assert.match(block, /\[NO GODMODDING\]/);
+    assert.match(block, /의도적 행동/);
+    assert.match(block, /생리적·반사적 반응만/);
     assert.doesNotMatch(block, /FORBIDDEN — Never write these/);
-    assert.doesNotMatch(block, /\[ABSOLUTE ANTI-GODMODDING/);
   });
 });
 
@@ -66,17 +51,16 @@ describe("buildNoGodmoddingBlock", () => {
   it("uses compact block in standard mode", () => {
     const block = buildNoGodmoddingBlock("체향", "유저", "standard");
     assert.match(block, /\[NO GODMODDING\]/);
-    assert.match(block, /voluntary dialogue, actions, decisions/);
-    assert.match(block, /<TURN_HANDOFF_AND_PACING>/);
-    assert.doesNotMatch(block, /Auto-continue ONLY/);
-    assert.doesNotMatch(block, /\[USER AGENCY & SENSORY FEEDBACK RULE\]/);
+    assert.match(block, /의도적 대사/);
+    assert.doesNotMatch(block, /<TURN_HANDOFF_AND_PACING>/);
+    assert.doesNotMatch(block, /반사적으로 물러나는/);
   });
 
-  it("appends auto-continue expansion in auto-continue mode only", () => {
+  it("appends handoff hint in auto-continue mode only", () => {
     const block = buildNoGodmoddingBlock("체향", "유저", "autoContinue");
-    assert.match(block, /Auto-continue ONLY/);
-    assert.match(block, /반사적으로 물러나는 동작/);
-    assert.match(block, /This turn is auto-continue/);
+    assert.match(block, /자동진행 턴/);
+    assert.match(block, /<TURN_HANDOFF_AND_PACING>/);
+    assert.doesNotMatch(block, /반사적으로 물러나는/);
   });
 });
 
@@ -95,36 +79,26 @@ describe("core master prompt", () => {
     allowsBodyHair: true,
   };
 
-  it("references no godmodding without duplicating agency rule body", () => {
+  it("assigns NPC/environment to AI role without duplicating agency rule body", () => {
     const core = buildCoreMasterPrompt(base);
-    assert.match(core, /Obey \[NO GODMODDING\]/);
+    assert.match(core, /NPC·환경만 연기/);
+    assert.match(core, /\[NO GODMODDING\]를 따른다/);
+    assert.doesNotMatch(core, /항상 \[A\]만 연기/);
     assert.doesNotMatch(core, /FORBIDDEN — Never write these for \[B\]/);
-    assert.doesNotMatch(core, /\[LENGTH PRESSURE — USER AGENCY GUARD\]/);
   });
 
   it("uses novel-mode role line without embedding agency rule", () => {
     const novel = buildCoreMasterPrompt({ ...base, novelModeEnabled: true });
-    assert.match(novel, /Novel mode ON/);
+    assert.match(novel, /소설 모드 ON/);
     assert.doesNotMatch(novel, /FORBIDDEN — Never write these for \[B\]/);
-    assert.doesNotMatch(novel, /\[LENGTH PRESSURE — USER AGENCY GUARD\]/);
   });
 
-  it("condenses format rules into FORMAT & RHYTHM cross-reference (OpenRouter path)", () => {
+  it("keeps only ROLE INTEGRITY CONTINUITY in core", () => {
     const core = buildCoreMasterPrompt({ ...base, tailFormatActive: false });
-    assert.match(core, /\[FORMAT & RHYTHM\]/);
-    assert.match(core, /\[OUTPUT LANG\].*\[KOREAN_WEBNOVEL_STYLE\]/);
-    assert.match(core, /NO cinematic fragment lines/);
-    assert.doesNotMatch(core, /Narration in -다 style only/);
-    assert.doesNotMatch(core, /match creator examples\/ending particles/);
-    assert.doesNotMatch(core, /Show emotion via gesture\/gaze\/sense/);
-    assert.doesNotMatch(core, /해요체\/하오체/);
-    assert.doesNotMatch(core, /standalone fragment lines/);
-    assert.doesNotMatch(core, /Narration outside quotes/);
-  });
-
-  it("references tail format directives when tailFormatActive (Gemini path)", () => {
-    const core = buildCoreMasterPrompt({ ...base, tailFormatActive: true });
-    assert.match(core, /dialogue\/format directives at prompt tail/);
-    assert.match(core, /한국 웹소설 표준 포맷 및 호흡 통제/);
+    assert.match(core, /^ROLE —/m);
+    assert.match(core, /^INTEGRITY — 캐릭터·관계·세계관을 유지한다\./m);
+    assert.match(core, /^CONTINUITY — 같은 장면을 이어가며 반복하지 않는다\./m);
+    assert.doesNotMatch(core, /^SPEECH —/m);
+    assert.doesNotMatch(core, /^PROSE —/m);
   });
 });

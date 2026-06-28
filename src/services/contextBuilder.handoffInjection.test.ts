@@ -1,9 +1,23 @@
+import Module from "module";
+
+const originalLoad = Module._load;
+Module._load = function (request, parent, isMain) {
+  if (request === "server-only") return {};
+  return originalLoad.call(this, request, parent, isMain);
+} as typeof Module._load;
+
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
-import { buildContext } from "./contextBuilder";
+import { describe, it, before } from "node:test";
+import type { buildContext as BuildContextFn } from "./contextBuilder";
 import { buildTurnHandoffAndPacingBlock } from "@/lib/turnHandoffAndPacing";
 import { OPENROUTER_QWEN_37_MAX_MODEL, GEMINI_CHAT_FLASH_25 } from "@/lib/chatModels";
 import type { CharacterChunk } from "@/types";
+
+let buildContext: typeof BuildContextFn;
+
+before(async () => {
+  ({ buildContext } = await import("./contextBuilder"));
+});
 
 const sampleChunk: CharacterChunk = {
   id: "c-chunk-0",

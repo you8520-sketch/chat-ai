@@ -1,4 +1,5 @@
 import { getDb } from "@/lib/db";
+import { OPENING_TURN_USER } from "@/lib/chatGreetingContext";
 
 export function loadChatTurnsWithMessageIds(chatId: number): {
   turnNumber: number;
@@ -22,10 +23,18 @@ export function loadChatTurnsWithMessageIds(chatId: number): {
     if (row.role === "user") {
       pendingUser = row.content;
     } else if (row.role === "assistant") {
-      if (row.model === "greeting") continue;
+      if (row.model === "greeting") {
+        turns.push({
+          turnNumber: 0,
+          user: OPENING_TURN_USER,
+          assistant: row.content,
+          assistantMessageId: row.id,
+        });
+        continue;
+      }
       if (pendingUser !== null) {
         turns.push({
-          turnNumber: turns.length + 1,
+          turnNumber: turns.length,
           user: pendingUser,
           assistant: row.content,
           assistantMessageId: row.id,
@@ -38,5 +47,6 @@ export function loadChatTurnsWithMessageIds(chatId: number): {
 }
 
 export function countChatTurns(chatId: number): number {
-  return loadChatTurnsWithMessageIds(chatId).length;
+  const all = loadChatTurnsWithMessageIds(chatId);
+  return all.filter((t) => t.turnNumber > 0).length;
 }

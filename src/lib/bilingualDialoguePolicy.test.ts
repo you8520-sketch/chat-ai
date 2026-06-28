@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   buildBilingualDialoguePromptBlock,
-  buildLangCriticalRule,
   resolveBilingualDialoguePolicyFromSources,
 } from "@/lib/bilingualDialoguePolicy";
+import { buildOpenRouterKoreanProseTopBlock } from "@/lib/openRouterProsePolicy";
 
 describe("bilingualDialoguePolicy", () => {
   it("detects explicit English tag", () => {
@@ -46,12 +46,15 @@ describe("bilingualDialoguePolicy", () => {
     assert.equal(policy.primary, "zh");
   });
 
-  it("buildLangCriticalRule allows foreign language only in quotes when bilingual", () => {
+  it("OUTPUT LANG allows foreign language only in quotes when bilingual", () => {
     const policy = resolveBilingualDialoguePolicyFromSources({
       systemPrompt: "[BILINGUAL: en+ko]",
     });
-    assert.match(buildLangCriticalRule({ bilingual: policy }), /BILINGUAL DIALOGUE EXCEPTION/);
-    assert.match(buildLangCriticalRule({ bilingual: policy }), /\[OUTPUT LANG\]/);
+    const block = buildOpenRouterKoreanProseTopBlock(
+      policy.enabled ? policy : undefined
+    );
+    assert.match(block, /\[OUTPUT LANG — BILINGUAL DIALOGUE\]/);
+    assert.doesNotMatch(block, /\[NO FOREIGN LANGUAGE MIXING\]/);
     assert.match(
       buildBilingualDialoguePromptBlock(
         policy as Extract<typeof policy, { enabled: true }>
@@ -60,12 +63,14 @@ describe("bilingualDialoguePolicy", () => {
     );
   });
 
-  it("buildLangCriticalRule references foreign-mixing rule for Korean-only output", () => {
-    const block = buildLangCriticalRule();
-    assert.match(block, /\[LANG · CRITICAL\]/);
-    assert.match(block, /NO English sentences\/words/);
-    assert.match(block, /\[NO FOREIGN LANGUAGE MIXING\]/);
-    assert.match(block, /\[CORE RP\] §6/);
+  it("OUTPUT LANG includes unified Korean-only language policy", () => {
+    const block = buildOpenRouterKoreanProseTopBlock();
+    assert.match(block, /\[OUTPUT LANG\]/);
+    assert.match(block, /서술은 해체\(-다\)만 사용한다/);
+    assert.match(block, /외국어 혼용 금지/);
+    assert.doesNotMatch(block, /see \[/i);
+    assert.doesNotMatch(block, /\[NO FOREIGN LANGUAGE MIXING\]/);
+    assert.doesNotMatch(block, /\[LANG · CRITICAL\]/);
   });
 
   it("returns disabled when no bilingual intent", () => {

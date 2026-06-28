@@ -4,6 +4,7 @@ import {
   isAnthropicModel,
   isGeminiFlashOpenRouterModel,
   isGeminiProOpenRouterModel,
+  isGemini3ProOpenRouterModel,
 } from "@/lib/chatModels";
 
 /** OpenRouter — temperature + max_tokens + Claude 반복 억제 */
@@ -96,7 +97,7 @@ export function isQwenOpenRouterModel(modelId: string): boolean {
 
 /**
  * RP primary·continuation — DeepSeek/Qwen: reasoning OFF (effort none).
- * Gemini Pro: google thinking type none via provider (no reasoning cap).
+ * Gemini 2.5 Pro: reasoning.max_tokens cap · Gemini 3.x Pro: reasoning.effort low.
  */
 export function isOpenRouterRpReasoningDisabledModel(modelId: string): boolean {
   return isDeepSeekOpenRouterModel(modelId) || isQwenOpenRouterModel(modelId);
@@ -112,27 +113,43 @@ export const OPENROUTER_RP_REASONING_OFF = {
   exclude: true,
 } as const;
 
-/** Gemini Pro RP — OpenRouter provider routing: Google thinking fully off */
-export const OPENROUTER_GEMINI_PRO_KILL_THINKING_PROVIDER = {
-  require_parameters: true,
-  google: { thinking: { type: "none" } },
-} as const;
-
 /** Gemini Flash RP — thinking minimal + exclude */
 export const OPENROUTER_RP_REASONING_GEMINI_FLASH = {
   effort: "minimal",
   exclude: true,
 } as const;
 
-function applyGeminiProKillThinking(body: Record<string, unknown>, modelId: string): void {
-  delete body.reasoning;
+/** Gemini 2.5 Pro RP — thinking budget cap via reasoning.max_tokens (OpenRouter 2.5 경로) */
+export const OPENROUTER_RP_REASONING_GEMINI_25_PRO_CAP = {
+  max_tokens: 128,
+} as const;
+
+/** @deprecated OPENROUTER_RP_REASONING_GEMINI_25_PRO_CAP — 2.5 Pro 전용 */
+export const OPENROUTER_RP_REASONING_GEMINI_PRO_CAP = OPENROUTER_RP_REASONING_GEMINI_25_PRO_CAP;
+
+/** Gemini 3.x Pro RP — thinkingLevel via reasoning.effort (geminiClient.ts native와 동일) */
+export const OPENROUTER_RP_REASONING_GEMINI_3_PRO = {
+  effort: "low",
+} as const;
+
+/** Gemini Pro — creative expansion (RP primary) */
+export const GEMINI_PRO_GENERATION_PARAMS = {
+  temperature: 0.95,
+} as const;
+
+function applyGeminiProReasoning(body: Record<string, unknown>, modelId: string): void {
   delete body.reasoning_effort;
+  delete body.provider;
+  const reasoning = isGemini3ProOpenRouterModel(modelId)
+    ? OPENROUTER_RP_REASONING_GEMINI_3_PRO
+    : OPENROUTER_RP_REASONING_GEMINI_25_PRO_CAP;
+  body.reasoning = { ...reasoning };
   body.include_reasoning = false;
-  body.provider = { ...OPENROUTER_GEMINI_PRO_KILL_THINKING_PROVIDER };
-  console.log("[openrouter-reasoning] gemini-pro-thinking-off", {
+  console.log("[openrouter-reasoning] gemini-pro", {
     model: normalizeOpenRouterModelId(modelId),
+    gemini3: isGemini3ProOpenRouterModel(modelId),
+    reasoning,
     include_reasoning: false,
-    provider: body.provider,
   });
 }
 
@@ -142,7 +159,7 @@ function applyOpenRouterRpReasoningPolicy(body: Record<string, unknown>, modelId
   const normalized = normalizeOpenRouterModelId(modelId);
 
   if (isGeminiProOpenRouterModel(modelId)) {
-    applyGeminiProKillThinking(body, modelId);
+    applyGeminiProReasoning(body, modelId);
     return;
   }
 
@@ -167,7 +184,7 @@ function applyOpenRouterRpReasoningPolicy(body: Record<string, unknown>, modelId
   }
 }
 
-/** OpenRouter Claude 등 — API max_tokens 상한 (3500+immersive ≈ 7680) */
+/** OpenRouter RP — API max_tokens coerce fallback (Gemini 3.1 cap) */
 export const OPENROUTER_MAX_OUTPUT_TOKENS = 8192;
 
 /** OpenRouter — tier별 max_tokens (5,000자 상한에서 역산) */
@@ -212,6 +229,8 @@ export function normalizeOpenRouterGenerationParams(
     base.top_p = DEEPSEEK_V4_PRO_GENERATION_PARAMS.top_p;
     base.frequency_penalty = DEEPSEEK_V4_PRO_GENERATION_PARAMS.frequency_penalty;
     base.presence_penalty = DEEPSEEK_V4_PRO_GENERATION_PARAMS.presence_penalty;
+  } else if (isGeminiProOpenRouterModel(modelId ?? "")) {
+    base.temperature = GEMINI_PRO_GENERATION_PARAMS.temperature;
   } else if (isAnthropicModel(modelId ?? "") || (modelId ?? "").toLowerCase().includes("claude")) {
     base.temperature = resolveClaudeTemperatureForTarget(targetResponseChars);
     base.frequency_penalty = CLAUDE_OPUS_GENERATION_PARAMS.frequency_penalty;

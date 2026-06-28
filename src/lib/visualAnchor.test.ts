@@ -65,6 +65,23 @@ describe("extractMainCharacterAppearanceBody", () => {
     assert.doesNotMatch(anchor!, /Body\/build/);
   });
 
+  it("ignores NPC black hair when protagonist profile says blonde", () => {
+    const chunks = [
+      chunk(
+        `데미안 데 엘프레다: 황태자. 레온의 소꿉친구. 칠흑 같은 흑발에 보라빛 눈.`,
+        "personality"
+      ),
+      chunk(
+        `[외형]
+192cm. 헝클어진 찬란한 금발. 푸른 눈. 칠흑 같은 검은색 제복.`,
+        "abilities"
+      ),
+    ];
+    const policy = extractVisualAppearancePolicyFromChunks(chunks, "레온");
+    assert.equal(policy.hair, "blonde");
+    assert.equal(policy.eyes, "blue");
+  });
+
   it("buildVisualAnchorReminder infers 금안 from body when eyes tag missing", () => {
     const policy = {
       hair: "silver" as const,

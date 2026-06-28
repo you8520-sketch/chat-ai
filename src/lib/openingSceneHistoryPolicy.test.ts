@@ -1,55 +1,61 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { OPENING_TURN_USER } from "@/lib/chatGreetingContext";
 import {
-  OPENING_SCENE_USER_ANCHOR,
-  buildOpeningSceneSystemBlock,
-} from "@/lib/chatGreetingContext";
+  messagesToTurns,
+  rawRecentTurnsToHistory,
+  resolveRawRecentTurnPool,
+} from "@/lib/hybridMemory";
 
 const OPENING = "*훈련장 저편.* 첫 인사.";
 
-function buildSixTurnRecentHistory(): { role: "user" | "assistant"; content: string }[] {
-  const out: { role: "user" | "assistant"; content: string }[] = [];
-  for (let t = 1; t <= 6; t++) {
-    out.push({ role: "user", content: `유저 턴 ${t} — 다른 장소로 이동했다.` });
-    out.push({
-      role: "assistant",
-      content: `AI 턴 ${t} — 훈련장을 벗어나 시장으로 걸어간다.`,
-    });
+function buildDialogueWithOpening(playableCount: number) {
+  const rows: Array<{ role: "user" | "assistant"; content: string; model?: string }> = [
+    { role: "assistant", model: "greeting", content: OPENING },
+  ];
+  for (let t = 1; t <= playableCount; t++) {
+    rows.push({ role: "user", content: `유저 턴 ${t}` });
+    rows.push({ role: "assistant", content: `AI 턴 ${t}`, model: "test" });
   }
-  return out;
+  return messagesToTurns(rows);
 }
 
-/** route.ts: shortTermHistory = recentHistory (no prependOpeningSceneToHistory) */
-function routeShortTermHistory(recentHistory: { role: "user" | "assistant"; content: string }[]) {
-  return recentHistory;
-}
+describe("opening scene — raw history turn 0", () => {
+  it("includes opening in raw pool for full conversation", () => {
+    const turns = buildDialogueWithOpening(5);
+    const history = rawRecentTurnsToHistory(turns, 0);
+    const historyText = history.map((m) => m.content).join("\n");
 
-describe("opening scene — route policy (no history prepend)", () => {
-  it("6+ turns: history has no fake opening anchor or greeting replay", () => {
-    const recentHistory = buildSixTurnRecentHistory();
-    const shortTermHistory = routeShortTermHistory(recentHistory);
-    const historyText = shortTermHistory.map((m) => m.content).join("\n");
-
-    assert.equal(shortTermHistory.length, 12);
-    assert.ok(!historyText.includes(OPENING_SCENE_USER_ANCHOR));
-    assert.ok(!historyText.includes(OPENING));
-    assert.ok(historyText.includes("유저 턴 6"));
-    assert.ok(historyText.includes("AI 턴 6"));
+    assert.equal(history[0]?.content, OPENING_TURN_USER);
+    assert.ok(historyText.includes(OPENING));
+    assert.ok(historyText.includes("유저 턴 5"));
   });
 
-  it("system opening block still available for contextBuilder (lightweight facts)", () => {
-    const block = buildOpeningSceneSystemBlock(OPENING);
-    assert.match(block, /\[OPENING SCENE — established facts at chat start\]/);
-    assert.ok(block.includes(OPENING));
-    assert.match(block, /Do NOT invent a different starting location/);
+  it("puts full conversation in pool (trim is token-based in contextBuilder)", () => {
+    const turns = buildDialogueWithOpening(20);
+    const { pool } = resolveRawRecentTurnPool(turns, 0);
+
+    assert.equal(pool.length, 21);
+    assert.equal(pool[0]!.user, OPENING_TURN_USER);
+    assert.ok(pool[0]!.assistant.includes(OPENING));
+    assert.match(pool[20]!.user, /유저 턴 20/);
   });
 
-  it("early turns (t=1-3): history is recent turns only, no opening pair", () => {
-    const recentHistory = buildSixTurnRecentHistory().slice(0, 4);
-    const historyText = routeShortTermHistory(recentHistory)
+  it("summarizedTurnCount does not remove playable turns from pool", () => {
+    const turns = buildDialogueWithOpening(12);
+    const { pool } = resolveRawRecentTurnPool(turns, 6);
+    assert.equal(pool.length, 13);
+    assert.equal(pool[0]!.user, OPENING_TURN_USER);
+    assert.match(pool[1]!.user, /유저 턴 1/);
+    assert.match(pool[12]!.user, /유저 턴 12/);
+  });
+
+  it("early playable turns still include opening in history", () => {
+    const turns = buildDialogueWithOpening(2);
+    const historyText = rawRecentTurnsToHistory(turns, 0)
       .map((m) => m.content)
       .join("\n");
-    assert.ok(!historyText.includes(OPENING_SCENE_USER_ANCHOR));
+    assert.ok(historyText.includes(OPENING));
     assert.ok(historyText.includes("유저 턴 2"));
   });
 });

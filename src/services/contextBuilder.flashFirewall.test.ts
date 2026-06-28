@@ -44,7 +44,7 @@ describe("buildContext — OpenRouter flash firewall", () => {
     const ids = built.meta.trackedSections?.map((s) => s.id) ?? [];
     assert.doesNotMatch(ids.join(","), /recent-narrative-context/);
     assert.doesNotMatch(ids.join(","), /state-window-policy/);
-    assert.match(ids.join(","), /openrouter-flash-owned-firewall/);
+    assert.doesNotMatch(ids.join(","), /openrouter-flash-owned-firewall/);
   });
 
   it("preserves assistant html for gemini provider", () => {

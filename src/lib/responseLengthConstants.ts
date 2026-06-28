@@ -18,13 +18,13 @@ export const TIER_2000_MAX_CHARS = ABSOLUTE_MAX_RESPONSE_CHARS;
 const ABSOLUTE_MAX_OUTPUT_TOKENS = resolveMaxOutputTokensForMaxChars(ABSOLUTE_MAX_RESPONSE_CHARS);
 
 /** 통합 분량 — 통과 최소 (출력 표시 글자수) */
-export const UNIFIED_TIER_MIN_CHARS = 2000;
+export const UNIFIED_TIER_MIN_CHARS = 2700;
 /** 통합 분량 — 저장·스트림 상한 */
 export const UNIFIED_TIER_MAX_CHARS = ABSOLUTE_MAX_RESPONSE_CHARS;
 /** 프롬프트 aim band 하한 (= 통과 최소) */
 export const UNIFIED_TIER_TARGET_RANGE_MIN_CHARS = UNIFIED_TIER_MIN_CHARS;
 /** 프롬프트 soft aim target · DB normalize 기본값 */
-export const UNIFIED_TIER_AIM_CHARS = 2400;
+export const UNIFIED_TIER_AIM_CHARS = 3000;
 export const UNIFIED_RESPONSE_LENGTH_TARGET = UNIFIED_TIER_AIM_CHARS;
 export type ResponseLengthTierTarget = typeof UNIFIED_RESPONSE_LENGTH_TARGET;
 
@@ -33,11 +33,11 @@ export const TARGET_LENGTH_TO_MAX_OUTPUT_TOKENS: Record<ResponseLengthTierTarget
   [UNIFIED_RESPONSE_LENGTH_TARGET]: ABSOLUTE_MAX_OUTPUT_TOKENS,
 };
 
-/** AI 출력 목표 분량 — 단일 tier (최소 2,000 · 목표 2,400 · 최대 5,000자) */
+/** AI 출력 목표 분량 — 단일 tier (최소 2,700 · 목표 3,000 · 최대 5,000자) */
 export const TARGET_RESPONSE_TIERS = [
   {
     id: "unified",
-    label: "2,000~5,000자",
+    label: "2,700~5,000자",
     min: UNIFIED_TIER_MIN_CHARS,
     max: UNIFIED_TIER_MAX_CHARS,
     target: UNIFIED_RESPONSE_LENGTH_TARGET,
@@ -56,8 +56,6 @@ export type ResponseLengthTarget = {
   target: ResponseLengthTierTarget;
   /** Normalized user aim (characters) — prompt TARGET line */
   aimChars: number;
-  /** 80% of aimChars — prompt minimum floor */
-  floor80Chars: number;
   min: number;
   max: number;
   hardMax: number;
@@ -79,11 +77,10 @@ export function normalizeTargetResponseChars(value: unknown): number {
   if (!Number.isFinite(n)) return DEFAULT_TARGET_RESPONSE_CHARS;
   const rounded = Math.round(n);
   if (rounded === 2000 || rounded === 3000) return UNIFIED_RESPONSE_LENGTH_TARGET;
-  const clamped = Math.min(
-    MAX_TARGET_RESPONSE_CHARS,
+  return Math.min(
+    UNIFIED_TIER_AIM_CHARS,
     Math.max(MIN_TARGET_RESPONSE_CHARS, rounded)
   );
-  return Math.min(UNIFIED_TIER_AIM_CHARS, clamped);
 }
 
 export function findResponseLengthTier(targetInput?: number | null) {
@@ -97,7 +94,6 @@ export function resolveResponseLengthTarget(targetInput?: number | null): Respon
   return {
     target,
     aimChars,
-    floor80Chars: Math.round(aimChars * 0.8),
     ...TIER_BOUNDS[target],
   };
 }

@@ -1,12 +1,26 @@
+import Module from "module";
+
+const originalLoad = Module._load;
+Module._load = function (request, parent, isMain) {
+  if (request === "server-only") return {};
+  return originalLoad.call(this, request, parent, isMain);
+} as typeof Module._load;
+
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
-import { buildContext } from "./contextBuilder";
+import { describe, it, before } from "node:test";
+import type { buildContext as BuildContextFn } from "./contextBuilder";
 import {
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_QWEN_37_MAX_MODEL,
   GEMINI_CHAT_FLASH_25,
 } from "@/lib/chatModels";
 import type { CharacterChunk } from "@/types";
+
+let buildContext: typeof BuildContextFn;
+
+before(async () => {
+  ({ buildContext } = await import("./contextBuilder"));
+});
 
 const criticalChunk: CharacterChunk = {
   id: "c-critical",
@@ -35,7 +49,7 @@ function sectionOrder(ids: string[], id: string): number {
 }
 
 describe("buildContext — persona-before-prose assembly order", () => {
-  it("OpenRouter: CRITICAL and Lore precede prose style and memory", () => {
+  it("OpenRouter: core identity precedes prose style and memory; lore chunks are RAG-only", () => {
     const built = buildContext({
       charName: "Hero",
       chunks: [criticalChunk, loreChunk],
@@ -51,30 +65,30 @@ describe("buildContext — persona-before-prose assembly order", () => {
 
     const ids = (built.meta?.trackedSections ?? []).map((s) => s.id);
     assert.ok(
-      sectionOrder(ids, "chunk-critical-c-critical") <
-        sectionOrder(ids, "chunk-lore-c-lore")
+      sectionOrder(ids, "character-core-identity") <
+        sectionOrder(ids, "prose-style-xml-bundle")
     );
     assert.ok(
-      sectionOrder(ids, "chunk-lore-c-lore") < sectionOrder(ids, "prose-style-xml-bundle")
+      sectionOrder(ids, "prose-style-xml-bundle") < sectionOrder(ids, "current-memory")
     );
     assert.ok(
-      sectionOrder(ids, "prose-style-xml-bundle") <
-        sectionOrder(ids, "turn-handoff-and-pacing")
+      sectionOrder(ids, "current-memory") <
+        sectionOrder(ids, "rule-terminal-length-override")
     );
     assert.ok(
-      sectionOrder(ids, "turn-handoff-and-pacing") < sectionOrder(ids, "current-memory")
+      sectionOrder(ids, "current-memory") <
+        sectionOrder(ids, "user-note-reference")
     );
-    assert.ok(
-      sectionOrder(ids, "user-note-reference") < sectionOrder(ids, "current-memory")
-    );
+    assert.ok(!ids.some((id) => id.startsWith("chunk-lore-")));
 
     const split = built.openRouterSystemSplit;
     assert.ok(split);
-    assert.match(split!.characterSettingsBlock, /<PROSE_STYLE_POLICY>\n/);
-    assert.doesNotMatch(split!.systemRulesBlock, /<PROSE_STYLE_POLICY>\n/);
+    assert.match(split!.characterSettingsBlock, /\[ADVANCED PROSE & NSFW GUIDELINES\]/);
+    assert.match(split!.characterSettingsBlock, /\[CORE IDENTITY\]/);
+    assert.doesNotMatch(split!.systemRulesBlock, /<PROSE_STYLE_POLICY>/);
   });
 
-  it("DeepSeek: character sections tracked before prose style", () => {
+  it("DeepSeek: character core identity tracked before prose style", () => {
     const built = buildContext({
       charName: "Hero",
       chunks: [criticalChunk, loreChunk],
@@ -88,14 +102,14 @@ describe("buildContext — persona-before-prose assembly order", () => {
 
     const ids = (built.meta?.trackedSections ?? []).map((s) => s.id);
     assert.ok(
-      sectionOrder(ids, "chunk-critical-c-critical") <
+      sectionOrder(ids, "character-core-identity") <
         sectionOrder(ids, "prose-style-xml-bundle")
     );
-    assert.ok(built.systemPrompt.includes("<PERSONA>"));
     assert.ok(built.systemPrompt.includes("Hero identity."));
+    assert.match(built.systemPrompt, /WORLD_LORE|<world_lore>/i);
   });
 
-  it("Gemini: character chunks precede advanced prose guidelines", () => {
+  it("Gemini: core identity precedes advanced prose guidelines", () => {
     const built = buildContext({
       charName: "Hero",
       chunks: [criticalChunk, loreChunk],
@@ -109,9 +123,10 @@ describe("buildContext — persona-before-prose assembly order", () => {
 
     const ids = (built.meta?.trackedSections ?? []).map((s) => s.id);
     assert.ok(
-      sectionOrder(ids, "chunk-critical-c-critical") <
+      sectionOrder(ids, "character-core-identity") <
         sectionOrder(ids, "rule-advanced-prose-nsfw")
     );
     assert.match(built.systemPrompt, /\[ADVANCED PROSE & NSFW GUIDELINES\]/);
+    assert.match(built.systemPrompt, /\[CORE IDENTITY\]/);
   });
 });

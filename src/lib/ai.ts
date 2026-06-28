@@ -12,6 +12,10 @@ import {
 import { estimateTokens } from "@/lib/tokenEstimate";
 import { callOpenRouterCompletion } from "@/lib/openRouterCompletion";
 import {
+  OPENROUTER_DEEPSEEK_V3_MODEL,
+  OPENROUTER_GEMINI_20_FLASH_MODEL,
+} from "@/lib/chatModels";
+import {
   GeminiTrafficOverloadError,
   GEMINI_TRAFFIC_OVERLOAD_MESSAGE,
 } from "@/lib/geminiTrafficError";
@@ -22,6 +26,7 @@ export {
   sendTrafficOverloadGracefulStream,
 } from "@/lib/geminiTrafficError";
 import { formatClientApiError } from "@/lib/apiErrors";
+import { HTML_FLASH_MAX_OUTPUT_TOKENS } from "@/lib/htmlVisualCardRecovery";
 
 export type ChatMsg = { role: "user" | "assistant"; content: string };
 export type Route = "safe" | "nsfw";
@@ -46,18 +51,51 @@ export type TokenUsage = {
   debugRawUsage?: unknown;
 };
 
-/** 채팅 후 기억·관계 메모 추출 등 백그라운드 — OpenRouter 저가 모델 */
+/** 백그라운드 기억·요약·상태창·번역 등 — OpenRouter DeepSeek V3 */
+export const BACKGROUND_MAX_INPUT_TOKENS = 12_000;
 export const BACKGROUND_OPENROUTER_MODEL =
-  process.env.BACKGROUND_MEMORY_MODEL?.trim() || "google/gemini-2.5-flash";
+  process.env.BACKGROUND_MEMORY_MODEL?.trim() || OPENROUTER_DEEPSEEK_V3_MODEL;
+/** 백그라운드 비전 — 이미지 검열·에셋 태그 (DeepSeek V3는 vision 미지원) */
+export const BACKGROUND_VISION_OPENROUTER_MODEL =
+  process.env.BACKGROUND_VISION_MODEL?.trim() ||
+  process.env.ASSET_VISION_MODEL?.trim() ||
+  OPENROUTER_GEMINI_20_FLASH_MODEL;
+/** @deprecated BACKGROUND_OPENROUTER_MODEL 사용 */
 export const DRAFT_FLASH_MODEL = BACKGROUND_OPENROUTER_MODEL;
-/** @deprecated DRAFT_FLASH_MODEL 사용 */
-export const GEMINI_MODEL = DRAFT_FLASH_MODEL;
+/** @deprecated BACKGROUND_OPENROUTER_MODEL 사용 */
+export const GEMINI_MODEL = BACKGROUND_OPENROUTER_MODEL;
+
+function trimBackgroundPayload(
+  system: string,
+  history: ChatMsg[],
+  maxInputTokens: number
+): { system: string; history: ChatMsg[] } {
+  let sys = system.trim();
+  let hist = history.filter((m) => m.content?.trim());
+
+  const totalTokens = () =>
+    estimateTokens(sys) + hist.reduce((sum, m) => sum + estimateTokens(m.content), 0);
+
+  while (hist.length > 0 && totalTokens() > maxInputTokens) {
+    hist.shift();
+  }
+
+  if (totalTokens() > maxInputTokens && sys.length > 0) {
+    const histTokens = hist.reduce((sum, m) => sum + estimateTokens(m.content), 0);
+    const sysBudget = Math.max(512, maxInputTokens - histTokens);
+    while (estimateTokens(sys) > sysBudget && sys.length > 200) {
+      sys = sys.slice(0, Math.floor(sys.length * 0.92));
+    }
+  }
+
+  return { system: sys, history: hist };
+}
 
 function resolveBackgroundMaxOutputTokens(requestKind: string): number {
   if (/background-lorebook-compact/i.test(requestKind)) return 3500;
   if (/background-status-meta-extract/i.test(requestKind)) return 1024;
   if (/background-status-widget-extract/i.test(requestKind)) return 512;
-  if (/background-html-visual-card/i.test(requestKind)) return 4096;
+  if (/background-html-visual-card/i.test(requestKind)) return HTML_FLASH_MAX_OUTPUT_TOKENS;
   return 2048;
 }
 
@@ -119,16 +157,29 @@ async function callGeminiOnce(
     throw new Error("NO_OPENROUTER_KEY");
   }
   const requestKind = opts?.requestKind ?? "generateContent";
+  let effectiveSystem = system;
+  let effectiveHistory = history;
+  if (
+    modelId === BACKGROUND_OPENROUTER_MODEL ||
+    /^background-/i.test(requestKind)
+  ) {
+    const trimmed = trimBackgroundPayload(system, history, BACKGROUND_MAX_INPUT_TOKENS);
+    effectiveSystem = trimmed.system;
+    effectiveHistory = trimmed.history;
+  }
   if (process.env.NODE_ENV !== "production" && /background-memory|background-lorebook-compact|background-status-meta-extract|background-status-widget-extract/i.test(requestKind)) {
     console.log("[background-memory] OpenRouter request", {
       model: modelId,
       requestKind,
-      messages: history.length + 1,
+      messages: effectiveHistory.length + 1,
+      inputTokensEst:
+        estimateTokens(effectiveSystem) +
+        effectiveHistory.reduce((s, m) => s + estimateTokens(m.content), 0),
     });
   }
   return callOpenRouterCompletion({
-    system,
-    history,
+    system: effectiveSystem,
+    history: effectiveHistory,
     model: modelId,
     temperature: opts?.temperature ?? 0.3,
     maxTokens: opts?.maxTokens ?? resolveBackgroundMaxOutputTokens(requestKind),
@@ -139,7 +190,7 @@ async function callGeminiOnce(
 export async function callGemini(
   system: string,
   history: ChatMsg[],
-  modelId = DRAFT_FLASH_MODEL
+  modelId = BACKGROUND_OPENROUTER_MODEL
 ): Promise<{ text: string; usage: TokenUsage }> {
   return callGeminiOnce(system, history, modelId, { requestKind: "generateContent" });
 }
@@ -151,7 +202,7 @@ export function* chunkText(text: string, size = 24): Generator<string> {
   }
 }
 
-/** 백그라운드 기억·요약·압축 — OpenRouter 전용 */
+/** 백그라운드 기억·요약·압축 — OpenRouter DeepSeek V3 */
 export async function callBackgroundMemory(
   system: string,
   history: ChatMsg[],
@@ -183,7 +234,7 @@ export async function generateReply(opts: {
   geminiModel?: string;
 }): Promise<{ text: string; model: string; route: Route; usage: TokenUsage }> {
   const { system, history, route, geminiModel } = opts;
-  const modelId = geminiModel ?? DRAFT_FLASH_MODEL;
+  const modelId = geminiModel ?? BACKGROUND_OPENROUTER_MODEL;
   try {
     const { text, usage } = await callGemini(system, history, modelId);
     return { text, model: modelId, route, usage };
@@ -601,7 +652,7 @@ ${opts.recentDialogue}
   const { text } = await callGemini(
     system,
     [{ role: "user", content: userContent }],
-    DRAFT_FLASH_MODEL
+    BACKGROUND_OPENROUTER_MODEL
   );
   return text.replace(/\s+/g, " ").trim();
 }

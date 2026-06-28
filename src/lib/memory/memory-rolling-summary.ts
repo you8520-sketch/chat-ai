@@ -2,6 +2,7 @@ import { getDb } from "@/lib/db";
 import { callGeminiBackground } from "@/lib/ai";
 import {
   messagesToTurns,
+  splitOpeningPlayableTurns,
   ROLLING_SUMMARY_INTERVAL,
   type DialogueTurn,
   type ChatMessageRow,
@@ -356,9 +357,10 @@ export function pickNextSummaryBatch(
   turns: DialogueTurn[],
   summarizedTurnCount: number
 ): DialogueTurn[] {
-  const pending = turns.length - summarizedTurnCount;
+  const { playable } = splitOpeningPlayableTurns(turns);
+  const pending = playable.length - summarizedTurnCount;
   if (pending < ROLLING_SUMMARY_INTERVAL) return [];
-  return turns.slice(summarizedTurnCount, summarizedTurnCount + ROLLING_SUMMARY_INTERVAL);
+  return playable.slice(summarizedTurnCount, summarizedTurnCount + ROLLING_SUMMARY_INTERVAL);
 }
 
 /** 5턴 1배치 → 기억 기록 저장 + 로어북(recent_summary) 누적 */
@@ -377,7 +379,8 @@ export async function processRollingSummaryBatch(opts: {
   const memory = getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
   const summarized = memory.summarized_turn_count ?? 0;
   const allTurns = loadChatTurnsWithMessageIds(opts.chatId);
-  const batchMeta = allTurns.slice(summarized, summarized + ROLLING_SUMMARY_INTERVAL);
+  const playableMeta = allTurns.filter((t) => t.turnNumber > 0);
+  const batchMeta = playableMeta.slice(summarized, summarized + ROLLING_SUMMARY_INTERVAL);
   if (batchMeta.length < ROLLING_SUMMARY_INTERVAL) return false;
 
   running.add(opts.chatId);

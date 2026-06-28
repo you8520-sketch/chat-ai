@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { getDb } from "@/lib/db";
-import { callGemini, DRAFT_FLASH_MODEL } from "@/lib/ai";
+import { callGemini, BACKGROUND_OPENROUTER_MODEL } from "@/lib/ai";
+import { OPENROUTER_DEEPSEEK_V3_MODEL } from "@/lib/chatModels";
 import { toOpenRouterModelId } from "@/lib/openRouterCompletion";
 import { deserializeCharacterChunks } from "@/utils/characterParser";
 import type { CharacterChunk } from "@/types";
@@ -82,9 +83,7 @@ Output protocol:
 - Output nothing outside the segment delimiters.`;
 
 const DEFAULT_TRANSLATION_FALLBACK_MODELS = [
-  "google/gemini-2.0-flash-001",
-  "google/gemini-2.5-flash-lite",
-  "deepseek/deepseek-chat-v3-0324",
+  OPENROUTER_DEEPSEEK_V3_MODEL,
 ];
 
 /** Primary + fallback OpenRouter models for save-time KO→EN translation (deduped). */
@@ -92,7 +91,7 @@ export function resolveTranslationModels(): string[] {
   const primary =
     process.env.PROMPT_TRANSLATION_MODEL?.trim() ||
     process.env.BACKGROUND_MEMORY_MODEL?.trim() ||
-    DRAFT_FLASH_MODEL;
+    BACKGROUND_OPENROUTER_MODEL;
   const fallbacksRaw = process.env.PROMPT_TRANSLATION_FALLBACK_MODELS?.trim();
   const fallbacks = fallbacksRaw
     ? fallbacksRaw.split(",").map((s) => s.trim()).filter(Boolean)

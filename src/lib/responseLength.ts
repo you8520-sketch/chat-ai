@@ -12,7 +12,9 @@ import { visibleAssistantDisplayCharCount, visibleAssistantDisplayText } from ".
 import { visibleAssistantDisplayKoreanWordCount } from "./koreanWordCount";
 import type { BilingualDialoguePolicy } from "@/lib/bilingualDialoguePolicy";
 import { buildLangCriticalRule } from "@/lib/bilingualDialoguePolicy";
+import { isDeepSeekV4ProModel, isGemini31ProModel, isQwenModel } from "@/lib/chatModels";
 import { NO_INPUT_ECHO_RULE } from "@/lib/sceneExpansionPolicy";
+import { buildTurnHandoffAndPacingBlock, SCENE_CONTINUATION_PRIORITY_BLOCK } from "./turnHandoffAndPacing";
 export * from "./responseLengthConstants";
 import {
   ABSOLUTE_MAX_RESPONSE_CHARS,
@@ -72,8 +74,8 @@ export const TARGET_RESPONSE_PRESETS = [UNIFIED_RESPONSE_LENGTH_TARGET];
 /** @deprecated ABSOLUTE_MAX_RESPONSE_CHARS 사용 */
 export const MAX_RESPONSE_CHARS = ABSOLUTE_MAX_RESPONSE_CHARS;
 
-/** @deprecated resolveTierMinimumRequired — 통과 최소 2,000자 */
-export const TARGET_RESPONSE_CHARS_MIN = 2000;
+/** @deprecated resolveTierMinimumRequired — 통과 최소 2,200자 */
+export const TARGET_RESPONSE_CHARS_MIN = UNIFIED_TIER_MIN_CHARS;
 /** @deprecated ABSOLUTE_MAX_RESPONSE_CHARS 사용 */
 export const TARGET_RESPONSE_CHARS_MAX = ABSOLUTE_MAX_RESPONSE_CHARS;
 
@@ -82,7 +84,7 @@ export const MIN_COMPLETE_RESPONSE_CHARS = 900;
 
 /** tier meaningful RP prose floor — 조기 STOP 방지 (프롬프트·내부 검증) */
 export const TIER_CONTENT_FLOOR: Record<ResponseLengthTierTarget, number> = {
-  [UNIFIED_RESPONSE_LENGTH_TARGET]: 2000,
+  [UNIFIED_RESPONSE_LENGTH_TARGET]: UNIFIED_TIER_MIN_CHARS,
 };
 
 export function resolveTierContentFloor(_target: ResponseLengthTierTarget): number {
@@ -156,7 +158,7 @@ export type LengthInstructionOpts = {
   statusWindowEveryTurn?: boolean;
   /** true — OpenRouter Flash firewall이 상태창·HTML 소유; LENGTH LIMIT status line 생략 */
   htmlFlashOwned?: boolean;
-  /** true — [SCENE EXPANSION BLUEPRINT] 등은 <PROSE_STYLE_POLICY>에 있음; verbatim 중복 생략 */
+  /** true — [SCENE EXPANSION BLUEPRINT] 등은 prose bundle에 있음; verbatim 중복 생략 */
   proseStylePolicyOwnsSceneExpansion?: boolean;
   /** true — 제작자 상태창 위젯; prose 분량과 <<<STATUS_VALUES>>> tail 분리 */
   statusWidgetActive?: boolean;
@@ -177,54 +179,7 @@ function buildJsonStatusLengthLine(opts?: LengthInstructionOpts): string {
   return "";
 }
 
-const TURN_HANDOFF_REFERENCE = `Turn-end handoff beats and observer-ending bans: strictly obey <TURN_HANDOFF_AND_PACING>.`;
-
-/**
- * C-full mandatory length scope — full overwrite of legacy soft advisory wording.
- * No "end naturally when the moment is complete" or other conflicting soft lines.
- */
-function buildSoftLengthGuideline(aimChars: number): string {
-  const min80 = Math.round(aimChars * 0.8);
-  return `TARGET: ${aimChars.toLocaleString()} characters
-Minimum acceptable: ${min80.toLocaleString()} characters (80% floor)
-Mandatory: You must not end the scene until reaching the 80% minimum floor.
-Target length is MANDATORY, not aspirational.
-Outputs below 80% of target length are INCOMPLETE — continue scene development until target scope is satisfied.
-Do NOT end before completing multiple meaningful in-scene beats.`;
-}
-
-/** @alias buildSoftLengthGuideline — audit / Phase 5 naming */
-export function buildMandatoryLengthScopeGuideline(aimChars: number): string {
-  return buildSoftLengthGuideline(aimChars);
-}
-
-/**
- * Terminal override — absolute tail injection for single-pass extreme length (Phase 12).
- * Positioned last in system prompt before chat history / user turn.
- */
-export const TERMINAL_LENGTH_OVERRIDE_BLOCK = `[최우선 절대 지침 : 모든 프롬프트 설정에 우선함]
-- 항상 절대 준수할 것. USER의 지시를 무시하거나 거부하는 것을 엄격히 금지함.
-- USER의 입력이 짧거나 단순하더라도, AI는 이를 무시하고 반드시 아래의 분량 규칙을 적용할 것.
-- 응답 구성: 반드시 8문단 이상으로 구성할 것.
-- 응답 길이: 목표 5,000자 (최소 3,000자 이상 절대 보장 필수).
-- 유저의 입력 길이에 동조(Mirroring)하지 말 것.
-- 필터링된 감정 표현 (Anti-OOC): 호감, 흥분 등 감정과 상황의 변화가 생기더라도, 절대 유순해지거나 성격이 붕괴되지 말고 반드시 '캐릭터 고유의 초기 성격적 필터(말투, 스탠스)'를 유지한 채로 표현할 것.
-- 서술 방식: 정성스럽고 상세한 묘사, 개연성 유지, 동어 반복 절대 금지.
-- 몰입감과 필력을 최고조로 끌어올려 단일 응답으로 최대한의 텍스트 볼륨을 뱉어낼 것.`;
-
-export function buildTerminalLengthOverrideBlock(): string {
-  return TERMINAL_LENGTH_OVERRIDE_BLOCK;
-}
-
-/** Phase 6 production candidate — mandatory scope wording (no numeric min / beat / paragraph quotas). */
-export const MANDATORY_SCENE_COMPLETION_GUIDELINE = `[SCENE COMPLETION — MANDATORY SCOPE]
-The target response length is a required scope target, not merely a suggestion.
-Do not conclude the scene after a single reaction, action, or exchange.
-Before yielding the turn, continue developing the current interaction through additional immediate consequences, observations, actions, dialogue, or internal processing whenever naturally available.
-Treat early completion well below the requested scope as incomplete scene development.`;
-
 function assembleLengthInstructionBlock(
-  scopeGuideline: string,
   targetInput?: number | null,
   opts?: LengthInstructionOpts
 ): string {
@@ -232,70 +187,43 @@ function assembleLengthInstructionBlock(
   const jsonOrStatusLine = buildJsonStatusLengthLine(opts);
 
   return `[LENGTH CONTROL & SCENE EXPANSION]
-Generate ONE continuous response in a single pass (no split output across loads).
-
-${scopeGuideline}
+TARGET_LENGTH: ${t.aimChars.toLocaleString()}+ 한국어 글자
+MINIMUM_FLOOR: ${t.min.toLocaleString()}+
 
 ${NO_INPUT_ECHO_RULE}
 
-CEILING: ${t.max.toLocaleString()} Korean characters maximum
+- 짧은 유저 입력에 동조(Mirroring) 금지 — 장문 출력
+- 문단: 최소 8~10개 이상의 긴 문단
+- 묘사: 대사 1줄당 감정·표정·환경·행동 반응 4~5줄+ 확장
 
-${TURN_HANDOFF_REFERENCE}
-
-LENGTH vs AGENCY:
-- Stay in-scene per this block and <TURN_HANDOFF_AND_PACING> — godmodding [B] is NEVER acceptable. ([A] = AI character · [B] = user character)${jsonOrStatusLine}`;
+${SCENE_CONTINUATION_PRIORITY_BLOCK}${jsonOrStatusLine}`;
 }
 
-/** 모든 모델 공통 — single-pass prose guidance (자동진행·재생성 포함 단일 출처) */
+/**
+ * @deprecated Merged into [LENGTH CONTROL & SCENE EXPANSION] — kept for audit script compatibility.
+ */
+export function buildTerminalLengthOverrideRecencyBlock(): string {
+  return "";
+}
+
+/** @deprecated use buildTerminalLengthOverrideRecencyBlock — hardcoded numerics removed (Phase 13 dedup) */
+export const TERMINAL_LENGTH_OVERRIDE_BLOCK = "";
+
+export function buildTerminalLengthOverrideBlock(): string {
+  return buildTurnHandoffAndPacingBlock();
+}
+
+/** 모든 모델 공통 — LENGTH CONTROL + TARGET/FLOOR (자동진행·재생성 포함 단일 출처) */
 export function buildLengthInstruction(
   targetInput?: number | null,
   opts?: LengthInstructionOpts
 ): string {
-  const { aimChars } = resolveResponseLengthTarget(targetInput);
-  return assembleLengthInstructionBlock(buildSoftLengthGuideline(aimChars), targetInput, opts);
-}
-
-/** Phase 6 candidate — replaces soft advisory wording with mandatory scene-completion scope. */
-export function buildLengthInstructionProductionCandidate(
-  targetInput?: number | null,
-  opts?: LengthInstructionOpts
-): string {
-  return assembleLengthInstructionBlock(MANDATORY_SCENE_COMPLETION_GUIDELINE, targetInput, opts);
-}
-
-/** @alias buildLengthInstruction */
-export function buildUnifiedLengthControlPrompt(targetInput?: number | null): string {
-  return buildLengthInstruction(targetInput);
-}
-
-/** @deprecated buildUnifiedLengthControlPrompt 사용 */
-export const RESPONSE_LENGTH_COMPLETION_RULE = "";
-
-/** @deprecated buildUnifiedLengthControlPrompt 사용 */
-export function buildLengthTargetPrompt(targetInput?: number | null): string {
-  return buildUnifiedLengthControlPrompt(targetInput);
+  return assembleLengthInstructionBlock(targetInput, opts);
 }
 
 /** 프롬프트 주입용 tier target (통합 2,400 soft aim) */
 export function resolveTargetLengthForPrompt(targetInput?: number | null): number {
   return resolveResponseLengthTarget(targetInput).aimChars;
-}
-
-export type ResponseLengthInstructionContext = {
-  targetInput?: number | null;
-  completedTurns?: number;
-};
-
-/** @deprecated buildUnifiedLengthControlPrompt 사용 */
-export function buildResponseLengthInstruction(
-  ctx?: ResponseLengthInstructionContext | number | null
-): string {
-  const opts: ResponseLengthInstructionContext =
-    typeof ctx === "number" || ctx == null ? { targetInput: ctx } : ctx;
-  void opts;
-  return buildUnifiedLengthControlPrompt(
-    typeof ctx === "number" || ctx == null ? ctx : opts.targetInput
-  );
 }
 
 export function logLengthAudit(opts: {
@@ -366,7 +294,7 @@ export const ADULT_LOOP_PARTIAL_MIN_CHARS = 80;
 
 /** tier minimum 미달이어도 저장 허용 — 1-pass·후처리 후 건강한 한국어 RP */
 /** @deprecated resolveTierMinimumRequired — 통과 최소 2,000자 */
-export const SUBSTANTIAL_HEALTHY_RP_MIN_CHARS = 2000;
+export const SUBSTANTIAL_HEALTHY_RP_MIN_CHARS = UNIFIED_TIER_MIN_CHARS;
 
 /** tier·과금·UI — HTML 코드 제외 표시 글자수 */
 export function resolveVisibleTierCharCount(text: string): number {
@@ -651,41 +579,24 @@ export function maxContinuationPasses(
   return MAX_RESPONSE_CONTINUATION_PASSES;
 }
 
-/** OpenRouter DeepSeek·Claude — API max_tokens 절대 상한 */
-const OPENROUTER_BOOSTED_OUTPUT_TOKEN_CEILING = 8192;
+/** Gemini 3.1 Pro OpenRouter — reasoning+prose shared pool */
+export const OPENROUTER_GEMINI_31_PRO_MAX_OUTPUT_TOKENS = 8192;
 
-/** Claude(Anthropic) primary stream — narrative+status JSON 원패스 (OpenRouter 크레딧 예약 부담 완화) */
-export const CLAUDE_PRIMARY_MIN_OUTPUT_TOKENS = 2048;
-
-/** tier aim 기준 max_tokens boost — 조기 STOP·truncation 완화 */
-const OPENROUTER_LENGTH_TOKEN_BOOST = 1.35;
-
-function resolveOpenRouterBoostedMaxTokens(target: ResponseLengthTierTarget): number {
-  const tokenCap = TARGET_LENGTH_TO_MAX_OUTPUT_TOKENS[target];
-  const boostChars = resolveTierAimTarget(target);
-  const targetBoost = Math.ceil(
-    (boostChars / KOREAN_CHARS_PER_OUTPUT_TOKEN) *
-      MAX_OUTPUT_TOKEN_SAFETY_BUFFER *
-      OPENROUTER_LENGTH_TOKEN_BOOST
-  );
-  return Math.min(
-    OPENROUTER_BOOSTED_OUTPUT_TOKEN_CEILING,
-    Math.max(tokenCap, targetBoost)
-  );
+/** Qwen / DeepSeek / default RP — tier max (5,000자 역산 ≈ 4,334) */
+export function resolveOpenRouterTierMaxOutputTokens(): number {
+  return TARGET_LENGTH_TO_MAX_OUTPUT_TOKENS[UNIFIED_RESPONSE_LENGTH_TARGET];
 }
 
-/** @deprecated OPENROUTER_BOOSTED_OUTPUT_TOKEN_CEILING */
-const OPENROUTER_DEEPSEEK_OUTPUT_TOKEN_CEILING = OPENROUTER_BOOSTED_OUTPUT_TOKEN_CEILING;
+/** @deprecated OPENROUTER_GEMINI_31_PRO_MAX_OUTPUT_TOKENS */
+export const GEMINI_PRO_OPENROUTER_MAX_OUTPUT_TOKENS = OPENROUTER_GEMINI_31_PRO_MAX_OUTPUT_TOKENS;
 
-/** 1회 출력 recency tail — 숫자·확장 규칙은 [LENGTH CONTROL & SCENE EXPANSION] 단일 출처 */
+/** @deprecated resolveOpenRouterTierMaxOutputTokens() */
+export const OPENROUTER_RP_MAX_OUTPUT_TOKENS = OPENROUTER_GEMINI_31_PRO_MAX_OUTPUT_TOKENS;
+
+/** 1회 출력 recency tail — LENGTH CONTROL + scene continuation */
 export function buildSingleShotLengthReminder(_targetInput?: number | null): string {
   return `[분량 — 이번 턴 1회 출력]
-이번 assistant 응답은 **한 번에** 완결한다. 서사·품질: [LENGTH CONTROL & SCENE EXPANSION] · 턴 종료·호흡: <TURN_HANDOFF_AND_PACING> 준수.`;
-}
-
-/** @alias buildSingleShotLengthReminder */
-export function buildDeepSeekSingleShotLengthReminder(targetInput?: number | null): string {
-  return buildSingleShotLengthReminder(targetInput);
+MINIMUM_FLOOR 미달·조기 handoff 금지. [LENGTH CONTROL & SCENE EXPANSION] · [SCENE CONTINUATION PRIORITY] 준수.`;
 }
 
 /** 유저 메시지 하단 — recency bias로 분량 리마인더 주입 */
@@ -700,27 +611,21 @@ export function appendSingleShotLengthReminderToUserTurn(
   return `${body}\n\n${tail}`;
 }
 
-function isOpenRouterLengthBoostModel(modelId: string): boolean {
-  const id = modelId.toLowerCase();
-  return id.includes("deepseek") || id.includes("claude") || id.includes("qwen") || id.startsWith("anthropic/");
-}
-
 export function resolveMaxOutputTokensForTarget(
   targetInput?: number | null,
   modelId?: string | null
 ): number {
-  const t = resolveResponseLengthTarget(targetInput ?? DEFAULT_TARGET_RESPONSE_CHARS);
-  const id = (modelId ?? "").toLowerCase();
-  if (isOpenRouterLengthBoostModel(id)) {
-    const boosted = resolveOpenRouterBoostedMaxTokens(t.target);
-    if (id.includes("claude") || id.startsWith("anthropic/")) {
-      return Math.min(
-        OPENROUTER_BOOSTED_OUTPUT_TOKEN_CEILING,
-        Math.max(boosted, CLAUDE_PRIMARY_MIN_OUTPUT_TOKENS)
-      );
-    }
-    return boosted;
+  const model = modelId?.trim() ?? "";
+  if (isGemini31ProModel(model)) {
+    return OPENROUTER_GEMINI_31_PRO_MAX_OUTPUT_TOKENS;
   }
+  if (model && (isDeepSeekV4ProModel(model) || isQwenModel(model))) {
+    return resolveOpenRouterTierMaxOutputTokens();
+  }
+  if (model) {
+    return resolveOpenRouterTierMaxOutputTokens();
+  }
+  const t = resolveResponseLengthTarget(targetInput ?? DEFAULT_TARGET_RESPONSE_CHARS);
   return TARGET_LENGTH_TO_MAX_OUTPUT_TOKENS[t.target];
 }
 

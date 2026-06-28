@@ -22,7 +22,7 @@ export function buildBelievableUserNarrationRules(ctx: ControlledPossessionConte
   const { char, persona } = label(ctx);
   return `[POSSESSION — BELIEVABLE USER NARRATION]
 Minimal co-narration for "${persona}" ONLY within user-input intent.
-- Mirror user tone — NO upgrade to confessions/vows/melodrama.
+- Mirror user tone — NO upgrade to confessions/vows/멜로드라마.
 - Proportional reactions only — NO instant devotion.
 - NO invented intimacy/tears/kneeling/soul-bond unless user wrote it.
 - NO copy-paste user input. One turn = next few minutes only.
@@ -53,7 +53,7 @@ export function buildFirstTurnRealismRules(ctx: ControlledPossessionContext): st
   const { char, persona } = label(ctx);
   return `[FIRST-TURN REALISM ${ctx.completedTurns + 1}/${FIRST_TURN_REALISM_LIMIT}]
 Real people, real setting — NO web-novel cold open tropes.
-FORBIDDEN unless in setting/user input: fate monologues, time stop, stranger intimacy, instant love, weather melodrama.
+FORBIDDEN unless in setting/user input: fate monologues, time stop, stranger intimacy, instant love, weather 멜로드라마.
 First meetings: awkward, brief, socially appropriate.`;
 }
 

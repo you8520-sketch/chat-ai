@@ -7,31 +7,31 @@ export const GEMINI_IMPLICIT_CACHE_INPUT_THRESHOLD = 32_768;
 export const GEMINI_STATIC_CACHE_MIN_TOKENS = 32_768;
 export const GEMINI_STATIC_CACHE_MAX_TOKENS = 60_000;
 
-/** Dynamic — 최근 raw 턴 (user+assistant 쌍), budget 초과해도 유지 */
+/** Dynamic — Gemini static/dynamic cache split용 최근 raw 턴 */
 export const GEMINI_DYNAMIC_RECENT_TURNS = 3;
 
 /** Static CachedContent — 저장된 5턴 요약(chat_turn_summaries) 최대 주입 개수 */
 export const GEMINI_STATIC_STORED_SUMMARY_LIMIT = 15;
 
-/** Gemini bulk-up — 최근 대화 raw 히스토리 최대 16,000토큰 (3턴 floor는 MIN_HISTORY_TURN_FLOOR) */
-export const GEMINI_HISTORY_TOKEN_BUDGET = 16_000;
+/** Gemini bulk-up — 최근 대화 raw 히스토리 토큰 상한 */
+export const GEMINI_HISTORY_TOKEN_BUDGET = 8_000;
 
-/** Claude / OpenRouter — 히스토리 8,000 (3턴 floor 후 예산까지 과거 턴 추가) */
+/** Claude / OpenRouter — 히스토리 토큰 상한 */
 export const CLAUDE_HISTORY_TOKEN_BUDGET = 8_000;
 
-/** trimHistoryToBudget — 모든 모델 공통 최소 raw 턴 (user+assistant 1쌍 = 1턴) */
-export const MIN_HISTORY_TURN_FLOOR = 3;
+/** @deprecated trimHistoryToBudget — 토큰 예산만 적용 (턴 floor 없음) */
+export const MIN_HISTORY_TURN_FLOOR = 0;
 
 /** Anthropic history cache — prefix drop 시 1msg씩이 아닌 chunk 단위 drop */
 export const HISTORY_TRIM_CHUNK_MESSAGES = 10;
 
-/** Gemini — 미요약 raw 턴 풀 (trimHistoryToBudget가 16K까지 채움) */
+/** @deprecated raw 풀은 전체 대화 — trimHistoryToBudget가 토큰 상한 적용 */
 export const GEMINI_RAW_RECENT_TURN_WINDOW = 15;
 
 /** Gemini — chat_turn_summaries 최소 주입 개수 (가용 시) */
 export const GEMINI_MIN_NARRATIVE_CONTEXT = 5;
 
-/** Claude — 기존 raw 턴 윈도우 */
+/** @deprecated */
 export const CLAUDE_RAW_RECENT_TURN_WINDOW = 6;
 
 /** Gemini — RAG 선별 주입 상한 (벌크업) */
@@ -59,8 +59,8 @@ export const CLAUDE_MEMORY_TOKEN_RESERVE = 3_500;
 /** DeepSeek V4 Pro — [3] 현재기억 프롬프트 토큰 상한 */
 export const DEEPSEEK_MEMORY_TOKEN_RESERVE = 14_000;
 
-/** DeepSeek V4 Pro — 최근 대화 raw 히스토리 최대 20,000토큰 */
-export const DEEPSEEK_HISTORY_TOKEN_BUDGET = 20_000;
+/** DeepSeek V4 Pro — 최근 대화 raw 히스토리 토큰 상한 */
+export const DEEPSEEK_HISTORY_TOKEN_BUDGET = 16_000;
 
 /** DeepSeek V4 Pro — chat_turn_summaries 최대 주입 개수 */
 export const DEEPSEEK_STATIC_STORED_SUMMARY_LIMIT = 10;
@@ -120,24 +120,20 @@ export function resolveRawRecentTurnWindow(
   modelId?: string | null,
   provider?: "gemini" | "openrouter"
 ): number {
-  return resolveContextTrack(modelId, provider) === "gemini-bulk"
-    ? GEMINI_RAW_RECENT_TURN_WINDOW
-    : CLAUDE_RAW_RECENT_TURN_WINDOW;
+  void modelId;
+  void provider;
+  return Number.MAX_SAFE_INTEGER;
 }
 
-/**
- * DeepSeek V4 — 미요약 구간 전체를 contextBuilder에 넘기고
- * DEEPSEEK_HISTORY_TOKEN_BUDGET(20K) trimHistoryToBudget만 적용.
- */
+/** @deprecated raw 풀은 전체 대화 — trimHistoryToBudget만 적용 */
 export function resolveRawRecentTurnWindowForHistory(
   modelId: string | null | undefined,
   provider: "gemini" | "openrouter",
   totalCompletedTurns: number
 ): number {
-  if (isDeepSeekModelId(modelId ?? "")) {
-    return Math.max(totalCompletedTurns, MIN_HISTORY_TURN_FLOOR);
-  }
-  return resolveRawRecentTurnWindow(modelId, provider);
+  void modelId;
+  void provider;
+  return totalCompletedTurns;
 }
 
 export function resolveMinNarrativeContext(
@@ -201,11 +197,10 @@ export function shouldIncludeArchiveAlways(
   return true;
 }
 
-/** Gemini bulk + OpenRouter(Claude) — 캐릭터 설정·세계관 전체 주입 */
+/** Gemini bulk + OpenRouter — 캐릭터 설정은 코어 아이덴티티 매턴 + RAG 보조 */
 export function usesFullLoreInjection(
-  modelId?: string | null,
-  provider?: "gemini" | "openrouter"
+  _modelId?: string | null,
+  _provider?: "gemini" | "openrouter"
 ): boolean {
-  if (provider === "openrouter") return true;
-  return resolveContextTrack(modelId, provider) === "gemini-bulk";
+  return false;
 }

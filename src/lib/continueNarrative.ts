@@ -8,7 +8,6 @@ export function isContinueUserMessage(content: string): boolean {
 }
 
 import {
-  buildAutoContinueUserPersonaRules,
   buildNovelModeUserPersonaRules,
 } from "@/lib/userPersonaNarrationRules";
 import { isHtmlDisplayOnlyTurn, isOocCreativeHtmlTurn } from "@/lib/htmlDisplayOnlyTurn";
@@ -58,7 +57,7 @@ export function buildRegenerateCoreDirective(_charName?: string): string {
 - Write a NEW [A] response with different actions, reactions, dialogue beats, and emotional turns — NOT a paraphrase of the rejected draft.
 - Do NOT copy the rejected draft verbatim or reuse its key plot beats, set-piece order, closing hook, or signature dialogue lines.
 - Opening 2 sentences must use different actions/dialogue than [Rejected draft]. Include at least one new dialogue line and one new plot beat absent from [Rejected draft].
-- Play ONLY [A] narration and dialogue — [A] speech register: see [CORE RP] §3 [SPEECH].`;
+- Play ONLY [A] narration and dialogue.`;
 }
 
 export function buildRegenerateRejectedDraftBlock(rejectedAssistantDraft?: string | null): string {
@@ -182,10 +181,10 @@ export function buildContinueNarrativeCommand(input: ContinueNarrativeCommandInp
 
   const personaRules = input.novelModeEnabled
     ? buildNovelModeUserPersonaRules(charName, persona)
-    : buildAutoContinueUserPersonaRules(charName, persona);
+    : "";
   const sceneLead = input.novelModeEnabled
-    ? `- Continue the web-novel scene — both [A] and [B] may speak and act per [NOVEL MODE — USER PERSONA NARRATION RULES].`
-    : `- [B] may show unconscious [B] reactions per [NO GODMODDING] (auto-continue expanded) — never [B] deliberate dialogue, decisions, or voluntary lead.`;
+    ? `- 소설 모드 — [NOVEL MODE — USER PERSONA NARRATION RULES]에 따라 [A]+[B] 연기.`
+    : `- [NO GODMODDING] 준수. <TURN_HANDOFF_AND_PACING> 준수.`;
 
   const resumeAfterOoc = input.resumeAfterOoc?.afterOocTurn
     ? buildResumeAfterOocSection(input.resumeAfterOoc)
@@ -197,13 +196,13 @@ export function buildContinueNarrativeCommand(input: ContinueNarrativeCommandInp
     ? "the OOC/meta/HTML turn or any failed auto-continue echo of it"
     : "the immediately previous assistant turn";
 
+  const personaRulesBlock = personaRules ? `\n${personaRules}\n` : "";
+
   return `[SYSTEM DIRECTIVE: CONTINUE THE NARRATIVE]${regenNote}
 - The user clicked Continue / auto-advance. No new user dialogue or explicit action.
 ${sceneAnchor}
 ${sceneLead}
-
-${personaRules}
-${resumeAfterOoc ? `\n${resumeAfterOoc}\n` : ""}
+${personaRulesBlock}${resumeAfterOoc ? `\n${resumeAfterOoc}\n` : ""}
 [STRICT ANTI-REPETITION RULE]
 - NEVER repeat dialogue, exclamations, physical beats, or OOC/meta/HTML lines from ${antiRepeatTarget}.
 

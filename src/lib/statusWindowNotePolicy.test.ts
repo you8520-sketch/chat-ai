@@ -107,7 +107,7 @@ NPC의 낙서 한 줄(카오모지, 이모지 사용)`;
     assert.match(r.formatSpec ?? "", /속마음/);
     assert.match(r.formatSpec ?? "", /낙서/);
     assert.match(r.policyBlock, /FLASH-GENERATED \(BOTTOM\)/);
-    assert.match(r.policyBlock, /\[FLASH-OWNED\] firewall rules/);
+    assert.match(r.policyBlock, /background DeepSeek V3 model/);
     assert.doesNotMatch(r.policyBlock, /```json/);
     assert.doesNotMatch(r.formatSpec ?? "", /^\|/m);
   });
@@ -169,7 +169,7 @@ NPC의 낙서 한 줄(카오모지, 이모지 사용)`;
     const r = resolveUserNoteStatusWindowPolicy("NPC 이름은 철수. 매턴 존댓말.");
     assert.equal(r.everyTurn, false);
     assert.equal(r.outputFormat, "plain");
-    assert.match(r.policyBlock, /PLAIN TEXT/);
+    assert.match(r.policyBlock, /SERVER HANDLED|background DeepSeek/);
   });
 
   it("respects deny OOC in note", () => {

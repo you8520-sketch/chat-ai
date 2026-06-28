@@ -16,7 +16,6 @@ import type { TrackedPromptSection } from "@/services/promptAudit";
  * MEMORY_FEATURE_ENABLED=0 이면 contextBuilder가 volatile 섹션을 주입하지 않음. */
 const STATIC_SECTION_IDS = new Set([
   "identity-and-rules",
-  "user-persona-speech-guard",
   "rule-core-master",
   "nsfw-adult-style-reference",
 ]);
@@ -41,7 +40,7 @@ const STATIC_TRIM_PRIORITY = [
 export function isGeminiStaticCacheSectionId(id: string): boolean {
   if (VOLATILE_SECTION_IDS.has(id)) return false;
   if (STATIC_SECTION_IDS.has(id)) return true;
-  return id.startsWith("chunk-critical-") || id.startsWith("chunk-lore-");
+  return id.startsWith("chunk-critical-") || id.startsWith("chunk-lore-") || id === "character-core-identity";
 }
 
 function isStaticSectionId(id: string): boolean {

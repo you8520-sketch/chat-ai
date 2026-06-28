@@ -75,7 +75,7 @@ function writePending(messageId: number, formatSpec?: string | null): void {
       sceneSummary: "",
     },
     extractedAt: new Date().toISOString(),
-    source: "background-flash",
+    source: "background-deepseek",
     pending: true,
     failed: false,
     formatSpec: formatSpec ?? null,
@@ -96,7 +96,7 @@ function writeMeta(
   const record: StatusMetaRecord = {
     meta,
     extractedAt: new Date().toISOString(),
-    source: "background-flash",
+    source: "background-deepseek",
     pending: false,
     failed,
     formatSpec: formatSpec ?? null,

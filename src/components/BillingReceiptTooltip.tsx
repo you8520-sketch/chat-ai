@@ -66,8 +66,9 @@ function ReceiptBody({
       </p>
       {usage.htmlFlashOnly && (
         <p className="text-[10px] leading-relaxed text-zinc-500">
-          Flash HTML 전용 턴 — 출력 1,000토큰당 10P 과금 (최대 6,000토큰). 입력 토큰에는 최근 대화·장기기억·페르소나·캐릭터
-          설정·로어북 등 Flash 프롬프트 전체가 포함됩니다 (메인 RP 모델 미호출).
+          HTML 전용 턴 — DeepSeek V3 단독 호출 (영수증 모델: HTML전용모델). API 원가에 55% 마진 적용. 입력 컨텍스트 최대
+          30,000토큰(장기기억·히스토리·페르소나·설정·로어북 등), 출력 최대 6,000토큰. 실제 출력량으로 과금 (메인 RP
+          모델 미호출).
         </p>
       )}
       <p>
@@ -185,16 +186,52 @@ function ReceiptBody({
           </span>
         </p>
       )}
+      {usage.statusWidgetExtract && (
+        <>
+          <p>
+            <span className="text-zinc-500">{usage.statusWidgetExtract.modelLabel}:</span>{" "}
+            {usage.statusWidgetExtract.input.toLocaleString()} /{" "}
+            {usage.statusWidgetExtract.output.toLocaleString()} tokens
+            {usage.statusWidgetExtract.estimated ? " (추정)" : ""}
+          </p>
+          <p>
+            <span className="text-zinc-500">위젯 API 원가:</span>{" "}
+            <span className="text-cyan-300/90">
+              ~{formatPoints(usage.statusWidgetExtract.apiRawCostKrw)}원
+            </span>
+            {usage.statusWidgetExtract.upstreamCostUsd != null &&
+            usage.statusWidgetExtract.upstreamCostUsd > 0 ? (
+              <span className="text-zinc-600"> (OpenRouter USD)</span>
+            ) : (
+              <span className="text-zinc-600"> (요율 추정)</span>
+            )}
+          </p>
+        </>
+      )}
       {apiRawCostKrw != null && apiRawCostKrw > 0 && (
         <p>
-          <span className="text-zinc-500">실제 API 원가:</span>{" "}
+          <span className="text-zinc-500">
+            {usage.statusWidgetExtract ? "메인 RP API 원가:" : "실제 API 원가:"}
+          </span>{" "}
+          <span className="text-cyan-300/90">
+            ~{formatPoints(usage.mainApiRawCostKrw ?? apiRawCostKrw)}원
+          </span>
+          {!usage.statusWidgetExtract &&
+            usage.upstreamCostUsd != null &&
+            usage.upstreamCostUsd > 0 && (
+              <span className="text-zinc-600"> (OpenRouter USD 합산)</span>
+            )}
+          {!usage.statusWidgetExtract &&
+            usage.apiRawCostKrw == null &&
+            usage.upstreamCostUsd == null && (
+              <span className="text-zinc-600"> (요율 추정)</span>
+            )}
+        </p>
+      )}
+      {usage.statusWidgetExtract && apiRawCostKrw != null && apiRawCostKrw > 0 && (
+        <p>
+          <span className="text-zinc-500">API 원가 합계 (메인+위젯):</span>{" "}
           <span className="text-cyan-300/90">~{formatPoints(apiRawCostKrw)}원</span>
-          {usage.upstreamCostUsd != null && usage.upstreamCostUsd > 0 && (
-            <span className="text-zinc-600"> (OpenRouter USD 합산)</span>
-          )}
-          {usage.apiRawCostKrw == null && usage.upstreamCostUsd == null && (
-            <span className="text-zinc-600"> (요율 추정)</span>
-          )}
         </p>
       )}
       {usage.coldStartShieldApplied && (
@@ -334,6 +371,8 @@ export default function BillingReceiptTooltip({
       exchangeRateLabel,
       apiReasoningOutputTokens: usage.apiReasoningOutputTokens,
       apiContentOutputTokens: usage.apiContentOutputTokens,
+      statusWidgetExtract: usage.statusWidgetExtract,
+      mainApiRawCostKrw: usage.mainApiRawCostKrw,
     });
     try {
       await navigator.clipboard.writeText(text);

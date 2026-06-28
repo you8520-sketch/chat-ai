@@ -165,7 +165,7 @@ function buildEveryTurnPolicyBlock(
 
   return `[STATUS UI — FLASH-GENERATED (${placementLabel})]
 User note requires a status window after EVERY reply.
-Status window generation is handled entirely by the background Flash model. Obey the [FLASH-OWNED] firewall rules. Output narrative prose only.
+Status window generation is handled entirely by the background DeepSeek V3 model. Output narrative prose only.
 
 ${flashFormatHint}
 ${placementHint}${formatBlock}`;

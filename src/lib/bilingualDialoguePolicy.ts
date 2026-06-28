@@ -246,28 +246,15 @@ export function buildNoHanjaSubstitutionRule(bilingual?: BilingualDialoguePolicy
   return buildNoForeignLanguageMixingRule(bilingual);
 }
 
-/** [LANG · CRITICAL] — 이중언어 예외 버전 */
-export function buildLangCriticalRule(opts?: {
+/**
+ * @deprecated Merged into [OUTPUT LANG] via buildOutputLangLines() / buildOpenRouterKoreanProseTopBlock().
+ * Kept for import compatibility — returns empty (no separate injection).
+ */
+export function buildLangCriticalRule(_opts?: {
   allowStatusHtml?: boolean;
   bilingual?: BilingualDialoguePolicy;
 }): string {
-  const bilingual = opts?.bilingual && isBilingualDialogueActive(opts.bilingual) ? opts.bilingual : null;
-  const htmlClause = opts?.allowStatusHtml
-    ? "NO HTML except creator-mandated status window block at narrative end"
-    : "NO HTML";
-
-  if (bilingual) {
-    return `[LANG · CRITICAL — BILINGUAL DIALOGUE EXCEPTION]
-Narration/scene prose: 100% Korean (-다 style). NO foreign language in narration.
-Spoken dialogue in double quotes ONLY: ${bilingual.primaryDisplay} line + Korean gloss in ( ) on EVERY speech line.
-Example: "…" (한국어 의역)
-NO third language. NO ${htmlClause}/meta ([emotion tag] OK).
-Konglish/hanja: see [NO FOREIGN LANGUAGE MIXING] in [OUTPUT LANG]. Part/chapter labels: [CORE RP] §6.`;
-  }
-
-  return `[LANG · CRITICAL]
-Output 100% Korean. NO English sentences/words/${htmlClause}/meta ([emotion tag] OK).
-Konglish/hanja: see [NO FOREIGN LANGUAGE MIXING] in [OUTPUT LANG]. Part/chapter labels: [CORE RP] §6.`;
+  return "";
 }
 
 export function buildBilingualDialoguePromptBlock(
@@ -288,5 +275,5 @@ Rules:
 - User persona quoted speech: follow [USER_PERSONA] / co-narration rules; if the user speaks Korean in input, mirror that unless settings say otherwise.
 - Do NOT mix Korean into the ${policy.primaryDisplay} quote. Korean belongs ONLY in ( ) after the quote.
 - Apply to ALL NPCs only if settings say so; default = AI character(s) you play use bilingual lines when settings demand it.
-- Status window / Flash HTML: Korean preferred unless user template says otherwise.`;
+- Status window / HTML 전용: Korean preferred unless user template says otherwise.`;
 }

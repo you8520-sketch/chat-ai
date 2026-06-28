@@ -1,4 +1,4 @@
-import { callGemini, DRAFT_FLASH_MODEL } from "@/lib/ai";
+import { callGemini, BACKGROUND_OPENROUTER_MODEL } from "@/lib/ai";
 import { isAiTagAnalysisEnabled } from "./config";
 import type { AnalysisCandidate, TagLabel, TagScore, TrainingTag } from "./types";
 import { TRAINING_TAGS } from "./types";
@@ -123,7 +123,7 @@ async function refineTagsWithAi(
   const user = `Vote: ${candidate.vote ?? "none"}\nQuality: ${candidate.qualityScore ?? "unknown"}\nContext: ${contextSummary}\nResponse excerpt:\n${excerpt}`;
 
   try {
-    const { text } = await callGemini(system, [{ role: "user", content: user }], DRAFT_FLASH_MODEL);
+    const { text } = await callGemini(system, [{ role: "user", content: user }], BACKGROUND_OPENROUTER_MODEL);
     const match = text.match(/\{[\s\S]*\}/);
     if (!match) return base;
     const parsed = JSON.parse(match[0]) as Record<string, number>;

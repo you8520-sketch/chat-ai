@@ -1,14 +1,10 @@
 import type { ChatMsg } from "@/lib/ai";
-import {
-  GEMINI_RAW_RECENT_TURN_WINDOW,
-  GEMINI_DYNAMIC_RECENT_TURNS,
-  MIN_HISTORY_TURN_FLOOR,
-} from "@/lib/contextTrack";
+import { estimateTokens } from "@/lib/tokenEstimate";
+import { OPENING_TURN_USER, isOpeningTurn } from "@/lib/chatGreetingContext";
+import { GEMINI_DYNAMIC_RECENT_TURNS, HISTORY_TRIM_CHUNK_MESSAGES } from "@/lib/contextTrack";
 
 /** 하이브리드 메모리 — 슬라이딩 윈도우 + 6턴 롤링 요약 */
 export const SHORT_TERM_TURNS = 5;
-/** 요약되지 않은 구간 중 AI history에 넣을 raw 턴 상한 — @see resolveRawRecentTurnWindow */
-export const RAW_RECENT_TURN_WINDOW = GEMINI_RAW_RECENT_TURN_WINDOW;
 /** 단기 기억(채팅 히스토리) 토큰 상한 — @see MAX_HISTORY_TOKENS (types.ts) */
 export const SHORT_TERM_TOKEN_BUDGET = 8_000;
 export const ROLLING_SUMMARY_INTERVAL = 6;
@@ -27,7 +23,7 @@ export type ChatMessageRow = {
   model?: string;
 };
 
-/** DB 메시지 → 유저/어시스턴트 턴 쌍 (greeting 제외) */
+/** DB 메시지 → 턴 배열. greeting assistant = turn 0; user+assistant pairs = turn 1+. */
 export function messagesToTurns(rows: ChatMessageRow[]): DialogueTurn[] {
   const turns: DialogueTurn[] = [];
   let pendingUser: string | null = null;
@@ -36,7 +32,10 @@ export function messagesToTurns(rows: ChatMessageRow[]): DialogueTurn[] {
     if (row.role === "user") {
       pendingUser = row.content;
     } else if (row.role === "assistant") {
-      if (row.model === "greeting") continue;
+      if (row.model === "greeting") {
+        turns.push({ user: OPENING_TURN_USER, assistant: row.content });
+        continue;
+      }
       if (pendingUser !== null) {
         turns.push({ user: pendingUser, assistant: row.content });
         pendingUser = null;
@@ -44,6 +43,22 @@ export function messagesToTurns(rows: ChatMessageRow[]): DialogueTurn[] {
     }
   }
   return turns;
+}
+
+export function splitOpeningPlayableTurns(turns: DialogueTurn[]): {
+  opening: DialogueTurn | null;
+  playable: DialogueTurn[];
+} {
+  if (turns.length === 0) return { opening: null, playable: [] };
+  if (isOpeningTurn(turns[0]!)) {
+    return { opening: turns[0]!, playable: turns.slice(1) };
+  }
+  return { opening: null, playable: turns };
+}
+
+/** Playable turns only (turn 1+) — memory message_count / early-turn pacing */
+export function countPlayableTurns(turns: DialogueTurn[]): number {
+  return splitOpeningPlayableTurns(turns).playable.length;
 }
 
 /** 최근 N턴을 AI history 형식으로 (원본 유지) */
@@ -60,56 +75,106 @@ export function recentTurnsToHistory(
   return out;
 }
 
+/** 채팅 히스토리 — 토큰 예산만 적용 (턴 floor·미요약 분리 없음) */
+export function trimHistoryToBudget(
+  history: ChatMsg[],
+  budget: number
+): ChatMsg[] {
+  if (history.length === 0) return [];
+
+  let tokens = 0;
+  const kept: ChatMsg[] = [];
+  for (let i = history.length - 1; i >= 0; i--) {
+    const msg = history[i]!;
+    const t = estimateTokens(msg.content);
+    if (tokens + t > budget && kept.length > 0) break;
+    kept.unshift(msg);
+    tokens += t;
+  }
+  return alignHistoryPrefixDrop(history, kept);
+}
+
+/** Prefix drop — chunk 단위(10msg)로 잘라 Anthropic history cache prefix 안정화 */
+function alignHistoryPrefixDrop(full: ChatMsg[], kept: ChatMsg[]): ChatMsg[] {
+  const prefixDrop = full.length - kept.length;
+  if (prefixDrop <= 0) return kept;
+
+  const alignedDrop =
+    Math.ceil(prefixDrop / HISTORY_TRIM_CHUNK_MESSAGES) * HISTORY_TRIM_CHUNK_MESSAGES;
+  const startIdx = Math.min(alignedDrop, full.length);
+  if (startIdx <= 0) return kept;
+  const aligned = full.slice(startIdx);
+  return aligned.length > 0 ? aligned : kept;
+}
+
 /**
- * summarizedTurnCount 이후 턴만 raw 히스토리 풀에 넣음 — 요약된 구간은 장기기억(로어북)이 담당.
- * 미요약이 raw 윈도우보다 짧아도 summarized 구간을 backfill하지 않음(중복 토큰·환각 방지).
- * maxRawTurns >= 전체 턴 수(DeepSeek 20K 등)일 때만 전체 미요약 구간을 그대로 사용.
- * trimHistoryToBudget(8K~20K)가 실제 주입량을 결정.
+ * 전체 대화 턴 풀 — opening + playable 전부.
+ * 주입량은 trimHistoryToBudget(DeepSeek 16K / others 8K)만 결정.
  */
 export function resolveRawRecentTurnPool(
   turns: DialogueTurn[],
-  summarizedTurnCount: number,
-  maxRawTurns = RAW_RECENT_TURN_WINDOW,
-  _minRawTurns = MIN_HISTORY_TURN_FLOOR
+  _summarizedTurnCount?: number
 ): { pool: DialogueTurn[]; firstTurn1Indexed: number } {
-  if (turns.length === 0) {
+  void _summarizedTurnCount;
+  const { opening, playable } = splitOpeningPlayableTurns(turns);
+  if (playable.length === 0 && !opening) {
     return { pool: [], firstTurn1Indexed: 1 };
   }
-  const safeSummarized = Math.max(0, Math.min(summarizedTurnCount, turns.length));
-  const unsummarized = turns.slice(safeSummarized);
-  const pool =
-    maxRawTurns >= turns.length
-      ? unsummarized
-      : unsummarized.slice(-Math.min(unsummarized.length, maxRawTurns));
-  const firstTurn1Indexed =
-    pool.length > 0 ? turns.length - pool.length + 1 : safeSummarized + 1;
-  return { pool, firstTurn1Indexed };
+
+  const pool: DialogueTurn[] = [];
+  if (opening) pool.push(opening);
+  pool.push(...playable);
+
+  return { pool, firstTurn1Indexed: 1 };
 }
 
-/** 로어북 주입 시 raw 히스토리와 겹치지 않게 잘라낼 턴 시작(1-indexed) */
+/**
+ * trim 후 raw에 남은 최초 playable 턴(1-indexed) — 로어북 turn summary 중복 제거.
+ * raw에 turn 1부터 있으면 1 → per-turn 요약 전부 제외 (verbatim raw 우선).
+ */
+export function resolveLorebookExcludeFromTrimmedHistory(
+  turns: DialogueTurn[],
+  trimmedHistory: ChatMsg[]
+): number | undefined {
+  if (trimmedHistory.length === 0) return undefined;
+
+  const { opening, playable } = splitOpeningPlayableTurns(turns);
+  const firstContent = trimmedHistory[0]!.content;
+
+  if (opening) {
+    if (firstContent === OPENING_TURN_USER || firstContent === opening.assistant.trim()) {
+      return 1;
+    }
+  }
+
+  for (let i = 0; i < playable.length; i++) {
+    const turn = playable[i]!;
+    if (firstContent === turn.user || firstContent === turn.assistant) {
+      return i + 1;
+    }
+  }
+
+  return 1;
+}
+
+/** @deprecated resolveLorebookExcludeFromTrimmedHistory 사용 */
 export function resolveLorebookExcludeTurnStart(
-  summarizedTurnCount: number,
+  _summarizedTurnCount: number,
   rawTurnPool: { firstTurn1Indexed: number }
 ): number | undefined {
-  if (summarizedTurnCount <= 0) return undefined;
+  void _summarizedTurnCount;
   if (rawTurnPool.firstTurn1Indexed <= 1) return undefined;
   return rawTurnPool.firstTurn1Indexed;
 }
 
 export function rawRecentTurnsToHistory(
   turns: DialogueTurn[],
-  summarizedTurnCount: number,
-  maxRawTurns = RAW_RECENT_TURN_WINDOW,
-  minRawTurns = MIN_HISTORY_TURN_FLOOR
+  _summarizedTurnCount?: number
 ): { role: "user" | "assistant"; content: string }[] {
-  const { pool } = resolveRawRecentTurnPool(
-    turns,
-    summarizedTurnCount,
-    maxRawTurns,
-    minRawTurns
-  );
+  void _summarizedTurnCount;
+  const { pool } = resolveRawRecentTurnPool(turns);
   if (pool.length === 0) return [];
-  return recentTurnsToHistory(pool, maxRawTurns);
+  return recentTurnsToHistory(pool, pool.length);
 }
 
 /**
@@ -117,17 +182,17 @@ export function rawRecentTurnsToHistory(
  */
 export function splitTurnsForGeminiCache(
   turns: DialogueTurn[],
-  summarizedTurnCount: number,
+  _summarizedTurnCount?: number,
   formatUser: (userText: string) => string,
   stripAssistant: (assistantText: string) => string = (t) => t
 ): { dynamicHistory: ChatMsg[] } {
-  if (turns.length === 0) {
+  void _summarizedTurnCount;
+  const { pool } = resolveRawRecentTurnPool(turns);
+  if (pool.length === 0) {
     return { dynamicHistory: [] };
   }
 
-  const safeSummarized = Math.max(0, Math.min(summarizedTurnCount, turns.length));
-  const unsummarized = turns.slice(safeSummarized);
-  const dynamicTurns = unsummarized.slice(-GEMINI_DYNAMIC_RECENT_TURNS);
+  const dynamicTurns = pool.slice(-GEMINI_DYNAMIC_RECENT_TURNS);
 
   const dynamicHistory: ChatMsg[] = [];
   for (const t of dynamicTurns) {

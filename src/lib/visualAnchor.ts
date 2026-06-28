@@ -101,10 +101,10 @@ function pickColor<T extends string>(
   return null;
 }
 
-type ScoredLine = { line: string; score: number };
+type ScoredLine = { line: string; score: number; appearanceProfile?: boolean };
 
 const NPC_PROFILE_LINE_RE =
-  /^([A-Z][a-z]+(?:\s+(?:de|von)\s+[A-Z][a-z]+)?)\s*[:：]/;
+  /^(?:[A-Z][a-z]+(?:\s+(?:de|von)\s+[A-Z][a-z]+)?|[가-힣]{2,}(?:\s+(?:데|폰)\s+[가-힣]+)?)\s*[:：]/;
 
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -234,11 +234,16 @@ function scoreAppearanceLines(
 
       let score = chunkBonus;
       if (aliasRes.some((re) => re.test(line))) score += 3;
+      const npcProfileLine = NPC_PROFILE_LINE_RE.test(line);
       if (excludeRes.some((re) => re.test(line)) && lineHasAppearanceColor(line)) score -= 5;
+      if (npcProfileLine && lineHasAppearanceColor(line)) score -= 8;
       if (APPEARANCE_FIELD_LINE_RE.test(line)) score += 4;
       if (/(?:괴수|보스\s*몬|enemy|monster)/i.test(line)) score -= 8;
 
-      if (score > -5) results.push({ line, score });
+      const appearanceProfile =
+        dedicatedAppearance || APPEARANCE_FIELD_LINE_RE.test(line) || /^\[(?:외형|외모)\]/i.test(line);
+
+      if (score > -5) results.push({ line, score, appearanceProfile });
     }
   }
 
@@ -254,15 +259,20 @@ function pickColorFromScored<T extends string>(
   const positive = scored.filter((s) => s.score > 0);
   if (positive.length === 0) return null;
 
-  for (const { line } of positive) {
-    if (!contextRe.test(line)) continue;
-    for (const def of defs) {
-      if (def.re.test(line)) return def;
+  const profileLines = positive.filter((s) => s.appearanceProfile);
+  const searchSets = profileLines.length > 0 ? [profileLines, positive] : [positive];
+
+  for (const set of searchSets) {
+    for (const { line } of set) {
+      if (!contextRe.test(line)) continue;
+      for (const def of defs) {
+        if (def.re.test(line)) return def;
+      }
     }
-  }
-  for (const { line } of positive) {
-    for (const def of defs) {
-      if (def.re.test(line)) return def;
+    for (const { line } of set) {
+      for (const def of defs) {
+        if (def.re.test(line)) return def;
+      }
     }
   }
   return null;
@@ -485,7 +495,8 @@ export function buildVisualAnchorReminder(policy: VisualAppearancePolicy): strin
 
   if (policy.hairLabel) {
     lines.push(
-      `Hair: ${policy.hairLabel}. NEVER write conflicting hair colors (e.g. no 금발/blonde if silver).`
+      `Hair: ${policy.hairLabel}. NEVER write conflicting hair colors (e.g. no 금발/blonde if silver).`,
+      `Uniform/coat color is NOT hair color — do not describe hair as the coat/uniform color (e.g. 검은색 제복 ≠ 검은 머리).`
     );
   }
   if (eyesLabel) {
@@ -508,7 +519,10 @@ const HAIR_DRIFT: Partial<Record<HairColorTag, DriftRule[]>> = {
   blonde: [
     { wrong: /은발/g, right: "금발" },
     { wrong: /(?:은|백)(?:색|빛)\s*머리/g, right: "금발" },
+    { wrong: /검(?:은|정)\s*머리(?:카락)?/g, right: "금발" },
+    { wrong: /흑발/g, right: "금발" },
     { wrong: /(?:silver|platinum)\s*hair/gi, right: "blonde hair" },
+    { wrong: /(?:black|dark)\s*hair/gi, right: "blonde hair" },
     { wrong: /달(?:빛|빛에)\s*(?:비친|스민)?\s*은(?:빛|색)?\s*머리/g, right: "금발" },
   ],
   silver: [

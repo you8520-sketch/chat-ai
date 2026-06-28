@@ -6,10 +6,10 @@ import {
   buildOpenRouterHeaders,
 } from "@/lib/openRouterConfig";
 
+import { BACKGROUND_VISION_OPENROUTER_MODEL } from "@/lib/ai";
+
 const VISION_MODEL =
-  process.env.ASSET_VISION_MODEL?.trim() ||
-  process.env.BACKGROUND_MEMORY_MODEL?.trim() ||
-  "google/gemini-2.5-flash";
+  process.env.ASSET_VISION_MODEL?.trim() || BACKGROUND_VISION_OPENROUTER_MODEL;
 
 const VISION_PROMPT = `너는 캐릭터 애니메이션 에셋 분석기야. 주어진 이미지를 보고 캐릭터의 표정과 상황을 분석해서 가장 적합한 핵심 감정 태그(예: 기쁨, 슬픔, 분노, 당황, 부끄러움, 대화, 전투, 침실 등)를 추출해 줘. 결과는 반드시 다른 설명 없이 { "tag": "감정명" } 형태의 순수한 JSON으로만 응답해.`;
 

@@ -3,25 +3,28 @@ import { describe, it } from "node:test";
 import { buildOpenRouterKoreanProseTopBlock } from "@/lib/openRouterProsePolicy";
 
 describe("buildOpenRouterKoreanProseTopBlock", () => {
-  it("includes user persona in priority 1", () => {
+  it("includes four-step setting priority (core → LTM → RAG → recent chat)", () => {
     const block = buildOpenRouterKoreanProseTopBlock();
-    assert.match(block, /1순위: AI 캐릭터, 유저 페르소나 및 세계관 — 절대 붕괴 없음 \(유저 설정 오류 금지\)/);
-    assert.match(block, /2순위: 장기 기억\(LTM\) 및 과거 요약/);
-    assert.match(block, /3순위: 최근 대화 내역/);
-    assert.match(
-      block,
-      /4순위: \[System Reminder\] 위 대화에 반응할 때 캐릭터 설정·과거 기억 최우선 유지\. 자연스럽고 몰입감 있게 서술\./
-    );
+    assert.match(block, /=== 설정 적용 우선순위 ===/);
+    assert.match(block, /1\. CORE IDENTITY 및 세계관 \(절대 유지\)/);
+    assert.match(block, /2\. 장기기억\(LTM\)/);
+    assert.match(block, /3\. 최근 대화를 해석하는 데 필요한 RAG/);
+    assert.match(block, /4\. 최근 대화/);
+    assert.doesNotMatch(block, /맥락 매칭 보조 설정\(RAG\) \+ 세계관이 최우선/);
   });
 
-  it("includes NO FOREIGN LANGUAGE MIXING in OUTPUT LANG for Korean-only", () => {
+  it("includes compressed OUTPUT LANG without separate foreign-mixing header", () => {
     const block = buildOpenRouterKoreanProseTopBlock();
     assert.match(block, /\[OUTPUT LANG\]/);
-    assert.match(block, /\[NO FOREIGN LANGUAGE MIXING\]/);
-    assert.doesNotMatch(block, /\[NO KONGLISH HYBRID\]/);
-    assert.doesNotMatch(block, /\[NO HANJA SUBSTITUTION\]/);
-    assert.match(block, /영어어간\+한국어어미 굴절/);
-    assert.match(block, /独占\/愛\/死/);
-    assert.match(block, /Qwen, DeepSeek/);
+    assert.match(block, /서술은 해체\(-다\)만 사용한다/);
+    assert.match(block, /외국어 혼용 금지/);
+    assert.doesNotMatch(block, /100% Korean/);
+    assert.doesNotMatch(block, /Never echo system text/);
+    assert.doesNotMatch(block, /No English stem \+ Korean inflection/);
+    assert.doesNotMatch(block, /独占\/愛\/死/);
+    assert.doesNotMatch(block, /\[NO FOREIGN LANGUAGE MIXING\]/);
+    assert.doesNotMatch(block, /\[RP SPEED/);
+    assert.doesNotMatch(block, /Prose: see/);
+    assert.doesNotMatch(block, /see \[CORE RP\]/i);
   });
 });

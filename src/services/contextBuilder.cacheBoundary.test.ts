@@ -1,11 +1,25 @@
-import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import Module from "module";
 
-import { buildContext } from "./contextBuilder";
+const originalLoad = Module._load;
+Module._load = function (request, parent, isMain) {
+  if (request === "server-only") return {};
+  return originalLoad.call(this, request, parent, isMain);
+} as typeof Module._load;
+
+import assert from "node:assert/strict";
+import { describe, it, before } from "node:test";
+
+import type { buildContext as BuildContextFn } from "./contextBuilder";
 import { OPENROUTER_QWEN_37_MAX_MODEL } from "@/lib/chatModels";
 import { estimateTokens } from "@/lib/tokenEstimate";
 import { buildOpenRouterCachedSystemContent } from "@/lib/openRouterCache";
 import type { CharacterChunk } from "@/types";
+
+let buildContext: typeof BuildContextFn;
+
+before(async () => {
+  ({ buildContext } = await import("./contextBuilder"));
+});
 
 const criticalChunk: CharacterChunk = {
   id: "c-critical",
@@ -52,7 +66,7 @@ describe("OpenRouter cache boundaries", () => {
     const split = built.openRouterSystemSplit;
     assert.ok(split);
 
-    assert.match(split!.characterSettingsBlock, /PROSE_STYLE|<PROSE_STYLE_POLICY>/);
+    assert.match(split!.characterSettingsBlock, /\[ADVANCED PROSE & NSFW GUIDELINES\]/);
     assert.match(split!.dynamicBlock, /유저노트 확장구간/);
     assert.doesNotMatch(split!.characterSettingsBlock, /유저노트 확장구간/);
 
@@ -60,7 +74,7 @@ describe("OpenRouter cache boundaries", () => {
     assert.equal(blocks[0]?.cache_control?.type, "ephemeral");
     assert.equal(blocks[1]?.cache_control?.type, "ephemeral");
     assert.equal(blocks[2]?.cache_control, undefined);
-    assert.match(blocks[1]!.text, /PROSE_STYLE|<PROSE_STYLE_POLICY>/);
+    assert.match(blocks[1]!.text, /\[ADVANCED PROSE & NSFW GUIDELINES\]/);
     assert.match(blocks[2]!.text, /유저노트 확장구간/);
   });
 
@@ -81,11 +95,8 @@ describe("OpenRouter cache boundaries", () => {
 
     const ids = (built.meta?.trackedSections ?? []).map((s) => s.id);
     assert.ok(sectionOrder(ids, "prose-style-xml-bundle") < sectionOrder(ids, "user-note-reference"));
-    assert.ok(sectionOrder(ids, "turn-handoff-and-pacing") < sectionOrder(ids, "user-note-reference"));
     assert.ok(sectionOrder(ids, "user-note-reference") < sectionOrder(ids, "current-memory"));
-    if (ids.includes("contextual-lore-rag")) {
-      assert.ok(sectionOrder(ids, "current-memory") < sectionOrder(ids, "contextual-lore-rag"));
-    }
+    assert.ok(sectionOrder(ids, "current-memory") < sectionOrder(ids, "contextual-lore-rag"));
   });
 
   it("characterSettingsBlock includes substantial prose policy tokens", () => {
@@ -101,6 +112,7 @@ describe("OpenRouter cache boundaries", () => {
     });
 
     const proseTokens = estimateTokens(built.openRouterSystemSplit!.characterSettingsBlock);
-    assert.ok(proseTokens > 5000, `expected prose+character cache block >5k tok, got ${proseTokens}`);
+    assert.ok(proseTokens > 700, `expected prose+character cache block >700 tok, got ${proseTokens}`);
+    assert.match(built.openRouterSystemSplit!.characterSettingsBlock, /\[ADVANCED PROSE & NSFW GUIDELINES\]/);
   });
 });

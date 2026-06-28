@@ -9,6 +9,7 @@ import {
   isGemini31ProModel,
   isGeminiProOpenRouterModel,
   isQwenModel,
+  OPENROUTER_DEEPSEEK_V3_MODEL,
   type SelectedAI,
   resolveSelectedAI,
 } from "./chatModels";
@@ -17,7 +18,12 @@ import { resolveResponseLengthTarget, isCatastrophicallyShortResponse, type Gene
 import { isDegenerateOutput } from "./gibberishGuard";
 import { PLANS, type PlanId, FREE_MEMORY_LIMIT, FREE_POINTS_VALID_MONTHS } from "./plans";
 import type { StageUsage } from "./ai";
-import { HTML_FLASH_MAX_OUTPUT_TOKENS } from "./htmlVisualCardRecovery";
+import {
+  HTML_FLASH_MAX_OUTPUT_TOKENS,
+  HTML_ONLY_MODEL_LABEL,
+  HTML_ONLY_TURN_MAX_INPUT_TOKENS,
+  HTML_ONLY_TURN_MAX_OUTPUT_TOKENS,
+} from "./htmlVisualCardRecovery";
 
 export type BillingWaiverReason =
   | "over_reasoning"
@@ -1665,11 +1671,12 @@ export function billingTierBenchmark() {
   };
 }
 
-/** Flash HTML-only 턴 — 출력 토큰 기준 (1P ≈ 1원) */
+/** @deprecated HTML 전용 턴은 computeHtmlFlashOnlyTurnBilling (V3 + 55% 마진) 사용 */
 export const FLASH_HTML_ONLY_OUTPUT_TOKENS_PER_TIER = 1000;
+/** @deprecated */
 export const FLASH_HTML_ONLY_WON_PER_TIER = 10;
 
-/** Flash HTML-only — 출력 N토큰당 M원 (비례, 최종 올림) */
+/** @deprecated HTML 전용 턴은 computeHtmlFlashOnlyTurnBilling 사용 */
 export function computeFlashHtmlOnlyOutputCharge(outputTokens: number): number {
   const tokens = Math.max(0, outputTokens);
   if (tokens <= 0) return 0;
@@ -1681,18 +1688,19 @@ export function computeFlashHtmlOnlyCharCharge(outputChars: number): number {
   return computeFlashHtmlOnlyOutputCharge(Math.max(400, Math.ceil(outputChars * 0.55)));
 }
 
-/** Flash-only HTML 턴 — 메인 OpenRouter RP 없이 Gemini Flash HTML만 생성 */
+/** HTML 전용 턴 — DeepSeek V3 단독, API 원가 + 55% 마진 */
 export function computeHtmlFlashOnlyTurnBilling(opts: {
   savedTextChars: number;
   userContextChars?: number;
-  /** Flash API 실제 입력 토큰 (있으면 우선) */
   inputTokens?: number;
-  /** Flash API 실제 출력 토큰 (있으면 우선) */
   outputTokens?: number;
-  /** system+userBlock 조립 추정 — API usage 없을 때 fallback */
   promptEstimateTokens?: number;
+  upstreamCostUsd?: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
 }): {
   modelId: string;
+  modelLabel: string;
   baseCost: number;
   contextSurcharge: number;
   multiplier: number;
@@ -1700,13 +1708,14 @@ export function computeHtmlFlashOnlyTurnBilling(opts: {
   estimatedInputTokens: number;
   estimatedOutputTokens: number;
   tokensEstimated: boolean;
+  rawCostKrw: number;
 } {
   const htmlChars = Math.max(0, opts.savedTextChars);
   const estimatedOutputTokens =
     opts.outputTokens != null && opts.outputTokens > 0
       ? opts.outputTokens
       : Math.min(
-          HTML_FLASH_MAX_OUTPUT_TOKENS,
+          HTML_ONLY_TURN_MAX_OUTPUT_TOKENS,
           Math.max(400, Math.ceil(htmlChars * 0.55))
         );
   const contextChars = opts.userContextChars ?? 0;
@@ -1714,18 +1723,47 @@ export function computeHtmlFlashOnlyTurnBilling(opts: {
     opts.inputTokens != null && opts.inputTokens > 0
       ? opts.inputTokens
       : opts.promptEstimateTokens != null && opts.promptEstimateTokens > 0
-        ? opts.promptEstimateTokens
-        : Math.min(12_000, Math.max(2000, Math.ceil(contextChars / 2.5) + 1500));
+        ? Math.min(HTML_ONLY_TURN_MAX_INPUT_TOKENS, opts.promptEstimateTokens)
+        : Math.min(
+            HTML_ONLY_TURN_MAX_INPUT_TOKENS,
+            Math.max(2000, Math.ceil(contextChars / 2.5) + 1500)
+          );
   const tokensEstimated = !(opts.inputTokens != null && opts.inputTokens > 0);
-  const baseCost = computeFlashHtmlOnlyOutputCharge(estimatedOutputTokens);
+  const cache = {
+    cacheReadTokens: opts.cacheReadTokens,
+    cacheWriteTokens: opts.cacheWriteTokens,
+  };
+  const billingBasis =
+    opts.upstreamCostUsd != null && opts.upstreamCostUsd > 0
+      ? {
+          upstreamCostUsd: opts.upstreamCostUsd,
+          apiPromptTokens: estimatedInputTokens,
+          apiCompletionTokens: estimatedOutputTokens,
+        }
+      : undefined;
+  const rawCostKrw = resolveOpenRouterTurnRawCostKrw(
+    estimatedInputTokens,
+    estimatedOutputTokens,
+    OPENROUTER_DEEPSEEK_V3_MODEL,
+    cache,
+    billingBasis
+  );
+  const costPlusMarginKrw = openRouterDeepSeekMarginChargeKrw(rawCostKrw);
+  const inputSurchargeKrw = openRouterInputTokenSurchargeKrw(estimatedInputTokens);
+  const total = Math.max(
+    OPENROUTER_MIN_TURN_COST,
+    chargePoints(costPlusMarginKrw + inputSurchargeKrw)
+  );
   return {
-    modelId: "gemini-2.5-flash",
-    baseCost,
-    contextSurcharge: 0,
+    modelId: OPENROUTER_DEEPSEEK_V3_MODEL,
+    modelLabel: HTML_ONLY_MODEL_LABEL,
+    baseCost: costPlusMarginKrw,
+    contextSurcharge: inputSurchargeKrw,
     multiplier: 1,
-    total: baseCost,
+    total,
     estimatedInputTokens,
     estimatedOutputTokens,
     tokensEstimated,
+    rawCostKrw,
   };
 }

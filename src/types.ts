@@ -92,8 +92,6 @@ export type ContextBuildInput = {
   staticHistoryBlock?: string | null;
   /** Gemini — Static/Dynamic 분리 조립 (explicit cache) */
   geminiStaticDynamicMode?: boolean;
-  /** 대화 시작 첫 메시지(인사) — UI 전용이 아니라 모델에 장면·위치 주입 */
-  openingSceneGreeting?: string | null;
   /** 제작자 상태창 위젯 ON — Flash 방화벽·상태 정책 분기 */
   statusWidgetActive?: boolean;
   /** Gemini 3.1 Pro — HTML 상태창을 Flash 2차 호출 없이 메인 모델이 직접 출력 */

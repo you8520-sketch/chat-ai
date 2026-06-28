@@ -225,6 +225,8 @@ export function formatBillingReceiptText(
     exchangeRateLabel?: string;
     apiReasoningOutputTokens?: number;
     apiContentOutputTokens?: number;
+    statusWidgetExtract?: Usage["statusWidgetExtract"];
+    mainApiRawCostKrw?: number;
   }
 ): string {
   const lines: string[] = [];
@@ -242,7 +244,15 @@ export function formatBillingReceiptText(
     );
   }
   if (extra?.apiRawCostKrw != null && extra.apiRawCostKrw > 0) {
-    lines.push(`실제 API 원가: ~${formatPoints(extra.apiRawCostKrw)}원`);
+    if (extra.statusWidgetExtract) {
+      lines.push(
+        `메인 RP API 원가: ~${formatPoints(extra.mainApiRawCostKrw ?? extra.apiRawCostKrw)}원`,
+        `위젯 API 원가 (${extra.statusWidgetExtract.modelLabel}): ${extra.statusWidgetExtract.input.toLocaleString()} / ${extra.statusWidgetExtract.output.toLocaleString()} tokens · ~${formatPoints(extra.statusWidgetExtract.apiRawCostKrw)}원`,
+        `API 원가 합계 (메인+위젯): ~${formatPoints(extra.apiRawCostKrw)}원`
+      );
+    } else {
+      lines.push(`실제 API 원가: ~${formatPoints(extra.apiRawCostKrw)}원`);
+    }
   }
   if (extra?.coldStartShieldApplied) {
     if (extra.coldStartCostFloorPoints != null && extra.coldStartCostFloorPoints > 0) {

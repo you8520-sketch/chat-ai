@@ -29,7 +29,7 @@ import {
   type OpenRouterChatMessage,
   type OpenRouterContentBlock,
 } from "@/lib/openRouterClient";
-import { isAnthropicModel, buildClaudePrefill, CLAUDE_OPUS_MODEL, isDeepSeekV4ProModel, isGeminiProOpenRouterModel } from "@/lib/chatModels";
+import { isAnthropicModel, buildClaudePrefill, CLAUDE_OPUS_MODEL, isDeepSeekV4ProModel } from "@/lib/chatModels";
 import {
   OPENROUTER_CHAT_COMPLETIONS_URL,
   buildOpenRouterHeaders,
@@ -73,11 +73,7 @@ import {
 } from "@/lib/statusWindow";
 import { stripLeakedDocumentMarkup } from "@/lib/chatHtmlSanitize";
 import { stripAllStatusWindowOutputArtifacts, type StripStatusArtifactsOptions } from "@/lib/statusMeta/stripArtifacts";
-import { captureDeepSeekStatusWidgetValuesFromModelText } from "@/lib/statusWidget/deepseekCapture";
 import type { ParsedStatusWidgetTurnValues } from "@/lib/statusWidget/types";
-import {
-  captureStatusWidgetValuesFromModelText,
-} from "@/lib/statusWidget/parseValues";
 import { sanitizePrimaryModelAssistantHistory } from "@/lib/flashOwnedOutputFirewall";
 import { peelIncompleteTailForLengthCap } from "@/lib/statusWindowTemplate";
 import { normalizeAiNovelProseLayout } from "@/lib/novelParagraphs";
@@ -203,7 +199,7 @@ export function buildCoNarrationKoreanRule(allowed: boolean, novelMode = false):
   if (allowed) {
     return `7. 유저 대사: co-narration(사칭 허용) ON — [USER_PERSONA]에 맞춰 유저 페르소나 대사·행동을 사용자 입력 의도 내에서만 최소 공동 서술. 감정·결정 창작 금지.`;
   }
-  return `7. 유저 대사: co-narration(사칭 허용) OFF — strictly obey [NO GODMODDING]. Never act for [B].`;
+  return `7. 유저 대사: co-narration(사칭 허용) OFF — [NO GODMODDING] 준수.`;
 }
 
 const DEEPSEEK_HONORIFIC_PATTERN = /했습니다|입니다|하셨다|말씀하셨다/;
@@ -354,35 +350,6 @@ export function buildNovelModeRules(
 export const EURYALE_TURN_LIMIT =
   "(deprecated — turn-end policy: obey <TURN_HANDOFF_AND_PACING> only)";
 
-/** @deprecated buildOpenRouterFinalReminder 사용 */
-export function buildCriticalLoreRelationshipRule(
-  charName: string,
-  personaName: string,
-  completedTurns: number
-): string {
-  if (completedTurns === 0) {
-    return `[RELATIONSHIP]: ${charName} and ${personaName} are strangers. No invented shared past.`;
-  }
-  return `[RELATIONSHIP]: Obey established bond between ${charName} and ${personaName}. No fabricated history.`;
-}
-
-/** OpenRouter tail — relationship only (length는 단일 LENGTH MODE 시스템) */
-export function buildOpenRouterFinalReminder(
-  charName: string,
-  personaName: string,
-  completedTurns: number,
-  _targetResponseChars?: number | null
-): string {
-  const relationship =
-    completedTurns === 0
-      ? `${charName}↔${personaName}: strangers. NO invented shared past/intimacy.`
-      : `${charName}↔${personaName}: obey lore/history. NO fabricated past.`;
-  return `[PRE-OUTPUT]
-• ${relationship}
-• 이전 턴 줄바꿈·말줄임 습관 복사 금지.
-• FORMAT: Obey [WRITING STYLE: 한국 웹소설 표준 포맷 및 호흡 통제].`;
-}
-
 const OPENROUTER_STRIP_BLOCK_STARTS = [
   "[분량]",
   "[19+ 모드]",
@@ -495,10 +462,6 @@ export function buildAdultSystemPrompt(baseSystem: string, opts?: AdultSystemPro
     parts.push(leanBase);
   }
 
-  parts.push(
-    buildOpenRouterFinalReminder(charName, personaName, completedTurns, opts?.targetResponseChars)
-  );
-
   const result = parts.join("\n\n");
 
   if (process.env.NODE_ENV !== "production") {
@@ -539,7 +502,7 @@ export type OpenRouterMessageOpts = {
   htmlFlashReserveChars?: number;
   /** OOC HTML 요청 — gibberish guard·Flash strip bypass */
   oocHtmlMode?: boolean;
-  /** 제작자 상태창 위젯 — 스트림 cap에서 STATUS_VALUES tail 여유 */
+  /** 제작자 상태창 위젯 — 스트림 cap에서 tail 여유 (deprecated — main model no longer outputs widget JSON) */
   statusWidgetReserveTail?: boolean;
   /** 재생성 등 — temperature·penalty 오버라이드 */
   generationOverrides?: import("@/lib/openRouterClient").OpenRouterGenerationOverrides;
@@ -1532,10 +1495,7 @@ export async function streamOpenRouterAdultToClient(
   /** stream-first — dedupe/loop tail 금지, 유저가 본 텍스트 기준 */
   const streamVisibleText = lastSentToClient.trimEnd();
   const streamAccumulated = fullText;
-  const capturedStatusWidgetValues =
-    isDeepSeekV4ProModel(modelId) || isGeminiProOpenRouterModel(modelId)
-      ? captureDeepSeekStatusWidgetValuesFromModelText(streamAccumulated)
-      : captureStatusWidgetValuesFromModelText(streamAccumulated);
+  const capturedStatusWidgetValues = null;
   let mergedText = pushRemovalTraceStep(
     removalTraceSteps,
     "openRouter_sanitizeStreamArtifacts",

@@ -20,7 +20,7 @@ function snippetRequestsOocCreativeHtml(snippet: string): boolean {
   return RP_STOP_OR_FLASH_ONLY.test(s);
 }
 
-/** 유저가 RP 없이 입력 내용 HTML 표시만 요청 — Flash-only 턴 */
+/** 유저가 RP 없이 입력 내용 HTML 표시만 요청 — HTML 전용 턴 */
 export function isHtmlDisplayOnlyTurn(userMessage: string): boolean {
   const trimmed = userMessage.trim();
   if (!trimmed) return false;
@@ -37,7 +37,7 @@ export function isHtmlDisplayOnlyTurn(userMessage: string): boolean {
 }
 
 /**
- * OOC + RP 중단 + HTML 연출 — 메인 모델 RP 생략, Flash가 OOC 지시대로 UI/내용 생성
+ * OOC + RP 중단 + HTML 연출 — 메인 모델 RP 생략, HTML 전용 모델(V3)이 OOC 지시대로 UI/내용 생성
  */
 export function isOocCreativeHtmlTurn(userMessage: string): boolean {
   const trimmed = userMessage.trim();
@@ -52,7 +52,7 @@ export function isOocCreativeHtmlTurn(userMessage: string): boolean {
   return RP_STOP_OR_FLASH_ONLY.test(trimmed);
 }
 
-/** Flash-only — 메인 OpenRouter 스킵 */
+/** HTML 전용 — 메인 OpenRouter 스킵 */
 export function isHtmlFlashOnlyTurn(userMessage: string): boolean {
   return isHtmlDisplayOnlyTurn(userMessage) || isOocCreativeHtmlTurn(userMessage);
 }
