@@ -7,11 +7,21 @@ import {
 } from "./points";
 import { FREE_POINTS_VALID_MONTHS } from "./plans";
 import { reverseCreatorRewardForMessage } from "./creatorPoints";
+import { assessMessageForAutoRefund } from "./refundAutoValidation";
+import { buildMessageReceiptSnapshot } from "./refundMessageReceipt";
+import { AUTO_REFUND_DAILY_LIMIT } from "./reportRefundPolicy";
 
 export type RefundProcessResult =
   | {
+      status: "approved";
+      message: string;
+      autoRefund: boolean;
+      balance?: PointBalance;
+    }
+  | {
       status: "pending";
       message: string;
+      dailyLimitExceeded?: boolean;
     }
   | {
       status: "rejected";
@@ -95,6 +105,8 @@ type MessageRefundContext = {
   is_refunded: number;
   deduction_slices: string | null;
   usage: string | null;
+  status: string | null;
+  created_at: string;
   user_id: number;
 };
 
@@ -106,12 +118,48 @@ function loadMessageRefundContext(
   return db
     .prepare(
       `SELECT m.id, m.chat_id, m.role, m.content, m.is_refunded, m.deduction_slices, m.usage,
-              c.user_id
+              m.status, m.created_at, c.user_id
        FROM messages m
        JOIN chats c ON c.id = m.chat_id
        WHERE m.id = ? AND m.chat_id = ?`
     )
     .get(messageId, chatId) as MessageRefundContext | undefined;
+}
+
+function loadPreviousAssistantContent(chatId: number, messageId: number): string | null {
+  const db = getDb();
+  const row = db
+    .prepare(
+      `SELECT content FROM messages
+       WHERE chat_id = ? AND role = 'assistant' AND id < ?
+       ORDER BY id DESC LIMIT 1`
+    )
+    .get(chatId, messageId) as { content: string } | undefined;
+  return row?.content ?? null;
+}
+
+function loadPairedUserMessage(chatId: number, messageId: number): string | null {
+  const db = getDb();
+  const row = db
+    .prepare(
+      `SELECT content FROM messages
+       WHERE chat_id = ? AND role = 'user' AND id < ?
+       ORDER BY id DESC LIMIT 1`
+    )
+    .get(chatId, messageId) as { content: string } | undefined;
+  return row?.content ?? null;
+}
+
+function countAutoRefundsToday(userId: number): number {
+  const db = getDb();
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) AS c FROM report_refunds
+       WHERE user_id = ? AND auto_refund = 1 AND status = 'approved'
+         AND date(created_at) = date('now')`
+    )
+    .get(userId) as { c: number };
+  return row?.c ?? 0;
 }
 
 function parseRefundAmount(msg: MessageRefundContext): number {
@@ -133,7 +181,7 @@ function parseDeductionSlices(raw: string | null): DeductionSlice[] {
   }
 }
 
-/** 오류 신고 접수 — 자동 환불 없음, 관리자 검토 대기 */
+/** 오류 신고 — 결함 확인 시 하루 3회까지 자동 환불, 이후 관리자 검토 */
 export function processReportRefund(
   userId: number,
   messageId: number,
@@ -167,18 +215,104 @@ export function processReportRefund(
     return { status: "rejected", message: "이미 접수된 오류 신고입니다." };
   }
 
+  const assessment = assessMessageForAutoRefund({
+    content: msg.content,
+    messageStatus: msg.status,
+    previousAssistantContent: loadPreviousAssistantContent(chatId, messageId),
+    userMessage: loadPairedUserMessage(chatId, messageId),
+  });
+  const receiptSnapshot = buildMessageReceiptSnapshot(msg.usage);
+  const slices = parseDeductionSlices(msg.deduction_slices);
+  const autoRefundsToday = countAutoRefundsToday(userId);
+  const canAutoRefund =
+    assessment.isError && autoRefundsToday < AUTO_REFUND_DAILY_LIMIT;
+
+  if (canAutoRefund) {
+    const balance = refundMessageDeduction(
+      userId,
+      messageId,
+      slices,
+      totalAmount,
+      `오류 자동 환불 (메시지 #${messageId})`
+    );
+
+    db.prepare(
+      `INSERT INTO report_refunds
+         (user_id, chat_id, message_id, status, refund_amount, validation_note, receipt_snapshot, auto_refund, error_reasons)
+       VALUES (?, ?, ?, 'approved', ?, ?, ?, 1, ?)`
+    ).run(
+      userId,
+      chatId,
+      messageId,
+      totalAmount,
+      `자동 환불: ${assessment.summary}`,
+      receiptSnapshot,
+      assessment.summary
+    );
+
+    db.prepare(
+      "INSERT INTO reports (user_id, chat_id, message_id, content, reason) VALUES (?,?,?,?,?)"
+    ).run(
+      userId,
+      chatId,
+      messageId,
+      msg.content.slice(0, 2000),
+      `오류 자동 환불 — ${assessment.summary}`
+    );
+
+    return {
+      status: "approved",
+      autoRefund: true,
+      balance,
+      message: `오류가 확인되어 ${totalAmount.toLocaleString()}P가 자동 환불되었습니다. (오늘 ${autoRefundsToday + 1}/${AUTO_REFUND_DAILY_LIMIT}회)`,
+    };
+  }
+
+  const validationNote = assessment.isError
+    ? autoRefundsToday >= AUTO_REFUND_DAILY_LIMIT
+      ? `일일 자동 환불 한도(${AUTO_REFUND_DAILY_LIMIT}회) 초과 — 관리자 검토 (${assessment.summary})`
+      : `관리자 검토 (${assessment.summary})`
+    : "관리자 검토";
+
   db.prepare(
-    `INSERT INTO report_refunds (user_id, chat_id, message_id, status, refund_amount, validation_note)
-     VALUES (?, ?, ?, 'pending', ?, '관리자 검토')`
-  ).run(userId, chatId, messageId, totalAmount);
+    `INSERT INTO report_refunds
+       (user_id, chat_id, message_id, status, refund_amount, validation_note, receipt_snapshot, auto_refund, error_reasons)
+     VALUES (?, ?, ?, 'pending', ?, ?, ?, 0, ?)`
+  ).run(
+    userId,
+    chatId,
+    messageId,
+    totalAmount,
+    validationNote,
+    receiptSnapshot,
+    assessment.summary
+  );
 
   db.prepare(
     "INSERT INTO reports (user_id, chat_id, message_id, content, reason) VALUES (?,?,?,?,?)"
-  ).run(userId, chatId, messageId, msg.content.slice(0, 2000), "오류 신고 — 관리자 검토");
+  ).run(
+    userId,
+    chatId,
+    messageId,
+    msg.content.slice(0, 2000),
+    assessment.isError
+      ? `오류 신고 — ${assessment.summary}`
+      : "오류 신고 — 관리자 검토"
+  );
+
+  if (assessment.isError && autoRefundsToday >= AUTO_REFUND_DAILY_LIMIT) {
+    return {
+      status: "pending",
+      dailyLimitExceeded: true,
+      message: `오늘 자동 환불 한도(${AUTO_REFUND_DAILY_LIMIT}회)를 사용했습니다. 관리자 확인 후 환불 여부가 결정됩니다.`,
+    };
+  }
 
   return {
     status: "pending",
-    message: "오류 신고가 접수되었습니다. 관리자 확인 후 환불 여부가 결정됩니다.",
+    message: assessment.isError
+      ? "오류 신고가 접수되었습니다. 관리자 확인 후 환불 여부가 결정됩니다."
+      : "신고가 접수되었습니다. 관리자 확인 후 환불 여부가 결정됩니다.",
   };
 }
 
@@ -190,6 +324,9 @@ export type ReportRefundAdminRow = {
   status: string;
   refund_amount: number;
   validation_note: string;
+  receipt_snapshot: string;
+  auto_refund: number;
+  error_reasons: string;
   created_at: string;
   user_nickname: string;
   user_email: string;
@@ -209,7 +346,7 @@ export function listReportRefundsForAdmin(
   return db
     .prepare(
       `SELECT rr.id, rr.user_id, rr.chat_id, rr.message_id, rr.status, rr.refund_amount,
-              rr.validation_note, rr.created_at,
+              rr.validation_note, rr.receipt_snapshot, rr.auto_refund, rr.error_reasons, rr.created_at,
               u.nickname AS user_nickname, u.email AS user_email,
               m.content AS message_content, m.status AS message_status
        FROM report_refunds rr
@@ -297,6 +434,36 @@ export function reviewReportRefund(
   ).run(adminNote.trim() || "관리자 승인 환불", reportRefundId);
 
   return { ok: true, balance };
+}
+
+export function getReportStatusesForMessages(
+  userId: number,
+  messageIds: number[]
+): Map<number, "none" | "pending" | "approved" | "rejected"> {
+  const map = new Map<number, "none" | "pending" | "approved" | "rejected">();
+  if (messageIds.length === 0) return map;
+
+  const db = getDb();
+  const placeholders = messageIds.map(() => "?").join(",");
+  const rows = db
+    .prepare(
+      `SELECT message_id, status FROM report_refunds
+       WHERE user_id = ? AND message_id IN (${placeholders})
+       ORDER BY id DESC`
+    )
+    .all(userId, ...messageIds) as { message_id: number; status: string }[];
+
+  for (const row of rows) {
+    if (map.has(row.message_id)) continue;
+    if (
+      row.status === "pending" ||
+      row.status === "approved" ||
+      row.status === "rejected"
+    ) {
+      map.set(row.message_id, row.status);
+    }
+  }
+  return map;
 }
 
 export function getReportStatusForMessage(

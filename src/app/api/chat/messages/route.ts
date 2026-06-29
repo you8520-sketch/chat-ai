@@ -18,6 +18,7 @@ import {
   takeOlderTurnsBefore,
   type ChatMessageLike,
 } from "@/lib/chatMessagePagination";
+import { getReportStatusesForMessages } from "@/lib/refund";
 
 type DbMessageRow = {
   id: number;
@@ -31,9 +32,14 @@ type DbMessageRow = {
   status_meta: string | null;
   status_widget_values_json: string | null;
   status_widget_turn_active: number | null;
+  created_at: string;
 };
 
-function mapDbMessageForClient(m: DbMessageRow, userNote?: string) {
+function mapDbMessageForClient(
+  m: DbMessageRow,
+  userNote?: string,
+  reportStatus: "none" | "pending" | "approved" | "rejected" = "none"
+) {
   const { variants, activeVariant } = normalizeMessageVariants(m);
   const variantMeta = serializeVariantsForClient(variants, activeVariant);
   const rowUsage = m.usage ? (JSON.parse(m.usage) as Usage) : null;
@@ -69,6 +75,8 @@ function mapDbMessageForClient(m: DbMessageRow, userNote?: string) {
     statusMetaRequested: statusFlags.statusMetaRequested,
     statusWidgetValues: parseStoredStatusWidgetValuesJson(m.status_widget_values_json),
     statusWidgetTurnActive: m.status_widget_turn_active === 1,
+    createdAt: m.created_at,
+    reportStatus,
   };
 }
 
@@ -94,7 +102,7 @@ export async function GET(req: Request) {
 
   let rawMessages = db
     .prepare(
-      "SELECT id, role, content, model, usage, is_refunded, alternates, active_variant, status_meta, status_widget_values_json, status_widget_turn_active FROM messages WHERE chat_id=? ORDER BY id ASC"
+      "SELECT id, role, content, model, usage, is_refunded, alternates, active_variant, status_meta, status_widget_values_json, status_widget_turn_active, created_at FROM messages WHERE chat_id=? ORDER BY id ASC"
     )
     .all(chatId) as DbMessageRow[];
 
@@ -105,7 +113,18 @@ export async function GET(req: Request) {
     }
   }
 
-  const mapped = rawMessages.map((m) => mapDbMessageForClient(m, chat.user_note ?? undefined)) as ChatMessageLike[];
+  const reportStatusByMessageId = getReportStatusesForMessages(
+    user.id,
+    rawMessages.filter((m) => m.role === "assistant").map((m) => m.id)
+  );
+
+  const mapped = rawMessages.map((m) =>
+    mapDbMessageForClient(
+      m,
+      chat.user_note ?? undefined,
+      reportStatusByMessageId.get(m.id) ?? "none"
+    )
+  ) as ChatMessageLike[];
   const safeTurnLimit =
     Number.isFinite(turnLimit) && turnLimit > 0
       ? Math.min(Math.floor(turnLimit), 50)
@@ -120,7 +139,13 @@ export async function GET(req: Request) {
   const idSet = new Set(messages.map((m) => m.id));
   const ordered = rawMessages
     .filter((r) => idSet.has(r.id))
-    .map((r) => mapDbMessageForClient(r, chat.user_note ?? undefined));
+    .map((r) =>
+      mapDbMessageForClient(
+        r,
+        chat.user_note ?? undefined,
+        reportStatusByMessageId.get(r.id) ?? "none"
+      )
+    );
 
   return NextResponse.json({
     messages: ordered,

@@ -326,6 +326,9 @@ function migrate(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_report_refunds_user_day
       ON report_refunds(user_id, created_at);
   `);
+  addColumn("report_refunds", "receipt_snapshot", "TEXT NOT NULL DEFAULT ''");
+  addColumn("report_refunds", "auto_refund", "INTEGER NOT NULL DEFAULT 0");
+  addColumn("report_refunds", "error_reasons", "TEXT NOT NULL DEFAULT ''");
   db.exec(`
     CREATE TABLE IF NOT EXISTS user_personas (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

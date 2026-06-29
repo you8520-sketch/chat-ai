@@ -11,6 +11,9 @@ type ReportRow = {
   status: string;
   refund_amount: number;
   validation_note: string;
+  receipt_snapshot: string;
+  auto_refund: number;
+  error_reasons: string;
   created_at: string;
   user_nickname: string;
   user_email: string;
@@ -32,6 +35,7 @@ export default function AdminReportRefundsClient() {
   const [busyId, setBusyId] = useState<number | null>(null);
   const [notes, setNotes] = useState<Record<number, string>>({});
   const [error, setError] = useState("");
+  const [copiedId, setCopiedId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -49,6 +53,19 @@ export default function AdminReportRefundsClient() {
   useEffect(() => {
     load();
   }, [load]);
+
+  async function copyReceipt(row: ReportRow) {
+    const text =
+      row.receipt_snapshot?.trim() ||
+      `메시지 #${row.message_id}\n환불 예정: ${row.refund_amount}P\n${row.validation_note}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(row.id);
+      window.setTimeout(() => setCopiedId((cur) => (cur === row.id ? null : cur)), 2000);
+    } catch {
+      setError("영수증 복사에 실패했습니다.");
+    }
+  }
 
   async function review(id: number, action: "approve" | "reject") {
     setBusyId(id);
@@ -119,7 +136,13 @@ export default function AdminReportRefundsClient() {
                   </p>
                   <p className="mt-2 text-xs text-amber-300">
                     환불 예정: {row.refund_amount.toLocaleString()}P
+                    {row.auto_refund ? (
+                      <span className="ml-2 text-emerald-400">[자동 환불]</span>
+                    ) : null}
                   </p>
+                  {row.error_reasons && (
+                    <p className="mt-1 text-xs text-rose-300/90">감지: {row.error_reasons}</p>
+                  )}
                 </div>
                 <span
                   className={`rounded px-2 py-0.5 text-xs font-bold ${
@@ -133,6 +156,24 @@ export default function AdminReportRefundsClient() {
                   {row.status === "pending" ? "대기" : row.status === "approved" ? "승인" : "반려"}
                 </span>
               </div>
+
+              {row.receipt_snapshot?.trim() && (
+                <div className="mt-3">
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <span className="text-xs font-semibold text-zinc-400">턴 영수증</span>
+                    <button
+                      type="button"
+                      onClick={() => void copyReceipt(row)}
+                      className="rounded border border-white/10 px-2 py-0.5 text-[10px] text-violet-300 hover:bg-white/5"
+                    >
+                      {copiedId === row.id ? "복사됨" : "영수증 복사"}
+                    </button>
+                  </div>
+                  <pre className="max-h-32 overflow-auto whitespace-pre-wrap rounded-lg bg-black/30 p-3 text-[10px] text-zinc-500">
+                    {row.receipt_snapshot}
+                  </pre>
+                </div>
+              )}
 
               <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap rounded-lg bg-black/30 p-3 text-xs text-gray-400">
                 {row.message_content.slice(0, 1500)}

@@ -17,6 +17,7 @@ import { isPaymentsEnabledClient } from "@/lib/paymentsEnabledClient";
 import FloatingPointsDeduction from "@/components/FloatingPointsDeduction";
 import BookmarksPanel from "@/components/BookmarksPanel";
 import MessageBubbleToolbar from "@/components/MessageBubbleToolbar";
+import ReportRefundButton from "@/components/ReportRefundButton";
 import ChatSelectionQuoteToolbar from "@/components/ChatSelectionQuoteToolbar";
 import MessageVariantPicker from "@/components/MessageVariantPicker";
 import ChatToast from "@/components/ChatToast";
@@ -62,6 +63,9 @@ import {
 } from "@/lib/streamReveal";
 import { STREAM_SAVE_MIN_RETENTION } from "@/lib/streamFirstSaveConstants";
 import { visibleAssistantMessageLength } from "@/lib/chatDisplayLength";
+import {
+  isWithinReportRefundWindow,
+} from "@/lib/reportRefundPolicy";
 import {
   clearChatMessageDraft,
   loadChatMessageDraft,
@@ -149,6 +153,8 @@ type Msg = {
   model?: string;
   usage?: Usage | null;
   isRefunded?: boolean;
+  createdAt?: string;
+  reportStatus?: "none" | "pending" | "approved" | "rejected";
   variants?: MessageVariant[];
   activeVariant?: number;
   variantCount?: number;
@@ -1688,6 +1694,8 @@ export default function ChatClient({
               ? false
               : (data.statusWidgetTurnActive ??
                 (data.statusWidgetActive === true ? true : cur.statusWidgetTurnActive)),
+            createdAt: new Date().toISOString(),
+            reportStatus: "none",
           };
           if (data.finalContent) applyEmotionRef.current(data.finalContent);
         }
@@ -2504,6 +2512,7 @@ export default function ChatClient({
   }
 
   function renderAssistantLengthHint(content: string, streamingHtmlFlash = false) {
+    if (!showFullBillingReceipt) return null;
     if (streamingHtmlFlash) return null;
     const len = visibleAssistantMessageLength(content);
     if (len <= 0) return null;
@@ -2512,6 +2521,32 @@ export default function ChatClient({
         {formatAssistantLengthLabel(len, targetResponseChars)}
       </span>
     );
+  }
+
+  function shouldShowReportRefundButton(m: Msg): boolean {
+    if (m.role !== "assistant" || !m.id || m.id <= 0 || !chatId) return false;
+    if (m.model === "greeting" || m.ephemeral) return false;
+    if (m.isRefunded || m.reportStatus === "approved") return false;
+    if (m.reportStatus === "pending") return true;
+    if (!isWithinReportRefundWindow(m.createdAt)) return false;
+    const usage = resolveActiveUsage(m.usage, m.variants, m.activeVariant);
+    const cost = usage?.cost ?? 0;
+    return cost > 0;
+  }
+
+  function handleMessageReported(index: number, result: { status: "pending" | "approved" }) {
+    setMessages((prev) => {
+      const copy = [...prev];
+      const cur = copy[index];
+      if (!cur) return prev;
+      copy[index] = {
+        ...cur,
+        isRefunded: result.status === "approved" ? true : cur.isRefunded,
+        reportStatus: result.status === "approved" ? "approved" : "pending",
+      };
+      return copy;
+    });
+    if (result.status === "approved") router.refresh();
   }
 
   function renderAssistantMessageFooter(
@@ -2540,6 +2575,9 @@ export default function ChatClient({
         />
       ) : null;
 
+    const showReportRefund = shouldShowReportRefundButton(m);
+    const reportRefundPending = m.reportStatus === "pending";
+
     if (opts.showToolbar) {
       return (
         <MessageBubbleToolbar
@@ -2555,6 +2593,8 @@ export default function ChatClient({
           showFork
           disabled={loading}
           lengthHint={lengthHint}
+          showReportRefund={showReportRefund}
+          reportRefundPending={reportRefundPending}
           variantPicker={variantPicker}
           compact={!showCharacterPortrait}
           showFullReceipt={showFullBillingReceipt}
@@ -2573,14 +2613,25 @@ export default function ChatClient({
             router.push(`/chat/${character.id}?chat=${newChatId}`);
           }}
           onRegenerate={regenerate}
-          onRefunded={() => {
-            setMessages((prev) => {
-              const copy = [...prev];
-              if (copy[i]) copy[i] = { ...copy[i], isRefunded: true };
-              return copy;
-            });
-          }}
+          onRefunded={() => handleMessageReported(i, { status: "approved" })}
+          onReportSubmitted={(result) => handleMessageReported(i, result)}
         />
+      );
+    }
+
+    if (showReportRefund) {
+      return (
+        <div className="mt-1 flex justify-end">
+          <ReportRefundButton
+            messageId={m.id!}
+            chatId={chatId!}
+            isRefunded={m.isRefunded}
+            isReportPending={reportRefundPending}
+            disabled={loading}
+            onToast={setToastMsg}
+            onReported={(result) => handleMessageReported(i, result)}
+          />
+        </div>
       );
     }
 

@@ -5,6 +5,7 @@ import { buildBillingReceipt } from "@/lib/billingDisplay";
 import type { Usage } from "@/lib/chatUsage";
 import BillingReceiptTooltip from "./BillingReceiptTooltip";
 import ConfirmDialog from "./ConfirmDialog";
+import ReportRefundButton from "./ReportRefundButton";
 import BookmarkTitleDialog from "./BookmarkTitleDialog";
 import ForkTitleDialog from "./ForkTitleDialog";
 import { defaultBookmarkTitle } from "@/lib/bookmarks";
@@ -63,7 +64,10 @@ export default function MessageBubbleToolbar({
   onFork,
   onRegenerate,
   onRefunded,
+  onReportSubmitted,
   lengthHint,
+  showReportRefund = false,
+  reportRefundPending = false,
   variantPicker,
   compact = false,
   showFullReceipt = false,
@@ -86,8 +90,12 @@ export default function MessageBubbleToolbar({
   onFork: (newChatId: number) => void;
   onRegenerate: () => void;
   onRefunded?: () => void;
-  /** assistant — 영수증 왼쪽 글자수 */
+  onReportSubmitted?: (result: { status: "pending" | "approved" }) => void;
+  /** assistant — 영수증 왼쪽 글자수 (관리자·데모) */
   lengthHint?: ReactNode;
+  /** assistant — 본문 하단 우측 오류신고 */
+  showReportRefund?: boolean;
+  reportRefundPending?: boolean;
   /** assistant — 재생성 버전 ◀ ▶ */
   variantPicker?: ReactNode;
   /** 초상 OFF — 툴바·본문 간격 축소 */
@@ -275,9 +283,23 @@ export default function MessageBubbleToolbar({
             {variantPicker}
           </div>
 
-          {(lengthHint || receipt) && (
+          {(lengthHint || showReportRefund || receipt) && (
             <div className="ml-auto flex shrink-0 items-center gap-1.5">
               {lengthHint}
+              {showReportRefund && role === "assistant" && (
+                <ReportRefundButton
+                  messageId={messageId}
+                  chatId={chatId}
+                  isRefunded={isRefunded}
+                  isReportPending={reportRefundPending}
+                  disabled={disabled || busy}
+                  onToast={onToast}
+                  onReported={(result) => {
+                    onReportSubmitted?.(result);
+                    if (result.status === "approved") onRefunded?.();
+                  }}
+                />
+              )}
               {receipt && (
                 <BillingReceiptTooltip
                   usage={usage!}

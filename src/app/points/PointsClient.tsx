@@ -6,11 +6,8 @@ import { useRouter } from "next/navigation";
 import AttendanceBanner from "@/components/AttendanceBanner";
 import ChargeCancelButton from "@/components/ChargeCancelButton";
 import PointsBalanceTooltip from "@/components/PointsBalanceTooltip";
-import ReportRefundButton from "@/components/ReportRefundButton";
 import {
   canShowChargeCancelButton,
-  canShowPointLogRefundButton,
-  canSubmitPointLogRefund,
   type PointUsageLog,
   USAGE_PAGE_SIZE,
   CHARGE_PAGE_SIZE,
@@ -124,18 +121,6 @@ function PointLogList({
               {l.delta >= 0 ? "+" : ""}
               {l.delta.toLocaleString()}P
             </span>
-            {canShowPointLogRefundButton(l) && (
-              <ReportRefundButton
-                messageId={l.message_id ?? 0}
-                chatId={l.chat_id ?? 0}
-                isRefunded={l.is_refunded}
-                isReportPending={!!l.is_report_pending}
-                disabled={!canSubmitPointLogRefund(l)}
-                onToast={onToast}
-                onReported={onRefresh}
-                className="mt-0.5"
-              />
-            )}
             {canShowChargeCancelButton(l) && (
               <ChargeCancelButton
                 pointLogId={l.id ?? 0}

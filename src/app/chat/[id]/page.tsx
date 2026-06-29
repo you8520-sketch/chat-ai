@@ -4,6 +4,7 @@ import { getDb } from "@/lib/db";
 
 import { getSessionUser } from "@/lib/auth";
 import { canShowFullBillingReceipt } from "@/lib/billingReceiptAccess";
+import { getReportStatusesForMessages } from "@/lib/refund";
 
 import { parseAssets, chatAssets } from "@/lib/characterAssets";
 
@@ -243,7 +244,7 @@ export default async function ChatPage({
 
   let rawMessages = db
     .prepare(
-      "SELECT id, role, content, model, usage, is_refunded, alternates, active_variant, status_meta, status_widget_values_json, status_widget_turn_active FROM messages WHERE chat_id=? ORDER BY id ASC"
+      "SELECT id, role, content, model, usage, is_refunded, alternates, active_variant, status_meta, status_widget_values_json, status_widget_turn_active, created_at FROM messages WHERE chat_id=? ORDER BY id ASC"
     )
     .all(chat.id) as {
     id: number;
@@ -257,6 +258,7 @@ export default async function ChatPage({
     status_meta: string | null;
     status_widget_values_json: string | null;
     status_widget_turn_active: number | null;
+    created_at: string;
   }[];
 
   if (rawMessages.length > 0) {
@@ -265,6 +267,11 @@ export default async function ChatPage({
       rawMessages = filterOutMessageIds(rawMessages, purgedIds);
     }
   }
+
+  const assistantMessageIds = rawMessages
+    .filter((m) => m.role === "assistant")
+    .map((m) => m.id);
+  const reportStatusByMessageId = getReportStatusesForMessages(user.id, assistantMessageIds);
 
   const allMessages = rawMessages.map((m, idx) => {
     const { variants, activeVariant } = normalizeMessageVariants(m);
@@ -311,6 +318,8 @@ export default async function ChatPage({
       statusMetaFailed: statusFlags.statusMetaFailed,
       statusWidgetValues: parseStoredStatusWidgetValuesJson(m.status_widget_values_json),
       statusWidgetTurnActive: m.status_widget_turn_active === 1,
+      createdAt: m.created_at,
+      reportStatus: reportStatusByMessageId.get(m.id) ?? "none",
     };
   });
 

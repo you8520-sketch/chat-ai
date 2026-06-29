@@ -21,8 +21,6 @@ export type PointUsageLog = {
 
   is_refunded: boolean;
 
-  is_report_pending?: boolean;
-
   charge_batch_id?: number | null;
 
   can_cancel_charge?: boolean;
@@ -138,39 +136,6 @@ export function isPointUsageHistoryLog(log: Pick<PointUsageLog, "delta" | "reaso
   return !isPointPaidCreditHistoryLog(log) && !isPointFreeCreditHistoryLog(log);
 
 }
-
-
-
-export function canShowPointLogRefundButton(log: PointUsageLog): boolean {
-
-  return isChatPointDeductionLog(log);
-
-}
-
-
-
-export function canSubmitPointLogRefund(log: PointUsageLog): boolean {
-
-  return (
-
-    isChatPointDeductionLog(log) &&
-
-    log.message_id != null &&
-
-    log.message_id > 0 &&
-
-    log.chat_id != null &&
-
-    log.chat_id > 0 &&
-
-    !log.is_refunded &&
-
-    !log.is_report_pending
-
-  );
-
-}
-
 
 
 export function canShowChargeCancelButton(log: PointUsageLog): boolean {

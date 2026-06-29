@@ -1,7 +1,6 @@
 import { getDb } from "@/lib/db";
 import { enrichChargeCancelForLog } from "@/lib/chargeCancellation";
 import { enrichPointLogsForRefund } from "@/lib/pointLogRefundLink";
-import { getReportStatusForMessage } from "@/lib/refund";
 import type { PointUsageLog } from "@/lib/pointUsageLog";
 import {
   CHARGE_MAX_ITEMS,
@@ -91,11 +90,6 @@ export function enrichPointLogRows(userId: number, logs: RawPointLogRow[]): Poin
       delta: l.delta,
       reason: l.reason,
     });
-    const reportStatus =
-      l.message_id && l.message_id > 0
-        ? getReportStatusForMessage(userId, l.message_id)
-        : "none";
-
     return {
       id: logId,
       delta: l.delta,
@@ -104,7 +98,6 @@ export function enrichPointLogRows(userId: number, logs: RawPointLogRow[]): Poin
       message_id: l.message_id,
       chat_id: l.chat_id,
       is_refunded: l.is_refunded,
-      is_report_pending: reportStatus === "pending",
       ...charge,
     };
   });

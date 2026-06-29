@@ -20,9 +20,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: result.message, status: result.status }, { status: 400 });
   }
 
+  if (result.status === "approved") {
+    return NextResponse.json({
+      ok: true,
+      status: "approved",
+      autoRefund: result.autoRefund,
+      message: result.message,
+      balance: result.balance,
+    });
+  }
+
   return NextResponse.json({
     ok: true,
     status: "pending",
+    dailyLimitExceeded: result.dailyLimitExceeded ?? false,
     message: result.message,
   });
 }

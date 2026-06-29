@@ -3,6 +3,12 @@
 import { useState } from "react";
 import { IconRefund } from "@/components/ChatToolbarIcons";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import { AUTO_REFUND_DAILY_LIMIT } from "@/lib/reportRefundPolicy";
+
+export type ReportRefundSubmitResult = {
+  status: "pending" | "approved";
+  autoRefund?: boolean;
+};
 
 export default function ReportRefundButton({
   messageId,
@@ -20,7 +26,7 @@ export default function ReportRefundButton({
   isReportPending?: boolean;
   disabled?: boolean;
   onToast?: (msg: string) => void;
-  onReported?: () => void;
+  onReported?: (result: ReportRefundSubmitResult) => void;
   className?: string;
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -41,7 +47,10 @@ export default function ReportRefundButton({
         return;
       }
       onToast?.(data.message || "오류 신고가 접수되었습니다.");
-      onReported?.();
+      onReported?.({
+        status: data.status === "approved" ? "approved" : "pending",
+        autoRefund: data.autoRefund === true,
+      });
     } catch {
       onToast?.("네트워크 오류가 발생했습니다.");
     } finally {
@@ -75,7 +84,7 @@ export default function ReportRefundButton({
         <ConfirmDialog
           open
           title="오류 신고"
-          message="해당 AI 응답에 오류가 있나요? 관리자 확인 후 환불 여부가 결정됩니다."
+          message={`해당 AI 응답에 오류(짧은 출력·중복·비정상 등)가 있나요? 확인되면 하루 ${AUTO_REFUND_DAILY_LIMIT}회까지 자동 환불됩니다. 한도를 넘기면 관리자 확인 후 환불 여부가 결정됩니다.`}
           confirmLabel="신고하기"
           onCancel={() => setConfirmOpen(false)}
           onConfirm={() => {
