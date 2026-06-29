@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { CharacterChunk } from "@/types";
 import {
+  detectAppearancePolicyConflict,
   extractMainCharacterAppearanceBody,
   extractVisualAppearancePolicyFromChunks,
   buildVisualAnchorReminder,
@@ -81,6 +82,9 @@ describe("extractMainCharacterAppearanceBody", () => {
     const policy = extractVisualAppearancePolicyFromChunks(chunks, "레온");
     assert.equal(policy.hair, "blonde");
     assert.equal(policy.eyes, "blue");
+    const body = extractMainCharacterAppearanceBody(chunks, "레온");
+    assert.match(body ?? "", /금발/);
+    assert.doesNotMatch(body ?? "", /흑발/);
   });
 
   it("buildVisualAnchorReminder infers 금안 from body when eyes tag missing", () => {
@@ -108,5 +112,20 @@ describe("extractMainCharacterAppearanceBody", () => {
     const out = sanitizeVisualAppearance(html, policy);
     assert.match(out, /금발/);
     assert.doesNotMatch(out, /은발/);
+  });
+
+  it("detectAppearancePolicyConflict flags wrong hair color", () => {
+    const policy = {
+      hair: "blonde" as const,
+      hairLabel: "금발",
+      eyes: null,
+      eyesLabel: null,
+      body: null,
+    };
+    assert.equal(
+      detectAppearancePolicyConflict("은발 포마드, 군청색 제복", policy),
+      true
+    );
+    assert.equal(detectAppearancePolicyConflict("금발 단발", policy), false);
   });
 });

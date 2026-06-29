@@ -14,6 +14,8 @@ import {
   oocRequestsDetailedContent,
   isPreservableOocHtmlInner,
   isGenericHtmlStatusWindowInner,
+  enforceOocAppearanceSectionFromSettingInner,
+  splitSettingAppearanceToBullets,
   ensureOocHtmlSectionSpacing,
   buildOocCategoryCardReferenceTemplate,
   oocFlashHtmlMustBeRejected,
@@ -575,6 +577,28 @@ describe("stripHtmlStatusWindowTitleBanner", () => {
     assert.match(html, /추구미/);
     assert.match(html, /border-radius:16px/);
     assert.match(html, /<section\b/);
+  });
+
+  it("enforceOocAppearanceSectionFromSettingInner replaces invented 외형 with setting only", () => {
+    const ooc =
+      "OOC: 추구미. 항목은[외형 · 키워드 · 모에화 · 기타 상징 · 대외적 이미지]로 작성";
+    const setting = "금발 숏컷, 금안, 192cm, 창백한 피부";
+    const invented = buildOocCategoryCardReferenceTemplate(["외형", "키워드"], { title: "추구미" })
+      .replace(
+        /（이 항목 — 캐릭터·장면 맥락에 맞는 내용）/,
+        "은발 포마드, 푸른 눈, 근위대장 체형, 렌 앞에서 붉어짐"
+      );
+    const locked = enforceOocAppearanceSectionFromSettingInner(invented, ooc, setting);
+    assert.doesNotMatch(locked, /은발/);
+    assert.doesNotMatch(locked, /푸른/);
+    assert.match(locked, /금발/);
+    assert.match(locked, /금안/);
+    assert.deepEqual(splitSettingAppearanceToBullets(setting), [
+      "금발 숏컷",
+      "금안",
+      "192cm",
+      "창백한 피부",
+    ]);
   });
 });
 

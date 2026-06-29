@@ -682,21 +682,94 @@ function buildOocCategorySectionHtml(label: string, body: string): string {
   return `<section style="margin:0 0 12px;padding:12px 14px;border-radius:10px;background:linear-gradient(180deg,#f8f9fb 0%,#fff 100%);border:1px solid #e8eaed;box-shadow:0 1px 2px rgba(0,0,0,.04)"><h4 style="margin:0 0 8px;font-size:12px;font-weight:700;letter-spacing:.02em;color:#4338ca">${safeLabel}</h4>${bodyHtml}</section>`;
 }
 
+function resolveOocCategoryPlaceholder(
+  label: string,
+  options?: {
+    contentPlaceholder?: string;
+    categoryPlaceholders?: Record<string, string>;
+  }
+): string {
+  const base = label.replace(/\([^)]*\)/g, "").trim();
+  const fromMap =
+    options?.categoryPlaceholders?.[base] ??
+    options?.categoryPlaceholders?.[label.trim()];
+  if (fromMap?.trim()) return fromMap.trim();
+  return options?.contentPlaceholder ?? "（이 항목 — 캐릭터·장면 맥락에 맞는 내용）";
+}
+
 /** OOC 카테고리 카드(추구미 등) — Flash REFERENCE·서버 fallback 공용 껍데기 */
 export function buildOocCategoryCardReferenceTemplate(
   categories: string[],
-  options?: { title?: string | null; contentPlaceholder?: string }
+  options?: {
+    title?: string | null;
+    contentPlaceholder?: string;
+    /** 항목 라벨(예: 외형) → REFERENCE 본문 placeholder */
+    categoryPlaceholders?: Record<string, string>;
+  }
 ): string {
   const cats = categories.map((c) => c.replace(/\([^)]*\)/g, "").trim()).filter(Boolean);
   if (cats.length === 0) return "";
-  const placeholder =
-    options?.contentPlaceholder ?? "（이 항목 — 캐릭터·장면 맥락에 맞는 내용）";
-  const sections = cats.map((label) => buildOocCategorySectionHtml(label, placeholder)).join("");
+  const sections = cats
+    .map((label) =>
+      buildOocCategorySectionHtml(label, resolveOocCategoryPlaceholder(label, options))
+    )
+    .join("");
   const title = options?.title?.trim();
   const titleBlock = title
     ? `<h3 style="margin:0 0 14px;font-size:15px;font-weight:700;color:#1e1b4b;text-align:center;letter-spacing:-.02em">${escapeHtmlTemplateText(title)}</h3>`
     : "";
   return `<div style="max-width:480px;margin:16px auto;padding:16px 18px;border-radius:16px;background:#fff;border:1px solid #eceef3;box-shadow:0 4px 14px rgba(15,23,42,.06);font-family:system-ui,-apple-system,sans-serif;color:#202124;line-height:1.5;word-break:keep-all">${titleBlock}${sections}</div>`;
+}
+
+/** 설정 [외형] 원문 → OOC 카드 bullet (창작·확장 없음) */
+export function splitSettingAppearanceToBullets(profile: string): string[] {
+  const t = profile.trim();
+  if (!t) return [];
+  const lines = t
+    .split(/\n+/)
+    .map((line) => line.replace(/^[-*•]\s*/, "").trim())
+    .filter(Boolean);
+  if (lines.length > 1) return lines;
+  const parts = t
+    .split(/[,，、·•]\s*/)
+    .map((s) => s.trim())
+    .filter((s) => s.length >= 2);
+  return parts.length > 0 ? parts : [t];
+}
+
+/** OOC «외형» 섹션 — Flash 출력 무시, 설정 원문만 주입 (클리셰·은발 등 창작 차단) */
+export function enforceOocAppearanceSectionFromSettingInner(
+  inner: string,
+  userMessage: string,
+  canonicalProfile: string
+): string {
+  const t = polishHtmlVisualCardInner(inner.trim());
+  if (!t || !canonicalProfile.trim()) return t;
+
+  const categories = parseOocBracketCategories(userMessage);
+  const wantsAppearance =
+    categories.some((c) =>
+      /^(?:외형|외모)$/i.test(c.replace(/\([^)]*\)/g, "").trim())
+    ) || /(?:^|\s)(?:외형|외모)(?:\s*[:：·]|섹션)/i.test(userMessage);
+  if (!wantsAppearance) return t;
+
+  const bullets = splitSettingAppearanceToBullets(canonicalProfile);
+  if (bullets.length === 0) return t;
+
+  const body = bullets.join("\n");
+  const newSection = buildOocCategorySectionHtml("외형", body);
+
+  for (const label of ["외형", "외모"]) {
+    const re = new RegExp(
+      `<section[^>]*>[\\s\\S]*?<h4[^>]*>[^<]*${label}[^<]*</h4>[\\s\\S]*?</section>`,
+      "i"
+    );
+    if (re.test(t)) {
+      return t.replace(re, newSection);
+    }
+  }
+
+  return t;
 }
 
 export function parseOocCardTitle(userMessage: string): string | null {

@@ -112,8 +112,27 @@ import {
 
 const CHAT_FETCH_TIMEOUT_MS = 240_000;
 
+function chatStreamAbortMessage(e: unknown): string | null {
+  if (e instanceof DOMException && e.name === "TimeoutError") {
+    return "응답 시간이 초과되었습니다. 다시 시도해 주세요.";
+  }
+  if (isBenignChatStreamAbort(e)) return null;
+  return null;
+}
+
+function isBenignChatStreamAbort(e: unknown): boolean {
+  if (e instanceof DOMException && (e.name === "AbortError" || e.name === "TimeoutError")) {
+    return true;
+  }
+  if (e instanceof Error && (e.name === "AbortError" || e.name === "TimeoutError")) return true;
+  const msg = e instanceof Error ? e.message : String(e);
+  return /BodyStreamBuffer was aborted|The operation was aborted|fetch aborted|user aborted|timed out|timeout/i.test(
+    msg
+  );
+}
+
 function isChatFetchTimeout(e: unknown): boolean {
-  return e instanceof DOMException && (e.name === "AbortError" || e.name === "TimeoutError");
+  return e instanceof DOMException && e.name === "TimeoutError";
 }
 
 function selectedAIShortLabel(id: SelectedAI): string {
@@ -898,6 +917,34 @@ export default function ChatClient({
   loadingRef.current = loading;
   const inFlightRef = useRef(false);
   const pendingServerSyncRef = useRef(false);
+  const chatFetchAbortRef = useRef<AbortController | null>(null);
+  const chatMountedRef = useRef(true);
+
+  const beginChatFetch = useCallback((): AbortSignal => {
+    chatFetchAbortRef.current?.abort();
+    const controller = new AbortController();
+    chatFetchAbortRef.current = controller;
+    const timer = window.setTimeout(() => {
+      controller.abort(new DOMException("Chat fetch timed out", "TimeoutError"));
+    }, CHAT_FETCH_TIMEOUT_MS);
+    controller.signal.addEventListener(
+      "abort",
+      () => {
+        window.clearTimeout(timer);
+      },
+      { once: true }
+    );
+    return controller.signal;
+  }, []);
+
+  useEffect(() => {
+    chatMountedRef.current = true;
+    return () => {
+      chatMountedRef.current = false;
+      chatFetchAbortRef.current?.abort();
+      chatFetchAbortRef.current = null;
+    };
+  }, []);
 
   const syncChatUrl = useCallback(
     (id: number | null) => {
@@ -1831,12 +1878,13 @@ export default function ChatClient({
     } catch (e) {
       reveal.reset();
       reveal.flush();
-      streamError =
-        streamError ||
-        (isChatFetchTimeout(e)
-          ? "응답 시간이 초과되었습니다. 다시 시도해 주세요."
-          : "스트림 수신 중 오류가 발생했습니다.");
-      console.error("[chat] stream consume failed:", e);
+      const abortMsg = chatStreamAbortMessage(e);
+      if (abortMsg) {
+        streamError = streamError || abortMsg;
+      } else if (!isBenignChatStreamAbort(e)) {
+        streamError = streamError || "스트림 수신 중 오류가 발생했습니다.";
+        console.error("[chat] stream consume failed:", e);
+      }
     } finally {
       activeStreamRevealRef.current = null;
       setStreamPhase(null);
@@ -1971,7 +2019,7 @@ export default function ChatClient({
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        signal: AbortSignal.timeout(CHAT_FETCH_TIMEOUT_MS),
+        signal: beginChatFetch(),
         body: JSON.stringify({
           characterId: character.id,
           chatId,
@@ -1997,11 +2045,13 @@ export default function ChatClient({
       });
     } catch (e) {
       activeStreamRevealRef.current?.reset();
-      setError(
-        isChatFetchTimeout(e)
-          ? "응답 시간이 초과되었습니다. 다시 시도해 주세요."
-          : "네트워크 오류가 발생했습니다."
-      );
+      if (!chatMountedRef.current && isBenignChatStreamAbort(e)) return;
+      const abortMsg = chatStreamAbortMessage(e);
+      if (abortMsg) {
+        setError(abortMsg);
+      } else if (!isBenignChatStreamAbort(e)) {
+        setError("네트워크 오류가 발생했습니다.");
+      }
       setMessages((m) => m.slice(0, -2));
     } finally {
       inFlightRef.current = false;
@@ -2061,7 +2111,7 @@ export default function ChatClient({
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        signal: AbortSignal.timeout(CHAT_FETCH_TIMEOUT_MS),
+        signal: beginChatFetch(),
         body: JSON.stringify({
           characterId: character.id,
           chatId,
@@ -2088,11 +2138,13 @@ export default function ChatClient({
       });
     } catch (e) {
       activeStreamRevealRef.current?.reset();
-      setError(
-        isChatFetchTimeout(e)
-          ? "응답 시간이 초과되었습니다. 다시 시도해 주세요."
-          : "네트워크 오류가 발생했습니다."
-      );
+      if (!chatMountedRef.current && isBenignChatStreamAbort(e)) return;
+      const abortMsg = chatStreamAbortMessage(e);
+      if (abortMsg) {
+        setError(abortMsg);
+      } else if (!isBenignChatStreamAbort(e)) {
+        setError("네트워크 오류가 발생했습니다.");
+      }
       setMessages((m) => m.slice(0, -2));
       setInput(text);
     } finally {
@@ -2188,7 +2240,7 @@ export default function ChatClient({
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        signal: AbortSignal.timeout(CHAT_FETCH_TIMEOUT_MS),
+        signal: beginChatFetch(),
         body: JSON.stringify({
           characterId: character.id,
           chatId,
@@ -2216,11 +2268,13 @@ export default function ChatClient({
       }
     } catch (e) {
       activeStreamRevealRef.current?.reset();
-      setError(
-        isChatFetchTimeout(e)
-          ? "응답 시간이 초과되었습니다. 다시 시도해 주세요."
-          : "네트워크 오류가 발생했습니다."
-      );
+      if (!chatMountedRef.current && isBenignChatStreamAbort(e)) return;
+      const abortMsg = chatStreamAbortMessage(e);
+      if (abortMsg) {
+        setError(abortMsg);
+      } else if (!isBenignChatStreamAbort(e)) {
+        setError("네트워크 오류가 발생했습니다.");
+      }
       restoreAssistant();
     } finally {
       inFlightRef.current = false;

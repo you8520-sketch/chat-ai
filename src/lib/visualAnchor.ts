@@ -195,6 +195,36 @@ function extractAppearanceFieldValue(line: string): string | null {
   return null;
 }
 
+function extractDedicatedAppearanceChunkBody(chunk: CharacterChunk): string | null {
+  if (!isDedicatedAppearanceChunk(chunk)) return null;
+  const withoutHeader = chunk.content
+    .trim()
+    .replace(/^\[(?:외형|외모)\]\s*\n?/i, "")
+    .trim();
+  return withoutHeader.length >= 4 ? withoutHeader.slice(0, 600) : null;
+}
+
+/** `[외형]` 헤더 단독 줄 + 다음 줄 본문 (characterParser splitIntoSections와 동일 패턴) */
+function extractAppearanceAfterBracketHeader(
+  lines: { line: string; inLoreEntity: boolean }[],
+  startIdx: number
+): string | null {
+  const bodyLines: string[] = [];
+  for (let j = startIdx + 1; j < lines.length; j++) {
+    const { line: rawLine, inLoreEntity } = lines[j];
+    if (inLoreEntity) break;
+    const line = rawLine.trim();
+    if (!line) {
+      if (bodyLines.length > 0) break;
+      continue;
+    }
+    if (MAIN_PROFILE_SECTION_RE.test(line) || isLoreEntityHeader(line)) break;
+    bodyLines.push(line);
+  }
+  const joined = bodyLines.join(" ").trim();
+  return joined.length >= 4 ? joined.slice(0, 600) : null;
+}
+
 function isDedicatedAppearanceChunk(chunk: CharacterChunk): boolean {
   const head = chunk.content.trim().slice(0, 48);
   return (
@@ -387,15 +417,29 @@ export function extractMainCharacterAppearanceBody(
   const aliasRes = aliases.map((a) => new RegExp(escapeRegExp(a), "i"));
 
   const preferredCategories = new Set(["identity", "personality", "abilities"]);
+  for (const chunk of chunks) {
+    const dedicated = extractDedicatedAppearanceChunkBody(chunk);
+    if (dedicated) return dedicated;
+  }
+
   const ordered = [
     ...chunks.filter((c) => preferredCategories.has(c.category)),
     ...chunks.filter((c) => !preferredCategories.has(c.category)),
   ];
 
   for (const chunk of ordered) {
-    for (const { line: rawLine, inLoreEntity } of iterateLinesWithLoreContext(chunk.content)) {
+    const lines = iterateLinesWithLoreContext(chunk.content);
+    for (let i = 0; i < lines.length; i++) {
+      const { line: rawLine, inLoreEntity } = lines[i];
       if (inLoreEntity) continue;
       const line = rawLine.trim();
+
+      if (/^\[(?:외형|외모)\]$/i.test(line)) {
+        const block = extractAppearanceAfterBracketHeader(lines, i);
+        if (block) return block;
+        continue;
+      }
+
       const field = extractAppearanceFieldValue(line);
       if (!field || field.length < 4) continue;
 
@@ -586,6 +630,19 @@ function applyDriftRules(text: string, rules: DriftRule[] | undefined): string {
     out = out.replace(wrong, right);
   }
   return out;
+}
+
+/** 설정 hair/eye 태그와 충돌하는 색상 표현이 있는지 (교정 전 검사) */
+export function detectAppearancePolicyConflict(
+  text: string,
+  policy: VisualAppearancePolicy
+): boolean {
+  if (!text.trim() || (!policy.hair && !policy.eyes)) return false;
+  const hairConflict = policy.hair ? HAIR_CONFLICT[policy.hair] : undefined;
+  const eyeConflict = policy.eyes ? EYE_CONFLICT[policy.eyes] : undefined;
+  if (hairConflict?.test(text)) return true;
+  if (eyeConflict?.test(text)) return true;
+  return false;
 }
 
 /** AI 출력 — 설정과 충돌하는 머리/눈 색상 교정 또는 문장 제거 */
