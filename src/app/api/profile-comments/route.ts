@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { checkCommentWriteEligibility } from "@/lib/commentPolicy";
+import { submitProfileComment } from "@/lib/commentSubmit";
 import {
-  canWriteCharacterProfileComment,
-  insertProfileComment,
   isProfileCommentsEnabled,
   isUserCommentBanned,
   listProfileCommentsForViewer,
@@ -11,6 +11,7 @@ import {
   resolveTargetOwnerId,
   type ProfileCommentTarget,
 } from "@/lib/profileComments";
+import { userHasReportedComment } from "@/lib/commentReports";
 
 const MAX_CONTENT = 2000;
 
@@ -47,9 +48,13 @@ export async function GET(req: Request) {
 
   const comments =
     enabled || isOwner
-      ? listProfileCommentsForViewer(db, targetType, targetId, user?.id ?? null, ownerId).map((c) =>
-          mapProfileCommentForClient(c, isOwner)
-        )
+      ? listProfileCommentsForViewer(db, targetType, targetId, user?.id ?? null, ownerId).map((c) => ({
+          ...mapProfileCommentForClient(c, isOwner),
+          user_has_reported:
+            user != null && user.id !== c.author_id
+              ? userHasReportedComment(db, c.id, user.id)
+              : false,
+        }))
       : [];
 
   return NextResponse.json({
@@ -99,21 +104,27 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "댓글이 비활성화되어 있습니다." }, { status: 403 });
   }
 
-  if (
-    !isOwner &&
-    targetType === "character" &&
-    !canWriteCharacterProfileComment(db, user.id, targetId, ownerId)
-  ) {
-    return NextResponse.json(
-      { error: "이 캐릭터와 대화한 사용자만 댓글을 작성할 수 있습니다." },
-      { status: 403 }
-    );
+  if (!isOwner) {
+    const eligibility = checkCommentWriteEligibility(db, user.id, {
+      characterId: targetType === "character" ? targetId : undefined,
+    });
+    if (!eligibility.ok) {
+      return NextResponse.json({ error: eligibility.message }, { status: 403 });
+    }
   }
 
-  if (!isOwner && targetType === "creator" && !enabled) {
-    return NextResponse.json({ error: "댓글이 비활성화되어 있습니다." }, { status: 403 });
+  const result = await submitProfileComment({
+    targetType,
+    targetId,
+    authorId: user.id,
+    authorName: user.nickname,
+    content,
+    isPrivate,
+  });
+
+  if (!result.ok) {
+    return NextResponse.json({ error: result.error }, { status: result.status });
   }
 
-  insertProfileComment(targetType, targetId, user.id, user.nickname, content, isPrivate);
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, commentId: result.commentId });
 }

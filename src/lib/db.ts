@@ -708,7 +708,112 @@ function migrate(db: Database.Database) {
   `);
   addColumn("characters", "total_turns", "INTEGER NOT NULL DEFAULT 0");
   migrateCharacterEngagementStats(db);
+  migrateCommentModeration(db);
   seedGlobalLorebookEntries(db);
+}
+
+function migrateCommentModeration(db: Database.Database) {
+  const addColumn = (table: string, col: string, def: string) => {
+    const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+    if (!cols.some((c) => c.name === col)) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
+    }
+  };
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS comment_banned_words (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      word TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT 'other',
+      match_type TEXT NOT NULL DEFAULT 'substring' CHECK(match_type IN ('substring','regex')),
+      ai_check INTEGER NOT NULL DEFAULT 1,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_comment_banned_words_category
+      ON comment_banned_words(category, enabled);
+
+    CREATE TABLE IF NOT EXISTS profile_comment_reports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      comment_id INTEGER NOT NULL,
+      reporter_id INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(comment_id, reporter_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_profile_comment_reports_comment
+      ON profile_comment_reports(comment_id, created_at);
+
+    CREATE TABLE IF NOT EXISTS profile_comment_moderation_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      comment_id INTEGER,
+      user_id INTEGER,
+      event_type TEXT NOT NULL,
+      original_content TEXT NOT NULL DEFAULT '',
+      normalized_content TEXT NOT NULL DEFAULT '',
+      matched_words_json TEXT NOT NULL DEFAULT '[]',
+      report_count INTEGER,
+      ai_verdict TEXT,
+      ai_reason TEXT NOT NULL DEFAULT '',
+      action TEXT NOT NULL DEFAULT '',
+      delete_reason TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_profile_comment_mod_logs_comment
+      ON profile_comment_moderation_logs(comment_id, created_at DESC);
+  `);
+  addColumn("profile_comments", "is_blinded", "INTEGER NOT NULL DEFAULT 0");
+  addColumn("profile_comments", "report_count", "INTEGER NOT NULL DEFAULT 0");
+  addColumn("profile_comments", "moderation_status", "TEXT NOT NULL DEFAULT 'visible'");
+  addColumn("profile_comments", "normalized_content", "TEXT NOT NULL DEFAULT ''");
+  addColumn("profile_comments", "delete_reason", "TEXT NOT NULL DEFAULT ''");
+  addColumn("users", "comment_report_trust", "INTEGER NOT NULL DEFAULT 100");
+  addColumn("users", "comment_report_restricted_until", "TEXT");
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS app_meta (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL DEFAULT ''
+    );
+  `);
+  const seeded = db
+    .prepare("SELECT value FROM app_meta WHERE key='comment_banned_words_seed_v1'")
+    .get() as { value: string } | undefined;
+  if (seeded?.value === "1") return;
+
+  const seedWords: { word: string; category: string }[] = [
+    { word: "딸깍", category: "ai_attack" },
+    { word: "딸깍충", category: "ai_attack" },
+    { word: "프롬충", category: "ai_attack" },
+    { word: "파쿠리", category: "ai_attack" },
+    { word: "긴빠이", category: "insult" },
+    { word: "돚거", category: "insult" },
+    { word: "짜깁기", category: "ai_attack" },
+    { word: "누더기", category: "ai_attack" },
+    { word: "그림작가", category: "ai_attack" },
+    { word: "그림쟁이", category: "ai_attack" },
+    { word: "환쟁이", category: "ai_attack" },
+    { word: "ai충", category: "ai_attack" },
+    { word: "짭", category: "ai_attack" },
+    { word: "위조", category: "ai_attack" },
+    { word: "시발", category: "profanity" },
+    { word: "씨발", category: "profanity" },
+    { word: "병신", category: "profanity" },
+    { word: "지랄", category: "profanity" },
+  ];
+  const ins = db.prepare(
+    `INSERT INTO comment_banned_words (word, category, match_type, ai_check, enabled, updated_at)
+     VALUES (?,?, 'substring', 1, 1, datetime('now'))`
+  );
+  const tx = db.transaction(() => {
+    for (const row of seedWords) {
+      ins.run(row.word, row.category);
+    }
+    db.prepare(
+      "INSERT OR REPLACE INTO app_meta (key, value) VALUES ('comment_banned_words_seed_v1', '1')"
+    ).run();
+  });
+  tx();
 }
 
 function migrateCharacterEngagementStats(db: Database.Database) {

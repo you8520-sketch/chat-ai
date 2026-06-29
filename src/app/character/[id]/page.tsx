@@ -34,7 +34,10 @@ import {
   listProfileCommentsForViewer,
   mapProfileCommentForClient,
   canWriteCharacterProfileComment,
+  getCommentWriteBlockedMessage,
 } from "@/lib/profileComments";
+import { checkCommentReportEligibility } from "@/lib/commentPolicy";
+import { userHasReportedComment } from "@/lib/commentReports";
 import { ensureDefaultPersona } from "@/lib/userPersonas";
 
 
@@ -152,12 +155,24 @@ export default async function CharacterPage({ params }: { params: Promise<{ id: 
   const canWriteCharacterComment =
     user != null &&
     canWriteCharacterProfileComment(db, user.id, c.id, c.creator_id);
+  const commentWriteBlockedMessage =
+    user != null && !canWriteCharacterComment
+      ? getCommentWriteBlockedMessage(db, user.id, { characterId: c.id, isOwner })
+      : "이 캐릭터와 대화한 후에만 댓글을 작성할 수 있습니다.";
+  const canReportComment =
+    user != null &&
+    !isOwner &&
+    checkCommentReportEligibility(db, user.id, { characterId: c.id }).ok;
   const commentsEnabled = getCharacterCommentsEnabled(db, c.id);
   const showComments = commentsEnabled || isOwner;
   const comments = showComments
-    ? listProfileCommentsForViewer(db, "character", c.id, user?.id ?? null, c.creator_id).map((row) =>
-        mapProfileCommentForClient(row, isOwner)
-      )
+    ? listProfileCommentsForViewer(db, "character", c.id, user?.id ?? null, c.creator_id).map((row) => ({
+        ...mapProfileCommentForClient(row, isOwner),
+        user_has_reported:
+          user != null && user.id !== row.author_id
+            ? userHasReportedComment(db, row.id, user.id)
+            : false,
+      }))
     : [];
 
 
@@ -264,9 +279,10 @@ export default async function CharacterPage({ params }: { params: Promise<{ id: 
           comments={comments}
           loggedIn={!!user}
           canWrite={canWriteCharacterComment}
+          canReport={canReportComment}
           isOwner={isOwner}
           ownerUserId={c.creator_id ?? undefined}
-          writeBlockedMessage="이 캐릭터와 대화한 후에만 댓글을 작성할 수 있습니다."
+          writeBlockedMessage={commentWriteBlockedMessage}
         />
       )}
 

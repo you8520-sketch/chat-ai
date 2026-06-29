@@ -12,7 +12,11 @@ import {
   getCreatorCommentsEnabled,
   listProfileCommentsForViewer,
   mapProfileCommentForClient,
+  canWriteCreatorProfileComment,
+  getCommentWriteBlockedMessage,
 } from "@/lib/profileComments";
+import { checkCommentReportEligibility } from "@/lib/commentPolicy";
+import { userHasReportedComment } from "@/lib/commentReports";
 
 export const dynamic = "force-dynamic";
 
@@ -53,12 +57,23 @@ export default async function CreatorProfilePage({
     .get(creatorId) as { c: number };
 
   const comments = showComments
-    ? listProfileCommentsForViewer(db, "creator", creatorId, user?.id ?? null, creatorId).map((row) =>
-        mapProfileCommentForClient(row, isOwner)
-      )
+    ? listProfileCommentsForViewer(db, "creator", creatorId, user?.id ?? null, creatorId).map((row) => ({
+        ...mapProfileCommentForClient(row, isOwner),
+        user_has_reported:
+          user != null && user.id !== row.author_id
+            ? userHasReportedComment(db, row.id, user.id)
+            : false,
+      }))
     : [];
 
-  const canWriteComment = !!user && (isOwner || commentsEnabled);
+  const canWriteComment =
+    user != null && canWriteCreatorProfileComment(db, user.id, creatorId);
+  const commentWriteBlockedMessage =
+    user != null && !canWriteComment
+      ? getCommentWriteBlockedMessage(db, user.id, { isOwner })
+      : "댓글을 작성할 수 없습니다.";
+  const canReportComment =
+    user != null && !isOwner && checkCommentReportEligibility(db, user.id, {}).ok;
 
   return (
     <div className="mx-auto mt-8 max-w-4xl px-4">
@@ -123,8 +138,10 @@ export default async function CreatorProfilePage({
           comments={comments}
           loggedIn={!!user}
           canWrite={canWriteComment}
+          canReport={canReportComment}
           isOwner={isOwner}
           ownerUserId={creatorId}
+          writeBlockedMessage={commentWriteBlockedMessage}
         />
       )}
     </div>

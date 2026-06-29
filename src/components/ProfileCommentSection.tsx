@@ -11,6 +11,8 @@ type Comment = {
   content: string;
   created_at: string;
   is_private?: boolean;
+  is_blinded?: boolean;
+  user_has_reported?: boolean;
 };
 
 export default function ProfileCommentSection({
@@ -19,6 +21,7 @@ export default function ProfileCommentSection({
   comments,
   loggedIn,
   canWrite,
+  canReport = false,
   isOwner = false,
   ownerUserId,
   writeBlockedMessage,
@@ -28,6 +31,7 @@ export default function ProfileCommentSection({
   comments: Comment[];
   loggedIn: boolean;
   canWrite: boolean;
+  canReport?: boolean;
   isOwner?: boolean;
   ownerUserId?: number;
   writeBlockedMessage?: string;
@@ -37,6 +41,7 @@ export default function ProfileCommentSection({
   const [isPrivate, setIsPrivate] = useState(false);
   const [busy, setBusy] = useState(false);
   const [blockingId, setBlockingId] = useState<number | null>(null);
+  const [reportingId, setReportingId] = useState<number | null>(null);
   const [error, setError] = useState("");
 
   async function submit() {
@@ -73,7 +78,22 @@ export default function ProfileCommentSection({
     router.refresh();
   }
 
-  const publicCount = comments.filter((c) => !c.is_private).length;
+  async function reportComment(commentId: number) {
+    if (reportingId != null) return;
+    if (!confirm("이 댓글을 신고할까요?")) return;
+    setReportingId(commentId);
+    setError("");
+    const res = await fetch(`/api/profile-comments/${commentId}/report`, { method: "POST" });
+    setReportingId(null);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(data.error || "신고에 실패했습니다.");
+      return;
+    }
+    router.refresh();
+  }
+
+  const publicCount = comments.filter((c) => !c.is_private && !c.is_blinded).length;
 
   return (
     <div className="mt-6 rounded-2xl border border-white/5 bg-[#131626] p-5">
@@ -91,7 +111,7 @@ export default function ProfileCommentSection({
             key={c.id}
             className={`rounded-lg px-3 py-2 ${
               c.is_private ? "border border-dashed border-violet-500/30 bg-violet-500/5" : "bg-[#0e1120]"
-            }`}
+            } ${c.is_blinded ? "opacity-60" : ""}`}
           >
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-[11px] text-gray-500">
@@ -101,22 +121,42 @@ export default function ProfileCommentSection({
                     비공개
                   </span>
                 )}
+                {c.is_blinded && isOwner && (
+                  <span className="ml-1.5 rounded bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-bold text-amber-300">
+                    검수 중
+                  </span>
+                )}
                 <span className="mx-1">·</span>
                 {new Date(c.created_at + "Z").toLocaleString("ko-KR", {
                   dateStyle: "short",
                   timeStyle: "short",
                 })}
               </p>
-              {isOwner && ownerUserId != null && c.author_id !== ownerUserId && (
-                <button
-                  type="button"
-                  disabled={blockingId === c.id}
-                  onClick={() => blockAuthor(c.id)}
-                  className="text-[10px] font-semibold text-rose-400/80 hover:text-rose-300 disabled:opacity-40"
-                >
-                  {blockingId === c.id ? "처리 중…" : "작성자 차단"}
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {canReport && c.author_id !== ownerUserId && !c.user_has_reported && (
+                  <button
+                    type="button"
+                    disabled={reportingId === c.id}
+                    onClick={() => reportComment(c.id)}
+                    className="text-[10px] font-semibold text-zinc-500 hover:text-rose-300 disabled:opacity-40"
+                  >
+                    {reportingId === c.id ? "처리 중…" : "신고"}
+                  </button>
+                )}
+                {c.user_has_reported && (
+                  <span className="text-[10px] text-zinc-600">신고됨</span>
+                )}
+                {isOwner && ownerUserId != null && c.author_id !== ownerUserId && (
+                  <button
+                    type="button"
+                    disabled={blockingId === c.id}
+                    onClick={() => blockAuthor(c.id)}
+                    className="text-[10px] font-semibold text-rose-400/80 hover:text-rose-300 disabled:opacity-40"
+                  >
+                    {blockingId === c.id ? "처리 중…" : "작성자 차단"}
+                  </button>
+                )}
+              </div>
             </div>
             <p className="mt-0.5 whitespace-pre-wrap text-sm text-gray-300">{c.content}</p>
           </div>

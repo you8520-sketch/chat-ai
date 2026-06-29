@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import { getDb } from "./db";
+import { checkCommentWriteEligibility } from "@/lib/commentPolicy";
 
 export type ProfileCommentTarget = "creator" | "character";
 
@@ -12,6 +13,11 @@ export type ProfileComment = {
   content: string;
   is_private: number;
   created_at: string;
+  is_blinded: number;
+  report_count: number;
+  moderation_status: string;
+  normalized_content: string | null;
+  delete_reason: string | null;
 };
 
 export function isUserCommentBanned(db: Database.Database, userId: number): boolean {
@@ -130,9 +136,27 @@ export function canWriteCharacterProfileComment(
   characterId: number,
   ownerId: number | null
 ): boolean {
-  if (isUserCommentBanned(db, userId)) return false;
   if (ownerId != null && userId === ownerId) return true;
-  return userHasCharacterChatHistory(db, userId, characterId);
+  return checkCommentWriteEligibility(db, userId, { characterId }).ok;
+}
+
+/** 크리에이터 프로필 댓글 작성 가능 여부 */
+export function canWriteCreatorProfileComment(
+  db: Database.Database,
+  userId: number,
+  ownerId: number
+): boolean {
+  if (userId === ownerId) return true;
+  return checkCommentWriteEligibility(db, userId, {}).ok;
+}
+
+export function getCommentWriteBlockedMessage(
+  db: Database.Database,
+  userId: number,
+  opts: { characterId?: number; isOwner?: boolean }
+): string {
+  const result = checkCommentWriteEligibility(db, userId, opts);
+  return result.ok ? "" : result.message;
 }
 
 export function listProfileCommentsForViewer(
@@ -146,16 +170,20 @@ export function listProfileCommentsForViewer(
   const isOwner = viewerId != null && ownerId != null && viewerId === ownerId;
   const rows = db
     .prepare(
-      `SELECT id, target_type, target_id, author_id, author_name, content, is_private, created_at
+      `SELECT id, target_type, target_id, author_id, author_name, content, is_private, created_at,
+              COALESCE(is_blinded, 0) AS is_blinded,
+              COALESCE(report_count, 0) AS report_count,
+              COALESCE(moderation_status, 'visible') AS moderation_status,
+              normalized_content, delete_reason
        FROM profile_comments
-       WHERE target_type=? AND target_id=?
+       WHERE target_type=? AND target_id=? AND COALESCE(moderation_status, 'visible') != 'deleted'
        ORDER BY created_at ASC, id ASC
        LIMIT ?`
     )
     .all(targetType, targetId, limit) as ProfileComment[];
 
   if (isOwner) return rows;
-  return rows.filter((c) => c.is_private === 0);
+  return rows.filter((c) => c.is_private === 0 && c.is_blinded === 0);
 }
 
 /** @deprecated use listProfileCommentsForViewer */
@@ -174,26 +202,15 @@ export function getProfileCommentById(db: Database.Database, commentId: number):
   return (
     (db
       .prepare(
-        `SELECT id, target_type, target_id, author_id, author_name, content, is_private, created_at
+        `SELECT id, target_type, target_id, author_id, author_name, content, is_private, created_at,
+                COALESCE(is_blinded, 0) AS is_blinded,
+                COALESCE(report_count, 0) AS report_count,
+                COALESCE(moderation_status, 'visible') AS moderation_status,
+                normalized_content, delete_reason
          FROM profile_comments WHERE id=?`
       )
       .get(commentId) as ProfileComment | undefined) ?? null
   );
-}
-
-export function insertProfileComment(
-  targetType: ProfileCommentTarget,
-  targetId: number,
-  authorId: number,
-  authorName: string,
-  content: string,
-  isPrivate = false
-): void {
-  const db = getDb();
-  db.prepare(
-    `INSERT INTO profile_comments (target_type, target_id, author_id, author_name, content, is_private)
-     VALUES (?,?,?,?,?,?)`
-  ).run(targetType, targetId, authorId, authorName, content, isPrivate ? 1 : 0);
 }
 
 export type BlockCommentAuthorResult =
@@ -245,6 +262,9 @@ export function mapProfileCommentForClient(
   content: string;
   created_at: string;
   is_private: boolean;
+  is_blinded: boolean;
+  report_count: number;
+  moderation_status: string;
 } {
   return {
     id: c.id,
@@ -253,5 +273,8 @@ export function mapProfileCommentForClient(
     content: c.content,
     created_at: c.created_at,
     is_private: viewerIsOwner ? c.is_private !== 0 : false,
+    is_blinded: c.is_blinded !== 0,
+    report_count: c.report_count,
+    moderation_status: c.moderation_status,
   };
 }
