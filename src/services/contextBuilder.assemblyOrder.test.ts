@@ -15,6 +15,7 @@ import {
   GEMINI_CHAT_FLASH_25,
 } from "@/lib/chatModels";
 import type { CharacterChunk } from "@/types";
+import { mergeUserNoteBodyFromEditor } from "@/lib/userNoteStatusWindow";
 
 let buildContext: typeof BuildContextFn;
 
@@ -49,7 +50,7 @@ function sectionOrder(ids: string[], id: string): number {
 }
 
 describe("buildContext — persona-before-prose assembly order", () => {
-  it("OpenRouter: core identity precedes prose style and memory; lore chunks are RAG-only", () => {
+  it("OpenRouter: core identity precedes persona and prose; LTM then relationship then user-note RAG", () => {
     const built = buildContext({
       charName: "Hero",
       chunks: [criticalChunk, loreChunk],
@@ -57,7 +58,11 @@ describe("buildContext — persona-before-prose assembly order", () => {
       shortTermHistory: [],
       nsfw: true,
       longTermMemory: "They met yesterday.",
-      userNote: `${"x".repeat(1001)}\nNPC 엘라라는 마법사다.\n\nreference tail for creator`,
+      memoryMeta: "Relationship: close friends.",
+      userNote: mergeUserNoteBodyFromEditor(
+        "x".repeat(500),
+        "NPC 엘라라는 마법사다.\n\nreference tail for creator"
+      ),
       modelId: OPENROUTER_QWEN_37_MAX_MODEL,
       provider: "openrouter",
       currentUserMessage: "hello 엘라라",
@@ -66,6 +71,10 @@ describe("buildContext — persona-before-prose assembly order", () => {
     const ids = (built.meta?.trackedSections ?? []).map((s) => s.id);
     assert.ok(
       sectionOrder(ids, "character-core-identity") <
+        sectionOrder(ids, "identity-and-rules")
+    );
+    assert.ok(
+      sectionOrder(ids, "identity-and-rules") <
         sectionOrder(ids, "prose-style-xml-bundle")
     );
     assert.ok(
@@ -73,18 +82,23 @@ describe("buildContext — persona-before-prose assembly order", () => {
     );
     assert.ok(
       sectionOrder(ids, "current-memory") <
-        sectionOrder(ids, "rule-terminal-length-override")
+        sectionOrder(ids, "relationship-meta")
+    );
+    assert.ok(
+      sectionOrder(ids, "relationship-meta") <
+        sectionOrder(ids, "user-note-reference")
     );
     assert.ok(
       sectionOrder(ids, "current-memory") <
-        sectionOrder(ids, "user-note-reference")
+        sectionOrder(ids, "rule-terminal-length-override")
     );
     assert.ok(!ids.some((id) => id.startsWith("chunk-lore-")));
 
     const split = built.openRouterSystemSplit;
     assert.ok(split);
     assert.match(split!.characterSettingsBlock, /\[ADVANCED PROSE & NSFW GUIDELINES\]/);
-    assert.match(split!.characterSettingsBlock, /\[CORE IDENTITY\]/);
+    assert.match(split!.systemRulesBlock, /\[CORE IDENTITY\]/);
+    assert.doesNotMatch(split!.characterSettingsBlock, /\[CORE IDENTITY\]/);
     assert.doesNotMatch(split!.systemRulesBlock, /<PROSE_STYLE_POLICY>/);
   });
 

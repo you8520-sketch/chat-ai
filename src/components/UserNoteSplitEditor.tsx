@@ -5,7 +5,6 @@ import {
   mergeUserNoteBodyFromEditor,
   parseUserNoteCombined,
   splitUserNoteBodyForEditor,
-  userNoteCombinedCharCount,
   userNoteZoneBreakdown,
   USER_NOTE_REFERENCE_MAX,
 } from "@/lib/userNoteStatusWindow";
@@ -53,11 +52,10 @@ export default function UserNoteSplitEditor({
   const canEditFocus = editingFocus ?? editing;
   /** 참조 구간은 항상 입력 가능 */
   const canEditReference = !focusOnly;
-  const { body, statusTemplate } = parseUserNoteCombined(userNote);
+  const { body } = parseUserNoteCombined(userNote);
   const { focusBody, referenceBody, focusBodyMax, referenceBodyMax } =
     splitUserNoteBodyForEditor(body, widgetReservedChars);
-  const combinedChars = userNoteCombinedCharCount(body, statusTemplate);
-  const { referenceChars } = userNoteZoneBreakdown(combinedChars, widgetReservedChars);
+  const { referenceChars } = userNoteZoneBreakdown(body, widgetReservedChars);
 
   const defaultBody = defaultUserNote.trim()
     ? parseUserNoteCombined(defaultUserNote).body || defaultUserNote.trim()

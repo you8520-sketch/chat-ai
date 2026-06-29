@@ -129,12 +129,13 @@ function sanitizeCharacterChunkForOpenRouter(content: string, isOpenRouter: bool
 
 /**
  * System prompt assembly — fixed priority (high → low):
- *   [0] Identity & Rules (persona 1.2k + user-note focus 1k — absolute, cached)
- *   [0c] Archive memory (archive_summary — protected)
+ *   [TOP] OpenRouter Korean prose · bilingual · godmodding
  *   [1] Core Master Rules
- *   [2] Character Critical + [6] Lore (grouped — before prose; OpenRouter cacheCharacter)
- *   [1.4] Prose style · [1.45] Turn handoff (OpenRouter cacheCharacter — stable)
- *   Dynamic block (non-cache): [5] 유저노트 확장 RAG → [3] Memory → [1.5] Lore RAG → tail
+ *   [2] Core Identity (CRITICAL chunks — full inject, not RAG; OpenRouter cacheRules)
+ *   [0] Identity & Rules (persona 1.2k + user-note focus 1k — absolute, cacheRules)
+ *   [1.4] Prose style (OpenRouter cacheCharacter — stable)
+ *   Dynamic block: [0c] Archive → [3] LTM (full budget trim, not RAG) → [3b] Relationship memo
+ *     → [5] 유저노트 확장구간 RAG (UI 확장 칸 전용) → [1.5] Lore RAG → tail
  *
  * History: 전체 대화 raw → trimHistoryToBudget (DeepSeek 16K / others 8K).
  *   [4] OOC · [7] Style · Tail — operational
@@ -324,21 +325,11 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   }
 
-  // ───── [0] Identity & Rules (absolute — top priority, cache) ─────
   const identityBlock = buildIdentityAndRulesBlock(personaForIdentity, mandatoryUserRules, {
     impersonationOn: coNarrationEnabled,
     novelModeEnabled,
     userName: personaLabel,
   });
-  if (identityBlock) {
-    pushSection(
-      "identity-and-rules",
-      "[0] Identity & Rules (absolute)",
-      "persona",
-      identityBlock,
-      isOpenRouter ? "cacheRules" : "dynamic"
-    );
-  }
 
   if (input.useEnglishCharacterPrompt) {
     pushSection(
@@ -451,8 +442,19 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       "[2] Core Identity (every turn)",
       "characterSetting",
       fullBlock,
-      isOpenRouter ? "cacheCharacter" : "dynamic",
+      isOpenRouter ? "cacheRules" : "dynamic",
       deepSeekXmlMode ? "world_lore" : undefined
+    );
+  };
+
+  const pushIdentityAndRules = () => {
+    if (!identityBlock) return;
+    pushSection(
+      "identity-and-rules",
+      "[0] Identity & Rules (absolute)",
+      "persona",
+      identityBlock,
+      isOpenRouter ? "cacheRules" : "dynamic"
     );
   };
 
@@ -519,8 +521,10 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   };
 
-  // ───── [2] Core Identity (매 턴) · 보조 설정은 RAG ─────
+  // ───── [2] Core Identity — directly above persona / user-note focus ─────
   pushCharacterCoreIdentity();
+  // ───── [0] Identity & Rules (persona + mandatory user note) ─────
+  pushIdentityAndRules();
   flushDeepSeekXmlSections(["persona", "world_lore"]);
 
   const openRouterLiteraryNsfw = isOpenRouter && !!input.nsfw;
@@ -572,14 +576,9 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const pushVolatileContextSections = () => {
     pushArchiveMemory();
     if (memoryFeatureOn) {
-      if (isGeminiBulk) {
-        pushCurrentMemory(false);
-        pushRelationshipMeta();
-        pushRagContextSections();
-      } else {
-        pushCurrentMemory(true);
-        pushRagContextSections();
-      }
+      pushCurrentMemory(false);
+      pushRelationshipMeta();
+      pushRagContextSections();
     } else if (!isGeminiBulk) {
       pushReferenceUserNote();
     }

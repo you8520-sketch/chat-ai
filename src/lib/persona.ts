@@ -13,9 +13,9 @@ export const PERSONA_BIO_LIMIT = PERSONA_CONTENT_MAX;
 /** @deprecated 표시용 — 입력 길이 제한 없음 */
 /** 유저 노트 + 내 상태창 항목 합산 상한 */
 export const USER_NOTE_MAX = 10_000;
-/** 고집중 영역 (0~1,000자) — 매 턴 전량 주입 */
+/** 고집중 영역 — 매 턴 전량 주입 (UI 「중요 기억 · 고집중」 칸) */
 export const USER_NOTE_FOCUS_MAX = 1_000;
-/** 확장구간 상한 (1,001~10,000자) — 키워드 매칭 선택 주입만 */
+/** 확장구간 상한 — UI 「유저노트 확장구간」 칸 전용, 키워드 매칭 RAG (고집중 글자 수와 무관) */
 export const USER_NOTE_REFERENCE_MAX = 9_000;
 
 export function validateUserNoteLength(length: number): { ok: true } | { ok: false; error: string } {

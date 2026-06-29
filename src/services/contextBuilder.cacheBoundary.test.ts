@@ -10,6 +10,7 @@ import assert from "node:assert/strict";
 import { describe, it, before } from "node:test";
 
 import type { buildContext as BuildContextFn } from "./contextBuilder";
+import { mergeUserNoteBodyFromEditor } from "@/lib/userNoteStatusWindow";
 import { OPENROUTER_QWEN_37_MAX_MODEL } from "@/lib/chatModels";
 import { estimateTokens } from "@/lib/tokenEstimate";
 import { buildOpenRouterCachedSystemContent } from "@/lib/openRouterCache";
@@ -57,7 +58,10 @@ describe("OpenRouter cache boundaries", () => {
       currentUserMessage: "hello 엘라라",
       nsfw: true,
       longTermMemory: "They met yesterday.",
-      userNote: `${"x".repeat(1001)}\nNPC 엘라라는 마법사다.\n\nreference tail for creator`,
+      userNote: mergeUserNoteBodyFromEditor(
+        "x".repeat(500),
+        "NPC 엘라라는 마법사다.\n\nreference tail for creator"
+      ),
       contextualLore: "[RAG] matched lore snippet",
       modelId: OPENROUTER_QWEN_37_MAX_MODEL,
       provider: "openrouter",
@@ -87,7 +91,11 @@ describe("OpenRouter cache boundaries", () => {
       currentUserMessage: "hello 엘라라",
       nsfw: true,
       longTermMemory: "They met yesterday.",
-      userNote: `${"x".repeat(1001)}\nNPC 엘라라는 마법사다.\n\nreference tail for creator`,
+      memoryMeta: "Relationship: close friends.",
+      userNote: mergeUserNoteBodyFromEditor(
+        "x".repeat(500),
+        "NPC 엘라라는 마법사다.\n\nreference tail for creator"
+      ),
       contextualLore: "[RAG] matched lore snippet",
       modelId: OPENROUTER_QWEN_37_MAX_MODEL,
       provider: "openrouter",
@@ -95,7 +103,8 @@ describe("OpenRouter cache boundaries", () => {
 
     const ids = (built.meta?.trackedSections ?? []).map((s) => s.id);
     assert.ok(sectionOrder(ids, "prose-style-xml-bundle") < sectionOrder(ids, "user-note-reference"));
-    assert.ok(sectionOrder(ids, "current-memory") < sectionOrder(ids, "user-note-reference"));
+    assert.ok(sectionOrder(ids, "current-memory") < sectionOrder(ids, "relationship-meta"));
+    assert.ok(sectionOrder(ids, "relationship-meta") < sectionOrder(ids, "user-note-reference"));
     assert.ok(sectionOrder(ids, "current-memory") < sectionOrder(ids, "contextual-lore-rag"));
   });
 
