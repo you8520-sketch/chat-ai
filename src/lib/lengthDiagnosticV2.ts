@@ -55,7 +55,7 @@ export type LengthDiagnosticV2Input = {
   /** Fallback when usageData is unavailable */
   reasoningOutputTokens?: number;
   targetResponseChars?: number | null;
-  maxTokens: number;
+  maxTokens?: number | null;
   systemPrompt: string;
   /** API-reported prompt tokens for the full request (not a cache estimate) */
   apiPromptTokens?: number;

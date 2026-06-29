@@ -99,12 +99,16 @@ export function IconThumbDown({ className = base }: IconProps) {
   );
 }
 
-export function IconRefund({ className = base }: IconProps) {
+export function IconErrorBeacon({ className = base }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className={className} aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4" />
-      <circle cx="12" cy="16" r="0.75" fill="currentColor" stroke="none" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M10.3 4.5 8.8 3 5 6.8V4H3v6h6V8H5.8l4.5-4.5a7 7 0 1 1-2.3 11.5" />
+      <path strokeLinecap="round" d="M12 5v2M8.5 7.5l1.2 1.2M15.5 7.5l-1.2 1.2" />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M9.5 13h5l1-4.5a3 3 0 0 0-7 0L9.5 13z"
+      />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8.5 13v2.5h7V13" />
     </svg>
   );
 }

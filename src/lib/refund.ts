@@ -162,7 +162,7 @@ function countAutoRefundsToday(userId: number): number {
   return row?.c ?? 0;
 }
 
-function parseRefundAmount(msg: MessageRefundContext): number {
+function parseRefundAmount(msg: { usage: string | null }): number {
   if (!msg.usage) return 0;
   try {
     const usage = JSON.parse(msg.usage) as { cost?: number };
@@ -412,12 +412,7 @@ export function reviewReportRefund(
     return { ok: false, error: "AI 응답만 환불할 수 있습니다.", status: 400 };
   }
 
-  const totalAmount = parseRefundAmount({
-    ...row,
-    id: row.message_id,
-    content: "",
-    user_id: row.user_id,
-  });
+  const totalAmount = parseRefundAmount({ usage: row.usage });
   const amount = totalAmount > 0 ? totalAmount : row.refund_amount;
   const slices = parseDeductionSlices(row.deduction_slices);
 

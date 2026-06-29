@@ -1379,15 +1379,23 @@ export async function generateHtmlVisualCardWithFlash(
 
     if (block) {
       if (oocCustomHtml) {
-        block = applyOocAppearanceSectionLock(block, opts.userMessage, opts.canonicalAppearanceBlock);
-        block = applyAppearancePolicyToOocHtml(block, opts.appearanceSanitizePolicy);
-        if (!oocFlashBlockAccepted(block, opts.userMessage)) {
-          console.warn("[html-flash] OOC block failed final acceptance — discarding", {
-            chatId: opts.chatId,
-          });
+        const locked = applyOocAppearanceSectionLock(
+          block,
+          opts.userMessage,
+          opts.canonicalAppearanceBlock
+        );
+        if (!locked) {
           block = null;
         } else {
-          return flashGenerateResult(block, accumulatedFlashUsage, promptEstimateTokens);
+          block = applyAppearancePolicyToOocHtml(locked, opts.appearanceSanitizePolicy);
+          if (!oocFlashBlockAccepted(block, opts.userMessage)) {
+            console.warn("[html-flash] OOC block failed final acceptance — discarding", {
+              chatId: opts.chatId,
+            });
+            block = null;
+          } else {
+            return flashGenerateResult(block, accumulatedFlashUsage, promptEstimateTokens);
+          }
         }
       }
       if (block && opts.policy.statusFieldLabels.length > 0) {

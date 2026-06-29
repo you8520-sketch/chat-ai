@@ -17,6 +17,7 @@ export function buildMessageReceiptSnapshot(usageRaw: string | null): string {
     return "";
   }
   const receipt = buildBillingReceipt(usage);
+  if (!receipt) return "";
   const cache = resolveOpenRouterCacheReceipt(usage);
   return formatBillingReceiptText(receipt, {
     route: usage.route,

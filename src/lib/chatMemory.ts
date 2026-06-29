@@ -317,7 +317,7 @@ export function normalizeThoughtEntry(entry: string, names: HonorificNames): str
 export function dedupeNormalizedThoughts(
   thoughts: string[],
   names: HonorificNames,
-  max = MEMORY_META_MAX.thoughts,
+  max: number = MEMORY_META_MAX.thoughts,
   keepRecent = max >= MEMORY_META_MAX.thoughts
 ): string[] {
   const seen = new Set<string>();

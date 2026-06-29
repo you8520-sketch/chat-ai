@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { IconRefund } from "@/components/ChatToolbarIcons";
+import { IconErrorBeacon } from "@/components/ChatToolbarIcons";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { AUTO_REFUND_DAILY_LIMIT } from "@/lib/reportRefundPolicy";
 
@@ -59,27 +59,28 @@ export default function ReportRefundButton({
   }
 
   const inactive = disabled || busy || isRefunded || isReportPending;
+  const ariaLabel = isRefunded
+    ? "환불 완료"
+    : isReportPending
+      ? "신고 접수됨"
+      : "오류 신고";
 
   return (
     <>
-      <div className={`flex flex-col items-center gap-0.5 ${className}`}>
-        <button
-          type="button"
-          aria-label="오류신고"
-          disabled={inactive}
-          onClick={() => setConfirmOpen(true)}
-          className={`flex h-7 w-7 items-center justify-center rounded-md border transition ${
-            isRefunded || isReportPending
-              ? "cursor-default border-white/5 text-zinc-600"
-              : "border-rose-500/25 text-rose-300/90 hover:border-rose-400/45 hover:bg-rose-500/10 disabled:opacity-40"
-          }`}
-        >
-          <IconRefund className="h-3.5 w-3.5" />
-        </button>
-        <span className="text-[9px] leading-none text-gray-500">
-          {isRefunded ? "환불완료" : isReportPending ? "신고접수" : "오류신고"}
-        </span>
-      </div>
+      <button
+        type="button"
+        aria-label={ariaLabel}
+        title={ariaLabel}
+        disabled={inactive}
+        onClick={() => setConfirmOpen(true)}
+        className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${className} ${
+          isRefunded || isReportPending
+            ? "cursor-default text-zinc-600"
+            : "text-rose-400/95 hover:bg-rose-500/10 hover:text-rose-300 disabled:opacity-40"
+        }`}
+      >
+        <IconErrorBeacon />
+      </button>
       {confirmOpen && (
         <ConfirmDialog
           open
