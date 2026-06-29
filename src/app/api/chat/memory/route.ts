@@ -9,6 +9,8 @@ import {
   getMemorySnapshot,
   resolveMemoryTier,
   updateLorebookForChat,
+  regenerateMemoryRecordBatch,
+  isFallbackMemoryRecordSummary,
 } from "@/lib/memory/memory-manager";
 import {
   prepareMemoryPanelView,
@@ -125,7 +127,10 @@ export async function GET(req: Request) {
     messagesUntilCompression: snapshot.messagesUntilCompression,
     budget: snapshot.budget,
     subscriptionTier: getSubscriptionTier(user),
-    memoryRecords,
+    memoryRecords: memoryRecords.map((r) => ({
+      ...r,
+      isFallbackSummary: isFallbackMemoryRecordSummary(r.summary),
+    })),
     memoryRecordMinChars: MEMORY_RECORD_MIN_CHARS,
     memoryRecordMaxChars: MEMORY_RECORD_MAX_CHARS,
     // legacy fields for older clients
@@ -151,6 +156,7 @@ export async function PATCH(req: Request) {
     | "clear"
     | "updateMemoryRecord"
     | "updateTurnSummary"
+    | "regenerateMemoryRecord"
     | "deleteRelationshipMetaItem"
     | undefined;
 
@@ -195,6 +201,42 @@ export async function PATCH(req: Request) {
     return Response.json({ ok: true, memoryRecord: updated, turnSummary: updated });
   }
 
+  if (action === "regenerateMemoryRecord") {
+    const recordId = Number(body.recordId ?? body.summaryId);
+    const turnStart = Number(body.turnStart);
+    const record = recordId
+      ? listMemoryRecordsForChat(chatId).find((r) => r.id === recordId)
+      : turnStart
+        ? listMemoryRecordsForChat(chatId).find((r) => r.turnStart === turnStart)
+        : undefined;
+    if (!record) {
+      return Response.json({ error: "기억 기록을 찾을 수 없습니다." }, { status: 404 });
+    }
+    if (record.userEdited) {
+      return Response.json({ error: "직접 수정한 기록은 자동 재생성할 수 없습니다." }, { status: 400 });
+    }
+    const charRow = getDb()
+      .prepare("SELECT name FROM characters WHERE id=?")
+      .get(chat.character_id) as { name: string } | undefined;
+    const ok = await regenerateMemoryRecordBatch({
+      chatId,
+      userId: user.id,
+      characterId: chat.character_id,
+      charName: charRow?.name ?? "캐릭터",
+      tier,
+      memoryCapacity,
+      turnStart: record.turnStart,
+    });
+    if (!ok) {
+      return Response.json(
+        { error: "요약 재생성에 실패했습니다. 잠시 후 다시 시도해 주세요." },
+        { status: 502 }
+      );
+    }
+    const refreshed = listMemoryRecordsForChat(chatId).find((r) => r.id === record.id);
+    return Response.json({ ok: true, memoryRecord: refreshed, turnSummary: refreshed });
+  }
+
   if (action === "deleteRelationshipMetaItem") {
     const category = body.category as RelationshipMetaCategory | undefined;
     const text = typeof body.text === "string" ? body.text.trim() : "";
@@ -210,7 +252,7 @@ export async function PATCH(req: Request) {
   }
 
   return Response.json(
-    { error: "action이 필요합니다. (updateLorebook | updateMemoryRecord | deleteRelationshipMetaItem | clear)" },
+    { error: "action이 필요합니다. (updateLorebook | updateMemoryRecord | regenerateMemoryRecord | deleteRelationshipMetaItem | clear)" },
     { status: 400 }
   );
 }

@@ -1397,6 +1397,8 @@ export default function ChatClient({
     let softResetPending = false;
     /** OpenRouter 종료·후처리 구간 — 비 instant replace/append 무시 (reveal 큐는 계속 재생) */
     let postStreamLocked = false;
+    /** OOC/HTML 전용 턴 — V3 비스트리밍·대용량 ```html``` 즉시 표시 */
+    let htmlFlashStreamTurn = false;
 
     assistantStreamContentRef.current = "";
     streamTargetTextRef.current = "";
@@ -1728,6 +1730,7 @@ export default function ChatClient({
             skipPersistence?: boolean;
             forceAppend?: boolean;
             instant?: boolean;
+            htmlFlashTurn?: boolean;
           };
           try {
             data = JSON.parse(line.slice(6));
@@ -1736,7 +1739,12 @@ export default function ChatClient({
           }
 
           if (data.type === "status") {
-            if (data.message) setStreamPhase(data.message);
+            if (data.message) {
+              setStreamPhase(data.message);
+              if (/HTML|상태창 생성/i.test(data.message)) {
+                htmlFlashStreamTurn = true;
+              }
+            }
             if (data.message !== "생성 중…") {
               postStreamLocked = true;
             }
@@ -1745,6 +1753,7 @@ export default function ChatClient({
 
           if (postStreamLocked && data.type !== "done") {
             if (data.type === "replace" && data.text != null && data.instant === true) {
+              htmlFlashStreamTurn = true;
               applyStreamReplaceTarget(data.text, { instant: true });
               continue;
             }
@@ -1778,6 +1787,9 @@ export default function ChatClient({
           }
 
           if (data.type === "done") {
+            if (data.htmlFlashTurn === true) {
+              htmlFlashStreamTurn = true;
+            }
             if (data.trafficOverload || data.skipPersistence) {
               reveal.reset();
               reveal.flush();
@@ -1806,9 +1818,11 @@ export default function ChatClient({
       setStreamPhase(null);
       if (pendingDone?.finalContent) {
         postStreamLocked = true;
-        applyStreamReplaceTarget(pendingDone.finalContent);
+        applyStreamReplaceTarget(pendingDone.finalContent, {
+          instant: htmlFlashStreamTurn || pendingDone.htmlFlashTurn === true,
+        });
       }
-      if (displayPrefsRef.current.streamIntervalMs > 0) {
+      if (displayPrefsRef.current.streamIntervalMs > 0 && !htmlFlashStreamTurn) {
         await reveal.waitUntilIdle();
       } else {
         reveal.flush();
@@ -2435,7 +2449,8 @@ export default function ChatClient({
     );
   }
 
-  function renderAssistantLengthHint(content: string) {
+  function renderAssistantLengthHint(content: string, streamingHtmlFlash = false) {
+    if (streamingHtmlFlash) return null;
     const len = visibleAssistantMessageLength(content);
     if (len <= 0) return null;
     return (
@@ -2455,7 +2470,12 @@ export default function ChatClient({
     }
   ) {
     if (opts.isEditing) return null;
-    const lengthHint = renderAssistantLengthHint(m.content);
+    const lengthHint = renderAssistantLengthHint(
+      m.content,
+      loading &&
+        opts.onLastTurn &&
+        /HTML|상태창 생성/i.test(streamPhase ?? "")
+    );
     const variantPicker =
       opts.showToolbar && (m.variantCount ?? 0) > 1 ? (
         <MessageVariantPicker

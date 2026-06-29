@@ -53,11 +53,9 @@ export function formatRejectedDraftForRegenerate(text: string): string {
 /** 재생성 — 직전 상황은 유지, 전개·반응·대사는 달리 */
 export function buildRegenerateCoreDirective(_charName?: string): string {
   return `[REGENERATE INTENT — user wants a DIFFERENT story development]
-- Continue naturally from the situation in chat history and the fixed user anchor (same facts, setting, relationship stage).
-- Write a NEW [A] response with different actions, reactions, dialogue beats, and emotional turns — NOT a paraphrase of the rejected draft.
-- Do NOT copy the rejected draft verbatim or reuse its key plot beats, set-piece order, closing hook, or signature dialogue lines.
-- Opening 2 sentences must use different actions/dialogue than [Rejected draft]. Include at least one new dialogue line and one new plot beat absent from [Rejected draft].
-- Play ONLY [A] narration and dialogue.`;
+- Continue naturally from chat history and the fixed user anchor (same facts, setting, relationship stage).
+- Write a NEW [A] response with clearly different actions, dialogue, and emotional turn — NOT a paraphrase of the rejected draft.
+- Do NOT reuse key plot beats, closing hooks, or signature lines from [Rejected draft]; opening must diverge.`;
 }
 
 export function buildRegenerateRejectedDraftBlock(rejectedAssistantDraft?: string | null): string {
@@ -68,15 +66,20 @@ ${rejected}\n`;
 }
 
 /** system prompt — 재생성 diverge 단일 출처 (user 턴과 중복 금지) */
+export function buildRegenerateAttemptRecencyLine(regenAttemptId?: string | null): string {
+  const id = regenAttemptId?.trim();
+  if (!id) return "";
+  return `\n[REGEN_ATTEMPT ${id}] — fresh assistant prose required; must differ from the rejected assistant draft on actions, dialogue, and beats.`;
+}
+
 export function buildRegenerateSystemDirective(input: {
   charName?: string;
   rejectedAssistantDraft?: string | null;
+  regenAttemptId?: string | null;
 }): string {
-  return `[REGENERATE — MANDATORY DIVERGENCE]
+  return `[REGENERATE — MANDATORY DIVERGENCE]${buildRegenerateAttemptRecencyLine(input.regenAttemptId)}
 ${buildRegenerateCoreDirective(input.charName)}
-- This turn REPLACES the rejected assistant draft — paraphrase-only regen is a failure.
-- Choose a visibly different emotional turn, action chain, or scene development while staying in character and honoring the fixed user anchor.
-- NEVER reuse dialogue lines, physical beats, or scene-ending hooks from [Rejected draft].${buildRegenerateRejectedDraftBlock(input.rejectedAssistantDraft)}`;
+- Paraphrase-only regen is a failure.${buildRegenerateRejectedDraftBlock(input.rejectedAssistantDraft)}`;
 }
 
 export type AutoContinueResumeContext = {
@@ -204,13 +207,7 @@ ${sceneAnchor}
 ${sceneLead}
 ${personaRulesBlock}${resumeAfterOoc ? `\n${resumeAfterOoc}\n` : ""}
 [STRICT ANTI-REPETITION RULE]
-- NEVER repeat dialogue, exclamations, physical beats, or OOC/meta/HTML lines from ${antiRepeatTarget}.
-
-[CONTEXT & MEMORY INTEGRATION]
-- Reflect [CORE RP] §3 [SPEECH], relationship stage, [User Notes], and [Memory].
-
-[OUTPUT RULE]
-- Dense Korean web-novel prose — obey [WRITING STYLE: 한국 웹소설 표준 포맷 및 호흡 통제] and [LENGTH CONTROL & SCENE EXPANSION]. Narration ends in -다/-한다/-했다.`;
+- NEVER repeat dialogue, exclamations, physical beats, or OOC/meta/HTML lines from ${antiRepeatTarget}.`;
 }
 
 export type RegenerateUserPromptInput = {
@@ -220,6 +217,8 @@ export type RegenerateUserPromptInput = {
   usesBanmal?: boolean;
   /** 리롤 대상 assistant 초안 — 전개 diverge 참고 (히스토리에서 제거됨) */
   rejectedAssistantDraft?: string | null;
+  /** 재생성마다 달라지는 nonce — 동일 프롬프트 캐시·결정론적 재출력 방지 */
+  regenAttemptId?: string | null;
 };
 
 /** 재생성 시 OOC·HTML·상태창 지시가 기본 RP 재작성 지시보다 우선 */
@@ -238,14 +237,20 @@ export function buildRegenerateOocPriorityPrompt(input: RegenerateUserPromptInpu
   const msg = input.userMessage.trim();
   const exclusive = chatOocSuppressesUserNoteExtras(msg);
 
-  return `[SYSTEM: REGENERATE — CHAT OOC takes priority${exclusive ? "; user note status/HTML suspended" : ""}]
-- Rewrite the last assistant turn, but obey the user's OOC in the anchor below FIRST.
-${exclusive ? "- User note standing status window and extra HTML are OFF this turn — output ONLY what chat OOC requests.\n- Do NOT open RP narration — Flash/HTML (or minimal output) only per OOC." : "- User note standing status/world rules still apply alongside OOC.\n- If OOC allows RP continuation, keep it minimal unless OOC requests more."}
-- Do NOT change what the user said or meant in the anchor below.
+  const rules = exclusive
+    ? `- OOC in the anchor below overrides standing status/HTML and default regen.
+- Do NOT write RP narration — output ONLY what OOC requests (HTML/Flash or minimal).
+- Do NOT change what the user said in the anchor.`
+    : `- OOC in the anchor below takes priority over default regen.
+- If OOC forbids RP, output only what OOC requests; otherwise keep RP minimal unless OOC asks for more.
+- Do NOT change what the user said in the anchor.`;
+
+  return `[SYSTEM: REGENERATE — CHAT OOC takes priority${exclusive ? " (user note status/HTML suspended)" : ""}]
+${rules}
 ${buildRegenerateRejectedDraftBlock(input.rejectedAssistantDraft)}
 
 [User message — fixed anchor; OOC inside is mandatory]
-${msg}`;
+${msg}${buildRegenerateAttemptRecencyLine(input.regenAttemptId)}`;
 }
 
 /** 리롤 — 마지막 user 턴은 고정, assistant만 재작성 (diverge는 system [REGENERATE] 단일 출처) */
@@ -259,5 +264,5 @@ export function buildRegenerateUserPrompt(input: RegenerateUserPromptInput): str
 ${userPersonaSpeechTail(input.personaName, !!input.usesBanmal)}
 
 [User message — fixed anchor, not dialogue to rewrite]
-${msg}`;
+${msg}${buildRegenerateAttemptRecencyLine(input.regenAttemptId)}`;
 }

@@ -18,6 +18,7 @@ export type OpenRouterGenerationOverrides = {
   frequency_penalty?: number;
   presence_penalty?: number;
   repetition_penalty?: number;
+  seed?: number;
 };
 
 /** Claude Opus — 문학·퇴폐 문체 보존 (penalty 비활성) */
@@ -187,16 +188,14 @@ function applyOpenRouterRpReasoningPolicy(body: Record<string, unknown>, modelId
 /** OpenRouter RP — API max_tokens coerce fallback (Gemini 3.1 cap) */
 export const OPENROUTER_MAX_OUTPUT_TOKENS = 8192;
 
-/** OpenRouter — tier별 max_tokens (5,000자 상한에서 역산) */
+/** OpenRouter — RP chat max_tokens (override만; 없으면 미전송) */
 export function resolveOpenRouterMaxTokens(
   targetResponseChars?: number | null,
   maxTokensOverride?: number,
   modelId?: string | null
-): number {
-  return (
-    maxTokensOverride ??
-    resolveMaxOutputTokensForTarget(targetResponseChars, modelId)
-  );
+): number | undefined {
+  if (maxTokensOverride != null) return maxTokensOverride;
+  return resolveMaxOutputTokensForTarget(targetResponseChars, modelId);
 }
 
 /** DeepSeek V4 Pro — 통합 tier temperature */
@@ -209,20 +208,21 @@ export function resolveClaudeTemperatureForTarget(_targetResponseChars?: number 
   return 0.82;
 }
 
-/** OpenRouter generation 파라미터 — temperature + max_tokens (+ Claude 반복 억제) */
+/** OpenRouter generation 파라미터 — temperature + optional max_tokens (+ Claude 반복 억제) */
 export function normalizeOpenRouterGenerationParams(
-  maxTokens: number,
+  maxTokens: number | undefined,
   modelId?: string,
   overrides?: OpenRouterGenerationOverrides,
   targetResponseChars?: number | null
 ) {
   const src = { ...EURYALE_GENERATION_PARAMS, ...overrides };
-  const resolvedMax = coerceInt(maxTokens, OPENROUTER_MAX_OUTPUT_TOKENS);
   const base: Record<string, unknown> = {
     temperature: coerceFloat(src.temperature, 0.7),
-    max_tokens: resolvedMax,
     stream_options: { include_usage: true as const },
   };
+  if (maxTokens != null && Number.isFinite(maxTokens) && maxTokens > 0) {
+    base.max_tokens = coerceInt(maxTokens, OPENROUTER_MAX_OUTPUT_TOKENS);
+  }
 
   if (modelId && isDeepSeekOpenRouterModel(modelId)) {
     base.temperature = resolveDeepSeekTemperatureForTarget(targetResponseChars);
@@ -245,15 +245,19 @@ export function normalizeOpenRouterGenerationParams(
   if (overrides?.frequency_penalty != null) base.frequency_penalty = overrides.frequency_penalty;
   if (overrides?.presence_penalty != null) base.presence_penalty = overrides.presence_penalty;
   if (overrides?.repetition_penalty != null) base.repetition_penalty = overrides.repetition_penalty;
+  if (overrides?.seed != null && Number.isFinite(overrides.seed)) {
+    base.seed = Math.floor(overrides.seed);
+  }
 
   return base as {
     temperature: number;
-    max_tokens: number;
+    max_tokens?: number;
     stream_options: { include_usage: true };
     top_p?: number;
     frequency_penalty?: number;
     presence_penalty?: number;
     repetition_penalty?: number;
+    seed?: number;
   };
 }
 
@@ -269,7 +273,8 @@ export function resolveRegenerateGenerationOverrides(
     targetResponseChars
   );
   const overrides: OpenRouterGenerationOverrides = {
-    temperature: Math.min(1.2, base.temperature + 0.15),
+    temperature: Math.min(1.2, Math.max(1.0, base.temperature + 0.28)),
+    seed: Math.floor(Math.random() * 2_147_483_647),
   };
   if (base.top_p != null) overrides.top_p = Math.min(0.98, base.top_p + 0.05);
   if (base.frequency_penalty != null) {

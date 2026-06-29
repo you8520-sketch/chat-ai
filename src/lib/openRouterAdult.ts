@@ -5,7 +5,6 @@ import {
   resolveTargetLengthForPrompt,
   resolveResponseLengthTarget,
   logLengthAudit,
-  resolveMaxOutputTokensForTarget,
   detectProbableOutputTruncation,
   isTokenLimitFinish,
   applyStreamLengthCap,
@@ -23,6 +22,7 @@ import {
 import {
   buildOpenRouterRequestBody,
   logOpenRouterSystemPromptBeforeFetch,
+  resolveOpenRouterMaxTokens,
   summarizeOpenRouterPayload,
   flattenOpenRouterMessageContent,
   countCachedContentBlocks,
@@ -1057,12 +1057,14 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
     messageOpts?.generationOverrides
   );
   const lengthTarget = resolveResponseLengthTarget(targetResponseChars);
-  const configuredMaxTokens =
-    messageOpts?.maxTokensOverride ??
-    resolveMaxOutputTokensForTarget(targetResponseChars, billingModelId);
+  const configuredMaxTokens = resolveOpenRouterMaxTokens(
+    targetResponseChars,
+    messageOpts?.maxTokensOverride,
+    billingModelId
+  );
   console.log("[OUTPUT TOKEN CONFIG]", {
     lengthMode: lengthTarget.target,
-    max_tokens: configuredMaxTokens,
+    max_tokens: configuredMaxTokens ?? "(omitted — provider default)",
     requestKind: debugMeta?.requestKind ?? "openrouter-stream",
     apiModel: apiModelId,
     billingModel: billingModelId,
@@ -1621,8 +1623,9 @@ export async function streamOpenRouterAdultToClient(
 
   logInputEchoCheckForTurn(history, mergedText);
 
-  const configuredMaxTokens = resolveMaxOutputTokensForTarget(
+  const configuredMaxTokens = resolveOpenRouterMaxTokens(
     targetResponseChars,
+    messageOpts?.maxTokensOverride,
     modelId
   );
   const recoveryOutputTokens = recoveryStage?.apiOutputTokens ?? recoveryStage?.output ?? 0;
@@ -1630,7 +1633,7 @@ export async function streamOpenRouterAdultToClient(
 
   console.log("[OUTPUT GENERATION RESULT]", {
     lengthMode: resolveResponseLengthTarget(targetResponseChars).target,
-    max_tokens: configuredMaxTokens,
+    max_tokens: configuredMaxTokens ?? "(omitted — provider default)",
     api_output_tokens: totalApiOutputTokens,
     primary_output_tokens: usage.outputTokens,
     ...(recoveryOutputTokens > 0 ? { recovery_output_tokens: recoveryOutputTokens } : {}),

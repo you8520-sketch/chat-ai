@@ -284,8 +284,8 @@ export const OPENROUTER_DEEPSEEK_COST_MARKUP = OPENROUTER_DEEPSEEK_GROSS_MARGIN;
 /** Qwen 3.7 — 출력 1토큰당 청구 (P) */
 export const OPENROUTER_QWEN_POINTS_PER_OUTPUT_TOKEN = (() => {
   const perToken = process.env.OPENROUTER_QWEN_POINTS_PER_OUTPUT_TOKEN?.trim();
-  if (perToken) return Number(perToken) || 0.065;
-  return 0.065;
+  if (perToken) return Number(perToken) || 0.062;
+  return 0.062;
 })();
 
 /** @deprecated OPENROUTER_QWEN_POINTS_PER_OUTPUT_TOKEN 사용 (구 1자당 과금) */
@@ -309,8 +309,8 @@ export const OPENROUTER_GEMINI_25_GROSS_MARGIN =
 /** Gemini 3.1 Pro — 출력 1토큰당 청구 (P) */
 export const OPENROUTER_GEMINI_31_POINTS_PER_OUTPUT_TOKEN = (() => {
   const perToken = process.env.OPENROUTER_GEMINI_31_POINTS_PER_OUTPUT_TOKEN?.trim();
-  if (perToken) return Number(perToken) || 0.072;
-  return 0.072;
+  if (perToken) return Number(perToken) || 0.075;
+  return 0.075;
 })();
 
 /** @deprecated OPENROUTER_GEMINI_PRO_GROSS_MARGIN — 마진 과금 제거, 토큰 단가만 사용 */
@@ -1148,7 +1148,7 @@ export function explainOpenRouterDeepSeekTurnCost(
   );
 }
 
-/** Qwen 3.7 과금 상세 — 출력토큰×0.065P */
+/** Qwen 3.7 과금 상세 — 출력토큰×0.062P */
 export function explainOpenRouterQwenTurnCost(
   inputTokens: number,
   outputTokens: number,
@@ -1183,7 +1183,7 @@ export function explainOpenRouterGemini25TurnCost(
   );
 }
 
-/** OpenRouter Gemini 3.1 Pro — 출력토큰×0.072P */
+/** OpenRouter Gemini 3.1 Pro — 출력토큰×0.075P */
 export function explainOpenRouterGemini31TurnCost(
   inputTokens: number,
   outputTokens: number,
@@ -1364,33 +1364,24 @@ export function narrativeTextForBilling(savedText: string, _opts?: BillableOutpu
   return savedVisibleTextForReceipt(savedText);
 }
 
-/** 채팅 출력 과금 — 저장 표시 길이 (상태창 셀 텍스트 포함), tier hardMax 적용 */
+/** 채팅 출력 과금 — 저장 표시 길이 (상태창 셀 텍스트 포함), 상한 없음 */
 export function billableOutputChars(
   savedText: string,
-  targetInput?: number | null,
+  _targetInput?: number | null,
   opts?: BillableOutputOpts
 ): number {
-  let len = narrativeTextForBilling(savedText, opts).length;
-  if (targetInput != null) {
-    const { hardMax } = resolveResponseLengthTarget(targetInput);
-    len = Math.min(len, hardMax);
-  }
-  return Math.max(0, len);
+  return Math.max(0, narrativeTextForBilling(savedText, opts).length);
 }
 
 /** 채팅 출력 과금 — API output_tokens 우선 (상태창 포함 토큰은 그대로 과금) */
 export function billableOutputTokens(
   apiTokens: number,
   savedText: string,
-  targetInput?: number | null,
+  _targetInput?: number | null,
   opts?: BillableOutputOpts
 ): number {
   if (apiTokens > 0) return apiTokens;
-  let len = narrativeTextForBilling(savedText, opts).length;
-  if (targetInput != null) {
-    const { hardMax } = resolveResponseLengthTarget(targetInput);
-    len = Math.min(len, hardMax);
-  }
+  const len = narrativeTextForBilling(savedText, opts).length;
   return Math.max(1, Math.ceil(len * 0.9));
 }
 

@@ -5,6 +5,7 @@ import {
   extractMainCharacterAppearanceBody,
   extractVisualAppearancePolicyFromChunks,
   buildVisualAnchorReminder,
+  sanitizeVisualAppearance,
 } from "@/lib/visualAnchor";
 
 function chunk(content: string, category: CharacterChunk["category"] = "identity"): CharacterChunk {
@@ -93,5 +94,19 @@ describe("extractMainCharacterAppearanceBody", () => {
     const anchor = buildVisualAnchorReminder(policy);
     assert.ok(anchor);
     assert.match(anchor!, /금안/);
+  });
+
+  it("sanitizeVisualAppearance replaces 은발 inside HTML for blonde policy", () => {
+    const policy = {
+      hair: "blonde" as const,
+      hairLabel: "금발 (blonde)",
+      eyes: "blue" as const,
+      eyesLabel: "푸른 눈",
+      body: null,
+    };
+    const html = `\`\`\`html\n<p>192cm 거구, 은발, 푸른눈</p><span>#은발거구</span>\n\`\`\``;
+    const out = sanitizeVisualAppearance(html, policy);
+    assert.match(out, /금발/);
+    assert.doesNotMatch(out, /은발/);
   });
 });

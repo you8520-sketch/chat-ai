@@ -4,6 +4,12 @@ import { openRouterRawCostKrw } from "@/lib/billingRawCost";
 import type { BillingExchangeRateSnapshot } from "@/lib/exchangeRate";
 import type { Usage } from "@/lib/chatUsage";
 
+/** 상태창 위젯 V3 — API 원가(KRW)를 P로 올림 반영 */
+export function statusWidgetApiCostChargePoints(apiRawCostKrw: number): number {
+  if (!Number.isFinite(apiRawCostKrw) || apiRawCostKrw <= 0) return 0;
+  return Math.ceil(apiRawCostKrw - 1e-9);
+}
+
 export type StatusWidgetExtractReceipt = {
   model: string;
   modelLabel: string;
@@ -69,6 +75,38 @@ export function buildStatusWidgetExtractReceipt(
       ? { upstreamCostUsd: usage.upstreamCostUsd }
       : {}),
     estimated: usage.estimated,
+  };
+}
+
+/** 위젯 V3 API 원가(KRW) → P 올림 + 메인 RP 과금과 합산 */
+export function applyStatusWidgetBillingCharge(
+  record: Usage,
+  widgetUsage: TokenUsage,
+  exchangeRate: BillingExchangeRateSnapshot,
+  mainBillingCost: number
+): { record: Usage; totalCost: number; widgetCostPoints: number } {
+  const withReceipt = appendStatusWidgetExtractToUsageRecord(record, widgetUsage, exchangeRate);
+  const widgetCostPoints = statusWidgetApiCostChargePoints(
+    withReceipt.statusWidgetExtract!.apiRawCostKrw
+  );
+  const totalCost = mainBillingCost + widgetCostPoints;
+  const stages = withReceipt.stages?.map((s) =>
+    s.stage.includes("위젯") ? { ...s, cost: widgetCostPoints } : s
+  );
+
+  return {
+    widgetCostPoints,
+    totalCost,
+    record: {
+      ...withReceipt,
+      baseCost: mainBillingCost,
+      widgetCostPoints,
+      cost: totalCost,
+      stages,
+      ...(withReceipt.billingWaived && totalCost > 0
+        ? { billingWaived: undefined, billingWaiverReason: undefined }
+        : {}),
+    },
   };
 }
 

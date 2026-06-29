@@ -68,7 +68,7 @@ const BODY_OUTPUT_SECTION_IDS = new Set([
 ]);
 
 const MODELS: { id: string; label: string; opts?: Record<string, unknown> }[] = [
-  { id: OPENROUTER_GEMINI_31_PRO_MODEL, label: "Gemini 3.1 Pro", opts: { mainModelOwnsHtmlVisualCard: true, mainModelOwnsRelationshipExtract: true } },
+  { id: OPENROUTER_GEMINI_31_PRO_MODEL, label: "Gemini 3.1 Pro", opts: { mainModelOwnsRelationshipExtract: true } },
   { id: OPENROUTER_GEMINI_25_PRO_MODEL, label: "Gemini 2.5 Pro" },
   { id: OPENROUTER_QWEN_37_MAX_MODEL, label: "Qwen 3.7 Max" },
   { id: OPENROUTER_DEEPSEEK_V4_PRO_MODEL, label: "DeepSeek V4 Pro (XML mode)" },
@@ -84,7 +84,7 @@ const SOURCE_MAP: Record<string, string> = {
   "rule-core-turn-hint": "src/lib/corePrompt.ts — buildCoreMasterEarlyTurnHint()",
   "prose-style-xml-bundle": "src/lib/proseStyleXmlBundle.ts",
   "rule-advanced-prose-nsfw": "src/lib/advancedProseNsfwGuidelines.ts (Gemini only duplicate path)",
-  "turn-handoff-and-pacing": "src/lib/turnHandoffAndPacing.ts + responseLength.ts terminal override",
+  "turn-handoff-and-pacing": "src/lib/turnHandoffAndPacing.ts — buildTurnHandoffAndPacingBlock()",
   "regenerate-divergence": "src/lib/continueNarrative.ts — buildRegenerateSystemDirective()",
   "narrative-style": "src/lib/narrativeStyle.ts — buildNarrativeStyleLayer()",
   "state-window-policy": "src/lib/statusWindowNotePolicy.ts",
@@ -96,7 +96,7 @@ const SOURCE_MAP: Record<string, string> = {
   "dialogue-format-directive": "src/lib/promptTranslation.ts — DIALOGUE_FORMAT_DIRECTIVE (Gemini path)",
   "korean-narration-ending": "src/lib/promptTranslation.ts — KOREAN_NARRATION_ENDING_RULE (Gemini path)",
   "visual-appearance-anchor": "src/services/contextBuilder.ts — visual anchor tail",
-  "rule-terminal-length-override": "src/lib/responseLength.ts — buildTerminalLengthOverrideBlock()",
+  "rule-terminal-length-override": "src/lib/responseLength.ts — buildTerminalLengthOverrideBlock() (compact tail only)",
   "bilingual-dialogue": "src/lib/bilingualDialoguePolicy.ts",
   "controlled-possession": "src/lib/controlledPossession.ts",
   "scene-expansion": "src/lib/sceneExpansionPolicy.ts",
@@ -129,39 +129,85 @@ function section(title: string, body: string, meta?: string): string {
   ].join("\n");
 }
 
+const PLACEHOLDER_CHAR = "[A]";
+const PLACEHOLDER_USER = "[B]";
+const PLACEHOLDER_DYNAMIC = "(dynamic — filled at runtime)";
+
+const HTML_FLASH_USER_BLOCK_SCHEMA = `[CHARACTER & WORLD SETTING — CORE IDENTITY]
+${PLACEHOLDER_DYNAMIC}
+
+[USER PERSONA]
+${PLACEHOLDER_DYNAMIC}
+
+[LONG-TERM MEMORY]
+${PLACEHOLDER_DYNAMIC}
+
+[USER NOTE — reference RAG]
+${PLACEHOLDER_DYNAMIC}
+
+[ACTIVE LORE / LOREBOOK — contextual RAG]
+${PLACEHOLDER_DYNAMIC}
+
+[CHARACTER] ${PLACEHOLDER_DYNAMIC}
+[USER PERSONA NAME] ${PLACEHOLDER_DYNAMIC}
+
+[RECENT CHAT HISTORY]
+${PLACEHOLDER_DYNAMIC}
+
+[USER MESSAGE — this turn]
+${PLACEHOLDER_DYNAMIC}
+
+[ASSISTANT REPLY — prose only]
+${PLACEHOLDER_DYNAMIC}
+
+[TASK]
+Generate the \`\`\`html visual card for this turn per policy above.`;
+
+const USER_MESSAGE_FORMAT_SCHEMA = `[유저 대사]
+${PLACEHOLDER_DYNAMIC}
+
+[유저 지문/행동 — 캐릭터가 관찰 가능]
+${PLACEHOLDER_DYNAMIC}
+
+[유저 속마음 — ( ) 안 · 캐릭터는 인지 불가]
+${PLACEHOLDER_DYNAMIC}
+
+Single plain dialogue lines may pass through unlabeled.
+formatUserMessageForPrompt() injects labels from actual user input each turn.`;
+
 async function buildMockFixture() {
   const { parseCharacterSetting } = await import("../src/utils/characterParser");
   const { formatSelectedPersonaForPrompt } = await import("../src/lib/userPersonas");
   const { formatUserNoteForPrompt } = await import("../src/lib/persona");
   const { formatMemoryMetaForPrompt, parseMemoryMeta } = await import("../src/lib/chatMemory");
 
-  const charName = "백하율";
-  const personaDisplayName = "렌";
+  const charName = PLACEHOLDER_CHAR;
+  const personaDisplayName = PLACEHOLDER_USER;
   const chunks = parseCharacterSetting({
     characterId: "mock-1",
     characterName: charName,
     gender: "male",
-    systemPrompt: `# 성격\n차분하고 관찰력이 뛰어나며, 감정을 겉으로 드러내지 않는다.\n\n# 외형\n금발, 검은색 제복.`,
-    world: `# 세계관\n현대 도시 배경.`,
-    exampleDialog: `유저: 오늘 밤에도 나가?\n${charName}: …필요하면요.`,
+    systemPrompt: `# 성격\n${PLACEHOLDER_DYNAMIC}\n\n# 외형\n${PLACEHOLDER_DYNAMIC}`,
+    world: `# 세계관\n${PLACEHOLDER_DYNAMIC}`,
+    exampleDialog: `유저: ${PLACEHOLDER_DYNAMIC}\n${charName}: ${PLACEHOLDER_DYNAMIC}`,
     statusWindowPrompt: "",
   });
 
   return {
-    source: "mock fixture (nsfw, completedTurns=12, target=3000)",
+    source: "mock fixture (generic placeholders, nsfw, completedTurns=12, target=3000)",
     charName,
     userNickname: personaDisplayName,
     personaDisplayName,
     chunks,
-    userPersonaPrompt: formatSelectedPersonaForPrompt(personaDisplayName, "other", "20대 대학원생."),
-    userNotePrompt: formatUserNoteForPrompt("[고집중] 오래 알고 지낸 친구."),
-    longTermMemory: "[장기 기억] 3년 전 실종 사건.",
-    memoryMeta: formatMemoryMetaForPrompt(parseMemoryMeta(JSON.stringify({ affection: 72, trust: 65 }))),
+    userPersonaPrompt: formatSelectedPersonaForPrompt(personaDisplayName, "other", PLACEHOLDER_DYNAMIC),
+    userNotePrompt: formatUserNoteForPrompt(PLACEHOLDER_DYNAMIC),
+    longTermMemory: PLACEHOLDER_DYNAMIC,
+    memoryMeta: formatMemoryMetaForPrompt(parseMemoryMeta(JSON.stringify({ affection: 0, trust: 0 }))),
     shortTermHistory: [
-      { role: "user" as const, content: "오늘도 밤산책 갈래?" },
-      { role: "assistant" as const, content: `${charName}은 조용히 고개를 끄덕였다. "…가시려면, 제 옆에 붙어 있으세요."` },
+      { role: "user" as const, content: PLACEHOLDER_DYNAMIC },
+      { role: "assistant" as const, content: PLACEHOLDER_DYNAMIC },
     ],
-    currentUserMessage: "…방금 소리, 들었어?",
+    currentUserMessage: PLACEHOLDER_DYNAMIC,
     nsfw: true,
     gender: "male" as const,
     assetTags: ["neutral"],
@@ -171,8 +217,8 @@ async function buildMockFixture() {
     userImpersonation: false,
     novelModeEnabled: false,
     targetResponseChars: 3000,
-    contextualLore: "[CONTEXTUAL LORE] 실종 사건 관련 목격 증언.",
-    recentNarrativeContext: "[RECENT NARRATIVE] 골목 입구에서 멈춰 섰다.",
+    contextualLore: PLACEHOLDER_DYNAMIC,
+    recentNarrativeContext: PLACEHOLDER_DYNAMIC,
   };
 }
 
@@ -313,18 +359,15 @@ async function dumpStandalonePrompts(): Promise<string[]> {
   } = await import("../src/lib/continueNarrative");
   const {
     buildRecoveryContinuationSystemPrompt,
-    CONTINUATION_SYSTEM_PROMPT,
   } = await import("../src/lib/turnApiBudget");
-  const { buildVisibleLengthContinuationUserMessage } = await import("../src/lib/narrativeLengthContinuation");
   const {
     DEEPSEEK_BOTTOM_REMINDER,
-    buildDeepSeekBottomReminderBlock,
     LTM_ABSOLUTE_FACTS_RULE,
   } = await import("../src/lib/deepseekPromptStructure");
   const { buildCoNarrationKoreanRule } = await import("../src/lib/openRouterAdult");
   const { buildPrimaryModelFlashFirewallBlock } = await import("../src/lib/flashOwnedOutputFirewall");
   const { resolveHtmlVisualCardPolicyFromSources, buildHtmlVisualCardPolicyBlock } = await import("../src/lib/htmlVisualCardPolicy");
-  const { buildHtmlVisualCardFlashUserBlock } = await import("../src/lib/htmlVisualCardRecovery");
+  const { buildHtmlFlashSystemPrompt } = await import("../src/lib/htmlVisualCardRecovery");
   const { estimateTokens } = await import("../src/lib/tokenEstimate");
 
   const t = resolveResponseLengthTarget(3000);
@@ -350,7 +393,7 @@ async function dumpStandalonePrompts(): Promise<string[]> {
       `source: src/lib/responseLength.ts · TARGET=${t.aimChars} MIN=${t.min}\nincludes: NO_INPUT_ECHO_RULE (sceneExpansionPolicy) + SCENE_CONTINUATION_PRIORITY_BLOCK (turnHandoffAndPacing)`
     ),
     section(
-      "PART B3 — 턴 종료·호흡 (buildTerminalLengthOverrideBlock = buildTurnHandoffAndPacingBlock)",
+      "PART B3 — compact tail 절대 끝 (buildTerminalLengthOverrideBlock)",
       buildTerminalLengthOverrideBlock(),
       "source: src/lib/turnHandoffAndPacing.ts — system tail absolute (조기 종료 금지; SCENE CONTINUATION은 PART B에만)"
     )
@@ -397,8 +440,8 @@ async function dumpStandalonePrompts(): Promise<string[]> {
     section(
       "PART E — [CORE RP] master rules",
       buildCoreMasterPromptForCache({
-        charName: "백하율",
-        userName: "렌",
+        charName: PLACEHOLDER_CHAR,
+        userName: PLACEHOLDER_USER,
         charGender: "male",
         userGender: "other",
         nsfwEnabled: true,
@@ -412,16 +455,16 @@ async function dumpStandalonePrompts(): Promise<string[]> {
     ),
     section(
       "PART F — [NO GODMODDING]",
-      buildNoGodmoddingBlock("백하율", "렌", "standard"),
+      buildNoGodmoddingBlock(PLACEHOLDER_CHAR, PLACEHOLDER_USER, "standard"),
       "source: src/lib/noGodmodding.ts"
     ),
     section(
       "PART G — user persona narration (일반 / novel)",
       [
-        buildSmartUserPersonaNarrationRules("백하율", "렌"),
+        buildSmartUserPersonaNarrationRules(PLACEHOLDER_CHAR, PLACEHOLDER_USER),
         "",
         "--- NOVEL MODE ---",
-        buildNovelModeUserPersonaRules("백하율", "렌"),
+        buildNovelModeUserPersonaRules(PLACEHOLDER_CHAR, PLACEHOLDER_USER),
       ].join("\n\n"),
       "source: src/lib/userPersonaNarrationRules.ts"
     )
@@ -435,18 +478,21 @@ async function dumpStandalonePrompts(): Promise<string[]> {
     )
   );
 
-  const htmlPolicy = resolveHtmlVisualCardPolicyFromSources({
-    userNote: "",
-    userPersona: "",
-    characterSetting: "",
-    userMessage: "",
-    markdownStatusWindowActive: false,
+  const turnPolicy = resolveHtmlVisualCardPolicyFromSources({
+    userMessage: "HTML을 사용해서 (dynamic UI request)",
   });
   lines.push(
     section(
-      "PART I — HTML visual card policy block (standing OFF sample)",
+      "PART I — V3 HTML system brief (turn-trigger, no PART I templates)",
+      buildHtmlFlashSystemPrompt(turnPolicy, "top"),
+      "source: src/lib/htmlVisualCardRecovery.ts — buildHtmlFlashV3SystemBrief()"
+    )
+  );
+  lines.push(
+    section(
+      "PART I-legacy — buildHtmlVisualCardPolicyBlock (deprecated empty)",
       buildHtmlVisualCardPolicyBlock({ standing: false, statusFieldLabels: [] }),
-      "source: src/lib/htmlVisualCardPolicy.ts"
+      "source: removed — policyBlock always empty; V3 uses brief above + user block"
     )
   );
 
@@ -454,16 +500,11 @@ async function dumpStandalonePrompts(): Promise<string[]> {
     section(
       "PART J — DeepSeek V4 XML bottom reminder (매 user turn prepend)",
       DEEPSEEK_BOTTOM_REMINDER,
-      "source: src/lib/deepseekPromptStructure.ts — prependDeepSeekBottomReminder()"
+      "source: src/lib/deepseekPromptStructure.ts — prependDeepSeekBottomReminder(); APPEARANCE LOCK은 Core Identity에만"
     ),
     section(
       "PART J2 — LTM absolute facts rule (DeepSeek XML LTM wrapper)",
       LTM_ABSOLUTE_FACTS_RULE,
-      "source: src/lib/deepseekPromptStructure.ts"
-    ),
-    section(
-      "PART J3 — DeepSeek bottom reminder + appearance tail sample",
-      buildDeepSeekBottomReminderBlock("[APPEARANCE LOCK] 금발 — 검은색 제복"),
       "source: src/lib/deepseekPromptStructure.ts"
     )
   );
@@ -472,8 +513,8 @@ async function dumpStandalonePrompts(): Promise<string[]> {
     section(
       "PART K — 매턴 user turn: 자동진행 (buildContinueNarrativeCommand)",
       buildContinueNarrativeCommand({
-        personaName: "렌",
-        charName: "백하율",
+        personaName: PLACEHOLDER_USER,
+        charName: PLACEHOLDER_CHAR,
         novelModeEnabled: false,
         regenerate: false,
       }),
@@ -482,17 +523,17 @@ async function dumpStandalonePrompts(): Promise<string[]> {
     section(
       "PART K2 — 재생성 system directive",
       buildRegenerateSystemDirective({
-        charName: "백하율",
-        rejectedAssistantDraft: "…(거절된 초안 샘플)…",
+        charName: PLACEHOLDER_CHAR,
+        rejectedAssistantDraft: PLACEHOLDER_DYNAMIC,
       }),
       "source: src/lib/continueNarrative.ts — regenerateMessageId 시 system에 주입"
     ),
     section(
       "PART K3 — 재생성 OOC 우선 user prompt",
       buildRegenerateOocPriorityPrompt({
-        userMessage: "OOC: RP 중지, HTML로 상태 요약 출력",
-        personaName: "렌",
-        charName: "백하율",
+        userMessage: PLACEHOLDER_DYNAMIC,
+        personaName: PLACEHOLDER_USER,
+        charName: PLACEHOLDER_CHAR,
       }),
       "source: src/lib/continueNarrative.ts"
     )
@@ -501,51 +542,16 @@ async function dumpStandalonePrompts(): Promise<string[]> {
   lines.push(
     section(
       "PART L — 이어쓰기 recovery system (under-length 1회)",
-      buildRecoveryContinuationSystemPrompt("백하율"),
-      "source: src/lib/turnApiBudget.ts — narrativeLengthContinuation"
-    ),
-    section(
-      "PART L2 — CONTINUATION_SYSTEM_PROMPT (legacy one-liner)",
-      CONTINUATION_SYSTEM_PROMPT,
-      "source: src/lib/turnApiBudget.ts"
-    ),
-    section(
-      "PART L3 — visible length continuation user message sample",
-      buildVisibleLengthContinuationUserMessage(1800, 3000, 420),
-      "source: src/lib/narrativeLengthContinuation.ts — sub-call user turn"
+      buildRecoveryContinuationSystemPrompt(),
+      "source: src/lib/turnApiBudget.ts — narrativeLengthContinuation · L3 user message is built dynamically at runtime (not documented here)"
     )
-  );
-
-  // HTML-only model — import internal builder via dynamic read of exported user block + policy
-  const htmlUserBlock = buildHtmlVisualCardFlashUserBlock(
-    {
-      chatId: 1,
-      charName: "백하율",
-      personaName: "렌",
-      userMessage: "OOC: 장기기억·유저노트 참고해서 HTML로 캐릭터 카드 출력",
-      assistantProse: "",
-      userNote: "[고집중] 친구처럼 대함",
-      userPersona: "20대 대학원생",
-      characterSetting: "[CORE IDENTITY]\n금발, 검은 제복…",
-      memoryBlock: "[장기기억] 실종 사건",
-      recentHistory: [{ role: "user", content: "산책 갈래?" }],
-      loreBlock: "[LORE] 도시 전설",
-    },
-    { standing: false, statusFieldLabels: [] },
-    "bottom",
-    { htmlOnlyDedicatedTurn: true, oocCreativeBrief: true }
   );
 
   lines.push(
     section(
-      "PART M — HTML 전용 모델 (HTML전용모델 / DeepSeek V3) user block sample",
-      htmlUserBlock,
-      `source: src/lib/htmlVisualCardRecovery.ts — buildHtmlVisualCardFlashUserBlock() · maxOut=${HTML_ONLY_TURN_MAX_OUTPUT_TOKENS} · label=${HTML_ONLY_MODEL_LABEL}`
-    ),
-    section(
-      "PART M2 — HTML 전용 모델 billing",
-      "DeepSeek V3 API 원가 + 55% gross margin (OPENROUTER_DEEPSEEK_GROSS_MARGIN=0.55) + input 8k+ surcharge",
-      "source: src/lib/points.ts — computeHtmlFlashOnlyTurnBilling()"
+      "PART M — HTML 전용 모델 (DeepSeek V3) user block schema",
+      HTML_FLASH_USER_BLOCK_SCHEMA,
+      `source: src/lib/htmlVisualCardRecovery.ts — buildHtmlVisualCardFlashUserBlock() · maxOut=${HTML_ONLY_TURN_MAX_OUTPUT_TOKENS} · label=${HTML_ONLY_MODEL_LABEL} · no sample lore/names in prompt`
     )
   );
 
@@ -556,8 +562,6 @@ async function main() {
   const chatId = parseChatId(process.argv.slice(2));
   const { buildContext } = await import("../src/services/contextBuilder");
   const { estimateTokens } = await import("../src/lib/tokenEstimate");
-  const { formatUserMessageForPrompt } = await import("../src/lib/userActionThoughtRules");
-  const { prependDeepSeekBottomReminder } = await import("../src/lib/deepseekPromptStructure");
 
   let fixture: Awaited<ReturnType<typeof buildMockFixture>>;
   try {
@@ -598,17 +602,12 @@ async function main() {
   lines.push(
     "",
     "█".repeat(88),
-    "PART N — 매턴 user message 포맷 (formatUserMessageForPrompt)",
+    "PART N — 매턴 user message 포맷 (formatUserMessageForPrompt schema)",
     "█".repeat(88),
     section(
-      "일반 user turn (mind-reading OFF)",
-      formatUserMessageForPrompt(fixture.currentUserMessage, false),
-      "source: src/lib/userActionThoughtRules.ts — history + current user"
-    ),
-    section(
-      "DeepSeek V4 — bottom reminder prepended current turn",
-      prependDeepSeekBottomReminder(formatUserMessageForPrompt(fixture.currentUserMessage, false)),
-      "source: src/lib/deepseekPromptStructure.ts + contextBuilder history mapping"
+      "Labeled user turn structure (no sample dialogue)",
+      USER_MESSAGE_FORMAT_SCHEMA,
+      "source: src/lib/userActionThoughtRules.ts — labels injected from actual user input; DeepSeek bottom reminder is PART J only (not duplicated here)"
     )
   );
 
@@ -669,25 +668,37 @@ async function main() {
       );
     }
 
-    for (const s of allOutputSections) {
-      lines.push(
-        section(
-          `[${model.id}] ${s.id} — ${s.label}`,
-          s.text,
-          `≈${estimateTokens(s.text)} tokens · ${s.text.length} chars · ${SOURCE_MAP[s.id] ?? ""}`
-        )
-      );
-    }
-
     if (built.openRouterSystemSplit) {
+      const split = built.openRouterSystemSplit;
       lines.push(
+        "",
+        "── OpenRouter canonical system (API payload = rules + character + dynamic, each rule once) ──",
         section(
-          `[${model.id}] OpenRouter cacheRulesBlock (cached prefix excerpt — first 4000 chars)`,
-          built.openRouterSystemSplit.systemRulesBlock.slice(0, 4000) +
-            (built.openRouterSystemSplit.systemRulesBlock.length > 4000 ? "\n\n… [truncated for index] …" : ""),
-          `full cacheRules ≈${estimateTokens(built.openRouterSystemSplit.systemRulesBlock)} tok`
+          `[${model.id}] OpenRouter systemRulesBlock (cached breakpoint 1)`,
+          split.systemRulesBlock,
+          `≈${estimateTokens(split.systemRulesBlock)} tok`
+        ),
+        section(
+          `[${model.id}] OpenRouter characterSettingsBlock (cached breakpoint 2)`,
+          split.characterSettingsBlock,
+          `≈${estimateTokens(split.characterSettingsBlock)} tok`
+        ),
+        section(
+          `[${model.id}] OpenRouter dynamicBlock (non-cached tail)`,
+          split.dynamicBlock,
+          `≈${estimateTokens(split.dynamicBlock)} tok`
         )
       );
+    } else {
+      for (const s of allOutputSections) {
+        lines.push(
+          section(
+            `[${model.id}] ${s.id} — ${s.label}`,
+            s.text,
+            `≈${estimateTokens(s.text)} tokens · ${s.text.length} chars · ${SOURCE_MAP[s.id] ?? ""}`
+          )
+        );
+      }
     }
   }
 
@@ -698,7 +709,7 @@ async function main() {
     `model: ${OPENROUTER_DEEPSEEK_V3_MODEL}`,
     "메인 RP 미호출 HTML 전용 턴 — system prompt는 htmlVisualCardRecovery.ts buildHtmlFlashSystemPrompt()",
     "  • displayUserInputOnly / oocCreativeBrief / htmlOnlyDedicatedTurn 분기",
-    "  • PART M user block 참조",
+    "  • PART M user block schema 참조",
     "█".repeat(88),
     "",
     "재생성: npx.cmd tsx scripts/dump-model-output-prompts-comprehensive.ts [--chat-id=N]",

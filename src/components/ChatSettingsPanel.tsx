@@ -62,6 +62,7 @@ type MemoryRecordItem = {
   summary: string;
   userEdited: boolean;
   charCount: number;
+  isFallbackSummary?: boolean;
 };
 
 type MemoryData = {
@@ -1090,6 +1091,7 @@ function MemorySection({
   const [lorebookDraft, setLorebookDraft] = useState("");
   const [recordDrafts, setRecordDrafts] = useState<Record<number, string>>({});
   const [savingRecordId, setSavingRecordId] = useState<number | null>(null);
+  const [regeneratingRecordId, setRegeneratingRecordId] = useState<number | null>(null);
   const [savingLorebook, setSavingLorebook] = useState(false);
   const [actionMsg, setActionMsg] = useState("");
   const [lorebookEditing, setLorebookEditing] = useState(false);
@@ -1219,6 +1221,38 @@ function MemorySection({
       setActionMsg((e as Error).message);
     } finally {
       setSavingRecordId(null);
+    }
+  }
+
+  async function regenerateMemoryRecord(recordId: number) {
+    if (chatId == null) return;
+    setRegeneratingRecordId(recordId);
+    setActionMsg("");
+    try {
+      const res = await fetch("/api/chat/memory", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chatId, action: "regenerateMemoryRecord", recordId }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error ?? "재생성 실패");
+      const updated = j.memoryRecord as MemoryRecordItem;
+      onDataChange((prev) =>
+        prev
+          ? {
+              ...prev,
+              memoryRecords: prev.memoryRecords?.map((r) =>
+                r.id === recordId ? { ...r, ...updated, isFallbackSummary: false } : r
+              ),
+            }
+          : prev
+      );
+      setRecordDrafts((prev) => ({ ...prev, [recordId]: updated.summary }));
+      setActionMsg(`${updated.turnRangeLabel} 요약을 다시 생성했습니다.`);
+    } catch (e) {
+      setActionMsg((e as Error).message);
+    } finally {
+      setRegeneratingRecordId(null);
     }
   }
 
@@ -1369,7 +1403,12 @@ function MemorySection({
                   className="rounded-md border border-white/10 bg-[#1a1a1a]/80 p-2"
                 >
                   <div className="mb-1 flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-bold text-violet-300">{r.turnRangeLabel}</span>
+                    <span className="text-[10px] font-bold text-violet-300">
+                      {r.turnRangeLabel}
+                      {r.isFallbackSummary && (
+                        <span className="ml-1.5 font-normal text-amber-400/90">· 임시 기록</span>
+                      )}
+                    </span>
                     <span className="text-[9px] text-zinc-500">
                       {draft.length}/{maxChars}자
                       {r.userEdited && <span className="ml-1 text-emerald-400/80">· 수정됨</span>}
@@ -1416,16 +1455,33 @@ function MemorySection({
                         </button>
                       </>
                     ) : (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingRecordId(r.id);
-                          window.requestAnimationFrame(() => recordTextareaRef.current?.focus());
-                        }}
-                        className="rounded border border-violet-500/30 px-2 py-0.5 text-[10px] text-violet-200/90 hover:bg-violet-500/10"
-                      >
-                        수정
-                      </button>
+                      <>
+                        {r.isFallbackSummary && !r.userEdited && (
+                          <button
+                            type="button"
+                            onClick={() => void regenerateMemoryRecord(r.id)}
+                            disabled={
+                              regeneratingRecordId === r.id ||
+                              editingRecordId != null ||
+                              savingRecordId != null
+                            }
+                            className="rounded border border-amber-500/40 px-2 py-0.5 text-[10px] text-amber-200/90 hover:bg-amber-500/10 disabled:opacity-40"
+                          >
+                            {regeneratingRecordId === r.id ? "재생성 중…" : "요약 재생성"}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingRecordId(r.id);
+                            window.requestAnimationFrame(() => recordTextareaRef.current?.focus());
+                          }}
+                          disabled={regeneratingRecordId === r.id}
+                          className="rounded border border-violet-500/30 px-2 py-0.5 text-[10px] text-violet-200/90 hover:bg-violet-500/10 disabled:opacity-40"
+                        >
+                          수정
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>

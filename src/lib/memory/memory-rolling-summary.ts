@@ -8,7 +8,7 @@ import {
   type ChatMessageRow,
 } from "@/lib/hybridMemory";
 import { ROLLING_SUMMARY_MAX_CHARS, ROLLING_SUMMARY_MIN_CHARS, LOREBOOK_COMPACT_FILL_RATIO } from "./memory-constants";
-import { clampMemoryRecordSummary } from "./memory-summary-clamp";
+import { clampMemoryRecordSummary, isFallbackMemoryRecordSummary } from "./memory-summary-clamp";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
 import { isMemoryFeatureEnabled } from "./memory-feature";
 import {
@@ -68,20 +68,6 @@ function formatBatchDialogue(
     .join("\n\n");
 }
 
-function buildLocalFallbackSummary(
-  turns: DialogueTurn[],
-  charName: string,
-  _startTurn: number,
-  _endTurn: number
-): string {
-  const snippets = turns.map((t) => {
-    const u = t.user.replace(/\s+/g, " ").trim().slice(0, 50);
-    const a = t.assistant.replace(/\s+/g, " ").trim().slice(0, 80);
-    return `유저가 ${u}…라 말했고 ${charName}은(는) ${a}…`;
-  });
-  return clampMemoryRecordSummary(snippets.join(ARROW_SEP));
-}
-
 async function summarizeTurnBatch(opts: {
   dialogue: string;
   charName: string;
@@ -96,19 +82,28 @@ async function summarizeTurnBatch(opts: {
     return clampMemoryRecordSummary(cleaned);
   };
 
-  try {
-    const { text } = await callGeminiBackground(
-      ROLLING_SUMMARY_SYSTEM_PROMPT,
-      [{ role: "user", content: userContent }],
-      opts.turnTrace
-    );
-    const first = finishSummary(text);
-    if (first.length >= ROLLING_SUMMARY_MIN_CHARS) return first;
-  } catch (e) {
-    console.warn(
-      `[memory] ${ROLLING_SUMMARY_INTERVAL}턴 기억 기록 background LLM 실패:`,
-      (e as Error).message
-    );
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const { text } = await callGeminiBackground(
+        ROLLING_SUMMARY_SYSTEM_PROMPT,
+        [{ role: "user", content: userContent }],
+        opts.turnTrace,
+        attempt === 0 ? "background-memory-extract" : "background-memory-extract-retry"
+      );
+      const first = finishSummary(text);
+      if (first.length >= ROLLING_SUMMARY_MIN_CHARS) return first;
+      if (attempt < 2) {
+        console.warn(
+          `[memory] ${ROLLING_SUMMARY_INTERVAL}턴 기억 기록 LLM 결과 짧음 (${first.length}ch) — 재시도 ${attempt + 2}/3`
+        );
+      }
+    } catch (e) {
+      console.warn(
+        `[memory] ${ROLLING_SUMMARY_INTERVAL}턴 기억 기록 background LLM 실패${attempt >= 1 ? ` (재시도 ${attempt + 1}/3)` : ""}:`,
+        (e as Error).message
+      );
+      if (attempt >= 2) break;
+    }
   }
   return "";
 }
@@ -255,9 +250,6 @@ async function summarizeBatchEntries(opts: {
     endTurn: summaryEndTurn,
     turnTrace: opts.turnTrace,
   });
-  if (!narrative.trim()) {
-    narrative = buildLocalFallbackSummary(batch, opts.charName, summaryStartTurn, summaryEndTurn);
-  }
   narrative = stripOocFromMemorySummary(narrative);
   return narrative.trim() ? clampMemoryRecordSummary(narrative) : "";
 }
@@ -407,7 +399,6 @@ export async function processRollingSummaryBatch(opts: {
       return true;
     }
 
-    const batch = eligibleEntries.map((e) => e.turn);
     const dialogue = formatBatchDialogue(eligibleEntries, opts.charName);
     const summaryStartTurn = eligibleEntries[0]!.turnIndex;
     const summaryEndTurn = eligibleEntries[eligibleEntries.length - 1]!.turnIndex;
@@ -420,7 +411,10 @@ export async function processRollingSummaryBatch(opts: {
       turnTrace: opts.turnTrace,
     });
     if (!narrative.trim()) {
-      narrative = buildLocalFallbackSummary(batch, opts.charName, summaryStartTurn, summaryEndTurn);
+      console.error(
+        `[memory] rolling summary LLM failed chat=${opts.chatId} turns=${startTurn}-${endTurn} — batch pending retry (no fallback saved)`
+      );
+      return false;
     }
     narrative = stripOocFromMemorySummary(narrative);
     if (!narrative.trim()) {
@@ -477,6 +471,77 @@ export async function processRollingSummaryBatch(opts: {
       `[memory] rolling summary failed chat=${opts.chatId}:`,
       (e as Error).message
     );
+    return false;
+  } finally {
+    running.delete(opts.chatId);
+  }
+}
+
+/** 패널·API — 특정 6턴 배치 기억 기록을 LLM으로 다시 생성 (유저 수정본은 건너뜀) */
+export async function regenerateMemoryRecordBatch(opts: {
+  chatId: number;
+  userId: number;
+  characterId: number;
+  charName: string;
+  tier: MemoryTier;
+  memoryCapacity: number;
+  turnStart: number;
+  turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
+}): Promise<boolean> {
+  if (!isMemoryFeatureEnabled()) return false;
+  if (running.has(opts.chatId)) return false;
+
+  const batchStart = resolveBatchStartTurnForTurnNumber(opts.turnStart);
+  const record = listMemoryRecordsForChat(opts.chatId).find((r) => r.turnStart === batchStart);
+  if (record?.userEdited) return false;
+
+  const batchMeta = loadChatTurnsWithMessageIds(opts.chatId).filter(
+    (t) => t.turnNumber >= batchStart && t.turnNumber < batchStart + ROLLING_SUMMARY_INTERVAL
+  );
+  if (batchMeta.length === 0) return false;
+
+  running.add(opts.chatId);
+  try {
+    const eligibleEntries = batchMeta
+      .map((meta) => ({
+        turnIndex: meta.turnNumber,
+        turn: { user: meta.user, assistant: meta.assistant } satisfies DialogueTurn,
+      }))
+      .filter(({ turn }) => isTurnEligibleForMemoryRecord(turn.user));
+
+    if (eligibleEntries.length === 0) return false;
+
+    const narrative = await summarizeBatchEntries({
+      eligibleEntries,
+      charName: opts.charName,
+      turnTrace: opts.turnTrace,
+    });
+    if (!narrative.trim() || isFallbackMemoryRecordSummary(narrative)) return false;
+
+    const lastAssistantId = batchMeta[batchMeta.length - 1]?.assistantMessageId ?? null;
+    await upsertMemoryRecord({
+      chatId: opts.chatId,
+      turnStart: batchStart,
+      assistantMessageId: lastAssistantId,
+      summary: narrative,
+      userEdited: false,
+    });
+
+    const lorebookBudget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity).lorebook;
+    let currentMemory = rebuildLorebookFromRecords(opts.chatId);
+    if (currentMemory.length > lorebookBudget) {
+      currentMemory = await compactCurrentMemory(currentMemory, lorebookBudget, opts.turnTrace);
+    }
+
+    updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
+      recent_summary: currentMemory,
+      membership_tier: opts.tier,
+      last_compressed_at: new Date().toISOString(),
+    });
+    syncChatLongTermMemory(opts.chatId, currentMemory);
+    return true;
+  } catch (e) {
+    console.error("[memory] regenerateMemoryRecordBatch failed:", (e as Error).message);
     return false;
   } finally {
     running.delete(opts.chatId);

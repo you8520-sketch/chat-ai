@@ -29,6 +29,11 @@ export function toOpenRouterModelId(modelId: string): string {
   return trimmed;
 }
 
+export function resolveOpenRouterCompletionTimeoutMs(requestKind?: string): number {
+  if (/background-html-visual-card/i.test(requestKind ?? "")) return 240_000;
+  return 120_000;
+}
+
 export async function callOpenRouterCompletion(opts: {
   system: string;
   history: { role: "user" | "assistant"; content: string }[];
@@ -36,6 +41,7 @@ export async function callOpenRouterCompletion(opts: {
   temperature?: number;
   maxTokens?: number;
   requestKind?: string;
+  timeoutMs?: number;
 }): Promise<{ text: string; usage: OpenRouterCompletionUsage }> {
   const model = toOpenRouterModelId(opts.model);
   const messages: OpenRouterChatMsg[] = [
@@ -71,7 +77,9 @@ export async function callOpenRouterCompletion(opts: {
       temperature: opts.temperature ?? 0.3,
       max_tokens: opts.maxTokens ?? 2048,
     }),
-    signal: AbortSignal.timeout(120_000),
+    signal: AbortSignal.timeout(
+      opts.timeoutMs ?? resolveOpenRouterCompletionTimeoutMs(opts.requestKind)
+    ),
   });
 
   if (!res.ok) {

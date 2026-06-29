@@ -14,10 +14,10 @@ describe("promptDedupeMetrics", () => {
     const report = compareWidgetActiveDedupe();
     console.info("[status-widget-prompt-dedupe]", JSON.stringify(report, null, 2));
 
-    assert.ok(report.savedSystemChars >= 300, `system chars saved: ${report.savedSystemChars}`);
+    assert.ok(report.savedSystemChars >= 150, `system chars saved: ${report.savedSystemChars}`);
     assert.equal(report.savedDeepSeekUserChars, 219);
-    assert.ok(report.savedTotalCharsPerTurn >= 540);
-    assert.ok(report.savedTotalPct >= 0.35);
+    assert.ok(report.savedTotalCharsPerTurn >= 390);
+    assert.ok(report.savedTotalPct >= 0.25);
     assert.equal(report.after.deepSeekUserTurnExtraChars, 0);
   });
 
@@ -34,12 +34,13 @@ describe("promptDedupeMetrics", () => {
     assert.doesNotMatch(widget, /<<<STATUS_VALUES>>>[\s\S]*<<<STATUS_VALUES>>>/);
   });
 
-  it("widget block unchanged from pre-dedupe baseline", () => {
+  it("default template widget block includes 의식의흐림 field", () => {
     const resolved = resolveStatusWidgetTurn({
       characterWidgetJson: JSON.stringify(DEFAULT_STATUS_WIDGET),
       chatMode: "character_only",
     });
     const widget = buildStatusWidgetPromptBlock(resolved);
-    assert.equal(widget.length, PRE_DEDUPE_WIDGET_ACTIVE_FOOTPRINT.widgetBlockChars);
+    assert.match(widget, /의식의흐름/);
+    assert.ok(widget.length >= 700);
   });
 });

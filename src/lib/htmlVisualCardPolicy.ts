@@ -515,7 +515,7 @@ export function isOocCreativeHtmlRichEnough(inner: string, userMessage = ""): bo
   const requiredPairs = minQa ?? (inbox ? 5 : 0);
 
   if (requiredPairs <= 0) {
-    return plain.length >= 320;
+    return plain.length >= resolveOocMinPlainChars(userMessage);
   }
 
   if (plain.length < requiredPairs * 70) return false;
@@ -558,6 +558,69 @@ export function parseOocBracketCategories(userMessage: string): string[] {
 export function oocRequestsCategoryCard(userMessage: string): boolean {
   if (parseOocBracketCategories(userMessage).length >= 2) return true;
   return /추구미|카테고리(?:별|\s*항목)|항목(?:은|이)\s*\[/i.test(userMessage);
+}
+
+/** OOC — 자세·상세·풍부한 작성 요청 */
+export function oocRequestsDetailedContent(userMessage: string): boolean {
+  return /자세(?:히|한)|상세(?:히|한)?|디테일|풍부|구체적(?:으로)?|촘촘|깊이\s*(?:있|들)/i.test(
+    userMessage
+  );
+}
+
+/** 유저·OOC — 장기기억·저장된 기억 참고 요청 */
+export function userRequestsLongTermMemoryReference(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  return /장기\s*기억|저장된\s*기억|long[\s-]?term\s*memory|\bLTM\b|현재\s*기억\s*(?:를|을)?\s*(?:참고|반영|참조|활용)/i.test(
+    t
+  );
+}
+
+/** Flash user block — memoryBlock + archiveMemory 단일 본문 (중복 제거) */
+export function combineFlashLongTermMemoryBody(
+  memoryBlock?: string,
+  archiveMemory?: string
+): string {
+  const block = memoryBlock?.trim() ?? "";
+  const archive = archiveMemory?.trim() ?? "";
+  if (!block && !archive) return "";
+  if (!archive) return block;
+  if (!block) return `[과거 기억]\n${archive}`;
+  if (block.includes(archive)) return block;
+  const archiveHead = archive.slice(0, Math.min(120, archive.length));
+  if (archiveHead.length >= 40 && block.includes(archiveHead)) return block;
+  return `${block}\n\n[과거 기억]\n${archive}`;
+}
+
+/** 유저·OOC — 누적/최근/raw 히스토리·대화 참고 요청 */
+export function userRequestsConversationHistoryReference(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  return /누적\s*(?:대화|서사|히스토리)|최근\s*(?:대화|턴|서사|raw\s*턴)|raw\s*히스토리|(?:대화|서사|히스토리)\s*(?:를|을)?\s*(?:참고|반영|참조|활용)|지금까지\s*(?:의?\s*)?(?:대화|서사|이야기)|(?:대화|서사)\s*(?:내용|기록)\s*(?:를|을)?\s*(?:참고|반영)|히스토리/i.test(
+    t
+  );
+}
+
+/** OOC — 설정·성격·관계 등 broad grounding (전체 raw dump 요청은 아님) */
+export function userRequestsBroadRpContext(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  if (userRequestsConversationHistoryReference(t) || userRequestsLongTermMemoryReference(t)) {
+    return true;
+  }
+  return /캐릭터\s*설정|성격|말투|세계관|관계(?:성)?|유저\s*노트|을?\s*참조(?:하여)?|참고(?:하여)?\s*작성/i.test(
+    t
+  );
+}
+
+/** OOC «자세히/상세» — HTML 표시 텍스트(태그 제외) 최소 */
+export const OOC_DETAILED_MIN_PLAIN_CHARS = 1500;
+
+/** OOC HTML — userMessage별 표시 텍스트 최소 */
+export function resolveOocMinPlainChars(userMessage: string): number {
+  if (oocRequestsDetailedContent(userMessage)) return OOC_DETAILED_MIN_PLAIN_CHARS;
+  if (oocRequestsCategoryCard(userMessage)) return 480;
+  return 320;
 }
 
 function escapeRegExpFragment(text: string): string {
@@ -975,90 +1038,9 @@ export type HtmlVisualCardPolicyBlockOpts = {
   statusFieldLabels?: string[];
 };
 
-export function buildHtmlVisualCardPolicyBlock(opts: HtmlVisualCardPolicyBlockOpts = {}): string {
-  const standing = opts.standing === true;
-  const statusFields = opts.statusFieldLabels ?? [];
-
-  const standingSection = standing
-    ? `
-Standing (유저노트·페르소나·캐릭터 설정):
-- **매 assistant reply마다** 본문(RP) 하단에 \`\`\`html 블록을 반드시 출력한다.
-- 유저 채팅 메시지에 HTML 키워드가 없어도 매 턴 출력한다.
-- RP 본문 작성 후 HTML 블록을 이어 붙인다. HTML 뒤 설명문 금지.
-- RP가 목표 분량보다 짧거나 조기 STOP이어도 **HTML 블록은 생략 금지** — RP 직후 반드시 출력.
-- **전체(RP+HTML) 저장 상한 5,000자** — HTML 블록은 반드시 포함. RP가 길면 RP를 줄여도 HTML은 출력.`
-    : `
-Turn trigger (채팅 메시지 1회):
-- 이번 턴에만 \`\`\`html 블록을 출력한다.
-- **위치**: 유저가 하단·맨 아래·bottom·본문 하단을 지정하지 않으면 RP **앞(상단)**에 \`\`\`html을 둔다.
-- 하단 지정 시 RP **뒤(하단)**에 \`\`\`html을 둔다.`;
-
-  const doodleFieldIdx = statusFields.findIndex((f) => /낙서|카오모지|이모지/.test(f));
-  const statusWindowTemplate = buildHtmlStatusWindowReferenceTemplate(statusFields);
-  const statusSection =
-    statusFields.length > 0
-      ? `
-[HTML 상태창 필드 — 유저노트 승격]
-- **상태창 템플릿** 사용 — 아래 REFERENCE와 동일한 **필드 박스** 구조·inline CSS.
-- **출력 필드는 아래 목록만** — 목록에 없는 라벨·HP·MP·SAN·호감도·가이딩·유동스탯·{{char}} 헤더·RPG compact bar **절대 금지**.
-- 필드 1개 = 박스 1개. **라벨은 목록 문자열 그대로** 표기하고, 내용만 이번 장면·RP에 맞게 작성.
-- 유저노트에 없는 스탯·수치·감정 슬롯을 AI가 임의 추가하지 마라.
-${doodleFieldIdx >= 0 ? `- ${doodleFieldIdx + 1}번(낙서) 항목의 **내용**에만 카오모지·이모지 1줄 허용.` : "- HTML 본문에 이모지·장식 기호 금지 — 한글·영문·숫자·구두점만."}
-필드 목록(순서·개수·라벨 고정 — 이 목록만 출력):
-${statusFields.map((f, i) => `${i + 1}. ${f}`).join("\n")}`
-      : standing
-        ? `
-[HTML 상태창 — standing]
-- **상태창 템플릿** 사용 — 유저노트에서 추출된 필드가 없으면 REFERENCE 예시 박스 구조만 참고.
-- HP·RPG 바·임의 스탯 슬롯 금지 — 유저노트에 필드 줄을 추가하면 그 라벨만 출력.`
-        : "";
-
-  return `[SYSTEM: HTML OUTPUT MODE] 서사 내 특수 UI — HTML 연출 규칙
-
-발동 조건:
-- **"HTML을 사용해서 X를 띄워/출력/표기"** 형태로 명시한 경우 (유저노트·페르소나·캐릭터·채팅)
-- 또는 \`\`\`html 코드블럭 요청
-- HTML 없이 "카드로 보여줘", "카톡 내역", "경고창"만 있는 요청은 발동하지 않는다
-${standingSection}
-${statusSection}
-
-발동 시: 요청 X에 맞는 **아래 템플릿 1개**를 골라 X 내용으로 채워 \`\`\`html 블록을 출력한다.
-${standing || statusFields.length > 0 ? "- standing·상태창 요청 → **상태창 템플릿** 우선." : ""}
-
-템플릿 선택 (X 내용 기준):
-1. **상태창 템플릿** — 유저노트 필드 목록(standing·상태창) — 필드 박스만
-2. **메신저 템플릿** — 카톡·DM·문자·통화 내역 등
-3. **경고창 템플릿** — 시스템 경고·위협 알림·경고창
-4. **범용 카드 템플릿** — 리스트·프로필·문서·맛집 TOP5 등
-
-출력 규칙:
-1. HTML은 반드시 \`\`\`html 코드블럭 안에서만 출력한다.
-2. 절대 새 디자인 창작 금지 — REFERENCE TEMPLATE 구조·inline CSS 복사.
-3. 모바일 세로 화면 기준 안정적 width.
-4. 이모지·장식 기호는 HTML에 넣지 않는다 — **한글·영문·숫자·구두점만**.
-5. **대비 필수:** 본문 글자 #111~#333, 배경 #fff/#f8f9fa — REFERENCE 색 그대로. 비슷한 밝기의 글자색·배경색 조합 금지.
-
-Note: Server-rendered pipe-table status windows are NOT your job.
-
-[상태창 템플릿 (REFERENCE TEMPLATE)]
-\`\`\`html
-${statusWindowTemplate}
-\`\`\`
-
-[범용 카드 템플릿 (REFERENCE TEMPLATE)]
-\`\`\`html
-${HTML_VISUAL_CARD_REFERENCE_TEMPLATE}
-\`\`\`
-
-[메신저 템플릿 (REFERENCE TEMPLATE)]
-\`\`\`html
-${HTML_MESSENGER_REFERENCE_TEMPLATE}
-\`\`\`
-
-[경고창 템플릿 (REFERENCE TEMPLATE)]
-\`\`\`html
-${HTML_ALERT_REFERENCE_TEMPLATE}
-\`\`\``;
+/** @deprecated PART I 제거 — V3는 buildHtmlFlashV3SystemBrief + user block만 사용 */
+export function buildHtmlVisualCardPolicyBlock(_opts: HtmlVisualCardPolicyBlockOpts = {}): string {
+  return "";
 }
 
 export type HtmlVisualCardPolicy = {
@@ -1283,7 +1265,7 @@ export function resolveHtmlVisualCardPolicyFromSources(sources: {
     enabled: true,
     standing,
     statusFieldLabels,
-    policyBlock: buildHtmlVisualCardPolicyBlock({ standing, statusFieldLabels }),
+    policyBlock: "",
   };
 }
 

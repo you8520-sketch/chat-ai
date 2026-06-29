@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { describe, it } from "node:test";
 import {
+  appendCompactTerminalLengthToUserTurn,
+  buildCompactTerminalLengthAbsoluteTail,
   buildLengthInstruction,
   buildSingleShotLengthReminder,
   buildTerminalLengthOverrideBlock,
@@ -64,6 +66,13 @@ describe("buildLengthInstruction", () => {
     }
   });
 
+  it("appendCompactTerminalLengthToUserTurn adds tail at user bottom", () => {
+    const out = appendCompactTerminalLengthToUserTurn("밤이 깊었어.", 3000);
+    assert.match(out, /^밤이 깊었어\./);
+    assert.match(out, /TARGET_LENGTH 3,000\+/);
+    assert.match(out, /단일 응답 최대 전개·미달 조기 종료 금지\.$/);
+  });
+
   it("single-shot reminder defers to LENGTH CONTROL without Time Dilation", () => {
     const tail = buildSingleShotLengthReminder();
     assert.match(tail, /\[LENGTH CONTROL & SCENE EXPANSION\]/);
@@ -81,9 +90,22 @@ describe("buildLengthInstruction", () => {
     assert.doesNotMatch(block, /RP length = prose\/dialogue only/);
   });
 
-  it("terminal recency block deprecated — numerics live in LENGTH CONTROL only", () => {
-    const terminal = buildTerminalLengthOverrideRecencyBlock();
-    assert.equal(terminal, "");
+  it("compact terminal tail uses tier constants at absolute end", () => {
+    const tail = buildCompactTerminalLengthAbsoluteTail(undefined);
+    assert.match(tail, /TARGET_LENGTH 3,000\+/);
+    assert.match(tail, /MINIMUM_FLOOR 2,700\+/);
+    assert.match(tail, /단일 응답 최대 전개·미달 조기 종료 금지\./);
+    assert.doesNotMatch(tail, /\[TERMINAL LENGTH AUTHORITY\]/);
+    assert.doesNotMatch(tail, /\[최우선 절대 지침\]/);
+    assert.equal(buildTerminalLengthOverrideRecencyBlock(undefined), tail);
+  });
+
+  it("terminal override is compact tail only at absolute end", () => {
+    const block = buildTerminalLengthOverrideBlock(3000);
+    assert.equal(block, buildCompactTerminalLengthAbsoluteTail(3000));
+    assert.match(block, /단일 응답 최대 전개·미달 조기 종료 금지\.$/);
+    assert.doesNotMatch(block, /<TURN_HANDOFF_AND_PACING>/);
+    assert.doesNotMatch(block, /\[TERMINAL LENGTH AUTHORITY\]/);
   });
 
   it("OpenRouter dynamicBlock — one numeric length block, one full handoff", async () => {
@@ -138,7 +160,7 @@ describe("buildLengthInstruction", () => {
       assert.equal(countOccurrences(sys, "TARGET_LENGTH:"), 1);
       assert.equal(countOccurrences(sys, "MINIMUM_FLOOR:"), 1);
       assert.equal(countOccurrences(sys, "CEILING:"), 0);
-      assert.equal(countOccurrences(sys, "2,800"), 1);
+      assert.equal(countOccurrences(sys, "2,800"), 2, "LENGTH CONTROL + compact terminal tail cite user aim");
       assert.equal(countOccurrences(sys, "3,000"), 0);
 
       assert.equal((sys.match(/<\/TURN_HANDOFF_AND_PACING>/g) ?? []).length, 1);
@@ -158,14 +180,19 @@ describe("buildLengthInstruction", () => {
       const sections = built.meta.trackedSections ?? [];
       const lastSection = sections[sections.length - 1];
       assert.equal(lastSection?.id, "rule-terminal-length-override");
-      assert.match(lastSection!.text, /<TURN_HANDOFF_AND_PACING>/);
-      assert.doesNotMatch(lastSection!.text, /\[최우선 절대 지침/);
+      assert.match(lastSection!.text, /단일 응답 최대 전개·미달 조기 종료 금지\./);
+      assert.doesNotMatch(lastSection!.text, /<TURN_HANDOFF_AND_PACING>/);
+      assert.doesNotMatch(lastSection!.text, /\[TERMINAL LENGTH AUTHORITY\]/);
+      assert.doesNotMatch(lastSection!.text, /\[최우선 절대 지침\]/);
+      const handoffSec = sections.find((s) => s.id === "turn-handoff-and-pacing");
+      assert.ok(handoffSec?.text);
+      assert.match(handoffSec!.text, /<TURN_HANDOFF_AND_PACING>/);
       assert.ok(
-        built.systemPrompt.trimEnd().endsWith(buildTerminalLengthOverrideBlock().trim()),
+        built.systemPrompt.trimEnd().endsWith(buildTerminalLengthOverrideBlock(2800).trim()),
         "terminal override must be last block in full system prompt"
       );
       assert.ok(
-        dyn.trimEnd().endsWith(buildTerminalLengthOverrideBlock().trim()),
+        dyn.trimEnd().endsWith(buildTerminalLengthOverrideBlock(2800).trim()),
         "terminal override must be last block in OpenRouter dynamicBlock"
       );
     });

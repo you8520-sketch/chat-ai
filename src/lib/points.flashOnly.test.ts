@@ -14,9 +14,9 @@ import { OPENROUTER_DEEPSEEK_V3_MODEL } from "@/lib/chatModels";
 
 describe("HTML-only turn limits", () => {
   it("uses 30k input context and 6k output (same as secondary HTML flash)", () => {
-    assert.equal(HTML_ONLY_TURN_MAX_INPUT_TOKENS, 30_000);
+    assert.equal(HTML_ONLY_TURN_MAX_INPUT_TOKENS, 24_000);
     assert.equal(HTML_FLASH_MAX_OUTPUT_TOKENS, 6000);
-    assert.equal(HTML_ONLY_TURN_MAX_OUTPUT_TOKENS, 6000);
+    assert.equal(HTML_ONLY_TURN_MAX_OUTPUT_TOKENS, 8000);
   });
 });
 

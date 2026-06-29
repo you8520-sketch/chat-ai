@@ -10,7 +10,6 @@ import { loadChatRelationshipMeta } from "@/lib/memory/memory-relationship-meta"
 import {
   buildHtmlStatusWindowCardInnerHtml,
   buildHtmlStatusWindowCardFromFields,
-  buildHtmlVisualCardPolicyBlock,
   enforceHtmlStatusWindowFieldLabels,
   extractStatusFieldPairsFromHtml,
   isGenericHtmlStatusWindowInner,
@@ -23,6 +22,15 @@ import {
   parseOocBracketCategories,
   parseOocCardTitle,
   oocRequestsCategoryCard,
+  oocRequestsDetailedContent,
+  userRequestsBroadRpContext,
+  userRequestsConversationHistoryReference,
+  userRequestsLongTermMemoryReference,
+  combineFlashLongTermMemoryBody,
+  OOC_DETAILED_MIN_PLAIN_CHARS,
+  resolveOocMinPlainChars,
+  visiblePlainFromHtmlInner,
+  oocRequestsAnonymousInbox,
   polishHtmlVisualCardInner,
   resolveHtmlFlashPlacement,
   stripPromotedHtmlVisualCardContent,
@@ -30,29 +38,38 @@ import {
   type HtmlVisualCardPolicy,
 } from "@/lib/htmlVisualCardPolicy";
 import { stripAllStatusWindowOutputArtifacts } from "@/lib/statusMeta/stripArtifacts";
+import {
+  sanitizeVisualAppearance,
+  type VisualAppearancePolicy,
+} from "@/lib/visualAnchor";
 import { ABSOLUTE_MAX_RESPONSE_CHARS, clampTextToCharCap } from "@/lib/responseLength";
 
 /** 본문 ↔ 상태창(HTML) 사이 빈 줄 2줄 이상 */
 export const STATUS_WINDOW_BODY_GAP = "\n\n\n";
 const PROSE_HTML_SEPARATOR = STATUS_WINDOW_BODY_GAP;
-/** HTML visual card 생성 — 입력 컨텍스트 상한 (넉넉히) */
+/** HTML visual card 생성 — RP 후 2차 Flash (prose baseline 있음) */
 const FLASH_ASSISTANT_PROSE_MAX = 12_000;
-const FLASH_CHARACTER_SETTING_MAX = 10_000;
-const FLASH_RECENT_HISTORY_MAX = 10_000;
-const FLASH_MEMORY_MAX = 8_000;
-const FLASH_LOREBOOK_MAX = 8_000;
-const FLASH_PREVIOUS_HTML_MAX = 5_000;
-/** HTML 전용 턴 — 입력 컨텍스트(시스템+유저 블록) 상한 */
-export const HTML_ONLY_TURN_MAX_INPUT_TOKENS = 30_000;
-/** HTML 전용 턴 — 섹션별 char 상한 (합산 후 30k 입력 토큰에 맞게 스케일·trim) */
-const HTML_ONLY_CHARACTER_SETTING_MAX = 20_000;
-const HTML_ONLY_MEMORY_MAX = 20_000;
-const HTML_ONLY_RECENT_HISTORY_MAX = 28_000;
-const HTML_ONLY_LOREBOOK_MAX = 14_000;
+const FLASH_CHARACTER_SETTING_MAX = 8_000;
+const FLASH_MEMORY_MAX = 5_000;
+const FLASH_LOREBOOK_MAX = 4_000;
+const FLASH_PREVIOUS_HTML_MAX = 3_000;
+/** RP 후 2차 HTML — 최근 raw 대화 (토큰) */
+export const HTML_FLASH_RECENT_HISTORY_MAX_TOKENS = 3_000;
+/** OOC·HTML 전용 턴 — 조립 목표·API hard cap (system+userBlock) */
+export const HTML_OOC_FLASH_INPUT_TARGET_TOKENS = 20_000;
+export const HTML_ONLY_TURN_MAX_INPUT_TOKENS = 24_000;
+/** OOC HTML — 섹션별 char/token 상한 (추구미·카테고리 카드 등) */
+export const OOC_FLASH_RECENT_HISTORY_MAX_TOKENS = 8_000;
+const OOC_FLASH_CHARACTER_SETTING_MAX = 6_000;
+const OOC_FLASH_MEMORY_MAX = 8_000;
+const OOC_FLASH_LOREBOOK_MAX = 1_800;
+const OOC_FLASH_USER_NOTE_MAX = 2_500;
+const OOC_FLASH_USER_PERSONA_MAX = 900;
+const OOC_FLASH_MEMORY_HINTS_ONLY_MAX = 1_200;
 /** RP 후 2차 HTML — 출력 상한 (메인 prose cap 보호) */
 export const HTML_FLASH_MAX_OUTPUT_TOKENS = 6000;
-/** HTML 전용 턴 — 출력 상한 (2차 HTML과 동일; 실제 출력량으로 과금) */
-export const HTML_ONLY_TURN_MAX_OUTPUT_TOKENS = HTML_FLASH_MAX_OUTPUT_TOKENS;
+/** HTML 요청 전용 턴 — 출력 상한 (실제 출력량으로 과금) */
+export const HTML_ONLY_TURN_MAX_OUTPUT_TOKENS = 8_000;
 /** 영수증·UI 표시명 (실제 API: DeepSeek V3) */
 export const HTML_ONLY_MODEL_LABEL = "HTML전용모델";
 
@@ -536,6 +553,13 @@ function clipTail(text: string, max: number): string {
   return t.slice(-max);
 }
 
+/** 코어 설정·canonical 블록 — 앞부분(외형·정체성) 보존 */
+function clipHead(text: string, max: number): string {
+  const t = text.trim();
+  if (t.length <= max) return t;
+  return t.slice(0, max);
+}
+
 function formatPreviousHtmlFromHistory(history: ChatMsg[] | undefined, maxChars: number): string {
   if (!history?.length) return "";
   for (let i = history.length - 1; i >= 0; i--) {
@@ -548,10 +572,124 @@ function formatPreviousHtmlFromHistory(history: ChatMsg[] | undefined, maxChars:
   return "";
 }
 
-function formatRecentHistoryForFlash(history: ChatMsg[] | undefined, maxChars: number): string {
-  if (!history?.length) return "";
-  const lines = history.map((m) => `[${m.role}] ${m.content.trim()}`).join("\n\n");
-  return clipTail(lines, maxChars);
+function formatRecentHistoryForFlash(
+  history: ChatMsg[] | undefined,
+  maxTokens: number,
+  appearancePolicy?: VisualAppearancePolicy | null
+): string {
+  if (!history?.length || maxTokens <= 0) return "";
+
+  const linesFromEnd: string[] = [];
+  let tokens = 0;
+
+  for (let i = history.length - 1; i >= 0; i--) {
+    const msg = history[i]!;
+    const line = `[${msg.role}] ${msg.content.trim()}`;
+    if (!line.trim()) continue;
+    const separator = linesFromEnd.length > 0 ? "\n\n" : "";
+    const addTokens = estimateTokens(`${separator}${line}`);
+    if (tokens + addTokens > maxTokens && linesFromEnd.length > 0) break;
+    linesFromEnd.unshift(line);
+    tokens += addTokens;
+    if (tokens >= maxTokens) break;
+  }
+
+  let result = linesFromEnd.join("\n\n");
+  if (appearancePolicy && (appearancePolicy.hair || appearancePolicy.eyes)) {
+    result = sanitizeVisualAppearance(result, appearancePolicy);
+  }
+  return result;
+}
+
+function buildFlashHistoryMemoryGuidance(
+  userMessage: string,
+  historyMaxTokens: number
+): string {
+  const asksHistory = userRequestsConversationHistoryReference(userMessage);
+  const asksMemory = userRequestsLongTermMemoryReference(userMessage);
+  if (!asksHistory && !asksMemory) return "";
+  const lines = [
+    "[HISTORY vs MEMORY]",
+    `[RECENT CHAT HISTORY] ≤ ${historyMaxTokens.toLocaleString()} tokens (newest last). Older context → single [LONG-TERM MEMORY] only.`,
+  ];
+  if (asksHistory && asksMemory) {
+    lines.push("Use recent raw + [LONG-TERM MEMORY] once — no duplicate memory blocks.");
+  } else if (asksHistory) {
+    lines.push("Older turns beyond the cap → [LONG-TERM MEMORY] only.");
+  } else if (asksMemory) {
+    lines.push("Use [LONG-TERM MEMORY] only for stored recall.");
+  }
+  return lines.join("\n");
+}
+
+export type HtmlFlashContextBudget = {
+  inputTargetTokens: number;
+  settingMax: number;
+  memoryMax: number;
+  loreMax: number;
+  historyMaxTokens: number;
+  userNoteMax: number;
+  personaMax: number;
+  includeHistory: boolean;
+  includeMemory: boolean;
+  includeLore: boolean;
+  includeUserNote: boolean;
+};
+
+/** OOC·HTML 전용 vs RP 후 2차 Flash — 섹션별 상한·포함 여부 */
+export function resolveHtmlFlashContextBudget(
+  userMessage: string,
+  flashMode?: {
+    displayUserInputOnly?: boolean;
+    oocCreativeBrief?: boolean;
+    chatOocExclusive?: boolean;
+    htmlOnlyDedicatedTurn?: boolean;
+  }
+): HtmlFlashContextBudget {
+  const oocDedicated =
+    flashMode?.htmlOnlyDedicatedTurn === true ||
+    flashMode?.oocCreativeBrief === true ||
+    flashMode?.chatOocExclusive === true ||
+    flashMode?.displayUserInputOnly === true;
+
+  if (!oocDedicated) {
+    return {
+      inputTargetTokens: 12_000,
+      settingMax: FLASH_CHARACTER_SETTING_MAX,
+      memoryMax: FLASH_MEMORY_MAX,
+      loreMax: FLASH_LOREBOOK_MAX,
+      historyMaxTokens: HTML_FLASH_RECENT_HISTORY_MAX_TOKENS,
+      userNoteMax: 4_000,
+      personaMax: 2_000,
+      includeHistory: true,
+      includeMemory: true,
+      includeLore: true,
+      includeUserNote: true,
+    };
+  }
+
+  const asksHistory = userRequestsConversationHistoryReference(userMessage);
+  const asksMemory = userRequestsLongTermMemoryReference(userMessage);
+  const asksBroad = userRequestsBroadRpContext(userMessage);
+
+  return {
+    inputTargetTokens: HTML_OOC_FLASH_INPUT_TARGET_TOKENS,
+    settingMax: OOC_FLASH_CHARACTER_SETTING_MAX,
+    memoryMax:
+      asksMemory || asksBroad ? OOC_FLASH_MEMORY_MAX : OOC_FLASH_MEMORY_HINTS_ONLY_MAX,
+    loreMax: asksBroad ? OOC_FLASH_LOREBOOK_MAX : 0,
+    historyMaxTokens: asksHistory
+      ? OOC_FLASH_RECENT_HISTORY_MAX_TOKENS
+      : asksBroad
+        ? 1_500
+        : 0,
+    userNoteMax: OOC_FLASH_USER_NOTE_MAX,
+    personaMax: OOC_FLASH_USER_PERSONA_MAX,
+    includeHistory: asksHistory || asksBroad,
+    includeMemory: asksMemory || asksBroad,
+    includeLore: asksBroad,
+    includeUserNote: asksBroad,
+  };
 }
 
 function flashUsesCreativeStatusDesign(policy: HtmlVisualCardPolicy): boolean {
@@ -580,7 +718,33 @@ ${doodleFieldIdx >= 0 ? `- Field ${doodleFieldIdx + 1} (doodle) may include kaom
 ${policy.statusFieldLabels.map((f, i) => `${i + 1}. ${f}`).join("\n")}`;
 }
 
-function buildHtmlFlashSystemPrompt(
+function buildHtmlFlashV3SystemBrief(opts: {
+  cardKind: string;
+  hasStatusFields: boolean;
+}): string {
+  const layoutHints = opts.hasStatusFields
+    ? "- [STATUS FIELD LABELS]: one labeled box/section per field — exact label text, scene-specific Korean content."
+    : `- Layout from [USER MESSAGE] + context:
+  · lists / TOP5 / guides → white card, stacked sections
+  · messenger / 카톡 / DM / 문자 → chat bubbles (gray bg, left/right)
+  · alert / 경고 / warning → red header + body panel
+  · document / memo / report → titled sections, readable paragraphs`;
+
+  return `[HTML VISUAL CARD — V3]
+You generate ONLY the \`\`\`html visual card for this turn (${opts.cardKind}).
+- RP prose is in [ASSISTANT REPLY — prose only]. Do NOT rewrite or continue RP outside the fence.
+- Output exactly ONE \`\`\`html fenced block. No text before or after.
+${layoutHints}
+- Mobile-first: max-width ~550px (messenger ~400px), padding 12–16px, 14–16px body, word-break: keep-all.
+- Contrast: body #111–#333 on #fff / #f8f9fa — never similar-luminance text/background pairs.
+- No emoji in HTML unless a doodle field in [STATUS FIELD LABELS] explicitly allows it.
+- Scene-specific Korean from RP, memory, setting, persona, lore — no "(장면에 맞게…)" placeholders.
+- Compact single-line inline CSS. HTML body under 3,200 characters.
+- FORBIDDEN unless requested: HP/MP/SAN/RPG bars, generic "상태창" banner, verbatim example skeleton copy.`;
+}
+
+/** V3 HTML 2차 호출 system prompt — policy·placement·flashMode 조합 */
+export function buildHtmlFlashSystemPrompt(
   policy: HtmlVisualCardPolicy,
   placement: HtmlFlashPlacement,
   flashMode?: {
@@ -590,7 +754,11 @@ function buildHtmlFlashSystemPrompt(
     htmlOnlyDedicatedTurn?: boolean;
   }
 ): string {
-  const htmlOutputBudget = HTML_FLASH_MAX_OUTPUT_TOKENS;
+  const htmlOnlyOutput =
+    flashMode?.htmlOnlyDedicatedTurn === true || flashMode?.displayUserInputOnly === true;
+  const htmlOutputBudget = htmlOnlyOutput
+    ? HTML_ONLY_TURN_MAX_OUTPUT_TOKENS
+    : HTML_FLASH_MAX_OUTPUT_TOKENS;
   const oocCustomHtml =
     flashMode?.oocCreativeBrief === true || flashMode?.chatOocExclusive === true;
 
@@ -599,10 +767,11 @@ function buildHtmlFlashSystemPrompt(
 You generate ONLY a \`\`\`html visual card for this turn. The main RP model was NOT used.
 - [USER MESSAGE — this turn] is the primary layout and content spec — implement exactly what the user asks for in HTML.
 - Ground content in [LONG-TERM MEMORY], [USER NOTE], [USER PERSONA], [CHARACTER & WORLD SETTING], [ACTIVE LORE / LOREBOOK], and [RECENT CHAT HISTORY] when the user references them.
+- [RECENT CHAT HISTORY] is at most ${HTML_FLASH_RECENT_HISTORY_MAX_TOKENS.toLocaleString()} tokens — older/accumulated context comes from the single [LONG-TERM MEMORY] section (once), not more raw turns.
 - Do NOT invent RP narration outside the \`\`\`html block.
 - Output exactly ONE \`\`\`html fenced block. No text before or after the fence.
 - HTML output budget: up to ${htmlOutputBudget.toLocaleString()} output tokens — use as much as needed within that cap (not a character target).
-- Input context may include up to ${HTML_ONLY_TURN_MAX_INPUT_TOKENS.toLocaleString()} tokens of memory, persona, setting, lore, and history — use what you need.
+- Input context may include up to ${HTML_OOC_FLASH_INPUT_TARGET_TOKENS.toLocaleString()} tokens of memory, persona, setting, lore, and history — use what you need.
 - Dark body text (#111–#333) on light backgrounds; mobile-responsive (max-width, padding, readable font-size).
 - Korean preferred when the scene is Korean. Never leave requested sections empty — infer accurately from provided context.`;
   }
@@ -613,8 +782,11 @@ The user's OOC in [USER MESSAGE — this turn] is the ONLY layout/content spec �
 - Main RP prose is intentionally empty. Do NOT add scene narration outside the \`\`\`html block.
 - Implement the exact UI/layout/content the OOC describes (e.g. anonymous message inbox / 트위터·X 네임드 계정 익명 메시지함 mockup referencing real anonymous-message-site UX).
 - Use [LONG-TERM MEMORY], [USER NOTE], [USER PERSONA], [CHARACTER & WORLD SETTING], [ACTIVE LORE / LOREBOOK], and [RECENT CHAT HISTORY] as grounding when the OOC asks to reference them.
+- [RECENT CHAT HISTORY] ≤ ${OOC_FLASH_RECENT_HISTORY_MAX_TOKENS.toLocaleString()} tokens when provided (recent raw only). Older/accumulated context → single [LONG-TERM MEMORY] (never duplicate).
 - If OOC says HTML without code fences — output raw HTML inside ONE \`\`\`html fence anyway (server requirement; chat renders it as formatted HTML).
 - When OOC lists bracketed categories (e.g. [외형 · 키워드 · …]), copy the [REFERENCE] skeleton from the user block — one \`<section>\` per category with visible gaps. Never cram all fields into one paragraph.
+- For "외형" / appearance sections: hair color, eyes, height, scars MUST match [CHARACTER & WORLD SETTING] and APPEARANCE LOCK exactly — ignore wrong colors from [RECENT CHAT HISTORY] drift.
+- When OOC asks for detail (자세히, 상세, 풍부): minimum **${OOC_DETAILED_MIN_PLAIN_CHARS} characters** of visible Korean text in the HTML (tags excluded); minimum 5 full-sentence bullet lines per category section — concrete scene examples, not one-line keywords.
 - Default OOC card style: white rounded card, soft section boxes, indigo category labels — simple and pretty (see REFERENCE in user block when present).
 - When OOC asks for readability (가독성, 줄바꿈, 항목 구분), stack list items as separate \`<p>\` lines inside each section.
 - Dark body text (#111–#333) on light backgrounds; mobile-responsive (max-width, padding, readable font-size).
@@ -654,21 +826,10 @@ You generate ONLY the \`\`\`html visual card for this turn (${cardKind}).
 - Status window: use field-box template only — no HP/RPG stat bar. Do not invent stat slots.`
         : "";
 
-  return `${buildHtmlVisualCardPolicyBlock({
-    standing: policy.standing,
-    statusFieldLabels: policy.statusFieldLabels,
-  })}
-
-[HTML GENERATION]
-You generate ONLY the \`\`\`html visual card for this turn (${cardKind}).
-- RP prose is already complete in [ASSISTANT REPLY — prose only]. Do NOT rewrite or continue RP.
-- Output exactly ONE \`\`\`html fenced block. No text before or after the fence.
-- Use COMPACT single-line inline CSS (same as REFERENCE) — no extra whitespace or nested div padding.
-- **Contrast (mandatory):** copy REFERENCE colors — body text #111–#333 on #fff/#f8f9fa backgrounds; label #222, secondary #555. Never place similar-luminance text and background (e.g. #ccc on #eee, #888 on #999).
-- Total HTML body must stay under 3,200 characters so RP prose is not truncated.
-- Fill each listed field from scene context: memory, lore, character setting, persona, recent history, and this turn's RP.
-- Never use placeholder text like "(장면에 맞게…)" — write actual scene-specific Korean content per field.
-- Never contradict provided context. Korean preferred when the scene is Korean.${statusFieldRules}`;
+  return `${buildHtmlFlashV3SystemBrief({
+    cardKind,
+    hasStatusFields: policy.statusFieldLabels.length > 0,
+  })}${statusFieldRules ? `\n${statusFieldRules.trim()}` : ""}`;
 }
 
 export type HtmlVisualCardFlashContext = {
@@ -680,6 +841,9 @@ export type HtmlVisualCardFlashContext = {
   userNote?: string;
   userPersona?: string;
   characterSetting?: string;
+  /** 설정 원문 외형 + APPEARANCE LOCK — OOC «외형» 최우선 */
+  canonicalAppearanceBlock?: string;
+  appearanceSanitizePolicy?: VisualAppearancePolicy | null;
   memoryBlock?: string;
   archiveMemory?: string;
   recentHistory?: ChatMsg[];
@@ -703,21 +867,22 @@ export function buildHtmlVisualCardFlashUserBlock(
   const displayUserInputOnly = flashMode?.displayUserInputOnly === true;
   const oocCreativeBrief = flashMode?.oocCreativeBrief === true;
   const chatOocExclusive = flashMode?.chatOocExclusive === true;
-  const htmlOnlyDedicated = flashMode?.htmlOnlyDedicatedTurn === true;
+  const budget = resolveHtmlFlashContextBudget(ctx.userMessage, flashMode);
   const contextScale =
-    htmlOnlyDedicated
-      ? Math.min(1, Math.max(0.2, flashMode?.htmlContextCharScale ?? 1))
+    flashMode?.htmlContextCharScale != null
+      ? Math.min(1, Math.max(0.2, flashMode.htmlContextCharScale))
       : 1;
-  const memoryMax = htmlOnlyDedicated
-    ? Math.floor(HTML_ONLY_MEMORY_MAX * contextScale)
-    : FLASH_MEMORY_MAX;
-  const loreMax = htmlOnlyDedicated ? Math.floor(HTML_ONLY_LOREBOOK_MAX * contextScale) : FLASH_LOREBOOK_MAX;
-  const settingMax = htmlOnlyDedicated
-    ? Math.floor(HTML_ONLY_CHARACTER_SETTING_MAX * contextScale)
-    : FLASH_CHARACTER_SETTING_MAX;
-  const historyMax = htmlOnlyDedicated
-    ? Math.floor(HTML_ONLY_RECENT_HISTORY_MAX * contextScale)
-    : FLASH_RECENT_HISTORY_MAX;
+  const scaleCap = (n: number) =>
+    contextScale < 1 ? Math.max(200, Math.floor(n * contextScale)) : n;
+  const settingMax = scaleCap(budget.settingMax);
+  const memoryMax = scaleCap(budget.memoryMax);
+  const loreMax = scaleCap(budget.loreMax);
+  const historyMaxTokens = Math.max(
+    0,
+    Math.floor(budget.historyMaxTokens * contextScale)
+  );
+  const userNoteMax = scaleCap(budget.userNoteMax);
+  const personaMax = scaleCap(budget.personaMax);
   const rel = loadChatRelationshipMeta(ctx.chatId);
   const memoryHints = [
     rel.thoughts?.length ? `NPC thoughts (memory): ${rel.thoughts.slice(-5).join(" · ")}` : "",
@@ -733,15 +898,31 @@ export function buildHtmlVisualCardFlashUserBlock(
     .filter(Boolean)
     .join("\n");
 
-  const memoryParts = [ctx.memoryBlock?.trim(), ctx.archiveMemory?.trim()].filter(Boolean);
-  const memoryCombined = memoryParts.join("\n\n").trim();
-  const recentHistoryBlock = formatRecentHistoryForFlash(ctx.recentHistory, historyMax);
-  const previousHtml = formatPreviousHtmlFromHistory(ctx.recentHistory, FLASH_PREVIOUS_HTML_MAX);
+  const memoryCombined = combineFlashLongTermMemoryBody(ctx.memoryBlock, ctx.archiveMemory);
+  const recentHistoryBlock =
+    budget.includeHistory && historyMaxTokens > 0
+      ? formatRecentHistoryForFlash(
+          ctx.recentHistory,
+          historyMaxTokens,
+          ctx.appearanceSanitizePolicy
+        )
+      : "";
+  const previousHtml =
+    !chatOocExclusive && !oocCreativeBrief
+      ? formatPreviousHtmlFromHistory(ctx.recentHistory, FLASH_PREVIOUS_HTML_MAX)
+      : "";
   const userNoteRaw = ctx.userNote?.trim() ?? "";
   const userNoteForFlash =
     chatOocExclusive && userNoteRaw
       ? stripPromotedHtmlVisualCardContent(userNoteRaw)
       : userNoteRaw;
+  const userNoteClipped =
+    budget.includeUserNote && userNoteForFlash
+      ? clipTail(userNoteForFlash, userNoteMax)
+      : "";
+  const userPersonaClipped = ctx.userPersona?.trim()
+    ? clipTail(ctx.userPersona.trim(), personaMax)
+    : "";
   const statusFields =
     oocCreativeBrief || chatOocExclusive ? [] : (policy?.statusFieldLabels?.filter(Boolean) ?? []);
   const oocCategories =
@@ -753,6 +934,9 @@ export function buildHtmlVisualCardFlashUserBlock(
 User note standing status window, extra HTML cards, and markdown status directives are SUSPENDED this turn.
 Execute ONLY the chat OOC in [USER MESSAGE — this turn]. Do NOT append user-note status window or generic template fields.
 Use memory/setting/history only as lore context to fill what the OOC asks for.`
+      : "",
+    ctx.canonicalAppearanceBlock?.trim()
+      ? ctx.canonicalAppearanceBlock.trim()
       : "",
     !chatOocExclusive && policy?.standing != null
       ? `[HTML POLICY]\n${policy.standing ? "Standing status window — every turn" : "Turn-trigger HTML — this turn only"}`
@@ -770,6 +954,14 @@ Use the REFERENCE template below EXACTLY for structure (outer card + one <sectio
 Categories (one section each, bold label + body, never one run-on paragraph):
 ${oocCategories.map((l, i) => `${i + 1}. ${l.replace(/\([^)]*\)/g, "").trim()}`).join("\n")}
 End with "최종 결론" section if OOC asks for it.
+${
+  oocRequestsDetailedContent(ctx.userMessage)
+    ? `[OOC DETAIL — REQUIRED]
+User asked for rich/detailed content. **Target ≥${OOC_DETAILED_MIN_PLAIN_CHARS} visible Korean characters** in the HTML (excluding tags).
+Each category section: at least 5 full-sentence bullet lines (concrete, comic, scene-specific — NOT keyword lists).
+"외형" MUST copy hair/eyes/body from [CANONICAL APPEARANCE] / APPEARANCE LOCK — never silver/은발 if setting says gold/금발.`
+    : ""
+}
 
 [REFERENCE — copy this HTML skeleton]
 \`\`\`html
@@ -786,20 +978,24 @@ Use clean card layout: white rounded container, one soft-gradient section per ca
       ? `[PREVIOUS TURN HTML CARD — style & continuity reference]\n${previousHtml}`
       : "",
     ctx.characterSetting?.trim()
-      ? `[CHARACTER & WORLD SETTING — CORE IDENTITY]\n${clipTail(ctx.characterSetting.trim(), settingMax)}`
+      ? `[CHARACTER & WORLD SETTING — CORE IDENTITY]\n${clipHead(ctx.characterSetting.trim(), settingMax)}`
       : "",
-    ctx.userPersona?.trim() ? `[USER PERSONA]\n${ctx.userPersona.trim()}` : "",
-    memoryCombined
+    buildFlashHistoryMemoryGuidance(ctx.userMessage, historyMaxTokens),
+    userPersonaClipped ? `[USER PERSONA]\n${userPersonaClipped}` : "",
+    budget.includeMemory && memoryCombined
       ? `[LONG-TERM MEMORY]\n${clipTail(memoryCombined, memoryMax)}`
       : memoryHints
-        ? `[MEMORY HINTS]\n${memoryHints}`
+        ? `[MEMORY HINTS]\n${clipTail(
+            memoryHints,
+            budget.includeMemory ? 800 : OOC_FLASH_MEMORY_HINTS_ONLY_MAX
+          )}`
         : "",
-    userNoteForFlash
+    userNoteClipped
       ? chatOocExclusive
-        ? `[USER NOTE — lore/world context ONLY; ignore status-window & HTML display format lines; OOC UI spec wins]\n${userNoteForFlash}`
-        : `[USER NOTE — reference RAG]\n${userNoteForFlash}`
+        ? `[USER NOTE — lore/world context ONLY; ignore status-window & HTML display format lines; OOC UI spec wins]\n${userNoteClipped}`
+        : `[USER NOTE — reference RAG]\n${userNoteClipped}`
       : "",
-    ctx.loreBlock?.trim()
+    budget.includeLore && ctx.loreBlock?.trim()
       ? `[ACTIVE LORE / LOREBOOK — contextual RAG]\n${clipTail(ctx.loreBlock.trim(), loreMax)}`
       : "",
     `[CHARACTER] ${ctx.charName}`,
@@ -889,14 +1085,68 @@ export type HtmlVisualCardFlashGenerateResult = {
   usage: TokenUsage | null;
   /** system+userBlock 조립 추정 — API usage 없을 때 영수증·과금 fallback */
   promptEstimateTokens: number;
+  /** Flash API/품질 거부 — html null 시 원인 */
+  flashError?: string | null;
 };
 
 function flashGenerateResult(
   html: string | null,
   usage: TokenUsage | null,
-  promptEstimateTokens: number
+  promptEstimateTokens: number,
+  flashError?: string | null
 ): HtmlVisualCardFlashGenerateResult {
-  return { html, usage, promptEstimateTokens };
+  return { html, usage, promptEstimateTokens, flashError: flashError ?? null };
+}
+
+function buildOocCreativeFlashRetryBlock(
+  userMessage: string,
+  attempt: 1 | 2,
+  plainChars?: number
+): string {
+  const minChars = resolveOocMinPlainChars(userMessage);
+  const detailed = oocRequestsDetailedContent(userMessage);
+  const category = oocRequestsCategoryCard(userMessage);
+  const cats = parseOocBracketCategories(userMessage);
+  const reason =
+    plainChars != null
+      ? `TOO SHORT (${plainChars} visible chars; need ≥${minChars})`
+      : "REJECTED";
+
+  if (category) {
+    const catList =
+      cats.length > 0
+        ? cats.map((c, i) => `${i + 1}. ${c.replace(/\([^)]*\)/g, "").trim()}`).join("\n")
+        : "(see bracket list in [USER MESSAGE])";
+    return `[${attempt === 2 ? "FINAL " : ""}RETRY — ${reason}]
+Previous output failed quality check. User OOC requests a **category card** (추구미 / bracket sections).
+Rebuild per [REFERENCE]: one <section> per category with visible spacing:
+${catList}
+${detailed ? `- EACH section: ≥5 full-sentence Korean bullet lines with concrete examples — NOT one-line keywords.` : "- Each section: substantive multi-line content, not keyword stubs."}
+- **Total visible text ≥${minChars} characters** (HTML tags excluded).
+- «외형»: [CANONICAL APPEARANCE] + APPEARANCE LOCK only.
+- Include «최종 결론» section if OOC asks.
+- FORBIDDEN: RP status-window fields, "—" placeholders, single run-on paragraph.`;
+  }
+
+  if (oocRequestsAnonymousInbox(userMessage)) {
+    if (attempt === 2) {
+      return `[FINAL RETRY — ${reason}]
+Build a Twitter/X-style **anonymous message inbox** UI:
+- Part 1: account header (name, handle, short bio) — brief only.
+- Part 2: **main content** — at least 5 anonymous fan messages AND 5 admin/account replies, each several sentences, comic and detailed Korean.
+- Total visible text ≥${minChars} characters.
+- Single-line inline CSS; dark text (#111–#333); mobile-friendly.
+- NO status-window field boxes. NO "—" placeholders.`;
+    }
+    return `[RETRY — ${reason}]
+You returned generic status fields, empty placeholders, OR a profile/header ONLY without the message list body.
+Build the FULL anonymous inbox UI: profile header PLUS at least 5 detailed fan questions AND 5 detailed answers (comic Korean).
+For «외형» / hair / eyes: copy ONLY [CANONICAL APPEARANCE] and APPEARANCE LOCK.
+Do NOT stop after the account bio.`;
+  }
+
+  return `[RETRY — ${reason}]
+Expand OOC HTML — minimum ${minChars} visible Korean characters. Follow [USER MESSAGE] layout; add scene-specific detail.`;
 }
 
 /** DeepSeek V3 — HTML visual card 생성 (상태창 meta extract와 동일 패턴) */
@@ -935,9 +1185,11 @@ export async function generateHtmlVisualCardWithFlash(
     flashMode
   );
 
-  if (opts.htmlOnlyDedicatedTurn) {
+  if (opts.htmlOnlyDedicatedTurn || oocCustomHtml) {
+    const budget = resolveHtmlFlashContextBudget(opts.userMessage, flashMode);
+    const inputBudget = budget.inputTargetTokens;
     let scale = 1;
-    while (estimateTokens(`${system}\n${userBlock}`) > HTML_ONLY_TURN_MAX_INPUT_TOKENS && scale > 0.25) {
+    while (estimateTokens(`${system}\n${userBlock}`) > inputBudget && scale > 0.25) {
       scale *= 0.88;
       userBlock = buildHtmlVisualCardFlashUserBlock(
         opts,
@@ -946,6 +1198,16 @@ export async function generateHtmlVisualCardWithFlash(
         { ...flashMode, htmlContextCharScale: scale }
       );
     }
+  }
+
+  if (!userBlock.trim()) {
+    console.error("[html-flash] empty user block after assembly", { chatId: opts.chatId });
+    return flashGenerateResult(
+      null,
+      null,
+      estimateTokens(`${system}\n${userBlock}`),
+      "HTML flash user block empty"
+    );
   }
 
   const promptEstimateTokens = estimateTokens(`${system}\n${userBlock}`);
@@ -965,17 +1227,28 @@ export async function generateHtmlVisualCardWithFlash(
     recentTurns: opts.recentHistory?.length ?? 0,
   });
 
-  try {
-    const maxTokens = HTML_FLASH_MAX_OUTPUT_TOKENS;
+  let lastFlashError: string | null = null;
 
-    const callFlash = (systemPrompt: string) =>
-      callBackgroundMemory(
-        systemPrompt,
-        [{ role: "user", content: userBlock }],
-        undefined,
-        "background-html-visual-card",
-        { maxTokens }
-      );
+  try {
+    const maxTokens =
+      opts.htmlOnlyDedicatedTurn || opts.displayUserInputOnly
+        ? HTML_ONLY_TURN_MAX_OUTPUT_TOKENS
+        : HTML_FLASH_MAX_OUTPUT_TOKENS;
+
+    const callFlash = async (systemPrompt: string) => {
+      try {
+        return await callBackgroundMemory(
+          systemPrompt,
+          [{ role: "user", content: userBlock }],
+          undefined,
+          "background-html-visual-card",
+          { maxTokens }
+        );
+      } catch (e) {
+        lastFlashError = (e as Error).message ?? String(e);
+        throw e;
+      }
+    };
 
     const first = await callFlash(system);
     let accumulatedFlashUsage: TokenUsage = first.usage;
@@ -992,16 +1265,21 @@ export async function generateHtmlVisualCardWithFlash(
     if (oocCustomHtml && block && !oocFlashBlockAccepted(block, opts.userMessage)) block = null;
 
     if (oocCustomHtml && !block) {
+      const plainChars = text.trim()
+        ? visiblePlainFromHtmlInner(
+            polishHtmlVisualCardInner(unwrapHtmlVisualCardInner(extractFencedHtmlBlock(text) ?? text))
+          ).length
+        : 0;
       console.warn("[html-flash] OOC output rejected or empty — retrying with correction", {
         chatId: opts.chatId,
         preview: text.slice(0, 120),
+        plainChars,
       });
-      const retrySystem = `${system}
-
-[RETRY — PREVIOUS OUTPUT REJECTED]
-You returned generic status fields, empty placeholders, OR a profile/header ONLY without the message list body.
-Read [USER MESSAGE — this turn] again. Build the FULL anonymous inbox UI: profile header PLUS at least 5 detailed fan questions AND 5 detailed answers (comic Korean).
-Do NOT stop after the account bio. Do NOT output 현재 상황/속마음/다음 행동 or "—" placeholders.`;
+      const retrySystem = `${system}\n\n${buildOocCreativeFlashRetryBlock(
+        opts.userMessage,
+        1,
+        plainChars > 0 ? plainChars : undefined
+      )}`;
       const second = await callFlash(retrySystem);
       mergeUsage(second.usage);
       text = second.text;
@@ -1010,19 +1288,21 @@ Do NOT stop after the account bio. Do NOT output 현재 상황/속마음/다음 
     }
 
     if (oocCustomHtml && !block) {
-      console.warn("[html-flash] OOC 2nd reject — final retry with inbox spec", {
+      const plainChars = text.trim()
+        ? visiblePlainFromHtmlInner(
+            polishHtmlVisualCardInner(unwrapHtmlVisualCardInner(extractFencedHtmlBlock(text) ?? text))
+          ).length
+        : 0;
+      console.warn("[html-flash] OOC 2nd reject — final retry", {
         chatId: opts.chatId,
         preview: text.slice(0, 120),
+        plainChars,
       });
-      const thirdSystem = `${system}
-
-[FINAL RETRY — MUST PASS]
-Previous outputs were REJECTED: too short, status-window fields, OR header/bio only without messages.
-Build a Twitter/X-style **anonymous message inbox** UI:
-- Part 1: account header (name, handle, short bio) — brief only.
-- Part 2: **main content** — at least 5 anonymous fan messages AND 5 admin/account replies, each several sentences, comic and detailed Korean (shipping wars, meta, fanmail, etc.).
-- Single-line inline CSS; dark text (#111–#333); mobile-friendly.
-- NO status-window field boxes. NO "—" placeholders. Do NOT end after the bio.`;
+      const thirdSystem = `${system}\n\n${buildOocCreativeFlashRetryBlock(
+        opts.userMessage,
+        2,
+        plainChars > 0 ? plainChars : undefined
+      )}`;
       const third = await callFlash(thirdSystem);
       mergeUsage(third.usage);
       text = third.text;
@@ -1096,12 +1376,21 @@ Build a Twitter/X-style **anonymous message inbox** UI:
     console.warn("[html-flash] Flash returned no usable HTML", {
       preview: text.slice(0, 120),
     });
+    if (oocCustomHtml) {
+      return flashGenerateResult(
+        null,
+        accumulatedFlashUsage,
+        promptEstimateTokens,
+        lastFlashError ?? "no usable HTML after quality checks"
+      );
+    }
   } catch (e) {
-    console.error("[html-flash] Flash call failed", (e as Error).message);
+    lastFlashError = (e as Error).message ?? String(e);
+    console.error("[html-flash] Flash call failed", lastFlashError);
   }
 
   if (opts.chatOocExclusive || opts.oocCreativeBrief) {
-    return flashGenerateResult(null, null, promptEstimateTokens);
+    return flashGenerateResult(null, null, promptEstimateTokens, lastFlashError);
   }
   const fallback = buildFallbackHtmlVisualCard(opts.policy.statusFieldLabels);
   return flashGenerateResult(fallback || null, null, promptEstimateTokens);

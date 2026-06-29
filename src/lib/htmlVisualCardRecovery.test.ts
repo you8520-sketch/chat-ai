@@ -8,15 +8,21 @@ import {
   attachHtmlBlockBeforeProse,
   attachHtmlBlockWithinCap,
   buildFallbackHtmlVisualCard,
+  buildHtmlFlashSystemPrompt,
   buildHtmlVisualCardFlashUserBlock,
   clampFullResponsePreservingHtml,
   ensureHtmlVisualCardBlock,
   generateHtmlVisualCardWithFlash,
+  HTML_FLASH_RECENT_HISTORY_MAX_TOKENS,
+  HTML_OOC_FLASH_INPUT_TARGET_TOKENS,
+  OOC_FLASH_RECENT_HISTORY_MAX_TOKENS,
+  resolveHtmlFlashContextBudget,
   resolveHtmlFlashOutputReserveChars,
   STATUS_WINDOW_BODY_GAP,
   stripBrokenHtmlFragmentAtEnd,
   stripBrokenHtmlFragmentPreservingOocBody,
 } from "@/lib/htmlVisualCardRecovery";
+import { estimateTokens } from "@/lib/tokenEstimate";
 import {
   buildHtmlStatusWindowCardFromFields,
   extractStatusFieldPairsFromHtml,
@@ -24,6 +30,27 @@ import {
 } from "@/lib/htmlVisualCardPolicy";
 
 describe("htmlVisualCardFlash", () => {
+  it("V3 system prompt uses compact brief, not PART I templates", () => {
+    const policy = resolveHtmlVisualCardPolicyFromSources({
+      userMessage: "HTML을 사용해서 맛집 TOP5를 띄워줘",
+    });
+    const system = buildHtmlFlashSystemPrompt(policy, "top");
+    assert.match(system, /HTML VISUAL CARD — V3/);
+    assert.doesNotMatch(system, /HTML OUTPUT MODE/);
+    assert.doesNotMatch(system, /REFERENCE TEMPLATE/);
+  });
+
+  it("standing status fields use creative design path", () => {
+    const policy = resolveHtmlVisualCardPolicyFromSources({
+      userNote: `ooc:다음상태창을 본문하단에 HTML을 사용하여 표기할것
+NPC의 속마음 한 줄
+현재 상황을 짧게 요약`,
+    });
+    const system = buildHtmlFlashSystemPrompt(policy, "bottom");
+    assert.match(system, /HTML STATUS WINDOW — CREATIVE DESIGN/);
+    assert.doesNotMatch(system, /HTML OUTPUT MODE/);
+  });
+
   it("detects missing HTML when only prose present", () => {
     assert.equal(responseHasHtmlVisualCard("RP 본문만 있습니다."), false);
   });
@@ -61,6 +88,76 @@ describe("htmlVisualCardFlash", () => {
     assert.match(block, /\[ACTIVE LORE/);
   });
 
+  it("caps OOC RECENT CHAT HISTORY at 8k tokens and routes older context to memory", () => {
+    const longTurn = "가".repeat(800);
+    const block = buildHtmlVisualCardFlashUserBlock(
+      {
+        chatId: 1,
+        charName: "NPC",
+        personaName: "유저",
+        userMessage:
+          "OOC: 지금까지의 대화와 누적 서사를 참고해서 HTML로 정리해줘",
+        assistantProse: "",
+        memoryBlock: "장기기억에 저장된 과거 사건 요약",
+        recentHistory: Array.from({ length: 40 }, (_, i) => ({
+          role: (i % 2 === 0 ? "user" : "assistant") as "user" | "assistant",
+          content: `${i}턴 ${longTurn}`,
+        })),
+      },
+      undefined,
+      "bottom",
+      { htmlOnlyDedicatedTurn: true, chatOocExclusive: true, oocCreativeBrief: true }
+    );
+    assert.match(block, /\[HISTORY vs MEMORY\]/);
+    assert.match(block, /8,000 tokens/);
+    assert.match(block, /\[LONG-TERM MEMORY\]\n/);
+    assert.equal((block.match(/\[LONG-TERM MEMORY\]/g) ?? []).length, 1);
+    const historyMatch = block.match(/\[RECENT CHAT HISTORY\]\n([\s\S]*?)\n\n\[/);
+    assert.ok(historyMatch?.[1]);
+    assert.ok(estimateTokens(historyMatch![1]) <= OOC_FLASH_RECENT_HISTORY_MAX_TOKENS);
+    assert.doesNotMatch(historyMatch![1], /0턴/);
+  });
+
+  it("OOC category card keeps assembled input near 20k token target, not full dump", () => {
+    const chuGumiOoc =
+      "[OOC: 지금의 대화 잠시 중지. NPC의 '추구미'와 그 이유를 가볍고 코믹한 분위기로 알아본다. " +
+      "항목은 [외형 · 키워드 · 모에화 · 기타 상징 · 대외적 이미지]로 5개. " +
+      "내용은 인라인 HTML을 활용하여 가독성 좋게 작성하고, 코드블럭으로 감싸서 출력한다. " +
+      "모든 내용은 PC와 NPC의 캐릭터 설정/성격/말투/세계관/관계성/유저노트/누적대화 등을 참조하여 자세히 작성할 것.]";
+    const huge = "X".repeat(25_000);
+    const block = buildHtmlVisualCardFlashUserBlock(
+      {
+        chatId: 1,
+        charName: "레온",
+        personaName: "유저",
+        userMessage: chuGumiOoc,
+        assistantProse: "",
+        userNote: huge,
+        userPersona: "페르소나 " + huge.slice(0, 5000),
+        characterSetting: "코어 설정 " + huge,
+        memoryBlock: "기억 " + huge,
+        archiveMemory: "아카이브 " + huge,
+        loreBlock: "로어 " + huge,
+        recentHistory: Array.from({ length: 30 }, (_, i) => ({
+          role: (i % 2 === 0 ? "user" : "assistant") as "user" | "assistant",
+          content: `턴${i} ${"가".repeat(600)}`,
+        })),
+      },
+      undefined,
+      "bottom",
+      { htmlOnlyDedicatedTurn: true, chatOocExclusive: true, oocCreativeBrief: true }
+    );
+    const tokens = estimateTokens(block);
+    assert.ok(
+      tokens <= HTML_OOC_FLASH_INPUT_TARGET_TOKENS + 3000,
+      `expected ≤ ~${HTML_OOC_FLASH_INPUT_TARGET_TOKENS + 3000}, got ${tokens}`
+    );
+    assert.match(block, /\[CHARACTER & WORLD SETTING\]/);
+    assert.match(block, /\[LONG-TERM MEMORY\]/);
+    assert.match(block, /\[RECENT CHAT HISTORY\]/);
+    assert.doesNotMatch(block, /X{1000}/);
+  });
+
   it("flash user block includes status field labels when policy provided", () => {
     const block = buildHtmlVisualCardFlashUserBlock(
       {
@@ -96,11 +193,11 @@ describe("htmlVisualCardFlash", () => {
     assert.ok(bottom.indexOf("본문") < bottom.indexOf("```html"));
   });
 
-  it("attachHtmlBlockWithinCap preserves html tail within 5000", () => {
+  it("attachHtmlBlockWithinCap keeps full prose and html when no char cap", () => {
     const html = buildFallbackHtmlVisualCard(["속마음", "상황"]);
     const prose = "가".repeat(4900);
     const merged = attachHtmlBlockWithinCap(prose, html, ABSOLUTE_MAX_RESPONSE_CHARS);
-    assert.ok(merged.length <= ABSOLUTE_MAX_RESPONSE_CHARS);
+    assert.ok(merged.length > ABSOLUTE_MAX_RESPONSE_CHARS);
     assert.match(merged, /```html/);
     assert.ok(responseHasHtmlVisualCard(merged));
     const htmlFence = merged.slice(merged.indexOf("```html"));

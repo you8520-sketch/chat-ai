@@ -13,7 +13,7 @@ import { OPENROUTER_GEMINI_25_PRO_MODEL } from "@/lib/chatModels";
 describe("OpenRouter Gemini 2.5 Pro billing", () => {
   const modelId = OPENROUTER_GEMINI_25_PRO_MODEL;
 
-  it("uses 0.065P per output token (same as Qwen)", () => {
+  it("uses 0.065P per output token", () => {
     assert.equal(OPENROUTER_GEMINI_25_POINTS_PER_OUTPUT_TOKEN, 0.065);
     assert.equal(GEMINI_25_WAIVER_SUCCESS_MIN_COST, 50);
   });

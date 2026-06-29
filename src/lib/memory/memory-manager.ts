@@ -7,6 +7,7 @@ import {
   catchUpRollingSummaries,
   processRollingSummaryBatch,
   refreshRollingSummaryForRegeneratedAssistant,
+  regenerateMemoryRecordBatch,
   scheduleCharacterRollingSummary,
   shouldTriggerRollingSummary,
   turnsUntilNextSummary,
@@ -395,4 +396,9 @@ export function upgradeTier(userId: number, tier: MemoryTier): void {
   upgradeTierForUser(userId, tier);
 }
 
-export { catchUpRollingSummaries, ROLLING_SUMMARY_INTERVAL };
+export {
+  catchUpRollingSummaries,
+  ROLLING_SUMMARY_INTERVAL,
+  regenerateMemoryRecordBatch,
+};
+export { isFallbackMemoryRecordSummary } from "./memory-summary-clamp";

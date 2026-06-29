@@ -76,7 +76,7 @@ export async function tryServerUnderLengthRecovery(
   }
 
   const userMsg = buildServerUnderLengthRecoveryUserMessage();
-  const contSystem = `${opts.system}\n\n${buildRecoveryContinuationSystemPrompt(opts.charName)}`;
+  const contSystem = `${opts.system}\n\n${buildRecoveryContinuationSystemPrompt()}`;
   const { history, recoveryAssistantPrefill, claudeRecovery } = buildRecoveryContinuationRequest(
     prior,
     userMsg,

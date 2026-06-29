@@ -95,7 +95,7 @@ describe("OpenRouter cache boundaries", () => {
 
     const ids = (built.meta?.trackedSections ?? []).map((s) => s.id);
     assert.ok(sectionOrder(ids, "prose-style-xml-bundle") < sectionOrder(ids, "user-note-reference"));
-    assert.ok(sectionOrder(ids, "user-note-reference") < sectionOrder(ids, "current-memory"));
+    assert.ok(sectionOrder(ids, "current-memory") < sectionOrder(ids, "user-note-reference"));
     assert.ok(sectionOrder(ids, "current-memory") < sectionOrder(ids, "contextual-lore-rag"));
   });
 

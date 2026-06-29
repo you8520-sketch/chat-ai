@@ -1,5 +1,9 @@
 import { looksLikeDisplayTitle } from "@/lib/relationshipMetaCharacterName";
-import { formatGroupedPossessionsForPrompt } from "@/lib/relationshipMetaItems";
+import {
+  expandPossessionTransferRemovals,
+  formatGroupedPossessionsForPrompt,
+  parsePossessionEntry,
+} from "@/lib/relationshipMetaItems";
 
 export type MemoryPromise = {
   text: string;
@@ -21,6 +25,9 @@ export const MEMORY_META_MAX = {
   thoughts: 8,
   promises: 15,
 } as const;
+
+/** 턴당 추출·병합 시 추가할 속마음 상한 */
+export const THOUGHTS_PER_TURN_MAX = 3;
 
 export const EMPTY_MEMORY_META: MemoryMeta = {
   honorifics: [],
@@ -278,7 +285,8 @@ export function isLikelySituationSummary(content: string): boolean {
 }
 
 export const RELATIONSHIP_THOUGHT_EXTRACT_RULES = `thoughts(속마음) 규칙:
-- 캐릭터·NPC **1인칭 내면 독백** 한 줄만. 형식 필수: "이름: 속마음"
+- **이번 턴** 본문에 등장한 캐릭터·NPC만. 형식 필수: "이름: 속마음" (이름은 본문에 나온 그대로)
+- **매 턴 1~${THOUGHTS_PER_TURN_MAX}개** — NPC·캐릭터 각각 한 줄짜리 **짧은 1인칭 내면**만. 전체 저장은 최근 ${MEMORY_META_MAX.thoughts}개(가득 차면 오래된 것부터 삭제)
 - 내용 **${THOUGHT_CONTENT_MAX_CHARS}자 전후** — 문장이 끝나려면 ${THOUGHT_CONTENT_HARD_MAX_CHARS}자까지 허용. 짧은 감정·생각, 상황 나열·요약 금지
 - 3인칭 서술(그는/그녀/캐릭터가~), 과거형 사건 서술(~했다/~였다), · 키워드 나열(턴요약형), 여러 절/문장 금지
 - **유저 내면·( ) 속마음 절대 금지**
@@ -309,7 +317,8 @@ export function normalizeThoughtEntry(entry: string, names: HonorificNames): str
 export function dedupeNormalizedThoughts(
   thoughts: string[],
   names: HonorificNames,
-  max = MEMORY_META_MAX.thoughts
+  max = MEMORY_META_MAX.thoughts,
+  keepRecent = max >= MEMORY_META_MAX.thoughts
 ): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -319,7 +328,16 @@ export function dedupeNormalizedThoughts(
     seen.add(normalized);
     out.push(normalized);
   }
-  return out.slice(0, max);
+  return keepRecent ? out.slice(-max) : out.slice(0, max);
+}
+
+/** 턴 추출 — 유효한 속마음만 정규화, 최대 THOUGHTS_PER_TURN_MAX개 */
+export function normalizeTurnThoughts(
+  thoughts: string[],
+  names: HonorificNames,
+  max = THOUGHTS_PER_TURN_MAX
+): string[] {
+  return dedupeNormalizedThoughts(thoughts, names, max, false);
 }
 
 export function normalizeMemoryMeta(meta: MemoryMeta, names: HonorificNames): MemoryMeta {
@@ -374,7 +392,7 @@ export function parseMemoryMeta(raw: string | null | undefined): MemoryMeta {
         : [],
       items: Array.isArray(j.items) ? j.items.filter(Boolean).slice(0, MEMORY_META_MAX.items) : [],
       thoughts: Array.isArray(j.thoughts)
-        ? j.thoughts.filter(Boolean).slice(0, MEMORY_META_MAX.thoughts)
+        ? j.thoughts.filter(Boolean).slice(-MEMORY_META_MAX.thoughts)
         : [],
       promises: parsePromises(j.promises),
     };
@@ -383,8 +401,27 @@ export function parseMemoryMeta(raw: string | null | undefined): MemoryMeta {
   }
 }
 
-function mergeThoughts(prev: string[], delta: string[]): string[] {
-  return uniqStrings(delta, prev, MEMORY_META_MAX.thoughts);
+function mergeThoughts(
+  prev: string[],
+  delta: string[],
+  names?: HonorificNames
+): string[] {
+  const additions = names
+    ? normalizeTurnThoughts(delta, names)
+    : delta.map((t) => t.trim()).filter(Boolean).slice(0, THOUGHTS_PER_TURN_MAX);
+
+  const seen = new Set(prev.map((t) => t.trim()));
+  const out = [...prev];
+  for (const t of additions) {
+    const trimmed = t.trim();
+    if (!trimmed || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    out.push(trimmed);
+  }
+  while (out.length > MEMORY_META_MAX.thoughts) {
+    out.shift();
+  }
+  return out;
 }
 
 function mergePromises(
@@ -411,19 +448,64 @@ function applyMetaRemovals(entries: string[], remove: string[] | undefined): str
   return entries.filter((item) => !removeSet.has(item.trim()));
 }
 
+function possessionEntryPersonKey(entry: string, names: HonorificNames): string {
+  const normalized = normalizeItemEntry(entry, names);
+  const parsed = parsePossessionEntry(normalized);
+  return parsed?.person ?? normalized;
+}
+
+/** 같은 인물 소지품 줄은 갱신(교체) — 전달 후 옛 줄+새 줄 중복 방지 */
+function mergePossessionEntries(
+  prev: string[],
+  remove: string[] | undefined,
+  add: string[] | undefined,
+  names: HonorificNames
+): string[] {
+  let entries = applyMetaRemovals(prev, remove);
+  if (!add?.length) return dedupeNormalizedItems(entries, names);
+
+  const byPerson = new Map<string, string>();
+  for (const raw of entries) {
+    const normalized = normalizeItemEntry(raw, names);
+    if (!normalized) continue;
+    byPerson.set(possessionEntryPersonKey(normalized, names), normalized);
+  }
+  for (const raw of add) {
+    const normalized = normalizeItemEntry(raw, names);
+    if (!normalized) continue;
+    byPerson.set(possessionEntryPersonKey(normalized, names), normalized);
+  }
+  return dedupeNormalizedItems([...byPerson.values()], names);
+}
+
 export function mergeMemoryMeta(
   prev: MemoryMeta,
   delta: RelationshipMetaDelta,
   names?: HonorificNames
 ): MemoryMeta {
   let honorifics = uniqStrings(prev.honorifics, delta.honorifics ?? [], MEMORY_META_MAX.honorifics);
-  let items = applyMetaRemovals(prev.items, delta.itemsRemove);
   let thoughts = applyMetaRemovals(prev.thoughts, delta.thoughtsRemove);
-  items = uniqStrings(items, delta.items ?? [], MEMORY_META_MAX.items);
-  thoughts = mergeThoughts(thoughts, delta.thoughts ?? []);
+
+  const deltaItems = delta.items ?? [];
+  const transferPatch = names
+    ? expandPossessionTransferRemovals(prev.items, deltaItems, names)
+    : { itemsRemove: [] as string[], itemsRevise: [] as string[] };
+  const itemsRemove = [
+    ...(delta.itemsRemove ?? []),
+    ...transferPatch.itemsRemove,
+  ];
+  const itemsAdd = [...deltaItems, ...transferPatch.itemsRevise];
+
+  let items = names
+    ? mergePossessionEntries(prev.items, itemsRemove, itemsAdd, names)
+    : applyMetaRemovals(prev.items, itemsRemove);
+  if (!names) {
+    items = uniqStrings(items, itemsAdd, MEMORY_META_MAX.items);
+  }
+
+  thoughts = mergeThoughts(thoughts, delta.thoughts ?? [], names);
   if (names) {
     honorifics = dedupeNormalizedHonorifics(honorifics, names);
-    items = dedupeNormalizedItems(items, names);
     thoughts = dedupeNormalizedThoughts(thoughts, names);
   }
   return {
@@ -438,7 +520,9 @@ export function formatMemoryMetaForPrompt(meta: MemoryMeta): string | null {
   const lines: string[] = [];
   if (meta.honorifics.length) lines.push(`호칭: ${meta.honorifics.join(" · ")}`);
   if (meta.items.length) lines.push(`소지품:\n${formatGroupedPossessionsForPrompt(meta.items)}`);
-  if (meta.thoughts.length) lines.push(`속마음(캐릭터·NPC): ${meta.thoughts.join(" · ")}`);
+  if (meta.thoughts.length) {
+    lines.push(`속마음(캐릭터·NPC):\n${meta.thoughts.join("\n")}`);
+  }
   if (meta.promises.length) {
     const formatted = meta.promises.map((p) =>
       p.deadline ? `${p.text} (기한: ${p.deadline})` : p.text

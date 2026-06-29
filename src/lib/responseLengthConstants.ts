@@ -28,7 +28,7 @@ export const UNIFIED_TIER_AIM_CHARS = 3000;
 export const UNIFIED_RESPONSE_LENGTH_TARGET = UNIFIED_TIER_AIM_CHARS;
 export type ResponseLengthTierTarget = typeof UNIFIED_RESPONSE_LENGTH_TARGET;
 
-/** tier별 API maxOutputTokens */
+/** tier별 역산 추정치 — 진단·배경 작업용 (RP API max_tokens cap 아님) */
 export const TARGET_LENGTH_TO_MAX_OUTPUT_TOKENS: Record<ResponseLengthTierTarget, number> = {
   [UNIFIED_RESPONSE_LENGTH_TARGET]: ABSOLUTE_MAX_OUTPUT_TOKENS,
 };

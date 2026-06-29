@@ -12,9 +12,8 @@ import { visibleAssistantDisplayCharCount, visibleAssistantDisplayText } from ".
 import { visibleAssistantDisplayKoreanWordCount } from "./koreanWordCount";
 import type { BilingualDialoguePolicy } from "@/lib/bilingualDialoguePolicy";
 import { buildLangCriticalRule } from "@/lib/bilingualDialoguePolicy";
-import { isDeepSeekV4ProModel, isGemini31ProModel, isQwenModel } from "@/lib/chatModels";
 import { NO_INPUT_ECHO_RULE } from "@/lib/sceneExpansionPolicy";
-import { buildTurnHandoffAndPacingBlock, SCENE_CONTINUATION_PRIORITY_BLOCK } from "./turnHandoffAndPacing";
+import { SCENE_CONTINUATION_PRIORITY_BLOCK } from "./turnHandoffAndPacing";
 export * from "./responseLengthConstants";
 import {
   ABSOLUTE_MAX_RESPONSE_CHARS,
@@ -200,17 +199,27 @@ ${SCENE_CONTINUATION_PRIORITY_BLOCK}${jsonOrStatusLine}`;
 }
 
 /**
- * @deprecated Merged into [LENGTH CONTROL & SCENE EXPANSION] — kept for audit script compatibility.
+ * @deprecated Merged into compact terminal tail — kept for audit script compatibility.
  */
-export function buildTerminalLengthOverrideRecencyBlock(): string {
-  return "";
+export function buildTerminalLengthOverrideRecencyBlock(
+  targetInput?: number | null
+): string {
+  return buildCompactTerminalLengthAbsoluteTail(targetInput);
 }
 
-/** @deprecated use buildTerminalLengthOverrideRecencyBlock — hardcoded numerics removed (Phase 13 dedup) */
+/** 터미널 맨 끝 1줄 — 분량 recency (LENGTH CONTROL과 중복 설명 없음) */
+export function buildCompactTerminalLengthAbsoluteTail(
+  targetInput?: number | null
+): string {
+  const t = resolveResponseLengthTarget(targetInput);
+  return `TARGET_LENGTH ${t.aimChars.toLocaleString()}+ · MINIMUM_FLOOR ${t.min.toLocaleString()}+ — 단일 응답 최대 전개·미달 조기 종료 금지.`;
+}
+
+/** @deprecated buildCompactTerminalLengthAbsoluteTail() */
 export const TERMINAL_LENGTH_OVERRIDE_BLOCK = "";
 
-export function buildTerminalLengthOverrideBlock(): string {
-  return buildTurnHandoffAndPacingBlock();
+export function buildTerminalLengthOverrideBlock(targetInput?: number | null): string {
+  return buildCompactTerminalLengthAbsoluteTail(targetInput);
 }
 
 /** 모든 모델 공통 — LENGTH CONTROL + TARGET/FLOOR (자동진행·재생성 포함 단일 출처) */
@@ -276,6 +285,21 @@ export function generationFailureUserMessage(reason?: GenerationFailureReason | 
     return "AI 응답이 비정상적으로 짧거나 비어 있어 저장하지 않았습니다. 포인트는 차감되지 않습니다. 다시 시도해 주세요.";
   }
   return GENERATION_FAILURE_USER_MESSAGE;
+}
+
+/** HTML Flash 전용 턴 — Flash API 실패·품질 거부 (메인 RP 미호출) */
+export function htmlFlashFailureUserMessage(flashError?: string | null): string {
+  const msg = flashError?.trim() ?? "";
+  if (/timeout|aborted due to timeout/i.test(msg)) {
+    return "HTML 생성이 시간 초과로 실패했습니다. OOC 지시를 조금 짧게 하거나 잠시 후 다시 시도해 주세요. 포인트는 차감되지 않습니다.";
+  }
+  if (/requires system \+ user history/i.test(msg)) {
+    return "HTML 생성 요청 조립에 실패했습니다. 잠시 후 다시 시도해 주세요. 포인트는 차감되지 않습니다.";
+  }
+  if (/empty completion|no usable HTML|rejected|discarding/i.test(msg)) {
+    return "HTML 생성 결과가 품질 기준을 통과하지 못했습니다. OOC 지시를 조금 바꿔 다시 시도해 주세요. 포인트는 차감되지 않습니다.";
+  }
+  return "HTML 생성에 실패했습니다. 잠시 후 다시 시도해 주세요. 포인트는 차감되지 않습니다.";
 }
 
 /** @deprecated generationFailureUserMessage 사용 */
@@ -579,12 +603,20 @@ export function maxContinuationPasses(
   return MAX_RESPONSE_CONTINUATION_PASSES;
 }
 
-/** Gemini 3.1 Pro OpenRouter — reasoning+prose shared pool */
+/** Gemini 3.1 Pro OpenRouter — @deprecated RP chat omits max_tokens */
 export const OPENROUTER_GEMINI_31_PRO_MAX_OUTPUT_TOKENS = 8192;
 
-/** Qwen / DeepSeek / default RP — tier max (5,000자 역산 ≈ 4,334) */
+/** @deprecated 진단·역산용 tier 추정치 (RP API cap 아님) */
 export function resolveOpenRouterTierMaxOutputTokens(): number {
-  return TARGET_LENGTH_TO_MAX_OUTPUT_TOKENS[UNIFIED_RESPONSE_LENGTH_TARGET];
+  return resolveTierMaxOutputTokensEstimate(null);
+}
+
+/** 진단·배경 작업용 tier 역산 추정치 — RP chat API에는 미전송 */
+export function resolveTierMaxOutputTokensEstimate(
+  targetInput?: number | null
+): number {
+  const t = resolveResponseLengthTarget(targetInput ?? DEFAULT_TARGET_RESPONSE_CHARS);
+  return TARGET_LENGTH_TO_MAX_OUTPUT_TOKENS[t.target];
 }
 
 /** @deprecated OPENROUTER_GEMINI_31_PRO_MAX_OUTPUT_TOKENS */
@@ -599,6 +631,18 @@ export function buildSingleShotLengthReminder(_targetInput?: number | null): str
 MINIMUM_FLOOR 미달·조기 handoff 금지. [LENGTH CONTROL & SCENE EXPANSION] · [SCENE CONTINUATION PRIORITY] 준수.`;
 }
 
+/** 유저 메시지 하단 — compact tail recency (system 뒤 히스토리·유저가 오므로 필수) */
+export function appendCompactTerminalLengthToUserTurn(
+  userContent: string,
+  targetInput?: number | null
+): string {
+  const tail = buildCompactTerminalLengthAbsoluteTail(targetInput);
+  const body = userContent.trim();
+  if (!body) return tail;
+  if (body.includes("단일 응답 최대 전개·미달 조기 종료 금지")) return body;
+  return `${body}\n\n${tail}`;
+}
+
 /** 유저 메시지 하단 — recency bias로 분량 리마인더 주입 */
 export function appendSingleShotLengthReminderToUserTurn(
   userContent: string,
@@ -611,22 +655,12 @@ export function appendSingleShotLengthReminderToUserTurn(
   return `${body}\n\n${tail}`;
 }
 
+/** RP chat — max_tokens 미전송 (프로바이더 기본·출력 토큰 과금). override 있을 때만 숫자 반환 */
 export function resolveMaxOutputTokensForTarget(
-  targetInput?: number | null,
-  modelId?: string | null
-): number {
-  const model = modelId?.trim() ?? "";
-  if (isGemini31ProModel(model)) {
-    return OPENROUTER_GEMINI_31_PRO_MAX_OUTPUT_TOKENS;
-  }
-  if (model && (isDeepSeekV4ProModel(model) || isQwenModel(model))) {
-    return resolveOpenRouterTierMaxOutputTokens();
-  }
-  if (model) {
-    return resolveOpenRouterTierMaxOutputTokens();
-  }
-  const t = resolveResponseLengthTarget(targetInput ?? DEFAULT_TARGET_RESPONSE_CHARS);
-  return TARGET_LENGTH_TO_MAX_OUTPUT_TOKENS[t.target];
+  _targetInput?: number | null,
+  _modelId?: string | null
+): undefined {
+  return undefined;
 }
 
 /** 미완결 문장·토큰 상한(length) 잘림 — under-length recovery 이후에도 연쇄 가능 */
@@ -848,7 +882,7 @@ export function buildUnderLengthRecoveryUserMessage(): string {
 export function resolveUnderLengthRecoveryMaxTokens(
   targetInput?: number | null
 ): number {
-  return resolveMaxOutputTokensForTarget(targetInput);
+  return resolveTierMaxOutputTokensEstimate(targetInput);
 }
 
 /** @deprecated 1-pass — 분량 미달 이어쓰기 제거; truncation 문장 마무리만 */
@@ -1025,18 +1059,9 @@ export function sanitizeStreamArtifacts(text: string): string {
 
 export type ClampResponseLengthOptions = Record<string, never>;
 
-/** narrative 본문만 cap — 문장·단락 경계에서만 절단 */
-function clampNarrativeBody(text: string, cap: number): string {
-  const result = text.trim();
-  if (!result) return result;
-  if (result.length <= cap) return result;
-  let out = truncateAtSentenceBoundary(result, cap);
-  if (!endsAtCompleteSentence(out.trim())) {
-    const breakAt = findLastSentenceBreakIndex(result, cap);
-    if (breakAt > 0) out = result.slice(0, breakAt).trimEnd();
-  }
-  if (out.length > cap) out = out.slice(0, cap).trimEnd();
-  return out;
+/** narrative 본문만 cap — RP 출력 글자 상한 폐지 (출력·저장·과금은 실제 길이) */
+function clampNarrativeBody(text: string, _cap: number): string {
+  return text.trim();
 }
 
 /** @public — HTML append 등 RP prose 단독 cap */
@@ -1044,52 +1069,32 @@ export function clampTextToCharCap(text: string, cap: number): string {
   return clampNarrativeBody(text, cap);
 }
 
-/** 절대 상한(5,000자) — 문장·단락 경계에서만 절단. 완성된 상태창 tail은 본문 cap 후 재부착 */
+/** 저장·표시 — RP 글자 상한 폐지 */
 export function clampResponseLength(
   text: string,
-  targetInput?: number | null,
-  absoluteMax = ABSOLUTE_MAX_RESPONSE_CHARS,
+  _targetInput?: number | null,
+  _absoluteMax = ABSOLUTE_MAX_RESPONSE_CHARS,
   _opts?: ClampResponseLengthOptions
 ): string {
-  const result = text.trim();
-  if (!result) return result;
-  const tierCap = targetInput != null ? resolveResponseLengthTarget(targetInput).hardMax : absoluteMax;
-  const cap = Math.min(tierCap, absoluteMax);
-  if (result.length <= cap) return result;
-  return clampNarrativeBody(result, cap);
+  return text.trim();
 }
 
-/** 스트림 중 tier max 도달 — 문장 경계까지 허용 후 중단 */
+/** 스트리밍 중 tier max 도달 — 상한 폐지, HTML peel만 적용 */
 export function applyStreamLengthCap(
   currentText: string,
   delta: string,
-  targetInput?: number | null,
+  _targetInput?: number | null,
   opts?: StreamLengthCapOptions
 ): { text: string; emittedDelta: string; capped: boolean } {
-  if (opts?.disableLengthCap) {
-    const next = peelIncompleteTailForLengthCap(currentText + delta, { allowHtml: opts?.allowHtml });
-    return { text: next, emittedDelta: next.slice(currentText.length), capped: false };
-  }
   if (!delta) return { text: currentText, emittedDelta: "", capped: false };
-  let cap = resolveStreamCharCap(targetInput);
-  if (opts?.reserveStatusTail) {
-    cap = Math.max(0, cap - STATUS_WINDOW_STREAM_RESERVE_CHARS);
-  }
-  const htmlReserve = opts?.reserveHtmlFlashChars ?? 0;
-  if (htmlReserve > 0) {
-    cap = Math.max(0, cap - htmlReserve);
-  }
-  const base = peelIncompleteTailForLengthCap(currentText, { allowHtml: opts?.allowHtml });
-  const prospective = peelIncompleteTailForLengthCap(base + delta, { allowHtml: opts?.allowHtml });
-  if (prospective.length <= cap) {
-    return { text: prospective, emittedDelta: prospective.slice(base.length), capped: false };
-  }
-  if (base.length >= cap) {
-    return { text: base, emittedDelta: "", capped: true };
-  }
-  const bounded = truncateAtSentenceBoundary(prospective, cap);
-  const emittedDelta = bounded.slice(base.length);
-  return { text: bounded, emittedDelta, capped: true };
+  const prospective = peelIncompleteTailForLengthCap(currentText + delta, {
+    allowHtml: opts?.allowHtml,
+  });
+  return {
+    text: prospective,
+    emittedDelta: prospective.slice(currentText.length),
+    capped: false,
+  };
 }
 
 /** UI amber hint — 통과 최소 미달 */

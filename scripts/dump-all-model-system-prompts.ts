@@ -34,7 +34,7 @@ import {
 const OUTPUT = path.join("output", "all-model-system-prompts.txt");
 
 const MODELS: { id: string; label: string; opts?: Record<string, unknown> }[] = [
-  { id: OPENROUTER_GEMINI_31_PRO_MODEL, label: "Gemini 3.1 Pro (primary premium)", opts: { mainModelOwnsHtmlVisualCard: true, mainModelOwnsRelationshipExtract: true } },
+  { id: OPENROUTER_GEMINI_31_PRO_MODEL, label: "Gemini 3.1 Pro (primary premium)", opts: { mainModelOwnsRelationshipExtract: true } },
   { id: OPENROUTER_GEMINI_25_PRO_MODEL, label: "Gemini 2.5 Pro" },
   { id: OPENROUTER_QWEN_37_MAX_MODEL, label: "Qwen 3.7 Max" },
   { id: OPENROUTER_DEEPSEEK_V4_PRO_MODEL, label: "DeepSeek V4 Pro (DeepSeek XML mode)" },

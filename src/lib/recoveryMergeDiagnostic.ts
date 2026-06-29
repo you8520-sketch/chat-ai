@@ -6,7 +6,6 @@ import { visibleAssistantDisplayCharCount } from "@/lib/chatDisplayLength";
 import {
   capRecoveryContinuation,
   finalizeRecoveryMerge,
-  resolveResponseLengthTarget,
   type RecoveryMergeOpts,
 } from "@/lib/responseLength";
 import { preserveStreamFirstContinuationMerge } from "@/lib/streamFirstSave";
@@ -98,8 +97,6 @@ export function determineRecoveryMergeRejectReason(opts: {
   if (!opts.dedupedTail.trim()) return "duplicate_tail_stripped";
 
   if (opts.dedupedTail.trim() && !opts.cappedTail.trim()) {
-    const hardMax = resolveResponseLengthTarget(opts.targetResponseChars).hardMax;
-    if (prior.length >= hardMax) return "cap_exceeded";
     return "duplicate_tail_stripped";
   }
 
@@ -125,11 +122,6 @@ export function determineRecoveryMergeRejectReason(opts: {
 
   if (opts.mergedAfterFinalize.length > prior.length && opts.finalProse.length <= prior.length) {
     return "stream_first_rejected";
-  }
-
-  const t = resolveResponseLengthTarget(opts.targetResponseChars);
-  if ((prior + opts.dedupedTail).length > t.hardMax && !opts.cappedTail.trim()) {
-    return "cap_exceeded";
   }
 
   return "duplicate_tail_stripped";

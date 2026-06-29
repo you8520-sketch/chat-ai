@@ -1,10 +1,10 @@
 import { ROLLING_SUMMARY_INTERVAL } from "@/lib/hybridMemory";
 import {
   clampSummary,
-  dedupeNormalizedThoughts,
   demoTurnSummary,
   filterHonorificsToDialogue,
   normalizeMemoryMeta,
+  normalizeTurnThoughts,
   RELATIONSHIP_THOUGHT_EXTRACT_RULES,
   THOUGHT_CONTENT_HARD_MAX_CHARS,
   THOUGHT_CONTENT_MAX_CHARS,
@@ -26,7 +26,10 @@ export {
   sendTrafficOverloadGracefulStream,
 } from "@/lib/geminiTrafficError";
 import { formatClientApiError } from "@/lib/apiErrors";
-import { HTML_FLASH_MAX_OUTPUT_TOKENS } from "@/lib/htmlVisualCardRecovery";
+import {
+  HTML_FLASH_MAX_OUTPUT_TOKENS,
+  HTML_ONLY_TURN_MAX_INPUT_TOKENS,
+} from "@/lib/htmlVisualCardRecovery";
 
 export type ChatMsg = { role: "user" | "assistant"; content: string };
 export type Route = "safe" | "nsfw";
@@ -53,6 +56,16 @@ export type TokenUsage = {
 
 /** 백그라운드 기억·요약·상태창·번역 등 — OpenRouter DeepSeek V3 */
 export const BACKGROUND_MAX_INPUT_TOKENS = 12_000;
+/** 6턴 RP raw + 기억 요약 system 전체 (12k는 ~13k 대화에서 system 지시 잘림) — env로 상향 가능 */
+export const BACKGROUND_MEMORY_EXTRACT_MAX_INPUT_TOKENS_DEFAULT = 48_000;
+
+export function resolveBackgroundMemoryExtractMaxInputTokens(): number {
+  const raw = process.env.BACKGROUND_MEMORY_EXTRACT_MAX_INPUT_TOKENS?.trim();
+  if (!raw) return BACKGROUND_MEMORY_EXTRACT_MAX_INPUT_TOKENS_DEFAULT;
+  const n = Number(raw);
+  if (Number.isFinite(n) && n >= 16_000) return Math.floor(n);
+  return BACKGROUND_MEMORY_EXTRACT_MAX_INPUT_TOKENS_DEFAULT;
+}
 export const BACKGROUND_OPENROUTER_MODEL =
   process.env.BACKGROUND_MEMORY_MODEL?.trim() || OPENROUTER_DEEPSEEK_V3_MODEL;
 /** 백그라운드 비전 — 이미지 검열·에셋 태그 (DeepSeek V3는 vision 미지원) */
@@ -68,7 +81,8 @@ export const GEMINI_MODEL = BACKGROUND_OPENROUTER_MODEL;
 function trimBackgroundPayload(
   system: string,
   history: ChatMsg[],
-  maxInputTokens: number
+  maxInputTokens: number,
+  opts?: { freezeSystem?: boolean }
 ): { system: string; history: ChatMsg[] } {
   let sys = system.trim();
   let hist = history.filter((m) => m.content?.trim());
@@ -76,7 +90,31 @@ function trimBackgroundPayload(
   const totalTokens = () =>
     estimateTokens(sys) + hist.reduce((sum, m) => sum + estimateTokens(m.content), 0);
 
-  while (hist.length > 0 && totalTokens() > maxInputTokens) {
+  if (opts?.freezeSystem && hist.length >= 1) {
+    const userIdx = hist.length - 1;
+    let content = hist[userIdx]!.content;
+    if (estimateTokens(sys) + estimateTokens(content) > maxInputTokens) {
+      const userTokens = estimateTokens(content);
+      const sysBudget = Math.max(
+        512,
+        maxInputTokens - Math.min(userTokens, maxInputTokens - 640) - 32
+      );
+      while (estimateTokens(sys) > sysBudget && sys.length > 200) {
+        sys = sys.slice(0, Math.floor(sys.length * 0.92));
+      }
+    }
+    const userBudget = Math.max(1024, maxInputTokens - estimateTokens(sys) - 32);
+    while (estimateTokens(content) > userBudget && content.length > 400) {
+      content = content.slice(0, Math.floor(content.length * 0.92));
+    }
+    if (!content.trim()) {
+      content = hist[userIdx]!.content.trim().slice(0, 2000) || "[context truncated]";
+    }
+    return { system: sys, history: [{ ...hist[userIdx]!, content }] };
+  }
+
+  // Drop oldest turns first — never remove the sole remaining message (OpenRouter needs user last).
+  while (hist.length > 1 && totalTokens() > maxInputTokens) {
     hist.shift();
   }
 
@@ -88,7 +126,44 @@ function trimBackgroundPayload(
     }
   }
 
+  if (totalTokens() > maxInputTokens && hist.length > 0) {
+    const lastIdx = hist.length - 1;
+    const fixedTokens =
+      estimateTokens(sys) +
+      hist.slice(0, lastIdx).reduce((sum, m) => sum + estimateTokens(m.content), 0);
+    const lastBudget = Math.max(512, maxInputTokens - fixedTokens);
+    let lastContent = hist[lastIdx]!.content;
+    while (estimateTokens(lastContent) > lastBudget && lastContent.length > 200) {
+      lastContent = lastContent.slice(0, Math.floor(lastContent.length * 0.92));
+    }
+    hist = [...hist.slice(0, lastIdx), { ...hist[lastIdx]!, content: lastContent }];
+  }
+
+  if (hist.length === 0 && history.some((m) => m.content?.trim())) {
+    const fallback = [...history].reverse().find((m) => m.content?.trim());
+    if (fallback) {
+      hist = [{ role: fallback.role, content: fallback.content.trim().slice(0, 4000) }];
+    }
+  }
+  if (hist.length > 0 && !hist[hist.length - 1]!.content.trim()) {
+    const lastIdx = hist.length - 1;
+    hist = [
+      ...hist.slice(0, lastIdx),
+      { ...hist[lastIdx]!, content: "[context truncated]" },
+    ];
+  }
+
   return { system: sys, history: hist };
+}
+
+function resolveBackgroundMaxInputTokens(requestKind: string): number {
+  if (/background-html-visual-card/i.test(requestKind)) {
+    return HTML_ONLY_TURN_MAX_INPUT_TOKENS;
+  }
+  if (/background-memory-extract/i.test(requestKind)) {
+    return resolveBackgroundMemoryExtractMaxInputTokens();
+  }
+  return BACKGROUND_MAX_INPUT_TOKENS;
 }
 
 function resolveBackgroundMaxOutputTokens(requestKind: string): number {
@@ -163,7 +238,15 @@ async function callGeminiOnce(
     modelId === BACKGROUND_OPENROUTER_MODEL ||
     /^background-/i.test(requestKind)
   ) {
-    const trimmed = trimBackgroundPayload(system, history, BACKGROUND_MAX_INPUT_TOKENS);
+    const trimmed = trimBackgroundPayload(
+      system,
+      history,
+      resolveBackgroundMaxInputTokens(requestKind),
+      {
+        freezeSystem:
+          /background-memory-extract|background-html-visual-card/i.test(requestKind),
+      }
+    );
     effectiveSystem = trimmed.system;
     effectiveHistory = trimmed.history;
   }
@@ -184,6 +267,7 @@ async function callGeminiOnce(
     temperature: opts?.temperature ?? 0.3,
     maxTokens: opts?.maxTokens ?? resolveBackgroundMaxOutputTokens(requestKind),
     requestKind,
+    timeoutMs: /background-html-visual-card/i.test(requestKind) ? 240_000 : undefined,
   });
 }
 
@@ -363,7 +447,7 @@ ${RELATIONSHIP_THOUGHT_EXTRACT_RULES.replace(/캐릭터이름/g, charName)}
       meta: {
         honorifics: Array.isArray(j.honorifics) ? j.honorifics.filter(Boolean) : [],
         items: Array.isArray(j.items) ? j.items.filter(Boolean) : [],
-        thoughts: dedupeNormalizedThoughts(
+        thoughts: normalizeTurnThoughts(
           Array.isArray(j.thoughts) ? j.thoughts.filter(Boolean) : [],
           { charName, userName: "유저" }
         ),
@@ -404,20 +488,30 @@ export async function extractRelationshipMetaFromTurn(
         .map((p) => `- ${p.text}${p.deadline ? ` (기한: ${p.deadline})` : ""}`)
         .join("\n")
     : "(없음)";
+  const currentItems = existing.items.length ? existing.items.join("\n") : "(없음)";
 
   const system = `너는 롤플레잉 관계 메모 추출기다. 이번 턴 본문(유저·캐릭터 대사·서술)에서 **새로 등장·변경**된 항목만 JSON으로 출력하라.
 
 honorifics: **이번 턴 본문에 실제로 등장한 인물 이름**끼리 부르는 호칭만. from/to는 본문에 그대로 나온 이름(12자 이내·공백 없음)만 — 설정·카드 제목·시뮬 메타 라벨은 사용 금지. 호칭·애칭(왕비, ○○아 등)은 콜론 뒤 value에만. 형식: "이름→이름: 호칭". "캐릭터", "유저" 라벨 금지. 본문에 없는 이름은 from/to에 넣지 마라.
-items: 인물별 소지품. **한 사람당 한 줄** — 형식 "이름: 물건1, 물건2, 물건3" (쉼표로 나열). 선물·전달은 "보낸이→받는이: 물건" 또는 "이름: 물건"으로. "캐릭터", "유저" 라벨 금지.
+items: 인물별 소지품. **한 사람당 한 줄** — 형식 "이름: 물건1, 물건2, 물건3" (쉼표로 나열). 선물·전달·건넴·양도는 "보낸이→받는이: 물건" 또는 받는 쪽 "이름: 물건"으로. "캐릭터", "유저" 라벨 금지.
+itemsRemove: [현재 소지품] 줄 중 **더 이상 사실이 아닌** 항목 — 이번 턴에 다른 사람에게 건넸·잃었·없어진 물건. **현재 목록 문자열과 정확히 일치**하게 출력. 전달 시 보낸 사람 줄 전체 또는 갱신 전 줄을 넣어라.
+thoughtsRemove: [현재 속마음] 중 이번 턴과 **모순**되는 줄. **현재 목록 문자열과 정확히 일치**하게 출력.
 ${RELATIONSHIP_THOUGHT_EXTRACT_RULES.replace(/캐릭터이름/g, charName).replace("유저 내면", `${userName}·유저 내면`)}
 promisesAdd: 이번 턴에 **새로 맺은** 약속 [{ "text": "약속 내용", "deadline": "기한(있으면)" }]
 promisesRemove: 아래 [기존 활성 약속] 중 **이번 턴에 지켜졌거나, 기한이 지나 더 이상 유효하지 않은** 약속의 text와 **정확히 일치**하는 문자열
 
+[현재 소지품]
+${currentItems}
+
+[현재 속마음(NPC)]
+${existing.thoughts.length ? existing.thoughts.join("\n") : "(없음)"}
+
 [기존 활성 약속]
 ${activePromises}
 
+소지품을 건넸으면 보낸 쪽 itemsRemove에 해당 줄을 포함하고, 받는 쪽은 items에 추가하라.
 없는 항목은 빈 배열. 순수 JSON만:
-{"honorifics":[],"items":[],"thoughts":[],"promisesAdd":[],"promisesRemove":[]}`;
+{"honorifics":[],"items":[],"thoughts":[],"itemsRemove":[],"thoughtsRemove":[],"promisesAdd":[],"promisesRemove":[]}`;
   const history: ChatMsg[] = [
     {
       role: "user",
@@ -433,6 +527,8 @@ ${activePromises}
       honorifics?: string[];
       items?: string[];
       thoughts?: string[];
+      itemsRemove?: string[];
+      thoughtsRemove?: string[];
       promisesAdd?: { text?: string; deadline?: string }[];
       promisesRemove?: string[];
     };
@@ -443,10 +539,12 @@ ${activePromises}
         names
       ),
       items: Array.isArray(j.items) ? j.items.filter(Boolean) : [],
-      thoughts: dedupeNormalizedThoughts(
+      thoughts: normalizeTurnThoughts(
         Array.isArray(j.thoughts) ? j.thoughts.filter(Boolean) : [],
         names
       ),
+      itemsRemove: Array.isArray(j.itemsRemove) ? j.itemsRemove.filter(Boolean) : [],
+      thoughtsRemove: Array.isArray(j.thoughtsRemove) ? j.thoughtsRemove.filter(Boolean) : [],
       promisesAdd: Array.isArray(j.promisesAdd)
         ? j.promisesAdd
             .map((p) => ({
@@ -552,7 +650,7 @@ ${newAssistantMessage.slice(0, 3500)}`,
         names
       ),
       items: Array.isArray(j.items) ? j.items.filter(Boolean) : [],
-      thoughts: dedupeNormalizedThoughts(
+      thoughts: normalizeTurnThoughts(
         Array.isArray(j.thoughts) ? j.thoughts.filter(Boolean) : [],
         names
       ),

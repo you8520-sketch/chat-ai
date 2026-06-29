@@ -12,15 +12,15 @@ import { OPENROUTER_QWEN_37_MAX_MODEL } from "@/lib/chatModels";
 describe("Qwen 3.7 billing", () => {
   const modelId = OPENROUTER_QWEN_37_MAX_MODEL;
 
-  it("uses 0.065P per output token", () => {
-    assert.equal(OPENROUTER_QWEN_POINTS_PER_OUTPUT_TOKEN, 0.065);
+  it("uses 0.062P per output token", () => {
+    assert.equal(OPENROUTER_QWEN_POINTS_PER_OUTPUT_TOKEN, 0.062);
     assert.equal(QWEN_WAIVER_SUCCESS_MIN_COST, 50);
   });
 
-  it("token floor = outputTokens × 0.065", () => {
+  it("token floor = outputTokens × 0.062", () => {
     const outputTokens = 2000;
     const explain = explainOpenRouterQwenTurnCost(1000, outputTokens, modelId);
-    assert.equal(explain.charFloorKrw, Math.ceil(outputTokens * 0.065 - 1e-9));
+    assert.equal(explain.charFloorKrw, Math.ceil(outputTokens * 0.062 - 1e-9));
     assert.equal(explain.costPlusMarginKrw, 0);
   });
 

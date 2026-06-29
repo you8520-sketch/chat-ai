@@ -1,4 +1,7 @@
-import { resolveMaxOutputTokensForTarget } from "@/lib/responseLength";
+import {
+  resolveMaxOutputTokensForTarget,
+  resolveTierMaxOutputTokensEstimate,
+} from "@/lib/responseLength";
 import type { ChatMsg } from "@/lib/ai";
 import { assertPayloadWithinTokenLimit } from "@/lib/turnApiBudget";
 
@@ -83,9 +86,6 @@ function geminiModelSupportsThinking(modelId: string): boolean {
 /** Gemini 2.5 Pro — thinking 상한 (동적 -1 금지, 출력 토큰 잠식 방지) */
 export const GEMINI_25_PRO_THINKING_BUDGET = 1024;
 
-/** 2.5 Pro primary — thinking 이후 본문 ~2500토큰 여유 */
-const GEMINI_25_PRO_MIN_MAX_OUTPUT_TOKENS = 3500;
-
 /** Gemini 2.5 Pro — thinking 필수, budget 0 불가 */
 export function geminiModelRequiresThinkingMode(modelId: string): boolean {
   return /2\.5-pro/i.test(modelId.toLowerCase());
@@ -136,35 +136,30 @@ export function buildGeminiGenerationConfig(
   requestKind?: string,
   maxOutputTokensOverride?: number
 ): Record<string, unknown> {
-  const baseMaxOutputTokens =
-    maxOutputTokensOverride ??
-    resolveMaxOutputTokensForTarget(targetResponseChars, modelId);
   const thinking = buildGeminiThinkingConfig(modelId, requestKind);
+  const isBackground = isBackgroundGeminiRequest(requestKind);
 
-  let resolvedMaxOutputTokens = isBackgroundGeminiRequest(requestKind)
-    ? Math.min(baseMaxOutputTokens, isLorebookCompactRequest(requestKind) ? 3500 : 2048)
-    : baseMaxOutputTokens;
-
-  const tierCap = resolveMaxOutputTokensForTarget(targetResponseChars, modelId);
-  resolvedMaxOutputTokens = Math.min(resolvedMaxOutputTokens, tierCap);
-
-  if (
-    maxOutputTokensOverride == null &&
-    geminiModelRequiresThinkingMode(modelId) &&
-    !isBackgroundGeminiRequest(requestKind)
-  ) {
+  let resolvedMaxOutputTokens: number | undefined;
+  if (maxOutputTokensOverride != null) {
+    resolvedMaxOutputTokens = maxOutputTokensOverride;
+  } else if (isBackground) {
+    const estimate = resolveTierMaxOutputTokensEstimate(targetResponseChars);
     resolvedMaxOutputTokens = Math.min(
-      tierCap,
-      Math.max(resolvedMaxOutputTokens, GEMINI_25_PRO_MIN_MAX_OUTPUT_TOKENS)
+      estimate,
+      isLorebookCompactRequest(requestKind) ? 3500 : 2048
     );
+  } else {
+    resolvedMaxOutputTokens = resolveMaxOutputTokensForTarget(targetResponseChars, modelId);
   }
 
   const config: Record<string, unknown> = {
-    temperature: isBackgroundGeminiRequest(requestKind) ? 0.3 : 0.9,
+    temperature: isBackground ? 0.3 : 0.9,
     topK: 40,
     topP: 0.95,
-    maxOutputTokens: resolvedMaxOutputTokens,
   };
+  if (resolvedMaxOutputTokens != null) {
+    config.maxOutputTokens = resolvedMaxOutputTokens;
+  }
 
   if (thinking) {
     config.thinkingConfig = thinking;

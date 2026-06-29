@@ -13,15 +13,15 @@ import { OPENROUTER_GEMINI_31_PRO_MODEL } from "@/lib/chatModels";
 describe("OpenRouter Gemini 3.1 Pro billing", () => {
   const modelId = OPENROUTER_GEMINI_31_PRO_MODEL;
 
-  it("uses 0.072P per output token", () => {
-    assert.equal(OPENROUTER_GEMINI_31_POINTS_PER_OUTPUT_TOKEN, 0.072);
+  it("uses 0.075P per output token", () => {
+    assert.equal(OPENROUTER_GEMINI_31_POINTS_PER_OUTPUT_TOKEN, 0.075);
     assert.equal(GEMINI_31_WAIVER_SUCCESS_MIN_COST, 65);
   });
 
-  it("token floor = outputTokens × 0.072", () => {
+  it("token floor = outputTokens × 0.075", () => {
     const outputTokens = 2000;
     const explain = explainOpenRouterGeminiProTurnCost(1000, outputTokens, modelId);
-    assert.equal(explain.charFloorKrw, Math.ceil(outputTokens * 0.072 - 1e-9));
+    assert.equal(explain.charFloorKrw, Math.ceil(outputTokens * 0.075 - 1e-9));
     assert.equal(explain.costPlusMarginKrw, 0);
   });
 

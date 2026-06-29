@@ -3,15 +3,15 @@ import { describe, it } from "node:test";
 import { sanitizeChatVisualCardHtml } from "@/lib/chatHtmlSanitize";
 import {
   buildHtmlVisualCardPolicyBlock,
-  buildHtmlStatusWindowReferenceTemplate,
   enforceHtmlStatusWindowFieldLabels,
-  HTML_STATUS_WINDOW_REFERENCE_TEMPLATE,
-  HTML_VISUAL_CARD_REFERENCE_TEMPLATE,
   resolveHtmlFlashPlacement,
   resolveHtmlVisualCardPolicyFromSources,
   stripHtmlStatusWindowTitleBanner,
   stripPromotedHtmlVisualCardContent,
   isOocCreativeHtmlRichEnough,
+  OOC_DETAILED_MIN_PLAIN_CHARS,
+  resolveOocMinPlainChars,
+  oocRequestsDetailedContent,
   isPreservableOocHtmlInner,
   isGenericHtmlStatusWindowInner,
   ensureOocHtmlSectionSpacing,
@@ -19,6 +19,10 @@ import {
   oocFlashHtmlMustBeRejected,
   oocHtmlHasAdequateSectionSpacing,
   oocRequestsAnonymousInbox,
+  userRequestsBroadRpContext,
+  userRequestsConversationHistoryReference,
+  userRequestsLongTermMemoryReference,
+  combineFlashLongTermMemoryBody,
   parseOocBracketCategories,
   parseOocMinQaCount,
   visiblePlainFromHtmlInner,
@@ -71,8 +75,7 @@ describe("resolveHtmlVisualCardPolicyFromSources", () => {
     });
     assert.equal(r.enabled, true);
     assert.equal(r.standing, true);
-    assert.match(r.policyBlock, /HTML OUTPUT MODE/);
-    assert.match(r.policyBlock, /```html/);
+    assert.equal(r.policyBlock, "");
   });
 
   it("enables from status window HTML output request in note", () => {
@@ -85,21 +88,13 @@ describe("resolveHtmlVisualCardPolicyFromSources", () => {
     const r = resolveHtmlVisualCardPolicyFromSources({ userNote: note });
     assert.equal(r.enabled, true);
     assert.equal(r.standing, true);
-    assert.match(r.policyBlock, /매 assistant reply마다/);
-    assert.doesNotMatch(r.policyBlock, /1회만/);
+    assert.equal(r.policyBlock, "");
     assert.deepEqual(r.statusFieldLabels, [
       "NPC의 속마음 한 줄",
       "현재 상황을 짧게 요약",
       "하고 싶은 것 1,  2, 3",
       "NPC의 낙서 한 줄(카오모지, 이모지 사용)",
     ]);
-    assert.match(r.policyBlock, /상태창 템플릿/);
-    assert.match(r.policyBlock, /필드 목록\(순서·개수·라벨 고정/);
-    assert.doesNotMatch(r.policyBlock, /HP·자원·유동 스탯/);
-    assert.doesNotMatch(r.policyBlock, /HP:\s*100%/);
-    assert.match(r.policyBlock, /절대 금지|FORBIDDEN|금지/);
-    assert.match(r.policyBlock, /NPC의 속마음 한 줄/);
-    assert.match(r.policyBlock, /낙서.*카오모지/);
   });
 
   it("extracts plain-text status field labels without emoji when HTML standing is set", () => {
@@ -143,6 +138,7 @@ NPC 이름은 철수.`;
     });
     assert.equal(r.enabled, true);
     assert.equal(r.standing, false);
+    assert.equal(r.policyBlock, "");
   });
 
   it("does not enable from incidental HTML mention without output intent", () => {
@@ -154,19 +150,18 @@ NPC 이름은 철수.`;
     );
   });
 
-  it("injects unified templates for messenger and alert via explicit HTML phrasing", () => {
+  it("enables messenger and alert turn triggers without legacy policy block", () => {
     const messenger = resolveHtmlVisualCardPolicyFromSources({
       userMessage: "HTML을 사용해서 카톡 내역을 출력해줘",
     });
     assert.equal(messenger.enabled, true);
-    assert.match(messenger.policyBlock, /메신저 템플릿/);
-    assert.match(messenger.policyBlock, /경고창 템플릿/);
+    assert.equal(messenger.policyBlock, "");
 
     const alert = resolveHtmlVisualCardPolicyFromSources({
       userMessage: "HTML을 사용해서 경고창을 표기해줘",
     });
     assert.equal(alert.enabled, true);
-    assert.match(alert.policyBlock, /#e53935/);
+    assert.equal(alert.policyBlock, "");
   });
 
   it("does not enable from messenger keyword without HTML", () => {
@@ -360,18 +355,9 @@ NPC의 속마음 한 줄`;
     assert.equal(r.enabled, false);
   });
 
-  it("policy block includes reference template skeleton", () => {
+  it("buildHtmlVisualCardPolicyBlock is deprecated empty stub", () => {
     const fields = ["NPC의 속마음 한 줄", "현재 상황을 짧게 요약"];
-    const block = buildHtmlVisualCardPolicyBlock({ standing: true, statusFieldLabels: fields });
-    assert.match(block, /REFERENCE TEMPLATE/);
-    assert.match(block, /상태창 템플릿/);
-    assert.ok(block.includes(buildHtmlStatusWindowReferenceTemplate(fields).slice(0, 40)));
-    assert.ok(block.includes(HTML_VISUAL_CARD_REFERENCE_TEMPLATE.slice(0, 40)));
-    assert.match(block, /NPC의 속마음 한 줄/);
-    assert.doesNotMatch(block, /HP:\s*100%/);
-    assert.match(block, /inline CSS/);
-    assert.match(block, /매 assistant reply마다/);
-    assert.doesNotMatch(block, /1회만/);
+    assert.equal(buildHtmlVisualCardPolicyBlock({ standing: true, statusFieldLabels: fields }), "");
   });
 
   it("strips promoted status field lines when standing", () => {
@@ -533,6 +519,55 @@ describe("stripHtmlStatusWindowTitleBanner", () => {
     assert.match(spaced, /키워드/);
     assert.match(spaced, /모에화/);
     assert.ok((spaced.match(/<section\b/gi) ?? []).length >= 3);
+  });
+
+  it("detailed category OOC requires 1500 visible plain chars", () => {
+    const ooc =
+      "OOC: 추구미를 자세히. 항목은[외형 · 키워드 · 모에화 · 기타 상징 · 대외적 이미지]로 작성";
+    assert.equal(resolveOocMinPlainChars(ooc), OOC_DETAILED_MIN_PLAIN_CHARS);
+    const stub = `<div>${"키워드 요약 한 줄입니다. ".repeat(65)}</div>`;
+    assert.ok(stub.length > 800);
+    assert.ok(stub.length < OOC_DETAILED_MIN_PLAIN_CHARS);
+    assert.equal(isOocCreativeHtmlRichEnough(stub, ooc), false);
+  });
+
+  it("userRequestsConversationHistoryReference detects history cues", () => {
+    assert.equal(
+      userRequestsConversationHistoryReference("지금까지의 대화 내용을 참고해서 HTML"),
+      true
+    );
+    assert.equal(userRequestsConversationHistoryReference("안녕"), false);
+  });
+
+  it("userRequestsLongTermMemoryReference detects memory cues", () => {
+    assert.equal(
+      userRequestsLongTermMemoryReference("최근대화와 장기기억을 참고해서 HTML"),
+      true
+    );
+    assert.equal(userRequestsLongTermMemoryReference("안녕"), false);
+  });
+
+  it("userRequestsBroadRpContext detects 추구미-style grounding without full dump intent", () => {
+    const ooc =
+      "캐릭터 설정/성격/말투/세계관/관계성/유저노트/누적대화 등을 참조하여 자세히 작성";
+    assert.equal(userRequestsBroadRpContext(ooc), true);
+    assert.equal(userRequestsBroadRpContext("HTML 카드만 출력"), false);
+  });
+
+  it("combineFlashLongTermMemoryBody dedupes archive already in memory block", () => {
+    const archive = "과거 아카이브 사건 요약";
+    const block = `[현재기억]\n요약 본문\n\n${archive}`;
+    assert.equal(combineFlashLongTermMemoryBody(block, archive), block);
+    assert.equal(
+      (combineFlashLongTermMemoryBody(block, archive).match(/\[과거 기억\]/g) ?? []).length,
+      0
+    );
+  });
+
+  it("combineFlashLongTermMemoryBody appends distinct archive once", () => {
+    const result = combineFlashLongTermMemoryBody("[현재기억]\nrecent summary", "old archive text");
+    assert.match(result, /\[과거 기억\]\nold archive text/);
+    assert.equal((result.match(/\[과거 기억\]/g) ?? []).length, 1);
   });
 
   it("buildOocCategoryCardReferenceTemplate renders pretty section card", () => {

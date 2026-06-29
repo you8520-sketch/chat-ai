@@ -76,6 +76,8 @@ export type ContextBuildInput = {
   regenerate?: boolean;
   /** 재생성 대상 assistant 초안 — diverge 참고용 */
   rejectedAssistantDraft?: string | null;
+  /** 재생성 시도 nonce — 프롬프트·샘플링 다양화 */
+  regenAttemptId?: string | null;
   /** RAG — 유저 발화 기준 캐릭터 로어 검색 결과 ([CONTEXTUAL LORE]) */
   contextualLore?: string | null;
   /** 키워드 로어북 — 유저 입력 매칭 시 원문 주입 (번역 없음) */
@@ -94,13 +96,13 @@ export type ContextBuildInput = {
   geminiStaticDynamicMode?: boolean;
   /** 제작자 상태창 위젯 ON — Flash 방화벽·상태 정책 분기 */
   statusWidgetActive?: boolean;
-  /** Gemini 3.1 Pro — HTML 상태창을 Flash 2차 호출 없이 메인 모델이 직접 출력 */
+  /** @deprecated HTML은 DeepSeek V3 전담 — 메인 모델에 PART I 주입하지 않음 */
   mainModelOwnsHtmlVisualCard?: boolean;
   /** DeepSeek/Qwen — 메인 모델이 관계메모 JSON tail 출력 */
   mainModelOwnsRelationshipExtract?: boolean;
   /** 제작자 상태창 필드 지시 — [rule-length-control] 직후 주입 (route에서 조립) */
   statusWidgetPromptBlock?: string | null;
-  /** debug/prompt_dump.txt 출처 — chat route=db, audit scripts=audit, mock fixture=mock */
+  /** debug/prompt_dump.txt — chat route=db only; audit/mock → separate files */
   promptDumpSource?: import("@/services/promptDebugDump").PromptDumpSource;
   /** source=db 등 헤더에 표시할 부가 정보 (chat id 등) */
   promptDumpDetail?: string | null;

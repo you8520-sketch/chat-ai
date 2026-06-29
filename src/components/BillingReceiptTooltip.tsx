@@ -11,6 +11,7 @@ import {
   resolveExchangeRateReceiptLabel,
   type BillingReceipt,
 } from "@/lib/billingDisplay";
+import { filterUsageBreakdownForReceipt } from "@/lib/billingReceiptAccess";
 import type { Usage } from "@/lib/chatUsage";
 import { isGemini31ProModel, isGeminiProOpenRouterModel } from "@/lib/chatModels";
 import { IconInfo } from "./ChatToolbarIcons";
@@ -67,7 +68,7 @@ function ReceiptBody({
       {usage.htmlFlashOnly && (
         <p className="text-[10px] leading-relaxed text-zinc-500">
           HTML 전용 턴 — DeepSeek V3 단독 호출 (영수증 모델: HTML전용모델). API 원가에 55% 마진 적용. 입력 컨텍스트 최대
-          30,000토큰(장기기억·히스토리·페르소나·설정·로어북 등), 출력 최대 6,000토큰. 실제 출력량으로 과금 (메인 RP
+          24,000토큰(장기기억·히스토리·페르소나·설정·로어북 등), 출력 최대 8,000토큰. 실제 출력량으로 과금 (메인 RP
           모델 미호출).
         </p>
       )}
@@ -105,47 +106,6 @@ function ReceiptBody({
           <span className="text-zinc-500">저장 RP:</span>{" "}
           {usage.savedOutputChars.toLocaleString()}자
           <span className="text-zinc-600"> (화면 표시 · HTML·마크업 코드 제외)</span>
-        </p>
-      )}
-      {usage.outputLeakage &&
-        usage.outputLeakage.chars.modelDelivered >
-          Math.max(usage.savedOutputChars ?? 0, usage.outputLeakage.chars.savedVisibleBillable) +
-            150 && (
-          <p className="text-[10px] leading-relaxed text-amber-200/90">
-            <span className="text-zinc-500">모델 raw → 저장:</span>{" "}
-            {usage.outputLeakage.chars.modelDelivered.toLocaleString()}자 →{" "}
-            {usage.outputLeakage.chars.savedVisibleBillable.toLocaleString()}자
-            <span className="text-zinc-600">
-              {" "}
-              (sanitize·상태창 분리·clamp 등으로{" "}
-              {(
-                usage.outputLeakage.chars.modelDelivered -
-                usage.outputLeakage.chars.savedVisibleBillable
-              ).toLocaleString()}
-              자 제거 — API completion에는 raw 전부 포함)
-            </span>
-          </p>
-        )}
-      {usage.outputLeakage?.hiddenArtifacts.detected && (
-        <p className="text-[10px] leading-relaxed text-amber-200/90">
-          <span className="text-zinc-500">숨은 출력(strip):</span>{" "}
-          JSON {usage.outputLeakage.hiddenArtifacts.statusJsonChars.toLocaleString()}자
-          {usage.outputLeakage.hiddenArtifacts.statusTableChars > 0
-            ? ` · 표 ${usage.outputLeakage.hiddenArtifacts.statusTableChars.toLocaleString()}자`
-            : ""}
-          {usage.outputLeakage.hiddenArtifacts.statusHtmlChars > 0
-            ? ` · HTML ${usage.outputLeakage.hiddenArtifacts.statusHtmlChars.toLocaleString()}자`
-            : ""}
-          <span className="text-zinc-600">
-            {" "}
-            (추정 ~{usage.outputLeakage.estimates.hiddenTokenEstimate.toLocaleString()} tokens · API
-            과금에 포함)
-          </span>
-        </p>
-      )}
-      {usage.outputLeakage && !usage.outputLeakage.hiddenArtifacts.detected && (
-        <p className="text-[10px] text-zinc-600">
-          숨은 status/JSON/HTML strip 없음 (모델 raw → 저장 차이는 sanitize·토큰/글자 단위 차이)
         </p>
       )}
       {usage.provider === "openrouter" &&
@@ -199,6 +159,12 @@ function ReceiptBody({
             <span className="text-cyan-300/90">
               ~{formatPoints(usage.statusWidgetExtract.apiRawCostKrw)}원
             </span>
+            {usage.widgetCostPoints != null && usage.widgetCostPoints > 0 ? (
+              <span className="text-zinc-600">
+                {" "}
+                → {formatPoints(usage.widgetCostPoints)} P (올림)
+              </span>
+            ) : null}
             {usage.statusWidgetExtract.upstreamCostUsd != null &&
             usage.statusWidgetExtract.upstreamCostUsd > 0 ? (
               <span className="text-zinc-600"> (OpenRouter USD)</span>
@@ -265,9 +231,24 @@ function ReceiptBody({
           </p>
         </>
       ) : (
-        <p className="font-semibold text-zinc-100">
-          <span className="text-zinc-500">포인트 차감:</span> {formatPoints(receipt.totalCost)} P
-        </p>
+        <>
+          {usage.widgetCostPoints != null &&
+            usage.widgetCostPoints > 0 &&
+            usage.baseCost != null &&
+            usage.baseCost !== receipt.totalCost && (
+              <p>
+                <span className="text-zinc-500">메인 RP:</span>{" "}
+                {formatPoints(usage.baseCost)} P
+                <span className="text-zinc-600">
+                  {" "}
+                  + 위젯 {formatPoints(usage.widgetCostPoints)} P
+                </span>
+              </p>
+            )}
+          <p className="font-semibold text-zinc-100">
+            <span className="text-zinc-500">포인트 차감:</span> {formatPoints(receipt.totalCost)} P
+          </p>
+        </>
       )}
     </div>
   );
@@ -407,10 +388,12 @@ export default function BillingReceiptTooltip({
             exchangeRateLabel={exchangeRateLabel}
             showFullReceipt={showFullReceipt}
           />
-          {usage.breakdown?.some((b) => b.tokens > 0) && (
+          {filterUsageBreakdownForReceipt(usage.breakdown, showFullReceipt).some(
+            (b) => b.tokens > 0
+          ) && (
             <div className="mt-2 space-y-0.5 border-t border-white/10 pt-2 text-[10px] text-zinc-500">
               <p className="mb-1 font-semibold text-zinc-400">컨텍스트 분해 (추정)</p>
-              {usage.breakdown
+              {filterUsageBreakdownForReceipt(usage.breakdown, showFullReceipt)
                 .filter((b) => b.tokens > 0)
                 .map((b) => (
                   <p key={b.label}>

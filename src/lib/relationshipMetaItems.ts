@@ -64,3 +64,69 @@ export function formatGroupedPossessionsForPrompt(entries: string[]): string {
     .map(({ person, items }) => `${person}: ${items.map((i) => i.name).join(", ")}`)
     .join("\n");
 }
+
+export type PossessionTransferNames = { charName: string; userName: string };
+
+function resolvePossessionPersonLabel(person: string, names?: PossessionTransferNames): string {
+  const t = person.trim();
+  if (!names) return t;
+  if (t === "캐릭터") return names.charName;
+  if (t === "유저") return names.userName;
+  return t;
+}
+
+function possessionPersonMatches(
+  entryPerson: string,
+  target: string,
+  names?: PossessionTransferNames
+): boolean {
+  if (entryPerson.trim() === target.trim()) return true;
+  if (!names) return false;
+  return (
+    resolvePossessionPersonLabel(entryPerson, names) ===
+    resolvePossessionPersonLabel(target, names)
+  );
+}
+
+/** delta의 A→B 전달 항목 — 보낸 사람 prev 줄에서 해당 물건 제거 */
+export function expandPossessionTransferRemovals(
+  prevEntries: string[],
+  deltaEntries: string[],
+  names?: PossessionTransferNames
+): { itemsRemove: string[]; itemsRevise: string[] } {
+  const itemsRemove: string[] = [];
+  const itemsRevise: string[] = [];
+
+  for (const deltaEntry of deltaEntries) {
+    const parsed = parsePossessionEntry(deltaEntry.trim());
+    if (!parsed?.person.includes("→")) continue;
+
+    const arrowParts = parsed.person.split("→").map((s) => s.trim());
+    if (arrowParts.length !== 2) continue;
+    const [fromPerson, toPerson] = arrowParts;
+    if (!fromPerson || !toPerson || fromPerson === toPerson) continue;
+
+    const transferred = new Set(parsed.items.map((i) => i.trim()).filter(Boolean));
+    if (transferred.size === 0) continue;
+
+    for (const raw of prevEntries) {
+      const prev = parsePossessionEntry(raw.trim());
+      if (!prev) continue;
+      if (!possessionPersonMatches(prev.person, fromPerson, names)) continue;
+
+      const remaining = prev.items.filter((i) => !transferred.has(i.trim()));
+      const removedAny = prev.items.some((i) => transferred.has(i.trim()));
+      if (!removedAny) continue;
+
+      itemsRemove.push(raw);
+      if (remaining.length > 0) {
+        itemsRevise.push(`${prev.person}: ${remaining.join(", ")}`);
+      }
+    }
+  }
+
+  return {
+    itemsRemove: [...new Set(itemsRemove)],
+    itemsRevise: [...new Set(itemsRevise)],
+  };
+}

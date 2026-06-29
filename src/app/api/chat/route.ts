@@ -18,6 +18,7 @@ import {
   sanitizeStreamArtifacts,
   detectAdultGenerationFailure,
   generationFailureUserMessage,
+  htmlFlashFailureUserMessage,
   isCatastrophicallyShortResponse,
   CATASTROPHIC_MIN_RESPONSE_CHARS,
   resolveVisibleTierCharCount,
@@ -52,6 +53,8 @@ import {
 } from "@/lib/bodyHairRules";
 import {
   extractVisualAppearancePolicyFromChunks,
+  buildVisualAnchorReminder,
+  buildFlashCanonicalAppearanceBlock,
   sanitizeVisualAppearance,
 } from "@/lib/visualAnchor";
 import { formatMemoryMetaForPrompt, normalizeMemoryMeta, parseMemoryMeta, type RelationshipMetaDelta } from "@/lib/chatMemory";
@@ -161,9 +164,9 @@ import {
   type RemovalTraceStep,
 } from "@/lib/removalTrace";
 import {
-  buildOutputLeakageAudit,
-  logOutputLeakageAudit,
-} from "@/lib/outputLeakageAudit";
+  canShowFullBillingReceipt,
+  sanitizeUsageForPublicReceipt,
+} from "@/lib/billingReceiptAccess";
 import { scheduleStatusMetaExtraction, markMessageStatusMetaPending } from "@/lib/statusMeta/job";
 import { resolveStatusMetaExtractionEnabled } from "@/lib/statusMeta/displayPolicy";
 import {
@@ -177,7 +180,11 @@ import {
   logStatusWidgetTurnTelemetry,
   resolveStatusWidgetTurnValues,
 } from "@/lib/statusWidget/telemetry";
-import { appendStatusWidgetExtractToUsageRecord } from "@/lib/statusWidget/receiptUsage";
+import {
+  applyStatusWidgetBillingCharge,
+  buildStatusWidgetExtractReceipt,
+  statusWidgetApiCostChargePoints,
+} from "@/lib/statusWidget/receiptUsage";
 import type { Usage } from "@/lib/chatUsage";
 import { userMessageRequestsStatusWindowOoc } from "@/lib/statusMeta/ooc";
 import { isOocHtmlRequest } from "@/lib/oocHtmlRequest";
@@ -243,6 +250,13 @@ export async function POST(req: Request) {
   }
 
   const db = getDb();
+  const userAdminRow = db
+    .prepare("SELECT is_admin FROM users WHERE id = ?")
+    .get(user.id) as { is_admin: number } | undefined;
+  const showFullBillingReceipt = canShowFullBillingReceipt({
+    email: user.email,
+    is_admin: userAdminRow?.is_admin ?? 0,
+  });
   const userNoteRow = db
     .prepare("SELECT user_note, chat_prefs FROM users WHERE id=?")
     .get(user.id) as { user_note: string; chat_prefs: string };
@@ -430,6 +444,7 @@ export async function POST(req: Request) {
   let userMessageId: number | null = null;
   let regenerateMessageId: number | null = null;
   let rejectedAssistantDraft: string | null = null;
+  let regenAttemptId: string | null = null;
 
   if (isContinue) {
     const tailRows = db
@@ -484,6 +499,7 @@ export async function POST(req: Request) {
     regenerateMessageId = lastAssistantId;
     rejectedAssistantDraft =
       allRows.find((row) => row.id === lastAssistantId)?.content?.trim() ?? null;
+    regenAttemptId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
     messageText = lastUserContent;
     userMessageId = lastUserId;
     skipUserInsert = true;
@@ -560,6 +576,7 @@ export async function POST(req: Request) {
             charName: ch.name,
             usesBanmal: personaUsesBanmal,
             rejectedAssistantDraft,
+            regenAttemptId,
           })
         : buildRegenerateUserPrompt({
             userMessage: displayUserMessage,
@@ -567,6 +584,7 @@ export async function POST(req: Request) {
             charName: ch.name,
             usesBanmal: personaUsesBanmal,
             rejectedAssistantDraft,
+            regenAttemptId,
           })
       : isChatOocRpContinuing(storedUserMessage)
         ? buildChatOocRpContinuingUserPrompt(displayUserMessage)
@@ -720,11 +738,6 @@ export async function POST(req: Request) {
         markdownStatusWindowActive,
         statusWidgetActive,
       });
-  /** Gemini 3.1 Pro — Flash HTML 2차 호출 없이 메인 모델이 상태창 ```html 직접 출력 (DeepSeek·Qwen·2.5와 동일 체감) */
-  const gemini31MainModelOwnsHtml =
-    isGemini31ProModel(billingOpenRouterModelId) &&
-    htmlVisualCardPolicy.enabled &&
-    !chatOocRpUnrelated;
   /** Relationship meta — post-process Flash extract (not main-model JSON tail) */
   const mainModelOwnsRelationshipExtract = false;
   /** Flash HTML ON이면 메인 모델 inline HTML(oocHtmlMode) 금지 — Flash가 ```html``` 소유 */
@@ -778,6 +791,7 @@ export async function POST(req: Request) {
     isContinue: autoContinueContext,
     regenerate: !!regenerateMessageId,
     rejectedAssistantDraft: regenerateMessageId ? rejectedAssistantDraft : undefined,
+    regenAttemptId: regenerateMessageId ? regenAttemptId : undefined,
     geminiStaticDynamicMode: false,
     keywordLorebookBlock: keywordLorebookBlock || undefined,
     globalLorebookBlock: globalLorebookBlock || undefined,
@@ -790,7 +804,6 @@ export async function POST(req: Request) {
   const built = buildContext({
     ...contextBuildInput,
     statusWidgetActive: statusWidgetActive,
-    mainModelOwnsHtmlVisualCard: gemini31MainModelOwnsHtml,
     mainModelOwnsRelationshipExtract,
     contextualLore: memoryLayers.contextualLore || undefined,
     promptDumpSource: "db",
@@ -835,15 +848,21 @@ export async function POST(req: Request) {
   const statusWindowPolicyRef = built.statusWindowPolicy;
   const statusArtifactOpts = {
     modelOutputsPlainStatus: false,
-    modelOutputsHtmlVisualCard: gemini31MainModelOwnsHtml,
+    modelOutputsHtmlVisualCard: false,
     stripRelationshipMemoryTail: mainModelOwnsRelationshipExtract,
   };
-  const htmlFlashReserveChars = oocHtmlMode || gemini31MainModelOwnsHtml
+  const htmlFlashReserveChars = oocHtmlMode
     ? 0
     : htmlVisualCardPolicy.enabled
       ? resolveHtmlFlashOutputReserveChars(htmlVisualCardPolicy.statusFieldLabels)
       : 0;
   const htmlVisualCardPolicyRef = htmlVisualCardPolicy;
+  const htmlFlashCoreIdentity = (() => {
+    const core = buildCoreIdentityBlock(settingText);
+    if (!core) return "";
+    const visualLock = buildVisualAnchorReminder(visualPolicy);
+    return visualLock ? `${core}\n\n${visualLock}` : core;
+  })();
   const htmlFlashContextRef = {
     chatId: chat.id,
     charName: ch.name,
@@ -851,7 +870,15 @@ export async function POST(req: Request) {
     userMessage: messageText,
     userNote: effectiveUserNote,
     userPersona: userPersonaPrompt ?? undefined,
-    characterSetting: buildCoreIdentityBlock(settingText),
+    characterSetting: htmlFlashCoreIdentity,
+    canonicalAppearanceBlock: buildFlashCanonicalAppearanceBlock(
+      characterChunks,
+      ch.name,
+      visualPolicy,
+      { personaName: personaDisplayName }
+    ),
+    appearanceSanitizePolicy:
+      visualPolicy.hair || visualPolicy.eyes ? visualPolicy : null,
     memoryBlock: memoryFeatureOn ? memoryInjection.text : "",
     archiveMemory: memoryFeatureOn ? memoryInjection.archiveText : "",
     recentHistory: recentHistory,
@@ -929,9 +956,9 @@ export async function POST(req: Request) {
               charName: ch.name,
               personaName: personaDisplayName,
               systemSplit: openRouterSystemSplitRef,
-              sessionId: regenerateMessageId
-                ? `chat-${chatRef.id}-regen-${regenerateMessageId}-${Date.now()}`
-                : chatRef.id
+            sessionId: regenerateMessageId
+              ? `chat-${chatRef.id}-regen-${regenerateMessageId}-${regenAttemptId ?? Date.now()}`
+              : chatRef.id
                   ? `chat-${chatRef.id}`
                   : undefined,
               htmlFlashReserveChars: htmlFlashReserveChars > 0 ? htmlFlashReserveChars : undefined,
@@ -1228,7 +1255,11 @@ export async function POST(req: Request) {
             targetResponseChars: targetResponseCharsRef,
             charName: ch.name,
             turnApiBudget,
-            sessionId: chatRef.id ? `chat-${chatRef.id}` : undefined,
+            sessionId: regenerateMessageId
+              ? `chat-${chatRef.id}-regen-${regenerateMessageId}-${regenAttemptId ?? Date.now()}`
+              : chatRef.id
+                ? `chat-${chatRef.id}`
+                : undefined,
           });
           if (contResult.continued) {
             const beforeContinuation = savedText;
@@ -1252,11 +1283,11 @@ export async function POST(req: Request) {
         let htmlFlashPasses = 0;
         let flashHtmlUsage: import("@/lib/ai").TokenUsage | null = null;
         let flashPromptEstimateTokens = 0;
+        let flashHtmlError: string | null = null;
         let htmlBlockBeforeEnsure: string | null = null;
         const savedBeforeHtmlFlash = savedText;
         if (
           !oocHtmlMode &&
-          !gemini31MainModelOwnsHtml &&
           (htmlVisualCardPolicyRef.enabled || chatOocRpUnrelated || htmlFlashOnlyTurn)
         ) {
           const beforeHtmlPass = savedText;
@@ -1319,6 +1350,7 @@ export async function POST(req: Request) {
             htmlBlock = flashGen.html;
             flashHtmlUsage = flashGen.usage;
             flashPromptEstimateTokens = flashGen.promptEstimateTokens;
+            flashHtmlError = flashGen.flashError ?? null;
             htmlBlockBeforeEnsure = htmlBlock;
           } catch (htmlErr) {
             console.warn("[/api/chat] HTML visual card failed — using server fallback", {
@@ -1508,6 +1540,19 @@ export async function POST(req: Request) {
           proseOnly = savedText.trim();
         }
 
+        if (htmlFlashOnlyTurn && savedText.trim()) {
+          savedText = traceStep(
+            "sanitizeVisualAppearanceHtmlFlash",
+            savedText,
+            sanitizeVisualAppearance(
+              sanitizeHairDescriptions(savedText, hairPolicy),
+              visualPolicy
+            ),
+            "HTML flash — visual/hair lock (correct 금발/은발 drift in OOC HTML)"
+          );
+          proseOnly = extractProseWithoutHtml(savedText) || savedText.trim();
+        }
+
         const visibleForLengthCheck = visibleAssistantDisplayText(savedText);
 
         if (
@@ -1574,14 +1619,19 @@ export async function POST(req: Request) {
             outputChars: savedText.length,
             targetResponseChars: targetResponseCharsRef,
             routedTo: htmlFlashOnlyTurn ? "html-only" : "openrouter",
+            flashHtmlError,
           });
           // 이미 스트리밍된 본문이 있으면 reset 금지 — 화면이 비었다가 에러만 남는 현상 방지
           if (savedText.trim().length < CATASTROPHIC_MIN_RESPONSE_CHARS) {
             send({ type: "reset" });
           }
+          const errorMessage =
+            htmlFlashOnlyTurn && generationFailure === "under_length"
+              ? htmlFlashFailureUserMessage(flashHtmlError)
+              : generationFailureUserMessage(generationFailure);
           send({
             type: "error",
-            error: generationFailureUserMessage(generationFailure),
+            error: errorMessage,
           });
           controller.close();
           return;
@@ -1691,20 +1741,6 @@ export async function POST(req: Request) {
           chatId: chatRef.id,
           savedVisibleChars: billableChars,
         });
-
-        const outputLeakageAudit = buildOutputLeakageAudit({
-          apiOutputTokens: opusApiOutputTokens,
-          finishReason: primaryStage?.finishReason,
-          targetTier: resolveResponseLengthTarget(targetResponseCharsRef).target,
-          modelDeliveredText,
-          preStatusPartitionText,
-          statusArtifacts,
-          afterClampText,
-          savedBeforeHtmlFlash,
-          savedFinalText: savedText,
-          savedVisibleBillable: billableChars,
-        });
-        logOutputLeakageAudit(outputLeakageAudit, chatRef.id);
 
         if (process.env.NODE_ENV !== "production") {
           const cacheOpts = {
@@ -1820,6 +1856,8 @@ export async function POST(req: Request) {
           }
           if (waiverMin > 0) cost = waiverMin;
         }
+
+        const mainBillingCost = cost;
 
         const draftInput = primaryStage?.input ?? 0;
         // 실제 조립된 프롬프트(promptAudit·trackedSections) 기준 분해 — API에 주입된 텍스트만 집계
@@ -1966,13 +2004,12 @@ export async function POST(req: Request) {
             ? { lengthRecoveryPasses: primaryStage.lengthRecoveryPasses }
             : {}),
           savedOutputChars: billableChars,
-          outputLeakage: outputLeakageAudit,
           model: usageModel,
           provider: billingProvider,
           route: routeMode,
           selectedAI: receiptFields.selectedAI,
           cost,
-          baseCost: cost,
+          baseCost: mainBillingCost,
           modelLabel: usageModelLabel,
           estimated:
             htmlFlashOnlyTurn
@@ -2089,12 +2126,33 @@ export async function POST(req: Request) {
             billingProvider === "openrouter" &&
             billingExchangeRate
           ) {
-            usageRecord = appendStatusWidgetExtractToUsageRecord(
-              usageRecord,
-              widgetResolved.widgetExtractUsage,
-              billingExchangeRate
-            );
+            if (showFullBillingReceipt) {
+              const widgetBilling = applyStatusWidgetBillingCharge(
+                usageRecord,
+                widgetResolved.widgetExtractUsage,
+                billingExchangeRate,
+                mainBillingCost
+              );
+              usageRecord = widgetBilling.record;
+              cost = widgetBilling.totalCost;
+            } else {
+              const widgetReceipt = buildStatusWidgetExtractReceipt(
+                widgetResolved.widgetExtractUsage,
+                billingExchangeRate
+              );
+              const widgetCostPoints = statusWidgetApiCostChargePoints(widgetReceipt.apiRawCostKrw);
+              cost = mainBillingCost + widgetCostPoints;
+              usageRecord = {
+                ...usageRecord,
+                baseCost: mainBillingCost,
+                cost,
+              };
+            }
           }
+        }
+
+        if (!showFullBillingReceipt) {
+          usageRecord = sanitizeUsageForPublicReceipt(usageRecord);
         }
 
         const createdAt = new Date().toISOString();

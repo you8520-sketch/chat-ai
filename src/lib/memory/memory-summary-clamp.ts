@@ -71,3 +71,11 @@ export function clampMemoryRecordSummary(
   // 3) 최후 — 단어 중간 절단 대신 짧게라도 완결
   return prefix.trimEnd();
 }
+
+/** AI 요약 실패 시 기계적으로 붙인 임시 기록 — UI·재생성 판별용 */
+export function isFallbackMemoryRecordSummary(text: string): boolean {
+  const t = text.trim();
+  return (
+    t.startsWith("[임시 기록 — AI 요약 실패]") || /…라 말했고 .+은\(는\) .+…/.test(t)
+  );
+}

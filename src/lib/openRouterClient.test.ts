@@ -11,12 +11,10 @@ import {
   OPENROUTER_RP_REASONING_GEMINI_25_PRO_CAP,
   OPENROUTER_RP_REASONING_GEMINI_3_PRO,
   OPENROUTER_RP_REASONING_OFF,
+  resolveOpenRouterMaxTokens,
+  resolveRegenerateGenerationOverrides,
 } from "@/lib/openRouterClient";
-import {
-  OPENROUTER_GEMINI_31_PRO_MAX_OUTPUT_TOKENS,
-  resolveMaxOutputTokensForTarget,
-  resolveOpenRouterTierMaxOutputTokens,
-} from "@/lib/responseLength";
+import { resolveMaxOutputTokensForTarget } from "@/lib/responseLength";
 import {
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_25_FLASH_MODEL,
@@ -89,7 +87,7 @@ describe("buildOpenRouterRequestBody — RP reasoning policy", () => {
     assert.deepEqual(body.reasoning, OPENROUTER_RP_REASONING_OFF);
     assert.equal(body.reasoning_effort, undefined);
     assert.equal(body.include_reasoning, false);
-    assert.equal(body.max_tokens, resolveOpenRouterTierMaxOutputTokens());
+    assert.equal(body.max_tokens, undefined);
   });
 
   it("uses minimal reasoning for Gemini Flash", () => {
@@ -115,7 +113,7 @@ describe("buildOpenRouterRequestBody — RP reasoning policy", () => {
     assert.deepEqual(body.reasoning, OPENROUTER_RP_REASONING_OFF);
     assert.equal(body.reasoning_effort, undefined);
     assert.equal(body.include_reasoning, false);
-    assert.equal(body.max_tokens, resolveOpenRouterTierMaxOutputTokens());
+    assert.equal(body.max_tokens, undefined);
   });
 
   it("caps Gemini 2.5 Pro reasoning at 128 tokens", () => {
@@ -130,11 +128,8 @@ describe("buildOpenRouterRequestBody — RP reasoning policy", () => {
     assert.equal(body.reasoning_effort, undefined);
     assert.equal(body.include_reasoning, false);
     assert.equal(body.provider, undefined);
-    assert.equal(body.max_tokens, resolveOpenRouterTierMaxOutputTokens());
-    assert.equal(
-      resolveMaxOutputTokensForTarget(3500, OPENROUTER_GEMINI_25_PRO_MODEL),
-      resolveOpenRouterTierMaxOutputTokens()
-    );
+    assert.equal(body.max_tokens, undefined);
+    assert.equal(resolveMaxOutputTokensForTarget(3500, OPENROUTER_GEMINI_25_PRO_MODEL), undefined);
     assert.equal(body.temperature, GEMINI_PRO_GENERATION_PARAMS.temperature);
     assert.equal(body.model, OPENROUTER_GEMINI_25_PRO_MODEL);
   });
@@ -150,11 +145,8 @@ describe("buildOpenRouterRequestBody — RP reasoning policy", () => {
     assert.deepEqual(body.reasoning, OPENROUTER_RP_REASONING_GEMINI_3_PRO);
     assert.equal(body.include_reasoning, false);
     assert.equal(body.provider, undefined);
-    assert.equal(body.max_tokens, OPENROUTER_GEMINI_31_PRO_MAX_OUTPUT_TOKENS);
-    assert.equal(
-      resolveMaxOutputTokensForTarget(3500, OPENROUTER_GEMINI_31_PRO_MODEL),
-      8192
-    );
+    assert.equal(body.max_tokens, undefined);
+    assert.equal(resolveMaxOutputTokensForTarget(3500, OPENROUTER_GEMINI_31_PRO_MODEL), undefined);
     assert.equal(body.temperature, GEMINI_PRO_GENERATION_PARAMS.temperature);
     assert.equal(body.model, OPENROUTER_GEMINI_31_PRO_MODEL);
   });
@@ -169,5 +161,38 @@ describe("buildOpenRouterRequestBody — RP reasoning policy", () => {
     ) as Record<string, unknown>;
     assert.equal(body.reasoning, undefined);
     assert.equal(body.provider, undefined);
+    assert.equal(body.max_tokens, undefined);
+  });
+
+  it("honors maxTokensOverride when set", () => {
+    const body = buildOpenRouterRequestBody(
+      OPENROUTER_QWEN_37_MAX_MODEL,
+      [{ role: "user", content: "test" }],
+      true,
+      3500,
+      "chat-1",
+      512
+    ) as Record<string, unknown>;
+    assert.equal(body.max_tokens, 512);
+    assert.equal(resolveOpenRouterMaxTokens(3500, 512, OPENROUTER_QWEN_37_MAX_MODEL), 512);
+  });
+});
+
+describe("resolveRegenerateGenerationOverrides", () => {
+  it("raises temperature floor and sets random seed", () => {
+    const overrides = resolveRegenerateGenerationOverrides(OPENROUTER_QWEN_37_MAX_MODEL, 3500);
+    assert.ok(overrides.temperature != null && overrides.temperature >= 1.0);
+    assert.ok(overrides.seed != null && overrides.seed >= 0);
+    const body = buildOpenRouterRequestBody(
+      OPENROUTER_QWEN_37_MAX_MODEL,
+      [{ role: "user", content: "test" }],
+      true,
+      3500,
+      "chat-1-regen",
+      undefined,
+      overrides
+    ) as Record<string, unknown>;
+    assert.equal(body.seed, overrides.seed);
+    assert.ok((body.temperature as number) >= 1.0);
   });
 });

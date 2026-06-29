@@ -599,6 +599,14 @@ export function sanitizeVisualAppearance(text: string, policy: VisualAppearanceP
 
   if (!hairRules && !eyeRules) return text;
 
+  /** HTML visual card — 태그·해시태그 포함 전역 치환 (문장 분리 시 누락 방지) */
+  if (/<(?:div|section|p|span|h[1-6]|ul|li|html)\b|#(?:은|금|흑)발/i.test(text)) {
+    let out = text;
+    out = applyDriftRules(out, hairRules);
+    out = applyDriftRules(out, eyeRules);
+    return out;
+  }
+
   const parts = text.split(/(?<=[.!?…])\s+|\n+/);
   const kept: string[] = [];
 
@@ -618,4 +626,27 @@ export function sanitizeVisualAppearance(text: string, policy: VisualAppearanceP
 
   if (kept.length === 0) return text;
   return kept.join("\n\n");
+}
+
+/** OOC HTML Flash — 설정 원문 외형 + APPEARANCE LOCK (대화 drift보다 우선) */
+export function buildFlashCanonicalAppearanceBlock(
+  chunks: CharacterChunk[],
+  charName: string,
+  policy: VisualAppearancePolicy,
+  opts?: { personaName?: string }
+): string {
+  const body = extractMainCharacterAppearanceBody(chunks, charName, opts);
+  const appearanceLines = collectCharacterAppearanceText(chunks, charName, opts);
+  const lock = buildVisualAnchorReminder(policy);
+  if (!body && !appearanceLines && !lock) return "";
+
+  const parts = [
+    "[CANONICAL APPEARANCE — AUTHORITATIVE; READ BEFORE WRITING «외형»]",
+    "This is the ONLY source for hair color, eye color, height, scars, and body traits in OOC HTML.",
+    "IGNORE conflicting hair/eye colors in [RECENT CHAT HISTORY], prior assistant turns, or generic tropes.",
+  ];
+  if (body) parts.push(`[외형 profile]\n${body}`);
+  else if (appearanceLines) parts.push(`[외형 lines from setting]\n${appearanceLines}`);
+  if (lock) parts.push(lock);
+  return parts.join("\n\n");
 }

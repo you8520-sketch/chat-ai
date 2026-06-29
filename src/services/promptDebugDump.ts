@@ -22,19 +22,30 @@ export function formatPromptDumpSourceLine(
   return trimmed ? `source=${source} · ${trimmed}` : `source=${source}`;
 }
 
-/** Resolve dump origin for buildContext → writePromptBuildDump */
+/** Resolve dump origin for buildContext → writePromptBuildDump (null = skip write) */
 export function resolvePromptDumpSource(opts: {
   explicit?: PromptDumpSource | null | undefined;
   detail?: string | null | undefined;
-}): { source: PromptDumpSource; detail?: string } {
+}): { source: PromptDumpSource | null; detail?: string } {
   const source =
     parsePromptDumpSource(opts.explicit ?? undefined) ??
     parsePromptDumpSource(process.env[PROMPT_DUMP_SOURCE_ENV]) ??
-    "audit";
+    null;
 
   const detail =
     opts.detail?.trim() || process.env[PROMPT_DUMP_DETAIL_ENV]?.trim() || undefined;
   return { source, detail };
+}
+
+function resolveBuildDumpPaths(source: PromptDumpSource): { txt: string; json: string } {
+  switch (source) {
+    case "db":
+      return { txt: "prompt_dump.txt", json: "token_breakdown.json" };
+    case "audit":
+      return { txt: "prompt_dump-audit.txt", json: "token_breakdown-audit.json" };
+    case "mock":
+      return { txt: "prompt_dump-mock.txt", json: "token_breakdown-mock.json" };
+  }
 }
 
 export type PromptDebugMeta = {
@@ -466,7 +477,10 @@ function writeDebugFiles(payload: PromptDebugPayload): void {
 /* ──────────────────────────────────────────────────────────────
  * Build-time dump — written by contextBuilder for every assembled
  * prompt in development (no env flag required; skipped in production).
- * Files: debug/prompt_dump.txt + debug/token_breakdown.json
+ * Files:
+ *   source=db   → debug/prompt_dump.txt (실채팅 — 이 파일만 확인)
+ *   source=audit→ debug/prompt_dump-audit.txt
+ *   source=mock   → debug/prompt_dump-mock.txt
  * ────────────────────────────────────────────────────────────── */
 
 type BuildDumpSection = {
@@ -552,12 +566,16 @@ export function writePromptBuildDump(opts: {
       txtLines.push("=".repeat(80), "DUPLICATES: none detected");
     }
 
+    const { txt, json } = resolveBuildDumpPaths(opts.source);
+    const txtPath = path.join(DEBUG_DIR, txt);
+    const jsonPath = path.join(DEBUG_DIR, json);
+
     fs.mkdirSync(DEBUG_DIR, { recursive: true });
-    fs.writeFileSync(path.join(DEBUG_DIR, "prompt_dump.txt"), txtLines.join("\n"), "utf8");
-    fs.writeFileSync(
-      path.join(DEBUG_DIR, "token_breakdown.json"),
-      JSON.stringify(breakdown, null, 2),
-      "utf8"
+    fs.writeFileSync(txtPath, txtLines.join("\n"), "utf8");
+    fs.writeFileSync(jsonPath, JSON.stringify(breakdown, null, 2), "utf8");
+
+    console.info(
+      `[prompt-dump] wrote ${txtPath} (${formatPromptDumpSourceLine(opts.source, opts.sourceDetail)})`
     );
   } catch (e) {
     console.warn("[promptDebugDump] build dump failed:", (e as Error).message);

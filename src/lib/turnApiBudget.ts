@@ -48,12 +48,8 @@ export const MAX_PAYLOAD_INPUT_TOKENS = 150_000;
 
 export const CONTEXT_LIMIT_EXCEEDED_ERROR = "Context Limit Exceeded by Loop Bug";
 
-export const CONTINUATION_SYSTEM_PROMPT =
-  "이어쓰기 모드. 직전 assistant 출력 바로 다음부터 한국어 장면 내부 3인칭 RP 본문만. 작가·해설자·독자에게 말하는 문단 금지.";
-
 /** under-length·truncation recovery — 장면 밖 해설 차단 (NSFW·세계관 표현은 유지) */
-export function buildRecoveryContinuationSystemPrompt(charName?: string): string {
-  const who = charName?.trim() || "the AI character";
+export function buildRecoveryContinuationSystemPrompt(): string {
   return `[이어쓰기 — 장면 내부만]
 직전 assistant 출력 **바로 다음 문장**부터 한국어 3인칭 RP 본문만 작성.
 
@@ -63,7 +59,7 @@ export function buildRecoveryContinuationSystemPrompt(charName?: string): string
 - FORBIDDEN: <<<STATUS_VALUES>>>, JSON blocks, or any status widget syntax in this continuation. Write ONLY RP prose continuing the scene.
 
 규칙:
-- "${who}" 장면 안에서만 서술·대사 (in-scene third person)
+- 현재 장면 안에서만 3인칭 RP를 이어간다.
 - 성적·감각 묘사는 톤·관계에 맞게 계속 허용
 - 이미 쓴 문장·비트·문단 **절대 반복 금지** — paraphrase·요약 재서술도 금지
 - 직전 assistant 본문을 다시 출력하면 실패 — **새 행동·대사·감각만**`;

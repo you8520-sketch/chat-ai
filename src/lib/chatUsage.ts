@@ -1,4 +1,3 @@
-import type { OutputLeakageAudit } from "@/lib/outputLeakageAudit";
 import type { BillingWaiverReason } from "@/lib/points";
 
 export type Usage = {
@@ -59,12 +58,12 @@ export type Usage = {
   coldStartShieldApplied?: boolean;
   uncappedChargePoints?: number;
   coldStartCostFloorPoints?: number;
-  /** 턴별 숨은 출력 audit — status/JSON/HTML strip 여부 */
-  outputLeakage?: OutputLeakageAudit;
   /** HTML 전용 턴 — DeepSeek V3, 메인 RP 모델 미사용 */
   htmlFlashOnly?: boolean;
   /** 메인 RP OpenRouter 원가 (KRW) — 위젯 V3 분리 표시용 */
   mainApiRawCostKrw?: number;
+  /** 상태창 위젯 V3 — API 원가(KRW) 올림 → P (메인 RP 과금과 별도 합산) */
+  widgetCostPoints?: number;
   /** 상태창 위젯 V3 추출 — 관리자·데모 영수증 */
   statusWidgetExtract?: {
     model: string;

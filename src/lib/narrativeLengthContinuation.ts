@@ -93,7 +93,7 @@ export async function continueNarrativeIfUnderMinimum(
     opts.targetResponseChars,
     lengthCheck.wordCount
   );
-  const contSystem = `${opts.system}\n\n${buildRecoveryContinuationSystemPrompt(opts.charName)}`;
+  const contSystem = `${opts.system}\n\n${buildRecoveryContinuationSystemPrompt()}`;
   const { history, recoveryAssistantPrefill, claudeRecovery } = buildRecoveryContinuationRequest(
     prior,
     userMsg,

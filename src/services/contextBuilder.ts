@@ -6,7 +6,6 @@ import {
 } from "@/lib/bodyHairRules";
 import { buildCoreIdentityBlock } from "@/lib/characterCoreIdentity";
 import {
-  buildUserPersonaAppearanceReminder,
   promoteAppearanceChunkImportance,
   extractVisualAppearancePolicyFromChunks,
   buildVisualAnchorReminder,
@@ -97,8 +96,10 @@ import {
 import {
   buildLengthInstruction,
   buildTerminalLengthOverrideBlock,
+  appendCompactTerminalLengthToUserTurn,
   resolveResponseLengthTarget,
 } from "@/lib/responseLength";
+import { buildTurnHandoffAndPacingBlock } from "@/lib/turnHandoffAndPacing";
 import type { OpenRouterSystemSplit } from "@/lib/openRouterCache";
 import { estimateOpenRouterCacheableTokens, buildOpenRouterDynamicLoreUserPrefix, HISTORY_CACHE_TAIL_EXCLUDE_MESSAGES } from "@/lib/openRouterCache";
 import { isDeepSeekV4ProModel } from "@/lib/chatModels";
@@ -165,12 +166,20 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const memoryFeatureOn = isMemoryFeatureEnabled();
 
   const pushFlushedBlock = (trimmed: string, target: SectionTarget) => {
-    blocks.push(trimmed);
     if (isOpenRouter) {
-      if (target === "cacheRules") cacheRulesParts.push(trimmed);
-      else if (target === "cacheCharacter") cacheCharacterParts.push(trimmed);
-      else dynamicParts.push(trimmed);
+      if (target === "cacheRules") {
+        cacheRulesParts.push(trimmed);
+        return;
+      }
+      if (target === "cacheCharacter") {
+        cacheCharacterParts.push(trimmed);
+        return;
+      }
+      dynamicParts.push(trimmed);
+      blocks.push(trimmed);
+      return;
     }
+    blocks.push(trimmed);
   };
 
   const flushDeepSeekXmlSections = (groups?: DeepSeekXmlGroup[]) => {
@@ -547,6 +556,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       buildRegenerateSystemDirective({
         charName: input.charName,
         rejectedAssistantDraft: input.rejectedAssistantDraft,
+        regenAttemptId: input.regenAttemptId,
       }),
       "dynamic"
     );
@@ -603,7 +613,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   );
 
   // ───── Tail — operational constraints ─────
-  const mainModelOwnsHtmlVisualCard = input.mainModelOwnsHtmlVisualCard === true;
   const injectStatusWindowPolicy =
     statusWindowPolicy.policyBlock.trim() &&
     !input.statusWidgetActive &&
@@ -632,7 +641,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
 
   const lengthInstructionOpts = {
     statusWindowEveryTurn: statusWindowPolicy.everyTurn,
-    htmlFlashOwned: isOpenRouter && !mainModelOwnsHtmlVisualCard,
+    htmlFlashOwned: isOpenRouter,
     proseStylePolicyOwnsSceneExpansion: isOpenRouter,
     statusWidgetActive: input.statusWidgetActive === true,
   };
@@ -653,6 +662,14 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       "dynamic"
     );
   }
+
+  pushSection(
+    "turn-handoff-and-pacing",
+    "Turn handoff and pacing",
+    "systemRules",
+    buildTurnHandoffAndPacingBlock(),
+    isOpenRouter ? "dynamic" : "dynamic"
+  );
 
   if (!isOpenRouter) {
     pushSection(
@@ -680,12 +697,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   }
 
-  const userPersonaAppearance = personaForIdentity
-    ? buildUserPersonaAppearanceReminder(personaForIdentity, personaLabel)
-    : null;
-  // Full [USER_PERSONA] is already in identity-and-rules — skip redundant system tail
-  // (DeepSeek may still inject appearance via user-turn bottom reminder)
-
   const globalLorebookBlock = input.globalLorebookBlock?.trim() ?? "";
   if (globalLorebookBlock) {
     if (isOpenRouter) {
@@ -703,9 +714,9 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
 
   pushSection(
     "rule-terminal-length-override",
-    "Terminal length override (absolute tail)",
+    "Terminal length compact tail (absolute end)",
     "systemRules",
-    buildTerminalLengthOverrideBlock(),
+    buildTerminalLengthOverrideBlock(input.targetResponseChars),
     "dynamic"
   );
 
@@ -713,7 +724,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     ? buildOpenRouterDynamicLoreUserPrefix(dynamicLorebookParts)
     : "";
 
-  const systemPrompt = blocks.join("\n\n");
   const openRouterSystemSplit: OpenRouterSystemSplit | undefined = isOpenRouter
     ? {
         systemRulesBlock: cacheRulesParts.join("\n\n"),
@@ -721,6 +731,17 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
         dynamicBlock: dynamicParts.join("\n\n"),
       }
     : undefined;
+
+  const systemPrompt = isOpenRouter && openRouterSystemSplit
+    ? [
+        openRouterSystemSplit.systemRulesBlock,
+        openRouterSystemSplit.characterSettingsBlock,
+        openRouterSystemSplit.dynamicBlock,
+      ]
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .join("\n\n")
+    : blocks.join("\n\n");
 
   if (isOpenRouter && openRouterSystemSplit && process.env.NODE_ENV !== "production") {
     const sysTok = estimateTokens(systemPrompt);
@@ -755,26 +776,19 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     userTurnContent = `${openRouterDynamicLorePrefix}\n\n${userTurnContent}`;
   }
   if (deepSeekXmlMode) {
-    const deepSeekTailParts = [userPersonaAppearance].filter((p): p is string =>
-      Boolean(p?.trim())
-    );
-    userTurnContent = prependDeepSeekBottomReminder(
-      userTurnContent,
-      deepSeekTailParts.length > 0 ? deepSeekTailParts.join("\n\n") : undefined
-    );
-  }
-  if (
-    mainModelOwnsHtmlVisualCard &&
-    htmlVisualCardPolicy.enabled &&
-    htmlVisualCardPolicy.policyBlock.trim()
-  ) {
-    userTurnContent = `${userTurnContent}\n\n${htmlVisualCardPolicy.policyBlock}`;
+    userTurnContent = prependDeepSeekBottomReminder(userTurnContent);
   }
   if (input.assetTags && input.assetTags.length > 0) {
     const emotionOverlay = buildFlashOwnedEmotionTagUserOverlay(input.assetTags);
     if (emotionOverlay) {
       userTurnContent = `${userTurnContent}\n\n${emotionOverlay}`;
     }
+  }
+  if (isOpenRouter && !input.isContinue) {
+    userTurnContent = appendCompactTerminalLengthToUserTurn(
+      userTurnContent,
+      input.targetResponseChars
+    );
   }
 
   const estimatePayloadTokens = (hist: ContextBuildInput["shortTermHistory"]) =>
@@ -811,7 +825,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   if (isOpenRouter) {
     history = sanitizePrimaryModelHistoryMessages(history, {
       modelOutputsPlainStatus: modelPlainStatusEveryTurnActive(statusWindowPolicy),
-      modelOutputsHtmlVisualCard: mainModelOwnsHtmlVisualCard,
     });
   }
 
@@ -889,20 +902,22 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     logDeepSeekContextStructure({ systemPrompt: systemPromptOut, history: historyWithCurrent });
   }
 
-  // Dev-only debug dump (debug/prompt_dump.txt + debug/token_breakdown.json)
+  // Dev-only — 실채팅만 debug/prompt_dump.txt (테스트·audit는 별도 파일 또는 생략)
   const promptDump = resolvePromptDumpSource({
     explicit: input.promptDumpSource,
     detail: input.promptDumpDetail,
   });
-  writePromptBuildDump({
-    sections: trackedSections,
-    history: historyWithCurrent,
-    provider: input.provider ?? "gemini",
-    modelId: input.modelId ?? "unknown",
-    charName: input.charName,
-    source: promptDump.source,
-    sourceDetail: promptDump.detail,
-  });
+  if (promptDump.source) {
+    writePromptBuildDump({
+      sections: trackedSections,
+      history: historyWithCurrent,
+      provider: input.provider ?? "gemini",
+      modelId: input.modelId ?? "unknown",
+      charName: input.charName,
+      source: promptDump.source,
+      sourceDetail: promptDump.detail,
+    });
+  }
 
   return {
     systemPrompt: systemPromptOut,

@@ -1,7 +1,7 @@
 import {
-  dedupeNormalizedThoughts,
   filterHonorificsToDialogue,
   normalizeMemoryMeta,
+  normalizeTurnThoughts,
   type HonorificNames,
   type RelationshipMetaDelta,
 } from "@/lib/chatMemory";
@@ -22,7 +22,7 @@ export function normalizeRelationshipMetaDeltaFromJson(
       names
     ),
     items: Array.isArray(j.items) ? j.items.filter(Boolean) : [],
-    thoughts: dedupeNormalizedThoughts(
+    thoughts: normalizeTurnThoughts(
       Array.isArray(j.thoughts) ? j.thoughts.filter(Boolean) : [],
       names
     ),
@@ -40,6 +40,8 @@ export function normalizeRelationshipMetaDeltaFromJson(
           .filter((p): p is { text: string; deadline?: string } => p !== null)
       : [],
     promisesRemove: Array.isArray(j.promisesRemove) ? j.promisesRemove.filter(Boolean) : [],
+    itemsRemove: Array.isArray(j.itemsRemove) ? j.itemsRemove.filter(Boolean) : [],
+    thoughtsRemove: Array.isArray(j.thoughtsRemove) ? j.thoughtsRemove.filter(Boolean) : [],
   };
 
   const normalized = normalizeMemoryMeta(
