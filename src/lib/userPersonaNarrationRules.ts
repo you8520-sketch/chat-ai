@@ -1,13 +1,11 @@
 /** 사칭 OFF — 일반 턴·자동진행 공통 (상세 금지/허용은 [NO GODMODDING] 단일 출처) */
 
-/**
- * 일반 턴 system tail — [USER PERSONA NARRATION RULES]
- */
+/** @deprecated [NO GODMODDING]으로 충분 — 주입 제거 */
 export function buildSmartUserPersonaNarrationRules(
   _charName: string,
   _personaName: string
 ): string {
-  return `[USER PERSONA NARRATION] [NO GODMODDING] 적용.`;
+  return "";
 }
 
 /** @deprecated auto-continue persona overlay 제거 — [NO GODMODDING]·<TURN_HANDOFF_AND_PACING>로 충분 */
@@ -43,5 +41,5 @@ export function buildNovelModeUserPersonaRules(
 
 1. AI는 [A]뿐만 아니라 [B]의 대사, 행동, 속마음까지 모두 주도적으로 서술할 권한을 가진다.
 2. [B]를 묘사할 때는 [USER_PERSONA]와 채팅에서 유저가 직접 입력한 대사를 기준으로, 캐릭터 붕괴 없이 성격과 말투를 유지하며 서사를 전개할 것.
-3. 마치 두 명의 캐릭터가 등장하는 한 편의 완성된 웹소설을 쓰듯이, 티키타카(대화)와 행동의 합을 자연스럽게 묘사하여 이야기를 이어 나갈 것.`;
+3. Write naturally as continuous scene narration — [B]와 [A]의 대화·행동을 자연스럽게 이어갈 것.`;
 }

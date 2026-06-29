@@ -32,13 +32,13 @@ describe("narrativeLengthContinuation", () => {
     assert.equal(needsVisibleLengthContinuation(words), false);
   });
 
-  it("continuation user message references unified char minimum 1,500", () => {
+  it("continuation user message references MINIMUM_FLOOR and remaining chars", () => {
     const msg = buildVisibleLengthContinuationUserMessage(1200, undefined, 800);
     assert.match(msg, /1,200/);
+    assert.match(msg, /MINIMUM_FLOOR \(2,700\)/);
     assert.match(msg, /1,500/);
-    assert.match(msg, /자연스럽게 이어/);
-    assert.match(msg, /HTML/);
-    assert.doesNotMatch(msg, /1,000단어/);
+    assert.match(msg, /Never echo/);
+    assert.doesNotMatch(msg, /자연스럽게 이어/);
   });
 
   it("continueNarrativeIfUnderMinimum does not sub-call when NARRATIVE_LENGTH_CONTINUATION_ENABLED is false", async () => {

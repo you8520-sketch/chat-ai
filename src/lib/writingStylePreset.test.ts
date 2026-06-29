@@ -5,16 +5,16 @@ import {
   KOREAN_WEBNOVEL_STYLE,
   KOREAN_WEBNOVEL_STYLE_BLOCK,
 } from "@/lib/writingStylePreset";
+import { PROSE_STYLE_SECTION } from "@/lib/advancedProseNsfwGuidelines";
 
-describe("KOREAN WEBNOVEL STYLE", () => {
-  it("includes 모드 A/B in single style block", () => {
-    assert.match(KOREAN_WEBNOVEL_STYLE_BLOCK, /\[KOREAN WEBNOVEL STYLE\]/);
-    assert.match(KOREAN_WEBNOVEL_STYLE, /모드 A \(일상·텐션\)/);
-    assert.match(KOREAN_WEBNOVEL_STYLE, /모드 B \(19금 접촉\)/);
-    assert.match(KOREAN_WEBNOVEL_STYLE, /슬로 모션/);
-    assert.doesNotMatch(KOREAN_WEBNOVEL_STYLE, /불릿 타임/);
-    assert.doesNotMatch(KOREAN_WEBNOVEL_STYLE, /\[DYNAMIC PROSE STYLING & SCENE EXPANSION\]/);
-    assert.doesNotMatch(KOREAN_WEBNOVEL_STYLE, /Balance dialogue, action, emotion/);
+describe("KOREAN WEBNOVEL STYLE (deprecated alias)", () => {
+  it("aliases PROSE_STYLE_SECTION", () => {
+    assert.equal(KOREAN_WEBNOVEL_STYLE_BLOCK, PROSE_STYLE_SECTION);
+    assert.match(KOREAN_WEBNOVEL_STYLE, /\[PROSE STYLE\]/);
+    assert.match(KOREAN_WEBNOVEL_STYLE, /일상·대화/);
+    assert.match(KOREAN_WEBNOVEL_STYLE, /긴장·고조/);
+    assert.doesNotMatch(KOREAN_WEBNOVEL_STYLE, /모드 A/);
+    assert.doesNotMatch(KOREAN_WEBNOVEL_STYLE, /모드 B/);
   });
 
   it("deprecated DYNAMIC_PROSE_STYLING_BLOCK aliases unified block", () => {
@@ -25,6 +25,5 @@ describe("KOREAN WEBNOVEL STYLE", () => {
     assert.match(KOREAN_WEBNOVEL_STYLE, /해체\(-다/);
     assert.match(KOREAN_WEBNOVEL_STYLE, /명사 단편 행/);
     assert.match(KOREAN_WEBNOVEL_STYLE, /말줄임 \.\.\./);
-    assert.doesNotMatch(KOREAN_WEBNOVEL_STYLE, /^Ellipsis:/m);
   });
 });

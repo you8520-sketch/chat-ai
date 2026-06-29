@@ -23,13 +23,10 @@ import type { CharacterChunk } from "@/types";
  */
 
 import type { BilingualDialoguePolicy } from "@/lib/bilingualDialoguePolicy";
-import { isBilingualDialogueActive } from "@/lib/bilingualDialoguePolicy";
 
-export function buildKoreanOutputDirective(bilingual?: BilingualDialoguePolicy): string {
-  if (bilingual && isBilingualDialogueActive(bilingual)) {
-    return `[ULTIMATE DIRECTIVE: Internal processing in English, but response MUST follow creator bilingual dialogue — narration EXCLUSIVELY in Korean (-다 style); out-loud speech in "${bilingual.primaryDisplay}" + (Korean gloss) per [BILINGUAL DIALOGUE — creator setting override]. Pure English-only or pure Korean-only dialogue when bilingual is required is a critical failure.]`;
-  }
-  return KOREAN_OUTPUT_DIRECTIVE_LEGACY;
+export function buildKoreanOutputDirective(_bilingual?: BilingualDialoguePolicy): string {
+  /** @deprecated OUTPUT LANG + [PROSE STYLE] cover Korean output — injection removed */
+  return "";
 }
 
 /** @deprecated buildKoreanOutputDirective() */
@@ -38,11 +35,9 @@ export const KOREAN_OUTPUT_DIRECTIVE =
 
 const KOREAN_OUTPUT_DIRECTIVE_LEGACY = KOREAN_OUTPUT_DIRECTIVE;
 
-export function buildEnglishSettingKoreanOutputRule(bilingual?: BilingualDialoguePolicy): string {
-  if (bilingual && isBilingualDialogueActive(bilingual)) {
-    return `[LANGUAGE RULE] Character settings are in English, but narration must be Korean web-novel prose. Spoken dialogue follows creator bilingual rule: ${bilingual.primaryDisplay} in quotes + (Korean translation) — NOT English-only body text.`;
-  }
-  return ENGLISH_SETTING_KOREAN_OUTPUT_RULE_LEGACY;
+export function buildEnglishSettingKoreanOutputRule(_bilingual?: BilingualDialoguePolicy): string {
+  /** @deprecated OUTPUT LANG covers English-settings → Korean output — injection removed */
+  return "";
 }
 
 /** English character settings layer — force Korean RP output (identity/rules zone) */
@@ -51,16 +46,15 @@ export const ENGLISH_SETTING_KOREAN_OUTPUT_RULE =
 
 const ENGLISH_SETTING_KOREAN_OUTPUT_RULE_LEGACY = ENGLISH_SETTING_KOREAN_OUTPUT_RULE;
 
-/** Flash 등 — 지문: 평서 -다체 + 높임 금지; 대사(따옴표)는 Speech Lock 유지 */
-export const KOREAN_NARRATION_ENDING_RULE =
-  "[Narration (outside quotes) MUST use plain declarative style: -다/-했다/-이었다/-느꼈다 only. " +
-  "FORBIDDEN in narration: ~습니다/~요/~시-/~하셨다/말씀하셨다/~이십니다. " +
-  "This restriction applies ONLY to narration text outside quotation marks. " +
-  "Character dialogue inside quotation marks: follow Speech Lock as-is.]";
+/** @deprecated OUTPUT LANG + [PROSE STYLE] — injection removed */
+export const KOREAN_NARRATION_ENDING_RULE = "";
 
 /** AI 출력 — 큰따옴표=실제 발화, 낫표=스킬·특수 고유명만 (속마음·생각은 지문으로) */
-export const DIALOGUE_FORMAT_DIRECTIVE =
-  '[FORMAT DIRECTIVE: Use double quotes (" ") EXCLUSIVELY for actual, out-loud spoken dialogue. Write inner thoughts, feelings, introspection, telepathy, and mental narration as normal unquoted third-person narration — same flow as scene/action prose. Do NOT wrap thoughts in corner brackets. Use corner brackets (「 」) ONLY for special in-world proper nouns: skill names, spell/incantation titles, technique names, system UI labels — NEVER for thoughts, feelings, or regular speech. NEVER mix formats.]';
+export const DIALOGUE_FORMAT_DIRECTIVE = `[FORMAT DIRECTIVE]
+Dialogue: use " " for out-loud speech only.
+Narration: plain prose — thoughts and feelings unquoted, same flow as action.
+「 」: in-world proper nouns only (skills, spells, system labels).
+Never use 「 」 for thoughts or dialogue.`;
 
 const SEG_OPEN = (n: number) => `⟦SEG ${n}⟧`;
 const SEG_CLOSE = (n: number) => `⟦/SEG ${n}⟧`;

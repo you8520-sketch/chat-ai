@@ -12,7 +12,12 @@ import { visibleAssistantDisplayCharCount, visibleAssistantDisplayText } from ".
 import { visibleAssistantDisplayKoreanWordCount } from "./koreanWordCount";
 import type { BilingualDialoguePolicy } from "@/lib/bilingualDialoguePolicy";
 import { buildLangCriticalRule } from "@/lib/bilingualDialoguePolicy";
-import { NO_INPUT_ECHO_RULE } from "@/lib/sceneExpansionPolicy";
+import {
+  MOMENT_TO_MOMENT_WRITING_BLOCK,
+  NARRATIVE_DENSITY_BLOCK,
+  NO_GENERIC_REACTIONS_BLOCK,
+  NO_INPUT_ECHO_RULE,
+} from "@/lib/sceneExpansionPolicy";
 import { SCENE_CONTINUATION_PRIORITY_BLOCK } from "./turnHandoffAndPacing";
 export * from "./responseLengthConstants";
 import {
@@ -192,10 +197,16 @@ MINIMUM_FLOOR: ${t.min.toLocaleString()}+
 ${NO_INPUT_ECHO_RULE}
 
 - 짧은 유저 입력에 동조(Mirroring) 금지 — 장문 출력
-- 문단: 최소 8~10개 이상의 긴 문단
-- 묘사: 대사 1줄당 감정·표정·환경·행동 반응 4~5줄+ 확장
+- 새 서사 비트(행동·반응·전환)로 확장; 문단 수를 맞추려 하지 마라
+- 대사마다 행동·반응·감각·분위기가 자연스럽게 따라붙게 한다
 
-${SCENE_CONTINUATION_PRIORITY_BLOCK}${jsonOrStatusLine}`;
+${SCENE_CONTINUATION_PRIORITY_BLOCK}
+
+${NARRATIVE_DENSITY_BLOCK}
+
+${MOMENT_TO_MOMENT_WRITING_BLOCK}
+
+${NO_GENERIC_REACTIONS_BLOCK}${jsonOrStatusLine}`;
 }
 
 /**
@@ -631,16 +642,12 @@ export function buildSingleShotLengthReminder(_targetInput?: number | null): str
 MINIMUM_FLOOR 미달·조기 handoff 금지. [LENGTH CONTROL & SCENE EXPANSION] · [SCENE CONTINUATION PRIORITY] 준수.`;
 }
 
-/** 유저 메시지 하단 — compact tail recency (system 뒤 히스토리·유저가 오므로 필수) */
+/** @deprecated User-turn length tail removed — system terminal override only */
 export function appendCompactTerminalLengthToUserTurn(
   userContent: string,
-  targetInput?: number | null
+  _targetInput?: number | null
 ): string {
-  const tail = buildCompactTerminalLengthAbsoluteTail(targetInput);
-  const body = userContent.trim();
-  if (!body) return tail;
-  if (body.includes("단일 응답 최대 전개·미달 조기 종료 금지")) return body;
-  return `${body}\n\n${tail}`;
+  return userContent.trim();
 }
 
 /** 유저 메시지 하단 — recency bias로 분량 리마인더 주입 */
@@ -870,7 +877,7 @@ export function needsServerUnderLengthRecovery(
 }
 
 export function buildServerUnderLengthRecoveryUserMessage(): string {
-  return `직전 응답이 목표 분량의 85% 미달로 종료됨. 같은 장면을 이어서, Scene Blueprint의 남은 phase(Sensory Shift, Internal Contradiction, Lingering Aftermath 중 미완료 항목)를 추가로 작성할 것. 새로운 사건을 시작하지 말고 현재 장면을 심화할 것.`;
+  return `Response ended below 85% of target length. Continue unfinished scene phases only. Do not start a new event — deepen the current scene.`;
 }
 
 /** @deprecated 1-pass — recovery user message 미사용 */

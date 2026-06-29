@@ -44,7 +44,7 @@ function roleBoundaryLine(i: CoreMasterPromptInput): string {
   if (i.novelModeEnabled) {
     return `ROLE — 소설 모드 ON. [NO GODMODDING — NOVEL MODE] · [NOVEL MODE — USER PERSONA NARRATION RULES] 적용.`;
   }
-  return `ROLE — AI는 [A]와 AI가 담당하는 NPC·환경만 연기한다.\n[B]는 [NO GODMODDING]를 따른다.`;
+  return `ROLE — AI는 [A]와 AI가 담당하는 NPC·환경을 연기한다. 필요 시 여러 AI 캐릭터와 NPC를 동시에 연기할 수 있다.\n[B]는 [NO GODMODDING]를 따른다.`;
 }
 
 /** Layer 1 — compact core master rules */
@@ -53,7 +53,7 @@ export function buildCoreMasterPrompt(i: CoreMasterPromptInput): string {
     `[CORE RP] [A]=AI · [B]=user.`,
     roleBoundaryLine(i),
     `INTEGRITY — 캐릭터·관계·세계관을 유지한다.`,
-    `CONTINUITY — 같은 장면을 이어가며 반복하지 않는다.`,
+    `CONTINUITY — 같은 장면을 이어가되 이미 나온 행동·대사·감정을 반복하지 않는다.`,
   ];
 
   if (i.party) {

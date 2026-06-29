@@ -7,7 +7,7 @@ export const SCENE_PROGRESSION_AND_STOP_CONDITIONS =
 
 export type ProseStyleXmlBundleOpts = AdvancedProseNsfwOpts;
 
-/** OpenRouter prose/style policy — single [ADVANCED PROSE & NSFW GUIDELINES] block (includes KOREAN WEBNOVEL STYLE). */
+/** OpenRouter prose/style policy — alias of buildAdvancedProseNsfwGuidelines (includes [PROSE STYLE]). */
 export function buildProseStyleXmlBundle(opts: ProseStyleXmlBundleOpts): string {
   return buildAdvancedProseNsfwGuidelines(opts);
 }

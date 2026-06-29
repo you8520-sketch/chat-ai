@@ -125,7 +125,6 @@ describe("buildContext — TURN_HANDOFF_AND_PACING injection", () => {
       provider: "openrouter",
     });
     const crossRefs = listCrossRefSections(built);
-    assert.ok(crossRefs.length > 0, "expected pointer cross-refs in other sections");
     assert.ok(
       crossRefs.every((s) => s.id !== "turn-handoff-and-pacing"),
       "canonical block section should not count as cross-ref only"

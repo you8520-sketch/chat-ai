@@ -69,7 +69,7 @@ describe("regenerate OOC priority", () => {
     assert.match(block, /MANDATORY DIVERGENCE/i);
     assert.match(block, /Rejected draft/i);
     assert.match(block, /손을 내밀었다/);
-    assert.match(block, /opening must diverge/i);
+    assert.match(block, /Regeneration must differ in: opening, action chain, emotional progression, ending/);
     assert.doesNotMatch(block, /CHAT OOC takes priority/i);
   });
 

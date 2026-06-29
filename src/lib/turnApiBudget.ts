@@ -48,29 +48,22 @@ export const MAX_PAYLOAD_INPUT_TOKENS = 150_000;
 
 export const CONTEXT_LIMIT_EXCEEDED_ERROR = "Context Limit Exceeded by Loop Bug";
 
-/** under-length·truncation recovery — 장면 밖 해설 차단 (NSFW·세계관 표현은 유지) */
+/** under-length·truncation recovery — in-scene continuation only */
 export function buildRecoveryContinuationSystemPrompt(): string {
-  return `[이어쓰기 — 장면 내부만]
-직전 assistant 출력 **바로 다음 문장**부터 한국어 3인칭 RP 본문만 작성.
+  return `[CONTINUATION — IN-SCENE ONLY]
+Continue immediately after the final generated sentence.
+Stay in the same scene.
+Never repeat, summarize, or restart.
+Write only new narrative.
 
-절대 금지:
-- 장면 밖 해설·요약·계획·예고 (이야기를 소개하거나 다음 전개를 예고하는 메타 문단)
-- 독자·유저에게 말하기, 시스템 지시 에코, 영어
-- FORBIDDEN: <<<STATUS_VALUES>>>, JSON blocks, or any status widget syntax in this continuation. Write ONLY RP prose continuing the scene.
-
-규칙:
-- 현재 장면 안에서만 3인칭 RP를 이어간다.
-- 성적·감각 묘사는 톤·관계에 맞게 계속 허용
-- 이미 쓴 문장·비트·문단 **절대 반복 금지** — paraphrase·요약 재서술도 금지
-- 직전 assistant 본문을 다시 출력하면 실패 — **새 행동·대사·감각만**`;
+Never echo prior text — start from the very next word after the truncated output.
+Never write meta outside the scene (no summaries, plans, or reader address).
+FORBIDDEN: <<<STATUS_VALUES>>>, JSON blocks, status widget syntax.`;
 }
 
-const RECOVERY_ANTI_ECHO_HINT =
-  "\n\n절대 이전 텍스트를 반복(Echo)하지 마라. 쓰다 만 단어/글자의 **바로 다음**부터 즉시 시작하라.";
-
+/** @deprecated Echo rule merged into buildRecoveryContinuationSystemPrompt() */
 export function appendRecoveryAntiEchoHint(userMsg: string): string {
-  if (userMsg.includes("반복(Echo)")) return userMsg;
-  return `${userMsg}${RECOVERY_ANTI_ECHO_HINT}`;
+  return userMsg;
 }
 
 /** Claude recovery — assistant prefill용 tail (50~100자) */

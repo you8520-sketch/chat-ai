@@ -3,7 +3,6 @@ import { describe, it } from "node:test";
 import {
   buildAutoContinueAgencyExpansion,
   buildCompactNoGodmoddingStandardBlock,
-  buildLengthPressureUserAgencyGuard,
   buildNoGodmoddingBlock,
   buildUserAgencySensoryFeedbackRule,
 } from "@/lib/noGodmodding";
@@ -33,17 +32,6 @@ describe("buildUserAgencySensoryFeedbackRule (legacy shim)", () => {
   it("returns compact block", () => {
     const block = buildUserAgencySensoryFeedbackRule("체향", "유저");
     assert.equal(block, buildCompactNoGodmoddingStandardBlock());
-  });
-});
-
-describe("buildLengthPressureUserAgencyGuard", () => {
-  it("references main rule without duplicating forbidden/allowed lists", () => {
-    const block = buildLengthPressureUserAgencyGuard("체향", "유저");
-    assert.match(block, /\[LENGTH PRESSURE — USER AGENCY GUARD\]/);
-    assert.match(block, /\[NO GODMODDING\]/);
-    assert.match(block, /의도적 행동/);
-    assert.match(block, /생리적·반사적 반응만/);
-    assert.doesNotMatch(block, /FORBIDDEN — Never write these/);
   });
 });
 
@@ -81,7 +69,8 @@ describe("core master prompt", () => {
 
   it("assigns NPC/environment to AI role without duplicating agency rule body", () => {
     const core = buildCoreMasterPrompt(base);
-    assert.match(core, /NPC·환경만 연기/);
+    assert.match(core, /NPC·환경을 연기/);
+    assert.match(core, /여러 AI 캐릭터와 NPC를 동시에 연기/);
     assert.match(core, /\[NO GODMODDING\]를 따른다/);
     assert.doesNotMatch(core, /항상 \[A\]만 연기/);
     assert.doesNotMatch(core, /FORBIDDEN — Never write these for \[B\]/);
@@ -97,7 +86,7 @@ describe("core master prompt", () => {
     const core = buildCoreMasterPrompt({ ...base, tailFormatActive: false });
     assert.match(core, /^ROLE —/m);
     assert.match(core, /^INTEGRITY — 캐릭터·관계·세계관을 유지한다\./m);
-    assert.match(core, /^CONTINUITY — 같은 장면을 이어가며 반복하지 않는다\./m);
+    assert.match(core, /^CONTINUITY — 같은 장면을 이어가되 이미 나온 행동·대사·감정을 반복하지 않는다\./m);
     assert.doesNotMatch(core, /^SPEECH —/m);
     assert.doesNotMatch(core, /^PROSE —/m);
   });

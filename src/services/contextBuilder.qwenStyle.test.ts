@@ -84,7 +84,7 @@ describe("buildContext — Qwen OpenRouter prose rules", () => {
     assert.ok(built.systemPrompt.includes("=== 설정 적용 우선순위 ==="));
 
     assert.ok(!built.systemPrompt.includes("<PROSE_STYLE_POLICY>"));
-    assert.ok(built.systemPrompt.includes(KOREAN_WEBNOVEL_STYLE_BLOCK));
+    assert.ok(built.systemPrompt.includes("[PROSE STYLE]"));
 
     assert.ok(built.systemPrompt.includes("[ADVANCED PROSE & NSFW GUIDELINES]"));
     assert.equal(
@@ -92,7 +92,7 @@ describe("buildContext — Qwen OpenRouter prose rules", () => {
       1
     );
     assert.equal(
-      (built.systemPrompt.match(/\[KOREAN WEBNOVEL STYLE\]/g) ?? []).length,
+      (built.systemPrompt.match(/\[PROSE STYLE\]/g) ?? []).length,
       1
     );
     assert.equal(
@@ -100,7 +100,8 @@ describe("buildContext — Qwen OpenRouter prose rules", () => {
       1
     );
 
-    assert.ok(built.systemPrompt.includes("표현 규칙"));
+    assert.ok(built.systemPrompt.includes("[19+ INTIMACY]"));
+    assert.ok(built.systemPrompt.includes("해부학적 명칭"));
     assert.ok(!built.systemPrompt.includes("Explicit Sensory Mode"));
     assert.ok(!built.systemPrompt.includes("=== 19+ 컨텍스트 ==="));
     assert.ok(!built.systemPrompt.includes("=== 19+ 플랫폼 컨텍스트 ==="));
@@ -147,7 +148,7 @@ describe("buildContext — Qwen OpenRouter prose rules", () => {
       (s) => s.id === "narrative-style"
     );
     // Format rules live in prose bundle — narrative-style is genre hints only when present
-    assert.ok(!narrativeStyleSection || !narrativeStyleSection.text.includes("[KOREAN WEBNOVEL STYLE]"));
+    assert.ok(!narrativeStyleSection || !narrativeStyleSection.text.includes("[PROSE STYLE]"));
     assert.ok(!buildNarrativeStyleLayer({ omitFormatRules: true }).includes(KOREAN_WEBNOVEL_STYLE_BLOCK));
 
   });

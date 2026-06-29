@@ -80,22 +80,28 @@ function parseForbiddenLines(text: string | undefined): string[] {
     .slice(0, 20);
 }
 
+const SPEECH_CONSISTENCY_BLOCK = `[SPEECH CONSISTENCY]
+Dialogue style is learned primarily from dialogue examples.
+Trait descriptions are secondary.
+When examples conflict with descriptions, examples always win.`;
+
 /** API·DB용 example_dialog (파서 speech 청크용) */
 export function composeExampleDialog(input: SpeechCreatorInput): string {
   const parts: string[] = [];
-  if (input.speech_personality.trim()) {
-    parts.push(`[말투 — 성격]\n${input.speech_personality.trim()}`);
-  }
-  if (input.speech_traits.trim()) {
-    parts.push(`[말투 — 특징]\n${input.speech_traits.trim()}`);
-  }
   if (input.speech_examples.trim()) {
     const lines = extractCharacterDialogueLines(input.speech_examples);
     const body = lines.length > 0 ? lines.join("\n") : input.speech_examples.trim();
     parts.push(`[예시 대사]\n${body}`);
+    parts.push(SPEECH_CONSISTENCY_BLOCK);
+  }
+  if (input.speech_traits.trim()) {
+    parts.push(`[말투 — 특징]\n${input.speech_traits.trim()}`);
   }
   if (input.speech_forbidden?.trim()) {
     parts.push(`[금지 말투]\n${input.speech_forbidden.trim()}`);
+  }
+  if (input.speech_personality.trim()) {
+    parts.push(`[말투 — 성격]\n${input.speech_personality.trim()}`);
   }
   return parts.join("\n\n");
 }

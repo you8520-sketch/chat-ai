@@ -9,7 +9,6 @@ import { estimateTokens } from "../src/lib/tokenEstimate";
 import { buildContext } from "../src/services/contextBuilder";
 import { OPENROUTER_QWEN_37_MAX_MODEL, GEMINI_CHAT_FLASH_25 } from "../src/lib/chatModels";
 import { buildOpenRouterKoreanProseTopBlock } from "../src/lib/openRouterProsePolicy";
-import { buildLengthPressureUserAgencyGuard } from "../src/lib/noGodmodding";
 import { KOREAN_WEBNOVEL_STYLE, NARRATIVE_STYLE_CORE } from "../src/lib/writingStylePreset";
 import { buildLengthInstruction } from "../src/lib/responseLength";
 import {
@@ -315,10 +314,6 @@ function measureCutCandidates(or: AuditResult, gem: AuditResult) {
   const slowTok = slowMatch ? estimateTokens(slowMatch[0]) : 0;
   const lengthTrimSave = expansionTok + slowTok;
 
-  const agencyGuardTok = estimateTokens(
-    buildLengthPressureUserAgencyGuard("백하율", "렌")
-  );
-
   const gemKoreanTok = estimateTokens(buildKoreanOutputDirective());
   const gemDialogueTok = estimateTokens(DIALOGUE_FORMAT_DIRECTIVE);
   const gemEndingTok = estimateTokens(KOREAN_NARRATION_ENDING_RULE);
@@ -351,7 +346,6 @@ function measureCutCandidates(or: AuditResult, gem: AuditResult) {
     trimmableTopTok,
     orNarrativeTrimSave,
     lengthTrimSave,
-    agencyGuardTok,
     gemTailSave,
     proseGuardSave,
     personaNarrationSave,
@@ -408,15 +402,6 @@ function buildCutProposals(
         "Trim QUALITY-SAFE EXPANSION A–E + Slow-Motion Micro-Beats from rule-length-control; keep TARGET + MINIMUM FLOOR + LENGTH vs AGENCY pointer to handoff",
       measuredSave: measured.lengthTrimSave,
       rationale: `Measured expansion+slow-motion block = ${measured.lengthTrimSave} tok (handoff [UNDER LENGTH PRESSURE] covers same themes)`,
-      excludesHandoff: true,
-    },
-    {
-      id: "E",
-      paths: ["both"],
-      action:
-        "Remove buildLengthPressureUserAgencyGuard from rule-core-master; agency already in no-godmodding block",
-      measuredSave: measured.agencyGuardTok,
-      rationale: `Measured guard block = ${measured.agencyGuardTok} tok`,
       excludesHandoff: true,
     },
     {

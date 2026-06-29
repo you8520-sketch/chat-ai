@@ -5,11 +5,13 @@ export type UserAgencyRuleOptions = {
   autoContinueExpanded?: boolean;
 };
 
-/** Standard no-godmodding block — single canonical rule. */
+const AUTO_CONTINUE_SUPPLEMENT =
+  "자동진행 턴 — <TURN_HANDOFF_AND_PACING> 준수.";
+
+/** Standard / auto-continue 공통 본문 — autoContinue는 supplement만 추가 */
 export function buildCompactNoGodmoddingStandardBlock(): string {
   return `[NO GODMODDING]
 [B]의 의도적 대사·행동·감정·판단은 작성하지 않는다.
-
 허용: 생리적·반사적 반응만.`;
 }
 
@@ -27,28 +29,6 @@ export function buildUserAgencySensoryFeedbackRule(
   _options?: UserAgencyRuleOptions
 ): string {
   return buildCompactNoGodmoddingStandardBlock();
-}
-
-/** Length-pressure guard — references [NO GODMODDING] in [0a]; no duplicate lists. */
-export function buildLengthPressureUserAgencyGuard(
-  _charName: string,
-  _userName: string,
-  _autoContinueExpanded = false
-): string {
-  return `[LENGTH PRESSURE — USER AGENCY GUARD]
-분량 확장 시에도 [0a] [NO GODMODDING]을 엄격히 준수한다.
-[B]의 대사·의도적 행동·결정·감정·속마음으로 패딩하지 않는다.
-허용 [B] 패딩: 생리적·반사적 반응만 — [NO GODMODDING] 참조.
-[A] 행동·속마음·환경 묘사로 먼저 확장한다.
-턴 종료: <TURN_HANDOFF_AND_PACING>만 준수한다.`;
-}
-
-/** @deprecated Use buildLengthPressureUserAgencyGuard — kept for import compatibility */
-export function buildAbsoluteAntiGodmoddingBlock(
-  charName: string,
-  userName: string
-): string {
-  return buildLengthPressureUserAgencyGuard(charName, userName);
 }
 
 /** Single consolidated user-agency block — replaces scattered prohibitions across identity/core/speech/narration. */
@@ -73,7 +53,7 @@ export function buildNoGodmoddingBlock(
   if (mode === "autoContinue") {
     return `${buildCompactNoGodmoddingStandardBlock()}
 
-자동진행 턴 — <TURN_HANDOFF_AND_PACING> 준수.`;
+${AUTO_CONTINUE_SUPPLEMENT}`;
   }
 
   return buildCompactNoGodmoddingStandardBlock();

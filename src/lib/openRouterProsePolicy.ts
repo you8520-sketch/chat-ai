@@ -4,33 +4,28 @@
 import type { BilingualDialoguePolicy } from "@/lib/bilingualDialoguePolicy";
 import { isBilingualDialogueActive } from "@/lib/bilingualDialoguePolicy";
 
-const FOREIGN_MIXING_LINE =
-  "외국어 혼용 금지 — 고유명사·스킬명만 「」 안 예외.";
-
-const NO_MIXED_SCRIPT_WORDS =
-  "[NO MIXED-SCRIPT WORDS] 한 단어 안에서 한글과 영어·일본어를 혼용하지 마라.";
+const OUTPUT_LANG_FOREIGN_MIXING = `외국어 혼용 금지. 고유명사·스킬명만 「」 예외.
+한 단어 안에서 한글과 영어·일본어를 혼용하지 마라.`;
 
 const NO_META_WRITING =
-  "[NO META WRITING] 장면만 직접 서술. 문체·말투·어미·서술 방식을 설명·평가하지 마라. Write the scene directly; never describe how it is being written.";
+  "[NO META WRITING] 장면만 직접 서술하라. 자신의 글쓰기 방식이나 표현 형식을 설명하지 마라.";
+
+const NO_STYLE_IMITATION =
+  "[NO STYLE IMITATION] 직전 출력의 문장 구조·말줄임·줄바꿈 패턴을 기계적으로 복사하지 마라.";
 
 /** Single language policy — OUTPUT LANG is the only language SoT. */
 export function buildOutputLangLines(bilingual?: BilingualDialoguePolicy): string {
+  const core = `서술은 해체(-다)만 사용.
+${OUTPUT_LANG_FOREIGN_MIXING}`;
+
   if (bilingual && isBilingualDialogueActive(bilingual)) {
     return `[OUTPUT LANG — BILINGUAL DIALOGUE]
-한국어 웹소설 문체.
-
-서술은 해체(-다)만 사용한다.
-${FOREIGN_MIXING_LINE}
-${NO_MIXED_SCRIPT_WORDS}
+${core}
 발화 대사 "…": ${bilingual.primaryDisplay} + ( ) 안 한국어 풀이 — 매 대사 줄에 [BILINGUAL DIALOGUE — creator setting override] 블록 준수.
 이중언어: "…" 안 ${bilingual.primaryDisplay} 허용; 한국어 서술·( ) 풀이에는 외국어 혼용 금지.`;
   }
   return `[OUTPUT LANG]
-한국어 웹소설 문체.
-
-서술은 해체(-다)만 사용한다.
-${FOREIGN_MIXING_LINE}
-${NO_MIXED_SCRIPT_WORDS}`;
+${core}`;
 }
 
 export function buildOpenRouterKoreanProseTopBlock(bilingual?: BilingualDialoguePolicy): string {
@@ -46,10 +41,10 @@ export function buildOpenRouterKoreanProseTopBlock(bilingual?: BilingualDialogue
 ${outputLang}
 
 === 서술 시점 (필수) ===
-- **지금 이 순간** 장면 안에서만 3인칭 RP 본문
+- 현재 장면 안에서만 서술한다.
 - ${NO_META_WRITING}
-- 금지: 장면 **밖** 해설·요약·계획·예고 (메타 서두·"다음 장면을~" 등)
-- 허용: 장면 안 서술·대사·감각 묘사 (세계관·말투에 맞는 표현 포함)`;
+- ${NO_STYLE_IMITATION}
+- 금지: 장면 밖 해설·요약·계획·예고.`;
 }
 
 /** @deprecated buildOpenRouterKoreanProseTopBlock() 사용 */

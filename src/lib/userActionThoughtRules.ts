@@ -57,32 +57,19 @@ export function formatUserMessageForPrompt(text: string, hasMindReading: boolean
 
 export function buildUserActionThoughtRule(hasMindReading: boolean): string {
   const lines = [
-    `[유저 입력 — 대사·지문·속마음 구분 — 필수]
-사용자 롤플레이 입력은 아래 규칙으로 구분된다. **괄호·별표 안은 절대 대사가 아니다.**`,
-    `- 별표 * * 한 쌍: 유저 **지문**(서술·행동 묘사) — 대사·속마음 아님`,
-    `- 괄호 ( ) · （ ） · [ ]: **대사 아님** — 내용에 따라 **행동 지문**(관찰 가능) 또는 **속마음**으로 자동 구분`,
-    `- 괄호 없이 **-다/-했다/-하며/-하고** 등 서술형: **지문/행동**(관찰 가능)`,
-    `- 그 외 구어체·말하기형: 유저 **대사** (큰따옴표 없이 입력해도 대사)`,
-    `- "…": **대사**`,
-    `- 「…」 · 『…』: **특수 고유명**(스킬명·기술명·주문명·시스템 표기) — 대사·속마음 아님`,
+    `[USER INPUT PARSING]
+" " = dialogue
+* * = observable action
+( ) = action or thought (not dialogue)
+「 」 = proper nouns only`,
   ];
 
   if (hasMindReading) {
     lines.push(
-      `캐릭터 설정에 **생각·마음 읽기·텔레파시** 능력이 있을 때만, ( ) 안 **속마음** 구간을 능력 범위 내에서 인지할 수 있다.
-* * 지문과 ( ) 행동 지문은 관찰·서술로 반응하라. 속마음은 그대로 인용·되풀이하지 말고 능력에 맞게만 반영하라.`
+      "When telepathy exists in character settings, ( ) thoughts may be perceived only within that ability — never quote or paraphrase them back."
     );
   } else {
-    lines.push(
-      `캐릭터에게 **생각·마음 읽기·텔레파시 능력이 없다** (설정에 없으면 없는 것).
-( ) 안 **속마음**에 대해 아래를 **절대 금지**:
-- 그 내용을 알고 있다고 서술·반응·대답
-- "속으로 ~ 생각하는 게 보인다", "마음이 읽힌다" 등 추론으로 간파
-- 유저 속마음을 인용·요약·되묻기
-
-* * 지문 · ( ) 행동 지문 · 서술형 지문은 **관찰 가능**하므로 표정·몸짓·동작에 맞게 반응할 수 있다.
-유저 **대사**만 말로 들은 것으로 처리하라.`
-    );
+    lines.push("Unless telepathy exists in character settings, thoughts are never observable.");
   }
 
   return lines.join("\n");

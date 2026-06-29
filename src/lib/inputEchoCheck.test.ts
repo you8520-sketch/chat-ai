@@ -131,8 +131,9 @@ describe("server under-length recovery gate", () => {
 
   it("recovery user message matches spec", () => {
     const msg = buildServerUnderLengthRecoveryUserMessage();
-    assert.match(msg, /85% 미달/);
-    assert.match(msg, /Sensory Shift/);
-    assert.match(msg, /현재 장면을 심화/);
+    assert.match(msg, /85%/);
+    assert.match(msg, /unfinished scene phases/i);
+    assert.match(msg, /deepen the current scene/i);
+    assert.doesNotMatch(msg, /Scene Blueprint/);
   });
 });

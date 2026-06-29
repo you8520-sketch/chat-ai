@@ -23,8 +23,8 @@ export const UNIFIED_TIER_MIN_CHARS = 2700;
 export const UNIFIED_TIER_MAX_CHARS = ABSOLUTE_MAX_RESPONSE_CHARS;
 /** 프롬프트 aim band 하한 (= 통과 최소) */
 export const UNIFIED_TIER_TARGET_RANGE_MIN_CHARS = UNIFIED_TIER_MIN_CHARS;
-/** 프롬프트 soft aim target · DB normalize 기본값 */
-export const UNIFIED_TIER_AIM_CHARS = 3000;
+/** 프롬프트 soft aim target · DB normalize 기본값 (MINIMUM_FLOOR와 분리) */
+export const UNIFIED_TIER_AIM_CHARS = 3200;
 export const UNIFIED_RESPONSE_LENGTH_TARGET = UNIFIED_TIER_AIM_CHARS;
 export type ResponseLengthTierTarget = typeof UNIFIED_RESPONSE_LENGTH_TARGET;
 
@@ -33,7 +33,7 @@ export const TARGET_LENGTH_TO_MAX_OUTPUT_TOKENS: Record<ResponseLengthTierTarget
   [UNIFIED_RESPONSE_LENGTH_TARGET]: ABSOLUTE_MAX_OUTPUT_TOKENS,
 };
 
-/** AI 출력 목표 분량 — 단일 tier (최소 2,700 · 목표 3,000 · 최대 5,000자) */
+/** AI 출력 목표 분량 — 단일 tier (최소 2,700 · 목표 3,200 · 최대 5,000자) */
 export const TARGET_RESPONSE_TIERS = [
   {
     id: "unified",
@@ -73,6 +73,7 @@ const TIER_BOUNDS: Record<
 };
 
 export function normalizeTargetResponseChars(value: unknown): number {
+  if (value == null) return DEFAULT_TARGET_RESPONSE_CHARS;
   const n = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(n)) return DEFAULT_TARGET_RESPONSE_CHARS;
   const rounded = Math.round(n);

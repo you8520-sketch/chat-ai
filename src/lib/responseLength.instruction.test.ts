@@ -37,10 +37,16 @@ describe("buildLengthInstruction", () => {
   it("uses Phase 13 LENGTH CONTROL block as sole numeric source", () => {
     const block = buildLengthInstruction();
     assert.match(block, /\[LENGTH CONTROL & SCENE EXPANSION\]/);
-    assert.match(block, /TARGET_LENGTH: 3,000\+ 한국어 글자/);
+    assert.match(block, /TARGET_LENGTH: 3,200\+ 한국어 글자/);
     assert.match(block, /MINIMUM_FLOOR: 2,700\+/);
     assert.match(block, /\[NO INPUT ECHO — STRICT\]/);
+    assert.match(block, /Never paraphrase the user's input/);
     assert.match(block, /\[SCENE CONTINUATION PRIORITY\]/);
+    assert.match(block, /\[NARRATIVE DENSITY\]/);
+    assert.match(block, /\[MOMENT-TO-MOMENT WRITING\]/);
+    assert.match(block, /\[NO GENERIC REACTIONS\]/);
+    assert.doesNotMatch(block, /8~10/);
+    assert.doesNotMatch(block, /4~5줄/);
     assert.doesNotMatch(block, /\[SCENE COMPLETION CONTROL\]/);
     assert.doesNotMatch(block, /\[LENGTH BUDGET\]/);
     assert.doesNotMatch(block, /\[SCENE COMPLETION\]/);
@@ -48,6 +54,12 @@ describe("buildLengthInstruction", () => {
     assert.doesNotMatch(block, /Write a highly detailed, immersive response/);
     assert.doesNotMatch(block, /end naturally when the moment is complete/);
     assert.doesNotMatch(block, /\[TIME DILATION — MICRO-PACING TECHNIQUE\]/);
+  });
+
+  it("null targetInput uses default aim (not floor)", () => {
+    const block = buildLengthInstruction(null);
+    assert.match(block, /TARGET_LENGTH: 3,200\+/);
+    assert.match(block, /MINIMUM_FLOOR: 2,700\+/);
   });
 
   it("allows user aim between floor and unified cap", () => {
@@ -60,17 +72,16 @@ describe("buildLengthInstruction", () => {
   it("legacy 2000/3000 DB values remap to unified aim in prompt", () => {
     for (const legacy of [2000, 3000]) {
       const block = buildLengthInstruction(legacy);
-      assert.match(block, /TARGET_LENGTH: 3,000\+ 한국어 글자/);
+      assert.match(block, /TARGET_LENGTH: 3,200\+ 한국어 글자/);
       assert.match(block, /MINIMUM_FLOOR: 2,700\+/);
       assert.doesNotMatch(block, /CEILING:/);
     }
   });
 
-  it("appendCompactTerminalLengthToUserTurn adds tail at user bottom", () => {
-    const out = appendCompactTerminalLengthToUserTurn("밤이 깊었어.", 3000);
-    assert.match(out, /^밤이 깊었어\./);
-    assert.match(out, /TARGET_LENGTH 3,000\+/);
-    assert.match(out, /단일 응답 최대 전개·미달 조기 종료 금지\.$/);
+  it("appendCompactTerminalLengthToUserTurn is deprecated passthrough", () => {
+    const out = appendCompactTerminalLengthToUserTurn("밤이 깊었어.", 3200);
+    assert.equal(out, "밤이 깊었어.");
+    assert.doesNotMatch(out, /TARGET_LENGTH/);
   });
 
   it("single-shot reminder defers to LENGTH CONTROL without Time Dilation", () => {
@@ -92,7 +103,7 @@ describe("buildLengthInstruction", () => {
 
   it("compact terminal tail uses tier constants at absolute end", () => {
     const tail = buildCompactTerminalLengthAbsoluteTail(undefined);
-    assert.match(tail, /TARGET_LENGTH 3,000\+/);
+    assert.match(tail, /TARGET_LENGTH 3,200\+/);
     assert.match(tail, /MINIMUM_FLOOR 2,700\+/);
     assert.match(tail, /단일 응답 최대 전개·미달 조기 종료 금지\./);
     assert.doesNotMatch(tail, /\[TERMINAL LENGTH AUTHORITY\]/);
@@ -101,8 +112,8 @@ describe("buildLengthInstruction", () => {
   });
 
   it("terminal override is compact tail only at absolute end", () => {
-    const block = buildTerminalLengthOverrideBlock(3000);
-    assert.equal(block, buildCompactTerminalLengthAbsoluteTail(3000));
+    const block = buildTerminalLengthOverrideBlock(3200);
+    assert.equal(block, buildCompactTerminalLengthAbsoluteTail(3200));
     assert.match(block, /단일 응답 최대 전개·미달 조기 종료 금지\.$/);
     assert.doesNotMatch(block, /<TURN_HANDOFF_AND_PACING>/);
     assert.doesNotMatch(block, /\[TERMINAL LENGTH AUTHORITY\]/);
@@ -161,7 +172,7 @@ describe("buildLengthInstruction", () => {
       assert.equal(countOccurrences(sys, "MINIMUM_FLOOR:"), 1);
       assert.equal(countOccurrences(sys, "CEILING:"), 0);
       assert.equal(countOccurrences(sys, "2,800"), 2, "LENGTH CONTROL + compact terminal tail cite user aim");
-      assert.equal(countOccurrences(sys, "3,000"), 0);
+      assert.equal(countOccurrences(sys, "3,200"), 0);
 
       assert.equal((sys.match(/<\/TURN_HANDOFF_AND_PACING>/g) ?? []).length, 1);
 

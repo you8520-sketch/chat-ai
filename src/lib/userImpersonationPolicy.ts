@@ -83,12 +83,8 @@ export function resolveUserImpersonationAllowance(sources: UserImpersonationSour
   return resolveFromOocBlocks([sources.personaDescription ?? "", sources.userNote ?? ""]);
 }
 
-/** OOC 허용 시 페르소나 맞춤 공동 서술 힌트 */
-export function buildOocCoNarrationHint(personaName: string): string {
-  const name = personaName.trim() || "the user character";
-  return `[OOC — co-narration permitted]
-User requested limited co-narration for "${name}" via persona/note OOC.
-- Mirror persona description and prior user dialogue for "${name}" tone.
-- Minimal assist ONLY within user-input intent — NO invented emotion/decision.
-- NOT unlimited possession; "${name}" stays believable and proportional.`;
+/** OOC 허용 시 — controlled possession / novel rules가 상세 정의; cross-ref만 */
+export function buildOocCoNarrationHint(_personaName: string): string {
+  return `[OOC CO-NARRATION]
+Follow [USER_PERSONA] and [NO GODMODDING].`;
 }

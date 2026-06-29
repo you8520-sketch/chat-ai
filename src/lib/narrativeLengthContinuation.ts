@@ -7,7 +7,6 @@ import {
   finalizeRecoveryMerge,
   meetsTierLengthRequirements,
   resolveResponseLengthTarget,
-  resolveTierMinimumKoreanWords,
   resolveTierMinimumRequired,
 } from "@/lib/responseLength";
 import {
@@ -31,28 +30,16 @@ export function needsVisibleLengthContinuation(
 export function buildVisibleLengthContinuationUserMessage(
   currentVisibleLen: number,
   targetInput?: number | null,
-  currentWordCount?: number
+  _currentWordCount?: number
 ): string {
   const tier = resolveResponseLengthTarget(targetInput).target;
   const minimum = resolveTierMinimumRequired(tier);
-  const minWords = resolveTierMinimumKoreanWords(tier);
-  const words = currentWordCount ?? 0;
   const needChars = Math.max(200, minimum - currentVisibleLen);
-  const wordLine =
-    minWords > 0
-      ? ` · 한글 단어 ${words.toLocaleString()}개 — 통과 최소 ${minimum.toLocaleString()}자 · ${minWords.toLocaleString()}단어 미만`
-      : ` — 통과 최소 ${minimum.toLocaleString()}자 미만`;
-  const needWordsLine =
-    minWords > 0
-      ? ` · 한글 단어 ${Math.max(50, minWords - words).toLocaleString()}개 이상`
-      : "";
-  return `[이어쓰기 — RP 분량 보강 (이번 턴 API 이어쓰기 1회 — 글자 minimum 미달 보정)]
-현재 표시 RP 글자수 ${currentVisibleLen.toLocaleString()}자${wordLine}.
+  return `[CONTINUATION — LENGTH SUPPLEMENT]
+Current visible length: ${currentVisibleLen.toLocaleString()} — below MINIMUM_FLOOR (${minimum.toLocaleString()}).
+Add at least ${needChars.toLocaleString()} more characters from the final character of the prior assistant message.
 
-직전 assistant 본문 **마지막 글자 바로 다음**부터, **이전 턴·이번 턴 서사를 자연스럽게 이어** 약 ${needChars.toLocaleString()}자 이상${needWordsLine} RP 본문·대사를 추가한다.
-
-절대 금지: 이전 문장·문단 반복(Echo) · HTML·\`\`\`html · 상태창 · 장면 밖 해설 · 새 시간/장면 도약
-한국어 3인칭 RP 본문만. 지금 장면 안에서만 이어간다.`;
+Never echo prior sentences · no HTML/status widget · no scene jump.`;
 }
 
 export type ContinueNarrativeIfUnderMinimumOpts = {

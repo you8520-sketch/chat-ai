@@ -88,15 +88,11 @@ import {
   resolveBilingualDialoguePolicyFromSources,
 } from "@/lib/bilingualDialoguePolicy";
 import {
-  buildEnglishSettingKoreanOutputRule,
-  buildKoreanOutputDirective,
-  KOREAN_NARRATION_ENDING_RULE,
   DIALOGUE_FORMAT_DIRECTIVE,
 } from "@/lib/promptTranslation";
 import {
   buildLengthInstruction,
   buildTerminalLengthOverrideBlock,
-  appendCompactTerminalLengthToUserTurn,
   resolveResponseLengthTarget,
 } from "@/lib/responseLength";
 import { buildTurnHandoffAndPacingBlock } from "@/lib/turnHandoffAndPacing";
@@ -330,16 +326,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     novelModeEnabled,
     userName: personaLabel,
   });
-
-  if (input.useEnglishCharacterPrompt) {
-    pushSection(
-      "english-setting-korean-output",
-      "[0a] Language rule (English settings → Korean output)",
-      "systemRules",
-      buildEnglishSettingKoreanOutputRule(bilingualDialoguePolicy),
-      isOpenRouter ? "cacheRules" : "dynamic"
-    );
-  }
 
   const archiveMemory = input.archiveMemory?.trim() ?? "";
 
@@ -672,26 +658,10 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
 
   if (!isOpenRouter) {
     pushSection(
-      "korean-output-directive",
-      "Korean output directive",
-      "systemRules",
-      buildKoreanOutputDirective(bilingualDialoguePolicy),
-      isOpenRouter ? "dynamic" : "dynamic"
-    );
-
-    pushSection(
       "dialogue-format-directive",
       "Dialogue format (absolute tail)",
       "systemRules",
       DIALOGUE_FORMAT_DIRECTIVE,
-      isOpenRouter ? "dynamic" : "dynamic"
-    );
-
-    pushSection(
-      "korean-narration-ending",
-      "Korean narration ending (absolute tail)",
-      "systemRules",
-      KOREAN_NARRATION_ENDING_RULE,
       isOpenRouter ? "dynamic" : "dynamic"
     );
   }
@@ -782,12 +752,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     if (emotionOverlay) {
       userTurnContent = `${userTurnContent}\n\n${emotionOverlay}`;
     }
-  }
-  if (isOpenRouter && !input.isContinue) {
-    userTurnContent = appendCompactTerminalLengthToUserTurn(
-      userTurnContent,
-      input.targetResponseChars
-    );
   }
 
   const estimatePayloadTokens = (hist: ContextBuildInput["shortTermHistory"]) =>

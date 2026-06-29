@@ -8,11 +8,9 @@ import {
 import { buildContinueNarrativeCommand } from "@/lib/continueNarrative";
 
 describe("buildSmartUserPersonaNarrationRules", () => {
-  it("references agency rule in one line", () => {
+  it("is deprecated empty — godmodding block covers standard turns", () => {
     const rules = buildSmartUserPersonaNarrationRules("백하율", "가이드");
-    assert.equal(rules, "[USER PERSONA NARRATION] [NO GODMODDING] 적용.");
-    assert.doesNotMatch(rules, /awareness/);
-    assert.doesNotMatch(rules, /FORBIDDEN/);
+    assert.equal(rules, "");
   });
 });
 
@@ -27,7 +25,8 @@ describe("buildNovelModeUserPersonaRules", () => {
   it("allows full user persona co-narration", () => {
     const rules = buildNovelModeUserPersonaRules("백하율", "가이드");
     assert.match(rules, /대사, 행동, 속마음/);
-    assert.match(rules, /웹소설/);
+    assert.match(rules, /Write naturally as continuous scene narration/);
+    assert.doesNotMatch(rules, /웹소설/);
     assert.doesNotMatch(rules, /\[A\] = AI character/);
   });
 });

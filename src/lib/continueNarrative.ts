@@ -54,8 +54,9 @@ export function formatRejectedDraftForRegenerate(text: string): string {
 export function buildRegenerateCoreDirective(_charName?: string): string {
   return `[REGENERATE INTENT — user wants a DIFFERENT story development]
 - Continue naturally from chat history and the fixed user anchor (same facts, setting, relationship stage).
-- Write a NEW [A] response with clearly different actions, dialogue, and emotional turn — NOT a paraphrase of the rejected draft.
-- Do NOT reuse key plot beats, closing hooks, or signature lines from [Rejected draft]; opening must diverge.`;
+- Regeneration must differ in: opening, action chain, emotional progression, ending.
+- NOT a paraphrase of the rejected draft — clearly different actions, dialogue, and emotional turn.
+- Do NOT reuse key plot beats, closing hooks, or signature lines from [Rejected draft].`;
 }
 
 export function buildRegenerateRejectedDraftBlock(rejectedAssistantDraft?: string | null): string {

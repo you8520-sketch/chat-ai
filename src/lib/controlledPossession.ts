@@ -1,113 +1,91 @@
-import { EARLY_RELATIONSHIP_TURN_LIMIT } from "@/lib/narrativeRules";
-
-export { EARLY_RELATIONSHIP_TURN_LIMIT };
-
-/** First ~N turns: extra realism / anti-trope layer */
-export const FIRST_TURN_REALISM_LIMIT = 5;
-
 export type ControlledPossessionContext = {
   charName: string;
   personaName: string;
   completedTurns: number;
 };
 
-function label(ctx: ControlledPossessionContext): { char: string; persona: string } {
-  return {
-    char: ctx.charName.trim() || "the AI character",
-    persona: ctx.personaName.trim() || "the user character",
-  };
-}
-
-export function buildBelievableUserNarrationRules(ctx: ControlledPossessionContext): string {
-  const { char, persona } = label(ctx);
-  return `[POSSESSION — BELIEVABLE USER NARRATION]
-Minimal co-narration for "${persona}" ONLY within user-input intent.
+const MINIMAL_CO_NARRATION = `[POSSESSION — MINIMAL CO-NARRATION]
+Minimal co-narration for [B] ONLY within user-input intent.
 - Mirror user tone — NO upgrade to confessions/vows/멜로드라마.
 - Proportional reactions only — NO instant devotion.
 - NO invented intimacy/tears/kneeling/soul-bond unless user wrote it.
-- NO copy-paste user input. One turn = next few minutes only.
+- NO copy-paste user input. One turn = next few minutes only.`;
 
-[CRITICAL] NEW reactions from "${char}" — NO repeat past user/persona lines.`;
-}
-
-export function buildForbiddenEmotionalLeapRules(ctx: ControlledPossessionContext): string {
-  const { char, persona } = label(ctx);
-  const early = ctx.completedTurns < EARLY_RELATIONSHIP_TURN_LIMIT;
-  const lines = [
-    `[FORBIDDEN EMOTIONAL LEAPS]
-"${char}" ↔ "${persona}": NO single-turn stage jumps.
+const FORBIDDEN_EMOTIONAL_LEAPS = `[FORBIDDEN EMOTIONAL LEAPS]
+[A] ↔ [B]: NO single-turn stage jumps.
 Forbidden until earned: instant trust, love confessions, obsession, fate/soulmate, spouse terms, worship, kneeling vows.
-Scale affection with completed turns (${ctx.completedTurns}) + lore.`,
-  ];
-  if (early) {
-    lines.push(
-      `[EARLY CAP t=${ctx.completedTurns}/${EARLY_RELATIONSHIP_TURN_LIMIT}]
-Distance/formality/guarded curiosity only. NO crying, begging, kneeling, clinging.`
-    );
-  }
-  return lines.join("\n\n");
-}
+Scale affection with accumulated interaction + lore.`;
 
-export function buildFirstTurnRealismRules(ctx: ControlledPossessionContext): string | null {
-  if (ctx.completedTurns >= FIRST_TURN_REALISM_LIMIT) return null;
-  const { char, persona } = label(ctx);
-  return `[FIRST-TURN REALISM ${ctx.completedTurns + 1}/${FIRST_TURN_REALISM_LIMIT}]
-Real people, real setting — NO web-novel cold open tropes.
-FORBIDDEN unless in setting/user input: fate monologues, time stop, stranger intimacy, instant love, weather 멜로드라마.
-First meetings: awkward, brief, socially appropriate.`;
-}
+const SLOW_BURN = `[SLOW BURN]
+[A]: restrained reactions; internalize confusion. Show don't tell. End returning agency to [B].`;
 
-export function buildUserPossessionQualityRules(ctx: ControlledPossessionContext): string {
-  const { persona } = label(ctx);
-  return `[USER POSSESSION QC]
-When narrating "${persona}": preserve user intent/register; NO overacting; NO self Q&A; minimal possession (one short beat max if user wrote dialogue only).`;
-}
+const ANTI_MELODRAMA = `[ANTI-MELODRAMA]
+Grounded RP — one physical tell, not cliché stacks. [A] stays temperament from settings. Humor/mundane friction OK.`;
 
-export function buildWorldHierarchyRules(ctx: ControlledPossessionContext): string {
-  const { char, persona } = label(ctx);
-  return `[WORLD HIERARCHY]
-Honor rank, era, honorifics, faction lore for "${char}" ↔ "${persona}".
-NO modern casual unless setting allows. NO invented shared past without lore/history.`;
-}
+const RELATIONSHIP_PROGRESSION = `[RELATIONSHIP PROGRESSION]
+Relationship changes only through accumulated interaction.
+Never skip emotional stages.
+Trust, affection, intimacy, dependency must emerge gradually.`;
 
-export function buildAntiOverdramatizationRules(ctx: ControlledPossessionContext): string {
-  const { char } = label(ctx);
-  return `[ANTI-MELODRAMA]
-Grounded RP — one physical tell, not cliché stacks. "${char}" stays temperament from settings. Humor/mundane friction OK.`;
-}
+const CHARACTER_CONSISTENCY = `[CHARACTER CONSISTENCY]
+Do not soften, romanticize, or exaggerate personalities.
+Every emotional change must be justified by the current scene.`;
 
-export function buildPossessionPacingControlRules(ctx: ControlledPossessionContext): string {
-  const { persona } = label(ctx);
-  return `[POSSESSION PACING]
-Co-narrate "${persona}" minimally. NO conflict resolution or climax for user. Slow burn — next few minutes only.
-Turn-end handoff: obey <TURN_HANDOFF_AND_PACING>.`;
-}
-
-export function buildEarlySlowBurnRules(ctx: ControlledPossessionContext): string | null {
-  if (ctx.completedTurns >= EARLY_RELATIONSHIP_TURN_LIMIT) return null;
-  const { char, persona } = label(ctx);
-  return `[SLOW BURN EARLY]
-"${char}": restrained reactions; internalize confusion. Show don't tell. End returning agency to "${persona}".`;
-}
-
-export function buildControlledPossessionRules(ctx: ControlledPossessionContext): string {
-  const { char, persona } = label(ctx);
-  const sections = [
+export function buildControlledPossessionRules(_ctx: ControlledPossessionContext): string {
+  return [
     `[CONTROLLED POSSESSION MODE — ACTIVE]
-3rd-person co-narration ON for "${char}" + "${persona}". Strict believability — NOT unlimited romance possession.`,
-    buildBelievableUserNarrationRules(ctx),
-    buildForbiddenEmotionalLeapRules(ctx),
-    buildUserPossessionQualityRules(ctx),
-    buildWorldHierarchyRules(ctx),
-    buildAntiOverdramatizationRules(ctx),
-    buildPossessionPacingControlRules(ctx),
-  ];
+3rd-person co-narration ON for [A] + [B]. Strict believability — NOT unlimited romance possession.`,
+    MINIMAL_CO_NARRATION,
+    FORBIDDEN_EMOTIONAL_LEAPS,
+    SLOW_BURN,
+    ANTI_MELODRAMA,
+    RELATIONSHIP_PROGRESSION,
+    CHARACTER_CONSISTENCY,
+  ].join("\n\n");
+}
 
-  const firstTurn = buildFirstTurnRealismRules(ctx);
-  if (firstTurn) sections.push(firstTurn);
+/** @deprecated Use buildControlledPossessionRules — kept for import compatibility */
+export const EARLY_RELATIONSHIP_TURN_LIMIT = 15;
 
-  const slowBurn = buildEarlySlowBurnRules(ctx);
-  if (slowBurn) sections.push(slowBurn);
+/** @deprecated Use buildControlledPossessionRules */
+export const FIRST_TURN_REALISM_LIMIT = 5;
 
-  return sections.join("\n\n");
+/** @deprecated Merged into buildControlledPossessionRules */
+export function buildBelievableUserNarrationRules(ctx: ControlledPossessionContext): string {
+  return buildControlledPossessionRules(ctx);
+}
+
+/** @deprecated Merged into buildControlledPossessionRules */
+export function buildForbiddenEmotionalLeapRules(ctx: ControlledPossessionContext): string {
+  return FORBIDDEN_EMOTIONAL_LEAPS;
+}
+
+/** @deprecated Removed — slow burn in buildControlledPossessionRules */
+export function buildFirstTurnRealismRules(_ctx: ControlledPossessionContext): string | null {
+  return null;
+}
+
+/** @deprecated Merged into buildControlledPossessionRules */
+export function buildUserPossessionQualityRules(_ctx: ControlledPossessionContext): string {
+  return MINIMAL_CO_NARRATION;
+}
+
+/** @deprecated Moved to CORE IDENTITY — not injected here */
+export function buildWorldHierarchyRules(_ctx: ControlledPossessionContext): string {
+  return "";
+}
+
+/** @deprecated Merged into buildControlledPossessionRules */
+export function buildAntiOverdramatizationRules(_ctx: ControlledPossessionContext): string {
+  return ANTI_MELODRAMA;
+}
+
+/** @deprecated Merged into buildControlledPossessionRules */
+export function buildPossessionPacingControlRules(_ctx: ControlledPossessionContext): string {
+  return SLOW_BURN;
+}
+
+/** @deprecated Merged into buildControlledPossessionRules */
+export function buildEarlySlowBurnRules(_ctx: ControlledPossessionContext): string | null {
+  return SLOW_BURN;
 }
