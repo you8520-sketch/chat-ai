@@ -18,6 +18,9 @@ describe("buildOpenRouterKoreanProseTopBlock", () => {
     assert.match(block, /\[OUTPUT LANG\]/);
     assert.match(block, /서술은 해체\(-다\)만 사용한다/);
     assert.match(block, /외국어 혼용 금지/);
+    assert.match(block, /\[NO MIXED-SCRIPT WORDS\]/);
+    assert.match(block, /\[NO META WRITING\]/);
+    assert.match(block, /Write the scene directly/);
     assert.doesNotMatch(block, /100% Korean/);
     assert.doesNotMatch(block, /Never echo system text/);
     assert.doesNotMatch(block, /No English stem \+ Korean inflection/);

@@ -70,6 +70,8 @@ describe("buildContext — English character settings", () => {
     assert.ok(built.systemPrompt.includes("中文"));
     assert.ok(built.systemPrompt.includes("OUTPUT LANG — BILINGUAL DIALOGUE"));
     assert.ok(built.systemPrompt.includes("외국어 혼용 금지"));
+    assert.ok(built.systemPrompt.includes("[NO MIXED-SCRIPT WORDS]"));
+    assert.ok(built.systemPrompt.includes("[NO META WRITING]"));
     assert.ok(!built.systemPrompt.includes("100% Korean in narration"));
     assert.ok(!built.systemPrompt.includes("No English stem + Korean inflection"));
     assert.ok(!built.systemPrompt.includes("[NO FOREIGN LANGUAGE MIXING]"));
@@ -95,6 +97,8 @@ describe("buildContext — English character settings", () => {
     assert.ok(!built.systemPrompt.includes("[NO HANJA SUBSTITUTION]"));
     assert.ok(!built.systemPrompt.includes("[NO FOREIGN LANGUAGE MIXING]"));
     assert.ok(built.systemPrompt.includes("외국어 혼용 금지"));
+    assert.ok(built.systemPrompt.includes("[NO MIXED-SCRIPT WORDS]"));
+    assert.ok(built.systemPrompt.includes("[NO META WRITING]"));
   });
 
   it("injects foreign-mixing rule for all OpenRouter models (Qwen and DeepSeek)", async () => {
