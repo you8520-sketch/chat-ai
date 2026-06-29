@@ -19,6 +19,7 @@ import {
   isOocCreativeHtmlRichEnough,
   oocFlashHtmlMustBeRejected,
   enforceOocAppearanceSectionFromSettingInner,
+  OOC_APPEARANCE_SERVER_PLACEHOLDER,
   buildOocCategoryCardReferenceTemplate,
   parseOocBracketCategories,
   parseOocCardTitle,
@@ -40,7 +41,6 @@ import {
 } from "@/lib/htmlVisualCardPolicy";
 import { stripAllStatusWindowOutputArtifacts } from "@/lib/statusMeta/stripArtifacts";
 import {
-  detectAppearancePolicyConflict,
   sanitizeVisualAppearance,
   type VisualAppearancePolicy,
 } from "@/lib/visualAnchor";
@@ -612,18 +612,13 @@ function extractCanonicalAppearanceProfileForOoc(canonicalBlock?: string): strin
 }
 
 function buildOocAppearanceCategoryPlaceholders(
-  categories: string[],
-  canonicalBlock?: string
+  categories: string[]
 ): Record<string, string> | undefined {
   const wantsAppearance = categories.some((c) =>
     /^(?:외형|외모)$/i.test(c.replace(/\([^)]*\)/g, "").trim())
   );
   if (!wantsAppearance) return undefined;
-  const profile = extractCanonicalAppearanceProfileForOoc(canonicalBlock);
-  if (!profile) return undefined;
-  return {
-    외형: `${profile}\n\n(설정 외형 그대로 — 은발·포마드·근위대장 클리셰·색상 상징 해석 금지)`,
-  };
+  return { 외형: OOC_APPEARANCE_SERVER_PLACEHOLDER };
 }
 
 function applyOocAppearanceSectionLock(
@@ -835,9 +830,8 @@ The user's OOC in [USER MESSAGE — this turn] is the ONLY layout/content spec �
 - [RECENT CHAT HISTORY] ≤ ${OOC_FLASH_RECENT_HISTORY_MAX_TOKENS.toLocaleString()} tokens when provided (recent raw only). Older/accumulated context → single [LONG-TERM MEMORY] (never duplicate).
 - If OOC says HTML without code fences — output raw HTML inside ONE \`\`\`html fence anyway (server requirement; chat renders it as formatted HTML).
 - When OOC lists bracketed categories (e.g. [외형 · 키워드 · …]), copy the [REFERENCE] skeleton from the user block — one \`<section>\` per category with visible gaps. Never cram all fields into one paragraph.
-- For "외형" / appearance sections: **DO NOT invent** — server replaces «외형» with [CANONICAL APPEARANCE] verbatim. You may write a placeholder; only other categories (키워드·모에화 등) are creative.
-- NEVER use job-title tropes (근위대장→은발·포마드·군복 클리셰), color symbolism, or traits not in [CANONICAL APPEARANCE].
-- When OOC asks for detail (자세히, 상세, 풍부): minimum **${OOC_DETAILED_MIN_PLAIN_CHARS} characters** of visible Korean text in the HTML (tags excluded); minimum 5 full-sentence bullet lines per category section — concrete scene examples, not one-line keywords.
+- «외형» / appearance section body is filled server-side from character setting — use the REFERENCE placeholder; focus creative detail on other categories.
+- When OOC asks for detail (자세히, 상세, 풍부): minimum **${OOC_DETAILED_MIN_PLAIN_CHARS} characters** of visible Korean text in the HTML (tags excluded); minimum 5 full-sentence bullet lines per category **except «외형»** — concrete scene examples, not one-line keywords.
 - Default OOC card style: white rounded card, soft section boxes, indigo category labels — simple and pretty (see REFERENCE in user block when present).
 - When OOC asks for readability (가독성, 줄바꿈, 항목 구분), stack list items as separate \`<p>\` lines inside each section.
 - Dark body text (#111–#333) on light backgrounds; mobile-responsive (max-width, padding, readable font-size).
@@ -892,7 +886,7 @@ export type HtmlVisualCardFlashContext = {
   userNote?: string;
   userPersona?: string;
   characterSetting?: string;
-  /** 설정 원문 외형 + APPEARANCE LOCK — OOC «외형» 최우선 */
+  /** 설정 [외형] 원문 — OOC «외형» 서버 lock 전용 (Flash 프롬프트 미주입) */
   canonicalAppearanceBlock?: string;
   appearanceSanitizePolicy?: VisualAppearancePolicy | null;
   memoryBlock?: string;
@@ -986,9 +980,6 @@ User note standing status window, extra HTML cards, and markdown status directiv
 Execute ONLY the chat OOC in [USER MESSAGE — this turn]. Do NOT append user-note status window or generic template fields.
 Use memory/setting/history only as lore context to fill what the OOC asks for.`
       : "",
-    ctx.canonicalAppearanceBlock?.trim()
-      ? ctx.canonicalAppearanceBlock.trim()
-      : "",
     !chatOocExclusive && policy?.standing != null
       ? `[HTML POLICY]\n${policy.standing ? "Standing status window — every turn" : "Turn-trigger HTML — this turn only"}`
       : "",
@@ -1009,8 +1000,7 @@ ${
   oocRequestsDetailedContent(ctx.userMessage)
     ? `[OOC DETAIL — REQUIRED]
 User asked for rich/detailed content. **Target ≥${OOC_DETAILED_MIN_PLAIN_CHARS} visible Korean characters** in the HTML (excluding tags).
-Each category section: at least 5 full-sentence bullet lines (concrete, comic, scene-specific — NOT keyword lists).
-"외형" is **SERVER-LOCKED** to [CANONICAL APPEARANCE] — do not write creative bullets; focus detail on other categories.`
+Each category section except «외형»: at least 5 full-sentence bullet lines (concrete, comic, scene-specific — NOT keyword lists).`
     : ""
 }
 
@@ -1020,10 +1010,7 @@ ${buildOocCategoryCardReferenceTemplate(
   oocCategories,
   {
     title: parseOocCardTitle(ctx.userMessage),
-    categoryPlaceholders: buildOocAppearanceCategoryPlaceholders(
-      oocCategories,
-      ctx.canonicalAppearanceBlock
-    ),
+    categoryPlaceholders: buildOocAppearanceCategoryPlaceholders(oocCategories),
   }
 )}
 \`\`\``
@@ -1086,18 +1073,11 @@ Match Korean tone when the scene is Korean. Never leave listed fields empty — 
     .join("\n\n");
 }
 
-function oocFlashBlockAccepted(
-  block: string | null,
-  userMessage: string,
-  appearancePolicy?: VisualAppearancePolicy | null
-): boolean {
+function oocFlashBlockAccepted(block: string | null, userMessage: string): boolean {
   if (!block) return false;
   const inner = unwrapHtmlVisualCardInner(block);
   if (oocFlashHtmlMustBeRejected(inner)) return false;
   if (!isOocCreativeHtmlRichEnough(inner, userMessage)) return false;
-  if (appearancePolicy && detectAppearancePolicyConflict(inner, appearancePolicy)) {
-    return false;
-  }
   return true;
 }
 
@@ -1185,9 +1165,8 @@ function buildOocCreativeFlashRetryBlock(
 Previous output failed quality check. User OOC requests a **category card** (추구미 / bracket sections).
 Rebuild per [REFERENCE]: one <section> per category with visible spacing:
 ${catList}
-${detailed ? `- EACH section: ≥5 full-sentence Korean bullet lines with concrete examples — NOT one-line keywords.` : "- Each section: substantive multi-line content, not keyword stubs."}
+${detailed ? `- EACH section except «외형»: ≥5 full-sentence Korean bullet lines with concrete examples — NOT one-line keywords.` : "- Each section except «외형»: substantive multi-line content, not keyword stubs."}
 - **Total visible text ≥${minChars} characters** (HTML tags excluded).
-- «외형»: **server overwrites with [CANONICAL APPEARANCE] only** — no invented hair/eyes/body/clichés.
 - Include «최종 결론» section if OOC asks.
 - FORBIDDEN: RP status-window fields, "—" placeholders, single run-on paragraph.`;
   }
@@ -1205,7 +1184,6 @@ Build a Twitter/X-style **anonymous message inbox** UI:
     return `[RETRY — ${reason}]
 You returned generic status fields, empty placeholders, OR a profile/header ONLY without the message list body.
 Build the FULL anonymous inbox UI: profile header PLUS at least 5 detailed fan questions AND 5 detailed answers (comic Korean).
-For «외형» / hair / eyes: copy ONLY [CANONICAL APPEARANCE] and APPEARANCE LOCK.
 Do NOT stop after the account bio.`;
   }
 
@@ -1326,7 +1304,7 @@ export async function generateHtmlVisualCardWithFlash(
       };
     };
     let block = normalizeHtmlFlashOutput(text, oocCustomHtml, opts.userMessage);
-    if (oocCustomHtml && block && !oocFlashBlockAccepted(block, opts.userMessage, opts.appearanceSanitizePolicy)) block = null;
+    if (oocCustomHtml && block && !oocFlashBlockAccepted(block, opts.userMessage)) block = null;
 
     if (oocCustomHtml && !block) {
       const plainChars = text.trim()
@@ -1348,7 +1326,7 @@ export async function generateHtmlVisualCardWithFlash(
       mergeUsage(second.usage);
       text = second.text;
       block = normalizeHtmlFlashOutput(text, oocCustomHtml, opts.userMessage);
-      if (block && !oocFlashBlockAccepted(block, opts.userMessage, opts.appearanceSanitizePolicy)) block = null;
+      if (block && !oocFlashBlockAccepted(block, opts.userMessage)) block = null;
     }
 
     if (oocCustomHtml && !block) {
@@ -1371,7 +1349,7 @@ export async function generateHtmlVisualCardWithFlash(
       mergeUsage(third.usage);
       text = third.text;
       block = normalizeHtmlFlashOutput(text, oocCustomHtml, opts.userMessage);
-      if (block && !oocFlashBlockAccepted(block, opts.userMessage, opts.appearanceSanitizePolicy)) block = null;
+      if (block && !oocFlashBlockAccepted(block, opts.userMessage)) block = null;
     }
 
     if (oocCustomHtml && !block && text.trim()) {
@@ -1403,7 +1381,7 @@ export async function generateHtmlVisualCardWithFlash(
       if (oocCustomHtml) {
         block = applyOocAppearanceSectionLock(block, opts.userMessage, opts.canonicalAppearanceBlock);
         block = applyAppearancePolicyToOocHtml(block, opts.appearanceSanitizePolicy);
-        if (!oocFlashBlockAccepted(block, opts.userMessage, opts.appearanceSanitizePolicy)) {
+        if (!oocFlashBlockAccepted(block, opts.userMessage)) {
           console.warn("[html-flash] OOC block failed final acceptance — discarding", {
             chatId: opts.chatId,
           });

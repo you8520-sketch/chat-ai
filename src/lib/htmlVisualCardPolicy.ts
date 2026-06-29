@@ -721,6 +721,9 @@ export function buildOocCategoryCardReferenceTemplate(
   return `<div style="max-width:480px;margin:16px auto;padding:16px 18px;border-radius:16px;background:#fff;border:1px solid #eceef3;box-shadow:0 4px 14px rgba(15,23,42,.06);font-family:system-ui,-apple-system,sans-serif;color:#202124;line-height:1.5;word-break:keep-all">${titleBlock}${sections}</div>`;
 }
 
+/** OOC REFERENCE «외형» placeholder — Flash 창작·서버 lock 전용 */
+export const OOC_APPEARANCE_SERVER_PLACEHOLDER = "（설정 외형 — 출력 후 서버 주입）";
+
 /** 설정 [외형] 원문 → OOC 카드 bullet (창작·확장 없음) */
 export function splitSettingAppearanceToBullets(profile: string): string[] {
   const t = profile.trim();

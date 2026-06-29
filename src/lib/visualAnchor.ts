@@ -685,25 +685,16 @@ export function sanitizeVisualAppearance(text: string, policy: VisualAppearanceP
   return kept.join("\n\n");
 }
 
-/** OOC HTML Flash — 설정 원문 외형 + APPEARANCE LOCK (대화 drift보다 우선) */
+/** OOC HTML — 서버 lock/sanitize용 설정 외형 원문 (Flash 프롬프트에는 주입하지 않음) */
 export function buildFlashCanonicalAppearanceBlock(
   chunks: CharacterChunk[],
   charName: string,
-  policy: VisualAppearancePolicy,
+  _policy: VisualAppearancePolicy,
   opts?: { personaName?: string }
 ): string {
   const body = extractMainCharacterAppearanceBody(chunks, charName, opts);
+  if (body) return `[외형 profile]\n${body}`;
   const appearanceLines = collectCharacterAppearanceText(chunks, charName, opts);
-  const lock = buildVisualAnchorReminder(policy);
-  if (!body && !appearanceLines && !lock) return "";
-
-  const parts = [
-    "[CANONICAL APPEARANCE — AUTHORITATIVE; READ BEFORE WRITING «외형»]",
-    "This is the ONLY source for hair color, eye color, height, scars, and body traits in OOC HTML.",
-    "IGNORE conflicting hair/eye colors in [RECENT CHAT HISTORY], prior assistant turns, or generic tropes.",
-  ];
-  if (body) parts.push(`[외형 profile]\n${body}`);
-  else if (appearanceLines) parts.push(`[외형 lines from setting]\n${appearanceLines}`);
-  if (lock) parts.push(lock);
-  return parts.join("\n\n");
+  if (appearanceLines) return `[외형 lines from setting]\n${appearanceLines}`;
+  return "";
 }
