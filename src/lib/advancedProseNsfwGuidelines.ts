@@ -1,5 +1,8 @@
 /** Merged shared prose + NSFW writing rules — single [ADVANCED PROSE & NSFW GUIDELINES] SoT. */
 
+import { SPEECH_METADATA_INVISIBLE_RULE } from "@/lib/speechMetadataPolicy";
+import { WEBNOVEL_OUTPUT_FORMAT_BLOCK } from "@/lib/webnovelOutputFormat";
+
 export type AdvancedProseNsfwOpts = {
   nsfwEnabled: boolean;
   /** OpenRouter 19+ — literary tension add-on (all OR models when NSFW) */
@@ -30,6 +33,8 @@ Prefer actions, sensations, and atmosphere before explanation.`;
 
 const NO_TEMPLATE_WRITING = `[NO TEMPLATE WRITING]
 Do not reuse the same reaction patterns, paragraph rhythm, or sentence structures across turns.`;
+
+const DO_NOT_NARRATE_PROMPT_METADATA = SPEECH_METADATA_INVISIBLE_RULE;
 
 const DIALOGUE_NARRATION_STRUCTURE_RULE = `[DIALOGUE & NARRATION]
 - 하나의 발화는 하나의 인용문으로 유지할 것.
@@ -91,9 +96,13 @@ export function buildAdvancedProseNsfwGuidelines(opts: AdvancedProseNsfwOpts): s
   const lines: string[] = [
     "[ADVANCED PROSE & NSFW GUIDELINES]",
     "",
+    WEBNOVEL_OUTPUT_FORMAT_BLOCK,
+    "",
     ABSOLUTE_PROHIBITION_RULES,
     "",
     NO_STAGE_DIRECTIONS,
+    "",
+    DO_NOT_NARRATE_PROMPT_METADATA,
     "",
     NO_ABSTRACT_SUMMARIES,
     "",

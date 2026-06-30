@@ -44,6 +44,9 @@ describe("buildLengthInstruction", () => {
     assert.match(block, /\[SCENE CONTINUATION PRIORITY\]/);
     assert.match(block, /\[NARRATIVE DENSITY\]/);
     assert.match(block, /\[MOMENT-TO-MOMENT WRITING\]/);
+    assert.match(block, /한 문단에 병합하라는 뜻이 아니다/);
+    assert.match(block, /한 줄·한 문단에 붙여 쓰라는 뜻이 아니다/);
+    assert.doesNotMatch(block, /따라붙게 한다/);
     assert.match(block, /\[NO GENERIC REACTIONS\]/);
     assert.doesNotMatch(block, /8~10/);
     assert.doesNotMatch(block, /4~5줄/);
@@ -62,11 +65,13 @@ describe("buildLengthInstruction", () => {
     assert.match(block, /MINIMUM_FLOOR: 2,700\+/);
   });
 
-  it("allows user aim between floor and unified cap", () => {
-    assert.equal(normalizeTargetResponseChars(2800), 2800);
-    const block = buildLengthInstruction(2800);
-    assert.match(block, /TARGET_LENGTH: 2,800\+/);
-    assert.match(block, /MINIMUM_FLOOR: 2,700\+/);
+  it("ignores legacy per-user aim — always unified 3200 / 2700", () => {
+    for (const legacy of [2400, 2700, 2800, 3000]) {
+      assert.equal(normalizeTargetResponseChars(legacy), 3200);
+      const block = buildLengthInstruction(legacy);
+      assert.match(block, /TARGET_LENGTH: 3,200\+ 한국어 글자/);
+      assert.match(block, /MINIMUM_FLOOR: 2,700\+/);
+    }
   });
 
   it("legacy 2000/3000 DB values remap to unified aim in prompt", () => {
@@ -166,14 +171,14 @@ describe("buildLengthInstruction", () => {
       const sys = built.systemPrompt ?? "";
       const lengthSec = built.meta.trackedSections?.find((s) => s.id === "rule-length-control");
       assert.ok(lengthSec?.text);
-      assert.equal(lengthSec!.text, buildLengthInstruction(2800));
+      assert.equal(lengthSec!.text, buildLengthInstruction(3200));
 
       assert.ok(countOccurrences(sys, "[LENGTH CONTROL & SCENE EXPANSION]") >= 1);
       assert.equal(countOccurrences(sys, "TARGET_LENGTH:"), 1);
       assert.equal(countOccurrences(sys, "MINIMUM_FLOOR:"), 1);
       assert.equal(countOccurrences(sys, "CEILING:"), 0);
-      assert.equal(countOccurrences(sys, "2,800"), 2, "LENGTH CONTROL + compact terminal tail cite user aim");
-      assert.equal(countOccurrences(sys, "3,200"), 0);
+      assert.equal(countOccurrences(sys, "3,200"), 2, "LENGTH CONTROL + compact terminal tail cite unified aim");
+      assert.equal(countOccurrences(sys, "2,800"), 0);
 
       assert.equal((sys.match(/<\/TURN_HANDOFF_AND_PACING>/g) ?? []).length, 1);
 
@@ -200,11 +205,11 @@ describe("buildLengthInstruction", () => {
       assert.ok(handoffSec?.text);
       assert.match(handoffSec!.text, /<TURN_HANDOFF_AND_PACING>/);
       assert.ok(
-        built.systemPrompt.trimEnd().endsWith(buildTerminalLengthOverrideBlock(2800).trim()),
+        built.systemPrompt.trimEnd().endsWith(buildTerminalLengthOverrideBlock(3200).trim()),
         "terminal override must be last block in full system prompt"
       );
       assert.ok(
-        dyn.trimEnd().endsWith(buildTerminalLengthOverrideBlock(2800).trim()),
+        dyn.trimEnd().endsWith(buildTerminalLengthOverrideBlock(3200).trim()),
         "terminal override must be last block in OpenRouter dynamicBlock"
       );
     });

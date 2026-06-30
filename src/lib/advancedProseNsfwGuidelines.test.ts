@@ -14,6 +14,8 @@ import {
 describe("buildAdvancedProseNsfwGuidelines", () => {
   it("SFW mode uses unified block without NSFW section", () => {
     const block = buildAdvancedProseNsfwGuidelines({ nsfwEnabled: false });
+    assert.match(block, /\[WEBNOVEL OUTPUT FORMAT\]/);
+    assert.doesNotMatch(block, /ALWAYS starts a new paragraph/);
     assert.match(block, /=== 절대 금지 규칙 ===/);
     assert.match(block, /\[NO STAGE DIRECTIONS\]/);
     assert.match(block, /\[NO ABSTRACT SUMMARIES\]/);

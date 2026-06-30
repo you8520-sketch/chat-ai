@@ -91,6 +91,7 @@ body {
 :root {
   --font-size-chat-base: 0.9375rem; /* ~15px @ 16px root — 모바일 */
   --line-height-chat-base: 1.65;
+  --chat-narration-color: #fafafa;
 }
 
 @media (min-width: 768px) {
@@ -103,6 +104,10 @@ body {
 .chat-readability-root {
   font-size: var(--font-size-chat, var(--font-size-chat-base));
   line-height: var(--line-height-chat, var(--line-height-chat-base));
+}
+
+.chat-novel-prose {
+  color: var(--chat-narration-color, #fafafa);
 }
 
 /* OOC 요청 상태창 — 마크다운 pipe table */

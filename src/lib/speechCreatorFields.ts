@@ -1,4 +1,5 @@
 import type { SpeechProfile } from "@/lib/speechLock/types";
+import { formatSpeechSectionAsMetadata } from "@/lib/speechMetadataPolicy";
 
 /** 캐릭터 제작 — 말투 세분화 입력 */
 export type SpeechCreatorInput = {
@@ -95,13 +96,17 @@ export function composeExampleDialog(input: SpeechCreatorInput): string {
     parts.push(SPEECH_CONSISTENCY_BLOCK);
   }
   if (input.speech_traits.trim()) {
-    parts.push(`[말투 — 특징]\n${input.speech_traits.trim()}`);
+    parts.push(
+      formatSpeechSectionAsMetadata("[말투 — 특징]", input.speech_traits.trim())
+    );
   }
   if (input.speech_forbidden?.trim()) {
-    parts.push(`[금지 말투]\n${input.speech_forbidden.trim()}`);
+    parts.push(`[dialogue_avoid — generation only, never narrate]\n${input.speech_forbidden.trim()}`);
   }
   if (input.speech_personality.trim()) {
-    parts.push(`[말투 — 성격]\n${input.speech_personality.trim()}`);
+    parts.push(
+      formatSpeechSectionAsMetadata("[말투 — 성격]", input.speech_personality.trim())
+    );
   }
   return parts.join("\n\n");
 }

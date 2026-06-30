@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { estimateTokens } from "@/lib/tokenEstimate";
 import {
+  buildRegenerateDivergenceSummary,
   buildRegenerateOocPriorityPrompt,
   buildRegenerateSystemDirective,
   buildRegenerateUserPrompt,
   formatRejectedDraftForRegenerate,
   oocOverridesRegenerateRpDirective,
+  REGENERATE_DIVERGENCE_SUMMARY_MAX_TOKENS,
   REGENERATE_REJECTED_DRAFT_MIN_CHARS,
 } from "@/lib/continueNarrative";
 
@@ -50,6 +53,7 @@ describe("regenerate OOC priority", () => {
     assert.match(block, /REGEN_ATTEMPT 1730000000-abc123/i);
     assert.doesNotMatch(block, /\[REGENERATE INTENT/i);
     assert.doesNotMatch(block, /Rejected draft/i);
+    assert.doesNotMatch(block, /divergence reference/i);
   });
 
   it("system directive includes regen attempt nonce", () => {
@@ -61,16 +65,60 @@ describe("regenerate OOC priority", () => {
     assert.match(block, /REGEN_ATTEMPT 1730000000-xyz/i);
   });
 
-  it("system directive includes rejected draft for divergence", () => {
+  it("system directive uses compact divergence summary by default", () => {
+    const draft = [
+      "*테라스에서 레온이 난간에 기대어 있었다.*",
+      "",
+      "*렌이 다가오자 한 걸음 물러섰다.*",
+      "",
+      "\"세렌티아의 왕족께서 이런 누추한 곳엔 어인 일이십니까.\"",
+      "",
+      "*그는 시선을 피하며 연회장 쪽을 가리켰다.*",
+      "",
+      "*마지막으로 차가운 표정으로 고개를 숙였다.*",
+    ].join("\n");
+
+    const block = buildRegenerateSystemDirective({
+      charName: "레온",
+      rejectedAssistantDraft: draft,
+    });
+
+    assert.match(block, /MANDATORY DIVERGENCE/i);
+    assert.match(block, /divergence reference \(summary only/i);
+    assert.match(block, /Opening situation:/i);
+    assert.match(block, /Key dialogue beats:/i);
+    assert.match(block, /Ending hook:/i);
+    assert.match(block, /테라스/);
+    assert.doesNotMatch(block, /\[Rejected draft — do NOT repeat/i);
+    assert.ok(estimateTokens(block) <= REGENERATE_DIVERGENCE_SUMMARY_MAX_TOKENS + 400);
+  });
+
+  it("system directive can include full rejected draft when explicitly enabled", () => {
     const block = buildRegenerateSystemDirective({
       charName: "에쉬",
       rejectedAssistantDraft: "에쉬가 손을 내밀었다. \"같이 가자.\"",
+      includeFullRejectedDraft: true,
     });
-    assert.match(block, /MANDATORY DIVERGENCE/i);
-    assert.match(block, /Rejected draft/i);
+    assert.match(block, /\[Rejected draft — do NOT repeat/i);
     assert.match(block, /손을 내밀었다/);
-    assert.match(block, /Regeneration must differ in: opening, action chain, emotional progression, ending/);
-    assert.doesNotMatch(block, /CHAT OOC takes priority/i);
+    assert.doesNotMatch(block, /Opening situation:/i);
+  });
+
+  it("divergence summary stays within max token budget for long drafts", () => {
+    const long = [
+      "*".repeat(20) + " " + "가".repeat(1200),
+      "",
+      "*중간 행동 " + "나".repeat(800) + "*",
+      "",
+      "\"대사 " + "다".repeat(200) + "\"",
+      "",
+      "*끝 장면 " + "라".repeat(1200) + "*",
+    ].join("\n");
+
+    const summary = buildRegenerateDivergenceSummary(long);
+    assert.ok(summary.length > 0);
+    assert.ok(estimateTokens(summary) <= REGENERATE_DIVERGENCE_SUMMARY_MAX_TOKENS);
+    assert.doesNotMatch(summary, /\[Rejected draft/i);
   });
 
   it("formatRejectedDraftForRegenerate preserves at least min chars when truncating", () => {

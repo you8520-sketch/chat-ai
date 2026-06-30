@@ -3,6 +3,7 @@ import {
   DEFAULT_CHAT_DISPLAY_PREFS,
   loadChatDisplayPrefs,
   normalizeFontSizePreset,
+  normalizeReadableTextColor,
   normalizeShowCharacterPortrait,
   normalizeStreamIntervalMs,
   streamCharsPerTickForInterval,
@@ -37,6 +38,14 @@ function normalizeDisplayPrefs(raw: Partial<ChatDisplayPrefs> | undefined): Chat
     streamIntervalMs,
     streamCharsPerTick: streamCharsPerTickForInterval(streamIntervalMs),
     fontSizePreset: normalizeFontSizePreset(raw.fontSizePreset ?? raw.fontSizePx),
+    narrationColor: normalizeReadableTextColor(
+      raw.narrationColor,
+      DEFAULT_CHAT_DISPLAY_PREFS.narrationColor
+    ),
+    userNarrationColor: normalizeReadableTextColor(
+      raw.userNarrationColor,
+      DEFAULT_CHAT_DISPLAY_PREFS.userNarrationColor
+    ),
     showCharacterPortrait: normalizeShowCharacterPortrait(raw.showCharacterPortrait),
   };
 }

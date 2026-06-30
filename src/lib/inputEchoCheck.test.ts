@@ -116,13 +116,14 @@ describe("inputEchoCheck", () => {
 });
 
 describe("server under-length recovery gate", () => {
-  it("85% floor for target 2400 is 2040", () => {
-    assert.equal(resolveServerUnderLengthRecoveryFloor(2400), 2040);
+  it("85% floor uses unified aim 3200 → 2720", () => {
+    assert.equal(resolveServerUnderLengthRecoveryFloor(2400), 2720);
+    assert.equal(resolveServerUnderLengthRecoveryFloor(3200), 2720);
   });
 
   it("needs recovery for clean stop below 85%", () => {
     assert.equal(needsServerUnderLengthRecovery("가".repeat(1600), "stop", 2400), true);
-    assert.equal(needsServerUnderLengthRecovery("가".repeat(2100), "stop", 2400), false);
+    assert.equal(needsServerUnderLengthRecovery("가".repeat(2800), "stop", 2400), false);
   });
 
   it("does not trigger on MAX_TOKENS", () => {

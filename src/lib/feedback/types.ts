@@ -80,8 +80,6 @@ export type GenerationContextInput = {
   completedTurns: number;
   targetResponseChars: number;
   userImpersonation: boolean;
-  includedChunkIds: string[];
-  skippedChunkIds?: string[];
   truncatedMemory?: boolean;
   model: string;
   provider: string;

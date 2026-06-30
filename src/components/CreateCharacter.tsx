@@ -113,7 +113,7 @@ export default function CreateCharacter({
   const [editLoadError, setEditLoadError] = useState("");
   const [draftSavedAt, setDraftSavedAt] = useState<number | null>(null);
   const [draftFlash, setDraftFlash] = useState(false);
-  const [statusWidgetEnabled, setStatusWidgetEnabled] = useState(false);
+  const [statusWidgetEnabled, setStatusWidgetEnabled] = useState(true);
   const [statusWidget, setStatusWidget] = useState<StatusWidget>(() =>
     characterStatusWidgetOrDefault(null)
   );

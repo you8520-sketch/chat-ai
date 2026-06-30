@@ -163,9 +163,6 @@ ${charName}: 무섭다면, 제 옆에 있으면 됩니다.`,
     },
   ];
 
-  const contextualLore = `[CONTEXTUAL LORE · matched keywords: 실종, 그림자]
-3년 전 실종 사건 당시 목격자들은 '그림자가 사람을 삼켰다'고 증언했다. 공식 기록에는 남지 않았다.`;
-
   const recentNarrativeContext = `[RECENT NARRATIVE CONTEXT · turn 8]
 렌과 백하율은 골목 입구에서 멈춰 섰고, 멀리서 금속성 소리가 울렸다.`;
 
@@ -190,13 +187,12 @@ ${charName}: 무섭다면, 제 옆에 있으면 됩니다.`,
     userImpersonation: false,
     novelModeEnabled: false,
     targetResponseChars: 2500,
-    contextualLore,
     recentNarrativeContext,
     keywordLorebookBlock: "[KEYWORD LOREBOOK]\n금속성 소리: 감시자 순찰의 신호음일 수 있다.",
   };
 }
 
-async function loadFromDb(opts: CliOpts) {
+export async function loadFromDb(opts: Pick<CliOpts, "chatId" | "userId" | "characterId" | "modelId" | "provider">) {
   const { getDb } = await import("../src/lib/db");
   const { loadCharacterChunks } = await import("../src/lib/characterChunks");
   const { formatSelectedPersonaForPrompt } = await import("../src/lib/userPersonas");
@@ -285,15 +281,8 @@ async function loadFromDb(opts: CliOpts) {
     userName: personaDisplayName,
   });
 
-  const recentContextForRag = recentHistory
-    .slice(-6)
-    .map((m) => m.content)
-    .join("\n");
   const memoryLayers = buildHierarchicalMemoryPromptLayers({
     chatId: Number(chat.id),
-    characterChunks: chunks,
-    userMessage: currentUserMessage,
-    recentContext: recentContextForRag,
     completedTurns: completedTurns.length,
     modelId: opts.modelId,
     provider: opts.provider,
@@ -325,7 +314,6 @@ async function loadFromDb(opts: CliOpts) {
     userImpersonation: Number(chat.user_impersonation) === 1,
     novelModeEnabled: Number(chat.novel_mode) === 1,
     targetResponseChars: Number(chat.target_response_chars ?? 2500),
-    contextualLore: memoryLayers.contextualLore || undefined,
     recentNarrativeContext: memoryLayers.recentNarrativeContext || undefined,
     keywordLorebookBlock: undefined as string | undefined,
   };
@@ -382,7 +370,6 @@ async function main() {
     userPersonaGender: fixture.userPersonaGender,
     provider: opts.provider,
     genres: fixture.genres,
-    contextualLore: fixture.contextualLore,
     recentNarrativeContext: fixture.recentNarrativeContext,
     keywordLorebookBlock: fixture.keywordLorebookBlock,
     geminiStaticDynamicMode: opts.provider === "gemini",

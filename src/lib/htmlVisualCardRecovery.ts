@@ -1022,7 +1022,7 @@ Use clean card layout: white rounded container, one soft-gradient section per ca
       ? `[PREVIOUS TURN HTML CARD — style & continuity reference]\n${previousHtml}`
       : "",
     ctx.characterSetting?.trim()
-      ? `[CHARACTER & WORLD SETTING — CORE IDENTITY]\n${clipHead(ctx.characterSetting.trim(), settingMax)}`
+      ? `[CHARACTER CANON — FLASH CONTEXT]\n${clipHead(ctx.characterSetting.trim(), settingMax)}`
       : "",
     buildFlashHistoryMemoryGuidance(ctx.userMessage, historyMaxTokens),
     userPersonaClipped ? `[USER PERSONA]\n${userPersonaClipped}` : "",

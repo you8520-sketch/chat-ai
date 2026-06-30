@@ -134,7 +134,7 @@ export default function NovelText({
       ? (display?.userNarrationColor ?? "#a1a1aa")
       : isAuthorMode
         ? (display?.userNarrationColor ?? "#a1a1aa")
-        : (display?.narrationColor ?? "#f4f4f5");
+        : (display?.narrationColor ?? "#fafafa");
   const dialogueColor =
     variant === "user"
       ? (display?.userDialogueColor ?? "#e4e4e7")
@@ -172,7 +172,7 @@ export default function NovelText({
 
   if (centered) {
     return (
-      <p className="text-center" style={typography}>
+      <p className="chat-novel-prose text-center" style={typography}>
         {displayParagraphs.map((para, i) => (
           <span
             key={i}
@@ -199,7 +199,7 @@ export default function NovelText({
   }
 
   return (
-    <div style={typography}>
+    <div className="chat-novel-prose" style={typography}>
       {displayParagraphs.map((para, i) => (
         <p
           key={i}

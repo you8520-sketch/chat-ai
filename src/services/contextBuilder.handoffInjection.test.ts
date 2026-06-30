@@ -10,6 +10,7 @@ import assert from "node:assert/strict";
 import { describe, it, before } from "node:test";
 import type { buildContext as BuildContextFn } from "./contextBuilder";
 import { buildTurnHandoffAndPacingBlock } from "@/lib/turnHandoffAndPacing";
+import { buildCompactTerminalLengthAbsoluteTail } from "@/lib/responseLength";
 import { OPENROUTER_QWEN_37_MAX_MODEL, GEMINI_CHAT_FLASH_25 } from "@/lib/chatModels";
 import type { CharacterChunk } from "@/types";
 
@@ -111,6 +112,24 @@ describe("buildContext — TURN_HANDOFF_AND_PACING injection", () => {
         `${label}: expected one full handoff block`
       );
     }
+  });
+
+  it("OpenRouter auto-continue: compact terminal length tail on user turn", () => {
+    const built = buildContext({
+      charName: "Test",
+      chunks: [sampleChunk],
+      userNickname: "User",
+      shortTermHistory: [],
+      currentUserMessage: "[SYSTEM DIRECTIVE: CONTINUE THE NARRATIVE]",
+      nsfw: true,
+      isContinue: true,
+      modelId: OPENROUTER_QWEN_37_MAX_MODEL,
+      provider: "openrouter",
+    });
+    const lastUser = built.history[built.history.length - 1];
+    assert.equal(lastUser?.role, "user");
+    const tail = buildCompactTerminalLengthAbsoluteTail(undefined);
+    assert.ok(lastUser!.content.includes(tail), "continue turns must get user-bottom length recency");
   });
 
   it("documents cross-reference sections (not duplicate blocks)", () => {

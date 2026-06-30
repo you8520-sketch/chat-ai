@@ -25,7 +25,8 @@ describe("buildNovelModeUserPersonaRules", () => {
   it("allows full user persona co-narration", () => {
     const rules = buildNovelModeUserPersonaRules("백하율", "가이드");
     assert.match(rules, /대사, 행동, 속마음/);
-    assert.match(rules, /Write naturally as continuous scene narration/);
+    assert.match(rules, /scene progression continuous/i);
+    assert.match(rules, /never means merging narration and spoken dialogue into one paragraph/i);
     assert.doesNotMatch(rules, /웹소설/);
     assert.doesNotMatch(rules, /\[A\] = AI character/);
   });

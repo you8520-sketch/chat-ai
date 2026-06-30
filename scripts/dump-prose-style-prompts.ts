@@ -95,7 +95,7 @@ async function main() {
 
 OpenRouter 조립 순서 (요약):
   [TOP] Korean prose → [BILINGUAL]? → co-narration → godmodding → [CORE RP]
-  → CORE IDENTITY(+캐릭터 speech chunk) → IDENTITY/RULES → [ADVANCED PROSE]
+  → CHARACTER CANON(+캐릭터 speech chunk) → IDENTITY/RULES → [ADVANCED PROSE]
   → dynamic: 장르 Style → LENGTH → TURN_HANDOFF → REGEN? → terminal length
 Gemini 추가 tail: dialogue-format only (language tails removed — OUTPUT LANG + PROSE STYLE)
 DeepSeek: user 턴 직전 bottom reminder

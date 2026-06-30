@@ -36,14 +36,10 @@ import { emptyMemoryInjection, isMemoryFeatureEnabled } from "./memory-feature";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
 import {
   resolveMinNarrativeContext,
-  resolveRagHitLimit,
   resolveRecentNarrativeContextLimit,
   shouldIncludeArchiveAlways,
 } from "@/lib/contextTrack";
-import { filterCharacterChunksForRag } from "@/lib/characterCoreIdentity";
 import { buildRecentNarrativeContextBlock } from "./memory-narrative-context";
-import { search as vectorStoreSearch, buildContextualLoreBlock } from "./vectorStore";
-import type { CharacterChunk } from "@/types";
 import type { MemoryInjection, MemorySnapshot, MemoryTier } from "./memory-types";
 
 export type { MemoryTier, MemoryInjection, MemorySnapshot } from "./memory-types";
@@ -133,34 +129,20 @@ export function resolveMemoryTier(user: User): MemoryTier {
  */
 export function buildHierarchicalMemoryPromptLayers(opts: {
   chatId: number;
-  characterChunks: CharacterChunk[];
-  userMessage: string;
-  recentContext?: string;
   completedTurns: number;
   modelId?: string | null;
   provider?: "gemini" | "openrouter";
-  /** Gemini bulk RAG escalation — resolveRagHitLimit 대체 */
-  ragLimitOverride?: number;
   /** 재생성 — 해당 assistant가 마지막인 요약 블록 제외 */
   excludeAssistantMessageId?: number | null;
 }): {
-  contextualLore: string;
   recentNarrativeContext: string;
 } {
   if (!isMemoryFeatureEnabled()) {
-    return { contextualLore: "", recentNarrativeContext: "" };
+    return { recentNarrativeContext: "" };
   }
-  const ragLimit = opts.ragLimitOverride ?? resolveRagHitLimit(opts.modelId, opts.provider);
   const narrativeLimit = resolveRecentNarrativeContextLimit(opts.modelId, opts.provider);
   const narrativeMin = resolveMinNarrativeContext(opts.modelId, opts.provider);
-  const ragHits = vectorStoreSearch(
-    filterCharacterChunksForRag(opts.characterChunks),
-    opts.userMessage,
-    opts.recentContext ?? "",
-    ragLimit
-  );
   return {
-    contextualLore: buildContextualLoreBlock(ragHits),
     recentNarrativeContext: buildRecentNarrativeContextBlock(
       opts.chatId,
       opts.completedTurns,

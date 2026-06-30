@@ -198,7 +198,7 @@ ${NO_INPUT_ECHO_RULE}
 
 - 짧은 유저 입력에 동조(Mirroring) 금지 — 장문 출력
 - 새 서사 비트(행동·반응·전환)로 확장; 문단 수를 맞추려 하지 마라
-- 대사마다 행동·반응·감각·분위기가 자연스럽게 따라붙게 한다
+- 각 대사 전·후에 행동·반응·감각·분위기를 서사적으로 전개한다 — 장면 흐름을 채우라는 뜻이며, 지문과 대사를 한 문단에 병합하라는 뜻이 아니다
 
 ${SCENE_CONTINUATION_PRIORITY_BLOCK}
 
@@ -861,8 +861,8 @@ export const SERVER_UNDER_LENGTH_RECOVERY_THRESHOLD = 0.85;
 export function resolveServerUnderLengthRecoveryFloor(
   targetInput?: number | null
 ): number {
-  const target = resolveResponseLengthTarget(targetInput).target;
-  return Math.floor(target * SERVER_UNDER_LENGTH_RECOVERY_THRESHOLD);
+  const aim = resolveResponseLengthTarget(targetInput).aimChars;
+  return Math.floor(aim * SERVER_UNDER_LENGTH_RECOVERY_THRESHOLD);
 }
 
 export function isCleanStopFinishReason(finishReason: string | undefined | null): boolean {

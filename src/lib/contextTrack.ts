@@ -34,22 +34,6 @@ export const GEMINI_MIN_NARRATIVE_CONTEXT = 5;
 /** @deprecated */
 export const CLAUDE_RAW_RECENT_TURN_WINDOW = 6;
 
-/** Gemini — RAG 선별 주입 상한 (벌크업) */
-export const GEMINI_RAG_HIT_LIMIT = 16;
-
-/** Gemini — 32K 미달 시 RAG 상한 단계적 상향 */
-export const GEMINI_RAG_ESCALATION_LIMITS = [
-  GEMINI_RAG_HIT_LIMIT,
-  24,
-  32,
-  48,
-  64,
-  96,
-] as const;
-
-/** Claude — 기존 RAG */
-export const CLAUDE_RAG_HIT_LIMIT = 3;
-
 /** Gemini — [3] 현재기억 프롬프트 토큰 상한 */
 export const GEMINI_MEMORY_TOKEN_RESERVE = 12_000;
 
@@ -143,15 +127,6 @@ export function resolveMinNarrativeContext(
   return resolveContextTrack(modelId, provider) === "gemini-bulk"
     ? GEMINI_MIN_NARRATIVE_CONTEXT
     : 0;
-}
-
-export function resolveRagHitLimit(
-  modelId?: string | null,
-  provider?: "gemini" | "openrouter"
-): number {
-  return resolveContextTrack(modelId, provider) === "gemini-bulk"
-    ? GEMINI_RAG_HIT_LIMIT
-    : CLAUDE_RAG_HIT_LIMIT;
 }
 
 export function resolveMemoryTokenReserve(

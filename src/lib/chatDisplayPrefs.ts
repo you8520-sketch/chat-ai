@@ -37,12 +37,33 @@ export const DEFAULT_CHAT_DISPLAY_PREFS: ChatDisplayPrefs = {
   streamCharsPerTick: 1,
   fontFamily: "system",
   fontSizePreset: "medium",
-  narrationColor: "#f4f4f5",
+  narrationColor: "#fafafa",
   dialogueColor: "#fb923c",
-  userNarrationColor: "#a1a1aa",
+  userNarrationColor: "#d4d4d8",
   userDialogueColor: "#e4e4e7",
   showCharacterPortrait: true,
 };
+
+/** #RRGGBB — relative luminance 0..1 */
+function hexLuminance(hex: string): number | null {
+  const h = hex.trim().replace(/^#/, "");
+  if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+  const channels = [0, 2, 4].map((i) => {
+    const c = parseInt(h.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * channels[0]! + 0.7152 * channels[1]! + 0.0722 * channels[2]!;
+}
+
+/** 너무 어두운 저장값 — 기본 밝은 지문색으로 보정 */
+export function normalizeReadableTextColor(color: unknown, fallback: string): string {
+  if (typeof color !== "string") return fallback;
+  const trimmed = color.trim();
+  if (!/^#[0-9a-fA-F]{6}$/.test(trimmed)) return fallback;
+  const lum = hexLuminance(trimmed);
+  if (lum == null || lum < 0.62) return fallback;
+  return trimmed;
+}
 
 export const CHAT_FONT_OPTIONS = [
   { id: "system", label: "시스템 기본", css: "system-ui, -apple-system, 'Segoe UI', sans-serif" },
@@ -131,6 +152,15 @@ export function chatReadabilityStyle(
   };
 }
 
+export function chatReadabilityRootStyle(
+  prefs: Pick<ChatDisplayPrefs, "fontSizePreset" | "fontFamily" | "narrationColor">
+): CSSProperties {
+  return {
+    ...chatReadabilityStyle(prefs),
+    ["--chat-narration-color" as string]: prefs.narrationColor,
+  };
+}
+
 export function normalizeShowCharacterPortrait(value: unknown): boolean {
   return value !== false;
 }
@@ -153,6 +183,14 @@ export function loadChatDisplayPrefs(): ChatDisplayPrefs {
       streamIntervalMs,
       streamCharsPerTick: streamCharsPerTickForInterval(streamIntervalMs),
       fontSizePreset,
+      narrationColor: normalizeReadableTextColor(
+        parsed.narrationColor,
+        DEFAULT_CHAT_DISPLAY_PREFS.narrationColor
+      ),
+      userNarrationColor: normalizeReadableTextColor(
+        parsed.userNarrationColor,
+        DEFAULT_CHAT_DISPLAY_PREFS.userNarrationColor
+      ),
       showCharacterPortrait: normalizeShowCharacterPortrait(parsed.showCharacterPortrait),
     };
   } catch {

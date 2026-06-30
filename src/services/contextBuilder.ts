@@ -4,11 +4,12 @@ import {
   collectCharacterSettingText,
   resolveHairDescriptionPolicy,
 } from "@/lib/bodyHairRules";
-import { buildCoreIdentityBlock } from "@/lib/characterCoreIdentity";
+import {
+  buildCharacterCanonBlock,
+  CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK,
+} from "@/lib/characterKnowledgeBoundary";
 import {
   promoteAppearanceChunkImportance,
-  extractVisualAppearancePolicyFromChunks,
-  buildCanonicalFactsBlock,
 } from "@/lib/visualAnchor";
 import { SHORT_TERM_TURNS, trimHistoryToBudget } from "@/lib/hybridMemory";
 import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
@@ -54,9 +55,15 @@ import {
 } from "@/lib/flashOwnedOutputFirewall";
 import {
   formatUserMessageForPrompt,
+  hasActionOrThoughtParts,
   settingHasMindReadingAbility,
   settingHasMindReadingFromChunks,
 } from "@/lib/userActionThoughtRules";
+import {
+  buildUserInputParsingBlock,
+  buildWebnovelOutputLayoutRecencyBlock,
+  unwrapRoleplayMarkdownInText,
+} from "@/lib/webnovelOutputFormat";
 import type { CharacterChunk, GeminiContextSplit } from "@/types";
 import {
   type BuiltContext,
@@ -78,7 +85,6 @@ import { logGeminiStaticChunkDiff } from "@/lib/geminiStaticCacheDiff";
 import { isGeminiExplicitCacheEnabled } from "@/lib/geminiExplicitCache";
 import {
   auditAssembledPrompt,
-  chunkPromptCategory,
   type TrackedPromptSection,
 } from "@/services/promptAudit";
 import { resolvePromptDumpSource, writePromptBuildDump } from "@/services/promptDebugDump";
@@ -87,9 +93,6 @@ import {
   isBilingualDialogueActive,
   resolveBilingualDialoguePolicyFromSources,
 } from "@/lib/bilingualDialoguePolicy";
-import {
-  DIALOGUE_FORMAT_DIRECTIVE,
-} from "@/lib/promptTranslation";
 import {
   appendCompactTerminalLengthToUserTurn,
   buildLengthInstruction,
@@ -124,15 +127,30 @@ function sanitizeCharacterChunkForOpenRouter(content: string, isOpenRouter: bool
   return sanitizePrimaryModelContextSource(content);
 }
 
+function userMessageUsesRpInputMarkers(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  if (/\*[^*\n]+\*/.test(t)) return true;
+  if (/[(\uff08\[][^\])）\]]+[)\uff09\]]/.test(t)) return true;
+  return hasActionOrThoughtParts(t);
+}
+
+function needsUserInputParsingGuide(input: ContextBuildInput): boolean {
+  if (userMessageUsesRpInputMarkers(input.currentUserMessage)) return true;
+  return input.shortTermHistory.some(
+    (m) => m.role === "user" && userMessageUsesRpInputMarkers(m.content)
+  );
+}
+
 /**
  * System prompt assembly — fixed priority (high → low):
  *   [TOP] OpenRouter Korean prose · bilingual · godmodding
  *   [1] Core Master Rules
- *   [2] Core Identity (CRITICAL chunks — full inject, not RAG; OpenRouter cacheRules)
+ *   [2] Core Identity (full character profile every turn; OpenRouter cacheRules)
  *   [0] Identity & Rules (persona 1.2k + user-note focus 1k — absolute, cacheRules)
  *   [1.4] Prose style (OpenRouter cacheCharacter — stable)
  *   Dynamic block: [0c] Archive → [3] LTM (full budget trim, not RAG) → [3b] Relationship memo
- *     → [5] 유저노트 확장구간 RAG (UI 확장 칸 전용) → [1.5] Lore RAG → tail
+ *     → [5] 유저노트 확장구간 RAG (UI 확장 칸 전용) → tail
  *
  * History: 전체 대화 raw → trimHistoryToBudget (DeepSeek 16K / others 8K).
  *   [4] OOC · [7] Style · Tail — operational
@@ -144,13 +162,9 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const budget = resolveSystemBudget(input.modelId, input.tokenBudget);
   const isOpenRouter = input.provider === "openrouter";
   const contextTrack = resolveContextTrack(input.modelId, input.provider);
-  const includedIds: string[] = [];
-  const skippedIds: string[] = [];
   let truncatedMemory = false;
   const chunks = promoteAppearanceChunkImportance(input.chunks);
   const hasMindReading = settingHasMindReadingFromChunks(chunks);
-
-  const critical = chunks.filter((c) => c.importance === "CRITICAL");
 
   const blocks: string[] = [];
   const dynamicLorebookParts: string[] = [];
@@ -391,7 +405,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   }
 
   const isGeminiBulk = contextTrack === "gemini-bulk";
-  const contextualLore = input.contextualLore?.trim();
   const keywordLorebookBlock = input.keywordLorebookBlock?.trim();
   let memory = input.longTermMemory?.trim() ?? "";
   const memoryMeta = input.memoryMeta?.trim() ?? "";
@@ -416,30 +429,20 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   };
 
   const pushCharacterCoreIdentity = () => {
-    const coreBlock = buildCoreIdentityBlock(characterSettingText);
+    pushSection(
+      "character-knowledge-boundary",
+      "[2a] Character knowledge boundary",
+      "systemRules",
+      CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK,
+      isOpenRouter ? "cacheRules" : "dynamic"
+    );
+    const coreBlock = buildCharacterCanonBlock(characterSettingText, input.charName);
     if (!coreBlock) return;
-    critical.forEach((c) => includedIds.push(c.id));
     pushSection(
       "character-core-identity",
-      "[2] Core Identity (every turn)",
+      "[2] Structured character canon (every turn)",
       "characterSetting",
       coreBlock,
-      isOpenRouter ? "cacheRules" : "dynamic",
-      deepSeekXmlMode ? "world_lore" : undefined
-    );
-  };
-
-  const pushCanonicalAppearanceFacts = () => {
-    const visualPolicy = extractVisualAppearancePolicyFromChunks(chunks, input.charName, {
-      personaName: personaLabel,
-    });
-    const canonicalBlock = buildCanonicalFactsBlock(input.charName, visualPolicy);
-    if (!canonicalBlock) return;
-    pushSection(
-      "canonical-appearance-facts",
-      "[2b] Canonical appearance (immutable)",
-      "characterSetting",
-      canonicalBlock,
       isOpenRouter ? "cacheRules" : "dynamic",
       deepSeekXmlMode ? "world_lore" : undefined
     );
@@ -491,18 +494,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   };
 
-  const pushContextualRag = () => {
-    if (!contextualLore) return;
-    pushSection(
-      "contextual-lore-rag",
-      "[1.5] Contextual Lore (RAG)",
-      "worldLore",
-      contextualLore,
-      "dynamic",
-      deepSeekXmlMode ? "world_lore" : undefined
-    );
-  };
-
   const pushKeywordLorebook = () => {
     if (!keywordLorebookBlock) return;
     if (isOpenRouter) {
@@ -521,7 +512,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
 
   // ───── [2] Core Identity — directly above persona / user-note focus ─────
   pushCharacterCoreIdentity();
-  pushCanonicalAppearanceFacts();
   // ───── [0] Identity & Rules (persona + mandatory user note) ─────
   pushIdentityAndRules();
   flushDeepSeekXmlSections(["persona", "world_lore"]);
@@ -551,6 +541,16 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   }
 
+  if (needsUserInputParsingGuide(input)) {
+    pushSection(
+      "rule-user-input-parsing",
+      "User input parsing (interpret [B] only — not output format)",
+      "systemRules",
+      buildUserInputParsingBlock(hasMindReading),
+      isOpenRouter ? "dynamic" : "dynamic"
+    );
+  }
+
   if (input.regenerate === true) {
     pushSection(
       "regenerate-divergence",
@@ -567,7 +567,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
 
   const pushRagContextSections = () => {
     pushReferenceUserNote();
-    pushContextualRag();
     pushKeywordLorebook();
   };
 
@@ -669,15 +668,13 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     isOpenRouter ? "dynamic" : "dynamic"
   );
 
-  if (!isOpenRouter) {
-    pushSection(
-      "dialogue-format-directive",
-      "Dialogue format (absolute tail)",
-      "systemRules",
-      DIALOGUE_FORMAT_DIRECTIVE,
-      isOpenRouter ? "dynamic" : "dynamic"
-    );
-  }
+  pushSection(
+    "rule-output-layout-recency",
+    "Output layout recency (Korean webnovel paragraph breaks)",
+    "systemRules",
+    buildWebnovelOutputLayoutRecencyBlock(),
+    "dynamic"
+  );
 
   const globalLorebookBlock = input.globalLorebookBlock?.trim() ?? "";
   if (globalLorebookBlock) {
@@ -766,7 +763,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       userTurnContent = `${userTurnContent}\n\n${emotionOverlay}`;
     }
   }
-  if (isOpenRouter && !input.isContinue) {
+  if (isOpenRouter) {
     userTurnContent = appendCompactTerminalLengthToUserTurn(
       userTurnContent,
       input.targetResponseChars
@@ -797,7 +794,11 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
 
   let history = historySource.map((m) => {
     if (m.role === "assistant") {
-      return { ...m, content: stripRpMetaPreamble(m.content) };
+      let content = stripRpMetaPreamble(m.content);
+      if (isOpenRouter) {
+        content = unwrapRoleplayMarkdownInText(content);
+      }
+      return { ...m, content };
     }
     if (m.role === "user" && !isOpenRouter) {
       return { ...m, content: formatUserMessageForPrompt(m.content, hasMindReading) };
@@ -811,8 +812,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   }
 
   if (history.length < input.shortTermHistory.length) {
-    const dropped = input.shortTermHistory.length - history.length;
-    for (let i = 0; i < dropped; i++) skippedIds.push(`history-${i}`);
+    truncatedMemory = true;
   }
 
   // [LENGTH CONTROL & SCENE EXPANSION] is in system — no duplicate [분량 — 이번 턴] user-turn reminder
@@ -915,8 +915,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       estimatedHistoryTokens: estimateTokens(history.map((h) => h.content).join("\n")),
       estimatedInputTokens,
       tokenBudget: budget,
-      includedChunkIds: includedIds,
-      skippedChunkIds: skippedIds,
       bilingualDialogue: isBilingualDialogueActive(bilingualDialoguePolicy),
       truncatedMemory,
       promptAudit,

@@ -11,8 +11,8 @@ export const NARRATIVE_DENSITY_BLOCK = `[NARRATIVE DENSITY]
 중요한 순간을 요약하지 마라.`;
 
 export const MOMENT_TO_MOMENT_WRITING_BLOCK = `[MOMENT-TO-MOMENT WRITING]
-끊김 없이 이어 쓴다.
-중간 행동을 건너뛰지 마라.
+장면·행동·감정의 흐름을 끊지 말고 순간마다 이어 서술한다 — 중간 단계를 건너뛰지 마라.
+여기서 '이어 쓴다'는 서사 진행(다음 행동·반응·전환)을 뜻한다. 지문과 대사를 한 줄·한 문단에 붙여 쓰라는 뜻이 아니다.
 의미 있는 전환마다 직접 묘사한다.`;
 
 export const NO_GENERIC_REACTIONS_BLOCK = `[NO GENERIC REACTIONS]

@@ -23,13 +23,11 @@ export function buildGenerationContextJson(input: GenerationContextInput): strin
     completedTurns: input.completedTurns,
     targetResponseChars: input.targetResponseChars,
     userImpersonation: input.userImpersonation,
-    includedChunkIds: input.includedChunkIds,
     model: input.model,
     provider: input.provider,
     route: input.route,
     nsfw: input.nsfw,
   };
-  if (input.skippedChunkIds?.length) ctx.skippedChunkIds = input.skippedChunkIds;
   if (input.truncatedMemory) ctx.truncatedMemory = true;
   if (input.speechProfileCharName) ctx.speechProfile = input.speechProfileCharName;
   if (input.regenerate) ctx.regenerate = true;

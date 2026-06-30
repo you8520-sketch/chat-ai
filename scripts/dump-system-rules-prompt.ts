@@ -91,9 +91,6 @@ async function loadFixture(chatId: number) {
   });
   const memoryLayers = buildHierarchicalMemoryPromptLayers({
     chatId,
-    characterChunks: chunks,
-    userMessage: currentUserMessage,
-    recentContext: recentHistory.slice(-6).map((m) => m.content).join("\n"),
     completedTurns: completedTurns.length,
     modelId: "deepseek/deepseek-v4-pro",
     provider: "openrouter",
@@ -121,7 +118,6 @@ async function loadFixture(chatId: number) {
     userImpersonation: Number(chat.user_impersonation) === 1,
     novelModeEnabled: Number(chat.novel_mode) === 1,
     targetResponseChars: Number(chat.target_response_chars ?? 2500),
-    contextualLore: memoryLayers.contextualLore || undefined,
   };
 }
 
@@ -153,7 +149,6 @@ async function main() {
     targetResponseChars: fx.targetResponseChars,
     modelId: OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
     provider: "openrouter",
-    contextualLore: fx.contextualLore,
     mainModelOwnsRelationshipExtract: false,
   });
 

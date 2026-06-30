@@ -105,7 +105,7 @@ const SOURCE_MAP: Record<string, string> = {
   "status-widget-policy": "src/lib/statusWidget/prompt.ts",
   "html-visual-card-policy": "src/lib/htmlVisualCardPolicy.ts — buildHtmlVisualCardPolicyBlock()",
   "english-setting-korean-output": "src/lib/promptTranslation.ts — buildEnglishSettingKoreanOutputRule()",
-  "core-identity": "src/lib/characterCoreIdentity.ts — buildCoreIdentityBlock()",
+  "core-identity": "src/lib/bodyHairRules.ts — buildCharacterCanonBlock()",
   "character-critical": "src/services/contextBuilder.ts — CRITICAL chunks",
 };
 
@@ -133,7 +133,7 @@ const PLACEHOLDER_CHAR = "[A]";
 const PLACEHOLDER_USER = "[B]";
 const PLACEHOLDER_DYNAMIC = "(dynamic — filled at runtime)";
 
-const HTML_FLASH_USER_BLOCK_SCHEMA = `[CHARACTER & WORLD SETTING — CORE IDENTITY]
+const HTML_FLASH_USER_BLOCK_SCHEMA = `[CHARACTER CANON — FLASH CONTEXT]
 ${PLACEHOLDER_DYNAMIC}
 
 [USER PERSONA]
@@ -217,7 +217,6 @@ async function buildMockFixture() {
     userImpersonation: false,
     novelModeEnabled: false,
     targetResponseChars: 3000,
-    contextualLore: PLACEHOLDER_DYNAMIC,
     recentNarrativeContext: PLACEHOLDER_DYNAMIC,
   };
 }
@@ -291,9 +290,6 @@ async function loadDbFixture(chatId?: number) {
   });
   const memoryLayers = buildHierarchicalMemoryPromptLayers({
     chatId: Number(chat.id),
-    characterChunks: chunks,
-    userMessage: currentUserMessage,
-    recentContext: recentHistory.slice(-6).map((m) => m.content).join("\n"),
     completedTurns: completedTurns.length,
     modelId: OPENROUTER_GEMINI_31_PRO_MODEL,
     provider: "openrouter",
@@ -322,7 +318,6 @@ async function loadDbFixture(chatId?: number) {
     userImpersonation: Number(chat.user_impersonation) === 1,
     novelModeEnabled: Number(chat.novel_mode) === 1,
     targetResponseChars: Number(chat.target_response_chars ?? 3000),
-    contextualLore: memoryLayers.contextualLore || undefined,
     recentNarrativeContext: memoryLayers.recentNarrativeContext || undefined,
   };
 }
@@ -479,7 +474,6 @@ async function dumpStandalonePrompts(): Promise<string[]> {
   );
 
   const turnPolicy = resolveHtmlVisualCardPolicyFromSources({
-    userMessage: "HTML을 사용해서 (dynamic UI request)",
   });
   lines.push(
     section(
@@ -634,7 +628,6 @@ async function main() {
       userPersonaGender: fixture.userPersonaGender,
       provider: "openrouter",
       genres: fixture.genres,
-      contextualLore: fixture.contextualLore,
       recentNarrativeContext: fixture.recentNarrativeContext,
       geminiStaticDynamicMode: false,
       ...(model.opts ?? {}),

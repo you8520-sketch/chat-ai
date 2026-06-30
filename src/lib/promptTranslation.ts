@@ -49,12 +49,8 @@ const ENGLISH_SETTING_KOREAN_OUTPUT_RULE_LEGACY = ENGLISH_SETTING_KOREAN_OUTPUT_
 /** @deprecated OUTPUT LANG + [PROSE STYLE] — injection removed */
 export const KOREAN_NARRATION_ENDING_RULE = "";
 
-/** AI 출력 — 큰따옴표=실제 발화, 낫표=스킬·특수 고유명만 (속마음·생각은 지문으로) */
-export const DIALOGUE_FORMAT_DIRECTIVE = `[FORMAT DIRECTIVE]
-Dialogue: use " " for out-loud speech only.
-Narration: plain prose — thoughts and feelings unquoted, same flow as action.
-「 」: in-world proper nouns only (skills, spells, system labels).
-Never use 「 」 for thoughts or dialogue.`;
+/** @deprecated WEBNOVEL_OUTPUT_FORMAT_BLOCK — Gemini tail injection용 alias */
+export { WEBNOVEL_OUTPUT_FORMAT_BLOCK as DIALOGUE_FORMAT_DIRECTIVE } from "@/lib/webnovelOutputFormat";
 
 const SEG_OPEN = (n: number) => `⟦SEG ${n}⟧`;
 const SEG_CLOSE = (n: number) => `⟦/SEG ${n}⟧`;

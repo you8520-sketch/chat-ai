@@ -48,12 +48,12 @@ import { sanitizeCharacterGenres } from "@/lib/characterGenres";
 import { resolveCharacterGender } from "@/lib/characterGender";
 import {
   collectCharacterSettingText,
+  buildCharacterCanonBlock,
   resolveHairDescriptionPolicy,
   sanitizeHairDescriptions,
 } from "@/lib/bodyHairRules";
 import {
   extractVisualAppearancePolicyFromChunks,
-  buildCanonicalFactsBlock,
   buildFlashCanonicalAppearanceBlock,
   sanitizeVisualAppearance,
 } from "@/lib/visualAnchor";
@@ -73,7 +73,6 @@ import {
 } from "@/lib/chatMessageHygiene";
 import {
   buildMemoryContextForChat,
-  buildHierarchicalMemoryPromptLayers,
   resolveMemoryTier,
   scheduleMemoryUpdate,
 } from "@/lib/memory/memory-manager";
@@ -107,7 +106,6 @@ import {
   stripBrokenHtmlFragmentAtEnd,
   stripBrokenHtmlFragmentPreservingOocBody,
 } from "@/lib/htmlVisualCardRecovery";
-import { buildCoreIdentityBlock } from "@/lib/characterCoreIdentity";
 import { continueNarrativeIfUnderMinimum, needsVisibleLengthContinuation } from "@/lib/narrativeLengthContinuation";
 import { responseHasHtmlVisualCard, splitChatRichBlocks } from "@/lib/chatRichContent";
 import { buildOpenRouterCacheReceiptInfo } from "@/lib/openRouterModelPricing";
@@ -672,24 +670,6 @@ export async function POST(req: Request) {
     })()
   );
 
-  const recentContextForRag = recentHistory
-    .map((m) =>
-      contextProvider === "openrouter" && m.role === "assistant"
-        ? sanitizePrimaryModelAssistantHistory(m.content)
-        : m.content
-    )
-    .join(" ");
-
-  const memoryLayerBase = {
-    chatId: chat.id,
-    characterChunks,
-    userMessage: autoContinueContext ? CONTINUE_USER_DISPLAY : displayUserMessage,
-    recentContext: recentContextForRag,
-    completedTurns: playableTurnCount,
-    modelId: contextModelId,
-    provider: contextProvider,
-  } as const;
-
   const settingText = collectCharacterSettingText(characterChunks);
 
   const policyUserMessage = displayUserMessage;
@@ -797,15 +777,10 @@ export async function POST(req: Request) {
     globalLorebookBlock: globalLorebookBlock || undefined,
   };
 
-  const memoryLayers = buildHierarchicalMemoryPromptLayers({
-    ...memoryLayerBase,
-    excludeAssistantMessageId: regenerateMessageId,
-  });
   const built = buildContext({
     ...contextBuildInput,
     statusWidgetActive: statusWidgetActive,
     mainModelOwnsRelationshipExtract,
-    contextualLore: memoryLayers.contextualLore || undefined,
     promptDumpSource: "db",
     promptDumpDetail: `chat=${chat.id} user=${user.id} character=${ch.id}`,
   });
@@ -876,12 +851,7 @@ export async function POST(req: Request) {
       ? resolveHtmlFlashOutputReserveChars(htmlVisualCardPolicy.statusFieldLabels)
       : 0;
   const htmlVisualCardPolicyRef = htmlVisualCardPolicy;
-  const htmlFlashCoreIdentity = (() => {
-    const core = buildCoreIdentityBlock(settingText);
-    if (!core) return "";
-    const canonicalBlock = buildCanonicalFactsBlock(ch.name, visualPolicy);
-    return canonicalBlock ? `${core}\n\n${canonicalBlock}` : core;
-  })();
+  const htmlFlashCoreIdentity = buildCharacterCanonBlock(settingText);
   const htmlFlashContextRef = {
     chatId: chat.id,
     charName: ch.name,
@@ -2374,8 +2344,6 @@ export async function POST(req: Request) {
               completedTurns: playableTurnCount,
               targetResponseChars: targetResponseCharsRef,
               userImpersonation: !!userImpersonation,
-              includedChunkIds: built.meta.includedChunkIds,
-              skippedChunkIds: built.meta.skippedChunkIds,
               truncatedMemory: built.meta.truncatedMemory,
               model: usageRecord.model,
               provider: usageRecord.provider ?? billingProvider,

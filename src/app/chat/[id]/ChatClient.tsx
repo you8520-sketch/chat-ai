@@ -97,7 +97,7 @@ import {
 } from "@/lib/statusWidget";
 import { cacheUserChatPrefsClient } from "@/lib/userChatPrefs";
 import {
-  chatReadabilityStyle,
+  chatReadabilityRootStyle,
   chatMessageAreaLayoutClass,
   CHAT_MESSAGES_COLUMN_CLASS,
   CHAT_MESSAGES_BODY_NO_PORTRAIT_CLASS,
@@ -2697,7 +2697,7 @@ export default function ChatClient({
     <div className="-ml-1 flex min-w-0 flex-1 items-stretch gap-0 sm:-ml-2">
       <div
         className="chat-readability-root flex min-w-0 flex-1 flex-col"
-        style={chatReadabilityStyle(displayPrefs)}
+        style={chatReadabilityRootStyle(displayPrefs)}
       >
       <ChatToast message={toastMsg} />
       <ChatSelectionQuoteToolbar

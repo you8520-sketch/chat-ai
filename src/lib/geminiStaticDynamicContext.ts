@@ -25,7 +25,6 @@ const VOLATILE_SECTION_IDS = new Set([
   "current-memory",
   "relationship-meta",
   "user-note-reference",
-  "contextual-lore-rag",
 ]);
 
 export function isVolatilePromptSectionId(id: string): boolean {
@@ -34,13 +33,12 @@ export function isVolatilePromptSectionId(id: string): boolean {
 
 const STATIC_TRIM_PRIORITY = [
   "user-note-reference",
-  "contextual-lore-rag",
 ] as const;
 
 export function isGeminiStaticCacheSectionId(id: string): boolean {
   if (VOLATILE_SECTION_IDS.has(id)) return false;
   if (STATIC_SECTION_IDS.has(id)) return true;
-  return id.startsWith("chunk-critical-") || id.startsWith("chunk-lore-") || id === "character-core-identity";
+  return id === "character-core-identity";
 }
 
 function isStaticSectionId(id: string): boolean {
@@ -61,7 +59,6 @@ export function assembleGeminiStaticDynamicSplit(opts: {
   sections: TrackedPromptSection[];
   staticHistoryBlock?: string;
   dynamicHistory: ChatMsg[];
-  visualAnchorTail?: string;
 }): GeminiContextSplit {
   const staticParts: string[] = [];
   const dynamicParts: string[] = [];
@@ -84,12 +81,6 @@ export function assembleGeminiStaticDynamicSplit(opts: {
     dynamicParts.push(
       `[6] Stored history summaries (${ROLLING_SUMMARY_INTERVAL}-turn batches, latest 1–15)\n${oldHistory}`
     );
-  }
-
-  const visual = opts.visualAnchorTail?.trim();
-  const hasVisualSection = opts.sections.some((s) => s.id === "visual-appearance-anchor");
-  if (visual && !hasVisualSection) {
-    dynamicParts.push(visual);
   }
 
   const staticPrompt = staticParts.join("\n\n");

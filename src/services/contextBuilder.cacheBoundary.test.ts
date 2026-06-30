@@ -62,7 +62,6 @@ describe("OpenRouter cache boundaries", () => {
         "x".repeat(500),
         "NPC 엘라라는 마법사다.\n\nreference tail for creator"
       ),
-      contextualLore: "[RAG] matched lore snippet",
       modelId: OPENROUTER_QWEN_37_MAX_MODEL,
       provider: "openrouter",
     });
@@ -96,7 +95,6 @@ describe("OpenRouter cache boundaries", () => {
         "x".repeat(500),
         "NPC 엘라라는 마법사다.\n\nreference tail for creator"
       ),
-      contextualLore: "[RAG] matched lore snippet",
       modelId: OPENROUTER_QWEN_37_MAX_MODEL,
       provider: "openrouter",
     });
@@ -105,7 +103,6 @@ describe("OpenRouter cache boundaries", () => {
     assert.ok(sectionOrder(ids, "prose-style-xml-bundle") < sectionOrder(ids, "user-note-reference"));
     assert.ok(sectionOrder(ids, "current-memory") < sectionOrder(ids, "relationship-meta"));
     assert.ok(sectionOrder(ids, "relationship-meta") < sectionOrder(ids, "user-note-reference"));
-    assert.ok(sectionOrder(ids, "current-memory") < sectionOrder(ids, "contextual-lore-rag"));
   });
 
   it("characterSettingsBlock includes substantial prose policy tokens", () => {

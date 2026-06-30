@@ -18,8 +18,10 @@ describe("contextBuilder regenerate", () => {
     });
 
     assert.match(built.systemPrompt, /REGENERATE — MANDATORY DIVERGENCE/i);
-    assert.match(built.systemPrompt, /Rejected draft/i);
+    assert.match(built.systemPrompt, /divergence reference \(summary only/i);
+    assert.match(built.systemPrompt, /Opening situation:/i);
     assert.match(built.systemPrompt, /고개를 끄덕였다/);
+    assert.doesNotMatch(built.systemPrompt, /\[Rejected draft — do NOT repeat/i);
   });
 
   it("skips regenerate block on normal turns", () => {

@@ -139,9 +139,6 @@ async function loadFixture(chatId?: number) {
 
   const memoryLayers = buildHierarchicalMemoryPromptLayers({
     chatId: Number(chat.id),
-    characterChunks: chunks,
-    userMessage: currentUserMessage,
-    recentContext: recentHistory.slice(-6).map((m) => m.content).join("\n"),
     completedTurns: completedTurns.length,
     modelId: OPENROUTER_GEMINI_31_PRO_MODEL,
     provider: "openrouter",
@@ -170,7 +167,6 @@ async function loadFixture(chatId?: number) {
     userImpersonation: Number(chat.user_impersonation) === 1,
     novelModeEnabled: Number(chat.novel_mode) === 1,
     targetResponseChars: Number(chat.target_response_chars ?? 2500),
-    contextualLore: memoryLayers.contextualLore || undefined,
     recentNarrativeContext: memoryLayers.recentNarrativeContext || undefined,
   };
 }
@@ -217,7 +213,6 @@ async function buildMockFixture() {
     userImpersonation: false,
     novelModeEnabled: false,
     targetResponseChars: 3300,
-    contextualLore: "[CONTEXTUAL LORE] 실종 사건 관련 목격 증언.",
     recentNarrativeContext: "[RECENT NARRATIVE] 골목 입구에서 멈춰 섰다.",
   };
 }
@@ -275,7 +270,6 @@ async function main() {
       userPersonaGender: fixture.userPersonaGender,
       provider: "openrouter",
       genres: fixture.genres,
-      contextualLore: fixture.contextualLore,
       recentNarrativeContext: fixture.recentNarrativeContext,
       geminiStaticDynamicMode: false,
       promptDumpSource: "dump-all-model-system-prompts",

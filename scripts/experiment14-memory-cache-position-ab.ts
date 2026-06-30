@@ -207,9 +207,6 @@ async function loadFixture(chatId: number) {
 
   const memoryLayers = buildHierarchicalMemoryPromptLayers({
     chatId,
-    characterChunks: chunks,
-    userMessage: currentUserMessage,
-    recentContext: recentHistory.slice(-6).map((m) => m.content).join("\n"),
     completedTurns: completedTurns.length,
     modelId: OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
     provider: "openrouter",
@@ -238,7 +235,6 @@ async function loadFixture(chatId: number) {
     userImpersonation: Number(chat.user_impersonation) === 1,
     novelModeEnabled: Number(chat.novel_mode) === 1,
     targetResponseChars: Number(chat.target_response_chars ?? 2500),
-    contextualLore: memoryLayers.contextualLore || undefined,
     statusWidgetActive: Number(chat.status_widget_active) === 1,
   };
 }
@@ -308,7 +304,6 @@ async function main() {
           targetResponseChars: fx.targetResponseChars,
           modelId: model.id,
           provider: "openrouter",
-          contextualLore: fx.contextualLore,
           personaDisplayName: fx.personaDisplayName,
           statusWidgetActive: fx.statusWidgetActive,
           mainModelOwnsRelationshipExtract: false,

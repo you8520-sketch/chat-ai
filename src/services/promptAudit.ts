@@ -1,6 +1,5 @@
 import { estimateTokens } from "@/lib/ai";
 import type { ChatMsg } from "@/lib/ai";
-import type { CharacterChunk } from "@/types";
 import {
   DEEPSEEK_BOTTOM_REMINDER,
   DEEPSEEK_XML_TAGS,
@@ -124,21 +123,6 @@ function findLongSharedSubstrings(a: string, b: string, minLen = 80): string[] {
     }
   }
   return hits;
-}
-
-export function isDialogueExampleChunk(chunk: CharacterChunk): boolean {
-  if (chunk.category !== "speech") return false;
-  return (
-    /\[예시\s*대화\]/i.test(chunk.content) ||
-    /(?:^|\n)\s*(?:유저|User)\s*:/im.test(chunk.content) ||
-    /(?:^|\n)\s*(?:캐릭터|Character)\s*:/im.test(chunk.content)
-  );
-}
-
-export function chunkPromptCategory(chunk: CharacterChunk): "characterSetting" | "worldLore" | "dialogueExamples" {
-  if (chunk.category === "world") return "worldLore";
-  if (isDialogueExampleChunk(chunk)) return "dialogueExamples";
-  return "characterSetting";
 }
 
 function sumCategory(sections: TrackedPromptSection[], category: PromptSectionCategory): number {

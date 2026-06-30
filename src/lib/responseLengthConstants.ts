@@ -46,7 +46,7 @@ export const TARGET_RESPONSE_TIERS = [
 
 export type ResponseLengthTierId = (typeof TARGET_RESPONSE_TIERS)[number]["id"];
 
-/** 유저 AI 출력 목표 — 통합 tier (레거시 2000/3000 DB값은 normalize) */
+/** 유저 AI 출력 목표 — 통합 tier (레거시 DB·prefs 값은 normalize 시 3,200으로 통일) */
 export const DEFAULT_TARGET_RESPONSE_CHARS = UNIFIED_RESPONSE_LENGTH_TARGET;
 export const MIN_TARGET_RESPONSE_CHARS = UNIFIED_TIER_MIN_CHARS;
 export const MAX_TARGET_RESPONSE_CHARS = UNIFIED_TIER_MAX_CHARS;
@@ -54,7 +54,7 @@ export const MAX_TARGET_RESPONSE_CHARS = UNIFIED_TIER_MAX_CHARS;
 export type ResponseLengthTarget = {
   /** Tier key for token maps / minimum tables */
   target: ResponseLengthTierTarget;
-  /** Normalized user aim (characters) — prompt TARGET line */
+  /** Prompt TARGET line — always UNIFIED_TIER_AIM_CHARS (3,200) */
   aimChars: number;
   min: number;
   max: number;
@@ -72,29 +72,20 @@ const TIER_BOUNDS: Record<
   },
 };
 
-export function normalizeTargetResponseChars(value: unknown): number {
-  if (value == null) return DEFAULT_TARGET_RESPONSE_CHARS;
-  const n = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(n)) return DEFAULT_TARGET_RESPONSE_CHARS;
-  const rounded = Math.round(n);
-  if (rounded === 2000 || rounded === 3000) return UNIFIED_RESPONSE_LENGTH_TARGET;
-  return Math.min(
-    UNIFIED_TIER_AIM_CHARS,
-    Math.max(MIN_TARGET_RESPONSE_CHARS, rounded)
-  );
+/** 레거시 2000/2400/2700/2800/3000 등 — 프롬프트·과금 분량 목표는 항상 3,200으로 통일 */
+export function normalizeTargetResponseChars(_value: unknown): number {
+  return UNIFIED_TIER_AIM_CHARS;
 }
 
-export function findResponseLengthTier(targetInput?: number | null) {
-  void targetInput;
+export function findResponseLengthTier(_targetInput?: number | null) {
   return TARGET_RESPONSE_TIERS[0]!;
 }
 
-export function resolveResponseLengthTarget(targetInput?: number | null): ResponseLengthTarget {
+export function resolveResponseLengthTarget(_targetInput?: number | null): ResponseLengthTarget {
   const target = UNIFIED_RESPONSE_LENGTH_TARGET;
-  const aimChars = normalizeTargetResponseChars(targetInput);
   return {
     target,
-    aimChars,
+    aimChars: UNIFIED_TIER_AIM_CHARS,
     ...TIER_BOUNDS[target],
   };
 }

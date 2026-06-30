@@ -21,6 +21,9 @@ export function collectCharacterSettingText(chunks: CharacterChunk[]): string {
   return chunks.map((c) => c.content).join("\n");
 }
 
+/** @deprecated import from @/lib/characterKnowledgeBoundary */
+export { buildCharacterCanonBlock, buildStructuredCharacterCanonBlock } from "@/lib/characterKnowledgeBoundary";
+
 export function settingAllowsBeardDescription(settingText: string): boolean {
   return BEARD_IN_SETTING.test(settingText);
 }

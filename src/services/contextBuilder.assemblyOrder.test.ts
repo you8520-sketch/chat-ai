@@ -70,6 +70,10 @@ describe("buildContext — persona-before-prose assembly order", () => {
 
     const ids = (built.meta?.trackedSections ?? []).map((s) => s.id);
     assert.ok(
+      sectionOrder(ids, "character-knowledge-boundary") <
+        sectionOrder(ids, "character-core-identity")
+    );
+    assert.ok(
       sectionOrder(ids, "character-core-identity") <
         sectionOrder(ids, "identity-and-rules")
     );
@@ -89,6 +93,14 @@ describe("buildContext — persona-before-prose assembly order", () => {
         sectionOrder(ids, "user-note-reference")
     );
     assert.ok(
+      sectionOrder(ids, "turn-handoff-and-pacing") <
+        sectionOrder(ids, "rule-output-layout-recency")
+    );
+    assert.ok(
+      sectionOrder(ids, "rule-output-layout-recency") <
+        sectionOrder(ids, "rule-terminal-length-override")
+    );
+    assert.ok(
       sectionOrder(ids, "current-memory") <
         sectionOrder(ids, "rule-terminal-length-override")
     );
@@ -97,9 +109,17 @@ describe("buildContext — persona-before-prose assembly order", () => {
     const split = built.openRouterSystemSplit;
     assert.ok(split);
     assert.match(split!.characterSettingsBlock, /\[ADVANCED PROSE & NSFW GUIDELINES\]/);
-    assert.match(split!.systemRulesBlock, /\[CORE IDENTITY\]/);
+    assert.match(split!.systemRulesBlock, /\[CHARACTER KNOWLEDGE BOUNDARY\]/);
+    assert.match(built.systemPrompt, /\[CHARACTER CANON — Hero MAY KNOW/);
     assert.doesNotMatch(split!.characterSettingsBlock, /\[CORE IDENTITY\]/);
     assert.doesNotMatch(split!.systemRulesBlock, /<PROSE_STYLE_POLICY>/);
+
+    assert.equal((built.systemPrompt.match(/\[OUTPUT LAYOUT\]/g) ?? []).length, 1);
+    const layoutIdx = built.systemPrompt.indexOf("[OUTPUT LAYOUT]");
+    const terminalIdx = built.systemPrompt.indexOf("TARGET_LENGTH 3,200+ · MINIMUM_FLOOR");
+    assert.ok(layoutIdx >= 0 && terminalIdx > layoutIdx, "OUTPUT LAYOUT must precede terminal length tail");
+    assert.doesNotMatch(split!.characterSettingsBlock, /NEVER append spoken dialogue/i);
+    assert.doesNotMatch(split!.characterSettingsBlock, /ALWAYS starts a new paragraph/i);
   });
 
   it("DeepSeek: character core identity tracked before prose style", () => {
@@ -120,6 +140,9 @@ describe("buildContext — persona-before-prose assembly order", () => {
         sectionOrder(ids, "prose-style-xml-bundle")
     );
     assert.ok(built.systemPrompt.includes("Hero identity."));
+    assert.match(built.systemPrompt, /World lore detail\.|<WORLD_LORE>/i);
+    assert.ok(!ids.includes("contextual-lore-rag"));
+    assert.ok(!ids.includes("canonical-appearance-facts"));
     assert.match(built.systemPrompt, /WORLD_LORE|<world_lore>/i);
   });
 
@@ -141,6 +164,6 @@ describe("buildContext — persona-before-prose assembly order", () => {
         sectionOrder(ids, "rule-advanced-prose-nsfw")
     );
     assert.match(built.systemPrompt, /\[ADVANCED PROSE & NSFW GUIDELINES\]/);
-    assert.match(built.systemPrompt, /\[CORE IDENTITY\]/);
+    assert.match(built.systemPrompt, /\[CHARACTER CANON — Hero MAY KNOW/);
   });
 });

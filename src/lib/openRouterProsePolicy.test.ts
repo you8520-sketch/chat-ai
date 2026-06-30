@@ -6,7 +6,7 @@ describe("buildOpenRouterKoreanProseTopBlock", () => {
   it("includes four-step setting priority (core → LTM → RAG → recent chat)", () => {
     const block = buildOpenRouterKoreanProseTopBlock();
     assert.match(block, /=== 설정 적용 우선순위 ===/);
-    assert.match(block, /1\. CORE IDENTITY 및 세계관 \(절대 유지\)/);
+    assert.match(block, /CHARACTER CANON · WORLD CANON · \[CHARACTER KNOWLEDGE BOUNDARY\]/);
     assert.match(block, /2\. 장기기억\(LTM\)/);
     assert.match(block, /3\. 최근 대화를 해석하는 데 필요한 RAG/);
     assert.match(block, /4\. 최근 대화/);
@@ -19,6 +19,7 @@ describe("buildOpenRouterKoreanProseTopBlock", () => {
     assert.match(block, /서술은 해체\(-다\)만 사용/);
     assert.match(block, /외국어 혼용 금지\. 고유명사·스킬명만 「」 예외/);
     assert.match(block, /한 단어 안에서 한글과 영어·일본어를 혼용하지 마라/);
+    assert.match(block, /\[PROMPT METADATA IS NOT STORY\]/);
     assert.match(block, /\[NO META WRITING\] 장면만 직접 서술하라/);
     assert.match(block, /\[NO STYLE IMITATION\]/);
     assert.match(block, /현재 장면 안에서만 서술한다/);

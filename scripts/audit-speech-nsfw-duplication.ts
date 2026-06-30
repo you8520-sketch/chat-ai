@@ -121,14 +121,11 @@ function resolveSourceLabel(sectionId: string): string {
     "recent-narrative-context": "RECENT_NARRATIVE",
     "relationship-meta": "RELATIONSHIP_META",
     "user-note-reference": "USER_NOTE",
-    "contextual-lore-rag": "CONTEXTUAL_LORE_RAG",
     "keyword-lorebook": "KEYWORD_LOREBOOK",
     "rule-asset-tags": "ASSET_EMOTION_TAGS",
   };
 
   if (exact[sectionId]) return exact[sectionId];
-  if (sectionId.startsWith("chunk-critical-")) return `CHARACTER_CRITICAL_${sectionId.replace("chunk-critical-", "")}`;
-  if (sectionId.startsWith("chunk-lore-")) return `CHARACTER_LORE_${sectionId.replace("chunk-lore-", "")}`;
   return sectionId.toUpperCase().replace(/-/g, "_");
 }
 
@@ -430,7 +427,6 @@ async function buildMockFixture() {
     userImpersonation: false,
     novelModeEnabled: false,
     targetResponseChars: 2500,
-    contextualLore: undefined as string | undefined,
     recentNarrativeContext: undefined as string | undefined,
     keywordLorebookBlock: undefined as string | undefined,
   };
@@ -503,9 +499,6 @@ async function loadFromDb(opts: CliOpts) {
 
   const memoryLayers = buildHierarchicalMemoryPromptLayers({
     chatId: opts.chatId,
-    characterChunks: chunks,
-    userMessage: lastUser?.content ?? "안녕",
-    recentContext: recentHistory.slice(-6).map((m) => m.content).join("\n"),
     completedTurns: completedTurns.length,
     modelId: opts.modelId,
     provider: opts.provider,
@@ -535,7 +528,6 @@ async function loadFromDb(opts: CliOpts) {
     userImpersonation: Number(chat.user_impersonation) === 1,
     novelModeEnabled: Number(chat.novel_mode) === 1,
     targetResponseChars: Number(chat.target_response_chars ?? 2500),
-    contextualLore: memoryLayers.contextualLore || undefined,
     recentNarrativeContext: memoryLayers.recentNarrativeContext || undefined,
     keywordLorebookBlock: undefined as string | undefined,
   };
@@ -733,7 +725,6 @@ async function main() {
     userPersonaGender: fixture.userPersonaGender,
     provider: opts.provider,
     genres: fixture.genres,
-    contextualLore: fixture.contextualLore,
     recentNarrativeContext: fixture.recentNarrativeContext,
     keywordLorebookBlock: fixture.keywordLorebookBlock,
     geminiStaticDynamicMode: opts.provider === "gemini",

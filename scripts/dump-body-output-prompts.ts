@@ -167,7 +167,6 @@ async function buildMockFixture(completedTurns: number) {
     targetResponseChars: 2500,
     completedTurns,
     genres: ["공포/추리"] as import("../src/lib/characterGenres").CharacterGenre[],
-    contextualLore: undefined,
     recentNarrativeContext: undefined,
   };
 }
@@ -204,7 +203,6 @@ async function main() {
     userPersonaGender: fixtureMature.userPersonaGender,
     provider: "openrouter",
     genres: fixtureMature.genres,
-    contextualLore: fixtureMature.contextualLore,
     recentNarrativeContext: fixtureMature.recentNarrativeContext,
   });
 
@@ -236,7 +234,6 @@ async function main() {
     userPersonaGender: fixtureEarly.userPersonaGender,
     provider: "openrouter",
     genres: fixtureEarly.genres,
-    contextualLore: fixtureEarly.contextualLore,
     recentNarrativeContext: fixtureEarly.recentNarrativeContext,
   });
   const earlyOnlyIds = new Set([

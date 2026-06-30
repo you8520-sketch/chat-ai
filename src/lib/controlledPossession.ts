@@ -70,7 +70,7 @@ export function buildUserPossessionQualityRules(_ctx: ControlledPossessionContex
   return MINIMAL_CO_NARRATION;
 }
 
-/** @deprecated Moved to CORE IDENTITY — not injected here */
+/** @deprecated Moved to structured CHARACTER CANON — not injected here */
 export function buildWorldHierarchyRules(_ctx: ControlledPossessionContext): string {
   return "";
 }

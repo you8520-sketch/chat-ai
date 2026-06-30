@@ -1,4 +1,4 @@
-import { estimateTokens } from "@/lib/ai";
+import { estimateTokens } from "@/lib/tokenEstimate";
 import { hasAppearanceTraits } from "@/lib/visualAnchor";
 import {
   extractRoleplayNameFromSettingText,
@@ -45,6 +45,21 @@ const SUPPLEMENTAL_HINTS =
 
 function normalizeLine(line: string): string {
   return line.replace(/^[\s#*\-•【】\[\]「」]+/, "").trim();
+}
+
+/** `[외형]` → `[외형]` · `레온의 말투]` / `Name]` → `[레온의 말투]` / `[Name]` */
+function formatSectionTitle(label: string): string {
+  const t = label.trim();
+  if (!t) return "";
+  if (t.startsWith("[")) return t;
+  return `[${t}]`;
+}
+
+function parseTrailingBracketHeader(line: string): { label: string } | null {
+  if (line.includes("[")) return null;
+  const m = line.match(/^([^[\]\n]{1,64})\]$/);
+  if (!m?.[1]) return null;
+  return { label: m[1].trim() };
 }
 
 function detectCategory(text: string, hinted?: ChunkCategory): ChunkCategory {
@@ -106,10 +121,11 @@ function parseInlineBracketHeader(line: string): { label: string; body: string }
 }
 
 const INLINE_SECTION_LABEL_RE =
-  /^(?:이름|성명|현재\s*신분|외형|외모|성격|성향|말투|배경|과거|관계|능력|세계관|상태창|시스템|피의\s*저주)/i;
+  /^(?:이름|성명|현재\s*신분|외형|외모|성격|성향|말투|배경|과거|관계|능력|세계관|상태창|시스템|피의\s*저주|name|identity|personality|system\s*command)/i;
 
 function isInlineSectionLabel(label: string): boolean {
   if (INLINE_SECTION_LABEL_RE.test(label)) return true;
+  if (/말투|speech|어조/i.test(label)) return true;
   if (resolveHeaderCategory(label)) return true;
   return detectCategory(label) !== "other";
 }
@@ -137,11 +153,21 @@ function splitIntoSections(combined: string): { title: string; body: string; hin
     const inlineBracket = parseInlineBracketHeader(line);
     if (inlineBracket && isInlineSectionLabel(inlineBracket.label)) {
       flush();
-      currentTitle = `[${inlineBracket.label}]`;
+      currentTitle = formatSectionTitle(inlineBracket.label);
       currentHint =
         resolveHeaderCategory(inlineBracket.label) ??
         detectCategory(inlineBracket.label);
       currentLines.push(inlineBracket.body);
+      continue;
+    }
+
+    const trailingBracket = parseTrailingBracketHeader(line);
+    if (trailingBracket && isInlineSectionLabel(trailingBracket.label)) {
+      flush();
+      currentTitle = formatSectionTitle(trailingBracket.label);
+      currentHint =
+        resolveHeaderCategory(trailingBracket.label) ??
+        detectCategory(trailingBracket.label);
       continue;
     }
 
@@ -151,14 +177,17 @@ function splitIntoSections(combined: string): { title: string; body: string; hin
       line.match(/^\[(.+?)\]$/);
 
     let headerCategory: ChunkCategory | undefined;
+    let headerLabel: string | undefined;
     if (headerMatch) {
-      const label = headerMatch[1] ?? line;
-      headerCategory = resolveHeaderCategory(label);
+      headerLabel = headerMatch[1] ?? line;
+      headerCategory = resolveHeaderCategory(headerLabel);
     }
 
     if (headerMatch || HEADER_PATTERNS.some(({ re }) => re.test(normalizeLine(line)))) {
       flush();
-      currentTitle = normalizeLine(line);
+      currentTitle = headerLabel
+        ? formatSectionTitle(headerLabel)
+        : normalizeLine(line);
       currentHint = headerCategory ?? detectCategory(currentTitle);
       continue;
     }
@@ -261,15 +290,7 @@ export function parseCharacterSetting(input: CharacterSettingInput): CharacterCh
 }
 
 /** 코어 아이덴티티 빌더용 — 설정 원문 섹션 분할 */
-export function parseCharacterSettingIntoSections(combined: string): {
-  title: string;
-  body: string;
-  hint?: ChunkCategory;
-}[] {
-  const trimmed = combined.trim();
-  if (!trimmed) return [];
-  return splitIntoSections(trimmed);
-}
+export { parseCharacterSettingIntoSections } from "@/lib/characterSettingSections";
 
 function mergeTinyChunks(chunks: CharacterChunk[], characterId: string): CharacterChunk[] {
   if (chunks.length <= 1) return chunks;
@@ -315,25 +336,4 @@ export function deserializeCharacterChunks(raw: string | null | undefined): Char
   } catch {
     return [];
   }
-}
-
-/** 유저 입력과 맥락 키워드 매칭 점수 */
-export function scoreChunkRelevance(
-  chunk: CharacterChunk,
-  userText: string,
-  recentContext: string
-): number {
-  const haystack = `${userText} ${recentContext}`.toLowerCase();
-  let score = 0;
-  for (const kw of chunk.keywords) {
-    if (haystack.includes(kw.toLowerCase())) score += 2;
-  }
-  const contentWords = chunk.content.match(/[\uAC00-\uD7A3]{2,}/g) ?? [];
-  for (const w of contentWords.slice(0, 30)) {
-    if (w.length >= 2 && haystack.includes(w)) score += 0.5;
-  }
-  if (chunk.category === "relationships" && /관계|가족|친구|연인|너|당신/.test(haystack)) score += 1;
-  if (chunk.category === "abilities" && /능력|스킬|싸움|전투|마법/.test(haystack)) score += 1;
-  if (chunk.category === "world" && /세계|도시|장소|마을|배경/.test(haystack)) score += 1;
-  return score;
 }

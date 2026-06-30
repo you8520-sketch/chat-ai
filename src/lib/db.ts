@@ -6,6 +6,7 @@ import fs from "fs";
 import { getDataDir, getDatabasePath } from "@/lib/dataDir";
 import { seedGlobalLorebookEntries } from "@/lib/globalLorebook";
 import { backfillCharacterEngagementStats } from "@/lib/characterEngagementStats";
+import { UNIFIED_TIER_AIM_CHARS } from "@/lib/responseLengthConstants";
 
 const dataDir = getDataDir();
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
@@ -709,7 +710,43 @@ function migrate(db: Database.Database) {
   addColumn("characters", "total_turns", "INTEGER NOT NULL DEFAULT 0");
   migrateCharacterEngagementStats(db);
   migrateCommentModeration(db);
+  migrateUnifiedTargetResponseChars3200(db);
   seedGlobalLorebookEntries(db);
+}
+
+function migrateUnifiedTargetResponseChars3200(db: Database.Database) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS _schema_flags (
+      key TEXT PRIMARY KEY,
+      applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+  const done = db
+    .prepare("SELECT 1 AS ok FROM _schema_flags WHERE key='target_response_chars_unified_3200'")
+    .get() as { ok: number } | undefined;
+  if (done?.ok) return;
+
+  db.prepare(
+    "UPDATE chats SET target_response_chars = 3200 WHERE target_response_chars IS NULL OR target_response_chars != 3200"
+  ).run();
+
+  const users = db
+    .prepare("SELECT id, chat_prefs FROM users WHERE chat_prefs IS NOT NULL AND chat_prefs != ''")
+    .all() as { id: number; chat_prefs: string }[];
+  const updatePrefs = db.prepare("UPDATE users SET chat_prefs = ? WHERE id = ?");
+  for (const row of users) {
+    try {
+      const parsed = JSON.parse(row.chat_prefs) as { v?: number; targetResponseChars?: unknown };
+      if (parsed?.v !== 1) continue;
+      if (parsed.targetResponseChars === UNIFIED_TIER_AIM_CHARS) continue;
+      parsed.targetResponseChars = UNIFIED_TIER_AIM_CHARS;
+      updatePrefs.run(JSON.stringify(parsed), row.id);
+    } catch {
+      /* ignore malformed prefs */
+    }
+  }
+
+  db.prepare("INSERT INTO _schema_flags (key) VALUES ('target_response_chars_unified_3200')").run();
 }
 
 function migrateCommentModeration(db: Database.Database) {

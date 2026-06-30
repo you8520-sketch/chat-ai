@@ -78,13 +78,11 @@ export type ContextBuildInput = {
   rejectedAssistantDraft?: string | null;
   /** 재생성 시도 nonce — 프롬프트·샘플링 다양화 */
   regenAttemptId?: string | null;
-  /** RAG — 유저 발화 기준 캐릭터 로어 검색 결과 ([CONTEXTUAL LORE]) */
-  contextualLore?: string | null;
   /** 키워드 로어북 — 유저 입력 매칭 시 원문 주입 (번역 없음) */
   keywordLorebookBlock?: string | null;
   /** 플랫폼 전역 로어북 — Depth 0 tail (트리거 매칭 시) */
   globalLorebookBlock?: string | null;
-  /** chat_turn_summaries 최신 3개 — [RECENT NARRATIVE CONTEXT] (read-only) */
+  /** chat_turn_summaries 최신 N개 — [RECENT NARRATIVE CONTEXT] (read-only, not character profile) */
   recentNarrativeContext?: string | null;
   /** 이중언어 대사 감지 — system_prompt / world / example_dialog (chunks 외 원문) */
   systemPrompt?: string;
@@ -129,15 +127,12 @@ export type BuiltContext = {
     /** system + history 합산 추정 (gemini-bulk cache threshold 판단) */
     estimatedInputTokens?: number;
     tokenBudget: number;
-    includedChunkIds: string[];
-    skippedChunkIds: string[];
     /** 캐릭터 설정에서 이중언어 대사(EN/zh/ja+KO 등) 감지 */
     bilingualDialogue?: boolean;
     truncatedMemory: boolean;
     promptAudit?: import("@/services/promptAudit").PromptAuditResult;
     trackedSections?: import("@/services/promptAudit").TrackedPromptSection[];
     /** explicit cache 경로 — non-cached contents tail 주입용 */
-    visualAnchorTail?: string;
     geminiBulkPadded?: boolean;
     /** static cache padding 적용 여부 */
     staticCachePaddingApplied?: boolean;

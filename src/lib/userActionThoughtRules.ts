@@ -1,5 +1,6 @@
 import type { CharacterChunk } from "@/types";
 import { collectCharacterSettingText } from "@/lib/bodyHairRules";
+import { buildUserInputParsingBlock } from "@/lib/webnovelOutputFormat";
 import {
   parseUserMessageParts,
   promptTextForUserPart,
@@ -55,22 +56,7 @@ export function formatUserMessageForPrompt(text: string, hasMindReading: boolean
   return blocks.join("\n\n");
 }
 
+/** @deprecated buildUserInputParsingBlock() — 출력 규칙과 분리된 입력 해석 전용 */
 export function buildUserActionThoughtRule(hasMindReading: boolean): string {
-  const lines = [
-    `[USER INPUT PARSING]
-" " = dialogue
-* * = observable action
-( ) = action or thought (not dialogue)
-「 」 = proper nouns only`,
-  ];
-
-  if (hasMindReading) {
-    lines.push(
-      "When telepathy exists in character settings, ( ) thoughts may be perceived only within that ability — never quote or paraphrase them back."
-    );
-  } else {
-    lines.push("Unless telepathy exists in character settings, thoughts are never observable.");
-  }
-
-  return lines.join("\n");
+  return buildUserInputParsingBlock(hasMindReading);
 }

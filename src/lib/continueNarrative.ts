@@ -36,10 +36,17 @@ function userPersonaSpeechTail(_persona: string, usesBanmal: boolean): string {
 - Match [USER_PERSONA] register exactly. Do NOT copy [A]'s honorific level onto [B].`;
 }
 
-/** 재생성 rejected draft — 최소 2,000자 보존, 초과 시 head+tail */
+import { estimateTokens } from "@/lib/tokenEstimate";
+
+/** 재생성 rejected draft — full-text mode only (REGENERATE_FULL_REJECTED_DRAFT=1) */
 export const REGENERATE_REJECTED_DRAFT_MIN_CHARS = 2000;
 export const REGENERATE_REJECTED_DRAFT_MAX_CHARS = 6000;
 
+/** Compact divergence summary — narrative beats only, not wording */
+export const REGENERATE_DIVERGENCE_SUMMARY_MIN_TOKENS = 300;
+export const REGENERATE_DIVERGENCE_SUMMARY_MAX_TOKENS = 600;
+
+/** @deprecated full draft — opt-in via REGENERATE_FULL_REJECTED_DRAFT */
 export function formatRejectedDraftForRegenerate(text: string): string {
   const trimmed = text.trim();
   if (!trimmed) return "";
@@ -48,6 +55,144 @@ export function formatRejectedDraftForRegenerate(text: string): string {
   const head = trimmed.slice(0, REGENERATE_REJECTED_DRAFT_MIN_CHARS).trimEnd();
   const tail = trimmed.slice(-Math.max(400, tailBudget)).trimStart();
   return `${head}\n…\n${tail}`;
+}
+
+/** true — inject full rejected draft (legacy); default is compact divergence summary only */
+export function isRegenerateFullRejectedDraftEnabled(): boolean {
+  const raw = process.env.REGENERATE_FULL_REJECTED_DRAFT?.trim().toLowerCase();
+  return raw === "1" || raw === "true" || raw === "yes";
+}
+
+function truncateToTokenBudget(text: string, maxTokens: number): string {
+  const trimmed = text.trim();
+  if (!trimmed || estimateTokens(trimmed) <= maxTokens) return trimmed;
+  const ellipsis = "…";
+  const budget = Math.max(1, maxTokens - estimateTokens(ellipsis));
+  let lo = 0;
+  let hi = trimmed.length;
+  while (lo < hi) {
+    const mid = Math.ceil((lo + hi) / 2);
+    if (estimateTokens(trimmed.slice(0, mid)) <= budget) lo = mid;
+    else hi = mid - 1;
+  }
+  if (lo <= 0) return ellipsis;
+  return `${trimmed.slice(0, lo).trimEnd()}${ellipsis}`;
+}
+
+function normalizeDraftForDivergenceSummary(text: string): string {
+  return text
+    .replace(/\[태그:[^\]]+\]/gi, "")
+    .replace(/<<<STATUS_VALUES[\s\S]*?(?:<<<END_STATUS>>>|$)/gi, "")
+    .replace(/<<<END_STATUS>>>/gi, "")
+    .replace(/📅[^\n]*/g, "")
+    .replace(/\r\n/g, "\n")
+    .trim();
+}
+
+function splitDraftParagraphs(text: string): string[] {
+  return text
+    .split(/\n{2,}/)
+    .map((p) => p.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+}
+
+function extractKeyDialogueBeats(text: string, maxBeats = 5): string[] {
+  const beats: string[] = [];
+  const seen = new Set<string>();
+  const patterns = [/"([^"]{3,100})"/g, /「([^」]{3,100})」/g];
+  for (const re of patterns) {
+    for (const m of text.matchAll(re)) {
+      const line = m[1]?.trim();
+      if (!line || seen.has(line)) continue;
+      seen.add(line);
+      beats.push(`"${line.length > 100 ? `${line.slice(0, 97)}…` : line}"`);
+      if (beats.length >= maxBeats) return beats;
+    }
+  }
+  return beats;
+}
+
+function bulletMajorActions(paragraphs: string[], maxBullets = 4): string[] {
+  if (paragraphs.length <= 2) return [];
+  const middle = paragraphs.slice(1, -1);
+  const bullets: string[] = [];
+  for (const p of middle) {
+    const compact = p.replace(/^\*+|\*+$/g, "").trim();
+    if (!compact || compact.length < 12) continue;
+    bullets.push(compact);
+    if (bullets.length >= maxBullets) break;
+  }
+  if (bullets.length > 0) return bullets;
+  if (paragraphs.length >= 2) {
+    const fallback = paragraphs[1]!.replace(/^\*+|\*+$/g, "").trim();
+    if (fallback.length >= 12) bullets.push(fallback);
+  }
+  return bullets;
+}
+
+/**
+ * Compact beat summary for regen diverge — opening / actions / dialogue / ending only.
+ * Purpose: avoid repeating the same narrative arc, not preserve rejected wording.
+ */
+export function buildRegenerateDivergenceSummary(rejectedAssistantDraft?: string | null): string {
+  const normalized = normalizeDraftForDivergenceSummary(rejectedAssistantDraft ?? "");
+  if (!normalized) return "";
+
+  const paragraphs = splitDraftParagraphs(normalized);
+  const openingRaw = paragraphs[0] ?? normalized.slice(0, 800);
+  const endingRaw =
+    paragraphs.length > 1 ? paragraphs[paragraphs.length - 1]! : normalized.slice(-800);
+  const actions = bulletMajorActions(paragraphs);
+  const dialogue = extractKeyDialogueBeats(normalized);
+
+  const sectionBudget = Math.floor(REGENERATE_DIVERGENCE_SUMMARY_MAX_TOKENS / 4);
+  const opening = truncateToTokenBudget(openingRaw, sectionBudget);
+  const ending =
+    endingRaw.trim() === openingRaw.trim()
+      ? ""
+      : truncateToTokenBudget(endingRaw, sectionBudget);
+
+  const lines: string[] = [
+    "[Rejected turn — divergence reference (summary only; do NOT reuse wording or beats)]",
+    `Opening situation: ${opening}`,
+  ];
+
+  if (actions.length > 0) {
+    lines.push("Major actions:");
+    for (const a of actions) {
+      lines.push(`- ${truncateToTokenBudget(a, Math.max(40, sectionBudget - 10))}`);
+    }
+  }
+
+  if (dialogue.length > 0) {
+    lines.push("Key dialogue beats:");
+    for (const d of dialogue) lines.push(`- ${d}`);
+  }
+
+  if (ending) lines.push(`Ending hook: ${ending}`);
+
+  let summary = lines.join("\n");
+  return truncateToTokenBudget(summary, REGENERATE_DIVERGENCE_SUMMARY_MAX_TOKENS);
+}
+
+export function buildRegenerateDivergenceReferenceBlock(
+  rejectedAssistantDraft?: string | null,
+  opts?: { includeFullRejectedDraft?: boolean }
+): string {
+  const useFull =
+    opts?.includeFullRejectedDraft === true ||
+    (opts?.includeFullRejectedDraft !== false && isRegenerateFullRejectedDraftEnabled());
+
+  if (useFull) {
+    const rejected = formatRejectedDraftForRegenerate(rejectedAssistantDraft ?? "");
+    if (!rejected) return "";
+    return `\n[Rejected draft — do NOT repeat this development; diverge clearly]
+${rejected}\n`;
+  }
+
+  const summary = buildRegenerateDivergenceSummary(rejectedAssistantDraft);
+  if (!summary) return "";
+  return `\n${summary}\n`;
 }
 
 /** 재생성 — 직전 상황은 유지, 전개·반응·대사는 달리 */
@@ -59,11 +204,9 @@ export function buildRegenerateCoreDirective(_charName?: string): string {
 - Do NOT reuse key plot beats, closing hooks, or signature lines from [Rejected draft].`;
 }
 
+/** @deprecated use buildRegenerateDivergenceReferenceBlock */
 export function buildRegenerateRejectedDraftBlock(rejectedAssistantDraft?: string | null): string {
-  const rejected = formatRejectedDraftForRegenerate(rejectedAssistantDraft ?? "");
-  if (!rejected) return "";
-  return `\n[Rejected draft — do NOT repeat this development; diverge clearly]
-${rejected}\n`;
+  return buildRegenerateDivergenceReferenceBlock(rejectedAssistantDraft);
 }
 
 /** system prompt — 재생성 diverge 단일 출처 (user 턴과 중복 금지) */
@@ -77,10 +220,13 @@ export function buildRegenerateSystemDirective(input: {
   charName?: string;
   rejectedAssistantDraft?: string | null;
   regenAttemptId?: string | null;
+  includeFullRejectedDraft?: boolean;
 }): string {
   return `[REGENERATE — MANDATORY DIVERGENCE]${buildRegenerateAttemptRecencyLine(input.regenAttemptId)}
 ${buildRegenerateCoreDirective(input.charName)}
-- Paraphrase-only regen is a failure.${buildRegenerateRejectedDraftBlock(input.rejectedAssistantDraft)}`;
+- Paraphrase-only regen is a failure.${buildRegenerateDivergenceReferenceBlock(input.rejectedAssistantDraft, {
+    includeFullRejectedDraft: input.includeFullRejectedDraft,
+  })}`;
 }
 
 export type AutoContinueResumeContext = {
@@ -248,7 +394,7 @@ export function buildRegenerateOocPriorityPrompt(input: RegenerateUserPromptInpu
 
   return `[SYSTEM: REGENERATE — CHAT OOC takes priority${exclusive ? " (user note status/HTML suspended)" : ""}]
 ${rules}
-${buildRegenerateRejectedDraftBlock(input.rejectedAssistantDraft)}
+${buildRegenerateDivergenceReferenceBlock(input.rejectedAssistantDraft)}
 
 [User message — fixed anchor; OOC inside is mandatory]
 ${msg}${buildRegenerateAttemptRecencyLine(input.regenAttemptId)}`;

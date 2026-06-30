@@ -64,7 +64,6 @@ const SECTION_SOURCE: Record<string, string> = {
   "recent-narrative-context": "src/lib/memory/*",
   "relationship-meta": "src/lib/chatMemory.ts",
   "user-note-reference": "src/lib/persona.ts",
-  "contextual-lore-rag": "src/lib/memory/*",
   "keyword-lorebook": "src/lib/lorebook*",
   "global-lorebook-depth-0": "src/lib/lorebook*",
   "rule-asset-tags": "src/lib/emotionTag.ts",
@@ -73,8 +72,6 @@ const SECTION_SOURCE: Record<string, string> = {
 
 function resolveSourceFile(id: string): string {
   if (SECTION_SOURCE[id]) return SECTION_SOURCE[id];
-  if (id.startsWith("chunk-critical-")) return "src/lib/characterChunks.ts (character)";
-  if (id.startsWith("chunk-lore-")) return "src/lib/characterChunks.ts (lore)";
   if (id.startsWith("archive-memory")) return "src/lib/memory/*";
   return "src/services/contextBuilder.ts";
 }
@@ -133,7 +130,6 @@ async function buildMockFixture() {
     userImpersonation: false,
     novelModeEnabled: false,
     targetResponseChars: 2500,
-    contextualLore: undefined as string | undefined,
     recentNarrativeContext: undefined as string | undefined,
     keywordLorebookBlock: undefined as string | undefined,
   };
