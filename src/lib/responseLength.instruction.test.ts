@@ -78,10 +78,11 @@ describe("buildLengthInstruction", () => {
     }
   });
 
-  it("appendCompactTerminalLengthToUserTurn is deprecated passthrough", () => {
+  it("appendCompactTerminalLengthToUserTurn adds tail at user bottom", () => {
     const out = appendCompactTerminalLengthToUserTurn("밤이 깊었어.", 3200);
-    assert.equal(out, "밤이 깊었어.");
-    assert.doesNotMatch(out, /TARGET_LENGTH/);
+    assert.match(out, /^밤이 깊었어\./);
+    assert.match(out, /TARGET_LENGTH 3,200\+/);
+    assert.match(out, /단일 응답 최대 전개·미달 조기 종료 금지\.$/);
   });
 
   it("single-shot reminder defers to LENGTH CONTROL without Time Dilation", () => {

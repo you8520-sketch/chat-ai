@@ -61,7 +61,7 @@ const BODY_RE =
 
 /** Explicit appearance field — preferred over generic BODY_RE (avoids matching enemy "거대" in 외형 lines) */
 const APPEARANCE_FIELD_LINE_RE =
-  /^(?:[-*•#\s]*)(?:외형|외모|체형|몸매)\s*[:：]\s*(.+)/i;
+  /^(?:[-*•#\s]*)(?:외형|외모|appearance|체형|몸매)\s*[:：]\s*(.+)/i;
 
 /** Bracketed lore blocks for NPCs/enemies — not the playable AI character */
 const LORE_ENTITY_HEADER_RE =
@@ -71,7 +71,7 @@ const MAIN_PROFILE_SECTION_RE =
   /^(?:#{1,3}\s*)?(?:\[?(?:외형|외모|이름|성격|정체성)\]?|\[(?:이름|외형|외모|성격)\])/i;
 
 const APPEARANCE_TRAIT_RE =
-  /(?:금발|은발|흑발|백발|갈색\s*머리|(?:푸른|파란|하늘(?:색)?|금(?:색|빛)|황금|적(?:색|갈)?|녹색|회(?:색|빛)|검(?:은|정)|보라(?:색)?)\s*(?:눈|눈동자|홍책)|(?:blonde?|silver\s*hair|blue\s*eyes|golden\s*eyes)|(?:외모|외형|머리(?:색|칼)|눈(?:동자)?\s*색))/i;
+  /(?:금발|은발|흑발|백발|갈색\s*머리|(?:푸른|파란|하늘(?:색)?|금(?:색|빛)|황금|적(?:색|갈)?|녹색|회(?:색|빛)|검(?:은|정)|보라(?:색)?)\s*(?:눈|눈동자|홍책)|(?:blonde?|golden\s*hair|silver(?:\s*|\/)platinum\s*hair|black\s*hair|brown\s*hair|blue\s*eyes|green\s*eyes|golden\s*eyes|amber\s*eyes|purple\s*eyes|gray\s*eyes|grey\s*eyes)|(?:외모|외형|머리(?:색|칼)|눈(?:동자)?\s*색))/i;
 
 const HAIR_CONTEXT_RE = /머리|모발|hair/i;
 const EYE_CONTEXT_RE = /눈|눈동자|홍책|iris|eyes/i;
@@ -190,7 +190,7 @@ function extractAppearanceFieldValue(line: string): string | null {
   const trimmed = line.trim();
   const colon = trimmed.match(APPEARANCE_FIELD_LINE_RE);
   if (colon?.[1]?.trim()) return colon[1].trim().slice(0, 120);
-  const inline = trimmed.match(/^\[(?:외형|외모)\]\s+(\S.+)$/i);
+  const inline = trimmed.match(/^\[(?:외형|외모|Appearance)\]\s+(\S.+)$/i);
   if (inline?.[1]?.trim()) return inline[1].trim().slice(0, 120);
   return null;
 }
@@ -199,7 +199,7 @@ function extractDedicatedAppearanceChunkBody(chunk: CharacterChunk): string | nu
   if (!isDedicatedAppearanceChunk(chunk)) return null;
   const withoutHeader = chunk.content
     .trim()
-    .replace(/^\[(?:외형|외모)\]\s*\n?/i, "")
+    .replace(/^\[(?:외형|외모|Appearance)\]\s*\n?/i, "")
     .trim();
   return withoutHeader.length >= 4 ? withoutHeader.slice(0, 600) : null;
 }
@@ -229,7 +229,7 @@ function isDedicatedAppearanceChunk(chunk: CharacterChunk): boolean {
   const head = chunk.content.trim().slice(0, 48);
   return (
     chunk.category === "abilities" &&
-    /^(?:\[외형\]|\[외모\]|#{1,3}\s*(?:외형|외모))/i.test(head)
+    /^(?:\[외형\]|\[외모\]|\[Appearance\]|#{1,3}\s*(?:외형|외모|Appearance))/i.test(head)
   );
 }
 
@@ -271,7 +271,7 @@ function scoreAppearanceLines(
       if (/(?:괴수|보스\s*몬|enemy|monster)/i.test(line)) score -= 8;
 
       const appearanceProfile =
-        dedicatedAppearance || APPEARANCE_FIELD_LINE_RE.test(line) || /^\[(?:외형|외모)\]/i.test(line);
+        dedicatedAppearance || APPEARANCE_FIELD_LINE_RE.test(line) || /^\[(?:외형|외모|Appearance)\]/i.test(line);
 
       if (score > -5) results.push({ line, score, appearanceProfile });
     }
@@ -382,10 +382,33 @@ export function extractVisualAppearancePolicyFromChunks(
   const scopedText = collectCharacterAppearanceText(chunks, charName, opts);
   const policy = extractVisualAppearancePolicyFromScored(scored, scopedText);
   const mainBody = extractMainCharacterAppearanceBody(chunks, charName, opts);
-  if (mainBody) {
-    return { ...policy, body: mainBody };
+  const withBody = mainBody ? { ...policy, body: mainBody } : policy;
+  return fillVisualPolicyFromBody(withBody, mainBody);
+}
+
+function fillVisualPolicyFromBody(
+  policy: VisualAppearancePolicy,
+  body: string | null
+): VisualAppearancePolicy {
+  const src = [body, policy.body].filter(Boolean).join("\n").trim();
+  if (!src) return policy;
+
+  let { hair, hairLabel, eyes, eyesLabel } = policy;
+  if (!hair) {
+    const picked = pickColor(src, HAIR_DEFS, HAIR_CONTEXT_RE);
+    if (picked) {
+      hair = picked.tag;
+      hairLabel = picked.label;
+    }
   }
-  return policy;
+  if (!eyes) {
+    const picked = pickColor(src, EYE_DEFS, EYE_CONTEXT_RE);
+    if (picked) {
+      eyes = picked.tag;
+      eyesLabel = picked.label;
+    }
+  }
+  return { ...policy, hair, hairLabel, eyes, eyesLabel };
 }
 
 function extractBodyTag(text: string): string | null {
@@ -434,7 +457,7 @@ export function extractMainCharacterAppearanceBody(
       if (inLoreEntity) continue;
       const line = rawLine.trim();
 
-      if (/^\[(?:외형|외모)\]$/i.test(line)) {
+      if (/^\[(?:외형|외모|Appearance)\]$/i.test(line)) {
         const block = extractAppearanceAfterBracketHeader(lines, i);
         if (block) return block;
         continue;
@@ -493,7 +516,7 @@ export function stripVisualAnchorFromSystem(system: string, anchor: string | nul
 const PERSONA_APPEARANCE_RE = /(?:외형|외모)\s*[:：]\s*([^\n]+)/i;
 const PERSONA_SCENT_RE = /체향\s*[:：]\s*([^\n]+)/i;
 
-/** Body text may mention eyes without matching EYE_DEFS (e.g. 금안) — tail reminder only */
+/** Body text may mention eyes without matching EYE_DEFS (e.g. 금안) */
 function inferEyeLabelFromBody(body: string | null): string | null {
   if (!body?.trim()) return null;
   if (/금안/i.test(body)) return "금안 (golden eyes)";
@@ -501,6 +524,130 @@ function inferEyeLabelFromBody(body: string | null): string | null {
     return "금색/황금 눈 (gold/amber)";
   }
   return null;
+}
+
+export type CanonicalAppearanceDetails = {
+  height: string | null;
+  bodyType: string | null;
+  age: string | null;
+  skin: string | null;
+};
+
+const BODY_TYPE_PATTERNS: { re: RegExp; label: string }[] = [
+  { re: /마른\s*체형|날씬(?:한)?\s*체(?:격|형)|slender|slim\b/i, label: "slender build" },
+  { re: /근육질|근육(?:이|적인)|muscular/i, label: "muscular build" },
+  { re: /통통|plump|curvy/i, label: "curvy build" },
+  { re: /작은\s*체(?:격|형)|petite/i, label: "petite build" },
+  {
+    re: /overwhelming\s*physique|거대(?:한)?\s*(?:체(?:격|구)|몸)|(?:imposing|large)\s*(?:build|frame)/i,
+    label: "large build",
+  },
+];
+
+/** Character Identity [외형] 본문에서 불변 외형 세부 추출 */
+export function extractCanonicalAppearanceDetails(body: string | null): CanonicalAppearanceDetails {
+  const text = body?.trim() ?? "";
+  if (!text) {
+    return { height: null, bodyType: null, age: null, skin: null };
+  }
+
+  const heightM = text.match(/(?:키\s*[:：]?\s*)?(\d{2,3})\s*cm\b/i);
+  const height = heightM ? `${heightM[1]}cm` : null;
+
+  const ageM = text.match(/(?:^|[\s,(·])(\d{1,3})\s*세\b/);
+  const age = ageM ? `${ageM[1]}세` : null;
+
+  let bodyType: string | null = null;
+  for (const { re, label } of BODY_TYPE_PATTERNS) {
+    if (re.test(text)) {
+      bodyType = label;
+      break;
+    }
+  }
+
+  let skin: string | null = null;
+  const skinKo = text.match(/(?:백옥|창백|하얀|밝은|갈색|어두(?:운)?|황(?:색|금))\s*(?:한?\s*)?피부/);
+  if (skinKo?.[0]) {
+    skin = skinKo[0].replace(/\s+/g, " ").trim();
+  } else {
+    const skinEn = text.match(/\b(fair|pale|olive|tan|dark|brown)\s*skin\b/i);
+    if (skinEn?.[1]) skin = `${skinEn[1].toLowerCase()} skin`;
+  }
+
+  return { height, bodyType, age, skin };
+}
+
+function formatImmutableTrait(traitName: string, value: string): string {
+  const normalized = value.replace(/\.\s*$/, "").trim();
+  return `${traitName}\n${normalized}.\nThis never changes.`;
+}
+
+/**
+ * 매 턴 Character Identity에서 추출한 불변 외형 — 금지어 나열 대신 canonical reuse.
+ */
+export function buildCanonicalFactsBlock(
+  charName: string,
+  policy: VisualAppearancePolicy
+): string | null {
+  const eyesLabel = policy.eyesLabel ?? inferEyeLabelFromBody(policy.body);
+  const details = extractCanonicalAppearanceDetails(policy.body);
+  const hasTraits =
+    policy.hairLabel ||
+    eyesLabel ||
+    details.height ||
+    details.bodyType ||
+    details.age ||
+    details.skin;
+  if (!hasTraits) return null;
+
+  const subject = charName.trim() || "this character";
+  const lines = [
+    "[CANONICAL FACTS]",
+    "",
+    `Treat the following as absolute canon for ${subject}.`,
+    "Never alter, replace, infer, or reinterpret these facts.",
+    "",
+    "Immutable unless the scenario explicitly changes them:",
+    "• hair color • eye color • height • body type • age • skin",
+    "• speech style • personality (see [CORE IDENTITY] above)",
+    "",
+    "If narration conflicts with canonical facts, canonical facts always win.",
+    "When describing appearance, reuse these facts — do not invent new physical traits.",
+    "",
+    "[CANONICAL APPEARANCE]",
+  ];
+
+  if (policy.hairLabel) {
+    lines.push(formatImmutableTrait("Hair", policy.hairLabel));
+    lines.push("");
+  }
+  if (eyesLabel) {
+    lines.push(formatImmutableTrait("Eyes", eyesLabel));
+    lines.push("");
+  }
+  if (details.height) {
+    lines.push(formatImmutableTrait("Height", details.height));
+    lines.push("");
+  }
+  if (details.bodyType) {
+    lines.push(formatImmutableTrait("Body type", details.bodyType));
+    lines.push("");
+  }
+  if (details.age) {
+    lines.push(formatImmutableTrait("Age", details.age));
+    lines.push("");
+  }
+  if (details.skin) {
+    lines.push(formatImmutableTrait("Skin", details.skin));
+    lines.push("");
+  }
+
+  lines.push(
+    "These appearance traits are immutable unless explicitly modified by the scenario.",
+    "Uniform or coat color is separate from hair color — reuse canonical hair, not clothing color."
+  );
+
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 /** 유저 RP 캐릭터(페르소나) 외형·체향 — 매 턴 하단 리마인더용 */
@@ -528,33 +675,12 @@ export function buildUserPersonaAppearanceReminder(
   return lines.join("\n");
 }
 
-/** 프롬프트 최하단 Visual Anchor — hair/eye only (no full body restatement) */
-export function buildVisualAnchorReminder(policy: VisualAppearancePolicy): string | null {
-  const eyesLabel = policy.eyesLabel ?? inferEyeLabelFromBody(policy.body);
-  if (!policy.hairLabel && !eyesLabel) return null;
-
-  const lines = [
-    "[APPEARANCE LOCK — immutable traits from character setting]",
-  ];
-
-  if (policy.hairLabel) {
-    lines.push(
-      `Hair: ${policy.hairLabel}. NEVER write conflicting hair colors (e.g. no 금발/blonde if silver).`,
-      `Uniform/coat color is NOT hair color — do not describe hair as the coat/uniform color (e.g. 검은색 제복 ≠ 검은 머리).`
-    );
-  }
-  if (eyesLabel) {
-    lines.push(
-      `Eyes: ${eyesLabel}. NEVER write conflicting eye colors (e.g. no 푸른/blue if gold).`
-    );
-  }
-
-  lines.push(
-    "Ignore wrong hair/eye colors from prior chat — NPC drift errors.",
-    "Do not invent colors not listed above."
-  );
-
-  return lines.join("\n");
+/** @deprecated — use buildCanonicalFactsBlock */
+export function buildVisualAnchorReminder(
+  policy: VisualAppearancePolicy,
+  charName = "this character"
+): string | null {
+  return buildCanonicalFactsBlock(charName, policy);
 }
 
 type DriftRule = { wrong: RegExp; right: string };
@@ -563,6 +689,9 @@ const HAIR_DRIFT: Partial<Record<HairColorTag, DriftRule[]>> = {
   blonde: [
     { wrong: /은발/g, right: "금발" },
     { wrong: /(?:은|백)(?:색|빛)\s*머리/g, right: "금발" },
+    { wrong: /(?:은은히|은은한)\s*(?:빛나는\s*)?은(?:빛|색)?(?:\s*머리)?/g, right: "찬란한 금발" },
+    { wrong: /흔들리는\s*은발/g, right: "흔들리는 금발" },
+    { wrong: /은발의\s*기사/g, right: "금발의 기사" },
     { wrong: /검(?:은|정)\s*머리(?:카락)?/g, right: "금발" },
     { wrong: /흑발/g, right: "금발" },
     { wrong: /(?:silver|platinum)\s*hair/gi, right: "blonde hair" },
@@ -656,23 +785,23 @@ export function sanitizeVisualAppearance(text: string, policy: VisualAppearanceP
 
   if (!hairRules && !eyeRules) return text;
 
-  /** HTML visual card — 태그·해시태그 포함 전역 치환 (문장 분리 시 누락 방지) */
-  if (/<(?:div|section|p|span|h[1-6]|ul|li|html)\b|#(?:은|금|흑)발/i.test(text)) {
-    let out = text;
-    out = applyDriftRules(out, hairRules);
-    out = applyDriftRules(out, eyeRules);
+  /** 전역 치환 먼저 — 문장 분리·stream-first 복원으로 누락 방지 */
+  let out = applyDriftRules(text, hairRules);
+  out = applyDriftRules(out, eyeRules);
+
+  /** HTML visual card — 태그·해시태그 포함 전역 치환만 */
+  if (/<(?:div|section|p|span|h[1-6]|ul|li|html)\b|#(?:은|금|흑)발/i.test(out)) {
     return out;
   }
 
-  const parts = text.split(/(?<=[.!?…])\s+|\n+/);
+  const parts = out.split(/(?<=[.!?…])\s+|\n+/);
   const kept: string[] = [];
 
   for (const part of parts) {
     const trimmed = part.trim();
     if (!trimmed) continue;
 
-    let sentence = applyDriftRules(trimmed, hairRules);
-    sentence = applyDriftRules(sentence, eyeRules);
+    const sentence = trimmed;
 
     let drop = false;
     if (hairConflict?.test(sentence)) drop = true;
@@ -681,7 +810,7 @@ export function sanitizeVisualAppearance(text: string, policy: VisualAppearanceP
     if (!drop) kept.push(sentence);
   }
 
-  if (kept.length === 0) return text;
+  if (kept.length === 0) return out;
   return kept.join("\n\n");
 }
 

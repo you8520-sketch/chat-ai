@@ -787,7 +787,7 @@ export default function CreateCharacter({
             </span>
           </div>
           <p className="text-[11px] text-gray-500">
-            대화 중 AI가 [태그: 감정]을 출력하면 해당 표정 이미지로 자동 전환됩니다. 업로드 시 Gemini Vision이 태그를
+            대화 중 AI가 [태그: …]를 출력하면 해당 이미지로 좌측 초상이 전환됩니다. 태그는 표정·포즈·상황 모두 가능합니다(예: 부끄러움, 침대에 누움). 턴 끝 장면과 맞는 태그를 AI가 고릅니다. 업로드 시 Gemini Vision이 태그를
             자동 분석하며, 잘못된 태그는 에셋 하단 태그를 클릭해 직접 수정할 수 있습니다.
             <br />
             <span className="text-amber-300/90">가리기</span>를 켠 이미지는 제작자에게만 선명하게 보이고, 다른

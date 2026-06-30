@@ -23,30 +23,32 @@ export function stripEmotionTagsForDisplay(text: string): string {
   return text.replace(ANY_TAG_RE, "").trimEnd();
 }
 
-/** 캐릭터 에셋 목록에 있는 태그만 인정 */
+/** 캐릭터 에셋 목록에 있는 태그만 인정 — 업로드된 태그명과 정확히 일치할 때만 */
 export function resolveEmotionTag(tag: string, allowedTags: string[]): string | null {
   const q = tag.trim();
   if (!q || allowedTags.length === 0) return null;
-  if (allowedTags.includes(q)) return q;
-  const partial = allowedTags.find((a) => a.includes(q) || q.includes(a));
-  return partial ?? null;
+  return allowedTags.includes(q) ? q : null;
 }
 
 export function buildEmotionTagPrompt(allowedTags: string[]): string {
   if (allowedTags.length === 0) return "";
-  const list = allowedTags.join(", ");
-  const fallback = allowedTags.includes("대화") ? "대화" : allowedTags[0];
-  return `[EMOTION ASSET TAG]
-Allowed tags ONLY: ${list}
-Append ONE line at end: [태그: tagname]
-NO invented tags. Default if unsure: [태그: ${fallback}]`;
+  const unique = [...new Set(allowedTags.map((t) => t.trim()).filter(Boolean))];
+  const list = unique.join(", ");
+  const fallback = unique.includes("대화") ? "대화" : unique[0]!;
+  return `[DISPLAY ASSET TAG — UPLOADED IMAGES ONLY]
+Each tag names an uploaded character image (expression, pose, or situation — e.g. 부끄러움, 무표정, 침대에 누움, 대화).
+Allowed tags ONLY (copy spelling exactly): ${list}
+At the very end of your reply, append exactly ONE line: [태그: tagname]
+Choose the tag whose image best matches the character's look and what they are doing in the **final moment of this turn** (e.g. if they end up lying on a bed and that tag exists, use it).
+FORBIDDEN: any tag not in the list — do not invent tags for images that were not uploaded.
+If nothing fits perfectly, pick the closest tag from the list, or [태그: ${fallback}]`;
 }
 
 /** User-turn overlay — Flash-owned display asset (not main system rules cache). */
 export function buildFlashOwnedEmotionTagUserOverlay(allowedTags: string[]): string {
   const core = buildEmotionTagPrompt(allowedTags);
   if (!core.trim()) return "";
-  return `[FLASH-OWNED — emotion display asset]\n${core}`;
+  return `[FLASH-OWNED — scene-matched display asset]\n${core}`;
 }
 
 /** 저장 전 — 없는 태그는 제거, 비슷한 태그만 유지 */

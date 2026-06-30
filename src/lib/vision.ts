@@ -11,7 +11,9 @@ import { BACKGROUND_VISION_OPENROUTER_MODEL } from "@/lib/ai";
 const VISION_MODEL =
   process.env.ASSET_VISION_MODEL?.trim() || BACKGROUND_VISION_OPENROUTER_MODEL;
 
-const VISION_PROMPT = `너는 캐릭터 애니메이션 에셋 분석기야. 주어진 이미지를 보고 캐릭터의 표정과 상황을 분석해서 가장 적합한 핵심 감정 태그(예: 기쁨, 슬픔, 분노, 당황, 부끄러움, 대화, 전투, 침실 등)를 추출해 줘. 결과는 반드시 다른 설명 없이 { "tag": "감정명" } 형태의 순수한 JSON으로만 응답해.`;
+const VISION_PROMPT = `너는 캐릭터 애니메이션 에셋 분석기야. 이미지를 보고 표정·포즈·상황을 짧은 한국어 태그 하나로 요약해 줘.
+예: 기쁨, 슬픔, 부끄러움, 무표정, 대화, 전투, 침대에 누움, 소파에 앉음, 서 있음, 침실
+태그는 2~12자 내외의 짧은 구문. 결과는 다른 설명 없이 { "tag": "태그명" } JSON만.`;
 
 async function loadImageBase64(url: string): Promise<{ mime: string; data: string }> {
   let buf: Buffer;

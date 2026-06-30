@@ -5,7 +5,8 @@ import {
   detectAppearancePolicyConflict,
   extractMainCharacterAppearanceBody,
   extractVisualAppearancePolicyFromChunks,
-  buildVisualAnchorReminder,
+  buildCanonicalFactsBlock,
+  extractCanonicalAppearanceDetails,
   sanitizeVisualAppearance,
 } from "@/lib/visualAnchor";
 
@@ -50,7 +51,34 @@ describe("extractMainCharacterAppearanceBody", () => {
     assert.doesNotMatch(policy.body ?? "", /괴물/);
   });
 
-  it("buildVisualAnchorReminder is hair/eye only — no body restatement", () => {
+  it("extractVisualAppearancePolicyFromChunks infers blonde from English golden hair body", () => {
+    const chunks = [
+      chunk(
+        `[Appearance]
+An overwhelming physique of 192cm. Messy, brilliant golden hair, and usually gentle, puppy-like blue eyes.`,
+        "abilities"
+      ),
+    ];
+    const policy = extractVisualAppearancePolicyFromChunks(chunks, "Leon");
+    assert.equal(policy.hair, "blonde");
+  });
+
+  it("sanitizeVisualAppearance fixes poetic 은발 drift for blonde Leon lines", () => {
+    const policy = {
+      hair: "blonde" as const,
+      hairLabel: "금발 (blonde)",
+      eyes: "blue" as const,
+      eyesLabel: "푸른 눈",
+      body: null,
+    };
+    const text =
+      "남은 것은 달빛 아래 은은히 빛나는 은발과, 차가운 밤공기만 남았다. \"제자리에서 흔들리는 은발의 기사가 달빛 아래 빛났다.\"";
+    const out = sanitizeVisualAppearance(text, policy);
+    assert.doesNotMatch(out, /은발/);
+    assert.match(out, /금발/);
+  });
+
+  it("buildCanonicalFactsBlock declares immutable hair/eye from Character Identity", () => {
     const chunks = [
       chunk(
         `[외형] 키 175cm, 마른 체형, 은발, 푸른 눈
@@ -60,11 +88,38 @@ describe("extractMainCharacterAppearanceBody", () => {
       ),
     ];
     const policy = extractVisualAppearancePolicyFromChunks(chunks, "에쉬");
-    const anchor = buildVisualAnchorReminder(policy);
-    assert.ok(anchor);
-    assert.match(anchor!, /Hair:.*은발/);
-    assert.doesNotMatch(anchor!, /175cm/);
-    assert.doesNotMatch(anchor!, /Body\/build/);
+    const block = buildCanonicalFactsBlock("에쉬", policy);
+    assert.ok(block);
+    assert.match(block!, /\[CANONICAL FACTS\]/);
+    assert.match(block!, /\[CANONICAL APPEARANCE\]/);
+    assert.match(block!, /Hair[\s\S]*은발/);
+    assert.match(block!, /This never changes/);
+    assert.match(block!, /Height[\s\S]*175cm/);
+    assert.match(block!, /Body type[\s\S]*slender build/);
+    assert.doesNotMatch(block!, /APPEARANCE LOCK/);
+    assert.doesNotMatch(block!, /은발.*금지|never.*silver/i);
+  });
+
+  it("extractCanonicalAppearanceDetails parses height and body type from English body", () => {
+    const details = extractCanonicalAppearanceDetails(
+      "An overwhelming physique of 192cm. Messy, brilliant golden hair."
+    );
+    assert.equal(details.height, "192cm");
+    assert.equal(details.bodyType, "large build");
+  });
+
+  it("buildCanonicalFactsBlock infers 금안 from body when eyes tag missing", () => {
+    const policy = {
+      hair: "silver" as const,
+      hairLabel: "은발 (silver/platinum)",
+      eyes: null,
+      eyesLabel: null,
+      body: "영롱한 금안이 특징이다.",
+    };
+    const block = buildCanonicalFactsBlock("캐릭터", policy);
+    assert.ok(block);
+    assert.match(block!, /Eyes[\s\S]*금안/);
+    assert.match(block!, /canonical facts always win/i);
   });
 
   it("ignores NPC black hair when protagonist profile says blonde", () => {
@@ -85,19 +140,6 @@ describe("extractMainCharacterAppearanceBody", () => {
     const body = extractMainCharacterAppearanceBody(chunks, "레온");
     assert.match(body ?? "", /금발/);
     assert.doesNotMatch(body ?? "", /흑발/);
-  });
-
-  it("buildVisualAnchorReminder infers 금안 from body when eyes tag missing", () => {
-    const policy = {
-      hair: "silver" as const,
-      hairLabel: "은발 (silver/platinum)",
-      eyes: null,
-      eyesLabel: null,
-      body: "영롱한 금안이 특징이다.",
-    };
-    const anchor = buildVisualAnchorReminder(policy);
-    assert.ok(anchor);
-    assert.match(anchor!, /금안/);
   });
 
   it("sanitizeVisualAppearance replaces 은발 inside HTML for blonde policy", () => {

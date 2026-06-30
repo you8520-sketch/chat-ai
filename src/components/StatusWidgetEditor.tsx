@@ -128,7 +128,7 @@ export default function StatusWidgetEditor({ value, onChange, disabled }: Props)
         </div>
         {value.fields.map((field, i) => (
           <FieldCard
-            key={`${field.id}-${i}`}
+            key={`field-${i}`}
             field={field}
             disabled={disabled}
             canRemove={value.fields.length > 1}

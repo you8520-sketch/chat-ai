@@ -642,12 +642,16 @@ export function buildSingleShotLengthReminder(_targetInput?: number | null): str
 MINIMUM_FLOOR 미달·조기 handoff 금지. [LENGTH CONTROL & SCENE EXPANSION] · [SCENE CONTINUATION PRIORITY] 준수.`;
 }
 
-/** @deprecated User-turn length tail removed — system terminal override only */
+/** OpenRouter user-turn bottom — compact terminal tail recency (10b) */
 export function appendCompactTerminalLengthToUserTurn(
   userContent: string,
-  _targetInput?: number | null
+  targetInput?: number | null
 ): string {
-  return userContent.trim();
+  const tail = buildCompactTerminalLengthAbsoluteTail(targetInput);
+  const body = userContent.trim();
+  if (!body) return tail;
+  if (body.includes("단일 응답 최대 전개·미달 조기 종료 금지")) return body;
+  return `${body}\n\n${tail}`;
 }
 
 /** 유저 메시지 하단 — recency bias로 분량 리마인더 주입 */

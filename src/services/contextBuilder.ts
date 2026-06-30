@@ -8,7 +8,7 @@ import { buildCoreIdentityBlock } from "@/lib/characterCoreIdentity";
 import {
   promoteAppearanceChunkImportance,
   extractVisualAppearancePolicyFromChunks,
-  buildVisualAnchorReminder,
+  buildCanonicalFactsBlock,
 } from "@/lib/visualAnchor";
 import { SHORT_TERM_TURNS, trimHistoryToBudget } from "@/lib/hybridMemory";
 import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
@@ -91,6 +91,7 @@ import {
   DIALOGUE_FORMAT_DIRECTIVE,
 } from "@/lib/promptTranslation";
 import {
+  appendCompactTerminalLengthToUserTurn,
   buildLengthInstruction,
   buildTerminalLengthOverrideBlock,
   resolveResponseLengthTarget,
@@ -417,17 +418,28 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const pushCharacterCoreIdentity = () => {
     const coreBlock = buildCoreIdentityBlock(characterSettingText);
     if (!coreBlock) return;
-    const visualPolicy = extractVisualAppearancePolicyFromChunks(chunks, input.charName, {
-      personaName: personaLabel,
-    });
-    const visualLock = buildVisualAnchorReminder(visualPolicy);
-    const fullBlock = visualLock ? `${coreBlock}\n\n${visualLock}` : coreBlock;
     critical.forEach((c) => includedIds.push(c.id));
     pushSection(
       "character-core-identity",
       "[2] Core Identity (every turn)",
       "characterSetting",
-      fullBlock,
+      coreBlock,
+      isOpenRouter ? "cacheRules" : "dynamic",
+      deepSeekXmlMode ? "world_lore" : undefined
+    );
+  };
+
+  const pushCanonicalAppearanceFacts = () => {
+    const visualPolicy = extractVisualAppearancePolicyFromChunks(chunks, input.charName, {
+      personaName: personaLabel,
+    });
+    const canonicalBlock = buildCanonicalFactsBlock(input.charName, visualPolicy);
+    if (!canonicalBlock) return;
+    pushSection(
+      "canonical-appearance-facts",
+      "[2b] Canonical appearance (immutable)",
+      "characterSetting",
+      canonicalBlock,
       isOpenRouter ? "cacheRules" : "dynamic",
       deepSeekXmlMode ? "world_lore" : undefined
     );
@@ -509,6 +521,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
 
   // ───── [2] Core Identity — directly above persona / user-note focus ─────
   pushCharacterCoreIdentity();
+  pushCanonicalAppearanceFacts();
   // ───── [0] Identity & Rules (persona + mandatory user note) ─────
   pushIdentityAndRules();
   flushDeepSeekXmlSections(["persona", "world_lore"]);
@@ -752,6 +765,12 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     if (emotionOverlay) {
       userTurnContent = `${userTurnContent}\n\n${emotionOverlay}`;
     }
+  }
+  if (isOpenRouter && !input.isContinue) {
+    userTurnContent = appendCompactTerminalLengthToUserTurn(
+      userTurnContent,
+      input.targetResponseChars
+    );
   }
 
   const estimatePayloadTokens = (hist: ContextBuildInput["shortTermHistory"]) =>

@@ -28,7 +28,7 @@ import {
   visibleAssistantDisplayText,
 } from "@/lib/chatDisplayLength";
 import { normalizeAiNovelProseLayout } from "@/lib/novelParagraphs";
-import { loadCharacterChunksForPrompt } from "@/lib/characterChunks";
+import { loadCharacterChunks, loadCharacterChunksForPrompt } from "@/lib/characterChunks";
 import { buildContext } from "@/services/contextBuilder";
 import { auditAssembledPrompt, formatPromptAuditLog } from "@/services/promptAudit";
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
@@ -53,7 +53,7 @@ import {
 } from "@/lib/bodyHairRules";
 import {
   extractVisualAppearancePolicyFromChunks,
-  buildVisualAnchorReminder,
+  buildCanonicalFactsBlock,
   buildFlashCanonicalAppearanceBlock,
   sanitizeVisualAppearance,
 } from "@/lib/visualAnchor";
@@ -833,9 +833,28 @@ export async function POST(req: Request) {
     settingTextForPolicy,
     resolveCharacterGender(selectedPersona?.gender ?? "other")
   );
-  const visualPolicy = extractVisualAppearancePolicyFromChunks(characterChunks, ch.name, {
-    personaName: personaDisplayName,
-  });
+  const visualPolicy = (() => {
+    const fromPrompt = extractVisualAppearancePolicyFromChunks(characterChunks, ch.name, {
+      personaName: personaDisplayName,
+    });
+    if (fromPrompt.hair || fromPrompt.eyes) return fromPrompt;
+    if (usedEnglishCharacterPrompt) {
+      const fromKorean = extractVisualAppearancePolicyFromChunks(
+        loadCharacterChunks(ch),
+        ch.name,
+        { personaName: personaDisplayName }
+      );
+      if (fromKorean.hair || fromKorean.eyes) {
+        console.warn("[/api/chat] visual policy fallback — English chunks missed hair/eye tags", {
+          characterId: ch.id,
+          hair: fromKorean.hair,
+          eyes: fromKorean.eyes,
+        });
+        return { ...fromPrompt, ...fromKorean, body: fromPrompt.body ?? fromKorean.body };
+      }
+    }
+    return fromPrompt;
+  })();
 
   const chatRef = chat;
   const selectedAIRef = selectedAI;
@@ -860,8 +879,8 @@ export async function POST(req: Request) {
   const htmlFlashCoreIdentity = (() => {
     const core = buildCoreIdentityBlock(settingText);
     if (!core) return "";
-    const visualLock = buildVisualAnchorReminder(visualPolicy);
-    return visualLock ? `${core}\n\n${visualLock}` : core;
+    const canonicalBlock = buildCanonicalFactsBlock(ch.name, visualPolicy);
+    return canonicalBlock ? `${core}\n\n${canonicalBlock}` : core;
   })();
   const htmlFlashContextRef = {
     chatId: chat.id,
@@ -2149,6 +2168,18 @@ export async function POST(req: Request) {
               };
             }
           }
+        }
+
+        if (visualPolicy.hair || visualPolicy.eyes) {
+          savedText = traceStep(
+            "sanitizeVisualAppearanceFinal",
+            savedText,
+            sanitizeVisualAppearance(
+              sanitizeHairDescriptions(savedText, hairPolicy),
+              visualPolicy
+            ),
+            "final pass — appearance lock after stream-first / length continuation"
+          );
         }
 
         if (!showFullBillingReceipt) {
