@@ -19,33 +19,15 @@ export type NarrationFewShotProfile = {
   replyHush: string;
 };
 
-/** Hand-heavy narration anchors (ablation baseline structure). */
+/** @deprecated Step 7.5 — hand anchors replaced; use buildSpaceSoundFewShot */
 export function buildHandHeavyFewShot(p: NarrationFewShotProfile): string {
-  return `유저: 오늘도 바쁘지?
-${p.charName}: ${p.charName}은 카운터 너머로 손을 뻗어 잔을 받아 들었다. 손끝이 미끄러운 유리에 닿았고, 그는 손목을 돌려 잔을 가볍게 두었다.
-
-"${p.replyDaily}"
-
-유저: …괜찮아 보이지 않네.
-${p.charName}: 그는 손등으로 이마를 문지른 뒤, 손가락으로 머리카락을 쓸어 넘겼다. 손이 떨리는 것을 숨기려 손을 주머니 속에 넣었다.
-
-"${p.replyWorried}"
-
-유저: …들었어?
-${p.charName}: ${p.charName}은 손을 입술에 대고 고개를 숙였다. 손끝으로 옆 칸 막대를 더듬으며 손잡이를 꽉 움켜쥐었다.
-
-"${p.replyAlert}"
-
-유저: 문 너머야.
-${p.charName}: 그는 손바닥으로 문짝을 짚고, 손목을 돌려 손잡이를 천천히 내렸다. 손에 땀이 배었다.
-
-"${p.replyHush}"`;
+  return buildSpaceSoundFewShot(p);
 }
 
 /** Space / sound / distance narration anchors (ablation treatment structure). */
 export function buildSpaceSoundFewShot(p: NarrationFewShotProfile): string {
   return `유저: 오늘도 바쁘지?
-${p.charName}: 카페 안 공기가 달큰한 원두 향으로 가득했고, 에스프레소 머신 소음이 카운터 뒤에서 규칙적으로 울렸다. 두 사람 사이 테이블 간격은 손 하나도 채 건너지 못할 만큼 좁았다.
+${p.charName}: 카페 안 공기가 달큰한 원두 향으로 가득했고, 에스프레소 머신 소음이 카운터 뒤에서 규칙적으로 울렸다. 두 사람 사이 테이블 간격은 한 걸음도 여유 없을 만큼 좁았다.
 
 "${p.replyDaily}"
 

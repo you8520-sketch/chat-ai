@@ -1,16 +1,16 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { MOMENT_TO_MOMENT_WRITING_BLOCK } from "@/lib/sceneExpansionPolicy";
+import { NARRATIVE_DENSITY_BLOCK } from "@/lib/sceneExpansionPolicy";
 import { buildLengthInstruction } from "@/lib/responseLength";
 import { buildWebnovelOutputLayoutRecencyBlock } from "@/lib/webnovelOutputFormat";
 import { buildNovelModeUserPersonaRules } from "@/lib/userPersonaNarrationRules";
 
 describe("scene continuity vs paragraph layout — disambiguated prose rules", () => {
-  it("MOMENT-TO-MOMENT targets scene flow without layout disambiguation", () => {
-    assert.match(MOMENT_TO_MOMENT_WRITING_BLOCK, /\[MOMENT-TO-MOMENT WRITING\]/);
-    assert.match(MOMENT_TO_MOMENT_WRITING_BLOCK, /중간 단계를 건너뛰지 마라/);
-    assert.doesNotMatch(MOMENT_TO_MOMENT_WRITING_BLOCK, /한 줄·한 문단에 붙여 쓰라는 뜻이 아니다/);
+  it("NARRATIVE DENSITY includes merged moment-to-moment flow (Step 7.5)", () => {
+    assert.match(NARRATIVE_DENSITY_BLOCK, /\[NARRATIVE DENSITY\]/);
+    assert.match(NARRATIVE_DENSITY_BLOCK, /중간 단계를 건너뛰지 마라/);
+    assert.doesNotMatch(NARRATIVE_DENSITY_BLOCK, /신체 접촉/);
   });
 
   it("LENGTH CONTROL keeps scene expansion; paragraph layout lives in OUTPUT LAYOUT only", () => {

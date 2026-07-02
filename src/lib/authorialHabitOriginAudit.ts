@@ -5,11 +5,7 @@
 
 import { PROSE_STYLE_SECTION } from "@/lib/advancedProseNsfwGuidelines";
 import { GENERATION_PROCESS_BEAT_FLOW_BLOCK } from "@/lib/generationProcessBeatFlow";
-import {
-  MOMENT_TO_MOMENT_WRITING_BLOCK,
-  NARRATIVE_DENSITY_BLOCK,
-  NO_GENERIC_REACTIONS_BLOCK,
-} from "@/lib/sceneExpansionPolicy";
+import { NARRATIVE_DENSITY_BLOCK, NO_GENERIC_REACTIONS_BLOCK } from "@/lib/sceneExpansionPolicy";
 import { SCENE_CONTINUATION_PRIORITY_BLOCK } from "@/lib/turnHandoffAndPacing";
 import { buildLengthInstruction } from "@/lib/responseLength";
 
@@ -277,11 +273,9 @@ export function buildProductionPromptSliceForOriginAudit(): string {
     buildLengthInstruction(3200, {
       statusWindowEveryTurn: false,
       htmlFlashOwned: true,
-      proseStylePolicyOwnsSceneExpansion: true,
       statusWidgetActive: false,
     }),
     NARRATIVE_DENSITY_BLOCK,
-    MOMENT_TO_MOMENT_WRITING_BLOCK,
     SCENE_CONTINUATION_PRIORITY_BLOCK,
     NO_GENERIC_REACTIONS_BLOCK,
     GENERATION_PROCESS_BEAT_FLOW_BLOCK,

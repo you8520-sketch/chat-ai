@@ -13,7 +13,6 @@ import { visibleAssistantDisplayKoreanWordCount } from "./koreanWordCount";
 import type { BilingualDialoguePolicy } from "@/lib/bilingualDialoguePolicy";
 import { buildLangCriticalRule } from "@/lib/bilingualDialoguePolicy";
 import {
-  MOMENT_TO_MOMENT_WRITING_BLOCK,
   NARRATIVE_DENSITY_BLOCK,
   NO_GENERIC_REACTIONS_BLOCK,
   NO_INPUT_ECHO_RULE,
@@ -174,8 +173,6 @@ ${NO_INPUT_ECHO_RULE}
 ${SCENE_CONTINUATION_PRIORITY_BLOCK}
 
 ${NARRATIVE_DENSITY_BLOCK}
-
-${MOMENT_TO_MOMENT_WRITING_BLOCK}
 
 ${NO_GENERIC_REACTIONS_BLOCK}${jsonOrStatusLine}`;
 }

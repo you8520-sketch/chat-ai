@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { IconErrorBeacon } from "@/components/ChatToolbarIcons";
+import { IconReportError } from "@/components/ChatToolbarIcons";
+
+const reportToolbarBtn =
+  "flex h-8 w-8 items-center justify-center rounded-lg text-rose-400/90 transition hover:bg-white/[0.08] hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-30";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { AUTO_REFUND_DAILY_LIMIT } from "@/lib/reportRefundPolicy";
 
@@ -73,13 +76,11 @@ export default function ReportRefundButton({
         title={ariaLabel}
         disabled={inactive}
         onClick={() => setConfirmOpen(true)}
-        className={`flex h-8 w-8 items-center justify-center rounded-lg transition ${className} ${
-          isRefunded || isReportPending
-            ? "cursor-default text-zinc-600"
-            : "text-rose-400/95 hover:bg-rose-500/10 hover:text-rose-300 disabled:opacity-40"
+        className={`${reportToolbarBtn} ${className} ${
+          isRefunded || isReportPending ? "cursor-default text-zinc-600 hover:bg-transparent hover:text-zinc-600" : ""
         }`}
       >
-        <IconErrorBeacon />
+        <IconReportError />
       </button>
       {confirmOpen && (
         <ConfirmDialog

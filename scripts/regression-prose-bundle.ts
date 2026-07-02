@@ -24,7 +24,7 @@ check(
 // □ Show don't tell 유지
 check(
   "Show don't tell 유지",
-  /몸·시선·호흡/.test(sfw) &&
+  /행동·호흡·속도/.test(sfw) &&
     !/\[SHOW BEFORE TELL\]/.test(sfw) &&
     !/슬프다·화났다/.test(sfw),
   "PROSE [EMOTION] — label examples removed Step 7"
@@ -33,8 +33,8 @@ check(
 // □ 감각 묘사 유지
 check(
   "감각 묘사 유지",
-  /\[SENSATION\]/.test(sfw) && /감각 채널/.test(sfw),
-  "PROSE [SENSATION]"
+  /\[SENSATION\]/.test(sfw) && /질감·공간·온도·소리·대비/.test(sfw),
+  "PROSE [SENSATION] — touch owner + channel rewrite Step 7.5"
 );
 
 // □ 웹소설 호흡 유지

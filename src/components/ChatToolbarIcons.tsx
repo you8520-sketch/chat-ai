@@ -99,16 +99,20 @@ export function IconThumbDown({ className = base }: IconProps) {
   );
 }
 
-export function IconErrorBeacon({ className = base }: IconProps) {
+/** 오류 신고 — 툴바 stroke 아이콘과 동일 규격 (색은 버튼에서 rose) */
+export function IconReportError({ className = base }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className={className} aria-hidden>
-      <path strokeLinecap="round" d="M12 5v2M8.5 7.5l1.2 1.2M15.5 7.5l-1.2 1.2" />
       <path
         strokeLinecap="round"
         strokeLinejoin="round"
-        d="M9.5 13h5l1-4.5a3 3 0 0 0-7 0L9.5 13z"
+        d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
       />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M8.5 13v2.5h7V13" />
+      <path strokeLinecap="round" d="M12 9v4" />
+      <circle cx="12" cy="17" r="0.9" fill="currentColor" stroke="none" />
     </svg>
   );
 }
+
+/** @deprecated IconReportError */
+export const IconErrorBeacon = IconReportError;

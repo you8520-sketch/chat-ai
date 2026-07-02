@@ -23,7 +23,7 @@ describe("buildAdvancedProseNsfwGuidelines", () => {
     assert.doesNotMatch(block, /\[NATURAL PROSE\]/);
     assert.doesNotMatch(block, /\[SHOW BEFORE TELL\]/);
     assert.doesNotMatch(block, /\[NO TEMPLATE WRITING\]/);
-    assert.match(block, /\[REGISTER\]/);
+    assert.match(block, /\[NARRATION REGISTER\]/);
     assert.match(block, /\[GENERATION PROCESS — BEAT FLOW\]/);
     assert.match(block, /\[RHYTHM\]/);
     assert.match(block, /\[EMOTION\]/);

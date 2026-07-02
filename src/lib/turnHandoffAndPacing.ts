@@ -10,7 +10,7 @@ Never stop at the first satisfying ending.
 
 
 
-감정의 여운·몸짓·분위기 변화·새 상호작용까지 이어간다.
+분위기 변화·새 상호작용까지 이어간다. (pause·여운은 [WEBNOVEL BREATH])
 
 
 
