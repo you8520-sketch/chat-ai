@@ -37,6 +37,7 @@ function userPersonaSpeechTail(_persona: string, usesBanmal: boolean): string {
 }
 
 import { estimateTokens } from "@/lib/tokenEstimate";
+import { buildCompactTerminalLengthAbsoluteTail } from "@/lib/responseLength";
 
 /** 재생성 rejected draft — full-text mode only (REGENERATE_FULL_REJECTED_DRAFT=1) */
 export const REGENERATE_REJECTED_DRAFT_MIN_CHARS = 2000;
@@ -131,8 +132,8 @@ function bulletMajorActions(paragraphs: string[], maxBullets = 4): string[] {
 }
 
 /**
- * Compact beat summary for regen diverge — opening / actions / dialogue / ending only.
- * Purpose: avoid repeating the same narrative arc, not preserve rejected wording.
+ * Compact beat summary for regen diverge — forbidden beats only (no positive scene anchor).
+ * Purpose: block repeating the rejected arc without priming the same opening situation.
  */
 export function buildRegenerateDivergenceSummary(rejectedAssistantDraft?: string | null): string {
   const normalized = normalizeDraftForDivergenceSummary(rejectedAssistantDraft ?? "");
@@ -146,30 +147,33 @@ export function buildRegenerateDivergenceSummary(rejectedAssistantDraft?: string
   const dialogue = extractKeyDialogueBeats(normalized);
 
   const sectionBudget = Math.floor(REGENERATE_DIVERGENCE_SUMMARY_MAX_TOKENS / 4);
-  const opening = truncateToTokenBudget(openingRaw, sectionBudget);
-  const ending =
+  const forbiddenOpening = truncateToTokenBudget(openingRaw, sectionBudget);
+  const forbiddenEnding =
     endingRaw.trim() === openingRaw.trim()
       ? ""
       : truncateToTokenBudget(endingRaw, sectionBudget);
 
   const lines: string[] = [
-    "[Rejected turn — divergence reference (summary only; do NOT reuse wording or beats)]",
-    `Opening situation: ${opening}`,
+    "[Rejected turn — forbidden beats (summary only; do NOT reuse wording or beats)]",
   ];
 
+  if (forbiddenOpening) {
+    lines.push(`Forbidden opening beat: ${forbiddenOpening}`);
+  }
+
   if (actions.length > 0) {
-    lines.push("Major actions:");
+    lines.push("Forbidden action beats:");
     for (const a of actions) {
       lines.push(`- ${truncateToTokenBudget(a, Math.max(40, sectionBudget - 10))}`);
     }
   }
 
   if (dialogue.length > 0) {
-    lines.push("Key dialogue beats:");
+    lines.push("Forbidden dialogue:");
     for (const d of dialogue) lines.push(`- ${d}`);
   }
 
-  if (ending) lines.push(`Ending hook: ${ending}`);
+  if (forbiddenEnding) lines.push(`Forbidden ending hook: ${forbiddenEnding}`);
 
   let summary = lines.join("\n");
   return truncateToTokenBudget(summary, REGENERATE_DIVERGENCE_SUMMARY_MAX_TOKENS);
@@ -199,9 +203,39 @@ ${rejected}\n`;
 export function buildRegenerateCoreDirective(_charName?: string): string {
   return `[REGENERATE INTENT — user wants a DIFFERENT story development]
 - Continue naturally from chat history and the fixed user anchor (same facts, setting, relationship stage).
-- Regeneration must differ in: opening, action chain, emotional progression, ending.
+- First visible action or emotional beat in your reply MUST differ from the rejected draft's opening.
+- At least two of these must be clearly new vs rejected: opening beat, middle action chain, emotional turn, closing hook.
 - NOT a paraphrase of the rejected draft — clearly different actions, dialogue, and emotional turn.
-- Do NOT reuse key plot beats, closing hooks, or signature lines from [Rejected draft].`;
+- Do NOT reuse forbidden beats from [Rejected turn — forbidden beats].`;
+}
+
+const REGENERATE_DIVERGE_AXES = [
+  "Lead with a different first visible action or gesture than the rejected draft — if rejected opened dialogue-first, open action/sensory-first (and vice versa).",
+  "Emphasize internal tension or hesitation before external action; do not mirror the rejected draft's emotional pacing.",
+  "Shift spatial or sensory focus (environment, touch, distance, light) instead of repeating the rejected draft's opening focus.",
+  "Let [A] take a bolder initiative or a more guarded retreat than the rejected draft — a different power move on the same user anchor.",
+] as const;
+
+function hashRegenAttemptId(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) {
+    h = (Math.imul(31, h) + id.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
+
+/** regenAttemptId 기반 — 매 시도마다 다른 전개 축 1개 */
+export function buildRegenerateDivergeAxisLine(regenAttemptId?: string | null): string {
+  const id = regenAttemptId?.trim();
+  if (!id) return "";
+  const axis = REGENERATE_DIVERGE_AXES[hashRegenAttemptId(id) % REGENERATE_DIVERGE_AXES.length]!;
+  return `\n[REGEN DIVERGE AXIS — mandatory for this attempt]\n- ${axis}`;
+}
+
+/** regen user 턴 — diverge가 길이 축소 변명이 되지 않도록 1줄 recency */
+export function buildRegenerateLengthRecencyLine(targetResponseChars?: number | null): string {
+  const tier = buildCompactTerminalLengthAbsoluteTail(targetResponseChars);
+  return `- Divergence is NOT an excuse for a shorter reply — same length tier as a normal turn (${tier}).`;
 }
 
 /** @deprecated use buildRegenerateDivergenceReferenceBlock */
@@ -222,7 +256,7 @@ export function buildRegenerateSystemDirective(input: {
   regenAttemptId?: string | null;
   includeFullRejectedDraft?: boolean;
 }): string {
-  return `[REGENERATE — MANDATORY DIVERGENCE]${buildRegenerateAttemptRecencyLine(input.regenAttemptId)}
+  return `[REGENERATE — MANDATORY DIVERGENCE]${buildRegenerateAttemptRecencyLine(input.regenAttemptId)}${buildRegenerateDivergeAxisLine(input.regenAttemptId)}
 ${buildRegenerateCoreDirective(input.charName)}
 - Paraphrase-only regen is a failure.${buildRegenerateDivergenceReferenceBlock(input.rejectedAssistantDraft, {
     includeFullRejectedDraft: input.includeFullRejectedDraft,
@@ -334,7 +368,7 @@ export function buildContinueNarrativeCommand(input: ContinueNarrativeCommandInp
     : "";
   const sceneLead = input.novelModeEnabled
     ? `- 소설 모드 — [NOVEL MODE — USER PERSONA NARRATION RULES]에 따라 [A]+[B] 연기.`
-    : `- [NO GODMODDING] 준수. <TURN_HANDOFF_AND_PACING> 준수.`;
+    : `- [NO GODMODDING] 준수.`;
 
   const resumeAfterOoc = input.resumeAfterOoc?.afterOocTurn
     ? buildResumeAfterOocSection(input.resumeAfterOoc)
@@ -366,6 +400,7 @@ export type RegenerateUserPromptInput = {
   rejectedAssistantDraft?: string | null;
   /** 재생성마다 달라지는 nonce — 동일 프롬프트 캐시·결정론적 재출력 방지 */
   regenAttemptId?: string | null;
+  targetResponseChars?: number | null;
 };
 
 /** 재생성 시 OOC·HTML·상태창 지시가 기본 RP 재작성 지시보다 우선 */
@@ -408,6 +443,7 @@ export function buildRegenerateUserPrompt(input: RegenerateUserPromptInput): str
 - Obey [REGENERATE — MANDATORY DIVERGENCE] in system prompt — user wants visibly different development, not a paraphrase.
 - Do NOT change what the user said or meant in the anchor below.
 - Do NOT write new quoted dialogue for [B] unless it already appears verbatim in the user message below.
+${buildRegenerateLengthRecencyLine(input.targetResponseChars)}
 ${userPersonaSpeechTail(input.personaName, !!input.usesBanmal)}
 
 [User message — fixed anchor, not dialogue to rewrite]

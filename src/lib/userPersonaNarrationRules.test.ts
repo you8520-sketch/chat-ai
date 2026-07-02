@@ -43,13 +43,13 @@ describe("buildContinueNarrativeCommand", () => {
     assert.doesNotMatch(cmd, /AUTO-CONTINUE — USER PERSONA NARRATION RULES/);
   });
 
-  it("references godmodding and handoff when novel mode off", () => {
+  it("references godmodding when novel mode off", () => {
     const cmd = buildContinueNarrativeCommand({
       personaName: "가이드",
       charName: "백하율",
     });
     assert.match(cmd, /\[NO GODMODDING\] 준수/);
-    assert.match(cmd, /<TURN_HANDOFF_AND_PACING>/);
+    assert.doesNotMatch(cmd, /<TURN_HANDOFF_AND_PACING>/);
     assert.doesNotMatch(cmd, /AUTO-CONTINUE — USER PERSONA NARRATION RULES/);
     assert.doesNotMatch(cmd, /auto-continue expanded/);
   });

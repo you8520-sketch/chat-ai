@@ -19,22 +19,18 @@ import {
   NO_INPUT_ECHO_RULE,
 } from "@/lib/sceneExpansionPolicy";
 import { SCENE_CONTINUATION_PRIORITY_BLOCK } from "./turnHandoffAndPacing";
+import { buildCompactTerminalLayoutRecencyLine } from "@/lib/webnovelOutputFormat";
 export * from "./responseLengthConstants";
 import {
-  ABSOLUTE_MAX_RESPONSE_CHARS,
   CATASTROPHIC_MIN_RESPONSE_CHARS,
   DEFAULT_TARGET_RESPONSE_CHARS,
   KOREAN_CHARS_PER_OUTPUT_TOKEN,
-  MAX_OUTPUT_TOKEN_SAFETY_BUFFER,
-  resolveMaxOutputTokensForMaxChars,
   resolveResponseLengthTarget,
-  TARGET_LENGTH_TO_MAX_OUTPUT_TOKENS,
   type ResponseLengthTarget,
   type ResponseLengthTierId,
   type ResponseLengthTierTarget,
   UNIFIED_RESPONSE_LENGTH_TARGET,
   UNIFIED_TIER_AIM_CHARS,
-  UNIFIED_TIER_MAX_CHARS,
   UNIFIED_TIER_MIN_CHARS,
   UNIFIED_TIER_TARGET_RANGE_MIN_CHARS,
 } from "./responseLengthConstants";
@@ -45,43 +41,20 @@ export const STATUS_WINDOW_STREAM_RESERVE_CHARS = 750;
 /** @deprecated STATUS_WINDOW_STREAM_RESERVE_CHARS */
 export const STATUS_WINDOW_STREAM_RESERVE = STATUS_WINDOW_STREAM_RESERVE_CHARS;
 
-/** @deprecated 하이브리드 — narrative 분리 cap 폐지, tier hardMax(=resolveStreamCharCap)만 사용 */
-export function resolveNarrativeStreamCharCap(targetInput?: number | null): number {
-  return resolveStreamCharCap(targetInput);
-}
-
 export type StreamLengthCapOptions = {
   /** HTML 상태창 tail — 미완성 태그 peel */
   allowHtml?: boolean;
-  /** 상태창 tail 공간 확보 — narrative cap에서 reserve 차감 */
-  reserveStatusTail?: boolean;
-  /** Flash ```html 블록 부착 공간 — narrative cap에서 reserve 차감 */
-  reserveHtmlFlashChars?: number;
-  /** Claude+상태창 원패스 — 스트림 중 LENGTH_CAP 비활성 (저장 직전 clamp만) */
-  disableLengthCap?: boolean;
 };
 
-/** @deprecated IMMERSIVE 더 이상 maxOutputTokens 가산 없음 */
-export const IMMERSIVE_MAX_TOKEN_MULTIPLIER = 1;
+/** @deprecated RP 출력 글자 cap 폐지 */
+export function resolveNarrativeStreamCharCap(_targetInput?: number | null): number {
+  return Number.MAX_SAFE_INTEGER;
+}
 
-/** @deprecated IMMERSIVE_3000_MAX_OUTPUT_TOKENS 사용 */
-export const IMMERSIVE_3500_MAX_OUTPUT_TOKENS = Math.round(
-  TARGET_LENGTH_TO_MAX_OUTPUT_TOKENS[UNIFIED_RESPONSE_LENGTH_TARGET] * IMMERSIVE_MAX_TOKEN_MULTIPLIER
-);
-
-/** @deprecated 레거시 명칭 — 통합 tier */
-export const IMMERSIVE_3000_MAX_OUTPUT_TOKENS = IMMERSIVE_3500_MAX_OUTPUT_TOKENS;
-
-/** @deprecated TARGET_RESPONSE_TIERS[].target 사용 */
-export const TARGET_RESPONSE_PRESETS = [UNIFIED_RESPONSE_LENGTH_TARGET];
-
-/** @deprecated ABSOLUTE_MAX_RESPONSE_CHARS 사용 */
-export const MAX_RESPONSE_CHARS = ABSOLUTE_MAX_RESPONSE_CHARS;
-
-/** @deprecated resolveTierMinimumRequired — 통과 최소 2,200자 */
-export const TARGET_RESPONSE_CHARS_MIN = UNIFIED_TIER_MIN_CHARS;
-/** @deprecated ABSOLUTE_MAX_RESPONSE_CHARS 사용 */
-export const TARGET_RESPONSE_CHARS_MAX = ABSOLUTE_MAX_RESPONSE_CHARS;
+/** @deprecated RP 출력 글자 cap 폐지 */
+export function resolveStreamCharCap(_targetInput?: number | null): number {
+  return Number.MAX_SAFE_INTEGER;
+}
 
 /** 이보다 짧으면 MAX_TOKENS 등 비정상 종료로 보고 폴백 */
 export const MIN_COMPLETE_RESPONSE_CHARS = 900;
@@ -162,8 +135,6 @@ export type LengthInstructionOpts = {
   statusWindowEveryTurn?: boolean;
   /** true — OpenRouter Flash firewall이 상태창·HTML 소유; LENGTH LIMIT status line 생략 */
   htmlFlashOwned?: boolean;
-  /** true — [SCENE EXPANSION BLUEPRINT] 등은 prose bundle에 있음; verbatim 중복 생략 */
-  proseStylePolicyOwnsSceneExpansion?: boolean;
   /** true — 제작자 상태창 위젯; prose 분량과 <<<STATUS_VALUES>>> tail 분리 */
   statusWidgetActive?: boolean;
 };
@@ -198,7 +169,7 @@ ${NO_INPUT_ECHO_RULE}
 
 - 짧은 유저 입력에 동조(Mirroring) 금지 — 장문 출력
 - 새 서사 비트(행동·반응·전환)로 확장; 문단 수를 맞추려 하지 마라
-- 각 대사 전·후에 행동·반응·감각·분위기를 서사적으로 전개한다 — 장면 흐름을 채우라는 뜻이며, 지문과 대사를 한 문단에 병합하라는 뜻이 아니다
+- 장면·대사 사이를 행동·반응·감각·분위기로 확장한다 — 대사마다 기계적 교대나 동일 길이 블록을 맞추지 마라
 
 ${SCENE_CONTINUATION_PRIORITY_BLOCK}
 
@@ -249,40 +220,22 @@ export function resolveTargetLengthForPrompt(targetInput?: number | null): numbe
 export function logLengthAudit(opts: {
   targetInput?: number | null;
   actualChars: number;
-  truncationRecoveryTriggered?: boolean;
   underLengthRecoveryTriggered?: boolean;
   lengthRecoveryPasses?: number;
-  maxOutputTokens?: number;
-  promptLengthRuleCount?: number;
 }): void {
   const t = resolveResponseLengthTarget(opts.targetInput);
   const minimum = resolveTierMinimumRequired(t.target);
-  const within = opts.actualChars >= minimum && opts.actualChars <= t.max;
-  const inflatedBy: string[] = [];
-
-  if (!within && opts.actualChars > t.hardMax) {
-    if (opts.underLengthRecoveryTriggered) inflatedBy.push("under-length-recovery");
-    if (opts.truncationRecoveryTriggered) inflatedBy.push("truncation-recovery");
-    if ((opts.promptLengthRuleCount ?? 1) > 1) {
-      inflatedBy.push(`duplicate-length-prompts×${opts.promptLengthRuleCount}`);
-    }
-    const cap = TARGET_LENGTH_TO_MAX_OUTPUT_TOKENS[t.target];
-    if (opts.maxOutputTokens != null && opts.maxOutputTokens > cap) {
-      inflatedBy.push(`maxOutputTokens=${opts.maxOutputTokens} (cap=${cap})`);
-    }
-    if (inflatedBy.length === 0) inflatedBy.push("model-exceeded-max");
-  }
+  const meetsMinimum = opts.actualChars >= minimum;
 
   console.log("[LENGTH AUDIT]", {
-    target: t.target,
+    aim_chars: t.aimChars,
     minimum_required: minimum,
     actual_chars: opts.actualChars,
-    allowed_range: `${minimum}~${t.max}`,
-    within_range: within,
+    meets_minimum: meetsMinimum,
     ...(opts.lengthRecoveryPasses != null && opts.lengthRecoveryPasses > 0
       ? { length_recovery_passes: opts.lengthRecoveryPasses }
       : {}),
-    ...(inflatedBy.length > 0 ? { inflated_by: inflatedBy } : {}),
+    ...(opts.underLengthRecoveryTriggered ? { under_length_recovery: true } : {}),
   });
 }
 
@@ -467,9 +420,9 @@ export function maxAdultContinuationPasses(
   return 0;
 }
 
-/** 스트리밍 중 절대 넘기지 않을 글자 상한 (tier max) */
-export function resolveStreamCharCap(targetInput?: number | null): number {
-  return resolveResponseLengthTarget(targetInput).max;
+/** @deprecated RP 출력 글자 cap 폐지 — 항상 false */
+export function isOverResponseTarget(_text: string, _targetInput?: number | null): boolean {
+  return false;
 }
 
 /** @deprecated buildLangCriticalRule() */
@@ -481,13 +434,6 @@ export function buildKoreanOnlyRule(opts?: {
   bilingual?: BilingualDialoguePolicy;
 }): string {
   return buildLangCriticalRule(opts);
-}
-
-/** tier max 초과 */
-export function isOverResponseTarget(text: string, targetInput?: number | null): boolean {
-  const t = resolveResponseLengthTarget(targetInput);
-  const len = text.trim().length;
-  return len > t.max;
 }
 
 /** 목표 분량(min) 미달 — tier minimum required 기준 */
@@ -622,12 +568,9 @@ export function resolveOpenRouterTierMaxOutputTokens(): number {
   return resolveTierMaxOutputTokensEstimate(null);
 }
 
-/** 진단·배경 작업용 tier 역산 추정치 — RP chat API에는 미전송 */
-export function resolveTierMaxOutputTokensEstimate(
-  targetInput?: number | null
-): number {
-  const t = resolveResponseLengthTarget(targetInput ?? DEFAULT_TARGET_RESPONSE_CHARS);
-  return TARGET_LENGTH_TO_MAX_OUTPUT_TOKENS[t.target];
+/** @deprecated 진단·배ground Gemini 추정치 (RP chat API max_tokens 미전송) */
+export function resolveTierMaxOutputTokensEstimate(_targetInput?: number | null): number {
+  return 2048;
 }
 
 /** @deprecated OPENROUTER_GEMINI_31_PRO_MAX_OUTPUT_TOKENS */
@@ -642,15 +585,22 @@ export function buildSingleShotLengthReminder(_targetInput?: number | null): str
 MINIMUM_FLOOR 미달·조기 handoff 금지. [LENGTH CONTROL & SCENE EXPANSION] · [SCENE CONTINUATION PRIORITY] 준수.`;
 }
 
-/** OpenRouter user-turn bottom — compact terminal tail recency (10b) */
+/** OpenRouter user-turn bottom — layout + compact terminal length tail recency (10b) */
 export function appendCompactTerminalLengthToUserTurn(
   userContent: string,
   targetInput?: number | null
 ): string {
-  const tail = buildCompactTerminalLengthAbsoluteTail(targetInput);
+  const layoutLine = buildCompactTerminalLayoutRecencyLine();
+  const lengthTail = buildCompactTerminalLengthAbsoluteTail(targetInput);
+  const tail = `${layoutLine}\n${lengthTail}`;
   const body = userContent.trim();
   if (!body) return tail;
-  if (body.includes("단일 응답 최대 전개·미달 조기 종료 금지")) return body;
+  if (
+    body.includes("단일 응답 최대 전개·미달 조기 종료 금지") &&
+    body.includes("지문과 \"…\" 대사 사이 빈 줄")
+  ) {
+    return body;
+  }
   return `${body}\n\n${tail}`;
 }
 
@@ -719,8 +669,7 @@ export function repairTruncatedOutputLocally(
   if (!detectProbableOutputTruncation(trimmed, finishReason, targetInput)) return null;
 
   const minimum = resolveTierMinimumRequired(resolveResponseLengthTarget(targetInput).target);
-  const cap = resolveResponseLengthTarget(targetInput).max;
-  const breakAt = findLastSentenceBreakIndex(trimmed, Math.min(trimmed.length, cap));
+  const breakAt = findLastSentenceBreakIndex(trimmed, trimmed.length);
   if (breakAt > 0) {
     const candidate = trimmed.slice(0, breakAt).trimEnd();
     if (
@@ -904,13 +853,12 @@ export function buildContinuationUserMessage(
   return buildSentenceCompletionUserMessage(t, currentLen);
 }
 
-/** MAX_TOKENS·미완결 시 짧게 이어써 마무리 */
-export function buildSentenceCompletionUserMessage(t: ResponseLengthTarget, currentLen: number): string {
-  const headroom = Math.max(0, t.hardMax - currentLen);
+/** MAX_TOKENS·미완결 시 짧게 이어써 마무리 — @deprecated RP 출력 상한 없음 */
+export function buildSentenceCompletionUserMessage(_t: ResponseLengthTarget, currentLen: number): string {
   return `[이어쓰기 — 문장 미완]
 ${currentLen.toLocaleString()}자에서 **문장·장면 중간**에 끊겼다.
 직전 마지막 글자 **바로 다음**부터 1~3문장만 이어 써 자연스럽게 마무리한다.
-새 전개·반복·요약 금지. **${t.hardMax.toLocaleString()}자를 넘기지 말 것** (남은 여유 ~${headroom.toLocaleString()}자).
+새 전개·반복·요약 금지.
 절대 이전 텍스트를 반복(Echo)하지 마라. 쓰다 만 단어/글자의 **바로 다음**부터 즉시 시작하라.`;
 }
 
@@ -949,11 +897,7 @@ export function capRecoveryContinuation(
   const deduped = extractUniqueRecoveryTail(priorText, continuation, {
     claudeRecovery: opts?.claudeRecovery,
   });
-  const t = resolveResponseLengthTarget(targetInput);
-  const merged = priorText + deduped;
-  if (merged.length <= t.hardMax) return deduped;
-  const capped = clampResponseLength(merged, targetInput);
-  return capped.slice(priorText.length);
+  return deduped;
 }
 
 const CLOSING_QUOTES = `"'"」』)]`;
@@ -1070,21 +1014,20 @@ export function sanitizeStreamArtifacts(text: string): string {
 
 export type ClampResponseLengthOptions = Record<string, never>;
 
-/** narrative 본문만 cap — RP 출력 글자 상한 폐지 (출력·저장·과금은 실제 길이) */
-function clampNarrativeBody(text: string, _cap: number): string {
+/** RP prose 정규화 — 글자 cap 없음 (trim만) */
+export function normalizeProseText(text: string): string {
   return text.trim();
 }
 
-/** @public — HTML append 등 RP prose 단독 cap */
-export function clampTextToCharCap(text: string, cap: number): string {
-  return clampNarrativeBody(text, cap);
+/** @deprecated normalizeProseText */
+export function clampTextToCharCap(text: string, _cap?: number): string {
+  return normalizeProseText(text);
 }
 
 /** 저장·표시 — RP 글자 상한 폐지 */
 export function clampResponseLength(
   text: string,
   _targetInput?: number | null,
-  _absoluteMax = ABSOLUTE_MAX_RESPONSE_CHARS,
   _opts?: ClampResponseLengthOptions
 ): string {
   return text.trim();

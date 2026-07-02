@@ -498,12 +498,8 @@ export type OpenRouterMessageOpts = {
   claudeRecovery?: boolean;
   /** 상태창 strip — HTML Flash 활성 시에만 모델 ```html 제거 */
   statusArtifactsOpts?: StripStatusArtifactsOptions;
-  /** Flash HTML ``` 블록 부착 예약 — 스트림 narrative cap에서 차감 */
-  htmlFlashReserveChars?: number;
   /** OOC HTML 요청 — gibberish guard·Flash strip bypass */
   oocHtmlMode?: boolean;
-  /** 제작자 상태창 위젯 — 스트림 cap에서 tail 여유 (deprecated — main model no longer outputs widget JSON) */
-  statusWidgetReserveTail?: boolean;
   /** 재생성 등 — temperature·penalty 오버라이드 */
   generationOverrides?: import("@/lib/openRouterClient").OpenRouterGenerationOverrides;
 };
@@ -1009,14 +1005,6 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
   const baseMessages = buildOpenRouterMessages(effectiveSystem, history, messageOpts);
   const skipStreamGuards = false;
   const degenerationCtx = { oocHtmlMode };
-  const htmlFlashReserve = messageOpts?.htmlFlashReserveChars ?? 0;
-  const streamLengthCapOpts: StreamLengthCapOptions | undefined =
-    messageOpts?.statusWidgetReserveTail || htmlFlashReserve > 0
-      ? {
-          ...(messageOpts?.statusWidgetReserveTail ? { reserveStatusTail: true } : {}),
-          ...(htmlFlashReserve > 0 ? { reserveHtmlFlashChars: htmlFlashReserve } : {}),
-        }
-      : undefined;
 
   const canRetryWithoutPrefill =
     isAnthropicModel(apiModelId) &&
@@ -1227,7 +1215,7 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
               combinedText(),
               delta,
               targetResponseChars,
-              streamLengthCapOpts
+              undefined
             );
             if (lengthCap.capped) {
               aiGenerated =
@@ -1644,7 +1632,6 @@ export async function streamOpenRouterAdultToClient(
     ),
     finish_reason: usage.finishReason,
     output_chars: visibleAssistantDisplayCharCount(mergedText),
-    hard_max: lengthTarget.hardMax,
     probable_truncation: detectProbableOutputTruncation(
       mergedText,
       usage.finishReason,
@@ -1701,8 +1688,6 @@ export async function streamOpenRouterAdultToClient(
   logLengthAudit({
     targetInput: targetResponseChars,
     actualChars: visibleAssistantDisplayCharCount(mergedText),
-    maxOutputTokens: configuredMaxTokens,
-    promptLengthRuleCount: 1,
     underLengthRecoveryTriggered: lengthRecoveryPasses > 0,
     lengthRecoveryPasses,
   });

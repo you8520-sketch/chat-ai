@@ -47,6 +47,7 @@ describe("speechMetadataPolicy", () => {
     assert.match(SPEECH_METADATA_INVISIBLE_RULE, /SPEECH METADATA — INVISIBLE INSTRUCTIONS/);
     assert.match(SPEECH_METADATA_INVISIBLE_RULE, /Never narrate or describe inside the story/);
     assert.match(SPEECH_METADATA_INVISIBLE_RULE, /honorific level/);
-    assert.doesNotMatch(SPEECH_METADATA_INVISIBLE_RULE, /해요체/);
+    assert.match(SPEECH_METADATA_INVISIBLE_RULE, /해요체로 바뀌었다/);
+    assert.match(SPEECH_METADATA_INVISIBLE_RULE, /한 캐릭터는 한 턴 안에서 register를 섞지 않는다/);
   });
 });

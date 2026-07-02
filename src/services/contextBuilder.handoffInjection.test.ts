@@ -9,7 +9,6 @@ Module._load = function (request, parent, isMain) {
 import assert from "node:assert/strict";
 import { describe, it, before } from "node:test";
 import type { buildContext as BuildContextFn } from "./contextBuilder";
-import { buildTurnHandoffAndPacingBlock } from "@/lib/turnHandoffAndPacing";
 import { buildCompactTerminalLengthAbsoluteTail } from "@/lib/responseLength";
 import { OPENROUTER_QWEN_37_MAX_MODEL, GEMINI_CHAT_FLASH_25 } from "@/lib/chatModels";
 import type { CharacterChunk } from "@/types";
@@ -30,32 +29,8 @@ const sampleChunk: CharacterChunk = {
   keywords: ["test"],
 };
 
-function countFullHandoffBlocks(prompt: string): number {
-  const handoff = buildTurnHandoffAndPacingBlock();
-  let fullBlocks = 0;
-  let idx = 0;
-  while ((idx = prompt.indexOf(handoff, idx)) !== -1) {
-    fullBlocks++;
-    idx += handoff.length;
-  }
-  return fullBlocks;
-}
-
-function listCrossRefSections(
-  built: ReturnType<typeof buildContext>
-): { id: string; refs: number }[] {
-  const handoff = buildTurnHandoffAndPacingBlock();
-  return (built.meta?.trackedSections ?? [])
-    .map((s) => {
-      const inSection = (s.text.match(/<TURN_HANDOFF_AND_PACING>/g) ?? []).length;
-      const fullInSection = s.text.includes(handoff) ? 1 : 0;
-      return { id: s.id, refs: inSection - fullInSection };
-    })
-    .filter((s) => s.refs > 0);
-}
-
-describe("buildContext — TURN_HANDOFF_AND_PACING injection", () => {
-  it("OpenRouter: exactly one full handoff block (cross-refs elsewhere OK)", () => {
+describe("buildContext — turn handoff shell removed Step 7", () => {
+  it("OpenRouter: no TURN_HANDOFF_AND_PACING wrapper in system prompt", () => {
     const built = buildContext({
       charName: "Test",
       chunks: [sampleChunk],
@@ -67,16 +42,14 @@ describe("buildContext — TURN_HANDOFF_AND_PACING injection", () => {
       provider: "openrouter",
     });
 
-    assert.equal(countFullHandoffBlocks(built.systemPrompt), 1);
-    assert.equal(
-      (built.systemPrompt.match(/<\/TURN_HANDOFF_AND_PACING>/g) ?? []).length,
-      1
-    );
+    assert.equal(countFullHandoffBlocks(built.systemPrompt), 0);
+    assert.ok(!built.systemPrompt.includes("<TURN_HANDOFF_AND_PACING>"));
+    assert.ok(built.systemPrompt.includes("[SCENE CONTINUATION PRIORITY]"));
     assert.ok(!built.systemPrompt.includes("SCENE_PROGRESSION_&_NARRATION_PARAGRAPH_FLOOR"));
     assert.ok(!built.systemPrompt.includes("[ANTI-RESOLUTION RULE]\nDo NOT resolve"));
   });
 
-  it("Gemini: exactly one full handoff block", () => {
+  it("Gemini: no handoff wrapper", () => {
     const built = buildContext({
       charName: "Test",
       chunks: [sampleChunk],
@@ -87,10 +60,10 @@ describe("buildContext — TURN_HANDOFF_AND_PACING injection", () => {
       modelId: GEMINI_CHAT_FLASH_25,
       provider: "gemini",
     });
-    assert.equal(countFullHandoffBlocks(built.systemPrompt), 1);
+    assert.ok(!built.systemPrompt.includes("<TURN_HANDOFF_AND_PACING>"));
   });
 
-  it("auto-continue / co-narration / novel: still one full block", () => {
+  it("auto-continue / co-narration / novel: still no handoff wrapper", () => {
     for (const [label, extra] of [
       ["auto-continue", { isContinue: true, nsfw: true }],
       ["co-narration", { impersonationOn: true, nsfw: false }],
@@ -106,15 +79,14 @@ describe("buildContext — TURN_HANDOFF_AND_PACING injection", () => {
         provider: "openrouter",
         ...extra,
       });
-      assert.equal(
-        countFullHandoffBlocks(built.systemPrompt),
-        1,
-        `${label}: expected one full handoff block`
+      assert.ok(
+        !built.systemPrompt.includes("<TURN_HANDOFF_AND_PACING>"),
+        `${label}: handoff wrapper must be absent`
       );
     }
   });
 
-  it("OpenRouter auto-continue: compact terminal length tail on user turn", () => {
+  it("OpenRouter auto-continue: user-bottom compact length tail (10b)", () => {
     const built = buildContext({
       charName: "Test",
       chunks: [sampleChunk],
@@ -129,10 +101,11 @@ describe("buildContext — TURN_HANDOFF_AND_PACING injection", () => {
     const lastUser = built.history[built.history.length - 1];
     assert.equal(lastUser?.role, "user");
     const tail = buildCompactTerminalLengthAbsoluteTail(undefined);
-    assert.ok(lastUser!.content.includes(tail), "continue turns must get user-bottom length recency");
+    assert.ok(lastUser!.content.includes(tail), "OpenRouter continue gets 10b user-turn tail");
+    assert.match(lastUser!.content, /단일 응답 최대 전개·미달 조기 종료 금지\.$/);
   });
 
-  it("documents cross-reference sections (not duplicate blocks)", () => {
+  it("no turn-handoff-and-pacing tracked section", () => {
     const built = buildContext({
       charName: "Test",
       chunks: [sampleChunk],
@@ -143,10 +116,12 @@ describe("buildContext — TURN_HANDOFF_AND_PACING injection", () => {
       modelId: OPENROUTER_QWEN_37_MAX_MODEL,
       provider: "openrouter",
     });
-    const crossRefs = listCrossRefSections(built);
-    assert.ok(
-      crossRefs.every((s) => s.id !== "turn-handoff-and-pacing"),
-      "canonical block section should not count as cross-ref only"
-    );
+    const ids = (built.meta?.trackedSections ?? []).map((s) => s.id);
+    assert.ok(!ids.includes("turn-handoff-and-pacing"));
+    assert.ok(!ids.includes("auto-continue-handoff-hint"));
   });
 });
+
+function countFullHandoffBlocks(prompt: string): number {
+  return (prompt.match(/<TURN_HANDOFF_AND_PACING>/g) ?? []).length;
+}

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { estimateTokens } from "@/lib/tokenEstimate";
 import {
+  buildRegenerateDivergeAxisLine,
   buildRegenerateDivergenceSummary,
   buildRegenerateOocPriorityPrompt,
   buildRegenerateSystemDirective,
@@ -48,24 +49,36 @@ describe("regenerate OOC priority", () => {
       charName: "에쉬",
       rejectedAssistantDraft: "에쉬가 고개를 끄덕였다.",
       regenAttemptId: "1730000000-abc123",
+      targetResponseChars: 3200,
     });
     assert.match(block, /MANDATORY DIVERGENCE/i);
     assert.match(block, /REGEN_ATTEMPT 1730000000-abc123/i);
+    assert.match(block, /Divergence is NOT an excuse for a shorter reply/i);
+    assert.match(block, /MINIMUM_FLOOR 2,700/i);
     assert.doesNotMatch(block, /\[REGENERATE INTENT/i);
     assert.doesNotMatch(block, /Rejected draft/i);
-    assert.doesNotMatch(block, /divergence reference/i);
+    assert.doesNotMatch(block, /forbidden beats/i);
   });
 
-  it("system directive includes regen attempt nonce", () => {
+  it("system directive includes regen attempt nonce and diverge axis", () => {
     const block = buildRegenerateSystemDirective({
       charName: "에쉬",
       rejectedAssistantDraft: "에쉬가 손을 내밀었다.",
       regenAttemptId: "1730000000-xyz",
     });
     assert.match(block, /REGEN_ATTEMPT 1730000000-xyz/i);
+    assert.match(block, /REGEN DIVERGE AXIS/i);
+    assert.equal(
+      buildRegenerateDivergeAxisLine("1730000000-xyz"),
+      buildRegenerateDivergeAxisLine("1730000000-xyz")
+    );
+    assert.notEqual(
+      buildRegenerateDivergeAxisLine("1730000000-xyz"),
+      buildRegenerateDivergeAxisLine("1730000000-abc")
+    );
   });
 
-  it("system directive uses compact divergence summary by default", () => {
+  it("system directive uses compact forbidden-beat summary by default", () => {
     const draft = [
       "*테라스에서 레온이 난간에 기대어 있었다.*",
       "",
@@ -84,11 +97,12 @@ describe("regenerate OOC priority", () => {
     });
 
     assert.match(block, /MANDATORY DIVERGENCE/i);
-    assert.match(block, /divergence reference \(summary only/i);
-    assert.match(block, /Opening situation:/i);
-    assert.match(block, /Key dialogue beats:/i);
-    assert.match(block, /Ending hook:/i);
+    assert.match(block, /forbidden beats \(summary only/i);
+    assert.match(block, /Forbidden opening beat:/i);
+    assert.match(block, /Forbidden dialogue:/i);
+    assert.match(block, /Forbidden ending hook:/i);
     assert.match(block, /테라스/);
+    assert.doesNotMatch(block, /Opening situation:/i);
     assert.doesNotMatch(block, /\[Rejected draft — do NOT repeat/i);
     assert.ok(estimateTokens(block) <= REGENERATE_DIVERGENCE_SUMMARY_MAX_TOKENS + 400);
   });

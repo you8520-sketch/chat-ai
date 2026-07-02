@@ -195,7 +195,8 @@ export function parseGreetingSegments(text: string): NovelSegment[] {
 
 export type NovelParagraphClassifyOpts = { streaming?: boolean };
 
-function isStreamingDialogueParagraph(text: string): boolean {
+/** 열린 따옴표 대사(닫히지 않음) — 스트리밍·완료 후 동일하게 대사 문단 */
+function isOpenDialogueParagraph(text: string): boolean {
   const trimmed = text.trim();
   if (!trimmed || !OPEN_DIALOGUE_QUOTE_CHARS.has(trimmed[0]!)) return false;
   const quoteEnd = readQuotedSpan(trimmed, 0);
@@ -209,7 +210,7 @@ export function classifyNovelParagraph(
 ): NovelParagraphKind {
   const trimmed = text.trim();
   if (!trimmed) return "narration";
-  if (opts?.streaming && isStreamingDialogueParagraph(trimmed)) return "dialogue";
+  if (isOpenDialogueParagraph(trimmed)) return "dialogue";
   if (PURE_DIALOGUE_LINE_RE.test(trimmed)) return "dialogue";
   if (HAS_DIALOGUE_QUOTE_RE.test(trimmed)) {
     return hasStandaloneDialogueQuote(trimmed) ? "mixed" : "narration";
@@ -261,7 +262,7 @@ export function groupAuthorParagraphs(content: string): string[] {
 
 /**
  * 한 줄 안에 지문+"대사"가 붙어 있으면 대사마다 줄바꿈으로 분리.
- * streaming=true면 닫는 따옴표 전에도 열린 대사부터 별도 줄로 분리.
+ * 닫히지 않은 열린 따옴표도 지문과 즉시 분리 (스트리밍·저장본 동일).
  */
 function insertDialogueLineBreaks(content: string, streaming = false): string {
   if (!HAS_DIALOGUE_QUOTE_RE.test(content)) return content;
@@ -279,20 +280,14 @@ function insertDialogueLineBreaks(content: string, streaming = false): string {
     last = end;
   }
   if (last < content.length) {
-    const tail = content.slice(last);
-    if (streaming) {
-      appendStreamingDialogueTailParts(parts, tail);
-    } else {
-      const trimmedTail = tail.trim();
-      if (trimmedTail) parts.push(trimmedTail);
-    }
+    appendOpenDialogueTailParts(parts, content.slice(last));
   }
   if (parts.length === 0) return content;
   return parts.join("\n");
 }
 
-/** 스트리밍 중 — tail에 닫히지 않은 대사 따옴표가 있으면 즉시 분리 */
-function appendStreamingDialogueTailParts(parts: string[], tail: string): void {
+/** tail에 닫히지 않은 대사 따옴표가 있으면 지문과 즉시 분리 */
+function appendOpenDialogueTailParts(parts: string[], tail: string): void {
   const trimmed = tail.trim();
   if (!trimmed) return;
 
@@ -478,7 +473,7 @@ export type GroupNovelParagraphsOpts = { streaming?: boolean };
 
 export function groupNovelParagraphs(content: string, opts?: GroupNovelParagraphsOpts): string[] {
   const streaming = opts?.streaming === true;
-  const normalized = content.replace(/\r\n/g, "\n").trim();
+  const normalized = collapseBlankLinesInsideDoubleQuotes(content.replace(/\r\n/g, "\n").trim());
   if (!normalized) return [];
 
   /** 빈 줄(\n\n)만 문단 경계 — 단일 줄바꿈은 같은 문단 안 문장 구분 */
@@ -654,7 +649,7 @@ export function collapseEllipsisSpam(text: string): string {
   return out.join("\n");
 }
 
-/** 열린 " / \u201C 대사 span 안의 \\n\\n+ → 공백 (문단 분할 전) */
+/** 열린 " / \u201C 대사 span 안의 줄바꿈 → 공백 (문단 분할 전) */
 export function collapseBlankLinesInsideDoubleQuotes(text: string): string {
   const closeFor: Record<string, string> = { '"': '"', "\u201C": "\u201D" };
   let out = "";
@@ -677,14 +672,12 @@ export function collapseBlankLinesInsideDoubleQuotes(text: string): string {
       i++;
       continue;
     }
-    if (inside && text[i] === "\n") {
+    if (inside && (ch === "\n" || ch === "\r")) {
       let j = i;
-      while (j < text.length && text[j] === "\n") j++;
-      if (j - i >= 2) {
-        out += " ";
-        i = j;
-        continue;
-      }
+      while (j < text.length && (text[j] === "\n" || text[j] === "\r")) j++;
+      out += " ";
+      i = j;
+      continue;
     }
     out += ch;
     i++;

@@ -1,6 +1,7 @@
 /** Merged shared prose + NSFW writing rules — single [ADVANCED PROSE & NSFW GUIDELINES] SoT. */
 
 import { SPEECH_METADATA_INVISIBLE_RULE } from "@/lib/speechMetadataPolicy";
+import { GENERATION_PROCESS_BEAT_FLOW_BLOCK } from "@/lib/generationProcessBeatFlow";
 import { WEBNOVEL_OUTPUT_FORMAT_BLOCK } from "@/lib/webnovelOutputFormat";
 
 export type AdvancedProseNsfwOpts = {
@@ -9,47 +10,56 @@ export type AdvancedProseNsfwOpts = {
   literaryEnhanced?: boolean;
   /** @deprecated use literaryEnhanced */
   claudeEnhanced?: boolean;
+  /** Step 2 validation — override [PROSE STYLE] block only */
+  proseStyleSection?: string;
 };
 
 const ABSOLUTE_PROHIBITION_RULES = `=== 절대 금지 규칙 ===
-1. 내면 해설·설명형 감각 금지 — 감정·의도는 행동·시선·감각 반응만; 직접 감정 라벨·속내 해설·동일 감각어 반복 금지.
-2. 설정 나열 금지 — 현재 장면과 무관한 직업·등급·과거사 설명 금지.
-3. 나열식 문장 금지 — 동작을 접속사로 길게 연결하지 말고 마침표로 분리.`;
+현재 장면과 무관한 직업·등급·과거사·설정 나열 금지.`;
 
 const NO_STAGE_DIRECTIONS = `[NO STAGE DIRECTIONS]
-아무것도 설명하지 마라. 지금 벌어지는 일만 직접 서술한다.
-글쓰기 방식·문체·감정·대사·서술 방식을 설명·평가하지 마라.
-장면 자체만 서술한다.`;
-
-const NO_ABSTRACT_SUMMARIES = `[NO ABSTRACT SUMMARIES]
-순간을 요약하지 마라. 행동·대사·몸짓·감각 디테일로 직접 묘사한다.`;
-
-const NATURAL_PROSE = `[NATURAL PROSE]
-Vary sentence length naturally.
-Avoid repetitive rhythm.`;
-
-const SHOW_BEFORE_TELL = `[SHOW BEFORE TELL]
-Prefer actions, sensations, and atmosphere before explanation.`;
-
-const NO_TEMPLATE_WRITING = `[NO TEMPLATE WRITING]
-Do not reuse the same reaction patterns, paragraph rhythm, or sentence structures across turns.`;
+글쓰기 방식·문체·프롬프트를 설명하지 말고, 지금 벌어지는 일만 직접 서술한다.`;
 
 const DO_NOT_NARRATE_PROMPT_METADATA = SPEECH_METADATA_INVISIBLE_RULE;
-
 const DIALOGUE_NARRATION_STRUCTURE_RULE = `[DIALOGUE & NARRATION]
 - 하나의 발화는 하나의 인용문으로 유지할 것.
 - 대사 중간에 지문을 끼워 넣어 발화를 분절하지 말 것.`;
 
 export const PROSE_STYLE_SECTION = `[PROSE STYLE]
-서술: 해체(-다/-했다/-이었다)만; 번역투·과도한 쉼표 나열·명사 단편 행 금지; 말줄임 ... 허용(...... 금지, 턴당 ~3).
-일상·대화: 미세 행동·소품·환경을 구체적으로 — 분위기·긴장감은 행동·감각으로.
-긴장·고조: 반응·호흡·시선·거리·침묵을 촘촘히 — 감정 라벨 대신 신체·환경 반응.`;
+[NARRATION REGISTER]
+지문·서술은 해체(-다/-했다/-이었다)만. (대사 register·존댓말은 [SPEECH METADATA]·예시 대사 — 지문에서 해설 금지)
+번역투·명사 단편 행·쉼표 나열로 이어 붙인 문장 금지.
+말줄임 ... 은 망설임·끊김·여운이 실제 있을 때만. ...... 금지.
+
+${GENERATION_PROCESS_BEAT_FLOW_BLOCK}
+
+[RHYTHM]
+연속 지문에서 같은 문장 시작형을 반복하지 말고, 다음 문장은 시작점을 바꿔 쓴다.
+같은 길이의 문장을 연달아 이어 가지 말고, 짧은 문장과 중간 길이 문장을 섞어 리듬을 만든다.
+
+[SENSATION]
+장면에 맞는 감각 채널(시각·청각·촉각·온도·냄새·근육감·공간감) 중 1~2개를 골라 깊게 쓴다.
+깊이는 밀도가 아니라 구체성이다: 색이 아니라 질감, 소리가 아니라 그 소리의 방향·거리·크기.
+
+[EMOTION]
+감정은 몸·시선·호흡·거리·침묵·주변 환경의 변화로 드러낸다.
+직접 감정을 이름 붙이거나 속마음을 해설하는 대신, 독자가 지문에서 스스로 읽어낼 수 있도록 쓴다.
+감정이 강할수록 더 천천히 드러낸다. 강도와 속도는 반비례한다.
+
+[MOVEMENT & SPACE]
+움직임은 공간·거리·방향·결과가 독자에게 자연스럽게 전달되도록 쓴다.
+한 동작마다 무엇이 어디서 어느 방향으로 이동했는지, 그로 인해 공간 관계가 어떻게 바뀌었는지를 먼저 서술한다.
+긴장도가 높은 장면에서는 위치와 거리가 변할 때마다 한 번씩 갱신한다.
+
+[WEBNOVEL BREATH]
+중요한 순간 직전: 지문 한 겹(시선·공간·감각)으로 속도를 한 박 늦춘다.
+전환·분기점: 지문 한 줄로 공간·시간·분위기를 리셋한다.
+여운: 설명 없이 장면의 공기만 남긴다. 독자가 멈추는 자리는 지문이 만든다.`;
 
 const NSFW_INTIMACY_SECTION = `[19+ INTIMACY]
-lore·register에 맞는 해부학적 명칭을 사용한다. 모호한 지칭('그곳'·대명사 뭉개기)·과도한 완곡어·임상 나열 금지.
-행위·접촉은 직설적·감각적으로; 기계적 피스톤 나열 금지. 상호작용·티키타카.
-씬 고조 시에도 관계 단계·말투 유지; 오프캐릭터 순종·멜로드라마 금지.
-친밀 접촉: 슬로 모션 — 한 동작을 마찰·감각·근육·구도·공간·에스컬레이션 순으로 팽창.`;
+lore·해부학적 명칭 register에 맞게. 모호한 지칭('그곳'·대명사 뭉개기)·과도한 완곡어·임상 나열 금지.
+기계적 피스톤 나열 금지. 상호작용·티키타카.
+씬 고조 시에도 관계 단계·대사 말투 유지; 오프캐릭터 순종·멜로드라마 금지.`;
 
 /** Test-only placement-isolation variants P1/P2 — not in production default. */
 export const DENSE_NARRATION_LIGHTWEIGHT_RULE =
@@ -104,14 +114,6 @@ export function buildAdvancedProseNsfwGuidelines(opts: AdvancedProseNsfwOpts): s
     "",
     DO_NOT_NARRATE_PROMPT_METADATA,
     "",
-    NO_ABSTRACT_SUMMARIES,
-    "",
-    NATURAL_PROSE,
-    "",
-    SHOW_BEFORE_TELL,
-    "",
-    NO_TEMPLATE_WRITING,
-    "",
     DIALOGUE_NARRATION_STRUCTURE_RULE,
   ];
 
@@ -119,7 +121,7 @@ export function buildAdvancedProseNsfwGuidelines(opts: AdvancedProseNsfwOpts): s
     lines.push("", NSFW_INTIMACY_SECTION);
   }
 
-  lines.push("", PROSE_STYLE_SECTION);
+  lines.push("", opts.proseStyleSection ?? PROSE_STYLE_SECTION);
 
   return lines.join("\n");
 }

@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { responseHasHtmlVisualCard } from "@/lib/chatRichContent";
-import { ABSOLUTE_MAX_RESPONSE_CHARS } from "@/lib/responseLength";
 import { resolveHtmlVisualCardPolicyFromSources } from "@/lib/htmlVisualCardPolicy";
 import {
+  attachHtmlBlockAfterProse,
   attachHtmlBlockAtPlacement,
   attachHtmlBlockBeforeProse,
   attachHtmlBlockWithinCap,
@@ -12,6 +12,7 @@ import {
   buildHtmlVisualCardFlashUserBlock,
   clampFullResponsePreservingHtml,
   ensureHtmlVisualCardBlock,
+  normalizeFullResponsePreservingHtml,
   generateHtmlVisualCardWithFlash,
   HTML_FLASH_RECENT_HISTORY_MAX_TOKENS,
   HTML_OOC_FLASH_INPUT_TARGET_TOKENS,
@@ -193,15 +194,13 @@ NPC의 속마음 한 줄
     assert.ok(bottom.indexOf("본문") < bottom.indexOf("```html"));
   });
 
-  it("attachHtmlBlockWithinCap keeps full prose and html when no char cap", () => {
+  it("attachHtmlBlockAfterProse keeps full prose and html (no RP cap)", () => {
     const html = buildFallbackHtmlVisualCard(["속마음", "상황"]);
     const prose = "가".repeat(4900);
-    const merged = attachHtmlBlockWithinCap(prose, html, ABSOLUTE_MAX_RESPONSE_CHARS);
-    assert.ok(merged.length > ABSOLUTE_MAX_RESPONSE_CHARS);
+    const merged = attachHtmlBlockAfterProse(prose, html);
+    assert.ok(merged.includes(prose));
     assert.match(merged, /```html/);
     assert.ok(responseHasHtmlVisualCard(merged));
-    const htmlFence = merged.slice(merged.indexOf("```html"));
-    assert.ok(htmlFence.length > 500, "HTML block should retain meaningful size, not a tiny fragment");
   });
 
   it("attachHtmlBlockAtPlacement separates prose and html with two blank lines", () => {
@@ -239,7 +238,7 @@ NPC의 속마음 한 줄
 
   it("ensureHtmlVisualCardBlock rejects generic status template in OOC skipGenericFallback mode", () => {
     const oldGeneric = `\`\`\`html\n<div style="padding:8px;border-left:3px solid #4a90e2"><p style="font-weight:700">현재 상황</p><p>x</p><p style="font-weight:700">속마음</p><p>y</p><p style="font-weight:700">다음 행동</p><p>z</p></div>\n\`\`\``;
-    const ensured = ensureHtmlVisualCardBlock(oldGeneric, [], 5000, { skipGenericFallback: true });
+    const ensured = ensureHtmlVisualCardBlock(oldGeneric, [], { skipGenericFallback: true });
     assert.equal(ensured, "");
   });
 
@@ -250,7 +249,7 @@ NPC의 속마음 한 줄
       { label: "다음 행동", content: "—" },
     ]);
     const block = `\`\`\`html\n${triple}\n\`\`\``;
-    const ensured = ensureHtmlVisualCardBlock(block, [], 5000, { skipGenericFallback: true });
+    const ensured = ensureHtmlVisualCardBlock(block, [], { skipGenericFallback: true });
     assert.equal(ensured, "");
   });
 
@@ -260,7 +259,7 @@ NPC의 속마음 한 줄
       "<ul><li>Q1</li><li>A1</li></ul>".repeat(6) +
       "</section>";
     const block = `\`\`\`html\n${inner}\n\`\`\``;
-    const ensured = ensureHtmlVisualCardBlock(block, [], 5000, { skipGenericFallback: true });
+    const ensured = ensureHtmlVisualCardBlock(block, [], { skipGenericFallback: true });
     assert.match(ensured, /익명 메시지함/);
     assert.doesNotMatch(ensured, /현재 상황/);
   });
@@ -270,7 +269,7 @@ NPC의 속마음 한 줄
       "OOC: 대화 잠시 중지. 항목은[외형 · 키워드 · 모에화 · 기타 상징 · 대외적 이미지]로 작성";
     const pad = (s: string) => s.repeat(12);
     const crammed = `\`\`\`html\n<div style="padding:12px">외형: ${pad("은발 롱헤어 ")}키워드: ${pad("츤데레 ")}모에화: ${pad("고양이 ")}기타 상징: ${pad("겨울 ")}대외적 이미지: ${pad("빙공주 ")}</div>\n\`\`\``;
-    const ensured = ensureHtmlVisualCardBlock(crammed, [], 5000, {
+    const ensured = ensureHtmlVisualCardBlock(crammed, [], {
       skipGenericFallback: true,
       oocUserMessage: ooc,
     });
@@ -323,25 +322,25 @@ NPC의 속마음 한 줄
 
   it("ensureHtmlVisualCardBlock rejects truncated partial flash HTML", () => {
     const partial = `\`\`\`html\n\`\`\`html\n<div style="max-width:550px;margin:12px auto;padding:12px;border:1px solid #eaeaea;fo`;
-    const ensured = ensureHtmlVisualCardBlock(partial, ["현재 상황", "속마음"], 5000);
+    const ensured = ensureHtmlVisualCardBlock(partial, ["현재 상황", "속마음"]);
     assert.match(ensured, /```html/);
     assert.match(ensured, /<\/div>/);
     assert.doesNotMatch(ensured, /```html[\s\S]*```html/);
     assert.ok(ensured.length > 400);
   });
 
-  it("clampFullResponsePreservingHtml under cap normalizes nested fences without truncating", () => {
+  it("normalizeFullResponsePreservingHtml normalizes nested fences without truncating", () => {
     const inner = buildHtmlStatusWindowCardFromFields([
       { label: "현재 상황", content: "장면 요약" },
     ]);
     const broken = `RP 본문.\n\n\`\`\`html\n\`\`\`html\n${inner}`;
-    const clamped = clampFullResponsePreservingHtml(broken, 5000);
-    assert.match(clamped, /RP 본문/);
-    assert.match(clamped, /장면 요약/);
-    assert.doesNotMatch(clamped, /```html[\s\S]*```html/);
+    const normalized = normalizeFullResponsePreservingHtml(broken);
+    assert.match(normalized, /RP 본문/);
+    assert.match(normalized, /장면 요약/);
+    assert.doesNotMatch(normalized, /```html[\s\S]*```html/);
   });
 
-  it("clampFullResponsePreservingHtml keeps OOC creative HTML without balanced divs", () => {
+  it("normalizeFullResponsePreservingHtml keeps OOC creative HTML without balanced divs", () => {
     const inner =
       '<section style="max-width:400px;padding:12px;color:#222;background:#fff">' +
       "<h3>익명 메시지함</h3>".repeat(3) +
@@ -349,10 +348,10 @@ NPC의 속마음 한 줄
       "</section>";
     assert.ok(inner.length >= 180);
     const htmlOnly = `\`\`\`html\n${inner}\n\`\`\``;
-    const clamped = clampFullResponsePreservingHtml(htmlOnly, 5000);
-    assert.ok(responseHasHtmlVisualCard(clamped));
-    assert.match(clamped, /익명 메시지함/);
-    assert.match(clamped, /질문1/);
+    const normalized = normalizeFullResponsePreservingHtml(htmlOnly);
+    assert.ok(responseHasHtmlVisualCard(normalized));
+    assert.match(normalized, /익명 메시지함/);
+    assert.match(normalized, /질문1/);
   });
 
   it("stripBrokenHtmlFragmentPreservingOocBody keeps rich inbox when tail strip would leave header only", () => {
@@ -384,7 +383,7 @@ NPC의 속마음 한 줄
     assert.ok(verboseHtml.length > 900);
 
     const prose = "RP 본문입니다.";
-    const merged = attachHtmlBlockWithinCap(prose, verboseHtml, 5000, [
+    const merged = attachHtmlBlockWithinCap(prose, verboseHtml, undefined, [
       "현재 상황",
       "속마음",
       "다음 행동",

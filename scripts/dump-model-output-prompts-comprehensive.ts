@@ -370,7 +370,7 @@ async function dumpStandalonePrompts(): Promise<string[]> {
     section(
       "PART A — 출력 상수·tier (responseLengthConstants.ts)",
       [
-        `ABSOLUTE_MAX_RESPONSE_CHARS: ${t.max} (hardMax)`,
+        `aim: ${t.aimChars} · minimum: ${t.min} (no output char cap — billed by actual length)`,
         `UNIFIED_TIER_MIN_CHARS (MINIMUM_FLOOR): ${t.min}`,
         `UNIFIED_TIER_AIM_CHARS (TARGET_LENGTH): ${t.aimChars}`,
         `CATASTROPHIC_MIN_RESPONSE_CHARS: import from responseLengthConstants`,

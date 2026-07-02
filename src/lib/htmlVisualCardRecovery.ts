@@ -44,7 +44,7 @@ import {
   sanitizeVisualAppearance,
   type VisualAppearancePolicy,
 } from "@/lib/visualAnchor";
-import { ABSOLUTE_MAX_RESPONSE_CHARS, clampTextToCharCap } from "@/lib/responseLength";
+import { normalizeProseText } from "@/lib/responseLength";
 
 /** 본문 ↔ 상태창(HTML) 사이 빈 줄 2줄 이상 */
 export const STATUS_WINDOW_BODY_GAP = "\n\n\n";
@@ -75,9 +75,11 @@ export const HTML_ONLY_TURN_MAX_OUTPUT_TOKENS = 8_000;
 /** 영수증·UI 표시명 (실제 API: DeepSeek V3) */
 export const HTML_ONLY_MODEL_LABEL = "HTML전용모델";
 
-/** Flash ```html 부착 시 RP prose cap에서 뺄 최소·최대 예약 */
+/** Flash ```html 카드 블록 크기 — compact 재조립·fallback용 (RP prose cap 아님) */
 export const HTML_FLASH_OUTPUT_RESERVE_MIN_CHARS = 900;
 export const HTML_FLASH_OUTPUT_RESERVE_MAX_CHARS = 1800;
+/** @deprecated HTML_FLASH_OUTPUT_RESERVE_MAX_CHARS — HTML 카드 레이아웃 budget */
+export const HTML_STATUS_CARD_LAYOUT_BUDGET_CHARS = HTML_FLASH_OUTPUT_RESERVE_MAX_CHARS;
 
 /** standing·턴 트리거 HTML — fallback 템플릿 크기 기준 예약량 */
 export function resolveHtmlFlashOutputReserveChars(statusFieldLabels: string[] = []): number {
@@ -140,11 +142,16 @@ function isAcceptedOocCreativeHtmlInner(inner: string, oocUserMessage = ""): boo
 export function ensureHtmlVisualCardBlock(
   htmlBlock: string,
   fallbackStatusLabels: string[] = [],
-  budget = ABSOLUTE_MAX_RESPONSE_CHARS,
-  opts?: { skipGenericFallback?: boolean; oocUserMessage?: string }
+  opts?: {
+    skipGenericFallback?: boolean;
+    oocUserMessage?: string;
+    /** HTML 카드 블록 compact budget — RP prose cap 아님 */
+    htmlCardBudget?: number;
+  }
 ): string {
   const skipGenericFallback = opts?.skipGenericFallback === true;
   const oocUserMessage = opts?.oocUserMessage ?? "";
+  const budget = opts?.htmlCardBudget ?? HTML_STATUS_CARD_LAYOUT_BUDGET_CHARS;
   let polishedInner = polishHtmlVisualCardInner(unwrapHtmlVisualCardInner(htmlBlock));
   if (skipGenericFallback && oocUserMessage.trim()) {
     polishedInner = ensureOocHtmlSectionSpacing(polishedInner, oocUserMessage);
@@ -356,66 +363,48 @@ function fitHtmlBlockToBudget(
   return compactFallback;
 }
 
-/** HTML block이 cap에서 차지할 수 있는 최대 비율 — 산문 최소 600자 확보 */
-const MIN_PROSE_BUDGET_CHARS = 600;
-
-function mergeProseAndHtmlWithinCap(opts: {
+/** HTML 카드 블록 budget — 상태창 compact 재조립용 (RP prose 길이 cap 아님) */
+function mergeProseAndHtml(opts: {
   prose: string;
   html: string;
-  cap: number;
   order: "html-first" | "prose-first";
   fallbackStatusLabels?: string[];
   skipCompactRebuild?: boolean;
+  htmlCardBudget?: number;
 }): string {
-  const trimmedProse = opts.prose.trim();
+  const trimmedProse = normalizeProseText(opts.prose);
   const html = opts.html.trim();
   const labels = opts.fallbackStatusLabels ?? [];
   const fitOpts = opts.skipCompactRebuild ? { skipCompactRebuild: true } : undefined;
+  const htmlCardBudget = opts.htmlCardBudget ?? HTML_STATUS_CARD_LAYOUT_BUDGET_CHARS;
 
-  if (!html) return clampTextToCharCap(trimmedProse, opts.cap);
+  if (!html) return trimmedProse;
   if (!trimmedProse) {
-    return fitHtmlBlockToBudget(html, opts.cap, labels, fitOpts);
+    return fitHtmlBlockToBudget(html, htmlCardBudget, labels, fitOpts);
   }
 
-  const combined =
-    opts.order === "html-first"
-      ? `${html}${PROSE_HTML_SEPARATOR}${trimmedProse}`
-      : `${trimmedProse}${PROSE_HTML_SEPARATOR}${html}`;
-  if (combined.length <= opts.cap) return combined;
-
-  const sepLen = PROSE_HTML_SEPARATOR.length;
-  // HTML이 산문을 600자 미만으로 압축하지 못하도록 HTML 최대 예산 제한
-  const maxHtmlBudget = Math.max(0, opts.cap - MIN_PROSE_BUDGET_CHARS - sepLen);
-  const fittedHtml = fitHtmlBlockToBudget(html, maxHtmlBudget, labels, fitOpts);
-  if (!fittedHtml) return clampTextToCharCap(trimmedProse, opts.cap);
-
-  const proseBudget = opts.cap - fittedHtml.length - sepLen;
-  if (proseBudget <= 0) {
-    return fitHtmlBlockToBudget(html, opts.cap, labels, fitOpts);
-  }
-
-  const prosePart = clampTextToCharCap(trimmedProse, proseBudget);
+  const fittedHtml = fitHtmlBlockToBudget(html, htmlCardBudget, labels, fitOpts);
+  if (!fittedHtml) return trimmedProse;
 
   return opts.order === "html-first"
-    ? `${fittedHtml}${PROSE_HTML_SEPARATOR}${prosePart}`
-    : `${prosePart}${PROSE_HTML_SEPARATOR}${fittedHtml}`;
+    ? `${fittedHtml}${PROSE_HTML_SEPARATOR}${trimmedProse}`
+    : `${trimmedProse}${PROSE_HTML_SEPARATOR}${fittedHtml}`;
 }
 
-/** RP + ```html — 5,000자 상한 (HTML 우선 · RP는 남는 분량) */
+/** RP + ```html — prose·HTML 병합 (RP prose 길이 cap 없음) */
 export function attachHtmlBlockBeforeProse(
   prose: string,
   htmlBlock: string,
-  cap = ABSOLUTE_MAX_RESPONSE_CHARS,
   fallbackStatusLabels: string[] = [],
-  opts?: { skipCompactRebuild?: boolean }
+  opts?: { skipCompactRebuild?: boolean; htmlCardBudget?: number }
 ): string {
-  return mergeProseAndHtmlWithinCap({
+  return mergeProseAndHtml({
     prose,
     html: htmlBlock,
-    cap,
     order: "html-first",
     fallbackStatusLabels,
     skipCompactRebuild: opts?.skipCompactRebuild,
+    htmlCardBudget: opts?.htmlCardBudget,
   });
 }
 
@@ -423,30 +412,39 @@ export function attachHtmlBlockAtPlacement(
   prose: string,
   htmlBlock: string,
   placement: HtmlFlashPlacement,
-  cap = ABSOLUTE_MAX_RESPONSE_CHARS,
   fallbackStatusLabels: string[] = [],
-  opts?: { skipCompactRebuild?: boolean }
+  opts?: { skipCompactRebuild?: boolean; htmlCardBudget?: number }
 ): string {
   return placement === "top"
-    ? attachHtmlBlockBeforeProse(prose, htmlBlock, cap, fallbackStatusLabels, opts)
-    : attachHtmlBlockWithinCap(prose, htmlBlock, cap, fallbackStatusLabels, opts);
+    ? attachHtmlBlockBeforeProse(prose, htmlBlock, fallbackStatusLabels, opts)
+    : attachHtmlBlockAfterProse(prose, htmlBlock, fallbackStatusLabels, opts);
 }
 
-/** RP + ```html — 5,000자 상한 (HTML tail 우선 · RP는 남는 분량) */
+/** @deprecated attachHtmlBlockAfterProse — RP prose cap 제거 */
 export function attachHtmlBlockWithinCap(
   prose: string,
   htmlBlock: string,
-  cap = ABSOLUTE_MAX_RESPONSE_CHARS,
+  _legacyCap?: number,
   fallbackStatusLabels: string[] = [],
   opts?: { skipCompactRebuild?: boolean }
 ): string {
-  return mergeProseAndHtmlWithinCap({
+  return attachHtmlBlockAfterProse(prose, htmlBlock, fallbackStatusLabels, opts);
+}
+
+/** RP + ```html — prose 뒤 HTML (RP prose 길이 cap 없음) */
+export function attachHtmlBlockAfterProse(
+  prose: string,
+  htmlBlock: string,
+  fallbackStatusLabels: string[] = [],
+  opts?: { skipCompactRebuild?: boolean; htmlCardBudget?: number }
+): string {
+  return mergeProseAndHtml({
     prose,
     html: htmlBlock,
-    cap,
     order: "prose-first",
     fallbackStatusLabels,
     skipCompactRebuild: opts?.skipCompactRebuild,
+    htmlCardBudget: opts?.htmlCardBudget,
   });
 }
 
@@ -509,44 +507,27 @@ function normalizeHtmlVisualCardInFullResponse(text: string, oocUserMessage = ""
   return parts.join(PROSE_HTML_SEPARATOR).trim();
 }
 
-/** HTML tail 보존하며 전체 응답을 cap 이내로 */
-export function clampFullResponsePreservingHtml(
+/** HTML fence·inner 정규화 — RP prose 길이 cap 없음 */
+export function normalizeFullResponsePreservingHtml(
   text: string,
-  cap = ABSOLUTE_MAX_RESPONSE_CHARS,
   oocUserMessage?: string
 ): string {
   const trimmed = text.trim();
   const oocMsg = oocUserMessage ?? "";
   if (!responseHasHtmlVisualCard(trimmed)) {
-    return clampTextToCharCap(trimmed, cap);
+    return trimmed;
   }
-  if (trimmed.length <= cap) {
-    const normalized = normalizeHtmlVisualCardInFullResponse(trimmed, oocMsg);
-    return stripBrokenHtmlFragmentPreservingOocBody(normalized, oocMsg).text;
-  }
-  const blocks = splitChatRichBlocks(trimmed);
-  const htmlBlocks = blocks.filter((b) => b.kind === "html");
-  const htmlFence = htmlBlocks
-    .map((b) => wrapHtmlVisualCardInner(b.text))
-    .filter(Boolean)
-    .join(PROSE_HTML_SEPARATOR);
-  const prose = extractProseWithoutHtml(trimmed);
-  const firstHtmlIdx = blocks.findIndex((b) => b.kind === "html");
-  const firstNovelIdx = blocks.findIndex((b) => b.kind === "novel");
-  const placement: HtmlFlashPlacement =
-    firstHtmlIdx >= 0 && (firstNovelIdx < 0 || firstHtmlIdx < firstNovelIdx) ? "top" : "bottom";
-  console.log("[html-clamp] clampFullResponsePreservingHtml", {
-    textChars: trimmed.length,
-    proseChars: prose.length,
-    htmlFenceChars: htmlFence.length,
-    placement,
-    cap,
-  });
-  const merged = attachHtmlBlockAtPlacement(prose, htmlFence, placement, cap, [], {
-    skipCompactRebuild: Boolean(oocMsg.trim()),
-  });
-  console.log("[html-clamp] merged", { mergedChars: merged.length });
-  return stripBrokenHtmlFragmentPreservingOocBody(merged, oocMsg).text;
+  const normalized = normalizeHtmlVisualCardInFullResponse(trimmed, oocMsg);
+  return stripBrokenHtmlFragmentPreservingOocBody(normalized, oocMsg).text;
+}
+
+/** @deprecated normalizeFullResponsePreservingHtml */
+export function clampFullResponsePreservingHtml(
+  text: string,
+  _legacyCap?: number,
+  oocUserMessage?: string
+): string {
+  return normalizeFullResponsePreservingHtml(text, oocUserMessage);
 }
 
 function clipTail(text: string, max: number): string {

@@ -11,10 +11,8 @@ import {
 } from "@/lib/ai";
 import {
   clampResponseLength,
-  clampTextToCharCap,
   DEFAULT_TARGET_RESPONSE_CHARS,
   normalizeTargetResponseChars,
-  resolveResponseLengthTarget,
   sanitizeStreamArtifacts,
   detectAdultGenerationFailure,
   generationFailureUserMessage,
@@ -29,6 +27,7 @@ import {
 } from "@/lib/chatDisplayLength";
 import { normalizeAiNovelProseLayout } from "@/lib/novelParagraphs";
 import { loadCharacterChunks, loadCharacterChunksForPrompt } from "@/lib/characterChunks";
+import { resolveExampleDialogForPrompt } from "@/lib/narrationFewShotTemplates";
 import { buildContext } from "@/services/contextBuilder";
 import { auditAssembledPrompt, formatPromptAuditLog } from "@/services/promptAudit";
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
@@ -95,12 +94,11 @@ import {
 import {
   generateHtmlVisualCardWithFlash,
   attachHtmlBlockAtPlacement,
-  clampFullResponsePreservingHtml,
+  normalizeFullResponsePreservingHtml,
   buildFallbackHtmlVisualCard,
   ensureHtmlVisualCardBlock,
   unwrapHtmlVisualCardInner,
   extractProseWithoutHtml,
-  resolveHtmlFlashOutputReserveChars,
   HTML_ONLY_MODEL_LABEL,
   resolveProseBaselineForHtmlFlash,
   stripBrokenHtmlFragmentAtEnd,
@@ -583,6 +581,7 @@ export async function POST(req: Request) {
             usesBanmal: personaUsesBanmal,
             rejectedAssistantDraft,
             regenAttemptId,
+            targetResponseChars,
           })
       : isChatOocRpContinuing(storedUserMessage)
         ? buildChatOocRpContinuingUserPrompt(displayUserMessage)
@@ -604,6 +603,7 @@ export async function POST(req: Request) {
       personaDisplayName,
       user.nickname
     );
+  const effectiveExampleDialog = resolveExampleDialogForPrompt(ch.example_dialog, ch.name);
   const relationshipNames = resolveRelationshipMetaNames({
     displayName: ch.name,
     systemPrompt: ch.system_prompt,
@@ -742,7 +742,7 @@ export async function POST(req: Request) {
     chunks: characterChunks,
     systemPrompt: ch.system_prompt,
     world: ch.world,
-    exampleDialog: ch.example_dialog,
+    exampleDialog: effectiveExampleDialog,
     userNickname: user.nickname,
     userPersona: userPersonaPrompt,
     userNote: userNotePrompt,
@@ -845,11 +845,6 @@ export async function POST(req: Request) {
     modelOutputsHtmlVisualCard: false,
     stripRelationshipMemoryTail: mainModelOwnsRelationshipExtract,
   };
-  const htmlFlashReserveChars = oocHtmlMode
-    ? 0
-    : htmlVisualCardPolicy.enabled
-      ? resolveHtmlFlashOutputReserveChars(htmlVisualCardPolicy.statusFieldLabels)
-      : 0;
   const htmlVisualCardPolicyRef = htmlVisualCardPolicy;
   const htmlFlashCoreIdentity = buildCharacterCanonBlock(settingText);
   const htmlFlashContextRef = {
@@ -950,7 +945,6 @@ export async function POST(req: Request) {
               : chatRef.id
                   ? `chat-${chatRef.id}`
                   : undefined,
-              htmlFlashReserveChars: htmlFlashReserveChars > 0 ? htmlFlashReserveChars : undefined,
               oocHtmlMode: oocHtmlMode || undefined,
               statusArtifactsOpts: statusArtifactOpts,
               generationOverrides: regenerateMessageId
@@ -1315,13 +1309,6 @@ export async function POST(req: Request) {
             proseOnly = "";
           }
           send({ type: "replace", text: proseOnly, instant: true });
-          const hardMax = resolveResponseLengthTarget(targetResponseCharsRef).hardMax;
-          if (htmlFlashReserveChars > 0 && !htmlFlashOnlyTurn) {
-            proseOnly = clampTextToCharCap(
-              proseOnly,
-              Math.max(400, hardMax - htmlFlashReserveChars)
-            );
-          }
           let htmlBlock: string | null = null;
           try {
             const flashGen = await generateHtmlVisualCardWithFlash({
@@ -1358,7 +1345,6 @@ export async function POST(req: Request) {
           htmlBlock = ensureHtmlVisualCardBlock(
             htmlBlock,
             chatOocRpUnrelated || oocCreativeHtmlTurn ? [] : htmlVisualCardPolicyRef.statusFieldLabels,
-            hardMax,
             {
               skipGenericFallback:
                 htmlFlashOnlyTurn || oocCreativeHtmlTurn || chatOocRpUnrelated,
@@ -1372,7 +1358,6 @@ export async function POST(req: Request) {
                 proseOnly,
                 htmlBlock,
                 placement,
-                hardMax,
                 chatOocRpUnrelated || oocCreativeHtmlTurn ? [] : htmlVisualCardPolicyRef.statusFieldLabels,
                 {
                   skipCompactRebuild:
@@ -1388,16 +1373,15 @@ export async function POST(req: Request) {
           );
           savedText = htmlFlashOnlyTurn
             ? savedText.trim()
-            : clampFullResponsePreservingHtml(
+            : normalizeFullResponsePreservingHtml(
                 savedText,
-                hardMax,
                 oocCreativeHtmlTurn || chatOocRpUnrelated ? storedUserMessage : undefined
               );
           traceStep(
-            "htmlFlashClamp",
+            "htmlFlashNormalize",
             afterHtmlAttach,
             savedText,
-            "clampFullResponsePreservingHtml — hard max with HTML block preserved"
+            "normalizeFullResponsePreservingHtml — HTML fence normalize (no RP prose cap)"
           );
           htmlFlashPasses = 1;
           if (htmlFlashOnlyTurn && savedText.trim()) {

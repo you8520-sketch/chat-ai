@@ -53,7 +53,7 @@ export function buildCoreMasterPrompt(i: CoreMasterPromptInput): string {
     `[CORE RP] [A]=AI · [B]=user.`,
     roleBoundaryLine(i),
     `INTEGRITY — 캐릭터·관계·세계관을 유지한다.`,
-    `CONTINUITY — 같은 장면을 이어가되 이미 나온 행동·대사·감정을 반복하지 않는다.`,
+    `CONTINUITY — 같은 장면을 이어간다.`,
   ];
 
   if (i.party) {

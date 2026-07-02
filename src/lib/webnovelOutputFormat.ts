@@ -2,10 +2,6 @@
 
 /** 마크다own·RP 표기 금지 — 문단 줄바꿈/대사 분리는 [OUTPUT LAYOUT] 단일 출처 */
 export const WEBNOVEL_OUTPUT_FORMAT_BLOCK = `[WEBNOVEL OUTPUT FORMAT]
-Write like a Korean webnovel.
-
-Narration is plain prose in 해체체.
-
 Never wrap narration or actions in markdown or roleplay markers:
 *
 **
@@ -13,40 +9,26 @@ Never wrap narration or actions in markdown or roleplay markers:
 [ ]
 { }
 
-Do not write screenplay style.
-Do not write chat roleplay style.
 「 」: in-world proper nouns only (skills, spells, system labels) — never for thoughts or dialogue.`;
 
-/** 시스템 말미 recency — Length → Turn Handoff → **여기(유일)** → Terminal length */
+/** 시스템 말미 recency — Length → **여기(유일)** → Terminal length */
 export function buildWebnovelOutputLayoutRecencyBlock(): string {
   return `[OUTPUT LAYOUT]
-Korean webnovel paragraph breaks — higher priority than [PROSE STYLE]. Output formatting only; do not change pacing or scene structure.
+"…" spoken dialogue = always its own paragraph, separated by a blank line (\\n\\n) from narration.
+Never append dialogue to the end of a narration line or paragraph.
 
-Spoken dialogue in " " ALWAYS starts a new paragraph.
-NEVER append spoken dialogue to the end of a narration paragraph.
-Each spoken dialogue line is on its own line.
+Wrong: 그는 고개를 들었다. "대사."
+Right:
+그는 고개를 들었다.
 
-Start a new paragraph when:
-- a different character speaks
-- narration shifts focus to another character
-- dialogue follows narration
-- the emotional beat changes significantly
+"대사."
 
-Incorrect:
-달빛이 비쳤다. "괜찮아요."
+When speaker, focus, or emotional beat shifts — new paragraph.`;
+}
 
-Correct:
-달빛이 비쳤다.
-
-"괜찮아요."
-
-Incorrect:
-Narration. "Dialogue"
-
-Correct:
-Narration.
-
-"Dialogue"`;
+/** user-turn bottom — layout recency (paired with length tail in contextBuilder) */
+export function buildCompactTerminalLayoutRecencyLine(): string {
+  return `레이아웃: 지문과 "…" 대사 사이 빈 줄(\\n\\n) 필수 — 지문 줄 끝에 대사 붙이지 말 것.`;
 }
 
 /** @deprecated buildWebnovelOutputLayoutRecencyBlock() */
@@ -91,6 +73,8 @@ export function unwrapRoleplayMarkdownInText(text: string): string {
 export function containsParagraphLayoutInstructions(text: string): boolean {
   return (
     /\[OUTPUT LAYOUT\]/i.test(text) ||
+    /지문 뒤에 대사를 이어 붙이지 않는다/i.test(text) ||
+    /대사는 항상 새 단락/i.test(text) ||
     /NEVER append spoken dialogue/i.test(text) ||
     /ALWAYS starts a new paragraph/i.test(text) ||
     /Start a new paragraph when:/i.test(text) ||

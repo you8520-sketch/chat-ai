@@ -10,8 +10,6 @@ import {
   buildTerminalLengthOverrideRecencyBlock,
   normalizeTargetResponseChars,
 } from "@/lib/responseLength";
-import { buildTurnHandoffAndPacingBlock } from "@/lib/turnHandoffAndPacing";
-
 async function withServerOnlyMock<T>(fn: () => Promise<T>): Promise<T> {
   const require = createRequire(import.meta.url);
   require.cache[require.resolve("server-only")] = {
@@ -40,14 +38,16 @@ describe("buildLengthInstruction", () => {
     assert.match(block, /TARGET_LENGTH: 3,200\+ 한국어 글자/);
     assert.match(block, /MINIMUM_FLOOR: 2,700\+/);
     assert.match(block, /\[NO INPUT ECHO — STRICT\]/);
-    assert.match(block, /Never paraphrase the user's input/);
+    assert.doesNotMatch(block, /Never paraphrase the user's input/);
     assert.match(block, /\[SCENE CONTINUATION PRIORITY\]/);
+    assert.match(block, /MINIMUM_FLOOR 미달 전 조기 종료·관찰자 붕괴 결말 금지/);
+    assert.doesNotMatch(block, /지문과 "…" 대사를 한 문단·한 줄에 병합하지 마라/);
+    assert.match(block, /기계적 교대나 동일 길이 블록을 맞추지 마라/);
+    assert.match(block, /새 서사 비트\(행동·반응·전환\)로 확장/);
     assert.match(block, /\[NARRATIVE DENSITY\]/);
     assert.match(block, /\[MOMENT-TO-MOMENT WRITING\]/);
-    assert.match(block, /한 문단에 병합하라는 뜻이 아니다/);
-    assert.match(block, /한 줄·한 문단에 붙여 쓰라는 뜻이 아니다/);
-    assert.doesNotMatch(block, /따라붙게 한다/);
     assert.match(block, /\[NO GENERIC REACTIONS\]/);
+    assert.doesNotMatch(block, /한 줄·한 문단에 붙여 쓰라는 뜻이 아니다/);
     assert.doesNotMatch(block, /8~10/);
     assert.doesNotMatch(block, /4~5줄/);
     assert.doesNotMatch(block, /\[SCENE COMPLETION CONTROL\]/);
@@ -83,9 +83,10 @@ describe("buildLengthInstruction", () => {
     }
   });
 
-  it("appendCompactTerminalLengthToUserTurn adds tail at user bottom", () => {
+  it("appendCompactTerminalLengthToUserTurn adds layout + length tail at user bottom", () => {
     const out = appendCompactTerminalLengthToUserTurn("밤이 깊었어.", 3200);
     assert.match(out, /^밤이 깊었어\./);
+    assert.match(out, /지문과 "…" 대사 사이 빈 줄/);
     assert.match(out, /TARGET_LENGTH 3,200\+/);
     assert.match(out, /단일 응답 최대 전개·미달 조기 종료 금지\.$/);
   });
@@ -125,7 +126,7 @@ describe("buildLengthInstruction", () => {
     assert.doesNotMatch(block, /\[TERMINAL LENGTH AUTHORITY\]/);
   });
 
-  it("OpenRouter dynamicBlock — one numeric length block, one full handoff", async () => {
+  it("OpenRouter dynamicBlock — one numeric length block, no handoff shell", async () => {
     await withServerOnlyMock(async () => {
       const { buildContext } = await import("@/services/contextBuilder");
       const { parseCharacterSetting } = await import("@/utils/characterParser");
@@ -179,8 +180,10 @@ describe("buildLengthInstruction", () => {
       assert.equal(countOccurrences(sys, "CEILING:"), 0);
       assert.equal(countOccurrences(sys, "3,200"), 2, "LENGTH CONTROL + compact terminal tail cite unified aim");
       assert.equal(countOccurrences(sys, "2,800"), 0);
-
-      assert.equal((sys.match(/<\/TURN_HANDOFF_AND_PACING>/g) ?? []).length, 1);
+      assert.equal((sys.match(/<\/TURN_HANDOFF_AND_PACING>/g) ?? []).length, 0);
+      const lastUser = built.history[built.history.length - 1];
+      assert.equal(lastUser?.role, "user");
+      assert.match(lastUser?.content ?? "", /단일 응답 최대 전개·미달 조기 종료 금지\.$/);
 
       const legacySoft = [
         /Write a highly detailed, immersive response/,
@@ -201,9 +204,10 @@ describe("buildLengthInstruction", () => {
       assert.doesNotMatch(lastSection!.text, /<TURN_HANDOFF_AND_PACING>/);
       assert.doesNotMatch(lastSection!.text, /\[TERMINAL LENGTH AUTHORITY\]/);
       assert.doesNotMatch(lastSection!.text, /\[최우선 절대 지침\]/);
-      const handoffSec = sections.find((s) => s.id === "turn-handoff-and-pacing");
-      assert.ok(handoffSec?.text);
-      assert.match(handoffSec!.text, /<TURN_HANDOFF_AND_PACING>/);
+      assert.ok(
+        !sections.some((s) => s.id === "turn-handoff-and-pacing"),
+        "turn-handoff section removed Step 7"
+      );
       assert.ok(
         built.systemPrompt.trimEnd().endsWith(buildTerminalLengthOverrideBlock(3200).trim()),
         "terminal override must be last block in full system prompt"

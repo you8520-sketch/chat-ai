@@ -99,7 +99,7 @@ import {
   buildTerminalLengthOverrideBlock,
   resolveResponseLengthTarget,
 } from "@/lib/responseLength";
-import { buildTurnHandoffAndPacingBlock } from "@/lib/turnHandoffAndPacing";
+import { SCENE_CONTINUATION_PRIORITY_BLOCK } from "@/lib/turnHandoffAndPacing";
 import type { OpenRouterSystemSplit } from "@/lib/openRouterCache";
 import { estimateOpenRouterCacheableTokens, buildOpenRouterDynamicLoreUserPrefix, HISTORY_CACHE_TAIL_EXCLUDE_MESSAGES } from "@/lib/openRouterCache";
 import { isDeepSeekV4ProModel } from "@/lib/chatModels";
@@ -370,15 +370,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     buildNoGodmoddingBlock(input.charName, personaLabel, cacheStableGodmoddingMode),
     isOpenRouter ? "cacheRules" : "dynamic"
   );
-  if (isOpenRouter && godmoddingMode === "autoContinue") {
-    pushSection(
-      "auto-continue-handoff-hint",
-      "[0a] Auto-continue handoff",
-      "systemRules",
-      "자동진행 턴 — <TURN_HANDOFF_AND_PACING> 준수.",
-      "dynamic"
-    );
-  }
 
   // ───── [1] Core Master Rules ─────
   pushSection(
@@ -639,7 +630,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const lengthInstructionOpts = {
     statusWindowEveryTurn: statusWindowPolicy.everyTurn,
     htmlFlashOwned: isOpenRouter,
-    proseStylePolicyOwnsSceneExpansion: isOpenRouter,
     statusWidgetActive: input.statusWidgetActive === true,
   };
 
@@ -659,14 +649,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       "dynamic"
     );
   }
-
-  pushSection(
-    "turn-handoff-and-pacing",
-    "Turn handoff and pacing",
-    "systemRules",
-    buildTurnHandoffAndPacingBlock(),
-    isOpenRouter ? "dynamic" : "dynamic"
-  );
 
   pushSection(
     "rule-output-layout-recency",
@@ -769,7 +751,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       input.targetResponseChars
     );
   }
-
   const estimatePayloadTokens = (hist: ContextBuildInput["shortTermHistory"]) =>
     estimateTokens(
       `${systemPrompt}\n${[...hist, { role: "user" as const, content: userTurnContent }]
@@ -814,8 +795,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   if (history.length < input.shortTermHistory.length) {
     truncatedMemory = true;
   }
-
-  // [LENGTH CONTROL & SCENE EXPANSION] is in system — no duplicate [분량 — 이번 턴] user-turn reminder
 
   const historyWithCurrent = [...history, { role: "user" as const, content: userTurnContent }];
 

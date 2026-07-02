@@ -286,12 +286,10 @@ export function isLikelySituationSummary(content: string): boolean {
 
 export const RELATIONSHIP_THOUGHT_EXTRACT_RULES = `thoughts(속마음) 규칙:
 - **이번 턴** 본문에 등장한 캐릭터·NPC만. 형식 필수: "이름: 속마음" (이름은 본문에 나온 그대로)
-- **매 턴 1~${THOUGHTS_PER_TURN_MAX}개** — NPC·캐릭터 각각 한 줄짜리 **짧은 1인칭 내면**만. 전체 저장은 최근 ${MEMORY_META_MAX.thoughts}개(가득 차면 오래된 것부터 삭제)
-- 내용 **${THOUGHT_CONTENT_MAX_CHARS}자 전후** — 문장이 끝나려면 ${THOUGHT_CONTENT_HARD_MAX_CHARS}자까지 허용. 짧은 감정·생각, 상황 나열·요약 금지
+- **매 턴 1~${THOUGHTS_PER_TURN_MAX}개** — NPC·캐릭터 각각 **1인칭 내면 한 줄**. 전체 저장은 최근 ${MEMORY_META_MAX.thoughts}개(가득 차면 오래된 것부터 삭제)
+- 내용 목표 **${THOUGHT_CONTENT_MAX_CHARS}자 내외**. 문장을 완결하려면 ${THOUGHT_CONTENT_HARD_MAX_CHARS}자까지 허용. 상황 나열·요약 금지
 - 3인칭 서술(그는/그녀/캐릭터가~), 과거형 사건 서술(~했다/~였다), · 키워드 나열(턴요약형), 여러 절/문장 금지
-- **유저 내면·( ) 속마음 절대 금지**
-- 좋은 예: "캐릭터이름: 왜 이렇게 떨리지", "NPC이름: 숨기면 안 되는데"
-- 나쁜 예: "그는 경계하며 대답했다", "캐릭터가 놀랐다 · 유저에게 질문함", "유저가 말한 대로 행동함"`;
+- **유저 내면·( ) 속마음 절대 금지**`;
 
 /** `이름: 내용` — `캐릭터`/`유저`를 실제 이름으로 치환; 접두 없으면 주인공 이름 */
 export function normalizeThoughtEntry(entry: string, names: HonorificNames): string {

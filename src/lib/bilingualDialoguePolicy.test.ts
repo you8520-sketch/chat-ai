@@ -66,7 +66,7 @@ describe("bilingualDialoguePolicy", () => {
   it("OUTPUT LANG includes unified Korean-only language policy", () => {
     const block = buildOpenRouterKoreanProseTopBlock();
     assert.match(block, /\[OUTPUT LANG\]/);
-    assert.match(block, /서술은 해체\(-다\)만 사용한다/);
+    assert.doesNotMatch(block, /서술은 해체\(-다\)만 사용/);
     assert.match(block, /외국어 혼용 금지/);
     assert.doesNotMatch(block, /see \[/i);
     assert.doesNotMatch(block, /\[NO FOREIGN LANGUAGE MIXING\]/);

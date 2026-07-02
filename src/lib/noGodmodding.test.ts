@@ -44,11 +44,9 @@ describe("buildNoGodmoddingBlock", () => {
     assert.doesNotMatch(block, /반사적으로 물러나는/);
   });
 
-  it("appends handoff hint in auto-continue mode only", () => {
+  it("auto-continue uses same compact block as standard", () => {
     const block = buildNoGodmoddingBlock("체향", "유저", "autoContinue");
-    assert.match(block, /자동진행 턴/);
-    assert.match(block, /<TURN_HANDOFF_AND_PACING>/);
-    assert.doesNotMatch(block, /반사적으로 물러나는/);
+    assert.equal(block, buildCompactNoGodmoddingStandardBlock());
   });
 });
 
@@ -86,7 +84,7 @@ describe("core master prompt", () => {
     const core = buildCoreMasterPrompt({ ...base, tailFormatActive: false });
     assert.match(core, /^ROLE —/m);
     assert.match(core, /^INTEGRITY — 캐릭터·관계·세계관을 유지한다\./m);
-    assert.match(core, /^CONTINUITY — 같은 장면을 이어가되 이미 나온 행동·대사·감정을 반복하지 않는다\./m);
+    assert.match(core, /^CONTINUITY — 같은 장면을 이어간다\./m);
     assert.doesNotMatch(core, /^SPEECH —/m);
     assert.doesNotMatch(core, /^PROSE —/m);
   });

@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { buildLengthInstruction } from "@/lib/responseLength";
-import { buildTurnHandoffAndPacingBlock } from "@/lib/turnHandoffAndPacing";
 import {
   logBannedVerbCheck,
   logCharsPerTokenDiagnostic,
@@ -11,16 +10,13 @@ import {
 } from "@/lib/lengthDiagnosticV2";
 
 describe("probeLengthPromptBlocks", () => {
-  it("detects length control and turn handoff in composed system prompt", () => {
-    const system = [
-      buildLengthInstruction(),
-      buildTurnHandoffAndPacingBlock(),
-    ].join("\n\n");
+  it("detects length control without turn handoff shell", () => {
+    const system = buildLengthInstruction();
     const probe = probeLengthPromptBlocks(system);
     assert.equal(probe.time_dilation_active, false);
     assert.equal(probe.scene_blueprint_active, false);
     assert.equal(probe.length_control_active, true);
-    assert.equal(probe.turn_handoff_active, true);
+    assert.equal(probe.turn_handoff_active, false);
     assert.equal(probe.scene_blueprint_occurrences, 0);
     assert.ok(probe.length_control_occurrences >= 1);
   });
@@ -35,7 +31,7 @@ describe("probeLengthPromptBlocks", () => {
 
 describe("logCharsPerTokenDiagnostic", () => {
   it("computes sanitize loss and chars per token", () => {
-    const system = [buildLengthInstruction(2400), buildTurnHandoffAndPacingBlock()].join("\n\n");
+    const system = buildLengthInstruction(2400);
     const logs: unknown[] = [];
     const orig = console.log;
     console.log = (...args: unknown[]) => {
@@ -130,10 +126,7 @@ describe("logCharsPerTokenDiagnostic", () => {
 
 describe("logBannedVerbCheck", () => {
   it("detects banned ending verbs and anti-resolution rule index", () => {
-    const system = [
-      buildLengthInstruction(2400),
-      buildTurnHandoffAndPacingBlock(),
-    ].join("\n\n");
+    const system = buildLengthInstruction(2400);
     const logs: unknown[] = [];
     const orig = console.log;
     console.log = (...args: unknown[]) => {
@@ -147,8 +140,8 @@ describe("logBannedVerbCheck", () => {
     assert.equal(logs.length, 1);
     const row = logs[0] as Record<string, unknown>;
     assert.equal(row.output_ends_with_banned_verb, true);
-    assert.ok(typeof row.anti_resolution_rule_index_in_prompt === "number");
-    assert.ok(probeAntiResolutionRuleIndex(system)! >= 0);
+    assert.equal(row.anti_resolution_rule_index_in_prompt, null);
+    assert.ok(system.includes("[SCENE CONTINUATION PRIORITY]"));
   });
 });
 

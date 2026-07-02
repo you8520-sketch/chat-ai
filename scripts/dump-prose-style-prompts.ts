@@ -56,6 +56,19 @@ async function main() {
   type SpeechProfile = import("@/lib/speechLock/types").SpeechProfile;
   const { buildCoreMasterPrompt } = await import("@/lib/corePrompt");
   const { composeExampleDialog } = await import("@/lib/speechCreatorFields");
+  const {
+    WEBNOVEL_OUTPUT_FORMAT_BLOCK,
+    buildWebnovelOutputLayoutRecencyBlock,
+    buildUserInputParsingBlock,
+  } = await import("@/lib/webnovelOutputFormat");
+  const {
+    NO_INPUT_ECHO_RULE,
+    NARRATIVE_DENSITY_BLOCK,
+    MOMENT_TO_MOMENT_WRITING_BLOCK,
+    NO_GENERIC_REACTIONS_BLOCK,
+  } = await import("@/lib/sceneExpansionPolicy");
+  const { SPEECH_METADATA_INVISIBLE_RULE } = await import("@/lib/speechMetadataPolicy");
+  const { buildProseStyleXmlBundle } = await import("@/lib/proseStyleXmlBundle");
 
   const bilingualSample: Extract<BilingualDialoguePolicy, { enabled: true }> = {
     enabled: true,
@@ -95,9 +108,9 @@ async function main() {
 
 OpenRouter 조립 순서 (요약):
   [TOP] Korean prose → [BILINGUAL]? → co-narration → godmodding → [CORE RP]
-  → CHARACTER CANON(+캐릭터 speech chunk) → IDENTITY/RULES → [ADVANCED PROSE]
-  → dynamic: 장르 Style → LENGTH → TURN_HANDOFF → REGEN? → terminal length
-Gemini 추가 tail: dialogue-format only (language tails removed — OUTPUT LANG + PROSE STYLE)
+  → KNOWLEDGE BOUNDARY → CANON → USER INPUT PARSING → IDENTITY/RULES → [ADVANCED PROSE]
+  → dynamic: 장르 Style → LENGTH → TURN_HANDOFF → [OUTPUT LAYOUT] → REGEN? → terminal length
+Gemini 추가 tail: DIALOGUE_FORMAT_DIRECTIVE (= WEBNOVEL OUTPUT FORMAT)
 DeepSeek: user 턴 직전 bottom reminder
 `);
 
@@ -246,6 +259,68 @@ DeepSeek: user 턴 직전 bottom reminder
 
   parts.push(
     section(
+      "9b. [OUTPUT LAYOUT] — buildWebnovelOutputLayoutRecencyBlock()",
+      buildWebnovelOutputLayoutRecencyBlock(),
+      "webnovelOutputFormat.ts · dynamic · Length/Turn Handoff 직후 · 문단 줄바꿈 유일 출처"
+    )
+  );
+
+  parts.push(
+    section(
+      "9c. [WEBNOVEL OUTPUT FORMAT] — WEBNOVEL_OUTPUT_FORMAT_BLOCK (standalone)",
+      WEBNOVEL_OUTPUT_FORMAT_BLOCK,
+      "webnovelOutputFormat.ts · [ADVANCED PROSE] 내부에도 포함 · 마크다own/RP 표기 금지"
+    )
+  );
+
+  parts.push(
+    section(
+      "9d. Scene expansion blocks — sceneExpansionPolicy.ts (LENGTH CONTROL 내부)",
+      [
+        NO_INPUT_ECHO_RULE,
+        "",
+        NARRATIVE_DENSITY_BLOCK,
+        "",
+        MOMENT_TO_MOMENT_WRITING_BLOCK,
+        "",
+        NO_GENERIC_REACTIONS_BLOCK,
+      ].join("\n"),
+      "sceneExpansionPolicy.ts · buildLengthInstruction()에 proseStylePolicyOwnsSceneExpansion 시 포함"
+    )
+  );
+
+  parts.push(
+    section(
+      "9e. [SPEECH METADATA] — SPEECH_METADATA_INVISIBLE_RULE",
+      SPEECH_METADATA_INVISIBLE_RULE,
+      "speechMetadataPolicy.ts · [ADVANCED PROSE] DO_NOT_NARRATE_PROMPT_METADATA와 동일"
+    )
+  );
+
+  parts.push(
+    section(
+      "9f. [USER INPUT PARSING] — buildUserInputParsingBlock()",
+      [
+        "--- mind reading OFF ---",
+        buildUserInputParsingBlock(false),
+        "",
+        "--- mind reading ON ---",
+        buildUserInputParsingBlock(true),
+      ].join("\n"),
+      "webnovelOutputFormat.ts · contextBuilder dynamic · 출력 포맷과 분리"
+    )
+  );
+
+  parts.push(
+    section(
+      "9g. OpenRouter prose bundle alias — buildProseStyleXmlBundle()",
+      buildProseStyleXmlBundle({ nsfwEnabled: false }),
+      "proseStyleXmlBundle.ts · buildAdvancedProseNsfwGuidelines() alias"
+    )
+  );
+
+  parts.push(
+    section(
       "10. Terminal length — buildTerminalLengthOverrideBlock()",
       buildTerminalLengthOverrideBlock(null),
       "responseLength.ts · rule-terminal-length-override · dynamic 맨 끝"
@@ -356,7 +431,7 @@ DeepSeek: user 턴 직전 bottom reminder
 
   parts.push(
     section(
-      "25. [NOT INJECTED] User input format — buildUserActionThoughtRule()",
+      "25. User input format alias — buildUserActionThoughtRule() (= buildUserInputParsingBlock)",
       [
         "--- no mind reading ---",
         buildUserActionThoughtRule(false),
@@ -364,7 +439,7 @@ DeepSeek: user 턴 직전 bottom reminder
         "--- mind reading ---",
         buildUserActionThoughtRule(true),
       ].join("\n"),
-      "userActionThoughtRules.ts · 정의만 있음, contextBuilder 미주입"
+      "userActionThoughtRules.ts · deprecated alias · contextBuilder는 buildUserInputParsingBlock 직접 사용"
     )
   );
 

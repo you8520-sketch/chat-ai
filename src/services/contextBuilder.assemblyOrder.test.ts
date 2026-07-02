@@ -93,7 +93,7 @@ describe("buildContext — persona-before-prose assembly order", () => {
         sectionOrder(ids, "user-note-reference")
     );
     assert.ok(
-      sectionOrder(ids, "turn-handoff-and-pacing") <
+      sectionOrder(ids, "rule-length-control") <
         sectionOrder(ids, "rule-output-layout-recency")
     );
     assert.ok(

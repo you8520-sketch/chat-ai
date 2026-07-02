@@ -111,7 +111,6 @@ export default function NovelText({
   variant = "character",
   centered = false,
   paragraphMode = "ai",
-  streaming = false,
 }: {
   content: string;
   display?: Pick<
@@ -122,8 +121,6 @@ export default function NovelText({
   centered?: boolean;
   /** ai: AI 응답용 병합 · author: 제작자 첫 메시지 등 Enter 줄바꿈 유지 */
   paragraphMode?: "ai" | "author";
-  /** 스트리밍 중 — 열린 대사 따옴표부터 즉시 별도 문단 */
-  streaming?: boolean;
 }) {
   if (!content) return null;
 
@@ -152,11 +149,9 @@ export default function NovelText({
       ? content.split(/\n+/).filter((b) => b.trim())
       : paragraphMode === "author"
         ? groupAuthorParagraphs(content)
-        : groupNovelParagraphs(content, { streaming });
+        : groupNovelParagraphs(content);
   const displayParagraphs = paragraphs.length > 0 ? paragraphs : [content];
-  const paragraphKinds = displayParagraphs.map((p) =>
-    classifyNovelParagraph(p, { streaming })
-  );
+  const paragraphKinds = displayParagraphs.map((p) => classifyNovelParagraph(p));
   const spacingMode: "ai" | "author" =
     variant === "user" || paragraphMode === "author" ? "author" : "ai";
 

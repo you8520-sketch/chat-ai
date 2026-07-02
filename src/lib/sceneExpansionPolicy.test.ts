@@ -3,20 +3,23 @@ import { describe, it } from "node:test";
 
 import { MOMENT_TO_MOMENT_WRITING_BLOCK } from "@/lib/sceneExpansionPolicy";
 import { buildLengthInstruction } from "@/lib/responseLength";
+import { buildWebnovelOutputLayoutRecencyBlock } from "@/lib/webnovelOutputFormat";
 import { buildNovelModeUserPersonaRules } from "@/lib/userPersonaNarrationRules";
 
 describe("scene continuity vs paragraph layout — disambiguated prose rules", () => {
-  it("MOMENT-TO-MOMENT targets scene flow, not paragraph merging", () => {
+  it("MOMENT-TO-MOMENT targets scene flow without layout disambiguation", () => {
     assert.match(MOMENT_TO_MOMENT_WRITING_BLOCK, /\[MOMENT-TO-MOMENT WRITING\]/);
-    assert.match(MOMENT_TO_MOMENT_WRITING_BLOCK, /서사 진행/);
-    assert.match(MOMENT_TO_MOMENT_WRITING_BLOCK, /한 줄·한 문단에 붙여 쓰라는 뜻이 아니다/);
-    assert.doesNotMatch(MOMENT_TO_MOMENT_WRITING_BLOCK, /^끊김 없이 이어 쓴다\.$/m);
+    assert.match(MOMENT_TO_MOMENT_WRITING_BLOCK, /중간 단계를 건너뛰지 마라/);
+    assert.doesNotMatch(MOMENT_TO_MOMENT_WRITING_BLOCK, /한 줄·한 문단에 붙여 쓰라는 뜻이 아니다/);
   });
 
-  it("LENGTH CONTROL dialogue expansion is scene-context, not inline attachment", () => {
+  it("LENGTH CONTROL keeps scene expansion; paragraph layout lives in OUTPUT LAYOUT only", () => {
     const block = buildLengthInstruction();
-    assert.match(block, /각 대사 전·후에 행동·반응·감각·분위기를 서사적으로 전개한다/);
-    assert.match(block, /한 문단에 병합하라는 뜻이 아니다/);
+    const layout = buildWebnovelOutputLayoutRecencyBlock();
+    assert.doesNotMatch(block, /\[GENERATION PROCESS — BEAT FLOW\] SoT/);
+    assert.doesNotMatch(block, /지문과 "…" 대사를 한 문단·한 줄에 병합하지 마라/);
+    assert.match(layout, /Never append dialogue to the end of a narration line/);
+    assert.match(block, /기계적 교대/);
     assert.doesNotMatch(block, /따라붙게 한다/);
   });
 

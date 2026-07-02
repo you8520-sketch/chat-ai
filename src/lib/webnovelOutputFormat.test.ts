@@ -24,10 +24,11 @@ describe("webnovelOutputFormat", () => {
     const block = buildWebnovelOutputLayoutRecencyBlock();
     assert.match(block, /\[OUTPUT LAYOUT\]/);
     assert.equal((block.match(/\[OUTPUT LAYOUT\]/g) ?? []).length, 1);
-    assert.match(block, /ALWAYS starts a new paragraph/i);
-    assert.match(block, /NEVER append spoken dialogue/i);
-    assert.doesNotMatch(block, /\bnormally\b/i);
-    assert.match(block, /Incorrect:\s*\n달빛이 비쳤다\. "괜찮아요\."/);
+    assert.match(block, /blank line/i);
+    assert.match(block, /Never append dialogue/i);
+    assert.match(block, /Wrong:/);
+    assert.match(block, /Right:/);
+    assert.doesNotMatch(block, /Output formatting only/i);
   });
 
   it("containsParagraphLayoutInstructions detects layout leaks", () => {

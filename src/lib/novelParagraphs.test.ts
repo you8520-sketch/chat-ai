@@ -74,18 +74,21 @@ describe("groupNovelParagraphs", () => {
     assert.deepEqual(groupNovelParagraphs(input), [input]);
   });
 
-  it("splits open dialogue onto its own paragraph while streaming", () => {
+  it("splits open dialogue onto its own paragraph (streaming and idle)", () => {
     const input = '그는 응시했다. "아직 아파';
-    assert.deepEqual(groupNovelParagraphs(input, { streaming: true }), [
-      "그는 응시했다.",
-      '"아직 아파',
-    ]);
-    assert.equal(classifyNovelParagraph('"아직 아파', { streaming: true }), "dialogue");
+    const expected = ["그는 응시했다.", '"아직 아파'];
+    assert.deepEqual(groupNovelParagraphs(input, { streaming: true }), expected);
+    assert.deepEqual(groupNovelParagraphs(input), expected);
+    assert.equal(classifyNovelParagraph('"아직 아파'), "dialogue");
   });
 
-  it("keeps incomplete inline dialogue merged until streaming completes", () => {
-    const input = '그는 응시했다. "아직 아파';
-    assert.deepEqual(groupNovelParagraphs(input), [input]);
+  it("streaming flag is a no-op after layout unify", () => {
+    const input =
+      '철저히 계산된 거리 두기. "잠깐…… 이대로만 있어요. 조금만." 백하율의 S-기어가 파르르 떨렸다.';
+    assert.deepEqual(
+      groupNovelParagraphs(input, { streaming: true }),
+      groupNovelParagraphs(input)
+    );
   });
 
   it("keeps standalone dialogue on its own paragraph", () => {
@@ -108,6 +111,14 @@ describe("groupNovelParagraphs", () => {
       "철저히 계산된 거리 두기.",
       '"잠깐 ... 이대로만 있어요. 조금만."',
       "백하율의 S-기어가 파르르 떨렸다.",
+    ]);
+  });
+
+  it("keeps one dialogue paragraph when model inserts blank lines inside quotes", () => {
+    const input =
+      '"연회장으로 돌아가시죠.\n\n더 늦으면 황태자 전하께서 의아해하실 겁니다.\n\n"';
+    assert.deepEqual(groupNovelParagraphs(input), [
+      '"연회장으로 돌아가시죠. 더 늦으면 황태자 전하께서 의아해하실 겁니다."',
     ]);
   });
 

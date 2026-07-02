@@ -1,7 +1,4 @@
-import {
-  resolveMaxOutputTokensForTarget,
-  resolveTierMaxOutputTokensEstimate,
-} from "@/lib/responseLength";
+import { resolveMaxOutputTokensForTarget } from "@/lib/responseLength";
 import type { ChatMsg } from "@/lib/ai";
 import { assertPayloadWithinTokenLimit } from "@/lib/turnApiBudget";
 
@@ -143,11 +140,7 @@ export function buildGeminiGenerationConfig(
   if (maxOutputTokensOverride != null) {
     resolvedMaxOutputTokens = maxOutputTokensOverride;
   } else if (isBackground) {
-    const estimate = resolveTierMaxOutputTokensEstimate(targetResponseChars);
-    resolvedMaxOutputTokens = Math.min(
-      estimate,
-      isLorebookCompactRequest(requestKind) ? 3500 : 2048
-    );
+    resolvedMaxOutputTokens = isLorebookCompactRequest(requestKind) ? 3500 : 2048;
   } else {
     resolvedMaxOutputTokens = resolveMaxOutputTokensForTarget(targetResponseChars, modelId);
   }

@@ -2964,7 +2964,7 @@ export default function ChatClient({
                           ))}
                           {statusWindowPlacement === "top" ? statusMetaCard : null}
                           <ChatRichBlocks
-                            key={`${m.id ?? i}-${m.activeVariant ?? 0}-${isStreamingThisMessage ? "stream" : "idle"}`}
+                            key={`${m.id ?? i}-${m.activeVariant ?? 0}`}
                             content={toDisplay(bodyForDisplay)}
                             display={displayPrefs}
                             paragraphMode={m.model === "greeting" ? "author" : "ai"}

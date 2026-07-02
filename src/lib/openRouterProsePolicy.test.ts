@@ -13,17 +13,18 @@ describe("buildOpenRouterKoreanProseTopBlock", () => {
     assert.doesNotMatch(block, /맥락 매칭 보조 설정\(RAG\) \+ 세계관이 최우선/);
   });
 
-  it("includes compressed OUTPUT LANG without redundant headers", () => {
+  it("includes compressed OUTPUT LANG and metadata without redundant meta blocks", () => {
     const block = buildOpenRouterKoreanProseTopBlock();
     assert.match(block, /\[OUTPUT LANG\]/);
-    assert.match(block, /서술은 해체\(-다\)만 사용/);
+    assert.doesNotMatch(block, /서술은 해체\(-다\)만 사용/);
     assert.match(block, /외국어 혼용 금지\. 고유명사·스킬명만 「」 예외/);
     assert.match(block, /한 단어 안에서 한글과 영어·일본어를 혼용하지 마라/);
-    assert.match(block, /\[PROMPT METADATA IS NOT STORY\]/);
-    assert.match(block, /\[NO META WRITING\] 장면만 직접 서술하라/);
-    assert.match(block, /\[NO STYLE IMITATION\]/);
+    assert.doesNotMatch(block, /\[PROMPT METADATA IS NOT STORY\]/);
+    assert.doesNotMatch(block, /\[SPEECH METADATA\]/);
+    assert.doesNotMatch(block, /\[NO META WRITING\]/);
+    assert.doesNotMatch(block, /\[NO STYLE IMITATION\]/);
     assert.match(block, /현재 장면 안에서만 서술한다/);
-    assert.match(block, /금지: 장면 밖 해설·요약·계획·예고/);
+    assert.doesNotMatch(block, /금지: 장면 밖 해설·요약·계획·예고/);
     assert.doesNotMatch(block, /한국어 웹소설 문체/);
     assert.doesNotMatch(block, /\[NO MIXED-SCRIPT WORDS\]/);
     assert.doesNotMatch(block, /Write the scene directly/);

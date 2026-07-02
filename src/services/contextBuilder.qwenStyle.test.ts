@@ -18,8 +18,6 @@ import { KOREAN_WEBNOVEL_STYLE_BLOCK } from "@/lib/writingStylePreset";
 
 import { buildNarrativeStyleLayer } from "@/lib/narrativeStyle";
 
-import { buildTurnHandoffAndPacingBlock } from "@/lib/turnHandoffAndPacing";
-
 import { OPENROUTER_QWEN_37_MAX_MODEL } from "@/lib/chatModels";
 
 import type { CharacterChunk } from "@/types";
@@ -110,33 +108,8 @@ describe("buildContext — Qwen OpenRouter prose rules", () => {
 
     assert.ok(!built.systemPrompt.includes("[STYLE PRESET —"));
 
-    const handoff = buildTurnHandoffAndPacingBlock();
-
-    assert.ok(built.systemPrompt.includes(handoff));
-
-    assert.equal(
-
-      (() => {
-
-        let n = 0;
-
-        let i = 0;
-
-        while ((i = built.systemPrompt.indexOf(handoff, i)) !== -1) {
-
-          n++;
-
-          i += handoff.length;
-
-        }
-
-        return n;
-
-      })(),
-
-      1
-
-    );
+    assert.ok(!built.systemPrompt.includes("<TURN_HANDOFF_AND_PACING>"));
+    assert.ok(built.systemPrompt.includes("[SCENE CONTINUATION PRIORITY]"));
 
     assert.ok(!built.systemPrompt.includes("SCENE_PROGRESSION_&_NARRATION_PARAGRAPH_FLOOR"));
 

@@ -23,6 +23,7 @@ import {
   buildCreatorSpeechProfilePartial,
   type SpeechCreatorInput,
 } from "@/lib/speechCreatorFields";
+import { resolveExampleDialogForPrompt } from "@/lib/narrationFewShotTemplates";
 
 export type CharacterSettingRow = {
   id: number;
@@ -43,7 +44,7 @@ function parseFreshCharacterChunks(row: CharacterSettingRow): CharacterChunk[] {
     characterId: String(row.id),
     systemPrompt: row.system_prompt ?? "",
     world: row.world ?? "",
-    exampleDialog: row.example_dialog ?? "",
+    exampleDialog: resolveExampleDialogForPrompt(row.example_dialog, row.name),
     characterName: row.name,
     gender: (row.gender as CharacterGender) ?? "other",
   });

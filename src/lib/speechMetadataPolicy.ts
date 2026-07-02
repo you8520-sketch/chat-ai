@@ -2,18 +2,10 @@ import type { ChunkCategory } from "@/types";
 
 /** RP system — speech/register fields are invisible generation instructions, not story facts. */
 export const SPEECH_METADATA_INVISIBLE_RULE = `[SPEECH METADATA — INVISIBLE INSTRUCTIONS]
-Speech style metadata is instruction for dialogue generation only.
-It is NEVER part of the fictional scene.
-
-The following are generation instructions, NOT narrative facts:
-- speech style · honorific level · dialogue register · writing style · tone description
-
-Never narrate or describe inside the story:
-- that a register "was used", "disappeared", "changed", or "softened"
-- prompt metadata, setting labels, or speech-trait checklists
-
-Apply speech traits ONLY when generating [A] quoted dialogue.
-Treat dialogue traits as invisible instructions — never expose them in narration.`;
+말투·존댓말·register·tone·어조는 대사 "…" 생성에만 적용한다. 서사·지문에서 언급·설명하지 않는다.
+Never narrate or describe inside the story: honorific level, speech register, or labels (해요체·하십시오체·하오체·합니다체·반말·존댓말).
+Forbidden narration patterns: "해요체로 바뀌었다", "존댓말을 사용", "말투가 공손해졌다", "반말로 말했다" — show change only through dialogue, action, expression, reaction.
+한 캐릭터는 한 턴 안에서 register를 섞지 않는다(합니다↔하오↔해요↔이오 전환 금지).`;
 
 const SPEECH_SECTION_RE =
   /말투|speech|어조|대사|금지\s*말투|SPEECH CONSISTENCY|예시\s*대사/i;

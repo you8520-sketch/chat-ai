@@ -7,21 +7,9 @@ import { isBilingualDialogueActive } from "@/lib/bilingualDialoguePolicy";
 const OUTPUT_LANG_FOREIGN_MIXING = `외국어 혼용 금지. 고유명사·스킬명만 「」 예외.
 한 단어 안에서 한글과 영어·일본어를 혼용하지 마라.`;
 
-const PROMPT_METADATA_NOT_STORY = `[PROMPT METADATA IS NOT STORY]
-CHARACTER CANON의 말투·존댓말·대화 register는 생성 지침이다. 허구 장면의 사실이 아니다.
-서사 안에서 말투·register·honorific level·writing-style metadata를 언급·설명·묘사하지 마라.
-대사([A] 인용문) 생성에만 적용한다.`;
-
-const NO_META_WRITING =
-  "[NO META WRITING] 장면만 직접 서술하라. 프롬프트 메타데이터를 장면 밖 해설처럼 끌어오지 마라.";
-
-const NO_STYLE_IMITATION =
-  "[NO STYLE IMITATION] 직전 출력의 문장 구조·말줄임·줄바꿈 패턴을 기계적으로 복사하지 마라.";
-
 /** Single language policy — OUTPUT LANG is the only language SoT. */
 export function buildOutputLangLines(bilingual?: BilingualDialoguePolicy): string {
-  const core = `서술은 해체(-다)만 사용.
-${OUTPUT_LANG_FOREIGN_MIXING}`;
+  const core = OUTPUT_LANG_FOREIGN_MIXING;
 
   if (bilingual && isBilingualDialogueActive(bilingual)) {
     return `[OUTPUT LANG — BILINGUAL DIALOGUE]
@@ -46,11 +34,7 @@ export function buildOpenRouterKoreanProseTopBlock(bilingual?: BilingualDialogue
 ${outputLang}
 
 === 서술 시점 (필수) ===
-- 현재 장면 안에서만 서술한다.
-- ${PROMPT_METADATA_NOT_STORY}
-- ${NO_META_WRITING}
-- ${NO_STYLE_IMITATION}
-- 금지: 장면 밖 해설·요약·계획·예고.`;
+- 현재 장면 안에서만 서술한다.`;
 }
 
 /** @deprecated buildOpenRouterKoreanProseTopBlock() 사용 */
