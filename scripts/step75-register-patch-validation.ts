@@ -107,24 +107,41 @@ function measure(scene: (typeof REGISTER_VALIDATION_SCENES)[0], text: string): S
 }
 
 async function runPatch(patch: RegisterPatchId, doGenerate: boolean): Promise<PatchSummary> {
-  process.env.REGISTER_PATCH = patch === "none" ? "" : patch;
+  if (patch === "none") {
+    process.env.REGISTER_PATCH = "none";
+  } else {
+    process.env.REGISTER_PATCH = patch;
+  }
 
   const samples: SampleRow[] = [];
   const jsonPath = outPath(patch);
+  const existingIds = new Set<string>();
+
+  if (existsSync(jsonPath)) {
+    try {
+      const j = JSON.parse(readFileSync(jsonPath, "utf8")) as { samples?: SampleRow[] };
+      for (const s of j.samples ?? []) {
+        const scene = REGISTER_VALIDATION_SCENES.find((x) => x.id === s.id);
+        if (!scene || !s.text) continue;
+        samples.push({ ...measure(scene, s.text), text: s.text });
+        existingIds.add(s.id);
+      }
+    } catch {
+      /* fresh run */
+    }
+  }
 
   if (doGenerate) {
     for (const scene of REGISTER_VALIDATION_SCENES) {
+      if (existingIds.has(scene.id)) {
+        console.log(`[${patch}] Skip ${scene.id} (cached)`);
+        continue;
+      }
       console.log(`[${patch}] ${scene.id}…`);
       const text = await generateOne(scene.id);
       samples.push({ ...measure(scene, text), text });
       writeFileSync(jsonPath, JSON.stringify({ patch, generatedAt: new Date().toISOString(), samples }, null, 2));
       await new Promise((r) => setTimeout(r, 2000));
-    }
-  } else if (existsSync(jsonPath)) {
-    const j = JSON.parse(readFileSync(jsonPath, "utf8")) as { samples?: SampleRow[] };
-    for (const s of j.samples ?? []) {
-      const scene = REGISTER_VALIDATION_SCENES.find((x) => x.id === s.id)!;
-      samples.push(measure(scene, s.text));
     }
   }
 
@@ -201,7 +218,13 @@ async function main() {
   const summaries: PatchSummary[] = [];
 
   for (const patch of toRun) {
-    summaries.push(await runPatch(patch, doGenerate));
+    const cachedCount = existsSync(outPath(patch))
+      ? (JSON.parse(readFileSync(outPath(patch), "utf8")) as { samples?: unknown[] }).samples?.length ?? 0
+      : 0;
+    const generateThis =
+      doGenerate &&
+      (allPatches ? cachedCount < REGISTER_VALIDATION_SCENES.length : true);
+    summaries.push(await runPatch(patch, generateThis));
   }
 
   const step43 = summaries.find((s) => s.patch === "step43");
@@ -211,6 +234,14 @@ async function main() {
   const step43Compliance =
     summaries.find((s) => s.patch === "step43")?.avgCompliance ??
     (await runPatch("step43", false)).avgCompliance;
+
+  if (allPatches && !doGenerate) {
+    for (const patch of PATCHES) {
+      if (summaries.some((s) => s.patch === patch)) continue;
+      summaries.push(await runPatch(patch, false));
+    }
+    summaries.sort((a, b) => PATCHES.indexOf(a.patch) - PATCHES.indexOf(b.patch));
+  }
 
   writeFileSync(mdPath(), renderReport(summaries, step43Compliance));
   console.log(`Report: ${mdPath()}`);
