@@ -1,4 +1,9 @@
 import { parseCharacterSettingIntoSections as splitSettingSections } from "@/lib/characterSettingSections";
+import {
+  formatSpeechSectionAsMetadata,
+  isSpeechMetadataSection,
+} from "@/lib/speechMetadataPolicy";
+import { isRegisterPatch } from "@/lib/registerPatchExperiment";
 
 /** Injected before structured canon — knowledge is per-character, not shared prompt context. */
 export const CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK = `[CHARACTER KNOWLEDGE BOUNDARY]
@@ -76,6 +81,36 @@ function formatSection(title: string, body: string): string {
   const b = body.trim();
   if (!b) return "";
   return t ? `${t}\n${b}` : b;
+}
+
+function formatCanonSectionBlock(title: string, body: string): string {
+  if (isRegisterPatch("B") && isSpeechMetadataSection(title, body)) {
+    return formatSpeechSectionAsMetadata(title, body);
+  }
+  return formatSection(title, body);
+}
+
+/** Patch D — re-emit speech metadata from canon at prompt tail (existing text only). */
+export function buildCharacterSpeechRecencyTail(combinedSetting: string): string {
+  const trimmed = combinedSetting.trim();
+  if (!trimmed) return "";
+
+  const blocks: string[] = [];
+  for (const section of splitSettingSections(trimmed)) {
+    for (const classified of classifySettingSectionKnowledge(section)) {
+      if (
+        classified.bucket !== "character" ||
+        !isSpeechMetadataSection(classified.title, classified.body, "speech")
+      ) {
+        continue;
+      }
+      const meta = formatSpeechSectionAsMetadata(classified.title, classified.body);
+      if (meta.trim()) blocks.push(meta.trim());
+    }
+  }
+
+  if (blocks.length === 0) return "";
+  return blocks.join("\n\n");
 }
 
 function defaultBucketForTitle(title: string, hint?: string): CanonKnowledgeBucket {
@@ -172,7 +207,7 @@ export function buildStructuredCharacterCanonBlock(
   } else {
     for (const section of sections) {
       for (const classified of classifySettingSectionKnowledge(section)) {
-        const block = formatSection(classified.title, classified.body);
+        const block = formatCanonSectionBlock(classified.title, classified.body);
         if (block) buckets[classified.bucket].push(block);
       }
     }

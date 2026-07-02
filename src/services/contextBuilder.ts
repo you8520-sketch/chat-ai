@@ -6,6 +6,7 @@ import {
 } from "@/lib/bodyHairRules";
 import {
   buildCharacterCanonBlock,
+  buildCharacterSpeechRecencyTail,
   CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK,
 } from "@/lib/characterKnowledgeBoundary";
 import {
@@ -15,6 +16,7 @@ import { SHORT_TERM_TURNS, trimHistoryToBudget } from "@/lib/hybridMemory";
 import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
 import { buildFlashOwnedEmotionTagUserOverlay } from "@/lib/emotionTag";
 import { buildNarrativeStyleLayer } from "@/lib/narrativeStyle";
+import { isRegisterPatch } from "@/lib/registerPatchExperiment";
 import { buildOocCoNarrationHint } from "@/lib/userImpersonationPolicy";
 import {
   buildNovelModeUserPersonaRules,
@@ -507,6 +509,23 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   pushIdentityAndRules();
   flushDeepSeekXmlSections(["persona", "world_lore"]);
 
+  const narrativeStyleBlock = buildNarrativeStyleLayer({
+    mode: coNarrationEnabled ? "possession" : "standard",
+    charName: input.charName,
+    genres: input.genres,
+  });
+  let narrativeStylePushedEarly = false;
+  if (isRegisterPatch("C") && narrativeStyleBlock.trim()) {
+    pushSection(
+      "narrative-style",
+      "[7] Style Mode",
+      "systemRules",
+      narrativeStyleBlock,
+      isOpenRouter ? "dynamic" : "dynamic"
+    );
+    narrativeStylePushedEarly = true;
+  }
+
   const openRouterLiteraryNsfw = isOpenRouter && !!input.nsfw;
   const proseGuidelinesOpts = {
     nsfwEnabled: !!input.nsfw,
@@ -588,17 +607,15 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   }
 
   // ───── [7] Style Mode ─────
-  pushSection(
-    "narrative-style",
-    "[7] Style Mode",
-    "systemRules",
-    buildNarrativeStyleLayer({
-      mode: coNarrationEnabled ? "possession" : "standard",
-      charName: input.charName,
-      genres: input.genres,
-    }),
-    isOpenRouter ? "dynamic" : "dynamic"
-  );
+  if (!narrativeStylePushedEarly && narrativeStyleBlock.trim()) {
+    pushSection(
+      "narrative-style",
+      "[7] Style Mode",
+      "systemRules",
+      narrativeStyleBlock,
+      isOpenRouter ? "dynamic" : "dynamic"
+    );
+  }
 
   // ───── Tail — operational constraints ─────
   const injectStatusWindowPolicy =
@@ -625,6 +642,19 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       buildNovelModeUserPersonaRules(input.charName, personaLabel),
       isOpenRouter ? "dynamic" : "dynamic"
     );
+  }
+
+  if (isRegisterPatch("D")) {
+    const speechTail = buildCharacterSpeechRecencyTail(characterSettingText);
+    if (speechTail) {
+      pushSection(
+        "character-speech-recency",
+        "Character speech metadata (canon recency)",
+        "characterSetting",
+        speechTail,
+        "dynamic"
+      );
+    }
   }
 
   const lengthInstructionOpts = {

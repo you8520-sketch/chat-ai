@@ -1,5 +1,6 @@
 import type { CharacterGenre } from "@/lib/characterGenres";
 import { primaryCharacterGenre } from "@/lib/characterGenres";
+import { genreToneHintsForPatch } from "@/lib/registerPatchExperiment";
 
 export type SceneMode = "calm" | "tension" | "combat";
 
@@ -56,7 +57,8 @@ const GENRE_TONE_HINTS: Partial<Record<CharacterGenre, string>> = {
 
 function buildCompactGenreHint(genres: CharacterGenre[] | undefined): string | null {
   const primary = primaryCharacterGenre(genres ?? []);
-  const hint = GENRE_TONE_HINTS[primary];
+  const hints = genreToneHintsForPatch(GENRE_TONE_HINTS);
+  const hint = hints[primary];
   if (!hint) return null;
   return `[genre_tone] ${primary}: ${hint}.`;
 }
