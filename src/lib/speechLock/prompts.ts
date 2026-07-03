@@ -18,3 +18,14 @@ Output rewritten response only.
 Violations:
 ${issues}`;
 }
+
+/** Group A — register lexicon leaked into narration */
+export function buildNarrationLexiconRewriteUserMessage(hits: string[]): string {
+  return `[NARRATION LEXICON REWRITE]
+The previous response named speech register in narration (forbidden).
+Remove ALL register labels from narration: ${hits.slice(0, 6).join(", ")}.
+Do NOT describe honorific level, speech register, or tone labels in story text.
+Show register only through quoted dialogue and action — never label it.
+Preserve plot, dialogue meaning, and paragraph layout.
+Output the full rewritten response only.`;
+}

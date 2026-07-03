@@ -34,6 +34,27 @@ export function parsePossessionEntry(entry: string): { person: string; items: st
   return { person, items };
 }
 
+/**
+ * 소지품이 될 수 없는 항목 — 가구·설비·실내 비품·착용 중인 제복류.
+ * 이름 끝 단어 기준 매칭 (예: "간이 침대", "손거울"도 걸림).
+ */
+const NON_POSSESSION_ITEM_NAME_RE =
+  /(?:침대|세면대|세면기|욕조|변기|의자|책상|탁자|테이블|소파|거울|창문|창틀|커튼|벽난로|선반|옷장|서랍장|서랍|샹들리에|조명|램프|스탠드|카펫|양탄자|제복|군복|근무복|교복)\s*(?:\([^)]*\))?$/;
+
+export function isNonPossessionItemName(name: string): boolean {
+  return NON_POSSESSION_ITEM_NAME_RE.test(name.trim());
+}
+
+/** 소지품 줄에서 가구·설비 등 비소지품 항목 제거. 전부 걸러지면 빈 문자열 */
+export function filterPossessionEntryItems(entry: string): string {
+  const parsed = parsePossessionEntry(entry);
+  if (!parsed) return entry;
+  const kept = parsed.items.filter((name) => !isNonPossessionItemName(name));
+  if (kept.length === 0) return "";
+  if (kept.length === parsed.items.length) return entry;
+  return `${parsed.person}: ${kept.join(", ")}`;
+}
+
 export function groupPossessionsByPerson(entries: string[]): GroupedPossessions[] {
   const map = new Map<string, PossessionListItem[]>();
 

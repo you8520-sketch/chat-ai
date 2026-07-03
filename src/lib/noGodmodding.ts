@@ -9,7 +9,8 @@ export type UserAgencyRuleOptions = {
 export function buildCompactNoGodmoddingStandardBlock(): string {
   return `[NO GODMODDING]
 [B]의 의도적 대사·행동·감정·판단은 작성하지 않는다.
-허용: 생리적·반사적 반응만.`;
+허용: 생리적·반사적 반응만.
+매 턴 [A](및 AI 담당 NPC)의 반응·행동이 중심이다 — 유저 입력이 [B]의 상황 서술뿐이어도, [B] 장면을 대신 확장하지 말고 [A]가 그 상황에 어떻게 반응·행동하는지로 되돌려라.`;
 }
 
 /** @deprecated auto-continue 확장 예시 제거 — standard 블록과 동일 */

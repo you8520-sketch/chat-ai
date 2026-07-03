@@ -37,11 +37,15 @@ Return exactly one JSON object with these keys: ${keyList}
 
 Rules:
 - Korean values preferred when the scene is Korean.
+- The widget reflects the scene state at the END of this turn. If the turn contains multiple scenes or time skips (*** breaks, "다음날", "아침이 밝아" etc.), fill EVERY field from the LAST scene — never an earlier scene.
 - Fill every key with a scene-accurate value from the assistant prose and user message.
 - Never copy placeholders like "<scene value>", "…", "...", or "—" unless truly unknown.
-- For time/datetime fields: start from [PREVIOUS TURN WIDGET VALUES] clock anchor when provided, then advance by in-universe duration of this turn.
-- For location/place fields: update when the scene moves.
+- For time/datetime fields, in priority order:
+  1. An explicit final time/date marker in the prose (e.g. a 📅 date line near the end, or the last scene's stated clock time like "오후 8시") ALWAYS wins.
+  2. Only when no explicit final time exists: start from [PREVIOUS TURN WIDGET VALUES] clock anchor and advance by the in-universe duration of this turn (including skips — a turn ending the next evening must NOT keep the previous night's clock).
+- For location/place fields: update when the scene moves; use the location of the LAST scene.
 - Use "—" only when there is truly no in-scene evidence for that field.
+- Inner-state fields (속마음, 의식의 흐름, 감정, thoughts, inner monologue) ALWAYS describe [CHARACTER]'s (the NPC's) inner state — NEVER [USER]'s (the user persona's). If this turn's prose is written from [USER]'s point of view and contains no [CHARACTER] POV evidence, infer [CHARACTER]'s likely inner state from their last known state and this turn's events, or keep the previous turn's value — do not substitute [USER]'s thoughts.
 - Do NOT add keys beyond the required list.
 - Do NOT invent lore that contradicts the provided context.
 - When [PREVIOUS TURN ASSISTANT] is provided, use it only for continuity (time/place/mood); prefer current-turn evidence.`;

@@ -39,6 +39,7 @@ import { openRouterNormalizedRawCostKrw, openRouterRawCostKrw } from "@/lib/bill
 import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
 import { maybeCreditCreatorReward } from "@/lib/creatorPoints";
 import { TurnApiBudget, NARRATIVE_LENGTH_CONTINUATION_ENABLED } from "@/lib/turnApiBudget";
+import { maybeRewriteNarrationLexicon } from "@/lib/speechLock";
 import { isMockApiMode, logMockModeOnce } from "@/lib/mockApiMode";
 import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
 import { parseAssets, chatAssets } from "@/lib/characterAssets";
@@ -420,11 +421,6 @@ export async function POST(req: Request) {
 
   const personaDescription = selectedPersona?.description ?? "";
   const personaDisplayName = selectedPersona?.name?.trim() || user.nickname;
-  const userPersonaPrompt = formatSelectedPersonaForPrompt(
-    personaDisplayName,
-    selectedPersona?.gender ?? "other",
-    personaDescription
-  );
   const userNotePrompt = formatUserNoteForPrompt(effectiveUserNote);
   const userImpersonation =
     novelModeEnabled ||
@@ -432,6 +428,12 @@ export async function POST(req: Request) {
       personaDescription: selectedPersona?.description ?? "",
       userNote: extractFocusZoneNote(effectiveUserNote),
     });
+  const userPersonaPrompt = formatSelectedPersonaForPrompt(
+    personaDisplayName,
+    selectedPersona?.gender ?? "other",
+    personaDescription,
+    { coNarrationEnabled: novelModeEnabled || userImpersonation }
+  );
   const { body: noteBody } = parseUserNoteCombined(effectiveUserNote);
   const userContextChars = estimateUserContextChars(userNoteCombinedCharCount(noteBody));
 
@@ -959,6 +961,31 @@ export async function POST(req: Request) {
           openRouterRemovalTraceSteps = result.removalTraceSteps;
           if (result.recoveryStage) stages.push(result.recoveryStage);
           send({ type: "status", message: "마무리 중…" });
+          }
+
+          if (!htmlFlashOnlyTurn && fullText.trim()) {
+            const lexiconRewrite = await maybeRewriteNarrationLexicon({
+              text: fullText,
+              charName: ch.name,
+              system: systemRef,
+              history: historyRef
+                .filter((m): m is ChatMsg & { role: "user" | "assistant" } =>
+                  m.role === "user" || m.role === "assistant"
+                )
+                .map((m) => ({ role: m.role, content: m.content ?? "" })),
+              model: openRouterApiModelId,
+              targetResponseChars: targetResponseCharsRef,
+              requestKind: `chat-${chatRef.id}`,
+              turnApiBudget,
+            });
+            if (lexiconRewrite.rewritten) {
+              fullText = lexiconRewrite.text;
+              streamVisibleTextRef = lexiconRewrite.text;
+              console.info("[/api/chat] narration lexicon rewrite applied", {
+                chatId: chatRef.id,
+                hits: lexiconRewrite.hits,
+              });
+            }
           }
         } catch (e) {
           if (e instanceof DegenerationAbortError) {

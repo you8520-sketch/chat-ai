@@ -121,6 +121,8 @@ function classifyDialogueEnding(line: string): "archaic" | "formal" | "haeyo" | 
 
 export function extractDialogueLines(text: string): string[] {
   const out: string[] = [];
+  // Normalize curly quotes so “…” dialogue is scored the same as "…".
+  text = text.replace(/[“”]/g, '"');
   for (const block of text.replace(/\r\n/g, "\n").split(/\n{2,}/)) {
     for (const line of block.split("\n")) {
       const m = line.trim().match(DIALOGUE_LINE_RE);

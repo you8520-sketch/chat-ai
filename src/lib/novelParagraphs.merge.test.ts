@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { groupNovelParagraphs, MIN_NARRATION_CHARS_PER_PARAGRAPH, MAX_NARRATION_CHARS_PER_PARAGRAPH } from "@/lib/novelParagraphs";
+import {
+  groupNovelParagraphs,
+  MIN_NARRATION_CHARS_PER_PARAGRAPH,
+  MAX_NARRATION_CHARS_PER_PARAGRAPH,
+  MAX_NARRATION_MERGE_CHARS,
+} from "@/lib/novelParagraphs";
 
 describe("groupNovelParagraphs merge", () => {
   it("merges blank-line-separated short narration into one paragraph", () => {
@@ -31,13 +36,40 @@ describe("groupNovelParagraphs merge", () => {
   it("splits oversized narration at sentence boundaries", () => {
     const sentence =
       "그는 천천히 다가와 손을 뻗었고, 눈빛만은 흔들리지 않았으며, 숨결마저 조심스럽게 맞추었다.";
-    const input = Array.from({ length: 12 }, () => sentence).join(" ");
+    const input = Array.from({ length: 18 }, () => sentence).join(" ");
     assert.ok(input.length > MAX_NARRATION_CHARS_PER_PARAGRAPH);
     const grouped = groupNovelParagraphs(input);
     assert.ok(grouped.length >= 2);
     for (const para of grouped) {
       assert.ok(para.length <= MAX_NARRATION_CHARS_PER_PARAGRAPH + 20);
     }
+  });
+
+  it("keeps a natural 5-6 sentence paragraph (~500 chars) intact", () => {
+    const sentence =
+      "그는 천천히 다가와 손을 뻗었고, 눈빛만은 흔들리지 않았으며, 숨결마저 조심스럽게 맞추었다.";
+    const input = Array.from({ length: 10 }, () => sentence).join(" ");
+    assert.ok(input.length > 480 && input.length <= MAX_NARRATION_CHARS_PER_PARAGRAPH);
+    assert.equal(groupNovelParagraphs(input).length, 1);
+  });
+
+  it("prefers discourse-shift markers as split points in oversized narration", () => {
+    const filler =
+      "그는 천천히 다가와 손을 뻗었고, 눈빛만은 흔들리지 않았으며, 숨결마저 조심스럽게 맞추었다.";
+    const marker =
+      "하지만 그 순간 복도 끝에서 낯선 발소리가 울렸고, 두 사람은 동시에 몸을 굳혔다.";
+    const input = [
+      ...Array.from({ length: 10 }, () => filler),
+      marker,
+      ...Array.from({ length: 4 }, () => filler),
+    ].join(" ");
+    assert.ok(input.length > MAX_NARRATION_CHARS_PER_PARAGRAPH);
+    const grouped = groupNovelParagraphs(input);
+    assert.ok(grouped.length >= 2);
+    assert.ok(
+      grouped.some((p) => p.startsWith("하지만 그 순간")),
+      `expected a paragraph starting at the discourse marker, got: ${JSON.stringify(grouped)}`
+    );
   });
 });
 
@@ -48,7 +80,8 @@ describe("MIN_NARRATION_CHARS_PER_PARAGRAPH", () => {
 });
 
 describe("MAX_NARRATION_CHARS_PER_PARAGRAPH", () => {
-  it("is 480", () => {
-    assert.equal(MAX_NARRATION_CHARS_PER_PARAGRAPH, 480);
+  it("split cap is 700, merge cap stays 480", () => {
+    assert.equal(MAX_NARRATION_CHARS_PER_PARAGRAPH, 700);
+    assert.equal(MAX_NARRATION_MERGE_CHARS, 480);
   });
 });

@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   expandPossessionTransferRemovals,
+  filterPossessionEntryItems,
   formatGroupedPossessionsForPrompt,
   groupPossessionsByPerson,
+  isNonPossessionItemName,
   parsePossessionEntry,
 } from "@/lib/relationshipMetaItems";
 
@@ -52,5 +54,35 @@ describe("relationshipMetaItems", () => {
     });
     assert.deepEqual(patch.itemsRemove, ["레온: 반지, 지갑"]);
     assert.deepEqual(patch.itemsRevise, ["레온: 지갑"]);
+  });
+
+  it("detects furniture/fixture/uniform names as non-possessions", () => {
+    for (const name of ["침대", "간이 침대", "세면대", "의자", "제복", "거울", "손거울"]) {
+      assert.equal(isNonPossessionItemName(name), true, name);
+    }
+    for (const name of ["펜", "추천서 초안", "반지", "S-기어", "에메랄드 귀걸이(한 짝)"]) {
+      assert.equal(isNonPossessionItemName(name), false, name);
+    }
+  });
+
+  it("filters non-possession items out of an entry, keeping real ones", () => {
+    assert.equal(
+      filterPossessionEntryItems(
+        "레온: 펜, 의자, 추천서 초안, 서류, 제복, 금박 휘장, 간이 침대, 세면대, 거울"
+      ),
+      "레온: 펜, 추천서 초안, 서류, 금박 휘장"
+    );
+  });
+
+  it("drops the whole entry when every item is a non-possession", () => {
+    assert.equal(filterPossessionEntryItems("레온: 침대, 의자"), "");
+  });
+
+  it("keeps entries without parseable structure untouched", () => {
+    assert.equal(filterPossessionEntryItems("그냥 문자열"), "그냥 문자열");
+  });
+
+  it("keeps normal entries unchanged", () => {
+    assert.equal(filterPossessionEntryItems("백하율: S-기어, 넥타이"), "백하율: S-기어, 넥타이");
   });
 });

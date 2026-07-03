@@ -129,7 +129,8 @@ export function ensureDefaultPersona(userId: number, nickname: string): DbUserPe
 export function formatSelectedPersonaForPrompt(
   name: string,
   gender: CharacterGender,
-  description: string
+  description: string,
+  opts?: { coNarrationEnabled?: boolean }
 ): string | null {
   void gender;
   const parts: string[] = [];
@@ -137,15 +138,17 @@ export function formatSelectedPersonaForPrompt(
   const trimmedDesc = description.trim();
   if (trimmedName) parts.push(`이름/호칭: ${trimmedName}`);
   if (trimmedDesc) parts.push(trimmedDesc);
-  if (trimmedDesc) {
+  // 말투 유지 규칙은 AI가 유저 대사를 쓸 권한이 있을 때(co-narration/소설 모드)만.
+  // 사칭 OFF에서 주입하면 [NO GODMODDING]과 충돌 — "매 턴 유지"가 유저 대사 작성을 전제하는 신호가 된다.
+  if (trimmedDesc && opts?.coNarrationEnabled) {
     parts.push(
       `[유저 페르소나 — 말투]\n"${trimmedName}"의 말투는 위 설정·성격과 채팅에서 유저가 직접 입력한 대사에서 추론해 매 턴 일관 유지한다. AI 캐릭터 말투와 혼동하지 마라.`
     );
-  }
-  if (trimmedDesc && /반말|구어|캐주얼|informal/i.test(trimmedDesc)) {
-    parts.push(
-      `[유저 말투 고정] "${trimmedName}"은(는) 반말·구어체 ONLY. ~습니다/~요/~십니다/~니다 종결 금지 (유저가 직접 그렇게 입력한 경우 제외).`
-    );
+    if (/반말|구어|캐주얼|informal/i.test(trimmedDesc)) {
+      parts.push(
+        `[유저 말투 고정] "${trimmedName}"은(는) 반말·구어체 ONLY. ~습니다/~요/~십니다/~니다 종결 금지 (유저가 직접 그렇게 입력한 경우 제외).`
+      );
+    }
   }
   if (parts.length === 0) return null;
   return parts.join("\n\n");

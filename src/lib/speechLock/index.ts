@@ -24,4 +24,14 @@ export {
   extractCharacterDialogue,
 } from "./validator";
 
+export {
+  detectRegisterLexiconInNarration,
+  validateNarrationRegisterLexicon,
+  isNarrationLexiconGateEnabled,
+  stripDialogueForNarrationScan,
+} from "./narrationLexicon";
+
+export { maybeRewriteNarrationLexicon } from "./narrationLexiconRewrite";
+export { buildNarrationLexiconRewriteUserMessage } from "./prompts";
+
 export { GLOBAL_FORBIDDEN_SPEECH } from "./patterns";

@@ -54,7 +54,8 @@ export type SpeechViolationType =
   | "modern_slang"
   | "formality_drift"
   | "class_drift"
-  | "ending_drift";
+  | "ending_drift"
+  | "narration_register_lexicon";
 
 export type SpeechViolation = {
   type: SpeechViolationType;

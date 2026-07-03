@@ -4,6 +4,7 @@ import {
   collectCharacterSettingText,
   resolveHairDescriptionPolicy,
 } from "@/lib/bodyHairRules";
+import { filterExampleDialogInSetting } from "@/lib/exampleDialogSceneFilter";
 import {
   buildCharacterCanonBlock,
   buildCharacterSpeechRecencyTail,
@@ -228,7 +229,16 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const personaLabel = input.personaDisplayName?.trim() || input.userNickname;
   const novelModeEnabled = input.novelModeEnabled === true;
   const coNarrationEnabled = novelModeEnabled || !!input.userImpersonation;
-  const characterSettingText = collectCharacterSettingText(chunks);
+  const characterSettingTextRaw = collectCharacterSettingText(chunks);
+  const recentHistoryText = input.shortTermHistory
+    .slice(-4)
+    .map((m) => m.content?.trim() ?? "")
+    .filter(Boolean)
+    .join("\n");
+  const characterSettingText = filterExampleDialogInSetting(characterSettingTextRaw, {
+    userMessage: input.currentUserMessage,
+    recentHistory: recentHistoryText,
+  });
   const bilingualDialoguePolicy = resolveBilingualDialoguePolicyFromSources({
     chunks,
     characterSettingText,

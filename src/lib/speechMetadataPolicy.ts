@@ -10,8 +10,11 @@ Forbidden narration patterns: "해요체로 바뀌었다", "존댓말을 사용"
 const SPEECH_SECTION_RE =
   /말투|speech|어조|대사|금지\s*말투|SPEECH CONSISTENCY|예시\s*대사/i;
 
-const REGISTER_LABEL_RE =
-  /(해요체|다나까체|하십시오체|합니다체|하오체|반말|존댓말|반존대|군대식(?:\s*다나까)?(?:체)?|구어체|존댓\s*말)/i;
+/** Literal register label tokens — exported for narration lexicon scan (Group A). */
+export const REGISTER_LABEL_PATTERN =
+  /(해요체|다나까체|하십시오체|합니다체|하오체|반말|존댓말|반존대|군대식(?:\s*다나까)?(?:체)?|구어체|존댓\s*말|경어|높임말)/i;
+
+const REGISTER_LABEL_RE = REGISTER_LABEL_PATTERN;
 
 const CONTEXT_REGISTER_LINE_RE = /^([^:：\n]{2,48})[:：]\s*(.+)$/;
 

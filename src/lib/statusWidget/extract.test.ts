@@ -52,6 +52,32 @@ describe("statusWidget extract", () => {
     assert.match(system, /Never copy placeholders/);
   });
 
+  it("buildWidgetExtractSystem anchors extraction to the LAST scene (chat39 multi-scene regression)", () => {
+    // chat39 turn 769: 새벽 3시 사령실 → *** 스킵 → 다음날 오후 8시 렌 저택.
+    // Extractor anchored to the FIRST scene because the old rules said
+    // "start from previous clock anchor" with no last-scene priority.
+    const system = buildWidgetExtractSystem(DEFAULT_STATUS_WIDGET, collectWidgetJsonKeys(DEFAULT_STATUS_WIDGET));
+    // End-of-turn / last-scene rule present
+    assert.match(system, /END of this turn/);
+    assert.match(system, /LAST scene/);
+    assert.match(system, /time skips/i);
+    // Explicit final time marker outranks previous-anchor advancement
+    assert.match(system, /explicit final time\/date marker[\s\S]*ALWAYS wins/);
+    assert.match(system, /Only when no explicit final time exists/);
+    // Previous-anchor rule is still there as fallback
+    assert.match(system, /\[PREVIOUS TURN WIDGET VALUES\] clock anchor/);
+  });
+
+  it("buildWidgetExtractSystem pins inner-state fields to the NPC, never the user persona", () => {
+    const system = buildWidgetExtractSystem(
+      DEFAULT_STATUS_WIDGET,
+      collectWidgetJsonKeys(DEFAULT_STATUS_WIDGET)
+    );
+    assert.match(system, /Inner-state fields[\s\S]*ALWAYS describe \[CHARACTER\]/);
+    assert.match(system, /NEVER \[USER\]/);
+    assert.match(system, /do not substitute \[USER\]'s thoughts/);
+  });
+
   it("allocateWidgetExtractNarrativeSlices prioritizes current turn within budget", () => {
     const current = "A".repeat(5000);
     const previous = "B".repeat(5000);

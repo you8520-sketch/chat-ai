@@ -326,8 +326,16 @@ function splitLineByDialogue(line: string, streaming = false): string[] {
 
 /** 지문 문단 최소 길이 — 미만이면 인접 지문과 병합 시도 */
 export const MIN_NARRATION_CHARS_PER_PARAGRAPH = 50;
-/** 지문 문단 권장 상한 — 초과 시 문장 경계에서 분할 */
-export const MAX_NARRATION_CHARS_PER_PARAGRAPH = 480;
+/**
+ * 지문 문단 권장 상한 — 초과 시 문장 경계에서 분할.
+ * 벽면 텍스트 방어용 — 정상 문단(4~6문장)이 걸리지 않게 넉넉히 둔다.
+ */
+export const MAX_NARRATION_CHARS_PER_PARAGRAPH = 700;
+/**
+ * 짧은 지문 병합 상한 — 분할 상한과 분리.
+ * 병합이 분할 상한까지 따라 커지면 모델이 의도한 문단 경계를 과하게 지우므로 기존 480 유지.
+ */
+export const MAX_NARRATION_MERGE_CHARS = 480;
 /** @deprecated 프롬프트 전용 — 런타임 검증 미사용 */
 export const MIN_NARRATION_PARAGRAPHS = 6;
 /** @deprecated MIN_NARRATION_PARAGRAPHS 사용 */
@@ -403,7 +411,7 @@ function mergeAdjacentShortNarrationParagraphs(
     const nextMergeable = isMergeableFlowingNarration(trimmed, streaming);
 
     if (prev && prevMergeable && nextMergeable) {
-      if (combinedNarrationLength(prev, trimmed) <= MAX_NARRATION_CHARS_PER_PARAGRAPH) {
+      if (combinedNarrationLength(prev, trimmed) <= MAX_NARRATION_MERGE_CHARS) {
         out[out.length - 1] = `${prev} ${trimmed}`;
         continue;
       }
@@ -417,7 +425,7 @@ function mergeAdjacentShortNarrationParagraphs(
       (prev.length < MIN_NARRATION_CHARS_PER_PARAGRAPH ||
         trimmed.length < MIN_NARRATION_CHARS_PER_PARAGRAPH) &&
       !isStandaloneNarrationPunchLine(trimmed) &&
-      combinedNarrationLength(prev, trimmed) <= MAX_NARRATION_CHARS_PER_PARAGRAPH
+      combinedNarrationLength(prev, trimmed) <= MAX_NARRATION_MERGE_CHARS
     ) {
       out[out.length - 1] = `${prev} ${trimmed}`;
       continue;
@@ -431,7 +439,40 @@ function mergeAdjacentShortNarrationParagraphs(
 
 const NARRATION_SENTENCE_BOUNDARY_RE = /(?<=[.!?…]["'」』)]?)\s+/u;
 
-/** 한 덩어리로 붙은 긴 지문 — 문장 경계에서 분할 (상한 초과 방지) */
+/** 담화 전환 표지로 시작하는 문장 — 상한 초과 분할 시 우선 분할 지점 */
+const DISCOURSE_SHIFT_SENTENCE_RE =
+  /^(?:하지만|그러나|그런데|그때|그 순간|그러다|이윽고|잠시 후|얼마 후|한참 후|다음 순간|문득|돌연|갑자기|마침내|결국|그리고 나서|그제서야|그제야)[,\s]/u;
+
+/**
+ * 상한 초과 지문의 분할 지점 선택 — buf가 상한을 넘기 전 마지막 담화 표지 문장 앞을 우선,
+ * 없으면 상한 직전 문장 경계로 폴백.
+ */
+function chooseNarrationSplitIndices(sentences: string[], maxChars: number): Set<number> {
+  const splitBefore = new Set<number>();
+  let start = 0;
+  while (start < sentences.length) {
+    let len = 0;
+    let lastMarker = -1;
+    let end = sentences.length;
+    for (let i = start; i < sentences.length; i++) {
+      const addition = sentences[i]!.length + (i > start ? 1 : 0);
+      if (len + addition > maxChars && i > start) {
+        end = i;
+        break;
+      }
+      len += addition;
+      if (i > start && DISCOURSE_SHIFT_SENTENCE_RE.test(sentences[i]!)) lastMarker = i;
+    }
+    if (end >= sentences.length) break;
+    // 상한 내에 담화 표지가 있으면 그 앞에서, 없으면 상한 직전 경계에서 분할
+    const cut = lastMarker > start ? lastMarker : end;
+    splitBefore.add(cut);
+    start = cut;
+  }
+  return splitBefore;
+}
+
+/** 한 덩어리로 붙은 긴 지문 — 담화 표지 우선, 문장 경계에서 분할 (상한 초과 방지) */
 function splitOversizedNarrationParagraphs(paragraphs: string[], streaming = false): string[] {
   const out: string[] = [];
   for (const para of paragraphs) {
@@ -451,19 +492,18 @@ function splitOversizedNarrationParagraphs(paragraphs: string[], streaming = fal
       continue;
     }
 
+    const splitBefore = chooseNarrationSplitIndices(
+      sentences,
+      MAX_NARRATION_CHARS_PER_PARAGRAPH
+    );
     let buf = "";
-    for (const sentence of sentences) {
-      const candidate = buf ? `${buf} ${sentence}` : sentence;
-      if (
-        candidate.length > MAX_NARRATION_CHARS_PER_PARAGRAPH &&
-        buf.trim()
-      ) {
+    sentences.forEach((sentence, i) => {
+      if (splitBefore.has(i) && buf.trim()) {
         out.push(buf.trim());
-        buf = sentence;
-      } else {
-        buf = candidate;
+        buf = "";
       }
-    }
+      buf = buf ? `${buf} ${sentence}` : sentence;
+    });
     if (buf.trim()) out.push(buf.trim());
   }
   return out;
@@ -486,12 +526,16 @@ export function groupNovelParagraphs(content: string, opts?: GroupNovelParagraph
       lines.push(...splitLineByDialogue(line, streaming));
     }
     if (lines.length === 0) continue;
-    out.push(...mergeConsecutiveNarrationLines(lines, streaming));
+    // Dialogue merge is restricted to WITHIN one block: blank-line-separated
+    // dialogue paragraphs are speaker turns (often different speakers in
+    // multi-speaker scenes) and must never be merged into one quote.
+    // Quote-internal line breaks are already repaired earlier by
+    // collapseBlankLinesInsideDoubleQuotes.
+    out.push(...mergeAdjacentDialogueParagraphs(mergeConsecutiveNarrationLines(lines, streaming)));
   }
 
   if (out.length === 0) return [normalized];
-  let paragraphs = mergeAdjacentDialogueParagraphs(out);
-  paragraphs = explodeMixedParagraphs(paragraphs, streaming);
+  let paragraphs = explodeMixedParagraphs(out, streaming);
   paragraphs = mergeAdjacentShortNarrationParagraphs(paragraphs, streaming);
   paragraphs = splitOversizedNarrationParagraphs(paragraphs, streaming);
   return paragraphs.map((p) => stripLeadingPauseEllipsisFromDialogue(p.trim())).filter(Boolean);
@@ -685,27 +729,37 @@ export function collapseBlankLinesInsideDoubleQuotes(text: string): string {
   return out;
 }
 
-/** 줄바꿈으로 끊긴 간접 인용 — 렌이\\n"…"\\n고 말한 → 렌이 '…'고 말한 */
+/** 줄바꿈으로 끊긴 간접 인용 — 렌이\\n"…"\\n고 말한 → 렌이 '…'고 말한
+ *  Blank lines are paragraph boundaries (speaker turns) and MUST be preserved:
+ *  dropping them lets later dialogue merging glue different speakers into one
+ *  quote (chat39 multi-speaker regression). */
 export function mergeMultilineIndirectSpeechQuotes(text: string): string {
   const lines = text.replace(/\r\n/g, "\n").split("\n");
   const out: string[] = [];
   let i = 0;
 
+  const nextNonBlank = (from: number): number => {
+    let j = from;
+    while (j < lines.length && !lines[j]?.trim()) j++;
+    return j;
+  };
+
   while (i < lines.length) {
-    while (i < lines.length && !lines[i]?.trim()) i++;
-    if (i >= lines.length) break;
+    if (!lines[i]?.trim()) {
+      out.push("");
+      i++;
+      continue;
+    }
 
     const prefix = lines[i]!.trim();
 
     if (!QUOTED_ONLY_LINE_RE.test(prefix)) {
-      let j = i + 1;
-      while (j < lines.length && !lines[j]?.trim()) j++;
+      const j = nextNonBlank(i + 1);
       if (j < lines.length) {
         const quoteLine = lines[j]!.trim();
         const qm = quoteLine.match(QUOTED_ONLY_LINE_RE);
         if (qm) {
-          let k = j + 1;
-          while (k < lines.length && !lines[k]?.trim()) k++;
+          const k = nextNonBlank(j + 1);
           if (k < lines.length) {
             const after = lines[k]!.trim();
             if (INLINE_NARRATED_QUOTE_AFTER_RE.test(after)) {
@@ -719,8 +773,7 @@ export function mergeMultilineIndirectSpeechQuotes(text: string): string {
       }
     } else {
       const qm = prefix.match(QUOTED_ONLY_LINE_RE);
-      let k = i + 1;
-      while (k < lines.length && !lines[k]?.trim()) k++;
+      const k = nextNonBlank(i + 1);
       if (qm && k < lines.length) {
         const after = lines[k]!.trim();
         if (INLINE_NARRATED_QUOTE_AFTER_RE.test(after)) {
@@ -736,7 +789,23 @@ export function mergeMultilineIndirectSpeechQuotes(text: string): string {
     i++;
   }
 
-  return out.join("\n");
+  return out.join("\n").replace(/\n{3,}/g, "\n\n");
+}
+
+/** 따옴표만 있고 내용이 없는 단독 문단 — 모델이 빈 대사·속마음 껍데기만 뱉은 아티팩트 */
+const EMPTY_QUOTE_ONLY_PARAGRAPH_RE = /^["\u201C\u201D'\u2018\u2019「」『』\s]+$/u;
+
+export function stripEmptyQuoteParagraphs(text: string): string {
+  return text
+    .split(/\n{2,}/)
+    .filter((para) => {
+      const trimmed = para.trim();
+      if (!trimmed) return false;
+      // "..." 같은 pause 전용 문단은 별도 규칙이 처리하므로 건드리지 않는다
+      if (/[….]/.test(trimmed)) return true;
+      return !EMPTY_QUOTE_ONLY_PARAGRAPH_RE.test(trimmed);
+    })
+    .join("\n\n");
 }
 
 /** 저장·표시 직전 — 잘못된 대사 따옴표 제거 + 말줄임표 정리 + 지문 문단 정리 */
@@ -748,6 +817,7 @@ export function normalizeAiNovelProseLayout(text: string, _opts?: { allowHtml?: 
   body = collapseEllipsisSpam(body);
   body = fixCommonJapaneseLeaksInKoreanProse(body);
   body = collapseBlankLinesInsideDoubleQuotes(body);
+  body = stripEmptyQuoteParagraphs(body);
   body = groupNovelParagraphs(body).join("\n\n").trim();
   return body;
 }

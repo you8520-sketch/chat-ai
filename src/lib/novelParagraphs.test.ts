@@ -134,18 +134,77 @@ describe("groupNovelParagraphs", () => {
     assert.match(grouped[0]!, /매뉴얼 읽어보셨죠?/);
   });
 
-  it("merges consecutive quoted sentences into one dialogue line", () => {
+  it("chat39 regression: multi-speaker exchange without attribution keeps every speaker turn separate (레온/데미안)", () => {
+    // Real production text state entering normalizeAiNovelProseLayout —
+    // 레온 and 데미안 alternate with NO speaker attribution between quotes.
+    const input = `회의가 끝나고 데미안이 그를 불렀다.
+
+"레온."
+
+"예, 전하."
+
+"어젯밤 연회에서... 무슨 일 있었나?"
+
+데미안의 푸른 눈동자가 예리하게 빛났다.
+
+"개인적인 일이었습니다. 전하께서 염려하실 만한 사안은 아닙니다."
+
+"...흠."
+
+데미안은 팔짱을 끼고 그를 바라보았다.`;
+    const out = normalizeAiNovelProseLayout(input);
+    // Every quote stays its own paragraph — no cross-speaker merge
+    assert.match(out, /^"레온\."$/m);
+    assert.match(out, /^"예, 전하\."$/m);
+    assert.match(out, /^"어젯밤 연회에서 \.\.\. 무슨 일 있었나\?"$/m);
+    assert.match(out, /^"개인적인 일이었습니다\. 전하께서 염려하실 만한 사안은 아닙니다\."$/m);
+    assert.doesNotMatch(out, /"레온\.[^"]*예, 전하/);
+    assert.doesNotMatch(out, /사안은 아닙니다\.[^"]*흠/);
+  });
+
+  it("emotion-register switcher: sarcastic polite + banmal turns stay separate (하유진 pattern)", () => {
+    // 하유진-type scene: same character switches register between turns and
+    // a user/NPC line sits between — merging would blend registers into one quote.
+    const input = `하유진이 고개를 비스듬히 기울였다.
+
+"아, 예. 위대하신 나리께서 친히 와주셨네요. 영광이라 눈물이 다 나요."
+
+남자가 식사를 내려놓았다.
+
+"먹어. 식기 전에."
+
+"...역겨우니까 그거 치워."`;
+    const out = normalizeAiNovelProseLayout(input);
+    assert.match(out, /^"아, 예\. 위대하신 나리께서 친히 와주셨네요\. 영광이라 눈물이 다 나요\."$/m);
+    assert.match(out, /^"먹어\. 식기 전에\."$/m);
+    assert.match(out, /^"\.\.\. 역겨우니까 그거 치워\."$/m);
+    assert.doesNotMatch(out, /먹어\. 식기 전에\.[^"]*역겨우니까/);
+  });
+
+  it("still repairs blank lines INSIDE one open quote (same speaker, broken quote)", () => {
+    // The legitimate merge target: a single quote torn apart by blank lines
+    // before the closing quote — this must still be repaired.
+    const input = `"연회장으로 돌아가시죠.
+
+더 늦으면 황태자 전하께서 의아해하실 겁니다."`;
+    assert.deepEqual(groupNovelParagraphs(input), [
+      '"연회장으로 돌아가시죠. 더 늦으면 황태자 전하께서 의아해하실 겁니다."',
+    ]);
+  });
+
+  it("keeps blank-line-separated quotes as separate paragraphs (speaker turns)", () => {
+    // chat39 regression: blank-line-separated dialogue paragraphs can be
+    // DIFFERENT speakers — merging them into one quote destroys speaker turns.
     const input = `"이게 정상 수치가 아니거든요."
 
 "70% 밑으론 전부 위험 구간이에요."
 
 "매뉴얼 읽어보셨죠?"`;
-    const grouped = groupNovelParagraphs(input);
-    assert.equal(grouped.length, 1);
-    assert.equal(
-      grouped[0],
-      '"이게 정상 수치가 아니거든요. 70% 밑으론 전부 위험 구간이에요. 매뉴얼 읽어보셨죠?"'
-    );
+    assert.deepEqual(groupNovelParagraphs(input), [
+      '"이게 정상 수치가 아니거든요."',
+      '"70% 밑으론 전부 위험 구간이에요."',
+      '"매뉴얼 읽어보셨죠?"',
+    ]);
   });
 
   it("splits dialogue even when other lines already have line breaks", () => {
@@ -320,6 +379,27 @@ describe("unwrapMisclassifiedDialogueQuotes", () => {
       normalizeAiNovelProseLayout(input),
       "아픈 척 과 아쉬운 척 만으로도 충분히 씨앗은 뿌려졌다."
     );
+  });
+});
+
+describe("stripEmptyQuoteParagraphs (via normalizeAiNovelProseLayout)", () => {
+  it("drops a trailing quote-only paragraph with no content (chat39 '' regression)", () => {
+    const input = `저택 밖에서 마차 바퀴 소리가 들리기 시작하면, 이 모든 기다림이 끝날 것이다.\n\n''`;
+    const out = normalizeAiNovelProseLayout(input);
+    assert.ok(out.endsWith("끝날 것이다."), out.slice(-40));
+    assert.ok(!out.includes("''"));
+  });
+
+  it("drops empty double/curly/corner quote paragraphs too", () => {
+    for (const shell of ['""', "\u201C\u201D", "「」", "' '"]) {
+      const out = normalizeAiNovelProseLayout(`기다림이 끝날 것이다.\n\n${shell}`);
+      assert.equal(out, "기다림이 끝날 것이다.", `shell: ${JSON.stringify(shell)}`);
+    }
+  });
+
+  it("keeps pause-only quoted paragraphs", () => {
+    const out = normalizeAiNovelProseLayout(`기다림이 끝날 것이다.\n\n"..."`);
+    assert.ok(out.endsWith('"..."'), out.slice(-20));
   });
 });
 

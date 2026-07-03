@@ -1,6 +1,7 @@
 import { looksLikeDisplayTitle } from "@/lib/relationshipMetaCharacterName";
 import {
   expandPossessionTransferRemovals,
+  filterPossessionEntryItems,
   formatGroupedPossessionsForPrompt,
   parsePossessionEntry,
 } from "@/lib/relationshipMetaItems";
@@ -150,7 +151,7 @@ function normalizeItemEntry(entry: string, names: HonorificNames): string {
   t = t.replace(/→유저(?=[: \s]|$)/, `→${names.userName}`);
   t = t.replace(/^유저(?=[: \s]|$)/, names.userName);
   t = t.replace(/^캐릭터(?=[: \s]|$)/, names.charName);
-  return t;
+  return filterPossessionEntryItems(t);
 }
 
 /** 정규화 후 동일 문자열 기준 중복 제거 (호칭) */
