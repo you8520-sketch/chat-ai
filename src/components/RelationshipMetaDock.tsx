@@ -17,10 +17,10 @@ const EMPTY_META: RelationshipMeta = {
   promises: [],
 };
 
-type MetaCategory = "honorifics" | "items" | "thoughts" | "promises";
+type MetaCategory = "items" | "thoughts" | "promises";
 
 function metaTotal(meta: RelationshipMeta) {
-  return meta.honorifics.length + meta.items.length + meta.thoughts.length + meta.promises.length;
+  return meta.items.length + meta.thoughts.length + meta.promises.length;
 }
 
 function RelationshipMetaContent({
@@ -32,8 +32,7 @@ function RelationshipMetaContent({
   deletingKey: string | null;
   onDelete: (category: MetaCategory, text: string) => void;
 }) {
-  const stringGroups: { key: "honorifics" | "thoughts"; label: string }[] = [
-    { key: "honorifics", label: "호칭" },
+  const stringGroups: { key: "thoughts"; label: string }[] = [
     { key: "thoughts", label: "캐릭터·NPC 속마음" },
   ];
   const total = metaTotal(meta);

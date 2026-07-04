@@ -165,6 +165,8 @@ function migrate(db: Database.Database) {
   addColumn("characters", "genres", "TEXT NOT NULL DEFAULT '[]'");
   addColumn("characters", "world_id", "INTEGER");
   addColumn("characters", "lorebook_id", "INTEGER");
+  addColumn("characters", "contest_pick", "INTEGER NOT NULL DEFAULT 0");
+  addColumn("characters", "contest_rank", "INTEGER NOT NULL DEFAULT 0");
   db.exec(`
     CREATE TABLE IF NOT EXISTS chat_turn_summaries (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -409,6 +411,7 @@ function migrate(db: Database.Database) {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+  addColumn("comments", "is_staff_reply", "INTEGER NOT NULL DEFAULT 0");
   db.prepare(
     "DELETE FROM comments WHERE post_id IN (SELECT id FROM posts WHERE board='faq' AND title != '캐릭터 제작은 누구나 가능한가요?')"
   ).run();

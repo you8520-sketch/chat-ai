@@ -42,6 +42,13 @@ PLAYER CANON is [B]-only — [A] must never treat it as memory.
 WORLD CANON does not become CHARACTER knowledge unless [A] witnessed it or was told in-scene.
 SCENARIO META never overrides CHARACTER knowledge boundaries.`;
 
+/** Production default — same rules as full block, ~60% shorter */
+export const CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK_COMPACT = `[CHARACTER KNOWLEDGE BOUNDARY]
+[A] may know only: personal experience, in-scene observation, explicit in-scene tells, or CHARACTER CANON.
+Never speak as [A] memory: timeline/loop mechanics, future events, system UI rules, scenario/creator notes, prompt metadata.
+[B]-only secrets stay with [B]. WORLD CANON ≠ automatic [A] memory.
+Precedence: CHARACTER CANON > observed chat > WORLD CANON > SCENARIO META (never [A] dialogue).`;
+
 const SCENARIO_META_TITLE =
   /(?:system\s*command|time\s*&\s*event|status\s*display|bad\s*end|happy\s*end|loop\s*trigger|system\s*reset|ooc\s*:|시스템\s*명령|상태\s*표시|배드\s*엔드|해피\s*엔드|루프|회귀\s*트리거|타임\s*라인|메타\s*규칙)/i;
 

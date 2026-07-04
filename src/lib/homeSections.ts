@@ -4,7 +4,11 @@ import { listableWhere } from "@/lib/characterVisibility";
 
 /** lg:grid-cols-5 기준 한 줄 카드 수 */
 export const HOME_CARDS_PER_ROW = 5;
-export const HOME_NEWEST_ROW_COUNT = 3;
+export const HOME_NEWEST_ROW_COUNT = 5;
+/** 상단 가로 스크롤 — 평소 대화·좋아요 기반 추천 */
+export const HOME_RECOMMENDED_COUNT = 10;
+/** 상단 가로 스크롤 — 관리자가 선정한 공모전 캐릭터 */
+export const HOME_CONTEST_COUNT = 20;
 
 export type HomeListFilter = {
   filterSql: string;
@@ -12,9 +16,11 @@ export type HomeListFilter = {
 };
 
 export type HomeSections = {
+  /** 최상단 가로 스크롤 — 유저 대화·좋아요·취향(pref) 기반 추천 */
   recommended: CharacterRow[];
-  hotNew: CharacterRow[];
-  /** 신작 최신순 — 데스크톱 기준 약 3줄(5×3) */
+  /** 관리자가 선정한 공모전 캐릭터 — 공모전 진행 전에는 항상 빈 배열 */
+  contest: CharacterRow[];
+  /** 신작 최신순 — 데스크톱 기준 약 5줄(5×5) */
   newest: CharacterRow[];
 };
 
@@ -207,7 +213,26 @@ export function fetchHotNewCharacters(
     .all(...filter.params, ...excludeParams, limit) as CharacterRow[];
 }
 
-/** 3행~: 신작만 최신순 (약 3줄 분량) */
+/** 2행: 관리자가 선정한 공모전 캐릭터 — contest_pick=1인 캐릭터만 (공모전 진행 전엔 빈 배열) */
+export function fetchContestCharacters(
+  db: Database.Database,
+  filter: HomeListFilter,
+  limit = HOME_CONTEST_COUNT,
+  excludeIds: number[] = []
+): CharacterRow[] {
+  const { sql: excludeSql, params: excludeParams } = excludeIdsClause(excludeIds);
+
+  return db
+    .prepare(
+      `SELECT * FROM characters
+       WHERE contest_pick = 1 AND ${listableWhere()} ${filter.filterSql} ${excludeSql}
+       ORDER BY contest_rank DESC, likes DESC, created_at DESC
+       LIMIT ?`
+    )
+    .all(...filter.params, ...excludeParams, limit) as CharacterRow[];
+}
+
+/** 3행~: 신작만 최신순 (약 5줄 분량) */
 export function fetchNewestCharacters(
   db: Database.Database,
   filter: HomeListFilter,
@@ -245,18 +270,11 @@ export function fetchHomeSections(
 ): HomeSections {
   const filter = buildHomeListFilter(user, blurNsfw);
 
-  const recommended = fetchRecommendedCharacters(db, user, filter);
-  const usedIds = recommended.map((c) => c.id);
+  // 각 행은 독립적으로 채운다 — 캐릭터 수가 적을 때 추천 행이 전부 가져가면
+  // 신규·공모전 행에서 서로 제외해 빈 화면이 되는 문제를 방지 (행 간 중복 노출은 정상)
+  const recommended = fetchRecommendedCharacters(db, user, filter, HOME_RECOMMENDED_COUNT);
+  const contest = fetchContestCharacters(db, filter, HOME_CONTEST_COUNT);
+  const newest = fetchNewestCharacters(db, filter, HOME_CARDS_PER_ROW * HOME_NEWEST_ROW_COUNT);
 
-  const hotNew = fetchHotNewCharacters(db, user, blurNsfw, HOME_CARDS_PER_ROW, usedIds);
-  usedIds.push(...hotNew.map((c) => c.id));
-
-  const newest = fetchNewestCharacters(
-    db,
-    filter,
-    HOME_CARDS_PER_ROW * HOME_NEWEST_ROW_COUNT,
-    usedIds
-  );
-
-  return { recommended, hotNew, newest };
+  return { recommended, contest, newest };
 }

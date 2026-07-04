@@ -39,6 +39,7 @@ import {
 import { checkCommentReportEligibility } from "@/lib/commentPolicy";
 import { userHasReportedComment } from "@/lib/commentReports";
 import { ensureDefaultPersona } from "@/lib/userPersonas";
+import { isActivePartnerCreator } from "@/lib/partnerTier";
 
 
 
@@ -121,6 +122,7 @@ export default async function CharacterPage({ params }: { params: Promise<{ id: 
     : false;
 
   const creatorId = c.creator_id ?? 0;
+  const creatorIsPartner = isActivePartnerCreator(db, creatorId);
 
   const followed = user
 
@@ -213,6 +215,7 @@ export default async function CharacterPage({ params }: { params: Promise<{ id: 
         emoji={c.emoji}
         hue={c.hue}
         creatorName={c.creator_name}
+        creatorIsPartner={creatorIsPartner}
         creatorComment={c.creator_comment}
         likes={c.likes}
         totalTurns={c.total_turns ?? 0}

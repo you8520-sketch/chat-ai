@@ -175,8 +175,7 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
           내 캐릭터 이용 포인트 소비량의 <strong className="text-white">{rewardPct}%</strong>가
           크리에이터 포인트(CP)로 적립됩니다.{" "}
           <span className="text-gray-400">
-            (기본 {basePct}% · 플러스 {plusPct}% · 프로 {proPct}% · 파트너 {partnerPct}% · 전속{" "}
-            {exclusivePct}% — 파트너 달성 후 문의)
+            (기본 {basePct}% · 플러스 {plusPct}% · 프로 {proPct}% · 파트너 {partnerPct}%)
           </span>
         </p>
       </div>

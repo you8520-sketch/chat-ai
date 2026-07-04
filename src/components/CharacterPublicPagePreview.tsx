@@ -5,6 +5,7 @@ import CharacterIntroSection from "@/components/CharacterIntroSection";
 import CharacterAssetImage from "@/components/CharacterAssetImage";
 import CharacterImageViewer from "@/components/CharacterImageViewer";
 import CopyPageLinkButton from "@/components/CopyPageLinkButton";
+import OfficialCreatorBadge from "@/components/OfficialCreatorBadge";
 import { CHARACTER_THUMB_ASPECT } from "@/components/CharacterCard";
 import { PROFILE_BIOGRAPHY_LIMIT } from "@/lib/generateProfile";
 import { applyProfilePlaceholders } from "@/lib/userPlaceholder";
@@ -53,6 +54,7 @@ export default function CharacterPublicPagePreview({
   emoji = "🎭",
   hue = 260,
   creatorName = "제작자",
+  creatorIsPartner = false,
   creatorComment = "",
   likes = 0,
   totalTurns = 0,
@@ -77,6 +79,8 @@ export default function CharacterPublicPagePreview({
   emoji?: string;
   hue?: number;
   creatorName?: string;
+  /** 파트너(전속 포함) 등급 이상 — 이름 강조 + 공식 크리에이터 뱃지 표시 */
+  creatorIsPartner?: boolean;
   creatorComment?: string;
   likes?: number;
   /** 누적 대화 턴 */
@@ -168,17 +172,27 @@ export default function CharacterPublicPagePreview({
             </div>
           ) : null}
 
-          <p className="mt-3 text-sm text-gray-500">
+          <p className="mt-3 flex flex-wrap items-center gap-1.5 text-sm text-gray-500">
             {creatorHref ? (
-              <Link href={creatorHref} className="text-violet-400 hover:underline">
+              <Link
+                href={creatorHref}
+                className={`hover:underline ${
+                  creatorIsPartner ? "font-bold text-amber-300" : "text-violet-400"
+                }`}
+              >
                 @{creatorName}
               </Link>
             ) : (
-              <span className="text-violet-400/90">@{creatorName}</span>
-            )}{" "}
-            · ❤️ {likes.toLocaleString()} · 💬 {turnCount.toLocaleString()}턴
-            {users > 0 ? ` · 👥 ${users.toLocaleString()}명` : null}
-            {imageCount > 0 ? ` · 🖼️ ${imageCount.toLocaleString()}장` : null}
+              <span className={creatorIsPartner ? "font-bold text-amber-300" : "text-violet-400/90"}>
+                @{creatorName}
+              </span>
+            )}
+            {creatorIsPartner && <OfficialCreatorBadge />}
+            <span>
+              · ❤️ {likes.toLocaleString()} · 💬 {turnCount.toLocaleString()}턴
+              {users > 0 ? ` · 👥 ${users.toLocaleString()}명` : null}
+              {imageCount > 0 ? ` · 🖼️ ${imageCount.toLocaleString()}장` : null}
+            </span>
           </p>
 
           <AssetGalleryStrip assets={resolvedGallery} viewerIsCreator={viewerIsCreator} alt={displayName} />

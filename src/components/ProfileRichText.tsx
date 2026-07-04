@@ -136,35 +136,13 @@ export function ProfileInlineText({ text }: { text: string }) {
   );
 }
 
-type CharCard = { name: string; blocks: ProfileBlock[] };
-
+/** 구조 정리용 기본 라벨 — 화면에는 표시하지 않음(사용자 입력 내용이 아닌 내부 구조 표시일 뿐) */
 function isSubCharacterSection(title: string): boolean {
   return /서브\s*캐릭터|조연\s*캐릭터|서브캐/i.test(title.trim());
 }
 
 function isMainCharacterSection(title: string): boolean {
   return /메인\s*캐릭터|주인공|주요\s*캐릭터/i.test(title.trim());
-}
-
-function isWorldSection(title: string): boolean {
-  return /세계관|배경|설정|世界|world|lore/i.test(title.trim());
-}
-
-function groupCharacterCards(blocks: ProfileBlock[]): CharCard[] {
-  const cards: CharCard[] = [];
-  let current: CharCard | null = null;
-
-  for (const block of blocks) {
-    if (block.type === "h3") {
-      if (current) cards.push(current);
-      current = { name: block.text, blocks: [] };
-      continue;
-    }
-    if (!current) continue;
-    current.blocks.push(block);
-  }
-  if (current) cards.push(current);
-  return cards.filter((c) => c.name.trim());
 }
 
 function renderBlock(block: ProfileBlock, key: number) {
@@ -186,12 +164,10 @@ function renderBlock(block: ProfileBlock, key: number) {
         const field = splitFieldListItem(block.text);
         if (field) {
           return (
-            <div key={key} className={`mb-4 ${profileTypography.listFieldBlock}`}>
-              <strong className={profileTypography.fieldLabel}>{field.label}</strong>
-              <p className={profileTypography.fieldValue}>
-                <ProfileInlineText text={field.value} />
-              </p>
-            </div>
+            <p key={key} className={profileTypography.paragraph}>
+              <strong className={profileTypography.fieldLabel}>{field.label}</strong>{" "}
+              <ProfileInlineText text={field.value} />
+            </p>
           );
         }
         return (
@@ -208,23 +184,14 @@ function renderBlock(block: ProfileBlock, key: number) {
             if (field) {
               return (
                 <li key={j} className={profileTypography.listItem}>
-                  <div className={profileTypography.listFieldBlock}>
-                    <strong className={profileTypography.fieldLabel}>{field.label}</strong>
-                    <p className={profileTypography.fieldValue}>
-                      <ProfileInlineText text={field.value} />
-                    </p>
-                  </div>
+                  <strong className={profileTypography.fieldLabel}>{field.label}</strong>{" "}
+                  <ProfileInlineText text={field.value} />
                 </li>
               );
             }
             return (
-              <li key={j} className={`${profileTypography.listItem} ${profileTypography.listItemInline}`}>
-                <span className={profileTypography.listBullet} aria-hidden>
-                  ◆
-                </span>
-                <span className="min-w-0 flex-1">
-                  <ProfileInlineText text={item} />
-                </span>
+              <li key={j} className={profileTypography.listItem}>
+                <ProfileInlineText text={item} />
               </li>
             );
           })}
@@ -258,95 +225,20 @@ function renderBlock(block: ProfileBlock, key: number) {
   }
 }
 
-function renderCharacterCards(
-  cards: CharCard[],
-  cardClass: string,
-  nameClass: string,
-  gridClass: string,
-  keyStart: number
-): { nodes: ReactNode[]; nextKey: number } {
-  const nodes: ReactNode[] = [];
-  let key = keyStart;
-  nodes.push(
-    <div key={key++} className={gridClass}>
-      {cards.map((card) => (
-        <article key={card.name} className={cardClass}>
-          <h4 className={nameClass}>
-            <ProfileInlineText text={card.name} />
-          </h4>
-          {card.blocks.map((b) => renderBlock(b, key++))}
-        </article>
-      ))}
-    </div>
-  );
-  return { nodes, nextKey: key };
-}
-
-/** 사이트 공통 프로필 디자인 렌더 (구조화 입력 → React 카드 레이아웃) */
+/** 사이트 공통 프로필 디자인 렌더 — 칸 분할 없이 제목·필드 라벨만 굵게·색상 처리한 순차 흐름 */
 export function ProfileRichText({ content }: { content: string }) {
   const blocks = parseProfileMarkdown(content);
   if (blocks.length === 0) return null;
 
   const nodes: ReactNode[] = [];
-  let i = 0;
   let key = 0;
 
-  while (i < blocks.length) {
-    const block = blocks[i]!;
-
-    if (block.type === "h2") {
-      const title = block.text;
-      nodes.push(
-        <h3 key={key++} className={profileTypography.sectionH2}>
-          <ProfileInlineText text={title} />
-        </h3>
-      );
-      i += 1;
-
-      const sectionBlocks: ProfileBlock[] = [];
-      while (i < blocks.length && blocks[i]?.type !== "h2") {
-        sectionBlocks.push(blocks[i]!);
-        i += 1;
-      }
-
-      if (isMainCharacterSection(title) || isSubCharacterSection(title)) {
-        const cards = groupCharacterCards(sectionBlocks);
-        if (cards.length >= 1) {
-          const isMain = isMainCharacterSection(title);
-          const rendered = renderCharacterCards(
-            cards,
-            isMain ? profileTypography.mainCharCard : profileTypography.subCharCard,
-            isMain ? profileTypography.mainCharName : profileTypography.subCharName,
-            isMain
-              ? profileTypography.mainCharGrid
-              : cards.length >= 2
-                ? profileTypography.subCharGrid
-                : "mt-4 space-y-4",
-            key
-          );
-          nodes.push(...rendered.nodes);
-          key = rendered.nextKey;
-          continue;
-        }
-      }
-
-      if (isWorldSection(title) && sectionBlocks.length > 0) {
-        nodes.push(
-          <div key={key++} className={profileTypography.worldSectionCard}>
-            {sectionBlocks.map((b) => renderBlock(b, key++))}
-          </div>
-        );
-        continue;
-      }
-
-      for (const b of sectionBlocks) {
-        nodes.push(renderBlock(b, key++));
-      }
+  for (const block of blocks) {
+    if (block.type === "h2" && (isMainCharacterSection(block.text) || isSubCharacterSection(block.text))) {
+      // 내부 구조 정리용 기본 라벨("메인 캐릭터"/"서브 캐릭터")은 화면에 표시하지 않음
       continue;
     }
-
     nodes.push(renderBlock(block, key++));
-    i += 1;
   }
 
   return (

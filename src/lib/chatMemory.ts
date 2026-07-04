@@ -291,12 +291,20 @@ export function isLikelySituationSummary(content: string): boolean {
 }
 
 export const RELATIONSHIP_THOUGHT_EXTRACT_RULES = `thoughts(속마음) 규칙:
-- **이번 턴** 본문에 등장한 캐릭터·NPC만. 형식 필수: "이름: 속마음" (이름은 본문에 나온 그대로)
-- **이번 턴 방금 벌어진 일·대사·행동에 대한 반응**이어야 한다 — 이번 턴과 무관한 일반적 감정·과거 회상 금지
-- **매 턴 ${THOUGHTS_PER_TURN_MIN_TARGET}~${THOUGHTS_PER_TURN_MAX}개** — 캐릭터가 본문에 등장했으면 최소 ${THOUGHTS_PER_TURN_MIN_TARGET}개는 뽑아라 (캐릭터 심경 변화 + 이번 상황에 대한 판단·갈등 등 서로 다른 결로). NPC도 내면이 드러났으면 각 1줄. 전체 저장은 최근 ${MEMORY_META_MAX.thoughts}개(가득 차면 오래된 것부터 삭제)
+- 형식 필수: "이름: 속마음" (이름은 본문에 나온 그대로) — 캐릭터·NPC 몫만, 절대 유저 자신의 속마음이 아님
+- **매 턴 반드시 캐릭터·NPC 관점 항목을 최소 ${THOUGHTS_PER_TURN_MIN_TARGET}개, 최대 ${THOUGHTS_PER_TURN_MAX}개 채워라 — 절대 빈 배열로 두지 말고, 캐릭터 관점 항목이 ${THOUGHTS_PER_TURN_MIN_TARGET}개 미만이면 안 된다.** 유저 관점 항목은 이 개수에 포함되지 않으니, 유저 시점 항목만 적고 끝내면 안 된다. 캐릭터가 이번 턴 본문에 직접 등장하지 않았거나, 본문이 유저 시점으로만 쓰여 캐릭터의 내면이 드러나지 않았어도, [현재 속마음]의 마지막 상태와 이번 턴에 벌어진 사건(캐릭터가 지금 어디서 뭘 하고 있을지)을 근거로 캐릭터의 지금 속마음을 **추정**해 최소 ${THOUGHTS_PER_TURN_MIN_TARGET}개를 반드시 캐릭터 관점으로 적어라. 캐릭터가 직접 등장하지 않은 턴이면 ${THOUGHTS_PER_TURN_MIN_TARGET}개 전부를 캐릭터 관점(서로 다른 결로 최소 2가지: 예 ①현재 처지에 대한 감정 ②유저·상황에 대한 판단·걱정)으로 나눠 만들어 채워라. NPC도 내면이 드러났으면 각 1줄 추가. 전체 저장은 최근 ${MEMORY_META_MAX.thoughts}개(가득 차면 오래된 것부터 삭제)
+- **이번 턴 기준 최신 상황을 반영** — 직전 턴과 같은 내용 반복 금지, 이번 턴에 새로 벌어진 일·감정 변화를 반영해 갱신할 것
 - 내용 목표 **${THOUGHT_CONTENT_MAX_CHARS}자 내외** — 한 문장으로 감정+이유가 드러나게 구체적으로. 문장을 완결하려면 ${THOUGHT_CONTENT_HARD_MAX_CHARS}자까지 허용. 상황 나열·요약 금지
 - 3인칭 서술(그는/그녀/캐릭터가~), 과거형 사건 서술(~했다/~였다), · 키워드 나열(턴요약형), 여러 문장 금지
-- **유저 내면·( ) 속마음 절대 금지**`;
+- **유저 내면·( ) 속마음 절대 금지 — 본문이 유저 시점이어도 유저의 생각을 그대로 옮기지 말고 캐릭터·NPC 입장에서 추정해서 써라**
+- 예: 이번 턴이 "유저가 혼자 캐릭터를 찾아 나선다"처럼 유저 시점으로만 쓰여 캐릭터가 등장하지 않았어도, "캐릭터: 지금 이 상황에서 유저가 무사할지 걱정된다" 식으로 캐릭터 관점 추정 속마음을 최소 ${THOUGHTS_PER_TURN_MIN_TARGET}개 만들어 낼 것 — 유저 시점 문장을 이름만 바꿔 옮기지 말고 캐릭터 입장에서 새로 추정하라`;
+
+/**
+ * @deprecated 호칭 추출 기능 제거 — 빈 문자열 반환 (하위 호환)
+ */
+export function buildRelationshipHonorificExtractRules(_charName: string, _userName: string): string {
+  return "";
+}
 
 /** `이름: 내용` — `캐릭터`/`유저`를 실제 이름으로 치환; 접두 없으면 주인공 이름 */
 export function normalizeThoughtEntry(entry: string, names: HonorificNames): string {
@@ -347,7 +355,7 @@ export function normalizeTurnThoughts(
 
 export function normalizeMemoryMeta(meta: MemoryMeta, names: HonorificNames): MemoryMeta {
   return {
-    honorifics: dedupeNormalizedHonorifics(meta.honorifics, names),
+    honorifics: [],
     items: dedupeNormalizedItems(meta.items, names),
     thoughts: dedupeNormalizedThoughts(meta.thoughts, names),
     promises: meta.promises,
@@ -392,9 +400,7 @@ export function parseMemoryMeta(raw: string | null | undefined): MemoryMeta {
   try {
     const j = JSON.parse(raw) as Partial<MemoryMeta> & { locations?: string[] };
     return {
-      honorifics: Array.isArray(j.honorifics)
-        ? j.honorifics.filter(Boolean).slice(0, MEMORY_META_MAX.honorifics)
-        : [],
+      honorifics: [],
       items: Array.isArray(j.items) ? j.items.filter(Boolean).slice(0, MEMORY_META_MAX.items) : [],
       thoughts: Array.isArray(j.thoughts)
         ? j.thoughts.filter(Boolean).slice(-MEMORY_META_MAX.thoughts)
@@ -488,7 +494,6 @@ export function mergeMemoryMeta(
   delta: RelationshipMetaDelta,
   names?: HonorificNames
 ): MemoryMeta {
-  let honorifics = uniqStrings(prev.honorifics, delta.honorifics ?? [], MEMORY_META_MAX.honorifics);
   let thoughts = applyMetaRemovals(prev.thoughts, delta.thoughtsRemove);
 
   const deltaItems = delta.items ?? [];
@@ -510,11 +515,10 @@ export function mergeMemoryMeta(
 
   thoughts = mergeThoughts(thoughts, delta.thoughts ?? [], names);
   if (names) {
-    honorifics = dedupeNormalizedHonorifics(honorifics, names);
     thoughts = dedupeNormalizedThoughts(thoughts, names);
   }
   return {
-    honorifics,
+    honorifics: [],
     items,
     thoughts,
     promises: mergePromises(prev.promises, delta.promisesAdd ?? [], delta.promisesRemove ?? []),
@@ -523,7 +527,6 @@ export function mergeMemoryMeta(
 
 export function formatMemoryMetaForPrompt(meta: MemoryMeta): string | null {
   const lines: string[] = [];
-  if (meta.honorifics.length) lines.push(`호칭: ${meta.honorifics.join(" · ")}`);
   if (meta.items.length) lines.push(`소지품:\n${formatGroupedPossessionsForPrompt(meta.items)}`);
   if (meta.thoughts.length) {
     lines.push(`속마음(캐릭터·NPC):\n${meta.thoughts.join("\n")}`);

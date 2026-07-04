@@ -240,8 +240,8 @@ export async function PATCH(req: Request) {
   if (action === "deleteRelationshipMetaItem") {
     const category = body.category as RelationshipMetaCategory | undefined;
     const text = typeof body.text === "string" ? body.text.trim() : "";
-    if (!category || !["honorifics", "items", "thoughts", "promises"].includes(category)) {
-      return Response.json({ error: "category(honorifics|items|thoughts|promises)가 필요합니다." }, { status: 400 });
+    if (!category || !["items", "thoughts", "promises"].includes(category)) {
+      return Response.json({ error: "category(items|thoughts|promises)가 필요합니다." }, { status: 400 });
     }
     if (!text) return Response.json({ error: "text가 필요합니다." }, { status: 400 });
     const names = resolveRelationshipMetaNames(user, chat, chatId);

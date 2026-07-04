@@ -301,8 +301,7 @@ export default function WithdrawalForm({
       {error && <p className="mt-2 text-sm text-rose-400">{error}</p>}
 
       <p className="mt-4 text-[11px] leading-relaxed text-gray-300/90">
-        💡 총 {totalPct}%의 수수료(관계 법령에 따른 원천징수 세금 {taxPct}% + 플랫폼 이용료{" "}
-        {platformPct}%)가 공제된 금액이 입금됩니다.
+        💡 세금 {taxPct}% 포함 총 {totalPct}%의 수수료가 공제된 금액이 입금됩니다.
       </p>
       <p className="mt-1 text-[11px] leading-relaxed text-gray-300/80">
         주민등록번호는 암호화되어 보관되며, 계좌 예금주는 신청 시 자동 확인됩니다.

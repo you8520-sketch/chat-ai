@@ -28,7 +28,7 @@ async function extractStatusWidgetValuesForWidget(opts: {
   const keys = collectWidgetJsonKeys(opts.widget);
   if (keys.length === 0) return { values: null, usage: null };
 
-  const system = buildWidgetExtractSystem(opts.widget, keys);
+  const system = buildWidgetExtractSystem(opts.widget, keys, opts.source);
   const userBlock = buildWidgetExtractUserBlock(opts);
 
   try {

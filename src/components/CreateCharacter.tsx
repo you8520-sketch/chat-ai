@@ -62,11 +62,13 @@ export default function CreateCharacter({
   editCharacterId = null,
   viewerDisplayName,
   creatorDisplayName = "제작자",
+  creatorIsPartner = false,
   userId,
 }: {
   editCharacterId?: number | null;
   viewerDisplayName?: string;
   creatorDisplayName?: string;
+  creatorIsPartner?: boolean;
   userId: number;
 }) {
   const router = useRouter();
@@ -999,6 +1001,7 @@ export default function CreateCharacter({
                   assetImageUrls={assetImageUrls}
                   creatorComment={form.creator_comment}
                   creatorName={creatorDisplayName}
+                  creatorIsPartner={creatorIsPartner}
                   emoji={form.emoji}
                   hue={form.hue}
                   collapsibleDescription={false}

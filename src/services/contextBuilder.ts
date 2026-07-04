@@ -9,6 +9,7 @@ import {
   buildCharacterCanonBlock,
   buildCharacterSpeechRecencyTail,
   CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK,
+  CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK_COMPACT,
 } from "@/lib/characterKnowledgeBoundary";
 import {
   promoteAppearanceChunkImportance,
@@ -139,6 +140,8 @@ function userMessageUsesRpInputMarkers(text: string): boolean {
 }
 
 function needsUserInputParsingGuide(input: ContextBuildInput): boolean {
+  const coNarrationEnabled = input.novelModeEnabled === true || !!input.userImpersonation;
+  if (!coNarrationEnabled) return false;
   if (userMessageUsesRpInputMarkers(input.currentUserMessage)) return true;
   return input.shortTermHistory.some(
     (m) => m.role === "user" && userMessageUsesRpInputMarkers(m.content)
@@ -215,6 +218,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     target: SectionTarget = "dynamic",
     deepSeekXml?: DeepSeekXmlGroup
   ) => {
+    if (input.promptSectionSkipIds?.includes(id)) return;
     const trimmed = text.trim();
     if (!trimmed) return;
     trackedSections.push({ id, label, category, text: trimmed });
@@ -432,11 +436,14 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   };
 
   const pushCharacterCoreIdentity = () => {
+    const knowledgeBoundaryBlock = input.promptUseFullKnowledgeBoundary
+      ? CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK
+      : CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK_COMPACT;
     pushSection(
       "character-knowledge-boundary",
       "[2a] Character knowledge boundary",
       "systemRules",
-      CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK,
+      knowledgeBoundaryBlock,
       isOpenRouter ? "cacheRules" : "dynamic"
     );
     const coreBlock = buildCharacterCanonBlock(characterSettingText, input.charName);

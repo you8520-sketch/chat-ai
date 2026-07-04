@@ -919,7 +919,6 @@ export function buildHtmlVisualCardFlashUserBlock(
           .map((p) => p.text)
           .join(" · ")}`
       : "",
-    rel.honorifics?.length ? `Honorifics: ${rel.honorifics.slice(-3).join(" · ")}` : "",
   ]
     .filter(Boolean)
     .join("\n");

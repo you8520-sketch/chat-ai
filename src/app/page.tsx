@@ -3,12 +3,51 @@ import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import HomeCreateEventBanner from "@/components/HomeCreateEventBanner";
 import CharacterCard, { type CharacterRow } from "@/components/CharacterCard";
+import HorizontalScrollRow from "@/components/HorizontalScrollRow";
 import UserPreferenceControls from "@/components/UserPreferenceControls";
-import { fetchHomeSections, fetchUserCreatedCharacters } from "@/lib/homeSections";
+import { fetchHomeSections } from "@/lib/homeSections";
 
 export const dynamic = "force-dynamic";
 
-function Section({
+/** 가로 스크롤 카드 폭 — CharacterCard 세로 2:3 비율 기준 */
+const SCROLL_CARD_WIDTH = "w-[128px] sm:w-[150px] md:w-[168px]";
+
+function ScrollSection({
+  title,
+  chars,
+  blurNsfw,
+  loggedIn,
+  headerLink,
+}: {
+  title: string;
+  chars: CharacterRow[];
+  blurNsfw: boolean;
+  loggedIn: boolean;
+  headerLink?: { href: string; label: string };
+}) {
+  if (chars.length === 0) return null;
+  return (
+    <section className="mt-8">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-lg font-bold text-white">{title}</h2>
+        {headerLink && (
+          <Link href={headerLink.href} className="text-xs text-violet-400 hover:underline">
+            {headerLink.label}
+          </Link>
+        )}
+      </div>
+      <HorizontalScrollRow>
+        {chars.map((c) => (
+          <div key={c.id} className={`${SCROLL_CARD_WIDTH} shrink-0`}>
+            <CharacterCard c={c} blurNsfw={blurNsfw} loggedIn={loggedIn} />
+          </div>
+        ))}
+      </HorizontalScrollRow>
+    </section>
+  );
+}
+
+function GridSection({
   title,
   chars,
   blurNsfw,
@@ -47,8 +86,7 @@ export default async function Home() {
   const blurNsfw = !user?.is_adult || !user?.nsfw_on;
   const loggedIn = !!user;
 
-  const { recommended, hotNew, newest } = fetchHomeSections(db, user, blurNsfw);
-  const myCharacters = user ? fetchUserCreatedCharacters(db, user.id) : [];
+  const { recommended, contest, newest } = fetchHomeSections(db, user, blurNsfw);
 
   const tasteFilter = (
     <UserPreferenceControls
@@ -63,28 +101,10 @@ export default async function Home() {
   return (
     <div>
       <HomeCreateEventBanner />
-      <Section
-        title="내 제작 캐릭터"
-        chars={myCharacters}
-        blurNsfw={blurNsfw}
-        loggedIn={loggedIn}
-        headerLink={{ href: "/studio", label: "제작 메뉴 →" }}
-      />
-      <section className="mt-8">
-        {tasteFilter}
-        <h2 className="mt-4 mb-3 text-lg font-bold text-white">취향 기반 추천</h2>
-        {recommended.length > 0 ? (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            {recommended.map((c) => (
-              <CharacterCard key={c.id} c={c} blurNsfw={blurNsfw} loggedIn={loggedIn} />
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-zinc-500">선택한 취향에 맞는 캐릭터가 없습니다.</p>
-        )}
-      </section>
-      <Section title="현재 핫한 신작" chars={hotNew} blurNsfw={blurNsfw} loggedIn={loggedIn} />
-      <Section title="최신 신작" chars={newest} blurNsfw={blurNsfw} loggedIn={loggedIn} />
+      <div className="mt-6">{tasteFilter}</div>
+      <ScrollSection title="추천 캐릭터" chars={recommended} blurNsfw={blurNsfw} loggedIn={loggedIn} />
+      <ScrollSection title="공모전 캐릭터" chars={contest} blurNsfw={blurNsfw} loggedIn={loggedIn} />
+      <GridSection title="신규 캐릭터" chars={newest} blurNsfw={blurNsfw} loggedIn={loggedIn} />
     </div>
   );
 }

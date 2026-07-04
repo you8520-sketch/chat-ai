@@ -1927,7 +1927,7 @@ export async function POST(req: Request) {
           { label: "선택 페르소나", est: personaEst },
           { label: "유저 노트", est: userNoteEst },
           { label: "에셋 태그", est: assetTagEst },
-          { label: "호칭·메타", est: memoryMetaEst },
+          { label: "관계 메모", est: memoryMetaEst },
         ];
         const totalEst = Math.max(1, sections.reduce((s, x) => s + x.est, 0));
         const breakdown = sections

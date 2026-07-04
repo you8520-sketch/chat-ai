@@ -206,3 +206,23 @@ export function hasPartnerTierBenefit(
   if (sync.hasActiveTerm) return true;
   return meetsPartnerPromotionCriteria(publicCharacterCount, monthlySpentOnChars);
 }
+
+/**
+ * 공개 페이지(캐릭터·크리에이터 프로필)의 "공식 크리에이터" 뱃지 표시용 — 가벼운 읽기 전용 조회.
+ * 갱신·강등 판정(syncPartnerTierStatus)은 대시보드 접속 시 이미 반영되므로 여기서는 재계산하지 않음.
+ */
+export function isActivePartnerCreator(
+  db: Database.Database,
+  creatorId: number | null | undefined,
+  now: Date = new Date()
+): boolean {
+  if (!creatorId || creatorId <= 0) return false;
+  const row = db
+    .prepare("SELECT partner_tier_valid_until, creator_exclusive FROM users WHERE id = ?")
+    .get(creatorId) as { partner_tier_valid_until: string | null; creator_exclusive: number } | undefined;
+  if (!row) return false;
+  if (row.creator_exclusive === 1) return true;
+  const validUntil = row.partner_tier_valid_until?.trim();
+  if (!validUntil) return false;
+  return formatIsoDate(now) < validUntil;
+}

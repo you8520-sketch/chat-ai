@@ -20,12 +20,11 @@ describe("formatMemoryMetaForPrompt", () => {
   it("uses soft priority framing without mandatory 반드시", () => {
     const result = formatMemoryMetaForPrompt({
       ...EMPTY_MEMORY_META,
-      honorifics: ["백하율→렌: 가이드님"],
       thoughts: ["백하율: 렌이 내 손을 잡는다고 진짜로 나아질까?"],
     });
     assert.ok(result);
     assert.match(result!, /\[Memory — 참고, 우선순위 2순위 하위\]/);
-    assert.match(result!, /^관계:\n호칭:/m);
+    assert.doesNotMatch(result!, /^관계:\n호칭:/m);
     assert.match(result!, /속마음\(캐릭터·NPC\):\n백하율:/);
     assert.doesNotMatch(result!, /반드시 반영/);
   });

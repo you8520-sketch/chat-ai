@@ -1,5 +1,4 @@
 import {
-  filterHonorificsToDialogue,
   normalizeMemoryMeta,
   normalizeTurnThoughts,
   type HonorificNames,
@@ -16,11 +15,6 @@ export function normalizeRelationshipMetaDeltaFromJson(
   names: HonorificNames
 ): RelationshipMetaDelta {
   const delta: RelationshipMetaDelta = {
-    honorifics: filterHonorificsToDialogue(
-      Array.isArray(j.honorifics) ? j.honorifics.filter(Boolean) : [],
-      dialogue,
-      names
-    ),
     items: Array.isArray(j.items) ? j.items.filter(Boolean) : [],
     thoughts: normalizeTurnThoughts(
       Array.isArray(j.thoughts) ? j.thoughts.filter(Boolean) : [],

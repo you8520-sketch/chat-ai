@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import { DEFAULT_STATUS_WIDGET } from "./defaultTemplate";
 import {
   buildWidgetExtractSystem,
+  buildWidgetExtractUserBlock,
   normalizeWidgetExtraction,
 } from "./extractNormalize";
 import { allocateWidgetExtractNarrativeSlices } from "./proseStrip";
@@ -68,14 +69,60 @@ describe("statusWidget extract", () => {
     assert.match(system, /\[PREVIOUS TURN WIDGET VALUES\] clock anchor/);
   });
 
-  it("buildWidgetExtractSystem pins inner-state fields to the NPC, never the user persona", () => {
+  it("buildWidgetExtractSystem makes the field instruction the authority on WHOSE inner state to write", () => {
     const system = buildWidgetExtractSystem(
       DEFAULT_STATUS_WIDGET,
-      collectWidgetJsonKeys(DEFAULT_STATUS_WIDGET)
+      collectWidgetJsonKeys(DEFAULT_STATUS_WIDGET),
+      "character"
     );
-    assert.match(system, /Inner-state fields[\s\S]*ALWAYS describe \[CHARACTER\]/);
-    assert.match(system, /NEVER \[USER\]/);
-    assert.match(system, /do not substitute \[USER\]'s thoughts/);
+    // Instruction-first: NPC 지시 → CHARACTER, 유저 지시 → USER
+    assert.match(system, /instruction states WHOSE inner state to write — obey it exactly/);
+    assert.match(system, /NPC의 속마음[\s\S]*write \[CHARACTER\]'s inner state/);
+    assert.match(system, /유저의 속마음[\s\S]*write \[USER\]'s/);
+    // Source is only the default when the instruction names no one
+    assert.match(system, /does not name anyone, default to \[CHARACTER\] \(the NPC\)/);
+    assert.match(system, /Never substitute the other person's feelings/);
+    assert.match(system, /\(자리비움\)/);
+  });
+
+  it("buildWidgetExtractSystem defaults unnamed inner-state fields to the USER for user-source widgets", () => {
+    const system = buildWidgetExtractSystem(
+      DEFAULT_STATUS_WIDGET,
+      collectWidgetJsonKeys(DEFAULT_STATUS_WIDGET),
+      "user"
+    );
+    assert.match(system, /does not name anyone, default to \[USER\] \(the user persona\)/);
+    // Instruction-first rule stays the same regardless of source
+    assert.match(system, /instruction states WHOSE inner state to write — obey it exactly/);
+  });
+
+  it("buildWidgetExtractUserBlock appends an instruction-first POV reminder right before generation (recency)", () => {
+    const block = buildWidgetExtractUserBlock({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "유저 메시지",
+      assistantProse: "렌은 걱정에 휩싸였다.",
+      widget: DEFAULT_STATUS_WIDGET,
+      source: "character",
+    });
+    assert.match(block, /\[REMINDER\][\s\S]*지시사항이 지정한 인물의 시점/);
+    assert.match(block, /NPC의 것을 요구하면 \[CHARACTER\]\(레온\)/);
+    assert.match(block, /유저의 것을 요구하면 \[USER\]\(렌\)/);
+    assert.match(block, /명시되지 않은 필드는 \[CHARACTER\]\(레온\) 기준/);
+    // Reminder must be the last block so it sits closest to generation.
+    assert.ok(block.trimEnd().endsWith("(자리비움)\"으로 남겨라."));
+
+    const userBlock = buildWidgetExtractUserBlock({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "유저 메시지",
+      assistantProse: "렌은 걱정에 휩싸였다.",
+      widget: DEFAULT_STATUS_WIDGET,
+      source: "user",
+    });
+    // Same instruction-first rule; only the unnamed-field default flips to the user persona.
+    assert.match(userBlock, /명시되지 않은 필드는 \[USER\]\(렌\) 기준/);
+    assert.ok(userBlock.trimEnd().endsWith("(자리비움)\"으로 남겨라."));
   });
 
   it("allocateWidgetExtractNarrativeSlices prioritizes current turn within budget", () => {

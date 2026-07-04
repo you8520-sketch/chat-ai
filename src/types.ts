@@ -104,6 +104,10 @@ export type ContextBuildInput = {
   promptDumpSource?: import("@/services/promptDebugDump").PromptDumpSource;
   /** source=db 등 헤더에 표시할 부가 정보 (chat id 등) */
   promptDumpDetail?: string | null;
+  /** Regression/ablation scripts only — skip named prompt sections */
+  promptSectionSkipIds?: string[];
+  /** Regression/ablation scripts only — inject full (non-compact) knowledge boundary */
+  promptUseFullKnowledgeBoundary?: boolean;
 };
 
 export type BuiltContext = {

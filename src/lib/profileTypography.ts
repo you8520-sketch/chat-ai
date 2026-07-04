@@ -19,9 +19,6 @@ export const profileTypography = {
     "my-5 border-l-2 border-cyan-400/50 bg-cyan-400/5 py-3 pl-4 pr-3 text-base italic leading-relaxed text-zinc-200 sm:text-[17px]",
   list: "mb-6 space-y-3",
   listItem: "text-base leading-[1.85] text-zinc-100 sm:text-[17px]",
-  listItemInline: "flex gap-2.5 items-start",
-  listFieldBlock: "space-y-1 rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2.5",
-  listBullet: "mt-1.5 shrink-0 text-[10px] text-emerald-400/90",
   divider: "my-8 border-0 border-t border-white/10",
   bold: "font-semibold text-emerald-100/90",
   /** 목록·필드 라벨 (전투 스타일:, 신분: 등) */
@@ -32,17 +29,6 @@ export const profileTypography = {
   inlineImage:
     "profile-content-image mx-auto block w-full max-w-full h-auto max-h-[min(70vh,42rem)] rounded-xl object-contain shadow-lg shadow-black/40 ring-1 ring-white/10",
   tag: "rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs font-semibold tracking-wide text-cyan-200 shadow-[0_0_12px_-4px_rgba(34,211,238,0.5)]",
-  subCharGrid: "mt-4 grid gap-4 sm:grid-cols-2",
-  subCharCard:
-    "rounded-xl border border-violet-500/15 bg-gradient-to-br from-violet-500/[0.06] to-transparent p-4",
-  subCharName: "mb-3 border-b border-violet-400/20 pb-2 text-[15px] font-bold tracking-wide text-violet-200",
-  mainCharGrid: "mt-4 grid gap-4",
-  mainCharCard:
-    "rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/[0.12] via-emerald-950/20 to-transparent p-6 shadow-[inset_0_1px_0_rgba(52,211,153,0.2),0_8px_32px_-12px_rgba(16,185,129,0.25)]",
-  mainCharName:
-    "mb-4 border-b border-emerald-400/35 pb-2.5 text-xl font-extrabold tracking-tight text-emerald-100",
-  worldSectionCard:
-    "mt-4 rounded-2xl border border-cyan-500/20 bg-gradient-to-br from-cyan-500/[0.08] via-cyan-950/10 to-transparent p-6",
 } as const;
 
 export type LayoutHint = "top" | "left" | "right" | "inline";

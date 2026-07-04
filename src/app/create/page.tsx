@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
+import { getDb } from "@/lib/db";
 import { resolveViewerDisplayNameForUser } from "@/lib/viewerDisplayName";
 import { isDemoEnv } from "@/lib/demo";
+import { isActivePartnerCreator } from "@/lib/partnerTier";
 import DemoAdultSkip from "@/components/DemoAdultSkip";
 import CreateCharacter from "@/components/CreateCharacter";
 
@@ -34,11 +36,14 @@ export default async function CreatePage({
       </div>
     );
   }
+  const creatorIsPartner = isActivePartnerCreator(getDb(), user.id);
+
   return (
     <CreateCharacter
       editCharacterId={editCharacterId}
       viewerDisplayName={resolveViewerDisplayNameForUser(user)}
       creatorDisplayName={user.nickname}
+      creatorIsPartner={creatorIsPartner}
       userId={user.id}
     />
   );

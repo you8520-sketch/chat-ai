@@ -3,11 +3,13 @@ import { notFound } from "next/navigation";
 import CharacterCard, { type CharacterRow } from "@/components/CharacterCard";
 import CommentsEnabledToggle from "@/components/CommentsEnabledToggle";
 import CreatorGiftPanel from "@/components/CreatorGiftPanel";
+import OfficialCreatorBadge from "@/components/OfficialCreatorBadge";
 import ProfileCommentSection from "@/components/ProfileCommentSection";
 import { getSessionUser } from "@/lib/auth";
 import { listableWhere } from "@/lib/characterVisibility";
 import { getDb } from "@/lib/db";
 import { getPointBalance } from "@/lib/points";
+import { isActivePartnerCreator } from "@/lib/partnerTier";
 import {
   getCreatorCommentsEnabled,
   listProfileCommentsForViewer,
@@ -34,6 +36,7 @@ export default async function CreatorProfilePage({
     .prepare("SELECT id, nickname, creator_comments_enabled FROM users WHERE id=?")
     .get(creatorId) as { id: number; nickname: string; creator_comments_enabled: number } | undefined;
   if (!creator) notFound();
+  const creatorIsPartner = isActivePartnerCreator(db, creator.id);
 
   const user = await getSessionUser();
   const isOwner = user?.id === creatorId;
@@ -81,7 +84,14 @@ export default async function CreatorProfilePage({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-wider text-gray-400">크리에이터</p>
-            <h1 className="mt-1 text-2xl font-black text-white">@{creator.nickname}</h1>
+            <h1
+              className={`mt-1 flex flex-wrap items-center gap-2 text-2xl font-black ${
+                creatorIsPartner ? "text-amber-200" : "text-white"
+              }`}
+            >
+              @{creator.nickname}
+              {creatorIsPartner && <OfficialCreatorBadge size="md" />}
+            </h1>
             <p className="mt-2 text-sm text-gray-300">
               캐릭터 {Number(charCount.c).toLocaleString()}개
             </p>

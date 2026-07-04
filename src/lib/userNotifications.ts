@@ -7,7 +7,8 @@ export type UserNotificationType =
   | "payment_success"
   | "payment_cancel"
   | "follow_received"
-  | "admin_point_grant";
+  | "admin_point_grant"
+  | "inquiry_reply";
 
 export type UserNotificationRow = {
   id: number;
@@ -178,6 +179,8 @@ export function notificationHref(n: UserNotificationRow): string {
     case "payment_cancel":
     case "admin_point_grant":
       return "/points";
+    case "inquiry_reply":
+      return "/board/inquiry";
     default:
       return "/notifications";
   }
@@ -197,6 +200,8 @@ export function notificationIcon(type: UserNotificationType): string {
       return "↩️";
     case "admin_point_grant":
       return "🎉";
+    case "inquiry_reply":
+      return "💬";
     case "follow_received":
       return "👤";
     default:
@@ -342,5 +347,23 @@ export function notifyAdminPointGrant(
     actorId: adminId,
     title: "무료 포인트 지급",
     body,
+  });
+}
+
+export function notifyInquiryReply(
+  db: Database.Database,
+  userId: number,
+  postId: number,
+  inquiryTitle: string,
+  replyPreview: string
+) {
+  const preview = replyPreview.replace(/\s+/g, " ").trim().slice(0, 120);
+  insertNotification(db, {
+    userId,
+    type: "inquiry_reply",
+    refId: postId,
+    actorId: null,
+    title: "문의 답변",
+    body: `「${inquiryTitle}」에 운영팀 답변이 등록되었습니다. ${preview}${replyPreview.length > 120 ? "…" : ""}`,
   });
 }

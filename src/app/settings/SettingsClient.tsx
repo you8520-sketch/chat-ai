@@ -57,7 +57,7 @@ export default function SettingsClient({ user }: Props) {
       {user.isAdmin && (
         <section className="mt-6 rounded-2xl border border-violet-500/30 bg-violet-950/30 p-5">
           <h2 className="font-bold text-violet-200">관리자</h2>
-          <p className="mt-1 text-xs text-gray-400">이벤트 승인·포인트 지급·정산 export</p>
+          <p className="mt-1 text-xs text-gray-400">이벤트 승인·포인트 지급·공지/FAQ·문의 답변·정산</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Link
               href="/admin/point-grant"
@@ -94,6 +94,18 @@ export default function SettingsClient({ user }: Props) {
               className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-white/5"
             >
               크리에이터 정산
+            </Link>
+            <Link
+              href="/admin/boards"
+              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-white/5"
+            >
+              공지 · FAQ 관리
+            </Link>
+            <Link
+              href="/admin/inquiries"
+              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-white/5"
+            >
+              문의 게시판 관리
             </Link>
           </div>
         </section>
