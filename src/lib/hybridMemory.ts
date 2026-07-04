@@ -1,12 +1,16 @@
 import type { ChatMsg } from "@/lib/ai";
 import { estimateTokens } from "@/lib/tokenEstimate";
 import { OPENING_TURN_USER, isOpeningTurn } from "@/lib/chatGreetingContext";
-import { GEMINI_DYNAMIC_RECENT_TURNS, HISTORY_TRIM_CHUNK_MESSAGES } from "@/lib/contextTrack";
+import {
+  GEMINI_DYNAMIC_RECENT_TURNS,
+  HISTORY_TRIM_CHUNK_MESSAGES,
+  MIN_HISTORY_TURN_FLOOR,
+} from "@/lib/contextTrack";
 
 /** 하이브리드 메모리 — 슬라이딩 윈도우 + 6턴 롤링 요약 */
 export const SHORT_TERM_TURNS = 5;
-/** 단기 기억(채팅 히스토리) 토큰 상한 — @see MAX_HISTORY_TOKENS (types.ts) */
-export const SHORT_TERM_TOKEN_BUDGET = 8_000;
+/** @deprecated HISTORY_TOKEN_BUDGET (contextTrack.ts) 사용 — 전 모델 10K 통일 */
+export const SHORT_TERM_TOKEN_BUDGET = 10_000;
 export const ROLLING_SUMMARY_INTERVAL = 6;
 /** @deprecated ROLLING_SUMMARY_INTERVAL 사용 */
 export const BATCH_TURN_SIZE = ROLLING_SUMMARY_INTERVAL;
@@ -75,33 +79,45 @@ export function recentTurnsToHistory(
   return out;
 }
 
-/** 채팅 히스토리 — 토큰 예산만 적용 (턴 floor·미요약 분리 없음) */
+/** 채팅 히스토리 — 토큰 예산 + 최소 턴 floor (예산 초과해도 최근 MIN_HISTORY_TURN_FLOOR턴 유지) */
 export function trimHistoryToBudget(
   history: ChatMsg[],
-  budget: number
+  budget: number,
+  minTurnFloor = MIN_HISTORY_TURN_FLOOR
 ): ChatMsg[] {
   if (history.length === 0) return [];
+
+  // 1턴 = user+assistant 2메시지
+  const floorMessages = Math.min(history.length, Math.max(0, minTurnFloor) * 2);
 
   let tokens = 0;
   const kept: ChatMsg[] = [];
   for (let i = history.length - 1; i >= 0; i--) {
     const msg = history[i]!;
     const t = estimateTokens(msg.content);
-    if (tokens + t > budget && kept.length > 0) break;
+    if (tokens + t > budget && kept.length >= Math.max(1, floorMessages)) break;
     kept.unshift(msg);
     tokens += t;
   }
-  return alignHistoryPrefixDrop(history, kept);
+  return alignHistoryPrefixDrop(history, kept, floorMessages);
 }
 
-/** Prefix drop — chunk 단위(10msg)로 잘라 Anthropic history cache prefix 안정화 */
-function alignHistoryPrefixDrop(full: ChatMsg[], kept: ChatMsg[]): ChatMsg[] {
+/** Prefix drop — chunk 단위(10msg)로 잘라 Anthropic history cache prefix 안정화 (floor 침범 금지) */
+function alignHistoryPrefixDrop(
+  full: ChatMsg[],
+  kept: ChatMsg[],
+  floorMessages = 0
+): ChatMsg[] {
   const prefixDrop = full.length - kept.length;
   if (prefixDrop <= 0) return kept;
 
-  const alignedDrop =
+  let alignedDrop =
     Math.ceil(prefixDrop / HISTORY_TRIM_CHUNK_MESSAGES) * HISTORY_TRIM_CHUNK_MESSAGES;
-  const startIdx = Math.min(alignedDrop, full.length);
+  // chunk 정렬이 최소 보장 턴을 깎으면 한 chunk 덜 드랍
+  while (alignedDrop > prefixDrop && full.length - alignedDrop < floorMessages) {
+    alignedDrop -= HISTORY_TRIM_CHUNK_MESSAGES;
+  }
+  const startIdx = Math.min(Math.max(alignedDrop, 0), full.length);
   if (startIdx <= 0) return kept;
   const aligned = full.slice(startIdx);
   return aligned.length > 0 ? aligned : kept;
@@ -109,7 +125,7 @@ function alignHistoryPrefixDrop(full: ChatMsg[], kept: ChatMsg[]): ChatMsg[] {
 
 /**
  * 전체 대화 턴 풀 — opening + playable 전부.
- * 주입량은 trimHistoryToBudget(DeepSeek 16K / others 8K)만 결정.
+ * 주입량은 trimHistoryToBudget(전 모델 10K + 최소 4턴 floor)만 결정.
  */
 export function resolveRawRecentTurnPool(
   turns: DialogueTurn[],

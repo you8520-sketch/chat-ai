@@ -85,4 +85,20 @@ describe("relationshipMetaItems", () => {
   it("keeps normal entries unchanged", () => {
     assert.equal(filterPossessionEntryItems("백하율: S-기어, 넥타이"), "백하율: S-기어, 넥타이");
   });
+
+  it("treats clothing/footwear as non-possessions", () => {
+    for (const name of [
+      "자수가 박힌 등이 깊게 파인 옷",
+      "드레스",
+      "연회용 정장",
+      "가죽 구두",
+      "망토",
+    ]) {
+      assert.equal(isNonPossessionItemName(name), true, name);
+    }
+    assert.equal(
+      filterPossessionEntryItems("렌: 자수가 박힌 등이 깊게 파인 옷, 청금석 귀걸이, 은팔찌"),
+      "렌: 청금석 귀걸이, 은팔찌"
+    );
+  });
 });

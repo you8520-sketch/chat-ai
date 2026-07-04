@@ -34,21 +34,29 @@ describe("formatMemoryMetaForPrompt", () => {
 describe("clampThoughtContent", () => {
   it("truncates long text at word or punctuation boundary", () => {
     const long =
-      "왜 이렇게까지 떨리는 건지 모르겠어 정말 이상하고 도저히 참을 수가 없어";
+      "왜 이렇게까지 떨리는 건지 모르겠어 정말 이상하고 도저히 참을 수가 없어 이 마음을 어떻게 해야 할지 짐작조차 가지 않아 무섭기까지 해";
     const result = clampThoughtContent(long);
     assert.ok(result.length <= THOUGHT_CONTENT_HARD_MAX_CHARS);
     assert.ok(result.length < long.length);
     assert.ok(result.startsWith("왜 이렇게까지"));
   });
 
-  it("extends past 40 chars to complete the sentence", () => {
+  it("extends past the soft max to complete the sentence", () => {
     const long =
-      "렌의 손목에서 전해지는 규칙적인 맥박이 백하율의 난폭해진 심장을 천천히 가라앉혀";
+      "렌의 손목에서 전해지는 규칙적인 맥박이 나의 난폭해진 심장을 천천히 그러나 아주 확실하게 이 밤이 끝나기 전에 가라앉혀";
     const result = clampThoughtContent(long);
     assert.ok(result.length > THOUGHT_CONTENT_MAX_CHARS);
     assert.ok(result.length <= THOUGHT_CONTENT_HARD_MAX_CHARS);
     assert.match(result, /가라앉혀$/);
     assert.doesNotMatch(result, /(?:을|를|은|는)$/);
+  });
+
+  it("keeps thoughts up to the new 55-char soft target unchanged", () => {
+    // 40자를 넘지만 55자 이내 — 예전 상한이면 잘렸을 길이가 이제 그대로 유지
+    const t =
+      "그 말 한마디에 심장이 내려앉았는데 아무렇지 않은 척 웃어 보이는 게 이렇게 힘들 줄이야";
+    assert.ok(t.length > 40 && t.length <= THOUGHT_CONTENT_MAX_CHARS);
+    assert.equal(clampThoughtContent(t), t);
   });
 
   it("keeps text under hard max when no clean cut exists", () => {
@@ -108,7 +116,8 @@ describe("mergeMemoryMeta possession", () => {
       { items: ["캐릭터→유저: 반지"] },
       { charName: "레온", userName: "민수" }
     );
-    assert.deepEqual(merged.items, ["레온: 지갑", "레온→민수: 반지"]);
+    // 순서 무관 — 보낸 쪽 줄에서 반지 제거 + 전달 줄 추가
+    assert.deepEqual([...merged.items].sort(), ["레온: 지갑", "레온→민수: 반지"].sort());
   });
 
   it("replaces same-person item line instead of duplicating", () => {
@@ -141,6 +150,28 @@ describe("mergeMemoryMeta possession", () => {
     assert.ok(!merged.thoughts.includes("에쉬: 불안해한다"));
   });
 
+  it("drops bare item names without a person prefix (no duplicate rows)", () => {
+    const prev = {
+      ...EMPTY_MEMORY_META,
+      items: ["렌: 청금석 귀걸이, 은팔찌"],
+    };
+    const merged = mergeMemoryMeta(
+      prev,
+      { items: ["청금석 귀걸이", "은팔찌", "포푸리 주머니"] },
+      { charName: "레온", userName: "렌" }
+    );
+    assert.deepEqual(merged.items, ["렌: 청금석 귀걸이, 은팔찌"]);
+  });
+
+  it("filters clothing items out during merge normalization", () => {
+    const merged = mergeMemoryMeta(
+      EMPTY_MEMORY_META,
+      { items: ["렌: 자수가 박힌 등이 깊게 파인 옷, 청금석 귀걸이"] },
+      { charName: "레온", userName: "렌" }
+    );
+    assert.deepEqual(merged.items, ["렌: 청금석 귀걸이"]);
+  });
+
   it("keeps at most 8 thoughts and drops oldest when full", () => {
     const prev = {
       ...EMPTY_MEMORY_META,
@@ -161,10 +192,10 @@ describe("normalizeTurnThoughts", () => {
   it("limits per-turn extraction to THOUGHTS_PER_TURN_MAX", () => {
     const names = { charName: "레온", userName: "민수" };
     const out = normalizeTurnThoughts(
-      ["레온: 하나", "NPC1: 둘", "NPC2: 셋", "NPC3: 넷"],
+      ["레온: 하나", "NPC1: 둘", "NPC2: 셋", "NPC3: 넷", "NPC4: 다섯"],
       names
     );
     assert.equal(out.length, THOUGHTS_PER_TURN_MAX);
-    assert.deepEqual(out, ["레온: 하나", "NPC1: 둘", "NPC2: 셋"]);
+    assert.deepEqual(out, ["레온: 하나", "NPC1: 둘", "NPC2: 셋", "NPC3: 넷"]);
   });
 });

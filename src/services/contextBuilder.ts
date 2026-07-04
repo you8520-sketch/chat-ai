@@ -155,7 +155,7 @@ function needsUserInputParsingGuide(input: ContextBuildInput): boolean {
  *   Dynamic block: [0c] Archive → [3] LTM (full budget trim, not RAG) → [3b] Relationship memo
  *     → [5] 유저노트 확장구간 RAG (UI 확장 칸 전용) → tail
  *
- * History: 전체 대화 raw → trimHistoryToBudget (DeepSeek 16K / others 8K).
+ * History: 전체 대화 raw → trimHistoryToBudget (전 모델 10K + 최소 4턴 floor).
  *   [4] OOC · [7] Style · Tail — operational
  *
  * Truncation order (when over payload budget): oldest chat history first;

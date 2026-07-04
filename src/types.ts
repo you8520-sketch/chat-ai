@@ -161,11 +161,12 @@ export const CHUNK_CATEGORIES: ChunkCategory[] = [
 ];
 
 export const DEFAULT_SYSTEM_TOKEN_BUDGET = 28_000;
-/** @deprecated Gemini: GEMINI_HISTORY_TOKEN_BUDGET · Claude: CLAUDE_HISTORY_TOKEN_BUDGET (contextTrack.ts) */
-export const MAX_HISTORY_TOKENS = 8_000;
+/** @deprecated HISTORY_TOKEN_BUDGET (contextTrack.ts) 사용 — 전 모델 10K 통일 */
+export const MAX_HISTORY_TOKENS = 10_000;
+/** @deprecated HISTORY_TOKEN_BUDGET (contextTrack.ts) 사용 */
 export const DEFAULT_HISTORY_TOKEN_BUDGET = MAX_HISTORY_TOKENS;
-/** OpenRouter — 레거시 참조값 (Claude 히스토리는 CLAUDE_HISTORY_TOKEN_BUDGET=8_000 사용) */
-export const OPENROUTER_HISTORY_TOKEN_BUDGET = 14_000;
+/** @deprecated HISTORY_TOKEN_BUDGET (contextTrack.ts) 사용 */
+export const OPENROUTER_HISTORY_TOKEN_BUDGET = MAX_HISTORY_TOKENS;
 
 /** 모델별 시스템 프롬프트 토큰 상한 (보수적) */
 export const MODEL_SYSTEM_BUDGETS: Record<string, number> = {

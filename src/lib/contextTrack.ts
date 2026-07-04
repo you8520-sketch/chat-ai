@@ -13,14 +13,17 @@ export const GEMINI_DYNAMIC_RECENT_TURNS = 3;
 /** Static CachedContent — 저장된 5턴 요약(chat_turn_summaries) 최대 주입 개수 */
 export const GEMINI_STATIC_STORED_SUMMARY_LIMIT = 15;
 
-/** Gemini bulk-up — 최근 대화 raw 히스토리 토큰 상한 */
-export const GEMINI_HISTORY_TOKEN_BUDGET = 8_000;
+/** 전 모델 공통 — 최근 대화 raw 히스토리 토큰 상한 */
+export const HISTORY_TOKEN_BUDGET = 10_000;
 
-/** Claude / OpenRouter — 히스토리 토큰 상한 */
-export const CLAUDE_HISTORY_TOKEN_BUDGET = 8_000;
+/** @deprecated HISTORY_TOKEN_BUDGET 사용 (전 모델 통일) */
+export const GEMINI_HISTORY_TOKEN_BUDGET = HISTORY_TOKEN_BUDGET;
 
-/** @deprecated trimHistoryToBudget — 토큰 예산만 적용 (턴 floor 없음) */
-export const MIN_HISTORY_TURN_FLOOR = 0;
+/** @deprecated HISTORY_TOKEN_BUDGET 사용 (전 모델 통일) */
+export const CLAUDE_HISTORY_TOKEN_BUDGET = HISTORY_TOKEN_BUDGET;
+
+/** raw 히스토리 최소 보장 턴 수 — 토큰 예산 초과해도 이만큼은 유지 */
+export const MIN_HISTORY_TURN_FLOOR = 4;
 
 /** Anthropic history cache — prefix drop 시 1msg씩이 아닌 chunk 단위 drop */
 export const HISTORY_TRIM_CHUNK_MESSAGES = 10;
@@ -43,8 +46,8 @@ export const CLAUDE_MEMORY_TOKEN_RESERVE = 3_500;
 /** DeepSeek V4 Pro — [3] 현재기억 프롬프트 토큰 상한 */
 export const DEEPSEEK_MEMORY_TOKEN_RESERVE = 14_000;
 
-/** DeepSeek V4 Pro — 최근 대화 raw 히스토리 토큰 상한 */
-export const DEEPSEEK_HISTORY_TOKEN_BUDGET = 16_000;
+/** @deprecated HISTORY_TOKEN_BUDGET 사용 (전 모델 통일) */
+export const DEEPSEEK_HISTORY_TOKEN_BUDGET = HISTORY_TOKEN_BUDGET;
 
 /** DeepSeek V4 Pro — chat_turn_summaries 최대 주입 개수 */
 export const DEEPSEEK_STATIC_STORED_SUMMARY_LIMIT = 10;
@@ -94,10 +97,9 @@ export function resolveHistoryTokenBudget(
   modelId?: string | null,
   provider?: "gemini" | "openrouter"
 ): number {
-  if (isDeepSeekModelId(modelId ?? "")) return DEEPSEEK_HISTORY_TOKEN_BUDGET;
-  return resolveContextTrack(modelId, provider) === "gemini-bulk"
-    ? GEMINI_HISTORY_TOKEN_BUDGET
-    : CLAUDE_HISTORY_TOKEN_BUDGET;
+  void modelId;
+  void provider;
+  return HISTORY_TOKEN_BUDGET;
 }
 
 export function resolveRawRecentTurnWindow(

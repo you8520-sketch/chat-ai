@@ -581,6 +581,7 @@ export async function POST(req: Request) {
             personaName: personaDisplayName,
             charName: ch.name,
             usesBanmal: personaUsesBanmal,
+            coNarrationEnabled: novelModeEnabled || userImpersonation,
             rejectedAssistantDraft,
             regenAttemptId,
             targetResponseChars,
@@ -1910,7 +1911,7 @@ export async function POST(req: Request) {
           currentMemoryEst = memoryEst;
         }
 
-        // raw = 전체 대화 → trimHistoryToBudget(DeepSeek 16K / others 8K)
+        // raw = 전체 대화 → trimHistoryToBudget(전 모델 10K + 최소 4턴 floor)
         const historyEst =
           audit?.breakdown.recentConversation ??
           historyRef.reduce((s, m) => s + estimateTokens(m.content ?? ""), 0);

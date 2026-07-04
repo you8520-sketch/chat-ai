@@ -401,6 +401,19 @@ describe("stripEmptyQuoteParagraphs (via normalizeAiNovelProseLayout)", () => {
     const out = normalizeAiNovelProseLayout(`기다림이 끝날 것이다.\n\n"..."`);
     assert.ok(out.endsWith('"..."'), out.slice(-20));
   });
+
+  it("strips inline empty-quote shells appended to a line end (D-Day tail regression)", () => {
+    const out = normalizeAiNovelProseLayout(
+      `내일이 빨리 오기를 바라는 것은 처음 있는 일이었다.\n\n📅 현재 날짜: 5월 1일 | ⏳ D-Day: D-14 ''`
+    );
+    assert.ok(out.endsWith("D-14"), out.slice(-30));
+    assert.ok(!out.includes("''"));
+  });
+
+  it("strips six-apostrophe trailing paragraph", () => {
+    const out = normalizeAiNovelProseLayout(`손이 떨리고 있었다.\n\n''''''`);
+    assert.ok(out.endsWith("떨리고 있었다."), out.slice(-30));
+  });
 });
 
 describe("fixCommonJapaneseLeaksInKoreanProse", () => {

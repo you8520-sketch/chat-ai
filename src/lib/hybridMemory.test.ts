@@ -69,6 +69,30 @@ describe("trimHistoryToBudget", () => {
     assert.ok(trimmed.length < full.length);
     assert.match(trimmed.at(-1)!.content, /assistant turn 40/);
   });
+
+  it("keeps at least 4 turns even when they exceed the token budget", () => {
+    // 각 턴이 매우 길어 4턴만으로도 예산(2,000)을 크게 초과하는 케이스
+    const turns = Array.from({ length: 10 }, (_, i) => ({
+      user: `user turn ${i + 1} ` + "가".repeat(4000),
+      assistant: `assistant turn ${i + 1} ` + "나".repeat(4000),
+    }));
+    const full = rawRecentTurnsToHistory(turns);
+    const trimmed = trimHistoryToBudget(full, 2_000);
+    assert.ok(trimmed.length >= 8, `expected >= 8 messages (4 turns), got ${trimmed.length}`);
+    assert.match(trimmed.at(-1)!.content, /assistant turn 10/);
+    // chunk 정렬(10msg)로 floor보다 약간 더 남을 수 있음 — 최근 4턴(7~10)은 반드시 포함
+    assert.ok(trimmed.some((m) => /user turn 7/.test(m.content)));
+  });
+
+  it("returns everything when history is shorter than the floor", () => {
+    const turns = Array.from({ length: 2 }, (_, i) => ({
+      user: `user turn ${i + 1} ` + "가".repeat(8000),
+      assistant: `assistant turn ${i + 1} ` + "나".repeat(8000),
+    }));
+    const full = rawRecentTurnsToHistory(turns);
+    const trimmed = trimHistoryToBudget(full, 1_000);
+    assert.equal(trimmed.length, full.length);
+  });
 });
 
 describe("resolveLorebookExcludeFromTrimmedHistory", () => {

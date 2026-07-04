@@ -42,6 +42,19 @@ describe("regenerate OOC priority", () => {
     assert.doesNotMatch(block, /DIFFERENT story development/i);
   });
 
+  it("OOC priority prompt does not duplicate rejected-draft summary or attempt nonce (system-owned)", () => {
+    const block = buildRegenerateOocPriorityPrompt({
+      userMessage: "OOC: HTML만. 입력 내용 표기",
+      personaName: "렌",
+      charName: "에쉬",
+      rejectedAssistantDraft: "에쉬가 고개를 끄덕이며 창밖을 바라보았다. 오래된 침묵이 흘렀다.",
+      regenAttemptId: "1730000000-abc123",
+    });
+    assert.doesNotMatch(block, /forbidden beats/i);
+    assert.doesNotMatch(block, /Rejected draft/i);
+    assert.doesNotMatch(block, /REGEN_ATTEMPT/i);
+  });
+
   it("user prompt references system divergence only (no duplicate core directive)", () => {
     const block = buildRegenerateUserPrompt({
       userMessage: "앞으로 가자",
@@ -52,12 +65,29 @@ describe("regenerate OOC priority", () => {
       targetResponseChars: 3200,
     });
     assert.match(block, /MANDATORY DIVERGENCE/i);
-    assert.match(block, /REGEN_ATTEMPT 1730000000-abc123/i);
+    // attempt nonce는 system directive 단일 출처 — user 턴 중복 주입 금지
+    assert.doesNotMatch(block, /REGEN_ATTEMPT/i);
     assert.match(block, /Divergence is NOT an excuse for a shorter reply/i);
     assert.match(block, /MINIMUM_FLOOR 2,700/i);
     assert.doesNotMatch(block, /\[REGENERATE INTENT/i);
     assert.doesNotMatch(block, /Rejected draft/i);
     assert.doesNotMatch(block, /forbidden beats/i);
+  });
+
+  it("user prompt injects persona speech rules only when co-narration is on", () => {
+    const base = {
+      userMessage: "앞으로 가자",
+      personaName: "렌",
+      charName: "에쉬",
+      usesBanmal: true,
+      targetResponseChars: 3200,
+    };
+    const off = buildRegenerateUserPrompt(base);
+    assert.doesNotMatch(off, /USER PERSONA SPEECH/i);
+
+    const on = buildRegenerateUserPrompt({ ...base, coNarrationEnabled: true });
+    assert.match(on, /USER PERSONA SPEECH/i);
+    assert.match(on, /반말 ONLY/i);
   });
 
   it("system directive includes regen attempt nonce and diverge axis", () => {

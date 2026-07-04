@@ -39,7 +39,7 @@ export function parsePossessionEntry(entry: string): { person: string; items: st
  * 이름 끝 단어 기준 매칭 (예: "간이 침대", "손거울"도 걸림).
  */
 const NON_POSSESSION_ITEM_NAME_RE =
-  /(?:침대|세면대|세면기|욕조|변기|의자|책상|탁자|테이블|소파|거울|창문|창틀|커튼|벽난로|선반|옷장|서랍장|서랍|샹들리에|조명|램프|스탠드|카펫|양탄자|제복|군복|근무복|교복)\s*(?:\([^)]*\))?$/;
+  /(?:침대|세면대|세면기|욕조|변기|의자|책상|탁자|테이블|소파|거울|창문|창틀|커튼|벽난로|선반|옷장|서랍장|서랍|샹들리에|조명|램프|스탠드|카펫|양탄자|제복|군복|근무복|교복|옷|의상|드레스|가운|예복|정장|셔츠|블라우스|바지|치마|코트|망토|구두|신발)\s*(?:\([^)]*\))?$/;
 
 export function isNonPossessionItemName(name: string): boolean {
   return NON_POSSESSION_ITEM_NAME_RE.test(name.trim());

@@ -396,6 +396,8 @@ export type RegenerateUserPromptInput = {
   personaName: string;
   charName?: string;
   usesBanmal?: boolean;
+  /** 유저 사칭(co-narration) ON일 때만 유저 말투 규칙 주입 — OFF면 [NO GODMODDING]과 충돌 */
+  coNarrationEnabled?: boolean;
   /** 리롤 대상 assistant 초안 — 전개 diverge 참고 (히스토리에서 제거됨) */
   rejectedAssistantDraft?: string | null;
   /** 재생성마다 달라지는 nonce — 동일 프롬프트 캐시·결정론적 재출력 방지 */
@@ -429,23 +431,27 @@ export function buildRegenerateOocPriorityPrompt(input: RegenerateUserPromptInpu
 
   return `[SYSTEM: REGENERATE — CHAT OOC takes priority${exclusive ? " (user note status/HTML suspended)" : ""}]
 ${rules}
-${buildRegenerateDivergenceReferenceBlock(input.rejectedAssistantDraft)}
 
 [User message — fixed anchor; OOC inside is mandatory]
-${msg}${buildRegenerateAttemptRecencyLine(input.regenAttemptId)}`;
+${msg}`;
 }
 
-/** 리롤 — 마지막 user 턴은 고정, assistant만 재작성 (diverge는 system [REGENERATE] 단일 출처) */
+/** 리롤 — 마지막 user 턴은 고정, assistant만 재작성 (diverge·attempt nonce는 system [REGENERATE] 단일 출처) */
 export function buildRegenerateUserPrompt(input: RegenerateUserPromptInput): string {
   const msg = input.userMessage.trim();
+
+  // 유저 말투 규칙은 co-narration ON일 때만 — OFF에서 주입하면
+  // "[B] 대사를 쓰라"는 신호가 되어 [NO GODMODDING]과 충돌한다.
+  const speechTail = input.coNarrationEnabled
+    ? `\n${userPersonaSpeechTail(input.personaName, !!input.usesBanmal)}`
+    : "";
 
   return `[SYSTEM: REGENERATE — rewrite ONLY the last assistant message]
 - Obey [REGENERATE — MANDATORY DIVERGENCE] in system prompt — user wants visibly different development, not a paraphrase.
 - Do NOT change what the user said or meant in the anchor below.
 - Do NOT write new quoted dialogue for [B] unless it already appears verbatim in the user message below.
-${buildRegenerateLengthRecencyLine(input.targetResponseChars)}
-${userPersonaSpeechTail(input.personaName, !!input.usesBanmal)}
+${buildRegenerateLengthRecencyLine(input.targetResponseChars)}${speechTail}
 
 [User message — fixed anchor, not dialogue to rewrite]
-${msg}${buildRegenerateAttemptRecencyLine(input.regenAttemptId)}`;
+${msg}`;
 }

@@ -28,7 +28,9 @@ export const MEMORY_META_MAX = {
 } as const;
 
 /** 턴당 추출·병합 시 추가할 속마음 상한 */
-export const THOUGHTS_PER_TURN_MAX = 3;
+export const THOUGHTS_PER_TURN_MAX = 4;
+/** 턴당 속마음 최소 목표 — 본문에 캐릭터·NPC가 등장하면 이만큼은 추출 유도 */
+export const THOUGHTS_PER_TURN_MIN_TARGET = 2;
 
 export const EMPTY_MEMORY_META: MemoryMeta = {
   honorifics: [],
@@ -151,6 +153,9 @@ function normalizeItemEntry(entry: string, names: HonorificNames): string {
   t = t.replace(/→유저(?=[: \s]|$)/, `→${names.userName}`);
   t = t.replace(/^유저(?=[: \s]|$)/, names.userName);
   t = t.replace(/^캐릭터(?=[: \s]|$)/, names.charName);
+  // "이름: 물건" 형식이 아닌 낱개 물건명(사람 prefix 없음)은 버린다 —
+  // 사람 줄과 낱개 항목이 같은 물건으로 이중 표시되는 원인.
+  if (!parsePossessionEntry(t)) return "";
   return filterPossessionEntryItems(t);
 }
 
@@ -187,9 +192,9 @@ function dedupeNormalizedItems(
   return out.slice(0, max);
 }
 
-export const THOUGHT_CONTENT_MAX_CHARS = 40;
+export const THOUGHT_CONTENT_MAX_CHARS = 55;
 /** 목표 글자 수를 넘더라도 문장이 완결될 때까지 허용하는 상한 */
-export const THOUGHT_CONTENT_HARD_MAX_CHARS = 56;
+export const THOUGHT_CONTENT_HARD_MAX_CHARS = 76;
 
 const THOUGHT_INCOMPLETE_TAIL_RE =
   /(?:을|를|은|는|이|가|와|과|에|에서|으로|로|처럼|만큼|수도|듯|며|고|면|면서|지만|인데|라고|에게|께|한테)$/;
@@ -287,9 +292,10 @@ export function isLikelySituationSummary(content: string): boolean {
 
 export const RELATIONSHIP_THOUGHT_EXTRACT_RULES = `thoughts(속마음) 규칙:
 - **이번 턴** 본문에 등장한 캐릭터·NPC만. 형식 필수: "이름: 속마음" (이름은 본문에 나온 그대로)
-- **매 턴 1~${THOUGHTS_PER_TURN_MAX}개** — NPC·캐릭터 각각 **1인칭 내면 한 줄**. 전체 저장은 최근 ${MEMORY_META_MAX.thoughts}개(가득 차면 오래된 것부터 삭제)
-- 내용 목표 **${THOUGHT_CONTENT_MAX_CHARS}자 내외**. 문장을 완결하려면 ${THOUGHT_CONTENT_HARD_MAX_CHARS}자까지 허용. 상황 나열·요약 금지
-- 3인칭 서술(그는/그녀/캐릭터가~), 과거형 사건 서술(~했다/~였다), · 키워드 나열(턴요약형), 여러 절/문장 금지
+- **이번 턴 방금 벌어진 일·대사·행동에 대한 반응**이어야 한다 — 이번 턴과 무관한 일반적 감정·과거 회상 금지
+- **매 턴 ${THOUGHTS_PER_TURN_MIN_TARGET}~${THOUGHTS_PER_TURN_MAX}개** — 캐릭터가 본문에 등장했으면 최소 ${THOUGHTS_PER_TURN_MIN_TARGET}개는 뽑아라 (캐릭터 심경 변화 + 이번 상황에 대한 판단·갈등 등 서로 다른 결로). NPC도 내면이 드러났으면 각 1줄. 전체 저장은 최근 ${MEMORY_META_MAX.thoughts}개(가득 차면 오래된 것부터 삭제)
+- 내용 목표 **${THOUGHT_CONTENT_MAX_CHARS}자 내외** — 한 문장으로 감정+이유가 드러나게 구체적으로. 문장을 완결하려면 ${THOUGHT_CONTENT_HARD_MAX_CHARS}자까지 허용. 상황 나열·요약 금지
+- 3인칭 서술(그는/그녀/캐릭터가~), 과거형 사건 서술(~했다/~였다), · 키워드 나열(턴요약형), 여러 문장 금지
 - **유저 내면·( ) 속마음 절대 금지**`;
 
 /** `이름: 내용` — `캐릭터`/`유저`를 실제 이름으로 치환; 접두 없으면 주인공 이름 */

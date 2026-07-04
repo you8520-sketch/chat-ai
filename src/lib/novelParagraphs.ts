@@ -796,7 +796,10 @@ export function mergeMultilineIndirectSpeechQuotes(text: string): string {
 const EMPTY_QUOTE_ONLY_PARAGRAPH_RE = /^["\u201C\u201D'\u2018\u2019「」『』\s]+$/u;
 
 export function stripEmptyQuoteParagraphs(text: string): string {
-  return text
+  const withoutInlineTails = text
+    // 줄 끝에 공백 후 붙은 빈 따옴표 뭉치 ("… D-14 ''" 등) — 내용 없는 껍데기만
+    .replace(/[ \t]+['\u2018\u2019"\u201C\u201D]{2,}(?=\n|$)/gu, "");
+  return withoutInlineTails
     .split(/\n{2,}/)
     .filter((para) => {
       const trimmed = para.trim();
