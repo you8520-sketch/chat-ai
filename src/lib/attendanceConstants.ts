@@ -1,2 +1,4 @@
-export const DAILY_ATTENDANCE_REWARD = 300;
+export const DAILY_ATTENDANCE_REWARD = 200;
+export const WEEKLY_ATTENDANCE_BONUS_REWARD = 600;
+export const ATTENDANCE_CYCLE_DAYS = 7;
 export const ATTENDANCE_TIMEZONE = "Asia/Seoul";

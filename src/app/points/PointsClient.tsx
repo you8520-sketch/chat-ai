@@ -155,6 +155,7 @@ export default function PointsClient({
   freeTotal: initialFreeTotal,
   freeTotalPages: initialFreeTotalPages,
   initialCheckedIn,
+  initialAttendanceStreak,
   portoneEnabled = false,
   paymentsEnabled = true,
   userEmail = "",
@@ -176,6 +177,7 @@ export default function PointsClient({
   freeTotal: number;
   freeTotalPages: number;
   initialCheckedIn: boolean;
+  initialAttendanceStreak: number;
   portoneEnabled?: boolean;
   paymentsEnabled?: boolean;
   userEmail?: string;
@@ -413,7 +415,7 @@ export default function PointsClient({
       {error && <p className="mt-4 rounded-xl bg-rose-600/10 p-3 text-sm text-rose-300">{error}</p>}
 
       <div className="mt-6">
-        <AttendanceBanner loggedIn initialCheckedIn={initialCheckedIn} />
+        <AttendanceBanner loggedIn initialCheckedIn={initialCheckedIn} initialStreak={initialAttendanceStreak} />
       </div>
 
       {!paymentsEnabled && (

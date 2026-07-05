@@ -11,6 +11,7 @@ import NotificationBell from "./NotificationBell";
 import PointsShopLink from "./PointsShopLink";
 import HeaderMainNavRow from "./HeaderMainNavRow";
 import UserPreferenceControls from "./UserPreferenceControls";
+import ExpiringPointsPopup from "./ExpiringPointsPopup";
 import { getPointBalance } from "@/lib/points";
 import { isPaymentsEnabled } from "@/lib/portoneConfig";
 const topLinks = [
@@ -94,6 +95,7 @@ export default async function Header() {
       <HeaderMainNavRow />
     </header>
     <MobileBottomNav loggedIn={!!user} unreadCount={unreadCount} />
+    {user && <ExpiringPointsPopup />}
     </>
   );
 }

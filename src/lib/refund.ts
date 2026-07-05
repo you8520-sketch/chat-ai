@@ -57,7 +57,7 @@ function restoreSlice(userId: number, slice: DeductionSlice, db: ReturnType<type
     userId,
     slice.pointType,
     slice.amount,
-    slice.pointType === "PAID" ? "+5 years" : `+${FREE_POINTS_VALID_MONTHS} months`
+    slice.pointType === "PAID" ? "+2 years" : `+${FREE_POINTS_VALID_MONTHS} months`
   );
 }
 
