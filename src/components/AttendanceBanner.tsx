@@ -2,18 +2,20 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { DAILY_ATTENDANCE_REWARD } from "@/lib/attendanceConstants";
+import { ATTENDANCE_CYCLE_DAYS, DAILY_ATTENDANCE_REWARD, WEEKLY_ATTENDANCE_BONUS_REWARD } from "@/lib/attendanceConstants";
 import { dispatchPointsRefunded } from "@/lib/pointsEvents";
 
 type Props = {
   loggedIn: boolean;
   initialCheckedIn: boolean;
+  initialStreak?: number;
 };
 
-export default function AttendanceBanner({ loggedIn, initialCheckedIn }: Props) {
+export default function AttendanceBanner({ loggedIn, initialCheckedIn, initialStreak = 0 }: Props) {
   const [checkedIn, setCheckedIn] = useState(initialCheckedIn);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [streak, setStreak] = useState(initialStreak);
 
   async function handleCheckIn() {
     if (!loggedIn || checkedIn || loading) return;
@@ -32,7 +34,8 @@ export default function AttendanceBanner({ loggedIn, initialCheckedIn }: Props) 
         return;
       }
       setCheckedIn(true);
-      setMessage(`+${data.reward.toLocaleString()}P 지급 완료!`);
+      setStreak(data.cycleCompleted ? ATTENDANCE_CYCLE_DAYS : data.streak ?? streak);
+      setMessage(data.cycleCompleted ? `7일 완주! +${data.reward.toLocaleString()}P 지급 완료! 내일부터 새 차트가 시작돼요.` : `+${data.reward.toLocaleString()}P 지급 완료!`);
       dispatchPointsRefunded({
         remainingPoints: data.points,
         paidPoints: data.paidPoints,
@@ -50,9 +53,33 @@ export default function AttendanceBanner({ loggedIn, initialCheckedIn }: Props) 
     <div className="mt-2 rounded-2xl bg-gradient-to-r from-amber-900/50 via-orange-900/40 to-violet-900/50 p-6">
       <h1 className="text-2xl font-black text-white">매일 출석하고 무료 포인트 받기</h1>
       <p className="mt-1 text-sm text-gray-300">
-        매일 자정(0시)에 갱신 · 출석 체크 시 무료 포인트{" "}
-        <span className="font-bold text-amber-300">{DAILY_ATTENDANCE_REWARD.toLocaleString()}P</span> 지급
+        매일 자정(0시)에 갱신 · 1~6일차 <span className="font-bold text-amber-300">{DAILY_ATTENDANCE_REWARD.toLocaleString()}P</span> · 7일차 <span className="font-bold text-amber-300">{(DAILY_ATTENDANCE_REWARD + WEEKLY_ATTENDANCE_BONUS_REWARD).toLocaleString()}P</span> 지급
       </p>
+
+      <div className="mt-5 grid grid-cols-7 gap-2" aria-label="7일 출석 차트">
+        {Array.from({ length: ATTENDANCE_CYCLE_DAYS }, (_, i) => {
+          const day = i + 1;
+          const done = day <= streak;
+          const isBonus = day === ATTENDANCE_CYCLE_DAYS;
+          return (
+            <div
+              key={day}
+              className={`rounded-xl border p-2 text-center ${
+                done
+                  ? "border-amber-300/70 bg-amber-300/20 text-amber-100"
+                  : isBonus
+                    ? "border-violet-300/40 bg-violet-400/10 text-violet-100"
+                    : "border-white/10 bg-black/20 text-zinc-400"
+              }`}
+            >
+              <div className="text-[11px] font-bold">{day}일차</div>
+              <div className="mt-1 text-lg">{done ? "✓" : isBonus ? "🎁" : "•"}</div>
+              <div className="text-[10px]">{isBonus ? `+${(DAILY_ATTENDANCE_REWARD + WEEKLY_ATTENDANCE_BONUS_REWARD).toLocaleString()}P` : `+${DAILY_ATTENDANCE_REWARD.toLocaleString()}P`}</div>
+            </div>
+          );
+        })}
+      </div>
+      <p className="mt-2 text-[11px] text-zinc-400">출석 포인트 유효기간은 지급일로부터 1개월이며, 7일차 보상을 받으면 다음 출석부터 차트가 초기화됩니다.</p>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         {loggedIn ? (

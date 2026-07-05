@@ -12,6 +12,10 @@ export async function GET() {
   return NextResponse.json({
     checkedInToday: status.checkedInToday,
     reward: DAILY_ATTENDANCE_REWARD,
+    bonusReward: status.bonusReward,
+    cycleDays: status.cycleDays,
+    currentStreak: status.currentStreak,
+    nextClaimDay: status.nextClaimDay,
     todayKst: status.todayKst,
   });
 }
@@ -27,6 +31,10 @@ export async function POST() {
     ok: true,
     alreadyClaimed: result.alreadyClaimed,
     reward: result.reward,
+    baseReward: result.baseReward,
+    bonusReward: result.bonusReward,
+    streak: result.streak,
+    cycleCompleted: result.cycleCompleted,
     points: result.balance.total,
     paidPoints: result.balance.paid,
     freePoints: result.balance.free,

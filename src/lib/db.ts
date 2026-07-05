@@ -253,6 +253,7 @@ function migrate(db: Database.Database) {
   addColumn("users", "partner_tier_granted_at", "TEXT");
   addColumn("users", "partner_tier_valid_until", "TEXT");
   addColumn("users", "last_attendance_date", "TEXT");
+  addColumn("users", "attendance_streak", "INTEGER NOT NULL DEFAULT 0");
   migrateWithdrawalRequestsQueue(db);
   db.exec(`
     CREATE TABLE IF NOT EXISTS creator_earnings (
@@ -1027,7 +1028,7 @@ function migratePointsLedger(db: Database.Database) {
   );
   const insertLegacy = db.prepare(`
     INSERT INTO point_transactions (user_id, point_type, remaining_amount, expires_at)
-    VALUES (?, 'PAID', ?, datetime('now', '+5 years'))
+    VALUES (?, 'PAID', ?, datetime('now', '+2 years'))
   `);
   for (const u of users) {
     const count = (hasTx.get(u.id) as { c: number }).c;

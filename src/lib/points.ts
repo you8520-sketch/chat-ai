@@ -352,8 +352,13 @@ function roundAmount(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
-function expiresModifier(pointType: PointType): string {
-  return pointType === "PAID" ? "+5 years" : `+${FREE_POINTS_VALID_MONTHS} months`;
+export const PAID_POINTS_VALID_YEARS = 2;
+export const ATTENDANCE_POINTS_VALID_MONTHS = 1;
+
+function expiresModifier(pointType: PointType, validity?: { months?: number; years?: number }): string {
+  if (validity?.years) return `+${validity.years} years`;
+  if (validity?.months) return `+${validity.months} months`;
+  return pointType === "PAID" ? `+${PAID_POINTS_VALID_YEARS} years` : `+${FREE_POINTS_VALID_MONTHS} months`;
 }
 
 function readBalance(db: ReturnType<typeof getDb>, userId: number): PointBalance {
@@ -386,13 +391,14 @@ export type CreditPointsResult = {
   logId: number;
 };
 
-/** 원장 적립 — PAID 5년 / FREE 2개월 만료 */
+/** 원장 적립 — PAID 2년 / FREE 기본 5개월 만료 (출석 등은 validity로 조정) */
 export function creditPointsWithIds(
   db: ReturnType<typeof getDb>,
   userId: number,
   amount: number,
   pointType: PointType,
-  reason: string
+  reason: string,
+  validity?: { months?: number; years?: number }
 ): CreditPointsResult | null {
   const rounded = roundAmount(amount);
   if (rounded <= 0) return null;
@@ -402,7 +408,7 @@ export function creditPointsWithIds(
       `INSERT INTO point_transactions (user_id, point_type, remaining_amount, expires_at)
        VALUES (?, ?, ?, datetime('now', ?))`
     )
-    .run(userId, pointType, rounded, expiresModifier(pointType));
+    .run(userId, pointType, rounded, expiresModifier(pointType, validity));
   const log = db
     .prepare("INSERT INTO point_logs (user_id, delta, reason) VALUES (?,?,?)")
     .run(userId, rounded, reason);
@@ -418,11 +424,12 @@ export function creditPoints(
   userId: number,
   amount: number,
   pointType: PointType,
-  reason: string
+  reason: string,
+  validity?: { months?: number; years?: number }
 ) {
   const db = getDb();
   db.transaction(() => {
-    creditPointsWithIds(db, userId, amount, pointType, reason);
+    creditPointsWithIds(db, userId, amount, pointType, reason, validity);
   })();
 }
 

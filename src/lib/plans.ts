@@ -6,8 +6,8 @@ export type PlanId = keyof typeof PLANS;
 
 export const FREE_MEMORY_LIMIT = 2000;
 
-/** 무료 포인트(FREE) 유효 기간 — 멤버십 지급·충전 보너스·가입 보너스 포함 */
-export const FREE_POINTS_VALID_MONTHS = 2;
+/** 무료 포인트(FREE) 기본 유효 기간 — 충전 보너스·이벤트 보상 포함 */
+export const FREE_POINTS_VALID_MONTHS = 5;
 
 /** 클로즈베타 캐릭터 제작 이벤트 — 관리자 승인 후 포인트 지급 */
 export const CREATE_MIGRATION_EVENT_REWARD = 3000;

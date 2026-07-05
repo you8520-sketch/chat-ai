@@ -150,7 +150,7 @@ function creditPaidPointsInTx(
   if (rounded <= 0) return;
   db.prepare(
     `INSERT INTO point_transactions (user_id, point_type, remaining_amount, expires_at)
-     VALUES (?, 'PAID', ?, datetime('now', '+5 years'))`
+     VALUES (?, 'PAID', ?, datetime('now', '+2 years'))`
   ).run(userId, rounded);
   db.prepare("INSERT INTO point_logs (user_id, delta, reason) VALUES (?,?,?)").run(
     userId,

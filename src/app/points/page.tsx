@@ -46,6 +46,7 @@ export default async function PointsPage() {
       freeTotal={freePage.total}
       freeTotalPages={freePage.totalPages}
       initialCheckedIn={attendance.checkedInToday}
+      initialAttendanceStreak={attendance.currentStreak}
       portoneEnabled={isPortOneChargeEnabled()}
       paymentsEnabled={isPaymentsEnabled()}
       userEmail={refreshed.email}
