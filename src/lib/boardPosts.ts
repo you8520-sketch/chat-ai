@@ -1,6 +1,55 @@
 import type Database from "better-sqlite3";
 import { ADMIN_MANAGED_BOARDS, type AdminManagedBoard } from "./boardConfig";
 
+export const DEFAULT_BOARD_POSTS = [
+  {
+    board: "faq" as const,
+    title: "캐릭터 제작은 누구나 가능한가요?",
+    content: "캐릭터 제작은 성인인증을 완료한 회원만 가능합니다.",
+  },
+  {
+    board: "notice" as const,
+    title: "클로즈베타 테스트중",
+    content:
+      "클로즈베타 테스트가 진행 중입니다. 메인 화면의 「무료 포인트 신청하기」에서 신청하시면 관리자 검토 후 무료 포인트가 지급됩니다.",
+  },
+] as const;
+
+/** Idempotent — same board+title only inserted once (fresh DB / one-time migrate). */
+export function ensureDefaultBoardPost(
+  db: Database.Database,
+  board: AdminManagedBoard,
+  title: string,
+  content: string
+): void {
+  const exists = db
+    .prepare("SELECT 1 AS ok FROM posts WHERE board=? AND title=? LIMIT 1")
+    .get(board, title) as { ok: number } | undefined;
+  if (exists?.ok) return;
+  db.prepare("INSERT INTO posts (board, title, content, author_name) VALUES (?,?,?,?)").run(
+    board,
+    title,
+    content,
+    "운영팀"
+  );
+}
+
+/** Keep oldest row per board+title; drop duplicate FAQ/notice rows. */
+export function dedupeAdminBoardPostsByTitle(db: Database.Database): number {
+  const result = db
+    .prepare(
+      `DELETE FROM posts
+       WHERE board IN ('notice', 'faq')
+         AND id NOT IN (
+           SELECT MIN(id) FROM posts
+           WHERE board IN ('notice', 'faq')
+           GROUP BY board, title
+         )`
+    )
+    .run();
+  return result.changes;
+}
+
 export type BoardPostRow = {
   id: number;
   board: string;

@@ -4,6 +4,11 @@ import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 import { getDataDir, getDatabasePath } from "@/lib/dataDir";
+import {
+  DEFAULT_BOARD_POSTS,
+  dedupeAdminBoardPostsByTitle,
+  ensureDefaultBoardPost,
+} from "@/lib/boardPosts";
 import { seedGlobalLorebookEntries } from "@/lib/globalLorebook";
 import { backfillCharacterEngagementStats } from "@/lib/characterEngagementStats";
 import { UNIFIED_TIER_AIM_CHARS } from "@/lib/responseLengthConstants";
@@ -413,37 +418,6 @@ function migrate(db: Database.Database) {
     );
   `);
   addColumn("comments", "is_staff_reply", "INTEGER NOT NULL DEFAULT 0");
-  db.prepare(
-    "DELETE FROM comments WHERE post_id IN (SELECT id FROM posts WHERE board='faq' AND title != '캐릭터 제작은 누구나 가능한가요?')"
-  ).run();
-  db.prepare(
-    "DELETE FROM posts WHERE board='faq' AND title != '캐릭터 제작은 누구나 가능한가요?'"
-  ).run();
-  const charCreateFaq = db
-    .prepare("SELECT id FROM posts WHERE board='faq' AND title='캐릭터 제작은 누구나 가능한가요?'")
-    .get() as { id: number } | undefined;
-  if (!charCreateFaq) {
-    db.prepare("INSERT INTO posts (board, title, content, author_name) VALUES (?,?,?,?)").run(
-      "faq",
-      "캐릭터 제작은 누구나 가능한가요?",
-      "캐릭터 제작은 성인인증을 완료한 회원만 가능합니다.",
-      "운영팀"
-    );
-  }
-  db.prepare(
-    "DELETE FROM posts WHERE board='notice' AND title IN ('서비스 오픈 안내', 'NSFW 콘텐츠 이용 안내')"
-  ).run();
-  const betaNotice = db
-    .prepare("SELECT id FROM posts WHERE board='notice' AND title='클로즈베타 테스트중'")
-    .get() as { id: number } | undefined;
-  if (!betaNotice) {
-    db.prepare("INSERT INTO posts (board, title, content, author_name) VALUES (?,?,?,?)").run(
-      "notice",
-      "클로즈베타 테스트중",
-      "클로즈베타 테스트가 진행 중입니다. 메인 화면의 「무료 포인트 신청하기」에서 신청하시면 관리자 검토 후 무료 포인트가 지급됩니다.",
-      "운영팀"
-    );
-  }
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_chats_character_created
       ON chats(character_id, created_at);
@@ -715,7 +689,27 @@ function migrate(db: Database.Database) {
   migrateCharacterEngagementStats(db);
   migrateCommentModeration(db);
   migrateUnifiedTargetResponseChars3200(db);
+  migrateBoardPostsOnce(db);
   seedGlobalLorebookEntries(db);
+}
+
+function migrateBoardPostsOnce(db: Database.Database) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS _schema_flags (
+      key TEXT PRIMARY KEY,
+      applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+  const done = db
+    .prepare("SELECT 1 AS ok FROM _schema_flags WHERE key='board_posts_dedupe_v1'")
+    .get() as { ok: number } | undefined;
+  if (done?.ok) return;
+
+  dedupeAdminBoardPostsByTitle(db);
+  for (const post of DEFAULT_BOARD_POSTS) {
+    ensureDefaultBoardPost(db, post.board, post.title, post.content);
+  }
+  db.prepare("INSERT INTO _schema_flags (key) VALUES ('board_posts_dedupe_v1')").run();
 }
 
 function migrateUnifiedTargetResponseChars3200(db: Database.Database) {
@@ -1153,19 +1147,9 @@ function seed(db: Database.Database) {
   ];
   const tx = db.transaction(() => {
     for (const c of chars) ins.run({ ...c, audience: audienceMap[c.name] ?? "all" });
-    const post = db.prepare("INSERT INTO posts (board, title, content, author_name) VALUES (?,?,?,?)");
-    post.run(
-      "notice",
-      "클로즈베타 테스트중",
-      "클로즈베타 테스트가 진행 중입니다. 메인 화면의 「무료 포인트 신청하기」에서 신청하시면 관리자 검토 후 무료 포인트가 지급됩니다.",
-      "운영팀"
-    );
-    post.run(
-      "faq",
-      "캐릭터 제작은 누구나 가능한가요?",
-      "캐릭터 제작은 성인인증을 완료한 회원만 가능합니다.",
-      "운영팀"
-    );
+    for (const post of DEFAULT_BOARD_POSTS) {
+      ensureDefaultBoardPost(db, post.board, post.title, post.content);
+    }
   });
   tx();
 }
