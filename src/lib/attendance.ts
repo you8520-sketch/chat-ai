@@ -46,7 +46,11 @@ export function getAttendanceStatus(userId: number): AttendanceStatus {
   const lastAttendanceDate = row?.last_attendance_date ?? null;
   const checkedInToday = lastAttendanceDate === todayKst;
   const storedStreak = Math.max(0, Math.min(ATTENDANCE_CYCLE_DAYS, Number(row?.attendance_streak ?? 0)));
-  const currentStreak = checkedInToday ? storedStreak : lastAttendanceDate === addDaysToDateString(todayKst, -1) ? storedStreak : 0;
+  const currentStreak = checkedInToday
+    ? storedStreak
+    : lastAttendanceDate === addDaysToDateString(todayKst, -1) && storedStreak < ATTENDANCE_CYCLE_DAYS
+      ? storedStreak
+      : 0;
   const nextClaimDay = Math.min(currentStreak + (checkedInToday ? 0 : 1), ATTENDANCE_CYCLE_DAYS);
 
   return {
@@ -89,14 +93,12 @@ export function claimDailyAttendance(userId: number): ClaimAttendanceResult {
       };
     }
 
-    const continued = last === addDaysToDateString(todayKst, -1);
-    const nextStreak = continued ? Math.min(storedStreak + 1, ATTENDANCE_CYCLE_DAYS) : 1;
+    const continued = last === addDaysToDateString(todayKst, -1) && storedStreak < ATTENDANCE_CYCLE_DAYS;
+    const nextStreak = continued ? storedStreak + 1 : 1;
     const cycleCompleted = nextStreak >= ATTENDANCE_CYCLE_DAYS;
     const bonus = cycleCompleted ? WEEKLY_ATTENDANCE_BONUS_REWARD : 0;
     const reward = DAILY_ATTENDANCE_REWARD + bonus;
-    const storedNextStreak = cycleCompleted ? 0 : nextStreak;
-
-    db.prepare("UPDATE users SET last_attendance_date = ?, attendance_streak = ? WHERE id = ?").run(todayKst, storedNextStreak, userId);
+    db.prepare("UPDATE users SET last_attendance_date = ?, attendance_streak = ? WHERE id = ?").run(todayKst, nextStreak, userId);
     creditPointsWithIds(
       db,
       userId,

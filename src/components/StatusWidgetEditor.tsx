@@ -31,7 +31,7 @@ const TEMPLATE_OPTIONS: Array<{
   label: string;
   desc: string;
 }> = [
-  { id: "modern", label: "현대풍", desc: "다크 리포트 UI" },
+  { id: "modern", label: "기본형", desc: "다크 리포트 UI" },
   { id: "sf", label: "네온 스타일", desc: "네온 시스템 패널" },
   { id: "custom", label: "직접제작", desc: "HTML 직접 편집" },
 ];
@@ -164,7 +164,7 @@ export default function StatusWidgetEditor({
       </div>
 
       <p className="text-[11px] leading-relaxed text-gray-500">
-        상태창 위젯은 기본 적용됩니다. 현대풍이 기본 적용됩니다. 기본 템플릿은
+        상태창 위젯은 기본 적용됩니다. 기본형이 기본 적용됩니다. 기본 템플릿은
         상태값·지시사항만 수정하면 선택한 디자인에 자동 반영되고, 직접제작에서만
         HTML을 편집합니다.
       </p>
