@@ -2,3 +2,4 @@ export const DAILY_ATTENDANCE_REWARD = 200;
 export const WEEKLY_ATTENDANCE_BONUS_REWARD = 600;
 export const ATTENDANCE_CYCLE_DAYS = 7;
 export const ATTENDANCE_TIMEZONE = "Asia/Seoul";
+export const ATTENDANCE_POINTS_VALID_MONTHS = 1;

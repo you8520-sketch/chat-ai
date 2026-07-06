@@ -489,6 +489,8 @@ export async function extractRelationshipMetaFromTurn(
 
   const system = `너는 롤플레잉 관계 메모 추출기다. 이번 턴 본문(유저·캐릭터 대사·서술)에서 **새로 등장·변경**된 항목만 JSON으로 출력하라.
 
+currentLocation: 이번 턴 종료 시점의 현재 장소. 같은 턴 안에서 장소가 바뀌었으면 반드시 "이전장소→이동장소" 형식. 장소 단서가 없으면 빈 문자열.
+honorifics: 캐릭터·NPC가 유저(${userName})를 실제로 부른 호칭만 "부른사람→${userName}: 호칭" 형식으로 최대 2개(최신순). 기존과 상충되는 호칭은 최신 호칭만 남기도록 새 호칭을 출력.
 items: **유저(${userName})와의 관계에 관련된 물건만** — ① ${userName} 본인의 소지품, ② ${userName}↔상대가 주고받은·나눠 가진·맡긴 물건. **한 사람당 한 줄** — 형식 "이름: 물건1, 물건2, 물건3" (쉼표로 나열). 선물·전달·건넴·양도는 "보낸이→받는이: 물건" 또는 받는 쪽 "이름: 물건"으로. "캐릭터", "유저" 라벨 금지. **절대 금지**: 캐릭터가 원래 갖고 있던 개인 물건, 장면 배경에 놓인 물건, 가구·설비·실내 비품(침대, 의자, 책상, 세면대, 거울 등), 의류(옷·드레스·정장·신발 등 — 장신구는 허용), 평소 착용 중인 제복·기본 복장. 사람 이름 없이 물건명만 단독 출력 금지 — 반드시 "이름: 물건" 형식. 유저와 무관한 물건은 아무리 자세히 묘사돼도 넣지 마라.
 itemsRemove: [현재 소지품] 줄 중 **더 이상 사실이 아닌** 항목 — 이번 턴에 다른 사람에게 건넸·잃었·없어진 물건. **현재 목록 문자열과 정확히 일치**하게 출력. 전달 시 보낸 사람 줄 전체 또는 갱신 전 줄을 넣어라.
 thoughtsRemove: [현재 속마음] 중 이번 턴과 **모순**되는 줄. **현재 목록 문자열과 정확히 일치**하게 출력.
@@ -507,7 +509,7 @@ ${activePromises}
 
 소지품을 건넸으면 보낸 쪽 itemsRemove에 해당 줄을 포함하고, 받는 쪽은 items에 추가하라.
 없는 항목은 빈 배열. 순수 JSON만:
-{"items":[],"thoughts":[],"itemsRemove":[],"thoughtsRemove":[],"promisesAdd":[],"promisesRemove":[]}`;
+{"currentLocation":"","honorifics":[],"items":[],"thoughts":[],"itemsRemove":[],"thoughtsRemove":[],"promisesAdd":[],"promisesRemove":[]}`;
   const history: ChatMsg[] = [
     {
       role: "user",
@@ -527,8 +529,11 @@ ${activePromises}
       thoughtsRemove?: string[];
       promisesAdd?: { text?: string; deadline?: string }[];
       promisesRemove?: string[];
+      currentLocation?: string;
     };
     const delta: import("@/lib/chatMemory").RelationshipMetaDelta = {
+      honorifics: Array.isArray(j.honorifics) ? j.honorifics.filter(Boolean) : [],
+      currentLocation: typeof j.currentLocation === "string" ? j.currentLocation : undefined,
       items: Array.isArray(j.items) ? j.items.filter(Boolean) : [],
       thoughts: normalizeTurnThoughts(
         Array.isArray(j.thoughts) ? j.thoughts.filter(Boolean) : [],
@@ -548,16 +553,19 @@ ${activePromises}
     };
     const normalized = normalizeMemoryMeta(
       {
-        honorifics: [],
+        honorifics: delta.honorifics ?? [],
         items: delta.items ?? [],
         thoughts: [],
         promises: [],
+        currentLocation: delta.currentLocation,
       },
       names
     );
     return {
       ...delta,
+      honorifics: normalized.honorifics,
       items: normalized.items,
+      currentLocation: normalized.currentLocation,
     };
   } catch {
     return {};
@@ -586,6 +594,8 @@ export async function extractRelationshipMetaAfterRegenerate(
   const system = `너는 롤플레잉 관계 메모 **재생성 보정** 추출기다. 같은 유저 턴에 assistant 답변이 교체되었다.
 [거부된 assistant — 폐기]와 [새 assistant — 정본]을 비교하고, [현재 관계 메모]를 정본에 맞게 수정하라.
 
+currentLocation: 새 assistant 정본 종료 시점의 현재 장소. 같은 턴 안에서 장소가 바뀌었으면 "이전장소→이동장소" 형식. 장소 단서가 없으면 빈 문자열.
+honorifics: 새 assistant 정본에서 캐릭터·NPC가 유저(${userName})를 실제로 부른 호칭만 "부른사람→${userName}: 호칭" 형식으로 최대 2개(최신순).
 itemsRemove: [현재 소지품] 줄 중 **더 이상 사실이 아닌** 항목 — 새 본문에서 다른 사람에게 건넸·잃었·없어진 물건, 또는 거부본에만 있고 새 본문에 없는 전달. **현재 목록 문자열과 정확히 일치**하게 출력.
 thoughtsRemove: [현재 속마음] 중 새 정본과 **모순**되거나 거부본에만 해당하는 줄. **현재 목록 문자열과 정확히 일치**하게 출력.
 items / thoughts / promisesAdd / promisesRemove: **새 assistant 정본**에서 새로 생긴·변경된 항목만 (기존 extract 규칙 동일).
@@ -604,7 +614,7 @@ items/thoughts 규칙은 평소와 동일. "캐릭터","유저" 라벨 금지. i
 ${RELATIONSHIP_THOUGHT_EXTRACT_RULES.replace(/캐릭터이름/g, charName).replace("유저 내면", `${userName}·유저 내면`)}
 
 순수 JSON만:
-{"items":[],"thoughts":[],"itemsRemove":[],"thoughtsRemove":[],"promisesAdd":[],"promisesRemove":[]}`;
+{"currentLocation":"","honorifics":[],"items":[],"thoughts":[],"itemsRemove":[],"thoughtsRemove":[],"promisesAdd":[],"promisesRemove":[]}`;
 
   const history: ChatMsg[] = [
     {
@@ -632,9 +642,11 @@ ${newAssistantMessage.slice(0, 3500)}`,
       thoughtsRemove?: string[];
       promisesAdd?: { text?: string; deadline?: string }[];
       promisesRemove?: string[];
+      currentLocation?: string;
     };
-    const dialogue = `${userMessage}\n${newAssistantMessage}`;
     const delta: import("@/lib/chatMemory").RelationshipMetaDelta = {
+      honorifics: Array.isArray(j.honorifics) ? j.honorifics.filter(Boolean) : [],
+      currentLocation: typeof j.currentLocation === "string" ? j.currentLocation : undefined,
       items: Array.isArray(j.items) ? j.items.filter(Boolean) : [],
       thoughts: normalizeTurnThoughts(
         Array.isArray(j.thoughts) ? j.thoughts.filter(Boolean) : [],
@@ -653,10 +665,15 @@ ${newAssistantMessage.slice(0, 3500)}`,
       promisesRemove: Array.isArray(j.promisesRemove) ? j.promisesRemove.filter(Boolean) : [],
     };
     const normalized = normalizeMemoryMeta(
-      { honorifics: [], items: delta.items ?? [], thoughts: [], promises: [] },
+      { honorifics: delta.honorifics ?? [], items: delta.items ?? [], thoughts: [], promises: [], currentLocation: delta.currentLocation },
       names
     );
-    return { ...delta, items: normalized.items };
+    return {
+      ...delta,
+      honorifics: normalized.honorifics,
+      items: normalized.items,
+      currentLocation: normalized.currentLocation,
+    };
   } catch {
     return {};
   }

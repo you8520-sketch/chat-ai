@@ -18,6 +18,8 @@ export type MemoryMeta = {
   thoughts: string[];
   /** 서로 맺은 약속 — 이행·기한 만료 시 자동 제거 */
   promises: MemoryPromise[];
+  /** 현재 장소 — 같은 턴에서 이동했으면 "이전장소→현재장소" */
+  currentLocation?: string;
 };
 
 export const MEMORY_META_MAX = {
@@ -37,9 +39,10 @@ export const EMPTY_MEMORY_META: MemoryMeta = {
   items: [],
   thoughts: [],
   promises: [],
+  currentLocation: undefined,
 };
 
-export type RelationshipMetaCategory = keyof MemoryMeta;
+export type RelationshipMetaCategory = "honorifics" | "items" | "thoughts" | "promises";
 
 export type RelationshipMetaDelta = Partial<{
   honorifics: string[];
@@ -49,6 +52,7 @@ export type RelationshipMetaDelta = Partial<{
   thoughtsRemove: string[];
   promisesAdd: MemoryPromise[];
   promisesRemove: string[];
+  currentLocation: string;
 }>;
 
 export type HonorificNames = { charName: string; userName: string; displayTitle?: string };
@@ -353,12 +357,37 @@ export function normalizeTurnThoughts(
   return dedupeNormalizedThoughts(thoughts, names, max, false);
 }
 
+function latestUserCallHonorifics(honorifics: string[], names: HonorificNames): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of honorifics) {
+    const normalized = normalizeHonorificEntry(raw, names);
+    if (!normalized) continue;
+    const m = normalized.match(HONORIFIC_ENTRY_RE);
+    if (!m) continue;
+    const to = replaceGenericActorLabel(m[2], names);
+    if (to !== names.userName) continue;
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    out.push(normalized);
+  }
+  return out.slice(-2);
+}
+
+function normalizeLocation(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const t = value.replace(/\s+/g, " ").trim();
+  if (!t || /^(?:없음|unknown|알 수 없음|미상|-)$/i.test(t)) return undefined;
+  return t.slice(0, 80);
+}
+
 export function normalizeMemoryMeta(meta: MemoryMeta, names: HonorificNames): MemoryMeta {
   return {
-    honorifics: [],
+    honorifics: latestUserCallHonorifics(meta.honorifics, names),
     items: dedupeNormalizedItems(meta.items, names),
     thoughts: dedupeNormalizedThoughts(meta.thoughts, names),
     promises: meta.promises,
+    currentLocation: normalizeLocation(meta.currentLocation),
   };
 }
 
@@ -400,12 +429,13 @@ export function parseMemoryMeta(raw: string | null | undefined): MemoryMeta {
   try {
     const j = JSON.parse(raw) as Partial<MemoryMeta> & { locations?: string[] };
     return {
-      honorifics: [],
+      honorifics: Array.isArray(j.honorifics) ? j.honorifics.filter(Boolean).slice(-2) : [],
       items: Array.isArray(j.items) ? j.items.filter(Boolean).slice(0, MEMORY_META_MAX.items) : [],
       thoughts: Array.isArray(j.thoughts)
         ? j.thoughts.filter(Boolean).slice(-MEMORY_META_MAX.thoughts)
         : [],
       promises: parsePromises(j.promises),
+      currentLocation: normalizeLocation((j as { currentLocation?: unknown }).currentLocation),
     };
   } catch {
     return { ...EMPTY_MEMORY_META };
@@ -518,15 +548,18 @@ export function mergeMemoryMeta(
     thoughts = dedupeNormalizedThoughts(thoughts, names);
   }
   return {
-    honorifics: [],
+    honorifics: names ? latestUserCallHonorifics([...(prev.honorifics ?? []), ...(delta.honorifics ?? [])], names) : [],
     items,
     thoughts,
     promises: mergePromises(prev.promises, delta.promisesAdd ?? [], delta.promisesRemove ?? []),
+    currentLocation: normalizeLocation(delta.currentLocation) ?? normalizeLocation(prev.currentLocation),
   };
 }
 
 export function formatMemoryMetaForPrompt(meta: MemoryMeta): string | null {
   const lines: string[] = [];
+  if (meta.currentLocation) lines.push(`현재장소: ${meta.currentLocation}`);
+  if (meta.honorifics.length) lines.push(`호칭(캐릭터→유저, 최신 2개): ${meta.honorifics.join(" · ")}`);
   if (meta.items.length) lines.push(`소지품:\n${formatGroupedPossessionsForPrompt(meta.items)}`);
   if (meta.thoughts.length) {
     lines.push(`속마음(캐릭터·NPC):\n${meta.thoughts.join("\n")}`);

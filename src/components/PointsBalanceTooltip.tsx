@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { formatPoints } from "@/lib/billingDisplay";
 import { FREE_POINTS_VALID_MONTHS } from "@/lib/plans";
+import { ATTENDANCE_POINTS_VALID_MONTHS } from "@/lib/attendanceConstants";
 
 type Props = {
   total: number;
@@ -55,7 +56,9 @@ export default function PointsBalanceTooltip({
         >
           (유료: {formatPoints(paid)} P / 무료: {formatPoints(free)} P)
           <br />
-          <span className="text-amber-300/90">무료 포인트 · {FREE_POINTS_VALID_MONTHS}개월 유효</span>
+          <span className="text-amber-300/90">충전 보너스·이벤트 무료 포인트 · {FREE_POINTS_VALID_MONTHS}개월 유효</span>
+          <br />
+          <span className="text-emerald-300/90">출석 포인트 · {ATTENDANCE_POINTS_VALID_MONTHS}개월 유효</span>
         </div>
       )}
     </div>

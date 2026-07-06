@@ -55,6 +55,7 @@ export function clearChatRelationshipMeta(chatId: number): void {
 function hasRelationshipDelta(delta: RelationshipMetaDelta): boolean {
   return (
     (delta.honorifics?.length ?? 0) > 0 ||
+    Boolean(delta.currentLocation?.trim()) ||
     (delta.items?.length ?? 0) > 0 ||
     (delta.thoughts?.length ?? 0) > 0 ||
     (delta.itemsRemove?.length ?? 0) > 0 ||
