@@ -19,13 +19,13 @@ export async function GET(req: Request) {
     return NextResponse.redirect(`${origin}${returnTo}?error=google_not_configured`);
   }
 
-  const { userId, isNew, pref } = upsertGoogleUser({
+  const { userId, isNew, pref, onboardingCompletedAt } = upsertGoogleUser({
     sub: DEV_GOOGLE_SUB,
     email: DEV_GOOGLE_EMAIL,
     name: DEV_GOOGLE_NAME,
   });
   const token = createSession(userId);
-  const dest = resolvePostGoogleDest({ isNew, pref, redirectAfter });
+  const dest = resolvePostGoogleDest({ isNew, pref, onboardingCompletedAt, redirectAfter });
   const res = NextResponse.redirect(`${origin}${dest}`);
   res.cookies.set("session", token, { httpOnly: true, sameSite: "lax", maxAge: 30 * 24 * 3600, path: "/" });
   return res;

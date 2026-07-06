@@ -21,20 +21,20 @@ export type GoogleUserInfo = {
   name?: string;
 };
 
-function findExistingGoogleUser(info: GoogleUserInfo): { id: number; pref: string | null } | null {
+function findExistingGoogleUser(info: GoogleUserInfo): { id: number; pref: string | null; onboarding_completed_at: string | null } | null {
   const db = getDb();
-  const byGoogle = db.prepare("SELECT id, pref FROM users WHERE google_id = ?").get(info.sub) as
-    | { id: number; pref: string | null }
+  const byGoogle = db.prepare("SELECT id, pref, onboarding_completed_at FROM users WHERE google_id = ?").get(info.sub) as
+    | { id: number; pref: string | null; onboarding_completed_at: string | null }
     | undefined;
   if (byGoogle) return byGoogle;
 
-  const byEmail = db.prepare("SELECT id, pref FROM users WHERE email = ?").get(info.email) as
-    | { id: number; pref: string | null }
+  const byEmail = db.prepare("SELECT id, pref, onboarding_completed_at FROM users WHERE email = ?").get(info.email) as
+    | { id: number; pref: string | null; onboarding_completed_at: string | null }
     | undefined;
   return byEmail ?? null;
 }
 
-export function upsertGoogleUser(info: GoogleUserInfo): { userId: number; isNew: boolean; pref: string | null } {
+export function upsertGoogleUser(info: GoogleUserInfo): { userId: number; isNew: boolean; pref: string | null; onboardingCompletedAt: string | null } {
   const existing = findExistingGoogleUser(info);
   const db = getDb();
 
@@ -48,20 +48,21 @@ export function upsertGoogleUser(info: GoogleUserInfo): { userId: number; isNew:
       .run(info.email, nickname, "", info.sub);
     const userId = Number(r.lastInsertRowid);
     creditPoints(userId, SIGNUP_BONUS_POINTS, "FREE", "신규 가입 보너스");
-    user = { id: userId, pref: null };
+    user = { id: userId, pref: null, onboarding_completed_at: null };
     isNew = true;
   } else if (existing) {
     db.prepare("UPDATE users SET google_id = ? WHERE id = ?").run(info.sub, user.id);
   }
 
-  return { userId: user.id, isNew, pref: user.pref };
+  return { userId: user.id, isNew, pref: user.pref, onboardingCompletedAt: user.onboarding_completed_at };
 }
 
 export function resolvePostGoogleDest(opts: {
   isNew: boolean;
   pref: string | null;
+  onboardingCompletedAt?: string | null;
   redirectAfter?: string | null;
 }): string {
   const afterAuth = sanitizeOAuthReturnTo(opts.redirectAfter, "/");
-  return opts.isNew ? "/onboarding" : afterAuth;
+  return opts.isNew && !opts.onboardingCompletedAt ? "/onboarding" : afterAuth;
 }

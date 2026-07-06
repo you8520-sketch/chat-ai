@@ -35,6 +35,7 @@ function init(db: Database.Database) {
     sub_until TEXT,
     google_id TEXT,
     pref TEXT,
+    onboarding_completed_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
   CREATE TABLE IF NOT EXISTS sessions (
@@ -135,6 +136,26 @@ function init(db: Database.Database) {
 }
 
 // 기존 DB에 새 컬럼 추가 (이미 있으면 무시)
+function backfillExistingUserOnboarding(db: Database.Database) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS app_meta (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+  `);
+  const done = db
+    .prepare("SELECT value FROM app_meta WHERE key='existing_user_onboarding_backfill_v1'")
+    .get() as { value: string } | undefined;
+  if (done?.value === "1") return;
+
+  db.prepare(
+    "UPDATE users SET onboarding_completed_at = COALESCE(created_at, datetime('now')) WHERE onboarding_completed_at IS NULL"
+  ).run();
+  db.prepare(
+    "INSERT OR REPLACE INTO app_meta (key, value) VALUES ('existing_user_onboarding_backfill_v1', '1')"
+  ).run();
+}
+
 function migrate(db: Database.Database) {
   const addColumn = (table: string, col: string, def: string) => {
     const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
@@ -144,6 +165,8 @@ function migrate(db: Database.Database) {
   };
   addColumn("users", "google_id", "TEXT");
   addColumn("users", "pref", "TEXT");
+  addColumn("users", "onboarding_completed_at", "TEXT");
+  backfillExistingUserOnboarding(db);
   addColumn("users", "sub_until", "TEXT");
   addColumn("users", "sub_plan", "TEXT");
   addColumn("users", "sub_auto_renew", "INTEGER NOT NULL DEFAULT 0");
