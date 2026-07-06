@@ -151,7 +151,7 @@ This app uses a **long-running Node `server.js`**, not Vercel serverless functio
 
 | Issue | Fix |
 |-------|-----|
-| Build fails on `better-sqlite3` | `nixpacks.toml` installs Python/gcc; Node 20 via `.node-version` |
+| Build fails on `better-sqlite3` | `nixpacks.toml` installs Python/gcc; Node 22.12 via `.node-version` |
 | App won't bind | `HOSTNAME=0.0.0.0`, `PORT` from Railway (automatic) |
 | Google redirect mismatch | Redirect URI must match exactly (https, no trailing slash on path) |
 | OpenRouter 401/403 | Check `OPENROUTER_API_KEY` and `OPENROUTER_HTTP_REFERER` |

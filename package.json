@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": ">=20.19.0"
+    "node": ">=22.12.0"
   },
   "scripts": {
     "dev": "tsx scripts/dev-server.ts",
@@ -11,8 +11,8 @@
     "dev:safe": "tsx scripts/dev-server.ts",
     "dev:next": "next dev -p 3001",
     "typecheck": "tsc --noEmit",
-    "typecheck:app": "tsc --noEmit -p tsconfig.app.json",
-    "lint": "next lint",
+    "typecheck:app": "tsc -p tsconfig.app.json --noEmit --pretty false",
+    "lint": "npm run typecheck:app",
     "build": "next build",
     "start": "tsx server.js",
     "start:next": "next start",
@@ -21,9 +21,7 @@
     "training:export": "tsx scripts/training-weekly-export.ts",
     "dump:system-prompt": "tsx scripts/dump-system-prompt.ts",
     "prod": "npm run build && npm run start",
-    "prod:fast": "powershell -ExecutionPolicy Bypass -File ./scripts/run-prod.ps1",
-    "lint": "npm run typecheck:app",
-    "typecheck:app": "tsc -p tsconfig.app.json --noEmit --pretty false"
+    "prod:fast": "powershell -ExecutionPolicy Bypass -File ./scripts/run-prod.ps1"
   },
   "dependencies": {
     "@portone/browser-sdk": "^0.1.8",
