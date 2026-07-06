@@ -11,6 +11,8 @@
     "dev:safe": "tsx scripts/dev-server.ts",
     "dev:next": "next dev -p 3001",
     "typecheck": "tsc --noEmit",
+    "typecheck:app": "tsc --noEmit -p tsconfig.app.json",
+    "lint": "next lint",
     "build": "next build",
     "start": "tsx server.js",
     "start:next": "next start",

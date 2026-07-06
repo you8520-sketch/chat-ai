@@ -6,10 +6,13 @@ const SALT = "withdrawal-resident-v1";
 
 function deriveKey(): Buffer {
   const secret =
-    process.env.WITHDRAWAL_ENCRYPTION_KEY?.trim() ||
-    process.env.SESSION_SECRET?.trim() ||
-    "dev-withdrawal-key-change-in-production";
-  return crypto.scryptSync(secret, SALT, 32);
+    process.env.WITHDRAWAL_ENCRYPTION_KEY?.trim() || process.env.SESSION_SECRET?.trim();
+  if (!secret && process.env.NODE_ENV === "production") {
+    throw new Error(
+      "WITHDRAWAL_ENCRYPTION_KEY or SESSION_SECRET must be set in production for stable field encryption."
+    );
+  }
+  return crypto.scryptSync(secret || "dev-withdrawal-key-change-in-production", SALT, 32);
 }
 
 /** AES-256-GCM 암호화 — DB 저장용 */

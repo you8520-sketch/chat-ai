@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { SESSION_COOKIE_NAME, sessionCookieOptions } from "@/lib/sessionCookie";
 import { getDb } from "@/lib/db";
 import { hashPassword, createSession } from "@/lib/auth";
 import { creditPoints } from "@/lib/points";
@@ -25,6 +26,6 @@ export async function POST(req: Request) {
 
   const token = createSession(userId);
   const res = NextResponse.json({ ok: true });
-  res.cookies.set("session", token, { httpOnly: true, sameSite: "lax", maxAge: 30 * 24 * 3600, path: "/" });
+  res.cookies.set(SESSION_COOKIE_NAME, token, sessionCookieOptions());
   return res;
 }

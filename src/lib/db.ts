@@ -4,6 +4,7 @@ import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 import { getDataDir, getDatabasePath } from "@/lib/dataDir";
+import { validateAuthEnvironment } from "@/lib/authEnv";
 import {
   DEFAULT_BOARD_POSTS,
   dedupeAdminBoardPostsByTitle,
@@ -12,6 +13,8 @@ import {
 import { seedGlobalLorebookEntries } from "@/lib/globalLorebook";
 import { backfillCharacterEngagementStats } from "@/lib/characterEngagementStats";
 import { UNIFIED_TIER_AIM_CHARS } from "@/lib/responseLengthConstants";
+
+validateAuthEnvironment();
 
 const dataDir = getDataDir();
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { SESSION_COOKIE_NAME, sessionCookieOptions } from "@/lib/sessionCookie";
 import { createSession } from "@/lib/auth";
 import { isDemoEnv } from "@/lib/demo";
 import { resolvePostGoogleDest, sanitizeOAuthReturnTo, upsertGoogleUser } from "@/lib/googleAuth";
@@ -27,6 +28,6 @@ export async function GET(req: Request) {
   const token = createSession(userId);
   const dest = resolvePostGoogleDest({ isNew, pref, onboardingCompletedAt, redirectAfter });
   const res = NextResponse.redirect(`${origin}${dest}`);
-  res.cookies.set("session", token, { httpOnly: true, sameSite: "lax", maxAge: 30 * 24 * 3600, path: "/" });
+  res.cookies.set(SESSION_COOKIE_NAME, token, sessionCookieOptions());
   return res;
 }

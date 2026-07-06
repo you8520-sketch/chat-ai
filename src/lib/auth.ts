@@ -1,6 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import crypto from "crypto";
+import { SESSION_COOKIE_NAME } from "./sessionCookie";
 import { getDb } from "./db";
 import { effectiveIsAdult } from "./adultVerification";
 import { isAdminUser } from "./isAdminUser";
@@ -32,7 +33,7 @@ export function createSession(userId: number): string {
 
 export async function getSessionUser(): Promise<User | null> {
   const store = await cookies();
-  const token = store.get("session")?.value;
+  const token = store.get(SESSION_COOKIE_NAME)?.value;
   if (!token) return null;
   const db = getDb();
   const row = db
