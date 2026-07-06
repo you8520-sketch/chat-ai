@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { DEFAULT_STATUS_WIDGET } from "@/lib/statusWidget/defaultTemplate";
 import {
   BUILTIN_STATUS_WIDGET_TEMPLATES,
-  cloneStatusWidgetTemplate,
+  buildBuiltinStatusWidgetTemplate,
   type BuiltinStatusWidgetTemplateId,
 } from "@/lib/statusWidget/builtinTemplates";
 import {
@@ -31,10 +31,8 @@ const TEMPLATE_OPTIONS: Array<{
   label: string;
   desc: string;
 }> = [
-  { id: "western_fantasy", label: "서양판타지", desc: "금장·고전 양식" },
-  { id: "eastern_fantasy", label: "동양판타지", desc: "붉은 먹빛 서책풍" },
   { id: "modern", label: "현대풍", desc: "다크 리포트 UI" },
-  { id: "sf", label: "SF풍", desc: "네온 시스템 패널" },
+  { id: "sf", label: "네온 스타일", desc: "네온 시스템 패널" },
   { id: "custom", label: "직접제작", desc: "HTML 직접 편집" },
 ];
 
@@ -87,14 +85,27 @@ export default function StatusWidgetEditor({
     [value.fields],
   );
 
+  function applyBuiltinTemplateToFields(
+    fields: StatusWidget["fields"],
+  ): StatusWidget | null {
+    if (templateChoice === "custom") return null;
+    const rebuilt = buildBuiltinStatusWidgetTemplate(templateChoice, fields);
+    return { ...rebuilt, placement: value.placement };
+  }
+
+  function commitFieldChange(next: StatusWidget) {
+    onChange(applyBuiltinTemplateToFields(next.fields) ?? next);
+  }
+
   function updateFieldInstruction(index: number, instruction: string) {
     const next = cloneWidget(value);
     next.fields[index] = { ...next.fields[index]!, instruction };
-    onChange(next);
+    commitFieldChange(next);
   }
 
   function updateFieldLabel(index: number, label: string) {
-    onChange(applyFieldLabelChange(value, index, label));
+    const next = applyFieldLabelChange(value, index, label);
+    commitFieldChange(next);
   }
 
   function addField() {
@@ -104,14 +115,14 @@ export default function StatusWidgetEditor({
     const existingKeys = next.fields.map(fieldPlaceholderKey).filter(Boolean);
     const id = uniqueStatusValueKey(label, existingKeys);
     next.fields.push({ id, label, instruction: "" });
-    onChange(next);
+    commitFieldChange(next);
   }
 
   function removeField(index: number) {
     if (value.fields.length <= 1) return;
     const next = cloneWidget(value);
     next.fields.splice(index, 1);
-    onChange(next);
+    commitFieldChange(next);
   }
 
   function insertPlaceholder(key: string) {
@@ -121,18 +132,18 @@ export default function StatusWidgetEditor({
   function applyTemplate(choice: TemplateChoice) {
     setTemplateChoice(choice);
     if (choice === "custom") return;
-    const picked = cloneStatusWidgetTemplate(
-      BUILTIN_STATUS_WIDGET_TEMPLATES[choice],
+    const picked = buildBuiltinStatusWidgetTemplate(
+      choice,
+      value.fields.map((field) => ({ ...field })),
     );
     onChange({
       ...picked,
-      fields: value.fields.map((field) => ({ ...field })),
       placement: value.placement,
     });
   }
 
   function loadDefault() {
-    setTemplateChoice("western_fantasy");
+    setTemplateChoice("modern");
     onChange(cloneWidget(DEFAULT_STATUS_WIDGET));
   }
 
@@ -153,11 +164,12 @@ export default function StatusWidgetEditor({
       </div>
 
       <p className="text-[11px] leading-relaxed text-gray-500">
-        상태창 위젯은 기본 적용됩니다. 템플릿 4종은 상태값·지시사항만 수정하면
-        선택한 디자인에 자동 반영되고, 직접제작에서만 HTML을 편집합니다.
+        상태창 위젯은 기본 적용됩니다. 현대풍이 기본 적용됩니다. 기본 템플릿은
+        상태값·지시사항만 수정하면 선택한 디자인에 자동 반영되고, 직접제작에서만
+        HTML을 편집합니다.
       </p>
 
-      <div className="grid gap-2 sm:grid-cols-5">
+      <div className="grid gap-2 sm:grid-cols-3">
         {TEMPLATE_OPTIONS.map((option) => (
           <button
             key={option.id}
