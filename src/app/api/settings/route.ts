@@ -22,7 +22,7 @@ export async function PATCH(req: Request) {
     if (![null, "female", "male"].includes(body.pref)) {
       return NextResponse.json({ error: "잘못된 취향 값입니다." }, { status: 400 });
     }
-    db.prepare("UPDATE users SET pref=? WHERE id=?").run(body.pref, user.id);
+    db.prepare("UPDATE users SET pref=?, onboarding_completed_at=COALESCE(onboarding_completed_at, datetime('now')) WHERE id=?").run(body.pref, user.id);
   }
 
   if (body.nsfw_on !== undefined) {

@@ -42,9 +42,9 @@ export async function GET(req: Request) {
     return NextResponse.redirect(`${origin}${returnTo}?error=google_failed`);
   }
 
-  const { userId, isNew, pref } = upsertGoogleUser(info);
+  const { userId, isNew, pref, onboardingCompletedAt } = upsertGoogleUser(info);
   const token = createSession(userId);
-  const dest = resolvePostGoogleDest({ isNew, pref, redirectAfter });
+  const dest = resolvePostGoogleDest({ isNew, pref, onboardingCompletedAt, redirectAfter });
   const res = NextResponse.redirect(`${origin}${dest}`);
   res.cookies.set("session", token, { httpOnly: true, sameSite: "lax", maxAge: 30 * 24 * 3600, path: "/" });
   res.cookies.delete("oauth_state");

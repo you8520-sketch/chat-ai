@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   if (exists) return NextResponse.json({ error: "이미 가입된 이메일입니다." }, { status: 409 });
 
   const info = db
-    .prepare("INSERT INTO users (email, nickname, pw_hash, pref, points) VALUES (?,?,?,?,0)")
+    .prepare("INSERT INTO users (email, nickname, pw_hash, pref, points, onboarding_completed_at) VALUES (?,?,?,?,0,datetime('now'))")
     .run(email, nickname, hashPassword(password), storedPref);
   const userId = Number(info.lastInsertRowid);
   creditPoints(userId, SIGNUP_BONUS_POINTS, "FREE", "신규 가입 보너스");
