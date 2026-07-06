@@ -2,7 +2,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { getLatestNoticeId, hasUnreadNotices } from "@/lib/notices";
+import { getLatestNoticeId, getUnreadNoticeCount, hasUnreadNotices } from "@/lib/notices";
 import { getTotalUnreadCount } from "@/lib/userNotifications";
 import AnimatedPointsBadge from "./AnimatedPointsBadge";
 import LogoutButton from "./LogoutButton";
@@ -27,7 +27,8 @@ export default async function Header() {
   const cookieStore = await cookies();
   const cookieReadId = Number(cookieStore.get("notice_read_id")?.value ?? 0);
   const readId = user?.notice_last_read_id ?? cookieReadId;
-  const unreadNotice = hasUnreadNotices(latestNoticeId, readId);
+  const unreadNoticeCount = getUnreadNoticeCount(db, user?.id ?? null, cookieReadId);
+  const unreadNotice = hasUnreadNotices(latestNoticeId, readId, unreadNoticeCount);
   const unreadCount = getTotalUnreadCount(db, user?.id ?? null, readId);
   const pointBalance = user ? getPointBalance(user.id) : null;
   const paymentsEnabled = isPaymentsEnabled();

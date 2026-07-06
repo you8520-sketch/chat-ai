@@ -39,7 +39,13 @@ export type AttendanceStatus = {
 export function getAttendanceStatus(userId: number): AttendanceStatus {
   const db = getDb();
   const row = db
-    .prepare("SELECT last_attendance_date, attendance_streak FROM users WHERE id = ?")
+    .prepare(
+      `SELECT attendance_date AS last_attendance_date, streak AS attendance_streak
+       FROM attendance_checkins
+       WHERE user_id = ?
+       ORDER BY attendance_date DESC
+       LIMIT 1`
+    )
     .get(userId) as { last_attendance_date: string | null; attendance_streak: number | null } | undefined;
 
   const todayKst = getKstDateString();
@@ -75,7 +81,13 @@ export function claimDailyAttendance(userId: number): ClaimAttendanceResult {
 
   return db.transaction(() => {
     const row = db
-      .prepare("SELECT last_attendance_date, attendance_streak FROM users WHERE id = ?")
+      .prepare(
+        `SELECT attendance_date AS last_attendance_date, streak AS attendance_streak
+         FROM attendance_checkins
+         WHERE user_id = ?
+         ORDER BY attendance_date DESC
+         LIMIT 1`
+      )
       .get(userId) as { last_attendance_date: string | null; attendance_streak: number | null } | undefined;
 
     const last = row?.last_attendance_date ?? null;
@@ -98,6 +110,22 @@ export function claimDailyAttendance(userId: number): ClaimAttendanceResult {
     const cycleCompleted = nextStreak >= ATTENDANCE_CYCLE_DAYS;
     const bonus = cycleCompleted ? WEEKLY_ATTENDANCE_BONUS_REWARD : 0;
     const reward = DAILY_ATTENDANCE_REWARD + bonus;
+    const inserted = db
+      .prepare("INSERT OR IGNORE INTO attendance_checkins (user_id, attendance_date, streak, reward_points) VALUES (?,?,?,?)")
+      .run(userId, todayKst, nextStreak, reward);
+    if (inserted.changes === 0) {
+      const current = getAttendanceStatus(userId);
+      return {
+        ok: true as const,
+        alreadyClaimed: true as const,
+        reward: 0 as const,
+        baseReward: DAILY_ATTENDANCE_REWARD,
+        bonusReward: WEEKLY_ATTENDANCE_BONUS_REWARD,
+        streak: current.currentStreak,
+        cycleCompleted: false as const,
+        balance: getPointBalance(userId),
+      };
+    }
     db.prepare("UPDATE users SET last_attendance_date = ?, attendance_streak = ? WHERE id = ?").run(todayKst, nextStreak, userId);
     creditPointsWithIds(
       db,

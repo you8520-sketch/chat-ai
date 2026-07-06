@@ -15,7 +15,7 @@ export async function GET() {
   const cookieReadId = Number(cookieStore.get("notice_read_id")?.value ?? 0);
   const readId = user?.notice_last_read_id ?? cookieReadId;
 
-  const notices = listUnreadNotices(db, readId, 50);
+  const notices = listUnreadNotices(db, readId, 50, user?.id ?? null);
   const activities = user ? listUserNotifications(db, user.id, 50) : [];
   const unreadCount = getTotalUnreadCount(db, user?.id ?? null, readId);
 
