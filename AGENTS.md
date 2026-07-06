@@ -21,8 +21,14 @@ Single Next.js 15 (App Router) app — an AI character chat platform (Korean UI,
 ### Home/listing shows no characters (expected on fresh seed)
 - Seeded characters have `official=0` and `creator_id NULL`, but `listableWhere()` (`src/lib/characterVisibility.ts`) only lists `official=1` or characters with a real creator — so Home/신작/랭킹 render empty and `/tab/ranking` throws a JSON error. This is pre-existing app behavior, not a broken environment. You can still open any public+approved character directly at `/character/<id>` (e.g. `/character/2`) — `canAccessCharacter()` allows it — and chat normally.
 
-### Lint / typecheck / tests
-- `npm run typecheck` (`tsc --noEmit`) reports ~95 errors, all confined to `*.test.ts` files (untyped `Module._load` / missing `vitest` typings); there are 0 errors in application source, and `next build` is unaffected.
+### Validation
+- Standard checks for code changes are:
+  1. `git diff --check`
+  2. `npm run lint`
+  3. `npm run typecheck:app`
+- `npm run lint` currently runs the app-only TypeScript validation because this repo has no ESLint configuration or ESLint dependency installed. If a real ESLint setup is added later, prefer `"lint": "eslint ."` (or `next lint` only for a Next.js version/config that still supports it).
+- `npm run typecheck:app` uses `tsconfig.app.json` to validate application/runtime source while excluding tests/specs and known test-only typing gaps.
+- `npm run typecheck` (`tsc --noEmit`) is a known issue on `main`: it reports errors confined to test files (untyped `Module._load`, missing `vitest` typings, `.ts` extension test imports, and a few pre-existing test fixture type mismatches). When reporting validation, explicitly separate these pre-existing full-typecheck errors from any new errors introduced by the current change.
 - Tests use the Node built-in runner and MUST be run with the `react-server` condition, otherwise `server-only` throws:
   `node --conditions=react-server --import tsx --test "src/**/*.test.ts"`
   The suite is not fully green on `main`: 6 files import `vitest` (not a dependency) and a handful of billing/length tests have pre-existing assertion mismatches. The large majority pass.
