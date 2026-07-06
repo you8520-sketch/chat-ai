@@ -14,6 +14,7 @@ import {
 } from "@/lib/pointUsageLog";
 import { POINT_USAGE_HASH } from "@/lib/pointUi";
 import { FREE_POINTS_VALID_MONTHS, POINT_CHARGE_PACKAGES } from "@/lib/plans";
+import { ATTENDANCE_POINTS_VALID_MONTHS } from "@/lib/attendanceConstants";
 import { runPortOnePointCharge } from "@/lib/portoneBrowser";
 import {
   computeGiftBreakdown,
@@ -407,7 +408,7 @@ export default function PointsClient({
           <p className="text-3xl font-black text-white">{points.toLocaleString()}P</p>
         </PointsBalanceTooltip>
         <p className="mt-2 text-xs text-amber-300/90">
-          무료 포인트는 지급일로부터 <b>{FREE_POINTS_VALID_MONTHS}개월</b>간 유효합니다 (충전 보너스·이벤트 포함).
+          충전 보너스·이벤트 무료 포인트는 <b>{FREE_POINTS_VALID_MONTHS}개월</b>, 출석 포인트는 <b>{ATTENDANCE_POINTS_VALID_MONTHS}개월</b>간 유효합니다.
         </p>
       </div>
 
@@ -539,7 +540,7 @@ export default function PointsClient({
             [
               ["usage", "사용 내역"],
               ["paid", "유료 충전"],
-              ["free", "무료 적립"],
+              ["free", "무료 적립·출석"],
             ] as const
           ).map(([id, label]) => (
             <button
@@ -569,7 +570,7 @@ export default function PointsClient({
         )}
         {historyTab === "free" && free.total > 0 && (
           <p className="mt-2 text-xs text-gray-500">
-            최근 {Math.min(free.total, 100).toLocaleString()}건 · {CHARGE_PAGE_SIZE}건씩 · 출석·이벤트·보너스
+            최근 {Math.min(free.total, 100).toLocaleString()}건 · {CHARGE_PAGE_SIZE}건씩 · 출석(1개월)·이벤트/충전 보너스(5개월)
           </p>
         )}
 

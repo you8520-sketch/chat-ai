@@ -17,6 +17,7 @@ import { savedVisibleTextForReceipt } from "./chatRichContent";
 import { resolveResponseLengthTarget, isCatastrophicallyShortResponse, type GenerationFailureReason } from "./responseLength";
 import { isDegenerateOutput } from "./gibberishGuard";
 import { PLANS, type PlanId, FREE_MEMORY_LIMIT, FREE_POINTS_VALID_MONTHS } from "./plans";
+import { ATTENDANCE_POINTS_VALID_MONTHS } from "./attendanceConstants";
 import type { StageUsage } from "./ai";
 import {
   HTML_FLASH_MAX_OUTPUT_TOKENS,
@@ -32,7 +33,7 @@ export type BillingWaiverReason =
   | "degeneration"
   | "generation_failure";
 
-export { PLANS, type PlanId, FREE_MEMORY_LIMIT, FREE_POINTS_VALID_MONTHS };
+export { PLANS, type PlanId, FREE_MEMORY_LIMIT, FREE_POINTS_VALID_MONTHS, ATTENDANCE_POINTS_VALID_MONTHS };
 
 /** Gemini: (입력/1000)×3×tier + (출력/1000)×9×tier */
 const BASE_GEMINI_INPUT = 3;
@@ -353,7 +354,6 @@ function roundAmount(n: number): number {
 }
 
 export const PAID_POINTS_VALID_YEARS = 2;
-export const ATTENDANCE_POINTS_VALID_MONTHS = 1;
 
 function expiresModifier(pointType: PointType, validity?: { months?: number; years?: number }): string {
   if (validity?.years) return `+${validity.years} years`;
