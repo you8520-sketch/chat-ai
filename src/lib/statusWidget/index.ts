@@ -1,5 +1,6 @@
 export * from "./types";
 export * from "./defaultTemplate";
+export * from "./builtinTemplates";
 export * from "./serialize";
 export * from "./render";
 export * from "./parseValues";
