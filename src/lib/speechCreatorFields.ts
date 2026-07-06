@@ -2,19 +2,38 @@ import type { SpeechProfile } from "@/lib/speechLock/types";
 import { formatSpeechSectionAsMetadata } from "@/lib/speechMetadataPolicy";
 
 /** 캐릭터 제작 — 말투 세분화 입력 */
+export type SpeechContextualRegister = {
+  label: string;
+  condition: string;
+  style: string;
+  examples: string;
+  priority?: number | undefined;
+};
+
 export type SpeechCreatorInput = {
   speech_personality: string;
   speech_traits: string;
   speech_examples: string;
   speech_forbidden?: string;
+  speech_contextual_registers?: SpeechContextualRegister[];
 };
 
 export function speechCreatorCharCount(input: SpeechCreatorInput): number {
+  const contextual = (input.speech_contextual_registers ?? []).reduce(
+    (sum, register) =>
+      sum +
+      register.label.length +
+      register.condition.length +
+      register.style.length +
+      register.examples.length,
+    0
+  );
   return (
     input.speech_personality.length +
     input.speech_traits.length +
     input.speech_examples.length +
-    (input.speech_forbidden?.length ?? 0)
+    (input.speech_forbidden?.length ?? 0) +
+    contextual
   );
 }
 
@@ -86,15 +105,78 @@ Dialogue style is learned primarily from dialogue examples.
 Trait descriptions are secondary.
 When examples conflict with descriptions, examples always win.`;
 
+const CONTEXTUAL_REGISTER_DATA_OPEN = "[상황별 말투 데이터]";
+
+function normalizeContextualRegisters(raw: unknown): SpeechContextualRegister[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item): SpeechContextualRegister | null => {
+      if (!item || typeof item !== "object") return null;
+      const register = item as Record<string, unknown>;
+      return {
+        label: String(register.label ?? "").trim().slice(0, 40),
+        condition: String(register.condition ?? "").trim().slice(0, 160),
+        style: String(register.style ?? "").trim().slice(0, 240),
+        examples: String(register.examples ?? "").trim().slice(0, 600),
+        priority: Number.isFinite(Number(register.priority))
+          ? Math.max(0, Math.min(100, Number(register.priority)))
+          : undefined,
+      };
+    })
+    .filter((register): register is SpeechContextualRegister =>
+      Boolean(register && (register.label || register.condition || register.style || register.examples))
+    )
+    .slice(0, 8);
+}
+
+function splitExampleLines(text: string): string[] {
+  return text
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 6);
+}
+
+function formatContextualRegisters(registers: SpeechContextualRegister[]): string {
+  if (registers.length === 0) return "";
+  const lines = [
+    "[상황별 말투 레지스터]",
+    "현재 장면의 관계/장소/상대에 맞는 말투 레지스터를 선택한다.",
+    "상황별 말투가 적용되지 않으면 기본 말투를 사용한다.",
+    "유저의 대사나 행동을 대신 작성하지 않는다.",
+    "",
+  ];
+
+  registers.forEach((register, index) => {
+    const label = register.label || `register_${index + 1}`;
+    lines.push(`${index + 1}. ${label}`);
+    if (register.condition) lines.push(`- 적용 조건: ${register.condition}`);
+    if (register.style) lines.push(`- 말투: ${register.style}`);
+    const examples = splitExampleLines(register.examples);
+    if (examples.length > 0) {
+      lines.push(`- 예시: ${examples.map((example) => `"${normalizeDialogueLine(example)}"`).join(", ")}`);
+    }
+    if (register.priority != null) lines.push(`- 우선도: ${register.priority}`);
+    lines.push("");
+  });
+
+  lines.push(CONTEXTUAL_REGISTER_DATA_OPEN);
+  lines.push(JSON.stringify(registers));
+  return lines.join("\n").trim();
+}
+
 /** API·DB용 example_dialog (파서 speech 청크용) */
 export function composeExampleDialog(input: SpeechCreatorInput): string {
   const parts: string[] = [];
+  const contextualRegisters = normalizeContextualRegisters(input.speech_contextual_registers);
   if (input.speech_examples.trim()) {
     const lines = extractCharacterDialogueLines(input.speech_examples);
     const body = lines.length > 0 ? lines.join("\n") : input.speech_examples.trim();
     parts.push(`[예시 대사]\n${body}`);
     parts.push(SPEECH_CONSISTENCY_BLOCK);
   }
+  const contextual = formatContextualRegisters(contextualRegisters);
+  if (contextual) parts.push(contextual);
   if (input.speech_traits.trim()) {
     parts.push(
       formatSpeechSectionAsMetadata("[말투 — 특징]", input.speech_traits.trim())
@@ -118,6 +200,9 @@ export function buildCreatorSpeechProfilePartial(
 ): Partial<SpeechProfile> {
   const personality = input.speech_personality.trim();
   const traits = input.speech_traits.trim();
+  const contextual = formatContextualRegisters(
+    normalizeContextualRegisters(input.speech_contextual_registers)
+  );
   const charLines = extractCharacterDialogueLines(input.speech_examples);
   const ending_anchors = extractEndingAnchors(charLines);
   const customForbidden = parseForbiddenLines(input.speech_forbidden);
@@ -125,8 +210,8 @@ export function buildCreatorSpeechProfilePartial(
   return {
     charName,
     creator_personality: personality || undefined,
-    creator_speech_traits: traits || undefined,
-    speech_tone: traits || personality || "제작자 정의 말투",
+    creator_speech_traits: [traits, contextual].filter(Boolean).join("\n\n") || undefined,
+    speech_tone: [traits, contextual, personality].filter(Boolean).join("\n\n") || "제작자 정의 말투",
     dialogue_examples: charLines,
     ending_anchors: ending_anchors.length > 0 ? ending_anchors : undefined,
     forbidden_speech_patterns: customForbidden.length > 0 ? customForbidden : undefined,
@@ -146,20 +231,23 @@ export function speechCreatorFromLegacyExampleDialog(exampleDialog: string): Spe
       speech_traits: "",
       speech_examples: "",
       speech_forbidden: "",
+      speech_contextual_registers: [],
     };
   }
 
   const personality = extractSection(text, /\[말투\s*[—\-·]\s*성격\]/i);
   const traits = extractSection(text, /\[말투\s*[—\-·]\s*특징\]/i);
   const examples = extractSection(text, /\[예시\s*(?:대화|대사)\]/i);
-  const forbidden = extractSection(text, /\[금지\s*말투\]/i);
+  const forbidden = extractSection(text, /\[(?:금지\s*말투|dialogue_avoid[^\]]*)\]/i);
+  const contextualRegisters = extractContextualRegisterData(text);
 
-  if (personality || traits || examples || forbidden) {
+  if (personality || traits || examples || forbidden || contextualRegisters.length > 0) {
     return {
       speech_personality: personality,
       speech_traits: traits,
       speech_examples: examples,
       speech_forbidden: forbidden,
+      speech_contextual_registers: contextualRegisters,
     };
   }
 
@@ -168,6 +256,7 @@ export function speechCreatorFromLegacyExampleDialog(exampleDialog: string): Spe
     speech_traits: "",
     speech_examples: text,
     speech_forbidden: "",
+    speech_contextual_registers: [],
   };
 }
 
@@ -176,16 +265,29 @@ function extractSection(text: string, headerRe: RegExp): string {
   if (!match || match.index === undefined) return "";
   const start = match.index + match[0].length;
   const rest = text.slice(start).replace(/^\s*\n?/, "");
-  const nextHeader = rest.search(/\n\[말투|\n\[예시|\n\[금지/);
+  const nextHeader = rest.search(/\n\[(?:말투|예시|금지|SPEECH|상황별|dialogue_avoid)/i);
   const body = nextHeader >= 0 ? rest.slice(0, nextHeader) : rest;
   return body.trim();
+}
+
+function extractContextualRegisterData(text: string): SpeechContextualRegister[] {
+  const markerIndex = text.indexOf(CONTEXTUAL_REGISTER_DATA_OPEN);
+  if (markerIndex < 0) return [];
+  const raw = text.slice(markerIndex + CONTEXTUAL_REGISTER_DATA_OPEN.length).trim();
+  const firstLine = raw.split(/\n/)[0]?.trim() ?? "";
+  try {
+    return normalizeContextualRegisters(JSON.parse(firstLine));
+  } catch {
+    return [];
+  }
 }
 
 export function parseSpeechCreatorFromBody(body: Record<string, unknown>): SpeechCreatorInput {
   const hasStructured =
     typeof body.speech_personality === "string" ||
     typeof body.speech_traits === "string" ||
-    typeof body.speech_examples === "string";
+    typeof body.speech_examples === "string" ||
+    Array.isArray(body.speech_contextual_registers);
 
   if (hasStructured) {
     return {
@@ -193,6 +295,7 @@ export function parseSpeechCreatorFromBody(body: Record<string, unknown>): Speec
       speech_traits: String(body.speech_traits ?? "").trim(),
       speech_examples: String(body.speech_examples ?? "").trim(),
       speech_forbidden: String(body.speech_forbidden ?? "").trim(),
+      speech_contextual_registers: normalizeContextualRegisters(body.speech_contextual_registers),
     };
   }
 

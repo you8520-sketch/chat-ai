@@ -119,7 +119,9 @@ async function runStatusMetaExtraction(opts: {
   messageId: number;
   chatId: number;
   charName: string;
+  characterIdentity?: string | null;
   personaName: string;
+  userPersona?: string | null;
   userMessage: string;
   assistantProse: string;
   userNote?: string;
@@ -183,7 +185,9 @@ export function scheduleStatusMetaExtraction(opts: {
   messageId: number;
   chatId: number;
   charName: string;
+  characterIdentity?: string | null;
   personaName: string;
+  userPersona?: string | null;
   userMessage: string;
   assistantProse: string;
   userNote?: string;

@@ -125,6 +125,23 @@ describe("statusWidget extract", () => {
     assert.ok(userBlock.trimEnd().endsWith("(자리비움)\"으로 남겨라."));
   });
 
+  it("buildWidgetExtractUserBlock includes selected persona gender context", () => {
+    const block = buildWidgetExtractUserBlock({
+      charName: "레온",
+      characterIdentity: "이름: 레온\n성별: 남성 — 절대 준수.",
+      personaName: "렌",
+      userPersona: "이름/호칭: 렌\n\n성별: 남성 — 절대 준수.",
+      userMessage: "마중 나와줘.",
+      assistantProse: "레온이 렌을 마중 나왔다.",
+      widget: DEFAULT_STATUS_WIDGET,
+      source: "character",
+    });
+    assert.match(block, /\[CHARACTER IDENTITY — MUST OBEY\]/);
+    assert.match(block, /성별: 남성 — 절대 준수/);
+    assert.match(block, /\[USER PERSONA — MUST OBEY\]/);
+    assert.match(block, /성별: 남성 — 절대 준수/);
+  });
+
   it("allocateWidgetExtractNarrativeSlices prioritizes current turn within budget", () => {
     const current = "A".repeat(5000);
     const previous = "B".repeat(5000);

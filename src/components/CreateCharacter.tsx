@@ -16,7 +16,10 @@ import AssetManagerGrid, {
 import CreatorCommentHtml from "@/components/CreatorCommentHtml";
 import CharacterPublicPagePreview from "@/components/CharacterPublicPagePreview";
 import { PROFILE_BIOGRAPHY_LIMIT } from "@/lib/generateProfile";
-import { speechCreatorCharCount } from "@/lib/speechCreatorFields";
+import {
+  speechCreatorCharCount,
+  type SpeechContextualRegister,
+} from "@/lib/speechCreatorFields";
 import StatusWidgetEditor from "@/components/StatusWidgetEditor";
 import {
   characterStatusWidgetOrDefault,
@@ -97,6 +100,7 @@ export default function CreateCharacter({
     speech_traits: "",
     speech_examples: "",
     speech_forbidden: "",
+    speech_contextual_registers: [] as SpeechContextualRegister[],
     status_window_prompt: "",
     genres: [] as CharacterGenre[],
     tags: [] as string[],
@@ -154,6 +158,9 @@ export default function CreateCharacter({
       ...draft.form,
       description: legacyDescription,
       tags: parseCharacterTagsInput(draft.form.tags),
+      speech_contextual_registers: Array.isArray(draft.form.speech_contextual_registers)
+        ? draft.form.speech_contextual_registers
+        : [],
     });
     setAssets(normalizeManagedAssets(draft.assets));
     setSelectedWorldId(draft.selectedWorldId);
@@ -202,6 +209,7 @@ export default function CreateCharacter({
       speech_traits: form.speech_traits,
       speech_examples: form.speech_examples,
       speech_forbidden: form.speech_forbidden,
+      speech_contextual_registers: form.speech_contextual_registers,
     });
 
   const createRequirements = useMemo(
@@ -337,6 +345,9 @@ export default function CreateCharacter({
           speech_traits: data.speech_traits ?? "",
           speech_examples: data.speech_examples ?? "",
           speech_forbidden: data.speech_forbidden ?? "",
+          speech_contextual_registers: Array.isArray(data.speech_contextual_registers)
+            ? data.speech_contextual_registers
+            : [],
           status_window_prompt: "",
           genres: Array.isArray(data.genres) ? data.genres : [],
           tags: parseCharacterTagsInput(data.tags ?? ""),
@@ -417,6 +428,38 @@ export default function CreateCharacter({
     if (picked) {
       setForm((f) => ({ ...f, world: picked.content }));
     }
+  }
+
+  function addSpeechRegister() {
+    setForm((f) => ({
+      ...f,
+      speech_contextual_registers: [
+        ...f.speech_contextual_registers,
+        {
+          label: "",
+          condition: "",
+          style: "",
+          examples: "",
+          priority: 80,
+        },
+      ].slice(0, 8),
+    }));
+  }
+
+  function updateSpeechRegister(index: number, patch: Partial<SpeechContextualRegister>) {
+    setForm((f) => ({
+      ...f,
+      speech_contextual_registers: f.speech_contextual_registers.map((register, i) =>
+        i === index ? { ...register, ...patch } : register,
+      ),
+    }));
+  }
+
+  function removeSpeechRegister(index: number) {
+    setForm((f) => ({
+      ...f,
+      speech_contextual_registers: f.speech_contextual_registers.filter((_, i) => i !== index),
+    }));
   }
 
   async function submit(e: React.FormEvent) {
@@ -695,6 +738,10 @@ export default function CreateCharacter({
                   <h2 className="text-sm font-bold text-violet-300">
                     비공개 설정( AI 대화에만 사용)
                   </h2>
+                  <p className="mt-1 text-xs leading-relaxed text-zinc-300/90">
+                    글자수가 많아질수록 유저의 포인트 소모가 증가합니다. 항상 기억해야 할 내용이 아니라면
+                    로어북을 이용해보세요.
+                  </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <VisibilityBadge kind="private" />
@@ -765,16 +812,32 @@ export default function CreateCharacter({
               <div className="space-y-4 rounded-xl border border-violet-500/25 bg-violet-500/5 p-4">
                 <div>
                   <h3 className="text-sm font-bold text-violet-200">
-                    말투 설정 (Speech Lock)
+                    말투 고정
                   </h3>
                   <p className="mt-0.5 text-[11px] text-gray-500">
-                    선택 입력 · 캐릭터 대사 예시만 넣어도 말투 학습에 활용됩니다
+                    평소 말투와 상황별 말투 변화를 나누어 입력하면 장면에 맞는 대사가 더 안정적으로 유지됩니다.
                   </p>
                 </div>
                 <div>
                   <label className={label}>
-                    <span className="text-gray-500">[선택]</span> 캐릭터 대사
-                    예시{" "}
+                    <span className="text-gray-500">[권장]</span> 기본 말투
+                  </label>
+                  <textarea
+                    rows={3}
+                    className={cls}
+                    placeholder="예: 평소에는 낮고 무뚝뚝한 반말. 감정을 직접 말하지 않고 짧게 돌려 말한다."
+                    value={form.speech_personality}
+                    onChange={(e) =>
+                      setForm({ ...form, speech_personality: e.target.value })
+                    }
+                  />
+                  <p className="mt-1 text-[11px] text-gray-600">
+                    상황별 규칙이 맞지 않을 때 적용되는 캐릭터의 기본 대화 톤입니다.
+                  </p>
+                </div>
+                <div>
+                  <label className={label}>
+                    <span className="text-gray-500">[권장]</span> 캐릭터 대사 예시{" "}
                     <span className="font-normal text-gray-500">
                       (많을수록 좋음)
                     </span>
@@ -794,6 +857,110 @@ export default function CreateCharacter({
                     캐릭터 대사만 한 줄씩 · 유저 대사 불필요 · 따옴표 있어도
                     없어도 됩니다
                   </p>
+                </div>
+                <div className="space-y-3 rounded-xl border border-white/10 bg-black/10 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <h4 className="text-xs font-bold text-violet-100">
+                        상황별 말투
+                      </h4>
+                      <p className="mt-0.5 text-[11px] text-gray-500">
+                        공적 자리, 친밀도 상승, 적대 상황처럼 말투가 달라지는 조건을 추가합니다.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={addSpeechRegister}
+                      disabled={form.speech_contextual_registers.length >= 8}
+                      className="rounded-lg border border-violet-400/30 px-3 py-1.5 text-xs font-semibold text-violet-100 hover:bg-violet-400/10 disabled:opacity-40"
+                    >
+                      + 상황별 말투 추가
+                    </button>
+                  </div>
+
+                  {form.speech_contextual_registers.length === 0 ? (
+                    <p className="rounded-lg border border-dashed border-white/10 px-3 py-3 text-[11px] text-gray-600">
+                      필요할 때만 추가하세요. 예: 공적인 자리에서는 짧은 존댓말, 유저와 단둘일 때는 부드러운 반말.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {form.speech_contextual_registers.map((register, index) => (
+                        <div
+                          key={index}
+                          className="space-y-3 rounded-xl border border-white/10 bg-[#0c0e1a] p-3"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-xs font-bold text-violet-200">
+                              #{index + 1}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeSpeechRegister(index)}
+                              className="text-xs text-gray-500 hover:text-rose-300"
+                            >
+                              삭제
+                            </button>
+                          </div>
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <div>
+                              <label className={label}>상황 이름</label>
+                              <input
+                                className={cls}
+                                placeholder="예: 공적인 자리"
+                                value={register.label}
+                                onChange={(e) =>
+                                  updateSpeechRegister(index, {
+                                    label: e.target.value.slice(0, 40),
+                                  })
+                                }
+                              />
+                            </div>
+                            <div>
+                              <label className={label}>적용 조건</label>
+                              <input
+                                className={cls}
+                                placeholder="예: 상관, 임무 보고, 공개 장소"
+                                value={register.condition}
+                                onChange={(e) =>
+                                  updateSpeechRegister(index, {
+                                    condition: e.target.value.slice(0, 160),
+                                  })
+                                }
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className={label}>말투 설명</label>
+                            <textarea
+                              rows={2}
+                              className={cls}
+                              placeholder="예: 짧고 절제된 존댓말/다나까체. 감정을 드러내지 않고 군인처럼 말한다."
+                              value={register.style}
+                              onChange={(e) =>
+                                updateSpeechRegister(index, {
+                                  style: e.target.value.slice(0, 240),
+                                })
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className={label}>대사 예시</label>
+                            <textarea
+                              rows={3}
+                              className={cls}
+                              placeholder={'"명령 확인했습니다."\n"즉시 이동하겠습니다."'}
+                              value={register.examples}
+                              onChange={(e) =>
+                                updateSpeechRegister(index, {
+                                  examples: e.target.value.slice(0, 600),
+                                })
+                              }
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className={label}>

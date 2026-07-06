@@ -16,7 +16,9 @@ import type {
 
 async function extractStatusWidgetValuesForWidget(opts: {
   charName: string;
+  characterIdentity?: string | null;
   personaName: string;
+  userPersona?: string | null;
   userMessage: string;
   assistantProse: string;
   widget: StatusWidget;
@@ -57,7 +59,9 @@ async function extractStatusWidgetValuesForWidget(opts: {
 
 export async function extractStatusWidgetValuesForTurn(opts: {
   charName: string;
+  characterIdentity?: string | null;
   personaName: string;
+  userPersona?: string | null;
   userMessage: string;
   assistantProse: string;
   resolved: ResolvedStatusWidgetTurn;
@@ -71,7 +75,9 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   if (opts.resolved.needsCharacterValues && opts.resolved.characterWidget) {
     const character = await extractStatusWidgetValuesForWidget({
       charName: opts.charName,
+      characterIdentity: opts.characterIdentity,
       personaName: opts.personaName,
+      userPersona: opts.userPersona,
       userMessage: opts.userMessage,
       assistantProse: opts.assistantProse,
       widget: opts.resolved.characterWidget,
@@ -87,7 +93,9 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   if (opts.resolved.needsUserValues && opts.resolved.userWidget) {
     const user = await extractStatusWidgetValuesForWidget({
       charName: opts.charName,
+      characterIdentity: opts.characterIdentity,
       personaName: opts.personaName,
+      userPersona: opts.userPersona,
       userMessage: opts.userMessage,
       assistantProse: opts.assistantProse,
       widget: opts.resolved.userWidget,

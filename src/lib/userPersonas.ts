@@ -168,6 +168,25 @@ export function formatSelectedPersonaForPrompt(
   return parts.join("\n\n");
 }
 
+export function formatSelectedPersonaIdentityForBackground(
+  name: string,
+  gender: CharacterGender
+): string | null {
+  const trimmedName = name.trim();
+  const parts: string[] = [];
+  if (trimmedName) parts.push(`이름/호칭: ${trimmedName}`);
+  if (gender === "male" || gender === "female") {
+    parts.push(
+      `성별: ${PERSONA_GENDER_LABELS[gender]} — 절대 준수. ${
+        gender === "male"
+          ? "유저를 여성으로 묘사하거나 여성형 신체·호칭으로 바꾸지 말 것."
+          : "유저를 남성으로 묘사하거나 남성형 신체·호칭으로 바꾸지 말 것."
+      }`
+    );
+  }
+  return parts.length > 0 ? parts.join("\n") : null;
+}
+
 /** @deprecated use formatSelectedPersonaForPrompt */
 export function formatSelectedPersonaDescription(description: string): string | null {
   const trimmed = description.trim();

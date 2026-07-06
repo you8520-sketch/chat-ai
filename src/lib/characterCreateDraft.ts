@@ -2,6 +2,7 @@ import type { GeneratedProfile } from "@/lib/generateProfile";
 import type { CharacterGenre } from "@/lib/characterGenres";
 import type { CharacterGender } from "@/lib/characterGender";
 import type { CharacterAsset } from "@/lib/characterAssets";
+import type { SpeechContextualRegister } from "@/lib/speechCreatorFields";
 
 const STORAGE_PREFIX = "hobbyai.characterCreateDraft.v1";
 
@@ -18,6 +19,7 @@ export type CharacterCreateDraft = {
     speech_traits: string;
     speech_examples: string;
     speech_forbidden: string;
+    speech_contextual_registers?: SpeechContextualRegister[];
     status_window_prompt: string;
     genres: CharacterGenre[];
     tags: string[];

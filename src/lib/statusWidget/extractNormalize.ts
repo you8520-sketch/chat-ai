@@ -68,7 +68,9 @@ Rules:
 
 export function buildWidgetExtractUserBlock(opts: {
   charName: string;
+  characterIdentity?: string | null;
   personaName: string;
+  userPersona?: string | null;
   userMessage: string;
   assistantProse: string;
   previousAssistantProse?: string | null;
@@ -90,7 +92,9 @@ export function buildWidgetExtractUserBlock(opts: {
       .join("\n"),
     opts.userNote?.trim() ? `[USER NOTE]\n${opts.userNote.trim()}` : "",
     `[CHARACTER] ${opts.charName}`,
+    opts.characterIdentity?.trim() ? `[CHARACTER IDENTITY — MUST OBEY]\n${opts.characterIdentity.trim()}` : "",
     `[USER] ${opts.personaName}`,
+    opts.userPersona?.trim() ? `[USER PERSONA — MUST OBEY]\n${opts.userPersona.trim()}` : "",
     `[USER MESSAGE]\n${opts.userMessage}`,
     previousSlice ? `[PREVIOUS TURN ASSISTANT — prose only]\n${previousSlice}` : "",
     `[ASSISTANT REPLY — current turn prose only]\n${currentSlice}`,

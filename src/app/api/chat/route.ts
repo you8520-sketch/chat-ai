@@ -45,7 +45,7 @@ import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
 import { parseAssets, chatAssets } from "@/lib/characterAssets";
 import { sanitizeEmotionTagInText, stripEmotionTagsForDisplay } from "@/lib/emotionTag";
 import { sanitizeCharacterGenres } from "@/lib/characterGenres";
-import { resolveCharacterGender } from "@/lib/characterGender";
+import { formatCharacterIdentityForBackground, resolveCharacterGender } from "@/lib/characterGender";
 import {
   collectCharacterSettingText,
   buildCharacterCanonBlock,
@@ -116,6 +116,7 @@ import { splitAndNormalizeRelationshipMemoryTail } from "@/lib/relationshipMemor
 import { parseUserChatPrefs, normalizeNovelModeEnabled } from "@/lib/userChatPrefs";
 import {
   ensureDefaultPersona,
+  formatSelectedPersonaIdentityForBackground,
   formatSelectedPersonaForPrompt,
   resolveChatSelectedPersona,
   validatePersonaSelection,
@@ -433,6 +434,14 @@ export async function POST(req: Request) {
     selectedPersona?.gender ?? "other",
     personaDescription,
     { coNarrationEnabled: novelModeEnabled || userImpersonation }
+  );
+  const backgroundPersonaIdentity = formatSelectedPersonaIdentityForBackground(
+    personaDisplayName,
+    selectedPersona?.gender ?? "other"
+  );
+  const backgroundCharacterIdentity = formatCharacterIdentityForBackground(
+    ch.name,
+    resolveCharacterGender(ch.gender)
   );
   const { body: noteBody } = parseUserNoteCombined(effectiveUserNote);
   const userContextChars = estimateUserContextChars(userNoteCombinedCharCount(noteBody));
@@ -2114,7 +2123,9 @@ export async function POST(req: Request) {
             rawWidgetSourceText,
             statusWidgetTurn,
             charName: ch.name,
+            characterIdentity: backgroundCharacterIdentity,
             personaName: personaDisplayName,
+            userPersona: backgroundPersonaIdentity,
             userMessage: messageText,
             userNote: effectiveUserNote,
             regenerateMessageId: regenerateMessageId ?? undefined,
@@ -2299,7 +2310,9 @@ export async function POST(req: Request) {
             messageId: aiMessageId,
             chatId: chatRef.id,
             charName: ch.name,
+            characterIdentity: backgroundCharacterIdentity,
             personaName: personaDisplayName,
+            userPersona: backgroundPersonaIdentity,
             userMessage: messageText,
             assistantProse: savedText,
             userNote: effectiveUserNote,
@@ -2388,9 +2401,11 @@ export async function POST(req: Request) {
               relationshipNames,
               tier: memoryTier,
               memoryCapacity: getChatMemoryCapacity(chatRef.id),
+              characterIdentity: backgroundCharacterIdentity,
               userMessage: messageText,
               assistantMessage: savedText,
               assistantMessageId: aiMessageId,
+              userPersona: backgroundPersonaIdentity,
               isRegenerate: !!regenerateMessageId,
               previousAssistantMessage: rejectedAssistantDraft ?? undefined,
               route: nextMode,

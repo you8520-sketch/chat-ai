@@ -106,6 +106,7 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     speech_traits: speech.speech_traits,
     speech_examples: speech.speech_examples,
     speech_forbidden: speech.speech_forbidden,
+    speech_contextual_registers: speech.speech_contextual_registers ?? [],
     genres,
     tags: tagList.join(", "),
     nsfw: c.nsfw === 1,

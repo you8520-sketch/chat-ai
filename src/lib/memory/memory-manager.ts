@@ -226,9 +226,11 @@ export async function scheduleMemoryUpdate(opts: {
   relationshipNames: HonorificNames;
   tier: MemoryTier;
   memoryCapacity: number;
+  characterIdentity?: string | null;
   userMessage: string;
   assistantMessage: string;
   assistantMessageId?: number;
+  userPersona?: string | null;
   /** 재생성 — message_count 증가·배치 재요약·관계메모 reconcile */
   isRegenerate?: boolean;
   previousAssistantMessage?: string;
@@ -286,6 +288,8 @@ export async function scheduleMemoryUpdate(opts: {
       charName: opts.relationshipNames.charName,
       tier: opts.tier,
       memoryCapacity: opts.memoryCapacity,
+      characterIdentity: opts.characterIdentity,
+      userPersona: opts.userPersona,
       assistantMessageId: opts.assistantMessageId,
       turnTrace: opts.turnTrace,
     }).catch((e) => {
@@ -306,6 +310,8 @@ export async function scheduleMemoryUpdate(opts: {
       charName: opts.relationshipNames.charName,
       tier: opts.tier,
       memoryCapacity: opts.memoryCapacity,
+      characterIdentity: opts.characterIdentity,
+      userPersona: opts.userPersona,
       turnTrace: opts.turnTrace,
     }).catch((e) => {
       console.warn("[memory] rolling summary after turn failed:", (e as Error).message);

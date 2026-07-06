@@ -19,6 +19,25 @@ export function resolveCharacterGender(value: unknown): CharacterGender {
   return parseCharacterGender(value) ?? "other";
 }
 
+export function formatCharacterIdentityForBackground(
+  name: string,
+  gender: CharacterGender
+): string | null {
+  const trimmedName = name.trim();
+  const parts: string[] = [];
+  if (trimmedName) parts.push(`이름: ${trimmedName}`);
+  if (gender === "male" || gender === "female") {
+    parts.push(
+      `성별: ${GENDER_LABELS[gender]} — 절대 준수. ${
+        gender === "male"
+          ? "캐릭터를 여성으로 묘사하거나 여성형 신체·호칭으로 바꾸지 말 것."
+          : "캐릭터를 남성으로 묘사하거나 남성형 신체·호칭으로 바꾸지 말 것."
+      }`
+    );
+  }
+  return parts.length > 0 ? parts.join("\n") : null;
+}
+
 export function genderSystemPrompt(gender: CharacterGender): string {
   switch (gender) {
     case "male":

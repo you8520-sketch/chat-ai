@@ -113,7 +113,9 @@ function extractJsonObject(text: string): Record<string, unknown> | null {
 
 function buildExtractUserBlock(opts: {
   charName: string;
+  characterIdentity?: string | null;
   personaName: string;
+  userPersona?: string | null;
   userMessage: string;
   assistantProse: string;
   userNote?: string;
@@ -168,7 +170,9 @@ function buildExtractUserBlock(opts: {
     opts.memoryBlock?.trim() ? `[MEMORY]\n${opts.memoryBlock.trim()}` : memoryHints,
     opts.loreBlock?.trim() ? `[ACTIVE LORE]\n${opts.loreBlock.trim()}` : "",
     `[CHARACTER] ${opts.charName}`,
+    opts.characterIdentity?.trim() ? `[CHARACTER IDENTITY — MUST OBEY]\n${opts.characterIdentity.trim()}` : "",
     `[USER] ${opts.personaName}`,
+    opts.userPersona?.trim() ? `[USER PERSONA — MUST OBEY]\n${opts.userPersona.trim()}` : "",
     `[USER MESSAGE]\n${opts.userMessage}`,
     `[ASSISTANT REPLY — prose only]\n${opts.assistantProse.slice(0, 6000)}`,
   ]
@@ -238,7 +242,9 @@ function normalizePlainTextExtraction(
 export async function extractStatusMetaFromTurn(opts: {
   chatId: number;
   charName: string;
+  characterIdentity?: string | null;
   personaName: string;
+  userPersona?: string | null;
   userMessage: string;
   assistantProse: string;
   userNote?: string;

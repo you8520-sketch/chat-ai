@@ -89,7 +89,9 @@ export type ResolveStatusWidgetTurnValuesInput = {
   rawWidgetSourceText: string;
   statusWidgetTurn: ResolvedStatusWidgetTurn;
   charName: string;
+  characterIdentity?: string | null;
   personaName: string;
+  userPersona?: string | null;
   userMessage: string;
   userNote?: string;
   regenerateMessageId?: number;
@@ -123,20 +125,16 @@ export async function resolveStatusWidgetTurnValues(
 
   try {
     const { extractStatusWidgetValuesForTurn } = await import("./extract");
-    const { loadPreviousStatusWidgetValues, loadPreviousAssistantProse } = await import(
-      "./loadPrevious"
-    );
+    const { loadPreviousStatusWidgetValues } = await import("./loadPrevious");
     const v3Result = await extractStatusWidgetValuesForTurn({
       charName: input.charName,
+      characterIdentity: input.characterIdentity,
       personaName: input.personaName,
+      userPersona: input.userPersona,
       userMessage: input.userMessage,
       assistantProse: prose,
       resolved: input.statusWidgetTurn,
       previousValues: loadPreviousStatusWidgetValues(
-        input.chatId,
-        input.regenerateMessageId
-      ),
-      previousAssistantProse: loadPreviousAssistantProse(
         input.chatId,
         input.regenerateMessageId
       ),

@@ -76,6 +76,7 @@ describe("isLikelySituationSummary", () => {
     assert.equal(isLikelySituationSummary("캐릭터가 놀랐다 · 유저에게 질문함"), true);
     assert.equal(isLikelySituationSummary("서연, 민수에게 말을 건넸다"), true);
     assert.equal(isLikelySituationSummary("유저가 말한 대로 행동했다"), true);
+    assert.equal(isLikelySituationSummary("렌과의 만남을 앞두고 평소와는 다른 모습을 보이고 싶어 서툰 노력을 하고 있다"), true);
   });
 
   it("accepts short inner monologue", () => {
@@ -88,6 +89,10 @@ describe("normalizeThoughtEntry", () => {
   it("drops summary-like thoughts", () => {
     assert.equal(normalizeThoughtEntry("서연: 그는 경계하며 대답했다", names), "");
     assert.equal(normalizeThoughtEntry("서연: 캐릭터가 놀랐다 · 유저에게 질문함", names), "");
+    assert.equal(
+      normalizeThoughtEntry("서연: 렌과의 만남을 앞두고 평소와는 다른 모습을 보이고 싶어 서툰 노력을 하고 있다", names),
+      ""
+    );
   });
 
   it("clamps good inner thoughts and keeps name prefix", () => {

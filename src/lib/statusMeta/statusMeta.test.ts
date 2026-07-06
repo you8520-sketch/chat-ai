@@ -176,6 +176,22 @@ describe("statusMeta extract prompts", () => {
     assert.match(block, /TIMEKEEPER RULE/);
   });
 
+  it("user block includes selected persona gender context", () => {
+    const block = buildStatusMetaExtractUserBlockForTest({
+      chatId: 1,
+      charName: "NPC",
+      characterIdentity: "이름: NPC\n성별: 여성 — 절대 준수.",
+      personaName: "렌",
+      userPersona: "이름/호칭: 렌\n\n성별: 남성 — 절대 준수.",
+      userMessage: "계속해",
+      assistantProse: "NPC가 렌에게 코트를 덮어주었다.",
+    });
+    assert.match(block, /\[CHARACTER IDENTITY — MUST OBEY\]/);
+    assert.match(block, /성별: 여성 — 절대 준수/);
+    assert.match(block, /\[USER PERSONA — MUST OBEY\]/);
+    assert.match(block, /성별: 남성 — 절대 준수/);
+  });
+
   it("user block always includes PREVIOUS TURN STATUS META section", () => {
     const block = buildStatusMetaExtractUserBlockForTest({
       chatId: 1,
