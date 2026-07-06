@@ -2,25 +2,103 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   LOREBOOK_CONTENT_MAX,
   LOREBOOK_ENTRY_MAX,
   LOREBOOK_KEYWORDS_PER_ENTRY,
   LOREBOOK_NAME_LIMIT,
   LOREBOOK_SUMMARY_LIMIT,
+  parseKeywordField,
   type KeywordLorebookEntryInput,
 } from "@/lib/keywordLorebooks";
 
 const cls =
   "w-full rounded-xl border border-white/10 bg-[#1a1a2e] px-4 py-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-emerald-500/40";
 const label = "mb-1.5 block text-xs font-semibold text-zinc-400";
+const keywordSeparator = "│";
 
 const emptyEntry = (): KeywordLorebookEntryInput => ({ keywords: "", content: "" });
 
 type Props = {
   lorebookId?: number;
 };
+
+function keywordsToField(keywords: string[]) {
+  return keywords.join(keywordSeparator);
+}
+
+function KeywordInput({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+}) {
+  const keywords = useMemo(() => parseKeywordField(value), [value]);
+  const [draft, setDraft] = useState("");
+
+  function commitKeyword(raw: string) {
+    const nextKeyword = raw.trim();
+    if (!nextKeyword || keywords.length >= LOREBOOK_KEYWORDS_PER_ENTRY) return;
+    if (keywords.some((keyword) => keyword === nextKeyword)) {
+      setDraft("");
+      return;
+    }
+    onChange(keywordsToField([...keywords, nextKeyword]));
+    setDraft("");
+  }
+
+  function removeKeyword(keywordToRemove: string) {
+    onChange(keywordsToField(keywords.filter((keyword) => keyword !== keywordToRemove)));
+  }
+
+  return (
+    <div>
+      <div className="flex min-h-[48px] w-full flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-[#1a1a2e] px-3 py-2 focus-within:border-emerald-500/40">
+        {keywords.map((keyword) => (
+          <span
+            key={keyword}
+            className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-emerald-400/15 px-2.5 py-1 text-xs font-semibold text-emerald-100 ring-1 ring-emerald-300/20"
+          >
+            <span className="max-w-[12rem] truncate">{keyword}</span>
+            <button
+              type="button"
+              onClick={() => removeKeyword(keyword)}
+              className="rounded-full px-1 text-emerald-100/70 hover:bg-white/10 hover:text-white"
+              aria-label={`${keyword} 키워드 삭제`}
+            >
+              ×
+            </button>
+          </span>
+        ))}
+        <input
+          className="min-w-[10rem] flex-1 bg-transparent px-1 py-1.5 text-sm text-zinc-100 outline-none placeholder:text-zinc-600 disabled:cursor-not-allowed"
+          placeholder={
+            keywords.length >= LOREBOOK_KEYWORDS_PER_ENTRY
+              ? "키워드는 최대 10개까지 등록할 수 있어요."
+              : "키워드 입력 후 Enter"
+          }
+          value={draft}
+          disabled={keywords.length >= LOREBOOK_KEYWORDS_PER_ENTRY}
+          onChange={(e) => setDraft(e.target.value.replace(/[|│]/g, "").slice(0, 40))}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter") return;
+            e.preventDefault();
+            commitKeyword(draft);
+          }}
+          onBlur={() => commitKeyword(draft)}
+        />
+      </div>
+      <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-zinc-600">
+        <span>등록한 키워드가 대화에 나오면 이 항목이 활성화됩니다.</span>
+        <span className="shrink-0 tabular-nums">
+          {keywords.length} / {LOREBOOK_KEYWORDS_PER_ENTRY}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 export default function CreateKeywordLorebook({ lorebookId }: Props) {
   const router = useRouter();
@@ -49,7 +127,7 @@ export default function CreateKeywordLorebook({ lorebookId }: Props) {
         const loaded = Array.isArray(data.entries) ? data.entries : [];
         setEntries(loaded.length > 0 ? loaded : [emptyEntry()]);
       } catch {
-        if (!cancelled) setError("불러오기 중 오류가 발생했습니다.");
+        if (!cancelled) setError("불러오는 중 오류가 발생했습니다.");
       } finally {
         if (!cancelled) setBootLoading(false);
       }
@@ -97,7 +175,7 @@ export default function CreateKeywordLorebook({ lorebookId }: Props) {
   }
 
   if (bootLoading) {
-    return <p className="mx-auto max-w-2xl px-4 py-12 text-sm text-zinc-500">불러오는 중…</p>;
+    return <p className="mx-auto max-w-2xl px-4 py-12 text-sm text-zinc-500">불러오는 중...</p>;
   }
 
   const filledCount = entries.filter((e) => e.keywords.trim() || e.content.trim()).length;
@@ -106,19 +184,18 @@ export default function CreateKeywordLorebook({ lorebookId }: Props) {
     <div className="mx-auto max-w-2xl px-4 py-8">
       <div className="mb-6 flex flex-wrap items-center gap-3">
         <Link href="/studio" className="text-sm text-zinc-500 hover:text-zinc-300">
-          ← 제작 메뉴
+          제작 메뉴
         </Link>
       </div>
 
-      <h1 className="text-2xl font-black text-white">{isEdit ? "📖 로어북 수정" : "📖 로어북 제작"}</h1>
+      <h1 className="text-2xl font-black text-white">{isEdit ? "로어북 수정" : "로어북 제작"}</h1>
       <p className="mt-2 text-sm leading-relaxed text-gray-400">
-        유저 입력에 특정 키워드가 포함되면 해당 내용이 프롬프트에{" "}
-        <b className="text-emerald-300/90">번역 없이</b> 그대로 주입됩니다. 키워드는 한 칸에 최대{" "}
-        {LOREBOOK_KEYWORDS_PER_ENTRY}개, <code className="text-emerald-200/80">│</code> 로 구분합니다.
+        유저 입력에 등록한 키워드가 포함되면 해당 내용이 프롬프트에{" "}
+        <b className="text-emerald-300/90">번역 없이</b> 그대로 주입됩니다. 키워드는 항목마다 최대{" "}
+        {LOREBOOK_KEYWORDS_PER_ENTRY}개까지 등록할 수 있어요.
       </p>
       <p className="mt-1 text-xs text-zinc-600">
-        예: <span className="text-zinc-400">!유나│!헌터│!얼음마녀</span> — 유저가 이 중 하나를 입력하면 내용이
-        불러와집니다.
+        예: <span className="text-zinc-400">카드, 동료, 제이</span>처럼 키워드를 하나씩 입력하고 Enter를 누르세요.
       </p>
 
       <form onSubmit={submit} className="mt-8 space-y-6">
@@ -134,7 +211,7 @@ export default function CreateKeywordLorebook({ lorebookId }: Props) {
         </div>
 
         <div>
-          <label className={label}>한 줄 요약</label>
+          <label className={label}>짧은 요약</label>
           <input
             className={cls}
             placeholder="목록에서 구분하기 위한 짧은 설명 (선택)"
@@ -149,7 +226,7 @@ export default function CreateKeywordLorebook({ lorebookId }: Props) {
             <div>
               <label className={label}>항목</label>
               <p className="text-[11px] text-zinc-600">
-                항목당 내용 {LOREBOOK_CONTENT_MAX}자 · 최대 {LOREBOOK_ENTRY_MAX}개
+                항목 내용 {LOREBOOK_CONTENT_MAX}자 · 최대 {LOREBOOK_ENTRY_MAX}개
               </p>
             </div>
             <p className="text-xs tabular-nums text-zinc-500">
@@ -170,12 +247,10 @@ export default function CreateKeywordLorebook({ lorebookId }: Props) {
                     삭제
                   </button>
                 </div>
-                <label className={label}>키워드 (최대 {LOREBOOK_KEYWORDS_PER_ENTRY}개 · │ 구분)</label>
-                <input
-                  className={cls}
-                  placeholder="!유나│!헌터│!얼음마녀"
+                <label className={label}>활성화 키워드</label>
+                <KeywordInput
                   value={entry.keywords}
-                  onChange={(e) => updateEntry(index, { keywords: e.target.value })}
+                  onChange={(next) => updateEntry(index, { keywords: next })}
                 />
                 <label className={`${label} mt-3`}>내용</label>
                 <textarea
@@ -212,7 +287,7 @@ export default function CreateKeywordLorebook({ lorebookId }: Props) {
             disabled={loading}
             className="rounded-xl bg-emerald-600 px-6 py-3 font-bold text-white disabled:opacity-50"
           >
-            {loading ? "저장 중…" : isEdit ? "로어북 저장" : "로어북 만들기"}
+            {loading ? "저장 중..." : isEdit ? "로어북 저장" : "로어북 만들기"}
           </button>
           <Link
             href="/create"
