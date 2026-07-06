@@ -2,6 +2,7 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
+import { isNoticeRead } from "@/lib/notices";
 import {
   listRecentNotices,
   listRecentUserNotifications,
@@ -54,7 +55,7 @@ export default async function NotificationsPage() {
           </div>
           <div className="space-y-2">
             {notices.map((n) => {
-              const unread = n.id > readId;
+              const unread = !isNoticeRead(db, user?.id ?? null, n.id, cookieReadId);
               return (
               <Link
                 key={n.id}

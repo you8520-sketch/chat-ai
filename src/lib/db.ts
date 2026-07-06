@@ -3,7 +3,7 @@ import "server-only";
 import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
-import { getDataDir, getDatabasePath } from "@/lib/dataDir";
+import { databaseDiagnostics, getDataDir, getDatabasePath, validateProductionDataDirRuntime } from "@/lib/dataDir";
 import { validateAuthEnvironment } from "@/lib/authEnv";
 import {
   DEFAULT_BOARD_POSTS,
@@ -17,7 +17,15 @@ import { UNIFIED_TIER_AIM_CHARS } from "@/lib/responseLengthConstants";
 validateAuthEnvironment();
 
 const dataDir = getDataDir();
+validateProductionDataDirRuntime(dataDir);
 if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+
+let loggedDatabaseDiagnostics = false;
+function logDatabaseDiagnosticsOnce() {
+  if (loggedDatabaseDiagnostics) return;
+  loggedDatabaseDiagnostics = true;
+  console.info("[database] runtime diagnostics", databaseDiagnostics(dataDir));
+}
 
 declare global {
   // eslint-disable-next-line no-var
@@ -174,6 +182,23 @@ function migrate(db: Database.Database) {
   addColumn("users", "sub_plan", "TEXT");
   addColumn("users", "sub_auto_renew", "INTEGER NOT NULL DEFAULT 0");
   addColumn("users", "notice_last_read_id", "INTEGER NOT NULL DEFAULT 0");
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS notice_reads (
+      user_id INTEGER NOT NULL,
+      notice_id INTEGER NOT NULL,
+      read_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, notice_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_notice_reads_notice
+      ON notice_reads(notice_id, user_id);
+  `);
+  db.exec(`
+    INSERT OR IGNORE INTO notice_reads (user_id, notice_id, read_at)
+    SELECT u.id, p.id, COALESCE(u.created_at, datetime('now'))
+    FROM users u
+    JOIN posts p ON p.board='notice' AND p.id <= u.notice_last_read_id
+    WHERE u.notice_last_read_id > 0
+  `);
   addColumn("characters", "audience", "TEXT NOT NULL DEFAULT 'all'");
   addColumn("characters", "gender", "TEXT NOT NULL DEFAULT 'other'");
   addColumn("users", "persona_name", "TEXT NOT NULL DEFAULT ''");
@@ -285,6 +310,24 @@ function migrate(db: Database.Database) {
   addColumn("users", "partner_tier_valid_until", "TEXT");
   addColumn("users", "last_attendance_date", "TEXT");
   addColumn("users", "attendance_streak", "INTEGER NOT NULL DEFAULT 0");
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS attendance_checkins (
+      user_id INTEGER NOT NULL,
+      attendance_date TEXT NOT NULL,
+      streak INTEGER NOT NULL DEFAULT 1,
+      reward_points INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (user_id, attendance_date)
+    );
+    CREATE INDEX IF NOT EXISTS idx_attendance_checkins_user_date
+      ON attendance_checkins(user_id, attendance_date DESC);
+  `);
+  db.exec(`
+    INSERT OR IGNORE INTO attendance_checkins (user_id, attendance_date, streak, reward_points, created_at)
+    SELECT id, last_attendance_date, attendance_streak, 0, COALESCE(last_attendance_date || ' 00:00:00', datetime('now'))
+    FROM users
+    WHERE last_attendance_date IS NOT NULL
+  `);
   migrateWithdrawalRequestsQueue(db);
   db.exec(`
     CREATE TABLE IF NOT EXISTS creator_earnings (
@@ -1181,6 +1224,7 @@ function seed(db: Database.Database) {
 }
 
 export function getDb(): Database.Database {
+  logDatabaseDiagnosticsOnce();
   if (!global.__db) {
     global.__db = new Database(getDatabasePath());
     init(global.__db);

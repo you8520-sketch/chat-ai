@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { getUnreadNoticeCount } from "./notices";
 
 export type UserNotificationType =
   | "creator_character"
@@ -120,8 +121,24 @@ export function listCreatorNotifications(
 export function listUnreadNotices(
   db: Database.Database,
   readId: number,
-  limit = 50
+  limit = 50,
+  userId: number | null = null
 ): NoticeRow[] {
+  if (userId) {
+    return db
+      .prepare(
+        `SELECT p.id, p.title, p.content, p.author_name, p.created_at
+         FROM posts p
+         WHERE p.board='notice'
+           AND NOT EXISTS (
+             SELECT 1 FROM notice_reads r
+             WHERE r.user_id=? AND r.notice_id=p.id
+           )
+         ORDER BY p.id DESC
+         LIMIT ?`
+      )
+      .all(userId, limit) as NoticeRow[];
+  }
   return db
     .prepare(
       `SELECT id, title, content, author_name, created_at
@@ -149,11 +166,9 @@ export function getTotalUnreadCount(
   userId: number | null,
   noticeReadId: number
 ): number {
-  const noticeRow = db
-    .prepare("SELECT COUNT(*) AS c FROM posts WHERE board='notice' AND id > ?")
-    .get(noticeReadId) as { c: number };
+  const noticeCount = getUnreadNoticeCount(db, userId, noticeReadId);
   const activityCount = userId ? getUnreadUserNotificationCount(db, userId) : 0;
-  return noticeRow.c + activityCount;
+  return noticeCount + activityCount;
 }
 
 export function markUserNotificationsRead(db: Database.Database, userId: number) {
