@@ -72,6 +72,6 @@ Production authentication uses an opaque `session` cookie whose token is looked 
 4. Refresh the same browser session.
 5. Confirm the user is still logged in. If the user is logged out, verify that the deployed app is using the same persistent `DATA_DIR` and that the `sessions` table still contains the session row.
 
-### Current lint known issue
+### Current validation commands
 
-`npm run lint` is configured for the standard Next.js lint command, but this repository currently does not have `eslint` installed in `devDependencies`. Installing `eslint` / `eslint-config-next` in this environment is blocked by the current registry policy (`403 Forbidden`). Treat this as a known environment/dependency issue until the registry policy is updated or the dependencies are vendored/allowed; keep it separate from auth-session changes.
+`npm run lint` currently delegates to the app-only TypeScript validation (`npm run typecheck:app`) because this repository does not install ESLint. Use `npm run typecheck:app` for runtime/app source checks; the full `npm run typecheck` still includes known test-only typing gaps documented in `AGENTS.md`.
