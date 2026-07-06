@@ -7,9 +7,18 @@ function isTransientTestDataDir(dir: string): boolean {
   return /(^|\/)tmp-[a-z0-9-]+$/i.test(normalized);
 }
 
+function isProductionBuildPhase(): boolean {
+  return process.env.NEXT_PHASE === "phase-production-build";
+}
+
 function productionVolumeDataDir(): string | null {
   if (process.env.NODE_ENV !== "production") return null;
-  return fs.existsSync("/data") ? "/data" : null;
+  if (fs.existsSync("/data")) return "/data";
+  if (isProductionBuildPhase()) return null;
+  throw new Error(
+    "Production DATA_DIR is not configured and /data does not exist. " +
+      "Mount a persistent volume and set DATA_DIR (for example DATA_DIR=/data) before starting the server."
+  );
 }
 
 /** Persistent data root — Railway volume mount (e.g. DATA_DIR=/data). */
