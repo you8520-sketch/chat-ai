@@ -53,7 +53,7 @@ export default function AttendanceBanner({ loggedIn, initialCheckedIn, initialSt
     <div className="mt-2 rounded-2xl bg-gradient-to-r from-amber-900/50 via-orange-900/40 to-violet-900/50 p-6">
       <h1 className="text-2xl font-black text-white">매일 출석하고 무료 포인트 받기</h1>
       <p className="mt-1 text-sm text-gray-300">
-        매일 자정(0시)에 갱신 · 1~6일차 <span className="font-bold text-amber-300">{DAILY_ATTENDANCE_REWARD.toLocaleString()}P</span> · 7일차 <span className="font-bold text-amber-300">{(DAILY_ATTENDANCE_REWARD + WEEKLY_ATTENDANCE_BONUS_REWARD).toLocaleString()}P</span> 지급
+        매일 자정(0시)에 갱신 · 1~6일차 <span className="font-bold text-amber-300">{DAILY_ATTENDANCE_REWARD.toLocaleString()}P</span> · 7일차 <span className="font-bold text-amber-300">{DAILY_ATTENDANCE_REWARD.toLocaleString()}P + {WEEKLY_ATTENDANCE_BONUS_REWARD.toLocaleString()}P</span> 지급
       </p>
 
       <div className="mt-5 grid grid-cols-7 gap-2" aria-label="7일 출석 차트">
@@ -74,7 +74,7 @@ export default function AttendanceBanner({ loggedIn, initialCheckedIn, initialSt
             >
               <div className="text-[11px] font-bold">{day}일차</div>
               <div className="mt-1 text-lg">{done ? "✓" : isBonus ? "🎁" : "•"}</div>
-              <div className="text-[10px]">{isBonus ? `+${(DAILY_ATTENDANCE_REWARD + WEEKLY_ATTENDANCE_BONUS_REWARD).toLocaleString()}P` : `+${DAILY_ATTENDANCE_REWARD.toLocaleString()}P`}</div>
+              <div className="text-[10px]">{isBonus ? `+${DAILY_ATTENDANCE_REWARD.toLocaleString()}P + ${WEEKLY_ATTENDANCE_BONUS_REWARD.toLocaleString()}P` : `+${DAILY_ATTENDANCE_REWARD.toLocaleString()}P`}</div>
             </div>
           );
         })}
