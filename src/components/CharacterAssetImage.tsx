@@ -13,7 +13,7 @@ export default function CharacterAssetImage({
   alt = "",
   blurForViewer = false,
   className = "",
-  imgClassName = "h-full w-full object-cover object-top",
+  imgClassName = "block aspect-[3/4] w-full object-cover object-top",
   showHiddenBadge = false,
 }: Props) {
   return (

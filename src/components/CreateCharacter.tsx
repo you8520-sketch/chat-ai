@@ -68,7 +68,7 @@ function normalizeManagedAssets(list: TaggedAsset[]): TaggedAsset[] {
     chat: typeof a.chat === "boolean" ? a.chat : true,
     viewerBlur: typeof a.viewerBlur === "boolean" ? a.viewerBlur : i !== 0,
   }));
-  if (next.length > 0 && !next.some((a) => a.public)) {
+  if (next.length > 0 && !next.some((a) => a.public !== false)) {
     next[0] = { ...next[0], public: true };
   }
   return next;
@@ -140,6 +140,7 @@ export default function CreateCharacter({
   const [statusWidgetTriggers, setStatusWidgetTriggers] = useState<StatusWidgetTriggerDraft[]>([]);
   const [pageTab, setPageTab] = useState<PageTab>("create");
   const draftRestoredRef = useRef(false);
+  const filePreviewUrlMapRef = useRef<Map<File, string>>(new Map());
 
   function buildDraftSnapshot(): CharacterCreateDraft {
     return {
@@ -300,10 +301,22 @@ export default function CreateCharacter({
     setFiles((f) => f.filter((_, idx) => idx !== i));
   }
 
-  const filePreviewUrls = useMemo(
-    () => files.map((f) => URL.createObjectURL(f)),
-    [files],
-  );
+  const filePreviewUrls = useMemo(() => {
+    const map = filePreviewUrlMapRef.current;
+    const nextSet = new Set(files);
+    for (const [file, url] of map) {
+      if (!nextSet.has(file)) {
+        URL.revokeObjectURL(url);
+        map.delete(file);
+      }
+    }
+    for (const file of files) {
+      if (!map.has(file)) {
+        map.set(file, URL.createObjectURL(file));
+      }
+    }
+    return files.map((file) => map.get(file)!);
+  }, [files]);
 
   /** 홈·카드·공개 페이지 좌측 대표 — 감정 에셋 「노출 ON」 순서 1번 */
   const cardImageUrl = useMemo(
@@ -316,12 +329,15 @@ export default function CreateCharacter({
     return filePreviewUrls;
   }, [assets, filePreviewUrls]);
 
-  useEffect(
-    () => () => {
-      filePreviewUrls.forEach((u) => URL.revokeObjectURL(u));
-    },
-    [filePreviewUrls],
-  );
+  useEffect(() => {
+    const map = filePreviewUrlMapRef.current;
+    return () => {
+      for (const url of map.values()) {
+        URL.revokeObjectURL(url);
+      }
+      map.clear();
+    };
+  }, []);
 
   useEffect(() => {
     if (!isEditMode || !editCharacterId) return;
@@ -532,7 +548,7 @@ export default function CreateCharacter({
       setError("감정 에셋 이미지를 1장 이상 업로드해 주세요.");
       return;
     }
-    if (assets.length > 0 && !assets.some((a) => a.public)) {
+    if (assets.length > 0 && !assets.some((a) => a.public !== false)) {
       setError("노출할 이미지를 1장 이상 선택해 주세요.");
       return;
     }

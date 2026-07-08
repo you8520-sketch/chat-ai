@@ -108,7 +108,6 @@ export default function AssetManagerGrid({ assets, onChange, onRemove }: Props) 
           >
             <CharacterAssetImage
               src={a.url}
-              className="aspect-[3/4] w-full"
               showHiddenBadge={a.viewerBlur === true}
             />
             <span className="absolute left-1 top-1 rounded bg-black/70 px-1.5 py-0.5 text-[9px] font-bold text-zinc-300">

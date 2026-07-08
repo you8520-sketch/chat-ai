@@ -50,11 +50,11 @@ export function parseAssets(raw: string | null | undefined): CharacterAsset[] {
 }
 
 export function publicAssets(assets: CharacterAsset[]): CharacterAsset[] {
-  return assets.filter((a) => a.public);
+  return assets.filter((a) => a.public !== false);
 }
 
 export function chatAssets(assets: CharacterAsset[]): CharacterAsset[] {
-  return assets.filter((a) => a.chat);
+  return assets.filter((a) => a.chat !== false);
 }
 
 export function assetUrls(assets: CharacterAsset[]): string[] {
