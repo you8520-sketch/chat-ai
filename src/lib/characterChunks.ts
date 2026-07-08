@@ -24,6 +24,11 @@ import {
   type SpeechCreatorInput,
 } from "@/lib/speechCreatorFields";
 import { resolveExampleDialogForPrompt } from "@/lib/narrationFewShotTemplates";
+import {
+  compileCreatorDescriptionTriggers,
+  compiledPublicCanonText,
+  parseCreatorDescriptionCompiled,
+} from "@/lib/creatorDescriptionTriggerCompiler";
 
 export type CharacterSettingRow = {
   id: number;
@@ -37,13 +42,32 @@ export type CharacterSettingRow = {
   setting_chunks_en?: string | null;
   prompt_translation_hash?: string | null;
   speech_profile?: string | null;
+  creator_compiled_description_json?: string | null;
 };
 
+function resolveSafeRuntimeCanon(row: CharacterSettingRow): string {
+  const compiled = parseCreatorDescriptionCompiled(row.creator_compiled_description_json);
+  const storedPublicCanon = compiledPublicCanonText(compiled);
+  if (storedPublicCanon) return storedPublicCanon;
+
+  const fallback = compileCreatorDescriptionTriggers({
+    description: [row.world ?? "", row.system_prompt ?? ""].filter(Boolean).join("\n\n"),
+  });
+  const fallbackPublicCanon = compiledPublicCanonText(fallback);
+  if (process.env.NODE_ENV !== "production") {
+    console.warn(
+      `[characterChunks] character ${row.id} is missing compiled creator sections; using on-the-fly public_canon fallback`
+    );
+  }
+  return fallbackPublicCanon;
+}
+
 function parseFreshCharacterChunks(row: CharacterSettingRow): CharacterChunk[] {
+  const safeRuntimeCanon = resolveSafeRuntimeCanon(row);
   return parseCharacterSetting({
     characterId: String(row.id),
-    systemPrompt: row.system_prompt ?? "",
-    world: row.world ?? "",
+    systemPrompt: safeRuntimeCanon,
+    world: "",
     exampleDialog: resolveExampleDialogForPrompt(row.example_dialog, row.name),
     characterName: row.name,
     gender: (row.gender as CharacterGender) ?? "other",
@@ -99,6 +123,25 @@ export function saveCharacterChunks(characterId: number, chunks: CharacterChunk[
   );
 }
 
+export function buildCharacterChunksFromSafeRuntimeCanon(
+  characterId: number,
+  input: {
+    name: string;
+    gender: CharacterGender;
+    safeRuntimeCanon: string;
+    exampleDialog?: string;
+  }
+): CharacterChunk[] {
+  return parseCharacterSetting({
+    characterId: String(characterId),
+    systemPrompt: input.safeRuntimeCanon,
+    world: "",
+    exampleDialog: input.exampleDialog ?? "",
+    characterName: input.name,
+    gender: input.gender,
+  });
+}
+
 export function buildAndSaveCharacterChunks(
   characterId: number,
   input: {
@@ -109,16 +152,24 @@ export function buildAndSaveCharacterChunks(
     exampleDialog: string;
     statusWindowPrompt?: string;
     speechInput?: SpeechCreatorInput;
+    safeRuntimeCanon?: string;
   }
 ): CharacterChunk[] {
-  const chunks = parseCharacterSetting({
-    characterId: String(characterId),
-    systemPrompt: input.systemPrompt,
-    world: input.world,
-    exampleDialog: input.exampleDialog,
-    characterName: input.name,
-    gender: input.gender,
-  });
+  const chunks = input.safeRuntimeCanon
+    ? buildCharacterChunksFromSafeRuntimeCanon(characterId, {
+        name: input.name,
+        gender: input.gender,
+        safeRuntimeCanon: input.safeRuntimeCanon,
+        exampleDialog: input.exampleDialog,
+      })
+    : parseCharacterSetting({
+        characterId: String(characterId),
+        systemPrompt: input.systemPrompt,
+        world: input.world,
+        exampleDialog: input.exampleDialog,
+        characterName: input.name,
+        gender: input.gender,
+      });
   saveCharacterChunks(characterId, chunks);
   persistSpeechProfile(characterId, {
     name: input.name,
@@ -193,7 +244,7 @@ export function refreshSpeechProfileForCharacter(characterId: number): SpeechPro
   const db = getDb();
   const row = db
     .prepare(
-      "SELECT id, name, system_prompt, world, example_dialog, setting_chunks, speech_profile FROM characters WHERE id=?"
+      "SELECT id, name, system_prompt, world, example_dialog, setting_chunks, speech_profile, creator_compiled_description_json FROM characters WHERE id=?"
     )
     .get(characterId) as CharacterSettingRow | undefined;
   if (!row) return null;
@@ -216,7 +267,7 @@ export function backfillCharacterChunks(characterId: number): CharacterChunk[] {
   const db = getDb();
   const row = db
     .prepare(
-      "SELECT id, name, gender, system_prompt, world, example_dialog, setting_chunks, speech_profile FROM characters WHERE id=?"
+      "SELECT id, name, gender, system_prompt, world, example_dialog, setting_chunks, speech_profile, creator_compiled_description_json FROM characters WHERE id=?"
     )
     .get(characterId) as CharacterSettingRow | undefined;
   if (!row) return [];

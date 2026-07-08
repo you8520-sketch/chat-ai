@@ -114,18 +114,22 @@ export function rowToLorebookListItem(row: KeywordLorebookRow): KeywordLorebookL
   };
 }
 
-/** 유저 입력에 키워드가 포함되면 해당 항목 내용 반환 (중복 내용 제거) */
+/** 최근 대화/유저 입력에 키워드가 포함되면 해당 항목 내용 반환 (중복 내용 제거) */
 export function matchKeywordLorebookEntries(
   entries: KeywordLorebookEntry[],
-  userText: string
+  scanText: string
 ): string[] {
-  const text = userText.trim();
+  const text = scanText.trim();
   if (!text || entries.length === 0) return [];
+  const upperText = text.toUpperCase();
 
   const matched: string[] = [];
   const seen = new Set<string>();
   for (const entry of entries) {
-    const hit = entry.keywords.some((kw) => kw.length > 0 && text.includes(kw));
+    const hit = entry.keywords.some((kw) => {
+      const keyword = kw.trim();
+      return keyword.length > 0 && upperText.includes(keyword.toUpperCase());
+    });
     if (!hit) continue;
     if (seen.has(entry.content)) continue;
     seen.add(entry.content);
@@ -137,13 +141,13 @@ export function matchKeywordLorebookEntries(
 /** 프롬프트 주입 — 번역·改変 없이 원문 사용 */
 export function buildKeywordLorebookPromptBlock(contents: string[]): string {
   if (contents.length === 0) return "";
-  return `[KEYWORD LOREBOOK — 유저 입력 키워드 매칭 · 원문 그대로 적용 · 번역·요약·改変 금지]\n${contents.join("\n\n")}`;
+  return `[KEYWORD LOREBOOK — 최근 대화/유저 입력 키워드 매칭 · 원문 그대로 적용 · 번역·요약·改変 금지]\n${contents.join("\n\n")}`;
 }
 
 export function loadKeywordLorebookPromptBlock(
   db: import("better-sqlite3").Database,
   lorebookId: number | null | undefined,
-  userMessage: string
+  scanText: string
 ): string {
   if (lorebookId == null || !Number.isFinite(lorebookId) || lorebookId <= 0) return "";
   const row = db
@@ -151,5 +155,5 @@ export function loadKeywordLorebookPromptBlock(
     .get(lorebookId) as { entries_json: string } | undefined;
   if (!row) return "";
   const entries = parseStoredLorebookEntries(row.entries_json);
-  return buildKeywordLorebookPromptBlock(matchKeywordLorebookEntries(entries, userMessage));
+  return buildKeywordLorebookPromptBlock(matchKeywordLorebookEntries(entries, scanText));
 }

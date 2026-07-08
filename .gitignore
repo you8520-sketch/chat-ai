@@ -18,3 +18,10 @@ output/
 build-log*.txt
 typecheck-out.txt
 .tmp.driveupload/
+
+# Local temporary/debug artifacts
+.worktrees/
+tmp/
+tmp-*
+scripts/tmp-*
+*.log

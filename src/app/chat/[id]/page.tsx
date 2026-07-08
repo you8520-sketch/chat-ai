@@ -30,7 +30,10 @@ import {
 } from "@/lib/userChatPrefs";
 import { parseStatusWidgetMode, parseStatusWidgetStackOrder } from "@/lib/statusWidget";
 import { resolveStatusWidgetTurn } from "@/lib/statusWidget/resolve";
-import { parseStoredStatusWidgetValuesJson } from "@/lib/statusWidget/parseValues";
+import {
+  parseStoredStatusWidgetValuesJson,
+  stripExtractedFactsForClient,
+} from "@/lib/statusWidget/parseValues";
 import { filterOutMessageIds, purgeOrphanUserMessages } from "@/lib/chatMessageHygiene";
 import { takeRecentTurns, takeRecentTurnsIncludingMessage } from "@/lib/chatMessagePagination";
 import { createChatSession } from "@/lib/chatSessionCreate";
@@ -316,7 +319,9 @@ export default async function ChatPage({
       statusMetaPending: statusFlags.statusMetaPending,
       statusMetaRequested: statusFlags.statusMetaRequested,
       statusMetaFailed: statusFlags.statusMetaFailed,
-      statusWidgetValues: parseStoredStatusWidgetValuesJson(m.status_widget_values_json),
+      statusWidgetValues: stripExtractedFactsForClient(
+        parseStoredStatusWidgetValuesJson(m.status_widget_values_json)
+      ),
       statusWidgetTurnActive: m.status_widget_turn_active === 1,
       createdAt: m.created_at,
       reportStatus: reportStatusByMessageId.get(m.id) ?? "none",
@@ -392,7 +397,6 @@ export default async function ChatPage({
       initialSelectedAI={resolveSelectedAI(chat?.gemini_model, DEFAULT_SELECTED_AI)}
       initialTargetResponseChars={userChatPrefs.targetResponseChars}
       initialChatTitle={chat?.title ?? ""}
-      initialNovelModeEnabled={userChatPrefs.novelModeEnabled}
       initialDisplayPrefs={userChatPrefs.displayPrefs}
       isCharacterCreator={isCharacterCreator}
       initialStatusWidgetMode={parseStatusWidgetMode(chat.status_widget_mode)}

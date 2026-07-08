@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import Link from "next/link";
@@ -521,7 +521,6 @@ export default function ChatClient({
   initialSelectedAI,
   initialTargetResponseChars,
   initialChatTitle = "",
-  initialNovelModeEnabled = false,
   initialDisplayPrefs,
   initialHasMoreOlder = false,
   initialHiddenTurnCount = 0,
@@ -557,7 +556,6 @@ export default function ChatClient({
   initialSelectedAI: SelectedAI;
   initialTargetResponseChars: number;
   initialChatTitle?: string;
-  initialNovelModeEnabled?: boolean;
   initialDisplayPrefs?: ChatDisplayPrefs;
   isCharacterCreator?: boolean;
   initialStatusWidgetMode?: StatusWidgetSourceMode;
@@ -674,9 +672,6 @@ export default function ChatClient({
   const [selectedPersonaId, setSelectedPersonaId] = useState(initialSelectedPersonaId);
   const [targetResponseChars, setTargetResponseChars] = useState(initialTargetResponseChars);
   const [chatTitle, setChatTitle] = useState(initialChatTitle);
-  const [novelModeEnabled, setNovelModeEnabled] = useState(initialNovelModeEnabled);
-  const novelModeSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const novelModeSkipSaveRef = useRef(true);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [displaySettingsSaving, setDisplaySettingsSaving] = useState(false);
   const settingsSkipAutoSaveRef = useRef(true);
@@ -796,7 +791,6 @@ export default function ChatClient({
         body: JSON.stringify({
           chatId: chatId ?? undefined,
           targetResponseChars,
-          novelModeEnabled,
           userNote,
           displayPrefs,
         }),
@@ -821,7 +815,6 @@ export default function ChatClient({
   }, [
     chatId,
     targetResponseChars,
-    novelModeEnabled,
     userNote,
     displayPrefs,
   ]);
@@ -855,8 +848,6 @@ export default function ChatClient({
     setMode(initialMode);
     setTargetResponseChars(initialTargetResponseChars);
     setChatTitle(initialChatTitle);
-    setNovelModeEnabled(initialNovelModeEnabled);
-    novelModeSkipSaveRef.current = true;
     setDisplayPrefs(initialDisplayPrefs ?? DEFAULT_CHAT_DISPLAY_PREFS);
     setSelectedPersonaId(initialSelectedPersonaId);
   }, [
@@ -867,44 +858,8 @@ export default function ChatClient({
     initialMode,
     initialTargetResponseChars,
     initialChatTitle,
-    initialNovelModeEnabled,
     initialDisplayPrefs,
     initialSelectedPersonaId,
-  ]);
-
-  useEffect(() => {
-    if (novelModeSkipSaveRef.current) {
-      novelModeSkipSaveRef.current = false;
-      return;
-    }
-    if (novelModeSaveTimerRef.current) clearTimeout(novelModeSaveTimerRef.current);
-    novelModeSaveTimerRef.current = setTimeout(() => {
-      void fetch("/api/user/chat-prefs", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chatId: chatId ?? undefined,
-          targetResponseChars,
-          novelModeEnabled,
-          userNote,
-          displayPrefs,
-        }),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.prefs) cacheUserChatPrefsClient(data.prefs);
-        })
-        .catch(() => {});
-    }, 400);
-    return () => {
-      if (novelModeSaveTimerRef.current) clearTimeout(novelModeSaveTimerRef.current);
-    };
-  }, [
-    novelModeEnabled,
-    chatId,
-    targetResponseChars,
-    userNote,
-    displayPrefs,
   ]);
 
   const [floatDeductionAmount, setFloatDeductionAmount] = useState(0);
@@ -2038,7 +1993,6 @@ export default function ChatClient({
           userNote,
           selectedPersonaId,
           targetResponseChars,
-          novelModeEnabled,
         }),
       });
 
@@ -2130,7 +2084,6 @@ export default function ChatClient({
           userNote,
           selectedPersonaId,
           targetResponseChars,
-          novelModeEnabled,
         }),
       });
 
@@ -2259,7 +2212,6 @@ export default function ChatClient({
           userNote,
           selectedPersonaId,
           targetResponseChars,
-          novelModeEnabled,
         }),
       });
 
@@ -3035,19 +2987,6 @@ export default function ChatClient({
           </label>
 
           <RelationshipMetaDock chatId={chatId} refreshKey={memoryRefreshKey} />
-
-          <label className="flex cursor-pointer items-center gap-1.5 text-[11px]" title="AI가 유저 캐릭터 대사·행동·속마음까지 서술합니다">
-            <input
-              type="checkbox"
-              checked={novelModeEnabled}
-              disabled={loading}
-              onChange={(e) => setNovelModeEnabled(e.target.checked)}
-              className="accent-amber-500"
-            />
-            <span className={novelModeEnabled ? "text-amber-300" : "text-zinc-500"}>
-              📖 소설 모드
-            </span>
-          </label>
         </div>
 
         <div className="flex flex-col gap-0.5">

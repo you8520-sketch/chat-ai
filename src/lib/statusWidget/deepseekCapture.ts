@@ -2,7 +2,9 @@
  * DeepSeek V4 Pro — STATUS_VALUES tail 파싱·캡처 (END 마커 누락·inline JSON 대응)
  */
 
-import type { ParsedStatusWidgetTurnValues, StatusWidgetValues } from "./types";
+import { mergeExtractedFacts, sanitizeExtractedFacts } from "./extractedFacts";
+import { EXTRACTED_FACTS_STATUS_VALUES_INSTRUCTIONS } from "./prompt";
+import type { ExtractedStatusFact, ParsedStatusWidgetTurnValues, StatusWidgetValues } from "./types";
 import {
   STATUS_VALUES_BLOCK,
   STATUS_VALUES_CHAR_BLOCK,
@@ -11,7 +13,12 @@ import {
   splitProseAndStatusWidgetValues,
 } from "./parseValues";
 
-function parseValuesJson(raw: string): StatusWidgetValues | null {
+type ParsedValuesJson = {
+  values: StatusWidgetValues | null;
+  facts: ExtractedStatusFact[];
+};
+
+function parseValuesJson(raw: string): ParsedValuesJson | null {
   const trimmed = raw.trim();
   if (!trimmed) return null;
   try {
@@ -19,11 +26,15 @@ function parseValuesJson(raw: string): StatusWidgetValues | null {
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
     const out: StatusWidgetValues = {};
     for (const [k, v] of Object.entries(parsed)) {
+      if (k === "extracted_facts") continue;
       if (typeof v === "string" || typeof v === "number") {
         out[k] = String(v).trim();
       }
     }
-    return Object.keys(out).length > 0 ? out : null;
+    return {
+      values: Object.keys(out).length > 0 ? out : null,
+      facts: sanitizeExtractedFacts(parsed.extracted_facts),
+    };
   } catch {
     return null;
   }
@@ -77,6 +88,7 @@ export function extractBalancedJsonObject(
 type MarkerExtract = {
   before: string;
   parsed: StatusWidgetValues | null;
+  facts: ExtractedStatusFact[];
   after: string;
 };
 
@@ -108,6 +120,7 @@ export function extractStatusWidgetJsonAfterMarker(
     return {
       before: text.slice(0, startIdx).trimEnd(),
       parsed: null,
+      facts: [],
       after: text.slice(startIdx).trimStart(),
     };
   }
@@ -118,7 +131,8 @@ export function extractStatusWidgetJsonAfterMarker(
 
   return {
     before: text.slice(0, startIdx).trimEnd(),
-    parsed: parsed && looksLikeStatusWidgetValues(parsed) ? parsed : null,
+    parsed: parsed?.values && looksLikeStatusWidgetValues(parsed.values) ? parsed.values : null,
+    facts: parsed?.facts ?? [],
     after: text.slice(afterStart).trimStart(),
   };
 }
@@ -148,6 +162,7 @@ function extractStatusWidgetJsonAfterLooseMarker(text: string): MarkerExtract | 
     return {
       before: text.slice(0, startIdx).trimEnd(),
       parsed: null,
+      facts: [],
       after: text.slice(startIdx).trimStart(),
     };
   }
@@ -157,7 +172,8 @@ function extractStatusWidgetJsonAfterLooseMarker(text: string): MarkerExtract | 
 
   return {
     before: text.slice(0, startIdx).trimEnd(),
-    parsed: parsed && looksLikeStatusWidgetValues(parsed) ? parsed : null,
+    parsed: parsed?.values && looksLikeStatusWidgetValues(parsed.values) ? parsed.values : null,
+    facts: parsed?.facts ?? [],
     after: text.slice(afterStart).trimStart(),
   };
 }
@@ -178,12 +194,14 @@ export function splitProseAndStatusWidgetValuesDeepSeek(fullText: string): {
   const charHit = extractStatusWidgetJsonAfterMarker(work, STATUS_VALUES_CHAR_BLOCK);
   if (charHit?.parsed) {
     values.character = charHit.parsed;
+    values.extracted_facts = mergeExtractedFacts(values.extracted_facts, charHit.facts);
     work = `${charHit.before}\n${charHit.after}`.trim();
   }
 
   const userHit = extractStatusWidgetJsonAfterMarker(work, STATUS_VALUES_USER_BLOCK);
   if (userHit?.parsed) {
     values.user = userHit.parsed;
+    values.extracted_facts = mergeExtractedFacts(values.extracted_facts, userHit.facts);
     work = `${userHit.before}\n${userHit.after}`.trim();
   }
 
@@ -191,6 +209,7 @@ export function splitProseAndStatusWidgetValuesDeepSeek(fullText: string): {
     const singleHit = extractStatusWidgetJsonAfterMarker(work, STATUS_VALUES_BLOCK);
     if (singleHit?.parsed) {
       values.character = singleHit.parsed;
+      values.extracted_facts = mergeExtractedFacts(values.extracted_facts, singleHit.facts);
       work = `${singleHit.before}\n${singleHit.after}`.trim();
     }
   }
@@ -199,6 +218,7 @@ export function splitProseAndStatusWidgetValuesDeepSeek(fullText: string): {
     const looseHit = extractStatusWidgetJsonAfterLooseMarker(work);
     if (looseHit?.parsed) {
       values.character = looseHit.parsed;
+      values.extracted_facts = mergeExtractedFacts(values.extracted_facts, looseHit.facts);
       work = `${looseHit.before}\n${looseHit.after}`.trim();
     } else if (looseHit) {
       work = `${looseHit.before}\n${looseHit.after}`.trim();
@@ -217,6 +237,7 @@ export function captureDeepSeekStatusWidgetValuesFromModelText(
 
 export const DEEPSEEK_STATUS_WIDGET_BOTTOM_REMINDER = `[Status widget — required every turn]
 After RP prose, append this block (fill JSON from the scene — never skip):
+${EXTRACTED_FACTS_STATUS_VALUES_INSTRUCTIONS}
 <<<STATUS_VALUES char>>>
-{"시간":"<scene>","장소":"<scene>","속마음":"<scene>","현재상황":"<scene>"}
+{"시간":"<scene>","장소":"<scene>","속마음":"<scene>","현재상황":"<scene>","extracted_facts":[]}
 <<<END_STATUS>>>`;

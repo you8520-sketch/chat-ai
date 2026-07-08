@@ -1,5 +1,6 @@
 import { fieldPlaceholderKey } from "./fieldKeys";
 import { collectWidgetJsonKeys } from "./prompt";
+import { EXTRACTED_FACTS_STATUS_VALUES_INSTRUCTIONS } from "./prompt";
 import { allocateWidgetExtractNarrativeSlices } from "./proseStrip";
 import type { StatusWidget, StatusWidgetValues } from "./types";
 
@@ -43,7 +44,7 @@ export function buildWidgetExtractSystem(
   const defaultSubject = source === "character" ? "[CHARACTER] (the NPC)" : "[USER] (the user persona)";
   return `You extract RP scene status widget field values as JSON only. No prose, no markdown fences.
 
-Return exactly one JSON object with these keys: ${keyList}
+Return exactly one JSON object with these keys plus "extracted_facts": ${keyList}, "extracted_facts"
 
 Rules:
 - Korean values preferred when the scene is Korean.
@@ -63,7 +64,8 @@ Rules:
   If [PREVIOUS TURN WIDGET VALUES] has a prior value for that field, or this turn's events affect the required person at all, that IS enough basis — update the prior inner state with this turn's events instead of giving up. Only when the required person has truly zero basis (no prior state AND no relevant event) output exactly "(자리비움)" — never fall back to the other person's emotions.
 - Do NOT add keys beyond the required list.
 - Do NOT invent lore that contradicts the provided context.
-- When [PREVIOUS TURN ASSISTANT] is provided, use it only for continuity (time/place/mood); prefer current-turn evidence.`;
+- When [PREVIOUS TURN ASSISTANT] is provided, use it only for continuity (time/place/mood); prefer current-turn evidence.
+${EXTRACTED_FACTS_STATUS_VALUES_INSTRUCTIONS}`;
 }
 
 export function buildWidgetExtractUserBlock(opts: {

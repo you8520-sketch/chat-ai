@@ -21,6 +21,9 @@ import {
   type SpeechContextualRegister,
 } from "@/lib/speechCreatorFields";
 import StatusWidgetEditor from "@/components/StatusWidgetEditor";
+import StatusWidgetTriggerEditor, {
+  type StatusWidgetTriggerDraft,
+} from "@/components/StatusWidgetTriggerEditor";
 import {
   characterStatusWidgetOrDefault,
   parseStatusWidgetJson,
@@ -134,6 +137,7 @@ export default function CreateCharacter({
   const [statusWidget, setStatusWidget] = useState<StatusWidget>(() =>
     characterStatusWidgetOrDefault(null),
   );
+  const [statusWidgetTriggers, setStatusWidgetTriggers] = useState<StatusWidgetTriggerDraft[]>([]);
   const [pageTab, setPageTab] = useState<PageTab>("create");
   const draftRestoredRef = useRef(false);
 
@@ -369,6 +373,9 @@ export default function CreateCharacter({
         setSelectedLorebookId(data.lorebook_id ?? "");
         const parsedWidget = parseStatusWidgetJson(data.status_widget_json);
         setStatusWidget(parsedWidget ?? characterStatusWidgetOrDefault(null));
+        setStatusWidgetTriggers(
+          Array.isArray(data.status_widget_triggers) ? data.status_widget_triggers : [],
+        );
       } catch {
         if (!cancelled)
           setEditLoadError("네트워크 오류로 캐릭터를 불러오지 못했습니다.");
@@ -548,6 +555,7 @@ export default function CreateCharacter({
           description,
           status_window_prompt: "",
           status_widget_json: serializeStatusWidget(statusWidget),
+          status_widget_triggers: statusWidgetTriggers,
           assets: finalAssets,
           world_id: selectedWorldId === "" ? undefined : selectedWorldId,
           lorebook_id:
@@ -1343,6 +1351,12 @@ export default function CreateCharacter({
               <StatusWidgetEditor
                 value={statusWidget}
                 onChange={setStatusWidget}
+                disabled={loading}
+              />
+              <StatusWidgetTriggerEditor
+                value={statusWidgetTriggers}
+                onChange={setStatusWidgetTriggers}
+                statusWidget={statusWidget}
                 disabled={loading}
               />
             </section>

@@ -196,7 +196,8 @@ function dedupeNormalizedItems(
   return out.slice(0, max);
 }
 
-export const THOUGHT_CONTENT_MAX_CHARS = 55;
+export const THOUGHT_CONTENT_MIN_TARGET_CHARS = 40;
+export const THOUGHT_CONTENT_MAX_CHARS = 50;
 /** 목표 글자 수를 넘더라도 문장이 완결될 때까지 허용하는 상한 */
 export const THOUGHT_CONTENT_HARD_MAX_CHARS = 76;
 
@@ -304,7 +305,7 @@ export const RELATIONSHIP_THOUGHT_EXTRACT_RULES = `thoughts(속마음) 규칙:
 - 형식 필수: "이름: 속마음" (이름은 본문에 나온 그대로) — 캐릭터·NPC 몫만, 절대 유저 자신의 속마음이 아님
 - **매 턴 캐릭터·NPC 관점 속마음을 최소 ${THOUGHTS_PER_TURN_MIN_TARGET}개, 최대 ${THOUGHTS_PER_TURN_MAX}개 추출한다.** 본문에 직접 내면이 없거나 캐릭터가 의식불명·자리비움 상태여도 [현재 속마음]과 이번 턴 사건을 근거로 캐릭터 입장의 감정·욕망·걱정·판단을 추정한다. 전체 저장은 최근 ${MEMORY_META_MAX.thoughts}개(가득 차면 오래된 것부터 삭제)
 - **이번 턴 기준 최신 상황을 반영** — 직전 턴과 같은 내용 반복 금지, 이번 턴에 새로 벌어진 일·감정 변화를 반영해 갱신할 것
-- 내용 목표 **${THOUGHT_CONTENT_MAX_CHARS}자 내외** — 한 문장으로 감정+이유가 드러나게 구체적으로. 문장을 완결하려면 ${THOUGHT_CONTENT_HARD_MAX_CHARS}자까지 허용. 상황 나열·요약 금지
+- 내용 목표 **${THOUGHT_CONTENT_MIN_TARGET_CHARS}~${THOUGHT_CONTENT_MAX_CHARS}자** — 한 문장으로 감정+이유가 드러나게 구체적으로. 35자 미만의 짧은 감탄·단정만 쓰지 말 것. 문장을 완결하려면 ${THOUGHT_CONTENT_HARD_MAX_CHARS}자까지 허용. 상황 나열·요약 금지
 - 허용 예: "렌에게 괜히 잘 보이고 싶어 초조하다", "이 마음을 들키고 싶지 않다", "지금은 렌을 안심시키는 게 먼저다"
 - 금지 예: "렌과의 만남을 앞두고 서툰 노력을 하고 있다", "코트를 덮어줬다", "평소와 다른 모습을 보이고 있다"처럼 관찰자가 본 행동·상황·태도 설명
 - 3인칭 서술(그는/그녀/캐릭터가~), 과거형 사건 서술(~했다/~였다), 진행형 행동 서술(~하고 있다/~보이고 있다), · 키워드 나열(턴요약형), 여러 문장 금지
@@ -503,6 +504,29 @@ function possessionEntryPersonKey(entry: string, names: HonorificNames): string 
   return parsed?.person ?? normalized;
 }
 
+function removePossessionItemsFromOtherPeople(
+  byPerson: Map<string, string>,
+  ownerKey: string,
+  movedItems: string[],
+  names: HonorificNames
+): void {
+  const moved = new Set(movedItems.map((item) => item.trim()).filter(Boolean));
+  if (moved.size === 0) return;
+
+  for (const [personKey, rawEntry] of [...byPerson.entries()]) {
+    if (personKey === ownerKey) continue;
+    const parsed = parsePossessionEntry(rawEntry);
+    if (!parsed) continue;
+    const remaining = parsed.items.filter((item) => !moved.has(item.trim()));
+    if (remaining.length === parsed.items.length) continue;
+    if (remaining.length === 0) {
+      byPerson.delete(personKey);
+      continue;
+    }
+    byPerson.set(personKey, normalizeItemEntry(`${parsed.person}: ${remaining.join(", ")}`, names));
+  }
+}
+
 /** 같은 인물 소지품 줄은 갱신(교체) — 전달 후 옛 줄+새 줄 중복 방지 */
 function mergePossessionEntries(
   prev: string[],
@@ -522,7 +546,12 @@ function mergePossessionEntries(
   for (const raw of add) {
     const normalized = normalizeItemEntry(raw, names);
     if (!normalized) continue;
-    byPerson.set(possessionEntryPersonKey(normalized, names), normalized);
+    const ownerKey = possessionEntryPersonKey(normalized, names);
+    const parsed = parsePossessionEntry(normalized);
+    if (parsed) {
+      removePossessionItemsFromOtherPeople(byPerson, ownerKey, parsed.items, names);
+    }
+    byPerson.set(ownerKey, normalized);
   }
   return dedupeNormalizedItems([...byPerson.values()], names);
 }
@@ -566,7 +595,6 @@ export function mergeMemoryMeta(
 
 export function formatMemoryMetaForPrompt(meta: MemoryMeta): string | null {
   const lines: string[] = [];
-  if (meta.currentLocation) lines.push(`현재장소: ${meta.currentLocation}`);
   if (meta.honorifics.length) lines.push(`호칭(캐릭터→유저, 최신 2개): ${meta.honorifics.join(" · ")}`);
   if (meta.items.length) lines.push(`소지품:\n${formatGroupedPossessionsForPrompt(meta.items)}`);
   if (meta.thoughts.length) {

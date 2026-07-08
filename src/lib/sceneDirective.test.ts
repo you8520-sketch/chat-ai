@@ -1,0 +1,121 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+
+import {
+  buildSceneDirective,
+  buildSceneDirectivePromptBlock,
+  detectSceneStagnation,
+  renderSceneDirectiveForPrompt,
+  selectSceneIntensity,
+} from "./sceneDirective";
+import type { ChatMsg } from "@/lib/ai";
+
+const reassuranceLoop: ChatMsg[] = [
+  { role: "assistant", content: "괜찮아. 네가 말하지 않아도 돼." },
+  { role: "user", content: "응" },
+  { role: "assistant", content: "정말 괜찮아? 미안해." },
+  { role: "user", content: "..." },
+  { role: "assistant", content: "괜찮다면 그냥 곁에 있을게." },
+];
+
+describe("sceneDirective", () => {
+  it("interactive mode keeps user intentional action and dialogue off-limits", () => {
+    const block = buildSceneDirectivePromptBlock({
+      mode: "interactive",
+      recentMessages: reassuranceLoop,
+      currentUserMessage: "응",
+    });
+
+    assert.match(block, /모드: 일반 RP/);
+    assert.match(block, /유저의 의도적 행동\/대사\/감정 결론은 쓰지 않는다/);
+    assert.doesNotMatch(block, /persona_based_dialogue_allowed/);
+  });
+
+  it("auto progression allows persona-based user action while blocking abrupt identity overwrite", () => {
+    const block = buildSceneDirectivePromptBlock({
+      mode: "auto_progression",
+      recentMessages: reassuranceLoop,
+      currentUserMessage: "계속 진행",
+    });
+
+    assert.match(block, /모드: 자동진행/);
+    assert.match(block, /유저 페르소나와 최근 말투에 맞는 행동\/대사/);
+    assert.match(block, /중대 정체성\/트라우마\/목표\/결정은 갑자기 확정하지 않는다/);
+  });
+
+  it("detects repeated reassurance stagnation", () => {
+    assert.equal(detectSceneStagnation(reassuranceLoop), true);
+  });
+
+  it("does not mark active progressing scenes as stagnant", () => {
+    const active: ChatMsg[] = [
+      { role: "assistant", content: "문 너머에서 전화벨이 울리고, 지도 위의 표시가 바뀌었다." },
+      { role: "user", content: "그쪽으로 이동한다." },
+      { role: "assistant", content: "두 사람은 복도로 나가 기록 보관실 앞에 도착했다." },
+      { role: "user", content: "문을 열어." },
+    ];
+
+    assert.equal(detectSceneStagnation(active), false);
+  });
+
+  it("selects low intensity for rest and romance scenes", () => {
+    assert.equal(
+      selectSceneIntensity({
+        recentMessages: [{ role: "assistant", content: "식사 후 침대 곁에서 조용히 휴식했다." }],
+        currentUserMessage: "조금만 더 쉬자.",
+      }),
+      0
+    );
+  });
+
+  it("allows higher intensity for operation scenes", () => {
+    const intensity = selectSceneIntensity({
+      recentMessages: [{ role: "assistant", content: "작전 회의에서 침투 경로와 구출 요청이 논의됐다." }],
+      currentUserMessage: "추적을 계속하자.",
+    });
+
+    assert.ok(intensity >= 3);
+  });
+
+  it("biases toward a breather after recent high-intensity scenes", () => {
+    const intensity = selectSceneIntensity({
+      recentMessages: [
+        { role: "assistant", content: "폭발과 전투 끝에 건물이 붕괴했고, 누군가 배신했다." },
+        { role: "user", content: "숨을 고른다." },
+      ],
+      currentUserMessage: "잠깐 멈춰.",
+    });
+
+    assert.ok(intensity <= 1);
+  });
+
+  it("renders Korean labels without raw enum values", () => {
+    const directive = buildSceneDirective({
+      mode: "auto_progression",
+      recentMessages: reassuranceLoop,
+      currentUserMessage: "계속",
+    });
+    const block = renderSceneDirectiveForPrompt(directive);
+
+    assert.match(block, /전개 방향:/);
+    assert.match(block, /권장 강도:/);
+    assert.doesNotMatch(block, /auto_progression/);
+    assert.doesNotMatch(block, /recentStagnation/);
+    assert.doesNotMatch(block, /progressionTypes/);
+    assert.doesNotMatch(block, /nextBeatHint/);
+  });
+
+  it("does not include hidden D-DAY death consequence in the next beat hint", () => {
+    const block = buildSceneDirectivePromptBlock({
+      mode: "interactive",
+      recentMessages: [
+        { role: "assistant", content: "D-DAY가 상태창에 표시되고 있다. 사망 조건은 아직 드러나지 않았다." },
+        { role: "user", content: "숫자를 본다." },
+      ],
+      currentUserMessage: "D-DAY가 뭐지?",
+    });
+
+    assert.doesNotMatch(block, /D-DAY가 .*사망/);
+    assert.doesNotMatch(block, /죽는 날/);
+  });
+});

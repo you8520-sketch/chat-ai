@@ -7,7 +7,9 @@ import {
   normalizeWidgetExtraction,
 } from "./extractNormalize";
 import { mergeStatusWidgetExtractUsages } from "./receiptUsage";
+import { mergeExtractedFacts, sanitizeExtractedFacts } from "./extractedFacts";
 import type {
+  ExtractedStatusFact,
   ParsedStatusWidgetTurnValues,
   ResolvedStatusWidgetTurn,
   StatusWidget,
@@ -26,9 +28,9 @@ async function extractStatusWidgetValuesForWidget(opts: {
   previousValues?: StatusWidgetValues | null;
   previousAssistantProse?: string | null;
   userNote?: string;
-}): Promise<{ values: StatusWidgetValues | null; usage: TokenUsage | null }> {
+}): Promise<{ values: StatusWidgetValues | null; facts: ExtractedStatusFact[]; usage: TokenUsage | null }> {
   const keys = collectWidgetJsonKeys(opts.widget);
-  if (keys.length === 0) return { values: null, usage: null };
+  if (keys.length === 0) return { values: null, facts: [], usage: null };
 
   const system = buildWidgetExtractSystem(opts.widget, keys, opts.source);
   const userBlock = buildWidgetExtractUserBlock(opts);
@@ -46,14 +48,14 @@ async function extractStatusWidgetValuesForWidget(opts: {
         source: opts.source,
         preview: text.slice(0, 200),
       });
-      return { values: null, usage };
+      return { values: null, facts: [], usage };
     }
     const normalized = normalizeWidgetExtraction(parsed, opts.widget, opts.previousValues);
     const values = Object.keys(normalized).length > 0 ? normalized : null;
-    return { values, usage };
+    return { values, facts: sanitizeExtractedFacts(parsed.extracted_facts), usage };
   } catch (e) {
     console.error("[STATUS-WIDGET-ERROR] extract call failed", (e as Error).message);
-    return { values: null, usage: null };
+    return { values: null, facts: [], usage: null };
   }
 }
 
@@ -87,6 +89,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       userNote: opts.userNote,
     });
     out.character = character.values;
+    out.extracted_facts = mergeExtractedFacts(out.extracted_facts, character.facts);
     if (character.usage) usages.push(character.usage);
   }
 
@@ -105,6 +108,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       userNote: opts.userNote,
     });
     out.user = user.values;
+    out.extracted_facts = mergeExtractedFacts(out.extracted_facts, user.facts);
     if (user.usage) usages.push(user.usage);
   }
 

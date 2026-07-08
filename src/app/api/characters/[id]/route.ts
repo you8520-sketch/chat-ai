@@ -8,6 +8,7 @@ import { normalizeCreatorRecommendedStyle } from "@/lib/writingStylePreset";
 import { speechCreatorFromLegacyExampleDialog } from "@/lib/speechCreatorFields";
 import { updateCharacterFromForm } from "@/lib/characterFormSave";
 import { deleteUserCharacter } from "@/lib/deleteCharacter";
+import { listCharacterStatusWidgetTriggers } from "@/lib/statusWidgetTriggers";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -89,6 +90,7 @@ export async function GET(_req: Request, ctx: RouteCtx) {
 
   const speech = speechCreatorFromLegacyExampleDialog(c.example_dialog ?? "");
   const assets = parseAssets(c.assets);
+  const statusWidgetTriggers = listCharacterStatusWidgetTriggers(db, c.id);
 
   return NextResponse.json({
     id: c.id,
@@ -102,6 +104,7 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     lorebook_id: c.lorebook_id,
     status_window_prompt: c.status_window_prompt ?? "",
     status_widget_json: c.status_widget_json ?? "",
+    status_widget_triggers: statusWidgetTriggers,
     speech_personality: speech.speech_personality,
     speech_traits: speech.speech_traits,
     speech_examples: speech.speech_examples,

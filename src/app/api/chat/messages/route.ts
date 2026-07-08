@@ -12,6 +12,7 @@ import { parseStatusMetaRecord } from "@/lib/statusMeta/types";
 import type { Usage } from "@/lib/chatUsage";
 import {
   parseStoredStatusWidgetValuesJson,
+  stripExtractedFactsForClient,
 } from "@/lib/statusWidget";
 import {
   CHAT_LOAD_MORE_TURNS,
@@ -73,7 +74,9 @@ function mapDbMessageForClient(
     statusMetaFormatSpec: statusRecord?.formatSpec ?? null,
     statusMetaPending: statusFlags.statusMetaPending,
     statusMetaRequested: statusFlags.statusMetaRequested,
-    statusWidgetValues: parseStoredStatusWidgetValuesJson(m.status_widget_values_json),
+    statusWidgetValues: stripExtractedFactsForClient(
+      parseStoredStatusWidgetValuesJson(m.status_widget_values_json)
+    ),
     statusWidgetTurnActive: m.status_widget_turn_active === 1,
     createdAt: m.created_at,
     reportStatus,

@@ -39,6 +39,15 @@ ${STATUS_VALUES_CHAR_BLOCK}
     assert.equal(split.values.character?.["장소"], "거리");
   });
 
+  it("captures extracted_facts from inline marker JSON", () => {
+    const raw =
+      '본문 끝. <<<STATUS_VALUES char>>> {"시간":"14:00","장소":"거리","extracted_facts":[{"category":"item","subject":"user","attribute":"weapon","value":"mithril_dagger","importance":"normal","fact_text":"사용자는 미스릴 단검을 얻었다."}]}';
+    const split = splitProseAndStatusWidgetValuesDeepSeek(raw);
+
+    assert.equal(split.values.character?.["시간"], "14:00");
+    assert.equal(split.values.extracted_facts?.[0]?.value, "mithril_dagger");
+  });
+
   it("still accepts standard END-wrapped blocks", () => {
     const raw = `RP.
 

@@ -58,6 +58,8 @@ describe("buildContext — persona-before-prose assembly order", () => {
       shortTermHistory: [],
       nsfw: true,
       longTermMemory: "They met yesterday.",
+      sceneDirectiveBlock: "[이번 턴 장면 지시 - 비공개]\n모드: 일반 RP\n전개 방향: 관계 변화",
+      episodicMemoryBlock: "[EPISODIC MEMORY - RETRIEVED FACTS]\n- [T4] 사용자는 커피를 좋아한다.",
       memoryMeta: "Relationship: close friends.",
       userNote: mergeUserNoteBodyFromEditor(
         "x".repeat(500),
@@ -86,11 +88,25 @@ describe("buildContext — persona-before-prose assembly order", () => {
     );
     assert.ok(
       sectionOrder(ids, "current-memory") <
+        sectionOrder(ids, "episodic-memory-retrieved-facts")
+    );
+    assert.ok(
+      sectionOrder(ids, "episodic-memory-retrieved-facts") <
+        sectionOrder(ids, "relationship-meta")
+    );
+    assert.ok(
+      sectionOrder(ids, "current-memory") <
         sectionOrder(ids, "relationship-meta")
     );
     assert.ok(
       sectionOrder(ids, "relationship-meta") <
         sectionOrder(ids, "user-note-reference")
+    );
+    assert.ok(
+      sectionOrder(ids, "user-note-reference") < sectionOrder(ids, "scene-directive")
+    );
+    assert.ok(
+      sectionOrder(ids, "scene-directive") < sectionOrder(ids, "rule-length-control")
     );
     assert.ok(
       sectionOrder(ids, "rule-length-control") <
@@ -111,6 +127,8 @@ describe("buildContext — persona-before-prose assembly order", () => {
     assert.match(split!.characterSettingsBlock, /\[ADVANCED PROSE & NSFW GUIDELINES\]/);
     assert.match(split!.systemRulesBlock, /\[CHARACTER KNOWLEDGE BOUNDARY\]/);
     assert.match(built.systemPrompt, /\[CHARACTER CANON — Hero MAY KNOW/);
+    assert.match(built.systemPrompt, /\[EPISODIC MEMORY - RETRIEVED FACTS\]/);
+    assert.match(built.systemPrompt, /\[이번 턴 장면 지시 - 비공개\]/);
     assert.doesNotMatch(split!.characterSettingsBlock, /\[CORE IDENTITY\]/);
     assert.doesNotMatch(split!.systemRulesBlock, /<PROSE_STYLE_POLICY>/);
 
@@ -144,6 +162,81 @@ describe("buildContext — persona-before-prose assembly order", () => {
     assert.ok(!ids.includes("contextual-lore-rag"));
     assert.ok(!ids.includes("canonical-appearance-facts"));
     assert.match(built.systemPrompt, /WORLD_LORE|<world_lore>/i);
+  });
+
+  it("omits episodic memory section when block is empty", () => {
+    const built = buildContext({
+      charName: "Hero",
+      chunks: [criticalChunk],
+      userNickname: "User",
+      shortTermHistory: [],
+      currentUserMessage: "hello",
+      nsfw: false,
+      episodicMemoryBlock: "",
+    });
+
+    assert.doesNotMatch(built.systemPrompt, /\[EPISODIC MEMORY - RETRIEVED FACTS\]/);
+    assert.ok(
+      !(built.meta.trackedSections ?? []).some((s) => s.id === "episodic-memory-retrieved-facts")
+    );
+  });
+
+  it("injects triggered scenario events without raw trigger metadata", () => {
+    const built = buildContext({
+      charName: "Hero",
+      chunks: [criticalChunk],
+      userNickname: "User",
+      shortTermHistory: [],
+      currentUserMessage: "hello",
+      nsfw: false,
+      modelId: OPENROUTER_QWEN_37_MAX_MODEL,
+      provider: "openrouter",
+      triggeredScenarioEventsBlock: [
+        "[TRIGGERED SCENARIO EVENTS]",
+        "These events have just been triggered by backend scenario logic.",
+        "Use only the revealed event text.",
+        "",
+        "* 봉인된 문장이 마침내 빛나기 시작한다.",
+      ].join("\n"),
+    });
+
+    const ids = (built.meta.trackedSections ?? []).map((s) => s.id);
+    assert.ok(ids.includes("triggered-scenario-events"));
+    assert.match(built.systemPrompt, /봉인된 문장이 마침내 빛나기 시작한다\./);
+    assert.doesNotMatch(built.systemPrompt, /d_day_zero/);
+    assert.doesNotMatch(built.systemPrompt, /deadline_arrived/);
+    assert.doesNotMatch(built.systemPrompt, /d_day\s*<=\s*0/);
+  });
+
+  it("uses speech_control only in the private speech section", () => {
+    const built = buildContext({
+      charName: "Hero",
+      chunks: [criticalChunk],
+      userNickname: "User",
+      shortTermHistory: [],
+      currentUserMessage: "hello",
+      nsfw: false,
+      modelId: OPENROUTER_QWEN_37_MAX_MODEL,
+      provider: "openrouter",
+      privateSpeechControlBlock: [
+        "[PRIVATE SPEECH CONTROL - NOT STORY CONTENT]",
+        "Use these speech/register controls silently.",
+        "- 평소에는 다나까체, 단둘이 있을 때는 해요체를 사용한다.",
+      ].join("\n"),
+    });
+
+    const privateSection = (built.meta.trackedSections ?? []).find(
+      (section) => section.id === "private-speech-control"
+    );
+    const canonSection = (built.meta.trackedSections ?? []).find(
+      (section) => section.id === "character-core-identity"
+    );
+
+    assert.ok(privateSection);
+    assert.match(privateSection!.text, /PRIVATE SPEECH CONTROL/);
+    assert.match(privateSection!.text, /해요체|다나까체/);
+    assert.ok(canonSection);
+    assert.doesNotMatch(canonSection!.text, /해요체|다나까체/);
   });
 
   it("Gemini: core identity precedes advanced prose guidelines", () => {

@@ -106,7 +106,7 @@ import {
 import { SCENE_CONTINUATION_PRIORITY_BLOCK } from "@/lib/turnHandoffAndPacing";
 import type { OpenRouterSystemSplit } from "@/lib/openRouterCache";
 import { estimateOpenRouterCacheableTokens, buildOpenRouterDynamicLoreUserPrefix, HISTORY_CACHE_TAIL_EXCLUDE_MESSAGES } from "@/lib/openRouterCache";
-import { isDeepSeekV4ProModel } from "@/lib/chatModels";
+import { isDeepSeekV4ProModel, isQwenModel } from "@/lib/chatModels";
 import { buildCoNarrationKoreanRule } from "@/lib/openRouterAdult";
 import { buildOpenRouterKoreanProseTopBlock } from "@/lib/openRouterProsePolicy";
 import {
@@ -117,6 +117,10 @@ import {
   resolveDeepSeekLoreXmlGroup,
   type DeepSeekXmlGroup,
 } from "@/lib/deepseekPromptStructure";
+import {
+  buildRuntimePromptContaminationGuardBlock,
+  sanitizeRuntimePromptSource,
+} from "@/lib/runtimePromptContaminationGuard";
 
 type SectionTarget = "dynamic" | "cacheRules" | "cacheCharacter";
 
@@ -340,6 +344,15 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       buildCoNarrationKoreanRule(coNarrationEnabled, novelModeEnabled),
       "dynamic"
     );
+    pushSection(
+      "runtime-prompt-contamination-guard",
+      "[TOP] Runtime prompt contamination guard",
+      "systemRules",
+      buildRuntimePromptContaminationGuardBlock(input.modelId),
+      isOpenRouter && (isQwenModel(input.modelId ?? "") || isDeepSeekV4ProModel(input.modelId ?? ""))
+        ? "cacheRules"
+        : "dynamic"
+    );
   }
 
   if (isBilingualDialogueActive(bilingualDialoguePolicy)) {
@@ -358,7 +371,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     userName: personaLabel,
   });
 
-  const archiveMemory = input.archiveMemory?.trim() ?? "";
+  const archiveMemory = sanitizeRuntimePromptSource(input.archiveMemory);
 
   const pushArchiveMemory = () => {
     if (!memoryFeatureOn || !archiveMemory) return;
@@ -412,9 +425,13 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   }
 
   const isGeminiBulk = contextTrack === "gemini-bulk";
-  const keywordLorebookBlock = input.keywordLorebookBlock?.trim();
-  let memory = input.longTermMemory?.trim() ?? "";
-  const memoryMeta = input.memoryMeta?.trim() ?? "";
+  const keywordLorebookBlock = sanitizeRuntimePromptSource(input.keywordLorebookBlock);
+  const episodicMemoryBlock = input.episodicMemoryBlock?.trim() ?? "";
+  const triggeredScenarioEventsBlock = input.triggeredScenarioEventsBlock?.trim() ?? "";
+  const privateSpeechControlBlock = input.privateSpeechControlBlock?.trim() ?? "";
+  const sceneDirectiveBlock = input.sceneDirectiveBlock?.trim() ?? "";
+  let memory = sanitizeRuntimePromptSource(input.longTermMemory);
+  const memoryMeta = sanitizeRuntimePromptSource(input.memoryMeta);
 
   const pushCurrentMemory = (includeRelationshipMeta: boolean) => {
     if (!memory && !(includeRelationshipMeta && memoryMeta)) return;
@@ -520,8 +537,54 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   };
 
+  const pushEpisodicMemory = () => {
+    if (!episodicMemoryBlock) return;
+    pushSection(
+      "episodic-memory-retrieved-facts",
+      "[3a] Episodic memory retrieved facts",
+      "memory",
+      episodicMemoryBlock,
+      "dynamic",
+      deepSeekXmlMode ? "ltm" : undefined
+    );
+  };
+
+  const pushTriggeredScenarioEvents = () => {
+    if (!triggeredScenarioEventsBlock) return;
+    pushSection(
+      "triggered-scenario-events",
+      "[3c] Triggered scenario events",
+      "systemRules",
+      triggeredScenarioEventsBlock,
+      "dynamic"
+    );
+  };
+
+  const pushSceneDirective = () => {
+    if (!sceneDirectiveBlock) return;
+    pushSection(
+      "scene-directive",
+      "[3d] Private scene directive",
+      "systemRules",
+      sceneDirectiveBlock,
+      "dynamic"
+    );
+  };
+
+  const pushPrivateSpeechControl = () => {
+    if (!privateSpeechControlBlock) return;
+    pushSection(
+      "private-speech-control",
+      "[2b] Private speech control",
+      "systemRules",
+      privateSpeechControlBlock,
+      isOpenRouter ? "cacheRules" : "dynamic"
+    );
+  };
+
   // ───── [2] Core Identity — directly above persona / user-note focus ─────
   pushCharacterCoreIdentity();
+  pushPrivateSpeechControl();
   // ───── [0] Identity & Rules (persona + mandatory user note) ─────
   pushIdentityAndRules();
   flushDeepSeekXmlSections(["persona", "world_lore"]);
@@ -602,11 +665,16 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     pushArchiveMemory();
     if (memoryFeatureOn) {
       pushCurrentMemory(false);
+    }
+    pushEpisodicMemory();
+    pushTriggeredScenarioEvents();
+    if (memoryFeatureOn) {
       pushRelationshipMeta();
       pushRagContextSections();
     } else if (!isGeminiBulk) {
       pushReferenceUserNote();
     }
+    pushSceneDirective();
   };
 
   pushVolatileContextSections();
@@ -705,7 +773,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     "dynamic"
   );
 
-  const globalLorebookBlock = input.globalLorebookBlock?.trim() ?? "";
+  const globalLorebookBlock = sanitizeRuntimePromptSource(input.globalLorebookBlock);
   if (globalLorebookBlock) {
     if (isOpenRouter) {
       dynamicLorebookParts.push(globalLorebookBlock);

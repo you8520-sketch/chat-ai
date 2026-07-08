@@ -80,6 +80,14 @@ export type ContextBuildInput = {
   regenAttemptId?: string | null;
   /** 키워드 로어북 — 유저 입력 매칭 시 원문 주입 (번역 없음) */
   keywordLorebookBlock?: string | null;
+  /** Structured episodic memory — retrieved facts from earlier turns, internal only */
+  episodicMemoryBlock?: string | null;
+  /** Backend-fired scenario events queued from previous status widget values */
+  triggeredScenarioEventsBlock?: string | null;
+  /** Creator speech/register controls separated from public canon */
+  privateSpeechControlBlock?: string | null;
+  /** Compact private scene movement directive for this turn */
+  sceneDirectiveBlock?: string | null;
   /** 플랫폼 전역 로어북 — Depth 0 tail (트리거 매칭 시) */
   globalLorebookBlock?: string | null;
   /** chat_turn_summaries 최신 N개 — [RECENT NARRATIVE CONTEXT] (read-only, not character profile) */

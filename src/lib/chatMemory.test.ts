@@ -10,6 +10,7 @@ import {
   normalizeThoughtEntry,
   normalizeTurnThoughts,
   THOUGHT_CONTENT_HARD_MAX_CHARS,
+  THOUGHT_CONTENT_MIN_TARGET_CHARS,
   THOUGHT_CONTENT_MAX_CHARS,
   THOUGHTS_PER_TURN_MAX,
 } from "@/lib/chatMemory";
@@ -17,6 +18,18 @@ import {
 const names = { charName: "서연", userName: "민수" };
 
 describe("formatMemoryMetaForPrompt", () => {
+  it("omits current location from relationship memo output", () => {
+    const result = formatMemoryMetaForPrompt({
+      ...EMPTY_MEMORY_META,
+      currentLocation: "훈련장",
+      honorifics: ["레온→렌: 렌"],
+    });
+
+    assert.ok(result);
+    assert.doesNotMatch(result!, /현재장소|훈련장/);
+    assert.match(result!, /레온→렌: 렌/);
+  });
+
   it("uses soft priority framing without mandatory 반드시", () => {
     const result = formatMemoryMetaForPrompt({
       ...EMPTY_MEMORY_META,
@@ -50,11 +63,11 @@ describe("clampThoughtContent", () => {
     assert.doesNotMatch(result, /(?:을|를|은|는)$/);
   });
 
-  it("keeps thoughts up to the new 55-char soft target unchanged", () => {
+  it("keeps thoughts in the 40-50 char target range unchanged", () => {
     // 40자를 넘지만 55자 이내 — 예전 상한이면 잘렸을 길이가 이제 그대로 유지
     const t =
       "그 말 한마디에 심장이 내려앉았는데 아무렇지 않은 척 웃어 보이는 게 이렇게 힘들 줄이야";
-    assert.ok(t.length > 40 && t.length <= THOUGHT_CONTENT_MAX_CHARS);
+    assert.ok(t.length >= THOUGHT_CONTENT_MIN_TARGET_CHARS && t.length <= THOUGHT_CONTENT_MAX_CHARS);
     assert.equal(clampThoughtContent(t), t);
   });
 
@@ -135,6 +148,20 @@ describe("mergeMemoryMeta possession", () => {
       { charName: "레온", userName: "민수" }
     );
     assert.deepEqual(merged.items, ["레온: 지갑"]);
+  });
+
+  it("moves the same item from previous owner to new owner when receiver line is added", () => {
+    const prev = {
+      ...EMPTY_MEMORY_META,
+      items: ["렌: 스타라이트 사파이어 브로치"],
+    };
+    const merged = mergeMemoryMeta(
+      prev,
+      { items: ["레온: 스타라이트 사파이어 브로치"] },
+      { charName: "레온", userName: "렌" }
+    );
+
+    assert.deepEqual(merged.items, ["레온: 스타라이트 사파이어 브로치"]);
   });
 
   it("removes items and thoughts before merging additions", () => {

@@ -103,6 +103,65 @@ function init(db: Database.Database) {
     model TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   );
+  CREATE TABLE IF NOT EXISTS episodic_memory_facts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id INTEGER NOT NULL,
+    character_id INTEGER,
+    user_id INTEGER,
+    source_turn INTEGER NOT NULL,
+    category TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    attribute TEXT NOT NULL,
+    value TEXT NOT NULL,
+    importance TEXT NOT NULL,
+    fact_text TEXT NOT NULL,
+    metadata TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_episodic_memory_facts_chat_turn
+    ON episodic_memory_facts(chat_id, source_turn, id);
+  CREATE INDEX IF NOT EXISTS idx_episodic_memory_facts_lookup
+    ON episodic_memory_facts(chat_id, category, subject, attribute);
+  CREATE TABLE IF NOT EXISTS status_widget_triggers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    character_id INTEGER,
+    chat_id INTEGER,
+    trigger_id TEXT NOT NULL,
+    status_key TEXT NOT NULL,
+    operator TEXT NOT NULL,
+    value TEXT NOT NULL,
+    fire_once INTEGER NOT NULL DEFAULT 1,
+    event_key TEXT NOT NULL,
+    effect_text TEXT NOT NULL,
+    visibility TEXT NOT NULL DEFAULT 'engine_only',
+    character_knowledge TEXT NOT NULL DEFAULT 'unknown',
+    is_enabled INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+  CREATE INDEX IF NOT EXISTS idx_status_widget_triggers_lookup
+    ON status_widget_triggers(chat_id, character_id, is_enabled);
+  CREATE INDEX IF NOT EXISTS idx_status_widget_triggers_trigger
+    ON status_widget_triggers(trigger_id);
+  CREATE TABLE IF NOT EXISTS status_trigger_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id INTEGER NOT NULL,
+    character_id INTEGER,
+    trigger_id TEXT NOT NULL,
+    event_key TEXT NOT NULL,
+    source_turn INTEGER NOT NULL,
+    effect_text TEXT NOT NULL,
+    is_consumed INTEGER NOT NULL DEFAULT 0,
+    fired_at TEXT NOT NULL DEFAULT (datetime('now')),
+    consumed_at TEXT,
+    metadata TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_status_trigger_events_chat_consumed
+    ON status_trigger_events(chat_id, is_consumed, fired_at, id);
+  CREATE INDEX IF NOT EXISTS idx_status_trigger_events_once
+    ON status_trigger_events(chat_id, trigger_id);
+  CREATE INDEX IF NOT EXISTS idx_status_trigger_events_turn
+    ON status_trigger_events(chat_id, trigger_id, source_turn);
   CREATE TABLE IF NOT EXISTS party_rooms (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -279,6 +338,8 @@ function migrate(db: Database.Database) {
   addColumn("chats", "status_window_enabled", "INTEGER NOT NULL DEFAULT 0");
   addColumn("characters", "status_widget_json", "TEXT NOT NULL DEFAULT ''");
   addColumn("characters", "status_widget_allow_user_override", "INTEGER NOT NULL DEFAULT 1");
+  addColumn("characters", "creator_raw_description", "TEXT NOT NULL DEFAULT ''");
+  addColumn("characters", "creator_compiled_description_json", "TEXT NOT NULL DEFAULT ''");
   addColumn("chats", "status_widget_mode", "TEXT NOT NULL DEFAULT 'character_only'");
   addColumn("chats", "user_status_widget_json", "TEXT NOT NULL DEFAULT ''");
   addColumn("chats", "status_widget_stack_order", "TEXT NOT NULL DEFAULT 'character_first'");

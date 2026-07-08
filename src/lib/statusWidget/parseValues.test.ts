@@ -62,6 +62,27 @@ ${STATUS_VALUES_END}`;
     assert.equal(values.character?.["시간"], "14:30");
   });
 
+  it("captures valid extracted_facts and ignores invalid fact objects", () => {
+    const text = `본문 RP입니다.
+
+${STATUS_VALUES_BLOCK}
+{"시간":"14:30","장소":"카페","extracted_facts":[{"category":"preference","subject":"user","attribute":"favorite_drink","value":"syrup_coffee","importance":"important","fact_text":"사용자는 커피에 시럽을 두 번 넣어 마신다."},{"category":"bad","subject":"user","attribute":"mood","value":"happy","importance":"normal","fact_text":"사용자는 기쁘다."},{"category":"item","subject":"User Name","attribute":"weapon","value":"mithril dagger","importance":"normal","fact_text":"사용자는 미스릴 단검을 얻었다."}]}
+${STATUS_VALUES_END}`;
+    const { values } = splitProseAndStatusWidgetValues(text);
+
+    assert.equal(values.character?.["시간"], "14:30");
+    assert.deepEqual(values.extracted_facts, [
+      {
+        category: "preference",
+        subject: "user",
+        attribute: "favorite_drink",
+        value: "syrup_coffee",
+        importance: "important",
+        fact_text: "사용자는 커피에 시럽을 두 번 넣어 마신다.",
+      },
+    ]);
+  });
+
   it("falls back to trailing ```json fence when STATUS_VALUES markers missing", () => {
     const text = `본문 RP입니다.
 

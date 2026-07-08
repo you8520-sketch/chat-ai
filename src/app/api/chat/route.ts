@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import {
@@ -84,6 +85,8 @@ import {
   resolveSelectedAI,
   selectedAILabel,
 } from "@/lib/chatModels";
+import { stripRuntimePromptContaminationFromVisibleOutput } from "@/lib/runtimePromptContaminationGuard";
+import { buildSceneDirectivePromptBlock } from "@/lib/sceneDirective";
 import { stealthReceiptModelFields } from "@/lib/billingDisplay";
 import { loadKeywordLorebookPromptBlock } from "@/lib/keywordLorebooks";
 import { loadGlobalLorebookPromptBlock } from "@/lib/globalLorebook";
@@ -113,7 +116,7 @@ import { formatUserNoteForPrompt } from "@/lib/persona";
 import { validateUserNoteCombined, userNoteCombinedCharCount, parseUserNoteCombined, extractFocusZoneNote } from "@/lib/userNoteStatusWindow";
 import { resolveStatusWidgetReservedChars } from "@/lib/statusWidget";
 import { splitAndNormalizeRelationshipMemoryTail } from "@/lib/relationshipMemoryTail";
-import { parseUserChatPrefs, normalizeNovelModeEnabled } from "@/lib/userChatPrefs";
+import { parseUserChatPrefs } from "@/lib/userChatPrefs";
 import {
   ensureDefaultPersona,
   formatSelectedPersonaIdentityForBackground,
@@ -200,6 +203,21 @@ import { formatClientApiError } from "@/lib/apiErrors";
 import { resolveOpenRouterModelId } from "@/lib/openRouterConfig";
 import { resolveRegenerateGenerationOverrides } from "@/lib/openRouterClient";
 import { sanitizePrimaryModelAssistantHistory } from "@/lib/flashOwnedOutputFirewall";
+import {
+  getEpisodicMemoryForPrompt,
+  persistEpisodicMemoryFactsBestEffort,
+} from "@/lib/episodicMemoryFacts";
+import { stripExtractedFactsForClient } from "@/lib/statusWidget/parseValues";
+import {
+  buildTriggeredScenarioEventsPromptBlock,
+  evaluateStatusWidgetTriggersBestEffort,
+  loadQueuedStatusTriggerEventsForPrompt,
+  markStatusTriggerEventsConsumed,
+} from "@/lib/statusWidgetTriggers";
+import {
+  buildPrivateSpeechControlBlock,
+  parseCreatorDescriptionCompiled,
+} from "@/lib/creatorDescriptionTriggerCompiler";
 
 const SSE_HEADERS = {
   "Content-Type": "text/event-stream; charset=utf-8",
@@ -228,7 +246,6 @@ export async function POST(req: Request) {
   const isAdultModeInput =
     body.isAdultMode ?? body.isNsfwMode ?? body.nsfwMode;
   const targetResponseCharsInput = body.targetResponseChars ?? body.targetResponseLength;
-  const novelModeEnabledInput = body.novelModeEnabled;
 
   if (isContinue && regenerate) {
     return Response.json({ error: "자동진행과 재생성은 동시에 사용할 수 없습니다." }, { status: 400 });
@@ -281,6 +298,7 @@ export async function POST(req: Request) {
     official: number;
     genres: string;
     recommended_writing_style: string;
+    creator_compiled_description_json?: string | null;
   } | undefined;
   if (!ch) return Response.json({ error: "캐릭터를 찾을 수 없습니다." }, { status: 404 });
 
@@ -384,14 +402,7 @@ export async function POST(req: Request) {
       : normalizeTargetResponseChars(
           accountChatPrefs?.targetResponseChars ?? chat.target_response_chars
         );
-  const novelModeEnabledFromBody =
-    novelModeEnabledInput !== undefined
-      ? normalizeNovelModeEnabled(novelModeEnabledInput)
-      : undefined;
-  const novelModeEnabled =
-    novelModeEnabledFromBody !== undefined
-      ? novelModeEnabledFromBody
-      : accountChatPrefs?.novelModeEnabled ?? false;
+  const novelModeEnabled = isContinue;
 
   if (isAdultMode && !user.is_adult) {
     return Response.json(
@@ -696,11 +707,22 @@ export async function POST(req: Request) {
   });
   const chatOocHtmlOutputTurn = chatInputSuppressesStatusWidget(storedUserMessage);
   const statusWidgetActive = statusWidgetTurn.active && !chatOocHtmlOutputTurn;
+  const keywordLorebookRecentScanText = trimmedHistoryForLorebook
+    .slice(-12)
+    .map((m) => m.content)
+    .filter(Boolean)
+    .join("\n");
+  const keywordLorebookScanText = [
+    policyUserMessage,
+    keywordLorebookRecentScanText,
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   const keywordLorebookBlock = loadKeywordLorebookPromptBlock(
     db,
     (ch as { lorebook_id?: number | null }).lorebook_id,
-    policyUserMessage
+    keywordLorebookScanText
   );
 
   const statusWindowPolicyForHtml = resolveStatusWindowPolicyFromSources({
@@ -748,6 +770,53 @@ export async function POST(req: Request) {
   const globalLorebookBlock = chatOocRpUnrelated
     ? ""
     : loadGlobalLorebookPromptBlock(db, globalLorebookScanText, globalLorebookScanText);
+  const queuedStatusTriggerEvents = loadQueuedStatusTriggerEventsForPrompt(db, chat.id);
+  const queuedStatusTriggerEventIds = queuedStatusTriggerEvents.map((event) => event.id);
+  const triggeredScenarioEventsBlock =
+    buildTriggeredScenarioEventsPromptBlock(queuedStatusTriggerEvents);
+  const relationshipMemoryForPrompt = memoryFeatureOn
+    ? formatMemoryMetaForPrompt(
+        normalizeMemoryMeta(parseMemoryMeta(chat.memory_meta), relationshipNames)
+      )
+    : "";
+  const recentChatTextForEpisodicMemory = shortTermHistory
+    .map((m) => m.content)
+    .filter(Boolean)
+    .join("\n");
+  const lorebookTextForEpisodicMemory = [
+    keywordLorebookBlock,
+    globalLorebookBlock,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const episodicMemory = getEpisodicMemoryForPrompt(db, {
+    chatId: chat.id,
+    characterId: ch.id,
+    userId: user.id,
+    currentTurn: playableTurnCount + 1,
+    currentUserMessage: policyUserMessage,
+    recentChatText: recentChatTextForEpisodicMemory,
+    longTermMemoryText: memoryFeatureOn
+      ? [memoryInjection.text, memoryInjection.archiveText].filter(Boolean).join("\n")
+      : "",
+    relationshipMemoryText: relationshipMemoryForPrompt,
+    lorebookText: lorebookTextForEpisodicMemory,
+    triggeredEventText: triggeredScenarioEventsBlock,
+  });
+  const privateSpeechControlBlock = buildPrivateSpeechControlBlock(
+    parseCreatorDescriptionCompiled(ch.creator_compiled_description_json)
+  );
+  const sceneDirectiveBlock = buildSceneDirectivePromptBlock({
+    mode: autoContinueContext ? "auto_progression" : "interactive",
+    recentMessages: shortTermHistory,
+    currentUserMessage: policyUserMessage,
+    memoryText: memoryFeatureOn
+      ? [memoryInjection.text, memoryInjection.archiveText].filter(Boolean).join("\n")
+      : "",
+    relationshipMemoryText: relationshipMemoryForPrompt,
+    lorebookText: [keywordLorebookBlock, globalLorebookBlock].filter(Boolean).join("\n"),
+    triggeredEventText: triggeredScenarioEventsBlock,
+  });
 
   const contextBuildInput = {
     charName: ch.name,
@@ -765,11 +834,7 @@ export async function POST(req: Request) {
     nsfw: isAdultMode,
     gender: resolveCharacterGender(ch.gender),
     assetTags: assetTags.length > 0 ? assetTags : undefined,
-    memoryMeta: memoryFeatureOn
-      ? formatMemoryMetaForPrompt(
-          normalizeMemoryMeta(parseMemoryMeta(chat.memory_meta), relationshipNames)
-        )
-      : "",
+    memoryMeta: relationshipMemoryForPrompt,
     modelId: openRouterApiModelId,
     userImpersonation,
     novelModeEnabled,
@@ -785,6 +850,10 @@ export async function POST(req: Request) {
     rejectedAssistantDraft: regenerateMessageId ? rejectedAssistantDraft : undefined,
     regenAttemptId: regenerateMessageId ? regenAttemptId : undefined,
     geminiStaticDynamicMode: false,
+    episodicMemoryBlock: episodicMemory.promptBlock || undefined,
+    triggeredScenarioEventsBlock: triggeredScenarioEventsBlock || undefined,
+    privateSpeechControlBlock: privateSpeechControlBlock || undefined,
+    sceneDirectiveBlock,
     keywordLorebookBlock: keywordLorebookBlock || undefined,
     globalLorebookBlock: globalLorebookBlock || undefined,
   };
@@ -1086,6 +1155,12 @@ export async function POST(req: Request) {
           traced,
           stripSceneAnalysisLeakage(traced),
           "stripSceneAnalysisLeakage — model scene-planning / reasoning leakage"
+        );
+        traced = traceStep(
+          "stripRuntimePromptContamination",
+          traced,
+          stripRuntimePromptContaminationFromVisibleOutput(traced),
+          "stripRuntimePromptContamination - speech/status/memory internal metadata leakage"
         );
         fullText = traced;
 
@@ -2257,6 +2332,46 @@ export async function POST(req: Request) {
           aiMessageId = Number(aiMsg.lastInsertRowid);
         }
 
+        const extractedFactsForPersistence = statusWidgetValuesPayload?.extracted_facts ?? [];
+        if (extractedFactsForPersistence.length > 0) {
+          const persistFacts = () => {
+            persistEpisodicMemoryFactsBestEffort(db, {
+              chatId: chatRef.id,
+              characterId: ch.id,
+              userId: user.id,
+              sourceTurn: playableTurnCount + 1,
+              facts: extractedFactsForPersistence,
+              metadata: {
+                assistant_message_id: aiMessageId,
+                regenerated: !!regenerateMessageId,
+                variant_index: snapshotVariantIndex,
+                status_widget_turn_active: statusWidgetActive,
+              },
+            });
+          };
+          try {
+            after(persistFacts);
+          } catch (e) {
+            console.error("[EpisodicMemory] after() scheduling failed:", (e as Error).message);
+            persistFacts();
+          }
+        }
+
+        try {
+          markStatusTriggerEventsConsumed(db, queuedStatusTriggerEventIds);
+        } catch (e) {
+          console.error("[StatusTrigger] consume failed:", (e as Error).message);
+        }
+
+        if (statusWidgetValuesPayload) {
+          evaluateStatusWidgetTriggersBestEffort(db, {
+            chatId: chatRef.id,
+            characterId: ch.id,
+            sourceTurn: playableTurnCount + 1,
+            statusValues: statusWidgetValuesPayload,
+          });
+        }
+
         const nextMode: Route = isAdultMode ? "nsfw" : "safe";
         const nextImpersonation = userImpersonation ? 1 : 0;
         const nextTargetChars = targetResponseCharsRef;
@@ -2337,7 +2452,9 @@ export async function POST(req: Request) {
           statusMetaPending: statusMetaEnabled,
           statusWidgetActive,
           statusWidgetTurnActive: statusWidgetActive,
-          statusWidgetValues: statusWidgetValuesPayload,
+          statusWidgetValues: statusWidgetValuesPayload
+            ? stripExtractedFactsForClient(statusWidgetValuesPayload)
+            : null,
           htmlFlashTurn: (htmlVisualCardPolicyRef.enabled || chatOocRpUnrelated) && htmlFlashOnlyTurn,
           showStatusMarkdown: userMessageRequestsStatusWindowOoc(policyUserMessageRef),
           finalContent: savedText,

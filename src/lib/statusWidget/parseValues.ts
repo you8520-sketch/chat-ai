@@ -1,5 +1,11 @@
 import { fieldPlaceholderKey } from "./fieldKeys";
-import type { ParsedStatusWidgetTurnValues, StatusWidget, StatusWidgetValues } from "./types";
+import { mergeExtractedFacts, sanitizeExtractedFacts } from "./extractedFacts";
+import type {
+  ExtractedStatusFact,
+  ParsedStatusWidgetTurnValues,
+  StatusWidget,
+  StatusWidgetValues,
+} from "./types";
 
 export const STATUS_VALUES_BLOCK = "<<<STATUS_VALUES>>>";
 export const STATUS_VALUES_CHAR_BLOCK = "<<<STATUS_VALUES char>>>";
@@ -71,7 +77,12 @@ function stripTrailingStatusWidgetMarkers(text: string): string {
   return work;
 }
 
-function parseValuesJson(raw: string): StatusWidgetValues | null {
+type ParsedValuesJson = {
+  values: StatusWidgetValues | null;
+  facts: ExtractedStatusFact[];
+};
+
+function parseValuesJson(raw: string): ParsedValuesJson | null {
   const trimmed = raw.trim();
   if (!trimmed) return null;
   try {
@@ -79,11 +90,15 @@ function parseValuesJson(raw: string): StatusWidgetValues | null {
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
     const out: StatusWidgetValues = {};
     for (const [k, v] of Object.entries(parsed)) {
+      if (k === "extracted_facts") continue;
       if (typeof v === "string" || typeof v === "number") {
         out[k] = String(v).trim();
       }
     }
-    return Object.keys(out).length > 0 ? out : null;
+    return {
+      values: Object.keys(out).length > 0 ? out : null,
+      facts: sanitizeExtractedFacts(parsed.extracted_facts),
+    };
   } catch {
     return null;
   }
@@ -119,16 +134,16 @@ export function captureTrailingLegacyStatusJsonValues(text: string): {
   const fenceMatch = work.match(/```json\s*([\s\S]*?)```\s*$/i);
   if (fenceMatch?.index != null && fenceMatch[1]) {
     const parsed = parseValuesJson(fenceMatch[1]);
-    if (parsed && looksLikeStatusWidgetValues(parsed)) {
-      return { prose: work.slice(0, fenceMatch.index).trimEnd(), values: parsed };
+    if (parsed?.values && looksLikeStatusWidgetValues(parsed.values)) {
+      return { prose: work.slice(0, fenceMatch.index).trimEnd(), values: parsed.values };
     }
   }
 
   const bareMatch = work.match(/\n(\{[\s\S]*\})\s*$/);
   if (bareMatch?.index != null && bareMatch[1]) {
     const parsed = parseValuesJson(bareMatch[1]);
-    if (parsed && looksLikeStatusWidgetValues(parsed)) {
-      return { prose: work.slice(0, bareMatch.index).trimEnd(), values: parsed };
+    if (parsed?.values && looksLikeStatusWidgetValues(parsed.values)) {
+      return { prose: work.slice(0, bareMatch.index).trimEnd(), values: parsed.values };
     }
   }
 
@@ -190,8 +205,13 @@ export function sanitizeParsedStatusWidgetValues(
   if (!values) return {};
   const character = sanitizeStatusWidgetValues(values.character);
   const user = sanitizeStatusWidgetValues(values.user);
-  if (!character && !user) return {};
-  return { character, user };
+  const extracted_facts = sanitizeExtractedFacts(values.extracted_facts);
+  if (!character && !user && extracted_facts.length === 0) return {};
+  return {
+    character,
+    user,
+    ...(extracted_facts.length > 0 ? { extracted_facts } : {}),
+  };
 }
 
 export function statusWidgetValuesAreCorrupt(
@@ -258,28 +278,33 @@ export function splitProseAndStatusWidgetValues(fullText: string): {
 
   const charBlock = extractBlock(work, STATUS_VALUES_CHAR_BLOCK, STATUS_VALUES_END);
   if (charBlock) {
-    values.character = parseValuesJson(charBlock.inner);
+    const parsed = parseValuesJson(charBlock.inner);
+    values.character = parsed?.values ?? null;
+    values.extracted_facts = mergeExtractedFacts(values.extracted_facts, parsed?.facts);
     work = (charBlock.before + charBlock.after).trim();
   }
 
   const userBlock = extractBlock(work, STATUS_VALUES_USER_BLOCK, STATUS_VALUES_END);
   if (userBlock) {
-    values.user = parseValuesJson(userBlock.inner);
+    const parsed = parseValuesJson(userBlock.inner);
+    values.user = parsed?.values ?? null;
+    values.extracted_facts = mergeExtractedFacts(values.extracted_facts, parsed?.facts);
     work = (userBlock.before + userBlock.after).trim();
   }
 
   const singleBlock = extractBlock(work, STATUS_VALUES_BLOCK, STATUS_VALUES_END);
   if (singleBlock) {
     const parsed = parseValuesJson(singleBlock.inner);
-    if (parsed) {
+    if (parsed?.values) {
       if (values.character == null && values.user == null) {
-        values.character = parsed;
+        values.character = parsed.values;
       } else if (values.character == null) {
-        values.character = parsed;
+        values.character = parsed.values;
       } else if (values.user == null) {
-        values.user = parsed;
+        values.user = parsed.values;
       }
     }
+    values.extracted_facts = mergeExtractedFacts(values.extracted_facts, parsed?.facts);
     work = (singleBlock.before + singleBlock.after).trim();
   }
 
@@ -313,8 +338,19 @@ export function parseStoredStatusWidgetValuesJson(raw: string | null | undefined
     return sanitizeParsedStatusWidgetValues({
       character: parsed.character ?? null,
       user: parsed.user ?? null,
+      extracted_facts: parsed.extracted_facts,
     });
   } catch {
     return {};
   }
+}
+
+export function stripExtractedFactsForClient(
+  values: ParsedStatusWidgetTurnValues | null | undefined
+): ParsedStatusWidgetTurnValues {
+  const sanitized = sanitizeParsedStatusWidgetValues(values);
+  const out: ParsedStatusWidgetTurnValues = {};
+  if (sanitized.character) out.character = sanitized.character;
+  if (sanitized.user) out.user = sanitized.user;
+  return out;
 }

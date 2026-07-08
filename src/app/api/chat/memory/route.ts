@@ -111,13 +111,15 @@ export async function GET(req: Request) {
     snapshot.lorebook.trim();
   const displayText = displayLorebook.trim();
 
+  const displayMeta = { ...meta, currentLocation: undefined };
+
   return Response.json({
     longTerm: displayText,
     lorebook: displayLorebook,
     recentSummary: displayLorebook,
     currentMemory: displayLorebook,
     archiveSummary: snapshot.archiveSummary,
-    meta,
+    meta: displayMeta,
     limit: snapshot.limit,
     memoryCapacity: snapshot.memoryCapacity,
     tier: snapshot.tier,
@@ -248,7 +250,7 @@ export async function PATCH(req: Request) {
     const prev = loadChatRelationshipMeta(chatId, names);
     const next = removeRelationshipMetaItem(prev, category, text);
     saveChatRelationshipMeta(chatId, next);
-    return Response.json({ ok: true, meta: next });
+    return Response.json({ ok: true, meta: { ...next, currentLocation: undefined } });
   }
 
   return Response.json(

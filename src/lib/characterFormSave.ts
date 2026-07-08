@@ -30,6 +30,18 @@ import {
   parseStatusWidgetJson,
   serializeStatusWidget,
 } from "@/lib/statusWidget";
+import {
+  compiledPublicCanonText,
+  compileCreatorDescriptionTriggers,
+  mergeDescriptionTriggerCandidates,
+  serializeCreatorDescriptionCompiled,
+} from "@/lib/creatorDescriptionTriggerCompiler";
+import {
+  listCharacterStatusWidgetTriggers,
+  saveCharacterStatusWidgetTriggers,
+  validateStatusWidgetTriggerInputs,
+  type StatusWidgetTriggerInput,
+} from "@/lib/statusWidgetTriggers";
 
 import {
   AI_LEARNING_LIMIT,
@@ -59,6 +71,7 @@ export type ParsedCharacterForm = {
   lorebookId: number | null;
   statusWindowPrompt: string;
   statusWidgetJson: string;
+  statusWidgetTriggers: StatusWidgetTriggerInput[];
   exampleDialog: string;
   speechInput: ReturnType<typeof parseSpeechCreatorFromBody>;
   gender: NonNullable<ReturnType<typeof parseCharacterGender>>;
@@ -104,6 +117,10 @@ export function parseCharacterFormBody(
         ? parseStatusWidgetJson(JSON.stringify(rawWidget))
         : null;
   const statusWidgetJson = parsedWidget ? serializeStatusWidget(parsedWidget) : "";
+  const parsedTriggers = validateStatusWidgetTriggerInputs(b.status_widget_triggers);
+  if (!parsedTriggers.ok) {
+    return { ok: false, error: parsedTriggers.error, status: 400 };
+  }
   let world = String(b.world || "");
   const speechInput = parseSpeechCreatorFromBody(b);
   const exampleDialog = composeExampleDialog(speechInput);
@@ -227,6 +244,7 @@ export function parseCharacterFormBody(
       lorebookId,
       statusWindowPrompt,
       statusWidgetJson,
+      statusWidgetTriggers: parsedTriggers.triggers,
       exampleDialog,
       speechInput,
       gender,
@@ -248,6 +266,32 @@ export function parseCharacterFormBody(
       hue: Number(b.hue) || 260,
       tagsJson: JSON.stringify(parseCharacterTagsInput(b.tags)),
     },
+  };
+}
+
+type CreatorDescriptionSaveInput = Pick<
+  ParsedCharacterForm,
+  "description" | "world" | "systemPrompt" | "statusWidgetJson" | "statusWidgetTriggers"
+>;
+
+export function buildCompiledCreatorDescriptionForSave(
+  data: CreatorDescriptionSaveInput,
+  existingTriggers: StatusWidgetTriggerInput[] = data.statusWidgetTriggers
+) {
+  const creatorRawDescription = [data.description, data.world, data.systemPrompt]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join("\n\n");
+  const compiledDescription = compileCreatorDescriptionTriggers({
+    description: creatorRawDescription,
+    statusWidget: parseStatusWidgetJson(data.statusWidgetJson),
+    existingTriggers,
+  });
+  return {
+    creatorRawDescription,
+    compiledDescription,
+    compiledDescriptionJson: serializeCreatorDescriptionCompiled(compiledDescription),
+    safeRuntimeCanon: compiledPublicCanonText(compiledDescription),
   };
 }
 
@@ -294,6 +338,12 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
   const data = parsed.data;
   const { finalVisibility, moderationStatus, moderationNote, shareSlug } =
     await resolveVisibilityModeration(data);
+  const {
+    creatorRawDescription,
+    compiledDescription,
+    compiledDescriptionJson,
+    safeRuntimeCanon,
+  } = buildCompiledCreatorDescriptionForSave(data);
 
   const db = getDb();
   const info = db
@@ -301,8 +351,8 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
       `INSERT INTO characters
         (name, tagline, description, greeting, system_prompt, world, world_id, lorebook_id, example_dialog, status_window_prompt, status_widget_json, genre, genres, tags, nsfw, emoji, hue,
          creator_id, creator_name, audience, gender, images, assets, setting_chunks, visibility, moderation_status, moderation_note, share_slug,
-         recommended_writing_style, comments_enabled, creator_comment)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+         recommended_writing_style, comments_enabled, creator_comment, creator_raw_description, creator_compiled_description_json)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     )
     .run(
       data.name,
@@ -335,10 +385,17 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
       shareSlug,
       data.recommendedWritingStyle,
       data.commentsEnabled,
-      data.creatorComment
+      data.creatorComment,
+      creatorRawDescription,
+      compiledDescriptionJson
     );
 
   const characterId = Number(info.lastInsertRowid);
+  saveCharacterStatusWidgetTriggers(
+    db,
+    characterId,
+    mergeDescriptionTriggerCandidates(data.statusWidgetTriggers, compiledDescription)
+  );
   await buildSaveAndTranslateCharacterChunks(characterId, {
     name: data.name,
     gender: data.gender,
@@ -347,6 +404,7 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
     exampleDialog: data.exampleDialog,
     statusWindowPrompt: data.statusWindowPrompt,
     speechInput: data.speechInput,
+    safeRuntimeCanon,
   });
 
   const listed = finalVisibility === "public" && moderationStatus === "approved";
@@ -401,13 +459,23 @@ export async function updateCharacterFromForm(
   const data = parsed.data;
   const { finalVisibility, moderationStatus, moderationNote, shareSlug } =
     await resolveVisibilityModeration(data, { share_slug: row.share_slug });
+  const {
+    creatorRawDescription,
+    compiledDescription,
+    compiledDescriptionJson,
+    safeRuntimeCanon,
+  } = buildCompiledCreatorDescriptionForSave(data, [
+      ...listCharacterStatusWidgetTriggers(db, characterId),
+      ...data.statusWidgetTriggers,
+    ]);
 
   db.prepare(
     `UPDATE characters SET
       name=?, tagline=?, description=?, greeting=?, system_prompt=?, world=?, world_id=?, lorebook_id=?,
       example_dialog=?, status_window_prompt=?, status_widget_json=?, genre=?, genres=?, tags=?, nsfw=?, emoji=?, hue=?,
       audience=?, gender=?, images=?, assets=?, visibility=?, moderation_status=?, moderation_note=?,
-      share_slug=?, recommended_writing_style=?, comments_enabled=?, creator_comment=?, creator_name=?
+      share_slug=?, recommended_writing_style=?, comments_enabled=?, creator_comment=?, creator_name=?,
+      creator_raw_description=?, creator_compiled_description_json=?
      WHERE id=?`
   ).run(
     data.name,
@@ -439,7 +507,14 @@ export async function updateCharacterFromForm(
     data.commentsEnabled,
     data.creatorComment,
     user.nickname,
+    creatorRawDescription,
+    compiledDescriptionJson,
     characterId
+  );
+  saveCharacterStatusWidgetTriggers(
+    db,
+    characterId,
+    mergeDescriptionTriggerCandidates(data.statusWidgetTriggers, compiledDescription)
   );
 
   await buildSaveAndTranslateCharacterChunks(characterId, {
@@ -450,6 +525,7 @@ export async function updateCharacterFromForm(
     exampleDialog: data.exampleDialog,
     statusWindowPrompt: data.statusWindowPrompt,
     speechInput: data.speechInput,
+    safeRuntimeCanon,
   });
 
   const wasListed = row.visibility === "public" && row.moderation_status === "approved";

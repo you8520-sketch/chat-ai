@@ -22,7 +22,7 @@ const EMPTY_META: RelationshipMeta = {
 type MetaCategory = "items" | "thoughts" | "promises";
 
 function metaTotal(meta: RelationshipMeta) {
-  return meta.items.length + meta.thoughts.length + meta.promises.length + meta.honorifics.length + (meta.currentLocation?.trim() ? 1 : 0);
+  return meta.items.length + meta.thoughts.length + meta.promises.length + meta.honorifics.length;
 }
 
 function RelationshipMetaContent({
@@ -45,12 +45,6 @@ function RelationshipMetaContent({
 
   return (
     <div className="space-y-2.5">
-      {meta.currentLocation?.trim() && (
-        <div>
-          <p className="mb-1 text-[9px] font-bold uppercase tracking-wide text-zinc-400">현재장소</p>
-          <p className="rounded-md border border-white/10 bg-[#1a1a1a] px-2 py-1 text-[10px] leading-snug text-zinc-300">{meta.currentLocation}</p>
-        </div>
-      )}
       {meta.honorifics.length > 0 && (
         <div>
           <p className="mb-1 text-[9px] font-bold uppercase tracking-wide text-zinc-400">유저 호칭 · 최신 2개</p>

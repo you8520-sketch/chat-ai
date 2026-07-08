@@ -27,9 +27,32 @@ export type StatusWidgetStackOrder = "character_first" | "user_first";
 
 export type StatusWidgetValues = Record<string, string>;
 
+export type ExtractedStatusFactCategory =
+  | "relationship"
+  | "character"
+  | "setting"
+  | "item"
+  | "preference"
+  | "rule"
+  | "quest"
+  | "location"
+  | "organization";
+
+export type ExtractedStatusFactImportance = "critical" | "important" | "normal";
+
+export type ExtractedStatusFact = {
+  category: ExtractedStatusFactCategory;
+  subject: string;
+  attribute: string;
+  value: string;
+  importance: ExtractedStatusFactImportance;
+  fact_text: string;
+};
+
 export type ParsedStatusWidgetTurnValues = {
   character?: StatusWidgetValues | null;
   user?: StatusWidgetValues | null;
+  extracted_facts?: ExtractedStatusFact[];
 };
 
 export type ResolvedStatusWidgetTurn = {

@@ -256,6 +256,37 @@ body {
 }
 
 /* 대화 목록 — main 영역 너비 기준 반응형 */
+/* Creator status widgets should shrink with the chat column on mobile. */
+.status-widget-card,
+.status-widget-card__inner {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.status-widget-card__inner {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.status-widget-card__inner * {
+  box-sizing: border-box;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.status-widget-card__inner [style*="display:flex"],
+.status-widget-card__inner [style*="display: flex"] {
+  flex-wrap: wrap;
+}
+
+.status-widget-card__inner pre,
+.status-widget-card__inner code {
+  white-space: pre-wrap;
+}
+
 .chats-page-grid {
   container-type: inline-size;
   container-name: chats;
