@@ -9,6 +9,7 @@ export const CHARACTER_GENRES = [
   "무협/시대극",
   "코믹/액션",
   "공포/추리",
+  "아포칼립스",
   "BL",
   "GL",
   "인외",

@@ -42,4 +42,21 @@ describe("buildCompiledCreatorDescriptionForSave", () => {
     assert.ok(parsed!.hidden_event_notes.length >= 1);
     assert.ok(parsed!.trigger_candidates.length >= 1);
   });
+
+  it("keeps rich public description html out of runtime canon", () => {
+    const result = buildCompiledCreatorDescriptionForSave({
+      description:
+        '<div><strong>하율은 조용한 관찰자다.</strong></div><div><span style="color:#fda4af">밤에는 기록을 남긴다.</span></div>',
+      world: "",
+      systemPrompt: "",
+      statusWidgetJson: "",
+      statusWidgetTriggers: [],
+    });
+
+    assert.match(result.creatorRawDescription, /<strong>/);
+    assert.match(result.creatorRawDescription, /style=/);
+    assert.match(result.safeRuntimeCanon, /하율은 조용한 관찰자다/);
+    assert.match(result.safeRuntimeCanon, /밤에는 기록을 남긴다/);
+    assert.doesNotMatch(result.safeRuntimeCanon, /<strong>|<span|style=/);
+  });
 });

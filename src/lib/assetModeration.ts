@@ -7,6 +7,7 @@ import {
   OPENROUTER_CHAT_COMPLETIONS_URL,
   buildOpenRouterHeaders,
 } from "@/lib/openRouterConfig";
+import { filenameFromUploadUrl, resolveExistingUploadPath } from "@/lib/uploadStorage";
 
 export type AssetModerationResult = {
   approved: boolean;
@@ -91,6 +92,9 @@ NSFW가 아닌 경우(전체 이용가):
 async function loadImageForModeration(url: string): Promise<{ mime: string; data: string } | null> {
   try {
     if (url.startsWith("/uploads/")) {
+      const filename = filenameFromUploadUrl(url);
+      const filePath = filename ? resolveExistingUploadPath(filename) : null;
+      if (!filePath) return null;
       const ext = path.extname(url).slice(1).toLowerCase();
       const mimeMap: Record<string, string> = {
         png: "image/png",
@@ -99,7 +103,7 @@ async function loadImageForModeration(url: string): Promise<{ mime: string; data
         webp: "image/webp",
         gif: "image/gif",
       };
-      const buf = await fs.readFile(path.join(process.cwd(), "public", url));
+      const buf = await fs.readFile(filePath);
       return { mime: mimeMap[ext] || "image/jpeg", data: buf.toString("base64") };
     }
     if (url.startsWith("http://") || url.startsWith("https://")) {

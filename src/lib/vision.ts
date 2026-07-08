@@ -1,6 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import { EMOTION_TAGS } from "./characterAssets";
+import { filenameFromUploadUrl, resolveExistingUploadPath } from "@/lib/uploadStorage";
 import {
   OPENROUTER_CHAT_COMPLETIONS_URL,
   buildOpenRouterHeaders,
@@ -20,6 +21,9 @@ async function loadImageBase64(url: string): Promise<{ mime: string; data: strin
   let mime = "image/jpeg";
 
   if (url.startsWith("/uploads/")) {
+    const filename = filenameFromUploadUrl(url);
+    const filePath = filename ? resolveExistingUploadPath(filename) : null;
+    if (!filePath) throw new Error("업로드 이미지를 찾을 수 없습니다.");
     const ext = path.extname(url).slice(1).toLowerCase();
     const mimeMap: Record<string, string> = {
       png: "image/png",
@@ -29,7 +33,7 @@ async function loadImageBase64(url: string): Promise<{ mime: string; data: strin
       gif: "image/gif",
     };
     mime = mimeMap[ext] || "image/jpeg";
-    buf = await fs.readFile(path.join(process.cwd(), "public", url));
+    buf = await fs.readFile(filePath);
   } else if (url.startsWith("http://") || url.startsWith("https://")) {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`이미지를 불러올 수 없습니다 (${res.status})`);

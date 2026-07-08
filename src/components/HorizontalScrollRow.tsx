@@ -14,14 +14,28 @@ export default function HorizontalScrollRow({
   className?: string;
 }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
-  const drag = useRef({ active: false, pointerId: -1, startX: 0, startScroll: 0, moved: false });
+  const drag = useRef({
+    active: false,
+    captured: false,
+    pointerId: -1,
+    startX: 0,
+    startScroll: 0,
+    moved: false,
+  });
+  const DRAG_THRESHOLD_PX = 10;
 
   const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (e.pointerType === "touch") return;
     const el = scrollerRef.current;
     if (!el) return;
-    drag.current = { active: true, pointerId: e.pointerId, startX: e.clientX, startScroll: el.scrollLeft, moved: false };
-    el.setPointerCapture(e.pointerId);
+    drag.current = {
+      active: true,
+      captured: false,
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startScroll: el.scrollLeft,
+      moved: false,
+    };
   };
 
   const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -29,13 +43,22 @@ export default function HorizontalScrollRow({
     const state = drag.current;
     if (!el || !state.active || state.pointerId !== e.pointerId) return;
     const dx = e.clientX - state.startX;
-    if (Math.abs(dx) > 4) state.moved = true;
+    if (Math.abs(dx) <= DRAG_THRESHOLD_PX && !state.moved) return;
+    if (!state.captured) {
+      try {
+        el.setPointerCapture(e.pointerId);
+        state.captured = true;
+      } catch {
+        /* pointer may already be unavailable */
+      }
+    }
+    state.moved = true;
     el.scrollLeft = state.startScroll - dx;
   };
 
   const endDrag = (e: ReactPointerEvent<HTMLDivElement>) => {
     const el = scrollerRef.current;
-    if (el && drag.current.active) {
+    if (el && drag.current.active && drag.current.captured) {
       try {
         el.releasePointerCapture(e.pointerId);
       } catch {

@@ -3,6 +3,7 @@ import path from "path";
 import fs from "fs/promises";
 import crypto from "crypto";
 import { getSessionUser } from "@/lib/auth";
+import { uploadPublicUrl, uploadsDataDir } from "@/lib/uploadStorage";
 
 const MAX_FILES = 100;
 const MAX_SIZE = 8 * 1024 * 1024; // 8MB per file
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `이미지는 최대 ${MAX_FILES}장까지 업로드할 수 있습니다.` }, { status: 400 });
   }
 
-  const dir = path.join(process.cwd(), "public", "uploads");
+  const dir = uploadsDataDir();
   await fs.mkdir(dir, { recursive: true });
 
   const urls: string[] = [];
@@ -40,7 +41,7 @@ export async function POST(req: Request) {
     }
     const name = `${crypto.randomUUID()}.${EXT[file.type]}`;
     await fs.writeFile(path.join(dir, name), Buffer.from(await file.arrayBuffer()));
-    urls.push(`/uploads/${name}`);
+    urls.push(uploadPublicUrl(name));
   }
   return NextResponse.json({ ok: true, urls });
 }

@@ -6,15 +6,13 @@ import { useRouter } from "next/navigation";
 import type { CharacterGender } from "@/lib/characterGender";
 import { GENDER_LABELS } from "@/lib/characterGender";
 import {
-  assetUrls,
   defaultAssetFlags,
-  publicAssetUrls,
 } from "@/lib/characterAssets";
 import AssetManagerGrid, {
   type ManagedAsset,
 } from "@/components/AssetManagerGrid";
 import CreatorCommentHtml from "@/components/CreatorCommentHtml";
-import CharacterPublicPagePreview from "@/components/CharacterPublicPagePreview";
+import PublicDescriptionEditor from "@/components/PublicDescriptionEditor";
 import { PROFILE_BIOGRAPHY_LIMIT } from "@/lib/generateProfile";
 import {
   speechCreatorCharCount,
@@ -44,7 +42,6 @@ import {
   TAGLINE_LIMIT,
 } from "@/lib/characterFormLimits";
 import TagChipInput from "@/components/TagChipInput";
-import PublicDescriptionFormatToolbar from "@/components/PublicDescriptionFormatToolbar";
 import { parseCharacterTagsInput } from "@/lib/characterTags";
 import {
   clearCharacterCreateDraft,
@@ -59,6 +56,10 @@ const MAX_IMAGES = 100;
 type PageTab = "create" | "preview" | "widget" | "publish";
 
 type TaggedAsset = ManagedAsset;
+
+function fallbackAssetTag(index: number): string {
+  return `에셋 ${index + 1}`;
+}
 
 function normalizeManagedAssets(list: TaggedAsset[]): TaggedAsset[] {
   const next = list.map((a, i) => ({
@@ -90,8 +91,6 @@ export default function CreateCharacter({
   const router = useRouter();
   const isEditMode = editCharacterId != null && editCharacterId > 0;
   const fileRef = useRef<HTMLInputElement>(null);
-  const profilePreviewPanelRef = useRef<HTMLDivElement>(null);
-  const publicDescriptionRef = useRef<HTMLTextAreaElement>(null);
   const [form, setForm] = useState({
     name: "",
     tagline: "",
@@ -237,11 +236,6 @@ export default function CreateCharacter({
 
   const createReady = Object.values(createRequirements).every(Boolean);
 
-  const previewDescription = useMemo(
-    () => form.description.trim(),
-    [form.description],
-  );
-
   function pickFiles(list: FileList | null) {
     if (!list) return;
     const room = MAX_IMAGES - assets.length;
@@ -259,42 +253,71 @@ export default function CreateCharacter({
     setError("");
     setProgress(`에셋 ${files.length}장 업로드 중…`);
 
-    const fd = new FormData();
-    files.forEach((f) => fd.append("files", f));
-    const up = await fetch("/api/upload", { method: "POST", body: fd });
-    const upData = await up.json();
-    if (!up.ok) {
-      setLoading(false);
-      setProgress("");
-      setError(upData.error);
-      return;
-    }
+    try {
+      const fd = new FormData();
+      files.forEach((f) => fd.append("files", f));
+      const up = await fetch("/api/upload", { method: "POST", body: fd });
+      const upData = await up.json();
+      if (!up.ok) {
+        setError(upData.error || "에셋 업로드에 실패했습니다.");
+        return;
+      }
 
-    setProgress("Gemini Vision으로 감정 태그 분석 중…");
-    const tagRes = await fetch("/api/assets/tag", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ urls: upData.urls }),
-    });
-    const tagData = await tagRes.json();
-    if (!tagRes.ok) {
-      setLoading(false);
-      setProgress("");
-      setError(tagData.error);
-      return;
-    }
+      const uploadedUrls: string[] = Array.isArray(upData.urls)
+        ? upData.urls.filter((url: unknown): url is string => typeof url === "string" && url.trim().length > 0)
+        : [];
+      if (uploadedUrls.length === 0) {
+        setError("업로드된 이미지 URL을 확인하지 못했습니다.");
+        return;
+      }
 
-    const batch = (tagData.assets as { url: string; tag: string }[]).map(
-      (a, i) => ({
-        url: a.url,
-        tag: a.tag,
+      setProgress("Gemini Vision으로 감정 태그 분석 중…");
+      let taggedAssets: { url: string; tag: string }[] = [];
+      try {
+        const tagRes = await fetch("/api/assets/tag", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ urls: uploadedUrls }),
+        });
+        const tagData = (await tagRes.json()) as {
+          assets?: unknown;
+          error?: string;
+        };
+        if (tagRes.ok && Array.isArray(tagData.assets)) {
+          taggedAssets = tagData.assets
+            .filter((a: unknown): a is { url: string; tag: string } => {
+              return (
+                !!a &&
+                typeof a === "object" &&
+                typeof (a as { url?: unknown }).url === "string" &&
+                typeof (a as { tag?: unknown }).tag === "string"
+              );
+            })
+            .map((a: { url: string; tag: string }, i: number) => ({
+              url: a.url,
+              tag: a.tag.trim() || fallbackAssetTag(assets.length + i),
+            }));
+        } else if (!tagRes.ok) {
+          setError(tagData.error || "자동 태깅에 실패했습니다. 기본 태그로 추가했으니 직접 수정해 주세요.");
+        }
+      } catch {
+        setError("자동 태깅에 실패했습니다. 기본 태그로 추가했으니 직접 수정해 주세요.");
+      }
+
+      const byUrl = new Map(taggedAssets.map((asset) => [asset.url, asset.tag]));
+      const batch = uploadedUrls.map((url: string, i: number) => ({
+        url,
+        tag: byUrl.get(url) || fallbackAssetTag(assets.length + i),
         ...defaultAssetFlags(assets, i),
-      }),
-    );
-    setAssets((prev) => normalizeManagedAssets([...prev, ...batch]));
-    setFiles([]);
-    setLoading(false);
-    setProgress("");
+      }));
+      setAssets((prev) => normalizeManagedAssets([...prev, ...batch]));
+      setFiles([]);
+    } catch {
+      setError("에셋 업로드 중 오류가 발생했습니다.");
+    } finally {
+      setLoading(false);
+      setProgress("");
+    }
   }
 
   function removeFile(i: number) {
@@ -317,17 +340,6 @@ export default function CreateCharacter({
     }
     return files.map((file) => map.get(file)!);
   }, [files]);
-
-  /** 홈·카드·공개 페이지 좌측 대표 — 감정 에셋 「노출 ON」 순서 1번 */
-  const cardImageUrl = useMemo(
-    () => publicAssetUrls(assets)[0] ?? "",
-    [assets],
-  );
-  const assetImageUrls = useMemo(() => {
-    const uploaded = assetUrls(assets).filter(Boolean);
-    if (uploaded.length > 0) return uploaded;
-    return filePreviewUrls;
-  }, [assets, filePreviewUrls]);
 
   useEffect(() => {
     const map = filePreviewUrlMapRef.current;
@@ -607,7 +619,6 @@ export default function CreateCharacter({
     "rounded-lg border-2 border-violet-500/45 bg-[#0c0e1a] px-3 py-2 text-xs text-violet-100 outline-none ring-0 focus:border-violet-400/75 focus:ring-2 focus:ring-violet-400/25 disabled:opacity-50";
   const cardNameCls = `${inputCls} py-3.5 text-lg font-bold tracking-tight`;
   const cardTaglineCls = `${inputCls} py-3.5 text-base font-semibold`;
-  const publicDescriptionCls = `${inputCls} min-h-[320px] resize-y font-mono text-[13px] leading-relaxed`;
   const greetingCls = `${inputCls} min-h-[360px] resize-y py-5 text-lg leading-relaxed`;
   const label = "mb-1 block text-sm font-semibold text-gray-300";
   const sectionGreeting =
@@ -661,7 +672,7 @@ export default function CreateCharacter({
         {(
           [
             ["create", "제작"],
-            ["preview", "공개설정 미리보기"],
+            ["preview", "공개 소개"],
             ["widget", "상태창"],
             ["publish", "공개 설정"],
           ] as const
@@ -1149,9 +1160,9 @@ export default function CreateCharacter({
                         <button
                           type="button"
                           onClick={() => removeFile(i)}
-                          className="absolute right-1 top-1 hidden h-5 w-5 items-center justify-center rounded-full bg-black/70 text-xs text-white group-hover:flex"
+                          className="absolute right-1 top-1 flex min-h-6 items-center justify-center rounded-full bg-black/80 px-2 text-[10px] font-bold text-white ring-1 ring-white/15 hover:bg-rose-600/90"
                         >
-                          ✕
+                          삭제
                         </button>
                       </div>
                     ))}
@@ -1269,80 +1280,26 @@ export default function CreateCharacter({
                     공개 캐릭터/세계관 정보
                   </h2>
                   <p className="mt-0.5 text-[11px] leading-relaxed text-gray-500">
-                    마크다운으로 작성 · 입력하면 아래 미리보기에 실시간 반영 ·{" "}
-                    <span className="text-emerald-400/90">이름:</span> 같은 항목
-                    제목은 자동 굵게·색상 처리 · 최대{" "}
+                    보이는 그대로 작성 · Enter 줄바꿈 그대로 반영 · 최대{" "}
                     {PROFILE_BIOGRAPHY_LIMIT.toLocaleString()}자
                   </p>
                 </div>
                 <VisibilityBadge kind="public" />
               </div>
               <p className="mt-2 rounded-lg border border-cyan-500/35 bg-cyan-500/10 px-3.5 py-2.5 text-sm font-medium leading-relaxed text-cyan-100">
-                ※ 소개 본문용 이미지 URL을 아래 공개정보 입력란에 넣으면 이미지
-                삽입이 가능합니다. (한 줄에 URL 하나, 또는{" "}
-                <span className="font-mono text-cyan-200">![이미지](URL)</span>{" "}
-                형식)
+                공개 소개 페이지에는 아래 입력칸에 보이는 모양 그대로 표시됩니다.
+                필요한 문장을 드래그해서 굵기·크기·색상만 조절하세요.
               </p>
-              <PublicDescriptionFormatToolbar
-                textareaRef={publicDescriptionRef}
+              <PublicDescriptionEditor
                 value={form.description}
                 maxLength={PROFILE_BIOGRAPHY_LIMIT}
+                disabled={loading || editLoading}
                 onChange={(description) => setForm({ ...form, description })}
-              />
-              <textarea
-                ref={publicDescriptionRef}
-                rows={16}
-                maxLength={PROFILE_BIOGRAPHY_LIMIT}
-                className={publicDescriptionCls}
-                placeholder={`이름: 백하율\n성격: 차분하고 관찰력이 뛰어남\n나이: 20대\n\n※ 항목 제목(이름:, 성격:, 나이: 등)은 미리보기에서 자동으로 굵게·색상 표시됩니다.\n※ 더 꾸미려면 텍스트 선택 후 위 「굵게·크게·작게·색상」 버튼을 사용하세요.`}
-                value={form.description}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    description: e.target.value.slice(
-                      0,
-                      PROFILE_BIOGRAPHY_LIMIT,
-                    ),
-                  })
-                }
               />
               <p className="text-right text-[11px] text-gray-600">
                 {form.description.length.toLocaleString()} /{" "}
                 {PROFILE_BIOGRAPHY_LIMIT.toLocaleString()}자
               </p>
-            </section>
-
-            <section
-              ref={profilePreviewPanelRef}
-              className={`${sectionPublic} scroll-mt-24`}
-            >
-              <div>
-                <h2 className="text-sm font-bold text-emerald-300">
-                  공개 페이지 미리보기
-                </h2>
-                <p className="mt-0.5 text-[11px] text-gray-500">
-                  홈 카드 클릭 시 보이는 화면 · 좌측 대표는 감정 에셋 1번
-                </p>
-              </div>
-              <div className="rounded-xl border border-violet-500/20 bg-black/20 p-2 sm:p-3">
-                <CharacterPublicPagePreview
-                  name={form.name}
-                  tagline={form.tagline}
-                  tags={form.tags}
-                  description={previewDescription}
-                  cardImageUrl={cardImageUrl}
-                  galleryAssets={assets}
-                  viewerIsCreator
-                  assetImageUrls={assetImageUrls}
-                  creatorComment={form.creator_comment}
-                  creatorName={creatorDisplayName}
-                  creatorIsPartner={creatorIsPartner}
-                  emoji={form.emoji}
-                  hue={form.hue}
-                  collapsibleDescription={false}
-                  viewerDisplayName={viewerDisplayName}
-                />
-              </div>
             </section>
           </div>
 
@@ -1596,6 +1553,10 @@ export default function CreateCharacter({
                     ? "변경사항 저장"
                     : "캐릭터 만들기"}
               </button>
+              <p className="text-[11px] leading-relaxed text-zinc-500">
+                저장 중에는 공개 이미지 검수와 AI 대화용 설정 정리가 함께 진행되어 이미지가 많거나 외부 AI 응답이 느리면 시간이 걸릴 수 있습니다.
+                에셋만 수정한 경우에는 설정 정리 단계를 건너뛰어 더 빠르게 저장됩니다.
+              </p>
             </section>
           </div>
         </div>

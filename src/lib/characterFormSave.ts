@@ -274,6 +274,23 @@ type CreatorDescriptionSaveInput = Pick<
   "description" | "world" | "systemPrompt" | "statusWidgetJson" | "statusWidgetTriggers"
 >;
 
+function stripDisplayHtmlForRuntimeText(value: string): string {
+  return value
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(?:div|p|li|h[1-6])>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export function buildCompiledCreatorDescriptionForSave(
   data: CreatorDescriptionSaveInput,
   existingTriggers: StatusWidgetTriggerInput[] = data.statusWidgetTriggers
@@ -282,8 +299,16 @@ export function buildCompiledCreatorDescriptionForSave(
     .map((part) => part.trim())
     .filter(Boolean)
     .join("\n\n");
+  const compilerDescription = [
+    stripDisplayHtmlForRuntimeText(data.description),
+    data.world,
+    data.systemPrompt,
+  ]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join("\n\n");
   const compiledDescription = compileCreatorDescriptionTriggers({
-    description: creatorRawDescription,
+    description: compilerDescription,
     statusWidget: parseStatusWidgetJson(data.statusWidgetJson),
     existingTriggers,
   });
@@ -297,7 +322,14 @@ export function buildCompiledCreatorDescriptionForSave(
 
 async function resolveVisibilityModeration(
   data: ParsedCharacterForm,
-  existing?: { share_slug: string | null }
+  existing?: {
+    share_slug: string | null;
+    visibility?: CharacterVisibility;
+    moderation_status?: ModerationStatus;
+    moderation_note?: string | null;
+    images?: string | null;
+    nsfw?: number | null;
+  }
 ): Promise<{
   finalVisibility: CharacterVisibility;
   moderationStatus: ModerationStatus;
@@ -313,7 +345,32 @@ async function resolveVisibilityModeration(
     moderationNote = "비공개 — 검수 생략";
     shareSlug = null;
   } else {
-    const mod = await moderatePublicAssets(data.images, data.nsfw);
+    const existingPublicImages =
+      existing?.images && existing.visibility !== "private"
+        ? (() => {
+            try {
+              const parsed = JSON.parse(existing.images || "[]");
+              return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string") : [];
+            } catch {
+              return [];
+            }
+          })()
+        : null;
+    const canReuseModeration =
+      existing?.moderation_status === "approved" &&
+      existingPublicImages !== null &&
+      existingPublicImages.length === data.images.length &&
+      existingPublicImages.every((url, i) => url === data.images[i]) &&
+      Boolean(existing.nsfw) === data.nsfw;
+
+    const mod = canReuseModeration
+      ? {
+          approved: true,
+          reason: existing?.moderation_note || "기존 공개 이미지 검수 결과 재사용",
+          details: [],
+          estimated: true,
+        }
+      : await moderatePublicAssets(data.images, data.nsfw);
     if (mod.approved) {
       moderationStatus = "approved";
       moderationNote = mod.reason;
@@ -435,7 +492,10 @@ export async function updateCharacterFromForm(
   const db = getDb();
   const row = db
     .prepare(
-      "SELECT id, creator_id, official, share_slug, visibility, moderation_status FROM characters WHERE id=?"
+      `SELECT id, creator_id, official, share_slug, visibility, moderation_status, moderation_note,
+              name, gender, system_prompt, world, example_dialog, status_widget_json,
+              creator_compiled_description_json, images, nsfw
+       FROM characters WHERE id=?`
     )
     .get(characterId) as
     | {
@@ -445,6 +505,16 @@ export async function updateCharacterFromForm(
         share_slug: string | null;
         visibility: CharacterVisibility;
         moderation_status: ModerationStatus;
+        moderation_note: string | null;
+        name: string;
+        gender: string | null;
+        system_prompt: string | null;
+        world: string | null;
+        example_dialog: string | null;
+        status_widget_json: string | null;
+        creator_compiled_description_json: string | null;
+        images: string | null;
+        nsfw: number | null;
       }
     | undefined;
 
@@ -458,7 +528,14 @@ export async function updateCharacterFromForm(
 
   const data = parsed.data;
   const { finalVisibility, moderationStatus, moderationNote, shareSlug } =
-    await resolveVisibilityModeration(data, { share_slug: row.share_slug });
+    await resolveVisibilityModeration(data, {
+      share_slug: row.share_slug,
+      visibility: row.visibility,
+      moderation_status: row.moderation_status,
+      moderation_note: row.moderation_note,
+      images: row.images,
+      nsfw: row.nsfw,
+    });
   const {
     creatorRawDescription,
     compiledDescription,
@@ -517,16 +594,29 @@ export async function updateCharacterFromForm(
     mergeDescriptionTriggerCandidates(data.statusWidgetTriggers, compiledDescription)
   );
 
-  await buildSaveAndTranslateCharacterChunks(characterId, {
-    name: data.name,
-    gender: data.gender,
-    systemPrompt: data.systemPrompt,
-    world: data.world,
-    exampleDialog: data.exampleDialog,
-    statusWindowPrompt: data.statusWindowPrompt,
-    speechInput: data.speechInput,
-    safeRuntimeCanon,
-  });
+  const promptInputsChanged =
+    row.name !== data.name ||
+    (row.gender ?? "") !== data.gender ||
+    (row.system_prompt ?? "") !== data.systemPrompt ||
+    (row.world ?? "") !== data.world ||
+    (row.example_dialog ?? "") !== data.exampleDialog ||
+    (row.status_widget_json ?? "") !== data.statusWidgetJson ||
+    (row.creator_compiled_description_json ?? "") !== compiledDescriptionJson;
+
+  if (promptInputsChanged) {
+    await buildSaveAndTranslateCharacterChunks(characterId, {
+      name: data.name,
+      gender: data.gender,
+      systemPrompt: data.systemPrompt,
+      world: data.world,
+      exampleDialog: data.exampleDialog,
+      statusWindowPrompt: data.statusWindowPrompt,
+      speechInput: data.speechInput,
+      safeRuntimeCanon,
+    });
+  } else if (process.env.NODE_ENV !== "production") {
+    console.log(`[characterFormSave] skipped prompt chunk rebuild for asset-only update: ${characterId}`);
+  }
 
   const wasListed = row.visibility === "public" && row.moderation_status === "approved";
   const listed = finalVisibility === "public" && moderationStatus === "approved";

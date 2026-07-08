@@ -3,9 +3,81 @@
 import { parseDescriptionBlocks } from "@/lib/descriptionParser";
 import { applyProfilePlaceholders } from "@/lib/userPlaceholder";
 import { profileTypography } from "@/lib/profileTypography";
-import { ProfileRichText } from "@/components/ProfileRichText";
+import CreatorCommentHtml from "@/components/CreatorCommentHtml";
+import {
+  parseProfileInlineSegments,
+  PROFILE_TEXT_COLOR_CLASS,
+  PROFILE_TEXT_COLORS,
+  PROFILE_TEXT_SIZE_PX,
+  PROFILE_TEXT_SIZES,
+  stripProfileSizeTags,
+  effectiveProfileSize,
+  type ProfileTextSize,
+} from "@/lib/profileTextFormat";
 
-/** 소개란: URL은 이미지, 텍스트는 사이트 공통 마크다운 디자인 */
+function PlainInlineText({ text }: { text: string }) {
+  const segments = parseProfileInlineSegments(text);
+  return (
+    <>
+      {segments.map((seg, i) => {
+        if (seg.type === "bold") {
+          return (
+            <strong key={i} className="font-semibold text-inherit">
+              <PlainInlineText text={seg.value} />
+            </strong>
+          );
+        }
+        if (seg.type === "color") {
+          return (
+            <span
+              key={i}
+              className={PROFILE_TEXT_COLOR_CLASS[seg.color]}
+              style={{ color: PROFILE_TEXT_COLORS[seg.color] }}
+            >
+              <PlainInlineText text={seg.value} />
+            </span>
+          );
+        }
+        if (seg.type === "size") {
+          const nested = /^\[size:/.test(seg.value.trim());
+          const displaySize: ProfileTextSize = nested
+            ? effectiveProfileSize(`[size:${seg.size}]${seg.value}[/size]`)
+            : seg.size;
+          const inner = nested ? stripProfileSizeTags(seg.value) : seg.value;
+          return (
+            <span
+              key={i}
+              className={PROFILE_TEXT_SIZES[displaySize]}
+              style={{ fontSize: PROFILE_TEXT_SIZE_PX[displaySize], lineHeight: 1.55 }}
+            >
+              <PlainInlineText text={inner} />
+            </span>
+          );
+        }
+        return <span key={i}>{seg.value}</span>;
+      })}
+    </>
+  );
+}
+
+function PlainMemoText({ text }: { text: string }) {
+  const lines = text.replace(/\r\n/g, "\n").split("\n");
+  return (
+    <div className="space-y-0 text-[15px] leading-relaxed text-zinc-100">
+      {lines.map((line, i) => (
+        <p key={i} className="min-h-[1.55em] whitespace-pre-wrap break-words">
+          {line ? <PlainInlineText text={line} /> : "\u00a0"}
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function looksLikeHtml(value: string): boolean {
+  return /<\/?[a-z][\s\S]*>/i.test(value);
+}
+
+/** 소개란: 일반 메모장형 줄글 + 선택영역 서식 */
 export default function RichDescription({
   content,
   viewerDisplayName,
@@ -17,12 +89,20 @@ export default function RichDescription({
   characterDisplayName?: string | null;
 }) {
   const resolved = applyProfilePlaceholders(content, { viewerDisplayName, characterDisplayName });
+  if (looksLikeHtml(resolved)) {
+    return (
+      <CreatorCommentHtml
+        html={resolved}
+        className="public-description-html text-[15px] leading-relaxed text-zinc-100"
+      />
+    );
+  }
   const blocks = parseDescriptionBlocks(resolved);
   return (
     <div className="profile-rich-text">
       {blocks.map((block, i) =>
         block.kind === "text" ? (
-          <ProfileRichText key={i} content={block.text} />
+          <PlainMemoText key={i} text={block.text} />
         ) : (
           <div key={i} className="mb-6 w-full py-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -34,36 +114,6 @@ export default function RichDescription({
           </div>
         )
       )}
-    </div>
-  );
-}
-
-/** 입력 중 실시간 미리보기 */
-export function RichDescriptionPreview({
-  content,
-  viewerDisplayName,
-  characterDisplayName,
-}: {
-  content: string;
-  viewerDisplayName?: string | null;
-  characterDisplayName?: string | null;
-}) {
-  if (!content.trim()) {
-    return (
-      <p className="text-xs text-gray-600">
-        이미지 URL을 한 줄에 하나씩 넣으면 아래에 자동으로 미리보기됩니다.
-      </p>
-    );
-  }
-  return (
-    <div className={`mt-3 ${profileTypography.card} p-4`}>
-      <div className={profileTypography.cardGlow} aria-hidden />
-      <p className="mb-3 text-[11px] font-semibold text-gray-500">공개 소개 미리보기</p>
-      <RichDescription
-        content={content}
-        viewerDisplayName={viewerDisplayName}
-        characterDisplayName={characterDisplayName}
-      />
     </div>
   );
 }

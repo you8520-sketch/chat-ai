@@ -114,7 +114,7 @@ export default function AssetManagerGrid({ assets, onChange, onRemove }: Props) 
               {i + 1}
             </span>
             <div
-              className="absolute bottom-[4.25rem] left-0 right-0 bg-black/70 px-1 py-0.5"
+              className="border-t border-white/10 bg-black/35 px-2 py-1.5"
               onPointerDown={(e) => e.stopPropagation()}
             >
               {editingIndex === i ? (
@@ -143,9 +143,9 @@ export default function AssetManagerGrid({ assets, onChange, onRemove }: Props) 
                   type="button"
                   onClick={() => startTagEdit(i)}
                   title="클릭하여 태그 수정"
-                  className="w-full truncate px-1 py-0.5 text-center text-[10px] font-bold text-orange-300 hover:text-orange-200"
+                  className="w-full truncate rounded bg-orange-500/10 px-1 py-1 text-center text-[11px] font-bold text-orange-200 ring-1 ring-orange-400/20 hover:bg-orange-500/15"
                 >
-                  {a.tag}
+                  {a.tag || "태그 입력"}
                 </button>
               )}
             </div>
@@ -194,9 +194,10 @@ export default function AssetManagerGrid({ assets, onChange, onRemove }: Props) 
             <button
               type="button"
               onClick={() => onRemove(i)}
-              className="absolute right-1 top-1 hidden h-5 w-5 items-center justify-center rounded-full bg-black/70 text-xs text-white group-hover:flex"
+              title="에셋 삭제"
+              className="absolute right-1 top-1 flex min-h-6 items-center justify-center rounded-full bg-black/80 px-2 text-[10px] font-bold text-white ring-1 ring-white/15 hover:bg-rose-600/90"
             >
-              ✕
+              삭제
             </button>
           </div>
         ))}
