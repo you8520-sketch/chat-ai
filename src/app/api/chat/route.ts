@@ -88,7 +88,10 @@ import {
 import { stripRuntimePromptContaminationFromVisibleOutput } from "@/lib/runtimePromptContaminationGuard";
 import { buildSceneDirectivePromptBlock } from "@/lib/sceneDirective";
 import { stealthReceiptModelFields } from "@/lib/billingDisplay";
-import { loadKeywordLorebookPromptBlock } from "@/lib/keywordLorebooks";
+import {
+  buildLorebookActivationText,
+  loadKeywordLorebookPromptBlockFromActivation,
+} from "@/lib/keywordLorebooks";
 import { loadGlobalLorebookPromptBlock } from "@/lib/globalLorebook";
 import { resolveHtmlVisualCardPolicyFromSources, resolveHtmlFlashPlacement, htmlPolicyReplacesMarkdownStatus, applyChatOocExclusiveHtmlPolicy, oocFlashHtmlMustBeRejected, isOocCreativeHtmlRichEnough } from "@/lib/htmlVisualCardPolicy";
 import {
@@ -707,23 +710,51 @@ export async function POST(req: Request) {
   });
   const chatOocHtmlOutputTurn = chatInputSuppressesStatusWidget(storedUserMessage);
   const statusWidgetActive = statusWidgetTurn.active && !chatOocHtmlOutputTurn;
-  const keywordLorebookRecentScanText = trimmedHistoryForLorebook
-    .slice(-12)
-    .map((m) => m.content)
-    .filter(Boolean)
-    .join("\n");
-  const keywordLorebookScanText = [
-    policyUserMessage,
-    keywordLorebookRecentScanText,
-  ]
-    .filter(Boolean)
-    .join("\n");
+  const lorebookActivation = buildLorebookActivationText({
+    currentUserMessage: policyUserMessage,
+    recentTurns: turnsForRecentHistory.map((turn) => ({
+      user: replaceUserPlaceholder(turn.user, personaDisplayName, user.nickname),
+      assistant: replaceUserPlaceholder(turn.assistant, personaDisplayName, user.nickname),
+    })),
+  });
+  if (process.env.NODE_ENV !== "production") {
+    console.warn("[Lorebook] activation source:", {
+      currentUserMessageChars: lorebookActivation.currentUserText.length,
+      recentRawTurns: lorebookActivation.recentRawTurnCount,
+      recentRawMessages: lorebookActivation.recentRawCount,
+      activationWindowChars: lorebookActivation.activationText.length,
+      maxChars: lorebookActivation.maxChars,
+      truncated: lorebookActivation.truncated,
+      excludedSummaryMemory: true,
+    });
+  }
 
-  const keywordLorebookBlock = loadKeywordLorebookPromptBlock(
+  const activatedKeywordLorebookMatches: Array<{
+    entryKey: string;
+    keyword: string;
+    source: string;
+    carryoverTurnsRemaining?: number;
+  }> = [];
+  const keywordLorebookBlock = loadKeywordLorebookPromptBlockFromActivation(
     db,
     (ch as { lorebook_id?: number | null }).lorebook_id,
-    keywordLorebookScanText
+    lorebookActivation,
+    {
+      chatId: chat.id,
+      currentTurn: playableTurnCount + 1,
+      onMatch: (match) => {
+        activatedKeywordLorebookMatches.push({
+          entryKey: match.entryKey,
+          keyword: match.keyword,
+          source: match.source,
+          carryoverTurnsRemaining: match.carryoverTurnsRemaining,
+        });
+      },
+    }
   );
+  if (process.env.NODE_ENV !== "production" && activatedKeywordLorebookMatches.length > 0) {
+    console.warn("[Lorebook] activated entries:", activatedKeywordLorebookMatches);
+  }
 
   const statusWindowPolicyForHtml = resolveStatusWindowPolicyFromSources({
     userNote: effectiveUserNote || undefined,

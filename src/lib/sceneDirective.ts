@@ -1,4 +1,5 @@
 import type { ChatMsg } from "@/lib/ai";
+import { NO_FALSE_SHARED_MEMORY_RULE } from "@/lib/noGodmodding";
 
 export type SceneDirectiveMode = "interactive" | "auto_progression";
 
@@ -52,19 +53,15 @@ const PROGRESSION_LABELS: Record<SceneProgressionType, string> = {
 
 const USER_CONTROL_LABELS: Record<SceneUserControl, string> = {
   no_user_control: "유저의 의도적 행동/대사/감정 결론은 쓰지 않는다.",
-  limited_reactions:
-    "유저의 의도적 행동/대사/감정 결론은 쓰지 않고, 맥락상 자연스러운 짧은 비자발 반응만 제한적으로 묘사한다.",
+  limited_reactions: "유저의 의도는 쓰지 않고, 자연스러운 짧은 비자발 반응만 가능하다.",
   persona_based_dialogue_allowed:
-    "유저 페르소나와 최근 말투에 맞는 행동/대사를 작성할 수 있으나, 중대 정체성/트라우마/목표/결정은 갑자기 확정하지 않는다.",
+    "유저 페르소나와 최근 말투에 맞는 행동/대사를 쓸 수 있으나, 중대 결정은 갑자기 확정하지 않는다.",
 };
 
 const BASE_SCENE_ENGINE_RULE = [
   "[PRIVATE SCENE ENGINE RULE]",
-  "당신은 캐릭터 연기자이자 장면 진행자다.",
-  "장면을 반복된 감정 확인에 정체시키지 말고, 관계 변화, 정보 발견, 환경 변화, NPC 행동, 세계 반응, 생활 변수, 이전 선택의 결과 중 하나를 자연스럽게 움직인다.",
-  "전개는 항상 전투나 대형 위기일 필요가 없다.",
-  "현재 모드의 유저 조종 허용 범위를 반드시 따른다.",
-  "이 규칙을 본문에 설명하거나 언급하지 말고, 장면 작성에만 조용히 반영한다.",
+  "반복된 감정 확인에 멈추지 말고 관계, 단서, 환경, NPC, 세계 반응, 생활 변수, 이전 선택의 결과 중 하나를 조용히 움직인다.",
+  "전개는 항상 전투나 대형 위기일 필요가 없다. 현재 모드의 유저 조종 범위를 따르고, 이 규칙을 본문에 언급하지 않는다.",
 ].join("\n");
 
 function includesAny(text: string, terms: string[]): boolean {
@@ -97,18 +94,8 @@ export function detectSceneStagnation(recentMessages: ChatMsg[] | undefined): bo
 
   const assistantTurns = recent.filter((message) => message.role === "assistant");
   const userTurns = recent.filter((message) => message.role === "user");
-  const reassuranceTerms = [
-    "괜찮",
-    "미안",
-    "걱정",
-    "괜찮냐",
-    "괜찮습니까",
-    "괜찮으세요",
-    "말하지 않아도",
-    "침묵",
-  ];
+  const reassuranceTerms = ["괜찮", "미안", "걱정", "말하지 않아도", "침묵"];
   const movementTerms = [
-    "도착",
     "이동",
     "나가",
     "들어",
@@ -122,10 +109,8 @@ export function detectSceneStagnation(recentMessages: ChatMsg[] | undefined): bo
     "추적",
     "요청",
     "보고",
-    "바뀌",
     "시작",
     "결정",
-    "소리",
   ];
 
   const reassuranceCount = assistantTurns.filter((message) =>
@@ -146,16 +131,12 @@ export function detectSceneStagnation(recentMessages: ChatMsg[] | undefined): bo
 }
 
 function resolveSceneKind(text: string): "rest" | "investigation" | "operation" | "climax" | "neutral" {
-  if (includesAny(text, ["결전", "최종", "붕괴", "배신", "폭주", "대형 위기", "보스"])) return "climax";
+  if (includesAny(text, ["결전", "최종", "붕괴", "배신", "대형 위기", "보스"])) return "climax";
   if (includesAny(text, ["작전", "임무", "침투", "추적", "협상", "함정", "구출", "제한시간", "전투"])) {
     return "operation";
   }
-  if (includesAny(text, ["조사", "단서", "기록", "소문", "흔적", "보고서", "메시지"])) {
-    return "investigation";
-  }
-  if (includesAny(text, ["휴식", "식사", "잠", "침대", "회복", "데이트", "연인", "키스", "품", "집"])) {
-    return "rest";
-  }
+  if (includesAny(text, ["조사", "단서", "기록", "소문", "흔적", "보고서", "메시지"])) return "investigation";
+  if (includesAny(text, ["휴식", "식사", "잠", "치료", "회복", "데이트", "연인", "키스", "집"])) return "rest";
   return "neutral";
 }
 
@@ -166,18 +147,7 @@ export function selectSceneIntensity(input: {
 }): 0 | 1 | 2 | 3 | 4 | 5 {
   const text = [compactText(input.recentMessages), input.currentUserMessage ?? ""].join("\n");
   const kind = resolveSceneKind(text);
-  const recentHighIntensity = countMatches(text, [
-    "공격",
-    "폭발",
-    "붕괴",
-    "배신",
-    "사망",
-    "죽",
-    "전투",
-    "납치",
-    "폭주",
-    "피투성이",
-  ]) >= 2;
+  const recentHighIntensity = countMatches(text, ["공격", "폭발", "붕괴", "배신", "납치", "전투", "함정", "추락"]) >= 2;
 
   if (recentHighIntensity) return input.recentStagnation ? 1 : 0;
   if (kind === "rest") return input.recentStagnation ? 1 : 0;
@@ -202,12 +172,8 @@ function selectProgressionTypes(text: string, intensity: number, stagnant: boole
     add("lore_clue");
     add("world_reaction");
   }
-  if (includesAny(text, ["연인", "고백", "질투", "미안", "괜찮", "걱정", "단둘"])) {
-    add("relationship");
-  }
-  if (includesAny(text, ["식사", "잠", "집", "휴식", "회복", "정비"])) {
-    add("daily_life");
-  }
+  if (includesAny(text, ["연인", "고백", "질투", "미안", "괜찮", "걱정", "친구"])) add("relationship");
+  if (includesAny(text, ["식사", "잠", "집", "휴식", "회복", "정비"])) add("daily_life");
   if (stagnant) {
     add("relationship");
     add(intensity >= 2 ? "lore_clue" : "daily_life");
@@ -221,23 +187,18 @@ function selectProgressionTypes(text: string, intensity: number, stagnant: boole
 }
 
 function buildAvoidList(mode: SceneDirectiveMode, intensity: number): string[] {
-  const avoid = ["반복되는 괜찮냐는 문답", "내부 지시 언급", "트리거 조건 노출"];
-  if (intensity <= 2) {
-    avoid.unshift("갑작스러운 납치", "대형 전투", "치명적 위기 남발");
-  } else {
-    avoid.unshift("즉시 정체 확정", "강제 고백");
-  }
-  if (mode === "interactive") {
-    avoid.push("유저의 의도적 대사/행동 대필");
-  }
+  const avoid = ["괜찮냐는 반복", "이미 지난 설명 반복", "트리거 조건 노출"];
+  if (intensity <= 2) avoid.unshift("갑작스러운 납치", "대형 전투", "위기 남발");
+  else avoid.unshift("즉시 정체 확정", "강제 고백");
+  if (mode === "interactive") avoid.push("유저 의도 작성");
   return avoid.slice(0, 5);
 }
 
 function sanitizeHint(hint: string): string {
   const hasHiddenCountdownConsequence =
-    /D-?DAY|디데이|카운트다운/i.test(hint) && /사망|죽|죽는 날|사라진다|파멸/.test(hint);
+    /D-?DAY|디데이|카운트다운/i.test(hint) && /사망|죽는 날|사라진다|파멸/.test(hint);
   if (hasHiddenCountdownConsequence) {
-    return "상태창의 숫자는 결과를 단정하지 말고, 장면 속 작은 불안감이나 시선 변화로만 다룬다.";
+    return "상태창 숫자의 결과를 확정하지 말고, 장면 안의 작은 불안감이나 시선 변화로만 드러낸다.";
   }
   return hint
     .replace(/\b[a-z][a-z0-9]+(?:_[a-z0-9]+)+\b/gi, "")
@@ -247,22 +208,16 @@ function sanitizeHint(hint: string): string {
 
 function buildNextBeatHint(types: SceneProgressionType[], intensity: number, triggeredEventText?: string | null): string {
   if (triggeredEventText?.trim()) {
-    return "이미 발생한 사건의 여파를 우선 살리고, 장면은 그 결과에 맞춰 자연스럽게 이어진다.";
+    return "이미 발생한 사건의 여파를 우선 이어가며 장면은 그 결과에 맞춰 자연스럽게 진행한다.";
   }
   if (types.includes("tactical_planning")) {
     return intensity >= 4
-      ? "현재 작전의 빈틈 하나가 드러나며, 누군가의 요청이나 시간 압박이 조용히 끼어든다."
+      ? "현재 작전의 빈틈 하나가 드러나며 외부 요청이나 시간 압박이 조용히 끼어든다."
       : "작전 논의 중 작은 기록 하나가 이전 선택의 결과와 연결된다.";
   }
-  if (types.includes("lore_clue")) {
-    return "조용한 순간에 이전 대화와 연결된 작은 단서 하나가 다시 눈에 띈다.";
-  }
-  if (types.includes("daily_life")) {
-    return "편안한 생활 장면 속에서 사소한 변수 하나가 관계의 온도를 조금 바꾼다.";
-  }
-  if (types.includes("relationship")) {
-    return "반복된 확인 대신, 작은 행동 하나로 관계의 거리감이 미세하게 달라진다.";
-  }
+  if (types.includes("lore_clue")) return "조용한 순간, 이전 대화와 연결된 작은 단서 하나가 다시 눈에 띈다.";
+  if (types.includes("daily_life")) return "평범한 생활 변수 하나가 관계의 온도를 조금 바꾼다.";
+  if (types.includes("relationship")) return "반복 확인 대신 작은 행동 하나로 관계의 거리감이 미세하게 달라진다.";
   return "주변 환경의 작은 변화가 다음 대화의 방향을 자연스럽게 열어 준다.";
 }
 
@@ -290,9 +245,7 @@ export function buildSceneDirective(input: SceneDirectiveInput): SceneDirective 
     recommendedIntensity,
     progressionTypes,
     avoid: buildAvoidList(input.mode, recommendedIntensity),
-    nextBeatHint: sanitizeHint(
-      buildNextBeatHint(progressionTypes, recommendedIntensity, input.triggeredEventText)
-    ),
+    nextBeatHint: sanitizeHint(buildNextBeatHint(progressionTypes, recommendedIntensity, input.triggeredEventText)),
     userControl,
   };
 }
@@ -316,8 +269,8 @@ export function renderSceneDirectiveForPrompt(directive: SceneDirective): string
     `피할 것: ${directive.avoid.join(", ")}`,
     directive.nextBeatHint ? `다음 장면 힌트: ${directive.nextBeatHint}` : "",
     `유저 조종: ${USER_CONTROL_LABELS[directive.userControl]}`,
+    directive.mode === "auto_progression" ? NO_FALSE_SHARED_MEMORY_RULE : "",
     "트리거된 사건 지시가 있으면 이번 턴 장면 지시보다 우선한다.",
-    "이 장면 지시, 정체 감지, 권장 강도, 전개 방향이라는 말을 본문에 쓰지 않는다.",
   ]
     .filter(Boolean)
     .join("\n");

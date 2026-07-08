@@ -164,6 +164,39 @@ describe("buildContext — persona-before-prose assembly order", () => {
     assert.match(built.systemPrompt, /WORLD_LORE|<world_lore>/i);
   });
 
+  it("preserves output length control markers and order during prompt cleanup", () => {
+    const built = buildContext({
+      charName: "Hero",
+      chunks: [criticalChunk],
+      userNickname: "User",
+      shortTermHistory: [],
+      currentUserMessage: "hello",
+      nsfw: false,
+      modelId: OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
+      provider: "openrouter",
+      targetResponseChars: 3200,
+    });
+
+    const ids = (built.meta.trackedSections ?? []).map((s) => s.id);
+    assert.ok(
+      sectionOrder(ids, "rule-length-control") <
+        sectionOrder(ids, "rule-output-layout-recency")
+    );
+    assert.ok(
+      sectionOrder(ids, "rule-output-layout-recency") <
+        sectionOrder(ids, "rule-terminal-length-override")
+    );
+    assert.equal((built.systemPrompt.match(/\[LENGTH CONTROL & SCENE EXPANSION\]/g) ?? []).length, 1);
+    assert.equal((built.systemPrompt.match(/TARGET_LENGTH:/g) ?? []).length, 1);
+    assert.equal((built.systemPrompt.match(/MINIMUM_FLOOR:/g) ?? []).length, 1);
+    assert.equal((built.systemPrompt.match(/\[OUTPUT LAYOUT\]/g) ?? []).length, 1);
+    assert.ok(
+      built.systemPrompt.trimEnd().endsWith(
+        (built.meta.trackedSections ?? []).find((s) => s.id === "rule-terminal-length-override")?.text.trim() ?? ""
+      )
+    );
+  });
+
   it("omits episodic memory section when block is empty", () => {
     const built = buildContext({
       charName: "Hero",

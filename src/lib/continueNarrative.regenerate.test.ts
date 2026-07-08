@@ -127,10 +127,10 @@ describe("regenerate OOC priority", () => {
     });
 
     assert.match(block, /MANDATORY DIVERGENCE/i);
-    assert.match(block, /forbidden beats \(summary only/i);
-    assert.match(block, /Forbidden opening beat:/i);
-    assert.match(block, /Forbidden dialogue:/i);
-    assert.match(block, /Forbidden ending hook:/i);
+    assert.match(block, /avoid these beats; summary only/i);
+    assert.match(block, /Opening to avoid:/i);
+    assert.match(block, /Dialogue to avoid:/i);
+    assert.match(block, /Ending hook to avoid:/i);
     assert.match(block, /테라스/);
     assert.doesNotMatch(block, /Opening situation:/i);
     assert.doesNotMatch(block, /\[Rejected draft — do NOT repeat/i);

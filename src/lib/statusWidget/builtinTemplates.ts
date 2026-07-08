@@ -7,13 +7,12 @@ const DEFAULT_FIELDS: StatusWidget["fields"] = [
   {
     id: "시간",
     label: "시간",
-    instruction:
-      "장면의 현재 시각. 짧게 (예: 14:30, 오후 2시 30분). 이전 턴 시간에서 장면 경과를 반영.",
+    instruction: "장면의 현재 시각. 짧게 작성한다. 예: 14:30, 오후 2시 30분. 이전 턴의 시간에서 장면 경과를 반영한다.",
   },
   {
     id: "장소",
     label: "장소",
-    instruction: "현재 장면이 일어나는 장소 이름. 짧게.",
+    instruction: "현재 장면이 일어나는 장소 이름. 짧게 작성한다.",
   },
   {
     id: "속마음",
@@ -23,19 +22,19 @@ const DEFAULT_FIELDS: StatusWidget["fields"] = [
   {
     id: "현재상황",
     label: "현재상황",
-    instruction: "지금 벌어지는 상황을 한 줄로 요약.",
+    instruction: "지금 벌어지는 상황을 한 줄로 요약한다.",
   },
   {
     id: "의식의흐름",
     label: "의식의흐름",
     instruction:
-      "NPC의 의식의 흐름을 간단히 작성한다. 출력 예시 : 안기고싶다 → 내가 미친건가? → 가끔은 괜찮을지도",
+      "NPC의 의식의 흐름을 간단히 작성한다. 출력 예시 : 너무졸려서 바닥에 눕고싶다 → 귀여운걸 보니 정신이 번쩍든다 → 데이트하자고 꼬셔야겠다",
   },
 ];
 
 function templateValue(field: StatusWidgetField): string {
   const key = fieldPlaceholderKey(field);
-  return key ? `{{${key}}}` : "—";
+  return key ? `{{${key}}}` : "";
 }
 
 function escapeLabel(label: string): string {
@@ -57,7 +56,7 @@ function modernHtml(fields: StatusWidget["fields"]): string {
   const rows = contentFields(fields)
     .map((field) => {
       const label = escapeLabel(field.label.trim() || field.id || "상태값");
-      return `<div style="display:flex;gap:12px;align-items:flex-start;min-width:max-content;"><span style="flex:0 0 auto;min-width:max-content;color:#58a6ff;font-weight:600;white-space:nowrap;">▪ ${label}</span><span style="flex:1 1 auto;min-width:260px;color:#f0f6fc;overflow-wrap:anywhere;">${templateValue(field)}</span></div>`;
+      return `<div style="display:flex;gap:12px;align-items:flex-start;min-width:max-content;"><span style="flex:0 0 auto;min-width:max-content;color:#58a6ff;font-weight:600;white-space:nowrap;">• ${label}</span><span style="flex:1 1 auto;min-width:260px;color:#f0f6fc;overflow-wrap:anywhere;">${templateValue(field)}</span></div>`;
     })
     .join("");
 
@@ -83,7 +82,7 @@ export function buildBuiltinStatusWidgetTemplate(
 ): StatusWidget {
   return {
     version: 1,
-    name: id === "modern" ? "현대풍" : "네온 스타일",
+    name: id === "modern" ? "모던 상태창" : "네온 상태창",
     placement: "bottom",
     fields: fields.map((field) => ({ ...field })),
     htmlTemplate: id === "modern" ? modernHtml(fields) : neonHtml(fields),

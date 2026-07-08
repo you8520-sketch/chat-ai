@@ -162,6 +162,22 @@ function init(db: Database.Database) {
     ON status_trigger_events(chat_id, trigger_id);
   CREATE INDEX IF NOT EXISTS idx_status_trigger_events_turn
     ON status_trigger_events(chat_id, trigger_id, source_turn);
+  CREATE TABLE IF NOT EXISTS lorebook_active_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    chat_id INTEGER NOT NULL,
+    lorebook_id INTEGER NOT NULL,
+    entry_key TEXT NOT NULL,
+    content TEXT NOT NULL,
+    keyword TEXT NOT NULL DEFAULT '',
+    last_source TEXT NOT NULL DEFAULT 'recent_raw',
+    last_turn INTEGER NOT NULL,
+    expires_after_turn INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(chat_id, lorebook_id, entry_key)
+  );
+  CREATE INDEX IF NOT EXISTS idx_lorebook_active_entries_chat
+    ON lorebook_active_entries(chat_id, lorebook_id, expires_after_turn);
   CREATE TABLE IF NOT EXISTS party_rooms (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,

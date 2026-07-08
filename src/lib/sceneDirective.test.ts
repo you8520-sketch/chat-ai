@@ -12,10 +12,10 @@ import type { ChatMsg } from "@/lib/ai";
 
 const reassuranceLoop: ChatMsg[] = [
   { role: "assistant", content: "괜찮아. 네가 말하지 않아도 돼." },
-  { role: "user", content: "응" },
-  { role: "assistant", content: "정말 괜찮아? 미안해." },
+  { role: "user", content: "응." },
+  { role: "assistant", content: "정말 괜찮아. 미안해." },
   { role: "user", content: "..." },
-  { role: "assistant", content: "괜찮다면 그냥 곁에 있을게." },
+  { role: "assistant", content: "괜찮으면 그냥 곁에 있을게." },
 ];
 
 describe("sceneDirective", () => {
@@ -23,7 +23,7 @@ describe("sceneDirective", () => {
     const block = buildSceneDirectivePromptBlock({
       mode: "interactive",
       recentMessages: reassuranceLoop,
-      currentUserMessage: "응",
+      currentUserMessage: "응.",
     });
 
     assert.match(block, /모드: 일반 RP/);
@@ -39,8 +39,32 @@ describe("sceneDirective", () => {
     });
 
     assert.match(block, /모드: 자동진행/);
-    assert.match(block, /유저 페르소나와 최근 말투에 맞는 행동\/대사/);
-    assert.match(block, /중대 정체성\/트라우마\/목표\/결정은 갑자기 확정하지 않는다/);
+    assert.match(block, /유저 페르소나와 최근 말투에 맞는 행동\/대사를 쓸 수 있으나/);
+    assert.match(block, /중대 결정은 갑자기 확정하지 않는다/);
+  });
+
+  it("auto progression prompt contains No False Shared Memory rule", () => {
+    const block = buildSceneDirectivePromptBlock({
+      mode: "auto_progression",
+      recentMessages: reassuranceLoop,
+      currentUserMessage: "계속 진행",
+    });
+
+    assert.match(block, /\[NO FALSE SHARED MEMORY\]/);
+    assert.match(block, /전에 말했잖아/);
+    assert.match(block, /불확실하면 질문, 관찰, 추측, 새 발견으로 처리한다/);
+  });
+
+  it("scene directive guidance prefers observation or question over fabricated prior dialogue", () => {
+    const block = buildSceneDirectivePromptBlock({
+      mode: "auto_progression",
+      recentMessages: [],
+      currentUserMessage: "문장을 바라본다.",
+    });
+
+    assert.match(block, /저 문장, 달리는 늑대처럼 보여/);
+    assert.match(block, /저게 네 가문의 문장이야/);
+    assert.match(block, /네가 전에 말했잖아\. 에카르트의 문장은 달리는 늑대라고/);
   });
 
   it("detects repeated reassurance stagnation", () => {
@@ -49,9 +73,9 @@ describe("sceneDirective", () => {
 
   it("does not mark active progressing scenes as stagnant", () => {
     const active: ChatMsg[] = [
-      { role: "assistant", content: "문 너머에서 전화벨이 울리고, 지도 위의 표시가 바뀌었다." },
+      { role: "assistant", content: "문 너머에서 전화벨이 울리고 지하실의 표시가 바뀌었다." },
       { role: "user", content: "그쪽으로 이동한다." },
-      { role: "assistant", content: "두 사람은 복도로 나가 기록 보관실 앞에 도착했다." },
+      { role: "assistant", content: "복도로 나가자 기록 보관함 앞에 단서가 놓여 있었다." },
       { role: "user", content: "문을 열어." },
     ];
 
@@ -62,7 +86,7 @@ describe("sceneDirective", () => {
     assert.equal(
       selectSceneIntensity({
         recentMessages: [{ role: "assistant", content: "식사 후 침대 곁에서 조용히 휴식했다." }],
-        currentUserMessage: "조금만 더 쉬자.",
+        currentUserMessage: "조금만 쉬자.",
       }),
       0
     );
@@ -70,7 +94,7 @@ describe("sceneDirective", () => {
 
   it("allows higher intensity for operation scenes", () => {
     const intensity = selectSceneIntensity({
-      recentMessages: [{ role: "assistant", content: "작전 회의에서 침투 경로와 구출 요청이 논의됐다." }],
+      recentMessages: [{ role: "assistant", content: "작전 회의에서 침투 경로와 구출 요청을 논의했다." }],
       currentUserMessage: "추적을 계속하자.",
     });
 
@@ -80,7 +104,7 @@ describe("sceneDirective", () => {
   it("biases toward a breather after recent high-intensity scenes", () => {
     const intensity = selectSceneIntensity({
       recentMessages: [
-        { role: "assistant", content: "폭발과 전투 끝에 건물이 붕괴했고, 누군가 배신했다." },
+        { role: "assistant", content: "폭발과 전투 속에 건물이 붕괴했고, 아군이 배신했다." },
         { role: "user", content: "숨을 고른다." },
       ],
       currentUserMessage: "잠깐 멈춰.",
@@ -112,7 +136,7 @@ describe("sceneDirective", () => {
         { role: "assistant", content: "D-DAY가 상태창에 표시되고 있다. 사망 조건은 아직 드러나지 않았다." },
         { role: "user", content: "숫자를 본다." },
       ],
-      currentUserMessage: "D-DAY가 뭐지?",
+      currentUserMessage: "D-DAY가 뭐야?",
     });
 
     assert.doesNotMatch(block, /D-DAY가 .*사망/);

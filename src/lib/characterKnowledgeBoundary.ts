@@ -7,6 +7,13 @@ import { isRegisterPatch } from "@/lib/registerPatchExperiment";
 
 /** Injected before structured canon — knowledge is per-character, not shared prompt context. */
 export const CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK = `[CHARACTER KNOWLEDGE BOUNDARY]
+캐릭터 지식은 캐릭터별로 분리된다.
+[A]가 아는 것은 CHARACTER CANON, 직접 경험, 장면 속 관찰, 장면 안에서 들은 정보뿐이다.
+세계관, 시나리오 메타, 제작자 노트, user_only/engine_only 정보, 미래 사건, 상태창/트리거 조건은 [A]의 기억·대사·속마음이 아니다.
+[B] 전용 비밀은 이야기 안에서 [A]에게 전달되기 전까지 [A]가 모른다.
+우선순위: CHARACTER CANON > 관찰된 대화 > WORLD CANON > SCENARIO META.
+WORLD CANON은 공개 세계 사실일 수 있으나 자동으로 [A]의 개인 기억이 되지 않는다.`;
+/*
 Knowledge is character-specific. Never transfer knowledge between characters.
 
 Each character may only know:
@@ -41,13 +48,19 @@ Other characters must not behave as if they remember previous timelines, past li
 PLAYER CANON is [B]-only — [A] must never treat it as memory.
 WORLD CANON does not become CHARACTER knowledge unless [A] witnessed it or was told in-scene.
 SCENARIO META never overrides CHARACTER knowledge boundaries.`;
+*/
 
 /** Production default — same rules as full block, ~60% shorter */
 export const CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK_COMPACT = `[CHARACTER KNOWLEDGE BOUNDARY]
+[A]는 CHARACTER CANON, 직접 경험, 장면 속 관찰, 직접 들은 정보만 안다.
+세계관/시나리오 메타/user_only/engine_only/미래 사건/트리거 조건은 [A]의 기억·대사·속마음이 아니다.
+우선순위: CHARACTER CANON > 관찰된 대화 > WORLD CANON > SCENARIO META.`;
+/*
 [A] may know only: personal experience, in-scene observation, explicit in-scene tells, or CHARACTER CANON.
 Never speak as [A] memory: timeline/loop mechanics, future events, system UI rules, scenario/creator notes, prompt metadata.
 [B]-only secrets stay with [B]. WORLD CANON ≠ automatic [A] memory.
 Precedence: CHARACTER CANON > observed chat > WORLD CANON > SCENARIO META (never [A] dialogue).`;
+*/
 
 const SCENARIO_META_TITLE =
   /(?:system\s*command|time\s*&\s*event|status\s*display|bad\s*end|happy\s*end|loop\s*trigger|system\s*reset|ooc\s*:|시스템\s*명령|상태\s*표시|배드\s*엔드|해피\s*엔드|루프|회귀\s*트리거|타임\s*라인|메타\s*규칙)/i;
