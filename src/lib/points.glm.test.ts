@@ -12,15 +12,15 @@ import { OPENROUTER_GLM_52_MODEL } from "@/lib/chatModels";
 describe("GLM 5.2 billing", () => {
   const modelId = OPENROUTER_GLM_52_MODEL;
 
-  it("uses 0.028P per output token", () => {
-    assert.equal(OPENROUTER_GLM_POINTS_PER_OUTPUT_TOKEN, 0.028);
+  it("uses 0.035P per output token", () => {
+    assert.equal(OPENROUTER_GLM_POINTS_PER_OUTPUT_TOKEN, 0.035);
     assert.equal(GLM_WAIVER_SUCCESS_MIN_COST, 50);
   });
 
-  it("token floor = outputTokens × 0.028", () => {
+  it("token floor = outputTokens × 0.035", () => {
     const outputTokens = 2000;
     const explain = explainOpenRouterGlmTurnCost(1000, outputTokens, modelId);
-    assert.equal(explain.charFloorKrw, Math.ceil(outputTokens * 0.028 - 1e-9));
+    assert.equal(explain.charFloorKrw, Math.ceil(outputTokens * 0.035 - 1e-9));
     assert.equal(explain.costPlusMarginKrw, 0);
   });
 

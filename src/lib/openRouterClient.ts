@@ -132,12 +132,11 @@ export const OPENROUTER_RP_REASONING_GEMINI_FLASH = {
 
 /**
  * Gemini 2.5 Pro RP — thinkingBudget via reasoning.max_tokens (OpenRouter 2.5 경로).
- * Keep aligned with GEMINI_25_PRO_THINKING_BUDGET (1024). A 128-token cap starves
- * long-form RP planning and correlates with sub-~2000 char visible replies.
+ * Deliberately low for cost: reasoning tokens are billed as output. This is NOT a
+ * visible-prose length cap — 128 still often yields 3000+ char RP replies.
  */
 export const OPENROUTER_RP_REASONING_GEMINI_25_PRO_CAP = {
-  max_tokens: 1024,
-  exclude: true,
+  max_tokens: 128,
 } as const;
 
 /** @deprecated OPENROUTER_RP_REASONING_GEMINI_25_PRO_CAP — 2.5 Pro 전용 */

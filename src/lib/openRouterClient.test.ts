@@ -138,7 +138,7 @@ describe("buildOpenRouterRequestBody — RP reasoning policy", () => {
     assert.equal(body.max_tokens, undefined);
   });
 
-  it("caps Gemini 2.5 Pro reasoning at 1024 tokens (aligned with native thinkingBudget)", () => {
+  it("caps Gemini 2.5 Pro reasoning at 128 tokens (cost-oriented thinking budget)", () => {
     const body = buildOpenRouterRequestBody(
       OPENROUTER_GEMINI_25_PRO_MODEL,
       [{ role: "user", content: "test" }],
@@ -147,8 +147,7 @@ describe("buildOpenRouterRequestBody — RP reasoning policy", () => {
       "chat-1"
     ) as Record<string, unknown>;
     assert.deepEqual(body.reasoning, OPENROUTER_RP_REASONING_GEMINI_25_PRO_CAP);
-    assert.equal(OPENROUTER_RP_REASONING_GEMINI_25_PRO_CAP.max_tokens, 1024);
-    assert.equal(OPENROUTER_RP_REASONING_GEMINI_25_PRO_CAP.exclude, true);
+    assert.equal(OPENROUTER_RP_REASONING_GEMINI_25_PRO_CAP.max_tokens, 128);
     assert.equal(body.reasoning_effort, undefined);
     assert.equal(body.include_reasoning, false);
     assert.equal(body.provider, undefined);
