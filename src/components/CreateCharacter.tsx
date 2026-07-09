@@ -141,6 +141,25 @@ export default function CreateCharacter({
   const [pageTab, setPageTab] = useState<PageTab>("create");
   const draftRestoredRef = useRef(false);
   const filePreviewUrlMapRef = useRef<Map<File, string>>(new Map());
+  const editPromptBaselineRef = useRef<string | null>(null);
+
+  function buildPromptEditSignature(input = form) {
+    return JSON.stringify({
+      name: input.name.trim(),
+      greeting: input.greeting,
+      system_prompt: input.system_prompt,
+      world: input.world,
+      speech_personality: input.speech_personality,
+      speech_traits: input.speech_traits,
+      speech_examples: input.speech_examples,
+      speech_forbidden: input.speech_forbidden,
+      speech_contextual_registers: input.speech_contextual_registers,
+      gender: input.gender,
+      world_id: selectedWorldId === "" ? "" : Number(selectedWorldId),
+      lorebook_id: selectedLorebookId === "" ? "" : Number(selectedLorebookId),
+      recommended_writing_style: input.recommended_writing_style,
+    });
+  }
 
   function buildDraftSnapshot(): CharacterCreateDraft {
     return {
@@ -400,6 +419,24 @@ export default function CreateCharacter({
         );
         setSelectedWorldId(data.world_id ?? "");
         setSelectedLorebookId(data.lorebook_id ?? "");
+        editPromptBaselineRef.current = JSON.stringify({
+          name: String(data.name ?? "").trim(),
+          greeting: data.greeting ?? "",
+          system_prompt: data.system_prompt ?? "",
+          world: data.world ?? "",
+          speech_personality: data.speech_personality ?? "",
+          speech_traits: data.speech_traits ?? "",
+          speech_examples: data.speech_examples ?? "",
+          speech_forbidden: data.speech_forbidden ?? "",
+          speech_contextual_registers: Array.isArray(data.speech_contextual_registers)
+            ? data.speech_contextual_registers
+            : [],
+          gender: data.gender ?? "",
+          world_id: data.world_id ?? "",
+          lorebook_id: data.lorebook_id ?? "",
+          recommended_writing_style:
+            data.recommended_writing_style ?? "balanced",
+        });
         const parsedWidget = parseStatusWidgetJson(data.status_widget_json);
         setStatusWidget(parsedWidget ?? characterStatusWidgetOrDefault(null));
         setStatusWidgetTriggers(
@@ -501,6 +538,10 @@ export default function CreateCharacter({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (loading) return;
+    const promptUnchangedForEdit =
+      isEditMode &&
+      editPromptBaselineRef.current != null &&
+      editPromptBaselineRef.current === buildPromptEditSignature();
     if (!form.name.trim()) {
       setError("캐릭터 이름(또는 시뮬레이션명)을 입력해 주세요.");
       return;
@@ -517,17 +558,17 @@ export default function CreateCharacter({
       setError(`한 줄 소개는 ${TAGLINE_LIMIT}자 이하여야 합니다.`);
       return;
     }
-    if (!form.system_prompt.trim()) {
+    if (!promptUnchangedForEdit && !form.system_prompt.trim()) {
       setError("캐릭터 설정은 필수입니다.");
       return;
     }
-    if (aiLearningTotal < AI_LEARNING_MIN) {
+    if (!promptUnchangedForEdit && aiLearningTotal < AI_LEARNING_MIN) {
       setError(
         `말투 설정 + 세계관 + 캐릭터 설정은 합쳐서 ${AI_LEARNING_MIN.toLocaleString()}자 이상 작성해 주세요.`,
       );
       return;
     }
-    if (!form.gender) {
+    if (!promptUnchangedForEdit && !form.gender) {
       setError("캐릭터 성별(남성/여성/기타)을 선택해 주세요.");
       return;
     }
@@ -535,17 +576,17 @@ export default function CreateCharacter({
       setError("장르를 1개 이상 선택해 주세요.");
       return;
     }
-    if (!form.greeting.trim()) {
+    if (!promptUnchangedForEdit && !form.greeting.trim()) {
       setError("첫 메세지를 입력해 주세요.");
       return;
     }
-    if (aiLearningTotal > AI_LEARNING_LIMIT) {
+    if (!promptUnchangedForEdit && aiLearningTotal > AI_LEARNING_LIMIT) {
       setError(
         `세계관/배경 + 캐릭터 설정 + 말투 설정은 합쳐서 ${AI_LEARNING_LIMIT.toLocaleString()}자 이하여야 합니다.`,
       );
       return;
     }
-    if (form.greeting.length > GREETING_LIMIT) {
+    if (!promptUnchangedForEdit && form.greeting.length > GREETING_LIMIT) {
       setError(
         `첫 메세지는 ${GREETING_LIMIT.toLocaleString()}자 이하여야 합니다.`,
       );
@@ -570,24 +611,32 @@ export default function CreateCharacter({
 
     const finalAssets = normalizeManagedAssets(assets);
     const description = form.description.trim();
+    const payload = {
+      ...form,
+      description,
+      status_window_prompt: "",
+      status_widget_json: serializeStatusWidget(statusWidget),
+      status_widget_triggers: statusWidgetTriggers,
+      assets: finalAssets,
+      world_id: selectedWorldId === "" ? undefined : selectedWorldId,
+      lorebook_id:
+        selectedLorebookId === "" ? undefined : selectedLorebookId,
+    };
+    const canUseFastEditSave =
+      promptUnchangedForEdit;
 
     setProgress(isEditMode ? "캐릭터 저장 중…" : "캐릭터 생성 중…");
+    if (canUseFastEditSave) {
+      setProgress("공개/표시 정보 저장 중…");
+    }
     const res = await fetch(
       isEditMode ? `/api/characters/${editCharacterId}` : "/api/characters",
       {
-        method: isEditMode ? "PUT" : "POST",
+        method: canUseFastEditSave ? "PATCH" : isEditMode ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...form,
-          description,
-          status_window_prompt: "",
-          status_widget_json: serializeStatusWidget(statusWidget),
-          status_widget_triggers: statusWidgetTriggers,
-          assets: finalAssets,
-          world_id: selectedWorldId === "" ? undefined : selectedWorldId,
-          lorebook_id:
-            selectedLorebookId === "" ? undefined : selectedLorebookId,
-        }),
+        body: JSON.stringify(
+          canUseFastEditSave ? { ...payload, scope: "public_profile" } : payload,
+        ),
       },
     );
     setLoading(false);

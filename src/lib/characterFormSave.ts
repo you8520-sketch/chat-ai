@@ -91,6 +91,22 @@ export type ParsedCharacterForm = {
   tagsJson: string;
 };
 
+function parseAssetsFromFormBody(rawAssets: unknown): CharacterAsset[] {
+  return Array.isArray(rawAssets)
+    ? rawAssets
+        .filter((a: unknown) => a && typeof a === "object" && "url" in (a as object) && "tag" in (a as object))
+        .map((a: { url: string; tag: string; public?: boolean; chat?: boolean; viewerBlur?: boolean }) => ({
+          url: String(a.url),
+          tag: String(a.tag).slice(0, 32),
+          public: Boolean(a.public),
+          chat: a.chat !== false,
+          viewerBlur: a.viewerBlur === true,
+        }))
+        .filter((a: CharacterAsset) => a.url.startsWith("/uploads/") || a.url.startsWith("http"))
+        .slice(0, 100)
+    : [];
+}
+
 export function parseCharacterFormBody(
   b: Record<string, unknown>,
   user: SessionUser
@@ -210,19 +226,7 @@ export function parseCharacterFormBody(
     return { ok: false, error: "장르를 1개 이상 선택해 주세요.", status: 400 };
   }
 
-  const assets: CharacterAsset[] = Array.isArray(b.assets)
-    ? b.assets
-        .filter((a: unknown) => a && typeof a === "object" && "url" in (a as object) && "tag" in (a as object))
-        .map((a: { url: string; tag: string; public?: boolean; chat?: boolean; viewerBlur?: boolean }) => ({
-          url: String(a.url),
-          tag: String(a.tag).slice(0, 32),
-          public: Boolean(a.public),
-          chat: a.chat !== false,
-          viewerBlur: a.viewerBlur === true,
-        }))
-        .filter((a: CharacterAsset) => a.url.startsWith("/uploads/") || a.url.startsWith("http"))
-        .slice(0, 100)
-    : [];
+  const assets = parseAssetsFromFormBody(b.assets);
 
   if (assets.length === 0) {
     return { ok: false, error: "감정 에셋 이미지를 1장 이상 업로드해 주세요.", status: 400 };
@@ -303,8 +307,27 @@ export function buildCompiledCreatorDescriptionForSave(
   };
 }
 
+export function characterPromptInputsChanged(
+  row: {
+    name: string;
+    gender: string | null;
+    system_prompt: string | null;
+    world: string | null;
+    example_dialog: string | null;
+  },
+  data: Pick<ParsedCharacterForm, "name" | "gender" | "systemPrompt" | "world" | "exampleDialog">
+): boolean {
+  return (
+    row.name !== data.name ||
+    (row.gender ?? "") !== data.gender ||
+    (row.system_prompt ?? "") !== data.systemPrompt ||
+    (row.world ?? "") !== data.world ||
+    (row.example_dialog ?? "") !== data.exampleDialog
+  );
+}
+
 async function resolveVisibilityModeration(
-  data: ParsedCharacterForm,
+  data: Pick<ParsedCharacterForm, "requestedVisibility" | "images" | "nsfw">,
   existing?: {
     share_slug: string | null;
     visibility?: CharacterVisibility;
@@ -577,13 +600,7 @@ export async function updateCharacterFromForm(
     mergeDescriptionTriggerCandidates(data.statusWidgetTriggers, compiledDescription)
   );
 
-  const promptInputsChanged =
-    row.name !== data.name ||
-    (row.gender ?? "") !== data.gender ||
-    (row.system_prompt ?? "") !== data.systemPrompt ||
-    (row.world ?? "") !== data.world ||
-    (row.example_dialog ?? "") !== data.exampleDialog ||
-    (row.status_widget_json ?? "") !== data.statusWidgetJson;
+  const promptInputsChanged = characterPromptInputsChanged(row, data);
 
   if (promptInputsChanged) {
     await buildSaveAndTranslateCharacterChunks(characterId, {
@@ -615,5 +632,140 @@ export async function updateCharacterFromForm(
     moderationNote,
     sharePath: sharePath({ id: characterId, share_slug: shareSlug }),
     listed,
+  };
+}
+
+export async function updateCharacterPublicProfileFromForm(
+  user: SessionUser,
+  characterId: number,
+  b: Record<string, unknown>
+) {
+  if (!user.is_adult) {
+    return { ok: false as const, error: "캐릭터 수정은 성인인증 완료 후 가능합니다.", status: 403 };
+  }
+
+  const db = getDb();
+  const row = db
+    .prepare(
+      `SELECT id, creator_id, official, share_slug, visibility, moderation_status, moderation_note,
+              images, nsfw
+       FROM characters WHERE id=?`
+    )
+    .get(characterId) as
+    | {
+        id: number;
+        creator_id: number | null;
+        official: number;
+        share_slug: string | null;
+        visibility: CharacterVisibility;
+        moderation_status: ModerationStatus;
+        moderation_note: string | null;
+        images: string | null;
+        nsfw: number | null;
+      }
+    | undefined;
+
+  if (!row) return { ok: false as const, error: "캐릭터를 찾을 수 없습니다.", status: 404 };
+  if (row.creator_id !== user.id) {
+    return { ok: false as const, error: "본인 캐릭터만 수정할 수 있습니다.", status: 403 };
+  }
+  if (row.official === 1) {
+    return { ok: false as const, error: "공식 캐릭터는 수정할 수 없습니다.", status: 403 };
+  }
+
+  const tagline = String(b.tagline || "").trim().slice(0, TAGLINE_LIMIT);
+  if (!tagline) return { ok: false as const, error: "한 줄 소개를 입력해 주세요.", status: 400 };
+
+  const description = String(b.description || "");
+  if (countPublicDescriptionVisibleChars(description) > PROFILE_BIOGRAPHY_LIMIT) {
+    return {
+      ok: false as const,
+      error: `공개 캐릭터/세계관 정보는 ${PROFILE_BIOGRAPHY_LIMIT.toLocaleString()}자 이하여야 합니다.`,
+      status: 400,
+    };
+  }
+
+  const genres = sanitizeCharacterGenres(b.genres ?? b.genre);
+  if (genres.length === 0) {
+    return { ok: false as const, error: "장르를 1개 이상 선택해 주세요.", status: 400 };
+  }
+
+  const assets = parseAssetsFromFormBody(b.assets);
+  if (assets.length === 0) {
+    return { ok: false as const, error: "감정 에셋 이미지를 1장 이상 업로드해 주세요.", status: 400 };
+  }
+  if (!assets.some((a) => a.public)) {
+    return { ok: false as const, error: "노출할 이미지를 1장 이상 선택해 주세요.", status: 400 };
+  }
+
+  const nsfw = !!b.nsfw;
+  const images = publicAssetUrls(assets);
+  const requestedVisibility = parseVisibility(b.visibility);
+  const rawWidget = b.status_widget_json ?? b.status_widget;
+  const parsedWidget =
+    typeof rawWidget === "string"
+      ? parseStatusWidgetJson(rawWidget)
+      : rawWidget && typeof rawWidget === "object"
+        ? parseStatusWidgetJson(JSON.stringify(rawWidget))
+        : null;
+  const statusWidgetJson = parsedWidget ? serializeStatusWidget(parsedWidget) : "";
+  const parsedTriggers = validateStatusWidgetTriggerInputs(b.status_widget_triggers);
+  if (!parsedTriggers.ok) {
+    return { ok: false as const, error: parsedTriggers.error, status: 400 };
+  }
+  const { finalVisibility, moderationStatus, moderationNote, shareSlug } =
+    await resolveVisibilityModeration(
+      { requestedVisibility, images, nsfw },
+      {
+        share_slug: row.share_slug,
+        visibility: row.visibility,
+        moderation_status: row.moderation_status,
+        moderation_note: row.moderation_note,
+        images: row.images,
+        nsfw: row.nsfw,
+      }
+    );
+
+  db.prepare(
+    `UPDATE characters SET
+      tagline=?, description=?, genre=?, genres=?, tags=?, nsfw=?, emoji=?, hue=?,
+      audience=?, images=?, assets=?, visibility=?, moderation_status=?, moderation_note=?,
+      share_slug=?, comments_enabled=?, creator_comment=?, creator_name=?, status_widget_json=?
+     WHERE id=?`
+  ).run(
+    tagline,
+    description,
+    primaryCharacterGenre(genres),
+    JSON.stringify(genres),
+    JSON.stringify(parseCharacterTagsInput(b.tags)),
+    nsfw ? 1 : 0,
+    String(b.emoji || "✨"),
+    Number(b.hue) || 260,
+    ["all", "female", "male"].includes(String(b.audience)) ? String(b.audience) : "all",
+    JSON.stringify(images),
+    JSON.stringify(assets),
+    finalVisibility,
+    moderationStatus,
+    moderationNote,
+    shareSlug,
+    b.comments_enabled === false ? 0 : 1,
+    String(b.creator_comment ?? b.creatorComment ?? "").trim().slice(0, CREATOR_COMMENT_LIMIT),
+    user.nickname,
+    statusWidgetJson,
+    characterId
+  );
+  saveCharacterStatusWidgetTriggers(db, characterId, parsedTriggers.triggers);
+
+  const listed = finalVisibility === "public" && moderationStatus === "approved";
+  return {
+    ok: true as const,
+    id: characterId,
+    visibility: finalVisibility,
+    requestedVisibility,
+    moderationStatus,
+    moderationNote,
+    sharePath: sharePath({ id: characterId, share_slug: shareSlug }),
+    listed,
+    profileOnly: true,
   };
 }

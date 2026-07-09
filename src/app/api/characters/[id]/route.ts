@@ -6,7 +6,10 @@ import { parseCharacterGender } from "@/lib/characterGender";
 import { sanitizeCharacterGenres } from "@/lib/characterGenres";
 import { normalizeCreatorRecommendedStyle } from "@/lib/writingStylePreset";
 import { speechCreatorFromLegacyExampleDialog } from "@/lib/speechCreatorFields";
-import { updateCharacterFromForm } from "@/lib/characterFormSave";
+import {
+  updateCharacterFromForm,
+  updateCharacterPublicProfileFromForm,
+} from "@/lib/characterFormSave";
 import { deleteUserCharacter } from "@/lib/deleteCharacter";
 import { listCharacterStatusWidgetTriggers } from "@/lib/statusWidgetTriggers";
 
@@ -170,6 +173,23 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
   }
 
   const body = await req.json();
+  if (body.scope === "public_profile") {
+    const result = await updateCharacterPublicProfileFromForm(user, characterId, body);
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
+    }
+    return NextResponse.json({
+      ok: true,
+      id: result.id,
+      visibility: result.visibility,
+      requestedVisibility: result.requestedVisibility,
+      moderationStatus: result.moderationStatus,
+      moderationNote: result.moderationNote,
+      sharePath: result.sharePath,
+      listed: result.listed,
+      profileOnly: true,
+    });
+  }
   if (body.comments_enabled === undefined) {
     return NextResponse.json({ error: "변경할 설정이 없습니다." }, { status: 400 });
   }

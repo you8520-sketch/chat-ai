@@ -9,13 +9,17 @@ Module._load = function (request, parent, isMain) {
 import assert from "node:assert/strict";
 import { before, describe, it } from "node:test";
 
-import type { buildCompiledCreatorDescriptionForSave as BuildCompiledCreatorDescriptionForSaveFn } from "@/lib/characterFormSave";
+import type {
+  buildCompiledCreatorDescriptionForSave as BuildCompiledCreatorDescriptionForSaveFn,
+  characterPromptInputsChanged as CharacterPromptInputsChangedFn,
+} from "@/lib/characterFormSave";
 import { parseCreatorDescriptionCompiled } from "@/lib/creatorDescriptionTriggerCompiler";
 
 let buildCompiledCreatorDescriptionForSave: typeof BuildCompiledCreatorDescriptionForSaveFn;
+let characterPromptInputsChanged: typeof CharacterPromptInputsChangedFn;
 
 before(async () => {
-  ({ buildCompiledCreatorDescriptionForSave } = await import("@/lib/characterFormSave"));
+  ({ buildCompiledCreatorDescriptionForSave, characterPromptInputsChanged } = await import("@/lib/characterFormSave"));
 });
 
 describe("buildCompiledCreatorDescriptionForSave", () => {
@@ -58,5 +62,26 @@ describe("buildCompiledCreatorDescriptionForSave", () => {
     assert.doesNotMatch(result.safeRuntimeCanon, /하율은 조용한 관찰자다/);
     assert.doesNotMatch(result.safeRuntimeCanon, /밤에는 기록을 남긴다/);
     assert.doesNotMatch(result.safeRuntimeCanon, /<strong>|<span|style=/);
+  });
+
+  it("does not treat status widget changes as prompt chunk rebuild inputs", () => {
+    const changed = characterPromptInputsChanged(
+      {
+        name: "Leon",
+        gender: "male",
+        system_prompt: "Silent knight",
+        world: "Old city",
+        example_dialog: "Short speech",
+      },
+      {
+        name: "Leon",
+        gender: "male",
+        systemPrompt: "Silent knight",
+        world: "Old city",
+        exampleDialog: "Short speech",
+      },
+    );
+
+    assert.equal(changed, false);
   });
 });
