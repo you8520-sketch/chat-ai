@@ -30,6 +30,7 @@ export type ChatDisplayPrefs = {
   userDialogueColor: string;
   /** 캐릭터 답변 왼쪽 초상 표시 */
   showCharacterPortrait: boolean;
+  portraitBackgroundOpacity: number;
 };
 
 export const DEFAULT_CHAT_DISPLAY_PREFS: ChatDisplayPrefs = {
@@ -42,6 +43,7 @@ export const DEFAULT_CHAT_DISPLAY_PREFS: ChatDisplayPrefs = {
   userNarrationColor: "#d4d4d8",
   userDialogueColor: "#e4e4e7",
   showCharacterPortrait: true,
+  portraitBackgroundOpacity: 0.22,
 };
 
 /** #RRGGBB — relative luminance 0..1 */
@@ -165,6 +167,14 @@ export function normalizeShowCharacterPortrait(value: unknown): boolean {
   return value !== false;
 }
 
+export function normalizePortraitBackgroundOpacity(value: unknown): number {
+  const n =
+    typeof value === "number" && Number.isFinite(value)
+      ? value
+      : DEFAULT_CHAT_DISPLAY_PREFS.portraitBackgroundOpacity;
+  return Math.min(0.5, Math.max(0.08, n));
+}
+
 export function loadChatDisplayPrefs(): ChatDisplayPrefs {
   if (typeof window === "undefined") return DEFAULT_CHAT_DISPLAY_PREFS;
   try {
@@ -192,6 +202,9 @@ export function loadChatDisplayPrefs(): ChatDisplayPrefs {
         DEFAULT_CHAT_DISPLAY_PREFS.userNarrationColor
       ),
       showCharacterPortrait: normalizeShowCharacterPortrait(parsed.showCharacterPortrait),
+      portraitBackgroundOpacity: normalizePortraitBackgroundOpacity(
+        parsed.portraitBackgroundOpacity
+      ),
     };
   } catch {
     return DEFAULT_CHAT_DISPLAY_PREFS;
@@ -232,17 +245,18 @@ export const CHAT_PORTRAIT_PANEL_HEIGHT = `calc(100dvh - ${CHAT_PORTRAIT_TITLE_S
 
 /** 초상 ON — 좌: 에셋 / 우: 채팅+입력 */
 export const CHAT_PORTRAIT_GRID_CLASS =
-  "grid min-w-0 flex-1 items-start gap-x-1.5 sm:gap-x-2 grid-cols-[auto_minmax(0,1fr)]";
+  "grid min-w-0 flex-1 grid-cols-1 items-start sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-x-2";
 
 /** 초상 열 sticky — 하단=입력창 하단(뷰포트 bottom) */
 export const CHAT_PORTRAIT_STICKY_CLASS =
-  "col-start-1 row-start-1 sticky top-[calc(2.75rem+2.5rem)] z-20 flex w-full flex-col justify-end self-start";
+  "hidden sm:col-start-1 sm:row-start-1 sm:sticky sm:top-[calc(2.75rem+2.5rem)] sm:z-20 sm:flex sm:w-full sm:flex-col sm:justify-end sm:self-start";
 
 /** @deprecated CHAT_PORTRAIT_PANEL_HEIGHT + 인라인 height 사용 */
 export const CHAT_PORTRAIT_VIEWPORT_MIN_H_CLASS = "";
 
 /** 채팅 본문 열 — 이미지와 같은 시작 높이 */
-export const CHAT_MESSAGES_COLUMN_CLASS = "col-start-2 row-start-1 flex min-w-0 flex-col";
+export const CHAT_MESSAGES_COLUMN_CLASS =
+  "relative col-start-1 row-start-1 flex min-w-0 flex-col overflow-hidden sm:col-start-2 sm:overflow-visible";
 
 /** 초상 OFF — 메시지+입력 열 (본문을 입력창 위로 밀어 붙임) */
 export const CHAT_MESSAGES_COLUMN_NO_PORTRAIT_CLASS =

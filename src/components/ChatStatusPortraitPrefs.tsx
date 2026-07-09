@@ -62,6 +62,31 @@ export function ChatPortraitPrefs({
           enabled={displayPrefs.showCharacterPortrait}
           onChange={(on) => onDisplayPrefsChange({ ...displayPrefs, showCharacterPortrait: on })}
         />
+        <label className="mt-3 block rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2.5">
+          <span className="flex items-center justify-between gap-3 text-[11px] font-semibold text-zinc-300">
+            <span>모바일 배경 투명도</span>
+            <span className="tabular-nums text-violet-300">
+              {Math.round(displayPrefs.portraitBackgroundOpacity * 100)}%
+            </span>
+          </span>
+          <input
+            type="range"
+            min={8}
+            max={50}
+            step={2}
+            value={Math.round(displayPrefs.portraitBackgroundOpacity * 100)}
+            onChange={(e) =>
+              onDisplayPrefsChange({
+                ...displayPrefs,
+                portraitBackgroundOpacity: Number(e.target.value) / 100,
+              })
+            }
+            className="mt-2 w-full accent-violet-500"
+          />
+          <span className="mt-1 block text-[10px] text-zinc-600">
+            모바일에서는 이미지가 채팅 본문 뒤에 은은하게 깔립니다.
+          </span>
+        </label>
       </section>
     </div>
   );

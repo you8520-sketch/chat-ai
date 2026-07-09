@@ -3,6 +3,7 @@ import {
   DEFAULT_CHAT_DISPLAY_PREFS,
   loadChatDisplayPrefs,
   normalizeFontSizePreset,
+  normalizePortraitBackgroundOpacity,
   normalizeReadableTextColor,
   normalizeShowCharacterPortrait,
   normalizeStreamIntervalMs,
@@ -47,6 +48,7 @@ function normalizeDisplayPrefs(raw: Partial<ChatDisplayPrefs> | undefined): Chat
       DEFAULT_CHAT_DISPLAY_PREFS.userNarrationColor
     ),
     showCharacterPortrait: normalizeShowCharacterPortrait(raw.showCharacterPortrait),
+    portraitBackgroundOpacity: normalizePortraitBackgroundOpacity(raw.portraitBackgroundOpacity),
   };
 }
 

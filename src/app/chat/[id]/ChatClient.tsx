@@ -21,10 +21,13 @@ import ReportRefundButton from "@/components/ReportRefundButton";
 import ChatSelectionQuoteToolbar from "@/components/ChatSelectionQuoteToolbar";
 import MessageVariantPicker from "@/components/MessageVariantPicker";
 import ChatToast from "@/components/ChatToast";
+import CharacterAssetImage from "@/components/CharacterAssetImage";
 import type { MessageVariant } from "@/lib/messageAlternates";
 import {
+  assetByUrl,
   findAssetByTag,
   getDefaultChatAsset,
+  shouldBlurAssetForViewer,
   type CharacterAsset,
 } from "@/lib/characterAssets";
 import { resolveEmotionTag, stripEmotionTag, stripEmotionTagsForDisplay } from "@/lib/emotionTag";
@@ -2644,6 +2647,13 @@ export default function ChatClient({
 
   const showCharacterPortrait = displayPrefs.showCharacterPortrait;
   const chatDisplayTitle = chatTitle.trim() || character.name;
+  const mobilePortraitUrl = activePortraitUrl ?? defaultChatAsset?.url ?? null;
+  const mobilePortraitAsset = assetByUrl(assets, mobilePortraitUrl) ?? defaultChatAsset;
+  const mobilePortraitBlur = shouldBlurAssetForViewer(
+    mobilePortraitAsset ?? undefined,
+    isCharacterCreator,
+    unlockedUrls
+  );
 
   return (
     <div className="-ml-1 flex min-w-0 flex-1 items-stretch gap-0 sm:-ml-2">
@@ -2716,10 +2726,33 @@ export default function ChatClient({
               : CHAT_MESSAGES_COLUMN_NO_PORTRAIT_CLASS
           }
         >
+      {showCharacterPortrait && mobilePortraitUrl && (
+        <div
+          className="pointer-events-none absolute inset-0 z-0 overflow-hidden bg-[#121212] sm:hidden"
+          style={
+            {
+              ["--mobile-portrait-opacity" as string]:
+                displayPrefs.portraitBackgroundOpacity,
+            }
+          }
+          aria-hidden
+        >
+          <CharacterAssetImage
+            src={mobilePortraitUrl}
+            alt=""
+            blurForViewer={mobilePortraitBlur}
+            className="h-full w-full opacity-[var(--mobile-portrait-opacity)]"
+            imgClassName="h-full w-full object-cover object-top"
+          />
+          <div className="absolute inset-0 bg-[#121212]/55" />
+          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#121212] to-transparent" />
+          <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#121212] to-transparent" />
+        </div>
+      )}
       <div
         className={
           showCharacterPortrait
-            ? "bg-[#121212] px-2 pl-3 sm:pl-2 sm:pr-1 pb-4 sm:pb-6"
+            ? "relative z-10 bg-[#121212]/82 px-2 pl-3 pb-4 backdrop-blur-[1px] sm:bg-[#121212] sm:pl-2 sm:pr-1 sm:pb-6 sm:backdrop-blur-none"
             : CHAT_MESSAGES_BODY_NO_PORTRAIT_CLASS
         }
         role="presentation"
@@ -2964,7 +2997,7 @@ export default function ChatClient({
         ref={inputDockRef}
         className={
           showCharacterPortrait
-            ? "sticky bottom-0 z-10 shrink-0 overflow-visible border-t border-white/5 bg-[#121212] px-2 pl-3 sm:pl-2 sm:pr-1 py-2"
+            ? "sticky bottom-0 z-20 shrink-0 overflow-visible border-t border-white/5 bg-[#121212]/88 px-2 pl-3 py-2 backdrop-blur-sm sm:bg-[#121212] sm:pl-2 sm:pr-1 sm:backdrop-blur-none"
             : `${CHAT_INPUT_DOCK_NO_PORTRAIT_CLASS} overflow-visible`
         }
       >

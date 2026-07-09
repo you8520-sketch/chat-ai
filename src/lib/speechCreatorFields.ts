@@ -240,10 +240,11 @@ export function speechCreatorFromLegacyExampleDialog(exampleDialog: string): Spe
   const examples = extractSection(text, /\[예시\s*(?:대화|대사)\]/i);
   const forbidden = extractSection(text, /\[(?:금지\s*말투|dialogue_avoid[^\]]*)\]/i);
   const contextualRegisters = extractContextualRegisterData(text);
+  const metadataSpeech = extractSpeechMetadataNotes(text);
 
-  if (personality || traits || examples || forbidden || contextualRegisters.length > 0) {
+  if (personality || traits || examples || forbidden || contextualRegisters.length > 0 || metadataSpeech) {
     return {
-      speech_personality: personality,
+      speech_personality: personality || metadataSpeech,
       speech_traits: traits,
       speech_examples: examples,
       speech_forbidden: forbidden,
@@ -268,6 +269,37 @@ function extractSection(text: string, headerRe: RegExp): string {
   const nextHeader = rest.search(/\n\[(?:말투|예시|금지|SPEECH|상황별|dialogue_avoid)/i);
   const body = nextHeader >= 0 ? rest.slice(0, nextHeader) : rest;
   return body.trim();
+}
+
+function extractSpeechMetadataNotes(text: string): string {
+  const headerRe = /(?:^|\n)\[[^\]\n]*GENERATION METADATA[^\]\n]*\]/g;
+  const matches = [...text.matchAll(headerRe)];
+  if (matches.length === 0) return "";
+
+  const notes: string[] = [];
+  for (let i = 0; i < matches.length; i++) {
+    const match = matches[i]!;
+    const start = (match.index ?? 0) + match[0].length;
+    const end = matches[i + 1]?.index ?? text.length;
+    const block = text.slice(start, end);
+    const defaultRegister = block.match(/default_register:\s*([^\n]+)/i)?.[1]?.trim();
+
+    for (const line of block.split(/\n+/)) {
+      const trimmed = line.trim();
+      const bullet = trimmed.match(/^-\s*(.+)$/);
+      if (!bullet) continue;
+      const value = bullet[1].trim();
+      if (!value) continue;
+      if (/^[^\s]+(?:\s*[-→]\s*[^\s]+)?$/.test(value) && value.length <= 12) continue;
+      notes.push(value);
+    }
+
+    if (notes.length === 0 && defaultRegister) {
+      notes.push(`기본 말투: ${defaultRegister}`);
+    }
+  }
+
+  return [...new Set(notes)].join("\n").trim();
 }
 
 function extractContextualRegisterData(text: string): SpeechContextualRegister[] {
