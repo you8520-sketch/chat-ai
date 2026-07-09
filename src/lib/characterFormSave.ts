@@ -275,23 +275,6 @@ type CreatorDescriptionSaveInput = Pick<
   "description" | "world" | "systemPrompt" | "statusWidgetJson" | "statusWidgetTriggers"
 >;
 
-function stripDisplayHtmlForRuntimeText(value: string): string {
-  return value
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/(?:div|p|li|h[1-6])>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/gi, "'")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
 export function buildCompiledCreatorDescriptionForSave(
   data: CreatorDescriptionSaveInput,
   existingTriggers: StatusWidgetTriggerInput[] = data.statusWidgetTriggers
@@ -301,7 +284,6 @@ export function buildCompiledCreatorDescriptionForSave(
     .filter(Boolean)
     .join("\n\n");
   const compilerDescription = [
-    stripDisplayHtmlForRuntimeText(data.description),
     data.world,
     data.systemPrompt,
   ]
@@ -601,8 +583,7 @@ export async function updateCharacterFromForm(
     (row.system_prompt ?? "") !== data.systemPrompt ||
     (row.world ?? "") !== data.world ||
     (row.example_dialog ?? "") !== data.exampleDialog ||
-    (row.status_widget_json ?? "") !== data.statusWidgetJson ||
-    (row.creator_compiled_description_json ?? "") !== compiledDescriptionJson;
+    (row.status_widget_json ?? "") !== data.statusWidgetJson;
 
   if (promptInputsChanged) {
     await buildSaveAndTranslateCharacterChunks(characterId, {
