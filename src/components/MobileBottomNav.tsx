@@ -2,11 +2,10 @@ import Link from "next/link";
 
 type Props = {
   loggedIn: boolean;
-  unreadCount?: number;
 };
 
 /** md 미만: 하단 고정 네비 (왼쪽 사이드바 대체) */
-export default function MobileBottomNav({ loggedIn, unreadCount = 0 }: Props) {
+export default function MobileBottomNav({ loggedIn }: Props) {
   if (!loggedIn) return null;
 
   return (
@@ -17,7 +16,7 @@ export default function MobileBottomNav({ loggedIn, unreadCount = 0 }: Props) {
       <div className="mx-auto flex max-w-lg">
         <MobileNavItem href="/" label="홈" />
         <MobileNavItem href="/chats" label="대화" accent />
-        <MobileNavItem href="/notifications" label="알림" badge={unreadCount} />
+        <MobileNavItem href="/studio" label="제작" />
         <MobileNavItem href="/search" label="검색" />
         <MobileNavItem href="/settings" label="설정" />
       </div>

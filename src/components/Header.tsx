@@ -16,7 +16,7 @@ import { getPointBalance } from "@/lib/points";
 import { isPaymentsEnabled } from "@/lib/portoneConfig";
 const topLinks = [
   { href: "/board/notice", label: "공지사항", noticeBadge: true },
-  { href: "/board/inquiry", label: "문의 게시판" },
+  { href: "/board/inquiry", label: "문의게시판" },
   { href: "/board/faq", label: "FAQ" },
 ];
 
@@ -36,8 +36,8 @@ export default async function Header() {
   return (
     <>
     <header className="sticky top-0 z-40 border-b border-white/5 bg-[#0b0d14]/90 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-2 text-xs">
-        <nav className="flex flex-wrap items-center gap-x-4 gap-y-1">
+      <div className="mx-auto flex max-w-6xl flex-nowrap items-center justify-between gap-2 px-4 py-2 text-xs sm:gap-4">
+        <nav className="flex min-w-0 flex-1 flex-nowrap items-center gap-3 overflow-x-auto whitespace-nowrap pr-1 scrollbar-thin sm:gap-4">
           <Link href="/" className="shrink-0 text-xl font-black tracking-tight text-white">
             하비 <span className="text-violet-400">AI</span>
           </Link>
@@ -45,7 +45,7 @@ export default async function Header() {
             <Link
               key={l.href}
               href={l.href}
-              className="font-medium text-zinc-300 transition hover:text-white"
+              className="shrink-0 font-medium text-zinc-300 transition hover:text-white"
             >
               {l.label}
               {l.noticeBadge && unreadNotice && (
@@ -95,7 +95,7 @@ export default async function Header() {
       </div>
       <HeaderMainNavRow />
     </header>
-    <MobileBottomNav loggedIn={!!user} unreadCount={unreadCount} />
+    <MobileBottomNav loggedIn={!!user} />
     {user && <ExpiringPointsPopup />}
     </>
   );
