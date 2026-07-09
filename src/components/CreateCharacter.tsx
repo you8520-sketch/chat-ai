@@ -14,6 +14,7 @@ import AssetManagerGrid, {
 import CreatorCommentHtml from "@/components/CreatorCommentHtml";
 import PublicDescriptionEditor from "@/components/PublicDescriptionEditor";
 import { PROFILE_BIOGRAPHY_LIMIT } from "@/lib/generateProfile";
+import { countPublicDescriptionVisibleChars } from "@/lib/publicDescriptionText";
 import {
   speechCreatorCharCount,
   type SpeechContextualRegister,
@@ -568,9 +569,7 @@ export default function CreateCharacter({
     setError("");
 
     const finalAssets = normalizeManagedAssets(assets);
-    const description = form.description
-      .trim()
-      .slice(0, PROFILE_BIOGRAPHY_LIMIT);
+    const description = form.description.trim();
 
     setProgress(isEditMode ? "캐릭터 저장 중…" : "캐릭터 생성 중…");
     const res = await fetch(
@@ -1297,7 +1296,7 @@ export default function CreateCharacter({
                 onChange={(description) => setForm({ ...form, description })}
               />
               <p className="text-right text-[11px] text-gray-600">
-                {form.description.length.toLocaleString()} /{" "}
+                {countPublicDescriptionVisibleChars(form.description).toLocaleString()} /{" "}
                 {PROFILE_BIOGRAPHY_LIMIT.toLocaleString()}자
               </p>
             </section>

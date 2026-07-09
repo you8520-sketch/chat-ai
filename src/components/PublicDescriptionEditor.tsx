@@ -7,6 +7,10 @@ import {
   type ClipboardEvent as ReactClipboardEvent,
 } from "react";
 import { sanitizeCreatorCommentHtml } from "@/lib/creatorCommentHtmlSanitize";
+import {
+  countPublicDescriptionVisibleChars,
+  truncatePublicDescriptionHtmlByVisibleChars,
+} from "@/lib/publicDescriptionText";
 
 const COLORS = [
   { label: "흰색", value: "#f3f4f6" },
@@ -100,7 +104,13 @@ export default function PublicDescriptionEditor({
 
   function syncValue() {
     const raw = editorRef.current?.innerHTML ?? "";
-    const next = sanitizeCreatorCommentHtml(raw).slice(0, maxLength);
+    let next = sanitizeCreatorCommentHtml(raw);
+    if (countPublicDescriptionVisibleChars(next) > maxLength) {
+      next = sanitizeCreatorCommentHtml(
+        truncatePublicDescriptionHtmlByVisibleChars(next, maxLength),
+      );
+      if (editorRef.current) editorRef.current.innerHTML = next;
+    }
     lastExternalValueRef.current = next;
     onChange(next);
   }

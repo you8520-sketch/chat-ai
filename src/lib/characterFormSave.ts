@@ -42,6 +42,7 @@ import {
   validateStatusWidgetTriggerInputs,
   type StatusWidgetTriggerInput,
 } from "@/lib/statusWidgetTriggers";
+import { countPublicDescriptionVisibleChars } from "@/lib/publicDescriptionText";
 
 import {
   AI_LEARNING_LIMIT,
@@ -164,7 +165,7 @@ export function parseCharacterFormBody(
     }
   }
 
-  if (description.length > PROFILE_BIOGRAPHY_LIMIT) {
+  if (countPublicDescriptionVisibleChars(description) > PROFILE_BIOGRAPHY_LIMIT) {
     return {
       ok: false,
       error: `공개 캐릭터/세계관 정보는 ${PROFILE_BIOGRAPHY_LIMIT.toLocaleString()}자 이하여야 합니다.`,
