@@ -76,6 +76,17 @@ const QWEN_37_MAX_RATES: OpenRouterModelRates = {
   explicitCacheInjection: true,
 };
 
+/** Z.ai GLM 5.2 — OpenRouter list ($0.532/M in, $1.672/M out) */
+const GLM_52_RATES: OpenRouterModelRates = {
+  family: "unknown",
+  label: "Z.ai GLM prompt cache",
+  inputUsdPerM: 0.532,
+  outputUsdPerM: 1.672,
+  cacheReadUsdPerM: 0.0988,
+  cacheWriteMultiplier: 1,
+  explicitCacheInjection: false,
+};
+
 const GENERIC_OPENROUTER_RATES: OpenRouterModelRates = {
   family: "unknown",
   label: "제공자 자동 캐시",
@@ -93,6 +104,7 @@ export function resolveOpenRouterModelRates(modelId?: string | null): OpenRouter
   if (id.includes("gemini-2.5-pro")) return GEMINI_25_PRO_RATES;
   if (id.includes("claude") || id.includes("anthropic/")) return ANTHROPIC_OPUS_RATES;
   if (id.includes("qwen")) return QWEN_37_MAX_RATES;
+  if (id.startsWith("z-ai/glm") || id.includes("/glm-")) return GLM_52_RATES;
   return GENERIC_OPENROUTER_RATES;
 }
 

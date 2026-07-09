@@ -8,6 +8,7 @@ import {
   isGemini25ProModel,
   isGemini31ProModel,
   isGeminiProOpenRouterModel,
+  isGlmModel,
   isQwenModel,
   OPENROUTER_DEEPSEEK_V3_MODEL,
   type SelectedAI,
@@ -295,6 +296,20 @@ export const OPENROUTER_QWEN_POINTS_PER_CHAR = OPENROUTER_QWEN_POINTS_PER_OUTPUT
 /** Qwen — API 원가 대비 최저 매출총이익률 (55% → 원가÷0.45) */
 export const OPENROUTER_QWEN_GROSS_MARGIN =
   Number(process.env.OPENROUTER_QWEN_GROSS_MARGIN) || 0.55;
+
+/** GLM 5.2 — 출력 1토큰당 청구 (P) — OpenRouter list 대비 마진 반영 */
+export const OPENROUTER_GLM_POINTS_PER_OUTPUT_TOKEN = (() => {
+  const perToken = process.env.OPENROUTER_GLM_POINTS_PER_OUTPUT_TOKEN?.trim();
+  if (perToken) return Number(perToken) || 0.028;
+  return 0.028;
+})();
+
+/** GLM — API 원가 대비 최저 매출총이익률 (55% → 원가÷0.45) */
+export const OPENROUTER_GLM_GROSS_MARGIN =
+  Number(process.env.OPENROUTER_GLM_GROSS_MARGIN) || 0.55;
+
+/** GLM — 과금 면제 턴 최소 차감 */
+export const GLM_WAIVER_SUCCESS_MIN_COST = 50;
 
 /** Gemini 2.5 Pro — 출력 1토큰당 청구 (P) — Qwen과 동일 단가 */
 export const OPENROUTER_GEMINI_25_POINTS_PER_OUTPUT_TOKEN = (() => {
@@ -591,6 +606,10 @@ function openRouterQwenTokenFloorKrw(outputTokens: number): number {
   return chargePoints(Math.max(0, outputTokens) * OPENROUTER_QWEN_POINTS_PER_OUTPUT_TOKEN);
 }
 
+function openRouterGlmTokenFloorKrw(outputTokens: number): number {
+  return chargePoints(Math.max(0, outputTokens) * OPENROUTER_GLM_POINTS_PER_OUTPUT_TOKEN);
+}
+
 function openRouterGemini25TokenFloorKrw(outputTokens: number): number {
   return chargePoints(Math.max(0, outputTokens) * OPENROUTER_GEMINI_25_POINTS_PER_OUTPUT_TOKEN);
 }
@@ -632,6 +651,10 @@ function openRouterDeepSeekMarginChargeKrw(rawCostKrw: number): number {
 
 function openRouterQwenMarginChargeKrw(rawCostKrw: number): number {
   return openRouterGrossMarginChargeKrw(rawCostKrw, OPENROUTER_QWEN_GROSS_MARGIN);
+}
+
+function openRouterGlmMarginChargeKrw(rawCostKrw: number): number {
+  return openRouterGrossMarginChargeKrw(rawCostKrw, OPENROUTER_GLM_GROSS_MARGIN);
 }
 
 function openRouterGemini25MarginChargeKrw(rawCostKrw: number): number {
@@ -728,6 +751,13 @@ export function computeOpenRouterTurnCost(
   if (isQwenModel(modelId ?? "")) {
     return openRouterTokenOnlyTurnCost(
       openRouterQwenTokenFloorKrw(outputTokens),
+      inputTokens
+    );
+  }
+
+  if (isGlmModel(modelId ?? "")) {
+    return openRouterTokenOnlyTurnCost(
+      openRouterGlmTokenFloorKrw(outputTokens),
       inputTokens
     );
   }
@@ -1172,6 +1202,23 @@ export function explainOpenRouterQwenTurnCost(
   );
 }
 
+/** GLM 5.2 과금 상세 — 출력토큰×0.028P */
+export function explainOpenRouterGlmTurnCost(
+  inputTokens: number,
+  outputTokens: number,
+  modelId: string,
+  _outputChars?: number,
+  cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">
+): OpenRouterTurnCostBreakdown & { total: number } {
+  return explainOpenRouterTokenOnlyTurnCost(
+    inputTokens,
+    outputTokens,
+    modelId,
+    openRouterGlmTokenFloorKrw(outputTokens),
+    cache
+  );
+}
+
 /** OpenRouter Gemini 2.5 Pro — 출력토큰×0.065P */
 export function explainOpenRouterGemini25TurnCost(
   inputTokens: number,
@@ -1487,6 +1534,23 @@ export function resolveQwenWaiverMinimumCharge(
     savedText,
     waiverReason,
     QWEN_WAIVER_SUCCESS_MIN_COST,
+    opts
+  );
+}
+
+/** GLM — 과금 면제 턴이어도 본문이 유의미하게 전달됐으면 최소 50P 차감 */
+export function resolveGlmWaiverMinimumCharge(
+  savedText: string,
+  waiverReason: BillingWaiverReason,
+  opts?: {
+    degenerationAborted?: boolean;
+    targetResponseChars?: number | null;
+  }
+): number {
+  return resolveModelWaiverMinimumCharge(
+    savedText,
+    waiverReason,
+    GLM_WAIVER_SUCCESS_MIN_COST,
     opts
   );
 }

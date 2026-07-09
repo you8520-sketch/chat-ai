@@ -96,12 +96,22 @@ export function isQwenOpenRouterModel(modelId: string): boolean {
   return modelId.trim().toLowerCase().includes("qwen");
 }
 
+/** OpenRouter Z.ai GLM 계열 — z-ai/glm-5.2 등 */
+export function isGlmOpenRouterModel(modelId: string): boolean {
+  const id = modelId.trim().toLowerCase();
+  return id.startsWith("z-ai/glm") || id.includes("/glm-") || /(^|\/)glm[-.]?\d/i.test(id);
+}
+
 /**
- * RP primary·continuation — DeepSeek/Qwen: reasoning OFF (effort none).
+ * RP primary·continuation — DeepSeek/Qwen/GLM: reasoning OFF (effort none).
  * Gemini 2.5 Pro: reasoning.max_tokens cap · Gemini 3.x Pro: reasoning.effort low.
  */
 export function isOpenRouterRpReasoningDisabledModel(modelId: string): boolean {
-  return isDeepSeekOpenRouterModel(modelId) || isQwenOpenRouterModel(modelId);
+  return (
+    isDeepSeekOpenRouterModel(modelId) ||
+    isQwenOpenRouterModel(modelId) ||
+    isGlmOpenRouterModel(modelId)
+  );
 }
 
 /** Gemini Pro — RP payload에 thinking-kill 정책 적용 */
@@ -120,9 +130,14 @@ export const OPENROUTER_RP_REASONING_GEMINI_FLASH = {
   exclude: true,
 } as const;
 
-/** Gemini 2.5 Pro RP — thinking budget cap via reasoning.max_tokens (OpenRouter 2.5 경로) */
+/**
+ * Gemini 2.5 Pro RP — thinkingBudget via reasoning.max_tokens (OpenRouter 2.5 경로).
+ * Keep aligned with GEMINI_25_PRO_THINKING_BUDGET (1024). A 128-token cap starves
+ * long-form RP planning and correlates with sub-~2000 char visible replies.
+ */
 export const OPENROUTER_RP_REASONING_GEMINI_25_PRO_CAP = {
-  max_tokens: 128,
+  max_tokens: 1024,
+  exclude: true,
 } as const;
 
 /** @deprecated OPENROUTER_RP_REASONING_GEMINI_25_PRO_CAP — 2.5 Pro 전용 */
@@ -178,7 +193,11 @@ function applyOpenRouterRpReasoningPolicy(body: Record<string, unknown>, modelId
   if (!isOpenRouterRpReasoningDisabledModel(modelId)) return;
 
   body.reasoning = { ...OPENROUTER_RP_REASONING_OFF };
-  const family = isQwenOpenRouterModel(modelId) ? "qwen" : "deepseek";
+  const family = isGlmOpenRouterModel(modelId)
+    ? "glm"
+    : isQwenOpenRouterModel(modelId)
+      ? "qwen"
+      : "deepseek";
   console.log("[openrouter-reasoning] disabled: true", { model: normalized, family });
   if (family === "deepseek") {
     console.log("[deepseek-thinking] disabled: true", { model: normalized });

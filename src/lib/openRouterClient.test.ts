@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   buildOpenRouterRequestBody,
   isDeepSeekOpenRouterModel,
+  isGlmOpenRouterModel,
   isOpenRouterRpReasoningDisabledModel,
   isOpenRouterRpReasoningMandatoryModel,
   isQwenOpenRouterModel,
@@ -20,6 +21,7 @@ import {
   OPENROUTER_GEMINI_25_FLASH_MODEL,
   OPENROUTER_GEMINI_25_PRO_MODEL,
   OPENROUTER_GEMINI_31_PRO_MODEL,
+  OPENROUTER_GLM_52_MODEL,
   OPENROUTER_QWEN_37_MAX_MODEL,
 } from "@/lib/chatModels";
 import { resolveRpOpenRouterModelId } from "@/lib/openRouterConfig";
@@ -37,9 +39,16 @@ describe("OpenRouter reasoning-disable model detection", () => {
     assert.equal(isQwenOpenRouterModel(OPENROUTER_DEEPSEEK_V4_PRO_MODEL), false);
   });
 
-  it("disable union covers DeepSeek and Qwen only", () => {
+  it("matches GLM ids", () => {
+    assert.equal(isGlmOpenRouterModel(OPENROUTER_GLM_52_MODEL), true);
+    assert.equal(isGlmOpenRouterModel("z-ai/glm-5.1"), true);
+    assert.equal(isGlmOpenRouterModel(OPENROUTER_QWEN_37_MAX_MODEL), false);
+  });
+
+  it("disable union covers DeepSeek, Qwen, and GLM", () => {
     assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_DEEPSEEK_V4_PRO_MODEL), true);
     assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_QWEN_37_MAX_MODEL), true);
+    assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_GLM_52_MODEL), true);
     assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_GEMINI_31_PRO_MODEL), false);
     assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_GEMINI_25_PRO_MODEL), false);
     assert.equal(isOpenRouterRpReasoningDisabledModel("anthropic/claude-3-opus"), false);
@@ -116,7 +125,20 @@ describe("buildOpenRouterRequestBody — RP reasoning policy", () => {
     assert.equal(body.max_tokens, undefined);
   });
 
-  it("caps Gemini 2.5 Pro reasoning at 128 tokens", () => {
+  it("disables reasoning for GLM RP requests", () => {
+    const body = buildOpenRouterRequestBody(
+      OPENROUTER_GLM_52_MODEL,
+      [{ role: "user", content: "test" }],
+      true,
+      3500,
+      "chat-1"
+    ) as Record<string, unknown>;
+    assert.deepEqual(body.reasoning, OPENROUTER_RP_REASONING_OFF);
+    assert.equal(body.include_reasoning, false);
+    assert.equal(body.max_tokens, undefined);
+  });
+
+  it("caps Gemini 2.5 Pro reasoning at 1024 tokens (aligned with native thinkingBudget)", () => {
     const body = buildOpenRouterRequestBody(
       OPENROUTER_GEMINI_25_PRO_MODEL,
       [{ role: "user", content: "test" }],
@@ -125,6 +147,8 @@ describe("buildOpenRouterRequestBody — RP reasoning policy", () => {
       "chat-1"
     ) as Record<string, unknown>;
     assert.deepEqual(body.reasoning, OPENROUTER_RP_REASONING_GEMINI_25_PRO_CAP);
+    assert.equal(OPENROUTER_RP_REASONING_GEMINI_25_PRO_CAP.max_tokens, 1024);
+    assert.equal(OPENROUTER_RP_REASONING_GEMINI_25_PRO_CAP.exclude, true);
     assert.equal(body.reasoning_effort, undefined);
     assert.equal(body.include_reasoning, false);
     assert.equal(body.provider, undefined);

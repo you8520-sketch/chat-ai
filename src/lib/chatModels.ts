@@ -31,6 +31,9 @@ export const OPENROUTER_DEEPSEEK_V3_MODEL = "deepseek/deepseek-chat-v3-0324";
 /** OpenRouter — Qwen3.7 Max (2026-05 flagship, OpenRouter slug) */
 export const OPENROUTER_QWEN_37_MAX_MODEL = "qwen/qwen3.7-max";
 
+/** OpenRouter — Z.ai GLM 5.2 (text flagship; newer than 5.1) */
+export const OPENROUTER_GLM_52_MODEL = "z-ai/glm-5.2";
+
 /** OpenRouter — Google Gemini 2.5 Pro */
 export const OPENROUTER_GEMINI_25_PRO_MODEL = "google/gemini-2.5-pro";
 
@@ -50,6 +53,8 @@ export const OPENROUTER_GEMINI_31_FLASH_MODEL = "google/gemini-3.1-flash-lite";
 export const DEEPSEEK_DISPLAY_NAME = "DeepSeek V4 Pro";
 
 export const QWEN_DISPLAY_NAME = "하비 max";
+
+export const GLM_52_DISPLAY_NAME = "GLM 5.2";
 
 export const GEMINI_25_PRO_DISPLAY_NAME = "Gemini 2.5 Pro";
 
@@ -72,6 +77,12 @@ export const SELECTED_AI_OPTIONS = [
     label: QWEN_DISPLAY_NAME,
     tier: "pro" as const,
     hint: "Flagship",
+  },
+  {
+    id: OPENROUTER_GLM_52_MODEL,
+    label: GLM_52_DISPLAY_NAME,
+    tier: "pro" as const,
+    hint: "Z.ai",
   },
   {
     id: OPENROUTER_GEMINI_25_PRO_MODEL,
@@ -171,10 +182,25 @@ export function isQwenModel(modelId: string): boolean {
   return modelId.trim().toLowerCase().includes("qwen");
 }
 
+/** OpenRouter Z.ai GLM 계열 (GLM 5.2 등) */
+export function isGlmModel(modelId: string): boolean {
+  const id = modelId.trim().toLowerCase();
+  return id === OPENROUTER_GLM_52_MODEL || id.startsWith("z-ai/glm") || id.includes("/glm-");
+}
+
 /** @deprecated provider === "openrouter" — 모든 OpenRouter 모델에 통합 prose 적용 */
 export function isOpenRouterSharedProseModel(modelId: string): boolean {
   const id = modelId.trim();
-  return id.length > 0 && (isAnthropicModel(id) || isQwenModel(id) || isDeepSeekV4ProModel(id) || isGemini25ProModel(id) || isGemini31ProModel(id) || id.includes("/"));
+  return (
+    id.length > 0 &&
+    (isAnthropicModel(id) ||
+      isQwenModel(id) ||
+      isGlmModel(id) ||
+      isDeepSeekV4ProModel(id) ||
+      isGemini25ProModel(id) ||
+      isGemini31ProModel(id) ||
+      id.includes("/"))
+  );
 }
 
 const VALID = new Set<string>(SELECTED_AI_OPTIONS.map((o) => o.id));
@@ -201,6 +227,12 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   qwen: OPENROUTER_QWEN_37_MAX_MODEL,
   "qwen3.7-max": OPENROUTER_QWEN_37_MAX_MODEL,
   "qwen/qwen3.7-max": OPENROUTER_QWEN_37_MAX_MODEL,
+  glm: OPENROUTER_GLM_52_MODEL,
+  "glm-5.2": OPENROUTER_GLM_52_MODEL,
+  "glm5.2": OPENROUTER_GLM_52_MODEL,
+  "z-ai/glm-5.2": OPENROUTER_GLM_52_MODEL,
+  "z-ai/glm-5.1": OPENROUTER_GLM_52_MODEL,
+  "z-ai/glm-5": OPENROUTER_GLM_52_MODEL,
   "anthropic/claude-3.5-sonnet": OPENROUTER_GEMINI_31_PRO_MODEL,
   "claude-3.5-sonnet": OPENROUTER_GEMINI_31_PRO_MODEL,
   "anthropic/claude-sonnet-4": OPENROUTER_GEMINI_31_PRO_MODEL,
