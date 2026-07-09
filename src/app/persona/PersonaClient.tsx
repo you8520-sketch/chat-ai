@@ -9,7 +9,6 @@ import {
   PERSONA_CONTENT_MAX,
   USER_NOTE_MAX,
   USER_NOTE_FOCUS_MAX,
-  capPersonaDescription,
   personaContentLength,
 } from "@/lib/persona";
 import type { PersonaListItem } from "@/lib/userPersonas";
@@ -513,9 +512,10 @@ export default function PersonaClient({
               </div>
               <textarea
                 rows={8}
+                maxLength={PERSONA_CONTENT_MAX}
                 className="w-full rounded-lg border border-white/10 bg-[#0e1120] px-3 py-2 text-sm leading-relaxed text-white outline-none focus:border-violet-500"
                 value={draftDesc}
-                onChange={(e) => setDraftDesc(capPersonaDescription(draftDesc, e.target.value))}
+                onChange={(e) => setDraftDesc(e.target.value)}
               />
             </div>
             <div className="flex gap-2">

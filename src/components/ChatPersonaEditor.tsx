@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GENDER_LABELS, type CharacterGender } from "@/lib/characterGender";
-import { PERSONA_NAME_LIMIT, PERSONA_CONTENT_MAX, capPersonaDescription, personaContentLength } from "@/lib/persona";
+import { PERSONA_NAME_LIMIT, PERSONA_CONTENT_MAX, personaContentLength } from "@/lib/persona";
 import type { PersonaListItem } from "@/lib/userPersonas";
 
 type Props = {
@@ -22,6 +22,7 @@ export default function ChatPersonaEditor({ persona, onUpdated, editing = true }
   const [description, setDescription] = useState(persona.description);
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const lastPersonaIdRef = useRef(persona.id);
   const savedRef = useRef({
     id: persona.id,
     name: persona.name,
@@ -31,6 +32,9 @@ export default function ChatPersonaEditor({ persona, onUpdated, editing = true }
   });
 
   useEffect(() => {
+    const personaChanged = lastPersonaIdRef.current !== persona.id;
+    if (!personaChanged && editing) return;
+    lastPersonaIdRef.current = persona.id;
     setName(persona.name);
     setMemo(persona.memo ?? "");
     setGender(persona.gender ?? "other");
@@ -42,7 +46,7 @@ export default function ChatPersonaEditor({ persona, onUpdated, editing = true }
       gender: persona.gender ?? "other",
       description: persona.description,
     };
-  }, [persona]);
+  }, [persona, editing]);
 
   const save = useCallback(async () => {
     const payload = { name: name.trim(), memo, gender, description };
@@ -209,8 +213,9 @@ export default function ChatPersonaEditor({ persona, onUpdated, editing = true }
         <span className="font-bold text-zinc-400">페르소나 설정</span>
         <textarea
           rows={10}
+          maxLength={PERSONA_CONTENT_MAX}
           value={description}
-          onChange={(e) => setDescription(capPersonaDescription(description, e.target.value))}
+          onChange={(e) => setDescription(e.target.value)}
           placeholder="나이, 외모, 성격, 배경, 말투, AI에게 알려줄 역할 설정…"
           className="max-h-56 w-full resize-none overflow-y-auto rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 font-mono text-xs leading-relaxed text-zinc-200 outline-none focus:border-violet-500/40"
         />
