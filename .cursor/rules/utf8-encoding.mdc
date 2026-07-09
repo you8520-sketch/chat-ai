@@ -1,0 +1,31 @@
+---
+description: Assume UTF-8 (no BOM) + LF for all text files; do not re-convert encoding every task
+alwaysApply: true
+---
+
+# Text encoding policy
+
+This repository’s text files are **UTF-8 without BOM**, with **LF** line endings.
+
+## Default assumption (do this)
+
+- Open and edit all source/docs as UTF-8 (no BOM). Do **not** guess CP949 / EUC-KR / UTF-16.
+- Do **not** start tasks with “먼저 UTF-8로 변환하겠습니다” or bulk re-encoding.
+- New and modified files must be saved as UTF-8 (no BOM), LF.
+- Project defaults: `.editorconfig`, `.vscode/settings.json` (`files.encoding: utf8`, `files.eol: \n`, `files.autoGuessEncoding: false`), `.gitattributes` (`eol=lf`).
+
+## When conversion is allowed (exception only)
+
+Convert a file **only if** you have concrete evidence it is not UTF-8 no-BOM, for example:
+
+- UTF-8 BOM (`EF BB BF`)
+- UTF-16 BOM (`FF FE` / `FE FF`)
+- Invalid UTF-8 byte sequences
+- Mojibake that is clearly from wrong decoding of this repo’s Korean strings
+
+Then convert **that file only** to UTF-8 (no BOM) + LF. Do not change code logic—encoding and line endings only. Verify Hangul is intact after conversion.
+
+## Out of scope
+
+- Binary assets (`png`, `jpg`, `webp`, `db`, fonts, etc.)
+- Generated/cache dirs (`node_modules`, `.next`, `.next-dev`, `data/`)

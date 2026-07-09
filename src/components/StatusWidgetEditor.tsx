@@ -205,15 +205,15 @@ export default function StatusWidgetEditor({
       </div>
 
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-gray-400">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-sm font-bold text-zinc-200">
             ① 상태값 · ② 지시사항
           </span>
           <button
             type="button"
             disabled={disabled}
             onClick={addField}
-            className="text-xs font-semibold text-violet-400 hover:text-violet-300"
+            className="rounded-lg border border-violet-400/50 bg-violet-600 px-3.5 py-2 text-sm font-bold text-white shadow-sm shadow-violet-900/40 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40"
           >
             + 상태값 추가
           </button>

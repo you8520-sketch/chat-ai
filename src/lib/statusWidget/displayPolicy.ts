@@ -31,9 +31,8 @@ export function shouldShowStatusWidgetOnMessage(opts: {
   isStreaming?: boolean;
 }): boolean {
   if (opts.model === "greeting" || opts.isStreaming) return false;
-  if (opts.statusWidgetTurnActive === true) {
-    return statusWidgetValuesHasContent(opts.statusWidgetValues);
-  }
+  // 제작자 위젯 필수 턴 — 값 추출 실패·플레이스홀더라도 카드는 표시
+  if (opts.statusWidgetTurnActive === true) return true;
   // Legacy rows before per-turn flag: only show when values were persisted
   return statusWidgetValuesHasContent(opts.statusWidgetValues);
 }

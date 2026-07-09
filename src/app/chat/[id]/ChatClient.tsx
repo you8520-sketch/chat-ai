@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import Link from "next/link";
@@ -10,6 +10,7 @@ import NovelText from "@/components/NovelText";
 import ChatEmotionPortraitPanel from "@/components/ChatEmotionPortraitPanel";
 import ChatSettingsPanel from "@/components/ChatSettingsPanel";
 import ChatRoomDisplayQuickRail from "@/components/ChatRoomDisplayQuickRail";
+import ChatRoomMobileMenu from "@/components/ChatRoomMobileMenu";
 import RelationshipMetaDock from "@/components/RelationshipMetaDock";
 import { CONTINUE_USER_DISPLAY, isContinueUserMessage } from "@/lib/continueNarrative";
 import { GEMINI_TRAFFIC_OVERLOAD_MESSAGE } from "@/lib/geminiTrafficError";
@@ -110,7 +111,6 @@ import {
   CHAT_INPUT_DOCK_NO_PORTRAIT_CLASS,
   CHAT_PORTRAIT_GRID_CLASS,
   CHAT_PORTRAIT_STICKY_CLASS,
-  CHAT_PORTRAIT_PANEL_HEIGHT,
   CHAT_ROOM_TITLE_BAR_CLASS,
   CHAT_ROOM_HEADER_OFFSET_CLASS,
   DEFAULT_CHAT_DISPLAY_PREFS,
@@ -1925,33 +1925,28 @@ export default function ChatClient({
     rollback: () => void,
     restoreInput?: string
   ) {
-    const contentType = res.headers.get("content-type") ?? "";
-    if (!contentType.includes("text/event-stream")) {
-      let data: { error?: string; needVerify?: boolean; needCharge?: boolean } = {};
-      try {
-        data = await res.json();
-      } catch {
-        setError(
-          res.ok
-            ? "응답 형식 오류가 발생했습니다."
-            : `서버 오류 (${res.status}). 잠시 후 다시 시도해 주세요.`
-        );
-        rollback();
-        if (restoreInput != null) setInput(restoreInput);
-        return true;
-      }
-      if (!res.ok) {
-        setError(data.error || "오류가 발생했습니다.");
-        if (data.needVerify) router.push("/verify");
-        if (data.needCharge) {
-          router.push(isPaymentsEnabledClient() ? "/points" : "/events/beta-free-points");
-        }
-        rollback();
-        if (restoreInput != null) setInput(restoreInput);
-      }
+    // 성공 응답은 Content-Type이 비거나 달라도 스트림 소비로 넘긴다.
+    // (일부 환경에서 text/event-stream 헤더가 누락되면 JSON 파싱→롤백으로
+    //  재생성 시 본문이 비었다가 다시 채워지는 깜빡임만 발생한다.)
+    if (res.ok) return false;
+
+    let data: { error?: string; needVerify?: boolean; needCharge?: boolean } = {};
+    try {
+      data = await res.json();
+    } catch {
+      setError(`서버 오류 (${res.status}). 잠시 후 다시 시도해 주세요.`);
+      rollback();
+      if (restoreInput != null) setInput(restoreInput);
       return true;
     }
-    return false;
+    setError(data.error || "오류가 발생했습니다.");
+    if (data.needVerify) router.push("/verify");
+    if (data.needCharge) {
+      router.push(isPaymentsEnabledClient() ? "/points" : "/events/beta-free-points");
+    }
+    rollback();
+    if (restoreInput != null) setInput(restoreInput);
+    return true;
   }
 
   async function sendContinue() {
@@ -2135,8 +2130,20 @@ export default function ChatClient({
   }
 
   async function regenerate() {
-    if (inFlightRef.current || !chatId || lastAssistantIdx < 0) return;
+    if (inFlightRef.current) {
+      setToastMsg("이미 응답을 생성 중입니다. 잠시만 기다려 주세요.");
+      return;
+    }
+    if (!chatId || lastAssistantIdx < 0) {
+      setToastMsg("재생성할 AI 답변이 없습니다.");
+      return;
+    }
     const prevAssistant = messages[lastAssistantIdx];
+    if (!prevAssistant || prevAssistant.role !== "assistant") {
+      setToastMsg("재생성할 AI 답변이 없습니다.");
+      return;
+    }
+    const regenIndex = lastAssistantIdx;
     setError("");
     setStreamPhase(null);
     inFlightRef.current = true;
@@ -2148,7 +2155,7 @@ export default function ChatClient({
 
     const statusWindowPolicy = resolveUserNoteStatusWindowPolicy(userNote);
     let regenUserMessage = "";
-    for (let i = lastAssistantIdx - 1; i >= 0; i--) {
+    for (let i = regenIndex - 1; i >= 0; i--) {
       const m = messages[i];
       if (m?.role === "user") {
         regenUserMessage = m.content;
@@ -2172,8 +2179,10 @@ export default function ChatClient({
 
     setMessages((m) => {
       const copy = [...m];
-      copy[lastAssistantIdx] = {
-        ...copy[lastAssistantIdx],
+      const cur = copy[regenIndex];
+      if (!cur || cur.role !== "assistant") return m;
+      copy[regenIndex] = {
+        ...cur,
         content: "",
         usage: null,
         isRefunded: false,
@@ -2185,7 +2194,7 @@ export default function ChatClient({
         statusMetaRequested: regenStatusWindowActive,
         statusMetaFailed: false,
         statusMetaFormatSpec:
-          statusWindowPolicy.formatSpec ?? copy[lastAssistantIdx]!.statusMetaFormatSpec ?? null,
+          statusWindowPolicy.formatSpec ?? cur.statusMetaFormatSpec ?? null,
         statusWidgetValues: null,
         statusWidgetTurnActive: statusWidgetActive,
       };
@@ -2195,7 +2204,7 @@ export default function ChatClient({
     const restoreAssistant = () => {
       setMessages((m) => {
         const copy = [...m];
-        if (copy[lastAssistantIdx]) copy[lastAssistantIdx] = prevAssistant;
+        if (copy[regenIndex]?.role === "assistant") copy[regenIndex] = prevAssistant;
         return copy;
       });
     };
@@ -2226,10 +2235,10 @@ export default function ChatClient({
         }),
       });
 
-      const earlyExit = await handleStreamError(res, lastAssistantIdx, restoreAssistant);
+      const earlyExit = await handleStreamError(res, regenIndex, restoreAssistant);
       if (earlyExit) return;
 
-      streamResult = await consumeChatStream(res, lastAssistantIdx);
+      streamResult = await consumeChatStream(res, regenIndex);
       if (streamResult.trafficOverload) {
         restoreAssistant();
         setError(streamResult.trafficOverload);
@@ -2691,27 +2700,46 @@ export default function ChatClient({
       />
 
       <div className={CHAT_ROOM_TITLE_BAR_CLASS}>
-        <div className="flex min-w-0 items-baseline gap-2">
-          <Link
-            href={`/character/${character.id}`}
-            title="캐릭터 정보 보기"
-            className="truncate text-lg font-bold text-white underline-offset-2 transition hover:underline sm:text-xl"
+        <div className="flex min-w-0 items-center gap-1.5 md:gap-2">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-zinc-300 transition hover:bg-white/[0.06] hover:text-white md:hidden"
+            aria-label="뒤로가기"
+            title="뒤로가기"
           >
-            {chatDisplayTitle}
-          </Link>
-          {creatorId != null && creatorId > 0 ? (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5" aria-hidden>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <div className="flex min-w-0 flex-1 items-baseline gap-2">
             <Link
-              href={`/creator/${creatorId}`}
-              title="제작자 페이지"
-              className="shrink-0 text-[11px] text-zinc-500 underline-offset-2 transition hover:text-zinc-300 hover:underline sm:text-xs"
+              href={`/character/${character.id}`}
+              title="캐릭터 정보 보기"
+              className="truncate text-base font-bold text-white underline-offset-2 transition hover:underline sm:text-lg md:text-xl"
             >
-              {creatorName}
+              {chatDisplayTitle}
             </Link>
-          ) : (
-            creatorName ? (
-              <span className="shrink-0 text-[11px] text-zinc-500 sm:text-xs">{creatorName}</span>
-            ) : null
-          )}
+            {creatorId != null && creatorId > 0 ? (
+              <Link
+                href={`/creator/${creatorId}`}
+                title="제작자 페이지"
+                className="hidden shrink-0 text-[11px] text-zinc-500 underline-offset-2 transition hover:text-zinc-300 hover:underline sm:inline sm:text-xs"
+              >
+                {creatorName}
+              </Link>
+            ) : (
+              creatorName ? (
+                <span className="hidden shrink-0 text-[11px] text-zinc-500 sm:inline sm:text-xs">{creatorName}</span>
+              ) : null
+            )}
+          </div>
+          <ChatRoomMobileMenu
+            displayPrefs={displayPrefs}
+            onDisplayPrefsChange={handleDisplayPrefsChange}
+            settingsPanel={renderSettingsPanel("drawer")}
+            bookmarksPanel={<BookmarksPanel variant="inline" />}
+          />
         </div>
       </div>
 
@@ -2723,10 +2751,7 @@ export default function ChatClient({
         }
       >
         {showCharacterPortrait && (
-          <div
-            className={`${CHAT_PORTRAIT_STICKY_CLASS} pl-1 sm:pl-0`}
-            style={{ height: CHAT_PORTRAIT_PANEL_HEIGHT }}
-          >
+          <div className={`${CHAT_PORTRAIT_STICKY_CLASS} pl-1 sm:pl-0`}>
             <ChatEmotionPortraitPanel
               characterName={character.name}
               emoji={character.emoji}
@@ -3105,7 +3130,7 @@ export default function ChatClient({
       </div>
 
       <aside
-        className={`sticky ${CHAT_ROOM_HEADER_OFFSET_CLASS} z-30 flex w-11 shrink-0 flex-col gap-1 self-start sm:w-12`}
+        className={`sticky ${CHAT_ROOM_HEADER_OFFSET_CLASS} z-30 hidden w-11 shrink-0 flex-col gap-1 self-start md:flex md:w-12`}
       >
         <ChatRoomDisplayQuickRail
           displayPrefs={displayPrefs}

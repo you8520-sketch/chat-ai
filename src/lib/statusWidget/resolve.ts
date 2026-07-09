@@ -12,6 +12,12 @@ export function resolveStatusWidgetTurn(opts: {
   const userWidget = parseStatusWidgetJson(opts.userWidgetJson);
   let mode = parseStatusWidgetMode(opts.chatMode);
 
+  // 제작자 위젯이 있으면 매 턴 필수 — off / user_only 로 끌 수 없음
+  if (characterWidget) {
+    if (mode === "off") mode = "character_only";
+    if (mode === "user_only") mode = userWidget ? "both" : "character_only";
+  }
+
   if (opts.characterAllowUserOverride === false && mode !== "off") {
     mode = "character_only";
   }
@@ -90,6 +96,17 @@ export function statusWidgetModeFromToggles(
   if (creatorOn && userOn) return "both";
   if (creatorOn) return "character_only";
   return "user_only";
+}
+
+/** 제작자 위젯 필수일 때 — 유저 위젯 토글만으로 mode 결정 */
+export function statusWidgetModeFromUserToggle(
+  userOn: boolean,
+  hasCharacterWidget: boolean
+): StatusWidgetSourceMode {
+  if (hasCharacterWidget) {
+    return userOn ? "both" : "character_only";
+  }
+  return userOn ? "user_only" : "off";
 }
 
 export function statusWidgetTogglesFromMode(mode: StatusWidgetSourceMode): {

@@ -35,7 +35,7 @@ export default async function Header() {
 
   return (
     <>
-    <header className="sticky top-0 z-40 border-b border-white/5 bg-[#0b0d14]/90 backdrop-blur">
+    <header className="site-header sticky top-0 z-40 border-b border-white/5 bg-[#0b0d14]/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl flex-nowrap items-center justify-between gap-2 px-4 py-2 text-xs sm:gap-4">
         <nav className="flex min-w-0 flex-1 flex-nowrap items-center gap-3 overflow-x-auto whitespace-nowrap pr-1 scrollbar-thin sm:gap-4">
           <Link href="/" className="shrink-0 text-xl font-black tracking-tight text-white">

@@ -291,3 +291,19 @@ body {
   container-type: inline-size;
   container-name: chats;
 }
+
+/* 채팅방(모바일): 글로벌 헤더·하단 네비 숨김, 셸 패딩 축소 → 채팅 영역 최대화 */
+@media (max-width: 767px) {
+  html.chat-room-active .site-header {
+    display: none;
+  }
+
+  html.chat-room-active .app-shell {
+    max-width: none;
+    gap: 0;
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+}

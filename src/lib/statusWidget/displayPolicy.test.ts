@@ -18,14 +18,14 @@ describe("shouldShowStatusWidgetOnMessage", () => {
     );
   });
 
-  it("hides when turn flag is true but values are empty", () => {
+  it("shows when turn flag is true even if values are empty (creator widget required)", () => {
     assert.equal(
       shouldShowStatusWidgetOnMessage({
         model: "deepseek",
         statusWidgetTurnActive: true,
         statusWidgetValues: {},
       }),
-      false
+      true
     );
   });
 

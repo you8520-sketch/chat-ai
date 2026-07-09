@@ -13,7 +13,7 @@ import {
 import { formatChatListTime } from "@/lib/recentChats";
 
 type Props = {
-  variant?: "button" | "rail";
+  variant?: "button" | "rail" | "inline";
   align?: "left" | "right";
 };
 
@@ -98,6 +98,12 @@ export default function BookmarksPanel({ variant = "button", align = "right" }: 
             ? "bg-white/[0.06] font-semibold text-amber-200"
             : "text-zinc-100 hover:text-amber-100"
         }`
+      : variant === "inline"
+        ? `flex w-full items-center justify-center gap-1.5 rounded-md px-2 py-2 text-xs font-semibold transition hover:bg-white/[0.06] ${
+            open
+              ? "bg-white/[0.06] text-amber-200"
+              : "text-amber-300/90 hover:text-amber-200"
+          }`
       : `rounded-lg border px-4 py-2 text-sm font-semibold transition ${
           open
             ? "border-amber-500/50 bg-amber-500/15 text-amber-200"
@@ -107,6 +113,8 @@ export default function BookmarksPanel({ variant = "button", align = "right" }: 
   const flyoutClass =
     variant === "rail"
       ? "absolute bottom-auto right-full top-0 z-50 flex max-h-[calc(100dvh-6rem)] w-[min(19rem,calc(100vw-3.5rem))] flex-col border border-white/10 bg-[#161616] shadow-[-12px_0_32px_rgba(0,0,0,0.55)] motion-safe:animate-[settings-flyout-in_0.18s_ease-out]"
+      : variant === "inline"
+        ? "mt-1.5 flex max-h-[min(40dvh,16rem)] w-full flex-col rounded-lg border border-amber-500/25 bg-[#141210]"
       : `absolute top-full z-50 mt-1.5 w-[min(calc(100vw-1.5rem),20rem)] rounded-lg border border-amber-500/25 bg-[#141210] shadow-xl ${
           align === "right" ? "right-0" : "left-0"
         }`;
@@ -115,7 +123,13 @@ export default function BookmarksPanel({ variant = "button", align = "right" }: 
     <>
       <div
         ref={rootRef}
-        className={variant === "rail" ? "relative flex w-full flex-col" : "relative shrink-0"}
+        className={
+          variant === "rail"
+            ? "relative flex w-full flex-col"
+            : variant === "inline"
+              ? "w-full"
+              : "relative shrink-0"
+        }
       >
         <button
           type="button"
@@ -131,6 +145,11 @@ export default function BookmarksPanel({ variant = "button", align = "right" }: 
               <span className="max-w-full px-0.5 text-center text-[9px] font-medium leading-[1.15] tracking-tight">
                 북마크
               </span>
+            </>
+          ) : variant === "inline" ? (
+            <>
+              <IconBookmark className="h-4 w-4" />
+              <span>북마크{countLabel ? ` · ${countLabel}` : ""}</span>
             </>
           ) : (
             <>북마크{countLabel && open ? ` ${countLabel}` : ""}</>
@@ -158,7 +177,7 @@ export default function BookmarksPanel({ variant = "button", align = "right" }: 
 
             <div
               className={`min-h-0 overflow-y-auto p-2 scrollbar-hide ${
-                variant === "rail" ? "flex-1" : "max-h-[min(24rem,58dvh)]"
+                variant === "rail" || variant === "inline" ? "flex-1" : "max-h-[min(24rem,58dvh)]"
               }`}
             >
               {loading && bookmarks.length === 0 ? (

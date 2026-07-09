@@ -4,6 +4,10 @@
 
 Single Next.js 15 (App Router) app — an AI character chat platform (Korean UI, "하비 AI"). React 19 + TypeScript + Tailwind v4, SQLite via `better-sqlite3`. There is only one service. Standard commands live in `README.md` and `package.json` `scripts`; the notes below are only the non-obvious gotchas.
 
+### Text encoding
+- All project text files are **UTF-8 without BOM**, line endings **LF** (see `.editorconfig`, `.gitattributes`, `.vscode/settings.json`, `.cursor/rules/utf8-encoding.mdc`).
+- Assume UTF-8 when reading/editing. Do **not** bulk-convert or guess CP949/EUC-KR every task. Convert a file only when it is proven non-UTF-8 (BOM, UTF-16, invalid bytes).
+
 ### Runtime / env
 - Requires Node 22.12+ (`.node-version` = 22.12.0; the VM has 22.x). `better-sqlite3` compiles natively (Python3 + gcc/make are present).
 - Local config lives in `.env.local` (gitignored, not committed). The update script creates it from `.env.example` if missing. It sets `PORTONE_CHARGE_ENABLED=0` / `NEXT_PUBLIC_PAYMENTS_ENABLED=0`, which disables payments and auto-skips adult verification for dev. Without `.env.local` those defaults are unset and some flows behave differently.

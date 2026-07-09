@@ -1,16 +1,22 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { isChatRoomPathname } from "@/lib/chatDisplayPrefs";
 
 type Props = {
   loggedIn: boolean;
 };
 
-/** md 미만: 하단 고정 네비 (왼쪽 사이드바 대체) */
+/** md 미만: 하단 고정 네비 (왼쪽 사이드바 대체). 채팅방에서는 숨김 */
 export default function MobileBottomNav({ loggedIn }: Props) {
+  const pathname = usePathname();
   if (!loggedIn) return null;
+  if (isChatRoomPathname(pathname)) return null;
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-[#0b0d14]/95 backdrop-blur md:hidden"
+      className="mobile-bottom-nav fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-[#0b0d14]/95 backdrop-blur md:hidden"
       aria-label="모바일 메뉴"
     >
       <div className="mx-auto flex max-w-lg">

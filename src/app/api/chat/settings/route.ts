@@ -5,9 +5,11 @@ import { normalizeTargetResponseChars } from "@/lib/responseLength";
 import { validateUserNoteCombined } from "@/lib/userNoteStatusWindow";
 import { sanitizeChatTitle } from "@/lib/chatTitle";
 import {
+  hasCharacterStatusWidget,
   parseStatusWidgetJson,
   parseStatusWidgetMode,
   resolveStatusWidgetReservedChars,
+  resolveStatusWidgetTurn,
   serializeStatusWidget,
 } from "@/lib/statusWidget";
 
@@ -51,7 +53,7 @@ export async function PATCH(req: Request) {
   if (!chat) return Response.json({ error: "채팅방을 찾을 수 없습니다." }, { status: 404 });
 
   const widgetCtx = loadChatWidgetContext(chatId, user.id);
-  const nextMode =
+  let nextMode =
     statusWidgetMode !== undefined
       ? parseStatusWidgetMode(String(statusWidgetMode))
       : parseStatusWidgetMode(widgetCtx?.status_widget_mode);
@@ -65,6 +67,17 @@ export async function PATCH(req: Request) {
       return Response.json({ error: "유효하지 않은 상태창 위젯 JSON입니다." }, { status: 400 });
     }
     nextUserWidgetJson = serializeStatusWidget(parsed);
+  }
+
+  // 제작자 위젯이 있으면 off/user_only 저장을 막고 character_only|both 로 정규화
+  if (hasCharacterStatusWidget(widgetCtx?.status_widget_json)) {
+    nextMode = resolveStatusWidgetTurn({
+      characterWidgetJson: widgetCtx?.status_widget_json,
+      chatMode: nextMode,
+      userWidgetJson: nextUserWidgetJson,
+      stackOrder: widgetCtx?.status_widget_stack_order,
+      characterAllowUserOverride: widgetCtx?.status_widget_allow_user_override !== 0,
+    }).mode;
   }
 
   const note = typeof userNote === "string" ? userNote.trim() : undefined;

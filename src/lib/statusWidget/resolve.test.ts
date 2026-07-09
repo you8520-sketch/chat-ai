@@ -24,3 +24,29 @@ describe("orderedWidgetsForRender", () => {
     assert.doesNotMatch(html, /14:30/);
   });
 });
+
+describe("resolveStatusWidgetTurn — creator widget required", () => {
+  it("forces character_only when chat mode is off but character widget exists", () => {
+    const characterWidgetJson = serializeStatusWidget(DEFAULT_STATUS_WIDGET);
+    const resolved = resolveStatusWidgetTurn({
+      characterWidgetJson,
+      chatMode: "off",
+    });
+    assert.equal(resolved.active, true);
+    assert.equal(resolved.mode, "character_only");
+    assert.ok(resolved.characterWidget);
+  });
+
+  it("upgrades user_only to both when character widget exists", () => {
+    const characterWidgetJson = serializeStatusWidget(DEFAULT_STATUS_WIDGET);
+    const userWidgetJson = serializeStatusWidget(DEFAULT_STATUS_WIDGET);
+    const resolved = resolveStatusWidgetTurn({
+      characterWidgetJson,
+      userWidgetJson,
+      chatMode: "user_only",
+    });
+    assert.equal(resolved.mode, "both");
+    assert.ok(resolved.characterWidget);
+    assert.ok(resolved.userWidget);
+  });
+});
