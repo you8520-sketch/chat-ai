@@ -155,6 +155,7 @@ import {
   stripSceneAnalysisLeakage,
 } from "@/lib/narrativeRules";
 import { dedupeGlobalParagraphs } from "@/lib/antiRepetition";
+import { stripRepeatedTrailingQuoteMarks } from "@/lib/trailingQuoteSanitizer";
 import {
   applyStreamFirstAfterStatusPartition,
   preserveStreamFirstProse,
@@ -2280,6 +2281,13 @@ export async function POST(req: Request) {
             "final pass — appearance lock after stream-first / length continuation"
           );
         }
+
+        savedText = traceStep(
+          "stripRepeatedTrailingQuoteMarks",
+          savedText,
+          stripRepeatedTrailingQuoteMarks(savedText),
+          "remove stray repeated quote marks at assistant output tail"
+        );
 
         if (!showFullBillingReceipt) {
           usageRecord = sanitizeUsageForPublicReceipt(usageRecord);

@@ -33,6 +33,7 @@ import {
 import { resolveEmotionTag, stripEmotionTag, stripEmotionTagsForDisplay } from "@/lib/emotionTag";
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
 import { stripInternalTagLeakage, stripRpMetaPreamble } from "@/lib/narrativeRules";
+import { stripRepeatedTrailingQuoteMarks } from "@/lib/trailingQuoteSanitizer";
 import type { StatusMeta } from "@/lib/statusMeta/types";
 import { userMessageRequestsStatusWindowOoc } from "@/lib/statusMeta/ooc";
 import { statusMetaDisplayMarkdown, statusMetaHasDisplayContent } from "@/lib/statusMeta/render";
@@ -914,9 +915,16 @@ export default function ChatClient({
     (id: number | null) => {
       if (!id || typeof window === "undefined") return;
       const url = new URL(window.location.href);
-      if (url.searchParams.get("chat") === String(id) && !url.searchParams.has("fresh")) return;
+      if (
+        url.searchParams.get("chat") === String(id) &&
+        !url.searchParams.has("fresh") &&
+        !url.searchParams.has("persona")
+      ) {
+        return;
+      }
       url.searchParams.set("chat", String(id));
       url.searchParams.delete("fresh");
+      url.searchParams.delete("persona");
       router.replace(`${url.pathname}?${url.searchParams.toString()}`, { scroll: false });
     },
     [router]
@@ -2385,7 +2393,19 @@ export default function ChatClient({
         return;
       }
       setMessages((prev) =>
-        prev.map((m) => (m.id === messageId ? { ...m, content: data.content } : m))
+        prev.map((m) =>
+          m.id === messageId
+            ? {
+                ...m,
+                content: data.content,
+                variants: Array.isArray(data.variants) ? data.variants : undefined,
+                activeVariant:
+                  typeof data.activeVariant === "number" ? data.activeVariant : undefined,
+                variantCount:
+                  typeof data.variantCount === "number" ? data.variantCount : undefined,
+              }
+            : m
+        )
       );
       cancelEdit();
     } catch {
@@ -2872,8 +2892,10 @@ export default function ChatClient({
                         ? m.content
                         : resolveActiveVariantContent(m);
                       const displayBody = stripIncompleteStatusWidgetTail(
-                        stripRpMetaPreamble(
-                          stripEmotionTagsForDisplay(stripInternalTagLeakage(variantContent))
+                        stripRepeatedTrailingQuoteMarks(
+                          stripRpMetaPreamble(
+                            stripEmotionTagsForDisplay(stripInternalTagLeakage(variantContent))
+                          )
                         )
                       );
                       const messageFormatSpec =

@@ -20,14 +20,14 @@ type Props = {
   selectedPersonaId?: number | null;
 };
 
-function chatEntryHref(
+export function chatEntryHref(
   characterId: number,
   opts: { fresh?: boolean; chatId?: number; personaId?: number | null }
 ): string {
   const params = new URLSearchParams();
   if (opts.fresh) params.set("fresh", "1");
   if (opts.chatId) params.set("chat", String(opts.chatId));
-  if (opts.personaId) params.set("persona", String(opts.personaId));
+  if (opts.fresh && opts.personaId) params.set("persona", String(opts.personaId));
   const q = params.toString();
   return `/chat/${characterId}${q ? `?${q}` : ""}`;
 }
@@ -121,7 +121,7 @@ export default function StartChatButton({
                       onClick={() => {
                         close();
                         router.push(
-                          chatEntryHref(characterId, { chatId: b.chat_id, personaId: selectedPersonaId })
+                          chatEntryHref(characterId, { chatId: b.chat_id })
                         );
                       }}
                       className="w-full rounded-xl px-3 py-2.5 text-left transition hover:bg-white/5"
@@ -157,7 +157,7 @@ export default function StartChatButton({
                   onClick={() => {
                     close();
                     router.push(
-                      chatEntryHref(characterId, { chatId: latest.chat_id, personaId: selectedPersonaId })
+                      chatEntryHref(characterId, { chatId: latest.chat_id })
                     );
                   }}
                   className="rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white hover:bg-violet-500"

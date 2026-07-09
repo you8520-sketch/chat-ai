@@ -17,6 +17,15 @@ type Props = {
 };
 
 const DEFAULT_ADD_PERSONA_HREF = "/persona#personas";
+const PERSONA_STORAGE_KEY = "habi:lastPersonaId";
+
+function rememberPersonaSelection(personaId: number) {
+  try {
+    localStorage.setItem(PERSONA_STORAGE_KEY, String(personaId));
+  } catch {
+    /* ignore */
+  }
+}
 
 function PersonaAddButton({ href }: { href: string }) {
   return (
@@ -79,13 +88,19 @@ export default function PersonaSelector({
         const data = await res.json();
         if (data.fallbackApplied) {
           showNotice(data.error || "페르소나를 찾을 수 없습니다.");
-          if (data.selectedPersonaId) onSelectedChange(data.selectedPersonaId);
+          if (data.selectedPersonaId) {
+            rememberPersonaSelection(data.selectedPersonaId);
+            onSelectedChange(data.selectedPersonaId);
+          }
         } else if (res.ok) {
-          onSelectedChange(data.selectedPersonaId ?? persona.id);
+          const nextPersonaId = data.selectedPersonaId ?? persona.id;
+          rememberPersonaSelection(nextPersonaId);
+          onSelectedChange(nextPersonaId);
         } else {
           showNotice(data.error || "페르소나 변경에 실패했습니다.");
         }
       } else {
+        rememberPersonaSelection(persona.id);
         onSelectedChange(persona.id);
       }
       setOpen(false);

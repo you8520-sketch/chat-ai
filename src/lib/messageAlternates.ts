@@ -67,6 +67,20 @@ export function serializeVariantsForClient(variants: MessageVariant[], activeVar
   return { variants, activeVariant, variantCount: variants.length };
 }
 
+export function editedMessageVariant(input: {
+  content: string;
+  model?: string | null;
+  usage?: Usage | null;
+  createdAt?: string;
+}): MessageVariant {
+  return {
+    content: input.content,
+    model: input.model ?? "",
+    usage: input.usage ?? null,
+    created_at: input.createdAt ?? "",
+  };
+}
+
 /** 재출력 버전 전환 — 항상 active variant 본문 사용 (messages.content와 어긋남 방지) */
 export function resolveActiveVariantContent(
   row: { content: string; variants?: MessageVariant[]; activeVariant?: number | null },

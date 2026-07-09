@@ -209,7 +209,7 @@ export default async function ChatPage({
 
   if (!chat) notFound();
 
-  if (personaParam && !startFresh) {
+  if (personaParam && !startFresh && !chatParam) {
     const requestedPersonaId = Number(personaParam);
     if (Number.isFinite(requestedPersonaId)) {
       const selection = validatePersonaSelection(personaList, requestedPersonaId);

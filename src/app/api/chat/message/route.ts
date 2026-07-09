@@ -3,6 +3,7 @@ import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { assertMessageAccess } from "@/lib/chatAccess";
 import { CHAT_MESSAGE_MAX, ASSISTANT_MESSAGE_MAX } from "@/lib/chatModels";
+import { editedMessageVariant } from "@/lib/messageAlternates";
 
 export async function PATCH(req: Request) {
   const user = await getSessionUser();
@@ -28,6 +29,28 @@ export async function PATCH(req: Request) {
     );
   }
 
-  getDb().prepare("UPDATE messages SET content=? WHERE id=?").run(text, id);
+  const db = getDb();
+  if (msg.role === "assistant") {
+    const variant = editedMessageVariant({
+      content: text,
+      model: msg.model,
+      usage: msg.usage ? JSON.parse(msg.usage) : null,
+    });
+    db.prepare("UPDATE messages SET content=?, alternates=?, active_variant=? WHERE id=?").run(
+      text,
+      JSON.stringify([variant]),
+      0,
+      id
+    );
+    return NextResponse.json({
+      ok: true,
+      content: text,
+      variants: [variant],
+      activeVariant: 0,
+      variantCount: 1,
+    });
+  }
+
+  db.prepare("UPDATE messages SET content=? WHERE id=?").run(text, id);
   return NextResponse.json({ ok: true, content: text });
 }
