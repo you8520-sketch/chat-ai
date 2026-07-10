@@ -315,23 +315,23 @@ function HeaderNsfwToggle({
 }) {
   return (
     <div
-      className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2 py-1"
+      className="flex items-center gap-1 rounded-xl border border-white/[0.08] bg-white/[0.04] px-1.5 py-1 sm:gap-1.5 sm:px-2"
       title={isAdult ? "성인 캐릭터 보기" : "성인인증 후 사용 가능"}
     >
-      <span className="text-[10px] font-bold text-rose-300/90">19+</span>
+      <span className="text-[10px] font-bold text-rose-400">19+</span>
       <button
         type="button"
         onClick={onToggleNsfw}
         disabled={busy || !isAdult}
         aria-pressed={nsfwOn}
         aria-label="성인 캐릭터 보기"
-        className={`relative h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-40 ${
+        className={`relative h-5 w-8 shrink-0 rounded-full transition-colors disabled:opacity-40 sm:w-9 ${
           nsfwOn ? "bg-rose-600" : "bg-zinc-700"
         }`}
       >
         <span
           className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${
-            nsfwOn ? "left-[18px]" : "left-0.5"
+            nsfwOn ? "left-[14px] sm:left-[18px]" : "left-0.5"
           }`}
         />
       </button>

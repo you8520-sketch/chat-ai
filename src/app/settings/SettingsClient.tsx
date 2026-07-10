@@ -109,7 +109,7 @@ export default function SettingsClient({ user, unreadNotice = false }: Props) {
                 <span className="flex items-center gap-2">
                   {l.label}
                   {"noticeBadge" in l && l.noticeBadge && unreadNotice && (
-                    <span className="rounded bg-red-500/20 px-1.5 py-0.5 text-[10px] font-bold text-red-300">
+                    <span className="rounded bg-violet-500/20 px-1.5 py-0.5 text-[10px] font-bold text-violet-200">
                       NEW
                     </span>
                   )}

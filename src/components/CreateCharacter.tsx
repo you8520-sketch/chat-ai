@@ -1164,9 +1164,12 @@ export default function CreateCharacter({
                 type="button"
                 onClick={() => fileRef.current?.click()}
                 disabled={assets.length + files.length >= MAX_IMAGES}
-                className="w-full rounded-xl border-2 border-dashed border-violet-500/40 bg-[#0c0e1a] py-6 text-sm text-violet-200/80 hover:border-violet-400/60 hover:bg-violet-500/5 disabled:opacity-40"
+                className="w-full rounded-2xl border-2 border-dashed border-violet-400/70 bg-violet-600/15 py-8 text-base font-black tracking-tight text-violet-100 shadow-[inset_0_0_0_1px_rgba(167,139,250,0.12)] transition hover:border-violet-300 hover:bg-violet-600/25 hover:text-white disabled:opacity-40 sm:py-10 sm:text-lg"
               >
-                에셋 이미지 추가 (최대 {MAX_IMAGES}장 · Gemini 자동 태깅)
+                + 에셋 이미지 추가
+                <span className="mt-1.5 block text-xs font-semibold tracking-normal text-violet-200/80 sm:text-sm">
+                  최대 {MAX_IMAGES}장 · Gemini 자동 태깅
+                </span>
               </button>
 
               {files.length > 0 && (

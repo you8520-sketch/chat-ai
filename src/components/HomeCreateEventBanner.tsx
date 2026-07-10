@@ -25,20 +25,20 @@ const SLIDES: Slide[] = [
     id: "closed-beta",
     badge: "CLOSED BETA",
     badgeClass: "text-violet-300/90",
-    gradient: "from-violet-900/55 via-fuchsia-900/40 to-emerald-900/45",
+    gradient: "from-violet-950/70 via-[#131626] to-violet-900/40",
     title: "클로즈베타 테스트중",
     description:
       "클로즈베타 참여자에게 무료 포인트를 지급합니다. 신청 후 관리자 승인 시 포인트가 지급됩니다.",
     ctaHref: "/events/beta-free-points",
     ctaLabel: "무료 포인트 신청하기",
-    ctaClass: "bg-emerald-500 text-black hover:bg-emerald-400",
+    ctaClass: "bg-violet-600 text-white hover:bg-violet-500",
     hint: "신청 → 관리자 검토 → 승인 후 지급",
   },
   {
     id: "create-character",
     badge: "CREATE EVENT",
-    badgeClass: "text-emerald-300/90",
-    gradient: "from-emerald-900/50 via-teal-900/40 to-violet-900/45",
+    badgeClass: "text-emerald-300/80",
+    gradient: "from-violet-950/60 via-[#131626] to-emerald-950/35",
     title: `캐릭터 제작 시 ${CREATE_MIGRATION_EVENT_REWARD.toLocaleString()}P 증정`,
     description:
       "공개 캐릭터를 제작하고 이벤트에 신청하세요. 관리자 승인 후 무료 포인트가 지급됩니다.",
@@ -71,19 +71,25 @@ export default function HomeCreateEventBanner() {
 
   return (
     <div
-      className={`mt-2 rounded-2xl bg-gradient-to-r p-6 transition-[background] duration-500 ${slide.gradient}`}
+      className={`mt-2 rounded-xl border border-white/[0.08] bg-gradient-to-r p-3.5 transition-[background] duration-500 sm:rounded-2xl sm:p-5 ${slide.gradient}`}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
       onBlur={() => setPaused(false)}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <p className={`text-xs font-bold uppercase tracking-wider ${slide.badgeClass}`}>{slide.badge}</p>
-          <h1 className="mt-1 text-2xl font-black text-white">{slide.title}</h1>
-          <p className="mt-2 text-sm leading-relaxed text-gray-300">{slide.description}</p>
+          <p className={`text-[10px] font-bold uppercase tracking-wider sm:text-xs ${slide.badgeClass}`}>
+            {slide.badge}
+          </p>
+          <h1 className="mt-0.5 text-base font-black leading-snug text-white sm:mt-1 sm:text-xl">
+            {slide.title}
+          </h1>
+          <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-zinc-400 sm:mt-1.5 sm:line-clamp-none sm:text-sm sm:text-zinc-300">
+            {slide.description}
+          </p>
         </div>
-        <div className="flex shrink-0 gap-1.5 pt-1">
+        <div className="flex shrink-0 gap-1.5 pt-0.5">
           {SLIDES.map((s, i) => (
             <button
               key={s.id}
@@ -91,22 +97,22 @@ export default function HomeCreateEventBanner() {
               aria-label={`${i + 1}번째 배너`}
               aria-current={i === activeIndex ? "true" : undefined}
               onClick={() => goTo(i)}
-              className={`h-2 w-2 rounded-full transition ${
-                i === activeIndex ? "bg-white" : "bg-white/35 hover:bg-white/60"
+              className={`h-1.5 w-1.5 rounded-full transition sm:h-2 sm:w-2 ${
+                i === activeIndex ? "bg-violet-300" : "bg-white/30 hover:bg-white/50"
               }`}
             />
           ))}
         </div>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-3">
+      <div className="mt-3 flex flex-wrap items-center gap-2 sm:mt-4 sm:gap-3">
         <Link
           href={slide.ctaHref}
-          className={`rounded-xl px-5 py-2.5 text-sm font-bold ${slide.ctaClass}`}
+          className={`rounded-xl px-3.5 py-2 text-xs font-bold sm:px-5 sm:py-2.5 sm:text-sm ${slide.ctaClass}`}
         >
           {slide.ctaLabel}
         </Link>
-        <p className="text-xs text-zinc-500">{slide.hint}</p>
+        <p className="hidden text-xs text-zinc-500 sm:block">{slide.hint}</p>
       </div>
     </div>
   );

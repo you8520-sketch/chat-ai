@@ -67,12 +67,12 @@ export default function CharacterCard({ c, blurNsfw, loggedIn = false }: Props) 
   const overlayLabel = loggedIn ? "성인인증 필요" : "로그인 · 성인인증 필요";
 
   return (
-    <article className="group flex flex-col overflow-hidden rounded-xl border border-white/5 bg-[#131626]">
+    <article className="group flex flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-[#131626]">
       <Link href={href} className="flex flex-col">
         <div
           className={`relative ${CHARACTER_THUMB_ASPECT} w-full overflow-hidden`}
           style={{
-            background: `linear-gradient(135deg, hsl(${c.hue} 60% 22%), hsl(${(c.hue + 60) % 360} 60% 12%))`,
+            background: `linear-gradient(135deg, hsl(${c.hue} 50% 18%), hsl(${(c.hue + 40) % 360} 45% 10%))`,
           }}
         >
           {thumb ? (
@@ -83,53 +83,64 @@ export default function CharacterCard({ c, blurNsfw, loggedIn = false }: Props) 
               className={`h-full w-full object-cover object-top transition duration-300 group-hover:scale-[1.02] ${hidden ? "blur-md" : ""}`}
             />
           ) : (
-            <span className={`flex h-full w-full items-center justify-center text-6xl ${hidden ? "blur-md" : ""}`}>
+            <span
+              className={`flex h-full w-full items-center justify-center text-5xl sm:text-6xl ${hidden ? "blur-md" : ""}`}
+            >
               {c.emoji}
             </span>
           )}
-          <div className="absolute left-2 top-2 flex gap-1">
-            {c.official === 1 && (
-              <span className="rounded bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white">공식</span>
-            )}
-            {c.nsfw === 1 && (
-              <span className="rounded bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white">19</span>
-            )}
-          </div>
+
+          {c.nsfw === 1 && (
+            <span className="absolute right-2 top-2 rounded-md bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white shadow-sm">
+              19+
+            </span>
+          )}
+          {c.official === 1 && (
+            <span className="absolute left-2 top-2 rounded-md bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white shadow-sm">
+              공식
+            </span>
+          )}
+
           {hidden && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/50 px-2 text-center text-xs font-semibold text-white">
+            <div className="absolute inset-0 flex items-center justify-center bg-black/55 px-2 text-center text-[11px] font-semibold text-white sm:text-xs">
               {overlayLabel}
             </div>
           )}
-          <div className="absolute bottom-2 right-2 flex items-center gap-1.5 rounded-md bg-black/65 px-1.5 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
-            <span>❤️ {fmt(c.likes)}</span>
-            <span className="text-white/40">·</span>
-            <span title="누적 대화 턴">💬 {fmt(c.total_turns ?? 0)}</span>
-            {(c.chats_count ?? 0) > 0 ? (
-              <>
-                <span className="text-white/40">·</span>
+
+          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/35 to-transparent px-2 pb-2 pt-6">
+            <div className="flex items-center justify-between gap-1 text-[10px] font-semibold tabular-nums text-white/90">
+              <span title="좋아요">❤️ {fmt(c.likes)}</span>
+              <span title="누적 대화 턴">💬 {fmt(c.total_turns ?? 0)}</span>
+              {(c.chats_count ?? 0) > 0 ? (
                 <span title="이용 유저 수">👥 {fmt(c.chats_count)}</span>
-              </>
-            ) : null}
+              ) : (
+                <span className="invisible">—</span>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="space-y-1.5 p-3">
-          <h3 className="line-clamp-1 text-sm font-bold text-white group-hover:text-violet-300">{c.name}</h3>
+        <div className="space-y-1 p-2.5 sm:space-y-1.5 sm:p-3">
+          <h3 className="line-clamp-1 text-sm font-bold text-white group-hover:text-violet-300">
+            {c.name}
+          </h3>
           {displayTagline ? (
-            <p className="line-clamp-2 min-h-[2.5rem] text-xs leading-relaxed text-gray-400">{displayTagline}</p>
+            <p className="line-clamp-2 min-h-[2.4rem] text-xs leading-relaxed text-zinc-400">
+              {displayTagline}
+            </p>
           ) : (
-            <p className="min-h-[2.5rem] text-xs text-gray-600">한 줄 소개 없음</p>
+            <p className="min-h-[2.4rem] text-xs text-zinc-600">한 줄 소개 없음</p>
           )}
         </div>
       </Link>
 
       {tags.length > 0 && (
-        <div className="flex flex-wrap gap-1 px-3 pb-3 pt-0">
-          {tags.slice(0, 4).map((t) => (
+        <div className="flex flex-wrap gap-1 px-2.5 pb-2.5 pt-0 sm:px-3 sm:pb-3">
+          {tags.slice(0, 3).map((t) => (
             <Link
               key={t}
               href={`/search?q=${encodeURIComponent(t)}`}
-              className="rounded-full bg-white/5 px-2 py-0.5 text-[10px] text-gray-400 transition hover:bg-violet-600/25 hover:text-violet-200"
+              className="rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-zinc-400 transition hover:bg-violet-600/20 hover:text-violet-200"
             >
               #{t}
             </Link>
