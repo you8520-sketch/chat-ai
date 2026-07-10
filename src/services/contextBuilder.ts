@@ -243,13 +243,14 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const personaLabel = input.personaDisplayName?.trim() || input.userNickname;
   const novelModeEnabled = input.novelModeEnabled === true;
   const coNarrationEnabled = novelModeEnabled || !!input.userImpersonation;
-  const runtimeMode: ChatRuntimeMode =
-    input.runtimeMode ??
-    resolveChatRuntimeMode({
-      isContinue: input.isContinue,
-      novelModeEnabled,
-      oocUserImpersonationAllowed: !!input.userImpersonation && !novelModeEnabled,
-    });
+  // Resolve from turn flags — do not require ContextBuildInput.runtimeMode for typecheck.
+  // (Railway/Next build has repeatedly failed when that optional field was missing from the
+  // type snapshot even after it was added on main.)
+  const runtimeMode: ChatRuntimeMode = resolveChatRuntimeMode({
+    isContinue: input.isContinue,
+    novelModeEnabled,
+    oocUserImpersonationAllowed: !!input.userImpersonation && !novelModeEnabled,
+  });
   const characterSettingTextRaw = collectCharacterSettingText(chunks);
   const recentHistoryText = input.shortTermHistory
     .slice(-4)
