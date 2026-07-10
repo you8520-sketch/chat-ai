@@ -53,25 +53,29 @@ describe("groupNovelParagraphs", () => {
     ]);
   });
 
-  it("merges blank-line-separated narration when each block is short", () => {
+  it("preserves blank-line-separated narration when each block is short (Step 7.10)", () => {
     const input = `첫 번째 지문이다.
 
 두 번째 지문이다.
 
 세 번째 지문이다.`;
     assert.deepEqual(groupNovelParagraphs(input), [
-      "첫 번째 지문이다. 두 번째 지문이다. 세 번째 지문이다.",
+      "첫 번째 지문이다.",
+      "두 번째 지문이다.",
+      "세 번째 지문이다.",
     ]);
   });
 
-  it("merges blank-line-separated short narration into one paragraph", () => {
+  it("preserves blank-line-separated short narration as separate paragraphs (Step 7.10)", () => {
     const input = `그는 다가왔다.
 
 손을 뻗었다.
 
 시선을 맞췄다.`;
     assert.deepEqual(groupNovelParagraphs(input), [
-      "그는 다가왔다. 손을 뻗었다. 시선을 맞췄다.",
+      "그는 다가왔다.",
+      "손을 뻗었다.",
+      "시선을 맞췄다.",
     ]);
   });
 
@@ -89,20 +93,15 @@ describe("groupNovelParagraphs", () => {
     assert.equal(classifyNovelParagraph('"아직 아파'), "dialogue");
   });
 
-  it("streaming skips short-narration merge so blank-line breaks stay put", () => {
+  it("idle and streaming both preserve blank-line narration breaks (Step 7.10)", () => {
     const input = `그는 다가왔다.
 
 손을 뻗었다.
 
 시선을 맞췄다.`;
-    assert.deepEqual(groupNovelParagraphs(input), [
-      "그는 다가왔다. 손을 뻗었다. 시선을 맞췄다.",
-    ]);
-    assert.deepEqual(groupNovelParagraphs(input, { streaming: true }), [
-      "그는 다가왔다.",
-      "손을 뻗었다.",
-      "시선을 맞췄다.",
-    ]);
+    const expected = ["그는 다가왔다.", "손을 뻗었다.", "시선을 맞췄다."];
+    assert.deepEqual(groupNovelParagraphs(input), expected);
+    assert.deepEqual(groupNovelParagraphs(input, { streaming: true }), expected);
   });
 
   it("idle layout still matches streaming for closed inline dialogue splits", () => {
@@ -235,7 +234,8 @@ describe("groupNovelParagraphs", () => {
 
 거리 두기. "안녕." 이어지는 지문.`;
     assert.deepEqual(groupNovelParagraphs(input), [
-      "첫 지문. 거리 두기.",
+      "첫 지문.",
+      "거리 두기.",
       '"안녕."',
       "이어지는 지문.",
     ]);
@@ -257,7 +257,7 @@ describe("groupNovelParagraphs", () => {
     assert.equal(isNarrationEmphasisLine(line), true);
   });
 
-  it("merges blank-line-separated long narration sentences into flowing paragraphs", () => {
+  it("preserves blank-line-separated long narration sentences (Step 7.10)", () => {
     const s1 =
       "백하율은 렌이 내민 손을 마주 잡으며 천천히 손가락을 깍지 꼈다. 일부러 느리게, 한 마디 한 마디가 미끄러지듯 맞물리게.";
     const s2 =
@@ -266,9 +266,10 @@ describe("groupNovelParagraphs", () => {
       "그는 더 이상 도망칠 구석이 없다는 듯 몸을 기울였고, 손끝의 온기가 서서히 올라왔다. 심장 박동이 귓가에 울렸다.";
     const input = `${s1}\n\n${s2}\n\n${s3}`;
     const grouped = groupNovelParagraphs(input);
-    assert.equal(grouped.length, 1);
-    assert.ok(grouped[0]!.includes(s1.slice(0, 20)));
-    assert.ok(grouped[0]!.includes(s3.slice(0, 20)));
+    assert.equal(grouped.length, 3);
+    assert.equal(grouped[0], s1);
+    assert.equal(grouped[1], s2);
+    assert.equal(grouped[2], s3);
   });
 
   it("keeps punch-line narration separate from flowing paragraphs", () => {
@@ -390,7 +391,7 @@ describe("unwrapMisclassifiedDialogueQuotes", () => {
     );
   });
 
-  it("merges narration and removes spurious line breaks", () => {
+  it("unwraps misclassified quotes and preserves blank-line paragraph breaks (Step 7.10)", () => {
     const input = `"아픈 척"
 
 과
@@ -400,7 +401,7 @@ describe("unwrapMisclassifiedDialogueQuotes", () => {
 만으로도 충분히 씨앗은 뿌려졌다.`;
     assert.equal(
       normalizeAiNovelProseLayout(input),
-      "아픈 척 과 아쉬운 척 만으로도 충분히 씨앗은 뿌려졌다."
+      "아픈 척\n\n과\n\n아쉬운 척\n\n만으로도 충분히 씨앗은 뿌려졌다."
     );
   });
 });

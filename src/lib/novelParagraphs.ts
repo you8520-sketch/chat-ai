@@ -328,16 +328,15 @@ function splitLineByDialogue(line: string, streaming = false): string[] {
 /** 지문 문단 최소 길이 — 미만이면 인접 지문과 병합 시도 */
 export const MIN_NARRATION_CHARS_PER_PARAGRAPH = 50;
 /**
- * 지문 문단 권장 상한(문서·프롬프트 참고용).
- * 표시/저장 레이아웃에서는 글자 수로 강제 분할하지 않는다 —
- * 스트리밍 중 문단 한가운데에서 갑자기 줄바꿈되는 문제를 막기 위함.
+ * 지문 문단 권장 상한(문서·QA 참고용).
+ * 표시/저장 레이아웃에서는 글자 수로 강제 분할·병합하지 않는다 —
+ * 빈 줄(\\n\\n)이 의미 문단 경계다 (Step 7.10).
  */
 export const MAX_NARRATION_CHARS_PER_PARAGRAPH = 700;
 /**
- * @deprecated 흐름 지문 병합에 글자 수 상한을 두지 않는다.
- * 모델이 문장마다 \\n\\n 을 넣어도 인접 흐름 지문은 대사/펀치라인 전까지 합친다.
+ * @deprecated Step 7.10 — blank-line-separated narration is no longer merged.
  */
-export const MAX_NARRATION_MERGE_CHARS = Number.POSITIVE_INFINITY;
+export const MAX_NARRATION_MERGE_CHARS = 0;
 /** @deprecated 프롬프트 전용 — 런타임 검증 미사용 */
 export const MIN_NARRATION_PARAGRAPHS = 6;
 /** @deprecated MIN_NARRATION_PARAGRAPHS 사용 */
@@ -382,54 +381,16 @@ function mergeConsecutiveNarrationLines(lines: string[], streaming = false): str
   return out;
 }
 
-/** AI가 문장마다 빈 줄을 넣어 만든 짧은 지문 문단을 다시 묶음 */
-function isMergeableFlowingNarration(text: string, streaming: boolean): boolean {
-  const trimmed = text.trim();
-  if (!trimmed) return false;
-  const kind = classifyNovelParagraph(trimmed, { streaming });
-  if (kind !== "narration") return false;
-  if (isNarrationEmphasisLine(trimmed)) return false;
-  if (isStandaloneNarrationPunchLine(trimmed)) return false;
-  if (/^…+$/.test(trimmed) || /^[….\s]+$/.test(trimmed)) return false;
-  return true;
-}
-
+/** AI가 문장마다 빈 줄을 넣어 만든 짧은 지문 문단을 다시 묶음 — Step 7.10: disabled.
+ * Blank-line (\\n\\n) boundaries are semantic paragraph breaks from the model.
+ * Only single-newline lines within one block are joined (mergeConsecutiveNarrationLines).
+ * Unlimited cross-blank-line merge created giant display paragraphs while raw still had breaks.
+ */
 function mergeAdjacentShortNarrationParagraphs(
   paragraphs: string[],
-  streaming = false
+  _streaming = false
 ): string[] {
-  const out: string[] = [];
-
-  for (const para of paragraphs) {
-    const trimmed = para.trim();
-    if (!trimmed) continue;
-
-    const prev = out[out.length - 1];
-    const prevMergeable = prev ? isMergeableFlowingNarration(prev, streaming) : false;
-    const nextMergeable = isMergeableFlowingNarration(trimmed, streaming);
-
-    if (prev && prevMergeable && nextMergeable) {
-      out[out.length - 1] = `${prev} ${trimmed}`;
-      continue;
-    }
-
-    if (
-      prev &&
-      prevMergeable &&
-      nextMergeable === false &&
-      classifyNovelParagraph(trimmed, { streaming }) === "narration" &&
-      (prev.length < MIN_NARRATION_CHARS_PER_PARAGRAPH ||
-        trimmed.length < MIN_NARRATION_CHARS_PER_PARAGRAPH) &&
-      !isStandaloneNarrationPunchLine(trimmed)
-    ) {
-      out[out.length - 1] = `${prev} ${trimmed}`;
-      continue;
-    }
-
-    out.push(trimmed);
-  }
-
-  return out;
+  return paragraphs.map((p) => p.trim()).filter(Boolean);
 }
 
 export type GroupNovelParagraphsOpts = { streaming?: boolean };
@@ -459,8 +420,8 @@ export function groupNovelParagraphs(content: string, opts?: GroupNovelParagraph
 
   if (out.length === 0) return [normalized];
   let paragraphs = explodeMixedParagraphs(out, streaming);
-  // Streaming: never merge short narration — merging then later re-splitting
-  // shifts already-read paragraphs mid-reveal.
+  // Streaming and idle: preserve blank-line semantic boundaries (Step 7.10).
+  // mergeAdjacentShortNarrationParagraphs is a no-op identity — kept for call-site stability.
   if (!streaming) {
     paragraphs = mergeAdjacentShortNarrationParagraphs(paragraphs, false);
   }
@@ -806,7 +767,7 @@ export function normalizeAiNovelProseLayout(text: string, _opts?: { allowHtml?: 
 
 /**
  * 채팅 수정 textarea용 — NovelText(AI) 표시 문단과 동일한 줄바꿈.
- * DB에 문장마다 \\n\\n 이 있어도 화면과 같이 흐름 지문을 합쳐 보여 준다.
+ * DB의 빈 줄(\\n\\n) 문단 경계를 유지한다 (Step 7.10 — 흐름 지문 강제 병합 없음).
  */
 export function formatAiProseForEditTextarea(text: string): string {
   return normalizeAiNovelProseLayout(text);

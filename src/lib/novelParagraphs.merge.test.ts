@@ -9,14 +9,16 @@ import {
 } from "@/lib/novelParagraphs";
 
 describe("groupNovelParagraphs merge", () => {
-  it("merges blank-line-separated short narration into one paragraph", () => {
+  it("preserves blank-line-separated narration as separate paragraphs (Step 7.10)", () => {
     const input = `그는 다가왔다.
 
 손을 뻗었다.
 
 시선을 맞췄다.`;
     assert.deepEqual(groupNovelParagraphs(input), [
-      "그는 다가왔다. 손을 뻗었다. 시선을 맞췄다.",
+      "그는 다가왔다.",
+      "손을 뻗었다.",
+      "시선을 맞췄다.",
     ]);
   });
 
@@ -44,23 +46,22 @@ describe("groupNovelParagraphs merge", () => {
     assert.equal(grouped[0], input);
   });
 
-  it("merges flowing narration across former 480-char merge cap", () => {
+  it("does not merge flowing narration across blank lines (Step 7.10)", () => {
     const a =
       "아니, 마음에 든다는 말로는 부족했다. 그의 시선이 렌의 어깨선을 타고 천천히 내려갔다. 섬세한 자수가 빛나는 천의 질감, 그리고 그 아래로 이어지는 선.";
     const b =
       "등이 깊게 파인 그 디자인이, 오직 자신을 향한 마음으로 선택되었다는 것. 그 생각만으로 레온의 심장은 요동쳤고, 동시에 가슴 한복판이 칼로 도려내는 듯한 아픔에 휩싸였다. 그는 자신의 코트 자락을 양쪽으로 벌려, 렌의 몸을 그 안으로 끌어당겼다.";
-    // Prefix long enough that a alone would sit near the old 480 merge wall
     const prefix = Array.from({ length: 6 }, () =>
       "레온은 그 눈빛을 정면으로 마주했다. 그리고 입을 열려다, 말을 잃었다. 그가 무슨 말을 할 수 있겠는가. 마음에 안 들 리가 없었다."
     ).join(" ");
     const input = `${prefix}\n\n${a}\n\n${b}`;
-    assert.ok(prefix.length + a.length > 480);
     const grouped = groupNovelParagraphs(input);
-    assert.equal(grouped.length, 1);
-    assert.match(grouped[0]!, /이어지는 선\. 등이 깊게 파인/);
+    assert.equal(grouped.length, 3);
+    assert.equal(grouped[1], a);
+    assert.equal(grouped[2], b);
   });
 
-  it("keeps a natural 5-6 sentence paragraph (~500 chars) intact", () => {
+  it("keeps a natural multi-sentence paragraph without blank lines intact", () => {
     const sentence =
       "그는 천천히 다가와 손을 뻗었고, 눈빛만은 흔들리지 않았으며, 숨결마저 조심스럽게 맞추었다.";
     const input = Array.from({ length: 10 }, () => sentence).join(" ");
@@ -92,14 +93,14 @@ describe("MIN_NARRATION_CHARS_PER_PARAGRAPH", () => {
 });
 
 describe("MAX_NARRATION_CHARS_PER_PARAGRAPH", () => {
-  it("is documentation-only — flowing narration merge has no char cap", () => {
+  it("is documentation/QA-only — blank-line merge is disabled (Step 7.10)", () => {
     assert.equal(MAX_NARRATION_CHARS_PER_PARAGRAPH, 700);
-    assert.equal(MAX_NARRATION_MERGE_CHARS, Number.POSITIVE_INFINITY);
+    assert.equal(MAX_NARRATION_MERGE_CHARS, 0);
   });
 });
 
 describe("formatAiProseForEditTextarea", () => {
-  it("matches display paragraph merges so edit view is not one-sentence-per-block", () => {
+  it("preserves blank-line narration boundaries to match display (Step 7.10)", () => {
     const raw = `아니, 마음에 든다는 말로는 부족했다.
 
 그의 시선이 렌의 어깨선을 타고 천천히 내려갔다.
@@ -110,7 +111,7 @@ describe("formatAiProseForEditTextarea", () => {
     const edited = formatAiProseForEditTextarea(raw);
     const displayed = groupNovelParagraphs(raw).join("\n\n");
     assert.equal(edited, displayed);
-    assert.doesNotMatch(edited, /선\.\n\n등이/);
-    assert.match(edited, /선\. 등이 깊게 파인/);
+    assert.match(edited, /선\.\n\n등이/);
+    assert.doesNotMatch(edited, /선\. 등이 깊게 파인/);
   });
 });
