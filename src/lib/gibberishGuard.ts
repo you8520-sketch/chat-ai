@@ -195,14 +195,29 @@ export function isExpectedStatusHtmlOutput(text: string): boolean {
 }
 
 /**
- * Mostly-Korean prose with only a small foreign-script leak — strip at save, do not abort stream.
+ * Mostly-Korean prose with only a small foreign-script leak — strip at save / continue stream.
+ * Do not require full healthy-Korean thresholds: early mid-stream text often fails those
+ * and was aborting Qwen regen on 2+ Cyrillic chars.
  */
-function isStripableForeignScriptOnly(text: string): boolean {
+export function isStripableForeignScriptOnly(text: string): boolean {
   if (!hasUnexpectedForeignScriptLeak(text)) return false;
-  if (!isHealthyKoreanRp(text)) return false;
   const scriptChars = (text.match(UNEXPECTED_FOREIGN_SCRIPT) ?? []).length;
   // Small accidental fragments (e.g. one Russian word) vs script-dominant salad
-  return scriptChars < 40 && scriptChars / Math.max(text.length, 1) < 0.12;
+  if (scriptChars >= 40) return false;
+  // Ratio gate only on longer text — early mid-stream samples are short and
+  // a single Russian token can exceed 12% without being salad.
+  if (text.length >= 80 && scriptChars / text.length >= 0.12) return false;
+
+  const stripped = stripUnexpectedForeignScriptLeak(text).trim();
+  if (!stripped) return false;
+  // After removing the leak, leftover must not still be hard salad / token soup
+  if (hasHardSaladSignals(stripped)) return false;
+  if (hasEnKrTokenSalad(stripped)) return false;
+
+  const ratio = hangulRatio(stripped);
+  if (stripped.length < 80) return ratio >= 0.25;
+  if (isHealthyKoreanRp(stripped)) return true;
+  return ratio >= 0.4;
 }
 
 /** 스트리밍 누적 텍스트 — 꼬리 구간 검사 */

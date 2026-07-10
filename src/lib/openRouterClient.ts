@@ -291,7 +291,10 @@ export function resolveRegenerateGenerationOverrides(
     targetResponseChars
   );
   const overrides: OpenRouterGenerationOverrides = {
-    temperature: Math.min(1.2, Math.max(1.0, base.temperature + 0.28)),
+    // Qwen: keep regen below 1.0 — temp≥1.0 strongly correlates with mid-stream script salad aborts.
+    temperature: isQwenOpenRouterModel(modelId)
+      ? Math.min(0.95, Math.max(0.75, base.temperature + 0.15))
+      : Math.min(1.2, Math.max(1.0, base.temperature + 0.28)),
     seed: Math.floor(Math.random() * 2_147_483_647),
   };
   if (base.top_p != null) overrides.top_p = Math.min(0.98, base.top_p + 0.05);

@@ -1256,8 +1256,9 @@ export async function POST(req: Request) {
           clearPartialTimer();
           if (e instanceof DegenerationAbortError) {
             console.warn("[/api/chat] OpenRouter DEGENERATION_ABORT — billing skipped");
+            const partial = streamVisibleTextRef || fullText;
             try {
-              markAssistantFailed(db, persistedAssistantId, streamVisibleTextRef || fullText);
+              markAssistantFailed(db, persistedAssistantId, partial);
               if (regenerateMessageId) {
                 restoreAssistantFromAlternatesOnFailedRegen(db, regenerateMessageId, chatRef.id);
               }
@@ -1266,7 +1267,10 @@ export async function POST(req: Request) {
             } catch {
               /* ignore */
             }
-            send({ type: "reset" });
+            // Keep substantial partial on screen (same threshold as under-length); only wipe tiny junk.
+            if (partial.trim().length < CATASTROPHIC_MIN_RESPONSE_CHARS) {
+              send({ type: "reset" });
+            }
             send({ type: "error", error: DEGENERATION_USER_MESSAGE });
             controller.close();
             return;
@@ -1516,7 +1520,9 @@ export async function POST(req: Request) {
           } catch {
             /* ignore */
           }
-          send({ type: "reset" });
+          if ((streamVisibleTextRef || savedText).trim().length < CATASTROPHIC_MIN_RESPONSE_CHARS) {
+            send({ type: "reset" });
+          }
           send({ type: "error", error: DEGENERATION_USER_MESSAGE });
           controller.close();
           return;

@@ -18,6 +18,10 @@ import {
   detectChunkDegeneration,
   DegenerationAbortError,
   isDegenerateOutput,
+  hasUnexpectedForeignScriptLeak,
+  isStripableForeignScriptOnly,
+  stripUnexpectedForeignScriptLeak,
+  getDegenerationReason,
 } from "@/lib/gibberishGuard";
 import {
   buildOpenRouterRequestBody,
@@ -1096,7 +1100,7 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
       OPENROUTER_CHAT_COMPLETIONS_URL,
       openRouterHeaders(key),
       requestBody as Record<string, unknown>,
-      180_000
+      240_000
     );
     if (!res.body) {
       throw new OpenRouterApiError({
@@ -1173,18 +1177,39 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
               console.log("[STREAMING CHUNK]:", delta.slice(0, 50));
             }
 
-            const prospective = combinedText() + delta;
-
             const guardsActive = !skipStreamGuards;
+            let emitDelta = delta;
+            let prospective = combinedText() + delta;
+
+            // Small Cyrillic/Arabic/Devanagari leaks: strip live and keep streaming
+            // instead of DEGENERATION_ABORT (matches save-time strip policy).
+            if (
+              guardsActive &&
+              hasUnexpectedForeignScriptLeak(prospective) &&
+              isStripableForeignScriptOnly(prospective)
+            ) {
+              const cleaned = stripUnexpectedForeignScriptLeak(prospective);
+              const prev = combinedText();
+              if (cleaned.startsWith(prev)) {
+                emitDelta = cleaned.slice(prev.length);
+                prospective = cleaned;
+              } else {
+                emitDelta = stripUnexpectedForeignScriptLeak(delta);
+                prospective = combinedText() + emitDelta;
+              }
+            }
+
+            if (!emitDelta) continue;
 
             if (
               guardsActive &&
-              (detectChunkDegeneration(delta, combinedText(), degenerationCtx) ||
+              (detectChunkDegeneration(emitDelta, combinedText(), degenerationCtx) ||
                 detectStreamingDegeneration(prospective, degenerationCtx))
             ) {
               finishReason = "DEGENERATION_ABORT";
               console.warn("[OpenRouter 19+] DEGENERATION_ABORT — stream cancelled, billing waiver eligible", {
                 chars: combinedText().length,
+                reason: getDegenerationReason(prospective),
               });
               try {
                 await reader.cancel();
@@ -1213,7 +1238,7 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
 
             const lengthCap = applyStreamLengthCap(
               combinedText(),
-              delta,
+              emitDelta,
               targetResponseChars,
               undefined
             );
@@ -1234,9 +1259,9 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
               break;
             }
 
-            aiGenerated += delta;
+            aiGenerated += emitDelta;
             fullText = combinedText();
-            const outbound = yieldWithPrefill(delta);
+            const outbound = yieldWithPrefill(emitDelta);
             if (outbound) yield outbound;
           }
           if (json.usage) {

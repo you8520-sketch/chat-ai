@@ -4,6 +4,9 @@ import {
   hasUnexpectedForeignScriptLeak,
   isDegenerateOutput,
   isHealthyKoreanNarrative,
+  isStripableForeignScriptOnly,
+  detectStreamingDegeneration,
+  detectChunkDegeneration,
   stripUnexpectedForeignScriptLeak,
 } from "@/lib/gibberishGuard";
 
@@ -39,5 +42,16 @@ describe("gibberishGuard foreign-script leak", () => {
     const mixed = `${HEALTHY_KO} 오리지널의 пространствен(공간) 왜곡이 느껴졌다.`;
     const cleaned = stripUnexpectedForeignScriptLeak(mixed);
     assert.equal(isDegenerateOutput(cleaned), false);
+  });
+
+  it("early mid-stream Cyrillic leak is stripable (does not abort stream)", () => {
+    const early = `그는 천천히 다가왔다. пространствен 왜곡이 느껴졌다.`;
+    assert.equal(hasUnexpectedForeignScriptLeak(early), true);
+    assert.equal(isStripableForeignScriptOnly(early), true);
+    assert.equal(detectChunkDegeneration(" пространствен ", early, undefined), false);
+
+    const longer = `${"가".repeat(40)} 그는 다가왔다. пространствен(공간) 왜곡이 느껴졌다. 다시 숨을 고른다.`;
+    assert.equal(isStripableForeignScriptOnly(longer), true);
+    assert.equal(detectStreamingDegeneration(longer), false);
   });
 });

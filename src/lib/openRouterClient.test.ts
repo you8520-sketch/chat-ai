@@ -202,9 +202,10 @@ describe("buildOpenRouterRequestBody — RP reasoning policy", () => {
 });
 
 describe("resolveRegenerateGenerationOverrides", () => {
-  it("raises temperature floor and sets random seed", () => {
+  it("keeps Qwen regen temperature below 1.0 to reduce mid-stream script salad", () => {
     const overrides = resolveRegenerateGenerationOverrides(OPENROUTER_QWEN_37_MAX_MODEL, 3500);
-    assert.ok(overrides.temperature != null && overrides.temperature >= 1.0);
+    assert.ok(overrides.temperature != null);
+    assert.ok(overrides.temperature >= 0.75 && overrides.temperature <= 0.95);
     assert.ok(overrides.seed != null && overrides.seed >= 0);
     const body = buildOpenRouterRequestBody(
       OPENROUTER_QWEN_37_MAX_MODEL,
@@ -216,6 +217,6 @@ describe("resolveRegenerateGenerationOverrides", () => {
       overrides
     ) as Record<string, unknown>;
     assert.equal(body.seed, overrides.seed);
-    assert.ok((body.temperature as number) >= 1.0);
+    assert.ok((body.temperature as number) <= 0.95);
   });
 });
