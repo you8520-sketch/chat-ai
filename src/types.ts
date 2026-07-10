@@ -1,6 +1,7 @@
 import type { CharacterGender } from "@/lib/characterGender";
 import type { CharacterGenre } from "@/lib/characterGenres";
 import type { ChatMsg } from "@/lib/ai";
+import type { ChatRuntimeMode } from "@/lib/chatRuntimeMode";
 /** 캐릭터 설정 분할 단위 */
 export interface CharacterChunk {
   id: string;
@@ -62,7 +63,7 @@ export type ContextBuildInput = {
    * Prefer over reading isContinue/novelModeEnabled alone:
    * interactive | auto_progression | ooc_user_impersonation_allowed
    */
-  runtimeMode?: import("@/lib/chatRuntimeMode").ChatRuntimeMode;
+  runtimeMode?: ChatRuntimeMode;
   personaDisplayName?: string;
   /** AI 출력 목표 글자 수 (채팅방별) */
   targetResponseChars?: number;
