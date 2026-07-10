@@ -5,7 +5,7 @@ export function assertMessageAccess(userId: number, messageId: number) {
   const row = db
     .prepare(
       `SELECT m.id, m.chat_id, m.role, m.content, m.model, m.usage, m.is_refunded,
-              c.user_id, c.character_id
+              m.status_widget_values_json, c.user_id, c.character_id
        FROM messages m
        JOIN chats c ON c.id = m.chat_id
        WHERE m.id = ? AND c.user_id = ?`
@@ -19,6 +19,7 @@ export function assertMessageAccess(userId: number, messageId: number) {
         model: string;
         usage: string | null;
         is_refunded: number;
+        status_widget_values_json: string;
         user_id: number;
         character_id: number;
       }

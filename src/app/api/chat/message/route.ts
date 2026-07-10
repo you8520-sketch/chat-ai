@@ -5,12 +5,34 @@ import { assertMessageAccess } from "@/lib/chatAccess";
 import { CHAT_MESSAGE_MAX, ASSISTANT_MESSAGE_MAX } from "@/lib/chatModels";
 import { editedMessageVariant } from "@/lib/messageAlternates";
 import { formatAiProseForEditTextarea } from "@/lib/novelParagraphs";
+import {
+  parseStoredStatusWidgetValuesJson,
+  sanitizeParsedStatusWidgetValues,
+  serializeStatusWidgetValuesJson,
+  stripExtractedFactsForClient,
+} from "@/lib/statusWidget/parseValues";
+import type { ParsedStatusWidgetTurnValues } from "@/lib/statusWidget/types";
+
+function parseIncomingWidgetValues(raw: unknown): ParsedStatusWidgetTurnValues | null {
+  if (raw == null) return null;
+  if (typeof raw !== "object" || Array.isArray(raw)) return null;
+  const obj = raw as ParsedStatusWidgetTurnValues;
+  return sanitizeParsedStatusWidgetValues({
+    character: obj.character ?? null,
+    user: obj.user ?? null,
+  });
+}
 
 export async function PATCH(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
 
-  const { messageId, content } = await req.json();
+  const body = await req.json();
+  const { messageId, content } = body as {
+    messageId?: unknown;
+    content?: unknown;
+    statusWidgetValues?: unknown;
+  };
   const id = Number(messageId);
   let text = typeof content === "string" ? content.trim() : "";
   if (!id) return NextResponse.json({ error: "messageId가 필요합니다." }, { status: 400 });
@@ -35,6 +57,10 @@ export async function PATCH(req: Request) {
     );
   }
 
+  const incomingWidgets =
+    msg.role === "assistant" ? parseIncomingWidgetValues(body.statusWidgetValues) : null;
+  const hasWidgetPatch = msg.role === "assistant" && "statusWidgetValues" in body;
+
   const db = getDb();
   if (msg.role === "assistant") {
     const variant = editedMessageVariant({
@@ -42,18 +68,43 @@ export async function PATCH(req: Request) {
       model: msg.model,
       usage: msg.usage ? JSON.parse(msg.usage) : null,
     });
-    db.prepare("UPDATE messages SET content=?, alternates=?, active_variant=? WHERE id=?").run(
-      text,
-      JSON.stringify([variant]),
-      0,
-      id
-    );
+
+    let statusWidgetValuesJson: string | undefined;
+    let clientWidgetValues: ParsedStatusWidgetTurnValues | undefined;
+    if (hasWidgetPatch) {
+      const existing = parseStoredStatusWidgetValuesJson(msg.status_widget_values_json);
+      const merged: ParsedStatusWidgetTurnValues = {
+        character: incomingWidgets?.character ?? null,
+        user: incomingWidgets?.user ?? null,
+        ...(existing.extracted_facts?.length
+          ? { extracted_facts: existing.extracted_facts }
+          : {}),
+      };
+      const sanitized = sanitizeParsedStatusWidgetValues(merged);
+      statusWidgetValuesJson = serializeStatusWidgetValuesJson(sanitized);
+      clientWidgetValues = stripExtractedFactsForClient(sanitized);
+    }
+
+    if (statusWidgetValuesJson != null) {
+      db.prepare(
+        "UPDATE messages SET content=?, alternates=?, active_variant=?, status_widget_values_json=? WHERE id=?"
+      ).run(text, JSON.stringify([variant]), 0, statusWidgetValuesJson, id);
+    } else {
+      db.prepare("UPDATE messages SET content=?, alternates=?, active_variant=? WHERE id=?").run(
+        text,
+        JSON.stringify([variant]),
+        0,
+        id
+      );
+    }
+
     return NextResponse.json({
       ok: true,
       content: text,
       variants: [variant],
       activeVariant: 0,
       variantCount: 1,
+      ...(clientWidgetValues != null ? { statusWidgetValues: clientWidgetValues } : {}),
     });
   }
 
