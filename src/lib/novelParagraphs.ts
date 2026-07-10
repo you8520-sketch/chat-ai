@@ -334,10 +334,10 @@ export const MIN_NARRATION_CHARS_PER_PARAGRAPH = 50;
  */
 export const MAX_NARRATION_CHARS_PER_PARAGRAPH = 700;
 /**
- * 짧은 지문 병합 상한 — 분할 상한과 분리.
- * 병합이 분할 상한까지 따라 커지면 모델이 의도한 문단 경계를 과하게 지우므로 기존 480 유지.
+ * @deprecated 흐름 지문 병합에 글자 수 상한을 두지 않는다.
+ * 모델이 문장마다 \\n\\n 을 넣어도 인접 흐름 지문은 대사/펀치라인 전까지 합친다.
  */
-export const MAX_NARRATION_MERGE_CHARS = 480;
+export const MAX_NARRATION_MERGE_CHARS = Number.POSITIVE_INFINITY;
 /** @deprecated 프롬프트 전용 — 런타임 검증 미사용 */
 export const MIN_NARRATION_PARAGRAPHS = 6;
 /** @deprecated MIN_NARRATION_PARAGRAPHS 사용 */
@@ -394,10 +394,6 @@ function isMergeableFlowingNarration(text: string, streaming: boolean): boolean 
   return true;
 }
 
-function combinedNarrationLength(prev: string, next: string): number {
-  return `${prev} ${next}`.replace(/\s{2,}/g, " ").trim().length;
-}
-
 function mergeAdjacentShortNarrationParagraphs(
   paragraphs: string[],
   streaming = false
@@ -413,10 +409,8 @@ function mergeAdjacentShortNarrationParagraphs(
     const nextMergeable = isMergeableFlowingNarration(trimmed, streaming);
 
     if (prev && prevMergeable && nextMergeable) {
-      if (combinedNarrationLength(prev, trimmed) <= MAX_NARRATION_MERGE_CHARS) {
-        out[out.length - 1] = `${prev} ${trimmed}`;
-        continue;
-      }
+      out[out.length - 1] = `${prev} ${trimmed}`;
+      continue;
     }
 
     if (
@@ -426,8 +420,7 @@ function mergeAdjacentShortNarrationParagraphs(
       classifyNovelParagraph(trimmed, { streaming }) === "narration" &&
       (prev.length < MIN_NARRATION_CHARS_PER_PARAGRAPH ||
         trimmed.length < MIN_NARRATION_CHARS_PER_PARAGRAPH) &&
-      !isStandaloneNarrationPunchLine(trimmed) &&
-      combinedNarrationLength(prev, trimmed) <= MAX_NARRATION_MERGE_CHARS
+      !isStandaloneNarrationPunchLine(trimmed)
     ) {
       out[out.length - 1] = `${prev} ${trimmed}`;
       continue;
@@ -809,6 +802,14 @@ export function normalizeAiNovelProseLayout(text: string, _opts?: { allowHtml?: 
   body = stripEmptyQuoteParagraphs(body);
   body = groupNovelParagraphs(body).join("\n\n").trim();
   return body;
+}
+
+/**
+ * 채팅 수정 textarea용 — NovelText(AI) 표시 문단과 동일한 줄바꿈.
+ * DB에 문장마다 \\n\\n 이 있어도 화면과 같이 흐름 지문을 합쳐 보여 준다.
+ */
+export function formatAiProseForEditTextarea(text: string): string {
+  return normalizeAiNovelProseLayout(text);
 }
 
 /** "…" 안 줄바꿈 → 공백 — 한 대사 한 줄 */

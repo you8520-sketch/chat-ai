@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   groupNovelParagraphs,
+  formatAiProseForEditTextarea,
   MIN_NARRATION_CHARS_PER_PARAGRAPH,
   MAX_NARRATION_CHARS_PER_PARAGRAPH,
   MAX_NARRATION_MERGE_CHARS,
@@ -43,6 +44,22 @@ describe("groupNovelParagraphs merge", () => {
     assert.equal(grouped[0], input);
   });
 
+  it("merges flowing narration across former 480-char merge cap", () => {
+    const a =
+      "아니, 마음에 든다는 말로는 부족했다. 그의 시선이 렌의 어깨선을 타고 천천히 내려갔다. 섬세한 자수가 빛나는 천의 질감, 그리고 그 아래로 이어지는 선.";
+    const b =
+      "등이 깊게 파인 그 디자인이, 오직 자신을 향한 마음으로 선택되었다는 것. 그 생각만으로 레온의 심장은 요동쳤고, 동시에 가슴 한복판이 칼로 도려내는 듯한 아픔에 휩싸였다. 그는 자신의 코트 자락을 양쪽으로 벌려, 렌의 몸을 그 안으로 끌어당겼다.";
+    // Prefix long enough that a alone would sit near the old 480 merge wall
+    const prefix = Array.from({ length: 6 }, () =>
+      "레온은 그 눈빛을 정면으로 마주했다. 그리고 입을 열려다, 말을 잃었다. 그가 무슨 말을 할 수 있겠는가. 마음에 안 들 리가 없었다."
+    ).join(" ");
+    const input = `${prefix}\n\n${a}\n\n${b}`;
+    assert.ok(prefix.length + a.length > 480);
+    const grouped = groupNovelParagraphs(input);
+    assert.equal(grouped.length, 1);
+    assert.match(grouped[0]!, /이어지는 선\. 등이 깊게 파인/);
+  });
+
   it("keeps a natural 5-6 sentence paragraph (~500 chars) intact", () => {
     const sentence =
       "그는 천천히 다가와 손을 뻗었고, 눈빛만은 흔들리지 않았으며, 숨결마저 조심스럽게 맞추었다.";
@@ -75,8 +92,25 @@ describe("MIN_NARRATION_CHARS_PER_PARAGRAPH", () => {
 });
 
 describe("MAX_NARRATION_CHARS_PER_PARAGRAPH", () => {
-  it("is a documentation reference only — merge cap stays 480", () => {
+  it("is documentation-only — flowing narration merge has no char cap", () => {
     assert.equal(MAX_NARRATION_CHARS_PER_PARAGRAPH, 700);
-    assert.equal(MAX_NARRATION_MERGE_CHARS, 480);
+    assert.equal(MAX_NARRATION_MERGE_CHARS, Number.POSITIVE_INFINITY);
+  });
+});
+
+describe("formatAiProseForEditTextarea", () => {
+  it("matches display paragraph merges so edit view is not one-sentence-per-block", () => {
+    const raw = `아니, 마음에 든다는 말로는 부족했다.
+
+그의 시선이 렌의 어깨선을 타고 천천히 내려갔다.
+
+섬세한 자수가 빛나는 천의 질감, 그리고 그 아래로 이어지는 선.
+
+등이 깊게 파인 그 디자인이, 오직 자신을 향한 마음으로 선택되었다는 것.`;
+    const edited = formatAiProseForEditTextarea(raw);
+    const displayed = groupNovelParagraphs(raw).join("\n\n");
+    assert.equal(edited, displayed);
+    assert.doesNotMatch(edited, /선\.\n\n등이/);
+    assert.match(edited, /선\. 등이 깊게 파인/);
   });
 });

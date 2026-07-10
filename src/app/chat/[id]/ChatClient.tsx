@@ -7,6 +7,7 @@ import ChatRichBlocks from "@/components/ChatRichBlocks";
 import StatusMetaCard from "@/components/StatusMetaCard";
 import StatusWidgetCard from "@/components/StatusWidgetCard";
 import NovelText from "@/components/NovelText";
+import { formatAiProseForEditTextarea } from "@/lib/novelParagraphs";
 import ChatEmotionPortraitPanel from "@/components/ChatEmotionPortraitPanel";
 import ChatSettingsPanel from "@/components/ChatSettingsPanel";
 import ChatRoomDisplayQuickRail from "@/components/ChatRoomDisplayQuickRail";
@@ -2618,7 +2619,8 @@ export default function ChatClient({
   function startEdit(messageId: number, content: string, role: "user" | "assistant") {
     setEditingId(messageId);
     setEditingRole(role);
-    setEditDraft(content);
+    // Assistant edit must match on-screen NovelText paragraphs (not raw DB \\n\\n-per-sentence).
+    setEditDraft(role === "assistant" ? formatAiProseForEditTextarea(content) : content);
     if (role === "assistant") {
       const idx = messages.findIndex((m) => m.id === messageId);
       const userMsg = idx > 0 && messages[idx - 1]?.role === "user" ? messages[idx - 1] : null;
@@ -2644,7 +2646,10 @@ export default function ChatClient({
   }
 
   async function saveEdit(messageId: number) {
-    const assistantText = editDraft.trim();
+    const assistantText =
+      editingRole === "assistant"
+        ? formatAiProseForEditTextarea(editDraft).trim()
+        : editDraft.trim();
     const userText = editUserDraft.trim();
     const turnEdit = editingRole === "assistant" && editingUserId != null;
 
@@ -3215,15 +3220,19 @@ export default function ChatClient({
               >
                 <div className="min-w-0">
                 {isEditing ? (
-                  <div>
+                  <div className="w-full min-w-0">
                     <textarea
                       value={editDraft}
                       maxLength={ASSISTANT_MESSAGE_MAX}
                       onChange={(e) =>
                         setEditDraft(e.target.value.slice(0, ASSISTANT_MESSAGE_MAX))
                       }
-                      rows={6}
-                      className="w-full resize-none rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-sm text-zinc-200 outline-none focus:border-orange-500/40"
+                      rows={18}
+                      className="min-h-[min(70vh,36rem)] w-full resize-y rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-3 text-zinc-200 outline-none focus:border-orange-500/40"
+                      style={{
+                        fontSize: "var(--font-size-chat)",
+                        lineHeight: "var(--line-height-chat)",
+                      }}
                     />
                     {renderEditActions(m.id!, "assistant")}
                   </div>

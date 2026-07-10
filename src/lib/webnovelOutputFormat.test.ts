@@ -28,6 +28,8 @@ describe("webnovelOutputFormat", () => {
     assert.match(block, /Never append dialogue/i);
     assert.match(block, /Wrong:/);
     assert.match(block, /Right:/);
+    assert.match(block, /Continuous narration stays in one paragraph/);
+    assert.doesNotMatch(block, /emotional beat shifts/i);
     assert.doesNotMatch(block, /Output formatting only/i);
   });
 

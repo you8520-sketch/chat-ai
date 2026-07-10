@@ -23,7 +23,8 @@ Right:
 
 "대사."
 
-When speaker, focus, or emotional beat shifts — new paragraph.`;
+Continuous narration stays in one paragraph — do not insert blank lines between consecutive narration sentences.
+Blank lines are for narration↔dialogue separation (and major scene breaks), not every sentence.`;
 }
 
 /** user-turn bottom — layout recency (paired with length tail in contextBuilder) */
