@@ -21,6 +21,7 @@ import {
   MIN_POINT_GIFT_AMOUNT,
   POINT_GIFT_FEE_RATE,
 } from "@/lib/pointGiftsShared";
+import { cn, studioInputClass, studioSurface, studioType } from "@/lib/studioDesign";
 
 export type { PointUsageLog };
 
@@ -52,18 +53,18 @@ function CreditPagination({
         type="button"
         disabled={page <= 1 || loading}
         onClick={() => onPage(page - 1)}
-        className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-gray-300 transition hover:border-violet-500/40 hover:text-white disabled:opacity-40"
+        className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition hover:border-violet-500/40 hover:text-white disabled:opacity-40"
       >
         이전
       </button>
-      <span className="text-xs tabular-nums text-gray-400">
+      <span className="text-xs tabular-nums text-zinc-400">
         {page} / {totalPages}
       </span>
       <button
         type="button"
         disabled={page >= totalPages || loading}
         onClick={() => onPage(page + 1)}
-        className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-gray-300 transition hover:border-violet-500/40 hover:text-white disabled:opacity-40"
+        className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-300 transition hover:border-violet-500/40 hover:text-white disabled:opacity-40"
       >
         다음
       </button>
@@ -79,20 +80,20 @@ function formatLogTimestamp(iso: string): string {
 
 function formatLogReason(reason: string, createdAt: string) {
   const timestamp = (
-    <span className="mt-0.5 block text-[10px] tabular-nums text-gray-500">{formatLogTimestamp(createdAt)}</span>
+    <span className="mt-0.5 block text-[10px] tabular-nums text-zinc-500">{formatLogTimestamp(createdAt)}</span>
   );
   const withModel = reason.match(/^대화 · (.+?) \((.+)\)$/);
   if (withModel) {
     return (
-      <span className="min-w-0 text-gray-300">
+      <span className="min-w-0 text-zinc-300">
         대화 · <span className="font-semibold text-violet-300">{withModel[1]}</span>
-        <span className="mt-0.5 block text-xs text-gray-500">{withModel[2]}</span>
+        <span className="mt-0.5 block text-xs text-zinc-500">{withModel[2]}</span>
         {timestamp}
       </span>
     );
   }
   return (
-    <span className="min-w-0 text-gray-300">
+    <span className="min-w-0 text-zinc-300">
       {reason}
       {timestamp}
     </span>
@@ -109,7 +110,7 @@ function PointLogList({
   onRefresh: () => void;
 }) {
   if (logs.length === 0) {
-    return <p className="p-4 text-sm text-gray-500">내역이 없습니다.</p>;
+    return <p className="p-4 text-sm text-zinc-500">내역이 없습니다.</p>;
   }
 
   return (
@@ -118,7 +119,7 @@ function PointLogList({
         <div key={l.id ?? `${l.created_at}-${l.reason}`} className="flex items-start justify-between gap-3 p-3 text-sm">
           {formatLogReason(l.reason, l.created_at)}
           <div className="flex shrink-0 flex-col items-end gap-1">
-            <span className={l.delta >= 0 ? "font-semibold text-emerald-400" : "font-semibold text-rose-400"}>
+            <span className={l.delta >= 0 ? "font-semibold tabular-nums text-violet-300" : "font-semibold tabular-nums text-rose-400"}>
               {l.delta >= 0 ? "+" : ""}
               {l.delta.toLocaleString()}P
             </span>
@@ -402,32 +403,32 @@ export default function PointsClient({
 
   return (
     <div className="mx-auto mt-4 max-w-3xl">
-      <div className="rounded-2xl bg-gradient-to-r from-violet-900/60 to-indigo-900/40 p-6">
-        <p className="text-sm text-gray-300">보유 포인트</p>
+      <div className={`p-6 ${studioSurface.card}`}>
+        <p className={studioType.label}>보유 포인트</p>
         <PointsBalanceTooltip total={points} paid={paidPoints} free={freePoints}>
-          <p className="text-3xl font-black text-white">{points.toLocaleString()}P</p>
+          <p className="text-3xl font-semibold tabular-nums text-zinc-50">{points.toLocaleString()}P</p>
         </PointsBalanceTooltip>
-        <p className="mt-2 text-xs text-amber-300/90">
-          충전 보너스·이벤트 무료 포인트는 <b>{FREE_POINTS_VALID_MONTHS}개월</b>, 출석 포인트는 <b>{ATTENDANCE_POINTS_VALID_MONTHS}개월</b>간 유효합니다.
+        <p className={`mt-2 ${studioType.caption}`}>
+          충전 보너스·이벤트 무료 포인트는 <b className="text-zinc-300">{FREE_POINTS_VALID_MONTHS}개월</b>, 출석 포인트는 <b className="text-zinc-300">{ATTENDANCE_POINTS_VALID_MONTHS}개월</b>간 유효합니다.
         </p>
       </div>
 
-      {msg && <p className="mt-4 rounded-xl bg-emerald-600/10 p-3 text-sm text-emerald-300">{msg}</p>}
-      {error && <p className="mt-4 rounded-xl bg-rose-600/10 p-3 text-sm text-rose-300">{error}</p>}
+      {msg && <p className={`mt-4 ${studioSurface.banner} text-sm text-violet-300`}>{msg}</p>}
+      {error && <p className="mt-4 rounded-xl border border-rose-500/20 bg-rose-600/10 p-3 text-sm text-rose-300">{error}</p>}
 
       <div className="mt-6">
         <AttendanceBanner loggedIn initialCheckedIn={initialCheckedIn} initialStreak={initialAttendanceStreak} />
       </div>
 
       {!paymentsEnabled && (
-        <div className="mt-8 rounded-2xl border border-violet-500/25 bg-violet-950/30 p-5">
-          <p className="text-sm font-bold text-violet-200">클로즈베타 기간</p>
-          <p className="mt-2 text-sm text-gray-400">
+        <div className={`mt-8 p-5 ${studioSurface.card}`}>
+          <p className={studioType.sectionTitle}>클로즈베타 기간</p>
+          <p className={`mt-2 ${studioType.body}`}>
             포인트 구매·결제는 오픈 전까지 제공되지 않습니다. 무료 포인트가 필요하면 신청해 주세요.
           </p>
           <Link
             href="/events/beta-free-points"
-            className="mt-4 inline-block rounded-xl bg-emerald-500 px-5 py-2.5 text-sm font-bold text-black hover:bg-emerald-400"
+            className="mt-4 inline-block rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-violet-500"
           >
             무료 포인트 신청하기
           </Link>
@@ -436,10 +437,10 @@ export default function PointsClient({
 
       {paymentsEnabled && (
         <>
-      <h2 className="mt-8 text-lg font-bold text-white">포인트 충전</h2>
-      <p className="mt-1 text-xs text-gray-500">
-        결제 금액과 동일한 <b className="text-gray-300">유료 포인트</b>가 지급됩니다 (₩10,000 = 10,000P). 보너스는{" "}
-        <b className="text-amber-200/90">무료 포인트</b>로 별도 적립됩니다.
+      <h2 className={`mt-8 ${studioType.sectionTitle}`}>포인트 충전</h2>
+      <p className={`mt-1 ${studioType.caption}`}>
+        결제 금액과 동일한 <b className="text-zinc-300">유료 포인트</b>가 지급됩니다 (₩10,000 = 10,000P). 보너스는{" "}
+        <b className="text-violet-300">무료 포인트</b>로 별도 적립됩니다.
       </p>
       <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
         {POINT_CHARGE_PACKAGES.map((p) => {
@@ -449,25 +450,25 @@ export default function PointsClient({
               key={p.id}
               onClick={() => charge(p.id)}
               disabled={loading === p.id}
-              className="rounded-2xl border border-white/5 bg-[#131626] p-4 text-left hover:border-violet-500/40 disabled:opacity-50"
+              className={`p-4 text-left transition hover:border-violet-500/40 disabled:opacity-50 ${studioSurface.card}`}
             >
-              <p className="text-lg font-black text-white">{totalPoints.toLocaleString()}P</p>
-              <p className="mt-0.5 text-[11px] text-gray-400">
+              <p className="text-lg font-semibold tabular-nums text-zinc-50">{totalPoints.toLocaleString()}P</p>
+              <p className={`mt-0.5 ${studioType.caption}`}>
                 유료 {p.paidPoints.toLocaleString()}P
                 {p.bonusPoints > 0 && (
                   <>
                     {" "}
-                    + 무료 <span className="text-amber-300/90">{p.bonusPoints.toLocaleString()}P</span>
+                    + 무료 <span className="text-violet-300">{p.bonusPoints.toLocaleString()}P</span>
                   </>
                 )}
               </p>
-              {p.bonusTag && <p className="text-[11px] font-semibold text-emerald-400">{p.bonusTag}</p>}
-              <p className="mt-2 text-sm text-gray-400">₩{p.price.toLocaleString()}</p>
+              {p.bonusTag && <p className={`${studioType.caption} font-semibold text-violet-300`}>{p.bonusTag}</p>}
+              <p className={`mt-2 ${studioType.body} text-zinc-400`}>₩{p.price.toLocaleString()}</p>
             </button>
           );
         })}
       </div>
-      <p className="mt-2 text-[11px] text-gray-600">
+      <p className={`mt-2 ${studioType.caption} text-zinc-600`}>
         {portoneEnabled
           ? "※ PortOne V2 결제창으로 충전합니다. (테스트 카드는 포트원 문서 참고)"
           : "※ PortOne 미설정 — 모의 결제로 즉시 충전됩니다."}
@@ -475,29 +476,29 @@ export default function PointsClient({
         </>
       )}
 
-      <h2 className="mt-8 text-lg font-bold text-white">포인트 선물</h2>
-      <div className="mt-3 rounded-2xl border border-white/5 bg-[#131626] p-5">
-        <p className="text-xs leading-relaxed text-gray-400">
-          <b className="text-gray-200">유료 포인트</b>만 선물할 수 있습니다. 입력한 금액이 그대로 차감되고, 받는 사람은{" "}
-          <b className="text-amber-200/90">수수료 {feePct}%</b>를 제외한 금액을 받습니다.
+      <h2 className={`mt-8 ${studioType.sectionTitle}`}>포인트 선물</h2>
+      <div className={`mt-3 p-5 ${studioSurface.card}`}>
+        <p className={studioType.body}>
+          <b className="text-zinc-200">유료 포인트</b>만 선물할 수 있습니다. 입력한 금액이 그대로 차감되고, 받는 사람은{" "}
+          <b className="text-violet-300">수수료 {feePct}%</b>를 제외한 금액을 받습니다.
         </p>
-        <p className="mt-1 text-xs text-gray-500">
-          보유 유료 포인트: <b className="text-white">{paidPoints.toLocaleString()}P</b> · 최소{" "}
+        <p className={`mt-1 ${studioType.caption}`}>
+          보유 유료 포인트: <b className="text-zinc-50">{paidPoints.toLocaleString()}P</b> · 최소{" "}
           {MIN_POINT_GIFT_AMOUNT}P
         </p>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <label className="block">
-            <span className="text-xs font-semibold text-gray-400">받는 사람 닉네임</span>
+            <span className={studioType.label}>받는 사람 닉네임</span>
             <input
               type="text"
               value={giftNickname}
               onChange={(e) => setGiftNickname(e.target.value)}
               placeholder="정확한 닉네임 입력"
-              className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white outline-none focus:border-violet-500/50"
+              className={cn(studioInputClass, "mt-1")}
             />
           </label>
           <label className="block">
-            <span className="text-xs font-semibold text-gray-400">선물 금액 (차감액)</span>
+            <span className={studioType.label}>선물 금액 (차감액)</span>
             <input
               type="number"
               min={MIN_POINT_GIFT_AMOUNT}
@@ -505,18 +506,18 @@ export default function PointsClient({
               value={giftAmount}
               onChange={(e) => setGiftAmount(e.target.value)}
               placeholder={`최소 ${MIN_POINT_GIFT_AMOUNT}P`}
-              className="mt-1 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2.5 text-sm text-white outline-none focus:border-violet-500/50"
+              className={cn(studioInputClass, "mt-1")}
             />
           </label>
         </div>
         {giftPreview && (
-          <div className="mt-3 rounded-xl border border-violet-500/20 bg-violet-500/5 px-4 py-3 text-sm text-gray-300">
+          <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-zinc-300">
             <p>
-              차감 <b className="text-white">{giftPreview.gross.toLocaleString()}P</b>
-              <span className="mx-2 text-gray-600">→</span>
-              수수료 <b className="text-rose-300">{giftPreview.fee.toLocaleString()}P</b>
-              <span className="mx-2 text-gray-600">→</span>
-              상대 수령 <b className="text-emerald-300">{giftPreview.net.toLocaleString()}P</b>
+              차감 <b className="tabular-nums text-zinc-50">{giftPreview.gross.toLocaleString()}P</b>
+              <span className="mx-2 text-zinc-600">→</span>
+              수수료 <b className="tabular-nums text-rose-300">{giftPreview.fee.toLocaleString()}P</b>
+              <span className="mx-2 text-zinc-600">→</span>
+              상대 수령 <b className="tabular-nums text-violet-300">{giftPreview.net.toLocaleString()}P</b>
             </p>
           </div>
         )}
@@ -530,9 +531,9 @@ export default function PointsClient({
       </div>
 
       <div id={POINT_USAGE_HASH} className="mt-8 scroll-mt-28">
-        <h2 className="text-lg font-bold text-white">포인트 내역</h2>
+        <h2 className={studioType.sectionTitle}>포인트 내역</h2>
         <div
-          className="mt-3 flex gap-1 rounded-xl border border-white/5 bg-[#0e1120] p-1"
+          className={cn(studioSurface.tabList, "mt-3")}
           role="tablist"
           aria-label="포인트 내역 탭"
         >
@@ -549,9 +550,10 @@ export default function PointsClient({
               role="tab"
               aria-selected={historyTab === id}
               onClick={() => setHistoryTab(id)}
-              className={`flex-1 rounded-lg py-2 text-sm font-semibold transition ${
-                historyTab === id ? "bg-violet-600 text-white" : "text-gray-300 hover:text-gray-100"
-              }`}
+              className={cn(
+                "flex-1 rounded-lg py-2 text-sm font-semibold transition",
+                historyTab === id ? studioSurface.tabActive : studioSurface.tabIdle,
+              )}
             >
               {label}
             </button>
@@ -559,28 +561,28 @@ export default function PointsClient({
         </div>
 
         {historyTab === "usage" && usageTotal > 0 && (
-          <p className="mt-2 text-xs text-gray-500">
+          <p className={`mt-2 ${studioType.caption}`}>
             최근 {Math.min(usageTotal, 100).toLocaleString()}건 · {USAGE_PAGE_SIZE}건씩 표시
           </p>
         )}
         {historyTab === "paid" && paid.total > 0 && (
-          <p className="mt-2 text-xs text-gray-500">
+          <p className={`mt-2 ${studioType.caption}`}>
             최근 {Math.min(paid.total, 100).toLocaleString()}건 · {CHARGE_PAGE_SIZE}건씩 · 결제 충전·선물 수령
           </p>
         )}
         {historyTab === "free" && free.total > 0 && (
-          <p className="mt-2 text-xs text-gray-500">
+          <p className={`mt-2 ${studioType.caption}`}>
             최근 {Math.min(free.total, 100).toLocaleString()}건 · {CHARGE_PAGE_SIZE}건씩 · 출석(1개월)·이벤트/충전 보너스(5개월)
           </p>
         )}
 
         <div
-          className="mt-3 divide-y divide-white/5 rounded-2xl border border-white/5 bg-[#131626]"
+          className={`mt-3 divide-y divide-white/5 ${studioSurface.card}`}
           role="tabpanel"
         >
           {historyTab === "usage" ? (
             usageLoading ? (
-              <p className="p-4 text-sm text-gray-500">불러오는 중…</p>
+              <p className="p-4 text-sm text-zinc-500">불러오는 중…</p>
             ) : (
               <PointLogList
                 logs={usageLogs}
@@ -590,7 +592,7 @@ export default function PointsClient({
             )
           ) : historyTab === "paid" ? (
             paid.loading ? (
-              <p className="p-4 text-sm text-gray-500">불러오는 중…</p>
+              <p className="p-4 text-sm text-zinc-500">불러오는 중…</p>
             ) : (
               <PointLogList
                 logs={paid.logs}
@@ -599,7 +601,7 @@ export default function PointsClient({
               />
             )
           ) : free.loading ? (
-            <p className="p-4 text-sm text-gray-500">불러오는 중…</p>
+            <p className="p-4 text-sm text-zinc-500">불러오는 중…</p>
           ) : (
             <PointLogList
               logs={free.logs}

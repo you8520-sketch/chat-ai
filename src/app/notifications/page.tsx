@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
+import { AppPageShell } from "@/components/AppPageShell";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { isNoticeRead } from "@/lib/notices";
+import { cn, studioType } from "@/lib/studioDesign";
 import {
   listRecentNotices,
   listRecentUserNotifications,
@@ -34,22 +36,23 @@ export default async function NotificationsPage() {
   const hasAny = notices.length > 0 || activities.length > 0;
 
   return (
-    <div className="mx-auto mt-4 max-w-2xl">
+    <AppPageShell
+      title="알림"
+      description="공지사항, 선물·결제·팔로우, 팔로우한 크리에이터 신작을 확인하세요."
+      narrow
+      className="mt-4"
+    >
       <MarkNotificationsRead />
-      <h1 className="text-xl font-black text-white">알림</h1>
-      <p className="mt-1 text-sm text-gray-500">
-        공지사항, 선물·결제·팔로우, 팔로우한 크리에이터 신작을 확인하세요.
-      </p>
 
       {!hasAny && (
-        <p className="mt-16 text-center text-gray-500">새 알림이 없습니다.</p>
+        <p className="mt-16 text-center text-zinc-400">새 알림이 없습니다.</p>
       )}
 
       {notices.length > 0 && (
-        <section className="mt-6">
+        <section>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-bold text-violet-400">공지사항</h2>
-            <Link href="/board/notice" className="text-xs text-gray-500 hover:text-white">
+            <h2 className="text-sm font-semibold text-violet-400">공지사항</h2>
+            <Link href="/board/notice" className={cn(studioType.caption, "transition hover:text-zinc-50")}>
               전체 보기 →
             </Link>
           </div>
@@ -61,10 +64,10 @@ export default async function NotificationsPage() {
                 key={n.id}
                 href="/board/notice"
                 className={`block rounded-xl border bg-[#131626] p-4 transition hover:border-violet-500/40 ${
-                  unread ? "border-violet-500/30" : "border-white/5"
+                  unread ? "border-violet-500/30" : "border-white/10"
                 }`}
               >
-                <p className="font-semibold text-white">
+                <p className="font-semibold text-zinc-50">
                   {unread && (
                     <span className="mr-1.5 inline-block rounded bg-violet-600/80 px-1.5 py-0.5 text-[10px] font-bold text-white">
                       새
@@ -72,8 +75,8 @@ export default async function NotificationsPage() {
                   )}
                   {n.title}
                 </p>
-                <p className="mt-1 line-clamp-2 text-sm text-gray-400">{n.content}</p>
-                <p className="mt-2 text-xs text-gray-500">
+                <p className={cn(studioType.body, "mt-1 line-clamp-2")}>{n.content}</p>
+                <p className={cn(studioType.caption, "mt-2")}>
                   {n.author_name} · {formatDate(n.created_at)}
                 </p>
               </Link>
@@ -85,7 +88,7 @@ export default async function NotificationsPage() {
 
       {activities.length > 0 && (
         <section className="mt-8">
-          <h2 className="mb-3 text-sm font-bold text-violet-400">활동</h2>
+          <h2 className="mb-3 text-sm font-semibold text-violet-400">활동</h2>
           <div className="space-y-2">
             {activities.map((n) => {
               const icon = notificationIcon(n.type);
@@ -96,7 +99,7 @@ export default async function NotificationsPage() {
                   key={n.id}
                   href={notificationHref(n)}
                   className={`flex items-center gap-3 rounded-xl border bg-[#131626] p-4 transition hover:border-violet-500/40 ${
-                    unread ? "border-violet-500/30" : "border-white/5"
+                    unread ? "border-violet-500/30" : "border-white/10"
                   }`}
                 >
                   {showCharacterAvatar ? (
@@ -112,7 +115,7 @@ export default async function NotificationsPage() {
                     </div>
                   )}
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-white">
+                    <p className="font-semibold text-zinc-50">
                       {unread && (
                         <span className="mr-1.5 inline-block rounded bg-violet-600/80 px-1.5 py-0.5 text-[10px] font-bold text-white">
                           새
@@ -120,8 +123,8 @@ export default async function NotificationsPage() {
                       )}
                       {n.title}
                     </p>
-                    <p className="truncate text-sm text-gray-400">{n.body}</p>
-                    <p className="mt-1 text-xs text-gray-500">{formatDate(n.created_at)}</p>
+                    <p className={cn(studioType.body, "truncate")}>{n.body}</p>
+                    <p className={cn(studioType.caption, "mt-1")}>{formatDate(n.created_at)}</p>
                   </div>
                 </Link>
               );
@@ -131,13 +134,13 @@ export default async function NotificationsPage() {
       )}
 
       {!user && (
-        <p className="mt-10 text-center text-sm text-gray-500">
+        <p className={cn(studioType.body, "mt-10 text-center")}>
           <Link href="/login" className="text-violet-400 hover:underline">
             로그인
           </Link>
           하면 선물·결제·팔로우·신작 알림을 받을 수 있습니다.
         </p>
       )}
-    </div>
+    </AppPageShell>
   );
 }

@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import LogoutButton from "@/components/LogoutButton";
 import PointsBalanceTooltip from "@/components/PointsBalanceTooltip";
+import { AppPageShell } from "@/components/AppPageShell";
+import { cn, studioInputClass, studioSurface, studioType } from "@/lib/studioDesign";
 
 type Props = {
   user: {
@@ -72,12 +74,10 @@ export default function SettingsClient({ user, unreadNotice = false }: Props) {
   }
 
   return (
-    <div className="mx-auto mt-4 max-w-2xl pb-8">
-      <h1 className="text-xl font-black text-white">내 정보 · 설정</h1>
-
-      <section className="mt-6 rounded-2xl border border-white/5 bg-[#131626] p-5">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">계정</h2>
-        <p className="mt-2 text-lg font-bold text-white">{user.nickname}</p>
+    <AppPageShell title="내 정보 · 설정" narrow className="mt-4">
+      <section className={cn(studioSurface.card, "p-5")}>
+        <h2 className={cn(studioType.caption, "font-semibold uppercase tracking-wide")}>계정</h2>
+        <p className="mt-2 text-lg font-bold text-zinc-50">{user.nickname}</p>
         <div className="mt-3 flex items-center justify-between gap-3">
           <span className="text-sm text-zinc-400">보유 포인트</span>
           <PointsBalanceTooltip
@@ -91,12 +91,12 @@ export default function SettingsClient({ user, unreadNotice = false }: Props) {
           </PointsBalanceTooltip>
         </div>
         <div className="mt-4 border-t border-white/[0.06] pt-4">
-          <LogoutButton className="text-sm font-medium text-zinc-400 transition hover:text-white" />
+          <LogoutButton className="text-sm font-medium text-zinc-400 transition hover:text-zinc-50" />
         </div>
       </section>
 
       <section className="mt-4">
-        <h2 className="mb-2 px-0.5 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        <h2 className={cn(studioType.caption, "mb-2 px-0.5 font-semibold uppercase tracking-wide")}>
           고객지원
         </h2>
         <ul className="flex flex-col gap-2">
@@ -104,7 +104,7 @@ export default function SettingsClient({ user, unreadNotice = false }: Props) {
             <li key={l.href}>
               <Link
                 href={l.href}
-                className="flex h-14 items-center justify-between gap-3 rounded-[13px] border border-white/[0.08] bg-[#11131a] px-4 text-sm font-medium text-zinc-100 transition hover:bg-[#161922]"
+                className="flex h-14 items-center justify-between gap-3 rounded-xl border border-white/10 bg-[#11131a] px-4 text-sm font-medium text-zinc-100 transition hover:bg-[#161922]"
               >
                 <span className="flex items-center gap-2">
                   {l.label}
@@ -121,13 +121,13 @@ export default function SettingsClient({ user, unreadNotice = false }: Props) {
         </ul>
       </section>
 
-      <section className="mt-6 rounded-2xl border border-white/5 bg-[#131626] p-5">
-        <h2 className="font-bold text-white">제작 · 크리에이터</h2>
-        <p className="mt-1 text-xs text-gray-400">캐릭터 제작과 수익·정산 페이지로 이동합니다.</p>
+      <section className={cn(studioSurface.card, "mt-6 p-5")}>
+        <h2 className={studioType.sectionTitle}>제작 · 크리에이터</h2>
+        <p className={cn(studioType.helper, "mt-1")}>캐릭터 제작과 수익·정산 페이지로 이동합니다.</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Link
             href="/studio"
-            className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-white/5"
+            className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-200 hover:bg-white/5"
           >
             제작 스튜디오
           </Link>
@@ -147,9 +147,9 @@ export default function SettingsClient({ user, unreadNotice = false }: Props) {
       </section>
 
       {user.isAdmin && (
-        <section className="mt-6 rounded-2xl border border-violet-500/30 bg-violet-950/30 p-5">
-          <h2 className="font-bold text-violet-200">관리자</h2>
-          <p className="mt-1 text-xs text-gray-400">이벤트 승인·포인트 지급·공지/FAQ·문의 답변·정산</p>
+        <section className="mt-6 rounded-xl border border-violet-500/30 bg-violet-950/30 p-5">
+          <h2 className="font-semibold tracking-tight text-violet-200">관리자</h2>
+          <p className={cn(studioType.helper, "mt-1")}>이벤트 승인·포인트 지급·공지/FAQ·문의 답변·정산</p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Link
               href="/admin/point-grant"
@@ -159,43 +159,43 @@ export default function SettingsClient({ user, unreadNotice = false }: Props) {
             </Link>
             <Link
               href="/admin/beta-free-points"
-              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-white/5"
+              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-200 hover:bg-white/5"
             >
               클로즈베타 포인트 신청 관리
             </Link>
             <Link
               href="/admin/create-migration"
-              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-white/5"
+              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-200 hover:bg-white/5"
             >
               캐릭터 제작 포인트 신청 관리
             </Link>
             <Link
               href="/admin/report-refunds"
-              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-white/5"
+              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-200 hover:bg-white/5"
             >
               오류 신고 환불
             </Link>
             <Link
               href="/admin/comment-banned-words"
-              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-white/5"
+              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-200 hover:bg-white/5"
             >
               댓글 금지어 관리
             </Link>
             <Link
               href="/admin/payout"
-              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-white/5"
+              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-200 hover:bg-white/5"
             >
               크리에이터 정산
             </Link>
             <Link
               href="/admin/boards"
-              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-white/5"
+              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-200 hover:bg-white/5"
             >
               공지 · FAQ 관리
             </Link>
             <Link
               href="/admin/inquiries"
-              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-white/5"
+              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-200 hover:bg-white/5"
             >
               문의 게시판 관리
             </Link>
@@ -203,38 +203,38 @@ export default function SettingsClient({ user, unreadNotice = false }: Props) {
         </section>
       )}
 
-      <section className="mt-6 rounded-2xl border border-white/5 bg-[#131626] p-5">
-        <h2 className="font-bold text-white">로그인 정보</h2>
+      <section className={cn(studioSurface.card, "mt-6 p-5")}>
+        <h2 className={studioType.sectionTitle}>로그인 정보</h2>
         <dl className="mt-3 space-y-2 text-sm">
           <div className="flex justify-between">
-            <dt className="text-gray-500">이메일</dt>
-            <dd className="text-gray-200">{user.email}</dd>
+            <dt className="text-zinc-500">이메일</dt>
+            <dd className="text-zinc-200">{user.email}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-gray-500">로그인 방식</dt>
-            <dd className="text-gray-200">{user.google ? "Google 간편 로그인" : "이메일 / 비밀번호"}</dd>
+            <dt className="text-zinc-500">로그인 방식</dt>
+            <dd className="text-zinc-200">{user.google ? "Google 간편 로그인" : "이메일 / 비밀번호"}</dd>
           </div>
           <div className="flex justify-between">
-            <dt className="text-gray-500">성인인증</dt>
+            <dt className="text-zinc-500">성인인증</dt>
             <dd>
               {user.isAdult ? (
-                <span className="text-emerald-400">완료 ✅</span>
+                <span className="text-zinc-200">완료 ✅</span>
               ) : (
-                <Link href="/verify" className="text-amber-300 hover:underline">미완료 — 인증하기</Link>
+                <Link href="/verify" className="text-violet-300 hover:underline">미완료 — 인증하기</Link>
               )}
             </dd>
           </div>
         </dl>
       </section>
 
-      <section className="mt-4 rounded-2xl border border-white/5 bg-[#131626] p-5">
-        <h2 className="font-bold text-white">닉네임</h2>
+      <section className={cn(studioSurface.card, "mt-4 p-5")}>
+        <h2 className={studioType.sectionTitle}>닉네임</h2>
         <div className="mt-3 flex gap-2">
           <input
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
             maxLength={20}
-            className="flex-1 rounded-xl bg-[#0e1120] px-4 py-2.5 text-sm text-white outline-none focus:ring-1 focus:ring-violet-500"
+            className={cn(studioInputClass, "flex-1 py-2.5")}
           />
           <button
             onClick={() => patch({ nickname }, "닉네임이 변경되었습니다.")}
@@ -246,9 +246,9 @@ export default function SettingsClient({ user, unreadNotice = false }: Props) {
         </div>
       </section>
 
-      <section className="mt-4 rounded-2xl border border-white/5 bg-[#131626] p-5">
-        <h2 className="font-bold text-white">취향 필터</h2>
-        <p className="mt-1 text-xs text-gray-500">홈과 목록에서 어떤 취향의 캐릭터를 볼지 선택합니다.</p>
+      <section className={cn(studioSurface.card, "mt-4 p-5")}>
+        <h2 className={studioType.sectionTitle}>취향 필터</h2>
+        <p className={cn(studioType.helper, "mt-1")}>홈과 목록에서 어떤 취향의 캐릭터를 볼지 선택합니다.</p>
         <div className="mt-3">
           <TasteFilterDropdown
             pref={pref}
@@ -262,11 +262,11 @@ export default function SettingsClient({ user, unreadNotice = false }: Props) {
         </div>
       </section>
 
-      <section className="mt-4 rounded-2xl border border-white/5 bg-[#131626] p-5">
+      <section className={cn(studioSurface.card, "mt-4 p-5")}>
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="font-bold text-white">🔞 성인 캐릭터 보기</h2>
-            <p className="mt-1 text-xs text-gray-500">
+            <h2 className={studioType.sectionTitle}>🔞 성인 캐릭터 보기</h2>
+            <p className={cn(studioType.helper, "mt-1")}>
               {user.isAdult ? "켜면 NSFW 캐릭터가 목록에 표시됩니다." : "성인인증 후 사용할 수 있습니다."}
             </p>
           </div>
@@ -280,7 +280,7 @@ export default function SettingsClient({ user, unreadNotice = false }: Props) {
               }
             }}
             aria-pressed={nsfwOn}
-            className={`relative h-7 w-[52px] rounded-full transition-colors ${nsfwOn ? "bg-rose-600" : "bg-gray-700"}`}
+            className={`relative h-7 w-[52px] rounded-full transition-colors ${nsfwOn ? "bg-rose-600" : "bg-zinc-700"}`}
           >
             <span
               className={`absolute top-0.5 h-6 w-6 rounded-full bg-white transition-all ${
@@ -291,8 +291,8 @@ export default function SettingsClient({ user, unreadNotice = false }: Props) {
         </div>
       </section>
 
-      {msg && <p className="mt-4 rounded-xl bg-emerald-600/10 p-3 text-sm text-emerald-300">{msg}</p>}
+      {msg && <p className="mt-4 rounded-xl border border-white/10 bg-[#131626] p-3 text-sm text-zinc-200">{msg}</p>}
       {error && <p className="mt-4 rounded-xl bg-rose-600/10 p-3 text-sm text-rose-300">{error}</p>}
-    </div>
+    </AppPageShell>
   );
 }

@@ -19,6 +19,7 @@ import {
 } from "@/lib/profileComments";
 import { checkCommentReportEligibility } from "@/lib/commentPolicy";
 import { userHasReportedComment } from "@/lib/commentReports";
+import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 
 export const dynamic = "force-dynamic";
 
@@ -80,19 +81,15 @@ export default async function CreatorProfilePage({
 
   return (
     <div className="mx-auto mt-8 max-w-4xl px-4">
-      <div className="rounded-2xl border border-white/5 bg-[#131626] p-6">
+      <div className={cn(studioSurface.card, "p-6")}>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-wider text-gray-400">크리에이터</p>
-            <h1
-              className={`mt-1 flex flex-wrap items-center gap-2 text-2xl font-black ${
-                creatorIsPartner ? "text-amber-200" : "text-white"
-              }`}
-            >
+            <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">크리에이터</p>
+            <h1 className="mt-1 flex flex-wrap items-center gap-2 text-2xl font-semibold text-zinc-50">
               @{creator.nickname}
               {creatorIsPartner && <OfficialCreatorBadge size="md" />}
             </h1>
-            <p className="mt-2 text-sm text-gray-300">
+            <p className={cn(studioType.body, "mt-2")}>
               캐릭터 {Number(charCount.c).toLocaleString()}개
             </p>
             {isOwner && (
@@ -117,8 +114,8 @@ export default async function CreatorProfilePage({
       </div>
 
       {isOwner && (
-        <div className="mt-4 rounded-2xl border border-violet-500/30 bg-violet-500/5 p-5">
-          <p className="text-sm font-bold text-violet-200">댓글 설정</p>
+        <div className={cn(studioSurface.card, "mt-4 p-5")}>
+          <p className={studioType.sectionTitle}>댓글 설정</p>
           <div className="mt-3">
             <CommentsEnabledToggle
               scope="creator"
@@ -132,7 +129,7 @@ export default async function CreatorProfilePage({
 
       {characters.length > 0 && (
         <section className="mt-8">
-          <h2 className="text-sm font-bold text-gray-200">공개 캐릭터</h2>
+          <h2 className={studioType.sectionTitle}>공개 캐릭터</h2>
           <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {characters.map((c) => (
               <CharacterCard key={c.id} c={c} blurNsfw={blurNsfw} loggedIn={loggedIn} />

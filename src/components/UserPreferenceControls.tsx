@@ -46,14 +46,8 @@ export function TasteFilterButtonRow({
   loggedIn?: boolean;
   onSelect: (p: TastePref) => void;
 }) {
-  const activeStyles: Record<string, string> = {
-    all: "border-violet-500/70 bg-violet-600/20 text-violet-100 ring-1 ring-violet-500/30",
-    female: "border-pink-400/70 bg-pink-500/15 text-pink-100 ring-1 ring-pink-400/25",
-    male: "border-sky-400/70 bg-sky-500/15 text-sky-100 ring-1 ring-sky-400/25",
-  };
-
   return (
-    <div className="flex flex-wrap items-center gap-2 sm:gap-2.5" role="group" aria-label="취향 필터">
+    <div className="flex flex-wrap items-center gap-2" role="group" aria-label="취향 필터">
       {HOME_ROW_OPTIONS.map(([value, label]) => {
         const key = value ?? "all";
         const selected = pref === value;
@@ -64,10 +58,10 @@ export function TasteFilterButtonRow({
             disabled={busy}
             aria-pressed={selected}
             onClick={() => onSelect(value)}
-            className={`rounded-lg border px-4 py-2 text-sm font-semibold transition disabled:opacity-50 ${
+            className={`min-h-11 rounded-xl border px-4 text-sm font-semibold transition disabled:opacity-50 ${
               selected
-                ? activeStyles[key]
-                : "border-white/15 bg-[#131626] text-zinc-400 hover:border-white/30 hover:bg-white/5 hover:text-zinc-200"
+                ? "border-violet-500 bg-violet-600/20 text-violet-100 ring-1 ring-violet-500/40"
+                : "border-white/10 bg-[#161922] text-zinc-400 hover:border-white/20 hover:text-zinc-200"
             }`}
           >
             {label}
@@ -75,7 +69,7 @@ export function TasteFilterButtonRow({
         );
       })}
       {!loggedIn && (
-        <Link href="/login" className="text-xs font-semibold text-amber-300/90 hover:text-amber-200">
+        <Link href="/login" className="text-xs font-medium text-zinc-400 transition hover:text-violet-300">
           로그인 후 저장
         </Link>
       )}
@@ -273,16 +267,16 @@ export default function UserPreferenceControls({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-white/5 bg-[#131626] p-4">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-gray-300">🔞 성인 캐릭터 보기</span>
+    <div className="flex flex-col gap-4 rounded-xl border border-white/10 bg-[#131626] p-4">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-sm font-medium text-zinc-300">성인 캐릭터 보기</span>
         <button
           type="button"
           onClick={toggleNsfw}
           disabled={busy}
           aria-pressed={nsfwOn}
           className={`relative h-6 w-11 rounded-full transition-colors ${
-            nsfwOn ? "bg-rose-600" : "bg-gray-700"
+            nsfwOn ? "bg-rose-600" : "bg-zinc-700"
           }`}
         >
           <span
@@ -292,10 +286,10 @@ export default function UserPreferenceControls({
           />
         </button>
       </div>
-      {!isAdult && <p className="text-[11px] text-gray-600">성인인증 후 켤 수 있어요.</p>}
+      {!isAdult && <p className="text-xs text-zinc-400">성인인증 후 켤 수 있어요.</p>}
 
       <div>
-        <p className="mb-2 text-sm font-semibold text-gray-300">취향 필터</p>
+        <p className="mb-2 text-sm font-medium text-zinc-300">취향 필터</p>
         <TasteFilterDropdown pref={pref} busy={busy} onSelect={setPreference} tone="settings" />
       </div>
     </div>
@@ -315,10 +309,10 @@ function HeaderNsfwToggle({
 }) {
   return (
     <div
-      className="flex items-center gap-1 rounded-xl border border-white/[0.08] bg-white/[0.04] px-1.5 py-1 sm:gap-1.5 sm:px-2"
+      className="flex min-h-9 items-center gap-1.5 rounded-xl border border-white/10 bg-[#161922] px-2 py-1"
       title={isAdult ? "성인 캐릭터 보기" : "성인인증 후 사용 가능"}
     >
-      <span className="text-[10px] font-bold text-rose-400">19+</span>
+      <span className="text-[10px] font-semibold text-rose-400">19+</span>
       <button
         type="button"
         onClick={onToggleNsfw}

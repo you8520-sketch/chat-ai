@@ -27,6 +27,13 @@ import {
   type StatusWidget,
 } from "@/lib/statusWidget";
 import { estimateStatusWidgetContextChars, formatWidgetBudgetHint } from "@/lib/statusWidget/contextBudget";
+import {
+  cn,
+  studioInputClass,
+  studioSurface,
+  studioTextareaClass,
+  studioType,
+} from "@/lib/studioDesign";
 
 export default function PersonaClient({
   initialPersonas,
@@ -367,16 +374,16 @@ export default function PersonaClient({
   return (
     <div className="mx-auto mt-6 max-w-2xl space-y-6">
       <div>
-        <h1 className="text-xl font-black text-white">페르소나·노트 제작</h1>
-        <p className="mt-1 text-sm text-gray-400">
+        <h1 className={studioType.heading}>페르소나·노트 제작</h1>
+        <p className={`mt-1 ${studioType.body}`}>
           원하는 만큼 페르소나를 만들고 채팅방 상단에서 선택해 사용합니다.
         </p>
       </div>
 
-      <section id="personas" className="space-y-3 rounded-2xl border border-violet-500/20 bg-[#131626] p-5 scroll-mt-4">
+      <section id="personas" className={cn(studioSurface.sectionAccent, "scroll-mt-4")}>
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-bold text-violet-300">내 페르소나 ({personas.length})</h2>
+            <h2 className={studioType.sectionTitle}>내 페르소나 ({personas.length})</h2>
             <p className="mt-0.5 text-[11px] text-zinc-500">
               설명 최대 {PERSONA_CONTENT_MAX.toLocaleString()}자
             </p>
@@ -410,7 +417,7 @@ export default function PersonaClient({
                       {p.memo}
                     </p>
                   )}
-                  <p className="mt-1 line-clamp-2 text-xs text-gray-400">
+                  <p className={`mt-1 line-clamp-2 ${studioType.caption}`}>
                     {p.description.trim() || "(설명 없음)"}
                   </p>
                   <p className="mt-1 text-[10px] text-zinc-600">
@@ -441,16 +448,16 @@ export default function PersonaClient({
         </ul>
 
         {(creating || editingId != null) && (
-          <div className="space-y-3 rounded-xl border border-violet-500/30 bg-[#0a0d18] p-4">
-            <div className="flex items-center justify-between gap-2 rounded-lg border border-violet-500/25 bg-violet-500/10 px-3 py-2">
-              <p className="text-xs font-bold text-violet-300">{creating ? "새 페르소나" : "페르소나 수정"}</p>
+          <div className={`space-y-3 ${studioSurface.cardMuted} p-4`}>
+            <div className="flex items-center justify-between gap-2 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
+              <p className={studioType.label}>{creating ? "새 페르소나" : "페르소나 수정"}</p>
               <span
                 className={`text-xs font-semibold tabular-nums ${
                   personaContentLength(draftDesc) >= PERSONA_CONTENT_MAX
                     ? "text-rose-400"
                     : personaContentLength(draftDesc) >= PERSONA_CONTENT_MAX * 0.9
-                      ? "text-amber-400"
-                      : "text-violet-200/80"
+                      ? "text-zinc-300"
+                      : "text-zinc-400"
                 }`}
               >
                 {personaContentLength(draftDesc).toLocaleString()} / {PERSONA_CONTENT_MAX.toLocaleString()}자
@@ -460,9 +467,9 @@ export default function PersonaClient({
               설명은 {PERSONA_CONTENT_MAX.toLocaleString()}자까지 입력할 수 있습니다.
             </p>
             <div>
-              <label className="mb-1 block text-xs text-gray-400">이름</label>
+              <label className={studioType.label}>이름</label>
               <input
-                className="w-full rounded-lg border border-white/10 bg-[#0e1120] px-3 py-2 text-sm text-white outline-none focus:border-violet-500"
+                className={studioInputClass}
                 maxLength={PERSONA_NAME_LIMIT}
                 placeholder={`비우면 안 됨 · 닉네임: ${nickname}`}
                 value={draftName}
@@ -470,8 +477,8 @@ export default function PersonaClient({
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs text-gray-400">성별</label>
-              <p className="mb-2 text-[11px] text-gray-600">
+              <label className={studioType.label}>성별</label>
+              <p className={`mb-2 ${studioType.caption}`}>
                 AI가 이 페르소나를 지칭·묘사할 때 반드시 따릅니다 · 필수
               </p>
               <div className="grid grid-cols-3 gap-2">
@@ -480,11 +487,10 @@ export default function PersonaClient({
                     type="button"
                     key={value}
                     onClick={() => setDraftGender(value)}
-                    className={`rounded-xl border py-2.5 text-sm font-bold transition ${
-                      draftGender === value
-                        ? "border-violet-500 bg-violet-600/25 text-violet-200 ring-1 ring-violet-500/50"
-                        : "border-white/10 bg-[#0e1120] text-gray-400 hover:border-white/20 hover:text-gray-200"
-                    }`}
+                    className={cn(
+                      "rounded-xl border py-2.5 text-sm font-semibold transition",
+                      draftGender === value ? studioSurface.choiceActive : studioSurface.choiceIdle,
+                    )}
                   >
                     {GENDER_LABELS[value]}
                   </button>
@@ -492,28 +498,28 @@ export default function PersonaClient({
               </div>
             </div>
             <div>
-              <div className="mb-1 flex justify-between text-xs text-gray-400">
-                <label>메모 (참고용 · AI 미전달)</label>
-                <span>{draftMemo.length.toLocaleString()}자</span>
+              <div className="mb-1 flex justify-between">
+                <label className={studioType.label}>메모 (참고용 · AI 미전달)</label>
+                <span className={studioType.counter}>{draftMemo.length.toLocaleString()}자</span>
               </div>
               <input
-                className="w-full rounded-lg border border-white/10 bg-[#0e1120] px-3 py-2 text-sm text-white outline-none focus:border-violet-500"
+                className={studioInputClass}
                 placeholder="예: 메인 RP용"
                 value={draftMemo}
                 onChange={(e) => setDraftMemo(e.target.value)}
               />
             </div>
             <div>
-              <div className="mb-1 flex justify-between text-xs text-gray-400">
-                <label>설명</label>
-                <span>
+              <div className="mb-1 flex justify-between">
+                <label className={studioType.label}>설명</label>
+                <span className={studioType.counter}>
                   {personaContentLength(draftDesc).toLocaleString()} / {PERSONA_CONTENT_MAX.toLocaleString()}자
                 </span>
               </div>
               <textarea
                 rows={8}
                 maxLength={PERSONA_CONTENT_MAX}
-                className="w-full rounded-lg border border-white/10 bg-[#0e1120] px-3 py-2 text-sm leading-relaxed text-white outline-none focus:border-violet-500"
+                className={studioTextareaClass}
                 value={draftDesc}
                 onChange={(e) => setDraftDesc(e.target.value)}
               />
@@ -539,10 +545,10 @@ export default function PersonaClient({
         )}
       </section>
 
-      <section id="user-note-presets" className="space-y-3 rounded-2xl border border-amber-500/20 bg-[#131626] p-5 scroll-mt-4">
+      <section id="user-note-presets" className={cn(studioSurface.sectionAccent, "scroll-mt-4")}>
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-bold text-amber-300">유저 노트 보관함 ({notePresets.length})</h2>
+            <h2 className={studioType.sectionTitle}>유저 노트 보관함 ({notePresets.length})</h2>
             <p className="mt-0.5 text-[11px] text-zinc-500">
               고집중(중요 기억) 구간만 저장 · 채팅에서 불러와 사용
             </p>
@@ -551,7 +557,7 @@ export default function PersonaClient({
             type="button"
             onClick={startNoteCreate}
             disabled={busy || noteCreating}
-            className="rounded-lg bg-amber-600/90 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40"
+            className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
           >
             + 새 노트
           </button>
@@ -566,8 +572,8 @@ export default function PersonaClient({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-white">{preset.title}</p>
-                    <p className="mt-0.5 text-[10px] text-amber-400/70">고집중 구간</p>
-                    <p className="mt-1 line-clamp-2 text-xs text-gray-400">
+                    <p className={`mt-0.5 ${studioType.caption} text-zinc-500`}>고집중 구간</p>
+                    <p className={`mt-1 line-clamp-2 ${studioType.caption}`}>
                       {parsed.body.trim() || "(내용 없음)"}
                     </p>
                     <p className="mt-1 text-[10px] text-zinc-600">
@@ -604,14 +610,14 @@ export default function PersonaClient({
         </ul>
 
         {(noteCreating || noteEditingId != null) && (
-          <div className="space-y-3 rounded-xl border border-amber-500/30 bg-[#0a0d18] p-4">
-            <p className="text-xs font-bold text-amber-300">
+          <div className={`space-y-3 ${studioSurface.cardMuted} p-4`}>
+            <p className={studioType.sectionTitle}>
               {noteCreating ? "새 유저 노트" : "유저 노트 수정"}
             </p>
             <div>
-              <label className="mb-1 block text-xs text-gray-400">제목</label>
+              <label className={studioType.label}>제목</label>
               <input
-                className="w-full rounded-lg border border-white/10 bg-[#0e1120] px-3 py-2 text-sm text-white outline-none focus:border-amber-500"
+                className={studioInputClass}
                 maxLength={USER_NOTE_PRESET_TITLE_MAX}
                 placeholder="예: 본편 설정, 로맨스 루트"
                 value={noteDraftTitle}
@@ -623,9 +629,9 @@ export default function PersonaClient({
               onUserNoteChange={setNoteDraftContent}
               focusOnly
               focusRows={5}
-              textareaClassName="w-full rounded-xl border border-white/10 bg-[#0e1120] px-4 py-3 text-sm leading-relaxed text-white outline-none focus:border-amber-500/50"
+              textareaClassName={studioTextareaClass}
             />
-            <p className="text-[11px] text-gray-500">
+            <p className={studioType.caption}>
               {(() => {
                 const parsed = parseUserNoteCombined(extractFocusZoneNote(noteDraftContent));
                 return userNoteCombinedCharCount(parsed.body, parsed.statusTemplate).toLocaleString();
@@ -637,7 +643,7 @@ export default function PersonaClient({
                 type="button"
                 disabled={busy || !noteDraftTitle.trim()}
                 onClick={() => void saveNotePreset()}
-                className="rounded-lg bg-amber-600/90 px-4 py-2 text-xs font-bold text-white disabled:opacity-40"
+                className="rounded-lg bg-violet-600 px-4 py-2 text-xs font-semibold text-white disabled:opacity-40"
               >
                 {busy ? "저장 중…" : "저장"}
               </button>
@@ -655,11 +661,11 @@ export default function PersonaClient({
 
       <section
         id="status-widget-presets"
-        className="space-y-3 rounded-2xl border border-violet-500/20 bg-[#131626] p-5 scroll-mt-4"
+        className={cn(studioSurface.sectionAccent, "scroll-mt-4")}
       >
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-bold text-violet-300">
+            <h2 className={studioType.sectionTitle}>
               상태창 보관함 ({statusWidgetPresets.length})
             </h2>
             <p className="mt-0.5 text-[11px] text-zinc-500">
@@ -670,7 +676,7 @@ export default function PersonaClient({
             type="button"
             onClick={startWidgetCreate}
             disabled={busy || widgetCreating}
-            className="rounded-lg bg-violet-600/90 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40"
+            className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
           >
             + 새 상태창
           </button>
@@ -686,7 +692,7 @@ export default function PersonaClient({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-white">{preset.title}</p>
-                    <p className="mt-0.5 text-[10px] text-violet-400/70">
+                    <p className={`mt-0.5 ${studioType.caption}`}>
                       {formatWidgetBudgetHint(reserved)}
                     </p>
                   </div>
@@ -697,7 +703,7 @@ export default function PersonaClient({
                       onClick={() =>
                         void createWidgetShareLink({ presetId: preset.id })
                       }
-                      className="rounded-lg border border-cyan-500/25 px-2.5 py-1 text-[11px] text-cyan-300 hover:bg-cyan-500/10"
+                      className="rounded-lg border border-white/10 px-2.5 py-1 text-[11px] text-zinc-300 hover:bg-white/5"
                     >
                       공유
                     </button>
@@ -730,14 +736,14 @@ export default function PersonaClient({
         </ul>
 
         {(widgetCreating || widgetEditingId != null) && (
-          <div className="space-y-3 rounded-xl border border-violet-500/30 bg-[#0a0d18] p-4">
-            <p className="text-xs font-bold text-violet-300">
+          <div className={`space-y-3 ${studioSurface.cardMuted} p-4`}>
+            <p className={studioType.sectionTitle}>
               {widgetCreating ? "새 상태창" : "상태창 수정"}
             </p>
             <div>
-              <label className="mb-1 block text-xs text-gray-400">제목</label>
+              <label className={studioType.label}>제목</label>
               <input
-                className="w-full rounded-lg border border-white/10 bg-[#0e1120] px-3 py-2 text-sm text-white outline-none focus:border-violet-500"
+                className={studioInputClass}
                 maxLength={STATUS_WIDGET_PRESET_TITLE_MAX}
                 placeholder="예: 다크 카드, 미니멀 HUD"
                 value={widgetDraftTitle}
@@ -765,7 +771,7 @@ export default function PersonaClient({
                     widget_json: serializeStatusWidget(widgetDraft),
                   })
                 }
-                className="rounded-lg border border-cyan-500/30 bg-cyan-500/10 px-4 py-2 text-xs font-bold text-cyan-200 disabled:opacity-40"
+                className="rounded-lg border border-white/10 px-4 py-2 text-xs font-semibold text-zinc-300 hover:bg-white/5 disabled:opacity-40"
               >
                 공유 링크
               </button>
@@ -786,9 +792,9 @@ export default function PersonaClient({
       </section>
 
       {error && <p className="text-sm text-rose-400">{error}</p>}
-      {msg && <p className="text-sm text-emerald-400">{msg}</p>}
+      {msg && <p className="text-sm text-violet-300">{msg}</p>}
 
-      <p className="text-center text-sm text-gray-500">
+      <p className={`text-center ${studioType.body} text-zinc-500`}>
         <Link href="/" className="text-violet-400 hover:underline">
           홈으로
         </Link>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { characterCardHref } from "@/lib/chatLinks";
+import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 
 export type CharacterRow = {
   id: number;
@@ -73,7 +74,12 @@ export default function CharacterCard({ c, blurNsfw, loggedIn = false }: Props) 
       : null;
 
   return (
-    <article className="group flex flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-[#131626]">
+    <article
+      className={cn(
+        studioSurface.card,
+        "group flex flex-col overflow-hidden transition hover:border-white/20",
+      )}
+    >
       <Link href={href} className="relative block">
         <div
           className={`relative ${CHARACTER_THUMB_ASPECT} w-full overflow-hidden`}
@@ -127,9 +133,9 @@ export default function CharacterCard({ c, blurNsfw, loggedIn = false }: Props) 
         </div>
       </Link>
 
-      <div className="flex flex-1 flex-col gap-1 p-2.5 sm:gap-1.5 sm:p-3">
+      <div className="flex flex-1 flex-col gap-1.5 p-3">
         <Link href={href} className="min-w-0">
-          <h3 className="line-clamp-1 text-sm font-bold text-white transition group-hover:text-violet-300">
+          <h3 className="line-clamp-1 text-sm font-semibold text-zinc-50 transition group-hover:text-violet-300">
             {c.name}
           </h3>
         </Link>
@@ -152,7 +158,7 @@ export default function CharacterCard({ c, blurNsfw, loggedIn = false }: Props) 
 
         <Link href={href} className="min-w-0">
           {displayTagline ? (
-            <p className="line-clamp-2 min-h-[2.4rem] text-xs leading-relaxed text-zinc-400">
+            <p className={cn(studioType.caption, "line-clamp-2 min-h-[2.4rem]")}>
               {displayTagline}
             </p>
           ) : (
@@ -161,12 +167,12 @@ export default function CharacterCard({ c, blurNsfw, loggedIn = false }: Props) 
         </Link>
 
         {tags.length > 0 && (
-          <div className="mt-auto flex flex-wrap gap-1 pt-0.5">
+          <div className="mt-auto flex flex-wrap gap-1.5 pt-0.5">
             {tags.slice(0, 3).map((t) => (
               <Link
                 key={t}
                 href={`/search?q=${encodeURIComponent(t)}`}
-                className="rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-zinc-400 transition hover:bg-violet-600/20 hover:text-violet-200"
+                className="rounded-md bg-white/[0.05] px-1.5 py-0.5 text-[10px] font-medium text-zinc-400 transition hover:bg-violet-600/15 hover:text-violet-200"
               >
                 #{t}
               </Link>

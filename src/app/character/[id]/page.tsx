@@ -86,14 +86,18 @@ export default async function CharacterPage({ params }: { params: Promise<{ id: 
   );
   if (!access.ok) {
     return (
-      <div className="mx-auto mt-20 max-w-md rounded-2xl border border-amber-500/30 bg-[#131626] p-8 text-center">
-        <p className="text-4xl">🔒</p>
-        <h1 className="mt-3 text-xl font-black text-white">열람할 수 없습니다</h1>
-        <p className="mt-2 text-sm text-gray-400">{access.reason}</p>
+      <div className="mx-auto mt-20 max-w-md rounded-xl border border-white/10 bg-[#131626] p-8 text-center">
+        <h1 className="text-xl font-semibold tracking-tight text-zinc-50">열람할 수 없습니다</h1>
+        <p className="mt-2 text-sm leading-relaxed text-zinc-400">{access.reason}</p>
         {c.creator_id === user.id && c.moderation_status === "rejected" && c.moderation_note && (
-          <p className="mt-3 rounded-lg bg-rose-500/10 p-3 text-xs text-rose-300">검수 사유: {c.moderation_note}</p>
+          <p className="mt-3 rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300">
+            검수 사유: {c.moderation_note}
+          </p>
         )}
-        <Link href="/" className="mt-6 inline-block text-sm text-violet-400 hover:underline">
+        <Link
+          href="/"
+          className="mt-6 inline-block text-sm font-medium text-zinc-400 transition hover:text-violet-300"
+        >
           홈으로
         </Link>
       </div>

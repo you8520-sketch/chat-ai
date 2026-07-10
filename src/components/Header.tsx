@@ -31,10 +31,13 @@ export default async function Header() {
 
   return (
     <>
-      <header className="site-header sticky top-0 z-40 border-b border-white/[0.08] bg-[#0b0d14]/95 backdrop-blur">
+      <header className="site-header sticky top-0 z-40 border-b border-white/10 bg-[#0b0d14]/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl flex-nowrap items-center justify-between gap-2 px-3 py-2.5 text-xs sm:gap-3 sm:px-4">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-            <Link href="/" className="shrink-0 text-lg font-black tracking-tight text-white sm:text-xl">
+            <Link
+              href="/"
+              className="shrink-0 text-lg font-semibold tracking-tight text-zinc-50 sm:text-xl"
+            >
               하비 <span className="text-violet-400">AI</span>
             </Link>
             <HeaderBoardLinks unreadNotice={unreadNotice} />
@@ -61,7 +64,7 @@ export default async function Header() {
                 {!user.is_adult && (
                   <Link
                     href="/verify"
-                    className="hidden text-amber-300 hover:underline sm:inline"
+                    className="hidden text-xs font-medium text-zinc-400 transition hover:text-violet-300 sm:inline"
                   >
                     성인인증
                   </Link>
@@ -73,7 +76,7 @@ export default async function Header() {
                 <NotificationBell count={unreadCount} />
                 <Link
                   href="/login"
-                  className="rounded-xl bg-violet-600 px-3 py-1.5 font-semibold text-white hover:bg-violet-500 sm:px-4"
+                  className="inline-flex min-h-9 items-center rounded-xl bg-violet-600 px-3.5 text-sm font-semibold text-white transition hover:bg-violet-500 sm:px-4"
                 >
                   로그인
                 </Link>

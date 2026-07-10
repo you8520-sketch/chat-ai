@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import StudioButton from "@/components/studio/StudioButton";
+import { cn, studioInputClass, studioSurface, studioTextareaClass } from "@/lib/studioDesign";
 
 export default function PostForm({ board }: { board: string }) {
   const router = useRouter();
@@ -29,25 +31,32 @@ export default function PostForm({ board }: { board: string }) {
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="mt-3 rounded-full bg-violet-600 px-5 py-2 text-sm font-semibold text-white">
+      <StudioButton onClick={() => setOpen(true)} className="mt-3 rounded-full">
         글쓰기
-      </button>
+      </StudioButton>
     );
   }
   return (
-    <div className="mt-3 space-y-2 rounded-xl border border-violet-500/30 bg-[#131626] p-4">
+    <div className={cn(studioSurface.card, "mt-3 space-y-2 p-4")}>
       <input
-        placeholder="제목" value={title} onChange={(e) => setTitle(e.target.value)}
-        className="w-full rounded-lg bg-[#0e1120] px-3 py-2 text-sm text-white outline-none"
+        placeholder="제목"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        className={studioInputClass}
       />
       <textarea
-        placeholder="내용" rows={4} value={content} onChange={(e) => setContent(e.target.value)}
-        className="w-full rounded-lg bg-[#0e1120] px-3 py-2 text-sm text-white outline-none"
+        placeholder="내용"
+        rows={4}
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        className={studioTextareaClass}
       />
       {error && <p className="text-sm text-rose-400">{error}</p>}
       <div className="flex gap-2">
-        <button onClick={submit} className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white">등록</button>
-        <button onClick={() => setOpen(false)} className="rounded-lg bg-white/5 px-4 py-2 text-sm text-gray-300">취소</button>
+        <StudioButton onClick={submit}>등록</StudioButton>
+        <StudioButton variant="secondary" onClick={() => setOpen(false)}>
+          취소
+        </StudioButton>
       </div>
     </div>
   );

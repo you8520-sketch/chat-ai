@@ -5,6 +5,7 @@ import { BOARD_CONFIG } from "@/lib/boardConfig";
 import PostForm from "./PostForm";
 import CommentSection from "./CommentSection";
 import MarkNoticeRead from "./MarkNoticeRead";
+import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 
 export const dynamic = "force-dynamic";
 
@@ -65,16 +66,16 @@ export default async function BoardPage({ params }: { params: Promise<{ slug: st
   return (
     <div className="mx-auto mt-4 max-w-3xl">
       {slug === "notice" && <MarkNoticeRead />}
-      <h1 className="text-xl font-black text-white">{board.title}</h1>
-      {boardDesc && <p className="mt-1 text-xs text-amber-300/80">🔒 {boardDesc}</p>}
+      <h1 className={studioType.heading}>{board.title}</h1>
+      {boardDesc && <p className={cn(studioType.caption, "mt-1")}>🔒 {boardDesc}</p>}
       {"writable" in board && board.writable && (user ? (
         <PostForm board={slug} />
       ) : (
-        <p className="mt-3 text-sm text-gray-500">로그인 후 글을 작성할 수 있습니다.</p>
+        <p className={cn(studioType.body, "mt-3 text-zinc-500")}>로그인 후 글을 작성할 수 있습니다.</p>
       ))}
       <div className="mt-4 space-y-2">
         {posts.length === 0 && (
-          <p className="mt-10 text-center text-gray-500">
+          <p className={cn(studioType.helper, "mt-10 text-center")}>
             {"private" in board && board.private && !user
               ? "로그인하면 내가 작성한 문의 내역이 표시됩니다."
               : "게시글이 없습니다."}
@@ -84,20 +85,20 @@ export default async function BoardPage({ params }: { params: Promise<{ slug: st
           const comments = commentsByPost.get(p.id) ?? [];
           const hasStaffReply = comments.some((c) => c.is_staff_reply === 1);
           return (
-            <details key={p.id} className="rounded-xl border border-white/5 bg-[#131626] p-4">
+            <details key={p.id} className={cn(studioSurface.card, "p-4")}>
               <summary className="cursor-pointer list-none">
-                <span className="font-semibold text-white">{p.title}</span>
+                <span className="font-semibold text-zinc-50">{p.title}</span>
                 {boardComments && hasStaffReply && (
-                  <span className="ml-2 text-xs font-semibold text-emerald-400">[답변]</span>
+                  <span className="ml-2 text-xs font-semibold text-violet-300">[답변]</span>
                 )}
                 {boardComments && comments.length > 0 && (
                   <span className="ml-2 text-xs font-semibold text-violet-400">[{comments.length}]</span>
                 )}
-                <span className="ml-3 text-xs text-gray-500">
+                <span className="ml-3 text-xs text-zinc-500">
                   {p.author_name} · {new Date(p.created_at + "Z").toLocaleDateString("ko-KR")}
                 </span>
               </summary>
-              <p className="mt-3 whitespace-pre-wrap text-sm text-gray-300">{p.content}</p>
+              <p className={cn(studioType.body, "mt-3 whitespace-pre-wrap")}>{p.content}</p>
               {boardComments && (
                 <CommentSection
                   postId={p.id}

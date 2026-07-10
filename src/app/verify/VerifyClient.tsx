@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import DemoAdultSkip from "@/components/DemoAdultSkip";
+import StudioButton from "@/components/studio/StudioButton";
+import { cn, studioInputClass, studioSurface, studioType } from "@/lib/studioDesign";
 
 const CARRIERS = ["SKT", "KT", "LG U+", "알뜰폰"];
 
@@ -45,29 +47,26 @@ export default function VerifyClient({ redirectTo, showDemo = false }: Props) {
 
   if (done) {
     return (
-      <div className="mx-auto mt-20 max-w-sm rounded-2xl border border-emerald-500/30 bg-[#131626] p-8 text-center">
+      <div className={`mx-auto mt-20 max-w-sm p-8 text-center ${studioSurface.card}`}>
         <p className="text-4xl">✅</p>
-        <h1 className="mt-3 text-xl font-black text-white">성인인증 완료</h1>
-        <p className="mt-2 text-sm text-gray-400">
+        <h1 className={`mt-3 ${studioType.heading}`}>성인인증 완료</h1>
+        <p className={`mt-2 ${studioType.body}`}>
           이제 성인용 캐릭터 이용과 캐릭터 제작이 가능합니다.
         </p>
-        <button
+        <StudioButton
           onClick={() => router.push(redirectTo)}
-          className="mt-6 w-full rounded-xl bg-violet-600 py-3 font-bold text-white"
+          className="mt-6 w-full"
         >
           {fromCharacter ? "캐릭터로 돌아가기" : "홈으로"}
-        </button>
+        </StudioButton>
       </div>
     );
   }
 
-  const cls =
-    "w-full rounded-xl bg-[#0e1120] px-4 py-3 text-sm text-white outline-none focus:ring-1 focus:ring-violet-500";
-
   return (
-    <div className="mx-auto mt-20 max-w-sm rounded-2xl border border-white/5 bg-[#131626] p-8">
-      <h1 className="text-xl font-black text-white">🔞 성인인증</h1>
-      <p className="mt-2 text-sm text-gray-400">
+    <div className={`mx-auto mt-20 max-w-sm p-8 ${studioSurface.card}`}>
+      <h1 className={studioType.heading}>🔞 성인인증</h1>
+      <p className={`mt-2 ${studioType.body}`}>
         {fromCharacter
           ? "성인용 캐릭터를 이용하려면 본인인증이 필요합니다. (만 19세 이상)"
           : "성인용 콘텐츠 이용 및 캐릭터 제작을 위해 본인인증이 필요합니다. (만 19세 이상)"}
@@ -76,7 +75,7 @@ export default function VerifyClient({ redirectTo, showDemo = false }: Props) {
         <input
           required
           placeholder="이름"
-          className={cls}
+          className={studioInputClass}
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
         />
@@ -85,7 +84,7 @@ export default function VerifyClient({ redirectTo, showDemo = false }: Props) {
           placeholder="생년월일 8자리 (예: 19950101)"
           maxLength={8}
           pattern="\d{8}"
-          className={cls}
+          className={studioInputClass}
           value={form.birth}
           onChange={(e) => setForm({ ...form, birth: e.target.value.replace(/\D/g, "") })}
         />
@@ -95,25 +94,23 @@ export default function VerifyClient({ redirectTo, showDemo = false }: Props) {
               type="button"
               key={c}
               onClick={() => setForm({ ...form, carrier: c })}
-              className={`rounded-lg py-2 text-xs font-semibold ${
-                form.carrier === c ? "bg-violet-600 text-white" : "bg-[#0e1120] text-gray-400"
-              }`}
+              className={cn(
+                "rounded-xl border py-2 text-xs font-semibold",
+                form.carrier === c ? studioSurface.choiceActive : studioSurface.choiceIdle,
+              )}
             >
               {c}
             </button>
           ))}
         </div>
         {error && <p className="text-sm text-rose-400">{error}</p>}
-        <button
-          disabled={loading}
-          className="w-full rounded-xl bg-rose-600 py-3 font-bold text-white disabled:opacity-50"
-        >
+        <StudioButton type="submit" variant="danger" disabled={loading} className="w-full">
           휴대폰 본인인증 (모의)
-        </button>
+        </StudioButton>
         {showDemo && (
           <>
             <DemoAdultSkip redirectTo={redirectTo} label="데모: 바로 성인인증 완료" />
-            <p className="text-center text-[11px] text-gray-600">
+            <p className={`text-center ${studioType.caption} text-zinc-600`}>
               ※ 모의 인증은 생년월일이 만 19세 이상이어야 합니다. 안 되면 위 「데모: 바로 성인인증
               완료」를 누르세요.
             </p>

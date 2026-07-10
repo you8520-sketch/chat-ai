@@ -45,12 +45,12 @@ export default function DemoAdultSkip({
         type="button"
         onClick={skip}
         disabled={loading}
-        className="w-full rounded-xl border border-emerald-500/40 bg-emerald-500/10 py-3 text-sm font-bold text-emerald-300 hover:bg-emerald-500/20 disabled:opacity-50"
+        className="w-full rounded-xl border border-white/10 bg-white/[0.04] py-3 text-sm font-semibold text-zinc-200 transition hover:bg-white/[0.08] disabled:opacity-50"
       >
         {loading ? "처리 중…" : label}
       </button>
       {error && <p className="mt-2 text-sm text-rose-400">{error}</p>}
-      <p className="mt-2 text-center text-[11px] text-gray-600">
+      <p className="mt-2 text-center text-xs text-zinc-500">
         로컬 데모 전용 · 실제 본인인증 없이 제작·NSFW 기능을 테스트합니다.
       </p>
     </div>

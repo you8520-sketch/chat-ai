@@ -7,24 +7,21 @@ import WithdrawalForm from "@/components/WithdrawalForm";
 import CommentsEnabledToggle from "@/components/CommentsEnabledToggle";
 import {
   CREATOR_PARTNER_MIN_CHARACTERS,
-  CREATOR_PARTNER_MIN_MONTHLY_SPENT,
-  CREATOR_PARTNER_RENEWAL_MAINTENANCE_RATE,
-  CREATOR_PARTNER_TERM_MONTHS,
   CREATOR_PLUS_MIN_CHARACTERS,
   CREATOR_PLUS_MIN_TOTAL_CHATS,
   CREATOR_PRO_MIN_CHARACTERS,
   CREATOR_PRO_MIN_TOTAL_CHATS,
   CREATOR_REWARD_RATE,
-  CREATOR_REWARD_RATE_EXCLUSIVE,
   CREATOR_REWARD_RATE_PARTNER,
   CREATOR_REWARD_RATE_PLUS,
   CREATOR_REWARD_RATE_PRO,
   CREATOR_TIER_LABELS,
   type CreatorDashboard,
 } from "@/lib/creatorShared";
-import { CREATOR_PARTNER_RENEWAL_MIN_MONTHLY_SPENT } from "@/lib/partnerTier";
 import { formatPoints } from "@/lib/billingDisplay";
 import { getCharacterRepresentativeImageUrl } from "@/lib/characterAssets";
+import StudioButton from "@/components/studio/StudioButton";
+import { cn, studioInputClass, studioSurface, studioType } from "@/lib/studioDesign";
 
 function CharacterListAvatar({
   name,
@@ -59,15 +56,13 @@ function fmt(n: number) {
   return formatPoints(n);
 }
 
-function partnerStatusHint(t: CreatorDashboard["tier"], exclusivePct: number): string | null {
+function partnerStatusHint(t: CreatorDashboard["tier"]): string | null {
   if (t.tierLevel !== "partner" && t.tierLevel !== "exclusive") return null;
-  if (t.isExclusive) return null;
   const term = t.partnerTerm;
   if (term?.active && term.validUntil) {
-    const metCount = term.termMonths.filter((m) => m.met).length;
-    return `파트너 유지 ~${term.validUntil.slice(0, 10)} · 갱신 조건 월 ${term.maintenanceMinMonthly.toLocaleString()}P+ (${CREATOR_PARTNER_RENEWAL_MAINTENANCE_RATE * 100}% 기준) · ${metCount}/${term.termMonths.length}개월 충족 · 미달 시 프로로 강등`;
+    return `파트너 등급 유지 중 · ${term.validUntil.slice(0, 10)}까지`;
   }
-  return `전속 ${exclusivePct}%: 파트너 등급 달성 후 운영팀에 문의해 전속 계약을 진행할 수 있습니다.`;
+  return null;
 }
 
 type TierConditionRow = {
@@ -85,8 +80,7 @@ function allTierConditions(
   basePct: number,
   plusPct: number,
   proPct: number,
-  partnerPct: number,
-  exclusivePct: number
+  partnerPct: number
 ): TierConditionRow[] {
   const plusMet =
     t.characterCount >= CREATOR_PLUS_MIN_CHARACTERS &&
@@ -94,9 +88,7 @@ function allTierConditions(
   const proMet =
     t.characterCount >= CREATOR_PRO_MIN_CHARACTERS &&
     t.totalChats >= CREATOR_PRO_MIN_TOTAL_CHATS;
-  const partnerMet =
-    t.publicCharacterCount >= CREATOR_PARTNER_MIN_CHARACTERS &&
-    t.monthlySpentOnChars >= CREATOR_PARTNER_MIN_MONTHLY_SPENT;
+  const isPartnerOrAbove = t.tierLevel === "partner" || t.tierLevel === "exclusive";
 
   return [
     {
@@ -129,18 +121,10 @@ function allTierConditions(
       key: "partner",
       label: "파트너",
       ratePct: partnerPct,
-      condition: `공개 캐릭터 ${CREATOR_PARTNER_MIN_CHARACTERS}개+ & 월간 소비 ${CREATOR_PARTNER_MIN_MONTHLY_SPENT.toLocaleString()}P+ · 승급 후 ${CREATOR_PARTNER_TERM_MONTHS}개월 유지, 갱신 시 월 ${CREATOR_PARTNER_RENEWAL_MIN_MONTHLY_SPENT.toLocaleString()}P+ × ${CREATOR_PARTNER_TERM_MONTHS}개월`,
-      current: `현재 공개 ${t.publicCharacterCount}개 · ${fmt(t.monthlySpentOnChars)}P`,
-      met: partnerMet || t.tierLevel === "partner" || t.tierLevel === "exclusive",
-      isCurrent: t.tierLevel === "partner",
-    },
-    {
-      key: "exclusive",
-      label: "전속",
-      ratePct: exclusivePct,
-      condition: "파트너 달성 후 운영팀 문의 · 전속 계약 체결",
-      met: t.isExclusive,
-      isCurrent: t.tierLevel === "exclusive",
+      condition: `공개 캐릭터 ${CREATOR_PARTNER_MIN_CHARACTERS}개+ · 기타 조건 만족 시 자동 승급`,
+      current: `현재 공개 ${t.publicCharacterCount}개`,
+      met: isPartnerOrAbove || t.publicCharacterCount >= CREATOR_PARTNER_MIN_CHARACTERS,
+      isCurrent: isPartnerOrAbove,
     },
   ];
 }
@@ -199,54 +183,27 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
   const plusPct = Math.round(CREATOR_REWARD_RATE_PLUS * 100);
   const proPct = Math.round(CREATOR_REWARD_RATE_PRO * 100);
   const partnerPct = Math.round(CREATOR_REWARD_RATE_PARTNER * 100);
-  const exclusivePct = Math.round(CREATOR_REWARD_RATE_EXCLUSIVE * 100);
   const tier = data.tier.tierLevel;
-  const tierLabel = CREATOR_TIER_LABELS[tier];
-  const tierRows = allTierConditions(
-    data.tier,
-    basePct,
-    plusPct,
-    proPct,
-    partnerPct,
-    exclusivePct
-  );
-  const partnerHint = partnerStatusHint(data.tier, exclusivePct);
-
-  const tierBorder =
-    tier === "exclusive"
-      ? "border-rose-500/40 bg-rose-500/10"
-      : tier === "partner"
-        ? "border-yellow-500/40 bg-yellow-500/10"
-        : tier === "pro"
-          ? "border-amber-500/40 bg-amber-500/10"
-          : tier === "plus"
-            ? "border-emerald-500/40 bg-emerald-500/10"
-            : "border-white/10 bg-[#131626]";
-  const tierText =
-    tier === "exclusive"
-      ? "text-rose-300"
-      : tier === "partner"
-        ? "text-yellow-300"
-        : tier === "pro"
-          ? "text-amber-300"
-          : tier === "plus"
-            ? "text-emerald-300"
-            : "text-violet-300";
+  /** 전속은 UI에서 숨기고 파트너로 표시 (요율은 서버 값 유지) */
+  const tierLabel =
+    tier === "exclusive" ? CREATOR_TIER_LABELS.partner : CREATOR_TIER_LABELS[tier];
+  const tierRows = allTierConditions(data.tier, basePct, plusPct, proPct, partnerPct);
+  const partnerHint = partnerStatusHint(data.tier);
 
   return (
     <div className="mx-auto mt-6 max-w-3xl space-y-6">
       <div>
-        <h1 className="text-xl font-black text-white">크리에이터</h1>
-        <p className="mt-1 text-sm text-gray-300">
-          내 캐릭터 이용 포인트 소비량의 <strong className="text-white">{rewardPct}%</strong>가
+        <h1 className={cn(studioType.heading, "text-xl")}>크리에이터</h1>
+        <p className={cn(studioType.body, "mt-1")}>
+          내 캐릭터 이용 포인트 소비량의 <strong className="text-zinc-50">{rewardPct}%</strong>가
           크리에이터 포인트(CP)로 적립됩니다.{" "}
-          <span className="text-gray-400">
+          <span className="text-zinc-400">
             (기본 {basePct}% · 플러스 {plusPct}% · 프로 {proPct}% · 파트너 {partnerPct}%)
           </span>
         </p>
       </div>
 
-      <div className="flex gap-1 rounded-xl border border-white/5 bg-[#0e1120] p-1">
+      <div className={studioSurface.tabList}>
         {(
           [
             ["dashboard", "대시보드"],
@@ -257,9 +214,10 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
             key={id}
             type="button"
             onClick={() => setTab(id)}
-            className={`flex-1 rounded-lg py-2 text-sm font-semibold transition ${
-              tab === id ? "bg-violet-600 text-white" : "text-gray-300 hover:text-gray-100"
-            }`}
+            className={cn(
+              "flex-1 rounded-lg py-2 text-sm font-semibold transition",
+              tab === id ? studioSurface.tabActive : studioSurface.tabIdle,
+            )}
           >
             {label}
           </button>
@@ -267,9 +225,9 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
       </div>
 
       {tab === "comments" ? (
-        <section className="rounded-2xl border border-violet-500/25 bg-[#131626] p-5">
-          <h2 className="text-sm font-bold text-violet-200">댓글 설정</h2>
-          <p className="mt-1 text-xs text-gray-400">
+        <section className={cn(studioSurface.card, "p-5")}>
+          <h2 className={studioType.sectionTitle}>댓글 설정</h2>
+          <p className={cn(studioType.caption, "mt-1")}>
             크리에이터 프로필과 내 캐릭터 페이지의 댓글 기본값입니다. OFF면 다른 사용자는 댓글을
             보거나 작성할 수 없습니다.
           </p>
@@ -284,21 +242,16 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
         </section>
       ) : (
         <>
-      <section className={`rounded-2xl border p-4 ${tierBorder}`}>
-        <p className="text-xs font-bold uppercase tracking-wider text-gray-400">적립 등급</p>
-        <p className={`mt-0.5 text-lg font-black ${tierText}`}>
-          {tierLabel} 크리에이터 · {rewardPct}%
-          {data.tier.isExclusive && (
-            <span className="ml-2 rounded bg-rose-500/20 px-1.5 py-0.5 text-[10px] font-bold text-rose-200">
-              전속
-            </span>
-          )}
+      <section className={cn(studioSurface.card, "p-4")}>
+        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">적립 등급</p>
+        <p className="mt-0.5 text-lg font-semibold text-zinc-50">
+          {tierLabel} 크리에이터 · <span className="text-violet-300">{rewardPct}%</span>
         </p>
         {partnerHint && (
-          <p className="mt-2 text-[11px] leading-relaxed text-gray-400">{partnerHint}</p>
+          <p className={cn(studioType.caption, "mt-2")}>{partnerHint}</p>
         )}
         <div className="mt-4 space-y-2">
-          <p className="text-[11px] font-semibold text-gray-300">등급업 조건</p>
+          <p className="text-[11px] font-semibold text-zinc-300">등급업 조건</p>
           <ul className="space-y-2">
             {tierRows.map((row) => (
               <li
@@ -310,21 +263,21 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
                 }`}
               >
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-bold text-white">
+                  <span className="text-sm font-semibold text-zinc-50">
                     {row.label} · {row.ratePct}%
                   </span>
                   {row.isCurrent && (
-                    <span className="rounded bg-violet-500/25 px-1.5 py-0.5 text-[10px] font-bold text-violet-200">
+                    <span className="rounded bg-violet-500/25 px-1.5 py-0.5 text-[10px] font-semibold text-violet-200">
                       현재
                     </span>
                   )}
                   {row.met && !row.isCurrent && (
-                    <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300">
+                    <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-300">
                       조건 충족
                     </span>
                   )}
                 </div>
-                <p className="mt-1 text-[11px] leading-relaxed text-gray-400">{row.condition}</p>
+                <p className={cn(studioType.caption, "mt-1")}>{row.condition}</p>
                 {row.current && (
                   <p className="mt-0.5 text-[11px] text-zinc-500">{row.current}</p>
                 )}
@@ -335,21 +288,17 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">
-        <StatCard label="보유 CP" value={`${fmt(data.creatorPoints)}CP`} accent="text-amber-300" />
-        <StatCard label="누적 적립" value={`${fmt(data.totalReward)}CP`} accent="text-violet-300" />
-        <StatCard
-          label="캐릭터 이용 소비"
-          value={`${fmt(data.totalSpentOnChars)}P`}
-          accent="text-cyan-300"
-        />
+        <StatCard label="보유 CP" value={`${fmt(data.creatorPoints)}CP`} />
+        <StatCard label="누적 적립" value={`${fmt(data.totalReward)}CP`} />
+        <StatCard label="캐릭터 이용 소비" value={`${fmt(data.totalSpentOnChars)}P`} />
       </section>
 
-      <section className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-5">
-        <h2 className="text-sm font-bold text-amber-200">CP → 유료 포인트 교환</h2>
-        <p className="mt-1 text-xs text-gray-400">1CP = 1P (유료 포인트) · 동일 가치로 교환</p>
+      <section className={cn(studioSurface.card, "p-5")}>
+        <h2 className={studioType.sectionTitle}>CP → 유료 포인트 교환</h2>
+        <p className={cn(studioType.caption, "mt-1")}>1CP = 1P (유료 포인트) · 동일 가치로 교환</p>
         <div className="mt-3 flex flex-wrap items-end gap-2">
           <div className="min-w-[140px] flex-1">
-            <label className="mb-1 block text-xs text-gray-300">교환 CP</label>
+            <label className={studioType.label}>교환 CP</label>
             <input
               type="number"
               min={0.1}
@@ -357,28 +306,24 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
               value={exchangeAmount}
               onChange={(e) => setExchangeAmount(e.target.value)}
               placeholder={`최대 ${fmt(data.creatorPoints)}`}
-              className="w-full rounded-xl border border-white/10 bg-[#0e1120] px-3 py-2 text-sm text-white outline-none focus:border-amber-500"
+              className={studioInputClass}
             />
           </div>
-          <button
+          <StudioButton
             type="button"
+            variant="secondary"
+            size="sm"
             disabled={busy || data.creatorPoints <= 0}
             onClick={() => setExchangeAmount(String(data.creatorPoints))}
-            className="rounded-xl border border-white/10 px-3 py-2 text-xs text-zinc-300 hover:bg-white/5 disabled:opacity-40"
           >
             전액
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={exchange}
-            className="rounded-xl bg-amber-600 px-4 py-2 text-sm font-bold text-white hover:bg-amber-500 disabled:opacity-40"
-          >
+          </StudioButton>
+          <StudioButton type="button" disabled={busy} onClick={exchange}>
             {busy ? "교환 중…" : "유료P 교환"}
-          </button>
+          </StudioButton>
         </div>
         {error && <p className="mt-2 text-sm text-rose-400">{error}</p>}
-        {msg && <p className="mt-2 text-sm text-emerald-400">{msg}</p>}
+        {msg && <p className="mt-2 text-sm text-violet-300">{msg}</p>}
       </section>
 
       <WithdrawalForm
@@ -393,17 +338,17 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
         onError={() => setWithdrawMsg("")}
         onRefresh={refresh}
       />
-      {withdrawMsg && <p className="text-sm text-emerald-400">{withdrawMsg}</p>}
+      {withdrawMsg && <p className="text-sm text-violet-300">{withdrawMsg}</p>}
 
-      <section className="rounded-2xl border border-violet-500/20 bg-[#131626] p-5">
+      <section className={cn(studioSurface.card, "p-5")}>
         <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className="text-sm font-bold text-violet-300">내 캐릭터 ({data.characters.length})</h2>
+          <h2 className={studioType.sectionTitle}>내 캐릭터 ({data.characters.length})</h2>
           <Link href="/studio" className="text-xs text-violet-400 hover:underline">
             + 새 캐릭터
           </Link>
         </div>
         {data.characters.length === 0 ? (
-          <p className="text-sm text-gray-400">
+          <p className={studioType.body}>
             아직 제작한 캐릭터가 없습니다.{" "}
             <Link href="/studio" className="text-violet-400 hover:underline">
               캐릭터 제작하기
@@ -414,7 +359,7 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
             {data.characters.map((c) => (
               <li
                 key={c.id}
-                className="flex items-center gap-3 rounded-xl border border-white/5 bg-[#0e1120] px-4 py-3"
+                className="flex items-center gap-3 rounded-xl border border-white/10 bg-[#0e1120] px-4 py-3"
               >
                 <CharacterListAvatar
                   name={c.name}
@@ -430,14 +375,14 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
                   >
                     {c.name}
                   </Link>
-                  <p className="text-[11px] text-gray-400">
+                  <p className="text-[11px] text-zinc-400">
                     💬 {(c.total_turns ?? 0).toLocaleString()}턴 · 👥 {c.chats_count}명 · ❤️ {c.likes} · 이용 {fmt(c.total_spent)}P · 적립{" "}
                     {fmt(c.total_reward)}CP
                   </p>
                 </div>
                 <Link
                   href={`/create?edit=${c.id}`}
-                  className="shrink-0 rounded-lg border border-violet-500/40 px-3 py-1.5 text-xs font-bold text-violet-300 hover:bg-violet-500/10"
+                  className="shrink-0 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-violet-300 hover:bg-violet-500/10"
                 >
                   수정
                 </Link>
@@ -447,23 +392,23 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
         )}
       </section>
 
-      <section className="rounded-2xl border border-white/5 bg-[#131626] p-5">
-        <h2 className="mb-3 text-sm font-bold text-gray-200">최근 적립 내역</h2>
+      <section className={cn(studioSurface.card, "p-5")}>
+        <h2 className={cn(studioType.sectionTitle, "mb-3")}>최근 적립 내역</h2>
         {data.recentEarnings.length === 0 ? (
-          <p className="text-sm text-gray-400">아직 적립 내역이 없습니다.</p>
+          <p className={studioType.body}>아직 적립 내역이 없습니다.</p>
         ) : (
           <ul className="max-h-64 space-y-1 overflow-y-auto text-xs">
             {data.recentEarnings.map((e) => (
               <li
                 key={e.id}
                 className={`flex justify-between gap-2 rounded-lg px-2 py-1.5 ${
-                  e.reversed ? "text-zinc-500 line-through" : "text-gray-200"
+                  e.reversed ? "text-zinc-500 line-through" : "text-zinc-200"
                 }`}
               >
                 <span className="truncate">
                   {e.character_name} · 소비 {fmt(e.points_spent)}P
                 </span>
-                <span className="shrink-0 font-semibold text-amber-300/90">
+                <span className="shrink-0 font-semibold text-violet-300">
                   +{fmt(e.reward_amount)}CP
                 </span>
               </li>
@@ -473,13 +418,13 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
       </section>
 
       {data.recentLogs.length > 0 && (
-        <section className="rounded-2xl border border-white/5 bg-[#131626] p-5">
-          <h2 className="mb-3 text-sm font-bold text-gray-200">CP 내역</h2>
-          <ul className="max-h-48 space-y-1 overflow-y-auto text-xs text-gray-300">
+        <section className={cn(studioSurface.card, "p-5")}>
+          <h2 className={cn(studioType.sectionTitle, "mb-3")}>CP 내역</h2>
+          <ul className="max-h-48 space-y-1 overflow-y-auto text-xs text-zinc-300">
             {data.recentLogs.map((log, i) => (
               <li key={i} className="flex justify-between gap-2 px-2 py-1">
                 <span className="truncate">{log.reason}</span>
-                <span className={log.delta >= 0 ? "text-emerald-400" : "text-rose-400"}>
+                <span className={log.delta >= 0 ? "text-violet-300" : "text-rose-400"}>
                   {log.delta >= 0 ? "+" : ""}
                   {fmt(log.delta)}CP
                 </span>
@@ -494,19 +439,11 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
   );
 }
 
-function StatCard({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string;
-  accent: string;
-}) {
+function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/5 bg-[#131626] p-4">
-      <p className="text-[11px] text-gray-400">{label}</p>
-      <p className={`mt-1 text-lg font-black ${accent}`}>{value}</p>
+    <div className={cn(studioSurface.card, "p-4")}>
+      <p className="text-[11px] text-zinc-400">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-zinc-50">{value}</p>
     </div>
   );
 }

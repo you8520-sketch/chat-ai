@@ -223,7 +223,7 @@ export function saveChatDisplayPrefs(prefs: ChatDisplayPrefs) {
 /** 채팅 좌측 에셋 열 — 2:3 비율 이미지 너비(auto) */
 export const CHAT_PORTRAIT_COLUMN_WIDTH_CLASS = "w-auto shrink-0";
 
-/** 글로벌 Header(sticky top-0) 높이 — Sidebar·설정 레일 (탭 행 포함) */
+/** 글로벌 Header(sticky top-0) 높이 — 채팅 설정 레일 등 (사이드바는 ResizeObserver로 실측) */
 export const CHAT_GLOBAL_HEADER_OFFSET_CLASS = "top-[92px]";
 
 /** 채팅방 Header — 탭 행 숨김, 공지·유저 바만 (md+). 모바일은 글로벌 헤더 숨김 */

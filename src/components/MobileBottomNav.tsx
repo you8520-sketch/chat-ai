@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { isChatRoomPathname } from "@/lib/chatDisplayPrefs";
+import { cn } from "@/lib/studioDesign";
 
 type Props = {
   loggedIn: boolean;
@@ -28,7 +29,7 @@ export default function MobileBottomNav({ loggedIn }: Props) {
 
   return (
     <nav
-      className="mobile-bottom-nav fixed bottom-0 left-0 right-0 z-30 border-t border-white/[0.08] bg-[#0b0d14]/95 backdrop-blur md:hidden"
+      className="mobile-bottom-nav fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-[#0b0d14]/95 backdrop-blur md:hidden"
       aria-label="모바일 메뉴"
     >
       <div className="mx-auto flex max-w-lg">
@@ -38,14 +39,18 @@ export default function MobileBottomNav({ loggedIn }: Props) {
             <Link
               key={item.href}
               href={item.href}
-              className={`relative flex flex-1 flex-col items-center justify-center py-3 text-xs font-semibold transition ${
-                active ? "text-violet-300" : "text-zinc-500"
-              }`}
+              className={cn(
+                "relative flex min-h-12 flex-1 flex-col items-center justify-center text-xs font-semibold transition",
+                active ? "text-violet-200" : "text-zinc-500 hover:text-zinc-300",
+              )}
             >
               {item.label}
-              {active && (
-                <span className="absolute inset-x-6 bottom-1 h-0.5 rounded-full bg-violet-500" aria-hidden />
-              )}
+              {active ? (
+                <span
+                  className="absolute inset-x-8 bottom-1.5 h-0.5 rounded-full bg-violet-500"
+                  aria-hidden
+                />
+              ) : null}
             </Link>
           );
         })}

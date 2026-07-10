@@ -1,8 +1,6 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
-import { isDemoEnv } from "@/lib/demo";
-import DemoAdultSkip from "@/components/DemoAdultSkip";
+import AdultVerifyGate from "@/components/AdultVerifyGate";
 import CreateKeywordLorebook from "@/components/CreateKeywordLorebook";
 
 export const dynamic = "force-dynamic";
@@ -16,14 +14,11 @@ export default async function LorebookEditPage({ params }: { params: Promise<{ i
 
   if (!user.is_adult) {
     return (
-      <div className="mx-auto mt-20 max-w-sm rounded-2xl border border-amber-500/30 bg-[#131626] p-8 text-center">
-        <p className="text-4xl">🔒</p>
-        <h1 className="mt-3 text-xl font-black text-white">성인인증이 필요합니다</h1>
-        <Link href="/verify" className="mt-6 inline-block w-full rounded-xl bg-rose-600 py-3 font-bold text-white">
-          성인인증 하러 가기
-        </Link>
-        {isDemoEnv() && <DemoAdultSkip redirectTo={`/lorebook/${id}/edit`} label="데모: 인증 없이 수정" />}
-      </div>
+      <AdultVerifyGate
+        message="로어북 수정은 성인인증을 완료한 회원만 이용할 수 있습니다."
+        redirectTo={`/lorebook/${id}/edit`}
+        demoLabel="데모: 인증 없이 수정"
+      />
     );
   }
 

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { AppPageShell } from "@/components/AppPageShell";
 import ChatsPageGrid from "@/components/ChatsPageGrid";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
@@ -16,15 +17,12 @@ export default async function ChatsPage() {
   const characterCount = new Set(sessions.map((s) => s.character_id)).size;
 
   return (
-    <div className="w-full pb-16">
-      <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl font-black text-white sm:text-3xl">대화 목록</h1>
-        <p className="mt-2 text-sm text-gray-500 sm:text-base">
-          {sessions.length}개 대화 · {characterCount}명 캐릭터
-        </p>
-      </div>
-
+    <AppPageShell
+      title="대화 목록"
+      description={`${sessions.length}개 대화 · ${characterCount}명 캐릭터`}
+      className="pb-16"
+    >
       <ChatsPageGrid sessions={sessions} blurNsfw={blurNsfw} />
-    </div>
+    </AppPageShell>
   );
 }

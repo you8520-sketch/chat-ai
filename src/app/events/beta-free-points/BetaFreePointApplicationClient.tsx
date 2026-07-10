@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import StudioButton from "@/components/studio/StudioButton";
 import {
   applicationStatusLabel,
   type CreateMigrationApplicationStatus,
 } from "@/lib/createMigrationEventShared";
+import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 
 type ApplicationInfo = {
   id: number;
@@ -16,6 +18,12 @@ type ApplicationInfo = {
   admin_note: string;
   created_at: string;
 };
+
+function statusPillClass(status: CreateMigrationApplicationStatus): string {
+  if (status === "pending") return "bg-zinc-600/30 text-zinc-300";
+  if (status === "approved") return "bg-violet-600/20 text-violet-200";
+  return "bg-rose-600/30 text-rose-200";
+}
 
 export default function BetaFreePointApplicationClient() {
   const router = useRouter();
@@ -71,16 +79,18 @@ export default function BetaFreePointApplicationClient() {
       <Link href="/" className="text-sm text-violet-400 hover:underline">
         ← 홈
       </Link>
-      <p className="mt-4 text-xs font-bold uppercase tracking-wider text-violet-300/90">CLOSED BETA</p>
-      <h1 className="mt-1 text-2xl font-black text-white">클로즈베타 무료 포인트 신청</h1>
-      <p className="mt-2 text-sm leading-relaxed text-gray-400">
+      <span className="mt-4 inline-block rounded-full bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-zinc-400 ring-1 ring-white/10">
+        CLOSED BETA
+      </span>
+      <h1 className={cn(studioType.heading, "mt-2")}>클로즈베타 무료 포인트 신청</h1>
+      <p className={cn(studioType.body, "mt-2")}>
         클로즈베타 테스트 참여를 위해 무료 포인트를 신청할 수 있습니다. 관리자 검토 후 승인되면 무료 포인트가
         지급됩니다.
       </p>
 
-      <div className="mt-4 rounded-xl border border-white/5 bg-[#131626] p-4 text-sm text-gray-400">
-        <p className="font-semibold text-white">신청 안내</p>
-        <ul className="mt-2 list-inside list-disc space-y-1 text-xs">
+      <div className={cn(studioSurface.card, "mt-4 text-sm")}>
+        <p className="font-semibold text-zinc-50">신청 안내</p>
+        <ul className={cn(studioType.caption, "mt-2 list-inside list-disc space-y-1")}>
           <li>계정당 1회 지급 (승인 완료 후 재신청 불가)</li>
           <li>반려된 경우 다시 신청할 수 있습니다</li>
           <li>지급 포인트는 관리자가 검토 후 결정합니다</li>
@@ -88,7 +98,7 @@ export default function BetaFreePointApplicationClient() {
       </div>
 
       {toast && (
-        <p className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+        <p className="mt-4 rounded-xl border border-white/10 bg-violet-600/10 px-4 py-3 text-sm text-violet-200">
           {toast}
         </p>
       )}
@@ -99,67 +109,74 @@ export default function BetaFreePointApplicationClient() {
       )}
 
       {loading ? (
-        <p className="mt-12 text-center text-sm text-gray-500">불러오는 중…</p>
+        <p className={cn(studioType.helper, "mt-12 text-center")}>불러오는 중…</p>
       ) : (
-        <div className="mt-8 rounded-2xl border border-white/5 bg-[#131626] p-6">
+        <div className={cn(studioSurface.card, "mt-8 p-6")}>
           {isPending && (
             <div className="text-center">
-              <span className="inline-block rounded-full bg-amber-600/20 px-4 py-1 text-sm font-bold text-amber-300">
+              <span
+                className={cn(
+                  "inline-block rounded-full px-4 py-1 text-sm font-semibold",
+                  statusPillClass("pending"),
+                )}
+              >
                 {applicationStatusLabel("pending")}
               </span>
-              <p className="mt-4 text-sm text-gray-300">신청이 접수되었습니다. 관리자 승인을 기다려 주세요.</p>
-              <p className="mt-2 text-xs text-gray-500">신청일: {application.created_at}</p>
+              <p className={cn(studioType.body, "mt-4")}>
+                신청이 접수되었습니다. 관리자 승인을 기다려 주세요.
+              </p>
+              <p className={cn(studioType.caption, "mt-2")}>신청일: {application.created_at}</p>
             </div>
           )}
 
           {isApproved && (
             <div className="text-center">
-              <span className="inline-block rounded-full bg-emerald-600/20 px-4 py-1 text-sm font-bold text-emerald-300">
+              <span
+                className={cn(
+                  "inline-block rounded-full px-4 py-1 text-sm font-semibold",
+                  statusPillClass("approved"),
+                )}
+              >
                 {applicationStatusLabel("approved")}
               </span>
-              <p className="mt-4 text-sm text-gray-300">
+              <p className={cn(studioType.body, "mt-4")}>
                 무료 포인트{" "}
-                <span className="font-bold text-emerald-300">
+                <span className="font-semibold text-zinc-50">
                   {application.reward_amount?.toLocaleString() ?? "?"}P
                 </span>
                 가 지급되었습니다.
               </p>
               {application.admin_note && (
-                <p className="mt-2 text-xs text-gray-500">메모: {application.admin_note}</p>
+                <p className={cn(studioType.caption, "mt-2")}>메모: {application.admin_note}</p>
               )}
             </div>
           )}
 
           {isRejected && (
             <div className="text-center">
-              <span className="inline-block rounded-full bg-zinc-600/30 px-4 py-1 text-sm font-bold text-zinc-300">
+              <span
+                className={cn(
+                  "inline-block rounded-full px-4 py-1 text-sm font-semibold",
+                  statusPillClass("rejected"),
+                )}
+              >
                 {applicationStatusLabel("rejected")}
               </span>
               {application.admin_note && (
                 <p className="mt-4 text-sm text-rose-300">사유: {application.admin_note}</p>
               )}
-              <button
-                type="button"
-                disabled={busy}
-                onClick={apply}
-                className="mt-5 rounded-xl bg-violet-600 px-6 py-2.5 text-sm font-bold text-white hover:bg-violet-500 disabled:opacity-50"
-              >
+              <StudioButton type="button" disabled={busy} onClick={apply} className="mt-5">
                 {busy ? "처리 중…" : "다시 신청하기"}
-              </button>
+              </StudioButton>
             </div>
           )}
 
           {canApply && !isPending && !isApproved && !isRejected && (
             <div className="text-center">
-              <p className="text-sm text-gray-400">아직 신청하지 않았습니다.</p>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={apply}
-                className="mt-5 rounded-xl bg-emerald-500 px-6 py-2.5 text-sm font-bold text-black hover:bg-emerald-400 disabled:opacity-50"
-              >
+              <p className={studioType.body}>아직 신청하지 않았습니다.</p>
+              <StudioButton type="button" disabled={busy} onClick={apply} className="mt-5">
                 {busy ? "처리 중…" : "무료 포인트 신청하기"}
-              </button>
+              </StudioButton>
             </div>
           )}
         </div>

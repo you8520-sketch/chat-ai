@@ -64,7 +64,7 @@ export default function HeaderProfileMenu({ nickname }: Props) {
         <div
           id={panelId}
           role="menu"
-          className="absolute right-0 top-full z-50 mt-1.5 min-w-[10rem] overflow-hidden rounded-xl border border-white/[0.08] bg-[#14161f] py-1 shadow-xl shadow-black/40"
+          className="absolute right-0 top-full z-50 mt-1.5 min-w-[10rem] overflow-hidden rounded-xl border border-white/10 bg-[#131626] py-1 shadow-xl shadow-black/40"
         >
           <Link
             href="/settings"

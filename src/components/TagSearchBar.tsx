@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { cn, studioInputClass } from "@/lib/studioDesign";
 import { sanitizeSearchQuery } from "@/lib/tagSearch";
 
 type Props = {
@@ -25,9 +26,10 @@ export default function TagSearchBar({ defaultQuery = "", className = "", compac
     <form onSubmit={submit} className={`flex min-w-0 items-center ${compact ? "gap-1.5" : "gap-2"} ${className}`}>
       <div className="relative min-w-0 flex-1">
         <span
-          className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-gray-500 ${
-            compact ? "left-2.5 text-xs" : "left-3 text-sm"
-          }`}
+          className={cn(
+            "pointer-events-none absolute top-1/2 -translate-y-1/2 text-zinc-500",
+            compact ? "left-2.5 text-xs" : "left-3 text-sm",
+          )}
         >
           🔍
         </span>
@@ -41,9 +43,10 @@ export default function TagSearchBar({ defaultQuery = "", className = "", compac
               : "캐릭터명, 제작자명, 태그 검색 (예: 카스펜, 틤작, 츤데레)"
           }
           maxLength={40}
-          className={`w-full rounded-xl border border-white/25 bg-[#0e1120] pl-9 pr-3 text-sm text-white outline-none placeholder:text-gray-600 focus:border-violet-500/60 focus:ring-1 focus:ring-violet-500/40 ${
-            compact ? "py-1.5 pl-8 text-[13px]" : "py-2"
-          }`}
+          className={cn(
+            studioInputClass,
+            compact ? "py-1.5 pl-8 text-[13px]" : "pl-9 py-2",
+          )}
         />
       </div>
       <button

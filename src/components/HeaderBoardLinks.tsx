@@ -76,7 +76,7 @@ export default function HeaderBoardLinks({ unreadNotice }: Props) {
         <div
           id={panelId}
           role="menu"
-          className="absolute left-0 top-full z-50 mt-1.5 min-w-[11rem] overflow-hidden rounded-xl border border-white/[0.08] bg-[#14161f] py-1 shadow-xl shadow-black/40"
+          className="absolute left-0 top-full z-50 mt-1.5 min-w-[11rem] overflow-hidden rounded-xl border border-white/10 bg-[#131626] py-1 shadow-xl shadow-black/40"
         >
           {BOARD_LINKS.map((l) => (
             <Link

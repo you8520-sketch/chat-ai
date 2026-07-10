@@ -10,6 +10,7 @@ import { CHARACTER_THUMB_ASPECT } from "@/components/CharacterCard";
 import { PROFILE_BIOGRAPHY_LIMIT } from "@/lib/generateProfile";
 import { applyProfilePlaceholders } from "@/lib/userPlaceholder";
 import { shouldBlurAssetForViewer, type CharacterAsset } from "@/lib/characterAssets";
+import { studioSurface } from "@/lib/studioDesign";
 
 function AssetGalleryStrip({
   assets,
@@ -119,7 +120,7 @@ export default function CharacterPublicPagePreview({
 
   const cardVisual = primary ? (
     primaryBlur ? (
-      <div className="relative w-full overflow-hidden rounded-2xl md:w-72">
+      <div className="relative w-full overflow-hidden rounded-xl md:w-72">
         <CharacterAssetImage
           src={primary}
           alt={displayName}
@@ -133,7 +134,7 @@ export default function CharacterPublicPagePreview({
     )
   ) : (
     <div
-      className={`flex ${CHARACTER_THUMB_ASPECT} w-full items-center justify-center overflow-hidden rounded-2xl text-7xl sm:text-8xl`}
+      className={`flex ${CHARACTER_THUMB_ASPECT} w-full items-center justify-center overflow-hidden rounded-xl text-7xl sm:text-8xl`}
       style={{
         background: `linear-gradient(135deg, hsl(${hue} 60% 24%), hsl(${(hue + 60) % 360} 60% 12%))`,
       }}
@@ -149,7 +150,7 @@ export default function CharacterPublicPagePreview({
 
         <div className="min-w-0 flex-1 overflow-visible">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-black tracking-tight text-white sm:text-[1.65rem]">{displayName}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-zinc-50 sm:text-[1.65rem]">{displayName}</h1>
             {pagePath ? <CopyPageLinkButton path={pagePath} /> : null}
           </div>
 
@@ -164,7 +165,7 @@ export default function CharacterPublicPagePreview({
               {tagList.map((t) => (
                 <span
                   key={t}
-                  className="rounded-full bg-white/5 px-2.5 py-0.5 text-xs font-medium text-gray-300"
+                  className={studioSurface.chip}
                 >
                   #{t}
                 </span>
@@ -172,18 +173,18 @@ export default function CharacterPublicPagePreview({
             </div>
           ) : null}
 
-          <p className="mt-3 flex flex-wrap items-center gap-1.5 text-sm text-gray-500">
+          <p className="mt-3 flex flex-wrap items-center gap-1.5 text-sm text-zinc-500">
             {creatorHref ? (
               <Link
                 href={creatorHref}
                 className={`hover:underline ${
-                  creatorIsPartner ? "font-bold text-amber-300" : "text-violet-400"
+                  creatorIsPartner ? "font-semibold text-zinc-50" : "text-violet-400"
                 }`}
               >
                 @{creatorName}
               </Link>
             ) : (
-              <span className={creatorIsPartner ? "font-bold text-amber-300" : "text-violet-400/90"}>
+              <span className={creatorIsPartner ? "font-semibold text-zinc-50" : "text-violet-400/90"}>
                 @{creatorName}
               </span>
             )}

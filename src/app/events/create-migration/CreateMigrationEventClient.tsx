@@ -5,8 +5,10 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { CHARACTER_THUMB_ASPECT } from "@/components/CharacterCard";
+import StudioButton from "@/components/studio/StudioButton";
 import { applicationStatusLabel, type CreateMigrationApplicationStatus } from "@/lib/createMigrationEventShared";
 import { CREATE_MIGRATION_EVENT_REWARD } from "@/lib/plans";
+import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 
 type ApplicationInfo = {
   id: number;
@@ -25,6 +27,12 @@ type CharacterItem = {
   moderation_status: string;
   application: ApplicationInfo | null;
 };
+
+function statusPillClass(status: CreateMigrationApplicationStatus): string {
+  if (status === "pending") return "bg-zinc-600/40 text-zinc-200";
+  if (status === "approved") return "bg-violet-600/30 text-violet-200";
+  return "bg-rose-600/30 text-rose-200";
+}
 
 export default function CreateMigrationEventClient() {
   const router = useRouter();
@@ -79,17 +87,19 @@ export default function CreateMigrationEventClient() {
       <Link href="/" className="text-sm text-violet-400 hover:underline">
         ← 홈
       </Link>
-      <p className="mt-4 text-xs font-bold uppercase tracking-wider text-emerald-300/90">CLOSED BETA</p>
-      <h1 className="mt-1 text-2xl font-black text-white">클로즈베타 캐릭터 제작 포인트 신청</h1>
-      <p className="mt-2 text-sm leading-relaxed text-gray-400">
+      <span className="mt-4 inline-block rounded-full bg-white/5 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-zinc-400 ring-1 ring-white/10">
+        CLOSED BETA
+      </span>
+      <h1 className={cn(studioType.heading, "mt-2")}>클로즈베타 캐릭터 제작 포인트 신청</h1>
+      <p className={cn(studioType.body, "mt-2")}>
         공개로 저장한 내 캐릭터를 선택해 신청하세요. 관리자 승인 후 무료 포인트{" "}
-        <span className="font-bold text-emerald-300">{CREATE_MIGRATION_EVENT_REWARD.toLocaleString()}P</span>가
+        <span className="font-semibold text-zinc-50">{CREATE_MIGRATION_EVENT_REWARD.toLocaleString()}P</span>가
         지급됩니다.
       </p>
 
-      <div className="mt-4 rounded-xl border border-white/5 bg-[#131626] p-4 text-sm text-gray-400">
-        <p className="font-semibold text-white">신청 조건</p>
-        <ul className="mt-2 list-inside list-disc space-y-1 text-xs">
+      <div className={cn(studioSurface.card, "mt-4 text-sm")}>
+        <p className="font-semibold text-zinc-50">신청 조건</p>
+        <ul className={cn(studioType.caption, "mt-2 list-inside list-disc space-y-1")}>
           <li>본인이 제작한 캐릭터</li>
           <li>공개(visibility: 공개)로 저장된 캐릭터</li>
           <li>캐릭터당 1회만 신청 가능 (승인·반려 포함)</li>
@@ -100,7 +110,7 @@ export default function CreateMigrationEventClient() {
       </div>
 
       {toast && (
-        <p className="mt-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+        <p className="mt-4 rounded-xl border border-white/10 bg-violet-600/10 px-4 py-3 text-sm text-violet-200">
           {toast}
         </p>
       )}
@@ -111,17 +121,14 @@ export default function CreateMigrationEventClient() {
       )}
 
       {loading ? (
-        <p className="mt-12 text-center text-sm text-gray-500">불러오는 중…</p>
+        <p className={cn(studioType.helper, "mt-12 text-center")}>불러오는 중…</p>
       ) : characters.length === 0 ? (
-        <div className="mt-12 rounded-2xl border border-dashed border-white/10 bg-[#131626] p-10 text-center">
-          <p className="text-sm text-gray-400">신청 가능한 공개 캐릭터가 없습니다.</p>
-          <p className="mt-2 text-xs text-gray-500">캐릭터를 제작한 뒤 공개로 저장해 주세요.</p>
-          <Link
-            href="/create"
-            className="mt-5 inline-block rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-violet-500"
-          >
+        <div className={cn(studioSurface.cardDashed, "mt-12 p-10 text-center")}>
+          <p className={studioType.body}>신청 가능한 공개 캐릭터가 없습니다.</p>
+          <p className={cn(studioType.caption, "mt-2")}>캐릭터를 제작한 뒤 공개로 저장해 주세요.</p>
+          <StudioButton href="/create" className="mt-5">
             캐릭터 제작하기
-          </Link>
+          </StudioButton>
         </div>
       ) : (
         <div className="mt-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -135,9 +142,10 @@ export default function CreateMigrationEventClient() {
             return (
               <article
                 key={c.id}
-                className={`flex flex-col overflow-hidden rounded-xl border bg-[#131626] ${
-                  disabled ? "border-white/5 opacity-75" : "border-white/10"
-                }`}
+                className={cn(
+                  "flex flex-col overflow-hidden rounded-xl border bg-[#131626]",
+                  disabled ? "border-white/10 opacity-75" : "border-white/10",
+                )}
               >
                 <div
                   className={`relative ${CHARACTER_THUMB_ASPECT} w-full overflow-hidden`}
@@ -153,45 +161,44 @@ export default function CreateMigrationEventClient() {
                   )}
                   {status && (
                     <span
-                      className={`absolute left-2 top-2 rounded px-2 py-0.5 text-[10px] font-bold ${
-                        status === "pending"
-                          ? "bg-amber-600 text-white"
-                          : status === "approved"
-                            ? "bg-emerald-600 text-white"
-                            : "bg-zinc-600 text-white"
-                      }`}
+                      className={cn(
+                        "absolute left-2 top-2 rounded px-2 py-0.5 text-[10px] font-semibold",
+                        statusPillClass(status),
+                      )}
                     >
                       {applicationStatusLabel(status)}
                     </span>
                   )}
                 </div>
                 <div className="flex flex-1 flex-col p-3">
-                  <h3 className="line-clamp-1 text-sm font-bold text-white">{c.name}</h3>
-                  <p className="mt-1 line-clamp-2 min-h-[2.5rem] text-xs text-gray-400">
+                  <h3 className="line-clamp-1 text-sm font-semibold text-zinc-50">{c.name}</h3>
+                  <p className={cn(studioType.caption, "mt-1 line-clamp-2 min-h-[2.5rem]")}>
                     {c.tagline?.trim() || "한 줄 소개 없음"}
                   </p>
                   {c.moderation_status === "pending" && (
-                    <p className="mt-1 text-[10px] text-amber-400/90">검수 대기 중 (신청 가능)</p>
+                    <p className="mt-1 text-[10px] text-zinc-400">검수 대기 중 (신청 가능)</p>
                   )}
                   {app?.admin_note && status === "rejected" && (
                     <p className="mt-1 text-[10px] text-rose-300">사유: {app.admin_note}</p>
                   )}
-                  <button
-                    type="button"
-                    disabled={!canApply || busyId === c.id}
-                    onClick={() => apply(c.id)}
-                    className={`mt-3 w-full rounded-lg py-2 text-sm font-bold transition ${
-                      canApply
-                        ? "bg-emerald-500 text-black hover:bg-emerald-400 disabled:opacity-50"
-                        : "cursor-not-allowed bg-white/5 text-gray-500"
-                    }`}
-                  >
-                    {busyId === c.id
-                      ? "처리 중…"
-                      : canApply
-                        ? "신청하기"
-                        : applicationStatusLabel(status!)}
-                  </button>
+                  {canApply ? (
+                    <StudioButton
+                      type="button"
+                      disabled={busyId === c.id}
+                      onClick={() => apply(c.id)}
+                      className="mt-3 w-full"
+                    >
+                      {busyId === c.id ? "처리 중…" : "신청하기"}
+                    </StudioButton>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      className="mt-3 w-full cursor-not-allowed rounded-xl bg-white/5 py-2 text-sm font-semibold text-zinc-500"
+                    >
+                      {applicationStatusLabel(status!)}
+                    </button>
+                  )}
                 </div>
               </article>
             );

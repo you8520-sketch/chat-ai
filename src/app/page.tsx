@@ -6,11 +6,31 @@ import CharacterCard, { type CharacterRow } from "@/components/CharacterCard";
 import HorizontalScrollRow from "@/components/HorizontalScrollRow";
 import UserPreferenceControls from "@/components/UserPreferenceControls";
 import { fetchHomeSections } from "@/lib/homeSections";
+import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 
 export const dynamic = "force-dynamic";
 
 /** 가로 스크롤 카드 폭 — CharacterCard 세로 2:3 비율 기준 */
 const SCROLL_CARD_WIDTH = "w-[128px] sm:w-[150px] md:w-[168px]";
+
+function SectionHeader({
+  title,
+  headerLink,
+}: {
+  title: string;
+  headerLink?: { href: string; label: string };
+}) {
+  return (
+    <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+      <h2 className={studioType.sectionTitle}>{title}</h2>
+      {headerLink ? (
+        <Link href={headerLink.href} className={studioSurface.linkQuiet}>
+          {headerLink.label}
+        </Link>
+      ) : null}
+    </div>
+  );
+}
 
 function ScrollSection({
   title,
@@ -28,15 +48,8 @@ function ScrollSection({
   if (chars.length === 0) return null;
   return (
     <section className="mt-8">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-bold text-white">{title}</h2>
-        {headerLink && (
-          <Link href={headerLink.href} className="text-xs text-violet-400 hover:underline">
-            {headerLink.label}
-          </Link>
-        )}
-      </div>
-      <HorizontalScrollRow>
+      <SectionHeader title={title} headerLink={headerLink} />
+      <HorizontalScrollRow className="gap-4">
         {chars.map((c) => (
           <div key={c.id} className={`${SCROLL_CARD_WIDTH} shrink-0`}>
             <CharacterCard c={c} blurNsfw={blurNsfw} loggedIn={loggedIn} />
@@ -63,15 +76,8 @@ function GridSection({
   if (chars.length === 0) return null;
   return (
     <section className="mt-8">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-bold text-white">{title}</h2>
-        {headerLink && (
-          <Link href={headerLink.href} className="text-xs text-violet-400 hover:underline">
-            {headerLink.label}
-          </Link>
-        )}
-      </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <SectionHeader title={title} headerLink={headerLink} />
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {chars.map((c) => (
           <CharacterCard key={c.id} c={c} blurNsfw={blurNsfw} loggedIn={loggedIn} />
         ))}
@@ -88,23 +94,45 @@ export default async function Home() {
 
   const { recommended, contest, newest } = fetchHomeSections(db, user, blurNsfw);
 
-  const tasteFilter = (
-    <UserPreferenceControls
-      isAdult={!!user?.is_adult}
-      nsfwOn={!!user?.nsfw_on}
-      pref={(user?.pref as "female" | "male" | null) ?? null}
-      loggedIn={!!user}
-      variant="homeRow"
-    />
-  );
-
   return (
-    <div>
+    <div className="pb-2">
       <HomeCreateEventBanner />
-      <div className="mt-6">{tasteFilter}</div>
-      <ScrollSection title="추천 캐릭터" chars={recommended} blurNsfw={blurNsfw} loggedIn={loggedIn} />
-      <ScrollSection title="공모전 캐릭터" chars={contest} blurNsfw={blurNsfw} loggedIn={loggedIn} />
-      <GridSection title="신규 캐릭터" chars={newest} blurNsfw={blurNsfw} loggedIn={loggedIn} />
+      <div className="mt-6">
+        <UserPreferenceControls
+          isAdult={!!user?.is_adult}
+          nsfwOn={!!user?.nsfw_on}
+          pref={(user?.pref as "female" | "male" | null) ?? null}
+          loggedIn={!!user}
+          variant="homeRow"
+        />
+      </div>
+      <ScrollSection
+        title="추천 캐릭터"
+        chars={recommended}
+        blurNsfw={blurNsfw}
+        loggedIn={loggedIn}
+      />
+      <ScrollSection
+        title="공모전 캐릭터"
+        chars={contest}
+        blurNsfw={blurNsfw}
+        loggedIn={loggedIn}
+      />
+      <GridSection
+        title="신규 캐릭터"
+        chars={newest}
+        blurNsfw={blurNsfw}
+        loggedIn={loggedIn}
+        headerLink={{ href: "/tab/new", label: "더보기" }}
+      />
+      {recommended.length === 0 && contest.length === 0 && newest.length === 0 ? (
+        <div className={cn(studioSurface.cardDashed, "mt-10 p-10 text-center")}>
+          <p className={studioType.body}>표시할 캐릭터가 없습니다.</p>
+          <Link href="/studio" className={cn(studioSurface.linkQuiet, "mt-3 inline-block text-sm")}>
+            제작하러 가기
+          </Link>
+        </div>
+      ) : null}
     </div>
   );
 }

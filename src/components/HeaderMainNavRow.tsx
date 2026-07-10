@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { isChatRoomPathname } from "@/lib/chatDisplayPrefs";
+import { cn, studioSurface } from "@/lib/studioDesign";
 
 const baseTabs = [
   { href: "/", label: "홈" },
@@ -24,19 +25,22 @@ export default function HeaderMainNavRow() {
   if (isChatRoomPathname(pathname)) return null;
 
   return (
-    <div className="mx-auto hidden max-w-6xl px-4 pb-2 pt-0.5 md:block">
-      <nav className="flex min-w-0 gap-1 overflow-x-auto text-sm scrollbar-thin" aria-label="주요 메뉴">
+    <div className="mx-auto hidden max-w-6xl px-4 pb-2.5 pt-0.5 md:block">
+      <nav
+        className={cn(studioSurface.tabList, "w-fit max-w-full overflow-x-auto")}
+        aria-label="주요 메뉴"
+      >
         {baseTabs.map((t) => {
           const active = isTabActive(pathname, t.href);
           return (
             <Link
               key={t.href}
               href={t.href}
-              className={`shrink-0 rounded-xl px-3 py-2 font-semibold transition ${
-                active
-                  ? "bg-violet-600/20 text-violet-200"
-                  : "text-zinc-400 hover:bg-white/[0.06] hover:text-white"
-              }`}
+              className={cn(
+                "min-h-10 shrink-0 rounded-lg px-3.5 text-sm font-semibold transition",
+                "inline-flex items-center",
+                active ? studioSurface.tabActive : studioSurface.tabIdle,
+              )}
             >
               {t.label}
             </Link>

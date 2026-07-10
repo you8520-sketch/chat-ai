@@ -1,5 +1,5 @@
 /**
- * Studio design tokens — single source for /studio, /create, /world, /lorebook.
+ * App design tokens — shared by Studio and Home chrome.
  * Prefer these over ad-hoc violet/cyan/amber/emerald accents.
  */
 
@@ -20,6 +20,9 @@ export const studioTokens = {
   danger: "#fb7185",
 } as const;
 
+/** Alias for non-studio surfaces */
+export const appTokens = studioTokens;
+
 /** 8px grid spacing helpers (Tailwind) */
 export const studioSpace = {
   pageX: "px-4",
@@ -33,7 +36,7 @@ export const studioSpace = {
 /** Typography — 6 levels only */
 export const studioType = {
   heading: "text-2xl font-semibold tracking-tight text-zinc-50",
-  sectionTitle: "text-sm font-semibold text-zinc-100",
+  sectionTitle: "text-base font-semibold tracking-tight text-zinc-50",
   label: "mb-1.5 block text-sm font-medium text-zinc-300",
   body: "text-sm leading-relaxed text-zinc-300",
   caption: "text-xs leading-relaxed text-zinc-400",
@@ -64,6 +67,13 @@ export const studioSurface = {
   uploadZone:
     "w-full rounded-xl border border-dashed border-white/20 bg-white/[0.03] py-8 text-base font-semibold text-zinc-200 transition hover:border-violet-400/50 hover:bg-violet-500/10 hover:text-white disabled:opacity-40 sm:py-10",
   hit: "min-h-11 min-w-11",
+  menu:
+    "overflow-hidden rounded-xl border border-white/10 bg-[#131626] py-1 shadow-xl shadow-black/40",
+  banner:
+    "rounded-xl border border-white/10 bg-[#131626] p-4 sm:rounded-xl sm:p-5",
+  linkQuiet: "text-xs font-medium text-zinc-400 transition hover:text-violet-300",
+  navActive: "bg-violet-600/20 text-violet-100",
+  navIdle: "text-zinc-400 hover:bg-white/[0.04] hover:text-zinc-100",
 } as const;
 
 export const studioInputClass =

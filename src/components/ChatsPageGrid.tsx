@@ -45,7 +45,7 @@ function ChatCharacterCard({
   const lastLabel = formatLastChatLabel(latest?.last_at ?? null);
 
   return (
-    <article className="group flex min-w-0 overflow-hidden rounded-lg border border-white/5 bg-[#131626] transition hover:border-violet-500/25 @min-[48rem]/chats:rounded-xl">
+    <article className="group flex min-w-0 overflow-hidden rounded-xl border border-white/10 bg-[#131626] transition hover:border-violet-500/25">
       <Link
         href={characterPageHref(group.character_id, hidden, group.nsfw === 1)}
         title={`${group.name} · 캐릭터 정보`}
@@ -81,7 +81,7 @@ function ChatCharacterCard({
         className="flex min-w-0 flex-1 flex-col justify-center gap-0.5 p-2.5 text-left transition hover:bg-white/[0.03] @min-[30rem]/chats:p-3 @min-[48rem]/chats:gap-1 @min-[64rem]/chats:p-4"
       >
         <div className="flex min-w-0 items-start justify-between gap-1.5 @md/chats:gap-2">
-          <h2 className="truncate text-xs font-bold text-white @min-[30rem]/chats:text-sm @min-[48rem]/chats:text-base @min-[64rem]/chats:text-lg">
+          <h2 className="truncate text-xs font-bold text-zinc-50 @min-[30rem]/chats:text-sm @min-[48rem]/chats:text-base @min-[64rem]/chats:text-lg">
             {group.name}
           </h2>
           {lastLabel && (
@@ -153,7 +153,7 @@ export default function ChatsPageGrid({ sessions, blurNsfw }: Props) {
 
   if (sessions.length === 0) {
     return (
-      <p className="py-16 text-center text-sm text-gray-500">
+      <p className="py-16 text-center text-sm text-zinc-400">
         아직 대화한 캐릭터가 없습니다.
         <br />
         <Link href="/" className="mt-3 inline-block text-violet-400 hover:underline">

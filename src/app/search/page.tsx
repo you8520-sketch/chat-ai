@@ -1,8 +1,10 @@
 import Link from "next/link";
-import { getDb } from "@/lib/db";
-import { getSessionUser } from "@/lib/auth";
+import { AppPageShell } from "@/components/AppPageShell";
 import CharacterCard, { type CharacterRow } from "@/components/CharacterCard";
 import TagSearchBar from "@/components/TagSearchBar";
+import { getSessionUser } from "@/lib/auth";
+import { getDb } from "@/lib/db";
+import { cn, studioType } from "@/lib/studioDesign";
 import { listableWhere } from "@/lib/characterVisibility";
 import {
   buildCharacterSearchSql,
@@ -89,26 +91,27 @@ export default async function SearchPage({
   const popularTags = collectPopularTags(popularSource);
 
   return (
-    <div className="mt-6">
-      <h1 className="text-xl font-bold text-white">검색</h1>
-      <p className="mt-1 text-sm text-gray-400">캐릭터명 · 제작자명 · 태그로 작품을 찾아보세요.</p>
-
-      <div className="mt-4 max-w-xl">
+    <AppPageShell
+      title="검색"
+      description="캐릭터명 · 제작자명 · 태그로 작품을 찾아보세요."
+      className="mt-6"
+    >
+      <div className="max-w-xl">
         <TagSearchBar defaultQuery={query} />
       </div>
 
       {popularTags.length > 0 && (
         <div className="mt-5">
-          <p className="mb-2 text-xs font-semibold text-gray-500">인기 태그</p>
+          <p className={cn(studioType.caption, "mb-2 font-semibold")}>인기 태그</p>
           <div className="flex flex-wrap gap-2">
             {popularTags.map((tag) => (
               <Link
                 key={tag}
                 href={`/search?q=${encodeURIComponent(tag)}`}
-                className={`rounded-full px-3 py-1 text-sm transition ${
+                className={`rounded-full border px-3 py-1 text-sm transition ${
                   query === tag
-                    ? "bg-violet-600 text-white"
-                    : "bg-white/5 text-gray-300 hover:bg-white/10 hover:text-white"
+                    ? "border-violet-500/40 bg-violet-600 text-white"
+                    : "border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-zinc-50"
                 }`}
               >
                 #{tag}
@@ -120,9 +123,9 @@ export default async function SearchPage({
 
       {isValidSearchQuery(query) ? (
         <>
-          <p className="mt-6 text-sm text-gray-400">
+          <p className={cn(studioType.body, "mt-6")}>
             <span className="font-semibold text-violet-300">「{query}」</span> 검색 결과{" "}
-            <span className="text-white">{chars.length}</span>건
+            <span className="text-zinc-50">{chars.length}</span>건
           </p>
           {chars.length > 0 ? (
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
@@ -141,16 +144,16 @@ export default async function SearchPage({
               })}
             </div>
           ) : (
-            <p className="mt-10 text-center text-gray-500">
+            <p className="mt-10 text-center text-zinc-400">
               「{query}」에 해당하는 캐릭터·제작자·태그 결과가 없습니다.
             </p>
           )}
         </>
       ) : (
-        <p className="mt-10 text-center text-sm text-gray-500">
+        <p className="mt-10 text-center text-sm text-zinc-400">
           검색어를 입력하거나 위 인기 태그를 눌러보세요.
         </p>
       )}
-    </div>
+    </AppPageShell>
   );
 }
