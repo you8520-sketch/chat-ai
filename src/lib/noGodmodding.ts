@@ -11,13 +11,36 @@ export const NO_FALSE_SHARED_MEMORY_RULE = `[NO FALSE SHARED MEMORY]
 나쁜 예: "네가 전에 말했잖아. 에카르트의 문장은 달리는 늑대라고."
 좋은 예: "저 문장, 달리는 늑대처럼 보여." / "저게 네 가문의 문장이야?"`;
 
+/** Compact interactive-only reinforcement (no length rules). */
+export const INTERACTIVE_USER_CONTROL_BLOCK = `[INTERACTIVE USER CONTROL]
+일반 입력 턴에서는 유저의 대사, 의도적 행동, 생각, 결정, 동의/거절, 감정 결론, 기억, 약속을 쓰지 않는다.
+분량을 채우기 위해 유저를 움직이지 않는다.
+NPC, 환경, 사건의 여파, 긴장, 새 반응점으로 장면을 이어간다.`;
+
 export function buildCompactNoGodmoddingStandardBlock(): string {
   return `[NO GODMODDING]
 [USER CONTROL MODE - INTERACTIVE]
 - [B]의 의도적 행동, 대사, 생각, 결정, 감정 결론을 대신 쓰지 않는다.
 - [A], NPC, 환경, 시간 경과, 외부 사건, 이전 선택의 결과는 자연스럽게 움직일 수 있다.
 - 숨 멎음, 침묵, 떨림 같은 짧은 비자발 반응은 맥락상 자연스러울 때만 제한적으로 묘사한다.
-- [B]를 장면 밖으로 밀어내지 말고, [A]가 지금 무엇을 느끼고 선택하는지 중심으로 진행한다.`;
+- [B]를 장면 밖으로 밀어내지 말고, [A]가 지금 무엇을 느끼고 선택하는지 중심으로 진행한다.
+
+${INTERACTIVE_USER_CONTROL_BLOCK}`;
+}
+
+/** Near [예시 대화] — style reference only; does not authorize [B] writing in interactive mode. */
+export const EXAMPLE_DIALOG_STYLE_ONLY_NOTE = `[EXAMPLE DIALOG — STYLE ONLY]
+예시대화는 말투·분위기 참고용이다. 현재 채팅 기록이 아니다.
+일반 입력(interactive) 턴에서 유저의 이후 대사·행동을 작성할 권한을 주지 않는다.`;
+
+export function injectExampleDialogStyleOnlyNote(combinedSetting: string): string {
+  const text = combinedSetting.trim();
+  if (!text) return combinedSetting;
+  if (text.includes("[EXAMPLE DIALOG — STYLE ONLY]")) return combinedSetting;
+  if (!/\[예시\s*대화\]/i.test(text) && !/(?:^|\n)\s*유저\s*[:：]/m.test(text)) {
+    return combinedSetting;
+  }
+  return `${EXAMPLE_DIALOG_STYLE_ONLY_NOTE}\n\n${combinedSetting}`;
 }
 
 /** @deprecated auto-continue uses the standard block */

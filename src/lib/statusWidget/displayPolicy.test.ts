@@ -67,6 +67,18 @@ describe("shouldShowStatusWidgetOnMessage", () => {
       true
     );
   });
+
+  it("hides UI when displayHidden even if turn is active", () => {
+    assert.equal(
+      shouldShowStatusWidgetOnMessage({
+        model: "deepseek",
+        statusWidgetTurnActive: true,
+        statusWidgetValues: { character: { d_day: "1" } },
+        displayHidden: true,
+      }),
+      false
+    );
+  });
 });
 
 describe("statusWidgetValuesHasContent", () => {

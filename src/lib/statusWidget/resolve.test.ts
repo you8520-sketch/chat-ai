@@ -34,6 +34,7 @@ describe("resolveStatusWidgetTurn — creator widget required", () => {
     });
     assert.equal(resolved.active, true);
     assert.equal(resolved.mode, "character_only");
+    assert.equal(resolved.needsCharacterValues, true);
     assert.ok(resolved.characterWidget);
   });
 
@@ -46,6 +47,7 @@ describe("resolveStatusWidgetTurn — creator widget required", () => {
       chatMode: "user_only",
     });
     assert.equal(resolved.mode, "both");
+    assert.equal(resolved.needsCharacterValues, true);
     assert.ok(resolved.characterWidget);
     assert.ok(resolved.userWidget);
   });

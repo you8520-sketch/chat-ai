@@ -5,7 +5,7 @@ import Link from "next/link";
 import ChatPersonaEditor, { restorePersonaSnapshot } from "@/components/ChatPersonaEditor";
 import PersonaSelector from "@/components/PersonaSelector";
 import StatusWidgetChatSettings from "@/components/StatusWidgetChatSettings";
-import type { StatusWidgetSourceMode } from "@/lib/statusWidget";
+import type { StatusWidgetSourceMode, StatusWidgetDisplayMode } from "@/lib/statusWidget";
 import { resolveStatusWidgetReservedChars } from "@/lib/statusWidget";
 import type { PersonaListItem } from "@/lib/userPersonas";
 import {
@@ -117,8 +117,14 @@ type Props = {
   displaySettingsSaving?: boolean;
   characterWidgetJson?: string;
   statusWidgetMode?: StatusWidgetSourceMode;
+  statusWidgetDisplayMode?: StatusWidgetDisplayMode | null;
   userWidgetJson?: string;
   characterWidgetAllowUserOverride?: boolean;
+  onStatusWidgetChange?: (saved: {
+    mode: StatusWidgetSourceMode;
+    displayMode: StatusWidgetDisplayMode;
+    userWidgetJson: string;
+  }) => void;
   layout?: "rail" | "drawer" | "inline";
   onClose?: () => void;
 };
@@ -156,13 +162,18 @@ export default function ChatSettingsPanel({
   displaySettingsSaving = false,
   characterWidgetJson = "",
   statusWidgetMode = "character_only",
+  statusWidgetDisplayMode = null,
   userWidgetJson = "",
   characterWidgetAllowUserOverride = true,
+  onStatusWidgetChange,
   layout = "rail",
   onClose,
 }: Props) {
   const [active, setActive] = useState<SettingsTab | null>(null);
   const [liveWidgetMode, setLiveWidgetMode] = useState(statusWidgetMode);
+  const [liveDisplayMode, setLiveDisplayMode] = useState<StatusWidgetDisplayMode | null>(
+    statusWidgetDisplayMode
+  );
   const [liveUserWidgetJson, setLiveUserWidgetJson] = useState(userWidgetJson);
   const [memoryData, setMemoryData] = useState<MemoryData | null>(null);
   const [memoryError, setMemoryError] = useState("");
@@ -173,8 +184,9 @@ export default function ChatSettingsPanel({
 
   useEffect(() => {
     setLiveWidgetMode(statusWidgetMode);
+    setLiveDisplayMode(statusWidgetDisplayMode);
     setLiveUserWidgetJson(userWidgetJson);
-  }, [statusWidgetMode, userWidgetJson, chatId]);
+  }, [statusWidgetMode, statusWidgetDisplayMode, userWidgetJson, chatId]);
 
   const widgetReservedChars = useMemo(
     () =>
@@ -183,12 +195,14 @@ export default function ChatSettingsPanel({
         chatMode: liveWidgetMode,
         userWidgetJson: liveUserWidgetJson,
         characterAllowUserOverride: characterWidgetAllowUserOverride,
+        displayMode: liveDisplayMode,
       }),
     [
       characterWidgetJson,
       liveWidgetMode,
       liveUserWidgetJson,
       characterWidgetAllowUserOverride,
+      liveDisplayMode,
     ]
   );
 
@@ -317,15 +331,19 @@ export default function ChatSettingsPanel({
         chatId={chatId}
         characterWidgetJson={characterWidgetJson}
         statusWidgetMode={statusWidgetMode}
+        statusWidgetDisplayMode={statusWidgetDisplayMode}
         userWidgetJson={userWidgetJson}
         characterWidgetAllowUserOverride={characterWidgetAllowUserOverride}
         statusWidgetPresets={statusWidgetPresets}
-        onStatusWidgetSaved={({ mode, userWidgetJson: savedJson }) => {
-          setLiveWidgetMode(mode);
-          setLiveUserWidgetJson(savedJson);
+        onStatusWidgetSaved={(saved) => {
+          setLiveWidgetMode(saved.mode);
+          setLiveDisplayMode(saved.displayMode);
+          setLiveUserWidgetJson(saved.userWidgetJson);
+          onStatusWidgetChange?.(saved);
         }}
-        onStatusWidgetDraftChange={({ mode, userWidgetJson: draftJson }) => {
+        onStatusWidgetDraftChange={({ mode, displayMode, userWidgetJson: draftJson }) => {
           setLiveWidgetMode(mode);
+          setLiveDisplayMode(displayMode);
           setLiveUserWidgetJson(draftJson);
         }}
         displayPrefs={displayPrefs}
@@ -817,6 +835,7 @@ function DisplaySection({
   chatId,
   characterWidgetJson,
   statusWidgetMode,
+  statusWidgetDisplayMode = null,
   userWidgetJson,
   characterWidgetAllowUserOverride,
   statusWidgetPresets,
@@ -830,11 +849,20 @@ function DisplaySection({
   chatId: number | null;
   characterWidgetJson: string;
   statusWidgetMode: StatusWidgetSourceMode;
+  statusWidgetDisplayMode?: StatusWidgetDisplayMode | null;
   userWidgetJson: string;
   characterWidgetAllowUserOverride: boolean;
   statusWidgetPresets: StatusWidgetPresetItem[];
-  onStatusWidgetSaved: (saved: { mode: StatusWidgetSourceMode; userWidgetJson: string }) => void;
-  onStatusWidgetDraftChange: (draft: { mode: StatusWidgetSourceMode; userWidgetJson: string }) => void;
+  onStatusWidgetSaved: (saved: {
+    mode: StatusWidgetSourceMode;
+    displayMode: StatusWidgetDisplayMode;
+    userWidgetJson: string;
+  }) => void;
+  onStatusWidgetDraftChange: (draft: {
+    mode: StatusWidgetSourceMode;
+    displayMode: StatusWidgetDisplayMode;
+    userWidgetJson: string;
+  }) => void;
   displayPrefs: ChatDisplayPrefs;
   onDisplayPrefsChange: (prefs: ChatDisplayPrefs) => void;
   onSaveDisplaySettings?: () => Promise<boolean | void>;
@@ -847,6 +875,7 @@ function DisplaySection({
           chatId={chatId}
           characterWidgetJson={characterWidgetJson}
           initialMode={statusWidgetMode}
+          initialDisplayMode={statusWidgetDisplayMode}
           initialUserWidgetJson={userWidgetJson}
           allowUserOverride={characterWidgetAllowUserOverride}
           statusWidgetPresets={statusWidgetPresets}

@@ -4,9 +4,11 @@ export type ChatMessageHygieneRow = {
   id: number;
   role: "user" | "assistant";
   model?: string;
+  /** In-flight / partial assistant generations must not orphan their user turn */
+  generation_status?: string | null;
 };
 
-/** AI 답변 없이 DB에만 남은 유저 메시지 (과거 생성 실패 잔여) */
+/** AI 답변 없이 DB에만 남은 유저 메시지 (과거 생성 실패 잔여) — in-flight rows 제외 */
 export function findOrphanUserMessageIds(rows: ChatMessageHygieneRow[]): number[] {
   const orphans: number[] = [];
   for (let i = 0; i < rows.length; i++) {
@@ -14,8 +16,11 @@ export function findOrphanUserMessageIds(rows: ChatMessageHygieneRow[]): number[
     if (row.role !== "user") continue;
     const next = rows[i + 1];
     if (!next || next.role !== "assistant" || next.model === "greeting") {
+      // User saved before assistant placeholder finished inserting
+      if (row.generation_status === "submitted") continue;
       orphans.push(row.id);
     }
+    // Any following assistant row (including empty generating) keeps the user turn
   }
   return orphans;
 }

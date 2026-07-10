@@ -10,15 +10,11 @@ import MobileBottomNav from "./MobileBottomNav";
 import NotificationBell from "./NotificationBell";
 import PointsShopLink from "./PointsShopLink";
 import HeaderMainNavRow from "./HeaderMainNavRow";
+import HeaderBoardLinks from "./HeaderBoardLinks";
 import UserPreferenceControls from "./UserPreferenceControls";
 import ExpiringPointsPopup from "./ExpiringPointsPopup";
 import { getPointBalance } from "@/lib/points";
 import { isPaymentsEnabled } from "@/lib/portoneConfig";
-const topLinks = [
-  { href: "/board/notice", label: "공지사항", noticeBadge: true },
-  { href: "/board/inquiry", label: "문의게시판" },
-  { href: "/board/faq", label: "FAQ" },
-];
 
 export default async function Header() {
   const user = await getSessionUser();
@@ -37,24 +33,13 @@ export default async function Header() {
     <>
     <header className="site-header sticky top-0 z-40 border-b border-white/5 bg-[#0b0d14]/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl flex-nowrap items-center justify-between gap-2 px-4 py-2 text-xs sm:gap-4">
-        <nav className="flex min-w-0 flex-1 flex-nowrap items-center gap-3 overflow-x-auto whitespace-nowrap pr-1 scrollbar-thin sm:gap-4">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-4">
           <Link href="/" className="shrink-0 text-xl font-black tracking-tight text-white">
             하비 <span className="text-violet-400">AI</span>
           </Link>
-          {topLinks.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className="shrink-0 font-medium text-zinc-300 transition hover:text-white"
-            >
-              {l.label}
-              {l.noticeBadge && unreadNotice && (
-                <sup className="ml-0.5 text-[9px] font-bold text-red-400">N</sup>
-              )}
-            </Link>
-          ))}
-        </nav>
-        <div className="flex items-center gap-2 whitespace-nowrap sm:gap-3">
+          <HeaderBoardLinks unreadNotice={unreadNotice} />
+        </div>
+        <div className="flex shrink-0 items-center gap-2 whitespace-nowrap sm:gap-3">
           <NotificationBell count={unreadCount} />
           {user ? (
             <>
@@ -73,13 +58,13 @@ export default async function Header() {
                 {paymentsEnabled && <PointsShopLink />}
               </div>
               {!user.is_adult && (
-                <Link href="/verify" className="text-amber-300 hover:underline">
+                <Link href="/verify" className="hidden text-amber-300 hover:underline sm:inline">
                   성인인증
                 </Link>
               )}
               <Link
                 href="/settings"
-                className="font-semibold text-gray-300 transition hover:text-white"
+                className="max-w-[5.5rem] truncate font-semibold text-gray-300 transition hover:text-white sm:max-w-none"
                 title="내 정보 · 설정"
               >
                 {user.nickname}
@@ -87,8 +72,8 @@ export default async function Header() {
               <LogoutButton />
             </>
           ) : (
-            <Link href="/login" className="rounded-full bg-violet-600 px-4 py-1.5 font-semibold text-white hover:bg-violet-500">
-              로그인 하고 채팅하기
+            <Link href="/login" className="rounded-full bg-violet-600 px-3 py-1.5 font-semibold text-white hover:bg-violet-500 sm:px-4">
+              로그인
             </Link>
           )}
         </div>

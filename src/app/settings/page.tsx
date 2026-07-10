@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import { getPointBalance } from "@/lib/points";
 import { isAdminUser } from "@/lib/adminAuth";
+import { userHasCreatedCharacters } from "@/lib/creatorAccess";
 import { getDb } from "@/lib/db";
 import SettingsClient from "./SettingsClient";
 
@@ -16,6 +17,7 @@ export default async function SettingsPage() {
     .prepare("SELECT is_admin FROM users WHERE id = ?")
     .get(user.id) as { is_admin: number } | undefined;
   const isAdmin = isAdminUser({ ...user, is_admin: adminRow?.is_admin ?? 0 });
+  const isCreator = userHasCreatedCharacters(user.id);
 
   return (
     <SettingsClient
@@ -30,6 +32,7 @@ export default async function SettingsPage() {
         paidPoints: balance.paid,
         freePoints: balance.free,
         isAdmin,
+        isCreator,
       }}
     />
   );

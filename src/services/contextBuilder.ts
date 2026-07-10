@@ -21,6 +21,11 @@ import { buildNarrativeStyleLayer } from "@/lib/narrativeStyle";
 import { isRegisterPatch } from "@/lib/registerPatchExperiment";
 import { buildOocCoNarrationHint } from "@/lib/userImpersonationPolicy";
 import {
+  resolveChatRuntimeMode,
+  type ChatRuntimeMode,
+} from "@/lib/chatRuntimeMode";
+import { wrapCurrentUserInput } from "@/lib/currentUserInputLabel";
+import {
   buildNovelModeUserPersonaRules,
 } from "@/lib/userPersonaNarrationRules";
 import { stripRpMetaPreamble } from "@/lib/narrativeRules";
@@ -29,6 +34,7 @@ import { buildProseStyleXmlBundle } from "@/lib/proseStyleXmlBundle";
 import { buildRegenerateSystemDirective } from "@/lib/continueNarrative";
 import {
   buildNoGodmoddingBlock,
+  injectExampleDialogStyleOnlyNote,
   resolveNoGodmoddingMode,
   type NoGodmoddingMode,
 } from "@/lib/noGodmodding";
@@ -237,16 +243,24 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const personaLabel = input.personaDisplayName?.trim() || input.userNickname;
   const novelModeEnabled = input.novelModeEnabled === true;
   const coNarrationEnabled = novelModeEnabled || !!input.userImpersonation;
+  const runtimeMode: ChatRuntimeMode =
+    input.runtimeMode ??
+    resolveChatRuntimeMode({
+      isContinue: input.isContinue,
+      novelModeEnabled,
+      oocUserImpersonationAllowed: !!input.userImpersonation && !novelModeEnabled,
+    });
   const characterSettingTextRaw = collectCharacterSettingText(chunks);
   const recentHistoryText = input.shortTermHistory
     .slice(-4)
     .map((m) => m.content?.trim() ?? "")
     .filter(Boolean)
     .join("\n");
-  const characterSettingText = filterExampleDialogInSetting(characterSettingTextRaw, {
+  const characterSettingTextFiltered = filterExampleDialogInSetting(characterSettingTextRaw, {
     userMessage: input.currentUserMessage,
     recentHistory: recentHistoryText,
   });
+  const characterSettingText = injectExampleDialogStyleOnlyNote(characterSettingTextFiltered);
   const bilingualDialoguePolicy = resolveBilingualDialoguePolicyFromSources({
     chunks,
     characterSettingText,
@@ -847,7 +861,10 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const formattedUser = input.isContinue
     ? input.currentUserMessage.trim()
     : formatUserMessageForPrompt(input.currentUserMessage, hasMindReading);
-  let userTurnContent = isOpenRouter ? input.currentUserMessage.trim() : formattedUser;
+  // Provider-agnostic: parse labels + CURRENT USER INPUT wrapper on all models (interactive too).
+  let userTurnContent = input.isContinue
+    ? formattedUser
+    : wrapCurrentUserInput(formattedUser, { mode: runtimeMode });
   if (isOpenRouter && openRouterDynamicLorePrefix) {
     userTurnContent = `${openRouterDynamicLorePrefix}\n\n${userTurnContent}`;
   }
@@ -896,7 +913,8 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       }
       return { ...m, content };
     }
-    if (m.role === "user" && !isOpenRouter) {
+    if (m.role === "user") {
+      // Consistent action/thought labels for all providers (not CURRENT USER INPUT — history only).
       return { ...m, content: formatUserMessageForPrompt(m.content, hasMindReading) };
     }
     return m;

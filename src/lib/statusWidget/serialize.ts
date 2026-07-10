@@ -1,6 +1,11 @@
 import { statusValueKeyFromLabel } from "./fieldKeys";
 import { DEFAULT_STATUS_WIDGET } from "./defaultTemplate";
-import type { StatusWidget, StatusWidgetSourceMode, StatusWidgetStackOrder } from "./types";
+import type {
+  StatusWidget,
+  StatusWidgetDisplayMode,
+  StatusWidgetSourceMode,
+  StatusWidgetStackOrder,
+} from "./types";
 
 export function parseStatusWidgetJson(raw: string | null | undefined): StatusWidget | null {
   if (!raw?.trim()) return null;
@@ -51,6 +56,53 @@ export function parseStatusWidgetMode(raw: string | null | undefined): StatusWid
     default:
       return "character_only";
   }
+}
+
+export function parseStatusWidgetDisplayMode(
+  raw: string | null | undefined
+): StatusWidgetDisplayMode | null {
+  switch (raw) {
+    case "creator":
+    case "user":
+    case "both":
+    case "hidden":
+      return raw;
+    default:
+      return null;
+  }
+}
+
+/** Derive display preference from legacy engine mode when display column is unset. */
+export function displayModeFromEngineMode(mode: StatusWidgetSourceMode): StatusWidgetDisplayMode {
+  switch (mode) {
+    case "both":
+      return "both";
+    case "user_only":
+      return "user";
+    case "off":
+      return "hidden";
+    case "character_only":
+    default:
+      return "creator";
+  }
+}
+
+/**
+ * Engine mode for persistence: creator widget always stays on when present.
+ * Display preference never turns creator generation off.
+ */
+export function engineModeForDisplay(
+  display: StatusWidgetDisplayMode,
+  hasCharacterWidget: boolean,
+  hasUserWidget: boolean
+): StatusWidgetSourceMode {
+  if (!hasCharacterWidget) {
+    if (!hasUserWidget) return "off";
+    return display === "hidden" ? "off" : "user_only";
+  }
+  // Creator always on for engine
+  if (hasUserWidget && (display === "user" || display === "both")) return "both";
+  return "character_only";
 }
 
 export function parseStatusWidgetStackOrder(raw: string | null | undefined): StatusWidgetStackOrder {

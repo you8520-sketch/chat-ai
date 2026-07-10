@@ -18,6 +18,7 @@ type Props = {
     paidPoints: number;
     freePoints: number;
     isAdmin?: boolean;
+    isCreator?: boolean;
   };
 };
 
@@ -53,6 +54,31 @@ export default function SettingsClient({ user }: Props) {
   return (
     <div className="mx-auto mt-4 max-w-2xl">
       <h1 className="text-xl font-black text-white">내 정보 · 설정</h1>
+
+      <section className="mt-6 rounded-2xl border border-white/5 bg-[#131626] p-5">
+        <h2 className="font-bold text-white">제작 · 크리에이터</h2>
+        <p className="mt-1 text-xs text-gray-400">캐릭터 제작과 수익·정산 페이지로 이동합니다.</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Link
+            href="/studio"
+            className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-white/5"
+          >
+            제작 스튜디오
+          </Link>
+          {user.isCreator ? (
+            <Link
+              href="/creator"
+              className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-500"
+            >
+              크리에이터 페이지
+            </Link>
+          ) : (
+            <p className="w-full text-[11px] leading-relaxed text-zinc-500">
+              캐릭터를 1개 이상 만들면 크리에이터 페이지(수익·정산)를 이용할 수 있습니다.
+            </p>
+          )}
+        </div>
+      </section>
 
       {user.isAdmin && (
         <section className="mt-6 rounded-2xl border border-violet-500/30 bg-violet-950/30 p-5">

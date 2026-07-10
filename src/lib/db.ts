@@ -359,6 +359,8 @@ function migrate(db: Database.Database) {
   addColumn("chats", "status_widget_mode", "TEXT NOT NULL DEFAULT 'character_only'");
   addColumn("chats", "user_status_widget_json", "TEXT NOT NULL DEFAULT ''");
   addColumn("chats", "status_widget_stack_order", "TEXT NOT NULL DEFAULT 'character_first'");
+  /** Visual-only: creator | user | both | hidden — never disables canonical creator status */
+  addColumn("chats", "status_widget_display_mode", "TEXT NOT NULL DEFAULT ''");
   db.exec(`
     CREATE TABLE IF NOT EXISTS bookmarks (
       user_id INTEGER NOT NULL,
@@ -374,6 +376,20 @@ function migrate(db: Database.Database) {
   addColumn("messages", "status", "TEXT NOT NULL DEFAULT 'ok'");
   addColumn("messages", "is_refunded", "INTEGER NOT NULL DEFAULT 0");
   addColumn("messages", "deduction_slices", "TEXT");
+  /** Streaming durability — client request idempotency + generation lifecycle */
+  addColumn("messages", "request_id", "TEXT");
+  addColumn("messages", "generation_status", "TEXT NOT NULL DEFAULT 'completed'");
+  // SQLite ALTER TABLE ADD COLUMN only allows constant defaults (not datetime('now'))
+  addColumn("messages", "updated_at", "TEXT NOT NULL DEFAULT ''");
+  db.exec(`
+    UPDATE messages
+    SET updated_at = COALESCE(NULLIF(updated_at, ''), created_at, datetime('now'))
+    WHERE updated_at = '' OR updated_at IS NULL
+  `);
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_messages_chat_request_id
+      ON messages(chat_id, request_id);
+  `);
   addColumn("point_logs", "message_id", "INTEGER");
   addColumn("point_logs", "chat_id", "INTEGER");
   addColumn("messages", "alternates", "TEXT NOT NULL DEFAULT '[]'");

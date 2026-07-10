@@ -5,13 +5,16 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   characterStatusWidgetOrDefault,
+  displayModeFromEngineMode,
+  displayModeFromUserChoice,
+  engineModeForDisplay,
   hasCharacterStatusWidget,
+  parseStatusWidgetDisplayMode,
   parseStatusWidgetJson,
   resolveStatusWidgetReservedChars,
   serializeStatusWidget,
-  statusWidgetModeFromUserToggle,
-  statusWidgetTogglesFromMode,
   type StatusWidget,
+  type StatusWidgetDisplayMode,
   type StatusWidgetSourceMode,
 } from "@/lib/statusWidget";
 import { formatWidgetBudgetHint } from "@/lib/statusWidget/contextBudget";
@@ -21,60 +24,57 @@ type Props = {
   chatId: number | null;
   characterWidgetJson: string;
   initialMode: StatusWidgetSourceMode;
+  initialDisplayMode?: StatusWidgetDisplayMode | null;
   initialUserWidgetJson: string;
   allowUserOverride: boolean;
   statusWidgetPresets?: StatusWidgetPresetItem[];
-  onSaved?: (saved: { mode: StatusWidgetSourceMode; userWidgetJson: string }) => void;
-  onDraftChange?: (draft: { mode: StatusWidgetSourceMode; userWidgetJson: string }) => void;
+  onSaved?: (saved: {
+    mode: StatusWidgetSourceMode;
+    displayMode: StatusWidgetDisplayMode;
+    userWidgetJson: string;
+  }) => void;
+  onDraftChange?: (draft: {
+    mode: StatusWidgetSourceMode;
+    displayMode: StatusWidgetDisplayMode;
+    userWidgetJson: string;
+  }) => void;
 };
 
-function ToggleRow({
-  label,
-  hint,
-  checked,
-  disabled,
-  onChange,
-}: {
+const DISPLAY_OPTIONS: {
+  id: StatusWidgetDisplayMode;
   label: string;
   hint: string;
-  checked: boolean;
-  disabled?: boolean;
-  onChange: (next: boolean) => void;
-}) {
-  return (
-    <label
-      className={`flex items-center justify-between gap-3 rounded-lg border border-white/10 bg-[#0e1120] px-3 py-2.5 ${
-        disabled ? "opacity-45" : "cursor-pointer hover:bg-white/[0.03]"
-      }`}
-    >
-      <span className="min-w-0">
-        <span className="block text-xs font-semibold text-zinc-100">{label}</span>
-        <span className="mt-0.5 block text-[10px] leading-relaxed text-zinc-500">{hint}</span>
-      </span>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        disabled={disabled}
-        onClick={() => !disabled && onChange(!checked)}
-        className={`relative h-6 w-11 shrink-0 rounded-full transition ${
-          checked ? "bg-violet-600" : "bg-zinc-700"
-        } disabled:cursor-not-allowed`}
-      >
-        <span
-          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${
-            checked ? "left-[22px]" : "left-0.5"
-          }`}
-        />
-      </button>
-    </label>
-  );
-}
+  needsUser?: boolean;
+}[] = [
+  {
+    id: "creator",
+    label: "제작자 기본 상태창 보기",
+    hint: "제작자가 만든 상태창만 화면에 표시합니다.",
+  },
+  {
+    id: "user",
+    label: "내 커스텀 상태창으로 보기",
+    hint: "내 위젯만 표시합니다. 제작자 상태값은 내부적으로 계속 생성됩니다.",
+    needsUser: true,
+  },
+  {
+    id: "both",
+    label: "둘 다 보기",
+    hint: "제작자 상태창과 내 커스텀 상태창을 함께 표시합니다.",
+    needsUser: true,
+  },
+  {
+    id: "hidden",
+    label: "상태창 화면에서 숨기기",
+    hint: "화면에서만 숨깁니다. 기억·이벤트용 제작자 상태값은 계속 유지됩니다.",
+  },
+];
 
 export default function StatusWidgetChatSettings({
   chatId,
   characterWidgetJson,
   initialMode,
+  initialDisplayMode = null,
   initialUserWidgetJson,
   allowUserOverride,
   statusWidgetPresets = [],
@@ -82,9 +82,11 @@ export default function StatusWidgetChatSettings({
   onDraftChange,
 }: Props) {
   const hasCharacterWidget = hasCharacterStatusWidget(characterWidgetJson);
-  const initialToggles = statusWidgetTogglesFromMode(initialMode);
 
-  const [userOn, setUserOn] = useState(initialToggles.userOn);
+  const [displayMode, setDisplayMode] = useState<StatusWidgetDisplayMode>(() => {
+    if (initialDisplayMode) return initialDisplayMode;
+    return displayModeFromEngineMode(initialMode);
+  });
   const [userWidget, setUserWidget] = useState<StatusWidget>(() =>
     parseStatusWidgetJson(initialUserWidgetJson) ??
       characterStatusWidgetOrDefault(characterWidgetJson)
@@ -94,14 +96,29 @@ export default function StatusWidgetChatSettings({
   const [err, setErr] = useState("");
   const [linkedPresetId, setLinkedPresetId] = useState<number | null>(null);
 
-  const mode = useMemo(
-    () => statusWidgetModeFromUserToggle(userOn, hasCharacterWidget),
-    [userOn, hasCharacterWidget]
+  const hasUserWidget = Boolean(parseStatusWidgetJson(serializeStatusWidget(userWidget)));
+  const resolvedDisplay = useMemo(
+    () =>
+      displayModeFromUserChoice({
+        hasCharacterWidget,
+        hasUserWidget: hasUserWidget && allowUserOverride,
+        preference: displayMode,
+      }),
+    [hasCharacterWidget, hasUserWidget, allowUserOverride, displayMode]
+  );
+
+  const engineMode = useMemo(
+    () =>
+      engineModeForDisplay(
+        resolvedDisplay,
+        hasCharacterWidget,
+        hasUserWidget && allowUserOverride
+      ),
+    [resolvedDisplay, hasCharacterWidget, hasUserWidget, allowUserOverride]
   );
 
   useEffect(() => {
-    const toggles = statusWidgetTogglesFromMode(initialMode);
-    setUserOn(toggles.userOn);
+    setDisplayMode(initialDisplayMode ?? displayModeFromEngineMode(initialMode));
     setUserWidget(
       parseStatusWidgetJson(initialUserWidgetJson) ??
         characterStatusWidgetOrDefault(characterWidgetJson)
@@ -109,24 +126,26 @@ export default function StatusWidgetChatSettings({
     setLinkedPresetId(null);
     setMsg("");
     setErr("");
-  }, [initialMode, initialUserWidgetJson, characterWidgetJson, chatId]);
+  }, [initialMode, initialDisplayMode, initialUserWidgetJson, characterWidgetJson, chatId]);
 
   useEffect(() => {
     onDraftChange?.({
-      mode,
+      mode: engineMode,
+      displayMode: resolvedDisplay,
       userWidgetJson: serializeStatusWidget(userWidget),
     });
-  }, [mode, userWidget, onDraftChange]);
+  }, [engineMode, resolvedDisplay, userWidget, onDraftChange]);
 
   const widgetReservedChars = useMemo(
     () =>
       resolveStatusWidgetReservedChars({
         characterWidgetJson,
-        chatMode: mode,
+        chatMode: engineMode,
         userWidgetJson: serializeStatusWidget(userWidget),
         characterAllowUserOverride: allowUserOverride,
+        displayMode: resolvedDisplay,
       }),
-    [characterWidgetJson, mode, userWidget, allowUserOverride]
+    [characterWidgetJson, engineMode, userWidget, allowUserOverride, resolvedDisplay]
   );
 
   const save = useCallback(async () => {
@@ -139,7 +158,8 @@ export default function StatusWidgetChatSettings({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         chatId,
-        statusWidgetMode: mode,
+        statusWidgetMode: engineMode,
+        statusWidgetDisplayMode: resolvedDisplay,
         userStatusWidgetJson: serializeStatusWidget(userWidget),
       }),
     });
@@ -149,12 +169,15 @@ export default function StatusWidgetChatSettings({
       setErr(data.error || "저장에 실패했습니다.");
       return;
     }
+    const savedDisplay =
+      parseStatusWidgetDisplayMode(data.statusWidgetDisplayMode) ?? resolvedDisplay;
     setMsg("저장되었습니다.");
     onSaved?.({
-      mode,
+      mode: engineMode,
+      displayMode: savedDisplay,
       userWidgetJson: serializeStatusWidget(userWidget),
     });
-  }, [chatId, mode, userWidget, onSaved]);
+  }, [chatId, engineMode, resolvedDisplay, userWidget, onSaved]);
 
   function loadPreset(preset: StatusWidgetPresetItem) {
     const parsed = parseStatusWidgetJson(preset.widget_json);
@@ -163,7 +186,9 @@ export default function StatusWidgetChatSettings({
       return;
     }
     setUserWidget(parsed);
-    setUserOn(true);
+    if (displayMode === "creator" || displayMode === "hidden") {
+      setDisplayMode(hasCharacterWidget ? "both" : "user");
+    }
     setLinkedPresetId(preset.id);
     setErr("");
     setMsg(`「${preset.title}」을(를) 불러왔습니다. 저장을 눌러 적용하세요.`);
@@ -178,6 +203,10 @@ export default function StatusWidgetChatSettings({
         <p className="mt-1 text-[10px] leading-relaxed text-zinc-500">
           HTML은 페르소나 페이지에서 제작 · AI는 값만 채웁니다.
         </p>
+        <p className="mt-2 text-[10px] leading-relaxed text-amber-200/90">
+          제작자 상태값은 캐릭터 기억과 이벤트 조건에 사용되므로 내부적으로 항상 유지됩니다. 내
+          커스텀 상태창은 화면 표시 방식을 바꾸는 기능입니다.
+        </p>
         <p className="mt-2 text-[10px] text-violet-300/90">
           {formatWidgetBudgetHint(widgetReservedChars)}
         </p>
@@ -186,9 +215,9 @@ export default function StatusWidgetChatSettings({
       <div className="space-y-2">
         {hasCharacterWidget ? (
           <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-3 py-2.5">
-            <p className="text-xs font-semibold text-emerald-200">제작자 위젯 · 필수</p>
+            <p className="text-xs font-semibold text-emerald-200">제작자 상태 · 엔진 필수</p>
             <p className="mt-0.5 text-[10px] leading-relaxed text-zinc-500">
-              캐릭터에 설정된 상태창은 매 턴 자동으로 표시됩니다. 끌 수 없습니다.
+              캐릭터에 설정된 상태값은 매 턴 생성·저장됩니다. 끌 수 없습니다.
             </p>
           </div>
         ) : (
@@ -197,17 +226,41 @@ export default function StatusWidgetChatSettings({
           </p>
         )}
 
-        <ToggleRow
-          label="내 위젯"
-          hint={
-            userToggleLocked
-              ? "제작자가 커스텀 위젯을 허용하지 않았습니다."
-              : "보관함에서 불러온 내 상태창을 표시합니다."
-          }
-          checked={userOn}
-          disabled={userToggleLocked}
-          onChange={setUserOn}
-        />
+        <div className="space-y-1.5">
+          <p className="text-[11px] font-semibold text-zinc-300">화면 표시</p>
+          {DISPLAY_OPTIONS.map((opt) => {
+            const disabled =
+              userToggleLocked && (opt.id === "user" || opt.id === "both");
+            const selected = displayMode === opt.id;
+            return (
+              <label
+                key={opt.id}
+                className={`flex cursor-pointer items-start gap-2.5 rounded-lg border px-3 py-2.5 ${
+                  selected
+                    ? "border-violet-500/40 bg-violet-500/10"
+                    : "border-white/10 bg-[#0e1120] hover:bg-white/[0.03]"
+                } ${disabled ? "cursor-not-allowed opacity-45" : ""}`}
+              >
+                <input
+                  type="radio"
+                  name="status-widget-display"
+                  className="mt-0.5"
+                  checked={selected}
+                  disabled={disabled}
+                  onChange={() => !disabled && setDisplayMode(opt.id)}
+                />
+                <span className="min-w-0">
+                  <span className="block text-xs font-semibold text-zinc-100">{opt.label}</span>
+                  <span className="mt-0.5 block text-[10px] leading-relaxed text-zinc-500">
+                    {disabled
+                      ? "제작자가 커스텀 위젯을 허용하지 않았습니다."
+                      : opt.hint}
+                  </span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
       </div>
 
       {!userToggleLocked && (

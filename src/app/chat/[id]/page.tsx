@@ -28,7 +28,12 @@ import {
   mergeUserNoteWithChatPrefs,
   resolveInitialUserChatPrefs,
 } from "@/lib/userChatPrefs";
-import { parseStatusWidgetMode, parseStatusWidgetStackOrder } from "@/lib/statusWidget";
+import {
+  displayModeFromEngineMode,
+  parseStatusWidgetDisplayMode,
+  parseStatusWidgetMode,
+  parseStatusWidgetStackOrder,
+} from "@/lib/statusWidget";
 import { resolveStatusWidgetTurn } from "@/lib/statusWidget/resolve";
 import {
   parseStoredStatusWidgetValuesJson,
@@ -58,6 +63,7 @@ type ChatRow = {
   status_widget_mode?: string;
   user_status_widget_json?: string;
   status_widget_stack_order?: string;
+  status_widget_display_mode?: string;
 };
 
 export default async function ChatPage({
@@ -149,7 +155,7 @@ export default async function ChatPage({
       if (requestedId) {
         chat = db
           .prepare(
-            "SELECT id, mode, memory, memory_pending, memory_meta, gemini_model, user_note, selected_persona_id, user_impersonation, target_response_chars, title, writing_style_override, memory_capacity, status_window_enabled, status_widget_mode, user_status_widget_json, status_widget_stack_order FROM chats WHERE id=? AND user_id=? AND character_id=?"
+            "SELECT id, mode, memory, memory_pending, memory_meta, gemini_model, user_note, selected_persona_id, user_impersonation, target_response_chars, title, writing_style_override, memory_capacity, status_window_enabled, status_widget_mode, user_status_widget_json, status_widget_stack_order, status_widget_display_mode FROM chats WHERE id=? AND user_id=? AND character_id=?"
           )
           .get(requestedId, user.id, c.id) as ChatRow | undefined;
       }
@@ -158,7 +164,7 @@ export default async function ChatPage({
     if (!chat) {
       chat = db
         .prepare(
-          "SELECT id, mode, memory, memory_pending, memory_meta, gemini_model, user_note, selected_persona_id, user_impersonation, target_response_chars, title, writing_style_override, memory_capacity, status_window_enabled, status_widget_mode, user_status_widget_json, status_widget_stack_order FROM chats WHERE user_id=? AND character_id=? ORDER BY id DESC LIMIT 1"
+          "SELECT id, mode, memory, memory_pending, memory_meta, gemini_model, user_note, selected_persona_id, user_impersonation, target_response_chars, title, writing_style_override, memory_capacity, status_window_enabled, status_widget_mode, user_status_widget_json, status_widget_stack_order, status_widget_display_mode FROM chats WHERE user_id=? AND character_id=? ORDER BY id DESC LIMIT 1"
         )
         .get(user.id, c.id) as ChatRow | undefined;
     }
@@ -241,13 +247,14 @@ export default async function ChatPage({
     chatMode: chat.status_widget_mode,
     userWidgetJson: chat.user_status_widget_json,
     stackOrder: chat.status_widget_stack_order,
+    displayMode: chat.status_widget_display_mode,
     characterAllowUserOverride:
       (c as { status_widget_allow_user_override?: number }).status_widget_allow_user_override !== 0,
   }).active;
 
   let rawMessages = db
     .prepare(
-      "SELECT id, role, content, model, usage, is_refunded, alternates, active_variant, status_meta, status_widget_values_json, status_widget_turn_active, created_at FROM messages WHERE chat_id=? ORDER BY id ASC"
+      "SELECT id, role, content, model, usage, is_refunded, alternates, active_variant, status_meta, status_widget_values_json, status_widget_turn_active, created_at, request_id, generation_status FROM messages WHERE chat_id=? ORDER BY id ASC"
     )
     .all(chat.id) as {
     id: number;
@@ -262,6 +269,8 @@ export default async function ChatPage({
     status_widget_values_json: string | null;
     status_widget_turn_active: number | null;
     created_at: string;
+    request_id: string | null;
+    generation_status: string | null;
   }[];
 
   if (rawMessages.length > 0) {
@@ -324,6 +333,8 @@ export default async function ChatPage({
       ),
       statusWidgetTurnActive: m.status_widget_turn_active === 1,
       createdAt: m.created_at,
+      requestId: m.request_id ?? undefined,
+      generationStatus: m.generation_status ?? undefined,
       reportStatus: reportStatusByMessageId.get(m.id) ?? "none",
     };
   });
@@ -400,6 +411,10 @@ export default async function ChatPage({
       initialDisplayPrefs={userChatPrefs.displayPrefs}
       isCharacterCreator={isCharacterCreator}
       initialStatusWidgetMode={parseStatusWidgetMode(chat.status_widget_mode)}
+      initialStatusWidgetDisplayMode={
+        parseStatusWidgetDisplayMode(chat.status_widget_display_mode) ??
+        displayModeFromEngineMode(parseStatusWidgetMode(chat.status_widget_mode))
+      }
       initialCharacterWidgetJson={(c as { status_widget_json?: string }).status_widget_json ?? ""}
       initialUserWidgetJson={chat.user_status_widget_json ?? ""}
       initialStatusWidgetStackOrder={parseStatusWidgetStackOrder(chat.status_widget_stack_order)}

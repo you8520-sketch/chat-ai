@@ -300,8 +300,8 @@ export const OPENROUTER_QWEN_GROSS_MARGIN =
 /** GLM 5.2 — 출력 1토큰당 청구 (P) */
 export const OPENROUTER_GLM_POINTS_PER_OUTPUT_TOKEN = (() => {
   const perToken = process.env.OPENROUTER_GLM_POINTS_PER_OUTPUT_TOKEN?.trim();
-  if (perToken) return Number(perToken) || 0.035;
-  return 0.035;
+  if (perToken) return Number(perToken) || 0.03;
+  return 0.03;
 })();
 
 /** GLM — API 원가 대비 최저 매출총이익률 (55% → 원가÷0.45) */
@@ -1202,7 +1202,7 @@ export function explainOpenRouterQwenTurnCost(
   );
 }
 
-/** GLM 5.2 과금 상세 — 출력토큰×0.035P */
+/** GLM 5.2 과금 상세 — 출력토큰×0.03P */
 export function explainOpenRouterGlmTurnCost(
   inputTokens: number,
   outputTokens: number,

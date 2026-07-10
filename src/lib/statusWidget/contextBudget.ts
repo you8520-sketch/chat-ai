@@ -47,6 +47,7 @@ export function resolveStatusWidgetReservedChars(opts: {
   userWidgetJson?: string | null;
   stackOrder?: string | null;
   characterAllowUserOverride?: boolean;
+  displayMode?: string | null;
 }): number {
   const resolved = resolveStatusWidgetTurn(opts);
   if (!resolved.active) return 0;

@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { mergeNamespacedStatusValues } from "@/lib/statusWidget/namespaces";
 import type { ParsedStatusWidgetTurnValues } from "@/lib/statusWidget/types";
 
 export type StatusTriggerOperator = "<=" | ">=" | "==" | "!=" | "<" | ">";
@@ -361,18 +362,9 @@ function parseStoredTriggerValue(value: string): string | number | boolean {
 }
 
 function flattenStatusValues(values: ParsedStatusWidgetTurnValues | null | undefined): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const source of [values?.character, values?.user]) {
-    if (!source) continue;
-    for (const [key, value] of Object.entries(source)) {
-      const k = key.trim();
-      const v = value.trim();
-      if (!k || !v) continue;
-      out[k] = v;
-      out[k.toLowerCase()] = v;
-    }
-  }
-  return out;
+  // Creator triggers read canonical creator status only — never user display values.
+  const { creatorForTriggers } = mergeNamespacedStatusValues(values);
+  return creatorForTriggers;
 }
 
 function normalizeRuntimeValue(value: string): string | number | boolean {

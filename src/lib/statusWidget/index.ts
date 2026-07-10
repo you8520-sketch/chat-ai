@@ -11,4 +11,5 @@ export * from "./contextBudget";
 export * from "./editorPreview";
 export * from "./promptOverrides";
 export * from "./displayPolicy";
+export * from "./namespaces";
 /** Server-only — import from `@/lib/statusWidget/extract` in API routes; do not barrel-export (pulls ai/db). */

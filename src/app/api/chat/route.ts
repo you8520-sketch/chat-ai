@@ -35,6 +35,19 @@ import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
 import { deductPoints, getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveGemini25WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiProTurnCost, type DeductionSlice } from "@/lib/points";
 import { createChatSession } from "@/lib/chatSessionCreate";
 import { incrementCharacterTotalTurns } from "@/lib/characterEngagementStats";
+import {
+  bootstrapStreamingTurn,
+  createDisconnectSafeSend,
+  createPartialSaveThrottler,
+  findTurnByRequestId,
+  finalizeAssistantMessage,
+  logStreamingPersistence,
+  markAssistantFailed,
+  markAssistantInterrupted,
+  normalizeClientRequestId,
+  persistStreamCompleteContent,
+  type StreamingPersistenceDiag,
+} from "@/lib/streamingPersistence";
 import { isDeepSeekV4ProModel, isGemini25ProModel, isGemini31ProModel, isGeminiProOpenRouterModel, isGlmModel, isQwenModel } from "@/lib/chatModels";
 import { openRouterNormalizedRawCostKrw, openRouterRawCostKrw } from "@/lib/billingRawCost";
 import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
@@ -128,6 +141,12 @@ import {
   validatePersonaSelection,
 } from "@/lib/userPersonas";
 import { resolveUserImpersonationAllowance } from "@/lib/userImpersonationPolicy";
+import { resolveChatRuntimeMode } from "@/lib/chatRuntimeMode";
+import {
+  detectInteractiveUserImpersonation,
+  isUserImpersonationAutoRepairEnabled,
+  logUserImpersonationGuard,
+} from "@/lib/userImpersonationGuard";
 import {
   CONTINUE_USER_DISPLAY,
   buildContinueNarrativeCommand,
@@ -247,6 +266,9 @@ export async function POST(req: Request) {
   const { characterId, chatId, message, userNote, selectedPersonaId } = body;
   const regenerate = body.regenerate === true;
   const isContinue = body.isContinue === true;
+  const clientRequestId =
+    normalizeClientRequestId(body.clientRequestId ?? body.requestId) ??
+    `srv_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
   const isAdultModeInput =
     body.isAdultMode ?? body.isNsfwMode ?? body.nsfwMode;
   const targetResponseCharsInput = body.targetResponseChars ?? body.targetResponseLength;
@@ -391,6 +413,7 @@ export async function POST(req: Request) {
       chatMode: (chat as { status_widget_mode?: string }).status_widget_mode,
       userWidgetJson: (chat as { user_status_widget_json?: string }).user_status_widget_json,
       stackOrder: (chat as { status_widget_stack_order?: string }).status_widget_stack_order,
+      displayMode: (chat as { status_widget_display_mode?: string }).status_widget_display_mode,
       characterAllowUserOverride:
         (ch as { status_widget_allow_user_override?: number }).status_widget_allow_user_override !== 0,
     });
@@ -438,12 +461,16 @@ export async function POST(req: Request) {
   const personaDescription = selectedPersona?.description ?? "";
   const personaDisplayName = selectedPersona?.name?.trim() || user.nickname;
   const userNotePrompt = formatUserNoteForPrompt(effectiveUserNote);
-  const userImpersonation =
-    novelModeEnabled ||
-    resolveUserImpersonationAllowance({
-      personaDescription: selectedPersona?.description ?? "",
-      userNote: extractFocusZoneNote(effectiveUserNote),
-    });
+  const oocUserImpersonationAllowed = resolveUserImpersonationAllowance({
+    personaDescription: selectedPersona?.description ?? "",
+    userNote: extractFocusZoneNote(effectiveUserNote),
+  });
+  const userImpersonation = novelModeEnabled || oocUserImpersonationAllowed;
+  const runtimeMode = resolveChatRuntimeMode({
+    isContinue,
+    novelModeEnabled,
+    oocUserImpersonationAllowed,
+  });
   const userPersonaPrompt = formatSelectedPersonaForPrompt(
     personaDisplayName,
     selectedPersona?.gender ?? "other",
@@ -537,12 +564,15 @@ export async function POST(req: Request) {
   }
 
   const msgRowsWithId = db
-    .prepare("SELECT id, role, content, model FROM messages WHERE chat_id=? ORDER BY id ASC")
+    .prepare(
+      "SELECT id, role, content, model, generation_status FROM messages WHERE chat_id=? ORDER BY id ASC"
+    )
     .all(chat.id) as {
     id: number;
     role: "user" | "assistant";
     content: string;
     model: string;
+    generation_status?: string | null;
   }[];
   const purgedOrphanIds = purgeOrphanUserMessages(db, chat.id, msgRowsWithId);
   const regenerateHistoryDropIds = new Set<number>(purgedOrphanIds);
@@ -706,6 +736,7 @@ export async function POST(req: Request) {
     chatMode: (chat as { status_widget_mode?: string }).status_widget_mode,
     userWidgetJson: (chat as { user_status_widget_json?: string }).user_status_widget_json,
     stackOrder: (chat as { status_widget_stack_order?: string }).status_widget_stack_order,
+    displayMode: (chat as { status_widget_display_mode?: string }).status_widget_display_mode,
     characterAllowUserOverride:
       (ch as { status_widget_allow_user_override?: number }).status_widget_allow_user_override !== 0,
   });
@@ -870,6 +901,7 @@ export async function POST(req: Request) {
     modelId: openRouterApiModelId,
     userImpersonation,
     novelModeEnabled,
+    runtimeMode,
     personaDisplayName,
     targetResponseChars,
     completedTurns: playableTurnCount,
@@ -983,14 +1015,123 @@ export async function POST(req: Request) {
   };
   const historyRef = history;
 
+  // ── Durable turn bootstrap (before model call) ───────────────────────────
+  const persistenceDiag: StreamingPersistenceDiag = {
+    requestId: clientRequestId,
+    userMessageSaved: false,
+    assistantPlaceholderCreated: false,
+    partialSaveCount: 0,
+    lastPartialChars: 0,
+    finalized: false,
+    interrupted: false,
+    postprocessError: false,
+    recoveredOnLoad: false,
+    reusedExisting: false,
+  };
+
+  const existingByRequest = findTurnByRequestId(db, chatRef.id, clientRequestId);
+  const alreadyCompletedTurn =
+    existingByRequest.assistantMessageId != null &&
+    (existingByRequest.assistantStatus === "completed" ||
+      existingByRequest.assistantStatus === "ok" ||
+      existingByRequest.assistantStatus === "completed_with_postprocess_error");
+
+  const bootstrapped = alreadyCompletedTurn
+    ? {
+        requestId: clientRequestId,
+        userMessageId: existingByRequest.userMessageId,
+        assistantMessageId: existingByRequest.assistantMessageId!,
+        reusedExisting: true,
+        userMessageSaved: true,
+        assistantPlaceholderCreated: false,
+      }
+    : bootstrapStreamingTurn(db, {
+        chatId: chatRef.id,
+        requestId: clientRequestId,
+        userContent: messageText,
+        skipUserInsert,
+        existingUserMessageId: userMessageId,
+        regenerateAssistantId: regenerateMessageId,
+        onUserInserted: () => incrementCharacterTotalTurns(db, ch.id),
+      });
+  userMessageId = bootstrapped.userMessageId;
+  const persistedAssistantId = bootstrapped.assistantMessageId;
+  skipUserInsert = true; // already saved (or regenerate)
+  persistenceDiag.userMessageSaved = bootstrapped.userMessageSaved;
+  persistenceDiag.assistantPlaceholderCreated = bootstrapped.assistantPlaceholderCreated;
+  persistenceDiag.reusedExisting = bootstrapped.reusedExisting;
+  const alreadyBilledForRequest = existingByRequest.alreadyBilled;
+
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (obj: object) => controller.enqueue(sseEncode(obj));
+      const safe = createDisconnectSafeSend(
+        (chunk) => controller.enqueue(chunk),
+        sseEncode
+      );
+      const send = safe.send;
       const stages: StageUsage[] = [];
       let fullText = "";
       let streamVisibleTextRef = "";
+      const partialSaver = createPartialSaveThrottler();
+
+      const persistPartialBestEffort = (text: string) => {
+        try {
+          if (partialSaver.maybeSave(db, persistedAssistantId, text)) {
+            persistenceDiag.partialSaveCount = partialSaver.partialSaveCount;
+            persistenceDiag.lastPartialChars = partialSaver.lastPartialChars;
+          }
+        } catch (e) {
+          console.warn("[StreamingPersistence] partial save failed", (e as Error).message);
+        }
+      };
+
+      const clearPartialTimer = () => {
+        if (partialTimer) {
+          clearInterval(partialTimer);
+          partialTimer = null;
+        }
+      };
+
+      let partialTimer: ReturnType<typeof setInterval> | null = setInterval(() => {
+        if (streamVisibleTextRef.trim()) persistPartialBestEffort(streamVisibleTextRef);
+      }, 800);
 
       try {
+        send({
+          type: "turn_persisted",
+          requestId: clientRequestId,
+          chatId: chatRef.id,
+          userMessageId,
+          messageId: persistedAssistantId,
+        });
+
+        if (alreadyCompletedTurn) {
+          const row = db
+            .prepare(`SELECT content, usage FROM messages WHERE id=? AND chat_id=?`)
+            .get(persistedAssistantId, chatRef.id) as
+            | { content: string; usage: string | null }
+            | undefined;
+          const content = row?.content ?? "";
+          const usage = row?.usage ? JSON.parse(row.usage) : null;
+          send({ type: "replace", text: content, instant: true });
+          send({
+            type: "done",
+            chatId: chatRef.id,
+            messageId: persistedAssistantId,
+            userMessageId,
+            requestId: clientRequestId,
+            finalContent: content,
+            usage,
+            alreadyCompleted: true,
+          });
+          persistenceDiag.finalized = true;
+          persistenceDiag.recoveredOnLoad = true;
+          logStreamingPersistence(persistenceDiag);
+          clearPartialTimer();
+          controller.close();
+          return;
+        }
+
         console.log("[/api/chat] routing decision", {
           isAdultModeInput,
           isAdultMode,
@@ -1071,6 +1212,15 @@ export async function POST(req: Request) {
           stages.push(result.stage);
           openRouterRemovalTraceSteps = result.removalTraceSteps;
           if (result.recoveryStage) stages.push(result.recoveryStage);
+          try {
+            persistStreamCompleteContent(db, persistedAssistantId, streamVisibleTextRef || fullText);
+            persistenceDiag.lastPartialChars = (streamVisibleTextRef || fullText).length;
+          } catch (persistErr) {
+            console.warn(
+              "[StreamingPersistence] post-stream save failed",
+              (persistErr as Error).message
+            );
+          }
           send({ type: "status", message: "마무리 중…" });
           }
 
@@ -1099,14 +1249,29 @@ export async function POST(req: Request) {
             }
           }
         } catch (e) {
+          clearPartialTimer();
           if (e instanceof DegenerationAbortError) {
             console.warn("[/api/chat] OpenRouter DEGENERATION_ABORT — billing skipped");
+            try {
+              markAssistantFailed(db, persistedAssistantId, streamVisibleTextRef || fullText);
+              persistenceDiag.interrupted = true;
+              logStreamingPersistence(persistenceDiag);
+            } catch {
+              /* ignore */
+            }
             send({ type: "reset" });
             send({ type: "error", error: DEGENERATION_USER_MESSAGE });
             controller.close();
             return;
           }
           console.error("[/api/chat] OpenRouter 생성 실패:", (e as Error).message);
+          try {
+            markAssistantFailed(db, persistedAssistantId, streamVisibleTextRef || fullText);
+            persistenceDiag.interrupted = true;
+            logStreamingPersistence(persistenceDiag);
+          } catch {
+            /* ignore */
+          }
           send({ type: "reset" });
           send({
             type: "error",
@@ -1319,6 +1484,23 @@ export async function POST(req: Request) {
           send({ type: "error", error: DEGENERATION_USER_MESSAGE });
           controller.close();
           return;
+        }
+
+        // Interactive user-impersonation detector — log only; never auto-repair unless flagged.
+        if (!oocHtmlMode) {
+          const impersonationHit = detectInteractiveUserImpersonation(savedText, {
+            mode: runtimeMode,
+            userAliases: [personaDisplayName, user.nickname, "{{user}}", "[B]"].filter(Boolean),
+          });
+          logUserImpersonationGuard({
+            mode: runtimeMode,
+            detected: impersonationHit.detected,
+            severity: impersonationHit.severity,
+            reason: impersonationHit.reason,
+            matchedPhrase: impersonationHit.matchedPhrase,
+            autoRepairEnabled: isUserImpersonationAutoRepairEnabled(),
+            repairAttempted: false,
+          });
         }
 
         let lengthContinuationPasses = 0;
@@ -1738,6 +1920,14 @@ export async function POST(req: Request) {
             routedTo: htmlFlashOnlyTurn ? "html-only" : "openrouter",
             flashHtmlError,
           });
+          clearPartialTimer();
+          try {
+            markAssistantFailed(db, persistedAssistantId, savedText || streamVisibleTextRef);
+            persistenceDiag.interrupted = true;
+            logStreamingPersistence(persistenceDiag);
+          } catch {
+            /* ignore */
+          }
           // 이미 스트리밍된 본문이 있으면 reset 금지 — 화면이 비었다가 에러만 남는 현상 방지
           if (savedText.trim().length < CATASTROPHIC_MIN_RESPONSE_CHARS) {
             send({ type: "reset" });
@@ -1749,6 +1939,9 @@ export async function POST(req: Request) {
           send({
             type: "error",
             error: errorMessage,
+            messageId: persistedAssistantId,
+            userMessageId,
+            requestId: clientRequestId,
           });
           controller.close();
           return;
@@ -2334,47 +2527,45 @@ export async function POST(req: Request) {
           snapshotVariantIndex = appended.activeVariant;
           snapshotVariantCount = appended.variants.length;
 
-          db.prepare(
-            `UPDATE messages SET content=?, model=?, usage=?, alternates=?, active_variant=?, is_refunded=0,
-             status_meta=NULL, status_widget_values_json=?, status_widget_turn_active=? WHERE id=? AND chat_id=?`
-          ).run(
-            savedText,
-            usageRecord.model,
-            JSON.stringify(usageRecord),
-            JSON.stringify(appended.variants),
-            appended.activeVariant,
+          finalizeAssistantMessage(db, {
+            assistantMessageId: regenerateMessageId,
+            chatId: chatRef.id,
+            content: savedText,
+            model: usageRecord.model,
+            usageJson: JSON.stringify(usageRecord),
+            alternatesJson: JSON.stringify(appended.variants),
+            activeVariant: appended.activeVariant,
             statusWidgetValuesJson,
-            statusWidgetTurnActiveFlag,
-            regenerateMessageId,
-            chatRef.id
-          );
+            statusWidgetTurnActive: statusWidgetTurnActiveFlag,
+            generationStatus: "completed",
+          });
           aiMessageId = regenerateMessageId;
         } else {
-          if (!skipUserInsert) {
-            const userMsg = db
-              .prepare("INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)")
-              .run(chatRef.id, "user", messageText, "");
-            userMessageId = Number(userMsg.lastInsertRowid);
-            incrementCharacterTotalTurns(db, ch.id);
-          }
           const alternatesJson = JSON.stringify([newVariant]);
-          const aiMsg = db
-            .prepare(
-              "INSERT INTO messages (chat_id, role, content, model, usage, alternates, active_variant, status_widget_values_json, status_widget_turn_active) VALUES (?,?,?,?,?,?,?,?,?)"
-            )
-            .run(
-              chatRef.id,
-              "assistant",
-              savedText,
-              usageRecord.model,
-              JSON.stringify(usageRecord),
-              alternatesJson,
-              0,
-              statusWidgetValuesJson,
-              statusWidgetTurnActiveFlag
-            );
-          aiMessageId = Number(aiMsg.lastInsertRowid);
+          finalizeAssistantMessage(db, {
+            assistantMessageId: persistedAssistantId,
+            chatId: chatRef.id,
+            content: savedText,
+            model: usageRecord.model,
+            usageJson: JSON.stringify(usageRecord),
+            alternatesJson,
+            activeVariant: 0,
+            statusWidgetValuesJson,
+            statusWidgetTurnActive: statusWidgetTurnActiveFlag,
+            generationStatus: "completed",
+          });
+          aiMessageId = persistedAssistantId;
+          if (userMessageId != null) {
+            db.prepare(
+              "UPDATE messages SET user_message_id=?, generation_status='completed' WHERE id=? AND chat_id=?"
+            ).run(userMessageId, aiMessageId, chatRef.id);
+          }
         }
+        clearPartialTimer();
+        persistenceDiag.finalized = true;
+        persistenceDiag.partialSaveCount = partialSaver.partialSaveCount;
+        persistenceDiag.lastPartialChars = savedText.length;
+        logStreamingPersistence(persistenceDiag);
 
         const extractedFactsForPersistence = statusWidgetValuesPayload?.extracted_facts ?? [];
         if (extractedFactsForPersistence.length > 0) {
@@ -2436,7 +2627,7 @@ export async function POST(req: Request) {
 
         let balanceAfter = getPointBalance(user.id);
         let deductSlices: DeductionSlice[] = [];
-        if (cost > 0) {
+        if (cost > 0 && !alreadyBilledForRequest) {
           const modelName = usageRecord.modelLabel ?? usageRecord.model ?? "알 수 없음";
           const deducted = deductPoints(
             user.id,
@@ -2462,6 +2653,11 @@ export async function POST(req: Request) {
           } catch (rewardErr) {
             console.error("[/api/chat] creator reward skipped:", (rewardErr as Error).message);
           }
+        } else if (alreadyBilledForRequest) {
+          console.info("[StreamingPersistence] skip duplicate billing", {
+            requestId: clientRequestId,
+            messageId: aiMessageId,
+          });
         }
 
         if (statusMetaEnabled) {
@@ -2485,6 +2681,7 @@ export async function POST(req: Request) {
           chatId: chatRef.id,
           messageId: aiMessageId,
           userMessageId,
+          requestId: clientRequestId,
           mode: nextMode,
           cost,
           totalPointsCost: cost,
@@ -2578,7 +2775,26 @@ export async function POST(req: Request) {
           }
         })();
       } catch (e) {
+        clearPartialTimer();
         console.error("[/api/chat] SSE 파이프라인 오류:", (e as Error).message);
+        try {
+          if (!persistenceDiag.finalized) {
+            const partial = streamVisibleTextRef || fullText;
+            // Stream already persisted raw text — post-process failure should not lose it
+            if (partial.trim()) {
+              db.prepare(
+                `UPDATE messages SET content=?, generation_status=?, updated_at=datetime('now') WHERE id=?`
+              ).run(partial, "completed_with_postprocess_error", persistedAssistantId);
+              persistenceDiag.postprocessError = true;
+            } else {
+              markAssistantInterrupted(db, persistedAssistantId, partial);
+              persistenceDiag.interrupted = true;
+            }
+            logStreamingPersistence(persistenceDiag);
+          }
+        } catch {
+          /* ignore */
+        }
         if (e instanceof GeminiTrafficOverloadError) {
           sendTrafficOverloadGracefulStream(send);
         } else if (e instanceof DegenerationAbortError) {

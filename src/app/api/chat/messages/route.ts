@@ -34,6 +34,8 @@ type DbMessageRow = {
   status_widget_values_json: string | null;
   status_widget_turn_active: number | null;
   created_at: string;
+  request_id: string | null;
+  generation_status: string | null;
 };
 
 function mapDbMessageForClient(
@@ -79,6 +81,8 @@ function mapDbMessageForClient(
     ),
     statusWidgetTurnActive: m.status_widget_turn_active === 1,
     createdAt: m.created_at,
+    requestId: m.request_id ?? undefined,
+    generationStatus: m.generation_status ?? undefined,
     reportStatus,
   };
 }
@@ -105,7 +109,7 @@ export async function GET(req: Request) {
 
   let rawMessages = db
     .prepare(
-      "SELECT id, role, content, model, usage, is_refunded, alternates, active_variant, status_meta, status_widget_values_json, status_widget_turn_active, created_at FROM messages WHERE chat_id=? ORDER BY id ASC"
+      "SELECT id, role, content, model, usage, is_refunded, alternates, active_variant, status_meta, status_widget_values_json, status_widget_turn_active, created_at, request_id, generation_status FROM messages WHERE chat_id=? ORDER BY id ASC"
     )
     .all(chatId) as DbMessageRow[];
 

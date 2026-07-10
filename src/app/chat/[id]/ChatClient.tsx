@@ -54,10 +54,7 @@ import {
   selectedAILabel,
   type SelectedAI,
 } from "@/lib/chatModels";
-import {
-  formatAssistantLengthLabel,
-  CATASTROPHIC_MIN_RESPONSE_CHARS,
-} from "@/lib/responseLengthConstants";
+import { formatAssistantLengthLabel } from "@/lib/responseLengthConstants";
 import {
   collapseStreamCompareText,
   createStreamReveal,
@@ -77,6 +74,15 @@ import {
   migrateChatMessageDraft,
   saveChatMessageDraft,
 } from "@/lib/chatMessageDraft";
+import {
+  clearChatStreamDraft,
+  createClientRequestId,
+  isInFlightGenerationStatus,
+  isTerminalGenerationStatus,
+  readChatStreamDraft,
+  writeChatStreamDraft,
+  type GenerationStatus,
+} from "@/lib/streamingPersistence";
 import type { PersonaListItem } from "@/lib/userPersonas";
 import type { UserNotePresetItem } from "@/lib/userNotePresetTypes";
 import type { StatusWidgetPresetItem } from "@/lib/statusWidgetPresetTypes";
@@ -97,6 +103,7 @@ import {
   shouldShowStatusWidgetOnMessage,
   stripIncompleteStatusWidgetTail,
   type ParsedStatusWidgetTurnValues,
+  type StatusWidgetDisplayMode,
   type StatusWidgetSourceMode,
   type StatusWidgetStackOrder,
 } from "@/lib/statusWidget";
@@ -171,9 +178,45 @@ type Msg = {
   statusWidgetValues?: ParsedStatusWidgetTurnValues | null;
   /** That assistant turn was generated with widget ON */
   statusWidgetTurnActive?: boolean;
+  /** Streaming durability — matches messages.request_id */
+  requestId?: string;
+  /** Streaming durability — messages.generation_status */
+  generationStatus?: GenerationStatus | string;
   /** UI 전용 — DB 미저장 */
   ephemeral?: boolean;
 };
+
+function isRetryableGenerationStatus(status: string | null | undefined): boolean {
+  const s = (status ?? "").toLowerCase();
+  return s === "interrupted" || s === "failed_partial" || s === "failed";
+}
+
+function isPendingGenerationStatus(status: string | null | undefined): boolean {
+  return isInFlightGenerationStatus(status) || isRetryableGenerationStatus(status);
+}
+
+/** Keep DB-backed turns on stream failure; only drop optimistic (no-id) pairs. */
+function softRollbackTurn(msgs: Msg[], aiIndex: number): Msg[] {
+  const assistant = msgs[aiIndex];
+  const user = aiIndex > 0 ? msgs[aiIndex - 1] : undefined;
+  const assistantPersisted = assistant?.role === "assistant" && assistant.id != null;
+  const userPersisted = user?.role === "user" && user.id != null;
+
+  if (assistantPersisted || userPersisted) {
+    const copy = [...msgs];
+    if (assistant?.role === "assistant") {
+      copy[aiIndex] = {
+        ...assistant,
+        generationStatus: assistant.content.trim() ? "interrupted" : "failed",
+      };
+    }
+    if (user?.role === "user" && !user.generationStatus) {
+      copy[aiIndex - 1] = { ...user, generationStatus: user.generationStatus ?? "submitted" };
+    }
+    return copy;
+  }
+  return msgs.slice(0, Math.max(0, aiIndex - (user?.role === "user" ? 1 : 0)));
+}
 
 type StatusMetaPollResult = {
   meta: StatusMeta | null;
@@ -530,6 +573,7 @@ export default function ChatClient({
   initialHiddenTurnCount = 0,
   isCharacterCreator = false,
   initialStatusWidgetMode = "character_only",
+  initialStatusWidgetDisplayMode = null,
   initialCharacterWidgetJson = "",
   initialUserWidgetJson = "",
   initialStatusWidgetStackOrder = "character_first",
@@ -563,6 +607,7 @@ export default function ChatClient({
   initialDisplayPrefs?: ChatDisplayPrefs;
   isCharacterCreator?: boolean;
   initialStatusWidgetMode?: StatusWidgetSourceMode;
+  initialStatusWidgetDisplayMode?: StatusWidgetDisplayMode | null;
   initialCharacterWidgetJson?: string;
   initialUserWidgetJson?: string;
   initialStatusWidgetStackOrder?: StatusWidgetStackOrder;
@@ -622,20 +667,34 @@ export default function ChatClient({
   const nsfwMode = isAdult && userNsfwOn;
   const [selectedAI, setSelectedAI] = useState<SelectedAI>(initialSelectedAI);
   const [userNote, setUserNote] = useState(initialUserNote);
+  const [liveStatusWidgetMode, setLiveStatusWidgetMode] =
+    useState<StatusWidgetSourceMode>(initialStatusWidgetMode);
+  const [liveStatusWidgetDisplayMode, setLiveStatusWidgetDisplayMode] =
+    useState<StatusWidgetDisplayMode | null>(initialStatusWidgetDisplayMode);
+  const [liveUserWidgetJson, setLiveUserWidgetJson] = useState(initialUserWidgetJson);
+
+  useEffect(() => {
+    setLiveStatusWidgetMode(initialStatusWidgetMode);
+    setLiveStatusWidgetDisplayMode(initialStatusWidgetDisplayMode);
+    setLiveUserWidgetJson(initialUserWidgetJson);
+  }, [initialStatusWidgetMode, initialStatusWidgetDisplayMode, initialUserWidgetJson]);
+
   const statusWidgetTurn = useMemo(
     () =>
       resolveStatusWidgetTurn({
         characterWidgetJson: initialCharacterWidgetJson,
-        chatMode: initialStatusWidgetMode,
-        userWidgetJson: initialUserWidgetJson,
+        chatMode: liveStatusWidgetMode,
+        userWidgetJson: liveUserWidgetJson,
         stackOrder: initialStatusWidgetStackOrder,
+        displayMode: liveStatusWidgetDisplayMode,
         characterAllowUserOverride: characterWidgetAllowUserOverride,
       }),
     [
       initialCharacterWidgetJson,
-      initialStatusWidgetMode,
-      initialUserWidgetJson,
+      liveStatusWidgetMode,
+      liveUserWidgetJson,
       initialStatusWidgetStackOrder,
+      liveStatusWidgetDisplayMode,
       characterWidgetAllowUserOverride,
     ]
   );
@@ -645,16 +704,18 @@ export default function ChatClient({
     () =>
       resolveStatusWidgetReservedChars({
         characterWidgetJson: initialCharacterWidgetJson,
-        chatMode: initialStatusWidgetMode,
-        userWidgetJson: initialUserWidgetJson,
+        chatMode: liveStatusWidgetMode,
+        userWidgetJson: liveUserWidgetJson,
         stackOrder: initialStatusWidgetStackOrder,
+        displayMode: liveStatusWidgetDisplayMode,
         characterAllowUserOverride: characterWidgetAllowUserOverride,
       }),
     [
       initialCharacterWidgetJson,
-      initialStatusWidgetMode,
-      initialUserWidgetJson,
+      liveStatusWidgetMode,
+      liveUserWidgetJson,
       initialStatusWidgetStackOrder,
+      liveStatusWidgetDisplayMode,
       characterWidgetAllowUserOverride,
     ]
   );
@@ -965,7 +1026,9 @@ export default function ChatClient({
     for (let i = messages.length - 1; i >= 0; i--) {
       const m = messages[i];
       if (m.role === "system" && m.ephemeral) continue;
-      return m.role === "assistant" && m.content.trim().length > 0;
+      if (m.role !== "assistant") return false;
+      if (isPendingGenerationStatus(m.generationStatus)) return false;
+      return m.content.trim().length > 0;
     }
     return false;
   }, [messages]);
@@ -1000,6 +1063,77 @@ export default function ChatClient({
   useEffect(() => {
     if (chatId != null) migrateChatMessageDraft(character.id, chatId);
   }, [character.id, chatId]);
+
+  /** Prefer DB; sessionStorage only if DB has not caught up for an in-flight turn. */
+  useEffect(() => {
+    if (loadingRef.current || inFlightRef.current) return;
+    const draft = readChatStreamDraft(character.id, chatId ?? initialChatId);
+    if (!draft?.requestId) return;
+
+    setMessages((prev) => {
+      const matchAssistant = prev.find(
+        (m) => m.role === "assistant" && m.requestId === draft.requestId
+      );
+      const matchUser = prev.find((m) => m.role === "user" && m.requestId === draft.requestId);
+
+      if (matchAssistant && isTerminalGenerationStatus(matchAssistant.generationStatus)) {
+        clearChatStreamDraft(character.id, chatId ?? initialChatId);
+        return prev;
+      }
+
+      if (
+        matchAssistant &&
+        isInFlightGenerationStatus(matchAssistant.generationStatus) &&
+        draft.assistantPartial.length > (matchAssistant.content?.length ?? 0)
+      ) {
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[StreamingPersistence]", {
+            recoveredOnLoad: true,
+            request_id: draft.requestId,
+            source: "sessionStorage-ahead-of-db",
+          });
+        }
+        return prev.map((m) =>
+          m.role === "assistant" && m.requestId === draft.requestId
+            ? {
+                ...m,
+                content: draft.assistantPartial,
+                generationStatus: m.generationStatus ?? "generating",
+              }
+            : m
+        );
+      }
+
+      if (!matchAssistant && !matchUser && draft.userText) {
+        if (process.env.NODE_ENV !== "production") {
+          console.log("[StreamingPersistence]", {
+            recoveredOnLoad: true,
+            request_id: draft.requestId,
+            source: "sessionStorage-only",
+          });
+        }
+        return [
+          ...prev,
+          {
+            role: "user" as const,
+            content: draft.userText,
+            requestId: draft.requestId,
+            generationStatus: "submitted",
+          },
+          {
+            role: "assistant" as const,
+            content: draft.assistantPartial || "",
+            requestId: draft.requestId,
+            generationStatus: "generating",
+          },
+        ];
+      }
+
+      return prev;
+    });
+    // Intentionally once per room scope — not on every messages change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [character.id, chatId, initialChatId]);
 
   useEffect(() => {
     syncChatUrl(initialChatId);
@@ -1431,8 +1565,24 @@ export default function ChatClient({
             const copy = [...m];
             const cur = copy[aiIndex];
             if (cur?.role === "assistant") {
-              copy[aiIndex] = { ...cur, content: nextContent };
+              copy[aiIndex] = {
+                ...cur,
+                content: nextContent,
+                generationStatus: cur.generationStatus ?? "generating",
+              };
               applyEmotionRef.current(nextContent);
+              const rid = cur.requestId;
+              if (rid) {
+                const userText =
+                  copy[aiIndex - 1]?.role === "user" ? copy[aiIndex - 1]!.content : "";
+                writeChatStreamDraft(character.id, chatId, {
+                  requestId: rid,
+                  chatId: chatId ?? 0,
+                  userText,
+                  assistantPartial: nextContent,
+                  updatedAt: Date.now(),
+                });
+              }
             }
             return copy;
           });
@@ -1642,6 +1792,8 @@ export default function ChatClient({
             variants: data.variants,
             activeVariant: data.activeVariant,
             variantCount: data.variantCount,
+            generationStatus: "completed",
+            requestId: cur.requestId,
             statusMetaPending: flashScheduled,
             statusMetaRequested: flashScheduled,
             statusMetaFailed: htmlFlashTurn ? false : cur.statusMetaFailed,
@@ -1664,6 +1816,7 @@ export default function ChatClient({
             reportStatus: "none",
           };
           if (data.finalContent) applyEmotionRef.current(data.finalContent);
+          clearChatStreamDraft(character.id, data.chatId ?? chatId);
         }
         return copy;
       });
@@ -1733,6 +1886,7 @@ export default function ChatClient({
             chatId?: number;
             messageId?: number;
             userMessageId?: number | null;
+            requestId?: string;
             mode?: "safe" | "nsfw";
             cost?: number;
             totalPointsCost?: number;
@@ -1752,10 +1906,55 @@ export default function ChatClient({
             forceAppend?: boolean;
             instant?: boolean;
             htmlFlashTurn?: boolean;
+            alreadyCompleted?: boolean;
           };
           try {
             data = JSON.parse(line.slice(6));
           } catch {
+            continue;
+          }
+
+          if (data.type === "turn_persisted") {
+            const rid = data.requestId;
+            const nextChatId = data.chatId ?? chatId;
+            if (data.chatId) {
+              setChatId(data.chatId);
+              migrateChatMessageDraft(character.id, data.chatId);
+              syncChatUrl(data.chatId);
+            }
+            setMessages((m) => {
+              const copy = [...m];
+              const userIdx = aiIndex - 1;
+              if (userIdx >= 0 && copy[userIdx]?.role === "user") {
+                copy[userIdx] = {
+                  ...copy[userIdx],
+                  id: data.userMessageId ?? copy[userIdx].id,
+                  requestId: rid ?? copy[userIdx].requestId,
+                  generationStatus: copy[userIdx].generationStatus ?? "submitted",
+                };
+              }
+              const cur = copy[aiIndex];
+              if (cur?.role === "assistant") {
+                copy[aiIndex] = {
+                  ...cur,
+                  id: data.messageId ?? cur.id,
+                  requestId: rid ?? cur.requestId,
+                  generationStatus: cur.generationStatus ?? "generating",
+                };
+              }
+              const userText =
+                copy[userIdx]?.role === "user" ? copy[userIdx]!.content : "";
+              if (rid) {
+                writeChatStreamDraft(character.id, nextChatId ?? null, {
+                  requestId: rid,
+                  chatId: nextChatId ?? 0,
+                  userText,
+                  assistantPartial: copy[aiIndex]?.content ?? "",
+                  updatedAt: Date.now(),
+                });
+              }
+              return copy;
+            });
             continue;
           }
 
@@ -1884,7 +2083,14 @@ export default function ChatClient({
 
   /** 실패 턴 롤백 + 안내 — ephemeral system을 히스토리 끝에 두지 않아 canContinue·전송 유지 */
   function applyTrafficOverloadNotice(notice: string, rollbackToIndex: number) {
-    setMessages((m) => m.slice(0, Math.max(0, rollbackToIndex)));
+    setMessages((m) => {
+      // Prefer soft-keep when the failed turn was already DB-persisted
+      const aiIndex = rollbackToIndex + 1;
+      if (m[aiIndex]?.role === "assistant" && (m[aiIndex].id != null || m[rollbackToIndex]?.id != null)) {
+        return softRollbackTurn(m, aiIndex);
+      }
+      return m.slice(0, Math.max(0, rollbackToIndex));
+    });
     setError(notice);
   }
 
@@ -1907,13 +2113,7 @@ export default function ChatClient({
       if (opts?.rollback) {
         opts.rollback();
       } else {
-        setMessages((m) => {
-          const assistant = m[aiIndex];
-          const keepPartial =
-            assistant?.role === "assistant" &&
-            assistant.content.trim().length >= CATASTROPHIC_MIN_RESPONSE_CHARS;
-          return keepPartial ? m : m.slice(0, aiIndex);
-        });
+        setMessages((m) => softRollbackTurn(m, aiIndex));
       }
       if (opts?.restoreInput != null) setInput(opts.restoreInput);
     }
@@ -1959,6 +2159,7 @@ export default function ChatClient({
     userScrollLockRef.current = false;
     scrollToBottom("smooth");
     let aiIndex = 0;
+    const clientRequestId = createClientRequestId();
     const statusSeed = resolveAssistantTurnStatusMetaSeed(
       userNote,
       markdownStatusWindowActive,
@@ -1970,8 +2171,19 @@ export default function ChatClient({
       aiIndex = m.length + 1;
       return [
         ...m,
-        { role: "user", content: CONTINUE_USER_DISPLAY },
-        { role: "assistant", content: "", ...statusSeed },
+        {
+          role: "user",
+          content: CONTINUE_USER_DISPLAY,
+          requestId: clientRequestId,
+          generationStatus: "submitted",
+        },
+        {
+          role: "assistant",
+          content: "",
+          requestId: clientRequestId,
+          generationStatus: "generating",
+          ...statusSeed,
+        },
       ];
     });
     setLoading(true);
@@ -1993,6 +2205,7 @@ export default function ChatClient({
           characterId: character.id,
           chatId,
           isContinue: true,
+          clientRequestId,
           selectedAI,
           isNsfwMode: nsfwMode,
           isAdultMode: nsfwMode,
@@ -2003,13 +2216,13 @@ export default function ChatClient({
       });
 
       const earlyExit = await handleStreamError(res, aiIndex, () => {
-        setMessages((m) => m.slice(0, -2));
+        setMessages((m) => softRollbackTurn(m, aiIndex));
       });
       if (earlyExit) return;
 
       streamResult = await consumeChatStream(res, aiIndex);
       handlePostStreamResult(streamResult, aiIndex, {
-        rollback: () => setMessages((m) => m.slice(0, -2)),
+        rollback: () => setMessages((m) => softRollbackTurn(m, aiIndex)),
       });
     } catch (e) {
       activeStreamRevealRef.current?.reset();
@@ -2020,7 +2233,7 @@ export default function ChatClient({
       } else if (!isBenignChatStreamAbort(e)) {
         setError("네트워크 오류가 발생했습니다.");
       }
-      setMessages((m) => m.slice(0, -2));
+      setMessages((m) => softRollbackTurn(m, aiIndex));
     } finally {
       inFlightRef.current = false;
       loadingRef.current = false;
@@ -2053,6 +2266,7 @@ export default function ChatClient({
     userScrollLockRef.current = false;
     scrollToBottom("smooth");
     let aiIndex = 0;
+    const clientRequestId = createClientRequestId();
     const userPersonaText = selectedPersona?.description ?? null;
     const statusSeed = resolveAssistantTurnStatusMetaSeed(
       userNote,
@@ -2063,7 +2277,29 @@ export default function ChatClient({
     );
     setMessages((m) => {
       aiIndex = m.length + 1;
-      return [...m, { role: "user", content: text }, { role: "assistant", content: "", ...statusSeed }];
+      return [
+        ...m,
+        {
+          role: "user",
+          content: text,
+          requestId: clientRequestId,
+          generationStatus: "submitted",
+        },
+        {
+          role: "assistant",
+          content: "",
+          requestId: clientRequestId,
+          generationStatus: "generating",
+          ...statusSeed,
+        },
+      ];
+    });
+    writeChatStreamDraft(character.id, chatId, {
+      requestId: clientRequestId,
+      chatId: chatId ?? 0,
+      userText: text,
+      assistantPartial: "",
+      updatedAt: Date.now(),
     });
     setLoading(true);
 
@@ -2084,6 +2320,7 @@ export default function ChatClient({
           characterId: character.id,
           chatId,
           message: text,
+          clientRequestId,
           selectedAI,
           isNsfwMode: nsfwMode,
           isAdultMode: nsfwMode,
@@ -2094,13 +2331,13 @@ export default function ChatClient({
       });
 
       const earlyExit = await handleStreamError(res, aiIndex, () => {
-        setMessages((m) => m.slice(0, -2));
+        setMessages((m) => softRollbackTurn(m, aiIndex));
       }, text);
       if (earlyExit) return;
 
       streamResult = await consumeChatStream(res, aiIndex);
       handlePostStreamResult(streamResult, aiIndex, {
-        rollback: () => setMessages((m) => m.slice(0, -2)),
+        rollback: () => setMessages((m) => softRollbackTurn(m, aiIndex)),
         restoreInput: text,
       });
     } catch (e) {
@@ -2112,8 +2349,12 @@ export default function ChatClient({
       } else if (!isBenignChatStreamAbort(e)) {
         setError("네트워크 오류가 발생했습니다.");
       }
-      setMessages((m) => m.slice(0, -2));
-      setInput(text);
+      setMessages((m) => {
+        const assistant = m[aiIndex];
+        const persisted = assistant?.id != null || m[aiIndex - 1]?.id != null;
+        if (!persisted) setInput(text);
+        return softRollbackTurn(m, aiIndex);
+      });
     } finally {
       inFlightRef.current = false;
       loadingRef.current = false;
@@ -2144,6 +2385,7 @@ export default function ChatClient({
       return;
     }
     const regenIndex = lastAssistantIdx;
+    const clientRequestId = createClientRequestId();
     setError("");
     setStreamPhase(null);
     inFlightRef.current = true;
@@ -2189,6 +2431,8 @@ export default function ChatClient({
         variants: undefined,
         activeVariant: undefined,
         variantCount: 1,
+        requestId: clientRequestId,
+        generationStatus: "generating",
         statusMeta: null,
         statusMetaPending: regenStatusWindowActive,
         statusMetaRequested: regenStatusWindowActive,
@@ -2198,13 +2442,38 @@ export default function ChatClient({
         statusWidgetValues: null,
         statusWidgetTurnActive: statusWidgetActive,
       };
+      const userIdx = regenIndex - 1;
+      if (userIdx >= 0 && copy[userIdx]?.role === "user") {
+        copy[userIdx] = {
+          ...copy[userIdx],
+          requestId: clientRequestId,
+        };
+      }
       return copy;
+    });
+    writeChatStreamDraft(character.id, chatId, {
+      requestId: clientRequestId,
+      chatId,
+      userText: regenUserMessage,
+      assistantPartial: "",
+      updatedAt: Date.now(),
     });
 
     const restoreAssistant = () => {
       setMessages((m) => {
         const copy = [...m];
-        if (copy[regenIndex]?.role === "assistant") copy[regenIndex] = prevAssistant;
+        if (copy[regenIndex]?.role === "assistant") {
+          // Prefer soft state if DB already bound a new request id
+          const cur = copy[regenIndex];
+          if (cur.id != null && cur.requestId === clientRequestId && cur.content.trim()) {
+            copy[regenIndex] = {
+              ...cur,
+              generationStatus: "interrupted",
+            };
+          } else {
+            copy[regenIndex] = prevAssistant;
+          }
+        }
         return copy;
       });
     };
@@ -2226,6 +2495,7 @@ export default function ChatClient({
           characterId: character.id,
           chatId,
           regenerate: true,
+          clientRequestId,
           selectedAI,
           isNsfwMode: nsfwMode,
           isAdultMode: nsfwMode,
@@ -2665,9 +2935,15 @@ export default function ChatClient({
         onSaveDisplaySettings={persistUserChatPrefs}
         displaySettingsSaving={displaySettingsSaving}
         characterWidgetJson={initialCharacterWidgetJson}
-        statusWidgetMode={initialStatusWidgetMode}
-        userWidgetJson={initialUserWidgetJson}
+        statusWidgetMode={liveStatusWidgetMode}
+        statusWidgetDisplayMode={liveStatusWidgetDisplayMode}
+        userWidgetJson={liveUserWidgetJson}
         characterWidgetAllowUserOverride={characterWidgetAllowUserOverride}
+        onStatusWidgetChange={(saved) => {
+          setLiveStatusWidgetMode(saved.mode);
+          setLiveStatusWidgetDisplayMode(saved.displayMode);
+          setLiveUserWidgetJson(saved.userWidgetJson);
+        }}
         layout={layout}
         onClose={onClose}
       />
@@ -2845,6 +3121,13 @@ export default function ChatClient({
             }
 
             if (m.role === "user") {
+              const waitingForAssistant =
+                !loading &&
+                i === lastUserIdx &&
+                (messages[i + 1]?.role !== "assistant" ||
+                  (messages[i + 1]?.role === "assistant" &&
+                    !messages[i + 1]!.content.trim() &&
+                    messages[i + 1]!.generationStatus === "submitted"));
               return (
                 <div
                   key={m.id ?? `user-${i}`}
@@ -2874,16 +3157,25 @@ export default function ChatClient({
                       variant="user"
                     />
                   )}
+                  {waitingForAssistant && (
+                    <p className="mt-2 px-2 text-center text-xs text-zinc-500">
+                      응답 생성 대기 중
+                    </p>
+                  )}
                   <div className="mt-3 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
                 </div>
               );
             }
 
-            if (m.content === "" && loading && i === messages.length - 1) {
+            const genStatus = (m.generationStatus ?? "").toLowerCase();
+            const showGeneratingPlaceholder =
+              (m.content === "" && loading && i === messages.length - 1) ||
+              (m.content === "" && genStatus === "generating" && !loading);
+            if (showGeneratingPlaceholder) {
               return (
                 <div key={m.id ?? `asst-loading-${i}`}>
                   <p className="animate-pulse text-sm text-zinc-600">
-                    {streamPhase ?? `${character.name}이(가) 초안 작성 중…`}
+                    {streamPhase ?? (loading ? `${character.name}이(가) 초안 작성 중…` : "생성 중…")}
                   </p>
                 </div>
               );
@@ -2912,7 +3204,9 @@ export default function ChatClient({
                 ) : (
                   <>
                     {(() => {
-                      const isStreamingThisMessage = loading && i === messages.length - 1;
+                      const isStreamingThisMessage =
+                        (loading && i === messages.length - 1) ||
+                        (genStatus === "generating" && i === lastAssistantIdx);
                       const variantContent = isStreamingThisMessage
                         ? m.content
                         : resolveActiveVariantContent(m);
@@ -2962,6 +3256,7 @@ export default function ChatClient({
                         statusWidgetTurnActive: m.statusWidgetTurnActive,
                         statusWidgetValues: m.statusWidgetValues,
                         isStreaming: isStreamingThisMessage,
+                        displayHidden: statusWidgetTurn.displayMode === "hidden",
                       });
                       const widgetRendered =
                         showStatusWidget
@@ -3010,9 +3305,24 @@ export default function ChatClient({
                             />
                           ))}
                           {statusWindowPlacement === "bottom" ? statusMetaCard : null}
-                          {isStreamingThisMessage && streamPhase && (
-                            <p className="mt-2 animate-pulse text-sm text-zinc-600">{streamPhase}</p>
+                          {isStreamingThisMessage && (streamPhase || genStatus === "generating") && (
+                            <p className="mt-2 animate-pulse text-sm text-zinc-600">
+                              {streamPhase ?? "생성 중…"}
+                            </p>
                           )}
+                          {i === lastAssistantIdx &&
+                            !loading &&
+                            isRetryableGenerationStatus(m.generationStatus) && (
+                              <div className="mt-3 flex justify-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => void regenerate()}
+                                  className="rounded-md border border-white/15 bg-[#1a1a1a] px-3 py-1.5 text-xs text-zinc-200 transition hover:border-orange-500/40 hover:text-white"
+                                >
+                                  {m.content.trim() ? "이어서 생성" : "다시 생성"}
+                                </button>
+                              </div>
+                            )}
                           {showOocMarkdown && statusMarkdown && !messageFormatSpec && (
                             <NovelText
                               content={statusMarkdown}

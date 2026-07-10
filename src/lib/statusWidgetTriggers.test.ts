@@ -188,6 +188,62 @@ describe("statusWidgetTriggers", () => {
     assert.equal(result.firedEvents[0]?.event_key, "creator_event");
   });
 
+  it("fires from creator values even when user display values are also present", () => {
+    saveCharacterStatusWidgetTriggers(db, 10, [
+      {
+        trigger_id: "creator_with_user_display",
+        status_key: "affection",
+        operator: ">=",
+        value: 80,
+        fire_once: true,
+        event_key: "creator_with_user_event",
+        effect_text: "유저 표시 위젯이 있어도 제작자 사건이 열린다.",
+        character_knowledge: "revealed_on_trigger",
+        is_enabled: true,
+      },
+    ]);
+
+    const result = evaluateStatusWidgetTriggers(db, {
+      chatId: 1,
+      characterId: 10,
+      sourceTurn: 3,
+      statusValues: {
+        character: { affection: "85" },
+        user: { display_mood: "happy", affection: "0" },
+      },
+    });
+
+    assert.equal(result.firedEvents.length, 1);
+    assert.equal(result.firedEvents[0]?.event_key, "creator_with_user_event");
+  });
+
+  it("user display-only field does not trigger creator events", () => {
+    saveCharacterStatusWidgetTriggers(db, 10, [
+      {
+        trigger_id: "user_only_should_not_fire",
+        status_key: "affection",
+        operator: ">=",
+        value: 80,
+        fire_once: true,
+        event_key: "should_not_fire",
+        effect_text: "유저 표시값만으로는 열리면 안 된다.",
+        character_knowledge: "unknown",
+        is_enabled: true,
+      },
+    ]);
+
+    const result = evaluateStatusWidgetTriggers(db, {
+      chatId: 1,
+      characterId: 10,
+      sourceTurn: 4,
+      statusValues: {
+        user: { affection: "99", display_mood: "excited" },
+      },
+    });
+
+    assert.equal(result.firedEvents.length, 0);
+  });
+
   it("numeric trigger fires: d_day <= 0", () => {
     insertStatusWidgetTriggerForTest(db, {
       chat_id: 1,
@@ -269,7 +325,8 @@ describe("statusWidgetTriggers", () => {
     const result = evaluateStatusWidgetTriggers(db, {
       chatId: 1,
       sourceTurn: 9,
-      statusValues: { user: { route_flag: "true" } },
+      // Creator triggers read canonical character status only
+      statusValues: { character: { route_flag: "true" } },
     });
 
     assert.equal(result.firedEvents.length, 1);

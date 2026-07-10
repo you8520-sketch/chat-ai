@@ -5,7 +5,10 @@ import { normalizeTargetResponseChars } from "@/lib/responseLength";
 import { validateUserNoteCombined } from "@/lib/userNoteStatusWindow";
 import { sanitizeChatTitle } from "@/lib/chatTitle";
 import {
+  displayModeFromEngineMode,
+  engineModeForDisplay,
   hasCharacterStatusWidget,
+  parseStatusWidgetDisplayMode,
   parseStatusWidgetJson,
   parseStatusWidgetMode,
   resolveStatusWidgetReservedChars,
@@ -18,6 +21,7 @@ function loadChatWidgetContext(chatId: number, userId: number) {
   return db
     .prepare(
       `SELECT ch.status_widget_mode, ch.user_status_widget_json, ch.status_widget_stack_order,
+              ch.status_widget_display_mode,
               c.status_widget_json, c.status_widget_allow_user_override
        FROM chats ch
        JOIN characters c ON c.id = ch.character_id
@@ -28,6 +32,7 @@ function loadChatWidgetContext(chatId: number, userId: number) {
         status_widget_mode: string | null;
         user_status_widget_json: string | null;
         status_widget_stack_order: string | null;
+        status_widget_display_mode: string | null;
         status_widget_json: string | null;
         status_widget_allow_user_override: number | null;
       }
@@ -39,8 +44,19 @@ export async function PATCH(req: Request) {
   if (!user) return Response.json({ error: "로그인이 필요합니다." }, { status: 401 });
 
   const body = await req.json();
-  const { chatId, userNote, selectedAI, isNsfwMode, nsfwMode, isAdultMode, targetResponseChars, chatTitle, statusWidgetMode, userStatusWidgetJson } =
-    body;
+  const {
+    chatId,
+    userNote,
+    selectedAI,
+    isNsfwMode,
+    nsfwMode,
+    isAdultMode,
+    targetResponseChars,
+    chatTitle,
+    statusWidgetMode,
+    statusWidgetDisplayMode,
+    userStatusWidgetJson,
+  } = body;
   if (!chatId) return Response.json({ error: "채팅방 ID가 필요합니다." }, { status: 400 });
 
   const nsfw = isAdultMode ?? isNsfwMode ?? nsfwMode;
@@ -53,10 +69,7 @@ export async function PATCH(req: Request) {
   if (!chat) return Response.json({ error: "채팅방을 찾을 수 없습니다." }, { status: 404 });
 
   const widgetCtx = loadChatWidgetContext(chatId, user.id);
-  let nextMode =
-    statusWidgetMode !== undefined
-      ? parseStatusWidgetMode(String(statusWidgetMode))
-      : parseStatusWidgetMode(widgetCtx?.status_widget_mode);
+  const hasCreator = hasCharacterStatusWidget(widgetCtx?.status_widget_json);
   let nextUserWidgetJson = widgetCtx?.user_status_widget_json ?? null;
   if (userStatusWidgetJson !== undefined) {
     const parsed =
@@ -69,16 +82,33 @@ export async function PATCH(req: Request) {
     nextUserWidgetJson = serializeStatusWidget(parsed);
   }
 
-  // 제작자 위젯이 있으면 off/user_only 저장을 막고 character_only|both 로 정규화
-  if (hasCharacterStatusWidget(widgetCtx?.status_widget_json)) {
-    nextMode = resolveStatusWidgetTurn({
-      characterWidgetJson: widgetCtx?.status_widget_json,
-      chatMode: nextMode,
-      userWidgetJson: nextUserWidgetJson,
-      stackOrder: widgetCtx?.status_widget_stack_order,
-      characterAllowUserOverride: widgetCtx?.status_widget_allow_user_override !== 0,
-    }).mode;
+  const hasUser = Boolean(parseStatusWidgetJson(nextUserWidgetJson));
+
+  let nextDisplay =
+    statusWidgetDisplayMode !== undefined
+      ? parseStatusWidgetDisplayMode(String(statusWidgetDisplayMode))
+      : parseStatusWidgetDisplayMode(widgetCtx?.status_widget_display_mode);
+
+  // Legacy: if only engine mode sent, derive display
+  if (nextDisplay == null && statusWidgetMode !== undefined) {
+    nextDisplay = displayModeFromEngineMode(parseStatusWidgetMode(String(statusWidgetMode)));
   }
+  if (nextDisplay == null) {
+    nextDisplay =
+      parseStatusWidgetDisplayMode(widgetCtx?.status_widget_display_mode) ??
+      displayModeFromEngineMode(parseStatusWidgetMode(widgetCtx?.status_widget_mode));
+  }
+
+  // Engine mode always keeps creator on when present
+  let nextMode = engineModeForDisplay(nextDisplay, hasCreator, hasUser);
+  nextMode = resolveStatusWidgetTurn({
+    characterWidgetJson: widgetCtx?.status_widget_json,
+    chatMode: nextMode,
+    userWidgetJson: nextUserWidgetJson,
+    stackOrder: widgetCtx?.status_widget_stack_order,
+    characterAllowUserOverride: widgetCtx?.status_widget_allow_user_override !== 0,
+    displayMode: nextDisplay,
+  }).mode;
 
   const note = typeof userNote === "string" ? userNote.trim() : undefined;
   if (note !== undefined) {
@@ -88,6 +118,7 @@ export async function PATCH(req: Request) {
       userWidgetJson: nextUserWidgetJson,
       stackOrder: widgetCtx?.status_widget_stack_order,
       characterAllowUserOverride: widgetCtx?.status_widget_allow_user_override !== 0,
+      displayMode: nextDisplay,
     });
     const noteCheck = validateUserNoteCombined(note, widgetReserved);
     if (!noteCheck.ok) {
@@ -122,9 +153,11 @@ export async function PATCH(req: Request) {
     sets.push("title=?");
     vals.push(title);
   }
-  if (statusWidgetMode !== undefined) {
+  if (statusWidgetMode !== undefined || statusWidgetDisplayMode !== undefined) {
     sets.push("status_widget_mode=?");
     vals.push(nextMode);
+    sets.push("status_widget_display_mode=?");
+    vals.push(nextDisplay);
   }
   if (userStatusWidgetJson !== undefined) {
     sets.push("user_status_widget_json=?");
@@ -138,5 +171,5 @@ export async function PATCH(req: Request) {
   vals.push(chatId);
   db.prepare(`UPDATE chats SET ${sets.join(", ")} WHERE id=?`).run(...vals);
 
-  return Response.json({ ok: true });
+  return Response.json({ ok: true, statusWidgetMode: nextMode, statusWidgetDisplayMode: nextDisplay });
 }

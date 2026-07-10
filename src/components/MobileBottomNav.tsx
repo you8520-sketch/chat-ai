@@ -23,7 +23,6 @@ export default function MobileBottomNav({ loggedIn }: Props) {
         <MobileNavItem href="/" label="홈" />
         <MobileNavItem href="/chats" label="대화" accent />
         <MobileNavItem href="/studio" label="제작" />
-        <MobileNavItem href="/search" label="검색" />
         <MobileNavItem href="/settings" label="설정" />
       </div>
     </nav>
