@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 type Props = {
   open: boolean;
@@ -23,6 +24,12 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }: Props) {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
@@ -32,9 +39,12 @@ export default function ConfirmDialog({
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onCancel]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  // Portal to body — chat column uses backdrop-blur, which makes position:fixed
+  // descendants anchor to that scroll box so the dialog panel can sit off-screen
+  // while only a dark wash is visible.
+  return createPortal(
     <div
       className="fixed inset-0 z-[200] flex items-center justify-center bg-black/65 p-4"
       role="presentation"
@@ -76,6 +86,7 @@ export default function ConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

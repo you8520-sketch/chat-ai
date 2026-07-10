@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { CHAT_TITLE_MAX } from "@/lib/chatTitle";
 
@@ -13,6 +14,11 @@ type Props = {
 
 export default function ForkTitleDialog({ open, defaultTitle, onConfirm, onCancel }: Props) {
   const [title, setTitle] = useState(defaultTitle);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (open) setTitle(defaultTitle);
@@ -27,9 +33,9 @@ export default function ForkTitleDialog({ open, defaultTitle, onConfirm, onCance
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onCancel]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[200] flex items-center justify-center bg-black/65 p-4"
       role="presentation"
@@ -77,6 +83,7 @@ export default function ForkTitleDialog({ open, defaultTitle, onConfirm, onCance
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
