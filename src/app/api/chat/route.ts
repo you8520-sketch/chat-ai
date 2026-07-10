@@ -1485,6 +1485,16 @@ export async function POST(req: Request) {
 
         if (isTrafficOverloadSystemMessage(savedText)) {
           console.warn("[/api/chat] traffic overload message blocked from DB save");
+          try {
+            markAssistantFailed(db, persistedAssistantId, "");
+            if (regenerateMessageId) {
+              restoreAssistantFromAlternatesOnFailedRegen(db, regenerateMessageId, chatRef.id);
+            }
+            persistenceDiag.interrupted = true;
+            logStreamingPersistence(persistenceDiag);
+          } catch {
+            /* ignore */
+          }
           sendTrafficOverloadGracefulStream(send);
           controller.close();
           return;
@@ -1496,6 +1506,16 @@ export async function POST(req: Request) {
             reason: getDegenerationReason(savedText),
             preview: savedText.slice(0, 120),
           });
+          try {
+            markAssistantFailed(db, persistedAssistantId, streamVisibleTextRef || savedText);
+            if (regenerateMessageId) {
+              restoreAssistantFromAlternatesOnFailedRegen(db, regenerateMessageId, chatRef.id);
+            }
+            persistenceDiag.interrupted = true;
+            logStreamingPersistence(persistenceDiag);
+          } catch {
+            /* ignore */
+          }
           send({ type: "reset" });
           send({ type: "error", error: DEGENERATION_USER_MESSAGE });
           controller.close();

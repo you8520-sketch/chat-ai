@@ -389,6 +389,43 @@ export function restoreAssistantFromAlternatesOnFailedRegen(
   return true;
 }
 
+/**
+ * Chat load recovery for assistant rows stuck in generating/submitted after an
+ * aborted stream or a server path that skipped terminalization.
+ * Prefers restoring the last good regen alternate; otherwise marks interrupted/failed.
+ */
+export function recoverStaleInFlightAssistantMessages(
+  db: Database.Database,
+  chatId: number,
+  rows: Array<{
+    id: number;
+    role: string;
+    content: string;
+    generation_status: string | null;
+  }>
+): number {
+  let recovered = 0;
+  for (const row of rows) {
+    if (row.role !== "assistant") continue;
+    if (!isInFlightGenerationStatus(row.generation_status)) continue;
+
+    const restored = restoreAssistantFromAlternatesOnFailedRegen(db, row.id, chatId);
+    if (restored) {
+      recovered++;
+      continue;
+    }
+    markAssistantInterrupted(db, row.id, row.content ?? "");
+    recovered++;
+  }
+  if (recovered > 0) {
+    console.warn("[StreamingPersistence] recovered stale in-flight assistant rows", {
+      chatId,
+      recovered,
+    });
+  }
+  return recovered;
+}
+
 export function finalizeAssistantMessage(
   db: Database.Database,
   opts: {

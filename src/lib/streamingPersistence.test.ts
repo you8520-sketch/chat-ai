@@ -10,6 +10,7 @@ import {
   markAssistantInterrupted,
   persistStreamCompleteContent,
   restoreAssistantFromAlternatesOnFailedRegen,
+  recoverStaleInFlightAssistantMessages,
 } from "@/lib/streamingPersistence";
 
 function createMessagesDb(): Database.Database {
@@ -340,6 +341,52 @@ describe("streamingPersistence", () => {
       1
     );
     assert.equal(restored, true);
+    const row = db
+      .prepare(`SELECT content, generation_status FROM messages WHERE id=?`)
+      .get(boot.assistantMessageId) as { content: string; generation_status: string };
+    assert.equal(row.content, "이전 답변");
+    assert.equal(row.generation_status, "completed");
+  });
+
+  it("recoverStaleInFlightAssistantMessages restores stuck regen bootstrap rows", () => {
+    const db = createMessagesDb();
+    const boot = bootstrapStreamingTurn(db, {
+      chatId: 1,
+      requestId: "cr_stale_base",
+      userContent: "유저",
+      skipUserInsert: false,
+    });
+    finalizeAssistantMessage(db, {
+      assistantMessageId: boot.assistantMessageId,
+      chatId: 1,
+      content: "이전 답변",
+      model: "m1",
+      usageJson: "{}",
+      alternatesJson: JSON.stringify([
+        { content: "이전 답변", model: "m1", usage: null, created_at: "" },
+      ]),
+      activeVariant: 0,
+    });
+    bootstrapStreamingTurn(db, {
+      chatId: 1,
+      requestId: "cr_stale_regen",
+      userContent: "유저",
+      skipUserInsert: true,
+      existingUserMessageId: boot.userMessageId,
+      regenerateAssistantId: boot.assistantMessageId,
+    });
+    const rows = db
+      .prepare(
+        `SELECT id, role, content, generation_status FROM messages WHERE chat_id=? ORDER BY id ASC`
+      )
+      .all(1) as Array<{
+      id: number;
+      role: string;
+      content: string;
+      generation_status: string | null;
+    }>;
+    const recovered = recoverStaleInFlightAssistantMessages(db, 1, rows);
+    assert.equal(recovered, 1);
     const row = db
       .prepare(`SELECT content, generation_status FROM messages WHERE id=?`)
       .get(boot.assistantMessageId) as { content: string; generation_status: string };

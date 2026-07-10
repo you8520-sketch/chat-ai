@@ -1033,6 +1033,15 @@ export default function ChatClient({
     return false;
   }, [messages]);
 
+  /** DB/UI still in-flight even after loading cleared (stuck regen / incomplete SSE). */
+  const lastTurnInFlight = useMemo(() => {
+    if (lastAssistantIdx < 0) return false;
+    const m = messages[lastAssistantIdx];
+    return m?.role === "assistant" && isInFlightGenerationStatus(m.generationStatus);
+  }, [messages, lastAssistantIdx]);
+
+  const inputLocked = loading || lastTurnInFlight;
+
   const clientMaxMessageId = useMemo(
     () => messages.reduce((max, m) => (m.id != null && m.id > max ? m.id : max), 0),
     [messages]
@@ -2516,6 +2525,20 @@ export default function ChatClient({
       } else if (streamResult.streamError) {
         setError(streamResult.streamError);
         restoreAssistant();
+      } else {
+        // SSE closed without done/error — leave loading=false but status can stay generating.
+        let stillInFlight = false;
+        setMessages((m) => {
+          const cur = m[regenIndex];
+          stillInFlight = !!(
+            cur?.role === "assistant" && isInFlightGenerationStatus(cur.generationStatus)
+          );
+          return m;
+        });
+        if (stillInFlight) {
+          restoreAssistant();
+          setToastMsg("생성이 완료되지 않았습니다. 다시 시도해 주세요.");
+        }
       }
     } catch (e) {
       activeStreamRevealRef.current?.reset();
@@ -2846,9 +2869,9 @@ export default function ChatClient({
           isRefunded={m.isRefunded}
           bookmarked={bookmarkedIds.has(m.id!)}
           showDelete={opts.onLastTurn}
-          showRegenerate={i === lastAssistantIdx && !loading}
+          showRegenerate={i === lastAssistantIdx && !inputLocked}
           showFork
-          disabled={loading}
+          disabled={inputLocked}
           lengthHint={lengthHint}
           showReportRefund={showReportRefund}
           reportRefundPending={reportRefundPending}
@@ -3368,7 +3391,7 @@ export default function ChatClient({
             <select
               value={selectedAI}
               onChange={(e) => handleSelectedAIChange(e.target.value as SelectedAI)}
-              disabled={loading}
+              disabled={inputLocked}
               className="rounded-md border border-white/10 bg-[#1a1a1a] px-1.5 py-1 text-[11px] text-zinc-200 outline-none focus:border-violet-500/50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {USER_SELECTABLE_AI_OPTIONS.map((o) => (
@@ -3395,19 +3418,20 @@ export default function ChatClient({
                   !e.nativeEvent.isComposing
                 ) {
                   e.preventDefault();
-                  send();
+                  if (!inputLocked) send();
                 }
               }}
+              disabled={inputLocked}
               rows={2}
               placeholder="메시지 입력 · 지문은 * * 또는 ( ) · Ctrl+Enter 전송"
-              className="min-h-[2.75rem] flex-1 resize-none rounded-lg border border-white/25 bg-[#1a1a1a] px-3 py-2 text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-violet-400/60 focus:ring-1 focus:ring-violet-500/35"
+              className="min-h-[2.75rem] flex-1 resize-none rounded-lg border border-white/25 bg-[#1a1a1a] px-3 py-2 text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-violet-400/60 focus:ring-1 focus:ring-violet-500/35 disabled:cursor-not-allowed disabled:opacity-60"
               style={{ fontSize: "var(--font-size-chat)", lineHeight: "var(--line-height-chat)" }}
             />
             <div className="flex shrink-0 flex-col gap-1">
               <button
                 type="button"
                 onClick={sendContinue}
-                disabled={loading || !canContinue}
+                disabled={inputLocked || !canContinue}
                 title="AI 답변 직후 서사를 이어갑니다"
                 className="rounded-md border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-200 disabled:opacity-40"
               >
@@ -3416,7 +3440,7 @@ export default function ChatClient({
               <button
                 type="button"
                 onClick={send}
-                disabled={loading || !input.trim()}
+                disabled={inputLocked || !input.trim()}
                 className="rounded-md border border-violet-500/35 bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-violet-500 disabled:opacity-40"
               >
                 전송

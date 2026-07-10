@@ -40,6 +40,7 @@ import {
   stripExtractedFactsForClient,
 } from "@/lib/statusWidget/parseValues";
 import { filterOutMessageIds, purgeOrphanUserMessages } from "@/lib/chatMessageHygiene";
+import { recoverStaleInFlightAssistantMessages } from "@/lib/streamingPersistence";
 import { takeRecentTurns, takeRecentTurnsIncludingMessage } from "@/lib/chatMessagePagination";
 import { createChatSession } from "@/lib/chatSessionCreate";
 
@@ -278,6 +279,14 @@ export default async function ChatPage({
     if (purgedIds.length > 0) {
       rawMessages = filterOutMessageIds(rawMessages, purgedIds);
     }
+  }
+
+  if (recoverStaleInFlightAssistantMessages(db, chat.id, rawMessages) > 0) {
+    rawMessages = db
+      .prepare(
+        "SELECT id, role, content, model, usage, is_refunded, alternates, active_variant, status_meta, status_widget_values_json, status_widget_turn_active, created_at, request_id, generation_status FROM messages WHERE chat_id=? ORDER BY id ASC"
+      )
+      .all(chat.id) as typeof rawMessages;
   }
 
   const assistantMessageIds = rawMessages
