@@ -420,14 +420,29 @@ export function groupNovelParagraphs(content: string, opts?: GroupNovelParagraph
 
   if (out.length === 0) return [normalized];
   let paragraphs = explodeMixedParagraphs(out, streaming);
-  // Streaming and idle: preserve blank-line semantic boundaries (Step 7.10).
+  // Streaming and idle: same blank-line semantic boundaries (Step 7.10 / 7.10C).
   // mergeAdjacentShortNarrationParagraphs is a no-op identity — kept for call-site stability.
-  if (!streaming) {
-    paragraphs = mergeAdjacentShortNarrationParagraphs(paragraphs, false);
-  }
+  paragraphs = mergeAdjacentShortNarrationParagraphs(paragraphs, streaming);
   // Do NOT split by MAX_NARRATION_CHARS_PER_PARAGRAPH — that caused mid-paragraph
   // line breaks during streaming once a block crossed ~700 chars.
   return paragraphs.map((p) => stripLeadingPauseEllipsisFromDialogue(p.trim())).filter(Boolean);
+}
+
+/**
+ * Shared streaming/final paragraph list for NovelText.
+ * Streaming may freeze all but the growing tip; final uses the same groupNovelParagraphs.
+ */
+export function resolveNovelDisplayParagraphs(
+  content: string,
+  opts?: {
+    streaming?: boolean;
+    previousStreamingParagraphs?: string[];
+  }
+): string[] {
+  const streaming = opts?.streaming === true;
+  const grouped = groupNovelParagraphs(content, streaming ? { streaming: true } : undefined);
+  if (!streaming) return grouped;
+  return stabilizeStreamingNovelParagraphs(opts?.previousStreamingParagraphs ?? [], grouped);
 }
 
 /**

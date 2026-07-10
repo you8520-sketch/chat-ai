@@ -93,6 +93,21 @@ export type StreamReplaceCatchUp = {
 };
 
 /**
+ * When collapsed prose matches, keep the already-shown newline layout.
+ * Instant-snapping to a differently broken target (e.g. save-time normalize)
+ * caused streaming→final paragraph count jumps (Step 7.10C).
+ */
+export function preferDisplayedNewlineLayout(displayed: string, target: string): string {
+  if (!target) return displayed;
+  if (!displayed) return target;
+  if (target === displayed) return displayed;
+  if (collapseStreamCompareText(displayed) === collapseStreamCompareText(target)) {
+    return displayed;
+  }
+  return target;
+}
+
+/**
  * 서버 replace/finalContent — 스트리밍 델타와 후처리(문단 정리·분량 보정) 차이를
  * 구분해, 이미 본 본문을 처음부터 다시 타이핑하지 않도록 catch-up.
  */
@@ -106,8 +121,9 @@ export function resolveStreamReplaceCatchUp(
   const cd = collapseStreamCompareText(displayed);
   const cn = collapseStreamCompareText(target);
 
+  // Same prose, different newlines only — do not reflow paragraphs at complete.
   if (cd === cn) {
-    return { mode: "instant", prefix: target, tail: "" };
+    return null;
   }
 
   if (target.startsWith(displayed)) {
