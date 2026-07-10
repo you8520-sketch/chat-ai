@@ -206,7 +206,7 @@ export function isStripableForeignScriptOnly(text: string): boolean {
   if (scriptChars >= 40) return false;
   // Ratio gate only on longer text — early mid-stream samples are short and
   // a single Russian token can exceed 12% without being salad.
-  if (text.length >= 80 && scriptChars / text.length >= 0.12) return false;
+  if (text.length >= 120 && scriptChars / text.length >= 0.15) return false;
 
   const stripped = stripUnexpectedForeignScriptLeak(text).trim();
   if (!stripped) return false;
