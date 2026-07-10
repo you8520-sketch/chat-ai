@@ -2,11 +2,17 @@
 
 import Link from "next/link";
 
-const BOARD_LINKS = [
+type BoardLink = {
+  href: "/board/notice" | "/board/inquiry" | "/board/faq";
+  label: string;
+  noticeBadge?: boolean;
+};
+
+const BOARD_LINKS: BoardLink[] = [
   { href: "/board/notice", label: "공지사항", noticeBadge: true },
   { href: "/board/inquiry", label: "문의게시판" },
   { href: "/board/faq", label: "FAQ" },
-] as const;
+];
 
 type Props = {
   unreadNotice: boolean;
@@ -23,7 +29,7 @@ export default function HeaderBoardLinks({ unreadNotice }: Props) {
           className="shrink-0 font-medium text-zinc-300 transition hover:text-white"
         >
           {l.label}
-          {"noticeBadge" in l && l.noticeBadge && unreadNotice && (
+          {l.noticeBadge && unreadNotice && (
             <sup className="ml-0.5 text-[9px] font-bold text-red-400">N</sup>
           )}
         </Link>
