@@ -395,6 +395,189 @@ function mergeAdjacentShortNarrationParagraphs(
 
 export type GroupNovelParagraphsOpts = { streaming?: boolean };
 
+const EXTREME_FRAGMENTATION_MIN_PARAGRAPHS = 5;
+const EXTREME_FRAGMENTATION_ONE_SENTENCE_RATIO = 0.8;
+const DISPLAY_GROUPING_MIN_CHARS = 120;
+const DISPLAY_GROUPING_TARGET_MAX_CHARS = 320;
+const DISPLAY_GROUPING_HARD_MAX_CHARS = 360;
+const DISPLAY_GROUPING_MAX_SENTENCES = 4;
+
+const PARAGRAPH_TRANSITION_PREFIX_RE =
+  /^(?:한편|그 시각|잠시 후|얼마 뒤|다음 순간|그때|그 사이|문밖에서는|반대편에서는|동시에)(?=[\s,.!?…]|$)/u;
+const PARAGRAPH_FLOW_PREFIX_RE =
+  /^(?:그리고|그러나|하지만|아니,|그가|그녀가|그것은|이어|다시)(?=[\s,.!?…]|$)/u;
+const EXPLICIT_ACTOR_ACTION_RE =
+  /^([A-Za-z가-힣][A-Za-z가-힣0-9]*(?:\s+[A-Za-z가-힣][A-Za-z가-힣0-9]*)?)(?:은|는|이|가)\s+[^.!?…]{0,45}(?:고개|손|팔|몸|걸음|입술|눈|시선|움직|일어서|다가가|말하|외치|속삭|중얼|바라|돌아|걷|달리|잡|밀|당기|열|닫)/u;
+const STRONG_SHORT_EMPHASIS_RE =
+  /(?:정체였다|사실이었다|시작되었다|끝이었다|죽었다|죽음이었다|아니었다|사라졌다|무너졌다|터졌다|깨달았다|알아차렸다)[.!?…]*$/u;
+
+function isProtectedDisplayParagraph(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return true;
+  if (/```|~~~/u.test(trimmed)) return true;
+  if (/<\/?[a-z][^>]*>/iu.test(trimmed)) return true;
+  if (/(?:status[ _-]*widget|상태창|스테이터스)/iu.test(trimmed)) return true;
+  if (/^\s*\[(?:STATUS|STATE|SYSTEM|상태)[^\]]*\]/imu.test(trimmed)) return true;
+  if (/^\s*(?:[-*+]\s+|\d+[.)]\s+|•\s*)/mu.test(trimmed)) return true;
+  if (/^\s*\|.*\|\s*$/mu.test(trimmed)) return true;
+  if (/^\s*(?:-{3,}|\*{3,}|={3,}|#{1,6}\s+)/mu.test(trimmed)) return true;
+  return false;
+}
+
+function countDisplayNarrationSentences(text: string): number {
+  const trimmed = text.trim();
+  if (!trimmed) return 0;
+
+  let count = 0;
+  const punctuation = /[.!?]+|…+/gu;
+  for (const match of trimmed.matchAll(punctuation)) {
+    const token = match[0];
+    const after = trimmed
+      .slice((match.index ?? 0) + token.length)
+      .replace(/^["'’”)\]]+/, "");
+    const atEnd = after.trim().length === 0;
+    const isPauseEllipsis = /^\.{3,}$/.test(token) && !atEnd;
+    if (!isPauseEllipsis && (atEnd || /^\s+\S/u.test(after))) count++;
+  }
+  return Math.max(1, count);
+}
+
+function extractExplicitActor(text: string): string | null {
+  if (PARAGRAPH_FLOW_PREFIX_RE.test(text.trim())) return null;
+  return text.trim().match(EXPLICIT_ACTOR_ACTION_RE)?.[1] ?? null;
+}
+
+function isStrongStandaloneShortNarration(text: string): boolean {
+  const trimmed = text.trim();
+  if (trimmed.length > 60 || /^아니,(?=[\s…]|$)/u.test(trimmed)) return false;
+  return isStandaloneNarrationPunchLine(trimmed) || STRONG_SHORT_EMPHASIS_RE.test(trimmed);
+}
+
+function mergedDisplayBatchLength(items: string[]): number {
+  return items.reduce((sum, item, index) => sum + item.length + (index > 0 ? 1 : 0), 0);
+}
+
+function mergeDisplaySentenceSequence(items: string[]): string[] {
+  if (items.length < 2) return items.slice();
+
+  const batches: string[][] = [];
+  let batch: string[] = [];
+  const flush = () => {
+    if (batch.length > 0) batches.push(batch);
+    batch = [];
+  };
+
+  for (const item of items) {
+    const candidate = [...batch, item];
+    if (batch.length > 0 && mergedDisplayBatchLength(candidate) > DISPLAY_GROUPING_HARD_MAX_CHARS) {
+      flush();
+    }
+    batch.push(item);
+    const chars = mergedDisplayBatchLength(batch);
+    if (
+      batch.length >= DISPLAY_GROUPING_MAX_SENTENCES ||
+      (batch.length >= 2 && chars >= DISPLAY_GROUPING_MIN_CHARS) ||
+      chars >= DISPLAY_GROUPING_TARGET_MAX_CHARS
+    ) {
+      flush();
+    }
+  }
+  flush();
+
+  const tail = batches.at(-1);
+  const previous = batches.at(-2);
+  if (tail?.length === 1 && previous) {
+    const combined = [...previous, ...tail];
+    if (
+      combined.length <= DISPLAY_GROUPING_MAX_SENTENCES &&
+      mergedDisplayBatchLength(combined) <= DISPLAY_GROUPING_HARD_MAX_CHARS
+    ) {
+      batches.splice(-2, 2, combined);
+    } else if (previous.length >= 3) {
+      tail.unshift(previous.pop()!);
+    }
+  }
+
+  return batches.map((parts) => parts.join(" "));
+}
+
+function groupExtremeNarrationRun(run: string[]): string[] {
+  const out: string[] = [];
+  let mergeable: string[] = [];
+  let activeActor: string | null = null;
+  let consecutiveStandaloneShort = 0;
+
+  const flushMergeable = () => {
+    if (mergeable.length > 0) out.push(...mergeDisplaySentenceSequence(mergeable));
+    mergeable = [];
+    activeActor = null;
+  };
+
+  for (const paragraph of run) {
+    if (countDisplayNarrationSentences(paragraph) !== 1) {
+      flushMergeable();
+      out.push(paragraph);
+      consecutiveStandaloneShort = 0;
+      continue;
+    }
+
+    const trimmed = paragraph.trim();
+    const transitionBoundary = PARAGRAPH_TRANSITION_PREFIX_RE.test(trimmed);
+    const actor = extractExplicitActor(trimmed);
+    const actorBoundary =
+      mergeable.length > 0 && actor !== null && actor !== activeActor;
+    if (transitionBoundary || actorBoundary) flushMergeable();
+
+    const standaloneShort = isStrongStandaloneShortNarration(trimmed);
+    if (standaloneShort && consecutiveStandaloneShort < 2) {
+      flushMergeable();
+      out.push(trimmed);
+      consecutiveStandaloneShort++;
+      continue;
+    }
+
+    consecutiveStandaloneShort = 0;
+    mergeable.push(trimmed);
+    if (actor) activeActor = actor;
+  }
+
+  flushMergeable();
+  return out;
+}
+
+/** Display-only safety net for model outputs with extreme sentence-per-paragraph fragmentation. */
+export function groupExtremeFragmentedNarrationForDisplay(paragraphs: string[]): string[] {
+  const out: string[] = [];
+  let narrationRun: string[] = [];
+
+  const flushRun = () => {
+    if (narrationRun.length === 0) return;
+    const oneSentenceCount = narrationRun.filter(
+      (paragraph) => countDisplayNarrationSentences(paragraph) === 1
+    ).length;
+    const fragmented =
+      narrationRun.length >= EXTREME_FRAGMENTATION_MIN_PARAGRAPHS &&
+      oneSentenceCount / narrationRun.length >= EXTREME_FRAGMENTATION_ONE_SENTENCE_RATIO;
+    out.push(...(fragmented ? groupExtremeNarrationRun(narrationRun) : narrationRun));
+    narrationRun = [];
+  };
+
+  for (const paragraph of paragraphs) {
+    const trimmed = paragraph.trim();
+    if (
+      classifyNovelParagraph(trimmed) === "narration" &&
+      !isProtectedDisplayParagraph(trimmed)
+    ) {
+      narrationRun.push(trimmed);
+    } else {
+      flushRun();
+      if (trimmed) out.push(trimmed);
+    }
+  }
+  flushRun();
+  return out;
+}
+
 export function groupNovelParagraphs(content: string, opts?: GroupNovelParagraphsOpts): string[] {
   const streaming = opts?.streaming === true;
   const normalized = collapseBlankLinesInsideDoubleQuotes(content.replace(/\r\n/g, "\n").trim());
@@ -440,8 +623,17 @@ export function resolveNovelDisplayParagraphs(
   }
 ): string[] {
   const streaming = opts?.streaming === true;
-  const grouped = groupNovelParagraphs(content, streaming ? { streaming: true } : undefined);
+  const rawGrouped = groupNovelParagraphs(content, streaming ? { streaming: true } : undefined);
+  const grouped = groupExtremeFragmentedNarrationForDisplay(rawGrouped);
   if (!streaming) return grouped;
+  // Extreme fallback must render identically at the last streaming frame and final frame.
+  // Let its deliberate paragraph regrouping replace the frozen structure immediately.
+  if (
+    grouped.length !== rawGrouped.length ||
+    grouped.some((paragraph, index) => paragraph !== rawGrouped[index])
+  ) {
+    return grouped;
+  }
   return stabilizeStreamingNovelParagraphs(opts?.previousStreamingParagraphs ?? [], grouped);
 }
 
