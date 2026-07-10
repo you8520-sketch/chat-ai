@@ -57,6 +57,12 @@ export type ContextBuildInput = {
   userImpersonation?: boolean;
   /** 소설 모드 — UI 토글; userImpersonation보다 우선하는 전면 co-narration */
   novelModeEnabled?: boolean;
+  /**
+   * Explicit runtime mode when known.
+   * Prefer over reading isContinue/novelModeEnabled alone:
+   * interactive | auto_progression | ooc_user_impersonation_allowed
+   */
+  runtimeMode?: import("@/lib/chatRuntimeMode").ChatRuntimeMode;
   personaDisplayName?: string;
   /** AI 출력 목표 글자 수 (채팅방별) */
   targetResponseChars?: number;
