@@ -466,10 +466,65 @@ export function groupNovelParagraphs(content: string, opts?: GroupNovelParagraph
 
   if (out.length === 0) return [normalized];
   let paragraphs = explodeMixedParagraphs(out, streaming);
-  paragraphs = mergeAdjacentShortNarrationParagraphs(paragraphs, streaming);
+  // Streaming: never merge short narration — merging then later re-splitting
+  // shifts already-read paragraphs mid-reveal.
+  if (!streaming) {
+    paragraphs = mergeAdjacentShortNarrationParagraphs(paragraphs, false);
+  }
   // Do NOT split by MAX_NARRATION_CHARS_PER_PARAGRAPH — that caused mid-paragraph
   // line breaks during streaming once a block crossed ~700 chars.
   return paragraphs.map((p) => stripLeadingPauseEllipsisFromDialogue(p.trim())).filter(Boolean);
+}
+
+/**
+ * Streaming display stabilizer: freeze every paragraph except the last.
+ * New dialogue/narration splits may only rewrite the growing tip so earlier
+ * text does not jump while the user is reading.
+ */
+export function stabilizeStreamingNovelParagraphs(
+  previous: string[],
+  next: string[]
+): string[] {
+  if (next.length === 0) return previous.length > 0 ? previous : next;
+  if (previous.length === 0) return next;
+  if (previous.length === 1) return next;
+
+  const frozenCount = previous.length - 1;
+  const frozen = previous.slice(0, frozenCount);
+
+  let prefixOk = next.length >= frozenCount;
+  for (let i = 0; i < frozenCount && prefixOk; i++) {
+    if (next[i] !== frozen[i]) prefixOk = false;
+  }
+  if (prefixOk) {
+    return [...frozen, ...next.slice(frozenCount)];
+  }
+
+  // next re-split a frozen paragraph (e.g. inserted \n\n inside earlier text).
+  // Keep the frozen visual structure; attach only content beyond the frozen prefix.
+  const collapse = (s: string) =>
+    s
+      .replace(/[\r\n\u00a0]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  const frozenCollapsed = collapse(frozen.join("\n\n"));
+  const nextCollapsed = collapse(next.join("\n\n"));
+  if (!frozenCollapsed || !nextCollapsed.startsWith(frozenCollapsed)) {
+    return next;
+  }
+
+  let consumed = 0;
+  let acc = "";
+  for (; consumed < next.length; consumed++) {
+    acc = consumed === 0 ? next[0]! : `${acc}\n\n${next[consumed]}`;
+    const ac = collapse(acc);
+    if (ac === frozenCollapsed) {
+      consumed++;
+      break;
+    }
+    if (ac.length > frozenCollapsed.length) break;
+  }
+  return [...frozen, ...next.slice(consumed)];
 }
 
 /** 지문+대사가 한 문단에 붙은 경우 → 지문 / 대사 각각 분리 */

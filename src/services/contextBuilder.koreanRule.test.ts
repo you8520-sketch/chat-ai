@@ -71,7 +71,11 @@ describe("buildContext — English character settings", () => {
     assert.ok(built.systemPrompt.includes("OUTPUT LANG — BILINGUAL DIALOGUE"));
     assert.ok(built.systemPrompt.includes("외국어 혼용 금지"));
     assert.ok(built.systemPrompt.includes("한 단어 안에서 한글과 영어·일본어를 혼용하지 마라"));
-    assert.ok(built.systemPrompt.includes("[PROMPT METADATA IS NOT STORY]"));
+    assert.ok(
+      built.systemPrompt.includes(
+        "한국어 RP 본문에 러시아어·키릴 등 비한글을 섞지 않는다(의도된 외국어 대사·고유명사 예외)."
+      )
+    );
     assert.ok(!built.systemPrompt.includes("[NO META WRITING]"));
     assert.ok(!built.systemPrompt.includes("[NO STYLE IMITATION]"));
     assert.ok(!built.systemPrompt.includes("100% Korean in narration"));
@@ -100,7 +104,16 @@ describe("buildContext — English character settings", () => {
     assert.ok(!built.systemPrompt.includes("[NO FOREIGN LANGUAGE MIXING]"));
     assert.ok(built.systemPrompt.includes("외국어 혼용 금지"));
     assert.ok(built.systemPrompt.includes("한 단어 안에서 한글과 영어·일본어를 혼용하지 마라"));
-    assert.ok(built.systemPrompt.includes("[PROMPT METADATA IS NOT STORY]"));
+    assert.ok(
+      built.systemPrompt.includes(
+        "한국어 RP 본문에 러시아어·키릴 등 비한글을 섞지 않는다(의도된 외국어 대사·고유명사 예외)."
+      )
+    );
+    assert.ok(
+      built.systemPrompt.includes(
+        "실제 대화·기억·페르소나에 없는 일을 “전에 말했잖아/아까 네가/네가 약속했잖아”로 꾸며 쓰지 말고"
+      )
+    );
     assert.ok(!built.systemPrompt.includes("[NO META WRITING]"));
     assert.ok(!built.systemPrompt.includes("[NO STYLE IMITATION]"));
   });

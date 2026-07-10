@@ -8,6 +8,7 @@ import {
   unwrapMisclassifiedDialogueQuotes,
   groupAuthorParagraphs,
   groupNovelParagraphs,
+  stabilizeStreamingNovelParagraphs,
   novelParagraphSpacingClass,
   parseGreetingSegments,
   parseNovelSegments,
@@ -88,7 +89,23 @@ describe("groupNovelParagraphs", () => {
     assert.equal(classifyNovelParagraph('"아직 아파'), "dialogue");
   });
 
-  it("streaming flag is a no-op after layout unify", () => {
+  it("streaming skips short-narration merge so blank-line breaks stay put", () => {
+    const input = `그는 다가왔다.
+
+손을 뻗었다.
+
+시선을 맞췄다.`;
+    assert.deepEqual(groupNovelParagraphs(input), [
+      "그는 다가왔다. 손을 뻗었다. 시선을 맞췄다.",
+    ]);
+    assert.deepEqual(groupNovelParagraphs(input, { streaming: true }), [
+      "그는 다가왔다.",
+      "손을 뻗었다.",
+      "시선을 맞췄다.",
+    ]);
+  });
+
+  it("idle layout still matches streaming for closed inline dialogue splits", () => {
     const input =
       '철저히 계산된 거리 두기. "잠깐…… 이대로만 있어요. 조금만." 백하율의 S-기어가 파르르 떨렸다.';
     assert.deepEqual(
@@ -419,6 +436,39 @@ describe("stripEmptyQuoteParagraphs (via normalizeAiNovelProseLayout)", () => {
   it("strips six-apostrophe trailing paragraph", () => {
     const out = normalizeAiNovelProseLayout(`손이 떨리고 있었다.\n\n''''''`);
     assert.ok(out.endsWith("떨리고 있었다."), out.slice(-30));
+  });
+});
+
+describe("stabilizeStreamingNovelParagraphs", () => {
+  it("freezes earlier paragraphs when the tip splits into dialogue", () => {
+    const step1 = groupNovelParagraphs("그는 천천히 다가왔다. 손을 뻗었다.", {
+      streaming: true,
+    });
+    assert.equal(step1.length, 1);
+
+    const step2 = groupNovelParagraphs(
+      '그는 천천히 다가왔다. 손을 뻗었다. "아직 아파요."',
+      { streaming: true }
+    );
+    const stable = stabilizeStreamingNovelParagraphs(step1, step2);
+    assert.equal(stable[0], step1[0]);
+    assert.ok(stable.length >= 2);
+    assert.match(stable[stable.length - 1]!, /"아직 아파요\."/);
+  });
+
+  it("does not rewrite a frozen narration paragraph when later layout would re-split it", () => {
+    const previous = ["첫 문단이다. 이미 읽은 내용.", '"대사다."'];
+    const next = ["첫 문단이다.", "이미 읽은 내용.", '"대사다."', "이어지는 지문."];
+    const stable = stabilizeStreamingNovelParagraphs(previous, next);
+    assert.equal(stable[0], "첫 문단이다. 이미 읽은 내용.");
+    assert.equal(stable[1], '"대사다."');
+    assert.equal(stable[2], "이어지는 지문.");
+  });
+
+  it("allows the last paragraph to keep growing", () => {
+    const previous = ["고정 문단.", "자라는"];
+    const next = ["고정 문단.", "자라는 중."];
+    assert.deepEqual(stabilizeStreamingNovelParagraphs(previous, next), next);
   });
 });
 

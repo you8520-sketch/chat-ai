@@ -28,12 +28,20 @@ const INTERNAL_BLOCK_PATTERNS: RegExp[] = [
 ];
 
 export const FALSE_SHARED_MEMORY_PHRASES = [
-  "전에 말했잖아",
+  "너 아까",
+  "네가 아까",
+  "아까 네가",
+  "네가 전에",
+  "전에 네가",
   "네가 말했잖아",
+  "전에 말했잖아",
+  "네가 알려줬잖아",
+  "전에 네가 알려줬잖아",
+  "네가 약속했잖아",
   "그때 네가",
   "우리 예전에",
-  "네가 약속했잖아",
-  "전에 네가 알려줬잖아",
+  "라고 했지",
+  "냐고 했지",
 ];
 
 function lineLooksContaminated(line: string): boolean {

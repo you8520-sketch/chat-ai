@@ -2,6 +2,7 @@ import {
   isInteractiveChatRuntimeMode,
   type ChatRuntimeMode,
 } from "@/lib/chatRuntimeMode";
+import { findPossibleFalseSharedMemoryPhrases } from "@/lib/runtimePromptContaminationGuard";
 
 export type UserImpersonationSeverity = "none" | "low" | "medium" | "high";
 
@@ -76,8 +77,9 @@ export function isUserImpersonationAutoRepairEnabled(): boolean {
 }
 
 /**
- * Detect likely interactive-mode user impersonation.
+ * Detect likely interactive-mode user impersonation / false shared memory.
  * Soft references to waiting / silence / prior user words are allowed.
+ * Default: log/metric only — never deletes or shortens output.
  */
 export function detectInteractiveUserImpersonation(
   text: string,
@@ -176,6 +178,17 @@ export function detectInteractiveUserImpersonation(
         matchedPhrase: snippet,
       });
     }
+  }
+
+  // False shared memory / fabricated prior quotes — log-only (no deletion)
+  const falseMemory = findPossibleFalseSharedMemoryPhrases(prose);
+  if (falseMemory.length > 0) {
+    consider({
+      detected: true,
+      severity: "medium",
+      reason: "false_shared_memory",
+      matchedPhrase: falseMemory[0]!.slice(0, 80),
+    });
   }
 
   return best;

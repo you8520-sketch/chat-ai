@@ -50,6 +50,10 @@ describe("interactive user control prompt", () => {
     assert.match(block, /\[INTERACTIVE USER CONTROL\]/);
     assert.match(block, /분량을 채우기 위해 유저를 움직이지 않는다/);
     assert.ok(block.includes(INTERACTIVE_USER_CONTROL_BLOCK));
+    assert.match(
+      block,
+      /실제 대화·기억·페르소나에 없는 일을 .전에 말했잖아\/아까 네가\/네가 약속했잖아.로 꾸며 쓰지 말고/
+    );
     assert.doesNotMatch(block, /TARGET_LENGTH/);
     assert.doesNotMatch(block, /MINIMUM_FLOOR/);
   });
@@ -145,6 +149,37 @@ describe("interactive user impersonation detector", () => {
       text,
     });
     assert.equal(result.detection.detected, true);
+    assert.equal(result.repairAttempted, false);
+    assert.equal(result.text, text);
+  });
+
+  it("flags false shared memory: 네가 전에 말했잖아", () => {
+    const hit = detectInteractiveUserImpersonation(
+      "그는 고개를 기울였다. 네가 전에 말했잖아, 그때 일은.",
+      { mode: "interactive" }
+    );
+    assert.equal(hit.detected, true);
+    assert.equal(hit.reason, "false_shared_memory");
+  });
+
+  it("flags false shared memory: 너 아까 ~라고 했지?", () => {
+    const hit = detectInteractiveUserImpersonation(
+      '그는 낮게 웃었다. "너 아까 싫다고 했지?"',
+      { mode: "interactive" }
+    );
+    assert.equal(hit.detected, true);
+    assert.equal(hit.reason, "false_shared_memory");
+  });
+
+  it("false-memory hit stays log-only when USER_IMPERSONATION_AUTO_REPAIR=false", async () => {
+    assert.equal(isUserImpersonationAutoRepairEnabled(), false);
+    const text = "네가 전에 말했잖아. 그때 네가 약속했잖아.";
+    const result = await maybeRepairUserImpersonation({
+      mode: "interactive",
+      text,
+    });
+    assert.equal(result.detection.detected, true);
+    assert.equal(result.detection.reason, "false_shared_memory");
     assert.equal(result.repairAttempted, false);
     assert.equal(result.text, text);
   });

@@ -5,7 +5,8 @@ import type { BilingualDialoguePolicy } from "@/lib/bilingualDialoguePolicy";
 import { isBilingualDialogueActive } from "@/lib/bilingualDialoguePolicy";
 
 const OUTPUT_LANG_FOREIGN_MIXING = `외국어 혼용 금지. 고유명사·스킬명만 「」 예외.
-한 단어 안에서 한글과 영어·일본어를 혼용하지 마라.`;
+한 단어 안에서 한글과 영어·일본어를 혼용하지 마라.
+한국어 RP 본문에 러시아어·키릴 등 비한글을 섞지 않는다(의도된 외국어 대사·고유명사 예외).`;
 
 /** Single language policy — OUTPUT LANG is the only language SoT. */
 export function buildOutputLangLines(bilingual?: BilingualDialoguePolicy): string {

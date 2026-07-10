@@ -19,6 +19,9 @@ const HANGUL = /[가-힣]/g;
 const CYRILLIC = /[\u0400-\u04FF]/g;
 const ARABIC = /[\u0600-\u06FF]/g;
 const DEVANAGARI = /[\u0900-\u097F]/g;
+/** Cyrillic / Arabic / Devanagari — unexpected in Korean RP prose */
+const UNEXPECTED_FOREIGN_SCRIPT = /[\u0400-\u04FF\u0600-\u06FF\u0900-\u097F]/g;
+const UNEXPECTED_FOREIGN_SCRIPT_RUN = /[\u0400-\u04FF\u0600-\u06FF\u0900-\u097F]+/g;
 
 const HARD_CODE =
   /(?:getToken|sprintf|(?:function|const|import)\s+\w|\bstate\.[a-zA-Z_]+\()/i;
@@ -62,6 +65,36 @@ function isHealthyKoreanRp(text: string): boolean {
   if (hasHangulSentenceRuns(text, 12)) return true;
   if (h >= 25 && hasHangulSentenceRuns(text, 8)) return true;
   return false;
+}
+
+/**
+ * Unexpected non-Hangul script (Cyrillic/Arabic/Devanagari) in RP prose.
+ * Runs before healthy-Korean bypass so mixed leaks like "пространствен(공간)" are caught.
+ */
+export function hasUnexpectedForeignScriptLeak(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  const scriptChars = (t.match(UNEXPECTED_FOREIGN_SCRIPT) ?? []).length;
+  return scriptChars >= 2;
+}
+
+/**
+ * Strip accidental Cyrillic/Arabic/Devanagari runs without deleting surrounding Korean paragraphs.
+ * No API call. Does not shorten Korean prose beyond removing the foreign-script spans.
+ */
+export function stripUnexpectedForeignScriptLeak(text: string): string {
+  if (!text) return text;
+  if (!hasUnexpectedForeignScriptLeak(text)) return text;
+
+  let out = text.replace(UNEXPECTED_FOREIGN_SCRIPT_RUN, "");
+  // Clean leftover empty wrappers / doubled spaces from mid-word leaks
+  out = out
+    .replace(/\(\s*\)/g, "")
+    .replace(/（\s*）/g, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n");
+  return out;
 }
 
 function hasHardSaladSignals(text: string): boolean {
@@ -125,7 +158,7 @@ function hasEnKrTokenSalad(text: string): boolean {
 function hasAbnormalSpacing(text: string): boolean {
   const t = text.trim();
   if (t.length < 60) return false;
-  if (isHealthyKoreanRp(t)) return false;
+  if (isHealthyKoreanRp(t) && !hasUnexpectedForeignScriptLeak(t)) return false;
 
   const tokens = t.split(/\s+/).filter(Boolean);
   if (tokens.length < 10) return false;
@@ -161,6 +194,17 @@ export function isExpectedStatusHtmlOutput(text: string): boolean {
   );
 }
 
+/**
+ * Mostly-Korean prose with only a small foreign-script leak — strip at save, do not abort stream.
+ */
+function isStripableForeignScriptOnly(text: string): boolean {
+  if (!hasUnexpectedForeignScriptLeak(text)) return false;
+  if (!isHealthyKoreanRp(text)) return false;
+  const scriptChars = (text.match(UNEXPECTED_FOREIGN_SCRIPT) ?? []).length;
+  // Small accidental fragments (e.g. one Russian word) vs script-dominant salad
+  return scriptChars < 40 && scriptChars / Math.max(text.length, 1) < 0.12;
+}
+
 /** 스트리밍 누적 텍스트 — 꼬리 구간 검사 */
 export function detectStreamingDegeneration(
   text: string,
@@ -171,6 +215,12 @@ export function detectStreamingDegeneration(
   const t = text.trim();
   if (t.length < 80) return false;
   if (isExpectedStatusHtmlOutput(t)) return false;
+  // Hard mixed-script / salad BEFORE healthy-Korean bypass
+  if (hasHardSaladSignals(t) || hasUnexpectedForeignScriptLeak(t)) {
+    // Small Cyrillic-in-Korean leaks are stripped at save — do not abort the stream
+    if (isStripableForeignScriptOnly(t)) return false;
+    return true;
+  }
   if (isHealthyKoreanRp(t)) return false;
   if (isDegenerateSlice(t)) return true;
   const tail = t.slice(-200);
@@ -190,25 +240,40 @@ export function detectChunkDegeneration(
   if (accumulated.trim().length < 60) return false;
   const combined = accumulated + chunk;
   if (isExpectedStatusHtmlOutput(combined)) return false;
+  if (hasHardSaladSignals(c) || hasUnexpectedForeignScriptLeak(c)) {
+    if (isStripableForeignScriptOnly(combined)) return false;
+    return true;
+  }
   if (isHealthyKoreanRp(combined)) return false;
-  if (hasHardSaladSignals(c)) return true;
   if (combined.trim().length >= 80 && isDegenerateSlice(combined.slice(-240))) return true;
   return false;
 }
 
-/** 최종 저장 전 검사 */
+/**
+ * 최종 저장 전 검사.
+ * Hard mixed-script checks run before healthy-Korean bypass.
+ * Prefer stripUnexpectedForeignScriptLeak() first for small Cyrillic leaks.
+ */
 export function isDegenerateOutput(text: string, context?: DegenerationGuardContext): boolean {
   if (context?.oocHtmlMode) return false;
   if (!GIBBERISH_GUARD_ENABLED) return false;
   const t = text.trim();
   if (t.length < 80) return false;
   if (isExpectedStatusHtmlOutput(t)) return false;
+  // Hard script / salad BEFORE healthy-Korean bypass
+  if (hasHardSaladSignals(t) || hasUnexpectedForeignScriptLeak(t)) {
+    if (isStripableForeignScriptOnly(t)) return false;
+    return true;
+  }
   if (isHealthyKoreanRp(t)) return false;
   return isDegenerateSlice(t);
 }
 
 export function getDegenerationReason(text: string): string | null {
   if (!GIBBERISH_GUARD_ENABLED) return null;
+  if (hasUnexpectedForeignScriptLeak(text) && !isStripableForeignScriptOnly(text)) {
+    return "foreign_script_leak";
+  }
   if (!isDegenerateOutput(text)) return null;
   if (SCHEME_OR_URL.test(text)) return "scheme_url";
   if (HARD_CODE.test(text)) return "hard_code";
@@ -216,5 +281,6 @@ export function getDegenerationReason(text: string): string | null {
   if (hasEnKrTokenSalad(text)) return "en_kr_salad";
   if (hasAbnormalSpacing(text)) return "abnormal_spacing";
   if (hangulRatio(text) < 0.1) return "low_hangul_soup";
+  if (hasUnexpectedForeignScriptLeak(text)) return "foreign_script_leak";
   return "hard_salad";
 }

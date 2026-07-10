@@ -1,3 +1,6 @@
+"use client";
+
+import { useRef } from "react";
 import { type ChatDisplayPrefs } from "@/lib/chatDisplayPrefs";
 import {
   classifyNovelParagraph,
@@ -8,6 +11,7 @@ import {
   parseGreetingSegments,
   parseNovelSegments,
   isNarrationEmphasisLine,
+  stabilizeStreamingNovelParagraphs,
   type NovelParagraphKind,
 } from "@/lib/novelParagraphs";
 import { parseUserMessageParts } from "@/lib/userMessageParse";
@@ -133,6 +137,7 @@ export default function NovelText({
   variant = "character",
   centered = false,
   paragraphMode = "ai",
+  streaming = false,
 }: {
   content: string;
   display?: Pick<
@@ -143,8 +148,15 @@ export default function NovelText({
   centered?: boolean;
   /** ai: AI 응답용 병합 · author: 제작자 첫 메시지 등 Enter 줄바꿈 유지 */
   paragraphMode?: "ai" | "author";
+  /** 스트리밍 중 — 이미 그린 문단은 고정, 마지막 문단만 분리/갱신 */
+  streaming?: boolean;
 }) {
-  if (!content) return null;
+  const streamingParasRef = useRef<string[]>([]);
+
+  if (!content) {
+    streamingParasRef.current = [];
+    return null;
+  }
 
   const isAuthorMode = paragraphMode === "author" && variant === "character";
 
@@ -166,12 +178,21 @@ export default function NovelText({
         ? parseGreetingSegments
         : parseNovelSegments;
 
-  const paragraphs =
-    variant === "user"
-      ? content.split(/\n+/).filter((b) => b.trim())
-      : paragraphMode === "author"
-        ? groupAuthorParagraphs(content)
-        : groupNovelParagraphs(content);
+  let paragraphs: string[];
+  if (variant === "user") {
+    paragraphs = content.split(/\n+/).filter((b) => b.trim());
+    streamingParasRef.current = [];
+  } else if (paragraphMode === "author") {
+    paragraphs = groupAuthorParagraphs(content);
+    streamingParasRef.current = [];
+  } else if (streaming) {
+    const grouped = groupNovelParagraphs(content, { streaming: true });
+    paragraphs = stabilizeStreamingNovelParagraphs(streamingParasRef.current, grouped);
+    streamingParasRef.current = paragraphs;
+  } else {
+    paragraphs = groupNovelParagraphs(content);
+    streamingParasRef.current = [];
+  }
   const displayParagraphs = paragraphs.length > 0 ? paragraphs : [content];
   const paragraphKinds = displayParagraphs.map((p) =>
     p.trim() ? classifyNovelParagraph(p) : ("narration" as NovelParagraphKind)

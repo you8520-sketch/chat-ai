@@ -16,9 +16,17 @@ describe("buildCompactNoGodmoddingStandardBlock", () => {
     assert.match(block, /\[NO GODMODDING\]/);
     assert.match(block, /의도적 행동, 대사, 생각, 결정, 감정 결론을 대신 쓰지 않는다/);
     assert.match(block, /짧은 비자발 반응/);
+    assert.match(block, /\[INTERACTIVE USER CONTROL\]/);
+    assert.match(block, /분량을 채우기 위해 유저를 움직이지 않는다/);
+    assert.match(
+      block,
+      /실제 대화·기억·페르소나에 없는 일을 .전에 말했잖아\/아까 네가\/네가 약속했잖아.로 꾸며 쓰지 말고/
+    );
     assert.doesNotMatch(block, /TARGET_LENGTH/);
     assert.doesNotMatch(block, /MINIMUM_FLOOR/);
     assert.doesNotMatch(block, /<TURN_HANDOFF_AND_PACING>/);
+    // Compact line only — no long separate NO FALSE SHARED MEMORY section in interactive
+    assert.doesNotMatch(block, /\[NO FALSE SHARED MEMORY\]/);
   });
 });
 

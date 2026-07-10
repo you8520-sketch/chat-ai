@@ -134,6 +134,7 @@ export default function ChatRichBlocks({
               content={block.text}
               display={display}
               paragraphMode={paragraphMode}
+              streaming={streaming}
             />
           );
         }
