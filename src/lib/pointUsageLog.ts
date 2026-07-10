@@ -62,6 +62,8 @@ export const POINT_PAID_CREDIT_POSITIVE_PREFIXES = [
 /** 무료 포인트 적립 — 출석·이벤트·보너스·멤버십 등 */
 export const POINT_FREE_CREDIT_POSITIVE_PREFIXES = [
   "일일 출석 보상",
+  "주간 출석",
+  "7일 연속 출석 보상",
   "캐릭터 제작·이식 이벤트",
   "신규 가입 보너스",
   "충전 보너스",

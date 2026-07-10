@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ATTENDANCE_CYCLE_DAYS, DAILY_ATTENDANCE_REWARD, WEEKLY_ATTENDANCE_BONUS_REWARD } from "@/lib/attendanceConstants";
+import {
+  ATTENDANCE_CYCLE_DAYS,
+  ATTENDANCE_DAY7_BONUS,
+  ATTENDANCE_DAY_REWARDS,
+  formatAttendanceDayRewardLabel,
+} from "@/lib/attendanceConstants";
 import { dispatchPointsRefunded } from "@/lib/pointsEvents";
 
 type Props = {
@@ -34,8 +39,12 @@ export default function AttendanceBanner({ loggedIn, initialCheckedIn, initialSt
         return;
       }
       setCheckedIn(true);
-      setStreak(data.cycleCompleted ? ATTENDANCE_CYCLE_DAYS : data.streak ?? streak);
-      setMessage(data.cycleCompleted ? `7일 완주! +${data.reward.toLocaleString()}P 지급 완료! 내일부터 새 차트가 시작돼요.` : `+${data.reward.toLocaleString()}P 지급 완료!`);
+      setStreak(data.streak ?? streak);
+      setMessage(
+        data.cycleCompleted
+          ? `이번 주 7일차 완료! +${data.reward.toLocaleString()}P 지급 · 다음 주 월요일에 1일차부터 다시 시작해요.`
+          : `+${data.reward.toLocaleString()}P 지급 완료!`
+      );
       dispatchPointsRefunded({
         remainingPoints: data.points,
         paidPoints: data.paidPoints,
@@ -49,14 +58,19 @@ export default function AttendanceBanner({ loggedIn, initialCheckedIn, initialSt
     }
   }
 
+  const rewardSummary = ATTENDANCE_DAY_REWARDS.map((p, i) =>
+    i === ATTENDANCE_CYCLE_DAYS - 1 ? `${p}+${ATTENDANCE_DAY7_BONUS}` : String(p)
+  ).join(" · ");
+
   return (
     <div className="mt-2 rounded-2xl bg-gradient-to-r from-amber-900/50 via-orange-900/40 to-violet-900/50 p-6">
       <h1 className="text-2xl font-black text-white">매일 출석하고 무료 포인트 받기</h1>
       <p className="mt-1 text-sm text-gray-300">
-        매일 자정(0시)에 갱신 · 1~6일차 <span className="font-bold text-amber-300">{DAILY_ATTENDANCE_REWARD.toLocaleString()}P</span> · 7일차 <span className="font-bold text-amber-300">{DAILY_ATTENDANCE_REWARD.toLocaleString()}P + {WEEKLY_ATTENDANCE_BONUS_REWARD.toLocaleString()}P</span> 지급
+        매주 월요일 1일차부터 시작 · 연속 출석이 아니어도 이번 주 출석 순서대로 지급 ·{" "}
+        <span className="font-bold text-amber-300">{rewardSummary}P</span>
       </p>
 
-      <div className="mt-5 grid grid-cols-7 gap-2" aria-label="7일 출석 차트">
+      <div className="mt-5 grid grid-cols-7 gap-2" aria-label="주간 출석 차트">
         {Array.from({ length: ATTENDANCE_CYCLE_DAYS }, (_, i) => {
           const day = i + 1;
           const done = day <= streak;
@@ -74,12 +88,15 @@ export default function AttendanceBanner({ loggedIn, initialCheckedIn, initialSt
             >
               <div className="text-[11px] font-bold">{day}일차</div>
               <div className="mt-1 text-lg">{done ? "✓" : isBonus ? "🎁" : "•"}</div>
-              <div className="text-[10px]">{isBonus ? `+${DAILY_ATTENDANCE_REWARD.toLocaleString()}P + ${WEEKLY_ATTENDANCE_BONUS_REWARD.toLocaleString()}P` : `+${DAILY_ATTENDANCE_REWARD.toLocaleString()}P`}</div>
+              <div className="text-[10px]">{formatAttendanceDayRewardLabel(day)}</div>
             </div>
           );
         })}
       </div>
-      <p className="mt-2 text-[11px] text-zinc-400">출석 포인트 유효기간은 지급일로부터 1개월이며, 7일차 보상을 받으면 다음 출석부터 차트가 초기화됩니다.</p>
+      <p className="mt-2 text-[11px] text-zinc-400">
+        출석 포인트는 지급일로부터 1개월 유효합니다. 연속으로 못 나와도 이번 주 N번째 출석이 N일차
+        보상을 받으며, 새 주(월요일)마다 1일차부터 다시 시작합니다.
+      </p>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
         {loggedIn ? (
@@ -110,15 +127,17 @@ export default function AttendanceBanner({ loggedIn, initialCheckedIn, initialSt
             >
               로그인하고 출석하기
             </Link>
-            <p className="text-xs text-zinc-500">
-              로그인 후 매일 {DAILY_ATTENDANCE_REWARD.toLocaleString()}P를 받을 수 있어요.
-            </p>
+            <p className="text-xs text-zinc-500">로그인 후 주간 출석 보상을 받을 수 있어요.</p>
           </>
         )}
       </div>
 
       {message && (
-        <p className={`mt-3 text-xs font-semibold ${message.includes("완료") ? "text-amber-300" : "text-zinc-400"}`}>
+        <p
+          className={`mt-3 text-xs font-semibold ${
+            message.includes("완료") || message.includes("지급") ? "text-amber-300" : "text-zinc-400"
+          }`}
+        >
           {message}
         </p>
       )}

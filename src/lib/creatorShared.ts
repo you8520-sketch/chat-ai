@@ -2,11 +2,11 @@
 
 export const CREATOR_REWARD_RATE = 0.08;
 /** 플러스: 캐릭터 5개+ & 통합 대화 1만+ */
-export const CREATOR_REWARD_RATE_PLUS = 0.09;
+export const CREATOR_REWARD_RATE_PLUS = 0.1;
 export const CREATOR_PLUS_MIN_CHARACTERS = 5;
 export const CREATOR_PLUS_MIN_TOTAL_CHATS = 10_000;
 /** 프로: 캐릭터 10개+ & 통합 대화 10만+ */
-export const CREATOR_REWARD_RATE_PRO = 0.1;
+export const CREATOR_REWARD_RATE_PRO = 0.12;
 export const CREATOR_PRO_MIN_CHARACTERS = 10;
 export const CREATOR_PRO_MIN_TOTAL_CHATS = 100_000;
 /** 파트너: 공개(검수 통과) 캐릭터 15개+ & 월간 소비 500만P+ */

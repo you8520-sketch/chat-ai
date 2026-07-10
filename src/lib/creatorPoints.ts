@@ -72,7 +72,7 @@ export { CREATOR_PARTNER_RENEWAL_MIN_MONTHLY_SPENT } from "./partnerTier";
 
 const roundAmount = roundCreatorAmount;
 
-/** 전속 20% · 파트너 15% · 프로 10% · 플러스 9% · 기본 8% (상위 등급 우선 적용) */
+/** 전속 20% · 파트너 15% · 프로 12% · 플러스 10% · 기본 8% (상위 등급 우선 적용) */
 export function getCreatorTierInfo(creatorId: number): CreatorTierInfo {
   const db = getDb();
 
@@ -368,7 +368,7 @@ export function requestCreatorWithdrawal(
   };
 }
 
-/** 채팅 포인트 차감 후 크리에이터 적립 (기본 8% · 플러스 9% · 프로 10% · 파트너 15% · 전속 20%) */
+/** 채팅 포인트 차감 후 크리에이터 적립 (기본 8% · 플러스 10% · 프로 12% · 파트너 15% · 전속 20%) */
 export function maybeCreditCreatorReward(opts: {
   creatorId: number | null | undefined;
   official: number;

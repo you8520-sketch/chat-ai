@@ -2,12 +2,23 @@ import { getDb } from "./db";
 import { creditPointsWithIds, getPointBalance, ATTENDANCE_POINTS_VALID_MONTHS } from "./points";
 import {
   ATTENDANCE_CYCLE_DAYS,
+  ATTENDANCE_DAY7_BONUS,
+  ATTENDANCE_DAY_REWARDS,
   ATTENDANCE_TIMEZONE,
+  attendanceRewardForDay,
   DAILY_ATTENDANCE_REWARD,
   WEEKLY_ATTENDANCE_BONUS_REWARD,
 } from "./attendanceConstants";
 
-export { ATTENDANCE_CYCLE_DAYS, ATTENDANCE_TIMEZONE, DAILY_ATTENDANCE_REWARD, WEEKLY_ATTENDANCE_BONUS_REWARD } from "./attendanceConstants";
+export {
+  ATTENDANCE_CYCLE_DAYS,
+  ATTENDANCE_DAY7_BONUS,
+  ATTENDANCE_DAY_REWARDS,
+  ATTENDANCE_TIMEZONE,
+  attendanceRewardForDay,
+  DAILY_ATTENDANCE_REWARD,
+  WEEKLY_ATTENDANCE_BONUS_REWARD,
+} from "./attendanceConstants";
 
 /** KST 기준 YYYY-MM-DD (매일 0시 갱신) */
 export function getKstDateString(date = new Date()): string {
@@ -25,126 +36,210 @@ function addDaysToDateString(dateString: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
+/** KST 날짜의 요일 (0=일 … 6=토) — UTC 자정 날짜 문자열 기준 */
+function weekdayOfDateString(dateString: string): number {
+  const [year, month, day] = dateString.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+}
+
+/** 해당 날짜가 속한 주(월~일)의 월요일 YYYY-MM-DD */
+export function getWeekMondayKst(dateString: string): string {
+  const dow = weekdayOfDateString(dateString); // 0 Sun … 6 Sat
+  const daysFromMonday = dow === 0 ? 6 : dow - 1;
+  return addDaysToDateString(dateString, -daysFromMonday);
+}
+
+export function getWeekSundayKst(dateString: string): string {
+  return addDaysToDateString(getWeekMondayKst(dateString), 6);
+}
+
+/** 이번 주(월~일) 출석 횟수 — 연속 여부와 무관 */
+export function countCheckinsInWeek(userId: number, todayKst: string): number {
+  const db = getDb();
+  const monday = getWeekMondayKst(todayKst);
+  const sunday = getWeekSundayKst(todayKst);
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) AS cnt
+       FROM attendance_checkins
+       WHERE user_id = ?
+         AND attendance_date >= ?
+         AND attendance_date <= ?`
+    )
+    .get(userId, monday, sunday) as { cnt: number };
+  return Math.max(0, Number(row?.cnt ?? 0));
+}
+
 export type AttendanceStatus = {
   checkedInToday: boolean;
+  /** 오늘 받을(또는 받은) 총 보상 */
   reward: number;
   bonusReward: number;
   cycleDays: number;
+  /** 이번 주 출석 횟수 (오늘 포함 시) */
   currentStreak: number;
+  /** 다음에 받을 일차 (1~7) */
   nextClaimDay: number;
   todayKst: string;
+  weekMondayKst: string;
   lastAttendanceDate: string | null;
+  dayRewards: readonly number[];
+  day7Bonus: number;
 };
 
 export function getAttendanceStatus(userId: number): AttendanceStatus {
   const db = getDb();
-  const row = db
+  const todayKst = getKstDateString();
+  const weekMondayKst = getWeekMondayKst(todayKst);
+
+  const lastRow = db
     .prepare(
-      `SELECT attendance_date AS last_attendance_date, streak AS attendance_streak
+      `SELECT attendance_date AS last_attendance_date
        FROM attendance_checkins
        WHERE user_id = ?
        ORDER BY attendance_date DESC
        LIMIT 1`
     )
-    .get(userId) as { last_attendance_date: string | null; attendance_streak: number | null } | undefined;
+    .get(userId) as { last_attendance_date: string | null } | undefined;
 
-  const todayKst = getKstDateString();
-  const lastAttendanceDate = row?.last_attendance_date ?? null;
+  const lastAttendanceDate = lastRow?.last_attendance_date ?? null;
   const checkedInToday = lastAttendanceDate === todayKst;
-  const storedStreak = Math.max(0, Math.min(ATTENDANCE_CYCLE_DAYS, Number(row?.attendance_streak ?? 0)));
-  const currentStreak = checkedInToday
-    ? storedStreak
-    : lastAttendanceDate === addDaysToDateString(todayKst, -1) && storedStreak < ATTENDANCE_CYCLE_DAYS
-      ? storedStreak
-      : 0;
-  const nextClaimDay = Math.min(currentStreak + (checkedInToday ? 0 : 1), ATTENDANCE_CYCLE_DAYS);
+  const weekCount = countCheckinsInWeek(userId, todayKst);
+  const currentStreak = Math.min(ATTENDANCE_CYCLE_DAYS, weekCount);
+  const nextClaimDay = checkedInToday
+    ? Math.max(1, currentStreak)
+    : Math.min(currentStreak + 1, ATTENDANCE_CYCLE_DAYS);
+  const { base, bonus, total } = attendanceRewardForDay(nextClaimDay);
 
   return {
     checkedInToday,
-    reward: DAILY_ATTENDANCE_REWARD,
-    bonusReward: WEEKLY_ATTENDANCE_BONUS_REWARD,
+    reward: total,
+    bonusReward: bonus,
     cycleDays: ATTENDANCE_CYCLE_DAYS,
     currentStreak,
     nextClaimDay,
     todayKst,
+    weekMondayKst,
     lastAttendanceDate,
+    dayRewards: ATTENDANCE_DAY_REWARDS,
+    day7Bonus: ATTENDANCE_DAY7_BONUS,
   };
 }
 
 export type ClaimAttendanceResult =
-  | { ok: true; alreadyClaimed: false; reward: number; baseReward: number; bonusReward: number; streak: number; cycleCompleted: boolean; balance: ReturnType<typeof getPointBalance> }
-  | { ok: true; alreadyClaimed: true; reward: 0; baseReward: number; bonusReward: number; streak: number; cycleCompleted: false; balance: ReturnType<typeof getPointBalance> };
+  | {
+      ok: true;
+      alreadyClaimed: false;
+      reward: number;
+      baseReward: number;
+      bonusReward: number;
+      streak: number;
+      cycleCompleted: boolean;
+      balance: ReturnType<typeof getPointBalance>;
+    }
+  | {
+      ok: true;
+      alreadyClaimed: true;
+      reward: 0;
+      baseReward: number;
+      bonusReward: number;
+      streak: number;
+      cycleCompleted: false;
+      balance: ReturnType<typeof getPointBalance>;
+    };
 
 export function claimDailyAttendance(userId: number): ClaimAttendanceResult {
   const db = getDb();
   const todayKst = getKstDateString();
 
   return db.transaction(() => {
-    const row = db
+    const lastRow = db
       .prepare(
-        `SELECT attendance_date AS last_attendance_date, streak AS attendance_streak
+        `SELECT attendance_date AS last_attendance_date
          FROM attendance_checkins
          WHERE user_id = ?
          ORDER BY attendance_date DESC
          LIMIT 1`
       )
-      .get(userId) as { last_attendance_date: string | null; attendance_streak: number | null } | undefined;
+      .get(userId) as { last_attendance_date: string | null } | undefined;
 
-    const last = row?.last_attendance_date ?? null;
-    const storedStreak = Math.max(0, Math.min(ATTENDANCE_CYCLE_DAYS, Number(row?.attendance_streak ?? 0)));
+    const last = lastRow?.last_attendance_date ?? null;
+    const weekCountBefore = countCheckinsInWeek(userId, todayKst);
+
     if (last === todayKst) {
+      const day = Math.max(1, Math.min(ATTENDANCE_CYCLE_DAYS, weekCountBefore));
+      const { base, bonus } = attendanceRewardForDay(day);
       return {
         ok: true as const,
         alreadyClaimed: true as const,
         reward: 0 as const,
-        baseReward: DAILY_ATTENDANCE_REWARD,
-        bonusReward: WEEKLY_ATTENDANCE_BONUS_REWARD,
-        streak: storedStreak,
+        baseReward: base,
+        bonusReward: bonus,
+        streak: weekCountBefore,
         cycleCompleted: false as const,
         balance: getPointBalance(userId),
       };
     }
 
-    const continued = last === addDaysToDateString(todayKst, -1) && storedStreak < ATTENDANCE_CYCLE_DAYS;
-    const nextStreak = continued ? storedStreak + 1 : 1;
-    const cycleCompleted = nextStreak >= ATTENDANCE_CYCLE_DAYS;
-    const bonus = cycleCompleted ? WEEKLY_ATTENDANCE_BONUS_REWARD : 0;
-    const reward = DAILY_ATTENDANCE_REWARD + bonus;
+    if (weekCountBefore >= ATTENDANCE_CYCLE_DAYS) {
+      // 이번 주 7회 이미 수령 — 이론상 날짜당 1회라 도달하기 어렵지만 방어
+      const { base, bonus } = attendanceRewardForDay(ATTENDANCE_CYCLE_DAYS);
+      return {
+        ok: true as const,
+        alreadyClaimed: true as const,
+        reward: 0 as const,
+        baseReward: base,
+        bonusReward: bonus,
+        streak: weekCountBefore,
+        cycleCompleted: false as const,
+        balance: getPointBalance(userId),
+      };
+    }
+
+    const claimDay = weekCountBefore + 1;
+    const { base, bonus, total: reward } = attendanceRewardForDay(claimDay);
+    const cycleCompleted = claimDay >= ATTENDANCE_CYCLE_DAYS;
+
     const inserted = db
-      .prepare("INSERT OR IGNORE INTO attendance_checkins (user_id, attendance_date, streak, reward_points) VALUES (?,?,?,?)")
-      .run(userId, todayKst, nextStreak, reward);
+      .prepare(
+        "INSERT OR IGNORE INTO attendance_checkins (user_id, attendance_date, streak, reward_points) VALUES (?,?,?,?)"
+      )
+      .run(userId, todayKst, claimDay, reward);
     if (inserted.changes === 0) {
       const current = getAttendanceStatus(userId);
       return {
         ok: true as const,
         alreadyClaimed: true as const,
         reward: 0 as const,
-        baseReward: DAILY_ATTENDANCE_REWARD,
-        bonusReward: WEEKLY_ATTENDANCE_BONUS_REWARD,
+        baseReward: current.reward - current.bonusReward,
+        bonusReward: current.bonusReward,
         streak: current.currentStreak,
         cycleCompleted: false as const,
         balance: getPointBalance(userId),
       };
     }
-    db.prepare("UPDATE users SET last_attendance_date = ?, attendance_streak = ? WHERE id = ?").run(todayKst, nextStreak, userId);
-    creditPointsWithIds(
-      db,
-      userId,
-      reward,
-      "FREE",
-      cycleCompleted
-        ? `7일 연속 출석 보상 (+${DAILY_ATTENDANCE_REWARD}P + 보너스 ${WEEKLY_ATTENDANCE_BONUS_REWARD}P)`
-        : `일일 출석 보상 (+${DAILY_ATTENDANCE_REWARD}P)`,
-      { months: ATTENDANCE_POINTS_VALID_MONTHS }
+
+    db.prepare("UPDATE users SET last_attendance_date = ?, attendance_streak = ? WHERE id = ?").run(
+      todayKst,
+      claimDay,
+      userId
     );
+
+    const reason = cycleCompleted
+      ? `주간 출석 7일차 보상 (+${base}P + 보너스 ${bonus}P)`
+      : `주간 출석 ${claimDay}일차 보상 (+${base}P)`;
+
+    creditPointsWithIds(db, userId, reward, "FREE", reason, {
+      months: ATTENDANCE_POINTS_VALID_MONTHS,
+    });
 
     return {
       ok: true as const,
       alreadyClaimed: false as const,
       reward,
-      baseReward: DAILY_ATTENDANCE_REWARD,
+      baseReward: base,
       bonusReward: bonus,
-      streak: nextStreak,
+      streak: claimDay,
       cycleCompleted,
       balance: getPointBalance(userId),
     };

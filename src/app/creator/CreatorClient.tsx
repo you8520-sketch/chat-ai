@@ -59,32 +59,90 @@ function fmt(n: number) {
   return formatPoints(n);
 }
 
-function nextTierHint(
-  tier: CreatorDashboard["tier"]["tierLevel"],
+function partnerStatusHint(t: CreatorDashboard["tier"], exclusivePct: number): string | null {
+  if (t.tierLevel !== "partner" && t.tierLevel !== "exclusive") return null;
+  if (t.isExclusive) return null;
+  const term = t.partnerTerm;
+  if (term?.active && term.validUntil) {
+    const metCount = term.termMonths.filter((m) => m.met).length;
+    return `파트너 유지 ~${term.validUntil.slice(0, 10)} · 갱신 조건 월 ${term.maintenanceMinMonthly.toLocaleString()}P+ (${CREATOR_PARTNER_RENEWAL_MAINTENANCE_RATE * 100}% 기준) · ${metCount}/${term.termMonths.length}개월 충족 · 미달 시 프로로 강등`;
+  }
+  return `전속 ${exclusivePct}%: 파트너 등급 달성 후 운영팀에 문의해 전속 계약을 진행할 수 있습니다.`;
+}
+
+type TierConditionRow = {
+  key: string;
+  label: string;
+  ratePct: number;
+  condition: string;
+  current?: string;
+  met: boolean;
+  isCurrent: boolean;
+};
+
+function allTierConditions(
   t: CreatorDashboard["tier"],
+  basePct: number,
   plusPct: number,
   proPct: number,
   partnerPct: number,
   exclusivePct: number
-): string | null {
-  if (tier === "standard") {
-    return `다음 등급 · 플러스 ${plusPct}%: 캐릭터 ${CREATOR_PLUS_MIN_CHARACTERS}개+ & 통합 대화 ${CREATOR_PLUS_MIN_TOTAL_CHATS.toLocaleString()}회+ (현재 ${t.characterCount}개 · ${t.totalChats.toLocaleString()}회)`;
-  }
-  if (tier === "plus") {
-    return `다음 등급 · 프로 ${proPct}%: 캐릭터 ${CREATOR_PRO_MIN_CHARACTERS}개+ & 통합 대화 ${CREATOR_PRO_MIN_TOTAL_CHATS.toLocaleString()}회+ (현재 ${t.characterCount}개 · ${t.totalChats.toLocaleString()}회)`;
-  }
-  if (tier === "pro") {
-    return `다음 등급 · 파트너 ${partnerPct}%: 공개 캐릭터 ${CREATOR_PARTNER_MIN_CHARACTERS}개+ & 월간 소비 ${CREATOR_PARTNER_MIN_MONTHLY_SPENT.toLocaleString()}P+ (현재 공개 ${t.publicCharacterCount}개 · ${fmt(t.monthlySpentOnChars)}P) · 승급 후 ${CREATOR_PARTNER_TERM_MONTHS}개월 유지, 갱신 시 월 ${CREATOR_PARTNER_RENEWAL_MIN_MONTHLY_SPENT.toLocaleString()}P+ × ${CREATOR_PARTNER_TERM_MONTHS}개월`;
-  }
-  if (tier === "partner" && !t.isExclusive) {
-    const term = t.partnerTerm;
-    if (term?.active && term.validUntil) {
-      const metCount = term.termMonths.filter((m) => m.met).length;
-      return `파트너 유지 ~${term.validUntil.slice(0, 10)} · 갱신 조건 월 ${term.maintenanceMinMonthly.toLocaleString()}P+ (${CREATOR_PARTNER_RENEWAL_MAINTENANCE_RATE * 100}% 기준) · ${metCount}/${term.termMonths.length}개월 충족 · 미달 시 프로로 강등`;
-    }
-    return `전속 ${exclusivePct}%: 파트너 등급 달성 후 운영팀에 문의해 전속 계약을 진행할 수 있습니다.`;
-  }
-  return null;
+): TierConditionRow[] {
+  const plusMet =
+    t.characterCount >= CREATOR_PLUS_MIN_CHARACTERS &&
+    t.totalChats >= CREATOR_PLUS_MIN_TOTAL_CHATS;
+  const proMet =
+    t.characterCount >= CREATOR_PRO_MIN_CHARACTERS &&
+    t.totalChats >= CREATOR_PRO_MIN_TOTAL_CHATS;
+  const partnerMet =
+    t.publicCharacterCount >= CREATOR_PARTNER_MIN_CHARACTERS &&
+    t.monthlySpentOnChars >= CREATOR_PARTNER_MIN_MONTHLY_SPENT;
+
+  return [
+    {
+      key: "standard",
+      label: "기본",
+      ratePct: basePct,
+      condition: "캐릭터 제작 시 자동 적용",
+      met: true,
+      isCurrent: t.tierLevel === "standard",
+    },
+    {
+      key: "plus",
+      label: "플러스",
+      ratePct: plusPct,
+      condition: `캐릭터 ${CREATOR_PLUS_MIN_CHARACTERS}개+ & 통합 대화 ${CREATOR_PLUS_MIN_TOTAL_CHATS.toLocaleString()}회+`,
+      current: `현재 ${t.characterCount}개 · ${t.totalChats.toLocaleString()}회`,
+      met: plusMet,
+      isCurrent: t.tierLevel === "plus",
+    },
+    {
+      key: "pro",
+      label: "프로",
+      ratePct: proPct,
+      condition: `캐릭터 ${CREATOR_PRO_MIN_CHARACTERS}개+ & 통합 대화 ${CREATOR_PRO_MIN_TOTAL_CHATS.toLocaleString()}회+`,
+      current: `현재 ${t.characterCount}개 · ${t.totalChats.toLocaleString()}회`,
+      met: proMet,
+      isCurrent: t.tierLevel === "pro",
+    },
+    {
+      key: "partner",
+      label: "파트너",
+      ratePct: partnerPct,
+      condition: `공개 캐릭터 ${CREATOR_PARTNER_MIN_CHARACTERS}개+ & 월간 소비 ${CREATOR_PARTNER_MIN_MONTHLY_SPENT.toLocaleString()}P+ · 승급 후 ${CREATOR_PARTNER_TERM_MONTHS}개월 유지, 갱신 시 월 ${CREATOR_PARTNER_RENEWAL_MIN_MONTHLY_SPENT.toLocaleString()}P+ × ${CREATOR_PARTNER_TERM_MONTHS}개월`,
+      current: `현재 공개 ${t.publicCharacterCount}개 · ${fmt(t.monthlySpentOnChars)}P`,
+      met: partnerMet || t.tierLevel === "partner" || t.tierLevel === "exclusive",
+      isCurrent: t.tierLevel === "partner",
+    },
+    {
+      key: "exclusive",
+      label: "전속",
+      ratePct: exclusivePct,
+      condition: "파트너 달성 후 운영팀 문의 · 전속 계약 체결",
+      met: t.isExclusive,
+      isCurrent: t.tierLevel === "exclusive",
+    },
+  ];
 }
 
 export default function CreatorClient({ initial }: { initial: CreatorDashboard }) {
@@ -144,7 +202,15 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
   const exclusivePct = Math.round(CREATOR_REWARD_RATE_EXCLUSIVE * 100);
   const tier = data.tier.tierLevel;
   const tierLabel = CREATOR_TIER_LABELS[tier];
-  const nextHint = nextTierHint(tier, data.tier, plusPct, proPct, partnerPct, exclusivePct);
+  const tierRows = allTierConditions(
+    data.tier,
+    basePct,
+    plusPct,
+    proPct,
+    partnerPct,
+    exclusivePct
+  );
+  const partnerHint = partnerStatusHint(data.tier, exclusivePct);
 
   const tierBorder =
     tier === "exclusive"
@@ -228,11 +294,44 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
             </span>
           )}
         </p>
-        {nextHint ? (
-          <p className="mt-2 text-[11px] leading-relaxed text-gray-400">{nextHint}</p>
-        ) : (
-          <p className="mt-2 text-[11px] text-gray-400">최고 등급입니다.</p>
+        {partnerHint && (
+          <p className="mt-2 text-[11px] leading-relaxed text-gray-400">{partnerHint}</p>
         )}
+        <div className="mt-4 space-y-2">
+          <p className="text-[11px] font-semibold text-gray-300">등급업 조건</p>
+          <ul className="space-y-2">
+            {tierRows.map((row) => (
+              <li
+                key={row.key}
+                className={`rounded-xl border px-3 py-2.5 ${
+                  row.isCurrent
+                    ? "border-white/20 bg-white/[0.06]"
+                    : "border-white/[0.06] bg-[#0e1120]/60"
+                }`}
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-bold text-white">
+                    {row.label} · {row.ratePct}%
+                  </span>
+                  {row.isCurrent && (
+                    <span className="rounded bg-violet-500/25 px-1.5 py-0.5 text-[10px] font-bold text-violet-200">
+                      현재
+                    </span>
+                  )}
+                  {row.met && !row.isCurrent && (
+                    <span className="rounded bg-emerald-500/20 px-1.5 py-0.5 text-[10px] font-bold text-emerald-300">
+                      조건 충족
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-[11px] leading-relaxed text-gray-400">{row.condition}</p>
+                {row.current && (
+                  <p className="mt-0.5 text-[11px] text-zinc-500">{row.current}</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
       </section>
 
       <section className="grid gap-3 sm:grid-cols-3">

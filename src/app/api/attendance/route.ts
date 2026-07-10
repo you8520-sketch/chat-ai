@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
-import { claimDailyAttendance, DAILY_ATTENDANCE_REWARD, getAttendanceStatus } from "@/lib/attendance";
+import { claimDailyAttendance, getAttendanceStatus } from "@/lib/attendance";
 
 export async function GET() {
   const user = await getSessionUser();
@@ -11,12 +11,15 @@ export async function GET() {
   const status = getAttendanceStatus(user.id);
   return NextResponse.json({
     checkedInToday: status.checkedInToday,
-    reward: DAILY_ATTENDANCE_REWARD,
+    reward: status.reward,
     bonusReward: status.bonusReward,
     cycleDays: status.cycleDays,
     currentStreak: status.currentStreak,
     nextClaimDay: status.nextClaimDay,
     todayKst: status.todayKst,
+    weekMondayKst: status.weekMondayKst,
+    dayRewards: status.dayRewards,
+    day7Bonus: status.day7Bonus,
   });
 }
 
