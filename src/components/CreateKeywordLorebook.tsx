@@ -165,7 +165,7 @@ export default function CreateKeywordLorebook({ lorebookId }: Props) {
         setError(data.error || "저장에 실패했습니다.");
         return;
       }
-      router.push("/studio");
+      router.push("/studio?tab=lorebooks");
       router.refresh();
     } catch {
       setError("저장 중 오류가 발생했습니다.");
@@ -183,8 +183,8 @@ export default function CreateKeywordLorebook({ lorebookId }: Props) {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
       <div className="mb-6 flex flex-wrap items-center gap-3">
-        <Link href="/studio" className="text-sm text-zinc-500 hover:text-zinc-300">
-          제작 메뉴
+        <Link href="/studio?tab=lorebooks" className="text-sm text-zinc-500 hover:text-zinc-300">
+          ← 제작 · 로어북
         </Link>
       </div>
 

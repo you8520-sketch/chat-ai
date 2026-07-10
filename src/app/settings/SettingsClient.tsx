@@ -4,6 +4,7 @@ import { useState } from "react";
 import { TasteFilterDropdown, type TastePref } from "@/components/UserPreferenceControls";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import LogoutButton from "@/components/LogoutButton";
 import PointsBalanceTooltip from "@/components/PointsBalanceTooltip";
 
 type Props = {
@@ -20,9 +21,28 @@ type Props = {
     isAdmin?: boolean;
     isCreator?: boolean;
   };
+  unreadNotice?: boolean;
 };
 
-export default function SettingsClient({ user }: Props) {
+const SUPPORT_LINKS = [
+  { href: "/board/notice", label: "공지사항", noticeBadge: true },
+  { href: "/board/inquiry", label: "문의게시판" },
+  { href: "/board/faq", label: "FAQ" },
+] as const;
+
+function SupportChevron() {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 shrink-0 text-zinc-500" aria-hidden>
+      <path
+        fillRule="evenodd"
+        d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+export default function SettingsClient({ user, unreadNotice = false }: Props) {
   const router = useRouter();
   const [nickname, setNickname] = useState(user.nickname);
   const [pref, setPref] = useState(user.pref);
@@ -52,8 +72,54 @@ export default function SettingsClient({ user }: Props) {
   }
 
   return (
-    <div className="mx-auto mt-4 max-w-2xl">
+    <div className="mx-auto mt-4 max-w-2xl pb-8">
       <h1 className="text-xl font-black text-white">내 정보 · 설정</h1>
+
+      <section className="mt-6 rounded-2xl border border-white/5 bg-[#131626] p-5">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">계정</h2>
+        <p className="mt-2 text-lg font-bold text-white">{user.nickname}</p>
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <span className="text-sm text-zinc-400">보유 포인트</span>
+          <PointsBalanceTooltip
+            total={user.points}
+            paid={user.paidPoints}
+            free={user.freePoints}
+          >
+            <Link href="/points" className="text-sm font-semibold text-violet-300 hover:underline">
+              {user.points.toLocaleString()}P
+            </Link>
+          </PointsBalanceTooltip>
+        </div>
+        <div className="mt-4 border-t border-white/[0.06] pt-4">
+          <LogoutButton className="text-sm font-medium text-zinc-400 transition hover:text-white" />
+        </div>
+      </section>
+
+      <section className="mt-4">
+        <h2 className="mb-2 px-0.5 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+          고객지원
+        </h2>
+        <ul className="flex flex-col gap-2">
+          {SUPPORT_LINKS.map((l) => (
+            <li key={l.href}>
+              <Link
+                href={l.href}
+                className="flex h-14 items-center justify-between gap-3 rounded-[13px] border border-white/[0.08] bg-[#11131a] px-4 text-sm font-medium text-zinc-100 transition hover:bg-[#161922]"
+              >
+                <span className="flex items-center gap-2">
+                  {l.label}
+                  {"noticeBadge" in l && l.noticeBadge && unreadNotice && (
+                    <span className="rounded bg-red-500/20 px-1.5 py-0.5 text-[10px] font-bold text-red-300">
+                      NEW
+                    </span>
+                  )}
+                </span>
+                <SupportChevron />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <section className="mt-6 rounded-2xl border border-white/5 bg-[#131626] p-5">
         <h2 className="font-bold text-white">제작 · 크리에이터</h2>
@@ -156,20 +222,6 @@ export default function SettingsClient({ user }: Props) {
               ) : (
                 <Link href="/verify" className="text-amber-300 hover:underline">미완료 — 인증하기</Link>
               )}
-            </dd>
-          </div>
-          <div className="flex justify-between">
-            <dt className="text-gray-500">포인트</dt>
-            <dd>
-              <PointsBalanceTooltip
-                total={user.points}
-                paid={user.paidPoints}
-                free={user.freePoints}
-              >
-                <Link href="/points" className="text-violet-300 hover:underline">
-                  {user.points.toLocaleString()}P
-                </Link>
-              </PointsBalanceTooltip>
             </dd>
           </div>
         </dl>

@@ -26,8 +26,8 @@ export default function LorebookManageClient() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
-      <Link href="/studio" className="text-sm text-zinc-500 hover:text-zinc-300">
-        ← 제작 메뉴
+      <Link href="/studio?tab=lorebooks" className="text-sm text-zinc-500 hover:text-zinc-300">
+        ← 제작 · 로어북
       </Link>
       <h1 className="mt-4 text-2xl font-black text-white">📖 내 로어북</h1>
       <p className="mt-2 text-sm text-gray-400">저장된 로어북을 수정하거나 캐릭터에 연결할 수 있습니다.</p>

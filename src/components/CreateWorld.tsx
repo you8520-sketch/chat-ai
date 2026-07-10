@@ -45,7 +45,7 @@ export default function CreateWorld() {
         setError(data.error || "저장에 실패했습니다.");
         return;
       }
-      router.push("/studio");
+      router.push("/studio?tab=worlds");
       router.refresh();
     } catch {
       setError("저장 중 오류가 발생했습니다.");
@@ -57,8 +57,8 @@ export default function CreateWorld() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
       <div className="mb-6 flex flex-wrap items-center gap-3">
-        <Link href="/studio" className="text-sm text-zinc-500 hover:text-zinc-300">
-          ← 제작 메뉴
+        <Link href="/studio?tab=worlds" className="text-sm text-zinc-500 hover:text-zinc-300">
+          ← 제작 · 세계관
         </Link>
       </div>
 

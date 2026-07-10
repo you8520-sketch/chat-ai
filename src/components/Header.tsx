@@ -32,14 +32,14 @@ export default async function Header() {
   return (
     <>
     <header className="site-header sticky top-0 z-40 border-b border-white/5 bg-[#0b0d14]/90 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl flex-nowrap items-center justify-between gap-2 px-4 py-2 text-xs sm:gap-4">
+      <div className="mx-auto flex max-w-6xl flex-nowrap items-center justify-between gap-2 px-3 py-2 text-xs sm:gap-4 sm:px-4">
         <div className="flex min-w-0 items-center gap-2 sm:gap-4">
-          <Link href="/" className="shrink-0 text-xl font-black tracking-tight text-white">
+          <Link href="/" className="shrink-0 text-lg font-black tracking-tight text-white sm:text-xl">
             하비 <span className="text-violet-400">AI</span>
           </Link>
           <HeaderBoardLinks unreadNotice={unreadNotice} />
         </div>
-        <div className="flex shrink-0 items-center gap-2 whitespace-nowrap sm:gap-3">
+        <div className="flex shrink-0 items-center gap-1.5 whitespace-nowrap sm:gap-3">
           <NotificationBell count={unreadCount} />
           {user ? (
             <>
@@ -64,12 +64,14 @@ export default async function Header() {
               )}
               <Link
                 href="/settings"
-                className="max-w-[5.5rem] truncate font-semibold text-gray-300 transition hover:text-white sm:max-w-none"
+                className="hidden max-w-[5.5rem] truncate font-semibold text-gray-300 transition hover:text-white sm:inline sm:max-w-none"
                 title="내 정보 · 설정"
               >
                 {user.nickname}
               </Link>
-              <LogoutButton />
+              <span className="hidden sm:inline">
+                <LogoutButton />
+              </span>
             </>
           ) : (
             <Link href="/login" className="rounded-full bg-violet-600 px-3 py-1.5 font-semibold text-white hover:bg-violet-500 sm:px-4">
