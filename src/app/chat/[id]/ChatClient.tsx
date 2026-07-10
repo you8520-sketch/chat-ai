@@ -2423,9 +2423,10 @@ export default function ChatClient({
       const copy = [...m];
       const cur = copy[regenIndex];
       if (!cur || cur.role !== "assistant") return m;
+      // Keep prior text visible until the stream replaces it — clearing here caused
+      // empty→rollback flicker when the request failed before the first chunk.
       copy[regenIndex] = {
         ...cur,
-        content: "",
         usage: null,
         isRefunded: false,
         variants: undefined,
@@ -2524,6 +2525,8 @@ export default function ChatClient({
         setError(abortMsg);
       } else if (!isBenignChatStreamAbort(e)) {
         setError("네트워크 오류가 발생했습니다.");
+      } else {
+        setToastMsg("재생성이 중단되었습니다. 다시 시도해 주세요.");
       }
       restoreAssistant();
     } finally {

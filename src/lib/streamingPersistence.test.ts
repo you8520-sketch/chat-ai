@@ -9,6 +9,7 @@ import {
   findTurnByRequestId,
   markAssistantInterrupted,
   persistStreamCompleteContent,
+  restoreAssistantFromAlternatesOnFailedRegen,
 } from "@/lib/streamingPersistence";
 
 function createMessagesDb(): Database.Database {
@@ -259,5 +260,90 @@ describe("streamingPersistence", () => {
     const found = findTurnByRequestId(db, 1, "cr_bill_1");
     assert.equal(found.alreadyBilled, true);
     assert.equal(found.assistantMessageId, boot.assistantMessageId);
+  });
+
+  it("regenerate bootstrap snapshots prior reply into alternates before clearing content", () => {
+    const db = createMessagesDb();
+    const boot = bootstrapStreamingTurn(db, {
+      chatId: 1,
+      requestId: "cr_regen_base",
+      userContent: "유저",
+      skipUserInsert: false,
+    });
+    finalizeAssistantMessage(db, {
+      assistantMessageId: boot.assistantMessageId,
+      chatId: 1,
+      content: "이전 답변",
+      model: "m1",
+      usageJson: "{}",
+      alternatesJson: JSON.stringify([
+        { content: "이전 답변", model: "m1", usage: null, created_at: "" },
+      ]),
+      activeVariant: 0,
+    });
+
+    bootstrapStreamingTurn(db, {
+      chatId: 1,
+      requestId: "cr_regen_2",
+      userContent: "유저",
+      skipUserInsert: true,
+      existingUserMessageId: boot.userMessageId,
+      regenerateAssistantId: boot.assistantMessageId,
+    });
+
+    const row = db
+      .prepare(`SELECT content, generation_status, alternates, active_variant FROM messages WHERE id=?`)
+      .get(boot.assistantMessageId) as {
+      content: string;
+      generation_status: string;
+      alternates: string;
+      active_variant: number;
+    };
+    assert.equal(row.content, "");
+    assert.equal(row.generation_status, "generating");
+    const alts = JSON.parse(row.alternates) as { content: string }[];
+    assert.equal(alts.length, 1);
+    assert.equal(alts[0].content, "이전 답변");
+  });
+
+  it("restoreAssistantFromAlternatesOnFailedRegen restores prior reply", () => {
+    const db = createMessagesDb();
+    const boot = bootstrapStreamingTurn(db, {
+      chatId: 1,
+      requestId: "cr_regen_fail_base",
+      userContent: "유저",
+      skipUserInsert: false,
+    });
+    finalizeAssistantMessage(db, {
+      assistantMessageId: boot.assistantMessageId,
+      chatId: 1,
+      content: "이전 답변",
+      model: "m1",
+      usageJson: "{}",
+      alternatesJson: JSON.stringify([
+        { content: "이전 답변", model: "m1", usage: null, created_at: "" },
+      ]),
+      activeVariant: 0,
+    });
+    bootstrapStreamingTurn(db, {
+      chatId: 1,
+      requestId: "cr_regen_fail_2",
+      userContent: "유저",
+      skipUserInsert: true,
+      existingUserMessageId: boot.userMessageId,
+      regenerateAssistantId: boot.assistantMessageId,
+    });
+    markAssistantInterrupted(db, boot.assistantMessageId, "");
+    const restored = restoreAssistantFromAlternatesOnFailedRegen(
+      db,
+      boot.assistantMessageId,
+      1
+    );
+    assert.equal(restored, true);
+    const row = db
+      .prepare(`SELECT content, generation_status FROM messages WHERE id=?`)
+      .get(boot.assistantMessageId) as { content: string; generation_status: string };
+    assert.equal(row.content, "이전 답변");
+    assert.equal(row.generation_status, "completed");
   });
 });

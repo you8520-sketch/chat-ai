@@ -4,6 +4,7 @@
  */
 
 import type Database from "better-sqlite3";
+import { normalizeMessageVariants } from "./messageAlternates";
 
 export type GenerationStatus =
   | "submitted"
@@ -163,11 +164,42 @@ export function bootstrapStreamingTurn(
   }
 
   if (opts.regenerateAssistantId != null) {
+    const existing = db
+      .prepare(
+        `SELECT content, model, usage, alternates, active_variant FROM messages WHERE id=? AND chat_id=?`
+      )
+      .get(opts.regenerateAssistantId, opts.chatId) as
+      | {
+          content: string;
+          model: string;
+          usage: string | null;
+          alternates: string | null;
+          active_variant: number | null;
+        }
+      | undefined;
+
+    // Keep prior version(s) in alternates before wiping content — failed regen / mid-regen
+    // refresh must not lose the last good reply (resolveActiveVariantContent reads alternates).
+    let alternatesJson = "[]";
+    let activeVariant = 0;
+    if (existing) {
+      const { variants, activeVariant: active } = normalizeMessageVariants(existing);
+      alternatesJson = JSON.stringify(variants);
+      activeVariant = variants.length > 0 ? active : 0;
+    }
+
     db.prepare(
       `UPDATE messages SET content='', generation_status='generating', request_id=?, is_refunded=0,
+       alternates=?, active_variant=?,
        status_meta=NULL, status_widget_values_json='', status_widget_turn_active=0,
        updated_at=datetime('now') WHERE id=? AND chat_id=?`
-    ).run(opts.requestId, opts.regenerateAssistantId, opts.chatId);
+    ).run(
+      opts.requestId,
+      alternatesJson,
+      activeVariant,
+      opts.regenerateAssistantId,
+      opts.chatId
+    );
     if (opts.existingUserMessageId != null) {
       db.prepare(`UPDATE messages SET request_id=? WHERE id=? AND chat_id=?`).run(
         opts.requestId,
@@ -312,6 +344,49 @@ export function markAssistantFailed(
     partialContent.trim() ? "failed_partial" : "failed",
     assistantMessageId
   );
+}
+
+/**
+ * Regenerate failed before a usable new reply — restore last good alternate into content
+ * so refresh / SSR does not show a blank bubble.
+ */
+export function restoreAssistantFromAlternatesOnFailedRegen(
+  db: Database.Database,
+  assistantMessageId: number,
+  chatId: number
+): boolean {
+  const row = db
+    .prepare(
+      `SELECT content, model, usage, alternates, active_variant FROM messages WHERE id=? AND chat_id=?`
+    )
+    .get(assistantMessageId, chatId) as
+    | {
+        content: string;
+        model: string;
+        usage: string | null;
+        alternates: string | null;
+        active_variant: number | null;
+      }
+    | undefined;
+  if (!row) return false;
+
+  const { variants, activeVariant } = normalizeMessageVariants(row);
+  const prev = variants[activeVariant] ?? variants[variants.length - 1];
+  if (!prev?.content?.trim()) return false;
+
+  db.prepare(
+    `UPDATE messages SET content=?, model=?, usage=?, active_variant=?,
+     generation_status='completed', status='ok', updated_at=datetime('now')
+     WHERE id=? AND chat_id=?`
+  ).run(
+    prev.content,
+    prev.model ?? row.model ?? "",
+    prev.usage ? JSON.stringify(prev.usage) : row.usage,
+    variants.length > 0 ? activeVariant : 0,
+    assistantMessageId,
+    chatId
+  );
+  return true;
 }
 
 export function finalizeAssistantMessage(

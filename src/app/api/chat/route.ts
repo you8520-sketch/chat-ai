@@ -46,6 +46,7 @@ import {
   markAssistantInterrupted,
   normalizeClientRequestId,
   persistStreamCompleteContent,
+  restoreAssistantFromAlternatesOnFailedRegen,
   type StreamingPersistenceDiag,
 } from "@/lib/streamingPersistence";
 import { isDeepSeekV4ProModel, isGemini25ProModel, isGemini31ProModel, isGeminiProOpenRouterModel, isGlmModel, isQwenModel } from "@/lib/chatModels";
@@ -246,7 +247,10 @@ const SSE_HEADERS = {
   "Content-Type": "text/event-stream; charset=utf-8",
   "Cache-Control": "no-cache, no-transform",
   Connection: "keep-alive",
+  "X-Accel-Buffering": "no",
 };
+
+export const dynamic = "force-dynamic";
 
 function sseEncode(obj: object): Uint8Array {
   return new TextEncoder().encode(`data: ${JSON.stringify(obj)}\n\n`);
@@ -1254,6 +1258,9 @@ export async function POST(req: Request) {
             console.warn("[/api/chat] OpenRouter DEGENERATION_ABORT — billing skipped");
             try {
               markAssistantFailed(db, persistedAssistantId, streamVisibleTextRef || fullText);
+              if (regenerateMessageId) {
+                restoreAssistantFromAlternatesOnFailedRegen(db, regenerateMessageId, chatRef.id);
+              }
               persistenceDiag.interrupted = true;
               logStreamingPersistence(persistenceDiag);
             } catch {
@@ -1267,6 +1274,9 @@ export async function POST(req: Request) {
           console.error("[/api/chat] OpenRouter 생성 실패:", (e as Error).message);
           try {
             markAssistantFailed(db, persistedAssistantId, streamVisibleTextRef || fullText);
+            if (regenerateMessageId) {
+              restoreAssistantFromAlternatesOnFailedRegen(db, regenerateMessageId, chatRef.id);
+            }
             persistenceDiag.interrupted = true;
             logStreamingPersistence(persistenceDiag);
           } catch {
@@ -1923,6 +1933,9 @@ export async function POST(req: Request) {
           clearPartialTimer();
           try {
             markAssistantFailed(db, persistedAssistantId, savedText || streamVisibleTextRef);
+            if (regenerateMessageId) {
+              restoreAssistantFromAlternatesOnFailedRegen(db, regenerateMessageId, chatRef.id);
+            }
             persistenceDiag.interrupted = true;
             logStreamingPersistence(persistenceDiag);
           } catch {
@@ -2788,6 +2801,9 @@ export async function POST(req: Request) {
               persistenceDiag.postprocessError = true;
             } else {
               markAssistantInterrupted(db, persistedAssistantId, partial);
+              if (regenerateMessageId) {
+                restoreAssistantFromAlternatesOnFailedRegen(db, regenerateMessageId, chatRef.id);
+              }
               persistenceDiag.interrupted = true;
             }
             logStreamingPersistence(persistenceDiag);
