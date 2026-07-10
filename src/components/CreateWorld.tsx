@@ -1,13 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import StudioButton from "@/components/studio/StudioButton";
+import { StudioBackLink } from "@/components/studio/StudioEmptyState";
+import { StudioInput, StudioTextarea } from "@/components/studio/StudioInput";
+import StudioSaveBar from "@/components/studio/StudioSaveBar";
+import { studioType } from "@/lib/studioDesign";
 import { WORLD_CONTENT_LIMIT, WORLD_NAME_LIMIT, WORLD_SUMMARY_LIMIT } from "@/lib/worlds";
 
-const cls =
-  "w-full rounded-xl border border-white/10 bg-[#1a1a2e] px-4 py-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-cyan-500/40";
-const label = "mb-1.5 block text-xs font-semibold text-zinc-400";
+const FORM_ID = "studio-world-form";
 
 export default function CreateWorld() {
   const router = useRouter();
@@ -55,78 +57,57 @@ export default function CreateWorld() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8">
-      <div className="mb-6 flex flex-wrap items-center gap-3">
-        <Link href="/studio?tab=worlds" className="text-sm text-zinc-500 hover:text-zinc-300">
-          ← 제작 · 세계관
-        </Link>
-      </div>
+    <div className="mx-auto max-w-2xl px-4 py-6 pb-32 sm:py-8">
+      <StudioBackLink href="/studio?tab=worlds">← 제작 · 세계관</StudioBackLink>
 
-      <h1 className="text-2xl font-black text-white">🌍 세계관 제작</h1>
-      <p className="mt-2 text-sm text-gray-400">
+      <h1 className={`${studioType.heading} mt-4`}>세계관 제작</h1>
+      <p className={`${studioType.helper} mt-2`}>
         배경·시대·장소·세력·규칙 등을 저장해 두면, 캐릭터 제작 시 불러올 수 있습니다.
       </p>
 
-      <form onSubmit={submit} className="mt-8 space-y-5">
-        <div>
-          <label className={label}>세계관 이름 *</label>
-          <input
-            className={cls}
-            placeholder="예: 북부 대공국 · 현대 서울 판타지"
-            value={name}
-            maxLength={WORLD_NAME_LIMIT}
-            onChange={(e) => setName(e.target.value.slice(0, WORLD_NAME_LIMIT))}
-          />
-          <p className="mt-1 text-right text-[10px] tabular-nums text-zinc-600">
-            {name.length} / {WORLD_NAME_LIMIT}
-          </p>
-        </div>
+      <form id={FORM_ID} onSubmit={submit} className="mt-8 space-y-6">
+        <StudioInput
+          label="세계관 이름 *"
+          placeholder="예: 북부 대공국 · 현대 서울 판타지"
+          value={name}
+          maxLength={WORLD_NAME_LIMIT}
+          counter={{ now: name.length, max: WORLD_NAME_LIMIT }}
+          onChange={(e) => setName(e.target.value.slice(0, WORLD_NAME_LIMIT))}
+        />
 
-        <div>
-          <label className={label}>한 줄 요약</label>
-          <input
-            className={cls}
-            placeholder="목록에서 구분하기 위한 짧은 설명 (선택)"
-            value={summary}
-            maxLength={WORLD_SUMMARY_LIMIT}
-            onChange={(e) => setSummary(e.target.value.slice(0, WORLD_SUMMARY_LIMIT))}
-          />
-        </div>
+        <StudioInput
+          label="한 줄 요약"
+          placeholder="목록에서 구분하기 위한 짧은 설명 (선택)"
+          value={summary}
+          maxLength={WORLD_SUMMARY_LIMIT}
+          onChange={(e) => setSummary(e.target.value.slice(0, WORLD_SUMMARY_LIMIT))}
+        />
 
-        <div>
-          <label className={label}>세계관 본문 *</label>
-          <textarea
-            rows={14}
-            className={cls}
-            placeholder={
-              "시대와 배경, 주요 지역, 세력 관계, 마법/기술 규칙, 사회 구조, 금기, 분위기 등을 자유롭게 작성하세요.\n\n캐릭터 제작 시 이 내용이 「세계관 / 배경」란에 자동으로 채워집니다."
-            }
-            value={content}
-            onChange={(e) => setContent(e.target.value.slice(0, WORLD_CONTENT_LIMIT))}
-          />
-          <p className="mt-1 text-right text-[10px] tabular-nums text-zinc-600">
-            {content.length.toLocaleString()} / {WORLD_CONTENT_LIMIT.toLocaleString()}
-          </p>
-        </div>
-
-        {error && <p className="text-sm text-rose-400">{error}</p>}
+        <StudioTextarea
+          label="세계관 본문 *"
+          rows={14}
+          placeholder={
+            "시대와 배경, 주요 지역, 세력 관계, 마법/기술 규칙, 사회 구조, 금기, 분위기 등을 자유롭게 작성하세요.\n\n캐릭터 제작 시 이 내용이 「세계관 / 배경」란에 자동으로 채워집니다."
+          }
+          value={content}
+          counter={{ now: content.length, max: WORLD_CONTENT_LIMIT }}
+          onChange={(e) => setContent(e.target.value.slice(0, WORLD_CONTENT_LIMIT))}
+        />
 
         <div className="flex flex-wrap gap-3">
-          <button
-            type="submit"
-            disabled={loading}
-            className="rounded-xl bg-cyan-600 px-6 py-3 font-bold text-white disabled:opacity-50"
-          >
-            {loading ? "저장 중…" : "세계관 저장"}
-          </button>
-          <Link
-            href="/create"
-            className="rounded-xl border border-white/10 px-6 py-3 text-sm font-semibold text-zinc-300 hover:bg-white/5"
-          >
+          <StudioButton href="/create" variant="secondary">
             캐릭터 제작으로
-          </Link>
+          </StudioButton>
         </div>
       </form>
+
+      <StudioSaveBar
+        formId={FORM_ID}
+        saveType="submit"
+        saveLabel={loading ? "저장 중…" : "세계관 저장"}
+        saveDisabled={loading}
+        error={error || null}
+      />
     </div>
   );
 }

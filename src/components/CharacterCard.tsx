@@ -13,6 +13,7 @@ export type CharacterRow = {
   emoji: string;
   hue: number;
   creator_name: string;
+  creator_id?: number | null;
   likes: number;
   /** 누적 대화 턴 (전체 유저 합) */
   total_turns: number;
@@ -65,10 +66,15 @@ export default function CharacterCard({ c, blurNsfw, loggedIn = false }: Props) 
       : "로그인 후 성인인증이 필요합니다."
     : c.tagline?.trim();
   const overlayLabel = loggedIn ? "성인인증 필요" : "로그인 · 성인인증 필요";
+  const creatorName = c.creator_name?.trim() || "";
+  const creatorHref =
+    c.creator_id != null && Number(c.creator_id) > 0
+      ? `/creator/${c.creator_id}`
+      : null;
 
   return (
     <article className="group flex flex-col overflow-hidden rounded-xl border border-white/[0.08] bg-[#131626]">
-      <Link href={href} className="flex flex-col">
+      <Link href={href} className="relative block">
         <div
           className={`relative ${CHARACTER_THUMB_ASPECT} w-full overflow-hidden`}
           style={{
@@ -119,11 +125,32 @@ export default function CharacterCard({ c, blurNsfw, loggedIn = false }: Props) 
             </div>
           </div>
         </div>
+      </Link>
 
-        <div className="space-y-1 p-2.5 sm:space-y-1.5 sm:p-3">
-          <h3 className="line-clamp-1 text-sm font-bold text-white group-hover:text-violet-300">
+      <div className="flex flex-1 flex-col gap-1 p-2.5 sm:gap-1.5 sm:p-3">
+        <Link href={href} className="min-w-0">
+          <h3 className="line-clamp-1 text-sm font-bold text-white transition group-hover:text-violet-300">
             {c.name}
           </h3>
+        </Link>
+
+        {creatorName ? (
+          creatorHref ? (
+            <Link
+              href={creatorHref}
+              className="line-clamp-1 text-[11px] font-medium text-zinc-500 transition hover:text-violet-300"
+              title={`${creatorName} 프로필`}
+            >
+              <span className="text-zinc-600">by</span> {creatorName}
+            </Link>
+          ) : (
+            <p className="line-clamp-1 text-[11px] font-medium text-zinc-500">
+              <span className="text-zinc-600">by</span> {creatorName}
+            </p>
+          )
+        ) : null}
+
+        <Link href={href} className="min-w-0">
           {displayTagline ? (
             <p className="line-clamp-2 min-h-[2.4rem] text-xs leading-relaxed text-zinc-400">
               {displayTagline}
@@ -131,22 +158,22 @@ export default function CharacterCard({ c, blurNsfw, loggedIn = false }: Props) 
           ) : (
             <p className="min-h-[2.4rem] text-xs text-zinc-600">한 줄 소개 없음</p>
           )}
-        </div>
-      </Link>
+        </Link>
 
-      {tags.length > 0 && (
-        <div className="flex flex-wrap gap-1 px-2.5 pb-2.5 pt-0 sm:px-3 sm:pb-3">
-          {tags.slice(0, 3).map((t) => (
-            <Link
-              key={t}
-              href={`/search?q=${encodeURIComponent(t)}`}
-              className="rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-zinc-400 transition hover:bg-violet-600/20 hover:text-violet-200"
-            >
-              #{t}
-            </Link>
-          ))}
-        </div>
-      )}
+        {tags.length > 0 && (
+          <div className="mt-auto flex flex-wrap gap-1 pt-0.5">
+            {tags.slice(0, 3).map((t) => (
+              <Link
+                key={t}
+                href={`/search?q=${encodeURIComponent(t)}`}
+                className="rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-zinc-400 transition hover:bg-violet-600/20 hover:text-violet-200"
+              >
+                #{t}
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
     </article>
   );
 }

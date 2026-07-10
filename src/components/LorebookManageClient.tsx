@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import StudioButton from "@/components/studio/StudioButton";
+import StudioEmptyState, { StudioBackLink } from "@/components/studio/StudioEmptyState";
 import type { KeywordLorebookListItem } from "@/lib/keywordLorebooks";
+import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 
 export default function LorebookManageClient() {
   const [lorebooks, setLorebooks] = useState<KeywordLorebookListItem[]>([]);
@@ -25,39 +28,45 @@ export default function LorebookManageClient() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8">
-      <Link href="/studio?tab=lorebooks" className="text-sm text-zinc-500 hover:text-zinc-300">
-        ← 제작 · 로어북
-      </Link>
-      <h1 className="mt-4 text-2xl font-black text-white">📖 내 로어북</h1>
-      <p className="mt-2 text-sm text-gray-400">저장된 로어북을 수정하거나 캐릭터에 연결할 수 있습니다.</p>
+    <div className="mx-auto max-w-2xl px-4 py-6 sm:py-8">
+      <StudioBackLink href="/studio?tab=lorebooks">← 제작 · 로어북</StudioBackLink>
+      <h1 className={`${studioType.heading} mt-4`}>내 로어북</h1>
+      <p className={`${studioType.helper} mt-2`}>
+        저장된 로어북을 수정하거나 캐릭터에 연결할 수 있습니다.
+      </p>
 
-      <Link
-        href="/lorebook/create"
-        className="mt-6 inline-block rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-emerald-500"
-      >
+      <StudioButton href="/lorebook/create" className="mt-6">
         + 새 로어북
-      </Link>
+      </StudioButton>
 
       {loading ? (
-        <p className="mt-8 text-sm text-zinc-500">불러오는 중…</p>
+        <p className={`${studioType.helper} mt-8`}>불러오는 중…</p>
       ) : lorebooks.length === 0 ? (
-        <p className="mt-8 rounded-2xl border border-white/5 bg-[#131626] p-6 text-sm text-zinc-500">
-          아직 만든 로어북이 없습니다.
-        </p>
+        <StudioEmptyState
+          message="아직 만든 로어북이 없습니다."
+          href="/lorebook/create"
+          cta="로어북 제작하기"
+        />
       ) : (
         <ul className="mt-6 space-y-2">
           {lorebooks.map((lb) => (
             <li key={lb.id}>
               <Link
                 href={`/lorebook/${lb.id}/edit`}
-                className="flex items-center justify-between rounded-xl border border-white/5 bg-[#131626] px-4 py-3 transition hover:border-emerald-500/30"
+                className={cn(
+                  studioSurface.card,
+                  "flex min-h-14 items-center justify-between gap-3 px-4 py-3.5 transition hover:border-white/20",
+                )}
               >
-                <div>
-                  <p className="font-semibold text-white">{lb.name}</p>
-                  {lb.summary && <p className="text-xs text-zinc-500">{lb.summary}</p>}
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-zinc-50">{lb.name}</p>
+                  {lb.summary ? (
+                    <p className={cn(studioType.caption, "mt-0.5 truncate")}>{lb.summary}</p>
+                  ) : null}
                 </div>
-                <span className="text-xs text-emerald-400/80">{lb.entryCount}항목</span>
+                <span className="shrink-0 text-xs font-semibold text-zinc-400">
+                  {lb.entryCount}항목
+                </span>
               </Link>
             </li>
           ))}

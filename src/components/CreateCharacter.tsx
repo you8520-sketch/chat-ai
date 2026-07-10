@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -43,6 +43,8 @@ import {
   TAGLINE_LIMIT,
 } from "@/lib/characterFormLimits";
 import TagChipInput from "@/components/TagChipInput";
+import StudioSaveBar from "@/components/studio/StudioSaveBar";
+import { StudioBackLink } from "@/components/studio/StudioEmptyState";
 import { parseCharacterTagsInput } from "@/lib/characterTags";
 import {
   clearCharacterCreateDraft,
@@ -51,6 +53,13 @@ import {
   saveCharacterCreateDraft,
   type CharacterCreateDraft,
 } from "@/lib/characterCreateDraft";
+import {
+  cn,
+  studioInputClass,
+  studioSelectClass,
+  studioSurface,
+  studioType,
+} from "@/lib/studioDesign";
 
 const MAX_IMAGES = 100;
 
@@ -660,50 +669,44 @@ export default function CreateCharacter({
     router.push(`/character/${data.id}`);
   }
 
-  const inputCls =
-    "w-full rounded-xl border-2 border-violet-500/45 bg-[#0c0e1a] px-4 py-3 text-sm text-violet-50 outline-none ring-0 placeholder:text-gray-500 shadow-[inset_0_0_0_1px_rgba(139,92,246,0.06)] focus:border-violet-400/75 focus:ring-2 focus:ring-violet-400/25 disabled:opacity-50";
-  const cls = inputCls;
-  const selectCls =
-    "rounded-lg border-2 border-violet-500/45 bg-[#0c0e1a] px-3 py-2 text-xs text-violet-100 outline-none ring-0 focus:border-violet-400/75 focus:ring-2 focus:ring-violet-400/25 disabled:opacity-50";
-  const cardNameCls = `${inputCls} py-3.5 text-lg font-bold tracking-tight`;
-  const cardTaglineCls = `${inputCls} py-3.5 text-base font-semibold`;
-  const greetingCls = `${inputCls} min-h-[360px] resize-y py-5 text-lg leading-relaxed`;
-  const label = "mb-1 block text-sm font-semibold text-gray-300";
-  const sectionGreeting =
-    "space-y-4 rounded-2xl border border-violet-500/35 bg-violet-500/[0.08] p-6 sm:p-7";
-  const cardLabel = "mb-1 block text-sm font-bold text-emerald-200";
-  const cardSubLabel = "mb-1 block text-sm font-bold text-violet-200";
+  const cls = studioInputClass;
+  const selectCls = studioSelectClass;
+  const cardNameCls = `${studioInputClass} py-3.5 text-lg font-semibold tracking-tight`;
+  const cardTaglineCls = `${studioInputClass} py-3.5 text-base font-semibold`;
+  const greetingCls = `${studioInputClass} min-h-[360px] resize-y py-5 text-base leading-relaxed`;
+  const label = studioType.label;
+  const cardLabel = studioType.label;
+  const cardSubLabel = studioType.label;
   const tabPanelClass = (tab: PageTab) =>
-    `col-start-1 row-start-1 min-w-0 space-y-8 ${
+    `col-start-1 row-start-1 min-w-0 space-y-6 ${
       pageTab === tab ? "" : "invisible pointer-events-none select-none"
     }`;
-  const sectionPublic =
-    "space-y-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4";
-  const sectionPrivate =
-    "space-y-4 rounded-2xl border border-violet-500/20 bg-violet-500/5 p-4";
-  const sectionMuted =
-    "space-y-4 rounded-2xl border border-white/5 bg-[#0a0d14] p-4";
+  const sectionPublic = studioSurface.section;
+  const sectionPrivate = studioSurface.sectionAccent;
+  const sectionMuted = studioSurface.section;
+  const sectionGreeting = studioSurface.sectionAccent;
+
+  const saveLabel = loading
+    ? progress || "처리 중…"
+    : isEditMode
+      ? "변경사항 저장"
+      : "캐릭터 만들기";
 
   return (
-    <div className="mx-auto mt-4 max-w-6xl px-4 pb-24 lg:pb-12">
+    <div className="mx-auto mt-4 max-w-6xl px-4 pb-36 sm:pb-32">
       <div>
-        <Link
-          href="/studio"
-          className="text-sm text-zinc-500 hover:text-zinc-300"
-        >
-          ← 제작 메뉴
-        </Link>
-        <h1 className="mt-2 text-xl font-black text-white">
+        <StudioBackLink href="/studio">← 제작 메뉴</StudioBackLink>
+        <h1 className={cn(studioType.heading, "mt-3 text-xl sm:text-2xl")}>
           {isEditMode ? "캐릭터 수정" : "캐릭터 제작"}
         </h1>
         {isEditMode && (
-          <p className="mt-1 text-sm text-gray-400">
+          <p className={cn(studioType.helper, "mt-1")}>
             저장된 설정을 불러와 수정합니다. 저장 시 RP 프롬프트 청크가 다시
             생성됩니다.
           </p>
         )}
         {editLoading && (
-          <p className="mt-2 text-sm text-violet-300">
+          <p className={cn(studioType.helper, "mt-2 text-violet-300")}>
             캐릭터 정보 불러오는 중…
           </p>
         )}
@@ -713,7 +716,7 @@ export default function CreateCharacter({
       </div>
 
       <div
-        className="mt-6 flex gap-1 rounded-xl border border-white/10 bg-[#0e1120] p-1"
+        className={cn(studioSurface.tabList, "mt-6")}
         role="tablist"
         aria-label="캐릭터 제작 탭"
       >
@@ -724,25 +727,24 @@ export default function CreateCharacter({
             ["widget", "상태창"],
             ["publish", "공개 설정"],
           ] as const
-        ).map(([id, label]) => (
+        ).map(([id, tabLabel]) => (
           <button
             key={id}
             type="button"
             role="tab"
             aria-selected={pageTab === id}
             onClick={() => setPageTab(id)}
-            className={`flex-1 rounded-lg px-1 py-2.5 text-[11px] font-bold transition sm:px-2 sm:text-sm ${
-              pageTab === id
-                ? "bg-violet-600 text-white shadow-sm shadow-violet-900/40"
-                : "text-gray-400 hover:bg-white/5 hover:text-gray-200"
-            }`}
+            className={cn(
+              "min-h-11 flex-1 rounded-lg px-1 text-xs font-semibold transition sm:px-2 sm:text-sm",
+              pageTab === id ? studioSurface.tabActive : studioSurface.tabIdle,
+            )}
           >
-            {label}
+            {tabLabel}
           </button>
         ))}
       </div>
 
-      <form onSubmit={submit} className="mt-6">
+      <form id="studio-character-form" onSubmit={submit} className="mt-6">
         <div className="grid">
           <div
             className={tabPanelClass("create")}
@@ -752,10 +754,10 @@ export default function CreateCharacter({
             <section className={sectionPublic}>
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <h2 className="text-sm font-bold text-emerald-300">
+                  <h2 className="text-sm font-semibold text-zinc-100">
                     홈·목록 노출 정보
                   </h2>
-                  <p className="mt-0.5 text-[11px] text-gray-500">
+                  <p className="mt-0.5 text-xs text-zinc-400">
                     홈 화면 카드에 표시 · 대표 이미지는 아래 감정 에셋 중 「노출
                     ON」 1번
                   </p>
@@ -801,7 +803,7 @@ export default function CreateCharacter({
               </div>
               <div>
                 <label className={label}>태그</label>
-                <p className="mb-1 text-[11px] text-gray-600">
+                <p className="mb-1 text-xs text-zinc-400">
                   홈 카드·공개 페이지와 연동 · Enter로 추가 · 최대 12개
                 </p>
                 <TagChipInput
@@ -818,7 +820,7 @@ export default function CreateCharacter({
             <section className={sectionPrivate}>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <h2 className="text-sm font-bold text-violet-300">
+                  <h2 className="text-sm font-semibold text-zinc-100">
                     비공개 설정( AI 대화에만 사용)
                   </h2>
                   <p className="mt-1 text-xs leading-relaxed text-zinc-300/90">
@@ -878,7 +880,7 @@ export default function CreateCharacter({
               </div>
               <div>
                 <label className={label}>캐릭터 설정 *</label>
-                <p className="mb-1 text-[11px] text-gray-600">
+                <p className="mb-1 text-xs text-zinc-400">
                   성격, 말투 특징, 외모, 배경, 관계, 습관, 가치관 등
                 </p>
                 <textarea
@@ -892,18 +894,18 @@ export default function CreateCharacter({
                   }
                 />
               </div>
-              <div className="space-y-4 rounded-xl border border-violet-500/25 bg-violet-500/5 p-4">
+              <div className="space-y-4 rounded-xl border border-white/10 bg-[#161922] p-4">
                 <div>
-                  <h3 className="text-sm font-bold text-violet-200">
+                  <h3 className="text-sm font-semibold text-zinc-100">
                     말투 고정
                   </h3>
-                  <p className="mt-0.5 text-[11px] text-gray-500">
+                  <p className="mt-0.5 text-xs text-zinc-400">
                     평소 말투와 상황별 말투 변화를 나누어 입력하면 장면에 맞는 대사가 더 안정적으로 유지됩니다.
                   </p>
                 </div>
                 <div>
                   <label className={label}>
-                    <span className="text-gray-500">[권장]</span> 기본 말투
+                    <span className="text-zinc-400">[권장]</span> 기본 말투
                   </label>
                   <textarea
                     rows={3}
@@ -914,14 +916,14 @@ export default function CreateCharacter({
                       setForm({ ...form, speech_personality: e.target.value })
                     }
                   />
-                  <p className="mt-1 text-[11px] text-gray-600">
+                  <p className="mt-1 text-xs text-zinc-400">
                     상황별 규칙이 맞지 않을 때 적용되는 캐릭터의 기본 대화 톤입니다.
                   </p>
                 </div>
                 <div>
                   <label className={label}>
-                    <span className="text-gray-500">[권장]</span> 캐릭터 대사 예시{" "}
-                    <span className="font-normal text-gray-500">
+                    <span className="text-zinc-400">[권장]</span> 캐릭터 대사 예시{" "}
+                    <span className="font-normal text-zinc-400">
                       (많을수록 좋음)
                     </span>
                   </label>
@@ -936,7 +938,7 @@ export default function CreateCharacter({
                       setForm({ ...form, speech_examples: e.target.value })
                     }
                   />
-                  <p className="mt-1 text-[11px] text-gray-600">
+                  <p className="mt-1 text-xs text-zinc-400">
                     캐릭터 대사만 한 줄씩 · 유저 대사 불필요 · 따옴표 있어도
                     없어도 됩니다
                   </p>
@@ -944,10 +946,10 @@ export default function CreateCharacter({
                 <div className="space-y-3 rounded-xl border border-white/10 bg-black/10 p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <h4 className="text-xs font-bold text-violet-100">
+                      <h4 className="text-xs font-bold text-zinc-100">
                         상황별 말투
                       </h4>
-                      <p className="mt-0.5 text-[11px] text-gray-500">
+                      <p className="mt-0.5 text-xs text-zinc-400">
                         공적 자리, 친밀도 상승, 적대 상황처럼 말투가 달라지는 조건을 추가합니다.
                       </p>
                     </div>
@@ -955,14 +957,14 @@ export default function CreateCharacter({
                       type="button"
                       onClick={addSpeechRegister}
                       disabled={form.speech_contextual_registers.length >= 8}
-                      className="rounded-lg border border-violet-400/30 px-3 py-1.5 text-xs font-semibold text-violet-100 hover:bg-violet-400/10 disabled:opacity-40"
+                      className="rounded-lg border border-violet-400/30 px-3 py-1.5 text-xs font-semibold text-zinc-100 hover:bg-violet-400/10 disabled:opacity-40"
                     >
                       + 상황별 말투 추가
                     </button>
                   </div>
 
                   {form.speech_contextual_registers.length === 0 ? (
-                    <p className="rounded-lg border border-dashed border-white/10 px-3 py-3 text-[11px] text-gray-600">
+                    <p className="rounded-lg border border-dashed border-white/10 px-3 py-3 text-xs text-zinc-400">
                       필요할 때만 추가하세요. 예: 공적인 자리에서는 짧은 존댓말, 유저와 단둘일 때는 부드러운 반말.
                     </p>
                   ) : (
@@ -970,16 +972,16 @@ export default function CreateCharacter({
                       {form.speech_contextual_registers.map((register, index) => (
                         <div
                           key={index}
-                          className="space-y-3 rounded-xl border border-white/10 bg-[#0c0e1a] p-3"
+                          className="space-y-3 rounded-xl border border-white/10 bg-[#161922] p-3"
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs font-bold text-violet-200">
+                            <span className="text-xs font-bold text-zinc-200">
                               #{index + 1}
                             </span>
                             <button
                               type="button"
                               onClick={() => removeSpeechRegister(index)}
-                              className="text-xs text-gray-500 hover:text-rose-300"
+                              className="text-xs text-zinc-400 hover:text-rose-300"
                             >
                               삭제
                             </button>
@@ -1047,7 +1049,7 @@ export default function CreateCharacter({
                 </div>
                 <div>
                   <label className={label}>
-                    <span className="text-gray-500">[선택]</span> 금지 말투
+                    <span className="text-zinc-400">[선택]</span> 금지 말투
                   </label>
                   <textarea
                     rows={2}
@@ -1058,12 +1060,12 @@ export default function CreateCharacter({
                       setForm({ ...form, speech_forbidden: e.target.value })
                     }
                   />
-                  <p className="mt-1 text-[11px] text-gray-600">
+                  <p className="mt-1 text-xs text-zinc-400">
                     쉼표·줄바꿈으로 구분 · 비우면 기본 금지 목록(혼합 존댓말·밈
                     등)이 적용됩니다
                   </p>
                 </div>
-                <p className="text-right text-[11px] text-gray-600">
+                <p className="text-right text-xs text-zinc-400">
                   말투 설정 + 세계관 + 캐릭터 설정 합계{" "}
                   <span
                     className={
@@ -1080,7 +1082,7 @@ export default function CreateCharacter({
               </div>
               <div>
                 <label className={label}>키워드 로어북</label>
-                <p className="mb-2 text-[11px] text-gray-600">
+                <p className="mb-2 text-xs text-zinc-400">
                   유저 입력에 키워드가 포함되면 해당 항목 내용이 번역 없이
                   프롬프트에 주입됩니다.
                 </p>
@@ -1106,7 +1108,7 @@ export default function CreateCharacter({
                   {!lorebooksLoading && savedLorebooks.length === 0 && (
                     <Link
                       href="/lorebook/create"
-                      className="text-xs text-emerald-400 hover:underline"
+                      className="text-xs text-zinc-300 hover:underline"
                     >
                       로어북 먼저 만들기
                     </Link>
@@ -1127,23 +1129,23 @@ export default function CreateCharacter({
             <section className={sectionMuted}>
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <div>
-                  <h2 className="text-sm font-bold text-gray-200">
+                  <h2 className="text-sm font-semibold text-zinc-100">
                     감정 에셋 이미지
                   </h2>
                   <VisibilityBadge kind="private" />
                 </div>
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-zinc-400">
                   {assets.length + files.length} / {MAX_IMAGES}장
                 </span>
               </div>
-              <p className="text-[11px] text-gray-500">
+              <p className="text-xs text-zinc-400">
                 대화 중 AI가 [태그: …]를 출력하면 해당 이미지로 좌측 초상이
                 전환됩니다. 태그는 표정·포즈·상황 모두 가능합니다(예: 부끄러움,
                 침대에 누움). 턴 끝 장면과 맞는 태그를 AI가 고릅니다. 업로드 시
                 Gemini Vision이 태그를 자동 분석하며, 잘못된 태그는 에셋 하단
                 태그를 클릭해 직접 수정할 수 있습니다.
                 <br />
-                <span className="text-amber-300/90">가리기</span>를 켠 이미지는
+                <span className="text-zinc-300">가리기</span>를 켠 이미지는
                 제작자에게만 선명하게 보이고, 다른 유저에게는 블러 처리됩니다.
                 새로 올린 이미지는{" "}
                 <strong className="text-zinc-400">첫 번째만</strong> 공개·
@@ -1164,17 +1166,17 @@ export default function CreateCharacter({
                 type="button"
                 onClick={() => fileRef.current?.click()}
                 disabled={assets.length + files.length >= MAX_IMAGES}
-                className="w-full rounded-2xl border-2 border-dashed border-violet-400/70 bg-violet-600/15 py-8 text-base font-black tracking-tight text-violet-100 shadow-[inset_0_0_0_1px_rgba(167,139,250,0.12)] transition hover:border-violet-300 hover:bg-violet-600/25 hover:text-white disabled:opacity-40 sm:py-10 sm:text-lg"
+                className={studioSurface.uploadZone}
               >
                 + 에셋 이미지 추가
-                <span className="mt-1.5 block text-xs font-semibold tracking-normal text-violet-200/80 sm:text-sm">
+                <span className="mt-1.5 block text-xs font-semibold tracking-normal text-zinc-200/80 sm:text-sm">
                   최대 {MAX_IMAGES}장 · Gemini 자동 태깅
                 </span>
               </button>
 
               {files.length > 0 && (
                 <div className="space-y-2">
-                  <p className="text-xs text-amber-400/90">
+                  <p className="text-xs text-zinc-400">
                     {files.length}장 선택됨 · 「업로드 · 태깅」 후 노출·대화
                     ON/OFF와 순서를 설정할 수 있습니다.
                   </p>
@@ -1182,7 +1184,7 @@ export default function CreateCharacter({
                     type="button"
                     onClick={tagPendingFiles}
                     disabled={loading}
-                    className="w-full rounded-xl bg-violet-600/80 py-2.5 text-sm font-bold text-white hover:bg-violet-500 disabled:opacity-50"
+                    className="w-full min-h-11 rounded-xl bg-violet-600 py-2.5 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
                   >
                     {loading && progress.includes("태그")
                       ? progress
@@ -1205,13 +1207,13 @@ export default function CreateCharacter({
                         <span className="absolute bottom-0 left-0 right-0 truncate bg-black/75 px-2 py-1 text-[10px] text-amber-200/90">
                           {f.name}
                         </span>
-                        <span className="absolute left-1 top-1 rounded bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-bold text-amber-300">
+                        <span className="absolute left-2 top-2 rounded bg-black/70 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-300">
                           대기
                         </span>
                         <button
                           type="button"
                           onClick={() => removeFile(i)}
-                          className="absolute right-1 top-1 flex min-h-6 items-center justify-center rounded-full bg-black/80 px-2 text-[10px] font-bold text-white ring-1 ring-white/15 hover:bg-rose-600/90"
+                          className="absolute right-1 top-1 flex h-11 w-11 items-center justify-center rounded-full bg-black/80 text-xs font-semibold text-white ring-1 ring-white/15 hover:bg-rose-600/90"
                         >
                           삭제
                         </button>
@@ -1233,12 +1235,12 @@ export default function CreateCharacter({
             {/* 3. 부가 설정 (비공개) */}
             <section className={sectionMuted}>
               <div className="flex items-center justify-between gap-2">
-                <h2 className="text-sm font-bold text-gray-400">부가 설정</h2>
+                <h2 className="text-sm font-semibold text-zinc-100">부가 설정</h2>
                 <VisibilityBadge kind="private" />
               </div>
               <div>
                 <label className={label}>캐릭터 성별</label>
-                <p className="mb-2 text-[11px] text-gray-600">
+                <p className="mb-2 text-xs text-zinc-400">
                   AI가 지문·외형·호칭을 이 성별에 맞게 묘사합니다 · 필수
                 </p>
                 <div className="grid grid-cols-3 gap-2">
@@ -1247,11 +1249,12 @@ export default function CreateCharacter({
                       type="button"
                       key={value}
                       onClick={() => setForm({ ...form, gender: value })}
-                      className={`rounded-xl border py-3 text-sm font-bold transition ${
+                      className={cn(
+                        "min-h-11 rounded-xl border py-3 text-sm font-semibold transition",
                         form.gender === value
-                          ? "border-violet-500 bg-violet-600/25 text-violet-200 ring-1 ring-violet-500/50"
-                          : "border-violet-500/35 bg-[#0c0e1a] text-gray-400 hover:border-violet-400/55 hover:text-violet-100"
-                      }`}
+                          ? studioSurface.choiceActive
+                          : studioSurface.choiceIdle,
+                      )}
                     >
                       {GENDER_LABELS[value]}
                     </button>
@@ -1263,24 +1266,24 @@ export default function CreateCharacter({
             {/* 4. 첫 메세지 (비공개) */}
             <section className={sectionGreeting}>
               <div className="flex items-center justify-between gap-2">
-                <h2 className="text-base font-bold text-violet-100">
+                <h2 className="text-sm font-semibold text-zinc-100">
                   첫 메세지 · 필수
                 </h2>
                 <VisibilityBadge kind="private" />
               </div>
               <div>
                 <div className="mb-2 flex items-baseline justify-between gap-3">
-                  <p className="text-sm text-violet-200/85">
+                  <p className="text-sm text-zinc-300">
                     대화 시작 시 캐릭터가 보내는 첫 메시지 · 소개 페이지에
                     노출되지 않음
                   </p>
                   <Counter now={form.greeting.length} max={GREETING_LIMIT} />
                 </div>
-                <div className="mb-3 rounded-xl border border-violet-500/25 bg-violet-500/5 p-4 text-xs leading-relaxed text-gray-300">
-                  <p className="font-bold text-violet-200">
+                <div className="mb-3 rounded-xl border border-white/10 bg-[#161922] p-4 text-xs leading-relaxed text-zinc-300">
+                  <p className="font-bold text-zinc-200">
                     지문과 대사 구분 (채팅 표시)
                   </p>
-                  <ul className="mt-2 list-inside list-disc space-y-1 text-gray-400">
+                  <ul className="mt-2 list-inside list-disc space-y-1 text-zinc-400">
                     <li>
                       <span className="text-zinc-400">지문</span> (행동·묘사):
                       따옴표 없이 서술하거나{" "}
@@ -1327,17 +1330,17 @@ export default function CreateCharacter({
             <section className={`${sectionPublic} scroll-mt-24`}>
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <h2 className="text-sm font-bold text-emerald-300">
+                  <h2 className="text-sm font-semibold text-zinc-100">
                     공개 캐릭터/세계관 정보
                   </h2>
-                  <p className="mt-0.5 text-[11px] leading-relaxed text-gray-500">
+                  <p className="mt-0.5 text-xs leading-relaxed text-zinc-400">
                     보이는 그대로 작성 · Enter 줄바꿈 그대로 반영 · 최대{" "}
                     {PROFILE_BIOGRAPHY_LIMIT.toLocaleString()}자
                   </p>
                 </div>
                 <VisibilityBadge kind="public" />
               </div>
-              <p className="mt-2 rounded-lg border border-cyan-500/35 bg-cyan-500/10 px-3.5 py-2.5 text-sm font-medium leading-relaxed text-cyan-100">
+              <p className="mt-2 rounded-lg border border-white/10 bg-[#161922] px-3.5 py-2.5 text-sm font-medium leading-relaxed text-zinc-300">
                 공개 소개 페이지에는 아래 입력칸에 보이는 모양 그대로 표시됩니다.
                 필요한 문장을 드래그해서 굵기·크기·색상만 조절하세요.
               </p>
@@ -1347,7 +1350,7 @@ export default function CreateCharacter({
                 disabled={loading || editLoading}
                 onChange={(description) => setForm({ ...form, description })}
               />
-              <p className="text-right text-[11px] text-gray-600">
+              <p className="text-right text-xs text-zinc-400">
                 {countPublicDescriptionVisibleChars(form.description).toLocaleString()} /{" "}
                 {PROFILE_BIOGRAPHY_LIMIT.toLocaleString()}자
               </p>
@@ -1361,14 +1364,14 @@ export default function CreateCharacter({
             <section className={sectionMuted}>
               <div className="mb-1 flex items-start justify-between gap-4">
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-sm font-bold text-violet-200">
+                  <h2 className="text-sm font-semibold text-zinc-100">
                     상태창 위젯
                   </h2>
-                  <p className="mt-0.5 text-[11px] text-gray-500">
+                  <p className="mt-0.5 text-xs text-zinc-400">
                     HTML 레이아웃 제작 · 상태값·지시 토큰 환산 500자
                   </p>
                 </div>
-                <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-[11px] font-bold text-violet-200">
+                <span className="rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-[11px] font-bold text-zinc-200">
                   기본 적용
                 </span>
               </div>
@@ -1392,14 +1395,14 @@ export default function CreateCharacter({
           >
             <section className={sectionMuted}>
               <div>
-                <h2 className="text-sm font-bold text-gray-200">노출 · 장르</h2>
-                <p className="mt-0.5 text-[11px] text-gray-500">
+                <h2 className="text-sm font-semibold text-zinc-100">노출 · 장르</h2>
+                <p className="mt-0.5 text-xs text-zinc-400">
                   홈·목록 노출 대상과 장르를 설정합니다.
                 </p>
               </div>
               <div>
                 <label className={label}>타깃</label>
-                <p className="mb-2 text-[11px] text-gray-600">
+                <p className="mb-2 text-xs text-zinc-400">
                   홈·목록 노출 대상 · 필수
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -1414,11 +1417,12 @@ export default function CreateCharacter({
                       type="button"
                       key={value}
                       onClick={() => setForm({ ...form, audience: value })}
-                      className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                      className={cn(
+                        "min-h-11 rounded-xl px-4 text-sm font-semibold transition",
                         form.audience === value
                           ? "bg-violet-600 text-white"
-                          : "bg-white/5 text-gray-400 hover:bg-white/10 hover:text-gray-200"
-                      }`}
+                          : "bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200",
+                      )}
                     >
                       {audienceLabel}
                     </button>
@@ -1434,10 +1438,10 @@ export default function CreateCharacter({
 
             <section className={sectionPrivate}>
               <div>
-                <h2 className="text-sm font-bold text-violet-300">
+                <h2 className="text-sm font-semibold text-zinc-100">
                   공개 · 운영 설정
                 </h2>
-                <p className="mt-0.5 text-[11px] text-gray-500">
+                <p className="mt-0.5 text-xs text-zinc-400">
                   NSFW, 공개 범위, 댓글을 설정합니다.
                 </p>
               </div>
@@ -1451,15 +1455,15 @@ export default function CreateCharacter({
                 />
                 <div>
                   <p className="font-semibold text-rose-300">NSFW 캐릭터</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-zinc-400">
                     성인인증 + 성인 보기 ON 사용자에게만 노출
                   </p>
                 </div>
               </label>
 
-              <div className="rounded-xl border border-violet-500/30 bg-violet-500/10 p-4">
-                <p className="text-sm font-bold text-violet-200">공개 설정</p>
-                <p className="mt-1 text-[11px] text-gray-500">
+              <div className="rounded-xl border border-white/10 bg-[#161922] p-4">
+                <p className="text-sm font-semibold text-zinc-100">공개 설정</p>
+                <p className="mt-1 text-xs text-zinc-400">
                   공개·링크 공개 선택 시 노출 이미지가 국내 성인 검열 기준으로
                   자동 검수됩니다. 반려 시 비공개로 저장됩니다.
                 </p>
@@ -1477,12 +1481,12 @@ export default function CreateCharacter({
                       onClick={() => setForm({ ...form, visibility: value })}
                       className={`rounded-xl border p-3 text-left transition ${
                         form.visibility === value
-                          ? "border-violet-500 bg-violet-600/20 ring-1 ring-violet-500/50"
-                          : "border-white/10 bg-[#0e1120] hover:border-white/20"
+                          ? "border-violet-500 bg-violet-600/20 ring-1 ring-violet-500/40"
+                          : "border-white/10 bg-[#161922] hover:border-white/20"
                       }`}
                     >
                       <p className="text-sm font-bold text-white">{title}</p>
-                      <p className="mt-0.5 text-[10px] text-gray-500">{desc}</p>
+                      <p className="mt-0.5 text-xs text-zinc-400">{desc}</p>
                     </button>
                   ))}
                 </div>
@@ -1509,7 +1513,7 @@ export default function CreateCharacter({
                     max={CREATOR_COMMENT_LIMIT}
                   />
                 </div>
-                <p className="mb-2 text-[11px] text-gray-600">
+                <p className="mb-2 text-xs text-zinc-400">
                   공개 페이지 캐릭터 설명 하단에 표시 · HTML 사용 가능 (p, b, a,
                   ul, img 등 · script 금지) · 업데이트 안내, 플레이 팁 등 (선택)
                 </p>
@@ -1531,7 +1535,7 @@ export default function CreateCharacter({
                 />
                 {form.creator_comment.trim() ? (
                   <div className="mt-3 rounded-xl border border-white/10 bg-[#0e1120] p-4">
-                    <p className="mb-2 text-[10px] font-bold text-gray-500">
+                    <p className="mb-2 text-xs font-semibold text-zinc-400">
                       미리보기
                     </p>
                     <CreatorCommentHtml html={form.creator_comment} />
@@ -1539,22 +1543,15 @@ export default function CreateCharacter({
                 ) : null}
               </div>
 
-              {error ? <p className="text-sm text-rose-400">{error}</p> : null}
               {!createReady && !loading && !editLoading ? (
-                <ul className="space-y-1 rounded-xl border border-white/10 bg-[#0e1120] px-4 py-3 text-[11px] text-gray-500">
-                  <li
-                    className={
-                      createRequirements.hasAsset ? "text-emerald-400/90" : ""
-                    }
-                  >
+                <ul className="space-y-1 rounded-xl border border-white/10 bg-[#161922] px-4 py-3 text-xs text-zinc-400">
+                  <li className={createRequirements.hasAsset ? "text-zinc-200" : ""}>
                     {createRequirements.hasAsset ? "✓" : "○"} 제작 탭 · 감정
                     에셋 1장 이상 업로드
                   </li>
                   <li
                     className={
-                      createRequirements.hasMinAiText
-                        ? "text-emerald-400/90"
-                        : ""
+                      createRequirements.hasMinAiText ? "text-zinc-200" : ""
                     }
                   >
                     {createRequirements.hasMinAiText ? "✓" : "○"}{" "}
@@ -1564,81 +1561,58 @@ export default function CreateCharacter({
                       ? ` (현재 ${aiLearningTotal.toLocaleString()}자)`
                       : ""}
                   </li>
-                  <li
-                    className={
-                      createRequirements.hasGender ? "text-emerald-400/90" : ""
-                    }
-                  >
+                  <li className={createRequirements.hasGender ? "text-zinc-200" : ""}>
                     {createRequirements.hasGender ? "✓" : "○"} 제작 탭 · 캐릭터
                     성별 선택
                   </li>
                   <li
                     className={
-                      createRequirements.hasGreeting
-                        ? "text-emerald-400/90"
-                        : ""
+                      createRequirements.hasGreeting ? "text-zinc-200" : ""
                     }
                   >
                     {createRequirements.hasGreeting ? "✓" : "○"} 제작 탭 · 첫
                     메세지 입력
                   </li>
-                  <li
-                    className={
-                      createRequirements.hasGenre ? "text-emerald-400/90" : ""
-                    }
-                  >
+                  <li className={createRequirements.hasGenre ? "text-zinc-200" : ""}>
                     {createRequirements.hasGenre ? "✓" : "○"} 장르 1개 이상 선택
                   </li>
                 </ul>
               ) : null}
-              <button
-                type="submit"
-                disabled={
-                  loading || editLoading || !!editLoadError || !createReady
-                }
-                className="w-full rounded-xl bg-violet-600 py-3 font-bold text-white disabled:opacity-50"
-              >
-                {loading
-                  ? progress || "처리 중…"
-                  : isEditMode
-                    ? "변경사항 저장"
-                    : "캐릭터 만들기"}
-              </button>
-              <p className="text-[11px] leading-relaxed text-zinc-500">
-                저장 중에는 공개 이미지 검수와 AI 대화용 설정 정리가 함께 진행되어 이미지가 많거나 외부 AI 응답이 느리면 시간이 걸릴 수 있습니다.
-                에셋만 수정한 경우에는 설정 정리 단계를 건너뛰어 더 빠르게 저장됩니다.
+              <p className={cn(studioType.helper, "leading-relaxed")}>
+                저장 중에는 공개 이미지 검수와 AI 대화용 설정 정리가 함께 진행되어
+                이미지가 많거나 외부 AI 응답이 느리면 시간이 걸릴 수 있습니다.
+                에셋만 수정한 경우에는 설정 정리 단계를 건너뛰어 더 빠르게
+                저장됩니다.
               </p>
             </section>
           </div>
         </div>
-
-        {error && pageTab !== "publish" ? (
-          <p className="text-sm text-rose-400">{error}</p>
-        ) : null}
       </form>
 
-      <button
-        type="button"
-        onClick={saveDraftLocally}
-        disabled={editLoading}
-        title={
-          draftSavedAt
-            ? `마지막 임시저장: ${formatDraftSavedAt(draftSavedAt)}`
-            : "브라우저에 임시 저장"
+      <StudioSaveBar
+        formId="studio-character-form"
+        saveType="submit"
+        saveLabel={saveLabel}
+        saveDisabled={
+          loading || editLoading || !!editLoadError || !createReady
         }
-        className={`fixed bottom-20 right-4 z-50 flex flex-col items-center rounded-2xl border px-4 py-3 text-sm font-bold shadow-lg shadow-violet-900/40 transition md:bottom-6 md:right-6 ${
-          draftFlash
-            ? "border-emerald-500/50 bg-emerald-600 text-white shadow-emerald-900/40"
-            : "border-violet-500/60 bg-violet-600 text-white hover:border-violet-400 hover:bg-violet-500"
-        }`}
+        error={error || null}
+        secondary={{
+          label: draftFlash ? "저장됨 ✓" : "임시저장",
+          onClick: saveDraftLocally,
+          disabled: editLoading,
+          flash: draftFlash,
+          hint: draftSavedAt
+            ? `마지막 임시저장: ${formatDraftSavedAt(draftSavedAt)}`
+            : "브라우저에 임시 저장",
+        }}
       >
-        <span>{draftFlash ? "저장됨 ✓" : "임시저장"}</span>
-        {draftSavedAt && !draftFlash ? (
-          <span className="mt-0.5 text-[10px] font-normal text-violet-200/90">
-            {formatDraftSavedAt(draftSavedAt)}
-          </span>
+        {!createReady && !loading && !editLoading ? (
+          <p className="text-xs text-zinc-400">
+            필수 항목을 채우면 저장할 수 있습니다.
+          </p>
         ) : null}
-      </button>
+      </StudioSaveBar>
     </div>
   );
 }
@@ -1646,13 +1620,13 @@ export default function CreateCharacter({
 function VisibilityBadge({ kind }: { kind: "public" | "private" }) {
   if (kind === "public") {
     return (
-      <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400">
+      <span className="rounded-full bg-white/5 px-2.5 py-1 text-xs font-semibold text-zinc-300 ring-1 ring-white/10">
         공개
       </span>
     );
   }
   return (
-    <span className="rounded-full bg-white/5 px-2.5 py-0.5 text-[10px] font-bold text-gray-500">
+    <span className="rounded-full bg-white/5 px-2.5 py-1 text-xs font-semibold text-zinc-400 ring-1 ring-white/10">
       비공개
     </span>
   );
@@ -1661,7 +1635,7 @@ function VisibilityBadge({ kind }: { kind: "public" | "private" }) {
 function Counter({ now, max }: { now: number; max: number }) {
   return (
     <span
-      className={`text-xs ${now > max ? "font-bold text-rose-400" : "text-gray-500"}`}
+      className={`text-xs ${now > max ? "font-bold text-rose-400" : "text-zinc-400"}`}
     >
       {now.toLocaleString()} / {max.toLocaleString()}자
     </span>

@@ -68,18 +68,18 @@ export default function TagChipInput({
         }}
       />
       {tags.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-2">
           {tags.map((tag) => (
             <span
               key={tag}
-              className="inline-flex items-center gap-1 rounded-full bg-violet-500/15 px-2.5 py-1 text-xs font-medium text-violet-200"
+              className="inline-flex min-h-11 items-center gap-2 rounded-full bg-white/5 px-3 py-2 text-xs font-medium text-zinc-200 ring-1 ring-white/10"
             >
               #{tag}
               {!disabled ? (
                 <button
                   type="button"
                   onClick={() => removeTag(tag)}
-                  className="rounded-full px-0.5 text-violet-300/80 hover:bg-violet-500/25 hover:text-white"
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-zinc-400 transition hover:bg-white/10 hover:text-white"
                   aria-label={`${tag} 태그 삭제`}
                 >
                   ×
@@ -89,7 +89,7 @@ export default function TagChipInput({
           ))}
         </div>
       ) : (
-        <p className="text-[11px] text-gray-600">입력 후 Enter · 예: 로판 → #로판</p>
+        <p className="text-xs text-zinc-400">입력 후 Enter · 예: 로판 → #로판</p>
       )}
     </div>
   );

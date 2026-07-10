@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   useEffect,
@@ -29,7 +29,7 @@ const SIZES = [
 ] as const;
 
 const btnCls =
-  "rounded-lg border border-violet-500/40 bg-[#12152a] px-2.5 py-1.5 text-xs font-bold text-violet-100 transition hover:border-violet-400/70 hover:bg-violet-500/15";
+  "min-h-11 rounded-lg border border-white/10 bg-[#161922] px-2.5 text-xs font-semibold text-zinc-200 transition hover:border-white/20 hover:bg-white/5";
 
 function escapeHtml(text: string): string {
   return text
@@ -136,8 +136,8 @@ export default function PublicDescriptionEditor({
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-violet-500/30 bg-[#0a0d18] p-2">
-        <span className="mr-1 text-[10px] font-semibold text-violet-400/90">
+      <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-white/10 bg-[#131626] p-2">
+        <span className="mr-1 text-xs font-semibold text-zinc-400">
           선택영역
         </span>
         <button type="button" className={btnCls} onClick={applyBold} disabled={disabled}>
@@ -164,7 +164,7 @@ export default function PublicDescriptionEditor({
             색상
           </button>
           {colorOpen ? (
-            <div className="absolute left-0 top-full z-20 mt-1 flex flex-wrap gap-1 rounded-xl border border-violet-500/40 bg-[#12152a] p-2 shadow-xl shadow-black/40">
+            <div className="absolute left-0 top-full z-20 mt-1 flex flex-wrap gap-1 rounded-xl border border-white/10 bg-[#131626] p-2 shadow-xl shadow-black/40">
               {COLORS.map((color) => (
                 <button
                   key={color.value}
@@ -187,7 +187,7 @@ export default function PublicDescriptionEditor({
         onInput={syncValue}
         onBlur={syncValue}
         onPaste={handlePaste}
-        className="min-h-[320px] w-full overflow-y-auto rounded-xl border-2 border-violet-500/45 bg-[#0c0e1a] px-4 py-3 text-[15px] leading-relaxed text-violet-50 outline-none ring-0 shadow-[inset_0_0_0_1px_rgba(139,92,246,0.06)] focus:border-violet-400/75 focus:ring-2 focus:ring-violet-400/25 empty:before:text-gray-500 empty:before:content-[attr(data-placeholder)]"
+        className="min-h-[320px] w-full overflow-y-auto rounded-xl border border-white/10 bg-[#161922] px-4 py-3 text-[15px] leading-relaxed text-zinc-100 outline-none transition focus:border-violet-500/60 focus:ring-2 focus:ring-violet-500/20 empty:before:text-zinc-500 empty:before:content-[attr(data-placeholder)]"
         data-placeholder={"일반 메모장처럼 줄글로 작성하세요.\A\AEnter로 줄을 띄우고, 강조할 문장은 드래그해서 굵기·크기·색상을 적용할 수 있습니다."}
       />
     </div>

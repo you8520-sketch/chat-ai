@@ -1,8 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import StudioButton from "@/components/studio/StudioButton";
+import StudioCard from "@/components/studio/StudioCard";
+import { StudioBackLink } from "@/components/studio/StudioEmptyState";
+import { StudioInput, StudioTextarea } from "@/components/studio/StudioInput";
+import StudioSaveBar from "@/components/studio/StudioSaveBar";
 import {
   LOREBOOK_CONTENT_MAX,
   LOREBOOK_ENTRY_MAX,
@@ -12,10 +16,9 @@ import {
   parseKeywordField,
   type KeywordLorebookEntryInput,
 } from "@/lib/keywordLorebooks";
+import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 
-const cls =
-  "w-full rounded-xl border border-white/10 bg-[#1a1a2e] px-4 py-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-emerald-500/40";
-const label = "mb-1.5 block text-xs font-semibold text-zinc-400";
+const FORM_ID = "studio-lorebook-form";
 const keywordSeparator = "│";
 
 const emptyEntry = (): KeywordLorebookEntryInput => ({ keywords: "", content: "" });
@@ -55,17 +58,19 @@ function KeywordInput({
 
   return (
     <div>
-      <div className="flex min-h-[48px] w-full flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-[#1a1a2e] px-3 py-2 focus-within:border-emerald-500/40">
+      <div
+        className={cn(
+          "flex min-h-12 w-full flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-[#161922] px-3 py-2",
+          "focus-within:border-violet-500/60 focus-within:ring-2 focus-within:ring-violet-500/20",
+        )}
+      >
         {keywords.map((keyword) => (
-          <span
-            key={keyword}
-            className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-emerald-400/15 px-2.5 py-1 text-xs font-semibold text-emerald-100 ring-1 ring-emerald-300/20"
-          >
+          <span key={keyword} className={studioSurface.chip}>
             <span className="max-w-[12rem] truncate">{keyword}</span>
             <button
               type="button"
               onClick={() => removeKeyword(keyword)}
-              className="rounded-full px-1 text-emerald-100/70 hover:bg-white/10 hover:text-white"
+              className={studioSurface.chipRemove}
               aria-label={`${keyword} 키워드 삭제`}
             >
               ×
@@ -73,7 +78,7 @@ function KeywordInput({
           </span>
         ))}
         <input
-          className="min-w-[10rem] flex-1 bg-transparent px-1 py-1.5 text-sm text-zinc-100 outline-none placeholder:text-zinc-600 disabled:cursor-not-allowed"
+          className="min-h-11 min-w-[10rem] flex-1 bg-transparent px-1 py-2 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 disabled:cursor-not-allowed"
           placeholder={
             keywords.length >= LOREBOOK_KEYWORDS_PER_ENTRY
               ? "키워드는 최대 10개까지 등록할 수 있어요."
@@ -90,9 +95,11 @@ function KeywordInput({
           onBlur={() => commitKeyword(draft)}
         />
       </div>
-      <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-zinc-600">
-        <span>등록한 키워드가 대화에 나오면 이 항목이 활성화됩니다.</span>
-        <span className="shrink-0 tabular-nums">
+      <div className="mt-2 flex items-center justify-between gap-3">
+        <span className={studioType.helper}>
+          등록한 키워드가 대화에 나오면 이 항목이 활성화됩니다.
+        </span>
+        <span className={studioType.counter}>
           {keywords.length} / {LOREBOOK_KEYWORDS_PER_ENTRY}
         </span>
       </div>
@@ -175,128 +182,124 @@ export default function CreateKeywordLorebook({ lorebookId }: Props) {
   }
 
   if (bootLoading) {
-    return <p className="mx-auto max-w-2xl px-4 py-12 text-sm text-zinc-500">불러오는 중...</p>;
+    return (
+      <p className={`mx-auto max-w-2xl px-4 py-12 ${studioType.helper}`}>불러오는 중...</p>
+    );
   }
 
   const filledCount = entries.filter((e) => e.keywords.trim() || e.content.trim()).length;
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8">
-      <div className="mb-6 flex flex-wrap items-center gap-3">
-        <Link href="/studio?tab=lorebooks" className="text-sm text-zinc-500 hover:text-zinc-300">
-          ← 제작 · 로어북
-        </Link>
-      </div>
+    <div className="mx-auto max-w-2xl px-4 py-6 pb-32 sm:py-8">
+      <StudioBackLink href="/studio?tab=lorebooks">← 제작 · 로어북</StudioBackLink>
 
-      <h1 className="text-2xl font-black text-white">{isEdit ? "로어북 수정" : "로어북 제작"}</h1>
-      <p className="mt-2 text-sm leading-relaxed text-gray-400">
+      <h1 className={`${studioType.heading} mt-4`}>
+        {isEdit ? "로어북 수정" : "로어북 제작"}
+      </h1>
+      <p className={`${studioType.helper} mt-2`}>
         유저 입력에 등록한 키워드가 포함되면 해당 내용이 프롬프트에{" "}
-        <b className="text-emerald-300/90">번역 없이</b> 그대로 주입됩니다. 키워드는 항목마다 최대{" "}
-        {LOREBOOK_KEYWORDS_PER_ENTRY}개까지 등록할 수 있어요.
+        <b className="font-semibold text-zinc-200">번역 없이</b> 그대로 주입됩니다. 키워드는
+        항목마다 최대 {LOREBOOK_KEYWORDS_PER_ENTRY}개까지 등록할 수 있어요.
       </p>
-      <p className="mt-1 text-xs text-zinc-600">
-        예: <span className="text-zinc-400">카드, 동료, 제이</span>처럼 키워드를 하나씩 입력하고 Enter를 누르세요.
+      <p className={`${studioType.caption} mt-1`}>
+        예: <span className="text-zinc-300">카드, 동료, 제이</span>처럼 키워드를 하나씩 입력하고
+        Enter를 누르세요.
       </p>
 
-      <form onSubmit={submit} className="mt-8 space-y-6">
-        <div>
-          <label className={label}>로어북 이름 *</label>
-          <input
-            className={cls}
-            placeholder="예: 주요 인물 설정"
-            value={name}
-            maxLength={LOREBOOK_NAME_LIMIT}
-            onChange={(e) => setName(e.target.value.slice(0, LOREBOOK_NAME_LIMIT))}
-          />
-        </div>
+      <form id={FORM_ID} onSubmit={submit} className="mt-8 space-y-6">
+        <StudioInput
+          label="로어북 이름 *"
+          placeholder="예: 주요 인물 설정"
+          value={name}
+          maxLength={LOREBOOK_NAME_LIMIT}
+          onChange={(e) => setName(e.target.value.slice(0, LOREBOOK_NAME_LIMIT))}
+        />
 
-        <div>
-          <label className={label}>짧은 요약</label>
-          <input
-            className={cls}
-            placeholder="목록에서 구분하기 위한 짧은 설명 (선택)"
-            value={summary}
-            maxLength={LOREBOOK_SUMMARY_LIMIT}
-            onChange={(e) => setSummary(e.target.value.slice(0, LOREBOOK_SUMMARY_LIMIT))}
-          />
-        </div>
+        <StudioInput
+          label="짧은 요약"
+          placeholder="목록에서 구분하기 위한 짧은 설명 (선택)"
+          value={summary}
+          maxLength={LOREBOOK_SUMMARY_LIMIT}
+          onChange={(e) => setSummary(e.target.value.slice(0, LOREBOOK_SUMMARY_LIMIT))}
+        />
 
         <div>
           <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
             <div>
-              <label className={label}>항목</label>
-              <p className="text-[11px] text-zinc-600">
+              <p className={studioType.label}>항목</p>
+              <p className={studioType.helper}>
                 항목 내용 {LOREBOOK_CONTENT_MAX}자 · 최대 {LOREBOOK_ENTRY_MAX}개
               </p>
             </div>
-            <p className="text-xs tabular-nums text-zinc-500">
+            <p className={studioType.counter}>
               {filledCount} / {LOREBOOK_ENTRY_MAX}
             </p>
           </div>
 
           <div className="space-y-4">
             {entries.map((entry, index) => (
-              <div key={index} className="rounded-2xl border border-white/10 bg-[#131626] p-4">
-                <div className="mb-3 flex items-center justify-between gap-2">
-                  <span className="text-xs font-bold text-emerald-300/90">#{index + 1}</span>
-                  <button
+              <StudioCard
+                key={index}
+                title={`#${index + 1}`}
+                trailing={
+                  <StudioButton
                     type="button"
+                    variant="ghost"
+                    size="sm"
                     onClick={() => removeEntry(index)}
-                    className="text-xs text-zinc-500 hover:text-rose-400"
+                    className="text-zinc-400 hover:text-rose-300"
                   >
                     삭제
-                  </button>
+                  </StudioButton>
+                }
+              >
+                <div>
+                  <p className={studioType.label}>활성화 키워드</p>
+                  <KeywordInput
+                    value={entry.keywords}
+                    onChange={(next) => updateEntry(index, { keywords: next })}
+                  />
                 </div>
-                <label className={label}>활성화 키워드</label>
-                <KeywordInput
-                  value={entry.keywords}
-                  onChange={(next) => updateEntry(index, { keywords: next })}
-                />
-                <label className={`${label} mt-3`}>내용</label>
-                <textarea
+                <StudioTextarea
+                  label="내용"
                   rows={4}
-                  className={cls}
                   placeholder="키워드가 유저 입력에 포함되면 주입할 설정·설명"
                   value={entry.content}
-                  maxLength={LOREBOOK_CONTENT_MAX}
-                  onChange={(e) => updateEntry(index, { content: e.target.value.slice(0, LOREBOOK_CONTENT_MAX) })}
+                  counter={{ now: entry.content.length, max: LOREBOOK_CONTENT_MAX }}
+                  onChange={(e) =>
+                    updateEntry(index, {
+                      content: e.target.value.slice(0, LOREBOOK_CONTENT_MAX),
+                    })
+                  }
                 />
-                <p className="mt-1 text-right text-[10px] tabular-nums text-zinc-600">
-                  {entry.content.length} / {LOREBOOK_CONTENT_MAX}
-                </p>
-              </div>
+              </StudioCard>
             ))}
           </div>
 
           {entries.length < LOREBOOK_ENTRY_MAX && (
-            <button
+            <StudioButton
               type="button"
+              variant="secondary"
               onClick={addEntry}
-              className="mt-3 w-full rounded-xl border border-dashed border-white/15 py-2.5 text-sm font-semibold text-zinc-400 hover:border-emerald-500/40 hover:text-emerald-300"
+              className="mt-3 w-full border-dashed"
             >
               + 항목 추가
-            </button>
+            </StudioButton>
           )}
         </div>
 
-        {error && <p className="text-sm text-rose-400">{error}</p>}
-
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="submit"
-            disabled={loading}
-            className="rounded-xl bg-emerald-600 px-6 py-3 font-bold text-white disabled:opacity-50"
-          >
-            {loading ? "저장 중..." : isEdit ? "로어북 저장" : "로어북 만들기"}
-          </button>
-          <Link
-            href="/create"
-            className="rounded-xl border border-white/10 px-6 py-3 text-sm font-semibold text-zinc-300 hover:bg-white/5"
-          >
-            캐릭터 제작으로
-          </Link>
-        </div>
+        <StudioButton href="/create" variant="secondary">
+          캐릭터 제작으로
+        </StudioButton>
       </form>
+
+      <StudioSaveBar
+        formId={FORM_ID}
+        saveType="submit"
+        saveLabel={loading ? "저장 중..." : isEdit ? "로어북 저장" : "로어북 만들기"}
+        saveDisabled={loading}
+        error={error || null}
+      />
     </div>
   );
 }

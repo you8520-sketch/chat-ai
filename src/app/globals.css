@@ -2,6 +2,18 @@
 
 :root {
   color-scheme: dark;
+  --studio-bg: #0b0d14;
+  --studio-surface: #131626;
+  --studio-input: #161922;
+  --studio-border: rgba(255, 255, 255, 0.1);
+  --studio-primary: #7c3aed;
+  --studio-primary-hover: #8b5cf6;
+  --studio-text: #f4f4f5;
+  --studio-text-secondary: #a1a1aa;
+  --studio-placeholder: #71717a;
+  --studio-success: #34d399;
+  --studio-warning: #fbbf24;
+  --studio-danger: #fb7185;
 }
 
 body {

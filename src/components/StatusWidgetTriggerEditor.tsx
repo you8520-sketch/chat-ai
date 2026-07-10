@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo } from "react";
 import type { StatusWidget } from "@/lib/statusWidget/types";
@@ -304,11 +304,11 @@ export default function StatusWidgetTriggerEditor({
   }
 
   return (
-    <div className="space-y-4 rounded-xl border border-amber-500/20 bg-amber-500/[0.04] p-4">
+    <div className="space-y-4 rounded-xl border border-white/10 bg-[#131626] p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-bold text-amber-200">상태창 사건 조건</h3>
-          <p className="mt-1 text-[11px] leading-relaxed text-zinc-500">
+          <h3 className="text-sm font-semibold text-zinc-100">상태창 사건 조건</h3>
+          <p className="mt-1 text-xs leading-relaxed text-zinc-400">
             상태창 값이 특정 조건이 되면 다음 턴에 사건이 발생합니다.
           </p>
         </div>
@@ -316,15 +316,15 @@ export default function StatusWidgetTriggerEditor({
           type="button"
           disabled={disabled}
           onClick={() => addTrigger()}
-          className="rounded-lg border border-amber-400/40 bg-amber-500/10 px-3 py-1.5 text-xs font-semibold text-amber-100 hover:bg-amber-500/20 disabled:opacity-50"
+          className="min-h-11 rounded-xl border border-white/10 bg-white/5 px-3 text-xs font-semibold text-zinc-200 hover:bg-white/10 disabled:opacity-50"
         >
           + 사건 조건 추가
         </button>
       </div>
 
       {detectedCandidates.length > 0 ? (
-        <div className="space-y-2 rounded-lg border border-cyan-400/20 bg-cyan-400/[0.05] p-3">
-          <p className="text-xs font-bold text-cyan-100">자동 감지된 사건 조건</p>
+        <div className="space-y-2 rounded-xl border border-white/10 bg-[#161922] p-3">
+          <p className="text-xs font-semibold text-zinc-100">자동 감지된 사건 조건</p>
           {detectedCandidates.map((candidate, index) => {
             const draft = applyDetectedTriggerCandidate(candidate, value);
             return (
@@ -332,7 +332,7 @@ export default function StatusWidgetTriggerEditor({
                 {candidate.source_text ? (
                   <p className="text-[11px] leading-relaxed text-zinc-400">원문: "{candidate.source_text}"</p>
                 ) : null}
-                <p className="mt-2 text-[11px] font-semibold text-cyan-100">
+                <p className="mt-2 text-xs font-semibold text-zinc-200">
                   추천 조건: {formatTriggerSentence(draft, statusOptions)}
                 </p>
                 <p className="mt-1 text-[11px] text-zinc-300">→ {draft.effect_text || "사건 내용을 입력해 주세요."}</p>
@@ -341,14 +341,14 @@ export default function StatusWidgetTriggerEditor({
                     type="button"
                     disabled={disabled}
                     onClick={() => applyCandidate(candidate)}
-                    className="rounded border border-cyan-300/40 bg-cyan-300/10 px-2 py-1 text-[11px] font-semibold text-cyan-100 disabled:opacity-50"
+                    className="min-h-11 rounded-lg border border-white/10 bg-white/5 px-3 text-xs font-semibold text-zinc-200 disabled:opacity-50"
                   >
                     적용
                   </button>
-                  <button type="button" className="rounded border border-white/10 px-2 py-1 text-[11px] text-zinc-400">
+                  <button type="button" className="min-h-11 rounded-lg border border-white/10 px-3 text-xs text-zinc-400">
                     수정
                   </button>
-                  <button type="button" className="rounded border border-white/10 px-2 py-1 text-[11px] text-zinc-400">
+                  <button type="button" className="min-h-11 rounded-lg border border-white/10 px-3 text-xs text-zinc-400">
                     무시
                   </button>
                 </div>
@@ -365,7 +365,7 @@ export default function StatusWidgetTriggerEditor({
             type="button"
             disabled={disabled}
             onClick={() => addTrigger(preset.trigger)}
-            className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[11px] text-zinc-300 hover:border-amber-300/40 hover:text-amber-100 disabled:opacity-50"
+            className="min-h-11 rounded-xl border border-white/10 bg-black/20 px-3 text-xs text-zinc-300 hover:border-white/20 hover:text-zinc-100 disabled:opacity-50"
           >
             {preset.label}
           </button>
@@ -400,18 +400,18 @@ export default function StatusWidgetTriggerEditor({
                 </button>
               </div>
 
-              <p className="mb-3 rounded border border-white/5 bg-white/[0.03] px-3 py-2 text-[11px] font-semibold text-amber-100">
+              <p className="mb-3 rounded border border-white/5 bg-white/[0.03] px-3 py-2 text-xs font-semibold text-zinc-200">
                 현재 설정: {formatTriggerSentence(trigger, statusOptions)}
               </p>
 
               <div className="grid gap-3 md:grid-cols-[1fr_8rem_1fr]">
                 <label className="block">
-                  <span className="text-[11px] font-semibold text-zinc-300">상태값</span>
+                  <span className="text-xs font-semibold text-zinc-300">상태값</span>
                   <select
                     disabled={disabled}
                     value={statusOptions.some((option) => option.key === trigger.status_key) ? trigger.status_key : ""}
                     onChange={(e) => updateCondition(index, { status_key: e.target.value })}
-                    className="mt-1 w-full rounded border border-white/10 bg-black/40 px-2 py-2 text-xs text-white"
+                    className="mt-1 min-h-11 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-xs text-zinc-100 outline-none focus:border-violet-500/60"
                   >
                     <option value="">상태값 선택</option>
                     {statusOptions.map((option) => (
@@ -429,14 +429,14 @@ export default function StatusWidgetTriggerEditor({
                   onChange={(v) => updateCondition(index, { value: v })}
                 />
                 <label className="block">
-                  <span className="text-[11px] font-semibold text-zinc-300">조건</span>
+                  <span className="text-xs font-semibold text-zinc-300">조건</span>
                   <select
                     disabled={disabled}
                     value={trigger.operator}
                     onChange={(e) =>
                       updateCondition(index, { operator: e.target.value as StatusWidgetTriggerDraft["operator"] })
                     }
-                    className="mt-1 w-full rounded border border-white/10 bg-black/40 px-2 py-2 text-xs text-white"
+                    className="mt-1 min-h-11 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-xs text-zinc-100 outline-none focus:border-violet-500/60"
                   >
                     {OPERATORS.map((op) => (
                       <option key={op} value={op}>
@@ -448,7 +448,7 @@ export default function StatusWidgetTriggerEditor({
               </div>
 
               <label className="mt-3 block">
-                <span className="text-[11px] font-semibold text-zinc-300">발생할 사건</span>
+                <span className="text-xs font-semibold text-zinc-300">발생할 사건</span>
                 <textarea
                   disabled={disabled}
                   value={trigger.effect_text}
@@ -470,7 +470,7 @@ export default function StatusWidgetTriggerEditor({
                   한 번만 실행
                 </label>
                 <label className="block">
-                  <span className="text-[11px] font-semibold text-zinc-300">캐릭터가 이 조건을 아는지</span>
+                  <span className="text-xs font-semibold text-zinc-300">캐릭터가 이 조건을 아는지</span>
                   <select
                     disabled={disabled}
                     value={trigger.character_knowledge}
@@ -479,7 +479,7 @@ export default function StatusWidgetTriggerEditor({
                         character_knowledge: e.target.value as StatusWidgetTriggerDraft["character_knowledge"],
                       })
                     }
-                    className="mt-1 w-full rounded border border-white/10 bg-black/40 px-2 py-2 text-xs text-white"
+                    className="mt-1 min-h-11 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-xs text-zinc-100 outline-none focus:border-violet-500/60"
                   >
                     {KNOWLEDGE_OPTIONS.map((opt) => (
                       <option key={opt} value={opt}>
@@ -517,12 +517,12 @@ function TriggerInput({
 }) {
   return (
     <label className="block">
-      <span className="text-[11px] font-semibold text-zinc-300">{label}</span>
+      <span className="text-xs font-semibold text-zinc-300">{label}</span>
       <input
         disabled={disabled}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded border border-white/10 bg-black/40 px-2 py-2 text-xs text-white disabled:opacity-70"
+        className="mt-1 min-h-11 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-xs text-zinc-100 outline-none focus:border-violet-500/60 disabled:opacity-70"
       />
       {helper ? <span className="mt-1 block text-[10px] text-zinc-500">{helper}</span> : null}
     </label>

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 
@@ -148,22 +148,22 @@ export default function StatusWidgetEditor({
   }
 
   return (
-    <div className="space-y-4 rounded-xl border border-violet-500/25 bg-violet-950/10 p-4">
+    <div className="space-y-4 rounded-xl border border-white/10 bg-[#131626] p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-bold text-violet-200">상태창 위젯</h3>
+        <h3 className="text-sm font-semibold text-zinc-100">상태창 위젯</h3>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             disabled={disabled}
             onClick={loadDefault}
-            className="rounded-lg border border-white/10 px-2 py-1 text-xs text-gray-300 hover:bg-white/5"
+            className="min-h-11 rounded-xl border border-white/10 px-3 text-xs text-zinc-300 hover:bg-white/5"
           >
             기본 템플릿
           </button>
         </div>
       </div>
 
-      <p className="text-[11px] leading-relaxed text-gray-500">
+      <p className="text-xs leading-relaxed text-zinc-400">
         상태창 위젯은 기본 적용됩니다. 기본형이 기본 적용됩니다. 기본 템플릿은
         상태값·지시사항만 수정하면 선택한 디자인에 자동 반영되고, 직접제작에서만
         HTML을 편집합니다.
@@ -178,8 +178,8 @@ export default function StatusWidgetEditor({
             onClick={() => applyTemplate(option.id)}
             className={`rounded-xl border px-3 py-2 text-left transition ${
               templateChoice === option.id
-                ? "border-violet-400 bg-violet-500/20 text-violet-100"
-                : "border-white/10 bg-[#0b0d14] text-gray-400 hover:border-violet-500/40 hover:text-gray-200"
+                ? "border-violet-500 bg-violet-600/20 text-violet-100 ring-1 ring-violet-500/40"
+                : "border-white/10 bg-[#161922] text-zinc-400 hover:border-white/20 hover:text-zinc-200"
             }`}
           >
             <span className="block text-xs font-bold">{option.label}</span>
@@ -190,12 +190,12 @@ export default function StatusWidgetEditor({
         ))}
       </div>
 
-      <p className="text-[11px] text-violet-300/90">
+      <p className="text-xs text-zinc-400">
         {formatWidgetBudgetHint(widgetReservedChars)}
       </p>
 
       <div className="space-y-1">
-        <p className="text-[10px] text-gray-500">
+        <p className="text-xs text-zinc-400">
           상태창 미리보기 · 아래 상태값/지시사항 변경이 즉시 반영됩니다.
         </p>
         <div
@@ -213,7 +213,7 @@ export default function StatusWidgetEditor({
             type="button"
             disabled={disabled}
             onClick={addField}
-            className="rounded-lg border border-violet-400/50 bg-violet-600 px-3.5 py-2 text-sm font-bold text-white shadow-sm shadow-violet-900/40 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40"
+            className="min-h-11 rounded-xl bg-violet-600 px-3.5 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40"
           >
             + 상태값 추가
           </button>
@@ -234,14 +234,14 @@ export default function StatusWidgetEditor({
       </div>
 
       {templateChoice === "custom" && usableKeys.length > 0 && (
-        <div className="rounded-lg border border-violet-500/30 bg-violet-500/5 p-3 space-y-2">
+        <div className="rounded-xl border border-white/10 bg-[#161922] p-3 space-y-2">
           <div>
-            <p className="text-xs font-bold text-violet-200">
+            <p className="text-xs font-semibold text-zinc-200">
               사용 가능한 상태값
             </p>
-            <p className="mt-0.5 text-[10px] text-gray-500">
+            <p className="mt-0.5 text-xs text-zinc-400">
               클릭하면 아래 HTML 작성칸에{" "}
-              <span className="font-mono text-violet-300/90">{`{{…}}`}</span> 가
+              <span className="font-mono text-zinc-300">{`{{…}}`}</span> 가
               삽입됩니다.
             </p>
           </div>
@@ -252,7 +252,7 @@ export default function StatusWidgetEditor({
                 type="button"
                 disabled={disabled}
                 onClick={() => insertPlaceholder(key)}
-                className="rounded-md border border-violet-500/40 bg-[#0b0d14] px-2.5 py-1 font-mono text-[11px] text-violet-100 hover:bg-violet-500/15 disabled:opacity-40"
+                className="min-h-11 rounded-lg border border-white/10 bg-[#0b0d14] px-2.5 font-mono text-xs text-zinc-200 hover:bg-white/5 disabled:opacity-40"
               >
                 {`{{${key}}}`}
               </button>
@@ -263,10 +263,10 @@ export default function StatusWidgetEditor({
 
       {templateChoice === "custom" && (
         <div>
-          <span className="text-xs font-semibold text-gray-400">
+          <span className="text-xs font-semibold text-zinc-400">
             ③ 위젯 콘텐츠 (HTML)
           </span>
-          <p className="mt-0.5 text-[10px] text-gray-600">
+          <p className="mt-0.5 text-xs text-zinc-400">
             사용 불가 태그: {FORBIDDEN_TAGS}
           </p>
           <div className="mt-2 grid gap-3">
@@ -279,13 +279,13 @@ export default function StatusWidgetEditor({
               rows={14}
               spellCheck={false}
               placeholder="위 「사용 가능한 상태값」을 클릭해 HTML에 넣거나, 직접 작성하세요."
-              className="w-full rounded-lg border border-white/10 bg-[#0b0d14] px-3 py-2 font-mono text-[11px] text-emerald-100/90"
+              className="w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-3 font-mono text-xs text-zinc-200 outline-none focus:border-violet-500/60 focus:ring-2 focus:ring-violet-500/20"
             />
           </div>
         </div>
       )}
 
-      <label className="flex items-center gap-2 text-xs text-gray-400">
+      <label className="flex items-center gap-2 text-xs text-zinc-400">
         <span>표시 위치</span>
         <select
           disabled={disabled}
@@ -324,21 +324,21 @@ function FieldCard({
   const key = fieldPlaceholderKey(field);
 
   return (
-    <div className="rounded-lg border border-white/10 bg-[#0b0d14]/80 p-3 space-y-2">
+    <div className="space-y-2 rounded-xl border border-white/10 bg-[#161922] p-3">
       <div className="flex flex-wrap items-start gap-2">
         <label className="min-w-[140px] flex-1">
-          <span className="text-[10px] text-gray-500">상태값</span>
+          <span className="text-xs text-zinc-400">상태값</span>
           <input
             disabled={disabled}
             value={field.label}
             onChange={(e) => onLabelChange(e.target.value)}
             placeholder="예: 시간, 속마음, 호감도"
-            className="mt-0.5 w-full rounded border border-white/10 bg-black/40 px-2 py-1.5 text-xs text-white"
+            className="mt-1 min-h-11 w-full rounded-xl border border-white/10 bg-[#0b0d14] px-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-violet-500/60 focus:ring-2 focus:ring-violet-500/20"
           />
         </label>
         {key ? (
           <div className="shrink-0 pt-4">
-            <span className="rounded border border-white/10 bg-black/30 px-2 py-1 font-mono text-[10px] text-violet-200/90">
+            <span className="rounded border border-white/10 bg-black/30 px-2 py-1 font-mono text-[10px] text-zinc-300">
               {`{{${key}}}`}
             </span>
           </div>
@@ -348,21 +348,21 @@ function FieldCard({
             type="button"
             disabled={disabled}
             onClick={onRemove}
-            className="ml-auto pt-4 text-[10px] text-rose-400 hover:underline"
+            className="ml-auto min-h-11 px-2 text-xs text-rose-400 hover:underline"
           >
             삭제
           </button>
         ) : null}
       </div>
       <label className="block">
-        <span className="text-[10px] text-gray-500">지시사항 (AI용)</span>
+        <span className="text-xs text-zinc-400">지시사항 (AI용)</span>
         <textarea
           disabled={disabled}
           value={field.instruction}
           onChange={(e) => onInstructionChange(e.target.value)}
           rows={2}
           placeholder="예: 현재 대화 시점의 시간을 24시간 형식으로 작성하세요. 출력 예시: 14:30"
-          className="mt-0.5 w-full rounded border border-white/10 bg-black/40 px-2 py-1.5 text-xs text-white"
+          className="mt-1 min-h-11 w-full rounded-xl border border-white/10 bg-[#0b0d14] px-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-violet-500/60 focus:ring-2 focus:ring-violet-500/20"
         />
       </label>
     </div>
