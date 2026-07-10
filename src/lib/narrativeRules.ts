@@ -241,13 +241,12 @@ export function streamDeltaAfterRpMetaStrip(
     }
     const mapped = rawPrefixForCollapsedCompare(cleaned, lc);
     if (mapped.length >= lastCleanSent.length * STREAM_SAVE_MIN_RETENTION) {
-      if (mapped.startsWith(lastCleanSent)) {
-        const delta = cleaned.slice(mapped.length);
-        return { delta, clean: cleaned, replace: null };
-      }
-      return { delta: "", clean: cleaned, replace: cleaned, replaceInstant: true };
+      // Collapse-equivalent prefix — append tail only (avoid mid-stream full snap/retype).
+      const delta = cleaned.slice(mapped.length);
+      return { delta, clean: cleaned, replace: null };
     }
-    return { delta: "", clean: cleaned, replace: cleaned, replaceInstant: true };
+    // Collapsed extends but raw map failed — hold last; finalContent will sync once.
+    return { delta: "", clean: lastCleanSent, replace: null };
   }
 
   if (cc.startsWith(ls) && ls.length >= 40) {
@@ -259,10 +258,14 @@ export function streamDeltaAfterRpMetaStrip(
     return { delta: "", clean: cleaned, replace: null };
   }
 
+  // Shared collapsed tail after leading strip — treat as meta/scene cleanup, not full restart.
   if (lc.length > 80 && cc.length > 80) {
     const tailLen = Math.min(120, cc.length, lc.length);
     if (lc.slice(-tailLen) === cc.slice(-tailLen)) {
-      return { delta: "", clean: cleaned, replace: cleaned, replaceInstant: true };
+      if (cleaned.length >= lastCleanSent.length * STREAM_SAVE_MIN_RETENTION) {
+        return { delta: "", clean: cleaned, replace: cleaned, replaceInstant: true };
+      }
+      return { delta: "", clean: lastCleanSent, replace: null };
     }
   }
 
@@ -285,6 +288,7 @@ export function streamDeltaAfterRpMetaStrip(
     };
   }
 
+  // Hard divergence — one instant snap (client must not retype from char 0).
   return { delta: "", clean: cleaned, replace: cleaned, replaceInstant: true };
 }
 

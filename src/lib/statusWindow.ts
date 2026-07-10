@@ -107,6 +107,11 @@ export function pushLiveStreamDelta(
   }
 
   if (replace != null && opts?.replaceInstant) {
+    // Prefer append when collapsed target extends what the client already has.
+    const appended = pushLiveStreamAppendToClient(send, target, sent);
+    if (appended === target) {
+      return { lastCleanSent: target, lastSentToClient: target };
+    }
     send({ type: "replace", text: target, instant: true });
     return { lastCleanSent: target, lastSentToClient: target };
   }
@@ -119,6 +124,17 @@ export function pushLiveStreamDelta(
   );
 
   if (nextSent === sent && target !== sent) {
+    // Prefix diverged — one instant snap. Avoid when target is only a shorter prefix
+    // of what was already sent (transient strip); keep client text stable.
+    const sentCollapsed = collapseStreamCompareText(sent);
+    const targetCollapsed = collapseStreamCompareText(target);
+    if (
+      targetCollapsed.length >= 40 &&
+      sentCollapsed.includes(targetCollapsed) &&
+      target.length < sent.length
+    ) {
+      return { lastCleanSent: target, lastSentToClient: sent };
+    }
     send({ type: "replace", text: target, instant: true });
     return { lastCleanSent: target, lastSentToClient: target };
   }

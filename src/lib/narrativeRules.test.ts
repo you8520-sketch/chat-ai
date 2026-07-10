@@ -43,12 +43,12 @@ describe("streamDeltaAfterRpMetaStrip", () => {
     assert.equal(r.delta, "");
   });
 
-  it("replaceInstant when collapsed prefix matches but mapped retention fails", () => {
+  it("holds last sent when collapsed extends but raw map retention fails", () => {
     const lastSent = ("word  ").repeat(35);
     const accumulated = ("word ").repeat(35) + " additional prose tail.";
     const r = streamDeltaAfterRpMetaStrip(accumulated, lastSent);
-    assert.equal(r.replace, accumulated);
-    assert.equal(r.replaceInstant, true);
+    assert.equal(r.replace, null);
+    assert.equal(r.clean, lastSent);
     assert.equal(r.delta, "");
   });
 

@@ -1073,6 +1073,12 @@ export async function POST(req: Request) {
         sseEncode
       );
       const send = safe.send;
+      // Immediate heartbeat — mobile clients otherwise sit on a dark/idle screen
+      // while prompt assembly + model connect can take tens of seconds.
+      send({
+        type: "status",
+        message: regenerateMessageId ? "재생성 준비 중…" : "생성 중…",
+      });
       const stages: StageUsage[] = [];
       let fullText = "";
       let streamVisibleTextRef = "";

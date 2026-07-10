@@ -1645,8 +1645,9 @@ export default function ChatClient({
       }
 
       if (plan.setPrefix === "" && displayed.length > 80) {
+        // Full divergence — snap instantly. Never retype the whole reply from char 0.
         reveal.reset();
-        reveal.enqueue(newText);
+        setAssistantContentInstant(newText);
         return;
       }
 
@@ -1975,7 +1976,12 @@ export default function ChatClient({
                 htmlFlashStreamTurn = true;
               }
             }
-            if (data.message !== "생성 중…") {
+            // Lock only after the main model stream ends (post-process phases).
+            // Pre-stream heartbeats like "생성 중…" / "재생성 준비 중…" must NOT lock.
+            if (
+              data.message &&
+              /마무리|분량 보강|HTML 생성|상태창 생성/i.test(data.message)
+            ) {
               postStreamLocked = true;
             }
             continue;
@@ -2397,7 +2403,7 @@ export default function ChatClient({
     const regenIndex = lastAssistantIdx;
     const clientRequestId = createClientRequestId();
     setError("");
-    setStreamPhase(null);
+    setStreamPhase("재생성 준비 중…");
     inFlightRef.current = true;
     loadingRef.current = true;
     setLoading(true);
@@ -2433,10 +2439,12 @@ export default function ChatClient({
       const copy = [...m];
       const cur = copy[regenIndex];
       if (!cur || cur.role !== "assistant") return m;
-      // Keep prior text visible until the stream replaces it — clearing here caused
-      // empty→rollback flicker when the request failed before the first chunk.
+      // Clear immediately so the generating placeholder shows — keeping the old reply
+      // while stream refs were zeroed made the first chunk look like a full restart,
+      // and on mobile looked like a frozen dark screen with no progress.
       copy[regenIndex] = {
         ...cur,
+        content: "",
         usage: null,
         isRefunded: false,
         variants: undefined,
@@ -3205,7 +3213,7 @@ export default function ChatClient({
             if (showGeneratingPlaceholder) {
               return (
                 <div key={m.id ?? `asst-loading-${i}`}>
-                  <p className="animate-pulse text-sm text-zinc-600">
+                  <p className="animate-pulse text-sm font-medium text-orange-400/90">
                     {streamPhase ?? (loading ? `${character.name}이(가) 초안 작성 중…` : "생성 중…")}
                   </p>
                 </div>
@@ -3341,7 +3349,7 @@ export default function ChatClient({
                           ))}
                           {statusWindowPlacement === "bottom" ? statusMetaCard : null}
                           {isStreamingThisMessage && (streamPhase || genStatus === "generating") && (
-                            <p className="mt-2 animate-pulse text-sm text-zinc-600">
+                            <p className="mt-2 animate-pulse text-sm font-medium text-orange-400/90">
                               {streamPhase ?? "생성 중…"}
                             </p>
                           )}
