@@ -14,6 +14,16 @@ Never wrap narration or actions in markdown or roleplay markers:
 /** 시스템 말미 recency — Length → **여기(유일)** → Terminal length */
 export function buildWebnovelOutputLayoutRecencyBlock(): string {
   return `[OUTPUT LAYOUT]
+[SEMANTIC PARAGRAPHING]
+한 문단에는 하나의 중심 행동·반응·감정 또는 관찰 초점만 둔다.
+
+같은 주체의 연속된 행동과 즉각적인 결과는 한 문단으로 이어가되,
+행동 주체, 감정 방향, 내면과 외부의 초점, 공간적 관찰 대상, 장면 단계가 바뀌면 새 문단을 시작한다.
+
+문단을 글자 수나 문장 수에 맞춰 기계적으로 쪼개지 말고,
+서로 다른 여러 비트를 하나의 거대한 문단으로 합치지도 않는다.
+
+대사는 화자별 독립 문단으로 출력한다.
 "…" spoken dialogue = always its own paragraph, separated by a blank line (\\n\\n) from narration.
 Never append dialogue to the end of a narration line or paragraph.
 
@@ -21,10 +31,7 @@ Wrong: 그는 고개를 들었다. "대사."
 Right:
 그는 고개를 들었다.
 
-"대사."
-
-Continuous narration stays in one paragraph — do not insert blank lines between consecutive narration sentences.
-Blank lines are for narration↔dialogue separation (and major scene breaks), not every sentence.`;
+"대사."`;
 }
 
 /** user-turn bottom — layout recency (paired with length tail in contextBuilder) */
@@ -73,12 +80,15 @@ export function unwrapRoleplayMarkdownInText(text: string): string {
 /** 감사·테스트 — prose bundle 등에 레이아웃 규칙이 섞였는지 */
 export function containsParagraphLayoutInstructions(text: string): boolean {
   return (
-    /\[OUTPUT LAYOUT\]/i.test(text) ||
+    /\[SEMANTIC PARAGRAPHING\]/i.test(text) ||
+    /\[OUTPUT LAYOUT\]\s*\n/i.test(text) ||
     /지문 뒤에 대사를 이어 붙이지 않는다/i.test(text) ||
     /대사는 항상 새 단락/i.test(text) ||
     /NEVER append spoken dialogue/i.test(text) ||
+    /Never append dialogue to the end of a narration line/i.test(text) ||
     /ALWAYS starts a new paragraph/i.test(text) ||
     /Start a new paragraph when:/i.test(text) ||
-    /Incorrect:\s*\n[^\n]+\. "[^"]+"/.test(text)
+    /Incorrect:\s*\n[^\n]+\. "[^"]+"/.test(text) ||
+    /Wrong:\s*그는 고개를 들었다/i.test(text)
   );
 }

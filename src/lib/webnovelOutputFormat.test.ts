@@ -24,11 +24,13 @@ describe("webnovelOutputFormat", () => {
     const block = buildWebnovelOutputLayoutRecencyBlock();
     assert.match(block, /\[OUTPUT LAYOUT\]/);
     assert.equal((block.match(/\[OUTPUT LAYOUT\]/g) ?? []).length, 1);
+    assert.match(block, /\[SEMANTIC PARAGRAPHING\]/);
     assert.match(block, /blank line/i);
     assert.match(block, /Never append dialogue/i);
     assert.match(block, /Wrong:/);
     assert.match(block, /Right:/);
-    assert.match(block, /Continuous narration stays in one paragraph/);
+    assert.match(block, /초점/);
+    assert.doesNotMatch(block, /Continuous narration stays in one paragraph/);
     assert.doesNotMatch(block, /emotional beat shifts/i);
     assert.doesNotMatch(block, /Output formatting only/i);
   });
