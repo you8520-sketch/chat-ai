@@ -250,14 +250,15 @@ export function parseNovelSegments(text: string): NovelSegment[] {
 }
 
 /**
- * 제작자 입력(첫 메시지 등): 줄바꿈(Enter)마다 문단을 나눔.
+ * 제작자 입력(첫 메시지 등): Enter 줄바꿈을 수정 화면 textarea와 동일하게 유지.
+ * 빈 줄도 문단으로 남겨 표시 간격이 원본과 어긋나지 않게 한다.
  */
 export function groupAuthorParagraphs(content: string): string[] {
-  return content
-    .replace(/\r\n/g, "\n")
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean);
+  const normalized = content.replace(/\r\n/g, "\n");
+  if (!normalized) return [];
+  // 끝의 단일 trailing newline은 textarea 커서용으로 무시
+  const trimmedEnd = normalized.replace(/\n$/, "");
+  return trimmedEnd.split("\n").map((l) => l.trimEnd());
 }
 
 /**
@@ -327,8 +328,9 @@ function splitLineByDialogue(line: string, streaming = false): string[] {
 /** 지문 문단 최소 길이 — 미만이면 인접 지문과 병합 시도 */
 export const MIN_NARRATION_CHARS_PER_PARAGRAPH = 50;
 /**
- * 지문 문단 권장 상한 — 초과 시 문장 경계에서 분할.
- * 벽면 텍스트 방어용 — 정상 문단(4~6문장)이 걸리지 않게 넉넉히 둔다.
+ * 지문 문단 권장 상한(문서·프롬프트 참고용).
+ * 표시/저장 레이아웃에서는 글자 수로 강제 분할하지 않는다 —
+ * 스트리밍 중 문단 한가운데에서 갑자기 줄바꿈되는 문제를 막기 위함.
  */
 export const MAX_NARRATION_CHARS_PER_PARAGRAPH = 700;
 /**
@@ -437,78 +439,6 @@ function mergeAdjacentShortNarrationParagraphs(
   return out;
 }
 
-const NARRATION_SENTENCE_BOUNDARY_RE = /(?<=[.!?…]["'」』)]?)\s+/u;
-
-/** 담화 전환 표지로 시작하는 문장 — 상한 초과 분할 시 우선 분할 지점 */
-const DISCOURSE_SHIFT_SENTENCE_RE =
-  /^(?:하지만|그러나|그런데|그때|그 순간|그러다|이윽고|잠시 후|얼마 후|한참 후|다음 순간|문득|돌연|갑자기|마침내|결국|그리고 나서|그제서야|그제야)[,\s]/u;
-
-/**
- * 상한 초과 지문의 분할 지점 선택 — buf가 상한을 넘기 전 마지막 담화 표지 문장 앞을 우선,
- * 없으면 상한 직전 문장 경계로 폴백.
- */
-function chooseNarrationSplitIndices(sentences: string[], maxChars: number): Set<number> {
-  const splitBefore = new Set<number>();
-  let start = 0;
-  while (start < sentences.length) {
-    let len = 0;
-    let lastMarker = -1;
-    let end = sentences.length;
-    for (let i = start; i < sentences.length; i++) {
-      const addition = sentences[i]!.length + (i > start ? 1 : 0);
-      if (len + addition > maxChars && i > start) {
-        end = i;
-        break;
-      }
-      len += addition;
-      if (i > start && DISCOURSE_SHIFT_SENTENCE_RE.test(sentences[i]!)) lastMarker = i;
-    }
-    if (end >= sentences.length) break;
-    // 상한 내에 담화 표지가 있으면 그 앞에서, 없으면 상한 직전 경계에서 분할
-    const cut = lastMarker > start ? lastMarker : end;
-    splitBefore.add(cut);
-    start = cut;
-  }
-  return splitBefore;
-}
-
-/** 한 덩어리로 붙은 긴 지문 — 담화 표지 우선, 문장 경계에서 분할 (상한 초과 방지) */
-function splitOversizedNarrationParagraphs(paragraphs: string[], streaming = false): string[] {
-  const out: string[] = [];
-  for (const para of paragraphs) {
-    const trimmed = para.trim();
-    if (!trimmed) continue;
-    if (
-      classifyNovelParagraph(trimmed, { streaming }) !== "narration" ||
-      trimmed.length <= MAX_NARRATION_CHARS_PER_PARAGRAPH
-    ) {
-      out.push(trimmed);
-      continue;
-    }
-
-    const sentences = trimmed.split(NARRATION_SENTENCE_BOUNDARY_RE).filter(Boolean);
-    if (sentences.length <= 1) {
-      out.push(trimmed);
-      continue;
-    }
-
-    const splitBefore = chooseNarrationSplitIndices(
-      sentences,
-      MAX_NARRATION_CHARS_PER_PARAGRAPH
-    );
-    let buf = "";
-    sentences.forEach((sentence, i) => {
-      if (splitBefore.has(i) && buf.trim()) {
-        out.push(buf.trim());
-        buf = "";
-      }
-      buf = buf ? `${buf} ${sentence}` : sentence;
-    });
-    if (buf.trim()) out.push(buf.trim());
-  }
-  return out;
-}
-
 export type GroupNovelParagraphsOpts = { streaming?: boolean };
 
 export function groupNovelParagraphs(content: string, opts?: GroupNovelParagraphsOpts): string[] {
@@ -537,7 +467,8 @@ export function groupNovelParagraphs(content: string, opts?: GroupNovelParagraph
   if (out.length === 0) return [normalized];
   let paragraphs = explodeMixedParagraphs(out, streaming);
   paragraphs = mergeAdjacentShortNarrationParagraphs(paragraphs, streaming);
-  paragraphs = splitOversizedNarrationParagraphs(paragraphs, streaming);
+  // Do NOT split by MAX_NARRATION_CHARS_PER_PARAGRAPH — that caused mid-paragraph
+  // line breaks during streaming once a block crossed ~700 chars.
   return paragraphs.map((p) => stripLeadingPauseEllipsisFromDialogue(p.trim())).filter(Boolean);
 }
 
@@ -880,7 +811,8 @@ export function novelParagraphSpacingClass(
     (prevKind === "narration" && kind === "dialogue");
 
   if (mode === "author") {
-    return crossesDialogue ? "mt-[1.75em]" : "mt-[1.25em]";
+    // 수정 textarea와 동일: Enter 한 번 = 한 줄 간격 (큰 문단 마진 없음)
+    return "mt-0";
   }
   return crossesDialogue ? "mt-[1.5em]" : "mt-[1em]";
 }

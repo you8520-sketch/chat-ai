@@ -30,6 +30,7 @@ function InlineSegments({
   specialColor,
   parseSegments,
   narrationMuted = false,
+  preserveRawLineBreaks = false,
 }: {
   text: string;
   paragraphKind?: NovelParagraphKind;
@@ -38,14 +39,23 @@ function InlineSegments({
   specialColor: string;
   parseSegments: (text: string) => Segment[];
   narrationMuted?: boolean;
+  /** 제작자 원본(greeting) — 대사 안 줄바꿈 합치지 않음 */
+  preserveRawLineBreaks?: boolean;
 }) {
   const trimmed = text.trim();
   if (!trimmed) return null;
 
+  const dialogueText = preserveRawLineBreaks
+    ? trimmed
+    : collapseDialogueInternalLineBreaks(trimmed);
+
   if (paragraphKind === "dialogue") {
     return (
-      <span className="font-semibold" style={{ color: dialogueColor }}>
-        {collapseDialogueInternalLineBreaks(trimmed)}
+      <span
+        className={`font-semibold${preserveRawLineBreaks ? " whitespace-pre-wrap" : ""}`}
+        style={{ color: dialogueColor }}
+      >
+        {dialogueText}
       </span>
     );
   }
@@ -54,7 +64,13 @@ function InlineSegments({
     const emphasis = isNarrationEmphasisLine(trimmed);
     return (
       <span
-        className={emphasis ? "font-semibold" : narrationMuted ? "italic" : undefined}
+        className={
+          emphasis
+            ? "font-semibold"
+            : narrationMuted
+              ? "italic"
+              : undefined
+        }
         style={{ color: narrationColor }}
       >
         {trimmed}
@@ -70,8 +86,14 @@ function InlineSegments({
       {segments.map((seg, i) => {
         if (seg.kind === "dialogue") {
           return (
-            <span key={i} className="font-semibold" style={{ color: dialogueColor }}>
-              {collapseDialogueInternalLineBreaks(seg.text)}
+            <span
+              key={i}
+              className={`font-semibold${preserveRawLineBreaks ? " whitespace-pre-wrap" : ""}`}
+              style={{ color: dialogueColor }}
+            >
+              {preserveRawLineBreaks
+                ? seg.text
+                : collapseDialogueInternalLineBreaks(seg.text)}
             </span>
           );
         }
@@ -151,7 +173,9 @@ export default function NovelText({
         ? groupAuthorParagraphs(content)
         : groupNovelParagraphs(content);
   const displayParagraphs = paragraphs.length > 0 ? paragraphs : [content];
-  const paragraphKinds = displayParagraphs.map((p) => classifyNovelParagraph(p));
+  const paragraphKinds = displayParagraphs.map((p) =>
+    p.trim() ? classifyNovelParagraph(p) : ("narration" as NovelParagraphKind)
+  );
   const spacingMode: "ai" | "author" =
     variant === "user" || paragraphMode === "author" ? "author" : "ai";
 
@@ -168,53 +192,79 @@ export default function NovelText({
   if (centered) {
     return (
       <p className="chat-novel-prose text-center" style={typography}>
-        {displayParagraphs.map((para, i) => (
-          <span
-            key={i}
-            className={
-              i > 0
-                ? novelParagraphSpacingClass(paragraphKinds[i], paragraphKinds[i - 1], spacingMode) +
-                  " block"
-                : undefined
-            }
-          >
-            <InlineSegments
-              text={para.trim()}
-              paragraphKind={useParagraphKindColors ? paragraphKinds[i] : undefined}
-              narrationColor={narrationColor}
-              dialogueColor={dialogueColor}
-              specialColor={specialColor}
-              parseSegments={parseSegments}
-              narrationMuted={isAuthorMode}
-            />
-          </span>
-        ))}
+        {displayParagraphs.map((para, i) => {
+          const empty = !para.trim();
+          return (
+            <span
+              key={i}
+              className={
+                i > 0
+                  ? novelParagraphSpacingClass(
+                      paragraphKinds[i],
+                      paragraphKinds[i - 1],
+                      spacingMode
+                    ) + " block"
+                  : undefined
+              }
+            >
+              {empty ? (
+                <span className="inline-block min-h-[1em]">{"\u00a0"}</span>
+              ) : (
+                <InlineSegments
+                  text={para}
+                  paragraphKind={useParagraphKindColors ? paragraphKinds[i] : undefined}
+                  narrationColor={narrationColor}
+                  dialogueColor={dialogueColor}
+                  specialColor={specialColor}
+                  parseSegments={parseSegments}
+                  narrationMuted={isAuthorMode}
+                  preserveRawLineBreaks={isAuthorMode}
+                />
+              )}
+            </span>
+          );
+        })}
       </p>
     );
   }
 
   return (
     <div className="chat-novel-prose" style={typography}>
-      {displayParagraphs.map((para, i) => (
-        <p
-          key={i}
-          className={
-            i > 0
-              ? novelParagraphSpacingClass(paragraphKinds[i], paragraphKinds[i - 1], spacingMode)
-              : undefined
-          }
-        >
-          <InlineSegments
-            text={para.trim()}
-            paragraphKind={useParagraphKindColors ? paragraphKinds[i] : undefined}
-            narrationColor={narrationColor}
-            dialogueColor={dialogueColor}
-            specialColor={specialColor}
-            parseSegments={parseSegments}
-            narrationMuted={isAuthorMode}
-          />
-        </p>
-      ))}
+      {displayParagraphs.map((para, i) => {
+        const empty = !para.trim();
+        return (
+          <p
+            key={i}
+            className={[
+              isAuthorMode ? "m-0 leading-[inherit]" : undefined,
+              i > 0
+                ? novelParagraphSpacingClass(
+                    paragraphKinds[i],
+                    paragraphKinds[i - 1],
+                    spacingMode
+                  )
+                : undefined,
+            ]
+              .filter(Boolean)
+              .join(" ") || undefined}
+          >
+            {empty ? (
+              "\u00a0"
+            ) : (
+              <InlineSegments
+                text={para}
+                paragraphKind={useParagraphKindColors ? paragraphKinds[i] : undefined}
+                narrationColor={narrationColor}
+                dialogueColor={dialogueColor}
+                specialColor={specialColor}
+                parseSegments={parseSegments}
+                narrationMuted={isAuthorMode}
+                preserveRawLineBreaks={isAuthorMode}
+              />
+            )}
+          </p>
+        );
+      })}
     </div>
   );
 }

@@ -25,13 +25,19 @@ describe("parseGreetingSegments", () => {
 });
 
 describe("groupAuthorParagraphs", () => {
-  it("preserves each Enter-separated line as its own paragraph", () => {
+  it("preserves each Enter-separated line including blank lines", () => {
     const input = `*창가에 기대어*\n"...왔어?"\n\n다시 고개를 돌렸다.`;
     assert.deepEqual(groupAuthorParagraphs(input), [
       "*창가에 기대어*",
       '"...왔어?"',
+      "",
       "다시 고개를 돌렸다.",
     ]);
+  });
+
+  it("keeps dialogue-internal newlines instead of dropping empty lines only", () => {
+    const input = `"첫 줄\n둘째 줄"\n지문`;
+    assert.deepEqual(groupAuthorParagraphs(input), ['"첫 줄', "둘째 줄\"", "지문"]);
   });
 });
 
@@ -436,8 +442,8 @@ describe("novelParagraphSpacingClass", () => {
     assert.equal(novelParagraphSpacingClass("narration", "narration", "ai"), "mt-[1em]");
   });
 
-  it("uses wider Enter-based gaps in author mode", () => {
-    assert.equal(novelParagraphSpacingClass("narration", "narration", "author"), "mt-[1.25em]");
-    assert.equal(novelParagraphSpacingClass("dialogue", "narration", "author"), "mt-[1.75em]");
+  it("uses tight Enter-based gaps in author mode (match edit textarea)", () => {
+    assert.equal(novelParagraphSpacingClass("narration", "narration", "author"), "mt-0");
+    assert.equal(novelParagraphSpacingClass("dialogue", "narration", "author"), "mt-0");
   });
 });

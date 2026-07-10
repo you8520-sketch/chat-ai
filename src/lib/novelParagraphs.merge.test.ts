@@ -33,16 +33,14 @@ describe("groupNovelParagraphs merge", () => {
     assert.ok(grouped.length >= 2);
     assert.doesNotMatch(grouped[0]!, /"미안해/);
   });
-  it("splits oversized narration at sentence boundaries", () => {
+  it("does not force-split long narration by character count", () => {
     const sentence =
       "그는 천천히 다가와 손을 뻗었고, 눈빛만은 흔들리지 않았으며, 숨결마저 조심스럽게 맞추었다.";
     const input = Array.from({ length: 18 }, () => sentence).join(" ");
     assert.ok(input.length > MAX_NARRATION_CHARS_PER_PARAGRAPH);
     const grouped = groupNovelParagraphs(input);
-    assert.ok(grouped.length >= 2);
-    for (const para of grouped) {
-      assert.ok(para.length <= MAX_NARRATION_CHARS_PER_PARAGRAPH + 20);
-    }
+    assert.equal(grouped.length, 1);
+    assert.equal(grouped[0], input);
   });
 
   it("keeps a natural 5-6 sentence paragraph (~500 chars) intact", () => {
@@ -53,7 +51,7 @@ describe("groupNovelParagraphs merge", () => {
     assert.equal(groupNovelParagraphs(input).length, 1);
   });
 
-  it("prefers discourse-shift markers as split points in oversized narration", () => {
+  it("does not invent a break at discourse-shift markers without author newlines", () => {
     const filler =
       "그는 천천히 다가와 손을 뻗었고, 눈빛만은 흔들리지 않았으며, 숨결마저 조심스럽게 맞추었다.";
     const marker =
@@ -65,11 +63,8 @@ describe("groupNovelParagraphs merge", () => {
     ].join(" ");
     assert.ok(input.length > MAX_NARRATION_CHARS_PER_PARAGRAPH);
     const grouped = groupNovelParagraphs(input);
-    assert.ok(grouped.length >= 2);
-    assert.ok(
-      grouped.some((p) => p.startsWith("하지만 그 순간")),
-      `expected a paragraph starting at the discourse marker, got: ${JSON.stringify(grouped)}`
-    );
+    assert.equal(grouped.length, 1);
+    assert.match(grouped[0]!, /하지만 그 순간/);
   });
 });
 
@@ -80,7 +75,7 @@ describe("MIN_NARRATION_CHARS_PER_PARAGRAPH", () => {
 });
 
 describe("MAX_NARRATION_CHARS_PER_PARAGRAPH", () => {
-  it("split cap is 700, merge cap stays 480", () => {
+  it("is a documentation reference only — merge cap stays 480", () => {
     assert.equal(MAX_NARRATION_CHARS_PER_PARAGRAPH, 700);
     assert.equal(MAX_NARRATION_MERGE_CHARS, 480);
   });
