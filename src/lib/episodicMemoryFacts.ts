@@ -9,6 +9,11 @@ export type PersistEpisodicMemoryFactsInput = {
   sourceTurn: number;
   facts?: ExtractedStatusFact[] | null;
   metadata?: Record<string, unknown>;
+  /**
+   * Regeneration: delete existing facts for this chat/source_turn (same character/user)
+   * before inserting the new attempt. Unrelated turns are never touched.
+   */
+  replaceSourceTurn?: boolean;
 };
 
 export type EpisodicMemoryFactRecord = ExtractedStatusFact & {
@@ -102,6 +107,21 @@ export function episodicMemoryRecallEnabled(env = process.env): boolean {
   return env.NODE_ENV !== "production";
 }
 
+/** True when production would save facts but not inject them into prompts. */
+export function episodicMemoryRecallDisabledInProduction(env = process.env): boolean {
+  return env.NODE_ENV === "production" && !episodicMemoryRecallEnabled(env);
+}
+
+const EPISODIC_RECALL_PROD_WARN =
+  "Episodic memory facts are being saved but recall injection is disabled in production. Set EPISODIC_MEMORY_RECALL_ENABLED=1 on Railway to inject retrieved facts.";
+
+/** Boot / config warning — call once at server start. */
+export function warnEpisodicMemoryRecallDisabledInProduction(env = process.env): boolean {
+  if (!episodicMemoryRecallDisabledInProduction(env)) return false;
+  console.warn(`[EpisodicMemory] ${EPISODIC_RECALL_PROD_WARN}`);
+  return true;
+}
+
 export function resolveEpisodicMemoryMinAgeTurns(env = process.env): number {
   const raw = env.EPISODIC_MEMORY_MIN_AGE_TURNS?.trim();
   if (!raw) return EPISODIC_MEMORY_DEFAULT_MIN_AGE_TURNS;
@@ -154,6 +174,62 @@ function filterContaminatedFactsForSave(facts: ExtractedStatusFact[]): Extracted
   return facts.filter((fact) => !detectEpisodicMemoryContamination(fact));
 }
 
+/** Dev/audit — counts for [StatusMemoryPipeline] without inserting. */
+export type EpisodicFactPersistSummary = {
+  rawCount: number;
+  validCount: number;
+  insertableCount: number;
+  skippedCount: number;
+  skippedReasons: string[];
+  insertable: ExtractedStatusFact[];
+};
+
+export function summarizeEpisodicFactPersistCandidates(
+  raw: unknown
+): EpisodicFactPersistSummary {
+  const rawArr = Array.isArray(raw) ? raw : [];
+  const valid = sanitizeExtractedFacts(raw);
+  const afterContamination = filterContaminatedFactsForSave(valid);
+  const insertable = dedupeFactsWithinResponse(afterContamination);
+  const skippedReasons: string[] = [];
+  const schemaRejected = rawArr.length - valid.length;
+  if (schemaRejected > 0) skippedReasons.push(`schema_rejected:${schemaRejected}`);
+  const contaminated = valid.length - afterContamination.length;
+  if (contaminated > 0) skippedReasons.push(`contamination:${contaminated}`);
+  const deduped = afterContamination.length - insertable.length;
+  if (deduped > 0) skippedReasons.push(`within_response_dedupe:${deduped}`);
+  return {
+    rawCount: rawArr.length,
+    validCount: valid.length,
+    insertableCount: insertable.length,
+    skippedCount: Math.max(0, rawArr.length - insertable.length),
+    skippedReasons,
+    insertable,
+  };
+}
+
+export type StatusMemoryPipelineTrace = {
+  request_id?: string | null;
+  message_id?: number | null;
+  statusBlockFound: boolean;
+  parsedStatusKeys: string[];
+  missingRequiredStatusKeys: string[];
+  extractedFactsRawCount: number;
+  extractedFactsValidCount: number;
+  extractedFactsInsertedCount: number;
+  extractedFactsSkippedCount: number;
+  skippedReasons: string[];
+  recallCandidateCount?: number;
+  recallInjectedCount?: number;
+  recallBlockedReasons?: string[];
+};
+
+/** Development-only pipeline trace — never logs full prose. */
+export function logStatusMemoryPipelineDev(trace: StatusMemoryPipelineTrace): void {
+  if (process.env.NODE_ENV === "production") return;
+  console.info("[StatusMemoryPipeline]", JSON.stringify(trace));
+}
+
 export function ensureEpisodicMemoryFactsTable(db: Database.Database): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS episodic_memory_facts (
@@ -197,6 +273,25 @@ function finitePositiveInt(value: number): number | null {
   return n > 0 ? n : null;
 }
 
+function metadataAssistantMessageId(metadata?: Record<string, unknown>): number | null {
+  const raw = metadata?.assistant_message_id;
+  if (typeof raw === "number" && Number.isFinite(raw) && raw > 0) return Math.trunc(raw);
+  if (typeof raw === "string" && /^\d+$/.test(raw.trim())) return Number(raw.trim());
+  return null;
+}
+
+function metadataRequestId(metadata?: Record<string, unknown>): string | null {
+  const raw = metadata?.request_id;
+  if (typeof raw !== "string") return null;
+  const t = raw.trim();
+  return t || null;
+}
+
+function shouldReplaceSourceTurn(input: PersistEpisodicMemoryFactsInput): boolean {
+  if (input.replaceSourceTurn === true) return true;
+  return input.metadata?.regenerated === true;
+}
+
 export function persistEpisodicMemoryFactsBestEffort(
   db: Database.Database,
   input: PersistEpisodicMemoryFactsInput
@@ -206,11 +301,6 @@ export function persistEpisodicMemoryFactsBestEffort(
     const sourceTurn = finitePositiveInt(input.sourceTurn);
     if (!chatId || !sourceTurn) return 0;
 
-    const facts = dedupeFactsWithinResponse(
-      filterContaminatedFactsForSave(sanitizeExtractedFacts(input.facts))
-    );
-    if (facts.length === 0) return 0;
-
     const characterId =
       input.characterId != null && Number.isFinite(input.characterId)
         ? Math.trunc(input.characterId)
@@ -219,6 +309,40 @@ export function persistEpisodicMemoryFactsBestEffort(
       input.userId != null && Number.isFinite(input.userId)
         ? Math.trunc(input.userId)
         : null;
+
+    const assistantMessageId = metadataAssistantMessageId(input.metadata);
+    const requestId = metadataRequestId(input.metadata);
+
+    // Idempotent finalize: same assistant message + request already persisted → no-op.
+    if (assistantMessageId != null && requestId) {
+      const existing = db
+        .prepare(
+          `SELECT COUNT(*) AS c FROM episodic_memory_facts
+           WHERE chat_id = ?
+             AND json_extract(metadata, '$.assistant_message_id') = ?
+             AND json_extract(metadata, '$.request_id') = ?`
+        )
+        .get(chatId, assistantMessageId, requestId) as { c: number };
+      if (existing.c > 0) return 0;
+    }
+
+    const replaceTurn = shouldReplaceSourceTurn(input);
+    if (replaceTurn) {
+      // Option B: wipe prior attempts for this logical turn only.
+      db.prepare(
+        `DELETE FROM episodic_memory_facts
+         WHERE chat_id = ?
+           AND source_turn = ?
+           AND (? IS NULL OR character_id IS NULL OR character_id = ?)
+           AND (? IS NULL OR user_id IS NULL OR user_id = ?)`
+      ).run(chatId, sourceTurn, characterId, characterId, userId, userId);
+    }
+
+    const facts = dedupeFactsWithinResponse(
+      filterContaminatedFactsForSave(sanitizeExtractedFacts(input.facts))
+    );
+    if (facts.length === 0) return 0;
+
     const metadataJson = JSON.stringify(input.metadata ?? {});
 
     const insert = db.prepare(`
@@ -252,6 +376,7 @@ export function persistEpisodicMemoryFactsBestEffort(
       console.info("[EpisodicMemory] saved facts:", {
         chat_id: chatId,
         source_turn: sourceTurn,
+        replaced_source_turn: replaceTurn,
         facts: facts.map((fact) => ({
           category: fact.category,
           subject: fact.subject,

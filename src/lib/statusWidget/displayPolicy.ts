@@ -1,7 +1,8 @@
 import type { ParsedStatusWidgetTurnValues, StatusWidgetValues } from "./types";
 import { statusWidgetValuesAreCorrupt } from "./parseValues";
 
-function isWidgetPlaceholderValue(value: string): boolean {
+/** Placeholder / unknown status values — not real scene state for triggers or memory. */
+export function isStatusWidgetPlaceholderValue(value: string): boolean {
   const t = value.trim();
   return (
     !t ||
@@ -11,6 +12,10 @@ function isWidgetPlaceholderValue(value: string): boolean {
     t === "<scene value>" ||
     /^[.·…\s-]+$/.test(t)
   );
+}
+
+function isWidgetPlaceholderValue(value: string): boolean {
+  return isStatusWidgetPlaceholderValue(value);
 }
 
 export function statusWidgetValuesHasContent(

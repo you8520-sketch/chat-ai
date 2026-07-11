@@ -32,6 +32,17 @@ const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 
 async function runBackgroundInitialization() {
+  try {
+    const { warnEpisodicMemoryRecallDisabledInProduction } = await import(
+      "./src/lib/episodicMemoryFacts.ts"
+    );
+    warnEpisodicMemoryRecallDisabledInProduction();
+  } catch (e) {
+    console.warn(
+      "[boot] episodic memory recall warning skipped:",
+      e && typeof e === "object" && "message" in e ? e.message : e
+    );
+  }
   if (process.env.DISABLE_PAYOUT_SCHEDULER !== "1") {
     try {
       const { startPayoutScheduler } = await import("./src/cron/payoutScheduler.ts");

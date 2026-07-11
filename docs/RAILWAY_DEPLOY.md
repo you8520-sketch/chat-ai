@@ -53,6 +53,7 @@ Set these before going live (values you provide separately):
 | `NEXT_PUBLIC_PAYMENTS_ENABLED` | `0` — client UI (header shop icon, charge buttons) |
 | `DISABLE_PAYOUT_SCHEDULER` | `1` |
 | `HOSTNAME` | `0.0.0.0` (optional; server defaults to this in production) |
+| `EPISODIC_MEMORY_RECALL_ENABLED` | `1` — **required** to inject saved episodic facts into prompts. Without it, facts are still saved but recall is off in production (boot warns). Read by `episodicMemoryRecallEnabled()` in `src/lib/episodicMemoryFacts.ts`. |
 
 **Do NOT set** `DEMO_MODE=1` in production.
 

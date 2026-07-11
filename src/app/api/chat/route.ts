@@ -200,6 +200,7 @@ import {
   patchOpenRouterSplitForStatusWidget,
   resolveStatusWidgetTurn,
   serializeStatusWidgetValuesJson,
+  statusWidgetValuesHasContent,
 } from "@/lib/statusWidget";
 import type { ParsedStatusWidgetTurnValues } from "@/lib/statusWidget/types";
 import {
@@ -230,7 +231,9 @@ import { resolveRegenerateGenerationOverrides } from "@/lib/openRouterClient";
 import { sanitizePrimaryModelAssistantHistory } from "@/lib/flashOwnedOutputFirewall";
 import {
   getEpisodicMemoryForPrompt,
+  logStatusMemoryPipelineDev,
   persistEpisodicMemoryFactsBestEffort,
+  summarizeEpisodicFactPersistCandidates,
 } from "@/lib/episodicMemoryFacts";
 import { stripExtractedFactsForClient } from "@/lib/statusWidget/parseValues";
 import {
@@ -2627,6 +2630,38 @@ export async function POST(req: Request) {
         logStreamingPersistence(persistenceDiag);
 
         const extractedFactsForPersistence = statusWidgetValuesPayload?.extracted_facts ?? [];
+        const factPersistSummary = summarizeEpisodicFactPersistCandidates(
+          extractedFactsForPersistence
+        );
+        const parsedStatusKeys = [
+          ...Object.keys(statusWidgetValuesPayload?.character ?? {}),
+          ...Object.keys(statusWidgetValuesPayload?.user ?? {}),
+        ].sort();
+        const expectedStatusKeys = [
+          ...(statusWidgetTurn.characterWidget?.fields ?? []).map((f) => f.id).filter(Boolean),
+          ...(statusWidgetTurn.userWidget?.fields ?? []).map((f) => f.id).filter(Boolean),
+        ].sort();
+        logStatusMemoryPipelineDev({
+          request_id: clientRequestId ?? null,
+          message_id: aiMessageId,
+          statusBlockFound: /<<<STATUS_VALUES/i.test(rawWidgetSourceText ?? ""),
+          parsedStatusKeys,
+          missingRequiredStatusKeys: expectedStatusKeys.filter((k) => !parsedStatusKeys.includes(k)),
+          extractedFactsRawCount: factPersistSummary.rawCount,
+          extractedFactsValidCount: factPersistSummary.validCount,
+          extractedFactsInsertedCount: factPersistSummary.insertableCount,
+          extractedFactsSkippedCount: factPersistSummary.skippedCount,
+          skippedReasons: factPersistSummary.skippedReasons,
+          recallCandidateCount: episodicMemory.debug.length,
+          recallInjectedCount: episodicMemory.facts.length,
+          recallBlockedReasons: [
+            ...new Set(
+              episodicMemory.debug
+                .map((d) => d.blocked_reason)
+                .filter((r): r is string => Boolean(r))
+            ),
+          ],
+        });
         if (extractedFactsForPersistence.length > 0) {
           const persistFacts = () => {
             persistEpisodicMemoryFactsBestEffort(db, {
@@ -2635,8 +2670,10 @@ export async function POST(req: Request) {
               userId: user.id,
               sourceTurn: playableTurnCount + 1,
               facts: extractedFactsForPersistence,
+              replaceSourceTurn: !!regenerateMessageId,
               metadata: {
                 assistant_message_id: aiMessageId,
+                request_id: clientRequestId ?? null,
                 regenerated: !!regenerateMessageId,
                 variant_index: snapshotVariantIndex,
                 status_widget_turn_active: statusWidgetActive,
@@ -2657,7 +2694,7 @@ export async function POST(req: Request) {
           console.error("[StatusTrigger] consume failed:", (e as Error).message);
         }
 
-        if (statusWidgetValuesPayload) {
+        if (statusWidgetValuesPayload && statusWidgetValuesHasContent(statusWidgetValuesPayload)) {
           evaluateStatusWidgetTriggersBestEffort(db, {
             chatId: chatRef.id,
             characterId: ch.id,

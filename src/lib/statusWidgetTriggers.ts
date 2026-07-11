@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { isStatusWidgetPlaceholderValue } from "@/lib/statusWidget/displayPolicy";
 import { mergeNamespacedStatusValues } from "@/lib/statusWidget/namespaces";
 import type { ParsedStatusWidgetTurnValues } from "@/lib/statusWidget/types";
 
@@ -447,7 +448,7 @@ export function evaluateStatusWidgetTriggers(
   for (const row of rows) {
     if (!triggerRowIsValid(row)) continue;
     const rawActual = statusMap[row.status_key] ?? statusMap[row.status_key.toLowerCase()];
-    if (rawActual == null) continue;
+    if (rawActual == null || isStatusWidgetPlaceholderValue(String(rawActual))) continue;
 
     const actual = normalizeRuntimeValue(rawActual);
     const expected = parseStoredTriggerValue(row.value);

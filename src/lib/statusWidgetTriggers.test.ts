@@ -523,4 +523,23 @@ describe("statusWidgetTriggers", () => {
       [2]
     );
   });
+
+  it("does not fire triggers from placeholder dash status values", () => {
+    insertStatusWidgetTriggerForTest(db, {
+      chat_id: 1,
+      trigger_id: "dash_skip",
+      status_key: "d_day",
+      operator: "<=",
+      value: 0,
+      fire_once: true,
+      event_key: "dash_event",
+      effect_text: "대시 값으로는 발동하면 안 된다.",
+    });
+    const result = evaluateStatusWidgetTriggers(db, {
+      chatId: 1,
+      sourceTurn: 20,
+      statusValues: { character: { d_day: "—" } },
+    });
+    assert.equal(result.firedEvents.length, 0);
+  });
 });

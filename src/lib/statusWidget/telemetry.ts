@@ -11,6 +11,7 @@ import {
   normalizeParsedStatusWidgetValuesForTurn,
   statusWidgetValuesAreCorrupt,
 } from "./parseValues";
+import { sanitizeExtractedFacts } from "./extractedFacts";
 import { splitProseAndStatusWidgetValuesDeepSeek } from "./deepseekCapture";
 import { statusWidgetValuesHasContent } from "./displayPolicy";
 import type { TokenUsage } from "@/lib/ai";
@@ -154,6 +155,24 @@ export function logStatusWidgetValuesMissingDev(input: {
   });
 }
 
+export type V3StatusExtractTrace = {
+  message_id?: number | null;
+  requiredKeys: string[];
+  parsedKeys: string[];
+  missingKeys: string[];
+  extractedFactsRawCount: number;
+  extractedFactsValidCount: number;
+  v3Used: boolean;
+  fallbackUsed: boolean;
+  parseError?: string | null;
+};
+
+/** Dev-only V3 extract reliability log — never logs prose. */
+export function logV3StatusExtractDev(trace: V3StatusExtractTrace): void {
+  if (process.env.NODE_ENV === "production") return;
+  console.info("[V3StatusExtract]", JSON.stringify(trace));
+}
+
 export async function resolveStatusWidgetTurnValues(
   input: ResolveStatusWidgetTurnValuesInput
 ): Promise<ResolveStatusWidgetTurnValuesResult> {
@@ -225,15 +244,31 @@ export async function resolveStatusWidgetTurnValues(
 
   const expectedKeys = expectedStatusWidgetKeys(input.statusWidgetTurn);
   const parsedKeys = statusWidgetParsedKeys(valuesPayload);
+  const missingKeys = expectedKeys.filter((key) => !parsedKeys.includes(key));
+  const extractedFactsRaw = valuesPayload?.extracted_facts ?? [];
+  const extractedFactsValid = sanitizeExtractedFacts(extractedFactsRaw);
+
+  const finalHasContent = statusWidgetValuesHasContent(valuesPayload);
   logStatusWidgetValuesMissingDev({
     messageId: input.regenerateMessageId ?? input.assistantMessageId,
     expectedKeys,
-    parsedKeys,
+    parsedKeys: finalHasContent ? parsedKeys : [],
     rawStatusBlockPresent: /<<<STATUS_VALUES/i.test(input.rawWidgetSourceText),
+    parseError:
+      splitRawParseError ??
+      (!finalHasContent && expectedKeys.length > 0 ? "empty_or_placeholder_status_values" : null),
+  });
+  logV3StatusExtractDev({
+    message_id: input.regenerateMessageId ?? input.assistantMessageId ?? null,
+    requiredKeys: expectedKeys,
+    parsedKeys: finalHasContent ? parsedKeys : [],
+    missingKeys: finalHasContent ? missingKeys : expectedKeys,
+    extractedFactsRawCount: Array.isArray(extractedFactsRaw) ? extractedFactsRaw.length : 0,
+    extractedFactsValidCount: extractedFactsValid.length,
+    v3Used: resolutionSource === "v3_extract",
+    fallbackUsed: resolutionSource === "split_raw",
     parseError: splitRawParseError,
   });
-
-  const finalHasContent = statusWidgetValuesHasContent(valuesPayload);
   const corruptBeforeExtract = statusWidgetValuesAreCorrupt(valuesPayload);
 
   const telemetry: StatusWidgetTurnTelemetry = {

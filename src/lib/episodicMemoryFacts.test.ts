@@ -4,12 +4,15 @@ import Database from "better-sqlite3";
 
 import {
   episodicMemoryDebugApiEnabled,
+  episodicMemoryRecallDisabledInProduction,
+  episodicMemoryRecallEnabled,
   ensureEpisodicMemoryFactsTable,
   formatEpisodicMemoryPromptSection,
   getEpisodicMemoryForPrompt,
   inspectEpisodicMemoryFactsForDebug,
   listEpisodicMemoryFactsForDebug,
   persistEpisodicMemoryFactsBestEffort,
+  warnEpisodicMemoryRecallDisabledInProduction,
 } from "@/lib/episodicMemoryFacts";
 import type { ExtractedStatusFact } from "@/lib/statusWidget/types";
 
@@ -211,6 +214,151 @@ describe("persistEpisodicMemoryFactsBestEffort", () => {
       });
       assert.equal(inserted, 0);
     });
+  });
+
+  it("regeneration replaces facts for the same source_turn only", () => {
+    const db = createDb();
+    persistEpisodicMemoryFactsBestEffort(db, {
+      chatId: 1,
+      characterId: 18,
+      userId: 4,
+      sourceTurn: 12,
+      facts: [validFact],
+      metadata: { assistant_message_id: 908, request_id: "req-a", regenerated: false },
+    });
+    persistEpisodicMemoryFactsBestEffort(db, {
+      chatId: 1,
+      characterId: 18,
+      userId: 4,
+      sourceTurn: 11,
+      facts: [
+        {
+          ...validFact,
+          attribute: "other_pref",
+          value: "tea",
+          fact_text: "사용자는 차를 좋아한다.",
+        },
+      ],
+      metadata: { assistant_message_id: 900, request_id: "req-old" },
+    });
+
+    const regenFact: ExtractedStatusFact = {
+      ...validFact,
+      value: "black_coffee",
+      fact_text: "사용자는 블랙커피를 선호한다.",
+    };
+    const inserted = persistEpisodicMemoryFactsBestEffort(db, {
+      chatId: 1,
+      characterId: 18,
+      userId: 4,
+      sourceTurn: 12,
+      facts: [regenFact],
+      replaceSourceTurn: true,
+      metadata: {
+        assistant_message_id: 908,
+        request_id: "req-b",
+        regenerated: true,
+      },
+    });
+
+    assert.equal(inserted, 1);
+    const turn12 = db
+      .prepare("SELECT value, fact_text FROM episodic_memory_facts WHERE source_turn=12")
+      .all() as Array<{ value: string; fact_text: string }>;
+    assert.equal(turn12.length, 1);
+    assert.equal(turn12[0]!.value, "black_coffee");
+    const turn11 = db
+      .prepare("SELECT COUNT(*) AS c FROM episodic_memory_facts WHERE source_turn=11")
+      .get() as { c: number };
+    assert.equal(turn11.c, 1);
+  });
+
+  it("repeated regeneration does not duplicate rows for the same request", () => {
+    const db = createDb();
+    const meta = {
+      assistant_message_id: 908,
+      request_id: "req-regen-1",
+      regenerated: true,
+    };
+    const first = persistEpisodicMemoryFactsBestEffort(db, {
+      chatId: 1,
+      characterId: 18,
+      userId: 4,
+      sourceTurn: 12,
+      facts: [validFact],
+      replaceSourceTurn: true,
+      metadata: meta,
+    });
+    const second = persistEpisodicMemoryFactsBestEffort(db, {
+      chatId: 1,
+      characterId: 18,
+      userId: 4,
+      sourceTurn: 12,
+      facts: [validFact],
+      replaceSourceTurn: true,
+      metadata: meta,
+    });
+    assert.equal(first, 1);
+    assert.equal(second, 0);
+    assert.equal(
+      (db.prepare("SELECT COUNT(*) AS c FROM episodic_memory_facts").get() as { c: number }).c,
+      1
+    );
+  });
+
+  it("idempotent finalize with same request_id does not duplicate", () => {
+    const db = createDb();
+    const meta = { assistant_message_id: 55, request_id: "req-same" };
+    assert.equal(
+      persistEpisodicMemoryFactsBestEffort(db, {
+        chatId: 2,
+        sourceTurn: 3,
+        facts: [validFact],
+        metadata: meta,
+      }),
+      1
+    );
+    assert.equal(
+      persistEpisodicMemoryFactsBestEffort(db, {
+        chatId: 2,
+        sourceTurn: 3,
+        facts: [validFact],
+        metadata: meta,
+      }),
+      0
+    );
+  });
+});
+
+describe("episodicMemoryRecallEnabled production warning", () => {
+  it("detects production without EPISODIC_MEMORY_RECALL_ENABLED", () => {
+    assert.equal(
+      episodicMemoryRecallDisabledInProduction({
+        NODE_ENV: "production",
+      } as NodeJS.ProcessEnv),
+      true
+    );
+    assert.equal(
+      episodicMemoryRecallDisabledInProduction({
+        NODE_ENV: "production",
+        EPISODIC_MEMORY_RECALL_ENABLED: "1",
+      } as NodeJS.ProcessEnv),
+      false
+    );
+    assert.equal(
+      episodicMemoryRecallEnabled({
+        NODE_ENV: "production",
+        EPISODIC_MEMORY_RECALL_ENABLED: "1",
+      } as NodeJS.ProcessEnv),
+      true
+    );
+  });
+
+  it("warnEpisodicMemoryRecallDisabledInProduction returns true when disabled", () => {
+    const warned = warnEpisodicMemoryRecallDisabledInProduction({
+      NODE_ENV: "production",
+    } as NodeJS.ProcessEnv);
+    assert.equal(warned, true);
   });
 });
 

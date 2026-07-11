@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import { normalizeParsedStatusWidgetValuesForTurn } from "./parseValues";
 import { renderStatusWidgetHtml } from "./render";
-import { logStatusWidgetValuesMissingDev } from "./telemetry";
+import { logStatusWidgetValuesMissingDev, logV3StatusExtractDev } from "./telemetry";
 import type { StatusWidget } from "./types";
 
 const widget: StatusWidget = {
@@ -83,5 +83,36 @@ describe("status widget value key mapping", () => {
       rawStatusBlockPresent: true,
       parseError: null,
     });
+  });
+
+  it("logs V3 extract reliability without prose", () => {
+    const infos: unknown[] = [];
+    const originalInfo = console.info;
+    console.info = (...args: unknown[]) => {
+      infos.push(args);
+    };
+    try {
+      logV3StatusExtractDev({
+        message_id: 7,
+        requiredKeys: ["속마음", "현재상황"],
+        parsedKeys: ["속마음"],
+        missingKeys: ["현재상황"],
+        extractedFactsRawCount: 2,
+        extractedFactsValidCount: 1,
+        v3Used: true,
+        fallbackUsed: false,
+        parseError: null,
+      });
+    } finally {
+      console.info = originalInfo;
+    }
+    assert.equal(infos.length, 1);
+    assert.equal((infos[0] as unknown[])[0], "[V3StatusExtract]");
+    const payload = JSON.parse(String((infos[0] as unknown[])[1])) as {
+      missingKeys: string[];
+      v3Used: boolean;
+    };
+    assert.deepEqual(payload.missingKeys, ["현재상황"]);
+    assert.equal(payload.v3Used, true);
   });
 });
