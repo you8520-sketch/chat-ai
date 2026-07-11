@@ -11,6 +11,7 @@ import NovelText from "@/components/NovelText";
 import {
   getCanonicalProseBody,
   logProseFormattingMismatchDev,
+  logProseSourceDivergenceDev,
   logRegeneratedEditFormattingMismatchDev,
   normalizeEditedProseForSave,
   resolveAssistantCanonicalProseSource,
@@ -68,7 +69,6 @@ import {
   collapseStreamCompareText,
   createStreamReveal,
   planStreamRevealCatchUp,
-  preferDisplayedNewlineLayout,
   rawPrefixForCollapsedCompare,
   resolveStreamAppendTail,
   type StreamRevealController,
@@ -1813,13 +1813,26 @@ export default function ChatClient({
               statusWidgetActive
             );
           const flashScheduled = !htmlFlashTurn && data.statusMetaPending === true;
+          const activeVariantSource = resolveActiveVariantContent({
+            content: data.finalContent ?? cur.content,
+            variants: data.variants,
+            activeVariant: data.activeVariant,
+          });
+          const canonicalDoneContent = getCanonicalProseBody(activeVariantSource);
+          logProseSourceDivergenceDev({
+            messageId: data.messageId,
+            phase: "applyStreamDone",
+            streamingSource: assistantStreamContentRef.current || cur.content,
+            activeVariantSource,
+            displaySource: canonicalDoneContent,
+            editSource: canonicalDoneContent,
+            usedPreferDisplayedNewlineLayout: false,
+            sourceFieldUsedByEditModal: "activeVariant",
+          });
           copy[aiIndex] = {
             ...cur,
             id: data.messageId,
-            content: preferDisplayedNewlineLayout(
-              assistantStreamContentRef.current || cur.content,
-              data.finalContent ?? cur.content
-            ),
+            content: canonicalDoneContent,
             model: resolvedUsage?.model ?? data.usage?.model,
             usage: resolvedUsage,
             variants: data.variants,
@@ -2665,6 +2678,16 @@ export default function ChatClient({
         storedProse: content,
         editModalValue: canonical,
         transform: "startEdit:resolveAssistantEditInitialValue",
+      });
+      logProseSourceDivergenceDev({
+        messageId,
+        phase: "startEdit",
+        dbSource: storedCanonical,
+        activeVariantSource: storedCanonical,
+        displaySource: storedCanonical,
+        editSource: canonical,
+        usedPreferDisplayedNewlineLayout: false,
+        sourceFieldUsedByEditModal: asst?.variants?.length ? "activeVariant" : "content",
       });
       if (
         (asst?.variantCount ?? asst?.variants?.length ?? 0) > 1 ||

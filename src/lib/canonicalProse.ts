@@ -14,6 +14,18 @@ export type ProseFormattingMismatchLengths = {
   transform?: string;
 };
 
+export type ProseSourceDivergenceInput = {
+  messageId?: number | string | null;
+  phase: string;
+  streamingSource?: string | null;
+  dbSource?: string | null;
+  activeVariantSource?: string | null;
+  displaySource?: string | null;
+  editSource?: string | null;
+  usedPreferDisplayedNewlineLayout?: boolean;
+  sourceFieldUsedByEditModal?: string;
+};
+
 export type AssistantCanonicalSource = {
   content: string;
   variants?: MessageVariant[];
@@ -49,6 +61,62 @@ export function firstDifferingIndex(a: string, b: string): number {
     if (a[i] !== b[i]) return i;
   }
   return -1;
+}
+
+export function proseSourceHash(text: string | null | undefined): string | null {
+  if (text == null) return null;
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i++) {
+    hash ^= text.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+export function hasSentenceParagraphPattern(text: string | null | undefined): boolean {
+  if (!text) return false;
+  const paragraphs = normalizeProseLineEndings(text)
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (paragraphs.length < 4) return false;
+  const oneSentence = paragraphs.filter((p) => {
+    if (/^["“”'‘’].*["“”'‘’]$/.test(p)) return false;
+    const sentenceMarks = p.match(/[.!?。！？]/g);
+    return (sentenceMarks?.length ?? 0) <= 1;
+  });
+  return oneSentence.length / paragraphs.length >= 0.8;
+}
+
+export function logProseSourceDivergenceDev(input: ProseSourceDivergenceInput): void {
+  if (process.env.NODE_ENV === "production") return;
+
+  const sources = [
+    input.streamingSource,
+    input.dbSource,
+    input.activeVariantSource,
+    input.displaySource,
+    input.editSource,
+  ].filter((value): value is string => value != null);
+  if (sources.length < 2) return;
+
+  const baseline = sources[0]!;
+  const mismatch = sources.find((value) => value !== baseline);
+  if (!mismatch) return;
+
+  console.warn("[ProseSourceDivergence]", {
+    messageId: input.messageId ?? null,
+    phase: input.phase,
+    streamingHash: proseSourceHash(input.streamingSource),
+    dbHash: proseSourceHash(input.dbSource),
+    activeVariantHash: proseSourceHash(input.activeVariantSource),
+    displayHash: proseSourceHash(input.displaySource),
+    editHash: proseSourceHash(input.editSource),
+    firstDiffIndex: firstDifferingIndex(baseline, mismatch),
+    sentenceParagraphPatternDetected: sources.some(hasSentenceParagraphPattern),
+    usedPreferDisplayedNewlineLayout: input.usedPreferDisplayedNewlineLayout === true,
+    sourceFieldUsedByEditModal: input.sourceFieldUsedByEditModal ?? "unknown",
+  });
 }
 
 export function logRegeneratedEditFormattingMismatchDev(input: {

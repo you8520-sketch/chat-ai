@@ -4,9 +4,12 @@ import assert from "node:assert/strict";
 import {
   firstDifferingIndex,
   getCanonicalProseBody,
+  hasSentenceParagraphPattern,
+  logProseSourceDivergenceDev,
   logRegeneratedEditFormattingMismatchDev,
   normalizeEditedProseForSave,
   normalizeProseLineEndings,
+  proseSourceHash,
   resolveAssistantCanonicalProseSource,
   resolveAssistantEditInitialValue,
 } from "./canonicalProse";
@@ -25,6 +28,10 @@ const REGENERATED_FRAGMENTED_DISPLAY =
   "아직 같은 문단이다.\n\n" +
   "\"대사 한 줄.\"\n\n" +
   "그 뒤의 지문이 이어진다.";
+
+const REAL_SAMPLE_TWO_PARAGRAPHS =
+  "렌의 손가락이 방아쇠를 당겼다. 두 번째 총성. 소음기 너머로 울린 둔탁한 파열음이 복도의 공기를 갈랐다. 탄환은 에녹의 어깨를 움켜쥐고 있던 개체의 머리, 정확히 브레인 포드가 맥동하던 중앙을 관통했다.\n\n" +
+  "청록색 형광액이 에녹의 방독면과 어깨 위로 쏟아졌다. 포자가 섞인 점액이 군복을 적셨다. 포드의 신경 다발이 일시에 경직되더니, 균사 가닥이 힘을 잃고 축 늘어졌다. 에녹의 어깨를 파고들었던 촉수 같은 균사들이 빠져나왔다.";
 
 const SAMPLE_CANONICAL_PROSE =
   "문장 하나가 이어진다. 같은 문단의 다음 문장이다.\n\n" +
@@ -96,6 +103,44 @@ describe("canonical prose body", () => {
     assert.equal(editInitialValue.includes("문장 하나가 이어진다.\n\n같은 문단"), false);
   });
 
+  it("keeps the real sample as exactly two canonical paragraphs in display/edit/save", () => {
+    const message = {
+      content: REAL_SAMPLE_TWO_PARAGRAPHS,
+      variants: [
+        { content: REAL_SAMPLE_TWO_PARAGRAPHS, model: "m", usage: null, created_at: "" },
+      ],
+      activeVariant: 0,
+    };
+
+    const canonical = getCanonicalProseBody(resolveAssistantCanonicalProseSource(message));
+    const displaySource = canonical;
+    const editInitialValue = resolveAssistantEditInitialValue(message);
+    const noOpPatchPayload = normalizeEditedProseForSave(editInitialValue);
+
+    assert.equal(canonical, REAL_SAMPLE_TWO_PARAGRAPHS);
+    assert.equal(displaySource, REAL_SAMPLE_TWO_PARAGRAPHS);
+    assert.equal(editInitialValue, REAL_SAMPLE_TWO_PARAGRAPHS);
+    assert.equal(noOpPatchPayload, REAL_SAMPLE_TWO_PARAGRAPHS);
+    assert.equal(REAL_SAMPLE_TWO_PARAGRAPHS.split(/\n{2,}/).length, 2);
+    assert.equal(hasSentenceParagraphPattern(REAL_SAMPLE_TWO_PARAGRAPHS), false);
+  });
+
+  it("does not allow preferDisplayedNewlineLayout-style fragmented text to become canonical", () => {
+    const activeVariantCanonical = REGENERATED_SAMPLE_PROSE;
+    const transientStreamingDisplay = REGENERATED_FRAGMENTED_DISPLAY;
+    const messageAfterDone = {
+      content: getCanonicalProseBody(activeVariantCanonical),
+      variants: [
+        { content: activeVariantCanonical, model: "m", usage: null, created_at: "" },
+      ],
+      activeVariant: 0,
+    };
+
+    assert.equal(hasSentenceParagraphPattern(transientStreamingDisplay), true);
+    assert.equal(messageAfterDone.content, activeVariantCanonical);
+    assert.equal(resolveAssistantEditInitialValue(messageAfterDone), activeVariantCanonical);
+  });
+
   it("removes regenerated status widget blocks without changing prose paragraph breaks", () => {
     const withWidget =
       REGENERATED_SAMPLE_PROSE +
@@ -139,6 +184,39 @@ describe("canonical prose body", () => {
     assert.equal(
       JSON.stringify(calls[0]?.[1]).includes(REGENERATED_SAMPLE_PROSE),
       false
+    );
+  });
+
+  it("reports source divergence with hashes and no private prose", () => {
+    assert.equal(typeof proseSourceHash(REGENERATED_SAMPLE_PROSE), "string");
+
+    const originalWarn = console.warn;
+    const calls: unknown[][] = [];
+    console.warn = (...args: unknown[]) => {
+      calls.push(args);
+    };
+    try {
+      logProseSourceDivergenceDev({
+        messageId: 858,
+        phase: "test",
+        streamingSource: REGENERATED_FRAGMENTED_DISPLAY,
+        activeVariantSource: REGENERATED_SAMPLE_PROSE,
+        displaySource: REGENERATED_SAMPLE_PROSE,
+        editSource: REGENERATED_SAMPLE_PROSE,
+        usedPreferDisplayedNewlineLayout: true,
+        sourceFieldUsedByEditModal: "activeVariant",
+      });
+    } finally {
+      console.warn = originalWarn;
+    }
+
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0]?.[0], "[ProseSourceDivergence]");
+    assert.equal(JSON.stringify(calls[0]?.[1]).includes(REGENERATED_SAMPLE_PROSE), false);
+    assert.equal(
+      (calls[0]?.[1] as { sentenceParagraphPatternDetected?: boolean })
+        .sentenceParagraphPatternDetected,
+      true
     );
   });
 });
