@@ -1,4 +1,4 @@
-import { fieldPlaceholderKey } from "./fieldKeys";
+import { fieldPlaceholderKey, statusWidgetFieldLookupKeys } from "./fieldKeys";
 import { sanitizeChatVisualCardHtml } from "@/lib/chatHtmlSanitize";
 import type { RenderedStatusWidget, StatusWidget, StatusWidgetValues } from "./types";
 
@@ -17,8 +17,7 @@ function resolveWidgetFieldValue(
   field: StatusWidget["fields"][number],
   values: StatusWidgetValues
 ): string {
-  const key = fieldPlaceholderKey(field);
-  for (const lookup of [field.id, key]) {
+  for (const lookup of statusWidgetFieldLookupKeys(field)) {
     const candidate = values[lookup]?.trim();
     if (candidate && !isWidgetPlaceholderValue(candidate)) return candidate;
   }

@@ -86,6 +86,7 @@ import {
   filterOutMessageIds,
   purgeOrphanUserMessages,
 } from "@/lib/chatMessageHygiene";
+import { resolveRegenerationContextBoundary } from "@/lib/regenerationContext";
 import {
   buildMemoryContextForChat,
   resolveMemoryTier,
@@ -527,34 +528,20 @@ export async function POST(req: Request) {
       .prepare("SELECT id, role, content, model FROM messages WHERE chat_id=? ORDER BY id ASC")
       .all(chat.id) as { id: number; role: string; content: string; model: string }[];
 
-    let lastAssistantId: number | null = null;
-    let lastUserContent: string | null = null;
-    let lastUserId: number | null = null;
-    for (let i = allRows.length - 1; i >= 0; i--) {
-      const row = allRows[i];
-      if (row.role === "assistant" && row.model !== "greeting") {
-        lastAssistantId = row.id;
-        for (let j = i - 1; j >= 0; j--) {
-          if (allRows[j].role === "user") {
-            lastUserContent = allRows[j].content;
-            lastUserId = allRows[j].id;
-            break;
-          }
-        }
-        break;
-      }
-    }
+    const regenBoundary = resolveRegenerationContextBoundary(
+      allRows as Array<{ id: number; role: "user" | "assistant"; content: string; model?: string }>
+    );
 
-    if (!lastAssistantId || !lastUserContent || !lastUserId) {
+    if (!regenBoundary) {
       return Response.json({ error: "재생성할 AI 답변이 없습니다." }, { status: 400 });
     }
 
-    regenerateMessageId = lastAssistantId;
+    regenerateMessageId = regenBoundary.targetAssistant.id;
     rejectedAssistantDraft =
-      allRows.find((row) => row.id === lastAssistantId)?.content?.trim() ?? null;
+      regenBoundary.targetAssistant.content.trim() || null;
     regenAttemptId = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    messageText = lastUserContent;
-    userMessageId = lastUserId;
+    messageText = regenBoundary.parentUser.content;
+    userMessageId = regenBoundary.parentUser.id;
     skipUserInsert = true;
 
     const regenStatusPolicy = resolveStatusWindowPolicyFromSources({
@@ -594,8 +581,23 @@ export async function POST(req: Request) {
       }
     }
   }
-  const msgRows = filterOutMessageIds(msgRowsWithId, [...regenerateHistoryDropIds]).map(
-    ({ role, content, model }) => ({ role, content, model })
+  const regenerationBoundaryForHistory =
+    regenerateMessageId != null
+      ? resolveRegenerationContextBoundary(
+          msgRowsWithId as Array<{
+            id: number;
+            role: "user" | "assistant";
+            content: string;
+            model?: string | null;
+          }>,
+          regenerateMessageId
+        )
+      : null;
+  const msgRowsSource = regenerationBoundaryForHistory
+    ? regenerationBoundaryForHistory.historyRows
+    : filterOutMessageIds(msgRowsWithId, [...regenerateHistoryDropIds]);
+  const msgRows = msgRowsSource.map(
+    ({ role, content, model }) => ({ role, content, model: model ?? undefined })
   );
   const dialogueTurns = messagesToTurns(msgRows);
   const playableTurnCount = countPlayableTurns(dialogueTurns);
@@ -837,7 +839,12 @@ export async function POST(req: Request) {
   const globalLorebookBlock = chatOocRpUnrelated
     ? ""
     : loadGlobalLorebookPromptBlock(db, globalLorebookScanText, globalLorebookScanText);
-  const queuedStatusTriggerEvents = loadQueuedStatusTriggerEventsForPrompt(db, chat.id);
+  const queuedStatusTriggerEvents = loadQueuedStatusTriggerEventsForPrompt(
+    db,
+    chat.id,
+    8,
+    regenerateMessageId ? { maxSourceTurn: playableTurnCount } : undefined
+  );
   const queuedStatusTriggerEventIds = queuedStatusTriggerEvents.map((event) => event.id);
   const triggeredScenarioEventsBlock =
     buildTriggeredScenarioEventsPromptBlock(queuedStatusTriggerEvents);
@@ -2484,6 +2491,7 @@ export async function POST(req: Request) {
             userPersona: backgroundPersonaIdentity,
             userMessage: messageText,
             userNote: effectiveUserNote,
+            assistantMessageId: persistedAssistantId,
             regenerateMessageId: regenerateMessageId ?? undefined,
           });
           savedText = widgetResolved.prose;

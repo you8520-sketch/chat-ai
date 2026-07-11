@@ -1,4 +1,8 @@
-import { fieldPlaceholderKey } from "./fieldKeys";
+import {
+  fieldPlaceholderKey,
+  normalizeStatusWidgetLookupKey,
+  statusWidgetFieldLookupKeys,
+} from "./fieldKeys";
 import { mergeExtractedFacts, sanitizeExtractedFacts } from "./extractedFacts";
 import type {
   ExtractedStatusFact,
@@ -206,6 +210,49 @@ export function sanitizeParsedStatusWidgetValues(
   const character = sanitizeStatusWidgetValues(values.character);
   const user = sanitizeStatusWidgetValues(values.user);
   const extracted_facts = sanitizeExtractedFacts(values.extracted_facts);
+  if (!character && !user && extracted_facts.length === 0) return {};
+  return {
+    character,
+    user,
+    ...(extracted_facts.length > 0 ? { extracted_facts } : {}),
+  };
+}
+
+function mapValuesToWidgetFields(
+  values: StatusWidgetValues | null | undefined,
+  widget: StatusWidget | null | undefined
+): StatusWidgetValues | null {
+  if (!values || !widget?.fields?.length) return sanitizeStatusWidgetValues(values);
+  const normalizedEntries = new Map<string, string>();
+  for (const [key, value] of Object.entries(values)) {
+    normalizedEntries.set(normalizeStatusWidgetLookupKey(key), value);
+  }
+
+  const out: StatusWidgetValues = {};
+  for (const field of widget.fields) {
+    const targetKey = fieldPlaceholderKey(field) || field.id.trim();
+    if (!targetKey) continue;
+    for (const lookup of statusWidgetFieldLookupKeys(field, widget.htmlTemplate)) {
+      const raw = values[lookup] ?? normalizedEntries.get(normalizeStatusWidgetLookupKey(lookup));
+      const clean = raw != null ? sanitizeStatusWidgetFieldValue(raw) : null;
+      if (clean) {
+        out[targetKey] = clean;
+        if (field.id && field.id !== targetKey) out[field.id] = clean;
+        break;
+      }
+    }
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+export function normalizeParsedStatusWidgetValuesForTurn(
+  values: ParsedStatusWidgetTurnValues | null | undefined,
+  widgets: { characterWidget?: StatusWidget | null; userWidget?: StatusWidget | null }
+): ParsedStatusWidgetTurnValues {
+  const sanitized = sanitizeParsedStatusWidgetValues(values);
+  const character = mapValuesToWidgetFields(sanitized.character, widgets.characterWidget);
+  const user = mapValuesToWidgetFields(sanitized.user, widgets.userWidget);
+  const extracted_facts = sanitizeExtractedFacts(sanitized.extracted_facts);
   if (!character && !user && extracted_facts.length === 0) return {};
   return {
     character,

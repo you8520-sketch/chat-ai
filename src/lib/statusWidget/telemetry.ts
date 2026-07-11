@@ -7,9 +7,14 @@ import {
   isDeepSeekV4ProModel,
 } from "@/lib/chatModels";
 import type { ParsedStatusWidgetTurnValues, ResolvedStatusWidgetTurn } from "./types";
-import { statusWidgetValuesAreCorrupt } from "./parseValues";
+import {
+  normalizeParsedStatusWidgetValuesForTurn,
+  statusWidgetValuesAreCorrupt,
+} from "./parseValues";
+import { splitProseAndStatusWidgetValuesDeepSeek } from "./deepseekCapture";
 import { statusWidgetValuesHasContent } from "./displayPolicy";
 import type { TokenUsage } from "@/lib/ai";
+import { fieldPlaceholderKey } from "./fieldKeys";
 import {
   stripStatusWidgetFromAssistantProse,
   WIDGET_EXTRACT_NARRATIVE_CHAR_BUDGET,
@@ -94,6 +99,7 @@ export type ResolveStatusWidgetTurnValuesInput = {
   userPersona?: string | null;
   userMessage: string;
   userNote?: string;
+  assistantMessageId?: number;
   regenerateMessageId?: number;
 };
 
@@ -103,6 +109,50 @@ export type ResolveStatusWidgetTurnValuesResult = {
   widgetExtractUsage: TokenUsage | null;
   telemetry: StatusWidgetTurnTelemetry;
 };
+
+function statusWidgetParsedKeys(values: ParsedStatusWidgetTurnValues | null | undefined): string[] {
+  return [
+    ...Object.keys(values?.character ?? {}),
+    ...Object.keys(values?.user ?? {}),
+  ].sort();
+}
+
+function expectedStatusWidgetKeys(resolved: ResolvedStatusWidgetTurn): string[] {
+  const keys = new Set<string>();
+  if (resolved.needsCharacterValues && resolved.characterWidget) {
+    for (const field of resolved.characterWidget.fields) {
+      const key = fieldPlaceholderKey(field);
+      if (key) keys.add(key);
+    }
+  }
+  if (resolved.needsUserValues && resolved.userWidget) {
+    for (const field of resolved.userWidget.fields) {
+      const key = fieldPlaceholderKey(field);
+      if (key) keys.add(key);
+    }
+  }
+  return [...keys].sort();
+}
+
+export function logStatusWidgetValuesMissingDev(input: {
+  messageId?: number;
+  expectedKeys: string[];
+  parsedKeys: string[];
+  rawStatusBlockPresent: boolean;
+  parseError?: string | null;
+}): void {
+  if (process.env.NODE_ENV === "production") return;
+  const missingKeys = input.expectedKeys.filter((key) => !input.parsedKeys.includes(key));
+  if (missingKeys.length === 0) return;
+  console.warn("[StatusWidgetValuesMissing]", {
+    messageId: input.messageId ?? null,
+    expectedKeys: input.expectedKeys,
+    parsedKeys: input.parsedKeys,
+    missingKeys,
+    rawStatusBlockPresent: input.rawStatusBlockPresent,
+    parseError: input.parseError ?? null,
+  });
+}
 
 export async function resolveStatusWidgetTurnValues(
   input: ResolveStatusWidgetTurnValuesInput
@@ -122,33 +172,66 @@ export async function resolveStatusWidgetTurnValues(
   let valuesPayload: ParsedStatusWidgetTurnValues | null = null;
   let widgetExtractUsage: TokenUsage | null = null;
   let resolutionSource: StatusWidgetResolutionSource = "none";
+  let splitRawHit = false;
+  let splitRawParseError: string | null = null;
 
   try {
-    const { extractStatusWidgetValuesForTurn } = await import("./extract");
-    const { loadPreviousStatusWidgetValues } = await import("./loadPrevious");
-    const v3Result = await extractStatusWidgetValuesForTurn({
-      charName: input.charName,
-      characterIdentity: input.characterIdentity,
-      personaName: input.personaName,
-      userPersona: input.userPersona,
-      userMessage: input.userMessage,
-      assistantProse: prose,
-      resolved: input.statusWidgetTurn,
-      previousValues: loadPreviousStatusWidgetValues(
-        input.chatId,
-        input.regenerateMessageId
-      ),
-      userNote: input.userNote,
+    const splitRaw = splitProseAndStatusWidgetValuesDeepSeek(input.rawWidgetSourceText);
+    const rawValues = normalizeParsedStatusWidgetValuesForTurn(splitRaw.values, {
+      characterWidget: input.statusWidgetTurn.characterWidget,
+      userWidget: input.statusWidgetTurn.userWidget,
     });
-    widgetExtractUsage = v3Result.usage;
-    if (statusWidgetValuesHasContent(v3Result.values)) {
-      v3ExtractSuccess = true;
-      valuesPayload = v3Result.values;
-      resolutionSource = "v3_extract";
+    if (statusWidgetValuesHasContent(rawValues)) {
+      valuesPayload = rawValues;
+      splitRawHit = true;
+      resolutionSource = "split_raw";
     }
   } catch (e) {
-    console.warn("[status-widget] V3 extract failed", (e as Error).message);
+    splitRawParseError = (e as Error).message;
   }
+
+  if (!statusWidgetValuesHasContent(valuesPayload)) {
+    try {
+      const { extractStatusWidgetValuesForTurn } = await import("./extract");
+      const { loadPreviousStatusWidgetValues } = await import("./loadPrevious");
+      const v3Result = await extractStatusWidgetValuesForTurn({
+        charName: input.charName,
+        characterIdentity: input.characterIdentity,
+        personaName: input.personaName,
+        userPersona: input.userPersona,
+        userMessage: input.userMessage,
+        assistantProse: prose,
+        resolved: input.statusWidgetTurn,
+        previousValues: loadPreviousStatusWidgetValues(
+          input.chatId,
+          input.regenerateMessageId
+        ),
+        userNote: input.userNote,
+      });
+      widgetExtractUsage = v3Result.usage;
+      const normalizedExtractValues = normalizeParsedStatusWidgetValuesForTurn(v3Result.values, {
+        characterWidget: input.statusWidgetTurn.characterWidget,
+        userWidget: input.statusWidgetTurn.userWidget,
+      });
+      if (statusWidgetValuesHasContent(normalizedExtractValues)) {
+        v3ExtractSuccess = true;
+        valuesPayload = normalizedExtractValues;
+        resolutionSource = "v3_extract";
+      }
+    } catch (e) {
+      console.warn("[status-widget] V3 extract failed", (e as Error).message);
+    }
+  }
+
+  const expectedKeys = expectedStatusWidgetKeys(input.statusWidgetTurn);
+  const parsedKeys = statusWidgetParsedKeys(valuesPayload);
+  logStatusWidgetValuesMissingDev({
+    messageId: input.regenerateMessageId ?? input.assistantMessageId,
+    expectedKeys,
+    parsedKeys,
+    rawStatusBlockPresent: /<<<STATUS_VALUES/i.test(input.rawWidgetSourceText),
+    parseError: splitRawParseError,
+  });
 
   const finalHasContent = statusWidgetValuesHasContent(valuesPayload);
   const corruptBeforeExtract = statusWidgetValuesAreCorrupt(valuesPayload);
@@ -161,12 +244,12 @@ export async function resolveStatusWidgetTurnValues(
     parserMode,
     streamCaptureHit: false,
     splitSavedHit: strippedLeak,
-    splitRawHit: false,
+    splitRawHit,
     inferHit: false,
-    backfillAttempted: v3ExtractAttempted,
+    backfillAttempted: !splitRawHit && v3ExtractAttempted,
     backfillSuccess: v3ExtractSuccess,
-    backfillSkippedReason: v3ExtractSuccess ? null : "v3_extract_empty",
-    jsonParseSuccess: strippedLeak,
+    backfillSkippedReason: splitRawHit ? "raw_status_values_used" : v3ExtractSuccess ? null : "v3_extract_empty",
+    jsonParseSuccess: strippedLeak || splitRawHit,
     resolutionSource: finalHasContent ? resolutionSource : "none",
     finalHasContent,
     finalCorruptBeforeBackfill: corruptBeforeExtract,
