@@ -88,7 +88,7 @@ export default function MessageBubbleToolbar({
   onEditStart: () => void;
   onTurnDeleted: () => void;
   onFork: (newChatId: number) => void;
-  onRegenerate: () => void;
+  onRegenerate: (messageId: number) => void;
   onRefunded?: () => void;
   onReportSubmitted?: (result: { status: "pending" | "approved" }) => void;
   /** assistant — 영수증 왼쪽 글자수 (관리자·데모) */
@@ -199,7 +199,7 @@ export default function MessageBubbleToolbar({
   }
 
   function runConfirmedAction(kind: ConfirmKind) {
-    if (kind === "regenerate") onRegenerate();
+    if (kind === "regenerate") onRegenerate(messageId!);
     else if (kind === "delete") void deleteTurn();
   }
 

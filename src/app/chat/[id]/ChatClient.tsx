@@ -2424,21 +2424,25 @@ export default function ChatClient({
     }
   }
 
-  async function regenerate() {
+  async function regenerate(targetAssistantMessageId?: number) {
     if (inFlightRef.current) {
       setToastMsg("이미 응답을 생성 중입니다. 잠시만 기다려 주세요.");
       return;
     }
-    if (!chatId || lastAssistantIdx < 0) {
+    const targetAssistantIdx =
+      targetAssistantMessageId != null
+        ? messages.findIndex((m) => m.id === targetAssistantMessageId && m.role === "assistant")
+        : lastAssistantIdx;
+    if (!chatId || targetAssistantIdx < 0) {
       setToastMsg("재생성할 AI 답변이 없습니다.");
       return;
     }
-    const prevAssistant = messages[lastAssistantIdx];
+    const prevAssistant = messages[targetAssistantIdx];
     if (!prevAssistant || prevAssistant.role !== "assistant") {
       setToastMsg("재생성할 AI 답변이 없습니다.");
       return;
     }
-    const regenIndex = lastAssistantIdx;
+    const regenIndex = targetAssistantIdx;
     const clientRequestId = createClientRequestId();
     setError("");
     setStreamPhase("재생성 준비 중…");
@@ -2552,6 +2556,7 @@ export default function ChatClient({
           characterId: character.id,
           chatId,
           regenerate: true,
+          targetAssistantMessageId: prevAssistant.id,
           clientRequestId,
           selectedAI,
           isNsfwMode: nsfwMode,
@@ -3514,7 +3519,7 @@ export default function ChatClient({
                               <div className="mt-3 flex justify-center gap-2">
                                 <button
                                   type="button"
-                                  onClick={() => void regenerate()}
+                                  onClick={() => void regenerate(m.id ?? undefined)}
                                   className="rounded-md border border-white/15 bg-[#1a1a1a] px-3 py-1.5 text-xs text-zinc-200 transition hover:border-orange-500/40 hover:text-white"
                                 >
                                   {m.content.trim() ? "이어서 생성" : "다시 생성"}

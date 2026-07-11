@@ -86,7 +86,11 @@ import {
   filterOutMessageIds,
   purgeOrphanUserMessages,
 } from "@/lib/chatMessageHygiene";
-import { resolveRegenerationContextBoundary } from "@/lib/regenerationContext";
+import {
+  buildRegenerationContextTrace,
+  logRegenerationContextTrace,
+  resolveRegenerationContextBoundary,
+} from "@/lib/regenerationContext";
 import {
   buildMemoryContextForChat,
   resolveMemoryTier,
@@ -271,6 +275,13 @@ function resolveIsAdultMode(input: unknown, chatMode: string): boolean {
   return chatMode === "nsfw";
 }
 
+function parseMessageIdInput(input: unknown): number | null {
+  if (typeof input === "number" && Number.isInteger(input) && input > 0) return input;
+  if (typeof input !== "string") return null;
+  const n = Number(input.trim().replace(/^msg-/i, ""));
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return Response.json({ error: "로그인이 필요합니다." }, { status: 401 });
@@ -285,6 +296,9 @@ export async function POST(req: Request) {
   const isAdultModeInput =
     body.isAdultMode ?? body.isNsfwMode ?? body.nsfwMode;
   const targetResponseCharsInput = body.targetResponseChars ?? body.targetResponseLength;
+  const targetAssistantMessageIdInput = parseMessageIdInput(
+    body.targetAssistantMessageId ?? body.regenerateMessageId ?? body.messageId
+  );
 
   if (isContinue && regenerate) {
     return Response.json({ error: "자동진행과 재생성은 동시에 사용할 수 없습니다." }, { status: 400 });
@@ -533,11 +547,26 @@ export async function POST(req: Request) {
       return Response.json({ error: "재생성할 채팅방이 없습니다." }, { status: 400 });
     }
     const allRows = db
-      .prepare("SELECT id, role, content, model FROM messages WHERE chat_id=? ORDER BY id ASC")
-      .all(chat.id) as { id: number; role: string; content: string; model: string }[];
+      .prepare(
+        "SELECT id, role, content, model, user_message_id FROM messages WHERE chat_id=? ORDER BY id ASC"
+      )
+      .all(chat.id) as {
+      id: number;
+      role: string;
+      content: string;
+      model: string;
+      user_message_id: number | null;
+    }[];
 
     const regenBoundary = resolveRegenerationContextBoundary(
-      allRows as Array<{ id: number; role: "user" | "assistant"; content: string; model?: string }>
+      allRows as Array<{
+        id: number;
+        role: "user" | "assistant";
+        content: string;
+        model?: string;
+        user_message_id?: number | null;
+      }>,
+      targetAssistantMessageIdInput
     );
 
     if (!regenBoundary) {
@@ -551,6 +580,23 @@ export async function POST(req: Request) {
     messageText = regenBoundary.parentUser.content;
     userMessageId = regenBoundary.parentUser.id;
     skipUserInsert = true;
+    logRegenerationContextTrace(
+      buildRegenerationContextTrace({
+        requestId: clientRequestId,
+        chatId: chat.id,
+        rows: allRows as Array<{
+          id: number;
+          role: "user" | "assistant";
+          content: string;
+          model?: string;
+          user_message_id?: number | null;
+        }>,
+        targetAssistantId: regenerateMessageId,
+        boundary: regenBoundary,
+        currentInputWrapperSource: "parent_user_message",
+        clientDraftPresent: typeof message === "string" && message.trim().length > 0,
+      })
+    );
 
     const regenStatusPolicy = resolveStatusWindowPolicyFromSources({
       userNote: effectiveUserNote || undefined,
@@ -564,7 +610,7 @@ export async function POST(req: Request) {
 
   const msgRowsWithId = db
     .prepare(
-      "SELECT id, role, content, model, generation_status FROM messages WHERE chat_id=? ORDER BY id ASC"
+      "SELECT id, role, content, model, generation_status, user_message_id FROM messages WHERE chat_id=? ORDER BY id ASC"
     )
     .all(chat.id) as {
     id: number;
@@ -572,6 +618,7 @@ export async function POST(req: Request) {
     content: string;
     model: string;
     generation_status?: string | null;
+    user_message_id?: number | null;
   }[];
   const purgedOrphanIds = purgeOrphanUserMessages(db, chat.id, msgRowsWithId);
   const regenerateHistoryDropIds = new Set<number>(purgedOrphanIds);
@@ -597,6 +644,7 @@ export async function POST(req: Request) {
             role: "user" | "assistant";
             content: string;
             model?: string | null;
+            user_message_id?: number | null;
           }>,
           regenerateMessageId
         )
