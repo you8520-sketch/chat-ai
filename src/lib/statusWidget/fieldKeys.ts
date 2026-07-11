@@ -16,6 +16,62 @@ export function fieldPlaceholderKey(field: StatusWidgetField): string {
   return statusValueKeyFromLabel(field.label) || field.id.trim();
 }
 
+export function normalizeStatusWidgetLookupKey(value: string): string {
+  return statusValueKeyFromLabel(value).replace(/_/g, "").toLowerCase();
+}
+
+function semanticMachineAliases(field: StatusWidgetField): string[] {
+  const norm = normalizeStatusWidgetLookupKey(`${field.id} ${field.label}`);
+  const aliases: string[] = [];
+  if (/시간|time/.test(norm)) aliases.push("time", "scene_time");
+  if (/장소|위치|place|location/.test(norm)) aliases.push("place", "location", "scene_place");
+  if (/속마음|내면|inner|thought/.test(norm)) {
+    aliases.push("inner_thought", "thought", "mood", "emotion");
+  }
+  if (/현재상황|상황|current|situation/.test(norm)) {
+    aliases.push("current_situation", "situation", "status");
+  }
+  if (/몸상태|신체|body|physical/.test(norm)) {
+    aliases.push("body_state", "physical_state", "body_status");
+  }
+  return aliases;
+}
+
+export function statusWidgetFieldLookupKeys(
+  field: StatusWidgetField,
+  htmlTemplate?: string
+): string[] {
+  const keys = new Set<string>();
+  const add = (value: string | null | undefined) => {
+    const trimmed = value?.trim();
+    if (!trimmed) return;
+    keys.add(trimmed);
+    const labelKey = statusValueKeyFromLabel(trimmed);
+    if (labelKey) keys.add(labelKey);
+    const compact = labelKey.replace(/_/g, "");
+    if (compact) keys.add(compact);
+  };
+
+  add(field.id);
+  add(field.label);
+  add(fieldPlaceholderKey(field));
+  for (const alias of semanticMachineAliases(field)) add(alias);
+
+  if (htmlTemplate) {
+    for (const match of htmlTemplate.matchAll(/\{\{([^}]+)\}\}/g)) {
+      const raw = match[1]?.trim();
+      if (!raw) continue;
+      const normRaw = normalizeStatusWidgetLookupKey(raw);
+      const fieldKeys = [field.id, field.label, fieldPlaceholderKey(field)].map(
+        normalizeStatusWidgetLookupKey
+      );
+      if (fieldKeys.includes(normRaw)) add(raw);
+    }
+  }
+
+  return [...keys];
+}
+
 export function uniqueStatusValueKey(label: string, existingKeys: string[]): string {
   const base = statusValueKeyFromLabel(label) || "상태값";
   if (!existingKeys.includes(base)) return base;

@@ -7,9 +7,10 @@ import { buildWebnovelOutputLayoutRecencyBlock } from "@/lib/webnovelOutputForma
 import { buildNovelModeUserPersonaRules } from "@/lib/userPersonaNarrationRules";
 
 describe("scene continuity vs paragraph layout — disambiguated prose rules", () => {
-  it("NARRATIVE DENSITY includes merged moment-to-moment flow (Step 7.5)", () => {
+  it("NARRATIVE DENSITY includes merged moment-to-moment flow (Step 7.5) without forcing one paragraph", () => {
     assert.match(NARRATIVE_DENSITY_BLOCK, /\[NARRATIVE DENSITY\]/);
-    assert.match(NARRATIVE_DENSITY_BLOCK, /중간 단계를 건너뛰지 마라/);
+    assert.match(NARRATIVE_DENSITY_BLOCK, /중간 단계를 건너뛰지/);
+    assert.match(NARRATIVE_DENSITY_BLOCK, /OUTPUT LAYOUT/);
     assert.doesNotMatch(NARRATIVE_DENSITY_BLOCK, /신체 접촉/);
   });
 
@@ -28,6 +29,7 @@ describe("scene continuity vs paragraph layout — disambiguated prose rules", (
     assert.match(rules, /scene progression continuous/i);
     assert.match(rules, /uninterrupted scene flow only/i);
     assert.match(rules, /never means merging narration and spoken dialogue into one paragraph/i);
+    assert.match(rules, /changed focus/i);
     assert.doesNotMatch(rules, /continuous scene narration/i);
   });
 });

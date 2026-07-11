@@ -11,9 +11,11 @@ describe("KOREAN WEBNOVEL STYLE (deprecated alias)", () => {
   it("aliases PROSE_STYLE_SECTION", () => {
     assert.equal(KOREAN_WEBNOVEL_STYLE_BLOCK, PROSE_STYLE_SECTION);
     assert.match(KOREAN_WEBNOVEL_STYLE, /\[PROSE STYLE\]/);
-    assert.match(KOREAN_WEBNOVEL_STYLE, /\[REGISTER\]/);
+    assert.match(KOREAN_WEBNOVEL_STYLE, /\[NARRATION REGISTER\]/);
     assert.match(KOREAN_WEBNOVEL_STYLE, /\[RHYTHM\]/);
     assert.match(KOREAN_WEBNOVEL_STYLE, /\[WEBNOVEL BREATH\]/);
+    assert.match(KOREAN_WEBNOVEL_STYLE, /OUTPUT LAYOUT/);
+    assert.match(KOREAN_WEBNOVEL_STYLE, /새 문단/);
     assert.doesNotMatch(KOREAN_WEBNOVEL_STYLE, /일상·대화/);
     assert.doesNotMatch(KOREAN_WEBNOVEL_STYLE, /모드 A/);
     assert.doesNotMatch(KOREAN_WEBNOVEL_STYLE, /모드 B/);

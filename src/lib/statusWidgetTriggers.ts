@@ -517,17 +517,27 @@ export function evaluateStatusWidgetTriggersBestEffort(
 export function loadQueuedStatusTriggerEventsForPrompt(
   db: Database.Database,
   chatId: number,
-  limit = 8
+  limit = 8,
+  opts?: { maxSourceTurn?: number | null }
 ): StatusTriggerEvent[] {
   ensureStatusWidgetTriggerTables(db);
+  const maxSourceTurn =
+    opts?.maxSourceTurn != null && Number.isFinite(opts.maxSourceTurn)
+      ? Math.trunc(opts.maxSourceTurn)
+      : null;
+  const sourceTurnFilter = maxSourceTurn != null ? " AND source_turn <= ?" : "";
+  const params =
+    maxSourceTurn != null
+      ? [chatId, maxSourceTurn, Math.max(1, Math.min(20, limit))]
+      : [chatId, Math.max(1, Math.min(20, limit))];
   return db
     .prepare(
       `SELECT * FROM status_trigger_events
-       WHERE chat_id=? AND is_consumed=0
+       WHERE chat_id=? AND is_consumed=0${sourceTurnFilter}
        ORDER BY fired_at ASC, id ASC
        LIMIT ?`
     )
-    .all(chatId, Math.max(1, Math.min(20, limit))) as StatusTriggerEvent[];
+    .all(...params) as StatusTriggerEvent[];
 }
 
 export function buildTriggeredScenarioEventsPromptBlock(events: StatusTriggerEvent[]): string {

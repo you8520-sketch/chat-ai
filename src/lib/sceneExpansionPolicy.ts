@@ -5,7 +5,8 @@ export const NO_INPUT_ECHO_RULE = `[NO INPUT ECHO — STRICT]
 
 export const NARRATIVE_DENSITY_BLOCK = `[NARRATIVE DENSITY]
 깊이를 속도보다 우선. 중요한 순간은 천천히; 전환·분위기 변화를 확장한다.
-장면·행동 흐름을 끊지 말고 순간마다 이어 서술 — 중간 단계를 건너뛰지 마라.`;
+장면·행동의 중간 단계를 건너뛰지 말고 순간마다 이어 서술한다.
+(장면 연속성이지, 초점이 바뀐 뒤에도 한 문단으로 합치라는 뜻이 아니다 — 문단은 [OUTPUT LAYOUT].)`;
 
 /** @deprecated Step 7.5 — merged into [NARRATIVE DENSITY]; not injected in LENGTH CONTROL */
 export const MOMENT_TO_MOMENT_WRITING_BLOCK = "";

@@ -488,4 +488,39 @@ describe("statusWidgetTriggers", () => {
     assert.equal(block, "");
     assert.doesNotMatch(block, /저주|끝났다는 사실/);
   });
+
+  it("queued event loading can exclude events after a regeneration boundary", () => {
+    insertStatusWidgetTriggerForTest(db, {
+      character_id: 1,
+      chat_id: null,
+      trigger_id: "regen_boundary_event",
+      status_key: "affection",
+      operator: ">=",
+      value: 80,
+      fire_once: false,
+      event_key: "regen_boundary_event",
+      effect_text: "숨겨진 문이 열렸다.",
+    });
+    evaluateStatusWidgetTriggers(db, {
+      chatId: 1,
+      characterId: 1,
+      sourceTurn: 2,
+      statusValues: { character: { affection: "80" } },
+    });
+    evaluateStatusWidgetTriggers(db, {
+      chatId: 1,
+      characterId: 1,
+      sourceTurn: 4,
+      statusValues: { character: { affection: "80" } },
+    });
+
+    const events = loadQueuedStatusTriggerEventsForPrompt(db, 1, 8, {
+      maxSourceTurn: 2,
+    });
+
+    assert.deepEqual(
+      events.map((event) => event.source_turn),
+      [2]
+    );
+  });
 });
