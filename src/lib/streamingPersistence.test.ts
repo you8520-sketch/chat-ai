@@ -12,6 +12,13 @@ import {
   restoreAssistantFromAlternatesOnFailedRegen,
   recoverStaleInFlightAssistantMessages,
 } from "@/lib/streamingPersistence";
+import { resolveActiveVariantContent } from "@/lib/messageAlternates";
+
+const REGENERATED_SAMPLE_PROSE =
+  "문장 하나가 이어진다. 같은 문단의 다음 문장이다.\n\n" +
+  "새 문단이 시작된다. 아직 같은 문단이다.\n\n" +
+  "\"대사 한 줄.\"\n\n" +
+  "그 뒤의 지문이 이어진다.";
 
 function createMessagesDb(): Database.Database {
   const db = new Database(":memory:");
@@ -305,6 +312,83 @@ describe("streamingPersistence", () => {
     const alts = JSON.parse(row.alternates) as { content: string }[];
     assert.equal(alts.length, 1);
     assert.equal(alts[0].content, "이전 답변");
+  });
+
+  it("finalizes regenerated assistant with canonical prose in DB and active variant", () => {
+    const db = createMessagesDb();
+    const boot = bootstrapStreamingTurn(db, {
+      chatId: 1,
+      requestId: "cr_regen_format_base",
+      userContent: "다시 써줘.",
+      skipUserInsert: false,
+    });
+    finalizeAssistantMessage(db, {
+      assistantMessageId: boot.assistantMessageId,
+      chatId: 1,
+      content: "이전 응답.",
+      model: "m1",
+      usageJson: "{}",
+      alternatesJson: JSON.stringify([
+        { content: "이전 응답.", model: "m1", usage: null, created_at: "" },
+      ]),
+      activeVariant: 0,
+    });
+
+    bootstrapStreamingTurn(db, {
+      chatId: 1,
+      requestId: "cr_regen_format_2",
+      userContent: "다시 써줘.",
+      skipUserInsert: true,
+      existingUserMessageId: boot.userMessageId,
+      regenerateAssistantId: boot.assistantMessageId,
+    });
+
+    const alternatesJson = JSON.stringify([
+      { content: "이전 응답.", model: "m1", usage: null, created_at: "" },
+      { content: REGENERATED_SAMPLE_PROSE, model: "m2", usage: null, created_at: "" },
+    ]);
+    finalizeAssistantMessage(db, {
+      assistantMessageId: boot.assistantMessageId,
+      chatId: 1,
+      content: REGENERATED_SAMPLE_PROSE,
+      model: "m2",
+      usageJson: "{}",
+      alternatesJson,
+      activeVariant: 1,
+      statusWidgetValuesJson: JSON.stringify({ character: { 위치: "복도" } }),
+      statusWidgetTurnActive: 1,
+      generationStatus: "completed",
+    });
+
+    const row = db
+      .prepare(
+        `SELECT content, alternates, active_variant, status_widget_values_json
+         FROM messages WHERE id=?`
+      )
+      .get(boot.assistantMessageId) as {
+      content: string;
+      alternates: string;
+      active_variant: number;
+      status_widget_values_json: string;
+    };
+    const variants = JSON.parse(row.alternates) as Array<{
+      content: string;
+      model: string;
+      usage: null;
+      created_at: string;
+    }>;
+
+    assert.equal(row.content, REGENERATED_SAMPLE_PROSE);
+    assert.equal(variants[1]?.content, REGENERATED_SAMPLE_PROSE);
+    assert.equal(
+      resolveActiveVariantContent({
+        content: row.content,
+        variants,
+        activeVariant: row.active_variant,
+      }),
+      REGENERATED_SAMPLE_PROSE
+    );
+    assert.equal(row.status_widget_values_json.includes("복도"), true);
   });
 
   it("restoreAssistantFromAlternatesOnFailedRegen restores prior reply", () => {

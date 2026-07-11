@@ -11,7 +11,10 @@ import NovelText from "@/components/NovelText";
 import {
   getCanonicalProseBody,
   logProseFormattingMismatchDev,
+  logRegeneratedEditFormattingMismatchDev,
   normalizeEditedProseForSave,
+  resolveAssistantCanonicalProseSource,
+  resolveAssistantEditInitialValue,
 } from "@/lib/canonicalProse";
 import ChatEmotionPortraitPanel from "@/components/ChatEmotionPortraitPanel";
 import ChatSettingsPanel from "@/components/ChatSettingsPanel";
@@ -2646,17 +2649,35 @@ export default function ChatClient({
   function startEdit(messageId: number, content: string, role: "user" | "assistant") {
     setEditingId(messageId);
     setEditingRole(role);
-    const canonical = role === "assistant" ? getCanonicalProseBody(content) : content;
+    const idx = role === "assistant" ? messages.findIndex((m) => m.id === messageId) : -1;
+    const asst = idx >= 0 ? messages[idx] : null;
+    const canonical =
+      role === "assistant"
+        ? resolveAssistantEditInitialValue(asst ?? { content })
+        : content;
     setEditDraft(canonical);
     if (role === "assistant") {
-      const idx = messages.findIndex((m) => m.id === messageId);
-      const asst = idx >= 0 ? messages[idx] : null;
+      const storedCanonical = getCanonicalProseBody(
+        resolveAssistantCanonicalProseSource(asst ?? { content })
+      );
       logProseFormattingMismatchDev({
         messageId,
         storedProse: content,
         editModalValue: canonical,
-        transform: "startEdit:getCanonicalProseBody",
+        transform: "startEdit:resolveAssistantEditInitialValue",
       });
+      if (
+        (asst?.variantCount ?? asst?.variants?.length ?? 0) > 1 ||
+        (asst?.activeVariant ?? 0) > 0
+      ) {
+        logRegeneratedEditFormattingMismatchDev({
+          messageId,
+          storedCanonicalProse: storedCanonical,
+          editModalValue: canonical,
+          transform: "startEdit:resolveAssistantEditInitialValue",
+          fallbackSource: asst?.variants?.length ? "activeVariant" : "content",
+        });
+      }
       const userMsg = idx > 0 && messages[idx - 1]?.role === "user" ? messages[idx - 1] : null;
       setEditWidgetDraft({
         character: asst?.statusWidgetValues?.character
