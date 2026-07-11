@@ -8,7 +8,11 @@ import StatusMetaCard from "@/components/StatusMetaCard";
 import StatusWidgetCard from "@/components/StatusWidgetCard";
 import StatusWidgetValuesEditor from "@/components/StatusWidgetValuesEditor";
 import NovelText from "@/components/NovelText";
-import { formatAiProseForEditTextarea } from "@/lib/novelParagraphs";
+import {
+  getCanonicalProseBody,
+  logProseFormattingMismatchDev,
+  normalizeEditedProseForSave,
+} from "@/lib/canonicalProse";
 import ChatEmotionPortraitPanel from "@/components/ChatEmotionPortraitPanel";
 import ChatSettingsPanel from "@/components/ChatSettingsPanel";
 import ChatRoomDisplayQuickRail from "@/components/ChatRoomDisplayQuickRail";
@@ -2642,11 +2646,17 @@ export default function ChatClient({
   function startEdit(messageId: number, content: string, role: "user" | "assistant") {
     setEditingId(messageId);
     setEditingRole(role);
-    // Assistant edit must match on-screen NovelText paragraphs (not raw DB \\n\\n-per-sentence).
-    setEditDraft(role === "assistant" ? formatAiProseForEditTextarea(content) : content);
+    const canonical = role === "assistant" ? getCanonicalProseBody(content) : content;
+    setEditDraft(canonical);
     if (role === "assistant") {
       const idx = messages.findIndex((m) => m.id === messageId);
       const asst = idx >= 0 ? messages[idx] : null;
+      logProseFormattingMismatchDev({
+        messageId,
+        storedProse: content,
+        editModalValue: canonical,
+        transform: "startEdit:getCanonicalProseBody",
+      });
       const userMsg = idx > 0 && messages[idx - 1]?.role === "user" ? messages[idx - 1] : null;
       setEditWidgetDraft({
         character: asst?.statusWidgetValues?.character
@@ -2680,7 +2690,7 @@ export default function ChatClient({
   async function saveEdit(messageId: number) {
     const assistantText =
       editingRole === "assistant"
-        ? formatAiProseForEditTextarea(editDraft).trim()
+        ? normalizeEditedProseForSave(editDraft)
         : editDraft.trim();
     const userText = editUserDraft.trim();
     const turnEdit = editingRole === "assistant" && editingUserId != null;
@@ -2696,7 +2706,7 @@ export default function ChatClient({
       }
     }
 
-    if (!assistantText) {
+    if (!assistantText.trim()) {
       setToastMsg("내용을 입력하세요.");
       return;
     }
@@ -3323,7 +3333,7 @@ export default function ChatClient({
                       );
                       const messageFormatSpec =
                         m.statusMetaFormatSpec ?? chatStatusFormatSpec ?? null;
-                      const bodyForDisplay =
+                      const bodyForDisplayRaw =
                         markdownStatusWindowActive && messageFormatSpec
                           ? partitionPlainStatusBlockForDisplay(
                               displayBody,
@@ -3332,6 +3342,7 @@ export default function ChatClient({
                               { streaming: isStreamingThisMessage }
                             ).prose
                           : displayBody;
+                      const bodyForDisplay = getCanonicalProseBody(bodyForDisplayRaw);
                       const userBefore =
                         i > 0 && messages[i - 1]?.role === "user" ? messages[i - 1] : null;
                       const showOocMarkdown =

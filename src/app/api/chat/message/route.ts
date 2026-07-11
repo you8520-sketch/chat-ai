@@ -4,7 +4,7 @@ import { getDb } from "@/lib/db";
 import { assertMessageAccess } from "@/lib/chatAccess";
 import { CHAT_MESSAGE_MAX, ASSISTANT_MESSAGE_MAX } from "@/lib/chatModels";
 import { editedMessageVariant } from "@/lib/messageAlternates";
-import { formatAiProseForEditTextarea } from "@/lib/novelParagraphs";
+import { normalizeEditedProseForSave } from "@/lib/canonicalProse";
 import {
   parseStoredStatusWidgetValuesJson,
   sanitizeParsedStatusWidgetValues,
@@ -34,19 +34,14 @@ export async function PATCH(req: Request) {
     statusWidgetValues?: unknown;
   };
   const id = Number(messageId);
-  let text = typeof content === "string" ? content.trim() : "";
+  let text = typeof content === "string" ? normalizeEditedProseForSave(content) : "";
   if (!id) return NextResponse.json({ error: "messageId가 필요합니다." }, { status: 400 });
-  if (!text) return NextResponse.json({ error: "내용을 입력하세요." }, { status: 400 });
+  if (!text.trim()) return NextResponse.json({ error: "내용을 입력하세요." }, { status: 400 });
 
   const msg = assertMessageAccess(user.id, id);
   if (!msg) return NextResponse.json({ error: "메시지를 찾을 수 없습니다." }, { status: 404 });
   if (msg.model === "greeting") {
     return NextResponse.json({ error: "인사말은 수정할 수 없습니다." }, { status: 400 });
-  }
-
-  if (msg.role === "assistant") {
-    text = formatAiProseForEditTextarea(text).trim();
-    if (!text) return NextResponse.json({ error: "내용을 입력하세요." }, { status: 400 });
   }
 
   const maxLen = msg.role === "assistant" ? ASSISTANT_MESSAGE_MAX : CHAT_MESSAGE_MAX;
