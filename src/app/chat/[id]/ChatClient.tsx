@@ -3355,11 +3355,7 @@ export default function ChatClient({
                         statusWidgetValues: m.statusWidgetValues,
                         isStreaming: false,
                         displayHidden: statusWidgetTurn.displayMode === "hidden",
-                      }) || (
-                        statusWidgetTurn.displayMode !== "hidden" &&
-                        m.model !== "greeting" &&
-                        m.statusWidgetTurnActive === true
-                      );
+                      });
                       if (!showWidgetEdit) return null;
                       const widgetItems = orderedWidgetsForRender(statusWidgetTurn, {
                         character: editWidgetDraft.character ?? {},
