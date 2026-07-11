@@ -390,7 +390,103 @@ function mergeAdjacentShortNarrationParagraphs(
   paragraphs: string[],
   _streaming = false
 ): string[] {
-  return paragraphs.map((p) => p.trim()).filter(Boolean);
+  const clean = paragraphs.map((p) => p.trim()).filter(Boolean);
+  const out: string[] = [];
+  let run: string[] = [];
+
+  const flushRun = () => {
+    if (run.length === 0) return;
+    out.push(...groupExtremeNarrationFragments(run));
+    run = [];
+  };
+
+  for (const paragraph of clean) {
+    if (isGroupableNarrationFragment(paragraph)) {
+      run.push(paragraph);
+    } else {
+      flushRun();
+      out.push(paragraph);
+    }
+  }
+  flushRun();
+  return out;
+}
+
+const FRAGMENT_SENTENCE_END_RE = /[.!?。！？](?:["”’)]*)\s*$/u;
+const TRANSITION_FRAGMENT_RE =
+  /^(?:한편|그 시각|잠시 후|얼마 뒤|다음 순간|그때|그 사이|문밖에서는|반대편에서는|동시에)\b/u;
+
+function isNonNarrationDisplayBlock(text: string): boolean {
+  const t = text.trim();
+  return (
+    /^```/.test(t) ||
+    /^<[^>]+>/.test(t) ||
+    /^(?:[-*+]|\d+[.)])\s+/.test(t) ||
+    /^STATUS\s*REPORT\b/i.test(t) ||
+    /^<<<.*>>>$/.test(t)
+  );
+}
+
+function countFragmentSentences(text: string): number {
+  const matches = text.match(/[.!?。！？](?:["”’)]*)/gu);
+  return Math.max(1, matches?.length ?? (FRAGMENT_SENTENCE_END_RE.test(text) ? 1 : 0));
+}
+
+function isOneSentenceFragment(text: string): boolean {
+  return countFragmentSentences(text) <= 1;
+}
+
+function isGroupableNarrationFragment(text: string): boolean {
+  if (isNonNarrationDisplayBlock(text)) return false;
+  return classifyNovelParagraph(text) === "narration";
+}
+
+function shouldRepairFragmentRun(run: string[]): boolean {
+  if (run.length < 5) return false;
+  const oneSentenceCount = run.filter(isOneSentenceFragment).length;
+  return oneSentenceCount / run.length >= 0.8;
+}
+
+function groupExtremeNarrationFragments(run: string[]): string[] {
+  if (!shouldRepairFragmentRun(run)) return run;
+
+  const grouped: string[] = [];
+  let current: string[] = [];
+  let currentChars = 0;
+  let currentSentences = 0;
+
+  const flush = () => {
+    if (current.length > 0) {
+      grouped.push(current.join(" "));
+      current = [];
+      currentChars = 0;
+      currentSentences = 0;
+    }
+  };
+
+  for (const fragment of run) {
+    const sentences = countFragmentSentences(fragment);
+    const nextChars = currentChars + (current.length > 0 ? 1 : 0) + fragment.length;
+    const nextSentences = currentSentences + sentences;
+
+    if (
+      current.length > 0 &&
+      (TRANSITION_FRAGMENT_RE.test(fragment) || nextChars > 360 || nextSentences > 4)
+    ) {
+      flush();
+    }
+
+    current.push(fragment);
+    currentChars += (current.length > 1 ? 1 : 0) + fragment.length;
+    currentSentences += sentences;
+
+    if (currentSentences >= 4 || (currentChars >= 120 && currentChars >= 320)) {
+      flush();
+    }
+  }
+  flush();
+
+  return grouped;
 }
 
 export type GroupNovelParagraphsOpts = { streaming?: boolean };

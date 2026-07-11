@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   firstDifferingIndex,
+  getDisplayAlignedCanonicalProseBody,
   getCanonicalProseBody,
   hasSentenceParagraphPattern,
   logProseSourceDivergenceDev,
@@ -218,5 +219,22 @@ describe("canonical prose body", () => {
         .sentenceParagraphPatternDetected,
       true
     );
+  });
+
+  it("display/edit source repairs pathological sentence-per-paragraph prose consistently", () => {
+    const fragmented =
+      "렌의 손가락이 방아쇠를 당겼다.\n\n" +
+      "두 번째 총성.\n\n" +
+      "소음기 너머로 울린 둔탁한 파열음이 복도의 공기를 갈랐다.\n\n" +
+      "탄환은 에녹의 어깨를 움켜쥐고 있던 개체의 머리, 정확히 브레인 포드가 맥동하던 중앙을 관통했다.\n\n" +
+      "청록색 형광액이 에녹의 방독면과 어깨 위로 쏟아졌다.\n\n" +
+      "포자가 섞인 점액이 군복을 적셨다.\n\n" +
+      "포드의 신경 다발이 일시에 경직되더니, 균사 가닥이 힘을 잃고 축 늘어졌다.\n\n" +
+      "에녹의 어깨를 파고들었던 촉수 같은 균사들이 빠져나왔다.";
+    const expected =
+      "렌의 손가락이 방아쇠를 당겼다. 두 번째 총성. 소음기 너머로 울린 둔탁한 파열음이 복도의 공기를 갈랐다. 탄환은 에녹의 어깨를 움켜쥐고 있던 개체의 머리, 정확히 브레인 포드가 맥동하던 중앙을 관통했다.\n\n" +
+      "청록색 형광액이 에녹의 방독면과 어깨 위로 쏟아졌다. 포자가 섞인 점액이 군복을 적셨다. 포드의 신경 다발이 일시에 경직되더니, 균사 가닥이 힘을 잃고 축 늘어졌다. 에녹의 어깨를 파고들었던 촉수 같은 균사들이 빠져나왔다.";
+
+    assert.equal(getDisplayAlignedCanonicalProseBody(fragmented), expected);
   });
 });

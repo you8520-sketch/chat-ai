@@ -9,7 +9,9 @@ import StatusWidgetCard from "@/components/StatusWidgetCard";
 import StatusWidgetValuesEditor from "@/components/StatusWidgetValuesEditor";
 import NovelText from "@/components/NovelText";
 import {
+  getDisplayAlignedCanonicalProseBody,
   getCanonicalProseBody,
+  logDisplayEditSourceMismatchDev,
   logProseFormattingMismatchDev,
   logProseSourceDivergenceDev,
   logRegeneratedEditFormattingMismatchDev,
@@ -111,6 +113,7 @@ import {
   resolveStatusWidgetReservedChars,
   resolveStatusWidgetTurn,
   shouldShowStatusWidgetOnMessage,
+  statusWidgetValuesHasContent,
   stripIncompleteStatusWidgetTail,
   type ParsedStatusWidgetTurnValues,
   type StatusWidgetDisplayMode,
@@ -2664,20 +2667,29 @@ export default function ChatClient({
     setEditingRole(role);
     const idx = role === "assistant" ? messages.findIndex((m) => m.id === messageId) : -1;
     const asst = idx >= 0 ? messages[idx] : null;
+    const activeVariantSource =
+      role === "assistant" ? resolveAssistantCanonicalProseSource(asst ?? { content }) : content;
     const canonical =
       role === "assistant"
         ? resolveAssistantEditInitialValue(asst ?? { content })
         : content;
     setEditDraft(canonical);
     if (role === "assistant") {
-      const storedCanonical = getCanonicalProseBody(
-        resolveAssistantCanonicalProseSource(asst ?? { content })
-      );
+      const storedCanonical = getDisplayAlignedCanonicalProseBody(activeVariantSource);
       logProseFormattingMismatchDev({
         messageId,
-        storedProse: content,
+        storedProse: activeVariantSource,
         editModalValue: canonical,
-        transform: "startEdit:resolveAssistantEditInitialValue",
+        transform: "startEdit:getDisplayAlignedCanonicalProseBody",
+      });
+      logDisplayEditSourceMismatchDev({
+        messageId,
+        displaySource: storedCanonical,
+        editSource: canonical,
+        contentSource: content,
+        activeVariantSource,
+        displaySourceKind: "displayAlignedCanonicalProse",
+        editSourceKind: "displayAlignedCanonicalProse",
       });
       logProseSourceDivergenceDev({
         messageId,
@@ -2716,6 +2728,7 @@ export default function ChatClient({
         setEditUserDraft("");
       }
     } else {
+      setEditDraft(content);
       setEditingUserId(null);
       setEditUserDraft("");
       setEditWidgetDraft({});
@@ -3342,7 +3355,11 @@ export default function ChatClient({
                         statusWidgetValues: m.statusWidgetValues,
                         isStreaming: false,
                         displayHidden: statusWidgetTurn.displayMode === "hidden",
-                      });
+                      }) || (
+                        statusWidgetTurn.displayMode !== "hidden" &&
+                        m.model !== "greeting" &&
+                        m.statusWidgetTurnActive === true
+                      );
                       if (!showWidgetEdit) return null;
                       const widgetItems = orderedWidgetsForRender(statusWidgetTurn, {
                         character: editWidgetDraft.character ?? {},
@@ -3386,7 +3403,9 @@ export default function ChatClient({
                               { streaming: isStreamingThisMessage }
                             ).prose
                           : displayBody;
-                      const bodyForDisplay = getCanonicalProseBody(bodyForDisplayRaw);
+                      const bodyForDisplay = isStreamingThisMessage
+                        ? getCanonicalProseBody(bodyForDisplayRaw)
+                        : getDisplayAlignedCanonicalProseBody(bodyForDisplayRaw);
                       const userBefore =
                         i > 0 && messages[i - 1]?.role === "user" ? messages[i - 1] : null;
                       const showOocMarkdown =
@@ -3417,6 +3436,30 @@ export default function ChatClient({
                         isStreaming: isStreamingThisMessage,
                         displayHidden: statusWidgetTurn.displayMode === "hidden",
                       });
+                      if (
+                        process.env.NODE_ENV !== "production" &&
+                        !isStreamingThisMessage &&
+                        m.statusWidgetTurnActive === true &&
+                        !statusWidgetValuesHasContent(m.statusWidgetValues)
+                      ) {
+                        console.warn("[StatusWidgetRealMessageMissing]", {
+                          messageId: m.id ?? null,
+                          hasStatusJson: m.statusWidgetValues != null,
+                          statusJsonKeys: {
+                            character: Object.keys(m.statusWidgetValues?.character ?? {}),
+                            user: Object.keys(m.statusWidgetValues?.user ?? {}),
+                          },
+                          expectedKeys: statusWidgetTurn.characterWidget?.fields.map((f) => f.id) ?? [],
+                          missingKeys: statusWidgetTurn.characterWidget?.fields
+                            .map((f) => f.id)
+                            .filter((id) => {
+                              const values = m.statusWidgetValues?.character ?? {};
+                              return !Object.prototype.hasOwnProperty.call(values, id);
+                            }) ?? [],
+                          allPlaceholderValues: true,
+                          rendererSource: "ChatClient:shouldShowStatusWidgetOnMessage",
+                        });
+                      }
                       const widgetRendered =
                         showStatusWidget
                           ? renderStatusWidgetsForTurn(

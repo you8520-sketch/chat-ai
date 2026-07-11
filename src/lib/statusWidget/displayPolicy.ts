@@ -39,8 +39,7 @@ export function shouldShowStatusWidgetOnMessage(opts: {
 }): boolean {
   if (opts.displayHidden) return false;
   if (opts.model === "greeting" || opts.isStreaming) return false;
-  // 제작자 위젯 필수 턴 — 값 추출 실패·플레이스홀더라도 카드는 표시
-  if (opts.statusWidgetTurnActive === true) return true;
-  // Legacy rows before per-turn flag: only show when values were persisted
+  // Do not render a valid-looking all-placeholder card when extraction produced no usable values.
+  // Legacy rows before per-turn flag follow the same rule: only show when values were persisted.
   return statusWidgetValuesHasContent(opts.statusWidgetValues);
 }

@@ -3,6 +3,7 @@ import {
   stripIncompleteStatusWidgetTail,
 } from "@/lib/statusWidget/parseValues";
 import { resolveActiveVariantContent, type MessageVariant } from "@/lib/messageAlternates";
+import { formatAiProseForEditTextarea } from "@/lib/novelParagraphs";
 
 export type ProseFormattingMismatchLengths = {
   messageId?: number | string | null;
@@ -47,8 +48,12 @@ export function resolveAssistantCanonicalProseSource(
   return resolveActiveVariantContent(message);
 }
 
+export function getDisplayAlignedCanonicalProseBody(text: string): string {
+  return formatAiProseForEditTextarea(getCanonicalProseBody(text));
+}
+
 export function resolveAssistantEditInitialValue(message: AssistantCanonicalSource): string {
-  return getCanonicalProseBody(resolveAssistantCanonicalProseSource(message));
+  return getDisplayAlignedCanonicalProseBody(resolveAssistantCanonicalProseSource(message));
 }
 
 export function normalizeEditedProseForSave(text: string): string {
@@ -168,5 +173,32 @@ export function logProseFormattingMismatchDev(input: ProseFormattingMismatchLeng
     savedProseLength: input.savedProse?.length ?? null,
     firstDifferingIndex: firstDifferingIndex(baseline, mismatch),
     transform: input.transform ?? "unknown",
+  });
+}
+
+export function logDisplayEditSourceMismatchDev(input: {
+  messageId?: number | string | null;
+  displaySource?: string | null;
+  editSource?: string | null;
+  contentSource?: string | null;
+  activeVariantSource?: string | null;
+  editSourceKind?: string;
+  displaySourceKind?: string;
+}): void {
+  if (process.env.NODE_ENV === "production") return;
+  const display = input.displaySource ?? "";
+  const edit = input.editSource ?? "";
+  if (!display || !edit || display === edit) return;
+
+  console.warn("[DisplayEditSourceMismatch]", {
+    messageId: input.messageId ?? null,
+    displayLength: display.length,
+    editLength: edit.length,
+    contentLength: input.contentSource?.length ?? null,
+    activeVariantLength: input.activeVariantSource?.length ?? null,
+    firstDiffIndex: firstDifferingIndex(display, edit),
+    editSourceKind: input.editSourceKind ?? "unknown",
+    displaySourceKind: input.displaySourceKind ?? "unknown",
+    sentenceParagraphPatternDetected: /\S+[.!?。！？]\s*\n{2,}\S+/.test(edit),
   });
 }
