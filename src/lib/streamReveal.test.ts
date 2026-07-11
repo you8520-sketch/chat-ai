@@ -4,6 +4,7 @@ import {
   collapseStreamCompareText,
   createStreamReveal,
   planStreamRevealCatchUp,
+  preferDisplayedNewlineLayout,
   rawPrefixForCollapsedCompare,
   resolveStreamAppendTail,
   resolveStreamCatchUp,
@@ -60,12 +61,10 @@ describe("resolveStreamCatchUp", () => {
 });
 
 describe("planStreamRevealCatchUp", () => {
-  it("enqueues suffix instead of snapping when only paragraph breaks differ", () => {
+  it("keeps displayed layout when only paragraph breaks differ (no reflow)", () => {
     const displayed = "첫 문장. 둘째 문장. 셋째 문장.";
     const target = "첫 문장.\n\n둘째 문장.\n\n셋째 문장.";
-    const r = planStreamRevealCatchUp(displayed, target);
-    assert.ok(r);
-    assert.ok(r!.enqueue.length > 0 || r!.setPrefix !== displayed);
+    assert.equal(planStreamRevealCatchUp(displayed, target), null);
   });
 
   it("enqueues final tail at stream end instead of instant full replace", () => {
@@ -102,13 +101,11 @@ describe("planStreamRevealCatchUp", () => {
 });
 
 describe("resolveStreamReplaceCatchUp", () => {
-  it("snaps instantly when only paragraph breaks differ", () => {
+  it("keeps displayed layout when only paragraph breaks differ", () => {
     const displayed = "첫 문장. 둘째 문장. 셋째 문장.";
     const target = "첫 문장.\n\n둘째 문장.\n\n셋째 문장.";
-    const r = resolveStreamReplaceCatchUp(displayed, target);
-    assert.ok(r);
-    assert.equal(r!.mode, "instant");
-    assert.equal(r!.prefix, target);
+    assert.equal(resolveStreamReplaceCatchUp(displayed, target), null);
+    assert.equal(preferDisplayedNewlineLayout(displayed, target), displayed);
   });
 
   it("remaps layout without rewinding when collapsed prefix matches", () => {
@@ -121,12 +118,11 @@ describe("resolveStreamReplaceCatchUp", () => {
     assert.ok(r!.tail.length > 0);
   });
 
-  it("snaps instantly when long displayed text only gains paragraph breaks", () => {
+  it("does not snap when long displayed text only gains paragraph breaks", () => {
     const displayed = `${"가".repeat(950)}다. ${"나".repeat(950)}다.`;
     const target = displayed.replace(/\. /g, ".\n\n");
-    const r = resolveStreamReplaceCatchUp(displayed, target);
-    assert.ok(r);
-    assert.equal(r!.mode, "instant");
+    assert.equal(resolveStreamReplaceCatchUp(displayed, target), null);
+    assert.equal(preferDisplayedNewlineLayout(displayed, target), displayed);
   });
 });
 

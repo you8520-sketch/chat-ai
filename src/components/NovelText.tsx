@@ -6,12 +6,11 @@ import {
   classifyNovelParagraph,
   collapseDialogueInternalLineBreaks,
   groupAuthorParagraphs,
-  groupNovelParagraphs,
   novelParagraphSpacingClass,
   parseGreetingSegments,
   parseNovelSegments,
   isNarrationEmphasisLine,
-  stabilizeStreamingNovelParagraphs,
+  resolveNovelDisplayParagraphs,
   type NovelParagraphKind,
 } from "@/lib/novelParagraphs";
 import { parseUserMessageParts } from "@/lib/userMessageParse";
@@ -185,13 +184,12 @@ export default function NovelText({
   } else if (paragraphMode === "author") {
     paragraphs = groupAuthorParagraphs(content);
     streamingParasRef.current = [];
-  } else if (streaming) {
-    const grouped = groupNovelParagraphs(content, { streaming: true });
-    paragraphs = stabilizeStreamingNovelParagraphs(streamingParasRef.current, grouped);
-    streamingParasRef.current = paragraphs;
   } else {
-    paragraphs = groupNovelParagraphs(content);
-    streamingParasRef.current = [];
+    paragraphs = resolveNovelDisplayParagraphs(content, {
+      streaming,
+      previousStreamingParagraphs: streaming ? streamingParasRef.current : undefined,
+    });
+    streamingParasRef.current = streaming ? paragraphs : [];
   }
   const displayParagraphs = paragraphs.length > 0 ? paragraphs : [content];
   const paragraphKinds = displayParagraphs.map((p) =>

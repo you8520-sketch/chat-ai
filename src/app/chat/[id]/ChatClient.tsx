@@ -65,6 +65,7 @@ import {
   collapseStreamCompareText,
   createStreamReveal,
   planStreamRevealCatchUp,
+  preferDisplayedNewlineLayout,
   rawPrefixForCollapsedCompare,
   resolveStreamAppendTail,
   type StreamRevealController,
@@ -1720,6 +1721,15 @@ export default function ChatClient({
         return;
       }
 
+      // Same prose / different newlines only — keep streamed paragraph layout (7.10C).
+      if (
+        displayed &&
+        collapseStreamCompareText(displayed) === collapseStreamCompareText(target)
+      ) {
+        streamTargetTextRef.current = displayed;
+        return;
+      }
+
       if (
         displayed.length > 80 &&
         target.length < displayed.length * STREAM_SAVE_MIN_RETENTION
@@ -1803,7 +1813,10 @@ export default function ChatClient({
           copy[aiIndex] = {
             ...cur,
             id: data.messageId,
-            content: data.finalContent ?? cur.content,
+            content: preferDisplayedNewlineLayout(
+              assistantStreamContentRef.current || cur.content,
+              data.finalContent ?? cur.content
+            ),
             model: resolvedUsage?.model ?? data.usage?.model,
             usage: resolvedUsage,
             variants: data.variants,
@@ -3287,13 +3300,10 @@ export default function ChatClient({
                         displayHidden: statusWidgetTurn.displayMode === "hidden",
                       });
                       if (!showWidgetEdit) return null;
-                      const widgetItems = orderedWidgetsForRender(
-                        statusWidgetTurn,
-                        {
-                          character: editWidgetDraft.character ?? {},
-                          user: editWidgetDraft.user ?? {},
-                        }
-                      );
+                      const widgetItems = orderedWidgetsForRender(statusWidgetTurn, {
+                        character: editWidgetDraft.character ?? {},
+                        user: editWidgetDraft.user ?? {},
+                      });
                       if (widgetItems.length === 0) return null;
                       return (
                         <StatusWidgetValuesEditor
