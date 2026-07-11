@@ -5,6 +5,8 @@
 
 import type Database from "better-sqlite3";
 import { normalizeMessageVariants } from "./messageAlternates";
+import { statusWidgetValuesHasContent } from "./statusWidget/displayPolicy";
+import { parseStoredStatusWidgetValuesJson } from "./statusWidget/parseValues";
 
 export type GenerationStatus =
   | "submitted"
@@ -441,11 +443,18 @@ export function finalizeAssistantMessage(
     generationStatus?: GenerationStatus;
     alreadyFinalized?: boolean;
   }
-): { wrote: boolean } {
+): { wrote: boolean; preservedExistingStatusValues?: boolean; statusWidgetValuesJson?: string } {
   const row = db
-    .prepare(`SELECT generation_status, deduction_slices FROM messages WHERE id=? AND chat_id=?`)
+    .prepare(
+      `SELECT generation_status, deduction_slices, status_widget_values_json
+       FROM messages WHERE id=? AND chat_id=?`
+    )
     .get(opts.assistantMessageId, opts.chatId) as
-    | { generation_status: string | null; deduction_slices: string | null }
+    | {
+        generation_status: string | null;
+        deduction_slices: string | null;
+        status_widget_values_json: string | null;
+      }
     | undefined;
 
   if (!row) return { wrote: false };
@@ -460,6 +469,16 @@ export function finalizeAssistantMessage(
     return { wrote: false };
   }
 
+  const incomingStatusWidgetValuesJson = opts.statusWidgetValuesJson ?? "";
+  const existingStatusValues = parseStoredStatusWidgetValuesJson(row.status_widget_values_json);
+  const incomingStatusValues = parseStoredStatusWidgetValuesJson(incomingStatusWidgetValuesJson);
+  const preserveExistingStatusValues =
+    statusWidgetValuesHasContent(existingStatusValues) &&
+    !statusWidgetValuesHasContent(incomingStatusValues);
+  const finalStatusWidgetValuesJson = preserveExistingStatusValues
+    ? (row.status_widget_values_json ?? "")
+    : incomingStatusWidgetValuesJson;
+
   db.prepare(
     `UPDATE messages SET content=?, model=?, usage=?, alternates=?, active_variant=?,
      is_refunded=0, status_meta=NULL, status_widget_values_json=?, status_widget_turn_active=?,
@@ -470,13 +489,17 @@ export function finalizeAssistantMessage(
     opts.usageJson,
     opts.alternatesJson,
     opts.activeVariant,
-    opts.statusWidgetValuesJson ?? "",
+    finalStatusWidgetValuesJson,
     opts.statusWidgetTurnActive ?? 0,
     status,
     opts.assistantMessageId,
     opts.chatId
   );
-  return { wrote: true };
+  return {
+    wrote: true,
+    preservedExistingStatusValues: preserveExistingStatusValues,
+    statusWidgetValuesJson: finalStatusWidgetValuesJson,
+  };
 }
 
 /** Safe send wrapper: catch enqueue failures so disconnect never aborts generation/DB work. */

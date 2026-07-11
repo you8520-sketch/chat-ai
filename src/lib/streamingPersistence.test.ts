@@ -391,6 +391,90 @@ describe("streamingPersistence", () => {
     assert.equal(row.status_widget_values_json.includes("복도"), true);
   });
 
+  it("prevents same-message finalize from overwriting usable status values with empty values", () => {
+    const db = createMessagesDb();
+    const boot = bootstrapStreamingTurn(db, {
+      chatId: 1,
+      requestId: "cr_status_guard",
+      userContent: "status guard",
+      skipUserInsert: false,
+    });
+    const existingStatus = JSON.stringify({ character: { time: "09:00", place: "hall" } });
+    db.prepare(
+      `UPDATE messages SET status_widget_values_json=?, status_widget_turn_active=1
+       WHERE id=?`
+    ).run(existingStatus, boot.assistantMessageId);
+
+    const result = finalizeAssistantMessage(db, {
+      assistantMessageId: boot.assistantMessageId,
+      chatId: 1,
+      content: "final prose",
+      model: "m",
+      usageJson: "{}",
+      alternatesJson: "[]",
+      activeVariant: 0,
+      statusWidgetValuesJson: "",
+      statusWidgetTurnActive: 1,
+      generationStatus: "completed",
+    });
+
+    assert.equal(result.wrote, true);
+    assert.equal(result.preservedExistingStatusValues, true);
+    assert.equal(result.statusWidgetValuesJson, existingStatus);
+    const row = db
+      .prepare(`SELECT status_widget_values_json FROM messages WHERE id=?`)
+      .get(boot.assistantMessageId) as { status_widget_values_json: string };
+    assert.equal(row.status_widget_values_json, existingStatus);
+  });
+
+  it("does not copy previous-turn status values into a new message", () => {
+    const db = createMessagesDb();
+    const first = bootstrapStreamingTurn(db, {
+      chatId: 1,
+      requestId: "cr_status_prev",
+      userContent: "first",
+      skipUserInsert: false,
+    });
+    finalizeAssistantMessage(db, {
+      assistantMessageId: first.assistantMessageId,
+      chatId: 1,
+      content: "first reply",
+      model: "m",
+      usageJson: "{}",
+      alternatesJson: "[]",
+      activeVariant: 0,
+      statusWidgetValuesJson: JSON.stringify({ character: { time: "09:00" } }),
+      statusWidgetTurnActive: 1,
+      generationStatus: "completed",
+    });
+
+    const second = bootstrapStreamingTurn(db, {
+      chatId: 1,
+      requestId: "cr_status_new",
+      userContent: "second",
+      skipUserInsert: false,
+    });
+    const result = finalizeAssistantMessage(db, {
+      assistantMessageId: second.assistantMessageId,
+      chatId: 1,
+      content: "second reply",
+      model: "m",
+      usageJson: "{}",
+      alternatesJson: "[]",
+      activeVariant: 0,
+      statusWidgetValuesJson: "",
+      statusWidgetTurnActive: 1,
+      generationStatus: "completed",
+    });
+
+    assert.equal(result.wrote, true);
+    assert.equal(result.preservedExistingStatusValues, false);
+    const row = db
+      .prepare(`SELECT status_widget_values_json FROM messages WHERE id=?`)
+      .get(second.assistantMessageId) as { status_widget_values_json: string };
+    assert.equal(row.status_widget_values_json, "");
+  });
+
   it("restoreAssistantFromAlternatesOnFailedRegen restores prior reply", () => {
     const db = createMessagesDb();
     const boot = bootstrapStreamingTurn(db, {

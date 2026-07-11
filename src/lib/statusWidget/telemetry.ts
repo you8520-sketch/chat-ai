@@ -20,6 +20,11 @@ import {
   stripStatusWidgetFromAssistantProse,
   WIDGET_EXTRACT_NARRATIVE_CHAR_BUDGET,
 } from "./proseStrip";
+import {
+  diagnoseStatusWidgetValues,
+  logStatusWidgetLiveTrace,
+  statusWidgetDiagnosticHash,
+} from "./diagnostics";
 
 export type StatusWidgetModelFamily =
   | "deepseek"
@@ -102,6 +107,7 @@ export type ResolveStatusWidgetTurnValuesInput = {
   userNote?: string;
   assistantMessageId?: number;
   regenerateMessageId?: number;
+  requestId?: string | null;
 };
 
 export type ResolveStatusWidgetTurnValuesResult = {
@@ -186,13 +192,32 @@ export async function resolveStatusWidgetTurnValues(
     proseFromSaved !== input.savedText.trimEnd() ||
     proseFromRaw !== input.rawWidgetSourceText.trimEnd();
 
-  let v3ExtractAttempted = true;
+  let v3ExtractAttempted = false;
   let v3ExtractSuccess = false;
   let valuesPayload: ParsedStatusWidgetTurnValues | null = null;
   let widgetExtractUsage: TokenUsage | null = null;
   let resolutionSource: StatusWidgetResolutionSource = "none";
   let splitRawHit = false;
   let splitRawParseError: string | null = null;
+  const messageId = input.regenerateMessageId ?? input.assistantMessageId ?? null;
+  const traceBase = {
+    requestId: input.requestId ?? null,
+    chatId: input.chatId,
+    messageId,
+  };
+
+  logStatusWidgetLiveTrace({
+    ...traceBase,
+    phase: "status_extract_input",
+    statusWidgetTurnActive: input.statusWidgetTurn.active,
+    statusWidgetConfigured: Boolean(
+      input.statusWidgetTurn.characterWidget || input.statusWidgetTurn.userWidget
+    ),
+    expectedKeys: expectedStatusWidgetKeys(input.statusWidgetTurn),
+    v3ExtractCalled: false,
+    contentLength: prose.length,
+    contentHash: statusWidgetDiagnosticHash(prose),
+  });
 
   try {
     const splitRaw = splitProseAndStatusWidgetValuesDeepSeek(input.rawWidgetSourceText);
@@ -205,6 +230,25 @@ export async function resolveStatusWidgetTurnValues(
       splitRawHit = true;
       resolutionSource = "split_raw";
     }
+    const rawDiag = diagnoseStatusWidgetValues({
+      resolved: input.statusWidgetTurn,
+      statusWidgetTurnActive: input.statusWidgetTurn.active,
+      values: rawValues,
+      model: input.modelId,
+    });
+    logStatusWidgetLiveTrace({
+      ...traceBase,
+      phase: "status_parse_result",
+      statusWidgetTurnActive: input.statusWidgetTurn.active,
+      statusWidgetConfigured: rawDiag.statusWidgetConfigured,
+      expectedKeys: rawDiag.expectedKeys,
+      parsedKeys: rawDiag.actualKeys,
+      normalizedKeys: rawDiag.normalizedKeys,
+      missingKeys: rawDiag.missingKeys,
+      hasUsableValues: rawDiag.hasUsableValues,
+      dbValueShape: rawDiag.dbValueShape,
+      reasonCode: rawDiag.reasonCode,
+    });
   } catch (e) {
     splitRawParseError = (e as Error).message;
   }
@@ -213,6 +257,19 @@ export async function resolveStatusWidgetTurnValues(
     try {
       const { extractStatusWidgetValuesForTurn } = await import("./extract");
       const { loadPreviousStatusWidgetValues } = await import("./loadPrevious");
+      v3ExtractAttempted = true;
+      logStatusWidgetLiveTrace({
+        ...traceBase,
+        phase: "v3_extract_start",
+        statusWidgetTurnActive: input.statusWidgetTurn.active,
+        statusWidgetConfigured: Boolean(
+          input.statusWidgetTurn.characterWidget || input.statusWidgetTurn.userWidget
+        ),
+        expectedKeys: expectedStatusWidgetKeys(input.statusWidgetTurn),
+        v3ExtractCalled: true,
+        contentLength: prose.length,
+        contentHash: statusWidgetDiagnosticHash(prose),
+      });
       const v3Result = await extractStatusWidgetValuesForTurn({
         charName: input.charName,
         characterIdentity: input.characterIdentity,
@@ -226,11 +283,41 @@ export async function resolveStatusWidgetTurnValues(
           input.regenerateMessageId
         ),
         userNote: input.userNote,
+        trace: traceBase,
       });
       widgetExtractUsage = v3Result.usage;
       const normalizedExtractValues = normalizeParsedStatusWidgetValuesForTurn(v3Result.values, {
         characterWidget: input.statusWidgetTurn.characterWidget,
         userWidget: input.statusWidgetTurn.userWidget,
+      });
+      const v3Diag = diagnoseStatusWidgetValues({
+        resolved: input.statusWidgetTurn,
+        statusWidgetTurnActive: input.statusWidgetTurn.active,
+        values: v3Result.values,
+        model: input.modelId,
+      });
+      const normalizedDiag = diagnoseStatusWidgetValues({
+        resolved: input.statusWidgetTurn,
+        statusWidgetTurnActive: input.statusWidgetTurn.active,
+        values: normalizedExtractValues,
+        model: input.modelId,
+      });
+      logStatusWidgetLiveTrace({
+        ...traceBase,
+        phase: "status_normalize_result",
+        statusWidgetTurnActive: input.statusWidgetTurn.active,
+        statusWidgetConfigured: normalizedDiag.statusWidgetConfigured,
+        expectedKeys: normalizedDiag.expectedKeys,
+        parsedKeys: v3Diag.actualKeys,
+        normalizedKeys: normalizedDiag.normalizedKeys,
+        missingKeys: normalizedDiag.missingKeys,
+        hasUsableValues: normalizedDiag.hasUsableValues,
+        dbValueShape: normalizedDiag.dbValueShape,
+        reasonCode: normalizedDiag.hasUsableValues
+          ? "OK"
+          : v3Diag.actualKeys.length > 0
+            ? normalizedDiag.reasonCode
+            : "V3_EMPTY_OUTPUT",
       });
       if (statusWidgetValuesHasContent(normalizedExtractValues)) {
         v3ExtractSuccess = true;
@@ -239,6 +326,14 @@ export async function resolveStatusWidgetTurnValues(
       }
     } catch (e) {
       console.warn("[status-widget] V3 extract failed", (e as Error).message);
+      logStatusWidgetLiveTrace({
+        ...traceBase,
+        phase: "v3_extract_result",
+        v3ExtractCalled: true,
+        v3ExtractSucceeded: false,
+        v3ExtractJsonFound: false,
+        reasonCode: "V3_EMPTY_OUTPUT",
+      });
     }
   }
 

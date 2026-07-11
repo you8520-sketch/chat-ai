@@ -50,6 +50,44 @@ export type StatusWidgetDiagnostic = {
   reasonCode: StatusWidgetReasonCode;
 };
 
+export type StatusWidgetLiveTracePhase =
+  | "before_generation_finalize"
+  | "status_extract_input"
+  | "v3_extract_start"
+  | "v3_extract_result"
+  | "status_parse_result"
+  | "status_normalize_result"
+  | "before_db_save"
+  | "after_db_save"
+  | "after_finalize"
+  | "api_hydration"
+  | "render_diagnostics";
+
+export type StatusWidgetLiveTraceEvent = {
+  requestId?: string | null;
+  chatId?: number | null;
+  messageId?: number | null;
+  phase: StatusWidgetLiveTracePhase;
+  statusWidgetTurnActive?: boolean;
+  statusWidgetConfigured?: boolean;
+  expectedKeys?: string[];
+  v3ExtractCalled?: boolean;
+  v3ExtractSucceeded?: boolean;
+  v3ExtractReturnedTextLength?: number;
+  v3ExtractJsonFound?: boolean;
+  parsedKeys?: string[];
+  normalizedKeys?: string[];
+  missingKeys?: string[];
+  hasUsableValues?: boolean;
+  dbValueShape?: StatusWidgetDbValueShape;
+  savedToDb?: boolean;
+  overwrittenByEmpty?: boolean;
+  reasonCode?: StatusWidgetReasonCode;
+  contentLength?: number;
+  contentHash?: string | null;
+  statusValuesHash?: string | null;
+};
+
 function hashString(text: string | null | undefined): string | null {
   if (text == null) return null;
   let hash = 2166136261;
@@ -62,6 +100,46 @@ function hashString(text: string | null | undefined): string | null {
 
 export function statusWidgetDiagnosticHash(text: string | null | undefined): string | null {
   return hashString(text);
+}
+
+function parseTraceList(value: string | undefined): Set<string> {
+  return new Set(
+    (value ?? "")
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean)
+  );
+}
+
+export function shouldTraceStatusWidget(input: {
+  chatId?: number | null;
+  requestId?: string | null;
+  messageId?: number | null;
+}): boolean {
+  if (process.env.STATUS_WIDGET_TRACE_ENABLED !== "1") return false;
+  const chatIds = parseTraceList(process.env.STATUS_WIDGET_TRACE_CHAT_IDS);
+  const requestIds = parseTraceList(process.env.STATUS_WIDGET_TRACE_REQUEST_IDS);
+  const messageIds = parseTraceList(process.env.STATUS_WIDGET_TRACE_MESSAGE_IDS);
+  const chatAllowed =
+    chatIds.size === 0 || (input.chatId != null && chatIds.has(String(input.chatId)));
+  const requestAllowed =
+    requestIds.size === 0 || (input.requestId != null && requestIds.has(input.requestId));
+  const messageAllowed =
+    messageIds.size === 0 || (input.messageId != null && messageIds.has(String(input.messageId)));
+  return chatAllowed && requestAllowed && messageAllowed;
+}
+
+export function logStatusWidgetLiveTrace(event: StatusWidgetLiveTraceEvent): void {
+  if (
+    !shouldTraceStatusWidget({
+      chatId: event.chatId,
+      requestId: event.requestId,
+      messageId: event.messageId,
+    })
+  ) {
+    return;
+  }
+  console.info("[StatusWidgetLiveTrace]", JSON.stringify(event));
 }
 
 function isWidgetPlaceholderValue(value: string | null | undefined): boolean {

@@ -208,6 +208,11 @@ import {
   resolveStatusWidgetTurnValues,
 } from "@/lib/statusWidget/telemetry";
 import {
+  diagnoseStatusWidgetValues,
+  logStatusWidgetLiveTrace,
+  statusWidgetDiagnosticHash,
+} from "@/lib/statusWidget/diagnostics";
+import {
   applyStatusWidgetBillingCharge,
   buildStatusWidgetExtractReceipt,
   statusWidgetApiCostChargePoints,
@@ -2496,6 +2501,7 @@ export async function POST(req: Request) {
             userNote: effectiveUserNote,
             assistantMessageId: persistedAssistantId,
             regenerateMessageId: regenerateMessageId ?? undefined,
+            requestId: clientRequestId ?? null,
           });
           savedText = widgetResolved.prose;
           statusWidgetValuesPayload = widgetResolved.values;
@@ -2570,6 +2576,35 @@ export async function POST(req: Request) {
           ? serializeStatusWidgetValuesJson(statusWidgetValuesPayload)
           : "";
         const statusWidgetTurnActiveFlag = statusWidgetActive ? 1 : 0;
+        const statusWidgetSaveDiag = diagnoseStatusWidgetValues({
+          resolved: statusWidgetTurn,
+          statusWidgetTurnActive: statusWidgetActive,
+          values: statusWidgetValuesPayload,
+          model: openRouterApiModelId,
+        });
+        const statusWidgetSaveReason =
+          statusWidgetSaveDiag.reasonCode === "MISSING_REQUIRED_KEYS" &&
+          statusWidgetActive &&
+          !statusWidgetValuesPayload
+            ? "V3_EMPTY_OUTPUT"
+            : statusWidgetSaveDiag.reasonCode;
+        logStatusWidgetLiveTrace({
+          requestId: clientRequestId ?? null,
+          chatId: chatRef.id,
+          messageId: regenerateMessageId ?? persistedAssistantId,
+          phase: "before_db_save",
+          statusWidgetTurnActive: statusWidgetActive,
+          statusWidgetConfigured: statusWidgetSaveDiag.statusWidgetConfigured,
+          expectedKeys: statusWidgetSaveDiag.expectedKeys,
+          parsedKeys: statusWidgetSaveDiag.actualKeys,
+          normalizedKeys: statusWidgetSaveDiag.normalizedKeys,
+          missingKeys: statusWidgetSaveDiag.missingKeys,
+          hasUsableValues: statusWidgetSaveDiag.hasUsableValues,
+          dbValueShape: statusWidgetSaveDiag.dbValueShape,
+          savedToDb: false,
+          statusValuesHash: statusWidgetDiagnosticHash(statusWidgetValuesJson),
+          reasonCode: statusWidgetSaveReason,
+        });
 
         if (regenerateMessageId) {
           const existing = db
@@ -2589,7 +2624,7 @@ export async function POST(req: Request) {
           snapshotVariantIndex = appended.activeVariant;
           snapshotVariantCount = appended.variants.length;
 
-          finalizeAssistantMessage(db, {
+          const finalizeResult = finalizeAssistantMessage(db, {
             assistantMessageId: regenerateMessageId,
             chatId: chatRef.id,
             content: savedText,
@@ -2601,10 +2636,50 @@ export async function POST(req: Request) {
             statusWidgetTurnActive: statusWidgetTurnActiveFlag,
             generationStatus: "completed",
           });
+          logStatusWidgetLiveTrace({
+            requestId: clientRequestId ?? null,
+            chatId: chatRef.id,
+            messageId: regenerateMessageId,
+            phase: "after_db_save",
+            statusWidgetTurnActive: statusWidgetActive,
+            statusWidgetConfigured: statusWidgetSaveDiag.statusWidgetConfigured,
+            expectedKeys: statusWidgetSaveDiag.expectedKeys,
+            parsedKeys: statusWidgetSaveDiag.actualKeys,
+            normalizedKeys: statusWidgetSaveDiag.normalizedKeys,
+            missingKeys: statusWidgetSaveDiag.missingKeys,
+            hasUsableValues: statusWidgetSaveDiag.hasUsableValues,
+            dbValueShape: statusWidgetSaveDiag.dbValueShape,
+            savedToDb: finalizeResult.wrote,
+            overwrittenByEmpty: finalizeResult.preservedExistingStatusValues === true,
+            statusValuesHash: statusWidgetDiagnosticHash(finalizeResult.statusWidgetValuesJson ?? statusWidgetValuesJson),
+            reasonCode: finalizeResult.preservedExistingStatusValues
+              ? "FINALIZE_OVERWROTE_VALUES_PREVENTED"
+              : statusWidgetSaveReason,
+          });
+          logStatusWidgetLiveTrace({
+            requestId: clientRequestId ?? null,
+            chatId: chatRef.id,
+            messageId: regenerateMessageId,
+            phase: "after_finalize",
+            statusWidgetTurnActive: statusWidgetActive,
+            statusWidgetConfigured: statusWidgetSaveDiag.statusWidgetConfigured,
+            expectedKeys: statusWidgetSaveDiag.expectedKeys,
+            parsedKeys: statusWidgetSaveDiag.actualKeys,
+            normalizedKeys: statusWidgetSaveDiag.normalizedKeys,
+            missingKeys: statusWidgetSaveDiag.missingKeys,
+            hasUsableValues: statusWidgetSaveDiag.hasUsableValues,
+            dbValueShape: statusWidgetSaveDiag.dbValueShape,
+            savedToDb: finalizeResult.wrote,
+            overwrittenByEmpty: finalizeResult.preservedExistingStatusValues === true,
+            statusValuesHash: statusWidgetDiagnosticHash(finalizeResult.statusWidgetValuesJson ?? statusWidgetValuesJson),
+            reasonCode: finalizeResult.preservedExistingStatusValues
+              ? "FINALIZE_OVERWROTE_VALUES_PREVENTED"
+              : statusWidgetSaveReason,
+          });
           aiMessageId = regenerateMessageId;
         } else {
           const alternatesJson = JSON.stringify([newVariant]);
-          finalizeAssistantMessage(db, {
+          const finalizeResult = finalizeAssistantMessage(db, {
             assistantMessageId: persistedAssistantId,
             chatId: chatRef.id,
             content: savedText,
@@ -2615,6 +2690,46 @@ export async function POST(req: Request) {
             statusWidgetValuesJson,
             statusWidgetTurnActive: statusWidgetTurnActiveFlag,
             generationStatus: "completed",
+          });
+          logStatusWidgetLiveTrace({
+            requestId: clientRequestId ?? null,
+            chatId: chatRef.id,
+            messageId: persistedAssistantId,
+            phase: "after_db_save",
+            statusWidgetTurnActive: statusWidgetActive,
+            statusWidgetConfigured: statusWidgetSaveDiag.statusWidgetConfigured,
+            expectedKeys: statusWidgetSaveDiag.expectedKeys,
+            parsedKeys: statusWidgetSaveDiag.actualKeys,
+            normalizedKeys: statusWidgetSaveDiag.normalizedKeys,
+            missingKeys: statusWidgetSaveDiag.missingKeys,
+            hasUsableValues: statusWidgetSaveDiag.hasUsableValues,
+            dbValueShape: statusWidgetSaveDiag.dbValueShape,
+            savedToDb: finalizeResult.wrote,
+            overwrittenByEmpty: finalizeResult.preservedExistingStatusValues === true,
+            statusValuesHash: statusWidgetDiagnosticHash(finalizeResult.statusWidgetValuesJson ?? statusWidgetValuesJson),
+            reasonCode: finalizeResult.preservedExistingStatusValues
+              ? "FINALIZE_OVERWROTE_VALUES_PREVENTED"
+              : statusWidgetSaveReason,
+          });
+          logStatusWidgetLiveTrace({
+            requestId: clientRequestId ?? null,
+            chatId: chatRef.id,
+            messageId: persistedAssistantId,
+            phase: "after_finalize",
+            statusWidgetTurnActive: statusWidgetActive,
+            statusWidgetConfigured: statusWidgetSaveDiag.statusWidgetConfigured,
+            expectedKeys: statusWidgetSaveDiag.expectedKeys,
+            parsedKeys: statusWidgetSaveDiag.actualKeys,
+            normalizedKeys: statusWidgetSaveDiag.normalizedKeys,
+            missingKeys: statusWidgetSaveDiag.missingKeys,
+            hasUsableValues: statusWidgetSaveDiag.hasUsableValues,
+            dbValueShape: statusWidgetSaveDiag.dbValueShape,
+            savedToDb: finalizeResult.wrote,
+            overwrittenByEmpty: finalizeResult.preservedExistingStatusValues === true,
+            statusValuesHash: statusWidgetDiagnosticHash(finalizeResult.statusWidgetValuesJson ?? statusWidgetValuesJson),
+            reasonCode: finalizeResult.preservedExistingStatusValues
+              ? "FINALIZE_OVERWROTE_VALUES_PREVENTED"
+              : statusWidgetSaveReason,
           });
           aiMessageId = persistedAssistantId;
           if (userMessageId != null) {

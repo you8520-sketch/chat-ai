@@ -8,6 +8,7 @@ import {
 } from "./extractNormalize";
 import { mergeStatusWidgetExtractUsages } from "./receiptUsage";
 import { mergeExtractedFacts, sanitizeExtractedFacts } from "./extractedFacts";
+import { logStatusWidgetLiveTrace, statusWidgetDiagnosticHash } from "./diagnostics";
 import type {
   ExtractedStatusFact,
   ParsedStatusWidgetTurnValues,
@@ -28,6 +29,7 @@ async function extractStatusWidgetValuesForWidget(opts: {
   previousValues?: StatusWidgetValues | null;
   previousAssistantProse?: string | null;
   userNote?: string;
+  trace?: { requestId?: string | null; chatId?: number | null; messageId?: number | null };
 }): Promise<{ values: StatusWidgetValues | null; facts: ExtractedStatusFact[]; usage: TokenUsage | null }> {
   const keys = collectWidgetJsonKeys(opts.widget);
   if (keys.length === 0) return { values: null, facts: [], usage: null };
@@ -43,10 +45,21 @@ async function extractStatusWidgetValuesForWidget(opts: {
       "background-status-widget-extract"
     );
     const parsed = extractJsonObjectFromWidgetText(text);
+    logStatusWidgetLiveTrace({
+      ...opts.trace,
+      phase: "v3_extract_result",
+      v3ExtractCalled: true,
+      v3ExtractSucceeded: Boolean(parsed),
+      v3ExtractReturnedTextLength: text.length,
+      v3ExtractJsonFound: Boolean(parsed),
+      contentHash: statusWidgetDiagnosticHash(text),
+      reasonCode: parsed ? "OK" : text.trim() ? "V3_PARSE_FAILED" : "V3_EMPTY_OUTPUT",
+    });
     if (!parsed) {
       console.warn("[STATUS-WIDGET] JSON parse failed", {
         source: opts.source,
-        preview: text.slice(0, 200),
+        textLength: text.length,
+        textHash: statusWidgetDiagnosticHash(text),
       });
       return { values: null, facts: [], usage };
     }
@@ -55,6 +68,15 @@ async function extractStatusWidgetValuesForWidget(opts: {
     return { values, facts: sanitizeExtractedFacts(parsed.extracted_facts), usage };
   } catch (e) {
     console.error("[STATUS-WIDGET-ERROR] extract call failed", (e as Error).message);
+    logStatusWidgetLiveTrace({
+      ...opts.trace,
+      phase: "v3_extract_result",
+      v3ExtractCalled: true,
+      v3ExtractSucceeded: false,
+      v3ExtractReturnedTextLength: 0,
+      v3ExtractJsonFound: false,
+      reasonCode: "V3_EMPTY_OUTPUT",
+    });
     return { values: null, facts: [], usage: null };
   }
 }
@@ -70,6 +92,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   previousValues?: ParsedStatusWidgetTurnValues | null;
   previousAssistantProse?: string | null;
   userNote?: string;
+  trace?: { requestId?: string | null; chatId?: number | null; messageId?: number | null };
 }): Promise<{ values: ParsedStatusWidgetTurnValues; usage: TokenUsage | null }> {
   const out: ParsedStatusWidgetTurnValues = {};
   const usages: TokenUsage[] = [];
@@ -87,6 +110,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       previousValues: opts.previousValues?.character ?? null,
       previousAssistantProse: opts.previousAssistantProse,
       userNote: opts.userNote,
+      trace: opts.trace,
     });
     out.character = character.values;
     out.extracted_facts = mergeExtractedFacts(out.extracted_facts, character.facts);
@@ -106,6 +130,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       previousValues: opts.previousValues?.user ?? null,
       previousAssistantProse: opts.previousAssistantProse,
       userNote: opts.userNote,
+      trace: opts.trace,
     });
     out.user = user.values;
     out.extracted_facts = mergeExtractedFacts(out.extracted_facts, user.facts);
