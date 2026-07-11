@@ -26,7 +26,7 @@ import {
   visibleAssistantDisplayCharCount,
   visibleAssistantDisplayText,
 } from "@/lib/chatDisplayLength";
-import { normalizeAiNovelProseLayout } from "@/lib/novelParagraphs";
+import { normalizeProseLineEndings } from "@/lib/canonicalProse";
 import { loadCharacterChunks, loadCharacterChunksForPrompt } from "@/lib/characterChunks";
 import { resolveExampleDialogForPrompt } from "@/lib/narrationFewShotTemplates";
 import { buildContext } from "@/services/contextBuilder";
@@ -1344,10 +1344,10 @@ export async function POST(req: Request) {
           "sanitizeStreamArtifacts (2nd pass)"
         );
         traced = traceStep(
-          "normalizeAiNovelProseLayout",
+          "normalizeProseLineEndings",
           traced,
-          normalizeAiNovelProseLayout(traced),
-          "normalizeAiNovelProseLayout — paragraph/dialogue reflow"
+          normalizeProseLineEndings(traced).trimEnd(),
+          "normalizeProseLineEndings — canonical prose line endings only"
         );
         traced = traceStep(
           "dedupeGlobalParagraphs",
@@ -1474,12 +1474,12 @@ export async function POST(req: Request) {
             streamVisibleTextRef || modelDeliveredText,
             stripEmotionTagsForDisplay(
               clampResponseLength(
-                normalizeAiNovelProseLayout(
+                normalizeProseLineEndings(
                   sanitizeEmotionTagInText(
                     sanitizeStreamArtifacts(modelDeliveredText),
                     assetTags
                   )
-                ),
+                ).trimEnd(),
                 targetResponseCharsRef
               )
             ),

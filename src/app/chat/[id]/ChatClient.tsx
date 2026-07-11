@@ -6,8 +6,13 @@ import { useRouter } from "next/navigation";
 import ChatRichBlocks from "@/components/ChatRichBlocks";
 import StatusMetaCard from "@/components/StatusMetaCard";
 import StatusWidgetCard from "@/components/StatusWidgetCard";
+import StatusWidgetValuesEditor from "@/components/StatusWidgetValuesEditor";
 import NovelText from "@/components/NovelText";
-import { formatAiProseForEditTextarea } from "@/lib/novelParagraphs";
+import {
+  getCanonicalProseBody,
+  logProseFormattingMismatchDev,
+  normalizeEditedProseForSave,
+} from "@/lib/canonicalProse";
 import ChatEmotionPortraitPanel from "@/components/ChatEmotionPortraitPanel";
 import ChatSettingsPanel from "@/components/ChatSettingsPanel";
 import ChatRoomDisplayQuickRail from "@/components/ChatRoomDisplayQuickRail";
@@ -634,6 +639,7 @@ export default function ChatClient({
   const [editingRole, setEditingRole] = useState<"user" | "assistant" | null>(null);
   const [editDraft, setEditDraft] = useState("");
   const [editUserDraft, setEditUserDraft] = useState("");
+  const [editWidgetDraft, setEditWidgetDraft] = useState<ParsedStatusWidgetTurnValues>({});
   const [editSaving, setEditSaving] = useState(false);
   const [mode, setMode] = useState(initialMode);
   const [input, setInput] = useState(() => loadChatMessageDraft(character.id, initialChatId));
@@ -2627,11 +2633,24 @@ export default function ChatClient({
   function startEdit(messageId: number, content: string, role: "user" | "assistant") {
     setEditingId(messageId);
     setEditingRole(role);
-    // Assistant edit must match on-screen NovelText paragraphs (not raw DB \\n\\n-per-sentence).
-    setEditDraft(role === "assistant" ? formatAiProseForEditTextarea(content) : content);
+    const canonical = role === "assistant" ? getCanonicalProseBody(content) : content;
+    setEditDraft(canonical);
     if (role === "assistant") {
       const idx = messages.findIndex((m) => m.id === messageId);
+      const asst = idx >= 0 ? messages[idx] : null;
+      logProseFormattingMismatchDev({
+        messageId,
+        storedProse: content,
+        editModalValue: canonical,
+        transform: "startEdit:getCanonicalProseBody",
+      });
       const userMsg = idx > 0 && messages[idx - 1]?.role === "user" ? messages[idx - 1] : null;
+      setEditWidgetDraft({
+        character: asst?.statusWidgetValues?.character
+          ? { ...asst.statusWidgetValues.character }
+          : null,
+        user: asst?.statusWidgetValues?.user ? { ...asst.statusWidgetValues.user } : null,
+      });
       if (userMsg?.id) {
         setEditingUserId(userMsg.id);
         setEditUserDraft(userMsg.content);
@@ -2642,6 +2661,7 @@ export default function ChatClient({
     } else {
       setEditingUserId(null);
       setEditUserDraft("");
+      setEditWidgetDraft({});
     }
   }
 
@@ -2651,12 +2671,13 @@ export default function ChatClient({
     setEditingRole(null);
     setEditDraft("");
     setEditUserDraft("");
+    setEditWidgetDraft({});
   }
 
   async function saveEdit(messageId: number) {
     const assistantText =
       editingRole === "assistant"
-        ? formatAiProseForEditTextarea(editDraft).trim()
+        ? normalizeEditedProseForSave(editDraft)
         : editDraft.trim();
     const userText = editUserDraft.trim();
     const turnEdit = editingRole === "assistant" && editingUserId != null;
@@ -2672,7 +2693,7 @@ export default function ChatClient({
       }
     }
 
-    if (!assistantText) {
+    if (!assistantText.trim()) {
       setToastMsg("내용을 입력하세요.");
       return;
     }
@@ -2703,7 +2724,18 @@ export default function ChatClient({
       const res = await fetch("/api/chat/message", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messageId, content: assistantText }),
+        body: JSON.stringify({
+          messageId,
+          content: assistantText,
+          ...(editingRole === "assistant"
+            ? {
+                statusWidgetValues: {
+                  character: editWidgetDraft.character ?? null,
+                  user: editWidgetDraft.user ?? null,
+                },
+              }
+            : {}),
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -2721,6 +2753,9 @@ export default function ChatClient({
                   typeof data.activeVariant === "number" ? data.activeVariant : undefined,
                 variantCount:
                   typeof data.variantCount === "number" ? data.variantCount : undefined,
+                ...(data.statusWidgetValues != null
+                  ? { statusWidgetValues: data.statusWidgetValues }
+                  : {}),
               }
             : m
         )
@@ -3229,6 +3264,7 @@ export default function ChatClient({
                 <div className="min-w-0">
                 {isEditing ? (
                   <div className="w-full min-w-0">
+                    <p className="mb-1.5 text-center text-[11px] font-semibold text-zinc-500">본문</p>
                     <textarea
                       value={editDraft}
                       maxLength={ASSISTANT_MESSAGE_MAX}
@@ -3242,6 +3278,31 @@ export default function ChatClient({
                         lineHeight: "var(--line-height-chat)",
                       }}
                     />
+                    {(() => {
+                      const showWidgetEdit = shouldShowStatusWidgetOnMessage({
+                        model: m.model,
+                        statusWidgetTurnActive: m.statusWidgetTurnActive,
+                        statusWidgetValues: m.statusWidgetValues,
+                        isStreaming: false,
+                        displayHidden: statusWidgetTurn.displayMode === "hidden",
+                      });
+                      if (!showWidgetEdit) return null;
+                      const widgetItems = orderedWidgetsForRender(
+                        statusWidgetTurn,
+                        {
+                          character: editWidgetDraft.character ?? {},
+                          user: editWidgetDraft.user ?? {},
+                        }
+                      );
+                      if (widgetItems.length === 0) return null;
+                      return (
+                        <StatusWidgetValuesEditor
+                          items={widgetItems}
+                          draft={editWidgetDraft}
+                          onChange={setEditWidgetDraft}
+                        />
+                      );
+                    })()}
                     {renderEditActions(m.id!, "assistant")}
                   </div>
                 ) : (
@@ -3262,7 +3323,7 @@ export default function ChatClient({
                       );
                       const messageFormatSpec =
                         m.statusMetaFormatSpec ?? chatStatusFormatSpec ?? null;
-                      const bodyForDisplay =
+                      const bodyForDisplayRaw =
                         markdownStatusWindowActive && messageFormatSpec
                           ? partitionPlainStatusBlockForDisplay(
                               displayBody,
@@ -3271,6 +3332,7 @@ export default function ChatClient({
                               { streaming: isStreamingThisMessage }
                             ).prose
                           : displayBody;
+                      const bodyForDisplay = getCanonicalProseBody(bodyForDisplayRaw);
                       const userBefore =
                         i > 0 && messages[i - 1]?.role === "user" ? messages[i - 1] : null;
                       const showOocMarkdown =
