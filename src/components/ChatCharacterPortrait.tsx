@@ -22,7 +22,7 @@ export default function ChatCharacterPortrait({
 }: Props) {
   const widthClass =
     size === "panel"
-      ? "h-full w-auto max-w-full"
+      ? "h-full max-h-[57vw] w-auto max-w-full md:max-h-[54vw] lg:max-h-[51vw]"
       : "w-10 shrink-0 sm:w-11 md:w-12 lg:w-14";
 
   const panelFrameClass =

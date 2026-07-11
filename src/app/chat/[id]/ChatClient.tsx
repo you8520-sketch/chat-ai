@@ -3214,7 +3214,7 @@ export default function ChatClient({
             className="h-full w-full opacity-[var(--mobile-portrait-opacity)]"
             imgClassName="h-full w-full object-cover object-top"
           />
-          <div className="absolute inset-0 bg-[#121212]/55" />
+          <div className="absolute inset-0 bg-[#121212]/25" />
           <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#121212] to-transparent" />
           <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#121212] to-transparent" />
         </div>
@@ -3222,7 +3222,7 @@ export default function ChatClient({
       <div
         className={
           showCharacterPortrait
-            ? "relative z-10 bg-[#121212]/82 px-2 pl-3 pb-4 backdrop-blur-[1px] sm:bg-[#121212] sm:pl-2 sm:pr-1 sm:pb-6 sm:backdrop-blur-none"
+            ? "relative z-10 bg-transparent px-2 pl-3 pb-4 backdrop-blur-[1px] sm:bg-[#121212] sm:pl-2 sm:pr-1 sm:pb-6 sm:backdrop-blur-none"
             : CHAT_MESSAGES_BODY_NO_PORTRAIT_CLASS
         }
         role="presentation"

@@ -244,13 +244,16 @@ export const CHAT_PORTRAIT_TITLE_STACK_MD_REM = "5.25rem";
 /** 에셋 패널 높이 — 제목 아래부터 뷰포트 하단(입력창 sticky bottom과 동일 선) */
 export const CHAT_PORTRAIT_PANEL_HEIGHT = `calc(100dvh - ${CHAT_PORTRAIT_TITLE_STACK_MD_REM})`;
 
+/** 채팅 입력창 하단 안내문 위쪽에 맞춰 좌측 에셋이 화면 바닥까지 꽉 차지 않도록 남기는 여백 */
+export const CHAT_PORTRAIT_INPUT_HELPER_GAP_REM = "1.75rem";
+
 /** 초상 ON — 좌: 에셋 / 우: 채팅+입력 */
 export const CHAT_PORTRAIT_GRID_CLASS =
   "grid min-w-0 flex-1 grid-cols-1 items-start sm:grid-cols-[auto_minmax(0,1fr)] sm:gap-x-2";
 
 /** 초상 열 sticky — 모바일 채팅은 글로벌 헤더 없음(제목만), md+는 헤더+제목 */
 export const CHAT_PORTRAIT_STICKY_CLASS =
-  "hidden sm:col-start-1 sm:row-start-1 sm:sticky sm:top-[2.75rem] sm:z-20 sm:flex sm:h-[calc(100dvh-2.75rem)] sm:w-full sm:flex-col sm:justify-end sm:self-start md:top-[5.25rem] md:h-[calc(100dvh-5.25rem)]";
+  "hidden sm:col-start-1 sm:row-start-1 sm:sticky sm:top-[2.75rem] sm:z-20 sm:flex sm:h-[calc(100dvh-2.75rem-1.75rem)] sm:w-full sm:flex-col sm:justify-end sm:self-start md:top-[5.25rem] md:h-[calc(100dvh-5.25rem-1.75rem)]";
 
 /** @deprecated CHAT_PORTRAIT_PANEL_HEIGHT + 인라인 height 사용 */
 export const CHAT_PORTRAIT_VIEWPORT_MIN_H_CLASS = "";
