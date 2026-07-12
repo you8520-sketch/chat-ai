@@ -4,7 +4,7 @@ import { mergeMemoryMeta, EMPTY_MEMORY_META } from "@/lib/chatMemory";
 import { resolveBatchStartTurnForTurnNumber } from "@/lib/memory/memory-rolling-summary";
 
 describe("mergeMemoryMeta regen removals", () => {
-  it("removes items and thoughts before merging additions", () => {
+  it("removes items and drops thoughts during regeneration merge", () => {
     const prev = {
       ...EMPTY_MEMORY_META,
       items: ["에쉬: 반지, 목걸이", "렌: 지갑"],
@@ -17,7 +17,7 @@ describe("mergeMemoryMeta regen removals", () => {
       thoughts: ["에쉬: 안도한다"],
     });
     assert.deepEqual(merged.items, ["렌: 지갑", "렌→에쉬: 반지"]);
-    assert.ok(merged.thoughts.includes("에쉬: 안도한다"));
+    assert.deepEqual(merged.thoughts, []);
     assert.ok(!merged.thoughts.includes("에쉬: 불안해한다"));
   });
 });

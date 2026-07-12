@@ -29,6 +29,13 @@ export const MEMORY_META_MAX = {
   promises: 15,
 } as const;
 
+export const RELATIONSHIP_MEMORY_AUTO_EXTRACT_ALLOWED_FIELDS = [
+  "items",
+  "itemsRemove",
+  "promisesAdd",
+  "promisesRemove",
+] as const;
+
 /** 턴당 추출·병합 시 추가할 속마음 상한 */
 export const THOUGHTS_PER_TURN_MAX = 4;
 /** 턴당 속마음 최소 목표 — 내면 단서가 없어도 캐릭터 관점으로 추정 */
@@ -54,6 +61,17 @@ export type RelationshipMetaDelta = Partial<{
   promisesRemove: string[];
   currentLocation: string;
 }>;
+
+export function restrictRelationshipMetaDeltaToDurableAutoFacts(
+  delta: RelationshipMetaDelta
+): RelationshipMetaDelta {
+  return {
+    items: delta.items,
+    itemsRemove: delta.itemsRemove,
+    promisesAdd: delta.promisesAdd,
+    promisesRemove: delta.promisesRemove,
+  };
+}
 
 export type HonorificNames = { charName: string; userName: string; displayTitle?: string };
 
@@ -394,7 +412,7 @@ export function normalizeMemoryMeta(meta: MemoryMeta, names: HonorificNames): Me
   return {
     honorifics: latestUserCallHonorifics(meta.honorifics, names),
     items: dedupeNormalizedItems(meta.items, names),
-    thoughts: dedupeNormalizedThoughts(meta.thoughts, names),
+    thoughts: [],
     promises: meta.promises,
     currentLocation: normalizeLocation(meta.currentLocation),
   };
@@ -440,9 +458,7 @@ export function parseMemoryMeta(raw: string | null | undefined): MemoryMeta {
     return {
       honorifics: Array.isArray(j.honorifics) ? j.honorifics.filter(Boolean).slice(-2) : [],
       items: Array.isArray(j.items) ? j.items.filter(Boolean).slice(0, MEMORY_META_MAX.items) : [],
-      thoughts: Array.isArray(j.thoughts)
-        ? j.thoughts.filter(Boolean).slice(-MEMORY_META_MAX.thoughts)
-        : [],
+      thoughts: [],
       promises: parsePromises(j.promises),
       currentLocation: normalizeLocation((j as { currentLocation?: unknown }).currentLocation),
     };
@@ -561,8 +577,6 @@ export function mergeMemoryMeta(
   delta: RelationshipMetaDelta,
   names?: HonorificNames
 ): MemoryMeta {
-  let thoughts = applyMetaRemovals(prev.thoughts, delta.thoughtsRemove);
-
   const deltaItems = delta.items ?? [];
   const transferPatch = names
     ? expandPossessionTransferRemovals(prev.items, deltaItems, names)
@@ -580,14 +594,10 @@ export function mergeMemoryMeta(
     items = uniqStrings(items, itemsAdd, MEMORY_META_MAX.items);
   }
 
-  thoughts = mergeThoughts(thoughts, delta.thoughts ?? [], names);
-  if (names) {
-    thoughts = dedupeNormalizedThoughts(thoughts, names);
-  }
   return {
     honorifics: names ? latestUserCallHonorifics([...(prev.honorifics ?? []), ...(delta.honorifics ?? [])], names) : [],
     items,
-    thoughts,
+    thoughts: [],
     promises: mergePromises(prev.promises, delta.promisesAdd ?? [], delta.promisesRemove ?? []),
     currentLocation: normalizeLocation(delta.currentLocation) ?? normalizeLocation(prev.currentLocation),
   };
@@ -595,11 +605,7 @@ export function mergeMemoryMeta(
 
 export function formatMemoryMetaForPrompt(meta: MemoryMeta): string | null {
   const lines: string[] = [];
-  if (meta.honorifics.length) lines.push(`호칭(캐릭터→유저, 최신 2개): ${meta.honorifics.join(" · ")}`);
   if (meta.items.length) lines.push(`소지품:\n${formatGroupedPossessionsForPrompt(meta.items)}`);
-  if (meta.thoughts.length) {
-    lines.push(`속마음(캐릭터·NPC):\n${meta.thoughts.join("\n")}`);
-  }
   if (meta.promises.length) {
     const formatted = meta.promises.map((p) =>
       p.deadline ? `${p.text} (기한: ${p.deadline})` : p.text

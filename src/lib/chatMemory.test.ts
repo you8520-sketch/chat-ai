@@ -18,28 +18,29 @@ import {
 const names = { charName: "서연", userName: "민수" };
 
 describe("formatMemoryMetaForPrompt", () => {
-  it("omits current location from relationship memo output", () => {
+  it("omits current location, auto honorifics, and NPC thoughts from relationship memo output", () => {
     const result = formatMemoryMetaForPrompt({
       ...EMPTY_MEMORY_META,
       currentLocation: "훈련장",
       honorifics: ["레온→렌: 렌"],
+      thoughts: ["백하율: 렌이 내 손을 잡는다고 진짜로 나아질까?"],
+      items: ["렌: 은색 반지"],
     });
 
     assert.ok(result);
     assert.doesNotMatch(result!, /현재장소|훈련장/);
-    assert.match(result!, /레온→렌: 렌/);
+    assert.doesNotMatch(result!, /레온→렌: 렌/);
+    assert.doesNotMatch(result!, /백하율:/);
+    assert.match(result!, /은색 반지/);
   });
 
-  it("uses soft priority framing without mandatory 반드시", () => {
+  it("returns null when only forbidden relationship memory fields exist", () => {
     const result = formatMemoryMetaForPrompt({
       ...EMPTY_MEMORY_META,
+      honorifics: ["레온→렌: 렌"],
       thoughts: ["백하율: 렌이 내 손을 잡는다고 진짜로 나아질까?"],
     });
-    assert.ok(result);
-    assert.match(result!, /\[Memory — 참고, 우선순위 2순위 하위\]/);
-    assert.doesNotMatch(result!, /^관계:\n호칭:/m);
-    assert.match(result!, /속마음\(캐릭터·NPC\):\n백하율:/);
-    assert.doesNotMatch(result!, /반드시 반영/);
+    assert.equal(result, null);
   });
 });
 
@@ -164,7 +165,7 @@ describe("mergeMemoryMeta possession", () => {
     assert.deepEqual(merged.items, ["레온: 스타라이트 사파이어 브로치"]);
   });
 
-  it("removes items and thoughts before merging additions", () => {
+  it("removes items and drops auto thoughts during merge", () => {
     const prev = {
       ...EMPTY_MEMORY_META,
       items: ["에쉬: 반지, 목걸이", "렌: 지갑"],
@@ -177,7 +178,7 @@ describe("mergeMemoryMeta possession", () => {
       thoughts: ["에쉬: 안도한다"],
     });
     assert.deepEqual(merged.items, ["렌: 지갑", "렌→에쉬: 반지"]);
-    assert.ok(merged.thoughts.includes("에쉬: 안도한다"));
+    assert.deepEqual(merged.thoughts, []);
     assert.ok(!merged.thoughts.includes("에쉬: 불안해한다"));
   });
 
@@ -203,7 +204,7 @@ describe("mergeMemoryMeta possession", () => {
     assert.deepEqual(merged.items, ["렌: 청금석 귀걸이"]);
   });
 
-  it("keeps at most 8 thoughts and drops oldest when full", () => {
+  it("drops previous and newly extracted thoughts from relationship memory", () => {
     const prev = {
       ...EMPTY_MEMORY_META,
       thoughts: Array.from({ length: MEMORY_META_MAX.thoughts }, (_, i) => `NPC${i}: 생각${i}`),
@@ -211,11 +212,7 @@ describe("mergeMemoryMeta possession", () => {
     const merged = mergeMemoryMeta(prev, {
       thoughts: ["레온: 새 생각", "NPC9: 또 다른 생각"],
     });
-    assert.equal(merged.thoughts.length, MEMORY_META_MAX.thoughts);
-    assert.equal(merged.thoughts[0], "NPC2: 생각2");
-    assert.equal(merged.thoughts.at(-1), "NPC9: 또 다른 생각");
-    assert.ok(!merged.thoughts.includes("NPC0: 생각0"));
-    assert.ok(!merged.thoughts.includes("NPC1: 생각1"));
+    assert.deepEqual(merged.thoughts, []);
   });
 });
 

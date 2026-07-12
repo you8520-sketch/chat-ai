@@ -6,6 +6,7 @@ import {
   mergeMemoryMeta,
   normalizeMemoryMeta,
   parseMemoryMeta,
+  restrictRelationshipMetaDeltaToDurableAutoFacts,
   type HonorificNames,
   type MemoryMeta,
   type RelationshipMetaCategory,
@@ -54,12 +55,8 @@ export function clearChatRelationshipMeta(chatId: number): void {
 
 function hasRelationshipDelta(delta: RelationshipMetaDelta): boolean {
   return (
-    (delta.honorifics?.length ?? 0) > 0 ||
-    Boolean(delta.currentLocation?.trim()) ||
     (delta.items?.length ?? 0) > 0 ||
-    (delta.thoughts?.length ?? 0) > 0 ||
     (delta.itemsRemove?.length ?? 0) > 0 ||
-    (delta.thoughtsRemove?.length ?? 0) > 0 ||
     (delta.promisesAdd?.length ?? 0) > 0 ||
     (delta.promisesRemove?.length ?? 0) > 0
   );
@@ -72,14 +69,15 @@ function applyRelationshipDeltaToChat(opts: {
 }): MemoryMeta {
   const prev = loadChatRelationshipMeta(opts.chatId);
   const prevNormalized = normalizeMemoryMeta(prev, opts.names);
-  if (!hasRelationshipDelta(opts.delta)) {
+  const durableDelta = restrictRelationshipMetaDeltaToDurableAutoFacts(opts.delta);
+  if (!hasRelationshipDelta(durableDelta)) {
     if (JSON.stringify(prev) !== JSON.stringify(prevNormalized)) {
       saveChatRelationshipMeta(opts.chatId, prevNormalized);
     }
     return prevNormalized;
   }
 
-  const merged = mergeMemoryMeta(prevNormalized, opts.delta, opts.names);
+  const merged = mergeMemoryMeta(prevNormalized, durableDelta, opts.names);
   saveChatRelationshipMeta(opts.chatId, merged);
   return merged;
 }
