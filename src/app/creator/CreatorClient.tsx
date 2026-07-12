@@ -10,11 +10,13 @@ import {
   CREATOR_PLUS_MIN_CHARACTERS,
   CREATOR_PLUS_MIN_TOTAL_CHATS,
   CREATOR_PRO_MIN_CHARACTERS,
+  CREATOR_PRO_MIN_MONTHLY_SPENT,
   CREATOR_PRO_MIN_TOTAL_CHATS,
   CREATOR_REWARD_RATE,
   CREATOR_REWARD_RATE_PARTNER,
   CREATOR_REWARD_RATE_PLUS,
   CREATOR_REWARD_RATE_PRO,
+  CREATOR_STANDARD_MIN_CHARACTERS,
   CREATOR_TIER_LABELS,
   type CreatorDashboard,
 } from "@/lib/creatorShared";
@@ -86,17 +88,18 @@ function allTierConditions(
     t.characterCount >= CREATOR_PLUS_MIN_CHARACTERS &&
     t.totalChats >= CREATOR_PLUS_MIN_TOTAL_CHATS;
   const proMet =
-    t.characterCount >= CREATOR_PRO_MIN_CHARACTERS &&
-    t.totalChats >= CREATOR_PRO_MIN_TOTAL_CHATS;
+    t.publicCharacterCount >= CREATOR_PRO_MIN_CHARACTERS &&
+    t.monthlySpentOnChars >= CREATOR_PRO_MIN_MONTHLY_SPENT;
   const isPartnerOrAbove = t.tierLevel === "partner" || t.tierLevel === "exclusive";
 
   return [
     {
       key: "standard",
-      label: "기본",
+      label: "일반 크리에이터",
       ratePct: basePct,
-      condition: "캐릭터 제작 시 자동 적용",
-      met: true,
+      condition: `캐릭터 ${CREATOR_STANDARD_MIN_CHARACTERS}개 제작`,
+      current: `현재 ${t.characterCount}개`,
+      met: t.characterCount >= CREATOR_STANDARD_MIN_CHARACTERS,
       isCurrent: t.tierLevel === "standard",
     },
     {
@@ -112,7 +115,7 @@ function allTierConditions(
       key: "pro",
       label: "프로",
       ratePct: proPct,
-      condition: `캐릭터 ${CREATOR_PRO_MIN_CHARACTERS}개+ & 통합 대화 ${CREATOR_PRO_MIN_TOTAL_CHATS.toLocaleString()}회+`,
+      condition: `캐릭터 ${CREATOR_PRO_MIN_CHARACTERS}개+ & 통합 대화 ${CREATOR_PRO_MIN_TOTAL_CHATS.toLocaleString()}회+ 기타조건만족시 자동승급`,
       current: `현재 ${t.characterCount}개 · ${t.totalChats.toLocaleString()}회`,
       met: proMet,
       isCurrent: t.tierLevel === "pro",

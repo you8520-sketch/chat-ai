@@ -12,7 +12,7 @@ import {
 } from "./creatorShared";
 
 describe("partnerTier", () => {
-  it("파트너 승급 조건: 공개 15개 + 월 500만P", () => {
+  it("파트너 승급 조건: 공개 10개 + 월 500만P", () => {
     expect(meetsPartnerPromotionCriteria(CREATOR_PARTNER_MIN_CHARACTERS, CREATOR_PARTNER_MIN_MONTHLY_SPENT)).toBe(
       true
     );
@@ -55,7 +55,7 @@ describe("partnerTier", () => {
     ).toBe(false);
   });
 
-  it("공개 캐릭터 15개 미만이면 갱신 실패", () => {
+  it("공개 캐릭터 10개 미만이면 갱신 실패", () => {
     expect(
       passesPartnerRenewal({
         termMonths: ["2026-01", "2026-02", "2026-03"],
