@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "typecheck:app": "tsc -p tsconfig.app.json --noEmit --pretty false",
     "lint": "npm run typecheck:app",
+    "test:ui": "playwright test",
     "build": "next build",
     "start": "tsx server.js",
     "start:next": "next start",
@@ -34,6 +35,7 @@
     "server-only": "^0.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.51.1",
     "@tailwindcss/postcss": "^4.1.7",
     "@types/better-sqlite3": "^7.6.12",
     "@types/dompurify": "^3.0.5",

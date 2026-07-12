@@ -36,6 +36,13 @@ describe("userNoteStatusWindow zone split", () => {
     assert.equal(reference, "");
   });
 
+  it("preserves trailing spaces while editing focus-only notes", () => {
+    const stored = mergeUserNoteBodyFromEditor("중요 기억 ", "");
+    const { focusBody, referenceBody } = splitUserNoteBodyForEditor(stored);
+    assert.equal(focusBody, "중요 기억 ");
+    assert.equal(referenceBody, "");
+  });
+
   it("legacy undelimited note over 1000 chars still position-splits", () => {
     const legacy = "f".repeat(USER_NOTE_FOCUS_MAX) + "legacy reference tail";
     const { mandatory, reference } = splitUserNotePromptZones(legacy);
