@@ -3062,6 +3062,7 @@ export default function ChatClient({
       <ChatSettingsPanel
         chatId={chatId}
         memoryRefreshKey={memoryRefreshKey}
+        relationshipMetaDock={<RelationshipMetaDock chatId={chatId} refreshKey={memoryRefreshKey} />}
         userNote={userNote}
         onUserNoteChange={setUserNote}
         onSaveUserNote={saveUserNote}
@@ -3578,8 +3579,6 @@ export default function ChatClient({
               ))}
             </select>
           </label>
-
-          <RelationshipMetaDock chatId={chatId} refreshKey={memoryRefreshKey} />
         </div>
 
         <div className="flex flex-col gap-0.5">
