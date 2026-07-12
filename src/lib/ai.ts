@@ -3,11 +3,7 @@ import {
   clampSummary,
   demoTurnSummary,
   normalizeMemoryMeta,
-  normalizeTurnThoughts,
-  RELATIONSHIP_THOUGHT_EXTRACT_RULES,
-  THOUGHT_CONTENT_HARD_MAX_CHARS,
-  THOUGHT_CONTENT_MIN_TARGET_CHARS,
-  THOUGHT_CONTENT_MAX_CHARS,
+  restrictRelationshipMetaDeltaToDurableAutoFacts,
 } from "@/lib/chatMemory";
 import { estimateTokens } from "@/lib/tokenEstimate";
 import { callOpenRouterCompletion } from "@/lib/openRouterCompletion";
@@ -408,7 +404,7 @@ export async function summarizeMemory(
   }
 }
 
-/** 턴 1회 — 200자 요약 + 소지품·속마음·약속 추출 */
+/** 턴 1회 — 200자 요약 + durable relationship facts */
 export async function analyzeTurnMemory(
   userMessage: string,
   assistantMessage: string,
@@ -419,9 +415,8 @@ export async function analyzeTurnMemory(
 turnSummary 형식: 서술형 문장 금지. 음슴체(-음/-ㅁ) 키워드 나열, · 구분, 200자 이내 완결 형태.
 예: 유저 질문함 · 캐릭터 경계심→호기심 · "..." 대사 언급 · ○○ 사건 발생
 순수 JSON만 출력:
-{"turnSummary":"200자 이내 음슴체 키워드 요약","items":["\${userName}: 반지, 펜던트"],"thoughts":["${charName}: 왜 이렇게 떨리지","NPC이름: 숨기면 안 되는데"],"promisesAdd":[{"text":"약속 내용","deadline":"기한"}],"promisesRemove":[]}
-${RELATIONSHIP_THOUGHT_EXTRACT_RULES.replace(/캐릭터이름/g, charName)}
-(속마음 본문 목표 ${THOUGHT_CONTENT_MIN_TARGET_CHARS}~${THOUGHT_CONTENT_MAX_CHARS}자 — 35자 미만의 짧은 감탄·단정 금지, 문장 완결 우선, ${THOUGHT_CONTENT_HARD_MAX_CHARS}자 이내)
+{"turnSummary":"200자 이내 음슴체 키워드 요약","items":["\${userName}: 반지, 펜던트"],"promisesAdd":[{"text":"약속 내용","deadline":"기한"}],"promisesRemove":[]}
+자동 추출 금지: 호칭/별명, NPC 생각, inner_thoughts, 감정 온도, 관계 단계, 애착/소유욕/복종 추정, 말투, 성별, 현재 장소.
 없는 항목은 빈 배열. turnSummary는 반드시 200자 이내 완결 형태.`;
   const history: ChatMsg[] = [
     {
@@ -445,10 +440,7 @@ ${RELATIONSHIP_THOUGHT_EXTRACT_RULES.replace(/캐릭터이름/g, charName)}
       turnSummary: clampSummary(j.turnSummary ?? ""),
       meta: {
         items: Array.isArray(j.items) ? j.items.filter(Boolean) : [],
-        thoughts: normalizeTurnThoughts(
-          Array.isArray(j.thoughts) ? j.thoughts.filter(Boolean) : [],
-          { charName, userName: "유저" }
-        ),
+        thoughts: [],
         promisesAdd: Array.isArray(j.promisesAdd)
           ? j.promisesAdd
               .map((p) => ({
@@ -490,27 +482,21 @@ export async function extractRelationshipMetaFromTurn(
 
   const system = `너는 롤플레잉 관계 메모 추출기다. 이번 턴 본문(유저·캐릭터 대사·서술)에서 **새로 등장·변경**된 항목만 JSON으로 출력하라.
 
-currentLocation: 이번 턴 종료 시점의 현재 장소. 같은 턴 안에서 장소가 바뀌었으면 반드시 "이전장소→이동장소" 형식. 장소 단서가 없으면 빈 문자열.
-honorifics: 캐릭터·NPC가 유저(${userName})를 실제로 부른 호칭만 "부른사람→${userName}: 호칭" 형식으로 최대 2개(최신순). 기존과 상충되는 호칭은 최신 호칭만 남기도록 새 호칭을 출력.
 items: **유저(${userName})와의 관계에 관련된 물건만** — ① ${userName} 본인의 소지품, ② ${userName}↔상대가 주고받은·나눠 가진·맡긴 물건. **한 사람당 한 줄** — 형식 "이름: 물건1, 물건2, 물건3" (쉼표로 나열). 선물·전달·건넴·양도는 "보낸이→받는이: 물건" 또는 받는 쪽 "이름: 물건"으로. "캐릭터", "유저" 라벨 금지. **절대 금지**: 캐릭터가 원래 갖고 있던 개인 물건, 장면 배경에 놓인 물건, 가구·설비·실내 비품(침대, 의자, 책상, 세면대, 거울 등), 의류(옷·드레스·정장·신발 등 — 장신구는 허용), 평소 착용 중인 제복·기본 복장. 사람 이름 없이 물건명만 단독 출력 금지 — 반드시 "이름: 물건" 형식. 유저와 무관한 물건은 아무리 자세히 묘사돼도 넣지 마라.
 itemsRemove: [현재 소지품] 줄 중 **더 이상 사실이 아닌** 항목 — 이번 턴에 다른 사람에게 건넸·잃었·없어진 물건. **현재 목록 문자열과 정확히 일치**하게 출력. 전달 시 보낸 사람 줄 전체 또는 갱신 전 줄을 넣어라.
-thoughtsRemove: [현재 속마음] 중 이번 턴과 **모순**되는 줄. **현재 목록 문자열과 정확히 일치**하게 출력.
-${RELATIONSHIP_THOUGHT_EXTRACT_RULES.replace(/캐릭터이름/g, charName).replace("유저 내면", `${userName}·유저 내면`)}
 promisesAdd: 이번 턴에 **새로 맺은** 약속 [{ "text": "약속 내용", "deadline": "기한(있으면)" }]
 promisesRemove: 아래 [기존 활성 약속] 중 **이번 턴에 지켜졌거나, 기한이 지나 더 이상 유효하지 않은** 약속의 text와 **정확히 일치**하는 문자열
 
 [현재 소지품]
 ${currentItems}
 
-[현재 속마음(NPC)]
-${existing.thoughts.length ? existing.thoughts.join("\n") : "(없음)"}
-
 [기존 활성 약속]
 ${activePromises}
 
 소지품을 건넸으면 보낸 쪽 itemsRemove에 해당 줄을 포함하고, 받는 쪽은 items에 추가하라.
+자동 추출 금지: 호칭/별명, NPC 생각, inner_thoughts, 감정 온도, 관계 단계, 애착/소유욕/복종 추정, 말투, 성별, 현재 장소.
 없는 항목은 빈 배열. 순수 JSON만:
-{"currentLocation":"","honorifics":[],"items":[],"thoughts":[],"itemsRemove":[],"thoughtsRemove":[],"promisesAdd":[],"promisesRemove":[]}`;
+{"items":[],"itemsRemove":[],"promisesAdd":[],"promisesRemove":[]}`;
   const history: ChatMsg[] = [
     {
       role: "user",
@@ -518,7 +504,16 @@ ${activePromises}
     },
   ];
   try {
-    const { text } = await callGeminiBackground(system, history, turnTrace);
+    const { text } = await callGeminiBackground(
+      `${system}
+
+[RELATIONSHIP MEMORY AUTO EXTRACTION RESTRICTION]
+Do not extract or update honorifics/nicknames, NPC thoughts, inner_thoughts, emotion temperature, relationship stage, inferred attachment/possessiveness/obedience, current speech style, gender, or current location.
+Only durable relationship facts may be non-empty: items, itemsRemove, promisesAdd, promisesRemove.
+Return honorifics: [], thoughts: [], thoughtsRemove: [], currentLocation: "" even if the schema contains those keys.`,
+      history,
+      turnTrace
+    );
     const trimmed = text.trim();
     const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
     const raw = fenced ? fenced[1].trim() : trimmed;
@@ -536,12 +531,9 @@ ${activePromises}
       honorifics: Array.isArray(j.honorifics) ? j.honorifics.filter(Boolean) : [],
       currentLocation: typeof j.currentLocation === "string" ? j.currentLocation : undefined,
       items: Array.isArray(j.items) ? j.items.filter(Boolean) : [],
-      thoughts: normalizeTurnThoughts(
-        Array.isArray(j.thoughts) ? j.thoughts.filter(Boolean) : [],
-        names
-      ),
+      thoughts: [],
       itemsRemove: Array.isArray(j.itemsRemove) ? j.itemsRemove.filter(Boolean) : [],
-      thoughtsRemove: Array.isArray(j.thoughtsRemove) ? j.thoughtsRemove.filter(Boolean) : [],
+      thoughtsRemove: [],
       promisesAdd: Array.isArray(j.promisesAdd)
         ? j.promisesAdd
             .map((p) => ({
@@ -562,12 +554,12 @@ ${activePromises}
       },
       names
     );
-    return {
+    return restrictRelationshipMetaDeltaToDurableAutoFacts({
       ...delta,
       honorifics: normalized.honorifics,
       items: normalized.items,
       currentLocation: normalized.currentLocation,
-    };
+    });
   } catch {
     return {};
   }
@@ -595,27 +587,21 @@ export async function extractRelationshipMetaAfterRegenerate(
   const system = `너는 롤플레잉 관계 메모 **재생성 보정** 추출기다. 같은 유저 턴에 assistant 답변이 교체되었다.
 [거부된 assistant — 폐기]와 [새 assistant — 정본]을 비교하고, [현재 관계 메모]를 정본에 맞게 수정하라.
 
-currentLocation: 새 assistant 정본 종료 시점의 현재 장소. 같은 턴 안에서 장소가 바뀌었으면 "이전장소→이동장소" 형식. 장소 단서가 없으면 빈 문자열.
-honorifics: 새 assistant 정본에서 캐릭터·NPC가 유저(${userName})를 실제로 부른 호칭만 "부른사람→${userName}: 호칭" 형식으로 최대 2개(최신순).
 itemsRemove: [현재 소지품] 줄 중 **더 이상 사실이 아닌** 항목 — 새 본문에서 다른 사람에게 건넸·잃었·없어진 물건, 또는 거부본에만 있고 새 본문에 없는 전달. **현재 목록 문자열과 정확히 일치**하게 출력.
-thoughtsRemove: [현재 속마음] 중 새 정본과 **모순**되거나 거부본에만 해당하는 줄. **현재 목록 문자열과 정확히 일치**하게 출력.
-items / thoughts / promisesAdd / promisesRemove: **새 assistant 정본**에서 새로 생긴·변경된 항목만 (기존 extract 규칙 동일).
+items / promisesAdd / promisesRemove: **새 assistant 정본**에서 새로 생긴·변경된 durable 항목만.
 소지품 전달·양도가 새 본문에 있으면 보낸 쪽 itemsRemove에 해당 줄 포함.
 
 [현재 소지품]
 ${existing.items.length ? existing.items.join("\n") : "(없음)"}
 
-[현재 속마음(NPC)]
-${existing.thoughts.length ? existing.thoughts.join("\n") : "(없음)"}
-
 [기존 활성 약속]
 ${activePromises}
 
-items/thoughts 규칙은 평소와 동일. "캐릭터","유저" 라벨 금지. items는 **유저(${userName})와의 관계에 관련된 물건만** — ${userName} 본인의 소지품, ${userName}↔상대가 주고받은·나눠 가진·맡긴 물건. 캐릭터가 원래 갖고 있던 개인 물건·배경 물건·가구·설비·의류(옷·드레스·신발 등, 장신구 제외)·착용 중인 제복은 절대 금지. 사람 이름 없이 물건명만 단독 출력 금지 — 반드시 "이름: 물건" 형식.
-${RELATIONSHIP_THOUGHT_EXTRACT_RULES.replace(/캐릭터이름/g, charName).replace("유저 내면", `${userName}·유저 내면`)}
+items 규칙은 평소와 동일. "캐릭터","유저" 라벨 금지. items는 **유저(${userName})와의 관계에 관련된 물건만** — ${userName} 본인의 소지품, ${userName}↔상대가 주고받은·나눠 가진·맡긴 물건. 캐릭터가 원래 갖고 있던 개인 물건·배경 물건·가구·설비·의류(옷·드레스·신발 등, 장신구 제외)·착용 중인 제복은 절대 금지. 사람 이름 없이 물건명만 단독 출력 금지 — 반드시 "이름: 물건" 형식.
+자동 추출 금지: 호칭/별명, NPC 생각, inner_thoughts, 감정 온도, 관계 단계, 애착/소유욕/복종 추정, 말투, 성별, 현재 장소.
 
 순수 JSON만:
-{"currentLocation":"","honorifics":[],"items":[],"thoughts":[],"itemsRemove":[],"thoughtsRemove":[],"promisesAdd":[],"promisesRemove":[]}`;
+{"items":[],"itemsRemove":[],"promisesAdd":[],"promisesRemove":[]}`;
 
   const history: ChatMsg[] = [
     {
@@ -631,7 +617,16 @@ ${newAssistantMessage.slice(0, 3500)}`,
   ];
 
   try {
-    const { text } = await callGeminiBackground(system, history, turnTrace);
+    const { text } = await callGeminiBackground(
+      `${system}
+
+[RELATIONSHIP MEMORY AUTO EXTRACTION RESTRICTION]
+Do not extract or update honorifics/nicknames, NPC thoughts, inner_thoughts, emotion temperature, relationship stage, inferred attachment/possessiveness/obedience, current speech style, gender, or current location.
+Only durable relationship facts may be non-empty: items, itemsRemove, promisesAdd, promisesRemove.
+Return honorifics: [], thoughts: [], thoughtsRemove: [], currentLocation: "" even if the schema contains those keys.`,
+      history,
+      turnTrace
+    );
     const trimmed = text.trim();
     const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
     const raw = fenced ? fenced[1].trim() : trimmed;
@@ -649,12 +644,9 @@ ${newAssistantMessage.slice(0, 3500)}`,
       honorifics: Array.isArray(j.honorifics) ? j.honorifics.filter(Boolean) : [],
       currentLocation: typeof j.currentLocation === "string" ? j.currentLocation : undefined,
       items: Array.isArray(j.items) ? j.items.filter(Boolean) : [],
-      thoughts: normalizeTurnThoughts(
-        Array.isArray(j.thoughts) ? j.thoughts.filter(Boolean) : [],
-        names
-      ),
+      thoughts: [],
       itemsRemove: Array.isArray(j.itemsRemove) ? j.itemsRemove.filter(Boolean) : [],
-      thoughtsRemove: Array.isArray(j.thoughtsRemove) ? j.thoughtsRemove.filter(Boolean) : [],
+      thoughtsRemove: [],
       promisesAdd: Array.isArray(j.promisesAdd)
         ? j.promisesAdd
             .map((p) => ({
@@ -669,12 +661,12 @@ ${newAssistantMessage.slice(0, 3500)}`,
       { honorifics: delta.honorifics ?? [], items: delta.items ?? [], thoughts: [], promises: [], currentLocation: delta.currentLocation },
       names
     );
-    return {
+    return restrictRelationshipMetaDeltaToDurableAutoFacts({
       ...delta,
       honorifics: normalized.honorifics,
       items: normalized.items,
       currentLocation: normalized.currentLocation,
-    };
+    });
   } catch {
     return {};
   }

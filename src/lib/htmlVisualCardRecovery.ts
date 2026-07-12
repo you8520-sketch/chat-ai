@@ -911,7 +911,6 @@ export function buildHtmlVisualCardFlashUserBlock(
   const personaMax = scaleCap(budget.personaMax);
   const rel = loadChatRelationshipMeta(ctx.chatId);
   const memoryHints = [
-    rel.thoughts?.length ? `NPC thoughts (memory): ${rel.thoughts.slice(-5).join(" · ")}` : "",
     rel.items?.length ? `Items: ${rel.items.slice(-5).join(" · ")}` : "",
     rel.promises?.length
       ? `Promises: ${rel.promises

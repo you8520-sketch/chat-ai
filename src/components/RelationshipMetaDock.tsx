@@ -23,7 +23,7 @@ const EMPTY_META: RelationshipMeta = {
 type MetaCategory = "items" | "thoughts" | "promises";
 
 function metaTotal(meta: RelationshipMeta) {
-  return meta.items.length + meta.thoughts.length + meta.promises.length + meta.honorifics.length;
+  return meta.items.length + meta.promises.length;
 }
 
 function RelationshipMetaContent({
@@ -191,9 +191,9 @@ export default function RelationshipMetaDock({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "불러오기 실패");
       setMeta({
-        honorifics: data.meta?.honorifics ?? [],
+        honorifics: [],
         items: data.meta?.items ?? [],
-        thoughts: data.meta?.thoughts ?? [],
+        thoughts: [],
         promises: data.meta?.promises ?? [],
         currentLocation: data.meta?.currentLocation,
       });
@@ -291,9 +291,9 @@ export default function RelationshipMetaDock({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "삭제에 실패했습니다.");
       setMeta({
-        honorifics: data.meta?.honorifics ?? [],
+        honorifics: [],
         items: data.meta?.items ?? [],
-        thoughts: data.meta?.thoughts ?? [],
+        thoughts: [],
         promises: data.meta?.promises ?? [],
         currentLocation: data.meta?.currentLocation,
       });

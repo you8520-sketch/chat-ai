@@ -4,6 +4,7 @@ import {
   splitProseAndRelationshipMemoryTail,
   stripRelationshipMemoryTailForStream,
 } from "@/lib/relationshipMemoryTailParse";
+import { normalizeRelationshipMetaDeltaFromJson } from "@/lib/relationshipMemoryTail";
 import { RELATIONSHIP_MEMORY_SELF_EXTRACT_BLOCK } from "@/lib/relationshipMemoryTailPrompt";
 
 describe("relationshipMemoryTailParse", () => {
@@ -39,6 +40,27 @@ describe("relationshipMemoryTailParse", () => {
     assert.equal(split.prose, prose);
   });
 
+  it("drops forbidden fields from parsed relationship tail delta", () => {
+    const delta = normalizeRelationshipMetaDeltaFromJson(
+      {
+        honorifics: ["레온→렌: 너"],
+        items: ["렌: 은색 반지"],
+        thoughts: ["레온: 숨기고 싶다"],
+        thoughtsRemove: ["레온: 불안하다"],
+        promisesAdd: [{ text: "내일 다시 만나기로 함" }],
+        promisesRemove: [],
+      },
+      "",
+      { charName: "레온", userName: "렌" }
+    );
+
+    assert.deepEqual(delta.items, ["렌: 은색 반지"]);
+    assert.deepEqual(delta.promisesAdd, [{ text: "내일 다시 만나기로 함" }]);
+    assert.equal(delta.honorifics, undefined);
+    assert.equal(delta.thoughts, undefined);
+    assert.equal(delta.thoughtsRemove, undefined);
+  });
+
   it("does not strip unrelated trailing status widget JSON", () => {
     const prose = "RP";
     const statusJson = '{"시간":"밤","장소":"거리"}';
@@ -50,6 +72,8 @@ describe("relationshipMemoryTailParse", () => {
   it("SELF_EXTRACT block contains required schema", () => {
     assert.match(RELATIONSHIP_MEMORY_SELF_EXTRACT_BLOCK, /RELATIONSHIP MEMORY — SELF-EXTRACT/);
     assert.match(RELATIONSHIP_MEMORY_SELF_EXTRACT_BLOCK, /promisesRemove/);
+    assert.doesNotMatch(RELATIONSHIP_MEMORY_SELF_EXTRACT_BLOCK, /"thoughts"/);
+    assert.doesNotMatch(RELATIONSHIP_MEMORY_SELF_EXTRACT_BLOCK, /"honorifics"/);
   });
 
   it("stripRelationshipMemoryTailForStream hides incomplete JSON during stream", () => {

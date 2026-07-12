@@ -127,7 +127,6 @@ function buildExtractUserBlock(opts: {
 }): string {
   const rel = loadChatRelationshipMeta(opts.chatId);
   const memoryHints = [
-    rel.thoughts?.length ? `NPC thoughts (memory): ${rel.thoughts.slice(-3).join(" · ")}` : "",
     rel.items?.length ? `Items: ${rel.items.slice(-3).join(" · ")}` : "",
     rel.promises?.length
       ? `Promises: ${rel.promises

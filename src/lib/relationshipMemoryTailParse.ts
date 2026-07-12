@@ -1,13 +1,15 @@
 const RELATIONSHIP_MEMORY_JSON_KEYS = new Set([
   "honorifics",
   "items",
+  "itemsRemove",
   "thoughts",
+  "thoughtsRemove",
   "promisesAdd",
   "promisesRemove",
 ]);
 
 const RELATIONSHIP_TAIL_HINT =
-  /"honorifics"|"items"|"thoughts"|"promisesAdd"|"promisesRemove"/;
+  /"honorifics"|"items"|"itemsRemove"|"thoughts"|"thoughtsRemove"|"promisesAdd"|"promisesRemove"/;
 
 export function looksLikeRelationshipMemoryObject(obj: Record<string, unknown>): boolean {
   const keys = Object.keys(obj);
@@ -109,7 +111,7 @@ export function stripRelationshipMemoryTailForStream(text: string): string {
     return complete.prose;
   }
 
-  const markerIdx = work.search(/\{"honorifics"/i);
+  const markerIdx = work.search(/\{\s*"(?:honorifics|items|itemsRemove)"/i);
   if (markerIdx >= 0) {
     work = work.slice(0, markerIdx).trimEnd();
   }
@@ -122,7 +124,7 @@ export function stripRelationshipMemoryTailForStream(text: string): string {
       work = work.slice(0, lastBrace).trimEnd();
     } else if (
       RELATIONSHIP_TAIL_HINT.test(fragment) ||
-      /"honorifics/i.test(fragment) ||
+      /"(?:honorifics|items|itemsRemove)/i.test(fragment) ||
       (fragment.startsWith("{") && !fragment.trimEnd().endsWith("}"))
     ) {
       work = work.slice(0, lastBrace).trimEnd();

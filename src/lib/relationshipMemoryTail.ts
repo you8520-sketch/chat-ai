@@ -1,6 +1,6 @@
 import {
   normalizeMemoryMeta,
-  normalizeTurnThoughts,
+  restrictRelationshipMetaDeltaToDurableAutoFacts,
   type HonorificNames,
   type RelationshipMetaDelta,
 } from "@/lib/chatMemory";
@@ -16,10 +16,6 @@ export function normalizeRelationshipMetaDeltaFromJson(
 ): RelationshipMetaDelta {
   const delta: RelationshipMetaDelta = {
     items: Array.isArray(j.items) ? j.items.filter(Boolean) : [],
-    thoughts: normalizeTurnThoughts(
-      Array.isArray(j.thoughts) ? j.thoughts.filter(Boolean) : [],
-      names
-    ),
     promisesAdd: Array.isArray(j.promisesAdd)
       ? j.promisesAdd
           .map((p) => {
@@ -35,7 +31,6 @@ export function normalizeRelationshipMetaDeltaFromJson(
       : [],
     promisesRemove: Array.isArray(j.promisesRemove) ? j.promisesRemove.filter(Boolean) : [],
     itemsRemove: Array.isArray(j.itemsRemove) ? j.itemsRemove.filter(Boolean) : [],
-    thoughtsRemove: Array.isArray(j.thoughtsRemove) ? j.thoughtsRemove.filter(Boolean) : [],
   };
 
   const normalized = normalizeMemoryMeta(
@@ -47,10 +42,10 @@ export function normalizeRelationshipMetaDeltaFromJson(
     },
     names
   );
-  return {
+  return restrictRelationshipMetaDeltaToDurableAutoFacts({
     ...delta,
     items: normalized.items,
-  };
+  });
 }
 
 export type RelationshipMemoryTailSplit = {
