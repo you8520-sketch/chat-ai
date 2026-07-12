@@ -25,3 +25,7 @@ tmp/
 tmp-*
 scripts/tmp-*
 *.log
+
+# Playwright UI test artifacts
+test-results/
+playwright-report/

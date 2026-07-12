@@ -79,7 +79,7 @@ export default function StudioClient({ characters, worlds, lorebooks, blurNsfw }
   );
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
+    <div data-testid="studio-page-shell" className="mx-auto w-full max-w-6xl px-4 py-6 sm:py-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 className={cn(studioType.heading, "flex items-center gap-2.5")}>
@@ -100,8 +100,10 @@ export default function StudioClient({ characters, worlds, lorebooks, blurNsfw }
 
       <div
         role="tablist"
+        data-testid="studio-tablist"
         aria-label="제작 종류"
         className={cn(studioSurface.tabList, "mt-6")}
+        style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}
       >
         {TABS.map((tab) => {
           const selected = tab.id === activeTab;
@@ -140,7 +142,7 @@ export default function StudioClient({ characters, worlds, lorebooks, blurNsfw }
         })}
       </div>
 
-      <div className="mt-6" role="tabpanel">
+      <div className="mt-6" role="tabpanel" data-testid="studio-tabpanel">
         {activeTab === "characters" && (
           <CharactersPanel characters={characters} blurNsfw={blurNsfw} />
         )}

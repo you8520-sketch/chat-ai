@@ -15,7 +15,7 @@ const LEGACY_STATUS_BLOCK_RE =
 
 /** 유저 노트 본문 (레거시 상태창 블록 제거) */
 export function parseUserNoteCombined(raw: string): { body: string; statusTemplate: string } {
-  const body = (raw ?? "").replace(LEGACY_STATUS_BLOCK_RE, "").trim();
+  const body = (raw ?? "").replace(LEGACY_STATUS_BLOCK_RE, "");
   return { body, statusTemplate: "" };
 }
 
@@ -108,7 +108,7 @@ export function mergeUserNoteBodyFromEditor(
   const focus = focusBody.slice(0, focusBodyMax);
   const reference = referenceBody.slice(0, referenceBodyMax);
   if (!reference.trim()) {
-    return focus.trim();
+    return focus;
   }
   return focus + USER_NOTE_ZONE_SEPARATOR + reference;
 }

@@ -16,6 +16,10 @@
   --studio-danger: #fb7185;
 }
 
+html {
+  scrollbar-gutter: stable;
+}
+
 body {
   background: #0b0d14;
   color: #e6e8f0;
