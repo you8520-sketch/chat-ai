@@ -1,6 +1,6 @@
 import DOMPurify from "isomorphic-dompurify";
 
-export const CREATOR_PROFILE_HTML_MAX = 20_000;
+export const CREATOR_PROFILE_HTML_MAX = 5_000;
 
 const ALLOWED_TAGS = [
   "a",

@@ -3,7 +3,7 @@ import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { userHasCreatedCharacters } from "@/lib/creatorAccess";
 import { exchangeCreatorPoints, getCreatorDashboard } from "@/lib/creatorPoints";
-import { sanitizeCreatorHtml } from "@/lib/creatorProfileHtml";
+import { CREATOR_PROFILE_HTML_MAX, sanitizeCreatorHtml } from "@/lib/creatorProfileHtml";
 function creatorForbidden() {
   return NextResponse.json(
     { error: "캐릭터를 제작한 크리에이터만 이용할 수 있습니다." },
@@ -35,12 +35,19 @@ export async function PATCH(req: Request) {
     const existing = getDb()
       .prepare("SELECT creator_profile_html, creator_notice_html FROM users WHERE id=?")
       .get(user.id) as { creator_profile_html: string; creator_notice_html: string } | undefined;
+    if (String(body.creator_profile_html ?? "").length > CREATOR_PROFILE_HTML_MAX) {
+      return NextResponse.json(
+        { error: `크리에이터 소개는 ${CREATOR_PROFILE_HTML_MAX.toLocaleString()}자 이하여야 합니다.` },
+        { status: 400 }
+      );
+    }
     const profileHtml = sanitizeCreatorHtml(
       body.creator_profile_html ?? existing?.creator_profile_html ?? ""
     );
-    const noticeHtml = sanitizeCreatorHtml(
-      body.creator_notice_html ?? existing?.creator_notice_html ?? ""
-    );
+    const noticeHtml =
+      body.creator_notice_html === undefined
+        ? existing?.creator_notice_html ?? ""
+        : sanitizeCreatorHtml(body.creator_notice_html);
     getDb()
       .prepare("UPDATE users SET creator_profile_html=?, creator_notice_html=? WHERE id=?")
       .run(profileHtml, noticeHtml, user.id);

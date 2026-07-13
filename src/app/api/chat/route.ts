@@ -52,7 +52,7 @@ import {
 import { isDeepSeekV4ProModel, isGemini25ProModel, isGemini31ProModel, isGeminiProOpenRouterModel, isGlmModel, isQwenModel } from "@/lib/chatModels";
 import { openRouterNormalizedRawCostKrw, openRouterRawCostKrw } from "@/lib/billingRawCost";
 import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
-import { maybeCreditCreatorReward } from "@/lib/creatorPoints";
+import { maybeCreditCreatorReward, paidCreatorRewardSpend } from "@/lib/creatorPoints";
 import { TurnApiBudget, NARRATIVE_LENGTH_CONTINUATION_ENABLED } from "@/lib/turnApiBudget";
 import { maybeRewriteNarrationLexicon } from "@/lib/speechLock";
 import { isMockApiMode, logMockModeOnce } from "@/lib/mockApiMode";
@@ -2901,13 +2901,14 @@ export async function POST(req: Request) {
             aiMessageId
           );
           try {
+            const paidRewardSpend = paidCreatorRewardSpend(deductSlices);
             maybeCreditCreatorReward({
               creatorId: ch.creator_id,
               official: ch.official ?? 0,
               characterId: ch.id,
               messageId: aiMessageId,
               consumerUserId: user.id,
-              pointsSpent: cost,
+              pointsSpent: paidRewardSpend,
             });
           } catch (rewardErr) {
             console.error("[/api/chat] creator reward skipped:", (rewardErr as Error).message);
