@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import WithdrawalForm from "@/components/WithdrawalForm";
@@ -19,6 +18,7 @@ import {
   CREATOR_STANDARD_MIN_CHARACTERS,
   CREATOR_TIER_LABELS,
   type CreatorDashboard,
+  type CreatorEarningPeriod,
 } from "@/lib/creatorShared";
 import { formatPoints } from "@/lib/billingDisplay";
 import { sanitizeCreatorHtml } from "@/lib/creatorProfileHtml";
@@ -133,10 +133,122 @@ function allTierConditions(
   ];
 }
 
+const EARNING_PERIOD_LABELS: Record<CreatorEarningPeriod, string> = {
+  day: "하루",
+  week: "일주일",
+  month: "한달",
+};
+
+function CharacterEarningShareChart({
+  rows,
+  period,
+  selectedId,
+  onPeriodChange,
+  onSelect,
+}: {
+  rows: CreatorDashboard["characterEarningShares"][CreatorEarningPeriod];
+  period: CreatorEarningPeriod;
+  selectedId: number | null;
+  onPeriodChange: (period: CreatorEarningPeriod) => void;
+  onSelect: (id: number) => void;
+}) {
+  const totalReward = rows.reduce((sum, row) => sum + Number(row.period_reward ?? 0), 0);
+  const activeRow = rows.find((row) => row.id === selectedId) ?? rows.find((row) => row.period_reward > 0);
+
+  return (
+    <section className={cn(studioSurface.card, "p-5")}>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className={studioType.sectionTitle}>캐릭터별 적립비중</h2>
+          <p className={cn(studioType.caption, "mt-1")}>
+            선택 기간 합계 {fmt(totalReward)}CP
+          </p>
+        </div>
+        <div className="flex rounded-xl border border-white/10 bg-[#090b14]/70 p-1">
+          {(Object.keys(EARNING_PERIOD_LABELS) as CreatorEarningPeriod[]).map((id) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onPeriodChange(id)}
+              className={cn(
+                "rounded-lg px-3 py-1.5 text-xs font-semibold transition",
+                period === id ? "bg-violet-500 text-white" : "text-zinc-400 hover:text-zinc-100",
+              )}
+            >
+              {EARNING_PERIOD_LABELS[id]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {rows.length === 0 ? (
+        <p className={studioType.body}>아직 제작한 캐릭터가 없습니다.</p>
+      ) : (
+        <div className="space-y-2">
+          {rows.map((row) => {
+            const percent = totalReward > 0 ? Math.round(row.share_ratio * 1000) / 10 : 0;
+            const barWidth = `${Math.max(0, Math.min(100, percent))}%`;
+            const selected = selectedId === row.id;
+
+            return (
+              <button
+                key={row.id}
+                type="button"
+                onClick={() => onSelect(row.id)}
+                title={`${row.name} · ${fmt(row.period_reward)}CP · ${percent}%`}
+                className={cn(
+                  "group grid w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-3 rounded-xl border px-3 py-2 text-left transition",
+                  selected
+                    ? "border-violet-300/40 bg-violet-500/[0.08]"
+                    : "border-white/[0.06] bg-[#0e1120]/70 hover:border-white/15 hover:bg-white/[0.04]",
+                )}
+              >
+                <span className="flex w-20 items-center gap-2 sm:w-28">
+                  <CharacterListAvatar
+                    name={row.name}
+                    emoji={row.emoji}
+                    hue={row.hue}
+                    assets={row.assets}
+                    images={row.images}
+                  />
+                  <span className="truncate text-xs font-semibold text-zinc-200">{row.name}</span>
+                </span>
+                <span className="relative h-8 overflow-hidden rounded-lg border border-white/[0.06] bg-black/30">
+                  <span
+                    className="absolute inset-y-0 left-0 rounded-lg bg-gradient-to-r from-violet-500 to-fuchsia-400"
+                    style={{ width: barWidth }}
+                  />
+                  <span
+                    className={cn(
+                      "absolute inset-0 flex items-center justify-end px-2 text-[11px] font-semibold text-white transition-opacity",
+                      selected ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+                    )}
+                  >
+                    {fmt(row.period_reward)}CP · {percent}%
+                  </span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {activeRow && (
+        <p className="mt-3 text-xs text-zinc-400">
+          {activeRow.name}: <span className="font-semibold text-violet-200">{fmt(activeRow.period_reward)}CP</span>{" "}
+          적립 · 이용 {fmt(activeRow.period_spent)}P
+        </p>
+      )}
+    </section>
+  );
+}
+
 export default function CreatorClient({ initial }: { initial: CreatorDashboard }) {
   const router = useRouter();
   const [data, setData] = useState(initial);
   const [tab, setTab] = useState<"dashboard" | "profile" | "comments">("dashboard");
+  const [earningPeriod, setEarningPeriod] = useState<CreatorEarningPeriod>("week");
+  const [selectedEarningCharacterId, setSelectedEarningCharacterId] = useState<number | null>(null);
   const [profileHtml, setProfileHtml] = useState(initial.creatorProfileHtml);
   const [noticeHtml, setNoticeHtml] = useState(initial.creatorNoticeHtml);
   const [profileSaving, setProfileSaving] = useState(false);
@@ -440,57 +552,16 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
       />
       {withdrawMsg && <p className="text-sm text-violet-300">{withdrawMsg}</p>}
 
-      <section className={cn(studioSurface.card, "p-5")}>
-        <div className="mb-3 flex items-center justify-between gap-2">
-          <h2 className={studioType.sectionTitle}>내 캐릭터 ({data.characters.length})</h2>
-          <Link href="/studio" className="text-xs text-violet-400 hover:underline">
-            + 새 캐릭터
-          </Link>
-        </div>
-        {data.characters.length === 0 ? (
-          <p className={studioType.body}>
-            아직 제작한 캐릭터가 없습니다.{" "}
-            <Link href="/studio" className="text-violet-400 hover:underline">
-              캐릭터 제작하기
-            </Link>
-          </p>
-        ) : (
-          <ul className="space-y-2">
-            {data.characters.map((c) => (
-              <li
-                key={c.id}
-                className="flex items-center gap-3 rounded-xl border border-white/10 bg-[#0e1120] px-4 py-3"
-              >
-                <CharacterListAvatar
-                  name={c.name}
-                  emoji={c.emoji}
-                  hue={c.hue}
-                  assets={c.assets}
-                  images={c.images}
-                />
-                <div className="min-w-0 flex-1">
-                  <Link
-                    href={`/character/${c.id}`}
-                    className="font-semibold text-white hover:text-violet-300"
-                  >
-                    {c.name}
-                  </Link>
-                  <p className="text-[11px] text-zinc-400">
-                    💬 {(c.total_turns ?? 0).toLocaleString()}턴 · 👥 {c.chats_count}명 · ❤️ {c.likes} · 이용 {fmt(c.total_spent)}P · 적립{" "}
-                    {fmt(c.total_reward)}CP
-                  </p>
-                </div>
-                <Link
-                  href={`/create?edit=${c.id}`}
-                  className="shrink-0 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-violet-300 hover:bg-violet-500/10"
-                >
-                  수정
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      <CharacterEarningShareChart
+        rows={data.characterEarningShares[earningPeriod]}
+        period={earningPeriod}
+        selectedId={selectedEarningCharacterId}
+        onPeriodChange={(nextPeriod) => {
+          setEarningPeriod(nextPeriod);
+          setSelectedEarningCharacterId(null);
+        }}
+        onSelect={setSelectedEarningCharacterId}
+      />
 
       <section className={cn(studioSurface.card, "p-5")}>
         <h2 className={cn(studioType.sectionTitle, "mb-3")}>최근 적립 내역</h2>
@@ -517,22 +588,6 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
         )}
       </section>
 
-      {data.recentLogs.length > 0 && (
-        <section className={cn(studioSurface.card, "p-5")}>
-          <h2 className={cn(studioType.sectionTitle, "mb-3")}>CP 내역</h2>
-          <ul className="max-h-48 space-y-1 overflow-y-auto text-xs text-zinc-300">
-            {data.recentLogs.map((log, i) => (
-              <li key={i} className="flex justify-between gap-2 px-2 py-1">
-                <span className="truncate">{log.reason}</span>
-                <span className={log.delta >= 0 ? "text-violet-300" : "text-rose-400"}>
-                  {log.delta >= 0 ? "+" : ""}
-                  {fmt(log.delta)}CP
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
         </>
       )}
     </div>

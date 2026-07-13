@@ -120,13 +120,13 @@ export default function CharacterPublicPagePreview({
 
   const cardVisual = primary ? (
     primaryBlur ? (
-      <div className="relative w-full overflow-hidden rounded-xl md:w-72">
+      <div className="relative mx-auto w-fit max-w-full overflow-hidden rounded-xl">
         <CharacterAssetImage
           src={primary}
           alt={displayName}
           blurForViewer
-          className="w-full"
-          imgClassName="mx-auto h-auto max-h-[70vh] w-full object-contain"
+          className="w-fit max-w-full"
+          imgClassName="block h-auto max-h-[70vh] w-auto max-w-full object-contain"
         />
       </div>
     ) : (

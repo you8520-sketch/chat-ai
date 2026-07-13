@@ -124,6 +124,8 @@ import { cacheUserChatPrefsClient } from "@/lib/userChatPrefs";
 import {
   chatReadabilityRootStyle,
   chatMessageAreaLayoutClass,
+  CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS,
+  CHAT_MOBILE_PORTRAIT_IMAGE_CLASS,
   CHAT_MESSAGES_COLUMN_CLASS,
   CHAT_MESSAGES_BODY_NO_PORTRAIT_CLASS,
   CHAT_MESSAGES_COLUMN_NO_PORTRAIT_CLASS,
@@ -3163,8 +3165,8 @@ export default function ChatClient({
           <ChatRoomMobileMenu
             displayPrefs={displayPrefs}
             onDisplayPrefsChange={handleDisplayPrefsChange}
-            settingsPanel={renderSettingsPanel("drawer")}
-            bookmarksPanel={<BookmarksPanel variant="inline" />}
+            settingsPanel={renderSettingsPanel("rail")}
+            bookmarksPanel={<BookmarksPanel variant="rail" />}
           />
         </div>
       </div>
@@ -3199,7 +3201,8 @@ export default function ChatClient({
         >
       {showCharacterPortrait && mobilePortraitUrl && (
         <div
-          className="pointer-events-none absolute inset-0 z-0 overflow-hidden bg-[#121212] sm:hidden"
+          data-testid="mobile-chat-portrait-background"
+          className={CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS}
           style={
             {
               ["--mobile-portrait-opacity" as string]:
@@ -3212,8 +3215,9 @@ export default function ChatClient({
             src={mobilePortraitUrl}
             alt=""
             blurForViewer={mobilePortraitBlur}
-            className="h-full w-full opacity-[var(--mobile-portrait-opacity)]"
-            imgClassName="h-full w-full object-cover object-top"
+            className="h-full w-full"
+            imgClassName={CHAT_MOBILE_PORTRAIT_IMAGE_CLASS}
+            imgTestId="mobile-chat-portrait-image"
           />
           <div className="absolute inset-0 bg-[#121212]/25" />
           <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#121212] to-transparent" />

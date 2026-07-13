@@ -22,8 +22,10 @@ import {
   maskCreatorAccountNumber,
   roundCreatorAmount,
   type AccountInfo,
+  type CreatorCharacterEarningShare,
   type CreatorCharacterStat,
   type CreatorDashboard,
+  type CreatorEarningPeriod,
   type CreatorEarningRow,
   type CreatorTierInfo,
   type CreatorTierLevel,
@@ -61,8 +63,10 @@ export {
   formatAccountInfoLabel,
   parseAccountInfo,
   type AccountInfo,
+  type CreatorCharacterEarningShare,
   type CreatorCharacterStat,
   type CreatorDashboard,
+  type CreatorEarningPeriod,
   type CreatorEarningRow,
   type CreatorTierInfo,
   type CreatorTierLevel,
@@ -75,6 +79,48 @@ export {
 export { CREATOR_PARTNER_RENEWAL_MIN_MONTHLY_SPENT } from "./partnerTier";
 
 const roundAmount = roundCreatorAmount;
+
+const CREATOR_EARNING_PERIOD_SQL: Record<CreatorEarningPeriod, string> = {
+  day: "-1 day",
+  week: "-7 days",
+  month: "-30 days",
+};
+
+function getCreatorCharacterEarningShares(
+  userId: number,
+  period: CreatorEarningPeriod
+): CreatorCharacterEarningShare[] {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT c.id, c.name, c.emoji, c.hue, c.assets, c.images,
+              COALESCE(SUM(CASE WHEN ce.reversed=0 THEN ce.points_spent ELSE 0 END), 0) AS period_spent,
+              COALESCE(SUM(CASE WHEN ce.reversed=0 THEN ce.reward_amount ELSE 0 END), 0) AS period_reward
+       FROM characters c
+       LEFT JOIN creator_earnings ce
+         ON ce.character_id = c.id
+        AND ce.creator_id = c.creator_id
+        AND ce.created_at >= datetime('now', ?)
+       WHERE c.creator_id = ?
+       GROUP BY c.id
+       ORDER BY period_reward DESC, c.created_at DESC`
+    )
+    .all(CREATOR_EARNING_PERIOD_SQL[period], userId) as Omit<
+    CreatorCharacterEarningShare,
+    "share_ratio"
+  >[];
+
+  const totalReward = rows.reduce((sum, row) => sum + Number(row.period_reward ?? 0), 0);
+  return rows.map((row) => {
+    const reward = roundAmount(Number(row.period_reward ?? 0));
+    return {
+      ...row,
+      period_spent: roundAmount(Number(row.period_spent ?? 0)),
+      period_reward: reward,
+      share_ratio: totalReward > 0 ? reward / totalReward : 0,
+    };
+  });
+}
 
 /** 전속 20% · 파트너 15% · 프로 12% · 플러스 10% · 기본 8% (상위 등급 우선 적용) */
 export function getCreatorTierInfo(creatorId: number): CreatorTierInfo {
@@ -236,6 +282,11 @@ export function getCreatorDashboard(userId: number): CreatorDashboard {
     totalSpentOnChars: roundAmount(Number(totals.total_spent)),
     tier: getCreatorTierInfo(userId),
     characters,
+    characterEarningShares: {
+      day: getCreatorCharacterEarningShares(userId, "day"),
+      week: getCreatorCharacterEarningShares(userId, "week"),
+      month: getCreatorCharacterEarningShares(userId, "month"),
+    },
     recentEarnings,
     recentLogs,
     recentWithdrawals,

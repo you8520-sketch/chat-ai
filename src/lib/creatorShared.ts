@@ -94,6 +94,20 @@ export type CreatorCharacterStat = {
   total_reward: number;
 };
 
+export type CreatorEarningPeriod = "day" | "week" | "month";
+
+export type CreatorCharacterEarningShare = {
+  id: number;
+  name: string;
+  emoji: string;
+  hue: number;
+  assets: string;
+  images: string;
+  period_spent: number;
+  period_reward: number;
+  share_ratio: number;
+};
+
 export type CreatorEarningRow = {
   id: number;
   character_name: string;
@@ -138,6 +152,7 @@ export type CreatorDashboard = {
   totalSpentOnChars: number;
   tier: CreatorTierInfo;
   characters: CreatorCharacterStat[];
+  characterEarningShares: Record<CreatorEarningPeriod, CreatorCharacterEarningShare[]>;
   recentEarnings: CreatorEarningRow[];
   recentLogs: { delta: number; reason: string; created_at: string }[];
   recentWithdrawals: WithdrawalRequestRow[];

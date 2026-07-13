@@ -5,12 +5,12 @@ import { useCallback, useEffect, useState } from "react";
 /**
  * 캐릭터 대표 이미지 뷰어.
  * - 본문: 원본 비율 유지(object-contain) — 얼굴/전신이 잘리지 않음
+ * - 이미지가 차지하는 폭만 프레임으로 잡아 좌우 빈 배경이 남지 않음
  * - 클릭 시: 뷰포트에 맞춘 확대 모달(원본 비율 유지)
  */
 export default function CharacterImageViewer({
   src,
   alt,
-  hue,
 }: {
   src: string;
   alt: string;
@@ -38,17 +38,14 @@ export default function CharacterImageViewer({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="group relative block w-full overflow-hidden rounded-2xl md:w-72"
-        style={{
-          background: `linear-gradient(135deg, hsl(${hue} 60% 24%), hsl(${(hue + 60) % 360} 60% 12%))`,
-        }}
+        className="group relative mx-auto block w-fit max-w-full overflow-hidden rounded-2xl bg-transparent"
         aria-label="이미지 크게 보기"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={src}
           alt={alt}
-          className="mx-auto h-auto max-h-[70vh] w-full object-contain"
+          className="block h-auto max-h-[70vh] w-auto max-w-full object-contain"
         />
         <span className="pointer-events-none absolute bottom-2 right-2 rounded bg-black/60 px-2 py-1 text-[10px] font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
           클릭하여 확대
