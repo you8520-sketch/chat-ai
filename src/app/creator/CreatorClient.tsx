@@ -152,7 +152,6 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
     if (res.ok) setData(json.dashboard);
   }
 
-
   async function saveProfileContent() {
     setProfileSaving(true);
     setError("");
