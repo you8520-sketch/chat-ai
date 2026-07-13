@@ -41,6 +41,7 @@ export default function StudioSaveBar({
 }: Props) {
   return (
     <div
+      data-testid="studio-save-bar"
       className={cn(
         "fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-[#0b0d14]/95 backdrop-blur-md",
         "pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-[env(safe-area-inset-bottom)]",
