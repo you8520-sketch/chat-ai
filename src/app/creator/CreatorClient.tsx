@@ -17,11 +17,13 @@ import {
   CREATOR_REWARD_RATE_PRO,
   CREATOR_STANDARD_MIN_CHARACTERS,
   CREATOR_TIER_LABELS,
+  CREATOR_NOTICE_CONTENT_MAX,
+  CREATOR_NOTICE_TITLE_MAX,
   type CreatorDashboard,
   type CreatorEarningPeriod,
 } from "@/lib/creatorShared";
 import { formatPoints } from "@/lib/billingDisplay";
-import { sanitizeCreatorHtml } from "@/lib/creatorProfileHtml";
+import { CREATOR_PROFILE_HTML_MAX, sanitizeCreatorHtml } from "@/lib/creatorProfileHtml";
 import { getCharacterRepresentativeImageUrl } from "@/lib/characterAssets";
 import StudioButton from "@/components/studio/StudioButton";
 import { cn, studioInputClass, studioSurface, studioType } from "@/lib/studioDesign";
@@ -250,8 +252,10 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
   const [earningPeriod, setEarningPeriod] = useState<CreatorEarningPeriod>("week");
   const [selectedEarningCharacterId, setSelectedEarningCharacterId] = useState<number | null>(null);
   const [profileHtml, setProfileHtml] = useState(initial.creatorProfileHtml);
-  const [noticeHtml, setNoticeHtml] = useState(initial.creatorNoticeHtml);
+  const [noticeTitle, setNoticeTitle] = useState("");
+  const [noticeContent, setNoticeContent] = useState("");
   const [profileSaving, setProfileSaving] = useState(false);
+  const [noticeSaving, setNoticeSaving] = useState(false);
   const [exchangeAmount, setExchangeAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
@@ -265,6 +269,10 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
   }
 
   async function saveProfileContent() {
+    if (profileHtml.length > CREATOR_PROFILE_HTML_MAX) {
+      setError(`크리에이터 소개는 ${CREATOR_PROFILE_HTML_MAX.toLocaleString()}자 이하여야 합니다.`);
+      return;
+    }
     setProfileSaving(true);
     setError("");
     setMsg("");
@@ -273,7 +281,6 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         creator_profile_html: profileHtml,
-        creator_notice_html: noticeHtml,
       }),
     });
     setProfileSaving(false);
@@ -283,8 +290,46 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
       return;
     }
     setProfileHtml(json.creator_profile_html ?? "");
-    setNoticeHtml(json.creator_notice_html ?? "");
-    setMsg("크리에이터 소개와 공지를 저장했습니다.");
+    setMsg("크리에이터 소개를 저장했습니다.");
+    await refresh();
+    router.refresh();
+  }
+
+  async function createNotice() {
+    setNoticeSaving(true);
+    setError("");
+    setMsg("");
+    const res = await fetch("/api/creator/notices", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: noticeTitle, content: noticeContent }),
+    });
+    setNoticeSaving(false);
+    const json = await res.json();
+    if (!res.ok) {
+      setError(json.error || "공지 저장에 실패했습니다.");
+      return;
+    }
+    setNoticeTitle("");
+    setNoticeContent("");
+    setMsg("공지를 등록했습니다.");
+    await refresh();
+    router.refresh();
+  }
+
+  async function deleteNotice(id: number) {
+    if (!confirm("이 공지를 삭제할까요?")) return;
+    const res = await fetch("/api/creator/notices", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      setError(json.error || "공지 삭제에 실패했습니다.");
+      return;
+    }
+    setMsg("공지를 삭제했습니다.");
     await refresh();
     router.refresh();
   }
@@ -334,7 +379,6 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
   const tierRows = allTierConditions(data.tier, basePct, plusPct, proPct, partnerPct);
   const partnerHint = partnerStatusHint(data.tier);
   const profilePreviewHtml = sanitizeCreatorHtml(profileHtml);
-  const noticePreviewHtml = sanitizeCreatorHtml(noticeHtml);
 
   return (
     <div className="mx-auto mt-6 max-w-3xl space-y-6">
@@ -378,7 +422,7 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
             <div>
               <h2 className={studioType.sectionTitle}>크리에이터 소개 · 공지</h2>
               <p className={cn(studioType.caption, "mt-1")}>
-                제작자 페이지에 노출되는 소개와 공지입니다. HTML 태그를 사용할 수 있습니다.
+                소개는 프로필 상단에, 공지는 제작자 페이지의 공지 게시판에 노출됩니다.
               </p>
             </div>
             <StudioButton type="button" onClick={saveProfileContent} disabled={profileSaving}>
@@ -388,28 +432,25 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
 
           <div className="mt-5 space-y-5">
             <label className="block">
-              <span className="text-xs font-semibold text-zinc-300">소개 HTML</span>
+              <span className="flex items-center justify-between gap-3">
+                <span className="text-xs font-semibold text-zinc-300">크리에이터 소개</span>
+                <span className="text-[10px] text-zinc-500">HTML 사용 가능</span>
+              </span>
               <textarea
                 className={cn(studioInputClass, "mt-2 min-h-48 font-mono text-xs")}
                 value={profileHtml}
-                onChange={(e) => setProfileHtml(e.target.value)}
+                maxLength={CREATOR_PROFILE_HTML_MAX}
+                onChange={(e) => setProfileHtml(e.target.value.slice(0, CREATOR_PROFILE_HTML_MAX))}
                 placeholder="<h2>안녕하세요!</h2><p>제 캐릭터 세계관과 제작 방향을 소개해보세요.</p>"
               />
-            </label>
-
-            <label className="block">
-              <span className="text-xs font-semibold text-zinc-300">공지 HTML</span>
-              <textarea
-                className={cn(studioInputClass, "mt-2 min-h-36 font-mono text-xs")}
-                value={noticeHtml}
-                onChange={(e) => setNoticeHtml(e.target.value)}
-                placeholder="<p><strong>업데이트 안내</strong> 새 캐릭터 공개 일정이나 이용 안내를 적어주세요.</p>"
-              />
+              <span className="mt-1 block text-right text-[10px] text-zinc-500">
+                {profileHtml.length.toLocaleString()} / {CREATOR_PROFILE_HTML_MAX.toLocaleString()}자
+              </span>
             </label>
 
             <div className="rounded-2xl border border-white/[0.08] bg-[#090b14]/70 p-4">
               <p className="text-xs font-semibold text-zinc-400">미리보기</p>
-              <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <div className="mt-3">
                 <div className="rounded-xl border border-violet-400/15 bg-violet-500/[0.06] p-4">
                   <p className="mb-2 text-xs font-bold text-violet-200">소개</p>
                   {profilePreviewHtml ? (
@@ -421,17 +462,79 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
                     <p className={studioType.caption}>소개가 비어 있습니다.</p>
                   )}
                 </div>
-                <div className="rounded-xl border border-amber-300/15 bg-amber-300/[0.06] p-4">
-                  <p className="mb-2 text-xs font-bold text-amber-100">공지</p>
-                  {noticePreviewHtml ? (
-                    <div
-                      className="creator-comment-html text-sm leading-6 text-zinc-200"
-                      dangerouslySetInnerHTML={{ __html: noticePreviewHtml }}
-                    />
-                  ) : (
-                    <p className={studioType.caption}>공지사항이 비어 있습니다.</p>
-                  )}
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-amber-300/15 bg-amber-300/[0.045] p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-bold text-amber-100">공지 게시판</p>
+                  <p className={cn(studioType.caption, "mt-1")}>
+                    새 공지를 제목과 본문으로 등록합니다. HTML 입력칸이 아닙니다.
+                  </p>
                 </div>
+                <StudioButton type="button" size="sm" onClick={createNotice} disabled={noticeSaving}>
+                  {noticeSaving ? "등록 중..." : "공지 등록"}
+                </StudioButton>
+              </div>
+              <div className="mt-4 space-y-3">
+                <label className="block">
+                  <span className="text-xs font-semibold text-zinc-300">제목</span>
+                  <input
+                    className={cn(studioInputClass, "mt-2")}
+                    maxLength={CREATOR_NOTICE_TITLE_MAX}
+                    value={noticeTitle}
+                    onChange={(e) => setNoticeTitle(e.target.value.slice(0, CREATOR_NOTICE_TITLE_MAX))}
+                    placeholder="공지 제목"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-semibold text-zinc-300">내용</span>
+                  <textarea
+                    className={cn(studioInputClass, "mt-2 min-h-32")}
+                    maxLength={CREATOR_NOTICE_CONTENT_MAX}
+                    value={noticeContent}
+                    onChange={(e) =>
+                      setNoticeContent(e.target.value.slice(0, CREATOR_NOTICE_CONTENT_MAX))
+                    }
+                    placeholder="업데이트 일정, 캐릭터 공개 안내 등을 적어주세요."
+                  />
+                  <span className="mt-1 block text-right text-[10px] text-zinc-500">
+                    {noticeContent.length.toLocaleString()} / {CREATOR_NOTICE_CONTENT_MAX.toLocaleString()}자
+                  </span>
+                </label>
+              </div>
+
+              <div className="mt-5 space-y-2">
+                {data.creatorNotices.length === 0 ? (
+                  <p className={studioType.caption}>등록된 공지가 없습니다.</p>
+                ) : (
+                  data.creatorNotices.map((notice) => (
+                    <article
+                      key={notice.id}
+                      className="rounded-xl border border-white/[0.08] bg-[#0e1120]/70 p-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-zinc-100">{notice.title}</p>
+                          <p className="mt-0.5 text-[10px] text-zinc-500">
+                            {notice.created_at.slice(0, 16)}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => deleteNotice(notice.id)}
+                          className="shrink-0 rounded-md border border-white/10 px-2 py-1 text-[10px] font-semibold text-zinc-400 hover:bg-white/5 hover:text-rose-300"
+                        >
+                          삭제
+                        </button>
+                      </div>
+                      <p className="mt-2 whitespace-pre-wrap text-xs leading-5 text-zinc-300">
+                        {notice.content}
+                      </p>
+                    </article>
+                  ))
+                )}
               </div>
             </div>
           </div>

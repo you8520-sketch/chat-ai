@@ -32,6 +32,7 @@ import {
   type WithdrawalRequestRow,
 } from "./creatorShared";
 import { getWithdrawalEligibility, personNamesMatch } from "./withdrawalEligibility";
+import { listCreatorNotices } from "./creatorNotices";
 import {
   CREATOR_PARTNER_RENEWAL_MIN_MONTHLY_SPENT,
   hasPartnerTierBenefit,
@@ -79,6 +80,17 @@ export {
 export { CREATOR_PARTNER_RENEWAL_MIN_MONTHLY_SPENT } from "./partnerTier";
 
 const roundAmount = roundCreatorAmount;
+
+export function paidCreatorRewardSpend(
+  slices: Array<{ pointType: string; amount: number }>
+): number {
+  return roundAmount(
+    slices.reduce((sum, slice) => {
+      if (slice.pointType !== "PAID") return sum;
+      return sum + Number(slice.amount ?? 0);
+    }, 0)
+  );
+}
 
 const CREATOR_EARNING_PERIOD_SQL: Record<CreatorEarningPeriod, string> = {
   day: "-1 day",
@@ -295,6 +307,7 @@ export function getCreatorDashboard(userId: number): CreatorDashboard {
     creatorCommentsEnabled: (profileRow?.creator_comments_enabled ?? 1) !== 0,
     creatorProfileHtml: profileRow?.creator_profile_html ?? "",
     creatorNoticeHtml: profileRow?.creator_notice_html ?? "",
+    creatorNotices: listCreatorNotices(userId),
   };
 }
 

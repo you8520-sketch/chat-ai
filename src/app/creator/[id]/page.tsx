@@ -21,6 +21,7 @@ import { checkCommentReportEligibility } from "@/lib/commentPolicy";
 import { userHasReportedComment } from "@/lib/commentReports";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 import { decorateCharactersWithCreatorTiers } from "@/lib/creatorTierBadges";
+import { listCreatorNotices } from "@/lib/creatorNotices";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +48,7 @@ export default async function CreatorProfilePage({
     | undefined;
   if (!creator) notFound();
   const creatorIsPartner = isActivePartnerCreator(db, creator.id);
+  const creatorNotices = listCreatorNotices(creatorId);
 
   const user = await getSessionUser();
   const isOwner = user?.id === creatorId;
@@ -126,7 +128,7 @@ export default async function CreatorProfilePage({
       </div>
 
 
-      {(creator.creator_profile_html || creator.creator_notice_html) && (
+      {(creator.creator_profile_html || creator.creator_notice_html || creatorNotices.length > 0) && (
         <section className="mt-4 grid gap-4 md:grid-cols-[1.5fr_1fr]">
           {creator.creator_profile_html && (
             <div className={cn(studioSurface.card, "overflow-hidden p-5")}>
@@ -141,18 +143,30 @@ export default async function CreatorProfilePage({
             </div>
           )}
 
-          {creator.creator_notice_html && (
+          {(creatorNotices.length > 0 || creator.creator_notice_html) && (
             <div className={cn(studioSurface.card, "overflow-hidden border-amber-300/20 bg-amber-300/[0.045] p-5")}>
               <div className="mb-3 flex items-center gap-2">
                 <span className="rounded-full bg-amber-300/15 px-2 py-0.5 text-[11px] font-black text-amber-100">
                   NOTICE
                 </span>
-                <h2 className={studioType.sectionTitle}>제작자 공지</h2>
+                <h2 className={studioType.sectionTitle}>공지 게시판</h2>
               </div>
-              <div
-                className="creator-comment-html text-sm leading-7 text-zinc-200"
-                dangerouslySetInnerHTML={{ __html: creator.creator_notice_html }}
-              />
+              {creatorNotices.length > 0 ? (
+                <div className="space-y-3">
+                  {creatorNotices.map((notice) => (
+                    <article key={notice.id} className="rounded-xl border border-white/[0.08] bg-[#0e1120]/65 p-3">
+                      <p className="text-sm font-semibold text-amber-50">{notice.title}</p>
+                      <p className="mt-0.5 text-[10px] text-zinc-500">{notice.created_at.slice(0, 16)}</p>
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-zinc-200">{notice.content}</p>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div
+                  className="creator-comment-html text-sm leading-7 text-zinc-200"
+                  dangerouslySetInnerHTML={{ __html: creator.creator_notice_html }}
+                />
+              )}
             </div>
           )}
         </section>

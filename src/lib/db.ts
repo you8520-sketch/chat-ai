@@ -745,6 +745,18 @@ function migrate(db: Database.Database) {
   addColumn("users", "creator_comments_enabled", "INTEGER NOT NULL DEFAULT 1");
   addColumn("users", "creator_profile_html", "TEXT NOT NULL DEFAULT ''");
   addColumn("users", "creator_notice_html", "TEXT NOT NULL DEFAULT ''");
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS creator_notices (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      creator_id INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_creator_notices_creator
+      ON creator_notices(creator_id, created_at DESC, id DESC);
+  `);
   addColumn("characters", "comments_enabled", "INTEGER NOT NULL DEFAULT 1");
   addColumn("characters", "setting_chunks_en", "TEXT NOT NULL DEFAULT '[]'");
   addColumn("characters", "prompt_translation_hash", "TEXT NOT NULL DEFAULT ''");

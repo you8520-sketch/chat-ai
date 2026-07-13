@@ -38,6 +38,8 @@ export const WITHDRAWAL_TAX_RATE = 0.088;
 export const WITHDRAWAL_PLATFORM_FEE_RATE = 0.112;
 export const WITHDRAWAL_TOTAL_DEDUCTION_RATE =
   WITHDRAWAL_TAX_RATE + WITHDRAWAL_PLATFORM_FEE_RATE;
+export const CREATOR_NOTICE_TITLE_MAX = 80;
+export const CREATOR_NOTICE_CONTENT_MAX = 5_000;
 
 export type WithdrawalStatus = "PENDING" | "APPROVED" | "REJECTED" | "FAILED";
 
@@ -117,6 +119,15 @@ export type CreatorEarningRow = {
   created_at: string;
 };
 
+export type CreatorNoticeRow = {
+  id: number;
+  creator_id: number;
+  title: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+};
+
 export type WithdrawalRequestRow = {
   id: number;
   requested_cp: number;
@@ -161,6 +172,7 @@ export type CreatorDashboard = {
   creatorCommentsEnabled: boolean;
   creatorProfileHtml: string;
   creatorNoticeHtml: string;
+  creatorNotices: CreatorNoticeRow[];
 };
 
 export function roundCreatorAmount(n: number): number {
