@@ -6,6 +6,7 @@ import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { cn, studioType } from "@/lib/studioDesign";
 import { listableWhere } from "@/lib/characterVisibility";
+import { decorateCharactersWithCreatorTiers } from "@/lib/creatorTierBadges";
 import {
   buildCharacterSearchSql,
   isValidSearchQuery,
@@ -73,7 +74,10 @@ export default async function SearchPage({
   if (isValidSearchQuery(query)) {
     const like = searchSqlLikePattern(query);
     const { sql, filterParams } = buildCharacterSearchSql({ audiencePref, blurNsfw });
-    chars = db.prepare(sql).all(like, like, like, ...filterParams, like, like) as CharacterRow[];
+    chars = decorateCharactersWithCreatorTiers(
+      db,
+      db.prepare(sql).all(like, like, like, ...filterParams, like, like) as CharacterRow[]
+    );
   }
 
   const conds: string[] = [];

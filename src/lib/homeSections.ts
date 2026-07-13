@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import type { CharacterRow } from "@/components/CharacterCard";
 import { listableWhere } from "@/lib/characterVisibility";
+import { decorateCharactersWithCreatorTiers } from "@/lib/creatorTierBadges";
 
 /** lg:grid-cols-5 기준 한 줄 카드 수 */
 export const HOME_CARDS_PER_ROW = 5;
@@ -160,15 +161,16 @@ export function fetchRecommendedCharacters(
         )
         .all(...filter.params, ...excludeParams) as CharacterRow[];
 
-      return pool
+      const picked = pool
         .map((c) => ({ c, score: scoreByTaste(c, taste, user.pref) }))
         .sort((a, b) => b.score - a.score || b.c.likes - a.c.likes)
         .slice(0, limit)
         .map(({ c }) => c);
+      return decorateCharactersWithCreatorTiers(db, picked);
     }
   }
 
-  return db
+  const rows = db
     .prepare(
       `SELECT * FROM characters
        WHERE ${baseWhere}
@@ -176,6 +178,7 @@ export function fetchRecommendedCharacters(
        LIMIT ?`
     )
     .all(...filter.params, ...excludeParams, limit) as CharacterRow[];
+  return decorateCharactersWithCreatorTiers(db, rows);
 }
 
 /** 2행: 최근 등록 + 최근 7일 대화·좋아요 등 engagement가 높은 신작 */
@@ -192,7 +195,7 @@ export function fetchHotNewCharacters(
     ? `AND c.id NOT IN (${excludeIds.map(() => "?").join(", ")})`
     : "";
 
-  return db
+  const rows = db
     .prepare(
       `SELECT c.*
        FROM characters c
@@ -211,6 +214,7 @@ export function fetchHotNewCharacters(
        LIMIT ?`
     )
     .all(...filter.params, ...excludeParams, limit) as CharacterRow[];
+  return decorateCharactersWithCreatorTiers(db, rows);
 }
 
 /** 2행: 관리자가 선정한 공모전 캐릭터 — contest_pick=1인 캐릭터만 (공모전 진행 전엔 빈 배열) */
@@ -222,7 +226,7 @@ export function fetchContestCharacters(
 ): CharacterRow[] {
   const { sql: excludeSql, params: excludeParams } = excludeIdsClause(excludeIds);
 
-  return db
+  const rows = db
     .prepare(
       `SELECT * FROM characters
        WHERE contest_pick = 1 AND ${listableWhere()} ${filter.filterSql} ${excludeSql}
@@ -230,6 +234,7 @@ export function fetchContestCharacters(
        LIMIT ?`
     )
     .all(...filter.params, ...excludeParams, limit) as CharacterRow[];
+  return decorateCharactersWithCreatorTiers(db, rows);
 }
 
 /** 3행~: 신작만 최신순 (약 5줄 분량) */
@@ -241,7 +246,7 @@ export function fetchNewestCharacters(
 ): CharacterRow[] {
   const { sql: excludeSql, params: excludeParams } = excludeIdsClause(excludeIds);
 
-  return db
+  const rows = db
     .prepare(
       `SELECT * FROM characters
        WHERE ${listableWhere()} ${filter.filterSql} ${excludeSql}
@@ -249,6 +254,7 @@ export function fetchNewestCharacters(
        LIMIT ?`
     )
     .all(...filter.params, ...excludeParams, limit) as CharacterRow[];
+  return decorateCharactersWithCreatorTiers(db, rows);
 }
 
 export function fetchUserCreatedCharacters(
@@ -256,11 +262,12 @@ export function fetchUserCreatedCharacters(
   userId: number,
   limit = 10
 ): CharacterRow[] {
-  return db
+  const rows = db
     .prepare(
       `SELECT * FROM characters WHERE creator_id = ? ORDER BY created_at DESC, id DESC LIMIT ?`
     )
     .all(userId, limit) as CharacterRow[];
+  return decorateCharactersWithCreatorTiers(db, rows);
 }
 
 export function fetchHomeSections(

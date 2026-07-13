@@ -1,7 +1,8 @@
 export const LOREBOOK_NAME_LIMIT = 40;
 export const LOREBOOK_SUMMARY_LIMIT = 100;
 export const LOREBOOK_ENTRY_MAX = 100;
-export const LOREBOOK_CONTENT_MAX = 400;
+/** 로어북 항목 내용 최대 길이 — 제작 페이지 입력/검증 공통값 */
+export const LOREBOOK_CONTENT_MAX = 800;
 export const LOREBOOK_KEYWORDS_PER_ENTRY = 10;
 export const LOREBOOK_ACTIVATION_RECENT_TURNS = 4;
 export const LOREBOOK_ACTIVATION_RECENT_MESSAGES_FALLBACK = 8;

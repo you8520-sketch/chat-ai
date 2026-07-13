@@ -1,17 +1,20 @@
 /** Client-safe creator constants, types, and pure helpers (no DB/auth). */
 
 export const CREATOR_REWARD_RATE = 0.08;
-/** 플러스: 캐릭터 5개+ & 통합 대화 1만+ */
+/** 일반: 캐릭터 2개+ */
+export const CREATOR_STANDARD_MIN_CHARACTERS = 2;
+/** 플러스: 캐릭터 3개+ & 통합 대화 1만+ */
 export const CREATOR_REWARD_RATE_PLUS = 0.1;
-export const CREATOR_PLUS_MIN_CHARACTERS = 5;
+export const CREATOR_PLUS_MIN_CHARACTERS = 3;
 export const CREATOR_PLUS_MIN_TOTAL_CHATS = 10_000;
-/** 프로: 캐릭터 10개+ & 통합 대화 10만+ */
+/** 프로: 공개(검수 통과) 캐릭터 10개+ & 월간 소비 200만P+ */
 export const CREATOR_REWARD_RATE_PRO = 0.12;
 export const CREATOR_PRO_MIN_CHARACTERS = 10;
 export const CREATOR_PRO_MIN_TOTAL_CHATS = 100_000;
-/** 파트너: 공개(검수 통과) 캐릭터 15개+ & 월간 소비 500만P+ */
+export const CREATOR_PRO_MIN_MONTHLY_SPENT = 2_000_000;
+/** 파트너: 공개(검수 통과) 캐릭터 10개+ & 월간 소비 500만P+ */
 export const CREATOR_REWARD_RATE_PARTNER = 0.15;
-export const CREATOR_PARTNER_MIN_CHARACTERS = 15;
+export const CREATOR_PARTNER_MIN_CHARACTERS = 10;
 export const CREATOR_PARTNER_MIN_MONTHLY_SPENT = 5_000_000;
 /** 파트너 등급 유지 기간 (개월) — 갱신 시 동일 기간 연장 */
 export const CREATOR_PARTNER_TERM_MONTHS = 3;
@@ -91,6 +94,20 @@ export type CreatorCharacterStat = {
   total_reward: number;
 };
 
+export type CreatorEarningPeriod = "day" | "week" | "month";
+
+export type CreatorCharacterEarningShare = {
+  id: number;
+  name: string;
+  emoji: string;
+  hue: number;
+  assets: string;
+  images: string;
+  period_spent: number;
+  period_reward: number;
+  share_ratio: number;
+};
+
 export type CreatorEarningRow = {
   id: number;
   character_name: string;
@@ -135,12 +152,15 @@ export type CreatorDashboard = {
   totalSpentOnChars: number;
   tier: CreatorTierInfo;
   characters: CreatorCharacterStat[];
+  characterEarningShares: Record<CreatorEarningPeriod, CreatorCharacterEarningShare[]>;
   recentEarnings: CreatorEarningRow[];
   recentLogs: { delta: number; reason: string; created_at: string }[];
   recentWithdrawals: WithdrawalRequestRow[];
   hasPendingWithdrawal: boolean;
   withdrawal: WithdrawalEligibility;
   creatorCommentsEnabled: boolean;
+  creatorProfileHtml: string;
+  creatorNoticeHtml: string;
 };
 
 export function roundCreatorAmount(n: number): number {

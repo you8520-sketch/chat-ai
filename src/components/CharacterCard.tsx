@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { characterCardHref } from "@/lib/chatLinks";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
+import type { CreatorTierLevel } from "@/lib/creatorShared";
 
 export type CharacterRow = {
   id: number;
@@ -15,6 +16,7 @@ export type CharacterRow = {
   hue: number;
   creator_name: string;
   creator_id?: number | null;
+  creator_tier_level?: CreatorTierLevel | null;
   likes: number;
   /** 누적 대화 턴 (전체 유저 합) */
   total_turns: number;
@@ -24,6 +26,44 @@ export type CharacterRow = {
   audience?: string;
   images?: string;
 };
+
+
+type CreatorNameBadgeStyle = {
+  byClassName: string;
+  nameClassName: string;
+  medal?: string;
+  label?: string;
+};
+
+function creatorNameBadgeStyle(tier: CreatorTierLevel | null | undefined): CreatorNameBadgeStyle {
+  switch (tier) {
+    case "plus":
+      return {
+        byClassName: "text-violet-500/80",
+        nameClassName: "font-bold text-violet-300 drop-shadow-[0_0_6px_rgba(167,139,250,0.35)]",
+      };
+    case "pro":
+      return {
+        byClassName: "text-slate-400",
+        nameClassName: "font-extrabold text-slate-100 drop-shadow-[0_0_7px_rgba(226,232,240,0.42)]",
+        medal: "🥈",
+        label: "프로 크리에이터",
+      };
+    case "partner":
+    case "exclusive":
+      return {
+        byClassName: "text-amber-500/80",
+        nameClassName: "font-black text-amber-200 drop-shadow-[0_0_9px_rgba(251,191,36,0.55)]",
+        medal: tier === "exclusive" ? "🏆" : "🥇",
+        label: tier === "exclusive" ? "전속 크리에이터" : "파트너 크리에이터",
+      };
+    default:
+      return {
+        byClassName: "text-zinc-600",
+        nameClassName: "font-medium text-zinc-500",
+      };
+  }
+}
 
 function fmt(n: number) {
   return n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, "")}K` : String(n);
@@ -72,6 +112,7 @@ export default function CharacterCard({ c, blurNsfw, loggedIn = false }: Props) 
     c.creator_id != null && Number(c.creator_id) > 0
       ? `/creator/${c.creator_id}`
       : null;
+  const creatorStyle = creatorNameBadgeStyle(c.creator_tier_level);
 
   return (
     <article
@@ -144,14 +185,24 @@ export default function CharacterCard({ c, blurNsfw, loggedIn = false }: Props) 
           creatorHref ? (
             <Link
               href={creatorHref}
-              className="line-clamp-1 text-[11px] font-medium text-zinc-500 transition hover:text-violet-300"
+              className={cn("line-clamp-1 text-[11px] transition hover:text-violet-200", creatorStyle.nameClassName)}
               title={`${creatorName} 프로필`}
             >
-              <span className="text-zinc-600">by</span> {creatorName}
+              {creatorStyle.medal && (
+                <span className="mr-0.5" title={creatorStyle.label} aria-label={creatorStyle.label}>
+                  {creatorStyle.medal}
+                </span>
+              )}
+              <span className={creatorStyle.byClassName}>by</span> {creatorName}
             </Link>
           ) : (
-            <p className="line-clamp-1 text-[11px] font-medium text-zinc-500">
-              <span className="text-zinc-600">by</span> {creatorName}
+            <p className={cn("line-clamp-1 text-[11px]", creatorStyle.nameClassName)}>
+              {creatorStyle.medal && (
+                <span className="mr-0.5" title={creatorStyle.label} aria-label={creatorStyle.label}>
+                  {creatorStyle.medal}
+                </span>
+              )}
+              <span className={creatorStyle.byClassName}>by</span> {creatorName}
             </p>
           )
         ) : null}

@@ -71,9 +71,10 @@ export function ChatPortraitPrefs({
           </span>
           <input
             type="range"
-            min={8}
-            max={50}
-            step={2}
+            aria-label="모바일 배경 이미지 투명도"
+            min={0}
+            max={100}
+            step={1}
             value={Math.round(displayPrefs.portraitBackgroundOpacity * 100)}
             onChange={(e) =>
               onDisplayPrefsChange({

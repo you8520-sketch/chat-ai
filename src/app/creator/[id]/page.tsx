@@ -20,6 +20,7 @@ import {
 import { checkCommentReportEligibility } from "@/lib/commentPolicy";
 import { userHasReportedComment } from "@/lib/commentReports";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
+import { decorateCharactersWithCreatorTiers } from "@/lib/creatorTierBadges";
 
 export const dynamic = "force-dynamic";
 
@@ -34,8 +35,16 @@ export default async function CreatorProfilePage({
 
   const db = getDb();
   const creator = db
-    .prepare("SELECT id, nickname, creator_comments_enabled FROM users WHERE id=?")
-    .get(creatorId) as { id: number; nickname: string; creator_comments_enabled: number } | undefined;
+    .prepare("SELECT id, nickname, creator_comments_enabled, creator_profile_html, creator_notice_html FROM users WHERE id=?")
+    .get(creatorId) as
+    | {
+        id: number;
+        nickname: string;
+        creator_comments_enabled: number;
+        creator_profile_html: string;
+        creator_notice_html: string;
+      }
+    | undefined;
   if (!creator) notFound();
   const creatorIsPartner = isActivePartnerCreator(db, creator.id);
 
@@ -47,14 +56,17 @@ export default async function CreatorProfilePage({
   const commentsEnabled = getCreatorCommentsEnabled(db, creatorId);
   const showComments = commentsEnabled || isOwner;
 
-  const characters = db
-    .prepare(
-      `SELECT * FROM characters
-       WHERE creator_id=? AND official=0 AND ${listableWhere()}
-       ORDER BY likes DESC, created_at DESC
-       LIMIT 24`
-    )
-    .all(creatorId) as CharacterRow[];
+  const characters = decorateCharactersWithCreatorTiers(
+    db,
+    db
+      .prepare(
+        `SELECT * FROM characters
+         WHERE creator_id=? AND official=0 AND ${listableWhere()}
+         ORDER BY likes DESC, created_at DESC
+         LIMIT 24`
+      )
+      .all(creatorId) as CharacterRow[]
+  );
 
   const charCount = db
     .prepare("SELECT COUNT(*) AS c FROM characters WHERE creator_id=? AND official=0")
@@ -112,6 +124,39 @@ export default async function CreatorProfilePage({
           )}
         </div>
       </div>
+
+
+      {(creator.creator_profile_html || creator.creator_notice_html) && (
+        <section className="mt-4 grid gap-4 md:grid-cols-[1.5fr_1fr]">
+          {creator.creator_profile_html && (
+            <div className={cn(studioSurface.card, "overflow-hidden p-5")}>
+              <div className="mb-3 flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-violet-300 shadow-[0_0_14px_rgba(167,139,250,0.8)]" />
+                <h2 className={studioType.sectionTitle}>크리에이터 소개</h2>
+              </div>
+              <div
+                className="creator-comment-html text-sm leading-7 text-zinc-200"
+                dangerouslySetInnerHTML={{ __html: creator.creator_profile_html }}
+              />
+            </div>
+          )}
+
+          {creator.creator_notice_html && (
+            <div className={cn(studioSurface.card, "overflow-hidden border-amber-300/20 bg-amber-300/[0.045] p-5")}>
+              <div className="mb-3 flex items-center gap-2">
+                <span className="rounded-full bg-amber-300/15 px-2 py-0.5 text-[11px] font-black text-amber-100">
+                  NOTICE
+                </span>
+                <h2 className={studioType.sectionTitle}>제작자 공지</h2>
+              </div>
+              <div
+                className="creator-comment-html text-sm leading-7 text-zinc-200"
+                dangerouslySetInnerHTML={{ __html: creator.creator_notice_html }}
+              />
+            </div>
+          )}
+        </section>
+      )}
 
       {isOwner && (
         <div className={cn(studioSurface.card, "mt-4 p-5")}>

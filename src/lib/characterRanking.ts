@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import type { CharacterRow } from "@/components/CharacterCard";
 import { listableWhere } from "@/lib/characterVisibility";
+import { decorateCharactersWithCreatorTiers } from "@/lib/creatorTierBadges";
 
 function listableWhereAliased(alias: string, extra = "1=1"): string {
   return `(${alias}.official=1 OR (${alias}.visibility='public' AND ${alias}.moderation_status='approved' AND ${alias}.creator_id IS NOT NULL)) AND (${extra})`;
@@ -48,7 +49,7 @@ export function fetchCharacterRanking(
   filterParams: unknown[]
 ): RankedCharacter[] {
   if (period === "all") {
-    return db
+    const rows = db
       .prepare(
         `SELECT c.*, c.total_turns AS period_chats
          FROM characters c
@@ -57,10 +58,11 @@ export function fetchCharacterRanking(
          LIMIT 50`
       )
       .all(...filterParams) as RankedCharacter[];
+    return decorateCharactersWithCreatorTiers(db, rows);
   }
 
   const since = chatSinceSql(period)!;
-  return db
+  const rows = db
     .prepare(
       `SELECT c.*, COUNT(ch.id) AS period_chats
        FROM characters c
@@ -71,6 +73,7 @@ export function fetchCharacterRanking(
        LIMIT 50`
     )
     .all(...filterParams) as RankedCharacter[];
+  return decorateCharactersWithCreatorTiers(db, rows);
 }
 
 export function rankingPeriodLabel(period: RankingPeriod): string {

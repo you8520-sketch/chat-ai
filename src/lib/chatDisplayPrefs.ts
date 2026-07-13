@@ -172,7 +172,7 @@ export function normalizePortraitBackgroundOpacity(value: unknown): number {
     typeof value === "number" && Number.isFinite(value)
       ? value
       : DEFAULT_CHAT_DISPLAY_PREFS.portraitBackgroundOpacity;
-  return Math.min(0.5, Math.max(0.08, n));
+  return Math.min(1, Math.max(0, n));
 }
 
 export function loadChatDisplayPrefs(): ChatDisplayPrefs {
@@ -261,6 +261,14 @@ export const CHAT_PORTRAIT_VIEWPORT_MIN_H_CLASS = "";
 /** 채팅 본문 열 — 이미지와 같은 시작 높이 */
 export const CHAT_MESSAGES_COLUMN_CLASS =
   "relative col-start-1 row-start-1 flex min-w-0 flex-col overflow-hidden sm:col-start-2 sm:overflow-visible";
+
+/** Mobile portrait background is pinned to the stable viewport, never the growing message list. */
+export const CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS =
+  "pointer-events-none fixed inset-x-0 top-0 z-0 h-[100svh] w-[100svw] select-none overflow-hidden bg-[#121212] sm:hidden";
+
+/** Keep crop geometry invariant while streaming; only the image opacity may change. */
+export const CHAT_MOBILE_PORTRAIT_IMAGE_CLASS =
+  "block h-full w-full select-none object-cover object-top opacity-[var(--mobile-portrait-opacity)]";
 
 /** 초상 OFF — 메시지+입력 열 (본문을 입력창 위로 밀어 붙임) */
 export const CHAT_MESSAGES_COLUMN_NO_PORTRAIT_CLASS =

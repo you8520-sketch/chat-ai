@@ -9,19 +9,23 @@ import {
   CREATOR_PLUS_MIN_CHARACTERS,
   CREATOR_PLUS_MIN_TOTAL_CHATS,
   CREATOR_PRO_MIN_CHARACTERS,
+  CREATOR_PRO_MIN_MONTHLY_SPENT,
   CREATOR_PRO_MIN_TOTAL_CHATS,
   CREATOR_REWARD_RATE,
   CREATOR_REWARD_RATE_EXCLUSIVE,
   CREATOR_REWARD_RATE_PARTNER,
   CREATOR_REWARD_RATE_PLUS,
   CREATOR_REWARD_RATE_PRO,
+  CREATOR_STANDARD_MIN_CHARACTERS,
   WITHDRAWAL_MIN_CP,
   calcWithdrawalBreakdown,
   maskCreatorAccountNumber,
   roundCreatorAmount,
   type AccountInfo,
+  type CreatorCharacterEarningShare,
   type CreatorCharacterStat,
   type CreatorDashboard,
+  type CreatorEarningPeriod,
   type CreatorEarningRow,
   type CreatorTierInfo,
   type CreatorTierLevel,
@@ -42,12 +46,14 @@ export {
   CREATOR_PLUS_MIN_CHARACTERS,
   CREATOR_PLUS_MIN_TOTAL_CHATS,
   CREATOR_PRO_MIN_CHARACTERS,
+  CREATOR_PRO_MIN_MONTHLY_SPENT,
   CREATOR_PRO_MIN_TOTAL_CHATS,
   CREATOR_REWARD_RATE,
   CREATOR_REWARD_RATE_EXCLUSIVE,
   CREATOR_REWARD_RATE_PARTNER,
   CREATOR_REWARD_RATE_PLUS,
   CREATOR_REWARD_RATE_PRO,
+  CREATOR_STANDARD_MIN_CHARACTERS,
   CREATOR_TIER_LABELS,
   WITHDRAWAL_MIN_CP,
   WITHDRAWAL_TAX_RATE,
@@ -57,8 +63,10 @@ export {
   formatAccountInfoLabel,
   parseAccountInfo,
   type AccountInfo,
+  type CreatorCharacterEarningShare,
   type CreatorCharacterStat,
   type CreatorDashboard,
+  type CreatorEarningPeriod,
   type CreatorEarningRow,
   type CreatorTierInfo,
   type CreatorTierLevel,
@@ -71,6 +79,48 @@ export {
 export { CREATOR_PARTNER_RENEWAL_MIN_MONTHLY_SPENT } from "./partnerTier";
 
 const roundAmount = roundCreatorAmount;
+
+const CREATOR_EARNING_PERIOD_SQL: Record<CreatorEarningPeriod, string> = {
+  day: "-1 day",
+  week: "-7 days",
+  month: "-30 days",
+};
+
+function getCreatorCharacterEarningShares(
+  userId: number,
+  period: CreatorEarningPeriod
+): CreatorCharacterEarningShare[] {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      `SELECT c.id, c.name, c.emoji, c.hue, c.assets, c.images,
+              COALESCE(SUM(CASE WHEN ce.reversed=0 THEN ce.points_spent ELSE 0 END), 0) AS period_spent,
+              COALESCE(SUM(CASE WHEN ce.reversed=0 THEN ce.reward_amount ELSE 0 END), 0) AS period_reward
+       FROM characters c
+       LEFT JOIN creator_earnings ce
+         ON ce.character_id = c.id
+        AND ce.creator_id = c.creator_id
+        AND ce.created_at >= datetime('now', ?)
+       WHERE c.creator_id = ?
+       GROUP BY c.id
+       ORDER BY period_reward DESC, c.created_at DESC`
+    )
+    .all(CREATOR_EARNING_PERIOD_SQL[period], userId) as Omit<
+    CreatorCharacterEarningShare,
+    "share_ratio"
+  >[];
+
+  const totalReward = rows.reduce((sum, row) => sum + Number(row.period_reward ?? 0), 0);
+  return rows.map((row) => {
+    const reward = roundAmount(Number(row.period_reward ?? 0));
+    return {
+      ...row,
+      period_spent: roundAmount(Number(row.period_spent ?? 0)),
+      period_reward: reward,
+      share_ratio: totalReward > 0 ? reward / totalReward : 0,
+    };
+  });
+}
 
 /** 전속 20% · 파트너 15% · 프로 12% · 플러스 10% · 기본 8% (상위 등급 우선 적용) */
 export function getCreatorTierInfo(creatorId: number): CreatorTierInfo {
@@ -133,8 +183,8 @@ export function getCreatorTierInfo(creatorId: number): CreatorTierInfo {
     tierLevel = "partner";
     rewardRate = CREATOR_REWARD_RATE_PARTNER;
   } else if (
-    characterCount >= CREATOR_PRO_MIN_CHARACTERS &&
-    totalChats >= CREATOR_PRO_MIN_TOTAL_CHATS
+    publicCharacterCount >= CREATOR_PRO_MIN_CHARACTERS &&
+    monthlySpentOnChars >= CREATOR_PRO_MIN_MONTHLY_SPENT
   ) {
     tierLevel = "pro";
     rewardRate = CREATOR_REWARD_RATE_PRO;
@@ -220,9 +270,11 @@ export function getCreatorDashboard(userId: number): CreatorDashboard {
     )
     .get(userId) as { c: number };
 
-  const commentsRow = db
-    .prepare("SELECT creator_comments_enabled FROM users WHERE id=?")
-    .get(userId) as { creator_comments_enabled: number } | undefined;
+  const profileRow = db
+    .prepare("SELECT creator_comments_enabled, creator_profile_html, creator_notice_html FROM users WHERE id=?")
+    .get(userId) as
+    | { creator_comments_enabled: number; creator_profile_html: string; creator_notice_html: string }
+    | undefined;
 
   return {
     creatorPoints,
@@ -230,12 +282,19 @@ export function getCreatorDashboard(userId: number): CreatorDashboard {
     totalSpentOnChars: roundAmount(Number(totals.total_spent)),
     tier: getCreatorTierInfo(userId),
     characters,
+    characterEarningShares: {
+      day: getCreatorCharacterEarningShares(userId, "day"),
+      week: getCreatorCharacterEarningShares(userId, "week"),
+      month: getCreatorCharacterEarningShares(userId, "month"),
+    },
     recentEarnings,
     recentLogs,
     recentWithdrawals,
     hasPendingWithdrawal: Number(pending.c) > 0,
     withdrawal: getWithdrawalEligibility(userId),
-    creatorCommentsEnabled: (commentsRow?.creator_comments_enabled ?? 1) !== 0,
+    creatorCommentsEnabled: (profileRow?.creator_comments_enabled ?? 1) !== 0,
+    creatorProfileHtml: profileRow?.creator_profile_html ?? "",
+    creatorNoticeHtml: profileRow?.creator_notice_html ?? "",
   };
 }
 

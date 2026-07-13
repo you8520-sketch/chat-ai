@@ -3,6 +3,7 @@ import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { userHasCreatedCharacters } from "@/lib/creatorAccess";
 import { exchangeCreatorPoints, getCreatorDashboard } from "@/lib/creatorPoints";
+import { sanitizeCreatorHtml } from "@/lib/creatorProfileHtml";
 function creatorForbidden() {
   return NextResponse.json(
     { error: "캐릭터를 제작한 크리에이터만 이용할 수 있습니다." },
@@ -24,13 +25,33 @@ export async function PATCH(req: Request) {
   if (!userHasCreatedCharacters(user.id)) return creatorForbidden();
 
   const body = await req.json();
-  if (body.comments_enabled === undefined) {
-    return NextResponse.json({ error: "변경할 설정이 없습니다." }, { status: 400 });
+  if (body.comments_enabled !== undefined) {
+    const enabled = body.comments_enabled ? 1 : 0;
+    getDb().prepare("UPDATE users SET creator_comments_enabled=? WHERE id=?").run(enabled, user.id);
+    return NextResponse.json({ ok: true, comments_enabled: enabled === 1 });
   }
 
-  const enabled = body.comments_enabled ? 1 : 0;
-  getDb().prepare("UPDATE users SET creator_comments_enabled=? WHERE id=?").run(enabled, user.id);
-  return NextResponse.json({ ok: true, comments_enabled: enabled === 1 });
+  if (body.creator_profile_html !== undefined || body.creator_notice_html !== undefined) {
+    const existing = getDb()
+      .prepare("SELECT creator_profile_html, creator_notice_html FROM users WHERE id=?")
+      .get(user.id) as { creator_profile_html: string; creator_notice_html: string } | undefined;
+    const profileHtml = sanitizeCreatorHtml(
+      body.creator_profile_html ?? existing?.creator_profile_html ?? ""
+    );
+    const noticeHtml = sanitizeCreatorHtml(
+      body.creator_notice_html ?? existing?.creator_notice_html ?? ""
+    );
+    getDb()
+      .prepare("UPDATE users SET creator_profile_html=?, creator_notice_html=? WHERE id=?")
+      .run(profileHtml, noticeHtml, user.id);
+    return NextResponse.json({
+      ok: true,
+      creator_profile_html: profileHtml,
+      creator_notice_html: noticeHtml,
+    });
+  }
+
+  return NextResponse.json({ error: "변경할 설정이 없습니다." }, { status: 400 });
 }
 
 export async function POST(req: Request) {
