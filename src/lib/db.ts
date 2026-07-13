@@ -743,6 +743,8 @@ function migrate(db: Database.Database) {
       ON point_gifts(recipient_id, created_at);
   `);
   addColumn("users", "creator_comments_enabled", "INTEGER NOT NULL DEFAULT 1");
+  addColumn("users", "creator_profile_html", "TEXT NOT NULL DEFAULT ''");
+  addColumn("users", "creator_notice_html", "TEXT NOT NULL DEFAULT ''");
   addColumn("characters", "comments_enabled", "INTEGER NOT NULL DEFAULT 1");
   addColumn("characters", "setting_chunks_en", "TEXT NOT NULL DEFAULT '[]'");
   addColumn("characters", "prompt_translation_hash", "TEXT NOT NULL DEFAULT ''");

@@ -16,6 +16,7 @@ import {
   type RankedCharacter,
 } from "@/lib/characterRanking";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
+import { decorateCharactersWithCreatorTiers } from "@/lib/creatorTierBadges";
 
 export const dynamic = "force-dynamic";
 
@@ -158,6 +159,8 @@ export default async function TabPage({
     default:
       notFound();
   }
+
+  chars = decorateCharactersWithCreatorTiers(db, chars);
 
   return (
     <div className="mt-2 pb-2">

@@ -9,12 +9,14 @@ import {
   CREATOR_PLUS_MIN_CHARACTERS,
   CREATOR_PLUS_MIN_TOTAL_CHATS,
   CREATOR_PRO_MIN_CHARACTERS,
+  CREATOR_PRO_MIN_MONTHLY_SPENT,
   CREATOR_PRO_MIN_TOTAL_CHATS,
   CREATOR_REWARD_RATE,
   CREATOR_REWARD_RATE_EXCLUSIVE,
   CREATOR_REWARD_RATE_PARTNER,
   CREATOR_REWARD_RATE_PLUS,
   CREATOR_REWARD_RATE_PRO,
+  CREATOR_STANDARD_MIN_CHARACTERS,
   WITHDRAWAL_MIN_CP,
   calcWithdrawalBreakdown,
   maskCreatorAccountNumber,
@@ -42,12 +44,14 @@ export {
   CREATOR_PLUS_MIN_CHARACTERS,
   CREATOR_PLUS_MIN_TOTAL_CHATS,
   CREATOR_PRO_MIN_CHARACTERS,
+  CREATOR_PRO_MIN_MONTHLY_SPENT,
   CREATOR_PRO_MIN_TOTAL_CHATS,
   CREATOR_REWARD_RATE,
   CREATOR_REWARD_RATE_EXCLUSIVE,
   CREATOR_REWARD_RATE_PARTNER,
   CREATOR_REWARD_RATE_PLUS,
   CREATOR_REWARD_RATE_PRO,
+  CREATOR_STANDARD_MIN_CHARACTERS,
   CREATOR_TIER_LABELS,
   WITHDRAWAL_MIN_CP,
   WITHDRAWAL_TAX_RATE,
@@ -133,8 +137,8 @@ export function getCreatorTierInfo(creatorId: number): CreatorTierInfo {
     tierLevel = "partner";
     rewardRate = CREATOR_REWARD_RATE_PARTNER;
   } else if (
-    characterCount >= CREATOR_PRO_MIN_CHARACTERS &&
-    totalChats >= CREATOR_PRO_MIN_TOTAL_CHATS
+    publicCharacterCount >= CREATOR_PRO_MIN_CHARACTERS &&
+    monthlySpentOnChars >= CREATOR_PRO_MIN_MONTHLY_SPENT
   ) {
     tierLevel = "pro";
     rewardRate = CREATOR_REWARD_RATE_PRO;
@@ -220,9 +224,11 @@ export function getCreatorDashboard(userId: number): CreatorDashboard {
     )
     .get(userId) as { c: number };
 
-  const commentsRow = db
-    .prepare("SELECT creator_comments_enabled FROM users WHERE id=?")
-    .get(userId) as { creator_comments_enabled: number } | undefined;
+  const profileRow = db
+    .prepare("SELECT creator_comments_enabled, creator_profile_html, creator_notice_html FROM users WHERE id=?")
+    .get(userId) as
+    | { creator_comments_enabled: number; creator_profile_html: string; creator_notice_html: string }
+    | undefined;
 
   return {
     creatorPoints,
@@ -235,7 +241,9 @@ export function getCreatorDashboard(userId: number): CreatorDashboard {
     recentWithdrawals,
     hasPendingWithdrawal: Number(pending.c) > 0,
     withdrawal: getWithdrawalEligibility(userId),
-    creatorCommentsEnabled: (commentsRow?.creator_comments_enabled ?? 1) !== 0,
+    creatorCommentsEnabled: (profileRow?.creator_comments_enabled ?? 1) !== 0,
+    creatorProfileHtml: profileRow?.creator_profile_html ?? "",
+    creatorNoticeHtml: profileRow?.creator_notice_html ?? "",
   };
 }
 
