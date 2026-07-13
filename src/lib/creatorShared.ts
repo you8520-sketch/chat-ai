@@ -144,6 +144,8 @@ export type CreatorDashboard = {
   hasPendingWithdrawal: boolean;
   withdrawal: WithdrawalEligibility;
   creatorCommentsEnabled: boolean;
+  creatorProfileHtml: string;
+  creatorNoticeHtml: string;
 };
 
 export function roundCreatorAmount(n: number): number {

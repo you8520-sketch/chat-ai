@@ -224,9 +224,11 @@ export function getCreatorDashboard(userId: number): CreatorDashboard {
     )
     .get(userId) as { c: number };
 
-  const commentsRow = db
-    .prepare("SELECT creator_comments_enabled FROM users WHERE id=?")
-    .get(userId) as { creator_comments_enabled: number } | undefined;
+  const profileRow = db
+    .prepare("SELECT creator_comments_enabled, creator_profile_html, creator_notice_html FROM users WHERE id=?")
+    .get(userId) as
+    | { creator_comments_enabled: number; creator_profile_html: string; creator_notice_html: string }
+    | undefined;
 
   return {
     creatorPoints,
@@ -239,7 +241,9 @@ export function getCreatorDashboard(userId: number): CreatorDashboard {
     recentWithdrawals,
     hasPendingWithdrawal: Number(pending.c) > 0,
     withdrawal: getWithdrawalEligibility(userId),
-    creatorCommentsEnabled: (commentsRow?.creator_comments_enabled ?? 1) !== 0,
+    creatorCommentsEnabled: (profileRow?.creator_comments_enabled ?? 1) !== 0,
+    creatorProfileHtml: profileRow?.creator_profile_html ?? "",
+    creatorNoticeHtml: profileRow?.creator_notice_html ?? "",
   };
 }
 
