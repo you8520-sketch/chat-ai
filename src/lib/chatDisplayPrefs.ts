@@ -235,7 +235,7 @@ export function isChatRoomPathname(pathname: string): boolean {
 
 /** 채팅방 — 모바일: 뒤로+프로필 / 메뉴 · md+: 제목 바 */
 export const CHAT_ROOM_TITLE_BAR_CLASS =
-  "sticky top-0 z-30 shrink-0 border-b border-white/5 bg-[#121212]/95 px-2 py-2 backdrop-blur sm:px-0 md:top-0";
+  "sticky top-0 z-30 shrink-0 border-b border-white/5 bg-[#121212]/95 px-2 py-2 backdrop-blur sm:px-0 md:hidden";
 
 /** 제목 바 아래부터 초상 시작 (모바일 헤더 없음 ≈ 2.75rem, md+ ≈ 5.25rem) */
 export const CHAT_PORTRAIT_TITLE_STACK_REM = "2.75rem";

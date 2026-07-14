@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import ChatCharacterPortrait from "@/components/ChatCharacterPortrait";
 import CharacterAssetGalleryLightbox from "@/components/CharacterAssetGalleryLightbox";
 import {
@@ -21,6 +22,9 @@ type Props = {
   pinned: boolean;
   onPinnedChange: (pinned: boolean) => void;
   onActiveAssetChange: (asset: CharacterAsset) => void;
+  creatorName?: string;
+  creatorHref?: string;
+  onCharacterIntroOpen?: () => void;
 };
 
 export default function ChatEmotionPortraitPanel({
@@ -35,6 +39,9 @@ export default function ChatEmotionPortraitPanel({
   pinned,
   onPinnedChange,
   onActiveAssetChange,
+  creatorName,
+  creatorHref,
+  onCharacterIntroOpen,
 }: Props) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -74,19 +81,42 @@ export default function ChatEmotionPortraitPanel({
 
   return (
     <>
-      <div className="relative flex h-full min-h-0 w-full flex-col items-center justify-end">
-        <ChatCharacterPortrait
-          characterName={characterName}
-          emoji={emoji}
-          hue={hue}
-          portraitUrl={displayUrl}
-          blurForViewer={blur}
-          size="panel"
-          onPortraitClick={visibleAssets.length > 0 ? openLightbox : undefined}
-        />
-        {visibleAssets.length > 0 && (
-          <div className="pointer-events-none absolute inset-x-3 top-3 z-20 flex items-center justify-between gap-2">
-            <button
+      <div className="flex h-full min-h-0 w-full flex-col items-center">
+        <div className="w-full max-w-[320px] shrink-0 px-1 pb-2 pt-2">
+          <button
+            type="button"
+            onClick={onCharacterIntroOpen}
+            className="block max-w-full truncate text-left text-xl font-black leading-tight text-white underline-offset-4 transition hover:text-violet-100 hover:underline"
+            title="캐릭터 소개 보기"
+          >
+            {characterName}
+          </button>
+          {creatorHref ? (
+            <Link
+              href={creatorHref}
+              className="mt-1 block max-w-full truncate text-xs font-medium text-zinc-500 underline-offset-2 transition hover:text-zinc-300 hover:underline"
+              title="제작자 페이지"
+            >
+              {creatorName || "제작자"}
+            </Link>
+          ) : creatorName ? (
+            <p className="mt-1 truncate text-xs font-medium text-zinc-500">{creatorName}</p>
+          ) : null}
+        </div>
+
+        <div className="relative flex min-h-0 w-full flex-1 flex-col items-center justify-end">
+          <ChatCharacterPortrait
+            characterName={characterName}
+            emoji={emoji}
+            hue={hue}
+            portraitUrl={displayUrl}
+            blurForViewer={blur}
+            size="panel"
+            onPortraitClick={visibleAssets.length > 0 ? openLightbox : undefined}
+          />
+          {visibleAssets.length > 0 && (
+            <div className="pointer-events-none absolute inset-x-3 top-3 z-20 flex items-center justify-between gap-2">
+              <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
@@ -133,6 +163,7 @@ export default function ChatEmotionPortraitPanel({
             </button>
           </div>
         )}
+        </div>
       </div>
 
       <CharacterAssetGalleryLightbox

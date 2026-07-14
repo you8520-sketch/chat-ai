@@ -145,6 +145,22 @@ export default function SidebarShell({ user, chatSessions, blurNsfw, navItems }:
         )}
       >
         {isChatRoomRoute && (
+          <Link
+            href="/"
+            title="홈으로"
+            className={cn(
+              "mx-1 mt-1 flex h-10 shrink-0 items-center rounded-xl text-white transition hover:bg-white/[0.04]",
+              collapsed
+                ? "flex-col justify-center text-[10px] font-black leading-none"
+                : "gap-1 px-2.5 text-sm font-black",
+            )}
+          >
+            <span>하비</span>
+            <span className="text-violet-300">AI</span>
+          </Link>
+        )}
+
+        {isChatRoomRoute && (
           <button
             type="button"
             onClick={toggleExpanded}
