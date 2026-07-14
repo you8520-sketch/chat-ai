@@ -82,7 +82,7 @@ export default function ChatEmotionPortraitPanel({
   return (
     <>
       <div className="flex h-full min-h-0 w-full flex-col items-center">
-        <div className="flex w-full max-w-[320px] shrink-0 items-baseline gap-2 px-1 pb-1 pt-2">
+        <div className="flex w-full max-w-[400px] shrink-0 items-baseline gap-2 px-1 pb-1 pt-2">
           <button
             type="button"
             onClick={onCharacterIntroOpen}

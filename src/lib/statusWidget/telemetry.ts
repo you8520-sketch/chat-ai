@@ -274,12 +274,10 @@ export async function resolveStatusWidgetTurnValues(
         charName: input.charName,
         characterIdentity: input.characterIdentity,
         personaName: input.personaName,
-        userPersona: input.userPersona,
         userMessage: input.userMessage,
         assistantProse: prose,
         resolved: input.statusWidgetTurn,
         previousValues,
-        userNote: input.userNote,
         trace: traceBase,
       });
       widgetExtractUsage = v3Result.usage;

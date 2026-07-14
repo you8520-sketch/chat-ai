@@ -2948,18 +2948,6 @@ export default function ChatClient({
     );
   }
 
-  function renderAssistantLengthHint(content: string, streamingHtmlFlash = false) {
-    if (!showFullBillingReceipt) return null;
-    if (streamingHtmlFlash) return null;
-    const len = visibleAssistantMessageLength(content);
-    if (len <= 0) return null;
-    return (
-      <span className="text-xs font-semibold tabular-nums text-zinc-400">
-        {formatAssistantLengthLabel(len, targetResponseChars)}
-      </span>
-    );
-  }
-
   function shouldShowReportRefundButton(m: Msg): boolean {
     if (m.role !== "assistant" || !m.id || m.id <= 0 || !chatId) return false;
     if (m.model === "greeting" || m.ephemeral) return false;
@@ -2996,12 +2984,6 @@ export default function ChatClient({
     }
   ) {
     if (opts.isEditing) return null;
-    const lengthHint = renderAssistantLengthHint(
-      m.content,
-      loading &&
-        opts.onLastTurn &&
-        /HTML|상태창 생성/i.test(streamPhase ?? "")
-    );
     const variantPicker =
       opts.showToolbar && (m.variantCount ?? 0) > 1 ? (
         <MessageVariantPicker
@@ -3029,7 +3011,6 @@ export default function ChatClient({
           showRegenerate={i === lastAssistantIdx && !inputLocked}
           showFork
           disabled={inputLocked}
-          lengthHint={lengthHint}
           showReportRefund={showReportRefund}
           reportRefundPending={reportRefundPending}
           variantPicker={variantPicker}
@@ -3072,12 +3053,7 @@ export default function ChatClient({
       );
     }
 
-    if (!lengthHint) return null;
-    return (
-      <div className="mt-1 flex justify-end">
-        {lengthHint}
-      </div>
-    );
+    return null;
   }
 
   function isLastTurnMessage(idx: number, m: Msg) {
@@ -3303,7 +3279,7 @@ export default function ChatClient({
         </div>
       </div>
       <div className="h-[3.25rem] shrink-0 md:hidden" aria-hidden />
-      {showCharacterPortrait && <div className="hidden h-[2.125rem] shrink-0 sm:block" aria-hidden />}
+      {showCharacterPortrait && <div className="hidden h-[3.25rem] shrink-0 sm:block" aria-hidden />}
       {showCharacterPortrait && mobilePortraitUrl && (
         <div
           data-testid="mobile-chat-portrait-background"
