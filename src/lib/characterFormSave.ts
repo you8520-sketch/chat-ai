@@ -43,6 +43,15 @@ import {
   type StatusWidgetTriggerInput,
 } from "@/lib/statusWidgetTriggers";
 import { countPublicDescriptionVisibleChars } from "@/lib/publicDescriptionText";
+import {
+  APPEARANCE_COMPILED_VERSION,
+  appearancePromptText,
+  compileAppearanceForChat,
+  extractAppearanceRawFromSetting,
+  hashAppearanceRaw,
+  replaceAppearanceInSetting,
+  serializeAppearanceCompiledJson,
+} from "@/lib/appearanceCompiler";
 
 import {
   AI_LEARNING_LIMIT,
@@ -304,7 +313,38 @@ export function buildCompiledCreatorDescriptionForSave(
     compiledDescription,
     compiledDescriptionJson: serializeCreatorDescriptionCompiled(compiledDescription),
     safeRuntimeCanon: compiledPublicCanonText(compiledDescription),
+    appearanceRaw: extractAppearanceRawFromSetting(data.systemPrompt),
   };
+}
+
+
+async function buildAppearanceForSave(
+  raw: string,
+  existing?: { appearance_raw?: string | null; appearance_compiled?: string | null; appearance_compiled_source_hash?: string | null; appearance_compiled_version?: number | null },
+  force = false
+) {
+  const sourceHash = hashAppearanceRaw(raw);
+  const canReuse =
+    !force &&
+    (existing?.appearance_raw ?? "") === raw &&
+    existing?.appearance_compiled_source_hash === sourceHash &&
+    existing?.appearance_compiled_version === APPEARANCE_COMPILED_VERSION;
+  if (canReuse) {
+    return { raw, compiled: existing?.appearance_compiled ?? "", sourceHash, version: APPEARANCE_COMPILED_VERSION, called: false };
+  }
+  const compiledJson = await compileAppearanceForChat(raw);
+  return {
+    raw,
+    compiled: serializeAppearanceCompiledJson(compiledJson),
+    sourceHash,
+    version: APPEARANCE_COMPILED_VERSION,
+    called: Boolean(raw.trim()),
+  };
+}
+
+function applyCompiledAppearanceToCanon(safeRuntimeCanon: string, appearanceRaw: string, appearanceCompiled: string): string {
+  const promptAppearance = appearancePromptText({ raw: appearanceRaw, compiledJson: appearanceCompiled });
+  return replaceAppearanceInSetting(safeRuntimeCanon, promptAppearance);
 }
 
 export function characterPromptInputsChanged(
@@ -323,6 +363,21 @@ export function characterPromptInputsChanged(
     (row.system_prompt ?? "") !== data.systemPrompt ||
     (row.world ?? "") !== data.world ||
     (row.example_dialog ?? "") !== data.exampleDialog
+  );
+}
+
+
+export function characterPromptRowStillCurrent(
+  row: { name: string; gender: string | null; system_prompt: string | null; world: string | null; example_dialog: string | null },
+  current: { name: string; gender: string | null; system_prompt: string | null; world: string | null; example_dialog: string | null } | undefined
+): boolean {
+  return Boolean(
+    current &&
+      current.name === row.name &&
+      (current.gender ?? "") === (row.gender ?? "") &&
+      (current.system_prompt ?? "") === (row.system_prompt ?? "") &&
+      (current.world ?? "") === (row.world ?? "") &&
+      (current.example_dialog ?? "") === (row.example_dialog ?? "")
   );
 }
 
@@ -406,7 +461,10 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
     compiledDescription,
     compiledDescriptionJson,
     safeRuntimeCanon,
+    appearanceRaw,
   } = buildCompiledCreatorDescriptionForSave(data);
+  const appearance = await buildAppearanceForSave(appearanceRaw);
+  const runtimeCanonWithAppearance = applyCompiledAppearanceToCanon(safeRuntimeCanon, appearanceRaw, appearance.compiled);
 
   const db = getDb();
   const info = db
@@ -414,8 +472,8 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
       `INSERT INTO characters
         (name, tagline, description, greeting, system_prompt, world, world_id, lorebook_id, example_dialog, status_window_prompt, status_widget_json, genre, genres, tags, nsfw, emoji, hue,
          creator_id, creator_name, audience, gender, images, assets, setting_chunks, visibility, moderation_status, moderation_note, share_slug,
-         recommended_writing_style, comments_enabled, creator_comment, creator_raw_description, creator_compiled_description_json)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+         recommended_writing_style, comments_enabled, creator_comment, creator_raw_description, creator_compiled_description_json, appearance_raw, appearance_compiled, appearance_compiled_source_hash, appearance_compiled_version)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     )
     .run(
       data.name,
@@ -450,7 +508,11 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
       data.commentsEnabled,
       data.creatorComment,
       creatorRawDescription,
-      compiledDescriptionJson
+      compiledDescriptionJson,
+      appearance.raw,
+      appearance.compiled,
+      appearance.sourceHash,
+      appearance.version
     );
 
   const characterId = Number(info.lastInsertRowid);
@@ -467,7 +529,7 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
     exampleDialog: data.exampleDialog,
     statusWindowPrompt: data.statusWindowPrompt,
     speechInput: data.speechInput,
-    safeRuntimeCanon,
+    safeRuntimeCanon: runtimeCanonWithAppearance,
   });
 
   const listed = finalVisibility === "public" && moderationStatus === "approved";
@@ -500,7 +562,7 @@ export async function updateCharacterFromForm(
     .prepare(
       `SELECT id, creator_id, official, share_slug, visibility, moderation_status, moderation_note,
               name, gender, system_prompt, world, example_dialog, status_widget_json,
-              creator_compiled_description_json, images, nsfw
+              creator_compiled_description_json, appearance_raw, appearance_compiled, appearance_compiled_source_hash, appearance_compiled_version, images, nsfw
        FROM characters WHERE id=?`
     )
     .get(characterId) as
@@ -519,6 +581,10 @@ export async function updateCharacterFromForm(
         example_dialog: string | null;
         status_widget_json: string | null;
         creator_compiled_description_json: string | null;
+        appearance_raw: string | null;
+        appearance_compiled: string | null;
+        appearance_compiled_source_hash: string | null;
+        appearance_compiled_version: number | null;
         images: string | null;
         nsfw: number | null;
       }
@@ -547,10 +613,22 @@ export async function updateCharacterFromForm(
     compiledDescription,
     compiledDescriptionJson,
     safeRuntimeCanon,
+    appearanceRaw,
   } = buildCompiledCreatorDescriptionForSave(data, [
       ...listCharacterStatusWidgetTriggers(db, characterId),
       ...data.statusWidgetTriggers,
     ]);
+  const forceAppearanceCompile = b.regenerate_appearance === true || b.regenerateAppearance === true;
+  const appearance = await buildAppearanceForSave(appearanceRaw, row, forceAppearanceCompile);
+  const runtimeCanonWithAppearance = applyCompiledAppearanceToCanon(safeRuntimeCanon, appearanceRaw, appearance.compiled);
+  const currentPromptRow = db
+    .prepare("SELECT name, gender, system_prompt, world, example_dialog FROM characters WHERE id=?")
+    .get(characterId) as
+    | { name: string; gender: string | null; system_prompt: string | null; world: string | null; example_dialog: string | null }
+    | undefined;
+  if (!characterPromptRowStillCurrent(row, currentPromptRow)) {
+    return { ok: false as const, error: "다른 저장 요청이 먼저 반영되었습니다. 새로고침 후 다시 저장해 주세요.", status: 409 };
+  }
 
   db.prepare(
     `UPDATE characters SET
@@ -558,7 +636,7 @@ export async function updateCharacterFromForm(
       example_dialog=?, status_window_prompt=?, status_widget_json=?, genre=?, genres=?, tags=?, nsfw=?, emoji=?, hue=?,
       audience=?, gender=?, images=?, assets=?, visibility=?, moderation_status=?, moderation_note=?,
       share_slug=?, recommended_writing_style=?, comments_enabled=?, creator_comment=?, creator_name=?,
-      creator_raw_description=?, creator_compiled_description_json=?
+      creator_raw_description=?, creator_compiled_description_json=?, appearance_raw=?, appearance_compiled=?, appearance_compiled_source_hash=?, appearance_compiled_version=?
      WHERE id=?`
   ).run(
     data.name,
@@ -592,6 +670,10 @@ export async function updateCharacterFromForm(
     user.nickname,
     creatorRawDescription,
     compiledDescriptionJson,
+    appearance.raw,
+    appearance.compiled,
+    appearance.sourceHash,
+    appearance.version,
     characterId
   );
   saveCharacterStatusWidgetTriggers(
@@ -602,7 +684,7 @@ export async function updateCharacterFromForm(
 
   const promptInputsChanged = characterPromptInputsChanged(row, data);
 
-  if (promptInputsChanged) {
+  if (promptInputsChanged || forceAppearanceCompile) {
     await buildSaveAndTranslateCharacterChunks(characterId, {
       name: data.name,
       gender: data.gender,
@@ -611,7 +693,7 @@ export async function updateCharacterFromForm(
       exampleDialog: data.exampleDialog,
       statusWindowPrompt: data.statusWindowPrompt,
       speechInput: data.speechInput,
-      safeRuntimeCanon,
+      safeRuntimeCanon: runtimeCanonWithAppearance,
     });
   } else if (process.env.NODE_ENV !== "production") {
     console.log(`[characterFormSave] skipped prompt chunk rebuild for asset-only update: ${characterId}`);

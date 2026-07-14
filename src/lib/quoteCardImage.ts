@@ -299,10 +299,70 @@ export function downloadQuoteCardPng(blob: Blob, filename = "quote.png"): void {
   URL.revokeObjectURL(url);
 }
 
-export async function shareQuoteCardPng(blob: Blob, filename = "quote.png"): Promise<boolean> {
-  if (typeof navigator === "undefined" || !navigator.share) return false;
+export function isMobileSafariLike(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  const isiOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const safari = /Safari/i.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|SamsungBrowser/i.test(ua);
+  return isiOS && safari;
+}
+
+export function canShareQuoteCardPng(blob: Blob, filename = "quote.png"): boolean {
+  if (typeof navigator === "undefined" || !navigator.share || typeof File === "undefined") return false;
   const file = new File([blob], filename, { type: "image/png" });
-  if (navigator.canShare && !navigator.canShare({ files: [file] })) return false;
+  return !navigator.canShare || navigator.canShare({ files: [file] });
+}
+
+export function prepareQuoteCardSaveFallbackWindow(): Window | null {
+  if (!isMobileSafariLike() || typeof window === "undefined") return null;
+  try {
+    return window.open("about:blank", "_blank", "noopener,noreferrer");
+  } catch {
+    return null;
+  }
+}
+
+export function saveQuoteCardPngWithFallback(
+  blob: Blob,
+  filename = "quote.png",
+  preopenedWindow: Window | null = null
+): "download" | "opened" | "blocked" {
+  const url = URL.createObjectURL(blob);
+  try {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } catch {
+    // Continue to Safari/new-tab fallback below when possible.
+  }
+
+  if (isMobileSafariLike()) {
+    const target = preopenedWindow ?? prepareQuoteCardSaveFallbackWindow();
+    if (!target) {
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      return "blocked";
+    }
+    try {
+      target.location.href = url;
+      window.setTimeout(() => URL.revokeObjectURL(url), 120_000);
+      return "opened";
+    } catch {
+      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      return "blocked";
+    }
+  }
+
+  window.setTimeout(() => URL.revokeObjectURL(url), 5_000);
+  return "download";
+}
+
+export async function shareQuoteCardPng(blob: Blob, filename = "quote.png"): Promise<boolean> {
+  if (!canShareQuoteCardPng(blob, filename)) return false;
+  const file = new File([blob], filename, { type: "image/png" });
   await navigator.share({
     files: [file],
     title: SITE_DISPLAY_NAME,

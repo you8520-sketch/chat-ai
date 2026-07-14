@@ -718,6 +718,9 @@ export async function POST(req: Request) {
         setting_chunks_en: (ch as { setting_chunks_en?: string }).setting_chunks_en,
         prompt_translation_hash: (ch as { prompt_translation_hash?: string }).prompt_translation_hash,
         speech_profile: (ch as { speech_profile?: string }).speech_profile,
+        creator_compiled_description_json: (ch as { creator_compiled_description_json?: string }).creator_compiled_description_json,
+        appearance_raw: (ch as { appearance_raw?: string }).appearance_raw,
+        appearance_compiled: (ch as { appearance_compiled?: string }).appearance_compiled,
       },
       personaDisplayName,
       user.nickname

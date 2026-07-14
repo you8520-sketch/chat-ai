@@ -141,6 +141,12 @@ export function isDeepSeekV4ProModel(modelId: string): boolean {
   return modelId.trim() === OPENROUTER_DEEPSEEK_V4_PRO_MODEL;
 }
 
+/** Any OpenRouter DeepSeek family model, including current chat V4 Pro and background V3. */
+export function isDeepSeekModel(modelId: string): boolean {
+  const id = modelId.trim().toLowerCase();
+  return id === OPENROUTER_DEEPSEEK_V4_PRO_MODEL || id === OPENROUTER_DEEPSEEK_V3_MODEL || id.startsWith("deepseek/") || id.includes("/deepseek-");
+}
+
 /** OpenRouter Google Gemini 2.5 Pro */
 export function isGemini25ProModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();

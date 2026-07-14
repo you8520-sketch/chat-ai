@@ -222,6 +222,19 @@ function init(db: Database.Database) {
 }
 
 // 기존 DB에 새 컬럼 추가 (이미 있으면 무시)
+export function ensureCharacterAppearanceColumns(db: Pick<Database.Database, "prepare" | "exec">): void {
+  const addColumn = (table: string, col: string, def: string) => {
+    const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+    if (!cols.some((c) => c.name === col)) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
+    }
+  };
+  addColumn("characters", "appearance_raw", "TEXT NOT NULL DEFAULT ''");
+  addColumn("characters", "appearance_compiled", "TEXT NOT NULL DEFAULT ''");
+  addColumn("characters", "appearance_compiled_source_hash", "TEXT NOT NULL DEFAULT ''");
+  addColumn("characters", "appearance_compiled_version", "INTEGER NOT NULL DEFAULT 0");
+}
+
 function backfillExistingUserOnboarding(db: Database.Database) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS app_meta (
@@ -356,6 +369,7 @@ function migrate(db: Database.Database) {
   addColumn("characters", "status_widget_allow_user_override", "INTEGER NOT NULL DEFAULT 1");
   addColumn("characters", "creator_raw_description", "TEXT NOT NULL DEFAULT ''");
   addColumn("characters", "creator_compiled_description_json", "TEXT NOT NULL DEFAULT ''");
+  ensureCharacterAppearanceColumns(db);
   addColumn("chats", "status_widget_mode", "TEXT NOT NULL DEFAULT 'character_only'");
   addColumn("chats", "user_status_widget_json", "TEXT NOT NULL DEFAULT ''");
   addColumn("chats", "status_widget_stack_order", "TEXT NOT NULL DEFAULT 'character_first'");
