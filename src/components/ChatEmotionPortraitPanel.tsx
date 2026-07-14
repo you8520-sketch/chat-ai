@@ -115,54 +115,58 @@ export default function ChatEmotionPortraitPanel({
             onPortraitClick={visibleAssets.length > 0 ? openLightbox : undefined}
           />
           {visibleAssets.length > 0 && (
-            <div className="pointer-events-none absolute inset-x-3 top-3 z-20 flex items-center justify-between gap-2">
-              <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                go(-1);
-              }}
-              disabled={!hasMultiple}
-              className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-black/45 text-lg font-bold text-white/90 shadow-lg shadow-black/30 backdrop-blur transition hover:bg-black/65 disabled:cursor-not-allowed disabled:opacity-35"
-              aria-label="이전 해금 이미지"
-              title="이전 해금 이미지"
-            >
-              {"<"}
-            </button>
+            <>
+              <div className="pointer-events-none absolute inset-x-3 top-3 z-20 flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    go(-1);
+                  }}
+                  disabled={!hasMultiple}
+                  className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-black/45 text-lg font-bold text-white/90 shadow-lg shadow-black/30 backdrop-blur transition hover:bg-black/65 disabled:cursor-not-allowed disabled:opacity-35"
+                  aria-label="이전 해금 이미지"
+                  title="이전 해금 이미지"
+                >
+                  {"<"}
+                </button>
 
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onPinnedChange(!pinned);
-              }}
-              className={`pointer-events-auto rounded-full border px-3 py-1.5 text-[11px] font-bold shadow-lg shadow-black/30 backdrop-blur transition ${
-                pinned
-                  ? "border-violet-300/60 bg-violet-600/80 text-white"
-                  : "border-white/15 bg-black/45 text-zinc-100 hover:bg-black/65"
-              }`}
-              aria-pressed={pinned}
-              aria-label={pinned ? "이미지 고정 해제" : "현재 이미지 고정"}
-              title={pinned ? "이미지 고정 해제" : "현재 이미지 고정"}
-            >
-              {pinned ? "고정중" : "고정"}
-            </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    go(1);
+                  }}
+                  disabled={!hasMultiple}
+                  className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-black/45 text-lg font-bold text-white/90 shadow-lg shadow-black/30 backdrop-blur transition hover:bg-black/65 disabled:cursor-not-allowed disabled:opacity-35"
+                  aria-label="다음 해금 이미지"
+                  title="다음 해금 이미지"
+                >
+                  {">"}
+                </button>
+              </div>
 
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                go(1);
-              }}
-              disabled={!hasMultiple}
-              className="pointer-events-auto flex h-9 w-9 items-center justify-center rounded-full border border-white/15 bg-black/45 text-lg font-bold text-white/90 shadow-lg shadow-black/30 backdrop-blur transition hover:bg-black/65 disabled:cursor-not-allowed disabled:opacity-35"
-              aria-label="다음 해금 이미지"
-              title="다음 해금 이미지"
-            >
-              {">"}
-            </button>
-          </div>
-        )}
+              <div className="pointer-events-none absolute inset-x-3 bottom-3 z-20 flex justify-center">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onPinnedChange(!pinned);
+                  }}
+                  className={`pointer-events-auto rounded-full border px-2.5 py-1 text-[10px] font-bold shadow-lg shadow-black/20 backdrop-blur transition ${
+                    pinned
+                      ? "border-violet-300/45 bg-violet-600/65 text-white hover:bg-violet-600/80"
+                      : "border-white/10 bg-black/30 text-zinc-100/85 hover:bg-black/50 hover:text-white"
+                  }`}
+                  aria-pressed={pinned}
+                  aria-label={pinned ? "이미지 고정 해제" : "현재 이미지 고정"}
+                  title={pinned ? "이미지 고정 해제" : "현재 이미지 고정"}
+                >
+                  {pinned ? "고정중" : "고정"}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
