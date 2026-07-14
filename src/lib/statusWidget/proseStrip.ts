@@ -3,7 +3,7 @@ import {
 } from "./parseValues";
 import { splitProseAndStatusWidgetValuesDeepSeek } from "./deepseekCapture";
 
-export const WIDGET_EXTRACT_NARRATIVE_CHAR_BUDGET = 8000;
+export const WIDGET_EXTRACT_NARRATIVE_CHAR_BUDGET = Number.POSITIVE_INFINITY;
 
 /** Strip widget tails the main RP model may have leaked — prose only for save & V3 extract */
 export function stripStatusWidgetFromAssistantProse(text: string): string {
@@ -19,6 +19,9 @@ export function allocateWidgetExtractNarrativeSlices(
 ): { currentSlice: string; previousSlice: string } {
   const cur = currentProse.trim();
   const prev = previousProse?.trim() ?? "";
+  if (!Number.isFinite(budget)) {
+    return { currentSlice: cur, previousSlice: prev };
+  }
   const currentSlice = cur.slice(0, budget);
   const remaining = budget - currentSlice.length;
   const previousSlice =

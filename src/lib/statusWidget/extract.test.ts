@@ -121,12 +121,13 @@ describe("statusWidget extract", () => {
     assert.ok(userBlock.trimEnd().endsWith("(자리비움)\"으로 남겨라."));
   });
 
-  it("buildWidgetExtractUserBlock includes selected persona gender context", () => {
+  it("buildWidgetExtractUserBlock includes character identity but excludes user note and persona text", () => {
     const block = buildWidgetExtractUserBlock({
       charName: "레온",
       characterIdentity: "이름: 레온\n성별: 남성 — 절대 준수.",
       personaName: "렌",
       userPersona: "이름/호칭: 렌\n\n성별: 남성 — 절대 준수.",
+      userNote: "비밀 유저노트",
       userMessage: "마중 나와줘.",
       assistantProse: "레온이 렌을 마중 나왔다.",
       widget: DEFAULT_STATUS_WIDGET,
@@ -134,8 +135,10 @@ describe("statusWidget extract", () => {
     });
     assert.match(block, /\[CHARACTER IDENTITY — MUST OBEY\]/);
     assert.match(block, /성별: 남성 — 절대 준수/);
-    assert.match(block, /\[USER PERSONA — MUST OBEY\]/);
-    assert.match(block, /성별: 남성 — 절대 준수/);
+    assert.doesNotMatch(block, /\[USER PERSONA — MUST OBEY\]/);
+    assert.doesNotMatch(block, /이름\/호칭: 렌/);
+    assert.doesNotMatch(block, /\[USER NOTE\]/);
+    assert.doesNotMatch(block, /비밀 유저노트/);
   });
 
   it("allocateWidgetExtractNarrativeSlices prioritizes current turn within budget", () => {
@@ -145,5 +148,13 @@ describe("statusWidget extract", () => {
     assert.equal(slices.currentSlice.length, 5000);
     assert.equal(slices.previousSlice.length, 3000);
     assert.ok(slices.previousSlice.startsWith("B"));
+  });
+
+  it("allocateWidgetExtractNarrativeSlices includes the full current turn by default", () => {
+    const current = "A".repeat(12000);
+    const previous = "B".repeat(5000);
+    const slices = allocateWidgetExtractNarrativeSlices(current, previous);
+    assert.equal(slices.currentSlice.length, 12000);
+    assert.equal(slices.previousSlice.length, 5000);
   });
 });
