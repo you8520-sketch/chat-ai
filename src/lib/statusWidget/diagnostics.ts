@@ -57,6 +57,7 @@ export type StatusWidgetLiveTracePhase =
   | "v3_extract_result"
   | "status_parse_result"
   | "status_normalize_result"
+  | "status_backfill_result"
   | "before_db_save"
   | "after_db_save"
   | "after_finalize"

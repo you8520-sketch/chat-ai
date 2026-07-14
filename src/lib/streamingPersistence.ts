@@ -5,8 +5,6 @@
 
 import type Database from "better-sqlite3";
 import { normalizeMessageVariants } from "./messageAlternates";
-import { statusWidgetValuesHasContent } from "./statusWidget/displayPolicy";
-import { parseStoredStatusWidgetValuesJson } from "./statusWidget/parseValues";
 
 export type GenerationStatus =
   | "submitted"
@@ -469,15 +467,7 @@ export function finalizeAssistantMessage(
     return { wrote: false };
   }
 
-  const incomingStatusWidgetValuesJson = opts.statusWidgetValuesJson ?? "";
-  const existingStatusValues = parseStoredStatusWidgetValuesJson(row.status_widget_values_json);
-  const incomingStatusValues = parseStoredStatusWidgetValuesJson(incomingStatusWidgetValuesJson);
-  const preserveExistingStatusValues =
-    statusWidgetValuesHasContent(existingStatusValues) &&
-    !statusWidgetValuesHasContent(incomingStatusValues);
-  const finalStatusWidgetValuesJson = preserveExistingStatusValues
-    ? (row.status_widget_values_json ?? "")
-    : incomingStatusWidgetValuesJson;
+  const finalStatusWidgetValuesJson = opts.statusWidgetValuesJson ?? "";
 
   db.prepare(
     `UPDATE messages SET content=?, model=?, usage=?, alternates=?, active_variant=?,
@@ -497,7 +487,7 @@ export function finalizeAssistantMessage(
   );
   return {
     wrote: true,
-    preservedExistingStatusValues: preserveExistingStatusValues,
+    preservedExistingStatusValues: false,
     statusWidgetValuesJson: finalStatusWidgetValuesJson,
   };
 }

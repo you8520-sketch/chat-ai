@@ -391,7 +391,7 @@ describe("streamingPersistence", () => {
     assert.equal(row.status_widget_values_json.includes("복도"), true);
   });
 
-  it("prevents same-message finalize from overwriting usable status values with empty values", () => {
+  it("clears same-message status values when the finalized snapshot is empty", () => {
     const db = createMessagesDb();
     const boot = bootstrapStreamingTurn(db, {
       chatId: 1,
@@ -419,12 +419,12 @@ describe("streamingPersistence", () => {
     });
 
     assert.equal(result.wrote, true);
-    assert.equal(result.preservedExistingStatusValues, true);
-    assert.equal(result.statusWidgetValuesJson, existingStatus);
+    assert.equal(result.preservedExistingStatusValues, false);
+    assert.equal(result.statusWidgetValuesJson, "");
     const row = db
       .prepare(`SELECT status_widget_values_json FROM messages WHERE id=?`)
       .get(boot.assistantMessageId) as { status_widget_values_json: string };
-    assert.equal(row.status_widget_values_json, existingStatus);
+    assert.equal(row.status_widget_values_json, "");
   });
 
   it("does not copy previous-turn status values into a new message", () => {

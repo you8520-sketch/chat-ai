@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  downloadQuoteCardPng,
+  canShareQuoteCardPng,
+  prepareQuoteCardSaveFallbackWindow,
+  saveQuoteCardPngWithFallback,
   type QuoteCardOrientation,
   quoteCardDimensions,
   QUOTE_CARD_BODY_FONT_DEFAULT,
@@ -12,6 +14,7 @@ import {
   scaleQuoteCardForViewport,
   shareQuoteCardPng,
 } from "@/lib/quoteCardImage";
+import { clampQuoteToolbarPosition, createCoalescedSelectionScheduler } from "@/lib/quoteSelectionToolbar";
 
 type PendingCapture = {
   text: string;
@@ -32,16 +35,32 @@ type PreviewState = {
 
 const CURSOR_OFFSET = 14;
 
+function elementFromSelectionNode(node: Node): Element | null {
+  return node.nodeType === Node.TEXT_NODE ? node.parentElement : node instanceof Element ? node : null;
+}
+
 function isSelectionInContainer(container: HTMLElement, range: Range): boolean {
-  const node = range.commonAncestorContainer;
-  const element =
-    node.nodeType === Node.TEXT_NODE ? node.parentElement : (node as Element);
-  if (!element) return false;
-  if (!container.contains(element)) return false;
-  if (element.closest("textarea, input, button, [data-quote-ignore], [data-quote-ui]")) {
+  const startElement = elementFromSelectionNode(range.startContainer);
+  const endElement = elementFromSelectionNode(range.endContainer);
+  const commonElement = elementFromSelectionNode(range.commonAncestorContainer);
+  if (!startElement || !endElement || !commonElement) return false;
+  if (!container.contains(startElement) || !container.contains(endElement)) return false;
+  if (commonElement.closest("textarea, input, button, [data-quote-ignore], [data-quote-ui]")) {
     return false;
   }
-  return true;
+  const startAssistant = startElement.closest("[data-quote-assistant]");
+  const endAssistant = endElement.closest("[data-quote-assistant]");
+  if (!startAssistant || !endAssistant || startAssistant !== endAssistant) return false;
+  return container.contains(startAssistant) && container.contains(endAssistant);
+}
+
+function rangeAnchorPoint(range: Range): { x: number; y: number } {
+  const rects = Array.from(range.getClientRects()).filter((r) => r.width > 0 || r.height > 0);
+  const rect = rects[rects.length - 1] ?? range.getBoundingClientRect();
+  return {
+    x: rect.left + Math.min(rect.width, 240),
+    y: rect.bottom || rect.top,
+  };
 }
 
 export default function ChatSelectionQuoteToolbar({
@@ -66,7 +85,28 @@ export default function ChatSelectionQuoteToolbar({
 
   const previewUrlRef = useRef<string | null>(null);
   const toolbarRef = useRef<HTMLButtonElement>(null);
+  const selectionSchedulerRef = useRef<ReturnType<typeof createCoalescedSelectionScheduler> | null>(null);
+  const lastSelectionSignatureRef = useRef<string>("");
+  const toolbarPointerActiveRef = useRef(false);
+  const toolbarPointerSafetyTimerRef = useRef<number | null>(null);
   const fontRenderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const resetToolbarPointerActive = useCallback(() => {
+    toolbarPointerActiveRef.current = false;
+    if (toolbarPointerSafetyTimerRef.current) {
+      clearTimeout(toolbarPointerSafetyTimerRef.current);
+      toolbarPointerSafetyTimerRef.current = null;
+    }
+  }, []);
+
+  const markToolbarPointerActive = useCallback(() => {
+    resetToolbarPointerActive();
+    toolbarPointerActiveRef.current = true;
+    toolbarPointerSafetyTimerRef.current = window.setTimeout(() => {
+      toolbarPointerActiveRef.current = false;
+      toolbarPointerSafetyTimerRef.current = null;
+    }, 1200);
+  }, [resetToolbarPointerActive]);
 
   const canNativeShare =
     typeof navigator !== "undefined" &&
@@ -202,8 +242,15 @@ export default function ChatSelectionQuoteToolbar({
       if (fontRenderTimerRef.current) {
         clearTimeout(fontRenderTimerRef.current);
       }
+      selectionSchedulerRef.current?.cancel();
+      resetToolbarPointerActive();
     };
-  }, []);
+  }, [resetToolbarPointerActive]);
+
+  useEffect(() => {
+    window.addEventListener("blur", resetToolbarPointerActive);
+    return () => window.removeEventListener("blur", resetToolbarPointerActive);
+  }, [resetToolbarPointerActive]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -216,50 +263,105 @@ export default function ChatSelectionQuoteToolbar({
       if (modalOpen) return;
 
       const sel = window.getSelection();
+      if (toolbarPointerActiveRef.current) return;
       if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+        if (!lastSelectionSignatureRef.current) return;
+        lastSelectionSignatureRef.current = "";
         setPending(null);
         return;
       }
 
       const range = sel.getRangeAt(0);
       if (!isSelectionInContainer(container, range)) {
+        if (!lastSelectionSignatureRef.current) return;
+        lastSelectionSignatureRef.current = "";
         setPending(null);
         return;
       }
 
-      const text = sel.toString().replace(/\u00a0/g, " ").trim();
+      const text = sel.toString().replace(/\u00a0/g, " ").replace(/\s+\n/g, "\n").trim();
       if (!text) {
+        if (!lastSelectionSignatureRef.current) return;
+        lastSelectionSignatureRef.current = "";
         setPending(null);
         return;
       }
 
-      const rect = range.getBoundingClientRect();
-      const x = cursorX ?? rect.left + rect.width / 2;
-      const y = cursorY ?? rect.top;
+      const anchor = rangeAnchorPoint(range);
+      const viewport = window.visualViewport;
+      const clamped = clampQuoteToolbarPosition(
+        { x: cursorX ?? anchor.x, y: cursorY ?? anchor.y },
+        {
+          width: viewport?.width ?? window.innerWidth,
+          height: viewport?.height ?? window.innerHeight,
+          offsetLeft: viewport?.offsetLeft ?? 0,
+          offsetTop: viewport?.offsetTop ?? 0,
+        },
+        { offset: CURSOR_OFFSET }
+      );
+      const signature = `${text}|${range.startOffset}|${range.endOffset}|${Math.round(clamped.x)}|${Math.round(clamped.y)}`;
+      if (signature === lastSelectionSignatureRef.current) return;
+      lastSelectionSignatureRef.current = signature;
+      setPending({
+        text,
+        cursorX: clamped.x,
+        cursorY: clamped.y,
+      });
+    };
 
-      setPending({ text, cursorX: x, cursorY: y });
+    if (!selectionSchedulerRef.current) {
+      selectionSchedulerRef.current = createCoalescedSelectionScheduler({
+        requestAnimationFrame: window.requestAnimationFrame.bind(window),
+        cancelAnimationFrame: window.cancelAnimationFrame.bind(window),
+        setTimeout: window.setTimeout.bind(window),
+        clearTimeout: window.clearTimeout.bind(window),
+      });
+    }
+
+    const scheduleSelectionSync = (cursorX?: number, cursorY?: number, delayMs = 35) => {
+      selectionSchedulerRef.current?.schedule(() => syncFromSelection(cursorX, cursorY), delayMs);
+    };
+
+    const shouldIgnoreTarget = (target: EventTarget | null) => {
+      if (!(target instanceof Element)) return false;
+      if (!container.contains(target)) return true;
+      return Boolean(target.closest("textarea, input, button, [data-quote-ignore], [data-quote-ui]"));
     };
 
     const onMouseUp = (e: MouseEvent) => {
-      const target = e.target as Element;
-      if (!container.contains(target)) return;
-      if (target.closest("textarea, input, button, [data-quote-ignore], [data-quote-ui]")) return;
-      requestAnimationFrame(() => syncFromSelection(e.clientX, e.clientY));
+      if (shouldIgnoreTarget(e.target)) return;
+      scheduleSelectionSync(e.clientX, e.clientY, 0);
+    };
+
+    const onPointerUp = (e: PointerEvent) => {
+      if (e.pointerType === "mouse") return;
+      if (shouldIgnoreTarget(e.target)) return;
+      scheduleSelectionSync(e.clientX, e.clientY);
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (shouldIgnoreTarget(e.target)) return;
+      const touch = e.changedTouches.item(0);
+      scheduleSelectionSync(touch?.clientX, touch?.clientY, 55);
     };
 
     const onSelectionChange = () => {
-      const sel = window.getSelection();
-      if (!sel || sel.isCollapsed) {
-        if (!modalOpen) setPending(null);
-      }
+      if (modalOpen) return;
+      scheduleSelectionSync(undefined, undefined, 20);
     };
 
     container.addEventListener("mouseup", onMouseUp);
+    container.addEventListener("pointerup", onPointerUp);
+    container.addEventListener("touchend", onTouchEnd, { passive: true });
     document.addEventListener("selectionchange", onSelectionChange);
 
     return () => {
       container.removeEventListener("mouseup", onMouseUp);
+      container.removeEventListener("pointerup", onPointerUp);
+      container.removeEventListener("touchend", onTouchEnd);
       document.removeEventListener("selectionchange", onSelectionChange);
+      selectionSchedulerRef.current?.cancel();
+      resetToolbarPointerActive();
     };
   }, [containerRef, disabled, modalOpen, clearAll]);
 
@@ -285,7 +387,7 @@ export default function ChatSelectionQuoteToolbar({
     const onPointerDown = (e: PointerEvent) => {
       const target = e.target as Node;
       if (toolbarRef.current?.contains(target)) return;
-      if ((e.target as Element).closest("[data-quote-ui]")) return;
+      if ((e.target as Element).closest("[data-quote-toolbar], [data-quote-ui]")) return;
       setPending(null);
     };
     document.addEventListener("pointerdown", onPointerDown);
@@ -294,25 +396,42 @@ export default function ChatSelectionQuoteToolbar({
 
   async function exportCard(mode: "save" | "share") {
     if (busy || preview?.loading || !preview?.blob) return;
+    const fallbackWindow = mode === "save" || !canShareQuoteCardPng(preview.blob)
+      ? prepareQuoteCardSaveFallbackWindow()
+      : null;
     setBusy(true);
     try {
       if (mode === "share") {
-        const shared = await shareQuoteCardPng(preview.blob);
+        let shared = false;
+        try {
+          shared = await shareQuoteCardPng(preview.blob);
+        } catch (err) {
+          fallbackWindow?.close();
+          const name = err instanceof DOMException || err instanceof Error ? err.name : "";
+          if (name !== "AbortError") {
+            onToast("공유에 실패했습니다. 저장 버튼으로 다시 시도해 주세요.");
+          }
+          return;
+        }
         if (shared) {
           onToast("이미지를 공유했습니다.");
           clearAll();
           return;
         }
-        downloadQuoteCardPng(preview.blob);
-        onToast("이미지를 저장했습니다. (공유 미지원)");
+        const result = saveQuoteCardPngWithFallback(preview.blob, "quote.png", fallbackWindow);
+        if (result === "blocked") fallbackWindow?.close();
+        onToast(result === "opened" ? "이미지를 새 탭으로 열었습니다. 길게 눌러 저장해 주세요." : result === "blocked" ? "새 탭 열기가 차단되었습니다. 브라우저 공유 또는 이미지를 길게 눌러 저장해 주세요." : "이미지를 저장했습니다. (공유 미지원)");
       } else {
-        downloadQuoteCardPng(preview.blob);
-        onToast("이미지를 저장했습니다.");
+        const result = saveQuoteCardPngWithFallback(preview.blob, "quote.png", fallbackWindow);
+        if (result === "blocked") fallbackWindow?.close();
+        onToast(result === "opened" ? "이미지를 새 탭으로 열었습니다. 길게 눌러 저장해 주세요." : result === "blocked" ? "새 탭 열기가 차단되었습니다. 브라우저 공유 또는 이미지를 길게 눌러 저장해 주세요." : "이미지를 저장했습니다.");
       }
       clearAll();
     } catch {
+      fallbackWindow?.close();
       onToast("이미지 만들기에 실패했습니다.");
     } finally {
+      resetToolbarPointerActive();
       setBusy(false);
     }
   }
@@ -331,11 +450,25 @@ export default function ChatSelectionQuoteToolbar({
           ref={toolbarRef}
           type="button"
           data-quote-ui
-          onClick={openPreviewModal}
+          onClick={() => {
+            try {
+              openPreviewModal();
+            } finally {
+              window.setTimeout(resetToolbarPointerActive, 0);
+            }
+          }}
           className="fixed z-[85] rounded-lg border border-violet-400/50 bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white shadow-[0_0_16px_rgba(139,92,246,0.45)] transition hover:bg-violet-500"
+          data-quote-toolbar
+          onPointerDown={markToolbarPointerActive}
+          onTouchStart={markToolbarPointerActive}
+          onPointerUp={resetToolbarPointerActive}
+          onTouchEnd={resetToolbarPointerActive}
+          onPointerCancel={resetToolbarPointerActive}
+          onTouchCancel={resetToolbarPointerActive}
+          onBlur={resetToolbarPointerActive}
           style={{
-            left: pending.cursorX + CURSOR_OFFSET,
-            top: pending.cursorY + CURSOR_OFFSET,
+            left: pending.cursorX,
+            top: pending.cursorY,
           }}
         >
           이미지 저장
@@ -345,6 +478,7 @@ export default function ChatSelectionQuoteToolbar({
       {modalOpen && pending ? (
         <div
           data-quote-ui
+          data-quote-toolbar
           className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4 backdrop-blur-[2px]"
           onPointerDown={(e) => {
             if (e.target === e.currentTarget) {

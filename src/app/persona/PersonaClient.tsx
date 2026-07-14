@@ -7,6 +7,7 @@ import { GENDER_LABELS, type CharacterGender } from "@/lib/characterGender";
 import {
   PERSONA_NAME_LIMIT,
   PERSONA_CONTENT_MAX,
+  USER_PERSONA_MAX_COUNT,
   USER_NOTE_MAX,
   USER_NOTE_FOCUS_MAX,
   personaContentLength,
@@ -83,6 +84,11 @@ export default function PersonaClient({
   }
 
   function startCreate() {
+    if (personas.length >= USER_PERSONA_MAX_COUNT) {
+      setError(`페르소나는 최대 ${USER_PERSONA_MAX_COUNT.toLocaleString()}개까지 만들 수 있습니다.`);
+      setMsg("");
+      return;
+    }
     setCreating(true);
     setEditingId(null);
     setDraftName("");
@@ -383,15 +389,17 @@ export default function PersonaClient({
       <section id="personas" className={cn(studioSurface.sectionAccent, "scroll-mt-4")}>
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h2 className={studioType.sectionTitle}>내 페르소나 ({personas.length})</h2>
+            <h2 className={studioType.sectionTitle}>
+              내 페르소나 ({personas.length} / {USER_PERSONA_MAX_COUNT})
+            </h2>
             <p className="mt-0.5 text-[11px] text-zinc-500">
-              설명 최대 {PERSONA_CONTENT_MAX.toLocaleString()}자
+              최대 {USER_PERSONA_MAX_COUNT.toLocaleString()}개 · 설명 최대 {PERSONA_CONTENT_MAX.toLocaleString()}자
             </p>
           </div>
           <button
             type="button"
             onClick={startCreate}
-            disabled={busy || creating}
+            disabled={busy || creating || personas.length >= USER_PERSONA_MAX_COUNT}
             className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40"
           >
             + 새 페르소나

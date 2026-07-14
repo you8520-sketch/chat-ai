@@ -88,4 +88,23 @@ describe("statusWidgetValuesHasContent", () => {
       false
     );
   });
+
+  it("treats undefined, null, blank, em dash, and hyphen as unusable for message snapshots", () => {
+    assert.equal(
+      statusWidgetValuesHasContent({
+        character: {
+          undefinedValue: undefined,
+          nullValue: null,
+          blank: "",
+          emDash: "—",
+          hyphen: "-",
+        },
+      } as any),
+      false
+    );
+  });
+
+  it("keeps explicit none text usable when a field intentionally stores it", () => {
+    assert.equal(statusWidgetValuesHasContent({ character: { inventory: "없음" } }), true);
+  });
 });

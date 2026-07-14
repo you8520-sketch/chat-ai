@@ -44,6 +44,10 @@ import {
   type CharacterAsset,
 } from "@/lib/characterAssets";
 import { resolveEmotionTag, stripEmotionTag, stripEmotionTagsForDisplay } from "@/lib/emotionTag";
+import {
+  loadUnlockedCharacterAssetUrls,
+  saveUnlockedCharacterAssetUrls,
+} from "@/lib/characterAssetUnlocks";
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
 import { stripInternalTagLeakage, stripRpMetaPreamble } from "@/lib/narrativeRules";
 import { stripRepeatedTrailingQuoteMarks } from "@/lib/trailingQuoteSanitizer";
@@ -668,9 +672,14 @@ export default function ChatClient({
   const [activePortraitTag, setActivePortraitTag] = useState<string | null>(
     () => initialPortrait.activeTag
   );
-  const unlockedUrlsRef = useRef<Set<string>>(initialPortrait.unlocked);
+  const initialUnlockedUrls = useMemo(() => {
+    const next = new Set(initialPortrait.unlocked);
+    for (const url of loadUnlockedCharacterAssetUrls(character.id)) next.add(url);
+    return next;
+  }, [character.id, initialPortrait]);
+  const unlockedUrlsRef = useRef<Set<string>>(initialUnlockedUrls);
   const [unlockedUrls, setUnlockedUrls] = useState<Set<string>>(
-    () => new Set(initialPortrait.unlocked)
+    () => new Set(initialUnlockedUrls)
   );
   const [displayPrefs, setDisplayPrefs] = useState<ChatDisplayPrefs>(
     () => initialDisplayPrefs ?? DEFAULT_CHAT_DISPLAY_PREFS
@@ -1023,6 +1032,7 @@ export default function ChatClient({
 
     if (wasLocked) {
       unlockedUrlsRef.current.add(asset.url);
+      saveUnlockedCharacterAssetUrls(character.id, unlockedUrlsRef.current);
       setUnlockedUrls(new Set(unlockedUrlsRef.current));
       if (showUnlockNotice) {
         setToastMsg(`「${asset.tag}」 표정 이미지가 해금되었습니다`);
@@ -1257,11 +1267,16 @@ export default function ChatClient({
     if (portraitRoomRef.current === initialChatId) return;
     portraitRoomRef.current = initialChatId;
     const scanned = scanMessagesForPortrait(initialMessages, assets, isCharacterCreator);
+    const nextUnlocked = new Set(scanned.unlocked);
+    for (const url of loadUnlockedCharacterAssetUrls(character.id)) nextUnlocked.add(url);
+    if (scanned.unlocked.size > 0) {
+      saveUnlockedCharacterAssetUrls(character.id, nextUnlocked);
+    }
     setActivePortraitUrl(scanned.activeUrl);
     setActivePortraitTag(scanned.activeTag);
-    unlockedUrlsRef.current = scanned.unlocked;
-    setUnlockedUrls(new Set(scanned.unlocked));
-  }, [initialChatId, initialMessages, assets, isCharacterCreator]);
+    unlockedUrlsRef.current = nextUnlocked;
+    setUnlockedUrls(new Set(nextUnlocked));
+  }, [initialChatId, initialMessages, assets, isCharacterCreator, character.id]);
 
   useEffect(() => {
     displayPrefsRef.current = displayPrefs;
@@ -3113,7 +3128,7 @@ export default function ChatClient({
   );
 
   return (
-    <div className="-ml-1 flex min-w-0 flex-1 items-stretch gap-0 sm:-ml-2">
+    <div className="flex min-w-0 flex-1 items-stretch gap-0">
       <div
         className="chat-readability-root flex min-w-0 flex-1 flex-col"
         style={chatReadabilityRootStyle(displayPrefs)}
@@ -3127,6 +3142,34 @@ export default function ChatClient({
         onToast={setToastMsg}
       />
 
+      <div
+        className={
+          showCharacterPortrait
+            ? CHAT_PORTRAIT_GRID_CLASS
+            : "flex min-h-0 min-w-0 flex-1 flex-col"
+        }
+      >
+        {showCharacterPortrait && (
+          <div className={`${CHAT_PORTRAIT_STICKY_CLASS} pl-1 sm:pl-0`}>
+            <ChatEmotionPortraitPanel
+              characterName={character.name}
+              emoji={character.emoji}
+              hue={character.hue}
+              assets={assets}
+              defaultAsset={defaultChatAsset}
+              activeUrl={activePortraitUrl}
+              unlockedUrls={unlockedUrls}
+              viewerIsCreator={isCharacterCreator}
+            />
+          </div>
+        )}
+        <div
+          className={
+            showCharacterPortrait
+              ? CHAT_MESSAGES_COLUMN_CLASS
+              : CHAT_MESSAGES_COLUMN_NO_PORTRAIT_CLASS
+          }
+        >
       <div className={CHAT_ROOM_TITLE_BAR_CLASS}>
         <div className="flex min-w-0 items-center gap-1.5 md:gap-2">
           <button
@@ -3172,35 +3215,6 @@ export default function ChatClient({
           />
         </div>
       </div>
-
-      <div
-        className={
-          showCharacterPortrait
-            ? CHAT_PORTRAIT_GRID_CLASS
-            : "flex min-h-0 min-w-0 flex-1 flex-col"
-        }
-      >
-        {showCharacterPortrait && (
-          <div className={`${CHAT_PORTRAIT_STICKY_CLASS} pl-1 sm:pl-0`}>
-            <ChatEmotionPortraitPanel
-              characterName={character.name}
-              emoji={character.emoji}
-              hue={character.hue}
-              assets={assets}
-              defaultAsset={defaultChatAsset}
-              activeUrl={activePortraitUrl}
-              unlockedUrls={unlockedUrls}
-              viewerIsCreator={isCharacterCreator}
-            />
-          </div>
-        )}
-        <div
-          className={
-            showCharacterPortrait
-              ? CHAT_MESSAGES_COLUMN_CLASS
-              : CHAT_MESSAGES_COLUMN_NO_PORTRAIT_CLASS
-          }
-        >
       {showCharacterPortrait && mobilePortraitUrl && (
         <div
           data-testid="mobile-chat-portrait-background"
@@ -3500,14 +3514,20 @@ export default function ChatClient({
                             />
                           ))}
                           {statusWindowPlacement === "top" ? statusMetaCard : null}
-                          <ChatRichBlocks
-                            key={`${m.id ?? i}-${m.activeVariant ?? 0}`}
-                            content={toDisplay(bodyForDisplay)}
-                            display={displayPrefs}
-                            paragraphMode={m.model === "greeting" ? "author" : "ai"}
-                            proseOnly={m.model !== "greeting"}
-                            streaming={isStreamingThisMessage}
-                          />
+                          <div
+                            data-quote-assistant
+                            className="select-text [touch-action:pan-y] [-webkit-user-select:text]"
+                            style={{ userSelect: "text", WebkitUserSelect: "text", touchAction: "pan-y", WebkitTouchCallout: "default" }}
+                          >
+                            <ChatRichBlocks
+                              key={`${m.id ?? i}-${m.activeVariant ?? 0}`}
+                              content={toDisplay(bodyForDisplay)}
+                              display={displayPrefs}
+                              paragraphMode={m.model === "greeting" ? "author" : "ai"}
+                              proseOnly={m.model !== "greeting"}
+                              streaming={isStreamingThisMessage}
+                            />
+                          </div>
                           {widgetsBottom.map((w) => (
                             <StatusWidgetCard
                               key={`${m.id}-widget-${w.source}-bottom`}
@@ -3564,7 +3584,7 @@ export default function ChatClient({
         ref={inputDockRef}
         className={
           showCharacterPortrait
-            ? "sticky bottom-0 z-20 shrink-0 overflow-visible border-t border-white/5 bg-[#121212]/88 px-2 pl-3 py-2 backdrop-blur-sm sm:bg-[#121212] sm:pl-2 sm:pr-1 sm:backdrop-blur-none"
+            ? "sticky bottom-0 z-20 shrink-0 overflow-visible border-t border-white/5 bg-[#121212]/88 px-2 py-2 backdrop-blur-sm sm:bg-[#121212] sm:px-0 sm:backdrop-blur-none"
             : `${CHAT_INPUT_DOCK_NO_PORTRAIT_CLASS} overflow-visible`
         }
       >
@@ -3649,7 +3669,7 @@ export default function ChatClient({
       </div>
 
       <aside
-        className={`sticky ${CHAT_ROOM_HEADER_OFFSET_CLASS} z-30 hidden w-11 shrink-0 flex-col gap-1 self-start md:flex md:w-12`}
+        className={`sticky ${CHAT_ROOM_HEADER_OFFSET_CLASS} z-20 hidden w-16 shrink-0 flex-col gap-1 self-start overflow-y-auto px-1 py-2 md:flex md:w-[68px]`}
       >
         <ChatRoomDisplayQuickRail
           displayPrefs={displayPrefs}

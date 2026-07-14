@@ -256,7 +256,6 @@ export async function resolveStatusWidgetTurnValues(
   if (!statusWidgetValuesHasContent(valuesPayload)) {
     try {
       const { extractStatusWidgetValuesForTurn } = await import("./extract");
-      const { loadPreviousStatusWidgetValues } = await import("./loadPrevious");
       v3ExtractAttempted = true;
       logStatusWidgetLiveTrace({
         ...traceBase,
@@ -270,6 +269,7 @@ export async function resolveStatusWidgetTurnValues(
         contentLength: prose.length,
         contentHash: statusWidgetDiagnosticHash(prose),
       });
+      const previousValues = null;
       const v3Result = await extractStatusWidgetValuesForTurn({
         charName: input.charName,
         characterIdentity: input.characterIdentity,
@@ -278,10 +278,7 @@ export async function resolveStatusWidgetTurnValues(
         userMessage: input.userMessage,
         assistantProse: prose,
         resolved: input.statusWidgetTurn,
-        previousValues: loadPreviousStatusWidgetValues(
-          input.chatId,
-          input.regenerateMessageId
-        ),
+        previousValues,
         userNote: input.userNote,
         trace: traceBase,
       });
@@ -378,7 +375,11 @@ export async function resolveStatusWidgetTurnValues(
     inferHit: false,
     backfillAttempted: !splitRawHit && v3ExtractAttempted,
     backfillSuccess: v3ExtractSuccess,
-    backfillSkippedReason: splitRawHit ? "raw_status_values_used" : v3ExtractSuccess ? null : "v3_extract_empty",
+    backfillSkippedReason: splitRawHit
+      ? "raw_status_values_used"
+      : v3ExtractSuccess
+        ? null
+        : "v3_extract_empty",
     jsonParseSuccess: strippedLeak || splitRawHit,
     resolutionSource: finalHasContent ? resolutionSource : "none",
     finalHasContent,

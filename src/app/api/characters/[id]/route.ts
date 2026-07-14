@@ -45,7 +45,7 @@ export async function GET(_req: Request, ctx: RouteCtx) {
   const c = db
     .prepare(
       `SELECT id, name, tagline, description, greeting, system_prompt, world, world_id, lorebook_id, example_dialog, status_window_prompt, status_widget_json,
-              genres, tags, nsfw, emoji, hue, audience, gender, visibility, assets, recommended_writing_style, comments_enabled, creator_comment
+              genres, tags, nsfw, emoji, hue, audience, gender, visibility, assets, recommended_writing_style, comments_enabled, creator_comment, appearance_raw, appearance_compiled
        FROM characters WHERE id=?`
     )
     .get(characterId) as {
@@ -73,6 +73,8 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     recommended_writing_style: string;
     comments_enabled: number;
     creator_comment: string;
+    appearance_raw: string;
+    appearance_compiled: string;
   };
 
   let genres: ReturnType<typeof sanitizeCharacterGenres> = [];
@@ -124,6 +126,8 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     recommended_writing_style: normalizeCreatorRecommendedStyle(c.recommended_writing_style),
     comments_enabled: c.comments_enabled !== 0,
     creator_comment: c.creator_comment ?? "",
+    appearance_raw: c.appearance_raw ?? "",
+    appearance_compiled: c.appearance_compiled ?? "",
     assets,
   });
 }

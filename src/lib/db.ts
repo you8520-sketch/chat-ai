@@ -154,7 +154,10 @@ function init(db: Database.Database) {
     is_consumed INTEGER NOT NULL DEFAULT 0,
     fired_at TEXT NOT NULL DEFAULT (datetime('now')),
     consumed_at TEXT,
-    metadata TEXT
+    metadata TEXT,
+    source_message_id INTEGER,
+    request_id TEXT,
+    generation_sequence INTEGER
   );
   CREATE INDEX IF NOT EXISTS idx_status_trigger_events_chat_consumed
     ON status_trigger_events(chat_id, is_consumed, fired_at, id);
@@ -222,6 +225,19 @@ function init(db: Database.Database) {
 }
 
 // 기존 DB에 새 컬럼 추가 (이미 있으면 무시)
+export function ensureCharacterAppearanceColumns(db: Pick<Database.Database, "prepare" | "exec">): void {
+  const addColumn = (table: string, col: string, def: string) => {
+    const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+    if (!cols.some((c) => c.name === col)) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
+    }
+  };
+  addColumn("characters", "appearance_raw", "TEXT NOT NULL DEFAULT ''");
+  addColumn("characters", "appearance_compiled", "TEXT NOT NULL DEFAULT ''");
+  addColumn("characters", "appearance_compiled_source_hash", "TEXT NOT NULL DEFAULT ''");
+  addColumn("characters", "appearance_compiled_version", "INTEGER NOT NULL DEFAULT 0");
+}
+
 function backfillExistingUserOnboarding(db: Database.Database) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS app_meta (
@@ -356,6 +372,7 @@ function migrate(db: Database.Database) {
   addColumn("characters", "status_widget_allow_user_override", "INTEGER NOT NULL DEFAULT 1");
   addColumn("characters", "creator_raw_description", "TEXT NOT NULL DEFAULT ''");
   addColumn("characters", "creator_compiled_description_json", "TEXT NOT NULL DEFAULT ''");
+  ensureCharacterAppearanceColumns(db);
   addColumn("chats", "status_widget_mode", "TEXT NOT NULL DEFAULT 'character_only'");
   addColumn("chats", "user_status_widget_json", "TEXT NOT NULL DEFAULT ''");
   addColumn("chats", "status_widget_stack_order", "TEXT NOT NULL DEFAULT 'character_first'");
@@ -372,6 +389,9 @@ function migrate(db: Database.Database) {
   addColumn("bookmarks", "title", "TEXT NOT NULL DEFAULT ''");
   addColumn("messages", "status_widget_values_json", "TEXT NOT NULL DEFAULT ''");
   addColumn("messages", "status_widget_turn_active", "INTEGER NOT NULL DEFAULT 0");
+  addColumn("messages", "status_widget_source_message_id", "INTEGER");
+  addColumn("messages", "status_widget_generation_sequence", "INTEGER");
+  addColumn("messages", "status_widget_request_id", "TEXT");
   addColumn("messages", "usage", "TEXT");
   addColumn("messages", "status", "TEXT NOT NULL DEFAULT 'ok'");
   addColumn("messages", "is_refunded", "INTEGER NOT NULL DEFAULT 0");
@@ -381,6 +401,9 @@ function migrate(db: Database.Database) {
   addColumn("messages", "generation_status", "TEXT NOT NULL DEFAULT 'completed'");
   // SQLite ALTER TABLE ADD COLUMN only allows constant defaults (not datetime('now'))
   addColumn("messages", "updated_at", "TEXT NOT NULL DEFAULT ''");
+  addColumn("status_trigger_events", "source_message_id", "INTEGER");
+  addColumn("status_trigger_events", "request_id", "TEXT");
+  addColumn("status_trigger_events", "generation_sequence", "INTEGER");
   db.exec(`
     UPDATE messages
     SET updated_at = COALESCE(NULLIF(updated_at, ''), created_at, datetime('now'))

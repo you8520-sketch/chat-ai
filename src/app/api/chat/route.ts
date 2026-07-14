@@ -167,6 +167,7 @@ import {
   appendMessageVariant,
   normalizeMessageVariants,
   serializeVariantsForClient,
+  type MessageVariant,
 } from "@/lib/messageAlternates";
 import { DegenerationAbortError, DEGENERATION_USER_MESSAGE, isDegenerateOutput, getDegenerationReason, stripUnexpectedForeignScriptLeak } from "@/lib/gibberishGuard";
 import { PREFERENCE_EVENT } from "@/lib/feedback/events";
@@ -718,6 +719,9 @@ export async function POST(req: Request) {
         setting_chunks_en: (ch as { setting_chunks_en?: string }).setting_chunks_en,
         prompt_translation_hash: (ch as { prompt_translation_hash?: string }).prompt_translation_hash,
         speech_profile: (ch as { speech_profile?: string }).speech_profile,
+        creator_compiled_description_json: (ch as { creator_compiled_description_json?: string }).creator_compiled_description_json,
+        appearance_raw: (ch as { appearance_raw?: string }).appearance_raw,
+        appearance_compiled: (ch as { appearance_compiled?: string }).appearance_compiled,
       },
       personaDisplayName,
       user.nickname
@@ -2608,11 +2612,16 @@ export async function POST(req: Request) {
         }
 
         const createdAt = new Date().toISOString();
-        const newVariant = {
+        let newVariant: MessageVariant = {
           content: savedText,
           model: usageRecord.model,
           usage: usageRecord,
           created_at: createdAt,
+          statusWidgetValues: statusWidgetValuesPayload,
+          statusWidgetTurnActive: statusWidgetActive,
+          generationSequence: 0,
+          requestId: clientRequestId ?? null,
+          sourceMessageId: regenerateMessageId ?? persistedAssistantId,
         };
 
         let aiMessageId: number;
@@ -2667,6 +2676,11 @@ export async function POST(req: Request) {
             active_variant: number | null;
           };
           const { variants: prevVariants } = normalizeMessageVariants(existing);
+          newVariant = {
+            ...newVariant,
+            generationSequence: prevVariants.length,
+            sourceMessageId: regenerateMessageId,
+          };
           const appended = appendMessageVariant(prevVariants, newVariant);
           variantPayload = serializeVariantsForClient(appended.variants, appended.activeVariant);
           snapshotVariantIndex = appended.activeVariant;
@@ -2863,6 +2877,9 @@ export async function POST(req: Request) {
             characterId: ch.id,
             sourceTurn: playableTurnCount + 1,
             statusValues: statusWidgetValuesPayload,
+            sourceMessageId: aiMessageId,
+            requestId: clientRequestId ?? null,
+            generationSequence: snapshotVariantIndex,
           });
         }
 

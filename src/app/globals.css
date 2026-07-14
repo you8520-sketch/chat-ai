@@ -314,6 +314,21 @@ html.chat-room-active .app-shell {
 }
 
 /* 채팅방(모바일): 글로벌 헤더·하단 네비 숨김, 셸 패딩 축소 → 채팅 영역 최대화 */
+@media (min-width: 768px) {
+  html.chat-room-active .app-shell {
+    height: calc(100dvh - var(--site-header-height, 44px));
+    max-width: none;
+    overflow: hidden;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  html.chat-room-active .app-shell > main {
+    min-height: 0;
+    height: 100%;
+  }
+}
+
 @media (max-width: 767px) {
   html.chat-room-active .site-header {
     display: none;

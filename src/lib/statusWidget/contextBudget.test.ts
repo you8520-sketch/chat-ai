@@ -7,6 +7,7 @@ import {
   effectiveUserNoteFocusMax,
   estimateStatusWidgetContextChars,
   estimateStatusWidgetContextCharsFromJson,
+  resolveStatusWidgetReservedBreakdown,
   resolveStatusWidgetReservedChars,
   STATUS_WIDGET_CONTEXT_MAX,
   validateStatusWidgetContextBudget,
@@ -82,8 +83,47 @@ describe("statusWidget contextBudget", () => {
     assert.equal(effectiveUserNoteBodyMax(500), 10_000);
   });
 
-  it("validateStatusWidgetContextBudget rejects over max", () => {
-    assert.equal(validateStatusWidgetContextBudget(STATUS_WIDGET_CONTEXT_MAX).ok, true);
-    assert.equal(validateStatusWidgetContextBudget(STATUS_WIDGET_CONTEXT_MAX + 1).ok, false);
+  it("allows legacy combined numeric budget up to creator+user total", () => {
+    assert.equal(validateStatusWidgetContextBudget(STATUS_WIDGET_CONTEXT_MAX * 2).ok, true);
+    assert.equal(validateStatusWidgetContextBudget(STATUS_WIDGET_CONTEXT_MAX * 2 + 1).ok, false);
+  });
+
+  it("validates each widget against its own 500 char budget", () => {
+    assert.equal(
+      validateStatusWidgetContextBudget({
+        characterReservedChars: STATUS_WIDGET_CONTEXT_MAX,
+        userReservedChars: STATUS_WIDGET_CONTEXT_MAX,
+        totalReservedChars: STATUS_WIDGET_CONTEXT_MAX * 2,
+      }).ok,
+      true
+    );
+    assert.equal(
+      validateStatusWidgetContextBudget({
+        characterReservedChars: STATUS_WIDGET_CONTEXT_MAX,
+        userReservedChars: STATUS_WIDGET_CONTEXT_MAX + 1,
+        totalReservedChars: STATUS_WIDGET_CONTEXT_MAX * 2 + 1,
+      }).ok,
+      false
+    );
+  });
+
+  it("reports separate creator and user widget budget in both mode", () => {
+    const json = serializeStatusWidget(DEFAULT_STATUS_WIDGET);
+    const userJson = serializeStatusWidget({
+      ...DEFAULT_STATUS_WIDGET,
+      name: "내 위젯",
+      fields: [{ id: "mood", label: "기분", instruction: "캐릭터 기분을 한 단어로." }],
+    });
+    const breakdown = resolveStatusWidgetReservedBreakdown({
+      characterWidgetJson: json,
+      userWidgetJson: userJson,
+      chatMode: "both",
+    });
+    assert.ok(breakdown.characterReservedChars > 0);
+    assert.ok(breakdown.userReservedChars > 0);
+    assert.equal(
+      breakdown.totalReservedChars,
+      breakdown.characterReservedChars + breakdown.userReservedChars
+    );
   });
 });

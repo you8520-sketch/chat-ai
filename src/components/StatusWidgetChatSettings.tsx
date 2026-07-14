@@ -9,15 +9,16 @@ import {
   displayModeFromUserChoice,
   engineModeForDisplay,
   hasCharacterStatusWidget,
+  formatCombinedWidgetBudgetHint,
+  STATUS_WIDGET_CONTEXT_MAX,
   parseStatusWidgetDisplayMode,
   parseStatusWidgetJson,
-  resolveStatusWidgetReservedChars,
+  resolveStatusWidgetReservedBreakdown,
   serializeStatusWidget,
   type StatusWidget,
   type StatusWidgetDisplayMode,
   type StatusWidgetSourceMode,
 } from "@/lib/statusWidget";
-import { formatWidgetBudgetHint } from "@/lib/statusWidget/contextBudget";
 import type { StatusWidgetPresetItem } from "@/lib/statusWidgetPresetTypes";
 
 type Props = {
@@ -136,9 +137,9 @@ export default function StatusWidgetChatSettings({
     });
   }, [engineMode, resolvedDisplay, userWidget, onDraftChange]);
 
-  const widgetReservedChars = useMemo(
+  const widgetReservedBreakdown = useMemo(
     () =>
-      resolveStatusWidgetReservedChars({
+      resolveStatusWidgetReservedBreakdown({
         characterWidgetJson,
         chatMode: engineMode,
         userWidgetJson: serializeStatusWidget(userWidget),
@@ -147,6 +148,10 @@ export default function StatusWidgetChatSettings({
       }),
     [characterWidgetJson, engineMode, userWidget, allowUserOverride, resolvedDisplay]
   );
+  const widgetReservedChars = widgetReservedBreakdown.totalReservedChars;
+  const widgetBudgetNearLimit =
+    widgetReservedBreakdown.characterReservedChars >= STATUS_WIDGET_CONTEXT_MAX * 0.85 ||
+    widgetReservedBreakdown.userReservedChars >= STATUS_WIDGET_CONTEXT_MAX * 0.85;
 
   const save = useCallback(async () => {
     if (!chatId) return;
@@ -207,8 +212,14 @@ export default function StatusWidgetChatSettings({
           제작자 상태값은 캐릭터 기억과 이벤트 조건에 사용되므로 내부적으로 항상 유지됩니다. 내
           커스텀 상태창은 화면 표시 방식을 바꾸는 기능입니다.
         </p>
-        <p className="mt-2 text-[10px] text-violet-300/90">
-          {formatWidgetBudgetHint(widgetReservedChars)}
+        <p
+          className={`mt-2 rounded-md border px-2.5 py-1.5 text-[10px] font-semibold transition ${
+            widgetBudgetNearLimit
+              ? "border-rose-500/50 bg-rose-500/10 text-rose-200"
+              : "border-violet-500/20 bg-violet-500/5 text-violet-300/90"
+          }`}
+        >
+          {formatCombinedWidgetBudgetHint(widgetReservedBreakdown)}
         </p>
       </div>
 

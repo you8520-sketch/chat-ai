@@ -112,7 +112,8 @@ import {
 import { SCENE_CONTINUATION_PRIORITY_BLOCK } from "@/lib/turnHandoffAndPacing";
 import type { OpenRouterSystemSplit } from "@/lib/openRouterCache";
 import { estimateOpenRouterCacheableTokens, buildOpenRouterDynamicLoreUserPrefix, HISTORY_CACHE_TAIL_EXCLUDE_MESSAGES } from "@/lib/openRouterCache";
-import { isDeepSeekV4ProModel, isQwenModel } from "@/lib/chatModels";
+import { isDeepSeekModel, isDeepSeekV4ProModel, isQwenModel } from "@/lib/chatModels";
+import { DEEPSEEK_APPEARANCE_VARIATION_RULE } from "@/lib/appearanceCompiler";
 import { buildCoNarrationKoreanRule } from "@/lib/openRouterAdult";
 import { buildOpenRouterKoreanProseTopBlock } from "@/lib/openRouterProsePolicy";
 import {
@@ -190,6 +191,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const trackedSections: TrackedPromptSection[] = [];
   let usedTokens = 0;
   const deepSeekXmlMode = isDeepSeekV4ProModel(input.modelId ?? "");
+  const deepSeekAppearanceRuleMode = isDeepSeekModel(input.modelId ?? "");
   const deepSeekXmlBuffers = deepSeekXmlMode ? createDeepSeekXmlBuffers() : null;
   const memoryFeatureOn = isMemoryFeatureEnabled();
 
@@ -480,11 +482,15 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
     const coreBlock = buildCharacterCanonBlock(characterSettingText, input.charName);
     if (!coreBlock) return;
+    const coreBlockForModel =
+      deepSeekAppearanceRuleMode && /\[(?:외형|외모|Appearance)[^\]]*\]/i.test(coreBlock)
+        ? coreBlock.replace(/(\[(?:외형|외모|Appearance)[^\]]*\])/i, `${DEEPSEEK_APPEARANCE_VARIATION_RULE}\n$1`)
+        : coreBlock;
     pushSection(
       "character-core-identity",
       "[2] Structured character canon (every turn)",
       "characterSetting",
-      coreBlock,
+      coreBlockForModel,
       isOpenRouter ? "cacheRules" : "dynamic",
       deepSeekXmlMode ? "world_lore" : undefined
     );
