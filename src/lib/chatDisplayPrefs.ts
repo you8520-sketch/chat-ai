@@ -253,7 +253,7 @@ export const CHAT_PORTRAIT_GRID_CLASS =
 
 /** 초상 열 sticky — 모바일 채팅은 글로벌 헤더 없음(제목만), md+는 헤더+제목 */
 export const CHAT_PORTRAIT_STICKY_CLASS =
-  "hidden sm:col-start-1 sm:row-start-1 sm:sticky sm:top-4 sm:z-10 sm:flex sm:max-h-[calc(100dvh-var(--site-header-height,44px)-9rem)] sm:w-full sm:flex-col sm:self-start";
+  "hidden sm:col-start-1 sm:row-start-1 sm:sticky sm:top-[var(--site-header-height,44px)] sm:z-10 sm:flex sm:h-[calc(100dvh-var(--site-header-height,44px))] sm:w-full sm:flex-col sm:self-start";
 
 /** @deprecated CHAT_PORTRAIT_PANEL_HEIGHT + 인라인 height 사용 */
 export const CHAT_PORTRAIT_VIEWPORT_MIN_H_CLASS = "";
