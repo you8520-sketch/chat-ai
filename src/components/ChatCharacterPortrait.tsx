@@ -53,7 +53,7 @@ export default function ChatCharacterPortrait({
         className="relative z-10 h-full w-full transition-opacity duration-300"
         imgClassName={
           size === "panel"
-            ? "h-full w-full object-cover object-top brightness-95 contrast-95"
+            ? "h-full w-full object-contain object-top brightness-95 contrast-95"
             : "h-full w-full object-cover object-top"
         }
       />
