@@ -10,10 +10,10 @@ import {
 
 describe("mobile chat portrait background", () => {
 
-  it("uses a narrower centered desktop portrait/chat ratio", () => {
+  it("uses a wider desktop portrait column to reduce horizontal crop", () => {
     assert.match(CHAT_PORTRAIT_GRID_CLASS, /mx-auto/);
-    assert.match(CHAT_PORTRAIT_GRID_CLASS, /max-w-\[70\.25rem\]/);
-    assert.match(CHAT_PORTRAIT_GRID_CLASS, /minmax\(280px,320px\)/);
+    assert.match(CHAT_PORTRAIT_GRID_CLASS, /max-w-\[75\.25rem\]/);
+    assert.match(CHAT_PORTRAIT_GRID_CLASS, /minmax\(340px,400px\)/);
     assert.match(CHAT_PORTRAIT_GRID_CLASS, /minmax\(0,780px\)/);
   });
 

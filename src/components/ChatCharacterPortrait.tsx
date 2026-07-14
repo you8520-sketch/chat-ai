@@ -21,18 +21,18 @@ export default function ChatCharacterPortrait({
 }: Props) {
   const widthClass =
     size === "panel"
-      ? "w-full max-w-[320px]"
+      ? "w-full max-w-[400px]"
       : "w-10 shrink-0 sm:w-11 md:w-12 lg:w-14";
 
   const panelFrameClass =
     size === "panel"
-      ? "relative h-full w-full max-w-[320px] shrink-0 overflow-hidden rounded-[18px] border border-white/[0.08] bg-zinc-900 shadow-lg shadow-black/10 transition hover:border-violet-400/35"
+      ? "relative h-full w-full max-w-[400px] shrink-0 overflow-hidden rounded-[18px] border border-white/[0.08] bg-[#08080c] shadow-lg shadow-black/10 transition hover:border-violet-400/35"
       : "relative aspect-[3/4] w-full overflow-hidden rounded-xl ring-1 ring-white/10 transition hover:ring-violet-500/40";
 
   const thumb = portraitUrl ? (
     <div
       className={panelFrameClass}
-      style={{ background: `hsl(${hue} 60% 20%)` }}
+      style={size === "panel" ? undefined : { background: `hsl(${hue} 60% 20%)` }}
     >
       {size === "panel" && !blurForViewer && (
         // eslint-disable-next-line @next/next/no-img-element
@@ -40,7 +40,7 @@ export default function ChatCharacterPortrait({
           key={`${portraitUrl}-background`}
           src={portraitUrl}
           alt=""
-          className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover object-center opacity-35 blur-xl"
+          className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover object-center opacity-20 blur-xl"
           draggable={false}
           aria-hidden
         />
@@ -53,7 +53,7 @@ export default function ChatCharacterPortrait({
         className="relative z-10 h-full w-full transition-opacity duration-300"
         imgClassName={
           size === "panel"
-            ? "h-full w-full object-contain object-top brightness-95 contrast-95"
+            ? "h-full w-full object-cover object-top brightness-95 contrast-95"
             : "h-full w-full object-cover object-top"
         }
       />
@@ -62,7 +62,7 @@ export default function ChatCharacterPortrait({
     <span
       className={`flex items-center justify-center rounded-xl text-lg ring-1 ring-white/10 sm:text-2xl md:text-3xl ${
         size === "panel"
-          ? "h-full w-full max-w-[320px] shrink-0"
+          ? "h-full w-full max-w-[400px] shrink-0"
           : "aspect-square w-full"
       }`}
       style={{ background: `hsl(${hue} 60% 22%)` }}
