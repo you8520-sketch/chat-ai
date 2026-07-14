@@ -154,7 +154,10 @@ function init(db: Database.Database) {
     is_consumed INTEGER NOT NULL DEFAULT 0,
     fired_at TEXT NOT NULL DEFAULT (datetime('now')),
     consumed_at TEXT,
-    metadata TEXT
+    metadata TEXT,
+    source_message_id INTEGER,
+    request_id TEXT,
+    generation_sequence INTEGER
   );
   CREATE INDEX IF NOT EXISTS idx_status_trigger_events_chat_consumed
     ON status_trigger_events(chat_id, is_consumed, fired_at, id);
@@ -386,6 +389,9 @@ function migrate(db: Database.Database) {
   addColumn("bookmarks", "title", "TEXT NOT NULL DEFAULT ''");
   addColumn("messages", "status_widget_values_json", "TEXT NOT NULL DEFAULT ''");
   addColumn("messages", "status_widget_turn_active", "INTEGER NOT NULL DEFAULT 0");
+  addColumn("messages", "status_widget_source_message_id", "INTEGER");
+  addColumn("messages", "status_widget_generation_sequence", "INTEGER");
+  addColumn("messages", "status_widget_request_id", "TEXT");
   addColumn("messages", "usage", "TEXT");
   addColumn("messages", "status", "TEXT NOT NULL DEFAULT 'ok'");
   addColumn("messages", "is_refunded", "INTEGER NOT NULL DEFAULT 0");
@@ -395,6 +401,9 @@ function migrate(db: Database.Database) {
   addColumn("messages", "generation_status", "TEXT NOT NULL DEFAULT 'completed'");
   // SQLite ALTER TABLE ADD COLUMN only allows constant defaults (not datetime('now'))
   addColumn("messages", "updated_at", "TEXT NOT NULL DEFAULT ''");
+  addColumn("status_trigger_events", "source_message_id", "INTEGER");
+  addColumn("status_trigger_events", "request_id", "TEXT");
+  addColumn("status_trigger_events", "generation_sequence", "INTEGER");
   db.exec(`
     UPDATE messages
     SET updated_at = COALESCE(NULLIF(updated_at, ''), created_at, datetime('now'))

@@ -7,6 +7,7 @@ import {
   serializeVariantsForClient,
   variantToRowFields,
 } from "@/lib/messageAlternates";
+import { serializeStatusWidgetValuesJson } from "@/lib/statusWidget";
 import { PREFERENCE_EVENT } from "@/lib/feedback/events";
 import { recordPreferenceEvent } from "@/lib/feedback/feedback-db";
 import { enqueueScoreRecompute } from "@/lib/feedback/queue";
@@ -58,16 +59,41 @@ export async function PATCH(req: Request) {
 
   const fromVariant = activeVariant;
   const fields = variantToRowFields(variants, variantIndex);
-  db.prepare(
-    "UPDATE messages SET content=?, model=?, usage=?, alternates=?, active_variant=? WHERE id=?"
-  ).run(
-    fields.content,
-    fields.model,
-    fields.usage,
-    JSON.stringify(variants),
-    variantIndex,
-    messageId
+  const selectedVariant = variants[variantIndex];
+  const hasVariantStatusSnapshot = Object.prototype.hasOwnProperty.call(
+    selectedVariant ?? {},
+    "statusWidgetValues"
   );
+  const selectedStatusWidgetValuesJson = hasVariantStatusSnapshot
+    ? selectedVariant?.statusWidgetValues
+      ? serializeStatusWidgetValuesJson(selectedVariant.statusWidgetValues)
+      : ""
+    : undefined;
+  if (selectedStatusWidgetValuesJson !== undefined) {
+    db.prepare(
+      "UPDATE messages SET content=?, model=?, usage=?, alternates=?, active_variant=?, status_widget_values_json=?, status_widget_turn_active=? WHERE id=?"
+    ).run(
+      fields.content,
+      fields.model,
+      fields.usage,
+      JSON.stringify(variants),
+      variantIndex,
+      selectedStatusWidgetValuesJson,
+      selectedVariant?.statusWidgetTurnActive ? 1 : 0,
+      messageId
+    );
+  } else {
+    db.prepare(
+      "UPDATE messages SET content=?, model=?, usage=?, alternates=?, active_variant=? WHERE id=?"
+    ).run(
+      fields.content,
+      fields.model,
+      fields.usage,
+      JSON.stringify(variants),
+      variantIndex,
+      messageId
+    );
+  }
 
   recordPreferenceEvent({
     userId: user.id,

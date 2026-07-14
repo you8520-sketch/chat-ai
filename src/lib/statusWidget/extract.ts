@@ -63,7 +63,7 @@ async function extractStatusWidgetValuesForWidget(opts: {
       });
       return { values: null, facts: [], usage };
     }
-    const normalized = normalizeWidgetExtraction(parsed, opts.widget, opts.previousValues);
+    const normalized = normalizeWidgetExtraction(parsed, opts.widget);
     const values = Object.keys(normalized).length > 0 ? normalized : null;
     return { values, facts: sanitizeExtractedFacts(parsed.extracted_facts), usage };
   } catch (e) {

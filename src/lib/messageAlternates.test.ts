@@ -1,22 +1,25 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { editedMessageVariant, resolveActiveVariantContent } from "@/lib/messageAlternates";
+import { latestVariantIndexByGenerationSequence, type MessageVariant } from "./messageAlternates";
 
-describe("messageAlternates edit behavior", () => {
-  it("uses edited assistant text as the only active display variant", () => {
-    const variant = editedMessageVariant({
-      content: "edited assistant text",
-      model: "test-model",
-      usage: null,
-    });
+function variant(generationSequence: number): MessageVariant {
+  return {
+    content: `generation_${generationSequence}`,
+    model: "test",
+    usage: null,
+    created_at: "",
+    generationSequence,
+  };
+}
 
-    const content = resolveActiveVariantContent({
-      content: "edited assistant text",
-      variants: [variant],
-      activeVariant: 0,
-    });
+describe("message variant generation ordering", () => {
+  it("selects generation 10 as newer than generation 9 using numeric sequence", () => {
+    assert.equal(latestVariantIndexByGenerationSequence([variant(9), variant(10)]), 1);
+  });
 
-    assert.equal(content, "edited assistant text");
+  it("does not use lexicographic generation id ordering", () => {
+    const variants = [variant(10), variant(9)];
+    assert.equal(latestVariantIndexByGenerationSequence(variants), 0);
   });
 });

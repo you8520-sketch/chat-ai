@@ -62,6 +62,15 @@ function mapDbMessageForClient(
     userNote,
     markdownStatusWindowActive,
   });
+  const activeVariantSnapshot = variants[activeVariant];
+  const hasVariantStatusSnapshot = Object.prototype.hasOwnProperty.call(
+    activeVariantSnapshot ?? {},
+    "statusWidgetValues"
+  );
+  const messageStatusWidgetValues = hasVariantStatusSnapshot
+    ? (activeVariantSnapshot?.statusWidgetValues ?? null)
+    : parseStoredStatusWidgetValuesJson(m.status_widget_values_json);
+
   return {
     id: m.id,
     role: m.role,
@@ -76,9 +85,7 @@ function mapDbMessageForClient(
     statusMetaFormatSpec: statusRecord?.formatSpec ?? null,
     statusMetaPending: statusFlags.statusMetaPending,
     statusMetaRequested: statusFlags.statusMetaRequested,
-    statusWidgetValues: stripExtractedFactsForClient(
-      parseStoredStatusWidgetValuesJson(m.status_widget_values_json)
-    ),
+    statusWidgetValues: stripExtractedFactsForClient(messageStatusWidgetValues),
     statusWidgetTurnActive: m.status_widget_turn_active === 1,
     createdAt: m.created_at,
     requestId: m.request_id ?? undefined,

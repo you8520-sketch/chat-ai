@@ -167,6 +167,7 @@ import {
   appendMessageVariant,
   normalizeMessageVariants,
   serializeVariantsForClient,
+  type MessageVariant,
 } from "@/lib/messageAlternates";
 import { DegenerationAbortError, DEGENERATION_USER_MESSAGE, isDegenerateOutput, getDegenerationReason, stripUnexpectedForeignScriptLeak } from "@/lib/gibberishGuard";
 import { PREFERENCE_EVENT } from "@/lib/feedback/events";
@@ -2611,11 +2612,16 @@ export async function POST(req: Request) {
         }
 
         const createdAt = new Date().toISOString();
-        const newVariant = {
+        let newVariant: MessageVariant = {
           content: savedText,
           model: usageRecord.model,
           usage: usageRecord,
           created_at: createdAt,
+          statusWidgetValues: statusWidgetValuesPayload,
+          statusWidgetTurnActive: statusWidgetActive,
+          generationSequence: 0,
+          requestId: clientRequestId ?? null,
+          sourceMessageId: regenerateMessageId ?? persistedAssistantId,
         };
 
         let aiMessageId: number;
@@ -2670,6 +2676,11 @@ export async function POST(req: Request) {
             active_variant: number | null;
           };
           const { variants: prevVariants } = normalizeMessageVariants(existing);
+          newVariant = {
+            ...newVariant,
+            generationSequence: prevVariants.length,
+            sourceMessageId: regenerateMessageId,
+          };
           const appended = appendMessageVariant(prevVariants, newVariant);
           variantPayload = serializeVariantsForClient(appended.variants, appended.activeVariant);
           snapshotVariantIndex = appended.activeVariant;
@@ -2866,6 +2877,9 @@ export async function POST(req: Request) {
             characterId: ch.id,
             sourceTurn: playableTurnCount + 1,
             statusValues: statusWidgetValuesPayload,
+            sourceMessageId: aiMessageId,
+            requestId: clientRequestId ?? null,
+            generationSequence: snapshotVariantIndex,
           });
         }
 

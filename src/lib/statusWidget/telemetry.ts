@@ -194,7 +194,6 @@ export async function resolveStatusWidgetTurnValues(
 
   let v3ExtractAttempted = false;
   let v3ExtractSuccess = false;
-  let previousValueBackfillSuccess = false;
   let valuesPayload: ParsedStatusWidgetTurnValues | null = null;
   let widgetExtractUsage: TokenUsage | null = null;
   let resolutionSource: StatusWidgetResolutionSource = "none";
@@ -257,7 +256,6 @@ export async function resolveStatusWidgetTurnValues(
   if (!statusWidgetValuesHasContent(valuesPayload)) {
     try {
       const { extractStatusWidgetValuesForTurn } = await import("./extract");
-      const { loadPreviousStatusWidgetValues } = await import("./loadPrevious");
       v3ExtractAttempted = true;
       logStatusWidgetLiveTrace({
         ...traceBase,
@@ -271,13 +269,7 @@ export async function resolveStatusWidgetTurnValues(
         contentLength: prose.length,
         contentHash: statusWidgetDiagnosticHash(prose),
       });
-      const previousValues = normalizeParsedStatusWidgetValuesForTurn(
-        loadPreviousStatusWidgetValues(input.chatId, input.regenerateMessageId),
-        {
-          characterWidget: input.statusWidgetTurn.characterWidget,
-          userWidget: input.statusWidgetTurn.userWidget,
-        }
-      );
+      const previousValues = null;
       const v3Result = await extractStatusWidgetValuesForTurn({
         charName: input.charName,
         characterIdentity: input.characterIdentity,
@@ -328,22 +320,6 @@ export async function resolveStatusWidgetTurnValues(
         v3ExtractSuccess = true;
         valuesPayload = normalizedExtractValues;
         resolutionSource = "v3_extract";
-      } else if (statusWidgetValuesHasContent(previousValues)) {
-        previousValueBackfillSuccess = true;
-        valuesPayload = previousValues;
-        resolutionSource = "backfill";
-        logStatusWidgetLiveTrace({
-          ...traceBase,
-          phase: "status_backfill_result",
-          statusWidgetTurnActive: input.statusWidgetTurn.active,
-          statusWidgetConfigured: Boolean(
-            input.statusWidgetTurn.characterWidget || input.statusWidgetTurn.userWidget
-          ),
-          expectedKeys: expectedStatusWidgetKeys(input.statusWidgetTurn),
-          normalizedKeys: statusWidgetParsedKeys(previousValues),
-          hasUsableValues: true,
-          reasonCode: "PREVIOUS_VALUES_BACKFILL",
-        });
       }
     } catch (e) {
       console.warn("[status-widget] V3 extract failed", (e as Error).message);
@@ -398,14 +374,12 @@ export async function resolveStatusWidgetTurnValues(
     splitRawHit,
     inferHit: false,
     backfillAttempted: !splitRawHit && v3ExtractAttempted,
-    backfillSuccess: v3ExtractSuccess || previousValueBackfillSuccess,
+    backfillSuccess: v3ExtractSuccess,
     backfillSkippedReason: splitRawHit
       ? "raw_status_values_used"
       : v3ExtractSuccess
         ? null
-        : previousValueBackfillSuccess
-          ? "previous_values_backfill"
-          : "v3_extract_empty",
+        : "v3_extract_empty",
     jsonParseSuccess: strippedLeak || splitRawHit,
     resolutionSource: finalHasContent ? resolutionSource : "none",
     finalHasContent,

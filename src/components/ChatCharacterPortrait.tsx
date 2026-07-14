@@ -22,12 +22,12 @@ export default function ChatCharacterPortrait({
 }: Props) {
   const widthClass =
     size === "panel"
-      ? "w-full max-w-full"
+      ? "h-full max-h-[57vw] w-auto max-w-full md:max-h-[54vw] lg:max-h-[51vw]"
       : "w-10 shrink-0 sm:w-11 md:w-12 lg:w-14";
 
   const panelFrameClass =
     size === "panel"
-      ? `relative w-full max-w-full shrink-0 overflow-hidden rounded-xl ring-1 ring-white/10 transition hover:ring-violet-500/40 ${CHARACTER_THUMB_ASPECT}`
+      ? `relative h-full w-auto max-w-full shrink-0 overflow-hidden rounded-xl ring-1 ring-white/10 transition hover:ring-violet-500/40 ${CHARACTER_THUMB_ASPECT}`
       : `relative w-full overflow-hidden rounded-xl ring-1 ring-white/10 transition hover:ring-violet-500/40 ${CHARACTER_THUMB_ASPECT}`;
 
   const thumb = portraitUrl ? (
@@ -45,7 +45,7 @@ export default function ChatCharacterPortrait({
     <span
       className={`flex items-center justify-center rounded-xl text-lg ring-1 ring-white/10 sm:text-2xl md:text-3xl ${
         size === "panel"
-          ? `w-full max-w-full shrink-0 ${CHARACTER_THUMB_ASPECT}`
+          ? `h-full w-auto max-w-full shrink-0 ${CHARACTER_THUMB_ASPECT}`
           : "aspect-square w-full"
       }`}
       style={{ background: `hsl(${hue} 60% 22%)` }}
