@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { isChatRoomPathname } from "@/lib/chatDisplayPrefs";
 import { cn } from "@/lib/studioDesign";
 
 type Props = {
@@ -14,11 +13,10 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-/** md 미만: 하단 고정 네비. 채팅방에서는 숨김. 드롭다운/시트 없음. */
+/** md 미만: 하단 고정 네비. 드롭다운/시트 없음. */
 export default function MobileBottomNav({ loggedIn }: Props) {
   const pathname = usePathname();
   if (!loggedIn) return null;
-  if (isChatRoomPathname(pathname)) return null;
 
   const items = [
     { href: "/", label: "홈" },
