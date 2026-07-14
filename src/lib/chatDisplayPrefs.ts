@@ -235,7 +235,7 @@ export function isChatRoomPathname(pathname: string): boolean {
 
 /** 채팅방 — 모바일: 뒤로+프로필 / 메뉴 · md+: 제목 바 */
 export const CHAT_ROOM_TITLE_BAR_CLASS =
-  "sticky top-0 z-30 shrink-0 border-b border-white/5 bg-[#121212]/95 px-2 py-2 backdrop-blur sm:px-0 md:top-0";
+  "sticky top-0 z-30 shrink-0 border-b border-white/5 bg-[#121212]/95 px-2 py-2 backdrop-blur sm:px-0 md:hidden";
 
 /** 제목 바 아래부터 초상 시작 (모바일 헤더 없음 ≈ 2.75rem, md+ ≈ 5.25rem) */
 export const CHAT_PORTRAIT_TITLE_STACK_REM = "2.75rem";
@@ -253,7 +253,7 @@ export const CHAT_PORTRAIT_GRID_CLASS =
 
 /** 초상 열 sticky — 모바일 채팅은 글로벌 헤더 없음(제목만), md+는 헤더+제목 */
 export const CHAT_PORTRAIT_STICKY_CLASS =
-  "hidden sm:col-start-1 sm:row-start-1 sm:sticky sm:top-4 sm:z-10 sm:flex sm:max-h-[calc(100dvh-var(--site-header-height,44px)-9rem)] sm:w-full sm:flex-col sm:self-start";
+  "hidden sm:col-start-1 sm:row-start-1 sm:sticky sm:top-[var(--site-header-height,44px)] sm:z-10 sm:flex sm:h-[calc(100dvh-var(--site-header-height,44px))] sm:w-full sm:flex-col sm:self-start";
 
 /** @deprecated CHAT_PORTRAIT_PANEL_HEIGHT + 인라인 height 사용 */
 export const CHAT_PORTRAIT_VIEWPORT_MIN_H_CLASS = "";
@@ -283,7 +283,7 @@ export const CHAT_MESSAGES_LIST_NO_PORTRAIT_CLASS = "min-w-0 space-y-1";
 
 /** 초상 OFF — 입력창 (본문과 간격 최소) */
 export const CHAT_INPUT_DOCK_NO_PORTRAIT_CLASS =
-  "sticky bottom-0 z-10 shrink-0 border-t border-white/5 bg-[#121212]/95 px-2 pt-1 pb-1.5 backdrop-blur sm:px-0";
+  "sticky bottom-12 z-10 shrink-0 border-t border-white/5 bg-[#121212]/95 px-2 pt-1 pb-1.5 backdrop-blur sm:bottom-0 sm:px-0";
 
 /** @deprecated 초상 그리드 레이아웃에서 미사용 */
 export const CHAT_CONTENT_ROW_TOP_PAD_CLASS = "";

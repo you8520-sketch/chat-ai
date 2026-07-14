@@ -23,6 +23,7 @@ import ChatEmotionPortraitPanel from "@/components/ChatEmotionPortraitPanel";
 import ChatSettingsPanel from "@/components/ChatSettingsPanel";
 import ChatRoomDisplayQuickRail from "@/components/ChatRoomDisplayQuickRail";
 import ChatRoomMobileMenu from "@/components/ChatRoomMobileMenu";
+import ChatAssetAlbumModal, { IconAlbum } from "@/components/ChatAssetAlbumModal";
 import RelationshipMetaDock from "@/components/RelationshipMetaDock";
 import { CONTINUE_USER_DISPLAY, isContinueUserMessage } from "@/lib/continueNarrative";
 import { GEMINI_TRAFFIC_OVERLOAD_MESSAGE } from "@/lib/geminiTrafficError";
@@ -46,6 +47,7 @@ import {
 import { resolveEmotionTag, stripEmotionTag, stripEmotionTagsForDisplay } from "@/lib/emotionTag";
 import {
   loadUnlockedCharacterAssetUrls,
+  saveCharacterAssetAlbum,
   saveUnlockedCharacterAssetUrls,
 } from "@/lib/characterAssetUnlocks";
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
@@ -672,6 +674,10 @@ export default function ChatClient({
   const [activePortraitTag, setActivePortraitTag] = useState<string | null>(
     () => initialPortrait.activeTag
   );
+  const [portraitPinned, setPortraitPinned] = useState(false);
+  const [characterIntroOpen, setCharacterIntroOpen] = useState(false);
+  const [assetAlbumOpen, setAssetAlbumOpen] = useState(false);
+  const portraitPinnedRef = useRef(false);
   const initialUnlockedUrls = useMemo(() => {
     const next = new Set(initialPortrait.unlocked);
     for (const url of loadUnlockedCharacterAssetUrls(character.id)) next.add(url);
@@ -1039,9 +1045,20 @@ export default function ChatClient({
       }
     }
 
+    if (portraitPinnedRef.current) return;
     setActivePortraitUrl(asset.url);
     setActivePortraitTag(asset.tag);
   };
+
+  const handlePortraitSelected = useCallback((asset: CharacterAsset) => {
+    setActivePortraitUrl(asset.url);
+    setActivePortraitTag(asset.tag);
+  }, []);
+
+  const handlePortraitPinnedChange = useCallback((next: boolean) => {
+    portraitPinnedRef.current = next;
+    setPortraitPinned(next);
+  }, []);
 
   const { lastUserIdx, lastAssistantIdx } = useMemo(
     () => findLastTurnIndices(messages),
@@ -3134,6 +3151,21 @@ export default function ChatClient({
     isCharacterCreator,
     unlockedUrls
   );
+  const unlockedAlbumAssets = useMemo(() => {
+    return assets.filter(
+      (asset) =>
+        asset.chat !== false &&
+        (isCharacterCreator || asset.viewerBlur !== true || unlockedUrls.has(asset.url))
+    );
+  }, [assets, isCharacterCreator, unlockedUrls]);
+
+  useEffect(() => {
+    saveCharacterAssetAlbum(
+      character.id,
+      character.name,
+      unlockedAlbumAssets.map((asset) => ({ url: asset.url, tag: asset.tag }))
+    );
+  }, [character.id, character.name, unlockedAlbumAssets]);
 
   return (
     <div className="flex min-w-0 flex-1 items-stretch gap-0">
@@ -3142,6 +3174,47 @@ export default function ChatClient({
         style={chatReadabilityRootStyle(displayPrefs)}
       >
       <ChatToast message={toastMsg} />
+      <ChatAssetAlbumModal
+        open={assetAlbumOpen}
+        currentCharacterId={character.id}
+        currentCharacterName={character.name}
+        currentAssets={unlockedAlbumAssets}
+        onClose={() => setAssetAlbumOpen(false)}
+      />
+      {characterIntroOpen && (
+        <div
+          className="fixed inset-0 z-[115] flex items-center justify-center bg-black/55 p-4 backdrop-blur-[2px]"
+          role="dialog"
+          aria-modal="true"
+          aria-label="캐릭터 소개"
+          onClick={() => setCharacterIntroOpen(false)}
+        >
+          <section
+            className="flex h-[min(86dvh,46rem)] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#101010] shadow-2xl shadow-black/50"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold text-violet-200/80">캐릭터 소개</p>
+                <h2 className="truncate text-base font-bold text-white">{character.name}</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCharacterIntroOpen(false)}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-lg text-zinc-300 hover:bg-white/10 hover:text-white"
+                aria-label="캐릭터 소개 닫기"
+              >
+                ×
+              </button>
+            </div>
+            <iframe
+              src={`/character/${character.id}`}
+              title={`${character.name} 소개`}
+              className="min-h-0 flex-1 border-0 bg-[#121212]"
+            />
+          </section>
+        </div>
+      )}
       <ChatSelectionQuoteToolbar
         containerRef={quoteSelectContainerRef}
         characterName={character.name}
@@ -3168,6 +3241,12 @@ export default function ChatClient({
               activeUrl={activePortraitUrl}
               unlockedUrls={unlockedUrls}
               viewerIsCreator={isCharacterCreator}
+              pinned={portraitPinned}
+              onPinnedChange={handlePortraitPinnedChange}
+              onActiveAssetChange={handlePortraitSelected}
+              creatorName={creatorName}
+              creatorHref={creatorId != null && creatorId > 0 ? `/creator/${creatorId}` : undefined}
+              onCharacterIntroOpen={() => setCharacterIntroOpen(true)}
             />
           </div>
         )}
@@ -3592,7 +3671,7 @@ export default function ChatClient({
         ref={inputDockRef}
         className={
           showCharacterPortrait
-            ? "sticky bottom-0 z-20 shrink-0 overflow-visible border-t border-white/5 bg-[#121212]/88 px-2 py-2 backdrop-blur-sm sm:bg-[#121212] sm:px-0 sm:backdrop-blur-none"
+            ? "sticky bottom-12 z-20 shrink-0 overflow-visible border-t border-white/5 bg-[#121212]/88 px-2 py-2 backdrop-blur-sm sm:bottom-0 sm:bg-[#121212] sm:px-0 sm:backdrop-blur-none"
             : `${CHAT_INPUT_DOCK_NO_PORTRAIT_CLASS} overflow-visible`
         }
       >
@@ -3679,6 +3758,16 @@ export default function ChatClient({
       <aside
         className={`sticky ${CHAT_ROOM_HEADER_OFFSET_CLASS} z-40 hidden w-16 shrink-0 flex-col gap-1 self-start overflow-visible px-1 py-2 md:flex md:w-[68px]`}
       >
+        <button
+          type="button"
+          onClick={() => setAssetAlbumOpen(true)}
+          className="group flex w-full flex-col items-center gap-1 rounded-xl px-1.5 py-2 text-[10px] font-semibold text-zinc-100 transition hover:bg-white/[0.06] hover:text-white"
+          title="이미지 앨범"
+          aria-label="이미지 앨범 열기"
+        >
+          <IconAlbum className="h-4 w-4" />
+          <span>앨범</span>
+        </button>
         <ChatRoomDisplayQuickRail
           displayPrefs={displayPrefs}
           onDisplayPrefsChange={handleDisplayPrefsChange}

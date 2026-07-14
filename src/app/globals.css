@@ -309,6 +309,10 @@ body {
 }
 
 /* Keep the desktop chat portrait and settings rails sticky for the full page. */
+html.chat-room-active .site-header {
+  display: none;
+}
+
 html.chat-room-active .app-shell {
   overflow: visible;
   overflow-anchor: none;
@@ -328,10 +332,6 @@ html.chat-room-active .app-shell {
 }
 
 @media (max-width: 767px) {
-  html.chat-room-active .site-header {
-    display: none;
-  }
-
   html.chat-room-active .app-shell {
     max-width: none;
     gap: 0;
