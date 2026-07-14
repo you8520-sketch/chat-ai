@@ -35,6 +35,9 @@ export type StatusTriggerEvent = {
   fired_at: string;
   consumed_at: string | null;
   metadata: string | null;
+  source_message_id?: number | null;
+  request_id?: string | null;
+  generation_sequence?: number | null;
 };
 
 export type StatusWidgetTriggerInput = {
@@ -196,7 +199,10 @@ export function ensureStatusWidgetTriggerTables(db: Database.Database): void {
       is_consumed INTEGER NOT NULL DEFAULT 0,
       fired_at TEXT NOT NULL DEFAULT (datetime('now')),
       consumed_at TEXT,
-      metadata TEXT
+      metadata TEXT,
+      source_message_id INTEGER,
+      request_id TEXT,
+      generation_sequence INTEGER
     );
     CREATE INDEX IF NOT EXISTS idx_status_trigger_events_chat_consumed
       ON status_trigger_events(chat_id, is_consumed, fired_at, id);
@@ -205,6 +211,15 @@ export function ensureStatusWidgetTriggerTables(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_status_trigger_events_turn
       ON status_trigger_events(chat_id, trigger_id, source_turn);
   `);
+  const addColumn = (table: string, col: string, def: string) => {
+    const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+    if (!cols.some((c) => c.name === col)) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
+    }
+  };
+  addColumn("status_trigger_events", "source_message_id", "INTEGER");
+  addColumn("status_trigger_events", "request_id", "TEXT");
+  addColumn("status_trigger_events", "generation_sequence", "INTEGER");
 }
 
 function serializeTriggerValue(value: string | number | boolean): string {
@@ -428,6 +443,9 @@ export function evaluateStatusWidgetTriggers(
     characterId?: number | null;
     sourceTurn: number;
     statusValues: ParsedStatusWidgetTurnValues | null | undefined;
+    sourceMessageId?: number | null;
+    requestId?: string | null;
+    generationSequence?: number | null;
   }
 ): { firedEvents: StatusTriggerEvent[] } {
   ensureStatusWidgetTriggerTables(db);
@@ -466,12 +484,16 @@ export function evaluateStatusWidgetTriggers(
     const metadata = JSON.stringify({
       trigger_row_id: row.id,
       character_knowledge: row.character_knowledge,
+      source_message_id: opts.sourceMessageId ?? null,
+      request_id: opts.requestId ?? null,
+      generation_sequence: opts.generationSequence ?? null,
     });
     const inserted = db
       .prepare(
         `INSERT INTO status_trigger_events
-         (chat_id, character_id, trigger_id, event_key, source_turn, effect_text, is_consumed, metadata)
-         VALUES (?,?,?,?,?,?,0,?)`
+         (chat_id, character_id, trigger_id, event_key, source_turn, effect_text, is_consumed, metadata,
+          source_message_id, request_id, generation_sequence)
+         VALUES (?,?,?,?,?,?,0,?,?,?,?)`
       )
       .run(
         opts.chatId,
@@ -480,7 +502,10 @@ export function evaluateStatusWidgetTriggers(
         row.event_key,
         opts.sourceTurn,
         row.effect_text,
-        metadata
+        metadata,
+        opts.sourceMessageId ?? null,
+        opts.requestId ?? null,
+        opts.generationSequence ?? null
       );
     const event = db
       .prepare("SELECT * FROM status_trigger_events WHERE id=?")

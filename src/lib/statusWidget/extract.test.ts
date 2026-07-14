@@ -35,16 +35,12 @@ describe("statusWidget extract", () => {
     assert.equal(normalized["속마음"], undefined);
   });
 
-  it("normalizeWidgetExtraction falls back to previous turn values", () => {
-    const normalized = normalizeWidgetExtraction(
-      { 시간: "15:00" },
-      DEFAULT_STATUS_WIDGET,
-      { 장소: "카페", 속마음: "긴장", 현재상황: "이전 상황" }
-    );
+  it("normalizeWidgetExtraction does not backfill from previous turn values", () => {
+    const normalized = normalizeWidgetExtraction({ 시간: "15:00" }, DEFAULT_STATUS_WIDGET);
     assert.equal(normalized["시간"], "15:00");
-    assert.equal(normalized["장소"], "카페");
-    assert.equal(normalized["속마음"], "긴장");
-    assert.equal(normalized["현재상황"], "이전 상황");
+    assert.equal(normalized["장소"], undefined);
+    assert.equal(normalized["속마음"], undefined);
+    assert.equal(normalized["현재상황"], undefined);
   });
 
   it("buildWidgetExtractSystem lists required JSON keys", () => {
