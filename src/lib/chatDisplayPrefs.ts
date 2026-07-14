@@ -249,7 +249,7 @@ export const CHAT_PORTRAIT_INPUT_HELPER_GAP_REM = "1.75rem";
 
 /** 초상 ON — 좌: 에셋 / 우: 채팅+입력 */
 export const CHAT_PORTRAIT_GRID_CLASS =
-  "mx-auto grid w-full max-w-[70.25rem] min-w-0 flex-1 grid-cols-1 items-start sm:grid-cols-[minmax(280px,320px)_minmax(0,780px)] sm:gap-x-6";
+  "mx-auto grid w-full max-w-[75.25rem] min-w-0 flex-1 grid-cols-1 items-start sm:grid-cols-[minmax(340px,400px)_minmax(0,780px)] sm:gap-x-6";
 
 /** 초상 열 sticky — 모바일 채팅은 글로벌 헤더 없음(제목만), md+는 헤더+제목 */
 export const CHAT_PORTRAIT_STICKY_CLASS =
