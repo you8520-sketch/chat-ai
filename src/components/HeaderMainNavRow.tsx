@@ -25,28 +25,28 @@ export default function HeaderMainNavRow() {
   if (isChatRoomPathname(pathname)) return null;
 
   return (
-    <div className="mx-auto hidden max-w-6xl px-4 pb-2.5 pt-0.5 md:block">
-      <nav
-        className={cn(studioSurface.tabList, "w-fit max-w-full overflow-x-auto")}
-        aria-label="주요 메뉴"
-      >
-        {baseTabs.map((t) => {
-          const active = isTabActive(pathname, t.href);
-          return (
-            <Link
-              key={t.href}
-              href={t.href}
-              className={cn(
-                "min-h-10 shrink-0 rounded-lg px-3.5 text-sm font-semibold transition",
-                "inline-flex items-center",
-                active ? studioSurface.tabActive : studioSurface.tabIdle,
-              )}
-            >
-              {t.label}
-            </Link>
-          );
-        })}
-      </nav>
-    </div>
+    <nav
+      className={cn(
+        studioSurface.tabList,
+        "hidden max-w-[48vw] shrink overflow-x-auto rounded-2xl border-white/10 bg-white/[0.045] p-1 shadow-lg shadow-black/10 md:inline-flex xl:max-w-none"
+      )}
+      aria-label="주요 메뉴"
+    >
+      {baseTabs.map((t) => {
+        const active = isTabActive(pathname, t.href);
+        return (
+          <Link
+            key={t.href}
+            href={t.href}
+            className={cn(
+              "inline-flex min-h-9 shrink-0 items-center rounded-xl px-3 text-sm font-semibold transition",
+              active ? studioSurface.tabActive : studioSurface.tabIdle,
+            )}
+          >
+            {t.label}
+          </Link>
+        );
+      })}
+    </nav>
   );
 }

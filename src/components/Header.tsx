@@ -40,6 +40,7 @@ export default async function Header() {
             >
               하비 <span className="text-violet-400">AI</span>
             </Link>
+            <HeaderMainNavRow />
             <HeaderBoardLinks unreadNotice={unreadNotice} />
           </div>
 
@@ -84,7 +85,6 @@ export default async function Header() {
             )}
           </div>
         </div>
-        <HeaderMainNavRow />
       </header>
       <MobileBottomNav loggedIn={!!user} />
       {user && <ExpiringPointsPopup />}
