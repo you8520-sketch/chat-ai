@@ -3302,6 +3302,7 @@ export default function ChatClient({
           />
         </div>
       </div>
+      <div className="h-[3.25rem] shrink-0 md:hidden" aria-hidden />
       {showCharacterPortrait && mobilePortraitUrl && (
         <div
           data-testid="mobile-chat-portrait-background"
