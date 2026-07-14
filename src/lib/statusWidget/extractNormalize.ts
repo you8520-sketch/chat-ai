@@ -117,8 +117,7 @@ function buildWidgetSourceReminder(
 
 export function normalizeWidgetExtraction(
   parsed: Record<string, unknown>,
-  widget: StatusWidget,
-  previousValues?: StatusWidgetValues | null
+  widget: StatusWidget
 ): StatusWidgetValues {
   const out: StatusWidgetValues = {};
   const rawEntries = new Map<string, string>();
@@ -141,15 +140,6 @@ export function normalizeWidgetExtraction(
       }
     }
 
-    if (!value && previousValues) {
-      for (const candidate of candidates) {
-        const prev = previousValues[candidate!]?.trim();
-        if (prev && !isWidgetPlaceholderValue(prev)) {
-          value = prev;
-          break;
-        }
-      }
-    }
 
     if (value && !isWidgetPlaceholderValue(value)) {
       out[key] = value;

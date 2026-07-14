@@ -524,6 +524,38 @@ describe("statusWidgetTriggers", () => {
     );
   });
 
+  it("stores trigger event provenance and keeps table migration idempotent", () => {
+    ensureStatusWidgetTriggerTables(db);
+    ensureStatusWidgetTriggerTables(db);
+    insertStatusWidgetTriggerForTest(db, {
+      chat_id: 1,
+      trigger_id: "provenance_event",
+      status_key: "affection",
+      operator: ">=",
+      value: 10,
+      fire_once: false,
+      event_key: "provenance",
+      effect_text: "provenance stored",
+    });
+    const result = evaluateStatusWidgetTriggers(db, {
+      chatId: 1,
+      sourceTurn: 3,
+      statusValues: { character: { affection: "12" } },
+      sourceMessageId: 99,
+      requestId: "req-provenance",
+      generationSequence: 10,
+    });
+    assert.equal(result.firedEvents.length, 1);
+    const event = result.firedEvents[0]!;
+    assert.equal(event.source_message_id, 99);
+    assert.equal(event.request_id, "req-provenance");
+    assert.equal(event.generation_sequence, 10);
+    const metadata = JSON.parse(event.metadata ?? "{}");
+    assert.equal(metadata.source_message_id, 99);
+    assert.equal(metadata.request_id, "req-provenance");
+    assert.equal(metadata.generation_sequence, 10);
+  });
+
   it("does not fire triggers from placeholder dash status values", () => {
     insertStatusWidgetTriggerForTest(db, {
       chat_id: 1,

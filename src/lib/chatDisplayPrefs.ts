@@ -227,7 +227,7 @@ export const CHAT_PORTRAIT_COLUMN_WIDTH_CLASS = "w-auto shrink-0";
 export const CHAT_GLOBAL_HEADER_OFFSET_CLASS = "top-[92px]";
 
 /** 채팅방 Header — 탭 행 숨김, 공지·유저 바만 (md+). 모바일은 글로벌 헤더 숨김 */
-export const CHAT_ROOM_HEADER_OFFSET_CLASS = "top-0 md:top-11";
+export const CHAT_ROOM_HEADER_OFFSET_CLASS = "top-0 md:top-[var(--site-header-height,44px)]";
 
 export function isChatRoomPathname(pathname: string): boolean {
   return /^\/chat\/\d+/.test(pathname);
@@ -235,7 +235,7 @@ export function isChatRoomPathname(pathname: string): boolean {
 
 /** 채팅방 — 모바일: 뒤로+프로필 / 메뉴 · md+: 제목 바 */
 export const CHAT_ROOM_TITLE_BAR_CLASS =
-  "sticky top-0 z-30 shrink-0 border-b border-white/5 bg-[#121212] px-2 py-2 pl-2 sm:pl-2 sm:pr-1 md:top-11 md:pl-3";
+  "sticky top-0 z-30 shrink-0 border-b border-white/5 bg-[#121212]/95 px-2 py-2 backdrop-blur sm:px-0 md:top-0";
 
 /** 제목 바 아래부터 초상 시작 (모바일 헤더 없음 ≈ 2.75rem, md+ ≈ 5.25rem) */
 export const CHAT_PORTRAIT_TITLE_STACK_REM = "2.75rem";
@@ -249,11 +249,11 @@ export const CHAT_PORTRAIT_INPUT_HELPER_GAP_REM = "1.75rem";
 
 /** 초상 ON — 좌: 에셋 / 우: 채팅+입력 */
 export const CHAT_PORTRAIT_GRID_CLASS =
-  "mx-auto grid w-full max-w-[72rem] min-w-0 flex-1 grid-cols-1 items-start sm:grid-cols-[minmax(0,3fr)_minmax(0,5fr)] sm:gap-x-3 xl:max-w-[76rem]";
+  "mx-auto grid w-full max-w-[72.5rem] min-w-0 flex-1 grid-cols-1 items-start sm:grid-cols-[minmax(280px,320px)_minmax(0,820px)] sm:gap-x-6";
 
 /** 초상 열 sticky — 모바일 채팅은 글로벌 헤더 없음(제목만), md+는 헤더+제목 */
 export const CHAT_PORTRAIT_STICKY_CLASS =
-  "hidden sm:col-start-1 sm:row-start-1 sm:sticky sm:top-[2.75rem] sm:z-20 sm:flex sm:h-[calc(100dvh-2.75rem-1.75rem)] sm:w-full sm:flex-col sm:justify-end sm:self-start md:top-[5.25rem] md:h-[calc(100dvh-5.25rem-1.75rem)]";
+  "hidden sm:col-start-1 sm:row-start-1 sm:sticky sm:top-4 sm:z-10 sm:flex sm:max-h-[calc(100dvh-var(--site-header-height,44px)-9rem)] sm:w-full sm:flex-col sm:self-start";
 
 /** @deprecated CHAT_PORTRAIT_PANEL_HEIGHT + 인라인 height 사용 */
 export const CHAT_PORTRAIT_VIEWPORT_MIN_H_CLASS = "";
@@ -272,23 +272,23 @@ export const CHAT_MOBILE_PORTRAIT_IMAGE_CLASS =
 
 /** 초상 OFF — 메시지+입력 열 (본문을 입력창 위로 밀어 붙임) */
 export const CHAT_MESSAGES_COLUMN_NO_PORTRAIT_CLASS =
-  "mx-auto flex min-h-[calc(100dvh-2.75rem)] w-full max-w-[52rem] min-w-0 flex-1 flex-col md:min-h-[calc(100dvh-5.25rem)]";
+  "mx-auto flex min-h-0 w-full max-w-[820px] min-w-0 flex-1 flex-col";
 
 /** 초상 OFF — 본문 래퍼 (하단 정렬, 입력창과 여백 최소) */
 export const CHAT_MESSAGES_BODY_NO_PORTRAIT_CLASS =
-  "flex min-h-0 flex-1 flex-col justify-end bg-[#121212] px-2 pl-3 sm:pl-2 sm:pr-1 pt-1 pb-0";
+  "flex min-h-0 flex-1 flex-col justify-end bg-[#121212] px-2 pt-1 pb-0 sm:px-0";
 
 /** 초상 OFF — 메시지 목록 간격 */
 export const CHAT_MESSAGES_LIST_NO_PORTRAIT_CLASS = "min-w-0 space-y-1";
 
 /** 초상 OFF — 입력창 (본문과 간격 최소) */
 export const CHAT_INPUT_DOCK_NO_PORTRAIT_CLASS =
-  "sticky bottom-0 z-10 shrink-0 border-t border-white/5 bg-[#121212] px-2 pl-3 sm:pl-2 sm:pr-1 pt-1 pb-1.5";
+  "sticky bottom-0 z-10 shrink-0 border-t border-white/5 bg-[#121212]/95 px-2 pt-1 pb-1.5 backdrop-blur sm:px-0";
 
 /** @deprecated 초상 그리드 레이아웃에서 미사용 */
 export const CHAT_CONTENT_ROW_TOP_PAD_CLASS = "";
 
 /** 채팅 본문 영역 — 가로는 main/창 너비에 맞춤 */
 export function chatMessageAreaLayoutClass(_showCharacterPortrait?: boolean): string {
-  return "w-full min-w-0";
+  return "mx-auto w-full max-w-[820px] min-w-0";
 }

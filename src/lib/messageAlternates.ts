@@ -1,10 +1,17 @@
 import type { Usage } from "@/lib/chatUsage";
+import type { ParsedStatusWidgetTurnValues } from "@/lib/statusWidget/types";
 
 export type MessageVariant = {
   content: string;
   model: string;
   usage: Usage | null;
   created_at: string;
+  /** Per-generation message snapshot. Never fallback from another variant/message for UI render. */
+  statusWidgetValues?: ParsedStatusWidgetTurnValues | null;
+  statusWidgetTurnActive?: boolean;
+  generationSequence?: number;
+  requestId?: string | null;
+  sourceMessageId?: number | null;
 };
 
 export function parseMessageVariants(raw: string | null | undefined): MessageVariant[] {
@@ -61,6 +68,30 @@ export function appendMessageVariant(
 ): { variants: MessageVariant[]; activeVariant: number } {
   const next = [...variants, variant];
   return { variants: next, activeVariant: next.length - 1 };
+}
+
+export function generationSequenceForVariant(
+  variant: Pick<MessageVariant, "generationSequence"> | undefined,
+  variantIndex: number
+): number {
+  const sequence = variant?.generationSequence;
+  return Number.isInteger(sequence) && sequence != null && sequence >= 0
+    ? sequence
+    : variantIndex;
+}
+
+export function latestVariantIndexByGenerationSequence(variants: MessageVariant[]): number {
+  if (variants.length === 0) return -1;
+  let latestIndex = 0;
+  let latestSequence = generationSequenceForVariant(variants[0], 0);
+  for (let i = 1; i < variants.length; i += 1) {
+    const sequence = generationSequenceForVariant(variants[i], i);
+    if (sequence > latestSequence || (sequence === latestSequence && i > latestIndex)) {
+      latestSequence = sequence;
+      latestIndex = i;
+    }
+  }
+  return latestIndex;
 }
 
 export function serializeVariantsForClient(variants: MessageVariant[], activeVariant: number) {
