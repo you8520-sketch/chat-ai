@@ -249,7 +249,7 @@ export const CHAT_PORTRAIT_INPUT_HELPER_GAP_REM = "1.75rem";
 
 /** 초상 ON — 좌: 에셋 / 우: 채팅+입력 */
 export const CHAT_PORTRAIT_GRID_CLASS =
-  "mx-auto grid w-full max-w-[72.5rem] min-w-0 flex-1 grid-cols-1 items-start sm:grid-cols-[minmax(280px,320px)_minmax(0,820px)] sm:gap-x-6";
+  "mx-auto grid w-full max-w-[70.25rem] min-w-0 flex-1 grid-cols-1 items-start sm:grid-cols-[minmax(280px,320px)_minmax(0,780px)] sm:gap-x-6";
 
 /** 초상 열 sticky — 모바일 채팅은 글로벌 헤더 없음(제목만), md+는 헤더+제목 */
 export const CHAT_PORTRAIT_STICKY_CLASS =
@@ -272,7 +272,7 @@ export const CHAT_MOBILE_PORTRAIT_IMAGE_CLASS =
 
 /** 초상 OFF — 메시지+입력 열 (본문을 입력창 위로 밀어 붙임) */
 export const CHAT_MESSAGES_COLUMN_NO_PORTRAIT_CLASS =
-  "mx-auto flex min-h-0 w-full max-w-[820px] min-w-0 flex-1 flex-col";
+  "mx-auto flex min-h-0 w-full max-w-[780px] min-w-0 flex-1 flex-col";
 
 /** 초상 OFF — 본문 래퍼 (하단 정렬, 입력창과 여백 최소) */
 export const CHAT_MESSAGES_BODY_NO_PORTRAIT_CLASS =

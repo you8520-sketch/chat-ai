@@ -5,6 +5,7 @@ import Link from "next/link";
 import ChatPersonaEditor, { restorePersonaSnapshot } from "@/components/ChatPersonaEditor";
 import PersonaSelector from "@/components/PersonaSelector";
 import StatusWidgetChatSettings from "@/components/StatusWidgetChatSettings";
+import { ChatPortraitPrefs } from "@/components/ChatStatusPortraitPrefs";
 import type { StatusWidgetSourceMode, StatusWidgetDisplayMode } from "@/lib/statusWidget";
 import { resolveStatusWidgetReservedChars } from "@/lib/statusWidget";
 import type { PersonaListItem } from "@/lib/userPersonas";
@@ -922,6 +923,11 @@ function DisplaySettingsSection({
 
   return (
     <div className="space-y-5 text-xs">
+      <ChatPortraitPrefs
+        displayPrefs={displayPrefs}
+        onDisplayPrefsChange={onDisplayPrefsChange}
+      />
+
       <section>
         <p className="mb-2 font-bold text-violet-300">스트리밍 속도</p>
         <p className="mb-2 text-[10px] text-zinc-600">

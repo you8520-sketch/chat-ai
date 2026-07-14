@@ -3195,13 +3195,15 @@ export default function ChatClient({
               <Link
                 href={`/creator/${creatorId}`}
                 title="제작자 페이지"
-                className="hidden shrink-0 text-[11px] text-zinc-500 underline-offset-2 transition hover:text-zinc-300 hover:underline sm:inline sm:text-xs"
+                className="max-w-20 shrink-0 truncate text-[10px] text-zinc-500 underline-offset-2 transition hover:text-zinc-300 hover:underline sm:max-w-none sm:text-xs"
               >
                 {creatorName}
               </Link>
             ) : (
               creatorName ? (
-                <span className="hidden shrink-0 text-[11px] text-zinc-500 sm:inline sm:text-xs">{creatorName}</span>
+                <span className="max-w-20 shrink-0 truncate text-[10px] text-zinc-500 sm:max-w-none sm:text-xs">
+                  {creatorName}
+                </span>
               ) : null
             )}
           </div>
@@ -3241,7 +3243,7 @@ export default function ChatClient({
       <div
         className={
           showCharacterPortrait
-            ? "relative z-10 bg-transparent px-2 pb-4 backdrop-blur-[1px] sm:bg-[#121212] sm:px-0 sm:pb-6 sm:backdrop-blur-none"
+            ? "relative z-10 bg-transparent px-2 pl-3 pb-4 backdrop-blur-[1px] sm:bg-[#121212] sm:pl-2 sm:pr-1 sm:pb-0 sm:backdrop-blur-none"
             : CHAT_MESSAGES_BODY_NO_PORTRAIT_CLASS
         }
         role="presentation"
@@ -3353,7 +3355,7 @@ export default function ChatClient({
               <article
                 key={m.id ?? `asst-${i}`}
                 id={m.id ? `msg-${m.id}` : undefined}
-                className={showCharacterPortrait ? "pb-2" : "pb-0"}
+                className={showCharacterPortrait && !onLastTurn ? "pb-2" : "pb-0"}
               >
                 <div className="min-w-0">
                 {isEditing ? (
@@ -3573,7 +3575,7 @@ export default function ChatClient({
             );
           })}
           {error && <p className="text-center text-sm text-rose-400">{error}</p>}
-          <div ref={bottomRef} />
+          <div ref={bottomRef} className="sm:!mt-0" />
           </div>
         </div>
       </div>
