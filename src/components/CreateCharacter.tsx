@@ -131,6 +131,8 @@ export default function CreateCharacter({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState("");
+  const [appearanceCompiledPreview, setAppearanceCompiledPreview] = useState("");
+  const [regenerateAppearance, setRegenerateAppearance] = useState(false);
   const [savedWorlds, setSavedWorlds] = useState<WorldListItem[]>([]);
   const [selectedWorldId, setSelectedWorldId] = useState<number | "">("");
   const [worldsLoading, setWorldsLoading] = useState(true);
@@ -149,6 +151,20 @@ export default function CreateCharacter({
   const [statusWidgetTriggers, setStatusWidgetTriggers] = useState<StatusWidgetTriggerDraft[]>([]);
   const [pageTab, setPageTab] = useState<PageTab>("create");
   const draftRestoredRef = useRef(false);
+
+  function formatAppearanceCompiledPreview(raw: unknown): string {
+    if (typeof raw !== "string" || !raw.trim()) return "";
+    try {
+      const parsed = JSON.parse(raw) as { compiled_text?: unknown };
+      if (typeof parsed.compiled_text === "string" && parsed.compiled_text.trim()) return parsed.compiled_text.trim();
+      return Object.entries(parsed)
+        .filter(([key, value]) => key !== "compiled_text" && typeof value === "string" && value.trim())
+        .map(([, value]) => String(value).trim())
+        .join(", ");
+    } catch {
+      return "";
+    }
+  }
   const filePreviewUrlMapRef = useRef<Map<File, string>>(new Map());
   const editPromptBaselineRef = useRef<string | null>(null);
 
@@ -423,6 +439,8 @@ export default function CreateCharacter({
           comments_enabled: data.comments_enabled !== false,
           creator_comment: data.creator_comment ?? "",
         });
+        setAppearanceCompiledPreview(formatAppearanceCompiledPreview(data.appearance_compiled));
+        setRegenerateAppearance(false);
         setAssets(
           normalizeManagedAssets(Array.isArray(data.assets) ? data.assets : []),
         );
@@ -630,9 +648,10 @@ export default function CreateCharacter({
       world_id: selectedWorldId === "" ? undefined : selectedWorldId,
       lorebook_id:
         selectedLorebookId === "" ? undefined : selectedLorebookId,
+      regenerate_appearance: regenerateAppearance,
     };
     const canUseFastEditSave =
-      promptUnchangedForEdit;
+      promptUnchangedForEdit && !regenerateAppearance;
 
     setProgress(isEditMode ? "캐릭터 저장 중…" : "캐릭터 생성 중…");
     if (canUseFastEditSave) {
@@ -889,10 +908,26 @@ export default function CreateCharacter({
                   className={cls}
                   placeholder="성격, 말투 특징, 외모, 배경, 관계, 습관, 가치관 등 (대사 예시는 아래 「말투 설정」에 작성)"
                   value={form.system_prompt}
-                  onChange={(e) =>
-                    setForm({ ...form, system_prompt: e.target.value })
-                  }
+                  onChange={(e) => {
+                    setForm({ ...form, system_prompt: e.target.value });
+                    setRegenerateAppearance(false);
+                  }}
                 />
+                {(appearanceCompiledPreview || isEditMode) && (
+                  <details className="mt-3 rounded-xl border border-white/10 bg-black/20 p-3 text-xs text-zinc-300">
+                    <summary className="cursor-pointer font-semibold text-zinc-100">채팅용으로 정리된 외형</summary>
+                    <p className="mt-2 whitespace-pre-wrap text-zinc-300">
+                      {appearanceCompiledPreview || "저장 후 외형 블록이 감지되면 채팅용 정리본이 표시됩니다."}
+                    </p>
+                    <button
+                      type="button"
+                      className="mt-3 rounded-lg border border-cyan-400/40 px-3 py-1.5 text-[11px] font-semibold text-cyan-200 hover:bg-cyan-400/10"
+                      onClick={() => setRegenerateAppearance(true)}
+                    >
+                      외형 정리 다시 생성{regenerateAppearance ? " 예약됨" : ""}
+                    </button>
+                  </details>
+                )}
               </div>
               <div className="space-y-4 rounded-xl border border-white/10 bg-[#161922] p-4">
                 <div>

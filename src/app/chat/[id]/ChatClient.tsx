@@ -3513,14 +3513,20 @@ export default function ChatClient({
                             />
                           ))}
                           {statusWindowPlacement === "top" ? statusMetaCard : null}
-                          <ChatRichBlocks
-                            key={`${m.id ?? i}-${m.activeVariant ?? 0}`}
-                            content={toDisplay(bodyForDisplay)}
-                            display={displayPrefs}
-                            paragraphMode={m.model === "greeting" ? "author" : "ai"}
-                            proseOnly={m.model !== "greeting"}
-                            streaming={isStreamingThisMessage}
-                          />
+                          <div
+                            data-quote-assistant
+                            className="select-text [touch-action:pan-y] [-webkit-user-select:text]"
+                            style={{ userSelect: "text", WebkitUserSelect: "text", touchAction: "pan-y", WebkitTouchCallout: "default" }}
+                          >
+                            <ChatRichBlocks
+                              key={`${m.id ?? i}-${m.activeVariant ?? 0}`}
+                              content={toDisplay(bodyForDisplay)}
+                              display={displayPrefs}
+                              paragraphMode={m.model === "greeting" ? "author" : "ai"}
+                              proseOnly={m.model !== "greeting"}
+                              streaming={isStreamingThisMessage}
+                            />
+                          </div>
                           {widgetsBottom.map((w) => (
                             <StatusWidgetCard
                               key={`${m.id}-widget-${w.source}-bottom`}

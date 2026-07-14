@@ -12,17 +12,35 @@ import { before, describe, it } from "node:test";
 import type {
   buildCompiledCreatorDescriptionForSave as BuildCompiledCreatorDescriptionForSaveFn,
   characterPromptInputsChanged as CharacterPromptInputsChangedFn,
+  characterPromptRowStillCurrent as CharacterPromptRowStillCurrentFn,
 } from "@/lib/characterFormSave";
 import { parseCreatorDescriptionCompiled } from "@/lib/creatorDescriptionTriggerCompiler";
 
 let buildCompiledCreatorDescriptionForSave: typeof BuildCompiledCreatorDescriptionForSaveFn;
 let characterPromptInputsChanged: typeof CharacterPromptInputsChangedFn;
+let characterPromptRowStillCurrent: typeof CharacterPromptRowStillCurrentFn;
 
 before(async () => {
-  ({ buildCompiledCreatorDescriptionForSave, characterPromptInputsChanged } = await import("@/lib/characterFormSave"));
+  ({ buildCompiledCreatorDescriptionForSave, characterPromptInputsChanged, characterPromptRowStillCurrent } = await import("@/lib/characterFormSave"));
 });
 
 describe("buildCompiledCreatorDescriptionForSave", () => {
+
+  it("detects stale concurrent prompt updates before applying compiled appearance", () => {
+    const original = {
+      name: "하린",
+      gender: "female",
+      system_prompt: "외형: MLBB 립스틱",
+      world: "",
+      example_dialog: "",
+    };
+
+    assert.equal(characterPromptRowStillCurrent(original, { ...original }), true);
+    assert.equal(
+      characterPromptRowStillCurrent(original, { ...original, system_prompt: "외형: 시스루 뱅" }),
+      false
+    );
+  });
   it("prepares persisted compiled sections and preserves raw creator text", () => {
     const result = buildCompiledCreatorDescriptionForSave({
       description: "공개 프로필 소개.",

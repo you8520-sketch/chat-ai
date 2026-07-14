@@ -29,6 +29,7 @@ import {
   compiledPublicCanonText,
   parseCreatorDescriptionCompiled,
 } from "@/lib/creatorDescriptionTriggerCompiler";
+import { appearancePromptText, replaceAppearanceInSetting } from "@/lib/appearanceCompiler";
 
 export type CharacterSettingRow = {
   id: number;
@@ -43,12 +44,19 @@ export type CharacterSettingRow = {
   prompt_translation_hash?: string | null;
   speech_profile?: string | null;
   creator_compiled_description_json?: string | null;
+  appearance_raw?: string | null;
+  appearance_compiled?: string | null;
 };
 
 function resolveSafeRuntimeCanon(row: CharacterSettingRow): string {
   const compiled = parseCreatorDescriptionCompiled(row.creator_compiled_description_json);
   const storedPublicCanon = compiledPublicCanonText(compiled);
-  if (storedPublicCanon) return storedPublicCanon;
+  if (storedPublicCanon) {
+    return replaceAppearanceInSetting(
+      storedPublicCanon,
+      appearancePromptText({ raw: row.appearance_raw ?? "", compiledJson: row.appearance_compiled })
+    );
+  }
 
   const fallback = compileCreatorDescriptionTriggers({
     description: [row.world ?? "", row.system_prompt ?? ""].filter(Boolean).join("\n\n"),
@@ -59,7 +67,10 @@ function resolveSafeRuntimeCanon(row: CharacterSettingRow): string {
       `[characterChunks] character ${row.id} is missing compiled creator sections; using on-the-fly public_canon fallback`
     );
   }
-  return fallbackPublicCanon;
+  return replaceAppearanceInSetting(
+    fallbackPublicCanon,
+    appearancePromptText({ raw: row.appearance_raw ?? "", compiledJson: row.appearance_compiled })
+  );
 }
 
 function parseFreshCharacterChunks(row: CharacterSettingRow): CharacterChunk[] {
