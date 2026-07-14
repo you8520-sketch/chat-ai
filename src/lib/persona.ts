@@ -2,6 +2,8 @@
 export const PERSONA_NAME_LIMIT = 30;
 /** @deprecated 표시용 — 입력 길이 제한 없음 */
 export const PERSONA_MEMO_LIMIT = 20;
+/** 유저가 만들 수 있는 페르소나 최대 개수 */
+export const USER_PERSONA_MAX_COUNT = 50;
 /** 페르소나 설정(description) 상한 */
 export const PERSONA_CONTENT_MAX = 1200;
 /** @deprecated PERSONA_CONTENT_MAX 사용 */

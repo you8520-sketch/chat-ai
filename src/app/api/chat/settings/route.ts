@@ -11,8 +11,9 @@ import {
   parseStatusWidgetDisplayMode,
   parseStatusWidgetJson,
   parseStatusWidgetMode,
-  resolveStatusWidgetReservedChars,
+  resolveStatusWidgetReservedBreakdown,
   resolveStatusWidgetTurn,
+  validateStatusWidgetContextBudget,
   serializeStatusWidget,
 } from "@/lib/statusWidget";
 
@@ -110,17 +111,22 @@ export async function PATCH(req: Request) {
     displayMode: nextDisplay,
   }).mode;
 
+  const widgetReservedBreakdown = resolveStatusWidgetReservedBreakdown({
+    characterWidgetJson: widgetCtx?.status_widget_json,
+    chatMode: nextMode,
+    userWidgetJson: nextUserWidgetJson,
+    stackOrder: widgetCtx?.status_widget_stack_order,
+    characterAllowUserOverride: widgetCtx?.status_widget_allow_user_override !== 0,
+    displayMode: nextDisplay,
+  });
+  const widgetBudgetCheck = validateStatusWidgetContextBudget(widgetReservedBreakdown);
+  if (!widgetBudgetCheck.ok) {
+    return Response.json({ error: widgetBudgetCheck.error }, { status: 400 });
+  }
+
   const note = typeof userNote === "string" ? userNote.trim() : undefined;
   if (note !== undefined) {
-    const widgetReserved = resolveStatusWidgetReservedChars({
-      characterWidgetJson: widgetCtx?.status_widget_json,
-      chatMode: nextMode,
-      userWidgetJson: nextUserWidgetJson,
-      stackOrder: widgetCtx?.status_widget_stack_order,
-      characterAllowUserOverride: widgetCtx?.status_widget_allow_user_override !== 0,
-      displayMode: nextDisplay,
-    });
-    const noteCheck = validateUserNoteCombined(note, widgetReserved);
+    const noteCheck = validateUserNoteCombined(note, widgetReservedBreakdown.totalReservedChars);
     if (!noteCheck.ok) {
       return Response.json({ error: noteCheck.error }, { status: 400 });
     }

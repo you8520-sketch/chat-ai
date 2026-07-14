@@ -8,8 +8,16 @@ import { resolveStatusWidgetTurn } from "./resolve";
 
 import type { StatusWidget } from "./types";
 
-/** 위젯 상태값·지시 토큰 환산 상한 (HTML 제외) */
+/** 위젯 1개당 상태값·지시 토큰 환산 상한 (HTML 제외) */
 export const STATUS_WIDGET_CONTEXT_MAX = 500;
+/** 제작자 위젯 + 유저 위젯을 함께 쓸 때의 합산 상한 */
+export const STATUS_WIDGET_CONTEXT_COMBINED_MAX = STATUS_WIDGET_CONTEXT_MAX * 2;
+
+export type StatusWidgetContextBudgetBreakdown = {
+  characterReservedChars: number;
+  userReservedChars: number;
+  totalReservedChars: number;
+};
 
 /**
  * 유저노트 예산 차감 대상 — 케이브덕과 동일하게 상태값(라벨) + 지시사항만.
@@ -41,6 +49,35 @@ export function estimateStatusWidgetContextCharsFromJson(
   return estimateStatusWidgetContextChars(parseStatusWidgetJson(widgetJson));
 }
 
+export function resolveStatusWidgetReservedBreakdown(opts: {
+  characterWidgetJson?: string | null;
+  chatMode?: string | null;
+  userWidgetJson?: string | null;
+  stackOrder?: string | null;
+  characterAllowUserOverride?: boolean;
+  displayMode?: string | null;
+}): StatusWidgetContextBudgetBreakdown {
+  const resolved = resolveStatusWidgetTurn(opts);
+  if (!resolved.active) {
+    return { characterReservedChars: 0, userReservedChars: 0, totalReservedChars: 0 };
+  }
+
+  const characterReservedChars =
+    resolved.needsCharacterValues && resolved.characterWidget
+      ? estimateStatusWidgetContextChars(resolved.characterWidget)
+      : 0;
+  const userReservedChars =
+    resolved.needsUserValues && resolved.userWidget
+      ? estimateStatusWidgetContextChars(resolved.userWidget)
+      : 0;
+
+  return {
+    characterReservedChars,
+    userReservedChars,
+    totalReservedChars: characterReservedChars + userReservedChars,
+  };
+}
+
 export function resolveStatusWidgetReservedChars(opts: {
   characterWidgetJson?: string | null;
   chatMode?: string | null;
@@ -49,27 +86,43 @@ export function resolveStatusWidgetReservedChars(opts: {
   characterAllowUserOverride?: boolean;
   displayMode?: string | null;
 }): number {
-  const resolved = resolveStatusWidgetTurn(opts);
-  if (!resolved.active) return 0;
-
-  let total = 0;
-  if (resolved.needsCharacterValues && resolved.characterWidget) {
-    total += estimateStatusWidgetContextChars(resolved.characterWidget);
-  }
-  if (resolved.needsUserValues && resolved.userWidget) {
-    total += estimateStatusWidgetContextChars(resolved.userWidget);
-  }
-  return total;
+  return resolveStatusWidgetReservedBreakdown(opts).totalReservedChars;
 }
 
 export function validateStatusWidgetContextBudget(
-  reservedChars: number
+  reserved: number | StatusWidgetContextBudgetBreakdown
 ): { ok: true } | { ok: false; error: string } {
-  const reserved = Math.max(0, reservedChars);
-  if (reserved > STATUS_WIDGET_CONTEXT_MAX) {
+  const breakdown =
+    typeof reserved === "number"
+      ? {
+          // Legacy callers only know the combined total, so validate the combined 1,000자 cap.
+          characterReservedChars: 0,
+          userReservedChars: 0,
+          totalReservedChars: Math.max(0, reserved),
+        }
+      : {
+          characterReservedChars: Math.max(0, reserved.characterReservedChars),
+          userReservedChars: Math.max(0, reserved.userReservedChars),
+          totalReservedChars: Math.max(0, reserved.totalReservedChars),
+        };
+
+  const overLimit = [
+    ["제작자 위젯", breakdown.characterReservedChars] as const,
+    ["유저 위젯", breakdown.userReservedChars] as const,
+  ].find(([, chars]) => chars > STATUS_WIDGET_CONTEXT_MAX);
+
+  if (overLimit) {
+    const [label, chars] = overLimit;
     return {
       ok: false,
-      error: `위젯 상태값·지시(${reserved.toLocaleString()}자, 토큰 환산)가 한도 ${STATUS_WIDGET_CONTEXT_MAX.toLocaleString()}자를 초과합니다. HTML은 제외됩니다.`,
+      error: `${label} 상태값·지시(${chars.toLocaleString()}자, 토큰 환산)가 개별 한도 ${STATUS_WIDGET_CONTEXT_MAX.toLocaleString()}자를 초과합니다. HTML은 제외됩니다.`,
+    };
+  }
+
+  if (breakdown.totalReservedChars > STATUS_WIDGET_CONTEXT_COMBINED_MAX) {
+    return {
+      ok: false,
+      error: `위젯 상태값·지시 합계(${breakdown.totalReservedChars.toLocaleString()}자, 토큰 환산)가 한도 ${STATUS_WIDGET_CONTEXT_COMBINED_MAX.toLocaleString()}자를 초과합니다. HTML은 제외됩니다.`,
     };
   }
   return { ok: true };
@@ -90,4 +143,19 @@ export function formatWidgetBudgetHint(widgetReservedChars: number): string {
     return `위젯 상태값·지시 한도 ${STATUS_WIDGET_CONTEXT_MAX.toLocaleString()}자`;
   }
   return `위젯 상태값·지시 ${reserved.toLocaleString()} / ${STATUS_WIDGET_CONTEXT_MAX.toLocaleString()}자`;
+}
+
+export function formatCombinedWidgetBudgetHint(
+  breakdown: StatusWidgetContextBudgetBreakdown
+): string {
+  const character = Math.max(0, breakdown.characterReservedChars);
+  const user = Math.max(0, breakdown.userReservedChars);
+  const total = Math.max(0, breakdown.totalReservedChars);
+  if (total <= 0) {
+    return `위젯 상태값·지시 한도: 제작자 ${STATUS_WIDGET_CONTEXT_MAX.toLocaleString()}자 + 유저 ${STATUS_WIDGET_CONTEXT_MAX.toLocaleString()}자`;
+  }
+  if (character > 0 && user > 0) {
+    return `위젯 상태값·지시 제작자 ${character.toLocaleString()} / ${STATUS_WIDGET_CONTEXT_MAX.toLocaleString()}자 · 유저 ${user.toLocaleString()} / ${STATUS_WIDGET_CONTEXT_MAX.toLocaleString()}자`;
+  }
+  return `위젯 상태값·지시 ${total.toLocaleString()} / ${STATUS_WIDGET_CONTEXT_MAX.toLocaleString()}자`;
 }
