@@ -3128,7 +3128,7 @@ export default function ChatClient({
   );
 
   return (
-    <div className="-ml-1 flex min-w-0 flex-1 items-stretch gap-0 sm:-ml-2">
+    <div className="flex min-w-0 flex-1 items-stretch gap-0">
       <div
         className="chat-readability-root flex min-w-0 flex-1 flex-col"
         style={chatReadabilityRootStyle(displayPrefs)}
@@ -3142,6 +3142,34 @@ export default function ChatClient({
         onToast={setToastMsg}
       />
 
+      <div
+        className={
+          showCharacterPortrait
+            ? CHAT_PORTRAIT_GRID_CLASS
+            : "flex min-h-0 min-w-0 flex-1 flex-col"
+        }
+      >
+        {showCharacterPortrait && (
+          <div className={`${CHAT_PORTRAIT_STICKY_CLASS} pl-1 sm:pl-0`}>
+            <ChatEmotionPortraitPanel
+              characterName={character.name}
+              emoji={character.emoji}
+              hue={character.hue}
+              assets={assets}
+              defaultAsset={defaultChatAsset}
+              activeUrl={activePortraitUrl}
+              unlockedUrls={unlockedUrls}
+              viewerIsCreator={isCharacterCreator}
+            />
+          </div>
+        )}
+        <div
+          className={
+            showCharacterPortrait
+              ? CHAT_MESSAGES_COLUMN_CLASS
+              : CHAT_MESSAGES_COLUMN_NO_PORTRAIT_CLASS
+          }
+        >
       <div className={CHAT_ROOM_TITLE_BAR_CLASS}>
         <div className="flex min-w-0 items-center gap-1.5 md:gap-2">
           <button
@@ -3185,35 +3213,6 @@ export default function ChatClient({
           />
         </div>
       </div>
-
-      <div
-        className={
-          showCharacterPortrait
-            ? CHAT_PORTRAIT_GRID_CLASS
-            : "flex min-h-0 min-w-0 flex-1 flex-col"
-        }
-      >
-        {showCharacterPortrait && (
-          <div className={`${CHAT_PORTRAIT_STICKY_CLASS} pl-1 sm:pl-0`}>
-            <ChatEmotionPortraitPanel
-              characterName={character.name}
-              emoji={character.emoji}
-              hue={character.hue}
-              assets={assets}
-              defaultAsset={defaultChatAsset}
-              activeUrl={activePortraitUrl}
-              unlockedUrls={unlockedUrls}
-              viewerIsCreator={isCharacterCreator}
-            />
-          </div>
-        )}
-        <div
-          className={
-            showCharacterPortrait
-              ? CHAT_MESSAGES_COLUMN_CLASS
-              : CHAT_MESSAGES_COLUMN_NO_PORTRAIT_CLASS
-          }
-        >
       {showCharacterPortrait && mobilePortraitUrl && (
         <div
           data-testid="mobile-chat-portrait-background"
@@ -3242,7 +3241,7 @@ export default function ChatClient({
       <div
         className={
           showCharacterPortrait
-            ? "relative z-10 bg-transparent px-2 pl-3 pb-4 backdrop-blur-[1px] sm:bg-[#121212] sm:pl-2 sm:pr-1 sm:pb-6 sm:backdrop-blur-none"
+            ? "relative z-10 bg-transparent px-2 pb-4 backdrop-blur-[1px] sm:bg-[#121212] sm:px-0 sm:pb-6 sm:backdrop-blur-none"
             : CHAT_MESSAGES_BODY_NO_PORTRAIT_CLASS
         }
         role="presentation"
@@ -3583,7 +3582,7 @@ export default function ChatClient({
         ref={inputDockRef}
         className={
           showCharacterPortrait
-            ? "sticky bottom-0 z-20 shrink-0 overflow-visible border-t border-white/5 bg-[#121212]/88 px-2 pl-3 py-2 backdrop-blur-sm sm:bg-[#121212] sm:pl-2 sm:pr-1 sm:backdrop-blur-none"
+            ? "sticky bottom-0 z-20 shrink-0 overflow-visible border-t border-white/5 bg-[#121212]/88 px-2 py-2 backdrop-blur-sm sm:bg-[#121212] sm:px-0 sm:backdrop-blur-none"
             : `${CHAT_INPUT_DOCK_NO_PORTRAIT_CLASS} overflow-visible`
         }
       >
@@ -3668,7 +3667,7 @@ export default function ChatClient({
       </div>
 
       <aside
-        className={`sticky ${CHAT_ROOM_HEADER_OFFSET_CLASS} z-30 hidden w-11 shrink-0 flex-col gap-1 self-start md:flex md:w-12`}
+        className={`sticky ${CHAT_ROOM_HEADER_OFFSET_CLASS} z-20 hidden w-16 shrink-0 flex-col gap-1 self-start overflow-y-auto px-1 py-2 md:flex md:w-[68px]`}
       >
         <ChatRoomDisplayQuickRail
           displayPrefs={displayPrefs}
