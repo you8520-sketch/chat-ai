@@ -82,11 +82,11 @@ export default function ChatEmotionPortraitPanel({
   return (
     <>
       <div className="flex h-full min-h-0 w-full flex-col items-center">
-        <div className="w-full max-w-[320px] shrink-0 px-1 pb-2 pt-2">
+        <div className="flex w-full max-w-[320px] shrink-0 items-baseline gap-2 px-1 pb-2 pt-2">
           <button
             type="button"
             onClick={onCharacterIntroOpen}
-            className="block max-w-full truncate text-left text-xl font-black leading-tight text-white underline-offset-4 transition hover:text-violet-100 hover:underline"
+            className="min-w-0 truncate text-left text-xl font-black leading-tight text-white underline-offset-4 transition hover:text-violet-100 hover:underline"
             title="캐릭터 소개 보기"
           >
             {characterName}
@@ -94,13 +94,13 @@ export default function ChatEmotionPortraitPanel({
           {creatorHref ? (
             <Link
               href={creatorHref}
-              className="mt-1 block max-w-full truncate text-xs font-medium text-zinc-500 underline-offset-2 transition hover:text-zinc-300 hover:underline"
+              className="shrink-0 truncate text-xs font-medium text-zinc-500 underline-offset-2 transition hover:text-zinc-300 hover:underline"
               title="제작자 페이지"
             >
               {creatorName || "제작자"}
             </Link>
           ) : creatorName ? (
-            <p className="mt-1 truncate text-xs font-medium text-zinc-500">{creatorName}</p>
+            <p className="shrink-0 truncate text-xs font-medium text-zinc-500">{creatorName}</p>
           ) : null}
         </div>
 
