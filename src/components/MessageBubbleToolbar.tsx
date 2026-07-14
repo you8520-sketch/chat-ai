@@ -65,7 +65,6 @@ export default function MessageBubbleToolbar({
   onRegenerate,
   onRefunded,
   onReportSubmitted,
-  lengthHint,
   showReportRefund = false,
   reportRefundPending = false,
   variantPicker,
@@ -91,8 +90,6 @@ export default function MessageBubbleToolbar({
   onRegenerate: (messageId: number) => void;
   onRefunded?: () => void;
   onReportSubmitted?: (result: { status: "pending" | "approved" }) => void;
-  /** assistant — 영수증 왼쪽 글자수 (관리자·데모) */
-  lengthHint?: ReactNode;
   /** assistant — 본문 하단 우측 오류신고 */
   showReportRefund?: boolean;
   reportRefundPending?: boolean;
@@ -207,8 +204,8 @@ export default function MessageBubbleToolbar({
 
   return (
     <>
-      <div className={`${compact ? "mt-0.5" : "mt-1"} flex flex-col ${compact ? "gap-0.5" : "gap-1"}`}>
-        <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-0.5">
+      <div className={`${compact ? "mt-0" : "mt-0.5"} flex flex-col ${compact ? "gap-0.5" : "gap-1"}`}>
+        <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-0.5">
           <div className="flex flex-wrap items-start gap-0.5">
             {showRegenerate && role === "assistant" && (
               <button
@@ -283,9 +280,8 @@ export default function MessageBubbleToolbar({
             {variantPicker}
           </div>
 
-          {(lengthHint || showReportRefund || receipt) && (
-            <div className="ml-auto flex shrink-0 items-center gap-1.5">
-              {lengthHint}
+          {(showReportRefund || receipt) && (
+            <div className="ml-auto flex shrink-0 items-center gap-1 self-end">
               {showReportRefund && role === "assistant" && (
                 <ReportRefundButton
                   messageId={messageId}
