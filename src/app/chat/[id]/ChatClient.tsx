@@ -44,6 +44,10 @@ import {
   type CharacterAsset,
 } from "@/lib/characterAssets";
 import { resolveEmotionTag, stripEmotionTag, stripEmotionTagsForDisplay } from "@/lib/emotionTag";
+import {
+  loadUnlockedCharacterAssetUrls,
+  saveUnlockedCharacterAssetUrls,
+} from "@/lib/characterAssetUnlocks";
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
 import { stripInternalTagLeakage, stripRpMetaPreamble } from "@/lib/narrativeRules";
 import { stripRepeatedTrailingQuoteMarks } from "@/lib/trailingQuoteSanitizer";
@@ -668,9 +672,14 @@ export default function ChatClient({
   const [activePortraitTag, setActivePortraitTag] = useState<string | null>(
     () => initialPortrait.activeTag
   );
-  const unlockedUrlsRef = useRef<Set<string>>(initialPortrait.unlocked);
+  const initialUnlockedUrls = useMemo(() => {
+    const next = new Set(initialPortrait.unlocked);
+    for (const url of loadUnlockedCharacterAssetUrls(character.id)) next.add(url);
+    return next;
+  }, [character.id, initialPortrait]);
+  const unlockedUrlsRef = useRef<Set<string>>(initialUnlockedUrls);
   const [unlockedUrls, setUnlockedUrls] = useState<Set<string>>(
-    () => new Set(initialPortrait.unlocked)
+    () => new Set(initialUnlockedUrls)
   );
   const [displayPrefs, setDisplayPrefs] = useState<ChatDisplayPrefs>(
     () => initialDisplayPrefs ?? DEFAULT_CHAT_DISPLAY_PREFS
@@ -1023,6 +1032,7 @@ export default function ChatClient({
 
     if (wasLocked) {
       unlockedUrlsRef.current.add(asset.url);
+      saveUnlockedCharacterAssetUrls(character.id, unlockedUrlsRef.current);
       setUnlockedUrls(new Set(unlockedUrlsRef.current));
       if (showUnlockNotice) {
         setToastMsg(`「${asset.tag}」 표정 이미지가 해금되었습니다`);
@@ -1257,11 +1267,16 @@ export default function ChatClient({
     if (portraitRoomRef.current === initialChatId) return;
     portraitRoomRef.current = initialChatId;
     const scanned = scanMessagesForPortrait(initialMessages, assets, isCharacterCreator);
+    const nextUnlocked = new Set(scanned.unlocked);
+    for (const url of loadUnlockedCharacterAssetUrls(character.id)) nextUnlocked.add(url);
+    if (scanned.unlocked.size > 0) {
+      saveUnlockedCharacterAssetUrls(character.id, nextUnlocked);
+    }
     setActivePortraitUrl(scanned.activeUrl);
     setActivePortraitTag(scanned.activeTag);
-    unlockedUrlsRef.current = scanned.unlocked;
-    setUnlockedUrls(new Set(scanned.unlocked));
-  }, [initialChatId, initialMessages, assets, isCharacterCreator]);
+    unlockedUrlsRef.current = nextUnlocked;
+    setUnlockedUrls(new Set(nextUnlocked));
+  }, [initialChatId, initialMessages, assets, isCharacterCreator, character.id]);
 
   useEffect(() => {
     displayPrefsRef.current = displayPrefs;

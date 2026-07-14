@@ -4,8 +4,6 @@ import Link from "next/link";
 import { useState } from "react";
 import {
   ATTENDANCE_CYCLE_DAYS,
-  ATTENDANCE_DAY7_BONUS,
-  ATTENDANCE_DAY_REWARDS,
   formatAttendanceDayRewardLabel,
 } from "@/lib/attendanceConstants";
 import { dispatchPointsRefunded } from "@/lib/pointsEvents";
@@ -58,16 +56,11 @@ export default function AttendanceBanner({ loggedIn, initialCheckedIn, initialSt
     }
   }
 
-  const rewardSummary = ATTENDANCE_DAY_REWARDS.map((p, i) =>
-    i === ATTENDANCE_CYCLE_DAYS - 1 ? `${p}+${ATTENDANCE_DAY7_BONUS}` : String(p)
-  ).join(" · ");
-
   return (
     <div className="mt-2 rounded-2xl bg-gradient-to-r from-amber-900/50 via-orange-900/40 to-violet-900/50 p-6">
       <h1 className="text-2xl font-black text-white">매일 출석하고 무료 포인트 받기</h1>
       <p className="mt-1 text-sm text-gray-300">
-        매주 월요일 1일차부터 시작 · 연속 출석이 아니어도 이번 주 출석 순서대로 지급 ·{" "}
-        <span className="font-bold text-amber-300">{rewardSummary}P</span>
+        매주 월요일 1일차부터 시작 · 연속 출석이 아니어도 이번 주 출석 순서대로 지급
       </p>
 
       <div className="mt-5 grid grid-cols-7 gap-2" aria-label="주간 출석 차트">
