@@ -3070,8 +3070,16 @@ export default function ChatClient({
   }
 
   const handleDisplayPrefsChange = useCallback((next: ChatDisplayPrefs) => {
+    const scrollY = typeof window === "undefined" ? null : window.scrollY;
+    followStreamRef.current = false;
+    userScrollLockRef.current = true;
     setDisplayPrefs(next);
     saveChatDisplayPrefs(next);
+    if (scrollY != null) {
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: scrollY, behavior: "instant" });
+      });
+    }
   }, []);
 
   function renderSettingsPanel(layout: "rail" | "drawer", onClose?: () => void) {
@@ -3669,7 +3677,7 @@ export default function ChatClient({
       </div>
 
       <aside
-        className={`sticky ${CHAT_ROOM_HEADER_OFFSET_CLASS} z-20 hidden w-16 shrink-0 flex-col gap-1 self-start overflow-y-auto px-1 py-2 md:flex md:w-[68px]`}
+        className={`sticky ${CHAT_ROOM_HEADER_OFFSET_CLASS} z-40 hidden w-16 shrink-0 flex-col gap-1 self-start overflow-visible px-1 py-2 md:flex md:w-[68px]`}
       >
         <ChatRoomDisplayQuickRail
           displayPrefs={displayPrefs}
