@@ -672,6 +672,8 @@ export default function ChatClient({
   const [activePortraitTag, setActivePortraitTag] = useState<string | null>(
     () => initialPortrait.activeTag
   );
+  const [portraitPinned, setPortraitPinned] = useState(false);
+  const portraitPinnedRef = useRef(false);
   const initialUnlockedUrls = useMemo(() => {
     const next = new Set(initialPortrait.unlocked);
     for (const url of loadUnlockedCharacterAssetUrls(character.id)) next.add(url);
@@ -1039,9 +1041,20 @@ export default function ChatClient({
       }
     }
 
+    if (portraitPinnedRef.current) return;
     setActivePortraitUrl(asset.url);
     setActivePortraitTag(asset.tag);
   };
+
+  const handlePortraitSelected = useCallback((asset: CharacterAsset) => {
+    setActivePortraitUrl(asset.url);
+    setActivePortraitTag(asset.tag);
+  }, []);
+
+  const handlePortraitPinnedChange = useCallback((next: boolean) => {
+    portraitPinnedRef.current = next;
+    setPortraitPinned(next);
+  }, []);
 
   const { lastUserIdx, lastAssistantIdx } = useMemo(
     () => findLastTurnIndices(messages),
@@ -3168,6 +3181,9 @@ export default function ChatClient({
               activeUrl={activePortraitUrl}
               unlockedUrls={unlockedUrls}
               viewerIsCreator={isCharacterCreator}
+              pinned={portraitPinned}
+              onPinnedChange={handlePortraitPinnedChange}
+              onActiveAssetChange={handlePortraitSelected}
             />
           </div>
         )}
