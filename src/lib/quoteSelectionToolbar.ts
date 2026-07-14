@@ -2,18 +2,20 @@ export type QuoteToolbarPoint = { x: number; y: number };
 
 export function clampQuoteToolbarPosition(
   point: QuoteToolbarPoint,
-  viewport: { width: number; height: number },
+  viewport: { width: number; height: number; offsetLeft?: number; offsetTop?: number },
   opts: { offset?: number; toolbarWidth?: number; toolbarHeight?: number; margin?: number } = {}
 ): QuoteToolbarPoint {
   const offset = opts.offset ?? 14;
   const toolbarWidth = opts.toolbarWidth ?? 112;
   const toolbarHeight = opts.toolbarHeight ?? 40;
   const margin = opts.margin ?? 8;
-  const maxX = Math.max(margin, viewport.width - toolbarWidth - margin);
-  const maxY = Math.max(margin, viewport.height - toolbarHeight - margin);
+  const minX = (viewport.offsetLeft ?? 0) + margin;
+  const minY = (viewport.offsetTop ?? 0) + margin;
+  const maxX = Math.max(minX, (viewport.offsetLeft ?? 0) + viewport.width - toolbarWidth - margin);
+  const maxY = Math.max(minY, (viewport.offsetTop ?? 0) + viewport.height - toolbarHeight - margin);
   return {
-    x: Math.min(maxX, Math.max(margin, point.x + offset)),
-    y: Math.min(maxY, Math.max(margin, point.y + offset)),
+    x: Math.min(maxX, Math.max(minX, point.x + offset)),
+    y: Math.min(maxY, Math.max(minY, point.y + offset)),
   };
 }
 

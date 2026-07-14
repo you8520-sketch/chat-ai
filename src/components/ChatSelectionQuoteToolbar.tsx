@@ -88,7 +88,25 @@ export default function ChatSelectionQuoteToolbar({
   const selectionSchedulerRef = useRef<ReturnType<typeof createCoalescedSelectionScheduler> | null>(null);
   const lastSelectionSignatureRef = useRef<string>("");
   const toolbarPointerActiveRef = useRef(false);
+  const toolbarPointerSafetyTimerRef = useRef<number | null>(null);
   const fontRenderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const resetToolbarPointerActive = useCallback(() => {
+    toolbarPointerActiveRef.current = false;
+    if (toolbarPointerSafetyTimerRef.current) {
+      clearTimeout(toolbarPointerSafetyTimerRef.current);
+      toolbarPointerSafetyTimerRef.current = null;
+    }
+  }, []);
+
+  const markToolbarPointerActive = useCallback(() => {
+    resetToolbarPointerActive();
+    toolbarPointerActiveRef.current = true;
+    toolbarPointerSafetyTimerRef.current = window.setTimeout(() => {
+      toolbarPointerActiveRef.current = false;
+      toolbarPointerSafetyTimerRef.current = null;
+    }, 1200);
+  }, [resetToolbarPointerActive]);
 
   const canNativeShare =
     typeof navigator !== "undefined" &&
@@ -225,8 +243,14 @@ export default function ChatSelectionQuoteToolbar({
         clearTimeout(fontRenderTimerRef.current);
       }
       selectionSchedulerRef.current?.cancel();
+      resetToolbarPointerActive();
     };
-  }, []);
+  }, [resetToolbarPointerActive]);
+
+  useEffect(() => {
+    window.addEventListener("blur", resetToolbarPointerActive);
+    return () => window.removeEventListener("blur", resetToolbarPointerActive);
+  }, [resetToolbarPointerActive]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -267,7 +291,12 @@ export default function ChatSelectionQuoteToolbar({
       const viewport = window.visualViewport;
       const clamped = clampQuoteToolbarPosition(
         { x: cursorX ?? anchor.x, y: cursorY ?? anchor.y },
-        { width: viewport?.width ?? window.innerWidth, height: viewport?.height ?? window.innerHeight },
+        {
+          width: viewport?.width ?? window.innerWidth,
+          height: viewport?.height ?? window.innerHeight,
+          offsetLeft: viewport?.offsetLeft ?? 0,
+          offsetTop: viewport?.offsetTop ?? 0,
+        },
         { offset: CURSOR_OFFSET }
       );
       const signature = `${text}|${range.startOffset}|${range.endOffset}|${Math.round(clamped.x)}|${Math.round(clamped.y)}`;
@@ -332,6 +361,7 @@ export default function ChatSelectionQuoteToolbar({
       container.removeEventListener("touchend", onTouchEnd);
       document.removeEventListener("selectionchange", onSelectionChange);
       selectionSchedulerRef.current?.cancel();
+      resetToolbarPointerActive();
     };
   }, [containerRef, disabled, modalOpen, clearAll]);
 
@@ -375,9 +405,12 @@ export default function ChatSelectionQuoteToolbar({
         let shared = false;
         try {
           shared = await shareQuoteCardPng(preview.blob);
-        } catch {
+        } catch (err) {
           fallbackWindow?.close();
-          onToast("공유가 취소되었거나 실패했습니다. 다시 시도해 주세요.");
+          const name = err instanceof DOMException || err instanceof Error ? err.name : "";
+          if (name !== "AbortError") {
+            onToast("공유에 실패했습니다. 저장 버튼으로 다시 시도해 주세요.");
+          }
           return;
         }
         if (shared) {
@@ -386,15 +419,19 @@ export default function ChatSelectionQuoteToolbar({
           return;
         }
         const result = saveQuoteCardPngWithFallback(preview.blob, "quote.png", fallbackWindow);
+        if (result === "blocked") fallbackWindow?.close();
         onToast(result === "opened" ? "이미지를 새 탭으로 열었습니다. 길게 눌러 저장해 주세요." : result === "blocked" ? "새 탭 열기가 차단되었습니다. 브라우저 공유 또는 이미지를 길게 눌러 저장해 주세요." : "이미지를 저장했습니다. (공유 미지원)");
       } else {
         const result = saveQuoteCardPngWithFallback(preview.blob, "quote.png", fallbackWindow);
+        if (result === "blocked") fallbackWindow?.close();
         onToast(result === "opened" ? "이미지를 새 탭으로 열었습니다. 길게 눌러 저장해 주세요." : result === "blocked" ? "새 탭 열기가 차단되었습니다. 브라우저 공유 또는 이미지를 길게 눌러 저장해 주세요." : "이미지를 저장했습니다.");
       }
       clearAll();
     } catch {
+      fallbackWindow?.close();
       onToast("이미지 만들기에 실패했습니다.");
     } finally {
+      resetToolbarPointerActive();
       setBusy(false);
     }
   }
@@ -414,15 +451,21 @@ export default function ChatSelectionQuoteToolbar({
           type="button"
           data-quote-ui
           onClick={() => {
-            openPreviewModal();
-            window.setTimeout(() => { toolbarPointerActiveRef.current = false; }, 0);
+            try {
+              openPreviewModal();
+            } finally {
+              window.setTimeout(resetToolbarPointerActive, 0);
+            }
           }}
           className="fixed z-[85] rounded-lg border border-violet-400/50 bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white shadow-[0_0_16px_rgba(139,92,246,0.45)] transition hover:bg-violet-500"
           data-quote-toolbar
-          onPointerDown={() => { toolbarPointerActiveRef.current = true; }}
-          onTouchStart={() => { toolbarPointerActiveRef.current = true; }}
-          onPointerCancel={() => { toolbarPointerActiveRef.current = false; }}
-          onBlur={() => { toolbarPointerActiveRef.current = false; }}
+          onPointerDown={markToolbarPointerActive}
+          onTouchStart={markToolbarPointerActive}
+          onPointerUp={resetToolbarPointerActive}
+          onTouchEnd={resetToolbarPointerActive}
+          onPointerCancel={resetToolbarPointerActive}
+          onTouchCancel={resetToolbarPointerActive}
+          onBlur={resetToolbarPointerActive}
           style={{
             left: pending.cursorX,
             top: pending.cursorY,

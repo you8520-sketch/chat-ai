@@ -14,6 +14,13 @@ describe("quoteSelectionToolbar", () => {
     );
   });
 
+  it("accounts for visualViewport offsets when clamping", () => {
+    assert.deepEqual(
+      clampQuoteToolbarPosition({ x: 20, y: 100 }, { width: 300, height: 500, offsetLeft: 50, offsetTop: 20 }),
+      { x: 58, y: 114 }
+    );
+  });
+
   it("coalesces consecutive selection events and cleans up timers", () => {
     let nextRaf = 1;
     const rafCallbacks = new Map<number, () => void>();
