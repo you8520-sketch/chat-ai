@@ -18,6 +18,7 @@ import { renderStatusWidgetHtml } from "@/lib/statusWidget/render";
 import {
   estimateStatusWidgetContextChars,
   formatWidgetBudgetHint,
+  STATUS_WIDGET_CONTEXT_MAX,
 } from "@/lib/statusWidget/contextBudget";
 import type { StatusWidget, StatusWidgetField } from "@/lib/statusWidget/types";
 
@@ -67,6 +68,8 @@ export default function StatusWidgetEditor({
     () => estimateStatusWidgetContextChars(value),
     [value],
   );
+
+  const widgetBudgetNearLimit = widgetReservedChars >= STATUS_WIDGET_CONTEXT_MAX * 0.85;
 
   const previewHtml = useMemo(
     () =>
@@ -190,7 +193,13 @@ export default function StatusWidgetEditor({
         ))}
       </div>
 
-      <p className="text-xs text-zinc-400">
+      <p
+        className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+          widgetBudgetNearLimit
+            ? "border-rose-500/50 bg-rose-500/10 text-rose-200 shadow-[0_0_18px_rgba(244,63,94,0.16)]"
+            : "border-white/10 bg-white/[0.03] text-zinc-400"
+        }`}
+      >
         {formatWidgetBudgetHint(widgetReservedChars)}
       </p>
 

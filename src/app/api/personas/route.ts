@@ -9,6 +9,7 @@ import {
   sanitizePersonaInput,
   validatePersonaContentLength,
 } from "@/lib/userPersonas";
+import { USER_PERSONA_MAX_COUNT } from "@/lib/persona";
 
 export async function GET() {
   const user = await getSessionUser();
@@ -44,6 +45,16 @@ export async function POST(req: Request) {
   }
 
   const db = getDb();
+  const personaCount = (db.prepare("SELECT COUNT(*) AS c FROM user_personas WHERE user_id=?").get(user.id) as {
+    c: number;
+  }).c;
+  if (personaCount >= USER_PERSONA_MAX_COUNT) {
+    return NextResponse.json(
+      { error: `페르소나는 최대 ${USER_PERSONA_MAX_COUNT.toLocaleString()}개까지 만들 수 있습니다.` },
+      { status: 400 }
+    );
+  }
+
   const info = db
     .prepare(
       "INSERT INTO user_personas (user_id, name, memo, gender, description, speech_examples) VALUES (?,?,?,?,?,?)"
