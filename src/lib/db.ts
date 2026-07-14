@@ -290,6 +290,35 @@ function migrate(db: Database.Database) {
     JOIN posts p ON p.board='notice' AND p.id <= u.notice_last_read_id
     WHERE u.notice_last_read_id > 0
   `);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS home_popup_notices (
+      id INTEGER PRIMARY KEY CHECK(id = 1),
+      enabled INTEGER NOT NULL DEFAULT 1,
+      title TEXT NOT NULL DEFAULT '',
+      content TEXT NOT NULL DEFAULT '',
+      background_color TEXT NOT NULL DEFAULT '#17111f',
+      image_url TEXT NOT NULL DEFAULT '',
+      starts_at TEXT,
+      ends_at TEXT,
+      updated_by INTEGER,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+  db.exec(`
+    INSERT OR IGNORE INTO home_popup_notices (
+      id, enabled, title, content, background_color, image_url, starts_at, ends_at
+    ) VALUES (
+      1,
+      1,
+      '작업 안내',
+      '레이아웃을 만지다가 이미지 에셋이 안 뜨는 상황을 인식 중입니다.\n에셋을 손보고, 에셋 앨범을 볼 수 있도록 만들겠습니다.',
+      '#21183a',
+      '',
+      datetime('now'),
+      datetime('now', '+14 days')
+    );
+  `);
   addColumn("characters", "audience", "TEXT NOT NULL DEFAULT 'all'");
   addColumn("characters", "gender", "TEXT NOT NULL DEFAULT 'other'");
   addColumn("users", "persona_name", "TEXT NOT NULL DEFAULT ''");

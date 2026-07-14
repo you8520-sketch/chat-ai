@@ -2,10 +2,12 @@ import Link from "next/link";
 import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import HomeCreateEventBanner from "@/components/HomeCreateEventBanner";
+import HomePopupNotice from "@/components/HomePopupNotice";
 import CharacterCard, { type CharacterRow } from "@/components/CharacterCard";
 import HorizontalScrollRow from "@/components/HorizontalScrollRow";
 import UserPreferenceControls from "@/components/UserPreferenceControls";
 import { fetchHomeSections } from "@/lib/homeSections";
+import { getActiveHomePopupNotice } from "@/lib/homePopupNotice";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 
 export const dynamic = "force-dynamic";
@@ -93,9 +95,11 @@ export default async function Home() {
   const loggedIn = !!user;
 
   const { recommended, contest, newest } = fetchHomeSections(db, user, blurNsfw);
+  const popupNotice = getActiveHomePopupNotice(db);
 
   return (
     <div className="pb-2">
+      <HomePopupNotice notice={popupNotice} />
       <HomeCreateEventBanner />
       <div className="mt-6">
         <UserPreferenceControls

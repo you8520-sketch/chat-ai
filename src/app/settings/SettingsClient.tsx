@@ -199,6 +199,12 @@ export default function SettingsClient({ user, unreadNotice = false }: Props) {
             >
               문의 게시판 관리
             </Link>
+            <Link
+              href="/admin/home-popup-notice"
+              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-200 hover:bg-white/5"
+            >
+              홈 팝업 공지
+            </Link>
           </div>
         </section>
       )}
