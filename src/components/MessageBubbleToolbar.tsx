@@ -204,7 +204,10 @@ export default function MessageBubbleToolbar({
 
   return (
     <>
-      <div data-chat-message-toolbar="true" className="mt-0 flex flex-col gap-0">
+      <div data-chat-message-toolbar="true" className="relative mt-0 flex flex-col gap-0">
+        {variantPicker ? (
+          <div className="absolute left-0 -top-7 z-10">{variantPicker}</div>
+        ) : null}
         <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-0.5">
           <div className="flex flex-wrap items-start gap-0.5">
             {showRegenerate && role === "assistant" && (
@@ -277,7 +280,6 @@ export default function MessageBubbleToolbar({
                 onSubmit={() => void feedback.submitFeedback()}
               />
             )}
-            {variantPicker}
           </div>
 
           {(showReportRefund || receipt) && (
