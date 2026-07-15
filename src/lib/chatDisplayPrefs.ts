@@ -280,11 +280,12 @@ export const CHAT_MESSAGES_BODY_NO_PORTRAIT_CLASS =
   "flex min-h-0 flex-1 flex-col justify-end bg-[#121212] px-2 pt-1 pb-0 sm:px-0";
 
 /** 초상 OFF — 메시지 목록 간격 */
-export const CHAT_MESSAGES_LIST_NO_PORTRAIT_CLASS = "min-w-0 space-y-1";
+export const CHAT_MESSAGES_LIST_NO_PORTRAIT_CLASS =
+  "min-w-0 space-y-1 pb-12 sm:pb-0";
 
 /** 초상 OFF — 입력창 (본문과 간격 최소) */
 export const CHAT_INPUT_DOCK_NO_PORTRAIT_CLASS =
-  "sticky bottom-12 z-10 shrink-0 border-t border-white/5 bg-[#121212]/95 px-2 pt-1 pb-1.5 backdrop-blur sm:bottom-0 sm:px-0";
+  "sticky bottom-12 z-10 shrink-0 border-t border-white/5 bg-[#121212]/95 px-2 pt-0 pb-1.5 backdrop-blur sm:-mt-1 sm:bottom-0 sm:px-0";
 
 /** @deprecated 초상 그리드 레이아웃에서 미사용 */
 export const CHAT_CONTENT_ROW_TOP_PAD_CLASS = "";

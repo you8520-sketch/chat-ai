@@ -3382,7 +3382,7 @@ export default function ChatClient({
             ref={quoteSelectContainerRef}
             className={
               showCharacterPortrait
-                ? "min-w-0 space-y-1 pb-2 sm:space-y-2 sm:pb-0"
+                ? "min-w-0 space-y-1 pb-8 sm:space-y-2 sm:pb-0"
                 : CHAT_MESSAGES_LIST_NO_PORTRAIT_CLASS
             }
           >
@@ -3717,7 +3717,7 @@ export default function ChatClient({
         ref={inputDockRef}
         className={
           showCharacterPortrait
-            ? "sticky bottom-12 z-20 shrink-0 overflow-visible border-t border-white/5 bg-[#121212]/88 px-2 pt-1 pb-1.5 backdrop-blur-sm sm:bottom-0 sm:bg-[#121212] sm:px-0 sm:py-2 sm:backdrop-blur-none"
+            ? "sticky bottom-12 z-20 shrink-0 overflow-visible border-t border-white/5 bg-[#121212]/88 px-2 pt-0 pb-1.5 backdrop-blur-sm sm:-mt-2 sm:bottom-0 sm:bg-[#121212] sm:px-0 sm:pt-0 sm:pb-2 sm:backdrop-blur-none"
             : `${CHAT_INPUT_DOCK_NO_PORTRAIT_CLASS} overflow-visible`
         }
       >
