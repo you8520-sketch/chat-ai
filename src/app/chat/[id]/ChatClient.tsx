@@ -3207,7 +3207,7 @@ export default function ChatClient({
         }
       >
         {showCharacterPortrait && (
-          <div className="hidden sm:sticky sm:top-[var(--site-header-height,44px)] sm:z-20 sm:col-start-1 sm:row-start-1 sm:flex sm:h-[3.25rem] sm:w-full sm:items-center sm:justify-between sm:gap-3 sm:bg-[#121212] sm:pl-0 sm:pr-1">
+          <div className="hidden sm:sticky sm:top-[var(--site-header-height,44px)] sm:z-30 sm:col-span-2 sm:col-start-1 sm:row-start-1 sm:flex sm:h-[3.25rem] sm:w-full sm:items-center sm:justify-between sm:gap-3 sm:border-b sm:border-white/5 sm:bg-[#121212]/95 sm:pl-0 sm:pr-1 sm:backdrop-blur">
             <div className="flex min-w-0 items-baseline gap-2">
               <button
                 type="button"
@@ -3361,7 +3361,11 @@ export default function ChatClient({
         <div className={chatMessageAreaLayoutClass(showCharacterPortrait)}>
           <div
             ref={quoteSelectContainerRef}
-            className={showCharacterPortrait ? "min-w-0 space-y-2" : CHAT_MESSAGES_LIST_NO_PORTRAIT_CLASS}
+            className={
+              showCharacterPortrait
+                ? "min-w-0 space-y-2 pb-36 sm:pb-0"
+                : CHAT_MESSAGES_LIST_NO_PORTRAIT_CLASS
+            }
           >
           {hasMoreOlder && (
             <div className="mb-6 flex flex-col items-center gap-1">

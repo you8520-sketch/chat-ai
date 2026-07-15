@@ -227,7 +227,8 @@ export const CHAT_PORTRAIT_COLUMN_WIDTH_CLASS = "w-auto shrink-0";
 export const CHAT_GLOBAL_HEADER_OFFSET_CLASS = "top-[92px]";
 
 /** 채팅방 Header — 탭 행 숨김, 공지·유저 바만 (md+). 모바일은 글로벌 헤더 숨김 */
-export const CHAT_ROOM_HEADER_OFFSET_CLASS = "top-0 md:top-[var(--site-header-height,44px)]";
+export const CHAT_ROOM_HEADER_OFFSET_CLASS =
+  "top-0 md:top-[calc(var(--site-header-height,44px)+3.25rem)]";
 
 export function isChatRoomPathname(pathname: string): boolean {
   return /^\/chat\/\d+/.test(pathname);
