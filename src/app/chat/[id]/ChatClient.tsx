@@ -3203,7 +3203,7 @@ export default function ChatClient({
               </button>
             </div>
             <iframe
-              src={`/character/${character.id}`}
+              src={`/character/${character.id}?embed=chat-intro`}
               title={`${character.name} 소개`}
               className="min-h-0 flex-1 border-0 bg-[#121212]"
             />

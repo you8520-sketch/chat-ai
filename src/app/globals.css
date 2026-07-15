@@ -313,6 +313,22 @@ html.chat-room-active .site-header {
   display: none;
 }
 
+html.character-intro-embed-active .site-header,
+html.character-intro-embed-active .app-shell > :not(main) {
+  display: none;
+}
+
+html.character-intro-embed-active .app-shell {
+  max-width: none;
+  gap: 0;
+  padding: 0;
+}
+
+html.character-intro-embed-active .app-shell > main {
+  min-height: 0;
+  width: 100%;
+}
+
 html.chat-room-active .app-shell {
   overflow: visible;
   overflow-anchor: none;
