@@ -204,7 +204,7 @@ export default function MessageBubbleToolbar({
 
   return (
     <>
-      <div className="mt-0 flex flex-col gap-0">
+      <div data-chat-message-toolbar="true" className="mt-0 flex flex-col gap-0">
         <div className="flex flex-wrap items-end justify-between gap-x-2 gap-y-0.5">
           <div className="flex flex-wrap items-start gap-0.5">
             {showRegenerate && role === "assistant" && (
