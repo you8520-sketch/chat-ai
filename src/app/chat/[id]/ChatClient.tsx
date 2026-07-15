@@ -3363,7 +3363,7 @@ export default function ChatClient({
             ref={quoteSelectContainerRef}
             className={
               showCharacterPortrait
-                ? "min-w-0 space-y-2 pb-36 sm:pb-0"
+                ? "min-w-0 space-y-1 pb-2 sm:space-y-2 sm:pb-0"
                 : CHAT_MESSAGES_LIST_NO_PORTRAIT_CLASS
             }
           >
@@ -3698,12 +3698,12 @@ export default function ChatClient({
         ref={inputDockRef}
         className={
           showCharacterPortrait
-            ? "sticky bottom-12 z-20 shrink-0 overflow-visible border-t border-white/5 bg-[#121212]/88 px-2 py-2 backdrop-blur-sm sm:bottom-0 sm:bg-[#121212] sm:px-0 sm:backdrop-blur-none"
+            ? "sticky bottom-12 z-20 shrink-0 overflow-visible border-t border-white/5 bg-[#121212]/88 px-2 pt-1 pb-1.5 backdrop-blur-sm sm:bottom-0 sm:bg-[#121212] sm:px-0 sm:py-2 sm:backdrop-blur-none"
             : `${CHAT_INPUT_DOCK_NO_PORTRAIT_CLASS} overflow-visible`
         }
       >
         <FloatingPointsDeduction amount={floatDeductionAmount} trigger={floatDeductionTrigger} />
-        <div className={`flex flex-wrap items-center gap-2 overflow-visible ${showCharacterPortrait ? "mb-1.5" : "mb-1"}`}>
+        <div className={`flex flex-wrap items-center gap-2 overflow-visible ${showCharacterPortrait ? "mb-1" : "mb-1"}`}>
           <label className="flex items-center gap-1.5 text-[11px] text-zinc-400">
             <span className="shrink-0 font-semibold text-zinc-500">AI</span>
             <select
@@ -3740,8 +3740,8 @@ export default function ChatClient({
               disabled={inputLocked}
               rows={2}
               placeholder="메시지 입력 · 지문은 * * 또는 ( ) · Ctrl+Enter 전송"
-              className="min-h-[2.75rem] flex-1 resize-none rounded-lg border border-white/25 bg-[#1a1a1a] px-3 py-2 text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-violet-400/60 focus:ring-1 focus:ring-violet-500/35 disabled:cursor-not-allowed disabled:opacity-60"
-              style={{ fontSize: "var(--font-size-chat)", lineHeight: "var(--line-height-chat)" }}
+              className="min-h-[3.5rem] flex-1 resize-none rounded-lg border border-white/25 bg-[#1a1a1a] px-3 py-2.5 text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-violet-400/60 focus:ring-1 focus:ring-violet-500/35 disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-[2.75rem] sm:py-2"
+              style={{ fontSize: "calc(var(--font-size-chat) + 0.0625rem)", lineHeight: "var(--line-height-chat)" }}
             />
             <div className="flex shrink-0 flex-col gap-1">
               <button
