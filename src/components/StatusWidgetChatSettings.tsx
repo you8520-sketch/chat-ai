@@ -205,15 +205,8 @@ export default function StatusWidgetChatSettings({
     <section className="space-y-3 text-xs">
       <div>
         <h3 className="text-sm font-bold text-white">상태창</h3>
-        <p className="mt-1 text-[10px] leading-relaxed text-zinc-500">
-          HTML은 페르소나 페이지에서 제작 · AI는 값만 채웁니다.
-        </p>
-        <p className="mt-2 text-[10px] leading-relaxed text-amber-200/90">
-          제작자 상태값은 캐릭터 기억과 이벤트 조건에 사용되므로 내부적으로 항상 유지됩니다. 내
-          커스텀 상태창은 화면 표시 방식을 바꾸는 기능입니다.
-        </p>
         <p
-          className={`mt-2 rounded-md border px-2.5 py-1.5 text-[10px] font-semibold transition ${
+          className={`mt-1 rounded-md border px-2.5 py-1.5 text-[10px] font-semibold transition ${
             widgetBudgetNearLimit
               ? "border-rose-500/50 bg-rose-500/10 text-rose-200"
               : "border-violet-500/20 bg-violet-500/5 text-violet-300/90"
@@ -224,19 +217,6 @@ export default function StatusWidgetChatSettings({
       </div>
 
       <div className="space-y-2">
-        {hasCharacterWidget ? (
-          <div className="rounded-lg border border-emerald-500/25 bg-emerald-500/5 px-3 py-2.5">
-            <p className="text-xs font-semibold text-emerald-200">제작자 상태 · 엔진 필수</p>
-            <p className="mt-0.5 text-[10px] leading-relaxed text-zinc-500">
-              캐릭터에 설정된 상태값은 매 턴 생성·저장됩니다. 끌 수 없습니다.
-            </p>
-          </div>
-        ) : (
-          <p className="rounded-lg border border-white/10 bg-[#0e1120] px-3 py-2.5 text-[10px] text-zinc-500">
-            이 캐릭터에 제작자 상태창이 없습니다.
-          </p>
-        )}
-
         <div className="space-y-1.5">
           <p className="text-[11px] font-semibold text-zinc-300">화면 표시</p>
           {DISPLAY_OPTIONS.map((opt) => {
