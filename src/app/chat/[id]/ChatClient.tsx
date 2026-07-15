@@ -607,7 +607,7 @@ export default function ChatClient({
   characterWidgetAllowUserOverride = true,
   showFullBillingReceipt = false,
 }: {
-  character: { id: number; name: string; emoji: string; hue: number; nsfw: number };
+  character: { id: number; name: string; emoji: string; hue: number; nsfw: number; official?: number };
   creatorName: string;
   creatorId: number | null;
   assets: CharacterAsset[];
@@ -643,6 +643,22 @@ export default function ChatClient({
   showFullBillingReceipt?: boolean;
 }) {
   const router = useRouter();
+  const isOfficialCharacter = Number(character.official) === 1;
+  const creatorNameDesktopClass = `max-w-32 shrink-0 truncate text-xs underline-offset-2 transition hover:underline ${
+    isOfficialCharacter
+      ? "font-extrabold text-violet-200 drop-shadow-[0_0_8px_rgba(167,139,250,0.35)] hover:text-white"
+      : "font-medium text-zinc-500 hover:text-zinc-300"
+  }`;
+  const creatorNameMobileClass = `max-w-20 shrink-0 truncate text-[10px] underline-offset-2 transition hover:underline sm:max-w-none sm:text-xs ${
+    isOfficialCharacter
+      ? "font-bold text-violet-200 drop-shadow-[0_0_8px_rgba(167,139,250,0.35)] hover:text-white"
+      : "text-zinc-500 hover:text-zinc-300"
+  }`;
+  const creatorNameRailClass = `mt-0.5 block max-w-full truncate text-[11px] underline-offset-2 transition hover:underline ${
+    isOfficialCharacter
+      ? "font-extrabold text-violet-200 drop-shadow-[0_0_8px_rgba(167,139,250,0.35)] hover:text-white"
+      : "font-medium text-zinc-500 hover:text-zinc-300"
+  }`;
   const [messages, setMessages] = useState<Msg[]>(initialMessages);
   const statusMetaPollStartedRef = useRef<Set<number>>(new Set());
   const [hasMoreOlder, setHasMoreOlder] = useState(initialHasMoreOlder);
@@ -3238,13 +3254,13 @@ export default function ChatClient({
             {creatorId != null && creatorId > 0 ? (
               <Link
                 href={`/creator/${creatorId}`}
-                className="max-w-32 shrink-0 truncate text-xs font-medium text-zinc-500 underline-offset-2 transition hover:text-zinc-300 hover:underline"
+                className={creatorNameDesktopClass}
                 title="제작자 페이지"
               >
                 {creatorName}
               </Link>
             ) : creatorName ? (
-              <span className="max-w-32 shrink-0 truncate text-xs font-medium text-zinc-500">
+              <span className={creatorNameDesktopClass}>
                 {creatorName}
               </span>
             ) : null}
@@ -3309,13 +3325,13 @@ export default function ChatClient({
               <Link
                 href={`/creator/${creatorId}`}
                 title="제작자 페이지"
-                className="max-w-20 shrink-0 truncate text-[10px] text-zinc-500 underline-offset-2 transition hover:text-zinc-300 hover:underline sm:max-w-none sm:text-xs"
+                className={creatorNameMobileClass}
               >
                 {creatorName}
               </Link>
             ) : (
               creatorName ? (
-                <span className="max-w-20 shrink-0 truncate text-[10px] text-zinc-500 sm:max-w-none sm:text-xs">
+                <span className={creatorNameMobileClass}>
                   {creatorName}
                 </span>
               ) : null
@@ -3791,7 +3807,10 @@ export default function ChatClient({
             </span>
             <span className="text-[10px] text-zinc-500"> · Ctrl+Enter 전송</span>
             {canContinue && !loading && (
-              <span className="text-[10px] text-violet-400/80"> · 자동진행으로 서사 진행 가능</span>
+              <span className="text-[10px] text-violet-400/80">
+                {" "}
+                · 자동진행시 유저의 대사와 행동도 함께 서술합니다
+              </span>
             )}
           </p>
         </div>
@@ -3816,13 +3835,13 @@ export default function ChatClient({
             {creatorId != null && creatorId > 0 ? (
               <Link
                 href={`/creator/${creatorId}`}
-                className="mt-0.5 block max-w-full truncate text-[11px] font-medium text-zinc-500 underline-offset-2 transition hover:text-zinc-300 hover:underline"
+                className={creatorNameRailClass}
                 title="제작자 페이지"
               >
                 {creatorName}
               </Link>
             ) : creatorName ? (
-              <p className="mt-0.5 truncate text-[11px] font-medium text-zinc-500">{creatorName}</p>
+              <p className={creatorNameRailClass}>{creatorName}</p>
             ) : null}
           </div>
           <button
