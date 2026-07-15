@@ -40,6 +40,7 @@ import type { MessageVariant } from "@/lib/messageAlternates";
 import {
   assetByUrl,
   findAssetByTag,
+  findAssetsByTag,
   getDefaultChatAsset,
   shouldBlurAssetForViewer,
   type CharacterAsset,
@@ -558,7 +559,11 @@ function scanMessagesForPortrait(
     if (!resolved) continue;
     const asset = findAssetByTag(assets, resolved);
     if (!asset) continue;
-    if (!isCharacterCreator && asset.viewerBlur) unlocked.add(asset.url);
+    if (!isCharacterCreator) {
+      for (const matched of findAssetsByTag(assets, resolved)) {
+        if (matched.viewerBlur) unlocked.add(matched.url);
+      }
+    }
     activeUrl = asset.url;
     activeTag = asset.tag;
   }
@@ -573,6 +578,7 @@ export default function ChatClient({
   assets,
   initialChatId,
   initialMessages,
+  initialUnlockedAssetUrls = [],
   initialBookmarkedIds,
   initialScrollMessageId = null,
   initialMode,
@@ -607,6 +613,7 @@ export default function ChatClient({
   assets: CharacterAsset[];
   initialChatId: number | null;
   initialMessages: Msg[];
+  initialUnlockedAssetUrls?: string[];
   initialHasMoreOlder?: boolean;
   initialHiddenTurnCount?: number;
   initialBookmarkedIds: number[];
@@ -680,9 +687,10 @@ export default function ChatClient({
   const portraitPinnedRef = useRef(false);
   const initialUnlockedUrls = useMemo(() => {
     const next = new Set(initialPortrait.unlocked);
+    for (const url of initialUnlockedAssetUrls) next.add(url);
     for (const url of loadUnlockedCharacterAssetUrls(character.id)) next.add(url);
     return next;
-  }, [character.id, initialPortrait]);
+  }, [character.id, initialPortrait, initialUnlockedAssetUrls]);
   const unlockedUrlsRef = useRef<Set<string>>(initialUnlockedUrls);
   const [unlockedUrls, setUnlockedUrls] = useState<Set<string>>(
     () => new Set(initialUnlockedUrls)
@@ -1285,15 +1293,16 @@ export default function ChatClient({
     portraitRoomRef.current = initialChatId;
     const scanned = scanMessagesForPortrait(initialMessages, assets, isCharacterCreator);
     const nextUnlocked = new Set(scanned.unlocked);
+    for (const url of initialUnlockedAssetUrls) nextUnlocked.add(url);
     for (const url of loadUnlockedCharacterAssetUrls(character.id)) nextUnlocked.add(url);
-    if (scanned.unlocked.size > 0) {
+    if (scanned.unlocked.size > 0 || initialUnlockedAssetUrls.length > 0) {
       saveUnlockedCharacterAssetUrls(character.id, nextUnlocked);
     }
     setActivePortraitUrl(scanned.activeUrl);
     setActivePortraitTag(scanned.activeTag);
     unlockedUrlsRef.current = nextUnlocked;
     setUnlockedUrls(new Set(nextUnlocked));
-  }, [initialChatId, initialMessages, assets, isCharacterCreator, character.id]);
+  }, [initialChatId, initialMessages, assets, isCharacterCreator, character.id, initialUnlockedAssetUrls]);
 
   useEffect(() => {
     displayPrefsRef.current = displayPrefs;
