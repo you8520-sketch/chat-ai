@@ -90,11 +90,16 @@ function pickRandomAsset<T>(items: T[]): T | null {
 
 /** 태그명으로 chat 에셋 찾기 — 동일 태그가 여러 장이면 그중 무작위 1장 */
 export function findAssetByTag(assets: CharacterAsset[], tag: string): CharacterAsset | null {
-  const pool = chatAssets(assets);
-  if (!pool.length || !tag.trim()) return null;
   const q = tag.trim();
-  const exactMatches = pool.filter((a) => a.tag === q);
+  const exactMatches = findAssetsByTag(assets, q);
   return pickRandomAsset(exactMatches);
+}
+
+export function findAssetsByTag(assets: CharacterAsset[], tag: string): CharacterAsset[] {
+  const pool = chatAssets(assets);
+  const q = tag.trim();
+  if (!pool.length || !q) return [];
+  return pool.filter((a) => a.tag === q);
 }
 
 /** 태그명으로 에셋 URL 찾기 (부분 일치 포함, chat 활성 에셋만) */

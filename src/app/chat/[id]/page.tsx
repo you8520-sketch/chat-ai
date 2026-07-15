@@ -6,7 +6,8 @@ import { getSessionUser } from "@/lib/auth";
 import { canShowFullBillingReceipt } from "@/lib/billingReceiptAccess";
 import { getReportStatusesForMessages } from "@/lib/refund";
 
-import { parseAssets, chatAssets } from "@/lib/characterAssets";
+import { findAssetsByTag, parseAssets, chatAssets, type CharacterAsset } from "@/lib/characterAssets";
+import { resolveEmotionTag, stripEmotionTag } from "@/lib/emotionTag";
 
 import { parseStatusMetaRecord } from "@/lib/statusMeta/types";
 import { normalizeMessageVariants, serializeVariantsForClient, resolveActiveVariantContent } from "@/lib/messageAlternates";
@@ -66,6 +67,29 @@ type ChatRow = {
   status_widget_stack_order?: string;
   status_widget_display_mode?: string;
 };
+
+function collectUnlockedAssetUrlsFromMessages(
+  messages: { role: string; content: string }[],
+  assets: CharacterAsset[],
+  isCharacterCreator: boolean
+): string[] {
+  if (isCharacterCreator || assets.length === 0) return [];
+  const allowed = assets.filter((asset) => asset.chat !== false).map((asset) => asset.tag);
+  const unlocked = new Set<string>();
+
+  for (const message of messages) {
+    if (message.role !== "assistant" || !message.content.trim()) continue;
+    const { tag } = stripEmotionTag(message.content);
+    if (!tag) continue;
+    const resolved = resolveEmotionTag(tag, allowed);
+    if (!resolved) continue;
+    for (const asset of findAssetsByTag(assets, resolved)) {
+      if (asset.viewerBlur === true) unlocked.add(asset.url);
+    }
+  }
+
+  return Array.from(unlocked);
+}
 
 export default async function ChatPage({
   params,
@@ -354,6 +378,12 @@ export default async function ChatPage({
     };
   });
 
+  const initialUnlockedAssetUrls = collectUnlockedAssetUrlsFromMessages(
+    allMessages,
+    assets,
+    isCharacterCreator
+  );
+
   const {
     messages,
     hasMoreOlder: initialHasMoreOlder,
@@ -402,6 +432,7 @@ export default async function ChatPage({
       assets={assets}
       initialChatId={chat.id}
       initialMessages={messages}
+      initialUnlockedAssetUrls={initialUnlockedAssetUrls}
       initialHasMoreOlder={initialHasMoreOlder}
       initialHiddenTurnCount={initialHiddenTurnCount}
       initialBookmarkedIds={bookmarkedIds}
