@@ -1331,8 +1331,12 @@ export default function ChatClient({
       if (!anchor || typeof window === "undefined") return;
       const dockH = getInputDockHeight();
       const dockBottom = getInputDockBottomOffset();
-      const pad = displayPrefs.showCharacterPortrait ? 12 : 2;
-      const rect = anchor.getBoundingClientRect();
+      const isMobile = !window.matchMedia("(min-width: 640px)").matches;
+      const toolbars = document.querySelectorAll<HTMLElement>('[data-chat-message-toolbar="true"]');
+      const targetElement =
+        toolbars && toolbars.length > 0 ? toolbars[toolbars.length - 1] : anchor;
+      const pad = isMobile ? 2 : displayPrefs.showCharacterPortrait ? 4 : 2;
+      const rect = targetElement.getBoundingClientRect();
       const targetBottom = window.innerHeight - dockH - dockBottom - pad;
       const delta = rect.bottom - targetBottom;
       if (Math.abs(delta) < 2) return;
