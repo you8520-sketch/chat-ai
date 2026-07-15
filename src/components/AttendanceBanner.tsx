@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import {
   ATTENDANCE_CYCLE_DAYS,
+  attendanceRewardForDay,
   formatAttendanceDayRewardLabel,
 } from "@/lib/attendanceConstants";
 import { dispatchPointsRefunded } from "@/lib/pointsEvents";
@@ -63,15 +64,16 @@ export default function AttendanceBanner({ loggedIn, initialCheckedIn, initialSt
         매주 월요일 1일차부터 시작 · 연속 출석이 아니어도 이번 주 출석 순서대로 지급
       </p>
 
-      <div className="mt-5 grid grid-cols-7 gap-2" aria-label="주간 출석 차트">
+      <div className="mt-5 grid grid-cols-7 gap-1.5 sm:gap-2" aria-label="주간 출석 차트">
         {Array.from({ length: ATTENDANCE_CYCLE_DAYS }, (_, i) => {
           const day = i + 1;
+          const reward = attendanceRewardForDay(day);
           const done = day <= streak;
           const isBonus = day === ATTENDANCE_CYCLE_DAYS;
           return (
             <div
               key={day}
-              className={`rounded-xl border p-2 text-center ${
+              className={`rounded-xl border px-1 py-2 text-center sm:p-2 ${
                 done
                   ? "border-amber-300/70 bg-amber-300/20 text-amber-100"
                   : isBonus
@@ -79,9 +81,17 @@ export default function AttendanceBanner({ loggedIn, initialCheckedIn, initialSt
                     : "border-white/10 bg-black/20 text-zinc-400"
               }`}
             >
-              <div className="text-[11px] font-bold">{day}일차</div>
+              <div className="text-[10px] font-bold sm:text-[11px]">{day}일차</div>
               <div className="mt-1 text-lg">{done ? "✓" : isBonus ? "🎁" : "•"}</div>
-              <div className="text-[10px]">{formatAttendanceDayRewardLabel(day)}</div>
+              <div className="text-[9px] sm:hidden">
+                <span className="block font-bold leading-tight">{reward.base.toLocaleString()}P</span>
+                {reward.bonus > 0 && (
+                  <span className="block leading-tight text-violet-100/90">
+                    보너스 {reward.bonus.toLocaleString()}P
+                  </span>
+                )}
+              </div>
+              <div className="hidden text-[10px] sm:block">{formatAttendanceDayRewardLabel(day)}</div>
             </div>
           );
         })}
