@@ -3225,8 +3225,7 @@ export default function ChatClient({
             : "flex min-h-0 min-w-0 flex-1 flex-col"
         }
       >
-        {showCharacterPortrait && (
-          <div className="hidden sm:sticky sm:top-[var(--site-header-height,44px)] sm:z-30 sm:col-span-2 sm:col-start-1 sm:row-start-1 sm:flex sm:h-[3.25rem] sm:w-full sm:items-center sm:justify-between sm:gap-3 sm:border-b sm:border-white/5 sm:bg-[#121212]/95 sm:pl-0 sm:pr-1 sm:backdrop-blur">
+        <div className="hidden sm:sticky sm:top-[var(--site-header-height,44px)] sm:z-30 sm:col-span-2 sm:col-start-1 sm:row-start-1 sm:flex sm:h-[3.25rem] sm:w-full sm:items-center sm:justify-between sm:gap-3 sm:border-b sm:border-white/5 sm:bg-[#121212]/95 sm:pl-0 sm:pr-1 sm:backdrop-blur">
             <div className="flex min-w-0 items-baseline gap-2">
               <button
                 type="button"
@@ -3259,8 +3258,7 @@ export default function ChatClient({
             >
               <IconAlbum className="h-4 w-4" />
             </button>
-          </div>
-        )}
+        </div>
         {showCharacterPortrait && (
           <div className={`${CHAT_PORTRAIT_STICKY_CLASS} pl-1 sm:pl-0`}>
             <ChatEmotionPortraitPanel
