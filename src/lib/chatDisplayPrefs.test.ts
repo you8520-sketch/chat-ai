@@ -7,6 +7,7 @@ import {
   CHAT_MESSAGES_COLUMN_CLASS,
   CHAT_PORTRAIT_GRID_CLASS,
   CHAT_PORTRAIT_STICKY_CLASS,
+  CHAT_ROOM_HEADER_OFFSET_CLASS,
   normalizePortraitBackgroundOpacity,
 } from "@/lib/chatDisplayPrefs";
 
@@ -23,6 +24,10 @@ describe("mobile chat portrait background", () => {
     assert.match(CHAT_PORTRAIT_GRID_CLASS, /sm:grid-rows-\[auto_minmax\(0,1fr\)\]/);
     assert.match(CHAT_PORTRAIT_STICKY_CLASS, /sm:row-start-2/);
     assert.match(CHAT_MESSAGES_COLUMN_CLASS, /sm:row-start-2/);
+    assert.match(
+      CHAT_ROOM_HEADER_OFFSET_CLASS,
+      /md:top-\[calc\(var\(--site-header-height,44px\)\+3\.25rem\)\]/
+    );
   });
 
   it("centers and narrows chat when portrait assets are off", () => {
