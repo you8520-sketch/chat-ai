@@ -3207,6 +3207,42 @@ export default function ChatClient({
         }
       >
         {showCharacterPortrait && (
+          <div className="hidden sm:sticky sm:top-[var(--site-header-height,44px)] sm:z-20 sm:col-start-1 sm:row-start-1 sm:flex sm:h-[3.25rem] sm:w-full sm:items-center sm:justify-between sm:gap-3 sm:bg-[#121212] sm:pl-0 sm:pr-1">
+            <div className="flex min-w-0 items-baseline gap-2">
+              <button
+                type="button"
+                onClick={() => setCharacterIntroOpen(true)}
+                className="min-w-0 truncate text-left text-xl font-black leading-tight text-white underline-offset-4 transition hover:text-violet-100 hover:underline"
+                title="캐릭터 소개 보기"
+              >
+                {character.name}
+              </button>
+              {creatorId != null && creatorId > 0 ? (
+                <Link
+                  href={`/creator/${creatorId}`}
+                  className="max-w-32 shrink-0 truncate text-xs font-medium text-zinc-500 underline-offset-2 transition hover:text-zinc-300 hover:underline"
+                  title="제작자 페이지"
+                >
+                  {creatorName}
+                </Link>
+              ) : creatorName ? (
+                <span className="max-w-32 shrink-0 truncate text-xs font-medium text-zinc-500">
+                  {creatorName}
+                </span>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={() => setAssetAlbumOpen(true)}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-100 transition hover:bg-white/[0.08] hover:text-white"
+              title="이미지 앨범"
+              aria-label="이미지 앨범 열기"
+            >
+              <IconAlbum className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+        {showCharacterPortrait && (
           <div className={`${CHAT_PORTRAIT_STICKY_CLASS} pl-1 sm:pl-0`}>
             <ChatEmotionPortraitPanel
               characterName={character.name}
@@ -3745,7 +3781,7 @@ export default function ChatClient({
       <aside
         className={`sticky ${CHAT_ROOM_HEADER_OFFSET_CLASS} z-40 hidden w-16 shrink-0 flex-col gap-1 self-start overflow-visible px-1 py-2 md:flex md:w-[68px]`}
       >
-        <div className="absolute right-full top-2 mr-2 flex w-52 items-center justify-between gap-2 rounded-2xl border border-white/10 bg-[#101010]/95 px-3 py-2 shadow-xl shadow-black/30 backdrop-blur">
+        <div className="hidden">
           <div className="min-w-0">
             <button
               type="button"
