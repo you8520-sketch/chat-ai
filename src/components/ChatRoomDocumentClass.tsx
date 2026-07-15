@@ -11,10 +11,18 @@ export default function ChatRoomDocumentClass() {
 
   useEffect(() => {
     const root = document.documentElement;
+    const isCharacterIntroEmbed =
+      /^\/character\/\d+/.test(pathname) &&
+      new URLSearchParams(window.location.search).get("embed") === "chat-intro";
     if (inChatRoom) root.classList.add("chat-room-active");
     else root.classList.remove("chat-room-active");
-    return () => root.classList.remove("chat-room-active");
-  }, [inChatRoom]);
+    if (isCharacterIntroEmbed) root.classList.add("character-intro-embed-active");
+    else root.classList.remove("character-intro-embed-active");
+    return () => {
+      root.classList.remove("chat-room-active");
+      root.classList.remove("character-intro-embed-active");
+    };
+  }, [inChatRoom, pathname]);
 
   return null;
 }

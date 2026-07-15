@@ -47,9 +47,17 @@ export const dynamic = "force-dynamic";
 
 
 
-export default async function CharacterPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CharacterPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams?: Promise<{ embed?: string }>;
+}) {
 
   const { id } = await params;
+  const embedMode = (await searchParams)?.embed;
+  const introEmbed = embedMode === "chat-intro";
 
   const db = getDb();
 
@@ -150,13 +158,43 @@ export default async function CharacterPage({ params }: { params: Promise<{ id: 
     characterName: c.name,
   });
 
+  const isOwner = c.creator_id === user?.id;
+
+  if (introEmbed) {
+    return (
+      <div className="w-full bg-[#0b0d14] p-4">
+        <CharacterPublicPagePreview
+          name={c.name}
+          tagline={tagline}
+          tags={tags}
+          description={description}
+          cardImageUrl={images[0] ?? ""}
+          galleryAssets={galleryAssets.length > 0 ? galleryAssets : undefined}
+          assetImageUrls={assetImageUrls}
+          viewerIsCreator={isOwner}
+          emoji={c.emoji}
+          hue={c.hue}
+          creatorName={c.creator_name}
+          creatorIsPartner={creatorIsPartner}
+          creatorComment={c.creator_comment}
+          likes={c.likes}
+          totalTurns={c.total_turns ?? 0}
+          users={c.chats_count}
+          collapsibleDescription
+          creatorHref={c.creator_id ? `/creator/${c.creator_id}` : undefined}
+          viewerDisplayName={user ? personaDisplayName : null}
+          pagePath={`/character/${c.id}`}
+        />
+      </div>
+    );
+  }
+
   const characterBranches =
     user != null ? fetchCharacterChatSessions(getDb(), user.id, c.id) : [];
 
   const personaList = user ? ensureDefaultPersona(user.id, user.nickname) : [];
   const defaultPersonaId = personaList[0]?.id ?? null;
 
-  const isOwner = c.creator_id === user?.id;
   const paidPoints = user ? getPointBalance(user.id).paid : 0;
   const canWriteCharacterComment =
     user != null &&
@@ -298,4 +336,3 @@ export default async function CharacterPage({ params }: { params: Promise<{ id: 
   );
 
 }
-
