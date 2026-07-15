@@ -426,7 +426,14 @@ export default async function ChatPage({
   return (
     <ChatClient
       key={clientKey}
-      character={{ id: c.id, name: c.name, emoji: c.emoji, hue: c.hue, nsfw: c.nsfw }}
+      character={{
+        id: c.id,
+        name: c.name,
+        emoji: c.emoji,
+        hue: c.hue,
+        nsfw: c.nsfw,
+        official: c.official,
+      }}
       creatorName={c.creator_name}
       creatorId={c.creator_id}
       assets={assets}
