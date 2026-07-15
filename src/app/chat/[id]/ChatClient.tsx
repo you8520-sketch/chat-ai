@@ -3267,6 +3267,15 @@ export default function ChatClient({
               ) : null
             )}
           </div>
+          <button
+            type="button"
+            onClick={() => setAssetAlbumOpen(true)}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-zinc-200 transition hover:bg-white/[0.08] hover:text-white md:hidden"
+            title="이미지 앨범"
+            aria-label="이미지 앨범 열기"
+          >
+            <IconAlbum className="h-4 w-4" />
+          </button>
           <ChatRoomMobileMenu
             displayPrefs={displayPrefs}
             onDisplayPrefsChange={handleDisplayPrefsChange}
@@ -3284,6 +3293,10 @@ export default function ChatClient({
             {
               ["--mobile-portrait-opacity" as string]:
                 displayPrefs.portraitBackgroundOpacity,
+              ["--mobile-portrait-scrim-opacity" as string]:
+                Math.max(0, 0.18 * (1 - displayPrefs.portraitBackgroundOpacity)),
+              ["--mobile-portrait-gradient-opacity" as string]:
+                Math.max(0, 0.55 * (1 - displayPrefs.portraitBackgroundOpacity)),
             }
           }
           aria-hidden
@@ -3296,15 +3309,15 @@ export default function ChatClient({
             imgClassName={CHAT_MOBILE_PORTRAIT_IMAGE_CLASS}
             imgTestId="mobile-chat-portrait-image"
           />
-          <div className="absolute inset-0 bg-[#121212]/25" />
-          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#121212] to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#121212] to-transparent" />
+          <div className="absolute inset-0 bg-[#121212] opacity-[var(--mobile-portrait-scrim-opacity)]" />
+          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[#121212] to-transparent opacity-[var(--mobile-portrait-gradient-opacity)]" />
+          <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#121212] to-transparent opacity-[var(--mobile-portrait-gradient-opacity)]" />
         </div>
       )}
       <div
         className={
           showCharacterPortrait
-            ? "relative z-10 bg-transparent px-2 pl-3 pb-4 backdrop-blur-[1px] sm:bg-[#121212] sm:pl-2 sm:pr-1 sm:pb-0 sm:backdrop-blur-none"
+            ? "relative z-10 bg-transparent px-2 pl-3 pb-4 sm:bg-[#121212] sm:pl-2 sm:pr-1 sm:pb-0"
             : CHAT_MESSAGES_BODY_NO_PORTRAIT_CLASS
         }
         role="presentation"
