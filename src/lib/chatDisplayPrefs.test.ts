@@ -4,7 +4,9 @@ import {
   CHAT_MESSAGES_COLUMN_NO_PORTRAIT_CLASS,
   CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS,
   CHAT_MOBILE_PORTRAIT_IMAGE_CLASS,
+  CHAT_MESSAGES_COLUMN_CLASS,
   CHAT_PORTRAIT_GRID_CLASS,
+  CHAT_PORTRAIT_STICKY_CLASS,
   normalizePortraitBackgroundOpacity,
 } from "@/lib/chatDisplayPrefs";
 
@@ -15,6 +17,12 @@ describe("mobile chat portrait background", () => {
     assert.match(CHAT_PORTRAIT_GRID_CLASS, /max-w-\[75\.25rem\]/);
     assert.match(CHAT_PORTRAIT_GRID_CLASS, /minmax\(340px,400px\)/);
     assert.match(CHAT_PORTRAIT_GRID_CLASS, /minmax\(0,780px\)/);
+  });
+
+  it("keeps desktop portrait and messages below the fixed character info row", () => {
+    assert.match(CHAT_PORTRAIT_GRID_CLASS, /sm:grid-rows-\[auto_minmax\(0,1fr\)\]/);
+    assert.match(CHAT_PORTRAIT_STICKY_CLASS, /sm:row-start-2/);
+    assert.match(CHAT_MESSAGES_COLUMN_CLASS, /sm:row-start-2/);
   });
 
   it("centers and narrows chat when portrait assets are off", () => {

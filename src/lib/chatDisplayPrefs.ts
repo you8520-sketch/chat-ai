@@ -249,18 +249,18 @@ export const CHAT_PORTRAIT_INPUT_HELPER_GAP_REM = "1.75rem";
 
 /** 초상 ON — 좌: 에셋 / 우: 채팅+입력 */
 export const CHAT_PORTRAIT_GRID_CLASS =
-  "mx-auto grid w-full max-w-[75.25rem] min-w-0 flex-1 grid-cols-1 items-start sm:grid-cols-[minmax(340px,400px)_minmax(0,780px)] sm:gap-x-6";
+  "mx-auto grid w-full max-w-[75.25rem] min-w-0 flex-1 grid-cols-1 items-start sm:grid-cols-[minmax(340px,400px)_minmax(0,780px)] sm:grid-rows-[auto_minmax(0,1fr)] sm:gap-x-6";
 
 /** 초상 열 sticky — 모바일 채팅은 글로벌 헤더 없음(제목만), md+는 헤더+제목 */
 export const CHAT_PORTRAIT_STICKY_CLASS =
-  "hidden sm:col-start-1 sm:row-start-1 sm:sticky sm:top-[var(--site-header-height,44px)] sm:z-10 sm:flex sm:h-[calc(100dvh-var(--site-header-height,44px))] sm:w-full sm:flex-col sm:self-start";
+  "hidden sm:col-start-1 sm:row-start-2 sm:sticky sm:top-[calc(var(--site-header-height,44px)+3.25rem)] sm:z-10 sm:flex sm:h-[calc(100dvh-var(--site-header-height,44px)-3.25rem)] sm:w-full sm:flex-col sm:self-start";
 
 /** @deprecated CHAT_PORTRAIT_PANEL_HEIGHT + 인라인 height 사용 */
 export const CHAT_PORTRAIT_VIEWPORT_MIN_H_CLASS = "";
 
 /** 채팅 본문 열 — 이미지와 같은 시작 높이 */
 export const CHAT_MESSAGES_COLUMN_CLASS =
-  "relative col-start-1 row-start-1 flex min-w-0 flex-col overflow-hidden sm:col-start-2 sm:overflow-visible";
+  "relative col-start-1 row-start-1 flex min-w-0 flex-col overflow-hidden sm:col-start-2 sm:row-start-2 sm:overflow-visible";
 
 /** Mobile portrait background is pinned to the stable viewport, never the growing message list. */
 export const CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS =
