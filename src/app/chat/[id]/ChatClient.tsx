@@ -1309,25 +1309,31 @@ export default function ChatClient({
   const SCROLL_BOTTOM_THRESHOLD_PX = 80;
 
   const getInputDockHeight = useCallback(() => inputDockRef.current?.offsetHeight ?? 0, []);
+  const getInputDockBottomOffset = useCallback(() => {
+    if (typeof window === "undefined") return 0;
+    return window.matchMedia("(min-width: 640px)").matches ? 0 : 48;
+  }, []);
 
   /** sticky 입력창 위쪽을 “시각적 하단”으로 간주 */
   const isNearBottom = useCallback(() => {
     if (typeof window === "undefined") return true;
     const dockH = getInputDockHeight();
+    const dockBottom = getInputDockBottomOffset();
     const { scrollY, innerHeight } = window;
     const docHeight = document.documentElement.scrollHeight;
     const gap = docHeight - scrollY - innerHeight;
-    return gap <= SCROLL_BOTTOM_THRESHOLD_PX + dockH;
-  }, [getInputDockHeight]);
+    return gap <= SCROLL_BOTTOM_THRESHOLD_PX + dockH + dockBottom;
+  }, [getInputDockHeight, getInputDockBottomOffset]);
 
   const scrollToBottom = useCallback(
     (behavior: ScrollBehavior = "smooth") => {
       const anchor = bottomRef.current;
       if (!anchor || typeof window === "undefined") return;
       const dockH = getInputDockHeight();
+      const dockBottom = getInputDockBottomOffset();
       const pad = displayPrefs.showCharacterPortrait ? 12 : 2;
       const rect = anchor.getBoundingClientRect();
-      const targetBottom = window.innerHeight - dockH - pad;
+      const targetBottom = window.innerHeight - dockH - dockBottom - pad;
       const delta = rect.bottom - targetBottom;
       if (Math.abs(delta) < 2) return;
       window.scrollTo({
@@ -1335,7 +1341,7 @@ export default function ChatClient({
         behavior,
       });
     },
-    [getInputDockHeight, displayPrefs.showCharacterPortrait]
+    [getInputDockHeight, getInputDockBottomOffset, displayPrefs.showCharacterPortrait]
   );
 
   const scheduleScrollToBottom = useCallback(
