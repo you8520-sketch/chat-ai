@@ -103,12 +103,12 @@ export const OPENROUTER_GROSS_MARGIN = Number(process.env.OPENROUTER_GROSS_MARGI
 /** usage 과금 최소 1턴 차감 */
 export const OPENROUTER_MIN_TURN_COST = 5;
 
-/** 입력 토큰 8,000 이상 — 초과 1,000토큰당 추가 청구 (P) */
-export const OPENROUTER_INPUT_SURCHARGE_THRESHOLD_TOKENS = 8000;
+/** 입력 토큰 10,000 초과 — 초과 1,000토큰당 추가 청구 (P) */
+export const OPENROUTER_INPUT_SURCHARGE_THRESHOLD_TOKENS = 10000;
 export const OPENROUTER_INPUT_SURCHARGE_PER_1000_TOKENS = (() => {
   const per1000 = process.env.OPENROUTER_INPUT_SURCHARGE_PER_1000_TOKENS?.trim();
-  if (per1000) return Number(per1000) || 1.5;
-  return 1.5;
+  if (per1000) return Number(per1000) || 1.25;
+  return 1.25;
 })();
 
 /** Claude Opus — 출력 1자당 청구 상한 (P) */
@@ -618,7 +618,7 @@ function openRouterGemini31TokenFloorKrw(outputTokens: number): number {
   return chargePoints(Math.max(0, outputTokens) * OPENROUTER_GEMINI_31_POINTS_PER_OUTPUT_TOKEN);
 }
 
-/** 입력 8k+ — 초과 1,000토큰 단위 × 1.5P (블록 올림) */
+/** 입력 10k 초과 — 초과 1,000토큰 단위 × 1.25P (블록 올림) */
 export function openRouterInputTokenSurchargeKrw(inputTokens: number): number {
   if (inputTokens < OPENROUTER_INPUT_SURCHARGE_THRESHOLD_TOKENS) return 0;
   const excess = inputTokens - OPENROUTER_INPUT_SURCHARGE_THRESHOLD_TOKENS;
@@ -793,7 +793,7 @@ export type OpenRouterTurnCostBreakdown = {
   /** Opus — cache-hit-normalized API 원가 (로그·비교용) */
   normalizedRawCostKrw?: number;
   charFloorKrw: number;
-  /** 입력 8k+ 초과 1,000토큰당 1.5P */
+  /** 입력 10k 초과 1,000토큰당 1.25P */
   inputSurchargeKrw?: number;
   costPlusMarginKrw: number;
   applied: "char_floor" | "cost_plus_margin" | "min_turn" | "cost_blend" | "cold_start_shield";
