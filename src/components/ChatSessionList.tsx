@@ -208,6 +208,16 @@ export default function ChatSessionList({
     }
   }
 
+  function handleRenameSuccess(updated: UserChatSession) {
+    setPickerGroup((current) => {
+      if (!current?.sessions.some((s) => s.chat_id === updated.chat_id)) return current;
+      return {
+        ...current,
+        sessions: current.sessions.map((s) => (s.chat_id === updated.chat_id ? updated : s)),
+      };
+    });
+  }
+
   if (sessions.length === 0) {
     return (
       <p className="px-4 py-8 text-center text-sm text-gray-500">
@@ -261,6 +271,7 @@ export default function ChatSessionList({
           blurNsfw={blurNsfw}
           nsfw={pickerGroup.nsfw === 1}
           onDeleteRequest={setPendingDelete}
+          onRenameSuccess={handleRenameSuccess}
           deletingId={deletingId}
         />
       )}

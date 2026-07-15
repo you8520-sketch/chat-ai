@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import {
   formatChatListTime,
   formatChatPreview,
@@ -20,6 +21,7 @@ type Props = {
   blurNsfw: boolean;
   nsfw: boolean;
   onDeleteRequest?: (session: UserChatSession) => void;
+  onRenameSuccess?: (session: UserChatSession) => void;
   deletingId?: number | null;
 };
 
@@ -32,9 +34,14 @@ export default function CharacterChatBranchModal({
   blurNsfw,
   nsfw,
   onDeleteRequest,
+  onRenameSuccess,
   deletingId = null,
 }: Props) {
   const router = useRouter();
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [savingId, setSavingId] = useState<number | null>(null);
+  const [renameError, setRenameError] = useState("");
   if (!open) return null;
 
   const hidden = nsfw && blurNsfw;
@@ -48,6 +55,39 @@ export default function CharacterChatBranchModal({
       return;
     }
     router.push(chatEntryHref(characterId, { chatId, fresh }));
+  }
+
+  function startRename(session: UserChatSession) {
+    setEditingId(session.chat_id);
+    setEditingTitle(getBranchDisplayTitle(session));
+    setRenameError("");
+  }
+
+  async function saveRename(session: UserChatSession) {
+    const nextTitle = editingTitle.trim();
+    setSavingId(session.chat_id);
+    setRenameError("");
+    try {
+      const res = await fetch("/api/chat/session", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chatId: session.chat_id, title: nextTitle }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setRenameError(data.error || "대화방 이름 변경에 실패했습니다.");
+        return;
+      }
+      const updated = { ...session, title: data.title ?? nextTitle };
+      onRenameSuccess?.(updated);
+      setEditingId(null);
+      setEditingTitle("");
+      router.refresh();
+    } catch {
+      setRenameError("대화방 이름 변경 중 오류가 발생했습니다.");
+    } finally {
+      setSavingId(null);
+    }
   }
 
   return (
@@ -85,31 +125,89 @@ export default function CharacterChatBranchModal({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+          {renameError && (
+            <p className="mb-2 rounded-lg bg-rose-500/10 px-3 py-2 text-xs text-rose-300" role="alert">
+              {renameError}
+            </p>
+          )}
           {multi ? (
             <ul className="space-y-1">
               {branches.map((b) => (
                 <li key={b.chat_id}>
                   <div className="flex items-stretch gap-1 rounded-xl transition hover:bg-white/5">
-                    <button
-                      type="button"
-                      onClick={() => enter(b.chat_id)}
+                    <div
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => {
+                        if (editingId !== b.chat_id) enter(b.chat_id);
+                      }}
+                      onKeyDown={(e) => {
+                        if (editingId !== b.chat_id && (e.key === "Enter" || e.key === " ")) enter(b.chat_id);
+                      }}
                       className="min-w-0 flex-1 px-3 py-3 text-left"
                     >
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span className="truncate text-sm font-semibold text-white">
-                          {getBranchDisplayTitle(b)}
-                        </span>
-                        <span className="shrink-0 text-[11px] tabular-nums text-zinc-500">
-                          {formatChatListTime(b.last_at)}
-                        </span>
-                      </div>
+                      {editingId === b.chat_id ? (
+                        <form
+                          className="flex gap-2"
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            void saveRename(b);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        >
+                          <input
+                            autoFocus
+                            value={editingTitle}
+                            maxLength={32}
+                            onChange={(e) => setEditingTitle(e.target.value)}
+                            className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/30 px-2 py-1.5 text-sm font-semibold text-white outline-none focus:border-violet-400"
+                            placeholder="대화방 이름"
+                          />
+                          <button
+                            type="submit"
+                            disabled={savingId === b.chat_id}
+                            className="shrink-0 rounded-lg bg-violet-600 px-2.5 py-1.5 text-xs font-bold text-white hover:bg-violet-500 disabled:opacity-50"
+                          >
+                            저장
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingId(null);
+                              setEditingTitle("");
+                            }}
+                            className="shrink-0 rounded-lg px-2 py-1.5 text-xs font-semibold text-zinc-400 hover:bg-white/10 hover:text-white"
+                          >
+                            취소
+                          </button>
+                        </form>
+                      ) : (
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span className="truncate text-sm font-semibold text-white">
+                            {getBranchDisplayTitle(b)}
+                          </span>
+                          <span className="shrink-0 text-[11px] tabular-nums text-zinc-500">
+                            {formatChatListTime(b.last_at)}
+                          </span>
+                        </div>
+                      )}
                       <p className="mt-0.5 text-[11px] text-violet-400/80">
                         {formatChatSessionStats(b)}
                       </p>
                       <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-zinc-500">
                         {formatChatPreview(b.last_role, b.last_content, characterName)}
                       </p>
-                    </button>
+                    </div>
+                    {editingId !== b.chat_id && (
+                      <button
+                        type="button"
+                        onClick={() => startRename(b)}
+                        className="shrink-0 self-center rounded-lg px-2 py-1 text-[11px] font-semibold text-zinc-500 hover:bg-violet-500/15 hover:text-violet-300"
+                      >
+                        이름 변경
+                      </button>
+                    )}
                     {onDeleteRequest && !hidden && (
                       <button
                         type="button"
