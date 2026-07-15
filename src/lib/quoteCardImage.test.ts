@@ -22,10 +22,15 @@ afterEach(() => {
   Object.defineProperty(globalThis, "URL", { value: originalURL, configurable: true });
 });
 
-function installDomStubs(opts: { iosSafari?: boolean; openReturns?: { location: { href: string }; close: () => void } | null } = {}) {
+function installDomStubs(opts: {
+  iosSafari?: boolean;
+  openReturns?: { location: { href: string }; closed?: boolean; close: () => void; document?: { open: () => void; write: (html: string) => void; close: () => void } } | null;
+} = {}) {
   let clicked = 0;
   let opened = 0;
   let revoked = 0;
+  let lastOpenFeatures: string | undefined;
+  let writtenHtml = "";
   const anchor = {
     href: "",
     download: "",
@@ -34,9 +39,21 @@ function installDomStubs(opts: { iosSafari?: boolean; openReturns?: { location: 
     remove() {},
   };
   const win = {
-    open() {
+    open(_url?: string, _name?: string, features?: string) {
       opened++;
-      return opts.openReturns === undefined ? { location: { href: "" }, close() {} } : opts.openReturns;
+      lastOpenFeatures = features;
+      return opts.openReturns === undefined
+        ? {
+            location: { href: "" },
+            closed: false,
+            close() {},
+            document: {
+              open() {},
+              write(html: string) { writtenHtml = html; },
+              close() {},
+            },
+          }
+        : opts.openReturns;
     },
     setTimeout(cb: () => void) {
       cb();
@@ -65,7 +82,14 @@ function installDomStubs(opts: { iosSafari?: boolean; openReturns?: { location: 
     },
     configurable: true,
   });
-  return { anchor, get clicked() { return clicked; }, get opened() { return opened; }, get revoked() { return revoked; } };
+  return {
+    anchor,
+    get clicked() { return clicked; },
+    get opened() { return opened; },
+    get revoked() { return revoked; },
+    get lastOpenFeatures() { return lastOpenFeatures; },
+    get writtenHtml() { return writtenHtml; },
+  };
 }
 
 describe("buildQuoteCardFooterLeft", () => {
@@ -101,15 +125,43 @@ describe("quote card mobile save/share fallback", () => {
   });
 
   it("opens a pre-created tab for iOS Safari fallback", () => {
-    const tab = { location: { href: "" }, close() {} };
+    let written = "";
+    const tab = {
+      location: { href: "" },
+      closed: false,
+      close() {},
+      document: {
+        open() {},
+        write(html: string) { written = html; },
+        close() {},
+      },
+    };
     const stubs = installDomStubs({ iosSafari: true, openReturns: tab });
     const prepared = prepareQuoteCardSaveFallbackWindow();
     assert.equal(prepared, tab);
+    assert.equal(stubs.lastOpenFeatures, undefined);
     const result = saveQuoteCardPngWithFallback(new Blob(["x"], { type: "image/png" }), "quote.png", prepared);
     assert.equal(result, "opened");
-    assert.equal(tab.location.href, "blob:test");
+    assert.match(written, /blob:test/);
+    assert.match(written, /<img /);
+    assert.equal(tab.location.href, "");
     assert.equal(stubs.clicked, 1);
     assert.equal(stubs.opened, 1);
+  });
+
+  it("does not pass noopener when preparing the iOS Safari fallback tab", () => {
+    const stubs = installDomStubs({ iosSafari: true });
+    prepareQuoteCardSaveFallbackWindow();
+    assert.equal(stubs.lastOpenFeatures, undefined);
+    assert.equal(stubs.opened, 1);
+  });
+
+  it("falls back to location.href when the tab document is unavailable", () => {
+    const tab = { location: { href: "" }, closed: false, close() {} };
+    installDomStubs({ iosSafari: true, openReturns: tab });
+    const result = saveQuoteCardPngWithFallback(new Blob(["x"], { type: "image/png" }), "quote.png", tab);
+    assert.equal(result, "opened");
+    assert.equal(tab.location.href, "blob:test");
   });
 
   it("reports blocked when iOS Safari cannot open a fallback tab", () => {

@@ -1,6 +1,6 @@
 import { SITE_DISPLAY_NAME } from "@/lib/siteBrand";
 
-export type QuoteCardOrientation = "portrait" | "landscape";
+export type QuoteCardOrientation = "portrait" | "landscape" | "square";
 
 export type QuoteCardMeta = {
   bodyText: string;
@@ -46,6 +46,9 @@ export function quoteCardDimensions(orientation: QuoteCardOrientation = "portrai
 } {
   if (orientation === "landscape") {
     return { width: CARD_SHORT_SIDE * 1.5, height: CARD_SHORT_SIDE };
+  }
+  if (orientation === "square") {
+    return { width: CARD_SHORT_SIDE, height: CARD_SHORT_SIDE };
   }
   return { width: CARD_SHORT_SIDE, height: CARD_SHORT_SIDE * 1.5 };
 }
@@ -313,13 +316,44 @@ export function canShareQuoteCardPng(blob: Blob, filename = "quote.png"): boolea
   return !navigator.canShare || navigator.canShare({ files: [file] });
 }
 
+/**
+ * Open a blank tab synchronously under a user gesture for iOS Safari.
+ * Must NOT use noopener/noreferrer — Safari still opens the tab but returns null,
+ * which leaves an orphaned about:blank page we cannot navigate to the image.
+ */
 export function prepareQuoteCardSaveFallbackWindow(): Window | null {
   if (!isMobileSafariLike() || typeof window === "undefined") return null;
   try {
-    return window.open("about:blank", "_blank", "noopener,noreferrer");
+    return window.open("about:blank", "_blank");
   } catch {
     return null;
   }
+}
+
+function escapeHtmlAttr(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function navigateFallbackWindowToBlob(target: Window, url: string, filename: string): void {
+  // Embedding <img> is more reliable than navigating to blob:image/png on some iOS versions
+  // (blank viewer / failed paint), and keeps long-press → Save Image available.
+  try {
+    const doc = target.document;
+    const safeName = escapeHtmlAttr(filename);
+    doc.open();
+    doc.write(
+      `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safeName}</title><style>html,body{margin:0;background:#111;min-height:100%;display:flex;align-items:center;justify-content:center}img{max-width:100%;height:auto;-webkit-touch-callout:default}</style></head><body><img src="${url}" alt="${safeName}"></body></html>`
+    );
+    doc.close();
+    return;
+  } catch {
+    // Fall through if document access fails.
+  }
+  target.location.href = url;
 }
 
 export function saveQuoteCardPngWithFallback(
@@ -341,16 +375,24 @@ export function saveQuoteCardPngWithFallback(
   }
 
   if (isMobileSafariLike()) {
-    const target = preopenedWindow ?? prepareQuoteCardSaveFallbackWindow();
-    if (!target) {
+    const target =
+      preopenedWindow && !preopenedWindow.closed
+        ? preopenedWindow
+        : prepareQuoteCardSaveFallbackWindow();
+    if (!target || target.closed) {
       window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
       return "blocked";
     }
     try {
-      target.location.href = url;
+      navigateFallbackWindowToBlob(target, url, filename);
       window.setTimeout(() => URL.revokeObjectURL(url), 120_000);
       return "opened";
     } catch {
+      try {
+        target.close();
+      } catch {
+        // ignore
+      }
       window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
       return "blocked";
     }

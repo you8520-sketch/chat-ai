@@ -87,6 +87,8 @@ export default function ChatSelectionQuoteToolbar({
   const toolbarRef = useRef<HTMLButtonElement>(null);
   const selectionSchedulerRef = useRef<ReturnType<typeof createCoalescedSelectionScheduler> | null>(null);
   const lastSelectionSignatureRef = useRef<string>("");
+  /** Sticky toolbar coords so iOS selectionchange / getClientRects jitter does not chase the button. */
+  const stickyToolbarPosRef = useRef<{ x: number; y: number } | null>(null);
   const toolbarPointerActiveRef = useRef(false);
   const toolbarPointerSafetyTimerRef = useRef<number | null>(null);
   const fontRenderTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -128,6 +130,8 @@ export default function ChatSelectionQuoteToolbar({
     revokePreviewUrl();
     setPreview(null);
     setBusy(false);
+    lastSelectionSignatureRef.current = "";
+    stickyToolbarPosRef.current = null;
     const sel = window.getSelection();
     if (sel && !sel.isCollapsed) sel.removeAllRanges();
   }, [revokePreviewUrl]);
@@ -267,6 +271,7 @@ export default function ChatSelectionQuoteToolbar({
       if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
         if (!lastSelectionSignatureRef.current) return;
         lastSelectionSignatureRef.current = "";
+        stickyToolbarPosRef.current = null;
         setPending(null);
         return;
       }
@@ -275,6 +280,7 @@ export default function ChatSelectionQuoteToolbar({
       if (!isSelectionInContainer(container, range)) {
         if (!lastSelectionSignatureRef.current) return;
         lastSelectionSignatureRef.current = "";
+        stickyToolbarPosRef.current = null;
         setPending(null);
         return;
       }
@@ -283,29 +289,55 @@ export default function ChatSelectionQuoteToolbar({
       if (!text) {
         if (!lastSelectionSignatureRef.current) return;
         lastSelectionSignatureRef.current = "";
+        stickyToolbarPosRef.current = null;
         setPending(null);
         return;
       }
 
-      const anchor = rangeAnchorPoint(range);
       const viewport = window.visualViewport;
-      const clamped = clampQuoteToolbarPosition(
-        { x: cursorX ?? anchor.x, y: cursorY ?? anchor.y },
-        {
-          width: viewport?.width ?? window.innerWidth,
-          height: viewport?.height ?? window.innerHeight,
-          offsetLeft: viewport?.offsetLeft ?? 0,
-          offsetTop: viewport?.offsetTop ?? 0,
-        },
-        { offset: CURSOR_OFFSET }
-      );
-      const signature = `${text}|${range.startOffset}|${range.endOffset}|${Math.round(clamped.x)}|${Math.round(clamped.y)}`;
+      const viewportBox = {
+        width: viewport?.width ?? window.innerWidth,
+        height: viewport?.height ?? window.innerHeight,
+        offsetLeft: viewport?.offsetLeft ?? 0,
+        offsetTop: viewport?.offsetTop ?? 0,
+      };
+      const hasExplicitCursor =
+        typeof cursorX === "number" &&
+        typeof cursorY === "number" &&
+        Number.isFinite(cursorX) &&
+        Number.isFinite(cursorY);
+
+      let nextX: number;
+      let nextY: number;
+      if (hasExplicitCursor) {
+        // Pointer / touch / mouse end: place near the gesture.
+        const clamped = clampQuoteToolbarPosition(
+          { x: cursorX, y: cursorY },
+          viewportBox,
+          { offset: CURSOR_OFFSET }
+        );
+        nextX = clamped.x;
+        nextY = clamped.y;
+        stickyToolbarPosRef.current = { x: nextX, y: nextY };
+      } else if (stickyToolbarPosRef.current) {
+        // selectionchange on iOS fires often with jittery getClientRects — keep sticky spot.
+        nextX = stickyToolbarPosRef.current.x;
+        nextY = stickyToolbarPosRef.current.y;
+      } else {
+        const anchor = rangeAnchorPoint(range);
+        const clamped = clampQuoteToolbarPosition(anchor, viewportBox, { offset: CURSOR_OFFSET });
+        nextX = clamped.x;
+        nextY = clamped.y;
+        stickyToolbarPosRef.current = { x: nextX, y: nextY };
+      }
+
+      const signature = `${text}|${range.startOffset}|${range.endOffset}|${Math.round(nextX)}|${Math.round(nextY)}`;
       if (signature === lastSelectionSignatureRef.current) return;
       lastSelectionSignatureRef.current = signature;
       setPending({
         text,
-        cursorX: clamped.x,
-        cursorY: clamped.y,
+        cursorX: nextX,
+        cursorY: nextY,
       });
     };
 
@@ -388,6 +420,8 @@ export default function ChatSelectionQuoteToolbar({
       const target = e.target as Node;
       if (toolbarRef.current?.contains(target)) return;
       if ((e.target as Element).closest("[data-quote-toolbar], [data-quote-ui]")) return;
+      stickyToolbarPosRef.current = null;
+      lastSelectionSignatureRef.current = "";
       setPending(null);
     };
     document.addEventListener("pointerdown", onPointerDown);
@@ -510,7 +544,7 @@ export default function ChatSelectionQuoteToolbar({
             </div>
 
             <div className="flex flex-wrap items-center gap-3 px-4 pt-2.5">
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   disabled={preview?.loading}
@@ -520,6 +554,16 @@ export default function ChatSelectionQuoteToolbar({
                   }`}
                 >
                   세로 2:3
+                </button>
+                <button
+                  type="button"
+                  disabled={preview?.loading}
+                  onClick={() => changeOrientation("square")}
+                  className={`${orientationBtn} ${
+                    orientation === "square" ? orientationActive : orientationIdle
+                  }`}
+                >
+                  정사각 1:1
                 </button>
                 <button
                   type="button"

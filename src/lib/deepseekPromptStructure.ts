@@ -12,8 +12,9 @@ export const DEEPSEEK_XML_TAGS = {
 
 export const LTM_ABSOLUTE_FACTS_RULE = `이 항목에 기록된 내용은 과거에 실제로 일어난 '절대적인 기정사실(Absolute Facts)'이다. 대화를 진행할 때 이 사실들과 모순되는 발언이나 행동을 절대 하지 마라.`;
 
+/** DeepSeek-only user-turn reminder (V4 Pro xml mode). Keep fencing + anti-fragment in one line — do not duplicate into [RHYTHM]/[MOVEMENT]. */
 export const DEEPSEEK_BOTTOM_REMINDER =
-  "[System Reminder: 지문은 -다/-했다체(경어 금지), 실제 발화만 큰따옴표, 속마음·감정은 따옴표 없이 지문으로.]";
+  "[System Reminder: 지문은 -다/-했다체(경어 금지), 실제 발화만 큰따옴표, 속마음·감정은 따옴표 없이 지문으로. 대사는 캐릭터 말투에 따라 짧을 수 있다. 지문은 이어지는 행동·감각·의도를 같은 의미 단락 안에서 자연스럽게 연결하며, 짧은 문장마다 새 문단을 만들거나 한두 단어짜리 파편문을 습관적으로 반복하지 않는다.]";
 
 export function wrapDeepSeekXmlTag(tag: string, body: string): string {
   const trimmed = body.trim();

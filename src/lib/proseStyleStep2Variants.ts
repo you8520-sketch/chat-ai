@@ -2,13 +2,13 @@
 
 import { PROSE_STYLE_SECTION } from "@/lib/advancedProseNsfwGuidelines";
 
-/** [MOVEMENT & SPACE] 2번째 줄 — Step 2 baseline (production). */
+/** [MOVEMENT & SPACE] 2번째 줄 — Step 2 baseline (historical). */
 export const PROSE_MOVEMENT_LINE1_BASELINE =
   "한 동작마다 무엇이 어디서 어느 방향으로 이동했는지, 그로 인해 공간 관계가 어떻게 바뀌었는지를 포함한다.";
 
-/** [MOVEMENT & SPACE] 2번째 줄 — Step 2 candidate A (space-first narration). */
+/** [MOVEMENT & SPACE] 2번째 줄 — production (bundle continuous motion; not one-line-per-action). */
 export const PROSE_MOVEMENT_LINE1_A =
-  "한 동작마다 무엇이 어디서 어느 방향으로 이동했는지, 그로 인해 공간 관계가 어떻게 바뀌었는지를 먼저 서술한다.";
+  "연속된 신체 동작·접촉·감각·반응은 동작마다 독립 문장으로 쪼개지 말고, 하나의 흐름이면 같은 문단에서 자연스럽게 묶는다.";
 
 /** [RHYTHM] 3번째 줄 — Step 2 baseline (production). */
 export const PROSE_RHYTHM_LINE2_BASELINE =

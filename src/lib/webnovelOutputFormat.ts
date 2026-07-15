@@ -26,6 +26,8 @@ export function buildWebnovelOutputLayoutRecencyBlock(): string {
 대사는 화자별 독립 문단으로 출력한다.
 "…" spoken dialogue = always its own paragraph, separated by a blank line (\\n\\n) from narration.
 Never append dialogue to the end of a narration line or paragraph.
+한 줄 한 화법 = 화자가 바뀌면 문단을 나눈다는 뜻이며, 지문 한 문장마다 새 문단을 만들라는 뜻이 아니다.
+같은 서술 초점이 유지되는 지문은 2~5문장 정도 자연스럽게 묶을 수 있다(문장 수 강제 아님).
 
 Wrong: 그는 고개를 들었다. "대사."
 Right:

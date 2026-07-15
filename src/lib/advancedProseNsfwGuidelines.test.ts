@@ -72,7 +72,7 @@ describe("buildAdvancedProseNsfwGuidelines", () => {
   it("P1 placement adds dense rule under [PROSE STYLE] header", () => {
     const sample = `${PROSE_STYLE_SECTION}\nExtra line.`;
     const p1 = applyDenseNarrationPlacementP1(sample);
-    assert.match(p1, /\[PROSE STYLE\]\n- When writing narration, prefer/);
+    assert.match(p1, /\[PROSE STYLE\]\n- Keep the same subject's immediate action/);
     assert.ok(p1.includes(DENSE_NARRATION_LIGHTWEIGHT_RULE));
   });
 
