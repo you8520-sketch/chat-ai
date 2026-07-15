@@ -3220,9 +3220,6 @@ export default function ChatClient({
               pinned={portraitPinned}
               onPinnedChange={handlePortraitPinnedChange}
               onActiveAssetChange={handlePortraitSelected}
-              creatorName={creatorName}
-              creatorHref={creatorId != null && creatorId > 0 ? `/creator/${creatorId}` : undefined}
-              onCharacterIntroOpen={() => setCharacterIntroOpen(true)}
             />
           </div>
         )}
@@ -3279,7 +3276,6 @@ export default function ChatClient({
         </div>
       </div>
       <div className="h-[3.25rem] shrink-0 md:hidden" aria-hidden />
-      {showCharacterPortrait && <div className="hidden h-[3.25rem] shrink-0 sm:block" aria-hidden />}
       {showCharacterPortrait && mobilePortraitUrl && (
         <div
           data-testid="mobile-chat-portrait-background"
@@ -3736,16 +3732,38 @@ export default function ChatClient({
       <aside
         className={`sticky ${CHAT_ROOM_HEADER_OFFSET_CLASS} z-40 hidden w-16 shrink-0 flex-col gap-1 self-start overflow-visible px-1 py-2 md:flex md:w-[68px]`}
       >
-        <button
-          type="button"
-          onClick={() => setAssetAlbumOpen(true)}
-          className="group flex w-full flex-col items-center gap-1 rounded-xl px-1.5 py-2 text-[10px] font-semibold text-zinc-100 transition hover:bg-white/[0.06] hover:text-white"
-          title="이미지 앨범"
-          aria-label="이미지 앨범 열기"
-        >
-          <IconAlbum className="h-4 w-4" />
-          <span>앨범</span>
-        </button>
+        <div className="absolute right-full top-2 mr-2 flex w-52 items-center justify-between gap-2 rounded-2xl border border-white/10 bg-[#101010]/95 px-3 py-2 shadow-xl shadow-black/30 backdrop-blur">
+          <div className="min-w-0">
+            <button
+              type="button"
+              onClick={() => setCharacterIntroOpen(true)}
+              className="block max-w-full truncate text-left text-base font-black leading-tight text-white underline-offset-4 transition hover:text-violet-100 hover:underline"
+              title="캐릭터 소개 보기"
+            >
+              {character.name}
+            </button>
+            {creatorId != null && creatorId > 0 ? (
+              <Link
+                href={`/creator/${creatorId}`}
+                className="mt-0.5 block max-w-full truncate text-[11px] font-medium text-zinc-500 underline-offset-2 transition hover:text-zinc-300 hover:underline"
+                title="제작자 페이지"
+              >
+                {creatorName}
+              </Link>
+            ) : creatorName ? (
+              <p className="mt-0.5 truncate text-[11px] font-medium text-zinc-500">{creatorName}</p>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            onClick={() => setAssetAlbumOpen(true)}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 text-zinc-100 transition hover:bg-white/[0.08] hover:text-white"
+            title="이미지 앨범"
+            aria-label="이미지 앨범 열기"
+          >
+            <IconAlbum className="h-4 w-4" />
+          </button>
+        </div>
         <ChatRoomDisplayQuickRail
           displayPrefs={displayPrefs}
           onDisplayPrefsChange={handleDisplayPrefsChange}
