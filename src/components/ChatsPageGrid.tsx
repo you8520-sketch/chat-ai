@@ -151,6 +151,16 @@ export default function ChatsPageGrid({ sessions, blurNsfw }: Props) {
     }
   }
 
+  function handleRenameSuccess(updated: UserChatSession) {
+    setPickerGroup((current) => {
+      if (!current?.sessions.some((s) => s.chat_id === updated.chat_id)) return current;
+      return {
+        ...current,
+        sessions: current.sessions.map((s) => (s.chat_id === updated.chat_id ? updated : s)),
+      };
+    });
+  }
+
   if (sessions.length === 0) {
     return (
       <p className="py-16 text-center text-sm text-zinc-400">
@@ -192,6 +202,7 @@ export default function ChatsPageGrid({ sessions, blurNsfw }: Props) {
           blurNsfw={blurNsfw}
           nsfw={pickerGroup.nsfw === 1}
           onDeleteRequest={setPendingDelete}
+          onRenameSuccess={handleRenameSuccess}
           deletingId={deletingId}
         />
       )}
