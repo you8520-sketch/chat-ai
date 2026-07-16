@@ -183,6 +183,8 @@ export default function ChatSettingsPanel({
   const [memoryLoading, setMemoryLoading] = useState(false);
   const [memoryRefreshing, setMemoryRefreshing] = useState(false);
   const [memoryPanelTick, setMemoryPanelTick] = useState(0);
+  /** One-shot: V3 catch-up only when user opens the memory tab — not on every post-turn refresh. */
+  const memoryBackfillOnceRef = useRef(false);
   const memoryLoadedChatIdRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -240,7 +242,8 @@ export default function ChatSettingsPanel({
     }
     setMemoryError("");
 
-    const backfill = memoryRefreshKey > 0 ? "&backfill=1" : "";
+    const backfill = memoryBackfillOnceRef.current ? "&backfill=1" : "";
+    memoryBackfillOnceRef.current = false;
     fetch(`/api/chat/memory?chatId=${chatId}${backfill}`, {
       signal: AbortSignal.timeout(MEMORY_FETCH_TIMEOUT_MS),
     })
@@ -361,7 +364,11 @@ export default function ChatSettingsPanel({
   function selectSection(id: SettingsTab) {
     setActive((prev) => {
       const next = prev === id ? null : id;
-      if (next === "memory") setMemoryPanelTick((t) => t + 1);
+      if (next === "memory") {
+        // Explicit user action — allow at most one panel catch-up batch (server caps at 1)
+        memoryBackfillOnceRef.current = true;
+        setMemoryPanelTick((t) => t + 1);
+      }
       return next;
     });
   }
