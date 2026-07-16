@@ -248,9 +248,30 @@ export const CHAT_PORTRAIT_PANEL_HEIGHT = `calc(100dvh - ${CHAT_PORTRAIT_TITLE_S
 /** 채팅 입력창 하단 안내문 위쪽에 맞춰 좌측 에셋이 화면 바닥까지 꽉 차지 않도록 남기는 여백 */
 export const CHAT_PORTRAIT_INPUT_HELPER_GAP_REM = "1.75rem";
 
+/** Desktop portrait+chat column tracks (shared by main grid and sticky info strip). */
+export const CHAT_PORTRAIT_DESKTOP_TRACK_CLASS =
+  "sm:grid-cols-[minmax(340px,400px)_minmax(0,780px)] sm:gap-x-6";
+
 /** 초상 ON — 좌: 에셋 / 우: 채팅+입력 */
 export const CHAT_PORTRAIT_GRID_CLASS =
-  "mx-auto grid w-full max-w-[75.25rem] min-w-0 flex-1 grid-cols-1 items-start sm:grid-cols-[minmax(340px,400px)_minmax(0,780px)] sm:grid-rows-[auto_minmax(0,1fr)] sm:gap-x-6";
+  `mx-auto grid w-full max-w-[75.25rem] min-w-0 flex-1 grid-cols-1 items-start ${CHAT_PORTRAIT_DESKTOP_TRACK_CLASS} sm:grid-rows-[auto_minmax(0,1fr)]`;
+
+/**
+ * Desktop sticky name/creator/album strip (portrait ON) — spans both grid columns
+ * so the tab sits above chat; album content stays in the portrait track only.
+ */
+export const CHAT_PORTRAIT_INFO_STICKY_CLASS =
+  "hidden sm:col-span-2 sm:col-start-1 sm:row-start-1 sm:block sm:sticky sm:top-[var(--site-header-height,44px)] sm:z-30 sm:h-[3.25rem] sm:w-full sm:border-b sm:border-white/5 sm:bg-[#121212]/95 sm:backdrop-blur";
+
+export const CHAT_PORTRAIT_INFO_STICKY_INNER_CLASS =
+  `grid h-full w-full ${CHAT_PORTRAIT_DESKTOP_TRACK_CLASS} pl-0 pr-1`;
+
+/**
+ * Desktop sticky name/creator/album strip (portrait OFF) — same fixed top bar as
+ * mobile intent: always visible above the chat column.
+ */
+export const CHAT_INFO_STICKY_NO_PORTRAIT_CLASS =
+  "hidden sm:sticky sm:top-[var(--site-header-height,44px)] sm:z-30 sm:mx-auto sm:flex sm:h-[3.25rem] sm:w-full sm:max-w-[780px] sm:items-center sm:justify-between sm:gap-3 sm:border-b sm:border-white/5 sm:bg-[#121212]/95 sm:pl-0 sm:pr-1 sm:backdrop-blur";
 
 /** 초상 열 sticky — 모바일 채팅은 글로벌 헤더 없음(제목만), md+는 헤더+제목 */
 export const CHAT_PORTRAIT_STICKY_CLASS =
