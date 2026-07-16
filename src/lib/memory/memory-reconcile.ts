@@ -1,5 +1,4 @@
 import { getDb } from "@/lib/db";
-import { ROLLING_SUMMARY_INTERVAL } from "@/lib/hybridMemory";
 import { isMemoryFeatureEnabled } from "./memory-feature";
 import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
 import { trimLorebookToBudgetSync } from "./memory-lorebook-fit";
@@ -15,21 +14,16 @@ import {
   shouldTriggerRollingSummary,
   syncChatLongTermMemory,
 } from "./memory-rolling-summary";
+import { highestContiguousCompletedTurn } from "./memory-summary-integrity";
+import { reconcileSummarizedTurnCountFromTable } from "./memory-summary-persist";
 import type { MemoryTier } from "./memory-types";
 
-/** 완료된 배치 기록만 반영 — summarized_turn_count 재계산 */
+/** 완료된 배치 중 1부터 연속인 구간만 반영 — 구멍(예: 7만 있고 1 없음)이면 0 */
 export function computeSummarizedTurnCountFromRecords(
   records: MemoryRecordView[],
   actualTurnCount: number
 ): number {
-  let summarized = 0;
-  for (const r of records) {
-    const span = r.turnEnd - r.turnStart + 1;
-    if (span === ROLLING_SUMMARY_INTERVAL && r.turnEnd <= actualTurnCount) {
-      summarized = Math.max(summarized, r.turnEnd);
-    }
-  }
-  return summarized;
+  return highestContiguousCompletedTurn(records, actualTurnCount);
 }
 
 /** 실제 턴 수보다 뒤에 걸친 요약 기록 제거 */
@@ -60,22 +54,28 @@ export function reconcileMemoryAfterTurnDelete(opts: {
   getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
 
   pruneStaleMemoryRecords(opts.chatId, actualTurnCount);
-  const remaining = listMemoryRecordsForChat(opts.chatId);
-  const newSummarized = computeSummarizedTurnCountFromRecords(remaining, actualTurnCount);
+  updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
+    message_count: actualTurnCount,
+    membership_tier: opts.tier,
+  });
+  const newSummarized = reconcileSummarizedTurnCountFromTable({
+    chatId: opts.chatId,
+    userId: opts.userId,
+    characterId: opts.characterId,
+    tier: opts.tier,
+    playableTurnCount: actualTurnCount,
+  });
 
   const budget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity).lorebook;
   let lorebook = rebuildLorebookFromRecords(opts.chatId);
   if (lorebook.length > budget) {
     lorebook = trimLorebookToBudgetSync(lorebook, budget);
+    updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
+      recent_summary: lorebook,
+      membership_tier: opts.tier,
+    });
+    syncChatLongTermMemory(opts.chatId, lorebook);
   }
-
-  updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
-    message_count: actualTurnCount,
-    summarized_turn_count: newSummarized,
-    recent_summary: lorebook,
-    membership_tier: opts.tier,
-  });
-  syncChatLongTermMemory(opts.chatId, lorebook);
 
   if (shouldTriggerRollingSummary(actualTurnCount, newSummarized)) {
     scheduleCharacterRollingSummary({

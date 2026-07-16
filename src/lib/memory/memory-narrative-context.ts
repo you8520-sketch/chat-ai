@@ -33,6 +33,7 @@ export function buildRecentNarrativeContextBlock(
   excludeAssistantMessageId?: number | null
 ): string {
   let records = listMemoryRecordsForChat(chatId);
+  records = records.filter((r) => r.summaryKind === "narrative");
   if (excludeAssistantMessageId != null) {
     records = records.filter((r) => r.assistantMessageId !== excludeAssistantMessageId);
   }
@@ -59,7 +60,7 @@ export function buildStoredHistoryStaticBlock(
   modelId?: string | null,
   provider?: "gemini" | "openrouter"
 ): string {
-  const records = listMemoryRecordsForChat(chatId);
+  const records = listMemoryRecordsForChat(chatId).filter((r) => r.summaryKind === "narrative");
   if (records.length === 0) return "";
 
   const maxCap = resolveStaticStoredSummaryLimit(modelId, provider);

@@ -350,6 +350,7 @@ function migrate(db: Database.Database) {
       turn_number INTEGER NOT NULL,
       assistant_message_id INTEGER,
       summary TEXT NOT NULL DEFAULT '',
+      summary_kind TEXT NOT NULL DEFAULT 'narrative',
       user_edited INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -360,6 +361,7 @@ function migrate(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_chat_turn_summaries_message
       ON chat_turn_summaries(assistant_message_id);
   `);
+  addColumn("chat_turn_summaries", "summary_kind", "TEXT NOT NULL DEFAULT 'narrative'");
   db.exec(`UPDATE characters SET visibility='public', moderation_status='approved' WHERE official=1 OR creator_id IS NULL`);
   db.exec(`
     CREATE TABLE IF NOT EXISTS worlds (

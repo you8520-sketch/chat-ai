@@ -21,6 +21,7 @@ import { resolveMemoryBudgetFromCapacity } from "@/lib/memory/memory-capacity-sh
 import { getChatMemoryCapacity } from "@/lib/memory/memory-capacity";
 import {
   listMemoryRecordsForChat,
+  listVisibleMemoryRecordsForChat,
   MEMORY_RECORD_MAX_CHARS,
   MEMORY_RECORD_MIN_CHARS,
   updateMemoryRecordById,
@@ -93,7 +94,8 @@ export async function GET(req: Request) {
     scheduleMemoryPanelBackfill(backfillOpts);
   }
 
-  const memoryRecords = listMemoryRecordsForChat(chatId);
+  // ooc_only placeholders are contiguous progress only — never shown as history UI
+  const memoryRecords = listVisibleMemoryRecordsForChat(chatId);
 
   const msgRows = db
     .prepare("SELECT role, content, model FROM messages WHERE chat_id=? ORDER BY id ASC")

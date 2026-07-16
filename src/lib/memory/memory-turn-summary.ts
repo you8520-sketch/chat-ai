@@ -5,6 +5,10 @@ import {
   ROLLING_SUMMARY_MIN_CHARS,
 } from "./memory-constants";
 import { clampMemoryRecordSummary } from "./memory-summary-clamp";
+import {
+  isOocOnlySummaryKind,
+  type SummaryKind,
+} from "./memory-summary-integrity";
 
 export const MEMORY_RECORD_MIN_CHARS = ROLLING_SUMMARY_MIN_CHARS;
 export const MEMORY_RECORD_MAX_CHARS = ROLLING_SUMMARY_MAX_CHARS;
@@ -15,6 +19,7 @@ export type MemoryRecordRow = {
   turn_number: number;
   assistant_message_id: number | null;
   summary: string;
+  summary_kind?: string | null;
   user_edited: number;
   created_at: string;
   updated_at: string;
@@ -26,6 +31,7 @@ export type MemoryRecordView = {
   turnEnd: number;
   turnRangeLabel: string;
   summary: string;
+  summaryKind: SummaryKind;
   userEdited: boolean;
   charCount: number;
   assistantMessageId: number | null;
@@ -33,6 +39,26 @@ export type MemoryRecordView = {
 
 function clampRecord(text: string, max = MEMORY_RECORD_MAX_CHARS): string {
   return clampMemoryRecordSummary(text, max, ROLLING_SUMMARY_MIN_CHARS);
+}
+
+function normalizeSummaryKind(raw: string | null | undefined): SummaryKind {
+  return isOocOnlySummaryKind(raw) ? "ooc_only" : "narrative";
+}
+
+function rowToView(r: MemoryRecordRow): MemoryRecordView {
+  const turnStart = r.turn_number;
+  const turnEnd = turnStart + ROLLING_SUMMARY_INTERVAL - 1;
+  return {
+    id: r.id,
+    turnStart,
+    turnEnd,
+    turnRangeLabel: formatTurnRangeLabel(turnStart, turnEnd),
+    summary: r.summary,
+    summaryKind: normalizeSummaryKind(r.summary_kind),
+    userEdited: r.user_edited === 1,
+    charCount: r.summary.length,
+    assistantMessageId: r.assistant_message_id ?? null,
+  };
 }
 
 export function formatTurnRangeLabel(startTurn: number, endTurn: number): string {
@@ -43,12 +69,12 @@ export function formatMemoryBlock(startTurn: number, endTurn: number, summary: s
   return `[${formatTurnRangeLabel(startTurn, endTurn)}] ${summary.trim()}`;
 }
 
-/** chat_turn_summaries → 시간순(오래된 것 위) 로어북 본문 */
+/** Narrative rows only — ooc_only placeholders never enter recent_summary / prompt lorebook. */
 export function rebuildLorebookFromRecords(
   chatId: number,
   opts?: { excludeTurnStartGte?: number }
 ): string {
-  let records = listMemoryRecordsForChat(chatId);
+  let records = listMemoryRecordsForChat(chatId).filter((r) => r.summaryKind === "narrative");
   const cutoff = opts?.excludeTurnStartGte;
   if (cutoff != null && cutoff > 0) {
     records = records.filter((r) => r.turnEnd < cutoff);
@@ -56,28 +82,22 @@ export function rebuildLorebookFromRecords(
   return records.map((r) => formatMemoryBlock(r.turnStart, r.turnEnd, r.summary)).join("\n\n");
 }
 
+/** Rows shown in memory history UI (excludes ooc_only placeholders). */
+export function listVisibleMemoryRecordsForChat(chatId: number): MemoryRecordView[] {
+  return listMemoryRecordsForChat(chatId).filter((r) => r.summaryKind === "narrative");
+}
+
 export function listMemoryRecordsForChat(chatId: number): MemoryRecordView[] {
   const rows = getDb()
     .prepare(
-      `SELECT id, chat_id, turn_number, assistant_message_id, summary, user_edited, created_at, updated_at
+      `SELECT id, chat_id, turn_number, assistant_message_id, summary,
+              COALESCE(summary_kind, 'narrative') AS summary_kind,
+              user_edited, created_at, updated_at
        FROM chat_turn_summaries WHERE chat_id=? ORDER BY turn_number ASC`
     )
     .all(chatId) as MemoryRecordRow[];
 
-  return rows.map((r) => {
-    const turnStart = r.turn_number;
-    const turnEnd = turnStart + ROLLING_SUMMARY_INTERVAL - 1;
-    return {
-      id: r.id,
-      turnStart,
-      turnEnd,
-      turnRangeLabel: formatTurnRangeLabel(turnStart, turnEnd),
-      summary: r.summary,
-      userEdited: r.user_edited === 1,
-      charCount: r.summary.length,
-      assistantMessageId: r.assistant_message_id ?? null,
-    };
-  });
+  return rows.map(rowToView);
 }
 
 /** @deprecated listMemoryRecordsForChat 사용 */
@@ -88,7 +108,7 @@ export function listTurnSummariesForChat(chatId: number): {
   userEdited: boolean;
   charCount: number;
 }[] {
-  return listMemoryRecordsForChat(chatId).map((r) => ({
+  return listVisibleMemoryRecordsForChat(chatId).map((r) => ({
     id: r.id,
     turnNumber: r.turnStart,
     summary: r.summary,
@@ -103,52 +123,47 @@ export async function upsertMemoryRecord(opts: {
   assistantMessageId: number | null;
   summary: string;
   userEdited?: boolean;
+  summaryKind?: SummaryKind;
 }): Promise<MemoryRecordView> {
-  const summary = clampRecord(opts.summary);
+  const kind: SummaryKind = opts.summaryKind === "ooc_only" ? "ooc_only" : "narrative";
+  const summary = kind === "ooc_only" ? opts.summary.trim() : clampRecord(opts.summary);
   const db = getDb();
   const existing = db
-    .prepare("SELECT id FROM chat_turn_summaries WHERE chat_id=? AND turn_number=?")
-    .get(opts.chatId, opts.turnStart) as { id: number } | undefined;
+    .prepare("SELECT id, summary_kind FROM chat_turn_summaries WHERE chat_id=? AND turn_number=?")
+    .get(opts.chatId, opts.turnStart) as { id: number; summary_kind?: string } | undefined;
 
   if (existing) {
     db.prepare(
       `UPDATE chat_turn_summaries SET
-        summary=?, assistant_message_id=COALESCE(?, assistant_message_id),
+        summary=?, summary_kind=?, assistant_message_id=COALESCE(?, assistant_message_id),
         user_edited=?, updated_at=datetime('now')
        WHERE id=?`
-    ).run(summary, opts.assistantMessageId, opts.userEdited ? 1 : 0, existing.id);
+    ).run(summary, kind, opts.assistantMessageId, opts.userEdited ? 1 : 0, existing.id);
   } else {
     db.prepare(
       `INSERT INTO chat_turn_summaries
-        (chat_id, turn_number, assistant_message_id, summary, user_edited)
-       VALUES (?,?,?,?,?)`
+        (chat_id, turn_number, assistant_message_id, summary, summary_kind, user_edited)
+       VALUES (?,?,?,?,?,?)`
     ).run(
       opts.chatId,
       opts.turnStart,
       opts.assistantMessageId,
       summary,
+      kind,
       opts.userEdited ? 1 : 0
     );
   }
 
   const row = db
     .prepare(
-      `SELECT id, chat_id, turn_number, assistant_message_id, summary, user_edited, created_at, updated_at
+      `SELECT id, chat_id, turn_number, assistant_message_id, summary,
+              COALESCE(summary_kind, 'narrative') AS summary_kind,
+              user_edited, created_at, updated_at
        FROM chat_turn_summaries WHERE chat_id=? AND turn_number=?`
     )
     .get(opts.chatId, opts.turnStart) as MemoryRecordRow;
 
-  const turnEnd = row.turn_number + ROLLING_SUMMARY_INTERVAL - 1;
-  return {
-    id: row.id,
-    turnStart: row.turn_number,
-    turnEnd,
-    turnRangeLabel: formatTurnRangeLabel(row.turn_number, turnEnd),
-    summary: row.summary,
-    userEdited: row.user_edited === 1,
-    charCount: row.summary.length,
-    assistantMessageId: row.assistant_message_id ?? null,
-  };
+  return rowToView(row);
 }
 
 export function updateMemoryRecordById(
@@ -161,32 +176,24 @@ export function updateMemoryRecordById(
 
   const db = getDb();
   const row = db
-    .prepare("SELECT id, turn_number FROM chat_turn_summaries WHERE id=? AND chat_id=?")
-    .get(recordId, chatId) as { id: number; turn_number: number } | undefined;
+    .prepare("SELECT id, turn_number, summary_kind FROM chat_turn_summaries WHERE id=? AND chat_id=?")
+    .get(recordId, chatId) as { id: number; turn_number: number; summary_kind?: string } | undefined;
   if (!row) return null;
-
+  // User edits always become narrative content
   db.prepare(
-    `UPDATE chat_turn_summaries SET summary=?, user_edited=1, updated_at=datetime('now') WHERE id=?`
+    `UPDATE chat_turn_summaries SET summary=?, summary_kind='narrative', user_edited=1, updated_at=datetime('now') WHERE id=?`
   ).run(text, recordId);
 
   const updated = db
     .prepare(
-      `SELECT id, chat_id, turn_number, assistant_message_id, summary, user_edited, created_at, updated_at
+      `SELECT id, chat_id, turn_number, assistant_message_id, summary,
+              COALESCE(summary_kind, 'narrative') AS summary_kind,
+              user_edited, created_at, updated_at
        FROM chat_turn_summaries WHERE id=?`
     )
     .get(recordId) as MemoryRecordRow;
 
-  const turnEnd = updated.turn_number + ROLLING_SUMMARY_INTERVAL - 1;
-  return {
-    id: updated.id,
-    turnStart: updated.turn_number,
-    turnEnd,
-    turnRangeLabel: formatTurnRangeLabel(updated.turn_number, turnEnd),
-    summary: updated.summary,
-    userEdited: true,
-    charCount: updated.summary.length,
-    assistantMessageId: updated.assistant_message_id ?? null,
-  };
+  return rowToView(updated);
 }
 
 /** @deprecated updateMemoryRecordById 사용 */

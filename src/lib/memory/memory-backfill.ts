@@ -15,6 +15,7 @@ import { ensureLorebookWithinBudget } from "./memory-lorebook-fit";
 import { resolveLorebookFromRecords } from "./memory-lorebook-resolve";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
 import { isMemoryFeatureEnabled } from "./memory-feature";
+import { reconcileSummarizedTurnCountFromTable } from "./memory-summary-persist";
 import type { MemoryTier } from "./memory-types";
 
 /**
@@ -46,15 +47,18 @@ export function syncMemoryFromChat(opts: {
     clearBuffer(opts.chatId);
   }
 
-  const hasLegacySummary = Boolean(memory.recent_summary.trim() || memory.last_compressed_at);
-  const summarizedTurnCount = hasLegacySummary
-    ? Math.floor(playableCount / ROLLING_SUMMARY_INTERVAL) * ROLLING_SUMMARY_INTERVAL
-    : 0;
-
+  // Never advance summarized_turn_count from legacy text alone — derive from contiguous table rows
   updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
     message_count: playableCount,
-    summarized_turn_count: summarizedTurnCount,
     membership_tier: opts.tier,
+  });
+
+  const summarizedTurnCount = reconcileSummarizedTurnCountFromTable({
+    chatId: opts.chatId,
+    userId: opts.userId,
+    characterId: opts.characterId,
+    tier: opts.tier,
+    playableTurnCount: playableCount,
   });
 
   console.info(
