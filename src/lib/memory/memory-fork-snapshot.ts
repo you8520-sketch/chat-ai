@@ -28,7 +28,10 @@ export function copyForkTurnSummaries(
 
   const rows = db
     .prepare(
-      `SELECT turn_number, assistant_message_id, summary, user_edited
+      `SELECT turn_number, assistant_message_id, summary, user_edited,
+              COALESCE(summary_kind, 'narrative') AS summary_kind,
+              scope_payload, branch_id, branch_status, promoted_by, promoted_at,
+              COALESCE(inactive, 0) AS inactive
        FROM chat_turn_summaries WHERE chat_id=? ORDER BY turn_number ASC`
     )
     .all(opts.sourceChatId) as {
@@ -36,11 +39,20 @@ export function copyForkTurnSummaries(
     assistant_message_id: number | null;
     summary: string;
     user_edited: number;
+    summary_kind: string;
+    scope_payload: string | null;
+    branch_id: string | null;
+    branch_status: string | null;
+    promoted_by: string | null;
+    promoted_at: string | null;
+    inactive: number;
   }[];
 
   const ins = db.prepare(
-    `INSERT INTO chat_turn_summaries (chat_id, turn_number, assistant_message_id, summary, user_edited)
-     VALUES (?,?,?,?,?)`
+    `INSERT INTO chat_turn_summaries
+      (chat_id, turn_number, assistant_message_id, summary, user_edited,
+       summary_kind, scope_payload, branch_id, branch_status, promoted_by, promoted_at, inactive)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
   );
 
   let copied = 0;
@@ -58,7 +70,14 @@ export function copyForkTurnSummaries(
       row.turn_number,
       newAssistantId,
       row.summary,
-      row.user_edited ?? 0
+      row.user_edited ?? 0,
+      row.summary_kind,
+      row.scope_payload,
+      row.branch_id,
+      row.branch_status,
+      row.promoted_by,
+      row.promoted_at,
+      row.inactive ?? 0
     );
     copied += 1;
   }

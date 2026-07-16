@@ -100,7 +100,7 @@ describe("persistValidatedSummaryBatch integrity", () => {
     const rows = listMemoryRecordsForChat(CHAT_ID);
     assert.equal(rows.length, 1);
     assert.equal(rows[0]!.turnStart, 1);
-    assert.equal(rows[0]!.summaryKind, "narrative");
+    assert.equal(rows[0]!.summaryKind, "main_canon");
   });
 
   it("valid 7~12 coexists with 1~6 and sets count=12", () => {
@@ -187,7 +187,7 @@ describe("persistValidatedSummaryBatch integrity", () => {
       turnStart: 1,
       assistantMessageId: null,
       summary: stripped,
-      summaryKind: "narrative",
+      summaryKind: "main_canon",
       playableTurnCount: 13,
     });
     assert.equal(r.ok, false);
@@ -229,7 +229,7 @@ describe("persistValidatedSummaryBatch integrity", () => {
     const db = getDb();
     db.prepare(
       `INSERT INTO chat_turn_summaries (chat_id, turn_number, summary, summary_kind) VALUES (?,?,?,?)`
-    ).run(CHAT_ID, 7, FIXTURE2, "narrative");
+    ).run(CHAT_ID, 7, FIXTURE2, "main_canon");
     db.prepare(
       `INSERT INTO chat_memories (chat_id, user_id, character_id, recent_summary, summarized_turn_count, membership_tier, used_chars)
        VALUES (?,?,?,?,12,'free',?)`
@@ -257,17 +257,17 @@ describe("persistValidatedSummaryBatch integrity", () => {
       turnStart: 1,
       assistantMessageId: null,
       summary: buildOocOnlyBatchPlaceholder(1, 6),
-      summaryKind: "ooc_only",
+      summaryKind: "empty_ooc",
       playableTurnCount: 13,
     });
     assert.equal(r.ok, true);
     if (!r.ok) return;
     assert.equal(r.summarizedTurnCount, 6);
-    assert.equal(r.record.summaryKind, "ooc_only");
+    assert.equal(r.record.summaryKind, "empty_ooc");
     assert.equal(r.record.summary, OOC_ONLY_SUMMARY_MARKER);
 
     const all = listMemoryRecordsForChat(CHAT_ID);
-    assert.equal(all[0]!.summaryKind, "ooc_only");
+    assert.equal(all[0]!.summaryKind, "empty_ooc");
     assert.equal(listVisibleMemoryRecordsForChat(CHAT_ID).length, 0);
 
     const recent = rebuildLorebookFromRecords(CHAT_ID);
@@ -315,7 +315,7 @@ describe("persistValidatedSummaryBatch integrity", () => {
       turnStart: 1,
       assistantMessageId: null,
       summary: buildOocOnlyBatchPlaceholder(1, 6),
-      summaryKind: "ooc_only",
+      summaryKind: "empty_ooc",
       playableTurnCount: 7,
     });
     const b = persistValidatedSummaryBatch({
@@ -326,7 +326,7 @@ describe("persistValidatedSummaryBatch integrity", () => {
       turnStart: 1,
       assistantMessageId: null,
       summary: buildOocOnlyBatchPlaceholder(1, 6),
-      summaryKind: "ooc_only",
+      summaryKind: "empty_ooc",
       playableTurnCount: 7,
     });
     assert.equal(a.ok, true);
@@ -441,10 +441,10 @@ describe("persistValidatedSummaryBatch integrity", () => {
     const db = getDb();
     db.prepare(
       `INSERT INTO chat_turn_summaries (chat_id, turn_number, summary, summary_kind) VALUES (?,?,?,?)`
-    ).run(CHAT_ID, 1, FIXTURE, "narrative");
+    ).run(CHAT_ID, 1, FIXTURE, "main_canon");
     db.prepare(
       `INSERT INTO chat_turn_summaries (chat_id, turn_number, summary, summary_kind) VALUES (?,?,?,?)`
-    ).run(CHAT_ID, 13, FIXTURE2, "narrative");
+    ).run(CHAT_ID, 13, FIXTURE2, "main_canon");
     const records = listMemoryRecordsForChat(CHAT_ID);
     assert.equal(highestContiguousCompletedTurn(records, 20), 6);
     const n = reconcileSummarizedTurnCountFromTable({
@@ -495,7 +495,7 @@ describe("chat 44 local DB integrity snapshot", () => {
     const a = snap();
     const b = snap();
     assert.deepEqual(a.starts, [1, 7]);
-    assert.deepEqual(a.kinds, ["narrative", "narrative"]);
+    assert.deepEqual(a.kinds, ["main_canon", "main_canon"]);
     assert.equal(a.count, 12);
     assert.equal(a.reason, "SUMMARY_OK");
     assert.deepEqual(a.visible, [1, 7]);

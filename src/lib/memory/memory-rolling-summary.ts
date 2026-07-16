@@ -23,7 +23,7 @@ import {
 import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
 import type { MemoryTier } from "./memory-types";
 import {
-  buildOocOnlyBatchPlaceholder,
+  buildEmptyOocBatchPlaceholder,
   earliestMissingBatchStart,
   highestContiguousCompletedTurn,
   validateSummaryNarrative,
@@ -32,19 +32,64 @@ import {
   persistValidatedSummaryBatch,
   reconcileSummarizedTurnCountFromTable,
 } from "./memory-summary-persist";
+import {
+  buildNoncanonSummaryFromTurns,
+  buildPreferenceSummaryFromTurns,
+  classifyMemoryBatchScopes,
+  displaySummaryFromScopes,
+  type MemorySummaryScope,
+  type ScopePayloadV1,
+} from "./memory-summary-scope";
+import {
+  closeActiveBranchCanon,
+  promoteRecordsToBranchCanon,
+} from "./memory-turn-summary";
 
-export const ROLLING_SUMMARY_SYSTEM_PROMPT = `[역할]: 롤플레잉 대화의 기억 기록관.
-[과업]: 제공된 ${ROLLING_SUMMARY_INTERVAL}턴의 원본 대화를 읽고 사건 흐름 기억 기록 1편을 작성하십시오.
-[포함]: 주요 사건 · 감정 변화 · 핵심 대사(따옴표로 짧게) · 관계·세계관 변화
-[형식]:
-- 대화·세계관에서 날짜를 추론할 수 있으면 첫 줄에 [YYYY-MM-DD]만 단독 출력 (알 수 없으면 생략)
-- 본문은 대화·플롯 순서대로 3인칭 서술, 각 구절을 → 로 연결 (예: A가 …했다 → B는 …했다 → …)
-- 불릿·키워드 나열 금지. 한 문단 연속 흐름.
-[규칙]: 대사 전문 복붙 금지. 요약 본문만 출력.
-[캐릭터/유저 식별정보 준수]: 캐릭터/유저 식별정보가 제공되면 성별·호칭·신체 묘사를 절대 뒤집지 마십시오. 남성은 여성형 호칭·신체·복장으로 바꾸지 말고, 여성은 남성형 호칭·신체로 바꾸지 마십시오.
-[관계/신체 역할 보존]: 성행위·신체 접촉 턴은 노골적 세부를 길게 기록하지 말고 짧게 압축하십시오. 다만 관계 변화, 감정 변화, 누가 누구를 안았는지, 보호했는지, 주도/수동 역할처럼 이후 맥락에 필요한 방향성은 정확히 보존하십시오. 삽입·피삽입 등 성별/신체 역할을 추측으로 뒤집지 마십시오. 명시되지 않았으면 중립적으로 기록하십시오.
-[OOC 제외]: (OOC:) 메타·UI 연출(트위터/SNS/익명함/HTML 목업·RP 중단 등)은 기록하지 마십시오. 현재 RP 장면에서 일어난 사건·감정·관계 변화만 기록하십시오.
-[분량]: **최대 ${ROLLING_SUMMARY_MAX_CHARS}자**. 중요한 사건·관계 변화가 많으면 충분히 서술하되, 일상·반복·저중요도 구간(예: 단순 신체 접촉만 이어진 턴)은 짧게 압축해도 됩니다. **${ROLLING_SUMMARY_MAX_CHARS}자를 채우기 위해 불필요한 내용을 늘리지 마십시오.** ${ROLLING_SUMMARY_MAX_CHARS}자를 절대 넘기지 마십시오. 마지막 구절을 중간에 끊지 말고 → 연결 흐름으로 자연스럽게 마무리하십시오.`;
+export const ROLLING_SUMMARY_SYSTEM_PROMPT = `[${ROLLING_SUMMARY_INTERVAL}턴 히스토리 요약]
+
+${ROLLING_SUMMARY_INTERVAL}턴 배치의 사건을 발생 순서대로 요약한다. 사건 시기와 인과관계를 누락하지 않는다.
+작중 시간은 본문·상태창·정본에 명시된 경우에만 기록하며, 불명확하면 추측하지 않는다.
+현실 날짜·요약 생성일·턴 범위는 본문에 쓰지 않고 서버 metadata로 관리한다.
+
+[형식]
+- 간결한 사실형 서술 또는 명사형 종결
+- 원인 → 행동·선택 → 결과 → 관계·감정 변화 순
+- ${ROLLING_SUMMARY_MAX_CHARS}자 이내. 중요 정보가 적으면 짧게 끝내며 분량을 억지로 채우지 않는다.
+- 파편식 단문 나열과 분위기 묘사 중심 요약 금지
+- 유저의 명확한 선택이 캐릭터의 태도·감정·행동에 영향을 주었으면 반드시 기록
+- 유저의 생각·의도·감정을 입력에 없는 내용으로 추측하지 않는다.
+
+[반드시 보존]
+1. 주요 사건과 그 결과
+2. 관계 역학 또는 감정 방향의 변화
+3. 인물이 자신이나 상대를 규정한 선언
+4. 약속·계약·임무·미해결 목표
+5. 중요한 물건의 획득·전달·분실과 현재 소유자
+6. 새로 밝혀진 비밀·정체·세계관 정보
+7. 부상·능력·신분·장소 등 이후 전개에 영향을 주는 상태 변화
+8. 관계와 사건의 전환점이 된 대사
+
+[전환점 대사]
+- 원문 메시지에서 정확히 확인 가능한 경우에만 최대 1~2개를 그대로 인용
+- 문구가 불확실하면 인용문을 새로 만들지 말고 의미만 요약
+- 장식적인 대사와 반복 대사는 제외
+
+[삭제·압축]
+- 같은 관계 역학의 반복은 최초 또는 가장 강한 전환점 한 번만 보존
+- 관계나 사건 변화가 없는 분위기·감각·일상 묘사 삭제
+- 성행위의 동작·신체 묘사는 삭제하되, 동의·경계·관계 전환·약속·후유증은 보존
+- 같은 흐름이 여러 턴 이어지면 하나의 인과 흐름으로 병합
+- 이미 캐논에 고정된 외형·직업·말투를 반복 기록하지 않음
+
+[판단 기준]
+다음 질문 중 하나라도 "예"이면 보존한다.
+- 이 줄을 삭제하면 이후 사건의 인과가 달라지는가?
+- 관계 궤적이나 감정 방향이 달라지는가?
+- 누가 무엇을 알고 있는지가 달라지는가?
+- 약속·임무·소유물·현재 상태가 달라지는가?
+
+[식별정보]: 캐릭터/유저 식별정보가 제공되면 성별·호칭·신체 묘사를 뒤집지 않는다.
+[OOC 제외]: (OOC:) 메타·UI·SNS mock·RP 중단 연출은 기록하지 않는다. 요약 본문만 출력한다.`;
 
 const running = new Set<number>();
 const ARROW_SEP = " → ";
@@ -93,7 +138,7 @@ async function summarizeTurnBatch(opts: {
   const characterBlock = opts.characterIdentity?.trim()
     ? `\n\n[캐릭터 식별정보 — 성별·호칭·신체 묘사 절대 준수]\n${opts.characterIdentity.trim()}`
     : "";
-  const userContent = `[${opts.startTurn}~${opts.endTurn}턴 원본 대화]\n${opts.dialogue}\n\n캐릭터: ${opts.charName}${characterBlock}${personaBlock}\n\n사건 흐름(→ 연결) 기억 기록 (최대 ${ROLLING_SUMMARY_MAX_CHARS}자, 저중요도 구간은 짧게). OOC·UI·SNS mock·RP 중단 연출은 제외하고 RP 사건만:`;
+  const userContent = `[${opts.startTurn}~${opts.endTurn}턴 원본 대화]\n${opts.dialogue}\n\n캐릭터: ${opts.charName}${characterBlock}${personaBlock}\n\n[${ROLLING_SUMMARY_INTERVAL}턴 히스토리 요약] 최대 ${ROLLING_SUMMARY_MAX_CHARS}자. OOC·UI·SNS mock·RP 중단 연출은 제외하고 RP 사건만 요약:`;
   const finishSummary = (raw: string): string => {
     const cleaned = normalizeSummaryText(raw);
     if (!cleaned) return "";
@@ -141,6 +186,17 @@ function logLorebookCompact(opts: {
   });
 }
 
+/** @internal test seam — fixture tests stub compact without live model calls */
+let compactCurrentMemoryTestOverride:
+  | null
+  | ((existing: string, maxChars: number) => Promise<string>) = null;
+
+export function __setCompactCurrentMemoryTestOverride(
+  fn: null | ((existing: string, maxChars: number) => Promise<string>)
+): void {
+  compactCurrentMemoryTestOverride = fn;
+}
+
 /** 로어북이 용량을 넘으면 시간순 사건 흐름(→ 연결)으로 압축 — 설정 상한에 맞춤 */
 export async function compactCurrentMemory(
   existing: string,
@@ -175,6 +231,16 @@ export async function compactCurrentMemory(
       targetChars: targetMax,
     });
     return combined;
+  }
+  if (compactCurrentMemoryTestOverride) {
+    const result = await compactCurrentMemoryTestOverride(combined, maxChars);
+    logLorebookCompact({
+      inputChars,
+      outputChars: result.length,
+      maxChars,
+      targetChars: targetMax,
+    });
+    return result;
   }
 
   async function runCompact(expandFrom?: string): Promise<string> {
@@ -219,17 +285,17 @@ export async function compactCurrentMemory(
       });
       return result;
     }
-  } catch {
-    /* fall through */
+    throw new Error("SUMMARY_EMPTY");
+  } catch (e) {
+    logLorebookCompact({
+      inputChars,
+      outputChars: 0,
+      maxChars,
+      targetChars: targetMax,
+    });
+    // Do not silently truncate — callers keep prior lorebook on failure
+    throw e;
   }
-  const result = clampMemoryRecordSummary(combined, targetMax, ROLLING_SUMMARY_MIN_CHARS);
-  logLorebookCompact({
-    inputChars,
-    outputChars: result.length,
-    maxChars,
-    targetChars: targetMax,
-  });
-  return result;
 }
 
 /** 새 히스토리 1편을 로어북 끝에 그대로 덧붙임 (무압축) */
@@ -355,13 +421,27 @@ export async function refreshRollingSummaryForRegeneratedAssistant(opts: {
     const lorebookBudget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity).lorebook;
     let currentMemory = rebuildLorebookFromRecords(opts.chatId);
     if (currentMemory.length > lorebookBudget) {
-      currentMemory = await compactCurrentMemory(currentMemory, lorebookBudget, opts.turnTrace);
-      updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
-        recent_summary: currentMemory,
-        membership_tier: opts.tier,
-        last_compressed_at: new Date().toISOString(),
-      });
-      syncChatLongTermMemory(opts.chatId, currentMemory);
+      try {
+        const compacted = await compactCurrentMemory(
+          currentMemory,
+          lorebookBudget,
+          opts.turnTrace
+        );
+        if (compacted.trim()) {
+          currentMemory = compacted;
+          updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
+            recent_summary: currentMemory,
+            membership_tier: opts.tier,
+            last_compressed_at: new Date().toISOString(),
+          });
+          syncChatLongTermMemory(opts.chatId, currentMemory);
+        }
+      } catch (e) {
+        console.warn(
+          "[memory] lorebook compact skipped after regen — keeping prior text:",
+          (e as Error).message
+        );
+      }
     }
 
     console.info(
@@ -456,26 +536,76 @@ export async function processRollingSummaryBatch(opts: {
     }
 
     const endTurn = batchStart + ROLLING_SUMMARY_INTERVAL - 1;
-    const eligibleEntries = batchMeta
-      .map((meta, i) => ({
-        turnIndex: batchStart + i,
-        turn: { user: meta.user, assistant: meta.assistant } satisfies DialogueTurn,
-      }))
-      .filter(({ turn }) => isTurnEligibleForMemoryRecord(turn.user));
+    const allEntries = batchMeta.map((meta, i) => ({
+      turnIndex: batchStart + i,
+      turn: { user: meta.user, assistant: meta.assistant } satisfies DialogueTurn,
+    }));
 
-    let narrative = "";
-    let summaryKind: "narrative" | "ooc_only" = "narrative";
+    const priorRecords = listMemoryRecordsForChat(opts.chatId);
+    const previousWasNoncanonOrBranch = priorRecords.some(
+      (r) =>
+        !r.inactive &&
+        (r.summaryKind === "noncanon" ||
+          (r.summaryKind === "branch_canon" && r.branchStatus === "active"))
+    );
+    const plan = classifyMemoryBatchScopes(allEntries, { previousWasNoncanonOrBranch });
+
+    // Main RP turns for LLM (legacy eligibility still used as safety for "main" only)
+    const mainEntries = plan.mainTurns.filter(({ turn }) =>
+      isTurnEligibleForMemoryRecord(turn.user)
+    );
+
+    const scopes: ScopePayloadV1["scopes"] = {};
+    let summaryKind: MemorySummaryScope = plan.primaryKind;
     let reasonTag: string = "SUMMARY_SUCCESS";
+    let branchId: string | null = null;
+    let branchStatus: ScopePayloadV1["branchStatus"] = null;
+    let promotedBy: string | null = null;
+    let promotedAt: string | null = null;
 
-    if (eligibleEntries.length === 0) {
-      narrative = buildOocOnlyBatchPlaceholder(batchStart, endTurn);
-      summaryKind = "ooc_only";
+    if (plan.wantsBranchClose) {
+      closeActiveBranchCanon(opts.chatId);
+    }
+
+    if (plan.preferenceTurns.length > 0) {
+      scopes.preference = buildPreferenceSummaryFromTurns(plan.preferenceTurns);
+    }
+
+    if (plan.noncanonTurns.length > 0) {
+      const nonText = buildNoncanonSummaryFromTurns(plan.noncanonTurns);
+      if (plan.wantsBranchContinue || plan.primaryKind === "branch_canon") {
+        scopes.branch_canon = nonText;
+        summaryKind = "branch_canon";
+        branchId = `branch-${opts.chatId}-${batchStart}`;
+        branchStatus = "active";
+        promotedBy = "user_continue";
+        promotedAt = new Date().toISOString();
+        const toPromote = priorRecords
+          .filter((r) => !r.inactive && r.summaryKind === "noncanon")
+          .map((r) => r.id);
+        if (toPromote.length > 0) {
+          promoteRecordsToBranchCanon({
+            chatId: opts.chatId,
+            recordIds: toPromote,
+            branchId,
+            promotedBy: "user_continue",
+          });
+        }
+      } else {
+        scopes.noncanon = nonText;
+        if (summaryKind === "empty_ooc") summaryKind = "noncanon";
+      }
+    }
+
+    if (mainEntries.length === 0 && !scopes.noncanon && !scopes.branch_canon && !scopes.preference) {
+      scopes.empty_ooc = buildEmptyOocBatchPlaceholder(batchStart, endTurn);
+      summaryKind = "empty_ooc";
       reasonTag = "SUMMARY_OOC_PLACEHOLDER";
-    } else {
-      const dialogue = formatBatchDialogue(eligibleEntries, opts.charName);
-      const summaryStartTurn = eligibleEntries[0]!.turnIndex;
-      const summaryEndTurn = eligibleEntries[eligibleEntries.length - 1]!.turnIndex;
-
+    } else if (mainEntries.length > 0) {
+      const dialogue = formatBatchDialogue(mainEntries, opts.charName);
+      const summaryStartTurn = mainEntries[0]!.turnIndex;
+      const summaryEndTurn = mainEntries[mainEntries.length - 1]!.turnIndex;
+      let narrative = "";
       try {
         narrative = await summarizeTurnBatch({
           dialogue,
@@ -503,14 +633,27 @@ export async function processRollingSummaryBatch(opts: {
       }
       narrative = stripOocFromMemorySummary(narrative);
       if (!narrative.trim()) {
-        // Empty after OOC strip is NOT a completed narrative batch — do not advance count
         console.error(
           `[memory] SUMMARY_EMPTY after OOC strip chat=${opts.chatId} turns=${batchStart}-${endTurn}`
         );
         return false;
       }
+      scopes.main_canon = narrative;
+      summaryKind = scopes.noncanon || scopes.branch_canon ? "main_canon" : "main_canon";
     }
 
+    if (plan.wantsMainAdopt && (scopes.branch_canon || scopes.noncanon)) {
+      const adopted = scopes.branch_canon || scopes.noncanon || "";
+      scopes.main_canon = [scopes.main_canon, adopted].filter(Boolean).join("\n");
+      delete scopes.branch_canon;
+      delete scopes.noncanon;
+      summaryKind = "main_canon";
+      branchStatus = "closed";
+      promotedBy = "user_main_adopt";
+      promotedAt = new Date().toISOString();
+    }
+
+    const narrative = displaySummaryFromScopes(scopes, summaryKind);
     const validated = validateSummaryNarrative(narrative, summaryKind);
     if (!validated.ok) {
       console.error(
@@ -518,8 +661,15 @@ export async function processRollingSummaryBatch(opts: {
       );
       return false;
     }
-    narrative = validated.text;
-    summaryKind = validated.kind;
+
+    const scopePayload: ScopePayloadV1 = {
+      v: 1,
+      scopes,
+      branchId,
+      branchStatus,
+      promotedBy,
+      promotedAt,
+    };
 
     const lorebookBudget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity).lorebook;
     const lastAssistantId = batchMeta[batchMeta.length - 1]?.assistantMessageId ?? null;
@@ -532,8 +682,13 @@ export async function processRollingSummaryBatch(opts: {
       tier: opts.tier,
       turnStart: batchStart,
       assistantMessageId: lastAssistantId,
-      summary: narrative,
-      summaryKind,
+      summary: validated.text,
+      summaryKind: validated.kind,
+      scopePayload,
+      branchId,
+      branchStatus,
+      promotedBy,
+      promotedAt,
       userEdited: false,
       playableTurnCount: playableCount,
     });
@@ -548,14 +703,28 @@ export async function processRollingSummaryBatch(opts: {
 
     let currentMemory = rebuildLorebookFromRecords(opts.chatId);
     if (currentMemory.length > lorebookBudget) {
-      currentMemory = await compactCurrentMemory(currentMemory, lorebookBudget, opts.turnTrace);
-      // Re-apply compacted lorebook without changing counter/row (same transaction-safe update)
-      updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
-        recent_summary: currentMemory,
-        membership_tier: opts.tier,
-        last_compressed_at: new Date().toISOString(),
-      });
-      syncChatLongTermMemory(opts.chatId, currentMemory);
+      try {
+        const compacted = await compactCurrentMemory(
+          currentMemory,
+          lorebookBudget,
+          opts.turnTrace
+        );
+        // Only overwrite when compact succeeded — keep prior recent_summary on failure
+        if (compacted.trim()) {
+          currentMemory = compacted;
+          updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
+            recent_summary: currentMemory,
+            membership_tier: opts.tier,
+            last_compressed_at: new Date().toISOString(),
+          });
+          syncChatLongTermMemory(opts.chatId, currentMemory);
+        }
+      } catch (e) {
+        console.warn(
+          "[memory] lorebook compact skipped after batch — keeping prior text:",
+          (e as Error).message
+        );
+      }
     }
 
     console.info(
@@ -639,13 +808,27 @@ export async function regenerateMemoryRecordBatch(opts: {
     const lorebookBudget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity).lorebook;
     let currentMemory = rebuildLorebookFromRecords(opts.chatId);
     if (currentMemory.length > lorebookBudget) {
-      currentMemory = await compactCurrentMemory(currentMemory, lorebookBudget, opts.turnTrace);
-      updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
-        recent_summary: currentMemory,
-        membership_tier: opts.tier,
-        last_compressed_at: new Date().toISOString(),
-      });
-      syncChatLongTermMemory(opts.chatId, currentMemory);
+      try {
+        const compacted = await compactCurrentMemory(
+          currentMemory,
+          lorebookBudget,
+          opts.turnTrace
+        );
+        if (compacted.trim()) {
+          currentMemory = compacted;
+          updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
+            recent_summary: currentMemory,
+            membership_tier: opts.tier,
+            last_compressed_at: new Date().toISOString(),
+          });
+          syncChatLongTermMemory(opts.chatId, currentMemory);
+        }
+      } catch (e) {
+        console.warn(
+          "[memory] lorebook compact skipped after regenerate — keeping prior text:",
+          (e as Error).message
+        );
+      }
     }
     return true;
   } catch (e) {

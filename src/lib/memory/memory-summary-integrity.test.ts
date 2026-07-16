@@ -68,17 +68,17 @@ describe("validateSummaryNarrative", () => {
       "커프링크스를 받으며 둘만의 약속을 나눴다 → 이별 전 심장을 맡긴다고 고백했다.";
     const r = validateSummaryNarrative(text);
     assert.equal(r.ok, true);
-    if (r.ok) assert.equal(r.kind, "narrative");
+    if (r.ok) assert.equal(r.kind, "main_canon");
   });
 
   it("OOC placeholder has explicit ooc_only kind and marker text", () => {
     const p = buildOocOnlyBatchPlaceholder(1, 6);
     assert.equal(p, OOC_ONLY_SUMMARY_MARKER);
     assert.equal(isOocOnlyPlaceholderText(p), true);
-    const r = validateSummaryNarrative(p, "ooc_only");
+    const r = validateSummaryNarrative(p, "empty_ooc");
     assert.equal(r.ok, true);
     if (!r.ok) return;
-    assert.equal(r.kind, "ooc_only");
+    assert.equal(r.kind, "empty_ooc");
     assert.equal(r.text, OOC_ONLY_SUMMARY_MARKER);
     assert.equal(isOocOnlySummaryKind(r.kind), true);
   });

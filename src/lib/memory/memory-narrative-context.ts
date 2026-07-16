@@ -1,6 +1,14 @@
 import { ROLLING_SUMMARY_INTERVAL } from "@/lib/hybridMemory";
 import { resolveStaticStoredSummaryLimit } from "@/lib/contextTrack";
 import { listMemoryRecordsForChat, type MemoryRecordView } from "./memory-turn-summary";
+import { scopesInjectedIntoPrompt } from "./memory-summary-scope";
+
+function isPromptInjectedRecord(r: MemoryRecordView): boolean {
+  if (r.inactive) return false;
+  if (!scopesInjectedIntoPrompt(r.summaryKind)) return false;
+  if (r.summaryKind === "branch_canon" && r.branchStatus === "closed") return false;
+  return true;
+}
 
 export const RECENT_NARRATIVE_CONTEXT_LIMIT = 3;
 
@@ -33,7 +41,7 @@ export function buildRecentNarrativeContextBlock(
   excludeAssistantMessageId?: number | null
 ): string {
   let records = listMemoryRecordsForChat(chatId);
-  records = records.filter((r) => r.summaryKind === "narrative");
+  records = records.filter(isPromptInjectedRecord);
   if (excludeAssistantMessageId != null) {
     records = records.filter((r) => r.assistantMessageId !== excludeAssistantMessageId);
   }
@@ -50,7 +58,7 @@ export function buildRecentNarrativeContextBlock(
 }
 
 /**
- * Static cache 6순위 — chat_turn_summaries(5턴마다 저장) 최신 생성순 1~15개.
+ * Static cache 6순위 — chat_turn_summaries(6턴마다 저장) 최신 생성순 1~15개.
  * read-only, 유저 수정 반영(summary 그대로).
  */
 export function buildStoredHistoryStaticBlock(
@@ -60,7 +68,7 @@ export function buildStoredHistoryStaticBlock(
   modelId?: string | null,
   provider?: "gemini" | "openrouter"
 ): string {
-  const records = listMemoryRecordsForChat(chatId).filter((r) => r.summaryKind === "narrative");
+  const records = listMemoryRecordsForChat(chatId).filter(isPromptInjectedRecord);
   if (records.length === 0) return "";
 
   const maxCap = resolveStaticStoredSummaryLimit(modelId, provider);

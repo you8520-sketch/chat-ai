@@ -14,10 +14,18 @@ import {
 } from "./memory-turn-summary";
 import {
   highestContiguousCompletedTurn,
-  type SummaryKind,
   type SummaryReasonCode,
   validateSummaryNarrative,
 } from "./memory-summary-integrity";
+import {
+  encodeScopePayload,
+  isEmptyOocScope,
+  normalizeSummaryScope,
+  type BranchStatus,
+  type MemorySummaryScope,
+  type ScopePayloadV1,
+  type SummaryKind,
+} from "./memory-summary-scope";
 
 function syncChatLongTermMemory(chatId: number, summary: string): void {
   getDb().prepare("UPDATE chats SET current_summary=? WHERE id=?").run(summary.trim(), chatId);
@@ -31,18 +39,25 @@ function upsertRowInTx(opts: {
   turnStart: number;
   assistantMessageId: number | null;
   summary: string;
-  summaryKind: SummaryKind;
+  summaryKind: MemorySummaryScope;
   userEdited: boolean;
+  scopePayload?: ScopePayloadV1 | null;
+  branchId?: string | null;
+  branchStatus?: BranchStatus | null;
+  promotedBy?: string | null;
+  promotedAt?: string | null;
+  inactive?: boolean;
 }): void {
   const db = getDb();
   const existing = db
     .prepare("SELECT id, summary_kind FROM chat_turn_summaries WHERE chat_id=? AND turn_number=?")
     .get(opts.chatId, opts.turnStart) as { id: number; summary_kind?: string } | undefined;
 
+  const payloadJson = opts.scopePayload ? encodeScopePayload(opts.scopePayload) : null;
+
   if (existing) {
-    // Idempotent: ooc_only → ooc_only rewrite is a no-op (keep row, refresh timestamp only if needed)
-    const prevKind = existing.summary_kind === "ooc_only" ? "ooc_only" : "narrative";
-    if (prevKind === "ooc_only" && opts.summaryKind === "ooc_only" && !opts.userEdited) {
+    const prevEmpty = isEmptyOocScope(existing.summary_kind);
+    if (prevEmpty && opts.summaryKind === "empty_ooc" && !opts.userEdited) {
       db.prepare(
         `UPDATE chat_turn_summaries SET
           assistant_message_id=COALESCE(?, assistant_message_id),
@@ -54,35 +69,48 @@ function upsertRowInTx(opts: {
     db.prepare(
       `UPDATE chat_turn_summaries SET
         summary=?, summary_kind=?, assistant_message_id=COALESCE(?, assistant_message_id),
-        user_edited=?, updated_at=datetime('now')
+        scope_payload=?, branch_id=?, branch_status=?, promoted_by=?, promoted_at=?,
+        inactive=?, user_edited=?, updated_at=datetime('now')
        WHERE id=?`
     ).run(
       opts.summary,
       opts.summaryKind,
       opts.assistantMessageId,
+      payloadJson,
+      opts.branchId ?? null,
+      opts.branchStatus ?? null,
+      opts.promotedBy ?? null,
+      opts.promotedAt ?? null,
+      opts.inactive ? 1 : 0,
       opts.userEdited ? 1 : 0,
       existing.id
     );
   } else {
     db.prepare(
       `INSERT INTO chat_turn_summaries
-        (chat_id, turn_number, assistant_message_id, summary, summary_kind, user_edited)
-       VALUES (?,?,?,?,?,?)`
+        (chat_id, turn_number, assistant_message_id, summary, summary_kind, user_edited,
+         scope_payload, branch_id, branch_status, promoted_by, promoted_at, inactive)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
     ).run(
       opts.chatId,
       opts.turnStart,
       opts.assistantMessageId,
       opts.summary,
       opts.summaryKind,
-      opts.userEdited ? 1 : 0
+      opts.userEdited ? 1 : 0,
+      payloadJson,
+      opts.branchId ?? null,
+      opts.branchStatus ?? null,
+      opts.promotedBy ?? null,
+      opts.promotedAt ?? null,
+      opts.inactive ? 1 : 0
     );
   }
 }
 
 /**
  * Validate + insert batch row + set summarized_turn_count from contiguous table + recent_summary.
- * All DB writes in one transaction. On any error → rollback (counter unchanged).
- * ooc_only rows complete contiguous progress but are excluded from recent_summary rebuild.
+ * empty_ooc / noncanon complete contiguous progress; only injectible scopes enter recent_summary.
  */
 export function persistValidatedSummaryBatch(opts: {
   chatId: number;
@@ -92,15 +120,21 @@ export function persistValidatedSummaryBatch(opts: {
   turnStart: number;
   assistantMessageId: number | null;
   summary: string;
-  summaryKind?: SummaryKind;
+  summaryKind?: SummaryKind | MemorySummaryScope;
   userEdited?: boolean;
-  /** When set, used as recent_summary instead of rebuild (e.g. after compact). Must include narrative batches only. */
+  scopePayload?: ScopePayloadV1 | null;
+  branchId?: string | null;
+  branchStatus?: BranchStatus | null;
+  promotedBy?: string | null;
+  promotedAt?: string | null;
+  inactive?: boolean;
+  /** When set, used as recent_summary instead of rebuild (e.g. after compact). */
   recentSummaryOverride?: string;
   playableTurnCount: number;
   /** @internal test-only — throw after upsert to verify full txn rollback */
   __testThrowAfterUpsert?: boolean;
 }): PersistSummaryBatchResult {
-  const kind: SummaryKind = opts.summaryKind === "ooc_only" ? "ooc_only" : "narrative";
+  const kind = normalizeSummaryScope(opts.summaryKind);
   const validated = validateSummaryNarrative(opts.summary, kind);
   if (!validated.ok) {
     return { ok: false, reason: validated.reason };
@@ -132,6 +166,12 @@ export function persistValidatedSummaryBatch(opts: {
         summary: validated.text,
         summaryKind: validated.kind,
         userEdited: !!opts.userEdited,
+        scopePayload: opts.scopePayload,
+        branchId: opts.branchId,
+        branchStatus: opts.branchStatus,
+        promotedBy: opts.promotedBy,
+        promotedAt: opts.promotedAt,
+        inactive: opts.inactive,
       });
 
       if (opts.__testThrowAfterUpsert) {
@@ -142,13 +182,10 @@ export function persistValidatedSummaryBatch(opts: {
 
       const after = listMemoryRecordsForChat(opts.chatId);
       const contiguous = highestContiguousCompletedTurn(after, opts.playableTurnCount);
-      // Narrative lorebook only — ooc_only never enters recent_summary
       const recent =
         opts.recentSummaryOverride?.trim() ||
         rebuildLorebookFromRecords(opts.chatId) ||
-        (validated.kind === "narrative"
-          ? formatMemoryBlock(opts.turnStart, turnEnd, validated.text)
-          : "");
+        "";
 
       const current = getOrCreateChatMemory(
         opts.chatId,
@@ -183,8 +220,7 @@ export function persistValidatedSummaryBatch(opts: {
 
       return {
         record: {
-          id: row.id,
-          turnStart: opts.turnStart,
+          ...row,
           turnEnd,
           turnRangeLabel: formatTurnRangeLabel(opts.turnStart, turnEnd),
           summary: validated.text,
@@ -254,3 +290,5 @@ export function reconcileSummarizedTurnCountFromTable(opts: {
 
   return contiguous;
 }
+
+export { formatMemoryBlock };

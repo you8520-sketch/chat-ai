@@ -61,6 +61,9 @@ type MemoryRecordItem = {
   turnEnd: number;
   turnRangeLabel: string;
   summary: string;
+  summaryKind?: string;
+  scopeLabel?: string;
+  branchStatus?: string | null;
   userEdited: boolean;
   charCount: number;
   isFallbackSummary?: boolean;
@@ -1198,6 +1201,16 @@ function MemorySection({
   const pct = data ? Math.min(100, Math.round((data.longTermChars / data.limit) * 100)) : 0;
   const lorebookMax = data?.memoryCapacity ?? data?.limit ?? MEMORY_CAPACITY_DEFAULT;
 
+  async function refreshMemoryPanel() {
+    if (chatId == null) return;
+    const res = await fetch(`/api/chat/memory?chatId=${chatId}`, {
+      signal: AbortSignal.timeout(MEMORY_FETCH_TIMEOUT_MS),
+    });
+    const j = await res.json();
+    if (!res.ok) throw new Error(j.error ?? "새로고침 실패");
+    onDataChange(j as MemoryData);
+  }
+
   async function saveLorebook() {
     if (chatId == null) return;
     setSavingLorebook(true);
@@ -1418,7 +1431,7 @@ function MemorySection({
           <span className="text-[9px] text-zinc-500">
             {reversedMemoryRecords.length > 0
               ? `${historyRangeStart}–${historyRangeEnd} / ${reversedMemoryRecords.length}개`
-              : `최대 ${data.memoryRecordMaxChars ?? 500}자`}
+              : `최대 ${data.memoryRecordMaxChars ?? 600}자`}
           </span>
         </div>
         {(data.memoryRecords?.length ?? 0) === 0 ? (
@@ -1443,7 +1456,7 @@ function MemorySection({
               {historyPageRecords.map((r) => {
               const draft = recordDrafts[r.id] ?? r.summary;
               const minChars = data.memoryRecordMinChars ?? 400;
-              const maxChars = data.memoryRecordMaxChars ?? 500;
+              const maxChars = data.memoryRecordMaxChars ?? 600;
               const dirty = draft !== r.summary;
               const isEditing = editingRecordId === r.id;
 
@@ -1455,6 +1468,12 @@ function MemorySection({
                   <div className="mb-1 flex items-center justify-between gap-2">
                     <span className="text-[10px] font-bold text-violet-300">
                       {r.turnRangeLabel}
+                      {r.scopeLabel && (
+                        <span className="ml-1.5 font-normal text-zinc-400">· {r.scopeLabel}</span>
+                      )}
+                      {r.branchStatus === "closed" && (
+                        <span className="ml-1 font-normal text-zinc-500">· 종료</span>
+                      )}
                       {r.isFallbackSummary && (
                         <span className="ml-1.5 font-normal text-amber-400/90">· 임시 기록</span>
                       )}
@@ -1520,6 +1539,93 @@ function MemorySection({
                             {regeneratingRecordId === r.id ? "재생성 중…" : "요약 재생성"}
                           </button>
                         )}
+                        {(r.summaryKind === "noncanon" || r.summaryKind === "branch_canon") && (
+                          <>
+                            {r.summaryKind === "noncanon" && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  void (async () => {
+                                    await fetch("/api/chat/memory", {
+                                      method: "PATCH",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({
+                                        chatId,
+                                        action: "continueBranch",
+                                        recordId: r.id,
+                                      }),
+                                    });
+                                    await refreshMemoryPanel();
+                                  })()
+                                }
+                                className="rounded border border-sky-500/30 px-2 py-0.5 text-[10px] text-sky-200/90 hover:bg-sky-500/10"
+                              >
+                                이어서 진행
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void (async () => {
+                                  await fetch("/api/chat/memory", {
+                                    method: "PATCH",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                      chatId,
+                                      action: "adoptMainCanon",
+                                      recordId: r.id,
+                                    }),
+                                  });
+                                  await refreshMemoryPanel();
+                                })()
+                              }
+                              className="rounded border border-emerald-500/30 px-2 py-0.5 text-[10px] text-emerald-200/90 hover:bg-emerald-500/10"
+                            >
+                              본편으로 반영
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void (async () => {
+                                  await fetch("/api/chat/memory", {
+                                    method: "PATCH",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                      chatId,
+                                      action: "keepNoncanon",
+                                      recordId: r.id,
+                                    }),
+                                  });
+                                  await refreshMemoryPanel();
+                                })()
+                              }
+                              className="rounded border border-white/10 px-2 py-0.5 text-[10px] text-zinc-400 hover:bg-white/5"
+                            >
+                              비정사 유지
+                            </button>
+                          </>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void (async () => {
+                              if (!window.confirm("이 기억 기록을 삭제할까요?")) return;
+                              await fetch("/api/chat/memory", {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                  chatId,
+                                  action: "deleteMemoryRecord",
+                                  recordId: r.id,
+                                }),
+                              });
+                              await refreshMemoryPanel();
+                            })()
+                          }
+                          className="rounded border border-rose-500/30 px-2 py-0.5 text-[10px] text-rose-300/90 hover:bg-rose-500/10"
+                        >
+                          삭제
+                        </button>
                         <button
                           type="button"
                           onClick={() => {

@@ -18,7 +18,7 @@ function record(turnStart: number, turnEnd: number): MemoryRecordView {
     turnEnd,
     turnRangeLabel: `${turnStart}~${turnEnd}턴`,
     summary: "요약",
-    summaryKind: "narrative",
+    summaryKind: "main_canon",
     userEdited: false,
     charCount: 2,
     assistantMessageId: null,
