@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  CHAT_INFO_STICKY_NO_PORTRAIT_CLASS,
   CHAT_MESSAGES_COLUMN_NO_PORTRAIT_CLASS,
   CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS,
   CHAT_MOBILE_PORTRAIT_IMAGE_CLASS,
   CHAT_MESSAGES_COLUMN_CLASS,
+  CHAT_PORTRAIT_DESKTOP_TRACK_CLASS,
   CHAT_PORTRAIT_GRID_CLASS,
+  CHAT_PORTRAIT_INFO_STICKY_CLASS,
+  CHAT_PORTRAIT_INFO_STICKY_INNER_CLASS,
   CHAT_PORTRAIT_STICKY_CLASS,
   CHAT_ROOM_HEADER_OFFSET_CLASS,
   normalizePortraitBackgroundOpacity,
@@ -24,16 +28,35 @@ describe("mobile chat portrait background", () => {
     assert.match(CHAT_PORTRAIT_GRID_CLASS, /sm:grid-rows-\[auto_minmax\(0,1fr\)\]/);
     assert.match(CHAT_PORTRAIT_STICKY_CLASS, /sm:row-start-2/);
     assert.match(CHAT_MESSAGES_COLUMN_CLASS, /sm:row-start-2/);
+    assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /sm:row-start-1/);
     assert.match(
       CHAT_ROOM_HEADER_OFFSET_CLASS,
       /md:top-\[calc\(var\(--site-header-height,44px\)\+3\.25rem\)\]/
     );
   });
 
-  it("documents that desktop info/album row should span portrait column only", () => {
-    // ChatClient sticky info bar uses sm:col-span-1 (not col-span-2) so the album
-    // button aligns to the portrait asset top-right, not the chat panel edge.
-    assert.match(CHAT_PORTRAIT_GRID_CLASS, /sm:grid-cols-\[minmax\(340px,400px\)_minmax\(0,780px\)\]/);
+  it("keeps sticky name/album strip full-grid with album in the portrait track", () => {
+    // Outer strip spans both columns (sticky tab above chat); inner track matches
+    // the portrait grid so name/creator/album stay on the asset column top-right.
+    // sm:block is required — without it `hidden` stays display:none and the tab never shows.
+    assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /\bhidden\b/);
+    assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /\bsm:block\b/);
+    assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /sm:col-span-2/);
+    assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /sm:sticky/);
+    assert.match(CHAT_PORTRAIT_STICKY_CLASS, /\bhidden\b/);
+    assert.match(CHAT_PORTRAIT_STICKY_CLASS, /\bsm:flex\b/);
+    assert.match(CHAT_PORTRAIT_DESKTOP_TRACK_CLASS, /minmax\(340px,400px\)/);
+    assert.match(CHAT_PORTRAIT_DESKTOP_TRACK_CLASS, /minmax\(0,780px\)/);
+    assert.match(CHAT_PORTRAIT_INFO_STICKY_INNER_CLASS, /minmax\(340px,400px\)/);
+    assert.match(CHAT_PORTRAIT_GRID_CLASS, /minmax\(340px,400px\)/);
+  });
+
+  it("keeps desktop name/creator/album sticky when portrait assets are off", () => {
+    assert.match(CHAT_INFO_STICKY_NO_PORTRAIT_CLASS, /\bhidden\b/);
+    assert.match(CHAT_INFO_STICKY_NO_PORTRAIT_CLASS, /\bsm:flex\b/);
+    assert.match(CHAT_INFO_STICKY_NO_PORTRAIT_CLASS, /\bsm:sticky\b/);
+    assert.match(CHAT_INFO_STICKY_NO_PORTRAIT_CLASS, /sm:top-\[var\(--site-header-height,44px\)\]/);
+    assert.match(CHAT_INFO_STICKY_NO_PORTRAIT_CLASS, /max-w-\[780px\]/);
   });
 
   it("centers and narrows chat when portrait assets are off", () => {

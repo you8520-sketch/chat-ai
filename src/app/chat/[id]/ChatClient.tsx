@@ -138,7 +138,10 @@ import {
   CHAT_MESSAGES_COLUMN_NO_PORTRAIT_CLASS,
   CHAT_MESSAGES_LIST_NO_PORTRAIT_CLASS,
   CHAT_INPUT_DOCK_NO_PORTRAIT_CLASS,
+  CHAT_INFO_STICKY_NO_PORTRAIT_CLASS,
   CHAT_PORTRAIT_GRID_CLASS,
+  CHAT_PORTRAIT_INFO_STICKY_CLASS,
+  CHAT_PORTRAIT_INFO_STICKY_INNER_CLASS,
   CHAT_PORTRAIT_STICKY_CLASS,
   CHAT_ROOM_TITLE_BAR_CLASS,
   CHAT_ROOM_HEADER_OFFSET_CLASS,
@@ -649,7 +652,7 @@ export default function ChatClient({
       ? "font-extrabold text-violet-200 drop-shadow-[0_0_8px_rgba(167,139,250,0.35)] hover:text-white"
       : "font-medium text-zinc-500 hover:text-zinc-300"
   }`;
-  const creatorNameMobileClass = `max-w-20 shrink-0 truncate text-[10px] underline-offset-2 transition hover:underline sm:max-w-none sm:text-xs ${
+  const creatorNameMobileClass = `max-w-[7rem] shrink-0 truncate text-[11px] underline-offset-2 transition hover:underline ${
     isOfficialCharacter
       ? "font-bold text-violet-200 drop-shadow-[0_0_8px_rgba(167,139,250,0.35)] hover:text-white"
       : "text-zinc-500 hover:text-zinc-300"
@@ -3154,7 +3157,6 @@ export default function ChatClient({
   }
 
   const showCharacterPortrait = displayPrefs.showCharacterPortrait;
-  const chatDisplayTitle = chatTitle.trim() || character.name;
   const mobilePortraitUrl = activePortraitUrl ?? defaultChatAsset?.url ?? null;
   const mobilePortraitAsset = assetByUrl(assets, mobilePortraitUrl) ?? defaultChatAsset;
   const mobilePortraitBlur = shouldBlurAssetForViewer(
@@ -3241,42 +3243,83 @@ export default function ChatClient({
             : "flex min-h-0 min-w-0 flex-1 flex-col"
         }
       >
-        {/* Desktop: info row sits only on the portrait column so the album
-            button aligns to the asset top-right (not the far edge of the chat). */}
-        <div className="hidden sm:sticky sm:top-[var(--site-header-height,44px)] sm:z-30 sm:col-span-1 sm:col-start-1 sm:row-start-1 sm:flex sm:h-[3.25rem] sm:w-full sm:items-center sm:justify-between sm:gap-3 sm:border-b sm:border-white/5 sm:bg-[#121212]/95 sm:pl-0 sm:pr-1 sm:backdrop-blur">
-          <div className="flex min-w-0 items-baseline gap-2">
+        {showCharacterPortrait ? (
+          <div className={CHAT_PORTRAIT_INFO_STICKY_CLASS}>
+            {/* Full-grid sticky strip; name/album stay in the portrait track only. */}
+            <div className={CHAT_PORTRAIT_INFO_STICKY_INNER_CLASS}>
+              <div className="flex min-w-0 items-center justify-between gap-3">
+                <div className="flex min-w-0 items-baseline gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCharacterIntroOpen(true)}
+                    className="min-w-0 truncate text-left text-xl font-black leading-tight text-white underline-offset-4 transition hover:text-violet-100 hover:underline"
+                    title="캐릭터 소개 보기"
+                  >
+                    {character.name}
+                  </button>
+                  {creatorId != null && creatorId > 0 ? (
+                    <Link
+                      href={`/creator/${creatorId}`}
+                      className={creatorNameDesktopClass}
+                      title="제작자 페이지"
+                    >
+                      {creatorName}
+                    </Link>
+                  ) : creatorName ? (
+                    <span className={creatorNameDesktopClass}>
+                      {creatorName}
+                    </span>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setAssetAlbumOpen(true)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-100 transition hover:bg-white/[0.08] hover:text-white"
+                  title="이미지 앨범"
+                  aria-label="이미지 앨범 열기"
+                >
+                  <IconAlbum className="h-4 w-4" />
+                </button>
+              </div>
+              <div aria-hidden className="min-w-0" />
+            </div>
+          </div>
+        ) : (
+          <div className={CHAT_INFO_STICKY_NO_PORTRAIT_CLASS}>
+            <div className="flex min-w-0 items-baseline gap-2">
+              <button
+                type="button"
+                onClick={() => setCharacterIntroOpen(true)}
+                className="min-w-0 truncate text-left text-xl font-black leading-tight text-white underline-offset-4 transition hover:text-violet-100 hover:underline"
+                title="캐릭터 소개 보기"
+              >
+                {character.name}
+              </button>
+              {creatorId != null && creatorId > 0 ? (
+                <Link
+                  href={`/creator/${creatorId}`}
+                  className={creatorNameDesktopClass}
+                  title="제작자 페이지"
+                >
+                  {creatorName}
+                </Link>
+              ) : creatorName ? (
+                <span className={creatorNameDesktopClass}>
+                  {creatorName}
+                </span>
+              ) : null}
+            </div>
             <button
               type="button"
-              onClick={() => setCharacterIntroOpen(true)}
-              className="min-w-0 truncate text-left text-xl font-black leading-tight text-white underline-offset-4 transition hover:text-violet-100 hover:underline"
-              title="캐릭터 소개 보기"
+              onClick={() => setAssetAlbumOpen(true)}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-100 transition hover:bg-white/[0.08] hover:text-white"
+              title="이미지 앨범"
+              aria-label="이미지 앨범 열기"
             >
-              {character.name}
+              <IconAlbum className="h-4 w-4" />
             </button>
-            {creatorId != null && creatorId > 0 ? (
-              <Link
-                href={`/creator/${creatorId}`}
-                className={creatorNameDesktopClass}
-                title="제작자 페이지"
-              >
-                {creatorName}
-              </Link>
-            ) : creatorName ? (
-              <span className={creatorNameDesktopClass}>
-                {creatorName}
-              </span>
-            ) : null}
           </div>
-          <button
-            type="button"
-            onClick={() => setAssetAlbumOpen(true)}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-100 transition hover:bg-white/[0.08] hover:text-white"
-            title="이미지 앨범"
-            aria-label="이미지 앨범 열기"
-          >
-            <IconAlbum className="h-4 w-4" />
-          </button>
-        </div>
+        )}
         {showCharacterPortrait && (
           <div className={`${CHAT_PORTRAIT_STICKY_CLASS} pl-1 sm:pl-0`}>
             <ChatEmotionPortraitPanel
@@ -3319,9 +3362,9 @@ export default function ChatClient({
               type="button"
               onClick={() => setCharacterIntroOpen(true)}
               title="캐릭터 소개 보기"
-              className="truncate text-base font-bold text-white underline-offset-2 transition hover:underline sm:text-lg md:text-xl"
+              className="min-w-0 truncate text-base font-bold text-white underline-offset-2 transition hover:underline"
             >
-              {chatDisplayTitle}
+              {character.name}
             </button>
             {creatorId != null && creatorId > 0 ? (
               <Link
