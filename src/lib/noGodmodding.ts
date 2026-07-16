@@ -1,7 +1,9 @@
+import { buildAutoProgressionUserControlBlock } from "@/lib/autoProgressionRules";
+
 export type NoGodmoddingMode = "standard" | "coNarration" | "autoContinue" | "novel";
 
 export type UserAgencyRuleOptions = {
-  /** @deprecated auto-continue uses the same compact standard rule */
+  /** @deprecated auto-continue uses buildAutoProgressionUserControlBlock */
   autoContinueExpanded?: boolean;
 };
 
@@ -50,9 +52,9 @@ export function injectExampleDialogStyleOnlyNote(combinedSetting: string): strin
   return `${EXAMPLE_DIALOG_STYLE_ONLY_NOTE}\n\n${combinedSetting}`;
 }
 
-/** @deprecated auto-continue uses the standard block */
+/** @deprecated auto-continue uses buildAutoProgressionUserControlBlock */
 export function buildAutoContinueAgencyExpansion(): string {
-  return buildCompactNoGodmoddingStandardBlock();
+  return buildNoGodmoddingBlock("", "", "autoContinue");
 }
 
 /** @deprecated Standard path uses buildCompactNoGodmoddingStandardBlock. */
@@ -78,18 +80,29 @@ ${POSSESSION_MODE_HINT}
 ${NO_FALSE_SHARED_MEMORY_RULE}`;
 }
 
+/** Dormant explicit_full / legacy novel path — not used by auto progression. */
+function buildNovelModeUserControlBlock(): string {
+  return `[USER CONTROL MODE - NOVEL / EXPLICIT FULL]
+- [USER_PERSONA], 최근 말투, 관계 단계, 이전 선택에 맞춰 [B]의 행동·대사·속마음을 전면 서술할 수 있다.
+- [B]의 정체성, 성격, 트라우마, 목표, 소속, 고백, 배신, 되돌릴 수 없는 결정을 갑자기 확정하지 않는다.
+- [B] 관련 숨은 설정은 확정 전에 단서, 의심, 기록, 반응, 가설로 먼저 드러낸다.
+
+${NO_FALSE_SHARED_MEMORY_RULE}`;
+}
+
 export function buildNoGodmoddingBlock(
   _charName: string,
   _userName: string,
   mode: NoGodmoddingMode = "standard"
 ): string {
-  if (mode === "novel") {
-    return `[USER CONTROL MODE - AUTO PROGRESSION]
-- [USER_PERSONA], 최근 말투, 관계 단계, 이전 선택에 맞춰 [B]의 행동과 대사를 쓸 수 있다.
-- [B]의 정체성, 성격, 트라우마, 목표, 소속, 고백, 배신, 되돌릴 수 없는 결정을 갑자기 확정하지 않는다.
-- [B] 관련 숨은 설정은 확정 전에 단서, 의심, 기록, 반응, 가설로 먼저 드러낸다.
+  if (mode === "autoContinue") {
+    return `${buildAutoProgressionUserControlBlock()}
 
 ${NO_FALSE_SHARED_MEMORY_RULE}`;
+  }
+
+  if (mode === "novel") {
+    return buildNovelModeUserControlBlock();
   }
 
   if (mode === "coNarration") {
@@ -112,8 +125,10 @@ export function resolveNoGodmoddingMode(opts: {
   impersonationOn?: boolean;
   isContinue?: boolean;
 }): NoGodmoddingMode {
+  // Legacy novel / explicit_full — never derived from isContinue at call sites
   if (opts.novelModeEnabled) return "novel";
-  if (opts.impersonationOn) return "coNarration";
+  // Auto progression wins over OOC limited co-narration flags
   if (opts.isContinue) return "autoContinue";
+  if (opts.impersonationOn) return "coNarration";
   return "standard";
 }

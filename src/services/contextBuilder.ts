@@ -36,7 +36,6 @@ import {
   buildNoGodmoddingBlock,
   injectExampleDialogStyleOnlyNote,
   resolveNoGodmoddingMode,
-  type NoGodmoddingMode,
 } from "@/lib/noGodmodding";
 import {
   buildCoreMasterPrompt,
@@ -242,15 +241,18 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   };
 
   const personaLabel = input.personaDisplayName?.trim() || input.userNickname;
+  /** Legacy novel / explicit_full — must never be aliased from isContinue at call sites. */
   const novelModeEnabled = input.novelModeEnabled === true;
-  const coNarrationEnabled = novelModeEnabled || !!input.userImpersonation;
+  const autoProgressionEnabled = input.isContinue === true;
+  /** OOC limited co-narration only — auto progression uses its own agency block. */
+  const oocLimitedCoNarration = !!input.userImpersonation && !autoProgressionEnabled && !novelModeEnabled;
+  const coNarrationEnabled = novelModeEnabled || oocLimitedCoNarration || autoProgressionEnabled;
   // Resolve from turn flags — do not require ContextBuildInput.runtimeMode for typecheck.
   // (Railway/Next build has repeatedly failed when that optional field was missing from the
   // type snapshot even after it was added on main.)
   const runtimeMode: ChatRuntimeMode = resolveChatRuntimeMode({
-    isContinue: input.isContinue,
-    novelModeEnabled,
-    oocUserImpersonationAllowed: !!input.userImpersonation && !novelModeEnabled,
+    isContinue: autoProgressionEnabled,
+    oocUserImpersonationAllowed: oocLimitedCoNarration,
   });
   const characterSettingTextRaw = collectCharacterSettingText(chunks);
   const recentHistoryText = input.shortTermHistory
@@ -332,8 +334,9 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     charGender,
     userGender,
     nsfwEnabled: input.nsfw,
-    impersonationOn: coNarrationEnabled,
+    impersonationOn: oocLimitedCoNarration,
     novelModeEnabled,
+    autoProgressionEnabled,
     completedTurns: input.completedTurns ?? 0,
     hasMindReading: hasMindReading || settingHasMindReadingAbility(characterSettingText),
     allowsBeard: hairPolicy.allowsBeard,
@@ -341,7 +344,9 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     party: input.party,
     tailFormatActive: !isOpenRouter,
     statusWindowTailActive: statusWindowPolicy.everyTurn,
-    autoContinueTurn: input.isContinue === true && !novelModeEnabled,
+    // Preserve prior continue+novel alias behavior for length: continue used to force novel → false.
+    // Keep false so TARGET_LENGTH / floor paths stay unchanged.
+    autoContinueTurn: false,
   };
 
   // ───── [TOP] OpenRouter — unified Korean prose (all models) ─────
@@ -353,7 +358,8 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       buildOpenRouterKoreanProseTopBlock({
         bilingual: bilingualDialoguePolicy,
         novelModeEnabled,
-        impersonationOn: coNarrationEnabled,
+        autoProgressionEnabled,
+        impersonationOn: oocLimitedCoNarration,
         party: input.party,
       }),
       "cacheRules"
@@ -362,7 +368,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       "openrouter-co-narration-rule",
       "[TOP] Co-narration rule",
       "systemRules",
-      buildCoNarrationKoreanRule(coNarrationEnabled, novelModeEnabled),
+      buildCoNarrationKoreanRule(coNarrationEnabled, novelModeEnabled, autoProgressionEnabled),
       "dynamic"
     );
     pushSection(
@@ -387,8 +393,9 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   }
 
   const identityBlock = buildIdentityAndRulesBlock(personaForIdentity, mandatoryUserRules, {
-    impersonationOn: coNarrationEnabled,
+    impersonationOn: oocLimitedCoNarration,
     novelModeEnabled,
+    autoProgressionEnabled,
     userName: personaLabel,
   });
 
@@ -408,16 +415,14 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
 
   const godmoddingMode = resolveNoGodmoddingMode({
     novelModeEnabled,
-    impersonationOn: coNarrationEnabled,
-    isContinue: input.isContinue,
+    impersonationOn: oocLimitedCoNarration,
+    isContinue: autoProgressionEnabled,
   });
-  const cacheStableGodmoddingMode: NoGodmoddingMode =
-    isOpenRouter && godmoddingMode === "autoContinue" ? "standard" : godmoddingMode;
   pushSection(
     "no-godmodding",
     "[0a] No godmodding (user agency)",
     "systemRules",
-    buildNoGodmoddingBlock(input.charName, personaLabel, cacheStableGodmoddingMode),
+    buildNoGodmoddingBlock(input.charName, personaLabel, godmoddingMode),
     isOpenRouter ? "cacheRules" : "dynamic"
   );
 
@@ -617,8 +622,9 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   pushIdentityAndRules();
   flushDeepSeekXmlSections(["persona", "world_lore"]);
 
+  // "possession" style is for OOC/explicit co-narration only — not auto progression.
   const narrativeStyleBlock = buildNarrativeStyleLayer({
-    mode: coNarrationEnabled ? "possession" : "standard",
+    mode: novelModeEnabled || oocLimitedCoNarration ? "possession" : "standard",
     charName: input.charName,
     genres: input.genres,
   });
@@ -710,8 +716,8 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
 
   flushDeepSeekXmlSections(["ltm"]);
 
-  // ───── [4] OOC co-narration (레거시 — 소설 모드 토글이 우선) ─────
-  if (input.userImpersonation && !novelModeEnabled) {
+  // ───── [4] OOC co-narration (explicit OOC opt-in only — never auto progression) ─────
+  if (oocLimitedCoNarration) {
     pushSection(
       "ooc-co-narration",
       "[4] OOC co-narration",
@@ -748,7 +754,8 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   }
 
-  if (novelModeEnabled) {
+  // Legacy novel / explicit_full only — auto progression must never inject this.
+  if (novelModeEnabled && !autoProgressionEnabled) {
     pushSection(
       "novel-mode-persona-rules",
       "Novel mode user persona rules",

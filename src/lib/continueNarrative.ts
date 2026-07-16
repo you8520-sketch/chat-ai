@@ -7,9 +7,7 @@ export function isContinueUserMessage(content: string): boolean {
   return trimmed === CONTINUE_USER_DISPLAY || trimmed === LEGACY_CONTINUE_USER_DISPLAY;
 }
 
-import {
-  buildNovelModeUserPersonaRules,
-} from "@/lib/userPersonaNarrationRules";
+import { AUTO_PROGRESSION_SHORT_REF } from "@/lib/autoProgressionRules";
 import { isHtmlDisplayOnlyTurn, isOocCreativeHtmlTurn } from "@/lib/htmlDisplayOnlyTurn";
 import { isOocHtmlRequest } from "@/lib/oocHtmlRequest";
 import {
@@ -343,6 +341,10 @@ export type ContinueNarrativeCommandInput = {
   personaName: string;
   charName?: string;
   usesBanmal?: boolean;
+  /**
+   * @deprecated Ignored — auto progression never injects novel mode rules.
+   * Kept so call sites compile during migration.
+   */
   novelModeEnabled?: boolean;
   /** 리롤 — 직전 assistant 초안 (히스토리에서 제거됨) */
   regenerate?: boolean;
@@ -354,40 +356,41 @@ export type ContinueNarrativeCommandInput = {
 /**
  * 자동진행 버튼 전용 — API user 턴에 주입되는 히든 마스터 지시서.
  * DB에는 CONTINUE_USER_DISPLAY만 저장한다.
+ * Full agency rules live in [AUTO PROGRESSION — AI-CENTERED] (system); this command only short-refs.
  */
 export function buildContinueNarrativeCommand(input: ContinueNarrativeCommandInput): string {
-  const persona = input.personaName.trim() || "the user character";
-  const charName = input.charName?.trim() || "the AI character";
+  void input.personaName;
+  void input.charName;
+  void input.usesBanmal;
+  void input.novelModeEnabled;
+
   const regenNote =
     input.regenerate === true
       ? `\n- Regenerate: obey [REGENERATE — MANDATORY DIVERGENCE] in system prompt (rejected draft excluded from history).`
       : "";
 
-  const personaRules = input.novelModeEnabled
-    ? buildNovelModeUserPersonaRules(charName, persona)
-    : "";
-  const sceneLead = input.novelModeEnabled
-    ? `- 소설 모드 — [NOVEL MODE — USER PERSONA NARRATION RULES]에 따라 [A]+[B] 연기.`
-    : `- [NO GODMODDING] 준수.`;
-
   const resumeAfterOoc = input.resumeAfterOoc?.afterOocTurn
     ? buildResumeAfterOocSection(input.resumeAfterOoc)
     : "";
   const sceneAnchor = input.resumeAfterOoc?.afterOocTurn
-    ? `- Resume the in-fiction scene per [RESUME IN-CHARACTER RP — NOT OOC] or [RESUME RP — OOC WAS SCENE GUIDANCE ONLY] below — NOT from OOC/meta/HTML output.`
-    : `- Advance naturally from the exact micro-moment the previous assistant turn ended.`;
+    ? input.resumeAfterOoc.dropOocTurnFromHistory
+      ? `- Resume the in-fiction scene per [RESUME IN-CHARACTER RP — NOT OOC] below — NOT from OOC/meta/HTML output.`
+      : `- Resume the in-fiction scene per [RESUME RP — OOC WAS SCENE GUIDANCE ONLY] below — NOT from OOC/meta/HTML output.`
+    : `- Continue from the exact in-scene moment where the previous RP ended.`;
   const antiRepeatTarget = input.resumeAfterOoc?.dropOocTurnFromHistory
     ? "the OOC/meta/HTML turn or any failed auto-continue echo of it"
     : "the immediately previous assistant turn";
 
-  const personaRulesBlock = personaRules ? `\n${personaRules}\n` : "";
-
   return `[SYSTEM DIRECTIVE: CONTINUE THE NARRATIVE]${regenNote}
-- The user clicked Continue / auto-advance. No new user dialogue or explicit action.
+- The user clicked Continue / auto-advance.
+- There is no new explicit user dialogue or action.
 ${sceneAnchor}
-${sceneLead}
-${personaRulesBlock}${resumeAfterOoc ? `\n${resumeAfterOoc}\n` : ""}
+- Advance through [AI_CAST], NPCs, environment, consequences, clues, schedules, or world events. Multiple AI-controlled characters may speak and act; focalization may shift between them at clear boundaries — never to [B] inner POV.
+- ${AUTO_PROGRESSION_SHORT_REF}
+- Do not narrate [B]'s inner thoughts, emotional conclusions, desires, memories, self-realizations, or major decisions.
+${resumeAfterOoc ? `\n${resumeAfterOoc}\n` : ""}
 [STRICT ANTI-REPETITION RULE]
+- Do not repeat or paraphrase ${antiRepeatTarget}.
 - NEVER repeat dialogue, exclamations, physical beats, or OOC/meta/HTML lines from ${antiRepeatTarget}.`;
 }
 

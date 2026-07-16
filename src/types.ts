@@ -56,7 +56,10 @@ export type ContextBuildInput = {
   modelId?: string;
   /** ON이면 AI가 사용자 페르소나 대사·행동도 작성 (OOC 레거시) */
   userImpersonation?: boolean;
-  /** 소설 모드 — UI 토글; userImpersonation보다 우선하는 전면 co-narration */
+  /**
+   * Legacy novel / explicit_full — dormant; must never be aliased from isContinue.
+   * Auto progression uses isContinue + limited_external agency instead.
+   */
   novelModeEnabled?: boolean;
   /**
    * Explicit runtime mode when known.

@@ -154,6 +154,10 @@ import {
   logUserImpersonationGuard,
 } from "@/lib/userImpersonationGuard";
 import {
+  detectUserPovTakeover,
+  logUserPovTakeover,
+} from "@/lib/userPovTakeoverDetector";
+import {
   CONTINUE_USER_DISPLAY,
   buildContinueNarrativeCommand,
   buildRegenerateUserPrompt,
@@ -457,7 +461,9 @@ export async function POST(req: Request) {
       : normalizeTargetResponseChars(
           accountChatPrefs?.targetResponseChars ?? chat.target_response_chars
         );
-  const novelModeEnabled = isContinue;
+  // Legacy novel/explicit_full is dormant — never derive from isContinue.
+  const novelModeEnabled = false;
+  const autoProgressionEnabled = isContinue === true;
 
   if (isAdultMode && !user.is_adult) {
     return Response.json(
@@ -493,17 +499,20 @@ export async function POST(req: Request) {
     personaDescription: selectedPersona?.description ?? "",
     userNote: extractFocusZoneNote(effectiveUserNote),
   });
-  const userImpersonation = novelModeEnabled || oocUserImpersonationAllowed;
-  const runtimeMode = resolveChatRuntimeMode({
-    isContinue,
-    novelModeEnabled,
+  // Auto progression uses limited_external agency — not full impersonation / possession.
+  const userImpersonation = oocUserImpersonationAllowed;
+  let runtimeMode = resolveChatRuntimeMode({
+    isContinue: autoProgressionEnabled,
     oocUserImpersonationAllowed,
   });
   const userPersonaPrompt = formatSelectedPersonaForPrompt(
     personaDisplayName,
     selectedPersona?.gender ?? "other",
     personaDescription,
-    { coNarrationEnabled: novelModeEnabled || userImpersonation }
+    {
+      coNarrationEnabled:
+        autoProgressionEnabled || novelModeEnabled || oocUserImpersonationAllowed,
+    }
   );
   const backgroundPersonaIdentity = formatSelectedPersonaIdentityForBackground(
     personaDisplayName,
@@ -662,6 +671,10 @@ export async function POST(req: Request) {
   const personaUsesBanmal = personaUsesInformalSpeech(selectedPersona?.description ?? "");
   const autoContinueContext =
     isContinue || (regenerate && isContinueUserMessage(storedUserMessage));
+  runtimeMode = resolveChatRuntimeMode({
+    isContinue: autoContinueContext,
+    oocUserImpersonationAllowed: !autoContinueContext && oocUserImpersonationAllowed,
+  });
   const autoContinueHistory = autoContinueContext
     ? resolveAutoContinueHistoryTurns(dialogueTurns)
     : null;
@@ -698,7 +711,8 @@ export async function POST(req: Request) {
             personaName: personaDisplayName,
             charName: ch.name,
             usesBanmal: personaUsesBanmal,
-            coNarrationEnabled: novelModeEnabled || userImpersonation,
+            coNarrationEnabled:
+              autoContinueContext || novelModeEnabled || userImpersonation,
             rejectedAssistantDraft,
             regenAttemptId,
             targetResponseChars,
@@ -1616,6 +1630,15 @@ export async function POST(req: Request) {
             autoRepairEnabled: isUserImpersonationAutoRepairEnabled(),
             repairAttempted: false,
           });
+          if (runtimeMode === "auto_progression") {
+            const povHit = detectUserPovTakeover(savedText, {
+              mode: "auto_progression",
+              userAliases: [personaDisplayName, user.nickname, "{{user}}", "[B]"].filter(
+                Boolean
+              ),
+            });
+            logUserPovTakeover({ ...povHit, mode: "auto_progression" });
+          }
         }
 
         let lengthContinuationPasses = 0;

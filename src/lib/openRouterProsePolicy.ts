@@ -26,6 +26,7 @@ ${core}`;
 export type OpenRouterKoreanProseTopOpts = {
   bilingual?: BilingualDialoguePolicy;
   novelModeEnabled?: boolean;
+  autoProgressionEnabled?: boolean;
   impersonationOn?: boolean;
   party?: boolean;
 };
@@ -46,6 +47,7 @@ export function buildOpenRouterKoreanProseTopBlock(
   const outputLang = buildOutputLangLines(opts.bilingual);
   const canon = buildCanonScopeKnowledgeBlock({
     novelModeEnabled: opts.novelModeEnabled,
+    autoProgressionEnabled: opts.autoProgressionEnabled,
     impersonationOn: opts.impersonationOn,
     party: opts.party,
   });

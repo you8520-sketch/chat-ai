@@ -1,9 +1,11 @@
 /**
- * Clear RP runtime modes — prefer these over ambiguous `isContinue` / `novelModeEnabled` alone.
+ * Clear RP runtime modes — prefer these over ambiguous flags alone.
  *
  * - interactive: normal user-input turn; forbid deliberate [B] writing
- * - auto_progression: continue button; persona-based [B] narration allowed
+ * - auto_progression: continue button; limited external [B] assist only
  * - ooc_user_impersonation_allowed: explicit OOC co-narration opt-in on an interactive turn
+ *
+ * Legacy novelModeEnabled must NOT map to auto_progression.
  */
 
 export type ChatRuntimeMode =
@@ -17,13 +19,14 @@ export type ResolveChatRuntimeModeInput = {
   /** Explicit OOC opt-in (persona / focus-zone user note) — ignore when auto-continue */
   oocUserImpersonationAllowed?: boolean;
   /**
-   * @deprecated Prefer isContinue — kept for call sites still using novelModeEnabled (= isContinue)
+   * @deprecated Ignored for runtime mode. Novel/explicit_full is separate and dormant.
    */
   novelModeEnabled?: boolean;
 };
 
 export function resolveChatRuntimeMode(input: ResolveChatRuntimeModeInput): ChatRuntimeMode {
-  if (input.isContinue === true || input.novelModeEnabled === true) {
+  void input.novelModeEnabled;
+  if (input.isContinue === true) {
     return "auto_progression";
   }
   if (input.oocUserImpersonationAllowed === true) {
@@ -32,6 +35,7 @@ export function resolveChatRuntimeMode(input: ResolveChatRuntimeModeInput): Chat
   return "interactive";
 }
 
+/** Limited external [B] assist (auto) or OOC limited co-narration — not full novel POV. */
 export function chatRuntimeModeAllowsUserNarration(mode: ChatRuntimeMode): boolean {
   return mode === "auto_progression" || mode === "ooc_user_impersonation_allowed";
 }
