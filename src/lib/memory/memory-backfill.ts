@@ -15,6 +15,7 @@ import { ensureLorebookWithinBudget } from "./memory-lorebook-fit";
 import { resolveLorebookFromRecords } from "./memory-lorebook-resolve";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
 import { isMemoryFeatureEnabled } from "./memory-feature";
+import { reconcileSummarizedTurnCountFromTable } from "./memory-summary-persist";
 import type { MemoryTier } from "./memory-types";
 
 /**
@@ -46,15 +47,18 @@ export function syncMemoryFromChat(opts: {
     clearBuffer(opts.chatId);
   }
 
-  const hasLegacySummary = Boolean(memory.recent_summary.trim() || memory.last_compressed_at);
-  const summarizedTurnCount = hasLegacySummary
-    ? Math.floor(playableCount / ROLLING_SUMMARY_INTERVAL) * ROLLING_SUMMARY_INTERVAL
-    : 0;
-
+  // Never advance summarized_turn_count from legacy text alone — derive from contiguous table rows
   updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
     message_count: playableCount,
-    summarized_turn_count: summarizedTurnCount,
     membership_tier: opts.tier,
+  });
+
+  const summarizedTurnCount = reconcileSummarizedTurnCountFromTable({
+    chatId: opts.chatId,
+    userId: opts.userId,
+    characterId: opts.characterId,
+    tier: opts.tier,
+    playableTurnCount: playableCount,
   });
 
   console.info(
@@ -87,13 +91,37 @@ export type MemoryBackfillOpts = {
   memoryCapacity: number;
 };
 
-/** GET 패널용 — 카운트만 동기화 (LLM 호출 없음, 즉시 반환) */
+/**
+ * Panel/explicit catch-up: at most one missing 6-turn batch per request (V3 cost cap).
+ * Gap repair continues on later explicit backfill or normal turn seal — never mass-fill.
+ */
+export const MEMORY_PANEL_BACKFILL_MAX_BATCHES_PER_REQUEST = 1;
+
+/** GET 패널용 — 카운트/연속성만 동기화 (LLM 호출 없음, 즉시 반환) */
 export function prepareMemoryPanelView(opts: MemoryBackfillOpts): void {
   if (!isMemoryFeatureEnabled()) return;
   syncMemoryFromChat(opts);
+  const memory = getOrCreateChatMemory(
+    opts.chatId,
+    opts.userId,
+    opts.characterId,
+    opts.tier
+  );
+  const playable =
+    (memory.message_count ?? 0) > 0
+      ? memory.message_count
+      : countPlayableTurns(loadTurnsForChat(opts.chatId));
+  // Drift repair only — never schedules V3 from a plain read
+  reconcileSummarizedTurnCountFromTable({
+    chatId: opts.chatId,
+    userId: opts.userId,
+    characterId: opts.characterId,
+    tier: opts.tier,
+    playableTurnCount: playable,
+  });
 }
 
-/** 밀린 5턴 요약·로어북 AI 압축 — UI/채팅 응답을 막지 않도록 백그라운드 실행 */
+/** 밀린 배치 1개 + 로어북 압축 — UI/채팅 응답을 막지 않도록 백그라운드 실행 */
 export function scheduleMemoryPanelBackfill(opts: MemoryBackfillOpts): void {
   if (!isMemoryFeatureEnabled()) return;
   void syncAndCompressMemoryFromChat(opts).catch((e) => {
@@ -101,14 +129,17 @@ export function scheduleMemoryPanelBackfill(opts: MemoryBackfillOpts): void {
   });
 }
 
-/** GET 패널용 — 카운트 동기화 + 밀린 5턴 히스토리 백필 + 용량 초과 시 Flash 압축 */
+/** 명시적 backfill — 현재 chat_id만, 최대 1배치 V3 + 필요 시 로어북 압축 */
 export async function syncAndCompressMemoryFromChat(opts: MemoryBackfillOpts): Promise<boolean> {
   if (!isMemoryFeatureEnabled()) {
     return false;
   }
 
   const backfilled = syncMemoryFromChat(opts);
-  const processed = await catchUpRollingSummaries({ ...opts, maxRounds: 5 });
+  const processed = await catchUpRollingSummaries({
+    ...opts,
+    maxRounds: MEMORY_PANEL_BACKFILL_MAX_BATCHES_PER_REQUEST,
+  });
 
   const memory = getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
   const budget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity).lorebook;

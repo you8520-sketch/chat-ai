@@ -18,6 +18,7 @@ function record(turnStart: number, turnEnd: number): MemoryRecordView {
     turnEnd,
     turnRangeLabel: `${turnStart}~${turnEnd}턴`,
     summary: "요약",
+    summaryKind: "narrative",
     userEdited: false,
     charCount: 2,
     assistantMessageId: null,
@@ -54,12 +55,16 @@ describe("turnsUntilNextSummary deferred seal", () => {
 });
 
 describe("computeSummarizedTurnCountFromRecords", () => {
-  it("uses only complete in-range batches", () => {
+  it("uses only contiguous complete batches from turn 1", () => {
     const summarized = computeSummarizedTurnCountFromRecords(
       [record(1, 6), record(7, 12)],
-      10
+      13
     );
-    assert.equal(summarized, 6);
+    assert.equal(summarized, 12);
+  });
+
+  it("returns 0 when first batch missing even if later exists", () => {
+    assert.equal(computeSummarizedTurnCountFromRecords([record(7, 12)], 13), 0);
   });
 
   it("returns 0 when no complete batch fits", () => {
