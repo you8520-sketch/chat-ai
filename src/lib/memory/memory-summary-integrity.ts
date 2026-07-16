@@ -5,6 +5,15 @@
 import { ROLLING_SUMMARY_INTERVAL } from "@/lib/hybridMemory";
 import { ROLLING_SUMMARY_MIN_CHARS } from "./memory-constants";
 import { isFallbackMemoryRecordSummary } from "./memory-summary-clamp";
+import {
+  EMPTY_OOC_SUMMARY_MARKER,
+  isEmptyOocScope,
+  normalizeSummaryScope,
+  type MemorySummaryScope,
+  type SummaryKind,
+} from "./memory-summary-scope";
+
+export type { SummaryKind, MemorySummaryScope };
 
 type BatchSpan = { turnStart: number; turnEnd: number };
 
@@ -98,43 +107,57 @@ export function earliestMissingBatchStart(
   return missing[0] ?? null;
 }
 
-/** Stored in summary column for ooc_only rows — never injected into prompt/UI/recent_summary. */
-export const OOC_ONLY_SUMMARY_MARKER = "__SUMMARY_KIND_OOC_ONLY__";
-
-export type SummaryKind = "narrative" | "ooc_only";
+/** @deprecated use EMPTY_OOC_SUMMARY_MARKER — kept for legacy imports/tests */
+export const OOC_ONLY_SUMMARY_MARKER = EMPTY_OOC_SUMMARY_MARKER;
 
 export function isOocOnlySummaryKind(kind: string | null | undefined): boolean {
-  return kind === "ooc_only";
+  return isEmptyOocScope(kind);
 }
 
-/** OOC-only batch marker body (not narrative LTM text). */
+/** empty_ooc / legacy ooc_only batch marker body (not LTM narrative). */
 export function buildOocOnlyBatchPlaceholder(_startTurn: number, _endTurn: number): string {
-  return OOC_ONLY_SUMMARY_MARKER;
+  return EMPTY_OOC_SUMMARY_MARKER;
+}
+
+export function buildEmptyOocBatchPlaceholder(
+  startTurn: number,
+  endTurn: number
+): string {
+  return buildOocOnlyBatchPlaceholder(startTurn, endTurn);
 }
 
 export function isOocOnlyPlaceholderText(text: string): boolean {
-  return text.trim() === OOC_ONLY_SUMMARY_MARKER;
+  return text.trim() === EMPTY_OOC_SUMMARY_MARKER;
 }
 
 /** Validate LLM / fixture summary before persist. */
 export function validateSummaryNarrative(
   text: string,
-  kind: SummaryKind = "narrative"
-): { ok: true; text: string; kind: SummaryKind } | { ok: false; reason: SummaryReasonCode } {
-  if (kind === "ooc_only") {
-    // Marker only — never store narrative prose under ooc_only
-    return { ok: true, text: OOC_ONLY_SUMMARY_MARKER, kind: "ooc_only" };
+  kind: SummaryKind | MemorySummaryScope = "main_canon"
+):
+  | { ok: true; text: string; kind: MemorySummaryScope }
+  | { ok: false; reason: SummaryReasonCode } {
+  const scope = normalizeSummaryScope(kind);
+
+  if (scope === "empty_ooc") {
+    return { ok: true, text: EMPTY_OOC_SUMMARY_MARKER, kind: "empty_ooc" };
   }
 
   const t = text.replace(/\s+/g, " ").trim();
   if (!t) return { ok: false, reason: "SUMMARY_EMPTY" };
   if (isOocOnlyPlaceholderText(t)) return { ok: false, reason: "SUMMARY_INVALID" };
   if (isFallbackMemoryRecordSummary(t)) return { ok: false, reason: "SUMMARY_INVALID" };
-  if (t.length < ROLLING_SUMMARY_MIN_CHARS) return { ok: false, reason: "SUMMARY_INVALID" };
+
+  // Preference / noncanon / branch may be shorter than main_canon floor
+  const minChars =
+    scope === "preference" || scope === "noncanon" || scope === "branch_canon"
+      ? 12
+      : ROLLING_SUMMARY_MIN_CHARS;
+  if (t.length < minChars) return { ok: false, reason: "SUMMARY_INVALID" };
   if (/^(null|undefined|n\/a|none|empty)$/i.test(t)) {
     return { ok: false, reason: "SUMMARY_INVALID" };
   }
-  return { ok: true, text: t, kind: "narrative" };
+  return { ok: true, text: t, kind: scope };
 }
 
 export function parseRecentSummaryBatchStarts(recentSummary: string): number[] {

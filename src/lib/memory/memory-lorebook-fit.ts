@@ -30,6 +30,13 @@ export async function ensureLorebookWithinBudget(
     return { text: trimmed.slice(0, maxChars), compressed: trimmed.length > maxChars };
   }
 
-  const compressed = await compactCurrentMemory(trimmed, maxChars, turnTrace);
-  return { text: compressed.trim(), compressed: true };
+  try {
+    const compressed = await compactCurrentMemory(trimmed, maxChars, turnTrace);
+    const out = compressed.trim();
+    if (!out) return { text: trimmed, compressed: false };
+    return { text: out, compressed: true };
+  } catch (e) {
+    console.warn("[memory] lorebook compact failed — keeping prior text:", (e as Error).message);
+    return { text: trimmed, compressed: false };
+  }
 }

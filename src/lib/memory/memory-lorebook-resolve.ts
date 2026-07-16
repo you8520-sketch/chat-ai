@@ -1,5 +1,4 @@
-import { compactCurrentMemory } from "./memory-rolling-summary";
-import { trimLorebookToBudgetSync } from "./memory-lorebook-fit";
+import { ensureLorebookWithinBudget, trimLorebookToBudgetSync } from "./memory-lorebook-fit";
 import { rebuildLorebookFromRecords } from "./memory-turn-summary";
 
 /** 패널·프롬프트 조립 — LLM 대기 없이 기록 재조립 + 동기 trim */
@@ -22,7 +21,5 @@ export async function resolveLorebookFromRecords(
 ): Promise<{ text: string; compressed: boolean }> {
   const rebuilt = rebuildLorebookFromRecords(chatId).trim();
   if (!rebuilt) return { text: "", compressed: false };
-  if (rebuilt.length <= maxChars) return { text: rebuilt, compressed: false };
-  const compressed = await compactCurrentMemory(rebuilt, maxChars, turnTrace);
-  return { text: compressed.trim(), compressed: true };
+  return ensureLorebookWithinBudget(rebuilt, maxChars, turnTrace);
 }

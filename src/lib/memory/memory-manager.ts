@@ -218,7 +218,7 @@ export async function buildMemoryContextForChat(opts: {
   });
 }
 
-/** 성공 응답 후 5턴 히스토리 → 로어북 누적 + 관계 메모(호칭·물건·속마음·약속) 추출 */
+/** 성공 응답 후 6턴 히스토리 → 로어북 누적 + 관계 메모(호칭·물건·속마음·약속) 추출 */
 export async function scheduleMemoryUpdate(opts: {
   chatId: number;
   userId: number;

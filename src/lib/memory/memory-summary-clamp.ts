@@ -16,7 +16,7 @@ const FALLBACK_BREAKS: { pattern: string; cutAfter: boolean }[] = [
 ];
 
 /**
- * 5턴 기억 기록 — 500자 상한. 짧은 요약은 그대로 유지.
+ * 6턴 기억 기록 — 600자 상한. 짧은 요약은 그대로 유지.
  * " → " 구절 경계에서 끊어 중간 잘림·말줄임을 최소화한다.
  */
 export function clampMemoryRecordSummary(
