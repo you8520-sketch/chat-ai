@@ -3241,7 +3241,9 @@ export default function ChatClient({
             : "flex min-h-0 min-w-0 flex-1 flex-col"
         }
       >
-        <div className="hidden sm:sticky sm:top-[var(--site-header-height,44px)] sm:z-30 sm:col-span-2 sm:col-start-1 sm:row-start-1 sm:flex sm:h-[3.25rem] sm:w-full sm:items-center sm:justify-between sm:gap-3 sm:border-b sm:border-white/5 sm:bg-[#121212]/95 sm:pl-0 sm:pr-1 sm:backdrop-blur">
+        {/* Desktop: info row sits only on the portrait column so the album
+            button aligns to the asset top-right (not the far edge of the chat). */}
+        <div className="hidden sm:sticky sm:top-[var(--site-header-height,44px)] sm:z-30 sm:col-span-1 sm:col-start-1 sm:row-start-1 sm:flex sm:h-[3.25rem] sm:w-full sm:items-center sm:justify-between sm:gap-3 sm:border-b sm:border-white/5 sm:bg-[#121212]/95 sm:pl-0 sm:pr-1 sm:backdrop-blur">
           <div className="flex min-w-0 items-baseline gap-2">
             <button
               type="button"

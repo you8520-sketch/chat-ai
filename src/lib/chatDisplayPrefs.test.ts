@@ -30,6 +30,12 @@ describe("mobile chat portrait background", () => {
     );
   });
 
+  it("documents that desktop info/album row should span portrait column only", () => {
+    // ChatClient sticky info bar uses sm:col-span-1 (not col-span-2) so the album
+    // button aligns to the portrait asset top-right, not the chat panel edge.
+    assert.match(CHAT_PORTRAIT_GRID_CLASS, /sm:grid-cols-\[minmax\(340px,400px\)_minmax\(0,780px\)\]/);
+  });
+
   it("centers and narrows chat when portrait assets are off", () => {
     assert.match(CHAT_MESSAGES_COLUMN_NO_PORTRAIT_CLASS, /mx-auto/);
     assert.match(CHAT_MESSAGES_COLUMN_NO_PORTRAIT_CLASS, /max-w-\[780px\]/);
