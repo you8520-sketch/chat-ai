@@ -399,50 +399,62 @@ export async function processRollingSummaryBatch(opts: {
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
 }): Promise<boolean> {
   if (!isMemoryFeatureEnabled()) return false;
+  // In-flight lock first — shrink race before any await/LLM
   if (running.has(opts.chatId)) return false;
-
-  const memory = getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
-  const allTurns = loadChatTurnsWithMessageIds(opts.chatId);
-  const playableMeta = allTurns.filter((t) => t.turnNumber > 0);
-  const playableCount = playableMeta.length;
-
-  // Counter must follow contiguous persisted batches — never trust stale summarized_turn_count alone
-  const records = listMemoryRecordsForChat(opts.chatId);
-  let summarized = highestContiguousCompletedTurn(records, playableCount);
-  if ((memory.summarized_turn_count ?? 0) !== summarized) {
-    summarized = reconcileSummarizedTurnCountFromTable({
-      chatId: opts.chatId,
-      userId: opts.userId,
-      characterId: opts.characterId,
-      tier: opts.tier,
-      playableTurnCount: playableCount,
-    });
-    console.warn("[memory] SUMMARY_COUNTER_DRIFT reconciled", {
-      chatId: opts.chatId,
-      was: memory.summarized_turn_count,
-      now: summarized,
-    });
-  }
-
-  const missingEarliest = earliestMissingBatchStart(records, playableCount);
-  const nextStart = summarized + 1;
-  // Always fill earliest gap first (usually equals nextStart when contiguous)
-  const batchStart = missingEarliest ?? nextStart;
-  if (batchStart !== nextStart) {
-    console.warn("[memory] SUMMARY_BATCH_GAP refuse non-contiguous batch", {
-      chatId: opts.chatId,
-      batchStart,
-      nextStart,
-      missingEarliest,
-    });
-    return false;
-  }
-
-  const batchMeta = playableMeta.slice(batchStart - 1, batchStart - 1 + ROLLING_SUMMARY_INTERVAL);
-  if (batchMeta.length < ROLLING_SUMMARY_INTERVAL) return false;
-
   running.add(opts.chatId);
+
   try {
+    const memory = getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
+    const allTurns = loadChatTurnsWithMessageIds(opts.chatId);
+    const playableMeta = allTurns.filter((t) => t.turnNumber > 0);
+    const playableCount = playableMeta.length;
+
+    // Counter must follow contiguous persisted batches — never trust stale summarized_turn_count alone
+    const records = listMemoryRecordsForChat(opts.chatId);
+    let summarized = highestContiguousCompletedTurn(records, playableCount);
+    if ((memory.summarized_turn_count ?? 0) !== summarized) {
+      summarized = reconcileSummarizedTurnCountFromTable({
+        chatId: opts.chatId,
+        userId: opts.userId,
+        characterId: opts.characterId,
+        tier: opts.tier,
+        playableTurnCount: playableCount,
+      });
+      console.warn("[memory] SUMMARY_COUNTER_DRIFT reconciled", {
+        chatId: opts.chatId,
+        was: memory.summarized_turn_count,
+        now: summarized,
+      });
+    }
+
+    const missingEarliest = earliestMissingBatchStart(records, playableCount);
+    const nextStart = summarized + 1;
+    // Always fill earliest gap first (usually equals nextStart when contiguous)
+    const batchStart = missingEarliest ?? nextStart;
+    if (batchStart !== nextStart) {
+      console.warn("[memory] SUMMARY_BATCH_GAP refuse non-contiguous batch", {
+        chatId: opts.chatId,
+        batchStart,
+        nextStart,
+        missingEarliest,
+      });
+      return false;
+    }
+
+    // Idempotent: persisted row already present → never call V3 again for this batch
+    if (records.some((r) => r.turnStart === batchStart)) {
+      return false;
+    }
+
+    const batchMeta = playableMeta.slice(batchStart - 1, batchStart - 1 + ROLLING_SUMMARY_INTERVAL);
+    if (batchMeta.length < ROLLING_SUMMARY_INTERVAL) return false;
+
+    // Re-check after lock + load (another worker may have just persisted)
+    const latest = listMemoryRecordsForChat(opts.chatId);
+    if (latest.some((r) => r.turnStart === batchStart)) {
+      return false;
+    }
+
     const endTurn = batchStart + ROLLING_SUMMARY_INTERVAL - 1;
     const eligibleEntries = batchMeta
       .map((meta, i) => ({
