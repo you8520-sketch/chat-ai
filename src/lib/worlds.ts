@@ -10,6 +10,7 @@ export type WorldRow = {
   content: string;
   created_at: string;
   updated_at: string;
+  shared_from_nickname?: string;
 };
 
 export type WorldListItem = {
@@ -19,9 +20,12 @@ export type WorldListItem = {
   content: string;
   createdAt: string;
   updatedAt: string;
+  /** 공유받아 추가된 경우 원 작성자 닉네임 */
+  sharedFromNickname?: string;
 };
 
 export function rowToWorldListItem(row: WorldRow): WorldListItem {
+  const sharedFrom = (row.shared_from_nickname ?? "").trim();
   return {
     id: row.id,
     name: row.name,
@@ -29,5 +33,6 @@ export function rowToWorldListItem(row: WorldRow): WorldListItem {
     content: row.content,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    ...(sharedFrom ? { sharedFromNickname: sharedFrom } : {}),
   };
 }

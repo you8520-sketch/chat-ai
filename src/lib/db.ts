@@ -372,7 +372,19 @@ function migrate(db: Database.Database) {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_worlds_creator ON worlds(creator_id, updated_at);
+    CREATE TABLE IF NOT EXISTS world_shares (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      share_slug TEXT NOT NULL UNIQUE,
+      user_id INTEGER NOT NULL,
+      world_id INTEGER,
+      name TEXT NOT NULL DEFAULT '',
+      summary TEXT NOT NULL DEFAULT '',
+      content TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_world_shares_slug ON world_shares(share_slug);
   `);
+  addColumn("worlds", "shared_from_nickname", "TEXT NOT NULL DEFAULT ''");
   db.exec(`
     CREATE TABLE IF NOT EXISTS keyword_lorebooks (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

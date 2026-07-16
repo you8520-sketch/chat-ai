@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import MyCharacterCard, { type MyCharacterRow } from "@/components/MyCharacterCard";
 import {
   IconSidebarStudio,
@@ -189,7 +189,8 @@ function WorldsPanel({ worlds }: { worlds: WorldListItem[] }) {
     <section>
       <h2 className="sr-only">내 제작 세계관</h2>
       <p className={studioType.helper}>
-        저장한 세계관입니다. 캐릭터 제작의 「세계관 / 배경」에서 불러올 수 있습니다.
+        저장한 세계관입니다. 캐릭터 제작의 「세계관 / 배경」에서 불러올 수 있습니다. 공유하기
+        링크로 다른 유저가 공유받은 세계관으로 추가할 수 있습니다.
       </p>
       {worlds.length === 0 ? (
         <StudioEmptyState
@@ -201,28 +202,110 @@ function WorldsPanel({ worlds }: { worlds: WorldListItem[] }) {
       ) : (
         <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {worlds.map((world) => (
-            <article key={world.id} className={cn(studioSurface.card, "p-4")}>
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/[0.04] text-zinc-300">
-                  <IconStudioWorld className="h-5 w-5" />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="truncate text-sm font-semibold text-zinc-50">{world.name}</h3>
-                  <p className={cn(studioType.caption, "mt-1 line-clamp-2")}>
-                    {world.summary || world.content}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-4">
-                <StudioButton href="/create" size="sm" className="w-full sm:w-auto">
-                  캐릭터에 사용
-                </StudioButton>
-              </div>
-            </article>
+            <WorldCard key={world.id} world={world} />
           ))}
         </div>
       )}
     </section>
+  );
+}
+
+function WorldCard({ world }: { world: WorldListItem }) {
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [shareError, setShareError] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  async function shareWorld() {
+    setShareBusy(true);
+    setShareError("");
+    try {
+      const res = await fetch(`/api/worlds/${world.id}/share`, { method: "POST" });
+      const data = (await res.json()) as { applyPath?: string; error?: string };
+      if (!res.ok || !data.applyPath) {
+        setShareError(data.error || "공유 링크 생성에 실패했습니다.");
+        return;
+      }
+      const full = `${window.location.origin}${data.applyPath}`;
+      setShareUrl(full);
+      try {
+        await navigator.clipboard.writeText(full);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        /* ignore clipboard failures — link still shown */
+      }
+    } catch {
+      setShareError("네트워크 오류가 발생했습니다.");
+    } finally {
+      setShareBusy(false);
+    }
+  }
+
+  async function copyShareLink() {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return (
+    <article className={cn(studioSurface.card, "p-4")}>
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/[0.04] text-zinc-300">
+          <IconStudioWorld className="h-5 w-5" />
+        </div>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="truncate text-sm font-semibold text-zinc-50">{world.name}</h3>
+            {world.sharedFromNickname ? (
+              <span className="shrink-0 rounded-md border border-violet-500/30 bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-violet-300">
+                공유받은 세계관
+              </span>
+            ) : null}
+          </div>
+          {world.sharedFromNickname ? (
+            <p className={cn(studioType.caption, "mt-0.5")}>@{world.sharedFromNickname}님 공유</p>
+          ) : null}
+          <p className={cn(studioType.caption, "mt-1 line-clamp-2")}>
+            {world.summary || world.content}
+          </p>
+        </div>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <StudioButton href="/create" size="sm" className="w-full sm:w-auto">
+          캐릭터에 사용
+        </StudioButton>
+        <StudioButton
+          type="button"
+          variant="secondary"
+          size="sm"
+          className="w-full sm:w-auto"
+          disabled={shareBusy}
+          onClick={() => void shareWorld()}
+        >
+          {shareBusy ? "생성 중…" : copied ? "링크 복사됨" : "공유하기"}
+        </StudioButton>
+      </div>
+      {shareError ? <p className="mt-2 text-xs text-rose-400">{shareError}</p> : null}
+      {shareUrl ? (
+        <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+          <p className="text-[11px] font-semibold text-zinc-400">공유 링크</p>
+          <p className="mt-1 break-all text-xs text-zinc-300">{shareUrl}</p>
+          <button
+            type="button"
+            onClick={() => void copyShareLink()}
+            className="mt-2 text-xs font-semibold text-violet-300 hover:text-violet-200"
+          >
+            {copied ? "복사됨!" : "다시 복사"}
+          </button>
+        </div>
+      ) : null}
+    </article>
   );
 }
 

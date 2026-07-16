@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useState } from "react";
 import WithdrawalForm from "@/components/WithdrawalForm";
 import CommentsEnabledToggle from "@/components/CommentsEnabledToggle";
@@ -118,8 +119,8 @@ function allTierConditions(
       key: "pro",
       label: "프로",
       ratePct: proPct,
-      condition: `캐릭터 ${CREATOR_PRO_MIN_CHARACTERS}개+ & 통합 대화 ${CREATOR_PRO_MIN_TOTAL_CHATS.toLocaleString()}회+ 기타 조건 만족 시 자동 승급`,
-      current: `현재 ${t.characterCount}개 · ${t.totalChats.toLocaleString()}회`,
+      condition: `공개 캐릭터 ${CREATOR_PRO_MIN_CHARACTERS}개+ & 통합 대화 ${CREATOR_PRO_MIN_TOTAL_CHATS.toLocaleString()}회+ 기타 조건 만족 시 자동 승급`,
+      current: `현재 공개 ${t.publicCharacterCount}개 · ${t.totalChats.toLocaleString()}회`,
       met: proMet,
       isCurrent: t.tierLevel === "pro",
     },
@@ -391,6 +392,15 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
             (기본 {basePct}% · 플러스 {plusPct}% · 프로 {proPct}% · 파트너 {partnerPct}%)
           </span>
         </p>
+        {data.characters.length === 0 && (
+          <p className={cn(studioType.helper, "mt-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2")}>
+            아직 제작한 캐릭터가 없습니다.{" "}
+            <Link href="/studio" className="font-semibold text-violet-300 hover:text-violet-200">
+              제작 스튜디오
+            </Link>
+            에서 캐릭터를 만들고 공개하면 수익·등급 조건이 집계됩니다.
+          </p>
+        )}
       </div>
 
       <div className={studioSurface.tabList}>

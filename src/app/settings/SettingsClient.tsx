@@ -131,16 +131,15 @@ export default function SettingsClient({ user, unreadNotice = false }: Props) {
           >
             제작 스튜디오
           </Link>
-          {user.isCreator ? (
-            <Link
-              href="/creator"
-              className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-500"
-            >
-              크리에이터 페이지
-            </Link>
-          ) : (
+          <Link
+            href="/creator"
+            className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-500"
+          >
+            크리에이터 페이지
+          </Link>
+          {!user.isCreator && (
             <p className="w-full text-[11px] leading-relaxed text-zinc-500">
-              캐릭터를 1개 이상 만들면 크리에이터 페이지(수익·정산)를 이용할 수 있습니다.
+              캐릭터를 만들고 공개하면 수익·정산·등급 조건을 확인할 수 있습니다.
             </p>
           )}
         </div>

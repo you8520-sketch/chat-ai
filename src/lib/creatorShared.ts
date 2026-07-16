@@ -68,7 +68,7 @@ export type PartnerTermInfo = {
 
 export type CreatorTierInfo = {
   characterCount: number;
-  /** 공개·검수 통과 캐릭터 수 (파트너 등급 조건) */
+  /** 공개·검수 통과 캐릭터 수 (프로·파트너 등급 조건 — 제작만으로는 충족되지 않음) */
   publicCharacterCount: number;
   /** 이번 달 내 캐릭터 이용 소비 포인트 합계 */
   monthlySpentOnChars: number;

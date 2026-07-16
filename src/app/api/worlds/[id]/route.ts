@@ -14,7 +14,8 @@ type RouteCtx = { params: Promise<{ id: string }> };
 function loadOwnedWorld(db: ReturnType<typeof getDb>, userId: number, id: number): WorldRow | undefined {
   return db
     .prepare(
-      `SELECT id, creator_id, name, summary, content, created_at, updated_at
+      `SELECT id, creator_id, name, summary, content, created_at, updated_at,
+              COALESCE(shared_from_nickname, '') AS shared_from_nickname
        FROM worlds WHERE id = ? AND creator_id = ?`
     )
     .get(id, userId) as WorldRow | undefined;

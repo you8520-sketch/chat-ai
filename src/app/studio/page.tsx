@@ -35,7 +35,8 @@ export default async function StudioPage() {
   const worlds = (
     db
       .prepare(
-        `SELECT id, creator_id, name, summary, content, created_at, updated_at
+        `SELECT id, creator_id, name, summary, content, created_at, updated_at,
+                COALESCE(shared_from_nickname, '') AS shared_from_nickname
          FROM worlds WHERE creator_id = ? ORDER BY updated_at DESC, id DESC`
       )
       .all(user.id) as WorldRow[]
