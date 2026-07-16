@@ -1,20 +1,7 @@
-/** AI 출력 — 마크다own/RP 표기(형식) vs 문단 레이아웃(OUTPUT LAYOUT recency) 분리 */
+/** AI 출력 — 마크다운/RP 표기(형식) vs 문단 레이아웃(OUTPUT LAYOUT recency) 분리 */
 
-/** 마크다own·RP 표기 금지 — 문단 줄바꿈/대사 분리는 [OUTPUT LAYOUT] 단일 출처 */
-export const WEBNOVEL_OUTPUT_FORMAT_BLOCK = `[WEBNOVEL OUTPUT FORMAT]
-Never wrap narration or actions in markdown or roleplay markers:
-*
-**
-( )
-[ ]
-{ }
-
-「 」: in-world proper nouns only (skills, spells, system labels) — never for thoughts or dialogue.`;
-
-/** 시스템 말미 recency — Length → **여기(유일)** → Terminal length */
-export function buildWebnovelOutputLayoutRecencyBlock(): string {
-  return `[OUTPUT LAYOUT]
-[SEMANTIC PARAGRAPHING]
+/** Frozen semantic paragraphing body — identity checked in static-dedup validation. */
+export const OUTPUT_LAYOUT_SEMANTIC_CORE = `[SEMANTIC PARAGRAPHING]
 한 문단에는 하나의 중심 행동·반응·감정 또는 관찰 초점만 둔다.
 
 같은 주체의 연속된 행동과 즉각적인 결과는 한 문단으로 이어가되,
@@ -34,6 +21,22 @@ Right:
 그는 고개를 들었다.
 
 "대사."`;
+
+/** Moved from advanced prose — dialogue utterance integrity (static dedup item 7). */
+export const DIALOGUE_NARRATION_STRUCTURE_RULE = `[DIALOGUE & NARRATION]
+- 하나의 발화는 하나의 인용문으로 유지할 것.
+- 대사 중간에 지문을 끼워 넣어 발화를 분절하지 말 것.`;
+
+/** 마크다운·RP 표기 금지 — 출력 규칙만 (입력 해석은 USER INPUT PARSING). */
+export const WEBNOVEL_OUTPUT_FORMAT_BLOCK = `[WEBNOVEL OUTPUT FORMAT]
+서술·행동에 마크다운/RP 표기(*, **, (), [], {})를 쓰지 않는다. 「」는 세계 내 고유명사·스킬·시스템 라벨만(속마음·대사 금지).`;
+
+/** 시스템 말미 recency — Length → **여기(유일)** → Terminal length */
+export function buildWebnovelOutputLayoutRecencyBlock(): string {
+  return `[OUTPUT LAYOUT]
+${OUTPUT_LAYOUT_SEMANTIC_CORE}
+
+${DIALOGUE_NARRATION_STRUCTURE_RULE}`;
 }
 
 /** user-turn bottom — layout recency (paired with length tail in contextBuilder) */
@@ -48,16 +51,13 @@ export const WEBNOVEL_PARAGRAPH_LAYOUT_BLOCK = buildWebnovelOutputLayoutRecencyB
 export const WEBNOVEL_OUTPUT_RULES_BLOCK = WEBNOVEL_OUTPUT_FORMAT_BLOCK;
 
 export const USER_INPUT_PARSING_HEADER = `[USER INPUT PARSING — INTERPRET [B] ONLY]
-These symbols describe how to READ the user's message. Never use them in your output.`;
+유저 메시지 해석용 기호이며 출력에 쓰지 않는다.`;
 
 /** 유저 입력 해석 전용 — 출력 포맷·레이아웃 아님 */
 export function buildUserInputParsingBlock(hasMindReading: boolean): string {
   const lines = [
     USER_INPUT_PARSING_HEADER,
-    '" " = user dialogue',
-    "* … * = user-described observable action (interpret only — do not echo this wrapper in output)",
-    "( ) = user action or inner thought (interpret only — do not echo parentheses in output)",
-    "「 」 = proper nouns in user input only",
+    `" " 대사 · *…* 관찰 가능 행동 · ( ) 행동/속마음 · 「」 고유명사(입력).`,
   ];
 
   if (hasMindReading) {

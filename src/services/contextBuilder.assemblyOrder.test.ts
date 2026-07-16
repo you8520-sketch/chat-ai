@@ -72,7 +72,7 @@ describe("buildContext — persona-before-prose assembly order", () => {
 
     const ids = (built.meta?.trackedSections ?? []).map((s) => s.id);
     assert.ok(
-      sectionOrder(ids, "character-knowledge-boundary") <
+      sectionOrder(ids, "openrouter-korean-prose-top") <
         sectionOrder(ids, "character-core-identity")
     );
     assert.ok(
@@ -124,7 +124,7 @@ describe("buildContext — persona-before-prose assembly order", () => {
 
     const split = built.openRouterSystemSplit;
     assert.ok(split);
-    assert.match(split!.characterSettingsBlock, /\[ADVANCED PROSE & NSFW GUIDELINES\]/);
+    assert.match(split!.characterSettingsBlock, /\[NARRATION REGISTER\]/);
     assert.match(split!.systemRulesBlock, /\[CHARACTER KNOWLEDGE BOUNDARY\]/);
     assert.match(built.systemPrompt, /\[CHARACTER CANON — Hero MAY KNOW/);
     assert.match(built.systemPrompt, /\[EPISODIC MEMORY - RETRIEVED FACTS\]/);
@@ -132,7 +132,7 @@ describe("buildContext — persona-before-prose assembly order", () => {
     assert.doesNotMatch(split!.characterSettingsBlock, /\[CORE IDENTITY\]/);
     assert.doesNotMatch(split!.systemRulesBlock, /<PROSE_STYLE_POLICY>/);
 
-    assert.equal((built.systemPrompt.match(/\[OUTPUT LAYOUT\]/g) ?? []).length, 1);
+    assert.equal((built.systemPrompt.match(/\[OUTPUT LAYOUT\]\n\[SEMANTIC/g) ?? []).length, 1);
     const layoutIdx = built.systemPrompt.indexOf("[OUTPUT LAYOUT]");
     const terminalIdx = built.systemPrompt.indexOf("TARGET_LENGTH 3,200+ · MINIMUM_FLOOR");
     assert.ok(layoutIdx >= 0 && terminalIdx > layoutIdx, "OUTPUT LAYOUT must precede terminal length tail");
@@ -189,7 +189,7 @@ describe("buildContext — persona-before-prose assembly order", () => {
     assert.equal((built.systemPrompt.match(/\[LENGTH CONTROL & SCENE EXPANSION\]/g) ?? []).length, 1);
     assert.equal((built.systemPrompt.match(/TARGET_LENGTH:/g) ?? []).length, 1);
     assert.equal((built.systemPrompt.match(/MINIMUM_FLOOR:/g) ?? []).length, 1);
-    assert.equal((built.systemPrompt.match(/\[OUTPUT LAYOUT\]/g) ?? []).length, 1);
+    assert.equal((built.systemPrompt.match(/\[OUTPUT LAYOUT\]\n\[SEMANTIC/g) ?? []).length, 1);
     assert.ok(
       built.systemPrompt.trimEnd().endsWith(
         (built.meta.trackedSections ?? []).find((s) => s.id === "rule-terminal-length-override")?.text.trim() ?? ""
@@ -289,7 +289,7 @@ describe("buildContext — persona-before-prose assembly order", () => {
       sectionOrder(ids, "character-core-identity") <
         sectionOrder(ids, "rule-advanced-prose-nsfw")
     );
-    assert.match(built.systemPrompt, /\[ADVANCED PROSE & NSFW GUIDELINES\]/);
+    assert.match(built.systemPrompt, /\[NARRATION REGISTER\]/);
     assert.match(built.systemPrompt, /\[CHARACTER CANON — Hero MAY KNOW/);
   });
 });

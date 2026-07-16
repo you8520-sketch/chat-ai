@@ -45,7 +45,7 @@ describe("buildLengthInstruction", () => {
     assert.match(block, /기계적 교대나 동일 길이 블록을 맞추지 마라/);
     assert.match(block, /새 서사 비트\(행동·반응·전환\)로 확장/);
     assert.match(block, /\[NARRATIVE DENSITY\]/);
-    assert.match(block, /중간 단계를 건너뛰지 마라/);
+    assert.match(block, /중간 단계를 건너뛰지/);
     assert.doesNotMatch(block, /\[MOMENT-TO-MOMENT WRITING\]/);
     assert.match(block, /\[NO GENERIC REACTIONS\]/);
     assert.doesNotMatch(block, /한 줄·한 문단에 붙여 쓰라는 뜻이 아니다/);

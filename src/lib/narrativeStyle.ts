@@ -32,7 +32,7 @@ export type NarrativeStyleContext = {
   mode?: NarrativeStyleMode;
   charName?: string;
   genres?: CharacterGenre[];
-  /** @deprecated Format rules live in [ADVANCED PROSE & NSFW GUIDELINES] */
+  /** @deprecated Format rules live in prose guidelines */
   omitFormatRules?: boolean;
 };
 
@@ -43,11 +43,10 @@ function buildCompactGenreHint(genres: CharacterGenre[] | undefined): string | n
   return `[genre_tone] ${primary}: ${hint}.`;
 }
 
-function buildPossessionHint(): string {
-  return `[possession_mode] Co-narrate user persona minimally; do not inflate user dialogue or romance beyond their input.`;
-}
-
-/** Compact narrative style layer — genre/possession hints only (prose format in advanced guidelines). */
+/**
+ * Compact runtime style — genre_tone + SCENE MODE only.
+ * possession_mode merged into LIMITED CO-NARRATION (static dedup).
+ */
 export function buildNarrativeStyleLayer(ctx: NarrativeStyleContext = {}): string {
   const parts: string[] = [];
 
@@ -57,7 +56,6 @@ export function buildNarrativeStyleLayer(ctx: NarrativeStyleContext = {}): strin
   const sceneMode = buildSceneModeHint(ctx.genres);
   if (sceneMode) parts.push(sceneMode);
 
-  if (ctx.mode === "possession") parts.push(buildPossessionHint());
-
-  return parts.join("\n");
+  if (parts.length === 0) return "";
+  return `[RUNTIME STYLE]\n${parts.join("\n")}`;
 }

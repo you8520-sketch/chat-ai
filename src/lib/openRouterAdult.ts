@@ -195,13 +195,17 @@ export {
   OPENROUTER_NSFW_CORE,
 };
 
-/** co-narration ON/OFF — OpenRouter에 동적 주입 */
+/**
+ * co-narration ON/OFF — OpenRouter 동적 주입.
+ * ON은 no-godmodding LIMITED CO-NARRATION으로 통합됨 → 빈 문자열.
+ */
 export function buildCoNarrationKoreanRule(allowed: boolean, novelMode = false): string {
   if (novelMode) {
     return `7. 유저 대사: 소설 모드 ON — [NOVEL MODE — USER PERSONA NARRATION RULES] 적용. 유저 페르소나 대사·행동·속마음 AI 전면 서술. [USER_PERSONA] 말투·성격 유지.`;
   }
   if (allowed) {
-    return `7. 유저 대사: co-narration(사칭 허용) ON — [USER_PERSONA]에 맞춰 유저 페르소나 대사·행동을 사용자 입력 의도 내에서만 최소 공동 서술. 감정·결정 창작 금지.`;
+    // Merged into buildLimitedCoNarrationBlock() / no-godmodding section
+    return "";
   }
   return `7. 유저 대사: co-narration(사칭 허용) OFF — [NO GODMODDING] 준수.`;
 }

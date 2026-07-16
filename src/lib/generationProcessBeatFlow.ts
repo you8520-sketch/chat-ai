@@ -15,7 +15,7 @@ Scene mode: {calm|tension|combat} from [SCENE MODE] — pacing hint only, not fi
 6 hook → unresolved beat inviting next input
 7 handoff → return agency to user
 
-Do not force equal-length blocks or rhythmic dialogue insertion. Long narration runs are fine when the scene needs them — still start a new paragraph when focus shifts ([OUTPUT LAYOUT]).
+Do not force equal-length blocks or rhythmic dialogue insertion. Long narration runs are fine when the scene needs them — still start a new paragraph when focus shifts.
 
 [SCENE MODE]
 calm: slower withhold · mid pacing · statement hooks

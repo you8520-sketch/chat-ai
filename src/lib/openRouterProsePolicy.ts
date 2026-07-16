@@ -3,10 +3,11 @@
  */
 import type { BilingualDialoguePolicy } from "@/lib/bilingualDialoguePolicy";
 import { isBilingualDialogueActive } from "@/lib/bilingualDialoguePolicy";
+import { buildCanonScopeKnowledgeBlock } from "@/lib/staticSystemRulesCanon";
 
-const OUTPUT_LANG_FOREIGN_MIXING = `외국어 혼용 금지. 고유명사·스킬명만 「」 예외.
-한 단어 안에서 한글과 영어·일본어를 혼용하지 마라.
-한국어 RP 본문에 러시아어·키릴 등 비한글을 섞지 않는다(의도된 외국어 대사·고유명사 예외).`;
+/** Single-sentence OUTPUT LANG — meaning preserved from prior three-line policy. */
+const OUTPUT_LANG_FOREIGN_MIXING =
+  "외국어 혼용 금지(고유명사·스킬명 「」 예외); 한 단어 안 한글·영·일 혼용 금지; 한국어 RP 본문에 러시아어·키릴 등 비한글을 섞지 않는다(의도된 외국어 대사·고유명사 예외).";
 
 /** Single language policy — OUTPUT LANG is the only language SoT. */
 export function buildOutputLangLines(bilingual?: BilingualDialoguePolicy): string {
@@ -22,20 +23,36 @@ ${core}
 ${core}`;
 }
 
-export function buildOpenRouterKoreanProseTopBlock(bilingual?: BilingualDialoguePolicy): string {
-  const outputLang = buildOutputLangLines(bilingual);
+export type OpenRouterKoreanProseTopOpts = {
+  bilingual?: BilingualDialoguePolicy;
+  novelModeEnabled?: boolean;
+  impersonationOn?: boolean;
+  party?: boolean;
+};
 
-  return `=== 설정 적용 우선순위 ===
+function isBilingualPolicy(
+  v: BilingualDialoguePolicy | OpenRouterKoreanProseTopOpts | undefined
+): v is BilingualDialoguePolicy {
+  return !!v && typeof v === "object" && "enabled" in v;
+}
 
-1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDARY] (절대 유지 — PLAYER/SCENARIO META는 [A] 기억·대사로 노출 금지)
-2. 장기기억(LTM)
-3. 최근 대화를 해석하는 데 필요한 RAG
-4. 최근 대화
+export function buildOpenRouterKoreanProseTopBlock(
+  bilingualOrOpts?: BilingualDialoguePolicy | OpenRouterKoreanProseTopOpts
+): string {
+  const opts: OpenRouterKoreanProseTopOpts = isBilingualPolicy(bilingualOrOpts)
+    ? { bilingual: bilingualOrOpts }
+    : ((bilingualOrOpts as OpenRouterKoreanProseTopOpts | undefined) ?? {});
 
-${outputLang}
+  const outputLang = buildOutputLangLines(opts.bilingual);
+  const canon = buildCanonScopeKnowledgeBlock({
+    novelModeEnabled: opts.novelModeEnabled,
+    impersonationOn: opts.impersonationOn,
+    party: opts.party,
+  });
 
-=== 서술 시점 (필수) ===
-- 현재 장면 안에서만 서술한다.`;
+  return `${canon}
+
+${outputLang}`;
 }
 
 /** @deprecated buildOpenRouterKoreanProseTopBlock() 사용 */

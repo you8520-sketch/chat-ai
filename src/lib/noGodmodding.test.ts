@@ -65,8 +65,16 @@ describe("buildNoGodmoddingBlock", () => {
     assert.match(block, /\[NO FALSE SHARED MEMORY\]/);
     assert.match(block, /전에 말했잖아/);
     assert.match(block, /불확실하면 질문, 관찰, 추측, 새 발견으로 처리한다/);
-    assert.match(block, /저 문장, 달리는 늑대처럼 보여/);
+    assert.doesNotMatch(block, /저 문장, 달리는 늑대처럼 보여/);
     assert.equal(block.includes(NO_FALSE_SHARED_MEMORY_RULE), true);
+  });
+
+  it("coNarration merges user-control + 유저 대사 + possession", () => {
+    const block = buildNoGodmoddingBlock("체향", "유저", "coNarration");
+    assert.match(block, /\[USER CONTROL MODE - LIMITED CO-NARRATION\]/);
+    assert.match(block, /7\. 유저 대사: co-narration/);
+    assert.match(block, /\[possession_mode\]/);
+    assert.match(block, /\[NO FALSE SHARED MEMORY\]/);
   });
 });
 

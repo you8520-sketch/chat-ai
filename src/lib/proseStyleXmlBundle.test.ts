@@ -17,8 +17,8 @@ describe("buildProseStyleXmlBundle", () => {
     assert.doesNotMatch(bundle, /<PROSE_STYLE_POLICY>/);
     assert.doesNotMatch(bundle, /<ADVANCED_PROSE_NSFW>/);
     assert.doesNotMatch(bundle, /<KOREAN_WEBNOVEL_STYLE>/);
-    assert.match(bundle, /\[ADVANCED PROSE & NSFW GUIDELINES\]/);
-    assert.match(bundle, /\[PROSE STYLE\]/);
+    assert.doesNotMatch(bundle, /\[ADVANCED PROSE & NSFW GUIDELINES\]/);
+    assert.match(bundle, /\[NARRATION REGISTER\]/);
     assert.doesNotMatch(bundle, /\[SHOW OVER TELL\]/);
     assert.doesNotMatch(bundle, /<STYLE_REFERENCE>/);
     assert.doesNotMatch(bundle, /SCENE_PROGRESSION_&_NARRATION_PARAGRAPH_FLOOR/);
@@ -30,7 +30,7 @@ describe("buildProseStyleXmlBundle", () => {
     const bundle = buildProseStyleXmlBundle({ nsfwEnabled: false });
 
     assert.doesNotMatch(bundle, /=== 19\+ 플랫폼 컨텍스트 ===/);
-    assert.match(bundle, /\[PROSE STYLE\]/);
+    assert.match(bundle, /\[NARRATION REGISTER\]/);
     assert.doesNotMatch(bundle, /\[SHOW OVER TELL\]/);
     assert.doesNotMatch(bundle, /<STYLE_REFERENCE>/);
   });

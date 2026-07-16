@@ -40,7 +40,6 @@ import {
 } from "@/lib/noGodmodding";
 import {
   buildCoreMasterPrompt,
-  buildCoreMasterPromptForCache,
   buildCoreMasterEarlyTurnHint,
   buildIdentityAndRulesBlock,
 } from "@/lib/corePrompt";
@@ -351,7 +350,12 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       "openrouter-korean-prose-top",
       "[TOP] OpenRouter Korean prose",
       "systemRules",
-      buildOpenRouterKoreanProseTopBlock(bilingualDialoguePolicy),
+      buildOpenRouterKoreanProseTopBlock({
+        bilingual: bilingualDialoguePolicy,
+        novelModeEnabled,
+        impersonationOn: coNarrationEnabled,
+        party: input.party,
+      }),
       "cacheRules"
     );
     pushSection(
@@ -417,16 +421,16 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     isOpenRouter ? "cacheRules" : "dynamic"
   );
 
-  // ───── [1] Core Master Rules ─────
-  pushSection(
-    "rule-core-master",
-    "[1] Core Master Rules",
-    "systemRules",
-    isOpenRouter
-      ? buildCoreMasterPromptForCache(coreMasterInput)
-      : buildCoreMasterPrompt(coreMasterInput),
-    isOpenRouter ? "cacheRules" : "dynamic"
-  );
+  // ───── [1] Core Master Rules (OpenRouter: merged into CANON/SCOPE/KNOWLEDGE top) ─────
+  if (!isOpenRouter) {
+    pushSection(
+      "rule-core-master",
+      "[1] Core Master Rules",
+      "systemRules",
+      buildCoreMasterPrompt(coreMasterInput),
+      "dynamic"
+    );
+  }
 
   if (isOpenRouter) {
     const turnHint = buildCoreMasterEarlyTurnHint(input.completedTurns ?? 0);
@@ -470,16 +474,19 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   };
 
   const pushCharacterCoreIdentity = () => {
-    const knowledgeBoundaryBlock = input.promptUseFullKnowledgeBoundary
-      ? CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK
-      : CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK_COMPACT;
-    pushSection(
-      "character-knowledge-boundary",
-      "[2a] Character knowledge boundary",
-      "systemRules",
-      knowledgeBoundaryBlock,
-      isOpenRouter ? "cacheRules" : "dynamic"
-    );
+    // OpenRouter: knowledge boundary lives in CANON/SCOPE/KNOWLEDGE top (static dedup).
+    if (!isOpenRouter) {
+      const knowledgeBoundaryBlock = input.promptUseFullKnowledgeBoundary
+        ? CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK
+        : CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK_COMPACT;
+      pushSection(
+        "character-knowledge-boundary",
+        "[2a] Character knowledge boundary",
+        "systemRules",
+        knowledgeBoundaryBlock,
+        "dynamic"
+      );
+    }
     const coreBlock = buildCharacterCanonBlock(characterSettingText, input.charName);
     if (!coreBlock) return;
     const coreBlockForModel =
@@ -631,6 +638,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const proseGuidelinesOpts = {
     nsfwEnabled: !!input.nsfw,
     literaryEnhanced: openRouterLiteraryNsfw,
+    includeAbsoluteProhibition: !isOpenRouter,
   };
   const proseStyleTarget: SectionTarget = isOpenRouter ? "cacheCharacter" : "dynamic";
   if (isOpenRouter) {
