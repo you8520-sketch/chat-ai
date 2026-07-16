@@ -69,7 +69,7 @@ describe("OpenRouter cache boundaries", () => {
     const split = built.openRouterSystemSplit;
     assert.ok(split);
 
-    assert.match(split!.characterSettingsBlock, /\[ADVANCED PROSE & NSFW GUIDELINES\]/);
+    assert.match(split!.characterSettingsBlock, /\[NARRATION REGISTER\]/);
     assert.match(split!.dynamicBlock, /유저노트 확장구간/);
     assert.doesNotMatch(split!.characterSettingsBlock, /유저노트 확장구간/);
 
@@ -77,7 +77,7 @@ describe("OpenRouter cache boundaries", () => {
     assert.equal(blocks[0]?.cache_control?.type, "ephemeral");
     assert.equal(blocks[1]?.cache_control?.type, "ephemeral");
     assert.equal(blocks[2]?.cache_control, undefined);
-    assert.match(blocks[1]!.text, /\[ADVANCED PROSE & NSFW GUIDELINES\]/);
+    assert.match(blocks[1]!.text, /\[NARRATION REGISTER\]/);
     assert.match(blocks[2]!.text, /유저노트 확장구간/);
   });
 
@@ -119,6 +119,6 @@ describe("OpenRouter cache boundaries", () => {
 
     const proseTokens = estimateTokens(built.openRouterSystemSplit!.characterSettingsBlock);
     assert.ok(proseTokens > 700, `expected prose+character cache block >700 tok, got ${proseTokens}`);
-    assert.match(built.openRouterSystemSplit!.characterSettingsBlock, /\[ADVANCED PROSE & NSFW GUIDELINES\]/);
+    assert.match(built.openRouterSystemSplit!.characterSettingsBlock, /\[NARRATION REGISTER\]/);
   });
 });

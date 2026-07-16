@@ -14,7 +14,7 @@ import { buildUserActionThoughtRule } from "@/lib/userActionThoughtRules";
 describe("webnovelOutputFormat", () => {
   it("WEBNOVEL_OUTPUT_FORMAT has marker bans only — no paragraph layout", () => {
     assert.match(WEBNOVEL_OUTPUT_FORMAT_BLOCK, /\[WEBNOVEL OUTPUT FORMAT\]/);
-    assert.match(WEBNOVEL_OUTPUT_FORMAT_BLOCK, /Never wrap narration or actions in markdown or roleplay markers/);
+    assert.match(WEBNOVEL_OUTPUT_FORMAT_BLOCK, /마크다운\/RP 표기/);
     assert.doesNotMatch(WEBNOVEL_OUTPUT_FORMAT_BLOCK, /Dialogue uses " "/);
     assert.doesNotMatch(WEBNOVEL_OUTPUT_FORMAT_BLOCK, /\[OUTPUT LAYOUT\]/);
     assert.doesNotMatch(WEBNOVEL_OUTPUT_FORMAT_BLOCK, /append spoken dialogue/i);
@@ -30,6 +30,7 @@ describe("webnovelOutputFormat", () => {
     assert.match(block, /Wrong:/);
     assert.match(block, /Right:/);
     assert.match(block, /초점/);
+    assert.match(block, /\[DIALOGUE & NARRATION\]/);
     assert.doesNotMatch(block, /Continuous narration stays in one paragraph/);
     assert.doesNotMatch(block, /emotional beat shifts/i);
     assert.doesNotMatch(block, /Output formatting only/i);
@@ -44,7 +45,7 @@ describe("webnovelOutputFormat", () => {
   it("buildUserInputParsingBlock is interpret-only — not output format", () => {
     const block = buildUserInputParsingBlock(false);
     assert.match(block, /INTERPRET \[B\] ONLY/);
-    assert.match(block, /Never use them in your output/);
+    assert.match(block, /출력에 쓰지 않는다/);
     assert.ok(!block.includes("* * = observable action"));
   });
 

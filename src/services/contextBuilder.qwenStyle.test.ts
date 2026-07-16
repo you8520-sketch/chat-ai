@@ -82,17 +82,9 @@ describe("buildContext — Qwen OpenRouter prose rules", () => {
     assert.ok(built.systemPrompt.includes("=== 설정 적용 우선순위 ==="));
 
     assert.ok(!built.systemPrompt.includes("<PROSE_STYLE_POLICY>"));
-    assert.ok(built.systemPrompt.includes("[PROSE STYLE]"));
-
-    assert.ok(built.systemPrompt.includes("[ADVANCED PROSE & NSFW GUIDELINES]"));
-    assert.equal(
-      (built.systemPrompt.match(/\[ADVANCED PROSE & NSFW GUIDELINES\]/g) ?? []).length,
-      1
-    );
-    assert.equal(
-      (built.systemPrompt.match(/\[PROSE STYLE\]/g) ?? []).length,
-      1
-    );
+    assert.ok(built.systemPrompt.includes("[NARRATION REGISTER]"));
+    assert.ok(!built.systemPrompt.includes("[ADVANCED PROSE & NSFW GUIDELINES]"));
+    assert.ok(!built.systemPrompt.includes("[PROSE STYLE]"));
     assert.equal(
       (built.systemPrompt.match(/\[DIALOGUE & NARRATION\]/g) ?? []).length,
       1

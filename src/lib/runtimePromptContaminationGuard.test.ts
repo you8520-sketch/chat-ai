@@ -90,7 +90,7 @@ describe("runtimePromptContaminationGuard", () => {
   it("detects possible unsupported shared memory phrases without hard-blocking them", () => {
     const raw = "네가 전에 말했잖아. 에카르트의 문장은 달리는 늑대라고.";
 
-    assert.deepEqual(findPossibleFalseSharedMemoryPhrases(raw), ["전에 말했잖아"]);
+    assert.deepEqual(findPossibleFalseSharedMemoryPhrases(raw), ["네가 전에", "전에 말했잖아"]);
     assert.equal(stripRuntimePromptContaminationFromVisibleOutput(raw), raw);
   });
 
@@ -106,7 +106,13 @@ describe("runtimePromptContaminationGuard", () => {
     try {
       const phrases = logPossibleFalseSharedMemory("전에 네가 알려줬잖아. 그때 네가 약속했잖아.");
 
-      assert.deepEqual(phrases, ["그때 네가", "네가 약속했잖아", "전에 네가 알려줬잖아"]);
+      assert.deepEqual(phrases, [
+        "전에 네가",
+        "네가 알려줬잖아",
+        "전에 네가 알려줬잖아",
+        "네가 약속했잖아",
+        "그때 네가",
+      ]);
       assert.equal(calls.length, 1);
       assert.match(String(calls[0][0]), /\[FalseMemoryGuard\]/);
     } finally {

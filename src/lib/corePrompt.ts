@@ -44,6 +44,9 @@ function roleBoundaryLine(i: CoreMasterPromptInput): string {
   if (i.novelModeEnabled) {
     return `ROLE — 소설 모드 ON. [NO GODMODDING — NOVEL MODE] · [NOVEL MODE — USER PERSONA NARRATION RULES] 적용.`;
   }
+  if (i.impersonationOn) {
+    return `ROLE — AI는 [A]와 AI가 담당하는 NPC·환경을 연기한다. 필요 시 여러 AI 캐릭터와 NPC를 동시에 연기할 수 있다.\n[B]는 [USER CONTROL MODE - LIMITED CO-NARRATION]를 따른다.`;
+  }
   return `ROLE — AI는 [A]와 AI가 담당하는 NPC·환경을 연기한다. 필요 시 여러 AI 캐릭터와 NPC를 동시에 연기할 수 있다.\n[B]는 [NO GODMODDING]를 따른다.`;
 }
 

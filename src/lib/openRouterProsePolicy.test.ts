@@ -5,11 +5,15 @@ import { buildOpenRouterKoreanProseTopBlock } from "@/lib/openRouterProsePolicy"
 describe("buildOpenRouterKoreanProseTopBlock", () => {
   it("includes four-step setting priority (core → LTM → RAG → recent chat)", () => {
     const block = buildOpenRouterKoreanProseTopBlock();
+    assert.match(block, /\[CANON \/ SCOPE \/ KNOWLEDGE\]/);
     assert.match(block, /=== 설정 적용 우선순위 ===/);
     assert.match(block, /CHARACTER CANON · WORLD CANON · \[CHARACTER KNOWLEDGE BOUNDARY\]/);
     assert.match(block, /2\. 장기기억\(LTM\)/);
     assert.match(block, /3\. 최근 대화를 해석하는 데 필요한 RAG/);
     assert.match(block, /4\. 최근 대화/);
+    assert.match(block, /\[CORE RP\]/);
+    assert.match(block, /\[CHARACTER KNOWLEDGE BOUNDARY\]/);
+    assert.match(block, /=== 절대 금지 규칙 ===/);
     assert.doesNotMatch(block, /맥락 매칭 보조 설정\(RAG\) \+ 세계관이 최우선/);
   });
 
@@ -17,8 +21,8 @@ describe("buildOpenRouterKoreanProseTopBlock", () => {
     const block = buildOpenRouterKoreanProseTopBlock();
     assert.match(block, /\[OUTPUT LANG\]/);
     assert.doesNotMatch(block, /서술은 해체\(-다\)만 사용/);
-    assert.match(block, /외국어 혼용 금지\. 고유명사·스킬명만 「」 예외/);
-    assert.match(block, /한 단어 안에서 한글과 영어·일본어를 혼용하지 마라/);
+    assert.match(block, /외국어 혼용 금지\(고유명사·스킬명 「」 예외\)/);
+    assert.match(block, /한 단어 안 한글·영·일 혼용 금지/);
     assert.match(
       block,
       /한국어 RP 본문에 러시아어·키릴 등 비한글을 섞지 않는다\(의도된 외국어 대사·고유명사 예외\)/

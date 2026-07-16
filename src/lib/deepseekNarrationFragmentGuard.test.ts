@@ -6,7 +6,6 @@ import {
   prependDeepSeekBottomReminder,
 } from "@/lib/deepseekPromptStructure";
 import {
-  buildAdvancedProseNsfwGuidelines,
   PROSE_STYLE_SECTION,
 } from "@/lib/advancedProseNsfwGuidelines";
 import { buildWebnovelOutputLayoutRecencyBlock } from "@/lib/webnovelOutputFormat";
@@ -75,9 +74,8 @@ describe("DeepSeek narration fragment guard (prompt snapshot)", () => {
   it("keeps dialogue/narration separation rules", () => {
     const layout = buildWebnovelOutputLayoutRecencyBlock();
     assert.match(layout, /Wrong:\s*그는 고개를 들었다\. "대사\."/);
-    const guidelines = buildAdvancedProseNsfwGuidelines({ nsfwEnabled: false });
-    assert.match(guidelines, /\[DIALOGUE & NARRATION\]/);
-    assert.match(guidelines, /하나의 발화는 하나의 인용문/);
+    assert.match(layout, /\[DIALOGUE & NARRATION\]/);
+    assert.match(layout, /하나의 발화는 하나의 인용문/);
   });
 
   it("does not stack the same anti-fragment sentence across RHYTHM / MOVEMENT / reminder", () => {

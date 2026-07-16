@@ -5,11 +5,10 @@ export type UserAgencyRuleOptions = {
   autoContinueExpanded?: boolean;
 };
 
+/** Examples removed (static dedup) — rule meaning unchanged. */
 export const NO_FALSE_SHARED_MEMORY_RULE = `[NO FALSE SHARED MEMORY]
 실제 최근 대화, 장기기억, 에피소드 기억, 캐릭터 정본, 유저 페르소나에 없는 일을 "전에 말했잖아", "네가 약속했잖아", "그때 우리", "예전에 네가"처럼 이미 있었던 공유 기억으로 쓰지 않는다.
-불확실하면 질문, 관찰, 추측, 새 발견으로 처리한다.
-나쁜 예: "네가 전에 말했잖아. 에카르트의 문장은 달리는 늑대라고."
-좋은 예: "저 문장, 달리는 늑대처럼 보여." / "저게 네 가문의 문장이야?"`;
+불확실하면 질문, 관찰, 추측, 새 발견으로 처리한다.`;
 
 /** Compact interactive-only reinforcement (no length rules). */
 export const INTERACTIVE_USER_CONTROL_BLOCK = `[INTERACTIVE USER CONTROL]
@@ -17,6 +16,13 @@ export const INTERACTIVE_USER_CONTROL_BLOCK = `[INTERACTIVE USER CONTROL]
 분량을 채우기 위해 유저를 움직이지 않는다.
 NPC, 환경, 사건의 여파, 긴장, 새 반응점으로 장면을 이어간다.
 실제 대화·기억·페르소나에 없는 일을 “전에 말했잖아/아까 네가/네가 약속했잖아”로 꾸며 쓰지 말고, 불확실하면 질문·관찰·추측으로 한다.`;
+
+export const POSSESSION_MODE_HINT =
+  `[possession_mode] Co-narrate user persona minimally; do not inflate user dialogue or romance beyond their input.`;
+
+/** Co-narration ON line (was openrouter-co-narration-rule). */
+export const CO_NARRATION_ON_LINE =
+  `7. 유저 대사: co-narration(사칭 허용) ON — [USER_PERSONA]에 맞춰 유저 페르소나 대사·행동을 사용자 입력 의도 내에서만 최소 공동 서술. 감정·결정 창작 금지.`;
 
 export function buildCompactNoGodmoddingStandardBlock(): string {
   return `[NO GODMODDING]
@@ -58,6 +64,20 @@ export function buildUserAgencySensoryFeedbackRule(
   return buildCompactNoGodmoddingStandardBlock();
 }
 
+/** Merged LIMITED CO-NARRATION: user-control + 유저 대사 + possession (static dedup). */
+export function buildLimitedCoNarrationBlock(): string {
+  return `[USER CONTROL MODE - LIMITED CO-NARRATION]
+- 주된 시점은 [A]다.
+- 사용자가 허용한 범위 안에서만 [B]의 짧은 행동/대사 보조가 가능하다.
+- [B]의 감정 결론, 중대 결정, 주도적 행동을 새로 만들지 않는다.
+
+${CO_NARRATION_ON_LINE}
+
+${POSSESSION_MODE_HINT}
+
+${NO_FALSE_SHARED_MEMORY_RULE}`;
+}
+
 export function buildNoGodmoddingBlock(
   _charName: string,
   _userName: string,
@@ -73,12 +93,7 @@ ${NO_FALSE_SHARED_MEMORY_RULE}`;
   }
 
   if (mode === "coNarration") {
-    return `[USER CONTROL MODE - LIMITED CO-NARRATION]
-- 주된 시점은 [A]다.
-- 사용자가 허용한 범위 안에서만 [B]의 짧은 행동/대사 보조가 가능하다.
-- [B]의 감정 결론, 중대 결정, 주도적 행동을 새로 만들지 않는다.
-
-${NO_FALSE_SHARED_MEMORY_RULE}`;
+    return buildLimitedCoNarrationBlock();
   }
 
   return buildCompactNoGodmoddingStandardBlock();

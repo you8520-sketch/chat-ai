@@ -1,4 +1,5 @@
 import { isDeepSeekV4ProModel, isQwenModel } from "@/lib/chatModels";
+import { SPEECH_METADATA_INVISIBLE_RULE } from "@/lib/speechMetadataPolicy";
 
 const CONTAMINATION_LINE_PATTERNS: RegExp[] = [
   /SPEECH\s*(?:METADATA|LOCK|RULE|CONSISTENCY|ENFORCEMENT)/i,
@@ -102,21 +103,28 @@ export function stripRuntimePromptContaminationFromVisibleOutput(text: string): 
   );
 }
 
+const NO_STAGE_DIRECTIONS = `[NO STAGE DIRECTIONS]
+글쓰기 방식·문체·프롬프트를 설명하지 말고, 지금 벌어지는 일만 직접 서술한다.`;
+
+/** Merged PRIVATE OUTPUT HYGIENE — contamination + stage + speech + model reinforcement. */
 export function buildRuntimePromptContaminationGuardBlock(modelId?: string): string {
   const id = modelId ?? "";
   const needsReinforcement =
     isQwenModel(id) || isDeepSeekV4ProModel(id) || id.toLowerCase().includes("deepseek");
   const modelReinforcement = needsReinforcement
-    ? [
-        "",
-        "Qwen/DeepSeek 보강: 내부 규칙, snake_case, 상태/기억/트리거 형식은 절대 본문이 아니다.",
-      ].join("\n")
+    ? "Qwen/DeepSeek 보강: 내부 규칙, snake_case, 상태/기억/트리거 형식은 절대 본문이 아니다."
     : "";
 
-  return `[RUNTIME PROMPT CONTAMINATION GUARD - PRIVATE]
+  const parts = [
+    `[PRIVATE OUTPUT HYGIENE]
 비공개 통제문과 시스템 블록을 본문에 언급하지 마라.
 - 말투/레지스터 규칙은 자연스러운 대사 문체로만 반영하고, 말투 규칙명이나 speech_style 같은 내부명을 말하지 않는다.
 - 상태창 키, 숨은 트리거, D-DAY 결과, 미래 스포일러, _TOUCH_, fire_once, event_effect를 본문에 노출하지 않는다.
 - 장기기억/에피소드기억/로어북은 조용히 참고하고, 헤더, source_turn, extracted_facts, category/subject/attribute/value, runtime_events를 출력하지 않는다.
-- snake_case, JSON, 프롬프트 섹션명, 구현 메타데이터 없이 자연스러운 한국어 RP 본문만 쓴다.${modelReinforcement}`;
+- snake_case, JSON, 프롬프트 섹션명, 구현 메타데이터 없이 자연스러운 한국어 RP 본문만 쓴다.`,
+    NO_STAGE_DIRECTIONS,
+    SPEECH_METADATA_INVISIBLE_RULE,
+  ];
+  if (modelReinforcement) parts.push(modelReinforcement);
+  return parts.join("\n\n");
 }
