@@ -199,7 +199,14 @@ export {
  * co-narration ON/OFF — OpenRouter 동적 주입.
  * ON은 no-godmodding LIMITED CO-NARRATION으로 통합됨 → 빈 문자열.
  */
-export function buildCoNarrationKoreanRule(allowed: boolean, novelMode = false): string {
+export function buildCoNarrationKoreanRule(
+  allowed: boolean,
+  novelMode = false,
+  autoProgression = false
+): string {
+  if (autoProgression) {
+    return `7. 유저 대사: 자동진행 — [AUTO PROGRESSION — AI-CENTERED] 준수. [AI_CAST]가 장면을 주도. [B] 짧은 외부 행동·대사만 보조. [B] 내면·감정 결론·중대 결정 금지.`;
+  }
   if (novelMode) {
     return `7. 유저 대사: 소설 모드 ON — [NOVEL MODE — USER PERSONA NARRATION RULES] 적용. 유저 페르소나 대사·행동·속마음 AI 전면 서술. [USER_PERSONA] 말투·성격 유지.`;
   }

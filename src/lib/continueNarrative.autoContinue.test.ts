@@ -24,7 +24,10 @@ describe("resolveAutoContinueHistoryTurns", () => {
   it("skips auto-continue turns when locating OOC anchor", () => {
     const turns = [
       { user: "RP", assistant: "장면 A." },
-      { user: "OOC: HTML만", assistant: "HTML UI" },
+      {
+        user: "OOC: RP 중지. HTML로 입력한 내용만 띄워줘",
+        assistant: "HTML UI",
+      },
       { user: "자동진행", assistant: "OOC를 또 말함" },
     ];
     const { historyTurns, resumeCtx } = resolveAutoContinueHistoryTurns(turns);
@@ -64,9 +67,11 @@ describe("buildContinueNarrativeCommand after OOC", () => {
       },
     });
     assert.match(cmd, /RESUME IN-CHARACTER RP — NOT OOC/);
-    assert.match(cmd, /Do NOT repeat.*OOC\/meta\/HTML/);
+    assert.match(cmd, /Do NOT repeat, explain, paraphrase, or continue any OOC lines/);
+    assert.match(cmd, /OOC\/meta\/HTML/);
     assert.doesNotMatch(cmd, /exact micro-moment the previous assistant turn ended/);
   });
+
 
   it("includes in-character guidance block for rp_continuing OOC", () => {
     const cmd = buildContinueNarrativeCommand({

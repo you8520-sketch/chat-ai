@@ -9,6 +9,9 @@ import {
 } from "@/lib/noGodmodding";
 import { buildCoreMasterPrompt } from "@/lib/corePrompt";
 
+const userCharacterName = "테스트_유저_캐릭터";
+const aiCharacterName = "테스트_AI_캐릭터";
+
 describe("buildCompactNoGodmoddingStandardBlock", () => {
   it("forbids voluntary [B] content without output-length rules", () => {
     const block = buildCompactNoGodmoddingStandardBlock();
@@ -18,59 +21,59 @@ describe("buildCompactNoGodmoddingStandardBlock", () => {
     assert.match(block, /짧은 비자발 반응/);
     assert.match(block, /\[INTERACTIVE USER CONTROL\]/);
     assert.match(block, /분량을 채우기 위해 유저를 움직이지 않는다/);
-    assert.match(
-      block,
-      /실제 대화·기억·페르소나에 없는 일을 .전에 말했잖아\/아까 네가\/네가 약속했잖아.로 꾸며 쓰지 말고/
-    );
     assert.doesNotMatch(block, /TARGET_LENGTH/);
     assert.doesNotMatch(block, /MINIMUM_FLOOR/);
     assert.doesNotMatch(block, /<TURN_HANDOFF_AND_PACING>/);
-    // Compact line only — no long separate NO FALSE SHARED MEMORY section in interactive
     assert.doesNotMatch(block, /\[NO FALSE SHARED MEMORY\]/);
   });
 });
 
-describe("buildAutoContinueAgencyExpansion (deprecated shim)", () => {
-  it("returns standard block", () => {
-    assert.equal(buildAutoContinueAgencyExpansion(), buildCompactNoGodmoddingStandardBlock());
+describe("buildAutoContinueAgencyExpansion", () => {
+  it("returns auto progression user-control block", () => {
+    assert.equal(
+      buildAutoContinueAgencyExpansion(),
+      buildNoGodmoddingBlock("", "", "autoContinue")
+    );
   });
 });
 
 describe("buildUserAgencySensoryFeedbackRule (legacy shim)", () => {
   it("returns compact block", () => {
-    assert.equal(buildUserAgencySensoryFeedbackRule("체향", "유저"), buildCompactNoGodmoddingStandardBlock());
+    assert.equal(
+      buildUserAgencySensoryFeedbackRule(aiCharacterName, userCharacterName),
+      buildCompactNoGodmoddingStandardBlock()
+    );
   });
 });
 
 describe("buildNoGodmoddingBlock", () => {
   it("uses compact block in standard mode", () => {
-    const block = buildNoGodmoddingBlock("체향", "유저", "standard");
+    const block = buildNoGodmoddingBlock(aiCharacterName, userCharacterName, "standard");
 
     assert.match(block, /\[NO GODMODDING\]/);
     assert.match(block, /의도적 행동/);
     assert.doesNotMatch(block, /TARGET_LENGTH/);
   });
 
-  it("auto-continue uses same compact block as standard", () => {
-    assert.equal(
-      buildNoGodmoddingBlock("체향", "유저", "autoContinue"),
-      buildCompactNoGodmoddingStandardBlock()
-    );
+  it("autoContinue uses AUTO PROGRESSION user control with AI_CAST", () => {
+    const block = buildNoGodmoddingBlock(aiCharacterName, userCharacterName, "autoContinue");
+    assert.match(block, /\[USER CONTROL — AUTO PROGRESSION\]/);
+    assert.match(block, /\[AI_CAST\]/);
+    assert.match(block, /\[NO FALSE SHARED MEMORY\]/);
+    assert.notEqual(block, buildCompactNoGodmoddingStandardBlock());
   });
 
-  it("auto progression contains No False Shared Memory rule", () => {
-    const block = buildNoGodmoddingBlock("체향", "유저", "novel");
+  it("novel/explicit_full path stays isolated", () => {
+    const block = buildNoGodmoddingBlock(aiCharacterName, userCharacterName, "novel");
 
-    assert.match(block, /\[USER CONTROL MODE - AUTO PROGRESSION\]/);
+    assert.match(block, /\[USER CONTROL MODE - NOVEL \/ EXPLICIT FULL\]/);
     assert.match(block, /\[NO FALSE SHARED MEMORY\]/);
-    assert.match(block, /전에 말했잖아/);
-    assert.match(block, /불확실하면 질문, 관찰, 추측, 새 발견으로 처리한다/);
-    assert.doesNotMatch(block, /저 문장, 달리는 늑대처럼 보여/);
     assert.equal(block.includes(NO_FALSE_SHARED_MEMORY_RULE), true);
+    assert.doesNotMatch(block, /\[USER CONTROL — AUTO PROGRESSION\]/);
   });
 
   it("coNarration merges user-control + 유저 대사 + possession", () => {
-    const block = buildNoGodmoddingBlock("체향", "유저", "coNarration");
+    const block = buildNoGodmoddingBlock(aiCharacterName, userCharacterName, "coNarration");
     assert.match(block, /\[USER CONTROL MODE - LIMITED CO-NARRATION\]/);
     assert.match(block, /7\. 유저 대사: co-narration/);
     assert.match(block, /\[possession_mode\]/);
@@ -80,8 +83,8 @@ describe("buildNoGodmoddingBlock", () => {
 
 describe("core master prompt", () => {
   const base = {
-    charName: "체향",
-    userName: "유저",
+    charName: aiCharacterName,
+    userName: userCharacterName,
     charGender: "female" as const,
     userGender: "male" as const,
     nsfwEnabled: true,
@@ -100,7 +103,15 @@ describe("core master prompt", () => {
     assert.doesNotMatch(core, /\[NO FALSE SHARED MEMORY\]/);
   });
 
-  it("uses novel-mode role line without embedding agency rule", () => {
+  it("uses auto-progression AI_CAST role without novel mode", () => {
+    const auto = buildCoreMasterPrompt({ ...base, autoProgressionEnabled: true });
+
+    assert.match(auto, /\[AI_CAST\]/);
+    assert.doesNotMatch(auto, /소설 모드 ON/);
+    assert.doesNotMatch(auto, /\[NO FALSE SHARED MEMORY\]/);
+  });
+
+  it("keeps dormant novel-mode role isolated", () => {
     const novel = buildCoreMasterPrompt({ ...base, novelModeEnabled: true });
 
     assert.match(novel, /소설 모드 ON/);

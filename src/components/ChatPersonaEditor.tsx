@@ -150,7 +150,8 @@ export default function ChatPersonaEditor({ persona, onUpdated, editing = true }
     <div className="mx-auto max-w-xl space-y-3 text-xs">
       <p className="text-zinc-500">
         AI가 인식하는 유저 페르소나입니다. 수정하면 <strong className="text-zinc-400">다음 메시지부터</strong>{" "}
-        반영됩니다. 유저 대사·행동을 AI가 이어 쓰게 하려면 채팅창 하단의 <strong className="text-zinc-400">자동진행</strong>을 사용하세요.
+        반영됩니다. AI 캐릭터·세계가 장면을 이어 가고 유저의 짧은 행동·대사만 보조하게 하려면 채팅창 하단의{" "}
+        <strong className="text-zinc-400">자동진행</strong>을 사용하세요.
       </p>
 
       <label className="block space-y-1">

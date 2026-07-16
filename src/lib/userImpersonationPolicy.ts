@@ -83,8 +83,8 @@ export function resolveUserImpersonationAllowance(sources: UserImpersonationSour
   return resolveFromOocBlocks([sources.personaDescription ?? "", sources.userNote ?? ""]);
 }
 
-/** OOC 허용 시 — controlled possession / novel rules가 상세 정의; cross-ref만 */
+/** OOC 허용 시 — agency detail is [USER CONTROL MODE - LIMITED CO-NARRATION]; cross-ref only */
 export function buildOocCoNarrationHint(_personaName: string): string {
   return `[OOC CO-NARRATION]
-Follow [USER_PERSONA] and [NO GODMODDING].`;
+Follow [USER_PERSONA] and [NO GODMODDING] / LIMITED CO-NARRATION.`;
 }

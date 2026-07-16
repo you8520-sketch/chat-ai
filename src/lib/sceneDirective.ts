@@ -1,4 +1,5 @@
 import type { ChatMsg } from "@/lib/ai";
+import { AUTO_PROGRESSION_SCENE_USER_CONTROL } from "@/lib/autoProgressionRules";
 import { NO_FALSE_SHARED_MEMORY_RULE } from "@/lib/noGodmodding";
 
 export type SceneDirectiveMode = "interactive" | "auto_progression";
@@ -54,15 +55,17 @@ const PROGRESSION_LABELS: Record<SceneProgressionType, string> = {
 const USER_CONTROL_LABELS: Record<SceneUserControl, string> = {
   no_user_control: "유저의 의도적 행동/대사/감정 결론은 쓰지 않는다.",
   limited_reactions: "유저의 의도는 쓰지 않고, 자연스러운 짧은 비자발 반응만 가능하다.",
-  persona_based_dialogue_allowed:
-    "유저 페르소나와 최근 말투에 맞는 행동/대사를 쓸 수 있으나, 중대 결정은 갑자기 확정하지 않는다.",
+  persona_based_dialogue_allowed: AUTO_PROGRESSION_SCENE_USER_CONTROL,
 };
 
 const BASE_SCENE_ENGINE_RULE = [
   "[PRIVATE SCENE ENGINE RULE]",
   "반복된 감정 확인에 멈추지 말고 관계, 단서, 환경, NPC, 세계 반응, 생활 변수, 이전 선택의 결과 중 하나를 조용히 움직인다.",
-  "전개는 항상 전투나 대형 위기일 필요가 없다. 현재 모드의 유저 조종 범위를 따르고, 이 규칙을 본문에 언급하지 않는다.",
+  "전개는 항상 전투나 대형 위기일 필요가 없다. 현재 모드와 유저 조종 범위를 따르고, 이 규칙을 본문에 언급하지 않는다.",
 ].join("\n");
+
+const AUTO_PROGRESSION_ENSEMBLE_SCENE_RULE =
+  "다인물: 전개는 현재 중심 인물 하나에 고정되지 않는다. 여러 AI 캐릭터·NPC의 대화·판단·갈등·협력·적대·세계 사건을 함께 진행할 수 있다. [B] 내면 시점으로 전환하지 않는다.";
 
 function includesAny(text: string, terms: string[]): boolean {
   return terms.some((term) => text.includes(term));
@@ -191,6 +194,10 @@ function buildAvoidList(mode: SceneDirectiveMode, intensity: number): string[] {
   if (intensity <= 2) avoid.unshift("갑작스러운 납치", "대형 전투", "위기 남발");
   else avoid.unshift("즉시 정체 확정", "강제 고백");
   if (mode === "interactive") avoid.push("유저 의도 작성");
+  if (mode === "auto_progression") {
+    avoid.push("[B] 내면·감정 결론으로 분량 채우기");
+    avoid.push("[B] 시점 전환으로 장면 이어가기");
+  }
   return avoid.slice(0, 5);
 }
 
@@ -269,6 +276,7 @@ export function renderSceneDirectiveForPrompt(directive: SceneDirective): string
     `피할 것: ${directive.avoid.join(", ")}`,
     directive.nextBeatHint ? `다음 장면 힌트: ${directive.nextBeatHint}` : "",
     `유저 조종: ${USER_CONTROL_LABELS[directive.userControl]}`,
+    directive.mode === "auto_progression" ? AUTO_PROGRESSION_ENSEMBLE_SCENE_RULE : "",
     directive.mode === "auto_progression" ? NO_FALSE_SHARED_MEMORY_RULE : "",
     "트리거된 사건 지시가 있으면 이번 턴 장면 지시보다 우선한다.",
   ]

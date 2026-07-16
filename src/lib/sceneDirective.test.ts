@@ -31,7 +31,7 @@ describe("sceneDirective", () => {
     assert.doesNotMatch(block, /persona_based_dialogue_allowed/);
   });
 
-  it("auto progression allows persona-based user action while blocking abrupt identity overwrite", () => {
+  it("auto progression allows short external [B] assist with ensemble AI_CAST focus", () => {
     const block = buildSceneDirectivePromptBlock({
       mode: "auto_progression",
       recentMessages: reassuranceLoop,
@@ -39,8 +39,10 @@ describe("sceneDirective", () => {
     });
 
     assert.match(block, /모드: 자동진행/);
-    assert.match(block, /유저 페르소나와 최근 말투에 맞는 행동\/대사를 쓸 수 있으나/);
-    assert.match(block, /중대 결정은 갑자기 확정하지 않는다/);
+    assert.match(block, /짧은 외부 행동·대사/);
+    assert.match(block, /중대 결정/);
+    assert.match(block, /다인물|여러 AI/);
+    assert.match(block, /\[B\] 내면/);
   });
 
   it("auto progression prompt contains No False Shared Memory rule", () => {
@@ -62,9 +64,11 @@ describe("sceneDirective", () => {
       currentUserMessage: "문장을 바라본다.",
     });
 
-    assert.match(block, /저 문장, 달리는 늑대처럼 보여/);
-    assert.match(block, /저게 네 가문의 문장이야/);
-    assert.match(block, /네가 전에 말했잖아\. 에카르트의 문장은 달리는 늑대라고/);
+    assert.match(block, /\[NO FALSE SHARED MEMORY\]/);
+    assert.match(block, /전에 말했잖아/);
+    assert.match(block, /불확실하면 질문, 관찰, 추측, 새 발견으로 처리한다/);
+    // Platform-wide: no hardcoded character/world examples in auto-progression prompts.
+    assert.doesNotMatch(block, /에카르트|달리는 늑대/);
   });
 
   it("detects repeated reassurance stagnation", () => {

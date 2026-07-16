@@ -26,7 +26,10 @@ import {
 describe("chatRuntimeMode", () => {
   it("maps continue → auto_progression", () => {
     assert.equal(resolveChatRuntimeMode({ isContinue: true }), "auto_progression");
-    assert.equal(resolveChatRuntimeMode({ novelModeEnabled: true }), "auto_progression");
+  });
+
+  it("does not map novelModeEnabled alone → auto_progression", () => {
+    assert.equal(resolveChatRuntimeMode({ novelModeEnabled: true }), "interactive");
   });
 
   it("maps OOC opt-in → ooc_user_impersonation_allowed", () => {
@@ -58,20 +61,26 @@ describe("interactive user control prompt", () => {
     assert.doesNotMatch(block, /MINIMUM_FLOOR/);
   });
 
-  it("auto progression still allows user narration", () => {
-    const block = buildNoGodmoddingBlock("체향", "유저", "novel");
-    assert.match(block, /\[USER CONTROL MODE - AUTO PROGRESSION\]/);
-    assert.match(block, /행동과 대사를 쓸 수 있다/);
+  it("auto progression uses limited external USER CONTROL (not novel)", () => {
+    const block = buildNoGodmoddingBlock("테스트_AI_캐릭터", "테스트_유저_캐릭터", "autoContinue");
+    assert.match(block, /\[USER CONTROL — AUTO PROGRESSION\]/);
+    assert.match(block, /\[AI_CAST\]/);
+    assert.match(block, /짧은 외부 행동·대사/);
     assert.doesNotMatch(block, /\[INTERACTIVE USER CONTROL\]/);
+    assert.doesNotMatch(block, /NOVEL MODE/);
   });
 
   it("OOC co-narration mode still allows limited user writing", () => {
-    const block = buildNoGodmoddingBlock("체향", "유저", "coNarration");
+    const block = buildNoGodmoddingBlock("테스트_AI_캐릭터", "테스트_유저_캐릭터", "coNarration");
     assert.match(block, /LIMITED CO-NARRATION/);
     assert.match(block, /짧은 행동\/대사 보조/);
   });
 
-  it("resolveNoGodmoddingMode keeps continue → novel via novelModeEnabled", () => {
+  it("resolveNoGodmoddingMode: continue → autoContinue; novel stays isolated", () => {
+    assert.equal(
+      resolveNoGodmoddingMode({ novelModeEnabled: false, isContinue: true }),
+      "autoContinue"
+    );
     assert.equal(
       resolveNoGodmoddingMode({ novelModeEnabled: true, isContinue: true }),
       "novel"
