@@ -554,11 +554,9 @@ export function formatEpisodicMemoryPromptSection(
   let usedChars = 0;
   for (const fact of facts.slice(0, maxFacts)) {
     const nextChars = usedChars + fact.fact_text.length;
-    // Never inject a truncated/incomplete fact_text — skip when over budget.
-    if (nextChars > maxChars) {
-      if (lines.length === 0) break;
-      break;
-    }
+    // Never inject a truncated/incomplete fact_text — skip this fact only and
+    // keep scanning later (possibly shorter) facts within the same budget.
+    if (nextChars > maxChars) continue;
     lines.push(`- [T${fact.source_turn}] ${fact.fact_text}`);
     usedChars = nextChars;
   }

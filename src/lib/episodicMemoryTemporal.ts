@@ -40,25 +40,38 @@ type TemporalFactInput = {
 /**
  * Completed past event / transition narrative — preserve even if attribute is
  * on the temporary list (e.g. injury then recovery).
- * Conservative: requires explicit completion/outcome cues, not mere past tense.
+ * Conservative: requires explicit completed/result morphology.
+ * Do NOT treat mere co-occurrence of "지만" + 이동/발견/중단/회복 as historical.
  */
 export function looksLikeCompletedHistoricalEvent(factText: string): boolean {
   const t = factText.replace(/\s+/g, " ").trim();
   if (!t) return false;
 
-  // Contrastive outcome: X happened but then Y resolved / changed.
+  // Ongoing progressive / still-present state — never completed historical.
   if (
-    /(?:었으나|였으나|했으나|지만).{0,80}(?:회복|치료|중단|이동|떠났|떠남|발견)/.test(t)
+    /(?:이동|치료|느끼|진행)\s*중(?:이다|이다)?/.test(t) ||
+    /지금도\s*(?:느끼|하고|있다)/.test(t)
+  ) {
+    return false;
+  }
+
+  // Explicit completed recovery after treatment / injury.
+  if (/(?:치료\s*후|이후)\s*회복(?:함|했다|하였다)/.test(t)) return true;
+  if (/(?:부상을\s*입었으나|다쳤으나).{0,40}회복(?:함|했다|하였다)/.test(t)) {
+    return true;
+  }
+  // Completed discovery → relocation (requires completed 이동/떠남 morphology).
+  if (
+    /(?:발견한\s*뒤|단서를\s*발견(?:한\s*뒤|하고)).{0,40}(?:이동(?:함|했다|하였다)|떠났(?:다|습니다)?)/.test(
+      t
+    )
   ) {
     return true;
   }
-  if (/(?:치료\s*후|이후)\s*회복/.test(t)) return true;
-  if (/(?:발견한\s*뒤|단서를\s*발견).{0,40}(?:이동|떠났)/.test(t)) return true;
-  // Completed mission/location outcome (not bare "중" present-progressive).
-  if (/임무를\s*중단(?:함|했다|하였다)/.test(t)) return true;
   if (/다른\s*장소로\s*이동(?:함|했다|하였다)/.test(t)) return true;
-  if (/(?:회복함|회복했다|회복하였다)\.?$/.test(t)) return true;
-  if (/(?:과거에|그때|당시).{0,40}(?:부상|공포|발견|중단)/.test(t)) return true;
+  // Completed mission abort.
+  if (/임무를\s*중단(?:함|했다|하였다)/.test(t)) return true;
+  if (/회복(?:함|했다|하였다)\.?$/.test(t)) return true;
   return false;
 }
 

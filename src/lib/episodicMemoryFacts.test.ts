@@ -702,6 +702,48 @@ describe("getEpisodicMemoryForPrompt", () => {
     assert.ok(longText.length > 10);
   });
 
+  it("skips an oversized first fact and still injects a later shorter fact", () => {
+    const longText = "사용자는 매우 긴 장기 기억 문장을 안정적으로 참고해야 한다.";
+    const shortText = "사용자는 차를 선호한다.";
+    assert.ok(longText.length > 20);
+    assert.ok(shortText.length <= 20);
+    const block = formatEpisodicMemoryPromptSection(
+      [
+        {
+          id: 1,
+          chat_id: 1,
+          character_id: null,
+          user_id: null,
+          source_turn: 1,
+          created_at: "now",
+          metadata: "{}",
+          ...validFact,
+          attribute: "long_budget_fact",
+          value: "long",
+          fact_text: longText,
+        },
+        {
+          id: 2,
+          chat_id: 1,
+          character_id: null,
+          user_id: null,
+          source_turn: 2,
+          created_at: "now",
+          metadata: "{}",
+          ...validFact,
+          attribute: "short_budget_fact",
+          value: "short",
+          fact_text: shortText,
+        },
+      ],
+      8,
+      20
+    );
+    assert.doesNotMatch(block, /매우 긴 장기/);
+    assert.match(block, /T2/);
+    assert.match(block, /차를 선호한다/);
+  });
+
   it("prompt block does not include raw JSON or internal metadata", () => {
     const block = formatEpisodicMemoryPromptSection([
       {

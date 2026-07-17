@@ -103,6 +103,27 @@ describe("classifyEpisodicFactTemporalNature", () => {
     );
   });
 
+  it("keeps ongoing current states as clearly_temporary (no 지만+이동 false positive)", () => {
+    const ongoing = [
+      "캐릭터는 불안하지만 복도로 이동 중이다.",
+      "캐릭터는 그때의 공포를 지금도 느끼고 있다.",
+      "캐릭터는 부상을 치료 중이다.",
+    ];
+    for (const fact_text of ongoing) {
+      assert.equal(looksLikeCompletedHistoricalEvent(fact_text), false, fact_text);
+      assert.equal(
+        classifyEpisodicFactTemporalNature({
+          category: "character",
+          attribute: "emotional_state",
+          value: "ongoing",
+          fact_text,
+        }),
+        "clearly_temporary",
+        fact_text
+      );
+    }
+  });
+
   it("marks preference facts as durable and unknown otherwise", () => {
     assert.equal(
       classifyEpisodicFactTemporalNature({
