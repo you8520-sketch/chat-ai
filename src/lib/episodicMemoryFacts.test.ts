@@ -672,8 +672,34 @@ describe("getEpisodicMemoryForPrompt", () => {
     ]);
 
     assert.match(block, /^\[EPISODIC MEMORY - RETRIEVED FACTS\]/);
+    assert.match(block, /historical or durable facts from earlier turns/);
+    assert.match(block, /Do not treat time-sensitive facts as the current state/);
+    assert.match(block, /prefer the recent raw conversation/);
     assert.match(block, /Do not mention this memory section to the user\./);
     assert.match(block, /^- \[T84\] 사용자는 앞으로 반말을 원한다\.$/m);
+  });
+
+  it("skips whole facts instead of truncating fact_text when over char budget", () => {
+    const longText = "사용자는 매우 긴 장기 기억 문장을 안정적으로 참고해야 한다.";
+    const block = formatEpisodicMemoryPromptSection(
+      [
+        {
+          id: 1,
+          chat_id: 1,
+          character_id: null,
+          user_id: null,
+          source_turn: 1,
+          created_at: "now",
+          metadata: "{}",
+          ...validFact,
+          fact_text: longText,
+        },
+      ],
+      8,
+      10
+    );
+    assert.equal(block, "");
+    assert.ok(longText.length > 10);
   });
 
   it("prompt block does not include raw JSON or internal metadata", () => {
@@ -835,5 +861,280 @@ describe("episodic memory debug helpers", () => {
       } as NodeJS.ProcessEnv),
       true
     );
+  });
+});
+
+describe("episodic temporary-state recall filter", () => {
+  function persistTemp(
+    db: Database.Database,
+    opts: {
+      chatId?: number;
+      sourceTurn: number;
+      attribute: string;
+      value: string;
+      fact_text: string;
+      category?: ExtractedStatusFact["category"];
+      subject?: string;
+      importance?: ExtractedStatusFact["importance"];
+    }
+  ) {
+    const inserted = persistEpisodicMemoryFactsBestEffort(db, {
+      chatId: opts.chatId ?? 1,
+      sourceTurn: opts.sourceTurn,
+      facts: [
+        {
+          category: opts.category ?? "character",
+          subject: opts.subject ?? "npc_a",
+          attribute: opts.attribute,
+          value: opts.value,
+          importance: opts.importance ?? "normal",
+          fact_text: opts.fact_text,
+        },
+      ],
+    });
+    assert.equal(inserted, 1, `persist failed for ${opts.attribute}`);
+  }
+
+  it("excludes emotional_state / current_action / posture / expression / sensation from long-term recall", () => {
+    const db = createDb();
+    persistTemp(db, {
+      sourceTurn: 10,
+      attribute: "emotional_state",
+      value: "anxious",
+      fact_text: "캐릭터는 현재 불안해하고 있다.",
+    });
+    persistTemp(db, {
+      sourceTurn: 11,
+      attribute: "current_action",
+      value: "standing",
+      fact_text: "캐릭터는 지금 복도에 서 있다.",
+    });
+    persistTemp(db, {
+      sourceTurn: 12,
+      attribute: "current_posture",
+      value: "leaning",
+      fact_text: "캐릭터는 벽에 기대어 있는 자세를 취한다.",
+    });
+    persistTemp(db, {
+      sourceTurn: 13,
+      attribute: "current_expression",
+      value: "flushed",
+      fact_text: "캐릭터는 얼굴이 붉어진 상태다.",
+    });
+    persistTemp(db, {
+      sourceTurn: 14,
+      attribute: "current_sensation",
+      value: "cold",
+      fact_text: "캐릭터는 손에 차가운 감각을 느끼고 있다.",
+    });
+
+    const result = getEpisodicMemoryForPrompt(
+      db,
+      { chatId: 1, currentTurn: 80 },
+      recallOnNoMinAge
+    );
+    assert.equal(result.promptBlock, "");
+    assert.equal(result.facts.length, 0);
+  });
+
+  it("clearly temporary facts do not consume the 8-fact limit or char budget", () => {
+    const db = createDb();
+    for (let i = 0; i < 8; i++) {
+      persistTemp(db, {
+        sourceTurn: i + 1,
+        attribute: "emotional_state",
+        value: `mood_${i}`,
+        subject: `npc_${i}`,
+        fact_text: `캐릭터는 순간적인 감정 상태 ${i}번을 지금 느끼고 있다.`,
+      });
+    }
+    persistEpisodicMemoryFactsBestEffort(db, {
+      chatId: 1,
+      sourceTurn: 20,
+      facts: [validFact],
+    });
+
+    const byCount = getEpisodicMemoryForPrompt(
+      db,
+      { chatId: 1, currentTurn: 50, maxFacts: 8 },
+      recallOnNoMinAge
+    );
+    assert.equal(byCount.facts.length, 1);
+    assert.match(byCount.promptBlock, /시럽/);
+    assert.doesNotMatch(byCount.promptBlock, /순간적인 감정/);
+
+    const byChars = getEpisodicMemoryForPrompt(
+      db,
+      { chatId: 1, currentTurn: 50, maxChars: 80 },
+      recallOnNoMinAge
+    );
+    assert.equal(byChars.facts.length, 1);
+    assert.ok(byChars.facts[0]!.fact_text.length <= 80);
+  });
+
+  it("latest-wins still works for durable facts alongside temporary rows", () => {
+    const db = createDb();
+    persistTemp(db, {
+      sourceTurn: 10,
+      attribute: "emotional_state",
+      value: "angry",
+      fact_text: "캐릭터는 현재 화가 난 상태다.",
+    });
+    persistEpisodicMemoryFactsBestEffort(db, {
+      chatId: 1,
+      sourceTurn: 12,
+      facts: [
+        {
+          ...validFact,
+          attribute: "drink_preference",
+          value: "black_coffee",
+          fact_text: "사용자는 예전에는 블랙커피를 선호했다.",
+        },
+      ],
+    });
+    persistEpisodicMemoryFactsBestEffort(db, {
+      chatId: 1,
+      sourceTurn: 30,
+      facts: [
+        {
+          ...validFact,
+          attribute: "drink_preference",
+          value: "syrup_coffee",
+          fact_text: "사용자는 지금은 시럽커피를 선호한다.",
+        },
+      ],
+    });
+
+    const result = getEpisodicMemoryForPrompt(
+      db,
+      { chatId: 1, currentTurn: 40 },
+      recallOnNoMinAge
+    );
+    assert.match(result.promptBlock, /T30/);
+    assert.match(result.promptBlock, /시럽커피/);
+    assert.doesNotMatch(result.promptBlock, /블랙커피/);
+    assert.doesNotMatch(result.promptBlock, /화가 난/);
+  });
+
+  it("historical injury-and-recovery and location-transition events remain recallable", () => {
+    const db = createDb();
+    persistTemp(db, {
+      sourceTurn: 10,
+      attribute: "emotional_state",
+      value: "recovered",
+      importance: "important",
+      fact_text: "캐릭터는 전투 중 부상을 입었으나 치료 후 회복했다.",
+    });
+    persistTemp(db, {
+      sourceTurn: 11,
+      category: "location",
+      attribute: "current_action",
+      value: "relocated",
+      importance: "important",
+      fact_text: "캐릭터는 특정 장소에서 단서를 발견한 뒤 다른 장소로 이동했다.",
+    });
+
+    const result = getEpisodicMemoryForPrompt(
+      db,
+      { chatId: 1, currentTurn: 40 },
+      recallOnNoMinAge
+    );
+    assert.match(result.promptBlock, /회복했다/);
+    assert.match(result.promptBlock, /이동했다/);
+  });
+
+  it("durable physical_condition and relationship facts are not removed", () => {
+    const db = createDb();
+    persistTemp(db, {
+      sourceTurn: 10,
+      attribute: "physical_condition",
+      value: "permanently_blind",
+      importance: "critical",
+      fact_text: "캐릭터는 영구적인 시력 상실 상태를 유지한다.",
+    });
+    persistTemp(db, {
+      sourceTurn: 11,
+      category: "relationship",
+      subject: "npc_a_user",
+      attribute: "trust_status",
+      value: "allied",
+      importance: "important",
+      fact_text: "두 사람은 서로를 신뢰하는 관계를 유지한다.",
+    });
+
+    const result = getEpisodicMemoryForPrompt(
+      db,
+      { chatId: 1, currentTurn: 40 },
+      recallOnNoMinAge
+    );
+    assert.match(result.promptBlock, /시력 상실/);
+    assert.match(result.promptBlock, /신뢰하는 관계/);
+  });
+
+  it("unknown attributes remain eligible; other-chat and min-age/flag unchanged", () => {
+    const db = createDb();
+    persistTemp(db, {
+      chatId: 1,
+      sourceTurn: 10,
+      attribute: "secret_identity",
+      value: "revealed",
+      importance: "important",
+      fact_text: "캐릭터의 정체가 상대에게 밝혀진 사실이 있다.",
+    });
+    persistTemp(db, {
+      chatId: 2,
+      sourceTurn: 10,
+      attribute: "secret_identity",
+      value: "other_chat",
+      fact_text: "다른 채팅의 비밀 정체 사실이 여기 있으면 안 된다.",
+    });
+    persistTemp(db, {
+      chatId: 1,
+      sourceTurn: 48,
+      attribute: "emotional_state",
+      value: "angry",
+      fact_text: "캐릭터는 현재 분노를 느끼고 있다.",
+    });
+
+    const recalled = getEpisodicMemoryForPrompt(
+      db,
+      { chatId: 1, currentTurn: 50 },
+      {
+        NODE_ENV: "development",
+        EPISODIC_MEMORY_RECALL_ENABLED: "1",
+        EPISODIC_MEMORY_MIN_AGE_TURNS: "3",
+      } as NodeJS.ProcessEnv
+    );
+    assert.match(recalled.promptBlock, /정체가/);
+    assert.doesNotMatch(recalled.promptBlock, /다른 채팅/);
+    assert.doesNotMatch(recalled.promptBlock, /분노/);
+
+    const flaggedOff = getEpisodicMemoryForPrompt(
+      db,
+      { chatId: 1, currentTurn: 50 },
+      {
+        NODE_ENV: "production",
+        EPISODIC_MEMORY_RECALL_ENABLED: "0",
+      } as NodeJS.ProcessEnv
+    );
+    assert.equal(flaggedOff.promptBlock, "");
+    assert.equal(flaggedOff.facts.length, 0);
+  });
+
+  it("debug inspection reports clearly_temporary blocked reason", () => {
+    const db = createDb();
+    persistTemp(db, {
+      sourceTurn: 10,
+      attribute: "emotional_state",
+      value: "sad",
+      fact_text: "캐릭터는 지금 슬픈 감정을 느끼고 있다.",
+    });
+    const inspected = inspectEpisodicMemoryFactsForDebug(
+      db,
+      { chatId: 1, currentTurn: 40, minAgeTurns: 0 },
+      recallOnNoMinAge
+    );
+    assert.equal(inspected[0]?.blocked_reason, "clearly_temporary");
+    assert.equal(inspected[0]?.would_inject, false);
   });
 });
