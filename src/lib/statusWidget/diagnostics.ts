@@ -25,6 +25,11 @@ export type StatusWidgetReasonCode =
   | "REGENERATION_SKIPPED_STATUS"
   | "HYDRATION_DROPPED_VALUES"
   | "RENDERER_KEY_MISMATCH"
+  | "TEMPORAL_UNKNOWN_PREVIOUS"
+  | "TEMPORAL_UNKNOWN_RAW"
+  | "TEMPORAL_ANCHOR_FIELD_SKIPPED"
+  | "TEMPORAL_REPAIR_USED"
+  | "TEMPORAL_REPAIR_FAILED"
   | "UNKNOWN";
 
 export type StatusWidgetDbValueShape =
@@ -53,6 +58,7 @@ export type StatusWidgetDiagnostic = {
 export type StatusWidgetLiveTracePhase =
   | "before_generation_finalize"
   | "status_extract_input"
+  | "previous_temporal_anchor"
   | "v3_extract_start"
   | "v3_extract_result"
   | "status_parse_result"

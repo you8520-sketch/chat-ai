@@ -271,15 +271,37 @@ export async function resolveStatusWidgetTurnValues(
       });
       // Canonical clock/state for the extract prompt only — never copy onto this
       // message when extract returns empty (snapshot fallback stays removed).
-      const { loadPreviousStatusWidgetValues, loadPreviousAssistantProse } =
+      const { loadPreviousStatusWidgetValuesDetailed, loadPreviousAssistantProse } =
         await import("./loadPrevious");
-      const previousValues = normalizeParsedStatusWidgetValuesForTurn(
-        loadPreviousStatusWidgetValues(input.chatId, messageId ?? undefined),
-        {
-          characterWidget: input.statusWidgetTurn.characterWidget,
-          userWidget: input.statusWidgetTurn.userWidget,
-        }
-      );
+      const previousLoaded = loadPreviousStatusWidgetValuesDetailed(input.chatId, {
+        excludeMessageId: messageId ?? undefined,
+        characterWidget: input.statusWidgetTurn.characterWidget,
+        userWidget: input.statusWidgetTurn.userWidget,
+      });
+      if (previousLoaded.diagCodes.length > 0 || previousLoaded.skippedTemporalKeys.length > 0) {
+        const code = previousLoaded.diagCodes[0];
+        logStatusWidgetLiveTrace({
+          ...traceBase,
+          phase: "previous_temporal_anchor",
+          reasonCode:
+            code === "TEMPORAL_UNKNOWN_PREVIOUS" ||
+            code === "TEMPORAL_ANCHOR_FIELD_SKIPPED" ||
+            code === "TEMPORAL_UNKNOWN_RAW" ||
+            code === "TEMPORAL_REPAIR_USED" ||
+            code === "TEMPORAL_REPAIR_FAILED"
+              ? code
+              : "TEMPORAL_ANCHOR_FIELD_SKIPPED",
+          expectedKeys: previousLoaded.skippedTemporalKeys,
+          parsedKeys:
+            previousLoaded.anchorMessageId != null
+              ? [`anchor:${previousLoaded.anchorMessageId}`]
+              : [],
+        });
+      }
+      const previousValues = normalizeParsedStatusWidgetValuesForTurn(previousLoaded.values, {
+        characterWidget: input.statusWidgetTurn.characterWidget,
+        userWidget: input.statusWidgetTurn.userWidget,
+      });
       const previousAssistantProse = loadPreviousAssistantProse(
         input.chatId,
         messageId ?? undefined

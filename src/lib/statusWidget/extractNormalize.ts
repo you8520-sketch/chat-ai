@@ -2,7 +2,13 @@ import { fieldPlaceholderKey } from "./fieldKeys";
 import { collectWidgetJsonKeys } from "./prompt";
 import { EXTRACTED_FACTS_STATUS_VALUES_INSTRUCTIONS } from "./prompt";
 import { allocateWidgetExtractNarrativeSlices } from "./proseStrip";
-import type { StatusWidget, StatusWidgetValues } from "./types";
+import {
+  isUnknownLikeStatusValue,
+  keyLooksLikeCalendarClockSeasonWeather,
+  rejectsUnknownLikeTemporalValue,
+  sanitizeAndRepairTemporalValues,
+} from "./temporalUnknown";
+import type { StatusWidget, StatusWidgetField, StatusWidgetValues } from "./types";
 
 function isWidgetPlaceholderValue(value: string): boolean {
   const t = value.trim();
@@ -15,16 +21,46 @@ function isWidgetPlaceholderValue(value: string): boolean {
   );
 }
 
+function findWidgetFieldForKey(
+  widget: StatusWidget | null | undefined,
+  key: string
+): StatusWidgetField | undefined {
+  if (!widget) return undefined;
+  for (const field of widget.fields) {
+    if (fieldPlaceholderKey(field) === key) return field;
+    if (field.id === key || field.label === key) return field;
+  }
+  return undefined;
+}
+
+/** Omit unknown-like values only for temporal fields that reject them. */
+export function shouldOmitUnknownLikePreviousValue(
+  key: string,
+  value: string,
+  widget?: StatusWidget | null
+): boolean {
+  if (!isUnknownLikeStatusValue(value)) return false;
+  const field = findWidgetFieldForKey(widget, key);
+  if (field) return rejectsUnknownLikeTemporalValue(field);
+  return keyLooksLikeCalendarClockSeasonWeather(key);
+}
+
 export function formatPreviousTurnWidgetValues(
   values: StatusWidgetValues | null | undefined,
-  source: "character" | "user"
+  source: "character" | "user",
+  widget?: StatusWidget | null
 ): string {
   if (!values || Object.keys(values).length === 0) {
     return `[PREVIOUS TURN ${source.toUpperCase()} WIDGET VALUES]
 (none — first fill; init calendar/clock fields per rules, not "—")`;
   }
   const lines = Object.entries(values)
-    .filter(([, v]) => v?.trim() && !isWidgetPlaceholderValue(v))
+    .filter(
+      ([k, v]) =>
+        Boolean(v?.trim()) &&
+        !isWidgetPlaceholderValue(v) &&
+        !shouldOmitUnknownLikePreviousValue(k, v, widget)
+    )
     .map(([k, v]) => `- ${k}: ${v.trim()}`);
   return `[PREVIOUS TURN ${source.toUpperCase()} WIDGET VALUES]
 ${lines.length > 0 ? lines.join("\n") : "(empty — infer from narrative)"}`;
@@ -52,6 +88,7 @@ Rules:
 - Fill every key with a scene-accurate value from the assistant prose and user message.
 - Never copy placeholders like "<scene value>", "…", "...", or "—" unless truly unknown.
 - Calendar/clock/season/weather: never output "—" just because prose omits them. Priority: (1) explicit prose/user (2) field instruction or initialValue (3) [PREVIOUS TURN WIDGET VALUES] canonical anchor — keep if no time passed; else advance date/clock/season/weather together from that anchor (4) first fill / missing prior clock: MUST invent one scene-consistent real value (valid date, HH:MM, season+weather), not "—". If prose advances time but prior clock is missing, invent a plausible prior then advance. Counters (days-met, D-DAY, elapsed days) follow each field's own instruction/initialValue only — do not auto-sync them to date. "—" only if still impossible after that chain. Anchor is extract-only; never paste previous values as-is.
+- Calendar, clock, season, and weather fields require concrete values. Never output —, unknown, 알 수 없음, 미상, 모름, or N/A. When no explicit value exists, use initialValue, a valid previous anchor, or invent one scene-consistent concrete value.
 - For location/place fields: update when the scene moves; use the location of the LAST scene.
 - Use "—" only when there is truly no usable basis for that field (calendar/clock fields: follow the chain above).
 - Inner-state fields (속마음, 의식의 흐름, 감정, thoughts, inner monologue): each field's [WIDGET FIELDS] instruction states WHOSE inner state to write — obey it exactly. If the instruction says the NPC's ("NPC의 속마음" etc.), write [CHARACTER]'s inner state; if it says the user's ("유저의 속마음" etc.), write [USER]'s. If the instruction does not name anyone, default to ${defaultSubject}.
@@ -85,7 +122,7 @@ export function buildWidgetExtractUserBlock(opts: {
   );
 
   return [
-    formatPreviousTurnWidgetValues(opts.previousValues, opts.source),
+    formatPreviousTurnWidgetValues(opts.previousValues, opts.source, opts.widget),
     `[WIDGET FIELDS]`,
     opts.widget.fields
       .map((f) => {
@@ -141,13 +178,24 @@ export function normalizeWidgetExtraction(
     }
 
 
+    if (
+      value &&
+      rejectsUnknownLikeTemporalValue(field) &&
+      isUnknownLikeStatusValue(value)
+    ) {
+      // Keep temporarily so sanitizeAndRepairTemporalValues can repair from initialValue.
+      out[key] = value;
+      continue;
+    }
+
     if (value && !isWidgetPlaceholderValue(value)) {
       out[key] = value;
       if (field.id && field.id !== key) out[field.id] = value;
     }
   }
 
-  return out;
+  const repaired = sanitizeAndRepairTemporalValues(out, widget);
+  return repaired.values ?? {};
 }
 
 export function extractJsonObjectFromWidgetText(text: string): Record<string, unknown> | null {
