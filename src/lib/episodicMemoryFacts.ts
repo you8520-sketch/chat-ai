@@ -1,6 +1,18 @@
 import type Database from "better-sqlite3";
 import { sanitizeExtractedFacts } from "@/lib/statusWidget/extractedFacts";
 import type { ExtractedStatusFact, ExtractedStatusFactImportance } from "@/lib/statusWidget/types";
+import {
+  classifyEpisodicFactTemporalNature,
+  isClearlyTemporaryEpisodicFact,
+} from "@/lib/episodicMemoryTemporal";
+
+export {
+  classifyEpisodicFactTemporalNature,
+  isClearlyTemporaryEpisodicFact,
+  CLEARLY_TEMPORARY_EPISODIC_ATTRIBUTES,
+  looksLikeCompletedHistoricalEvent,
+} from "@/lib/episodicMemoryTemporal";
+export type { EpisodicFactTemporalNature } from "@/lib/episodicMemoryTemporal";
 
 export type PersistEpisodicMemoryFactsInput = {
   chatId: number;
@@ -542,12 +554,9 @@ export function formatEpisodicMemoryPromptSection(
   let usedChars = 0;
   for (const fact of facts.slice(0, maxFacts)) {
     const nextChars = usedChars + fact.fact_text.length;
-    if (lines.length > 0 && nextChars > maxChars) break;
-    if (lines.length === 0 && nextChars > maxChars) {
-      const clipped = fact.fact_text.slice(0, Math.max(0, maxChars - 16)).trim();
-      if (clipped) lines.push(`- [T${fact.source_turn}] ${clipped}`);
-      break;
-    }
+    // Never inject a truncated/incomplete fact_text — skip this fact only and
+    // keep scanning later (possibly shorter) facts within the same budget.
+    if (nextChars > maxChars) continue;
     lines.push(`- [T${fact.source_turn}] ${fact.fact_text}`);
     usedChars = nextChars;
   }
@@ -556,6 +565,9 @@ export function formatEpisodicMemoryPromptSection(
   return [
     "[EPISODIC MEMORY - RETRIEVED FACTS]",
     "These are retrieved episodic memories from earlier turns.",
+    "These are historical or durable facts from earlier turns.",
+    "Do not treat time-sensitive facts as the current state.",
+    "For current location, condition, emotion, action, and scene state, prefer the recent raw conversation.",
     "Use them only when relevant to the current scene.",
     "If retrieved memories conflict with each other, the higher turn number is more recent and must be preferred.",
     "If retrieved memories conflict with the character canon or world rules, canon and world rules win.",
@@ -645,6 +657,7 @@ export function getEpisodicMemoryForPrompt(
     }]).length === 1);
     const uncontaminatedRows: EpisodicMemoryFactRecord[] = [];
     let blockedContaminatedCount = 0;
+    let temporarySkippedCount = 0;
     for (const row of validRows) {
       const blockedReason = detectEpisodicMemoryContamination(row);
       if (blockedReason) {
@@ -663,6 +676,12 @@ export function getEpisodicMemoryForPrompt(
             blocked_reason: blockedReason,
           });
         }
+        continue;
+      }
+      // Exclude clearly momentary states before latest-wins / ranking / budget.
+      // Recent raw history owns current emotion/pose/action; DB rows stay (no migration).
+      if (isClearlyTemporaryEpisodicFact(row)) {
+        temporarySkippedCount += 1;
         continue;
       }
       uncontaminatedRows.push(row);
@@ -772,6 +791,7 @@ export function getEpisodicMemoryForPrompt(
         })),
         skipped_conflict_facts_count: skippedConflictFactsCount,
         blocked_contaminated_facts_count: blockedContaminatedCount,
+        temporary_skipped_count: temporarySkippedCount,
         omitted_due_to_budget_count: omittedDueToBudgetCount,
       });
     }
@@ -862,6 +882,9 @@ export function inspectEpisodicMemoryFactsForDebug(
     let blockedReason: string | null = null;
     if (!structurallyValid) blockedReason = "invalid_fact_schema";
     if (!blockedReason) blockedReason = detectEpisodicMemoryContamination(fact);
+    if (!blockedReason && isClearlyTemporaryEpisodicFact(fact)) {
+      blockedReason = "clearly_temporary";
+    }
     if (
       !blockedReason &&
       currentTurn != null &&
