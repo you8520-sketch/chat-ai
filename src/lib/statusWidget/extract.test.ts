@@ -8,6 +8,7 @@ import {
 } from "./extractNormalize";
 import { allocateWidgetExtractNarrativeSlices } from "./proseStrip";
 import { collectWidgetJsonKeys } from "./prompt";
+import { parseStatusWidgetJson, serializeStatusWidget } from "./serialize";
 
 describe("statusWidget extract", () => {
   it("collectWidgetJsonKeys includes field keys and template placeholders", () => {
@@ -43,6 +44,35 @@ describe("statusWidget extract", () => {
     assert.equal(normalized["현재상황"], undefined);
   });
 
+  it("serializeStatusWidget round-trips optional initialValue without breaking legacy widgets", () => {
+    const legacy = parseStatusWidgetJson(
+      JSON.stringify({
+        version: 1,
+        name: "상태창",
+        htmlTemplate: "{{날짜}}",
+        fields: [{ id: "date", label: "날짜", instruction: "n월 n일 형식" }],
+        placement: "bottom",
+      })
+    );
+    assert.ok(legacy);
+    assert.equal(legacy!.fields[0]!.initialValue, undefined);
+
+    const withInit = {
+      ...DEFAULT_STATUS_WIDGET,
+      fields: [
+        {
+          id: "date",
+          label: "날짜",
+          instruction: "n월 n일 형식",
+          initialValue: "3월 18일",
+        },
+      ],
+    };
+    const parsed = parseStatusWidgetJson(serializeStatusWidget(withInit));
+    assert.ok(parsed);
+    assert.equal(parsed!.fields[0]!.initialValue, "3월 18일");
+  });
+
   it("buildWidgetExtractSystem lists required JSON keys", () => {
     const system = buildWidgetExtractSystem(DEFAULT_STATUS_WIDGET, collectWidgetJsonKeys(DEFAULT_STATUS_WIDGET));
     assert.match(system, /"시간"/);
@@ -51,18 +81,69 @@ describe("statusWidget extract", () => {
 
   it("buildWidgetExtractSystem anchors extraction to the LAST scene (chat39 multi-scene regression)", () => {
     // chat39 turn 769: 새벽 3시 사령실 → *** 스킵 → 다음날 오후 8시 렌 저택.
-    // Extractor anchored to the FIRST scene because the old rules said
-    // "start from previous clock anchor" with no last-scene priority.
+    // Extractor must still prefer END-of-turn / LAST scene over an earlier clock.
     const system = buildWidgetExtractSystem(DEFAULT_STATUS_WIDGET, collectWidgetJsonKeys(DEFAULT_STATUS_WIDGET));
-    // End-of-turn / last-scene rule present
     assert.match(system, /END of this turn/);
     assert.match(system, /LAST scene/);
     assert.match(system, /time skips/i);
-    // Explicit final time marker outranks previous-anchor advancement
-    assert.match(system, /explicit final time\/date marker[\s\S]*ALWAYS wins/);
-    assert.match(system, /Only when no explicit final time exists/);
-    // Previous-anchor rule is still there as fallback
-    assert.match(system, /\[PREVIOUS TURN WIDGET VALUES\] clock anchor/);
+    assert.match(system, /explicit prose\/user/);
+    assert.match(system, /\[PREVIOUS TURN WIDGET VALUES\] canonical anchor/);
+  });
+
+  it("buildWidgetExtractSystem initializes calendar/clock fields on first fill without requiring prose", () => {
+    // Verbose examples live here (not in the runtime prompt):
+    // - "1부터 시작" → first value 1 (via that field's instruction)
+    // - date format only → invent one matching date
+    // - HH:MM format only → invent one matching clock
+    // - no elapsed time → keep prior date/clock
+    // - "다음날 아침" → advance date/clock; counters follow their own instruction
+    // - March → spring-like season; 23:30 → night (date/clock/season consistency only)
+    const system = buildWidgetExtractSystem(
+      DEFAULT_STATUS_WIDGET,
+      collectWidgetJsonKeys(DEFAULT_STATUS_WIDGET)
+    );
+    assert.match(system, /Calendar\/clock\/season\/weather/);
+    assert.match(system, /never output "—" just because prose omits them/);
+    assert.match(system, /initialValue/);
+    assert.match(system, /MUST invent one scene-consistent real value/);
+    assert.match(system, /Counters \(days-met, D-DAY, elapsed days\) follow each field's own instruction\/initialValue only/);
+    assert.match(system, /do not auto-sync them to date/);
+    assert.match(system, /never paste previous values as-is/);
+    // Compressed prompt must not reintroduce long example lists
+    assert.doesNotMatch(system, /"1부터 시작"/);
+    assert.doesNotMatch(system, /두 시간 후/);
+    assert.doesNotMatch(system, /다음날 아침/);
+  });
+
+  it("buildWidgetExtractUserBlock includes optional initialValue for first-fill priority", () => {
+    const widget = {
+      ...DEFAULT_STATUS_WIDGET,
+      fields: [
+        {
+          id: "date",
+          label: "날짜",
+          instruction: "n월 n일 형식",
+          initialValue: "3월 18일",
+        },
+        {
+          id: "time",
+          label: "현재시각",
+          instruction: "HH:MM 형식",
+        },
+      ],
+    };
+    const block = buildWidgetExtractUserBlock({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "복도에서 마주친다.",
+      assistantProse: "실내 복도에서 두 사람이 마주쳤다.",
+      widget,
+      source: "character",
+    });
+    assert.match(block, /날짜[\s\S]*n월 n일 형식/);
+    assert.match(block, /initialValue: 3월 18일/);
+    assert.match(block, /first fill; init calendar\/clock fields per rules/);
+    assert.doesNotMatch(block, /initialValue: 14:30/);
   });
 
   it("buildWidgetExtractSystem makes the field instruction the authority on WHOSE inner state to write", () => {

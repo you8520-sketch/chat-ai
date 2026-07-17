@@ -20,7 +20,7 @@ export type StatusWidgetContextBudgetBreakdown = {
 };
 
 /**
- * 유저노트 예산 차감 대상 — 케이브덕과 동일하게 상태값(라벨) + 지시사항만.
+ * 유저노트 예산 차감 대상 — 케이브덕과 동일하게 상태값(라벨) + 지시사항(+선택 초기값).
  * htmlTemplate(③ 위젯 콘텐츠)은 AI 프롬프트·출력에 포함되지 않으므로 제외.
  */
 export function billableStatusWidgetText(widget: StatusWidget): string {
@@ -28,8 +28,12 @@ export function billableStatusWidgetText(widget: StatusWidget): string {
     .map((f) => {
       const name = f.label.trim() || f.id.trim();
       const instruction = f.instruction.trim();
-      if (!name && !instruction) return "";
-      return instruction ? `${name}\n${instruction}` : name;
+      const initial = f.initialValue?.trim() ?? "";
+      if (!name && !instruction && !initial) return "";
+      const parts = [name, instruction, initial ? `initialValue: ${initial}` : ""]
+        .filter(Boolean)
+        .join("\n");
+      return parts;
     })
     .filter(Boolean)
     .join("\n\n");

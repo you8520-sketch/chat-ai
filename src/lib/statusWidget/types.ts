@@ -5,6 +5,11 @@ export type StatusWidgetField = {
   label: string;
   instruction: string;
   previewValue?: string;
+  /**
+   * Optional creator-set starting value for first-turn extraction
+   * (e.g. date "3월 18일", clock "14:30"). Omitted on legacy widgets.
+   */
+  initialValue?: string;
 };
 
 export type StatusWidgetPlacement = "bottom" | "top";
