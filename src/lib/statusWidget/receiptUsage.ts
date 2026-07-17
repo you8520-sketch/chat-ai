@@ -20,6 +20,11 @@ export type StatusWidgetExtractReceipt = {
   estimated?: boolean;
 };
 
+function nonNegativeFinite(n: unknown): number {
+  if (typeof n !== "number" || !Number.isFinite(n) || n < 0) return 0;
+  return n;
+}
+
 export function mergeStatusWidgetExtractUsages(usages: TokenUsage[]): TokenUsage | null {
   if (usages.length === 0) return null;
   let inputTokens = 0;
@@ -31,15 +36,17 @@ export function mergeStatusWidgetExtractUsages(usages: TokenUsage[]): TokenUsage
   let hasApiReported = false;
 
   for (const u of usages) {
-    inputTokens += u.inputTokens;
-    outputTokens += u.outputTokens;
+    inputTokens += nonNegativeFinite(u.inputTokens);
+    outputTokens += nonNegativeFinite(u.outputTokens);
     if (u.estimated) estimated = true;
-    if (u.apiReportedInputTokens != null && u.apiReportedInputTokens > 0) {
-      apiReportedInputTokens += u.apiReportedInputTokens;
+    const reported = nonNegativeFinite(u.apiReportedInputTokens);
+    if (reported > 0) {
+      apiReportedInputTokens += reported;
       hasApiReported = true;
     }
-    if (u.upstreamCostUsd != null && u.upstreamCostUsd > 0) {
-      upstreamCostUsd += u.upstreamCostUsd;
+    const upstream = nonNegativeFinite(u.upstreamCostUsd);
+    if (upstream > 0) {
+      upstreamCostUsd += upstream;
       hasUpstream = true;
     }
   }

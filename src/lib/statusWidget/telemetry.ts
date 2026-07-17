@@ -38,6 +38,7 @@ export type StatusWidgetParserMode = "standard" | "deepseek";
 
 export type StatusWidgetResolutionSource =
   | "v3_extract"
+  | "v3_repair"
   | "stream_capture"
   | "split_saved"
   | "split_raw"
@@ -335,6 +336,16 @@ export async function resolveStatusWidgetTurnValues(
         values: normalizedExtractValues,
         model: input.modelId,
       });
+      const extractMeta = v3Result.meta;
+      const normalizeReason = normalizedDiag.hasUsableValues
+        ? extractMeta.usedRepair
+          ? "V3_REPAIR_USED"
+          : "OK"
+        : extractMeta.exhausted
+          ? "STATUS_WIDGET_EXTRACT_EXHAUSTED"
+          : v3Diag.actualKeys.length > 0
+            ? normalizedDiag.reasonCode
+            : "V3_INITIAL_EMPTY";
       logStatusWidgetLiveTrace({
         ...traceBase,
         phase: "status_normalize_result",
@@ -346,16 +357,12 @@ export async function resolveStatusWidgetTurnValues(
         missingKeys: normalizedDiag.missingKeys,
         hasUsableValues: normalizedDiag.hasUsableValues,
         dbValueShape: normalizedDiag.dbValueShape,
-        reasonCode: normalizedDiag.hasUsableValues
-          ? "OK"
-          : v3Diag.actualKeys.length > 0
-            ? normalizedDiag.reasonCode
-            : "V3_EMPTY_OUTPUT",
+        reasonCode: normalizeReason,
       });
       if (statusWidgetValuesHasContent(normalizedExtractValues)) {
         v3ExtractSuccess = true;
         valuesPayload = normalizedExtractValues;
-        resolutionSource = "v3_extract";
+        resolutionSource = extractMeta.usedRepair ? "v3_repair" : "v3_extract";
       }
     } catch (e) {
       console.warn("[status-widget] V3 extract failed", (e as Error).message);
@@ -365,7 +372,7 @@ export async function resolveStatusWidgetTurnValues(
         v3ExtractCalled: true,
         v3ExtractSucceeded: false,
         v3ExtractJsonFound: false,
-        reasonCode: "V3_EMPTY_OUTPUT",
+        reasonCode: "STATUS_WIDGET_EXTRACT_EXHAUSTED",
       });
     }
   }
@@ -393,7 +400,7 @@ export async function resolveStatusWidgetTurnValues(
     missingKeys: finalHasContent ? missingKeys : expectedKeys,
     extractedFactsRawCount: Array.isArray(extractedFactsRaw) ? extractedFactsRaw.length : 0,
     extractedFactsValidCount: extractedFactsValid.length,
-    v3Used: resolutionSource === "v3_extract",
+    v3Used: resolutionSource === "v3_extract" || resolutionSource === "v3_repair",
     fallbackUsed: resolutionSource === "split_raw",
     parseError: splitRawParseError,
   });

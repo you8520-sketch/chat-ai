@@ -16,6 +16,10 @@ export type StatusWidgetReasonCode =
   | "V3_NOT_CALLED"
   | "V3_EMPTY_OUTPUT"
   | "V3_PARSE_FAILED"
+  | "V3_INITIAL_EMPTY"
+  | "V3_REPAIR_USED"
+  | "V3_REPAIR_FAILED"
+  | "STATUS_WIDGET_EXTRACT_EXHAUSTED"
   | "KEY_MAPPING_MISMATCH"
   | "MISSING_REQUIRED_KEYS"
   | "PLACEHOLDER_ONLY"
@@ -70,6 +74,8 @@ export type StatusWidgetLiveTracePhase =
   | "api_hydration"
   | "render_diagnostics";
 
+export type StatusWidgetExtractStage = "initial" | "repair";
+
 export type StatusWidgetLiveTraceEvent = {
   requestId?: string | null;
   chatId?: number | null;
@@ -93,6 +99,15 @@ export type StatusWidgetLiveTraceEvent = {
   contentLength?: number;
   contentHash?: string | null;
   statusValuesHash?: string | null;
+  /** character | user source for per-widget extract attempts */
+  extractSource?: "character" | "user";
+  extractStage?: StatusWidgetExtractStage;
+  extractModelId?: string;
+  /** 1-based attempt index within a source (initial=1, repair=2, fallback=3) */
+  extractAttemptIndex?: number;
+  inputTokens?: number;
+  outputTokens?: number;
+  latencyMs?: number;
 };
 
 function hashString(text: string | null | undefined): string | null {
