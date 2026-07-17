@@ -1,6 +1,6 @@
 import { getDb } from "@/lib/db";
 import type { CharacterAsset } from "@/lib/characterAssets";
-import { publicAssetUrls } from "@/lib/characterAssets";
+import { assetUrls } from "@/lib/characterAssets";
 import { parseCharacterGender } from "@/lib/characterGender";
 import { buildSaveAndTranslateCharacterChunks } from "@/lib/characterChunks";
 import { moderatePublicAssets } from "@/lib/assetModeration";
@@ -107,8 +107,8 @@ function parseAssetsFromFormBody(rawAssets: unknown): CharacterAsset[] {
         .map((a: { url: string; tag: string; public?: boolean; chat?: boolean; viewerBlur?: boolean }) => ({
           url: String(a.url),
           tag: String(a.tag).slice(0, 32),
-          public: Boolean(a.public),
-          chat: a.chat !== false,
+          public: true,
+          chat: true,
           viewerBlur: a.viewerBlur === true,
         }))
         .filter((a: CharacterAsset) => a.url.startsWith("/uploads/") || a.url.startsWith("http"))
@@ -203,7 +203,7 @@ export function parseCharacterFormBody(
   ) {
     return {
       ok: false,
-      error: `말투 설정 + 세계관 + 캐릭터 설정은 합쳐서 ${AI_LEARNING_MIN.toLocaleString()}자 이상 작성해 주세요.`,
+      error: `세계관 + 캐릭터 설정 + 기본 말투는 합쳐서 ${AI_LEARNING_MIN.toLocaleString()}자 이상 작성해 주세요.`,
       status: 400,
     };
   }
@@ -213,7 +213,7 @@ export function parseCharacterFormBody(
   ) {
     return {
       ok: false,
-      error: "세계관/배경 + 캐릭터 설정 + 말투 설정은 합쳐서 10,000자 이하여야 합니다.",
+      error: "세계관/배경 + 캐릭터 설정 + 기본 말투는 합쳐서 10,000자 이하여야 합니다.",
       status: 400,
     };
   }
@@ -241,10 +241,6 @@ export function parseCharacterFormBody(
     return { ok: false, error: "감정 에셋 이미지를 1장 이상 업로드해 주세요.", status: 400 };
   }
 
-  if (assets.length > 0 && !assets.some((a) => a.public)) {
-    return { ok: false, error: "노출할 이미지를 1장 이상 선택해 주세요.", status: 400 };
-  }
-
   return {
     ok: true,
     data: {
@@ -268,7 +264,7 @@ export function parseCharacterFormBody(
         b.recommended_writing_style ?? b.recommendedWritingStyle
       ),
       assets,
-      images: publicAssetUrls(assets),
+      images: assetUrls(assets),
       audience: ["all", "female", "male"].includes(String(b.audience)) ? String(b.audience) : "all",
       requestedVisibility: parseVisibility(b.visibility),
       nsfw: !!b.nsfw,
@@ -776,12 +772,9 @@ export async function updateCharacterPublicProfileFromForm(
   if (assets.length === 0) {
     return { ok: false as const, error: "감정 에셋 이미지를 1장 이상 업로드해 주세요.", status: 400 };
   }
-  if (!assets.some((a) => a.public)) {
-    return { ok: false as const, error: "노출할 이미지를 1장 이상 선택해 주세요.", status: 400 };
-  }
 
   const nsfw = !!b.nsfw;
-  const images = publicAssetUrls(assets);
+  const images = assetUrls(assets);
   const requestedVisibility = parseVisibility(b.visibility);
   const rawWidget = b.status_widget_json ?? b.status_widget;
   const parsedWidget =

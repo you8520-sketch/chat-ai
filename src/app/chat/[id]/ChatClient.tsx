@@ -3854,7 +3854,7 @@ export default function ChatClient({
             {canContinue && !loading && (
               <span className="text-[10px] text-violet-400/80">
                 {" "}
-                · 자동진행: AI 캐릭터들과 세계가 먼저 움직이며, 유저의 짧은 행동·대사만 보조할 수 있습니다
+                · 자동진행: 유저의 행동과 대사도 함께 출력됩니다
               </span>
             )}
           </p>

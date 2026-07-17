@@ -5,10 +5,15 @@ import { useRouter } from "next/navigation";
 
 import GenrePicker from "@/components/GenrePicker";
 import type { CharacterGenre } from "@/lib/characterGenres";
+import {
+  AI_LEARNING_LIMIT,
+  SPEECH_EXAMPLES_LIMIT,
+  SPEECH_FORBIDDEN_LIMIT,
+} from "@/lib/characterFormLimits";
 import { speechCreatorCharCount } from "@/lib/speechCreatorFields";
 
 const DESC_LIMIT = 10000; // 상세 소개 (AI 미학습)
-const PROMPT_LIMIT = 10000; // 설정+세계관+예시대화 합산
+const PROMPT_LIMIT = AI_LEARNING_LIMIT; // 설정+세계관+기본 말투 합산
 const MAX_IMAGES = 100;
 
 export default function CreateClient() {
@@ -53,7 +58,15 @@ export default function CreateClient() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (promptTotal > PROMPT_LIMIT) {
-      setError(`캐릭터 설정+세계관+말투 설정은 합쳐서 ${PROMPT_LIMIT.toLocaleString()}자 이하여야 합니다.`);
+      setError(`캐릭터 설정+세계관+기본 말투는 합쳐서 ${PROMPT_LIMIT.toLocaleString()}자 이하여야 합니다.`);
+      return;
+    }
+    if (form.speech_examples.length > SPEECH_EXAMPLES_LIMIT) {
+      setError(`대사 예시는 ${SPEECH_EXAMPLES_LIMIT.toLocaleString()}자 이하여야 합니다.`);
+      return;
+    }
+    if (form.speech_forbidden.length > SPEECH_FORBIDDEN_LIMIT) {
+      setError(`금지 말투는 ${SPEECH_FORBIDDEN_LIMIT.toLocaleString()}자 이하여야 합니다.`);
       return;
     }
     if (form.genres.length === 0) {
@@ -162,24 +175,47 @@ export default function CreateClient() {
                   value={form.speech_traits} onChange={(e) => setForm({ ...form, speech_traits: e.target.value })} />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-gray-300">
-                  <span className="text-rose-400">[필수]</span> 대사 예시 <span className="font-normal text-gray-500">(많을수록 좋음)</span>
-                </label>
-                <textarea required rows={5} className={cls}
+                <div className="mb-1 flex items-baseline justify-between">
+                  <label className="text-xs font-semibold text-gray-300">
+                    <span className="text-rose-400">[필수]</span> 대사 예시
+                  </label>
+                  <Counter now={form.speech_examples.length} max={SPEECH_EXAMPLES_LIMIT} />
+                </div>
+                <textarea required rows={5} className={cls} maxLength={SPEECH_EXAMPLES_LIMIT}
                   placeholder={"유저: 안녕?\n캐릭터: …늦었구나. 기다린 것은 아니오."}
-                  value={form.speech_examples} onChange={(e) => setForm({ ...form, speech_examples: e.target.value })} />
+                  value={form.speech_examples}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      speech_examples: e.target.value.slice(0, SPEECH_EXAMPLES_LIMIT),
+                    })
+                  }
+                />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold text-gray-300">
-                  <span className="text-gray-500">[선택]</span> 금지 말투
-                </label>
-                <textarea rows={2} className={cls}
+                <div className="mb-1 flex items-baseline justify-between">
+                  <label className="text-xs font-semibold text-gray-300">
+                    <span className="text-gray-500">[선택]</span> 금지 말투
+                  </label>
+                  <Counter now={form.speech_forbidden.length} max={SPEECH_FORBIDDEN_LIMIT} />
+                </div>
+                <textarea rows={2} className={cls} maxLength={SPEECH_FORBIDDEN_LIMIT}
                   placeholder="입니다요, 밈, 인터넷체 등 (쉼표·줄바꿈 구분)"
-                  value={form.speech_forbidden} onChange={(e) => setForm({ ...form, speech_forbidden: e.target.value })} />
+                  value={form.speech_forbidden}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      speech_forbidden: e.target.value.slice(0, SPEECH_FORBIDDEN_LIMIT),
+                    })
+                  }
+                />
               </div>
             </div>
           </div>
-          <p className="mt-2 text-[11px] text-gray-600">설정+세계관+말투 합쳐서 최대 {PROMPT_LIMIT.toLocaleString()}자</p>
+          <p className="mt-2 text-[11px] text-gray-600">
+            설정+세계관+기본 말투 합쳐서 최대 {PROMPT_LIMIT.toLocaleString()}자 · 대사
+            예시/금지 말투는 각 {SPEECH_EXAMPLES_LIMIT.toLocaleString()}자(합산 제외)
+          </p>
         </div>
 
         <textarea placeholder="첫 인사말 (캐릭터가 대화를 시작할 때 하는 말)" rows={2} className={cls}

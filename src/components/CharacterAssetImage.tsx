@@ -37,7 +37,7 @@ export default function CharacterAssetImage({
         </div>
       )}
       {showHiddenBadge && !blurForViewer && (
-        <span className="absolute right-1 top-1 rounded bg-amber-600/90 px-1.5 py-0.5 text-[8px] font-bold text-white">
+        <span className="absolute bottom-1 left-1 rounded bg-amber-600/90 px-1.5 py-0.5 text-[8px] font-bold text-white">
           타인 가림
         </span>
       )}

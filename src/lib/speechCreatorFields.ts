@@ -1,5 +1,10 @@
 import type { SpeechProfile } from "@/lib/speechLock/types";
 import { formatSpeechSectionAsMetadata } from "@/lib/speechMetadataPolicy";
+import {
+  SPEECH_CONTEXTUAL_LIMIT,
+  SPEECH_EXAMPLES_LIMIT,
+  SPEECH_FORBIDDEN_LIMIT,
+} from "@/lib/characterFormLimits";
 
 /** 캐릭터 제작 — 말투 세분화 입력 */
 export type SpeechContextualRegister = {
@@ -18,8 +23,11 @@ export type SpeechCreatorInput = {
   speech_contextual_registers?: SpeechContextualRegister[];
 };
 
-export function speechCreatorCharCount(input: SpeechCreatorInput): number {
-  const contextual = (input.speech_contextual_registers ?? []).reduce(
+/** 상황별 말투 레지스터 전체 글자 수 (별도 500자 한도) */
+export function speechContextualCharCount(
+  registers: SpeechContextualRegister[] | undefined
+): number {
+  return (registers ?? []).reduce(
     (sum, register) =>
       sum +
       register.label.length +
@@ -28,13 +36,14 @@ export function speechCreatorCharCount(input: SpeechCreatorInput): number {
       register.examples.length,
     0
   );
-  return (
-    input.speech_personality.length +
-    input.speech_traits.length +
-    input.speech_examples.length +
-    (input.speech_forbidden?.length ?? 0) +
-    contextual
-  );
+}
+
+/**
+ * AI 학습 10k 합산에 포함되는 말투 글자 수.
+ * 대사 예시·상황별 말투·금지 말투는 제외(필드별 별도 한도).
+ */
+export function speechCreatorCharCount(input: SpeechCreatorInput): number {
+  return input.speech_personality.length + input.speech_traits.length;
 }
 
 function normalizeDialogueLine(line: string): string {
@@ -218,7 +227,16 @@ export function buildCreatorSpeechProfilePartial(
   };
 }
 
-export function validateSpeechCreatorInput(_input: SpeechCreatorInput): string | null {
+export function validateSpeechCreatorInput(input: SpeechCreatorInput): string | null {
+  if (input.speech_examples.length > SPEECH_EXAMPLES_LIMIT) {
+    return `캐릭터 대사 예시는 ${SPEECH_EXAMPLES_LIMIT.toLocaleString()}자 이하여야 합니다.`;
+  }
+  if ((input.speech_forbidden?.length ?? 0) > SPEECH_FORBIDDEN_LIMIT) {
+    return `금지 말투는 ${SPEECH_FORBIDDEN_LIMIT.toLocaleString()}자 이하여야 합니다.`;
+  }
+  if (speechContextualCharCount(input.speech_contextual_registers) > SPEECH_CONTEXTUAL_LIMIT) {
+    return `상황별 말투는 합쳐서 ${SPEECH_CONTEXTUAL_LIMIT.toLocaleString()}자 이하여야 합니다.`;
+  }
   return null;
 }
 

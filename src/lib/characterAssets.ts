@@ -29,8 +29,9 @@ function normalizeAsset(raw: Partial<CharacterAsset>, index: number): CharacterA
   return {
     url: String(raw.url),
     tag: String(raw.tag),
-    public: typeof raw.public === "boolean" ? raw.public : index === 0,
-    chat: typeof raw.chat === "boolean" ? raw.chat : true,
+    // 업로드한 에셋은 모두 소개·대화 풀에 포함. UI에서 고르는 것은 가림(viewerBlur)뿐.
+    public: true,
+    chat: true,
     viewerBlur:
       typeof raw.viewerBlur === "boolean" ? raw.viewerBlur : index === 0 ? false : true,
   };
@@ -65,13 +66,13 @@ export function publicAssetUrls(assets: CharacterAsset[]): string[] {
   return publicAssets(assets).map((a) => a.url);
 }
 
-/** 카드·목록용 대표 이미지 — public assets 우선, 없으면 legacy images[0] */
+/** 카드·목록용 대표 이미지 — 에셋 순서 1번(인덱스 0) 고정, 없으면 legacy images[0] */
 export function getCharacterRepresentativeImageUrl(
   assetsRaw: string | null | undefined,
   imagesRaw?: string | null | undefined
 ): string | null {
-  const fromAssets = publicAssetUrls(parseAssets(assetsRaw));
-  if (fromAssets[0]) return fromAssets[0];
+  const assets = parseAssets(assetsRaw);
+  if (assets[0]?.url) return assets[0].url;
   if (!imagesRaw) return null;
   try {
     const parsed = JSON.parse(imagesRaw) as unknown;
@@ -116,12 +117,11 @@ export function getDefaultChatAsset(assets: CharacterAsset[]): CharacterAsset | 
   return assets[0] ?? null;
 }
 
-/** 새 에셋 추가 시 기본 노출·대화·가림 플래그 (첫 번째 이미지만 노출·비가림) */
+/** 새 에셋 추가 시 기본 플래그 — 전부 소개·대화 포함, 첫 장만 비가림 */
 export function defaultAssetFlags(existing: CharacterAsset[], batchIndex: number) {
-  const hasPublic = existing.some((a) => a.public !== false);
   const isVeryFirstAsset = existing.length === 0 && batchIndex === 0;
   return {
-    public: !hasPublic && batchIndex === 0,
+    public: true,
     chat: true,
     viewerBlur: !isVeryFirstAsset,
   };

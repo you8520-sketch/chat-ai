@@ -35,18 +35,6 @@ export default function AssetManagerGrid({ assets, onChange, onRemove }: Props) 
     onChange(next);
   }
 
-  function togglePublic(index: number) {
-    const item = assets[index];
-    if (!item) return;
-    const isPublic = item.public !== false;
-    if (isPublic && assets.filter((a) => a.public !== false).length <= 1) return;
-    onChange(assets.map((a, i) => (i === index ? { ...a, public: !isPublic } : a)));
-  }
-
-  function toggleChat(index: number) {
-    onChange(assets.map((a, i) => (i === index ? { ...a, chat: a.chat === false } : a)));
-  }
-
   function toggleViewerBlur(index: number) {
     onChange(
       assets.map((a, i) => (i === index ? { ...a, viewerBlur: !a.viewerBlur } : a)),
@@ -72,19 +60,14 @@ export default function AssetManagerGrid({ assets, onChange, onRemove }: Props) 
     onChange(assets.map((a, i) => (i === index ? { ...a, tag: trimmed } : a)));
   }
 
-  const publicCount = assets.filter((a) => a.public !== false).length;
   const hiddenCount = assets.filter((a) => a.viewerBlur === true).length;
 
   return (
     <div className="space-y-3">
       <p className={studioType.helper}>
         <span className="text-zinc-200">태그 클릭</span>하여 수정 · 드래그로 순서 변경 ·{" "}
-        <span className="text-zinc-200">노출</span>은 소개·카드용(1장 이상) ·{" "}
-        <span className="text-zinc-200">대화</span>는 감정 태그 전환용 ·{" "}
-        <span className="text-zinc-200">가리기</span>는 타 유저 블러
-        {publicCount > 0 && (
-          <span className="ml-2 text-zinc-300">노출 {publicCount}장</span>
-        )}
+        <span className="text-zinc-200">1번</span>이 카드 대표 이미지 ·{" "}
+        <span className="text-zinc-200">가리기</span>는 타 유저 블러(소개·갤러리)
         {hiddenCount > 0 && (
           <span className="ml-2 text-zinc-300">가림 {hiddenCount}장</span>
         )}
@@ -107,9 +90,16 @@ export default function AssetManagerGrid({ assets, onChange, onRemove }: Props) 
             )}
           >
             <CharacterAssetImage src={a.url} showHiddenBadge={a.viewerBlur === true} />
-            <span className="absolute left-2 top-2 rounded bg-black/70 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-300">
-              {i + 1}
-            </span>
+            <div className="absolute left-2 top-2 flex flex-col gap-1">
+              <span className="rounded bg-black/70 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-300">
+                {i + 1}
+              </span>
+              {i === 0 && (
+                <span className="rounded bg-cyan-600/90 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  메인
+                </span>
+              )}
+            </div>
             <div
               className="border-t border-white/10 bg-black/35 px-2 py-2"
               onPointerDown={(e) => e.stopPropagation()}
@@ -146,34 +136,6 @@ export default function AssetManagerGrid({ assets, onChange, onRemove }: Props) 
                 </button>
               )}
             </div>
-            <div className="flex border-t border-white/10">
-              <button
-                type="button"
-                onClick={() => togglePublic(i)}
-                title={a.public !== false ? "노출 해제 (최소 1장 유지)" : "소개·카드에 노출"}
-                className={cn(
-                  "min-h-11 flex-1 text-xs font-semibold transition",
-                  a.public !== false
-                    ? "bg-violet-600/25 text-violet-100"
-                    : "bg-black/40 text-zinc-500 hover:text-zinc-300",
-                )}
-              >
-                노출{a.public !== false ? " ON" : ""}
-              </button>
-              <button
-                type="button"
-                onClick={() => toggleChat(i)}
-                title={a.chat !== false ? "대화 전환 해제" : "대화 중 감정 전환 허용"}
-                className={cn(
-                  "min-h-11 flex-1 border-l border-white/10 text-xs font-semibold transition",
-                  a.chat !== false
-                    ? "bg-violet-600/25 text-violet-100"
-                    : "bg-black/40 text-zinc-500 hover:text-zinc-300",
-                )}
-              >
-                대화{a.chat !== false ? " ON" : ""}
-              </button>
-            </div>
             <button
               type="button"
               onClick={() => toggleViewerBlur(i)}
@@ -185,7 +147,7 @@ export default function AssetManagerGrid({ assets, onChange, onRemove }: Props) 
               className={cn(
                 "min-h-11 w-full border-t border-white/10 text-xs font-semibold transition",
                 a.viewerBlur
-                  ? "bg-white/10 text-zinc-100"
+                  ? "bg-amber-600/30 text-amber-100"
                   : "bg-black/40 text-zinc-500 hover:text-zinc-300",
               )}
             >

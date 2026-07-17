@@ -16,6 +16,7 @@ import PublicDescriptionEditor from "@/components/PublicDescriptionEditor";
 import { PROFILE_BIOGRAPHY_LIMIT } from "@/lib/generateProfile";
 import { countPublicDescriptionVisibleChars } from "@/lib/publicDescriptionText";
 import {
+  speechContextualCharCount,
   speechCreatorCharCount,
   type SpeechContextualRegister,
 } from "@/lib/speechCreatorFields";
@@ -40,6 +41,9 @@ import {
   AI_LEARNING_LIMIT,
   AI_LEARNING_MIN,
   GREETING_LIMIT,
+  SPEECH_CONTEXTUAL_LIMIT,
+  SPEECH_EXAMPLES_LIMIT,
+  SPEECH_FORBIDDEN_LIMIT,
   TAGLINE_LIMIT,
 } from "@/lib/characterFormLimits";
 import TagChipInput from "@/components/TagChipInput";
@@ -72,17 +76,13 @@ function fallbackAssetTag(index: number): string {
 }
 
 function normalizeManagedAssets(list: TaggedAsset[]): TaggedAsset[] {
-  const next = list.map((a, i) => ({
+  return list.map((a, i) => ({
     url: a.url,
     tag: a.tag,
-    public: typeof a.public === "boolean" ? a.public : i === 0,
-    chat: typeof a.chat === "boolean" ? a.chat : true,
+    public: true,
+    chat: true,
     viewerBlur: typeof a.viewerBlur === "boolean" ? a.viewerBlur : i !== 0,
   }));
-  if (next.length > 0 && !next.some((a) => a.public !== false)) {
-    next[0] = { ...next[0], public: true };
-  }
-  return next;
 }
 
 export default function CreateCharacter({
@@ -260,6 +260,9 @@ export default function CreateCharacter({
       speech_forbidden: form.speech_forbidden,
       speech_contextual_registers: form.speech_contextual_registers,
     });
+  const speechContextualTotal = speechContextualCharCount(
+    form.speech_contextual_registers,
+  );
 
   const createRequirements = useMemo(
     () => ({
@@ -547,12 +550,26 @@ export default function CreateCharacter({
   }
 
   function updateSpeechRegister(index: number, patch: Partial<SpeechContextualRegister>) {
-    setForm((f) => ({
-      ...f,
-      speech_contextual_registers: f.speech_contextual_registers.map((register, i) =>
+    setForm((f) => {
+      const nextRegisters = f.speech_contextual_registers.map((register, i) =>
         i === index ? { ...register, ...patch } : register,
-      ),
-    }));
+      );
+      let overflow =
+        speechContextualCharCount(nextRegisters) - SPEECH_CONTEXTUAL_LIMIT;
+      if (overflow <= 0) {
+        return { ...f, speech_contextual_registers: nextRegisters };
+      }
+      const merged = { ...nextRegisters[index]! };
+      for (const key of ["examples", "style", "condition", "label"] as const) {
+        if (!(key in patch) || typeof merged[key] !== "string" || overflow <= 0) continue;
+        const value = merged[key];
+        const trimmed = value.slice(0, Math.max(0, value.length - overflow));
+        overflow -= value.length - trimmed.length;
+        merged[key] = trimmed;
+      }
+      nextRegisters[index] = merged;
+      return { ...f, speech_contextual_registers: nextRegisters };
+    });
   }
 
   function removeSpeechRegister(index: number) {
@@ -591,7 +608,7 @@ export default function CreateCharacter({
     }
     if (!promptUnchangedForEdit && aiLearningTotal < AI_LEARNING_MIN) {
       setError(
-        `말투 설정 + 세계관 + 캐릭터 설정은 합쳐서 ${AI_LEARNING_MIN.toLocaleString()}자 이상 작성해 주세요.`,
+        `세계관 + 캐릭터 설정 + 기본 말투는 합쳐서 ${AI_LEARNING_MIN.toLocaleString()}자 이상 작성해 주세요.`,
       );
       return;
     }
@@ -609,7 +626,25 @@ export default function CreateCharacter({
     }
     if (!promptUnchangedForEdit && aiLearningTotal > AI_LEARNING_LIMIT) {
       setError(
-        `세계관/배경 + 캐릭터 설정 + 말투 설정은 합쳐서 ${AI_LEARNING_LIMIT.toLocaleString()}자 이하여야 합니다.`,
+        `세계관/배경 + 캐릭터 설정 + 기본 말투는 합쳐서 ${AI_LEARNING_LIMIT.toLocaleString()}자 이하여야 합니다.`,
+      );
+      return;
+    }
+    if (form.speech_examples.length > SPEECH_EXAMPLES_LIMIT) {
+      setError(
+        `캐릭터 대사 예시는 ${SPEECH_EXAMPLES_LIMIT.toLocaleString()}자 이하여야 합니다.`,
+      );
+      return;
+    }
+    if (speechContextualTotal > SPEECH_CONTEXTUAL_LIMIT) {
+      setError(
+        `상황별 말투는 합쳐서 ${SPEECH_CONTEXTUAL_LIMIT.toLocaleString()}자 이하여야 합니다.`,
+      );
+      return;
+    }
+    if (form.speech_forbidden.length > SPEECH_FORBIDDEN_LIMIT) {
+      setError(
+        `금지 말투는 ${SPEECH_FORBIDDEN_LIMIT.toLocaleString()}자 이하여야 합니다.`,
       );
       return;
     }
@@ -621,16 +656,12 @@ export default function CreateCharacter({
     }
     if (files.length > 0) {
       setError(
-        "선택한 이미지를 먼저 「업로드 · 태깅」을 실행한 뒤, 노출·대화 설정을 확인해 주세요.",
+        "선택한 이미지를 먼저 「업로드 · 태깅」을 실행한 뒤, 가리기 설정을 확인해 주세요.",
       );
       return;
     }
     if (assets.length === 0) {
       setError("감정 에셋 이미지를 1장 이상 업로드해 주세요.");
-      return;
-    }
-    if (assets.length > 0 && !assets.some((a) => a.public !== false)) {
-      setError("노출할 이미지를 1장 이상 선택해 주세요.");
       return;
     }
     setLoading(true);
@@ -777,8 +808,8 @@ export default function CreateCharacter({
                     홈·목록 노출 정보
                   </h2>
                   <p className="mt-0.5 text-xs text-zinc-400">
-                    홈 화면 카드에 표시 · 대표 이미지는 아래 감정 에셋 중 「노출
-                    ON」 1번
+                    홈 화면 카드에 표시 · 대표 이미지는 아래 감정 에셋{" "}
+                    <span className="text-zinc-300">1번(메인)</span>
                   </p>
                 </div>
                 <VisibilityBadge kind="public" />
@@ -956,26 +987,37 @@ export default function CreateCharacter({
                   </p>
                 </div>
                 <div>
-                  <label className={label}>
-                    <span className="text-zinc-400">[권장]</span> 캐릭터 대사 예시{" "}
-                    <span className="font-normal text-zinc-400">
-                      (많을수록 좋음)
-                    </span>
-                  </label>
+                  <div className="mb-1 flex items-baseline justify-between gap-2">
+                    <label className={label}>
+                      <span className="text-zinc-400">[권장]</span> 캐릭터 대사 예시
+                    </label>
+                    <Counter
+                      now={form.speech_examples.length}
+                      max={SPEECH_EXAMPLES_LIMIT}
+                    />
+                  </div>
                   <textarea
                     rows={8}
                     className={cls}
+                    maxLength={SPEECH_EXAMPLES_LIMIT}
                     placeholder={
                       '어, 벌써 왔어? 기다리다 졸 뻔했는데.\n그건… 솔직히 나도 잘 모르겠어. 그냥 느낌이 그랬어.\n"오늘은 좀 일찍 자야겠다. 내일 아침에 일 있거든."\n뭐, 그렇게까지 생각할 일까지야?'
                     }
                     value={form.speech_examples}
                     onChange={(e) =>
-                      setForm({ ...form, speech_examples: e.target.value })
+                      setForm({
+                        ...form,
+                        speech_examples: e.target.value.slice(
+                          0,
+                          SPEECH_EXAMPLES_LIMIT,
+                        ),
+                      })
                     }
                   />
                   <p className="mt-1 text-xs text-zinc-400">
                     캐릭터 대사만 한 줄씩 · 유저 대사 불필요 · 따옴표 있어도
-                    없어도 됩니다
+                    없어도 됩니다 · 10,000자 합산 제외 · 최대{" "}
+                    {SPEECH_EXAMPLES_LIMIT.toLocaleString()}자
                   </p>
                 </div>
                 <div className="space-y-3 rounded-xl border border-white/10 bg-black/10 p-3">
@@ -986,16 +1028,24 @@ export default function CreateCharacter({
                       </h4>
                       <p className="mt-0.5 text-xs text-zinc-400">
                         공적 자리, 친밀도 상승, 적대 상황처럼 말투가 달라지는 조건을 추가합니다.
+                        · 10,000자 합산 제외 · 전체 합계 최대{" "}
+                        {SPEECH_CONTEXTUAL_LIMIT.toLocaleString()}자
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={addSpeechRegister}
-                      disabled={form.speech_contextual_registers.length >= 8}
-                      className="rounded-lg border border-violet-400/30 px-3 py-1.5 text-xs font-semibold text-zinc-100 hover:bg-violet-400/10 disabled:opacity-40"
-                    >
-                      + 상황별 말투 추가
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Counter
+                        now={speechContextualTotal}
+                        max={SPEECH_CONTEXTUAL_LIMIT}
+                      />
+                      <button
+                        type="button"
+                        onClick={addSpeechRegister}
+                        disabled={form.speech_contextual_registers.length >= 8}
+                        className="rounded-lg border border-violet-400/30 px-3 py-1.5 text-xs font-semibold text-zinc-100 hover:bg-violet-400/10 disabled:opacity-40"
+                      >
+                        + 상황별 말투 추가
+                      </button>
+                    </div>
                   </div>
 
                   {form.speech_contextual_registers.length === 0 ? (
@@ -1083,25 +1133,39 @@ export default function CreateCharacter({
                   )}
                 </div>
                 <div>
-                  <label className={label}>
-                    <span className="text-zinc-400">[선택]</span> 금지 말투
-                  </label>
+                  <div className="mb-1 flex items-baseline justify-between gap-2">
+                    <label className={label}>
+                      <span className="text-zinc-400">[선택]</span> 금지 말투
+                    </label>
+                    <Counter
+                      now={form.speech_forbidden.length}
+                      max={SPEECH_FORBIDDEN_LIMIT}
+                    />
+                  </div>
                   <textarea
                     rows={2}
                     className={cls}
+                    maxLength={SPEECH_FORBIDDEN_LIMIT}
                     placeholder="예: 입니다요, 하세요요, ㅋㅋ, 레전드, 헐, 대박, 밈, 인터넷체, 반말"
                     value={form.speech_forbidden}
                     onChange={(e) =>
-                      setForm({ ...form, speech_forbidden: e.target.value })
+                      setForm({
+                        ...form,
+                        speech_forbidden: e.target.value.slice(
+                          0,
+                          SPEECH_FORBIDDEN_LIMIT,
+                        ),
+                      })
                     }
                   />
                   <p className="mt-1 text-xs text-zinc-400">
                     쉼표·줄바꿈으로 구분 · 비우면 기본 금지 목록(혼합 존댓말·밈
-                    등)이 적용됩니다
+                    등)이 적용됩니다 · 10,000자 합산 제외 · 최대{" "}
+                    {SPEECH_FORBIDDEN_LIMIT.toLocaleString()}자
                   </p>
                 </div>
                 <p className="text-right text-xs text-zinc-400">
-                  말투 설정 + 세계관 + 캐릭터 설정 합계{" "}
+                  세계관 + 캐릭터 설정 + 기본 말투 합계{" "}
                   <span
                     className={
                       aiLearningTotal < AI_LEARNING_MIN
@@ -1113,6 +1177,10 @@ export default function CreateCharacter({
                   </span>{" "}
                   / {AI_LEARNING_LIMIT.toLocaleString()}자 · 최소{" "}
                   {AI_LEARNING_MIN.toLocaleString()}자
+                  <span className="mt-1 block text-[11px] text-zinc-500">
+                    대사 예시·상황별 말투·금지 말투는 각{" "}
+                    {SPEECH_EXAMPLES_LIMIT.toLocaleString()}자 한도(합산 제외)
+                  </span>
                 </p>
               </div>
               <div>
@@ -1182,9 +1250,10 @@ export default function CreateCharacter({
                 <br />
                 <span className="text-zinc-300">가리기</span>를 켠 이미지는
                 제작자에게만 선명하게 보이고, 다른 유저에게는 블러 처리됩니다.
-                새로 올린 이미지는{" "}
-                <strong className="text-zinc-400">첫 번째만</strong> 공개·
-                비가림, 나머지는 노출 OFF·가림 ON이 기본입니다.
+                올린 이미지는 모두 소개·대화에 쓰이며,{" "}
+                <strong className="text-zinc-400">1번</strong>이 카드 대표
+                이미지입니다. 새로 올린 장은 첫 번째만 비가림, 나머지는 가림
+                ON이 기본입니다.
               </p>
               <input
                 ref={fileRef}
@@ -1212,8 +1281,8 @@ export default function CreateCharacter({
               {files.length > 0 && (
                 <div className="space-y-2">
                   <p className="text-xs text-zinc-400">
-                    {files.length}장 선택됨 · 「업로드 · 태깅」 후 노출·대화
-                    ON/OFF와 순서를 설정할 수 있습니다.
+                    {files.length}장 선택됨 · 「업로드 · 태깅」 후 가리기·순서를
+                    설정할 수 있습니다.
                   </p>
                   <button
                     type="button"
@@ -1590,8 +1659,8 @@ export default function CreateCharacter({
                     }
                   >
                     {createRequirements.hasMinAiText ? "✓" : "○"}{" "}
-                    말투·세계관·소개 합계 {AI_LEARNING_MIN.toLocaleString()}자
-                    이상
+                    세계관·캐릭터 설정·기본 말투 합계{" "}
+                    {AI_LEARNING_MIN.toLocaleString()}자 이상
                     {!createRequirements.hasMinAiText
                       ? ` (현재 ${aiLearningTotal.toLocaleString()}자)`
                       : ""}

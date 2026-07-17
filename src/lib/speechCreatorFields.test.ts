@@ -24,4 +24,62 @@ describe("speechCreatorFields", () => {
     assert.match(parsed.speech_personality, /평소에는 낮고 무뚝뚝한 반말/);
     assert.equal(parsed.speech_examples, "");
   });
+
+  it("excludes examples/contextual/forbidden from AI learning char count", () => {
+    const count = speechCreatorFields.speechCreatorCharCount({
+      speech_personality: "기본",
+      speech_traits: "특징",
+      speech_examples: "a".repeat(400),
+      speech_forbidden: "b".repeat(400),
+      speech_contextual_registers: [
+        {
+          label: "공적",
+          condition: "상관 앞",
+          style: "존댓말",
+          examples: "네.",
+        },
+      ],
+    });
+    assert.equal(count, "기본".length + "특징".length);
+  });
+
+  it("rejects speech detail fields over 500 chars", () => {
+    assert.match(
+      speechCreatorFields.validateSpeechCreatorInput({
+        speech_personality: "",
+        speech_traits: "",
+        speech_examples: "x".repeat(501),
+        speech_forbidden: "",
+        speech_contextual_registers: [],
+      }) ?? "",
+      /대사 예시/
+    );
+    assert.match(
+      speechCreatorFields.validateSpeechCreatorInput({
+        speech_personality: "",
+        speech_traits: "",
+        speech_examples: "",
+        speech_forbidden: "y".repeat(501),
+        speech_contextual_registers: [],
+      }) ?? "",
+      /금지 말투/
+    );
+    assert.match(
+      speechCreatorFields.validateSpeechCreatorInput({
+        speech_personality: "",
+        speech_traits: "",
+        speech_examples: "",
+        speech_forbidden: "",
+        speech_contextual_registers: [
+          {
+            label: "a".repeat(100),
+            condition: "b".repeat(160),
+            style: "c".repeat(240),
+            examples: "d".repeat(100),
+          },
+        ],
+      }) ?? "",
+      /상황별 말투/
+    );
+  });
 });
