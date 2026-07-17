@@ -334,7 +334,11 @@ html.chat-room-active .app-shell {
   overflow-anchor: none;
 }
 
-/* 채팅방(모바일): 글로벌 헤더·하단 네비 숨김, 셸 패딩 축소 → 채팅 영역 최대화 */
+/* 채팅방: 글로벌 헤더·하단 네비 숨김, 셸 패딩 축소 → 채팅 영역 최대화 */
+html.chat-room-active .mobile-bottom-nav {
+  display: none;
+}
+
 @media (min-width: 768px) {
   html.chat-room-active .app-shell {
     max-width: none;

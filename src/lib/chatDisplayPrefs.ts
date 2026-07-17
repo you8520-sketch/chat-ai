@@ -280,9 +280,13 @@ export const CHAT_PORTRAIT_STICKY_CLASS =
 /** @deprecated CHAT_PORTRAIT_PANEL_HEIGHT + 인라인 height 사용 */
 export const CHAT_PORTRAIT_VIEWPORT_MIN_H_CLASS = "";
 
-/** 채팅 본문 열 — 이미지와 같은 시작 높이 */
+/**
+ * 채팅 본문 열 — 이미지와 같은 시작 높이.
+ * Mobile must NOT use overflow-hidden/auto: that creates a sticky containing block
+ * so the composer scrolls away with the message list. Clip X only if needed.
+ */
 export const CHAT_MESSAGES_COLUMN_CLASS =
-  "relative col-start-1 row-start-1 flex min-w-0 flex-col overflow-hidden sm:col-start-2 sm:row-start-2 sm:overflow-visible";
+  "relative col-start-1 row-start-1 flex min-w-0 flex-col overflow-x-clip sm:col-start-2 sm:row-start-2";
 
 /** Mobile portrait background is pinned to the stable viewport, never the growing message list. */
 export const CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS =
@@ -304,9 +308,9 @@ export const CHAT_MESSAGES_BODY_NO_PORTRAIT_CLASS =
 export const CHAT_MESSAGES_LIST_NO_PORTRAIT_CLASS =
   "min-w-0 space-y-1 pb-12 sm:pb-0";
 
-/** 초상 OFF — 입력창 (본문과 간격 최소) */
+/** 초상 OFF — 입력창 (본문과 간격 최소). 채팅방에서는 하단 네비 숨김 → bottom-0. */
 export const CHAT_INPUT_DOCK_NO_PORTRAIT_CLASS =
-  "sticky bottom-12 z-10 shrink-0 border-t border-white/5 bg-[#121212]/95 px-2 pt-0 pb-1.5 backdrop-blur sm:-mt-1 sm:bottom-0 sm:px-0";
+  "sticky bottom-0 z-20 shrink-0 border-t border-white/5 bg-[#121212]/95 px-2 pt-0 pb-[max(0.375rem,env(safe-area-inset-bottom))] backdrop-blur sm:-mt-1 sm:px-0 sm:pb-1.5";
 
 /** @deprecated 초상 그리드 레이아웃에서 미사용 */
 export const CHAT_CONTENT_ROW_TOP_PAD_CLASS = "";
