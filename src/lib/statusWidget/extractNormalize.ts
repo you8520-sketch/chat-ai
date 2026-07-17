@@ -211,3 +211,60 @@ export function extractJsonObjectFromWidgetText(text: string): Record<string, un
     return null;
   }
 }
+
+/**
+ * Slim repair/fallback prompt — required keys + current RP + previous canonical
+ * field values (anchor only). No identity, examples, or previous assistant prose.
+ */
+export function buildWidgetExtractRepairSystem(keys: string[]): string {
+  const keyList = keys.map((k) => `"${k}"`).join(", ");
+  return `Extract status widget field values as JSON only. No prose, no markdown fences.
+Return one JSON object with exactly these keys: ${keyList}
+Korean values preferred when the scene is Korean.
+Never use placeholders like "<scene value>", "…", "...", or "—".
+Calendar/clock/season/weather must be concrete values — never unknown/알 수 없음/미상/모름/N/A.
+Do not add extra keys.
+
+Fill priority (highest first):
+1. Explicit values in the current ASSISTANT RP / user message
+2. Field initialValue when the widget defines one
+3. [PREVIOUS CANONICAL WIDGET VALUES] as continuity anchor — keep if no time/place change; advance date/clock/season/weather together when prose advances time
+4. First-fill reasonable inference when no prior anchor exists
+Previous values are anchors only — never paste them as-is when current RP explicitly changed the scene.`;
+}
+
+/** Refined previous field values for repair/fallback (no previous prose dump). */
+export function formatPreviousCanonicalWidgetValuesForRepair(
+  values: StatusWidgetValues | null | undefined,
+  widget?: StatusWidget | null
+): string {
+  if (!values || Object.keys(values).length === 0) {
+    return "[PREVIOUS CANONICAL WIDGET VALUES]\n(none)";
+  }
+  const lines = Object.entries(values)
+    .filter(
+      ([k, v]) =>
+        Boolean(v?.trim()) &&
+        !isWidgetPlaceholderValue(v) &&
+        !shouldOmitUnknownLikePreviousValue(k, v, widget)
+    )
+    .map(([k, v]) => `- ${k}: ${v.trim()}`);
+  return `[PREVIOUS CANONICAL WIDGET VALUES]\n${
+    lines.length > 0 ? lines.join("\n") : "(none)"
+  }`;
+}
+
+export function buildWidgetExtractRepairUserBlock(opts: {
+  keys: string[];
+  assistantProse: string;
+  previousValues?: StatusWidgetValues | null;
+  widget?: StatusWidget | null;
+}): string {
+  const keyLines = opts.keys.map((k) => `- ${k}`).join("\n");
+  const prose = opts.assistantProse.trim().slice(0, 12_000);
+  return [
+    formatPreviousCanonicalWidgetValuesForRepair(opts.previousValues, opts.widget),
+    `[REQUIRED FIELD IDS]\n${keyLines}`,
+    `[ASSISTANT RP]\n${prose || "(empty)"}`,
+  ].join("\n\n");
+}
