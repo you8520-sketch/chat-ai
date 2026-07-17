@@ -19,8 +19,6 @@ export type StatusWidgetReasonCode =
   | "V3_INITIAL_EMPTY"
   | "V3_REPAIR_USED"
   | "V3_REPAIR_FAILED"
-  | "FALLBACK_MODEL_USED"
-  | "FALLBACK_MODEL_FAILED"
   | "STATUS_WIDGET_EXTRACT_EXHAUSTED"
   | "KEY_MAPPING_MISMATCH"
   | "MISSING_REQUIRED_KEYS"
@@ -76,7 +74,7 @@ export type StatusWidgetLiveTracePhase =
   | "api_hydration"
   | "render_diagnostics";
 
-export type StatusWidgetExtractStage = "initial" | "repair" | "fallback";
+export type StatusWidgetExtractStage = "initial" | "repair";
 
 export type StatusWidgetLiveTraceEvent = {
   requestId?: string | null;

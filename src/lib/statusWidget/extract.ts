@@ -10,8 +10,10 @@ import {
   buildWidgetExtractRepairUserBlock,
   buildWidgetExtractSystem,
   buildWidgetExtractUserBlock,
+  dropRepairEchoFields,
   extractJsonObjectFromWidgetText,
   normalizeWidgetExtraction,
+  resolveRepairMaxTokens,
 } from "./extractNormalize";
 import { mergeStatusWidgetExtractUsages } from "./receiptUsage";
 import { mergeExtractedFacts, sanitizeExtractedFacts } from "./extractedFacts";
@@ -27,8 +29,6 @@ import type {
   StatusWidget,
   StatusWidgetValues,
 } from "./types";
-
-const REPAIR_MAX_TOKENS = 256;
 
 export type StatusWidgetExtractCaller = (
   system: string,
@@ -54,6 +54,8 @@ export type StatusWidgetSourceExtractMeta = {
     inputTokens: number;
     outputTokens: number;
   }>;
+  echoDroppedKeys: string[];
+  repairMaxTokens: number | null;
 };
 
 export type StatusWidgetTurnExtractMeta = {
@@ -61,44 +63,15 @@ export type StatusWidgetTurnExtractMeta = {
   user: StatusWidgetSourceExtractMeta | null;
   totalCallCount: number;
   usedRepair: boolean;
-  usedFallback: boolean;
   exhausted: boolean;
   mergedInputTokens: number;
   mergedOutputTokens: number;
 };
 
-/**
- * STATUS_WIDGET_FALLBACK_MODEL — explicit opt-in only:
- * - undefined / unset → OFF
- * - empty/whitespace → OFF
- * - non-empty model id → ON
- */
-export function resolveStatusWidgetFallbackModel(env: NodeJS.ProcessEnv = process.env): string | null {
-  if (!Object.prototype.hasOwnProperty.call(env, "STATUS_WIDGET_FALLBACK_MODEL")) {
-    return null;
-  }
-  const raw = env.STATUS_WIDGET_FALLBACK_MODEL;
-  if (raw == null) return null;
-  const trimmed = String(raw).trim();
-  return trimmed ? trimmed : null;
-}
-
-/** Skip cross-model fallback when configured model equals the primary extract model. */
-export function resolveEffectiveStatusWidgetFallbackModel(
-  primaryModelId: string,
-  fallbackModelId: string | null | undefined
-): string | null {
-  const fb = fallbackModelId?.trim() || null;
-  if (!fb) return null;
-  if (fb.toLowerCase() === primaryModelId.trim().toLowerCase()) return null;
-  return fb;
-}
-
 const defaultExtractCaller: StatusWidgetExtractCaller = async (system, history, opts) =>
   callBackgroundMemory(system, history, undefined, opts.requestKind, {
     maxTokens: opts.maxTokens,
     temperature: opts.temperature,
-    modelId: opts.modelId,
   });
 
 type AttemptOutcome = {
@@ -114,6 +87,7 @@ type AttemptOutcome = {
   stage: StatusWidgetExtractStage;
   attemptIndex: number;
   latencyMs: number;
+  echoDroppedKeys: string[];
 };
 
 function usableNormalizedKeys(values: StatusWidgetValues | null): string[] {
@@ -139,6 +113,22 @@ function pushUsage(
   }
 }
 
+function shouldEmitExtractAttemptLog(opts: {
+  stage: StatusWidgetExtractStage;
+  succeeded: boolean;
+  reasonCode: StatusWidgetReasonCode;
+  env?: NodeJS.ProcessEnv;
+}): boolean {
+  const env = opts.env ?? process.env;
+  const verbose =
+    env.STATUS_WIDGET_TRACE_ENABLED === "1" || env.STATUS_WIDGET_EXTRACT_METRICS === "1";
+  if (opts.stage === "repair") return true;
+  if (opts.reasonCode === "STATUS_WIDGET_EXTRACT_EXHAUSTED") return true;
+  if (opts.stage === "initial" && !opts.succeeded) return true;
+  if (opts.stage === "initial" && opts.succeeded) return verbose;
+  return verbose;
+}
+
 function logExtractAttempt(event: {
   trace?: { requestId?: string | null; chatId?: number | null; messageId?: number | null };
   source: "character" | "user";
@@ -152,6 +142,8 @@ function logExtractAttempt(event: {
   usage: TokenUsage | null;
   latencyMs: number;
   succeeded: boolean;
+  echoDroppedKeys?: string[];
+  env?: NodeJS.ProcessEnv;
 }): void {
   logStatusWidgetLiveTrace({
     ...event.trace,
@@ -172,7 +164,17 @@ function logExtractAttempt(event: {
     reasonCode: event.reasonCode,
   });
 
-  // Always emit compact extract metrics (no prompt/RP prose).
+  if (
+    !shouldEmitExtractAttemptLog({
+      stage: event.stage,
+      succeeded: event.succeeded,
+      reasonCode: event.reasonCode,
+      env: event.env,
+    })
+  ) {
+    return;
+  }
+
   console.info(
     "[StatusWidgetExtractAttempt]",
     JSON.stringify({
@@ -184,6 +186,7 @@ function logExtractAttempt(event: {
       jsonFound: event.jsonFound,
       normalizedKeys: event.normalizedKeys,
       reasonCode: event.reasonCode,
+      echoDroppedKeys: event.echoDroppedKeys ?? [],
       inputTokens: event.usage?.inputTokens ?? null,
       outputTokens: event.usage?.outputTokens ?? null,
       latencyMs: event.latencyMs,
@@ -206,8 +209,10 @@ async function runExtractAttempt(opts: {
   requestKind: string;
   maxTokens?: number;
   temperature?: number;
+  applyEchoFilter: boolean;
   caller: StatusWidgetExtractCaller;
   trace?: { requestId?: string | null; chatId?: number | null; messageId?: number | null };
+  env?: NodeJS.ProcessEnv;
 }): Promise<AttemptOutcome> {
   const started = Date.now();
   try {
@@ -225,12 +230,7 @@ async function runExtractAttempt(opts: {
         values: null,
         facts: [],
         usage,
-        reasonCode:
-          opts.stage === "initial"
-            ? "V3_INITIAL_EMPTY"
-            : opts.stage === "repair"
-              ? "V3_REPAIR_FAILED"
-              : "FALLBACK_MODEL_FAILED",
+        reasonCode: opts.stage === "initial" ? "V3_INITIAL_EMPTY" : "V3_REPAIR_FAILED",
         textLength,
         jsonFound: false,
         normalizedKeys: [],
@@ -238,8 +238,15 @@ async function runExtractAttempt(opts: {
         stage: opts.stage,
         attemptIndex: opts.attemptIndex,
         latencyMs,
+        echoDroppedKeys: [],
       };
-      logExtractAttempt({ ...outcome, trace: opts.trace, source: opts.source, succeeded: false });
+      logExtractAttempt({
+        ...outcome,
+        trace: opts.trace,
+        source: opts.source,
+        succeeded: false,
+        env: opts.env,
+      });
       return outcome;
     }
 
@@ -250,12 +257,7 @@ async function runExtractAttempt(opts: {
         values: null,
         facts: [],
         usage,
-        reasonCode:
-          opts.stage === "initial"
-            ? "V3_PARSE_FAILED"
-            : opts.stage === "repair"
-              ? "V3_REPAIR_FAILED"
-              : "FALLBACK_MODEL_FAILED",
+        reasonCode: opts.stage === "initial" ? "V3_PARSE_FAILED" : "V3_REPAIR_FAILED",
         textLength,
         jsonFound: false,
         normalizedKeys: [],
@@ -263,26 +265,35 @@ async function runExtractAttempt(opts: {
         stage: opts.stage,
         attemptIndex: opts.attemptIndex,
         latencyMs,
+        echoDroppedKeys: [],
       };
-      logExtractAttempt({ ...outcome, trace: opts.trace, source: opts.source, succeeded: false });
+      logExtractAttempt({
+        ...outcome,
+        trace: opts.trace,
+        source: opts.source,
+        succeeded: false,
+        env: opts.env,
+      });
       return outcome;
     }
 
-    const normalized = normalizeWidgetExtraction(parsed, opts.widget);
+    let normalized = normalizeWidgetExtraction(parsed, opts.widget);
+    let echoDroppedKeys: string[] = [];
+    if (opts.applyEchoFilter) {
+      const filtered = dropRepairEchoFields(normalized, opts.widget);
+      normalized = filtered.values;
+      echoDroppedKeys = filtered.droppedKeys;
+    }
     const normalizedKeys = usableNormalizedKeys(normalized);
     const ok = normalizedKeys.length > 0;
     const values = ok ? normalized : null;
     const reasonCode: StatusWidgetReasonCode = ok
       ? opts.stage === "initial"
         ? "OK"
-        : opts.stage === "repair"
-          ? "V3_REPAIR_USED"
-          : "FALLBACK_MODEL_USED"
+        : "V3_REPAIR_USED"
       : opts.stage === "initial"
         ? "V3_INITIAL_EMPTY"
-        : opts.stage === "repair"
-          ? "V3_REPAIR_FAILED"
-          : "FALLBACK_MODEL_FAILED";
+        : "V3_REPAIR_FAILED";
 
     const outcome: AttemptOutcome = {
       ok,
@@ -297,18 +308,21 @@ async function runExtractAttempt(opts: {
       stage: opts.stage,
       attemptIndex: opts.attemptIndex,
       latencyMs,
+      echoDroppedKeys,
     };
-    logExtractAttempt({ ...outcome, trace: opts.trace, source: opts.source, succeeded: ok });
+    logExtractAttempt({
+      ...outcome,
+      trace: opts.trace,
+      source: opts.source,
+      succeeded: ok,
+      env: opts.env,
+    });
     return outcome;
   } catch (e) {
     const latencyMs = Date.now() - started;
     console.error("[STATUS-WIDGET-ERROR] extract call failed", (e as Error).message);
     const reasonCode: StatusWidgetReasonCode =
-      opts.stage === "initial"
-        ? "V3_INITIAL_EMPTY"
-        : opts.stage === "repair"
-          ? "V3_REPAIR_FAILED"
-          : "FALLBACK_MODEL_FAILED";
+      opts.stage === "initial" ? "V3_INITIAL_EMPTY" : "V3_REPAIR_FAILED";
     const outcome: AttemptOutcome = {
       ok: false,
       values: null,
@@ -322,8 +336,15 @@ async function runExtractAttempt(opts: {
       stage: opts.stage,
       attemptIndex: opts.attemptIndex,
       latencyMs,
+      echoDroppedKeys: [],
     };
-    logExtractAttempt({ ...outcome, trace: opts.trace, source: opts.source, succeeded: false });
+    logExtractAttempt({
+      ...outcome,
+      trace: opts.trace,
+      source: opts.source,
+      succeeded: false,
+      env: opts.env,
+    });
     return outcome;
   }
 }
@@ -343,7 +364,6 @@ async function extractStatusWidgetValuesForWidget(opts: {
   trace?: { requestId?: string | null; chatId?: number | null; messageId?: number | null };
   caller?: StatusWidgetExtractCaller;
   primaryModelId?: string;
-  fallbackModelId?: string | null;
   env?: NodeJS.ProcessEnv;
 }): Promise<{
   values: StatusWidgetValues | null;
@@ -365,25 +385,20 @@ async function extractStatusWidgetValuesForWidget(opts: {
         finalReasonCode: "STATUS_WIDGET_NOT_CONFIGURED",
         models: [],
         attemptUsages: [],
+        echoDroppedKeys: [],
+        repairMaxTokens: null,
       },
     };
   }
 
   const caller = opts.caller ?? defaultExtractCaller;
   const primaryModelId = opts.primaryModelId?.trim() || BACKGROUND_OPENROUTER_MODEL;
-  const configuredFallback =
-    opts.fallbackModelId !== undefined
-      ? opts.fallbackModelId?.trim() || null
-      : resolveStatusWidgetFallbackModel(opts.env ?? process.env);
-  const fallbackModelId = resolveEffectiveStatusWidgetFallbackModel(
-    primaryModelId,
-    configuredFallback
-  );
-
   const usages: TokenUsage[] = [];
   const stages: StatusWidgetExtractStage[] = [];
   const models: string[] = [];
   const attemptUsages: StatusWidgetSourceExtractMeta["attemptUsages"] = [];
+  let echoDroppedKeys: string[] = [];
+  const repairMaxTokens = resolveRepairMaxTokens(opts.widget, keys);
 
   const system = buildWidgetExtractSystem(opts.widget, keys, opts.source);
   const userBlock = buildWidgetExtractUserBlock(opts);
@@ -397,8 +412,10 @@ async function extractStatusWidgetValuesForWidget(opts: {
     attemptIndex: 1,
     modelId: primaryModelId,
     requestKind: "background-status-widget-extract",
+    applyEchoFilter: false,
     caller,
     trace: opts.trace,
+    env: opts.env,
   });
   stages.push("initial");
   models.push(primaryModelId);
@@ -416,17 +433,22 @@ async function extractStatusWidgetValuesForWidget(opts: {
         finalReasonCode: "OK",
         models,
         attemptUsages,
+        echoDroppedKeys: [],
+        repairMaxTokens,
       },
     };
   }
 
-  // Same-model repair once — slim prompt + previous canonical anchor, temp 0.
-  const repairSystem = buildWidgetExtractRepairSystem(keys);
+  const repairSystem = buildWidgetExtractRepairSystem(keys, opts.source);
   const repairUser = buildWidgetExtractRepairUserBlock({
     keys,
     assistantProse: opts.assistantProse,
     previousValues: opts.previousValues,
     widget: opts.widget,
+    source: opts.source,
+    charName: opts.charName,
+    personaName: opts.personaName,
+    userMessage: opts.userMessage,
   });
   const repair = await runExtractAttempt({
     system: repairSystem,
@@ -437,14 +459,17 @@ async function extractStatusWidgetValuesForWidget(opts: {
     attemptIndex: 2,
     modelId: primaryModelId,
     requestKind: "background-status-widget-extract-repair",
-    maxTokens: REPAIR_MAX_TOKENS,
+    maxTokens: repairMaxTokens,
     temperature: 0,
+    applyEchoFilter: true,
     caller,
     trace: opts.trace,
+    env: opts.env,
   });
   stages.push("repair");
   models.push(primaryModelId);
   pushUsage(usages, attemptUsages, repair);
+  echoDroppedKeys = repair.echoDroppedKeys;
   if (repair.ok) {
     return {
       values: repair.values,
@@ -458,61 +483,12 @@ async function extractStatusWidgetValuesForWidget(opts: {
         finalReasonCode: "V3_REPAIR_USED",
         models,
         attemptUsages,
+        echoDroppedKeys,
+        repairMaxTokens,
       },
     };
   }
 
-  if (fallbackModelId) {
-    const fallback = await runExtractAttempt({
-      system: repairSystem,
-      userBlock: repairUser,
-      widget: opts.widget,
-      source: opts.source,
-      stage: "fallback",
-      attemptIndex: 3,
-      modelId: fallbackModelId,
-      requestKind: "background-status-widget-extract-fallback",
-      maxTokens: REPAIR_MAX_TOKENS,
-      temperature: 0,
-      caller,
-      trace: opts.trace,
-    });
-    stages.push("fallback");
-    models.push(fallbackModelId);
-    pushUsage(usages, attemptUsages, fallback);
-    if (fallback.ok) {
-      return {
-        values: fallback.values,
-        facts: fallback.facts,
-        usage: mergeStatusWidgetExtractUsages(usages),
-        meta: {
-          source: opts.source,
-          callCount: 3,
-          stages,
-          finalStage: "fallback",
-          finalReasonCode: "FALLBACK_MODEL_USED",
-          models,
-          attemptUsages,
-        },
-      };
-    }
-    return {
-      values: null,
-      facts: [],
-      usage: mergeStatusWidgetExtractUsages(usages),
-      meta: {
-        source: opts.source,
-        callCount: 3,
-        stages,
-        finalStage: "fallback",
-        finalReasonCode: "STATUS_WIDGET_EXTRACT_EXHAUSTED",
-        models,
-        attemptUsages,
-      },
-    };
-  }
-
-  // No distinct fallback model (unset, empty, or same as primary) → exhausted after repair.
   return {
     values: null,
     facts: [],
@@ -525,6 +501,8 @@ async function extractStatusWidgetValuesForWidget(opts: {
       finalReasonCode: "STATUS_WIDGET_EXTRACT_EXHAUSTED",
       models,
       attemptUsages,
+      echoDroppedKeys,
+      repairMaxTokens,
     },
   };
 }
@@ -544,7 +522,6 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   /** Test seam — defaults to callBackgroundMemory */
   caller?: StatusWidgetExtractCaller;
   primaryModelId?: string;
-  fallbackModelId?: string | null;
   env?: NodeJS.ProcessEnv;
 }): Promise<{
   values: ParsedStatusWidgetTurnValues;
@@ -557,7 +534,6 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   let characterMeta: StatusWidgetSourceExtractMeta | null = null;
   let userMeta: StatusWidgetSourceExtractMeta | null = null;
 
-  // Per-source sequential extract: only retry the failing source.
   if (opts.resolved.needsCharacterValues && opts.resolved.characterWidget) {
     const character = await extractStatusWidgetValuesForWidget({
       charName: opts.charName,
@@ -574,7 +550,6 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       trace: opts.trace,
       caller: opts.caller,
       primaryModelId: opts.primaryModelId,
-      fallbackModelId: opts.fallbackModelId,
       env: opts.env,
     });
     out.character = character.values;
@@ -599,7 +574,6 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       trace: opts.trace,
       caller: opts.caller,
       primaryModelId: opts.primaryModelId,
-      fallbackModelId: opts.fallbackModelId,
       env: opts.env,
     });
     out.user = user.values;
@@ -608,7 +582,6 @@ export async function extractStatusWidgetValuesForTurn(opts: {
     userMeta = user.meta;
   }
 
-  // Final merge/dedupe once across sources.
   let mergedFacts: ExtractedStatusFact[] | undefined;
   for (const batch of factBatches) {
     mergedFacts = mergeExtractedFacts(mergedFacts, batch);
@@ -618,9 +591,6 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   const totalCallCount = (characterMeta?.callCount ?? 0) + (userMeta?.callCount ?? 0);
   const usedRepair =
     characterMeta?.stages.includes("repair") === true || userMeta?.stages.includes("repair") === true;
-  const usedFallback =
-    characterMeta?.stages.includes("fallback") === true ||
-    userMeta?.stages.includes("fallback") === true;
   const exhausted =
     characterMeta?.finalReasonCode === "STATUS_WIDGET_EXTRACT_EXHAUSTED" ||
     userMeta?.finalReasonCode === "STATUS_WIDGET_EXTRACT_EXHAUSTED";
@@ -634,7 +604,6 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       user: userMeta,
       totalCallCount,
       usedRepair,
-      usedFallback,
       exhausted,
       mergedInputTokens: mergedUsage?.inputTokens ?? 0,
       mergedOutputTokens: mergedUsage?.outputTokens ?? 0,

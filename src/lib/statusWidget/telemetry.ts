@@ -39,7 +39,6 @@ export type StatusWidgetParserMode = "standard" | "deepseek";
 export type StatusWidgetResolutionSource =
   | "v3_extract"
   | "v3_repair"
-  | "fallback_model"
   | "stream_capture"
   | "split_saved"
   | "split_raw"
@@ -339,11 +338,9 @@ export async function resolveStatusWidgetTurnValues(
       });
       const extractMeta = v3Result.meta;
       const normalizeReason = normalizedDiag.hasUsableValues
-        ? extractMeta.usedFallback
-          ? "FALLBACK_MODEL_USED"
-          : extractMeta.usedRepair
-            ? "V3_REPAIR_USED"
-            : "OK"
+        ? extractMeta.usedRepair
+          ? "V3_REPAIR_USED"
+          : "OK"
         : extractMeta.exhausted
           ? "STATUS_WIDGET_EXTRACT_EXHAUSTED"
           : v3Diag.actualKeys.length > 0
@@ -365,11 +362,7 @@ export async function resolveStatusWidgetTurnValues(
       if (statusWidgetValuesHasContent(normalizedExtractValues)) {
         v3ExtractSuccess = true;
         valuesPayload = normalizedExtractValues;
-        resolutionSource = extractMeta.usedFallback
-          ? "fallback_model"
-          : extractMeta.usedRepair
-            ? "v3_repair"
-            : "v3_extract";
+        resolutionSource = extractMeta.usedRepair ? "v3_repair" : "v3_extract";
       }
     } catch (e) {
       console.warn("[status-widget] V3 extract failed", (e as Error).message);
@@ -407,11 +400,8 @@ export async function resolveStatusWidgetTurnValues(
     missingKeys: finalHasContent ? missingKeys : expectedKeys,
     extractedFactsRawCount: Array.isArray(extractedFactsRaw) ? extractedFactsRaw.length : 0,
     extractedFactsValidCount: extractedFactsValid.length,
-    v3Used:
-      resolutionSource === "v3_extract" ||
-      resolutionSource === "v3_repair" ||
-      resolutionSource === "fallback_model",
-    fallbackUsed: resolutionSource === "split_raw" || resolutionSource === "fallback_model",
+    v3Used: resolutionSource === "v3_extract" || resolutionSource === "v3_repair",
+    fallbackUsed: resolutionSource === "split_raw",
     parseError: splitRawParseError,
   });
   const corruptBeforeExtract = statusWidgetValuesAreCorrupt(valuesPayload);

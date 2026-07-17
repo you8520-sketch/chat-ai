@@ -282,15 +282,15 @@ export function* chunkText(text: string, size = 24): Generator<string> {
   }
 }
 
-/** 백그라운드 기억·요약·압축 — OpenRouter DeepSeek V3 (opts.modelId로 모델 오버라이드 가능) */
+/** 백그라운드 기억·요약·압축 — OpenRouter DeepSeek V3 */
 export async function callBackgroundMemory(
   system: string,
   history: ChatMsg[],
   _turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace,
   requestKind = "background-memory-extract",
-  opts?: { maxTokens?: number; temperature?: number; modelId?: string }
+  opts?: { maxTokens?: number; temperature?: number }
 ): Promise<{ text: string; usage: TokenUsage }> {
-  return callGeminiOnce(system, history, opts?.modelId?.trim() || BACKGROUND_OPENROUTER_MODEL, {
+  return callGeminiOnce(system, history, BACKGROUND_OPENROUTER_MODEL, {
     requestKind,
     maxTokens: opts?.maxTokens ?? resolveBackgroundMaxOutputTokens(requestKind),
     temperature: opts?.temperature,

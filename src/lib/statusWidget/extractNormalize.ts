@@ -212,12 +212,108 @@ export function extractJsonObjectFromWidgetText(text: string): Record<string, un
   }
 }
 
+export const REPAIR_PROSE_CHAR_BUDGET = 12_000;
+
+/** Prefer the final scene: keep the last N chars when prose exceeds budget. */
+export function sliceAssistantProseForRepair(
+  prose: string,
+  budget = REPAIR_PROSE_CHAR_BUDGET
+): string {
+  const t = prose.trim();
+  if (t.length <= budget) return t;
+  return t.slice(-budget);
+}
+
+export function looksLikeInnerStateField(field: StatusWidgetField): boolean {
+  const blob = `${field.id} ${field.label} ${field.instruction}`.toLowerCase();
+  return /속마음|의식|내면|감정|thought|inner|monologue|feeling|mood/.test(blob);
+}
+
+/** Instruction-named subject wins; otherwise default to extract source. */
+export function defaultSubjectForRepairField(
+  field: StatusWidgetField,
+  source: "character" | "user"
+): "character" | "user" {
+  const instr = field.instruction;
+  if (/NPC의|캐릭터의|\[CHARACTER\]/i.test(instr)) return "character";
+  if (/유저의|\[USER\]/i.test(instr)) return "user";
+  return source;
+}
+
+export function resolveRepairMaxTokens(widget: StatusWidget, keys: string[]): number {
+  const fieldCount = Math.max(keys.length, widget.fields.length);
+  let freeTextHeavy = 0;
+  for (const field of widget.fields) {
+    if (looksLikeInnerStateField(field) || /자유|서술|문장|흐름/.test(field.instruction)) {
+      freeTextHeavy += 1;
+    }
+  }
+  const tokens = 256 + Math.max(0, fieldCount - 6) * 24 + freeTextHeavy * 40;
+  return Math.min(512, Math.max(256, Math.round(tokens)));
+}
+
+function normalizeEchoCompare(value: string): string {
+  return value.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+const REPAIR_ECHO_META_PHRASES = [
+  "NPC의 속마음",
+  "유저의 속마음",
+  "NPC의 현재 속마음",
+  "유저의 현재 속마음",
+  "NPC의 의식의 흐름",
+  "유저의 의식의 흐름",
+];
+
 /**
- * Slim repair/fallback prompt — required keys + current RP + previous canonical
- * field values (anchor only). No identity, examples, or previous assistant prose.
+ * Exact-match anti-echo for repair responses only.
+ * Drops individual echoing fields; never discards the whole source for one bad field.
  */
-export function buildWidgetExtractRepairSystem(keys: string[]): string {
+export function dropRepairEchoFields(
+  values: StatusWidgetValues,
+  widget: StatusWidget
+): { values: StatusWidgetValues; droppedKeys: string[] } {
+  const out: StatusWidgetValues = { ...values };
+  const droppedKeys: string[] = [];
+  const meta = new Set(REPAIR_ECHO_META_PHRASES.map(normalizeEchoCompare));
+
+  for (const field of widget.fields) {
+    const keys = [fieldPlaceholderKey(field), field.id?.trim(), field.label.trim()].filter(
+      Boolean
+    ) as string[];
+    const instrN = normalizeEchoCompare(field.instruction);
+    const labelN = normalizeEchoCompare(field.label);
+    const idN = normalizeEchoCompare(field.id ?? "");
+
+    for (const key of keys) {
+      const raw = out[key];
+      if (raw == null || !raw.trim()) continue;
+      const valueN = normalizeEchoCompare(raw);
+      const isEcho =
+        valueN === instrN ||
+        valueN === labelN ||
+        (idN.length > 0 && valueN === idN) ||
+        meta.has(valueN);
+      if (!isEcho) continue;
+      delete out[key];
+      if (!droppedKeys.includes(key)) droppedKeys.push(key);
+    }
+  }
+
+  return { values: out, droppedKeys };
+}
+
+/**
+ * Slim same-model repair prompt — field contract + current RP + previous canonical
+ * anchors. No long identity docs / previous assistant prose dumps.
+ */
+export function buildWidgetExtractRepairSystem(
+  keys: string[],
+  source: "character" | "user" = "character"
+): string {
   const keyList = keys.map((k) => `"${k}"`).join(", ");
+  const defaultSubject =
+    source === "character" ? "[CHARACTER] (the NPC)" : "[USER] (the user persona)";
   return `Extract status widget field values as JSON only. No prose, no markdown fences.
 Return one JSON object with exactly these keys: ${keyList}
 Korean values preferred when the scene is Korean.
@@ -225,15 +321,23 @@ Never use placeholders like "<scene value>", "…", "...", or "—".
 Calendar/clock/season/weather must be concrete values — never unknown/알 수 없음/미상/모름/N/A.
 Do not add extra keys.
 
+Return final scene values, not field instructions.
+Never copy a field label, instruction, initial-value description, "NPC의 속마음", or "유저의 속마음" as the value.
+
+Inner-state fields: each field's instruction states WHOSE inner state to write — obey it exactly.
+If the instruction does not name anyone, default to ${defaultSubject}.
+Never substitute the other person's feelings for the required person's.
+
 Fill priority (highest first):
-1. Explicit values in the current ASSISTANT RP / user message
-2. Field initialValue when the widget defines one
+1. Explicit values in the current ASSISTANT RP / CURRENT USER MESSAGE
+2. Field initialValue when the widget defines one (use the value, not the instruction text)
 3. [PREVIOUS CANONICAL WIDGET VALUES] as continuity anchor — keep if no time/place change; advance date/clock/season/weather together when prose advances time
 4. First-fill reasonable inference when no prior anchor exists
-Previous values are anchors only — never paste them as-is when current RP explicitly changed the scene.`;
+Previous values are anchors only — never paste them as-is when current RP explicitly changed the scene.
+Prefer the FINAL scene in [ASSISTANT RP — FINAL SCENE PRIORITY].`;
 }
 
-/** Refined previous field values for repair/fallback (no previous prose dump). */
+/** Refined previous field values for repair (no previous prose dump). */
 export function formatPreviousCanonicalWidgetValuesForRepair(
   values: StatusWidgetValues | null | undefined,
   widget?: StatusWidget | null
@@ -254,17 +358,47 @@ export function formatPreviousCanonicalWidgetValuesForRepair(
   }`;
 }
 
+function formatWidgetFieldContract(
+  widget: StatusWidget,
+  source: "character" | "user"
+): string {
+  const blocks = widget.fields.map((field) => {
+    const key = fieldPlaceholderKey(field);
+    const lines = [`- key: ${key}`, `  instruction: ${field.instruction.trim()}`];
+    const initial = field.initialValue?.trim();
+    if (initial) lines.push(`  initialValue: ${initial}`);
+    if (looksLikeInnerStateField(field)) {
+      lines.push(`  defaultSubject: ${defaultSubjectForRepairField(field, source)}`);
+    }
+    return lines.join("\n");
+  });
+  return `[WIDGET FIELD CONTRACT]\n${blocks.join("\n\n")}`;
+}
+
 export function buildWidgetExtractRepairUserBlock(opts: {
   keys: string[];
   assistantProse: string;
   previousValues?: StatusWidgetValues | null;
-  widget?: StatusWidget | null;
+  widget: StatusWidget;
+  source: "character" | "user";
+  charName: string;
+  personaName: string;
+  userMessage?: string | null;
 }): string {
-  const keyLines = opts.keys.map((k) => `- ${k}`).join("\n");
-  const prose = opts.assistantProse.trim().slice(0, 12_000);
+  const defaultLabel =
+    opts.source === "character"
+      ? `[CHARACTER](${opts.charName})`
+      : `[USER](${opts.personaName})`;
+  const prose = sliceAssistantProseForRepair(opts.assistantProse);
+  const userMessage = opts.userMessage?.trim() || "(empty)";
+
   return [
+    `[SOURCE]\n${opts.source}\nDefault subject: ${defaultLabel}`,
+    `[CHARACTER]\n${opts.charName}`,
+    `[USER]\n${opts.personaName}`,
+    formatWidgetFieldContract(opts.widget, opts.source),
+    `[CURRENT USER MESSAGE]\n${userMessage}`,
+    `[ASSISTANT RP — FINAL SCENE PRIORITY]\n${prose || "(empty)"}`,
     formatPreviousCanonicalWidgetValuesForRepair(opts.previousValues, opts.widget),
-    `[REQUIRED FIELD IDS]\n${keyLines}`,
-    `[ASSISTANT RP]\n${prose || "(empty)"}`,
   ].join("\n\n");
 }
