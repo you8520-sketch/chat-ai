@@ -21,7 +21,7 @@ export function formatPreviousTurnWidgetValues(
 ): string {
   if (!values || Object.keys(values).length === 0) {
     return `[PREVIOUS TURN ${source.toUpperCase()} WIDGET VALUES]
-(none — first widget fill in this chat; infer from narrative only)`;
+(none — first fill; init calendar/clock fields per rules, not "—")`;
   }
   const lines = Object.entries(values)
     .filter(([, v]) => v?.trim() && !isWidgetPlaceholderValue(v))
@@ -51,11 +51,9 @@ Rules:
 - The widget reflects the scene state at the END of this turn. If the turn contains multiple scenes or time skips (*** breaks, "다음날", "아침이 밝아" etc.), fill EVERY field from the LAST scene — never an earlier scene.
 - Fill every key with a scene-accurate value from the assistant prose and user message.
 - Never copy placeholders like "<scene value>", "…", "...", or "—" unless truly unknown.
-- For time/datetime fields, in priority order:
-  1. An explicit final time/date marker in the prose (e.g. a 📅 date line near the end, or the last scene's stated clock time like "오후 8시") ALWAYS wins.
-  2. Only when no explicit final time exists: start from [PREVIOUS TURN WIDGET VALUES] clock anchor and advance by the in-universe duration of this turn (including skips — a turn ending the next evening must NOT keep the previous night's clock).
+- Calendar/clock/season/weather: never output "—" just because prose omits them. Priority: (1) explicit prose/user (2) field instruction or initialValue (3) [PREVIOUS TURN WIDGET VALUES] canonical anchor — keep if no time passed; else advance date/clock/season/weather together from that anchor (4) first fill / missing prior clock: MUST invent one scene-consistent real value (valid date, HH:MM, season+weather), not "—". If prose advances time but prior clock is missing, invent a plausible prior then advance. Counters (days-met, D-DAY, elapsed days) follow each field's own instruction/initialValue only — do not auto-sync them to date. "—" only if still impossible after that chain. Anchor is extract-only; never paste previous values as-is.
 - For location/place fields: update when the scene moves; use the location of the LAST scene.
-- Use "—" only when there is truly no in-scene evidence for that field.
+- Use "—" only when there is truly no usable basis for that field (calendar/clock fields: follow the chain above).
 - Inner-state fields (속마음, 의식의 흐름, 감정, thoughts, inner monologue): each field's [WIDGET FIELDS] instruction states WHOSE inner state to write — obey it exactly. If the instruction says the NPC's ("NPC의 속마음" etc.), write [CHARACTER]'s inner state; if it says the user's ("유저의 속마음" etc.), write [USER]'s. If the instruction does not name anyone, default to ${defaultSubject}.
   Never substitute the other person's feelings for the required person's. If the turn's prose is written from the OTHER person's point of view and the required person does not appear on-page, do NOT copy the narrator's feelings — actively infer the required person's OWN separate reaction to what happened to THEM this turn, from their last known state.
   Example — field instruction asks for [CHARACTER]'s inner state, but the turn narrates [USER] anxiously rushing to rescue [CHARACTER] who was just sent to a dangerous frontier:
@@ -90,7 +88,11 @@ export function buildWidgetExtractUserBlock(opts: {
     formatPreviousTurnWidgetValues(opts.previousValues, opts.source),
     `[WIDGET FIELDS]`,
     opts.widget.fields
-      .map((f) => `- ${fieldPlaceholderKey(f)} (${f.label}): ${f.instruction}`)
+      .map((f) => {
+        const base = `- ${fieldPlaceholderKey(f)} (${f.label}): ${f.instruction}`;
+        const initial = f.initialValue?.trim();
+        return initial ? `${base}\n  initialValue: ${initial}` : base;
+      })
       .join("\n"),
     `[CHARACTER] ${opts.charName}`,
     opts.characterIdentity?.trim() ? `[CHARACTER IDENTITY — MUST OBEY]\n${opts.characterIdentity.trim()}` : "",

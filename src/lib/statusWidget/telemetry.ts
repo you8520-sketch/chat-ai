@@ -269,7 +269,21 @@ export async function resolveStatusWidgetTurnValues(
         contentLength: prose.length,
         contentHash: statusWidgetDiagnosticHash(prose),
       });
-      const previousValues = null;
+      // Canonical clock/state for the extract prompt only — never copy onto this
+      // message when extract returns empty (snapshot fallback stays removed).
+      const { loadPreviousStatusWidgetValues, loadPreviousAssistantProse } =
+        await import("./loadPrevious");
+      const previousValues = normalizeParsedStatusWidgetValuesForTurn(
+        loadPreviousStatusWidgetValues(input.chatId, messageId ?? undefined),
+        {
+          characterWidget: input.statusWidgetTurn.characterWidget,
+          userWidget: input.statusWidgetTurn.userWidget,
+        }
+      );
+      const previousAssistantProse = loadPreviousAssistantProse(
+        input.chatId,
+        messageId ?? undefined
+      );
       const v3Result = await extractStatusWidgetValuesForTurn({
         charName: input.charName,
         characterIdentity: input.characterIdentity,
@@ -278,6 +292,8 @@ export async function resolveStatusWidgetTurnValues(
         assistantProse: prose,
         resolved: input.statusWidgetTurn,
         previousValues,
+        previousAssistantProse,
+        userNote: input.userNote,
         trace: traceBase,
       });
       widgetExtractUsage = v3Result.usage;

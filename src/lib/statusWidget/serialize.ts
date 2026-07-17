@@ -25,10 +25,16 @@ export function parseStatusWidgetJson(raw: string | null | undefined): StatusWid
           const instruction = String(f.instruction || "").trim().slice(0, 500);
           const storedId = String(f.id || "").trim().slice(0, 64);
           const id = storedId || statusValueKeyFromLabel(label);
+          const initialValue = String(
+            (f as { initialValue?: unknown }).initialValue || ""
+          )
+            .trim()
+            .slice(0, 80);
           return {
             id,
             label,
             instruction,
+            ...(initialValue ? { initialValue } : {}),
           };
         })
         .filter((f) => f.id && f.label),
@@ -42,7 +48,12 @@ export function parseStatusWidgetJson(raw: string | null | undefined): StatusWid
 export function serializeStatusWidget(widget: StatusWidget): string {
   return JSON.stringify({
     ...widget,
-    fields: widget.fields.map(({ id, label, instruction }) => ({ id, label, instruction })),
+    fields: widget.fields.map(({ id, label, instruction, initialValue }) => ({
+      id,
+      label,
+      instruction,
+      ...(initialValue?.trim() ? { initialValue: initialValue.trim().slice(0, 80) } : {}),
+    })),
   });
 }
 
