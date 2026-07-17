@@ -60,17 +60,19 @@ export type Usage = {
   coldStartCostFloorPoints?: number;
   /** HTML 전용 턴 — DeepSeek V3, 메인 RP 모델 미사용 */
   htmlFlashOnly?: boolean;
-  /** 메인 RP OpenRouter 원가 (KRW) — 위젯 V3 분리 표시용 */
+  /** 메인 RP OpenRouter 원가 (KRW) — 상태창 추출 분리 표시용 */
   mainApiRawCostKrw?: number;
-  /** 상태창 위젯 V3 — API 원가(KRW) 올림 → P (메인 RP 과금과 별도 합산) */
+  /** 상태창 추출 — API 원가(KRW) 올림 → P (메인 RP 과금과 별도 합산) */
   widgetCostPoints?: number;
-  /** 상태창 위젯 V3 추출 — 관리자·데모 영수증 */
+  /** 상태창 추출 — 관리자·데모 영수증 */
   statusWidgetExtract?: {
     model: string;
     modelLabel: string;
     input: number;
     output: number;
     apiRawCostKrw: number;
+    /** background extract API calls this turn (1–4); absent on legacy stored receipts */
+    callCount?: number;
     upstreamCostUsd?: number;
     estimated?: boolean;
   };

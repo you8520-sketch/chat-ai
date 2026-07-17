@@ -15,6 +15,7 @@ import { sanitizeExtractedFacts } from "./extractedFacts";
 import { splitProseAndStatusWidgetValuesDeepSeek } from "./deepseekCapture";
 import { statusWidgetValuesHasContent } from "./displayPolicy";
 import type { TokenUsage } from "@/lib/ai";
+import type { StatusWidgetExtractBillingMeta } from "./receiptUsage";
 import { fieldPlaceholderKey } from "./fieldKeys";
 import {
   stripStatusWidgetFromAssistantProse,
@@ -115,6 +116,8 @@ export type ResolveStatusWidgetTurnValuesResult = {
   prose: string;
   values: ParsedStatusWidgetTurnValues | null;
   widgetExtractUsage: TokenUsage | null;
+  /** Same lifetime as widgetExtractUsage — null when background extract was not called or left no usage. */
+  widgetExtractBillingMeta: StatusWidgetExtractBillingMeta | null;
   telemetry: StatusWidgetTurnTelemetry;
 };
 
@@ -197,6 +200,7 @@ export async function resolveStatusWidgetTurnValues(
   let v3ExtractSuccess = false;
   let valuesPayload: ParsedStatusWidgetTurnValues | null = null;
   let widgetExtractUsage: TokenUsage | null = null;
+  let widgetExtractBillingMeta: StatusWidgetExtractBillingMeta | null = null;
   let resolutionSource: StatusWidgetResolutionSource = "none";
   let splitRawHit = false;
   let splitRawParseError: string | null = null;
@@ -319,7 +323,17 @@ export async function resolveStatusWidgetTurnValues(
         userNote: input.userNote,
         trace: traceBase,
       });
-      widgetExtractUsage = v3Result.usage;
+      // usage + billing meta share the same lifetime (both null or both set).
+      if (v3Result.usage && v3Result.meta.billing) {
+        widgetExtractUsage = v3Result.usage;
+        widgetExtractBillingMeta = {
+          modelId: v3Result.meta.billingModelId,
+          callCount: v3Result.meta.totalCallCount,
+        };
+      } else {
+        widgetExtractUsage = null;
+        widgetExtractBillingMeta = null;
+      }
       const normalizedExtractValues = normalizeParsedStatusWidgetValuesForTurn(v3Result.values, {
         characterWidget: input.statusWidgetTurn.characterWidget,
         userWidget: input.statusWidgetTurn.userWidget,
@@ -434,6 +448,7 @@ export async function resolveStatusWidgetTurnValues(
     prose,
     values: finalHasContent ? valuesPayload : null,
     widgetExtractUsage,
+    widgetExtractBillingMeta,
     telemetry,
   };
 }

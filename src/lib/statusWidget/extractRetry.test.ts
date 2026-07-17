@@ -23,6 +23,7 @@ import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
 import type { Usage } from "@/lib/chatUsage";
 import type { ResolvedStatusWidgetTurn, StatusWidget } from "./types";
 import type { TokenUsage } from "@/lib/ai";
+import { OPENROUTER_GEMINI_25_FLASH_MODEL } from "@/lib/chatModels";
 
 const usage = (n: number): TokenUsage => ({
   inputTokens: 10 + n,
@@ -125,6 +126,9 @@ describe("status widget empty-extract retry (V3 repair only)", () => {
     assert.equal(result.meta.exhausted, true);
     assert.equal(result.values.character, null);
     assert.equal(result.meta.totalCallCount, 2);
+    assert.ok(result.usage);
+    assert.ok(result.meta.billing);
+    assert.equal(result.meta.billing!.callCount, 2);
   });
 
   it("character success / user fail → only user repairs", async () => {
@@ -657,9 +661,22 @@ describe("extract usage merge", () => {
       apiOutputTokens: 1500,
       apiRawCostKrw: 33,
       mainApiRawCostKrw: 33,
+      apiCallCount: 1,
     };
-    const billed = applyStatusWidgetBillingCharge(base, result.usage!, exchangeRate, 48);
+    assert.ok(result.meta.billing);
+    assert.equal(result.meta.billing!.callCount, 2);
+    assert.equal(result.meta.totalCallCount, 2);
+    const billed = applyStatusWidgetBillingCharge(
+      base,
+      result.usage!,
+      exchangeRate,
+      48,
+      result.meta.billing!
+    );
     assert.equal(billed.record.statusWidgetExtract?.input, 1800);
+    assert.equal(billed.record.statusWidgetExtract?.callCount, 2);
+    assert.equal(billed.record.apiCallCount, 3);
+    assert.equal(billed.record.stages?.some((s) => s.stage === "상태창 추출"), true);
     assert.ok(billed.widgetCostPoints > 0);
     const merged = mergeStatusWidgetExtractUsages([
       { inputTokens: 1000, outputTokens: 50, estimated: false },
@@ -667,5 +684,58 @@ describe("extract usage merge", () => {
     ]);
     assert.equal(merged?.inputTokens, 1000);
     assert.equal(merged?.outputTokens, 50);
+  });
+
+  it("billingModelId follows primaryModelId (Flash), not main RP", async () => {
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "장면",
+      resolved: characterResolved(),
+      primaryModelId: OPENROUTER_GEMINI_25_FLASH_MODEL,
+      caller: async (_s, _h, opts) => {
+        assert.equal(opts.modelId, OPENROUTER_GEMINI_25_FLASH_MODEL);
+        return { text: jsonForWidget(DEFAULT_STATUS_WIDGET), usage: usage(1) };
+      },
+    });
+    assert.equal(result.meta.billingModelId, OPENROUTER_GEMINI_25_FLASH_MODEL);
+    assert.equal(result.meta.billing?.modelId, OPENROUTER_GEMINI_25_FLASH_MODEL);
+    assert.equal(result.meta.billing?.callCount, 1);
+  });
+
+  it("dual both initial+repair → totalCallCount 4", async () => {
+    const userWidget: StatusWidget = {
+      ...DEFAULT_STATUS_WIDGET,
+      name: "유저",
+      fields: [
+        { id: "기분", label: "기분", instruction: "유저의 현재 감정" },
+        { id: "위치", label: "위치", instruction: "유저 위치" },
+      ],
+    };
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "장면",
+      resolved: bothResolved(DEFAULT_STATUS_WIDGET, userWidget),
+      primaryModelId: OPENROUTER_GEMINI_25_FLASH_MODEL,
+      caller: async (system, _h, opts) => {
+        if (opts.requestKind.includes("repair")) {
+          if (system.includes("default to [USER]")) {
+            return {
+              text: JSON.stringify({ 기분: "긴장", 위치: "복도", extracted_facts: [] }),
+              usage: usage(2),
+            };
+          }
+          return { text: jsonForWidget(DEFAULT_STATUS_WIDGET), usage: usage(2) };
+        }
+        return { text: "", usage: usage(1) };
+      },
+    });
+    assert.equal(result.meta.character?.callCount, 2);
+    assert.equal(result.meta.user?.callCount, 2);
+    assert.equal(result.meta.totalCallCount, 4);
+    assert.equal(result.meta.billing?.callCount, 4);
   });
 });

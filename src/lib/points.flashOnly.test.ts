@@ -46,8 +46,9 @@ describe("computeHtmlFlashOnlyTurnBilling", () => {
       outputTokens: 8000,
     });
     const marginRatio = flash.baseCost / flash.rawCostKrw;
-    assert.ok(marginRatio >= 1 / (1 - OPENROUTER_DEEPSEEK_GROSS_MARGIN) - 0.02);
-    assert.ok(marginRatio <= 1 / (1 - OPENROUTER_DEEPSEEK_GROSS_MARGIN) + 0.02);
+    // ceil(P) on small KRW raw (V3 exact rates) can nudge ratio slightly above 1/0.45
+    assert.ok(marginRatio >= 1 / (1 - OPENROUTER_DEEPSEEK_GROSS_MARGIN) - 0.03);
+    assert.ok(marginRatio <= 1 / (1 - OPENROUTER_DEEPSEEK_GROSS_MARGIN) + 0.03);
   });
 
   it("caps estimated output tokens at 6k when API usage missing", () => {

@@ -15,7 +15,10 @@ import {
   normalizeWidgetExtraction,
   resolveRepairMaxTokens,
 } from "./extractNormalize";
-import { mergeStatusWidgetExtractUsages } from "./receiptUsage";
+import {
+  mergeStatusWidgetExtractUsages,
+  type StatusWidgetExtractBillingMeta,
+} from "./receiptUsage";
 import { mergeExtractedFacts, sanitizeExtractedFacts } from "./extractedFacts";
 import {
   logStatusWidgetLiveTrace,
@@ -62,6 +65,10 @@ export type StatusWidgetTurnExtractMeta = {
   character: StatusWidgetSourceExtractMeta | null;
   user: StatusWidgetSourceExtractMeta | null;
   totalCallCount: number;
+  /** Actual background extract model (BACKGROUND_OPENROUTER_MODEL / primaryModelId). */
+  billingModelId: string;
+  /** Present when at least one extract API call was made (same lifetime as usage when tokens exist). */
+  billing: StatusWidgetExtractBillingMeta | null;
   usedRepair: boolean;
   exhausted: boolean;
   mergedInputTokens: number;
@@ -595,6 +602,12 @@ export async function extractStatusWidgetValuesForTurn(opts: {
     characterMeta?.finalReasonCode === "STATUS_WIDGET_EXTRACT_EXHAUSTED" ||
     userMeta?.finalReasonCode === "STATUS_WIDGET_EXTRACT_EXHAUSTED";
   const mergedUsage = mergeStatusWidgetExtractUsages(usages);
+  const billingModelId =
+    opts.primaryModelId?.trim() || BACKGROUND_OPENROUTER_MODEL;
+  const billing: StatusWidgetExtractBillingMeta | null =
+    totalCallCount > 0
+      ? { modelId: billingModelId, callCount: totalCallCount }
+      : null;
 
   return {
     values: out,
@@ -603,6 +616,8 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       character: characterMeta,
       user: userMeta,
       totalCallCount,
+      billingModelId,
+      billing,
       usedRepair,
       exhausted,
       mergedInputTokens: mergedUsage?.inputTokens ?? 0,

@@ -38,6 +38,16 @@ export function formatPoints(n: number): string {
     : n.toLocaleString("ko-KR", { maximumFractionDigits: 1 });
 }
 
+/** Display-only: valid stored widget extract call counts; omit invalid/legacy missing. */
+export function resolveStoredWidgetExtractCallCount(
+  value: unknown
+): number | null {
+  if (typeof value === "number" && Number.isInteger(value) && value > 0) {
+    return value;
+  }
+  return null;
+}
+
 /** OpenRouter 영수증용 API 실원가 (KRW) — 저장 스냅샷 우선 */
 export function resolveApiRawCostKrw(usage: Usage): number | null {
   if (usage.provider !== "openrouter") return null;
@@ -245,9 +255,17 @@ export function formatBillingReceiptText(
   }
   if (extra?.apiRawCostKrw != null && extra.apiRawCostKrw > 0) {
     if (extra.statusWidgetExtract) {
+      const widgetLabel = extra.statusWidgetExtract.modelLabel.replace(
+        / \(상태창 추출\)$/,
+        ""
+      );
+      const callCount = resolveStoredWidgetExtractCallCount(
+        extra.statusWidgetExtract.callCount
+      );
+      const callCountSuffix = callCount != null ? ` · ${callCount}회` : "";
       lines.push(
         `메인 RP API 원가: ~${formatPoints(extra.mainApiRawCostKrw ?? extra.apiRawCostKrw)}원`,
-        `위젯 API 원가 (${extra.statusWidgetExtract.modelLabel}): ${extra.statusWidgetExtract.input.toLocaleString()} / ${extra.statusWidgetExtract.output.toLocaleString()} tokens · ~${formatPoints(extra.statusWidgetExtract.apiRawCostKrw)}원`,
+        `위젯 API 원가 (${widgetLabel}${callCountSuffix}): ${extra.statusWidgetExtract.input.toLocaleString()} / ${extra.statusWidgetExtract.output.toLocaleString()} tokens · ~${formatPoints(extra.statusWidgetExtract.apiRawCostKrw)}원`,
         `API 원가 합계 (메인+위젯): ~${formatPoints(extra.apiRawCostKrw)}원`
       );
     } else {

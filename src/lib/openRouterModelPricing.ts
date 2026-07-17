@@ -32,6 +32,20 @@ const ANTHROPIC_OPUS_RATES: OpenRouterModelRates = {
   explicitCacheInjection: true,
 };
 
+/**
+ * DeepSeek V3 0324 — OpenRouter headline estimate (fallback only).
+ * Checked 2026-07-17: ~$0.24/M in, ~$0.90/M out; provider prices vary.
+ * Prefer usage.upstreamCostUsd / OpenRouter reported cost when present.
+ */
+const DEEPSEEK_V3_0324_RATES: OpenRouterModelRates = {
+  family: "deepseek",
+  label: "DeepSeek V3 0324 (fallback estimate)",
+  inputUsdPerM: 0.24,
+  outputUsdPerM: 0.9,
+  cacheWriteMultiplier: 1,
+  explicitCacheInjection: false,
+};
+
 /** DeepSeek V4 Pro — OpenRouter / DeepSeek official (2026) */
 const DEEPSEEK_V4_PRO_RATES: OpenRouterModelRates = {
   family: "deepseek",
@@ -39,6 +53,21 @@ const DEEPSEEK_V4_PRO_RATES: OpenRouterModelRates = {
   inputUsdPerM: 0.435,
   outputUsdPerM: 0.87,
   cacheReadUsdPerM: 0.003625,
+  cacheWriteMultiplier: 1,
+  explicitCacheInjection: false,
+};
+
+/**
+ * Google Gemini 2.5 Flash — OpenRouter list (fallback estimate).
+ * Checked 2026-07-17: $0.30/M in, $2.50/M out, cache read $0.03/M.
+ * Prefer usage.upstreamCostUsd when present.
+ */
+const GEMINI_25_FLASH_RATES: OpenRouterModelRates = {
+  family: "google",
+  label: "Google Gemini 2.5 Flash (fallback estimate)",
+  inputUsdPerM: 0.3,
+  outputUsdPerM: 2.5,
+  cacheReadUsdPerM: 0.03,
   cacheWriteMultiplier: 1,
   explicitCacheInjection: false,
 };
@@ -99,6 +128,9 @@ const GENERIC_OPENROUTER_RATES: OpenRouterModelRates = {
 
 export function resolveOpenRouterModelRates(modelId?: string | null): OpenRouterModelRates {
   const id = (modelId ?? "").trim().toLowerCase();
+  // Exact / specific model ids before broad family matches.
+  if (id.includes("gemini-2.5-flash")) return GEMINI_25_FLASH_RATES;
+  if (id.includes("deepseek-chat-v3-0324")) return DEEPSEEK_V3_0324_RATES;
   if (id.includes("deepseek")) return DEEPSEEK_V4_PRO_RATES;
   if (id.includes("gemini-3.1-pro")) return GEMINI_31_PRO_RATES;
   if (id.includes("gemini-2.5-pro")) return GEMINI_25_PRO_RATES;

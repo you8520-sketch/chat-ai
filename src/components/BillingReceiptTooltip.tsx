@@ -9,6 +9,7 @@ import {
   resolveApiRawCostKrw,
   resolveOpenRouterCacheReceipt,
   resolveExchangeRateReceiptLabel,
+  resolveStoredWidgetExtractCallCount,
   type BillingReceipt,
 } from "@/lib/billingDisplay";
 import { filterUsageBreakdownForReceipt } from "@/lib/billingReceiptAccess";
@@ -35,6 +36,9 @@ function ReceiptBody({
     usage.provider === "openrouter" &&
     isGeminiProOpenRouterModel(usage.model ?? "") &&
     !isGemini31ProModel(usage.model ?? "");
+  const widgetExtractCallCount = resolveStoredWidgetExtractCallCount(
+    usage.statusWidgetExtract?.callCount
+  );
 
   if (!showFullReceipt) {
     return (
@@ -149,7 +153,13 @@ function ReceiptBody({
       {usage.statusWidgetExtract && (
         <>
           <p>
-            <span className="text-zinc-500">{usage.statusWidgetExtract.modelLabel}:</span>{" "}
+            <span className="text-zinc-500">
+              {usage.statusWidgetExtract.modelLabel}
+              {widgetExtractCallCount != null
+                ? ` · ${widgetExtractCallCount}회`
+                : ""}
+              :
+            </span>{" "}
             {usage.statusWidgetExtract.input.toLocaleString()} /{" "}
             {usage.statusWidgetExtract.output.toLocaleString()} tokens
             {usage.statusWidgetExtract.estimated ? " (추정)" : ""}
