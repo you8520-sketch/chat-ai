@@ -10,7 +10,10 @@ import {
   stripUnknownLikeFromValues,
   stripUnknownLikeTemporalFromParsed,
 } from "./temporalUnknown";
-import { normalizeWidgetExtraction } from "./extractNormalize";
+import {
+  formatPreviousTurnWidgetValues,
+  normalizeWidgetExtraction,
+} from "./extractNormalize";
 import type { StatusWidget } from "./types";
 
 const widget: StatusWidget = {
@@ -199,5 +202,121 @@ describe("parsed strip keeps non-temporal", () => {
     assert.equal(stripped.values?.character?.["장소"], "사령실");
     assert.equal(stripped.values?.character?.["현재시각"], undefined);
     assert.equal(stripped.values?.character?.["속마음"], "불안하다");
+  });
+});
+
+describe("formatPreviousTurnWidgetValues scopes unknown filter to temporal fields", () => {
+  const previousWidget: StatusWidget = {
+    version: 1,
+    name: "prev",
+    placement: "bottom",
+    htmlTemplate:
+      "{{관계 상태}}{{범인}}{{현재시각}}{{날씨}}{{D-DAY}}{{장소}}{{자유노트}}",
+    fields: [
+      {
+        id: "rel",
+        label: "관계 상태",
+        instruction: "관계가 확정되기 전에는 미정",
+      },
+      {
+        id: "culprit",
+        label: "범인",
+        instruction: "현재 밝혀진 범인",
+      },
+      {
+        id: "clock",
+        label: "현재시각",
+        instruction: "HH:MM",
+      },
+      {
+        id: "weather",
+        label: "날씨",
+        instruction: "현재 날씨",
+      },
+      {
+        id: "dday",
+        label: "D-DAY",
+        instruction: "날짜가 정해지기 전에는 미정",
+      },
+      {
+        id: "dday_concrete",
+        label: "작전 D-DAY",
+        instruction: "D-30부터 매일 1 감소",
+        initialValue: "D-30",
+      },
+      { id: "place", label: "장소", instruction: "현재 장소" },
+      {
+        id: "note",
+        label: "자유노트",
+        instruction: "자유 서술",
+      },
+    ],
+  };
+
+  it("1. keeps non-temporal 관계 상태=미정 in previous block", () => {
+    const block = formatPreviousTurnWidgetValues(
+      { "관계 상태": "미정", 장소: "사령실" },
+      "character",
+      previousWidget
+    );
+    assert.match(block, /- 관계 상태: 미정/);
+    assert.match(block, /- 장소: 사령실/);
+  });
+
+  it("2. keeps non-temporal 범인=불명 in previous block", () => {
+    const block = formatPreviousTurnWidgetValues(
+      { 범인: "불명", 장소: "복도" },
+      "character",
+      previousWidget
+    );
+    assert.match(block, /- 범인: 불명/);
+  });
+
+  it("3. omits temporal 현재시각=알 수 없음 from previous block", () => {
+    const block = formatPreviousTurnWidgetValues(
+      { 현재시각: "알 수 없음", 장소: "마당" },
+      "character",
+      previousWidget
+    );
+    assert.doesNotMatch(block, /현재시각/);
+    assert.match(block, /- 장소: 마당/);
+  });
+
+  it("4. omits temporal 날씨=미상 from previous block", () => {
+    const block = formatPreviousTurnWidgetValues(
+      { 날씨: "미상", 장소: "성벽" },
+      "character",
+      previousWidget
+    );
+    assert.doesNotMatch(block, /날씨/);
+    assert.match(block, /- 장소: 성벽/);
+  });
+
+  it("5. keeps counter 미정 when instruction allows unset", () => {
+    const block = formatPreviousTurnWidgetValues(
+      { "D-DAY": "미정", 장소: "사령실" },
+      "character",
+      previousWidget
+    );
+    assert.match(block, /- D-DAY: 미정/);
+  });
+
+  it("6. omits counter unknown when concrete countdown is required", () => {
+    const block = formatPreviousTurnWidgetValues(
+      { "작전 D-DAY": "알 수 없음", 장소: "사령실" },
+      "character",
+      previousWidget
+    );
+    assert.doesNotMatch(block, /작전 D-DAY/);
+    assert.match(block, /- 장소: 사령실/);
+  });
+
+  it("keeps free-text 알 수 없음 on non-temporal fields", () => {
+    const block = formatPreviousTurnWidgetValues(
+      { 자유노트: "알 수 없음", 장소: "복도" },
+      "character",
+      previousWidget
+    );
+    assert.match(block, /- 자유노트: 알 수 없음/);
   });
 });

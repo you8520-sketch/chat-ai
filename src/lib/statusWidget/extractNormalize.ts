@@ -4,10 +4,11 @@ import { EXTRACTED_FACTS_STATUS_VALUES_INSTRUCTIONS } from "./prompt";
 import { allocateWidgetExtractNarrativeSlices } from "./proseStrip";
 import {
   isUnknownLikeStatusValue,
+  keyLooksLikeCalendarClockSeasonWeather,
   rejectsUnknownLikeTemporalValue,
   sanitizeAndRepairTemporalValues,
 } from "./temporalUnknown";
-import type { StatusWidget, StatusWidgetValues } from "./types";
+import type { StatusWidget, StatusWidgetField, StatusWidgetValues } from "./types";
 
 function isWidgetPlaceholderValue(value: string): boolean {
   const t = value.trim();
@@ -20,9 +21,34 @@ function isWidgetPlaceholderValue(value: string): boolean {
   );
 }
 
+function findWidgetFieldForKey(
+  widget: StatusWidget | null | undefined,
+  key: string
+): StatusWidgetField | undefined {
+  if (!widget) return undefined;
+  for (const field of widget.fields) {
+    if (fieldPlaceholderKey(field) === key) return field;
+    if (field.id === key || field.label === key) return field;
+  }
+  return undefined;
+}
+
+/** Omit unknown-like values only for temporal fields that reject them. */
+export function shouldOmitUnknownLikePreviousValue(
+  key: string,
+  value: string,
+  widget?: StatusWidget | null
+): boolean {
+  if (!isUnknownLikeStatusValue(value)) return false;
+  const field = findWidgetFieldForKey(widget, key);
+  if (field) return rejectsUnknownLikeTemporalValue(field);
+  return keyLooksLikeCalendarClockSeasonWeather(key);
+}
+
 export function formatPreviousTurnWidgetValues(
   values: StatusWidgetValues | null | undefined,
-  source: "character" | "user"
+  source: "character" | "user",
+  widget?: StatusWidget | null
 ): string {
   if (!values || Object.keys(values).length === 0) {
     return `[PREVIOUS TURN ${source.toUpperCase()} WIDGET VALUES]
@@ -30,8 +56,10 @@ export function formatPreviousTurnWidgetValues(
   }
   const lines = Object.entries(values)
     .filter(
-      ([, v]) =>
-        v?.trim() && !isWidgetPlaceholderValue(v) && !isUnknownLikeStatusValue(v)
+      ([k, v]) =>
+        Boolean(v?.trim()) &&
+        !isWidgetPlaceholderValue(v) &&
+        !shouldOmitUnknownLikePreviousValue(k, v, widget)
     )
     .map(([k, v]) => `- ${k}: ${v.trim()}`);
   return `[PREVIOUS TURN ${source.toUpperCase()} WIDGET VALUES]
@@ -94,7 +122,7 @@ export function buildWidgetExtractUserBlock(opts: {
   );
 
   return [
-    formatPreviousTurnWidgetValues(opts.previousValues, opts.source),
+    formatPreviousTurnWidgetValues(opts.previousValues, opts.source, opts.widget),
     `[WIDGET FIELDS]`,
     opts.widget.fields
       .map((f) => {
