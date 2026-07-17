@@ -96,23 +96,22 @@ export default function StatusWidgetEditor({
     return { ...rebuilt, placement: value.placement };
   }
 
+  /** initialValue 입력 UI 임시 비활성 — 저장·테스트는 invent/first-fill만 사용 */
+  function stripFieldInitialValues(widget: StatusWidget): StatusWidget {
+    return {
+      ...widget,
+      fields: widget.fields.map(({ initialValue: _omit, ...field }) => field),
+    };
+  }
+
   function commitFieldChange(next: StatusWidget) {
-    onChange(applyBuiltinTemplateToFields(next.fields) ?? next);
+    const stripped = stripFieldInitialValues(next);
+    onChange(applyBuiltinTemplateToFields(stripped.fields) ?? stripped);
   }
 
   function updateFieldInstruction(index: number, instruction: string) {
     const next = cloneWidget(value);
     next.fields[index] = { ...next.fields[index]!, instruction };
-    commitFieldChange(next);
-  }
-
-  function updateFieldInitialValue(index: number, initialValue: string) {
-    const next = cloneWidget(value);
-    const field = { ...next.fields[index]! };
-    const trimmed = initialValue.trim().slice(0, 80);
-    if (trimmed) field.initialValue = trimmed;
-    else delete field.initialValue;
-    next.fields[index] = field;
     commitFieldChange(next);
   }
 
@@ -149,15 +148,17 @@ export default function StatusWidgetEditor({
       choice,
       value.fields.map((field) => ({ ...field })),
     );
-    onChange({
-      ...picked,
-      placement: value.placement,
-    });
+    onChange(
+      stripFieldInitialValues({
+        ...picked,
+        placement: value.placement,
+      }),
+    );
   }
 
   function loadDefault() {
     setTemplateChoice("modern");
-    onChange(cloneWidget(DEFAULT_STATUS_WIDGET));
+    onChange(stripFieldInitialValues(cloneWidget(DEFAULT_STATUS_WIDGET)));
   }
 
   return (
@@ -226,7 +227,7 @@ export default function StatusWidgetEditor({
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-sm font-bold text-zinc-200">
-            ① 상태값 · ② 지시사항 · ③ 초기값(선택)
+            ① 상태값 · ② 지시사항
           </span>
           <button
             type="button"
@@ -238,10 +239,10 @@ export default function StatusWidgetEditor({
           </button>
         </div>
         <p className="text-xs leading-relaxed text-zinc-500">
-          날짜·현재시각·계절·날씨처럼 시간 상태값은 지시사항만 두지 말고, 초기값에
-          실제 숫자·시각을 적어 두는 것을 권장합니다. 예: 날짜{" "}
-          <span className="text-zinc-400">3월 18일</span>, 시각{" "}
-          <span className="text-zinc-400">14:30</span>.
+          날짜·현재시각·계절·날씨 등은 지시사항에 형식만 적어도 됩니다. 예: 시각{" "}
+          <span className="text-zinc-400">HH:MM</span>, 날짜{" "}
+          <span className="text-zinc-400">장면 날짜</span>. 첫 값은 AI가 장면에
+          맞게 채웁니다.
         </p>
         {value.fields.map((field, i) => (
           <FieldCard
@@ -252,9 +253,6 @@ export default function StatusWidgetEditor({
             onLabelChange={(label) => updateFieldLabel(i, label)}
             onInstructionChange={(instruction) =>
               updateFieldInstruction(i, instruction)
-            }
-            onInitialValueChange={(initialValue) =>
-              updateFieldInitialValue(i, initialValue)
             }
             onRemove={() => removeField(i)}
           />
@@ -340,7 +338,6 @@ function FieldCard({
   canRemove,
   onLabelChange,
   onInstructionChange,
-  onInitialValueChange,
   onRemove,
 }: {
   field: StatusWidgetField;
@@ -348,7 +345,6 @@ function FieldCard({
   canRemove: boolean;
   onLabelChange: (label: string) => void;
   onInstructionChange: (instruction: string) => void;
-  onInitialValueChange: (initialValue: string) => void;
   onRemove: () => void;
 }) {
   const key = fieldPlaceholderKey(field);
@@ -392,16 +388,6 @@ function FieldCard({
           onChange={(e) => onInstructionChange(e.target.value)}
           rows={2}
           placeholder="예: 현재 대화 시점의 시간을 24시간 형식으로 작성하세요. 출력 예시: 14:30"
-          className="mt-1 min-h-11 w-full rounded-xl border border-white/10 bg-[#0b0d14] px-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-violet-500/60 focus:ring-2 focus:ring-violet-500/20"
-        />
-      </label>
-      <label className="block">
-        <span className="text-xs text-zinc-400">초기값 (선택 · 첫 추출 우선)</span>
-        <input
-          disabled={disabled}
-          value={field.initialValue ?? ""}
-          onChange={(e) => onInitialValueChange(e.target.value)}
-          placeholder="예: 3월 18일, 14:30, 봄 · 맑음"
           className="mt-1 min-h-11 w-full rounded-xl border border-white/10 bg-[#0b0d14] px-3 text-sm text-zinc-100 outline-none placeholder:text-zinc-500 focus:border-violet-500/60 focus:ring-2 focus:ring-violet-500/20"
         />
       </label>

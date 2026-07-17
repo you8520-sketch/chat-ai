@@ -329,9 +329,11 @@ async function buildAppearanceForSave(
     return { raw, compiled: existing?.appearance_compiled ?? "", sourceHash, version: APPEARANCE_COMPILED_VERSION, called: false };
   }
   const compiledJson = await compileAppearanceForChat(raw);
+  const compiled = serializeAppearanceCompiledJson(compiledJson);
   return {
     raw,
-    compiled: serializeAppearanceCompiledJson(compiledJson),
+    // Compile failure must not wipe a previously good compiled cache.
+    compiled: compiled || (existing?.appearance_compiled ?? ""),
     sourceHash,
     version: APPEARANCE_COMPILED_VERSION,
     called: Boolean(raw.trim()),
