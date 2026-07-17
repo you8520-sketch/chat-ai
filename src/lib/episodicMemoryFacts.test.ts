@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 
 import {
+  deleteEpisodicMemoryFactsByAssistantMessageIds,
   episodicMemoryDebugApiEnabled,
   episodicMemoryRecallDisabledInProduction,
   episodicMemoryRecallEnabled,
@@ -1178,5 +1179,362 @@ describe("episodic temporary-state recall filter", () => {
     );
     assert.equal(inspected[0]?.blocked_reason, "clearly_temporary");
     assert.equal(inspected[0]?.would_inject, false);
+  });
+});
+
+describe("deleteEpisodicMemoryFactsByAssistantMessageIds", () => {
+  function insertFact(
+    db: Database.Database,
+    opts: {
+      chatId: number;
+      sourceTurn: number;
+      attribute: string;
+      metadata: string;
+      value?: string;
+    }
+  ): void {
+    db.prepare(
+      `INSERT INTO episodic_memory_facts
+        (chat_id, character_id, user_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (?, 1, 1, ?, 'preference', 'user', ?, ?, 'important', ?, ?)`
+    ).run(
+      opts.chatId,
+      opts.sourceTurn,
+      opts.attribute,
+      opts.value ?? "v",
+      `fact:${opts.attribute}`,
+      opts.metadata
+    );
+  }
+
+  function countFacts(db: Database.Database, chatId?: number): number {
+    if (chatId == null) {
+      return (db.prepare("SELECT COUNT(*) AS c FROM episodic_memory_facts").get() as { c: number }).c;
+    }
+    return (
+      db
+        .prepare("SELECT COUNT(*) AS c FROM episodic_memory_facts WHERE chat_id=?")
+        .get(chatId) as { c: number }
+    ).c;
+  }
+
+  it("deletes all facts for the same assistant message id", () => {
+    const db = createDb();
+    insertFact(db, {
+      chatId: 10,
+      sourceTurn: 4,
+      attribute: "favorite_drink",
+      metadata: JSON.stringify({ assistant_message_id: 99 }),
+    });
+    insertFact(db, {
+      chatId: 10,
+      sourceTurn: 4,
+      attribute: "favorite_food",
+      metadata: JSON.stringify({ assistant_message_id: 99 }),
+    });
+
+    const deleted = deleteEpisodicMemoryFactsByAssistantMessageIds(db, 10, [99]);
+    assert.equal(deleted, 2);
+    assert.equal(countFacts(db, 10), 0);
+  });
+
+  it("keeps facts for other assistant message ids", () => {
+    const db = createDb();
+    insertFact(db, {
+      chatId: 10,
+      sourceTurn: 4,
+      attribute: "favorite_drink",
+      metadata: JSON.stringify({ assistant_message_id: 99 }),
+    });
+    insertFact(db, {
+      chatId: 10,
+      sourceTurn: 5,
+      attribute: "favorite_food",
+      metadata: JSON.stringify({ assistant_message_id: 100 }),
+    });
+
+    const deleted = deleteEpisodicMemoryFactsByAssistantMessageIds(db, 10, [99]);
+    assert.equal(deleted, 1);
+    const remaining = db
+      .prepare("SELECT attribute FROM episodic_memory_facts WHERE chat_id=10")
+      .all() as Array<{ attribute: string }>;
+    assert.deepEqual(
+      remaining.map((r) => r.attribute),
+      ["favorite_food"]
+    );
+  });
+
+  it("does not delete facts from another chat_id with the same message id", () => {
+    const db = createDb();
+    insertFact(db, {
+      chatId: 10,
+      sourceTurn: 4,
+      attribute: "favorite_drink",
+      metadata: JSON.stringify({ assistant_message_id: 99 }),
+    });
+    insertFact(db, {
+      chatId: 11,
+      sourceTurn: 4,
+      attribute: "favorite_drink",
+      metadata: JSON.stringify({ assistant_message_id: 99 }),
+    });
+
+    const deleted = deleteEpisodicMemoryFactsByAssistantMessageIds(db, 10, [99]);
+    assert.equal(deleted, 1);
+    assert.equal(countFacts(db, 10), 0);
+    assert.equal(countFacts(db, 11), 1);
+  });
+
+  it("keeps rows without assistant_message_id in metadata", () => {
+    const db = createDb();
+    insertFact(db, {
+      chatId: 10,
+      sourceTurn: 4,
+      attribute: "favorite_drink",
+      metadata: JSON.stringify({ request_id: "x" }),
+    });
+    insertFact(db, {
+      chatId: 10,
+      sourceTurn: 4,
+      attribute: "favorite_food",
+      metadata: JSON.stringify({ assistant_message_id: 99 }),
+    });
+
+    const deleted = deleteEpisodicMemoryFactsByAssistantMessageIds(db, 10, [99]);
+    assert.equal(deleted, 1);
+    assert.equal(countFacts(db, 10), 1);
+  });
+
+  it("ignores malformed JSON metadata and still deletes valid rows", () => {
+    const db = createDb();
+    insertFact(db, {
+      chatId: 10,
+      sourceTurn: 4,
+      attribute: "broken_meta",
+      metadata: "{not-json",
+    });
+    insertFact(db, {
+      chatId: 10,
+      sourceTurn: 4,
+      attribute: "favorite_drink",
+      metadata: JSON.stringify({ assistant_message_id: 99 }),
+    });
+
+    assert.doesNotThrow(() => {
+      const deleted = deleteEpisodicMemoryFactsByAssistantMessageIds(db, 10, [99]);
+      assert.equal(deleted, 1);
+    });
+    const rows = db
+      .prepare("SELECT attribute, metadata FROM episodic_memory_facts WHERE chat_id=10")
+      .all() as Array<{ attribute: string; metadata: string }>;
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0]!.attribute, "broken_meta");
+    assert.equal(rows[0]!.metadata, "{not-json");
+  });
+
+  it("empty assistant id array is a no-op returning 0", () => {
+    const db = createDb();
+    insertFact(db, {
+      chatId: 10,
+      sourceTurn: 4,
+      attribute: "favorite_drink",
+      metadata: JSON.stringify({ assistant_message_id: 99 }),
+    });
+    assert.equal(deleteEpisodicMemoryFactsByAssistantMessageIds(db, 10, []), 0);
+    assert.equal(countFacts(db, 10), 1);
+  });
+
+  it("already-deleted ids return 0 without error", () => {
+    const db = createDb();
+    assert.equal(deleteEpisodicMemoryFactsByAssistantMessageIds(db, 10, [99]), 0);
+    insertFact(db, {
+      chatId: 10,
+      sourceTurn: 4,
+      attribute: "favorite_drink",
+      metadata: JSON.stringify({ assistant_message_id: 99 }),
+    });
+    assert.equal(deleteEpisodicMemoryFactsByAssistantMessageIds(db, 10, [99]), 1);
+    assert.equal(deleteEpisodicMemoryFactsByAssistantMessageIds(db, 10, [99]), 0);
+  });
+});
+
+describe("turn deletion invalidates episodic facts (transaction fixture)", () => {
+  function createTurnDeleteFixtureDb(): Database.Database {
+    const db = new Database(":memory:");
+    ensureEpisodicMemoryFactsTable(db);
+    db.exec(`
+      CREATE TABLE messages (
+        id INTEGER PRIMARY KEY,
+        chat_id INTEGER NOT NULL,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL DEFAULT ''
+      );
+      CREATE TABLE bookmarks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        message_id INTEGER NOT NULL
+      );
+    `);
+    return db;
+  }
+
+  /** Mirrors DELETE /api/chat/turn transaction order (no HTTP/auth harness). */
+  function deleteLastTurnLikeRoute(
+    db: Database.Database,
+    chatId: number,
+    userMessageId: number,
+    assistantMessageId: number | null
+  ): void {
+    const idsToDelete = [userMessageId];
+    if (assistantMessageId != null) idsToDelete.push(assistantMessageId);
+    db.transaction(() => {
+      for (const id of idsToDelete) {
+        db.prepare("DELETE FROM bookmarks WHERE message_id=?").run(id);
+      }
+      if (assistantMessageId != null) {
+        deleteEpisodicMemoryFactsByAssistantMessageIds(db, chatId, [assistantMessageId]);
+      }
+      for (const id of idsToDelete) {
+        db.prepare("DELETE FROM messages WHERE id=? AND chat_id=?").run(id, chatId);
+      }
+    })();
+  }
+
+  it("deletes last-turn messages and linked episodic facts; keeps prior turn and other chat", () => {
+    const db = createTurnDeleteFixtureDb();
+    db.prepare("INSERT INTO messages (id, chat_id, role, content) VALUES (?,?,?,?)").run(
+      1,
+      10,
+      "user",
+      "prev"
+    );
+    db.prepare("INSERT INTO messages (id, chat_id, role, content) VALUES (?,?,?,?)").run(
+      2,
+      10,
+      "assistant",
+      "prev-a"
+    );
+    db.prepare("INSERT INTO messages (id, chat_id, role, content) VALUES (?,?,?,?)").run(
+      3,
+      10,
+      "user",
+      "last"
+    );
+    db.prepare("INSERT INTO messages (id, chat_id, role, content) VALUES (?,?,?,?)").run(
+      4,
+      10,
+      "assistant",
+      "last-a"
+    );
+    db.prepare("INSERT INTO bookmarks (message_id) VALUES (?)").run(4);
+
+    persistEpisodicMemoryFactsBestEffort(db, {
+      chatId: 10,
+      sourceTurn: 1,
+      facts: [validFact],
+      metadata: { assistant_message_id: 2 },
+    });
+    persistEpisodicMemoryFactsBestEffort(db, {
+      chatId: 10,
+      sourceTurn: 2,
+      facts: [
+        {
+          ...validFact,
+          attribute: "last_turn_pref",
+          value: "water",
+          fact_text: "사용자는 물을 선호한다.",
+        },
+      ],
+      metadata: { assistant_message_id: 4 },
+    });
+    const otherChatInserted = persistEpisodicMemoryFactsBestEffort(db, {
+      chatId: 11,
+      sourceTurn: 2,
+      facts: [
+        {
+          ...validFact,
+          attribute: "favorite_tea",
+          value: "green_tea",
+          fact_text: "사용자는 녹차를 즐겨 마신다.",
+        },
+      ],
+      metadata: { assistant_message_id: 4 },
+    });
+    assert.equal(otherChatInserted, 1);
+
+    deleteLastTurnLikeRoute(db, 10, 3, 4);
+
+    const messages = db
+      .prepare("SELECT id FROM messages WHERE chat_id=10 ORDER BY id")
+      .all() as Array<{ id: number }>;
+    assert.deepEqual(
+      messages.map((m) => m.id),
+      [1, 2]
+    );
+    assert.equal(
+      (db.prepare("SELECT COUNT(*) AS c FROM bookmarks").get() as { c: number }).c,
+      0
+    );
+
+    const factsChat10 = db
+      .prepare(
+        `SELECT json_extract(metadata, '$.assistant_message_id') AS aid
+         FROM episodic_memory_facts WHERE chat_id=10`
+      )
+      .all() as Array<{ aid: number }>;
+    assert.deepEqual(
+      factsChat10.map((f) => f.aid),
+      [2]
+    );
+    assert.equal(
+      (
+        db
+          .prepare("SELECT COUNT(*) AS c FROM episodic_memory_facts WHERE chat_id=11")
+          .get() as { c: number }
+      ).c,
+      1
+    );
+  });
+
+  it("rolls back episodic fact delete when a later step in the same transaction fails", () => {
+    const db = createTurnDeleteFixtureDb();
+    db.prepare("INSERT INTO messages (id, chat_id, role, content) VALUES (?,?,?,?)").run(
+      3,
+      10,
+      "user",
+      "last"
+    );
+    db.prepare("INSERT INTO messages (id, chat_id, role, content) VALUES (?,?,?,?)").run(
+      4,
+      10,
+      "assistant",
+      "last-a"
+    );
+    persistEpisodicMemoryFactsBestEffort(db, {
+      chatId: 10,
+      sourceTurn: 2,
+      facts: [validFact],
+      metadata: { assistant_message_id: 4 },
+    });
+
+    assert.throws(() => {
+      db.transaction(() => {
+        deleteEpisodicMemoryFactsByAssistantMessageIds(db, 10, [4]);
+        db.prepare("DELETE FROM messages WHERE id=? AND chat_id=?").run(3, 10);
+        throw new Error("forced failure after message delete started");
+      })();
+    });
+
+    assert.equal(
+      (
+        db
+          .prepare("SELECT COUNT(*) AS c FROM episodic_memory_facts WHERE chat_id=10")
+          .get() as { c: number }
+      ).c,
+      1
+    );
+    assert.equal(
+      (db.prepare("SELECT COUNT(*) AS c FROM messages WHERE chat_id=10").get() as { c: number }).c,
+      2
+    );
   });
 });

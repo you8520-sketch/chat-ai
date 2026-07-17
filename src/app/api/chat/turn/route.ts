@@ -3,6 +3,7 @@ import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { incrementCharacterTotalTurns } from "@/lib/characterEngagementStats";
 import { getLastTurnMessageIds } from "@/lib/chatAccess";
+import { deleteEpisodicMemoryFactsByAssistantMessageIds } from "@/lib/episodicMemoryFacts";
 import { getChatMemoryCapacity } from "@/lib/memory/memory-capacity";
 import { reconcileMemoryAfterTurnDelete } from "@/lib/memory/memory-reconcile";
 import { resolveMemoryTier } from "@/lib/memory/memory-manager";
@@ -34,9 +35,16 @@ export async function DELETE(req: Request) {
   const idsToDelete = [lastTurn.userId];
   if (lastTurn.assistantId != null) idsToDelete.push(lastTurn.assistantId);
 
+  // Same transaction: bookmarks → episodic facts (assistant provenance) → messages.
+  // Fact delete failures must roll back message deletes (no orphan prevention gap).
   db.transaction(() => {
     for (const id of idsToDelete) {
       db.prepare("DELETE FROM bookmarks WHERE message_id=?").run(id);
+    }
+    if (lastTurn.assistantId != null) {
+      deleteEpisodicMemoryFactsByAssistantMessageIds(db, cId, [lastTurn.assistantId]);
+    }
+    for (const id of idsToDelete) {
       db.prepare("DELETE FROM messages WHERE id=? AND chat_id=?").run(id, cId);
     }
     if (lastTurn.userId != null) {
