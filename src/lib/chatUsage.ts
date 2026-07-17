@@ -71,8 +71,8 @@ export type Usage = {
     input: number;
     output: number;
     apiRawCostKrw: number;
-    /** background extract API calls this turn (1–4) */
-    callCount: number;
+    /** background extract API calls this turn (1–4); absent on legacy stored receipts */
+    callCount?: number;
     upstreamCostUsd?: number;
     estimated?: boolean;
   };
