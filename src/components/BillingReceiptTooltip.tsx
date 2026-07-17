@@ -149,7 +149,13 @@ function ReceiptBody({
       {usage.statusWidgetExtract && (
         <>
           <p>
-            <span className="text-zinc-500">{usage.statusWidgetExtract.modelLabel}:</span>{" "}
+            <span className="text-zinc-500">
+              {usage.statusWidgetExtract.modelLabel}
+              {usage.statusWidgetExtract.callCount > 0
+                ? ` · ${usage.statusWidgetExtract.callCount}회`
+                : ""}
+              :
+            </span>{" "}
             {usage.statusWidgetExtract.input.toLocaleString()} /{" "}
             {usage.statusWidgetExtract.output.toLocaleString()} tokens
             {usage.statusWidgetExtract.estimated ? " (추정)" : ""}

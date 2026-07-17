@@ -247,7 +247,10 @@ export function formatBillingReceiptText(
     if (extra.statusWidgetExtract) {
       lines.push(
         `메인 RP API 원가: ~${formatPoints(extra.mainApiRawCostKrw ?? extra.apiRawCostKrw)}원`,
-        `위젯 API 원가 (${extra.statusWidgetExtract.modelLabel}): ${extra.statusWidgetExtract.input.toLocaleString()} / ${extra.statusWidgetExtract.output.toLocaleString()} tokens · ~${formatPoints(extra.statusWidgetExtract.apiRawCostKrw)}원`,
+        `위젯 API 원가 (${extra.statusWidgetExtract.modelLabel.replace(
+          / \(상태창 추출\)$/,
+          ""
+        )} · ${Math.max(1, extra.statusWidgetExtract.callCount)}회): ${extra.statusWidgetExtract.input.toLocaleString()} / ${extra.statusWidgetExtract.output.toLocaleString()} tokens · ~${formatPoints(extra.statusWidgetExtract.apiRawCostKrw)}원`,
         `API 원가 합계 (메인+위젯): ~${formatPoints(extra.apiRawCostKrw)}원`
       );
     } else {

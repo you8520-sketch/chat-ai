@@ -10,9 +10,11 @@ import {
   aggregateStatusWidgetTelemetry,
   resolveStatusWidgetModelFamily,
   resolveStatusWidgetParserMode,
+  resolveStatusWidgetTurnValues,
   stripStatusWidgetFromAssistantProse,
   type StatusWidgetTurnTelemetry,
 } from "./telemetry";
+import { OPENROUTER_CLAUDE_DEFAULT } from "@/lib/chatModels";
 
 function makeTelemetry(partial: Partial<StatusWidgetTurnTelemetry>): StatusWidgetTurnTelemetry {
   return {
@@ -100,5 +102,38 @@ describe("aggregateStatusWidgetTelemetry", () => {
     assert.equal(agg.backfillAttemptRate, 1);
     assert.equal(agg.backfillSuccessRate, 0.5);
     assert.equal(agg.byResolutionSource.v3_extract, 1);
+  });
+});
+
+describe("resolveStatusWidgetTurnValues billing meta lifetime", () => {
+  it("main STATUS_VALUES parse success → no background extract usage/meta", async () => {
+    const resolved = resolveStatusWidgetTurn({
+      characterWidgetJson: JSON.stringify(DEFAULT_STATUS_WIDGET),
+      chatMode: "character_only",
+    });
+    const valuesJson = JSON.stringify({
+      시간: "14:30",
+      장소: "카페",
+      속마음: "긴장",
+      현재상황: "대화",
+      의식의흐름: "커피 → 대화",
+      다음상황: "주문",
+      extracted_facts: [],
+    });
+    const raw = `RP 본문입니다.\n\n${STATUS_VALUES_BLOCK}\n${valuesJson}\n${STATUS_VALUES_END}`;
+    const out = await resolveStatusWidgetTurnValues({
+      chatId: -1,
+      modelId: OPENROUTER_CLAUDE_DEFAULT,
+      savedText: raw,
+      rawWidgetSourceText: raw,
+      statusWidgetTurn: resolved,
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "안녕",
+    });
+    assert.equal(out.telemetry.resolutionSource, "split_raw");
+    assert.equal(out.widgetExtractUsage, null);
+    assert.equal(out.widgetExtractBillingMeta, null);
+    assert.ok(out.values);
   });
 });

@@ -2583,6 +2583,7 @@ export async function POST(req: Request) {
           logStatusWidgetTurnTelemetry(widgetResolved.telemetry);
           if (
             widgetResolved.widgetExtractUsage &&
+            widgetResolved.widgetExtractBillingMeta &&
             billingProvider === "openrouter" &&
             billingExchangeRate
           ) {
@@ -2591,14 +2592,16 @@ export async function POST(req: Request) {
                 usageRecord,
                 widgetResolved.widgetExtractUsage,
                 billingExchangeRate,
-                mainBillingCost
+                mainBillingCost,
+                widgetResolved.widgetExtractBillingMeta
               );
               usageRecord = widgetBilling.record;
               cost = widgetBilling.totalCost;
             } else {
               const widgetReceipt = buildStatusWidgetExtractReceipt(
                 widgetResolved.widgetExtractUsage,
-                billingExchangeRate
+                billingExchangeRate,
+                widgetResolved.widgetExtractBillingMeta
               );
               const widgetCostPoints = statusWidgetApiCostChargePoints(widgetReceipt.apiRawCostKrw);
               cost = mainBillingCost + widgetCostPoints;
