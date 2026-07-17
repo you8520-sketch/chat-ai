@@ -35,6 +35,12 @@ describe("mobile chat portrait background", () => {
     );
   });
 
+  it("does not use overflow-hidden on mobile messages column (keeps composer sticky)", () => {
+    assert.doesNotMatch(CHAT_MESSAGES_COLUMN_CLASS, /overflow-hidden/);
+    assert.doesNotMatch(CHAT_MESSAGES_COLUMN_CLASS, /overflow-y-/);
+    assert.match(CHAT_MESSAGES_COLUMN_CLASS, /overflow-x-clip/);
+  });
+
   it("keeps sticky name/album strip full-grid with album in the portrait track", () => {
     // Outer strip spans both columns (sticky tab above chat); inner track matches
     // the portrait grid so name/creator/album stay on the asset column top-right.

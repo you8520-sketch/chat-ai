@@ -3777,7 +3777,7 @@ export default function ChatClient({
         ref={inputDockRef}
         className={
           showCharacterPortrait
-            ? "sticky bottom-12 z-20 shrink-0 overflow-visible border-t border-white/5 bg-[#121212]/88 px-2 pt-0 pb-1.5 backdrop-blur-sm sm:-mt-2 sm:bottom-0 sm:bg-[#121212] sm:px-0 sm:pt-0 sm:pb-2 sm:backdrop-blur-none"
+            ? "sticky bottom-0 z-20 shrink-0 overflow-visible border-t border-white/5 bg-[#121212]/88 px-2 pt-0 pb-[max(0.375rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:-mt-2 sm:bg-[#121212] sm:px-0 sm:pt-0 sm:pb-2 sm:backdrop-blur-none"
             : `${CHAT_INPUT_DOCK_NO_PORTRAIT_CLASS} overflow-visible`
         }
       >
