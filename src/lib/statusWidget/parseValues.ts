@@ -4,6 +4,10 @@ import {
   statusWidgetFieldLookupKeys,
 } from "./fieldKeys";
 import { mergeExtractedFacts, sanitizeExtractedFacts } from "./extractedFacts";
+import {
+  isUnknownLikeStatusValue,
+  rejectsUnknownLikeTemporalValue,
+} from "./temporalUnknown";
 import type {
   ExtractedStatusFact,
   ParsedStatusWidgetTurnValues,
@@ -235,6 +239,13 @@ function mapValuesToWidgetFields(
     for (const lookup of statusWidgetFieldLookupKeys(field, widget.htmlTemplate)) {
       const raw = values[lookup] ?? normalizedEntries.get(normalizeStatusWidgetLookupKey(lookup));
       const clean = raw != null ? sanitizeStatusWidgetFieldValue(raw) : null;
+      if (
+        clean &&
+        rejectsUnknownLikeTemporalValue(field) &&
+        isUnknownLikeStatusValue(clean)
+      ) {
+        continue;
+      }
       if (clean) {
         out[targetKey] = clean;
         if (field.id && field.id !== targetKey) out[field.id] = clean;
