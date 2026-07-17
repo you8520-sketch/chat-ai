@@ -407,6 +407,45 @@ export function persistEpisodicMemoryFactsBestEffort(
   }
 }
 
+/**
+ * Physically delete episodic facts derived from the given assistant message IDs.
+ * Scoped by chat_id + metadata.assistant_message_id only (never by user message id).
+ * Returns deleted row count. Empty ID list is a no-op (0).
+ */
+export function deleteEpisodicMemoryFactsByAssistantMessageIds(
+  db: Database.Database,
+  chatId: number,
+  assistantMessageIds: readonly number[]
+): number {
+  const scopedChatId = finitePositiveInt(chatId);
+  if (!scopedChatId) return 0;
+
+  const ids: number[] = [];
+  const seen = new Set<number>();
+  for (const raw of assistantMessageIds) {
+    const id = finitePositiveInt(raw);
+    if (id == null || seen.has(id)) continue;
+    seen.add(id);
+    ids.push(id);
+  }
+  if (ids.length === 0) return 0;
+
+  const placeholders = ids.map(() => "?").join(", ");
+  const result = db
+    .prepare(
+      `DELETE FROM episodic_memory_facts
+       WHERE chat_id = ?
+         AND json_valid(metadata) = 1
+         AND CAST(
+           json_extract(metadata, '$.assistant_message_id')
+           AS INTEGER
+         ) IN (${placeholders})`
+    )
+    .run(scopedChatId, ...ids);
+
+  return Number(result.changes) || 0;
+}
+
 function tokenizeForSimpleBoost(text: string): string[] {
   return [
     ...new Set(
