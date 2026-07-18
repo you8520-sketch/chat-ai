@@ -38,7 +38,7 @@ export default async function NotificationsPage() {
   return (
     <AppPageShell
       title="알림"
-      description="공지사항, 선물·결제·팔로우, 팔로우한 크리에이터 신작을 확인하세요."
+      description="공지사항, 좋아요·댓글·팔로우, 선물·결제, 팔로우한 크리에이터 신작을 확인하세요."
       narrow
       className="mt-4"
     >
