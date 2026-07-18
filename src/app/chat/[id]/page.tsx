@@ -25,6 +25,7 @@ import { ensureDefaultPersona, validatePersonaSelection } from "@/lib/userPerson
 import { listUserNotePresets } from "@/lib/userNotePresets";
 import { listStatusWidgetPresets } from "@/lib/statusWidgetPresets";
 import { canAccessCharacter } from "@/lib/characterVisibility";
+import { recordCharacterClick } from "@/lib/characterClicks";
 import {
   mergeUserNoteWithChatPrefs,
   resolveInitialUserChatPrefs,
@@ -137,6 +138,9 @@ export default async function ChatPage({
     | undefined;
 
   if (!c) notFound();
+
+  // Chat room open → home recommendation taste signal
+  recordCharacterClick(db, user.id, c.id);
 
   const access = canAccessCharacter(
     {

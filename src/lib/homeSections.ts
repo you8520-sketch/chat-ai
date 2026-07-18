@@ -6,12 +6,10 @@ import { decorateCharactersWithCreatorTiers } from "@/lib/creatorTierBadges";
 /** lg:grid-cols-5 기준 한 줄 카드 수 */
 export const HOME_CARDS_PER_ROW = 5;
 export const HOME_NEWEST_ROW_COUNT = 5;
-/** 상단 가로 스크롤 — 평소 대화·좋아요 기반 추천 */
+/** 상단 가로 스크롤 — 좋아요·대화·채팅방·클릭 기반 추천 */
 export const HOME_RECOMMENDED_COUNT = 10;
 /** 상단 가로 스크롤 — 관리자가 선정한 공모전 캐릭터 */
 export const HOME_CONTEST_COUNT = 20;
-/** /tab/likes — 좋아요한 캐릭터와 비슷한 계열 추천 */
-export const LIKES_SIMILAR_COUNT = 12;
 
 export type HomeListFilter = {
   filterSql: string;
@@ -19,7 +17,7 @@ export type HomeListFilter = {
 };
 
 export type HomeSections = {
-  /** 최상단 가로 스크롤 — 유저 대화·좋아요·취향(pref) 기반 추천 */
+  /** 최상단 가로 스크롤 — 유저 행동 시그널 기반 추천 */
   recommended: CharacterRow[];
   /** 관리자가 선정한 공모전 캐릭터 — 공모전 진행 전에는 항상 빈 배열 */
   contest: CharacterRow[];
@@ -70,30 +68,62 @@ function parseGenres(raw: string | null | undefined, legacyGenre: string): strin
   return legacyGenre ? [legacyGenre] : [];
 }
 
-function collectTasteSignals(db: Database.Database, userId: number): TasteSignals {
-  const genres = new Map<string, number>();
-  const tags = new Map<string, number>();
+function bumpTaste(
+  taste: TasteSignals,
+  row: { genre: string; genres: string; tags: string },
+  genreWeight: number,
+  tagWeight: number
+) {
+  for (const g of parseGenres(row.genres, row.genre)) {
+    if (!g) continue;
+    taste.genres.set(g, (taste.genres.get(g) ?? 0) + genreWeight);
+  }
+  for (const t of parseTags(row.tags)) {
+    if (!t) continue;
+    taste.tags.set(t, (taste.tags.get(t) ?? 0) + tagWeight);
+  }
+}
 
-  const bump = (map: Map<string, number>, key: string, weight: number) => {
-    if (!key) return;
-    map.set(key, (map.get(key) ?? 0) + weight);
-  };
+/**
+ * Taste seeds for home "추천 캐릭터":
+ * - likes (hearts)
+ * - heavy chat volume (user messages)
+ * - open chat rooms
+ * - character clicks / page opens
+ */
+export function collectTasteSignals(db: Database.Database, userId: number): TasteSignals {
+  const taste: TasteSignals = { genres: new Map(), tags: new Map() };
 
+  // Open chat rooms + conversation volume (user messages).
   const chatted = db
     .prepare(
-      `SELECT c.genre, c.genres, c.tags
+      `SELECT c.genre, c.genres, c.tags,
+              COUNT(DISTINCT ch.id) AS room_count,
+              COALESCE(SUM(CASE WHEN m.role = 'user' THEN 1 ELSE 0 END), 0) AS user_msgs
        FROM chats ch
        JOIN characters c ON c.id = ch.character_id
+       LEFT JOIN messages m ON m.chat_id = ch.id
        WHERE ch.user_id = ?
        GROUP BY c.id
-       ORDER BY MAX(ch.created_at) DESC
-       LIMIT 25`
+       ORDER BY user_msgs DESC, MAX(ch.created_at) DESC
+       LIMIT 40`
     )
-    .all(userId) as { genre: string; genres: string; tags: string }[];
+    .all(userId) as Array<{
+    genre: string;
+    genres: string;
+    tags: string;
+    room_count: number;
+    user_msgs: number;
+  }>;
 
   for (const row of chatted) {
-    for (const g of parseGenres(row.genres, row.genre)) bump(genres, g, 3);
-    for (const t of parseTags(row.tags)) bump(tags, t, 2);
+    const rooms = Math.max(1, Number(row.room_count) || 1);
+    const msgs = Math.max(0, Number(row.user_msgs) || 0);
+    // Open room base + heavier weight for frequent chats.
+    const volumeBoost = Math.min(8, Math.log10(msgs + 1) * 4);
+    const genreW = 2.5 * rooms + volumeBoost;
+    const tagW = 1.5 * rooms + volumeBoost * 0.6;
+    bumpTaste(taste, row, genreW, tagW);
   }
 
   const liked = db
@@ -106,11 +136,52 @@ function collectTasteSignals(db: Database.Database, userId: number): TasteSignal
     .all(userId) as { genre: string; genres: string; tags: string }[];
 
   for (const row of liked) {
-    for (const g of parseGenres(row.genres, row.genre)) bump(genres, g, 2);
-    for (const t of parseTags(row.tags)) bump(tags, t, 1);
+    bumpTaste(taste, row, 4, 2.5);
   }
 
-  return { genres, tags };
+  const clicked = db
+    .prepare(
+      `SELECT c.genre, c.genres, c.tags, cc.click_count,
+              CASE WHEN cc.last_clicked_at >= datetime('now', '-14 days') THEN 1 ELSE 0 END AS recent
+       FROM character_clicks cc
+       JOIN characters c ON c.id = cc.character_id
+       WHERE cc.user_id = ?
+       ORDER BY cc.last_clicked_at DESC
+       LIMIT 40`
+    )
+    .all(userId) as Array<{
+    genre: string;
+    genres: string;
+    tags: string;
+    click_count: number;
+    recent: number;
+  }>;
+
+  for (const row of clicked) {
+    const clicks = Math.max(1, Number(row.click_count) || 1);
+    const recentBoost = row.recent ? 1.4 : 1;
+    const genreW = (1.2 + Math.min(3, Math.log10(clicks + 1) * 2)) * recentBoost;
+    const tagW = genreW * 0.65;
+    bumpTaste(taste, row, genreW, tagW);
+  }
+
+  return taste;
+}
+
+/** Characters the user already engages with — excluded from discovery recommendations. */
+export function collectEngagedCharacterIds(db: Database.Database, userId: number): number[] {
+  const ids = new Set<number>();
+  for (const row of db
+    .prepare("SELECT character_id AS id FROM likes WHERE user_id=?")
+    .all(userId) as Array<{ id: number }>) {
+    ids.add(row.id);
+  }
+  for (const row of db
+    .prepare("SELECT DISTINCT character_id AS id FROM chats WHERE user_id=?")
+    .all(userId) as Array<{ id: number }>) {
+    ids.add(row.id);
+  }
+  return [...ids];
 }
 
 function scoreByTaste(c: CharacterRow, taste: TasteSignals, userPref: string | null | undefined): number {
@@ -138,7 +209,7 @@ function excludeIdsClause(excludeIds: number[]): { sql: string; params: unknown[
   return { sql: `AND id NOT IN (${placeholders})`, params: [...excludeIds] };
 }
 
-/** 1행: 유저 대화·좋아요·취향(pref) 기반 추천 */
+/** 홈 추천 캐릭터 — 좋아요·대화량·채팅방·클릭 시그널로 비슷한 캐릭터 노출 */
 export function fetchRecommendedCharacters(
   db: Database.Database,
   user: { id?: number; pref?: string | null } | null | undefined,
@@ -146,7 +217,10 @@ export function fetchRecommendedCharacters(
   limit = HOME_CARDS_PER_ROW,
   excludeIds: number[] = []
 ): CharacterRow[] {
-  const { sql: excludeSql, params: excludeParams } = excludeIdsClause(excludeIds);
+  const engagedIds =
+    user?.id != null ? collectEngagedCharacterIds(db, user.id) : [];
+  const allExclude = [...new Set([...excludeIds, ...engagedIds])];
+  const { sql: excludeSql, params: excludeParams } = excludeIdsClause(allExclude);
   const baseWhere = `${listableWhere()} ${filter.filterSql} ${excludeSql}`;
 
   if (user?.id != null) {
@@ -159,7 +233,7 @@ export function fetchRecommendedCharacters(
           `SELECT * FROM characters
            WHERE ${baseWhere}
            ORDER BY likes DESC, total_turns DESC
-           LIMIT 80`
+           LIMIT 100`
         )
         .all(...filter.params, ...excludeParams) as CharacterRow[];
 
@@ -280,31 +354,10 @@ export function fetchHomeSections(
   const filter = buildHomeListFilter(user, blurNsfw);
 
   // 각 행은 독립적으로 채운다 — 캐릭터 수가 적을 때 추천 행이 전부 가져가면
-  // 신규·공모전 행에서 서로 제외해 빈 화면이 되는 문제를 방지 (행 간 중복 노출은 정상)
+  // 신작·공모전 행에서 서로 제외해 빈 화면이 되는 문제를 방지 (행 간 중복 노출은 정상)
   const recommended = fetchRecommendedCharacters(db, user, filter, HOME_RECOMMENDED_COUNT);
   const contest = fetchContestCharacters(db, filter, HOME_CONTEST_COUNT);
   const newest = fetchNewestCharacters(db, filter, HOME_CARDS_PER_ROW * HOME_NEWEST_ROW_COUNT);
 
   return { recommended, contest, newest };
-}
-
-/**
- * Likes tab: characters similar to ones the user already liked.
- * Excludes already-liked IDs. Empty when the user has no likes yet.
- */
-export function fetchSimilarToLikedCharacters(
-  db: Database.Database,
-  user: { id: number; pref?: string | null },
-  blurNsfw: boolean,
-  limit = LIKES_SIMILAR_COUNT
-): CharacterRow[] {
-  const likedIds = (
-    db.prepare("SELECT character_id FROM likes WHERE user_id=?").all(user.id) as Array<{
-      character_id: number;
-    }>
-  ).map((r) => r.character_id);
-  if (likedIds.length === 0) return [];
-
-  const filter = buildHomeListFilter(user, blurNsfw);
-  return fetchRecommendedCharacters(db, user, filter, limit, likedIds);
 }

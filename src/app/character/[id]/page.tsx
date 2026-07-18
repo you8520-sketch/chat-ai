@@ -40,12 +40,9 @@ import { checkCommentReportEligibility } from "@/lib/commentPolicy";
 import { userHasReportedComment } from "@/lib/commentReports";
 import { ensureDefaultPersona } from "@/lib/userPersonas";
 import { isActivePartnerCreator } from "@/lib/partnerTier";
-
-
+import { recordCharacterClick } from "@/lib/characterClicks";
 
 export const dynamic = "force-dynamic";
-
-
 
 export default async function CharacterPage({
   params,
@@ -54,7 +51,6 @@ export default async function CharacterPage({
   params: Promise<{ id: string }>;
   searchParams?: Promise<{ embed?: string }>;
 }) {
-
   const { id } = await params;
   const embedMode = (await searchParams)?.embed;
   const introEmbed = embedMode === "chat-intro";
@@ -111,6 +107,9 @@ export default async function CharacterPage({
       </div>
     );
   }
+
+  // Card/detail open → home recommendation taste signal
+  recordCharacterClick(db, user.id, c.id);
 
   const images: string[] = JSON.parse(c.images || "[]");
   const galleryAssets = parseAssets((c as { assets?: string }).assets);
