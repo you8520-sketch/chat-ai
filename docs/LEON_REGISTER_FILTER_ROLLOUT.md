@@ -55,6 +55,7 @@ Fastest (config only, no deploy of code):
 
 - Pre-req: Stage 1 stable for several days; Group A implementation + unit tests done
   (done 2026-07-03: `src/lib/speechLock/narrationLexicon*.ts`, 5/5 tests).
-- Enable `SPEECH_LOCK_NARRATION_LEXICON=1` (Leon-only by default;
+- Enable `SPEECH_LOCK_NARRATION_LEXICON=1` with staging allowlist
+  `SPEECH_LOCK_NARRATION_LEXICON_CHARS=레온` (no character names hardcoded in code;
   `SPEECH_LOCK_NARRATION_LEXICON_LEON_ONLY=0` widens to all characters).
 - Verify with n≥12 before calling it live. Rollback = flag off (per-request check, no code revert).

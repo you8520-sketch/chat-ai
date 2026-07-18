@@ -41,5 +41,5 @@ export function buildNovelModeUserPersonaRules(
 
 1. AI는 [A]뿐만 아니라 [B]의 대사, 행동, 속마음까지 모두 주도적으로 서술할 권한을 가진다.
 2. [B]를 묘사할 때는 [USER_PERSONA]와 채팅에서 유저가 직접 입력한 대사를 기준으로, 캐릭터 붕괴 없이 성격과 말투를 유지하며 서사를 전개할 것.
-3. Keep scene progression continuous — weave [B] and [A] dialogue, action, and beats in natural story order. "Continuous" means uninterrupted scene flow only; it never means merging narration and spoken dialogue into one paragraph, nor keeping changed focus (subject / emotion / space / stage) in the same paragraph.`;
+3. Keep scene progression continuous — weave [B] and [A] dialogue, action, and beats in natural story order. "Continuous" means uninterrupted scene flow only; it never means merging narration and spoken dialogue into one paragraph. New paragraphs follow [OUTPUT LAYOUT] (speaker change, clear time/place shift, or a real change in central action/situation).`;
 }

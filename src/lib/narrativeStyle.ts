@@ -28,7 +28,7 @@ const SCENE_MODE_BY_GENRE: Partial<Record<CharacterGenre, SceneMode>> = {
 function buildSceneModeHint(genres: CharacterGenre[] | undefined): string | null {
   const primary = primaryCharacterGenre(genres ?? []);
   const mode = SCENE_MODE_BY_GENRE[primary] ?? "calm";
-  return `[SCENE MODE] ${primary} → ${mode} (see [GENERATION PROCESS — BEAT FLOW]).`;
+  return `[SCENE MODE] ${primary} → ${mode} (pacing hint for [SCENE FLOW] only — not a cue to shorten; keep TARGET/FLOOR).`;
 }
 
 export type NarrativeStyleMode = "standard" | "possession";

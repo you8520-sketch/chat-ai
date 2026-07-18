@@ -106,9 +106,9 @@ async function main() {
   );
   // Before dump stored literal \n\n as two chars backslash-n from the builder — compare semantic lines
   const semanticLines = [
-    "한 문단에는 하나의 중심 행동·반응·감정 또는 관찰 초점만 둔다.",
+    "하나의 연속된 장면 비트에 속하는 행동, 감각, 생각, 내면 반응과 즉각적 결과는 서로 초점이 조금 달라져도 같은 문단에서 자연스럽게 연결할 수 있다.",
     'Wrong: 그는 고개를 들었다. "대사."',
-    "같은 서술 초점이 유지되는 지문은 2~5문장 정도 자연스럽게 묶을 수 있다(문장 수 강제 아님).",
+    "화자 변경, 뚜렷한 시간·장소 전환, 또는 장면의 중심 행동/상황이 실제로 바뀔 때 새 문단을 시작한다.",
   ];
   const layoutIdentity = semanticLines.every(
     (l) => beforeCombined.includes(l) && afterCombined.includes(l)

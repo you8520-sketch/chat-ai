@@ -219,4 +219,11 @@ describe("resolveRegenerateGenerationOverrides", () => {
     assert.equal(body.seed, overrides.seed);
     assert.ok((body.temperature as number) <= 0.95);
   });
+
+  it("uses a modest DeepSeek regen temperature bump (not 1.2)", () => {
+    const overrides = resolveRegenerateGenerationOverrides(OPENROUTER_DEEPSEEK_V4_PRO_MODEL, 3200);
+    assert.ok(overrides.temperature != null);
+    assert.ok(overrides.temperature >= 0.95 && overrides.temperature <= 1.05);
+    assert.equal(overrides.temperature, 1.02);
+  });
 });

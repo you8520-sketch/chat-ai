@@ -29,8 +29,12 @@ describe("webnovelOutputFormat", () => {
     assert.match(block, /Never append dialogue/i);
     assert.match(block, /Wrong:/);
     assert.match(block, /Right:/);
-    assert.match(block, /초점/);
+    assert.match(block, /한 문단 안에서 자연스럽게 연결/);
+    assert.match(block, /지문 한 문장이 완결됐다는 이유만으로/);
+    assert.match(block, /화자 변경/);
     assert.match(block, /\[DIALOGUE & NARRATION\]/);
+    assert.doesNotMatch(block, /감정 방향/);
+    assert.doesNotMatch(block, /내면과 외부의 초점/);
     assert.doesNotMatch(block, /Continuous narration stays in one paragraph/);
     assert.doesNotMatch(block, /emotional beat shifts/i);
     assert.doesNotMatch(block, /Output formatting only/i);

@@ -23,12 +23,14 @@ describe("narrationFewShotTemplates", () => {
     assert.equal(resolveExampleDialogForPrompt("", "레온"), "");
   });
 
-  it("injects space/sound platform few-shot when fallback ON", () => {
+  it("injects style-neutral structure fallback when fallback ON", () => {
     enableNarrationFewShotFallbackForTests();
     const resolved = resolveExampleDialogForPrompt("", "레온");
     assert.equal(resolved, defaultPlatformNarrationFewShot("레온"));
+    assert.match(resolved, /PLATFORM NARRATION STRUCTURE/);
     assert.match(resolved, /레온/);
+    assert.doesNotMatch(resolved, /조금요|괜찮습니다|레온형|서연|수아/);
     assert.doesNotMatch(resolved, /손을 뻗|손끝|손목/);
-    assert.match(resolved, /공기|소음|간격|거리/);
+    assert.match(resolved, /space \/ sound \/ distance|STYLE-NEUTRAL/);
   });
 });

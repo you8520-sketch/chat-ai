@@ -25,6 +25,22 @@ describe("speechCreatorFields", () => {
     assert.equal(parsed.speech_examples, "");
   });
 
+  it("SPEECH CONSISTENCY scopes examples to demonstrated speech features only", () => {
+    const composed = speechCreatorFields.composeExampleDialog({
+      speech_personality: "",
+      speech_traits: "수다스럽고 감정이 풍부하다",
+      speech_examples: '"응."',
+      speech_forbidden: "",
+      speech_contextual_registers: [],
+    });
+    assert.match(composed, /\[SPEECH CONSISTENCY\]/);
+    assert.match(composed, /demonstrated speech features/);
+    assert.match(composed, /Do not infer unrelated personality/);
+    assert.match(composed, /how much they naturally speak/);
+    assert.doesNotMatch(composed, /examples always win/);
+    assert.match(composed, /\[예시 대사\]\n응\./);
+  });
+
   it("excludes examples/contextual/forbidden from AI learning char count", () => {
     const count = speechCreatorFields.speechCreatorCharCount({
       speech_personality: "기본",

@@ -1,23 +1,12 @@
 /**
- * Step 4.3 — Validated beat-flow process (Screening + spot check).
- * Single SoT for alternation / withhold / reveal / hook / handoff order.
- * Does not replace [WEBNOVEL BREATH] or [NARRATIVE DENSITY] (calm arc).
+ * Scene pacing guidance — not a fixed generation checklist.
+ * Scene Mode calm/tension/combat values remain available via [RUNTIME STYLE].
+ * Style immersion lives in [IMMERSIVE PROSE]; this block only paces, not shortens.
  */
 
-export const GENERATION_PROCESS_BEAT_FLOW_BLOCK = `[GENERATION PROCESS — BEAT FLOW]
-Scene mode: {calm|tension|combat} from [SCENE MODE] — pacing hint only, not fixed alternation.
+export const SCENE_FLOW_BLOCK = `[SCENE FLOW]
+장면의 성격에 맞춰 속도를 조절하되 calm/tension/combat는 분량 수준을 의미하지 않는다.
+평온한 장면도 짧게 요약하지 않고 인물·관계·대화·내면·분위기의 변화로 충분히 전개한다.`;
 
-1 establish → orient the scene before new action or dialogue
-2 exchange → dialogue and narration as the scene needs — no fixed nar↔dlg alternation
-3 withhold → delay one key fact when tension warrants
-4 reveal → one fact per beat
-5 pause → breath beat when the scene needs it
-6 hook → unresolved beat inviting next input
-7 handoff → return agency to user
-
-Do not force equal-length blocks or rhythmic dialogue insertion. Long narration runs are fine when the scene needs them — still start a new paragraph when focus shifts.
-
-[SCENE MODE]
-calm: slower withhold · mid pacing · statement hooks
-tension: short withhold · sharper hooks · open questions
-combat: rapid action · minimal withhold · action cliffs`;
+/** @deprecated alias — older imports / audits */
+export const GENERATION_PROCESS_BEAT_FLOW_BLOCK = SCENE_FLOW_BLOCK;
