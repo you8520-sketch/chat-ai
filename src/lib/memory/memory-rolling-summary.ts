@@ -25,6 +25,7 @@ import {
   reopenClosedBranchCanon,
   resolveSoleClosedContinueReopen,
   isExplicitClosedBranchContinueIntent,
+  selectLatestContiguousNoncanonRecordIds,
   type MemoryRecordView,
 } from "./memory-turn-summary";
 
@@ -659,37 +660,22 @@ async function composeBatchScopePayload(opts: {
         activePriorBranch?.branchId &&
         (plan.wantsBranchContinue || hasContinueIntentEarly)
       ) {
-        // Continue existing active branch — keep its branch_id (single-active invariant).
+        // P1-B Path A: keep active branch_id; never auto-promote prior noncanon
+        // (no deterministic IF identity linking noncanon rows to this branch).
         branchId = activePriorBranch.branchId;
         branchStatus = "active";
         promotedBy = activePriorBranch.promotedBy ?? "user_continue";
         promotedAt = activePriorBranch.promotedAt ?? new Date().toISOString();
-        const toPromote = opts.priorRecords
-          .filter((r) => !r.inactive && r.summaryKind === "noncanon")
-          .map((r) => r.id);
-        if (toPromote.length > 0) {
-          promoteRecordsToBranchCanon({
-            chatId: opts.chatId,
-            recordIds: toPromote,
-            branchId,
-            promotedBy: "user_continue",
-            control: {
-              source: "user_turn",
-              sourceUserMessageId: continueSrc?.userMessageId ?? null,
-              sourceTurn: continueSrc?.turnIndex ?? null,
-              sourceBatchStart: opts.batchStart,
-            },
-          });
-        }
       } else {
         branchId = `branch-${opts.chatId}-${opts.batchStart}`;
         branchStatus = "active";
         promotedBy = "user_continue";
         promotedAt = new Date().toISOString();
         if (opts.mode === "seal") {
-          const toPromote = opts.priorRecords
-            .filter((r) => !r.inactive && r.summaryKind === "noncanon")
-            .map((r) => r.id);
+          // P1-B Path B: promote only latest contiguous noncanon group.
+          const toPromote = selectLatestContiguousNoncanonRecordIds(
+            opts.priorRecords
+          );
           if (toPromote.length > 0) {
             promoteRecordsToBranchCanon({
               chatId: opts.chatId,

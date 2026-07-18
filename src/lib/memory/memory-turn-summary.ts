@@ -311,6 +311,56 @@ export function markMemoryRecordInactive(chatId: number, recordId: number): bool
   return info.changes > 0;
 }
 
+/**
+ * Latest contiguous noncanon group for seal-time promotion (P1-B).
+ * Walk live rows newest→oldest: include noncanon; skip preference/empty_ooc;
+ * stop at main_canon / branch_canon. Returns ids in chronological order.
+ */
+export function selectLatestContiguousNoncanonRecordIds(
+  priorRecords: Array<{
+    id: number;
+    turnStart: number;
+    summaryKind: MemorySummaryScope;
+    inactive: boolean;
+  }>
+): number[] {
+  const live = priorRecords
+    .filter((r) => !r.inactive)
+    .slice()
+    .sort((a, b) => a.turnStart - b.turnStart);
+
+  let started = false;
+  const collected: Array<{ id: number; turnStart: number }> = [];
+
+  for (let i = live.length - 1; i >= 0; i--) {
+    const r = live[i]!;
+    const kind = r.summaryKind;
+
+    if (!started) {
+      if (kind === "preference" || kind === "empty_ooc") continue;
+      if (kind === "noncanon") {
+        started = true;
+        collected.push(r);
+        continue;
+      }
+      if (kind === "main_canon" || kind === "branch_canon") {
+        return [];
+      }
+      continue;
+    }
+
+    if (kind === "noncanon") {
+      collected.push(r);
+      continue;
+    }
+    if (kind === "preference" || kind === "empty_ooc") continue;
+    if (kind === "main_canon" || kind === "branch_canon") break;
+  }
+
+  collected.reverse();
+  return collected.map((r) => r.id);
+}
+
 /** Promote noncanon row(s) to branch_canon (current chat only). */
 export function promoteRecordsToBranchCanon(opts: {
   chatId: number;
