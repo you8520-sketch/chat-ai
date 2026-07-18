@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import WithdrawalForm from "@/components/WithdrawalForm";
 import CommentsEnabledToggle from "@/components/CommentsEnabledToggle";
+import CreatorNotificationPrefs from "@/components/CreatorNotificationPrefs";
 import {
   CREATOR_PARTNER_MIN_CHARACTERS,
   CREATOR_PLUS_MIN_CHARACTERS,
@@ -408,7 +409,7 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
           [
             ["dashboard", "대시보드"],
             ["profile", "소개/공지"],
-            ["comments", "댓글"],
+            ["comments", "댓글·알림"],
           ] as const
         ).map(([id, label]) => (
           <button
@@ -550,21 +551,36 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
           </div>
         </section>
       ) : tab === "comments" ? (
-        <section className={cn(studioSurface.card, "p-5")}>
-          <h2 className={studioType.sectionTitle}>댓글 설정</h2>
-          <p className={cn(studioType.caption, "mt-1")}>
-            크리에이터 프로필과 내 캐릭터 페이지의 댓글 기본값입니다. OFF면 다른 사용자는 댓글을
-            보거나 작성할 수 없습니다.
-          </p>
-          <div className="mt-4">
-            <CommentsEnabledToggle
-              scope="creator"
-              initialEnabled={data.creatorCommentsEnabled}
-              label="크리에이터 댓글 허용"
-              description="OFF 시 내 프로필·캐릭터(개별 설정 ON이어도)에서 방문자에게 댓글이 숨겨집니다."
-            />
-          </div>
-        </section>
+        <div className="space-y-4">
+          <section className={cn(studioSurface.card, "p-5")}>
+            <h2 className={studioType.sectionTitle}>댓글 설정</h2>
+            <p className={cn(studioType.caption, "mt-1")}>
+              크리에이터 프로필과 내 캐릭터 페이지의 댓글 기본값입니다. OFF면 다른 사용자는 댓글을
+              보거나 작성할 수 없습니다.
+            </p>
+            <div className="mt-4">
+              <CommentsEnabledToggle
+                scope="creator"
+                initialEnabled={data.creatorCommentsEnabled}
+                label="크리에이터 댓글 허용"
+                description="OFF 시 내 프로필·캐릭터(개별 설정 ON이어도)에서 방문자에게 댓글이 숨겨집니다."
+              />
+            </div>
+          </section>
+          <section className={cn(studioSurface.card, "p-5")}>
+            <h2 className={studioType.sectionTitle}>알림 받기</h2>
+            <p className={cn(studioType.caption, "mt-1")}>
+              좋아요·댓글이 달렸을 때 알림함으로 받을지 선택합니다. OFF해도 좋아요·댓글 기능 자체는
+              유지됩니다.
+            </p>
+            <div className="mt-4">
+              <CreatorNotificationPrefs
+                initialNotifyLikes={data.notifyCharacterLikes}
+                initialNotifyComments={data.notifyProfileComments}
+              />
+            </div>
+          </section>
+        </div>
       ) : (
         <>
       <section className={cn(studioSurface.card, "p-4")}>

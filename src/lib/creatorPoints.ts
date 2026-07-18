@@ -283,9 +283,19 @@ export function getCreatorDashboard(userId: number): CreatorDashboard {
     .get(userId) as { c: number };
 
   const profileRow = db
-    .prepare("SELECT creator_comments_enabled, creator_profile_html, creator_notice_html FROM users WHERE id=?")
+    .prepare(
+      `SELECT creator_comments_enabled, notify_character_likes, notify_profile_comments,
+              creator_profile_html, creator_notice_html
+       FROM users WHERE id=?`
+    )
     .get(userId) as
-    | { creator_comments_enabled: number; creator_profile_html: string; creator_notice_html: string }
+    | {
+        creator_comments_enabled: number;
+        notify_character_likes: number;
+        notify_profile_comments: number;
+        creator_profile_html: string;
+        creator_notice_html: string;
+      }
     | undefined;
 
   return {
@@ -305,6 +315,8 @@ export function getCreatorDashboard(userId: number): CreatorDashboard {
     hasPendingWithdrawal: Number(pending.c) > 0,
     withdrawal: getWithdrawalEligibility(userId),
     creatorCommentsEnabled: (profileRow?.creator_comments_enabled ?? 1) !== 0,
+    notifyCharacterLikes: (profileRow?.notify_character_likes ?? 1) !== 0,
+    notifyProfileComments: (profileRow?.notify_profile_comments ?? 1) !== 0,
     creatorProfileHtml: profileRow?.creator_profile_html ?? "",
     creatorNoticeHtml: profileRow?.creator_notice_html ?? "",
     creatorNotices: listCreatorNotices(userId),

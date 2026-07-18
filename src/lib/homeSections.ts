@@ -10,6 +10,8 @@ export const HOME_NEWEST_ROW_COUNT = 5;
 export const HOME_RECOMMENDED_COUNT = 10;
 /** 상단 가로 스크롤 — 관리자가 선정한 공모전 캐릭터 */
 export const HOME_CONTEST_COUNT = 20;
+/** /tab/likes — 좋아요한 캐릭터와 비슷한 계열 추천 */
+export const LIKES_SIMILAR_COUNT = 12;
 
 export type HomeListFilter = {
   filterSql: string;
@@ -284,4 +286,25 @@ export function fetchHomeSections(
   const newest = fetchNewestCharacters(db, filter, HOME_CARDS_PER_ROW * HOME_NEWEST_ROW_COUNT);
 
   return { recommended, contest, newest };
+}
+
+/**
+ * Likes tab: characters similar to ones the user already liked.
+ * Excludes already-liked IDs. Empty when the user has no likes yet.
+ */
+export function fetchSimilarToLikedCharacters(
+  db: Database.Database,
+  user: { id: number; pref?: string | null },
+  blurNsfw: boolean,
+  limit = LIKES_SIMILAR_COUNT
+): CharacterRow[] {
+  const likedIds = (
+    db.prepare("SELECT character_id FROM likes WHERE user_id=?").all(user.id) as Array<{
+      character_id: number;
+    }>
+  ).map((r) => r.character_id);
+  if (likedIds.length === 0) return [];
+
+  const filter = buildHomeListFilter(user, blurNsfw);
+  return fetchRecommendedCharacters(db, user, filter, limit, likedIds);
 }

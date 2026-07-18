@@ -815,6 +815,10 @@ function migrate(db: Database.Database) {
       ON point_gifts(recipient_id, created_at);
   `);
   addColumn("users", "creator_comments_enabled", "INTEGER NOT NULL DEFAULT 1");
+  /** Creator inbox: notify when someone likes their character (1=on). */
+  addColumn("users", "notify_character_likes", "INTEGER NOT NULL DEFAULT 1");
+  /** Creator inbox: notify when someone comments on their profile/character (1=on). */
+  addColumn("users", "notify_profile_comments", "INTEGER NOT NULL DEFAULT 1");
   addColumn("users", "creator_profile_html", "TEXT NOT NULL DEFAULT ''");
   addColumn("users", "creator_notice_html", "TEXT NOT NULL DEFAULT ''");
   db.exec(`
@@ -1108,12 +1112,13 @@ function migrateCharacterEngagementStats(db: Database.Database) {
       value TEXT NOT NULL DEFAULT ''
     );
   `);
+  // v2 recounts total_turns including successful regenerate variants (alternates length - 1).
   const done = db
-    .prepare("SELECT value FROM app_meta WHERE key='engagement_stats_v1'")
+    .prepare("SELECT value FROM app_meta WHERE key='engagement_stats_v2'")
     .get() as { value: string } | undefined;
   if (done?.value === "1") return;
   backfillCharacterEngagementStats(db);
-  db.prepare("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('engagement_stats_v1', '1')").run();
+  db.prepare("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('engagement_stats_v2', '1')").run();
 }
 
 /** SQLite DEFAULT 2000 → 앱 기본 4000 (한 번만, 이후 2000은 사용자가 직접 선택한 값) */

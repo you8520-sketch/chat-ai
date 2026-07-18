@@ -9,7 +9,9 @@ export type UserNotificationType =
   | "payment_cancel"
   | "follow_received"
   | "admin_point_grant"
-  | "inquiry_reply";
+  | "inquiry_reply"
+  | "character_like"
+  | "profile_comment";
 
 export type UserNotificationRow = {
   id: number;
@@ -25,6 +27,8 @@ export type UserNotificationRow = {
   hue: number | null;
   character_name: string | null;
   actor_nickname: string | null;
+  comment_target_type: "creator" | "character" | null;
+  comment_target_id: number | null;
 };
 
 export type NoticeRow = {
@@ -73,9 +77,11 @@ export function getUnreadCreatorNotificationCount(db: Database.Database, userId:
 
 const USER_NOTIFICATION_SELECT = `
   SELECT n.id, n.user_id, n.type, n.ref_id, n.actor_id, n.title, n.body, n.created_at, n.read_at,
-         c.emoji, c.hue, c.name AS character_name, u.nickname AS actor_nickname
+         c.emoji, c.hue, c.name AS character_name, u.nickname AS actor_nickname,
+         pc.target_type AS comment_target_type, pc.target_id AS comment_target_id
   FROM user_notifications n
-  LEFT JOIN characters c ON n.type = 'creator_character' AND c.id = n.ref_id
+  LEFT JOIN characters c ON n.type IN ('creator_character', 'character_like') AND c.id = n.ref_id
+  LEFT JOIN profile_comments pc ON n.type = 'profile_comment' AND pc.id = n.ref_id
   LEFT JOIN users u ON u.id = n.actor_id`;
 
 export function listUserNotifications(
@@ -185,7 +191,16 @@ export function markCreatorNotificationsRead(db: Database.Database, userId: numb
 export function notificationHref(n: UserNotificationRow): string {
   switch (n.type) {
     case "creator_character":
+    case "character_like":
       return `/character/${n.ref_id}`;
+    case "profile_comment":
+      if (n.comment_target_type === "character" && n.comment_target_id) {
+        return `/character/${n.comment_target_id}`;
+      }
+      if (n.comment_target_type === "creator" && n.comment_target_id) {
+        return `/creator/${n.comment_target_id}`;
+      }
+      return "/notifications";
     case "follow_received":
       return n.actor_id ? `/creator/${n.actor_id}` : "/tab/following";
     case "gift_sent":
@@ -219,9 +234,81 @@ export function notificationIcon(type: UserNotificationType): string {
       return "💬";
     case "follow_received":
       return "👤";
+    case "character_like":
+      return "❤️";
+    case "profile_comment":
+      return "💬";
     default:
       return "🔔";
   }
+}
+
+function creatorNotifyPrefOn(
+  db: Database.Database,
+  creatorId: number,
+  column: "notify_character_likes" | "notify_profile_comments"
+): boolean {
+  const row = db
+    .prepare(`SELECT ${column} AS enabled FROM users WHERE id=?`)
+    .get(creatorId) as { enabled: number } | undefined;
+  return (row?.enabled ?? 1) !== 0;
+}
+
+/** Notify character creator when someone likes their character (respects notify_character_likes). */
+export function notifyCharacterLiked(
+  db: Database.Database,
+  opts: {
+    creatorId: number | null | undefined;
+    actorId: number;
+    actorNickname: string;
+    characterId: number;
+    characterName: string;
+  }
+) {
+  const creatorId = opts.creatorId ?? 0;
+  if (creatorId <= 0 || creatorId === opts.actorId) return;
+  if (!creatorNotifyPrefOn(db, creatorId, "notify_character_likes")) return;
+
+  insertNotification(db, {
+    userId: creatorId,
+    type: "character_like",
+    refId: opts.characterId,
+    actorId: opts.actorId,
+    title: "새 좋아요",
+    body: `@${opts.actorNickname}님이 「${opts.characterName}」에 좋아요를 눌렀습니다.`,
+  });
+}
+
+/** Notify owner when someone leaves a profile/character comment (respects notify_profile_comments). */
+export function notifyProfileCommentReceived(
+  db: Database.Database,
+  opts: {
+    recipientId: number | null | undefined;
+    actorId: number;
+    actorNickname: string;
+    commentId: number;
+    targetType: "creator" | "character";
+    targetLabel: string;
+    preview: string;
+  }
+) {
+  const recipientId = opts.recipientId ?? 0;
+  if (recipientId <= 0 || recipientId === opts.actorId) return;
+  if (!creatorNotifyPrefOn(db, recipientId, "notify_profile_comments")) return;
+
+  const preview = opts.preview.replace(/\s+/g, " ").trim().slice(0, 80);
+  const where =
+    opts.targetType === "character" ? `「${opts.targetLabel}」` : "크리에이터 프로필";
+  insertNotification(db, {
+    userId: recipientId,
+    type: "profile_comment",
+    refId: opts.commentId,
+    actorId: opts.actorId,
+    title: "새 댓글",
+    body: `@${opts.actorNickname}님이 ${where}에 댓글을 남겼습니다.${preview ? ` ${preview}` : ""}${
+      opts.preview.length > 80 ? "…" : ""
+    }`,
+  });
 }
 
 export function notifyFollowersOfNewCharacter(

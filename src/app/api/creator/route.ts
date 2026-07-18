@@ -31,6 +31,35 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ ok: true, comments_enabled: enabled === 1 });
   }
 
+  if (body.notify_character_likes !== undefined || body.notify_profile_comments !== undefined) {
+    const db = getDb();
+    const current = db
+      .prepare("SELECT notify_character_likes, notify_profile_comments FROM users WHERE id=?")
+      .get(user.id) as
+      | { notify_character_likes: number; notify_profile_comments: number }
+      | undefined;
+    const likes =
+      body.notify_character_likes !== undefined
+        ? body.notify_character_likes
+          ? 1
+          : 0
+        : (current?.notify_character_likes ?? 1);
+    const comments =
+      body.notify_profile_comments !== undefined
+        ? body.notify_profile_comments
+          ? 1
+          : 0
+        : (current?.notify_profile_comments ?? 1);
+    db.prepare(
+      "UPDATE users SET notify_character_likes=?, notify_profile_comments=? WHERE id=?"
+    ).run(likes, comments, user.id);
+    return NextResponse.json({
+      ok: true,
+      notify_character_likes: likes === 1,
+      notify_profile_comments: comments === 1,
+    });
+  }
+
   if (body.creator_profile_html !== undefined || body.creator_notice_html !== undefined) {
     const existing = getDb()
       .prepare("SELECT creator_profile_html, creator_notice_html FROM users WHERE id=?")

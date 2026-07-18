@@ -161,14 +161,11 @@ export default function CharacterCard({ c, blurNsfw, loggedIn = false }: Props) 
           )}
 
           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/35 to-transparent px-2 pb-2 pt-6">
-            <div className="flex items-center justify-between gap-1 text-[10px] font-semibold tabular-nums text-white/90">
-              <span title="좋아요">❤️ {fmt(c.likes)}</span>
+            <div className="flex items-center justify-center gap-3 text-[10px] font-semibold tabular-nums text-white/90">
               <span title="누적 대화 턴">💬 {fmt(c.total_turns ?? 0)}</span>
               {(c.chats_count ?? 0) > 0 ? (
                 <span title="이용 유저 수">👥 {fmt(c.chats_count)}</span>
-              ) : (
-                <span className="invisible">—</span>
-              )}
+              ) : null}
             </div>
           </div>
         </div>

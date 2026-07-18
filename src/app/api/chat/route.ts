@@ -2780,6 +2780,10 @@ export async function POST(req: Request) {
               ? "FINALIZE_OVERWROTE_VALUES_PREVENTED"
               : statusWidgetSaveReason,
           });
+          // Successful regenerate counts as an engagement turn (same counter as new user sends).
+          if (finalizeResult.wrote) {
+            incrementCharacterTotalTurns(db, ch.id, 1);
+          }
           aiMessageId = regenerateMessageId;
         } else {
           const alternatesJson = JSON.stringify([newVariant]);

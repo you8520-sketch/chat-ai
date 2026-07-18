@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { incrementCharacterTotalTurns } from "@/lib/characterEngagementStats";
+import {
+  countAssistantGenerationTurns,
+  incrementCharacterTotalTurns,
+} from "@/lib/characterEngagementStats";
 import { getLastTurnMessageIds } from "@/lib/chatAccess";
 import { deleteEpisodicMemoryFactsByAssistantMessageIds } from "@/lib/episodicMemoryFacts";
 import { getChatMemoryCapacity } from "@/lib/memory/memory-capacity";
@@ -35,6 +38,18 @@ export async function DELETE(req: Request) {
   const idsToDelete = [lastTurn.userId];
   if (lastTurn.assistantId != null) idsToDelete.push(lastTurn.assistantId);
 
+  let engagementDelta = lastTurn.userId != null ? 1 : 0;
+  if (lastTurn.assistantId != null) {
+    const assistantRow = db
+      .prepare("SELECT content, alternates FROM messages WHERE id=? AND chat_id=?")
+      .get(lastTurn.assistantId, cId) as { content: string; alternates: string | null } | undefined;
+    if (assistantRow) {
+      const gens = countAssistantGenerationTurns(assistantRow.alternates, assistantRow.content);
+      engagementDelta =
+        lastTurn.userId != null ? Math.max(1, gens) : gens;
+    }
+  }
+
   // Same transaction: bookmarks → episodic facts (assistant provenance) → messages.
   // Fact delete failures must roll back message deletes (no orphan prevention gap).
   db.transaction(() => {
@@ -47,8 +62,8 @@ export async function DELETE(req: Request) {
     for (const id of idsToDelete) {
       db.prepare("DELETE FROM messages WHERE id=? AND chat_id=?").run(id, cId);
     }
-    if (lastTurn.userId != null) {
-      incrementCharacterTotalTurns(db, chat.character_id, -1);
+    if (engagementDelta > 0) {
+      incrementCharacterTotalTurns(db, chat.character_id, -engagementDelta);
     }
   })();
 

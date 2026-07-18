@@ -170,6 +170,10 @@ export type CreatorDashboard = {
   hasPendingWithdrawal: boolean;
   withdrawal: WithdrawalEligibility;
   creatorCommentsEnabled: boolean;
+  /** Receive inbox notification when someone likes a character */
+  notifyCharacterLikes: boolean;
+  /** Receive inbox notification when someone comments on profile/character */
+  notifyProfileComments: boolean;
   creatorProfileHtml: string;
   creatorNoticeHtml: string;
   creatorNotices: CreatorNoticeRow[];

@@ -8,6 +8,7 @@ import {
 } from "@/lib/commentModeration";
 import { COMMENT_AUTHOR_BLOCK_STRIKES } from "@/lib/commentModerationPolicy";
 import type { ProfileCommentTarget } from "@/lib/profileComments";
+import { notifyProfileCommentReceived } from "@/lib/userNotifications";
 
 export type SubmitProfileCommentResult =
   | { ok: true; commentId: number }
@@ -97,6 +98,33 @@ export async function submitProfileComment(input: {
     matched_words_json: "[]",
     action: "allowed_post",
   });
+
+  if (input.targetType === "creator") {
+    notifyProfileCommentReceived(db, {
+      recipientId: input.targetId,
+      actorId: input.authorId,
+      actorNickname: input.authorName,
+      commentId,
+      targetType: "creator",
+      targetLabel: "",
+      preview: input.content,
+    });
+  } else {
+    const character = db
+      .prepare("SELECT name, creator_id FROM characters WHERE id=?")
+      .get(input.targetId) as { name: string; creator_id: number | null } | undefined;
+    if (character) {
+      notifyProfileCommentReceived(db, {
+        recipientId: character.creator_id,
+        actorId: input.authorId,
+        actorNickname: input.authorName,
+        commentId,
+        targetType: "character",
+        targetLabel: character.name,
+        preview: input.content,
+      });
+    }
+  }
 
   return { ok: true, commentId };
 }

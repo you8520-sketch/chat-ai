@@ -17,6 +17,7 @@ import {
 } from "@/lib/characterRanking";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 import { decorateCharactersWithCreatorTiers } from "@/lib/creatorTierBadges";
+import { fetchSimilarToLikedCharacters } from "@/lib/homeSections";
 
 export const dynamic = "force-dynamic";
 
@@ -75,6 +76,7 @@ export default async function TabPage({
 
   let title = "";
   let chars: CharacterRow[] = [];
+  let similarChars: CharacterRow[] = [];
   let rankedChars: RankedCharacter[] = [];
   const rankingPeriod = parseRankingPeriod(p);
 
@@ -139,7 +141,7 @@ export default async function TabPage({
         .all(user.id) as CharacterRow[];
       break;
     case "likes":
-      title = "좋아요한 캐릭터";
+      title = "좋아요";
       if (!user) {
         return (
           <Empty
@@ -155,6 +157,7 @@ export default async function TabPage({
           "SELECT c.* FROM characters c JOIN likes l ON l.character_id=c.id WHERE l.user_id=? ORDER BY c.likes DESC",
         )
         .all(user.id) as CharacterRow[];
+      similarChars = fetchSimilarToLikedCharacters(db, user, blurNsfw);
       break;
     default:
       notFound();
@@ -272,6 +275,36 @@ export default async function TabPage({
               : `${rankingPeriodLabel(rankingPeriod)} 기간에 대화가 시작된 캐릭터가 없습니다.`}
           </p>
         )
+      ) : tab === "likes" ? (
+        <div className="mt-6 space-y-10">
+          <section>
+            <h2 className={cn(studioType.sectionTitle)}>좋아요한 캐릭터</h2>
+            {chars.length > 0 ? (
+              <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+                {chars.map((c) => (
+                  <CharacterCard key={c.id} c={c} blurNsfw={blurNsfw} loggedIn={loggedIn} />
+                ))}
+              </div>
+            ) : (
+              <p className={cn(studioType.helper, "mt-4")}>
+                아직 좋아요한 캐릭터가 없습니다. 마음에 드는 캐릭터에 하트를 눌러 보세요.
+              </p>
+            )}
+          </section>
+          {similarChars.length > 0 && (
+            <section>
+              <h2 className={cn(studioType.sectionTitle)}>비슷한 캐릭터 추천</h2>
+              <p className={cn(studioType.caption, "mt-1")}>
+                좋아요한 캐릭터와 장르·태그가 비슷한 작품을 모았습니다.
+              </p>
+              <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+                {similarChars.map((c) => (
+                  <CharacterCard key={c.id} c={c} blurNsfw={blurNsfw} loggedIn={loggedIn} />
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
       ) : chars.length > 0 ? (
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
           {chars.map((c) => (
