@@ -6,6 +6,8 @@ import {
 } from "@/lib/ai";
 import { collectWidgetJsonKeys } from "./prompt";
 import {
+  buildCombinedDualWidgetExtractSystem,
+  buildCombinedDualWidgetExtractUserBlock,
   buildWidgetExtractRepairSystem,
   buildWidgetExtractRepairUserBlock,
   buildWidgetExtractSystem,
@@ -13,6 +15,7 @@ import {
   dropRepairEchoFields,
   extractJsonObjectFromWidgetText,
   normalizeWidgetExtraction,
+  parseCombinedDualWidgetExtractResponse,
   resolveRepairMaxTokens,
 } from "./extractNormalize";
 import {
@@ -25,6 +28,7 @@ import {
   type StatusWidgetExtractStage,
   type StatusWidgetReasonCode,
 } from "./diagnostics";
+import { statusWidgetSourceValuesHaveContent } from "./displayPolicy";
 import type {
   ExtractedStatusFact,
   ParsedStatusWidgetTurnValues,
@@ -46,6 +50,10 @@ export type StatusWidgetExtractCaller = (
 
 export type StatusWidgetSourceExtractMeta = {
   source: "character" | "user";
+  /**
+   * API calls attributable to this source alone (repair-only after shared combined).
+   * Shared combined initial is NOT counted here — see turn actualCallCount.
+   */
   callCount: number;
   stages: StatusWidgetExtractStage[];
   finalStage: StatusWidgetExtractStage | null;
@@ -59,12 +67,17 @@ export type StatusWidgetSourceExtractMeta = {
   }>;
   echoDroppedKeys: string[];
   repairMaxTokens: number | null;
+  /** Filled by shared dual combined initial (billing counts that call once at turn level). */
+  sharedCombinedInitial?: boolean;
 };
 
 export type StatusWidgetTurnExtractMeta = {
   character: StatusWidgetSourceExtractMeta | null;
   user: StatusWidgetSourceExtractMeta | null;
+  /** Actual caller invocations this turn (1–3 on dual combined path; 1–4 on legacy sequential). */
   totalCallCount: number;
+  actualCallCount: number;
+  extractMode: "single" | "dual_combined";
   /** Actual background extract model (BACKGROUND_OPENROUTER_MODEL / primaryModelId). */
   billingModelId: string;
   /** Present when at least one extract API call was made (same lifetime as usage when tokens exist). */
@@ -372,11 +385,16 @@ async function extractStatusWidgetValuesForWidget(opts: {
   caller?: StatusWidgetExtractCaller;
   primaryModelId?: string;
   env?: NodeJS.ProcessEnv;
+  /** Skip initial; run existing same-model repair once (after dual combined miss). */
+  repairOnly?: boolean;
+  sharedCombinedInitial?: boolean;
 }): Promise<{
   values: StatusWidgetValues | null;
   facts: ExtractedStatusFact[];
   usage: TokenUsage | null;
   meta: StatusWidgetSourceExtractMeta;
+  /** Actual caller invocations performed in this function. */
+  apiCalls: number;
 }> {
   const keys = collectWidgetJsonKeys(opts.widget);
   if (keys.length === 0) {
@@ -384,6 +402,7 @@ async function extractStatusWidgetValuesForWidget(opts: {
       values: null,
       facts: [],
       usage: null,
+      apiCalls: 0,
       meta: {
         source: opts.source,
         callCount: 0,
@@ -394,6 +413,7 @@ async function extractStatusWidgetValuesForWidget(opts: {
         attemptUsages: [],
         echoDroppedKeys: [],
         repairMaxTokens: null,
+        sharedCombinedInitial: opts.sharedCombinedInitial,
       },
     };
   }
@@ -406,44 +426,52 @@ async function extractStatusWidgetValuesForWidget(opts: {
   const attemptUsages: StatusWidgetSourceExtractMeta["attemptUsages"] = [];
   let echoDroppedKeys: string[] = [];
   const repairMaxTokens = resolveRepairMaxTokens(opts.widget, keys);
+  let apiCalls = 0;
 
-  const system = buildWidgetExtractSystem(opts.widget, keys, opts.source);
-  const userBlock = buildWidgetExtractUserBlock(opts);
+  if (!opts.repairOnly) {
+    const system = buildWidgetExtractSystem(opts.widget, keys, opts.source);
+    const userBlock = buildWidgetExtractUserBlock(opts);
 
-  const initial = await runExtractAttempt({
-    system,
-    userBlock,
-    widget: opts.widget,
-    source: opts.source,
-    stage: "initial",
-    attemptIndex: 1,
-    modelId: primaryModelId,
-    requestKind: "background-status-widget-extract",
-    applyEchoFilter: false,
-    caller,
-    trace: opts.trace,
-    env: opts.env,
-  });
-  stages.push("initial");
-  models.push(primaryModelId);
-  pushUsage(usages, attemptUsages, initial);
-  if (initial.ok) {
-    return {
-      values: initial.values,
-      facts: initial.facts,
-      usage: mergeStatusWidgetExtractUsages(usages),
-      meta: {
-        source: opts.source,
-        callCount: 1,
-        stages,
-        finalStage: "initial",
-        finalReasonCode: "OK",
-        models,
-        attemptUsages,
-        echoDroppedKeys: [],
-        repairMaxTokens,
-      },
-    };
+    const initial = await runExtractAttempt({
+      system,
+      userBlock,
+      widget: opts.widget,
+      source: opts.source,
+      stage: "initial",
+      attemptIndex: 1,
+      modelId: primaryModelId,
+      requestKind: "background-status-widget-extract",
+      applyEchoFilter: false,
+      caller,
+      trace: opts.trace,
+      env: opts.env,
+    });
+    apiCalls += 1;
+    stages.push("initial");
+    models.push(primaryModelId);
+    pushUsage(usages, attemptUsages, initial);
+    if (initial.ok) {
+      return {
+        values: initial.values,
+        facts: initial.facts,
+        usage: mergeStatusWidgetExtractUsages(usages),
+        apiCalls,
+        meta: {
+          source: opts.source,
+          callCount: 1,
+          stages,
+          finalStage: "initial",
+          finalReasonCode: "OK",
+          models,
+          attemptUsages,
+          echoDroppedKeys: [],
+          repairMaxTokens,
+        },
+      };
+    }
+  } else {
+    stages.push("initial");
+    models.push(primaryModelId);
   }
 
   const repairSystem = buildWidgetExtractRepairSystem(keys, opts.source);
@@ -463,7 +491,7 @@ async function extractStatusWidgetValuesForWidget(opts: {
     widget: opts.widget,
     source: opts.source,
     stage: "repair",
-    attemptIndex: 2,
+    attemptIndex: opts.repairOnly ? 2 : 2,
     modelId: primaryModelId,
     requestKind: "background-status-widget-extract-repair",
     maxTokens: repairMaxTokens,
@@ -473,18 +501,21 @@ async function extractStatusWidgetValuesForWidget(opts: {
     trace: opts.trace,
     env: opts.env,
   });
+  apiCalls += 1;
   stages.push("repair");
   models.push(primaryModelId);
   pushUsage(usages, attemptUsages, repair);
   echoDroppedKeys = repair.echoDroppedKeys;
+  const sourceCallCount = opts.repairOnly ? 1 : 2;
   if (repair.ok) {
     return {
       values: repair.values,
       facts: repair.facts,
       usage: mergeStatusWidgetExtractUsages(usages),
+      apiCalls,
       meta: {
         source: opts.source,
-        callCount: 2,
+        callCount: sourceCallCount,
         stages,
         finalStage: "repair",
         finalReasonCode: "V3_REPAIR_USED",
@@ -492,6 +523,7 @@ async function extractStatusWidgetValuesForWidget(opts: {
         attemptUsages,
         echoDroppedKeys,
         repairMaxTokens,
+        sharedCombinedInitial: opts.sharedCombinedInitial,
       },
     };
   }
@@ -500,9 +532,10 @@ async function extractStatusWidgetValuesForWidget(opts: {
     values: null,
     facts: [],
     usage: mergeStatusWidgetExtractUsages(usages),
+    apiCalls,
     meta: {
       source: opts.source,
-      callCount: 2,
+      callCount: sourceCallCount,
       stages,
       finalStage: "repair",
       finalReasonCode: "STATUS_WIDGET_EXTRACT_EXHAUSTED",
@@ -510,6 +543,7 @@ async function extractStatusWidgetValuesForWidget(opts: {
       attemptUsages,
       echoDroppedKeys,
       repairMaxTokens,
+      sharedCombinedInitial: opts.sharedCombinedInitial,
     },
   };
 }
@@ -530,63 +564,286 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   caller?: StatusWidgetExtractCaller;
   primaryModelId?: string;
   env?: NodeJS.ProcessEnv;
+  /**
+   * Main-parse seed. Sources that already have usable values are never re-extracted.
+   * Missing sources are extracted (combined when both missing).
+   */
+  seedValues?: ParsedStatusWidgetTurnValues | null;
 }): Promise<{
   values: ParsedStatusWidgetTurnValues;
   usage: TokenUsage | null;
   meta: StatusWidgetTurnExtractMeta;
 }> {
   const out: ParsedStatusWidgetTurnValues = {};
-  const usages: TokenUsage[] = [];
+  const turnUsages: TokenUsage[] = [];
   const factBatches: ExtractedStatusFact[][] = [];
   let characterMeta: StatusWidgetSourceExtractMeta | null = null;
   let userMeta: StatusWidgetSourceExtractMeta | null = null;
+  let actualCallCount = 0;
+  let extractMode: "single" | "dual_combined" = "single";
+  const primaryModelId = opts.primaryModelId?.trim() || BACKGROUND_OPENROUTER_MODEL;
 
-  if (opts.resolved.needsCharacterValues && opts.resolved.characterWidget) {
-    const character = await extractStatusWidgetValuesForWidget({
-      charName: opts.charName,
-      characterIdentity: opts.characterIdentity,
-      personaName: opts.personaName,
-      userPersona: opts.userPersona,
-      userMessage: opts.userMessage,
-      assistantProse: opts.assistantProse,
-      widget: opts.resolved.characterWidget,
-      source: "character",
-      previousValues: opts.previousValues?.character ?? null,
-      previousAssistantProse: opts.previousAssistantProse,
-      userNote: opts.userNote,
-      trace: opts.trace,
-      caller: opts.caller,
-      primaryModelId: opts.primaryModelId,
-      env: opts.env,
-    });
-    out.character = character.values;
-    if (character.facts.length > 0) factBatches.push(character.facts);
-    if (character.usage) usages.push(character.usage);
-    characterMeta = character.meta;
+  const emptyMeta = (): StatusWidgetTurnExtractMeta => ({
+    character: null,
+    user: null,
+    totalCallCount: 0,
+    actualCallCount: 0,
+    extractMode: "single",
+    billingModelId: primaryModelId,
+    billing: null,
+    usedRepair: false,
+    exhausted: false,
+    mergedInputTokens: 0,
+    mergedOutputTokens: 0,
+  });
+
+  // Route gates HTML/OOC/interrupted; active=false must not call extract either.
+  if (!opts.resolved.active) {
+    return { values: out, usage: null, meta: emptyMeta() };
   }
 
-  if (opts.resolved.needsUserValues && opts.resolved.userWidget) {
-    const user = await extractStatusWidgetValuesForWidget({
+  const charWidget = opts.resolved.characterWidget;
+  const userWidget = opts.resolved.userWidget;
+  const seedCharOk =
+    opts.resolved.needsCharacterValues &&
+    statusWidgetSourceValuesHaveContent(opts.seedValues?.character);
+  const seedUserOk =
+    opts.resolved.needsUserValues && statusWidgetSourceValuesHaveContent(opts.seedValues?.user);
+
+  if (seedCharOk) out.character = opts.seedValues!.character!;
+  if (seedUserOk) out.user = opts.seedValues!.user!;
+  if (opts.seedValues?.extracted_facts?.length) {
+    factBatches.push(opts.seedValues.extracted_facts);
+  }
+
+  const needCharExtract =
+    opts.resolved.needsCharacterValues && Boolean(charWidget) && !seedCharOk;
+  const needUserExtract = opts.resolved.needsUserValues && Boolean(userWidget) && !seedUserOk;
+
+  const caller = opts.caller ?? defaultExtractCaller;
+
+  if (needCharExtract && needUserExtract && charWidget && userWidget) {
+    extractMode = "dual_combined";
+    const started = Date.now();
+    const system = buildCombinedDualWidgetExtractSystem(charWidget, userWidget);
+    const userBlock = buildCombinedDualWidgetExtractUserBlock({
       charName: opts.charName,
       characterIdentity: opts.characterIdentity,
       personaName: opts.personaName,
-      userPersona: opts.userPersona,
       userMessage: opts.userMessage,
       assistantProse: opts.assistantProse,
-      widget: opts.resolved.userWidget,
-      source: "user",
-      previousValues: opts.previousValues?.user ?? null,
       previousAssistantProse: opts.previousAssistantProse,
-      userNote: opts.userNote,
-      trace: opts.trace,
-      caller: opts.caller,
-      primaryModelId: opts.primaryModelId,
-      env: opts.env,
+      characterWidget: charWidget,
+      userWidget,
+      previousCharacterValues: opts.previousValues?.character ?? null,
+      previousUserValues: opts.previousValues?.user ?? null,
     });
-    out.user = user.values;
-    if (user.facts.length > 0) factBatches.push(user.facts);
-    if (user.usage) usages.push(user.usage);
-    userMeta = user.meta;
+
+    let combinedText = "";
+    let combinedUsage: TokenUsage | null = null;
+    try {
+      const res = await caller(system, [{ role: "user", content: userBlock }], {
+        requestKind: "background-status-widget-extract-combined",
+        modelId: primaryModelId,
+      });
+      combinedText = res.text ?? "";
+      combinedUsage = res.usage ?? null;
+    } catch (e) {
+      console.error("[STATUS-WIDGET-ERROR] combined extract call failed", (e as Error).message);
+    }
+    actualCallCount += 1;
+    if (combinedUsage) turnUsages.push(combinedUsage);
+
+    const parsed = parseCombinedDualWidgetExtractResponse(combinedText, {
+      characterWidget: charWidget,
+      userWidget,
+      applyEchoFilter: true,
+    });
+    const latencyMs = Date.now() - started;
+
+    logStatusWidgetLiveTrace({
+      ...opts.trace,
+      phase: "v3_extract_result",
+      extractStage: "initial",
+      extractAttemptIndex: 1,
+      extractModelId: primaryModelId,
+      v3ExtractCalled: true,
+      v3ExtractSucceeded: parsed.characterOk || parsed.userOk,
+      v3ExtractReturnedTextLength: combinedText.length,
+      v3ExtractJsonFound: parsed.jsonParseOk,
+      normalizedKeys: [
+        ...usableNormalizedKeys(parsed.character),
+        ...usableNormalizedKeys(parsed.user),
+      ],
+      hasUsableValues: parsed.characterOk || parsed.userOk,
+      inputTokens: combinedUsage?.inputTokens,
+      outputTokens: combinedUsage?.outputTokens,
+      latencyMs,
+      reasonCode: parsed.characterOk && parsed.userOk ? "OK" : "V3_INITIAL_EMPTY",
+    });
+    console.info(
+      "[StatusWidgetExtractAttempt]",
+      JSON.stringify({
+        mode: "dual_combined",
+        requestedSources: ["character", "user"],
+        successfulSources: [
+          ...(parsed.characterOk ? (["character"] as const) : []),
+          ...(parsed.userOk ? (["user"] as const) : []),
+        ],
+        failedSources: [
+          ...(!parsed.characterOk ? (["character"] as const) : []),
+          ...(!parsed.userOk ? (["user"] as const) : []),
+        ],
+        attemptIndex: 1,
+        actualCallCount: 1,
+        modelId: primaryModelId,
+        inputTokens: combinedUsage?.inputTokens ?? null,
+        outputTokens: combinedUsage?.outputTokens ?? null,
+        latencyMs,
+        reasonCode: parsed.characterOk && parsed.userOk ? "OK" : "V3_INITIAL_EMPTY",
+        requestId: opts.trace?.requestId ?? null,
+        chatId: opts.trace?.chatId ?? null,
+        messageId: opts.trace?.messageId ?? null,
+      })
+    );
+
+    if (parsed.extracted_facts.length > 0) {
+      factBatches.push(parsed.extracted_facts);
+    }
+
+    if (parsed.characterOk) {
+      out.character = parsed.character;
+      characterMeta = {
+        source: "character",
+        // Shared combined initial is billed once at turn level — do not mirror tokens here.
+        callCount: 0,
+        stages: ["initial"],
+        finalStage: "initial",
+        finalReasonCode: "OK",
+        models: [primaryModelId],
+        attemptUsages: [],
+        echoDroppedKeys: parsed.characterEchoDroppedKeys,
+        repairMaxTokens: resolveRepairMaxTokens(charWidget, collectWidgetJsonKeys(charWidget)),
+        sharedCombinedInitial: true,
+      };
+    } else {
+      const repaired = await extractStatusWidgetValuesForWidget({
+        charName: opts.charName,
+        characterIdentity: opts.characterIdentity,
+        personaName: opts.personaName,
+        userPersona: opts.userPersona,
+        userMessage: opts.userMessage,
+        assistantProse: opts.assistantProse,
+        widget: charWidget,
+        source: "character",
+        previousValues: opts.previousValues?.character ?? null,
+        previousAssistantProse: opts.previousAssistantProse,
+        userNote: opts.userNote,
+        trace: opts.trace,
+        caller,
+        primaryModelId,
+        env: opts.env,
+        repairOnly: true,
+        sharedCombinedInitial: true,
+      });
+      actualCallCount += repaired.apiCalls;
+      out.character = repaired.values;
+      if (repaired.facts.length > 0) factBatches.push(repaired.facts);
+      if (repaired.usage) turnUsages.push(repaired.usage);
+      characterMeta = repaired.meta;
+    }
+
+    if (parsed.userOk) {
+      out.user = parsed.user;
+      userMeta = {
+        source: "user",
+        // Shared combined initial is billed once at turn level — do not mirror tokens here.
+        callCount: 0,
+        stages: ["initial"],
+        finalStage: "initial",
+        finalReasonCode: "OK",
+        models: [primaryModelId],
+        attemptUsages: [],
+        echoDroppedKeys: parsed.userEchoDroppedKeys,
+        repairMaxTokens: resolveRepairMaxTokens(userWidget, collectWidgetJsonKeys(userWidget)),
+        sharedCombinedInitial: true,
+      };
+    } else {
+      const repaired = await extractStatusWidgetValuesForWidget({
+        charName: opts.charName,
+        characterIdentity: opts.characterIdentity,
+        personaName: opts.personaName,
+        userPersona: opts.userPersona,
+        userMessage: opts.userMessage,
+        assistantProse: opts.assistantProse,
+        widget: userWidget,
+        source: "user",
+        previousValues: opts.previousValues?.user ?? null,
+        previousAssistantProse: opts.previousAssistantProse,
+        userNote: opts.userNote,
+        trace: opts.trace,
+        caller,
+        primaryModelId,
+        env: opts.env,
+        repairOnly: true,
+        sharedCombinedInitial: true,
+      });
+      actualCallCount += repaired.apiCalls;
+      out.user = repaired.values;
+      if (repaired.facts.length > 0) factBatches.push(repaired.facts);
+      if (repaired.usage) turnUsages.push(repaired.usage);
+      userMeta = repaired.meta;
+    }
+  } else {
+    if (needCharExtract && charWidget) {
+      const character = await extractStatusWidgetValuesForWidget({
+        charName: opts.charName,
+        characterIdentity: opts.characterIdentity,
+        personaName: opts.personaName,
+        userPersona: opts.userPersona,
+        userMessage: opts.userMessage,
+        assistantProse: opts.assistantProse,
+        widget: charWidget,
+        source: "character",
+        previousValues: opts.previousValues?.character ?? null,
+        previousAssistantProse: opts.previousAssistantProse,
+        userNote: opts.userNote,
+        trace: opts.trace,
+        caller,
+        primaryModelId,
+        env: opts.env,
+      });
+      actualCallCount += character.apiCalls;
+      out.character = character.values;
+      if (character.facts.length > 0) factBatches.push(character.facts);
+      if (character.usage) turnUsages.push(character.usage);
+      characterMeta = character.meta;
+    }
+
+    if (needUserExtract && userWidget) {
+      const user = await extractStatusWidgetValuesForWidget({
+        charName: opts.charName,
+        characterIdentity: opts.characterIdentity,
+        personaName: opts.personaName,
+        userPersona: opts.userPersona,
+        userMessage: opts.userMessage,
+        assistantProse: opts.assistantProse,
+        widget: userWidget,
+        source: "user",
+        previousValues: opts.previousValues?.user ?? null,
+        previousAssistantProse: opts.previousAssistantProse,
+        userNote: opts.userNote,
+        trace: opts.trace,
+        caller,
+        primaryModelId,
+        env: opts.env,
+      });
+      actualCallCount += user.apiCalls;
+      out.user = user.values;
+      if (user.facts.length > 0) factBatches.push(user.facts);
+      if (user.usage) turnUsages.push(user.usage);
+      userMeta = user.meta;
+    }
   }
 
   let mergedFacts: ExtractedStatusFact[] | undefined;
@@ -595,19 +852,16 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   }
   if (mergedFacts?.length) out.extracted_facts = mergedFacts;
 
-  const totalCallCount = (characterMeta?.callCount ?? 0) + (userMeta?.callCount ?? 0);
   const usedRepair =
-    characterMeta?.stages.includes("repair") === true || userMeta?.stages.includes("repair") === true;
+    characterMeta?.stages.includes("repair") === true ||
+    userMeta?.stages.includes("repair") === true;
   const exhausted =
     characterMeta?.finalReasonCode === "STATUS_WIDGET_EXTRACT_EXHAUSTED" ||
     userMeta?.finalReasonCode === "STATUS_WIDGET_EXTRACT_EXHAUSTED";
-  const mergedUsage = mergeStatusWidgetExtractUsages(usages);
-  const billingModelId =
-    opts.primaryModelId?.trim() || BACKGROUND_OPENROUTER_MODEL;
+  const mergedUsage = mergeStatusWidgetExtractUsages(turnUsages);
+  const billingModelId = primaryModelId;
   const billing: StatusWidgetExtractBillingMeta | null =
-    totalCallCount > 0
-      ? { modelId: billingModelId, callCount: totalCallCount }
-      : null;
+    actualCallCount > 0 ? { modelId: billingModelId, callCount: actualCallCount } : null;
 
   return {
     values: out,
@@ -615,7 +869,9 @@ export async function extractStatusWidgetValuesForTurn(opts: {
     meta: {
       character: characterMeta,
       user: userMeta,
-      totalCallCount,
+      totalCallCount: actualCallCount,
+      actualCallCount,
+      extractMode,
       billingModelId,
       billing,
       usedRepair,

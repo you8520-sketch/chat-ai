@@ -18,13 +18,22 @@ function isWidgetPlaceholderValue(value: string): boolean {
   return isStatusWidgetPlaceholderValue(value);
 }
 
+export function statusWidgetSourceValuesHaveContent(
+  values: StatusWidgetValues | null | undefined
+): boolean {
+  return Boolean(
+    values && Object.values(values).some((x) => x?.trim() && !isWidgetPlaceholderValue(x))
+  );
+}
+
 export function statusWidgetValuesHasContent(
   values: ParsedStatusWidgetTurnValues | null | undefined
 ): boolean {
   if (statusWidgetValuesAreCorrupt(values)) return false;
-  const check = (v?: StatusWidgetValues | null) =>
-    Boolean(v && Object.values(v).some((x) => x?.trim() && !isWidgetPlaceholderValue(x)));
-  return check(values?.character) || check(values?.user);
+  return (
+    statusWidgetSourceValuesHaveContent(values?.character) ||
+    statusWidgetSourceValuesHaveContent(values?.user)
+  );
 }
 
 /** Per-message widget card — not global chat widget toggle */

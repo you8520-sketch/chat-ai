@@ -132,12 +132,18 @@ describe("status widget empty-extract retry (V3 repair only)", () => {
   });
 
   it("character success / user fail → only user repairs", async () => {
-    const caller: StatusWidgetExtractCaller = async (system, _h, opts) => {
-      if (opts.requestKind === "background-status-widget-extract") {
-        if (system.includes("default to [CHARACTER]")) {
-          return { text: jsonForWidget(DEFAULT_STATUS_WIDGET), usage: usage(1) };
-        }
-        return { text: "", usage: usage(1) };
+    const kinds: string[] = [];
+    const caller: StatusWidgetExtractCaller = async (_system, _h, opts) => {
+      kinds.push(opts.requestKind);
+      if (opts.requestKind.includes("combined")) {
+        return {
+          text: JSON.stringify({
+            character_values: JSON.parse(jsonForWidget(DEFAULT_STATUS_WIDGET)),
+            user_values: {},
+            extracted_facts: [],
+          }),
+          usage: usage(1),
+        };
       }
       return {
         text: JSON.stringify({ 기분: "긴장", 위치: "복도", extracted_facts: [] }),
@@ -160,8 +166,16 @@ describe("status widget empty-extract retry (V3 repair only)", () => {
       resolved: bothResolved(DEFAULT_STATUS_WIDGET, userWidget),
       caller,
     });
-    assert.equal(result.meta.character?.callCount, 1);
-    assert.equal(result.meta.user?.callCount, 2);
+    assert.deepEqual(kinds, [
+      "background-status-widget-extract-combined",
+      "background-status-widget-extract-repair",
+    ]);
+    assert.equal(result.meta.extractMode, "dual_combined");
+    assert.equal(result.meta.character?.sharedCombinedInitial, true);
+    assert.equal(result.meta.character?.callCount, 0);
+    assert.equal(result.meta.user?.callCount, 1);
+    assert.equal(result.meta.actualCallCount, 2);
+    assert.equal(result.meta.totalCallCount, 2);
     assert.equal(result.values.user?.["기분"], "긴장");
   });
 
@@ -704,7 +718,7 @@ describe("extract usage merge", () => {
     assert.equal(result.meta.billing?.callCount, 1);
   });
 
-  it("dual both initial+repair → totalCallCount 4", async () => {
+  it("dual combined both miss + repair → totalCallCount 3", async () => {
     const userWidget: StatusWidget = {
       ...DEFAULT_STATUS_WIDGET,
       name: "유저",
@@ -713,6 +727,7 @@ describe("extract usage merge", () => {
         { id: "위치", label: "위치", instruction: "유저 위치" },
       ],
     };
+    const kinds: string[] = [];
     const result = await extractStatusWidgetValuesForTurn({
       charName: "레온",
       personaName: "렌",
@@ -721,21 +736,488 @@ describe("extract usage merge", () => {
       resolved: bothResolved(DEFAULT_STATUS_WIDGET, userWidget),
       primaryModelId: OPENROUTER_GEMINI_25_FLASH_MODEL,
       caller: async (system, _h, opts) => {
+        kinds.push(opts.requestKind);
         if (opts.requestKind.includes("repair")) {
           if (system.includes("default to [USER]")) {
             return {
               text: JSON.stringify({ 기분: "긴장", 위치: "복도", extracted_facts: [] }),
-              usage: usage(2),
+              usage: { inputTokens: 200, outputTokens: 40, estimated: true },
             };
           }
-          return { text: jsonForWidget(DEFAULT_STATUS_WIDGET), usage: usage(2) };
+          return {
+            text: jsonForWidget(DEFAULT_STATUS_WIDGET),
+            usage: { inputTokens: 200, outputTokens: 40, estimated: true },
+          };
         }
+        return {
+          text: "",
+          usage: { inputTokens: 1800, outputTokens: 20, estimated: true },
+        };
+      },
+    });
+    assert.equal(result.meta.extractMode, "dual_combined");
+    assert.equal(result.meta.character?.callCount, 1);
+    assert.equal(result.meta.user?.callCount, 1);
+    assert.equal(result.meta.actualCallCount, 3);
+    assert.equal(result.meta.totalCallCount, 3);
+    assert.equal(result.meta.billing?.callCount, 3);
+    assert.equal(result.usage?.inputTokens, 1800 + 200 + 200);
+    assert.deepEqual(kinds, [
+      "background-status-widget-extract-combined",
+      "background-status-widget-extract-repair",
+      "background-status-widget-extract-repair",
+    ]);
+  });
+});
+
+describe("dual combined status extract", () => {
+  const userWidget: StatusWidget = {
+    ...DEFAULT_STATUS_WIDGET,
+    name: "유저",
+    fields: [
+      { id: "기분", label: "기분", instruction: "유저의 현재 감정" },
+      { id: "위치", label: "위치", instruction: "유저 위치" },
+    ],
+  };
+
+  const validFact = {
+    category: "location",
+    subject: "leon",
+    attribute: "met_at",
+    value: "cafe",
+    importance: "normal",
+    fact_text: "레온과 렌은 카페에서 처음 만났다.",
+  };
+
+  function combinedOk(): string {
+    return JSON.stringify({
+      character_values: JSON.parse(jsonForWidget(DEFAULT_STATUS_WIDGET, { 시간: "14:00", 장소: "카페" })),
+      user_values: { 기분: "설렘", 위치: "카페" },
+      extracted_facts: [validFact],
+    });
+  }
+
+  it("1. dual both missing, combined success → 1 call, callCount=1, usage once", async () => {
+    let calls = 0;
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "안녕",
+      assistantProse: "카페에서 만났다. 14시.",
+      resolved: bothResolved(DEFAULT_STATUS_WIDGET, userWidget),
+      primaryModelId: OPENROUTER_GEMINI_25_FLASH_MODEL,
+      caller: async (_s, _h, opts) => {
+        calls += 1;
+        assert.equal(opts.requestKind, "background-status-widget-extract-combined");
+        return {
+          text: combinedOk(),
+          usage: { inputTokens: 4000, outputTokens: 180, estimated: false, upstreamCostUsd: 0.002 },
+        };
+      },
+    });
+    assert.equal(calls, 1);
+    assert.equal(result.meta.extractMode, "dual_combined");
+    assert.equal(result.meta.actualCallCount, 1);
+    assert.equal(result.meta.billing?.callCount, 1);
+    assert.equal(result.meta.billing?.modelId, OPENROUTER_GEMINI_25_FLASH_MODEL);
+    assert.equal(result.values.character?.["시간"], "14:00");
+    assert.equal(result.values.user?.["기분"], "설렘");
+    assert.equal(result.usage?.inputTokens, 4000);
+    assert.equal(result.usage?.upstreamCostUsd, 0.002);
+    assert.ok((result.values.extracted_facts?.length ?? 0) >= 1);
+  });
+
+  it("2. combined char ok / user fail → user repair only, callCount=2", async () => {
+    const kinds: string[] = [];
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "장면",
+      resolved: bothResolved(DEFAULT_STATUS_WIDGET, userWidget),
+      caller: async (_s, _h, opts) => {
+        kinds.push(opts.requestKind);
+        if (opts.requestKind.includes("combined")) {
+          return {
+            text: JSON.stringify({
+              character_values: JSON.parse(jsonForWidget(DEFAULT_STATUS_WIDGET)),
+              user_values: { 기분: "유저의 현재 감정" },
+              extracted_facts: [validFact],
+            }),
+            usage: usage(1),
+          };
+        }
+        return {
+          text: JSON.stringify({ 기분: "긴장", 위치: "복도", extracted_facts: [] }),
+          usage: usage(2),
+        };
+      },
+    });
+    assert.deepEqual(kinds, [
+      "background-status-widget-extract-combined",
+      "background-status-widget-extract-repair",
+    ]);
+    assert.equal(result.meta.actualCallCount, 2);
+    assert.ok(result.values.character);
+    assert.equal(result.values.user?.["기분"], "긴장");
+    assert.ok(result.values.extracted_facts?.some((f) => f.fact_text.includes("카페")));
+  });
+
+  it("3. combined user ok / char fail → character repair only, callCount=2", async () => {
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "장면",
+      resolved: bothResolved(DEFAULT_STATUS_WIDGET, userWidget),
+      caller: async (system, _h, opts) => {
+        if (opts.requestKind.includes("combined")) {
+          return {
+            text: JSON.stringify({
+              character_values: {},
+              user_values: { 기분: "평온", 위치: "방" },
+              extracted_facts: [],
+            }),
+            usage: usage(1),
+          };
+        }
+        assert.ok(system.includes("default to [CHARACTER]"));
+        return { text: jsonForWidget(DEFAULT_STATUS_WIDGET), usage: usage(2) };
+      },
+    });
+    assert.equal(result.meta.actualCallCount, 2);
+    assert.ok(result.values.character);
+    assert.equal(result.values.user?.["기분"], "평온");
+  });
+
+  it("4. both fail → each source repair once, callCount=3", async () => {
+    const kinds: string[] = [];
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "장면",
+      resolved: bothResolved(DEFAULT_STATUS_WIDGET, userWidget),
+      caller: async (_s, _h, opts) => {
+        kinds.push(opts.requestKind);
+        if (opts.requestKind.includes("combined")) {
+          return { text: JSON.stringify({ character_values: {}, user_values: {} }), usage: usage(1) };
+        }
+        if (_s.includes("default to [USER]")) {
+          return {
+            text: JSON.stringify({ 기분: "긴장", 위치: "복도", extracted_facts: [] }),
+            usage: usage(2),
+          };
+        }
+        return { text: jsonForWidget(DEFAULT_STATUS_WIDGET), usage: usage(2) };
+      },
+    });
+    assert.equal(result.meta.actualCallCount, 3);
+    assert.equal(kinds.filter((k) => k.includes("repair")).length, 2);
+    assert.ok(!kinds.some((k) => k === "background-status-widget-extract"));
+    assert.ok(result.values.character);
+    assert.ok(result.values.user);
+  });
+
+  it("5. combined JSON parse fail → source repairs, callCount<=3", async () => {
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "장면",
+      resolved: bothResolved(DEFAULT_STATUS_WIDGET, userWidget),
+      caller: async (_s, _h, opts) => {
+        if (opts.requestKind.includes("combined")) {
+          return { text: "not-json", usage: usage(1) };
+        }
+        if (_s.includes("default to [USER]")) {
+          return {
+            text: JSON.stringify({ 기분: "긴장", 위치: "복도", extracted_facts: [] }),
+            usage: usage(2),
+          };
+        }
+        return { text: jsonForWidget(DEFAULT_STATUS_WIDGET), usage: usage(2) };
+      },
+    });
+    assert.equal(result.meta.actualCallCount, 3);
+    assert.ok(result.values.character);
+    assert.ok(result.values.user);
+  });
+
+  it("6. seed character only → no combined; user single extract", async () => {
+    const kinds: string[] = [];
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "장면",
+      resolved: bothResolved(DEFAULT_STATUS_WIDGET, userWidget),
+      seedValues: {
+        character: { 시간: "10:00", 장소: "학교" },
+      },
+      caller: async (_s, _h, opts) => {
+        kinds.push(opts.requestKind);
+        return {
+          text: JSON.stringify({ 기분: "긴장", 위치: "복도", extracted_facts: [] }),
+          usage: usage(1),
+        };
+      },
+    });
+    assert.equal(result.meta.extractMode, "single");
+    assert.ok(!kinds.some((k) => k.includes("combined")));
+    assert.deepEqual(kinds, ["background-status-widget-extract"]);
+    assert.equal(result.values.character?.["시간"], "10:00");
+    assert.equal(result.values.user?.["기분"], "긴장");
+    assert.equal(result.meta.actualCallCount, 1);
+  });
+
+  it("7. seed both → background 0", async () => {
+    let calls = 0;
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "장면",
+      resolved: bothResolved(DEFAULT_STATUS_WIDGET, userWidget),
+      seedValues: {
+        character: { 시간: "10:00", 장소: "학교" },
+        user: { 기분: "평온", 위치: "교실" },
+      },
+      caller: async () => {
+        calls += 1;
         return { text: "", usage: usage(1) };
       },
     });
-    assert.equal(result.meta.character?.callCount, 2);
-    assert.equal(result.meta.user?.callCount, 2);
-    assert.equal(result.meta.totalCallCount, 4);
-    assert.equal(result.meta.billing?.callCount, 4);
+    assert.equal(calls, 0);
+    assert.equal(result.meta.actualCallCount, 0);
+    assert.equal(result.meta.billing, null);
+    assert.equal(result.values.character?.["시간"], "10:00");
+    assert.equal(result.values.user?.["기분"], "평온");
+  });
+
+  it("8. temporal unknown dropped; sibling fields kept", async () => {
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "카페",
+      resolved: bothResolved(DEFAULT_STATUS_WIDGET, userWidget),
+      caller: async () => ({
+        text: JSON.stringify({
+          character_values: {
+            ...JSON.parse(jsonForWidget(DEFAULT_STATUS_WIDGET, { 장소: "카페" })),
+            시간: "알 수 없음",
+          },
+          user_values: { 기분: "설렘", 위치: "카페" },
+          extracted_facts: [],
+        }),
+        usage: usage(1),
+      }),
+    });
+    assert.equal(result.values.character?.["장소"], "카페");
+    assert.notEqual(result.values.character?.["시간"], "알 수 없음");
+    assert.equal(result.values.user?.["기분"], "설렘");
+  });
+
+  it("9. anti-echo drops echoing field only", async () => {
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "장면",
+      resolved: bothResolved(DEFAULT_STATUS_WIDGET, userWidget),
+      caller: async () => ({
+        text: JSON.stringify({
+          character_values: JSON.parse(
+            jsonForWidget(DEFAULT_STATUS_WIDGET, { 속마음: "NPC의 속마음", 장소: "옥상" })
+          ),
+          user_values: { 기분: "긴장", 위치: "옥상" },
+          extracted_facts: [],
+        }),
+        usage: usage(1),
+      }),
+    });
+    assert.equal(result.values.character?.["장소"], "옥상");
+    assert.ok(!result.values.character?.["속마음"] || result.values.character?.["속마음"] !== "NPC의 속마음");
+    assert.equal(result.values.user?.["기분"], "긴장");
+  });
+
+  it("10. regen uses previousValues anchor only (no variant snapshot copy)", async () => {
+    let userBlock = "";
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "다시",
+      assistantProse: "해변, 19:00.",
+      resolved: bothResolved(DEFAULT_STATUS_WIDGET, userWidget),
+      // Simulates loadPrevious(..., { excludeMessageId: regenTarget }) — never the regen variant.
+      previousValues: {
+        character: { 시간: "09:00", 장소: "학교" },
+        user: { 기분: "평온", 위치: "교실" },
+      },
+      caller: async (_s, history, opts) => {
+        if (opts.requestKind.includes("combined")) {
+          userBlock = history[0]?.content ?? "";
+          return {
+            text: JSON.stringify({
+              character_values: JSON.parse(
+                jsonForWidget(DEFAULT_STATUS_WIDGET, { 시간: "19:00", 장소: "해변" })
+              ),
+              user_values: { 기분: "설렘", 위치: "해변" },
+              extracted_facts: [],
+            }),
+            usage: usage(1),
+          };
+        }
+        throw new Error("unexpected repair");
+      },
+    });
+    assert.match(userBlock, /PREVIOUS TURN CHARACTER WIDGET VALUES/);
+    assert.match(userBlock, /09:00/);
+    assert.match(userBlock, /학교/);
+    assert.equal(result.values.character?.["장소"], "해변");
+    assert.notEqual(result.values.character?.["장소"], "학교");
+    assert.equal(result.meta.actualCallCount, 1);
+  });
+
+  it("11. facts kept when one source fails", async () => {
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "장면",
+      resolved: bothResolved(DEFAULT_STATUS_WIDGET, userWidget),
+      caller: async (_s, _h, opts) => {
+        if (opts.requestKind.includes("combined")) {
+          return {
+            text: JSON.stringify({
+              character_values: JSON.parse(jsonForWidget(DEFAULT_STATUS_WIDGET)),
+              user_values: {},
+              extracted_facts: [validFact],
+            }),
+            usage: usage(1),
+          };
+        }
+        return {
+          text: JSON.stringify({ 기분: "긴장", 위치: "복도", extracted_facts: [] }),
+          usage: usage(2),
+        };
+      },
+    });
+    assert.ok(result.values.extracted_facts?.some((f) => f.fact_text.includes("카페")));
+    assert.ok(result.values.character);
+    assert.ok(result.values.user);
+  });
+
+  it("12. malformed facts do not wipe status", async () => {
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "장면",
+      resolved: bothResolved(DEFAULT_STATUS_WIDGET, userWidget),
+      caller: async () => ({
+        text: JSON.stringify({
+          character_values: JSON.parse(jsonForWidget(DEFAULT_STATUS_WIDGET)),
+          user_values: { 기분: "긴장", 위치: "복도" },
+          extracted_facts: ["bad", null, { fact: "ok", kind: "event" }, validFact],
+        }),
+        usage: usage(1),
+      }),
+    });
+    assert.ok(result.values.character);
+    assert.ok(result.values.user);
+    assert.ok(result.values.extracted_facts?.every((f) => typeof f.fact_text === "string"));
+    assert.equal(result.values.extracted_facts?.length, 1);
+  });
+
+  it("13. billing callCount 1 and upstream not doubled", async () => {
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "장면",
+      resolved: bothResolved(DEFAULT_STATUS_WIDGET, userWidget),
+      primaryModelId: OPENROUTER_GEMINI_25_FLASH_MODEL,
+      caller: async () => ({
+        text: combinedOk(),
+        usage: {
+          inputTokens: 5000,
+          outputTokens: 200,
+          estimated: false,
+          upstreamCostUsd: 0.003,
+        },
+      }),
+    });
+    assert.equal(result.meta.billing?.callCount, 1);
+    assert.equal(result.meta.billing?.modelId, OPENROUTER_GEMINI_25_FLASH_MODEL);
+    assert.equal(result.usage?.upstreamCostUsd, 0.003);
+    assert.equal(result.usage?.inputTokens, 5000);
+    const rate = resolveBillingExchangeRateSnapshot();
+    const base: Usage = {
+      input: 10000,
+      output: 1000,
+      model: "deepseek/deepseek-v4-pro",
+      provider: "openrouter",
+      route: "nsfw",
+      cost: 48,
+      baseCost: 48,
+      breakdown: [],
+      apiInputTokens: 17970,
+      apiOutputTokens: 1500,
+      apiRawCostKrw: 33,
+      mainApiRawCostKrw: 33,
+      apiCallCount: 1,
+    };
+    const billed = applyStatusWidgetBillingCharge(
+      base,
+      result.usage!,
+      rate,
+      48,
+      result.meta.billing!
+    );
+    assert.equal(billed.record.statusWidgetExtract?.callCount, 1);
+    assert.equal(billed.record.statusWidgetExtract?.model, OPENROUTER_GEMINI_25_FLASH_MODEL);
+    assert.equal(billed.record.apiCallCount, 2);
+    assert.equal(billed.record.statusWidgetExtract?.input, 5000);
+  });
+
+  it("14. inactive → no combined / no extract", async () => {
+    let calls = 0;
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "장면",
+      resolved: {
+        ...bothResolved(DEFAULT_STATUS_WIDGET, userWidget),
+        active: false,
+      },
+      caller: async () => {
+        calls += 1;
+        return { text: combinedOk(), usage: usage(1) };
+      },
+    });
+    assert.equal(calls, 0);
+    assert.equal(result.meta.actualCallCount, 0);
+    assert.equal(result.meta.billing, null);
+  });
+
+  it("15. character-only unchanged (no combined)", async () => {
+    const kinds: string[] = [];
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "장면",
+      resolved: characterResolved(),
+      caller: async (_s, _h, opts) => {
+        kinds.push(opts.requestKind);
+        return { text: jsonForWidget(DEFAULT_STATUS_WIDGET), usage: usage(1) };
+      },
+    });
+    assert.deepEqual(kinds, ["background-status-widget-extract"]);
+    assert.equal(result.meta.extractMode, "single");
+    assert.equal(result.meta.actualCallCount, 1);
   });
 });
