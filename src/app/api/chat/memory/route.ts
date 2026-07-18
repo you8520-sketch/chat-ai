@@ -274,6 +274,7 @@ export async function PATCH(req: Request) {
       recordIds: [recordId],
       branchId,
       promotedBy: "user_ui_continue",
+      control: { source: "ui" },
     });
     if (n < 1) return Response.json({ error: "분기 승격에 실패했습니다." }, { status: 400 });
     const lorebook = rebuildLorebookFromRecords(chatId);
@@ -298,7 +299,7 @@ export async function PATCH(req: Request) {
   }
 
   if (action === "keepNoncanon") {
-    closeActiveBranchCanon(chatId);
+    closeActiveBranchCanon(chatId, { source: "ui" });
     const lorebook = rebuildLorebookFromRecords(chatId);
     updateChatMemory(chatId, user.id, chat.character_id, { recent_summary: lorebook, membership_tier: tier });
     return Response.json({ ok: true, lorebook });

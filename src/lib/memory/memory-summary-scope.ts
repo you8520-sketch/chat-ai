@@ -23,6 +23,30 @@ export type SummaryKind = MemorySummaryScope | LegacySummaryKind;
 
 export type BranchStatus = "active" | "closed";
 
+/** Snapshot of a memory row before a cross-row branch control mutation. */
+export type BranchControlMutationPrevious = {
+  summaryKind: MemorySummaryScope;
+  scopes: Partial<Record<MemorySummaryScope, string>>;
+  branchId: string | null;
+  branchStatus: BranchStatus | null;
+  promotedBy: string | null;
+  promotedAt: string | null;
+};
+
+/**
+ * Provenance for cross-row promote/close so last-turn deletion can roll back
+ * only mutations caused by a specific deleted user message (no DB migration).
+ */
+export type BranchControlMutation = {
+  action: "promote_branch" | "close_branch";
+  source: "user_turn" | "ui";
+  sourceUserMessageId?: number | null;
+  sourceTurn?: number | null;
+  sourceBatchStart?: number | null;
+  at: string;
+  previous: BranchControlMutationPrevious;
+};
+
 export type ScopePayloadV1 = {
   v: 1;
   scopes: Partial<Record<MemorySummaryScope, string>>;
@@ -31,6 +55,8 @@ export type ScopePayloadV1 = {
   promotedBy?: string | null;
   promotedAt?: string | null;
   sourceMessageIds?: number[];
+  /** Newest mutation last — pop from end on rollback. */
+  branchControlMutations?: BranchControlMutation[];
   inactive?: boolean;
 };
 

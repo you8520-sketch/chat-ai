@@ -11,6 +11,7 @@ import { ROLLING_SUMMARY_MAX_CHARS, ROLLING_SUMMARY_MIN_CHARS, LOREBOOK_COMPACT_
 import { clampMemoryRecordSummary } from "./memory-summary-clamp";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
 import { isMemoryFeatureEnabled } from "./memory-feature";
+import { findBatchControlSource } from "./memory-branch-control";
 import {
   loadChatTurnsWithMessageIds,
   rebuildLorebookFromRecords,
@@ -366,7 +367,11 @@ async function composeBatchScopePayload(opts: {
   chatId: number;
   batchStart: number;
   endTurn: number;
-  allEntries: Array<{ turnIndex: number; turn: DialogueTurn }>;
+  allEntries: Array<{
+    turnIndex: number;
+    turn: DialogueTurn;
+    userMessageId?: number | null;
+  }>;
   charName: string;
   characterIdentity?: string | null;
   userPersona?: string | null;
@@ -396,8 +401,23 @@ async function composeBatchScopePayload(opts: {
   const adoptLocked =
     opts.mode === "regen" && existing?.promotedBy === "user_main_adopt";
 
+  const continueSrc = findBatchControlSource(opts.allEntries, "branch_continue", {
+    previousWasNoncanonOrBranch: opts.previousWasNoncanonOrBranch,
+  });
+  const closeSrc = findBatchControlSource(opts.allEntries, "branch_close");
+
   if (opts.mode === "seal" && plan.wantsBranchClose) {
-    closeActiveBranchCanon(opts.chatId);
+    closeActiveBranchCanon(
+      opts.chatId,
+      closeSrc?.userMessageId
+        ? {
+            source: "user_turn",
+            sourceUserMessageId: closeSrc.userMessageId,
+            sourceTurn: closeSrc.turnIndex,
+            sourceBatchStart: opts.batchStart,
+          }
+        : { source: "user_turn", sourceBatchStart: opts.batchStart }
+    );
   }
 
   if (plan.preferenceTurns.length > 0) {
@@ -445,6 +465,12 @@ async function composeBatchScopePayload(opts: {
               recordIds: toPromote,
               branchId,
               promotedBy: "user_continue",
+              control: {
+                source: "user_turn",
+                sourceUserMessageId: continueSrc?.userMessageId ?? null,
+                sourceTurn: continueSrc?.turnIndex ?? null,
+                sourceBatchStart: opts.batchStart,
+              },
             });
           }
         }
@@ -672,6 +698,7 @@ async function rebuildExistingBatchScopePayload(opts: {
   const allEntries = batchMeta.map((meta) => ({
     turnIndex: meta.turnNumber,
     turn: { user: meta.user, assistant: meta.assistant } satisfies DialogueTurn,
+    userMessageId: meta.userMessageId,
   }));
 
   const priorRecords = listMemoryRecordsForChat(opts.chatId);
@@ -860,6 +887,7 @@ export async function processRollingSummaryBatch(opts: {
     const allEntries = batchMeta.map((meta, i) => ({
       turnIndex: batchStart + i,
       turn: { user: meta.user, assistant: meta.assistant } satisfies DialogueTurn,
+      userMessageId: meta.userMessageId,
     }));
 
     const priorRecords = listMemoryRecordsForChat(opts.chatId);

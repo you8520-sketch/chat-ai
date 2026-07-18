@@ -11,6 +11,7 @@ import { getChatMemoryCapacity } from "@/lib/memory/memory-capacity";
 import { reconcileMemoryAfterTurnDelete } from "@/lib/memory/memory-reconcile";
 import { resolveMemoryTier } from "@/lib/memory/memory-manager";
 import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
+import { countChatTurns } from "@/lib/memory/memory-turn-loader";
 
 export async function DELETE(req: Request) {
   const user = await getSessionUser();
@@ -34,6 +35,10 @@ export async function DELETE(req: Request) {
   if (!lastTurn) {
     return NextResponse.json({ error: "삭제할 대화 턴이 없습니다." }, { status: 400 });
   }
+
+  const deletedPlayableTurn = countChatTurns(cId);
+  const deletedUserMessageId = lastTurn.userId;
+  const deletedAssistantMessageId = lastTurn.assistantId;
 
   const idsToDelete = [lastTurn.userId];
   if (lastTurn.assistantId != null) idsToDelete.push(lastTurn.assistantId);
@@ -76,6 +81,9 @@ export async function DELETE(req: Request) {
         charName: character?.name ?? "캐릭터",
         tier: resolveMemoryTier(user),
         memoryCapacity: getChatMemoryCapacity(cId),
+        deletedUserMessageId,
+        deletedAssistantMessageId,
+        deletedPlayableTurn,
       });
     } catch (e) {
       console.warn("[memory] reconcile after turn delete failed:", (e as Error).message);

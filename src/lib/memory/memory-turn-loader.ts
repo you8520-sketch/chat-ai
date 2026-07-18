@@ -5,6 +5,7 @@ export function loadChatTurnsWithMessageIds(chatId: number): {
   turnNumber: number;
   user: string;
   assistant: string;
+  userMessageId: number | null;
   assistantMessageId: number;
 }[] {
   const rows = getDb()
@@ -15,19 +16,23 @@ export function loadChatTurnsWithMessageIds(chatId: number): {
     turnNumber: number;
     user: string;
     assistant: string;
+    userMessageId: number | null;
     assistantMessageId: number;
   }[] = [];
   let pendingUser: string | null = null;
+  let pendingUserId: number | null = null;
 
   for (const row of rows) {
     if (row.role === "user") {
       pendingUser = row.content;
+      pendingUserId = row.id;
     } else if (row.role === "assistant") {
       if (row.model === "greeting") {
         turns.push({
           turnNumber: 0,
           user: OPENING_TURN_USER,
           assistant: row.content,
+          userMessageId: null,
           assistantMessageId: row.id,
         });
         continue;
@@ -37,9 +42,11 @@ export function loadChatTurnsWithMessageIds(chatId: number): {
           turnNumber: turns.length,
           user: pendingUser,
           assistant: row.content,
+          userMessageId: pendingUserId,
           assistantMessageId: row.id,
         });
         pendingUser = null;
+        pendingUserId = null;
       }
     }
   }

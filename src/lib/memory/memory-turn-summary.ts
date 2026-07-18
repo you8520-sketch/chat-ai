@@ -6,6 +6,12 @@ import {
 } from "./memory-constants";
 import { clampMemoryRecordSummary } from "./memory-summary-clamp";
 import {
+  appendBranchControlMutation,
+  buildBranchControlMutation,
+  snapshotBranchControlPrevious,
+  type BranchControlSource,
+} from "./memory-branch-control";
+import {
   encodeScopePayload,
   historyScopeLabel,
   isEmptyOocScope,
@@ -311,6 +317,7 @@ export function promoteRecordsToBranchCanon(opts: {
   recordIds: number[];
   branchId: string;
   promotedBy: string;
+  control?: BranchControlSource | null;
 }): number {
   const db = getDb();
   const now = new Date().toISOString();
@@ -321,11 +328,28 @@ export function promoteRecordsToBranchCanon(opts: {
       .get(id, opts.chatId) as MemoryRecordRow | undefined;
     if (!row || (row.inactive ?? 0) === 1) continue;
     const view = rowToView(row);
+    const previous = snapshotBranchControlPrevious({
+      id: view.id,
+      summaryKind: view.summaryKind,
+      scopes: view.scopes,
+      branchId: view.branchId,
+      branchStatus: view.branchStatus,
+      promotedBy: view.promotedBy,
+      promotedAt: view.promotedAt,
+      inactive: view.inactive,
+      scopePayloadRaw: row.scope_payload ?? null,
+    });
     const scopes = { ...view.scopes };
     const non = scopes.noncanon || (view.summaryKind === "noncanon" ? view.summary : "");
     if (non) scopes.branch_canon = non;
     delete scopes.noncanon;
-    const payload: ScopePayloadV1 = {
+    const basePayload = parseScopePayload(row.scope_payload) ?? {
+      v: 1 as const,
+      scopes: view.scopes,
+      branchControlMutations: [],
+    };
+    let payload: ScopePayloadV1 = {
+      ...basePayload,
       v: 1,
       scopes,
       branchId: opts.branchId,
@@ -333,6 +357,17 @@ export function promoteRecordsToBranchCanon(opts: {
       promotedBy: opts.promotedBy,
       promotedAt: now,
     };
+    if (
+      opts.control &&
+      (opts.control.source === "ui" ||
+        (opts.control.sourceUserMessageId != null &&
+          opts.control.sourceUserMessageId > 0))
+    ) {
+      payload = appendBranchControlMutation(
+        payload,
+        buildBranchControlMutation("promote_branch", previous, opts.control)
+      );
+    }
     db.prepare(
       `UPDATE chat_turn_summaries SET
         summary_kind='branch_canon',
@@ -357,16 +392,65 @@ export function promoteRecordsToBranchCanon(opts: {
   return n;
 }
 
-export function closeActiveBranchCanon(chatId: number): number {
+export function closeActiveBranchCanon(
+  chatId: number,
+  control?: BranchControlSource | null
+): number {
   const db = getDb();
-  const info = db
+  const rows = db
     .prepare(
-      `UPDATE chat_turn_summaries SET branch_status='closed', updated_at=datetime('now')
-       WHERE chat_id=? AND summary_kind='branch_canon' AND COALESCE(branch_status,'active')='active'
-         AND COALESCE(inactive,0)=0`
+      `${selectSql()} WHERE chat_id=? AND summary_kind='branch_canon'
+         AND COALESCE(branch_status,'active')='active' AND COALESCE(inactive,0)=0`
     )
-    .run(chatId);
-  return info.changes;
+    .all(chatId) as MemoryRecordRow[];
+  let n = 0;
+  for (const row of rows) {
+    const view = rowToView(row);
+    const previous = snapshotBranchControlPrevious({
+      id: view.id,
+      summaryKind: view.summaryKind,
+      scopes: view.scopes,
+      branchId: view.branchId,
+      branchStatus: view.branchStatus,
+      promotedBy: view.promotedBy,
+      promotedAt: view.promotedAt,
+      inactive: view.inactive,
+      scopePayloadRaw: row.scope_payload ?? null,
+    });
+    const basePayload = parseScopePayload(row.scope_payload) ?? {
+      v: 1 as const,
+      scopes: view.scopes,
+      branchControlMutations: [],
+    };
+    let payload: ScopePayloadV1 = {
+      ...basePayload,
+      v: 1,
+      scopes: view.scopes,
+      branchId: view.branchId,
+      branchStatus: "closed",
+      promotedBy: view.promotedBy,
+      promotedAt: view.promotedAt,
+    };
+    if (
+      control &&
+      (control.source === "ui" ||
+        (control.sourceUserMessageId != null && control.sourceUserMessageId > 0))
+    ) {
+      payload = appendBranchControlMutation(
+        payload,
+        buildBranchControlMutation("close_branch", previous, control)
+      );
+    }
+    db.prepare(
+      `UPDATE chat_turn_summaries SET
+        branch_status='closed',
+        scope_payload=?,
+        updated_at=datetime('now')
+       WHERE id=? AND chat_id=?`
+    ).run(encodeScopePayload(payload), row.id, chatId);
+    n++;
+  }
+  return n;
 }
 
 export function adoptBranchToMainCanon(opts: {

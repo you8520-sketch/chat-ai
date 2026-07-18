@@ -1,4 +1,5 @@
 import { getDb } from "@/lib/db";
+import { rollbackBranchControlMutationsForDeletedUserMessage } from "./memory-branch-control";
 import { isMemoryFeatureEnabled } from "./memory-feature";
 import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
 import { trimLorebookToBudgetSync } from "./memory-lorebook-fit";
@@ -47,17 +48,36 @@ export function reconcileMemoryAfterTurnDelete(opts: {
   charName: string;
   tier: MemoryTier;
   memoryCapacity: number;
+  /** Deleted last-turn user message id — rolls back its cross-row branch mutations. */
+  deletedUserMessageId?: number | null;
+  deletedAssistantMessageId?: number | null;
+  deletedPlayableTurn?: number | null;
 }): boolean {
   if (!isMemoryFeatureEnabled()) return false;
 
   const actualTurnCount = countChatTurns(opts.chatId);
   getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
 
+  // 1) Roll back cross-row branch side effects caused by the deleted user turn only.
+  if (opts.deletedUserMessageId != null) {
+    const rolled = rollbackBranchControlMutationsForDeletedUserMessage(
+      opts.chatId,
+      opts.deletedUserMessageId
+    );
+    if (rolled > 0) {
+      console.info(
+        `[memory] branch-control rollback chat=${opts.chatId} userMsg=${opts.deletedUserMessageId} rows=${rolled}`
+      );
+    }
+  }
+
+  // 2) Prune incomplete batch rows
   pruneStaleMemoryRecords(opts.chatId, actualTurnCount);
   updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
     message_count: actualTurnCount,
     membership_tier: opts.tier,
   });
+  // 3–5) Counter + LTM rebuild
   const newSummarized = reconcileSummarizedTurnCountFromTable({
     chatId: opts.chatId,
     userId: opts.userId,
@@ -70,13 +90,14 @@ export function reconcileMemoryAfterTurnDelete(opts: {
   let lorebook = rebuildLorebookFromRecords(opts.chatId);
   if (lorebook.length > budget) {
     lorebook = trimLorebookToBudgetSync(lorebook, budget);
-    updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
-      recent_summary: lorebook,
-      membership_tier: opts.tier,
-    });
-    syncChatLongTermMemory(opts.chatId, lorebook);
   }
+  updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
+    recent_summary: lorebook,
+    membership_tier: opts.tier,
+  });
+  syncChatLongTermMemory(opts.chatId, lorebook);
 
+  // 6) Existing seal trigger
   if (shouldTriggerRollingSummary(actualTurnCount, newSummarized)) {
     scheduleCharacterRollingSummary({
       chatId: opts.chatId,
@@ -89,7 +110,8 @@ export function reconcileMemoryAfterTurnDelete(opts: {
   }
 
   console.info(
-    `[memory] reconcile after turn delete chat=${opts.chatId} turns=${actualTurnCount} summarized=${newSummarized}`
+    `[memory] reconcile after turn delete chat=${opts.chatId} turns=${actualTurnCount} summarized=${newSummarized}` +
+      (opts.deletedPlayableTurn != null ? ` deletedTurn=${opts.deletedPlayableTurn}` : "")
   );
   return true;
 }
