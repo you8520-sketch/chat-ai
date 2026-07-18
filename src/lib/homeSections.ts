@@ -209,7 +209,41 @@ function excludeIdsClause(excludeIds: number[]): { sql: string; params: unknown[
   return { sql: `AND id NOT IN (${placeholders})`, params: [...excludeIds] };
 }
 
-/** 홈 추천 캐릭터 — 좋아요·대화량·채팅방·클릭 시그널로 비슷한 캐릭터 노출 */
+function fetchPopularCharacters(
+  db: Database.Database,
+  filter: HomeListFilter,
+  excludeIds: number[],
+  limit: number
+): CharacterRow[] {
+  const { sql: excludeSql, params: excludeParams } = excludeIdsClause(excludeIds);
+  return db
+    .prepare(
+      `SELECT * FROM characters
+       WHERE ${listableWhere()} ${filter.filterSql} ${excludeSql}
+       ORDER BY likes DESC, total_turns DESC, created_at DESC
+       LIMIT ?`
+    )
+    .all(...filter.params, ...excludeParams, limit) as CharacterRow[];
+}
+
+function pickByTasteFromPool(
+  pool: CharacterRow[],
+  taste: TasteSignals,
+  userPref: string | null | undefined,
+  limit: number
+): CharacterRow[] {
+  return pool
+    .map((c) => ({ c, score: scoreByTaste(c, taste, userPref) }))
+    .sort((a, b) => b.score - a.score || b.c.likes - a.c.likes)
+    .slice(0, limit)
+    .map(({ c }) => c);
+}
+
+/**
+ * 홈 추천 캐릭터 — 좋아요·대화량·채팅방·클릭 시그널로 비슷한 캐릭터 노출.
+ * 이미 좋아요/대화한 캐릭터는 우선 제외(디스커버리)하되,
+ * 후보가 부족하면 인기 캐릭터로 채워 추천 줄이 통째로 사라지지 않게 한다.
+ */
 export function fetchRecommendedCharacters(
   db: Database.Database,
   user: { id?: number; pref?: string | null } | null | undefined,
@@ -219,42 +253,45 @@ export function fetchRecommendedCharacters(
 ): CharacterRow[] {
   const engagedIds =
     user?.id != null ? collectEngagedCharacterIds(db, user.id) : [];
-  const allExclude = [...new Set([...excludeIds, ...engagedIds])];
-  const { sql: excludeSql, params: excludeParams } = excludeIdsClause(allExclude);
-  const baseWhere = `${listableWhere()} ${filter.filterSql} ${excludeSql}`;
+  const discoveryExclude = [...new Set([...excludeIds, ...engagedIds])];
+
+  let picked: CharacterRow[] = [];
 
   if (user?.id != null) {
     const taste = collectTasteSignals(db, user.id);
     const hasTaste = taste.genres.size > 0 || taste.tags.size > 0;
 
     if (hasTaste) {
+      const { sql: excludeSql, params: excludeParams } = excludeIdsClause(discoveryExclude);
       const pool = db
         .prepare(
           `SELECT * FROM characters
-           WHERE ${baseWhere}
+           WHERE ${listableWhere()} ${filter.filterSql} ${excludeSql}
            ORDER BY likes DESC, total_turns DESC
            LIMIT 100`
         )
         .all(...filter.params, ...excludeParams) as CharacterRow[];
 
-      const picked = pool
-        .map((c) => ({ c, score: scoreByTaste(c, taste, user.pref) }))
-        .sort((a, b) => b.score - a.score || b.c.likes - a.c.likes)
-        .slice(0, limit)
-        .map(({ c }) => c);
-      return decorateCharactersWithCreatorTiers(db, picked);
+      picked = pickByTasteFromPool(pool, taste, user.pref, limit);
     }
   }
 
-  const rows = db
-    .prepare(
-      `SELECT * FROM characters
-       WHERE ${baseWhere}
-       ORDER BY likes DESC, total_turns DESC, created_at DESC
-       LIMIT ?`
-    )
-    .all(...filter.params, ...excludeParams, limit) as CharacterRow[];
-  return decorateCharactersWithCreatorTiers(db, rows);
+  if (picked.length < limit) {
+    const already = new Set(picked.map((c) => c.id));
+    const need = limit - picked.length;
+    // 아직 안 본 인기 캐릭터로만 보충 (참여 캐릭터는 여기선 넣지 않음)
+    const fill = fetchPopularCharacters(db, filter, discoveryExclude, need).filter(
+      (c) => !already.has(c.id)
+    );
+    picked = [...picked, ...fill].slice(0, limit);
+  }
+
+  // 디스커버리 후보가 전무하면(대부분 좋아요/대화함) 참여 캐릭터라도 노출 — 추천 줄 숨김 방지
+  if (picked.length === 0) {
+    picked = fetchPopularCharacters(db, filter, excludeIds, limit);
+  }
+
+  return decorateCharactersWithCreatorTiers(db, picked);
 }
 
 /** 2행: 최근 등록 + 최근 7일 대화·좋아요 등 engagement가 높은 신작 */
