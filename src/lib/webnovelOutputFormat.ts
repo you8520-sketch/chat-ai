@@ -1,20 +1,19 @@
 /** AI 출력 — 마크다운/RP 표기(형식) vs 문단 레이아웃(OUTPUT LAYOUT recency) 분리 */
 
-/** Frozen semantic paragraphing body — identity checked in static-dedup validation. */
+/** Semantic paragraphing body — layout Owner (recency block only). */
 export const OUTPUT_LAYOUT_SEMANTIC_CORE = `[SEMANTIC PARAGRAPHING]
-한 문단에는 하나의 중심 행동·반응·감정 또는 관찰 초점만 둔다.
+같은 인물, 같은 장소, 같은 순간, 같은 중심 반응에 속하는 연속 지문은 행동·감각·생각·기억·판단 사이에서 초점이 조금 바뀌더라도 한 문단 안에서 자연스럽게 연결한다.
 
-같은 주체의 연속된 행동과 즉각적인 결과는 한 문단으로 이어가되,
-행동 주체, 감정 방향, 내면과 외부의 초점, 공간적 관찰 대상, 장면 단계가 바뀌면 새 문단을 시작한다.
+지문 한 문장이 완결됐다는 이유만으로 새 문단을 시작하지 않는다.
+한 문장짜리 지문 문단은 충격·반전·장면 전환·결정적 발견·의도적 정적·강한 마지막 여운처럼 명확한 강조가 있을 때만 선택적으로 사용한다.
 
-문단을 글자 수나 문장 수에 맞춰 기계적으로 쪼개지 말고,
-서로 다른 여러 비트를 하나의 거대한 문단으로 합치지도 않는다.
+화자 변경, 뚜렷한 시간·장소 전환, 장면의 중심 상황 변경이 있을 때 새 문단을 시작한다.
+문장 수를 절대 수치로 강제하지 않되, 같은 서술 비트의 문장을 습관적으로 각각 별도 문단으로 분리하지 않는다.
 
 대사는 화자별 독립 문단으로 출력한다.
 "…" spoken dialogue = always its own paragraph, separated by a blank line (\\n\\n) from narration.
 Never append dialogue to the end of a narration line or paragraph.
 한 줄 한 화법 = 화자가 바뀌면 문단을 나눈다는 뜻이며, 지문 한 문장마다 새 문단을 만들라는 뜻이 아니다.
-같은 서술 초점이 유지되는 지문은 2~5문장 정도 자연스럽게 묶을 수 있다(문장 수 강제 아님).
 
 Wrong: 그는 고개를 들었다. "대사."
 Right:

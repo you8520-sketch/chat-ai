@@ -103,7 +103,13 @@ function extractStyleNotes(body: string, pairs: { context: string; register: str
     const line = raw.trim();
     if (!line || CONTEXT_REGISTER_LINE_RE.test(line)) continue;
     if (/^예시[:：]?/i.test(line)) continue;
-    if (/SPEECH CONSISTENCY|Dialogue style is learned/i.test(line)) continue;
+    if (
+      /SPEECH CONSISTENCY|Dialogue style is learned|Dialogue examples are the strongest/i.test(
+        line
+      )
+    ) {
+      continue;
+    }
     if (/^[\-*•]\s/.test(line) && line.length >= 8 && line.length <= 200) {
       notes.push(line.replace(/^[\-*•]\s+/, "").trim());
     }

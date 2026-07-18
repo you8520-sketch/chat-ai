@@ -23,10 +23,21 @@ describe("buildAdvancedProseNsfwGuidelines", () => {
     assert.doesNotMatch(block, /\[SHOW BEFORE TELL\]/);
     assert.doesNotMatch(block, /\[NO TEMPLATE WRITING\]/);
     assert.match(block, /\[NARRATION REGISTER\]/);
-    assert.match(block, /\[GENERATION PROCESS — BEAT FLOW\]/);
+    assert.match(block, /\[SCENE FLOW\]/);
     assert.match(block, /\[RHYTHM\]/);
-    assert.match(block, /\[EMOTION\]/);
+    assert.match(block, /\[IMMERSIVE PROSE\]/);
+    assert.match(block, /생각·연상·기억·오해·감정·판단/);
+    assert.match(block, /뜻이었다/);
+    assert.match(block, /브리핑으로 만들지 않는다/);
     assert.match(block, /\[WEBNOVEL BREATH\]/);
+    assert.doesNotMatch(block, /\[EMOTION & INNER EXPERIENCE\]/);
+    assert.doesNotMatch(block, /\[NO POST-HOC VERDICT\]/);
+    assert.doesNotMatch(block, /\[DIALOGUE NATURALNESS\]/);
+    assert.doesNotMatch(block, /\[MOVEMENT & DETAIL\]/);
+    assert.doesNotMatch(block, /\[BODY AND PROP INVENTORY\]/);
+    assert.doesNotMatch(block, /\[GENERATION PROCESS — BEAT FLOW\]/);
+    assert.doesNotMatch(block, /one fact per beat/i);
+    assert.doesNotMatch(block, /감정 이름·해석·결론 없이/);
     assert.doesNotMatch(block, /\[DIALOGUE & NARRATION\]/);
     assert.doesNotMatch(block, /\[ADVANCED PROSE & NSFW GUIDELINES\]/);
     assert.doesNotMatch(block, /\[PROSE STYLE\]/);
@@ -72,7 +83,7 @@ describe("buildAdvancedProseNsfwGuidelines", () => {
   it("P1 placement adds dense rule under [NARRATION REGISTER]", () => {
     const sample = `${PROSE_STYLE_SECTION}\nExtra line.`;
     const p1 = applyDenseNarrationPlacementP1(sample);
-    assert.match(p1, /\[NARRATION REGISTER\]\n- Keep the same subject's immediate action/);
+    assert.match(p1, /\[NARRATION REGISTER\]\n- Keep a continuous scene beat's action/);
     assert.ok(p1.includes(DENSE_NARRATION_LIGHTWEIGHT_RULE));
   });
 

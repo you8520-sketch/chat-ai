@@ -66,10 +66,11 @@ const SCENARIO_META_TITLE =
   /(?:system\s*command|time\s*&\s*event|status\s*display|bad\s*end|happy\s*end|loop\s*trigger|system\s*reset|ooc\s*:|시스템\s*명령|상태\s*표시|배드\s*엔드|해피\s*엔드|루프|회귀\s*트리거|타임\s*라인|메타\s*규칙)/i;
 
 const WORLD_TITLE =
-  /(?:세계관|worldview|world|empire|kingdom|continent|monsters?|erebus|cult|국가|제국|왕국|대륙|괴물|교단)/i;
+  /(?:세계관|worldview|world|empire|kingdom|continent|monsters?|realm|faction|domain|cult|국가|제국|왕국|대륙|괴물|교단|세력|차원)/i;
 
+/** Section titles for character identity / speech / hidden personal conditions — no proper nouns. */
 const CHARACTER_TITLE =
-  /(?:name|identity|appearance|personality|current\s*status|말투|외형|외모|성격|정체성|이름|현재\s*신분|레온|speech|personality\s*keywords|피의\s*저주)/i;
+  /(?:name|identity|alias|appearance|personality|current\s*status|말투|외형|외모|성격|정체성|이름|호칭|별명|현재\s*신분|speech|personality\s*keywords|abilities|능력|저주|curse|hidden\s*(?:condition|secret|ability)|숨겨진\s*(?:조건|비밀|능력|저주))/i;
 
 /** Paragraphs describing player-only or loop/scenario facts — not [A] memory. */
 const PLAYER_SCENARIO_PARAGRAPH =

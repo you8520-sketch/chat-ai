@@ -26,10 +26,10 @@ If either occurs: Display "Loop restarting."
 
 describe("characterKnowledgeBoundary", () => {
   it("boundary block forbids scenario-to-character knowledge transfer", () => {
-    assert.match(CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK, /Knowledge is character-specific/);
-    assert.match(CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK, /Scenario canon is not character memory/);
-    assert.match(CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK, /Only \[B\] retains player-only secrets/);
-    assert.match(CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK, /Shared prompt context does not imply shared memories/);
+    assert.match(CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK, /캐릭터 지식은 캐릭터별로 분리/);
+    assert.match(CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK, /시나리오 메타/);
+    assert.match(CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK, /\[B\] 전용 비밀/);
+    assert.match(CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK, /CHARACTER CANON > 관찰된 대화/);
   });
 
   it("splits regression paragraphs into PLAYER CANON", () => {
@@ -73,5 +73,19 @@ ${SYSTEM_BLOCK}`;
     const block = buildCharacterCanonBlock("[Name]\nHero\n[Personality]\nBrave.", "Hero");
     assert.match(block, /\[CHARACTER CANON — Hero MAY KNOW/);
     assert.ok(block.includes("Brave."));
+  });
+
+  it("classifies identity/curse section titles without proper-noun literals", () => {
+    const curse = classifySettingSectionKnowledge({
+      title: "[숨겨진 저주]",
+      body: "이 인물은 밤에만 드러나는 숨겨진 조건을 가진다.",
+    });
+    assert.equal(curse[0]?.bucket, "character");
+
+    const world = classifySettingSectionKnowledge({
+      title: "[세력]",
+      body: "북방 교단이 대륙을 지배한다.",
+    });
+    assert.equal(world[0]?.bucket, "world");
   });
 });

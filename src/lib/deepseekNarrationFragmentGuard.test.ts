@@ -2,10 +2,18 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   DEEPSEEK_BOTTOM_REMINDER,
+  DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA,
+  DEEPSEEK_SHORT_USER_TURN_BLOCK,
+  isDeepSeekShortUserTurn,
+  resolveDeepSeekShortUserTurnExtra,
+  countDeepSeekShortUserTurnChars,
   buildDeepSeekBottomReminderBlock,
   prependDeepSeekBottomReminder,
+  resolveDeepSeekShortHistoryLengthExtra,
 } from "@/lib/deepseekPromptStructure";
+import { buildRegenerateUserPrompt } from "@/lib/continueNarrative";
 import {
+  IMMERSIVE_PROSE_BLOCK,
   PROSE_STYLE_SECTION,
 } from "@/lib/advancedProseNsfwGuidelines";
 import { buildWebnovelOutputLayoutRecencyBlock } from "@/lib/webnovelOutputFormat";
@@ -38,9 +46,10 @@ describe("DeepSeek narration fragment guard (prompt snapshot)", () => {
     assert.match(DEEPSEEK_BOTTOM_REMINDER, /실제 발화만 큰따옴표/);
   });
 
-  it("does not inject the DeepSeek-only guard into shared [RHYTHM]/[MOVEMENT]/[OUTPUT LAYOUT]", () => {
+  it("does not inject the DeepSeek-only guard into shared prose / OUTPUT LAYOUT", () => {
     assert.doesNotMatch(PROSE_STYLE_SECTION, /대사는 캐릭터 말투에 따라 짧을 수 있다/);
     assert.doesNotMatch(PROSE_STYLE_SECTION, /한두 단어짜리 파편문을 습관적으로/);
+    assert.doesNotMatch(IMMERSIVE_PROSE_BLOCK, /대사는 캐릭터 말투에 따라 짧을 수 있다/);
     const layout = buildWebnovelOutputLayoutRecencyBlock();
     assert.doesNotMatch(layout, /대사는 캐릭터 말투에 따라 짧을 수 있다/);
     assert.doesNotMatch(layout, /한두 단어짜리 파편문을 습관적으로/);
@@ -66,9 +75,60 @@ describe("DeepSeek narration fragment guard (prompt snapshot)", () => {
     const layout = buildWebnovelOutputLayoutRecencyBlock();
     assert.match(layout, /한 줄 한 화법 = 화자가 바뀌면 문단을 나눈다는 뜻/);
     assert.match(layout, /지문 한 문장마다 새 문단을 만들라는 뜻이 아니다/);
-    assert.match(layout, /2~5문장 정도 자연스럽게 묶을 수 있다/);
+    assert.match(layout, /초점이 조금 바뀌더라도 한 문단 안에서 자연스럽게 연결/);
     assert.match(layout, /대사는 화자별 독립 문단/);
     assert.match(layout, /Never append dialogue/);
+  });
+
+  it("DeepSeek SINGLE CALL is length-only (not a separate prose dialect)", () => {
+    assert.match(DEEPSEEK_BOTTOM_REMINDER, /\[DEEPSEEK LENGTH — SINGLE CALL\]/);
+    assert.match(DEEPSEEK_BOTTOM_REMINDER, /single response/i);
+    assert.match(DEEPSEEK_BOTTOM_REMINDER, /never imitate a short prior assistant reply/);
+    assert.match(DEEPSEEK_BOTTOM_REMINDER, /independently of the length of recent messages/);
+    assert.doesNotMatch(DEEPSEEK_BOTTOM_REMINDER, /\[IMMERSIVE PROSE\]/);
+    assert.doesNotMatch(DEEPSEEK_BOTTOM_REMINDER, /뜻이었다/);
+    assert.doesNotMatch(DEEPSEEK_BOTTOM_REMINDER, /중간 단계를 건너뛰지/);
+  });
+
+  it("adds SHORT HISTORY length extra only when recent assistants are short", () => {
+    assert.equal(resolveDeepSeekShortHistoryLengthExtra([]), DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA);
+    assert.equal(
+      resolveDeepSeekShortHistoryLengthExtra([
+        { role: "assistant", content: "짧다.".repeat(50) },
+      ]),
+      DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA
+    );
+    assert.equal(
+      resolveDeepSeekShortHistoryLengthExtra([
+        { role: "assistant", content: "긴응답.".repeat(900) },
+      ]),
+      null
+    );
+    assert.match(DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA, /\[SHORT HISTORY\]/);
+    assert.match(DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA, /not a response-length example/);
+    assert.match(DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA, /roughly normal requested length/);
+    assert.doesNotMatch(DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA, /4,500/);
+    assert.doesNotMatch(DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA, /MINIMUM_FLOOR \(2,700\+\)/);
+    assert.doesNotMatch(DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA, /뜻이었다/);
+  });
+
+  it("SHORT USER TURN — gates brief RP lines; skips OOC/long/system", () => {
+    for (const s of ["배고파.", "응.", "왜?", "졸려.", "뭐 해?", "괜찮아?"]) {
+      assert.equal(isDeepSeekShortUserTurn(s), true, s);
+      assert.equal(resolveDeepSeekShortUserTurnExtra(s), DEEPSEEK_SHORT_USER_TURN_BLOCK);
+    }
+    assert.ok(countDeepSeekShortUserTurnChars("배고파.") <= 20);
+    assert.equal(
+      isDeepSeekShortUserTurn("렌이 식탁에 천천히 앉아 창밖을 바라보며 한숨을 쉬었다."),
+      false
+    );
+    assert.equal(isDeepSeekShortUserTurn("(OOC: 더 짧게 써줘)"), false);
+    assert.equal(isDeepSeekShortUserTurn("[채팅 시작]"), false);
+    const regen = buildRegenerateUserPrompt({ userMessage: "배고파." });
+    assert.equal(isDeepSeekShortUserTurn(regen), true);
+    assert.match(DEEPSEEK_SHORT_USER_TURN_BLOCK, /\[SHORT USER TURN\]/);
+    assert.match(DEEPSEEK_SHORT_USER_TURN_BLOCK, /interaction cue/);
+    assert.doesNotMatch(DEEPSEEK_SHORT_USER_TURN_BLOCK, /REGEN/);
   });
 
   it("keeps dialogue/narration separation rules", () => {
@@ -78,28 +138,23 @@ describe("DeepSeek narration fragment guard (prompt snapshot)", () => {
     assert.match(layout, /하나의 발화는 하나의 인용문/);
   });
 
-  it("does not stack the same anti-fragment sentence across RHYTHM / MOVEMENT / reminder", () => {
+  it("does not stack DeepSeek anti-fragment into RHYTHM / IMMERSIVE", () => {
     const rhythm = PROSE_STYLE_SECTION.slice(
       PROSE_STYLE_SECTION.indexOf("[RHYTHM]"),
       PROSE_STYLE_SECTION.indexOf("[SENSATION]")
     );
-    const movement = PROSE_STYLE_SECTION.slice(
-      PROSE_STYLE_SECTION.indexOf("[MOVEMENT & SPACE]"),
-      PROSE_STYLE_SECTION.indexOf("[WEBNOVEL BREATH]")
-    );
     assert.doesNotMatch(rhythm, /대사는 캐릭터 말투에 따라 짧을 수 있다/);
-    assert.doesNotMatch(movement, /대사는 캐릭터 말투에 따라 짧을 수 있다/);
-    assert.doesNotMatch(movement, /한두 단어짜리 파편문/);
     assert.doesNotMatch(rhythm, /짧은 문장마다 새 문단/);
     assert.match(rhythm, /강조·충격·급박/);
-    assert.match(movement, /동작마다 독립 문장으로 쪼개지 말고/);
-    assert.doesNotMatch(movement, /한 동작마다 무엇이 어디서/);
+    assert.match(IMMERSIVE_PROSE_BLOCK, /모든 움직임을 순서대로 기록하지 않는다/);
+    assert.doesNotMatch(IMMERSIVE_PROSE_BLOCK, /한두 단어짜리 파편문/);
   });
 
   it("reports DeepSeek-only reminder token delta", () => {
     const delta = estimateTokens(DEEPSEEK_BOTTOM_REMINDER) - estimateTokens(LEGACY_DEEPSEEK_BOTTOM_REMINDER);
     assert.ok(delta > 0);
-    assert.ok(delta <= 120, `expected small delta, got ${delta}`);
+    // Anti-fragment fencing + compact SINGLE CALL length stabilization.
+    assert.ok(delta <= 400, `expected bounded delta, got ${delta}`);
   });
 });
 

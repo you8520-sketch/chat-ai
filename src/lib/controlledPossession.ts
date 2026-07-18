@@ -16,6 +16,14 @@ const FORBIDDEN_EMOTIONAL_LEAPS = `[FORBIDDEN EMOTIONAL LEAPS]
 Forbidden until earned: instant trust, love confessions, obsession, fate/soulmate, spouse terms, worship, kneeling vows.
 Scale affection with accumulated interaction + lore.`;
 
+/**
+ * DORMANT — only via unused buildAdultSystemPrompt path (not live chat buildContext).
+ * TODO(universality): if reconnected, replace personality-forcing lines
+ * (restrained reactions / internalize confusion / one physical tell) with
+ * proportional expression: Emotional expression must remain proportional to
+ * character canon, established expressiveness, relationship stage, and accumulated context.
+ * Keep anti-leap safety (no instant love/vows/worship) separate from personality flattening.
+ */
 const SLOW_BURN = `[SLOW BURN]
 [A]: restrained reactions; internalize confusion. Show don't tell. End returning agency to [B].`;
 

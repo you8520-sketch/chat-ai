@@ -44,14 +44,21 @@ describe("narrationLexicon", () => {
     assert.ok(stripped.includes("서사"));
   });
 
-  it("gate env — Leon only by default", () => {
+  it("gate env — allowlist via CHARS; LEON_ONLY=0 widens to all", () => {
     const prev = process.env.SPEECH_LOCK_NARRATION_LEXICON;
     const prevLeon = process.env.SPEECH_LOCK_NARRATION_LEXICON_LEON_ONLY;
+    const prevChars = process.env.SPEECH_LOCK_NARRATION_LEXICON_CHARS;
     try {
       process.env.SPEECH_LOCK_NARRATION_LEXICON = "1";
       delete process.env.SPEECH_LOCK_NARRATION_LEXICON_LEON_ONLY;
+      delete process.env.SPEECH_LOCK_NARRATION_LEXICON_CHARS;
+      assert.equal(isNarrationLexiconGateEnabled("레온"), false);
+      assert.equal(isNarrationLexiconGateEnabled("백하율"), false);
+
+      process.env.SPEECH_LOCK_NARRATION_LEXICON_CHARS = "레온";
       assert.equal(isNarrationLexiconGateEnabled("레온"), true);
       assert.equal(isNarrationLexiconGateEnabled("백하율"), false);
+
       process.env.SPEECH_LOCK_NARRATION_LEXICON_LEON_ONLY = "0";
       assert.equal(isNarrationLexiconGateEnabled("백하율"), true);
     } finally {
@@ -59,6 +66,8 @@ describe("narrationLexicon", () => {
       else process.env.SPEECH_LOCK_NARRATION_LEXICON = prev;
       if (prevLeon === undefined) delete process.env.SPEECH_LOCK_NARRATION_LEXICON_LEON_ONLY;
       else process.env.SPEECH_LOCK_NARRATION_LEXICON_LEON_ONLY = prevLeon;
+      if (prevChars === undefined) delete process.env.SPEECH_LOCK_NARRATION_LEXICON_CHARS;
+      else process.env.SPEECH_LOCK_NARRATION_LEXICON_CHARS = prevChars;
     }
   });
 });
@@ -139,44 +148,58 @@ describe("maybeRewriteNarrationLexicon (mocked API, API-free)", () => {
   });
 
   it("returns original when detector clean (MISS fixture)", async () => {
+    const prevChars = process.env.SPEECH_LOCK_NARRATION_LEXICON_CHARS;
     process.env.SPEECH_LOCK_NARRATION_LEXICON = "1";
-    const text = NARRATION_LEXICON_FIXTURES.find((f) => f.id === "pure-action")!.text;
-    const r = await maybeRewriteNarrationLexicon({
-      text,
-      charName: "레온",
-      system: "sys",
-      history: [],
-      model: "test",
-      targetResponseChars: 3200,
-      requestKind: "test-clean",
-    });
-    assert.equal(r.rewritten, false);
-    assert.equal(r.text, text);
+    process.env.SPEECH_LOCK_NARRATION_LEXICON_CHARS = "레온";
+    try {
+      const text = NARRATION_LEXICON_FIXTURES.find((f) => f.id === "pure-action")!.text;
+      const r = await maybeRewriteNarrationLexicon({
+        text,
+        charName: "레온",
+        system: "sys",
+        history: [],
+        model: "test",
+        targetResponseChars: 3200,
+        requestKind: "test-clean",
+      });
+      assert.equal(r.rewritten, false);
+      assert.equal(r.text, text);
+    } finally {
+      if (prevChars === undefined) delete process.env.SPEECH_LOCK_NARRATION_LEXICON_CHARS;
+      else process.env.SPEECH_LOCK_NARRATION_LEXICON_CHARS = prevChars;
+    }
   });
 
   for (const pair of REWRITE_SIMULATION_PAIRS) {
     it(`mock rewrite clears detector: ${pair.id}`, async () => {
+      const prevChars = process.env.SPEECH_LOCK_NARRATION_LEXICON_CHARS;
       process.env.SPEECH_LOCK_NARRATION_LEXICON = "1";
+      process.env.SPEECH_LOCK_NARRATION_LEXICON_CHARS = "레온";
       mockRewriteText = pair.mockRewritten;
 
-      const before = detectRegisterLexiconInNarration(pair.input);
-      assert.equal(before.fail, true, "fixture must be HIT before rewrite");
+      try {
+        const before = detectRegisterLexiconInNarration(pair.input);
+        assert.equal(before.fail, true, "fixture must be HIT before rewrite");
 
-      const r = await maybeRewriteNarrationLexicon({
-        text: pair.input,
-        charName: "레온",
-        system: "sys",
-        history: [{ role: "user", content: "test" }],
-        model: "test",
-        targetResponseChars: 3200,
-        requestKind: `test-${pair.id}`,
-      });
+        const r = await maybeRewriteNarrationLexicon({
+          text: pair.input,
+          charName: "레온",
+          system: "sys",
+          history: [{ role: "user", content: "test" }],
+          model: "test",
+          targetResponseChars: 3200,
+          requestKind: `test-${pair.id}`,
+        });
 
-      assert.equal(r.rewritten, true);
-      const after = detectRegisterLexiconInNarration(r.text);
-      assert.equal(after.fail, false, `still hits: ${JSON.stringify(after.hits)}`);
-      assert.match(r.text, /"…/);
-      assert.ok(r.text.length > 20, "rewritten text should preserve substance");
+        assert.equal(r.rewritten, true);
+        const after = detectRegisterLexiconInNarration(r.text);
+        assert.equal(after.fail, false, `still hits: ${JSON.stringify(after.hits)}`);
+        assert.match(r.text, /"…/);
+        assert.ok(r.text.length > 20, "rewritten text should preserve substance");
+      } finally {
+        if (prevChars === undefined) delete process.env.SPEECH_LOCK_NARRATION_LEXICON_CHARS;
+        else process.env.SPEECH_LOCK_NARRATION_LEXICON_CHARS = prevChars;
+      }
     });
   }
 });

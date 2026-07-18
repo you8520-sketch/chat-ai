@@ -160,6 +160,8 @@ function assembleLengthInstructionBlock(
   const t = resolveResponseLengthTarget(targetInput);
   const jsonOrStatusLine = buildJsonStatusLengthLine(opts);
 
+  // Style fill materials live in common [IMMERSIVE PROSE]; keep LENGTH numeric + expansion only.
+  // REACTION VARIETY absorbed into IMMERSIVE — NO_GENERIC_REACTIONS_BLOCK is empty by design.
   return `[LENGTH CONTROL & SCENE EXPANSION]
 TARGET_LENGTH: ${t.aimChars.toLocaleString()}+ 한국어 글자
 MINIMUM_FLOOR: ${t.min.toLocaleString()}+
@@ -172,9 +174,7 @@ ${NO_INPUT_ECHO_RULE}
 
 ${SCENE_CONTINUATION_PRIORITY_BLOCK}
 
-${NARRATIVE_DENSITY_BLOCK}
-
-${NO_GENERIC_REACTIONS_BLOCK}${jsonOrStatusLine}`;
+${NARRATIVE_DENSITY_BLOCK}${NO_GENERIC_REACTIONS_BLOCK ? `\n\n${NO_GENERIC_REACTIONS_BLOCK}` : ""}${jsonOrStatusLine}`;
 }
 
 /**

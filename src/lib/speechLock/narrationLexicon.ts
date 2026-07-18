@@ -35,8 +35,26 @@ export function validateNarrationRegisterLexicon(text: string): SpeechViolation[
   ];
 }
 
+/**
+ * Staging gate for narration-lexicon speech-lock.
+ *
+ * - SPEECH_LOCK_NARRATION_LEXICON=1 required
+ * - SPEECH_LOCK_NARRATION_LEXICON_LEON_ONLY=0 → all characters
+ * - else SPEECH_LOCK_NARRATION_LEXICON_CHARS=comma-separated names (staging allowlist)
+ *
+ * No character proper nouns are hardcoded. For previous Leon-only staging, set
+ * SPEECH_LOCK_NARRATION_LEXICON_CHARS to that character's name in env.
+ *
+ * @deprecated alias SPEECH_LOCK_NARRATION_LEXICON_LEON_ONLY — prefer CHARS allowlist or =0 for all
+ */
 export function isNarrationLexiconGateEnabled(charName: string): boolean {
   if (process.env.SPEECH_LOCK_NARRATION_LEXICON !== "1") return false;
   if (process.env.SPEECH_LOCK_NARRATION_LEXICON_LEON_ONLY === "0") return true;
-  return charName === "레온";
+
+  const allowlist = (process.env.SPEECH_LOCK_NARRATION_LEXICON_CHARS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (allowlist.length === 0) return false;
+  return allowlist.includes(charName.trim());
 }

@@ -3,6 +3,9 @@ import { isNarrationFewShotFallbackEnabled } from "@/lib/narrationFewShotFallbac
 /**
  * Tone-agnostic narration few-shot structural templates.
  * Used when example_dialog is empty and NARRATION_FEWSHOT_FALLBACK_ENABLED=1.
+ *
+ * Production fallback must stay style-neutral (no character names, no implied
+ * short-honorific dialogue). Research profiles below are for ablation scripts only.
  */
 export type NarrationFewShotProfile = {
   id: string;
@@ -47,34 +50,37 @@ ${p.charName}: 문틈 아래 막혀 있던 바람이 한 줄기 새어 나왔고
 "${p.replyHush}"`;
 }
 
-/** Cross-validation profiles — dialogue tone only differs; narration structure shared. */
+/**
+ * Research / ablation profiles only — generic labels, no production character names.
+ * Not used by defaultPlatformNarrationFewShot.
+ */
 export const NARRATION_FEWSHOT_PROFILES: NarrationFewShotProfile[] = [
   {
     id: "formal",
-    label: "냉정 존댓말 (레온형)",
-    charName: "레온",
-    replyDaily: "조금입니다. 그쪽은요?",
-    replyWorried: "…괜찮습니다.",
-    replyAlert: "…무슨 소리입니까?",
-    replyHush: "…조용히 하십시오.",
+    label: "formal register (research)",
+    charName: "CharacterA",
+    replyDaily: "[reply in CharacterA register — daily beat]",
+    replyWorried: "[reply in CharacterA register — worried beat]",
+    replyAlert: "[reply in CharacterA register — alert beat]",
+    replyHush: "[reply in CharacterA register — hush beat]",
   },
   {
     id: "casual",
-    label: "일상 카페 (서연형)",
-    charName: "서연",
-    replyDaily: "조금요. 손님은요?",
-    replyWorried: "…괜찮아요.",
-    replyAlert: "…무슨 소리예요?",
-    replyHush: "…조용히 해요.",
+    label: "casual register (research)",
+    charName: "CharacterB",
+    replyDaily: "[reply in CharacterB register — daily beat]",
+    replyWorried: "[reply in CharacterB register — worried beat]",
+    replyAlert: "[reply in CharacterB register — alert beat]",
+    replyHush: "[reply in CharacterB register — hush beat]",
   },
   {
     id: "terse",
-    label: "단호 반말 (탐정형)",
-    charName: "수아",
-    replyDaily: "바빠. 넌?",
-    replyWorried: "…괜찮아.",
-    replyAlert: "…뭐가?",
-    replyHush: "…조용히.",
+    label: "terse register (research)",
+    charName: "CharacterC",
+    replyDaily: "[reply in CharacterC register — daily beat]",
+    replyWorried: "[reply in CharacterC register — worried beat]",
+    replyAlert: "[reply in CharacterC register — alert beat]",
+    replyHush: "[reply in CharacterC register — hush beat]",
   },
 ];
 
@@ -89,16 +95,21 @@ export function resolveExampleDialogForPrompt(
   return defaultPlatformNarrationFewShot(charName);
 }
 
-/** Platform default when creator example_dialog is empty (treatment only). */
+/**
+ * Platform default when creator example_dialog is empty (opt-in env only).
+ * Structure / format anchors only — no implied wording, endings, verbosity, or tone.
+ */
 export function defaultPlatformNarrationFewShot(charName: string): string {
-  const profile: NarrationFewShotProfile = {
-    id: "platform",
-    label: "platform default",
-    charName: charName.trim() || "캐릭터",
-    replyDaily: "조금요. 그쪽은요?",
-    replyWorried: "…괜찮습니다.",
-    replyAlert: "…무슨 소리요?",
-    replyHush: "…조용히 하세요.",
-  };
-  return buildSpaceSoundFewShot(profile);
+  const name = charName.trim() || "[A]";
+  return `[PLATFORM NARRATION STRUCTURE — STYLE-NEUTRAL]
+Format reference only. Not shared dialogue personality for all characters.
+
+유저: [user line]
+${name}: [narration using space / sound / distance as needed — follow CHARACTER CANON]
+"[quoted dialogue in THIS character's established speech only]"
+
+Rules:
+- Narration may use space, sound, and distance anchors.
+- Quoted dialogue must follow CHARACTER CANON / creator speech examples for THIS character.
+- Do not copy placeholder wording, endings, register, brevity, or emotional restraint from this block.`;
 }

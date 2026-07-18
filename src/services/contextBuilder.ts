@@ -120,8 +120,16 @@ import {
   logDeepSeekContextStructure,
   prependDeepSeekBottomReminder,
   resolveDeepSeekLoreXmlGroup,
+  resolveDeepSeekShortHistoryLengthExtra,
+  resolveDeepSeekShortUserTurnExtra,
+  DEEPSEEK_REGEN_LENGTH_BLOCK,
   type DeepSeekXmlGroup,
 } from "@/lib/deepseekPromptStructure";
+import {
+  buildDeepSeekOpeningSceneContextBlock,
+  peelCreatorOpeningGreetingFromHistory,
+  shouldRemapDeepSeekOpeningGreeting,
+} from "@/lib/deepseekOpeningSceneContext";
 import {
   buildRuntimePromptContaminationGuardBlock,
   sanitizeRuntimePromptSource,
@@ -688,6 +696,15 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       }),
       "dynamic"
     );
+    if (deepSeekXmlMode) {
+      pushSection(
+        "regenerate-length-deepseek",
+        "[1.46b] DeepSeek regen length (diverge ≠ shorten)",
+        "systemRules",
+        DEEPSEEK_REGEN_LENGTH_BLOCK,
+        "dynamic"
+      );
+    }
   }
 
   const pushRagContextSections = () => {
@@ -890,8 +907,55 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   if (isOpenRouter && openRouterDynamicLorePrefix) {
     userTurnContent = `${openRouterDynamicLorePrefix}\n\n${userTurnContent}`;
   }
+
+  /**
+   * DeepSeek + thin only: creator greeting (turn0 `[채팅 시작]`+assistant) leaves
+   * conversational assistant history and becomes continuity context — length exemplar off.
+   * Short-history judgment uses the original history (before peel).
+   */
+  let historyForAssembly: ContextBuildInput["shortTermHistory"] = input.shortTermHistory;
+  let deepSeekOpeningSceneContext: string | null = null;
+  const deepSeekShortHistoryExtra = deepSeekXmlMode
+    ? resolveDeepSeekShortHistoryLengthExtra(input.shortTermHistory)
+    : null;
+  if (deepSeekXmlMode && deepSeekShortHistoryExtra) {
+    const peeled = peelCreatorOpeningGreetingFromHistory(input.shortTermHistory);
+    if (
+      shouldRemapDeepSeekOpeningGreeting({
+        deepSeekXmlMode: true,
+        shortHistory: true,
+        openingGreeting: peeled.openingGreeting,
+      })
+    ) {
+      historyForAssembly = peeled.history;
+      deepSeekOpeningSceneContext = buildDeepSeekOpeningSceneContextBlock(
+        peeled.openingGreeting!
+      );
+      if (process.env.NODE_ENV !== "production") {
+        console.log("[DeepSeek opening remap]", {
+          peeledSyntheticOpeningTurn: peeled.peeledSyntheticOpeningTurn,
+          greetingChars: peeled.openingGreeting!.length,
+          remainingHistoryMessages: historyForAssembly.length,
+        });
+      }
+    }
+  }
+
   if (deepSeekXmlMode) {
-    userTurnContent = prependDeepSeekBottomReminder(userTurnContent);
+    const userBodyWithOpening = deepSeekOpeningSceneContext
+      ? `${deepSeekOpeningSceneContext}\n\n${userTurnContent}`
+      : userTurnContent;
+    const deepSeekUserExtras = [
+      deepSeekShortHistoryExtra,
+      resolveDeepSeekShortUserTurnExtra(input.currentUserMessage),
+      input.regenerate === true ? DEEPSEEK_REGEN_LENGTH_BLOCK : null,
+    ]
+      .filter(Boolean)
+      .join("\n");
+    userTurnContent = prependDeepSeekBottomReminder(
+      userBodyWithOpening,
+      deepSeekUserExtras || null
+    );
   }
   if (input.assetTags && input.assetTags.length > 0) {
     const emotionOverlay = buildFlashOwnedEmotionTagUserOverlay(input.assetTags);
@@ -914,8 +978,8 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
 
   let effectiveHistoryBudget = historyBudget;
   let historySource = input.geminiStaticDynamicMode
-    ? input.shortTermHistory
-    : trimHistoryToBudget(input.shortTermHistory, effectiveHistoryBudget);
+    ? historyForAssembly
+    : trimHistoryToBudget(historyForAssembly, effectiveHistoryBudget);
 
   if (!input.geminiStaticDynamicMode) {
     while (estimatePayloadTokens(historySource) > maxPayload && effectiveHistoryBudget > 400) {
@@ -947,7 +1011,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     });
   }
 
-  if (history.length < input.shortTermHistory.length) {
+  if (history.length < historyForAssembly.length) {
     truncatedMemory = true;
   }
 

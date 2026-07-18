@@ -110,9 +110,10 @@ function parseForbiddenLines(text: string | undefined): string[] {
 }
 
 const SPEECH_CONSISTENCY_BLOCK = `[SPEECH CONSISTENCY]
-Dialogue style is learned primarily from dialogue examples.
-Trait descriptions are secondary.
-When examples conflict with descriptions, examples always win.`;
+Dialogue examples are the strongest reference for demonstrated speech features such as wording, endings, register, vocabulary, and rhythm.
+Do not infer unrelated personality, verbosity, emotional restraint, behavior, or relationship traits solely from the length or content of a few example lines.
+When examples conflict with abstract style descriptions, examples take priority only for the speech features they actually demonstrate.
+Character canon, personality, current emotion, relationship, and scene context still determine what the character says and how much they naturally speak.`;
 
 const CONTEXTUAL_REGISTER_DATA_OPEN = "[상황별 말투 데이터]";
 
