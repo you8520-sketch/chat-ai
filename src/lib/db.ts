@@ -12,6 +12,7 @@ import {
 } from "@/lib/boardPosts";
 import { seedGlobalLorebookEntries } from "@/lib/globalLorebook";
 import { backfillCharacterEngagementStats } from "@/lib/characterEngagementStats";
+import { ensureCharacterClicksTable } from "@/lib/characterClicks";
 import { UNIFIED_TIER_AIM_CHARS } from "@/lib/responseLengthConstants";
 
 validateAuthEnvironment();
@@ -82,6 +83,15 @@ function init(db: Database.Database) {
     character_id INTEGER NOT NULL,
     PRIMARY KEY (user_id, character_id)
   );
+  CREATE TABLE IF NOT EXISTS character_clicks (
+    user_id INTEGER NOT NULL,
+    character_id INTEGER NOT NULL,
+    click_count INTEGER NOT NULL DEFAULT 1,
+    last_clicked_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (user_id, character_id)
+  );
+  CREATE INDEX IF NOT EXISTS idx_character_clicks_user_recent
+    ON character_clicks(user_id, last_clicked_at DESC);
   CREATE TABLE IF NOT EXISTS follows (
     user_id INTEGER NOT NULL,
     creator_id INTEGER NOT NULL,
@@ -938,6 +948,7 @@ function migrate(db: Database.Database) {
       ON portone_checkouts(status, created_at DESC);
   `);
   addColumn("characters", "total_turns", "INTEGER NOT NULL DEFAULT 0");
+  ensureCharacterClicksTable(db);
   migrateCharacterEngagementStats(db);
   migrateCommentModeration(db);
   migrateUnifiedTargetResponseChars3200(db);
