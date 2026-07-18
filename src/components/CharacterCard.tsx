@@ -37,6 +37,17 @@ type CreatorNameBadgeStyle = {
 
 function creatorNameBadgeStyle(tier: CreatorTierLevel | null | undefined): CreatorNameBadgeStyle {
   switch (tier) {
+    case "sprout":
+      return {
+        byClassName: "text-emerald-600/80",
+        nameClassName: "font-medium text-emerald-400/90",
+        label: "새싹 크리에이터",
+      };
+    case "standard":
+      return {
+        byClassName: "text-zinc-500",
+        nameClassName: "font-semibold text-zinc-300",
+      };
     case "plus":
       return {
         byClassName: "text-violet-500/80",

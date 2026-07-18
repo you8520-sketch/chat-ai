@@ -1,9 +1,13 @@
 /** Client-safe creator constants, types, and pure helpers (no DB/auth). */
 
+/** 새싹: 캐릭터 2개+ 제작 */
+export const CREATOR_REWARD_RATE_SPROUT = 0.05;
+export const CREATOR_SPROUT_MIN_CHARACTERS = 2;
+/** 일반: 공개 유지 캐릭터 2개+ & 통합 대화 5천+ */
 export const CREATOR_REWARD_RATE = 0.08;
-/** 일반: 캐릭터 2개+ */
 export const CREATOR_STANDARD_MIN_CHARACTERS = 2;
-/** 플러스: 캐릭터 3개+ & 통합 대화 1만+ */
+export const CREATOR_STANDARD_MIN_TOTAL_CHATS = 5_000;
+/** 플러스: 공개 유지 캐릭터 3개+ & 통합 대화 1만+ */
 export const CREATOR_REWARD_RATE_PLUS = 0.1;
 export const CREATOR_PLUS_MIN_CHARACTERS = 3;
 export const CREATOR_PLUS_MIN_TOTAL_CHATS = 10_000;
@@ -23,9 +27,16 @@ export const CREATOR_PARTNER_RENEWAL_MAINTENANCE_RATE = 0.8;
 /** 전속 20% — 파트너 등급 달성 후 운영팀 문의·전속 계약 체결 시 (creator_exclusive 플래그) */
 export const CREATOR_REWARD_RATE_EXCLUSIVE = 0.2;
 
-export type CreatorTierLevel = "standard" | "plus" | "pro" | "partner" | "exclusive";
+export type CreatorTierLevel =
+  | "sprout"
+  | "standard"
+  | "plus"
+  | "pro"
+  | "partner"
+  | "exclusive";
 
 export const CREATOR_TIER_LABELS: Record<CreatorTierLevel, string> = {
+  sprout: "새싹",
   standard: "일반",
   plus: "플러스",
   pro: "프로",
