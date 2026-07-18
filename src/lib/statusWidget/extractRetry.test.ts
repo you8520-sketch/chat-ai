@@ -10,6 +10,8 @@ import {
   buildWidgetExtractRepairUserBlock,
   dropRepairEchoFields,
   formatPreviousCanonicalWidgetValuesForRepair,
+  isCombinedExtractLikelyTruncated,
+  resolveCombinedDualWidgetExtractMaxTokens,
   resolveRepairMaxTokens,
   sliceAssistantProseForRepair,
 } from "./extractNormalize";
@@ -1213,11 +1215,279 @@ describe("dual combined status extract", () => {
       resolved: characterResolved(),
       caller: async (_s, _h, opts) => {
         kinds.push(opts.requestKind);
+        assert.equal(opts.maxTokens, undefined);
         return { text: jsonForWidget(DEFAULT_STATUS_WIDGET), usage: usage(1) };
       },
     });
     assert.deepEqual(kinds, ["background-status-widget-extract"]);
     assert.equal(result.meta.extractMode, "single");
     assert.equal(result.meta.actualCallCount, 1);
+  });
+});
+
+function largeDualWidgets(): { character: StatusWidget; user: StatusWidget } {
+  const makeFields = (prefix: string, n: number, freeText: number): StatusWidget["fields"] =>
+    Array.from({ length: n }, (_, i) => ({
+      id: `${prefix}${i}`,
+      label: `${prefix}${i}`,
+      instruction:
+        i < freeText
+          ? `${prefix === "c" ? "NPC의" : "유저의"} 속마음 서술 문장 흐름`
+          : "짧은 값",
+    }));
+  return {
+    character: {
+      version: 1,
+      name: "대형 캐릭터 상태창",
+      placement: "bottom",
+      htmlTemplate: makeFields("c", 12, 4)
+        .map((f) => `{{${f.id}}}`)
+        .join(" "),
+      fields: makeFields("c", 12, 4),
+    },
+    user: {
+      version: 1,
+      name: "대형 유저 상태창",
+      placement: "bottom",
+      htmlTemplate: makeFields("u", 10, 3)
+        .map((f) => `{{${f.id}}}`)
+        .join(" "),
+      fields: makeFields("u", 10, 3),
+    },
+  };
+}
+
+function oversizedCombinedJson(character: StatusWidget, user: StatusWidget): string {
+  const pad = (key: string) => `${key}-` + "상세서술내용".repeat(40);
+  const character_values: Record<string, string> = {};
+  for (const key of collectWidgetJsonKeys(character)) character_values[key] = pad(key);
+  const user_values: Record<string, string> = {};
+  for (const key of collectWidgetJsonKeys(user)) user_values[key] = pad(key);
+  return JSON.stringify({ character_values, user_values, extracted_facts: [] });
+}
+
+describe("combined dual output budget", () => {
+  it("1. small dual → combined maxTokens=768 and caller receives 768", async () => {
+    const smallChar: StatusWidget = {
+      version: 1,
+      name: "소형 캐릭터",
+      placement: "bottom",
+      htmlTemplate: "{{시간}} {{장소}}",
+      fields: [
+        { id: "시간", label: "시간", instruction: "시각" },
+        { id: "장소", label: "장소", instruction: "장소" },
+      ],
+    };
+    const smallUser: StatusWidget = {
+      version: 1,
+      name: "소형 유저",
+      placement: "bottom",
+      htmlTemplate: "{{기분}} {{위치}}",
+      fields: [
+        { id: "기분", label: "기분", instruction: "유저 기분" },
+        { id: "위치", label: "위치", instruction: "유저 위치" },
+      ],
+    };
+    const budget = resolveCombinedDualWidgetExtractMaxTokens(smallChar, smallUser);
+    assert.equal(budget, 768);
+
+    let seenMax: number | undefined;
+    await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "장면",
+      resolved: bothResolved(smallChar, smallUser),
+      caller: async (_s, _h, opts) => {
+        if (opts.requestKind.includes("combined")) seenMax = opts.maxTokens;
+        return {
+          text: JSON.stringify({
+            character_values: { 시간: "14:00", 장소: "카페" },
+            user_values: { 기분: "설렘", 위치: "카페" },
+            extracted_facts: [],
+          }),
+          usage: usage(1),
+        };
+      },
+    });
+    assert.equal(seenMax, 768);
+  });
+
+  it("2–3. large dual → maxTokens > 512 and <= 1536; formula clamp", () => {
+    // Enough free-text fields to hit per-source repair cap 512.
+    const maxed: StatusWidget = {
+      version: 1,
+      name: "캡 위젯",
+      placement: "bottom",
+      htmlTemplate: Array.from({ length: 16 }, (_, i) => `{{f${i}}}`).join(" "),
+      fields: Array.from({ length: 16 }, (_, i) => ({
+        id: `f${i}`,
+        label: `필드${i}`,
+        instruction: i < 8 ? "속마음 서술 문장 흐름" : "짧은 값",
+      })),
+    };
+    const charBudget = resolveRepairMaxTokens(maxed, collectWidgetJsonKeys(maxed));
+    const userBudget = resolveRepairMaxTokens(maxed, collectWidgetJsonKeys(maxed));
+    assert.equal(charBudget, 512);
+    assert.equal(userBudget, 512);
+    const combined = resolveCombinedDualWidgetExtractMaxTokens(maxed, maxed);
+    assert.ok(combined > 512);
+    assert.ok(combined <= 1536);
+    assert.equal(combined, Math.min(1536, Math.max(768, charBudget + userBudget + 256)));
+    assert.equal(combined, 1280);
+  });
+
+  it("4. oversized combined JSON fixture → parse ok, repair 0, callCount=1", async () => {
+    const { character, user } = largeDualWidgets();
+    const full = oversizedCombinedJson(character, user);
+    assert.ok(full.length > 2000);
+    const kinds: string[] = [];
+    let seenMax: number | undefined;
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "긴 장면 ".repeat(20),
+      resolved: bothResolved(character, user),
+      caller: async (_s, _h, opts) => {
+        kinds.push(opts.requestKind);
+        seenMax = opts.maxTokens;
+        return {
+          text: full,
+          usage: {
+            inputTokens: 8000,
+            outputTokens: 900,
+            estimated: false,
+            finishReason: "stop",
+            upstreamCostUsd: 0.003,
+          },
+        };
+      },
+    });
+    assert.deepEqual(kinds, ["background-status-widget-extract-combined"]);
+    assert.ok((seenMax ?? 0) > 512);
+    assert.equal(result.meta.actualCallCount, 1);
+    assert.ok(result.values.character);
+    assert.ok(result.values.user);
+    assert.equal(result.usage?.inputTokens, 8000);
+    assert.equal(result.usage?.upstreamCostUsd, 0.003);
+  });
+
+  it("5. truncated combined JSON → repairs, callCount<=3, no success re-call", async () => {
+    const { character, user } = largeDualWidgets();
+    const kinds: string[] = [];
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "장면",
+      resolved: bothResolved(character, user),
+      caller: async (_s, _h, opts) => {
+        kinds.push(opts.requestKind);
+        if (opts.requestKind.includes("combined")) {
+          return {
+            text: '{"character_values":{"c0":"잘림',
+            usage: {
+              inputTokens: 8100,
+              outputTokens: opts.maxTokens ?? 512,
+              estimated: false,
+              finishReason: "length",
+            },
+          };
+        }
+        // Union payload — each source normalizer keeps only its own keys.
+        const merged: Record<string, unknown> = { extracted_facts: [] };
+        for (const key of collectWidgetJsonKeys(character)) merged[key] = `값-${key}`;
+        for (const key of collectWidgetJsonKeys(user)) merged[key] = `값-${key}`;
+        return { text: JSON.stringify(merged), usage: usage(2) };
+      },
+    });
+    assert.equal(kinds[0], "background-status-widget-extract-combined");
+    assert.equal(kinds.filter((k) => k.includes("combined")).length, 1);
+    assert.ok(kinds.filter((k) => k.includes("repair")).length >= 1);
+    assert.ok(result.meta.actualCallCount <= 3);
+    assert.ok(result.meta.actualCallCount >= 2);
+  });
+
+  it("6. likelyTruncated diagnostic helpers", () => {
+    assert.equal(
+      isCombinedExtractLikelyTruncated({
+        finishReason: "length",
+        outputTokens: 700,
+        maxTokens: 768,
+        jsonParseOk: false,
+      }),
+      true
+    );
+    assert.equal(
+      isCombinedExtractLikelyTruncated({
+        finishReason: "stop",
+        outputTokens: 768,
+        maxTokens: 768,
+        jsonParseOk: false,
+      }),
+      true
+    );
+    assert.equal(
+      isCombinedExtractLikelyTruncated({
+        finishReason: "stop",
+        outputTokens: 400,
+        maxTokens: 768,
+        jsonParseOk: true,
+      }),
+      false
+    );
+  });
+
+  it("7. user-only does not use combined budget helper path", async () => {
+    const userOnly: ResolvedStatusWidgetTurn = {
+      active: true,
+      mode: "user_only",
+      displayMode: "user",
+      stackOrder: "character_first",
+      characterWidget: null,
+      userWidget: {
+        version: 1,
+        name: "유저",
+        placement: "bottom",
+        htmlTemplate: "{{기분}}",
+        fields: [{ id: "기분", label: "기분", instruction: "유저 기분" }],
+      },
+      needsCharacterValues: false,
+      needsUserValues: true,
+    };
+    const kinds: string[] = [];
+    await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "장면",
+      resolved: userOnly,
+      caller: async (_s, _h, opts) => {
+        kinds.push(opts.requestKind);
+        assert.equal(opts.maxTokens, undefined);
+        return { text: JSON.stringify({ 기분: "평온", extracted_facts: [] }), usage: usage(1) };
+      },
+    });
+    assert.ok(!kinds.some((k) => k.includes("combined")));
+  });
+
+  it("8. repair maxTokens still 256–512 after combined helper exists", async () => {
+    let seenRepair: number | undefined;
+    await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "장면",
+      resolved: characterResolved(),
+      caller: async (_s, _h, opts) => {
+        if (opts.requestKind.includes("repair")) {
+          seenRepair = opts.maxTokens;
+          return { text: jsonForWidget(DEFAULT_STATUS_WIDGET), usage: usage(2) };
+        }
+        return { text: "", usage: usage(1) };
+      },
+    });
+    assert.ok((seenRepair ?? 0) >= 256 && (seenRepair ?? 0) <= 512);
   });
 });

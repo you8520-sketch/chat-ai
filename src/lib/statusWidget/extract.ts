@@ -15,7 +15,9 @@ import {
   dropRepairEchoFields,
   extractJsonObjectFromWidgetText,
   normalizeWidgetExtraction,
+  isCombinedExtractLikelyTruncated,
   parseCombinedDualWidgetExtractResponse,
+  resolveCombinedDualWidgetExtractMaxTokens,
   resolveRepairMaxTokens,
 } from "./extractNormalize";
 import {
@@ -639,12 +641,14 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       previousUserValues: opts.previousValues?.user ?? null,
     });
 
+    const combinedMaxTokens = resolveCombinedDualWidgetExtractMaxTokens(charWidget, userWidget);
     let combinedText = "";
     let combinedUsage: TokenUsage | null = null;
     try {
       const res = await caller(system, [{ role: "user", content: userBlock }], {
         requestKind: "background-status-widget-extract-combined",
         modelId: primaryModelId,
+        maxTokens: combinedMaxTokens,
       });
       combinedText = res.text ?? "";
       combinedUsage = res.usage ?? null;
@@ -660,6 +664,12 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       applyEchoFilter: true,
     });
     const latencyMs = Date.now() - started;
+    const combinedLikelyTruncated = isCombinedExtractLikelyTruncated({
+      finishReason: combinedUsage?.finishReason ?? null,
+      outputTokens: combinedUsage?.outputTokens ?? null,
+      maxTokens: combinedMaxTokens,
+      jsonParseOk: parsed.jsonParseOk,
+    });
 
     logStatusWidgetLiveTrace({
       ...opts.trace,
@@ -697,6 +707,9 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         attemptIndex: 1,
         actualCallCount: 1,
         modelId: primaryModelId,
+        maxTokens: combinedMaxTokens,
+        finishReason: combinedUsage?.finishReason ?? null,
+        likelyTruncated: combinedLikelyTruncated,
         inputTokens: combinedUsage?.inputTokens ?? null,
         outputTokens: combinedUsage?.outputTokens ?? null,
         latencyMs,
