@@ -258,6 +258,45 @@ export function resolveRepairMaxTokens(widget: StatusWidget, keys: string[]): nu
   return Math.min(512, Math.max(256, Math.round(tokens)));
 }
 
+/**
+ * Dual combined initial output budget (combined call only — not single/repair).
+ *
+ * Reuses per-source resolveRepairMaxTokens as a size proxy, then adds envelope slack:
+ *   characterBudget + userBudget + 256
+ * clamped to [768, 1536].
+ *
+ * Rationale:
+ * - Global background-status-widget-extract default stays 512 for single/repair paths.
+ * - Small dual widgets need at least 768 so character_values + user_values + facts fit.
+ * - Large dual widgets (many free-text fields) can approach ~1280 (=512+512+256).
+ * - Cap 1536 is a safety ceiling; billed tokens are actual usage, not the maxTokens ask.
+ */
+export function resolveCombinedDualWidgetExtractMaxTokens(
+  characterWidget: StatusWidget,
+  userWidget: StatusWidget
+): number {
+  const characterBudget = resolveRepairMaxTokens(
+    characterWidget,
+    collectWidgetJsonKeys(characterWidget)
+  );
+  const userBudget = resolveRepairMaxTokens(userWidget, collectWidgetJsonKeys(userWidget));
+  const combined = characterBudget + userBudget + 256;
+  return Math.min(1536, Math.max(768, Math.round(combined)));
+}
+
+/** Diagnostic-only: does not change repair/persist policy. */
+export function isCombinedExtractLikelyTruncated(opts: {
+  finishReason?: string | null;
+  outputTokens?: number | null;
+  maxTokens: number;
+  jsonParseOk: boolean;
+}): boolean {
+  const fr = String(opts.finishReason ?? "").toLowerCase();
+  if (/length|max[_-]?tokens/.test(fr)) return true;
+  if (!opts.jsonParseOk && (opts.outputTokens ?? 0) >= opts.maxTokens) return true;
+  return false;
+}
+
 function normalizeEchoCompare(value: string): string {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
 }
