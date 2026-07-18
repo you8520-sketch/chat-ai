@@ -38,7 +38,7 @@ export type BranchControlMutationPrevious = {
  * only mutations caused by a specific deleted user message (no DB migration).
  */
 export type BranchControlMutation = {
-  action: "promote_branch" | "close_branch";
+  action: "promote_branch" | "close_branch" | "reopen_branch";
   source: "user_turn" | "ui";
   sourceUserMessageId?: number | null;
   sourceTurn?: number | null;
@@ -429,6 +429,25 @@ export function shouldPromoteBranchContinue(userMessage: string): boolean {
   if (BRANCH_CLOSE_RE.test(t) || MAIN_ADOPT_RE.test(t)) return false;
   if (BRANCH_CONTINUE_RE.test(t)) return true;
   return looksLikeInSceneDialogueOrAction(t);
+}
+
+/**
+ * Strict sole-closed auto-reopen intent only.
+ * Must NOT reuse shouldPromoteBranchContinue / looksLikeInSceneDialogueOrAction.
+ * Bare "계속"/"이어서" are excluded (timeline-ambiguous).
+ */
+const EXPLICIT_CLOSED_BRANCH_CONTINUE_RE =
+  /(?:아까\s*(?:그\s*)?IF|IF\s*이어|(?:그|이|해당)\s*분기\s*(?:다시\s*)?(?:이어|계속)|아까\s*(?:그\s*)?(?:IF|분기|번외|비정사)[\s\S]{0,32}(?:이어|계속|진행)|(?:이어|계속|다시\s*이어)[\s\S]{0,32}(?:아까\s*)?(?:그\s*)?(?:IF|분기))/i;
+
+export function isExplicitClosedBranchContinueIntent(userMessage: string): boolean {
+  const t = userMessage.trim();
+  if (!t) return false;
+  const normalized = t
+    .replace(/^\(?\s*OOC\s*[:：]?\s*/i, "")
+    .replace(/\)\s*$/i, "")
+    .trim();
+  if (/^(?:계속|이어서)$/i.test(normalized)) return false;
+  return EXPLICIT_CLOSED_BRANCH_CONTINUE_RE.test(t);
 }
 
 export function shouldCloseBranch(userMessage: string): boolean {

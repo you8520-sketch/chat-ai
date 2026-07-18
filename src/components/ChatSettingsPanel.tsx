@@ -1563,6 +1563,29 @@ function MemorySection({
                                 이어서 진행
                               </button>
                             )}
+                            {r.summaryKind === "branch_canon" &&
+                              r.branchStatus === "closed" && (
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  void (async () => {
+                                    await fetch("/api/chat/memory", {
+                                      method: "PATCH",
+                                      headers: { "Content-Type": "application/json" },
+                                      body: JSON.stringify({
+                                        chatId,
+                                        action: "reopenBranch",
+                                        recordId: r.id,
+                                      }),
+                                    });
+                                    await refreshMemoryPanel();
+                                  })()
+                                }
+                                className="rounded border border-sky-500/30 px-2 py-0.5 text-[10px] text-sky-200/90 hover:bg-sky-500/10"
+                              >
+                                다시 이어가기
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() =>

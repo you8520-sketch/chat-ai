@@ -22,6 +22,7 @@ import { getChatMemoryCapacity } from "@/lib/memory/memory-capacity";
 import {
   adoptBranchToMainCanon,
   closeActiveBranchCanon,
+  closeActiveBranchesExcept,
   listMemoryRecordsForChat,
   listVisibleMemoryRecordsForChat,
   markMemoryRecordInactive,
@@ -29,9 +30,11 @@ import {
   MEMORY_RECORD_MIN_CHARS,
   promoteRecordsToBranchCanon,
   rebuildLorebookFromRecords,
+  reopenClosedBranchCanon,
   updateMemoryRecordById,
 } from "@/lib/memory/memory-turn-summary";
 import { updateChatMemory } from "@/lib/memory/memory-db";
+import { syncChatLongTermMemory } from "@/lib/memory/memory-rolling-summary";
 import {
   loadChatRelationshipMeta,
   removeRelationshipMetaItem,
@@ -169,6 +172,7 @@ export async function PATCH(req: Request) {
     | "regenerateMemoryRecord"
     | "deleteRelationshipMetaItem"
     | "continueBranch"
+    | "reopenBranch"
     | "adoptMainCanon"
     | "keepNoncanon"
     | "deleteMemoryRecord"
@@ -277,10 +281,56 @@ export async function PATCH(req: Request) {
       control: { source: "ui" },
     });
     if (n < 1) return Response.json({ error: "분기 승격에 실패했습니다." }, { status: 400 });
+    closeActiveBranchesExcept(chatId, branchId);
     const lorebook = rebuildLorebookFromRecords(chatId);
     updateChatMemory(chatId, user.id, chat.character_id, { recent_summary: lorebook, membership_tier: tier });
+    syncChatLongTermMemory(chatId, lorebook);
     const refreshed = listMemoryRecordsForChat(chatId).find((r) => r.id === recordId);
     return Response.json({ ok: true, memoryRecord: refreshed, lorebook });
+  }
+
+  if (action === "reopenBranch") {
+    const recordId = Number(body.recordId);
+    const branchIdRaw = typeof body.branchId === "string" ? body.branchId.trim() : "";
+    if (!recordId && !branchIdRaw) {
+      return Response.json({ error: "recordId 또는 branchId가 필요합니다." }, { status: 400 });
+    }
+    if (recordId) {
+      const row = listMemoryRecordsForChat(chatId).find((r) => r.id === recordId);
+      if (!row || row.inactive) {
+        return Response.json({ error: "기록을 찾을 수 없습니다." }, { status: 404 });
+      }
+      if (row.summaryKind !== "branch_canon") {
+        return Response.json({ error: "종료된 분기 기록만 다시 이어갈 수 있습니다." }, { status: 400 });
+      }
+      if (!row.branchId?.trim()) {
+        return Response.json({ error: "branch_id가 없습니다." }, { status: 400 });
+      }
+    }
+    const result = reopenClosedBranchCanon({
+      chatId,
+      recordId: recordId || null,
+      branchId: branchIdRaw || null,
+      source: "ui_reopen",
+    });
+    if (!result.ok) {
+      return Response.json({ error: "분기 재개에 실패했습니다.", reason: result.reason }, { status: 400 });
+    }
+    const lorebook = rebuildLorebookFromRecords(chatId);
+    updateChatMemory(chatId, user.id, chat.character_id, {
+      recent_summary: lorebook,
+      membership_tier: tier,
+    });
+    syncChatLongTermMemory(chatId, lorebook);
+    const refreshed = recordId
+      ? listMemoryRecordsForChat(chatId).find((r) => r.id === recordId)
+      : listMemoryRecordsForChat(chatId).find((r) => r.branchId === result.branchId);
+    return Response.json({
+      ok: true,
+      branchId: result.branchId,
+      memoryRecord: refreshed,
+      lorebook,
+    });
   }
 
   if (action === "adoptMainCanon") {
@@ -319,7 +369,7 @@ export async function PATCH(req: Request) {
   return Response.json(
     {
       error:
-        "action이 필요합니다. (updateLorebook | updateMemoryRecord | regenerateMemoryRecord | continueBranch | adoptMainCanon | keepNoncanon | deleteMemoryRecord | deleteRelationshipMetaItem | clear)",
+        "action이 필요합니다. (updateLorebook | updateMemoryRecord | regenerateMemoryRecord | continueBranch | reopenBranch | adoptMainCanon | keepNoncanon | deleteMemoryRecord | deleteRelationshipMetaItem | clear)",
     },
     { status: 400 }
   );

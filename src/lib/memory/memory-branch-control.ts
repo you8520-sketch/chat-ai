@@ -13,7 +13,6 @@ import {
   type MemorySummaryScope,
   type ScopePayloadV1,
 } from "./memory-summary-scope";
-import { loadChatTurnsWithMessageIds } from "./memory-turn-loader";
 
 export type BranchControlSource = {
   source: "user_turn" | "ui";
@@ -119,33 +118,6 @@ function listBranchControlRows(chatId: number): BranchControlRowSnapshot[] {
   });
 }
 
-function survivingHasBranchContinue(chatId: number): boolean {
-  const turns = loadChatTurnsWithMessageIds(chatId).filter((t) => t.turnNumber > 0);
-  const hasPriorBranchOrNoncanon = listBranchControlRows(chatId).some(
-    (r) =>
-      !r.inactive &&
-      (r.summaryKind === "noncanon" ||
-        r.summaryKind === "branch_canon" ||
-        !!r.scopes.noncanon ||
-        !!r.scopes.branch_canon)
-  );
-  for (const t of turns) {
-    const cls = classifyMemoryTurnScope(t.user, {
-      previousWasNoncanonOrBranch: hasPriorBranchOrNoncanon,
-    });
-    if (cls === "branch_continue") return true;
-  }
-  return false;
-}
-
-function survivingHasBranchClose(chatId: number): boolean {
-  for (const t of loadChatTurnsWithMessageIds(chatId)) {
-    if (t.turnNumber <= 0) continue;
-    if (classifyMemoryTurnScope(t.user) === "branch_close") return true;
-  }
-  return false;
-}
-
 function applyPreviousToRow(
   recordId: number,
   chatId: number,
@@ -195,7 +167,8 @@ function applyPreviousToRow(
 
 /**
  * Roll back cross-row branch mutations caused by a deleted user message only.
- * Never rolls back source=ui. Respects surviving continue/close commands.
+ * Stack + exact sourceUserMessageId are the source of truth (last-turn delete).
+ * Never rolls back source=ui. Does not re-scan surviving raw user text.
  */
 export function rollbackBranchControlMutationsForDeletedUserMessage(
   chatId: number,
@@ -204,8 +177,6 @@ export function rollbackBranchControlMutationsForDeletedUserMessage(
   if (!Number.isFinite(deletedUserMessageId) || deletedUserMessageId <= 0) return 0;
 
   let rolled = 0;
-  const keepContinue = survivingHasBranchContinue(chatId);
-  const keepClose = survivingHasBranchClose(chatId);
 
   for (const row of listBranchControlRows(chatId)) {
     if (row.inactive) continue;
@@ -218,10 +189,6 @@ export function rollbackBranchControlMutationsForDeletedUserMessage(
       // Never roll back UI mutations (or anything not owned by the deleted user turn).
       if (top.source !== "user_turn") break;
       if (top.sourceUserMessageId !== deletedUserMessageId) break;
-
-      // Surviving continue/close commands keep the effective branch outcome.
-      if (top.action === "promote_branch" && keepContinue) break;
-      if (top.action === "close_branch" && keepClose) break;
 
       mutations.pop();
       applyPreviousToRow(row.id, chatId, top.previous, mutations);
