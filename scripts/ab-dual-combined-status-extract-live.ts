@@ -28,6 +28,8 @@ process.env.MOCK_MODE = "false";
 if (!process.env.NODE_ENV) (process.env as Record<string, string>).NODE_ENV = "development";
 
 const MODEL = "google/gemini-2.5-flash";
+// callBackgroundMemory always uses BACKGROUND_OPENROUTER_MODEL — force Flash for this gate.
+process.env.BACKGROUND_MEMORY_MODEL = MODEL;
 const OUT = path.resolve("output/ab-dual-combined-status-extract-live");
 const RUNS_PER_CASE = 2;
 
