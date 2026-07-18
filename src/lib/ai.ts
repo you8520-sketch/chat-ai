@@ -64,6 +64,24 @@ export function resolveBackgroundMemoryExtractMaxInputTokens(): number {
 }
 export const BACKGROUND_OPENROUTER_MODEL =
   process.env.BACKGROUND_MEMORY_MODEL?.trim() || OPENROUTER_DEEPSEEK_V3_MODEL;
+
+/**
+ * Optional cross-model fallback after primary background calls fail.
+ * - unset / empty / whitespace → OFF
+ * - same as primary → skipped
+ */
+export function resolveBackgroundMemoryFallbackModel(
+  env: NodeJS.ProcessEnv = process.env,
+  primaryModelId: string = BACKGROUND_OPENROUTER_MODEL
+): string | null {
+  const raw = env.BACKGROUND_MEMORY_FALLBACK_MODEL;
+  if (raw == null) return null;
+  const trimmed = String(raw).trim();
+  if (!trimmed) return null;
+  if (trimmed.toLowerCase() === primaryModelId.trim().toLowerCase()) return null;
+  return trimmed;
+}
+
 /** 백그라운드 비전 — 이미지 검열·에셋 태그 (DeepSeek V3는 vision 미지원) */
 export const BACKGROUND_VISION_OPENROUTER_MODEL =
   process.env.BACKGROUND_VISION_MODEL?.trim() ||
@@ -282,15 +300,16 @@ export function* chunkText(text: string, size = 24): Generator<string> {
   }
 }
 
-/** 백그라운드 기억·요약·압축 — OpenRouter DeepSeek V3 */
+/** 백그라운드 기억·요약·압축 — primary BACKGROUND_MEMORY_MODEL (default DeepSeek V3) */
 export async function callBackgroundMemory(
   system: string,
   history: ChatMsg[],
   _turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace,
   requestKind = "background-memory-extract",
-  opts?: { maxTokens?: number; temperature?: number }
+  opts?: { maxTokens?: number; temperature?: number; modelId?: string }
 ): Promise<{ text: string; usage: TokenUsage }> {
-  return callGeminiOnce(system, history, BACKGROUND_OPENROUTER_MODEL, {
+  const modelId = opts?.modelId?.trim() || BACKGROUND_OPENROUTER_MODEL;
+  return callGeminiOnce(system, history, modelId, {
     requestKind,
     maxTokens: opts?.maxTokens ?? resolveBackgroundMaxOutputTokens(requestKind),
     temperature: opts?.temperature,

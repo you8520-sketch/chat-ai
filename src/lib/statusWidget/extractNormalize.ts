@@ -77,6 +77,38 @@ ${lines.length > 0 ? lines.join("\n") : "(empty — infer from narrative)"}`;
  * instruction이 "NPC의 속마음"이라 하면 NPC 것을, "유저의 속마음"이라 하면 유저 것을 쓴다.
  * source(제작자용/유저용 위젯)는 instruction이 대상 인물을 명시하지 않았을 때의 기본값일 뿐이다.
  */
+/** Shared final-scene priority — single / combined / repair (minimal wording). */
+export const STATUS_WIDGET_FINAL_SCENE_PRIORITY_LINES = [
+  "The status widget is a snapshot at the END of the current assistant RP.",
+  "If CURRENT USER MESSAGE starts at a place/situation and the assistant RP later moves time/place/state, the LAST scene of the assistant RP wins.",
+  "Do not pick an early scene in the RP or a previous canonical location/time.",
+  "Do not mix time, date, and place from different scenes.",
+  "Keep user-stated facts that the RP did not change.",
+  "Use the location, time, and situation of the LAST scene, never an earlier scene.",
+].join("\n- ");
+
+/** Identity + CRITICAL context blocks for extract prompts (single / combined / repair). */
+export function formatStatusWidgetCharacterContextBlocks(opts: {
+  characterIdentity?: string | null;
+  characterCriticalContext?: string | null;
+}): string[] {
+  const out: string[] = [];
+  const identity = opts.characterIdentity?.trim();
+  if (identity) {
+    out.push(`[CHARACTER IDENTITY — MUST OBEY]\n${identity}`);
+  }
+  const critical = opts.characterCriticalContext?.trim();
+  if (critical) {
+    out.push(
+      `[CHARACTER CRITICAL CONTEXT — MUST OBEY]\n` +
+        `When CRITICAL context conflicts with generic scene inference, obey CRITICAL context.\n` +
+        `When the current RP shows a change that CRITICAL context allows, reflect that current RP change.\n` +
+        critical
+    );
+  }
+  return out;
+}
+
 export function buildWidgetExtractSystem(
   widget: StatusWidget,
   keys: string[],
@@ -91,6 +123,7 @@ Return exactly one JSON object with these keys plus "extracted_facts": ${keyList
 Rules:
 - Korean values preferred when the scene is Korean.
 - The widget reflects the scene state at the END of this turn. If the turn contains multiple scenes or time skips (*** breaks, "다음날", "아침이 밝아" etc.), fill EVERY field from the LAST scene — never an earlier scene.
+- ${STATUS_WIDGET_FINAL_SCENE_PRIORITY_LINES}
 - Fill every key with a scene-accurate value from the assistant prose and user message.
 - Never copy placeholders like "<scene value>", "…", "...", or "—" unless truly unknown.
 - Calendar/clock/season/weather: never output "—" just because prose omits them. Priority: (1) explicit prose/user (2) field instruction or initialValue (3) [PREVIOUS TURN WIDGET VALUES] canonical anchor — keep if no time passed; else advance date/clock/season/weather together from that anchor (4) first fill / missing prior clock: MUST invent one scene-consistent real value (valid date, HH:MM, season+weather), not "—". If prose advances time but prior clock is missing, invent a plausible prior then advance. Counters (days-met, D-DAY, elapsed days) follow each field's own instruction/initialValue only — do not auto-sync them to date. "—" only if still impossible after that chain. Anchor is extract-only; never paste previous values as-is.
@@ -105,6 +138,7 @@ Rules:
   If [PREVIOUS TURN WIDGET VALUES] has a prior value for that field, or this turn's events affect the required person at all, that IS enough basis — update the prior inner state with this turn's events instead of giving up. Only when the required person has truly zero basis (no prior state AND no relevant event) output exactly "(자리비움)" — never fall back to the other person's emotions.
 - Do NOT add keys beyond the required list.
 - Do NOT invent lore that contradicts the provided context.
+- Never copy [CHARACTER CRITICAL CONTEXT] wording into field values.
 - When [PREVIOUS TURN ASSISTANT] is provided, use it only for continuity (time/place/mood); prefer current-turn evidence.
 ${EXTRACTED_FACTS_STATUS_VALUES_INSTRUCTIONS}`;
 }
@@ -112,6 +146,7 @@ ${EXTRACTED_FACTS_STATUS_VALUES_INSTRUCTIONS}`;
 export function buildWidgetExtractUserBlock(opts: {
   charName: string;
   characterIdentity?: string | null;
+  characterCriticalContext?: string | null;
   personaName: string;
   userPersona?: string | null;
   userMessage: string;
@@ -138,7 +173,10 @@ export function buildWidgetExtractUserBlock(opts: {
       })
       .join("\n"),
     `[CHARACTER] ${opts.charName}`,
-    opts.characterIdentity?.trim() ? `[CHARACTER IDENTITY — MUST OBEY]\n${opts.characterIdentity.trim()}` : "",
+    ...formatStatusWidgetCharacterContextBlocks({
+      characterIdentity: opts.characterIdentity,
+      characterCriticalContext: opts.characterCriticalContext,
+    }),
     `[USER] ${opts.personaName}`,
     `[USER MESSAGE]\n${opts.userMessage}`,
     previousSlice ? `[PREVIOUS TURN ASSISTANT — prose only]\n${previousSlice}` : "",
@@ -368,6 +406,7 @@ Do not add extra keys.
 
 Return final scene values, not field instructions.
 Never copy a field label, instruction, initial-value description, "NPC의 속마음", or "유저의 속마음" as the value.
+Never copy [CHARACTER CRITICAL CONTEXT] wording into field values.
 
 Inner-state fields: each field's instruction states WHOSE inner state to write — obey it exactly.
 If the instruction does not name anyone, default to ${defaultSubject}.
@@ -379,7 +418,8 @@ Fill priority (highest first):
 3. [PREVIOUS CANONICAL WIDGET VALUES] as continuity anchor — keep if no time/place change; advance date/clock/season/weather together when prose advances time
 4. First-fill reasonable inference when no prior anchor exists
 Previous values are anchors only — never paste them as-is when current RP explicitly changed the scene.
-Prefer the FINAL scene in [ASSISTANT RP — FINAL SCENE PRIORITY].`;
+Prefer the FINAL scene in [ASSISTANT RP — FINAL SCENE PRIORITY].
+- ${STATUS_WIDGET_FINAL_SCENE_PRIORITY_LINES}`;
 }
 
 /** Refined previous field values for repair (no previous prose dump). */
@@ -429,6 +469,8 @@ export function buildWidgetExtractRepairUserBlock(opts: {
   charName: string;
   personaName: string;
   userMessage?: string | null;
+  characterIdentity?: string | null;
+  characterCriticalContext?: string | null;
 }): string {
   const defaultLabel =
     opts.source === "character"
@@ -440,6 +482,10 @@ export function buildWidgetExtractRepairUserBlock(opts: {
   return [
     `[SOURCE]\n${opts.source}\nDefault subject: ${defaultLabel}`,
     `[CHARACTER]\n${opts.charName}`,
+    ...formatStatusWidgetCharacterContextBlocks({
+      characterIdentity: opts.characterIdentity,
+      characterCriticalContext: opts.characterCriticalContext,
+    }),
     `[USER]\n${opts.personaName}`,
     formatWidgetFieldContract(opts.widget, opts.source),
     `[CURRENT USER MESSAGE]\n${userMessage}`,
@@ -484,6 +530,7 @@ Rules:
 - character_values and user_values are separate namespaces. Never put user fields into character_values or vice versa.
 - Korean values preferred when the scene is Korean.
 - The widget reflects the scene state at the END of this turn. If the turn contains multiple scenes or time skips, fill EVERY field from the LAST scene.
+- ${STATUS_WIDGET_FINAL_SCENE_PRIORITY_LINES}
 - Never copy placeholders like "<scene value>", "…", "...", or "—" unless truly unknown.
 - Calendar/clock/season/weather: never output "—" just because prose omits them. Priority: (1) explicit prose/user (2) field instruction or initialValue (3) previous canonical anchor (4) invent one scene-consistent concrete value. Never output unknown/알 수 없음/미상/모름/N/A.
 - Inner-state fields (속마음, 의식의 흐름, 감정, thoughts, inner monologue):
@@ -494,6 +541,7 @@ Rules:
   - Identical strings across sources are fine when the scene genuinely warrants the same state; sameness alone is not an error.
   - Obey each field's instruction for WHOSE inner state to write. Do not swap [CHARACTER] and [USER] subjects.
 - Do NOT copy field labels, instructions, or requirement phrases as values.
+- Never copy [CHARACTER CRITICAL CONTEXT] wording into field values.
 - Prefer current-turn explicit change over previous canonical anchors.
 - Do NOT invent lore that contradicts the provided context.
 ${EXTRACTED_FACTS_STATUS_VALUES_INSTRUCTIONS}`;
@@ -502,6 +550,7 @@ ${EXTRACTED_FACTS_STATUS_VALUES_INSTRUCTIONS}`;
 export function buildCombinedDualWidgetExtractUserBlock(opts: {
   charName: string;
   characterIdentity?: string | null;
+  characterCriticalContext?: string | null;
   personaName: string;
   userMessage: string;
   assistantProse: string;
@@ -530,14 +579,15 @@ export function buildCombinedDualWidgetExtractUserBlock(opts: {
     `[CHARACTER WIDGET FIELDS]\n${formatFields(opts.characterWidget)}`,
     `[USER WIDGET FIELDS]\n${formatFields(opts.userWidget)}`,
     `[CHARACTER] ${opts.charName}`,
-    opts.characterIdentity?.trim()
-      ? `[CHARACTER IDENTITY — MUST OBEY]\n${opts.characterIdentity.trim()}`
-      : "",
+    ...formatStatusWidgetCharacterContextBlocks({
+      characterIdentity: opts.characterIdentity,
+      characterCriticalContext: opts.characterCriticalContext,
+    }),
     `[USER] ${opts.personaName}`,
     `[USER MESSAGE]\n${opts.userMessage}`,
     previousSlice ? `[PREVIOUS TURN ASSISTANT — prose only]\n${previousSlice}` : "",
     `[ASSISTANT REPLY — current turn prose only]\n${currentSlice}`,
-    `[REMINDER] character_values = [CHARACTER](${opts.charName}) widget only; user_values = [USER](${opts.personaName}) widget only. Infer inner-state per source from the current scene — do not share one emotion across both namespaces, and avoid unknown placeholders when scene cues exist. Obey each field instruction's subject. Prefer current explicit change over previous anchors. Do not copy instructions/labels as values.`,
+    `[REMINDER] character_values = [CHARACTER](${opts.charName}) widget only; user_values = [USER](${opts.personaName}) widget only. Infer inner-state per source from the current scene — do not share one emotion across both namespaces, and avoid unknown placeholders when scene cues exist. Obey each field instruction's subject. Prefer current explicit change over previous anchors. Use the location, time, and situation of the LAST scene, never an earlier scene. Do not copy instructions/labels or CRITICAL context wording as values.`,
   ]
     .filter(Boolean)
     .join("\n\n");

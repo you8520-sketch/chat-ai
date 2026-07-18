@@ -1,6 +1,7 @@
 import {
   BACKGROUND_OPENROUTER_MODEL,
   callBackgroundMemory,
+  resolveBackgroundMemoryFallbackModel,
   type ChatMsg,
   type TokenUsage,
 } from "@/lib/ai";
@@ -85,6 +86,7 @@ export type StatusWidgetTurnExtractMeta = {
   /** Present when at least one extract API call was made (same lifetime as usage when tokens exist). */
   billing: StatusWidgetExtractBillingMeta | null;
   usedRepair: boolean;
+  usedFallback: boolean;
   exhausted: boolean;
   mergedInputTokens: number;
   mergedOutputTokens: number;
@@ -94,7 +96,37 @@ const defaultExtractCaller: StatusWidgetExtractCaller = async (system, history, 
   callBackgroundMemory(system, history, undefined, opts.requestKind, {
     maxTokens: opts.maxTokens,
     temperature: opts.temperature,
+    modelId: opts.modelId,
   });
+
+/** Distinct model ids for billing label — never collapse mixed vendors into one false id. */
+export function resolveStatusWidgetBillingModelId(
+  models: string[],
+  primaryModelId: string
+): string {
+  const unique = [
+    ...new Set(models.map((m) => m.trim()).filter(Boolean)),
+  ];
+  if (unique.length === 0) return primaryModelId;
+  if (unique.length === 1) return unique[0]!;
+  return unique.join(" + ");
+}
+
+function reasonCodeForExtractStage(
+  stage: StatusWidgetExtractStage,
+  kind: "ok" | "empty" | "parse" | "fail"
+): StatusWidgetReasonCode {
+  if (kind === "ok") {
+    if (stage === "initial") return "OK";
+    if (stage === "repair") return "V3_REPAIR_USED";
+    return "FALLBACK_MODEL_USED";
+  }
+  if (stage === "initial") {
+    return kind === "parse" ? "V3_PARSE_FAILED" : "V3_INITIAL_EMPTY";
+  }
+  if (stage === "repair") return "V3_REPAIR_FAILED";
+  return "FALLBACK_MODEL_FAILED";
+}
 
 type AttemptOutcome = {
   ok: boolean;
@@ -252,7 +284,7 @@ async function runExtractAttempt(opts: {
         values: null,
         facts: [],
         usage,
-        reasonCode: opts.stage === "initial" ? "V3_INITIAL_EMPTY" : "V3_REPAIR_FAILED",
+        reasonCode: reasonCodeForExtractStage(opts.stage, "empty"),
         textLength,
         jsonFound: false,
         normalizedKeys: [],
@@ -279,7 +311,7 @@ async function runExtractAttempt(opts: {
         values: null,
         facts: [],
         usage,
-        reasonCode: opts.stage === "initial" ? "V3_PARSE_FAILED" : "V3_REPAIR_FAILED",
+        reasonCode: reasonCodeForExtractStage(opts.stage, "parse"),
         textLength,
         jsonFound: false,
         normalizedKeys: [],
@@ -310,12 +342,8 @@ async function runExtractAttempt(opts: {
     const ok = normalizedKeys.length > 0;
     const values = ok ? normalized : null;
     const reasonCode: StatusWidgetReasonCode = ok
-      ? opts.stage === "initial"
-        ? "OK"
-        : "V3_REPAIR_USED"
-      : opts.stage === "initial"
-        ? "V3_INITIAL_EMPTY"
-        : "V3_REPAIR_FAILED";
+      ? reasonCodeForExtractStage(opts.stage, "ok")
+      : reasonCodeForExtractStage(opts.stage, "fail");
 
     const outcome: AttemptOutcome = {
       ok,
@@ -343,8 +371,7 @@ async function runExtractAttempt(opts: {
   } catch (e) {
     const latencyMs = Date.now() - started;
     console.error("[STATUS-WIDGET-ERROR] extract call failed", (e as Error).message);
-    const reasonCode: StatusWidgetReasonCode =
-      opts.stage === "initial" ? "V3_INITIAL_EMPTY" : "V3_REPAIR_FAILED";
+    const reasonCode: StatusWidgetReasonCode = reasonCodeForExtractStage(opts.stage, "fail");
     const outcome: AttemptOutcome = {
       ok: false,
       values: null,
@@ -374,6 +401,7 @@ async function runExtractAttempt(opts: {
 async function extractStatusWidgetValuesForWidget(opts: {
   charName: string;
   characterIdentity?: string | null;
+  characterCriticalContext?: string | null;
   personaName: string;
   userPersona?: string | null;
   userMessage: string;
@@ -386,6 +414,7 @@ async function extractStatusWidgetValuesForWidget(opts: {
   trace?: { requestId?: string | null; chatId?: number | null; messageId?: number | null };
   caller?: StatusWidgetExtractCaller;
   primaryModelId?: string;
+  fallbackModelId?: string | null;
   env?: NodeJS.ProcessEnv;
   /** Skip initial; run existing same-model repair once (after dual combined miss). */
   repairOnly?: boolean;
@@ -422,6 +451,17 @@ async function extractStatusWidgetValuesForWidget(opts: {
 
   const caller = opts.caller ?? defaultExtractCaller;
   const primaryModelId = opts.primaryModelId?.trim() || BACKGROUND_OPENROUTER_MODEL;
+  let effectiveFallback: string | null;
+  if (opts.fallbackModelId !== undefined) {
+    const trimmed = opts.fallbackModelId?.trim() || null;
+    effectiveFallback =
+      trimmed && trimmed.toLowerCase() !== primaryModelId.toLowerCase() ? trimmed : null;
+  } else {
+    effectiveFallback = resolveBackgroundMemoryFallbackModel(
+      opts.env ?? process.env,
+      primaryModelId
+    );
+  }
   const usages: TokenUsage[] = [];
   const stages: StatusWidgetExtractStage[] = [];
   const models: string[] = [];
@@ -486,6 +526,8 @@ async function extractStatusWidgetValuesForWidget(opts: {
     charName: opts.charName,
     personaName: opts.personaName,
     userMessage: opts.userMessage,
+    characterIdentity: opts.characterIdentity,
+    characterCriticalContext: opts.characterCriticalContext,
   });
   const repair = await runExtractAttempt({
     system: repairSystem,
@@ -493,7 +535,7 @@ async function extractStatusWidgetValuesForWidget(opts: {
     widget: opts.widget,
     source: opts.source,
     stage: "repair",
-    attemptIndex: opts.repairOnly ? 2 : 2,
+    attemptIndex: 2,
     modelId: primaryModelId,
     requestKind: "background-status-widget-extract-repair",
     maxTokens: repairMaxTokens,
@@ -508,7 +550,6 @@ async function extractStatusWidgetValuesForWidget(opts: {
   models.push(primaryModelId);
   pushUsage(usages, attemptUsages, repair);
   echoDroppedKeys = repair.echoDroppedKeys;
-  const sourceCallCount = opts.repairOnly ? 1 : 2;
   if (repair.ok) {
     return {
       values: repair.values,
@@ -517,10 +558,72 @@ async function extractStatusWidgetValuesForWidget(opts: {
       apiCalls,
       meta: {
         source: opts.source,
-        callCount: sourceCallCount,
+        callCount: apiCalls,
         stages,
         finalStage: "repair",
         finalReasonCode: "V3_REPAIR_USED",
+        models,
+        attemptUsages,
+        echoDroppedKeys,
+        repairMaxTokens,
+        sharedCombinedInitial: opts.sharedCombinedInitial,
+      },
+    };
+  }
+
+  if (effectiveFallback) {
+    const fallback = await runExtractAttempt({
+      system: repairSystem,
+      userBlock: repairUser,
+      widget: opts.widget,
+      source: opts.source,
+      stage: "fallback",
+      attemptIndex: opts.repairOnly ? 3 : 3,
+      modelId: effectiveFallback,
+      requestKind: "background-status-widget-extract-fallback",
+      maxTokens: repairMaxTokens,
+      temperature: 0,
+      applyEchoFilter: true,
+      caller,
+      trace: opts.trace,
+      env: opts.env,
+    });
+    apiCalls += 1;
+    stages.push("fallback");
+    models.push(effectiveFallback);
+    pushUsage(usages, attemptUsages, fallback);
+    echoDroppedKeys = fallback.echoDroppedKeys;
+    if (fallback.ok) {
+      return {
+        values: fallback.values,
+        facts: fallback.facts,
+        usage: mergeStatusWidgetExtractUsages(usages),
+        apiCalls,
+        meta: {
+          source: opts.source,
+          callCount: apiCalls,
+          stages,
+          finalStage: "fallback",
+          finalReasonCode: "FALLBACK_MODEL_USED",
+          models,
+          attemptUsages,
+          echoDroppedKeys,
+          repairMaxTokens,
+          sharedCombinedInitial: opts.sharedCombinedInitial,
+        },
+      };
+    }
+    return {
+      values: null,
+      facts: [],
+      usage: mergeStatusWidgetExtractUsages(usages),
+      apiCalls,
+      meta: {
+        source: opts.source,
+        callCount: apiCalls,
+        stages,
+        finalStage: "fallback",
+        finalReasonCode: "STATUS_WIDGET_EXTRACT_EXHAUSTED",
         models,
         attemptUsages,
         echoDroppedKeys,
@@ -537,7 +640,7 @@ async function extractStatusWidgetValuesForWidget(opts: {
     apiCalls,
     meta: {
       source: opts.source,
-      callCount: sourceCallCount,
+      callCount: apiCalls,
       stages,
       finalStage: "repair",
       finalReasonCode: "STATUS_WIDGET_EXTRACT_EXHAUSTED",
@@ -553,6 +656,7 @@ async function extractStatusWidgetValuesForWidget(opts: {
 export async function extractStatusWidgetValuesForTurn(opts: {
   charName: string;
   characterIdentity?: string | null;
+  characterCriticalContext?: string | null;
   personaName: string;
   userPersona?: string | null;
   userMessage: string;
@@ -565,6 +669,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   /** Test seam — defaults to callBackgroundMemory */
   caller?: StatusWidgetExtractCaller;
   primaryModelId?: string;
+  fallbackModelId?: string | null;
   env?: NodeJS.ProcessEnv;
   /**
    * Main-parse seed. Sources that already have usable values are never re-extracted.
@@ -594,6 +699,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
     billingModelId: primaryModelId,
     billing: null,
     usedRepair: false,
+    usedFallback: false,
     exhausted: false,
     mergedInputTokens: 0,
     mergedOutputTokens: 0,
@@ -631,6 +737,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
     const userBlock = buildCombinedDualWidgetExtractUserBlock({
       charName: opts.charName,
       characterIdentity: opts.characterIdentity,
+      characterCriticalContext: opts.characterCriticalContext,
       personaName: opts.personaName,
       userMessage: opts.userMessage,
       assistantProse: opts.assistantProse,
@@ -743,6 +850,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       const repaired = await extractStatusWidgetValuesForWidget({
         charName: opts.charName,
         characterIdentity: opts.characterIdentity,
+        characterCriticalContext: opts.characterCriticalContext,
         personaName: opts.personaName,
         userPersona: opts.userPersona,
         userMessage: opts.userMessage,
@@ -755,6 +863,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         trace: opts.trace,
         caller,
         primaryModelId,
+        fallbackModelId: opts.fallbackModelId,
         env: opts.env,
         repairOnly: true,
         sharedCombinedInitial: true,
@@ -785,6 +894,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       const repaired = await extractStatusWidgetValuesForWidget({
         charName: opts.charName,
         characterIdentity: opts.characterIdentity,
+        characterCriticalContext: opts.characterCriticalContext,
         personaName: opts.personaName,
         userPersona: opts.userPersona,
         userMessage: opts.userMessage,
@@ -797,6 +907,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         trace: opts.trace,
         caller,
         primaryModelId,
+        fallbackModelId: opts.fallbackModelId,
         env: opts.env,
         repairOnly: true,
         sharedCombinedInitial: true,
@@ -812,6 +923,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       const character = await extractStatusWidgetValuesForWidget({
         charName: opts.charName,
         characterIdentity: opts.characterIdentity,
+        characterCriticalContext: opts.characterCriticalContext,
         personaName: opts.personaName,
         userPersona: opts.userPersona,
         userMessage: opts.userMessage,
@@ -824,6 +936,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         trace: opts.trace,
         caller,
         primaryModelId,
+        fallbackModelId: opts.fallbackModelId,
         env: opts.env,
       });
       actualCallCount += character.apiCalls;
@@ -837,6 +950,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       const user = await extractStatusWidgetValuesForWidget({
         charName: opts.charName,
         characterIdentity: opts.characterIdentity,
+        characterCriticalContext: opts.characterCriticalContext,
         personaName: opts.personaName,
         userPersona: opts.userPersona,
         userMessage: opts.userMessage,
@@ -849,6 +963,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
         trace: opts.trace,
         caller,
         primaryModelId,
+        fallbackModelId: opts.fallbackModelId,
         env: opts.env,
       });
       actualCallCount += user.apiCalls;
@@ -868,11 +983,19 @@ export async function extractStatusWidgetValuesForTurn(opts: {
   const usedRepair =
     characterMeta?.stages.includes("repair") === true ||
     userMeta?.stages.includes("repair") === true;
+  const usedFallback =
+    characterMeta?.stages.includes("fallback") === true ||
+    userMeta?.stages.includes("fallback") === true;
   const exhausted =
     characterMeta?.finalReasonCode === "STATUS_WIDGET_EXTRACT_EXHAUSTED" ||
     userMeta?.finalReasonCode === "STATUS_WIDGET_EXTRACT_EXHAUSTED";
   const mergedUsage = mergeStatusWidgetExtractUsages(turnUsages);
-  const billingModelId = primaryModelId;
+  const allModels = [
+    ...(characterMeta?.models ?? []),
+    ...(userMeta?.models ?? []),
+    ...(extractMode === "dual_combined" && actualCallCount > 0 ? [primaryModelId] : []),
+  ];
+  const billingModelId = resolveStatusWidgetBillingModelId(allModels, primaryModelId);
   const billing: StatusWidgetExtractBillingMeta | null =
     actualCallCount > 0 ? { modelId: billingModelId, callCount: actualCallCount } : null;
 
@@ -888,6 +1011,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       billingModelId,
       billing,
       usedRepair,
+      usedFallback,
       exhausted,
       mergedInputTokens: mergedUsage?.inputTokens ?? 0,
       mergedOutputTokens: mergedUsage?.outputTokens ?? 0,
