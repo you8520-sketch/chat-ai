@@ -2,6 +2,8 @@ import type { Usage } from "@/lib/chatUsage";
 import { isDemoUserEmail } from "@/lib/demo";
 
 export const BILLING_BREAKDOWN_SYSTEM_RULES_LABEL = "시스템 프롬프트 (고정 규칙)";
+/** Keyword-activated lorebook entries injected this turn */
+export const BILLING_BREAKDOWN_KEYWORD_LOREBOOK_LABEL = "활성화 로어북";
 
 function isAdminEmailUser(user: { email: string } & { is_admin?: number }): boolean {
   if (user.is_admin === 1) return true;
