@@ -1,5 +1,5 @@
 import { getDb } from "@/lib/db";
-import { callGeminiBackground } from "@/lib/ai";
+import { callBackgroundMemory, callGeminiBackground } from "@/lib/ai";
 import {
   messagesToTurns,
   splitOpeningPlayableTurns,
@@ -8,13 +8,16 @@ import {
   type ChatMessageRow,
 } from "@/lib/hybridMemory";
 import { ROLLING_SUMMARY_MAX_CHARS, ROLLING_SUMMARY_MIN_CHARS, LOREBOOK_COMPACT_FILL_RATIO } from "./memory-constants";
-import { clampMemoryRecordSummary, isFallbackMemoryRecordSummary } from "./memory-summary-clamp";
+import { clampMemoryRecordSummary } from "./memory-summary-clamp";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
 import { isMemoryFeatureEnabled } from "./memory-feature";
 import {
   loadChatTurnsWithMessageIds,
   rebuildLorebookFromRecords,
   listMemoryRecordsForChat,
+  closeActiveBranchCanon,
+  promoteRecordsToBranchCanon,
+  type MemoryRecordView,
 } from "./memory-turn-summary";
 import {
   isTurnEligibleForMemoryRecord,
@@ -37,13 +40,10 @@ import {
   buildPreferenceSummaryFromTurns,
   classifyMemoryBatchScopes,
   displaySummaryFromScopes,
+  type BranchStatus,
   type MemorySummaryScope,
   type ScopePayloadV1,
 } from "./memory-summary-scope";
-import {
-  closeActiveBranchCanon,
-  promoteRecordsToBranchCanon,
-} from "./memory-turn-summary";
 
 export const ROLLING_SUMMARY_SYSTEM_PROMPT = `[${ROLLING_SUMMARY_INTERVAL}턴 히스토리 요약]
 
@@ -123,7 +123,25 @@ function formatBatchDialogue(
     .join("\n\n");
 }
 
-async function summarizeTurnBatch(opts: {
+export type RollingSummaryLlmCaller = (
+  system: string,
+  history: { role: "user" | "assistant"; content: string }[],
+  turnTrace: import("@/lib/geminiRequestTrace").GeminiTurnTrace | undefined,
+  requestKind: string,
+  opts?: { modelId?: string; maxTokens?: number; temperature?: number }
+) => Promise<{ text: string; usage?: import("@/lib/ai").TokenUsage }>;
+
+/** @internal test seam — stub primary/fallback LLM without live network */
+let summarizeTurnBatchCallerOverride: RollingSummaryLlmCaller | null = null;
+
+export function __setSummarizeTurnBatchCallerForTests(
+  fn: RollingSummaryLlmCaller | null
+): void {
+  summarizeTurnBatchCallerOverride = fn;
+}
+
+/** @internal exported for unit tests */
+export async function summarizeTurnBatch(opts: {
   dialogue: string;
   charName: string;
   characterIdentity?: string | null;
@@ -131,6 +149,7 @@ async function summarizeTurnBatch(opts: {
   endTurn: number;
   userPersona?: string | null;
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
+  env?: NodeJS.ProcessEnv;
 }): Promise<string> {
   const personaBlock = opts.userPersona?.trim()
     ? `\n\n[유저 페르소나 — 성별·호칭·신체 묘사 절대 준수]\n${opts.userPersona.trim()}`
@@ -144,10 +163,22 @@ async function summarizeTurnBatch(opts: {
     if (!cleaned) return "";
     return clampMemoryRecordSummary(cleaned);
   };
+  const callLlm: RollingSummaryLlmCaller =
+    summarizeTurnBatchCallerOverride ??
+    (async (system, history, turnTrace, requestKind, callOpts) => {
+      if (callOpts?.modelId) {
+        return callBackgroundMemory(system, history, turnTrace, requestKind, {
+          modelId: callOpts.modelId,
+          maxTokens: callOpts.maxTokens,
+          temperature: callOpts.temperature,
+        });
+      }
+      return callGeminiBackground(system, history, turnTrace, requestKind);
+    });
 
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const { text } = await callGeminiBackground(
+      const { text } = await callLlm(
         ROLLING_SUMMARY_SYSTEM_PROMPT,
         [{ role: "user", content: userContent }],
         opts.turnTrace,
@@ -168,6 +199,8 @@ async function summarizeTurnBatch(opts: {
       if (attempt >= 2) break;
     }
   }
+
+  // Empty return preserves prior valid summary (caller must not overwrite with blank).
   return "";
 }
 
@@ -317,32 +350,384 @@ export function resolveBatchStartTurnForTurnNumber(turnNumber: number): number {
   return Math.floor((n - 1) / ROLLING_SUMMARY_INTERVAL) * ROLLING_SUMMARY_INTERVAL + 1;
 }
 
-async function summarizeBatchEntries(opts: {
-  eligibleEntries: Array<{ turnIndex: number; turn: DialogueTurn }>;
+type ComposeBatchScopeMode = "seal" | "regen";
+
+type ComposedBatchScope =
+  | {
+      ok: true;
+      scopes: ScopePayloadV1["scopes"];
+      summaryKind: MemorySummaryScope;
+      branchId: string | null;
+      branchStatus: BranchStatus | null;
+      promotedBy: string | null;
+      promotedAt: string | null;
+      displaySummary: string;
+      reasonTag: string;
+      mainModelCalls: number;
+    }
+  | { ok: false; reason: string };
+
+/**
+ * Rebuild every scope for a 6-turn batch from current surviving messages.
+ * seal: first persist (may promote/close other rows from explicit user commands).
+ * regen: full payload replace; preserves explicit branch/adopt provenance; no cross-row promote.
+ */
+async function composeBatchScopePayload(opts: {
+  chatId: number;
+  batchStart: number;
+  endTurn: number;
+  allEntries: Array<{ turnIndex: number; turn: DialogueTurn }>;
   charName: string;
   characterIdentity?: string | null;
   userPersona?: string | null;
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
-}): Promise<string> {
-  const batch = opts.eligibleEntries.map((e) => e.turn);
-  const summaryStartTurn = opts.eligibleEntries[0]!.turnIndex;
-  const summaryEndTurn = opts.eligibleEntries[opts.eligibleEntries.length - 1]!.turnIndex;
-  const dialogue = formatBatchDialogue(opts.eligibleEntries, opts.charName);
-
-  let narrative = await summarizeTurnBatch({
-    dialogue,
-    charName: opts.charName,
-    characterIdentity: opts.characterIdentity,
-    startTurn: summaryStartTurn,
-    endTurn: summaryEndTurn,
-    userPersona: opts.userPersona,
-    turnTrace: opts.turnTrace,
+  mode: ComposeBatchScopeMode;
+  existingRecord?: MemoryRecordView | null;
+  previousWasNoncanonOrBranch: boolean;
+  priorRecords: MemoryRecordView[];
+}): Promise<ComposedBatchScope> {
+  const plan = classifyMemoryBatchScopes(opts.allEntries, {
+    previousWasNoncanonOrBranch: opts.previousWasNoncanonOrBranch,
   });
-  narrative = stripOocFromMemorySummary(narrative);
-  return narrative.trim() ? clampMemoryRecordSummary(narrative) : "";
+  const mainEntries = plan.mainTurns.filter(({ turn }) =>
+    isTurnEligibleForMemoryRecord(turn.user)
+  );
+
+  const scopes: ScopePayloadV1["scopes"] = {};
+  let summaryKind: MemorySummaryScope = plan.primaryKind;
+  let reasonTag = "SUMMARY_SUCCESS";
+  let branchId: string | null = null;
+  let branchStatus: BranchStatus | null = null;
+  let promotedBy: string | null = null;
+  let promotedAt: string | null = null;
+  let mainModelCalls = 0;
+
+  const existing = opts.existingRecord ?? null;
+  const adoptLocked =
+    opts.mode === "regen" && existing?.promotedBy === "user_main_adopt";
+
+  if (opts.mode === "seal" && plan.wantsBranchClose) {
+    closeActiveBranchCanon(opts.chatId);
+  }
+
+  if (plan.preferenceTurns.length > 0) {
+    scopes.preference = buildPreferenceSummaryFromTurns(plan.preferenceTurns);
+  }
+
+  if (plan.noncanonTurns.length > 0) {
+    const nonText = buildNoncanonSummaryFromTurns(plan.noncanonTurns);
+    const userWantsBranch =
+      plan.wantsBranchContinue || plan.primaryKind === "branch_canon";
+    // Regen must keep an existing branch row as branch_canon (active or closed),
+    // and must not invent a new branch from assistant text alone.
+    const preserveBranchScope =
+      opts.mode === "regen" &&
+      existing?.summaryKind === "branch_canon" &&
+      !plan.wantsMainAdopt &&
+      !adoptLocked;
+
+    if ((userWantsBranch || preserveBranchScope) && !adoptLocked) {
+      scopes.branch_canon = nonText;
+      summaryKind = "branch_canon";
+      if (opts.mode === "regen" && existing?.branchId) {
+        branchId = existing.branchId;
+        if (plan.wantsBranchClose) {
+          branchStatus = "closed";
+        } else if (existing.branchStatus === "closed" && !plan.wantsBranchContinue) {
+          branchStatus = "closed";
+        } else {
+          branchStatus = "active";
+        }
+        promotedBy = existing.promotedBy;
+        promotedAt = existing.promotedAt;
+      } else {
+        branchId = `branch-${opts.chatId}-${opts.batchStart}`;
+        branchStatus = "active";
+        promotedBy = "user_continue";
+        promotedAt = new Date().toISOString();
+        if (opts.mode === "seal") {
+          const toPromote = opts.priorRecords
+            .filter((r) => !r.inactive && r.summaryKind === "noncanon")
+            .map((r) => r.id);
+          if (toPromote.length > 0) {
+            promoteRecordsToBranchCanon({
+              chatId: opts.chatId,
+              recordIds: toPromote,
+              branchId,
+              promotedBy: "user_continue",
+            });
+          }
+        }
+      }
+    } else if (!adoptLocked) {
+      scopes.noncanon = nonText;
+      if (summaryKind === "empty_ooc") summaryKind = "noncanon";
+    } else {
+      // Adopted main timeline: keep IF beats inside main_canon, never re-open noncanon.
+      scopes.main_canon = [scopes.main_canon, nonText].filter(Boolean).join("\n");
+    }
+  }
+
+  if (mainEntries.length === 0 && !scopes.noncanon && !scopes.branch_canon && !scopes.preference && !scopes.main_canon) {
+    scopes.empty_ooc = buildEmptyOocBatchPlaceholder(opts.batchStart, opts.endTurn);
+    summaryKind = "empty_ooc";
+    reasonTag = "SUMMARY_OOC_PLACEHOLDER";
+  } else if (mainEntries.length > 0) {
+    const dialogue = formatBatchDialogue(mainEntries, opts.charName);
+    const summaryStartTurn = mainEntries[0]!.turnIndex;
+    const summaryEndTurn = mainEntries[mainEntries.length - 1]!.turnIndex;
+    let narrative = "";
+    try {
+      mainModelCalls = 1;
+      narrative = await summarizeTurnBatch({
+        dialogue,
+        charName: opts.charName,
+        characterIdentity: opts.characterIdentity,
+        startTurn: summaryStartTurn,
+        endTurn: summaryEndTurn,
+        userPersona: opts.userPersona,
+        turnTrace: opts.turnTrace,
+      });
+    } catch (e) {
+      const msg = (e as Error).message ?? "";
+      const reason = /timeout|aborted|ETIMEDOUT/i.test(msg)
+        ? "SUMMARY_TIMEOUT"
+        : "SUMMARY_EMPTY";
+      console.error(
+        `[memory] ${reason} chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn}`,
+        msg
+      );
+      return { ok: false, reason };
+    }
+
+    if (!narrative.trim()) {
+      console.error(
+        `[memory] SUMMARY_EMPTY chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn} — batch pending retry`
+      );
+      return { ok: false, reason: "SUMMARY_EMPTY" };
+    }
+    narrative = stripOocFromMemorySummary(narrative);
+    if (!narrative.trim()) {
+      console.error(
+        `[memory] SUMMARY_EMPTY after OOC strip chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn}`
+      );
+      return { ok: false, reason: "SUMMARY_EMPTY" };
+    }
+    scopes.main_canon = [scopes.main_canon, narrative].filter(Boolean).join("\n");
+    summaryKind = "main_canon";
+  }
+
+  const shouldAdopt =
+    (plan.wantsMainAdopt || adoptLocked) && (scopes.branch_canon || scopes.noncanon);
+  if (shouldAdopt) {
+    const adopted = scopes.branch_canon || scopes.noncanon || "";
+    scopes.main_canon = [scopes.main_canon, adopted].filter(Boolean).join("\n");
+    delete scopes.branch_canon;
+    delete scopes.noncanon;
+    summaryKind = "main_canon";
+    branchStatus = "closed";
+    promotedBy = "user_main_adopt";
+    promotedAt =
+      adoptLocked && existing?.promotedAt
+        ? existing.promotedAt
+        : new Date().toISOString();
+    if (opts.mode === "regen" && existing?.branchId) {
+      branchId = existing.branchId;
+    }
+  }
+
+  // Regen must not reopen a closed branch without an explicit user continue.
+  if (
+    opts.mode === "regen" &&
+    existing?.branchStatus === "closed" &&
+    !plan.wantsBranchContinue &&
+    !plan.wantsMainAdopt
+  ) {
+    branchStatus = "closed";
+    branchId = existing.branchId ?? branchId;
+    if (existing.promotedBy && !promotedBy) {
+      promotedBy = existing.promotedBy;
+      promotedAt = existing.promotedAt;
+    }
+  }
+
+  const displaySummary = displaySummaryFromScopes(scopes, summaryKind);
+  const validated = validateSummaryNarrative(displaySummary, summaryKind);
+  if (!validated.ok) {
+    console.error(
+      `[memory] ${validated.reason} chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn}`
+    );
+    return { ok: false, reason: validated.reason };
+  }
+
+  return {
+    ok: true,
+    scopes,
+    summaryKind: validated.kind,
+    branchId,
+    branchStatus,
+    promotedBy,
+    promotedAt,
+    displaySummary: validated.text,
+    reasonTag,
+    mainModelCalls,
+  };
 }
 
-/** 재생성 — 해당 턴이 속한 6턴 배치 기억 기록을 현재 DB 대화 기준으로 재작성 */
+async function persistComposedBatchScopes(opts: {
+  chatId: number;
+  userId: number;
+  characterId: number;
+  tier: MemoryTier;
+  memoryCapacity: number;
+  batchStart: number;
+  endTurn: number;
+  lastAssistantId: number | null;
+  playableCount: number;
+  composed: Extract<ComposedBatchScope, { ok: true }>;
+  turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
+  logLabel: string;
+}): Promise<boolean> {
+  const scopePayload: ScopePayloadV1 = {
+    v: 1,
+    scopes: opts.composed.scopes,
+    branchId: opts.composed.branchId,
+    branchStatus: opts.composed.branchStatus,
+    promotedBy: opts.composed.promotedBy,
+    promotedAt: opts.composed.promotedAt,
+  };
+
+  const persisted = persistValidatedSummaryBatch({
+    chatId: opts.chatId,
+    userId: opts.userId,
+    characterId: opts.characterId,
+    tier: opts.tier,
+    turnStart: opts.batchStart,
+    assistantMessageId: opts.lastAssistantId,
+    summary: opts.composed.displaySummary,
+    summaryKind: opts.composed.summaryKind,
+    scopePayload,
+    branchId: opts.composed.branchId,
+    branchStatus: opts.composed.branchStatus,
+    promotedBy: opts.composed.promotedBy,
+    promotedAt: opts.composed.promotedAt,
+    userEdited: false,
+    playableTurnCount: opts.playableCount,
+  });
+
+  if (!persisted.ok) {
+    console.error(
+      `[memory] ${persisted.reason} chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn}`,
+      persisted.error
+    );
+    return false;
+  }
+
+  const lorebookBudget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity).lorebook;
+  let currentMemory = rebuildLorebookFromRecords(opts.chatId);
+  if (currentMemory.length > lorebookBudget) {
+    try {
+      const compacted = await compactCurrentMemory(
+        currentMemory,
+        lorebookBudget,
+        opts.turnTrace
+      );
+      if (compacted.trim()) {
+        currentMemory = compacted;
+        updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
+          recent_summary: currentMemory,
+          membership_tier: opts.tier,
+          last_compressed_at: new Date().toISOString(),
+        });
+        syncChatLongTermMemory(opts.chatId, currentMemory);
+      }
+    } catch (e) {
+      console.warn(
+        `[memory] lorebook compact skipped after ${opts.logLabel} — keeping prior text:`,
+        (e as Error).message
+      );
+    }
+  }
+
+  console.info(
+    `[memory] ${opts.logLabel} chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn} (${opts.composed.displaySummary.length}ch → lorebook ${currentMemory.length}/${lorebookBudget}ch) reason=${opts.composed.reasonTag} mainCalls=${opts.composed.mainModelCalls}`
+  );
+  return true;
+}
+
+/** Rebuild + replace full scopePayload for an existing 6-turn batch (regen paths). */
+async function rebuildExistingBatchScopePayload(opts: {
+  chatId: number;
+  userId: number;
+  characterId: number;
+  charName: string;
+  characterIdentity?: string | null;
+  tier: MemoryTier;
+  memoryCapacity: number;
+  userPersona?: string | null;
+  turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
+  batchStart: number;
+  existingRecord: MemoryRecordView;
+  logLabel: string;
+}): Promise<boolean> {
+  const allTurns = loadChatTurnsWithMessageIds(opts.chatId);
+  const batchMeta = allTurns.filter(
+    (t) =>
+      t.turnNumber >= opts.batchStart &&
+      t.turnNumber < opts.batchStart + ROLLING_SUMMARY_INTERVAL
+  );
+  if (batchMeta.length === 0) return false;
+
+  const endTurn = opts.batchStart + ROLLING_SUMMARY_INTERVAL - 1;
+  const allEntries = batchMeta.map((meta) => ({
+    turnIndex: meta.turnNumber,
+    turn: { user: meta.user, assistant: meta.assistant } satisfies DialogueTurn,
+  }));
+
+  const priorRecords = listMemoryRecordsForChat(opts.chatId);
+  const previousWasNoncanonOrBranch = priorRecords.some(
+    (r) =>
+      r.turnStart !== opts.batchStart &&
+      !r.inactive &&
+      (r.summaryKind === "noncanon" ||
+        (r.summaryKind === "branch_canon" && r.branchStatus === "active"))
+  );
+
+  const composed = await composeBatchScopePayload({
+    chatId: opts.chatId,
+    batchStart: opts.batchStart,
+    endTurn,
+    allEntries,
+    charName: opts.charName,
+    characterIdentity: opts.characterIdentity,
+    userPersona: opts.userPersona,
+    turnTrace: opts.turnTrace,
+    mode: "regen",
+    existingRecord: opts.existingRecord,
+    previousWasNoncanonOrBranch,
+    priorRecords,
+  });
+  if (!composed.ok) return false;
+
+  const lastAssistantId = batchMeta[batchMeta.length - 1]?.assistantMessageId ?? null;
+  const playableCount = allTurns.filter((t) => t.turnNumber > 0).length;
+  return persistComposedBatchScopes({
+    chatId: opts.chatId,
+    userId: opts.userId,
+    characterId: opts.characterId,
+    tier: opts.tier,
+    memoryCapacity: opts.memoryCapacity,
+    batchStart: opts.batchStart,
+    endTurn,
+    lastAssistantId,
+    playableCount,
+    composed,
+    turnTrace: opts.turnTrace,
+    logLabel: opts.logLabel,
+  });
+}
+
+/** 재생성 — 해당 턴이 속한 6턴 배치의 scopePayload 전체를 현재 DB 대화 기준으로 재구성 */
 export async function refreshRollingSummaryForRegeneratedAssistant(opts: {
   chatId: number;
   userId: number;
@@ -378,76 +763,22 @@ export async function refreshRollingSummaryForRegeneratedAssistant(opts: {
     return false;
   }
 
-  const batchMeta = allTurns.filter(
-    (t) => t.turnNumber >= batchStart && t.turnNumber < batchStart + ROLLING_SUMMARY_INTERVAL
-  );
-  if (batchMeta.length === 0) return false;
-
   running.add(opts.chatId);
   try {
-    const eligibleEntries = batchMeta
-      .map((meta) => ({
-        turnIndex: meta.turnNumber,
-        turn: { user: meta.user, assistant: meta.assistant } satisfies DialogueTurn,
-      }))
-      .filter(({ turn }) => isTurnEligibleForMemoryRecord(turn.user));
-
-    if (eligibleEntries.length === 0) return false;
-
-    const narrative = await summarizeBatchEntries({
-      eligibleEntries,
-      charName: opts.charName,
-      characterIdentity: opts.characterIdentity,
-      userPersona: opts.userPersona,
-      turnTrace: opts.turnTrace,
-    });
-    if (!narrative.trim()) return false;
-
-    const lastAssistantId = batchMeta[batchMeta.length - 1]?.assistantMessageId ?? null;
-    const playableCount = allTurns.filter((t) => t.turnNumber > 0).length;
-    const persisted = persistValidatedSummaryBatch({
+    return await rebuildExistingBatchScopePayload({
       chatId: opts.chatId,
       userId: opts.userId,
       characterId: opts.characterId,
+      charName: opts.charName,
+      characterIdentity: opts.characterIdentity,
       tier: opts.tier,
-      turnStart: batchStart,
-      assistantMessageId: lastAssistantId,
-      summary: narrative,
-      userEdited: false,
-      playableTurnCount: playableCount,
+      memoryCapacity: opts.memoryCapacity,
+      userPersona: opts.userPersona,
+      turnTrace: opts.turnTrace,
+      batchStart,
+      existingRecord: record,
+      logLabel: `regen batch refresh assistant=${opts.assistantMessageId}`,
     });
-    if (!persisted.ok) return false;
-
-    const lorebookBudget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity).lorebook;
-    let currentMemory = rebuildLorebookFromRecords(opts.chatId);
-    if (currentMemory.length > lorebookBudget) {
-      try {
-        const compacted = await compactCurrentMemory(
-          currentMemory,
-          lorebookBudget,
-          opts.turnTrace
-        );
-        if (compacted.trim()) {
-          currentMemory = compacted;
-          updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
-            recent_summary: currentMemory,
-            membership_tier: opts.tier,
-            last_compressed_at: new Date().toISOString(),
-          });
-          syncChatLongTermMemory(opts.chatId, currentMemory);
-        }
-      } catch (e) {
-        console.warn(
-          "[memory] lorebook compact skipped after regen — keeping prior text:",
-          (e as Error).message
-        );
-      }
-    }
-
-    console.info(
-      `[memory] regen batch refresh chat=${opts.chatId} batch=${batchStart} assistant=${opts.assistantMessageId} (${narrative.length}ch)`
-    );
-    return true;
   } catch (e) {
     console.warn("[memory] regen batch refresh failed:", (e as Error).message);
     return false;
@@ -548,189 +879,38 @@ export async function processRollingSummaryBatch(opts: {
         (r.summaryKind === "noncanon" ||
           (r.summaryKind === "branch_canon" && r.branchStatus === "active"))
     );
-    const plan = classifyMemoryBatchScopes(allEntries, { previousWasNoncanonOrBranch });
 
-    // Main RP turns for LLM (legacy eligibility still used as safety for "main" only)
-    const mainEntries = plan.mainTurns.filter(({ turn }) =>
-      isTurnEligibleForMemoryRecord(turn.user)
-    );
+    const composed = await composeBatchScopePayload({
+      chatId: opts.chatId,
+      batchStart,
+      endTurn,
+      allEntries,
+      charName: opts.charName,
+      characterIdentity: opts.characterIdentity,
+      userPersona: opts.userPersona,
+      turnTrace: opts.turnTrace,
+      mode: "seal",
+      existingRecord: null,
+      previousWasNoncanonOrBranch,
+      priorRecords,
+    });
+    if (!composed.ok) return false;
 
-    const scopes: ScopePayloadV1["scopes"] = {};
-    let summaryKind: MemorySummaryScope = plan.primaryKind;
-    let reasonTag: string = "SUMMARY_SUCCESS";
-    let branchId: string | null = null;
-    let branchStatus: ScopePayloadV1["branchStatus"] = null;
-    let promotedBy: string | null = null;
-    let promotedAt: string | null = null;
-
-    if (plan.wantsBranchClose) {
-      closeActiveBranchCanon(opts.chatId);
-    }
-
-    if (plan.preferenceTurns.length > 0) {
-      scopes.preference = buildPreferenceSummaryFromTurns(plan.preferenceTurns);
-    }
-
-    if (plan.noncanonTurns.length > 0) {
-      const nonText = buildNoncanonSummaryFromTurns(plan.noncanonTurns);
-      if (plan.wantsBranchContinue || plan.primaryKind === "branch_canon") {
-        scopes.branch_canon = nonText;
-        summaryKind = "branch_canon";
-        branchId = `branch-${opts.chatId}-${batchStart}`;
-        branchStatus = "active";
-        promotedBy = "user_continue";
-        promotedAt = new Date().toISOString();
-        const toPromote = priorRecords
-          .filter((r) => !r.inactive && r.summaryKind === "noncanon")
-          .map((r) => r.id);
-        if (toPromote.length > 0) {
-          promoteRecordsToBranchCanon({
-            chatId: opts.chatId,
-            recordIds: toPromote,
-            branchId,
-            promotedBy: "user_continue",
-          });
-        }
-      } else {
-        scopes.noncanon = nonText;
-        if (summaryKind === "empty_ooc") summaryKind = "noncanon";
-      }
-    }
-
-    if (mainEntries.length === 0 && !scopes.noncanon && !scopes.branch_canon && !scopes.preference) {
-      scopes.empty_ooc = buildEmptyOocBatchPlaceholder(batchStart, endTurn);
-      summaryKind = "empty_ooc";
-      reasonTag = "SUMMARY_OOC_PLACEHOLDER";
-    } else if (mainEntries.length > 0) {
-      const dialogue = formatBatchDialogue(mainEntries, opts.charName);
-      const summaryStartTurn = mainEntries[0]!.turnIndex;
-      const summaryEndTurn = mainEntries[mainEntries.length - 1]!.turnIndex;
-      let narrative = "";
-      try {
-        narrative = await summarizeTurnBatch({
-          dialogue,
-          charName: opts.charName,
-          characterIdentity: opts.characterIdentity,
-          startTurn: summaryStartTurn,
-          endTurn: summaryEndTurn,
-          userPersona: opts.userPersona,
-          turnTrace: opts.turnTrace,
-        });
-      } catch (e) {
-        const msg = (e as Error).message ?? "";
-        const reason = /timeout|aborted|ETIMEDOUT/i.test(msg)
-          ? "SUMMARY_TIMEOUT"
-          : "SUMMARY_EMPTY";
-        console.error(`[memory] ${reason} chat=${opts.chatId} turns=${batchStart}-${endTurn}`, msg);
-        return false;
-      }
-
-      if (!narrative.trim()) {
-        console.error(
-          `[memory] SUMMARY_EMPTY chat=${opts.chatId} turns=${batchStart}-${endTurn} — batch pending retry`
-        );
-        return false;
-      }
-      narrative = stripOocFromMemorySummary(narrative);
-      if (!narrative.trim()) {
-        console.error(
-          `[memory] SUMMARY_EMPTY after OOC strip chat=${opts.chatId} turns=${batchStart}-${endTurn}`
-        );
-        return false;
-      }
-      scopes.main_canon = narrative;
-      summaryKind = scopes.noncanon || scopes.branch_canon ? "main_canon" : "main_canon";
-    }
-
-    if (plan.wantsMainAdopt && (scopes.branch_canon || scopes.noncanon)) {
-      const adopted = scopes.branch_canon || scopes.noncanon || "";
-      scopes.main_canon = [scopes.main_canon, adopted].filter(Boolean).join("\n");
-      delete scopes.branch_canon;
-      delete scopes.noncanon;
-      summaryKind = "main_canon";
-      branchStatus = "closed";
-      promotedBy = "user_main_adopt";
-      promotedAt = new Date().toISOString();
-    }
-
-    const narrative = displaySummaryFromScopes(scopes, summaryKind);
-    const validated = validateSummaryNarrative(narrative, summaryKind);
-    if (!validated.ok) {
-      console.error(
-        `[memory] ${validated.reason} chat=${opts.chatId} turns=${batchStart}-${endTurn}`
-      );
-      return false;
-    }
-
-    const scopePayload: ScopePayloadV1 = {
-      v: 1,
-      scopes,
-      branchId,
-      branchStatus,
-      promotedBy,
-      promotedAt,
-    };
-
-    const lorebookBudget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity).lorebook;
     const lastAssistantId = batchMeta[batchMeta.length - 1]?.assistantMessageId ?? null;
-
-    // Persist row first (atomic with counter+recent). Compact AFTER if needed, then re-persist recent only.
-    const persisted = persistValidatedSummaryBatch({
+    return persistComposedBatchScopes({
       chatId: opts.chatId,
       userId: opts.userId,
       characterId: opts.characterId,
       tier: opts.tier,
-      turnStart: batchStart,
-      assistantMessageId: lastAssistantId,
-      summary: validated.text,
-      summaryKind: validated.kind,
-      scopePayload,
-      branchId,
-      branchStatus,
-      promotedBy,
-      promotedAt,
-      userEdited: false,
-      playableTurnCount: playableCount,
+      memoryCapacity: opts.memoryCapacity,
+      batchStart,
+      endTurn,
+      lastAssistantId,
+      playableCount,
+      composed,
+      turnTrace: opts.turnTrace,
+      logLabel: `${ROLLING_SUMMARY_INTERVAL}턴 기억 기록`,
     });
-
-    if (!persisted.ok) {
-      console.error(
-        `[memory] ${persisted.reason} chat=${opts.chatId} turns=${batchStart}-${endTurn}`,
-        persisted.error
-      );
-      return false;
-    }
-
-    let currentMemory = rebuildLorebookFromRecords(opts.chatId);
-    if (currentMemory.length > lorebookBudget) {
-      try {
-        const compacted = await compactCurrentMemory(
-          currentMemory,
-          lorebookBudget,
-          opts.turnTrace
-        );
-        // Only overwrite when compact succeeded — keep prior recent_summary on failure
-        if (compacted.trim()) {
-          currentMemory = compacted;
-          updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
-            recent_summary: currentMemory,
-            membership_tier: opts.tier,
-            last_compressed_at: new Date().toISOString(),
-          });
-          syncChatLongTermMemory(opts.chatId, currentMemory);
-        }
-      } catch (e) {
-        console.warn(
-          "[memory] lorebook compact skipped after batch — keeping prior text:",
-          (e as Error).message
-        );
-      }
-    }
-
-    console.info(
-      `[memory] ${ROLLING_SUMMARY_INTERVAL}턴 기억 기록 chat=${opts.chatId} turns=${batchStart}-${endTurn} (${narrative.length}ch → lorebook ${currentMemory.length}/${lorebookBudget}ch) reason=${reasonTag}`
-    );
-    return true;
   } catch (e) {
     console.error(
       `[memory] rolling summary failed chat=${opts.chatId}:`,
@@ -743,7 +923,7 @@ export async function processRollingSummaryBatch(opts: {
 }
 
 
-/** 패널·API — 특정 6턴 배치 기억 기록을 LLM으로 다시 생성 (유저 수정본은 건너뜀) */
+/** 패널·API — 특정 6턴 배치 scopePayload 전체를 현재 메시지 기준으로 재구성 (유저 수정본은 건너뜀) */
 export async function regenerateMemoryRecordBatch(opts: {
   chatId: number;
   userId: number;
@@ -762,75 +942,24 @@ export async function regenerateMemoryRecordBatch(opts: {
   const batchStart = resolveBatchStartTurnForTurnNumber(opts.turnStart);
   const record = listMemoryRecordsForChat(opts.chatId).find((r) => r.turnStart === batchStart);
   if (record?.userEdited) return false;
-
-  const batchMeta = loadChatTurnsWithMessageIds(opts.chatId).filter(
-    (t) => t.turnNumber >= batchStart && t.turnNumber < batchStart + ROLLING_SUMMARY_INTERVAL
-  );
-  if (batchMeta.length === 0) return false;
+  if (!record) return false;
 
   running.add(opts.chatId);
   try {
-    const eligibleEntries = batchMeta
-      .map((meta) => ({
-        turnIndex: meta.turnNumber,
-        turn: { user: meta.user, assistant: meta.assistant } satisfies DialogueTurn,
-      }))
-      .filter(({ turn }) => isTurnEligibleForMemoryRecord(turn.user));
-
-    if (eligibleEntries.length === 0) return false;
-
-    const narrative = await summarizeBatchEntries({
-      eligibleEntries,
-      charName: opts.charName,
-      characterIdentity: opts.characterIdentity,
-      userPersona: opts.userPersona,
-      turnTrace: opts.turnTrace,
-    });
-    if (!narrative.trim() || isFallbackMemoryRecordSummary(narrative)) return false;
-
-    const lastAssistantId = batchMeta[batchMeta.length - 1]?.assistantMessageId ?? null;
-    const playableCount = loadChatTurnsWithMessageIds(opts.chatId).filter(
-      (t) => t.turnNumber > 0
-    ).length;
-    const persisted = persistValidatedSummaryBatch({
+    return await rebuildExistingBatchScopePayload({
       chatId: opts.chatId,
       userId: opts.userId,
       characterId: opts.characterId,
+      charName: opts.charName,
+      characterIdentity: opts.characterIdentity,
       tier: opts.tier,
-      turnStart: batchStart,
-      assistantMessageId: lastAssistantId,
-      summary: narrative,
-      userEdited: false,
-      playableTurnCount: playableCount,
+      memoryCapacity: opts.memoryCapacity,
+      userPersona: opts.userPersona,
+      turnTrace: opts.turnTrace,
+      batchStart,
+      existingRecord: record,
+      logLabel: "regenerateMemoryRecordBatch",
     });
-    if (!persisted.ok) return false;
-
-    const lorebookBudget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity).lorebook;
-    let currentMemory = rebuildLorebookFromRecords(opts.chatId);
-    if (currentMemory.length > lorebookBudget) {
-      try {
-        const compacted = await compactCurrentMemory(
-          currentMemory,
-          lorebookBudget,
-          opts.turnTrace
-        );
-        if (compacted.trim()) {
-          currentMemory = compacted;
-          updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
-            recent_summary: currentMemory,
-            membership_tier: opts.tier,
-            last_compressed_at: new Date().toISOString(),
-          });
-          syncChatLongTermMemory(opts.chatId, currentMemory);
-        }
-      } catch (e) {
-        console.warn(
-          "[memory] lorebook compact skipped after regenerate — keeping prior text:",
-          (e as Error).message
-        );
-      }
-    }
-    return true;
   } catch (e) {
     console.error("[memory] regenerateMemoryRecordBatch failed:", (e as Error).message);
     return false;
