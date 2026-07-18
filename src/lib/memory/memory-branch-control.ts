@@ -6,7 +6,6 @@ import { ROLLING_SUMMARY_INTERVAL } from "@/lib/hybridMemory";
 import {
   classifyMemoryTurnScope,
   encodeScopePayload,
-  isExplicitClosedBranchContinueIntent,
   normalizeSummaryScope,
   parseScopePayload,
   type BranchControlMutation,
@@ -147,14 +146,6 @@ function survivingHasBranchClose(chatId: number): boolean {
   return false;
 }
 
-function survivingHasExplicitClosedBranchContinue(chatId: number): boolean {
-  for (const t of loadChatTurnsWithMessageIds(chatId)) {
-    if (t.turnNumber <= 0) continue;
-    if (isExplicitClosedBranchContinueIntent(t.user)) return true;
-  }
-  return false;
-}
-
 function survivingHasMainAdopt(chatId: number): boolean {
   for (const t of loadChatTurnsWithMessageIds(chatId)) {
     if (t.turnNumber <= 0) continue;
@@ -223,7 +214,6 @@ export function rollbackBranchControlMutationsForDeletedUserMessage(
   let rolled = 0;
   const keepContinue = survivingHasBranchContinue(chatId);
   const keepClose = survivingHasBranchClose(chatId);
-  const keepExplicitResume = survivingHasExplicitClosedBranchContinue(chatId);
   const keepAdopt = survivingHasMainAdopt(chatId);
 
   for (const row of listBranchControlRows(chatId)) {
@@ -239,10 +229,9 @@ export function rollbackBranchControlMutationsForDeletedUserMessage(
       if (top.sourceUserMessageId !== deletedUserMessageId) break;
 
       // Surviving commands keep the effective branch outcome.
+      // reopen_branch uses exact provenance only — do not gate on other surviving resume text.
       if (top.action === "promote_branch" && keepContinue) break;
       if (top.action === "close_branch" && (keepClose || keepAdopt)) break;
-      // Auto-reopen only stays if another explicit IF-resume command still survives.
-      if (top.action === "reopen_branch" && keepExplicitResume) break;
 
       mutations.pop();
       applyPreviousToRow(row.id, chatId, top.previous, mutations);

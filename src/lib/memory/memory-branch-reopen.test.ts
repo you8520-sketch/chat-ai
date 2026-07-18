@@ -923,6 +923,52 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
     assert.equal(row(idA).branchStatus, "active");
   });
 
+  it("blocker-unrelated-resume: surviving unrelated explicit resume must not block reopen rollback", () => {
+    // Past explicit resume text that never became provenance for A (ambiguous/no-op).
+    const oldResumeId = insertMsg("user", "아까 IF 이어서");
+    insertMsg("assistant", "그때는 이어갈 종료 분기가 없어 본편을 이어갔다.");
+
+    const idA = persistBranch({
+      turnStart: 1,
+      branchId: "branch-A",
+      status: "closed",
+      text: TEXT_A,
+    });
+
+    const newResumeId = insertMsg("user", "아까 IF 이어서");
+    insertMsg("assistant", CONTINUE_SCENE);
+    const reopened = reopenClosedBranchCanon({
+      chatId: CHAT,
+      branchId: "branch-A",
+      source: "seal_sole_closed_continue",
+      control: {
+        source: "user_turn",
+        sourceUserMessageId: newResumeId,
+        sourceTurn: 12,
+        sourceBatchStart: 7,
+      },
+    });
+    assert.equal(reopened.ok, true);
+    assert.equal(row(idA).branchStatus, "active");
+    const stack = branchMutations(idA);
+    assert.equal(stack.length, 1);
+    assert.equal(stack[0]!.action, "reopen_branch");
+    assert.equal(stack[0]!.sourceUserMessageId, newResumeId);
+    assert.notEqual(stack[0]!.sourceUserMessageId, oldResumeId);
+
+    getDb().prepare("DELETE FROM messages WHERE id=?").run(newResumeId);
+    assert.ok(
+      getDb().prepare("SELECT id FROM messages WHERE id=?").get(oldResumeId),
+      "unrelated past explicit resume must still survive"
+    );
+
+    assert.equal(rollbackBranchControlMutationsForDeletedUserMessage(CHAT, newResumeId), 1);
+    assert.equal(row(idA).branchStatus, "closed");
+    assert.equal(branchMutations(idA).length, 0);
+    assert.equal(countDistinctActiveBranchIds(CHAT), 0);
+    assert.doesNotMatch(rebuildLorebookFromRecords(CHAT), /분기A/);
+  });
+
   it("blocker-C: current-batch pre-resume noncanon blocks sole-closed auto reopen", async () => {
     const idA = persistBranch({
       turnStart: 1,
