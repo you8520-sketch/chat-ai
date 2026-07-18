@@ -255,11 +255,17 @@ describe("branch-control provenance + last-turn delete rollback", () => {
     assert.equal(rowPayload(id1)?.branchControlMutations?.[0]?.source, "ui");
   });
 
-  it("surviving valid continue prevents incorrect demotion", () => {
+  it("B: unrelated old continue text must not block exact promote_branch rollback", () => {
     const id1 = persistNoncanonBatch1();
-    seedPlayableTurns(6, { firstUser: "(OOC: 현대 회사 IF)" });
-    const continueA = insertMsg("user", "계속");
-    insertMsg("assistant", "A");
+    // Past continue text — not the provenance of the current promotion.
+    const unrelatedOldContinue = insertMsg("user", "계속");
+    insertMsg("assistant", "과거 계속(무관).");
+    for (let t = 1; t <= 6; t++) {
+      insertMsg("user", t === 1 ? "(OOC: 현대 회사 IF)" : `본편 턴 ${t}`);
+      insertMsg("assistant", `응답 ${t}`);
+    }
+    const newContinueId = insertMsg("user", "계속");
+    insertMsg("assistant", "최신 계속으로 승격.");
     promoteRecordsToBranchCanon({
       chatId: CHAT,
       recordIds: [id1],
@@ -267,18 +273,27 @@ describe("branch-control provenance + last-turn delete rollback", () => {
       promotedBy: "user_continue",
       control: {
         source: "user_turn",
-        sourceUserMessageId: continueA,
+        sourceUserMessageId: newContinueId,
         sourceTurn: 7,
         sourceBatchStart: 7,
       },
     });
-    // Surviving second continue remains in the chat.
-    insertMsg("user", "이어서");
-    insertMsg("assistant", "B");
-
-    const rolled = rollbackBranchControlMutationsForDeletedUserMessage(CHAT, continueA);
-    assert.equal(rolled, 0);
     assert.equal(loadRow(id1).summaryKind, "branch_canon");
+    assert.notEqual(newContinueId, unrelatedOldContinue);
+
+    getDb().prepare("DELETE FROM messages WHERE id=?").run(newContinueId);
+    assert.ok(
+      getDb().prepare("SELECT id FROM messages WHERE id=?").get(unrelatedOldContinue)
+    );
+
+    const rolled = rollbackBranchControlMutationsForDeletedUserMessage(
+      CHAT,
+      newContinueId
+    );
+    assert.equal(rolled, 1);
+    assert.equal(loadRow(id1).summaryKind, "noncanon");
+    assert.ok(loadRow(id1).scopes.noncanon);
+    assert.equal(loadRow(id1).scopes.branch_canon, undefined);
   });
 
   it("B: deleted close restores prior active status", () => {
@@ -352,9 +367,11 @@ describe("branch-control provenance + last-turn delete rollback", () => {
     assert.equal(loadRow(id1).branchStatus, "closed");
   });
 
-  it("surviving valid close is not incorrectly reopened", () => {
+  it("A: unrelated old close text must not block exact close_branch rollback", () => {
     const id1 = persistNoncanonBatch1();
     seedPlayableTurns(6, { firstUser: "(OOC: 현대 회사 IF)" });
+    const oldCloseId = insertMsg("user", "본편으로 돌아가자");
+    insertMsg("assistant", "과거 close(무관).");
     const continueId = insertMsg("user", "계속");
     insertMsg("assistant", "ok");
     promoteRecordsToBranchCanon({
@@ -369,23 +386,27 @@ describe("branch-control provenance + last-turn delete rollback", () => {
         sourceBatchStart: 7,
       },
     });
-    const closeA = insertMsg("user", "본편으로 돌아가자");
-    insertMsg("assistant", "닫음A");
+    assert.equal(loadRow(id1).branchStatus, "active");
+    const newCloseId = insertMsg("user", "본편으로 돌아가자");
+    insertMsg("assistant", "최신 close.");
     closeActiveBranchCanon(CHAT, {
       source: "user_turn",
-      sourceUserMessageId: closeA,
-      sourceTurn: 8,
+      sourceUserMessageId: newCloseId,
+      sourceTurn: 9,
       sourceBatchStart: 7,
     });
-    // Surviving later close remains.
-    insertMsg("user", "IF 종료");
-    insertMsg("assistant", "종료");
-
-    assert.equal(rollbackBranchControlMutationsForDeletedUserMessage(CHAT, closeA), 0);
     assert.equal(loadRow(id1).branchStatus, "closed");
+    assert.notEqual(newCloseId, oldCloseId);
+
+    getDb().prepare("DELETE FROM messages WHERE id=?").run(newCloseId);
+    assert.ok(getDb().prepare("SELECT id FROM messages WHERE id=?").get(oldCloseId));
+
+    assert.equal(rollbackBranchControlMutationsForDeletedUserMessage(CHAT, newCloseId), 1);
+    assert.equal(loadRow(id1).summaryKind, "branch_canon");
+    assert.equal(loadRow(id1).branchStatus, "active");
   });
 
-  it("continue → close → delete close restores active branch (stack)", () => {
+  it("C: stacked continue→close — delete close pops only close; promote remains", () => {
     const id1 = persistNoncanonBatch1();
     seedPlayableTurns(6, { firstUser: "(OOC: 현대 회사 IF)" });
     const continueId = insertMsg("user", "계속");
@@ -426,6 +447,35 @@ describe("branch-control provenance + last-turn delete rollback", () => {
     assert.equal(after.length, 1);
     assert.equal(after[0]!.action, "promote_branch");
     assert.equal(after[0]!.sourceUserMessageId, continueId);
+  });
+
+  it("D: UI close on top is not rolled back when earlier user_turn message is deleted", () => {
+    const id1 = persistNoncanonBatch1();
+    seedPlayableTurns(6, { firstUser: "(OOC: 현대 회사 IF)" });
+    const continueId = insertMsg("user", "계속");
+    insertMsg("assistant", "ok");
+    promoteRecordsToBranchCanon({
+      chatId: CHAT,
+      recordIds: [id1],
+      branchId: `branch-${CHAT}-ui-override`,
+      promotedBy: "user_continue",
+      control: {
+        source: "user_turn",
+        sourceUserMessageId: continueId,
+        sourceTurn: 7,
+        sourceBatchStart: 7,
+      },
+    });
+    closeActiveBranchCanon(CHAT, { source: "ui" });
+    assert.equal(loadRow(id1).branchStatus, "closed");
+    const stack = rowPayload(id1)?.branchControlMutations ?? [];
+    assert.equal(stack[stack.length - 1]!.source, "ui");
+    assert.equal(stack[stack.length - 1]!.action, "close_branch");
+
+    getDb().prepare("DELETE FROM messages WHERE id=?").run(continueId);
+    assert.equal(rollbackBranchControlMutationsForDeletedUserMessage(CHAT, continueId), 0);
+    assert.equal(loadRow(id1).branchStatus, "closed");
+    assert.equal(loadRow(id1).summaryKind, "branch_canon");
   });
 
   it("source batch prune + summarized_turn_count + no duplicate rows (6→5)", () => {
