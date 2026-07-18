@@ -507,6 +507,7 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
         : { user: `본편 턴 ${t}`, assistant: `응답 ${t} — 장면을 짧게 이어간다.` }
     );
 
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: MAIN_TEXT }));
     __setPersistForceFailAfterUpsertForTests(true);
     const ok = await processRollingSummaryBatch({
       chatId: CHAT,
@@ -532,7 +533,7 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
     assert.equal(countDistinctActiveBranchIds(CHAT), 0);
   });
 
-  it("2/C: explicit IF continue e2e reopens sole closed A", async () => {
+  it("mixed-A: turn7~11 main + turn12 explicit IF resume keeps both scopes", async () => {
     const idA = persistBranch({
       turnStart: 1,
       branchId: "branch-A",
@@ -549,9 +550,11 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
           }
     );
 
-    __setSummarizeTurnBatchCallerForTests(async () => ({
-      text: MAIN_TEXT,
-    }));
+    let mainCalls = 0;
+    __setSummarizeTurnBatchCallerForTests(async () => {
+      mainCalls += 1;
+      return { text: MAIN_TEXT };
+    });
 
     const ok = await processRollingSummaryBatch({
       chatId: CHAT,
@@ -562,16 +565,109 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
       memoryCapacity: 8000,
     });
     assert.equal(ok, true);
+    assert.equal(mainCalls, 1);
     assert.equal(row(idA).branchStatus, "active");
     assert.equal(row(idA).branchId, "branch-A");
 
     const batch2 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === 7);
     assert.ok(batch2);
-    assert.equal(batch2!.summaryKind, "branch_canon");
+    assert.ok(batch2!.scopes.main_canon?.includes("레온") || batch2!.scopes.main_canon === MAIN_TEXT);
+    assert.ok(batch2!.scopes.branch_canon);
+    assert.match(batch2!.scopes.branch_canon ?? "", /회사 IF|계약|아까 IF/);
+    assert.doesNotMatch(batch2!.scopes.branch_canon ?? "", /본편 턴 7|본편 응답 7/);
     assert.equal(batch2!.branchId, "branch-A");
     assert.equal(batch2!.branchStatus, "active");
-    assert.notEqual(batch2!.summaryKind, "main_canon");
     assert.equal(batch2!.branchId?.startsWith(`branch-${CHAT}-`), false);
+    assert.equal(countDistinctActiveBranchIds(CHAT), 1);
+  });
+
+  it("mixed-B: first-turn resume is branch_canon only (no spurious main)", async () => {
+    const idA = persistBranch({
+      turnStart: 1,
+      branchId: "branch-A",
+      status: "closed",
+      text: TEXT_A,
+    });
+
+    seedPlayableTurns(12, (t) =>
+      t === 7
+        ? { user: "아까 IF 이어서", assistant: CONTINUE_SCENE }
+        : {
+            user: `(OOC: IF 이어서 장면 ${t})`,
+            assistant: `${CONTINUE_SCENE} 추가 ${t}`,
+          }
+    );
+
+    let mainCalls = 0;
+    __setSummarizeTurnBatchCallerForTests(async () => {
+      mainCalls += 1;
+      return { text: MAIN_TEXT };
+    });
+
+    const ok = await processRollingSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "ReopenChar",
+      tier: "free",
+      memoryCapacity: 8000,
+    });
+    assert.equal(ok, true);
+    assert.equal(mainCalls, 0);
+    assert.equal(row(idA).branchStatus, "active");
+    const batch2 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === 7)!;
+    assert.equal(batch2.summaryKind, "branch_canon");
+    assert.equal(batch2.branchId, "branch-A");
+    assert.ok(batch2.scopes.branch_canon);
+    assert.equal(batch2.scopes.main_canon, undefined);
+  });
+
+  it("mixed-C: middle resume splits 7~9 main and 10~12 branch", async () => {
+    const idA = persistBranch({
+      turnStart: 1,
+      branchId: "branch-A",
+      status: "closed",
+      text: TEXT_A,
+    });
+
+    seedPlayableTurns(12, (t) => {
+      if (t <= 9) {
+        return {
+          user: `본편 턴 ${t}`,
+          assistant: `본편 응답 ${t} — 일상을 짧게 이어간다.`,
+        };
+      }
+      if (t === 10) {
+        return { user: "아까 IF 이어서", assistant: CONTINUE_SCENE };
+      }
+      return {
+        user: `(OOC: IF 이어서 장면 ${t})`,
+        assistant: `${CONTINUE_SCENE} 추가 ${t}`,
+      };
+    });
+
+    let mainCalls = 0;
+    __setSummarizeTurnBatchCallerForTests(async () => {
+      mainCalls += 1;
+      return { text: MAIN_TEXT };
+    });
+
+    const ok = await processRollingSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "ReopenChar",
+      tier: "free",
+      memoryCapacity: 8000,
+    });
+    assert.equal(ok, true);
+    assert.equal(mainCalls, 1);
+    assert.equal(row(idA).branchStatus, "active");
+    const batch2 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === 7)!;
+    assert.ok(batch2.scopes.main_canon);
+    assert.ok(batch2.scopes.branch_canon);
+    assert.match(batch2.scopes.branch_canon ?? "", /회사 IF|계약|아까 IF|추가 1[12]/);
+    assert.equal(batch2.branchId, "branch-A");
     assert.equal(countDistinctActiveBranchIds(CHAT), 1);
   });
 
