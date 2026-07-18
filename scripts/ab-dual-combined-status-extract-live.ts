@@ -176,16 +176,62 @@ function detectTemporalUnknown(values: Record<string, string> | null | undefined
   );
 }
 
-function detectPovMix(
+const UNKNOWN_LIKE_RE = /알\s*수\s*없|미상|모름|unknown|n\/a/i;
+
+function isUnknownLikePlaceholder(value: string | undefined): boolean {
+  if (!value?.trim()) return false;
+  return UNKNOWN_LIKE_RE.test(value.trim()) && value.trim().length <= 24;
+}
+
+/**
+ * Quality warnings only — identical place/time/emotion strings are NOT automatic failures.
+ * Flag clear subject swap, instruction echo across namespaces, dual inner unknown, wholesale clone.
+ */
+function collectPovQualityNotes(
   character: Record<string, string> | null | undefined,
   user: Record<string, string> | null | undefined
-): boolean {
-  const charInner = character?.["속마음"] ?? "";
-  const userInner = user?.["속마음"] ?? "";
-  // Crude: identical non-empty inner states often indicate POV collapse.
-  if (charInner.trim() && userInner.trim() && charInner.trim() === userInner.trim()) return true;
-  if (/걱정|불안|초조/.test(charInner) && /명령|출동|임무/.test(userInner)) return true;
-  return false;
+): { hardPovMix: boolean; notes: string[] } {
+  const notes: string[] = [];
+  const charInner = (character?.["속마음"] ?? "").trim();
+  const userInner = (user?.["속마음"] ?? "").trim();
+
+  if (isUnknownLikePlaceholder(charInner) && isUnknownLikePlaceholder(userInner)) {
+    notes.push("both character/user inner-state are unknown-like placeholders");
+  }
+
+  const charInstr = "NPC의 현재 속마음";
+  const userInstr = "유저의 현재 속마음";
+  if (userInner && looksLikeEcho(userInner, [charInstr, "NPC의 속마음"])) {
+    notes.push("user inner-state echoes character instruction");
+  }
+  if (charInner && looksLikeEcho(charInner, [userInstr, "유저의 속마음"])) {
+    notes.push("character inner-state echoes user instruction");
+  }
+
+  // Clear subject swap heuristics (role-flavored content on the wrong side).
+  const hardSwap =
+    (/걱정|불안|초조/.test(charInner) && /명령|출동|임무/.test(userInner)) ||
+    (Boolean(userInner) &&
+      Boolean(charInner) &&
+      /렌|유저/.test(charInner) &&
+      /레온|NPC|지휘관/.test(userInner));
+  if (hardSwap) {
+    notes.push("apparent subject swap between character/user inner-state");
+  }
+
+  // Wholesale namespace clone: many shared keys with identical non-empty values
+  // (ignore shared place/time which are often legitimately the same).
+  if (character && user) {
+    const sharedKeys = Object.keys(character).filter((k) => k in user && !/시간|시각|장소|place|time/i.test(k));
+    const cloned = sharedKeys.filter(
+      (k) => character[k]?.trim() && character[k].trim() === user[k]?.trim()
+    );
+    if (sharedKeys.length >= 2 && cloned.length >= 2) {
+      notes.push(`wholesale non-place/time clone across ${cloned.length}/${sharedKeys.length} fields`);
+    }
+  }
+
+  return { hardPovMix: hardSwap, notes };
 }
 
 async function main() {
@@ -199,7 +245,6 @@ async function main() {
   const { extractStatusWidgetValuesForTurn } = await import("../src/lib/statusWidget/extract");
   const { serializeStatusWidget } = await import("../src/lib/statusWidget/serialize");
   const { resolveStatusWidgetTurn } = await import("../src/lib/statusWidget/resolve");
-  const { isUnknownLikeStatusValue } = await import("../src/lib/statusWidget/temporalUnknown");
   const { dropRepairEchoFields } = await import("../src/lib/statusWidget/extractNormalize");
 
   const charJson = serializeStatusWidget(CHARACTER_WIDGET);
@@ -295,7 +340,8 @@ async function main() {
           ? dropRepairEchoFields(character, CHARACTER_WIDGET).droppedKeys
           : [];
         const echoUser = user ? dropRepairEchoFields(user, USER_WIDGET).droppedKeys : [];
-        const qualityNotes: string[] = [];
+        const pov = collectPovQualityNotes(character, user);
+        const qualityNotes: string[] = [...pov.notes];
         if (scenario.expectTime && character?.["시간"] && character["시간"] !== scenario.expectTime) {
           qualityNotes.push(`char time got ${character["시간"]} expect ${scenario.expectTime}`);
         }
@@ -329,12 +375,8 @@ async function main() {
           jsonParseOk: Boolean(character && user),
           characterUsableKeys: usableKeys(character),
           userUsableKeys: usableKeys(user),
-          temporalUnknown:
-            detectTemporalUnknown(character) ||
-            detectTemporalUnknown(user) ||
-            Object.values(character ?? {}).some((v) => isUnknownLikeStatusValue(v)) ||
-            Object.values(user ?? {}).some((v) => isUnknownLikeStatusValue(v)),
-          povMix: detectPovMix(character, user),
+          temporalUnknown: detectTemporalUnknown(character) || detectTemporalUnknown(user),
+          povMix: pov.hardPovMix,
           instructionEcho: echoChar.length + echoUser.length > 0 ||
             looksLikeEcho(character?.["속마음"], ["NPC의 속마음", "유저의 속마음"]) ||
             looksLikeEcho(user?.["속마음"], ["NPC의 속마음", "유저의 속마음"]),
@@ -382,7 +424,8 @@ async function main() {
           ? dropRepairEchoFields(character, CHARACTER_WIDGET).droppedKeys
           : [];
         const echoUser = user ? dropRepairEchoFields(user, USER_WIDGET).droppedKeys : [];
-        const qualityNotes: string[] = [];
+        const pov = collectPovQualityNotes(character, user);
+        const qualityNotes: string[] = [...pov.notes];
         if (scenario.expectTime && character?.["시간"] && character["시간"] !== scenario.expectTime) {
           qualityNotes.push(`char time got ${character["시간"]} expect ${scenario.expectTime}`);
         }
@@ -408,10 +451,8 @@ async function main() {
           jsonParseOk: Boolean(character && user),
           characterUsableKeys: usableKeys(character),
           userUsableKeys: usableKeys(user),
-          temporalUnknown:
-            detectTemporalUnknown(character) ||
-            detectTemporalUnknown(user),
-          povMix: detectPovMix(character, user),
+          temporalUnknown: detectTemporalUnknown(character) || detectTemporalUnknown(user),
+          povMix: pov.hardPovMix,
           instructionEcho:
             echoChar.length + echoUser.length > 0 ||
             looksLikeEcho(character?.["속마음"], ["NPC의 속마음", "유저의 속마음"]) ||
@@ -432,8 +473,91 @@ async function main() {
     }
   }
 
+  // Extra combined-only runs for the historically weak explicit-override scenario.
+  const EXTRA_B_OVERRIDE_RUNS = 4;
+  const overrideScenario = SCENARIOS.find((s) => s.id === "4_explicit_override");
+  if (overrideScenario) {
+    for (let run = RUNS_PER_CASE + 1; run <= RUNS_PER_CASE + EXTRA_B_OVERRIDE_RUNS; run += 1) {
+      const bothResolved = resolveStatusWidgetTurn({
+        characterWidgetJson: charJson,
+        userWidgetJson: userJson,
+        chatMode: "both",
+        displayMode: "both",
+        characterAllowUserOverride: true,
+      });
+      const started = Date.now();
+      const result = await extractStatusWidgetValuesForTurn({
+        charName: "레온",
+        personaName: "렌",
+        userMessage: overrideScenario.userMessage,
+        assistantProse: overrideScenario.assistantProse,
+        resolved: bothResolved,
+        previousValues: {
+          character: overrideScenario.previousCharacter,
+          user: overrideScenario.previousUser,
+        },
+        primaryModelId: MODEL,
+        caller,
+      });
+      const latencyMs = Date.now() - started;
+      const character = (result.values.character ?? null) as Record<string, string> | null;
+      const user = (result.values.user ?? null) as Record<string, string> | null;
+      const echoChar = character
+        ? dropRepairEchoFields(character, CHARACTER_WIDGET).droppedKeys
+        : [];
+      const echoUser = user ? dropRepairEchoFields(user, USER_WIDGET).droppedKeys : [];
+      const pov = collectPovQualityNotes(character, user);
+      const qualityNotes: string[] = [...pov.notes, "extra_B_override"];
+      if (
+        overrideScenario.expectPlace &&
+        character?.["장소"] &&
+        !character["장소"].includes(overrideScenario.expectPlace)
+      ) {
+        qualityNotes.push(`char place got ${character["장소"]} expect ~${overrideScenario.expectPlace}`);
+      }
+      if (character?.["장소"] === overrideScenario.previousCharacter["장소"]) {
+        qualityNotes.push("char place looks like previous copy");
+      }
+      const row: RunRow = {
+        scenarioId: overrideScenario.id,
+        path: "B_combined",
+        run,
+        callCount: result.meta.actualCallCount,
+        inputTokens: result.usage?.inputTokens ?? 0,
+        outputTokens: result.usage?.outputTokens ?? 0,
+        upstreamCostUsd: result.usage?.upstreamCostUsd ?? null,
+        finishReason: result.usage?.finishReason ?? null,
+        jsonParseOk: Boolean(character && user),
+        characterUsableKeys: usableKeys(character),
+        userUsableKeys: usableKeys(user),
+        temporalUnknown: detectTemporalUnknown(character) || detectTemporalUnknown(user),
+        povMix: pov.hardPovMix,
+        instructionEcho:
+          echoChar.length + echoUser.length > 0 ||
+          looksLikeEcho(character?.["속마음"], ["NPC의 속마음", "유저의 속마음"]) ||
+          looksLikeEcho(user?.["속마음"], ["NPC의 속마음", "유저의 속마음"]),
+        character,
+        user,
+        latencyMs,
+        qualityNotes,
+      };
+      rows.push(row);
+      fs.writeFileSync(
+        path.join(OUT, `${overrideScenario.id}_B_extra_run${run}.json`),
+        JSON.stringify(row, null, 2),
+        "utf8"
+      );
+      console.log(JSON.stringify({ ...row, character: undefined, user: undefined }));
+    }
+  }
+
   const pathA = rows.filter((r) => r.path === "A_dual_separate");
-  const pathB = rows.filter((r) => r.path === "B_combined");
+  const pathBMain = rows.filter(
+    (r) => r.path === "B_combined" && !r.qualityNotes.includes("extra_B_override")
+  );
+  const pathBExtra = rows.filter(
+    (r) => r.path === "B_combined" && r.qualityNotes.includes("extra_B_override")
+  );
   const sum = (xs: RunRow[], key: "inputTokens" | "outputTokens" | "callCount" | "latencyMs") =>
     xs.reduce((s, r) => s + r[key], 0);
   const sumUpstream = (xs: RunRow[]) =>
@@ -441,6 +565,18 @@ async function main() {
   const success = (xs: RunRow[]) =>
     xs.filter((r) => r.jsonParseOk && r.characterUsableKeys.length > 0 && r.userUsableKeys.length > 0)
       .length;
+  const gateFlags = (xs: RunRow[]) => ({
+    temporalUnknown: xs.filter((r) => r.temporalUnknown).length,
+    instructionEcho: xs.filter((r) => r.instructionEcho).length,
+    hardPovMix: xs.filter((r) => r.povMix).length,
+    bothInnerUnknown: xs.filter((r) =>
+      r.qualityNotes.some((n) => n.includes("both character/user inner-state"))
+    ).length,
+    previousCafeCopy: xs.filter((r) =>
+      r.qualityNotes.some((n) => n.includes("previous copy"))
+    ).length,
+    callCountNotOne: xs.filter((r) => r.path === "B_combined" && r.callCount !== 1).length,
+  });
 
   const report = {
     model: MODEL,
@@ -455,28 +591,58 @@ async function main() {
       latencyMs: sum(pathA, "latencyMs"),
       successRate: `${success(pathA)}/${pathA.length}`,
       avgCallCount: sum(pathA, "callCount") / pathA.length,
+      gates: gateFlags(pathA),
     },
     B: {
-      totalCallCount: sum(pathB, "callCount"),
-      inputTokens: sum(pathB, "inputTokens"),
-      outputTokens: sum(pathB, "outputTokens"),
-      upstreamCostUsd: sumUpstream(pathB),
-      latencyMs: sum(pathB, "latencyMs"),
-      successRate: `${success(pathB)}/${pathB.length}`,
-      avgCallCount: sum(pathB, "callCount") / pathB.length,
+      totalCallCount: sum(pathBMain, "callCount"),
+      inputTokens: sum(pathBMain, "inputTokens"),
+      outputTokens: sum(pathBMain, "outputTokens"),
+      upstreamCostUsd: sumUpstream(pathBMain),
+      latencyMs: sum(pathBMain, "latencyMs"),
+      successRate: `${success(pathBMain)}/${pathBMain.length}`,
+      avgCallCount: sum(pathBMain, "callCount") / pathBMain.length,
+      gates: gateFlags(pathBMain),
+    },
+    B_extra_override: {
+      runs: pathBExtra.length,
+      totalCallCount: sum(pathBExtra, "callCount"),
+      inputTokens: sum(pathBExtra, "inputTokens"),
+      outputTokens: sum(pathBExtra, "outputTokens"),
+      upstreamCostUsd: sumUpstream(pathBExtra),
+      successRate: `${success(pathBExtra)}/${pathBExtra.length}`,
+      gates: gateFlags(pathBExtra),
+      rows: pathBExtra,
     },
     savings: {
-      callCount: sum(pathA, "callCount") - sum(pathB, "callCount"),
-      inputTokens: sum(pathA, "inputTokens") - sum(pathB, "inputTokens"),
-      outputTokens: sum(pathA, "outputTokens") - sum(pathB, "outputTokens"),
-      upstreamCostUsd: sumUpstream(pathA) - sumUpstream(pathB),
+      callCount: sum(pathA, "callCount") - sum(pathBMain, "callCount"),
+      inputTokens: sum(pathA, "inputTokens") - sum(pathBMain, "inputTokens"),
+      outputTokens: sum(pathA, "outputTokens") - sum(pathBMain, "outputTokens"),
+      upstreamCostUsd: sumUpstream(pathA) - sumUpstream(pathBMain),
+      note: "upstreamCostUsd often null/0 from API — do not claim USD savings",
     },
     rows,
   };
 
   fs.writeFileSync(path.join(OUT, "summary.json"), JSON.stringify(report, null, 2), "utf8");
   console.log("\n=== A/B SUMMARY ===");
-  console.log(JSON.stringify({ model: report.model, A: report.A, B: report.B, savings: report.savings }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        model: report.model,
+        A: report.A,
+        B: report.B,
+        B_extra_override: {
+          runs: report.B_extra_override.runs,
+          successRate: report.B_extra_override.successRate,
+          gates: report.B_extra_override.gates,
+          totalCallCount: report.B_extra_override.totalCallCount,
+        },
+        savings: report.savings,
+      },
+      null,
+      2
+    )
+  );
   console.log("wrote", OUT);
 }
 

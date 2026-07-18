@@ -447,7 +447,13 @@ Rules:
 - The widget reflects the scene state at the END of this turn. If the turn contains multiple scenes or time skips, fill EVERY field from the LAST scene.
 - Never copy placeholders like "<scene value>", "…", "...", or "—" unless truly unknown.
 - Calendar/clock/season/weather: never output "—" just because prose omits them. Priority: (1) explicit prose/user (2) field instruction or initialValue (3) previous canonical anchor (4) invent one scene-consistent concrete value. Never output unknown/알 수 없음/미상/모름/N/A.
-- Inner-state fields: each field's instruction states WHOSE inner state to write — obey it exactly. Do not swap [CHARACTER] and [USER] emotions.
+- Inner-state fields (속마음, 의식의 흐름, 감정, thoughts, inner monologue):
+  - Infer each source's current scene reaction separately from that source's field instruction.
+  - Do not copy character and user emotions/inner states as one shared value across character_values and user_values.
+  - When the scene gives cues, write a short grounded current state per source — do not default to placeholders like 알 수 없음 / 미상 / 모름 / unknown.
+  - Unknown-like narrative values are allowed only when the scene is truly ambiguous OR the field instruction itself requires uncertainty.
+  - Identical strings across sources are fine when the scene genuinely warrants the same state; sameness alone is not an error.
+  - Obey each field's instruction for WHOSE inner state to write. Do not swap [CHARACTER] and [USER] subjects.
 - Do NOT copy field labels, instructions, or requirement phrases as values.
 - Prefer current-turn explicit change over previous canonical anchors.
 - Do NOT invent lore that contradicts the provided context.
@@ -492,7 +498,7 @@ export function buildCombinedDualWidgetExtractUserBlock(opts: {
     `[USER MESSAGE]\n${opts.userMessage}`,
     previousSlice ? `[PREVIOUS TURN ASSISTANT — prose only]\n${previousSlice}` : "",
     `[ASSISTANT REPLY — current turn prose only]\n${currentSlice}`,
-    `[REMINDER] character_values = [CHARACTER](${opts.charName}) widget only; user_values = [USER](${opts.personaName}) widget only. Obey each field instruction's subject. Prefer current explicit change over previous anchors. Do not copy instructions/labels as values.`,
+    `[REMINDER] character_values = [CHARACTER](${opts.charName}) widget only; user_values = [USER](${opts.personaName}) widget only. Infer inner-state per source from the current scene — do not share one emotion across both namespaces, and avoid unknown placeholders when scene cues exist. Obey each field instruction's subject. Prefer current explicit change over previous anchors. Do not copy instructions/labels as values.`,
   ]
     .filter(Boolean)
     .join("\n\n");
