@@ -392,6 +392,203 @@ export function promoteRecordsToBranchCanon(opts: {
   return n;
 }
 
+/**
+ * Distinct active branch_id count (same branch_id across rows = one branch).
+ * Invariant: <= 1 after reopen / single-active policy enforcement.
+ */
+export function countDistinctActiveBranchIds(chatId: number): number {
+  const rows = getDb()
+    .prepare(
+      `SELECT DISTINCT branch_id AS branch_id FROM chat_turn_summaries
+       WHERE chat_id=? AND summary_kind='branch_canon'
+         AND COALESCE(branch_status,'active')='active'
+         AND COALESCE(inactive,0)=0
+         AND branch_id IS NOT NULL AND TRIM(branch_id) != ''`
+    )
+    .all(chatId) as Array<{ branch_id: string }>;
+  return rows.length;
+}
+
+/** Distinct closed branch_id values (inactive excluded). */
+export function listDistinctClosedBranchIds(chatId: number): string[] {
+  const rows = getDb()
+    .prepare(
+      `SELECT DISTINCT branch_id AS branch_id FROM chat_turn_summaries
+       WHERE chat_id=? AND summary_kind='branch_canon'
+         AND COALESCE(branch_status,'active')='closed'
+         AND COALESCE(inactive,0)=0
+         AND branch_id IS NOT NULL AND TRIM(branch_id) != ''
+       ORDER BY branch_id ASC`
+    )
+    .all(chatId) as Array<{ branch_id: string }>;
+  return rows.map((r) => r.branch_id);
+}
+
+/**
+ * Deterministic sole-closed continue reopen gate (no keyword/LLM matching).
+ * Returns the sole closed branch_id, or null when ambiguous / not applicable.
+ */
+export function resolveSoleClosedContinueReopen(opts: {
+  hasActiveBranch: boolean;
+  hasNoncanonCandidate: boolean;
+  closedBranchIds: string[];
+  hasContinueIntent: boolean;
+}): string | null {
+  if (opts.hasActiveBranch || opts.hasNoncanonCandidate) return null;
+  if (!opts.hasContinueIntent) return null;
+  if (opts.closedBranchIds.length !== 1) return null;
+  return opts.closedBranchIds[0] ?? null;
+}
+
+/** Close every active branch_canon except keepBranchId (no deletion-stack provenance). */
+export function closeActiveBranchesExcept(chatId: number, keepBranchId: string): number {
+  const keep = keepBranchId.trim();
+  if (!keep) return 0;
+  const rows = getDb()
+    .prepare(
+      `${selectSql()} WHERE chat_id=? AND summary_kind='branch_canon'
+         AND COALESCE(branch_status,'active')='active'
+         AND COALESCE(inactive,0)=0
+         AND (branch_id IS NULL OR branch_id != ?)`
+    )
+    .all(chatId, keep) as MemoryRecordRow[];
+  for (const row of rows) {
+    setRowBranchStatusOnly(chatId, row, "closed");
+  }
+  return rows.length;
+}
+
+function setRowBranchStatusOnly(
+  chatId: number,
+  row: MemoryRecordRow,
+  nextStatus: BranchStatus
+): void {
+  const view = rowToView(row);
+  const basePayload = parseScopePayload(row.scope_payload) ?? {
+    v: 1 as const,
+    scopes: view.scopes,
+  };
+  const payload: ScopePayloadV1 = {
+    ...basePayload,
+    v: 1,
+    scopes: view.scopes,
+    branchId: view.branchId,
+    branchStatus: nextStatus,
+    promotedBy: view.promotedBy,
+    promotedAt: view.promotedAt,
+    // Preserve deletion-rollback stack; do not append reopen/close provenance here.
+    branchControlMutations: basePayload.branchControlMutations,
+  };
+  getDb()
+    .prepare(
+      `UPDATE chat_turn_summaries SET
+        branch_status=?,
+        scope_payload=?,
+        updated_at=datetime('now')
+       WHERE id=? AND chat_id=?`
+    )
+    .run(nextStatus, encodeScopePayload(payload), row.id, chatId);
+}
+
+export type ReopenClosedBranchResult =
+  | {
+      ok: true;
+      branchId: string;
+      reopenedRowIds: number[];
+      closedOtherRowIds: number[];
+    }
+  | { ok: false; reason: string };
+
+/**
+ * Reopen a closed branch_canon by branch_id (or resolve from recordId).
+ * Single-active policy: other active branches are closed first.
+ * Preserves branch_id / scopes / promoted_* ; no new branch_id; no LLM; no deletion-stack mutations.
+ */
+export function reopenClosedBranchCanon(opts: {
+  chatId: number;
+  branchId?: string | null;
+  recordId?: number | null;
+  /** Log-only label; not persisted to schema. */
+  source?: string;
+}): ReopenClosedBranchResult {
+  const db = getDb();
+  let targetBranchId = (opts.branchId ?? "").trim();
+
+  if (!targetBranchId && opts.recordId != null && opts.recordId > 0) {
+    const row = db
+      .prepare(`${selectSql()} WHERE id=? AND chat_id=?`)
+      .get(opts.recordId, opts.chatId) as MemoryRecordRow | undefined;
+    if (!row || (row.inactive ?? 0) === 1) {
+      return { ok: false, reason: "RECORD_NOT_FOUND" };
+    }
+    const view = rowToView(row);
+    if (view.summaryKind !== "branch_canon") {
+      return { ok: false, reason: "NOT_BRANCH_CANON" };
+    }
+    targetBranchId = (view.branchId ?? "").trim();
+  }
+
+  if (!targetBranchId) {
+    return { ok: false, reason: "MISSING_BRANCH_ID" };
+  }
+
+  const targetRows = db
+    .prepare(
+      `${selectSql()} WHERE chat_id=? AND summary_kind='branch_canon'
+         AND branch_id=? AND COALESCE(inactive,0)=0`
+    )
+    .all(opts.chatId, targetBranchId) as MemoryRecordRow[];
+
+  if (targetRows.length === 0) {
+    return { ok: false, reason: "BRANCH_NOT_FOUND" };
+  }
+
+  const closedOtherRowIds: number[] = [];
+  const reopenedRowIds: number[] = [];
+
+  const run = db.transaction(() => {
+    const beforeClose = db
+      .prepare(
+        `SELECT id FROM chat_turn_summaries
+         WHERE chat_id=? AND summary_kind='branch_canon'
+           AND COALESCE(branch_status,'active')='active'
+           AND COALESCE(inactive,0)=0
+           AND (branch_id IS NULL OR branch_id != ?)`
+      )
+      .all(opts.chatId, targetBranchId) as Array<{ id: number }>;
+    closeActiveBranchesExcept(opts.chatId, targetBranchId);
+    for (const r of beforeClose) closedOtherRowIds.push(r.id);
+
+    for (const row of targetRows) {
+      const status = (row.branch_status as BranchStatus | null) || "active";
+      if (status !== "active") {
+        setRowBranchStatusOnly(opts.chatId, row, "active");
+      } else {
+        const view = rowToView(row);
+        if (view.branchStatus !== "active") {
+          setRowBranchStatusOnly(opts.chatId, row, "active");
+        }
+      }
+      reopenedRowIds.push(row.id);
+    }
+  });
+
+  run();
+
+  if (opts.source) {
+    console.info(
+      `[memory] reopen branch chat=${opts.chatId} branchId=${targetBranchId} source=${opts.source} rows=${reopenedRowIds.length} closedOther=${closedOtherRowIds.length}`
+    );
+  }
+
+  return {
+    ok: true,
+    branchId: targetBranchId,
+    reopenedRowIds,
+    closedOtherRowIds,
+  };
+}
+
 export function closeActiveBranchCanon(
   chatId: number,
   control?: BranchControlSource | null
