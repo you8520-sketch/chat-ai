@@ -15,7 +15,12 @@ import { after, afterEach, beforeEach, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
 import { rollbackBranchControlMutationsForDeletedUserMessage } from "./memory-branch-control";
 import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
-import { shouldPromoteBranchContinue, type ScopePayloadV1 } from "./memory-summary-scope";
+import { reconcileMemoryAfterTurnDelete } from "./memory-reconcile";
+import {
+  parseScopePayload,
+  shouldPromoteBranchContinue,
+  type ScopePayloadV1,
+} from "./memory-summary-scope";
 import { persistValidatedSummaryBatch } from "./memory-summary-persist";
 import {
   closeActiveBranchCanon,
@@ -155,6 +160,39 @@ function insertMsg(role: "user" | "assistant", content: string): number {
       .prepare(`INSERT INTO messages (chat_id, role, content) VALUES (?,?,?)`)
       .run(CHAT, role, content).lastInsertRowid
   );
+}
+
+function lastUserAndAssistantIds(): { userId: number; assistantId: number } {
+  const rows = getDb()
+    .prepare(
+      `SELECT id, role FROM messages WHERE chat_id=? AND role IN ('user','assistant')
+       ORDER BY id DESC LIMIT 2`
+    )
+    .all(CHAT) as Array<{ id: number; role: string }>;
+  const assistant = rows.find((r) => r.role === "assistant");
+  const user = rows.find((r) => r.role === "user");
+  assert.ok(user && assistant);
+  return { userId: user!.id, assistantId: assistant!.id };
+}
+
+function userMessageIdByContent(content: string): number {
+  const row = getDb()
+    .prepare(
+      `SELECT id FROM messages WHERE chat_id=? AND role='user' AND content=?
+       ORDER BY id DESC LIMIT 1`
+    )
+    .get(CHAT, content) as { id: number } | undefined;
+  assert.ok(row, `missing user message: ${content}`);
+  return row!.id;
+}
+
+function branchMutations(recordId: number) {
+  const raw = (
+    getDb()
+      .prepare(`SELECT scope_payload FROM chat_turn_summaries WHERE id=?`)
+      .get(recordId) as { scope_payload: string | null }
+  ).scope_payload;
+  return parseScopePayload(raw)?.branchControlMutations ?? [];
 }
 
 const CONTINUE_SCENE =
@@ -797,5 +835,295 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
     assert.equal(ok, true);
     assert.equal(row(idA).branchStatus, "closed");
     assert.equal(countDistinctActiveBranchIds(CHAT), 0);
+  });
+
+  it("blocker-A: auto-reopen provenance rolls back on source turn delete", async () => {
+    const idA = persistBranch({
+      turnStart: 1,
+      branchId: "branch-A",
+      status: "closed",
+      text: TEXT_A,
+    });
+    seedPlayableTurns(12, (t) =>
+      t === 12
+        ? { user: "아까 IF 이어서", assistant: CONTINUE_SCENE }
+        : { user: `본편 턴 ${t}`, assistant: `본편 응답 ${t}` }
+    );
+    const resumeUserId = userMessageIdByContent("아까 IF 이어서");
+    let mainCalls = 0;
+    __setSummarizeTurnBatchCallerForTests(async () => {
+      mainCalls += 1;
+      return { text: MAIN_TEXT };
+    });
+    assert.equal(
+      await processRollingSummaryBatch({
+        chatId: CHAT,
+        userId: USER,
+        characterId: CHAR,
+        charName: "ReopenChar",
+        tier: "free",
+        memoryCapacity: 8000,
+      }),
+      true
+    );
+    assert.equal(row(idA).branchStatus, "active");
+    const stack = branchMutations(idA);
+    assert.equal(stack.length, 1);
+    assert.equal(stack[0]!.action, "reopen_branch");
+    assert.equal(stack[0]!.source, "user_turn");
+    assert.equal(stack[0]!.sourceUserMessageId, resumeUserId);
+    assert.equal(stack[0]!.previous.branchStatus, "closed");
+
+    const { userId: delUser, assistantId: delAsst } = lastUserAndAssistantIds();
+    assert.equal(delUser, resumeUserId);
+    getDb().prepare("DELETE FROM messages WHERE id IN (?,?)").run(delUser, delAsst);
+    mainCalls = 0;
+    __setSummarizeTurnBatchCallerForTests(async () => {
+      mainCalls += 1;
+      return { text: MAIN_TEXT };
+    });
+    assert.equal(
+      reconcileMemoryAfterTurnDelete({
+        chatId: CHAT,
+        userId: USER,
+        characterId: CHAR,
+        charName: "ReopenChar",
+        tier: "free",
+        memoryCapacity: 8000,
+        deletedUserMessageId: delUser,
+        deletedPlayableTurn: 12,
+      }),
+      true
+    );
+    assert.equal(mainCalls, 0);
+    assert.equal(row(idA).branchStatus, "closed");
+    assert.equal(branchMutations(idA).length, 0);
+    assert.equal(
+      listMemoryRecordsForChat(CHAT).some((r) => r.turnStart === 7),
+      false
+    );
+    const lore = rebuildLorebookFromRecords(CHAT);
+    assert.doesNotMatch(lore, /분기A/);
+    assert.equal(countDistinctActiveBranchIds(CHAT), 0);
+  });
+
+  it("blocker-B: UI reopen is not rolled back by unrelated message delete", () => {
+    const idA = persistBranch({
+      turnStart: 1,
+      branchId: "branch-A",
+      status: "closed",
+      text: TEXT_A,
+    });
+    reopenClosedBranchCanon({ chatId: CHAT, recordId: idA, source: "ui_reopen" });
+    assert.equal(row(idA).branchStatus, "active");
+    assert.equal(branchMutations(idA).length, 0);
+    const unrelated = insertMsg("user", "본편으로 돌아가자");
+    getDb().prepare("DELETE FROM messages WHERE id=?").run(unrelated);
+    assert.equal(rollbackBranchControlMutationsForDeletedUserMessage(CHAT, unrelated), 0);
+    assert.equal(row(idA).branchStatus, "active");
+  });
+
+  it("blocker-C: current-batch pre-resume noncanon blocks sole-closed auto reopen", async () => {
+    const idA = persistBranch({
+      turnStart: 1,
+      branchId: "branch-A",
+      status: "closed",
+      text: TEXT_A,
+    });
+    seedPlayableTurns(12, (t) => {
+      if (t <= 9) {
+        return {
+          user:
+            t === 7
+              ? "(OOC: 학교 배경 IF에서 시험 전날 대화를 나눈다)"
+              : `학교 IF 이어 ${t}`,
+          assistant: `${TEXT_B} 비트 ${t}`,
+        };
+      }
+      if (t === 10) {
+        return { user: "아까 IF 이어서", assistant: CONTINUE_SCENE };
+      }
+      return {
+        user: `학교 IF 계속 ${t}`,
+        assistant: `${TEXT_B} 추가 ${t}`,
+      };
+    });
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: MAIN_TEXT }));
+    assert.equal(
+      await processRollingSummaryBatch({
+        chatId: CHAT,
+        userId: USER,
+        characterId: CHAR,
+        charName: "ReopenChar",
+        tier: "free",
+        memoryCapacity: 8000,
+      }),
+      true
+    );
+    assert.equal(row(idA).branchStatus, "closed");
+    assert.equal(branchMutations(idA).length, 0);
+    assert.equal(countDistinctActiveBranchIds(CHAT), 0);
+    const batch2 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === 7)!;
+    assert.ok(batch2);
+    assert.notEqual(batch2.branchId, "branch-A");
+    assert.ok(batch2.scopes.branch_canon || batch2.scopes.noncanon);
+    assert.match(
+      `${batch2.scopes.branch_canon ?? ""} ${batch2.scopes.noncanon ?? ""}`,
+      /학교|시험|분기B/
+    );
+    const lore = rebuildLorebookFromRecords(CHAT);
+    assert.doesNotMatch(lore, /분기A/);
+  });
+
+  it("blocker-D: resume → close keeps final closed; delete close then resume restores", async () => {
+    const idA = persistBranch({
+      turnStart: 1,
+      branchId: "branch-A",
+      status: "closed",
+      text: TEXT_A,
+    });
+    seedPlayableTurns(12, (t) => {
+      if (t === 10) return { user: "아까 IF 이어서", assistant: CONTINUE_SCENE };
+      if (t === 12) {
+        return { user: "본편으로 돌아가자", assistant: "본편으로 돌아간다." };
+      }
+      if (t === 11) {
+        // Must not match isExplicitClosedBranchContinueIntent (surviving false-positive).
+        return { user: "계약서에 서명한다.", assistant: `${CONTINUE_SCENE} 11` };
+      }
+      return { user: `본편 턴 ${t}`, assistant: `본편 응답 ${t}` };
+    });
+    const resumeUserId = userMessageIdByContent("아까 IF 이어서");
+    const closeUserId = userMessageIdByContent("본편으로 돌아가자");
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: MAIN_TEXT }));
+    assert.equal(
+      await processRollingSummaryBatch({
+        chatId: CHAT,
+        userId: USER,
+        characterId: CHAR,
+        charName: "ReopenChar",
+        tier: "free",
+        memoryCapacity: 8000,
+      }),
+      true
+    );
+    assert.equal(row(idA).branchStatus, "closed");
+    assert.equal(countDistinctActiveBranchIds(CHAT), 0);
+    const stack = branchMutations(idA);
+    assert.equal(stack.length, 2);
+    assert.equal(stack[0]!.action, "reopen_branch");
+    assert.equal(stack[0]!.sourceUserMessageId, resumeUserId);
+    assert.equal(stack[1]!.action, "close_branch");
+    assert.equal(stack[1]!.sourceUserMessageId, closeUserId);
+
+    const closeAsst = (
+      getDb()
+        .prepare(
+          `SELECT id FROM messages WHERE chat_id=? AND role='assistant' ORDER BY id DESC LIMIT 1`
+        )
+        .get(CHAT) as { id: number }
+    ).id;
+    getDb().prepare("DELETE FROM messages WHERE id IN (?,?)").run(closeUserId, closeAsst);
+    assert.equal(
+      reconcileMemoryAfterTurnDelete({
+        chatId: CHAT,
+        userId: USER,
+        characterId: CHAR,
+        charName: "ReopenChar",
+        tier: "free",
+        memoryCapacity: 8000,
+        deletedUserMessageId: closeUserId,
+        deletedPlayableTurn: 12,
+      }),
+      true
+    );
+    assert.equal(row(idA).branchStatus, "active");
+    assert.equal(branchMutations(idA).length, 1);
+    assert.equal(branchMutations(idA)[0]!.action, "reopen_branch");
+
+    getDb().prepare("DELETE FROM messages WHERE id=?").run(resumeUserId);
+    assert.equal(rollbackBranchControlMutationsForDeletedUserMessage(CHAT, resumeUserId), 1);
+    assert.equal(row(idA).branchStatus, "closed");
+    assert.equal(branchMutations(idA).length, 0);
+  });
+
+  it("blocker-E: resume → main adopt closes A; adopt delete restores active via resume", async () => {
+    const idA = persistBranch({
+      turnStart: 1,
+      branchId: "branch-A",
+      status: "closed",
+      text: TEXT_A,
+    });
+    seedPlayableTurns(12, (t) => {
+      if (t === 10) return { user: "아까 IF 이어서", assistant: CONTINUE_SCENE };
+      if (t === 12) {
+        return {
+          user: "이걸 본편으로 확정",
+          assistant: "본편 타임라인으로 반영한다.",
+        };
+      }
+      if (t === 11) {
+        return { user: "계약서에 서명한다.", assistant: `${CONTINUE_SCENE} 11` };
+      }
+      return { user: `본편 턴 ${t}`, assistant: `본편 응답 ${t}` };
+    });
+    const resumeUserId = userMessageIdByContent("아까 IF 이어서");
+    const adoptUserId = userMessageIdByContent("이걸 본편으로 확정");
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: MAIN_TEXT }));
+    assert.equal(
+      await processRollingSummaryBatch({
+        chatId: CHAT,
+        userId: USER,
+        characterId: CHAR,
+        charName: "ReopenChar",
+        tier: "free",
+        memoryCapacity: 8000,
+      }),
+      true
+    );
+    assert.equal(row(idA).branchStatus, "closed");
+    assert.equal(countDistinctActiveBranchIds(CHAT), 0);
+    const batch2 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === 7)!;
+    assert.equal(batch2.summaryKind, "main_canon");
+    assert.ok(batch2.scopes.main_canon);
+    assert.equal(batch2.scopes.branch_canon, undefined);
+    assert.match(batch2.scopes.main_canon ?? "", /회사 IF|계약|아까 IF|본편/);
+    const lore = rebuildLorebookFromRecords(CHAT);
+    assert.doesNotMatch(lore, /분기A/);
+    const stack = branchMutations(idA);
+    assert.equal(stack.length, 2);
+    assert.equal(stack[0]!.action, "reopen_branch");
+    assert.equal(stack[0]!.sourceUserMessageId, resumeUserId);
+    assert.equal(stack[1]!.action, "close_branch");
+    assert.equal(stack[1]!.sourceUserMessageId, adoptUserId);
+
+    const adoptAsst = (
+      getDb()
+        .prepare(
+          `SELECT id FROM messages WHERE chat_id=? AND role='assistant' ORDER BY id DESC LIMIT 1`
+        )
+        .get(CHAT) as { id: number }
+    ).id;
+    getDb().prepare("DELETE FROM messages WHERE id IN (?,?)").run(adoptUserId, adoptAsst);
+    assert.equal(
+      reconcileMemoryAfterTurnDelete({
+        chatId: CHAT,
+        userId: USER,
+        characterId: CHAR,
+        charName: "ReopenChar",
+        tier: "free",
+        memoryCapacity: 8000,
+        deletedUserMessageId: adoptUserId,
+        deletedPlayableTurn: 12,
+      }),
+      true
+    );
+    assert.equal(row(idA).branchStatus, "active");
+    assert.equal(countDistinctActiveBranchIds(CHAT), 1);
+    assert.equal(branchMutations(idA)[0]!.action, "reopen_branch");
+
+    getDb().prepare("DELETE FROM messages WHERE id=?").run(resumeUserId);
+    assert.equal(rollbackBranchControlMutationsForDeletedUserMessage(CHAT, resumeUserId), 1);
+    assert.equal(row(idA).branchStatus, "closed");
   });
 });

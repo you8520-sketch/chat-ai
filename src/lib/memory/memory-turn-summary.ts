@@ -424,26 +424,7 @@ export function listDistinctClosedBranchIds(chatId: number): string[] {
   return rows.map((r) => r.branch_id);
 }
 
-/**
- * Strict sole-closed auto-reopen intent only.
- * Must NOT reuse shouldPromoteBranchContinue / looksLikeInSceneDialogueOrAction —
- * ordinary RP actions/dialogue must never reopen a past closed IF.
- * Bare "계속"/"이어서" are also excluded (timeline-ambiguous).
- */
-const EXPLICIT_CLOSED_BRANCH_CONTINUE_RE =
-  /(?:아까\s*(?:그\s*)?IF|IF\s*이어|(?:그|이|해당)\s*분기\s*(?:다시\s*)?(?:이어|계속)|아까\s*(?:그\s*)?(?:IF|분기|번외|비정사)[\s\S]{0,32}(?:이어|계속|진행)|(?:이어|계속|다시\s*이어)[\s\S]{0,32}(?:아까\s*)?(?:그\s*)?(?:IF|분기))/i;
-
-export function isExplicitClosedBranchContinueIntent(userMessage: string): boolean {
-  const t = userMessage.trim();
-  if (!t) return false;
-  const normalized = t
-    .replace(/^\(?\s*OOC\s*[:：]?\s*/i, "")
-    .replace(/\)\s*$/i, "")
-    .trim();
-  // Bare continue is too common in main RP to pick a past closed branch.
-  if (/^(?:계속|이어서)$/i.test(normalized)) return false;
-  return EXPLICIT_CLOSED_BRANCH_CONTINUE_RE.test(t);
-}
+export { isExplicitClosedBranchContinueIntent } from "./memory-summary-scope";
 
 /**
  * Deterministic sole-closed continue reopen gate (no LLM / no scene-dialogue guess).
@@ -524,7 +505,11 @@ export type ReopenClosedBranchResult =
 /**
  * Reopen a closed branch_canon by branch_id (or resolve from recordId).
  * Single-active policy: other active branches are closed first.
- * Preserves branch_id / scopes / promoted_* ; no new branch_id; no LLM; no deletion-stack mutations.
+ * Preserves branch_id / scopes / promoted_* ; no new branch_id; no LLM.
+ *
+ * user_turn control (seal auto-reopen): appends reopen_branch provenance for
+ * each closed→active row so last-turn delete can restore prior closed.
+ * UI reopen: omit control or use source=ui without user_turn stack entries.
  */
 export function reopenClosedBranchCanon(opts: {
   chatId: number;
@@ -532,6 +517,8 @@ export function reopenClosedBranchCanon(opts: {
   recordId?: number | null;
   /** Log-only label; not persisted to schema. */
   source?: string;
+  /** When source=user_turn with message id, records reopen_branch mutations. */
+  control?: BranchControlSource | null;
 }): ReopenClosedBranchResult {
   const db = getDb();
   let targetBranchId = (opts.branchId ?? "").trim();
@@ -565,6 +552,11 @@ export function reopenClosedBranchCanon(opts: {
     return { ok: false, reason: "BRANCH_NOT_FOUND" };
   }
 
+  const recordUserTurnProvenance =
+    opts.control?.source === "user_turn" &&
+    opts.control.sourceUserMessageId != null &&
+    opts.control.sourceUserMessageId > 0;
+
   const closedOtherRowIds: number[] = [];
   const reopenedRowIds: number[] = [];
 
@@ -582,14 +574,51 @@ export function reopenClosedBranchCanon(opts: {
     for (const r of beforeClose) closedOtherRowIds.push(r.id);
 
     for (const row of targetRows) {
-      const status = (row.branch_status as BranchStatus | null) || "active";
-      if (status !== "active") {
-        setRowBranchStatusOnly(opts.chatId, row, "active");
+      const view = rowToView(row);
+      const wasClosed = view.branchStatus !== "active";
+      if (!wasClosed) {
+        reopenedRowIds.push(row.id);
+        continue;
+      }
+
+      if (recordUserTurnProvenance) {
+        const previous = snapshotBranchControlPrevious({
+          id: view.id,
+          summaryKind: view.summaryKind,
+          scopes: view.scopes,
+          branchId: view.branchId,
+          branchStatus: view.branchStatus,
+          promotedBy: view.promotedBy,
+          promotedAt: view.promotedAt,
+          inactive: view.inactive,
+          scopePayloadRaw: row.scope_payload ?? null,
+        });
+        const basePayload = parseScopePayload(row.scope_payload) ?? {
+          v: 1 as const,
+          scopes: view.scopes,
+          branchControlMutations: [],
+        };
+        const payload = appendBranchControlMutation(
+          {
+            ...basePayload,
+            v: 1,
+            scopes: view.scopes,
+            branchId: view.branchId,
+            branchStatus: "active",
+            promotedBy: view.promotedBy,
+            promotedAt: view.promotedAt,
+          },
+          buildBranchControlMutation("reopen_branch", previous, opts.control)
+        );
+        db.prepare(
+          `UPDATE chat_turn_summaries SET
+            branch_status='active',
+            scope_payload=?,
+            updated_at=datetime('now')
+           WHERE id=? AND chat_id=?`
+        ).run(encodeScopePayload(payload), row.id, opts.chatId);
       } else {
-        const view = rowToView(row);
-        if (view.branchStatus !== "active") {
-          setRowBranchStatusOnly(opts.chatId, row, "active");
-        }
+        setRowBranchStatusOnly(opts.chatId, row, "active");
       }
       reopenedRowIds.push(row.id);
     }

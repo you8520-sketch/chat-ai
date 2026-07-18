@@ -11,7 +11,10 @@ import { ROLLING_SUMMARY_MAX_CHARS, ROLLING_SUMMARY_MIN_CHARS, LOREBOOK_COMPACT_
 import { clampMemoryRecordSummary } from "./memory-summary-clamp";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
 import { isMemoryFeatureEnabled } from "./memory-feature";
-import { findBatchControlSource } from "./memory-branch-control";
+import {
+  findBatchControlSource,
+  type BranchControlSource,
+} from "./memory-branch-control";
 import {
   loadChatTurnsWithMessageIds,
   rebuildLorebookFromRecords,
@@ -24,6 +27,20 @@ import {
   isExplicitClosedBranchContinueIntent,
   type MemoryRecordView,
 } from "./memory-turn-summary";
+
+/** Post-persist branch control ops, ordered by source turn (compose must not apply these). */
+type PendingBranchControlOp =
+  | {
+      op: "reopen_branch";
+      branchId: string;
+      sourceTurn: number;
+      control: BranchControlSource;
+    }
+  | {
+      op: "close_active_branches";
+      sourceTurn: number;
+      control: BranchControlSource;
+    };
 import {
   isTurnEligibleForMemoryRecord,
   stripOocFromMemorySummary,
@@ -368,10 +385,15 @@ type ComposedBatchScope =
       reasonTag: string;
       mainModelCalls: number;
       /**
-       * Sole-closed reopen decided during compose but applied only after
-       * successful persist (atomicity — no DB reopen on compose failure).
+       * Sole-closed reopen branch id (compose-only signal for scope attach).
+       * Actual DB reopen is applied via pendingBranchControlOps after persist.
        */
       pendingSoleClosedReopenId: string | null;
+      /**
+       * Branch control ops in source-turn order — applied only after successful persist.
+       * Typical: reopen_branch → close_active_branches (resume then close/adopt).
+       */
+      pendingBranchControlOps: PendingBranchControlOp[];
     }
   | { ok: false; reason: string };
 
@@ -405,7 +427,7 @@ async function composeBatchScopePayload(opts: {
       r.summaryKind === "branch_canon" &&
       r.branchStatus === "active"
   );
-  const hasNoncanonCandidate = opts.priorRecords.some(
+  const hasPriorDbNoncanon = opts.priorRecords.some(
     (r) => !r.inactive && r.summaryKind === "noncanon"
   );
   const closedBranchIds = listDistinctClosedBranchIds(opts.chatId);
@@ -419,6 +441,26 @@ async function composeBatchScopePayload(opts: {
   );
   const resumeSourceTurnIndex = resumeSourceEntry?.turnIndex ?? null;
   const hasExplicitSoleClosedContinueIntent = resumeSourceTurnIndex != null;
+
+  // Pre-resume turns in the sealing batch count as noncanon candidates (not only prior DB).
+  let hasBatchPreResumeNoncanon = false;
+  if (resumeSourceTurnIndex != null) {
+    const preResumeEntries = opts.allEntries.filter(
+      (e) => e.turnIndex < resumeSourceTurnIndex
+    );
+    if (preResumeEntries.length > 0) {
+      const preResumePlan = classifyMemoryBatchScopes(preResumeEntries, {
+        previousWasNoncanonOrBranch: opts.previousWasNoncanonOrBranch,
+      });
+      hasBatchPreResumeNoncanon =
+        preResumePlan.noncanonTurns.length > 0 ||
+        preResumePlan.primaryKind === "noncanon" ||
+        preResumePlan.primaryKind === "branch_canon" ||
+        preResumePlan.wantsBranchContinue;
+    }
+  }
+  const hasNoncanonCandidate = hasPriorDbNoncanon || hasBatchPreResumeNoncanon;
+
   const pendingSoleClosedReopenId =
     opts.mode === "seal"
       ? resolveSoleClosedContinueReopen({
@@ -495,6 +537,7 @@ async function composeBatchScopePayload(opts: {
     previousWasNoncanonOrBranch: opts.previousWasNoncanonOrBranch,
   });
   const closeSrc = findBatchControlSource(opts.allEntries, "branch_close");
+  const adoptSrc = findBatchControlSource(opts.allEntries, "main_adopt");
 
   const activePriorBranch = opts.priorRecords.find(
     (r) =>
@@ -504,18 +547,63 @@ async function composeBatchScopePayload(opts: {
       !!r.branchId?.trim()
   );
 
-  if (opts.mode === "seal" && plan.wantsBranchClose) {
-    closeActiveBranchCanon(
-      opts.chatId,
-      closeSrc?.userMessageId
-        ? {
+  // Compose never mutates branch control rows — queue ops in source-turn order.
+  const pendingBranchControlOps: PendingBranchControlOp[] = [];
+  if (opts.mode === "seal") {
+    type Staged = { sourceTurn: number; op: PendingBranchControlOp };
+    const staged: Staged[] = [];
+    if (pendingSoleClosedReopenId && resumeSourceEntry && resumeSourceTurnIndex != null) {
+      staged.push({
+        sourceTurn: resumeSourceTurnIndex,
+        op: {
+          op: "reopen_branch",
+          branchId: pendingSoleClosedReopenId,
+          sourceTurn: resumeSourceTurnIndex,
+          control: {
+            source: "user_turn",
+            sourceUserMessageId: resumeSourceEntry.userMessageId ?? null,
+            sourceTurn: resumeSourceTurnIndex,
+            sourceBatchStart: opts.batchStart,
+          },
+        },
+      });
+    }
+    if (plan.wantsBranchClose && closeSrc) {
+      staged.push({
+        sourceTurn: closeSrc.turnIndex,
+        op: {
+          op: "close_active_branches",
+          sourceTurn: closeSrc.turnIndex,
+          control: {
             source: "user_turn",
             sourceUserMessageId: closeSrc.userMessageId,
             sourceTurn: closeSrc.turnIndex,
             sourceBatchStart: opts.batchStart,
-          }
-        : { source: "user_turn", sourceBatchStart: opts.batchStart }
-    );
+          },
+        },
+      });
+    } else if (
+      plan.wantsMainAdopt &&
+      adoptSrc &&
+      (pendingSoleClosedReopenId || !!activePriorBranch)
+    ) {
+      // Adopt must close cross-row active branch after any reopen (no active A left in LTM).
+      staged.push({
+        sourceTurn: adoptSrc.turnIndex,
+        op: {
+          op: "close_active_branches",
+          sourceTurn: adoptSrc.turnIndex,
+          control: {
+            source: "user_turn",
+            sourceUserMessageId: adoptSrc.userMessageId,
+            sourceTurn: adoptSrc.turnIndex,
+            sourceBatchStart: opts.batchStart,
+          },
+        },
+      });
+    }
+    staged.sort((a, b) => a.sourceTurn - b.sourceTurn);
+    for (const s of staged) pendingBranchControlOps.push(s.op);
   }
 
   if (plan.preferenceTurns.length > 0) {
@@ -560,8 +648,10 @@ async function composeBatchScopePayload(opts: {
         promotedAt = existing.promotedAt;
       } else if (pendingSoleClosedReopenId) {
         // Attach branch scope to the pending sole-closed branch — never mint a new id.
+        // Final status may be closed when the same batch later closes/adopts (ops after persist).
         branchId = pendingSoleClosedReopenId;
-        branchStatus = "active";
+        branchStatus =
+          plan.wantsBranchClose || plan.wantsMainAdopt ? "closed" : "active";
         promotedBy = "user_continue";
         promotedAt = new Date().toISOString();
       } else if (
@@ -631,7 +721,8 @@ async function composeBatchScopePayload(opts: {
     reasonTag = "SUMMARY_OOC_PLACEHOLDER";
     if (pendingSoleClosedReopenId) {
       branchId = pendingSoleClosedReopenId;
-      branchStatus = "active";
+      branchStatus =
+        plan.wantsBranchClose || plan.wantsMainAdopt ? "closed" : "active";
     }
   } else if (
     mainEntries.length > 0 &&
@@ -742,6 +833,7 @@ async function composeBatchScopePayload(opts: {
     reasonTag,
     mainModelCalls,
     pendingSoleClosedReopenId,
+    pendingBranchControlOps,
   };
 }
 
@@ -795,18 +887,24 @@ async function persistComposedBatchScopes(opts: {
     return false;
   }
 
-  // Apply sole-closed reopen only after successful persist (compose never mutates).
-  if (opts.composed.pendingSoleClosedReopenId) {
-    reopenClosedBranchCanon({
-      chatId: opts.chatId,
-      branchId: opts.composed.pendingSoleClosedReopenId,
-      source: "seal_sole_closed_continue",
-    });
+  // Apply pending branch control in source-turn order after successful persist.
+  const pendingOps = opts.composed.pendingBranchControlOps ?? [];
+  for (const pending of pendingOps) {
+    if (pending.op === "reopen_branch") {
+      reopenClosedBranchCanon({
+        chatId: opts.chatId,
+        branchId: pending.branchId,
+        source: "seal_sole_closed_continue",
+        control: pending.control,
+      });
+    } else if (pending.op === "close_active_branches") {
+      closeActiveBranchCanon(opts.chatId, pending.control);
+    }
   }
 
   const lorebookBudget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity).lorebook;
   let currentMemory = rebuildLorebookFromRecords(opts.chatId);
-  if (opts.composed.pendingSoleClosedReopenId) {
+  if (pendingOps.length > 0) {
     updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
       recent_summary: currentMemory,
       membership_tier: opts.tier,
