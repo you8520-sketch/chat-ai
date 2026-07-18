@@ -199,6 +199,7 @@ import {
   type RemovalTraceStep,
 } from "@/lib/removalTrace";
 import {
+  BILLING_BREAKDOWN_KEYWORD_LOREBOOK_LABEL,
   canShowFullBillingReceipt,
   sanitizeUsageForPublicReceipt,
 } from "@/lib/billingReceiptAccess";
@@ -2357,13 +2358,27 @@ export async function POST(req: Request) {
 
         let narrativeContextEst = 0;
         let currentMemoryEst = 0;
+        let keywordLoreEst = 0;
+        let keywordLoreFromTracked = false;
         for (const s of trackedSectionsRef) {
           const t = estimateTokens(s.text);
           if (s.id === "recent-narrative-context") narrativeContextEst += t;
           else if (s.id === "current-memory") currentMemoryEst += t;
+          else if (s.id === "keyword-lorebook") {
+            keywordLoreEst += t;
+            keywordLoreFromTracked = true;
+          }
         }
         if (narrativeContextEst === 0 && currentMemoryEst === 0) {
           currentMemoryEst = memoryEst;
+        }
+        // OpenRouter puts keyword lore in dynamic user prefix (not trackedSections/worldLore).
+        if (!keywordLoreFromTracked && keywordLorebookBlock) {
+          keywordLoreEst = estimateTokens(keywordLorebookBlock);
+        }
+        // Gemini tracks keyword lore under worldLore → rolled into 캐릭터 프롬프트; split it out.
+        if (keywordLoreFromTracked && keywordLoreEst > 0) {
+          charPromptEst = Math.max(0, charPromptEst - keywordLoreEst);
         }
 
         // raw = 전체 대화 → trimHistoryToBudget(전 모델 10K + 최소 4턴 floor)
@@ -2380,6 +2395,7 @@ export async function POST(req: Request) {
           { label: "시스템 프롬프트 (고정 규칙)", est: sysRulesEst },
           { label: "장기 기억 (현재기억)", est: currentMemoryEst },
           { label: "선택 페르소나", est: personaEst },
+          { label: BILLING_BREAKDOWN_KEYWORD_LOREBOOK_LABEL, est: keywordLoreEst },
           { label: "유저 노트", est: userNoteEst },
           { label: "에셋 태그", est: assetTagEst },
           { label: "관계 메모", est: memoryMetaEst },
