@@ -8,6 +8,12 @@ import { cn, studioType } from "@/lib/studioDesign";
 import { listableWhere } from "@/lib/characterVisibility";
 import { decorateCharactersWithCreatorTiers } from "@/lib/creatorTierBadges";
 import {
+  CHARACTER_GENRES,
+  genreFilterSql,
+  isCharacterGenre,
+  type CharacterGenre,
+} from "@/lib/characterGenres";
+import {
   buildCharacterSearchSql,
   isValidSearchQuery,
   sanitizeSearchQuery,
@@ -55,13 +61,23 @@ const MATCH_LABEL = {
   tag: "태그",
 } as const;
 
+function searchHref(opts: { q?: string; g?: string }): string {
+  const params = new URLSearchParams();
+  if (opts.q) params.set("q", opts.q);
+  if (opts.g) params.set("g", opts.g);
+  const qs = params.toString();
+  return qs ? `/search?${qs}` : "/search";
+}
+
 export default async function SearchPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; g?: string }>;
 }) {
-  const { q: rawQ } = await searchParams;
+  const { q: rawQ, g: rawG } = await searchParams;
   const query = sanitizeSearchQuery(rawQ ?? "");
+  const genre =
+    rawG && isCharacterGenre(rawG.trim()) ? (rawG.trim() as CharacterGenre) : null;
   const db = getDb();
   const user = await getSessionUser();
   const blurNsfw = !user?.is_adult || !user?.nsfw_on;
@@ -70,18 +86,8 @@ export default async function SearchPage({
   const audiencePref =
     user?.pref === "female" || user?.pref === "male" ? user.pref : undefined;
 
-  let chars: CharacterRow[] = [];
-  if (isValidSearchQuery(query)) {
-    const like = searchSqlLikePattern(query);
-    const { sql, filterParams } = buildCharacterSearchSql({ audiencePref, blurNsfw });
-    chars = decorateCharactersWithCreatorTiers(
-      db,
-      db.prepare(sql).all(like, like, like, ...filterParams, like, like) as CharacterRow[]
-    );
-  }
-
   const conds: string[] = [];
-  const fparams: string[] = [];
+  const fparams: unknown[] = [];
   if (audiencePref) {
     conds.push("(audience='all' OR audience=?)");
     fparams.push(audiencePref);
@@ -89,19 +95,98 @@ export default async function SearchPage({
   if (blurNsfw) conds.push("nsfw=0");
   const filter = conds.length ? `AND ${conds.join(" AND ")}` : "";
 
+  let chars: CharacterRow[] = [];
+  const hasQuery = isValidSearchQuery(query);
+
+  if (hasQuery) {
+    const like = searchSqlLikePattern(query);
+    if (genre) {
+      const genreClause = genreFilterSql(genre);
+      chars = decorateCharactersWithCreatorTiers(
+        db,
+        db
+          .prepare(
+            `
+            SELECT * FROM characters
+            WHERE (name LIKE ? OR creator_name LIKE ? OR EXISTS (
+              SELECT 1 FROM json_each(COALESCE(NULLIF(tags, ''), '[]')) je WHERE je.value LIKE ?
+            ))
+              AND ${listableWhere()} ${filter}
+              AND ${genreClause.sql}
+            ORDER BY
+              (CASE WHEN name LIKE ? THEN 0 WHEN creator_name LIKE ? THEN 1 ELSE 2 END) ASC,
+              likes DESC, id DESC
+            LIMIT 60
+          `
+          )
+          .all(like, like, like, ...fparams, ...genreClause.params, like, like) as CharacterRow[]
+      );
+    } else {
+      const { sql, filterParams } = buildCharacterSearchSql({ audiencePref, blurNsfw });
+      chars = decorateCharactersWithCreatorTiers(
+        db,
+        db.prepare(sql).all(like, like, like, ...filterParams, like, like) as CharacterRow[]
+      );
+    }
+  } else if (genre) {
+    const genreClause = genreFilterSql(genre);
+    chars = decorateCharactersWithCreatorTiers(
+      db,
+      db
+        .prepare(
+          `SELECT * FROM characters
+           WHERE ${genreClause.sql} AND ${listableWhere()} ${filter}
+           ORDER BY likes DESC, id DESC
+           LIMIT 60`
+        )
+        .all(...genreClause.params, ...fparams) as CharacterRow[]
+    );
+  }
+
   const popularSource = db
     .prepare(`SELECT tags FROM characters WHERE ${listableWhere()} ${filter} ORDER BY likes DESC LIMIT 80`)
     .all(...fparams) as { tags: string }[];
   const popularTags = collectPopularTags(popularSource);
 
+  const showingResults = hasQuery || Boolean(genre);
+
   return (
     <AppPageShell
       title="검색"
-      description="캐릭터명 · 제작자명 · 태그로 작품을 찾아보세요."
+      description="캐릭터명 · 제작자명 · 태그 · 장르로 작품을 찾아보세요."
       className="mt-6"
     >
       <div className="max-w-xl">
-        <TagSearchBar defaultQuery={query} />
+        <TagSearchBar defaultQuery={query} genre={genre} />
+      </div>
+
+      <div className="mt-5">
+        <p className={cn(studioType.caption, "mb-2 font-semibold")}>장르 카테고리</p>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href={searchHref({ q: query || undefined })}
+            className={`rounded-full border px-3 py-1.5 text-sm transition ${
+              !genre
+                ? "border-violet-500/40 bg-violet-600 text-white"
+                : "border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-zinc-50"
+            }`}
+          >
+            전체
+          </Link>
+          {CHARACTER_GENRES.map((g) => (
+            <Link
+              key={g}
+              href={searchHref({ q: query || undefined, g })}
+              className={`rounded-full border px-3 py-1.5 text-sm transition ${
+                genre === g
+                  ? "border-violet-500/40 bg-violet-600 text-white"
+                  : "border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-zinc-50"
+              }`}
+            >
+              {g}
+            </Link>
+          ))}
+        </div>
       </div>
 
       {popularTags.length > 0 && (
@@ -111,7 +196,7 @@ export default async function SearchPage({
             {popularTags.map((tag) => (
               <Link
                 key={tag}
-                href={`/search?q=${encodeURIComponent(tag)}`}
+                href={searchHref({ q: tag, g: genre ?? undefined })}
                 className={`rounded-full border px-3 py-1 text-sm transition ${
                   query === tag
                     ? "border-violet-500/40 bg-violet-600 text-white"
@@ -125,16 +210,31 @@ export default async function SearchPage({
         </div>
       )}
 
-      {isValidSearchQuery(query) ? (
+      {showingResults ? (
         <>
           <p className={cn(studioType.body, "mt-6")}>
-            <span className="font-semibold text-violet-300">「{query}」</span> 검색 결과{" "}
+            {hasQuery ? (
+              <>
+                <span className="font-semibold text-violet-300">「{query}」</span>
+                {genre ? (
+                  <>
+                    {" "}
+                    · <span className="font-semibold text-violet-300">{genre}</span>
+                  </>
+                ) : null}{" "}
+                검색 결과{" "}
+              </>
+            ) : (
+              <>
+                <span className="font-semibold text-violet-300">{genre}</span> 장르{" "}
+              </>
+            )}
             <span className="text-zinc-50">{chars.length}</span>건
           </p>
           {chars.length > 0 ? (
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
               {chars.map((c) => {
-                const kind = matchKind(c, query);
+                const kind = hasQuery ? matchKind(c, query) : null;
                 return (
                   <div key={c.id} className="relative">
                     {kind && (
@@ -149,13 +249,15 @@ export default async function SearchPage({
             </div>
           ) : (
             <p className="mt-10 text-center text-zinc-400">
-              「{query}」에 해당하는 캐릭터·제작자·태그 결과가 없습니다.
+              {hasQuery
+                ? `「${query}」에 해당하는 결과가 없습니다.`
+                : `「${genre}」 장르에 해당하는 캐릭터가 없습니다.`}
             </p>
           )}
         </>
       ) : (
         <p className="mt-10 text-center text-sm text-zinc-400">
-          검색어를 입력하거나 위 인기 태그를 눌러보세요.
+          검색어를 입력하거나 위 장르·인기 태그를 눌러보세요.
         </p>
       )}
     </AppPageShell>

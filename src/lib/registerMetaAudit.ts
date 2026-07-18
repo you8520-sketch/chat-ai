@@ -175,7 +175,7 @@ export function detectMetaNarration(text: string): { fail: boolean; hits: string
 
 export function detectArchiacInModernGenre(text: string, genres: CharacterGenre[]): boolean {
   const primary = primaryCharacterGenre(genres);
-  if (primary === "무협/시대극") return false;
+  if (primary === "무협" || primary === "동양풍") return false;
   return extractDialogueLines(text).some((d) => classifyDialogueEnding(d) === "archaic");
 }
 

@@ -4,7 +4,7 @@ import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import CharacterCard, { type CharacterRow, CHARACTER_THUMB_ASPECT } from "@/components/CharacterCard";
 import StudioButton from "@/components/studio/StudioButton";
-import { CHARACTER_GENRES, genreJsonLikePattern, type CharacterGenre } from "@/lib/characterGenres";
+import { CHARACTER_GENRES, genreFilterSql, type CharacterGenre } from "@/lib/characterGenres";
 import { listableWhere } from "@/lib/characterVisibility";
 import { characterCardHref } from "@/lib/chatLinks";
 import {
@@ -103,12 +103,12 @@ export default async function TabPage({
     case "genre":
       title = "장르별 탐색";
       if (g && g !== "전체" && CHARACTER_GENRES.includes(g as CharacterGenre)) {
-        const like = genreJsonLikePattern(g as CharacterGenre);
+        const genreClause = genreFilterSql(g as CharacterGenre);
         chars = db
           .prepare(
-            `SELECT * FROM characters WHERE (genre=? OR genres LIKE ?) AND ${listableWhere()} ${filter} ORDER BY likes DESC`,
+            `SELECT * FROM characters WHERE ${genreClause.sql} AND ${listableWhere()} ${filter} ORDER BY likes DESC`,
           )
-          .all(g, like, ...fparams) as CharacterRow[];
+          .all(...genreClause.params, ...fparams) as CharacterRow[];
       } else {
         chars = db
           .prepare(

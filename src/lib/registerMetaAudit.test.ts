@@ -46,13 +46,13 @@ describe("registerMetaAudit", () => {
 
   it("evaluateStep73Sample marks archaic leak in modern genre", () => {
     const text = `"이것이오, 기록과 다르오."\n\n그는 석문을 가리켰다.`;
-    const v = evaluateStep73Sample("fantasy-0", text, ["판타지/SF"]);
+    const v = evaluateStep73Sample("fantasy-0", text, ["판타지"]);
     assert.equal(v.speechConsistency, "FAIL");
   });
 
   it("allows archaic dialogue in wuxia genre", () => {
     const text = `"그렇소."\n\n그는 검집에 손을 얹었다.`;
-    const v = evaluateStep73Sample("wuxia-0", text, ["무협/시대극"]);
+    const v = evaluateStep73Sample("wuxia-0", text, ["무협"]);
     assert.equal(v.speechConsistency, "PASS");
   });
 });
