@@ -425,8 +425,30 @@ export function listDistinctClosedBranchIds(chatId: number): string[] {
 }
 
 /**
- * Deterministic sole-closed continue reopen gate (no keyword/LLM matching).
+ * Strict sole-closed auto-reopen intent only.
+ * Must NOT reuse shouldPromoteBranchContinue / looksLikeInSceneDialogueOrAction —
+ * ordinary RP actions/dialogue must never reopen a past closed IF.
+ * Bare "계속"/"이어서" are also excluded (timeline-ambiguous).
+ */
+const EXPLICIT_CLOSED_BRANCH_CONTINUE_RE =
+  /(?:아까\s*(?:그\s*)?IF|IF\s*이어|(?:그|이|해당)\s*분기\s*(?:다시\s*)?(?:이어|계속)|아까\s*(?:그\s*)?(?:IF|분기|번외|비정사)[\s\S]{0,32}(?:이어|계속|진행)|(?:이어|계속|다시\s*이어)[\s\S]{0,32}(?:아까\s*)?(?:그\s*)?(?:IF|분기))/i;
+
+export function isExplicitClosedBranchContinueIntent(userMessage: string): boolean {
+  const t = userMessage.trim();
+  if (!t) return false;
+  const normalized = t
+    .replace(/^\(?\s*OOC\s*[:：]?\s*/i, "")
+    .replace(/\)\s*$/i, "")
+    .trim();
+  // Bare continue is too common in main RP to pick a past closed branch.
+  if (/^(?:계속|이어서)$/i.test(normalized)) return false;
+  return EXPLICIT_CLOSED_BRANCH_CONTINUE_RE.test(t);
+}
+
+/**
+ * Deterministic sole-closed continue reopen gate (no LLM / no scene-dialogue guess).
  * Returns the sole closed branch_id, or null when ambiguous / not applicable.
+ * hasContinueIntent must come from isExplicitClosedBranchContinueIntent.
  */
 export function resolveSoleClosedContinueReopen(opts: {
   hasActiveBranch: boolean;

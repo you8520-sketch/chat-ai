@@ -21,6 +21,7 @@ import {
   promoteRecordsToBranchCanon,
   reopenClosedBranchCanon,
   resolveSoleClosedContinueReopen,
+  isExplicitClosedBranchContinueIntent,
   type MemoryRecordView,
 } from "./memory-turn-summary";
 import {
@@ -408,8 +409,13 @@ async function composeBatchScopePayload(opts: {
     (r) => !r.inactive && r.summaryKind === "noncanon"
   );
   const closedBranchIds = listDistinctClosedBranchIds(opts.chatId);
+  // Active/noncanon "계속" path — keep broad continue (incl. in-scene dialogue).
   const hasContinueIntentEarly = opts.allEntries.some((e) =>
     shouldPromoteBranchContinue(e.turn.user)
+  );
+  // Sole-closed auto reopen — STRICT explicit IF/branch resume only (not bare 계속 / RP action).
+  const hasExplicitSoleClosedContinueIntent = opts.allEntries.some((e) =>
+    isExplicitClosedBranchContinueIntent(e.turn.user)
   );
   const pendingSoleClosedReopenId =
     opts.mode === "seal"
@@ -417,7 +423,7 @@ async function composeBatchScopePayload(opts: {
           hasActiveBranch: hasActivePriorBranch,
           hasNoncanonCandidate,
           closedBranchIds,
-          hasContinueIntent: hasContinueIntentEarly,
+          hasContinueIntent: hasExplicitSoleClosedContinueIntent,
         })
       : null;
 

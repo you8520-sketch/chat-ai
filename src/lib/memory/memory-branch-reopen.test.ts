@@ -20,6 +20,7 @@ import { persistValidatedSummaryBatch } from "./memory-summary-persist";
 import {
   closeActiveBranchCanon,
   countDistinctActiveBranchIds,
+  isExplicitClosedBranchContinueIntent,
   listDistinctClosedBranchIds,
   listMemoryRecordsForChat,
   promoteRecordsToBranchCanon,
@@ -306,19 +307,21 @@ describe("targeted closed branch reopen", () => {
     assert.equal(row(idB).branchId, null);
   });
 
-  it("E: generic continue + exactly one closed → sole reopen gate", () => {
+  it("E: explicit IF continue + exactly one closed → sole reopen gate", () => {
     persistBranch({
       turnStart: 1,
       branchId: "branch-A",
       status: "closed",
       text: TEXT_A,
     });
-    assert.equal(shouldPromoteBranchContinue("아까 IF 이어서"), true);
+    assert.equal(isExplicitClosedBranchContinueIntent("아까 IF 이어서"), true);
+    assert.equal(isExplicitClosedBranchContinueIntent("계속"), false);
+    assert.equal(isExplicitClosedBranchContinueIntent("문을 열고 안으로 걸어간다."), false);
     const sole = resolveSoleClosedContinueReopen({
       hasActiveBranch: false,
       hasNoncanonCandidate: false,
       closedBranchIds: listDistinctClosedBranchIds(CHAT),
-      hasContinueIntent: shouldPromoteBranchContinue("아까 IF 이어서"),
+      hasContinueIntent: isExplicitClosedBranchContinueIntent("아까 IF 이어서"),
     });
     assert.equal(sole, "branch-A");
     const result = reopenClosedBranchCanon({
@@ -332,7 +335,7 @@ describe("targeted closed branch reopen", () => {
     assert.equal(countDistinctActiveBranchIds(CHAT), 1);
   });
 
-  it("F: generic continue + two closed → no guess / no reopen", () => {
+  it("F: explicit IF continue + two closed → no guess / no reopen", () => {
     persistBranch({
       turnStart: 1,
       branchId: "branch-A",
@@ -349,7 +352,7 @@ describe("targeted closed branch reopen", () => {
       hasActiveBranch: false,
       hasNoncanonCandidate: false,
       closedBranchIds: listDistinctClosedBranchIds(CHAT),
-      hasContinueIntent: shouldPromoteBranchContinue("아까 IF 이어서"),
+      hasContinueIntent: isExplicitClosedBranchContinueIntent("아까 IF 이어서"),
     });
     assert.equal(sole, null);
     assert.deepEqual(listDistinctClosedBranchIds(CHAT).sort(), ["branch-A", "branch-B"]);
@@ -529,7 +532,7 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
     assert.equal(countDistinctActiveBranchIds(CHAT), 0);
   });
 
-  it("2: sole-closed continue e2e via processRollingSummaryBatch", async () => {
+  it("2/C: explicit IF continue e2e reopens sole closed A", async () => {
     const idA = persistBranch({
       turnStart: 1,
       branchId: "branch-A",
@@ -539,14 +542,13 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
 
     seedPlayableTurns(12, (t) =>
       t === 12
-        ? { user: "계속", assistant: CONTINUE_SCENE }
+        ? { user: "아까 IF 이어서", assistant: CONTINUE_SCENE }
         : {
-            user: `(OOC: IF 이어서 장면 ${t})`,
-            assistant: `${CONTINUE_SCENE} 추가 비트 ${t}`,
+            user: `본편 턴 ${t}`,
+            assistant: `본편 응답 ${t} — 일상을 짧게 이어간다.`,
           }
     );
 
-    // Must not invent main_canon via LLM fall-through.
     __setSummarizeTurnBatchCallerForTests(async () => ({
       text: MAIN_TEXT,
     }));
@@ -571,23 +573,20 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
     assert.notEqual(batch2!.summaryKind, "main_canon");
     assert.equal(batch2!.branchId?.startsWith(`branch-${CHAT}-`), false);
     assert.equal(countDistinctActiveBranchIds(CHAT), 1);
-
-    const lore = rebuildLorebookFromRecords(CHAT);
-    assert.match(lore, /분기A|회사 IF|계약/);
   });
 
-  it("3: seal continue with active C keeps same branch_id (single-active)", async () => {
-    const idC = persistBranch({
+  it("3/E: active A + bare 계속 keeps existing active continue", async () => {
+    const idA = persistBranch({
       turnStart: 1,
-      branchId: "branch-C",
+      branchId: "branch-A",
       status: "active",
-      text: TEXT_C,
+      text: TEXT_A,
     });
 
     seedPlayableTurns(12, (t) =>
       t >= 10
-        ? { user: "이어서", assistant: CONTINUE_SCENE }
-        : { user: `분기 이어 ${t}`, assistant: `${TEXT_C} 비트 ${t}` }
+        ? { user: "계속", assistant: CONTINUE_SCENE }
+        : { user: `분기 이어 ${t}`, assistant: `${TEXT_A} 비트 ${t}` }
     );
 
     __setSummarizeTurnBatchCallerForTests(async () => ({
@@ -603,13 +602,104 @@ describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () =
       memoryCapacity: 8000,
     });
     assert.equal(ok, true);
-    assert.equal(row(idC).branchStatus, "active");
-    assert.equal(row(idC).branchId, "branch-C");
+    assert.equal(row(idA).branchStatus, "active");
+    assert.equal(row(idA).branchId, "branch-A");
 
     const batch2 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === 7)!;
     assert.equal(batch2.summaryKind, "branch_canon");
-    assert.equal(batch2.branchId, "branch-C");
+    assert.equal(batch2.branchId, "branch-A");
     assert.notEqual(batch2.branchId, `branch-${CHAT}-7`);
     assert.equal(countDistinctActiveBranchIds(CHAT), 1);
+  });
+
+  it("A: plain RP action does not auto-reopen sole closed branch", async () => {
+    const idA = persistBranch({
+      turnStart: 1,
+      branchId: "branch-A",
+      status: "closed",
+      text: TEXT_A,
+    });
+    seedPlayableTurns(12, (t) =>
+      t === 12
+        ? {
+            user: "문을 열고 안으로 걸어간다.",
+            assistant: "문이 열리며 복도의 공기가 흘러든다.",
+          }
+        : { user: `본편 턴 ${t}`, assistant: `본편 응답 ${t}` }
+    );
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: MAIN_TEXT }));
+
+    const ok = await processRollingSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "ReopenChar",
+      tier: "free",
+      memoryCapacity: 8000,
+    });
+    assert.equal(ok, true);
+    assert.equal(row(idA).branchStatus, "closed");
+    assert.equal(countDistinctActiveBranchIds(CHAT), 0);
+    const batch2 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === 7)!;
+    assert.equal(batch2.summaryKind, "main_canon");
+    assert.notEqual(batch2.branchId, "branch-A");
+  });
+
+  it("B: '계속 걸어간다' does not auto-reopen sole closed branch", async () => {
+    const idA = persistBranch({
+      turnStart: 1,
+      branchId: "branch-A",
+      status: "closed",
+      text: TEXT_A,
+    });
+    seedPlayableTurns(12, (t) =>
+      t === 12
+        ? { user: "계속 걸어간다.", assistant: "발소리가 복도를 따라 이어진다." }
+        : { user: `본편 턴 ${t}`, assistant: `본편 응답 ${t}` }
+    );
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: MAIN_TEXT }));
+
+    const ok = await processRollingSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "ReopenChar",
+      tier: "free",
+      memoryCapacity: 8000,
+    });
+    assert.equal(ok, true);
+    assert.equal(row(idA).branchStatus, "closed");
+    assert.equal(countDistinctActiveBranchIds(CHAT), 0);
+  });
+
+  it("D: bare '계속' does not auto-reopen sole closed branch", async () => {
+    const idA = persistBranch({
+      turnStart: 1,
+      branchId: "branch-A",
+      status: "closed",
+      text: TEXT_A,
+    });
+    // Broad continue still true — sole-closed must ignore it.
+    assert.equal(shouldPromoteBranchContinue("계속"), true);
+    assert.equal(isExplicitClosedBranchContinueIntent("계속"), false);
+
+    seedPlayableTurns(12, (t) =>
+      t === 12
+        ? { user: "계속", assistant: CONTINUE_SCENE }
+        : { user: `본편 턴 ${t}`, assistant: `본편 응답 ${t}` }
+    );
+    __setSummarizeTurnBatchCallerForTests(async () => ({ text: MAIN_TEXT }));
+
+    const ok = await processRollingSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "ReopenChar",
+      tier: "free",
+      memoryCapacity: 8000,
+    });
+    assert.equal(ok, true);
+    assert.equal(row(idA).branchStatus, "closed");
+    assert.equal(countDistinctActiveBranchIds(CHAT), 0);
   });
 });
