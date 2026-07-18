@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import {
-  computeGiftBreakdown,
-  giftPaidPoints,
+  estimateGiftBreakdown,
+  giftPoints,
   PointGiftError,
-  POINT_GIFT_FEE_RATE,
+  POINT_GIFT_FEE_RATE_FREE,
+  POINT_GIFT_FEE_RATE_PAID,
   MIN_POINT_GIFT_AMOUNT,
 } from "@/lib/pointGifts";
+import { getPointBalance } from "@/lib/points";
 
 export async function POST(req: Request) {
   const user = await getSessionUser();
@@ -27,7 +29,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = giftPaidPoints(user.id, {
+    const result = giftPoints(user.id, {
       recipientId: body.recipientId != null ? Number(body.recipientId) : undefined,
       recipientNickname: body.recipientNickname,
       amount,
@@ -40,14 +42,17 @@ export async function POST(req: Request) {
       gross: result.breakdown.gross,
       fee: result.breakdown.fee,
       net: result.breakdown.net,
+      paidGross: result.breakdown.paidGross,
+      freeGross: result.breakdown.freeGross,
       points: result.senderBalance.total,
       paidPoints: result.senderBalance.paid,
       freePoints: result.senderBalance.free,
     });
   } catch (err) {
     if (err instanceof PointGiftError) {
+      const bal = getPointBalance(user.id);
       const status =
-        err.code === "INSUFFICIENT_PAID_POINTS"
+        err.code === "INSUFFICIENT_POINTS" || err.code === "INSUFFICIENT_PAID_POINTS"
           ? 402
           : err.code === "RECIPIENT_NOT_FOUND" || err.code === "RECIPIENT_REQUIRED"
             ? 404
@@ -56,9 +61,10 @@ export async function POST(req: Request) {
         {
           error: err.message,
           code: err.code,
-          feeRate: POINT_GIFT_FEE_RATE,
+          feeRatePaid: POINT_GIFT_FEE_RATE_PAID,
+          feeRateFree: POINT_GIFT_FEE_RATE_FREE,
           minAmount: MIN_POINT_GIFT_AMOUNT,
-          preview: computeGiftBreakdown(amount),
+          preview: estimateGiftBreakdown(amount, bal.free, bal.paid),
         },
         { status }
       );

@@ -52,7 +52,9 @@ export default async function CreatorProfilePage({
 
   const user = await getSessionUser();
   const isOwner = user?.id === creatorId;
-  const paidPoints = user ? getPointBalance(user.id).paid : 0;
+  const balance = user ? getPointBalance(user.id) : null;
+  const paidPoints = balance?.paid ?? 0;
+  const freePoints = balance?.free ?? 0;
   const blurNsfw = !user?.is_adult || !user?.nsfw_on;
   const loggedIn = !!user;
   const commentsEnabled = getCreatorCommentsEnabled(db, creatorId);
@@ -120,6 +122,7 @@ export default async function CreatorProfilePage({
               recipientId={creatorId}
               recipientNickname={creator.nickname}
               paidPoints={paidPoints}
+              freePoints={freePoints}
               loggedIn={!!user}
               loginRedirect={`/creator/${creatorId}`}
             />

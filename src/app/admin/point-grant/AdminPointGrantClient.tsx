@@ -8,7 +8,7 @@ import {
   MAX_ADMIN_FREE_POINT_GRANT_NOTE_LENGTH,
   MIN_ADMIN_FREE_POINT_GRANT,
 } from "@/lib/adminPointGrantConstants";
-import { FREE_POINTS_VALID_MONTHS } from "@/lib/plans";
+import { FREE_POINTS_VALID_YEARS } from "@/lib/plans";
 
 export default function AdminPointGrantClient() {
   const [recipientNickname, setRecipientNickname] = useState("");
@@ -44,7 +44,7 @@ export default function AdminPointGrantClient() {
 
     if (
       !confirm(
-        `${targetLabel}님에게 무료 포인트 ${parsedAmount.toLocaleString()}P를 지급할까요?\n\n유효기간: 지급일로부터 ${FREE_POINTS_VALID_MONTHS}개월`
+        `${targetLabel}님에게 무료 포인트 ${parsedAmount.toLocaleString()}P를 지급할까요?\n\n유효기간: 지급일로부터 ${FREE_POINTS_VALID_YEARS}년`
       )
     ) {
       return;
@@ -86,7 +86,7 @@ export default function AdminPointGrantClient() {
       <h1 className="mt-4 text-2xl font-black text-white">무료 포인트 지급</h1>
       <p className="mt-1 text-sm text-gray-400">
         사용자에게 무료 포인트를 지급합니다. 유효기간은 지급일로부터{" "}
-        <span className="text-amber-200/90">{FREE_POINTS_VALID_MONTHS}개월</span>입니다.
+        <span className="text-amber-200/90">{FREE_POINTS_VALID_YEARS}년</span>입니다.
       </p>
 
       <form

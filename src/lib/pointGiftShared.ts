@@ -1,23 +1,15 @@
 /**
  * Client-safe point gift constants and preview math.
  * Server-only gift execution lives in pointGifts.ts.
+ * Prefer importing from pointGiftsShared.ts (canonical).
  */
-export const POINT_GIFT_FEE_RATE = 0.1;
-export const MIN_POINT_GIFT_AMOUNT = 10;
-
-export type GiftBreakdown = {
-  gross: number;
-  fee: number;
-  net: number;
-};
-
-function roundAmount(n: number): number {
-  return Math.round(n * 10) / 10;
-}
-
-export function computeGiftBreakdown(grossAmount: number): GiftBreakdown {
-  const gross = roundAmount(grossAmount);
-  const fee = roundAmount(gross * POINT_GIFT_FEE_RATE);
-  const net = roundAmount(gross - fee);
-  return { gross, fee, net };
-}
+export {
+  POINT_GIFT_FEE_RATE,
+  POINT_GIFT_FEE_RATE_PAID,
+  POINT_GIFT_FEE_RATE_FREE,
+  MIN_POINT_GIFT_AMOUNT,
+  computeGiftBreakdown,
+  estimateGiftBreakdown,
+  giftFeeRateForType,
+  type GiftBreakdown,
+} from "./pointGiftsShared";
