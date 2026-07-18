@@ -5,6 +5,7 @@
 import type { DialogueTurn } from "@/lib/hybridMemory";
 import { classifyChatOocIntent } from "@/lib/chatOocPriority";
 import { extractOocSnippets } from "@/lib/userImpersonationPolicy";
+import { ROLLING_SUMMARY_MAX_CHARS } from "./memory-constants";
 
 export const MEMORY_SUMMARY_SCOPES = [
   "main_canon",
@@ -266,20 +267,123 @@ export function classifyMemoryBatchScopes(
   };
 }
 
-/** Heuristic noncanon blurb for offline/tests (no LLM). */
+const NONCANON_BIT_USER_MAX = 80;
+const NONCANON_BIT_ASSISTANT_MAX = 320;
+const NONCANON_SUMMARY_ELLIPSIS = " / … / ";
+
+function collapseNoncanonWs(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+/** Keep the start of a bit (IF setup / first scene). */
+function takeNoncanonHead(text: string, max: number): string {
+  if (max <= 0) return "";
+  if (text.length <= max) return text;
+  return text.slice(0, max).trimEnd();
+}
+
+/** Keep the end of a bit (latest outcome / current state). */
+function takeNoncanonTail(text: string, max: number): string {
+  if (max <= 0) return "";
+  if (text.length <= max) return text;
+  return text.slice(text.length - max).trimStart();
+}
+
+function formatNoncanonTurnBit(
+  turn: DialogueTurn,
+  opts?: { preferAssistantTail?: boolean }
+): string {
+  const userCue = collapseNoncanonWs(turn.user).slice(0, NONCANON_BIT_USER_MAX);
+  const assistantRaw = collapseNoncanonWs(turn.assistant);
+  let assistantScene = "";
+  if (assistantRaw) {
+    if (assistantRaw.length <= NONCANON_BIT_ASSISTANT_MAX) {
+      assistantScene = assistantRaw;
+    } else if (opts?.preferAssistantTail) {
+      // Last scene: keep the newest beats that would otherwise be sliced off.
+      assistantScene = takeNoncanonTail(assistantRaw, NONCANON_BIT_ASSISTANT_MAX);
+    } else {
+      assistantScene = assistantRaw.slice(0, NONCANON_BIT_ASSISTANT_MAX);
+    }
+  }
+  if (assistantScene && userCue) return `${userCue} → ${assistantScene}`;
+  if (assistantScene) return assistantScene;
+  return userCue;
+}
+
+/**
+ * Fit multi-turn noncanon blurbs into the rolling-summary cap without dropping
+ * the latest scene via a naive prefix slice. Keeps first-bit head + last-bit tail.
+ */
+function fitNoncanonSummaryWithinLimit(
+  prefix: string,
+  bits: string[],
+  maxChars: number
+): string {
+  const usable = bits.filter(Boolean);
+  if (usable.length === 0) return "비정사·번외 장면을 진행함.";
+
+  const joined = usable.join(" / ");
+  const body = `${prefix}${joined}`;
+  if (body.length <= maxChars) return body;
+
+  if (usable.length === 1) {
+    const only = usable[0]!;
+    const budget = maxChars - prefix.length;
+    if (budget <= 0) return body.slice(0, maxChars).trim();
+    // Single long bit: preserve early setup + late outcome inside one scene.
+    const headBudget = Math.min(only.length, Math.max(40, Math.floor(budget * 0.45)));
+    const tailBudget = Math.max(0, budget - headBudget - 1);
+    const head = takeNoncanonHead(only, headBudget);
+    const tail = takeNoncanonTail(only, tailBudget);
+    if (!tail || head.includes(tail)) {
+      return `${prefix}${takeNoncanonHead(only, budget)}`.slice(0, maxChars).trim();
+    }
+    const combined = `${prefix}${head}…${tail}`;
+    return combined.length <= maxChars
+      ? combined
+      : combined.slice(0, maxChars).trim();
+  }
+
+  const first = usable[0]!;
+  const last = usable[usable.length - 1]!;
+  const ellipsis = NONCANON_SUMMARY_ELLIPSIS;
+  const budget = maxChars - prefix.length - ellipsis.length;
+  if (budget < 24) {
+    // Extreme cap: still prefer the latest scene over early filler.
+    return `${prefix}${takeNoncanonTail(last, Math.max(0, maxChars - prefix.length))}`
+      .slice(0, maxChars)
+      .trim();
+  }
+
+  // Prefer reserving room for the latest outcome; keep enough of the first setup.
+  const minHead = Math.min(first.length, Math.min(100, Math.floor(budget * 0.35)));
+  let tailBudget = Math.min(last.length, Math.max(Math.floor(budget * 0.5), budget - minHead));
+  let headBudget = Math.min(first.length, budget - tailBudget);
+  tailBudget = Math.min(last.length, budget - headBudget);
+
+  const head = takeNoncanonHead(first, headBudget);
+  const tail = takeNoncanonTail(last, tailBudget);
+  return `${prefix}${head}${ellipsis}${tail}`.slice(0, maxChars).trim();
+}
+
+/**
+ * Heuristic noncanon blurb for offline/tests (no LLM).
+ * Preserves meaningful OOC/IF *request cues* and the assistant's actual noncanon scene
+ * beats so the user can continue from history — not a "user requested IF" stub.
+ * When over the 600-char cap, keeps first-scene setup and latest-scene outcome.
+ */
 export function buildNoncanonSummaryFromTurns(
   turns: Array<{ turn: DialogueTurn }>
 ): string {
-  const bits = turns.map(({ turn }) => {
-    const u = turn.user.replace(/\s+/g, " ").trim().slice(0, 120);
-    return u;
-  });
+  const lastIdx = turns.length - 1;
+  const bits = turns.map(({ turn }, i) =>
+    formatNoncanonTurnBit(turn, { preferAssistantTail: i === lastIdx && lastIdx >= 0 })
+  );
   const joined = bits.filter(Boolean).join(" / ");
   if (!joined) return "비정사·번외 장면을 진행함.";
-  if (MEANINGFUL_NONCANON_RE.test(joined)) {
-    return `비정사·번외: ${joined.slice(0, 280)}`;
-  }
-  return `비정사 장면: ${joined.slice(0, 280)}`;
+  const prefix = MEANINGFUL_NONCANON_RE.test(joined) ? "비정사·번외: " : "비정사 장면: ";
+  return fitNoncanonSummaryWithinLimit(prefix, bits, ROLLING_SUMMARY_MAX_CHARS);
 }
 
 export function buildPreferenceSummaryFromTurns(
