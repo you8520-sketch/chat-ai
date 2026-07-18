@@ -92,6 +92,61 @@ describe("memory summary scope classification", () => {
     assert.equal(/요청함|요청했습니다/.test(summary), false);
   });
 
+  it("multi-turn noncanon summary keeps first IF setup and last outcome within 600", () => {
+    const IF_SETUP = "가상 현대 오피스 IF 배경";
+    const LAST_OUTCOME = "최종결말마커_계약서명완료";
+    // Long middle fillers force the old prefix-only trim to drop the last turn.
+    const midPad = "중간장면서술패드텍스트 ".repeat(24).trim();
+
+    const turns = [
+      {
+        turn: {
+          user: `(OOC: ${IF_SETUP}에서 두 사람이 처음 팀으로 배정되는 장면을 보여줘)`,
+          assistant: `${IF_SETUP}에서 두 사람이 처음 마주치고 같은 팀으로 배정된다.`,
+        },
+      },
+      {
+        turn: {
+          user: "(OOC: IF 이어서 회의 장면을)",
+          assistant: `${midPad} 중간사건_회의가 길어진다.`,
+        },
+      },
+      {
+        turn: {
+          user: "(OOC: IF 이어서 야근 장면을)",
+          assistant: `${midPad} 중간사건_야근이 이어진다.`,
+        },
+      },
+      {
+        turn: {
+          user: "(OOC: IF 이어서 갈등 장면을)",
+          assistant: `${midPad} 중간사건_오해가 커진다.`,
+        },
+      },
+      {
+        turn: {
+          user: "(OOC: IF 이어서 화해 장면을)",
+          assistant: `${midPad} 중간사건_화해의 실마리가 보인다.`,
+        },
+      },
+      {
+        turn: {
+          user: "(OOC: IF 마지막 결과 장면을)",
+          assistant:
+            `${"긴 마지막 장면 서술입니다. ".repeat(20)}` +
+            `그리고 지금 상태는 ${LAST_OUTCOME} 이다.`,
+        },
+      },
+    ];
+
+    const summary = buildNoncanonSummaryFromTurns(turns);
+    assert.ok(summary.length <= 600, `summary length ${summary.length}`);
+    assert.match(summary, /오피스 IF 배경|같은 팀으로 배정/);
+    assert.match(summary, new RegExp(LAST_OUTCOME));
+    // Must not be a naive head-only trim that never reaches the last scene.
+    assert.equal(summary.includes(LAST_OUTCOME), true);
+  });
+
   it("mixed 6-turn batch keeps main and noncanon turn lists separate", () => {
     const plan = classifyMemoryBatchScopes([
       { turnIndex: 1, turn: { user: "정원에서 만난다.", assistant: "본편 인사." } },
