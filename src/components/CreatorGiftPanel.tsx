@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
-  computeGiftBreakdown,
+  estimateGiftBreakdown,
   MIN_POINT_GIFT_AMOUNT,
-  POINT_GIFT_FEE_RATE,
+  POINT_GIFT_FEE_RATE_FREE,
+  POINT_GIFT_FEE_RATE_PAID,
 } from "@/lib/pointGiftsShared";
 import { isPaymentsEnabledClient } from "@/lib/paymentsEnabledClient";
 
@@ -14,6 +15,7 @@ type Props = {
   recipientId: number;
   recipientNickname: string;
   paidPoints: number;
+  freePoints?: number;
   loggedIn: boolean;
   loginRedirect: string;
   /** 액션 버튼 행(캐릭터 페이지) 등 레이아웃 맞춤 */
@@ -35,6 +37,7 @@ export default function CreatorGiftPanel({
   recipientId,
   recipientNickname,
   paidPoints,
+  freePoints = 0,
   loggedIn,
   loginRedirect,
   buttonClassName,
@@ -47,13 +50,15 @@ export default function CreatorGiftPanel({
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const feePct = Math.round(POINT_GIFT_FEE_RATE * 100);
+  const totalPoints = paidPoints + freePoints;
+  const feePctPaid = Math.round(POINT_GIFT_FEE_RATE_PAID * 100);
+  const feePctFree = Math.round(POINT_GIFT_FEE_RATE_FREE * 100);
   const btnClass = buttonClassName ?? DEFAULT_BUTTON_CLASS;
   const giftTitle = modalTitle ?? `@${recipientNickname}에게 선물`;
   const preview = (() => {
     const n = Number(amount);
     if (!Number.isFinite(n) || n <= 0) return null;
-    return computeGiftBreakdown(n);
+    return estimateGiftBreakdown(n, freePoints, paidPoints);
   })();
 
   useEffect(() => {
@@ -83,15 +88,17 @@ export default function CreatorGiftPanel({
       setError(`최소 선물 금액은 ${MIN_POINT_GIFT_AMOUNT}P입니다.`);
       return;
     }
-    if (paidPoints < gross) {
-      setError("유료 포인트가 부족합니다. (무료 포인트는 선물할 수 없습니다)");
+    if (totalPoints < gross) {
+      setError("포인트가 부족합니다.");
       return;
     }
 
-    const breakdown = computeGiftBreakdown(gross);
+    const breakdown = estimateGiftBreakdown(gross, freePoints, paidPoints);
     if (
       !confirm(
-        `@${recipientNickname}님에게 유료 포인트를 선물할까요?\n\n차감: ${breakdown.gross.toLocaleString()}P (유료)\n수수료 ${feePct}%: ${breakdown.fee.toLocaleString()}P\n상대 수령: ${breakdown.net.toLocaleString()}P`
+        `@${recipientNickname}님에게 포인트를 선물할까요?\n\n차감: ${breakdown.gross.toLocaleString()}P\n` +
+          `(유료 ${breakdown.paidGross.toLocaleString()}P·${feePctPaid}% / 무료 ${breakdown.freeGross.toLocaleString()}P·${feePctFree}%)\n` +
+          `수수료: ${breakdown.fee.toLocaleString()}P\n상대 수령: ${breakdown.net.toLocaleString()}P`
       )
     ) {
       return;
@@ -162,11 +169,12 @@ export default function CreatorGiftPanel({
               {giftTitle}
             </p>
             <p className="mt-1 text-xs leading-relaxed text-gray-400">
-              <b className="text-gray-200">유료 포인트</b>만 선물할 수 있습니다. 수수료 {feePct}%를 제외한 금액이
-              제작자에게 전달됩니다.
+              유료·무료 포인트를 선물할 수 있습니다. 수수료는 유료 {feePctPaid}% · 무료(출석 포함){" "}
+              {feePctFree}%이며, 제외한 금액이 제작자에게 전달됩니다.
             </p>
             <p className="mt-2 text-xs text-gray-500">
-              보유 유료 포인트: <b className="text-white">{paidPoints.toLocaleString()}P</b> · 최소{" "}
+              보유 합계: <b className="text-white">{totalPoints.toLocaleString()}P</b> (유료{" "}
+              {paidPoints.toLocaleString()}P · 무료 {freePoints.toLocaleString()}P) · 최소{" "}
               {MIN_POINT_GIFT_AMOUNT}P
             </p>
 
@@ -182,7 +190,7 @@ export default function CreatorGiftPanel({
                     <button
                       key={v}
                       type="button"
-                      disabled={loading || paidPoints < v}
+                      disabled={loading || totalPoints < v}
                       onClick={() => setAmount(String(v))}
                       className="rounded-lg border border-white/10 bg-black/30 px-3 py-1.5 text-xs font-semibold text-gray-300 hover:border-violet-500/40 hover:text-white disabled:opacity-40"
                     >
@@ -215,9 +223,9 @@ export default function CreatorGiftPanel({
                   </div>
                 )}
 
-                {paidPoints < MIN_POINT_GIFT_AMOUNT && (
+                {totalPoints < MIN_POINT_GIFT_AMOUNT && (
                   <p className="mt-3 text-xs text-amber-300/90">
-                    유료 포인트가 부족합니다.{" "}
+                    포인트가 부족합니다.{" "}
                     {isPaymentsEnabledClient() ? (
                       <Link href="/points" className="underline hover:text-amber-200">
                         포인트 충전
@@ -242,7 +250,7 @@ export default function CreatorGiftPanel({
                   <button
                     type="button"
                     onClick={sendGift}
-                    disabled={loading || paidPoints < MIN_POINT_GIFT_AMOUNT}
+                    disabled={loading || totalPoints < MIN_POINT_GIFT_AMOUNT}
                     className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
                   >
                     {loading ? "처리 중…" : "선물하기"}
@@ -256,7 +264,7 @@ export default function CreatorGiftPanel({
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-500"
+                  className="rounded-lg bg-white/5 px-4 py-2 text-sm font-semibold text-zinc-300 hover:bg-white/10"
                 >
                   닫기
                 </button>

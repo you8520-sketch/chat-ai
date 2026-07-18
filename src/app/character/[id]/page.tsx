@@ -194,7 +194,9 @@ export default async function CharacterPage({
   const personaList = user ? ensureDefaultPersona(user.id, user.nickname) : [];
   const defaultPersonaId = personaList[0]?.id ?? null;
 
-  const paidPoints = user ? getPointBalance(user.id).paid : 0;
+  const balance = user ? getPointBalance(user.id) : null;
+  const paidPoints = balance?.paid ?? 0;
+  const freePoints = balance?.free ?? 0;
   const canWriteCharacterComment =
     user != null &&
     canWriteCharacterProfileComment(db, user.id, c.id, c.creator_id);
@@ -284,6 +286,7 @@ export default async function CharacterPage({
             recipientId={creatorId}
             recipientNickname={c.creator_name}
             paidPoints={paidPoints}
+            freePoints={freePoints}
             loggedIn={!!user}
             loginRedirect={`/character/${c.id}`}
             buttonClassName={ACTION_ROW_BUTTON_CLASS}

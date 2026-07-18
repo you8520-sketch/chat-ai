@@ -1,27 +1,32 @@
 import { getDb } from "./db";
-import { getPointBalance, type PointBalance } from "./points";
+import { getPointBalance, PAID_POINTS_VALID_YEARS, type PointBalance } from "./points";
 import {
   notifyGiftReceived,
   notifyGiftSent,
 } from "./userNotifications";
 import {
-  computeGiftBreakdown,
+  estimateGiftBreakdown,
   MIN_POINT_GIFT_AMOUNT,
-  POINT_GIFT_FEE_RATE,
+  POINT_GIFT_FEE_RATE_FREE,
+  POINT_GIFT_FEE_RATE_PAID,
   type GiftBreakdown,
 } from "./pointGiftsShared";
 
 export {
   computeGiftBreakdown,
+  estimateGiftBreakdown,
+  giftFeeRateForType,
   MIN_POINT_GIFT_AMOUNT,
   POINT_GIFT_FEE_RATE,
+  POINT_GIFT_FEE_RATE_FREE,
+  POINT_GIFT_FEE_RATE_PAID,
   type GiftBreakdown,
 } from "./pointGiftsShared";
 
 /**
  * 선물 UX: 보내는 사람이 입력한 금액(gross)이 그대로 차감되고,
- * 받는 사람은 10% 수수료를 제외한 net = gross × (1 - POINT_GIFT_FEE_RATE) 만큼 PAID로 적립됩니다.
- * 수수료(fee)는 플랫폼 귀속(소각) — 별도 적립 없음.
+ * 차감 롯은 만료 임박 → 무료 우선. 유료 수수료 10% / 무료(출석 포함) 25%.
+ * 받는 사람은 net만큼 PAID로 적립. 수수료는 플랫폼 귀속(소각).
  */
 
 export type GiftResult = {
@@ -40,6 +45,7 @@ export class PointGiftError extends Error {
       | "SELF_GIFT"
       | "RECIPIENT_NOT_FOUND"
       | "INSUFFICIENT_PAID_POINTS"
+      | "INSUFFICIENT_POINTS"
       | "RECIPIENT_REQUIRED"
   ) {
     super(message);
@@ -96,23 +102,31 @@ function resolveRecipient(
   return null;
 }
 
-/** 유료(PAID) 포인트만 만료 임박 순으로 차감 */
-function deductPaidPointsInTx(
+/** 만료 임박 → 무료 우선으로 gross 차감 후 종류별 수수료 산출 */
+function deductGiftPointsInTx(
   db: ReturnType<typeof getDb>,
   userId: number,
   amount: number,
-  reason: string
-) {
+  recipientNickname: string
+): GiftBreakdown {
   const need = roundAmount(amount);
   let remaining = need;
+  let paidGross = 0;
+  let freeGross = 0;
 
   const rows = db
     .prepare(
-      `SELECT id, remaining_amount FROM point_transactions
-       WHERE user_id = ? AND point_type = 'PAID' AND remaining_amount > 0 AND expires_at > datetime('now')
-       ORDER BY expires_at ASC, id ASC`
+      `SELECT id, point_type, remaining_amount FROM point_transactions
+       WHERE user_id = ? AND remaining_amount > 0 AND expires_at > datetime('now')
+       ORDER BY expires_at ASC,
+         CASE point_type WHEN 'FREE' THEN 0 ELSE 1 END ASC,
+         id ASC`
     )
-    .all(userId) as { id: number; remaining_amount: number }[];
+    .all(userId) as {
+    id: number;
+    point_type: "PAID" | "FREE";
+    remaining_amount: number;
+  }[];
 
   const update = db.prepare("UPDATE point_transactions SET remaining_amount = ? WHERE id = ?");
 
@@ -122,15 +136,20 @@ function deductPaidPointsInTx(
     if (available <= 0) continue;
     const take = roundAmount(Math.min(available, remaining));
     update.run(roundAmount(available - take), row.id);
+    if (row.point_type === "PAID") paidGross = roundAmount(paidGross + take);
+    else freeGross = roundAmount(freeGross + take);
     remaining = roundAmount(remaining - take);
   }
 
   if (remaining > 0.001) {
-    throw new PointGiftError(
-      "유료 포인트가 부족합니다.",
-      "INSUFFICIENT_PAID_POINTS"
-    );
+    throw new PointGiftError("포인트가 부족합니다.", "INSUFFICIENT_POINTS");
   }
+
+  const paidFee = roundAmount(paidGross * POINT_GIFT_FEE_RATE_PAID);
+  const freeFee = roundAmount(freeGross * POINT_GIFT_FEE_RATE_FREE);
+  const fee = roundAmount(paidFee + freeFee);
+  const net = roundAmount(need - fee);
+  const reason = `포인트 선물 → ${recipientNickname} (${need}P, 수수료 ${fee}P)`;
 
   db.prepare("INSERT INTO point_logs (user_id, delta, reason) VALUES (?,?,?)").run(
     userId,
@@ -138,6 +157,16 @@ function deductPaidPointsInTx(
     reason
   );
   syncUserPointsColumn(db, userId);
+
+  return {
+    gross: need,
+    fee,
+    net,
+    paidGross,
+    freeGross,
+    paidFee,
+    freeFee,
+  };
 }
 
 function creditPaidPointsInTx(
@@ -150,7 +179,7 @@ function creditPaidPointsInTx(
   if (rounded <= 0) return;
   db.prepare(
     `INSERT INTO point_transactions (user_id, point_type, remaining_amount, expires_at)
-     VALUES (?, 'PAID', ?, datetime('now', '+2 years'))`
+     VALUES (?, 'PAID', ?, datetime('now', '+${PAID_POINTS_VALID_YEARS} years'))`
   ).run(userId, rounded);
   db.prepare("INSERT INTO point_logs (user_id, delta, reason) VALUES (?,?,?)").run(
     userId,
@@ -160,22 +189,24 @@ function creditPaidPointsInTx(
   syncUserPointsColumn(db, userId);
 }
 
+/** @deprecated giftPoints 사용 */
 export function giftPaidPoints(
   senderId: number,
   opts: { recipientId?: number; recipientNickname?: string; amount: number }
 ): GiftResult {
-  const breakdown = computeGiftBreakdown(opts.amount);
-  if (breakdown.gross < MIN_POINT_GIFT_AMOUNT) {
+  return giftPoints(senderId, opts);
+}
+
+export function giftPoints(
+  senderId: number,
+  opts: { recipientId?: number; recipientNickname?: string; amount: number }
+): GiftResult {
+  const gross = roundAmount(opts.amount);
+  if (gross < MIN_POINT_GIFT_AMOUNT) {
     throw new PointGiftError(
       `최소 선물 금액은 ${MIN_POINT_GIFT_AMOUNT}P입니다.`,
       "INVALID_AMOUNT"
     );
-  }
-  if (breakdown.net <= 0) {
-    throw new PointGiftError("선물 금액이 너무 작습니다.", "INVALID_AMOUNT");
-  }
-  if (!opts.recipientId && !opts.recipientNickname?.trim()) {
-    throw new PointGiftError("받는 사람을 입력해 주세요.", "RECIPIENT_REQUIRED");
   }
 
   const db = getDb();
@@ -188,15 +219,23 @@ export function giftPaidPoints(
       throw new PointGiftError("본인에게는 선물할 수 없습니다.", "SELF_GIFT");
     }
 
-    const senderPaid = readBalance(db, senderId).paid;
-    if (senderPaid < breakdown.gross - 0.001) {
-      throw new PointGiftError("유료 포인트가 부족합니다.", "INSUFFICIENT_PAID_POINTS");
+    const senderBal = readBalance(db, senderId);
+    if (senderBal.total < gross - 0.001) {
+      throw new PointGiftError("포인트가 부족합니다.", "INSUFFICIENT_POINTS");
     }
 
-    const senderReason = `포인트 선물 → ${recipient.nickname} (${breakdown.gross}P, 수수료 ${breakdown.fee}P)`;
-    const recipientReason = `포인트 선물 수령 (${breakdown.net}P)`;
+    // 미리보기로 net>0 확인 (실제 차감 전)
+    const preview = estimateGiftBreakdown(gross, senderBal.free, senderBal.paid);
+    if (preview.net <= 0) {
+      throw new PointGiftError("선물 금액이 너무 작습니다.", "INVALID_AMOUNT");
+    }
 
-    deductPaidPointsInTx(db, senderId, breakdown.gross, senderReason);
+    const breakdown = deductGiftPointsInTx(db, senderId, gross, recipient.nickname);
+    if (breakdown.net <= 0) {
+      throw new PointGiftError("선물 금액이 너무 작습니다.", "INVALID_AMOUNT");
+    }
+
+    const recipientReason = `포인트 선물 수령 (${breakdown.net}P)`;
     creditPaidPointsInTx(db, recipient.id, breakdown.net, recipientReason);
 
     const gift = db

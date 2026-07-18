@@ -5,7 +5,8 @@ import {
   type PointBalance,
   type PointType,
 } from "./points";
-import { FREE_POINTS_VALID_MONTHS } from "./plans";
+import { FREE_POINTS_VALID_YEARS } from "./plans";
+import { PAID_POINTS_VALID_YEARS } from "./points";
 import { reverseCreatorRewardForMessage } from "./creatorPoints";
 import { assessMessageForAutoRefund } from "./refundAutoValidation";
 import { buildMessageReceiptSnapshot } from "./refundMessageReceipt";
@@ -57,7 +58,9 @@ function restoreSlice(userId: number, slice: DeductionSlice, db: ReturnType<type
     userId,
     slice.pointType,
     slice.amount,
-    slice.pointType === "PAID" ? "+2 years" : `+${FREE_POINTS_VALID_MONTHS} months`
+    slice.pointType === "PAID"
+      ? `+${PAID_POINTS_VALID_YEARS} years`
+      : `+${FREE_POINTS_VALID_YEARS} years`
   );
 }
 
@@ -77,7 +80,7 @@ export function refundMessageDeduction(
     } else if (totalAmount > 0) {
       db.prepare(
         `INSERT INTO point_transactions (user_id, point_type, remaining_amount, expires_at)
-         VALUES (?, 'FREE', ?, datetime('now', '+${FREE_POINTS_VALID_MONTHS} months'))`
+         VALUES (?, 'FREE', ?, datetime('now', '+${FREE_POINTS_VALID_YEARS} years'))`
       ).run(userId, totalAmount);
     }
 

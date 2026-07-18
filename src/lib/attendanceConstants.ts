@@ -1,5 +1,5 @@
 /** 주간(월~일) 출석 일차별 보상 — 연속 여부와 무관, 이번 주 N번째 출석 = N일차 */
-export const ATTENDANCE_DAY_REWARDS = [200, 200, 250, 250, 300, 300, 400] as const;
+export const ATTENDANCE_DAY_REWARDS = [250, 250, 300, 300, 350, 350, 400] as const;
 /** 7일차 추가 보너스 (기본 400 + 보너스 400) */
 export const ATTENDANCE_DAY7_BONUS = 400;
 export const ATTENDANCE_CYCLE_DAYS = 7;

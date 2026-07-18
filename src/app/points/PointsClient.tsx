@@ -13,13 +13,14 @@ import {
   CHARGE_PAGE_SIZE,
 } from "@/lib/pointUsageLog";
 import { POINT_USAGE_HASH } from "@/lib/pointUi";
-import { FREE_POINTS_VALID_MONTHS, POINT_CHARGE_PACKAGES } from "@/lib/plans";
+import { FREE_POINTS_VALID_YEARS, POINT_CHARGE_PACKAGES } from "@/lib/plans";
 import { ATTENDANCE_POINTS_VALID_MONTHS } from "@/lib/attendanceConstants";
 import { runPortOnePointCharge } from "@/lib/portoneBrowser";
 import {
-  computeGiftBreakdown,
+  estimateGiftBreakdown,
   MIN_POINT_GIFT_AMOUNT,
-  POINT_GIFT_FEE_RATE,
+  POINT_GIFT_FEE_RATE_FREE,
+  POINT_GIFT_FEE_RATE_PAID,
 } from "@/lib/pointGiftsShared";
 import { cn, studioInputClass, studioSurface, studioType } from "@/lib/studioDesign";
 
@@ -286,9 +287,10 @@ export default function PointsClient({
   const giftPreview = (() => {
     const n = Number(giftAmount);
     if (!Number.isFinite(n) || n <= 0) return null;
-    return computeGiftBreakdown(n);
+    return estimateGiftBreakdown(n, freePoints, paidPoints);
   })();
-  const feePct = Math.round(POINT_GIFT_FEE_RATE * 100);
+  const feePctPaid = Math.round(POINT_GIFT_FEE_RATE_PAID * 100);
+  const feePctFree = Math.round(POINT_GIFT_FEE_RATE_FREE * 100);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -365,15 +367,17 @@ export default function PointsClient({
       setError(`최소 선물 금액은 ${MIN_POINT_GIFT_AMOUNT}P입니다.`);
       return;
     }
-    if (paidPoints < amount) {
-      setError("유료 포인트가 부족합니다. (무료 포인트는 선물할 수 없습니다)");
+    if (points < amount) {
+      setError("포인트가 부족합니다.");
       return;
     }
 
-    const preview = computeGiftBreakdown(amount);
+    const preview = estimateGiftBreakdown(amount, freePoints, paidPoints);
     if (
       !confirm(
-        `${giftNickname.trim()}님에게 유료 포인트를 선물할까요?\n\n차감: ${preview.gross.toLocaleString()}P (유료)\n수수료 ${feePct}%: ${preview.fee.toLocaleString()}P\n상대 수령: ${preview.net.toLocaleString()}P`
+        `${giftNickname.trim()}님에게 포인트를 선물할까요?\n\n차감: ${preview.gross.toLocaleString()}P\n` +
+          `(유료 ${preview.paidGross.toLocaleString()}P·수수료 ${feePctPaid}% / 무료 ${preview.freeGross.toLocaleString()}P·수수료 ${feePctFree}%)\n` +
+          `수수료 합계: ${preview.fee.toLocaleString()}P\n상대 수령: ${preview.net.toLocaleString()}P\n\n※ 실제 차감은 만료 임박·무료 우선입니다.`
       )
     ) {
       return;
@@ -409,7 +413,8 @@ export default function PointsClient({
           <p className="text-3xl font-semibold tabular-nums text-zinc-50">{points.toLocaleString()}P</p>
         </PointsBalanceTooltip>
         <p className={`mt-2 ${studioType.caption}`}>
-          충전 보너스·이벤트 무료 포인트는 <b className="text-zinc-300">{FREE_POINTS_VALID_MONTHS}개월</b>, 출석 포인트는 <b className="text-zinc-300">{ATTENDANCE_POINTS_VALID_MONTHS}개월</b>간 유효합니다.
+          유료·무료(충전 보너스·이벤트) 포인트는 <b className="text-zinc-300">{FREE_POINTS_VALID_YEARS}년</b>, 출석 포인트는{" "}
+          <b className="text-zinc-300">{ATTENDANCE_POINTS_VALID_MONTHS}개월</b>간 유효합니다. 사용 시 만료 임박·무료 순으로 차감됩니다.
         </p>
       </div>
 
@@ -479,12 +484,13 @@ export default function PointsClient({
       <h2 className={`mt-8 ${studioType.sectionTitle}`}>포인트 선물</h2>
       <div className={`mt-3 p-5 ${studioSurface.card}`}>
         <p className={studioType.body}>
-          <b className="text-zinc-200">유료 포인트</b>만 선물할 수 있습니다. 입력한 금액이 그대로 차감되고, 받는 사람은{" "}
-          <b className="text-violet-300">수수료 {feePct}%</b>를 제외한 금액을 받습니다.
+          입력한 금액이 그대로 차감됩니다. 수수료는 유료{" "}
+          <b className="text-violet-300">{feePctPaid}%</b> · 무료(출석 포함){" "}
+          <b className="text-violet-300">{feePctFree}%</b>이며, 받는 사람은 수수료를 제외한 금액을 받습니다.
         </p>
         <p className={`mt-1 ${studioType.caption}`}>
-          보유 유료 포인트: <b className="text-zinc-50">{paidPoints.toLocaleString()}P</b> · 최소{" "}
-          {MIN_POINT_GIFT_AMOUNT}P
+          보유 합계: <b className="text-zinc-50">{points.toLocaleString()}P</b> (유료{" "}
+          {paidPoints.toLocaleString()}P · 무료 {freePoints.toLocaleString()}P) · 최소 {MIN_POINT_GIFT_AMOUNT}P
         </p>
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <label className="block">
@@ -519,6 +525,10 @@ export default function PointsClient({
               <span className="mx-2 text-zinc-600">→</span>
               상대 수령 <b className="tabular-nums text-violet-300">{giftPreview.net.toLocaleString()}P</b>
             </p>
+            <p className="mt-1 text-xs text-zinc-500">
+              예상 차감 구성: 유료 {giftPreview.paidGross.toLocaleString()}P · 무료{" "}
+              {giftPreview.freeGross.toLocaleString()}P (만료 임박 우선)
+            </p>
           </div>
         )}
         <button
@@ -526,7 +536,7 @@ export default function PointsClient({
           disabled={loading === "gift"}
           className="mt-4 w-full rounded-xl bg-violet-600 py-3 font-bold text-white hover:bg-violet-500 disabled:opacity-50"
         >
-          {loading === "gift" ? "처리 중…" : "유료 포인트 선물하기"}
+          {loading === "gift" ? "처리 중…" : "포인트 선물하기"}
         </button>
       </div>
 
@@ -572,7 +582,7 @@ export default function PointsClient({
         )}
         {historyTab === "free" && free.total > 0 && (
           <p className={`mt-2 ${studioType.caption}`}>
-            최근 {Math.min(free.total, 100).toLocaleString()}건 · {CHARGE_PAGE_SIZE}건씩 · 출석(1개월)·이벤트/충전 보너스(5개월)
+            최근 {Math.min(free.total, 100).toLocaleString()}건 · {CHARGE_PAGE_SIZE}건씩 · 출석(1개월)·이벤트/충전 보너스(2년)
           </p>
         )}
 

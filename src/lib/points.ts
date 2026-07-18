@@ -17,7 +17,7 @@ import {
 import { savedVisibleTextForReceipt } from "./chatRichContent";
 import { resolveResponseLengthTarget, isCatastrophicallyShortResponse, type GenerationFailureReason } from "./responseLength";
 import { isDegenerateOutput } from "./gibberishGuard";
-import { PLANS, type PlanId, FREE_MEMORY_LIMIT, FREE_POINTS_VALID_MONTHS } from "./plans";
+import { PLANS, type PlanId, FREE_MEMORY_LIMIT, FREE_POINTS_VALID_YEARS } from "./plans";
 import { ATTENDANCE_POINTS_VALID_MONTHS } from "./attendanceConstants";
 import type { StageUsage } from "./ai";
 import {
@@ -34,7 +34,13 @@ export type BillingWaiverReason =
   | "degeneration"
   | "generation_failure";
 
-export { PLANS, type PlanId, FREE_MEMORY_LIMIT, FREE_POINTS_VALID_MONTHS, ATTENDANCE_POINTS_VALID_MONTHS };
+export {
+  PLANS,
+  type PlanId,
+  FREE_MEMORY_LIMIT,
+  FREE_POINTS_VALID_YEARS,
+  ATTENDANCE_POINTS_VALID_MONTHS,
+};
 
 /** Gemini: (입력/1000)×3×tier + (출력/1000)×9×tier */
 const BASE_GEMINI_INPUT = 3;
@@ -373,7 +379,8 @@ export const PAID_POINTS_VALID_YEARS = 2;
 function expiresModifier(pointType: PointType, validity?: { months?: number; years?: number }): string {
   if (validity?.years) return `+${validity.years} years`;
   if (validity?.months) return `+${validity.months} months`;
-  return pointType === "PAID" ? `+${PAID_POINTS_VALID_YEARS} years` : `+${FREE_POINTS_VALID_MONTHS} months`;
+  // PAID·일반 FREE 모두 2년. 출석 FREE만 validity.months로 1개월 지정.
+  return `+${pointType === "PAID" ? PAID_POINTS_VALID_YEARS : FREE_POINTS_VALID_YEARS} years`;
 }
 
 function readBalance(db: ReturnType<typeof getDb>, userId: number): PointBalance {
@@ -406,7 +413,7 @@ export type CreditPointsResult = {
   logId: number;
 };
 
-/** 원장 적립 — PAID 2년 / FREE 기본 5개월 만료 (출석 등은 validity로 조정) */
+/** 원장 적립 — PAID·FREE 기본 2년 만료 (출석 FREE는 validity로 1개월) */
 export function creditPointsWithIds(
   db: ReturnType<typeof getDb>,
   userId: number,
@@ -453,7 +460,7 @@ export type PointLogLink = {
   chatId?: number;
 };
 
-/** FREE(만료 임박 순) → PAID(만료 임박 순) 우선 차감 */
+/** 만료 임박 순 → 동일 만료면 FREE 우선 → id 순 차감 */
 export function deductPoints(
   userId: number,
   amount: number,
@@ -471,32 +478,33 @@ export function deductPoints(
     let remaining = need;
     const slices: DeductionSlice[] = [];
 
-    const takeFromType = (pointType: PointType) => {
-      const rows = db
-        .prepare(
-          `SELECT id, remaining_amount FROM point_transactions
-           WHERE user_id = ? AND point_type = ? AND remaining_amount > 0 AND expires_at > datetime('now')
-           ORDER BY expires_at ASC, id ASC`
-        )
-        .all(userId, pointType) as { id: number; remaining_amount: number }[];
+    const rows = db
+      .prepare(
+        `SELECT id, point_type, remaining_amount FROM point_transactions
+         WHERE user_id = ? AND remaining_amount > 0 AND expires_at > datetime('now')
+         ORDER BY expires_at ASC,
+           CASE point_type WHEN 'FREE' THEN 0 ELSE 1 END ASC,
+           id ASC`
+      )
+      .all(userId) as {
+      id: number;
+      point_type: PointType;
+      remaining_amount: number;
+    }[];
 
-      const update = db.prepare(
-        "UPDATE point_transactions SET remaining_amount = ? WHERE id = ?"
-      );
+    const update = db.prepare(
+      "UPDATE point_transactions SET remaining_amount = ? WHERE id = ?"
+    );
 
-      for (const row of rows) {
-        if (remaining <= 0) break;
-        const available = roundAmount(row.remaining_amount);
-        if (available <= 0) continue;
-        const take = roundAmount(Math.min(available, remaining));
-        update.run(roundAmount(available - take), row.id);
-        slices.push({ transactionId: row.id, pointType, amount: take });
-        remaining = roundAmount(remaining - take);
-      }
-    };
-
-    takeFromType("FREE");
-    takeFromType("PAID");
+    for (const row of rows) {
+      if (remaining <= 0) break;
+      const available = roundAmount(row.remaining_amount);
+      if (available <= 0) continue;
+      const take = roundAmount(Math.min(available, remaining));
+      update.run(roundAmount(available - take), row.id);
+      slices.push({ transactionId: row.id, pointType: row.point_type, amount: take });
+      remaining = roundAmount(remaining - take);
+    }
 
     if (remaining > 0.001) {
       throw new InsufficientPointsError(readBalance(db, userId));
