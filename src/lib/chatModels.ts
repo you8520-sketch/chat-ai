@@ -46,6 +46,9 @@ export const OPENROUTER_GEMINI_20_FLASH_MODEL = "google/gemini-2.0-flash-001";
 /** OpenRouter — Gemini 2.5 Flash (HTML·백그라운드 등 직접 호출용) */
 export const OPENROUTER_GEMINI_25_FLASH_MODEL = "google/gemini-2.5-flash";
 
+/** OpenRouter — Gemini 2.5 Flash Lite (background failure-only fallback) */
+export const OPENROUTER_GEMINI_25_FLASH_LITE_MODEL = "google/gemini-2.5-flash-lite";
+
 /** OpenRouter — Gemini 3.1 Flash Lite (백그라운드·비-RP 직접 호출용) */
 export const OPENROUTER_GEMINI_31_FLASH_MODEL = "google/gemini-3.1-flash-lite";
 

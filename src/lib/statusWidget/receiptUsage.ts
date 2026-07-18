@@ -1,6 +1,7 @@
 import type { TokenUsage } from "@/lib/ai";
 import {
   OPENROUTER_DEEPSEEK_V3_MODEL,
+  OPENROUTER_GEMINI_25_FLASH_LITE_MODEL,
   OPENROUTER_GEMINI_25_FLASH_MODEL,
 } from "@/lib/chatModels";
 import { openRouterRawCostKrw } from "@/lib/billingRawCost";
@@ -51,7 +52,19 @@ export function normalizeStatusWidgetExtractCallCount(callCount: unknown): numbe
 
 export function statusWidgetExtractModelLabel(modelId: string): string {
   const id = modelId.trim();
+  if (id.includes(" + ")) {
+    return id
+      .split(" + ")
+      .map((part) => statusWidgetExtractModelLabel(part.trim()))
+      .join(" + ");
+  }
   const lower = id.toLowerCase();
+  if (
+    lower === OPENROUTER_GEMINI_25_FLASH_LITE_MODEL ||
+    lower.includes("gemini-2.5-flash-lite")
+  ) {
+    return "Google Gemini 2.5 Flash Lite (상태창 추출)";
+  }
   if (
     lower === OPENROUTER_GEMINI_25_FLASH_MODEL ||
     lower.includes("gemini-2.5-flash")

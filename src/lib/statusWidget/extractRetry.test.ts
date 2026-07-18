@@ -16,7 +16,10 @@ import {
   sliceAssistantProseForRepair,
 } from "./extractNormalize";
 import { collectWidgetJsonKeys } from "./prompt";
-import { statusWidgetValuesHasContent } from "./displayPolicy";
+import {
+  statusWidgetSourceValuesHaveContent,
+  statusWidgetValuesHasContent,
+} from "./displayPolicy";
 import {
   applyStatusWidgetBillingCharge,
   mergeStatusWidgetExtractUsages,
@@ -25,7 +28,11 @@ import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
 import type { Usage } from "@/lib/chatUsage";
 import type { ResolvedStatusWidgetTurn, StatusWidget } from "./types";
 import type { TokenUsage } from "@/lib/ai";
-import { OPENROUTER_GEMINI_25_FLASH_MODEL } from "@/lib/chatModels";
+import {
+  OPENROUTER_DEEPSEEK_V3_MODEL,
+  OPENROUTER_GEMINI_25_FLASH_LITE_MODEL,
+  OPENROUTER_GEMINI_25_FLASH_MODEL,
+} from "@/lib/chatModels";
 
 const usage = (n: number): TokenUsage => ({
   inputTokens: 10 + n,
@@ -1489,5 +1496,279 @@ describe("combined dual output budget", () => {
       },
     });
     assert.ok((seenRepair ?? 0) >= 256 && (seenRepair ?? 0) <= 512);
+  });
+});
+
+describe("background cross-model fallback (DeepSeek primary → Gemini Flash Lite)", () => {
+  const FALLBACK = OPENROUTER_GEMINI_25_FLASH_LITE_MODEL;
+  const PRIMARY = OPENROUTER_DEEPSEEK_V3_MODEL;
+
+  it("1. DeepSeek initial success → Gemini 0, callCount=1", async () => {
+    const models: string[] = [];
+    const caller: StatusWidgetExtractCaller = async (_s, _h, opts) => {
+      models.push(opts.modelId);
+      return { text: jsonForWidget(DEFAULT_STATUS_WIDGET), usage: usage(1) };
+    };
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "장면",
+      resolved: characterResolved(),
+      primaryModelId: PRIMARY,
+      fallbackModelId: FALLBACK,
+      caller,
+    });
+    assert.deepEqual(models, [PRIMARY]);
+    assert.equal(result.meta.actualCallCount, 1);
+    assert.equal(result.meta.usedFallback, false);
+  });
+
+  it("2. DeepSeek initial fail, repair success → Gemini 0, callCount=2", async () => {
+    const models: string[] = [];
+    const caller: StatusWidgetExtractCaller = async (_s, _h, opts) => {
+      models.push(opts.modelId);
+      if (opts.requestKind.includes("repair")) {
+        return { text: jsonForWidget(DEFAULT_STATUS_WIDGET), usage: usage(2) };
+      }
+      return { text: "", usage: usage(1) };
+    };
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "장면",
+      resolved: characterResolved(),
+      primaryModelId: PRIMARY,
+      fallbackModelId: FALLBACK,
+      caller,
+    });
+    assert.deepEqual(models, [PRIMARY, PRIMARY]);
+    assert.equal(result.meta.actualCallCount, 2);
+    assert.equal(result.meta.usedFallback, false);
+    assert.equal(result.meta.character?.finalReasonCode, "V3_REPAIR_USED");
+  });
+
+  it("3. DeepSeek initial+repair fail, Gemini success → callCount=3", async () => {
+    const models: string[] = [];
+    const kinds: string[] = [];
+    const caller: StatusWidgetExtractCaller = async (_s, _h, opts) => {
+      models.push(opts.modelId);
+      kinds.push(opts.requestKind);
+      if (opts.requestKind.includes("fallback")) {
+        return { text: jsonForWidget(DEFAULT_STATUS_WIDGET, { 장소: "옥상" }), usage: usage(3) };
+      }
+      return { text: "", usage: usage(1) };
+    };
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "장면",
+      resolved: characterResolved(),
+      primaryModelId: PRIMARY,
+      fallbackModelId: FALLBACK,
+      caller,
+    });
+    assert.deepEqual(models, [PRIMARY, PRIMARY, FALLBACK]);
+    assert.ok(kinds.some((k) => k.includes("fallback")));
+    assert.equal(result.meta.actualCallCount, 3);
+    assert.equal(result.meta.usedFallback, true);
+    assert.equal(result.values.character?.["장소"], "옥상");
+    assert.equal(result.meta.billingModelId, `${PRIMARY} + ${FALLBACK}`);
+  });
+
+  it("4. dual: character ok, user fails → only user fallback", async () => {
+    const userWidget: StatusWidget = {
+      ...DEFAULT_STATUS_WIDGET,
+      name: "유저",
+      fields: [
+        { id: "기분", label: "기분", instruction: "유저 감정" },
+        { id: "위치", label: "위치", instruction: "유저 위치" },
+      ],
+    };
+    const modelsBySource: string[] = [];
+    const caller: StatusWidgetExtractCaller = async (system, _h, opts) => {
+      modelsBySource.push(`${opts.requestKind}:${opts.modelId}`);
+      if (opts.requestKind.includes("combined")) {
+        return {
+          text: JSON.stringify({
+            character_values: JSON.parse(jsonForWidget(DEFAULT_STATUS_WIDGET)),
+            user_values: {},
+            extracted_facts: [],
+          }),
+          usage: usage(1),
+        };
+      }
+      if (opts.requestKind.includes("fallback")) {
+        return {
+          text: JSON.stringify({ 기분: "긴장", 위치: "복도", extracted_facts: [] }),
+          usage: usage(3),
+        };
+      }
+      return { text: "", usage: usage(2) };
+    };
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "장면",
+      resolved: bothResolved(DEFAULT_STATUS_WIDGET, userWidget),
+      primaryModelId: PRIMARY,
+      fallbackModelId: FALLBACK,
+      caller,
+    });
+    assert.ok(statusWidgetSourceValuesHaveContent(result.values.character));
+    assert.equal(result.values.user?.["기분"], "긴장");
+    assert.equal(result.meta.character?.stages.includes("fallback"), false);
+    assert.equal(result.meta.user?.stages.includes("fallback"), true);
+    assert.ok(modelsBySource.some((m) => m.startsWith("background-status-widget-extract-fallback:")));
+  });
+
+  it("5. dual: user ok, character fails → only character fallback", async () => {
+    const userWidget: StatusWidget = {
+      ...DEFAULT_STATUS_WIDGET,
+      name: "유저",
+      fields: [
+        { id: "기분", label: "기분", instruction: "유저 감정" },
+        { id: "위치", label: "위치", instruction: "유저 위치" },
+      ],
+    };
+    const caller: StatusWidgetExtractCaller = async (system, _h, opts) => {
+      if (opts.requestKind.includes("combined")) {
+        return {
+          text: JSON.stringify({
+            character_values: {},
+            user_values: { 기분: "설렘", 위치: "카페" },
+            extracted_facts: [],
+          }),
+          usage: usage(1),
+        };
+      }
+      if (opts.requestKind.includes("fallback")) {
+        return { text: jsonForWidget(DEFAULT_STATUS_WIDGET, { 장소: "옥상" }), usage: usage(3) };
+      }
+      return { text: "", usage: usage(2) };
+    };
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "장면",
+      resolved: bothResolved(DEFAULT_STATUS_WIDGET, userWidget),
+      primaryModelId: PRIMARY,
+      fallbackModelId: FALLBACK,
+      caller,
+    });
+    assert.equal(result.values.user?.["기분"], "설렘");
+    assert.equal(result.values.character?.["장소"], "옥상");
+    assert.equal(result.meta.user?.stages.includes("fallback"), false);
+    assert.equal(result.meta.character?.stages.includes("fallback"), true);
+  });
+
+  it("6. both succeed on combined → fallback 0", async () => {
+    const userWidget: StatusWidget = {
+      ...DEFAULT_STATUS_WIDGET,
+      name: "유저",
+      fields: [
+        { id: "기분", label: "기분", instruction: "유저 감정" },
+        { id: "위치", label: "위치", instruction: "유저 위치" },
+      ],
+    };
+    let calls = 0;
+    const caller: StatusWidgetExtractCaller = async (_s, _h, opts) => {
+      calls += 1;
+      assert.ok(!opts.requestKind.includes("fallback"));
+      return {
+        text: JSON.stringify({
+          character_values: JSON.parse(jsonForWidget(DEFAULT_STATUS_WIDGET)),
+          user_values: { 기분: "설렘", 위치: "카페" },
+          extracted_facts: [],
+        }),
+        usage: usage(1),
+      };
+    };
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "장면",
+      resolved: bothResolved(DEFAULT_STATUS_WIDGET, userWidget),
+      primaryModelId: PRIMARY,
+      fallbackModelId: FALLBACK,
+      caller,
+    });
+    assert.equal(calls, 1);
+    assert.equal(result.meta.usedFallback, false);
+    assert.equal(result.meta.actualCallCount, 1);
+  });
+
+  it("7. primary == fallback → skip fallback", async () => {
+    const models: string[] = [];
+    const caller: StatusWidgetExtractCaller = async (_s, _h, opts) => {
+      models.push(opts.modelId);
+      return { text: "", usage: usage(1) };
+    };
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "장면",
+      resolved: characterResolved(),
+      primaryModelId: PRIMARY,
+      fallbackModelId: PRIMARY,
+      caller,
+    });
+    assert.deepEqual(models, [PRIMARY, PRIMARY]);
+    assert.equal(result.meta.usedFallback, false);
+    assert.equal(result.meta.actualCallCount, 2);
+  });
+
+  it("8. fallback env unset → OFF", async () => {
+    const models: string[] = [];
+    const caller: StatusWidgetExtractCaller = async (_s, _h, opts) => {
+      models.push(opts.modelId);
+      return { text: "", usage: usage(1) };
+    };
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "장면",
+      resolved: characterResolved(),
+      primaryModelId: PRIMARY,
+      env: {},
+      caller,
+    });
+    assert.deepEqual(models, [PRIMARY, PRIMARY]);
+    assert.equal(result.meta.usedFallback, false);
+  });
+
+  it("9. usage merged once per attempt", async () => {
+    const caller: StatusWidgetExtractCaller = async (_s, _h, opts) => {
+      if (opts.requestKind.includes("fallback")) {
+        return {
+          text: jsonForWidget(DEFAULT_STATUS_WIDGET),
+          usage: { inputTokens: 30, outputTokens: 3, estimated: false, upstreamCostUsd: 0.003 },
+        };
+      }
+      return {
+        text: "",
+        usage: { inputTokens: 10, outputTokens: 1, estimated: false, upstreamCostUsd: 0.001 },
+      };
+    };
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "x",
+      assistantProse: "장면",
+      resolved: characterResolved(),
+      primaryModelId: PRIMARY,
+      fallbackModelId: FALLBACK,
+      caller,
+    });
+    assert.equal(result.usage?.inputTokens, 50);
+    assert.equal(result.usage?.outputTokens, 5);
+    assert.equal(result.usage?.upstreamCostUsd, 0.005);
   });
 });
