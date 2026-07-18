@@ -144,6 +144,13 @@ export function __setSummarizeTurnBatchCallerForTests(
   summarizeTurnBatchCallerOverride = fn;
 }
 
+/** @internal test seam — force persistValidatedSummaryBatch txn rollback after upsert */
+let persistForceFailAfterUpsertForTests = false;
+
+export function __setPersistForceFailAfterUpsertForTests(fail: boolean): void {
+  persistForceFailAfterUpsertForTests = fail;
+}
+
 /** @internal exported for unit tests */
 export async function summarizeTurnBatch(opts: {
   dialogue: string;
@@ -359,6 +366,11 @@ type ComposedBatchScope =
       displaySummary: string;
       reasonTag: string;
       mainModelCalls: number;
+      /**
+       * Sole-closed reopen decided during compose but applied only after
+       * successful persist (atomicity — no DB reopen on compose failure).
+       */
+      pendingSoleClosedReopenId: string | null;
     }
   | { ok: false; reason: string };
 
@@ -385,8 +397,34 @@ async function composeBatchScopePayload(opts: {
   previousWasNoncanonOrBranch: boolean;
   priorRecords: MemoryRecordView[];
 }): Promise<ComposedBatchScope> {
+  // Deterministic sole-closed reopen candidate (pending only — no DB mutation here).
+  const hasActivePriorBranch = opts.priorRecords.some(
+    (r) =>
+      !r.inactive &&
+      r.summaryKind === "branch_canon" &&
+      r.branchStatus === "active"
+  );
+  const hasNoncanonCandidate = opts.priorRecords.some(
+    (r) => !r.inactive && r.summaryKind === "noncanon"
+  );
+  const closedBranchIds = listDistinctClosedBranchIds(opts.chatId);
+  const hasContinueIntentEarly = opts.allEntries.some((e) =>
+    shouldPromoteBranchContinue(e.turn.user)
+  );
+  const pendingSoleClosedReopenId =
+    opts.mode === "seal"
+      ? resolveSoleClosedContinueReopen({
+          hasActiveBranch: hasActivePriorBranch,
+          hasNoncanonCandidate,
+          closedBranchIds,
+          hasContinueIntent: hasContinueIntentEarly,
+        })
+      : null;
+
+  // Sole-closed continue: classify with prior-branch context so "계속" is branch_continue.
   const plan = classifyMemoryBatchScopes(opts.allEntries, {
-    previousWasNoncanonOrBranch: opts.previousWasNoncanonOrBranch,
+    previousWasNoncanonOrBranch:
+      opts.previousWasNoncanonOrBranch || !!pendingSoleClosedReopenId,
   });
   const mainEntries = plan.mainTurns.filter(({ turn }) =>
     isTurnEligibleForMemoryRecord(turn.user)
@@ -406,40 +444,18 @@ async function composeBatchScopePayload(opts: {
     opts.mode === "regen" && existing?.promotedBy === "user_main_adopt";
 
   const continueSrc = findBatchControlSource(opts.allEntries, "branch_continue", {
-    previousWasNoncanonOrBranch: opts.previousWasNoncanonOrBranch,
+    previousWasNoncanonOrBranch:
+      opts.previousWasNoncanonOrBranch || !!pendingSoleClosedReopenId,
   });
   const closeSrc = findBatchControlSource(opts.allEntries, "branch_close");
 
-  // Deterministic sole-closed reopen: no active, no noncanon candidates, exactly one
-  // closed branch_id, and continue intent — never guess among multiple closed branches.
-  const hasActivePriorBranch = opts.priorRecords.some(
+  const activePriorBranch = opts.priorRecords.find(
     (r) =>
       !r.inactive &&
       r.summaryKind === "branch_canon" &&
-      r.branchStatus === "active"
+      r.branchStatus === "active" &&
+      !!r.branchId?.trim()
   );
-  const hasNoncanonCandidate = opts.priorRecords.some(
-    (r) => !r.inactive && r.summaryKind === "noncanon"
-  );
-  const closedBranchIds = listDistinctClosedBranchIds(opts.chatId);
-  const hasContinueIntent =
-    plan.wantsBranchContinue ||
-    opts.allEntries.some((e) => shouldPromoteBranchContinue(e.turn.user));
-  let soleClosedReopenedId: string | null = null;
-  const soleClosedId = resolveSoleClosedContinueReopen({
-    hasActiveBranch: hasActivePriorBranch,
-    hasNoncanonCandidate,
-    closedBranchIds,
-    hasContinueIntent,
-  });
-  if (opts.mode === "seal" && soleClosedId) {
-    const reopened = reopenClosedBranchCanon({
-      chatId: opts.chatId,
-      branchId: soleClosedId,
-      source: "seal_sole_closed_continue",
-    });
-    if (reopened.ok) soleClosedReopenedId = reopened.branchId;
-  }
 
   if (opts.mode === "seal" && plan.wantsBranchClose) {
     closeActiveBranchCanon(
@@ -464,7 +480,7 @@ async function composeBatchScopePayload(opts: {
     const userWantsBranch =
       plan.wantsBranchContinue ||
       plan.primaryKind === "branch_canon" ||
-      !!soleClosedReopenedId;
+      !!pendingSoleClosedReopenId;
     // Regen must keep an existing branch row as branch_canon (active or closed),
     // and must not invent a new branch from assistant text alone.
     const preserveBranchScope =
@@ -487,12 +503,39 @@ async function composeBatchScopePayload(opts: {
         }
         promotedBy = existing.promotedBy;
         promotedAt = existing.promotedAt;
-      } else if (soleClosedReopenedId) {
-        // Attach sealing batch to the reopened branch — never mint a new branch_id.
-        branchId = soleClosedReopenedId;
+      } else if (pendingSoleClosedReopenId) {
+        // Attach sealing batch to the pending sole-closed branch — never mint a new id.
+        branchId = pendingSoleClosedReopenId;
         branchStatus = "active";
         promotedBy = "user_continue";
         promotedAt = new Date().toISOString();
+      } else if (
+        opts.mode === "seal" &&
+        activePriorBranch?.branchId &&
+        (plan.wantsBranchContinue || hasContinueIntentEarly)
+      ) {
+        // Continue existing active branch — keep its branch_id (single-active invariant).
+        branchId = activePriorBranch.branchId;
+        branchStatus = "active";
+        promotedBy = activePriorBranch.promotedBy ?? "user_continue";
+        promotedAt = activePriorBranch.promotedAt ?? new Date().toISOString();
+        const toPromote = opts.priorRecords
+          .filter((r) => !r.inactive && r.summaryKind === "noncanon")
+          .map((r) => r.id);
+        if (toPromote.length > 0) {
+          promoteRecordsToBranchCanon({
+            chatId: opts.chatId,
+            recordIds: toPromote,
+            branchId,
+            promotedBy: "user_continue",
+            control: {
+              source: "user_turn",
+              sourceUserMessageId: continueSrc?.userMessageId ?? null,
+              sourceTurn: continueSrc?.turnIndex ?? null,
+              sourceBatchStart: opts.batchStart,
+            },
+          });
+        }
       } else {
         branchId = `branch-${opts.chatId}-${opts.batchStart}`;
         branchStatus = "active";
@@ -525,14 +568,41 @@ async function composeBatchScopePayload(opts: {
       // Adopted main timeline: keep IF beats inside main_canon, never re-open noncanon.
       scopes.main_canon = [scopes.main_canon, nonText].filter(Boolean).join("\n");
     }
-  } else if (soleClosedReopenedId && opts.mode === "seal") {
-    // Continue-only batch with no noncanon scene text: reopen already applied; no new branch row scopes.
   }
 
   if (mainEntries.length === 0 && !scopes.noncanon && !scopes.branch_canon && !scopes.preference && !scopes.main_canon) {
     scopes.empty_ooc = buildEmptyOocBatchPlaceholder(opts.batchStart, opts.endTurn);
     summaryKind = "empty_ooc";
     reasonTag = "SUMMARY_OOC_PLACEHOLDER";
+    if (pendingSoleClosedReopenId) {
+      // Continue-only sole-closed: keep pending reopen; batch itself stays empty_ooc placeholder.
+      branchId = pendingSoleClosedReopenId;
+      branchStatus = "active";
+    }
+  } else if (mainEntries.length > 0 && pendingSoleClosedReopenId) {
+    // Never fall through to main_canon when sole-closed continue is pending.
+    const branchText =
+      scopes.branch_canon ||
+      buildNoncanonSummaryFromTurns(
+        plan.noncanonTurns.length > 0
+          ? plan.noncanonTurns
+          : mainEntries.map((e) => ({ turnIndex: e.turnIndex, turn: e.turn }))
+      );
+    scopes.branch_canon = branchText;
+    delete scopes.main_canon;
+    summaryKind = "branch_canon";
+    branchId = pendingSoleClosedReopenId;
+    branchStatus = "active";
+    promotedBy = promotedBy ?? "user_continue";
+    promotedAt = promotedAt ?? new Date().toISOString();
+  } else if (
+    mainEntries.length > 0 &&
+    summaryKind === "branch_canon" &&
+    !!branchId &&
+    !!scopes.branch_canon
+  ) {
+    // Active-branch continue already attached: do not overwrite with main_canon.
+    delete scopes.main_canon;
   } else if (mainEntries.length > 0) {
     const dialogue = formatBatchDialogue(mainEntries, opts.charName);
     const summaryStartTurn = mainEntries[0]!.turnIndex;
@@ -632,6 +702,7 @@ async function composeBatchScopePayload(opts: {
     displaySummary: validated.text,
     reasonTag,
     mainModelCalls,
+    pendingSoleClosedReopenId,
   };
 }
 
@@ -674,6 +745,7 @@ async function persistComposedBatchScopes(opts: {
     promotedAt: opts.composed.promotedAt,
     userEdited: false,
     playableTurnCount: opts.playableCount,
+    __testThrowAfterUpsert: persistForceFailAfterUpsertForTests || undefined,
   });
 
   if (!persisted.ok) {
@@ -684,8 +756,24 @@ async function persistComposedBatchScopes(opts: {
     return false;
   }
 
+  // Apply sole-closed reopen only after successful persist (compose never mutates).
+  if (opts.composed.pendingSoleClosedReopenId) {
+    reopenClosedBranchCanon({
+      chatId: opts.chatId,
+      branchId: opts.composed.pendingSoleClosedReopenId,
+      source: "seal_sole_closed_continue",
+    });
+  }
+
   const lorebookBudget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity).lorebook;
   let currentMemory = rebuildLorebookFromRecords(opts.chatId);
+  if (opts.composed.pendingSoleClosedReopenId) {
+    updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
+      recent_summary: currentMemory,
+      membership_tier: opts.tier,
+    });
+    syncChatLongTermMemory(opts.chatId, currentMemory);
+  }
   if (currentMemory.length > lorebookBudget) {
     try {
       const compacted = await compactCurrentMemory(

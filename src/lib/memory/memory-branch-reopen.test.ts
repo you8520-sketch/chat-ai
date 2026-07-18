@@ -11,7 +11,7 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 } as typeof Module._load;
 
 import assert from "node:assert/strict";
-import { after, beforeEach, describe, it } from "node:test";
+import { after, afterEach, beforeEach, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
 import { rollbackBranchControlMutationsForDeletedUserMessage } from "./memory-branch-control";
 import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
@@ -27,6 +27,11 @@ import {
   reopenClosedBranchCanon,
   resolveSoleClosedContinueReopen,
 } from "./memory-turn-summary";
+import {
+  __setPersistForceFailAfterUpsertForTests,
+  __setSummarizeTurnBatchCallerForTests,
+  processRollingSummaryBatch,
+} from "./memory-rolling-summary";
 
 const CHAT = 921901;
 const USER = 921991;
@@ -151,8 +156,35 @@ function insertMsg(role: "user" | "assistant", content: string): number {
   );
 }
 
+const CONTINUE_SCENE =
+  "회사 IF가 이어지며 두 사람이 계약서에 서명하기 직전 장면을 진행했다. " +
+  "오해가 풀리고 다음 만남을 약속하며 분기가 계속된다.";
+
+/** Seed greeting + N playable user+assistant pairs (playable turn numbers 1..N). */
+function seedPlayableTurns(
+  count: number,
+  turnFn: (t: number) => { user: string; assistant: string }
+) {
+  getDb().prepare("DELETE FROM messages WHERE chat_id=?").run(CHAT);
+  getDb()
+    .prepare(
+      `INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)`
+    )
+    .run(CHAT, "assistant", "인사.", "greeting");
+  for (let t = 1; t <= count; t++) {
+    const { user, assistant } = turnFn(t);
+    insertMsg("user", user);
+    insertMsg("assistant", assistant);
+  }
+}
+
 beforeEach(() => {
   seed();
+});
+
+afterEach(() => {
+  __setPersistForceFailAfterUpsertForTests(false);
+  __setSummarizeTurnBatchCallerForTests(null);
 });
 
 after(() => {
@@ -442,5 +474,142 @@ describe("targeted closed branch reopen", () => {
     getDb().prepare("DELETE FROM messages WHERE id=?").run(fake);
     assert.equal(rollbackBranchControlMutationsForDeletedUserMessage(CHAT, fake), 0);
     assert.equal(row(id).branchStatus, "active");
+  });
+});
+
+describe("seal-path blockers: atomicity / sole-closed e2e / single-active", () => {
+  it("1: sole-closed reopen is atomic — persist fail leaves A closed", async () => {
+    const idA = persistBranch({
+      turnStart: 1,
+      branchId: "branch-A",
+      status: "closed",
+      text: TEXT_A,
+    });
+    updateChatMemory(CHAT, USER, CHAR, {
+      recent_summary: "[1~6턴] " + TEXT_A,
+      membership_tier: "free",
+    });
+    getDb()
+      .prepare("UPDATE chats SET current_summary=? WHERE id=?")
+      .run("[1~6턴] " + TEXT_A, CHAT);
+    const loreBefore = (
+      getDb()
+        .prepare("SELECT current_summary FROM chats WHERE id=?")
+        .get(CHAT) as { current_summary: string }
+    ).current_summary;
+
+    seedPlayableTurns(12, (t) =>
+      t === 12
+        ? { user: "아까 IF 이어서", assistant: CONTINUE_SCENE }
+        : { user: `본편 턴 ${t}`, assistant: `응답 ${t} — 장면을 짧게 이어간다.` }
+    );
+
+    __setPersistForceFailAfterUpsertForTests(true);
+    const ok = await processRollingSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "ReopenChar",
+      tier: "free",
+      memoryCapacity: 8000,
+    });
+    assert.equal(ok, false);
+    assert.equal(row(idA).branchStatus, "closed");
+    assert.equal(row(idA).branchId, "branch-A");
+    assert.equal(
+      listMemoryRecordsForChat(CHAT).some((r) => r.turnStart === 7),
+      false
+    );
+    const loreAfter = (
+      getDb()
+        .prepare("SELECT current_summary FROM chats WHERE id=?")
+        .get(CHAT) as { current_summary: string }
+    ).current_summary;
+    assert.equal(loreAfter, loreBefore);
+    assert.equal(countDistinctActiveBranchIds(CHAT), 0);
+  });
+
+  it("2: sole-closed continue e2e via processRollingSummaryBatch", async () => {
+    const idA = persistBranch({
+      turnStart: 1,
+      branchId: "branch-A",
+      status: "closed",
+      text: TEXT_A,
+    });
+
+    seedPlayableTurns(12, (t) =>
+      t === 12
+        ? { user: "계속", assistant: CONTINUE_SCENE }
+        : {
+            user: `(OOC: IF 이어서 장면 ${t})`,
+            assistant: `${CONTINUE_SCENE} 추가 비트 ${t}`,
+          }
+    );
+
+    // Must not invent main_canon via LLM fall-through.
+    __setSummarizeTurnBatchCallerForTests(async () => ({
+      text: MAIN_TEXT,
+    }));
+
+    const ok = await processRollingSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "ReopenChar",
+      tier: "free",
+      memoryCapacity: 8000,
+    });
+    assert.equal(ok, true);
+    assert.equal(row(idA).branchStatus, "active");
+    assert.equal(row(idA).branchId, "branch-A");
+
+    const batch2 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === 7);
+    assert.ok(batch2);
+    assert.equal(batch2!.summaryKind, "branch_canon");
+    assert.equal(batch2!.branchId, "branch-A");
+    assert.equal(batch2!.branchStatus, "active");
+    assert.notEqual(batch2!.summaryKind, "main_canon");
+    assert.equal(batch2!.branchId?.startsWith(`branch-${CHAT}-`), false);
+    assert.equal(countDistinctActiveBranchIds(CHAT), 1);
+
+    const lore = rebuildLorebookFromRecords(CHAT);
+    assert.match(lore, /분기A|회사 IF|계약/);
+  });
+
+  it("3: seal continue with active C keeps same branch_id (single-active)", async () => {
+    const idC = persistBranch({
+      turnStart: 1,
+      branchId: "branch-C",
+      status: "active",
+      text: TEXT_C,
+    });
+
+    seedPlayableTurns(12, (t) =>
+      t >= 10
+        ? { user: "이어서", assistant: CONTINUE_SCENE }
+        : { user: `분기 이어 ${t}`, assistant: `${TEXT_C} 비트 ${t}` }
+    );
+
+    __setSummarizeTurnBatchCallerForTests(async () => ({
+      text: MAIN_TEXT,
+    }));
+
+    const ok = await processRollingSummaryBatch({
+      chatId: CHAT,
+      userId: USER,
+      characterId: CHAR,
+      charName: "ReopenChar",
+      tier: "free",
+      memoryCapacity: 8000,
+    });
+    assert.equal(ok, true);
+    assert.equal(row(idC).branchStatus, "active");
+    assert.equal(row(idC).branchId, "branch-C");
+
+    const batch2 = listMemoryRecordsForChat(CHAT).find((r) => r.turnStart === 7)!;
+    assert.equal(batch2.summaryKind, "branch_canon");
+    assert.equal(batch2.branchId, "branch-C");
+    assert.notEqual(batch2.branchId, `branch-${CHAT}-7`);
+    assert.equal(countDistinctActiveBranchIds(CHAT), 1);
   });
 });
