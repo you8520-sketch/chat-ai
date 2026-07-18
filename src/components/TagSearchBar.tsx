@@ -7,11 +7,18 @@ import { sanitizeSearchQuery } from "@/lib/tagSearch";
 
 type Props = {
   defaultQuery?: string;
+  /** Preserve active genre filter when submitting a text search */
+  genre?: string | null;
   className?: string;
   compact?: boolean;
 };
 
-export default function TagSearchBar({ defaultQuery = "", className = "", compact }: Props) {
+export default function TagSearchBar({
+  defaultQuery = "",
+  genre = null,
+  className = "",
+  compact,
+}: Props) {
   const router = useRouter();
   const [q, setQ] = useState(defaultQuery);
 
@@ -19,7 +26,10 @@ export default function TagSearchBar({ defaultQuery = "", className = "", compac
     e.preventDefault();
     const trimmed = sanitizeSearchQuery(q);
     if (!trimmed) return;
-    router.push(`/search?q=${encodeURIComponent(trimmed)}`);
+    const params = new URLSearchParams();
+    params.set("q", trimmed);
+    if (genre?.trim()) params.set("g", genre.trim());
+    router.push(`/search?${params.toString()}`);
   }
 
   return (

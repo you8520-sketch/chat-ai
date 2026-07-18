@@ -1462,6 +1462,73 @@ export default function CreateCharacter({
             className={tabPanelClass("publish")}
             aria-hidden={pageTab !== "publish"}
           >
+            <section className={sectionPrivate}>
+              <div>
+                <h2 className="text-sm font-semibold text-zinc-100">공개 설정</h2>
+                <p className="mt-0.5 text-xs text-zinc-400">
+                  공개 범위 · NSFW · 댓글을 먼저 설정합니다.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-white/10 bg-[#161922] p-4">
+                <p className="text-sm font-semibold text-zinc-100">공개 범위</p>
+                <p className="mt-1 text-xs text-zinc-400">
+                  공개·링크 공개 선택 시 노출 이미지가 국내 성인 검열 기준으로
+                  자동 검수됩니다. 반려 시 비공개로 저장됩니다.
+                </p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                  {(
+                    [
+                      ["public", "공개", "신작·목록에 노출"],
+                      ["link", "링크 공개", "URL로만 공유 · 목록 숨김"],
+                      ["private", "비공개", "나만 볼 수 있음"],
+                    ] as const
+                  ).map(([value, title, desc]) => (
+                    <button
+                      type="button"
+                      key={value}
+                      onClick={() => setForm({ ...form, visibility: value })}
+                      className={`rounded-xl border p-3 text-left transition ${
+                        form.visibility === value
+                          ? "border-violet-500 bg-violet-600/20 ring-1 ring-violet-500/40"
+                          : "border-white/10 bg-[#161922] hover:border-white/20"
+                      }`}
+                    >
+                      <p className="text-sm font-bold text-white">{title}</p>
+                      <p className="mt-0.5 text-xs text-zinc-400">{desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-rose-500/30 bg-rose-500/5 p-4">
+                <input
+                  type="checkbox"
+                  checked={form.nsfw}
+                  onChange={(e) => setForm({ ...form, nsfw: e.target.checked })}
+                  className="h-5 w-5 accent-rose-600"
+                />
+                <div>
+                  <p className="font-semibold text-rose-300">NSFW 캐릭터</p>
+                  <p className="text-xs text-zinc-400">
+                    성인인증 + 성인 보기 ON 사용자에게만 노출
+                  </p>
+                </div>
+              </label>
+
+              <div className="rounded-xl border border-white/10 bg-[#161922] p-4">
+                <ToggleSwitch
+                  checked={form.comments_enabled}
+                  onChange={(next) =>
+                    setForm({ ...form, comments_enabled: next })
+                  }
+                  disabled={loading}
+                  label="댓글 허용"
+                  description="OFF 시 다른 사용자는 이 캐릭터에 댓글을 보거나 작성할 수 없습니다."
+                />
+              </div>
+            </section>
+
             <section className={sectionMuted}>
               <div>
                 <h2 className="text-sm font-semibold text-zinc-100">노출 · 장르</h2>
@@ -1503,74 +1570,6 @@ export default function CreateCharacter({
                 onChange={(genres) => setForm({ ...form, genres })}
                 disabled={loading}
               />
-            </section>
-
-            <section className={sectionPrivate}>
-              <div>
-                <h2 className="text-sm font-semibold text-zinc-100">
-                  공개 · 운영 설정
-                </h2>
-                <p className="mt-0.5 text-xs text-zinc-400">
-                  NSFW, 공개 범위, 댓글을 설정합니다.
-                </p>
-              </div>
-
-              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-rose-500/30 bg-rose-500/5 p-4">
-                <input
-                  type="checkbox"
-                  checked={form.nsfw}
-                  onChange={(e) => setForm({ ...form, nsfw: e.target.checked })}
-                  className="h-5 w-5 accent-rose-600"
-                />
-                <div>
-                  <p className="font-semibold text-rose-300">NSFW 캐릭터</p>
-                  <p className="text-xs text-zinc-400">
-                    성인인증 + 성인 보기 ON 사용자에게만 노출
-                  </p>
-                </div>
-              </label>
-
-              <div className="rounded-xl border border-white/10 bg-[#161922] p-4">
-                <p className="text-sm font-semibold text-zinc-100">공개 설정</p>
-                <p className="mt-1 text-xs text-zinc-400">
-                  공개·링크 공개 선택 시 노출 이미지가 국내 성인 검열 기준으로
-                  자동 검수됩니다. 반려 시 비공개로 저장됩니다.
-                </p>
-                <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                  {(
-                    [
-                      ["public", "공개", "신작·목록에 노출"],
-                      ["link", "링크 공개", "URL로만 공유 · 목록 숨김"],
-                      ["private", "비공개", "나만 볼 수 있음"],
-                    ] as const
-                  ).map(([value, title, desc]) => (
-                    <button
-                      type="button"
-                      key={value}
-                      onClick={() => setForm({ ...form, visibility: value })}
-                      className={`rounded-xl border p-3 text-left transition ${
-                        form.visibility === value
-                          ? "border-violet-500 bg-violet-600/20 ring-1 ring-violet-500/40"
-                          : "border-white/10 bg-[#161922] hover:border-white/20"
-                      }`}
-                    >
-                      <p className="text-sm font-bold text-white">{title}</p>
-                      <p className="mt-0.5 text-xs text-zinc-400">{desc}</p>
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-4 border-t border-white/10 pt-4">
-                  <ToggleSwitch
-                    checked={form.comments_enabled}
-                    onChange={(next) =>
-                      setForm({ ...form, comments_enabled: next })
-                    }
-                    disabled={loading}
-                    label="댓글 허용"
-                    description="OFF 시 다른 사용자는 이 캐릭터에 댓글을 보거나 작성할 수 없습니다."
-                  />
-                </div>
-              </div>
             </section>
 
             <section className={sectionMuted}>

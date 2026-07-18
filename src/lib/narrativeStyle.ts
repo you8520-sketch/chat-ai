@@ -6,18 +6,23 @@ export type SceneMode = "calm" | "tension" | "combat";
 
 const SCENE_MODE_BY_GENRE: Partial<Record<CharacterGenre, SceneMode>> = {
   "공포/추리": "tension",
-  "코믹/액션": "combat",
-  "판타지/SF": "calm",
+  판타지: "calm",
+  SF: "calm",
   "로맨스 판타지": "calm",
   "현대 판타지": "calm",
-  "무협/시대극": "tension",
+  무협: "tension",
+  동양풍: "tension",
   인외: "tension",
   "현대/일상": "calm",
-  "학원/스포츠": "calm",
+  학원: "calm",
+  스포츠: "calm",
   시뮬레이션: "calm",
   로맨스: "calm",
   BL: "calm",
   GL: "calm",
+  HL: "calm",
+  센티넬버스: "tension",
+  아포칼립스: "tension",
 };
 
 function buildSceneModeHint(genres: CharacterGenre[] | undefined): string | null {
