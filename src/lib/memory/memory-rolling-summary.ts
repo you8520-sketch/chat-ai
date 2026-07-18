@@ -1,5 +1,5 @@
 import { getDb } from "@/lib/db";
-import { callBackgroundMemory, callGeminiBackground } from "@/lib/ai";
+import { callGeminiBackground } from "@/lib/ai";
 import {
   messagesToTurns,
   splitOpeningPlayableTurns,
@@ -127,11 +127,10 @@ export type RollingSummaryLlmCaller = (
   system: string,
   history: { role: "user" | "assistant"; content: string }[],
   turnTrace: import("@/lib/geminiRequestTrace").GeminiTurnTrace | undefined,
-  requestKind: string,
-  opts?: { modelId?: string; maxTokens?: number; temperature?: number }
+  requestKind: string
 ) => Promise<{ text: string; usage?: import("@/lib/ai").TokenUsage }>;
 
-/** @internal test seam — stub primary/fallback LLM without live network */
+/** @internal test seam — stub summarizeTurnBatch without live network */
 let summarizeTurnBatchCallerOverride: RollingSummaryLlmCaller | null = null;
 
 export function __setSummarizeTurnBatchCallerForTests(
@@ -149,7 +148,6 @@ export async function summarizeTurnBatch(opts: {
   endTurn: number;
   userPersona?: string | null;
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
-  env?: NodeJS.ProcessEnv;
 }): Promise<string> {
   const personaBlock = opts.userPersona?.trim()
     ? `\n\n[유저 페르소나 — 성별·호칭·신체 묘사 절대 준수]\n${opts.userPersona.trim()}`
@@ -165,16 +163,8 @@ export async function summarizeTurnBatch(opts: {
   };
   const callLlm: RollingSummaryLlmCaller =
     summarizeTurnBatchCallerOverride ??
-    (async (system, history, turnTrace, requestKind, callOpts) => {
-      if (callOpts?.modelId) {
-        return callBackgroundMemory(system, history, turnTrace, requestKind, {
-          modelId: callOpts.modelId,
-          maxTokens: callOpts.maxTokens,
-          temperature: callOpts.temperature,
-        });
-      }
-      return callGeminiBackground(system, history, turnTrace, requestKind);
-    });
+    ((system, history, turnTrace, requestKind) =>
+      callGeminiBackground(system, history, turnTrace, requestKind));
 
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
