@@ -2,13 +2,19 @@ import { fieldPlaceholderKey } from "./fieldKeys";
 import { collectWidgetJsonKeys } from "./prompt";
 import { EXTRACTED_FACTS_STATUS_VALUES_INSTRUCTIONS } from "./prompt";
 import { allocateWidgetExtractNarrativeSlices } from "./proseStrip";
+import { sanitizeExtractedFacts } from "./extractedFacts";
 import {
   isUnknownLikeStatusValue,
   keyLooksLikeCalendarClockSeasonWeather,
   rejectsUnknownLikeTemporalValue,
   sanitizeAndRepairTemporalValues,
 } from "./temporalUnknown";
-import type { StatusWidget, StatusWidgetField, StatusWidgetValues } from "./types";
+import type {
+  ExtractedStatusFact,
+  StatusWidget,
+  StatusWidgetField,
+  StatusWidgetValues,
+} from "./types";
 
 function isWidgetPlaceholderValue(value: string): boolean {
   const t = value.trim();
@@ -401,4 +407,175 @@ export function buildWidgetExtractRepairUserBlock(opts: {
     `[ASSISTANT RP — FINAL SCENE PRIORITY]\n${prose || "(empty)"}`,
     formatPreviousCanonicalWidgetValuesForRepair(opts.previousValues, opts.widget),
   ].join("\n\n");
+}
+
+function asJsonRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function usableWidgetValueKeys(values: StatusWidgetValues | null): string[] {
+  if (!values) return [];
+  return Object.entries(values)
+    .filter(([, v]) => Boolean(v?.trim()))
+    .map(([k]) => k);
+}
+
+/** Dual character+user initial extract — flat product field keys, no opaque fids. */
+export function buildCombinedDualWidgetExtractSystem(
+  characterWidget: StatusWidget,
+  userWidget: StatusWidget
+): string {
+  const charKeys = collectWidgetJsonKeys(characterWidget)
+    .map((k) => `"${k}"`)
+    .join(", ");
+  const userKeys = collectWidgetJsonKeys(userWidget)
+    .map((k) => `"${k}"`)
+    .join(", ");
+  return `You extract RP scene status widget field values as JSON only. No prose, no markdown fences.
+
+Return exactly one JSON object with this shape:
+{
+  "character_values": { ${charKeys || ""} },
+  "user_values": { ${userKeys || ""} },
+  "extracted_facts": []
+}
+
+Rules:
+- character_values and user_values are separate namespaces. Never put user fields into character_values or vice versa.
+- Korean values preferred when the scene is Korean.
+- The widget reflects the scene state at the END of this turn. If the turn contains multiple scenes or time skips, fill EVERY field from the LAST scene.
+- Never copy placeholders like "<scene value>", "…", "...", or "—" unless truly unknown.
+- Calendar/clock/season/weather: never output "—" just because prose omits them. Priority: (1) explicit prose/user (2) field instruction or initialValue (3) previous canonical anchor (4) invent one scene-consistent concrete value. Never output unknown/알 수 없음/미상/모름/N/A.
+- Inner-state fields (속마음, 의식의 흐름, 감정, thoughts, inner monologue):
+  - Infer each source's current scene reaction separately from that source's field instruction.
+  - Do not copy character and user emotions/inner states as one shared value across character_values and user_values.
+  - When the scene gives cues, write a short grounded current state per source — do not default to placeholders like 알 수 없음 / 미상 / 모름 / unknown.
+  - Unknown-like narrative values are allowed only when the scene is truly ambiguous OR the field instruction itself requires uncertainty.
+  - Identical strings across sources are fine when the scene genuinely warrants the same state; sameness alone is not an error.
+  - Obey each field's instruction for WHOSE inner state to write. Do not swap [CHARACTER] and [USER] subjects.
+- Do NOT copy field labels, instructions, or requirement phrases as values.
+- Prefer current-turn explicit change over previous canonical anchors.
+- Do NOT invent lore that contradicts the provided context.
+${EXTRACTED_FACTS_STATUS_VALUES_INSTRUCTIONS}`;
+}
+
+export function buildCombinedDualWidgetExtractUserBlock(opts: {
+  charName: string;
+  characterIdentity?: string | null;
+  personaName: string;
+  userMessage: string;
+  assistantProse: string;
+  previousAssistantProse?: string | null;
+  characterWidget: StatusWidget;
+  userWidget: StatusWidget;
+  previousCharacterValues?: StatusWidgetValues | null;
+  previousUserValues?: StatusWidgetValues | null;
+}): string {
+  const { currentSlice, previousSlice } = allocateWidgetExtractNarrativeSlices(
+    opts.assistantProse,
+    opts.previousAssistantProse
+  );
+  const formatFields = (widget: StatusWidget) =>
+    widget.fields
+      .map((f) => {
+        const base = `- ${fieldPlaceholderKey(f)} (${f.label}): ${f.instruction}`;
+        const initial = f.initialValue?.trim();
+        return initial ? `${base}\n  initialValue: ${initial}` : base;
+      })
+      .join("\n");
+
+  return [
+    formatPreviousTurnWidgetValues(opts.previousCharacterValues, "character", opts.characterWidget),
+    formatPreviousTurnWidgetValues(opts.previousUserValues, "user", opts.userWidget),
+    `[CHARACTER WIDGET FIELDS]\n${formatFields(opts.characterWidget)}`,
+    `[USER WIDGET FIELDS]\n${formatFields(opts.userWidget)}`,
+    `[CHARACTER] ${opts.charName}`,
+    opts.characterIdentity?.trim()
+      ? `[CHARACTER IDENTITY — MUST OBEY]\n${opts.characterIdentity.trim()}`
+      : "",
+    `[USER] ${opts.personaName}`,
+    `[USER MESSAGE]\n${opts.userMessage}`,
+    previousSlice ? `[PREVIOUS TURN ASSISTANT — prose only]\n${previousSlice}` : "",
+    `[ASSISTANT REPLY — current turn prose only]\n${currentSlice}`,
+    `[REMINDER] character_values = [CHARACTER](${opts.charName}) widget only; user_values = [USER](${opts.personaName}) widget only. Infer inner-state per source from the current scene — do not share one emotion across both namespaces, and avoid unknown placeholders when scene cues exist. Obey each field instruction's subject. Prefer current explicit change over previous anchors. Do not copy instructions/labels as values.`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+export type CombinedDualWidgetExtractParseResult = {
+  character: StatusWidgetValues | null;
+  user: StatusWidgetValues | null;
+  extracted_facts: ExtractedStatusFact[];
+  characterOk: boolean;
+  userOk: boolean;
+  jsonParseOk: boolean;
+  characterEchoDroppedKeys: string[];
+  userEchoDroppedKeys: string[];
+};
+
+/**
+ * Parse combined dual extract JSON with per-source isolation.
+ * Facts failures never wipe status; one source failure never wipes the other.
+ */
+export function parseCombinedDualWidgetExtractResponse(
+  text: string,
+  opts: {
+    characterWidget: StatusWidget;
+    userWidget: StatusWidget;
+    /** Apply field-local anti-echo drops (does not fail sibling fields/sources). */
+    applyEchoFilter?: boolean;
+  }
+): CombinedDualWidgetExtractParseResult {
+  const empty: CombinedDualWidgetExtractParseResult = {
+    character: null,
+    user: null,
+    extracted_facts: [],
+    characterOk: false,
+    userOk: false,
+    jsonParseOk: false,
+    characterEchoDroppedKeys: [],
+    userEchoDroppedKeys: [],
+  };
+  const root = extractJsonObjectFromWidgetText(text);
+  if (!root) return empty;
+
+  const out: CombinedDualWidgetExtractParseResult = {
+    ...empty,
+    jsonParseOk: true,
+    extracted_facts: sanitizeExtractedFacts(root.extracted_facts),
+  };
+
+  const charRaw = asJsonRecord(root.character_values);
+  if (charRaw) {
+    let normalized = normalizeWidgetExtraction(charRaw, opts.characterWidget);
+    if (opts.applyEchoFilter) {
+      const filtered = dropRepairEchoFields(normalized, opts.characterWidget);
+      normalized = filtered.values;
+      out.characterEchoDroppedKeys = filtered.droppedKeys;
+    }
+    const keys = usableWidgetValueKeys(normalized);
+    if (keys.length > 0) {
+      out.character = normalized;
+      out.characterOk = true;
+    }
+  }
+
+  const userRaw = asJsonRecord(root.user_values);
+  if (userRaw) {
+    let normalized = normalizeWidgetExtraction(userRaw, opts.userWidget);
+    if (opts.applyEchoFilter) {
+      const filtered = dropRepairEchoFields(normalized, opts.userWidget);
+      normalized = filtered.values;
+      out.userEchoDroppedKeys = filtered.droppedKeys;
+    }
+    const keys = usableWidgetValueKeys(normalized);
+    if (keys.length > 0) {
+      out.user = normalized;
+      out.userOk = true;
+    }
+  }
+
+  return out;
 }

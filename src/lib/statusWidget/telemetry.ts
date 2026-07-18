@@ -8,12 +8,15 @@ import {
 } from "@/lib/chatModels";
 import type { ParsedStatusWidgetTurnValues, ResolvedStatusWidgetTurn } from "./types";
 import {
+  statusWidgetSourceValuesHaveContent,
+  statusWidgetValuesHasContent,
+} from "./displayPolicy";
+import {
   normalizeParsedStatusWidgetValuesForTurn,
   statusWidgetValuesAreCorrupt,
 } from "./parseValues";
 import { sanitizeExtractedFacts } from "./extractedFacts";
 import { splitProseAndStatusWidgetValuesDeepSeek } from "./deepseekCapture";
-import { statusWidgetValuesHasContent } from "./displayPolicy";
 import type { TokenUsage } from "@/lib/ai";
 import type { StatusWidgetExtractBillingMeta } from "./receiptUsage";
 import { fieldPlaceholderKey } from "./fieldKeys";
@@ -258,7 +261,16 @@ export async function resolveStatusWidgetTurnValues(
     splitRawParseError = (e as Error).message;
   }
 
-  if (!statusWidgetValuesHasContent(valuesPayload)) {
+  const needCharExtract =
+    input.statusWidgetTurn.needsCharacterValues &&
+    Boolean(input.statusWidgetTurn.characterWidget) &&
+    !statusWidgetSourceValuesHaveContent(valuesPayload?.character);
+  const needUserExtract =
+    input.statusWidgetTurn.needsUserValues &&
+    Boolean(input.statusWidgetTurn.userWidget) &&
+    !statusWidgetSourceValuesHaveContent(valuesPayload?.user);
+
+  if (needCharExtract || needUserExtract) {
     try {
       const { extractStatusWidgetValuesForTurn } = await import("./extract");
       v3ExtractAttempted = true;
@@ -322,13 +334,14 @@ export async function resolveStatusWidgetTurnValues(
         previousAssistantProse,
         userNote: input.userNote,
         trace: traceBase,
+        seedValues: valuesPayload,
       });
       // usage + billing meta share the same lifetime (both null or both set).
       if (v3Result.usage && v3Result.meta.billing) {
         widgetExtractUsage = v3Result.usage;
         widgetExtractBillingMeta = {
           modelId: v3Result.meta.billingModelId,
-          callCount: v3Result.meta.totalCallCount,
+          callCount: v3Result.meta.actualCallCount,
         };
       } else {
         widgetExtractUsage = null;
