@@ -17,7 +17,10 @@ import {
   CREATOR_REWARD_RATE_PARTNER,
   CREATOR_REWARD_RATE_PLUS,
   CREATOR_REWARD_RATE_PRO,
+  CREATOR_REWARD_RATE_SPROUT,
+  CREATOR_SPROUT_MIN_CHARACTERS,
   CREATOR_STANDARD_MIN_CHARACTERS,
+  CREATOR_STANDARD_MIN_TOTAL_CHATS,
   CREATOR_TIER_LABELS,
   CREATOR_NOTICE_CONTENT_MAX,
   CREATOR_NOTICE_TITLE_MAX,
@@ -84,13 +87,18 @@ type TierConditionRow = {
 
 function allTierConditions(
   t: CreatorDashboard["tier"],
+  sproutPct: number,
   basePct: number,
   plusPct: number,
   proPct: number,
   partnerPct: number
 ): TierConditionRow[] {
+  const sproutMet = t.characterCount >= CREATOR_SPROUT_MIN_CHARACTERS;
+  const standardMet =
+    t.publicCharacterCount >= CREATOR_STANDARD_MIN_CHARACTERS &&
+    t.totalChats >= CREATOR_STANDARD_MIN_TOTAL_CHATS;
   const plusMet =
-    t.characterCount >= CREATOR_PLUS_MIN_CHARACTERS &&
+    t.publicCharacterCount >= CREATOR_PLUS_MIN_CHARACTERS &&
     t.totalChats >= CREATOR_PLUS_MIN_TOTAL_CHATS;
   const proMet =
     t.publicCharacterCount >= CREATOR_PRO_MIN_CHARACTERS &&
@@ -99,20 +107,29 @@ function allTierConditions(
 
   return [
     {
+      key: "sprout",
+      label: "새싹 크리에이터",
+      ratePct: sproutPct,
+      condition: `캐릭터 ${CREATOR_SPROUT_MIN_CHARACTERS}개 이상 제작`,
+      current: `현재 ${t.characterCount}개`,
+      met: sproutMet,
+      isCurrent: t.tierLevel === "sprout" && sproutMet,
+    },
+    {
       key: "standard",
       label: "일반 크리에이터",
       ratePct: basePct,
-      condition: `캐릭터 ${CREATOR_STANDARD_MIN_CHARACTERS}개 제작`,
-      current: `현재 ${t.characterCount}개`,
-      met: t.characterCount >= CREATOR_STANDARD_MIN_CHARACTERS,
+      condition: `캐릭터 ${CREATOR_STANDARD_MIN_CHARACTERS}개 이상 공개유지 · 통합 대화 ${CREATOR_STANDARD_MIN_TOTAL_CHATS.toLocaleString()}회+`,
+      current: `현재 공개 ${t.publicCharacterCount}개 · ${t.totalChats.toLocaleString()}회`,
+      met: standardMet,
       isCurrent: t.tierLevel === "standard",
     },
     {
       key: "plus",
       label: "플러스",
       ratePct: plusPct,
-      condition: `캐릭터 ${CREATOR_PLUS_MIN_CHARACTERS}개+ & 통합 대화 ${CREATOR_PLUS_MIN_TOTAL_CHATS.toLocaleString()}회+`,
-      current: `현재 ${t.characterCount}개 · ${t.totalChats.toLocaleString()}회`,
+      condition: `캐릭터 ${CREATOR_PLUS_MIN_CHARACTERS}개 이상 공개유지 · 통합 대화 ${CREATOR_PLUS_MIN_TOTAL_CHATS.toLocaleString()}회+`,
+      current: `현재 공개 ${t.publicCharacterCount}개 · ${t.totalChats.toLocaleString()}회`,
       met: plusMet,
       isCurrent: t.tierLevel === "plus",
     },
@@ -370,6 +387,7 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
   }
 
   const rewardPct = Math.round(data.tier.rewardRate * 100);
+  const sproutPct = Math.round(CREATOR_REWARD_RATE_SPROUT * 100);
   const basePct = Math.round(CREATOR_REWARD_RATE * 100);
   const plusPct = Math.round(CREATOR_REWARD_RATE_PLUS * 100);
   const proPct = Math.round(CREATOR_REWARD_RATE_PRO * 100);
@@ -378,7 +396,14 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
   /** 전속은 UI에서 숨기고 파트너로 표시 (요율은 서버 값 유지) */
   const tierLabel =
     tier === "exclusive" ? CREATOR_TIER_LABELS.partner : CREATOR_TIER_LABELS[tier];
-  const tierRows = allTierConditions(data.tier, basePct, plusPct, proPct, partnerPct);
+  const tierRows = allTierConditions(
+    data.tier,
+    sproutPct,
+    basePct,
+    plusPct,
+    proPct,
+    partnerPct
+  );
   const partnerHint = partnerStatusHint(data.tier);
   const profilePreviewHtml = sanitizeCreatorHtml(profileHtml);
 
@@ -390,7 +415,8 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
           내 캐릭터 이용 포인트 소비량의 <strong className="text-zinc-50">{rewardPct}%</strong>가
           크리에이터 포인트(CP)로 적립됩니다.{" "}
           <span className="text-zinc-400">
-            (기본 {basePct}% · 플러스 {plusPct}% · 프로 {proPct}% · 파트너 {partnerPct}%)
+            (새싹 {sproutPct}% · 일반 {basePct}% · 플러스 {plusPct}% · 프로 {proPct}% · 파트너{" "}
+            {partnerPct}%)
           </span>
         </p>
         {data.characters.length === 0 && (
@@ -586,7 +612,16 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
       <section className={cn(studioSurface.card, "p-4")}>
         <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">적립 등급</p>
         <p className="mt-0.5 text-lg font-semibold text-zinc-50">
-          {tierLabel} 크리에이터 · <span className="text-violet-300">{rewardPct}%</span>
+          {data.tier.rewardRate > 0 ? (
+            <>
+              {tierLabel} 크리에이터 ·{" "}
+              <span className="text-violet-300">{rewardPct}%</span>
+            </>
+          ) : (
+            <>
+              등급 조건 미달 · <span className="text-violet-300">0%</span>
+            </>
+          )}
         </p>
         {partnerHint && (
           <p className={cn(studioType.caption, "mt-2")}>{partnerHint}</p>

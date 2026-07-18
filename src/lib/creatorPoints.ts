@@ -16,7 +16,10 @@ import {
   CREATOR_REWARD_RATE_PARTNER,
   CREATOR_REWARD_RATE_PLUS,
   CREATOR_REWARD_RATE_PRO,
+  CREATOR_REWARD_RATE_SPROUT,
+  CREATOR_SPROUT_MIN_CHARACTERS,
   CREATOR_STANDARD_MIN_CHARACTERS,
+  CREATOR_STANDARD_MIN_TOTAL_CHATS,
   WITHDRAWAL_MIN_CP,
   calcWithdrawalBreakdown,
   maskCreatorAccountNumber,
@@ -54,7 +57,10 @@ export {
   CREATOR_REWARD_RATE_PARTNER,
   CREATOR_REWARD_RATE_PLUS,
   CREATOR_REWARD_RATE_PRO,
+  CREATOR_REWARD_RATE_SPROUT,
+  CREATOR_SPROUT_MIN_CHARACTERS,
   CREATOR_STANDARD_MIN_CHARACTERS,
+  CREATOR_STANDARD_MIN_TOTAL_CHATS,
   CREATOR_TIER_LABELS,
   WITHDRAWAL_MIN_CP,
   WITHDRAWAL_TAX_RATE,
@@ -134,7 +140,7 @@ function getCreatorCharacterEarningShares(
   });
 }
 
-/** 전속 20% · 파트너 15% · 프로 12% · 플러스 10% · 기본 8% (상위 등급 우선 적용) */
+/** 전속 20% · 파트너 15% · 프로 12% · 플러스 10% · 일반 8% · 새싹 5% (상위 등급 우선 적용) */
 export function getCreatorTierInfo(creatorId: number): CreatorTierInfo {
   const db = getDb();
 
@@ -185,8 +191,8 @@ export function getCreatorTierInfo(creatorId: number): CreatorTierInfo {
   );
   const hasExclusiveContract = isExclusive;
 
-  let tierLevel: CreatorTierLevel = "standard";
-  let rewardRate = CREATOR_REWARD_RATE;
+  let tierLevel: CreatorTierLevel = "sprout";
+  let rewardRate = 0;
 
   if (hasExclusiveContract && qualifiesPartner) {
     tierLevel = "exclusive";
@@ -201,11 +207,20 @@ export function getCreatorTierInfo(creatorId: number): CreatorTierInfo {
     tierLevel = "pro";
     rewardRate = CREATOR_REWARD_RATE_PRO;
   } else if (
-    characterCount >= CREATOR_PLUS_MIN_CHARACTERS &&
+    publicCharacterCount >= CREATOR_PLUS_MIN_CHARACTERS &&
     totalChats >= CREATOR_PLUS_MIN_TOTAL_CHATS
   ) {
     tierLevel = "plus";
     rewardRate = CREATOR_REWARD_RATE_PLUS;
+  } else if (
+    publicCharacterCount >= CREATOR_STANDARD_MIN_CHARACTERS &&
+    totalChats >= CREATOR_STANDARD_MIN_TOTAL_CHATS
+  ) {
+    tierLevel = "standard";
+    rewardRate = CREATOR_REWARD_RATE;
+  } else if (characterCount >= CREATOR_SPROUT_MIN_CHARACTERS) {
+    tierLevel = "sprout";
+    rewardRate = CREATOR_REWARD_RATE_SPROUT;
   }
 
   return {
@@ -452,7 +467,7 @@ export function requestCreatorWithdrawal(
   };
 }
 
-/** 채팅 포인트 차감 후 크리에이터 적립 (기본 8% · 플러스 10% · 프로 12% · 파트너 15% · 전속 20%) */
+/** 채팅 포인트 차감 후 크리에이터 적립 (새싹 5% · 일반 8% · 플러스 10% · 프로 12% · 파트너 15% · 전속 20%) */
 export function maybeCreditCreatorReward(opts: {
   creatorId: number | null | undefined;
   official: number;
