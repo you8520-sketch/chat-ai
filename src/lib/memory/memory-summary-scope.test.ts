@@ -4,6 +4,7 @@ import { getDb } from "@/lib/db";
 
 import {
   buildNoncanonSummaryFromTurns,
+  buildPreferenceSummaryFromTurns,
   classifyMemoryBatchScopes,
   classifyMemoryTurnScope,
   lorebookTextFromScopes,
@@ -69,6 +70,83 @@ describe("memory summary scope classification", () => {
     ]);
     assert.equal(plan.primaryKind, "noncanon");
     assert.ok(plan.noncanonTurns.length >= 1);
+  });
+
+  it("noncanon summary preserves assistant IF scene beats, not request-only stub", () => {
+    const summary = buildNoncanonSummaryFromTurns([
+      {
+        turn: {
+          user: "(OOC: 가상 현대 배경에서 두 인물의 회사 생활 장면을 보여줘.)",
+          assistant:
+            "가상의 회사 배경에서 인물 X가 팀장, 인물 Y가 신입으로 등장하고 중요한 문서를 잘못 전달해 갈등이 발생함. 둘은 야근 중 오해를 해소하기로 함.",
+        },
+      },
+    ]);
+    assert.match(summary, /회사/);
+    assert.match(summary, /팀장|신입/);
+    assert.match(summary, /문서/);
+    assert.match(summary, /갈등|야근|오해/);
+    assert.doesNotMatch(summary, /^비정사·번외: \(OOC:[^→]*\)$/);
+    assert.ok(summary.length <= 600);
+    // Must not be a request-only template
+    assert.equal(/요청함|요청했습니다/.test(summary), false);
+  });
+
+  it("mixed 6-turn batch keeps main and noncanon turn lists separate", () => {
+    const plan = classifyMemoryBatchScopes([
+      { turnIndex: 1, turn: { user: "정원에서 만난다.", assistant: "본편 인사." } },
+      { turnIndex: 2, turn: { user: "선물을 건넨다.", assistant: "본편 수락." } },
+      {
+        turnIndex: 3,
+        turn: {
+          user: "(OOC: 가상 현대 회사 IF 장면을 보여줘)",
+          assistant: "팀장과 신입이 문서를 잘못 전달해 갈등이 난다.",
+        },
+      },
+      {
+        turnIndex: 4,
+        turn: {
+          user: "(OOC: 그 IF 야근 장면을 이어서)",
+          assistant: "야근 중 오해를 풀기로 한다.",
+        },
+      },
+      { turnIndex: 5, turn: { user: "본편으로 돌아와 산책한다.", assistant: "본편 산책." } },
+      { turnIndex: 6, turn: { user: "약속을 남긴다.", assistant: "본편 약속." } },
+    ]);
+    assert.equal(plan.mainTurns.length, 4);
+    assert.ok(plan.noncanonTurns.length >= 2);
+    assert.equal(plan.primaryKind, "main_canon");
+    const mainBlob = plan.mainTurns.map((e) => `${e.turn.user} ${e.turn.assistant}`).join("\n");
+    const nonBlob = plan.noncanonTurns.map((e) => `${e.turn.user} ${e.turn.assistant}`).join("\n");
+    assert.match(mainBlob, /정원|선물|산책|약속/);
+    assert.doesNotMatch(mainBlob, /팀장|문서 잘못|야근/);
+    assert.match(nonBlob, /회사|팀장|문서|야근/);
+    assert.doesNotMatch(nonBlob, /정원에서 만난다|선물을 건넨다/);
+    const nonSummary = buildNoncanonSummaryFromTurns(plan.noncanonTurns);
+    assert.match(nonSummary, /문서|갈등|야근/);
+  });
+
+  it("preference write/read path is connected (not name-only)", () => {
+    assert.equal(
+      classifyMemoryTurnScope("(OOC: 앞으로 항상 3인칭으로 써줘)"),
+      "preference"
+    );
+    assert.equal(classifyMemoryTurnScope("(OOC: 문장을 더 짧게 써줘)"), "plain_ooc");
+    // In-scene taste must not auto-become preference
+    assert.equal(
+      classifyMemoryTurnScope("커피를 좋아한다고 말했다."),
+      "main_rp"
+    );
+    const pref = buildPreferenceSummaryFromTurns([
+      { turn: { user: "(OOC: 앞으로 항상 3인칭으로 써줘)", assistant: "알겠어." } },
+    ]);
+    const lore = lorebookTextFromScopes(
+      { main_canon: "본편 사건", preference: pref },
+      { branchStatus: null }
+    );
+    assert.match(lore, /3인칭/);
+    assert.match(lore, /본편 사건/);
+    assert.equal(scopesInjectedIntoPrompt("preference"), true);
   });
 
   it("plain OOC becomes empty_ooc", () => {

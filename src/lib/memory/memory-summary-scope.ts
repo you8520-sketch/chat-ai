@@ -5,6 +5,7 @@
 import type { DialogueTurn } from "@/lib/hybridMemory";
 import { classifyChatOocIntent } from "@/lib/chatOocPriority";
 import { extractOocSnippets } from "@/lib/userImpersonationPolicy";
+import { ROLLING_SUMMARY_MAX_CHARS } from "./memory-constants";
 
 export const MEMORY_SUMMARY_SCOPES = [
   "main_canon",
@@ -266,20 +267,28 @@ export function classifyMemoryBatchScopes(
   };
 }
 
-/** Heuristic noncanon blurb for offline/tests (no LLM). */
+/**
+ * Heuristic noncanon blurb for offline/tests (no LLM).
+ * Preserves meaningful OOC/IF *request cues* and the assistant's actual noncanon scene
+ * beats so the user can continue from history — not a "user requested IF" stub.
+ */
 export function buildNoncanonSummaryFromTurns(
   turns: Array<{ turn: DialogueTurn }>
 ): string {
   const bits = turns.map(({ turn }) => {
-    const u = turn.user.replace(/\s+/g, " ").trim().slice(0, 120);
-    return u;
+    const userCue = turn.user.replace(/\s+/g, " ").trim().slice(0, 80);
+    const assistantScene = turn.assistant.replace(/\s+/g, " ").trim().slice(0, 320);
+    if (assistantScene && userCue) return `${userCue} → ${assistantScene}`;
+    if (assistantScene) return assistantScene;
+    return userCue;
   });
   const joined = bits.filter(Boolean).join(" / ");
   if (!joined) return "비정사·번외 장면을 진행함.";
-  if (MEANINGFUL_NONCANON_RE.test(joined)) {
-    return `비정사·번외: ${joined.slice(0, 280)}`;
-  }
-  return `비정사 장면: ${joined.slice(0, 280)}`;
+  const body = MEANINGFUL_NONCANON_RE.test(joined)
+    ? `비정사·번외: ${joined}`
+    : `비정사 장면: ${joined}`;
+  if (body.length <= ROLLING_SUMMARY_MAX_CHARS) return body;
+  return body.slice(0, ROLLING_SUMMARY_MAX_CHARS).trim();
 }
 
 export function buildPreferenceSummaryFromTurns(
