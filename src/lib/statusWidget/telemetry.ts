@@ -29,6 +29,10 @@ import {
   logStatusWidgetLiveTrace,
   statusWidgetDiagnosticHash,
 } from "./diagnostics";
+import {
+  measureStatusWidgetPreviousEcho,
+  type StatusWidgetPreviousEchoStats,
+} from "./extractNormalize";
 
 export type StatusWidgetModelFamily =
   | "deepseek"
@@ -70,6 +74,8 @@ export type StatusWidgetTurnTelemetry = {
   finalHasContent: boolean;
   finalCorruptBeforeBackfill: boolean;
   regenerate: boolean;
+  /** Observe-only previous-echo stats (counts/keys; no field value bodies). */
+  statusWidgetInnerStateExactMatch?: StatusWidgetPreviousEchoStats | null;
 };
 
 export const STATUS_WIDGET_TELEMETRY_LOG_PREFIX = "[status-widget-telemetry]";
@@ -270,6 +276,8 @@ export async function resolveStatusWidgetTurnValues(
     Boolean(input.statusWidgetTurn.userWidget) &&
     !statusWidgetSourceValuesHaveContent(valuesPayload?.user);
 
+  let previousEchoStats: StatusWidgetPreviousEchoStats | null = null;
+
   if (needCharExtract || needUserExtract) {
     try {
       const { extractStatusWidgetValuesForTurn } = await import("./extract");
@@ -373,13 +381,23 @@ export async function resolveStatusWidgetTurnValues(
           : v3Diag.actualKeys.length > 0
             ? normalizedDiag.reasonCode
             : "V3_INITIAL_EMPTY";
+      previousEchoStats = measureStatusWidgetPreviousEcho({
+        widget: input.statusWidgetTurn.characterWidget,
+        previous: previousValues?.character ?? null,
+        current: normalizedExtractValues?.character ?? null,
+      });
       logStatusWidgetLiveTrace({
         ...traceBase,
         phase: "status_normalize_result",
         statusWidgetTurnActive: input.statusWidgetTurn.active,
         statusWidgetConfigured: normalizedDiag.statusWidgetConfigured,
         expectedKeys: normalizedDiag.expectedKeys,
-        parsedKeys: v3Diag.actualKeys,
+        parsedKeys: [
+          ...v3Diag.actualKeys,
+          `innerEcho:${previousEchoStats.exact}/${previousEchoStats.compared}`,
+          `wholeCharEcho:${previousEchoStats.wholeCharacterExact ? 1 : 0}`,
+          ...previousEchoStats.exactKeys.map((k) => `echoKey:${k}`),
+        ],
         normalizedKeys: normalizedDiag.normalizedKeys,
         missingKeys: normalizedDiag.missingKeys,
         hasUsableValues: normalizedDiag.hasUsableValues,
@@ -455,6 +473,7 @@ export async function resolveStatusWidgetTurnValues(
     finalHasContent,
     finalCorruptBeforeBackfill: corruptBeforeExtract,
     regenerate: input.regenerate === true,
+    statusWidgetInnerStateExactMatch: previousEchoStats,
   };
 
   return {

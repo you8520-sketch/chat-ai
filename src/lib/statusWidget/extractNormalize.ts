@@ -51,6 +51,10 @@ export function shouldOmitUnknownLikePreviousValue(
   return keyLooksLikeCalendarClockSeasonWeather(key);
 }
 
+/** Header note: previous values are continuity refs, not answer exemplars. */
+const PREVIOUS_WIDGET_CONTINUITY_NOTE =
+  "(continuity reference — not answer text to copy; derive this turn primarily from current RP)";
+
 export function formatPreviousTurnWidgetValues(
   values: StatusWidgetValues | null | undefined,
   source: "character" | "user",
@@ -58,6 +62,7 @@ export function formatPreviousTurnWidgetValues(
 ): string {
   if (!values || Object.keys(values).length === 0) {
     return `[PREVIOUS TURN ${source.toUpperCase()} WIDGET VALUES]
+${PREVIOUS_WIDGET_CONTINUITY_NOTE}
 (none — first fill; init calendar/clock fields per rules, not "—")`;
   }
   const lines = Object.entries(values)
@@ -69,6 +74,7 @@ export function formatPreviousTurnWidgetValues(
     )
     .map(([k, v]) => `- ${k}: ${v.trim()}`);
   return `[PREVIOUS TURN ${source.toUpperCase()} WIDGET VALUES]
+${PREVIOUS_WIDGET_CONTINUITY_NOTE}
 ${lines.length > 0 ? lines.join("\n") : "(empty — infer from narrative)"}`;
 }
 
@@ -125,17 +131,19 @@ Rules:
 - The widget reflects the scene state at the END of this turn. If the turn contains multiple scenes or time skips (*** breaks, "다음날", "아침이 밝아" etc.), fill EVERY field from the LAST scene — never an earlier scene.
 - ${STATUS_WIDGET_FINAL_SCENE_PRIORITY_LINES}
 - Fill every key with a scene-accurate value from the assistant prose and user message.
+- Previous-turn widget values are continuity references, not answer text to copy. Derive this turn's values primarily from what actually happened in the current RP turn. Persistent state (date/time/place/HP/corruption/currency/ammo/D-DAY/relationship meters) may keep prior values when unchanged; do not invent changes without evidence.
 - Never copy placeholders like "<scene value>", "…", "...", or "—" unless truly unknown.
 - Calendar/clock/season/weather: never output "—" just because prose omits them. Priority: (1) explicit prose/user (2) field instruction or initialValue (3) [PREVIOUS TURN WIDGET VALUES] canonical anchor — keep if no time passed; else advance date/clock/season/weather together from that anchor (4) first fill / missing prior clock: MUST invent one scene-consistent real value (valid date, HH:MM, season+weather), not "—". If prose advances time but prior clock is missing, invent a plausible prior then advance. Counters (days-met, D-DAY, elapsed days) follow each field's own instruction/initialValue only — do not auto-sync them to date. "—" only if still impossible after that chain. Anchor is extract-only; never paste previous values as-is.
 - Calendar, clock, season, and weather fields require concrete values. Never output —, unknown, 알 수 없음, 미상, 모름, or N/A. When no explicit value exists, use initialValue, a valid previous anchor, or invent one scene-consistent concrete value.
 - For location/place fields: update when the scene moves; use the location of the LAST scene.
 - Use "—" only when there is truly no usable basis for that field (calendar/clock fields: follow the chain above).
-- Inner-state fields (속마음, 의식의 흐름, 감정, thoughts, inner monologue): each field's [WIDGET FIELDS] instruction states WHOSE inner state to write — obey it exactly. If the instruction says the NPC's ("NPC의 속마음" etc.), write [CHARACTER]'s inner state; if it says the user's ("유저의 속마음" etc.), write [USER]'s. If the instruction does not name anyone, default to ${defaultSubject}.
+- Inner-state fields (속마음, 의식의 흐름, 감정, 표정, thoughts, inner monologue): each field's [WIDGET FIELDS] instruction states WHOSE inner state to write — obey it exactly. If the instruction says the NPC's ("NPC의 속마음" etc.), write [CHARACTER]'s inner state; if it says the user's ("유저의 속마음" etc.), write [USER]'s. If the instruction does not name anyone, default to ${defaultSubject}.
   Never substitute the other person's feelings for the required person's. If the turn's prose is written from the OTHER person's point of view and the required person does not appear on-page, do NOT copy the narrator's feelings — actively infer the required person's OWN separate reaction to what happened to THEM this turn, from their last known state.
   Example — field instruction asks for [CHARACTER]'s inner state, but the turn narrates [USER] anxiously rushing to rescue [CHARACTER] who was just sent to a dangerous frontier:
   ✗ WRONG: "그가 위험에 처했다는 소식에 불안하다. 반드시 구하러 가야 한다" (this is [USER]'s worry, mislabeled as [CHARACTER]'s)
   ✓ RIGHT: "갑작스러운 파병 명령에 당혹스럽지만 군인으로서 임무를 완수해야 한다" ([CHARACTER]'s own inferred reaction to being sent there)
-  If [PREVIOUS TURN WIDGET VALUES] has a prior value for that field, or this turn's events affect the required person at all, that IS enough basis — update the prior inner state with this turn's events instead of giving up. Only when the required person has truly zero basis (no prior state AND no relevant event) output exactly "(자리비움)" — never fall back to the other person's emotions.
+  Freshly evaluate inner-state at the END of the current turn. Use previous values only for continuity — do not mechanically repeat the previous wording when this turn provides new actions, dialogue, information, or emotional context. If the underlying state genuinely remains unchanged, preserve the meaning rather than inventing a false change; exact wording need not be copied.
+  If [PREVIOUS TURN WIDGET VALUES] has a prior value for that field, or this turn's events affect the required person at all, that IS enough basis — update from this turn's events instead of giving up. Only when the required person has truly zero basis (no prior state AND no relevant event) output exactly "(자리비움)" — never fall back to the other person's emotions.
 - Do NOT add keys beyond the required list.
 - Do NOT invent lore that contradicts the provided context.
 - Never copy [CHARACTER CRITICAL CONTEXT] wording into field values.
@@ -193,7 +201,7 @@ function buildWidgetSourceReminder(
   personaName: string
 ): string {
   const defaultName = source === "character" ? `[CHARACTER](${charName})` : `[USER](${personaName})`;
-  return `[REMINDER] 내면 필드(속마음/의식의 흐름 등)는 각 필드의 지시사항이 지정한 인물의 시점으로 써라 — 지시사항이 NPC의 것을 요구하면 [CHARACTER](${charName})의 내면을, 유저의 것을 요구하면 [USER](${personaName})의 내면을 쓴다. 인물이 명시되지 않은 필드는 ${defaultName} 기준. 위 서술이 다른 인물의 시점·감정 위주로 쓰여 있어도 그 감정을 그대로 옮기지 말고, 요구된 인물이 이 사건을 겪는 입장에서 지금 무엇을 느낄지 추정해서 써라. 요구된 인물이 이 턴에 등장하지 않아도, [PREVIOUS TURN WIDGET VALUES]에 그 필드의 직전 값이 있거나 이 턴의 사건이 그 인물에게 영향을 주면 그것이 곧 추정 근거다 — 직전 내면 상태를 이 턴 사건으로 갱신해서 써라. 직전 값도 없고 관련 사건도 전혀 없는 경우에만 "(자리비움)"으로 남겨라.`;
+  return `[REMINDER] 내면 필드(속마음/의식의 흐름/표정 등)는 각 필드의 지시사항이 지정한 인물의 시점으로, 이 턴 끝 기준으로 재평가하라 — 지시사항이 NPC의 것을 요구하면 [CHARACTER](${charName})의 내면을, 유저의 것을 요구하면 [USER](${personaName})의 내면을 쓴다. 인물이 명시되지 않은 필드는 ${defaultName} 기준. 위 서술이 다른 인물의 시점·감정 위주로 쓰여 있어도 그 감정을 그대로 옮기지 말고, 요구된 인물이 이 사건을 겪는 입장에서 지금 무엇을 느낄지 추정해서 써라. [PREVIOUS TURN WIDGET VALUES]는 continuity reference일 뿐 답안 복사용이 아니다 — 이 턴에 새 행동·대사·정보·감정 단서가 있으면 직전 문구를 기계적으로 복사하지 말고 갱신하라. 상태가 진짜로 같으면 의미만 유지하고 거짓 감정 변화는 만들지 마라. 직전 값도 없고 관련 사건도 전혀 없는 경우에만 "(자리비움)"으로 남겨라.`;
 }
 
 export function normalizeWidgetExtraction(
@@ -270,7 +278,80 @@ export function sliceAssistantProseForRepair(
 
 export function looksLikeInnerStateField(field: StatusWidgetField): boolean {
   const blob = `${field.id} ${field.label} ${field.instruction}`.toLowerCase();
-  return /속마음|의식|내면|감정|thought|inner|monologue|feeling|mood/.test(blob);
+  return /속마음|의식|내면|감정|표정|thought|inner|monologue|feeling|mood|expression|face/.test(
+    blob
+  );
+}
+
+/** Observe-only: exact previous echo for inner-state / whole character (no values logged). */
+export type StatusWidgetPreviousEchoStats = {
+  compared: number;
+  exact: number;
+  allExact: boolean;
+  wholeCharacterExact: boolean;
+  exactKeys: string[];
+};
+
+export function measureStatusWidgetPreviousEcho(opts: {
+  widget?: StatusWidget | null;
+  previous?: StatusWidgetValues | null;
+  current?: StatusWidgetValues | null;
+}): StatusWidgetPreviousEchoStats {
+  const previous = opts.previous ?? null;
+  const current = opts.current ?? null;
+  const prevEntries = previous
+    ? Object.entries(previous).filter(([, v]) => Boolean(v?.trim()))
+    : [];
+  const curMap = new Map(
+    current
+      ? Object.entries(current)
+          .filter(([, v]) => Boolean(v?.trim()))
+          .map(([k, v]) => [k, v.trim()] as const)
+      : []
+  );
+
+  let wholeCharacterExact = false;
+  if (prevEntries.length > 0 && curMap.size === prevEntries.length) {
+    wholeCharacterExact = prevEntries.every(([k, v]) => curMap.get(k) === v.trim());
+  }
+
+  const exactKeys: string[] = [];
+  let compared = 0;
+  if (opts.widget) {
+    for (const field of opts.widget.fields) {
+      if (!looksLikeInnerStateField(field)) continue;
+      const key = fieldPlaceholderKey(field);
+      const candidates = [key, field.id?.trim(), field.label.trim()].filter(Boolean) as string[];
+      let prevVal = "";
+      let curVal = "";
+      for (const c of candidates) {
+        if (!prevVal && previous?.[c]?.trim()) prevVal = previous[c]!.trim();
+        if (!curVal && current?.[c]?.trim()) curVal = current[c]!.trim();
+      }
+      if (!prevVal || !curVal) continue;
+      compared += 1;
+      if (prevVal === curVal) exactKeys.push(key);
+    }
+  } else if (previous && current) {
+    for (const [k, v] of prevEntries) {
+      const cur = curMap.get(k);
+      if (cur == null) continue;
+      if (!/속마음|의식|내면|감정|표정|thought|inner|monologue|feeling|mood|expression|face/i.test(k)) {
+        continue;
+      }
+      compared += 1;
+      if (cur === v.trim()) exactKeys.push(k);
+    }
+  }
+
+  const exact = exactKeys.length;
+  return {
+    compared,
+    exact,
+    allExact: compared > 0 && exact === compared,
+    wholeCharacterExact,
+    exactKeys,
+  };
 }
 
 /** Instruction-named subject wins; otherwise default to extract source. */
@@ -417,7 +498,7 @@ Fill priority (highest first):
 2. Field initialValue when the widget defines one (use the value, not the instruction text)
 3. [PREVIOUS CANONICAL WIDGET VALUES] as continuity anchor — keep if no time/place change; advance date/clock/season/weather together when prose advances time
 4. First-fill reasonable inference when no prior anchor exists
-Previous values are anchors only — never paste them as-is when current RP explicitly changed the scene.
+Previous values are continuity references, not answer text to copy — never paste them as-is when current RP changed the scene or adds new dialogue/information/emotional context. Persistent state may keep prior values when unchanged; inner-state: freshly evaluate at END of turn (preserve meaning if truly unchanged; do not invent false change).
 Prefer the FINAL scene in [ASSISTANT RP — FINAL SCENE PRIORITY].
 - ${STATUS_WIDGET_FINAL_SCENE_PRIORITY_LINES}`;
 }
@@ -428,7 +509,7 @@ export function formatPreviousCanonicalWidgetValuesForRepair(
   widget?: StatusWidget | null
 ): string {
   if (!values || Object.keys(values).length === 0) {
-    return "[PREVIOUS CANONICAL WIDGET VALUES]\n(none)";
+    return `[PREVIOUS CANONICAL WIDGET VALUES]\n${PREVIOUS_WIDGET_CONTINUITY_NOTE}\n(none)`;
   }
   const lines = Object.entries(values)
     .filter(
@@ -438,7 +519,7 @@ export function formatPreviousCanonicalWidgetValuesForRepair(
         !shouldOmitUnknownLikePreviousValue(k, v, widget)
     )
     .map(([k, v]) => `- ${k}: ${v.trim()}`);
-  return `[PREVIOUS CANONICAL WIDGET VALUES]\n${
+  return `[PREVIOUS CANONICAL WIDGET VALUES]\n${PREVIOUS_WIDGET_CONTINUITY_NOTE}\n${
     lines.length > 0 ? lines.join("\n") : "(none)"
   }`;
 }
@@ -479,6 +560,7 @@ export function buildWidgetExtractRepairUserBlock(opts: {
   const prose = sliceAssistantProseForRepair(opts.assistantProse);
   const userMessage = opts.userMessage?.trim() || "(empty)";
 
+  // Previous before current RP so it is not the last answer-exemplar position.
   return [
     `[SOURCE]\n${opts.source}\nDefault subject: ${defaultLabel}`,
     `[CHARACTER]\n${opts.charName}`,
@@ -488,9 +570,9 @@ export function buildWidgetExtractRepairUserBlock(opts: {
     }),
     `[USER]\n${opts.personaName}`,
     formatWidgetFieldContract(opts.widget, opts.source),
+    formatPreviousCanonicalWidgetValuesForRepair(opts.previousValues, opts.widget),
     `[CURRENT USER MESSAGE]\n${userMessage}`,
     `[ASSISTANT RP — FINAL SCENE PRIORITY]\n${prose || "(empty)"}`,
-    formatPreviousCanonicalWidgetValuesForRepair(opts.previousValues, opts.widget),
   ].join("\n\n");
 }
 
@@ -533,8 +615,10 @@ Rules:
 - ${STATUS_WIDGET_FINAL_SCENE_PRIORITY_LINES}
 - Never copy placeholders like "<scene value>", "…", "...", or "—" unless truly unknown.
 - Calendar/clock/season/weather: never output "—" just because prose omits them. Priority: (1) explicit prose/user (2) field instruction or initialValue (3) previous canonical anchor (4) invent one scene-consistent concrete value. Never output unknown/알 수 없음/미상/모름/N/A.
-- Inner-state fields (속마음, 의식의 흐름, 감정, thoughts, inner monologue):
+- Previous-turn widget values are continuity references, not answer text to copy. Derive primarily from the current RP turn. Persistent state may keep prior values when unchanged; do not invent changes without evidence.
+- Inner-state fields (속마음, 의식의 흐름, 감정, 표정, thoughts, inner monologue):
   - Infer each source's current scene reaction separately from that source's field instruction.
+  - Freshly evaluate at END of turn; do not mechanically repeat previous wording when this turn has new actions/dialogue/information/emotional context. If underlying state is unchanged, preserve meaning (exact wording need not be copied); do not invent false change.
   - Do not copy character and user emotions/inner states as one shared value across character_values and user_values.
   - When the scene gives cues, write a short grounded current state per source — do not default to placeholders like 알 수 없음 / 미상 / 모름 / unknown.
   - Unknown-like narrative values are allowed only when the scene is truly ambiguous OR the field instruction itself requires uncertainty.
@@ -587,7 +671,7 @@ export function buildCombinedDualWidgetExtractUserBlock(opts: {
     `[USER MESSAGE]\n${opts.userMessage}`,
     previousSlice ? `[PREVIOUS TURN ASSISTANT — prose only]\n${previousSlice}` : "",
     `[ASSISTANT REPLY — current turn prose only]\n${currentSlice}`,
-    `[REMINDER] character_values = [CHARACTER](${opts.charName}) widget only; user_values = [USER](${opts.personaName}) widget only. Infer inner-state per source from the current scene — do not share one emotion across both namespaces, and avoid unknown placeholders when scene cues exist. Obey each field instruction's subject. Prefer current explicit change over previous anchors. Use the location, time, and situation of the LAST scene, never an earlier scene. Do not copy instructions/labels or CRITICAL context wording as values.`,
+    `[REMINDER] character_values = [CHARACTER](${opts.charName}) widget only; user_values = [USER](${opts.personaName}) widget only. Previous widget values are continuity references, not answer text to copy. Infer inner-state per source from the current scene end — do not mechanically repeat previous wording when this turn has new cues; preserve meaning if truly unchanged. Do not share one emotion across both namespaces, and avoid unknown placeholders when scene cues exist. Obey each field instruction's subject. Prefer current explicit change over previous anchors. Use the location, time, and situation of the LAST scene, never an earlier scene. Do not copy instructions/labels or CRITICAL context wording as values.`,
   ]
     .filter(Boolean)
     .join("\n\n");
