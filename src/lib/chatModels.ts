@@ -58,7 +58,7 @@ export const OPENROUTER_GEMINI_31_FLASH_MODEL = "google/gemini-3.1-flash-lite";
 /** 유저-facing 표시명 (채팅 선택·영수증) */
 export const DEEPSEEK_DISPLAY_NAME = "DeepSeek V4 Pro";
 
-export const QWEN_DISPLAY_NAME = "하비 max";
+export const QWEN_DISPLAY_NAME = "Qwen 3.7 Max";
 
 export const GLM_52_DISPLAY_NAME = "GLM 5.2";
 
