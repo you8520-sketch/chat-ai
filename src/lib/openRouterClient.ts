@@ -119,7 +119,8 @@ export function isMuseOpenRouterModel(modelId: string): boolean {
 }
 
 /**
- * RP primary·continuation — DeepSeek/Qwen/GLM/Kimi/Muse: reasoning OFF (effort none).
+ * RP primary·continuation — DeepSeek/Qwen/GLM/Kimi: reasoning OFF (effort none).
+ * Muse Spark: mandatory reasoning — NOT in this set (see Muse-specific policy).
  * Gemini 2.5 Pro: reasoning.max_tokens cap · Gemini 3.x Pro: reasoning.effort low.
  */
 export function isOpenRouterRpReasoningDisabledModel(modelId: string): boolean {
@@ -127,8 +128,7 @@ export function isOpenRouterRpReasoningDisabledModel(modelId: string): boolean {
     isDeepSeekOpenRouterModel(modelId) ||
     isQwenOpenRouterModel(modelId) ||
     isGlmOpenRouterModel(modelId) ||
-    isKimiOpenRouterModel(modelId) ||
-    isMuseOpenRouterModel(modelId)
+    isKimiOpenRouterModel(modelId)
   );
 }
 
@@ -137,8 +137,26 @@ export function isOpenRouterRpReasoningMandatoryModel(modelId: string): boolean 
   return isGeminiProOpenRouterModel(modelId);
 }
 
+/**
+ * Muse Spark — OpenRouter metadata: reasoning.mandatory=true;
+ * supported_efforts=xhigh|high|medium|low|minimal (none 불가).
+ * RP: lowest supported effort + exclude (thinking 미노출). max_tokens 예산형은 metadata에 없음.
+ */
+export function isOpenRouterRpReasoningMuseModel(modelId: string): boolean {
+  return isMuseOpenRouterModel(modelId);
+}
+
 export const OPENROUTER_RP_REASONING_OFF = {
   effort: "none",
+  exclude: true,
+} as const;
+
+/**
+ * Muse Spark RP — mandatory reasoning, cost-min effort.
+ * OpenRouter rejects effort "none" / enabled:false for this endpoint.
+ */
+export const OPENROUTER_RP_REASONING_MUSE_SPARK = {
+  effort: "minimal",
   exclude: true,
 } as const;
 
@@ -207,18 +225,28 @@ function applyOpenRouterRpReasoningPolicy(body: Record<string, unknown>, modelId
     return;
   }
 
+  // Muse: mandatory reasoning — never send effort "none" / enabled:false.
+  if (isOpenRouterRpReasoningMuseModel(modelId)) {
+    body.reasoning = { ...OPENROUTER_RP_REASONING_MUSE_SPARK };
+    console.log("[openrouter-reasoning] muse-mandatory-minimal", {
+      model: normalized,
+      effort: OPENROUTER_RP_REASONING_MUSE_SPARK.effort,
+      exclude: true,
+      include_reasoning: false,
+    });
+    return;
+  }
+
   if (!isOpenRouterRpReasoningDisabledModel(modelId)) return;
 
   body.reasoning = { ...OPENROUTER_RP_REASONING_OFF };
-  const family = isMuseOpenRouterModel(modelId)
-    ? "muse"
-    : isKimiOpenRouterModel(modelId)
-      ? "kimi"
-      : isGlmOpenRouterModel(modelId)
-        ? "glm"
-        : isQwenOpenRouterModel(modelId)
-          ? "qwen"
-          : "deepseek";
+  const family = isKimiOpenRouterModel(modelId)
+    ? "kimi"
+    : isGlmOpenRouterModel(modelId)
+      ? "glm"
+      : isQwenOpenRouterModel(modelId)
+        ? "qwen"
+        : "deepseek";
   console.log("[openrouter-reasoning] disabled: true", { model: normalized, family });
   if (family === "deepseek") {
     console.log("[deepseek-thinking] disabled: true", { model: normalized });
@@ -377,6 +405,7 @@ export function buildOpenRouterRequestBody(
   if (
     isOpenRouterRpReasoningMandatoryModel(modelId) ||
     isOpenRouterRpReasoningDisabledModel(modelId) ||
+    isOpenRouterRpReasoningMuseModel(modelId) ||
     isGeminiFlashOpenRouterModel(modelId)
   ) {
     applyOpenRouterRpReasoningPolicy(body, modelId);
