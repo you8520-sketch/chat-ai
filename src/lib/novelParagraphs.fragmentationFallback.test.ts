@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   classifyNovelParagraph,
+  formatNovelProseForDisplay,
   groupExtremeFragmentedNarrationForDisplay,
   groupNovelParagraphs,
   resolveNovelDisplayParagraphs,
@@ -34,11 +35,11 @@ function maxConsecutiveSingleSentenceNarration(paragraphs: string[]): number {
 }
 
 describe("extreme fragmentation display fallback", () => {
-  it("groups only a 5+ paragraph / 80% one-sentence narration run", () => {
+  it("groups a local short-narration run without a whole-document gate", () => {
     const rawGrouped = groupNovelParagraphs(EXTREME_FRAGMENTED);
-    const displayed = resolveNovelDisplayParagraphs(EXTREME_FRAGMENTED);
+    const displayed = formatNovelProseForDisplay(EXTREME_FRAGMENTED);
 
-    assert.equal(rawGrouped.length, 6, "storage normalization remains sentence-fragmented");
+    assert.equal(rawGrouped.length, 6, "raw/group path remains sentence-fragmented");
     assert.ok(displayed.length < rawGrouped.length);
     assert.ok(maxConsecutiveSingleSentenceNarration(displayed) < 5);
     assert.ok(displayed.every((paragraph) => paragraph.length <= 360));
@@ -49,9 +50,10 @@ describe("extreme fragmentation display fallback", () => {
     );
   });
 
-  it("does not activate for four narration paragraphs or normal multi-sentence paragraphs", () => {
+  it("groups four short narration fragments locally (no 5+ document gate)", () => {
     const four = EXTREME_FRAGMENTED.split(/\n{2,}/).slice(0, 4).join("\n\n");
-    assert.deepEqual(resolveNovelDisplayParagraphs(four), groupNovelParagraphs(four));
+    const displayed = resolveNovelDisplayParagraphs(four);
+    assert.ok(displayed.length < groupNovelParagraphs(four).length);
 
     const normal = Array.from(
       { length: 5 },
@@ -125,5 +127,26 @@ describe("extreme fragmentation display fallback", () => {
     assert.deepEqual(streaming, final);
     assert.equal(raw, EXTREME_FRAGMENTED);
     assert.equal(groupNovelParagraphs(raw).length, 6);
+  });
+
+  it("prefix-stable: closed run before dialogue does not rematerialize when more text arrives", () => {
+    const prefix = `그의 목소리가 낮아졌다.
+
+의심하는 건 아니었다.
+
+그냥 순수한 호기심이었다.
+
+"솔직히 말해봐."`;
+    const full = `${prefix}
+
+태형이 한 걸음 물러났다.
+
+복도 끝에서 호출음이 울렸다.
+
+그는 고개를 돌렸다.`;
+
+    const prefixDisplay = formatNovelProseForDisplay(prefix);
+    const fullDisplay = formatNovelProseForDisplay(full);
+    assert.deepEqual(fullDisplay.slice(0, prefixDisplay.length), prefixDisplay);
   });
 });

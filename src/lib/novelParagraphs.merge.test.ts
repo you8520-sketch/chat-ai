@@ -100,7 +100,7 @@ describe("MAX_NARRATION_CHARS_PER_PARAGRAPH", () => {
 });
 
 describe("formatAiProseForEditTextarea", () => {
-  it("preserves blank-line narration boundaries to match display (Step 7.10)", () => {
+  it("preserves raw blank-line boundaries without display paragraph merge", () => {
     const raw = `아니, 마음에 든다는 말로는 부족했다.
 
 그의 시선이 렌의 어깨선을 타고 천천히 내려갔다.
@@ -109,8 +109,7 @@ describe("formatAiProseForEditTextarea", () => {
 
 등이 깊게 파인 그 디자인이, 오직 자신을 향한 마음으로 선택되었다는 것.`;
     const edited = formatAiProseForEditTextarea(raw);
-    const displayed = groupNovelParagraphs(raw).join("\n\n");
-    assert.equal(edited, displayed);
+    assert.equal(edited, raw);
     assert.match(edited, /선\.\n\n등이/);
     assert.doesNotMatch(edited, /선\. 등이 깊게 파인/);
   });
