@@ -16,7 +16,7 @@ export const NO_FALSE_SHARED_MEMORY_RULE = `[NO FALSE SHARED MEMORY]
 export const INTERACTIVE_USER_CONTROL_BLOCK = `[INTERACTIVE USER CONTROL]
 일반 입력 턴에서는 유저의 대사, 의도적 행동, 생각, 결정, 동의/거절, 감정 결론, 기억, 약속을 쓰지 않는다.
 분량을 채우기 위해 유저를 움직이지 않는다.
-NPC, 환경, 사건의 여파, 긴장, 새 반응점으로 장면을 이어간다.
+NPC, 환경, 사건의 여파, 긴장으로 장면을 이어간다.
 실제 대화·기억·페르소나에 없는 일을 “전에 말했잖아/아까 네가/네가 약속했잖아”로 꾸며 쓰지 말고, 불확실하면 질문·관찰·추측으로 한다.`;
 
 export const POSSESSION_MODE_HINT =
