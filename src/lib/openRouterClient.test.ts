@@ -5,6 +5,7 @@ import {
   isDeepSeekOpenRouterModel,
   isGlmOpenRouterModel,
   isKimiOpenRouterModel,
+  isMuseOpenRouterModel,
   isOpenRouterRpReasoningDisabledModel,
   isOpenRouterRpReasoningMandatoryModel,
   isQwenOpenRouterModel,
@@ -24,6 +25,7 @@ import {
   OPENROUTER_GEMINI_31_PRO_MODEL,
   OPENROUTER_GLM_52_MODEL,
   OPENROUTER_KIMI_K3_MODEL,
+  OPENROUTER_MUSE_SPARK_11_MODEL,
   OPENROUTER_QWEN_37_MAX_MODEL,
 } from "@/lib/chatModels";
 import { resolveRpOpenRouterModelId } from "@/lib/openRouterConfig";
@@ -53,11 +55,18 @@ describe("OpenRouter reasoning-disable model detection", () => {
     assert.equal(isKimiOpenRouterModel(OPENROUTER_QWEN_37_MAX_MODEL), false);
   });
 
-  it("disable union covers DeepSeek, Qwen, GLM, and Kimi", () => {
+  it("matches Muse Spark ids", () => {
+    assert.equal(isMuseOpenRouterModel(OPENROUTER_MUSE_SPARK_11_MODEL), true);
+    assert.equal(isMuseOpenRouterModel("meta/muse-spark-1.1"), true);
+    assert.equal(isMuseOpenRouterModel(OPENROUTER_QWEN_37_MAX_MODEL), false);
+  });
+
+  it("disable union covers DeepSeek, Qwen, GLM, Kimi, and Muse", () => {
     assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_DEEPSEEK_V4_PRO_MODEL), true);
     assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_QWEN_37_MAX_MODEL), true);
     assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_GLM_52_MODEL), true);
     assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_KIMI_K3_MODEL), true);
+    assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_MUSE_SPARK_11_MODEL), true);
     assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_GEMINI_31_PRO_MODEL), false);
     assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_GEMINI_25_PRO_MODEL), false);
     assert.equal(isOpenRouterRpReasoningDisabledModel("anthropic/claude-3-opus"), false);
@@ -150,6 +159,19 @@ describe("buildOpenRouterRequestBody — RP reasoning policy", () => {
   it("disables reasoning for Kimi RP requests", () => {
     const body = buildOpenRouterRequestBody(
       OPENROUTER_KIMI_K3_MODEL,
+      [{ role: "user", content: "test" }],
+      true,
+      3500,
+      "chat-1"
+    ) as Record<string, unknown>;
+    assert.deepEqual(body.reasoning, OPENROUTER_RP_REASONING_OFF);
+    assert.equal(body.include_reasoning, false);
+    assert.equal(body.max_tokens, undefined);
+  });
+
+  it("disables reasoning for Muse Spark RP requests", () => {
+    const body = buildOpenRouterRequestBody(
+      OPENROUTER_MUSE_SPARK_11_MODEL,
       [{ role: "user", content: "test" }],
       true,
       3500,
