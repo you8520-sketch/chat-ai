@@ -34,6 +34,9 @@ export const OPENROUTER_QWEN_37_MAX_MODEL = "qwen/qwen3.7-max";
 /** OpenRouter — Z.ai GLM 5.2 (text flagship; newer than 5.1) */
 export const OPENROUTER_GLM_52_MODEL = "z-ai/glm-5.2";
 
+/** OpenRouter — MoonshotAI Kimi K3 */
+export const OPENROUTER_KIMI_K3_MODEL = "moonshotai/kimi-k3";
+
 /** OpenRouter — Google Gemini 2.5 Pro */
 export const OPENROUTER_GEMINI_25_PRO_MODEL = "google/gemini-2.5-pro";
 
@@ -58,6 +61,8 @@ export const DEEPSEEK_DISPLAY_NAME = "DeepSeek V4 Pro";
 export const QWEN_DISPLAY_NAME = "하비 max";
 
 export const GLM_52_DISPLAY_NAME = "GLM 5.2";
+
+export const KIMI_K3_DISPLAY_NAME = "Kimi K3";
 
 export const GEMINI_25_PRO_DISPLAY_NAME = "Gemini 2.5 Pro";
 
@@ -86,6 +91,12 @@ export const SELECTED_AI_OPTIONS = [
     label: GLM_52_DISPLAY_NAME,
     tier: "pro" as const,
     hint: "Z.ai",
+  },
+  {
+    id: OPENROUTER_KIMI_K3_MODEL,
+    label: KIMI_K3_DISPLAY_NAME,
+    tier: "pro" as const,
+    hint: "Moonshot",
   },
   {
     id: OPENROUTER_GEMINI_25_PRO_MODEL,
@@ -197,6 +208,17 @@ export function isGlmModel(modelId: string): boolean {
   return id === OPENROUTER_GLM_52_MODEL || id.startsWith("z-ai/glm") || id.includes("/glm-");
 }
 
+/** OpenRouter MoonshotAI Kimi 계열 (Kimi K3 등) */
+export function isKimiModel(modelId: string): boolean {
+  const id = modelId.trim().toLowerCase();
+  return (
+    id === OPENROUTER_KIMI_K3_MODEL ||
+    id.startsWith("moonshotai/kimi") ||
+    id.includes("/kimi-k3") ||
+    /(^|\/)kimi[-.]?k3\b/i.test(id)
+  );
+}
+
 /** @deprecated provider === "openrouter" — 모든 OpenRouter 모델에 통합 prose 적용 */
 export function isOpenRouterSharedProseModel(modelId: string): boolean {
   const id = modelId.trim();
@@ -205,6 +227,7 @@ export function isOpenRouterSharedProseModel(modelId: string): boolean {
     (isAnthropicModel(id) ||
       isQwenModel(id) ||
       isGlmModel(id) ||
+      isKimiModel(id) ||
       isDeepSeekV4ProModel(id) ||
       isGemini25ProModel(id) ||
       isGemini31ProModel(id) ||
@@ -242,6 +265,11 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   "z-ai/glm-5.2": OPENROUTER_GLM_52_MODEL,
   "z-ai/glm-5.1": OPENROUTER_GLM_52_MODEL,
   "z-ai/glm-5": OPENROUTER_GLM_52_MODEL,
+  kimi: OPENROUTER_KIMI_K3_MODEL,
+  "kimi-k3": OPENROUTER_KIMI_K3_MODEL,
+  kimik3: OPENROUTER_KIMI_K3_MODEL,
+  "moonshotai/kimi-k3": OPENROUTER_KIMI_K3_MODEL,
+  "moonshotai/kimi-latest": OPENROUTER_KIMI_K3_MODEL,
   "anthropic/claude-3.5-sonnet": OPENROUTER_GEMINI_31_PRO_MODEL,
   "claude-3.5-sonnet": OPENROUTER_GEMINI_31_PRO_MODEL,
   "anthropic/claude-sonnet-4": OPENROUTER_GEMINI_31_PRO_MODEL,

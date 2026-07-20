@@ -102,15 +102,26 @@ export function isGlmOpenRouterModel(modelId: string): boolean {
   return id.startsWith("z-ai/glm") || id.includes("/glm-") || /(^|\/)glm[-.]?\d/i.test(id);
 }
 
+/** OpenRouter MoonshotAI Kimi 계열 — moonshotai/kimi-k3 등 */
+export function isKimiOpenRouterModel(modelId: string): boolean {
+  const id = modelId.trim().toLowerCase();
+  return (
+    id.startsWith("moonshotai/kimi") ||
+    id.includes("/kimi-k3") ||
+    /(^|\/)kimi[-.]?k3\b/i.test(id)
+  );
+}
+
 /**
- * RP primary·continuation — DeepSeek/Qwen/GLM: reasoning OFF (effort none).
+ * RP primary·continuation — DeepSeek/Qwen/GLM/Kimi: reasoning OFF (effort none).
  * Gemini 2.5 Pro: reasoning.max_tokens cap · Gemini 3.x Pro: reasoning.effort low.
  */
 export function isOpenRouterRpReasoningDisabledModel(modelId: string): boolean {
   return (
     isDeepSeekOpenRouterModel(modelId) ||
     isQwenOpenRouterModel(modelId) ||
-    isGlmOpenRouterModel(modelId)
+    isGlmOpenRouterModel(modelId) ||
+    isKimiOpenRouterModel(modelId)
   );
 }
 
@@ -192,11 +203,13 @@ function applyOpenRouterRpReasoningPolicy(body: Record<string, unknown>, modelId
   if (!isOpenRouterRpReasoningDisabledModel(modelId)) return;
 
   body.reasoning = { ...OPENROUTER_RP_REASONING_OFF };
-  const family = isGlmOpenRouterModel(modelId)
-    ? "glm"
-    : isQwenOpenRouterModel(modelId)
-      ? "qwen"
-      : "deepseek";
+  const family = isKimiOpenRouterModel(modelId)
+    ? "kimi"
+    : isGlmOpenRouterModel(modelId)
+      ? "glm"
+      : isQwenOpenRouterModel(modelId)
+        ? "qwen"
+        : "deepseek";
   console.log("[openrouter-reasoning] disabled: true", { model: normalized, family });
   if (family === "deepseek") {
     console.log("[deepseek-thinking] disabled: true", { model: normalized });

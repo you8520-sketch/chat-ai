@@ -46,6 +46,7 @@ describe("resolveStatusWidgetModelFamily", () => {
     assert.equal(resolveStatusWidgetModelFamily("anthropic/claude-opus-4.5"), "anthropic");
     assert.equal(resolveStatusWidgetModelFamily("openai/gpt-4o"), "openai");
     assert.equal(resolveStatusWidgetModelFamily("z-ai/glm-5.2"), "other");
+    assert.equal(resolveStatusWidgetModelFamily("moonshotai/kimi-k3"), "other");
   });
 });
 
