@@ -8,11 +8,13 @@ import {
   isMuseOpenRouterModel,
   isOpenRouterRpReasoningDisabledModel,
   isOpenRouterRpReasoningMandatoryModel,
+  isOpenRouterRpReasoningMuseModel,
   isQwenOpenRouterModel,
   GEMINI_PRO_GENERATION_PARAMS,
   OPENROUTER_RP_REASONING_GEMINI_FLASH,
   OPENROUTER_RP_REASONING_GEMINI_25_PRO_CAP,
   OPENROUTER_RP_REASONING_GEMINI_3_PRO,
+  OPENROUTER_RP_REASONING_MUSE_SPARK,
   OPENROUTER_RP_REASONING_OFF,
   resolveOpenRouterMaxTokens,
   resolveRegenerateGenerationOverrides,
@@ -61,15 +63,20 @@ describe("OpenRouter reasoning-disable model detection", () => {
     assert.equal(isMuseOpenRouterModel(OPENROUTER_QWEN_37_MAX_MODEL), false);
   });
 
-  it("disable union covers DeepSeek, Qwen, GLM, Kimi, and Muse", () => {
+  it("disable union covers DeepSeek, Qwen, GLM, and Kimi — not Muse", () => {
     assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_DEEPSEEK_V4_PRO_MODEL), true);
     assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_QWEN_37_MAX_MODEL), true);
     assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_GLM_52_MODEL), true);
     assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_KIMI_K3_MODEL), true);
-    assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_MUSE_SPARK_11_MODEL), true);
+    assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_MUSE_SPARK_11_MODEL), false);
     assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_GEMINI_31_PRO_MODEL), false);
     assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_GEMINI_25_PRO_MODEL), false);
     assert.equal(isOpenRouterRpReasoningDisabledModel("anthropic/claude-3-opus"), false);
+  });
+
+  it("Muse uses mandatory minimal effort policy (not disable)", () => {
+    assert.equal(isOpenRouterRpReasoningMuseModel(OPENROUTER_MUSE_SPARK_11_MODEL), true);
+    assert.equal(isOpenRouterRpReasoningMuseModel(OPENROUTER_DEEPSEEK_V4_PRO_MODEL), false);
   });
 
   it("mandatory reasoning policy covers Gemini 2.5 and 3.1 Pro", () => {
@@ -169,7 +176,7 @@ describe("buildOpenRouterRequestBody — RP reasoning policy", () => {
     assert.equal(body.max_tokens, undefined);
   });
 
-  it("disables reasoning for Muse Spark RP requests", () => {
+  it("uses mandatory minimal reasoning for Muse Spark RP requests", () => {
     const body = buildOpenRouterRequestBody(
       OPENROUTER_MUSE_SPARK_11_MODEL,
       [{ role: "user", content: "test" }],
@@ -177,9 +184,40 @@ describe("buildOpenRouterRequestBody — RP reasoning policy", () => {
       3500,
       "chat-1"
     ) as Record<string, unknown>;
-    assert.deepEqual(body.reasoning, OPENROUTER_RP_REASONING_OFF);
+    assert.deepEqual(body.reasoning, OPENROUTER_RP_REASONING_MUSE_SPARK);
+    assert.equal(OPENROUTER_RP_REASONING_MUSE_SPARK.effort, "minimal");
     assert.equal(body.include_reasoning, false);
+    assert.equal(body.reasoning_effort, undefined);
     assert.equal(body.max_tokens, undefined);
+    // Must not disable reasoning (provider rejects none / enabled:false).
+    assert.notDeepEqual(body.reasoning, OPENROUTER_RP_REASONING_OFF);
+  });
+
+  it("keeps DeepSeek/Qwen/Kimi reasoning-off unchanged when Muse policy is present", () => {
+    const deepseek = buildOpenRouterRequestBody(
+      OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
+      [{ role: "user", content: "test" }],
+      true,
+      3500,
+      "chat-1"
+    ) as Record<string, unknown>;
+    const qwen = buildOpenRouterRequestBody(
+      OPENROUTER_QWEN_37_MAX_MODEL,
+      [{ role: "user", content: "test" }],
+      true,
+      3500,
+      "chat-1"
+    ) as Record<string, unknown>;
+    const kimi = buildOpenRouterRequestBody(
+      OPENROUTER_KIMI_K3_MODEL,
+      [{ role: "user", content: "test" }],
+      true,
+      3500,
+      "chat-1"
+    ) as Record<string, unknown>;
+    assert.deepEqual(deepseek.reasoning, OPENROUTER_RP_REASONING_OFF);
+    assert.deepEqual(qwen.reasoning, OPENROUTER_RP_REASONING_OFF);
+    assert.deepEqual(kimi.reasoning, OPENROUTER_RP_REASONING_OFF);
   });
 
   it("caps Gemini 2.5 Pro reasoning at 128 tokens (cost-oriented thinking budget)", () => {
