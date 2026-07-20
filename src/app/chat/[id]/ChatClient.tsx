@@ -2851,28 +2851,29 @@ export default function ChatClient({
         : content;
     setEditDraft(canonical);
     if (role === "assistant") {
-      const storedCanonical = getDisplayAlignedCanonicalProseBody(activeVariantSource);
+      const storedCanonical = getCanonicalProseBody(activeVariantSource);
+      const displayAligned = getDisplayAlignedCanonicalProseBody(activeVariantSource);
       logProseFormattingMismatchDev({
         messageId,
-        storedProse: activeVariantSource,
+        storedProse: storedCanonical,
         editModalValue: canonical,
-        transform: "startEdit:getDisplayAlignedCanonicalProseBody",
+        transform: "startEdit:getCanonicalProseBody",
       });
       logDisplayEditSourceMismatchDev({
         messageId,
-        displaySource: storedCanonical,
+        displaySource: displayAligned,
         editSource: canonical,
         contentSource: content,
         activeVariantSource,
-        displaySourceKind: "displayAlignedCanonicalProse",
-        editSourceKind: "displayAlignedCanonicalProse",
+        displaySourceKind: "formatNovelProseForDisplay",
+        editSourceKind: "canonicalProseBody",
       });
       logProseSourceDivergenceDev({
         messageId,
         phase: "startEdit",
         dbSource: storedCanonical,
         activeVariantSource: storedCanonical,
-        displaySource: storedCanonical,
+        displaySource: displayAligned,
         editSource: canonical,
         usedPreferDisplayedNewlineLayout: false,
         sourceFieldUsedByEditModal: asst?.variants?.length ? "activeVariant" : "content",
@@ -3717,9 +3718,8 @@ export default function ChatClient({
                               { streaming: isStreamingThisMessage }
                             ).prose
                           : displayBody;
-                      const bodyForDisplay = isStreamingThisMessage
-                        ? getCanonicalProseBody(bodyForDisplayRaw)
-                        : getDisplayAlignedCanonicalProseBody(bodyForDisplayRaw);
+                      // Canonical raw into NovelText; display paragraph policy lives only there.
+                      const bodyForDisplay = getCanonicalProseBody(bodyForDisplayRaw);
                       const userBefore =
                         i > 0 && messages[i - 1]?.role === "user" ? messages[i - 1] : null;
                       const showOocMarkdown =

@@ -3,7 +3,7 @@ import {
   stripIncompleteStatusWidgetTail,
 } from "@/lib/statusWidget/parseValues";
 import { resolveActiveVariantContent, type MessageVariant } from "@/lib/messageAlternates";
-import { formatAiProseForEditTextarea } from "@/lib/novelParagraphs";
+import { formatNovelProseForDisplay } from "@/lib/novelParagraphs";
 
 export type ProseFormattingMismatchLengths = {
   messageId?: number | string | null;
@@ -48,12 +48,14 @@ export function resolveAssistantCanonicalProseSource(
   return resolveActiveVariantContent(message);
 }
 
+/** Display-string form of canonical raw (for diagnostics / parity checks). Not for Edit. */
 export function getDisplayAlignedCanonicalProseBody(text: string): string {
-  return formatAiProseForEditTextarea(getCanonicalProseBody(text));
+  return formatNovelProseForDisplay(getCanonicalProseBody(text)).join("\n\n");
 }
 
+/** Edit textarea must seed from DB/canonical raw — never display-normalized prose. */
 export function resolveAssistantEditInitialValue(message: AssistantCanonicalSource): string {
-  return getDisplayAlignedCanonicalProseBody(resolveAssistantCanonicalProseSource(message));
+  return getCanonicalProseBody(resolveAssistantCanonicalProseSource(message));
 }
 
 export function normalizeEditedProseForSave(text: string): string {

@@ -381,122 +381,27 @@ function mergeConsecutiveNarrationLines(lines: string[], streaming = false): str
   return out;
 }
 
-/** AI가 문장마다 빈 줄을 넣어 만든 짧은 지문 문단을 다시 묶음 — Step 7.10: disabled.
- * Blank-line (\\n\\n) boundaries are semantic paragraph breaks from the model.
- * Only single-newline lines within one block are joined (mergeConsecutiveNarrationLines).
- * Unlimited cross-blank-line merge created giant display paragraphs while raw still had breaks.
+/**
+ * Blank-line (\\n\\n) boundaries stay as semantic paragraph breaks in the raw/group path.
+ * Extreme sentence-per-paragraph repair is display-only
+ * (`groupExtremeFragmentedNarrationForDisplay` / `formatNovelProseForDisplay`).
  */
 function mergeAdjacentShortNarrationParagraphs(
   paragraphs: string[],
   _streaming = false
 ): string[] {
-  const clean = paragraphs.map((p) => p.trim()).filter(Boolean);
-  const out: string[] = [];
-  let run: string[] = [];
-
-  const flushRun = () => {
-    if (run.length === 0) return;
-    out.push(...groupExtremeNarrationFragments(run));
-    run = [];
-  };
-
-  for (const paragraph of clean) {
-    if (isGroupableNarrationFragment(paragraph)) {
-      run.push(paragraph);
-    } else {
-      flushRun();
-      out.push(paragraph);
-    }
-  }
-  flushRun();
-  return out;
-}
-
-const FRAGMENT_SENTENCE_END_RE = /[.!?。！？](?:["”’)]*)\s*$/u;
-const TRANSITION_FRAGMENT_RE =
-  /^(?:한편|그 시각|잠시 후|얼마 뒤|다음 순간|그때|그 사이|문밖에서는|반대편에서는|동시에)\b/u;
-
-function isNonNarrationDisplayBlock(text: string): boolean {
-  const t = text.trim();
-  return (
-    /^```/.test(t) ||
-    /^<[^>]+>/.test(t) ||
-    /^(?:[-*+]|\d+[.)])\s+/.test(t) ||
-    /^STATUS\s*REPORT\b/i.test(t) ||
-    /^<<<.*>>>$/.test(t)
-  );
-}
-
-function countFragmentSentences(text: string): number {
-  const matches = text.match(/[.!?。！？](?:["”’)]*)/gu);
-  return Math.max(1, matches?.length ?? (FRAGMENT_SENTENCE_END_RE.test(text) ? 1 : 0));
-}
-
-function isOneSentenceFragment(text: string): boolean {
-  return countFragmentSentences(text) <= 1;
-}
-
-function isGroupableNarrationFragment(text: string): boolean {
-  if (isNonNarrationDisplayBlock(text)) return false;
-  return classifyNovelParagraph(text) === "narration";
-}
-
-function shouldRepairFragmentRun(run: string[]): boolean {
-  if (run.length < 5) return false;
-  const oneSentenceCount = run.filter(isOneSentenceFragment).length;
-  return oneSentenceCount / run.length >= 0.8;
-}
-
-function groupExtremeNarrationFragments(run: string[]): string[] {
-  if (!shouldRepairFragmentRun(run)) return run;
-
-  const grouped: string[] = [];
-  let current: string[] = [];
-  let currentChars = 0;
-  let currentSentences = 0;
-
-  const flush = () => {
-    if (current.length > 0) {
-      grouped.push(current.join(" "));
-      current = [];
-      currentChars = 0;
-      currentSentences = 0;
-    }
-  };
-
-  for (const fragment of run) {
-    const sentences = countFragmentSentences(fragment);
-    const nextChars = currentChars + (current.length > 0 ? 1 : 0) + fragment.length;
-    const nextSentences = currentSentences + sentences;
-
-    if (
-      current.length > 0 &&
-      (TRANSITION_FRAGMENT_RE.test(fragment) || nextChars > 360 || nextSentences > 4)
-    ) {
-      flush();
-    }
-
-    current.push(fragment);
-    currentChars += (current.length > 1 ? 1 : 0) + fragment.length;
-    currentSentences += sentences;
-
-    if (currentSentences >= 4 || (currentChars >= 120 && currentChars >= 320)) {
-      flush();
-    }
-  }
-  flush();
-
-  return grouped;
+  return paragraphs.map((p) => p.trim()).filter(Boolean);
 }
 
 export type GroupNovelParagraphsOpts = { streaming?: boolean };
 
-const EXTREME_FRAGMENTATION_MIN_PARAGRAPHS = 5;
-const EXTREME_FRAGMENTATION_ONE_SENTENCE_RATIO = 0.8;
+/** Local-run fragment grouping — never gated on whole-document stats. */
 const DISPLAY_GROUPING_MIN_CHARS = 120;
 const DISPLAY_GROUPING_TARGET_MAX_CHARS = 320;
 const DISPLAY_GROUPING_HARD_MAX_CHARS = 360;
 const DISPLAY_GROUPING_MAX_SENTENCES = 4;
+/** Short blank-line narration blocks at or below this length are merge candidates. */
+const SHORT_NARRATION_FRAGMENT_MAX_CHARS = 140;
 
 const PARAGRAPH_TRANSITION_PREFIX_RE =
   /^(?:한편|그 시각|잠시 후|얼마 뒤|다음 순간|그때|그 사이|문밖에서는|반대편에서는|동시에)(?=[\s,.!?…]|$)/u;
@@ -543,9 +448,16 @@ function extractExplicitActor(text: string): string | null {
   return text.trim().match(EXPLICIT_ACTOR_ACTION_RE)?.[1] ?? null;
 }
 
+/** Pronoun subjects continue the prior beat — do not split short narration runs. */
+function isPronounActor(actor: string): boolean {
+  return /^(?:그|그녀|그들|그것)$/u.test(actor);
+}
+
 function isStrongStandaloneShortNarration(text: string): boolean {
   const trimmed = text.trim();
   if (trimmed.length > 60 || /^아니,(?=[\s…]|$)/u.test(trimmed)) return false;
+  // Flowing soft denials ("의심하는 건 아니었다") are mergeable fragments, not punch lines.
+  if (/건 아니었다\.?$/u.test(trimmed)) return false;
   return isStandaloneNarrationPunchLine(trimmed) || STRONG_SHORT_EMPHASIS_RE.test(trimmed);
 }
 
@@ -553,6 +465,10 @@ function mergedDisplayBatchLength(items: string[]): number {
   return items.reduce((sum, item, index) => sum + item.length + (index > 0 ? 1 : 0), 0);
 }
 
+/**
+ * Left-to-right batching only — no end-of-run tail rebalance.
+ * Tail rebalance rewrote earlier batches when more fragments arrived (streaming jump).
+ */
 function mergeDisplaySentenceSequence(items: string[]): string[] {
   if (items.length < 2) return items.slice();
 
@@ -580,24 +496,30 @@ function mergeDisplaySentenceSequence(items: string[]): string[] {
   }
   flush();
 
-  const tail = batches.at(-1);
-  const previous = batches.at(-2);
-  if (tail?.length === 1 && previous) {
-    const combined = [...previous, ...tail];
-    if (
-      combined.length <= DISPLAY_GROUPING_MAX_SENTENCES &&
-      mergedDisplayBatchLength(combined) <= DISPLAY_GROUPING_HARD_MAX_CHARS
-    ) {
-      batches.splice(-2, 2, combined);
-    } else if (previous.length >= 3) {
-      tail.unshift(previous.pop()!);
-    }
-  }
-
   return batches.map((parts) => parts.join(" "));
 }
 
-function groupExtremeNarrationRun(run: string[]): string[] {
+/** One-sentence short blank-line narration — local merge candidate. */
+function isMergeableNarrationFragment(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed || isProtectedDisplayParagraph(trimmed)) return false;
+  if (classifyNovelParagraph(trimmed) !== "narration") return false;
+  // Already a natural multi-sentence paragraph — never fragment-merge.
+  if (countDisplayNarrationSentences(trimmed) >= 2) return false;
+  return trimmed.length <= SHORT_NARRATION_FRAGMENT_MAX_CHARS;
+}
+
+/**
+ * Local run only: ≥2 mergeable fragments → group.
+ * Already-natural multi-sentence paragraphs are left alone.
+ */
+function shouldGroupLocalNarrationRun(run: string[]): boolean {
+  return run.filter(isMergeableNarrationFragment).length >= 2;
+}
+
+function groupLocalNarrationRun(run: string[]): string[] {
+  if (!shouldGroupLocalNarrationRun(run)) return run.slice();
+
   const out: string[] = [];
   let mergeable: string[] = [];
   let activeActor: string | null = null;
@@ -610,19 +532,31 @@ function groupExtremeNarrationRun(run: string[]): string[] {
   };
 
   for (const paragraph of run) {
-    if (countDisplayNarrationSentences(paragraph) !== 1) {
+    const trimmed = paragraph.trim();
+    if (!isMergeableNarrationFragment(trimmed)) {
       flushMergeable();
-      out.push(paragraph);
+      out.push(trimmed);
       consecutiveStandaloneShort = 0;
       continue;
     }
 
-    const trimmed = paragraph.trim();
     const transitionBoundary = PARAGRAPH_TRANSITION_PREFIX_RE.test(trimmed);
     const actor = extractExplicitActor(trimmed);
+    // Named-actor change only. Pronouns / null never rewrite earlier batches mid-run.
+    const namedActor = actor && !isPronounActor(actor) ? actor : null;
     const actorBoundary =
-      mergeable.length > 0 && actor !== null && actor !== activeActor;
-    if (transitionBoundary || actorBoundary) flushMergeable();
+      mergeable.length > 0 &&
+      namedActor !== null &&
+      activeActor !== null &&
+      namedActor !== activeActor;
+    if (transitionBoundary) {
+      // Time/space shifts close the prior beat and stand alone — do not absorb the next actor.
+      flushMergeable();
+      out.push(trimmed);
+      consecutiveStandaloneShort = 0;
+      continue;
+    }
+    if (actorBoundary) flushMergeable();
 
     const standaloneShort = isStrongStandaloneShortNarration(trimmed);
     if (standaloneShort && consecutiveStandaloneShort < 2) {
@@ -634,36 +568,39 @@ function groupExtremeNarrationRun(run: string[]): string[] {
 
     consecutiveStandaloneShort = 0;
     mergeable.push(trimmed);
-    if (actor) activeActor = actor;
+    if (namedActor) activeActor = namedActor;
   }
 
   flushMergeable();
   return out;
 }
 
-/** Display-only safety net for model outputs with extreme sentence-per-paragraph fragmentation. */
+function isGroupableNarrationParagraph(text: string): boolean {
+  const trimmed = text.trim();
+  return (
+    !!trimmed &&
+    classifyNovelParagraph(trimmed) === "narration" &&
+    !isProtectedDisplayParagraph(trimmed)
+  );
+}
+
+/**
+ * Display-only local narration-run grouping.
+ * Decisions depend only on each closed narration run — never whole-document stats.
+ */
 export function groupExtremeFragmentedNarrationForDisplay(paragraphs: string[]): string[] {
   const out: string[] = [];
   let narrationRun: string[] = [];
 
   const flushRun = () => {
     if (narrationRun.length === 0) return;
-    const oneSentenceCount = narrationRun.filter(
-      (paragraph) => countDisplayNarrationSentences(paragraph) === 1
-    ).length;
-    const fragmented =
-      narrationRun.length >= EXTREME_FRAGMENTATION_MIN_PARAGRAPHS &&
-      oneSentenceCount / narrationRun.length >= EXTREME_FRAGMENTATION_ONE_SENTENCE_RATIO;
-    out.push(...(fragmented ? groupExtremeNarrationRun(narrationRun) : narrationRun));
+    out.push(...groupLocalNarrationRun(narrationRun));
     narrationRun = [];
   };
 
   for (const paragraph of paragraphs) {
     const trimmed = paragraph.trim();
-    if (
-      classifyNovelParagraph(trimmed) === "narration" &&
-      !isProtectedDisplayParagraph(trimmed)
-    ) {
+    if (isGroupableNarrationParagraph(trimmed)) {
       narrationRun.push(trimmed);
     } else {
       flushRun();
@@ -708,8 +645,38 @@ export function groupNovelParagraphs(content: string, opts?: GroupNovelParagraph
 }
 
 /**
+ * Single display-policy formatter: raw blank-line group → local narration-run grouping.
+ * Prefix-stable: format(P) committed runs stay identical when formatting P+Q.
+ */
+export function formatNovelProseForDisplay(content: string, opts?: GroupNovelParagraphsOpts): string[] {
+  return groupExtremeFragmentedNarrationForDisplay(groupNovelParagraphs(content, opts));
+}
+
+/**
+ * Split display output into immutable committed prefix + mutable open tip.
+ * Tip = trailing open narration run (not yet closed by dialogue/special).
+ * Closed runs are fully decided from local content only.
+ */
+export function splitCommittedAndOpenTipDisplay(
+  content: string,
+  opts?: GroupNovelParagraphsOpts
+): { committed: string[]; tip: string[]; all: string[] } {
+  const rawGrouped = groupNovelParagraphs(content, opts);
+  let openStart = rawGrouped.length;
+  while (openStart > 0 && isGroupableNarrationParagraph(rawGrouped[openStart - 1]!)) {
+    openStart--;
+  }
+  const closedRaw = rawGrouped.slice(0, openStart);
+  const openRaw = rawGrouped.slice(openStart);
+  const committed = groupExtremeFragmentedNarrationForDisplay(closedRaw);
+  const tip =
+    openRaw.length === 0 ? [] : groupLocalNarrationRun(openRaw.map((p) => p.trim()).filter(Boolean));
+  return { committed, tip, all: [...committed, ...tip] };
+}
+
+/**
  * Shared streaming/final paragraph list for NovelText.
- * Streaming may freeze all but the growing tip; final uses the same groupNovelParagraphs.
+ * Same local-run policy; streaming freezes committed closed runs + completed tip batches.
  */
 export function resolveNovelDisplayParagraphs(
   content: string,
@@ -719,24 +686,24 @@ export function resolveNovelDisplayParagraphs(
   }
 ): string[] {
   const streaming = opts?.streaming === true;
-  const rawGrouped = groupNovelParagraphs(content, streaming ? { streaming: true } : undefined);
-  const grouped = groupExtremeFragmentedNarrationForDisplay(rawGrouped);
-  if (!streaming) return grouped;
-  // Extreme fallback must render identically at the last streaming frame and final frame.
-  // Let its deliberate paragraph regrouping replace the frozen structure immediately.
-  if (
-    grouped.length !== rawGrouped.length ||
-    grouped.some((paragraph, index) => paragraph !== rawGrouped[index])
-  ) {
-    return grouped;
+  if (!streaming) {
+    return formatNovelProseForDisplay(content);
   }
-  return stabilizeStreamingNovelParagraphs(opts?.previousStreamingParagraphs ?? [], grouped);
+  const { all } = splitCommittedAndOpenTipDisplay(content, { streaming: true });
+  return stabilizeStreamingNovelParagraphs(opts?.previousStreamingParagraphs ?? [], all);
+}
+
+function collapseProseForCompare(s: string): string {
+  return s
+    .replace(/[\r\n\u00a0]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /**
- * Streaming display stabilizer: freeze every paragraph except the last.
- * New dialogue/narration splits may only rewrite the growing tip so earlier
- * text does not jump while the user is reading.
+ * Streaming safety net only: keep committed prefix immutable.
+ * Formatter is prefix-stable for closed runs; this blocks tip-only regressions
+ * from groupNovelParagraphs mid-stream dialogue splits.
  */
 export function stabilizeStreamingNovelParagraphs(
   previous: string[],
@@ -757,16 +724,11 @@ export function stabilizeStreamingNovelParagraphs(
     return [...frozen, ...next.slice(frozenCount)];
   }
 
-  // next re-split a frozen paragraph (e.g. inserted \n\n inside earlier text).
-  // Keep the frozen visual structure; attach only content beyond the frozen prefix.
-  const collapse = (s: string) =>
-    s
-      .replace(/[\r\n\u00a0]+/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-  const frozenCollapsed = collapse(frozen.join("\n\n"));
-  const nextCollapsed = collapse(next.join("\n\n"));
+  // Closed-run growth: next appends after an exact frozen content prefix.
+  const frozenCollapsed = collapseProseForCompare(frozen.join("\n\n"));
+  const nextCollapsed = collapseProseForCompare(next.join("\n\n"));
   if (!frozenCollapsed || !nextCollapsed.startsWith(frozenCollapsed)) {
+    // Prefer deterministic formatter output when prefix cannot be aligned.
     return next;
   }
 
@@ -774,12 +736,15 @@ export function stabilizeStreamingNovelParagraphs(
   let acc = "";
   for (; consumed < next.length; consumed++) {
     acc = consumed === 0 ? next[0]! : `${acc}\n\n${next[consumed]}`;
-    const ac = collapse(acc);
+    const ac = collapseProseForCompare(acc);
     if (ac === frozenCollapsed) {
       consumed++;
       break;
     }
-    if (ac.length > frozenCollapsed.length) break;
+    if (ac.length > frozenCollapsed.length) {
+      // Frozen region was remapped inside tip — trust next (local-run formatter).
+      return next;
+    }
   }
   return [...frozen, ...next.slice(consumed)];
 }
@@ -1069,11 +1034,11 @@ export function normalizeAiNovelProseLayout(text: string, _opts?: { allowHtml?: 
 }
 
 /**
- * 채팅 수정 textarea용 — NovelText(AI) 표시 문단과 동일한 줄바꿈.
- * DB의 빈 줄(\\n\\n) 문단 경계를 유지한다 (Step 7.10 — 흐름 지문 강제 병합 없음).
+ * Edit textarea source helper — newline normalize only.
+ * Must NOT apply display paragraph merge; Edit uses DB/canonical raw.
  */
 export function formatAiProseForEditTextarea(text: string): string {
-  return normalizeAiNovelProseLayout(text);
+  return text.replace(/\r\n/g, "\n");
 }
 
 /** "…" 안 줄바꿈 → 공백 — 한 대사 한 줄 */
