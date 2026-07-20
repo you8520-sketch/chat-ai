@@ -10,6 +10,7 @@ import {
   isGeminiProOpenRouterModel,
   isGlmModel,
   isKimiModel,
+  isMuseModel,
   isQwenModel,
   OPENROUTER_DEEPSEEK_V3_MODEL,
   type SelectedAI,
@@ -332,6 +333,20 @@ export const OPENROUTER_KIMI_GROSS_MARGIN =
 /** Kimi — 과금 면제 턴 최소 차감 */
 export const KIMI_WAIVER_SUCCESS_MIN_COST = 65;
 
+/** Muse Spark 1.1 — 출력 1토큰당 청구 (P) — OpenRouter list $4.25/M out 기준 */
+export const OPENROUTER_MUSE_POINTS_PER_OUTPUT_TOKEN = (() => {
+  const perToken = process.env.OPENROUTER_MUSE_POINTS_PER_OUTPUT_TOKEN?.trim();
+  if (perToken) return Number(perToken) || 0.07;
+  return 0.07;
+})();
+
+/** Muse — API 원가 대비 최저 매출총이익률 (55% → 원가÷0.45) */
+export const OPENROUTER_MUSE_GROSS_MARGIN =
+  Number(process.env.OPENROUTER_MUSE_GROSS_MARGIN) || 0.55;
+
+/** Muse — 과금 면제 턴 최소 차감 */
+export const MUSE_WAIVER_SUCCESS_MIN_COST = 50;
+
 /** Gemini 2.5 Pro — 출력 1토큰당 청구 (P) — Qwen과 동일 단가 */
 export const OPENROUTER_GEMINI_25_POINTS_PER_OUTPUT_TOKEN = (() => {
   const perToken = process.env.OPENROUTER_GEMINI_25_POINTS_PER_OUTPUT_TOKEN?.trim();
@@ -637,6 +652,10 @@ function openRouterKimiTokenFloorKrw(outputTokens: number): number {
   return chargePoints(Math.max(0, outputTokens) * OPENROUTER_KIMI_POINTS_PER_OUTPUT_TOKEN);
 }
 
+function openRouterMuseTokenFloorKrw(outputTokens: number): number {
+  return chargePoints(Math.max(0, outputTokens) * OPENROUTER_MUSE_POINTS_PER_OUTPUT_TOKEN);
+}
+
 function openRouterGemini25TokenFloorKrw(outputTokens: number): number {
   return chargePoints(Math.max(0, outputTokens) * OPENROUTER_GEMINI_25_POINTS_PER_OUTPUT_TOKEN);
 }
@@ -686,6 +705,10 @@ function openRouterGlmMarginChargeKrw(rawCostKrw: number): number {
 
 function openRouterKimiMarginChargeKrw(rawCostKrw: number): number {
   return openRouterGrossMarginChargeKrw(rawCostKrw, OPENROUTER_KIMI_GROSS_MARGIN);
+}
+
+function openRouterMuseMarginChargeKrw(rawCostKrw: number): number {
+  return openRouterGrossMarginChargeKrw(rawCostKrw, OPENROUTER_MUSE_GROSS_MARGIN);
 }
 
 function openRouterGemini25MarginChargeKrw(rawCostKrw: number): number {
@@ -796,6 +819,13 @@ export function computeOpenRouterTurnCost(
   if (isKimiModel(modelId ?? "")) {
     return openRouterTokenOnlyTurnCost(
       openRouterKimiTokenFloorKrw(outputTokens),
+      inputTokens
+    );
+  }
+
+  if (isMuseModel(modelId ?? "")) {
+    return openRouterTokenOnlyTurnCost(
+      openRouterMuseTokenFloorKrw(outputTokens),
       inputTokens
     );
   }
@@ -1274,6 +1304,23 @@ export function explainOpenRouterKimiTurnCost(
   );
 }
 
+/** Muse Spark 1.1 과금 상세 — 출력토큰×0.07P */
+export function explainOpenRouterMuseTurnCost(
+  inputTokens: number,
+  outputTokens: number,
+  modelId: string,
+  _outputChars?: number,
+  cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">
+): OpenRouterTurnCostBreakdown & { total: number } {
+  return explainOpenRouterTokenOnlyTurnCost(
+    inputTokens,
+    outputTokens,
+    modelId,
+    openRouterMuseTokenFloorKrw(outputTokens),
+    cache
+  );
+}
+
 /** OpenRouter Gemini 2.5 Pro — 출력토큰×0.065P */
 export function explainOpenRouterGemini25TurnCost(
   inputTokens: number,
@@ -1623,6 +1670,23 @@ export function resolveKimiWaiverMinimumCharge(
     savedText,
     waiverReason,
     KIMI_WAIVER_SUCCESS_MIN_COST,
+    opts
+  );
+}
+
+/** Muse — 과금 면제 턴이어도 본문이 유의미하게 전달됐으면 최소 50P 차감 */
+export function resolveMuseWaiverMinimumCharge(
+  savedText: string,
+  waiverReason: BillingWaiverReason,
+  opts?: {
+    degenerationAborted?: boolean;
+    targetResponseChars?: number | null;
+  }
+): number {
+  return resolveModelWaiverMinimumCharge(
+    savedText,
+    waiverReason,
+    MUSE_WAIVER_SUCCESS_MIN_COST,
     opts
   );
 }

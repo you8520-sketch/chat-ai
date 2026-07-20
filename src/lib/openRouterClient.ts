@@ -112,8 +112,14 @@ export function isKimiOpenRouterModel(modelId: string): boolean {
   );
 }
 
+/** OpenRouter Meta Muse Spark 계열 — meta/muse-spark-1.1 등 */
+export function isMuseOpenRouterModel(modelId: string): boolean {
+  const id = modelId.trim().toLowerCase();
+  return id.includes("muse-spark") || /(^|\/)muse[-.]?spark\b/i.test(id);
+}
+
 /**
- * RP primary·continuation — DeepSeek/Qwen/GLM/Kimi: reasoning OFF (effort none).
+ * RP primary·continuation — DeepSeek/Qwen/GLM/Kimi/Muse: reasoning OFF (effort none).
  * Gemini 2.5 Pro: reasoning.max_tokens cap · Gemini 3.x Pro: reasoning.effort low.
  */
 export function isOpenRouterRpReasoningDisabledModel(modelId: string): boolean {
@@ -121,7 +127,8 @@ export function isOpenRouterRpReasoningDisabledModel(modelId: string): boolean {
     isDeepSeekOpenRouterModel(modelId) ||
     isQwenOpenRouterModel(modelId) ||
     isGlmOpenRouterModel(modelId) ||
-    isKimiOpenRouterModel(modelId)
+    isKimiOpenRouterModel(modelId) ||
+    isMuseOpenRouterModel(modelId)
   );
 }
 
@@ -203,13 +210,15 @@ function applyOpenRouterRpReasoningPolicy(body: Record<string, unknown>, modelId
   if (!isOpenRouterRpReasoningDisabledModel(modelId)) return;
 
   body.reasoning = { ...OPENROUTER_RP_REASONING_OFF };
-  const family = isKimiOpenRouterModel(modelId)
-    ? "kimi"
-    : isGlmOpenRouterModel(modelId)
-      ? "glm"
-      : isQwenOpenRouterModel(modelId)
-        ? "qwen"
-        : "deepseek";
+  const family = isMuseOpenRouterModel(modelId)
+    ? "muse"
+    : isKimiOpenRouterModel(modelId)
+      ? "kimi"
+      : isGlmOpenRouterModel(modelId)
+        ? "glm"
+        : isQwenOpenRouterModel(modelId)
+          ? "qwen"
+          : "deepseek";
   console.log("[openrouter-reasoning] disabled: true", { model: normalized, family });
   if (family === "deepseek") {
     console.log("[deepseek-thinking] disabled: true", { model: normalized });

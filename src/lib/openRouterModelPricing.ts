@@ -127,6 +127,17 @@ const KIMI_K3_RATES: OpenRouterModelRates = {
   explicitCacheInjection: false,
 };
 
+/** Meta Muse Spark 1.1 — OpenRouter list ($1.25/M in, $4.25/M out, cache read $0.15/M) */
+const MUSE_SPARK_11_RATES: OpenRouterModelRates = {
+  family: "unknown",
+  label: "Meta Muse Spark prompt cache",
+  inputUsdPerM: 1.25,
+  outputUsdPerM: 4.25,
+  cacheReadUsdPerM: 0.15,
+  cacheWriteMultiplier: 1,
+  explicitCacheInjection: false,
+};
+
 const GENERIC_OPENROUTER_RATES: OpenRouterModelRates = {
   family: "unknown",
   label: "제공자 자동 캐시",
@@ -150,6 +161,9 @@ export function resolveOpenRouterModelRates(modelId?: string | null): OpenRouter
   if (id.startsWith("z-ai/glm") || id.includes("/glm-")) return GLM_52_RATES;
   if (id.startsWith("moonshotai/kimi") || id.includes("/kimi-k3") || /(^|\/)kimi[-.]?k3\b/.test(id)) {
     return KIMI_K3_RATES;
+  }
+  if (id.includes("muse-spark") || /(^|\/)muse[-.]?spark\b/.test(id)) {
+    return MUSE_SPARK_11_RATES;
   }
   return GENERIC_OPENROUTER_RATES;
 }

@@ -31,11 +31,14 @@ export const OPENROUTER_DEEPSEEK_V3_MODEL = "deepseek/deepseek-chat-v3-0324";
 /** OpenRouter — Qwen3.7 Max (2026-05 flagship, OpenRouter slug) */
 export const OPENROUTER_QWEN_37_MAX_MODEL = "qwen/qwen3.7-max";
 
-/** OpenRouter — Z.ai GLM 5.2 (text flagship; newer than 5.1) */
+/** @deprecated UI 선택 제거 — legacy slug·과금 경로 호환용 */
 export const OPENROUTER_GLM_52_MODEL = "z-ai/glm-5.2";
 
 /** OpenRouter — MoonshotAI Kimi K3 */
 export const OPENROUTER_KIMI_K3_MODEL = "moonshotai/kimi-k3";
+
+/** OpenRouter — Meta Muse Spark 1.1 */
+export const OPENROUTER_MUSE_SPARK_11_MODEL = "meta/muse-spark-1.1";
 
 /** OpenRouter — Google Gemini 2.5 Pro */
 export const OPENROUTER_GEMINI_25_PRO_MODEL = "google/gemini-2.5-pro";
@@ -64,6 +67,8 @@ export const GLM_52_DISPLAY_NAME = "GLM 5.2";
 
 export const KIMI_K3_DISPLAY_NAME = "Kimi K3";
 
+export const MUSE_SPARK_11_DISPLAY_NAME = "Muse Spark 1.1";
+
 export const GEMINI_25_PRO_DISPLAY_NAME = "Gemini 2.5 Pro";
 
 export const GEMINI_31_PRO_DISPLAY_NAME = "Gemini 3.1 Pro";
@@ -87,16 +92,16 @@ export const SELECTED_AI_OPTIONS = [
     hint: "Flagship",
   },
   {
-    id: OPENROUTER_GLM_52_MODEL,
-    label: GLM_52_DISPLAY_NAME,
-    tier: "pro" as const,
-    hint: "Z.ai",
-  },
-  {
     id: OPENROUTER_KIMI_K3_MODEL,
     label: KIMI_K3_DISPLAY_NAME,
     tier: "pro" as const,
     hint: "Moonshot",
+  },
+  {
+    id: OPENROUTER_MUSE_SPARK_11_MODEL,
+    label: MUSE_SPARK_11_DISPLAY_NAME,
+    tier: "pro" as const,
+    hint: "Meta",
   },
   {
     id: OPENROUTER_GEMINI_25_PRO_MODEL,
@@ -219,6 +224,16 @@ export function isKimiModel(modelId: string): boolean {
   );
 }
 
+/** OpenRouter Meta Muse Spark 계열 (Muse Spark 1.1 등) */
+export function isMuseModel(modelId: string): boolean {
+  const id = modelId.trim().toLowerCase();
+  return (
+    id === OPENROUTER_MUSE_SPARK_11_MODEL ||
+    id.includes("muse-spark") ||
+    /(^|\/)muse[-.]?spark\b/i.test(id)
+  );
+}
+
 /** @deprecated provider === "openrouter" — 모든 OpenRouter 모델에 통합 prose 적용 */
 export function isOpenRouterSharedProseModel(modelId: string): boolean {
   const id = modelId.trim();
@@ -228,6 +243,7 @@ export function isOpenRouterSharedProseModel(modelId: string): boolean {
       isQwenModel(id) ||
       isGlmModel(id) ||
       isKimiModel(id) ||
+      isMuseModel(id) ||
       isDeepSeekV4ProModel(id) ||
       isGemini25ProModel(id) ||
       isGemini31ProModel(id) ||
@@ -259,17 +275,23 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   qwen: OPENROUTER_QWEN_37_MAX_MODEL,
   "qwen3.7-max": OPENROUTER_QWEN_37_MAX_MODEL,
   "qwen/qwen3.7-max": OPENROUTER_QWEN_37_MAX_MODEL,
-  glm: OPENROUTER_GLM_52_MODEL,
-  "glm-5.2": OPENROUTER_GLM_52_MODEL,
-  "glm5.2": OPENROUTER_GLM_52_MODEL,
-  "z-ai/glm-5.2": OPENROUTER_GLM_52_MODEL,
-  "z-ai/glm-5.1": OPENROUTER_GLM_52_MODEL,
-  "z-ai/glm-5": OPENROUTER_GLM_52_MODEL,
+  /** GLM 5.2 제거 — 기존 채팅·legacy slug는 기본 모델로 이전 */
+  glm: DEFAULT_SELECTED_AI,
+  "glm-5.2": DEFAULT_SELECTED_AI,
+  "glm5.2": DEFAULT_SELECTED_AI,
+  "z-ai/glm-5.2": DEFAULT_SELECTED_AI,
+  "z-ai/glm-5.1": DEFAULT_SELECTED_AI,
+  "z-ai/glm-5": DEFAULT_SELECTED_AI,
   kimi: OPENROUTER_KIMI_K3_MODEL,
   "kimi-k3": OPENROUTER_KIMI_K3_MODEL,
   kimik3: OPENROUTER_KIMI_K3_MODEL,
   "moonshotai/kimi-k3": OPENROUTER_KIMI_K3_MODEL,
   "moonshotai/kimi-latest": OPENROUTER_KIMI_K3_MODEL,
+  muse: OPENROUTER_MUSE_SPARK_11_MODEL,
+  "muse-spark": OPENROUTER_MUSE_SPARK_11_MODEL,
+  "muse-spark-1.1": OPENROUTER_MUSE_SPARK_11_MODEL,
+  musespark: OPENROUTER_MUSE_SPARK_11_MODEL,
+  "meta/muse-spark-1.1": OPENROUTER_MUSE_SPARK_11_MODEL,
   "anthropic/claude-3.5-sonnet": OPENROUTER_GEMINI_31_PRO_MODEL,
   "claude-3.5-sonnet": OPENROUTER_GEMINI_31_PRO_MODEL,
   "anthropic/claude-sonnet-4": OPENROUTER_GEMINI_31_PRO_MODEL,
