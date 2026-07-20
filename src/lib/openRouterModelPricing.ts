@@ -116,6 +116,17 @@ const GLM_52_RATES: OpenRouterModelRates = {
   explicitCacheInjection: false,
 };
 
+/** MoonshotAI Kimi K3 — OpenRouter list ($3/M in, $15/M out, cache read $0.30/M) */
+const KIMI_K3_RATES: OpenRouterModelRates = {
+  family: "unknown",
+  label: "MoonshotAI Kimi prompt cache",
+  inputUsdPerM: 3,
+  outputUsdPerM: 15,
+  cacheReadUsdPerM: 0.3,
+  cacheWriteMultiplier: 1,
+  explicitCacheInjection: false,
+};
+
 const GENERIC_OPENROUTER_RATES: OpenRouterModelRates = {
   family: "unknown",
   label: "제공자 자동 캐시",
@@ -137,6 +148,9 @@ export function resolveOpenRouterModelRates(modelId?: string | null): OpenRouter
   if (id.includes("claude") || id.includes("anthropic/")) return ANTHROPIC_OPUS_RATES;
   if (id.includes("qwen")) return QWEN_37_MAX_RATES;
   if (id.startsWith("z-ai/glm") || id.includes("/glm-")) return GLM_52_RATES;
+  if (id.startsWith("moonshotai/kimi") || id.includes("/kimi-k3") || /(^|\/)kimi[-.]?k3\b/.test(id)) {
+    return KIMI_K3_RATES;
+  }
   return GENERIC_OPENROUTER_RATES;
 }
 

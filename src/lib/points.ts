@@ -9,6 +9,7 @@ import {
   isGemini31ProModel,
   isGeminiProOpenRouterModel,
   isGlmModel,
+  isKimiModel,
   isQwenModel,
   OPENROUTER_DEEPSEEK_V3_MODEL,
   type SelectedAI,
@@ -317,6 +318,20 @@ export const OPENROUTER_GLM_GROSS_MARGIN =
 /** GLM — 과금 면제 턴 최소 차감 */
 export const GLM_WAIVER_SUCCESS_MIN_COST = 50;
 
+/** Kimi K3 — 출력 1토큰당 청구 (P) — OpenRouter list $15/M out 기준 */
+export const OPENROUTER_KIMI_POINTS_PER_OUTPUT_TOKEN = (() => {
+  const perToken = process.env.OPENROUTER_KIMI_POINTS_PER_OUTPUT_TOKEN?.trim();
+  if (perToken) return Number(perToken) || 0.09;
+  return 0.09;
+})();
+
+/** Kimi — API 원가 대비 최저 매출총이익률 (55% → 원가÷0.45) */
+export const OPENROUTER_KIMI_GROSS_MARGIN =
+  Number(process.env.OPENROUTER_KIMI_GROSS_MARGIN) || 0.55;
+
+/** Kimi — 과금 면제 턴 최소 차감 */
+export const KIMI_WAIVER_SUCCESS_MIN_COST = 65;
+
 /** Gemini 2.5 Pro — 출력 1토큰당 청구 (P) — Qwen과 동일 단가 */
 export const OPENROUTER_GEMINI_25_POINTS_PER_OUTPUT_TOKEN = (() => {
   const perToken = process.env.OPENROUTER_GEMINI_25_POINTS_PER_OUTPUT_TOKEN?.trim();
@@ -618,6 +633,10 @@ function openRouterGlmTokenFloorKrw(outputTokens: number): number {
   return chargePoints(Math.max(0, outputTokens) * OPENROUTER_GLM_POINTS_PER_OUTPUT_TOKEN);
 }
 
+function openRouterKimiTokenFloorKrw(outputTokens: number): number {
+  return chargePoints(Math.max(0, outputTokens) * OPENROUTER_KIMI_POINTS_PER_OUTPUT_TOKEN);
+}
+
 function openRouterGemini25TokenFloorKrw(outputTokens: number): number {
   return chargePoints(Math.max(0, outputTokens) * OPENROUTER_GEMINI_25_POINTS_PER_OUTPUT_TOKEN);
 }
@@ -663,6 +682,10 @@ function openRouterQwenMarginChargeKrw(rawCostKrw: number): number {
 
 function openRouterGlmMarginChargeKrw(rawCostKrw: number): number {
   return openRouterGrossMarginChargeKrw(rawCostKrw, OPENROUTER_GLM_GROSS_MARGIN);
+}
+
+function openRouterKimiMarginChargeKrw(rawCostKrw: number): number {
+  return openRouterGrossMarginChargeKrw(rawCostKrw, OPENROUTER_KIMI_GROSS_MARGIN);
 }
 
 function openRouterGemini25MarginChargeKrw(rawCostKrw: number): number {
@@ -766,6 +789,13 @@ export function computeOpenRouterTurnCost(
   if (isGlmModel(modelId ?? "")) {
     return openRouterTokenOnlyTurnCost(
       openRouterGlmTokenFloorKrw(outputTokens),
+      inputTokens
+    );
+  }
+
+  if (isKimiModel(modelId ?? "")) {
+    return openRouterTokenOnlyTurnCost(
+      openRouterKimiTokenFloorKrw(outputTokens),
       inputTokens
     );
   }
@@ -1227,6 +1257,23 @@ export function explainOpenRouterGlmTurnCost(
   );
 }
 
+/** Kimi K3 과금 상세 — 출력토큰×0.09P */
+export function explainOpenRouterKimiTurnCost(
+  inputTokens: number,
+  outputTokens: number,
+  modelId: string,
+  _outputChars?: number,
+  cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">
+): OpenRouterTurnCostBreakdown & { total: number } {
+  return explainOpenRouterTokenOnlyTurnCost(
+    inputTokens,
+    outputTokens,
+    modelId,
+    openRouterKimiTokenFloorKrw(outputTokens),
+    cache
+  );
+}
+
 /** OpenRouter Gemini 2.5 Pro — 출력토큰×0.065P */
 export function explainOpenRouterGemini25TurnCost(
   inputTokens: number,
@@ -1559,6 +1606,23 @@ export function resolveGlmWaiverMinimumCharge(
     savedText,
     waiverReason,
     GLM_WAIVER_SUCCESS_MIN_COST,
+    opts
+  );
+}
+
+/** Kimi — 과금 면제 턴이어도 본문이 유의미하게 전달됐으면 최소 65P 차감 */
+export function resolveKimiWaiverMinimumCharge(
+  savedText: string,
+  waiverReason: BillingWaiverReason,
+  opts?: {
+    degenerationAborted?: boolean;
+    targetResponseChars?: number | null;
+  }
+): number {
+  return resolveModelWaiverMinimumCharge(
+    savedText,
+    waiverReason,
+    KIMI_WAIVER_SUCCESS_MIN_COST,
     opts
   );
 }
