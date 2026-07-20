@@ -102,6 +102,12 @@ import {
   writeChatStreamDraft,
   type GenerationStatus,
 } from "@/lib/streamingPersistence";
+import {
+  generationStatusFromEofResult,
+  needsEofReconcile,
+  reconcileStreamEof,
+  type EofReconcileSnapshot,
+} from "@/lib/chatStreamEofReconcile";
 import type { PersonaListItem } from "@/lib/userPersonas";
 import type { UserNotePresetItem } from "@/lib/userNotePresetTypes";
 import type { StatusWidgetPresetItem } from "@/lib/statusWidgetPresetTypes";
@@ -1615,6 +1621,10 @@ export default function ChatClient({
     let buffer = "";
     let streamError = "";
     let trafficOverload = "";
+    let sawDone = false;
+    let sawError = false;
+    let persistedAssistantMessageId: number | null = null;
+    let eofUnresolved = false;
     let pendingDone: {
       chatId?: number;
       messageId?: number;
@@ -2038,6 +2048,9 @@ export default function ChatClient({
           if (data.type === "turn_persisted") {
             const rid = data.requestId;
             const nextChatId = data.chatId ?? chatId;
+            if (data.messageId != null && Number.isFinite(data.messageId)) {
+              persistedAssistantMessageId = data.messageId;
+            }
             if (data.chatId) {
               setChatId(data.chatId);
               migrateChatMessageDraft(character.id, data.chatId);
@@ -2133,6 +2146,10 @@ export default function ChatClient({
           }
 
           if (data.type === "done") {
+            sawDone = true;
+            if (data.messageId != null && Number.isFinite(data.messageId)) {
+              persistedAssistantMessageId = data.messageId;
+            }
             if (data.htmlFlashTurn === true) {
               htmlFlashStreamTurn = true;
             }
@@ -2154,6 +2171,7 @@ export default function ChatClient({
           }
 
           if (data.type === "error") {
+            sawError = true;
             reveal.flush();
             streamError = data.error || "스트리밍 중 오류가 발생했습니다.";
             console.error("[chat] API error:", streamError, data);
@@ -2173,7 +2191,82 @@ export default function ChatClient({
       } else {
         reveal.flush();
       }
-      if (pendingDone && !trafficOverload) applyStreamDone(pendingDone);
+      if (pendingDone && !trafficOverload) {
+        applyStreamDone(pendingDone);
+      } else if (
+        !trafficOverload &&
+        !streamError &&
+        needsEofReconcile({ sawDone, sawError })
+      ) {
+        const messageIdForReconcile = persistedAssistantMessageId;
+
+        const eofResult = await reconcileStreamEof({
+          messageId: messageIdForReconcile,
+          fetchSnapshot: async (messageId) => {
+            const snapRes = await fetch(`/api/chat/message?messageId=${messageId}`);
+            if (!snapRes.ok) return null;
+            const body = (await snapRes.json()) as EofReconcileSnapshot & {
+              error?: string;
+            };
+            if (!body?.messageId) return null;
+            return body;
+          },
+        });
+
+        if (eofResult.kind === "completed") {
+          const s = eofResult.snapshot;
+          applyStreamReplaceTarget(s.content || assistantStreamContentRef.current, {
+            instant: true,
+          });
+          applyStreamDone({
+            chatId: s.chatId,
+            messageId: s.messageId,
+            userMessageId: s.userMessageId ?? null,
+            finalContent: s.content,
+            usage: (s.usage as Usage | null) ?? undefined,
+            variants: s.variants as MessageVariant[] | undefined,
+            activeVariant: s.activeVariant,
+            variantCount: s.variantCount,
+            statusMetaPending: s.statusMetaPending === true,
+            statusWidgetTurnActive: s.statusWidgetTurnActive === true,
+            statusWidgetActive: s.statusWidgetTurnActive === true,
+            statusWidgetValues:
+              (s.statusWidgetValues as ParsedStatusWidgetTurnValues | null) ?? null,
+          });
+        } else {
+          eofUnresolved = true;
+          const status = generationStatusFromEofResult(eofResult);
+          const snapContent =
+            eofResult.kind === "terminal" || eofResult.kind === "interrupted"
+              ? eofResult.snapshot?.content
+              : undefined;
+          setMessages((m) => {
+            const copy = [...m];
+            const cur = copy[aiIndex];
+            if (cur?.role === "assistant") {
+              copy[aiIndex] = {
+                ...cur,
+                id: eofResult.snapshot?.messageId ?? cur.id ?? messageIdForReconcile ?? undefined,
+                content: (snapContent && snapContent.trim() ? snapContent : cur.content) || cur.content,
+                generationStatus: status,
+                usage: (eofResult.snapshot?.usage as Usage | null) ?? cur.usage,
+                variants: (eofResult.snapshot?.variants as MessageVariant[] | undefined) ?? cur.variants,
+                activeVariant: eofResult.snapshot?.activeVariant ?? cur.activeVariant,
+                variantCount: eofResult.snapshot?.variantCount ?? cur.variantCount,
+                statusWidgetValues:
+                  (eofResult.snapshot?.statusWidgetValues as ParsedStatusWidgetTurnValues | null) ??
+                  cur.statusWidgetValues,
+                statusWidgetTurnActive:
+                  eofResult.snapshot?.statusWidgetTurnActive ?? cur.statusWidgetTurnActive,
+              };
+            }
+            return copy;
+          });
+          if (status === "interrupted" || status === "failed" || status === "failed_partial") {
+            clearChatStreamDraft(character.id, chatId);
+          }
+        }
+      }
     } catch (e) {
       reveal.reset();
       reveal.flush();
@@ -2191,7 +2284,12 @@ export default function ChatClient({
 
     const billing =
       pendingDone && !trafficOverload ? extractBillingInfo(pendingDone) : undefined;
-    return { streamError, trafficOverload: trafficOverload || undefined, billing };
+    return {
+      streamError,
+      trafficOverload: trafficOverload || undefined,
+      billing,
+      eofUnresolved,
+    };
   }
 
   function applyStreamBilling(
@@ -2225,6 +2323,7 @@ export default function ChatClient({
       streamError?: string;
       trafficOverload?: string;
       billing?: { turnCost: number; remainingPoints: number; paidPoints: number; freePoints: number };
+      eofUnresolved?: boolean;
     },
     aiIndex: number,
     opts?: { rollback?: () => void; restoreInput?: string }
@@ -2242,6 +2341,12 @@ export default function ChatClient({
         setMessages((m) => softRollbackTurn(m, aiIndex));
       }
       if (opts?.restoreInput != null) setInput(opts.restoreInput);
+      return;
+    }
+    // EOF reconcile already set completed / interrupted on the assistant row.
+    // No further action for send/continue — avoid leaving generationStatus stuck.
+    if (streamResult.eofUnresolved) {
+      setToastMsg("생성이 완료되지 않았습니다. 다시 시도해 주세요.");
     }
   }
 
@@ -2319,6 +2424,7 @@ export default function ChatClient({
           streamError?: string;
           trafficOverload?: string;
           billing?: { turnCost: number; remainingPoints: number; paidPoints: number; freePoints: number };
+          eofUnresolved?: boolean;
         }
       | undefined;
 
@@ -2434,6 +2540,7 @@ export default function ChatClient({
           streamError?: string;
           trafficOverload?: string;
           billing?: { turnCost: number; remainingPoints: number; paidPoints: number; freePoints: number };
+          eofUnresolved?: boolean;
         }
       | undefined;
 
@@ -2616,6 +2723,7 @@ export default function ChatClient({
           streamError?: string;
           trafficOverload?: string;
           billing?: { turnCost: number; remainingPoints: number; paidPoints: number; freePoints: number };
+          eofUnresolved?: boolean;
         }
       | undefined;
 
@@ -2649,20 +2757,11 @@ export default function ChatClient({
       } else if (streamResult.streamError) {
         setError(streamResult.streamError);
         restoreAssistant();
-      } else {
-        // SSE closed without done/error — leave loading=false but status can stay generating.
-        let stillInFlight = false;
-        setMessages((m) => {
-          const cur = m[regenIndex];
-          stillInFlight = !!(
-            cur?.role === "assistant" && isInFlightGenerationStatus(cur.generationStatus)
-          );
-          return m;
-        });
-        if (stillInFlight) {
-          restoreAssistant();
-          setToastMsg("생성이 완료되지 않았습니다. 다시 시도해 주세요.");
-        }
+      } else if (streamResult.eofUnresolved) {
+        // Shared EOF reconcile already marked interrupted/failed; restore prior
+        // variant when regenerate could not reach a completed server row.
+        restoreAssistant();
+        setToastMsg("생성이 완료되지 않았습니다. 다시 시도해 주세요.");
       }
     } catch (e) {
       activeStreamRevealRef.current?.reset();
