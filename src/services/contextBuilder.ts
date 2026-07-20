@@ -14,7 +14,11 @@ import {
 import {
   promoteAppearanceChunkImportance,
 } from "@/lib/visualAnchor";
-import { SHORT_TERM_TURNS, trimHistoryToBudget } from "@/lib/hybridMemory";
+import {
+  resolveMemoryCoverageTurnFloor,
+  SHORT_TERM_TURNS,
+  trimHistoryToBudget,
+} from "@/lib/hybridMemory";
 import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
 import { buildFlashOwnedEmotionTagUserOverlay } from "@/lib/emotionTag";
 import { buildNarrativeStyleLayer } from "@/lib/narrativeStyle";
@@ -83,6 +87,7 @@ import {
   resolveHistoryTokenBudget,
   resolveMaxPayloadInputTokens,
   GEMINI_IMPLICIT_CACHE_INPUT_THRESHOLD,
+  MIN_HISTORY_TURN_FLOOR,
 } from "@/lib/contextTrack";
 import {
   assembleGeminiStaticDynamicSplit,
@@ -175,7 +180,7 @@ function needsUserInputParsingGuide(input: ContextBuildInput): boolean {
  *   Dynamic block: [0c] Archive → [3] LTM (full budget trim, not RAG) → [3b] Relationship memo
  *     → [5] 유저노트 확장구간 RAG (UI 확장 칸 전용) → tail
  *
- * History: 전체 대화 raw → trimHistoryToBudget (전 모델 10K + 최소 4턴 floor).
+ * History: 전체 대화 raw → trimHistoryToBudget (전 모델 10K + coverage-aware floor).
  *   [4] OOC · [7] Style · Tail — operational
  *
  * Truncation order (when over payload budget): oldest chat history first;
@@ -976,18 +981,59 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
         .join("\n")}`
     );
 
+  const coverageFloor = resolveMemoryCoverageTurnFloor({
+    completedTurns: input.completedTurns ?? 0,
+    summarizedTurnCount: input.summarizedTurnCount,
+    minimumTurns: MIN_HISTORY_TURN_FLOOR,
+  });
+  let historyTurnFloor = coverageFloor;
+  let memoryCoverageDegraded = false;
+
   let effectiveHistoryBudget = historyBudget;
   let historySource = input.geminiStaticDynamicMode
     ? historyForAssembly
-    : trimHistoryToBudget(historyForAssembly, effectiveHistoryBudget);
+    : trimHistoryToBudget(historyForAssembly, effectiveHistoryBudget, historyTurnFloor);
 
   if (!input.geminiStaticDynamicMode) {
     while (estimatePayloadTokens(historySource) > maxPayload && effectiveHistoryBudget > 400) {
       effectiveHistoryBudget = Math.max(400, effectiveHistoryBudget - 1500);
       historySource = trimHistoryToBudget(
-        input.shortTermHistory,
-        effectiveHistoryBudget
+        historyForAssembly,
+        effectiveHistoryBudget,
+        historyTurnFloor
       );
+    }
+    // Absolute payload safety: only then degrade below coverage floor (graceful).
+    while (
+      estimatePayloadTokens(historySource) > maxPayload &&
+      historyTurnFloor > 1
+    ) {
+      historyTurnFloor -= 1;
+      if (historyTurnFloor < coverageFloor) memoryCoverageDegraded = true;
+      historySource = trimHistoryToBudget(
+        historyForAssembly,
+        effectiveHistoryBudget,
+        historyTurnFloor
+      );
+    }
+    if (memoryCoverageDegraded && process.env.NODE_ENV !== "production") {
+      const completed = input.completedTurns ?? 0;
+      const keptPlayableApprox = Math.floor(historySource.length / 2);
+      const firstRawApprox =
+        keptPlayableApprox > 0
+          ? Math.max(1, completed - keptPlayableApprox + 1)
+          : undefined;
+      console.warn("[memory_coverage_degraded]", {
+        memory_coverage_degraded: true,
+        summarized_turn_count: input.summarizedTurnCount ?? 0,
+        completed_turns: completed,
+        protected_unsummarized_turns: coverageFloor,
+        effective_history_turn_floor: historyTurnFloor,
+        first_raw_turn_after_trim: firstRawApprox,
+        history_messages_after_trim: historySource.length,
+        effective_history_budget: effectiveHistoryBudget,
+        max_payload: maxPayload,
+      });
     }
   }
 
