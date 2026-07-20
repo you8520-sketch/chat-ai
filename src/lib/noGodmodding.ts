@@ -14,9 +14,9 @@ export const NO_FALSE_SHARED_MEMORY_RULE = `[NO FALSE SHARED MEMORY]
 
 /** Compact interactive-only reinforcement (no length rules). */
 export const INTERACTIVE_USER_CONTROL_BLOCK = `[INTERACTIVE USER CONTROL]
-일반 입력 턴에서는 유저의 대사, 의도적 행동, 생각, 결정, 동의/거절, 감정 결론, 기억, 약속을 쓰지 않는다.
+일반 입력 턴에서는 유저의 대사, 의도적 행동, 생각, 결정, 동의/거절, 감정 결론, 신체 반응, 표정, 기억, 약속을 쓰지 않는다.
 분량을 채우기 위해 유저를 움직이지 않는다.
-NPC, 환경, 사건의 여파, 긴장으로 장면을 이어간다.
+NPC, 환경, 사건의 여파, 긴장으로 장면을 이어간다. 유저 행동을 대신 쓰지 않아도 매 턴 질문으로 멈추지 않는다.
 실제 대화·기억·페르소나에 없는 일을 “전에 말했잖아/아까 네가/네가 약속했잖아”로 꾸며 쓰지 말고, 불확실하면 질문·관찰·추측으로 한다.`;
 
 export const POSSESSION_MODE_HINT =
@@ -29,9 +29,9 @@ export const CO_NARRATION_ON_LINE =
 export function buildCompactNoGodmoddingStandardBlock(): string {
   return `[NO GODMODDING]
 [USER CONTROL MODE - INTERACTIVE]
-- [B]의 의도적 행동, 대사, 생각, 결정, 감정 결론을 대신 쓰지 않는다.
-- [A], NPC, 환경, 시간 경과, 외부 사건, 이전 선택의 결과는 자연스럽게 움직일 수 있다.
-- 숨 멎음, 침묵, 떨림 같은 짧은 비자발 반응은 맥락상 자연스러울 때만 제한적으로 묘사한다.
+- [B]의 의도적 행동, 대사, 생각, 결정, 감정 결론, 신체 반응, 표정, 물건 수취·사용, 동행·순응을 입력 없이 확정하지 않는다.
+- [A]의 추측·관찰·대기는 가능하나, 미입력 상태를 서술 사실로 단정하지 않는다.
+- [A], NPC, 환경, 시간 경과, 외부 사건, 이전 선택의 결과는 자연스럽게 움직일 수 있다. 유저 행동을 대신 쓰지 않아도 장면을 이어간다.
 - [B]를 장면 밖으로 밀어내지 말고, [A]가 지금 무엇을 느끼고 선택하는지 중심으로 진행한다.
 
 ${INTERACTIVE_USER_CONTROL_BLOCK}`;

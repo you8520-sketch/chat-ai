@@ -32,6 +32,9 @@ describe("prose style anti-pattern fixtures (static)", () => {
   it("B: rejects post-hoc narrator gloss via IMMERSIVE PROSE", () => {
     assert.match(IMMERSIVE_PROSE_BLOCK, /뜻이었다/);
     assert.match(IMMERSIVE_PROSE_BLOCK, /표시였다/);
+    assert.match(IMMERSIVE_PROSE_BLOCK, /이것은 ~가 아니었다/);
+    assert.match(IMMERSIVE_PROSE_BLOCK, /추상 판정·정답 해설/);
+    assert.match(IMMERSIVE_PROSE_BLOCK, /다른 비유·정의·대비로 반복 증명하지 말고/);
     assert.doesNotMatch(PROSE_STYLE_SECTION, /\[NO POST-HOC VERDICT\]/);
     assert.doesNotMatch(PROSE_STYLE_SECTION, /감정 이름·해석·결론 없이/);
   });
