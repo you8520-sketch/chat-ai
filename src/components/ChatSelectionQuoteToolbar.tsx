@@ -595,12 +595,12 @@ export default function ChatSelectionQuoteToolbar({
     }
   }
 
-  const orientationBtn =
-    "rounded-full border px-3 py-1.5 text-xs font-medium transition disabled:opacity-50";
-  const orientationActive =
-    "border-zinc-800 bg-zinc-900 text-white";
-  const orientationIdle =
-    "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50";
+  const chipBtn =
+    "min-h-9 shrink-0 rounded-lg border px-3 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60";
+  const chipActive =
+    "border-violet-500 bg-violet-600 text-white shadow-sm";
+  const chipIdle =
+    "border-zinc-300 bg-white text-zinc-900 hover:border-violet-400 hover:bg-violet-50";
 
   return (
     <>
@@ -616,7 +616,7 @@ export default function ChatSelectionQuoteToolbar({
               window.setTimeout(resetToolbarPointerActive, 0);
             }
           }}
-          className="fixed z-[85] rounded-full border border-zinc-800 bg-zinc-900 px-3.5 py-1.5 text-xs font-semibold text-white shadow-lg transition hover:bg-zinc-800"
+          className="fixed z-[140] rounded-lg border-2 border-violet-300 bg-violet-600 px-4 py-2 text-sm font-bold text-white shadow-[0_4px_20px_rgba(0,0,0,0.45)] ring-2 ring-white/90 transition hover:bg-violet-500"
           data-quote-toolbar
           onPointerDown={markToolbarPointerActive}
           onTouchStart={markToolbarPointerActive}
@@ -638,7 +638,7 @@ export default function ChatSelectionQuoteToolbar({
         <div
           data-quote-ui
           data-quote-toolbar
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4 backdrop-blur-[1px]"
+          className="fixed inset-0 z-[140] flex items-end justify-center bg-black/70 p-3 sm:items-center sm:p-4"
           onPointerDown={(e) => {
             if (e.target === e.currentTarget) {
               closeModal();
@@ -646,163 +646,150 @@ export default function ChatSelectionQuoteToolbar({
           }}
         >
           <div
-            className="flex w-fit max-w-[94vw] flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl"
+            className="flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-zinc-300 bg-white text-zinc-900 shadow-2xl"
             role="dialog"
             aria-modal="true"
             aria-label="발췌 이미지 미리보기"
           >
-            <div className="flex items-center justify-between gap-3 border-b border-zinc-100 px-4 py-3">
-              <p className="text-sm font-semibold text-zinc-900">이미지 미리보기</p>
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-zinc-200 bg-white px-4 py-3">
+              <p className="text-base font-bold text-zinc-950">이미지 미리보기</p>
               <button
                 type="button"
                 onClick={closeModal}
-                className="rounded-lg px-2 py-1 text-xs text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800"
+                className="rounded-lg border border-zinc-300 bg-zinc-100 px-3 py-1.5 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-200"
               >
                 닫기
               </button>
             </div>
 
-            <div className="flex flex-col gap-3 px-4 pt-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  disabled={preview?.loading}
-                  onClick={() => changeOrientation("portrait")}
-                  className={`${orientationBtn} ${
-                    orientation === "portrait" ? orientationActive : orientationIdle
-                  }`}
-                >
-                  세로
-                </button>
-                <button
-                  type="button"
-                  disabled={preview?.loading}
-                  onClick={() => changeOrientation("square")}
-                  className={`${orientationBtn} ${
-                    orientation === "square" ? orientationActive : orientationIdle
-                  }`}
-                >
-                  정사각
-                </button>
-                <button
-                  type="button"
-                  disabled={preview?.loading}
-                  onClick={() => changeOrientation("landscape")}
-                  className={`${orientationBtn} ${
-                    orientation === "landscape" ? orientationActive : orientationIdle
-                  }`}
-                >
-                  가로
-                </button>
-                <button
-                  type="button"
-                  disabled={preview?.loading}
-                  onClick={() => changeSpeechBubbles(!speechBubbles)}
-                  className={`${orientationBtn} ${
-                    speechBubbles ? orientationActive : orientationIdle
-                  }`}
-                >
-                  말풍선 {speechBubbles ? "ON" : "OFF"}
-                </button>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <label className="flex min-w-[10rem] flex-1 items-center gap-2 text-xs text-zinc-500">
-                  <span className="shrink-0 font-medium text-zinc-700">글자</span>
-                  <input
-                    type="range"
-                    min={QUOTE_CARD_BODY_FONT_MIN}
-                    max={QUOTE_CARD_BODY_FONT_MAX}
-                    step={1}
-                    value={bodyFontSize}
-                    disabled={preview?.loading}
-                    onChange={(e) => changeBodyFontSize(Number(e.target.value))}
-                    className="h-1.5 w-full accent-zinc-800"
-                    aria-label="글자 크기"
-                  />
-                  <span className="shrink-0 tabular-nums text-zinc-700">{bodyFontSize}</span>
-                </label>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 text-xs">
-                <input
-                  ref={avatarInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => void onAvatarFile(e.target.files?.[0] ?? null)}
-                />
-                <input
-                  ref={backgroundInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => void onBackgroundFile(e.target.files?.[0] ?? null)}
-                />
-                <button
-                  type="button"
-                  disabled={preview?.loading}
-                  onClick={() => avatarInputRef.current?.click()}
-                  className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 font-medium text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-50"
-                >
-                  {hasAvatar ? "캐릭터 사진 변경" : "캐릭터 사진"}
-                </button>
-                <button
-                  type="button"
-                  disabled={preview?.loading}
-                  onClick={() => backgroundInputRef.current?.click()}
-                  className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 font-medium text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-50"
-                >
-                  {hasBackground ? "배경 변경" : "배경 이미지"}
-                </button>
-                {hasBackground ? (
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              <div className="flex flex-col gap-3 px-4 py-3">
+                <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
                     disabled={preview?.loading}
-                    onClick={clearBackground}
-                    className="rounded-full px-2 py-1.5 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 disabled:opacity-50"
+                    onClick={() => changeOrientation("portrait")}
+                    className={`${chipBtn} ${
+                      orientation === "portrait" ? chipActive : chipIdle
+                    }`}
                   >
-                    배경 지우기
+                    세로
                   </button>
+                  <button
+                    type="button"
+                    disabled={preview?.loading}
+                    onClick={() => changeOrientation("square")}
+                    className={`${chipBtn} ${
+                      orientation === "square" ? chipActive : chipIdle
+                    }`}
+                  >
+                    정사각
+                  </button>
+                  <button
+                    type="button"
+                    disabled={preview?.loading}
+                    onClick={() => changeOrientation("landscape")}
+                    className={`${chipBtn} ${
+                      orientation === "landscape" ? chipActive : chipIdle
+                    }`}
+                  >
+                    가로
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={preview?.loading}
+                    onClick={() => changeSpeechBubbles(!speechBubbles)}
+                    className={`${chipBtn} ${speechBubbles ? chipActive : chipIdle}`}
+                  >
+                    말풍선 {speechBubbles ? "ON" : "OFF"}
+                  </button>
+                  <label className="flex min-w-[10rem] flex-1 items-center gap-2 text-sm text-zinc-700">
+                    <span className="shrink-0 font-semibold text-zinc-900">글자</span>
+                    <input
+                      type="range"
+                      min={QUOTE_CARD_BODY_FONT_MIN}
+                      max={QUOTE_CARD_BODY_FONT_MAX}
+                      step={1}
+                      value={bodyFontSize}
+                      disabled={preview?.loading}
+                      onChange={(e) => changeBodyFontSize(Number(e.target.value))}
+                      className="h-2 w-full accent-violet-600"
+                      aria-label="글자 크기"
+                    />
+                    <span className="shrink-0 tabular-nums font-semibold text-zinc-900">
+                      {bodyFontSize}
+                    </span>
+                  </label>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <input
+                    ref={avatarInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => void onAvatarFile(e.target.files?.[0] ?? null)}
+                  />
+                  <input
+                    ref={backgroundInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => void onBackgroundFile(e.target.files?.[0] ?? null)}
+                  />
+                  <button
+                    type="button"
+                    disabled={preview?.loading}
+                    onClick={() => avatarInputRef.current?.click()}
+                    className={`${chipBtn} ${chipIdle}`}
+                  >
+                    {hasAvatar ? "캐릭터 사진 변경" : "캐릭터 사진"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={preview?.loading}
+                    onClick={() => backgroundInputRef.current?.click()}
+                    className={`${chipBtn} ${chipIdle}`}
+                  >
+                    {hasBackground ? "배경 변경" : "배경 이미지"}
+                  </button>
+                  {hasBackground ? (
+                    <button
+                      type="button"
+                      disabled={preview?.loading}
+                      onClick={clearBackground}
+                      className={`${chipBtn} border-zinc-300 bg-zinc-100 text-zinc-800`}
+                    >
+                      배경 지우기
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="flex justify-center bg-zinc-100 px-3 py-3">
+                {preview?.loading ? (
+                  <div className="flex h-[42vh] max-h-[320px] w-full max-w-full items-center justify-center rounded-xl border border-zinc-300 bg-white">
+                    <p className="text-sm font-medium text-zinc-600">미리보기 생성 중…</p>
+                  </div>
+                ) : preview?.blobUrl ? (
+                  <img
+                    src={preview.blobUrl}
+                    alt="발췌 카드 미리보기"
+                    className="block max-h-[42vh] w-auto max-w-full rounded-xl border border-zinc-300 object-contain shadow-md"
+                  />
                 ) : null}
               </div>
             </div>
 
-            <div className="flex justify-center bg-zinc-50/80 px-3 py-4">
-              {preview?.loading ? (
-                <div
-                  className="flex items-center justify-center rounded-xl border border-zinc-200 bg-white"
-                  style={{
-                    width: preview.displayWidth,
-                    height: preview.displayHeight,
-                    minWidth: 200,
-                    minHeight: 120,
-                  }}
-                >
-                  <p className="animate-pulse text-sm text-zinc-400">미리보기 생성 중…</p>
-                </div>
-              ) : preview?.blobUrl ? (
-                <img
-                  src={preview.blobUrl}
-                  alt="발췌 카드 미리보기"
-                  width={preview.displayWidth}
-                  height={preview.displayHeight}
-                  className="block rounded-xl border border-zinc-200 object-contain shadow-sm"
-                  style={{
-                    width: preview.displayWidth,
-                    height: preview.displayHeight,
-                    maxWidth: "none",
-                  }}
-                />
-              ) : null}
-            </div>
-
-            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-zinc-100 px-4 py-3">
+            <div className="flex shrink-0 flex-col gap-2 border-t border-zinc-200 bg-white px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
               <button
                 type="button"
                 disabled={busy || preview?.loading}
                 onClick={() => exportCard("copy")}
-                className="rounded-full border border-zinc-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-zinc-800 transition hover:bg-zinc-50 disabled:opacity-50"
+                className="min-h-11 w-full rounded-lg border-2 border-zinc-400 bg-white px-4 py-2.5 text-sm font-bold text-zinc-950 transition hover:bg-zinc-50 disabled:opacity-60 sm:w-auto"
               >
                 이미지 복사
               </button>
@@ -811,7 +798,7 @@ export default function ChatSelectionQuoteToolbar({
                   type="button"
                   disabled={busy || preview?.loading}
                   onClick={() => exportCard("share")}
-                  className="rounded-full border border-zinc-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-zinc-800 transition hover:bg-zinc-50 disabled:opacity-50"
+                  className="min-h-11 w-full rounded-lg border-2 border-zinc-400 bg-white px-4 py-2.5 text-sm font-bold text-zinc-950 transition hover:bg-zinc-50 disabled:opacity-60 sm:w-auto"
                 >
                   공유
                 </button>
@@ -820,7 +807,7 @@ export default function ChatSelectionQuoteToolbar({
                 type="button"
                 disabled={busy || preview?.loading}
                 onClick={() => exportCard("save")}
-                className="rounded-full bg-zinc-900 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50"
+                className="min-h-11 w-full rounded-lg border-2 border-violet-400 bg-violet-600 px-5 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-violet-500 disabled:opacity-60 sm:w-auto"
               >
                 이미지 저장
               </button>

@@ -349,8 +349,8 @@ export function scaleQuoteCardForViewport(
   viewportWidth: number,
   viewportHeight: number
 ): { width: number; height: number } {
-  const maxW = Math.max(200, viewportWidth * 0.92 - 24);
-  const maxH = Math.max(200, viewportHeight * 0.86 - 150);
+  const maxW = Math.max(200, Math.min(480, viewportWidth * 0.92 - 24));
+  const maxH = Math.max(180, viewportHeight * 0.42);
   const scale = Math.min(maxW / cardWidth, maxH / cardHeight);
   return {
     width: Math.max(1, Math.round(cardWidth * scale)),
