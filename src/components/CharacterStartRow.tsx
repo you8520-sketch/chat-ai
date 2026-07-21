@@ -23,10 +23,45 @@ export default function CharacterStartRow({
   characterName,
   loggedIn,
   branches,
-  personas,
+  personas: initialPersonas,
   initialPersonaId,
 }: Props) {
+  const [personas, setPersonas] = useState(initialPersonas);
   const [selectedPersonaId, setSelectedPersonaId] = useState<number | null>(initialPersonaId);
+
+  useEffect(() => {
+    setPersonas(initialPersonas);
+  }, [initialPersonas]);
+
+  useEffect(() => {
+    if (!loggedIn) return;
+    let cancelled = false;
+    async function refreshPersonas() {
+      try {
+        const res = await fetch("/api/personas", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as { personas?: PersonaListItem[] };
+        if (cancelled || !Array.isArray(data.personas)) return;
+        setPersonas(data.personas);
+      } catch {
+        /* ignore */
+      }
+    }
+    void refreshPersonas();
+    function onVisible() {
+      if (document.visibilityState === "visible") void refreshPersonas();
+    }
+    function onPageShow(e: PageTransitionEvent) {
+      if (e.persisted) void refreshPersonas();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("pageshow", onPageShow);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pageshow", onPageShow);
+    };
+  }, [loggedIn]);
 
   useEffect(() => {
     if (!loggedIn || personas.length === 0) return;
@@ -40,7 +75,10 @@ export default function CharacterStartRow({
     } catch {
       /* ignore */
     }
-    setSelectedPersonaId(initialPersonaId ?? personas[0]?.id ?? null);
+    setSelectedPersonaId((prev) => {
+      if (prev != null && personas.some((p) => p.id === prev)) return prev;
+      return initialPersonaId ?? personas[0]?.id ?? null;
+    });
   }, [loggedIn, personas, initialPersonaId]);
 
   function handlePersonaChange(personaId: number) {

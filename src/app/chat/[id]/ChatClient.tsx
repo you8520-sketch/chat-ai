@@ -1376,6 +1376,43 @@ export default function ChatClient({
     setPersonas((prev) => prev.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)));
   }
 
+  useEffect(() => {
+    setPersonas(initialPersonas);
+  }, [initialPersonas]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function refreshPersonas() {
+      try {
+        const res = await fetch("/api/personas", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as { personas?: PersonaListItem[] };
+        if (cancelled || !Array.isArray(data.personas)) return;
+        setPersonas(data.personas);
+        setSelectedPersonaId((prev) => {
+          if (prev != null && data.personas!.some((p) => p.id === prev)) return prev;
+          return data.personas![0]?.id ?? prev;
+        });
+      } catch {
+        /* ignore */
+      }
+    }
+    void refreshPersonas();
+    function onVisible() {
+      if (document.visibilityState === "visible") void refreshPersonas();
+    }
+    function onPageShow(e: PageTransitionEvent) {
+      if (e.persisted) void refreshPersonas();
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("pageshow", onPageShow);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pageshow", onPageShow);
+    };
+  }, [chatId]);
+
   const toDisplay = (content: string) => replaceUserPlaceholder(content, activePersonaName, nickname);
 
   const SCROLL_BOTTOM_THRESHOLD_PX = 80;

@@ -41,6 +41,9 @@ export function listUserPersonas(userId: number): DbUserPersona[] {
     .all(userId) as DbUserPersona[];
   return rows.map((row) => ({
     ...row,
+    name: row.name ?? "",
+    memo: row.memo ?? "",
+    description: row.description ?? "",
     gender: resolveCharacterGender(row.gender),
     speech_examples: row.speech_examples ?? "",
   }));

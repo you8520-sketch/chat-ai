@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { getSessionUser } from "@/lib/auth";import PersonaClient from "./PersonaClient";
+import { getSessionUser } from "@/lib/auth";
+import PersonaClient from "./PersonaClient";
 import { ensureDefaultPersona } from "@/lib/userPersonas";
 import { listUserNotePresets } from "@/lib/userNotePresets";
 import { listStatusWidgetPresets } from "@/lib/statusWidgetPresets";

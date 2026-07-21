@@ -75,6 +75,8 @@ export default async function TabPage({
 
   let title = "";
   let chars: CharacterRow[] = [];
+  let bookmarkedChars: CharacterRow[] = [];
+  let followingCreatorChars: CharacterRow[] = [];
   let rankedChars: RankedCharacter[] = [];
   const rankingPeriod = parseRankingPeriod(p);
 
@@ -118,33 +120,46 @@ export default async function TabPage({
       }
       break;
     case "following":
-      title = "팔로잉";
+      title = "북마크/팔로잉";
       if (!user) {
         return (
           <Empty
-            title="팔로잉"
-            message="로그인 후 크리에이터를 팔로우하면 여기에 표시됩니다."
+            title="북마크/팔로잉"
+            message="로그인 후 캐릭터를 북마크하거나 크리에이터를 팔로우하면 여기에 표시됩니다."
             cta="/login"
             ctaLabel="로그인"
           />
         );
       }
-      chars = db
+      bookmarkedChars = db
         .prepare(
           `SELECT c.* FROM characters c
-           JOIN follows f ON f.creator_id = c.creator_id
-           WHERE f.user_id = ? AND c.creator_id IS NOT NULL AND c.visibility='public' AND c.moderation_status='approved'
+           JOIN likes l ON l.character_id = c.id
+           WHERE l.user_id = ? AND c.visibility='public' AND c.moderation_status='approved'
            ORDER BY c.created_at DESC`,
         )
         .all(user.id) as CharacterRow[];
+      {
+        const bookmarkedIds = new Set(bookmarkedChars.map((c) => c.id));
+        followingCreatorChars = (
+          db
+            .prepare(
+              `SELECT c.* FROM characters c
+               JOIN follows f ON f.creator_id = c.creator_id
+               WHERE f.user_id = ? AND c.creator_id IS NOT NULL AND c.visibility='public' AND c.moderation_status='approved'
+               ORDER BY c.created_at DESC`,
+            )
+            .all(user.id) as CharacterRow[]
+        ).filter((c) => !bookmarkedIds.has(c.id));
+      }
       break;
     case "likes":
-      title = "좋아요한 캐릭터";
+      title = "북마크한 캐릭터";
       if (!user) {
         return (
           <Empty
-            title="좋아요"
-            message="로그인 후 좋아요한 캐릭터가 여기에 표시됩니다."
+            title="북마크"
+            message="로그인 후 북마크한 캐릭터가 여기에 표시됩니다."
             cta="/login"
             ctaLabel="로그인"
           />
@@ -161,6 +176,8 @@ export default async function TabPage({
   }
 
   chars = decorateCharactersWithCreatorTiers(db, chars);
+  bookmarkedChars = decorateCharactersWithCreatorTiers(db, bookmarkedChars);
+  followingCreatorChars = decorateCharactersWithCreatorTiers(db, followingCreatorChars);
 
   return (
     <div className="mt-2 pb-2">
@@ -272,6 +289,37 @@ export default async function TabPage({
               : `${rankingPeriodLabel(rankingPeriod)} 기간에 대화가 시작된 캐릭터가 없습니다.`}
           </p>
         )
+      ) : tab === "following" ? (
+        <div className="mt-6 space-y-8">
+          <section>
+            <h2 className={studioType.sectionTitle}>북마크한 캐릭터</h2>
+            {bookmarkedChars.length > 0 ? (
+              <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+                {bookmarkedChars.map((c) => (
+                  <CharacterCard key={`bm-${c.id}`} c={c} blurNsfw={blurNsfw} loggedIn={loggedIn} />
+                ))}
+              </div>
+            ) : (
+              <p className={cn(studioType.helper, "mt-3")}>
+                아직 북마크한 캐릭터가 없습니다. 캐릭터 페이지에서 🔖 북마크를 눌러 주세요.
+              </p>
+            )}
+          </section>
+          <section>
+            <h2 className={studioType.sectionTitle}>팔로우한 크리에이터</h2>
+            {followingCreatorChars.length > 0 ? (
+              <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+                {followingCreatorChars.map((c) => (
+                  <CharacterCard key={`fl-${c.id}`} c={c} blurNsfw={blurNsfw} loggedIn={loggedIn} />
+                ))}
+              </div>
+            ) : (
+              <p className={cn(studioType.helper, "mt-3")}>
+                팔로우한 크리에이터의 공개 캐릭터가 없습니다.
+              </p>
+            )}
+          </section>
+        </div>
       ) : chars.length > 0 ? (
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
           {chars.map((c) => (

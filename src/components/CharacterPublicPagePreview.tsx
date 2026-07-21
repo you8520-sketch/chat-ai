@@ -31,7 +31,8 @@ function AssetGalleryStrip({
   if (assets.length === 0) return null;
   return (
     <div className="mt-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:thin]">
-      <div className="flex w-max gap-2">
+      {/* 가로 스크롤 · 2행 그리드 (열 우선 채움) */}
+      <div className="grid w-max auto-cols-[4.75rem] grid-flow-col grid-rows-2 gap-2 sm:auto-cols-[5.25rem]">
         {assets.map((asset, i) => {
           // 1번 대표 이미지는 항상 공개
           const blurred =
@@ -39,7 +40,7 @@ function AssetGalleryStrip({
           return (
             <div
               key={`${asset.url}-${i}`}
-              className={`${CHARACTER_THUMB_ASPECT} w-[4.75rem] shrink-0 overflow-hidden rounded-lg border border-white/10 bg-[#0a0d14] sm:w-[5.25rem]`}
+              className={`${CHARACTER_THUMB_ASPECT} w-[4.75rem] overflow-hidden rounded-lg border border-white/10 bg-[#0a0d14] sm:w-[5.25rem]`}
             >
               {blurred ? (
                 <CharacterAssetImage src={asset.url} alt={alt} blurForViewer />

@@ -11,7 +11,7 @@ const baseTabs = [
   { href: "/tab/new", label: "신작" },
   { href: "/tab/ranking", label: "랭킹" },
   { href: "/search", label: "검색" },
-  { href: "/tab/following", label: "팔로잉" },
+  { href: "/tab/following", label: "북마크/팔로잉" },
 ];
 
 function isTabActive(pathname: string, href: string): boolean {

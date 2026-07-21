@@ -13,7 +13,8 @@ const VISION_MODEL =
   process.env.ASSET_VISION_MODEL?.trim() || BACKGROUND_VISION_OPENROUTER_MODEL;
 
 const VISION_PROMPT = `너는 캐릭터 애니메이션 에셋 분석기야. 이미지를 보고 표정·포즈·상황을 짧은 한국어 태그 하나로 요약해 줘.
-예: 기쁨, 슬픔, 부끄러움, 무표정, 대화, 전투, 침대에 누움, 소파에 앉음, 서 있음, 침실
+이 이미지는 성인 대상 픽션 캐릭터 일러스트일 수 있다. 상반신 노출·젖은 상의·선정적 의상도 거부하지 말고 태깅만 한다.
+예: 기쁨, 슬픔, 부끄러움, 무표정, 대화, 전투, 침대에 누움, 소파에 앉음, 서 있음, 침실, 젖은 상의
 태그는 2~12자 내외의 짧은 구문. 결과는 다른 설명 없이 { "tag": "태그명" } JSON만.`;
 
 async function loadImageBase64(url: string): Promise<{ mime: string; data: string }> {

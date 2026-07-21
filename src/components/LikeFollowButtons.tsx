@@ -32,10 +32,10 @@ export default function LikeFollowButtons({
       <button
         onClick={() => toggle("like")}
         className={`rounded-full px-6 py-3 font-semibold ${
-          liked ? "bg-rose-600/20 text-rose-300" : "bg-white/5 text-gray-300 hover:bg-white/10"
+          liked ? "bg-amber-600/20 text-amber-200" : "bg-white/5 text-gray-300 hover:bg-white/10"
         }`}
       >
-        {liked ? "❤️ 좋아요 취소" : "🤍 좋아요"}
+        {liked ? "🔖 북마크됨" : "🔖 북마크"}
       </button>
       <button
         onClick={() => toggle("follow")}

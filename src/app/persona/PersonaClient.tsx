@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { GENDER_LABELS, type CharacterGender } from "@/lib/characterGender";
 import {
   PERSONA_NAME_LIMIT,
@@ -72,6 +72,10 @@ export default function PersonaClient({
   const [busy, setBusy] = useState(false);
   const [widgetSharePath, setWidgetSharePath] = useState<string | null>(null);
 
+  useEffect(() => {
+    setPersonas(initialPersonas);
+  }, [initialPersonas]);
+
   function startEdit(p: PersonaListItem) {
     setEditingId(p.id);
     setDraftName(p.name);
@@ -109,9 +113,17 @@ export default function PersonaClient({
   }
 
   async function refreshList() {
-    const res = await fetch("/api/personas");
-    const data = await res.json();
-    if (res.ok) setPersonas(data.personas ?? []);
+    try {
+      const res = await fetch("/api/personas", { cache: "no-store" });
+      const data = (await res.json()) as { personas?: PersonaListItem[]; error?: string };
+      if (!res.ok) {
+        setError(data.error || "페르소나 목록을 불러오지 못했습니다.");
+        return;
+      }
+      setPersonas(Array.isArray(data.personas) ? data.personas : []);
+    } catch {
+      setError("페르소나 목록을 불러오지 못했습니다.");
+    }
   }
 
   async function savePersona() {
@@ -143,10 +155,24 @@ export default function PersonaClient({
         });
 
     setBusy(false);
-    const data = await res.json();
+    const data = (await res.json()) as {
+      error?: string;
+      persona?: PersonaListItem;
+    };
     if (!res.ok) {
       setError(data.error || "저장에 실패했습니다.");
       return;
+    }
+    if (data.persona) {
+      setPersonas((prev) => {
+        const idx = prev.findIndex((p) => p.id === data.persona!.id);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = data.persona!;
+          return next;
+        }
+        return [...prev, data.persona!];
+      });
     }
     setMsg(editingId ? "페르소나가 수정되었습니다." : "페르소나가 생성되었습니다.");
     cancelForm();
@@ -386,6 +412,9 @@ export default function PersonaClient({
         </p>
       </div>
 
+      {error && <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">{error}</p>}
+      {msg && <p className="rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-sm text-violet-200">{msg}</p>}
+
       <section id="personas" className={cn(studioSurface.sectionAccent, "scroll-mt-4")}>
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -406,8 +435,16 @@ export default function PersonaClient({
           </button>
         </div>
 
+        {personas.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-white/15 bg-[#0e1120] px-4 py-6 text-center text-sm text-zinc-400">
+            저장된 페르소나가 없습니다. 위 버튼으로 새 페르소나를 만들어 주세요.
+          </p>
+        ) : null}
+
         <ul className="space-y-2">
-          {personas.map((p) => (
+          {personas.map((p) => {
+            const desc = (p.description ?? "").trim();
+            return (
             <li
               key={p.id}
               className="rounded-xl border border-white/10 bg-[#0e1120] px-4 py-3"
@@ -415,7 +452,7 @@ export default function PersonaClient({
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-2 font-semibold text-white">
-                    {p.name}
+                    {p.name || "(이름 없음)"}
                     <span className="text-[10px] font-normal text-zinc-500">
                       · {GENDER_LABELS[p.gender ?? "other"]}
                     </span>
@@ -426,10 +463,10 @@ export default function PersonaClient({
                     </p>
                   )}
                   <p className={`mt-1 line-clamp-2 ${studioType.caption}`}>
-                    {p.description.trim() || "(설명 없음)"}
+                    {desc || "(설명 없음)"}
                   </p>
                   <p className="mt-1 text-[10px] text-zinc-600">
-                    {p.description.length.toLocaleString()} / {PERSONA_CONTENT_MAX.toLocaleString()}자
+                    {desc.length.toLocaleString()} / {PERSONA_CONTENT_MAX.toLocaleString()}자
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-1.5">
@@ -452,7 +489,8 @@ export default function PersonaClient({
                 </div>
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
 
         {(creating || editingId != null) && (
@@ -798,9 +836,6 @@ export default function PersonaClient({
           <ShareLinkBox path={widgetSharePath} label="위젯 적용 링크 (열어서 내 위젯에 추가)" />
         )}
       </section>
-
-      {error && <p className="text-sm text-rose-400">{error}</p>}
-      {msg && <p className="text-sm text-violet-300">{msg}</p>}
 
       <p className={`text-center ${studioType.body} text-zinc-500`}>
         <Link href="/" className="text-violet-400 hover:underline">
