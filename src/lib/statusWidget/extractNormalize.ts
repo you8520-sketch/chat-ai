@@ -86,6 +86,49 @@ export function shouldOmitUnknownLikePreviousValue(
 const PREVIOUS_WIDGET_CONTINUITY_NOTE =
   "(continuity reference — not answer text to copy; derive this turn primarily from current RP)";
 
+/**
+ * Turn-derived free-text fields — previous answer text must not be injected as
+ * continuity anchors (answer anchoring). Persistent meters/time/place stay.
+ * Includes inner-state and 현재상황 / current-situation style fields.
+ */
+export function looksLikeVolatileTurnDerivedField(field: StatusWidgetField): boolean {
+  if (looksLikeInnerStateField(field)) return true;
+  const blob = `${field.id} ${field.label} ${field.instruction}`.toLowerCase();
+  return /현재\s*상황|지금\s*벌어지는|현재\s*욕구|현재\s*의도|현재\s*행동|현재\s*반응|current\s*situation|current\s*scene|current\s*reaction|situation\s*summary/.test(
+    blob
+  );
+}
+
+export function looksLikeVolatileTurnDerivedKey(key: string): boolean {
+  return /속마음|의식|내면|감정|표정|thought|inner|monologue|feeling|mood|expression|face|현재\s*상황|현재상황|current\s*situation|current\s*scene/i.test(
+    key
+  );
+}
+
+export function shouldOmitVolatilePreviousValue(
+  key: string,
+  widget?: StatusWidget | null
+): boolean {
+  const field = findWidgetFieldForKey(widget, key);
+  if (field) return looksLikeVolatileTurnDerivedField(field);
+  return looksLikeVolatileTurnDerivedKey(key);
+}
+
+function formatPreviousPersistentValueLines(
+  values: StatusWidgetValues,
+  widget?: StatusWidget | null
+): string[] {
+  return Object.entries(values)
+    .filter(
+      ([k, v]) =>
+        Boolean(v?.trim()) &&
+        !isWidgetPlaceholderValue(v) &&
+        !shouldOmitUnknownLikePreviousValue(k, v, widget) &&
+        !shouldOmitVolatilePreviousValue(k, widget)
+    )
+    .map(([k, v]) => `- ${k}: ${v.trim()}`);
+}
+
 export function formatPreviousTurnWidgetValues(
   values: StatusWidgetValues | null | undefined,
   source: "character" | "user",
@@ -96,17 +139,10 @@ export function formatPreviousTurnWidgetValues(
 ${PREVIOUS_WIDGET_CONTINUITY_NOTE}
 (none — first fill; init calendar/clock fields per rules, not "—")`;
   }
-  const lines = Object.entries(values)
-    .filter(
-      ([k, v]) =>
-        Boolean(v?.trim()) &&
-        !isWidgetPlaceholderValue(v) &&
-        !shouldOmitUnknownLikePreviousValue(k, v, widget)
-    )
-    .map(([k, v]) => `- ${k}: ${v.trim()}`);
+  const lines = formatPreviousPersistentValueLines(values, widget);
   return `[PREVIOUS TURN ${source.toUpperCase()} WIDGET VALUES]
 ${PREVIOUS_WIDGET_CONTINUITY_NOTE}
-${lines.length > 0 ? lines.join("\n") : "(empty — infer from narrative)"}`;
+${lines.length > 0 ? lines.join("\n") : "(empty — infer from narrative; turn-derived fields omitted)"}`;
 }
 
 /**
@@ -308,7 +344,53 @@ export function looksLikeInnerStateField(field: StatusWidgetField): boolean {
   );
 }
 
-/** Observe-only: exact previous echo for inner-state / whole character (no values logged). */
+function resolveFieldValue(
+  values: StatusWidgetValues | null | undefined,
+  field: StatusWidgetField
+): string {
+  for (const c of [fieldPlaceholderKey(field), field.id?.trim(), field.label.trim()].filter(
+    Boolean
+  ) as string[]) {
+    const v = values?.[c]?.trim();
+    if (v) return v;
+  }
+  return "";
+}
+
+/**
+ * Exact previous==current matches for volatile/turn-derived fields only.
+ * Persistent exact matches are expected and must not be listed here.
+ */
+export function collectVolatileExactEchoKeys(opts: {
+  widget?: StatusWidget | null;
+  previous?: StatusWidgetValues | null;
+  current?: StatusWidgetValues | null;
+}): string[] {
+  const previous = opts.previous ?? null;
+  const current = opts.current ?? null;
+  if (!previous || !current) return [];
+  const exactKeys: string[] = [];
+  if (opts.widget) {
+    for (const field of opts.widget.fields) {
+      if (!looksLikeVolatileTurnDerivedField(field)) continue;
+      const key = fieldPlaceholderKey(field);
+      if (!key) continue;
+      const prevVal = resolveFieldValue(previous, field);
+      const curVal = resolveFieldValue(current, field);
+      if (!prevVal || !curVal) continue;
+      if (prevVal === curVal) exactKeys.push(key);
+    }
+    return [...new Set(exactKeys)];
+  }
+  for (const [k, v] of Object.entries(previous)) {
+    if (!v?.trim() || !looksLikeVolatileTurnDerivedKey(k)) continue;
+    const cur = current[k]?.trim();
+    if (cur && cur === v.trim()) exactKeys.push(k);
+  }
+  return [...new Set(exactKeys)];
+}
+
+/** Observe + guard input: volatile exact echo / whole character (no values logged). */
 export type StatusWidgetPreviousEchoStats = {
   compared: number;
   exact: number;
@@ -344,26 +426,19 @@ export function measureStatusWidgetPreviousEcho(opts: {
   let compared = 0;
   if (opts.widget) {
     for (const field of opts.widget.fields) {
-      if (!looksLikeInnerStateField(field)) continue;
+      if (!looksLikeVolatileTurnDerivedField(field)) continue;
       const key = fieldPlaceholderKey(field);
-      const candidates = [key, field.id?.trim(), field.label.trim()].filter(Boolean) as string[];
-      let prevVal = "";
-      let curVal = "";
-      for (const c of candidates) {
-        if (!prevVal && previous?.[c]?.trim()) prevVal = previous[c]!.trim();
-        if (!curVal && current?.[c]?.trim()) curVal = current[c]!.trim();
-      }
+      const prevVal = resolveFieldValue(previous, field);
+      const curVal = resolveFieldValue(current, field);
       if (!prevVal || !curVal) continue;
       compared += 1;
       if (prevVal === curVal) exactKeys.push(key);
     }
   } else if (previous && current) {
     for (const [k, v] of prevEntries) {
+      if (!looksLikeVolatileTurnDerivedKey(k)) continue;
       const cur = curMap.get(k);
       if (cur == null) continue;
-      if (!/속마음|의식|내면|감정|표정|thought|inner|monologue|feeling|mood|expression|face/i.test(k)) {
-        continue;
-      }
       compared += 1;
       if (cur === v.trim()) exactKeys.push(k);
     }
@@ -377,6 +452,122 @@ export function measureStatusWidgetPreviousEcho(opts: {
     wholeCharacterExact,
     exactKeys,
   };
+}
+
+export function formatStalePreviousValuesBlock(
+  keys: string[],
+  previous: StatusWidgetValues | null | undefined,
+  widget?: StatusWidget | null
+): string {
+  const lines: string[] = [];
+  for (const k of keys) {
+    const field = findWidgetFieldForKey(widget, k);
+    const prev = field
+      ? resolveFieldValue(previous, field)
+      : previous?.[k]?.trim() ?? "";
+    if (!prev) continue;
+    lines.push(`- ${k}: ${prev}`);
+  }
+  if (lines.length === 0) {
+    return `[STALE PREVIOUS VALUE — DO NOT RETURN UNCHANGED]\n(none)`;
+  }
+  return `[STALE PREVIOUS VALUE — DO NOT RETURN UNCHANGED]
+These exact strings were returned for the previous turn. Do NOT copy them as this turn's values when the current RP has new dialogue, actions, or information.
+${lines.join("\n")}`;
+}
+
+export function buildVolatileEchoRepairSystem(
+  keys: string[],
+  source: "character" | "user" = "character"
+): string {
+  const keyList = keys.map((k) => `"${k}"`).join(", ");
+  const defaultSubject =
+    source === "character" ? "[CHARACTER] (the NPC)" : "[USER] (the user persona)";
+  return `You repair ONLY the listed status-widget field values as JSON only. No prose, no markdown fences.
+Return exactly one JSON object with these keys: ${keyList}
+
+Rules:
+- Korean values preferred when the scene is Korean.
+- Use CURRENT USER MESSAGE + the FINAL SCENE of the assistant RP as primary evidence.
+- Do NOT return the exact strings listed under [STALE PREVIOUS VALUE — DO NOT RETURN UNCHANGED].
+- Re-evaluate each field at the END of this turn. New dialogue, actions, or information must change the wording when they affect that field.
+- If the underlying state genuinely remains unchanged, preserve the meaning with different wording — never paste the stale string.
+- Default subject when unspecified: ${defaultSubject}.
+- ${STATUS_WIDGET_FINAL_SCENE_PRIORITY_LINES}`;
+}
+
+export function buildVolatileEchoRepairUserBlock(opts: {
+  keys: string[];
+  widget: StatusWidget;
+  source: "character" | "user";
+  previousValues?: StatusWidgetValues | null;
+  assistantProse: string;
+  userMessage?: string | null;
+  charName: string;
+  personaName: string;
+  characterIdentity?: string | null;
+  characterCriticalContext?: string | null;
+}): string {
+  const keySet = new Set(opts.keys);
+  const fields = opts.widget.fields.filter((f) => keySet.has(fieldPlaceholderKey(f)));
+  const contract =
+    fields.length > 0
+      ? fields
+          .map((field) => {
+            const key = fieldPlaceholderKey(field);
+            const instruction = expandFieldText(
+              field.instruction.trim(),
+              opts.charName,
+              opts.personaName
+            );
+            const lines = [`- key: ${key}`, `  instruction: ${instruction}`];
+            if (looksLikeInnerStateField(field) || looksLikeVolatileTurnDerivedField(field)) {
+              lines.push(`  defaultSubject: ${defaultSubjectForRepairField(field, opts.source)}`);
+            }
+            return lines.join("\n");
+          })
+          .join("\n\n")
+      : opts.keys.map((k) => `- key: ${k}`).join("\n");
+
+  const prose = sliceAssistantProseForRepair(opts.assistantProse);
+  const userMessage = opts.userMessage?.trim() || "(empty)";
+  const defaultLabel =
+    opts.source === "character"
+      ? `[CHARACTER](${opts.charName})`
+      : `[USER](${opts.personaName})`;
+
+  return [
+    `[SOURCE]\n${opts.source}\nDefault subject: ${defaultLabel}`,
+    `[CHARACTER]\n${opts.charName}`,
+    ...formatStatusWidgetCharacterContextBlocks({
+      characterIdentity: opts.characterIdentity,
+      characterCriticalContext: opts.characterCriticalContext,
+    }),
+    `[USER]\n${opts.personaName}`,
+    `[WIDGET FIELD CONTRACT — REPAIR TARGETS ONLY]\n${contract}`,
+    formatStalePreviousValuesBlock(opts.keys, opts.previousValues, opts.widget),
+    `[CURRENT USER MESSAGE]\n${userMessage}`,
+    `[ASSISTANT RP — FINAL SCENE PRIORITY]\n${prose || "(empty)"}`,
+  ].join("\n\n");
+}
+
+/** Merge repaired volatile keys only; never overwrite persistent fields. */
+export function mergeVolatileRepairIntoValues(
+  base: StatusWidgetValues,
+  repaired: StatusWidgetValues | null | undefined,
+  keys: string[],
+  widget?: StatusWidget | null
+): StatusWidgetValues {
+  if (!repaired || keys.length === 0) return base;
+  const out: StatusWidgetValues = { ...base };
+  for (const key of keys) {
+    const field = findWidgetFieldForKey(widget, key);
+    const next = field ? resolveFieldValue(repaired, field) : repaired[key]?.trim() ?? "";
+    if (!next || isWidgetPlaceholderValue(next)) continue;
+    out[key] = next;
+    if (field?.id && field.id !== key) out[field.id] = next;
+  }
+  return out;
 }
 
 /** Instruction-named subject wins; otherwise default to extract source. */
@@ -528,7 +719,7 @@ Prefer the FINAL scene in [ASSISTANT RP — FINAL SCENE PRIORITY].
 - ${STATUS_WIDGET_FINAL_SCENE_PRIORITY_LINES}`;
 }
 
-/** Refined previous field values for repair (no previous prose dump). */
+/** Refined previous field values for repair (no previous prose dump). Persistent only. */
 export function formatPreviousCanonicalWidgetValuesForRepair(
   values: StatusWidgetValues | null | undefined,
   widget?: StatusWidget | null
@@ -536,16 +727,9 @@ export function formatPreviousCanonicalWidgetValuesForRepair(
   if (!values || Object.keys(values).length === 0) {
     return `[PREVIOUS CANONICAL WIDGET VALUES]\n${PREVIOUS_WIDGET_CONTINUITY_NOTE}\n(none)`;
   }
-  const lines = Object.entries(values)
-    .filter(
-      ([k, v]) =>
-        Boolean(v?.trim()) &&
-        !isWidgetPlaceholderValue(v) &&
-        !shouldOmitUnknownLikePreviousValue(k, v, widget)
-    )
-    .map(([k, v]) => `- ${k}: ${v.trim()}`);
+  const lines = formatPreviousPersistentValueLines(values, widget);
   return `[PREVIOUS CANONICAL WIDGET VALUES]\n${PREVIOUS_WIDGET_CONTINUITY_NOTE}\n${
-    lines.length > 0 ? lines.join("\n") : "(none)"
+    lines.length > 0 ? lines.join("\n") : "(none — turn-derived previous answers omitted)"
   }`;
 }
 

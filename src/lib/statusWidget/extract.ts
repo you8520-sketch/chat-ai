@@ -9,12 +9,16 @@ import { collectWidgetJsonKeys } from "./prompt";
 import {
   buildCombinedDualWidgetExtractSystem,
   buildCombinedDualWidgetExtractUserBlock,
+  buildVolatileEchoRepairSystem,
+  buildVolatileEchoRepairUserBlock,
   buildWidgetExtractRepairSystem,
   buildWidgetExtractRepairUserBlock,
   buildWidgetExtractSystem,
   buildWidgetExtractUserBlock,
+  collectVolatileExactEchoKeys,
   dropRepairEchoFields,
   extractJsonObjectFromWidgetText,
+  mergeVolatileRepairIntoValues,
   normalizeWidgetExtraction,
   isCombinedExtractLikelyTruncated,
   parseCombinedDualWidgetExtractResponse,
@@ -119,12 +123,14 @@ function reasonCodeForExtractStage(
   if (kind === "ok") {
     if (stage === "initial") return "OK";
     if (stage === "repair") return "V3_REPAIR_USED";
+    if (stage === "volatile_echo_repair") return "V3_PREVIOUS_ECHO_REPAIR_USED";
     return "FALLBACK_MODEL_USED";
   }
   if (stage === "initial") {
     return kind === "parse" ? "V3_PARSE_FAILED" : "V3_INITIAL_EMPTY";
   }
   if (stage === "repair") return "V3_REPAIR_FAILED";
+  if (stage === "volatile_echo_repair") return "V3_PREVIOUS_ECHO_REPAIR_FAILED";
   return "FALLBACK_MODEL_FAILED";
 }
 
@@ -176,7 +182,7 @@ function shouldEmitExtractAttemptLog(opts: {
   const env = opts.env ?? process.env;
   const verbose =
     env.STATUS_WIDGET_TRACE_ENABLED === "1" || env.STATUS_WIDGET_EXTRACT_METRICS === "1";
-  if (opts.stage === "repair") return true;
+  if (opts.stage === "repair" || opts.stage === "volatile_echo_repair") return true;
   if (opts.reasonCode === "STATUS_WIDGET_EXTRACT_EXHAUSTED") return true;
   if (opts.stage === "initial" && !opts.succeeded) return true;
   if (opts.stage === "initial" && opts.succeeded) return verbose;
@@ -398,6 +404,134 @@ async function runExtractAttempt(opts: {
   }
 }
 
+/**
+ * After a successful extract: if volatile fields exact-match previous, run same-model
+ * targeted repair once for those keys only and merge. Persistent exact matches ignored.
+ */
+async function maybeRepairVolatileExactEcho(opts: {
+  values: StatusWidgetValues;
+  facts: ExtractedStatusFact[];
+  widget: StatusWidget;
+  source: "character" | "user";
+  previousValues?: StatusWidgetValues | null;
+  assistantProse: string;
+  userMessage: string;
+  charName: string;
+  personaName: string;
+  characterIdentity?: string | null;
+  characterCriticalContext?: string | null;
+  primaryModelId: string;
+  caller: StatusWidgetExtractCaller;
+  trace?: { requestId?: string | null; chatId?: number | null; messageId?: number | null };
+  env?: NodeJS.ProcessEnv;
+  attemptIndex: number;
+  usages: TokenUsage[];
+  stages: StatusWidgetExtractStage[];
+  models: string[];
+  attemptUsages: StatusWidgetSourceExtractMeta["attemptUsages"];
+  apiCalls: number;
+  repairMaxTokens: number;
+}): Promise<{
+  values: StatusWidgetValues;
+  facts: ExtractedStatusFact[];
+  apiCalls: number;
+  finalStage: StatusWidgetExtractStage;
+  finalReasonCode: StatusWidgetReasonCode;
+  volatileEchoKeys: string[];
+  volatileEchoRepairSucceeded: boolean;
+}> {
+  const echoKeys = collectVolatileExactEchoKeys({
+    widget: opts.widget,
+    previous: opts.previousValues,
+    current: opts.values,
+  });
+  if (echoKeys.length === 0) {
+    return {
+      values: opts.values,
+      facts: opts.facts,
+      apiCalls: opts.apiCalls,
+      finalStage: "initial",
+      finalReasonCode: "OK",
+      volatileEchoKeys: [],
+      volatileEchoRepairSucceeded: false,
+    };
+  }
+
+  const echoMaxTokens = Math.min(
+    opts.repairMaxTokens,
+    resolveRepairMaxTokens(opts.widget, echoKeys)
+  );
+  const repairSystem = buildVolatileEchoRepairSystem(echoKeys, opts.source);
+  const repairUser = buildVolatileEchoRepairUserBlock({
+    keys: echoKeys,
+    widget: opts.widget,
+    source: opts.source,
+    previousValues: opts.previousValues,
+    assistantProse: opts.assistantProse,
+    userMessage: opts.userMessage,
+    charName: opts.charName,
+    personaName: opts.personaName,
+    characterIdentity: opts.characterIdentity,
+    characterCriticalContext: opts.characterCriticalContext,
+  });
+  const repair = await runExtractAttempt({
+    system: repairSystem,
+    userBlock: repairUser,
+    widget: opts.widget,
+    source: opts.source,
+    stage: "volatile_echo_repair",
+    attemptIndex: opts.attemptIndex,
+    modelId: opts.primaryModelId,
+    requestKind: "background-status-widget-extract-volatile-echo-fix",
+    maxTokens: echoMaxTokens,
+    temperature: 0,
+    applyEchoFilter: false,
+    caller: opts.caller,
+    trace: opts.trace,
+    env: opts.env,
+  });
+  opts.apiCalls += 1;
+  opts.stages.push("volatile_echo_repair");
+  opts.models.push(opts.primaryModelId);
+  pushUsage(opts.usages, opts.attemptUsages, repair);
+
+  if (repair.ok && repair.values) {
+    // Drop any key that still exact-matches previous after repair.
+    const stillEcho = collectVolatileExactEchoKeys({
+      widget: opts.widget,
+      previous: opts.previousValues,
+      current: repair.values,
+    });
+    const usableKeys = echoKeys.filter((k) => !stillEcho.includes(k));
+    const merged =
+      usableKeys.length > 0
+        ? mergeVolatileRepairIntoValues(opts.values, repair.values, usableKeys, opts.widget)
+        : opts.values;
+    return {
+      values: merged,
+      facts: repair.facts.length > 0 ? repair.facts : opts.facts,
+      apiCalls: opts.apiCalls,
+      finalStage: "volatile_echo_repair",
+      finalReasonCode:
+        usableKeys.length > 0
+          ? "V3_PREVIOUS_ECHO_REPAIR_USED"
+          : "V3_PREVIOUS_ECHO_REPAIR_FAILED",
+      volatileEchoKeys: echoKeys,
+      volatileEchoRepairSucceeded: usableKeys.length > 0,
+    };
+  }
+
+  return {
+    values: opts.values,
+    facts: opts.facts,
+    apiCalls: opts.apiCalls,
+    finalStage: "volatile_echo_repair",
+    finalReasonCode: "V3_PREVIOUS_ECHO_REPAIR_FAILED",
+    volatileEchoKeys: echoKeys,
+    volatileEchoRepairSucceeded: false,
+  };
+}
+
 async function extractStatusWidgetValuesForWidget(opts: {
   charName: string;
   characterIdentity?: string | null;
@@ -492,22 +626,47 @@ async function extractStatusWidgetValuesForWidget(opts: {
     stages.push("initial");
     models.push(primaryModelId);
     pushUsage(usages, attemptUsages, initial);
-    if (initial.ok) {
-      return {
+    if (initial.ok && initial.values) {
+      const echoFixed = await maybeRepairVolatileExactEcho({
         values: initial.values,
         facts: initial.facts,
-        usage: mergeStatusWidgetExtractUsages(usages),
+        widget: opts.widget,
+        source: opts.source,
+        previousValues: opts.previousValues,
+        assistantProse: opts.assistantProse,
+        userMessage: opts.userMessage,
+        charName: opts.charName,
+        personaName: opts.personaName,
+        characterIdentity: opts.characterIdentity,
+        characterCriticalContext: opts.characterCriticalContext,
+        primaryModelId,
+        caller,
+        trace: opts.trace,
+        env: opts.env,
+        attemptIndex: 2,
+        usages,
+        stages,
+        models,
+        attemptUsages,
         apiCalls,
+        repairMaxTokens,
+      });
+      return {
+        values: echoFixed.values,
+        facts: echoFixed.facts,
+        usage: mergeStatusWidgetExtractUsages(usages),
+        apiCalls: echoFixed.apiCalls,
         meta: {
           source: opts.source,
-          callCount: 1,
+          callCount: echoFixed.apiCalls,
           stages,
-          finalStage: "initial",
-          finalReasonCode: "OK",
+          finalStage: echoFixed.finalStage,
+          finalReasonCode: echoFixed.finalReasonCode,
           models,
           attemptUsages,
           echoDroppedKeys: [],
           repairMaxTokens,
+          sharedCombinedInitial: opts.sharedCombinedInitial,
         },
       };
     }
@@ -550,18 +709,48 @@ async function extractStatusWidgetValuesForWidget(opts: {
   models.push(primaryModelId);
   pushUsage(usages, attemptUsages, repair);
   echoDroppedKeys = repair.echoDroppedKeys;
-  if (repair.ok) {
-    return {
+  if (repair.ok && repair.values) {
+    const echoFixed = await maybeRepairVolatileExactEcho({
       values: repair.values,
       facts: repair.facts,
-      usage: mergeStatusWidgetExtractUsages(usages),
+      widget: opts.widget,
+      source: opts.source,
+      previousValues: opts.previousValues,
+      assistantProse: opts.assistantProse,
+      userMessage: opts.userMessage,
+      charName: opts.charName,
+      personaName: opts.personaName,
+      characterIdentity: opts.characterIdentity,
+      characterCriticalContext: opts.characterCriticalContext,
+      primaryModelId,
+      caller,
+      trace: opts.trace,
+      env: opts.env,
+      attemptIndex: opts.repairOnly ? 3 : 3,
+      usages,
+      stages,
+      models,
+      attemptUsages,
       apiCalls,
+      repairMaxTokens,
+    });
+    return {
+      values: echoFixed.values,
+      facts: echoFixed.facts,
+      usage: mergeStatusWidgetExtractUsages(usages),
+      apiCalls: echoFixed.apiCalls,
       meta: {
         source: opts.source,
-        callCount: apiCalls,
+        callCount: echoFixed.apiCalls,
         stages,
-        finalStage: "repair",
-        finalReasonCode: "V3_REPAIR_USED",
+        finalStage:
+          echoFixed.finalStage === "volatile_echo_repair"
+            ? echoFixed.finalStage
+            : "repair",
+        finalReasonCode:
+          echoFixed.finalStage === "volatile_echo_repair"
+            ? echoFixed.finalReasonCode
+            : "V3_REPAIR_USED",
         models,
         attemptUsages,
         echoDroppedKeys,
@@ -831,19 +1020,53 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       factBatches.push(parsed.extracted_facts);
     }
 
-    if (parsed.characterOk) {
-      out.character = parsed.character;
+    if (parsed.characterOk && parsed.character) {
+      const charUsages: TokenUsage[] = [];
+      const charStages: StatusWidgetExtractStage[] = ["initial"];
+      const charModels: string[] = [primaryModelId];
+      const charAttemptUsages: StatusWidgetSourceExtractMeta["attemptUsages"] = [];
+      const charRepairMax = resolveRepairMaxTokens(
+        charWidget,
+        collectWidgetJsonKeys(charWidget)
+      );
+      const echoFixed = await maybeRepairVolatileExactEcho({
+        values: parsed.character,
+        facts: [],
+        widget: charWidget,
+        source: "character",
+        previousValues: opts.previousValues?.character ?? null,
+        assistantProse: opts.assistantProse,
+        userMessage: opts.userMessage,
+        charName: opts.charName,
+        personaName: opts.personaName,
+        characterIdentity: opts.characterIdentity,
+        characterCriticalContext: opts.characterCriticalContext,
+        primaryModelId,
+        caller,
+        trace: opts.trace,
+        env: opts.env,
+        attemptIndex: 2,
+        usages: charUsages,
+        stages: charStages,
+        models: charModels,
+        attemptUsages: charAttemptUsages,
+        apiCalls: 0,
+        repairMaxTokens: charRepairMax,
+      });
+      actualCallCount += echoFixed.apiCalls;
+      if (charUsages.length) turnUsages.push(...charUsages);
+      out.character = echoFixed.values;
       characterMeta = {
         source: "character",
-        // Shared combined initial is billed once at turn level — do not mirror tokens here.
-        callCount: 0,
-        stages: ["initial"],
-        finalStage: "initial",
-        finalReasonCode: "OK",
-        models: [primaryModelId],
-        attemptUsages: [],
+        // Shared combined initial is billed once at turn level — echo fix calls count here.
+        callCount: echoFixed.apiCalls,
+        stages: charStages,
+        finalStage: echoFixed.finalStage,
+        finalReasonCode: echoFixed.finalReasonCode,
+        models: charModels,
+        attemptUsages: charAttemptUsages,
         echoDroppedKeys: parsed.characterEchoDroppedKeys,
-        repairMaxTokens: resolveRepairMaxTokens(charWidget, collectWidgetJsonKeys(charWidget)),
+        repairMaxTokens: charRepairMax,
         sharedCombinedInitial: true,
       };
     } else {
@@ -875,19 +1098,52 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       characterMeta = repaired.meta;
     }
 
-    if (parsed.userOk) {
-      out.user = parsed.user;
+    if (parsed.userOk && parsed.user) {
+      const userUsages: TokenUsage[] = [];
+      const userStages: StatusWidgetExtractStage[] = ["initial"];
+      const userModels: string[] = [primaryModelId];
+      const userAttemptUsages: StatusWidgetSourceExtractMeta["attemptUsages"] = [];
+      const userRepairMax = resolveRepairMaxTokens(
+        userWidget,
+        collectWidgetJsonKeys(userWidget)
+      );
+      const echoFixed = await maybeRepairVolatileExactEcho({
+        values: parsed.user,
+        facts: [],
+        widget: userWidget,
+        source: "user",
+        previousValues: opts.previousValues?.user ?? null,
+        assistantProse: opts.assistantProse,
+        userMessage: opts.userMessage,
+        charName: opts.charName,
+        personaName: opts.personaName,
+        characterIdentity: opts.characterIdentity,
+        characterCriticalContext: opts.characterCriticalContext,
+        primaryModelId,
+        caller,
+        trace: opts.trace,
+        env: opts.env,
+        attemptIndex: 2,
+        usages: userUsages,
+        stages: userStages,
+        models: userModels,
+        attemptUsages: userAttemptUsages,
+        apiCalls: 0,
+        repairMaxTokens: userRepairMax,
+      });
+      actualCallCount += echoFixed.apiCalls;
+      if (userUsages.length) turnUsages.push(...userUsages);
+      out.user = echoFixed.values;
       userMeta = {
         source: "user",
-        // Shared combined initial is billed once at turn level — do not mirror tokens here.
-        callCount: 0,
-        stages: ["initial"],
-        finalStage: "initial",
-        finalReasonCode: "OK",
-        models: [primaryModelId],
-        attemptUsages: [],
+        callCount: echoFixed.apiCalls,
+        stages: userStages,
+        finalStage: echoFixed.finalStage,
+        finalReasonCode: echoFixed.finalReasonCode,
+        models: userModels,
+        attemptUsages: userAttemptUsages,
         echoDroppedKeys: parsed.userEchoDroppedKeys,
-        repairMaxTokens: resolveRepairMaxTokens(userWidget, collectWidgetJsonKeys(userWidget)),
+        repairMaxTokens: userRepairMax,
         sharedCombinedInitial: true,
       };
     } else {
@@ -982,7 +1238,9 @@ export async function extractStatusWidgetValuesForTurn(opts: {
 
   const usedRepair =
     characterMeta?.stages.includes("repair") === true ||
-    userMeta?.stages.includes("repair") === true;
+    characterMeta?.stages.includes("volatile_echo_repair") === true ||
+    userMeta?.stages.includes("repair") === true ||
+    userMeta?.stages.includes("volatile_echo_repair") === true;
   const usedFallback =
     characterMeta?.stages.includes("fallback") === true ||
     userMeta?.stages.includes("fallback") === true;
