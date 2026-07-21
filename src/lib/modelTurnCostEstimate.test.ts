@@ -61,7 +61,7 @@ describe("modelTurnCostEstimate", () => {
       modelId: OPENROUTER_MUSE_SPARK_11_MODEL,
       inputTokens: 8000,
     });
-    assert.match(label, /^Muse Spark 1\.1 다음턴 예상 포인트 \d+P$/);
+    assert.match(label, /^Muse Spark 1\.1 예상 \d+P$/);
     assert.doesNotMatch(label, /토큰|입력|출력|할증/);
   });
 });

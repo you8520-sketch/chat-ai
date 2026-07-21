@@ -127,9 +127,9 @@ export function resolveModelPickerInputTokens(opts: {
   return Math.max(1, base + draft);
 }
 
-/** Compact cost phrase, e.g. "다음턴 예상 포인트 105P" */
+/** Compact cost phrase, e.g. "예상 105P" */
 export function formatModelPickerCostLabel(points: number): string {
-  return `다음턴 예상 포인트 ${points.toLocaleString("ko-KR")}P`;
+  return `예상 ${points.toLocaleString("ko-KR")}P`;
 }
 
 export function modelPickerOptionLabel(opts: {
