@@ -122,14 +122,17 @@ export default function SettingsClient({ user, unreadNotice = false }: Props) {
       </section>
 
       <section className={cn(studioSurface.card, "mt-6 p-5")}>
-        <h2 className={studioType.sectionTitle}>제작 · 크리에이터</h2>
-        <p className={cn(studioType.helper, "mt-1")}>캐릭터 제작과 수익·정산 페이지로 이동합니다.</p>
+        <h2 className={studioType.sectionTitle}>내 프로필 · 크리에이터</h2>
+        <p className={cn(studioType.helper, "mt-1")}>
+          채팅용 페르소나·유저노트와 크리에이터 페이지로 이동합니다. 캐릭터 제작은 하단 「제작」탭을
+          이용하세요.
+        </p>
         <div className="mt-3 flex flex-wrap gap-2">
           <Link
-            href="/studio"
+            href="/persona"
             className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-200 hover:bg-white/5"
           >
-            제작 스튜디오
+            페르소나 · 유저노트
           </Link>
           <Link
             href="/creator"
