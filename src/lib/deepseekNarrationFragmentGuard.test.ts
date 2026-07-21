@@ -107,6 +107,14 @@ describe("DeepSeek narration fragment guard (prompt snapshot)", () => {
     assert.match(DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA, /\[SHORT HISTORY\]/);
     assert.match(DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA, /not a response-length example/);
     assert.match(DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA, /roughly normal requested length/);
+    assert.match(
+      DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA,
+      /Sustain it through meaningful development, consequences, environment, character decisions/
+    );
+    assert.doesNotMatch(
+      DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA,
+      /Sustain it through meaningful dialogue/
+    );
     assert.doesNotMatch(DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA, /4,500/);
     assert.doesNotMatch(DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA, /MINIMUM_FLOOR \(2,700\+\)/);
     assert.doesNotMatch(DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA, /뜻이었다/);

@@ -62,7 +62,7 @@ export const DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA =
   "[SHORT HISTORY]\n" +
   "Recent assistant length is context, not a response-length example. " +
   "In this single response, develop a full scene of roughly normal requested length even with sparse history. " +
-  "Sustain it through meaningful dialogue, inner experience, relationships, atmosphere, and consequences rather than micro-action padding.";
+  "Sustain it through meaningful development, consequences, environment, character decisions, relationships, and necessary inner experience rather than micro-action padding.";
 
 /**
  * DeepSeek + regenerate only — diverge ≠ shorten.
