@@ -18,15 +18,15 @@ import { DEFAULT_TARGET_RESPONSE_CHARS } from "@/lib/responseLengthConstants";
 import { estimateTokens } from "@/lib/tokenEstimate";
 
 /**
- * @deprecated Prefer resolveModelPickerOutputTokens — kept for tests/compat.
- * Historical fixed baseline (underestimates current ~3200–4000 char RP turns).
+ * Cold-start / new-room output baseline when this chat has no usage receipts yet.
+ * Full aim (~2880 tok) overstates the picker for empty rooms; real turns still bill by actual length.
  */
 export const MODEL_PICKER_ESTIMATE_OUTPUT_TOKENS = 1500;
 
-/** When the chat has no prior usage receipt */
-export const MODEL_PICKER_DEFAULT_INPUT_TOKENS = 8000;
+/** When the chat has no prior usage receipt (typical new-room prompt, under 10k surcharge). */
+export const MODEL_PICKER_DEFAULT_INPUT_TOKENS = 4000;
 
-/** Recent same-model samples used for output median */
+/** Recent chat samples used for shared output median (all models in this room). */
 export const MODEL_PICKER_OUTPUT_SAMPLE_LIMIT = 5;
 
 const MIN_TURN = 5;
@@ -125,10 +125,6 @@ export type UsageLikeForEstimate = {
   selectedAI?: string;
 };
 
-function usageModelId(u: UsageLikeForEstimate): string {
-  return (u.selectedAI || u.model || "").trim();
-}
-
 function usageOutputTokens(u: UsageLikeForEstimate): number | null {
   const content = u.apiContentOutputTokens;
   if (typeof content === "number" && content > 0) return content;
@@ -149,10 +145,9 @@ export function resolveAimOutputTokens(targetResponseChars?: number): number {
 }
 
 /**
- * Output size for picker preview:
- * 1) median of recent same-model assistant output tokens (up to N)
- * 2) else aim chars → tokens (DEFAULT_TARGET_RESPONSE_CHARS / targetResponseChars)
- * Never falls back to the obsolete fixed 1500 baseline for live UI.
+ * Output size for picker preview (shared across models in this chat so equal rates → equal P):
+ * 1) no receipts yet → cold-start baseline (new room; not full 3200-char aim)
+ * 2) else median of recent assistant output tokens in this chat (any model, up to N), floored at aim
  */
 export function resolveModelPickerOutputTokens(opts: {
   modelId: string;
@@ -166,17 +161,16 @@ export function resolveModelPickerOutputTokens(opts: {
   for (let i = opts.recentUsages.length - 1; i >= 0 && samples.length < limit; i--) {
     const u = opts.recentUsages[i];
     if (!u) continue;
-    const mid = usageModelId(u);
-    if (!mid || mid !== opts.modelId) continue;
     const out = usageOutputTokens(u);
     if (out != null) samples.push(out);
   }
   const med = medianInt(samples);
   if (med != null && med > 0) {
-    // Prefer observed size, but never estimate below current aim (models often meet/exceed target).
+    // After real turns: price a typical full RP reply (aim floor).
     return Math.max(aim, med);
   }
-  return aim;
+  // New room / greeting-only: do not assume a full aim-length bill yet.
+  return MODEL_PICKER_ESTIMATE_OUTPUT_TOKENS;
 }
 
 /**

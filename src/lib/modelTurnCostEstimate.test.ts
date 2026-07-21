@@ -12,6 +12,7 @@ import { DEFAULT_TARGET_RESPONSE_CHARS } from "@/lib/responseLengthConstants";
 import { computeOpenRouterTurnCost } from "@/lib/points";
 import {
   estimateModelTurnPoints,
+  MODEL_PICKER_DEFAULT_INPUT_TOKENS,
   MODEL_PICKER_ESTIMATE_OUTPUT_TOKENS,
   modelPickerOptionLabel,
   resolveAimOutputTokens,
@@ -57,13 +58,31 @@ describe("modelTurnCostEstimate", () => {
     assert.equal(n, 9200 + 2);
   });
 
+  it("cold-start default input is below surcharge threshold", () => {
+    assert.ok(MODEL_PICKER_DEFAULT_INPUT_TOKENS < 10_000);
+    assert.equal(
+      resolveModelPickerInputTokens({ recentUsages: [] }),
+      MODEL_PICKER_DEFAULT_INPUT_TOKENS
+    );
+  });
+
   it("resolveAimOutputTokens tracks target response chars", () => {
     const aim = resolveAimOutputTokens(DEFAULT_TARGET_RESPONSE_CHARS);
     assert.equal(aim, Math.ceil(DEFAULT_TARGET_RESPONSE_CHARS * 0.9));
     assert.ok(aim > MODEL_PICKER_ESTIMATE_OUTPUT_TOKENS);
   });
 
-  it("resolveModelPickerOutputTokens uses same-model median and floors at aim", () => {
+  it("new room with no receipts uses cold-start output (not full aim)", () => {
+    const out = resolveModelPickerOutputTokens({
+      modelId: OPENROUTER_MUSE_SPARK_11_MODEL,
+      targetResponseChars: 3200,
+      recentUsages: [],
+    });
+    assert.equal(out, MODEL_PICKER_ESTIMATE_OUTPUT_TOKENS);
+    assert.ok(out < resolveAimOutputTokens(3200));
+  });
+
+  it("resolveModelPickerOutputTokens uses shared-room median and floors at aim", () => {
     const aim = resolveAimOutputTokens(3200);
     const out = resolveModelPickerOutputTokens({
       modelId: OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
@@ -83,24 +102,52 @@ describe("modelTurnCostEstimate", () => {
         },
       ],
     });
-    // median of 2000,4000 = 3000; max(aim≈2880, 3000) = 3000
-    assert.equal(out, Math.max(aim, 3000));
+    // shared median of 2000,4000,9999 = 4000; max(aim≈2880, 4000) = 4000
+    assert.equal(out, Math.max(aim, 4000));
   });
 
-  it("formats option label with aim-based points when no samples", () => {
+  it("Muse and Gemini show the same cold-start points at equal rates", () => {
+    const input = MODEL_PICKER_DEFAULT_INPUT_TOKENS;
+    const muse = modelPickerOptionLabel({
+      displayName: "Muse Spark 1.1",
+      modelId: OPENROUTER_MUSE_SPARK_11_MODEL,
+      inputTokens: input,
+      targetResponseChars: 3200,
+      recentUsages: [],
+    });
+    const gem = modelPickerOptionLabel({
+      displayName: "Gemini 2.5 Pro",
+      modelId: OPENROUTER_GEMINI_25_PRO_MODEL,
+      inputTokens: input,
+      targetResponseChars: 3200,
+      recentUsages: [],
+    });
+    const musePts = muse.match(/예상 ([\d,]+)P$/)?.[1];
+    const gemPts = gem.match(/예상 ([\d,]+)P$/)?.[1];
+    assert.equal(musePts, gemPts);
+    const expected = estimateModelTurnPoints({
+      modelId: OPENROUTER_MUSE_SPARK_11_MODEL,
+      inputTokens: input,
+      outputTokens: MODEL_PICKER_ESTIMATE_OUTPUT_TOKENS,
+    });
+    assert.equal(musePts, expected.toLocaleString("ko-KR"));
+    // Cold-start must be well below legacy full-aim ~173P
+    assert.ok(expected < 120);
+  });
+
+  it("formats option label with cold-start points when no samples", () => {
     const label = modelPickerOptionLabel({
       displayName: "Muse Spark 1.1",
       modelId: OPENROUTER_MUSE_SPARK_11_MODEL,
-      inputTokens: 8000,
+      inputTokens: MODEL_PICKER_DEFAULT_INPUT_TOKENS,
       targetResponseChars: 3200,
       recentUsages: [],
     });
     assert.match(label, /^Muse Spark 1\.1 예상 [\d,]+P$/);
-    const aim = resolveAimOutputTokens(3200);
     const expected = estimateModelTurnPoints({
       modelId: OPENROUTER_MUSE_SPARK_11_MODEL,
-      inputTokens: 8000,
-      outputTokens: aim,
+      inputTokens: MODEL_PICKER_DEFAULT_INPUT_TOKENS,
+      outputTokens: MODEL_PICKER_ESTIMATE_OUTPUT_TOKENS,
     });
     assert.ok(label.includes(expected.toLocaleString("ko-KR")));
     assert.doesNotMatch(label, /토큰|입력|출력|할증/);
