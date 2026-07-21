@@ -73,6 +73,10 @@ import {
   selectedAILabel,
   type SelectedAI,
 } from "@/lib/chatModels";
+import {
+  modelPickerOptionLabel,
+  resolveModelPickerInputTokens,
+} from "@/lib/modelTurnCostEstimate";
 import { formatAssistantLengthLabel } from "@/lib/responseLengthConstants";
 import {
   collapseStreamCompareText,
@@ -185,6 +189,14 @@ function selectedAIShortLabel(id: SelectedAI): string {
   const opt = SELECTED_AI_OPTIONS.find((o) => o.id === id);
   if (!opt) return selectedAILabel(id);
   return opt.label;
+}
+
+function selectedAIOptionLabel(id: SelectedAI, inputTokens: number): string {
+  return modelPickerOptionLabel({
+    displayName: selectedAIShortLabel(id),
+    modelId: id,
+    inputTokens,
+  });
 }
 
 export type { Usage };
@@ -1117,6 +1129,18 @@ export default function ChatClient({
   }, [messages, lastAssistantIdx]);
 
   const inputLocked = loading || lastTurnInFlight;
+
+  /** Model picker — last turn API prompt size (+ draft) for ~cost preview */
+  const modelPickerInputTokens = useMemo(
+    () =>
+      resolveModelPickerInputTokens({
+        recentUsages: messages.map((m) =>
+          resolveActiveUsage(m.usage, m.variants, m.activeVariant)
+        ),
+        draftInput: input,
+      }),
+    [messages, input]
+  );
 
   const clientMaxMessageId = useMemo(
     () => messages.reduce((max, m) => (m.id != null && m.id > max ? m.id : max), 0),
@@ -3892,7 +3916,7 @@ export default function ChatClient({
             >
               {USER_SELECTABLE_AI_OPTIONS.map((o) => (
                 <option key={o.id} value={o.id}>
-                  {selectedAIShortLabel(o.id)}
+                  {selectedAIOptionLabel(o.id, modelPickerInputTokens)}
                 </option>
               ))}
             </select>
