@@ -13,13 +13,20 @@ import {
   isQwenModel,
   type SelectedAI,
 } from "@/lib/chatModels";
+import { DEFAULT_TARGET_RESPONSE_CHARS } from "@/lib/responseLengthConstants";
 import { estimateTokens } from "@/lib/tokenEstimate";
 
-/** Preview output size — user-facing baseline for model comparison */
+/**
+ * @deprecated Prefer resolveModelPickerOutputTokens — kept for tests/compat.
+ * Historical fixed baseline (underestimates current ~3200–4000 char RP turns).
+ */
 export const MODEL_PICKER_ESTIMATE_OUTPUT_TOKENS = 1500;
 
 /** When the chat has no prior usage receipt */
 export const MODEL_PICKER_DEFAULT_INPUT_TOKENS = 8000;
+
+/** Recent same-model samples used for output median */
+export const MODEL_PICKER_OUTPUT_SAMPLE_LIMIT = 5;
 
 const MIN_TURN = 5;
 const INPUT_SURCHARGE_THRESHOLD = 10_000;
@@ -59,6 +66,14 @@ function resolveOutputTokenRate(modelId: string): number | null {
   return null;
 }
 
+function medianInt(values: number[]): number | null {
+  if (!values.length) return null;
+  const s = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  if (s.length % 2) return s[mid]!;
+  return Math.round((s[mid - 1]! + s[mid]!) / 2);
+}
+
 /**
  * Expected points for one RP turn at the given input/output token sizes.
  * Aligns with computeOpenRouterTurnCost token-floor path for selectable models.
@@ -73,7 +88,7 @@ export function estimateModelTurnPoints(opts: {
   const inputTokens = Math.max(0, Math.round(opts.inputTokens));
   const outputTokens = Math.max(
     0,
-    Math.round(opts.outputTokens ?? MODEL_PICKER_ESTIMATE_OUTPUT_TOKENS)
+    Math.round(opts.outputTokens ?? resolveAimOutputTokens())
   );
   const surcharge = inputSurchargePoints(inputTokens);
 
@@ -97,7 +112,64 @@ export type UsageLikeForEstimate = {
   apiContentOutputTokens?: number;
   apiOutputTokens?: number;
   output?: number;
+  /** Message/provider model id when known — used for per-model output median */
+  model?: string;
+  selectedAI?: string;
 };
+
+function usageModelId(u: UsageLikeForEstimate): string {
+  return (u.selectedAI || u.model || "").trim();
+}
+
+function usageOutputTokens(u: UsageLikeForEstimate): number | null {
+  const content = u.apiContentOutputTokens;
+  if (typeof content === "number" && content > 0) return content;
+  const apiOut = u.apiOutputTokens;
+  if (typeof apiOut === "number" && apiOut > 0) return apiOut;
+  const out = u.output;
+  if (typeof out === "number" && out > 0) return out;
+  return null;
+}
+
+export function resolveAimOutputTokens(targetResponseChars?: number): number {
+  const chars =
+    typeof targetResponseChars === "number" && targetResponseChars > 0
+      ? targetResponseChars
+      : DEFAULT_TARGET_RESPONSE_CHARS;
+  // Same ratio as estimateTokens(text) without building a giant string.
+  return Math.max(1, Math.ceil(chars * 0.9));
+}
+
+/**
+ * Output size for picker preview:
+ * 1) median of recent same-model assistant output tokens (up to N)
+ * 2) else aim chars → tokens (DEFAULT_TARGET_RESPONSE_CHARS / targetResponseChars)
+ * Never falls back to the obsolete fixed 1500 baseline for live UI.
+ */
+export function resolveModelPickerOutputTokens(opts: {
+  modelId: string;
+  recentUsages: Array<UsageLikeForEstimate | null | undefined>;
+  targetResponseChars?: number;
+  sampleLimit?: number;
+}): number {
+  const aim = resolveAimOutputTokens(opts.targetResponseChars);
+  const limit = opts.sampleLimit ?? MODEL_PICKER_OUTPUT_SAMPLE_LIMIT;
+  const samples: number[] = [];
+  for (let i = opts.recentUsages.length - 1; i >= 0 && samples.length < limit; i--) {
+    const u = opts.recentUsages[i];
+    if (!u) continue;
+    const mid = usageModelId(u);
+    if (!mid || mid !== opts.modelId) continue;
+    const out = usageOutputTokens(u);
+    if (out != null) samples.push(out);
+  }
+  const med = medianInt(samples);
+  if (med != null && med > 0) {
+    // Prefer observed size, but never estimate below current aim (models often meet/exceed target).
+    return Math.max(aim, med);
+  }
+  return aim;
+}
 
 /**
  * Best available prompt-size proxy for the next turn:
@@ -137,11 +209,20 @@ export function modelPickerOptionLabel(opts: {
   modelId: SelectedAI | string;
   inputTokens: number;
   outputTokens?: number;
+  recentUsages?: Array<UsageLikeForEstimate | null | undefined>;
+  targetResponseChars?: number;
 }): string {
+  const outputTokens =
+    opts.outputTokens ??
+    resolveModelPickerOutputTokens({
+      modelId: String(opts.modelId),
+      recentUsages: opts.recentUsages ?? [],
+      targetResponseChars: opts.targetResponseChars,
+    });
   const points = estimateModelTurnPoints({
     modelId: opts.modelId,
     inputTokens: opts.inputTokens,
-    outputTokens: opts.outputTokens ?? MODEL_PICKER_ESTIMATE_OUTPUT_TOKENS,
+    outputTokens,
   });
   return `${opts.displayName} ${formatModelPickerCostLabel(points)}`;
 }

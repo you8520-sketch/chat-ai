@@ -1,6 +1,6 @@
 import { getDb } from "@/lib/db";
 import { registerCharacterChatUser } from "@/lib/characterEngagementStats";
-import { DEFAULT_SELECTED_AI, resolveSelectedAI } from "@/lib/chatModels";
+import { getUserSelectedAI } from "@/lib/userSelectedAI";
 import {
   DEFAULT_TARGET_RESPONSE_CHARS,
   normalizeTargetResponseChars,
@@ -12,7 +12,6 @@ export type CreateChatSessionInput = {
   characterId: number;
   greeting?: string;
   mode?: "safe" | "nsfw";
-  selectedAI?: string;
   userNote?: string;
   selectedPersonaId?: number | null;
   targetResponseChars?: number;
@@ -21,7 +20,8 @@ export type CreateChatSessionInput = {
 /** 새 채팅방 생성 + 첫 메시지(greeting) 삽입 */
 export function createChatSession(input: CreateChatSessionInput): number {
   const db = getDb();
-  const selectedAI = resolveSelectedAI(input.selectedAI, DEFAULT_SELECTED_AI);
+  /** 전역 선택 미러 — 라우팅은 users.selected_ai */
+  const selectedAI = getUserSelectedAI(db, input.userId);
   const mode = input.mode ?? "safe";
   const targetResponseChars = normalizeTargetResponseChars(
     input.targetResponseChars ?? DEFAULT_TARGET_RESPONSE_CHARS

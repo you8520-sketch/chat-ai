@@ -77,7 +77,7 @@ export async function POST(req: Request) {
         source.memory_meta ?? "{}",
         0,
         "",
-        source.gemini_model ?? "",
+        "",
         source.user_note ?? "",
         source.selected_persona_id ?? null,
         source.user_impersonation ?? 0,
