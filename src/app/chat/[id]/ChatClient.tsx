@@ -1157,6 +1157,15 @@ export default function ChatClient({
     [personas, selectedPersonaId]
   );
 
+  const statusWidgetProfileNames = useMemo(
+    () => ({
+      characterName: character.name,
+      personaName: activePersonaName,
+      fallbackNickname: nickname,
+    }),
+    [character.name, activePersonaName, nickname]
+  );
+
 
   useEffect(() => {
     const scope = `${character.id}:${chatId ?? "pending"}`;
@@ -3710,6 +3719,7 @@ export default function ChatClient({
                           items={widgetItems}
                           draft={editWidgetDraft}
                           onChange={setEditWidgetDraft}
+                          profileNames={statusWidgetProfileNames}
                         />
                       );
                     })()}
@@ -3804,7 +3814,8 @@ export default function ChatClient({
                               orderedWidgetsForRender(
                                 statusWidgetTurn,
                                 m.statusWidgetValues ?? {}
-                              )
+                              ),
+                              statusWidgetProfileNames
                             )
                           : [];
                       const widgetsTop = widgetRendered.filter((w) => w.widget.placement === "top");

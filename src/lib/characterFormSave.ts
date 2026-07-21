@@ -101,19 +101,22 @@ export type ParsedCharacterForm = {
 };
 
 function parseAssetsFromFormBody(rawAssets: unknown): CharacterAsset[] {
-  return Array.isArray(rawAssets)
+  const parsed = Array.isArray(rawAssets)
     ? rawAssets
         .filter((a: unknown) => a && typeof a === "object" && "url" in (a as object) && "tag" in (a as object))
-        .map((a: { url: string; tag: string; public?: boolean; chat?: boolean; viewerBlur?: boolean }) => ({
+        .map((a: { url: string; tag: string; public?: boolean; chat?: boolean; viewerBlur?: boolean }, index: number) => ({
           url: String(a.url),
           tag: String(a.tag).slice(0, 32),
           public: true,
           chat: true,
-          viewerBlur: a.viewerBlur === true,
+          // 1번 대표 이미지는 항상 공개
+          viewerBlur: index === 0 ? false : a.viewerBlur === true,
         }))
         .filter((a: CharacterAsset) => a.url.startsWith("/uploads/") || a.url.startsWith("http"))
         .slice(0, 100)
     : [];
+  if (parsed[0]) parsed[0] = { ...parsed[0], viewerBlur: false };
+  return parsed;
 }
 
 export function parseCharacterFormBody(

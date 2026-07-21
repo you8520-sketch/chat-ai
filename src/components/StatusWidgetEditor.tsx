@@ -14,7 +14,10 @@ import {
   uniqueStatusValueKey,
 } from "@/lib/statusWidget/fieldKeys";
 import { buildStatusWidgetEditorPreviewValues } from "@/lib/statusWidget/editorPreview";
-import { renderStatusWidgetHtml } from "@/lib/statusWidget/render";
+import {
+  renderStatusWidgetHtml,
+  type StatusWidgetProfileNames,
+} from "@/lib/statusWidget/render";
 import {
   estimateStatusWidgetContextChars,
   formatWidgetBudgetHint,
@@ -41,6 +44,8 @@ type Props = {
   value: StatusWidget;
   onChange: (widget: StatusWidget) => void;
   disabled?: boolean;
+  /** 미리보기용 {{char}}/{{user}} 치환 (없으면 캐릭터/유저) */
+  profileNames?: StatusWidgetProfileNames | null;
 };
 
 function cloneWidget(w: StatusWidget): StatusWidget {
@@ -54,6 +59,7 @@ export default function StatusWidgetEditor({
   value,
   onChange,
   disabled,
+  profileNames,
 }: Props) {
   const [templateChoice, setTemplateChoice] = useState<TemplateChoice>(() => {
     const hit = (
@@ -75,9 +81,10 @@ export default function StatusWidgetEditor({
     () =>
       renderStatusWidgetHtml(
         value,
-        buildStatusWidgetEditorPreviewValues(value),
+        buildStatusWidgetEditorPreviewValues(value, profileNames),
+        profileNames,
       ),
-    [value],
+    [value, profileNames],
   );
 
   const usableKeys = useMemo(

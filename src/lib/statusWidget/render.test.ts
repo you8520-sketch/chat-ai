@@ -41,3 +41,43 @@ describe("renderStatusWidgetHtml previewValue fallback", () => {
     assert.doesNotMatch(html, /카페/);
   });
 });
+
+describe("renderStatusWidgetHtml {{char}}/{{user}}", () => {
+  it("expands profile placeholders in HTML template after field values", () => {
+    const widget: StatusWidget = {
+      ...DEFAULT_STATUS_WIDGET,
+      htmlTemplate:
+        `<div><b>{{char}}</b>/<i>{{user}}</i>{{속마음}}</div>`,
+      fields: [
+        { id: "속마음", label: "{{char}} 속마음", instruction: "{{char}}의 속마음" },
+      ],
+    };
+    const html = renderStatusWidgetHtml(
+      widget,
+      { 속마음: "두근거린다" },
+      { characterName: "라이크", personaName: "렌" }
+    );
+    assert.match(html, /라이크/);
+    assert.match(html, /렌/);
+    assert.match(html, /두근거린다/);
+    assert.doesNotMatch(html, /\{\{char\}\}/i);
+    assert.doesNotMatch(html, /\{\{user\}\}/i);
+    assert.doesNotMatch(html, /\bNPC\b/);
+    assert.doesNotMatch(html, /\bPC\b/);
+  });
+
+  it("coalesces bare NPC/PC field values to real names", () => {
+    const widget: StatusWidget = {
+      ...DEFAULT_STATUS_WIDGET,
+      htmlTemplate: `<div>{{이름}}</div>`,
+      fields: [{ id: "이름", label: "이름", instruction: "{{char}} 이름" }],
+    };
+    const html = renderStatusWidgetHtml(
+      widget,
+      { 이름: "NPC" },
+      { characterName: "라이크", personaName: "렌" }
+    );
+    assert.match(html, /라이크/);
+    assert.doesNotMatch(html, /\bNPC\b/);
+  });
+});

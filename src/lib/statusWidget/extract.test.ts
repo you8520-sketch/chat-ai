@@ -154,8 +154,11 @@ describe("statusWidget extract", () => {
     );
     // Instruction-first: NPC 지시 → CHARACTER, 유저 지시 → USER
     assert.match(system, /instruction states WHOSE inner state to write — obey it exactly/);
-    assert.match(system, /NPC의 속마음[\s\S]*write \[CHARACTER\]'s inner state/);
-    assert.match(system, /유저의 속마음[\s\S]*write \[USER\]'s/);
+    assert.match(system, /\{\{char\}\}의 속마음[\s\S]*write \[CHARACTER\]'s inner state/);
+    assert.match(system, /NPC의 속마음/);
+    assert.match(system, /\{\{user\}\}의 속마음[\s\S]*write \[USER\]'s/);
+    assert.match(system, /유저의 속마음/);
+    assert.match(system, /never output the literals "NPC", "PC"/);
     // Source is only the default when the instruction names no one
     assert.match(system, /does not name anyone, default to \[CHARACTER\] \(the NPC\)/);
     assert.match(system, /Never substitute the other person's feelings/);

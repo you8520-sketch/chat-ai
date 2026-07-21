@@ -14,7 +14,7 @@ import LikeFollowButtons from "@/components/LikeFollowButtons";
 import CreatorGiftPanel, { ACTION_ROW_BUTTON_CLASS } from "@/components/CreatorGiftPanel";
 
 import CharacterPublicPagePreview from "@/components/CharacterPublicPagePreview";
-import { parseAssets } from "@/lib/characterAssets";
+import { getCharacterRepresentativeImageUrl, parseAssets } from "@/lib/characterAssets";
 import ShareLinkBox from "@/components/ShareLinkBox";
 import CharacterStartRow from "@/components/CharacterStartRow";
 import ProfileCommentSection from "@/components/ProfileCommentSection";
@@ -117,6 +117,10 @@ export default async function CharacterPage({
     galleryAssets.length > 0
       ? galleryAssets.map((a) => a.url)
       : images;
+  const representativeImageUrl =
+    getCharacterRepresentativeImageUrl((c as { assets?: string }).assets, c.images) ??
+    images[0] ??
+    "";
 
   if (c.nsfw === 1 && !user.is_adult) {
     redirect(`/verify?redirect=${encodeURIComponent(`/character/${id}`)}`);
@@ -168,7 +172,7 @@ export default async function CharacterPage({
           tagline={tagline}
           tags={tags}
           description={description}
-          cardImageUrl={images[0] ?? ""}
+          cardImageUrl={representativeImageUrl}
           galleryAssets={galleryAssets.length > 0 ? galleryAssets : undefined}
           assetImageUrls={assetImageUrls}
           viewerIsCreator={isOwner}
@@ -253,7 +257,7 @@ export default async function CharacterPage({
         tagline={tagline}
         tags={tags}
         description={description}
-        cardImageUrl={images[0] ?? ""}
+        cardImageUrl={representativeImageUrl}
         galleryAssets={galleryAssets.length > 0 ? galleryAssets : undefined}
         assetImageUrls={assetImageUrls}
         viewerIsCreator={isOwner}

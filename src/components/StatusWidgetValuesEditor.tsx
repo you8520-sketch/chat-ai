@@ -3,7 +3,10 @@
 import { useMemo } from "react";
 import StatusWidgetCard from "@/components/StatusWidgetCard";
 import { fieldPlaceholderKey } from "@/lib/statusWidget/fieldKeys";
-import { renderStatusWidgetHtml } from "@/lib/statusWidget/render";
+import {
+  renderStatusWidgetHtml,
+  type StatusWidgetProfileNames,
+} from "@/lib/statusWidget/render";
 import type {
   ParsedStatusWidgetTurnValues,
   StatusWidget,
@@ -47,18 +50,24 @@ type Props = {
   items: WidgetEditItem[];
   draft: ParsedStatusWidgetTurnValues;
   onChange: (next: ParsedStatusWidgetTurnValues) => void;
+  profileNames?: StatusWidgetProfileNames | null;
 };
 
 /** 상태창 위젯 — HTML이 아니라 카드 형태로, 라벨(이름)은 고정·값만 수정 */
-export default function StatusWidgetValuesEditor({ items, draft, onChange }: Props) {
+export default function StatusWidgetValuesEditor({
+  items,
+  draft,
+  onChange,
+  profileNames,
+}: Props) {
   const previews = useMemo(
     () =>
       items.map(({ source, widget, values }) => ({
         source,
-        html: renderStatusWidgetHtml(widget, values),
+        html: renderStatusWidgetHtml(widget, values, profileNames),
         name: widget.name?.trim() || (source === "user" ? "유저 상태창" : "상태창"),
       })),
-    [items]
+    [items, profileNames]
   );
 
   if (items.length === 0) return null;

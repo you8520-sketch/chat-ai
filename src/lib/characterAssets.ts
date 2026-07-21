@@ -26,15 +26,24 @@ export const EMOTION_TAGS = [
 ] as const;
 
 function normalizeAsset(raw: Partial<CharacterAsset>, index: number): CharacterAsset {
+  const storedBlur =
+    typeof raw.viewerBlur === "boolean" ? raw.viewerBlur : index === 0 ? false : true;
   return {
     url: String(raw.url),
     tag: String(raw.tag),
     // 업로드한 에셋은 모두 소개·대화 풀에 포함. UI에서 고르는 것은 가림(viewerBlur)뿐.
     public: true,
     chat: true,
-    viewerBlur:
-      typeof raw.viewerBlur === "boolean" ? raw.viewerBlur : index === 0 ? false : true,
+    // 1번(대표) 에셋은 항상 공개 — 저장값이 true여도 강제 해제
+    viewerBlur: index === 0 ? false : storedBlur,
   };
+}
+
+/** 대표(인덱스 0)는 항상 비가림. 순서 변경·저장 직후 호출 */
+export function withRepresentativeAssetPublic(assets: CharacterAsset[]): CharacterAsset[] {
+  if (assets.length === 0) return assets;
+  if (assets[0].viewerBlur !== true) return assets;
+  return assets.map((a, i) => (i === 0 ? { ...a, viewerBlur: false } : a));
 }
 
 export function parseAssets(raw: string | null | undefined): CharacterAsset[] {

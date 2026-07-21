@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import CharacterAssetImage from "@/components/CharacterAssetImage";
 import type { CharacterAsset } from "@/lib/characterAssets";
+import { withRepresentativeAssetPublic } from "@/lib/characterAssets";
 import { cn, studioType } from "@/lib/studioDesign";
 
 export type ManagedAsset = CharacterAsset;
@@ -32,12 +33,15 @@ export default function AssetManagerGrid({ assets, onChange, onRemove }: Props) 
     const next = [...assets];
     const [item] = next.splice(from, 1);
     next.splice(to, 0, item);
-    onChange(next);
+    onChange(withRepresentativeAssetPublic(next));
   }
 
   function toggleViewerBlur(index: number) {
+    if (index === 0) return; // 대표(1번)는 항상 공개
     onChange(
-      assets.map((a, i) => (i === index ? { ...a, viewerBlur: !a.viewerBlur } : a)),
+      withRepresentativeAssetPublic(
+        assets.map((a, i) => (i === index ? { ...a, viewerBlur: !a.viewerBlur } : a)),
+      ),
     );
   }
 
@@ -139,19 +143,24 @@ export default function AssetManagerGrid({ assets, onChange, onRemove }: Props) 
             <button
               type="button"
               onClick={() => toggleViewerBlur(i)}
+              disabled={i === 0}
               title={
-                a.viewerBlur
-                  ? "타 유저 가림 해제 (누구나 선명하게)"
-                  : "타 유저에게 블러 가림 (제작자는 선명)"
+                i === 0
+                  ? "대표(1번) 이미지는 항상 공개입니다"
+                  : a.viewerBlur
+                    ? "타 유저 가림 해제 (누구나 선명하게)"
+                    : "타 유저에게 블러 가림 (제작자는 선명)"
               }
               className={cn(
                 "min-h-11 w-full border-t border-white/10 text-xs font-semibold transition",
-                a.viewerBlur
-                  ? "bg-amber-600/30 text-amber-100"
-                  : "bg-black/40 text-zinc-500 hover:text-zinc-300",
+                i === 0
+                  ? "cursor-not-allowed bg-black/25 text-zinc-600"
+                  : a.viewerBlur
+                    ? "bg-amber-600/30 text-amber-100"
+                    : "bg-black/40 text-zinc-500 hover:text-zinc-300",
               )}
             >
-              가리기{a.viewerBlur ? " ON" : ""}
+              {i === 0 ? "대표 · 공개" : `가리기${a.viewerBlur ? " ON" : ""}`}
             </button>
             <button
               type="button"

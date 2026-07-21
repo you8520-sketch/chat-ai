@@ -1448,6 +1448,10 @@ export default function CreateCharacter({
                 value={statusWidget}
                 onChange={setStatusWidget}
                 disabled={loading}
+                profileNames={{
+                  characterName: form.name.trim() || "캐릭터",
+                  personaName: "유저",
+                }}
               />
               <StatusWidgetTriggerEditor
                 value={statusWidgetTriggers}

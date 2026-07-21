@@ -33,7 +33,9 @@ function AssetGalleryStrip({
     <div className="mt-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:thin]">
       <div className="flex w-max gap-2">
         {assets.map((asset, i) => {
-          const blurred = shouldBlurAssetForViewer(asset, viewerIsCreator, unlockedUrls);
+          // 1번 대표 이미지는 항상 공개
+          const blurred =
+            i !== 0 && shouldBlurAssetForViewer(asset, viewerIsCreator, unlockedUrls);
           return (
             <div
               key={`${asset.url}-${i}`}
@@ -129,25 +131,29 @@ export default function CharacterPublicPagePreview({
   }, [characterId, viewerIsCreator]);
 
   const turnCount = totalTurns > 0 ? totalTurns : chats;
-  const primary = cardImageUrl.trim();
   const displayName = name.trim() || "캐릭터 이름";
   const tagList = tags.map((t) => t.trim()).filter(Boolean);
   const resolvedGallery: CharacterAsset[] =
     galleryAssets.length > 0
-      ? galleryAssets
+      ? galleryAssets.map((a, i) => (i === 0 ? { ...a, viewerBlur: false } : a))
       : assetImageUrls.filter(Boolean).map((url, i) => ({
           url,
           tag: String(i + 1),
           viewerBlur: false,
         }));
   const imageCount = resolvedGallery.length;
-  const primaryAsset = resolvedGallery.find((a) => a.url === primary);
-  const primaryBlur = shouldBlurAssetForViewer(primaryAsset, viewerIsCreator, unlockedUrls);
+  // 대표(갤러리 1번) 우선 — 카드 URL이 없거나 어긋나도 메인 이미지는 항상 공개
+  const primary = (cardImageUrl.trim() || resolvedGallery[0]?.url || "").trim();
+  const primaryAsset = resolvedGallery.find((a) => a.url === primary) ?? resolvedGallery[0];
+  const primaryBlur =
+    primaryAsset !== resolvedGallery[0] &&
+    shouldBlurAssetForViewer(primaryAsset, viewerIsCreator, unlockedUrls);
 
   const viewableGallery = useMemo(
     () =>
       resolvedGallery.filter(
-        (asset) => !shouldBlurAssetForViewer(asset, viewerIsCreator, unlockedUrls)
+        (asset, index) =>
+          index === 0 || !shouldBlurAssetForViewer(asset, viewerIsCreator, unlockedUrls)
       ),
     [resolvedGallery, viewerIsCreator, unlockedUrls]
   );

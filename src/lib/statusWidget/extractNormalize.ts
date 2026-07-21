@@ -1,4 +1,5 @@
 import { fieldPlaceholderKey } from "./fieldKeys";
+import { expandStatusWidgetProfilePlaceholders } from "./placeholders";
 import { collectWidgetJsonKeys } from "./prompt";
 import { EXTRACTED_FACTS_STATUS_VALUES_INSTRUCTIONS } from "./prompt";
 import { allocateWidgetExtractNarrativeSlices } from "./proseStrip";
@@ -15,6 +16,36 @@ import type {
   StatusWidgetField,
   StatusWidgetValues,
 } from "./types";
+
+function expandFieldText(
+  text: string,
+  charName: string,
+  personaName: string
+): string {
+  return expandStatusWidgetProfilePlaceholders(text, {
+    characterName: charName,
+    personaName,
+  });
+}
+
+function formatWidgetFieldsForExtract(
+  widget: StatusWidget,
+  charName: string,
+  personaName: string
+): string {
+  return widget.fields
+    .map((f) => {
+      const label = expandFieldText(f.label, charName, personaName);
+      const instruction = expandFieldText(f.instruction, charName, personaName);
+      const base = `- ${fieldPlaceholderKey(f)} (${label}): ${instruction}`;
+      const initial = f.initialValue?.trim();
+      const expandedInitial = initial
+        ? expandFieldText(initial, charName, personaName)
+        : "";
+      return expandedInitial ? `${base}\n  initialValue: ${expandedInitial}` : base;
+    })
+    .join("\n");
+}
 
 function isWidgetPlaceholderValue(value: string): boolean {
   const t = value.trim();
@@ -137,7 +168,7 @@ Rules:
 - Calendar, clock, season, and weather fields require concrete values. Never output —, unknown, 알 수 없음, 미상, 모름, or N/A. When no explicit value exists, use initialValue, a valid previous anchor, or invent one scene-consistent concrete value.
 - For location/place fields: update when the scene moves; use the location of the LAST scene.
 - Use "—" only when there is truly no usable basis for that field (calendar/clock fields: follow the chain above).
-- Inner-state fields (속마음, 의식의 흐름, 감정, 표정, thoughts, inner monologue): each field's [WIDGET FIELDS] instruction states WHOSE inner state to write — obey it exactly. If the instruction says the NPC's ("NPC의 속마음" etc.), write [CHARACTER]'s inner state; if it says the user's ("유저의 속마음" etc.), write [USER]'s. If the instruction does not name anyone, default to ${defaultSubject}.
+- Inner-state fields (속마음, 의식의 흐름, 감정, 표정, thoughts, inner monologue): each field's [WIDGET FIELDS] instruction states WHOSE inner state to write — obey it exactly. If the instruction says the character's ("{{char}}의 속마음", "NPC의 속마음" etc.), write [CHARACTER]'s inner state; if it says the user's ("{{user}}의 속마음", "유저의 속마음" etc.), write [USER]'s. {{char}} means [CHARACTER]'s display name and {{user}} means [USER]'s display name — never output the literals "NPC", "PC", "{{char}}", or "{{user}}" as a name or value when a real name is known. If the instruction does not name anyone, default to ${defaultSubject}.
   Never substitute the other person's feelings for the required person's. If the turn's prose is written from the OTHER person's point of view and the required person does not appear on-page, do NOT copy the narrator's feelings — actively infer the required person's OWN separate reaction to what happened to THEM this turn, from their last known state.
   Example — field instruction asks for [CHARACTER]'s inner state, but the turn narrates [USER] anxiously rushing to rescue [CHARACTER] who was just sent to a dangerous frontier:
   ✗ WRONG: "그가 위험에 처했다는 소식에 불안하다. 반드시 구하러 가야 한다" (this is [USER]'s worry, mislabeled as [CHARACTER]'s)
@@ -173,13 +204,7 @@ export function buildWidgetExtractUserBlock(opts: {
   return [
     formatPreviousTurnWidgetValues(opts.previousValues, opts.source, opts.widget),
     `[WIDGET FIELDS]`,
-    opts.widget.fields
-      .map((f) => {
-        const base = `- ${fieldPlaceholderKey(f)} (${f.label}): ${f.instruction}`;
-        const initial = f.initialValue?.trim();
-        return initial ? `${base}\n  initialValue: ${initial}` : base;
-      })
-      .join("\n"),
+    formatWidgetFieldsForExtract(opts.widget, opts.charName, opts.personaName),
     `[CHARACTER] ${opts.charName}`,
     ...formatStatusWidgetCharacterContextBlocks({
       characterIdentity: opts.characterIdentity,
@@ -360,8 +385,8 @@ export function defaultSubjectForRepairField(
   source: "character" | "user"
 ): "character" | "user" {
   const instr = field.instruction;
-  if (/NPC의|캐릭터의|\[CHARACTER\]/i.test(instr)) return "character";
-  if (/유저의|\[USER\]/i.test(instr)) return "user";
+  if (/\{\{\s*char\s*\}\}|NPC의|캐릭터의|\[CHARACTER\]/i.test(instr)) return "character";
+  if (/\{\{\s*user\s*\}\}|유저의|PC의|플레이어의|\[USER\]/i.test(instr)) return "user";
   return source;
 }
 
@@ -486,7 +511,7 @@ Calendar/clock/season/weather must be concrete values — never unknown/알 수 
 Do not add extra keys.
 
 Return final scene values, not field instructions.
-Never copy a field label, instruction, initial-value description, "NPC의 속마음", or "유저의 속마음" as the value.
+Never copy a field label, instruction, initial-value description, "NPC의 속마음", "유저의 속마음", "{{char}}", "{{user}}", "NPC", or "PC" as the value when a real [CHARACTER]/[USER] name is available.
 Never copy [CHARACTER CRITICAL CONTEXT] wording into field values.
 
 Inner-state fields: each field's instruction states WHOSE inner state to write — obey it exactly.
@@ -526,13 +551,18 @@ export function formatPreviousCanonicalWidgetValuesForRepair(
 
 function formatWidgetFieldContract(
   widget: StatusWidget,
-  source: "character" | "user"
+  source: "character" | "user",
+  charName = "",
+  personaName = ""
 ): string {
   const blocks = widget.fields.map((field) => {
     const key = fieldPlaceholderKey(field);
-    const lines = [`- key: ${key}`, `  instruction: ${field.instruction.trim()}`];
+    const instruction = expandFieldText(field.instruction.trim(), charName, personaName);
+    const lines = [`- key: ${key}`, `  instruction: ${instruction}`];
     const initial = field.initialValue?.trim();
-    if (initial) lines.push(`  initialValue: ${initial}`);
+    if (initial) {
+      lines.push(`  initialValue: ${expandFieldText(initial, charName, personaName)}`);
+    }
     if (looksLikeInnerStateField(field)) {
       lines.push(`  defaultSubject: ${defaultSubjectForRepairField(field, source)}`);
     }
@@ -569,7 +599,7 @@ export function buildWidgetExtractRepairUserBlock(opts: {
       characterCriticalContext: opts.characterCriticalContext,
     }),
     `[USER]\n${opts.personaName}`,
-    formatWidgetFieldContract(opts.widget, opts.source),
+    formatWidgetFieldContract(opts.widget, opts.source, opts.charName, opts.personaName),
     formatPreviousCanonicalWidgetValuesForRepair(opts.previousValues, opts.widget),
     `[CURRENT USER MESSAGE]\n${userMessage}`,
     `[ASSISTANT RP — FINAL SCENE PRIORITY]\n${prose || "(empty)"}`,
@@ -648,20 +678,11 @@ export function buildCombinedDualWidgetExtractUserBlock(opts: {
     opts.assistantProse,
     opts.previousAssistantProse
   );
-  const formatFields = (widget: StatusWidget) =>
-    widget.fields
-      .map((f) => {
-        const base = `- ${fieldPlaceholderKey(f)} (${f.label}): ${f.instruction}`;
-        const initial = f.initialValue?.trim();
-        return initial ? `${base}\n  initialValue: ${initial}` : base;
-      })
-      .join("\n");
-
   return [
     formatPreviousTurnWidgetValues(opts.previousCharacterValues, "character", opts.characterWidget),
     formatPreviousTurnWidgetValues(opts.previousUserValues, "user", opts.userWidget),
-    `[CHARACTER WIDGET FIELDS]\n${formatFields(opts.characterWidget)}`,
-    `[USER WIDGET FIELDS]\n${formatFields(opts.userWidget)}`,
+    `[CHARACTER WIDGET FIELDS]\n${formatWidgetFieldsForExtract(opts.characterWidget, opts.charName, opts.personaName)}`,
+    `[USER WIDGET FIELDS]\n${formatWidgetFieldsForExtract(opts.userWidget, opts.charName, opts.personaName)}`,
     `[CHARACTER] ${opts.charName}`,
     ...formatStatusWidgetCharacterContextBlocks({
       characterIdentity: opts.characterIdentity,
