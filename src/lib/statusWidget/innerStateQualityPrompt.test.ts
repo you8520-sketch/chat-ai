@@ -33,7 +33,10 @@ function countOccurrences(haystack: string, needle: string): number {
 describe("inner-state quality prompt policy", () => {
   it("A. prefers current-turn judgment/question/intent delta over same-axis restatement", () => {
     const system = buildWidgetExtractSystem(DEFAULT_STATUS_WIDGET, KEYS, "character");
-    assert.match(system, /current-turn change in judgment, emotion, question, or intent/);
+    assert.match(
+      system,
+      /current-turn change in judgment, emotion, question, conflict, decision, or intent/
+    );
     assert.match(system, /avoid repeatedly restating the same conclusion/);
     assert.equal(system.includes(INNER_STATE_QUALITY_EN), true);
   });
@@ -54,7 +57,7 @@ describe("inner-state quality prompt policy", () => {
     }
   });
 
-  it("C. subject-start repetition is soft anti-pattern on system only, not hard ban", () => {
+  it("C. subject-label opener soft anti-pattern — prefer direct thought, no blacklist", () => {
     const system = buildWidgetExtractSystem(DEFAULT_STATUS_WIDGET, KEYS, "character");
     const reminder = buildWidgetExtractUserBlock({
       charName: "라이크",
@@ -64,19 +67,37 @@ describe("inner-state quality prompt policy", () => {
       widget: DEFAULT_STATUS_WIDGET,
       source: "character",
     });
-    assert.match(system, /Do not habitually begin every inner-state/);
+    assert.match(
+      system,
+      /When the referent is already obvious, prefer a direct thought over repeatedly beginning with the person's name\/role\/label/
+    );
     assert.match(system, /이 사람\/이 신입\/저 녀석/);
+    assert.match(system, /names\/labels remain fine when natural/);
     // Reminder must not restate subject-start / same-axis full policy (EN-only).
     assert.doesNotMatch(reminder, /이 사람\/이 신입\/저 녀석/);
     assert.doesNotMatch(reminder, /습관적으로 반복하지/);
     assert.doesNotMatch(reminder, /같은 결론을 표현만 바꿔/);
     assert.doesNotMatch(reminder, /slightly different wording across turns/);
     assert.doesNotMatch(system, /never (use|say|write) ['"]이 신입/);
+    assert.doesNotMatch(system, /never start with a subject/i);
+    assert.doesNotMatch(system, /must use a different sentence structure/i);
     assert.doesNotMatch(system, /forbidden.*(이 신입|이 사람|저 녀석)/i);
     assert.doesNotMatch(reminder, /금지.*(이 신입|이 사람|저 녀석)/);
   });
 
-  it("D. body echo: system has full policy; reminder only short current-turn/복창 nudge", () => {
+  it("D. concrete delta and intent over generic person-evaluation", () => {
+    const system = buildWidgetExtractSystem(DEFAULT_STATUS_WIDGET, KEYS, "character");
+    assert.match(
+      system,
+      /prefer a specific question\/judgment\/intent about that delta over a generic character evaluation/
+    );
+    assert.match(
+      system,
+      /prefer expressing that intent over re-evaluating the same person again/
+    );
+  });
+
+  it("E. body echo: system has full policy; reminder only short current-turn/복창 nudge", () => {
     const system = buildWidgetExtractSystem(DEFAULT_STATUS_WIDGET, KEYS, "character");
     const reminder = buildWidgetExtractUserBlock({
       charName: "라이크",
@@ -94,6 +115,9 @@ describe("inner-state quality prompt policy", () => {
     assert.match(reminder, /내면문장을 그대로 복창하지 마라/);
     assert.doesNotMatch(reminder, /설명·분석·요약문/);
     assert.doesNotMatch(reminder, /1인칭 내면으로 쓴다/);
+    // KO stays short — no EN semantic re-expansion
+    assert.doesNotMatch(reminder, /referent is already obvious/);
+    assert.doesNotMatch(reminder, /generic character evaluation/);
   });
 
   it("full quality EN appears once in assembled single / dual / repair system owners", () => {

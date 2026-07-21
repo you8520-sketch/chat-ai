@@ -91,9 +91,12 @@ const PREVIOUS_WIDGET_CONTINUITY_NOTE =
  * Full policy owner: system extract only (single / dual / repair). No post-hoc rewrite.
  */
 export const INNER_STATE_QUALITY_EN =
-  "Prefer the most important current-turn change in judgment, emotion, question, or intent. " +
+  "Prefer the most important current-turn change in judgment, emotion, question, conflict, decision, or intent. " +
   "If the underlying emotion remains the same, do not invent a false change, but avoid repeatedly restating the same conclusion with slightly different wording across turns. " +
-  "Do not habitually begin every inner-state with the same subject address such as '이 사람/이 신입/저 녀석'. " +
+  "When the referent is already obvious, prefer a direct thought over repeatedly beginning with the person's name/role/label " +
+  "(e.g. habitually starting as '이 사람/이 신입/저 녀석' or name+title then evaluating them) — names/labels remain fine when natural, not as a default every-turn template. " +
+  "When this turn has a concrete new fact, choice, or conflict, prefer a specific question/judgment/intent about that delta over a generic character evaluation. " +
+  "When a decision or next-action intent is active, prefer expressing that intent over re-evaluating the same person again. " +
   "When the RP already states an inner thought explicitly, do not merely echo that sentence; express the current resulting judgment or intent instead, without inventing unsupported facts. " +
   "Keep inner-state short natural first-person thought — not analysis, summary, or exposition.";
 
