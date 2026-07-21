@@ -12,8 +12,58 @@ import {
   CHAT_PORTRAIT_INFO_STICKY_INNER_CLASS,
   CHAT_PORTRAIT_STICKY_CLASS,
   CHAT_ROOM_HEADER_OFFSET_CLASS,
+  DEFAULT_CHAT_DISPLAY_PREFS,
   normalizePortraitBackgroundOpacity,
+  normalizeShowCharacterPortrait,
+  resolveClientDisplayPrefs,
 } from "@/lib/chatDisplayPrefs";
+
+describe("showCharacterPortrait persistence", () => {
+  it("keeps explicit false (OFF) instead of coercing to default ON", () => {
+    assert.equal(normalizeShowCharacterPortrait(false), false);
+    assert.equal(normalizeShowCharacterPortrait(true), true);
+    assert.equal(normalizeShowCharacterPortrait(undefined), true);
+  });
+
+  it("prefers localStorage OFF over server default ON", () => {
+    const store = new Map<string, string>();
+    const g = globalThis as typeof globalThis & {
+      window?: unknown;
+      localStorage?: Storage;
+    };
+    const prevWindow = g.window;
+    const prevStorage = g.localStorage;
+    g.window = g;
+    g.localStorage = {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => {
+        store.set(k, v);
+      },
+      removeItem: (k: string) => {
+        store.delete(k);
+      },
+      clear: () => store.clear(),
+      key: () => null,
+      get length() {
+        return store.size;
+      },
+    };
+    try {
+      store.set(
+        "playai-chat-display-prefs",
+        JSON.stringify({ ...DEFAULT_CHAT_DISPLAY_PREFS, showCharacterPortrait: false })
+      );
+      const resolved = resolveClientDisplayPrefs({
+        ...DEFAULT_CHAT_DISPLAY_PREFS,
+        showCharacterPortrait: true,
+      });
+      assert.equal(resolved.showCharacterPortrait, false);
+    } finally {
+      g.window = prevWindow;
+      g.localStorage = prevStorage;
+    }
+  });
+});
 
 describe("mobile chat portrait background", () => {
 

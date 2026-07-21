@@ -220,6 +220,28 @@ export function saveChatDisplayPrefs(prefs: ChatDisplayPrefs) {
   }
 }
 
+/**
+ * Device display prefs: localStorage wins when present so toggles (에셋 ON/OFF 등)
+ * survive leaving/re-entering a chat room. When empty, seed from server prefs.
+ */
+export function resolveClientDisplayPrefs(
+  serverPrefs?: ChatDisplayPrefs | null
+): ChatDisplayPrefs {
+  if (typeof window === "undefined") {
+    return serverPrefs ?? DEFAULT_CHAT_DISPLAY_PREFS;
+  }
+  try {
+    if (localStorage.getItem(STORAGE_KEY)) {
+      return loadChatDisplayPrefs();
+    }
+  } catch {
+    /* ignore */
+  }
+  const next = serverPrefs ?? DEFAULT_CHAT_DISPLAY_PREFS;
+  saveChatDisplayPrefs(next);
+  return next;
+}
+
 /** 채팅 좌측 에셋 열 — 2:3 비율 이미지 너비(auto) */
 export const CHAT_PORTRAIT_COLUMN_WIDTH_CLASS = "w-auto shrink-0";
 

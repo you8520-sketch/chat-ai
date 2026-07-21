@@ -156,6 +156,7 @@ import {
   CHAT_ROOM_TITLE_BAR_CLASS,
   CHAT_ROOM_HEADER_OFFSET_CLASS,
   DEFAULT_CHAT_DISPLAY_PREFS,
+  resolveClientDisplayPrefs,
   saveChatDisplayPrefs,
   type ChatDisplayPrefs,
 } from "@/lib/chatDisplayPrefs";
@@ -817,9 +818,12 @@ export default function ChatClient({
   const [displaySettingsSaving, setDisplaySettingsSaving] = useState(false);
   const settingsSkipAutoSaveRef = useRef(true);
   const settingsSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const displayPrefsPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settingsSaveInFlightRef = useRef(0);
   const userNoteRef = useRef(userNote);
   userNoteRef.current = userNote;
+  const targetResponseCharsRef = useRef(targetResponseChars);
+  targetResponseCharsRef.current = targetResponseChars;
 
   const beginSettingsSave = () => {
     settingsSaveInFlightRef.current += 1;
@@ -989,7 +993,8 @@ export default function ChatClient({
     setMode(initialMode);
     setTargetResponseChars(initialTargetResponseChars);
     setChatTitle(initialChatTitle);
-    setDisplayPrefs(initialDisplayPrefs ?? DEFAULT_CHAT_DISPLAY_PREFS);
+    // Prefer device localStorage so 에셋 ON/OFF survives leaving the room.
+    setDisplayPrefs(resolveClientDisplayPrefs(initialDisplayPrefs ?? DEFAULT_CHAT_DISPLAY_PREFS));
     setSelectedPersonaId(initialSelectedPersonaId);
   }, [
     initialChatId,
@@ -3233,18 +3238,48 @@ export default function ChatClient({
     return false;
   }
 
-  const handleDisplayPrefsChange = useCallback((next: ChatDisplayPrefs) => {
-    const scrollY = typeof window === "undefined" ? null : window.scrollY;
-    followStreamRef.current = false;
-    userScrollLockRef.current = true;
-    setDisplayPrefs(next);
-    saveChatDisplayPrefs(next);
-    if (scrollY != null) {
-      requestAnimationFrame(() => {
-        window.scrollTo({ top: scrollY, behavior: "instant" });
-      });
-    }
-  }, []);
+  const handleDisplayPrefsChange = useCallback(
+    (next: ChatDisplayPrefs) => {
+      const scrollY = typeof window === "undefined" ? null : window.scrollY;
+      followStreamRef.current = false;
+      userScrollLockRef.current = true;
+      setDisplayPrefs(next);
+      saveChatDisplayPrefs(next);
+      if (scrollY != null) {
+        requestAnimationFrame(() => {
+          window.scrollTo({ top: scrollY, behavior: "instant" });
+        });
+      }
+      // Keep account prefs in sync so SSR re-entry does not reset 에셋 ON/OFF.
+      if (displayPrefsPersistTimerRef.current) {
+        clearTimeout(displayPrefsPersistTimerRef.current);
+      }
+      displayPrefsPersistTimerRef.current = setTimeout(() => {
+        void (async () => {
+          try {
+            const res = await fetch("/api/user/chat-prefs", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chatId: chatId ?? undefined,
+                targetResponseChars: targetResponseCharsRef.current,
+                userNote: userNoteRef.current,
+                displayPrefs: next,
+              }),
+            });
+            const data = await res.json().catch(() => null);
+            if (res.ok && data?.prefs) {
+              cacheUserChatPrefsClient(data.prefs);
+              saveChatDisplayPrefs(data.prefs.displayPrefs ?? next);
+            }
+          } catch {
+            /* local toggle already applied; ignore network errors */
+          }
+        })();
+      }, 400);
+    },
+    [chatId]
+  );
 
   function renderSettingsPanel(layout: "rail" | "drawer", onClose?: () => void) {
     return (
