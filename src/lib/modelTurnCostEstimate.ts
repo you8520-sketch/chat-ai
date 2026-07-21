@@ -44,7 +44,7 @@ const RATE_PER_OUTPUT_TOKEN: Array<{
   { match: isDeepSeekV4ProModel, rate: 0.022 },
   { match: isQwenModel, rate: 0.062 },
   { match: isKimiModel, rate: 0.09 },
-  { match: isMuseModel, rate: 0.063 },
+  { match: isMuseModel, rate: 0.06 },
   { match: isGemini25ProModel, rate: 0.06 },
   { match: isGemini31ProModel, rate: 0.075 },
 ];

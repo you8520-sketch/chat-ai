@@ -341,11 +341,11 @@ export const OPENROUTER_KIMI_GROSS_MARGIN =
 /** Kimi — 과금 면제 턴 최소 차감 */
 export const KIMI_WAIVER_SUCCESS_MIN_COST = 65;
 
-/** Muse Spark 1.1 — 출력 1토큰당 청구 (P) */
+/** Muse Spark 1.1 — 출력 1토큰당 청구 (P) — Gemini 2.5 Pro와 동일 */
 export const OPENROUTER_MUSE_POINTS_PER_OUTPUT_TOKEN = (() => {
   const perToken = process.env.OPENROUTER_MUSE_POINTS_PER_OUTPUT_TOKEN?.trim();
-  if (perToken) return Number(perToken) || 0.063;
-  return 0.063;
+  if (perToken) return Number(perToken) || 0.06;
+  return 0.06;
 })();
 
 /** Muse — API 원가 대비 최저 매출총이익률 (55% → 원가÷0.45) */
@@ -1334,7 +1334,7 @@ export function explainOpenRouterKimiTurnCost(
   );
 }
 
-/** Muse Spark 1.1 과금 상세 — 출력토큰×0.063P */
+/** Muse Spark 1.1 과금 상세 — 출력토큰×0.06P */
 export function explainOpenRouterMuseTurnCost(
   inputTokens: number,
   outputTokens: number,

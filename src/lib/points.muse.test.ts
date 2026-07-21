@@ -12,15 +12,15 @@ import { OPENROUTER_MUSE_SPARK_11_MODEL } from "@/lib/chatModels";
 describe("Muse Spark 1.1 billing", () => {
   const modelId = OPENROUTER_MUSE_SPARK_11_MODEL;
 
-  it("uses 0.063P per output token", () => {
-    assert.equal(OPENROUTER_MUSE_POINTS_PER_OUTPUT_TOKEN, 0.063);
+  it("uses 0.06P per output token", () => {
+    assert.equal(OPENROUTER_MUSE_POINTS_PER_OUTPUT_TOKEN, 0.06);
     assert.equal(MUSE_WAIVER_SUCCESS_MIN_COST, 50);
   });
 
-  it("token floor = outputTokens × 0.063", () => {
+  it("token floor = outputTokens × 0.06", () => {
     const outputTokens = 2000;
     const explain = explainOpenRouterMuseTurnCost(1000, outputTokens, modelId);
-    assert.equal(explain.charFloorKrw, Math.ceil(outputTokens * 0.063 - 1e-9));
+    assert.equal(explain.charFloorKrw, Math.ceil(outputTokens * 0.06 - 1e-9));
     assert.equal(explain.costPlusMarginKrw, 0);
   });
 
