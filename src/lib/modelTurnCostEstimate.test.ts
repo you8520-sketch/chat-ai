@@ -95,14 +95,14 @@ describe("modelTurnCostEstimate", () => {
       targetResponseChars: 3200,
       recentUsages: [],
     });
-    assert.match(label, /^Muse Spark 1\.1 예상 \d+P$/);
+    assert.match(label, /^Muse Spark 1\.1 예상 [\d,]+P$/);
     const aim = resolveAimOutputTokens(3200);
     const expected = estimateModelTurnPoints({
       modelId: OPENROUTER_MUSE_SPARK_11_MODEL,
       inputTokens: 8000,
       outputTokens: aim,
     });
-    assert.ok(label.includes(String(expected)));
+    assert.ok(label.includes(expected.toLocaleString("ko-KR")));
     assert.doesNotMatch(label, /토큰|입력|출력|할증/);
   });
 });

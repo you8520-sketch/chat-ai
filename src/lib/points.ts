@@ -4,6 +4,7 @@ import type { User } from "@/lib/auth-types";
 import { isSubscribed } from "@/lib/auth-types";
 import {
   billingModelId,
+  isDeepSeekModel,
   isDeepSeekV4ProModel,
   isGemini25ProModel,
   isGemini31ProModel,
@@ -111,12 +112,19 @@ export const OPENROUTER_GROSS_MARGIN = Number(process.env.OPENROUTER_GROSS_MARGI
 /** usage 과금 최소 1턴 차감 */
 export const OPENROUTER_MIN_TURN_COST = 5;
 
-/** 입력 토큰 10,000 초과 — 초과 1,000토큰당 추가 청구 (P) */
+/** 입력 토큰 10,000 초과 — 초과 1,000토큰당 추가 청구 (P). 기본 모델 1P. */
 export const OPENROUTER_INPUT_SURCHARGE_THRESHOLD_TOKENS = 10000;
 export const OPENROUTER_INPUT_SURCHARGE_PER_1000_TOKENS = (() => {
   const per1000 = process.env.OPENROUTER_INPUT_SURCHARGE_PER_1000_TOKENS?.trim();
-  if (per1000) return Number(per1000) || 1.25;
-  return 1.25;
+  if (per1000) return Number(per1000) || 1;
+  return 1;
+})();
+
+/** DeepSeek — 입력 10k 초과 시 초과 1,000토큰당 추가 청구 (P). 중간 올림 없음. */
+export const OPENROUTER_DEEPSEEK_INPUT_SURCHARGE_PER_1000_TOKENS = (() => {
+  const per1000 = process.env.OPENROUTER_DEEPSEEK_INPUT_SURCHARGE_PER_1000_TOKENS?.trim();
+  if (per1000) return Number(per1000) || 0.5;
+  return 0.5;
 })();
 
 /** Claude Opus — 출력 1자당 청구 상한 (P) */
@@ -333,11 +341,11 @@ export const OPENROUTER_KIMI_GROSS_MARGIN =
 /** Kimi — 과금 면제 턴 최소 차감 */
 export const KIMI_WAIVER_SUCCESS_MIN_COST = 65;
 
-/** Muse Spark 1.1 — 출력 1토큰당 청구 (P) — OpenRouter list $4.25/M out 기준 */
+/** Muse Spark 1.1 — 출력 1토큰당 청구 (P) */
 export const OPENROUTER_MUSE_POINTS_PER_OUTPUT_TOKEN = (() => {
   const perToken = process.env.OPENROUTER_MUSE_POINTS_PER_OUTPUT_TOKEN?.trim();
-  if (perToken) return Number(perToken) || 0.07;
-  return 0.07;
+  if (perToken) return Number(perToken) || 0.063;
+  return 0.063;
 })();
 
 /** Muse — API 원가 대비 최저 매출총이익률 (55% → 원가÷0.45) */
@@ -347,11 +355,11 @@ export const OPENROUTER_MUSE_GROSS_MARGIN =
 /** Muse — 과금 면제 턴 최소 차감 */
 export const MUSE_WAIVER_SUCCESS_MIN_COST = 50;
 
-/** Gemini 2.5 Pro — 출력 1토큰당 청구 (P) — Qwen과 동일 단가 */
+/** Gemini 2.5 Pro — 출력 1토큰당 청구 (P) */
 export const OPENROUTER_GEMINI_25_POINTS_PER_OUTPUT_TOKEN = (() => {
   const perToken = process.env.OPENROUTER_GEMINI_25_POINTS_PER_OUTPUT_TOKEN?.trim();
-  if (perToken) return Number(perToken) || 0.065;
-  return 0.065;
+  if (perToken) return Number(perToken) || 0.06;
+  return 0.06;
 })();
 
 /** Gemini 2.5 Pro — API 원가 대비 최저 매출총이익률 (55% → 원가÷0.45) */
@@ -664,16 +672,30 @@ function openRouterGemini31TokenFloorKrw(outputTokens: number): number {
   return chargePoints(Math.max(0, outputTokens) * OPENROUTER_GEMINI_31_POINTS_PER_OUTPUT_TOKEN);
 }
 
-/** 입력 10k 초과 — 초과 1,000토큰 단위 × 1.25P (블록 올림) */
-export function openRouterInputTokenSurchargeKrw(inputTokens: number): number {
+/**
+ * 입력 10k 초과 할증.
+ * - DeepSeek: 초과분/1000 × 0.5P (중간 올림 없음 — 최종 합산에서만 chargePoints)
+ * - 그 외: ceil(초과/1000) × 1P
+ */
+export function openRouterInputTokenSurchargeKrw(
+  inputTokens: number,
+  modelId?: string
+): number {
   if (inputTokens < OPENROUTER_INPUT_SURCHARGE_THRESHOLD_TOKENS) return 0;
   const excess = inputTokens - OPENROUTER_INPUT_SURCHARGE_THRESHOLD_TOKENS;
+  if (isDeepSeekModel(modelId ?? "")) {
+    return (excess / 1000) * OPENROUTER_DEEPSEEK_INPUT_SURCHARGE_PER_1000_TOKENS;
+  }
   const blocks = Math.ceil(excess / 1000);
-  return chargePoints(blocks * OPENROUTER_INPUT_SURCHARGE_PER_1000_TOKENS);
+  return blocks * OPENROUTER_INPUT_SURCHARGE_PER_1000_TOKENS;
 }
 
-function openRouterTokenOnlyTurnCost(tokenFloorKrw: number, inputTokens = 0): number {
-  const inputSurcharge = openRouterInputTokenSurchargeKrw(inputTokens);
+function openRouterTokenOnlyTurnCost(
+  tokenFloorKrw: number,
+  inputTokens = 0,
+  modelId?: string
+): number {
+  const inputSurcharge = openRouterInputTokenSurchargeKrw(inputTokens, modelId);
   return Math.max(
     OPENROUTER_MIN_TURN_COST,
     chargePoints(tokenFloorKrw + inputSurcharge)
@@ -791,56 +813,64 @@ export function computeOpenRouterTurnCost(
   if (isOpenRouterOpusModel(modelId)) {
     return openRouterTokenOnlyTurnCost(
       openRouterOpusCharFloorKrw(opts?.outputChars ?? 0),
-      inputTokens
+      inputTokens,
+      modelId
     );
   }
 
   if (isDeepSeekV4ProModel(modelId ?? "")) {
     return openRouterTokenOnlyTurnCost(
       openRouterDeepSeekTokenFloorKrw(outputTokens),
-      inputTokens
+      inputTokens,
+      modelId
     );
   }
 
   if (isQwenModel(modelId ?? "")) {
     return openRouterTokenOnlyTurnCost(
       openRouterQwenTokenFloorKrw(outputTokens),
-      inputTokens
+      inputTokens,
+      modelId
     );
   }
 
   if (isGlmModel(modelId ?? "")) {
     return openRouterTokenOnlyTurnCost(
       openRouterGlmTokenFloorKrw(outputTokens),
-      inputTokens
+      inputTokens,
+      modelId
     );
   }
 
   if (isKimiModel(modelId ?? "")) {
     return openRouterTokenOnlyTurnCost(
       openRouterKimiTokenFloorKrw(outputTokens),
-      inputTokens
+      inputTokens,
+      modelId
     );
   }
 
   if (isMuseModel(modelId ?? "")) {
     return openRouterTokenOnlyTurnCost(
       openRouterMuseTokenFloorKrw(outputTokens),
-      inputTokens
+      inputTokens,
+      modelId
     );
   }
 
   if (isGemini25ProModel(modelId ?? "")) {
     return openRouterTokenOnlyTurnCost(
       openRouterGemini25TokenFloorKrw(outputTokens),
-      inputTokens
+      inputTokens,
+      modelId
     );
   }
 
   if (isGemini31ProModel(modelId ?? "")) {
     return openRouterTokenOnlyTurnCost(
       openRouterGemini31TokenFloorKrw(outputTokens),
-      inputTokens
+      inputTokens,
+      modelId
     );
   }
 
@@ -853,7 +883,7 @@ export function computeOpenRouterTurnCost(
       cacheWriteTokens: cache?.cacheWriteTokens,
     }) * getEffectiveKrwPerUsd()
   );
-  return openRouterTokenOnlyTurnCost(chargePoints(costKrw), inputTokens);
+  return openRouterTokenOnlyTurnCost(chargePoints(costKrw), inputTokens, modelId);
 }
 
 export type OpenRouterTurnCostBreakdown = {
@@ -861,7 +891,7 @@ export type OpenRouterTurnCostBreakdown = {
   /** Opus — cache-hit-normalized API 원가 (로그·비교용) */
   normalizedRawCostKrw?: number;
   charFloorKrw: number;
-  /** 입력 10k 초과 1,000토큰당 1.25P */
+  /** 입력 10k 초과 할증 (DeepSeek 0.5P/1k 비례, 그 외 1P/1k 블록) */
   inputSurchargeKrw?: number;
   costPlusMarginKrw: number;
   applied: "char_floor" | "cost_plus_margin" | "min_turn" | "cost_blend" | "cold_start_shield";
@@ -1180,9 +1210,9 @@ export function explainOpenRouterOpusTurnCost(
   });
   const normalizedRawCostKrw = roundCostIntermediate(normalized.usdCost * getEffectiveKrwPerUsd());
   const charFloorKrw = openRouterOpusCharFloorKrw(outputChars);
-  const inputSurchargeKrw = openRouterInputTokenSurchargeKrw(inputTokens);
+  const inputSurchargeKrw = openRouterInputTokenSurchargeKrw(inputTokens, modelId);
   const resolved = resolveOpenRouterOpusTurnCharge(rawCostKrw, outputChars);
-  const total = openRouterTokenOnlyTurnCost(charFloorKrw, inputTokens);
+  const total = openRouterTokenOnlyTurnCost(charFloorKrw, inputTokens, modelId);
   let applied = resolved.applied;
   if (total === OPENROUTER_MIN_TURN_COST && charFloorKrw + inputSurchargeKrw < OPENROUTER_MIN_TURN_COST) {
     applied = "min_turn";
@@ -1221,8 +1251,8 @@ function explainOpenRouterTokenOnlyTurnCost(
             cacheWriteTokens: cache?.cacheWriteTokens,
           }) * getEffectiveKrwPerUsd()
         );
-  const inputSurchargeKrw = openRouterInputTokenSurchargeKrw(inputTokens);
-  const total = openRouterTokenOnlyTurnCost(floorKrw, inputTokens);
+  const inputSurchargeKrw = openRouterInputTokenSurchargeKrw(inputTokens, modelId);
+  const total = openRouterTokenOnlyTurnCost(floorKrw, inputTokens, modelId);
   let applied: OpenRouterTurnCostBreakdown["applied"] = "char_floor";
   if (total === OPENROUTER_MIN_TURN_COST && floorKrw + inputSurchargeKrw < OPENROUTER_MIN_TURN_COST) {
     applied = "min_turn";
@@ -1304,7 +1334,7 @@ export function explainOpenRouterKimiTurnCost(
   );
 }
 
-/** Muse Spark 1.1 과금 상세 — 출력토큰×0.07P */
+/** Muse Spark 1.1 과금 상세 — 출력토큰×0.063P */
 export function explainOpenRouterMuseTurnCost(
   inputTokens: number,
   outputTokens: number,
@@ -1321,7 +1351,7 @@ export function explainOpenRouterMuseTurnCost(
   );
 }
 
-/** OpenRouter Gemini 2.5 Pro — 출력토큰×0.065P */
+/** OpenRouter Gemini 2.5 Pro — 출력토큰×0.06P */
 export function explainOpenRouterGemini25TurnCost(
   inputTokens: number,
   outputTokens: number,
@@ -1947,7 +1977,10 @@ export function computeHtmlFlashOnlyTurnBilling(opts: {
     billingBasis
   );
   const costPlusMarginKrw = openRouterDeepSeekMarginChargeKrw(rawCostKrw);
-  const inputSurchargeKrw = openRouterInputTokenSurchargeKrw(estimatedInputTokens);
+  const inputSurchargeKrw = openRouterInputTokenSurchargeKrw(
+    estimatedInputTokens,
+    OPENROUTER_DEEPSEEK_V3_MODEL
+  );
   const total = Math.max(
     OPENROUTER_MIN_TURN_COST,
     chargePoints(costPlusMarginKrw + inputSurchargeKrw)

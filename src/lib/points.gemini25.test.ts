@@ -13,15 +13,15 @@ import { OPENROUTER_GEMINI_25_PRO_MODEL } from "@/lib/chatModels";
 describe("OpenRouter Gemini 2.5 Pro billing", () => {
   const modelId = OPENROUTER_GEMINI_25_PRO_MODEL;
 
-  it("uses 0.065P per output token", () => {
-    assert.equal(OPENROUTER_GEMINI_25_POINTS_PER_OUTPUT_TOKEN, 0.065);
+  it("uses 0.06P per output token", () => {
+    assert.equal(OPENROUTER_GEMINI_25_POINTS_PER_OUTPUT_TOKEN, 0.06);
     assert.equal(GEMINI_25_WAIVER_SUCCESS_MIN_COST, 50);
   });
 
-  it("token floor = outputTokens × 0.065", () => {
+  it("token floor = outputTokens × 0.06", () => {
     const outputTokens = 2000;
     const explain = explainOpenRouterGemini25TurnCost(1000, outputTokens, modelId);
-    assert.equal(explain.charFloorKrw, Math.ceil(outputTokens * 0.065 - 1e-9));
+    assert.equal(explain.charFloorKrw, Math.ceil(outputTokens * 0.06 - 1e-9));
     assert.equal(explain.costPlusMarginKrw, 0);
   });
 
@@ -34,7 +34,8 @@ describe("OpenRouter Gemini 2.5 Pro billing", () => {
 
   it("charges from upstream USD for receipt raw cost only", () => {
     const upstreamCostUsd = 0.066;
-    const withUpstream = explainOpenRouterGemini25TurnCost(100, 50, modelId, undefined, {
+    const outputTokens = 400;
+    const withUpstream = explainOpenRouterGemini25TurnCost(100, outputTokens, modelId, undefined, {
       upstreamCostUsd,
       apiPromptTokens: 12000,
       apiCompletionTokens: 2500,
@@ -44,7 +45,7 @@ describe("OpenRouter Gemini 2.5 Pro billing", () => {
       provider: "openrouter",
       openRouterModelId: modelId,
       inputTokens: 8000,
-      outputTokens: 400,
+      outputTokens,
       upstreamCostUsd,
       apiPromptTokens: 12000,
       apiCompletionTokens: 2500,
@@ -55,10 +56,8 @@ describe("OpenRouter Gemini 2.5 Pro billing", () => {
   });
 
   it("waiver with meaningful text charges minimum 50P", () => {
-    const min = resolveGemini25WaiverMinimumCharge(
-      "유의미한 본문이 있는 응답입니다.",
-      "forced_abort"
-    );
+    const prose = "그는 창가에 서서 빗소리를 들었다. ".repeat(40);
+    const min = resolveGemini25WaiverMinimumCharge(prose, "forced_abort");
     assert.equal(min, 50);
   });
 });

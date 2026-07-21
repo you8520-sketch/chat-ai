@@ -5,6 +5,7 @@
  */
 import {
   isClaudeSelectedAI,
+  isDeepSeekModel,
   isDeepSeekV4ProModel,
   isGemini25ProModel,
   isGemini31ProModel,
@@ -30,7 +31,10 @@ export const MODEL_PICKER_OUTPUT_SAMPLE_LIMIT = 5;
 
 const MIN_TURN = 5;
 const INPUT_SURCHARGE_THRESHOLD = 10_000;
-const INPUT_SURCHARGE_PER_1000 = 1.25;
+/** Non-DeepSeek: 1P per 1000 excess tokens (block ceil). */
+const INPUT_SURCHARGE_PER_1000 = 1;
+/** DeepSeek: 0.5P per 1000 excess tokens (proportional, no mid ceil). */
+const DEEPSEEK_INPUT_SURCHARGE_PER_1000 = 0.5;
 
 /** Defaults match points.ts (env overrides are server-only; preview uses shipped rates). */
 const RATE_PER_OUTPUT_TOKEN: Array<{
@@ -40,8 +44,8 @@ const RATE_PER_OUTPUT_TOKEN: Array<{
   { match: isDeepSeekV4ProModel, rate: 0.022 },
   { match: isQwenModel, rate: 0.062 },
   { match: isKimiModel, rate: 0.09 },
-  { match: isMuseModel, rate: 0.07 },
-  { match: isGemini25ProModel, rate: 0.065 },
+  { match: isMuseModel, rate: 0.063 },
+  { match: isGemini25ProModel, rate: 0.06 },
   { match: isGemini31ProModel, rate: 0.075 },
 ];
 
@@ -53,10 +57,14 @@ function ceilPoints(n: number): number {
   return Math.ceil(n - 1e-9);
 }
 
-function inputSurchargePoints(inputTokens: number): number {
+function inputSurchargePoints(inputTokens: number, modelId: string): number {
   if (inputTokens < INPUT_SURCHARGE_THRESHOLD) return 0;
-  const blocks = Math.ceil((inputTokens - INPUT_SURCHARGE_THRESHOLD) / 1000);
-  return ceilPoints(blocks * INPUT_SURCHARGE_PER_1000);
+  const excess = inputTokens - INPUT_SURCHARGE_THRESHOLD;
+  if (isDeepSeekModel(modelId)) {
+    return (excess / 1000) * DEEPSEEK_INPUT_SURCHARGE_PER_1000;
+  }
+  const blocks = Math.ceil(excess / 1000);
+  return blocks * INPUT_SURCHARGE_PER_1000;
 }
 
 function resolveOutputTokenRate(modelId: string): number | null {
@@ -90,7 +98,7 @@ export function estimateModelTurnPoints(opts: {
     0,
     Math.round(opts.outputTokens ?? resolveAimOutputTokens())
   );
-  const surcharge = inputSurchargePoints(inputTokens);
+  const surcharge = inputSurchargePoints(inputTokens, opts.modelId);
 
   if (isClaudeSelectedAI(opts.modelId)) {
     const chars = Math.max(0, Math.round(opts.outputChars ?? outputTokens));
