@@ -15,6 +15,34 @@ export type QuoteCardBlock = {
   text: string;
 };
 
+export type QuoteCardThemeId = "white" | "black" | "blue";
+export type QuoteCardFontId =
+  | "system"
+  | "noto-serif"
+  | "nanum-myeongjo"
+  | "gowun-batang"
+  | "song-myung";
+
+export type QuoteCardTheme = {
+  id: QuoteCardThemeId;
+  label: string;
+  background: string;
+  bodyColor: string;
+  footerColor: string;
+  borderColor: string;
+  bubbleFill: string;
+  bubbleTextColor: string;
+  imageScrim: string;
+};
+
+export type QuoteCardFontOption = {
+  id: QuoteCardFontId;
+  label: string;
+  css: string;
+  loadName: string;
+  google: string | null;
+};
+
 export type QuoteCardStyle = {
   padding?: number;
   bodyFontSize?: number;
@@ -24,6 +52,8 @@ export type QuoteCardStyle = {
   bodyColor?: string;
   footerColor?: string;
   borderColor?: string;
+  imageScrim?: string;
+  bodyFontFamily?: string;
   /** Auto speech bubbles for quoted dialogue (default true). */
   speechBubbles?: boolean;
   bubbleFill?: string;
@@ -41,6 +71,145 @@ export const QUOTE_CARD_BODY_FONT_DEFAULT = 22;
 export const QUOTE_CARD_BODY_FONT_MIN = 15;
 export const QUOTE_CARD_BODY_FONT_MAX = 35;
 
+export const QUOTE_CARD_THEMES: QuoteCardTheme[] = [
+  {
+    id: "white",
+    label: "흰색",
+    background: "#ffffff",
+    bodyColor: "#18181b",
+    footerColor: "#71717a",
+    borderColor: "rgba(0,0,0,0.08)",
+    bubbleFill: "#f4f4f5",
+    bubbleTextColor: "#18181b",
+    imageScrim: "rgba(255,255,255,0.72)",
+  },
+  {
+    id: "black",
+    label: "검정",
+    background: "#0a0a0a",
+    bodyColor: "#f4f4f5",
+    footerColor: "#a1a1aa",
+    borderColor: "rgba(255,255,255,0.14)",
+    bubbleFill: "#27272a",
+    bubbleTextColor: "#fafafa",
+    imageScrim: "rgba(0,0,0,0.58)",
+  },
+  {
+    id: "blue",
+    label: "파랑",
+    background: "#0c1929",
+    bodyColor: "#e8eef7",
+    footerColor: "#93c5fd",
+    borderColor: "rgba(147,197,253,0.28)",
+    bubbleFill: "#1e3a5f",
+    bubbleTextColor: "#f0f7ff",
+    imageScrim: "rgba(12,25,41,0.62)",
+  },
+];
+
+/** System + popular Korean novel/reading faces. */
+export const QUOTE_CARD_FONTS: QuoteCardFontOption[] = [
+  {
+    id: "system",
+    label: "기본",
+    css: 'system-ui, -apple-system, "Segoe UI", sans-serif',
+    loadName: "system-ui",
+    google: null,
+  },
+  {
+    id: "noto-serif",
+    label: "노토 명조",
+    css: '"Noto Serif KR", "Apple SD Gothic Neo", serif',
+    loadName: "Noto Serif KR",
+    google: "Noto+Serif+KR:wght@400;500;600",
+  },
+  {
+    id: "nanum-myeongjo",
+    label: "나눔명조",
+    css: '"Nanum Myeongjo", "Apple SD Gothic Neo", serif',
+    loadName: "Nanum Myeongjo",
+    google: "Nanum+Myeongjo:wght@400;700",
+  },
+  {
+    id: "gowun-batang",
+    label: "고운바탕",
+    css: '"Gowun Batang", "Apple SD Gothic Neo", serif',
+    loadName: "Gowun Batang",
+    google: "Gowun+Batang:wght@400;700",
+  },
+  {
+    id: "song-myung",
+    label: "송명",
+    css: '"Song Myung", "Apple SD Gothic Neo", serif',
+    loadName: "Song Myung",
+    google: "Song+Myung",
+  },
+];
+
+export function quoteCardThemeById(id: QuoteCardThemeId): QuoteCardTheme {
+  return QUOTE_CARD_THEMES.find((t) => t.id === id) ?? QUOTE_CARD_THEMES[0]!;
+}
+
+export function quoteCardFontById(id: QuoteCardFontId): QuoteCardFontOption {
+  return QUOTE_CARD_FONTS.find((f) => f.id === id) ?? QUOTE_CARD_FONTS[0]!;
+}
+
+export function styleFromQuoteCardTheme(themeId: QuoteCardThemeId): Pick<
+  QuoteCardStyle,
+  | "background"
+  | "bodyColor"
+  | "footerColor"
+  | "borderColor"
+  | "bubbleFill"
+  | "bubbleTextColor"
+  | "imageScrim"
+> {
+  const t = quoteCardThemeById(themeId);
+  return {
+    background: t.background,
+    bodyColor: t.bodyColor,
+    footerColor: t.footerColor,
+    borderColor: t.borderColor,
+    bubbleFill: t.bubbleFill,
+    bubbleTextColor: t.bubbleTextColor,
+    imageScrim: t.imageScrim,
+  };
+}
+
+let quoteCardFontsPromise: Promise<void> | null = null;
+
+export function ensureQuoteCardWebFontsLoaded(): Promise<void> {
+  if (typeof document === "undefined") return Promise.resolve();
+  if (quoteCardFontsPromise) return quoteCardFontsPromise;
+  quoteCardFontsPromise = (async () => {
+    const google = QUOTE_CARD_FONTS.map((f) => f.google).filter(Boolean) as string[];
+    if (google.length > 0) {
+      const id = "quote-card-google-fonts";
+      if (!document.getElementById(id)) {
+        const link = document.createElement("link");
+        link.id = id;
+        link.rel = "stylesheet";
+        link.href = `https://fonts.googleapis.com/css2?${google
+          .map((f) => `family=${f}`)
+          .join("&")}&display=swap`;
+        document.head.appendChild(link);
+      }
+    }
+    if (document.fonts?.ready) await document.fonts.ready;
+    await Promise.all(
+      QUOTE_CARD_FONTS.filter((f) => f.google).map(async (f) => {
+        try {
+          await document.fonts.load(`400 22px "${f.loadName}"`);
+          await document.fonts.load(`600 22px "${f.loadName}"`);
+        } catch {
+          /* ignore missing face */
+        }
+      })
+    );
+  })();
+  return quoteCardFontsPromise;
+}
+
 const DEFAULT_STYLE: Required<
   Omit<QuoteCardStyle, "avatarImage" | "backgroundImage" | "characterInitial">
 > & {
@@ -52,13 +221,15 @@ const DEFAULT_STYLE: Required<
   bodyFontSize: QUOTE_CARD_BODY_FONT_DEFAULT,
   bodyLineHeight: 1.72,
   footerFontSize: 15,
-  background: "#ffffff",
-  bodyColor: "#18181b",
-  footerColor: "#71717a",
-  borderColor: "rgba(0,0,0,0.08)",
+  background: QUOTE_CARD_THEMES[0]!.background,
+  bodyColor: QUOTE_CARD_THEMES[0]!.bodyColor,
+  footerColor: QUOTE_CARD_THEMES[0]!.footerColor,
+  borderColor: QUOTE_CARD_THEMES[0]!.borderColor,
+  imageScrim: QUOTE_CARD_THEMES[0]!.imageScrim,
+  bodyFontFamily: QUOTE_CARD_FONTS[0]!.css,
   speechBubbles: true,
-  bubbleFill: "#f4f4f5",
-  bubbleTextColor: "#18181b",
+  bubbleFill: QUOTE_CARD_THEMES[0]!.bubbleFill,
+  bubbleTextColor: QUOTE_CARD_THEMES[0]!.bubbleTextColor,
   paragraphGapScale: 1.35,
   bubbleGap: 18,
   avatarImage: null,
@@ -66,7 +237,6 @@ const DEFAULT_STYLE: Required<
   characterInitial: "",
 };
 
-const BODY_FONT = "system-ui, -apple-system, \"Segoe UI\", sans-serif";
 const AVATAR_SIZE = 40;
 const BUBBLE_PAD_X = 14;
 const BUBBLE_PAD_Y = 12;
@@ -189,12 +359,13 @@ function layoutBodyText(
   innerHeight: number,
   baseFontSize: number,
   lineHeight: number,
+  fontFamily: string,
   minFontSize = QUOTE_CARD_BODY_FONT_MIN
 ): { lines: string[]; fontSize: number } {
   const floor = Math.max(6, Math.min(minFontSize, baseFontSize));
   let fontSize = Math.round(baseFontSize);
   while (fontSize >= floor) {
-    ctx.font = `${fontSize}px ${BODY_FONT}`;
+    ctx.font = `${fontSize}px ${fontFamily}`;
     const lines = wrapCanvasLines(ctx, text, innerWidth);
     const height = lines.length * fontSize * lineHeight;
     if (height <= innerHeight) {
@@ -202,7 +373,7 @@ function layoutBodyText(
     }
     fontSize -= 1;
   }
-  ctx.font = `${floor}px ${BODY_FONT}`;
+  ctx.font = `${floor}px ${fontFamily}`;
   const lines = wrapCanvasLines(ctx, text, innerWidth);
   const maxLines = Math.max(1, Math.floor(innerHeight / (floor * lineHeight)));
   if (lines.length <= maxLines) {
@@ -258,13 +429,14 @@ function layoutBubbleBlocks(
   baseFontSize: number,
   lineHeight: number,
   paragraphGapScale: number,
-  bubbleGap: number
+  bubbleGap: number,
+  fontFamily: string
 ): { laid: LaidBlock[]; fontSize: number } {
   const floor = Math.max(6, Math.min(QUOTE_CARD_BODY_FONT_MIN, baseFontSize));
   let fontSize = Math.round(baseFontSize);
 
   while (fontSize >= floor) {
-    ctx.font = `${fontSize}px ${BODY_FONT}`;
+    ctx.font = `${fontSize}px ${fontFamily}`;
     const dialogueTextWidth = Math.max(
       80,
       innerWidth - AVATAR_SIZE - AVATAR_GAP - BUBBLE_PAD_X * 2
@@ -297,7 +469,7 @@ function layoutBubbleBlocks(
     fontSize -= 1;
   }
 
-  ctx.font = `${floor}px ${BODY_FONT}`;
+  ctx.font = `${floor}px ${fontFamily}`;
   const dialogueTextWidth = Math.max(
     80,
     innerWidth - AVATAR_SIZE - AVATAR_GAP - BUBBLE_PAD_X * 2
@@ -414,7 +586,8 @@ function measureQuoteCardLayout(
       innerWidth,
       innerHeight,
       resolved.bodyFontSize,
-      resolved.bodyLineHeight
+      resolved.bodyLineHeight,
+      resolved.bodyFontFamily
     );
     return {
       width,
@@ -438,7 +611,8 @@ function measureQuoteCardLayout(
     resolved.bodyFontSize,
     resolved.bodyLineHeight,
     resolved.paragraphGapScale,
-    resolved.bubbleGap
+    resolved.bubbleGap,
+    resolved.bodyFontFamily
   );
 
   return {
@@ -549,7 +723,7 @@ function drawCircularAvatar(
     ctx.fillRect(x, y, size, size);
     const letter = (initial.trim()[0] || "?").toUpperCase();
     ctx.fillStyle = "#52525b";
-    ctx.font = `600 ${Math.round(size * 0.42)}px ${BODY_FONT}`;
+    ctx.font = `600 ${Math.round(size * 0.42)}px ${DEFAULT_STYLE.bodyFontFamily}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(letter, cx, cy + 1);
@@ -567,6 +741,7 @@ export async function renderQuoteCardPngBlob(
   meta: QuoteCardMeta,
   style?: QuoteCardStyle
 ): Promise<{ blob: Blob; width: number; height: number }> {
+  await ensureQuoteCardWebFontsLoaded();
   const measured = measureQuoteCardLayout(meta, style);
   const {
     width,
@@ -594,7 +769,7 @@ export async function renderQuoteCardPngBlob(
 
   if (resolved.backgroundImage) {
     drawCoverImage(ctx, resolved.backgroundImage, width, height);
-    ctx.fillStyle = "rgba(255,255,255,0.72)";
+    ctx.fillStyle = resolved.imageScrim;
     ctx.fillRect(0, 0, width, height);
   } else {
     ctx.fillStyle = resolved.background;
@@ -610,11 +785,12 @@ export async function renderQuoteCardPngBlob(
 
   const pad = resolved.padding;
   const lineStep = bodyFontSize * resolved.bodyLineHeight;
+  const fontFamily = resolved.bodyFontFamily;
   let y = pad;
 
   if (!useBubbles || !laidBlocks) {
     ctx.fillStyle = resolved.bodyColor;
-    ctx.font = `${bodyFontSize}px ${BODY_FONT}`;
+    ctx.font = `${bodyFontSize}px ${fontFamily}`;
     ctx.textBaseline = "top";
     ctx.textAlign = "left";
     for (let i = 0; i < lines.length; i++) {
@@ -641,7 +817,7 @@ export async function renderQuoteCardPngBlob(
       }
       if (block.type === "narration") {
         ctx.fillStyle = resolved.bodyColor;
-        ctx.font = `${bodyFontSize}px ${BODY_FONT}`;
+        ctx.font = `${bodyFontSize}px ${fontFamily}`;
         ctx.textBaseline = "top";
         ctx.textAlign = "left";
         for (const line of block.lines) {
@@ -665,7 +841,7 @@ export async function renderQuoteCardPngBlob(
         ctx.fillStyle = resolved.bubbleFill;
         ctx.fill();
         ctx.fillStyle = resolved.bubbleTextColor;
-        ctx.font = `${bodyFontSize}px ${BODY_FONT}`;
+        ctx.font = `${bodyFontSize}px ${fontFamily}`;
         ctx.textBaseline = "top";
         ctx.textAlign = "left";
         let ty = bubbleY + BUBBLE_PAD_Y;
@@ -680,7 +856,7 @@ export async function renderQuoteCardPngBlob(
 
   const footerY = height - pad - resolved.footerFontSize;
   ctx.fillStyle = resolved.footerColor;
-  ctx.font = `500 ${resolved.footerFontSize}px ${BODY_FONT}`;
+  ctx.font = `500 ${resolved.footerFontSize}px ${fontFamily}`;
   ctx.textBaseline = "alphabetic";
   ctx.textAlign = "left";
   ctx.fillText(footerLeft, pad, footerY);

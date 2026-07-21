@@ -6,11 +6,36 @@ import {
   copyQuoteCardPng,
   parseQuoteCardBlocks,
   prepareQuoteCardSaveFallbackWindow,
+  quoteCardFontById,
+  quoteCardThemeById,
   QUOTE_CARD_DEFAULT_BACKGROUND,
   QUOTE_CARD_DEFAULT_FOOTER_FONT_SIZE,
+  QUOTE_CARD_FONTS,
+  QUOTE_CARD_THEMES,
   saveQuoteCardPngWithFallback,
   shareQuoteCardPng,
+  styleFromQuoteCardTheme,
 } from "@/lib/quoteCardImage";
+
+describe("quote card fonts and themes", () => {
+  it("exposes system + 4 novel font options", () => {
+    assert.equal(QUOTE_CARD_FONTS.length, 5);
+    assert.ok(QUOTE_CARD_FONTS.some((f) => f.id === "noto-serif"));
+    assert.ok(QUOTE_CARD_FONTS.some((f) => f.id === "nanum-myeongjo"));
+    assert.ok(QUOTE_CARD_FONTS.some((f) => f.id === "gowun-batang"));
+    assert.ok(QUOTE_CARD_FONTS.some((f) => f.id === "song-myung"));
+    assert.match(quoteCardFontById("noto-serif").css, /Noto Serif KR/);
+  });
+
+  it("exposes white/black/blue themes with readable body colors", () => {
+    assert.equal(QUOTE_CARD_THEMES.length, 3);
+    assert.equal(quoteCardThemeById("black").background, "#0a0a0a");
+    assert.equal(quoteCardThemeById("blue").background, "#0c1929");
+    const black = styleFromQuoteCardTheme("black");
+    assert.notEqual(black.bodyColor, black.background);
+    assert.ok(black.bodyColor.startsWith("#"));
+  });
+});
 
 const originalNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
 const originalWindow = Object.getOwnPropertyDescriptor(globalThis, "window");

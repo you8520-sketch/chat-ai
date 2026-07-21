@@ -6,14 +6,20 @@ import {
   copyQuoteCardPng,
   prepareQuoteCardSaveFallbackWindow,
   saveQuoteCardPngWithFallback,
+  type QuoteCardFontId,
   type QuoteCardOrientation,
+  type QuoteCardThemeId,
   quoteCardDimensions,
+  quoteCardFontById,
   QUOTE_CARD_BODY_FONT_DEFAULT,
   QUOTE_CARD_BODY_FONT_MAX,
   QUOTE_CARD_BODY_FONT_MIN,
+  QUOTE_CARD_FONTS,
+  QUOTE_CARD_THEMES,
   renderQuoteCardPngBlob,
   scaleQuoteCardForViewport,
   shareQuoteCardPng,
+  styleFromQuoteCardTheme,
 } from "@/lib/quoteCardImage";
 import { clampQuoteToolbarPosition, createCoalescedSelectionScheduler } from "@/lib/quoteSelectionToolbar";
 
@@ -94,6 +100,8 @@ export default function ChatSelectionQuoteToolbar({
   const [modalOpen, setModalOpen] = useState(false);
   const [orientation, setOrientation] = useState<QuoteCardOrientation>("portrait");
   const [bodyFontSize, setBodyFontSize] = useState(QUOTE_CARD_BODY_FONT_DEFAULT);
+  const [fontId, setFontId] = useState<QuoteCardFontId>("noto-serif");
+  const [themeId, setThemeId] = useState<QuoteCardThemeId>("white");
   const [speechBubbles, setSpeechBubbles] = useState(true);
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [busy, setBusy] = useState(false);
@@ -168,6 +176,8 @@ export default function ChatSelectionQuoteToolbar({
     setModalOpen(false);
     setOrientation("portrait");
     setBodyFontSize(QUOTE_CARD_BODY_FONT_DEFAULT);
+    setFontId("noto-serif");
+    setThemeId("white");
     setSpeechBubbles(true);
     revokePreviewUrl();
     revokeSessionImages();
@@ -187,6 +197,8 @@ export default function ChatSelectionQuoteToolbar({
     setSpeechBubbles(true);
     setOrientation("portrait");
     setBodyFontSize(QUOTE_CARD_BODY_FONT_DEFAULT);
+    setFontId("noto-serif");
+    setThemeId("white");
   }, [revokePreviewUrl, revokeSessionImages]);
 
   const renderPreview = useCallback(
@@ -194,7 +206,9 @@ export default function ChatSelectionQuoteToolbar({
       text: string,
       nextOrientation: QuoteCardOrientation,
       nextBodyFontSize: number,
-      nextSpeechBubbles: boolean
+      nextSpeechBubbles: boolean,
+      nextFontId: QuoteCardFontId,
+      nextThemeId: QuoteCardThemeId
     ) => {
       const viewportW = typeof window !== "undefined" ? window.innerWidth : 800;
       const viewportH = typeof window !== "undefined" ? window.innerHeight : 600;
@@ -216,6 +230,8 @@ export default function ChatSelectionQuoteToolbar({
         displayHeight: baseDims.height,
       });
       try {
+        const themeStyle = styleFromQuoteCardTheme(nextThemeId);
+        const font = quoteCardFontById(nextFontId);
         const { blob, width, height } = await renderQuoteCardPngBlob(
           {
             bodyText: text,
@@ -224,7 +240,9 @@ export default function ChatSelectionQuoteToolbar({
             orientation: nextOrientation,
           },
           {
+            ...themeStyle,
             bodyFontSize: nextBodyFontSize,
+            bodyFontFamily: font.css,
             speechBubbles: nextSpeechBubbles,
             avatarImage: avatarImageRef.current,
             backgroundImage: backgroundImageRef.current,
@@ -259,6 +277,8 @@ export default function ChatSelectionQuoteToolbar({
       nextOrientation: QuoteCardOrientation,
       nextBodyFontSize: number,
       nextSpeechBubbles: boolean,
+      nextFontId: QuoteCardFontId,
+      nextThemeId: QuoteCardThemeId,
       delayMs = 0
     ) => {
       if (fontRenderTimerRef.current) {
@@ -266,7 +286,14 @@ export default function ChatSelectionQuoteToolbar({
       }
       fontRenderTimerRef.current = setTimeout(() => {
         fontRenderTimerRef.current = null;
-        void renderPreview(text, nextOrientation, nextBodyFontSize, nextSpeechBubbles);
+        void renderPreview(
+          text,
+          nextOrientation,
+          nextBodyFontSize,
+          nextSpeechBubbles,
+          nextFontId,
+          nextThemeId
+        );
       }, delayMs);
     },
     [renderPreview]
@@ -275,16 +302,23 @@ export default function ChatSelectionQuoteToolbar({
   const openPreviewModal = useCallback(() => {
     if (!pending) return;
     setModalOpen(true);
-    void renderPreview(pending.text, orientation, bodyFontSize, speechBubbles);
-  }, [pending, orientation, bodyFontSize, speechBubbles, renderPreview]);
+    void renderPreview(
+      pending.text,
+      orientation,
+      bodyFontSize,
+      speechBubbles,
+      fontId,
+      themeId
+    );
+  }, [pending, orientation, bodyFontSize, speechBubbles, fontId, themeId, renderPreview]);
 
   const changeOrientation = useCallback(
     (next: QuoteCardOrientation) => {
       if (!pending || next === orientation) return;
       setOrientation(next);
-      void renderPreview(pending.text, next, bodyFontSize, speechBubbles);
+      void renderPreview(pending.text, next, bodyFontSize, speechBubbles, fontId, themeId);
     },
-    [pending, orientation, bodyFontSize, speechBubbles, renderPreview]
+    [pending, orientation, bodyFontSize, speechBubbles, fontId, themeId, renderPreview]
   );
 
   const changeBodyFontSize = useCallback(
@@ -295,18 +329,58 @@ export default function ChatSelectionQuoteToolbar({
       );
       setBodyFontSize(clamped);
       if (!pending || !modalOpen) return;
-      schedulePreviewRender(pending.text, orientation, clamped, speechBubbles, 120);
+      schedulePreviewRender(
+        pending.text,
+        orientation,
+        clamped,
+        speechBubbles,
+        fontId,
+        themeId,
+        120
+      );
     },
-    [pending, modalOpen, orientation, speechBubbles, schedulePreviewRender]
+    [pending, modalOpen, orientation, speechBubbles, fontId, themeId, schedulePreviewRender]
+  );
+
+  const changeFontId = useCallback(
+    (next: QuoteCardFontId) => {
+      if (!pending || next === fontId) return;
+      setFontId(next);
+      void renderPreview(
+        pending.text,
+        orientation,
+        bodyFontSize,
+        speechBubbles,
+        next,
+        themeId
+      );
+    },
+    [pending, fontId, orientation, bodyFontSize, speechBubbles, themeId, renderPreview]
+  );
+
+  const changeThemeId = useCallback(
+    (next: QuoteCardThemeId) => {
+      if (!pending || next === themeId) return;
+      setThemeId(next);
+      void renderPreview(
+        pending.text,
+        orientation,
+        bodyFontSize,
+        speechBubbles,
+        fontId,
+        next
+      );
+    },
+    [pending, themeId, orientation, bodyFontSize, speechBubbles, fontId, renderPreview]
   );
 
   const changeSpeechBubbles = useCallback(
     (next: boolean) => {
       setSpeechBubbles(next);
       if (!pending || !modalOpen) return;
-      void renderPreview(pending.text, orientation, bodyFontSize, next);
+      void renderPreview(pending.text, orientation, bodyFontSize, next, fontId, themeId);
     },
-    [pending, modalOpen, orientation, bodyFontSize, renderPreview]
+    [pending, modalOpen, orientation, bodyFontSize, fontId, themeId, renderPreview]
   );
 
   const onAvatarFile = useCallback(
@@ -318,12 +392,19 @@ export default function ChatSelectionQuoteToolbar({
         avatarUrlRef.current = url;
         avatarImageRef.current = img;
         setHasAvatar(true);
-        void renderPreview(pending.text, orientation, bodyFontSize, speechBubbles);
+        void renderPreview(
+          pending.text,
+          orientation,
+          bodyFontSize,
+          speechBubbles,
+          fontId,
+          themeId
+        );
       } catch {
         onToast("캐릭터 사진을 불러오지 못했습니다.");
       }
     },
-    [pending, orientation, bodyFontSize, speechBubbles, renderPreview, onToast]
+    [pending, orientation, bodyFontSize, speechBubbles, fontId, themeId, renderPreview, onToast]
   );
 
   const onBackgroundFile = useCallback(
@@ -335,12 +416,19 @@ export default function ChatSelectionQuoteToolbar({
         backgroundUrlRef.current = url;
         backgroundImageRef.current = img;
         setHasBackground(true);
-        void renderPreview(pending.text, orientation, bodyFontSize, speechBubbles);
+        void renderPreview(
+          pending.text,
+          orientation,
+          bodyFontSize,
+          speechBubbles,
+          fontId,
+          themeId
+        );
       } catch {
         onToast("배경 이미지를 불러오지 못했습니다.");
       }
     },
-    [pending, orientation, bodyFontSize, speechBubbles, renderPreview, onToast]
+    [pending, orientation, bodyFontSize, speechBubbles, fontId, themeId, renderPreview, onToast]
   );
 
   const clearBackground = useCallback(() => {
@@ -352,8 +440,15 @@ export default function ChatSelectionQuoteToolbar({
     setHasBackground(false);
     if (backgroundInputRef.current) backgroundInputRef.current.value = "";
     if (!pending) return;
-    void renderPreview(pending.text, orientation, bodyFontSize, speechBubbles);
-  }, [pending, orientation, bodyFontSize, speechBubbles, renderPreview]);
+    void renderPreview(
+      pending.text,
+      orientation,
+      bodyFontSize,
+      speechBubbles,
+      fontId,
+      themeId
+    );
+  }, [pending, orientation, bodyFontSize, speechBubbles, fontId, themeId, renderPreview]);
 
   useEffect(() => {
     return () => {
@@ -707,7 +802,7 @@ export default function ChatSelectionQuoteToolbar({
                     말풍선 {speechBubbles ? "ON" : "OFF"}
                   </button>
                   <label className="flex min-w-[10rem] flex-1 items-center gap-2 text-sm text-zinc-700">
-                    <span className="shrink-0 font-semibold text-zinc-900">글자</span>
+                    <span className="shrink-0 font-semibold text-zinc-900">크기</span>
                     <input
                       type="range"
                       min={QUOTE_CARD_BODY_FONT_MIN}
@@ -723,6 +818,45 @@ export default function ChatSelectionQuoteToolbar({
                       {bodyFontSize}
                     </span>
                   </label>
+                </div>
+
+                <div>
+                  <p className="mb-1.5 text-xs font-bold text-zinc-900">글씨체</p>
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                    {QUOTE_CARD_FONTS.map((font) => (
+                      <button
+                        key={font.id}
+                        type="button"
+                        disabled={preview?.loading}
+                        onClick={() => changeFontId(font.id)}
+                        className={`${chipBtn} ${
+                          fontId === font.id ? chipActive : chipIdle
+                        }`}
+                        style={{ fontFamily: font.css }}
+                      >
+                        {font.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-1.5 text-xs font-bold text-zinc-900">배경색</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {QUOTE_CARD_THEMES.map((theme) => (
+                      <button
+                        key={theme.id}
+                        type="button"
+                        disabled={preview?.loading}
+                        onClick={() => changeThemeId(theme.id)}
+                        className={`${chipBtn} ${
+                          themeId === theme.id ? chipActive : chipIdle
+                        }`}
+                      >
+                        {theme.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
