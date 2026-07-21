@@ -190,7 +190,10 @@ describe("statusWidget extract", () => {
     assert.match(block, /유저의 것을 요구하면 \[USER\]\(렌\)/);
     assert.match(block, /명시되지 않은 필드는 \[CHARACTER\]\(레온\) 기준/);
     // Reminder must be the last block so it sits closest to generation.
-    assert.ok(block.trimEnd().endsWith("(자리비움)\"으로 남겨라."));
+    assert.match(block.trimEnd(), /\(자리비움\)"으로 남겨라\./);
+    assert.ok(block.trimEnd().includes("[REMINDER]"));
+    const reminderIdx = block.lastIndexOf("[REMINDER]");
+    assert.ok(reminderIdx > block.lastIndexOf("[ASSISTANT REPLY"));
 
     const userBlock = buildWidgetExtractUserBlock({
       charName: "레온",
@@ -202,7 +205,7 @@ describe("statusWidget extract", () => {
     });
     // Same instruction-first rule; only the unnamed-field default flips to the user persona.
     assert.match(userBlock, /명시되지 않은 필드는 \[USER\]\(렌\) 기준/);
-    assert.ok(userBlock.trimEnd().endsWith("(자리비움)\"으로 남겨라."));
+    assert.match(userBlock.trimEnd(), /\(자리비움\)"으로 남겨라\./);
   });
 
   it("buildWidgetExtractUserBlock includes character identity but excludes user note and persona text", () => {

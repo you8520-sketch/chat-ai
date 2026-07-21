@@ -87,6 +87,24 @@ const PREVIOUS_WIDGET_CONTINUITY_NOTE =
   "(continuity reference — not answer text to copy; derive this turn primarily from current RP)";
 
 /**
+ * Soft inner-state quality (속마음/의식의흐름/감정/현재 의도 등) — prompt-only.
+ * Full policy owner: system extract only (single / dual / repair). No post-hoc rewrite.
+ */
+export const INNER_STATE_QUALITY_EN =
+  "Prefer the most important current-turn change in judgment, emotion, question, or intent. " +
+  "If the underlying emotion remains the same, do not invent a false change, but avoid repeatedly restating the same conclusion with slightly different wording across turns. " +
+  "Do not habitually begin every inner-state with the same subject address such as '이 사람/이 신입/저 녀석'. " +
+  "When the RP already states an inner thought explicitly, do not merely echo that sentence; express the current resulting judgment or intent instead, without inventing unsupported facts. " +
+  "Keep inner-state short natural first-person thought — not analysis, summary, or exposition.";
+
+/**
+ * Short Korean reminder nudge only — not a full-equivalent of INNER_STATE_QUALITY_EN.
+ * Full semantic axis / subject-start / false-emotion policy stays in the EN system owner.
+ */
+export const INNER_STATE_QUALITY_KO =
+  "현재 턴에서 새로 생긴 판단·의문·의도를 우선하고, 본문에 이미 나온 내면문장을 그대로 복창하지 마라.";
+
+/**
  * Turn-derived free-text fields — previous answer text must not be injected as
  * continuity anchors (answer anchoring). Persistent meters/time/place stay.
  * Includes inner-state and 현재상황 / current-situation style fields.
@@ -210,6 +228,7 @@ Rules:
   ✗ WRONG: "그가 위험에 처했다는 소식에 불안하다. 반드시 구하러 가야 한다" (this is [USER]'s worry, mislabeled as [CHARACTER]'s)
   ✓ RIGHT: "갑작스러운 파병 명령에 당혹스럽지만 군인으로서 임무를 완수해야 한다" ([CHARACTER]'s own inferred reaction to being sent there)
   Freshly evaluate inner-state at the END of the current turn. Use previous values only for continuity — do not mechanically repeat the previous wording when this turn provides new actions, dialogue, information, or emotional context. If the underlying state genuinely remains unchanged, preserve the meaning rather than inventing a false change; exact wording need not be copied.
+  ${INNER_STATE_QUALITY_EN}
   If [PREVIOUS TURN WIDGET VALUES] has a prior value for that field, or this turn's events affect the required person at all, that IS enough basis — update from this turn's events instead of giving up. Only when the required person has truly zero basis (no prior state AND no relevant event) output exactly "(자리비움)" — never fall back to the other person's emotions.
 - Do NOT add keys beyond the required list.
 - Do NOT invent lore that contradicts the provided context.
@@ -262,7 +281,7 @@ function buildWidgetSourceReminder(
   personaName: string
 ): string {
   const defaultName = source === "character" ? `[CHARACTER](${charName})` : `[USER](${personaName})`;
-  return `[REMINDER] 내면 필드(속마음/의식의 흐름/표정 등)는 각 필드의 지시사항이 지정한 인물의 시점으로, 이 턴 끝 기준으로 재평가하라 — 지시사항이 NPC의 것을 요구하면 [CHARACTER](${charName})의 내면을, 유저의 것을 요구하면 [USER](${personaName})의 내면을 쓴다. 인물이 명시되지 않은 필드는 ${defaultName} 기준. 위 서술이 다른 인물의 시점·감정 위주로 쓰여 있어도 그 감정을 그대로 옮기지 말고, 요구된 인물이 이 사건을 겪는 입장에서 지금 무엇을 느낄지 추정해서 써라. [PREVIOUS TURN WIDGET VALUES]는 continuity reference일 뿐 답안 복사용이 아니다 — 이 턴에 새 행동·대사·정보·감정 단서가 있으면 직전 문구를 기계적으로 복사하지 말고 갱신하라. 상태가 진짜로 같으면 의미만 유지하고 거짓 감정 변화는 만들지 마라. 직전 값도 없고 관련 사건도 전혀 없는 경우에만 "(자리비움)"으로 남겨라.`;
+  return `[REMINDER] 내면 필드(속마음/의식의 흐름/표정 등)는 각 필드의 지시사항이 지정한 인물의 시점으로, 이 턴 끝 기준으로 재평가하라 — 지시사항이 NPC의 것을 요구하면 [CHARACTER](${charName})의 내면을, 유저의 것을 요구하면 [USER](${personaName})의 내면을 쓴다. 인물이 명시되지 않은 필드는 ${defaultName} 기준. 위 서술이 다른 인물의 시점·감정 위주로 쓰여 있어도 그 감정을 그대로 옮기지 말고, 요구된 인물이 이 사건을 겪는 입장에서 지금 무엇을 느낄지 추정해서 써라. [PREVIOUS TURN WIDGET VALUES]는 continuity reference일 뿐 답안 복사용이 아니다 — 이 턴에 새 행동·대사·정보·감정 단서가 있으면 직전 문구를 기계적으로 복사하지 말고 갱신하라. 상태가 진짜로 같으면 의미만 유지하고 거짓 감정 변화는 만들지 마라. 직전 값도 없고 관련 사건도 전혀 없는 경우에만 "(자리비움)"으로 남겨라. ${INNER_STATE_QUALITY_KO}`;
 }
 
 export function normalizeWidgetExtraction(
@@ -715,6 +734,7 @@ Fill priority (highest first):
 3. [PREVIOUS CANONICAL WIDGET VALUES] as continuity anchor — keep if no time/place change; advance date/clock/season/weather together when prose advances time
 4. First-fill reasonable inference when no prior anchor exists
 Previous values are continuity references, not answer text to copy — never paste them as-is when current RP changed the scene or adds new dialogue/information/emotional context. Persistent state may keep prior values when unchanged; inner-state: freshly evaluate at END of turn (preserve meaning if truly unchanged; do not invent false change).
+Inner-state quality: ${INNER_STATE_QUALITY_EN}
 Prefer the FINAL scene in [ASSISTANT RP — FINAL SCENE PRIORITY].
 - ${STATUS_WIDGET_FINAL_SCENE_PRIORITY_LINES}`;
 }
@@ -833,6 +853,7 @@ Rules:
 - Inner-state fields (속마음, 의식의 흐름, 감정, 표정, thoughts, inner monologue):
   - Infer each source's current scene reaction separately from that source's field instruction.
   - Freshly evaluate at END of turn; do not mechanically repeat previous wording when this turn has new actions/dialogue/information/emotional context. If underlying state is unchanged, preserve meaning (exact wording need not be copied); do not invent false change.
+  - ${INNER_STATE_QUALITY_EN}
   - Do not copy character and user emotions/inner states as one shared value across character_values and user_values.
   - When the scene gives cues, write a short grounded current state per source — do not default to placeholders like 알 수 없음 / 미상 / 모름 / unknown.
   - Unknown-like narrative values are allowed only when the scene is truly ambiguous OR the field instruction itself requires uncertainty.
@@ -876,7 +897,7 @@ export function buildCombinedDualWidgetExtractUserBlock(opts: {
     `[USER MESSAGE]\n${opts.userMessage}`,
     previousSlice ? `[PREVIOUS TURN ASSISTANT — prose only]\n${previousSlice}` : "",
     `[ASSISTANT REPLY — current turn prose only]\n${currentSlice}`,
-    `[REMINDER] character_values = [CHARACTER](${opts.charName}) widget only; user_values = [USER](${opts.personaName}) widget only. Previous widget values are continuity references, not answer text to copy. Infer inner-state per source from the current scene end — do not mechanically repeat previous wording when this turn has new cues; preserve meaning if truly unchanged. Do not share one emotion across both namespaces, and avoid unknown placeholders when scene cues exist. Obey each field instruction's subject. Prefer current explicit change over previous anchors. Use the location, time, and situation of the LAST scene, never an earlier scene. Do not copy instructions/labels or CRITICAL context wording as values.`,
+    `[REMINDER] character_values = [CHARACTER](${opts.charName}) widget only; user_values = [USER](${opts.personaName}) widget only. Previous widget values are continuity references, not answer text to copy. Infer inner-state per source from the current scene end — do not mechanically repeat previous wording when this turn has new cues; preserve meaning if truly unchanged. Do not share one emotion across both namespaces, and avoid unknown placeholders when scene cues exist. Obey each field instruction's subject. Prefer current explicit change over previous anchors. Use the location, time, and situation of the LAST scene, never an earlier scene. Do not copy instructions/labels or CRITICAL context wording as values. ${INNER_STATE_QUALITY_KO}`,
   ]
     .filter(Boolean)
     .join("\n\n");
