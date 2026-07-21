@@ -105,7 +105,11 @@ import {
   selectedAILabel,
 } from "@/lib/chatModels";
 import { stripRuntimePromptContaminationFromVisibleOutput } from "@/lib/runtimePromptContaminationGuard";
-import { buildSceneDirectivePromptBlock } from "@/lib/sceneDirective";
+import {
+  buildSceneDirective,
+  renderSceneDirectiveForPrompt,
+} from "@/lib/sceneDirective";
+import { deriveGenerationPreparationUi } from "@/lib/generationPreparationUi";
 import { stealthReceiptModelFields } from "@/lib/billingDisplay";
 import {
   buildLorebookActivationText,
@@ -955,7 +959,7 @@ export async function POST(req: Request) {
   const privateSpeechControlBlock = buildPrivateSpeechControlBlock(
     parseCreatorDescriptionCompiled(ch.creator_compiled_description_json)
   );
-  const sceneDirectiveBlock = buildSceneDirectivePromptBlock({
+  const sceneDirective = buildSceneDirective({
     mode: autoContinueContext ? "auto_progression" : "interactive",
     recentMessages: shortTermHistory,
     currentUserMessage: policyUserMessage,
@@ -965,6 +969,14 @@ export async function POST(req: Request) {
     relationshipMemoryText: relationshipMemoryForPrompt,
     lorebookText: [keywordLorebookBlock, globalLorebookBlock].filter(Boolean).join("\n"),
     triggeredEventText: triggeredScenarioEventsBlock,
+  });
+  const sceneDirectiveBlock = renderSceneDirectiveForPrompt(sceneDirective);
+  /** UI-safe allowlist only — never includes nextBeatHint / directive prose. */
+  const generationPreparationUi = deriveGenerationPreparationUi({
+    runtimeMode,
+    progressionTypes: sceneDirective.progressionTypes,
+    recommendedIntensity: sceneDirective.recommendedIntensity,
+    phase: "preparing",
   });
 
   const contextBuildInput = {
@@ -1160,6 +1172,7 @@ export async function POST(req: Request) {
       send({
         type: "status",
         message: regenerateMessageId ? "재생성 준비 중…" : "생성 중…",
+        generationUi: generationPreparationUi,
       });
       const stages: StageUsage[] = [];
       let fullText = "";
@@ -1236,7 +1249,11 @@ export async function POST(req: Request) {
           hasOpenRouterKey: Boolean(process.env.OPENROUTER_API_KEY?.trim()),
         });
 
-        send({ type: "status", message: "생성 중…" });
+        send({
+          type: "status",
+          message: "생성 중…",
+          generationUi: generationPreparationUi,
+        });
 
         logMockModeOnce();
         if (isMockApiMode()) {

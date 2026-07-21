@@ -36,6 +36,11 @@ import ChatSelectionQuoteToolbar from "@/components/ChatSelectionQuoteToolbar";
 import MessageVariantPicker from "@/components/MessageVariantPicker";
 import ChatToast from "@/components/ChatToast";
 import CharacterAssetImage from "@/components/CharacterAssetImage";
+import GenerationPreparationIndicator from "@/components/GenerationPreparationIndicator";
+import {
+  sanitizeGenerationPreparationUi,
+  type GenerationPreparationUiPayload,
+} from "@/lib/generationPreparationUi";
 import type { MessageVariant } from "@/lib/messageAlternates";
 import {
   assetByUrl,
@@ -706,6 +711,9 @@ export default function ChatClient({
   const draftScopeRef = useRef(`${character.id}:${initialChatId ?? "pending"}`);
   const [loading, setLoading] = useState(false);
   const [streamPhase, setStreamPhase] = useState<string | null>(null);
+  /** Pre-first-token preparation panel; cleared when visible text arrives. Not persisted. */
+  const [generationPrepUi, setGenerationPrepUi] =
+    useState<GenerationPreparationUiPayload | null>(null);
   const [error, setError] = useState("");
   const defaultChatAsset = useMemo(() => getDefaultChatAsset(assets), [assets]);
   const initialPortrait = useMemo(
@@ -2113,6 +2121,7 @@ export default function ChatClient({
             instant?: boolean;
             htmlFlashTurn?: boolean;
             alreadyCompleted?: boolean;
+            generationUi?: unknown;
           };
           try {
             data = JSON.parse(line.slice(6));
@@ -2174,6 +2183,10 @@ export default function ChatClient({
                 htmlFlashStreamTurn = true;
               }
             }
+            const prep = sanitizeGenerationPreparationUi(data.generationUi);
+            if (prep) {
+              setGenerationPrepUi(prep);
+            }
             // Lock only after the main model stream ends (post-process phases).
             // Pre-stream heartbeats like "생성 중…" / "재생성 준비 중…" must NOT lock.
             if (
@@ -2181,6 +2194,7 @@ export default function ChatClient({
               /마무리|분량 보강|HTML 생성|상태창 생성/i.test(data.message)
             ) {
               postStreamLocked = true;
+              setGenerationPrepUi(null);
             }
             continue;
           }
@@ -2203,6 +2217,9 @@ export default function ChatClient({
           }
 
           if (data.type === "replace" && data.text != null) {
+            if (data.text.length > 0 && !postStreamLocked) {
+              setGenerationPrepUi(null);
+            }
             applyStreamReplaceTarget(data.text, { instant: data.instant === true });
             continue;
           }
@@ -2210,6 +2227,7 @@ export default function ChatClient({
           if (data.type === "append" && data.text) {
             reveal.resume();
             setStreamPhase(null);
+            setGenerationPrepUi(null);
             appendStreamText(data.text, true);
             continue;
           }
@@ -2217,6 +2235,7 @@ export default function ChatClient({
           if (data.text) {
             reveal.resume();
             setStreamPhase(null);
+            setGenerationPrepUi(null);
             appendStreamText(data.text);
           }
 
@@ -2255,6 +2274,7 @@ export default function ChatClient({
       }
 
       setStreamPhase(null);
+      setGenerationPrepUi(null);
       if (pendingDone?.finalContent) {
         postStreamLocked = true;
         applyStreamReplaceTarget(pendingDone.finalContent, {
@@ -2355,6 +2375,7 @@ export default function ChatClient({
     } finally {
       activeStreamRevealRef.current = null;
       setStreamPhase(null);
+      setGenerationPrepUi(null);
     }
 
     const billing =
@@ -2461,6 +2482,7 @@ export default function ChatClient({
     loadingRef.current = true;
     setError("");
     setStreamPhase(null);
+    setGenerationPrepUi({ phase: "preparing", badges: [] });
     followStreamRef.current = true;
     userScrollLockRef.current = false;
     scrollToBottom("smooth");
@@ -2546,6 +2568,7 @@ export default function ChatClient({
       loadingRef.current = false;
       setLoading(false);
       setStreamPhase(null);
+      setGenerationPrepUi(null);
       if (
         streamResult?.billing &&
         !streamResult.streamError &&
@@ -2569,6 +2592,7 @@ export default function ChatClient({
     clearChatMessageDraft(character.id, chatId);
     setError("");
     setStreamPhase(null);
+    setGenerationPrepUi({ phase: "preparing", badges: [] });
     followStreamRef.current = true;
     userScrollLockRef.current = false;
     scrollToBottom("smooth");
@@ -2668,6 +2692,7 @@ export default function ChatClient({
       loadingRef.current = false;
       setLoading(false);
       setStreamPhase(null);
+      setGenerationPrepUi(null);
       if (
         streamResult?.billing &&
         !streamResult.streamError &&
@@ -2700,6 +2725,7 @@ export default function ChatClient({
     const clientRequestId = createClientRequestId();
     setError("");
     setStreamPhase("재생성 준비 중…");
+    setGenerationPrepUi({ phase: "preparing", badges: [] });
     inFlightRef.current = true;
     loadingRef.current = true;
     setLoading(true);
@@ -2855,6 +2881,7 @@ export default function ChatClient({
       loadingRef.current = false;
       setLoading(false);
       setStreamPhase(null);
+      setGenerationPrepUi(null);
       if (
         streamResult?.billing &&
         !streamResult.streamError &&
@@ -3740,11 +3767,13 @@ export default function ChatClient({
               (m.content === "" && loading && i === messages.length - 1) ||
               (m.content === "" && genStatus === "generating" && !loading);
             if (showGeneratingPlaceholder) {
+              const prep = generationPrepUi ?? { phase: "preparing" as const, badges: [] };
               return (
-                <div key={m.id ?? `asst-loading-${i}`}>
-                  <p className="animate-pulse text-sm font-medium text-orange-400/90">
-                    {streamPhase ?? (loading ? `${character.name}이(가) 초안 작성 중…` : "생성 중…")}
-                  </p>
+                <div key={m.id ?? `asst-loading-${i}`} className="w-full max-w-full">
+                  <GenerationPreparationIndicator
+                    phase={prep.phase}
+                    badges={prep.badges}
+                  />
                 </div>
               );
             }
