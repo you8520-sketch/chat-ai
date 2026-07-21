@@ -80,17 +80,17 @@ export default function StudioClient({ characters, worlds, lorebooks, blurNsfw }
 
   return (
     <div data-testid="studio-page-shell" className="mx-auto w-full max-w-6xl px-4 py-6 sm:py-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h1 className={cn(studioType.heading, "flex items-center gap-2.5")}>
             <IconSidebarStudio className="h-6 w-6 shrink-0 text-zinc-400" />
             제작
           </h1>
           <p className={cn(studioType.helper, "mt-2")}>
-            탭을 바꿔 내가 만든 목록을 보고, 상단에서 바로 새로 만들 수 있습니다.
+            탭을 바꿔 내가 만든 목록을 보고, 아래에서 바로 새로 만들 수 있습니다.
           </p>
         </div>
-        <StudioButton href={activeMeta.createHref} size="lg">
+        <StudioButton href={activeMeta.createHref} size="lg" className="w-full justify-center sm:w-auto">
           <span className="text-base leading-none" aria-hidden>
             +
           </span>
@@ -102,8 +102,7 @@ export default function StudioClient({ characters, worlds, lorebooks, blurNsfw }
         role="tablist"
         data-testid="studio-tablist"
         aria-label="제작 종류"
-        className={cn(studioSurface.tabList, "mt-6")}
-        style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}
+        className="mt-5 grid grid-cols-3 gap-1 rounded-xl border border-white/10 bg-[#0e1120] p-1.5 sm:mt-6"
       >
         {TABS.map((tab) => {
           const selected = tab.id === activeTab;
@@ -121,14 +120,15 @@ export default function StudioClient({ characters, worlds, lorebooks, blurNsfw }
               aria-selected={selected}
               onClick={() => setTab(tab.id)}
               className={cn(
-                "flex min-h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-2 text-sm font-semibold transition sm:px-3",
+                // 모바일: 아이콘·라벨·숫자 세로 배치로 truncate 없이 전체 글자 표시
+                "flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-2 text-[13px] font-semibold leading-tight transition sm:min-h-11 sm:flex-row sm:gap-2 sm:px-3 sm:text-sm",
                 selected ? studioSurface.tabActive : studioSurface.tabIdle,
               )}
             >
               <tab.Icon
                 className={cn("h-4 w-4 shrink-0", selected ? "text-white" : "text-zinc-500")}
               />
-              <span className="truncate">{tab.label}</span>
+              <span className="text-center">{tab.label}</span>
               <span
                 className={cn(
                   "rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums",
