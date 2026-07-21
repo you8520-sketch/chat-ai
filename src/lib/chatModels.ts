@@ -28,7 +28,7 @@ export const OPENROUTER_DEEPSEEK_V4_PRO_MODEL = "deepseek/deepseek-v4-pro";
 /** OpenRouter — DeepSeek V3 (백그라운드 기억·상태창·번역 등) */
 export const OPENROUTER_DEEPSEEK_V3_MODEL = "deepseek/deepseek-chat-v3-0324";
 
-/** OpenRouter — Qwen3.7 Max (2026-05 flagship, OpenRouter slug) */
+/** @deprecated UI 선택 제거 — legacy slug·과금 경로 호환용 */
 export const OPENROUTER_QWEN_37_MAX_MODEL = "qwen/qwen3.7-max";
 
 /** @deprecated UI 선택 제거 — legacy slug·과금 경로 호환용 */
@@ -43,7 +43,7 @@ export const OPENROUTER_MUSE_SPARK_11_MODEL = "meta/muse-spark-1.1";
 /** OpenRouter — Google Gemini 2.5 Pro */
 export const OPENROUTER_GEMINI_25_PRO_MODEL = "google/gemini-2.5-pro";
 
-/** OpenRouter — Google Gemini 3.1 Pro Preview (balanced tier) */
+/** @deprecated UI 선택 제거 — legacy slug·과금 경로 호환용 */
 export const OPENROUTER_GEMINI_31_PRO_MODEL = "google/gemini-3.1-pro-preview";
 
 /** OpenRouter — Gemini 2.0 Flash (백그라운드 비전: 이미지 검열·에셋 태그) */
@@ -86,12 +86,6 @@ export const SELECTED_AI_OPTIONS = [
     hint: "Reasoning",
   },
   {
-    id: OPENROUTER_QWEN_37_MAX_MODEL,
-    label: QWEN_DISPLAY_NAME,
-    tier: "pro" as const,
-    hint: "Flagship",
-  },
-  {
     id: OPENROUTER_KIMI_K3_MODEL,
     label: KIMI_K3_DISPLAY_NAME,
     tier: "pro" as const,
@@ -108,12 +102,6 @@ export const SELECTED_AI_OPTIONS = [
     label: GEMINI_25_PRO_DISPLAY_NAME,
     tier: "pro" as const,
     hint: "Google",
-  },
-  {
-    id: OPENROUTER_GEMINI_31_PRO_MODEL,
-    label: GEMINI_31_PRO_DISPLAY_NAME,
-    tier: "pro" as const,
-    hint: "Balanced",
   },
   {
     id: CLAUDE_OPUS_MODEL,
@@ -260,11 +248,12 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   "gemini-3.0": DEFAULT_SELECTED_AI,
   "gemini-3-flash-preview": DEFAULT_SELECTED_AI,
   "gemini-3.5-flash": DEFAULT_SELECTED_AI,
-  "gemini-3.1": OPENROUTER_GEMINI_31_PRO_MODEL,
-  "gemini-3.1-pro-preview": OPENROUTER_GEMINI_31_PRO_MODEL,
+  /** Gemini 3.1 Pro 제거 — 기존 채팅·legacy slug는 기본 모델로 이전 */
+  "gemini-3.1": DEFAULT_SELECTED_AI,
+  "gemini-3.1-pro-preview": DEFAULT_SELECTED_AI,
   "google/gemini-2.5-pro": OPENROUTER_GEMINI_25_PRO_MODEL,
   "google/gemini-2.5-pro-preview": OPENROUTER_GEMINI_25_PRO_MODEL,
-  "google/gemini-3.1-pro-preview": OPENROUTER_GEMINI_31_PRO_MODEL,
+  "google/gemini-3.1-pro-preview": DEFAULT_SELECTED_AI,
   masterpiece: DEFAULT_SELECTED_AI,
   [CLAUDE_OPUS_MODEL_LEGACY]: CLAUDE_OPUS_MODEL,
   "claude-opus": CLAUDE_OPUS_MODEL,
@@ -272,9 +261,10 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   deepseek: OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   "deepseek-v4-pro": OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   "deepseek-4-pro": OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
-  qwen: OPENROUTER_QWEN_37_MAX_MODEL,
-  "qwen3.7-max": OPENROUTER_QWEN_37_MAX_MODEL,
-  "qwen/qwen3.7-max": OPENROUTER_QWEN_37_MAX_MODEL,
+  /** Qwen 3.7 Max 제거 — 기존 채팅·legacy slug는 기본 모델로 이전 */
+  qwen: DEFAULT_SELECTED_AI,
+  "qwen3.7-max": DEFAULT_SELECTED_AI,
+  "qwen/qwen3.7-max": DEFAULT_SELECTED_AI,
   /** GLM 5.2 제거 — 기존 채팅·legacy slug는 기본 모델로 이전 */
   glm: DEFAULT_SELECTED_AI,
   "glm-5.2": DEFAULT_SELECTED_AI,
@@ -292,9 +282,10 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   "muse-spark-1.1": OPENROUTER_MUSE_SPARK_11_MODEL,
   musespark: OPENROUTER_MUSE_SPARK_11_MODEL,
   "meta/muse-spark-1.1": OPENROUTER_MUSE_SPARK_11_MODEL,
-  "anthropic/claude-3.5-sonnet": OPENROUTER_GEMINI_31_PRO_MODEL,
-  "claude-3.5-sonnet": OPENROUTER_GEMINI_31_PRO_MODEL,
-  "anthropic/claude-sonnet-4": OPENROUTER_GEMINI_31_PRO_MODEL,
+  /** Retired Sonnet → Gemini 2.5 Pro (3.1 Pro selection removed) */
+  "anthropic/claude-3.5-sonnet": OPENROUTER_GEMINI_25_PRO_MODEL,
+  "claude-3.5-sonnet": OPENROUTER_GEMINI_25_PRO_MODEL,
+  "anthropic/claude-sonnet-4": OPENROUTER_GEMINI_25_PRO_MODEL,
 };
 
 export function isValidSelectedAI(v: unknown): v is SelectedAI {
@@ -315,6 +306,15 @@ export function resolveSelectedAI(value: unknown, fallback?: string): SelectedAI
 export function selectedAILabel(id: string): string {
   const opt = SELECTED_AI_OPTIONS.find((o) => o.id === id);
   if (opt) return opt.label;
+  if (id === OPENROUTER_QWEN_37_MAX_MODEL || id.toLowerCase().includes("qwen3.7-max")) {
+    return QWEN_DISPLAY_NAME;
+  }
+  if (id === OPENROUTER_GEMINI_31_PRO_MODEL || id.toLowerCase().includes("gemini-3.1-pro")) {
+    return GEMINI_31_PRO_DISPLAY_NAME;
+  }
+  if (id === OPENROUTER_GLM_52_MODEL || isGlmModel(id)) {
+    return GLM_52_DISPLAY_NAME;
+  }
   if (id === GEMINI_CHAT_FLASH_25 || id === GEMINI_CHAT_FLASH) return id;
   return id;
 }
