@@ -19,7 +19,7 @@ import {
 import type { Usage } from "@/lib/chatUsage";
 import ChatClient from "./ChatClient";
 
-import { DEFAULT_SELECTED_AI, resolveSelectedAI } from "@/lib/chatModels";
+import { consumeSelectedAiEntryNotice } from "@/lib/userSelectedAI";
 
 import { ensureDefaultPersona, validatePersonaSelection } from "@/lib/userPersonas";
 import { listUserNotePresets } from "@/lib/userNotePresets";
@@ -427,6 +427,13 @@ export default async function ChatPage({
     ? `${chat.id}-msg-${initialScrollMessageId}`
     : String(chat.id);
 
+  const userChatCount = (
+    db.prepare("SELECT COUNT(*) AS n FROM chats WHERE user_id=?").get(user.id) as { n: number }
+  ).n;
+  const globalModelEntry = consumeSelectedAiEntryNotice(db, user.id, {
+    isFirstChatVisitEver: userChatCount <= 1,
+  });
+
   return (
     <ChatClient
       key={clientKey}
@@ -462,7 +469,8 @@ export default async function ChatPage({
       nickname={user.nickname}
       isAdult={!!user.is_adult}
       userNsfwOn={!!user.nsfw_on}
-      initialSelectedAI={resolveSelectedAI(chat?.gemini_model, DEFAULT_SELECTED_AI)}
+      initialSelectedAI={globalModelEntry.selectedAI}
+      initialGlobalModelNotice={globalModelEntry.notice}
       initialTargetResponseChars={userChatPrefs.targetResponseChars}
       initialChatTitle={chat?.title ?? ""}
       initialDisplayPrefs={userChatPrefs.displayPrefs}

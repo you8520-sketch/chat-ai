@@ -1,6 +1,5 @@
 import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
-import { isValidSelectedAI } from "@/lib/chatModels";
 import { normalizeTargetResponseChars } from "@/lib/responseLength";
 import { validateUserNoteCombined } from "@/lib/userNoteStatusWindow";
 import { sanitizeChatTitle } from "@/lib/chatTitle";
@@ -48,7 +47,6 @@ export async function PATCH(req: Request) {
   const {
     chatId,
     userNote,
-    selectedAI,
     isNsfwMode,
     nsfwMode,
     isAdultMode,
@@ -131,7 +129,6 @@ export async function PATCH(req: Request) {
       return Response.json({ error: noteCheck.error }, { status: 400 });
     }
   }
-  const ai = isValidSelectedAI(selectedAI) ? selectedAI : undefined;
   const mode = typeof nsfw === "boolean" ? (nsfw ? "nsfw" : "safe") : undefined;
   const targetChars =
     targetResponseChars != null ? normalizeTargetResponseChars(targetResponseChars) : undefined;
@@ -142,10 +139,6 @@ export async function PATCH(req: Request) {
   if (note !== undefined) {
     sets.push("user_note=?");
     vals.push(note);
-  }
-  if (ai !== undefined) {
-    sets.push("gemini_model=?");
-    vals.push(ai);
   }
   if (mode !== undefined) {
     sets.push("mode=?");

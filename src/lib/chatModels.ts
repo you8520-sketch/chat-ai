@@ -1,4 +1,4 @@
-/** 채팅방 AI 선택 (selectedAI) — OpenRouter 전용 */
+/** 채팅방 AI 선택 (selectedAI) — OpenRouter 전용 · 사용자 전역 선택 */
 /** 유저가 보내는 메시지 최대 글자 수 */
 export const CHAT_MESSAGE_MAX = 1000;
 
@@ -34,7 +34,7 @@ export const OPENROUTER_QWEN_37_MAX_MODEL = "qwen/qwen3.7-max";
 /** @deprecated UI 선택 제거 — legacy slug·과금 경로 호환용 */
 export const OPENROUTER_GLM_52_MODEL = "z-ai/glm-5.2";
 
-/** OpenRouter — MoonshotAI Kimi K3 */
+/** @deprecated UI 선택 제거 — legacy slug·과금·영수증 호환용 (재활성화 가능) */
 export const OPENROUTER_KIMI_K3_MODEL = "moonshotai/kimi-k3";
 
 /** OpenRouter — Meta Muse Spark 1.1 */
@@ -78,38 +78,66 @@ export function isOpusUserSelectable(): boolean {
   return process.env.OPENROUTER_OPUS_USER_SELECTABLE?.trim() === "1";
 }
 
+export type SelectedAIOptionMeta = {
+  id: string;
+  label: string;
+  tier: "pro";
+  hint: string;
+  /** 사용자 포지셔닝 라벨 */
+  positionLabel: string;
+  /** 짧은 모바일 설명 */
+  shortDescription: string;
+  /** 상세 도움말 */
+  detailDescription: string;
+  /** 기본 추천 배지 */
+  badge?: string;
+  recommended?: boolean;
+};
+
 export const SELECTED_AI_OPTIONS = [
-  {
-    id: OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
-    label: DEEPSEEK_DISPLAY_NAME,
-    tier: "pro" as const,
-    hint: "Reasoning",
-  },
-  {
-    id: OPENROUTER_KIMI_K3_MODEL,
-    label: KIMI_K3_DISPLAY_NAME,
-    tier: "pro" as const,
-    hint: "Moonshot",
-  },
   {
     id: OPENROUTER_MUSE_SPARK_11_MODEL,
     label: MUSE_SPARK_11_DISPLAY_NAME,
     tier: "pro" as const,
     hint: "Meta",
+    positionLabel: "균형 잡힌 몰입형",
+    shortDescription: "안정적인 분량과 풍부한 캐릭터 대화를 유지하면서, 장면을 지나치게 급하게 진행하지 않습니다.",
+    detailDescription:
+      "안정적인 분량과 풍부한 캐릭터 대화를 유지하면서, 장면을 지나치게 급하게 진행하지 않습니다.",
+    badge: "기본 추천",
+    recommended: true,
   },
   {
     id: OPENROUTER_GEMINI_25_PRO_MODEL,
     label: GEMINI_25_PRO_DISPLAY_NAME,
     tier: "pro" as const,
     hint: "Google",
+    positionLabel: "차분한 관계·서술형",
+    shortDescription: "대사보다 감정, 관계와 장면 분위기를 섬세하게 풀어갑니다. 응답은 비교적 간결할 수 있습니다.",
+    detailDescription:
+      "대사보다 감정, 관계와 장면 분위기를 섬세하게 풀어갑니다. 응답은 비교적 간결할 수 있습니다.",
+  },
+  {
+    id: OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
+    label: DEEPSEEK_DISPLAY_NAME,
+    tier: "pro" as const,
+    hint: "Reasoning",
+    positionLabel: "능동적인 사건·전투형",
+    shortDescription:
+      "탐사, 작전과 전투를 적극적으로 진행하며 세계관 사건을 풍부하게 전개합니다. 한 턴의 진행 폭이 큰 편입니다.",
+    detailDescription:
+      "탐사, 작전과 전투를 적극적으로 진행하며 세계관 사건을 풍부하게 전개합니다. 한 턴의 진행 폭이 큰 편입니다.",
   },
   {
     id: CLAUDE_OPUS_MODEL,
     label: "Claude Opus 4P",
     tier: "pro" as const,
     hint: "Premium",
+    positionLabel: "프리미엄",
+    shortDescription: "고급 추론형 모델입니다.",
+    detailDescription: "고급 추론형 모델입니다. 환경 설정으로만 노출됩니다.",
   },
-] as const;
+] as const satisfies readonly SelectedAIOptionMeta[];
 
 /** Anthropic(Claude) 계열 모델 여부 — OpenRouter 경로 + prompt caching + prefill 적용 기준 */
 export function isAnthropicModel(modelId: string): boolean {
@@ -124,7 +152,8 @@ export function isClaudeSelectedAI(selected: string): boolean {
 export type SelectedAI = (typeof SELECTED_AI_OPTIONS)[number]["id"];
 export type SelectedAITier = (typeof SELECTED_AI_OPTIONS)[number]["tier"];
 
-export const DEFAULT_SELECTED_AI: SelectedAI = OPENROUTER_DEEPSEEK_V4_PRO_MODEL;
+/** 신규·미선택 사용자 기본값 — Muse Spark 1.1 */
+export const DEFAULT_SELECTED_AI: SelectedAI = OPENROUTER_MUSE_SPARK_11_MODEL;
 
 /** 채팅 모델 선택 UI에만 노출 (Opus는 기본 숨김) */
 export const USER_SELECTABLE_AI_OPTIONS = SELECTED_AI_OPTIONS.filter(
@@ -201,7 +230,7 @@ export function isGlmModel(modelId: string): boolean {
   return id === OPENROUTER_GLM_52_MODEL || id.startsWith("z-ai/glm") || id.includes("/glm-");
 }
 
-/** OpenRouter MoonshotAI Kimi 계열 (Kimi K3 등) */
+/** OpenRouter MoonshotAI Kimi 계열 (Kimi K3 등) — UI 제거, 영수증·legacy 보존 */
 export function isKimiModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
   return (
@@ -248,7 +277,7 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   "gemini-3.0": DEFAULT_SELECTED_AI,
   "gemini-3-flash-preview": DEFAULT_SELECTED_AI,
   "gemini-3.5-flash": DEFAULT_SELECTED_AI,
-  /** Gemini 3.1 Pro 제거 — 기존 채팅·legacy slug는 기본 모델로 이전 */
+  /** Gemini 3.1 Pro 제거 — 기존 채팅·legacy slug는 Muse로 이전 */
   "gemini-3.1": DEFAULT_SELECTED_AI,
   "gemini-3.1-pro-preview": DEFAULT_SELECTED_AI,
   "google/gemini-2.5-pro": OPENROUTER_GEMINI_25_PRO_MODEL,
@@ -261,22 +290,24 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   deepseek: OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   "deepseek-v4-pro": OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   "deepseek-4-pro": OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
-  /** Qwen 3.7 Max 제거 — 기존 채팅·legacy slug는 기본 모델로 이전 */
+  "deepseek/deepseek-v4-pro": OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
+  /** Qwen 3.7 Max 제거 — Muse로 이전 */
   qwen: DEFAULT_SELECTED_AI,
   "qwen3.7-max": DEFAULT_SELECTED_AI,
   "qwen/qwen3.7-max": DEFAULT_SELECTED_AI,
-  /** GLM 5.2 제거 — 기존 채팅·legacy slug는 기본 모델로 이전 */
+  /** GLM 5.2 제거 — Muse로 이전 */
   glm: DEFAULT_SELECTED_AI,
   "glm-5.2": DEFAULT_SELECTED_AI,
   "glm5.2": DEFAULT_SELECTED_AI,
   "z-ai/glm-5.2": DEFAULT_SELECTED_AI,
   "z-ai/glm-5.1": DEFAULT_SELECTED_AI,
   "z-ai/glm-5": DEFAULT_SELECTED_AI,
-  kimi: OPENROUTER_KIMI_K3_MODEL,
-  "kimi-k3": OPENROUTER_KIMI_K3_MODEL,
-  kimik3: OPENROUTER_KIMI_K3_MODEL,
-  "moonshotai/kimi-k3": OPENROUTER_KIMI_K3_MODEL,
-  "moonshotai/kimi-latest": OPENROUTER_KIMI_K3_MODEL,
+  /** Kimi K3 제거 — Muse로 이전 (재활성화 시 상수·detector 유지) */
+  kimi: DEFAULT_SELECTED_AI,
+  "kimi-k3": DEFAULT_SELECTED_AI,
+  kimik3: DEFAULT_SELECTED_AI,
+  "moonshotai/kimi-k3": DEFAULT_SELECTED_AI,
+  "moonshotai/kimi-latest": DEFAULT_SELECTED_AI,
   muse: OPENROUTER_MUSE_SPARK_11_MODEL,
   "muse-spark": OPENROUTER_MUSE_SPARK_11_MODEL,
   "muse-spark-1.1": OPENROUTER_MUSE_SPARK_11_MODEL,
@@ -296,8 +327,10 @@ export function resolveSelectedAI(value: unknown, fallback?: string): SelectedAI
   let resolved: SelectedAI;
   if (isValidSelectedAI(value)) resolved = value;
   else if (typeof value === "string" && LEGACY_TO_SELECTED[value]) resolved = LEGACY_TO_SELECTED[value];
+  else if (typeof value === "string" && isKimiModel(value)) resolved = DEFAULT_SELECTED_AI;
   else if (fallback && isValidSelectedAI(fallback)) resolved = fallback;
   else if (typeof fallback === "string" && LEGACY_TO_SELECTED[fallback]) resolved = LEGACY_TO_SELECTED[fallback];
+  else if (typeof fallback === "string" && isKimiModel(fallback)) resolved = DEFAULT_SELECTED_AI;
   else resolved = DEFAULT_SELECTED_AI;
   return coerceUserSelectableAI(resolved);
 }
@@ -306,6 +339,9 @@ export function resolveSelectedAI(value: unknown, fallback?: string): SelectedAI
 export function selectedAILabel(id: string): string {
   const opt = SELECTED_AI_OPTIONS.find((o) => o.id === id);
   if (opt) return opt.label;
+  if (id === OPENROUTER_KIMI_K3_MODEL || isKimiModel(id)) {
+    return KIMI_K3_DISPLAY_NAME;
+  }
   if (id === OPENROUTER_QWEN_37_MAX_MODEL || id.toLowerCase().includes("qwen3.7-max")) {
     return QWEN_DISPLAY_NAME;
   }
@@ -317,6 +353,10 @@ export function selectedAILabel(id: string): string {
   }
   if (id === GEMINI_CHAT_FLASH_25 || id === GEMINI_CHAT_FLASH) return id;
   return id;
+}
+
+export function selectedAIOptionMeta(id: string): (typeof SELECTED_AI_OPTIONS)[number] | undefined {
+  return SELECTED_AI_OPTIONS.find((o) => o.id === id);
 }
 
 /** OpenRouter model slug — selectedAI와 동일 */

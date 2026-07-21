@@ -101,9 +101,9 @@ import { getChatMemoryCapacity } from "@/lib/memory/memory-capacity";
 import { getOrCreateChatMemory } from "@/lib/memory/memory-db";
 import {
   CHAT_MESSAGE_MAX,
-  resolveSelectedAI,
   selectedAILabel,
 } from "@/lib/chatModels";
+import { getUserSelectedAI } from "@/lib/userSelectedAI";
 import { stripRuntimePromptContaminationFromVisibleOutput } from "@/lib/runtimePromptContaminationGuard";
 import {
   buildSceneDirective,
@@ -390,7 +390,8 @@ export async function POST(req: Request) {
         | undefined)
     : undefined;
 
-  const selectedAI = resolveSelectedAI(body.selectedAI, chat?.gemini_model);
+  /** 전역 선택이 소스 오브 트루스 — body/chat.gemini_model은 라우팅에 사용하지 않음 */
+  const selectedAI = getUserSelectedAI(db, user.id);
 
   let initialPersonaId: number | null = null;
   if (requestedPersonaId) {
@@ -411,19 +412,18 @@ export async function POST(req: Request) {
         ? normalizeTargetResponseChars(targetResponseCharsInput)
         : DEFAULT_TARGET_RESPONSE_CHARS;
     const initialMode: Route = isAdultMode ? "nsfw" : "safe";
-    const initialGeminiModel = selectedAI;
     const newChatId = createChatSession({
       userId: user.id,
       characterId: ch.id,
       greeting: ch.greeting,
       mode: initialMode,
-      selectedAI: initialGeminiModel,
       userNote: userNoteInput ?? "",
       selectedPersonaId: initialPersonaId,
       targetResponseChars: initialTargetChars,
     });
     chat = db.prepare("SELECT * FROM chats WHERE id=? AND user_id=?").get(newChatId, user.id) as typeof chat;
   } else {
+    /** Legacy mirror on this chat only (no bulk update). Never read back for routing. */
     db.prepare("UPDATE chats SET gemini_model=? WHERE id=?").run(selectedAI, chat.id);
     chat.gemini_model = selectedAI;
     if (userNoteInput !== undefined) {

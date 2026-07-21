@@ -335,6 +335,15 @@ function migrate(db: Database.Database) {
   addColumn("users", "persona_bio", "TEXT NOT NULL DEFAULT ''");
   addColumn("users", "user_note", "TEXT NOT NULL DEFAULT ''");
   addColumn("users", "chat_prefs", "TEXT NOT NULL DEFAULT ''");
+  /** 사용자 전역 채팅 모델 — 모든 RP 생성 라우팅의 source of truth */
+  addColumn("users", "selected_ai", "TEXT NOT NULL DEFAULT ''");
+  /** 전역 모델 UX 1회 안내 플래그 JSON */
+  addColumn("users", "ai_model_ux_json", "TEXT NOT NULL DEFAULT ''");
+  /**
+   * Legacy/compat mirror only — NOT used for routing.
+   * Name is historical (pre-OpenRouter). Written on chat create / turn as a copy of
+   * users.selected_ai for debugging; never read back as the active model.
+   */
   addColumn("chats", "gemini_model", "TEXT NOT NULL DEFAULT ''");
   addColumn("chats", "persona_bio", "TEXT NOT NULL DEFAULT ''");
   addColumn("chats", "user_note", "TEXT NOT NULL DEFAULT ''");

@@ -69,19 +69,21 @@ import { resolveActiveVariantContent } from "@/lib/messageAlternates";
 import type { Usage } from "@/lib/chatUsage";
 import { dispatchPointsDeducted } from "@/lib/pointsEvents";
 import {
-  SELECTED_AI_OPTIONS,
   USER_SELECTABLE_AI_OPTIONS,
   CHAT_MESSAGE_MAX,
   ASSISTANT_MESSAGE_MAX,
   DEFAULT_TARGET_RESPONSE_CHARS,
   isClaudeSelectedAI,
   selectedAILabel,
+  selectedAIOptionMeta,
   type SelectedAI,
 } from "@/lib/chatModels";
 import {
   modelPickerOptionLabel,
   resolveModelPickerInputTokens,
+  type UsageLikeForEstimate,
 } from "@/lib/modelTurnCostEstimate";
+import { globalModelStatusLabel } from "@/lib/userSelectedAI";
 import { formatAssistantLengthLabel } from "@/lib/responseLengthConstants";
 import {
   collapseStreamCompareText,
@@ -191,17 +193,26 @@ function isChatFetchTimeout(e: unknown): boolean {
   return e instanceof DOMException && e.name === "TimeoutError";
 }
 
-function selectedAIShortLabel(id: SelectedAI): string {
-  const opt = SELECTED_AI_OPTIONS.find((o) => o.id === id);
-  if (!opt) return selectedAILabel(id);
-  return opt.label;
-}
-
-function selectedAIOptionLabel(id: SelectedAI, inputTokens: number): string {
+function selectedAIOptionLabel(
+  id: SelectedAI,
+  inputTokens: number,
+  recentUsages: Array<UsageLikeForEstimate | null | undefined>,
+  targetResponseChars: number
+): string {
+  const meta = selectedAIOptionMeta(id);
+  const badgeText =
+    meta && "badge" in meta && typeof meta.badge === "string" && meta.badge
+      ? meta.badge
+      : "";
+  const badge = badgeText ? ` [${badgeText}]` : "";
+  const position = meta?.positionLabel ? ` · ${meta.positionLabel}` : "";
+  const displayName = `${selectedAILabel(id)}${badge}${position}`;
   return modelPickerOptionLabel({
-    displayName: selectedAIShortLabel(id),
+    displayName,
     modelId: id,
     inputTokens,
+    recentUsages,
+    targetResponseChars,
   });
 }
 
@@ -620,6 +631,7 @@ export default function ChatClient({
   isAdult,
   userNsfwOn,
   initialSelectedAI,
+  initialGlobalModelNotice = null,
   initialTargetResponseChars,
   initialChatTitle = "",
   initialDisplayPrefs,
@@ -657,6 +669,8 @@ export default function ChatClient({
   isAdult: boolean;
   userNsfwOn: boolean;
   initialSelectedAI: SelectedAI;
+  /** 전역 모델 1회 안내 (SSR에서 consume) */
+  initialGlobalModelNotice?: string | null;
   initialTargetResponseChars: number;
   initialChatTitle?: string;
   initialDisplayPrefs?: ChatDisplayPrefs;
@@ -844,11 +858,35 @@ export default function ChatClient({
   };
 
   const handleSelectedAIChange = useCallback(
-    (next: SelectedAI) => {
+    async (next: SelectedAI) => {
+      if (next === selectedAI) return;
       const switchingToOpus = !isClaudeSelectedAI(selectedAI) && isClaudeSelectedAI(next);
+      const prev = selectedAI;
       setSelectedAI(next);
       if (switchingToOpus) {
         setTargetResponseChars(DEFAULT_TARGET_RESPONSE_CHARS);
+      }
+      try {
+        const res = await fetch("/api/user/selected-ai", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ selectedAI: next }),
+        });
+        const data = (await res.json()) as {
+          error?: string;
+          selectedAI?: SelectedAI;
+          changeNotice?: string | null;
+        };
+        if (!res.ok) {
+          setSelectedAI(prev);
+          setToastMsg(data.error || "모델 변경에 실패했습니다.");
+          return;
+        }
+        if (data.selectedAI) setSelectedAI(data.selectedAI);
+        if (data.changeNotice) setToastMsg(data.changeNotice);
+      } catch {
+        setSelectedAI(prev);
+        setToastMsg("모델 변경 중 오류가 발생했습니다.");
       }
     },
     [selectedAI]
@@ -869,7 +907,6 @@ export default function ChatClient({
         body: JSON.stringify({
           chatId,
           userNote: userNoteRef.current,
-          selectedAI,
           isNsfwMode: nsfwMode,
           isAdultMode: nsfwMode,
           chatTitle,
@@ -884,13 +921,7 @@ export default function ChatClient({
     } finally {
       endSettingsSave();
     }
-  }, [
-    chatId,
-    selectedAI,
-    nsfwMode,
-    chatTitle,
-    widgetReservedChars,
-  ]);
+  }, [chatId, nsfwMode, chatTitle, widgetReservedChars]);
 
   const saveUserNote = useCallback(
     async (note: string): Promise<boolean> => {
@@ -912,7 +943,6 @@ export default function ChatClient({
           body: JSON.stringify({
             chatId,
             userNote: note,
-            selectedAI,
             isNsfwMode: nsfwMode,
             isAdultMode: nsfwMode,
             chatTitle,
@@ -932,7 +962,7 @@ export default function ChatClient({
         endSettingsSave();
       }
     },
-    [chatId, selectedAI, nsfwMode, chatTitle, widgetReservedChars]
+    [chatId, nsfwMode, chatTitle, widgetReservedChars]
   );
 
   const persistUserChatPrefs = useCallback(async () => {
@@ -985,13 +1015,13 @@ export default function ChatClient({
     return () => {
       if (settingsSaveTimerRef.current) clearTimeout(settingsSaveTimerRef.current);
     };
-  }, [
-    chatId,
-    selectedAI,
-    nsfwMode,
-    chatTitle,
-    persistChatSettings,
-  ]);
+  }, [chatId, nsfwMode, chatTitle, persistChatSettings]);
+
+  useEffect(() => {
+    if (initialGlobalModelNotice?.trim()) {
+      setToastMsg(initialGlobalModelNotice);
+    }
+  }, [initialChatId, initialGlobalModelNotice]);
 
   useEffect(() => {
     settingsSkipAutoSaveRef.current = true;
@@ -1143,17 +1173,53 @@ export default function ChatClient({
 
   const inputLocked = loading || lastTurnInFlight;
 
+  /** Model picker — usages with model ids for per-model output median */
+  const modelPickerUsages = useMemo(
+    (): Array<UsageLikeForEstimate | null> =>
+      messages.map((m) => {
+        const u = resolveActiveUsage(m.usage, m.variants, m.activeVariant);
+        if (!u) return null;
+        return {
+          ...u,
+          model: u.model || m.model || "",
+          selectedAI: u.selectedAI || u.model || m.model || "",
+        };
+      }),
+    [messages]
+  );
+
   /** Model picker — last turn API prompt size (+ draft) for ~cost preview */
   const modelPickerInputTokens = useMemo(
     () =>
       resolveModelPickerInputTokens({
-        recentUsages: messages.map((m) =>
-          resolveActiveUsage(m.usage, m.variants, m.activeVariant)
-        ),
+        recentUsages: modelPickerUsages,
         draftInput: input,
       }),
-    [messages, input]
+    [modelPickerUsages, input]
   );
+
+  /** Multi-tab: refresh global selected_ai on focus (server remains SoT for generation). */
+  useEffect(() => {
+    const sync = () => {
+      void fetch("/api/user/selected-ai")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data: { selectedAI?: SelectedAI } | null) => {
+          if (data?.selectedAI && data.selectedAI !== selectedAI) {
+            setSelectedAI(data.selectedAI);
+          }
+        })
+        .catch(() => {});
+    };
+    const onVis = () => {
+      if (document.visibilityState === "visible") sync();
+    };
+    window.addEventListener("focus", sync);
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      window.removeEventListener("focus", sync);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [selectedAI]);
 
   const clientMaxMessageId = useMemo(
     () => messages.reduce((max, m) => (m.id != null && m.id > max ? m.id : max), 0),
@@ -4018,20 +4084,31 @@ export default function ChatClient({
       >
         <FloatingPointsDeduction amount={floatDeductionAmount} trigger={floatDeductionTrigger} />
         <div className={`flex flex-wrap items-center gap-2 overflow-visible ${showCharacterPortrait ? "mb-1" : "mb-1"}`}>
-          <label className="flex items-center gap-1.5 text-[11px] text-zinc-400">
-            <span className="shrink-0 font-semibold text-zinc-500">AI</span>
-            <select
-              value={selectedAI}
-              onChange={(e) => handleSelectedAIChange(e.target.value as SelectedAI)}
-              disabled={inputLocked}
-              className="rounded-md border border-white/10 bg-[#1a1a1a] px-1.5 py-1 text-[11px] text-zinc-200 outline-none focus:border-violet-500/50 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {USER_SELECTABLE_AI_OPTIONS.map((o) => (
-                <option key={o.id} value={o.id}>
-                  {selectedAIOptionLabel(o.id, modelPickerInputTokens)}
-                </option>
-              ))}
-            </select>
+          <label className="flex min-w-0 flex-1 flex-col gap-0.5 text-[11px] text-zinc-400 sm:flex-none">
+            <span className="flex items-center gap-1.5">
+              <span className="shrink-0 font-semibold text-zinc-500">AI</span>
+              <select
+                value={selectedAI}
+                onChange={(e) => void handleSelectedAIChange(e.target.value as SelectedAI)}
+                disabled={inputLocked}
+                title={selectedAIOptionMeta(selectedAI)?.detailDescription}
+                className="max-w-full rounded-md border border-white/10 bg-[#1a1a1a] px-1.5 py-1 text-[11px] text-zinc-200 outline-none focus:border-violet-500/50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {USER_SELECTABLE_AI_OPTIONS.map((o) => (
+                  <option key={o.id} value={o.id} title={o.detailDescription}>
+                    {selectedAIOptionLabel(
+                      o.id as SelectedAI,
+                      modelPickerInputTokens,
+                      modelPickerUsages,
+                      targetResponseChars
+                    )}
+                  </option>
+                ))}
+              </select>
+            </span>
+            <span className="truncate text-[10px] text-zinc-500">
+              {globalModelStatusLabel(selectedAI)}
+            </span>
           </label>
         </div>
 
