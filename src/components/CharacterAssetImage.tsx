@@ -28,14 +28,9 @@ export default function CharacterAssetImage({
         className={`${imgClassName} ${blurForViewer ? "scale-105 blur-xl" : ""}`}
         draggable={false}
       />
-      {blurForViewer && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/55 px-2 text-center">
-          <span className="text-lg">🔒</span>
-          <span className="mt-1 text-[9px] font-semibold leading-tight text-zinc-300">
-            제작자만 볼 수 있는 이미지
-          </span>
-        </div>
-      )}
+      {blurForViewer ? (
+        <div className="absolute inset-0 bg-black/35" aria-hidden />
+      ) : null}
       {showHiddenBadge && !blurForViewer && (
         <span className="absolute bottom-1 left-1 rounded bg-amber-600/90 px-1.5 py-0.5 text-[8px] font-bold text-white">
           타인 가림

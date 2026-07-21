@@ -163,6 +163,7 @@ export default async function CharacterPage({
     return (
       <div className="w-full bg-[#0b0d14] p-4">
         <CharacterPublicPagePreview
+          characterId={c.id}
           name={c.name}
           tagline={tagline}
           tags={tags}
@@ -247,6 +248,7 @@ export default async function CharacterPage({
         )}
 
       <CharacterPublicPagePreview
+        characterId={c.id}
         name={c.name}
         tagline={tagline}
         tags={tags}

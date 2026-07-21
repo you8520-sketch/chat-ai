@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import CharacterIntroSection from "@/components/CharacterIntroSection";
 import CharacterAssetImage from "@/components/CharacterAssetImage";
+import CharacterAssetGalleryLightbox from "@/components/CharacterAssetGalleryLightbox";
 import CharacterImageViewer from "@/components/CharacterImageViewer";
 import CopyPageLinkButton from "@/components/CopyPageLinkButton";
 import OfficialCreatorBadge from "@/components/OfficialCreatorBadge";
@@ -10,33 +12,48 @@ import { CHARACTER_THUMB_ASPECT } from "@/components/CharacterCard";
 import { PROFILE_BIOGRAPHY_LIMIT } from "@/lib/generateProfile";
 import { applyProfilePlaceholders } from "@/lib/userPlaceholder";
 import { shouldBlurAssetForViewer, type CharacterAsset } from "@/lib/characterAssets";
+import { loadUnlockedCharacterAssetUrls } from "@/lib/characterAssetUnlocks";
 import { studioSurface } from "@/lib/studioDesign";
 
 function AssetGalleryStrip({
   assets,
   viewerIsCreator,
+  unlockedUrls,
   alt,
+  onOpenUnlocked,
 }: {
   assets: CharacterAsset[];
   viewerIsCreator: boolean;
+  unlockedUrls: ReadonlySet<string>;
   alt: string;
+  onOpenUnlocked: (asset: CharacterAsset) => void;
 }) {
   if (assets.length === 0) return null;
   return (
     <div className="mt-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:thin]">
       <div className="flex w-max gap-2">
-        {assets.map((asset, i) => (
-          <div
-            key={`${asset.url}-${i}`}
-            className={`${CHARACTER_THUMB_ASPECT} w-[4.75rem] shrink-0 overflow-hidden rounded-lg border border-white/10 bg-[#0a0d14] sm:w-[5.25rem]`}
-          >
-            <CharacterAssetImage
-              src={asset.url}
-              alt={alt}
-              blurForViewer={shouldBlurAssetForViewer(asset, viewerIsCreator)}
-            />
-          </div>
-        ))}
+        {assets.map((asset, i) => {
+          const blurred = shouldBlurAssetForViewer(asset, viewerIsCreator, unlockedUrls);
+          return (
+            <div
+              key={`${asset.url}-${i}`}
+              className={`${CHARACTER_THUMB_ASPECT} w-[4.75rem] shrink-0 overflow-hidden rounded-lg border border-white/10 bg-[#0a0d14] sm:w-[5.25rem]`}
+            >
+              {blurred ? (
+                <CharacterAssetImage src={asset.url} alt={alt} blurForViewer />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onOpenUnlocked(asset)}
+                  className="block h-full w-full cursor-zoom-in text-left"
+                  aria-label={`${alt} 이미지 크게 보기`}
+                >
+                  <CharacterAssetImage src={asset.url} alt={alt} />
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -44,6 +61,7 @@ function AssetGalleryStrip({
 
 /** 홈 → 캐릭터 카드 클릭 시 보이는 공개 페이지 레이아웃 */
 export default function CharacterPublicPagePreview({
+  characterId,
   name,
   tagline,
   tags,
@@ -67,6 +85,8 @@ export default function CharacterPublicPagePreview({
   creatorHref,
   pagePath,
 }: {
+  /** 채팅에서 해금한 에셋을 공개 갤러리에도 반영할 때 사용 */
+  characterId?: number;
   name: string;
   tagline: string;
   tags: string[];
@@ -97,6 +117,17 @@ export default function CharacterPublicPagePreview({
   /** 설정 시 이름 옆 링크 복사 버튼 표시 */
   pagePath?: string;
 }) {
+  const [unlockedUrls, setUnlockedUrls] = useState<ReadonlySet<string>>(() => new Set());
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!characterId || viewerIsCreator) {
+      setUnlockedUrls(new Set());
+      return;
+    }
+    setUnlockedUrls(loadUnlockedCharacterAssetUrls(characterId));
+  }, [characterId, viewerIsCreator]);
+
   const turnCount = totalTurns > 0 ? totalTurns : chats;
   const primary = cardImageUrl.trim();
   const displayName = name.trim() || "캐릭터 이름";
@@ -111,12 +142,26 @@ export default function CharacterPublicPagePreview({
         }));
   const imageCount = resolvedGallery.length;
   const primaryAsset = resolvedGallery.find((a) => a.url === primary);
-  const primaryBlur = shouldBlurAssetForViewer(primaryAsset, viewerIsCreator);
+  const primaryBlur = shouldBlurAssetForViewer(primaryAsset, viewerIsCreator, unlockedUrls);
+
+  const viewableGallery = useMemo(
+    () =>
+      resolvedGallery.filter(
+        (asset) => !shouldBlurAssetForViewer(asset, viewerIsCreator, unlockedUrls)
+      ),
+    [resolvedGallery, viewerIsCreator, unlockedUrls]
+  );
 
   const resolvedTagline = applyProfilePlaceholders(tagline, {
     viewerDisplayName,
     characterDisplayName: displayName,
   });
+
+  const openUnlockedAsset = (asset: CharacterAsset) => {
+    const idx = viewableGallery.findIndex((a) => a.url === asset.url);
+    if (idx < 0) return;
+    setLightboxIndex(idx);
+  };
 
   const cardVisual = primary ? (
     primaryBlur ? (
@@ -163,10 +208,7 @@ export default function CharacterPublicPagePreview({
           {tagList.length > 0 ? (
             <div className="mt-3 flex flex-wrap gap-1.5">
               {tagList.map((t) => (
-                <span
-                  key={t}
-                  className={studioSurface.chip}
-                >
+                <span key={t} className={studioSurface.chip}>
                   #{t}
                 </span>
               ))}
@@ -196,7 +238,13 @@ export default function CharacterPublicPagePreview({
             </span>
           </p>
 
-          <AssetGalleryStrip assets={resolvedGallery} viewerIsCreator={viewerIsCreator} alt={displayName} />
+          <AssetGalleryStrip
+            assets={resolvedGallery}
+            viewerIsCreator={viewerIsCreator}
+            unlockedUrls={unlockedUrls}
+            alt={displayName}
+            onOpenUnlocked={openUnlockedAsset}
+          />
         </div>
       </div>
 
@@ -206,6 +254,16 @@ export default function CharacterPublicPagePreview({
         viewerDisplayName={viewerDisplayName}
         characterDisplayName={displayName}
         collapsible={collapsibleDescription}
+      />
+
+      <CharacterAssetGalleryLightbox
+        open={lightboxIndex != null && viewableGallery.length > 0}
+        assets={viewableGallery}
+        initialIndex={lightboxIndex ?? 0}
+        characterName={displayName}
+        viewerIsCreator={viewerIsCreator}
+        unlockedUrls={unlockedUrls}
+        onClose={() => setLightboxIndex(null)}
       />
     </div>
   );
