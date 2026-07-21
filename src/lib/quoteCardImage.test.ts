@@ -3,7 +3,11 @@ import { afterEach, describe, it } from "node:test";
 import {
   buildQuoteCardFooterLeft,
   canShareQuoteCardPng,
+  copyQuoteCardPng,
+  parseQuoteCardBlocks,
   prepareQuoteCardSaveFallbackWindow,
+  QUOTE_CARD_DEFAULT_BACKGROUND,
+  QUOTE_CARD_DEFAULT_FOOTER_FONT_SIZE,
   saveQuoteCardPngWithFallback,
   shareQuoteCardPng,
 } from "@/lib/quoteCardImage";
@@ -105,6 +109,72 @@ describe("buildQuoteCardFooterLeft", () => {
       buildQuoteCardFooterLeft({ bodyText: "", characterName: "하비", creatorName: "" }),
       "하비"
     );
+  });
+});
+
+describe("parseQuoteCardBlocks", () => {
+  it("splits narration and quoted dialogue", () => {
+    const blocks = parseQuoteCardBlocks(
+      '에녹은 손전등을 낮췄다.\n"소리 죽여."\n통로 끝에서 물방울이 떨어졌다.'
+    );
+    assert.deepEqual(
+      blocks.map((b) => b.type),
+      ["narration", "dialogue", "narration"]
+    );
+    assert.equal(blocks[1]!.text, "소리 죽여.");
+  });
+
+  it("supports corner brackets", () => {
+    const blocks = parseQuoteCardBlocks("「이쪽이다.」");
+    assert.equal(blocks.length, 1);
+    assert.equal(blocks[0]!.type, "dialogue");
+    assert.equal(blocks[0]!.text, "이쪽이다.");
+  });
+
+  it("keeps plain text as narration", () => {
+    const blocks = parseQuoteCardBlocks("그냥 지문만 있다.");
+    assert.deepEqual(blocks, [{ type: "narration", text: "그냥 지문만 있다." }]);
+  });
+});
+
+describe("quote card defaults", () => {
+  it("uses a light card chrome", () => {
+    assert.equal(QUOTE_CARD_DEFAULT_BACKGROUND, "#ffffff");
+    assert.equal(QUOTE_CARD_DEFAULT_FOOTER_FONT_SIZE, 15);
+  });
+});
+
+describe("copyQuoteCardPng", () => {
+  it("writes png ClipboardItem when available", async () => {
+    let wrote: ClipboardItem[] | null = null;
+    Object.defineProperty(globalThis, "navigator", {
+      value: {
+        clipboard: {
+          write: async (items: ClipboardItem[]) => {
+            wrote = items;
+          },
+        },
+      },
+      configurable: true,
+    });
+    Object.defineProperty(globalThis, "ClipboardItem", {
+      value: class ClipboardItem {
+        constructor(public items: Record<string, Blob>) {}
+      },
+      configurable: true,
+    });
+    const blob = new Blob(["x"], { type: "image/png" });
+    assert.equal(await copyQuoteCardPng(blob), true);
+    assert.ok(wrote && wrote.length === 1);
+  });
+
+  it("returns false when clipboard write is unavailable", async () => {
+    Object.defineProperty(globalThis, "navigator", {
+      value: {},
+      configurable: true,
+    });
+    const blob = new Blob(["x"], { type: "image/png" });
+    assert.equal(await copyQuoteCardPng(blob), false);
   });
 });
 

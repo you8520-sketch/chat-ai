@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   canShareQuoteCardPng,
+  copyQuoteCardPng,
   prepareQuoteCardSaveFallbackWindow,
   saveQuoteCardPngWithFallback,
   type QuoteCardOrientation,
@@ -63,6 +64,19 @@ function rangeAnchorPoint(range: Range): { x: number; y: number } {
   };
 }
 
+function loadImageFromFile(file: File): Promise<{ img: HTMLImageElement; url: string }> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => resolve({ img, url });
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("image load failed"));
+    };
+    img.src = url;
+  });
+}
+
 export default function ChatSelectionQuoteToolbar({
   containerRef,
   characterName,
@@ -80,11 +94,21 @@ export default function ChatSelectionQuoteToolbar({
   const [modalOpen, setModalOpen] = useState(false);
   const [orientation, setOrientation] = useState<QuoteCardOrientation>("portrait");
   const [bodyFontSize, setBodyFontSize] = useState(QUOTE_CARD_BODY_FONT_DEFAULT);
+  const [speechBubbles, setSpeechBubbles] = useState(true);
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [busy, setBusy] = useState(false);
 
   const previewUrlRef = useRef<string | null>(null);
+  const avatarUrlRef = useRef<string | null>(null);
+  const backgroundUrlRef = useRef<string | null>(null);
+  const avatarImageRef = useRef<HTMLImageElement | null>(null);
+  const backgroundImageRef = useRef<HTMLImageElement | null>(null);
+  const [hasAvatar, setHasAvatar] = useState(false);
+  const [hasBackground, setHasBackground] = useState(false);
+
   const toolbarRef = useRef<HTMLButtonElement>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const backgroundInputRef = useRef<HTMLInputElement>(null);
   const selectionSchedulerRef = useRef<ReturnType<typeof createCoalescedSelectionScheduler> | null>(null);
   const lastSelectionSignatureRef = useRef<string>("");
   /** Sticky toolbar coords so iOS selectionchange / getClientRects jitter does not chase the button. */
@@ -122,25 +146,55 @@ export default function ChatSelectionQuoteToolbar({
     }
   }, []);
 
+  const revokeSessionImages = useCallback(() => {
+    if (avatarUrlRef.current) {
+      URL.revokeObjectURL(avatarUrlRef.current);
+      avatarUrlRef.current = null;
+    }
+    if (backgroundUrlRef.current) {
+      URL.revokeObjectURL(backgroundUrlRef.current);
+      backgroundUrlRef.current = null;
+    }
+    avatarImageRef.current = null;
+    backgroundImageRef.current = null;
+    setHasAvatar(false);
+    setHasBackground(false);
+    if (avatarInputRef.current) avatarInputRef.current.value = "";
+    if (backgroundInputRef.current) backgroundInputRef.current.value = "";
+  }, []);
+
   const clearAll = useCallback(() => {
     setPending(null);
     setModalOpen(false);
     setOrientation("portrait");
     setBodyFontSize(QUOTE_CARD_BODY_FONT_DEFAULT);
+    setSpeechBubbles(true);
     revokePreviewUrl();
+    revokeSessionImages();
     setPreview(null);
     setBusy(false);
     lastSelectionSignatureRef.current = "";
     stickyToolbarPosRef.current = null;
     const sel = window.getSelection();
     if (sel && !sel.isCollapsed) sel.removeAllRanges();
-  }, [revokePreviewUrl]);
+  }, [revokePreviewUrl, revokeSessionImages]);
+
+  const closeModal = useCallback(() => {
+    setModalOpen(false);
+    revokePreviewUrl();
+    revokeSessionImages();
+    setPreview(null);
+    setSpeechBubbles(true);
+    setOrientation("portrait");
+    setBodyFontSize(QUOTE_CARD_BODY_FONT_DEFAULT);
+  }, [revokePreviewUrl, revokeSessionImages]);
 
   const renderPreview = useCallback(
     async (
       text: string,
       nextOrientation: QuoteCardOrientation,
-      nextBodyFontSize: number
+      nextBodyFontSize: number,
+      nextSpeechBubbles: boolean
     ) => {
       const viewportW = typeof window !== "undefined" ? window.innerWidth : 800;
       const viewportH = typeof window !== "undefined" ? window.innerHeight : 600;
@@ -169,7 +223,13 @@ export default function ChatSelectionQuoteToolbar({
             creatorName,
             orientation: nextOrientation,
           },
-          { bodyFontSize: nextBodyFontSize }
+          {
+            bodyFontSize: nextBodyFontSize,
+            speechBubbles: nextSpeechBubbles,
+            avatarImage: avatarImageRef.current,
+            backgroundImage: backgroundImageRef.current,
+            characterInitial: characterName.trim()[0] || "?",
+          }
         );
         revokePreviewUrl();
         const blobUrl = URL.createObjectURL(blob);
@@ -187,12 +247,10 @@ export default function ChatSelectionQuoteToolbar({
         });
       } catch {
         onToast("미리보기 만들기에 실패했습니다.");
-        setModalOpen(false);
-        revokePreviewUrl();
-        setPreview(null);
+        closeModal();
       }
     },
-    [characterName, creatorName, onToast, revokePreviewUrl]
+    [characterName, creatorName, onToast, revokePreviewUrl, closeModal]
   );
 
   const schedulePreviewRender = useCallback(
@@ -200,6 +258,7 @@ export default function ChatSelectionQuoteToolbar({
       text: string,
       nextOrientation: QuoteCardOrientation,
       nextBodyFontSize: number,
+      nextSpeechBubbles: boolean,
       delayMs = 0
     ) => {
       if (fontRenderTimerRef.current) {
@@ -207,7 +266,7 @@ export default function ChatSelectionQuoteToolbar({
       }
       fontRenderTimerRef.current = setTimeout(() => {
         fontRenderTimerRef.current = null;
-        void renderPreview(text, nextOrientation, nextBodyFontSize);
+        void renderPreview(text, nextOrientation, nextBodyFontSize, nextSpeechBubbles);
       }, delayMs);
     },
     [renderPreview]
@@ -216,16 +275,16 @@ export default function ChatSelectionQuoteToolbar({
   const openPreviewModal = useCallback(() => {
     if (!pending) return;
     setModalOpen(true);
-    void renderPreview(pending.text, orientation, bodyFontSize);
-  }, [pending, orientation, bodyFontSize, renderPreview]);
+    void renderPreview(pending.text, orientation, bodyFontSize, speechBubbles);
+  }, [pending, orientation, bodyFontSize, speechBubbles, renderPreview]);
 
   const changeOrientation = useCallback(
     (next: QuoteCardOrientation) => {
       if (!pending || next === orientation) return;
       setOrientation(next);
-      void renderPreview(pending.text, next, bodyFontSize);
+      void renderPreview(pending.text, next, bodyFontSize, speechBubbles);
     },
-    [pending, orientation, bodyFontSize, renderPreview]
+    [pending, orientation, bodyFontSize, speechBubbles, renderPreview]
   );
 
   const changeBodyFontSize = useCallback(
@@ -236,10 +295,65 @@ export default function ChatSelectionQuoteToolbar({
       );
       setBodyFontSize(clamped);
       if (!pending || !modalOpen) return;
-      schedulePreviewRender(pending.text, orientation, clamped, 120);
+      schedulePreviewRender(pending.text, orientation, clamped, speechBubbles, 120);
     },
-    [pending, modalOpen, orientation, schedulePreviewRender]
+    [pending, modalOpen, orientation, speechBubbles, schedulePreviewRender]
   );
+
+  const changeSpeechBubbles = useCallback(
+    (next: boolean) => {
+      setSpeechBubbles(next);
+      if (!pending || !modalOpen) return;
+      void renderPreview(pending.text, orientation, bodyFontSize, next);
+    },
+    [pending, modalOpen, orientation, bodyFontSize, renderPreview]
+  );
+
+  const onAvatarFile = useCallback(
+    async (file: File | null) => {
+      if (!file || !pending) return;
+      try {
+        if (avatarUrlRef.current) URL.revokeObjectURL(avatarUrlRef.current);
+        const { img, url } = await loadImageFromFile(file);
+        avatarUrlRef.current = url;
+        avatarImageRef.current = img;
+        setHasAvatar(true);
+        void renderPreview(pending.text, orientation, bodyFontSize, speechBubbles);
+      } catch {
+        onToast("캐릭터 사진을 불러오지 못했습니다.");
+      }
+    },
+    [pending, orientation, bodyFontSize, speechBubbles, renderPreview, onToast]
+  );
+
+  const onBackgroundFile = useCallback(
+    async (file: File | null) => {
+      if (!file || !pending) return;
+      try {
+        if (backgroundUrlRef.current) URL.revokeObjectURL(backgroundUrlRef.current);
+        const { img, url } = await loadImageFromFile(file);
+        backgroundUrlRef.current = url;
+        backgroundImageRef.current = img;
+        setHasBackground(true);
+        void renderPreview(pending.text, orientation, bodyFontSize, speechBubbles);
+      } catch {
+        onToast("배경 이미지를 불러오지 못했습니다.");
+      }
+    },
+    [pending, orientation, bodyFontSize, speechBubbles, renderPreview, onToast]
+  );
+
+  const clearBackground = useCallback(() => {
+    if (backgroundUrlRef.current) {
+      URL.revokeObjectURL(backgroundUrlRef.current);
+      backgroundUrlRef.current = null;
+    }
+    backgroundImageRef.current = null;
+    setHasBackground(false);
+    if (backgroundInputRef.current) backgroundInputRef.current.value = "";
+    if (!pending) return;
+    void renderPreview(pending.text, orientation, bodyFontSize, speechBubbles);
+  }, [pending, orientation, bodyFontSize, speechBubbles, renderPreview]);
 
   useEffect(() => {
     return () => {
@@ -248,6 +362,8 @@ export default function ChatSelectionQuoteToolbar({
       }
       selectionSchedulerRef.current?.cancel();
       resetToolbarPointerActive();
+      if (avatarUrlRef.current) URL.revokeObjectURL(avatarUrlRef.current);
+      if (backgroundUrlRef.current) URL.revokeObjectURL(backgroundUrlRef.current);
     };
   }, [resetToolbarPointerActive]);
 
@@ -310,7 +426,6 @@ export default function ChatSelectionQuoteToolbar({
       let nextX: number;
       let nextY: number;
       if (hasExplicitCursor) {
-        // Pointer / touch / mouse end: place near the gesture.
         const clamped = clampQuoteToolbarPosition(
           { x: cursorX, y: cursorY },
           viewportBox,
@@ -320,7 +435,6 @@ export default function ChatSelectionQuoteToolbar({
         nextY = clamped.y;
         stickyToolbarPosRef.current = { x: nextX, y: nextY };
       } else if (stickyToolbarPosRef.current) {
-        // selectionchange on iOS fires often with jittery getClientRects — keep sticky spot.
         nextX = stickyToolbarPosRef.current.x;
         nextY = stickyToolbarPosRef.current.y;
       } else {
@@ -395,16 +509,14 @@ export default function ChatSelectionQuoteToolbar({
       selectionSchedulerRef.current?.cancel();
       resetToolbarPointerActive();
     };
-  }, [containerRef, disabled, modalOpen, clearAll]);
+  }, [containerRef, disabled, modalOpen, clearAll, resetToolbarPointerActive]);
 
   useEffect(() => {
     if (!pending && !modalOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         if (modalOpen) {
-          setModalOpen(false);
-          revokePreviewUrl();
-          setPreview(null);
+          closeModal();
         } else {
           clearAll();
         }
@@ -412,7 +524,7 @@ export default function ChatSelectionQuoteToolbar({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [pending, modalOpen, clearAll, revokePreviewUrl]);
+  }, [pending, modalOpen, clearAll, closeModal]);
 
   useEffect(() => {
     if (!pending || modalOpen) return;
@@ -428,8 +540,21 @@ export default function ChatSelectionQuoteToolbar({
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [pending, modalOpen]);
 
-  async function exportCard(mode: "save" | "share") {
+  async function exportCard(mode: "save" | "share" | "copy") {
     if (busy || preview?.loading || !preview?.blob) return;
+    if (mode === "copy") {
+      setBusy(true);
+      try {
+        const ok = await copyQuoteCardPng(preview.blob);
+        onToast(ok ? "이미지를 복사했습니다." : "이 브라우저에서는 이미지 복사를 지원하지 않습니다. 저장을 이용해 주세요.");
+        if (ok) clearAll();
+      } finally {
+        resetToolbarPointerActive();
+        setBusy(false);
+      }
+      return;
+    }
+
     const fallbackWindow = mode === "save" || !canShareQuoteCardPng(preview.blob)
       ? prepareQuoteCardSaveFallbackWindow()
       : null;
@@ -471,11 +596,11 @@ export default function ChatSelectionQuoteToolbar({
   }
 
   const orientationBtn =
-    "rounded-lg border px-3 py-1.5 text-xs font-semibold transition disabled:opacity-50";
+    "rounded-full border px-3 py-1.5 text-xs font-medium transition disabled:opacity-50";
   const orientationActive =
-    "border-violet-400/60 bg-violet-600 text-white shadow-[0_0_10px_rgba(139,92,246,0.35)]";
+    "border-zinc-800 bg-zinc-900 text-white";
   const orientationIdle =
-    "border-white/10 bg-[#1a1a1a] text-zinc-300 hover:border-violet-500/35 hover:bg-violet-500/10";
+    "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50";
 
   return (
     <>
@@ -491,7 +616,7 @@ export default function ChatSelectionQuoteToolbar({
               window.setTimeout(resetToolbarPointerActive, 0);
             }
           }}
-          className="fixed z-[85] rounded-lg border border-violet-400/50 bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white shadow-[0_0_16px_rgba(139,92,246,0.45)] transition hover:bg-violet-500"
+          className="fixed z-[85] rounded-full border border-zinc-800 bg-zinc-900 px-3.5 py-1.5 text-xs font-semibold text-white shadow-lg transition hover:bg-zinc-800"
           data-quote-toolbar
           onPointerDown={markToolbarPointerActive}
           onTouchStart={markToolbarPointerActive}
@@ -513,38 +638,32 @@ export default function ChatSelectionQuoteToolbar({
         <div
           data-quote-ui
           data-quote-toolbar
-          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4 backdrop-blur-[2px]"
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 p-4 backdrop-blur-[1px]"
           onPointerDown={(e) => {
             if (e.target === e.currentTarget) {
-              setModalOpen(false);
-              revokePreviewUrl();
-              setPreview(null);
+              closeModal();
             }
           }}
         >
           <div
-            className="flex w-fit max-w-[92vw] flex-col rounded-2xl border border-violet-500/35 bg-[#141418] shadow-[0_0_40px_rgba(139,92,246,0.2)]"
+            className="flex w-fit max-w-[94vw] flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl"
             role="dialog"
             aria-modal="true"
             aria-label="발췌 이미지 미리보기"
           >
-            <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-2.5">
-              <p className="text-sm font-semibold text-zinc-100">저장 이미지 미리보기</p>
+            <div className="flex items-center justify-between gap-3 border-b border-zinc-100 px-4 py-3">
+              <p className="text-sm font-semibold text-zinc-900">이미지 미리보기</p>
               <button
                 type="button"
-                onClick={() => {
-                  setModalOpen(false);
-                  revokePreviewUrl();
-                  setPreview(null);
-                }}
-                className="rounded-lg px-2 py-1 text-xs text-zinc-400 transition hover:bg-white/10 hover:text-zinc-200"
+                onClick={closeModal}
+                className="rounded-lg px-2 py-1 text-xs text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800"
               >
                 닫기
               </button>
             </div>
 
-            <div className="flex flex-wrap items-center gap-3 px-4 pt-2.5">
-              <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col gap-3 px-4 pt-3">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   disabled={preview?.loading}
@@ -553,7 +672,7 @@ export default function ChatSelectionQuoteToolbar({
                     orientation === "portrait" ? orientationActive : orientationIdle
                   }`}
                 >
-                  세로 2:3
+                  세로
                 </button>
                 <button
                   type="button"
@@ -563,7 +682,7 @@ export default function ChatSelectionQuoteToolbar({
                     orientation === "square" ? orientationActive : orientationIdle
                   }`}
                 >
-                  정사각 1:1
+                  정사각
                 </button>
                 <button
                   type="button"
@@ -573,30 +692,86 @@ export default function ChatSelectionQuoteToolbar({
                     orientation === "landscape" ? orientationActive : orientationIdle
                   }`}
                 >
-                  가로 3:2
+                  가로
+                </button>
+                <button
+                  type="button"
+                  disabled={preview?.loading}
+                  onClick={() => changeSpeechBubbles(!speechBubbles)}
+                  className={`${orientationBtn} ${
+                    speechBubbles ? orientationActive : orientationIdle
+                  }`}
+                >
+                  말풍선 {speechBubbles ? "ON" : "OFF"}
                 </button>
               </div>
-              <label className="flex min-w-[9rem] flex-1 items-center gap-2 text-xs text-zinc-400">
-                <span className="shrink-0 font-medium text-zinc-300">글자 크기</span>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="flex min-w-[10rem] flex-1 items-center gap-2 text-xs text-zinc-500">
+                  <span className="shrink-0 font-medium text-zinc-700">글자</span>
+                  <input
+                    type="range"
+                    min={QUOTE_CARD_BODY_FONT_MIN}
+                    max={QUOTE_CARD_BODY_FONT_MAX}
+                    step={1}
+                    value={bodyFontSize}
+                    disabled={preview?.loading}
+                    onChange={(e) => changeBodyFontSize(Number(e.target.value))}
+                    className="h-1.5 w-full accent-zinc-800"
+                    aria-label="글자 크기"
+                  />
+                  <span className="shrink-0 tabular-nums text-zinc-700">{bodyFontSize}</span>
+                </label>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 text-xs">
                 <input
-                  type="range"
-                  min={QUOTE_CARD_BODY_FONT_MIN}
-                  max={QUOTE_CARD_BODY_FONT_MAX}
-                  step={1}
-                  value={bodyFontSize}
-                  disabled={preview?.loading}
-                  onChange={(e) => changeBodyFontSize(Number(e.target.value))}
-                  className="h-1.5 w-full accent-violet-500"
-                  aria-label="글자 크기"
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => void onAvatarFile(e.target.files?.[0] ?? null)}
                 />
-                <span className="shrink-0 tabular-nums text-zinc-300">{bodyFontSize}</span>
-              </label>
+                <input
+                  ref={backgroundInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => void onBackgroundFile(e.target.files?.[0] ?? null)}
+                />
+                <button
+                  type="button"
+                  disabled={preview?.loading}
+                  onClick={() => avatarInputRef.current?.click()}
+                  className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 font-medium text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-50"
+                >
+                  {hasAvatar ? "캐릭터 사진 변경" : "캐릭터 사진"}
+                </button>
+                <button
+                  type="button"
+                  disabled={preview?.loading}
+                  onClick={() => backgroundInputRef.current?.click()}
+                  className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 font-medium text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-50"
+                >
+                  {hasBackground ? "배경 변경" : "배경 이미지"}
+                </button>
+                {hasBackground ? (
+                  <button
+                    type="button"
+                    disabled={preview?.loading}
+                    onClick={clearBackground}
+                    className="rounded-full px-2 py-1.5 text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-800 disabled:opacity-50"
+                  >
+                    배경 지우기
+                  </button>
+                ) : null}
+              </div>
             </div>
 
-            <div className="flex justify-center px-3 py-2">
+            <div className="flex justify-center bg-zinc-50/80 px-3 py-4">
               {preview?.loading ? (
                 <div
-                  className="flex items-center justify-center rounded-lg border border-white/10 bg-black/20"
+                  className="flex items-center justify-center rounded-xl border border-zinc-200 bg-white"
                   style={{
                     width: preview.displayWidth,
                     height: preview.displayHeight,
@@ -612,7 +787,7 @@ export default function ChatSelectionQuoteToolbar({
                   alt="발췌 카드 미리보기"
                   width={preview.displayWidth}
                   height={preview.displayHeight}
-                  className="block rounded-lg border border-white/10 object-contain shadow-lg"
+                  className="block rounded-xl border border-zinc-200 object-contain shadow-sm"
                   style={{
                     width: preview.displayWidth,
                     height: preview.displayHeight,
@@ -622,13 +797,21 @@ export default function ChatSelectionQuoteToolbar({
               ) : null}
             </div>
 
-            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-white/10 px-4 py-2.5">
+            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-zinc-100 px-4 py-3">
+              <button
+                type="button"
+                disabled={busy || preview?.loading}
+                onClick={() => exportCard("copy")}
+                className="rounded-full border border-zinc-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-zinc-800 transition hover:bg-zinc-50 disabled:opacity-50"
+              >
+                이미지 복사
+              </button>
               {canNativeShare ? (
                 <button
                   type="button"
                   disabled={busy || preview?.loading}
                   onClick={() => exportCard("share")}
-                  className="rounded-lg border border-violet-500/40 bg-violet-500/15 px-3 py-1.5 text-xs font-semibold text-violet-100 transition hover:bg-violet-500/25 disabled:opacity-50"
+                  className="rounded-full border border-zinc-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-zinc-800 transition hover:bg-zinc-50 disabled:opacity-50"
                 >
                   공유
                 </button>
@@ -637,7 +820,7 @@ export default function ChatSelectionQuoteToolbar({
                 type="button"
                 disabled={busy || preview?.loading}
                 onClick={() => exportCard("save")}
-                className="rounded-lg border border-violet-400/50 bg-violet-600 px-4 py-1.5 text-xs font-semibold text-white shadow-[0_0_12px_rgba(139,92,246,0.35)] transition hover:bg-violet-500 disabled:opacity-50"
+                className="rounded-full bg-zinc-900 px-4 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50"
               >
                 이미지 저장
               </button>
