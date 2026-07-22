@@ -34,8 +34,18 @@ const ENV_KEYS = [
   "CANON_INJECTION_DEEPSEEK_MODE",
   "CANON_ARCHIVE_DEEPSEEK_SELECTIVE",
   "CANON_INJECTION_DEEPSEEK_CANARY",
+  "CANON_INJECTION_DEEPSEEK_CANARY_PERCENT",
+  "CANON_INJECTION_DEEPSEEK_CANARY_USER_IDS",
   "MEMORY_FEATURE_ENABLED",
 ] as const;
+
+const TEST_COHORT_USER_ID = 4242;
+
+function deepSeekPolicy() {
+  return resolveCanonInjectionPolicy(OPENROUTER_DEEPSEEK_V4_PRO_MODEL, {
+    userId: TEST_COHORT_USER_ID,
+  });
+}
 
 function saveEnv(): Record<string, string | undefined> {
   return Object.fromEntries(ENV_KEYS.map((k) => [k, process.env[k]]));
@@ -151,6 +161,7 @@ function setD2Canary() {
   process.env.CANON_INJECTION_ROLLOUT_STAGE = "D2";
   process.env.CANON_ARCHIVE_DEEPSEEK_SELECTIVE = "1";
   process.env.CANON_INJECTION_DEEPSEEK_CANARY = "1";
+  process.env.CANON_INJECTION_DEEPSEEK_CANARY_PERCENT = "100";
   process.env.MEMORY_FEATURE_ENABLED = "1";
 }
 
@@ -167,7 +178,7 @@ describe("D3 payload — 1. knowledge boundary (player + scenario_meta absent fr
   afterEach(() => restoreEnv(env));
 
   it("player-bucket dormant sentinel is NOT surfaced by ACTIVE even when cue matches", () => {
-    const policy = resolveCanonInjectionPolicy(OPENROUTER_DEEPSEEK_V4_PRO_MODEL);
+    const policy = deepSeekPolicy();
     assert.equal(policy.actualCanonMode, "LAYERED");
     const r = buildPayload({ policy, plan: makeTestPlan(), userMessage: "회귀 비밀에 대해 말해줘" });
     assert.ok(r.systemPrompt.includes(SENTINEL_CORE), "CORE present");
@@ -175,14 +186,14 @@ describe("D3 payload — 1. knowledge boundary (player + scenario_meta absent fr
   });
 
   it("scenario_meta-bucket dormant sentinel is NOT surfaced by ACTIVE even when cue matches", () => {
-    const policy = resolveCanonInjectionPolicy(OPENROUTER_DEEPSEEK_V4_PRO_MODEL);
+    const policy = deepSeekPolicy();
     const r = buildPayload({ policy, plan: makeTestPlan(), userMessage: "루프 재시작 조건에 대해 말해줘" });
     assert.ok(r.systemPrompt.includes(SENTINEL_CORE), "CORE present");
     assert.ok(!r.systemPrompt.includes(SENTINEL_SCENARIO_META), "scenario_meta-bucket dormant sentinel must NOT surface (B1)");
   });
 
   it("BOTH player + scenario_meta sentinels absent from LAYERED ACTIVE provider prompt (HARD GATE)", () => {
-    const policy = resolveCanonInjectionPolicy(OPENROUTER_DEEPSEEK_V4_PRO_MODEL);
+    const policy = deepSeekPolicy();
     const r = buildPayload({
       policy,
       plan: makeTestPlan(),
@@ -207,7 +218,7 @@ describe("D3 payload — 2. dormant provenance (sentinel suppressed; no bypass r
   afterEach(() => restoreEnv(env));
 
   it("dormant sentinel in archive -> NOT in context under D2 selective archive", () => {
-    const policy = resolveCanonInjectionPolicy(OPENROUTER_DEEPSEEK_V4_PRO_MODEL);
+    const policy = deepSeekPolicy();
     assert.equal(policy.actualArchiveMode, "SELECTIVE");
     const archive = `${SENTINEL_DORMANT_WORLD} 안개 수위 기록.\n\n무관 단락: 날씨 맑음.`;
     const r = buildPayload({ policy, plan: makeTestPlan(), userMessage: "완전히 무관한 인사 안녕", archiveMemory: archive });
@@ -216,7 +227,7 @@ describe("D3 payload — 2. dormant provenance (sentinel suppressed; no bypass r
   });
 
   it("no LTM/episodic/lorebook/history bypass re-injection of dormant sentinel", () => {
-    const policy = resolveCanonInjectionPolicy(OPENROUTER_DEEPSEEK_V4_PRO_MODEL);
+    const policy = deepSeekPolicy();
     // LTM passed empty; no episodic/lorebook channel in this path; history empty. The dormant
     // sentinel lives only in archive (suppressed by selective archive) and dormant canon
     // (suppressed by LAYERED). It must not re-enter via any other source.
@@ -248,7 +259,7 @@ describe("D3 payload — 3. kill-switch (exact rollback)", () => {
 
   it("KILL_SWITCH=1 -> FULL_LEGACY canon + FULL_ALWAYS archive + ACTIVE OFF + Momentum OFF", () => {
     process.env.CANON_INJECTION_KILL_SWITCH = "1";
-    const policy = resolveCanonInjectionPolicy(OPENROUTER_DEEPSEEK_V4_PRO_MODEL);
+    const policy = deepSeekPolicy();
     assert.equal(policy.forceFullLegacy, true);
     assert.equal(policy.actualCanonMode, "FULL_LEGACY");
     assert.equal(policy.actualArchiveMode, "FULL_ALWAYS");
@@ -282,7 +293,7 @@ describe("D3 payload — 4. other-model isolation (Muse/Gemini/HY3 FULL_LEGACY)"
   });
 
   it("DeepSeek canary ON -> LAYERED + SELECTIVE (contrast: only DeepSeek takes the candidate)", () => {
-    const policy = resolveCanonInjectionPolicy(OPENROUTER_DEEPSEEK_V4_PRO_MODEL);
+    const policy = deepSeekPolicy();
     assert.equal(policy.actualCanonMode, "LAYERED");
     assert.equal(policy.actualArchiveMode, "SELECTIVE");
   });

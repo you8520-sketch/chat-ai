@@ -4,7 +4,15 @@ import {
   OPENROUTER_MUSE_SPARK_11_MODEL,
   OPENROUTER_TENCENT_HY3_MODEL,
 } from "@/lib/chatModels";
+import {
+  isDeepSeekMasterCanaryEnabled,
+  parseDeepSeekCanaryPercent,
+  resolveDeepSeekCohortEligibility,
+  type DeepSeekCohortContext,
+} from "@/lib/canonInjectionCohort";
 import { isDeepSeekOpenRouterModel } from "@/lib/openRouterClient";
+
+export type { DeepSeekCohortContext };
 
 export type CanonInjectionMode = "FULL_LEGACY" | "LAYERED";
 export type ArchiveInjectionMode = "FULL_ALWAYS" | "SELECTIVE";
@@ -24,6 +32,16 @@ export type CanonInjectionPolicy = {
   actualCanonMode: CanonInjectionMode;
   /** Actual archive mode applied this turn (FULL_ALWAYS when shadow-only or kill switch). */
   actualArchiveMode: ArchiveInjectionMode;
+  /** Master boolean canary flag (CANON_INJECTION_DEEPSEEK_CANARY). */
+  masterCanaryEnabled: boolean;
+  /** Parsed CANON_INJECTION_DEEPSEEK_CANARY_PERCENT (0–100, fail-safe 0). */
+  canaryPercent: number;
+  /** This request passed cohort gating (allowlist or percent bucket). */
+  cohortEligible: boolean;
+  /** Deterministic bucket 0..9999 when cohort key exists; null otherwise. */
+  cohortBucket: number | null;
+  /** Cohort eligibility reason (no raw user id). */
+  cohortEligibilityReason: string;
 };
 
 function envTruthy(name: string): boolean {
@@ -108,40 +126,75 @@ function resolveDeepSeekPolicy(stage: CanonRolloutStage): Pick<
   };
 }
 
+function cohortDefaults(): Pick<
+  CanonInjectionPolicy,
+  | "masterCanaryEnabled"
+  | "canaryPercent"
+  | "cohortEligible"
+  | "cohortBucket"
+  | "cohortEligibilityReason"
+> {
+  return {
+    masterCanaryEnabled: false,
+    canaryPercent: 0,
+    cohortEligible: false,
+    cohortBucket: null,
+    cohortEligibilityReason: "N/A",
+  };
+}
+
 /** Typed central resolver — no giant JSON env blob */
-export function resolveCanonInjectionPolicy(modelId: string): CanonInjectionPolicy {
+export function resolveCanonInjectionPolicy(
+  modelId: string,
+  cohortContext?: DeepSeekCohortContext
+): CanonInjectionPolicy {
   const normalized = modelId.trim();
   const rolloutStage = envRolloutStage();
   const forceFullLegacy =
     envTruthy("CANON_INJECTION_FORCE_FULL_LEGACY") || envTruthy("CANON_INJECTION_KILL_SWITCH");
   const masterEnabled = envTruthy("CANON_INJECTION_ENABLED");
-  const deepSeekCanary = envTruthy("CANON_INJECTION_DEEPSEEK_CANARY");
 
   if (forceFullLegacy) {
     return {
       modelId: normalized,
-      injectionEnabled: masterEnabled,
+      injectionEnabled: false,
       shadowOnly: rolloutStage === "D0",
       canonMode: "FULL_LEGACY",
       archiveMode: "FULL_ALWAYS",
       rolloutStage,
       forceFullLegacy: true,
-      canaryActualInjection: true,
+      canaryActualInjection: false,
       actualCanonMode: "FULL_LEGACY",
       actualArchiveMode: "FULL_ALWAYS",
+      ...cohortDefaults(),
     };
   }
 
   if (isDeepSeekOpenRouterModel(normalized) || normalized === OPENROUTER_DEEPSEEK_V4_PRO_MODEL) {
     const deepSeek = resolveDeepSeekPolicy(rolloutStage);
-    // D1/D2 actual injection requires explicit canary; without it, actual stays CONTROL (FULL_LEGACY).
-    const canaryActualInjection = deepSeekCanary && !deepSeek.shadowOnly;
+    const masterCanaryEnabled = isDeepSeekMasterCanaryEnabled();
+    const canaryPercent = parseDeepSeekCanaryPercent();
+    const cohort = resolveDeepSeekCohortEligibility({
+      userId: cohortContext?.userId,
+      chatId: cohortContext?.chatId,
+      percent: canaryPercent,
+    });
+
+    const stageEligible = rolloutStage !== "D0";
+    const canaryActualInjection =
+      masterCanaryEnabled && stageEligible && cohort.eligible;
     const shadowOnly = !canaryActualInjection;
     const actualCanonMode: CanonInjectionMode = shadowOnly ? "FULL_LEGACY" : deepSeek.canonMode;
     const actualArchiveMode: ArchiveInjectionMode = shadowOnly ? "FULL_ALWAYS" : deepSeek.archiveMode;
+
+    // D0: shadow compile for all when master on. D1+: side effects only for cohort-eligible requests.
+    const injectionEnabled =
+      masterEnabled &&
+      (rolloutStage === "D0" ? deepSeek.shadowOnly : canaryActualInjection);
+
     return {
       modelId: normalized,
-      injectionEnabled: masterEnabled && (deepSeek.injectionEnabled || deepSeek.shadowOnly),
+      injectionEnabled,
       shadowOnly,
       canonMode: deepSeek.canonMode,
       archiveMode: deepSeek.archiveMode,
@@ -150,6 +203,11 @@ export function resolveCanonInjectionPolicy(modelId: string): CanonInjectionPoli
       canaryActualInjection,
       actualCanonMode,
       actualArchiveMode,
+      masterCanaryEnabled,
+      canaryPercent,
+      cohortEligible: cohort.eligible,
+      cohortBucket: cohort.bucket,
+      cohortEligibilityReason: cohort.reason,
     };
   }
 
@@ -165,6 +223,7 @@ export function resolveCanonInjectionPolicy(modelId: string): CanonInjectionPoli
       canaryActualInjection: false,
       actualCanonMode: "FULL_LEGACY",
       actualArchiveMode: "FULL_ALWAYS",
+      ...cohortDefaults(),
     };
   }
 
@@ -179,6 +238,7 @@ export function resolveCanonInjectionPolicy(modelId: string): CanonInjectionPoli
     canaryActualInjection: false,
     actualCanonMode: "FULL_LEGACY",
     actualArchiveMode: "FULL_ALWAYS",
+    ...cohortDefaults(),
   };
 }
 

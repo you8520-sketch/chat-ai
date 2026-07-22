@@ -29,8 +29,23 @@ const ENV_KEYS = [
   "CANON_INJECTION_DEEPSEEK_MODE",
   "CANON_ARCHIVE_DEEPSEEK_SELECTIVE",
   "CANON_INJECTION_DEEPSEEK_CANARY",
+  "CANON_INJECTION_DEEPSEEK_CANARY_PERCENT",
+  "CANON_INJECTION_DEEPSEEK_CANARY_USER_IDS",
   "MEMORY_FEATURE_ENABLED",
 ] as const;
+
+const TEST_COHORT_USER_ID = 4242;
+
+function enableFullDeepSeekCohort(): void {
+  process.env.CANON_INJECTION_DEEPSEEK_CANARY = "1";
+  process.env.CANON_INJECTION_DEEPSEEK_CANARY_PERCENT = "100";
+}
+
+function resolveDeepSeekTestPolicy() {
+  return resolveCanonInjectionPolicy(OPENROUTER_DEEPSEEK_V4_PRO_MODEL, {
+    userId: TEST_COHORT_USER_ID,
+  });
+}
 
 function saveEnv(): Record<string, string | undefined> {
   return Object.fromEntries(ENV_KEYS.map((k) => [k, process.env[k]]));
@@ -137,8 +152,8 @@ describe("Canon injection B2 — D1 archive", () => {
     process.env.CANON_INJECTION_ENABLED = "1";
     process.env.CANON_INJECTION_ROLLOUT_STAGE = "D1";
     process.env.CANON_ARCHIVE_DEEPSEEK_SELECTIVE = "1";
-    process.env.CANON_INJECTION_DEEPSEEK_CANARY = "1";
-    const policy = resolveCanonInjectionPolicy(OPENROUTER_DEEPSEEK_V4_PRO_MODEL);
+    enableFullDeepSeekCohort();
+    const policy = resolveDeepSeekTestPolicy();
     assert.equal(policy.actualArchiveMode, "SELECTIVE");
     assert.equal(policy.shadowOnly, false);
 
@@ -166,8 +181,8 @@ describe("Canon injection B2 — D1 archive", () => {
     process.env.CANON_INJECTION_ENABLED = "1";
     process.env.CANON_INJECTION_ROLLOUT_STAGE = "D1";
     process.env.CANON_ARCHIVE_DEEPSEEK_SELECTIVE = "1";
-    process.env.CANON_INJECTION_DEEPSEEK_CANARY = "1";
-    const policy = resolveCanonInjectionPolicy(OPENROUTER_DEEPSEEK_V4_PRO_MODEL);
+    enableFullDeepSeekCohort();
+    const policy = resolveDeepSeekTestPolicy();
     const archive = "완전히 무관한 단락이다. 날씨 이야기.";
     const r = buildPayload({ policy, plan: makeTestPlan(), userMessage: "안녕", archiveMemory: archive });
     assert.ok(!r.systemPrompt.includes("과거 기억"), "no archive block when selected=0");
@@ -230,8 +245,8 @@ describe("Canon injection B2 — D2 canon layering", () => {
     process.env.CANON_INJECTION_ENABLED = "1";
     process.env.CANON_INJECTION_ROLLOUT_STAGE = "D2";
     process.env.CANON_ARCHIVE_DEEPSEEK_SELECTIVE = "1";
-    process.env.CANON_INJECTION_DEEPSEEK_CANARY = "1";
-    const policy = resolveCanonInjectionPolicy(OPENROUTER_DEEPSEEK_V4_PRO_MODEL);
+    enableFullDeepSeekCohort();
+    const policy = resolveDeepSeekTestPolicy();
     assert.equal(policy.actualCanonMode, "LAYERED");
     assert.equal(policy.shadowOnly, false);
 
@@ -256,8 +271,8 @@ describe("Canon injection B2 — D2 canon layering", () => {
     process.env.CANON_INJECTION_ENABLED = "1";
     process.env.CANON_INJECTION_ROLLOUT_STAGE = "D2";
     process.env.CANON_ARCHIVE_DEEPSEEK_SELECTIVE = "1";
-    process.env.CANON_INJECTION_DEEPSEEK_CANARY = "1";
-    const policy = resolveCanonInjectionPolicy(OPENROUTER_DEEPSEEK_V4_PRO_MODEL);
+    enableFullDeepSeekCohort();
+    const policy = resolveDeepSeekTestPolicy();
     const r = buildPayload({ policy, plan: makeTestPlan(), userMessage: "완전히 무관한 인사 안녕" });
     assert.ok(!r.systemPrompt.includes("character-active-canon"), "no ACTIVE section when 0 relevant");
     assert.ok(r.systemPrompt.includes(SENTINEL_CORE), "CORE still present");
@@ -267,8 +282,8 @@ describe("Canon injection B2 — D2 canon layering", () => {
     process.env.CANON_INJECTION_ENABLED = "1";
     process.env.CANON_INJECTION_ROLLOUT_STAGE = "D2";
     process.env.CANON_ARCHIVE_DEEPSEEK_SELECTIVE = "1";
-    process.env.CANON_INJECTION_DEEPSEEK_CANARY = "1";
-    const policy = resolveCanonInjectionPolicy(OPENROUTER_DEEPSEEK_V4_PRO_MODEL);
+    enableFullDeepSeekCohort();
+    const policy = resolveDeepSeekTestPolicy();
     const plan = makeTestPlan();
     const a = buildPayload({ policy, plan, userMessage: "첫 대화 안녕" });
     const b = buildPayload({ policy, plan, userMessage: "두 번째 대화 요리" });
@@ -331,8 +346,8 @@ describe("Canon injection B2 — D2 ACTIVE selector contract", () => {
     process.env.CANON_INJECTION_ENABLED = "1";
     process.env.CANON_INJECTION_ROLLOUT_STAGE = "D2";
     process.env.CANON_ARCHIVE_DEEPSEEK_SELECTIVE = "1";
-    process.env.CANON_INJECTION_DEEPSEEK_CANARY = "1";
-    const policy = resolveCanonInjectionPolicy(OPENROUTER_DEEPSEEK_V4_PRO_MODEL);
+    enableFullDeepSeekCohort();
+    const policy = resolveDeepSeekTestPolicy();
     // The dormant sentinel is in the `player` bucket (a user-only secret). The cue
     // lexically matches it ("회귀"), but B1 excludes player-bucket chunks from ACTIVE
     // eligibility -> the sentinel must NOT appear in the LAYERED payload. CORE still does.

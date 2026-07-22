@@ -30,6 +30,12 @@ export type CanonShadowTurnRecord = {
   rolloutStage: string;
   shadowOnly: boolean;
   forceFullLegacy: boolean;
+  masterCanaryEnabled: boolean;
+  canaryPercent: number;
+  cohortEligible: boolean;
+  cohortBucket: number | null;
+  cohortEligibilityReason: string;
+  canaryActualInjection: boolean;
   canonPlanVersion: number | null;
   sourceHash: string;
   sourceHashStatus: string;
@@ -132,6 +138,12 @@ export function computeCanonShadowTurnRecord(opts: {
     rolloutStage: policy.rolloutStage,
     shadowOnly: policy.shadowOnly,
     forceFullLegacy: policy.forceFullLegacy,
+    masterCanaryEnabled: policy.masterCanaryEnabled,
+    canaryPercent: policy.canaryPercent,
+    cohortEligible: policy.cohortEligible,
+    cohortBucket: policy.cohortBucket,
+    cohortEligibilityReason: policy.cohortEligibilityReason,
+    canaryActualInjection: policy.canaryActualInjection,
     canonPlanVersion: plan?.version ?? null,
     sourceHash: lazyResult.sourceHash,
     sourceHashStatus: lazyResult.sourceHashStatus,
@@ -178,6 +190,12 @@ export function logCanonShadowTurnRecord(record: CanonShadowTurnRecord): void {
     archivePolicyMode: record.archivePolicyMode,
     rolloutStage: record.rolloutStage,
     shadowOnly: record.shadowOnly,
+    masterCanaryEnabled: record.masterCanaryEnabled,
+    canaryPercent: record.canaryPercent,
+    cohortEligible: record.cohortEligible,
+    cohortBucket: record.cohortBucket,
+    cohortEligibilityReason: record.cohortEligibilityReason,
+    canaryActualInjection: record.canaryActualInjection,
     canonPlanVersion: record.canonPlanVersion ?? CANON_PLAN_VERSION,
     sourceHashStatus: record.sourceHashStatus,
     compileSource: record.compileSource,
