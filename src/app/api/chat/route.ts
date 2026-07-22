@@ -29,6 +29,13 @@ import {
 import { normalizeProseLineEndings } from "@/lib/canonicalProse";
 import { loadCharacterChunks, loadCharacterChunksForPrompt } from "@/lib/characterChunks";
 import { resolveExampleDialogForPrompt } from "@/lib/narrationFewShotTemplates";
+import { resolveCanonInjectionPolicy } from "@/lib/canonInjectionPolicy";
+import { ensureCanonPlanOnAccess } from "@/lib/canonPlan/lazyCompile";
+import {
+  computeCanonShadowTurnRecord,
+  logCanonShadowTurnRecord,
+  shouldRunCanonInjectionSideEffects,
+} from "@/lib/canonPlan/shadowD0";
 import { buildContext } from "@/services/contextBuilder";
 import { resolveNarrativePov } from "@/lib/narrativePov";
 import { auditAssembledPrompt, formatPromptAuditLog } from "@/services/promptAudit";
@@ -778,6 +785,7 @@ export async function POST(req: Request) {
 
   const billingOpenRouterModelId = resolveOpenRouterModelId(selectedAI);
   const openRouterApiModelId = billingOpenRouterModelId;
+  const canonInjectionPolicy = resolveCanonInjectionPolicy(openRouterApiModelId);
   const contextProvider = "openrouter" as const;
   const contextModelId = openRouterApiModelId;
   const historyTokenBudget = resolveHistoryTokenBudget(contextModelId, contextProvider);
@@ -818,6 +826,15 @@ export async function POST(req: Request) {
   );
 
   const settingText = collectCharacterSettingText(characterChunks);
+
+  const canonLazyCompileResult = shouldRunCanonInjectionSideEffects(canonInjectionPolicy)
+    ? ensureCanonPlanOnAccess(db, ch.id, {
+        creator_raw_description: (ch as { creator_raw_description?: string }).creator_raw_description,
+        creator_canon_plan_json: (ch as { creator_canon_plan_json?: string }).creator_canon_plan_json,
+        world: ch.world,
+        system_prompt: ch.system_prompt,
+      })
+    : null;
 
   const policyUserMessage = displayUserMessage;
 
@@ -1030,6 +1047,8 @@ export async function POST(req: Request) {
     sceneDirectiveBlock,
     keywordLorebookBlock: keywordLorebookBlock || undefined,
     globalLorebookBlock: globalLorebookBlock || undefined,
+    canonInjectionPolicy: canonInjectionPolicy,
+    canonPlan: canonLazyCompileResult?.plan ?? null,
   };
 
   const built = buildContext({
@@ -1039,6 +1058,20 @@ export async function POST(req: Request) {
     promptDumpSource: "db",
     promptDumpDetail: `chat=${chat.id} user=${user.id} character=${ch.id}`,
   });
+  if (shouldRunCanonInjectionSideEffects(canonInjectionPolicy) && canonLazyCompileResult) {
+    logCanonShadowTurnRecord(
+      computeCanonShadowTurnRecord({
+        policy: canonInjectionPolicy,
+        characterId: ch.id,
+        charName: ch.name,
+        plan: canonLazyCompileResult.plan,
+        lazyResult: canonLazyCompileResult,
+        fullLegacyCanonChars: buildCharacterCanonBlock(settingText, ch.name).length,
+        userMessage: policyUserMessage,
+        archiveText: memoryFeatureOn ? memoryInjection.archiveText : "",
+      })
+    );
+  }
   let systemPromptForTurn = built.systemPrompt;
   let openRouterSystemSplitForTurn = built.openRouterSystemSplit;
   if (statusWidgetActive) {

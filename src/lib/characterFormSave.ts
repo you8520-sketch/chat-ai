@@ -36,6 +36,7 @@ import {
   mergeDescriptionTriggerCandidates,
   serializeCreatorDescriptionCompiled,
 } from "@/lib/creatorDescriptionTriggerCompiler";
+import { buildCanonPlanForSave } from "@/lib/canonPlan/compileForSave";
 import {
   listCharacterStatusWidgetTriggers,
   saveCharacterStatusWidgetTriggers,
@@ -433,6 +434,7 @@ export function buildCompiledCreatorDescriptionForSave(
   });
   return {
     creatorRawDescription,
+    compilerDescription,
     compiledDescription,
     compiledDescriptionJson: serializeCreatorDescriptionCompiled(compiledDescription),
     safeRuntimeCanon: compiledPublicCanonText(compiledDescription),
@@ -441,6 +443,25 @@ export function buildCompiledCreatorDescriptionForSave(
     appearanceRaw:
       data.contentKind === "simulation" ? "" : extractAppearanceRawFromSetting(data.systemPrompt),
   };
+}
+
+export function buildCanonPlanJsonForSave(
+  data: Pick<CreatorDescriptionSaveInput, "description" | "world" | "systemPrompt">,
+  existingPlanJson?: string | null
+) {
+  const creatorRawDescription = [data.description, data.world, data.systemPrompt]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join("\n\n");
+  const compilerDescription = [data.world, data.systemPrompt]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join("\n\n");
+  return buildCanonPlanForSave({
+    creatorRawDescription,
+    compilerDescription,
+    existingPlanJson,
+  });
 }
 
 
@@ -591,6 +612,7 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
     safeRuntimeCanon,
     appearanceRaw,
   } = buildCompiledCreatorDescriptionForSave(data);
+  const canonPlanSave = buildCanonPlanJsonForSave(data);
   const appearance = await buildAppearanceForSave(appearanceRaw);
   const runtimeCanonWithAppearance = applyCompiledAppearanceToCanon(safeRuntimeCanon, appearanceRaw, appearance.compiled);
 
@@ -600,9 +622,9 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
       `INSERT INTO characters
         (name, tagline, description, greeting, system_prompt, world, world_id, lorebook_id, example_dialog, status_window_prompt, status_widget_json, genre, genres, tags, nsfw, emoji, hue,
          creator_id, creator_name, audience, gender, images, assets, setting_chunks, visibility, moderation_status, moderation_note, share_slug,
-         recommended_writing_style, comments_enabled, creator_comment, creator_raw_description, creator_compiled_description_json, appearance_raw, appearance_compiled, appearance_compiled_source_hash, appearance_compiled_version,
+         recommended_writing_style, comments_enabled, creator_comment, creator_raw_description, creator_compiled_description_json, creator_canon_plan_json, appearance_raw, appearance_compiled, appearance_compiled_source_hash, appearance_compiled_version,
          content_kind, simulation_cast, simulation_rules, simulation_imports_json, simulation_reuse_allowed, simulation_nsfw_allowed)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     )
     .run(
       data.name,
@@ -638,6 +660,7 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
       data.creatorComment,
       creatorRawDescription,
       compiledDescriptionJson,
+      canonPlanSave.planJson,
       appearance.raw,
       appearance.compiled,
       appearance.sourceHash,
@@ -697,7 +720,7 @@ export async function updateCharacterFromForm(
     .prepare(
       `SELECT id, creator_id, official, share_slug, visibility, moderation_status, moderation_note,
               name, gender, system_prompt, world, example_dialog, status_widget_json,
-              creator_compiled_description_json, appearance_raw, appearance_compiled, appearance_compiled_source_hash, appearance_compiled_version, images, nsfw,
+              creator_compiled_description_json, creator_canon_plan_json, appearance_raw, appearance_compiled, appearance_compiled_source_hash, appearance_compiled_version, images, nsfw,
               content_kind
        FROM characters WHERE id=?`
     )
@@ -717,6 +740,7 @@ export async function updateCharacterFromForm(
         example_dialog: string | null;
         status_widget_json: string | null;
         creator_compiled_description_json: string | null;
+        creator_canon_plan_json: string | null;
         appearance_raw: string | null;
         appearance_compiled: string | null;
         appearance_compiled_source_hash: string | null;
@@ -761,6 +785,7 @@ export async function updateCharacterFromForm(
       ...listCharacterStatusWidgetTriggers(db, characterId),
       ...data.statusWidgetTriggers,
     ]);
+  const canonPlanSave = buildCanonPlanJsonForSave(data, row.creator_canon_plan_json);
   const forceAppearanceCompile = b.regenerate_appearance === true || b.regenerateAppearance === true;
   const appearance = await buildAppearanceForSave(appearanceRaw, row, forceAppearanceCompile);
   const runtimeCanonWithAppearance = applyCompiledAppearanceToCanon(safeRuntimeCanon, appearanceRaw, appearance.compiled);
@@ -779,8 +804,8 @@ export async function updateCharacterFromForm(
       example_dialog=?, status_window_prompt=?, status_widget_json=?, genre=?, genres=?, tags=?, nsfw=?, emoji=?, hue=?,
       audience=?, gender=?, images=?, assets=?, visibility=?, moderation_status=?, moderation_note=?,
       share_slug=?, recommended_writing_style=?, comments_enabled=?, creator_comment=?, creator_name=?,
-      creator_raw_description=?, creator_compiled_description_json=?, appearance_raw=?, appearance_compiled=?, appearance_compiled_source_hash=?, appearance_compiled_version=?
-      , content_kind=?, simulation_cast=?, simulation_rules=?, simulation_imports_json=?, simulation_reuse_allowed=?, simulation_nsfw_allowed=?
+      creator_raw_description=?, creator_compiled_description_json=?, creator_canon_plan_json=?, appearance_raw=?, appearance_compiled=?, appearance_compiled_source_hash=?, appearance_compiled_version=?,
+      content_kind=?, simulation_cast=?, simulation_rules=?, simulation_imports_json=?, simulation_reuse_allowed=?, simulation_nsfw_allowed=?
      WHERE id=?`
   ).run(
     data.name,
@@ -814,6 +839,7 @@ export async function updateCharacterFromForm(
     user.nickname,
     creatorRawDescription,
     compiledDescriptionJson,
+    canonPlanSave.planJson,
     appearance.raw,
     appearance.compiled,
     appearance.sourceHash,
