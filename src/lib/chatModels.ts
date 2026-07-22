@@ -88,12 +88,6 @@ export type SelectedAIOptionMeta = {
   label: string;
   tier: "pro";
   hint: string;
-  /** 사용자 포지셔닝 라벨 */
-  positionLabel: string;
-  /** 짧은 모바일 설명 */
-  shortDescription: string;
-  /** 상세 도움말 */
-  detailDescription: string;
   /** 기본 추천 배지 */
   badge?: string;
   recommended?: boolean;
@@ -105,10 +99,6 @@ export const SELECTED_AI_OPTIONS = [
     label: MUSE_SPARK_11_DISPLAY_NAME,
     tier: "pro" as const,
     hint: "Meta",
-    positionLabel: "균형 잡힌 몰입형",
-    shortDescription: "안정적인 분량과 풍부한 캐릭터 대화를 유지하면서, 장면을 지나치게 급하게 진행하지 않습니다.",
-    detailDescription:
-      "안정적인 분량과 풍부한 캐릭터 대화를 유지하면서, 장면을 지나치게 급하게 진행하지 않습니다.",
     badge: "기본 추천",
     recommended: true,
   },
@@ -117,41 +107,24 @@ export const SELECTED_AI_OPTIONS = [
     label: GEMINI_25_PRO_DISPLAY_NAME,
     tier: "pro" as const,
     hint: "Google",
-    positionLabel: "차분한 관계·서술형",
-    shortDescription: "대사보다 감정, 관계와 장면 분위기를 섬세하게 풀어갑니다. 응답은 비교적 간결할 수 있습니다.",
-    detailDescription:
-      "대사보다 감정, 관계와 장면 분위기를 섬세하게 풀어갑니다. 응답은 비교적 간결할 수 있습니다.",
   },
   {
     id: OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
     label: DEEPSEEK_DISPLAY_NAME,
     tier: "pro" as const,
     hint: "Reasoning",
-    positionLabel: "능동적인 사건·전투형",
-    shortDescription:
-      "탐사, 작전과 전투를 적극적으로 진행하며 세계관 사건을 풍부하게 전개합니다. 한 턴의 진행 폭이 큰 편입니다.",
-    detailDescription:
-      "탐사, 작전과 전투를 적극적으로 진행하며 세계관 사건을 풍부하게 전개합니다. 한 턴의 진행 폭이 큰 편입니다.",
   },
   {
     id: OPENROUTER_TENCENT_HY3_MODEL,
     label: TENCENT_HY3_DISPLAY_NAME,
     tier: "pro" as const,
     hint: "Reasoning",
-    positionLabel: "대형 추론·분석형",
-    shortDescription:
-      "295B MoE(21B active) 추론 모델로, 상황 분석과 장면 전개를 밀도 있게 풀어갑니다.",
-    detailDescription:
-      "295B MoE(21B active) 추론 모델로, 상황 분석과 장면 전개를 밀도 있게 풀어갑니다.",
   },
   {
     id: CLAUDE_OPUS_MODEL,
     label: "Claude Opus 4P",
     tier: "pro" as const,
     hint: "Premium",
-    positionLabel: "프리미엄",
-    shortDescription: "고급 추론형 모델입니다.",
-    detailDescription: "고급 추론형 모델입니다. 환경 설정으로만 노출됩니다.",
   },
 ] as const satisfies readonly SelectedAIOptionMeta[];
 

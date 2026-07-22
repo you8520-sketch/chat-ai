@@ -203,8 +203,7 @@ function selectedAIOptionLabel(
       ? meta.badge
       : "";
   const badge = badgeText ? ` [${badgeText}]` : "";
-  const position = meta?.positionLabel ? ` · ${meta.positionLabel}` : "";
-  const displayName = `${selectedAILabel(id)}${badge}${position}`;
+  const displayName = `${selectedAILabel(id)}${badge}`;
   const row = preview?.models.find((m) => m.modelId === id);
   return modelPickerOptionLabel({
     displayName,
@@ -4117,11 +4116,10 @@ export default function ChatClient({
                 value={selectedAI}
                 onChange={(e) => void handleSelectedAIChange(e.target.value as SelectedAI)}
                 disabled={inputLocked}
-                title={selectedAIOptionMeta(selectedAI)?.detailDescription}
                 className="max-w-full rounded-md border border-white/10 bg-[#1a1a1a] px-1.5 py-1 text-[11px] text-zinc-200 outline-none focus:border-violet-500/50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {USER_SELECTABLE_AI_OPTIONS.map((o) => (
-                  <option key={o.id} value={o.id} title={o.detailDescription}>
+                  <option key={o.id} value={o.id}>
                     {selectedAIOptionLabel(o.id as SelectedAI, pickerPreview)}
                   </option>
                 ))}
