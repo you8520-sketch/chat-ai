@@ -80,9 +80,9 @@ import {
 } from "@/lib/chatModels";
 import {
   modelPickerOptionLabel,
-  resolveModelPickerInputTokens,
-  type UsageLikeForEstimate,
+  type ModelPickerPreviewResult,
 } from "@/lib/modelTurnCostEstimate";
+import { createModelPickerPreviewRequestGate } from "@/lib/modelPickerPreviewRequestGate";
 import { globalModelStatusLabel } from "@/lib/userSelectedAI";
 import { formatAssistantLengthLabel } from "@/lib/responseLengthConstants";
 import {
@@ -195,9 +195,7 @@ function isChatFetchTimeout(e: unknown): boolean {
 
 function selectedAIOptionLabel(
   id: SelectedAI,
-  inputTokens: number,
-  recentUsages: Array<UsageLikeForEstimate | null | undefined>,
-  targetResponseChars: number
+  preview: ModelPickerPreviewResult | null
 ): string {
   const meta = selectedAIOptionMeta(id);
   const badgeText =
@@ -207,12 +205,10 @@ function selectedAIOptionLabel(
   const badge = badgeText ? ` [${badgeText}]` : "";
   const position = meta?.positionLabel ? ` · ${meta.positionLabel}` : "";
   const displayName = `${selectedAILabel(id)}${badge}${position}`;
+  const row = preview?.models.find((m) => m.modelId === id);
   return modelPickerOptionLabel({
     displayName,
-    modelId: id,
-    inputTokens,
-    recentUsages,
-    targetResponseChars,
+    estimatedPoints: row?.estimatedPoints ?? null,
   });
 }
 
@@ -1173,30 +1169,60 @@ export default function ChatClient({
 
   const inputLocked = loading || lastTurnInFlight;
 
-  /** Model picker — usages with model ids for per-model output median */
-  const modelPickerUsages = useMemo(
-    (): Array<UsageLikeForEstimate | null> =>
-      messages.map((m) => {
-        const u = resolveActiveUsage(m.usage, m.variants, m.activeVariant);
-        if (!u) return null;
-        return {
-          ...u,
-          model: u.model || m.model || "",
-          selectedAI: u.selectedAI || u.model || m.model || "",
-        };
-      }),
-    [messages]
+  const [pickerPreview, setPickerPreview] = useState<ModelPickerPreviewResult | null>(null);
+  const pickerPreviewBaseRef = useRef<number | null>(null);
+  const pickerPreviewGateRef = useRef(createModelPickerPreviewRequestGate());
+
+  const fetchPickerPreview = useCallback(
+    async (opts: {
+      refreshContext?: boolean;
+      skipContextBuild?: boolean;
+      draftInput?: string;
+      inputTokensOverride?: number;
+    }) => {
+      if (!chatId) return;
+      const requestSeq = pickerPreviewGateRef.current.next();
+      try {
+        const res = await fetch("/api/chat/model-picker-preview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chatId,
+            targetResponseChars,
+            refreshContext: opts.refreshContext === true,
+            skipContextBuild: opts.skipContextBuild === true,
+            draftInput: opts.inputTokensOverride != null ? undefined : opts.draftInput,
+            inputTokensOverride: opts.inputTokensOverride,
+          }),
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as ModelPickerPreviewResult;
+        if (!pickerPreviewGateRef.current.isLatest(requestSeq)) return;
+        pickerPreviewBaseRef.current = data.baseInputTokens;
+        setPickerPreview(data);
+      } catch {
+        /* non-blocking preview */
+      }
+    },
+    [chatId, targetResponseChars]
   );
 
-  /** Model picker — last turn API prompt size (+ draft) for ~cost preview */
-  const modelPickerInputTokens = useMemo(
-    () =>
-      resolveModelPickerInputTokens({
-        recentUsages: modelPickerUsages,
-        draftInput: input,
-      }),
-    [modelPickerUsages, input]
-  );
+  useEffect(() => {
+    if (!chatId) return;
+    void fetchPickerPreview({ refreshContext: true });
+  }, [chatId, messages.length, userNote, selectedPersonaId, targetResponseChars, fetchPickerPreview]);
+
+  useEffect(() => {
+    if (!chatId || pickerPreviewBaseRef.current == null) return;
+    const draftTok = input.trim() ? Math.max(1, Math.ceil(input.trim().length * 0.9)) : 0;
+    const timer = window.setTimeout(() => {
+      void fetchPickerPreview({
+        skipContextBuild: true,
+        inputTokensOverride: pickerPreviewBaseRef.current! + draftTok,
+      });
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [chatId, input, fetchPickerPreview]);
 
   /** Multi-tab: refresh global selected_ai on focus (server remains SoT for generation). */
   useEffect(() => {
@@ -4096,12 +4122,7 @@ export default function ChatClient({
               >
                 {USER_SELECTABLE_AI_OPTIONS.map((o) => (
                   <option key={o.id} value={o.id} title={o.detailDescription}>
-                    {selectedAIOptionLabel(
-                      o.id as SelectedAI,
-                      modelPickerInputTokens,
-                      modelPickerUsages,
-                      targetResponseChars
-                    )}
+                    {selectedAIOptionLabel(o.id as SelectedAI, pickerPreview)}
                   </option>
                 ))}
               </select>

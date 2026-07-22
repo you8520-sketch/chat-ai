@@ -31,6 +31,7 @@ import { loadCharacterChunks, loadCharacterChunksForPrompt } from "@/lib/charact
 import { resolveExampleDialogForPrompt } from "@/lib/narrationFewShotTemplates";
 import { buildContext } from "@/services/contextBuilder";
 import { auditAssembledPrompt, formatPromptAuditLog } from "@/services/promptAudit";
+import { invalidateModelPickerInputSnapshot } from "@/services/modelPickerInputSnapshot";
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
 import { deductPoints, getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini25WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterTencentHy3TurnCost, explainOpenRouterGeminiProTurnCost, type DeductionSlice } from "@/lib/points";
 import { createChatSession } from "@/lib/chatSessionCreate";
@@ -2540,6 +2541,9 @@ export async function POST(req: Request) {
                   ? { apiReasoningOutputTokens, apiContentOutputTokens }
                   : {}),
                 ...(apiCallCount > 1 ? { apiCallCount } : {}),
+                ...(promptAuditRef?.totalAssembledTokens
+                  ? { assembledInputTokens: promptAuditRef.totalAssembledTokens }
+                  : {}),
                 ...(primaryStage?.cacheReadTokens ?? primaryStage?.cachedContentTokens
                   ? { cacheReadTokens: primaryStage.cacheReadTokens ?? primaryStage.cachedContentTokens }
                   : {}),
@@ -2605,6 +2609,8 @@ export async function POST(req: Request) {
               }
             : {}),
         };
+
+        invalidateModelPickerInputSnapshot(chatRef.id);
 
         const rawWidgetSourceText = preStatusPartitionText;
         if (mainModelOwnsRelationshipExtract) {

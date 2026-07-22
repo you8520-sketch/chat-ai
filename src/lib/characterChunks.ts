@@ -126,6 +126,15 @@ export function loadCharacterChunks(row: CharacterSettingRow): CharacterChunk[] 
   return stored;
 }
 
+/** Read-only chunk load — never persists setting_chunks or schedules translation backfill. */
+export function loadCharacterChunksReadOnly(row: CharacterSettingRow): CharacterChunk[] {
+  const fresh = parseFreshCharacterChunks(row);
+  const stored = deserializeCharacterChunks(row.setting_chunks);
+  if (stored.length === 0) return fresh;
+  if (hashKoreanChunks(stored) !== hashKoreanChunks(fresh)) return fresh;
+  return stored;
+}
+
 export function saveCharacterChunks(characterId: number, chunks: CharacterChunk[]): void {
   const db = getDb();
   db.prepare("UPDATE characters SET setting_chunks=? WHERE id=?").run(
@@ -216,6 +225,21 @@ export function loadCharacterChunksForPrompt(
   if (!english && korean.length > 0) {
     scheduleEnglishBackfill(row.id, korean);
   }
+  const base = english ? mergeEnglishLayerWithKoreanSpeech(english, korean) : korean;
+  return {
+    chunks: replaceUserPlaceholderInChunks(base, personaDisplayName, userNickname),
+    usedEnglish: english !== null,
+  };
+}
+
+/** Model picker dry-run — no character row writes or translation backfill. */
+export function loadCharacterChunksForPromptReadOnly(
+  row: CharacterSettingRow,
+  personaDisplayName: string,
+  userNickname: string
+): { chunks: CharacterChunk[]; usedEnglish: boolean } {
+  const korean = loadCharacterChunksReadOnly(row);
+  const english = loadEnglishChunks(row, korean);
   const base = english ? mergeEnglishLayerWithKoreanSpeech(english, korean) : korean;
   return {
     chunks: replaceUserPlaceholderInChunks(base, personaDisplayName, userNickname),

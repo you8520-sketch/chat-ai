@@ -19,6 +19,7 @@ import {
 } from "./memory-relationship-meta";
 import { clearMemoryRecordsForChat } from "./memory-turn-summary";
 import {
+  getChatMemoryRow,
   getOrCreateChatMemory,
   clearChatMemory,
   incrementMessageCount,
@@ -151,6 +152,49 @@ export function buildHierarchicalMemoryPromptLayers(opts: {
       opts.excludeAssistantMessageId
     ),
   };
+}
+
+/** Model picker / dry-run — read-only memory assembly (no DB writes, no background jobs). */
+export async function buildMemoryContextForPreview(opts: {
+  chatId: number;
+  tier: MemoryTier;
+  memoryCapacity: number;
+  userMessage: string;
+  modelId?: string | null;
+  provider?: "gemini" | "openrouter";
+  excludeSummaryTurnStartGte?: number;
+  pastEventSummaryDedupe?: boolean;
+}): Promise<MemoryInjection> {
+  if (!isMemoryFeatureEnabled()) {
+    return emptyMemoryInjection(opts.tier);
+  }
+
+  const memory = getChatMemoryRow(opts.chatId);
+  const budget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity);
+  const rebuilt = resolveLorebookFromRecordsSync(opts.chatId, budget.lorebook, {
+    excludeTurnStartGte: opts.excludeSummaryTurnStartGte,
+  });
+  const recentSummary = rebuilt.text || memory?.recent_summary?.trim() || "";
+  const archiveSummary = memory?.archive_summary?.trim() ?? "";
+  const recentForPrompt = trimLorebookToBudgetSync(recentSummary, budget.lorebook);
+  const archiveForPrompt =
+    archiveSummary.length > budget.archive
+      ? trimLorebookToBudgetSync(archiveSummary, budget.archive)
+      : archiveSummary;
+
+  return buildMemoryContext({
+    memory: {
+      pinned_facts: memory?.pinned_facts ?? "",
+      recent_summary: recentForPrompt,
+      archive_summary: archiveForPrompt,
+      membership_tier: opts.tier,
+    },
+    userMessage: opts.userMessage,
+    tier: opts.tier,
+    memoryCapacity: opts.memoryCapacity,
+    includeArchiveAlways: shouldIncludeArchiveAlways(opts.modelId, opts.provider),
+    pastEventSummaryDedupe: opts.pastEventSummaryDedupe === true,
+  });
 }
 
 /** AI 호출 전 장기 기억 컨텍스트 조립 — LLM 압축은 백그라운드, 프롬프트는 동기 trim */

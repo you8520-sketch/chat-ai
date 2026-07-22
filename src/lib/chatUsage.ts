@@ -39,6 +39,8 @@ export type Usage = {
   savedOutputChars?: number;
   /** OpenRouter — primary + recovery API 호출 수 */
   apiCallCount?: number;
+  /** Next-turn picker — promptAudit.totalAssembledTokens at generation time */
+  assembledInputTokens?: number;
   /** OpenRouter API 원가 (KRW, 마진 전) */
   apiRawCostKrw?: number;
   /** Opus — cache-hit-normalized API 원가 (KRW, 마진 floor 입력) */

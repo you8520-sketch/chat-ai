@@ -48,6 +48,12 @@ export function getOrCreateChatMemory(
   return row;
 }
 
+/** Read-only fetch — never inserts, migrates, or updates chat_memories. */
+export function getChatMemoryRow(chatId: number): ChatMemoryRow | null {
+  const row = getDb().prepare(CHAT_MEMORY_SELECT).get(chatId) as ChatMemoryRow | undefined;
+  return row ?? null;
+}
+
 /** 구버전 고정 기억(pinned_facts)을 로어북(recent_summary) 앞에 1회 병합 */
 function foldLegacyPinnedIntoLorebook(row: ChatMemoryRow): ChatMemoryRow {
   const pinned = row.pinned_facts?.trim();
