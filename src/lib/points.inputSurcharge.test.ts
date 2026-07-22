@@ -52,15 +52,15 @@ describe("OpenRouter input token surcharge", () => {
   });
 
   it("DeepSeek final total ceils only once when surcharge has a decimal", () => {
-    const outputTokens = 500; // floor = ceil(500*0.022) = 11
+    const outputTokens = 500; // floor = ceil(500*0.018) = 9
     const explain = explainOpenRouterDeepSeekTurnCost(10500, outputTokens, deepseekId);
     assert.equal(explain.inputSurchargeKrw, 0.25);
-    assert.equal(explain.charFloorKrw, 11);
-    // 11 + 0.25 → ceil → 12 (중간 할증 올림 없음)
-    assert.equal(explain.total, 12);
+    assert.equal(explain.charFloorKrw, 9);
+    // 9 + 0.25 → ceil → 10 (중간 할증 올림 없음)
+    assert.equal(explain.total, 10);
     assert.equal(
       computeOpenRouterTurnCost(10500, outputTokens, deepseekId),
-      12
+      10
     );
   });
 

@@ -279,8 +279,8 @@ export const OPENROUTER_OPUS_COST_MARKUP = OPENROUTER_OPUS_GROSS_MARGIN;
 /** DeepSeek V4 Pro — 출력 1토큰당 청구 (P) */
 export const OPENROUTER_DEEPSEEK_POINTS_PER_OUTPUT_TOKEN = (() => {
   const perToken = process.env.OPENROUTER_DEEPSEEK_POINTS_PER_OUTPUT_TOKEN?.trim();
-  if (perToken) return Number(perToken) || 0.022;
-  return 0.022;
+  if (perToken) return Number(perToken) || 0.018;
+  return 0.018;
 })();
 
 /** @deprecated OPENROUTER_DEEPSEEK_POINTS_PER_OUTPUT_TOKEN 사용 */
@@ -303,8 +303,8 @@ export const OPENROUTER_DEEPSEEK_COST_MARKUP = OPENROUTER_DEEPSEEK_GROSS_MARGIN;
 /** Tencent Hy3 — 출력 1토큰당 청구 (P) */
 export const OPENROUTER_TENCENT_HY3_POINTS_PER_OUTPUT_TOKEN = (() => {
   const perToken = process.env.OPENROUTER_TENCENT_HY3_POINTS_PER_OUTPUT_TOKEN?.trim();
-  if (perToken) return Number(perToken) || 0.018;
-  return 0.018;
+  if (perToken) return Number(perToken) || 0.015;
+  return 0.015;
 })();
 
 /** Tencent Hy3 — API 원가 대비 최저 매출총이익률 (55% → 원가÷0.45) */
@@ -1291,7 +1291,7 @@ function explainOpenRouterTokenOnlyTurnCost(
   };
 }
 
-/** DeepSeek V4 Pro 과금 상세 — 출력토큰×0.022P */
+/** DeepSeek V4 Pro 과금 상세 — 출력토큰×0.018P */
 export function explainOpenRouterDeepSeekTurnCost(
   inputTokens: number,
   outputTokens: number,
@@ -1307,7 +1307,7 @@ export function explainOpenRouterDeepSeekTurnCost(
   );
 }
 
-/** Tencent Hy3 과금 상세 — 출력토큰×0.018P */
+/** Tencent Hy3 과금 상세 — 출력토큰×0.015P */
 export function explainOpenRouterTencentHy3TurnCost(
   inputTokens: number,
   outputTokens: number,
