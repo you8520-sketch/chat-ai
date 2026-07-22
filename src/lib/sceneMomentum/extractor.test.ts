@@ -90,6 +90,11 @@ const D2_CANARY_ON_POLICY: CanonInjectionPolicy = {
   canaryActualInjection: true,
   actualCanonMode: "LAYERED",
   actualArchiveMode: "SELECTIVE",
+  masterCanaryEnabled: true,
+  canaryPercent: 100,
+  cohortEligible: true,
+  cohortBucket: 0,
+  cohortEligibilityReason: "PERCENT_100",
 };
 
 // CONTROL / canary-off policy (actual FULL_LEGACY).
@@ -104,6 +109,11 @@ const CONTROL_POLICY: CanonInjectionPolicy = {
   canaryActualInjection: false,
   actualCanonMode: "FULL_LEGACY",
   actualArchiveMode: "FULL_ALWAYS",
+  masterCanaryEnabled: false,
+  canaryPercent: 0,
+  cohortEligible: false,
+  cohortBucket: null,
+  cohortEligibilityReason: "N/A",
 };
 
 function momentumInputFor(history = MODERN_THIN_HISTORY, cue = MODERN_CURRENT_CUE) {

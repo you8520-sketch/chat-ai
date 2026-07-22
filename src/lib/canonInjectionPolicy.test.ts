@@ -17,7 +17,11 @@ const ENV_KEYS = [
   "CANON_INJECTION_DEEPSEEK_MODE",
   "CANON_ARCHIVE_DEEPSEEK_SELECTIVE",
   "CANON_INJECTION_DEEPSEEK_CANARY",
+  "CANON_INJECTION_DEEPSEEK_CANARY_PERCENT",
+  "CANON_INJECTION_DEEPSEEK_CANARY_USER_IDS",
 ] as const;
+
+const TEST_COHORT_USER_ID = 4242;
 
 function saveEnv(): Record<string, string | undefined> {
   return Object.fromEntries(ENV_KEYS.map((k) => [k, process.env[k]]));
@@ -75,7 +79,7 @@ describe("resolveCanonInjectionPolicy", () => {
     assert.equal(isLayeredCanonPolicy(policy), false);
   });
 
-  it("D1 keeps FULL_LEGACY canon + selective archive when enabled", () => {
+  it("D1 keeps FULL_LEGACY canon + selective archive config but no side effects without cohort", () => {
     process.env.CANON_INJECTION_ENABLED = "1";
     process.env.CANON_INJECTION_ROLLOUT_STAGE = "D1";
     process.env.CANON_ARCHIVE_DEEPSEEK_SELECTIVE = "1";
@@ -83,7 +87,8 @@ describe("resolveCanonInjectionPolicy", () => {
     const policy = resolveCanonInjectionPolicy(OPENROUTER_DEEPSEEK_V4_PRO_MODEL);
     assert.equal(policy.canonMode, "FULL_LEGACY");
     assert.equal(policy.archiveMode, "SELECTIVE");
-    assert.equal(policy.injectionEnabled, true);
+    assert.equal(policy.injectionEnabled, false);
+    assert.equal(policy.canaryActualInjection, false);
   });
 
   it("D2 enables LAYERED canon + selective archive for DeepSeek canary", () => {
@@ -120,8 +125,11 @@ describe("resolveCanonInjectionPolicy", () => {
     process.env.CANON_INJECTION_ROLLOUT_STAGE = "D1";
     process.env.CANON_ARCHIVE_DEEPSEEK_SELECTIVE = "1";
     process.env.CANON_INJECTION_DEEPSEEK_CANARY = "1";
+    process.env.CANON_INJECTION_DEEPSEEK_CANARY_PERCENT = "100";
 
-    const deepSeek = resolveCanonInjectionPolicy(OPENROUTER_DEEPSEEK_V4_PRO_MODEL);
+    const deepSeek = resolveCanonInjectionPolicy(OPENROUTER_DEEPSEEK_V4_PRO_MODEL, {
+      userId: TEST_COHORT_USER_ID,
+    });
     assert.equal(isSelectiveArchiveActive(deepSeek), true);
     assert.equal(deepSeek.actualArchiveMode, "SELECTIVE");
     assert.equal(deepSeek.shadowOnly, false);

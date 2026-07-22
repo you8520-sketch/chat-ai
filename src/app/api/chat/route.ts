@@ -785,7 +785,10 @@ export async function POST(req: Request) {
 
   const billingOpenRouterModelId = resolveOpenRouterModelId(selectedAI);
   const openRouterApiModelId = billingOpenRouterModelId;
-  const canonInjectionPolicy = resolveCanonInjectionPolicy(openRouterApiModelId);
+  const canonInjectionPolicy = resolveCanonInjectionPolicy(openRouterApiModelId, {
+    userId: user.id,
+    chatId: chat.id,
+  });
   const contextProvider = "openrouter" as const;
   const contextModelId = openRouterApiModelId;
   const historyTokenBudget = resolveHistoryTokenBudget(contextModelId, contextProvider);

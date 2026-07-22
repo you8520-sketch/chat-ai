@@ -314,7 +314,7 @@ describe("Canon injection B1 — D0 shadow + policy", () => {
     assert.equal(policy.forceFullLegacy, true);
     assert.equal(policy.canonMode, "FULL_LEGACY");
     assert.equal(policy.archiveMode, "FULL_ALWAYS");
-    assert.equal(shouldRunCanonInjectionSideEffects(policy), true);
+    assert.equal(shouldRunCanonInjectionSideEffects(policy), false);
   });
 
   it("H: Muse/Gemini/HY3 policy stays FULL_LEGACY", () => {
