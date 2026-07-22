@@ -309,3 +309,54 @@ describe("canonInjectionCohort — priority order", () => {
     assert.equal(policy.canaryActualInjection, false);
   });
 });
+
+describe("resolveCanonInjectionPolicy — master canon flag required for actual injection", () => {
+  let envSnapshot: Record<string, string | undefined>;
+
+  beforeEach(() => {
+    envSnapshot = saveEnv();
+    for (const key of ENV_KEYS) delete process.env[key];
+    process.env.CANON_INJECTION_DEEPSEEK_CANARY = "1";
+    process.env.CANON_INJECTION_DEEPSEEK_CANARY_PERCENT = "100";
+    process.env.CANON_ARCHIVE_DEEPSEEK_SELECTIVE = "1";
+    delete process.env.CANON_INJECTION_ENABLED;
+  });
+
+  afterEach(() => restoreEnv(envSnapshot));
+
+  it("D2: master canon OFF + canary ON + percent100 + eligible user → no actual injection", () => {
+    process.env.CANON_INJECTION_ROLLOUT_STAGE = "D2";
+    const policy = deepSeekPolicy();
+    assert.equal(policy.injectionEnabled, false);
+    assert.equal(policy.canaryActualInjection, false);
+    assert.equal(policy.shadowOnly, true);
+    assert.equal(policy.actualCanonMode, "FULL_LEGACY");
+    assert.equal(policy.actualArchiveMode, "FULL_ALWAYS");
+    assert.equal(isLayeredCanonActive(policy), false);
+    assert.equal(isSelectiveArchiveActive(policy), false);
+  });
+
+  it("D1: master canon OFF + canary ON + percent100 + eligible user → no selective actual", () => {
+    process.env.CANON_INJECTION_ROLLOUT_STAGE = "D1";
+    const policy = deepSeekPolicy();
+    assert.equal(policy.injectionEnabled, false);
+    assert.equal(policy.canaryActualInjection, false);
+    assert.equal(policy.shadowOnly, true);
+    assert.equal(policy.actualCanonMode, "FULL_LEGACY");
+    assert.equal(policy.actualArchiveMode, "FULL_ALWAYS");
+    assert.equal(isSelectiveArchiveActive(policy), false);
+  });
+
+  it("allowlist cohortEligible=true but master canon OFF → actual legacy", () => {
+    process.env.CANON_INJECTION_ROLLOUT_STAGE = "D2";
+    process.env.CANON_INJECTION_DEEPSEEK_CANARY_PERCENT = "0";
+    process.env.CANON_INJECTION_DEEPSEEK_CANARY_USER_IDS = String(TEST_USER_A);
+    const policy = deepSeekPolicy(TEST_USER_A);
+    assert.equal(policy.cohortEligible, true);
+    assert.equal(policy.cohortEligibilityReason, "EXPLICIT_ALLOWLIST");
+    assert.equal(policy.canaryActualInjection, false);
+    assert.equal(policy.injectionEnabled, false);
+    assert.equal(policy.actualCanonMode, "FULL_LEGACY");
+    assert.equal(policy.actualArchiveMode, "FULL_ALWAYS");
+  });
+});

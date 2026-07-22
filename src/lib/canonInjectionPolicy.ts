@@ -182,7 +182,7 @@ export function resolveCanonInjectionPolicy(
 
     const stageEligible = rolloutStage !== "D0";
     const canaryActualInjection =
-      masterCanaryEnabled && stageEligible && cohort.eligible;
+      masterEnabled && masterCanaryEnabled && stageEligible && cohort.eligible;
     const shadowOnly = !canaryActualInjection;
     const actualCanonMode: CanonInjectionMode = shadowOnly ? "FULL_LEGACY" : deepSeek.canonMode;
     const actualArchiveMode: ArchiveInjectionMode = shadowOnly ? "FULL_ALWAYS" : deepSeek.archiveMode;
