@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 const STUDIO_TABS = [
-  { id: "characters", url: "/studio" },
+  { id: "creations", url: "/studio" },
   { id: "worlds", url: "/studio?tab=worlds" },
   { id: "lorebooks", url: "/studio?tab=lorebooks" },
 ] as const;
