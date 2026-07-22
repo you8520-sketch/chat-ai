@@ -362,6 +362,17 @@ function migrate(db: Database.Database) {
   addColumn("characters", "lorebook_id", "INTEGER");
   addColumn("characters", "contest_pick", "INTEGER NOT NULL DEFAULT 0");
   addColumn("characters", "contest_rank", "INTEGER NOT NULL DEFAULT 0");
+  /**
+   * Simulations intentionally reuse the mature character listing/chat runtime.
+   * The raw creator fields remain separate so the editor can round-trip them;
+   * system_prompt contains their compiled runtime representation.
+   */
+  addColumn("characters", "content_kind", "TEXT NOT NULL DEFAULT 'character'");
+  addColumn("characters", "simulation_cast", "TEXT NOT NULL DEFAULT ''");
+  addColumn("characters", "simulation_rules", "TEXT NOT NULL DEFAULT ''");
+  addColumn("characters", "simulation_imports_json", "TEXT NOT NULL DEFAULT '[]'");
+  addColumn("characters", "simulation_reuse_allowed", "INTEGER NOT NULL DEFAULT 0");
+  addColumn("characters", "simulation_nsfw_allowed", "INTEGER NOT NULL DEFAULT 0");
   db.exec(`
     CREATE TABLE IF NOT EXISTS chat_turn_summaries (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -432,6 +443,8 @@ function migrate(db: Database.Database) {
   addColumn("chats", "target_response_chars", "INTEGER NOT NULL DEFAULT 2000");
   addColumn("characters", "recommended_writing_style", "TEXT NOT NULL DEFAULT 'balanced'");
   addColumn("chats", "writing_style_override", "TEXT NOT NULL DEFAULT ''");
+  addColumn("chats", "narrative_pov", "TEXT NOT NULL DEFAULT 'third_person'");
+  addColumn("chats", "pov_character_name", "TEXT NOT NULL DEFAULT ''");
   addColumn("chats", "title", "TEXT NOT NULL DEFAULT ''");
   addColumn("chats", "current_summary", "TEXT NOT NULL DEFAULT ''");
   addColumn("chats", "memory_capacity", "INTEGER NOT NULL DEFAULT 7000");
