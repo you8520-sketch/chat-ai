@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import ChatPersonaEditor, { restorePersonaSnapshot } from "@/components/ChatPersonaEditor";
 import PersonaSelector from "@/components/PersonaSelector";
@@ -30,6 +30,7 @@ import UserNoteSplitEditor from "@/components/UserNoteSplitEditor";
 import UserNotePresetPicker from "@/components/UserNotePresetPicker";
 import type { UserNotePresetItem } from "@/lib/userNotePresetTypes";
 import type { StatusWidgetPresetItem } from "@/lib/statusWidgetPresetTypes";
+import type { NarrativePov } from "@/lib/narrativePov";
 import {
   parseUserNoteCombined,
   splitUserNoteBodyForEditor,
@@ -115,6 +116,12 @@ type Props = {
   onTargetResponseCharsChange: (value: number) => void;
   chatTitle: string;
   onChatTitleChange: (value: string) => void;
+  contentKind: "character" | "simulation";
+  narrativePov: NarrativePov;
+  onNarrativePovChange: (value: NarrativePov) => void;
+  povCharacterName: string;
+  onPovCharacterNameChange: (value: string) => void;
+  povCharacterSuggestions: string[];
   displayPrefs: ChatDisplayPrefs;
   onDisplayPrefsChange: (prefs: ChatDisplayPrefs) => void;
   onSaveDisplaySettings?: () => Promise<boolean | void>;
@@ -161,6 +168,12 @@ export default function ChatSettingsPanel({
   onTargetResponseCharsChange,
   chatTitle,
   onChatTitleChange,
+  contentKind,
+  narrativePov,
+  onNarrativePovChange,
+  povCharacterName,
+  onPovCharacterNameChange,
+  povCharacterSuggestions,
   displayPrefs,
   onDisplayPrefsChange,
   onSaveDisplaySettings,
@@ -339,6 +352,12 @@ export default function ChatSettingsPanel({
     return (
       <DisplaySection
         chatId={chatId}
+        contentKind={contentKind}
+        narrativePov={narrativePov}
+        onNarrativePovChange={onNarrativePovChange}
+        povCharacterName={povCharacterName}
+        onPovCharacterNameChange={onPovCharacterNameChange}
+        povCharacterSuggestions={povCharacterSuggestions}
         characterWidgetJson={characterWidgetJson}
         statusWidgetMode={statusWidgetMode}
         statusWidgetDisplayMode={statusWidgetDisplayMode}
@@ -847,6 +866,12 @@ function NoteSection({
 
 function DisplaySection({
   chatId,
+  contentKind,
+  narrativePov,
+  onNarrativePovChange,
+  povCharacterName,
+  onPovCharacterNameChange,
+  povCharacterSuggestions,
   characterWidgetJson,
   statusWidgetMode,
   statusWidgetDisplayMode = null,
@@ -861,6 +886,12 @@ function DisplaySection({
   displaySettingsSaving = false,
 }: {
   chatId: number | null;
+  contentKind: "character" | "simulation";
+  narrativePov: NarrativePov;
+  onNarrativePovChange: (value: NarrativePov) => void;
+  povCharacterName: string;
+  onPovCharacterNameChange: (value: string) => void;
+  povCharacterSuggestions: string[];
   characterWidgetJson: string;
   statusWidgetMode: StatusWidgetSourceMode;
   statusWidgetDisplayMode?: StatusWidgetDisplayMode | null;
@@ -885,6 +916,14 @@ function DisplaySection({
   return (
     <div className="flex min-h-0 flex-col">
       <div className="min-h-0 flex-1 space-y-5">
+        <NarrativePovSection
+          contentKind={contentKind}
+          narrativePov={narrativePov}
+          onNarrativePovChange={onNarrativePovChange}
+          povCharacterName={povCharacterName}
+          onPovCharacterNameChange={onPovCharacterNameChange}
+          povCharacterSuggestions={povCharacterSuggestions}
+        />
         <StatusWidgetChatSettings
           chatId={chatId}
           characterWidgetJson={characterWidgetJson}
@@ -918,6 +957,77 @@ function DisplaySection({
         </button>
       </div>
     </div>
+  );
+}
+
+function NarrativePovSection({
+  contentKind,
+  narrativePov,
+  onNarrativePovChange,
+  povCharacterName,
+  onPovCharacterNameChange,
+  povCharacterSuggestions,
+}: {
+  contentKind: "character" | "simulation";
+  narrativePov: NarrativePov;
+  onNarrativePovChange: (value: NarrativePov) => void;
+  povCharacterName: string;
+  onPovCharacterNameChange: (value: string) => void;
+  povCharacterSuggestions: string[];
+}) {
+  const fieldId = useId();
+  const radioName = `narrative-pov-${fieldId}`;
+  const inputId = `pov-character-${fieldId}`;
+  const suggestionsId = `pov-suggestions-${fieldId}`;
+  const chooseFirstPerson = () => {
+    if (contentKind === "simulation" && !povCharacterName.trim() && povCharacterSuggestions[0]) {
+      onPovCharacterNameChange(povCharacterSuggestions[0]);
+    }
+    onNarrativePovChange("first_person");
+  };
+
+  return (
+    <section className="space-y-2 border-b border-white/10 pb-5 text-xs">
+      <div>
+        <p className="font-bold text-violet-300">서술 시점</p>
+        <p className="mt-1 text-[10px] leading-relaxed text-zinc-500">이 대화방의 다음 AI 답변부터 적용됩니다.</p>
+      </div>
+      <label className={`block cursor-pointer rounded-lg border p-3 transition ${narrativePov === "third_person" ? "border-violet-400/55 bg-violet-500/10" : "border-white/10 bg-[#121218] hover:border-white/20"}`}>
+        <span className="flex gap-2">
+          <input type="radio" name={radioName} checked={narrativePov === "third_person"} onChange={() => onNarrativePovChange("third_person")} className="mt-0.5 accent-violet-500" />
+          <span>
+            <strong className="block text-zinc-200">3인칭 소설형</strong>
+            <span className="mt-1 block text-[10px] leading-relaxed text-zinc-500">여러 캐릭터와 사건을 자유롭게 오가며 소설처럼 서술합니다. <span className="text-violet-300">추천·기본값</span></span>
+          </span>
+        </span>
+      </label>
+      <label className={`block cursor-pointer rounded-lg border p-3 transition ${narrativePov === "first_person" ? "border-violet-400/55 bg-violet-500/10" : "border-white/10 bg-[#121218] hover:border-white/20"}`}>
+        <span className="flex gap-2">
+          <input type="radio" name={radioName} checked={narrativePov === "first_person"} onChange={chooseFirstPerson} className="mt-0.5 accent-violet-500" />
+          <span>
+            <strong className="block text-zinc-200">1인칭 몰입형</strong>
+            <span className="mt-1 block text-[10px] leading-relaxed text-zinc-500">한 캐릭터의 눈으로 장면을 경험합니다. 해당 캐릭터가 나의 시점으로 서술합니다.</span>
+          </span>
+        </span>
+      </label>
+      {narrativePov === "first_person" && contentKind === "simulation" && (
+        <div className="rounded-lg border border-violet-500/20 bg-violet-500/5 p-3">
+          <label className="block font-semibold text-zinc-300" htmlFor={inputId}>시점 캐릭터</label>
+          <input
+            id={inputId}
+            list={suggestionsId}
+            value={povCharacterName}
+            onChange={(event) => onPovCharacterNameChange(event.target.value.slice(0, 80))}
+            placeholder="등장 캐릭터 이름을 선택하거나 입력"
+            className="mt-2 w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
+          />
+          <datalist id={suggestionsId}>
+            {povCharacterSuggestions.map((name) => <option key={name} value={name} />)}
+          </datalist>
+          <p className="mt-2 text-[10px] leading-relaxed text-zinc-500">시점 캐릭터가 알 수 없는 다른 인물의 속마음이나 장면 밖 사건은 직접 서술되지 않을 수 있습니다.</p>
+        </div>
+      )}
+    </section>
   );
 }
 

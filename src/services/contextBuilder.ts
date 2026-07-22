@@ -18,6 +18,7 @@ import { SHORT_TERM_TURNS, trimHistoryToBudget } from "@/lib/hybridMemory";
 import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
 import { buildFlashOwnedEmotionTagUserOverlay } from "@/lib/emotionTag";
 import { buildNarrativeStyleLayer } from "@/lib/narrativeStyle";
+import { buildNarrativePovPrompt } from "@/lib/narrativePov";
 import { isRegisterPatch } from "@/lib/registerPatchExperiment";
 import { buildOocCoNarrationHint } from "@/lib/userImpersonationPolicy";
 import {
@@ -134,6 +135,7 @@ import {
   buildRuntimePromptContaminationGuardBlock,
   sanitizeRuntimePromptSource,
 } from "@/lib/runtimePromptContaminationGuard";
+import { buildSimulationModeBlock } from "@/lib/simulationMode";
 
 type SectionTarget = "dynamic" | "cacheRules" | "cacheCharacter";
 
@@ -433,6 +435,26 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     buildNoGodmoddingBlock(input.charName, personaLabel, godmoddingMode),
     isOpenRouter ? "cacheRules" : "dynamic"
   );
+
+  if (input.contentKind === "simulation") {
+    pushSection(
+      "simulation-mode-owner",
+      "[0b] Simulation ensemble owner",
+      "systemRules",
+      buildSimulationModeBlock(input.charName),
+      isOpenRouter ? "cacheRules" : "dynamic"
+    );
+  }
+
+  if (input.narrativePov) {
+    pushSection(
+      "narrative-pov-owner",
+      "[0c] Narrative POV owner",
+      "systemRules",
+      buildNarrativePovPrompt(input.narrativePov),
+      isOpenRouter ? "cacheRules" : "dynamic"
+    );
+  }
 
   // ───── [1] Core Master Rules (OpenRouter: merged into CANON/SCOPE/KNOWLEDGE top) ─────
   if (!isOpenRouter) {

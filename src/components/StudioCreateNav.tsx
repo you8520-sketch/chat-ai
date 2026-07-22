@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useId, useState } from "react";
 import {
+  IconSidebarChat,
   IconSidebarStudio,
   IconStudioLorebook,
   IconStudioWorld,
@@ -10,6 +11,13 @@ import {
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 
 const CREATE_ITEMS = [
+  {
+    href: "/simulation/create",
+    Icon: IconSidebarChat,
+    label: "시뮬레이션 제작",
+    description:
+      "세계관과 여러 캐릭터 설정을 한 번에 작성해 다인 시뮬레이션을 만듭니다. 캐릭터를 따로 등록할 필요가 없습니다.",
+  },
   {
     href: "/world/create",
     Icon: IconStudioWorld,

@@ -45,6 +45,8 @@ import { filterOutMessageIds, purgeOrphanUserMessages } from "@/lib/chatMessageH
 import { recoverStaleInFlightAssistantMessages } from "@/lib/streamingPersistence";
 import { takeRecentTurns, takeRecentTurnsIncludingMessage } from "@/lib/chatMessagePagination";
 import { createChatSession } from "@/lib/chatSessionCreate";
+import { parseNarrativePov } from "@/lib/narrativePov";
+import { extractSimulationCastNames, type SimulationImportSnapshot } from "@/lib/simulationMode";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +69,8 @@ type ChatRow = {
   user_status_widget_json?: string;
   status_widget_stack_order?: string;
   status_widget_display_mode?: string;
+  narrative_pov?: string;
+  pov_character_name?: string;
 };
 
 function collectUnlockedAssetUrlsFromMessages(
@@ -117,7 +121,7 @@ export default async function ChatPage({
 
   const c = db
     .prepare(
-      "SELECT id, name, emoji, hue, nsfw, greeting, assets, creator_id, creator_name, visibility, moderation_status, official, recommended_writing_style, status_window_prompt, status_widget_json, status_widget_allow_user_override FROM characters WHERE id=?"
+      "SELECT id, name, emoji, hue, nsfw, greeting, assets, creator_id, creator_name, visibility, moderation_status, official, recommended_writing_style, status_window_prompt, status_widget_json, status_widget_allow_user_override, content_kind, simulation_cast, simulation_imports_json FROM characters WHERE id=?"
     )
     .get(id) as
     | {
@@ -134,6 +138,9 @@ export default async function ChatPage({
         moderation_status: string;
         official: number;
         recommended_writing_style: string;
+        content_kind?: string;
+        simulation_cast?: string;
+        simulation_imports_json?: string;
       }
     | undefined;
 
@@ -184,7 +191,7 @@ export default async function ChatPage({
       if (requestedId) {
         chat = db
           .prepare(
-            "SELECT id, mode, memory, memory_pending, memory_meta, gemini_model, user_note, selected_persona_id, user_impersonation, target_response_chars, title, writing_style_override, memory_capacity, status_window_enabled, status_widget_mode, user_status_widget_json, status_widget_stack_order, status_widget_display_mode FROM chats WHERE id=? AND user_id=? AND character_id=?"
+            "SELECT id, mode, memory, memory_pending, memory_meta, gemini_model, user_note, selected_persona_id, user_impersonation, target_response_chars, title, writing_style_override, memory_capacity, status_window_enabled, status_widget_mode, user_status_widget_json, status_widget_stack_order, status_widget_display_mode, narrative_pov, pov_character_name FROM chats WHERE id=? AND user_id=? AND character_id=?"
           )
           .get(requestedId, user.id, c.id) as ChatRow | undefined;
       }
@@ -193,7 +200,7 @@ export default async function ChatPage({
     if (!chat) {
       chat = db
         .prepare(
-          "SELECT id, mode, memory, memory_pending, memory_meta, gemini_model, user_note, selected_persona_id, user_impersonation, target_response_chars, title, writing_style_override, memory_capacity, status_window_enabled, status_widget_mode, user_status_widget_json, status_widget_stack_order, status_widget_display_mode FROM chats WHERE user_id=? AND character_id=? ORDER BY id DESC LIMIT 1"
+          "SELECT id, mode, memory, memory_pending, memory_meta, gemini_model, user_note, selected_persona_id, user_impersonation, target_response_chars, title, writing_style_override, memory_capacity, status_window_enabled, status_widget_mode, user_status_widget_json, status_widget_stack_order, status_widget_display_mode, narrative_pov, pov_character_name FROM chats WHERE user_id=? AND character_id=? ORDER BY id DESC LIMIT 1"
         )
         .get(user.id, c.id) as ChatRow | undefined;
     }
@@ -434,6 +441,23 @@ export default async function ChatPage({
     isFirstChatVisitEver: userChatCount <= 1,
   });
 
+  const isSimulation = c.content_kind === "simulation";
+  let importedPovNames: string[] = [];
+  if (isSimulation) {
+    try {
+      const imported = JSON.parse(c.simulation_imports_json || "[]") as SimulationImportSnapshot[];
+      importedPovNames = imported.map((item) => item.name).filter(Boolean);
+    } catch {
+      importedPovNames = [];
+    }
+  }
+  const povCharacterSuggestions = isSimulation
+    ? Array.from(new Set([
+        ...extractSimulationCastNames(c.simulation_cast ?? ""),
+        ...importedPovNames,
+      ]))
+    : [c.name];
+
   return (
     <ChatClient
       key={clientKey}
@@ -445,6 +469,10 @@ export default async function ChatPage({
         nsfw: c.nsfw,
         official: c.official,
       }}
+      contentKind={isSimulation ? "simulation" : "character"}
+      povCharacterSuggestions={povCharacterSuggestions}
+      initialNarrativePov={parseNarrativePov(chat.narrative_pov)}
+      initialPovCharacterName={isSimulation ? (chat.pov_character_name ?? "") : c.name}
       creatorName={c.creator_name}
       creatorId={c.creator_id}
       assets={assets}

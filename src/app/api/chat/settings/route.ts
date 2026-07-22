@@ -3,6 +3,7 @@ import { getSessionUser } from "@/lib/auth";
 import { normalizeTargetResponseChars } from "@/lib/responseLength";
 import { validateUserNoteCombined } from "@/lib/userNoteStatusWindow";
 import { sanitizeChatTitle } from "@/lib/chatTitle";
+import { parseNarrativePov } from "@/lib/narrativePov";
 import {
   displayModeFromEngineMode,
   engineModeForDisplay,
@@ -55,6 +56,8 @@ export async function PATCH(req: Request) {
     statusWidgetMode,
     statusWidgetDisplayMode,
     userStatusWidgetJson,
+    narrativePov,
+    povCharacterName,
   } = body;
   if (!chatId) return Response.json({ error: "채팅방 ID가 필요합니다." }, { status: 400 });
 
@@ -64,7 +67,11 @@ export async function PATCH(req: Request) {
   }
 
   const db = getDb();
-  const chat = db.prepare("SELECT id FROM chats WHERE id=? AND user_id=?").get(chatId, user.id);
+  const chat = db.prepare(
+    `SELECT ch.id, c.name, COALESCE(c.content_kind, 'character') AS content_kind
+     FROM chats ch JOIN characters c ON c.id = ch.character_id
+     WHERE ch.id=? AND ch.user_id=?`
+  ).get(chatId, user.id) as { id: number; name: string; content_kind: string } | undefined;
   if (!chat) return Response.json({ error: "채팅방을 찾을 수 없습니다." }, { status: 404 });
 
   const widgetCtx = loadChatWidgetContext(chatId, user.id);
@@ -133,6 +140,16 @@ export async function PATCH(req: Request) {
   const targetChars =
     targetResponseChars != null ? normalizeTargetResponseChars(targetResponseChars) : undefined;
   const title = chatTitle !== undefined ? sanitizeChatTitle(chatTitle) : undefined;
+  const nextNarrativePov = narrativePov !== undefined ? parseNarrativePov(narrativePov) : undefined;
+  let nextPovCharacterName = povCharacterName !== undefined
+    ? String(povCharacterName).trim().slice(0, 80)
+    : undefined;
+  if (nextNarrativePov === "first_person") {
+    if (chat.content_kind === "simulation" && !nextPovCharacterName) {
+      return Response.json({ error: "1인칭 시점 캐릭터를 선택하거나 입력해 주세요." }, { status: 400 });
+    }
+    if (chat.content_kind !== "simulation") nextPovCharacterName = chat.name;
+  }
 
   const sets: string[] = [];
   const vals: unknown[] = [];
@@ -151,6 +168,14 @@ export async function PATCH(req: Request) {
   if (title !== undefined) {
     sets.push("title=?");
     vals.push(title);
+  }
+  if (nextNarrativePov !== undefined) {
+    sets.push("narrative_pov=?");
+    vals.push(nextNarrativePov);
+  }
+  if (nextPovCharacterName !== undefined) {
+    sets.push("pov_character_name=?");
+    vals.push(nextPovCharacterName);
   }
   if (statusWidgetMode !== undefined || statusWidgetDisplayMode !== undefined) {
     sets.push("status_widget_mode=?");

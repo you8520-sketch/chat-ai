@@ -52,6 +52,12 @@ import {
   replaceAppearanceInSetting,
   serializeAppearanceCompiledJson,
 } from "@/lib/appearanceCompiler";
+import {
+  buildSimulationSystemPrompt,
+  parseContentKind,
+  type ContentKind,
+  type SimulationImportSnapshot,
+} from "@/lib/simulationMode";
 
 import {
   AI_LEARNING_LIMIT,
@@ -71,6 +77,10 @@ export {
 export type SessionUser = { id: number; nickname: string; is_adult: number };
 
 export type ParsedCharacterForm = {
+  contentKind: ContentKind;
+  simulationCast: string;
+  simulationRules: string;
+  simulationImportsJson: string;
   name: string;
   tagline: string;
   description: string;
@@ -95,6 +105,8 @@ export type ParsedCharacterForm = {
   nsfw: boolean;
   commentsEnabled: number;
   creatorComment: string;
+  simulationReuseAllowed: number;
+  simulationNsfwAllowed: number;
   emoji: string;
   hue: number;
   tagsJson: string;
@@ -119,6 +131,75 @@ function parseAssetsFromFormBody(rawAssets: unknown): CharacterAsset[] {
   return parsed;
 }
 
+function parseSimulationImportIds(value: unknown): number[] {
+  if (!Array.isArray(value)) return [];
+  return Array.from(
+    new Set(
+      value
+        .map(Number)
+        .filter((id) => Number.isInteger(id) && id > 0),
+    ),
+  ).slice(0, 12);
+}
+
+function resolveSimulationImports(
+  db: ReturnType<typeof getDb>,
+  input: { ids: number[]; creatorId: number; simulationNsfw: boolean },
+): { ok: true; snapshots: SimulationImportSnapshot[] } | { ok: false; error: string; status: number } {
+  if (input.ids.length === 0) return { ok: true, snapshots: [] };
+  const placeholders = input.ids.map(() => "?").join(",");
+  const rows = db
+    .prepare(
+      `SELECT id, name, creator_id, creator_name, system_prompt, world, example_dialog,
+              visibility, moderation_status, nsfw, content_kind,
+              simulation_reuse_allowed, simulation_nsfw_allowed
+       FROM characters WHERE id IN (${placeholders})`,
+    )
+    .all(...input.ids) as Array<{
+      id: number;
+      name: string;
+      creator_id: number | null;
+      creator_name: string;
+      system_prompt: string;
+      world: string;
+      example_dialog: string;
+      visibility: string;
+      moderation_status: string;
+      nsfw: number;
+      content_kind: string;
+      simulation_reuse_allowed: number;
+      simulation_nsfw_allowed: number;
+    }>;
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const snapshots: SimulationImportSnapshot[] = [];
+  for (const id of input.ids) {
+    const row = byId.get(id);
+    if (!row || row.content_kind === "simulation") {
+      return { ok: false, error: "불러올 캐릭터를 찾을 수 없습니다.", status: 404 };
+    }
+    const owned = row.creator_id === input.creatorId;
+    if (!owned && (row.visibility !== "public" || row.moderation_status !== "approved" || row.simulation_reuse_allowed !== 1)) {
+      return { ok: false, error: `${row.name}: 원작자가 시뮬레이션 사용을 허용하지 않았습니다.`, status: 403 };
+    }
+    if (row.nsfw === 1 && !input.simulationNsfw) {
+      return { ok: false, error: `${row.name}: 19+ 캐릭터를 사용하려면 시뮬레이션도 19+로 설정해 주세요.`, status: 400 };
+    }
+    if (!owned && input.simulationNsfw && row.simulation_nsfw_allowed !== 1) {
+      return { ok: false, error: `${row.name}: 원작자가 19+ 시뮬레이션 사용을 허용하지 않았습니다.`, status: 403 };
+    }
+    snapshots.push({
+      characterId: row.id,
+      name: row.name,
+      creatorId: row.creator_id,
+      creatorName: row.creator_name,
+      systemPrompt: row.system_prompt,
+      world: row.world,
+      exampleDialog: row.example_dialog,
+    });
+  }
+  return { ok: true, snapshots };
+}
+
 export function parseCharacterFormBody(
   b: Record<string, unknown>,
   user: SessionUser
@@ -126,7 +207,16 @@ export function parseCharacterFormBody(
   if (!user.is_adult) {
     return { ok: false, error: "캐릭터 제작·수정은 성인인증 완료 후 가능합니다.", status: 403 };
   }
-  if (!b.name || !b.system_prompt) {
+  const contentKind = parseContentKind(b.content_kind ?? b.contentKind);
+  const simulationCast =
+    contentKind === "simulation"
+      ? String(b.simulation_cast ?? b.simulationCast ?? b.system_prompt ?? "").trim()
+      : "";
+  const simulationRules =
+    contentKind === "simulation"
+      ? String(b.simulation_rules ?? b.simulationRules ?? "").trim()
+      : "";
+  if (!b.name || (contentKind === "simulation" ? !simulationCast : !b.system_prompt)) {
     return { ok: false, error: "이름과 캐릭터 설정은 필수입니다.", status: 400 };
   }
 
@@ -136,7 +226,10 @@ export function parseCharacterFormBody(
   if (!tagline) return { ok: false, error: "한 줄 소개를 입력해 주세요.", status: 400 };
 
   const description = String(b.description || "");
-  const systemPrompt = String(b.system_prompt || "");
+  let systemPrompt =
+    contentKind === "simulation"
+      ? buildSimulationSystemPrompt({ cast: simulationCast, rules: simulationRules })
+      : String(b.system_prompt || "");
   const statusWindowPrompt = "";
   const rawWidget = b.status_widget_json ?? b.status_widget;
   const parsedWidget =
@@ -154,6 +247,7 @@ export function parseCharacterFormBody(
   const speechInput = parseSpeechCreatorFromBody(b);
   const exampleDialog = composeExampleDialog(speechInput);
   const greeting = String(b.greeting || "");
+  const nsfw = b.nsfw === true;
 
   let worldId: number | null = null;
   const rawWorldId = b.world_id ?? b.worldId;
@@ -193,6 +287,26 @@ export function parseCharacterFormBody(
     }
   }
 
+  if (contentKind === "simulation" && !world.trim()) {
+    return { ok: false, error: "시뮬레이션 세계관을 입력해 주세요.", status: 400 };
+  }
+
+  let simulationImportsJson = "[]";
+  if (contentKind === "simulation") {
+    const imported = resolveSimulationImports(db, {
+      ids: parseSimulationImportIds(b.simulation_import_ids ?? b.simulationImportIds),
+      creatorId: user.id,
+      simulationNsfw: nsfw,
+    });
+    if (!imported.ok) return imported;
+    simulationImportsJson = JSON.stringify(imported.snapshots);
+    systemPrompt = buildSimulationSystemPrompt({
+      cast: simulationCast,
+      rules: simulationRules,
+      imports: imported.snapshots,
+    });
+  }
+
   if (countPublicDescriptionVisibleChars(description) > PROFILE_BIOGRAPHY_LIMIT) {
     return {
       ok: false,
@@ -221,8 +335,10 @@ export function parseCharacterFormBody(
     };
   }
 
-  const speechErr = validateSpeechCreatorInput(speechInput);
-  if (speechErr) return { ok: false, error: speechErr, status: 400 };
+  if (contentKind === "character") {
+    const speechErr = validateSpeechCreatorInput(speechInput);
+    if (speechErr) return { ok: false, error: speechErr, status: 400 };
+  }
   if (!greeting.trim()) {
     return { ok: false, error: "첫 메세지를 입력해 주세요.", status: 400 };
   }
@@ -230,7 +346,8 @@ export function parseCharacterFormBody(
     return { ok: false, error: `첫 메세지는 ${GREETING_LIMIT.toLocaleString()}자 이하여야 합니다.`, status: 400 };
   }
 
-  const gender = parseCharacterGender(b.gender);
+  const gender =
+    contentKind === "simulation" ? "other" : parseCharacterGender(b.gender);
   if (!gender) return { ok: false, error: "캐릭터 성별(남성/여성/기타)을 선택해 주세요.", status: 400 };
 
   const genres = sanitizeCharacterGenres(b.genres ?? b.genre);
@@ -247,6 +364,10 @@ export function parseCharacterFormBody(
   return {
     ok: true,
     data: {
+      contentKind,
+      simulationCast,
+      simulationRules,
+      simulationImportsJson,
       name,
       tagline,
       description,
@@ -270,11 +391,14 @@ export function parseCharacterFormBody(
       images: assetUrls(assets),
       audience: ["all", "female", "male"].includes(String(b.audience)) ? String(b.audience) : "all",
       requestedVisibility: parseVisibility(b.visibility),
-      nsfw: !!b.nsfw,
+      nsfw,
       commentsEnabled: b.comments_enabled === false ? 0 : 1,
       creatorComment: String(b.creator_comment ?? b.creatorComment ?? "")
         .trim()
         .slice(0, CREATOR_COMMENT_LIMIT),
+      simulationReuseAllowed: b.simulation_reuse_allowed === true ? 1 : 0,
+      simulationNsfwAllowed:
+        b.simulation_reuse_allowed === true && b.simulation_nsfw_allowed === true ? 1 : 0,
       emoji: String(b.emoji || "✨"),
       hue: Number(b.hue) || 260,
       tagsJson: JSON.stringify(parseCharacterTagsInput(b.tags)),
@@ -285,7 +409,7 @@ export function parseCharacterFormBody(
 type CreatorDescriptionSaveInput = Pick<
   ParsedCharacterForm,
   "description" | "world" | "systemPrompt" | "statusWidgetJson" | "statusWidgetTriggers"
->;
+> & { contentKind?: ContentKind };
 
 export function buildCompiledCreatorDescriptionForSave(
   data: CreatorDescriptionSaveInput,
@@ -312,7 +436,10 @@ export function buildCompiledCreatorDescriptionForSave(
     compiledDescription,
     compiledDescriptionJson: serializeCreatorDescriptionCompiled(compiledDescription),
     safeRuntimeCanon: compiledPublicCanonText(compiledDescription),
-    appearanceRaw: extractAppearanceRawFromSetting(data.systemPrompt),
+    // An ensemble can contain many incompatible appearances; the single-character
+    // appearance compiler must not collapse them into one identity.
+    appearanceRaw:
+      data.contentKind === "simulation" ? "" : extractAppearanceRawFromSetting(data.systemPrompt),
   };
 }
 
@@ -473,8 +600,9 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
       `INSERT INTO characters
         (name, tagline, description, greeting, system_prompt, world, world_id, lorebook_id, example_dialog, status_window_prompt, status_widget_json, genre, genres, tags, nsfw, emoji, hue,
          creator_id, creator_name, audience, gender, images, assets, setting_chunks, visibility, moderation_status, moderation_note, share_slug,
-         recommended_writing_style, comments_enabled, creator_comment, creator_raw_description, creator_compiled_description_json, appearance_raw, appearance_compiled, appearance_compiled_source_hash, appearance_compiled_version)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+         recommended_writing_style, comments_enabled, creator_comment, creator_raw_description, creator_compiled_description_json, appearance_raw, appearance_compiled, appearance_compiled_source_hash, appearance_compiled_version,
+         content_kind, simulation_cast, simulation_rules, simulation_imports_json, simulation_reuse_allowed, simulation_nsfw_allowed)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     )
     .run(
       data.name,
@@ -513,7 +641,13 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
       appearance.raw,
       appearance.compiled,
       appearance.sourceHash,
-      appearance.version
+      appearance.version,
+      data.contentKind,
+      data.simulationCast,
+      data.simulationRules,
+      data.simulationImportsJson,
+      data.simulationReuseAllowed,
+      data.simulationNsfwAllowed
     );
 
   const characterId = Number(info.lastInsertRowid);
@@ -563,7 +697,8 @@ export async function updateCharacterFromForm(
     .prepare(
       `SELECT id, creator_id, official, share_slug, visibility, moderation_status, moderation_note,
               name, gender, system_prompt, world, example_dialog, status_widget_json,
-              creator_compiled_description_json, appearance_raw, appearance_compiled, appearance_compiled_source_hash, appearance_compiled_version, images, nsfw
+              creator_compiled_description_json, appearance_raw, appearance_compiled, appearance_compiled_source_hash, appearance_compiled_version, images, nsfw,
+              content_kind
        FROM characters WHERE id=?`
     )
     .get(characterId) as
@@ -588,9 +723,11 @@ export async function updateCharacterFromForm(
         appearance_compiled_version: number | null;
         images: string | null;
         nsfw: number | null;
+        content_kind: string | null;
       }
     | undefined;
 
+  const data = parsed.data;
   if (!row) return { ok: false as const, error: "캐릭터를 찾을 수 없습니다.", status: 404 };
   if (row.creator_id !== user.id) {
     return { ok: false as const, error: "본인 캐릭터만 수정할 수 있습니다.", status: 403 };
@@ -598,8 +735,13 @@ export async function updateCharacterFromForm(
   if (row.official === 1) {
     return { ok: false as const, error: "공식 캐릭터는 수정할 수 없습니다.", status: 403 };
   }
-
-  const data = parsed.data;
+  if ((row.content_kind ?? "character") !== data.contentKind) {
+    return {
+      ok: false as const,
+      error: data.contentKind === "simulation" ? "시뮬레이션 제작 페이지에서 수정해 주세요." : "캐릭터 제작 페이지에서 수정해 주세요.",
+      status: 400,
+    };
+  }
   const { finalVisibility, moderationStatus, moderationNote, shareSlug } =
     await resolveVisibilityModeration(data, {
       share_slug: row.share_slug,
@@ -638,6 +780,7 @@ export async function updateCharacterFromForm(
       audience=?, gender=?, images=?, assets=?, visibility=?, moderation_status=?, moderation_note=?,
       share_slug=?, recommended_writing_style=?, comments_enabled=?, creator_comment=?, creator_name=?,
       creator_raw_description=?, creator_compiled_description_json=?, appearance_raw=?, appearance_compiled=?, appearance_compiled_source_hash=?, appearance_compiled_version=?
+      , content_kind=?, simulation_cast=?, simulation_rules=?, simulation_imports_json=?, simulation_reuse_allowed=?, simulation_nsfw_allowed=?
      WHERE id=?`
   ).run(
     data.name,
@@ -675,6 +818,12 @@ export async function updateCharacterFromForm(
     appearance.compiled,
     appearance.sourceHash,
     appearance.version,
+    data.contentKind,
+    data.simulationCast,
+    data.simulationRules,
+    data.simulationImportsJson,
+    data.simulationReuseAllowed,
+    data.simulationNsfwAllowed,
     characterId
   );
   saveCharacterStatusWidgetTriggers(

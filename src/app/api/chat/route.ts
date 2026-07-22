@@ -30,6 +30,7 @@ import { normalizeProseLineEndings } from "@/lib/canonicalProse";
 import { loadCharacterChunks, loadCharacterChunksForPrompt } from "@/lib/characterChunks";
 import { resolveExampleDialogForPrompt } from "@/lib/narrationFewShotTemplates";
 import { buildContext } from "@/services/contextBuilder";
+import { resolveNarrativePov } from "@/lib/narrativePov";
 import { auditAssembledPrompt, formatPromptAuditLog } from "@/services/promptAudit";
 import { invalidateModelPickerInputSnapshot } from "@/services/modelPickerInputSnapshot";
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
@@ -363,6 +364,7 @@ export async function POST(req: Request) {
     genres: string;
     recommended_writing_style: string;
     creator_compiled_description_json?: string | null;
+    content_kind?: "character" | "simulation" | null;
   } | undefined;
   if (!ch) return Response.json({ error: "캐릭터를 찾을 수 없습니다." }, { status: 404 });
 
@@ -387,6 +389,8 @@ export async function POST(req: Request) {
             user_impersonation?: number;
             target_response_chars?: number;
             status_window_enabled?: number;
+            narrative_pov?: string;
+            pov_character_name?: string;
           }
         | undefined)
     : undefined;
@@ -982,6 +986,13 @@ export async function POST(req: Request) {
 
   const contextBuildInput = {
     charName: ch.name,
+    contentKind: ch.content_kind === "simulation" ? "simulation" as const : "character" as const,
+    narrativePov: resolveNarrativePov({
+      mode: chat.narrative_pov,
+      contentKind: ch.content_kind === "simulation" ? "simulation" : "character",
+      mainCharacterName: ch.name,
+      povCharacterName: chat.pov_character_name,
+    }),
     chunks: characterChunks,
     systemPrompt: ch.system_prompt,
     world: ch.world,

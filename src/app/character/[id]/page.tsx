@@ -70,6 +70,7 @@ export default async function CharacterPage({
         share_slug: string | null;
         comments_enabled: number;
         creator_comment: string;
+        content_kind?: string;
       })
     | undefined;
 
@@ -235,6 +236,7 @@ export default async function CharacterPage({
       <div className="flex flex-wrap items-center gap-2">
         {c.official === 1 && <span className="rounded bg-violet-600 px-2 py-0.5 text-xs font-bold">공식</span>}
         {c.nsfw === 1 && <span className="rounded bg-rose-600 px-2 py-0.5 text-xs font-bold">19</span>}
+        {c.content_kind === "simulation" && <span className="rounded bg-cyan-600 px-2 py-0.5 text-xs font-bold">다인 시뮬레이션</span>}
         {c.official === 0 && c.creator_id && (
           <span className="rounded bg-white/10 px-2 py-0.5 text-xs text-gray-300">
             {visibilityLabel(c.visibility ?? "private")}
@@ -302,7 +304,7 @@ export default async function CharacterPage({
 
         {isOwner && c.official === 0 && (
           <Link
-            href={`/create?edit=${c.id}`}
+            href={c.content_kind === "simulation" ? `/simulation/create?edit=${c.id}` : `/create?edit=${c.id}`}
             className="inline-flex items-center rounded-xl border border-violet-500/40 bg-violet-500/10 px-5 py-2.5 text-sm font-bold text-violet-200 transition hover:bg-violet-500/20"
           >
             수정

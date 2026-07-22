@@ -125,6 +125,8 @@ export default function CreateCharacter({
     recommended_writing_style: "balanced",
     comments_enabled: true,
     creator_comment: "",
+    simulation_reuse_allowed: false,
+    simulation_nsfw_allowed: false,
   });
   const [assets, setAssets] = useState<TaggedAsset[]>([]);
   const [files, setFiles] = useState<File[]>([]);
@@ -195,6 +197,8 @@ export default function CreateCharacter({
       speech_contextual_registers: Array.isArray(draft.form.speech_contextual_registers)
         ? draft.form.speech_contextual_registers
         : [],
+      simulation_reuse_allowed: draft.form.simulation_reuse_allowed ?? false,
+      simulation_nsfw_allowed: draft.form.simulation_nsfw_allowed ?? false,
     });
     setAssets(normalizeManagedAssets(draft.assets));
     setSelectedWorldId(draft.selectedWorldId);
@@ -426,6 +430,8 @@ export default function CreateCharacter({
             data.recommended_writing_style ?? "balanced",
           comments_enabled: data.comments_enabled !== false,
           creator_comment: data.creator_comment ?? "",
+          simulation_reuse_allowed: data.simulation_reuse_allowed === true,
+          simulation_nsfw_allowed: data.simulation_nsfw_allowed === true,
         });
         setAssets(
           normalizeManagedAssets(Array.isArray(data.assets) ? data.assets : []),
@@ -1531,6 +1537,32 @@ export default function CreateCharacter({
                   label="댓글 허용"
                   description="OFF 시 다른 사용자는 이 캐릭터에 댓글을 보거나 작성할 수 없습니다."
                 />
+              </div>
+
+              <div className="space-y-3 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4">
+                <ToggleSwitch
+                  checked={form.simulation_reuse_allowed}
+                  onChange={(next) =>
+                    setForm({
+                      ...form,
+                      simulation_reuse_allowed: next,
+                      simulation_nsfw_allowed: next ? form.simulation_nsfw_allowed : false,
+                    })
+                  }
+                  disabled={loading}
+                  label="다른 제작자의 시뮬레이션에서 사용 허용"
+                  description="허용하면 공개·검수 승인된 이 캐릭터를 다른 제작자가 선택적으로 불러올 수 있습니다. 기본값은 OFF입니다."
+                />
+                {form.simulation_reuse_allowed ? (
+                  <div className="space-y-3 border-l border-cyan-500/25 pl-4">
+                    <ToggleSwitch
+                      checked={form.simulation_nsfw_allowed}
+                      onChange={(next) => setForm({ ...form, simulation_nsfw_allowed: next })}
+                      disabled={loading}
+                      label="19+ 시뮬레이션에서도 사용 허용"
+                    />
+                  </div>
+                ) : null}
               </div>
             </section>
 

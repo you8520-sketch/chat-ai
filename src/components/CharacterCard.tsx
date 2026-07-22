@@ -25,6 +25,7 @@ export type CharacterRow = {
   created_at: string;
   audience?: string;
   images?: string;
+  content_kind?: "character" | "simulation" | string;
 };
 
 
@@ -162,6 +163,11 @@ export default function CharacterCard({ c, blurNsfw, loggedIn = false }: Props) 
           {c.official === 1 && (
             <span className="absolute left-2 top-2 rounded-md bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white shadow-sm">
               공식
+            </span>
+          )}
+          {c.content_kind === "simulation" && (
+            <span className="absolute left-2 top-2 rounded-md bg-cyan-600 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white shadow-sm">
+              다인 시뮬
             </span>
           )}
 

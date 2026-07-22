@@ -59,6 +59,7 @@ import {
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
 import { stripInternalTagLeakage, stripRpMetaPreamble } from "@/lib/narrativeRules";
 import { stripRepeatedTrailingQuoteMarks } from "@/lib/trailingQuoteSanitizer";
+import type { NarrativePov } from "@/lib/narrativePov";
 import type { StatusMeta } from "@/lib/statusMeta/types";
 import { userMessageRequestsStatusWindowOoc } from "@/lib/statusMeta/ooc";
 import { statusMetaDisplayMarkdown, statusMetaHasDisplayContent } from "@/lib/statusMeta/render";
@@ -640,6 +641,10 @@ export default function ChatClient({
   initialStatusWidgetStackOrder = "character_first",
   characterWidgetAllowUserOverride = true,
   showFullBillingReceipt = false,
+  contentKind = "character",
+  povCharacterSuggestions = [],
+  initialNarrativePov = "third_person",
+  initialPovCharacterName = "",
 }: {
   character: { id: number; name: string; emoji: string; hue: number; nsfw: number; official?: number };
   creatorName: string;
@@ -677,6 +682,10 @@ export default function ChatClient({
   initialStatusWidgetStackOrder?: StatusWidgetStackOrder;
   characterWidgetAllowUserOverride?: boolean;
   showFullBillingReceipt?: boolean;
+  contentKind?: "character" | "simulation";
+  povCharacterSuggestions?: string[];
+  initialNarrativePov?: NarrativePov;
+  initialPovCharacterName?: string;
 }) {
   const router = useRouter();
   const isOfficialCharacter = Number(character.official) === 1;
@@ -831,6 +840,8 @@ export default function ChatClient({
   const [selectedPersonaId, setSelectedPersonaId] = useState(initialSelectedPersonaId);
   const [targetResponseChars, setTargetResponseChars] = useState(initialTargetResponseChars);
   const [chatTitle, setChatTitle] = useState(initialChatTitle);
+  const [narrativePov, setNarrativePov] = useState<NarrativePov>(initialNarrativePov);
+  const [povCharacterName, setPovCharacterName] = useState(initialPovCharacterName);
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [displaySettingsSaving, setDisplaySettingsSaving] = useState(false);
   const settingsSkipAutoSaveRef = useRef(true);
@@ -905,6 +916,8 @@ export default function ChatClient({
           isNsfwMode: nsfwMode,
           isAdultMode: nsfwMode,
           chatTitle,
+          narrativePov,
+          povCharacterName,
         }),
       });
       const data = await res.json();
@@ -916,7 +929,7 @@ export default function ChatClient({
     } finally {
       endSettingsSave();
     }
-  }, [chatId, nsfwMode, chatTitle, widgetReservedChars]);
+  }, [chatId, nsfwMode, chatTitle, narrativePov, povCharacterName, widgetReservedChars]);
 
   const saveUserNote = useCallback(
     async (note: string): Promise<boolean> => {
@@ -1010,7 +1023,7 @@ export default function ChatClient({
     return () => {
       if (settingsSaveTimerRef.current) clearTimeout(settingsSaveTimerRef.current);
     };
-  }, [chatId, nsfwMode, chatTitle, persistChatSettings]);
+  }, [chatId, nsfwMode, chatTitle, narrativePov, povCharacterName, persistChatSettings]);
 
   useEffect(() => {
     if (initialGlobalModelNotice?.trim()) {
@@ -1026,6 +1039,8 @@ export default function ChatClient({
     setMode(initialMode);
     setTargetResponseChars(initialTargetResponseChars);
     setChatTitle(initialChatTitle);
+    setNarrativePov(initialNarrativePov);
+    setPovCharacterName(initialPovCharacterName);
     // Prefer device localStorage so 에셋 ON/OFF survives leaving the room.
     setDisplayPrefs(resolveClientDisplayPrefs(initialDisplayPrefs ?? DEFAULT_CHAT_DISPLAY_PREFS));
     setSelectedPersonaId(initialSelectedPersonaId);
@@ -1037,6 +1052,8 @@ export default function ChatClient({
     initialMode,
     initialTargetResponseChars,
     initialChatTitle,
+    initialNarrativePov,
+    initialPovCharacterName,
     initialDisplayPrefs,
     initialSelectedPersonaId,
   ]);
@@ -3459,6 +3476,12 @@ export default function ChatClient({
         onTargetResponseCharsChange={setTargetResponseChars}
         chatTitle={chatTitle}
         onChatTitleChange={setChatTitle}
+        contentKind={contentKind}
+        narrativePov={narrativePov}
+        onNarrativePovChange={setNarrativePov}
+        povCharacterName={povCharacterName}
+        onPovCharacterNameChange={setPovCharacterName}
+        povCharacterSuggestions={povCharacterSuggestions}
         displayPrefs={displayPrefs}
         onDisplayPrefsChange={handleDisplayPrefsChange}
         onSaveDisplaySettings={persistUserChatPrefs}

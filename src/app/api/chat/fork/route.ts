@@ -65,8 +65,8 @@ export async function POST(req: Request) {
       .prepare(
         `INSERT INTO chats (user_id, character_id, mode, memory, memory_pending, memory_meta,
           memory_archived_turns, current_summary, gemini_model, user_note, selected_persona_id, user_impersonation,
-          target_response_chars, title, writing_style_override, memory_capacity)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+          target_response_chars, title, writing_style_override, memory_capacity, narrative_pov, pov_character_name)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
       )
       .run(
         user.id,
@@ -84,7 +84,9 @@ export async function POST(req: Request) {
         normalizeTargetResponseChars(source.target_response_chars ?? DEFAULT_TARGET_RESPONSE_CHARS),
         branchTitle,
         String(source.writing_style_override ?? ""),
-        memoryCapacity
+        memoryCapacity,
+        String(source.narrative_pov ?? "third_person"),
+        String(source.pov_character_name ?? "")
       );
     const newChatId = Number(info.lastInsertRowid);
     const messageIdMap = new Map<number, number>();

@@ -12,6 +12,7 @@ import {
 } from "@/lib/characterFormSave";
 import { deleteUserCharacter } from "@/lib/deleteCharacter";
 import { listCharacterStatusWidgetTriggers } from "@/lib/statusWidgetTriggers";
+import type { SimulationImportSnapshot } from "@/lib/simulationMode";
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
@@ -45,7 +46,8 @@ export async function GET(_req: Request, ctx: RouteCtx) {
   const c = db
     .prepare(
       `SELECT id, name, tagline, description, greeting, system_prompt, world, world_id, lorebook_id, example_dialog, status_window_prompt, status_widget_json,
-              genres, tags, nsfw, emoji, hue, audience, gender, visibility, assets, recommended_writing_style, comments_enabled, creator_comment, appearance_raw, appearance_compiled
+              genres, tags, nsfw, emoji, hue, audience, gender, visibility, assets, recommended_writing_style, comments_enabled, creator_comment, appearance_raw, appearance_compiled,
+              content_kind, simulation_cast, simulation_rules, simulation_imports_json, simulation_reuse_allowed, simulation_nsfw_allowed
        FROM characters WHERE id=?`
     )
     .get(characterId) as {
@@ -75,6 +77,12 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     creator_comment: string;
     appearance_raw: string;
     appearance_compiled: string;
+    content_kind: string;
+    simulation_cast: string;
+    simulation_rules: string;
+    simulation_imports_json: string;
+    simulation_reuse_allowed: number;
+    simulation_nsfw_allowed: number;
   };
 
   let genres: ReturnType<typeof sanitizeCharacterGenres> = [];
@@ -96,6 +104,28 @@ export async function GET(_req: Request, ctx: RouteCtx) {
   const speech = speechCreatorFromLegacyExampleDialog(c.example_dialog ?? "");
   const assets = parseAssets(c.assets);
   const statusWidgetTriggers = listCharacterStatusWidgetTriggers(db, c.id);
+  let simulationImports: Array<{
+    characterId: number;
+    name: string;
+    creatorName: string;
+    promptChars: number;
+  }> = [];
+  try {
+    const parsed = JSON.parse(c.simulation_imports_json || "[]") as SimulationImportSnapshot[];
+    if (Array.isArray(parsed)) {
+      simulationImports = parsed.map((item) => ({
+        characterId: Number(item.characterId),
+        name: String(item.name ?? ""),
+        creatorName: String(item.creatorName ?? ""),
+        promptChars:
+          String(item.systemPrompt ?? "").length +
+          String(item.world ?? "").length +
+          String(item.exampleDialog ?? "").length,
+      }));
+    }
+  } catch {
+    simulationImports = [];
+  }
 
   return NextResponse.json({
     id: c.id,
@@ -103,7 +133,9 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     tagline: c.tagline,
     description: c.description,
     greeting: c.greeting,
-    system_prompt: c.system_prompt,
+    // A simulation's compiled prompt can contain server-side snapshots of
+    // imported characters. Return only this creator's editable cast text.
+    system_prompt: c.content_kind === "simulation" ? (c.simulation_cast ?? "") : c.system_prompt,
     world: c.world ?? "",
     world_id: c.world_id,
     lorebook_id: c.lorebook_id,
@@ -128,6 +160,12 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     creator_comment: c.creator_comment ?? "",
     appearance_raw: c.appearance_raw ?? "",
     appearance_compiled: c.appearance_compiled ?? "",
+    content_kind: c.content_kind ?? "character",
+    simulation_cast: c.simulation_cast ?? "",
+    simulation_rules: c.simulation_rules ?? "",
+    simulation_imports: simulationImports,
+    simulation_reuse_allowed: c.simulation_reuse_allowed === 1,
+    simulation_nsfw_allowed: c.simulation_nsfw_allowed === 1,
     assets,
   });
 }
