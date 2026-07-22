@@ -118,8 +118,14 @@ export function isMuseOpenRouterModel(modelId: string): boolean {
   return id.includes("muse-spark") || /(^|\/)muse[-.]?spark\b/i.test(id);
 }
 
+/** OpenRouter Tencent Hy3 계열 — tencent/hy3 등 */
+export function isTencentHy3OpenRouterModel(modelId: string): boolean {
+  const id = modelId.trim().toLowerCase();
+  return id.includes("/hy3") || /(^|\/)hy3\b/i.test(id);
+}
+
 /**
- * RP primary·continuation — DeepSeek/Qwen/GLM/Kimi: reasoning OFF (effort none).
+ * RP primary·continuation — DeepSeek/Qwen/GLM/Kimi/Tencent Hy3: reasoning OFF (effort none).
  * Muse Spark: mandatory reasoning — NOT in this set (see Muse-specific policy).
  * Gemini 2.5 Pro: reasoning.max_tokens cap · Gemini 3.x Pro: reasoning.effort low.
  */
@@ -128,7 +134,8 @@ export function isOpenRouterRpReasoningDisabledModel(modelId: string): boolean {
     isDeepSeekOpenRouterModel(modelId) ||
     isQwenOpenRouterModel(modelId) ||
     isGlmOpenRouterModel(modelId) ||
-    isKimiOpenRouterModel(modelId)
+    isKimiOpenRouterModel(modelId) ||
+    isTencentHy3OpenRouterModel(modelId)
   );
 }
 
@@ -246,7 +253,9 @@ function applyOpenRouterRpReasoningPolicy(body: Record<string, unknown>, modelId
       ? "glm"
       : isQwenOpenRouterModel(modelId)
         ? "qwen"
-        : "deepseek";
+        : isTencentHy3OpenRouterModel(modelId)
+          ? "hy3"
+          : "deepseek";
   console.log("[openrouter-reasoning] disabled: true", { model: normalized, family });
   if (family === "deepseek") {
     console.log("[deepseek-thinking] disabled: true", { model: normalized });

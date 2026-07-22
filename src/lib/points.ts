@@ -13,6 +13,7 @@ import {
   isKimiModel,
   isMuseModel,
   isQwenModel,
+  isTencentHy3Model,
   OPENROUTER_DEEPSEEK_V3_MODEL,
   type SelectedAI,
   resolveSelectedAI,
@@ -298,6 +299,17 @@ export const OPENROUTER_DEEPSEEK_GROSS_MARGIN =
 
 /** @deprecated OPENROUTER_DEEPSEEK_GROSS_MARGIN 사용 */
 export const OPENROUTER_DEEPSEEK_COST_MARKUP = OPENROUTER_DEEPSEEK_GROSS_MARGIN;
+
+/** Tencent Hy3 — 출력 1토큰당 청구 (P) */
+export const OPENROUTER_TENCENT_HY3_POINTS_PER_OUTPUT_TOKEN = (() => {
+  const perToken = process.env.OPENROUTER_TENCENT_HY3_POINTS_PER_OUTPUT_TOKEN?.trim();
+  if (perToken) return Number(perToken) || 0.018;
+  return 0.018;
+})();
+
+/** Tencent Hy3 — API 원가 대비 최저 매출총이익률 (55% → 원가÷0.45) */
+export const OPENROUTER_TENCENT_HY3_GROSS_MARGIN =
+  Number(process.env.OPENROUTER_TENCENT_HY3_GROSS_MARGIN) || 0.55;
 
 /** Qwen 3.7 — 출력 1토큰당 청구 (P) */
 export const OPENROUTER_QWEN_POINTS_PER_OUTPUT_TOKEN = (() => {
@@ -648,6 +660,10 @@ function openRouterDeepSeekTokenFloorKrw(outputTokens: number): number {
   return chargePoints(Math.max(0, outputTokens) * OPENROUTER_DEEPSEEK_POINTS_PER_OUTPUT_TOKEN);
 }
 
+function openRouterTencentHy3TokenFloorKrw(outputTokens: number): number {
+  return chargePoints(Math.max(0, outputTokens) * OPENROUTER_TENCENT_HY3_POINTS_PER_OUTPUT_TOKEN);
+}
+
 function openRouterQwenTokenFloorKrw(outputTokens: number): number {
   return chargePoints(Math.max(0, outputTokens) * OPENROUTER_QWEN_POINTS_PER_OUTPUT_TOKEN);
 }
@@ -683,7 +699,7 @@ export function openRouterInputTokenSurchargeKrw(
 ): number {
   if (inputTokens < OPENROUTER_INPUT_SURCHARGE_THRESHOLD_TOKENS) return 0;
   const excess = inputTokens - OPENROUTER_INPUT_SURCHARGE_THRESHOLD_TOKENS;
-  if (isDeepSeekModel(modelId ?? "")) {
+  if (isDeepSeekModel(modelId ?? "") || isTencentHy3Model(modelId ?? "")) {
     return (excess / 1000) * OPENROUTER_DEEPSEEK_INPUT_SURCHARGE_PER_1000_TOKENS;
   }
   const blocks = Math.ceil(excess / 1000);
@@ -821,6 +837,14 @@ export function computeOpenRouterTurnCost(
   if (isDeepSeekV4ProModel(modelId ?? "")) {
     return openRouterTokenOnlyTurnCost(
       openRouterDeepSeekTokenFloorKrw(outputTokens),
+      inputTokens,
+      modelId
+    );
+  }
+
+  if (isTencentHy3Model(modelId ?? "")) {
+    return openRouterTokenOnlyTurnCost(
+      openRouterTencentHy3TokenFloorKrw(outputTokens),
       inputTokens,
       modelId
     );
@@ -1279,6 +1303,22 @@ export function explainOpenRouterDeepSeekTurnCost(
     outputTokens,
     modelId,
     openRouterDeepSeekTokenFloorKrw(outputTokens),
+    cache
+  );
+}
+
+/** Tencent Hy3 과금 상세 — 출력토큰×0.018P */
+export function explainOpenRouterTencentHy3TurnCost(
+  inputTokens: number,
+  outputTokens: number,
+  modelId: string,
+  cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">
+): OpenRouterTurnCostBreakdown & { total: number } {
+  return explainOpenRouterTokenOnlyTurnCost(
+    inputTokens,
+    outputTokens,
+    modelId,
+    openRouterTencentHy3TokenFloorKrw(outputTokens),
     cache
   );
 }
