@@ -70,6 +70,7 @@ export default async function CharacterPage({
         share_slug: string | null;
         comments_enabled: number;
         creator_comment: string;
+        content_kind?: string;
       })
     | undefined;
 
@@ -235,6 +236,7 @@ export default async function CharacterPage({
       <div className="flex flex-wrap items-center gap-2">
         {c.official === 1 && <span className="rounded bg-violet-600 px-2 py-0.5 text-xs font-bold">공식</span>}
         {c.nsfw === 1 && <span className="rounded bg-rose-600 px-2 py-0.5 text-xs font-bold">19</span>}
+        {c.content_kind === "simulation" && <span className="rounded bg-cyan-600 px-2 py-0.5 text-xs font-bold">다인 시뮬레이션</span>}
         {c.official === 0 && c.creator_id && (
           <span className="rounded bg-white/10 px-2 py-0.5 text-xs text-gray-300">
             {visibilityLabel(c.visibility ?? "private")}

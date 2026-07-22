@@ -53,6 +53,7 @@ export function buildRecoveryContinuationSystemPrompt(): string {
   return `[CONTINUATION — IN-SCENE ONLY]
 Continue immediately after the final generated sentence.
 Stay in the same scene.
+Preserve the already resolved [NARRATIVE POV OWNER] unchanged.
 Never repeat, summarize, or restart.
 Write only new narrative.
 

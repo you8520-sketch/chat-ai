@@ -10,12 +10,16 @@ type Props = {
   characterId: number;
   characterName: string;
   official: number;
+  editHref?: string;
+  contentLabel?: string;
 };
 
 export default function MyCharacterCardActions({
   characterId,
   characterName,
   official,
+  editHref,
+  contentLabel = "캐릭터",
 }: Props) {
   const router = useRouter();
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -47,7 +51,7 @@ export default function MyCharacterCardActions({
     <>
       <div className="absolute right-2 top-2 z-10 flex items-center gap-1">
         <Link
-          href={`/create?edit=${characterId}`}
+          href={editHref ?? `/create?edit=${characterId}`}
           className="rounded-lg bg-violet-600/90 px-2.5 py-1 text-[10px] font-bold text-white shadow hover:bg-violet-500"
         >
           수정
@@ -73,8 +77,8 @@ export default function MyCharacterCardActions({
 
       <ConfirmDialog
         open={confirmOpen}
-        title="캐릭터 삭제"
-        message={`「${characterName}」 캐릭터를 삭제할까요? 대화 기록·좋아요·댓글 등 관련 데이터가 영구적으로 삭제되며 되돌릴 수 없습니다.`}
+        title={`${contentLabel} 삭제`}
+        message={`「${characterName}」 ${contentLabel}을(를) 삭제할까요? 대화 기록·좋아요·댓글 등 관련 데이터가 영구적으로 삭제되며 되돌릴 수 없습니다.`}
         confirmLabel="삭제"
         cancelLabel="취소"
         danger

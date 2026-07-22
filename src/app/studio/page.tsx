@@ -30,7 +30,10 @@ export default async function StudioPage() {
   const blurNsfw = !user.nsfw_on;
   const db = getDb();
   const characters = db
-    .prepare(`SELECT * FROM characters WHERE creator_id = ? ORDER BY created_at DESC, id DESC`)
+    .prepare(`SELECT * FROM characters WHERE creator_id = ? AND COALESCE(content_kind, 'character') = 'character' ORDER BY created_at DESC, id DESC`)
+    .all(user.id) as MyCharacterRow[];
+  const simulations = db
+    .prepare(`SELECT * FROM characters WHERE creator_id = ? AND content_kind = 'simulation' ORDER BY created_at DESC, id DESC`)
     .all(user.id) as MyCharacterRow[];
   const worlds = (
     db
@@ -58,6 +61,7 @@ export default async function StudioPage() {
     >
       <StudioClient
         characters={characters}
+        simulations={simulations}
         worlds={worlds}
         lorebooks={lorebooks}
         blurNsfw={blurNsfw}

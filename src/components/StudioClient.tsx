@@ -15,7 +15,7 @@ import type { KeywordLorebookListItem } from "@/lib/keywordLorebooks";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 import type { WorldListItem } from "@/lib/worlds";
 
-export type StudioTab = "characters" | "worlds" | "lorebooks";
+export type StudioTab = "creations" | "worlds" | "lorebooks";
 
 const TABS: {
   id: StudioTab;
@@ -25,10 +25,10 @@ const TABS: {
   Icon: typeof IconSidebarStudio;
 }[] = [
   {
-    id: "characters",
-    label: "캐릭터",
+    id: "creations",
+    label: "캐릭터·시뮬레이션",
     createHref: "/create",
-    createLabel: "새 캐릭터 만들기",
+    createLabel: "새 캐릭터·시뮬레이션 만들기",
     Icon: IconSidebarStudio,
   },
   {
@@ -50,18 +50,28 @@ const TABS: {
 function parseTab(raw: string | null): StudioTab {
   if (raw === "worlds" || raw === "world") return "worlds";
   if (raw === "lorebooks" || raw === "lorebook" || raw === "lore") return "lorebooks";
-  if (raw === "characters" || raw === "character") return "characters";
-  return "characters";
+  if (
+    raw === "creations" ||
+    raw === "creation" ||
+    raw === "characters" ||
+    raw === "character" ||
+    raw === "simulations" ||
+    raw === "simulation"
+  ) {
+    return "creations";
+  }
+  return "creations";
 }
 
 type Props = {
   characters: MyCharacterRow[];
+  simulations: MyCharacterRow[];
   worlds: WorldListItem[];
   lorebooks: KeywordLorebookListItem[];
   blurNsfw: boolean;
 };
 
-export default function StudioClient({ characters, worlds, lorebooks, blurNsfw }: Props) {
+export default function StudioClient({ characters, simulations, worlds, lorebooks, blurNsfw }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const activeTab = useMemo(() => parseTab(searchParams.get("tab")), [searchParams]);
@@ -70,7 +80,7 @@ export default function StudioClient({ characters, worlds, lorebooks, blurNsfw }
   const setTab = useCallback(
     (tab: StudioTab) => {
       const next = new URLSearchParams(searchParams.toString());
-      if (tab === "characters") next.delete("tab");
+      if (tab === "creations") next.delete("tab");
       else next.set("tab", tab);
       const qs = next.toString();
       router.replace(qs ? `/studio?${qs}` : "/studio", { scroll: false });
@@ -107,8 +117,8 @@ export default function StudioClient({ characters, worlds, lorebooks, blurNsfw }
         {TABS.map((tab) => {
           const selected = tab.id === activeTab;
           const count =
-            tab.id === "characters"
-              ? characters.length
+            tab.id === "creations"
+              ? characters.length + simulations.length
               : tab.id === "worlds"
                 ? worlds.length
                 : lorebooks.length;
@@ -143,8 +153,12 @@ export default function StudioClient({ characters, worlds, lorebooks, blurNsfw }
       </div>
 
       <div className="mt-6" role="tabpanel" data-testid="studio-tabpanel">
-        {activeTab === "characters" && (
-          <CharactersPanel characters={characters} blurNsfw={blurNsfw} />
+        {activeTab === "creations" && (
+          <CreationsPanel
+            characters={characters}
+            simulations={simulations}
+            blurNsfw={blurNsfw}
+          />
         )}
         {activeTab === "worlds" && <WorldsPanel worlds={worlds} />}
         {activeTab === "lorebooks" && <LorebooksPanel lorebooks={lorebooks} />}
@@ -153,31 +167,47 @@ export default function StudioClient({ characters, worlds, lorebooks, blurNsfw }
   );
 }
 
-function CharactersPanel({
+function CreationsPanel({
   characters,
+  simulations,
   blurNsfw,
 }: {
   characters: MyCharacterRow[];
+  simulations: MyCharacterRow[];
   blurNsfw: boolean;
 }) {
+  const creations = [...characters, ...simulations].sort((a, b) => {
+    const createdAtOrder = b.created_at.localeCompare(a.created_at);
+    return createdAtOrder || b.id - a.id;
+  });
+
   return (
     <section>
-      <h2 className="sr-only">내 제작 캐릭터</h2>
+      <h2 className="sr-only">내 제작 캐릭터와 시뮬레이션</h2>
       <p className={studioType.helper}>
-        내가 만든 캐릭터입니다. 메인 홈에는 표시되지 않습니다.
+        내가 만든 단일 캐릭터와 다인 시뮬레이션입니다. 하나의 제작 화면에서 만들고 수정할 수 있습니다.
       </p>
-      {characters.length === 0 ? (
+      {creations.length === 0 ? (
         <StudioEmptyState
           icon={<IconSidebarStudio className="h-5 w-5" />}
-          message="아직 제작한 캐릭터가 없습니다."
+          message="아직 제작한 캐릭터나 시뮬레이션이 없습니다."
           href="/create"
-          cta="캐릭터 제작하기"
+          cta="캐릭터·시뮬레이션 만들기"
         />
       ) : (
         <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-          {characters.map((c) => (
-            <MyCharacterCard key={c.id} c={c} blurNsfw={blurNsfw} />
-          ))}
+          {creations.map((creation) => {
+            const isSimulation = creation.content_kind === "simulation";
+            return (
+              <MyCharacterCard
+                key={creation.id}
+                c={creation}
+                blurNsfw={blurNsfw}
+                editHref={`/create?edit=${creation.id}`}
+                contentLabel={isSimulation ? "시뮬레이션" : "캐릭터"}
+              />
+            );
+          })}
         </div>
       )}
     </section>

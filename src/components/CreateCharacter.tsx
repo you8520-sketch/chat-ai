@@ -64,12 +64,35 @@ import {
   studioSurface,
   studioType,
 } from "@/lib/studioDesign";
+import {
+  buildSimulationSystemPrompt,
+  SIMULATION_CAST_EXAMPLE,
+  type ContentKind,
+} from "@/lib/simulationMode";
 
 const MAX_IMAGES = 100;
 
 type PageTab = "create" | "preview" | "widget" | "publish";
 
 type TaggedAsset = ManagedAsset;
+
+type ImportCharacter = {
+  id: number;
+  name: string;
+  tagline: string;
+  creatorName: string;
+  owned: boolean;
+  nsfw: boolean;
+  promptChars: number;
+  thumbnail: string | null;
+};
+
+type SelectedImport = {
+  characterId: number;
+  name: string;
+  creatorName: string;
+  promptChars: number;
+};
 
 function fallbackAssetTag(index: number): string {
   return `에셋 ${index + 1}`;
@@ -91,17 +114,20 @@ export default function CreateCharacter({
   creatorDisplayName = "제작자",
   creatorIsPartner = false,
   userId,
+  initialContentKind = "character",
 }: {
   editCharacterId?: number | null;
   viewerDisplayName?: string;
   creatorDisplayName?: string;
   creatorIsPartner?: boolean;
   userId: number;
+  initialContentKind?: ContentKind;
 }) {
   const router = useRouter();
   const isEditMode = editCharacterId != null && editCharacterId > 0;
   const fileRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
+    content_kind: initialContentKind,
     name: "",
     tagline: "",
     description: "",
@@ -125,6 +151,10 @@ export default function CreateCharacter({
     recommended_writing_style: "balanced",
     comments_enabled: true,
     creator_comment: "",
+    simulation_reuse_allowed: false,
+    simulation_nsfw_allowed: false,
+    simulation_cast: "",
+    simulation_rules: "",
   });
   const [assets, setAssets] = useState<TaggedAsset[]>([]);
   const [files, setFiles] = useState<File[]>([]);
@@ -143,6 +173,9 @@ export default function CreateCharacter({
   const [editLoadError, setEditLoadError] = useState("");
   const [draftSavedAt, setDraftSavedAt] = useState<number | null>(null);
   const [draftFlash, setDraftFlash] = useState(false);
+  const [simulationImports, setSimulationImports] = useState<SelectedImport[]>([]);
+  const [simulationImportOptions, setSimulationImportOptions] = useState<ImportCharacter[]>([]);
+  const [simulationImportSearch, setSimulationImportSearch] = useState("");
   const [statusWidget, setStatusWidget] = useState<StatusWidget>(() =>
     characterStatusWidgetOrDefault(null),
   );
@@ -156,8 +189,12 @@ export default function CreateCharacter({
   function buildPromptEditSignature(input = form) {
     return JSON.stringify({
       name: input.name.trim(),
+      content_kind: input.content_kind,
       greeting: input.greeting,
       system_prompt: input.system_prompt,
+      simulation_cast: input.simulation_cast,
+      simulation_rules: input.simulation_rules,
+      simulation_import_ids: simulationImports.map((item) => item.characterId),
       world: input.world,
       speech_personality: input.speech_personality,
       speech_traits: input.speech_traits,
@@ -179,6 +216,7 @@ export default function CreateCharacter({
       selectedWorldId,
       selectedLorebookId,
       pageTab,
+      simulationImports,
     };
   }
 
@@ -195,7 +233,13 @@ export default function CreateCharacter({
       speech_contextual_registers: Array.isArray(draft.form.speech_contextual_registers)
         ? draft.form.speech_contextual_registers
         : [],
+      simulation_reuse_allowed: draft.form.simulation_reuse_allowed ?? false,
+      simulation_nsfw_allowed: draft.form.simulation_nsfw_allowed ?? false,
+      content_kind: draft.form.content_kind ?? initialContentKind,
+      simulation_cast: draft.form.simulation_cast ?? "",
+      simulation_rules: draft.form.simulation_rules ?? "",
     });
+    setSimulationImports(Array.isArray(draft.simulationImports) ? draft.simulationImports : []);
     setAssets(normalizeManagedAssets(draft.assets));
     setSelectedWorldId(draft.selectedWorldId);
     setSelectedLorebookId(draft.selectedLorebookId);
@@ -235,16 +279,19 @@ export default function CreateCharacter({
     setDraftSavedAt(draft.savedAt);
   }, [isEditMode, editLoading, userId, editCharacterId]);
 
-  const aiLearningTotal =
-    form.world.length +
-    form.system_prompt.length +
-    speechCreatorCharCount({
-      speech_personality: form.speech_personality,
-      speech_traits: form.speech_traits,
-      speech_examples: form.speech_examples,
-      speech_forbidden: form.speech_forbidden,
-      speech_contextual_registers: form.speech_contextual_registers,
-    });
+  const simulationPromptChars = buildSimulationSystemPrompt({
+    cast: form.simulation_cast,
+    rules: form.simulation_rules,
+  }).length + simulationImports.reduce((sum, item) => sum + item.promptChars + 80, 0);
+  const aiLearningTotal = form.content_kind === "simulation"
+    ? form.world.length + simulationPromptChars
+    : form.world.length + form.system_prompt.length + speechCreatorCharCount({
+        speech_personality: form.speech_personality,
+        speech_traits: form.speech_traits,
+        speech_examples: form.speech_examples,
+        speech_forbidden: form.speech_forbidden,
+        speech_contextual_registers: form.speech_contextual_registers,
+      });
   const speechContextualTotal = speechContextualCharCount(
     form.speech_contextual_registers,
   );
@@ -253,7 +300,7 @@ export default function CreateCharacter({
     () => ({
       hasAsset: assets.length >= 1 && files.length === 0,
       hasMinAiText: aiLearningTotal >= AI_LEARNING_MIN,
-      hasGender: !!form.gender,
+      hasGender: form.content_kind === "simulation" || !!form.gender,
       hasGreeting: !!form.greeting.trim(),
       hasGenre: form.genres.length >= 1,
     }),
@@ -262,6 +309,7 @@ export default function CreateCharacter({
       files.length,
       aiLearningTotal,
       form.gender,
+      form.content_kind,
       form.greeting,
       form.genres.length,
     ],
@@ -400,6 +448,7 @@ export default function CreateCharacter({
         }
         if (cancelled) return;
         setForm({
+          content_kind: data.content_kind === "simulation" ? "simulation" : "character",
           name: data.name ?? "",
           tagline: data.tagline ?? "",
           description: data.description ?? "",
@@ -426,7 +475,12 @@ export default function CreateCharacter({
             data.recommended_writing_style ?? "balanced",
           comments_enabled: data.comments_enabled !== false,
           creator_comment: data.creator_comment ?? "",
+          simulation_reuse_allowed: data.simulation_reuse_allowed === true,
+          simulation_nsfw_allowed: data.simulation_nsfw_allowed === true,
+          simulation_cast: data.simulation_cast ?? "",
+          simulation_rules: data.simulation_rules ?? "",
         });
+        setSimulationImports(Array.isArray(data.simulation_imports) ? data.simulation_imports : []);
         setAssets(
           normalizeManagedAssets(Array.isArray(data.assets) ? data.assets : []),
         );
@@ -434,8 +488,14 @@ export default function CreateCharacter({
         setSelectedLorebookId(data.lorebook_id ?? "");
         editPromptBaselineRef.current = JSON.stringify({
           name: String(data.name ?? "").trim(),
+          content_kind: data.content_kind === "simulation" ? "simulation" : "character",
           greeting: data.greeting ?? "",
           system_prompt: data.system_prompt ?? "",
+          simulation_cast: data.simulation_cast ?? "",
+          simulation_rules: data.simulation_rules ?? "",
+          simulation_import_ids: Array.isArray(data.simulation_imports)
+            ? data.simulation_imports.map((item: SelectedImport) => item.characterId)
+            : [],
           world: data.world ?? "",
           speech_personality: data.speech_personality ?? "",
           speech_traits: data.speech_traits ?? "",
@@ -485,6 +545,30 @@ export default function CreateCharacter({
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (form.content_kind !== "simulation") {
+      setSimulationImportOptions([]);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      fetch(`/api/simulations/characters?nsfw=${form.nsfw ? "1" : "0"}&q=${encodeURIComponent(simulationImportSearch)}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (!cancelled) {
+            setSimulationImportOptions(Array.isArray(data.characters) ? data.characters : []);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setSimulationImportOptions([]);
+        });
+    }, 250);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [form.content_kind, form.nsfw, simulationImportSearch]);
 
   useEffect(() => {
     let cancelled = false;
@@ -585,8 +669,16 @@ export default function CreateCharacter({
       setError(`한 줄 소개는 ${TAGLINE_LIMIT}자 이하여야 합니다.`);
       return;
     }
-    if (!promptUnchangedForEdit && !form.system_prompt.trim()) {
+    if (!promptUnchangedForEdit && form.content_kind === "character" && !form.system_prompt.trim()) {
       setError("캐릭터 설정은 필수입니다.");
+      return;
+    }
+    if (!promptUnchangedForEdit && form.content_kind === "simulation" && !form.world.trim()) {
+      setError("시뮬레이션 세계관을 입력해 주세요.");
+      return;
+    }
+    if (!promptUnchangedForEdit && form.content_kind === "simulation" && !form.simulation_cast.trim()) {
+      setError("등장 캐릭터 설정을 입력해 주세요.");
       return;
     }
     if (!promptUnchangedForEdit && aiLearningTotal < AI_LEARNING_MIN) {
@@ -595,7 +687,7 @@ export default function CreateCharacter({
       );
       return;
     }
-    if (!promptUnchangedForEdit && !form.gender) {
+    if (!promptUnchangedForEdit && form.content_kind === "character" && !form.gender) {
       setError("캐릭터 성별(남성/여성/기타)을 선택해 주세요.");
       return;
     }
@@ -613,19 +705,19 @@ export default function CreateCharacter({
       );
       return;
     }
-    if (form.speech_examples.length > SPEECH_EXAMPLES_LIMIT) {
+    if (form.content_kind === "character" && form.speech_examples.length > SPEECH_EXAMPLES_LIMIT) {
       setError(
         `캐릭터 대사 예시는 ${SPEECH_EXAMPLES_LIMIT.toLocaleString()}자 이하여야 합니다.`,
       );
       return;
     }
-    if (speechContextualTotal > SPEECH_CONTEXTUAL_LIMIT) {
+    if (form.content_kind === "character" && speechContextualTotal > SPEECH_CONTEXTUAL_LIMIT) {
       setError(
         `상황별 말투는 합쳐서 ${SPEECH_CONTEXTUAL_LIMIT.toLocaleString()}자 이하여야 합니다.`,
       );
       return;
     }
-    if (form.speech_forbidden.length > SPEECH_FORBIDDEN_LIMIT) {
+    if (form.content_kind === "character" && form.speech_forbidden.length > SPEECH_FORBIDDEN_LIMIT) {
       setError(
         `금지 말투는 ${SPEECH_FORBIDDEN_LIMIT.toLocaleString()}자 이하여야 합니다.`,
       );
@@ -654,6 +746,11 @@ export default function CreateCharacter({
     const description = form.description.trim();
     const payload = {
       ...form,
+      system_prompt: form.content_kind === "simulation" ? form.simulation_cast : form.system_prompt,
+      gender: form.content_kind === "simulation" ? "other" : form.gender,
+      simulation_import_ids: form.content_kind === "simulation"
+        ? simulationImports.map((item) => item.characterId)
+        : [],
       description,
       status_window_prompt: "",
       status_widget_json: serializeStatusWidget(statusWidget),
@@ -665,7 +762,8 @@ export default function CreateCharacter({
     };
     const canUseFastEditSave = promptUnchangedForEdit;
 
-    setProgress(isEditMode ? "캐릭터 저장 중…" : "캐릭터 생성 중…");
+    const contentLabel = form.content_kind === "simulation" ? "시뮬레이션" : "캐릭터";
+    setProgress(isEditMode ? `${contentLabel} 저장 중…` : `${contentLabel} 생성 중…`);
     if (canUseFastEditSave) {
       setProgress("공개/표시 정보 저장 중…");
     }
@@ -721,14 +819,18 @@ export default function CreateCharacter({
     ? progress || "처리 중…"
     : isEditMode
       ? "변경사항 저장"
-      : "캐릭터 만들기";
+      : form.content_kind === "simulation"
+        ? "시뮬레이션 만들기"
+        : "캐릭터 만들기";
 
   return (
     <div className="mx-auto mt-4 max-w-6xl px-4 pb-36 sm:pb-32">
       <div>
         <StudioBackLink href="/studio">← 제작 메뉴</StudioBackLink>
         <h1 className={cn(studioType.heading, "mt-3 text-xl sm:text-2xl")}>
-          {isEditMode ? "캐릭터 수정" : "캐릭터 제작"}
+          {isEditMode
+            ? `${form.content_kind === "simulation" ? "시뮬레이션" : "캐릭터"} 수정`
+            : "캐릭터·시뮬레이션 제작"}
         </h1>
         {isEditMode && (
           <p className={cn(studioType.helper, "mt-1")}>
@@ -749,7 +851,7 @@ export default function CreateCharacter({
       <div
         className={cn(studioSurface.tabList, "mt-6")}
         role="tablist"
-        aria-label="캐릭터 제작 탭"
+        aria-label="캐릭터·시뮬레이션 제작 탭"
       >
         {(
           [
@@ -781,6 +883,42 @@ export default function CreateCharacter({
             className={tabPanelClass("create")}
             aria-hidden={pageTab !== "create"}
           >
+            <section className={sectionMuted}>
+              <div>
+                <h2 className="text-sm font-semibold text-zinc-100">무엇을 만들까요?</h2>
+                <p className="mt-1 text-xs text-zinc-400">
+                  제작 화면과 공개 기능은 같고, AI가 사용하는 설정 입력 방식만 달라집니다.
+                </p>
+              </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {([
+                  ["character", "단일 캐릭터", "한 캐릭터의 성격·말투·외형을 상세히 설정합니다."],
+                  ["simulation", "다인 시뮬레이션", "세계관과 여러 등장인물을 한 번에 자유롭게 작성합니다."],
+                ] as const).map(([value, title, description]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    disabled={isEditMode}
+                    onClick={() => setForm((current) => ({
+                      ...current,
+                      content_kind: value,
+                      gender: value === "simulation" ? "other" : current.gender,
+                    }))}
+                    className={cn(
+                      "rounded-xl border p-4 text-left transition disabled:cursor-not-allowed",
+                      form.content_kind === value ? studioSurface.choiceActive : studioSurface.choiceIdle,
+                    )}
+                  >
+                    <strong className="block text-sm">{title}</strong>
+                    <span className="mt-1 block text-xs font-normal leading-relaxed text-zinc-400">{description}</span>
+                  </button>
+                ))}
+              </div>
+              {isEditMode && (
+                <p className="text-[11px] text-zinc-500">기존 콘텐츠의 유형은 수정 중 변경할 수 없습니다.</p>
+              )}
+            </section>
+
             {/* 0. 홈·목록 노출 (공개) */}
             <section className={sectionPublic}>
               <div className="flex items-center justify-between gap-2">
@@ -798,13 +936,13 @@ export default function CreateCharacter({
               <div>
                 <div className="mb-1 flex items-baseline justify-between">
                   <label className={cardLabel}>
-                    이름 (캐릭터명 / 시뮬레이션명) *
+                    {form.content_kind === "simulation" ? "시뮬레이션명" : "캐릭터명"} *
                   </label>
                   <Counter now={form.name.length} max={CHARACTER_NAME_LIMIT} />
                 </div>
                 <input
                   className={cardNameCls}
-                  placeholder="예: 리카르트 발크리드, WW2 시뮬레이터"
+                  placeholder={form.content_kind === "simulation" ? "예: WW2 시뮬레이터" : "예: 리카르트 발크리드"}
                   value={form.name}
                   maxLength={CHARACTER_NAME_LIMIT}
                   onChange={(e) =>
@@ -909,6 +1047,7 @@ export default function CreateCharacter({
                   }}
                 />
               </div>
+              {form.content_kind === "character" ? <>
               <div>
                 <label className={label}>캐릭터 설정 *</label>
                 <p className="mb-1 text-xs text-zinc-400">
@@ -1148,6 +1287,117 @@ export default function CreateCharacter({
                   </span>
                 </p>
               </div>
+              </> : <>
+                <div>
+                  <label className={label}>등장 캐릭터 설정 *</label>
+                  <p className="mb-1 text-xs leading-relaxed text-zinc-400">
+                    캐릭터를 따로 등록할 필요 없이 이름·성격·말투·목표·관계를 원하는 형식으로 이어서 작성하세요.
+                  </p>
+                  <textarea
+                    required
+                    rows={18}
+                    className={cls}
+                    placeholder={SIMULATION_CAST_EXAMPLE}
+                    value={form.simulation_cast}
+                    onChange={(e) => setForm({ ...form, simulation_cast: e.target.value })}
+                  />
+                  {!form.simulation_cast.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, simulation_cast: SIMULATION_CAST_EXAMPLE })}
+                      className="mt-2 text-xs font-semibold text-violet-300 hover:text-violet-200"
+                    >
+                      예시 형식 넣기
+                    </button>
+                  )}
+                </div>
+
+                <div>
+                  <label className={label}>시뮬레이션 추가 규칙</label>
+                  <p className="mb-1 text-xs text-zinc-400">
+                    장면 전환, 사건 발생, 승패 처리처럼 전체 진행에만 적용할 규칙입니다.
+                  </p>
+                  <textarea
+                    rows={6}
+                    className={cls}
+                    placeholder="예: 인물은 자신이 직접 알게 된 정보만 사용한다. 위험은 유저에게 유리하게 자동 해결하지 않는다."
+                    value={form.simulation_rules}
+                    onChange={(e) => setForm({ ...form, simulation_rules: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-3 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-zinc-100">추가 캐릭터 불러오기 <span className="font-normal text-zinc-500">· 선택</span></h3>
+                    <p className="mt-1 text-xs leading-relaxed text-zinc-400">
+                      직접 작성만으로도 완성됩니다. 필요할 때 내 캐릭터나 원작자가 재사용을 허용한 캐릭터를 추가하세요.
+                    </p>
+                  </div>
+                  {simulationImports.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {simulationImports.map((item) => (
+                        <button
+                          type="button"
+                          key={item.characterId}
+                          onClick={() => setSimulationImports((current) => current.filter((entry) => entry.characterId !== item.characterId))}
+                          className="rounded-full border border-cyan-500/25 bg-cyan-500/10 px-3 py-1.5 text-xs font-semibold text-cyan-100"
+                          title="클릭하여 제거"
+                        >
+                          {item.name} <span className="text-cyan-300/60">×</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <input
+                    className={cls}
+                    value={simulationImportSearch}
+                    onChange={(e) => setSimulationImportSearch(e.target.value)}
+                    placeholder="캐릭터 또는 제작자 검색"
+                  />
+                  <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+                    {simulationImportOptions.map((character) => {
+                      const selected = simulationImports.some((item) => item.characterId === character.id);
+                      return (
+                        <button
+                          type="button"
+                          key={character.id}
+                          disabled={selected || simulationImports.length >= 12}
+                          onClick={() => setSimulationImports((current) => [...current, {
+                            characterId: character.id,
+                            name: character.name,
+                            creatorName: character.creatorName,
+                            promptChars: character.promptChars,
+                          }])}
+                          className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-[#0d0f17] p-3 text-left hover:border-cyan-500/35 disabled:opacity-40"
+                        >
+                          {character.thumbnail ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={character.thumbnail} alt="" className="h-11 w-11 rounded-lg object-cover object-top" />
+                          ) : (
+                            <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-white/5">🎭</span>
+                          )}
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-bold text-white">{character.name}</span>
+                            <span className="block truncate text-[10px] text-zinc-500">
+                              {character.owned ? "내 캐릭터" : `${character.creatorName} · 재사용 허용`}
+                            </span>
+                          </span>
+                          <span className="text-cyan-300">＋</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[11px] text-zinc-500">가져온 원본 설정은 화면에 공개되지 않으며 AI 설정 글자 수에는 포함됩니다.</p>
+                </div>
+
+                <p className="text-right text-xs text-zinc-400">
+                  세계관 + 등장 캐릭터 + 추가 규칙 합계{" "}
+                  <span className={aiLearningTotal < AI_LEARNING_MIN ? "font-semibold text-amber-400" : ""}>
+                    {aiLearningTotal.toLocaleString()}
+                  </span>{" "}
+                  / {AI_LEARNING_LIMIT.toLocaleString()}자 · 최소 {AI_LEARNING_MIN.toLocaleString()}자
+                </p>
+              </>}
               <div>
                 <label className={label}>키워드 로어북</label>
                 <p className="mb-2 text-xs text-zinc-400">
@@ -1302,6 +1552,7 @@ export default function CreateCharacter({
             </section>
 
             {/* 3. 부가 설정 (비공개) */}
+            {form.content_kind === "character" && (
             <section className={sectionMuted}>
               <div className="flex items-center justify-between gap-2">
                 <h2 className="text-sm font-semibold text-zinc-100">부가 설정</h2>
@@ -1331,6 +1582,7 @@ export default function CreateCharacter({
                 </div>
               </div>
             </section>
+            )}
 
             {/* 4. 첫 메세지 (비공개) */}
             <section className={sectionGreeting}>
@@ -1400,7 +1652,9 @@ export default function CreateCharacter({
               <div className="flex items-center justify-between gap-2">
                 <div>
                   <h2 className="text-sm font-semibold text-zinc-100">
-                    공개 캐릭터/세계관 정보
+                    {form.content_kind === "simulation"
+                      ? "공개 시뮬레이션/세계관 정보"
+                      : "공개 캐릭터/세계관 정보"}
                   </h2>
                   <p className="mt-0.5 text-xs leading-relaxed text-zinc-400">
                     보이는 그대로 작성 · Enter 줄바꿈 그대로 반영 · 최대{" "}
@@ -1514,7 +1768,7 @@ export default function CreateCharacter({
                   className="h-5 w-5 accent-rose-600"
                 />
                 <div>
-                  <p className="font-semibold text-rose-300">NSFW 캐릭터</p>
+                  <p className="font-semibold text-rose-300">NSFW {form.content_kind === "simulation" ? "시뮬레이션" : "캐릭터"}</p>
                   <p className="text-xs text-zinc-400">
                     성인인증 + 성인 보기 ON 사용자에게만 노출
                   </p>
@@ -1529,9 +1783,39 @@ export default function CreateCharacter({
                   }
                   disabled={loading}
                   label="댓글 허용"
-                  description="OFF 시 다른 사용자는 이 캐릭터에 댓글을 보거나 작성할 수 없습니다."
+                  description={`OFF 시 다른 사용자는 이 ${
+                    form.content_kind === "simulation" ? "시뮬레이션" : "캐릭터"
+                  }에 댓글을 보거나 작성할 수 없습니다.`}
                 />
               </div>
+
+              {form.content_kind === "character" && (
+              <div className="space-y-3 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4">
+                <ToggleSwitch
+                  checked={form.simulation_reuse_allowed}
+                  onChange={(next) =>
+                    setForm({
+                      ...form,
+                      simulation_reuse_allowed: next,
+                      simulation_nsfw_allowed: next ? form.simulation_nsfw_allowed : false,
+                    })
+                  }
+                  disabled={loading}
+                  label="다른 제작자의 시뮬레이션에서 사용 허용"
+                  description="허용하면 공개·검수 승인된 이 캐릭터를 다른 제작자가 선택적으로 불러올 수 있습니다. 기본값은 OFF입니다."
+                />
+                {form.simulation_reuse_allowed ? (
+                  <div className="space-y-3 border-l border-cyan-500/25 pl-4">
+                    <ToggleSwitch
+                      checked={form.simulation_nsfw_allowed}
+                      onChange={(next) => setForm({ ...form, simulation_nsfw_allowed: next })}
+                      disabled={loading}
+                      label="19+ 시뮬레이션에서도 사용 허용"
+                    />
+                  </div>
+                ) : null}
+              </div>
+              )}
             </section>
 
             <section className={sectionMuted}>
@@ -1587,7 +1871,7 @@ export default function CreateCharacter({
                   />
                 </div>
                 <p className="mb-2 text-xs text-zinc-400">
-                  공개 페이지 캐릭터 설명 하단에 표시 · HTML 사용 가능 (p, b, a,
+                  공개 페이지 {form.content_kind === "simulation" ? "시뮬레이션" : "캐릭터"} 설명 하단에 표시 · HTML 사용 가능 (p, b, a,
                   ul, img 등 · script 금지) · 업데이트 안내, 플레이 팁 등 (선택)
                 </p>
                 <textarea
@@ -1628,16 +1912,20 @@ export default function CreateCharacter({
                     }
                   >
                     {createRequirements.hasMinAiText ? "✓" : "○"}{" "}
-                    세계관·캐릭터 설정·기본 말투 합계{" "}
+                    {form.content_kind === "simulation"
+                      ? "세계관·등장 캐릭터·추가 규칙 합계"
+                      : "세계관·캐릭터 설정·기본 말투 합계"}{" "}
                     {AI_LEARNING_MIN.toLocaleString()}자 이상
                     {!createRequirements.hasMinAiText
                       ? ` (현재 ${aiLearningTotal.toLocaleString()}자)`
                       : ""}
                   </li>
-                  <li className={createRequirements.hasGender ? "text-zinc-200" : ""}>
-                    {createRequirements.hasGender ? "✓" : "○"} 제작 탭 · 캐릭터
-                    성별 선택
-                  </li>
+                  {form.content_kind === "character" ? (
+                    <li className={createRequirements.hasGender ? "text-zinc-200" : ""}>
+                      {createRequirements.hasGender ? "✓" : "○"} 제작 탭 · 캐릭터
+                      성별 선택
+                    </li>
+                  ) : null}
                   <li
                     className={
                       createRequirements.hasGreeting ? "text-zinc-200" : ""

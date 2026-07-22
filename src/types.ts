@@ -2,6 +2,8 @@ import type { CharacterGender } from "@/lib/characterGender";
 import type { CharacterGenre } from "@/lib/characterGenres";
 import type { ChatMsg } from "@/lib/ai";
 import type { ChatRuntimeMode } from "@/lib/chatRuntimeMode";
+import type { ContentKind } from "@/lib/simulationMode";
+import type { ResolvedNarrativePov } from "@/lib/narrativePov";
 /** 캐릭터 설정 분할 단위 */
 export interface CharacterChunk {
   id: string;
@@ -38,6 +40,10 @@ export type CharacterSettingInput = {
 /** ContextBuilder 입력 */
 export type ContextBuildInput = {
   charName: string;
+  /** character = single-character RP, simulation = creator-authored ensemble cast */
+  contentKind?: ContentKind;
+  /** Room-level owner shared by main, continue, recovery, and regenerate. */
+  narrativePov?: ResolvedNarrativePov;
   chunks: CharacterChunk[];
   userNickname: string;
   userPersona?: string | null;

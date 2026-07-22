@@ -12,9 +12,11 @@ export type MyCharacterRow = CharacterRow & {
 type Props = {
   c: MyCharacterRow;
   blurNsfw: boolean;
+  editHref?: string;
+  contentLabel?: string;
 };
 
-export default function MyCharacterCard({ c, blurNsfw }: Props) {
+export default function MyCharacterCard({ c, blurNsfw, editHref, contentLabel }: Props) {
   return (
     <div className="relative">
       <CharacterCard c={c} blurNsfw={blurNsfw} loggedIn />
@@ -22,6 +24,8 @@ export default function MyCharacterCard({ c, blurNsfw }: Props) {
         characterId={c.id}
         characterName={c.name}
         official={c.official}
+        editHref={editHref}
+        contentLabel={contentLabel}
       />
       <div className="pointer-events-none absolute bottom-[3.5rem] left-2 flex flex-wrap gap-1">
         <span className="rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-200">
