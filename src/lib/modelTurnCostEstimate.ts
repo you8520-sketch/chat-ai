@@ -12,6 +12,7 @@ import {
   isKimiModel,
   isMuseModel,
   isQwenModel,
+  isTencentHy3Model,
   type SelectedAI,
 } from "@/lib/chatModels";
 import { DEFAULT_TARGET_RESPONSE_CHARS } from "@/lib/responseLengthConstants";
@@ -42,6 +43,7 @@ const RATE_PER_OUTPUT_TOKEN: Array<{
   rate: number;
 }> = [
   { match: isDeepSeekV4ProModel, rate: 0.022 },
+  { match: isTencentHy3Model, rate: 0.018 },
   { match: isQwenModel, rate: 0.062 },
   { match: isKimiModel, rate: 0.09 },
   { match: isMuseModel, rate: 0.06 },
@@ -60,7 +62,7 @@ function ceilPoints(n: number): number {
 function inputSurchargePoints(inputTokens: number, modelId: string): number {
   if (inputTokens < INPUT_SURCHARGE_THRESHOLD) return 0;
   const excess = inputTokens - INPUT_SURCHARGE_THRESHOLD;
-  if (isDeepSeekModel(modelId)) {
+  if (isDeepSeekModel(modelId) || isTencentHy3Model(modelId)) {
     return (excess / 1000) * DEEPSEEK_INPUT_SURCHARGE_PER_1000;
   }
   const blocks = Math.ceil(excess / 1000);

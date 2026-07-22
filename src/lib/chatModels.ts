@@ -25,6 +25,9 @@ export const CLAUDE_OPUS_MODEL = OPENROUTER_CLAUDE_DEFAULT;
 /** OpenRouter — DeepSeek V4 Pro */
 export const OPENROUTER_DEEPSEEK_V4_PRO_MODEL = "deepseek/deepseek-v4-pro";
 
+/** OpenRouter — Tencent Hy3 (295B MoE, 21B active, reasoning) */
+export const OPENROUTER_TENCENT_HY3_MODEL = "tencent/hy3";
+
 /** OpenRouter — DeepSeek V3 (백그라운드 기억·상태창·번역 등) */
 export const OPENROUTER_DEEPSEEK_V3_MODEL = "deepseek/deepseek-chat-v3-0324";
 
@@ -68,6 +71,8 @@ export const GLM_52_DISPLAY_NAME = "GLM 5.2";
 export const KIMI_K3_DISPLAY_NAME = "Kimi K3";
 
 export const MUSE_SPARK_11_DISPLAY_NAME = "Muse Spark 1.1";
+
+export const TENCENT_HY3_DISPLAY_NAME = "Tencent Hy3";
 
 export const GEMINI_25_PRO_DISPLAY_NAME = "Gemini 2.5 Pro";
 
@@ -127,6 +132,17 @@ export const SELECTED_AI_OPTIONS = [
       "탐사, 작전과 전투를 적극적으로 진행하며 세계관 사건을 풍부하게 전개합니다. 한 턴의 진행 폭이 큰 편입니다.",
     detailDescription:
       "탐사, 작전과 전투를 적극적으로 진행하며 세계관 사건을 풍부하게 전개합니다. 한 턴의 진행 폭이 큰 편입니다.",
+  },
+  {
+    id: OPENROUTER_TENCENT_HY3_MODEL,
+    label: TENCENT_HY3_DISPLAY_NAME,
+    tier: "pro" as const,
+    hint: "Reasoning",
+    positionLabel: "대형 추론·분석형",
+    shortDescription:
+      "295B MoE(21B active) 추론 모델로, 상황 분석과 장면 전개를 밀도 있게 풀어갑니다.",
+    detailDescription:
+      "295B MoE(21B active) 추론 모델로, 상황 분석과 장면 전개를 밀도 있게 풀어갑니다.",
   },
   {
     id: CLAUDE_OPUS_MODEL,
@@ -217,6 +233,12 @@ export function isGeminiFlashOpenRouterModel(modelId: string): boolean {
 /** OpenRouter Gemini Pro — 2.5 Pro · 3.1 Pro (유저 선택·과금·reasoning 정책 공통) */
 export function isGeminiProOpenRouterModel(modelId: string): boolean {
   return isGemini25ProModel(modelId) || isGemini31ProModel(modelId);
+}
+
+/** OpenRouter Tencent Hy3 계열 (tencent/hy3 등) */
+export function isTencentHy3Model(modelId: string): boolean {
+  const id = modelId.trim().toLowerCase();
+  return id === OPENROUTER_TENCENT_HY3_MODEL || id.includes("/hy3") || /(^|\/)hy3\b/i.test(id);
 }
 
 /** OpenRouter Qwen 계열 (Qwen3.7 Max 등) */

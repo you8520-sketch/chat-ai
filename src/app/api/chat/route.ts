@@ -32,7 +32,7 @@ import { resolveExampleDialogForPrompt } from "@/lib/narrationFewShotTemplates";
 import { buildContext } from "@/services/contextBuilder";
 import { auditAssembledPrompt, formatPromptAuditLog } from "@/services/promptAudit";
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
-import { deductPoints, getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini25WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiProTurnCost, type DeductionSlice } from "@/lib/points";
+import { deductPoints, getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini25WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterTencentHy3TurnCost, explainOpenRouterGeminiProTurnCost, type DeductionSlice } from "@/lib/points";
 import { createChatSession } from "@/lib/chatSessionCreate";
 import { incrementCharacterTotalTurns } from "@/lib/characterEngagementStats";
 import {
@@ -49,7 +49,7 @@ import {
   restoreAssistantFromAlternatesOnFailedRegen,
   type StreamingPersistenceDiag,
 } from "@/lib/streamingPersistence";
-import { isDeepSeekV4ProModel, isGemini25ProModel, isGemini31ProModel, isGeminiProOpenRouterModel, isGlmModel, isKimiModel, isMuseModel, isQwenModel } from "@/lib/chatModels";
+import { isDeepSeekV4ProModel, isGemini25ProModel, isGemini31ProModel, isGeminiProOpenRouterModel, isGlmModel, isKimiModel, isMuseModel, isQwenModel, isTencentHy3Model } from "@/lib/chatModels";
 import { openRouterNormalizedRawCostKrw, openRouterRawCostKrw } from "@/lib/billingRawCost";
 import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
 import { maybeCreditCreatorReward, paidCreatorRewardSpend } from "@/lib/creatorPoints";
@@ -2235,6 +2235,15 @@ export async function POST(req: Request) {
                   cacheOpts
                 )
               : null;
+          const tencentHy3Explain =
+            billingOpenRouterModelId && isTencentHy3Model(billingOpenRouterModelId)
+              ? explainOpenRouterTencentHy3TurnCost(
+                  totalInput,
+                  totalOutput,
+                  billingOpenRouterModelId,
+                  cacheOpts
+                )
+              : null;
           const geminiBillingBasis =
             summedUpstreamUsd > 0 || apiPromptTokensForCost > 0 || apiCompletionTokensForCost > 0
               ? {
@@ -2276,6 +2285,14 @@ export async function POST(req: Request) {
                   deepSeekTokenFloorKrw: deepSeekExplain.charFloorKrw,
                   deepSeekCostPlusMarginKrw: deepSeekExplain.costPlusMarginKrw,
                   deepSeekApplied: deepSeekExplain.applied,
+                }
+              : {}),
+            ...(tencentHy3Explain
+              ? {
+                  tencentHy3RawCostKrw: tencentHy3Explain.rawCostKrw,
+                  tencentHy3TokenFloorKrw: tencentHy3Explain.charFloorKrw,
+                  tencentHy3CostPlusMarginKrw: tencentHy3Explain.costPlusMarginKrw,
+                  tencentHy3Applied: tencentHy3Explain.applied,
                 }
               : {}),
             ...(geminiProExplain
