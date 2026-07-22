@@ -440,6 +440,7 @@ function migrate(db: Database.Database) {
   addColumn("characters", "status_widget_allow_user_override", "INTEGER NOT NULL DEFAULT 1");
   addColumn("characters", "creator_raw_description", "TEXT NOT NULL DEFAULT ''");
   addColumn("characters", "creator_compiled_description_json", "TEXT NOT NULL DEFAULT ''");
+  addColumn("characters", "creator_canon_plan_json", "TEXT");
   ensureCharacterAppearanceColumns(db);
   addColumn("chats", "status_widget_mode", "TEXT NOT NULL DEFAULT 'character_only'");
   addColumn("chats", "user_status_widget_json", "TEXT NOT NULL DEFAULT ''");

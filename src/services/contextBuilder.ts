@@ -115,6 +115,13 @@ import { DEEPSEEK_APPEARANCE_VARIATION_RULE } from "@/lib/appearanceCompiler";
 import { buildCoNarrationKoreanRule } from "@/lib/openRouterAdult";
 import { buildOpenRouterKoreanProseTopBlock } from "@/lib/openRouterProsePolicy";
 import {
+  isLayeredCanonActive,
+  isSelectiveArchiveActive,
+} from "@/lib/canonInjectionPolicy";
+import { renderCoreCanonBlock, renderCanonChunksBlock } from "@/lib/canonPlan/coreRenderer";
+import { selectActiveCanonChunks } from "@/lib/canonPlan/activeSelector";
+import { selectArchiveChunksSelective } from "@/lib/memory/archiveSelective";
+import {
   createDeepSeekXmlBuffers,
   flushDeepSeekXmlBuffers,
   logDeepSeekContextStructure,
@@ -134,6 +141,11 @@ import {
   buildRuntimePromptContaminationGuardBlock,
   sanitizeRuntimePromptSource,
 } from "@/lib/runtimePromptContaminationGuard";
+import { buildSceneMomentumBlockString } from "@/lib/sceneMomentum/extractor";
+import {
+  resolveMomentumActivation,
+  type MomentumActivationObservability,
+} from "@/lib/sceneMomentum/predicate";
 
 type SectionTarget = "dynamic" | "cacheRules" | "cacheCharacter";
 
@@ -408,9 +420,51 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   });
 
   const archiveMemory = sanitizeRuntimePromptSource(input.archiveMemory);
+  const canonPolicy = input.canonInjectionPolicy;
+  const canonPlan = input.canonPlan ?? null;
+  const selectiveArchiveActive =
+    memoryFeatureOn &&
+    !!archiveMemory &&
+    !!canonPolicy &&
+    !!canonPlan &&
+    isSelectiveArchiveActive(canonPolicy);
+  const layeredCanonActive =
+    !!canonPolicy &&
+    !!canonPlan &&
+    isLayeredCanonActive(canonPolicy);
 
   const pushArchiveMemory = () => {
     if (!memoryFeatureOn || !archiveMemory) return;
+    if (selectiveArchiveActive) {
+      const budgetChars = canonPlan!.retrieval.archiveBudgetChars;
+      // D1.1: retrieval query = current user cue + bounded recent scene context
+      // (same -4 slice already used for user-note RAG, kept consistent). This
+      // context is used ONLY for archive paragraph scoring, never injected into
+      // the prompt. Recent-context hits are weighted below current-user hits
+      // and need 2 distinct hits to cross threshold alone, so stray old words
+      // cannot broadly activate dormant archive.
+      const recentSceneContext = input.shortTermHistory
+        .slice(-4)
+        .map((m) => m.content?.trim() ?? "")
+        .filter(Boolean)
+        .join("\n");
+      const selective = selectArchiveChunksSelective({
+        archive: archiveMemory,
+        userMessage: input.currentUserMessage,
+        recentContext: recentSceneContext,
+        budgetChars,
+      });
+      if (!selective.included) return;
+      pushSection(
+        "archive-memory",
+        "[0c] Archive memory (selective)",
+        "memory",
+        `[과거 기억]\n${selective.selectedText}`,
+        "dynamic",
+        deepSeekXmlMode ? "ltm" : undefined
+      );
+      return;
+    }
     pushSection(
       "archive-memory",
       "[0c] Archive memory",
@@ -500,7 +554,9 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
         "dynamic"
       );
     }
-    const coreBlock = buildCharacterCanonBlock(characterSettingText, input.charName);
+    const coreBlock = layeredCanonActive
+      ? renderCoreCanonBlock(canonPlan!, { charName: input.charName })
+      : buildCharacterCanonBlock(characterSettingText, input.charName);
     if (!coreBlock) return;
     const coreBlockForModel =
       deepSeekAppearanceRuleMode && /\[(?:외형|외모|Appearance)[^\]]*\]/i.test(coreBlock)
@@ -513,6 +569,43 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       coreBlockForModel,
       isOpenRouter ? "cacheRules" : "dynamic",
       deepSeekXmlMode ? "world_lore" : undefined
+    );
+  };
+
+  const pushActiveCanon = () => {
+    if (!layeredCanonActive) return;
+    // AR-A3: bounded recent scene context (same -4 slice as the D1.1 archive
+    // selector) is passed as a GATED bridge only. The selector keeps the current
+    // user message as the primary scoring source; recent context contributes
+    // nothing unless the AR-A3 gate (currentCanonMatch || actionMarker ||
+    // hasOpenQuestion) fires. Recent context is used ONLY for ACTIVE scoring,
+    // never injected into the prompt.
+    const recentSceneContext = input.shortTermHistory
+      .slice(-4)
+      .map((m) => m.content?.trim() ?? "")
+      .filter(Boolean)
+      .join("\n");
+    const recentTurns = input.shortTermHistory
+      .slice(-4)
+      .map((m) => ({ role: m.role, content: m.content?.trim() ?? "" }))
+      .filter((m) => m.content.length > 0);
+    const active = selectActiveCanonChunks({
+      plan: canonPlan!,
+      userMessage: input.currentUserMessage,
+      recentContext: recentSceneContext,
+      recentTurns,
+    });
+    if (active.activeChunks.length === 0) return;
+    const activeBlock = renderCanonChunksBlock(active.activeChunks, {
+      charName: input.charName,
+    });
+    if (!activeBlock.trim()) return;
+    pushSection(
+      "character-active-canon",
+      "[2c] Active scene canon (relevance-selected)",
+      "characterSetting",
+      activeBlock,
+      "dynamic"
     );
   };
 
@@ -731,6 +824,8 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
 
   pushVolatileContextSections();
 
+  pushActiveCanon();
+
   flushDeepSeekXmlSections(["ltm"]);
 
   // ───── [4] OOC co-narration (explicit OOC opt-in only — never auto progression) ─────
@@ -941,11 +1036,44 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     }
   }
 
+  // Scene Momentum (Candidate A) — DeepSeek D2 canary only, dynamic, non-cached
+  // (user-turn extras, below the CORE cache prefix). P2 activation predicate:
+  //   momentumEligible = isThinSceneHistory(history)
+  //                     AND NOT structurallyMatureByAlternatingExchange(history)
+  //   (altExchanges > MOMENTUM_BOOTSTRAP_MAX_EXCHANGES -> structurally mature -> OFF).
+  // `isThinSceneHistory` is reused BYTE-IDENTICAL (not modified); the structural
+  // guard is combined ONLY at this Momentum activation layer — LENGTH / SHORT
+  // HISTORY semantics are unchanged. Gated on: deepSeekXmlMode AND the D2
+  // layered-canon canary (isLayeredCanonActive) AND an explicit sceneMomentumInput
+  // (opt-in data channel — preserves existing harness/callers that do not thread it).
+  // Candidate A content/extractor is FROZEN (header/fields/source/wording/budget/
+  // insertion untouched). Terminal/LENGTH tail unchanged. Muse/Gemini/HY3 do not
+  // assemble deepSeekUserExtras, so their payloads are unaffected.
+  const momentumPredicate = resolveMomentumActivation(input.shortTermHistory);
+  const momentumModelPolicyOn =
+    deepSeekXmlMode && layeredCanonActive && input.sceneMomentumInput != null;
+  const momentumActive = momentumModelPolicyOn && momentumPredicate.momentumEligible;
+  const momentumActivation: MomentumActivationObservability = {
+    existingThinHistory: momentumPredicate.existingThinHistory,
+    alternatingExchanges: momentumPredicate.alternatingExchanges,
+    structuralMature: momentumPredicate.structuralMature,
+    momentumActive,
+    activationReason: momentumModelPolicyOn
+      ? momentumPredicate.activationReason
+      : "MODEL_POLICY_OFF",
+  };
   if (deepSeekXmlMode) {
     const userBodyWithOpening = deepSeekOpeningSceneContext
       ? `${deepSeekOpeningSceneContext}\n\n${userTurnContent}`
       : userTurnContent;
+    let deepSeekMomentumExtra: string | null = null;
+    if (momentumActive && input.sceneMomentumInput) {
+      deepSeekMomentumExtra = buildSceneMomentumBlockString(
+        input.sceneMomentumInput
+      );
+    }
     const deepSeekUserExtras = [
+      deepSeekMomentumExtra,
       deepSeekShortHistoryExtra,
       resolveDeepSeekShortUserTurnExtra(input.currentUserMessage),
       input.regenerate === true ? DEEPSEEK_REGEN_LENGTH_BLOCK : null,
@@ -1119,6 +1247,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       trackedSections,
       geminiBulkPadded: false,
       staticCachePaddingApplied: false,
+      momentumActivation,
     },
   };
 }

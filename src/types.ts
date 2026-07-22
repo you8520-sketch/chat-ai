@@ -126,6 +126,18 @@ export type ContextBuildInput = {
   promptSectionSkipIds?: string[];
   /** Regression/ablation scripts only — inject full (non-compact) knowledge boundary */
   promptUseFullKnowledgeBoundary?: boolean;
+  /** Canon injection policy — D1/D2 actual branches gated by this (DeepSeek canary only). */
+  canonInjectionPolicy?: import("@/lib/canonInjectionPolicy").CanonInjectionPolicy;
+  /** Compiled CanonPlanV1 — required for LAYERED canon / selective archive actual branches. */
+  canonPlan?: import("@/lib/canonPlan/types").CanonPlanV1 | null;
+  /**
+   * Scene Momentum Support (Candidate A) input — COMMON, model-agnostic. When provided
+   * AND the DeepSeek D2 canary is active AND the thin-history predicate fires, the
+   * CURRENT SCENE CONTINUITY block is injected into the DeepSeek user-turn extras
+   * (dynamic, non-cached, below the CORE cache prefix). Phase 1: DeepSeek canary only.
+   * Muse/Gemini/HY3 see no actual prompt change.
+   */
+  sceneMomentumInput?: import("@/lib/sceneMomentum/types").SceneMomentumInput | null;
 };
 
 export type BuiltContext = {
@@ -158,6 +170,10 @@ export type BuiltContext = {
     geminiBulkPadded?: boolean;
     /** static cache padding 적용 여부 */
     staticCachePaddingApplied?: boolean;
+    /** Scene Momentum (Candidate A) activation observability — P2 predicate
+     *  + model policy. No raw conversation text. Null when Momentum never
+     *  computed (e.g. legacy callers without the channel). */
+    momentumActivation?: import("@/lib/sceneMomentum/predicate").MomentumActivationObservability | null;
   };
 };
 
