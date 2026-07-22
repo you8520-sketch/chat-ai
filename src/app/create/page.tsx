@@ -11,12 +11,12 @@ export const dynamic = "force-dynamic";
 export default async function CreatePage({
   searchParams,
 }: {
-  searchParams: Promise<{ edit?: string }>;
+  searchParams: Promise<{ edit?: string; kind?: string }>;
 }) {
   const user = await getSessionUser();
   if (!user) redirect("/login?redirect=/create");
 
-  const { edit: editParam } = await searchParams;
+  const { edit: editParam, kind } = await searchParams;
   const editId = editParam ? Number(editParam) : null;
   const editCharacterId =
     editId != null && Number.isFinite(editId) && editId > 0 ? editId : null;
@@ -39,6 +39,7 @@ export default async function CreatePage({
       creatorDisplayName={user.nickname}
       creatorIsPartner={creatorIsPartner}
       userId={user.id}
+      initialContentKind={kind === "simulation" ? "simulation" : "character"}
     />
   );
 }

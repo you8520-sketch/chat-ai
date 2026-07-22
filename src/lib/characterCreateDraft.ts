@@ -3,12 +3,14 @@ import type { CharacterGenre } from "@/lib/characterGenres";
 import type { CharacterGender } from "@/lib/characterGender";
 import type { CharacterAsset } from "@/lib/characterAssets";
 import type { SpeechContextualRegister } from "@/lib/speechCreatorFields";
+import type { ContentKind } from "@/lib/simulationMode";
 
 const STORAGE_PREFIX = "hobbyai.characterCreateDraft.v1";
 
 export type CharacterCreateDraft = {
   savedAt: number;
   form: {
+    content_kind?: ContentKind;
     name: string;
     tagline: string;
     description: string;
@@ -35,7 +37,15 @@ export type CharacterCreateDraft = {
     /** Optional for drafts created before simulation reuse permissions. */
     simulation_reuse_allowed?: boolean;
     simulation_nsfw_allowed?: boolean;
+    simulation_cast?: string;
+    simulation_rules?: string;
   };
+  simulationImports?: Array<{
+    characterId: number;
+    name: string;
+    creatorName: string;
+    promptChars: number;
+  }>;
   assets: CharacterAsset[];
   selectedWorldId: number | "";
   selectedLorebookId: number | "";
