@@ -304,7 +304,7 @@ export default async function CharacterPage({
 
         {isOwner && c.official === 0 && (
           <Link
-            href={c.content_kind === "simulation" ? `/simulation/create?edit=${c.id}` : `/create?edit=${c.id}`}
+            href={`/create?edit=${c.id}`}
             className="inline-flex items-center rounded-xl border border-violet-500/40 bg-violet-500/10 px-5 py-2.5 text-sm font-bold text-violet-200 transition hover:bg-violet-500/20"
           >
             수정

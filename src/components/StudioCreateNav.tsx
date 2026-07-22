@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useId, useState } from "react";
 import {
-  IconSidebarChat,
   IconSidebarStudio,
   IconStudioLorebook,
   IconStudioWorld,
@@ -12,11 +11,11 @@ import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 
 const CREATE_ITEMS = [
   {
-    href: "/simulation/create",
-    Icon: IconSidebarChat,
-    label: "시뮬레이션 제작",
+    href: "/create",
+    Icon: IconSidebarStudio,
+    label: "캐릭터·시뮬레이션 제작",
     description:
-      "세계관과 여러 캐릭터 설정을 한 번에 작성해 다인 시뮬레이션을 만듭니다. 캐릭터를 따로 등록할 필요가 없습니다.",
+      "한 제작 화면에서 단일 캐릭터 또는 다인 시뮬레이션을 선택하고 공개 소개·상태창·공개 설정까지 함께 구성합니다.",
   },
   {
     href: "/world/create",
@@ -24,13 +23,6 @@ const CREATE_ITEMS = [
     label: "세계관 제작",
     description:
       "시대·배경·세력·규칙 등을 정리합니다. 캐릭터 제작 시 「세계관 / 배경」란에 자동으로 채워집니다.",
-  },
-  {
-    href: "/create",
-    Icon: IconSidebarStudio,
-    label: "캐릭터 제작",
-    description:
-      "성격·말투·첫 메시지·감정 이미지를 설정해 AI 채팅 캐릭터를 만듭니다. 완성 후 홈에 등록할 수 있습니다.",
   },
   {
     href: "/lorebook/create",

@@ -28,7 +28,7 @@ const TABS: {
   {
     id: "simulations",
     label: "시뮬레이션",
-    createHref: "/simulation/create",
+    createHref: "/create?kind=simulation",
     createLabel: "새 시뮬레이션 만들기",
     Icon: IconSidebarChat,
   },
@@ -185,7 +185,7 @@ function SimulationsPanel({
         <StudioEmptyState
           icon={<IconSidebarChat className="h-5 w-5" />}
           message="아직 제작한 시뮬레이션이 없습니다."
-          href="/simulation/create"
+          href="/create?kind=simulation"
           cta="시뮬레이션 만들기"
         />
       ) : (
@@ -195,7 +195,7 @@ function SimulationsPanel({
               key={simulation.id}
               c={simulation}
               blurNsfw={blurNsfw}
-              editHref={`/simulation/create?edit=${simulation.id}`}
+              editHref={`/create?edit=${simulation.id}`}
               contentLabel="시뮬레이션"
             />
           ))}
