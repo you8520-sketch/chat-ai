@@ -100,6 +100,8 @@ export function isMuseM1RolloutEnabledForModel(
 ): boolean {
   if (!isTruthyEnvFlag(process.env[ENV_ROLLOUT_ENABLED])) return false;
 
+  if (!isMuseSparkModel(modelId)) return false;
+
   const allow = parseRolloutModelAllowlist(process.env[ENV_ROLLOUT_MODEL_IDS]);
   if (allow.length === 0) return false;
 

@@ -117,4 +117,10 @@ describe("isMuseM1RolloutEnabledForModel — fail-closed public rollout", () => 
     process.env.PROSE_MUSE_M1_ROLLOUT_MODEL_IDS = MUSE;
     assert.equal(isMuseM1RolloutEnabledForModel(`foo-${MUSE}-bar`), false);
   });
+
+  it("non-Muse ID in rollout list → OFF even on exact env match", () => {
+    process.env.PROSE_MUSE_M1_ROLLOUT_ENABLED = "1";
+    process.env.PROSE_MUSE_M1_ROLLOUT_MODEL_IDS = DEEPSEEK;
+    assert.equal(isMuseM1RolloutEnabledForModel(DEEPSEEK), false);
+  });
 });
