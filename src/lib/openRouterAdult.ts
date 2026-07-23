@@ -76,6 +76,7 @@ import {
   pushLiveStreamDelta,
 } from "@/lib/statusWindow";
 import { stripLeakedDocumentMarkup } from "@/lib/chatHtmlSanitize";
+import { stripTrailingEmotionTagStreamCandidate } from "@/lib/emotionTag";
 import { stripAllStatusWindowOutputArtifacts, type StripStatusArtifactsOptions } from "@/lib/statusMeta/stripArtifacts";
 import type { ParsedStatusWidgetTurnValues } from "@/lib/statusWidget/types";
 import { sanitizePrimaryModelAssistantHistory } from "@/lib/flashOwnedOutputFirewall";
@@ -139,7 +140,9 @@ function liveStreamProse(
   statusArtifactsOpts?: StripStatusArtifactsOptions,
   oocHtmlMode?: boolean
 ): string {
-  const sanitized = stripInternalTagLeakage(sanitizeStreamArtifacts(rawMerged));
+  const sanitized = stripInternalTagLeakage(
+    stripTrailingEmotionTagStreamCandidate(sanitizeStreamArtifacts(rawMerged))
+  );
   const prose = oocHtmlMode
     ? sanitized
     : stripAllStatusWindowOutputArtifacts(sanitized, statusArtifactsOpts);
