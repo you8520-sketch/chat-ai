@@ -51,7 +51,7 @@ export default function DemoAdultSkip({
       </button>
       {error && <p className="mt-2 text-sm text-rose-400">{error}</p>}
       <p className="mt-2 text-center text-xs text-zinc-500">
-        로컬 데모 전용 · 실제 본인인증 없이 제작·NSFW 기능을 테스트합니다.
+        로컬 데모 전용 · 실제 본인인증 없이 제작·성인용 콘텐츠 기능을 테스트합니다.
       </p>
     </div>
   );

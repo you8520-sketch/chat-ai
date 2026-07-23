@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     if (!isDemoEnv()) {
       return NextResponse.json({ error: "데모 인증은 개발 환경에서만 사용할 수 있습니다." }, { status: 403 });
     }
-    getDb().prepare("UPDATE users SET is_adult = 1, nsfw_on = 1 WHERE id = ?").run(user.id);
+    getDb().prepare("UPDATE users SET is_adult = 1 WHERE id = ?").run(user.id);
     const nick = (
       getDb().prepare("SELECT nickname FROM users WHERE id = ?").get(user.id) as { nickname: string }
     ).nickname;
@@ -37,7 +37,7 @@ export async function POST(req: Request) {
   if (new Date() < adultDate) {
     return NextResponse.json({ error: "만 19세 미만은 성인인증을 할 수 없습니다." }, { status: 403 });
   }
-  getDb().prepare("UPDATE users SET is_adult = 1, nsfw_on = 1, real_name = COALESCE(NULLIF(?, ''), real_name) WHERE id = ?").run(
+  getDb().prepare("UPDATE users SET is_adult = 1, real_name = COALESCE(NULLIF(?, ''), real_name) WHERE id = ?").run(
     String(name ?? "").trim(),
     user.id
   );

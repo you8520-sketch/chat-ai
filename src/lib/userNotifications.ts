@@ -11,7 +11,8 @@ export type UserNotificationType =
   | "admin_point_grant"
   | "inquiry_reply"
   | "character_like"
-  | "profile_comment";
+  | "profile_comment"
+  | "post_comment";
 
 export type UserNotificationRow = {
   id: number;
@@ -201,6 +202,8 @@ export function notificationHref(n: UserNotificationRow): string {
         return `/creator/${n.comment_target_id}`;
       }
       return "/notifications";
+    case "post_comment":
+      return `/board/info?post=${n.ref_id}#post-${n.ref_id}`;
     case "follow_received":
       return n.actor_id ? `/creator/${n.actor_id}` : "/tab/following";
     case "gift_sent":
@@ -237,6 +240,7 @@ export function notificationIcon(type: UserNotificationType): string {
     case "character_like":
       return "❤️";
     case "profile_comment":
+    case "post_comment":
       return "💬";
     default:
       return "🔔";
@@ -306,6 +310,34 @@ export function notifyProfileCommentReceived(
     actorId: opts.actorId,
     title: "새 댓글",
     body: `@${opts.actorNickname}님이 ${where}에 댓글을 남겼습니다.${preview ? ` ${preview}` : ""}${
+      opts.preview.length > 80 ? "…" : ""
+    }`,
+  });
+}
+
+/** Notify a post author when another user leaves a board comment. */
+export function notifyPostCommentReceived(
+  db: Database.Database,
+  opts: {
+    recipientId: number | null | undefined;
+    actorId: number;
+    actorNickname: string;
+    postId: number;
+    postTitle: string;
+    preview: string;
+  }
+) {
+  const recipientId = opts.recipientId ?? 0;
+  if (recipientId <= 0 || recipientId === opts.actorId) return;
+
+  const preview = opts.preview.replace(/\s+/g, " ").trim().slice(0, 80);
+  insertNotification(db, {
+    userId: recipientId,
+    type: "post_comment",
+    refId: opts.postId,
+    actorId: opts.actorId,
+    title: "새 댓글",
+    body: `@${opts.actorNickname}님이 「${opts.postTitle}」에 댓글을 남겼습니다.${preview ? ` ${preview}` : ""}${
       opts.preview.length > 80 ? "…" : ""
     }`,
   });

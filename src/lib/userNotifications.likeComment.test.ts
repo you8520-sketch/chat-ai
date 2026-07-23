@@ -3,6 +3,7 @@ import Database from "better-sqlite3";
 import { describe, it } from "node:test";
 import {
   notifyCharacterLiked,
+  notifyPostCommentReceived,
   notifyProfileCommentReceived,
   notificationHref,
   notificationIcon,
@@ -143,5 +144,26 @@ describe("character like / comment notifications", () => {
     });
     const n = db.prepare("SELECT COUNT(*) AS c FROM user_notifications").get() as { c: number };
     assert.equal(n.c, 0);
+  });
+
+  it("notifies a post author when another user leaves a comment", () => {
+    const db = openDb();
+    notifyPostCommentReceived(db, {
+      recipientId: 1,
+      actorId: 2,
+      actorNickname: "유저",
+      postId: 31,
+      postTitle: "업데이트 팁",
+      preview: "좋은 정보 감사합니다.",
+    });
+
+    const row = db
+      .prepare("SELECT type, user_id, ref_id, title FROM user_notifications")
+      .get() as { type: string; user_id: number; ref_id: number; title: string };
+    assert.equal(row.type, "post_comment");
+    assert.equal(row.user_id, 1);
+    assert.equal(row.ref_id, 31);
+    assert.equal(row.title, "새 댓글");
+    assert.equal(notificationIcon("post_comment"), "💬");
   });
 });

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { isChatRoomPathname } from "@/lib/chatDisplayPrefs";
-import { cn, studioSurface } from "@/lib/studioDesign";
+import { cn } from "@/lib/studioDesign";
 
 const baseTabs = [
   { href: "/", label: "홈" },
@@ -26,10 +26,7 @@ export default function HeaderMainNavRow() {
 
   return (
     <nav
-      className={cn(
-        studioSurface.tabList,
-        "hidden max-w-[48vw] shrink overflow-x-auto rounded-2xl border-white/10 bg-white/[0.045] p-1 shadow-lg shadow-black/10 md:inline-flex xl:max-w-none"
-      )}
+      className="scrollbar-hide hidden max-w-[48vw] shrink items-stretch gap-0.5 overflow-x-auto overscroll-x-contain md:inline-flex xl:max-w-none"
       aria-label="주요 메뉴"
     >
       {baseTabs.map((t) => {
@@ -39,8 +36,10 @@ export default function HeaderMainNavRow() {
             key={t.href}
             href={t.href}
             className={cn(
-              "inline-flex min-h-9 shrink-0 items-center rounded-xl px-3 text-sm font-semibold transition",
-              active ? studioSurface.tabActive : studioSurface.tabIdle,
+              "relative inline-flex min-h-11 shrink-0 items-center px-3 text-sm font-semibold transition after:absolute after:inset-x-3 after:bottom-0 after:h-px after:origin-left after:bg-violet-400 after:transition-transform",
+              active
+                ? "text-zinc-50 after:scale-x-100"
+                : "text-zinc-400 after:scale-x-0 hover:text-zinc-100 hover:after:scale-x-100",
             )}
           >
             {t.label}

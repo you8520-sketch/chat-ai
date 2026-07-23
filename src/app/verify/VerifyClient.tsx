@@ -65,7 +65,7 @@ export default function VerifyClient({ redirectTo, showDemo = false }: Props) {
 
   return (
     <div className={`mx-auto mt-20 max-w-sm p-8 ${studioSurface.card}`}>
-      <h1 className={studioType.heading}>🔞 성인인증</h1>
+      <h1 className={studioType.heading}>성인인증</h1>
       <p className={`mt-2 ${studioType.body}`}>
         {fromCharacter
           ? "성인용 캐릭터를 이용하려면 본인인증이 필요합니다. (만 19세 이상)"

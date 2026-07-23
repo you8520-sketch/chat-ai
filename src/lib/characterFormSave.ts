@@ -183,10 +183,10 @@ function resolveSimulationImports(
       return { ok: false, error: `${row.name}: 원작자가 시뮬레이션 사용을 허용하지 않았습니다.`, status: 403 };
     }
     if (row.nsfw === 1 && !input.simulationNsfw) {
-      return { ok: false, error: `${row.name}: 19+ 캐릭터를 사용하려면 시뮬레이션도 19+로 설정해 주세요.`, status: 400 };
+      return { ok: false, error: `${row.name}: 성인용 캐릭터를 사용하려면 시뮬레이션도 성인용으로 설정해 주세요.`, status: 400 };
     }
     if (!owned && input.simulationNsfw && row.simulation_nsfw_allowed !== 1) {
-      return { ok: false, error: `${row.name}: 원작자가 19+ 시뮬레이션 사용을 허용하지 않았습니다.`, status: 403 };
+      return { ok: false, error: `${row.name}: 원작자가 성인용 시뮬레이션 사용을 허용하지 않았습니다.`, status: 403 };
     }
     snapshots.push({
       characterId: row.id,

@@ -35,6 +35,7 @@ import ReportRefundButton from "@/components/ReportRefundButton";
 import ChatSelectionQuoteToolbar from "@/components/ChatSelectionQuoteToolbar";
 import MessageVariantPicker from "@/components/MessageVariantPicker";
 import ChatToast from "@/components/ChatToast";
+import NotificationBell from "@/components/NotificationBell";
 import CharacterAssetImage from "@/components/CharacterAssetImage";
 import GenerationPreparationIndicator from "@/components/GenerationPreparationIndicator";
 import {
@@ -3623,15 +3624,18 @@ export default function ChatClient({
                     </span>
                   ) : null}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setAssetAlbumOpen(true)}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-100 transition hover:bg-white/[0.08] hover:text-white"
-                  title="이미지 앨범"
-                  aria-label="이미지 앨범 열기"
-                >
-                  <IconAlbum className="h-4 w-4" />
-                </button>
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <NotificationBell />
+                  <button
+                    type="button"
+                    onClick={() => setAssetAlbumOpen(true)}
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-100 transition hover:bg-white/[0.08] hover:text-white"
+                    title="이미지 앨범"
+                    aria-label="이미지 앨범 열기"
+                  >
+                    <IconAlbum className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
               <div aria-hidden className="min-w-0" />
             </div>
@@ -3661,15 +3665,18 @@ export default function ChatClient({
                 </span>
               ) : null}
             </div>
-            <button
-              type="button"
-              onClick={() => setAssetAlbumOpen(true)}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-100 transition hover:bg-white/[0.08] hover:text-white"
-              title="이미지 앨범"
-              aria-label="이미지 앨범 열기"
-            >
-              <IconAlbum className="h-4 w-4" />
-            </button>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <NotificationBell />
+              <button
+                type="button"
+                onClick={() => setAssetAlbumOpen(true)}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.04] text-zinc-100 transition hover:bg-white/[0.08] hover:text-white"
+                title="이미지 앨범"
+                aria-label="이미지 앨범 열기"
+              >
+                <IconAlbum className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         )}
         {showCharacterPortrait && (
@@ -3734,6 +3741,7 @@ export default function ChatClient({
               ) : null
             )}
           </div>
+          <NotificationBell />
           <button
             type="button"
             onClick={() => setAssetAlbumOpen(true)}
