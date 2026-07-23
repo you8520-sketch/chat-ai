@@ -13,6 +13,7 @@ import {
   OPENROUTER_DEEPSEEK_V3_MODEL,
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_25_PRO_MODEL,
+  OPENROUTER_MUSE_SPARK_11_MODEL,
   OPENROUTER_TENCENT_HY3_MODEL,
 } from "@/lib/chatModels";
 
@@ -32,11 +33,11 @@ describe("OpenRouter input token surcharge", () => {
     assert.equal(openRouterInputTokenSurchargeKrw(10000, deepseekId), 0);
   });
 
-  it("non-DeepSeek: ceil(excess/1000) × 1P", () => {
-    assert.equal(openRouterInputTokenSurchargeKrw(10001, geminiId), 1);
-    assert.equal(openRouterInputTokenSurchargeKrw(10500, geminiId), 1);
-    assert.equal(openRouterInputTokenSurchargeKrw(11000, geminiId), 1);
-    assert.equal(openRouterInputTokenSurchargeKrw(11001, geminiId), 2);
+  it("other legacy models: ceil(excess/1000) × 1P", () => {
+    assert.equal(openRouterInputTokenSurchargeKrw(10001, "qwen/qwen3.7-max"), 1);
+    assert.equal(openRouterInputTokenSurchargeKrw(10500, "qwen/qwen3.7-max"), 1);
+    assert.equal(openRouterInputTokenSurchargeKrw(11000, "qwen/qwen3.7-max"), 1);
+    assert.equal(openRouterInputTokenSurchargeKrw(11001, "qwen/qwen3.7-max"), 2);
   });
 
   it("V4 Pro and Hy3 do not double-charge a 10k input surcharge", () => {
@@ -44,6 +45,14 @@ describe("OpenRouter input token surcharge", () => {
     assert.equal(openRouterInputTokenSurchargeKrw(12000, deepseekId), 0);
     assert.equal(
       openRouterInputTokenSurchargeKrw(12000, OPENROUTER_TENCENT_HY3_MODEL),
+      0
+    );
+  });
+
+  it("Muse and Gemini 2.5 bill all input directly without a legacy surcharge", () => {
+    assert.equal(openRouterInputTokenSurchargeKrw(50_000, geminiId), 0);
+    assert.equal(
+      openRouterInputTokenSurchargeKrw(50_000, OPENROUTER_MUSE_SPARK_11_MODEL),
       0
     );
   });
@@ -59,11 +68,11 @@ describe("OpenRouter input token surcharge", () => {
     );
   });
 
-  it("adds surcharge to output-token billing (Gemini)", () => {
+  it("Gemini direct input billing grows without a legacy surcharge", () => {
     const outputTokens = 100;
     const base = computeOpenRouterTurnCost(5000, outputTokens, geminiId);
-    const withSurcharge = computeOpenRouterTurnCost(10500, outputTokens, geminiId);
-    assert.equal(withSurcharge - base, 1);
+    const longContext = computeOpenRouterTurnCost(50_000, outputTokens, geminiId);
+    assert.ok(longContext > base);
   });
 
   it("DeepSeek V4 Pro bills all input through the cache-neutral margin formula", () => {
@@ -76,12 +85,10 @@ describe("OpenRouter input token surcharge", () => {
     assert.equal(computeOpenRouterTurnCost(10500, outputTokens, deepseekId), explain.total);
   });
 
-  it("explain breakdown includes inputSurchargeKrw", () => {
+  it("Gemini explain breakdown uses one margin owner without a surcharge field", () => {
     const explain = explainOpenRouterGemini25TurnCost(10500, 100, geminiId);
-    assert.equal(explain.inputSurchargeKrw, 1);
-    assert.equal(
-      explain.total,
-      explain.charFloorKrw + explain.inputSurchargeKrw!
-    );
+    assert.equal(explain.inputSurchargeKrw, undefined);
+    assert.equal(explain.charFloorKrw, 0);
+    assert.equal(explain.applied, "cost_plus_margin");
   });
 });

@@ -17,4 +17,11 @@ describe("billableOpenRouterOutputTokens — Gemini 2.5 Pro", () => {
       2293
     );
   });
+
+  it("also excludes hidden Muse reasoning from user billing", () => {
+    assert.equal(
+      billableOpenRouterOutputTokens("meta/muse-spark-1.1", 2293, 1618),
+      675
+    );
+  });
 });

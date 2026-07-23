@@ -199,13 +199,13 @@ describe("modelPickerPreview V2", () => {
     assert.equal(preview.models[1]?.estimatedInputTokens, 10_000 + expectedDraftTokens);
   });
 
-  it("Muse preview uses full apiOutput (billing parity)", () => {
+  it("Muse preview uses visible content output (reasoning excluded)", () => {
     const museBillable = previewBillableOutputTokens(OPENROUTER_MUSE_SPARK_11_MODEL, {
       apiOutputTokens: 2500,
       apiContentOutputTokens: 1700,
       apiReasoningOutputTokens: 800,
     });
-    assert.equal(museBillable, 2500);
+    assert.equal(museBillable, 1700);
   });
 
   it("Gemini preview uses content output (reasoning excluded)", () => {
