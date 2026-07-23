@@ -13,6 +13,21 @@ export const CURRENT_USER_INPUT_HEADER = "[CURRENT USER INPUT]";
 export const INTERACTIVE_OWNERSHIP_LOCK_MARKER = "[INTERACTIVE USER OWNERSHIP — ABSOLUTE]";
 
 /**
+ * R1 — COMPACT TERMINAL OWNERSHIP ECHO.
+ *
+ * Marker placed AFTER the actual current-user body (i.e. at the literal
+ * semantic tail of the last user message) to test whether terminal recency
+ * improves ownership adherence for models that show intermittent compliance
+ * under heavily contaminated history (e.g. Muse Spark).
+ *
+ * The echo is a COMPACT compliance recency shim only — it does NOT repeat the
+ * large ownership block, does NOT add dialogue quotas, prose, or LENGTH rules.
+ * It is gated on a Muse-targeted admin canary and applies only inside the
+ * dynamic current-user turn (no stable/cached area is touched).
+ */
+export const INTERACTIVE_OWNERSHIP_TERMINAL_ECHO_MARKER = "[END CURRENT USER INPUT]";
+
+/**
  * Generic fallback actor label when no runtime persona display name is
  * available. Never an account email / unrelated UI identity.
  */
@@ -91,13 +106,53 @@ Continue the scene through AI-controlled characters, NPCs, environment, world ev
 If the input contains parentheses or action text, treat it as completed user input — not permission to keep narrating the user.`;
 }
 
+/**
+ * R1 — COMPACT TERMINAL OWNERSHIP ECHO (compliance recency shim).
+ *
+ * Placed AFTER the actual current-user body, at the literal semantic tail of
+ * the last user message. Compact by design: references [B] (already defined by
+ * the lock above the body) without re-mapping, and does NOT repeat the large
+ * ownership block, add dialogue quotas, prose, or LENGTH rules.
+ *
+ * Wording note: the echo says "The user's current input is complete" rather
+ * than "everything above is user-authored" — the last user message also
+ * contains the ownership wrapper/instructions (and may have an OpenRouter
+ * dynamic prefix), so "everything above = user-authored" would be literally
+ * inaccurate. The prohibition list covers the residual agency types Muse
+ * actually violated on production (dialogue / action / thought / emotion /
+ * decision / answer / agreement-refusal / facial expression / voluntary
+ * physical reaction).
+ *
+ * Only emitted when ownershipLockEnabled is true (interactive + lock ON) AND
+ * ownershipTerminalEchoEnabled is true (Muse-targeted admin canary).
+ */
+function buildOwnershipTerminalEcho(): string {
+  return `${INTERACTIVE_OWNERSHIP_TERMINAL_ECHO_MARKER}
+The user's current input is complete. Do NOT generate any NEW [B] dialogue, deliberate action, thought, emotion conclusion, decision, answer, agreement/refusal, facial expression, or voluntary physical reaction. Continue only through AI-controlled characters, NPCs, environment, and world events.`;
+}
+
 /** Wrap latest user turn content. Idempotent if already wrapped. */
 export function wrapCurrentUserInput(
   userContent: string,
-  opts?: { mode?: ChatRuntimeMode; personaName?: string; ownershipLockEnabled?: boolean }
+  opts?: {
+    mode?: ChatRuntimeMode;
+    personaName?: string;
+    ownershipLockEnabled?: boolean;
+    ownershipTerminalEchoEnabled?: boolean;
+  }
 ): string {
   const body = userContent.trim();
   if (!body) return body;
   if (body.startsWith(CURRENT_USER_INPUT_HEADER)) return body;
-  return `${buildCurrentUserInputWrapper(opts)}\n\n${body}`;
+  const wrapper = buildCurrentUserInputWrapper(opts);
+  // R1 terminal echo: ONLY when the strict lock is actually active this turn
+  // (interactive + lock ON — i.e. the lock marker is present in the wrapper).
+  // In auto_progression / ooc_user_impersonation_allowed the lock is NOT
+  // injected, so the echo must not be appended either (mode isolation).
+  const lockActive =
+    !!opts?.ownershipLockEnabled && wrapper.includes(INTERACTIVE_OWNERSHIP_LOCK_MARKER);
+  if (lockActive && opts?.ownershipTerminalEchoEnabled) {
+    return `${wrapper}\n\n${body}\n\n${buildOwnershipTerminalEcho()}`;
+  }
+  return `${wrapper}\n\n${body}`;
 }
