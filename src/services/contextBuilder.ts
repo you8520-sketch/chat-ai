@@ -26,6 +26,7 @@ import {
   type ChatRuntimeMode,
 } from "@/lib/chatRuntimeMode";
 import { wrapCurrentUserInput } from "@/lib/currentUserInputLabel";
+import { isInteractiveUserOwnershipLockEnabledForUser } from "@/lib/interactiveUserOwnershipLock";
 import {
   buildNovelModeUserPersonaRules,
 } from "@/lib/userPersonaNarrationRules";
@@ -1018,9 +1019,18 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     ? input.currentUserMessage.trim()
     : formatUserMessageForPrompt(input.currentUserMessage, hasMindReading);
   // Provider-agnostic: parse labels + CURRENT USER INPUT wrapper on all models (interactive too).
+  // Pass the resolved persona display name (authoritative runtime user-actor name) so the
+  // interactive ownership recency lock can name [B] dynamically — no hard-coded persona names.
+  // The lock is gated by the INTERACTIVE_USER_OWNERSHIP_LOCK admin canary (separate from the
+  // DeepSeek Canon cohort). Default OFF → legacy compact behavior (no global change).
+  const ownershipLockEnabled = isInteractiveUserOwnershipLockEnabledForUser(input.userId);
   let userTurnContent = input.isContinue
     ? formattedUser
-    : wrapCurrentUserInput(formattedUser, { mode: runtimeMode });
+    : wrapCurrentUserInput(formattedUser, {
+        mode: runtimeMode,
+        personaName: input.personaDisplayName,
+        ownershipLockEnabled,
+      });
   if (isOpenRouter && openRouterDynamicLorePrefix) {
     userTurnContent = `${openRouterDynamicLorePrefix}\n\n${userTurnContent}`;
   }
