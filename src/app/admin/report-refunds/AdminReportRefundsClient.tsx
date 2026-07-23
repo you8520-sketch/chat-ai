@@ -19,7 +19,30 @@ type ReportRow = {
   user_email: string;
   message_content: string;
   message_status: string | null;
+  message_model: string;
+  output_char_count: number;
+  character_id: number;
 };
+
+type ReportDetail = ReportRow & {
+  message_usage: string | null;
+  deduction_slices: string | null;
+  generation_status: string | null;
+  paired_user_content: string | null;
+  character_id: number;
+  character_name: string;
+  live_validation_summary: string;
+  live_validation_reasons: string[];
+};
+
+function prettyJson(raw: string | null): string {
+  if (!raw?.trim()) return "기록 없음";
+  try {
+    return JSON.stringify(JSON.parse(raw), null, 2);
+  } catch {
+    return raw;
+  }
+}
 
 const FILTERS = [
   { id: "pending", label: "대기" },
@@ -36,6 +59,9 @@ export default function AdminReportRefundsClient() {
   const [notes, setNotes] = useState<Record<number, string>>({});
   const [error, setError] = useState("");
   const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [detailLoadingId, setDetailLoadingId] = useState<number | null>(null);
+  const [details, setDetails] = useState<Record<number, ReportDetail>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -82,6 +108,27 @@ export default function AdminReportRefundsClient() {
       return;
     }
     await load();
+  }
+
+  async function toggleDetail(row: ReportRow) {
+    if (expandedId === row.id) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(row.id);
+    if (details[row.id]) return;
+
+    setDetailLoadingId(row.id);
+    setError("");
+    const res = await fetch(`/api/admin/report-refunds/${row.id}`);
+    const data = await res.json();
+    setDetailLoadingId(null);
+    if (!res.ok || !data.report) {
+      setError(data.error || "상세 내역을 불러오지 못했습니다.");
+      setExpandedId(null);
+      return;
+    }
+    setDetails((prev) => ({ ...prev, [row.id]: data.report as ReportDetail }));
   }
 
   return (
@@ -140,6 +187,10 @@ export default function AdminReportRefundsClient() {
                       <span className="ml-2 text-emerald-400">[자동 환불]</span>
                     ) : null}
                   </p>
+                  <p className="mt-1 text-xs text-zinc-500">
+                    모델: {row.message_model || "기록 없음"} · 출력{" "}
+                    {row.output_char_count.toLocaleString()}자
+                  </p>
                   {row.error_reasons && (
                     <p className="mt-1 text-xs text-rose-300/90">감지: {row.error_reasons}</p>
                   )}
@@ -176,16 +227,102 @@ export default function AdminReportRefundsClient() {
               )}
 
               <pre className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap rounded-lg bg-black/30 p-3 text-xs text-gray-400">
-                {row.message_content.slice(0, 1500)}
-                {row.message_content.length > 1500 ? "…" : ""}
+                {row.message_content}
+                {row.output_char_count > row.message_content.length ? "…" : ""}
               </pre>
+
+              <button
+                type="button"
+                onClick={() => void toggleDetail(row)}
+                className="mt-3 rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-200 hover:bg-violet-500/20"
+              >
+                {expandedId === row.id ? "상세 닫기" : "AI 출력 전문·전체 영수증 보기"}
+              </button>
+
+              {expandedId === row.id && (
+                <div className="mt-3 space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
+                  {detailLoadingId === row.id ? (
+                    <p className="text-xs text-zinc-400">상세 내역을 불러오는 중…</p>
+                  ) : details[row.id] ? (
+                    <>
+                      <div className="grid gap-2 text-xs text-zinc-400 sm:grid-cols-2">
+                        <p>캐릭터: {details[row.id].character_name}</p>
+                        <p>모델: {details[row.id].message_model || "기록 없음"}</p>
+                        <p>생성 상태: {details[row.id].generation_status || details[row.id].message_status || "기록 없음"}</p>
+                        <p>출력 길이: {details[row.id].output_char_count.toLocaleString()}자</p>
+                      </div>
+                      <p
+                        className={`rounded-lg px-3 py-2 text-xs ${
+                          details[row.id].live_validation_reasons.length > 0
+                            ? "bg-rose-500/10 text-rose-300"
+                            : "bg-zinc-500/10 text-zinc-400"
+                        }`}
+                      >
+                        현재 자동 진단:{" "}
+                        {details[row.id].live_validation_summary || "자동 감지된 결함 없음"}
+                      </p>
+
+                      <section>
+                        <h3 className="mb-1 text-xs font-bold text-zinc-300">유저 입력</h3>
+                        <pre className="max-h-48 overflow-auto whitespace-pre-wrap rounded-lg bg-black/35 p-3 text-xs text-zinc-400">
+                          {details[row.id].paired_user_content || "기록 없음"}
+                        </pre>
+                      </section>
+
+                      <section>
+                        <h3 className="mb-1 text-xs font-bold text-white">AI 출력 전문</h3>
+                        <pre className="max-h-[70vh] overflow-auto whitespace-pre-wrap break-words rounded-lg border border-rose-500/15 bg-black/40 p-3 text-xs leading-relaxed text-zinc-200">
+                          {details[row.id].message_content}
+                        </pre>
+                      </section>
+
+                      <section>
+                        <div className="mb-1 flex items-center justify-between gap-2">
+                          <h3 className="text-xs font-bold text-white">전체 영수증</h3>
+                          <button
+                            type="button"
+                            onClick={() => void copyReceipt(details[row.id])}
+                            className="rounded border border-white/10 px-2 py-0.5 text-[10px] text-violet-300 hover:bg-white/5"
+                          >
+                            {copiedId === row.id ? "복사됨" : "영수증 복사"}
+                          </button>
+                        </div>
+                        <pre className="max-h-[50vh] overflow-auto whitespace-pre-wrap break-words rounded-lg bg-black/40 p-3 text-xs text-zinc-300">
+                          {details[row.id].receipt_snapshot || "영수증 기록 없음"}
+                        </pre>
+                      </section>
+
+                      <details className="rounded-lg border border-white/10 bg-black/20 p-3">
+                        <summary className="cursor-pointer text-xs font-semibold text-zinc-400">
+                          원본 사용량·차감 데이터
+                        </summary>
+                        <h4 className="mt-3 text-[11px] font-bold text-zinc-500">usage JSON</h4>
+                        <pre className="mt-1 max-h-80 overflow-auto whitespace-pre-wrap break-words text-[10px] text-zinc-500">
+                          {prettyJson(details[row.id].message_usage)}
+                        </pre>
+                        <h4 className="mt-3 text-[11px] font-bold text-zinc-500">deduction slices</h4>
+                        <pre className="mt-1 max-h-80 overflow-auto whitespace-pre-wrap break-words text-[10px] text-zinc-500">
+                          {prettyJson(details[row.id].deduction_slices)}
+                        </pre>
+                      </details>
+
+                      <Link
+                        href={`/chat/${details[row.id].character_id}?chat=${details[row.id].chat_id}`}
+                        className="inline-block text-xs text-violet-400 hover:underline"
+                      >
+                        실제 대화방 열기 →
+                      </Link>
+                    </>
+                  ) : null}
+                </div>
+              )}
 
               {row.validation_note && (
                 <p className="mt-2 text-xs text-gray-500">메모: {row.validation_note}</p>
               )}
 
               <Link
-                href={`/chat/${row.chat_id}`}
+                href={`/chat/${row.character_id}?chat=${row.chat_id}`}
                 className="mt-2 inline-block text-xs text-violet-400 hover:underline"
               >
                 대화 열기 →

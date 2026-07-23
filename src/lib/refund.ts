@@ -335,6 +335,20 @@ export type ReportRefundAdminRow = {
   user_email: string;
   message_content: string;
   message_status: string | null;
+  message_model: string;
+  output_char_count: number;
+  character_id: number;
+};
+
+export type ReportRefundAdminDetail = ReportRefundAdminRow & {
+  message_usage: string | null;
+  deduction_slices: string | null;
+  generation_status: string | null;
+  paired_user_content: string | null;
+  character_id: number;
+  character_name: string;
+  live_validation_summary: string;
+  live_validation_reasons: string[];
 };
 
 export function listReportRefundsForAdmin(
@@ -351,15 +365,60 @@ export function listReportRefundsForAdmin(
       `SELECT rr.id, rr.user_id, rr.chat_id, rr.message_id, rr.status, rr.refund_amount,
               rr.validation_note, rr.receipt_snapshot, rr.auto_refund, rr.error_reasons, rr.created_at,
               u.nickname AS user_nickname, u.email AS user_email,
-              m.content AS message_content, m.status AS message_status
+              substr(m.content, 1, 1500) AS message_content, m.status AS message_status,
+              m.model AS message_model, length(m.content) AS output_char_count,
+              chat.character_id
        FROM report_refunds rr
        JOIN users u ON u.id = rr.user_id
        JOIN messages m ON m.id = rr.message_id AND m.chat_id = rr.chat_id
+       JOIN chats chat ON chat.id = rr.chat_id
        ${where}
        ORDER BY rr.id DESC
        LIMIT 200`
     )
     .all() as ReportRefundAdminRow[];
+}
+
+export function getReportRefundForAdmin(
+  reportRefundId: number
+): ReportRefundAdminDetail | undefined {
+  const db = getDb();
+  const row = db
+    .prepare(
+      `SELECT rr.id, rr.user_id, rr.chat_id, rr.message_id, rr.status, rr.refund_amount,
+              rr.validation_note, rr.receipt_snapshot, rr.auto_refund, rr.error_reasons, rr.created_at,
+              u.nickname AS user_nickname, u.email AS user_email,
+              m.content AS message_content, m.status AS message_status, m.model AS message_model,
+              m.usage AS message_usage, m.deduction_slices, m.generation_status,
+              length(m.content) AS output_char_count,
+              chat.character_id, ch.name AS character_name,
+              (SELECT um.content
+                 FROM messages um
+                WHERE um.chat_id = rr.chat_id AND um.role = 'user' AND um.id < rr.message_id
+                ORDER BY um.id DESC LIMIT 1) AS paired_user_content
+       FROM report_refunds rr
+       JOIN users u ON u.id = rr.user_id
+       JOIN messages m ON m.id = rr.message_id AND m.chat_id = rr.chat_id
+       JOIN chats chat ON chat.id = rr.chat_id
+       JOIN characters ch ON ch.id = chat.character_id
+       WHERE rr.id = ?`
+    )
+    .get(reportRefundId) as ReportRefundAdminDetail | undefined;
+
+  if (!row) return undefined;
+  const liveAssessment = assessMessageForAutoRefund({
+    content: row.message_content,
+    messageStatus: row.message_status,
+    previousAssistantContent: loadPreviousAssistantContent(row.chat_id, row.message_id),
+    userMessage: row.paired_user_content,
+  });
+  return {
+    ...row,
+    receipt_snapshot:
+      row.receipt_snapshot?.trim() || buildMessageReceiptSnapshot(row.message_usage),
+    live_validation_summary: liveAssessment.summary,
+    live_validation_reasons: liveAssessment.reasons,
+  };
 }
 
 export function reviewReportRefund(

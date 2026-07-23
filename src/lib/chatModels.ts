@@ -113,12 +113,6 @@ export const SELECTED_AI_OPTIONS = [
     hint: "Google",
   },
   {
-    id: OPENROUTER_SOLAR_PRO_3_MODEL,
-    label: SOLAR_PRO_3_DISPLAY_NAME,
-    tier: "pro" as const,
-    hint: "Upstage",
-  },
-  {
     id: OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
     label: DEEPSEEK_DISPLAY_NAME,
     tier: "pro" as const,
@@ -256,12 +250,6 @@ export function isMuseModel(modelId: string): boolean {
   );
 }
 
-/** OpenRouter Upstage Solar Pro 3 */
-export function isSolarPro3Model(modelId: string): boolean {
-  const id = modelId.trim().toLowerCase();
-  return id === OPENROUTER_SOLAR_PRO_3_MODEL || id.includes("/solar-pro-3");
-}
-
 /** @deprecated provider === "openrouter" — 모든 OpenRouter 모델에 통합 prose 적용 */
 export function isOpenRouterSharedProseModel(modelId: string): boolean {
   const id = modelId.trim();
@@ -324,10 +312,11 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   "muse-spark-1.1": OPENROUTER_MUSE_SPARK_11_MODEL,
   musespark: OPENROUTER_MUSE_SPARK_11_MODEL,
   "meta/muse-spark-1.1": OPENROUTER_MUSE_SPARK_11_MODEL,
-  solar: OPENROUTER_SOLAR_PRO_3_MODEL,
-  "solar-pro": OPENROUTER_SOLAR_PRO_3_MODEL,
-  "solar-pro-3": OPENROUTER_SOLAR_PRO_3_MODEL,
-  "upstage/solar-pro-3": OPENROUTER_SOLAR_PRO_3_MODEL,
+  /** Solar Pro 3 retired after runaway-generation incident — migrate stored prefs to default. */
+  solar: DEFAULT_SELECTED_AI,
+  "solar-pro": DEFAULT_SELECTED_AI,
+  "solar-pro-3": DEFAULT_SELECTED_AI,
+  "upstage/solar-pro-3": DEFAULT_SELECTED_AI,
   /** Retired Sonnet → Gemini 2.5 Pro (3.1 Pro selection removed) */
   "anthropic/claude-3.5-sonnet": OPENROUTER_GEMINI_25_PRO_MODEL,
   "claude-3.5-sonnet": OPENROUTER_GEMINI_25_PRO_MODEL,
@@ -356,6 +345,9 @@ export function selectedAILabel(id: string): string {
   if (opt) return opt.label;
   if (id === OPENROUTER_KIMI_K3_MODEL || isKimiModel(id)) {
     return KIMI_K3_DISPLAY_NAME;
+  }
+  if (id === OPENROUTER_SOLAR_PRO_3_MODEL || id.toLowerCase().includes("/solar-pro-3")) {
+    return SOLAR_PRO_3_DISPLAY_NAME;
   }
   if (id === OPENROUTER_QWEN_37_MAX_MODEL || id.toLowerCase().includes("qwen3.7-max")) {
     return QWEN_DISPLAY_NAME;

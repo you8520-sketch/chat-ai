@@ -4,7 +4,6 @@ import {
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_25_PRO_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
-  OPENROUTER_SOLAR_PRO_3_MODEL,
   OPENROUTER_TENCENT_HY3_MODEL,
 } from "@/lib/chatModels";
 import { DEFAULT_TARGET_RESPONSE_CHARS } from "@/lib/responseLengthConstants";
@@ -25,7 +24,6 @@ const ACTIVE = [
   OPENROUTER_MUSE_SPARK_11_MODEL,
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_25_PRO_MODEL,
-  OPENROUTER_SOLAR_PRO_3_MODEL,
   OPENROUTER_TENCENT_HY3_MODEL,
 ] as const;
 
@@ -48,9 +46,9 @@ function assistantUsage(
 }
 
 describe("modelPickerPreview V2", () => {
-  it("covers all five active models", () => {
+  it("covers all four active models", () => {
     const preview = buildModelPickerPreview({ messages: [], modelIds: [...ACTIVE] });
-    assert.equal(preview.models.length, 5);
+    assert.equal(preview.models.length, 4);
     for (const id of ACTIVE) {
       const row = preview.models.find((m) => m.modelId === id);
       assert.ok(row, id);
