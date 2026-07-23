@@ -1,5 +1,4 @@
 import type { Usage } from "@/lib/chatUsage";
-import { isDemoUserEmail } from "@/lib/demo";
 
 export const BILLING_BREAKDOWN_SYSTEM_RULES_LABEL = "시스템 프롬프트 (고정 규칙)";
 /** Keyword-activated lorebook entries injected this turn */
@@ -18,7 +17,6 @@ function isAdminEmailUser(user: { email: string } & { is_admin?: number }): bool
 export function canShowFullBillingReceipt(
   user: { email: string } & { is_admin?: number }
 ): boolean {
-  if (isDemoUserEmail(user.email)) return true;
   return isAdminEmailUser(user);
 }
 

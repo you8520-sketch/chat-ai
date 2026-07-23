@@ -16,8 +16,10 @@ import { filterUsageBreakdownForReceipt } from "@/lib/billingReceiptAccess";
 import type { Usage } from "@/lib/chatUsage";
 import {
   isDeepSeekV4ProModel,
+  isGemini25ProModel,
   isGemini31ProModel,
   isGeminiProOpenRouterModel,
+  isMuseModel,
   isTencentHy3Model,
 } from "@/lib/chatModels";
 import { IconInfo } from "./ChatToolbarIcons";
@@ -39,10 +41,15 @@ function ReceiptBody({
 }) {
   const reasoningExcludedFromBilling =
     usage.provider === "openrouter" &&
-    isGeminiProOpenRouterModel(usage.model ?? "") &&
-    !isGemini31ProModel(usage.model ?? "");
-  const usesCacheNeutralTokenPricing =
-    isDeepSeekV4ProModel(usage.model ?? "") || isTencentHy3Model(usage.model ?? "");
+    (isMuseModel(usage.model ?? "") ||
+      (isGeminiProOpenRouterModel(usage.model ?? "") &&
+        !isGemini31ProModel(usage.model ?? "")));
+  const cacheNeutralGrossMarginPercent =
+    isDeepSeekV4ProModel(usage.model ?? "") || isTencentHy3Model(usage.model ?? "")
+      ? 65
+      : isMuseModel(usage.model ?? "") || isGemini25ProModel(usage.model ?? "")
+        ? 55
+        : null;
   const widgetExtractCallCount = resolveStoredWidgetExtractCallCount(
     usage.statusWidgetExtract?.callCount
   );
@@ -157,9 +164,10 @@ function ReceiptBody({
           </span>
         </p>
       )}
-      {usesCacheNeutralTokenPricing && (
+      {cacheNeutralGrossMarginPercent != null && (
         <p className="text-[10px] leading-relaxed text-zinc-500">
-          포인트는 캐시 여부와 관계없이 전체 입력·출력 토큰의 모델 정가에 65% 기준 마진을 적용합니다.
+          포인트는 캐시 여부와 관계없이 표시된 입력·출력 토큰의 모델 정가에{" "}
+          {cacheNeutralGrossMarginPercent}% 기준 마진을 적용합니다.
           캐시 내역은 제공사 원가 참고용입니다.
         </p>
       )}

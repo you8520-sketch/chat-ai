@@ -1,34 +1,53 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  OPENROUTER_MUSE_POINTS_PER_OUTPUT_TOKEN,
+  OPENROUTER_MUSE_GROSS_MARGIN,
+  OPENROUTER_MIN_TURN_COST,
   MUSE_WAIVER_SUCCESS_MIN_COST,
   computeOpenRouterTurnCost,
   explainOpenRouterMuseTurnCost,
   resolveMuseWaiverMinimumCharge,
 } from "@/lib/points";
 import { OPENROUTER_MUSE_SPARK_11_MODEL } from "@/lib/chatModels";
+import { resolveOpenRouterBillingRawCostKrw } from "@/lib/billingRawCost";
 
 describe("Muse Spark 1.1 billing", () => {
   const modelId = OPENROUTER_MUSE_SPARK_11_MODEL;
 
-  it("uses 0.06P per output token", () => {
-    assert.equal(OPENROUTER_MUSE_POINTS_PER_OUTPUT_TOKEN, 0.06);
+  it("uses one 55% gross-margin owner", () => {
+    assert.equal(OPENROUTER_MUSE_GROSS_MARGIN, 0.55);
     assert.equal(MUSE_WAIVER_SUCCESS_MIN_COST, 50);
   });
 
-  it("token floor = outputTokens × 0.06", () => {
+  it("charges standard list input and visible output divided by 0.45", () => {
+    const inputTokens = 20_000;
     const outputTokens = 2000;
-    const explain = explainOpenRouterMuseTurnCost(1000, outputTokens, modelId);
-    assert.equal(explain.charFloorKrw, Math.ceil(outputTokens * 0.06 - 1e-9));
-    assert.equal(explain.costPlusMarginKrw, 0);
+    const raw = resolveOpenRouterBillingRawCostKrw({
+      promptTokens: inputTokens,
+      outputTokens,
+      modelId,
+    });
+    const expected = Math.max(
+      OPENROUTER_MIN_TURN_COST,
+      Math.ceil(raw / (1 - OPENROUTER_MUSE_GROSS_MARGIN) - 1e-9)
+    );
+    const explain = explainOpenRouterMuseTurnCost(inputTokens, outputTokens, modelId);
+    assert.equal(explain.rawCostKrw, raw);
+    assert.equal(explain.charFloorKrw, 0);
+    assert.equal(explain.costPlusMarginKrw, expected);
+    assert.equal(explain.total, expected);
+    assert.equal(computeOpenRouterTurnCost(inputTokens, outputTokens, modelId), expected);
   });
 
-  it("charges output token floor only", () => {
+  it("increases with visible input/output but not cache state", () => {
     const outputTokens = 2000;
-    const lowUsage = computeOpenRouterTurnCost(100, outputTokens, modelId);
-    const explain = explainOpenRouterMuseTurnCost(100, outputTokens, modelId);
-    assert.equal(lowUsage, explain.total);
+    const shortNoCache = computeOpenRouterTurnCost(5000, outputTokens, modelId);
+    const longNoCache = computeOpenRouterTurnCost(50_000, outputTokens, modelId);
+    const longCacheHit = computeOpenRouterTurnCost(50_000, outputTokens, modelId, {
+      cacheReadTokens: 18_000,
+    });
+    assert.ok(longNoCache > shortNoCache);
+    assert.equal(longCacheHit, longNoCache);
   });
 
   it("waiver with meaningful text charges minimum 50P", () => {

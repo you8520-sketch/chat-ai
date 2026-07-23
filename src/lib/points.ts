@@ -336,26 +336,12 @@ export const OPENROUTER_KIMI_GROSS_MARGIN =
 /** Kimi — 과금 면제 턴 최소 차감 */
 export const KIMI_WAIVER_SUCCESS_MIN_COST = 65;
 
-/** Muse Spark 1.1 — 출력 1토큰당 청구 (P) — Gemini 2.5 Pro와 동일 */
-export const OPENROUTER_MUSE_POINTS_PER_OUTPUT_TOKEN = (() => {
-  const perToken = process.env.OPENROUTER_MUSE_POINTS_PER_OUTPUT_TOKEN?.trim();
-  if (perToken) return Number(perToken) || 0.06;
-  return 0.06;
-})();
-
 /** Muse — API 원가 대비 최저 매출총이익률 (55% → 원가÷0.45) */
 export const OPENROUTER_MUSE_GROSS_MARGIN =
   Number(process.env.OPENROUTER_MUSE_GROSS_MARGIN) || 0.55;
 
 /** Muse — 과금 면제 턴 최소 차감 */
 export const MUSE_WAIVER_SUCCESS_MIN_COST = 50;
-
-/** Gemini 2.5 Pro — 출력 1토큰당 청구 (P) */
-export const OPENROUTER_GEMINI_25_POINTS_PER_OUTPUT_TOKEN = (() => {
-  const perToken = process.env.OPENROUTER_GEMINI_25_POINTS_PER_OUTPUT_TOKEN?.trim();
-  if (perToken) return Number(perToken) || 0.06;
-  return 0.06;
-})();
 
 /** Gemini 2.5 Pro — API 원가 대비 최저 매출총이익률 (55% → 원가÷0.45) */
 export const OPENROUTER_GEMINI_25_GROSS_MARGIN =
@@ -651,14 +637,6 @@ function openRouterKimiTokenFloorKrw(outputTokens: number): number {
   return chargePoints(Math.max(0, outputTokens) * OPENROUTER_KIMI_POINTS_PER_OUTPUT_TOKEN);
 }
 
-function openRouterMuseTokenFloorKrw(outputTokens: number): number {
-  return chargePoints(Math.max(0, outputTokens) * OPENROUTER_MUSE_POINTS_PER_OUTPUT_TOKEN);
-}
-
-function openRouterGemini25TokenFloorKrw(outputTokens: number): number {
-  return chargePoints(Math.max(0, outputTokens) * OPENROUTER_GEMINI_25_POINTS_PER_OUTPUT_TOKEN);
-}
-
 function openRouterGemini31TokenFloorKrw(outputTokens: number): number {
   return chargePoints(Math.max(0, outputTokens) * OPENROUTER_GEMINI_31_POINTS_PER_OUTPUT_TOKEN);
 }
@@ -667,6 +645,8 @@ function openRouterGemini31TokenFloorKrw(outputTokens: number): number {
  * 입력 10k 초과 할증.
  * - DeepSeek V4 Pro / Tencent Hy3: 0P. Every input token is already charged
  *   by the proportional list-cost formula, so a surcharge would double-charge.
+ * - Muse / Gemini 2.5 Pro: 0P. Every visible input token is already billed by
+ *   the same cache-neutral list-cost formula, so a surcharge would duplicate it.
  * - Legacy DeepSeek paths: 초과분/1000 × 0.5P
  * - 그 외: ceil(초과/1000) × 1P
  */
@@ -676,7 +656,12 @@ export function openRouterInputTokenSurchargeKrw(
 ): number {
   if (inputTokens < OPENROUTER_INPUT_SURCHARGE_THRESHOLD_TOKENS) return 0;
   const excess = inputTokens - OPENROUTER_INPUT_SURCHARGE_THRESHOLD_TOKENS;
-  if (isDeepSeekV4ProModel(modelId ?? "") || isTencentHy3Model(modelId ?? "")) {
+  if (
+    isDeepSeekV4ProModel(modelId ?? "") ||
+    isTencentHy3Model(modelId ?? "") ||
+    isMuseModel(modelId ?? "") ||
+    isGemini25ProModel(modelId ?? "")
+  ) {
     return 0;
   }
   if (isDeepSeekModel(modelId ?? "")) {
@@ -855,19 +840,21 @@ export function computeOpenRouterTurnCost(
   }
 
   if (isMuseModel(modelId ?? "")) {
-    return openRouterTokenOnlyTurnCost(
-      openRouterMuseTokenFloorKrw(outputTokens),
+    return explainOpenRouterMuseTurnCost(
       inputTokens,
-      modelId
-    );
+      outputTokens,
+      modelId ?? ""
+    ).total;
   }
 
   if (isGemini25ProModel(modelId ?? "")) {
-    return openRouterTokenOnlyTurnCost(
-      openRouterGemini25TokenFloorKrw(outputTokens),
+    return explainOpenRouterGemini25TurnCost(
       inputTokens,
-      modelId
-    );
+      outputTokens,
+      modelId ?? "",
+      cache,
+      opts?.billingBasis
+    ).total;
   }
 
   if (isGemini31ProModel(modelId ?? "")) {
@@ -1374,38 +1361,41 @@ export function explainOpenRouterKimiTurnCost(
   );
 }
 
-/** Muse Spark 1.1 과금 상세 — 출력토큰×0.06P */
+/**
+ * Muse Spark 1.1: standard no-cache list input + visible content output,
+ * divided by 0.45 for a 55% gross-margin target.
+ */
 export function explainOpenRouterMuseTurnCost(
   inputTokens: number,
   outputTokens: number,
   modelId: string,
   _outputChars?: number,
-  cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">
+  _cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">
 ): OpenRouterTurnCostBreakdown & { total: number } {
-  return explainOpenRouterTokenOnlyTurnCost(
+  return explainOpenRouterCacheNeutralMarginTurnCost(
     inputTokens,
     outputTokens,
     modelId,
-    openRouterMuseTokenFloorKrw(outputTokens),
-    cache
+    OPENROUTER_MUSE_GROSS_MARGIN
   );
 }
 
-/** OpenRouter Gemini 2.5 Pro — 출력토큰×0.06P */
+/**
+ * Gemini 2.5 Pro: standard no-cache list input + visible content output,
+ * divided by 0.45. Cache, upstream cost, and hidden reasoning are excluded.
+ */
 export function explainOpenRouterGemini25TurnCost(
   inputTokens: number,
   outputTokens: number,
   modelId: string,
-  cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">,
-  billingBasis?: OpenRouterTurnBillingBasis
+  _cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">,
+  _billingBasis?: OpenRouterTurnBillingBasis
 ): OpenRouterTurnCostBreakdown & { total: number } {
-  return explainOpenRouterTokenOnlyTurnCost(
+  return explainOpenRouterCacheNeutralMarginTurnCost(
     inputTokens,
     outputTokens,
     modelId,
-    openRouterGemini25TokenFloorKrw(outputTokens),
-    cache,
-    billingBasis
+    OPENROUTER_GEMINI_25_GROSS_MARGIN
   );
 }
 
@@ -1836,8 +1826,8 @@ export function sumOpenRouterStageUpstreamUsd(stages: StageUsage[]): number {
 }
 
 /**
- * OpenRouter 출력 과금 — Gemini Pro는 mandatory reasoning이 upstream에만 발생.
- * 유저 과금·영수증 출력은 content(표시 RP) 토큰만 사용.
+ * Muse/Gemini Pro hidden reasoning is provider cost only.
+ * User billing and receipts use visible content output tokens.
  */
 export function billableOpenRouterOutputTokens(
   modelId: string,
@@ -1845,7 +1835,10 @@ export function billableOpenRouterOutputTokens(
   reasoningTokens: number
 ): number {
   if (totalApiOutputTokens <= 0) return 0;
-  if (isGeminiProOpenRouterModel(modelId) && reasoningTokens > 0) {
+  if (
+    (isMuseModel(modelId) || isGeminiProOpenRouterModel(modelId)) &&
+    reasoningTokens > 0
+  ) {
     return Math.max(0, totalApiOutputTokens - reasoningTokens);
   }
   return totalApiOutputTokens;

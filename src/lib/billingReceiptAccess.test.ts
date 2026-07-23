@@ -7,14 +7,13 @@ import {
   filterUsageBreakdownForReceipt,
   sanitizeUsageForPublicReceipt,
 } from "@/lib/billingReceiptAccess";
-import { DEMO_USER_EMAIL } from "@/lib/demo";
 import type { Usage } from "@/lib/chatUsage";
 
 describe("canShowFullBillingReceipt", () => {
-  it("allows demo user email", () => {
+  it("does not expose operational pricing details to non-admin demo accounts", () => {
     assert.equal(
-      canShowFullBillingReceipt({ email: DEMO_USER_EMAIL, is_admin: 0 }),
-      true
+      canShowFullBillingReceipt({ email: "demo@example.com", is_admin: 0 }),
+      false
     );
   });
 
