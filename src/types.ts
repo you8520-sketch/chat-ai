@@ -74,6 +74,12 @@ export type ContextBuildInput = {
    */
   runtimeMode?: ChatRuntimeMode;
   personaDisplayName?: string;
+  /**
+   * Requesting user id — used ONLY by the INTERACTIVE_USER_OWNERSHIP_LOCK admin
+   * canary gate (separate from the DeepSeek Canon cohort). Optional for
+   * typecheck compatibility; route.ts always supplies it.
+   */
+  userId?: number;
   /** AI 출력 목표 글자 수 (채팅방별) */
   targetResponseChars?: number;
   /** 현재 턴 직전까지 완료된 대화 턴 수 */

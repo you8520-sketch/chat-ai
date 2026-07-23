@@ -1033,6 +1033,7 @@ export async function POST(req: Request) {
     novelModeEnabled,
     runtimeMode,
     personaDisplayName,
+    userId: user.id,
     targetResponseChars,
     completedTurns: playableTurnCount,
     userPersonaGender: selectedPersona?.gender ?? "other",
