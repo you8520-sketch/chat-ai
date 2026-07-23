@@ -37,7 +37,7 @@ import { stripRpMetaPreamble } from "@/lib/narrativeRules";
 import { buildAdvancedProseNsfwGuidelines } from "@/lib/advancedProseNsfwGuidelines";
 import { buildProseStyleXmlBundle } from "@/lib/proseStyleXmlBundle";
 import { PROSE_VNEXT_STYLE_SECTION } from "@/lib/proseVNext";
-import { isProseVNextEnabledForUser } from "@/lib/proseVNextPolicy";
+import { isProseVNextOn } from "@/lib/proseVNextPolicy";
 import { buildRegenerateSystemDirective } from "@/lib/continueNarrative";
 import {
   buildNoGodmoddingBlock,
@@ -771,7 +771,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
 
   const openRouterLiteraryNsfw = isOpenRouter && !!input.nsfw;
   // Prose VNext: style-section override only (same builder / section / cache slot).
-  const proseVNextOn = isProseVNextEnabledForUser(input.userId, input.modelId);
+  const proseVNextOn = isProseVNextOn(input.userId, input.modelId);
   const proseGuidelinesOpts = {
     nsfwEnabled: !!input.nsfw,
     literaryEnhanced: openRouterLiteraryNsfw,
