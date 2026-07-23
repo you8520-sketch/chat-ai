@@ -9,11 +9,19 @@
  * No valid USER_IDS → OFF (enabled alone never exposes VNext globally).
  * Optional PROSE_VNEXT_MODEL_IDS may further restrict; never bypasses user allowlist.
  * No model-specific prose wording — gate only.
+ *
+ * Public model-qualified rollout (separate path, default OFF):
+ *   PROSE_VNEXT_ROLLOUT_ENABLED=1 (or "true")
+ *   AND exact canonical model ID listed in PROSE_VNEXT_ROLLOUT_MODEL_IDS.
+ * Rollout never bypasses admin user allowlist semantics — it is an OR path for any user
+ * when the model is explicitly qualified and listed.
  */
 
 const ENV_ENABLED = "PROSE_VNEXT_ENABLED";
 const ENV_USER_IDS = "PROSE_VNEXT_USER_IDS";
 const ENV_MODEL_IDS = "PROSE_VNEXT_MODEL_IDS";
+const ENV_ROLLOUT_ENABLED = "PROSE_VNEXT_ROLLOUT_ENABLED";
+const ENV_ROLLOUT_MODEL_IDS = "PROSE_VNEXT_ROLLOUT_MODEL_IDS";
 
 /**
  * Canonical positive-integer token: /^[1-9]\d*$/.
@@ -44,11 +52,31 @@ function parseModelAllowlist(raw: string | undefined): string[] | null {
   return out;
 }
 
-function modelMatchesAllowlist(modelId: string | null | undefined, allow: string[]): boolean {
-  if (!modelId) return false;
+function normalizeModelId(modelId: string | null | undefined): string | null {
+  if (!modelId) return null;
   const id = modelId.trim().toLowerCase();
+  return id || null;
+}
+
+function modelMatchesAllowlist(modelId: string | null | undefined, allow: string[]): boolean {
+  const id = normalizeModelId(modelId);
   if (!id) return false;
   return allow.some((sub) => id.includes(sub));
+}
+
+function parseRolloutModelAllowlist(raw: string | undefined): string[] {
+  if (!raw) return [];
+  const out: string[] = [];
+  for (const part of raw.split(",")) {
+    const t = part.trim().toLowerCase();
+    if (t) out.push(t);
+  }
+  return out;
+}
+
+function isTruthyEnvFlag(raw: string | undefined): boolean {
+  const enabled = raw?.trim();
+  return enabled === "1" || enabled?.toLowerCase() === "true";
 }
 
 /**
@@ -60,8 +88,7 @@ export function isProseVNextEnabledForUser(
   userId: number | null | undefined,
   modelId?: string | null | undefined
 ): boolean {
-  const enabled = process.env[ENV_ENABLED]?.trim();
-  if (enabled !== "1" && enabled?.toLowerCase() !== "true") return false;
+  if (!isTruthyEnvFlag(process.env[ENV_ENABLED])) return false;
 
   const allow = parseAllowlist(process.env[ENV_USER_IDS]);
   if (allow.length === 0) return false; // fail closed — no global exposure
@@ -75,8 +102,40 @@ export function isProseVNextEnabledForUser(
   return modelMatchesAllowlist(modelId, models);
 }
 
+/**
+ * Public model-qualified rollout — exact canonical model ID match only.
+ * Default / missing MODEL_IDS / enabled alone → false.
+ */
+export function isProseVNextRolloutEnabledForModel(
+  modelId?: string | null | undefined
+): boolean {
+  if (!isTruthyEnvFlag(process.env[ENV_ROLLOUT_ENABLED])) return false;
+
+  const allow = parseRolloutModelAllowlist(process.env[ENV_ROLLOUT_MODEL_IDS]);
+  if (allow.length === 0) return false;
+
+  const id = normalizeModelId(modelId);
+  if (!id) return false;
+  return allow.includes(id);
+}
+
+/**
+ * Single ON switch: admin canary OR public model-qualified rollout.
+ */
+export function isProseVNextOn(
+  userId: number | null | undefined,
+  modelId?: string | null | undefined
+): boolean {
+  return (
+    isProseVNextEnabledForUser(userId, modelId) ||
+    isProseVNextRolloutEnabledForModel(modelId)
+  );
+}
+
 export const PROSE_VNEXT_ENV = {
   ENABLED: ENV_ENABLED,
   USER_IDS: ENV_USER_IDS,
   MODEL_IDS: ENV_MODEL_IDS,
+  ROLLOUT_ENABLED: ENV_ROLLOUT_ENABLED,
+  ROLLOUT_MODEL_IDS: ENV_ROLLOUT_MODEL_IDS,
 };
