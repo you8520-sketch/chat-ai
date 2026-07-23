@@ -36,8 +36,7 @@ import {
 import { stripRpMetaPreamble } from "@/lib/narrativeRules";
 import { buildAdvancedProseNsfwGuidelines } from "@/lib/advancedProseNsfwGuidelines";
 import { buildProseStyleXmlBundle } from "@/lib/proseStyleXmlBundle";
-import { PROSE_VNEXT_STYLE_SECTION } from "@/lib/proseVNext";
-import { isProseVNextOn } from "@/lib/proseVNextPolicy";
+import { resolveProseStyleSection } from "@/lib/proseStyleResolver";
 import { buildRegenerateSystemDirective } from "@/lib/continueNarrative";
 import {
   buildNoGodmoddingBlock,
@@ -770,13 +769,13 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   }
 
   const openRouterLiteraryNsfw = isOpenRouter && !!input.nsfw;
-  // Prose VNext: style-section override only (same builder / section / cache slot).
-  const proseVNextOn = isProseVNextOn(input.userId, input.modelId);
+  // Prose style: single-slot Legacy | VNext | Muse M1 override.
+  const proseStyleSection = resolveProseStyleSection(input.userId, input.modelId);
   const proseGuidelinesOpts = {
     nsfwEnabled: !!input.nsfw,
     literaryEnhanced: openRouterLiteraryNsfw,
     includeAbsoluteProhibition: !isOpenRouter,
-    proseStyleSection: proseVNextOn ? PROSE_VNEXT_STYLE_SECTION : undefined,
+    proseStyleSection,
   };
   const proseStyleTarget: SectionTarget = isOpenRouter ? "cacheCharacter" : "dynamic";
   if (isOpenRouter) {
