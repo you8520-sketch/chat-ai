@@ -283,22 +283,27 @@ export function buildModelPickerPreview(opts: {
   messages: ModelPickerMessageSample[];
   targetResponseChars?: number;
   assembledSnapshotTokens?: number | null;
+  assembledSnapshotTokensByModel?: Partial<Record<string, number>> | null;
   draftInput?: string;
   inputTokensOverride?: number | null;
   modelIds?: string[];
 }): ModelPickerPreviewResult {
+  const representativeSnapshot =
+    opts.assembledSnapshotTokens ??
+    Object.values(opts.assembledSnapshotTokensByModel ?? {}).find(
+      (tokens) => typeof tokens === "number" && tokens > 0
+    ) ??
+    null;
   const baseInput = resolveModelPickerBaseInputTokens({
-    assembledSnapshotTokens: opts.assembledSnapshotTokens,
+    assembledSnapshotTokens: representativeSnapshot,
     messages: opts.messages,
   });
 
-  const totalInput =
+  const inputOverride =
     typeof opts.inputTokensOverride === "number" && opts.inputTokensOverride > 0
       ? Math.max(1, Math.round(opts.inputTokensOverride))
-      : resolvePreviewInputTokens({
-          baseInputTokens: baseInput.tokens,
-          draftInput: opts.draftInput,
-        });
+      : null;
+  const draftTokens = opts.draftInput?.trim() ? estimateTokens(opts.draftInput) : 0;
 
   const modelIds =
     opts.modelIds ??
@@ -308,6 +313,7 @@ export function buildModelPickerPreview(opts: {
     if (!isActivePickerModel(modelId)) {
       return {
         modelId,
+        estimatedInputTokens: 0,
         estimatedOutputTokens: 0,
         estimatedPoints: null,
         supported: false,
@@ -320,15 +326,21 @@ export function buildModelPickerPreview(opts: {
       messages: opts.messages,
       targetResponseChars: opts.targetResponseChars,
     });
+    const modelBaseInput =
+      opts.assembledSnapshotTokensByModel?.[modelId] ?? baseInput.tokens;
+    const modelInputTokens =
+      inputOverride ??
+      Math.max(1, Math.round(modelBaseInput) + draftTokens);
 
     const points = computePreviewTurnPoints({
       modelId,
-      inputTokens: totalInput,
+      inputTokens: modelInputTokens,
       outputTokens,
     });
 
     return {
       modelId,
+      estimatedInputTokens: modelInputTokens,
       estimatedOutputTokens: outputTokens,
       estimatedPoints: points,
       supported: points != null,

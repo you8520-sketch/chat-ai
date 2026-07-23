@@ -138,6 +138,67 @@ describe("modelPickerPreview V2", () => {
     }
   });
 
+  it("uses each model's assembled input snapshot with billing parity", () => {
+    const deepSeekInput = 22_000;
+    const hy3Input = 15_000;
+    const preview = buildModelPickerPreview({
+      messages: [],
+      modelIds: [
+        OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
+        OPENROUTER_TENCENT_HY3_MODEL,
+      ],
+      assembledSnapshotTokensByModel: {
+        [OPENROUTER_DEEPSEEK_V4_PRO_MODEL]: deepSeekInput,
+        [OPENROUTER_TENCENT_HY3_MODEL]: hy3Input,
+      },
+    });
+    const deepSeek = preview.models.find(
+      (row) => row.modelId === OPENROUTER_DEEPSEEK_V4_PRO_MODEL
+    )!;
+    const hy3 = preview.models.find(
+      (row) => row.modelId === OPENROUTER_TENCENT_HY3_MODEL
+    )!;
+
+    assert.equal(deepSeek.estimatedInputTokens, deepSeekInput);
+    assert.equal(hy3.estimatedInputTokens, hy3Input);
+    assert.equal(
+      deepSeek.estimatedPoints,
+      computeOpenRouterTurnCost(
+        deepSeekInput,
+        deepSeek.estimatedOutputTokens,
+        deepSeek.modelId
+      )
+    );
+    assert.equal(
+      hy3.estimatedPoints,
+      computeOpenRouterTurnCost(
+        hy3Input,
+        hy3.estimatedOutputTokens,
+        hy3.modelId
+      )
+    );
+  });
+
+  it("adds the same draft-token estimate to every model-specific snapshot", () => {
+    const draftInput = "오늘은 긴 이야기를 시작해 보자.";
+    const preview = buildModelPickerPreview({
+      messages: [],
+      modelIds: [
+        OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
+        OPENROUTER_TENCENT_HY3_MODEL,
+      ],
+      assembledSnapshotTokensByModel: {
+        [OPENROUTER_DEEPSEEK_V4_PRO_MODEL]: 20_000,
+        [OPENROUTER_TENCENT_HY3_MODEL]: 10_000,
+      },
+      draftInput,
+    });
+    const expectedDraftTokens = Math.max(1, Math.ceil(draftInput.length * 0.9));
+
+    assert.equal(preview.models[0]?.estimatedInputTokens, 20_000 + expectedDraftTokens);
+    assert.equal(preview.models[1]?.estimatedInputTokens, 10_000 + expectedDraftTokens);
+  });
+
   it("Muse preview uses full apiOutput (billing parity)", () => {
     const museBillable = previewBillableOutputTokens(OPENROUTER_MUSE_SPARK_11_MODEL, {
       apiOutputTokens: 2500,

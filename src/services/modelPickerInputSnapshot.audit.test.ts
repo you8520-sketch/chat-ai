@@ -8,6 +8,7 @@ import {
   modelPickerSnapshotCacheSize,
   rememberModelPickerInputSnapshot,
 } from "@/services/modelPickerInputSnapshot";
+import { OPENROUTER_MUSE_SPARK_11_MODEL } from "@/lib/chatModels";
 
 const SNAPSHOT_SOURCE = fs.readFileSync(
   path.join(process.cwd(), "src/services/modelPickerInputSnapshot.ts"),
@@ -37,13 +38,21 @@ describe("modelPickerInputSnapshot read-only audit", () => {
     assert.doesNotMatch(SNAPSHOT_SOURCE, /updateChatMemory/);
     assert.doesNotMatch(SNAPSHOT_SOURCE, /getOrCreateChatMemory/);
   });
+
+  it("assembles a separate prompt-token snapshot for every active picker model", () => {
+    assert.match(SNAPSHOT_SOURCE, /MODEL_PICKER_ACTIVE_MODEL_IDS/);
+    assert.match(SNAPSHOT_SOURCE, /tokensByModel\[modelId\]/);
+    assert.match(SNAPSHOT_SOURCE, /modelId,/);
+  });
 });
 
 describe("modelPickerInputSnapshot cache bound", () => {
   it("stores per-chat latest only and evicts oldest entries", () => {
     for (let chatId = 1; chatId <= MODEL_PICKER_SNAPSHOT_CACHE_MAX_ENTRIES + 5; chatId += 1) {
       rememberModelPickerInputSnapshot(chatId, {
-        tokens: 1000 + chatId,
+        tokensByModel: {
+          [OPENROUTER_MUSE_SPARK_11_MODEL]: 1000 + chatId,
+        },
         messageCount: 1,
         personaId: null,
         userNote: "",

@@ -9,7 +9,7 @@ import {
   type ModelPickerMessageSample,
   usageToPickerSample,
 } from "@/lib/modelPickerPreview";
-import { resolveModelPickerAssembledInputSnapshot } from "@/services/modelPickerInputSnapshot";
+import { resolveModelPickerAssembledInputSnapshots } from "@/services/modelPickerInputSnapshot";
 
 type DbMessageRow = {
   id: number;
@@ -71,14 +71,11 @@ export async function POST(req: Request) {
       ? Math.round(body.inputTokensOverride)
       : null;
 
-  let assembledSnapshotTokens: number | null = null;
-  if (!skipContextBuild) {
-    assembledSnapshotTokens = await resolveModelPickerAssembledInputSnapshot({
-      chatId,
-      user,
-      refresh: refreshContext,
-    });
-  }
+  const assembledSnapshotTokensByModel = await resolveModelPickerAssembledInputSnapshots({
+    chatId,
+    user,
+    refresh: !skipContextBuild && refreshContext,
+  });
 
   const targetResponseChars = normalizeTargetResponseChars(
     typeof body.targetResponseChars === "number"
@@ -89,7 +86,7 @@ export async function POST(req: Request) {
   const preview = buildModelPickerPreview({
     messages: mapMessagesForPreview(rows),
     targetResponseChars,
-    assembledSnapshotTokens,
+    assembledSnapshotTokensByModel,
     draftInput: inputTokensOverride != null ? undefined : draftInput,
     inputTokensOverride,
   });
@@ -98,10 +95,8 @@ export async function POST(req: Request) {
     ...preview,
     totalInputTokens:
       inputTokensOverride ??
-      preview.baseInputTokens +
-        (draftInput?.trim()
-          ? Math.max(1, Math.ceil(draftInput.trim().length * 0.9))
-          : 0),
+      preview.models[0]?.estimatedInputTokens ??
+      preview.baseInputTokens,
     basis: preview.inputBasis,
   });
 }
