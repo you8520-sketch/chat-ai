@@ -1,6 +1,28 @@
 import { NextResponse } from "next/server";
 import { requireAdminUser } from "@/lib/adminAuth";
-import { reviewReportRefund } from "@/lib/refund";
+import { getReportRefundForAdmin, reviewReportRefund } from "@/lib/refund";
+
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const admin = await requireAdminUser();
+  if (!admin) {
+    return NextResponse.json({ error: "관리자 권한이 필요합니다." }, { status: 403 });
+  }
+
+  const { id } = await params;
+  const reportRefundId = Number(id);
+  if (!Number.isFinite(reportRefundId) || reportRefundId <= 0) {
+    return NextResponse.json({ error: "잘못된 신고 ID입니다." }, { status: 400 });
+  }
+
+  const report = getReportRefundForAdmin(reportRefundId);
+  if (!report) {
+    return NextResponse.json({ error: "신고 내역을 찾을 수 없습니다." }, { status: 404 });
+  }
+  return NextResponse.json({ report });
+}
 
 export async function POST(
   req: Request,
