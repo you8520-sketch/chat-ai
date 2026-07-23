@@ -30,6 +30,10 @@ import {
 } from "@/lib/userPersonas";
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
 import { DEFAULT_SELECTED_AI } from "@/lib/chatModels";
+import {
+  MODEL_PICKER_ACTIVE_MODEL_IDS,
+  type ModelPickerActiveModelId,
+} from "@/lib/modelPickerPreview";
 import { normalizeTargetResponseChars } from "@/lib/responseLength";
 import { collectCharacterSettingText } from "@/lib/bodyHairRules";
 import type { User } from "@/lib/auth";
@@ -37,7 +41,7 @@ import { buildContext } from "@/services/contextBuilder";
 import type { ChatMsg } from "@/lib/ai";
 
 type SnapshotCacheEntry = {
-  tokens: number;
+  tokensByModel: Partial<Record<ModelPickerActiveModelId, number>>;
   messageCount: number;
   personaId: number | null;
   userNote: string;
@@ -78,7 +82,7 @@ function snapshotCacheKey(chatId: number): SnapshotCacheEntry | undefined {
 
 export function rememberModelPickerInputSnapshot(
   chatId: number,
-  entry: Omit<SnapshotCacheEntry, "tokens"> & { tokens: number }
+  entry: SnapshotCacheEntry
 ): void {
   if (assembledSnapshotCache.has(chatId)) {
     assembledSnapshotCache.delete(chatId);
@@ -87,11 +91,11 @@ export function rememberModelPickerInputSnapshot(
   evictOldestSnapshotCacheEntries();
 }
 
-export async function resolveModelPickerAssembledInputSnapshot(opts: {
+export async function resolveModelPickerAssembledInputSnapshots(opts: {
   chatId: number;
   user: User;
   refresh?: boolean;
-}): Promise<number | null> {
+}): Promise<Partial<Record<ModelPickerActiveModelId, number>> | null> {
   const db = getDb();
   const chat = db
     .prepare(
@@ -127,7 +131,7 @@ export async function resolveModelPickerAssembledInputSnapshot(opts: {
     cached.userNote === userNote &&
     cached.targetResponseChars === targetResponseChars
   ) {
-    return cached.tokens;
+    return cached.tokensByModel;
   }
 
   const ch = db
@@ -139,7 +143,7 @@ export async function resolveModelPickerAssembledInputSnapshot(opts: {
     )
     .get(chat.character_id) as Record<string, unknown> | undefined;
 
-  if (!ch) return cached?.tokens ?? null;
+  if (!ch) return cached?.tokensByModel ?? null;
 
   const personas = listUserPersonas(opts.user.id);
   const { persona: selectedPersona } = resolveChatSelectedPersona(
@@ -190,8 +194,8 @@ export async function resolveModelPickerAssembledInputSnapshot(opts: {
     msgRows.map(({ role, content, model }) => ({ role, content, model }))
   );
   const playableTurnCount = countPlayableTurns(dialogueTurns);
-  const contextModelId = DEFAULT_SELECTED_AI;
-  const historyTokenBudget = resolveHistoryTokenBudget(contextModelId, "openrouter");
+  const sharedContextModelId = DEFAULT_SELECTED_AI;
+  const historyTokenBudget = resolveHistoryTokenBudget(sharedContextModelId, "openrouter");
 
   const recentHistoryFull: ChatMsg[] = rawRecentTurnsToHistory(dialogueTurns).map((m) => ({
     ...m,
@@ -208,7 +212,7 @@ export async function resolveModelPickerAssembledInputSnapshot(opts: {
         tier: memoryTier,
         memoryCapacity,
         userMessage: "",
-        modelId: contextModelId,
+        modelId: sharedContextModelId,
         provider: "openrouter",
         excludeSummaryTurnStartGte: resolveLorebookExcludeFromTrimmedHistory(
           dialogueTurns,
@@ -230,53 +234,75 @@ export async function resolveModelPickerAssembledInputSnapshot(opts: {
   const assetTags = [...new Set(characterAssets.map((a) => a.tag))];
   collectCharacterSettingText(characterChunks);
 
-  const built = buildContext({
-    charName: String(ch.name),
-    chunks: characterChunks,
-    systemPrompt: String(ch.system_prompt ?? ""),
-    world: String(ch.world ?? ""),
-    exampleDialog: resolveExampleDialogForPrompt(String(ch.example_dialog ?? ""), String(ch.name)),
-    userNickname: opts.user.nickname,
-    userPersona: userPersonaPrompt,
-    userNote: userNotePrompt,
-    longTermMemory: memoryFeatureOn ? memoryInjection.text : "",
-    archiveMemory: memoryFeatureOn ? memoryInjection.archiveText : "",
-    shortTermHistory: recentHistoryFull,
-    currentUserMessage: "",
-    nsfw: chat.mode === "nsfw",
-    gender: resolveCharacterGender(String(ch.gender ?? "")),
-    assetTags: assetTags.length > 0 ? assetTags : undefined,
-    modelId: contextModelId,
-    userImpersonation: oocUserImpersonationAllowed,
-    novelModeEnabled: false,
-    runtimeMode,
-    personaDisplayName,
-    targetResponseChars,
-    completedTurns: playableTurnCount,
-    userPersonaGender: selectedPersona?.gender ?? "other",
-    provider: "openrouter",
-    genres: characterGenres,
-    useEnglishCharacterPrompt: usedEnglishCharacterPrompt,
-    isContinue: false,
-    regenerate: false,
-    geminiStaticDynamicMode: false,
-    statusWidgetActive: false,
-    mainModelOwnsRelationshipExtract: false,
-  });
+  const tokensByModel: Partial<Record<ModelPickerActiveModelId, number>> = {};
+  for (const modelId of MODEL_PICKER_ACTIVE_MODEL_IDS) {
+    const built = buildContext({
+      charName: String(ch.name),
+      chunks: characterChunks,
+      systemPrompt: String(ch.system_prompt ?? ""),
+      world: String(ch.world ?? ""),
+      exampleDialog: resolveExampleDialogForPrompt(String(ch.example_dialog ?? ""), String(ch.name)),
+      userNickname: opts.user.nickname,
+      userPersona: userPersonaPrompt,
+      userNote: userNotePrompt,
+      longTermMemory: memoryFeatureOn ? memoryInjection.text : "",
+      archiveMemory: memoryFeatureOn ? memoryInjection.archiveText : "",
+      shortTermHistory: recentHistoryFull,
+      currentUserMessage: "",
+      nsfw: chat.mode === "nsfw",
+      gender: resolveCharacterGender(String(ch.gender ?? "")),
+      assetTags: assetTags.length > 0 ? assetTags : undefined,
+      modelId,
+      userImpersonation: oocUserImpersonationAllowed,
+      novelModeEnabled: false,
+      runtimeMode,
+      personaDisplayName,
+      targetResponseChars,
+      completedTurns: playableTurnCount,
+      userPersonaGender: selectedPersona?.gender ?? "other",
+      provider: "openrouter",
+      genres: characterGenres,
+      useEnglishCharacterPrompt: usedEnglishCharacterPrompt,
+      isContinue: false,
+      regenerate: false,
+      geminiStaticDynamicMode: false,
+      statusWidgetActive: false,
+      mainModelOwnsRelationshipExtract: false,
+    });
+    const tokens =
+      built.meta.promptAudit?.totalAssembledTokens ?? built.meta.estimatedInputTokens;
+    if (typeof tokens === "number" && tokens > 0) {
+      tokensByModel[modelId] = tokens;
+    }
+  }
 
-  const tokens = built.meta.promptAudit?.totalAssembledTokens ?? built.meta.estimatedInputTokens;
-  if (typeof tokens === "number" && tokens > 0) {
+  if (Object.keys(tokensByModel).length > 0) {
     rememberModelPickerInputSnapshot(opts.chatId, {
-      tokens,
+      tokensByModel,
       messageCount,
       personaId: chat.selected_persona_id,
       userNote,
       targetResponseChars,
     });
-    return tokens;
+    return tokensByModel;
   }
 
-  return cached?.tokens ?? null;
+  return cached?.tokensByModel ?? null;
+}
+
+/** @deprecated Use the per-model snapshot map for pricing previews. */
+export async function resolveModelPickerAssembledInputSnapshot(opts: {
+  chatId: number;
+  user: User;
+  refresh?: boolean;
+}): Promise<number | null> {
+  const snapshots = await resolveModelPickerAssembledInputSnapshots(opts);
+  if (!snapshots) return null;
+  return (
+    snapshots[DEFAULT_SELECTED_AI as ModelPickerActiveModelId] ??
+    Object.values(snapshots).find((tokens) => typeof tokens === "number" && tokens > 0) ??
+    null
+  );
 }
 
 /** Opening-only chats still include greeting history — detect zero playable turns. */

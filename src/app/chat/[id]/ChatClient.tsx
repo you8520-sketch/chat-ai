@@ -1190,15 +1190,19 @@ export default function ChatClient({
   const inputLocked = loading || lastTurnInFlight;
 
   const [pickerPreview, setPickerPreview] = useState<ModelPickerPreviewResult | null>(null);
-  const pickerPreviewBaseRef = useRef<number | null>(null);
+  const [pickerPreviewReady, setPickerPreviewReady] = useState(false);
   const pickerPreviewGateRef = useRef(createModelPickerPreviewRequestGate());
+
+  useEffect(() => {
+    setPickerPreview(null);
+    setPickerPreviewReady(false);
+  }, [chatId]);
 
   const fetchPickerPreview = useCallback(
     async (opts: {
       refreshContext?: boolean;
       skipContextBuild?: boolean;
       draftInput?: string;
-      inputTokensOverride?: number;
     }) => {
       if (!chatId) return;
       const requestSeq = pickerPreviewGateRef.current.next();
@@ -1211,15 +1215,14 @@ export default function ChatClient({
             targetResponseChars,
             refreshContext: opts.refreshContext === true,
             skipContextBuild: opts.skipContextBuild === true,
-            draftInput: opts.inputTokensOverride != null ? undefined : opts.draftInput,
-            inputTokensOverride: opts.inputTokensOverride,
+            draftInput: opts.draftInput,
           }),
         });
         if (!res.ok) return;
         const data = (await res.json()) as ModelPickerPreviewResult;
         if (!pickerPreviewGateRef.current.isLatest(requestSeq)) return;
-        pickerPreviewBaseRef.current = data.baseInputTokens;
         setPickerPreview(data);
+        setPickerPreviewReady(true);
       } catch {
         /* non-blocking preview */
       }
@@ -1228,21 +1231,20 @@ export default function ChatClient({
   );
 
   useEffect(() => {
-    if (!chatId) return;
+    if (!chatId || !pickerPreviewReady) return;
     void fetchPickerPreview({ refreshContext: true });
   }, [chatId, messages.length, userNote, selectedPersonaId, targetResponseChars, fetchPickerPreview]);
 
   useEffect(() => {
-    if (!chatId || pickerPreviewBaseRef.current == null) return;
-    const draftTok = input.trim() ? Math.max(1, Math.ceil(input.trim().length * 0.9)) : 0;
+    if (!chatId) return;
     const timer = window.setTimeout(() => {
       void fetchPickerPreview({
         skipContextBuild: true,
-        inputTokensOverride: pickerPreviewBaseRef.current! + draftTok,
+        draftInput: input,
       });
     }, 350);
     return () => window.clearTimeout(timer);
-  }, [chatId, input, fetchPickerPreview]);
+  }, [chatId, input, fetchPickerPreview, pickerPreviewReady]);
 
   /** Multi-tab: refresh global selected_ai on focus (server remains SoT for generation). */
   useEffect(() => {

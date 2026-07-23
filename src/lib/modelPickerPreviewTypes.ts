@@ -12,6 +12,7 @@ export type ModelPickerOutputBasis =
 
 export type ModelPickerPreviewModelResult = {
   modelId: string;
+  estimatedInputTokens: number;
   estimatedOutputTokens: number;
   estimatedPoints: number | null;
   supported: boolean;
