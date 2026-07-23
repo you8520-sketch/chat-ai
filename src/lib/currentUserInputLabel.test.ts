@@ -307,7 +307,7 @@ describe("R1 — COMPACT TERMINAL OWNERSHIP ECHO (Muse-targeted admin canary)", 
     }
   });
 
-  it("R1-E. echo is COMPACT — does NOT repeat the large ownership block, no LENGTH/prose/quotas", () => {
+  it("R1-E. echo is COMPACT — tightened semantics, residual agency types, no large-block repeat", () => {
     const w = wrapCurrentUserInput("…가만히 있어.", {
       mode: "interactive",
       personaName: "렌",
@@ -316,7 +316,15 @@ describe("R1 — COMPACT TERMINAL OWNERSHIP ECHO (Muse-targeted admin canary)", 
     });
     const echoIdx = w.indexOf(INTERACTIVE_OWNERSHIP_TERMINAL_ECHO_MARKER);
     const echo = w.slice(echoIdx);
-    // Compact: a handful of lines, not the large block.
+    // A. no longer contains the ambiguous "Everything above is ... user-authored".
+    assert.doesNotMatch(echo, /Everything above/i);
+    // B. contains semantics equivalent to "The user's current input is complete".
+    assert.match(echo, /The user's current input is complete/);
+    // C. contains "facial expression" (residual agency type Muse violated).
+    assert.match(echo, /facial expression/);
+    // D. contains "voluntary physical reaction" (residual agency type Muse violated).
+    assert.match(echo, /voluntary physical reaction/);
+    // E. remains compact (<= existing 4-line limit).
     assert.ok(echo.split("\n").length <= 4, "echo must be compact (<=4 lines)");
     // Does NOT re-map [B] (no second "[B] =").
     assert.doesNotMatch(echo, /\[B\] = /);

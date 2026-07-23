@@ -114,12 +114,21 @@ If the input contains parentheses or action text, treat it as completed user inp
  * the lock above the body) without re-mapping, and does NOT repeat the large
  * ownership block, add dialogue quotas, prose, or LENGTH rules.
  *
+ * Wording note: the echo says "The user's current input is complete" rather
+ * than "everything above is user-authored" — the last user message also
+ * contains the ownership wrapper/instructions (and may have an OpenRouter
+ * dynamic prefix), so "everything above = user-authored" would be literally
+ * inaccurate. The prohibition list covers the residual agency types Muse
+ * actually violated on production (dialogue / action / thought / emotion /
+ * decision / answer / agreement-refusal / facial expression / voluntary
+ * physical reaction).
+ *
  * Only emitted when ownershipLockEnabled is true (interactive + lock ON) AND
  * ownershipTerminalEchoEnabled is true (Muse-targeted admin canary).
  */
 function buildOwnershipTerminalEcho(): string {
   return `${INTERACTIVE_OWNERSHIP_TERMINAL_ECHO_MARKER}
-Everything above is already-completed user-authored content for [B] this turn. Do NOT generate any NEW [B] dialogue, deliberate action, thought, emotion conclusion, decision, answer, or agreement/refusal. Continue the scene through AI-controlled characters, NPCs, environment, and world events.`;
+The user's current input is complete. Do NOT generate any NEW [B] dialogue, deliberate action, thought, emotion conclusion, decision, answer, agreement/refusal, facial expression, or voluntary physical reaction. Continue only through AI-controlled characters, NPCs, environment, and world events.`;
 }
 
 /** Wrap latest user turn content. Idempotent if already wrapped. */
