@@ -10,6 +10,7 @@ import {
   isOpenRouterRpReasoningMandatoryModel,
   isOpenRouterRpReasoningMuseModel,
   isQwenOpenRouterModel,
+  isSolarPro3OpenRouterModel,
   GEMINI_PRO_GENERATION_PARAMS,
   OPENROUTER_RP_REASONING_GEMINI_FLASH,
   OPENROUTER_RP_REASONING_GEMINI_25_PRO_CAP,
@@ -29,6 +30,7 @@ import {
   OPENROUTER_KIMI_K3_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
   OPENROUTER_QWEN_37_MAX_MODEL,
+  OPENROUTER_SOLAR_PRO_3_MODEL,
 } from "@/lib/chatModels";
 import { resolveRpOpenRouterModelId } from "@/lib/openRouterConfig";
 
@@ -63,11 +65,18 @@ describe("OpenRouter reasoning-disable model detection", () => {
     assert.equal(isMuseOpenRouterModel(OPENROUTER_QWEN_37_MAX_MODEL), false);
   });
 
-  it("disable union covers DeepSeek, Qwen, GLM, and Kimi — not Muse", () => {
+  it("matches Solar Pro 3 ids", () => {
+    assert.equal(isSolarPro3OpenRouterModel(OPENROUTER_SOLAR_PRO_3_MODEL), true);
+    assert.equal(isSolarPro3OpenRouterModel("upstage/solar-pro-3"), true);
+    assert.equal(isSolarPro3OpenRouterModel(OPENROUTER_MUSE_SPARK_11_MODEL), false);
+  });
+
+  it("disable union covers DeepSeek, Qwen, GLM, Kimi, and Solar — not Muse", () => {
     assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_DEEPSEEK_V4_PRO_MODEL), true);
     assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_QWEN_37_MAX_MODEL), true);
     assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_GLM_52_MODEL), true);
     assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_KIMI_K3_MODEL), true);
+    assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_SOLAR_PRO_3_MODEL), true);
     assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_MUSE_SPARK_11_MODEL), false);
     assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_GEMINI_31_PRO_MODEL), false);
     assert.equal(isOpenRouterRpReasoningDisabledModel(OPENROUTER_GEMINI_25_PRO_MODEL), false);
@@ -171,6 +180,20 @@ describe("buildOpenRouterRequestBody — RP reasoning policy", () => {
       3500,
       "chat-1"
     ) as Record<string, unknown>;
+    assert.deepEqual(body.reasoning, OPENROUTER_RP_REASONING_OFF);
+    assert.equal(body.include_reasoning, false);
+    assert.equal(body.max_tokens, undefined);
+  });
+
+  it("disables reasoning for Solar Pro 3 RP requests", () => {
+    const body = buildOpenRouterRequestBody(
+      OPENROUTER_SOLAR_PRO_3_MODEL,
+      [{ role: "user", content: "test" }],
+      true,
+      3500,
+      "chat-1"
+    ) as Record<string, unknown>;
+    assert.equal(body.model, OPENROUTER_SOLAR_PRO_3_MODEL);
     assert.deepEqual(body.reasoning, OPENROUTER_RP_REASONING_OFF);
     assert.equal(body.include_reasoning, false);
     assert.equal(body.max_tokens, undefined);

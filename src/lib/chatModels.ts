@@ -43,6 +43,8 @@ export const OPENROUTER_KIMI_K3_MODEL = "moonshotai/kimi-k3";
 /** OpenRouter — Meta Muse Spark 1.1 */
 export const OPENROUTER_MUSE_SPARK_11_MODEL = "meta/muse-spark-1.1";
 
+export const OPENROUTER_SOLAR_PRO_3_MODEL = "upstage/solar-pro-3";
+
 /** OpenRouter — Google Gemini 2.5 Pro */
 export const OPENROUTER_GEMINI_25_PRO_MODEL = "google/gemini-2.5-pro";
 
@@ -71,6 +73,8 @@ export const GLM_52_DISPLAY_NAME = "GLM 5.2";
 export const KIMI_K3_DISPLAY_NAME = "Kimi K3";
 
 export const MUSE_SPARK_11_DISPLAY_NAME = "Muse Spark 1.1";
+
+export const SOLAR_PRO_3_DISPLAY_NAME = "Solar Pro 3";
 
 export const TENCENT_HY3_DISPLAY_NAME = "Tencent Hy3";
 
@@ -107,6 +111,12 @@ export const SELECTED_AI_OPTIONS = [
     label: GEMINI_25_PRO_DISPLAY_NAME,
     tier: "pro" as const,
     hint: "Google",
+  },
+  {
+    id: OPENROUTER_SOLAR_PRO_3_MODEL,
+    label: SOLAR_PRO_3_DISPLAY_NAME,
+    tier: "pro" as const,
+    hint: "Upstage",
   },
   {
     id: OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
@@ -246,6 +256,12 @@ export function isMuseModel(modelId: string): boolean {
   );
 }
 
+/** OpenRouter Upstage Solar Pro 3 */
+export function isSolarPro3Model(modelId: string): boolean {
+  const id = modelId.trim().toLowerCase();
+  return id === OPENROUTER_SOLAR_PRO_3_MODEL || id.includes("/solar-pro-3");
+}
+
 /** @deprecated provider === "openrouter" — 모든 OpenRouter 모델에 통합 prose 적용 */
 export function isOpenRouterSharedProseModel(modelId: string): boolean {
   const id = modelId.trim();
@@ -308,6 +324,10 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   "muse-spark-1.1": OPENROUTER_MUSE_SPARK_11_MODEL,
   musespark: OPENROUTER_MUSE_SPARK_11_MODEL,
   "meta/muse-spark-1.1": OPENROUTER_MUSE_SPARK_11_MODEL,
+  solar: OPENROUTER_SOLAR_PRO_3_MODEL,
+  "solar-pro": OPENROUTER_SOLAR_PRO_3_MODEL,
+  "solar-pro-3": OPENROUTER_SOLAR_PRO_3_MODEL,
+  "upstage/solar-pro-3": OPENROUTER_SOLAR_PRO_3_MODEL,
   /** Retired Sonnet → Gemini 2.5 Pro (3.1 Pro selection removed) */
   "anthropic/claude-3.5-sonnet": OPENROUTER_GEMINI_25_PRO_MODEL,
   "claude-3.5-sonnet": OPENROUTER_GEMINI_25_PRO_MODEL,
