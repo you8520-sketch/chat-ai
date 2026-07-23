@@ -232,6 +232,7 @@ export const MODEL_SYSTEM_BUDGETS: Record<string, number> = {
   "deepseek/deepseek-v4-pro": 28_000,
   "qwen/qwen3.7-max": 28_000,
   "meta/muse-spark-1.1": 28_000,
+  "upstage/solar-pro-3": 28_000,
   "google/gemini-2.5-pro": 28_000,
   "google/gemini-2.5-flash": 28_000,
   "google/gemini-3.1-flash-lite": 28_000,

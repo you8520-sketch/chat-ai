@@ -138,6 +138,17 @@ const MUSE_SPARK_11_RATES: OpenRouterModelRates = {
   explicitCacheInjection: false,
 };
 
+/** Upstage Solar Pro 3 — OpenRouter list ($0.15/M in, $0.60/M out, cache read $0.015/M) */
+const SOLAR_PRO_3_RATES: OpenRouterModelRates = {
+  family: "unknown",
+  label: "Upstage Solar prompt cache",
+  inputUsdPerM: 0.15,
+  outputUsdPerM: 0.6,
+  cacheReadUsdPerM: 0.015,
+  cacheWriteMultiplier: 1,
+  explicitCacheInjection: false,
+};
+
 /** Tencent Hy3 — OpenRouter list ($0.14/M in, $0.58/M out, cache read $0.035/M) */
 const TENCENT_HY3_RATES: OpenRouterModelRates = {
   family: "unknown",
@@ -175,6 +186,9 @@ export function resolveOpenRouterModelRates(modelId?: string | null): OpenRouter
   }
   if (id.includes("muse-spark") || /(^|\/)muse[-.]?spark\b/.test(id)) {
     return MUSE_SPARK_11_RATES;
+  }
+  if (id.includes("/solar-pro-3") || /(^|\/)solar[-.]?pro[-.]?3\b/.test(id)) {
+    return SOLAR_PRO_3_RATES;
   }
   if (id.includes("/hy3") || /(^|\/)hy3\b/i.test(id)) {
     return TENCENT_HY3_RATES;
