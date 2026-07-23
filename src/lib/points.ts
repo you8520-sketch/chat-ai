@@ -121,7 +121,7 @@ export const OPENROUTER_INPUT_SURCHARGE_PER_1000_TOKENS = (() => {
   return 1;
 })();
 
-/** DeepSeek — 입력 10k 초과 시 초과 1,000토큰당 추가 청구 (P). 중간 올림 없음. */
+/** Legacy DeepSeek V3 paths only; V4 Pro/Hy3 bill every input token directly. */
 export const OPENROUTER_DEEPSEEK_INPUT_SURCHARGE_PER_1000_TOKENS = (() => {
   const per1000 = process.env.OPENROUTER_DEEPSEEK_INPUT_SURCHARGE_PER_1000_TOKENS?.trim();
   if (per1000) return Number(per1000) || 0.5;
@@ -276,40 +276,23 @@ export const OPENROUTER_OPUS_GROSS_MARGIN =
 /** @deprecated OPENROUTER_OPUS_GROSS_MARGIN 사용 (markup ≠ gross margin) */
 export const OPENROUTER_OPUS_COST_MARKUP = OPENROUTER_OPUS_GROSS_MARGIN;
 
-/** DeepSeek V4 Pro — 출력 1토큰당 청구 (P) */
-export const OPENROUTER_DEEPSEEK_POINTS_PER_OUTPUT_TOKEN = (() => {
-  const perToken = process.env.OPENROUTER_DEEPSEEK_POINTS_PER_OUTPUT_TOKEN?.trim();
-  if (perToken) return Number(perToken) || 0.018;
-  return 0.018;
-})();
-
-/** @deprecated OPENROUTER_DEEPSEEK_POINTS_PER_OUTPUT_TOKEN 사용 */
-export const OPENROUTER_DEEPSEEK_POINTS_PER_CHAR = OPENROUTER_DEEPSEEK_POINTS_PER_OUTPUT_TOKEN;
-
-/** @deprecated OPENROUTER_DEEPSEEK_POINTS_PER_OUTPUT_TOKEN × 3000 — 레거시 env·audit용 */
-export const OPENROUTER_DEEPSEEK_KRW_PER_3000_TOKENS =
-  Number(
-    process.env.OPENROUTER_DEEPSEEK_KRW_PER_3000_TOKENS ??
-      process.env.OPENROUTER_DEEPSEEK_KRW_PER_3000_CHARS
-  ) || OPENROUTER_DEEPSEEK_POINTS_PER_OUTPUT_TOKEN * 3000;
-
-/** DeepSeek V4 Pro — API 원가 대비 최저 매출총이익률 (55% → 원가÷0.45) */
+/** DeepSeek V3 background/HTML path — V4 Pro pricing uses a separate owner below. */
 export const OPENROUTER_DEEPSEEK_GROSS_MARGIN =
   Number(process.env.OPENROUTER_DEEPSEEK_GROSS_MARGIN) || 0.55;
 
 /** @deprecated OPENROUTER_DEEPSEEK_GROSS_MARGIN 사용 */
 export const OPENROUTER_DEEPSEEK_COST_MARKUP = OPENROUTER_DEEPSEEK_GROSS_MARGIN;
 
-/** Tencent Hy3 — 출력 1토큰당 청구 (P) */
-export const OPENROUTER_TENCENT_HY3_POINTS_PER_OUTPUT_TOKEN = (() => {
-  const perToken = process.env.OPENROUTER_TENCENT_HY3_POINTS_PER_OUTPUT_TOKEN?.trim();
-  if (perToken) return Number(perToken) || 0.015;
-  return 0.015;
-})();
-
-/** Tencent Hy3 — API 원가 대비 최저 매출총이익률 (55% → 원가÷0.45) */
+/**
+ * DeepSeek V4 Pro and Tencent Hy3 share one cache-neutral pricing owner.
+ * Standard input/output list cost ÷ 0.35 gives a 65% no-cache gross margin.
+ * Provider cache savings are deliberately not reflected in the user charge.
+ */
+export const OPENROUTER_TOKEN_PROPORTIONAL_GROSS_MARGIN = 0.65;
+export const OPENROUTER_DEEPSEEK_V4_PRO_GROSS_MARGIN =
+  OPENROUTER_TOKEN_PROPORTIONAL_GROSS_MARGIN;
 export const OPENROUTER_TENCENT_HY3_GROSS_MARGIN =
-  Number(process.env.OPENROUTER_TENCENT_HY3_GROSS_MARGIN) || 0.55;
+  OPENROUTER_TOKEN_PROPORTIONAL_GROSS_MARGIN;
 
 /** Qwen 3.7 — 출력 1토큰당 청구 (P) */
 export const OPENROUTER_QWEN_POINTS_PER_OUTPUT_TOKEN = (() => {
@@ -656,14 +639,6 @@ function openRouterOpusCharFloorKrw(outputChars: number): number {
   return chargePoints(Math.max(0, outputChars) * OPENROUTER_OPUS_POINTS_PER_CHAR);
 }
 
-function openRouterDeepSeekTokenFloorKrw(outputTokens: number): number {
-  return chargePoints(Math.max(0, outputTokens) * OPENROUTER_DEEPSEEK_POINTS_PER_OUTPUT_TOKEN);
-}
-
-function openRouterTencentHy3TokenFloorKrw(outputTokens: number): number {
-  return chargePoints(Math.max(0, outputTokens) * OPENROUTER_TENCENT_HY3_POINTS_PER_OUTPUT_TOKEN);
-}
-
 function openRouterQwenTokenFloorKrw(outputTokens: number): number {
   return chargePoints(Math.max(0, outputTokens) * OPENROUTER_QWEN_POINTS_PER_OUTPUT_TOKEN);
 }
@@ -690,7 +665,9 @@ function openRouterGemini31TokenFloorKrw(outputTokens: number): number {
 
 /**
  * 입력 10k 초과 할증.
- * - DeepSeek: 초과분/1000 × 0.5P (중간 올림 없음 — 최종 합산에서만 chargePoints)
+ * - DeepSeek V4 Pro / Tencent Hy3: 0P. Every input token is already charged
+ *   by the proportional list-cost formula, so a surcharge would double-charge.
+ * - Legacy DeepSeek paths: 초과분/1000 × 0.5P
  * - 그 외: ceil(초과/1000) × 1P
  */
 export function openRouterInputTokenSurchargeKrw(
@@ -699,7 +676,10 @@ export function openRouterInputTokenSurchargeKrw(
 ): number {
   if (inputTokens < OPENROUTER_INPUT_SURCHARGE_THRESHOLD_TOKENS) return 0;
   const excess = inputTokens - OPENROUTER_INPUT_SURCHARGE_THRESHOLD_TOKENS;
-  if (isDeepSeekModel(modelId ?? "") || isTencentHy3Model(modelId ?? "")) {
+  if (isDeepSeekV4ProModel(modelId ?? "") || isTencentHy3Model(modelId ?? "")) {
+    return 0;
+  }
+  if (isDeepSeekModel(modelId ?? "")) {
     return (excess / 1000) * OPENROUTER_DEEPSEEK_INPUT_SURCHARGE_PER_1000_TOKENS;
   }
   const blocks = Math.ceil(excess / 1000);
@@ -835,19 +815,19 @@ export function computeOpenRouterTurnCost(
   }
 
   if (isDeepSeekV4ProModel(modelId ?? "")) {
-    return openRouterTokenOnlyTurnCost(
-      openRouterDeepSeekTokenFloorKrw(outputTokens),
+    return explainOpenRouterDeepSeekTurnCost(
       inputTokens,
-      modelId
-    );
+      outputTokens,
+      modelId ?? ""
+    ).total;
   }
 
   if (isTencentHy3Model(modelId ?? "")) {
-    return openRouterTokenOnlyTurnCost(
-      openRouterTencentHy3TokenFloorKrw(outputTokens),
+    return explainOpenRouterTencentHy3TurnCost(
       inputTokens,
-      modelId
-    );
+      outputTokens,
+      modelId ?? ""
+    ).total;
   }
 
   if (isQwenModel(modelId ?? "")) {
@@ -915,7 +895,7 @@ export type OpenRouterTurnCostBreakdown = {
   /** Opus — cache-hit-normalized API 원가 (로그·비교용) */
   normalizedRawCostKrw?: number;
   charFloorKrw: number;
-  /** 입력 10k 초과 할증 (DeepSeek 0.5P/1k 비례, 그 외 1P/1k 블록) */
+  /** 입력 10k 초과 할증 (V4 Pro/Hy3 are 0 because all input is already billed) */
   inputSurchargeKrw?: number;
   costPlusMarginKrw: number;
   applied: "char_floor" | "cost_plus_margin" | "min_turn" | "cost_blend" | "cold_start_shield";
@@ -1291,35 +1271,55 @@ function explainOpenRouterTokenOnlyTurnCost(
   };
 }
 
-/** DeepSeek V4 Pro 과금 상세 — 출력토큰×0.018P */
+function explainOpenRouterCacheNeutralMarginTurnCost(
+  inputTokens: number,
+  outputTokens: number,
+  modelId: string,
+  grossMargin: number
+): OpenRouterTurnCostBreakdown & { total: number } {
+  const rawCostKrw = resolveOpenRouterBillingRawCostKrw({
+    promptTokens: Math.max(0, inputTokens),
+    outputTokens: Math.max(0, outputTokens),
+    modelId,
+  });
+  return explainOpenRouterMarginOnlyFromRawCost(rawCostKrw, grossMargin);
+}
+
+/**
+ * DeepSeek V4 Pro billing detail.
+ * Uses standard list rates for every input/output token and ignores provider
+ * cache state, so identical token usage always has an identical user charge.
+ */
 export function explainOpenRouterDeepSeekTurnCost(
   inputTokens: number,
   outputTokens: number,
   modelId: string,
-  cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">
+  _cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">
 ): OpenRouterTurnCostBreakdown & { total: number } {
-  return explainOpenRouterTokenOnlyTurnCost(
+  return explainOpenRouterCacheNeutralMarginTurnCost(
     inputTokens,
     outputTokens,
     modelId,
-    openRouterDeepSeekTokenFloorKrw(outputTokens),
-    cache
+    OPENROUTER_DEEPSEEK_V4_PRO_GROSS_MARGIN
   );
 }
 
-/** Tencent Hy3 과금 상세 — 출력토큰×0.015P */
+/**
+ * Tencent Hy3 billing detail.
+ * Uses standard list rates for every input/output token and ignores provider
+ * cache state, so identical token usage always has an identical user charge.
+ */
 export function explainOpenRouterTencentHy3TurnCost(
   inputTokens: number,
   outputTokens: number,
   modelId: string,
-  cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">
+  _cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">
 ): OpenRouterTurnCostBreakdown & { total: number } {
-  return explainOpenRouterTokenOnlyTurnCost(
+  return explainOpenRouterCacheNeutralMarginTurnCost(
     inputTokens,
     outputTokens,
     modelId,
-    openRouterTencentHy3TokenFloorKrw(outputTokens),
-    cache
+    OPENROUTER_TENCENT_HY3_GROSS_MARGIN
   );
 }
 
@@ -1878,7 +1878,7 @@ export function computeTurnBilling(opts: {
   upstreamCostUsd?: number;
   apiPromptTokens?: number;
   apiCompletionTokens?: number;
-  /** OpenRouter Opus — 1자당 0.142P / DeepSeek·Qwen·Gemini — 출력토큰 단가만 (마진·노트 할증 없음) */
+  /** Saved visible characters are used by character-priced models only; V4 Pro/Hy3 use input/output tokens. */
   savedTextChars?: number;
   /** pricing-debug — 완료 턴 수 (messageCount = completedTurnsBeforeRequest + 1) */
   completedTurnsBeforeRequest?: number;

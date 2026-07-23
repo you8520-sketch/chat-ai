@@ -2331,7 +2331,7 @@ export async function POST(req: Request) {
             ...(deepSeekExplain
               ? {
                   deepSeekRawCostKrw: deepSeekExplain.rawCostKrw,
-                  deepSeekTokenFloorKrw: deepSeekExplain.charFloorKrw,
+                  deepSeekCacheNeutralChargeKrw: deepSeekExplain.costPlusMarginKrw,
                   deepSeekCostPlusMarginKrw: deepSeekExplain.costPlusMarginKrw,
                   deepSeekApplied: deepSeekExplain.applied,
                 }
@@ -2339,7 +2339,7 @@ export async function POST(req: Request) {
             ...(tencentHy3Explain
               ? {
                   tencentHy3RawCostKrw: tencentHy3Explain.rawCostKrw,
-                  tencentHy3TokenFloorKrw: tencentHy3Explain.charFloorKrw,
+                  tencentHy3CacheNeutralChargeKrw: tencentHy3Explain.costPlusMarginKrw,
                   tencentHy3CostPlusMarginKrw: tencentHy3Explain.costPlusMarginKrw,
                   tencentHy3Applied: tencentHy3Explain.applied,
                 }
