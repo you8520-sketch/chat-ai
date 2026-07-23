@@ -3,10 +3,14 @@ import { describe, it } from "node:test";
 import {
   CURRENT_USER_INPUT_HEADER,
   INTERACTIVE_OWNERSHIP_LOCK_MARKER,
+  INTERACTIVE_OWNERSHIP_TERMINAL_ECHO_MARKER,
   buildCurrentUserInputWrapper,
   wrapCurrentUserInput,
 } from "@/lib/currentUserInputLabel";
-import { isInteractiveUserOwnershipLockEnabledForUser } from "@/lib/interactiveUserOwnershipLock";
+import {
+  isInteractiveUserOwnershipLockEnabledForUser,
+  isInteractiveUserOwnershipTerminalEchoEnabledForUser,
+} from "@/lib/interactiveUserOwnershipLock";
 
 describe("CURRENT USER INPUT — interactive ownership recency lock (admin canary gate)", () => {
   it("A. interactive + gate ON → strict ownership lock injected", () => {
@@ -240,5 +244,199 @@ describe("INTERACTIVE_USER_OWNERSHIP_LOCK gate (separate from Canon cohort)", ()
     delete process.env.INTERACTIVE_USER_OWNERSHIP_LOCK_ENABLED;
     delete process.env.INTERACTIVE_USER_OWNERSHIP_LOCK_USER_IDS;
     assert.equal(isInteractiveUserOwnershipLockEnabledForUser(1), false);
+  });
+});
+
+describe("R1 — COMPACT TERMINAL OWNERSHIP ECHO (Muse-targeted admin canary)", () => {
+  it("R1-A. lock ON + echo ON (interactive) → terminal echo appended AFTER body at literal tail", () => {
+    const body = "…다음에 밖에 나갈 때, 네 옆에 설지 뒤에 설지. 내가 정해도 돼?";
+    const w = wrapCurrentUserInput(body, {
+      mode: "interactive",
+      personaName: "렌",
+      ownershipLockEnabled: true,
+      ownershipTerminalEchoEnabled: true,
+    });
+    // Lock (above body) present.
+    assert.ok(w.includes(INTERACTIVE_OWNERSHIP_LOCK_MARKER));
+    // Body present.
+    assert.ok(w.includes(body));
+    // Terminal echo marker present and located AFTER the body (literal tail).
+    assert.ok(w.includes(INTERACTIVE_OWNERSHIP_TERMINAL_ECHO_MARKER));
+    const bodyIdx = w.indexOf(body);
+    const echoIdx = w.indexOf(INTERACTIVE_OWNERSHIP_TERMINAL_ECHO_MARKER);
+    assert.ok(bodyIdx >= 0 && echoIdx > bodyIdx, "echo must come AFTER the body");
+    // Echo is the literal tail (nothing after the echo block's last line).
+    assert.ok(w.trim().endsWith("world events."));
+  });
+
+  it("R1-B. echo OFF (lock ON) → NO terminal echo marker (legacy lock-only shape preserved)", () => {
+    const body = "…이대로 가만히 있자.";
+    const w = wrapCurrentUserInput(body, {
+      mode: "interactive",
+      personaName: "렌",
+      ownershipLockEnabled: true,
+      ownershipTerminalEchoEnabled: false,
+    });
+    assert.ok(w.includes(INTERACTIVE_OWNERSHIP_LOCK_MARKER));
+    assert.ok(!w.includes(INTERACTIVE_OWNERSHIP_TERMINAL_ECHO_MARKER));
+    // Ends with the body (legacy shape).
+    assert.ok(w.trim().endsWith(body));
+  });
+
+  it("R1-C. lock OFF + echo ON → NO terminal echo (echo requires the strict lock active)", () => {
+    const body = "…이대로 가만히 있자.";
+    const w = wrapCurrentUserInput(body, {
+      mode: "interactive",
+      personaName: "렌",
+      ownershipLockEnabled: false,
+      ownershipTerminalEchoEnabled: true,
+    });
+    assert.ok(!w.includes(INTERACTIVE_OWNERSHIP_LOCK_MARKER));
+    assert.ok(!w.includes(INTERACTIVE_OWNERSHIP_TERMINAL_ECHO_MARKER));
+  });
+
+  it("R1-D. auto_progression / ooc → NO terminal echo regardless of echo flag", () => {
+    for (const mode of ["auto_progression", "ooc_user_impersonation_allowed"] as const) {
+      const w = wrapCurrentUserInput(
+        "…가만히 있어.",
+        { mode, personaName: "렌", ownershipLockEnabled: true, ownershipTerminalEchoEnabled: true }
+      );
+      assert.ok(!w.includes(INTERACTIVE_OWNERSHIP_LOCK_MARKER));
+      assert.ok(!w.includes(INTERACTIVE_OWNERSHIP_TERMINAL_ECHO_MARKER));
+      assert.match(w, /Current mode allows limited\/full user co-narration/);
+    }
+  });
+
+  it("R1-E. echo is COMPACT — does NOT repeat the large ownership block, no LENGTH/prose/quotas", () => {
+    const w = wrapCurrentUserInput("…가만히 있어.", {
+      mode: "interactive",
+      personaName: "렌",
+      ownershipLockEnabled: true,
+      ownershipTerminalEchoEnabled: true,
+    });
+    const echoIdx = w.indexOf(INTERACTIVE_OWNERSHIP_TERMINAL_ECHO_MARKER);
+    const echo = w.slice(echoIdx);
+    // Compact: a handful of lines, not the large block.
+    assert.ok(echo.split("\n").length <= 4, "echo must be compact (<=4 lines)");
+    // Does NOT re-map [B] (no second "[B] =").
+    assert.doesNotMatch(echo, /\[B\] = /);
+    // Does NOT restate the full "Past history is NOT permission" bullet block.
+    assert.doesNotMatch(echo, /Past history is NOT permission/);
+    // No LENGTH / Terminal / prose / dialogue-quota markers.
+    assert.doesNotMatch(echo, /TARGET_LENGTH|MINIMUM_FLOOR|TERMINAL|분량|길이|quota/i);
+  });
+
+  it("R1-F. idempotency preserved (already-wrapped input not double-wrapped, echo on & off)", () => {
+    const body = '고개를 든다\n"안녕"';
+    const once = wrapCurrentUserInput(body, {
+      mode: "interactive",
+      ownershipLockEnabled: true,
+      ownershipTerminalEchoEnabled: true,
+    });
+    assert.equal(
+      wrapCurrentUserInput(once, {
+        mode: "interactive",
+        ownershipLockEnabled: true,
+        ownershipTerminalEchoEnabled: true,
+      }),
+      once
+    );
+    // Empty passthrough.
+    assert.equal(
+      wrapCurrentUserInput("   ", {
+        mode: "interactive",
+        ownershipLockEnabled: true,
+        ownershipTerminalEchoEnabled: true,
+      }),
+      ""
+    );
+  });
+
+  it("R1-G. persona name not hard-coded — two distinct personas produce distinct [B] mappings (echo references [B] only)", () => {
+    const wA = wrapCurrentUserInput("…가만히 있어.", {
+      mode: "interactive",
+      personaName: "PersonaA",
+      ownershipLockEnabled: true,
+      ownershipTerminalEchoEnabled: true,
+    });
+    const wB = wrapCurrentUserInput("…가만히 있어.", {
+      mode: "interactive",
+      personaName: "PersonaB",
+      ownershipLockEnabled: true,
+      ownershipTerminalEchoEnabled: true,
+    });
+    assert.match(wA, /\[B\] = PersonaA/);
+    assert.match(wB, /\[B\] = PersonaB/);
+    assert.notEqual(wA, wB);
+    // No test-character literal hard-coded.
+    assert.doesNotMatch(wA, /라이크|에녹|렌/);
+  });
+});
+
+describe("R1 gate — isInteractiveUserOwnershipTerminalEchoEnabledForUser (Muse-targeted)", () => {
+  const E = isInteractiveUserOwnershipTerminalEchoEnabledForUser;
+  const MUSE = "meta/muse-spark-1.1";
+  const DEEPSEEK = "deepseek/deepseek-v4-pro";
+  const GEMINI = "google/gemini-2.5-pro";
+  const HY3 = "tencent/hy3";
+
+  it("default OFF when env unset (all models, admin included)", () => {
+    delete process.env.INTERACTIVE_USER_OWNERSHIP_TERMINAL_ECHO_ENABLED;
+    delete process.env.INTERACTIVE_USER_OWNERSHIP_TERMINAL_ECHO_USER_IDS;
+    delete process.env.INTERACTIVE_USER_OWNERSHIP_TERMINAL_ECHO_MODELS;
+    assert.equal(E(1, MUSE), false);
+    assert.equal(E(1, DEEPSEEK), false);
+  });
+
+  it("ON only for admin + Muse (default model allowlist)", () => {
+    process.env.INTERACTIVE_USER_OWNERSHIP_TERMINAL_ECHO_ENABLED = "1";
+    process.env.INTERACTIVE_USER_OWNERSHIP_TERMINAL_ECHO_USER_IDS = "1";
+    delete process.env.INTERACTIVE_USER_OWNERSHIP_TERMINAL_ECHO_MODELS;
+    assert.equal(E(1, MUSE), true);
+    // Non-Muse models unchanged.
+    assert.equal(E(1, DEEPSEEK), false);
+    assert.equal(E(1, GEMINI), false);
+    assert.equal(E(1, HY3), false);
+    // Non-admin user unchanged.
+    assert.equal(E(2, MUSE), false);
+    assert.equal(E(null, MUSE), false);
+  });
+
+  it("OFF when enabled but user allowlist empty", () => {
+    process.env.INTERACTIVE_USER_OWNERSHIP_TERMINAL_ECHO_ENABLED = "1";
+    process.env.INTERACTIVE_USER_OWNERSHIP_TERMINAL_ECHO_USER_IDS = "";
+    assert.equal(E(1, MUSE), false);
+  });
+
+  it("OFF when enabled flag not 1/true", () => {
+    process.env.INTERACTIVE_USER_OWNERSHIP_TERMINAL_ECHO_ENABLED = "0";
+    process.env.INTERACTIVE_USER_OWNERSHIP_TERMINAL_ECHO_USER_IDS = "1";
+    assert.equal(E(1, MUSE), false);
+  });
+
+  it("custom model allowlist respected (e.g. gemini only)", () => {
+    process.env.INTERACTIVE_USER_OWNERSHIP_TERMINAL_ECHO_ENABLED = "1";
+    process.env.INTERACTIVE_USER_OWNERSHIP_TERMINAL_ECHO_USER_IDS = "1";
+    process.env.INTERACTIVE_USER_OWNERSHIP_TERMINAL_ECHO_MODELS = "gemini-2.5-pro";
+    assert.equal(E(1, GEMINI), true);
+    assert.equal(E(1, MUSE), false);
+  });
+
+  it("strict positive-integer user ids (no flooring/coercion)", () => {
+    delete process.env.INTERACTIVE_USER_OWNERSHIP_TERMINAL_ECHO_MODELS;
+    process.env.INTERACTIVE_USER_OWNERSHIP_TERMINAL_ECHO_ENABLED = "1";
+    process.env.INTERACTIVE_USER_OWNERSHIP_TERMINAL_ECHO_USER_IDS = "1.9,abc,01, ,7";
+    assert.equal(E(1, MUSE), false); // 1 not present (only malformed tokens)
+    process.env.INTERACTIVE_USER_OWNERSHIP_TERMINAL_ECHO_USER_IDS = "1,7";
+    assert.equal(E(1, MUSE), true);
+    assert.equal(E(7, MUSE), true);
+    assert.equal(E(1.9, MUSE), false); // runtime id not floored
+  });
+
+  it("cleanup env", () => {
+    delete process.env.INTERACTIVE_USER_OWNERSHIP_TERMINAL_ECHO_ENABLED;
+    delete process.env.INTERACTIVE_USER_OWNERSHIP_TERMINAL_ECHO_USER_IDS;
+    delete process.env.INTERACTIVE_USER_OWNERSHIP_TERMINAL_ECHO_MODELS;
+    assert.equal(E(1, MUSE), false);
   });
 });

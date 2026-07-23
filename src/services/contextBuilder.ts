@@ -26,7 +26,10 @@ import {
   type ChatRuntimeMode,
 } from "@/lib/chatRuntimeMode";
 import { wrapCurrentUserInput } from "@/lib/currentUserInputLabel";
-import { isInteractiveUserOwnershipLockEnabledForUser } from "@/lib/interactiveUserOwnershipLock";
+import {
+  isInteractiveUserOwnershipLockEnabledForUser,
+  isInteractiveUserOwnershipTerminalEchoEnabledForUser,
+} from "@/lib/interactiveUserOwnershipLock";
 import {
   buildNovelModeUserPersonaRules,
 } from "@/lib/userPersonaNarrationRules";
@@ -1024,12 +1027,20 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   // The lock is gated by the INTERACTIVE_USER_OWNERSHIP_LOCK admin canary (separate from the
   // DeepSeek Canon cohort). Default OFF → legacy compact behavior (no global change).
   const ownershipLockEnabled = isInteractiveUserOwnershipLockEnabledForUser(input.userId);
+  // R1 — COMPACT TERMINAL OWNERSHIP ECHO: Muse-targeted admin canary. Appends a
+  // compact ownership reminder AFTER the current-user body (literal prompt tail)
+  // ONLY for admin + Muse — DeepSeek/Gemini/HY3 unchanged. Compliance recency
+  // shim only; gated on the lock being active (interactive + lock ON).
+  const ownershipTerminalEchoEnabled =
+    ownershipLockEnabled &&
+    isInteractiveUserOwnershipTerminalEchoEnabledForUser(input.userId, input.modelId);
   let userTurnContent = input.isContinue
     ? formattedUser
     : wrapCurrentUserInput(formattedUser, {
         mode: runtimeMode,
         personaName: input.personaDisplayName,
         ownershipLockEnabled,
+        ownershipTerminalEchoEnabled,
       });
   if (isOpenRouter && openRouterDynamicLorePrefix) {
     userTurnContent = `${openRouterDynamicLorePrefix}\n\n${userTurnContent}`;
