@@ -3,7 +3,7 @@ import { getSessionUser } from "@/lib/auth";
 import { normalizeTargetResponseChars } from "@/lib/responseLength";
 import { validateUserNoteCombined } from "@/lib/userNoteStatusWindow";
 import { sanitizeChatTitle } from "@/lib/chatTitle";
-import { parseNarrativePov } from "@/lib/narrativePov";
+import { resolveNarrativePov } from "@/lib/narrativePov";
 import {
   displayModeFromEngineMode,
   engineModeForDisplay,
@@ -68,10 +68,17 @@ export async function PATCH(req: Request) {
 
   const db = getDb();
   const chat = db.prepare(
-    `SELECT ch.id, c.name, COALESCE(c.content_kind, 'character') AS content_kind
+    `SELECT ch.id, ch.narrative_pov, ch.pov_character_name,
+            c.name, COALESCE(c.content_kind, 'character') AS content_kind
      FROM chats ch JOIN characters c ON c.id = ch.character_id
      WHERE ch.id=? AND ch.user_id=?`
-  ).get(chatId, user.id) as { id: number; name: string; content_kind: string } | undefined;
+  ).get(chatId, user.id) as {
+    id: number;
+    narrative_pov: string | null;
+    pov_character_name: string | null;
+    name: string;
+    content_kind: string;
+  } | undefined;
   if (!chat) return Response.json({ error: "채팅방을 찾을 수 없습니다." }, { status: 404 });
 
   const widgetCtx = loadChatWidgetContext(chatId, user.id);
@@ -140,16 +147,19 @@ export async function PATCH(req: Request) {
   const targetChars =
     targetResponseChars != null ? normalizeTargetResponseChars(targetResponseChars) : undefined;
   const title = chatTitle !== undefined ? sanitizeChatTitle(chatTitle) : undefined;
-  const nextNarrativePov = narrativePov !== undefined ? parseNarrativePov(narrativePov) : undefined;
-  let nextPovCharacterName = povCharacterName !== undefined
-    ? String(povCharacterName).trim().slice(0, 80)
-    : undefined;
-  if (nextNarrativePov === "first_person") {
-    if (chat.content_kind === "simulation" && !nextPovCharacterName) {
-      return Response.json({ error: "1인칭 시점 캐릭터를 선택하거나 입력해 주세요." }, { status: 400 });
-    }
-    if (chat.content_kind !== "simulation") nextPovCharacterName = chat.name;
-  }
+  const resolvedNarrativePov = resolveNarrativePov({
+    mode: narrativePov !== undefined ? narrativePov : chat.narrative_pov,
+    contentKind: chat.content_kind === "simulation" ? "simulation" : "character",
+    mainCharacterName: chat.name,
+    povCharacterName:
+      povCharacterName !== undefined ? povCharacterName : chat.pov_character_name,
+  });
+  const shouldPersistNarrativePov =
+    narrativePov !== undefined ||
+    povCharacterName !== undefined ||
+    (chat.content_kind === "simulation" &&
+      (chat.narrative_pov !== resolvedNarrativePov.mode ||
+        (chat.pov_character_name ?? "") !== resolvedNarrativePov.povCharacterName));
 
   const sets: string[] = [];
   const vals: unknown[] = [];
@@ -169,13 +179,11 @@ export async function PATCH(req: Request) {
     sets.push("title=?");
     vals.push(title);
   }
-  if (nextNarrativePov !== undefined) {
+  if (shouldPersistNarrativePov) {
     sets.push("narrative_pov=?");
-    vals.push(nextNarrativePov);
-  }
-  if (nextPovCharacterName !== undefined) {
+    vals.push(resolvedNarrativePov.mode);
     sets.push("pov_character_name=?");
-    vals.push(nextPovCharacterName);
+    vals.push(resolvedNarrativePov.povCharacterName || null);
   }
   if (statusWidgetMode !== undefined || statusWidgetDisplayMode !== undefined) {
     sets.push("status_widget_mode=?");
@@ -195,5 +203,11 @@ export async function PATCH(req: Request) {
   vals.push(chatId);
   db.prepare(`UPDATE chats SET ${sets.join(", ")} WHERE id=?`).run(...vals);
 
-  return Response.json({ ok: true, statusWidgetMode: nextMode, statusWidgetDisplayMode: nextDisplay });
+  return Response.json({
+    ok: true,
+    statusWidgetMode: nextMode,
+    statusWidgetDisplayMode: nextDisplay,
+    narrativePov: resolvedNarrativePov.mode,
+    povCharacterName: resolvedNarrativePov.povCharacterName,
+  });
 }

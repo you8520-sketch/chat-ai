@@ -647,9 +647,7 @@ export default function ChatClient({
   characterWidgetAllowUserOverride = true,
   showFullBillingReceipt = false,
   contentKind = "character",
-  povCharacterSuggestions = [],
   initialNarrativePov = "third_person",
-  initialPovCharacterName = "",
 }: {
   character: { id: number; name: string; emoji: string; hue: number; nsfw: number; official?: number };
   creatorName: string;
@@ -688,9 +686,7 @@ export default function ChatClient({
   characterWidgetAllowUserOverride?: boolean;
   showFullBillingReceipt?: boolean;
   contentKind?: "character" | "simulation";
-  povCharacterSuggestions?: string[];
   initialNarrativePov?: NarrativePov;
-  initialPovCharacterName?: string;
 }) {
   const router = useRouter();
   const isOfficialCharacter = Number(character.official) === 1;
@@ -846,13 +842,21 @@ export default function ChatClient({
   const [targetResponseChars, setTargetResponseChars] = useState(initialTargetResponseChars);
   const [chatTitle, setChatTitle] = useState(initialChatTitle);
   const [narrativePov, setNarrativePov] = useState<NarrativePov>(initialNarrativePov);
-  const [povCharacterName, setPovCharacterName] = useState(initialPovCharacterName);
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsPersistRevision, setSettingsPersistRevision] = useState(0);
   const [displaySettingsSaving, setDisplaySettingsSaving] = useState(false);
-  const settingsSkipAutoSaveRef = useRef(true);
   const settingsSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const displayPrefsPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const settingsSaveInFlightRef = useRef(0);
+  const settingsSavePromiseRef = useRef<Promise<boolean> | null>(null);
+  const chatTitleRef = useRef(chatTitle);
+  chatTitleRef.current = chatTitle;
+  const narrativePovRef = useRef(narrativePov);
+  narrativePovRef.current = narrativePov;
+  const lastPersistedRoomSettingsRef = useRef({
+    chatTitle: initialChatTitle,
+    narrativePov: initialNarrativePov,
+  });
   const userNoteRef = useRef(userNote);
   userNoteRef.current = userNote;
   const targetResponseCharsRef = useRef(targetResponseChars);
@@ -903,38 +907,122 @@ export default function ChatClient({
     [selectedAI]
   );
 
-  const persistChatSettings = useCallback(async () => {
-    if (!chatId) return;
-    const noteCheck = validateUserNoteCombined(userNoteRef.current, widgetReservedChars);
-    if (!noteCheck.ok) {
-      setToastMsg(noteCheck.error);
-      return;
-    }
-    beginSettingsSave();
-    try {
-      const res = await fetch("/api/chat/settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chatId,
-          userNote: userNoteRef.current,
-          isNsfwMode: nsfwMode,
-          isAdultMode: nsfwMode,
-          chatTitle,
-          narrativePov,
-          povCharacterName,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setToastMsg(data.error || "설정 저장에 실패했습니다.");
+  const persistChatSettings = useCallback(
+    async (requested: { chatTitle: string; narrativePov: NarrativePov }): Promise<boolean> => {
+      if (!chatId) return true;
+
+      const pending = settingsSavePromiseRef.current;
+      if (pending) await pending;
+
+      const lastSaved = lastPersistedRoomSettingsRef.current;
+      if (
+        requested.chatTitle === lastSaved.chatTitle &&
+        requested.narrativePov === lastSaved.narrativePov
+      ) {
+        return true;
       }
-    } catch {
-      setToastMsg("설정 저장 중 오류가 발생했습니다.");
-    } finally {
-      endSettingsSave();
+
+      const savePromise = (async () => {
+        const noteCheck = validateUserNoteCombined(userNoteRef.current, widgetReservedChars);
+        if (!noteCheck.ok) {
+          setToastMsg(noteCheck.error);
+          const persisted = lastPersistedRoomSettingsRef.current;
+          if (
+            chatTitleRef.current === requested.chatTitle &&
+            narrativePovRef.current === requested.narrativePov
+          ) {
+            setChatTitle(persisted.chatTitle);
+            setNarrativePov(persisted.narrativePov);
+          }
+          setSettingsPersistRevision((revision) => revision + 1);
+          return false;
+        }
+
+        beginSettingsSave();
+        try {
+          const res = await fetch("/api/chat/settings", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chatId,
+              userNote: userNoteRef.current,
+              isNsfwMode: nsfwMode,
+              isAdultMode: nsfwMode,
+              chatTitle: requested.chatTitle,
+              narrativePov: requested.narrativePov,
+            }),
+          });
+          const data = (await res.json().catch(() => null)) as {
+            error?: string;
+            narrativePov?: NarrativePov;
+          } | null;
+          if (!res.ok) {
+            setToastMsg(data?.error || "설정 저장에 실패했습니다.");
+            const persisted = lastPersistedRoomSettingsRef.current;
+            if (
+              chatTitleRef.current === requested.chatTitle &&
+              narrativePovRef.current === requested.narrativePov
+            ) {
+              setChatTitle(persisted.chatTitle);
+              setNarrativePov(persisted.narrativePov);
+            }
+            return false;
+          }
+
+          const savedNarrativePov =
+            data?.narrativePov === "first_person" ? "first_person" : "third_person";
+          lastPersistedRoomSettingsRef.current = {
+            chatTitle: requested.chatTitle,
+            narrativePov: savedNarrativePov,
+          };
+          if (
+            narrativePovRef.current === requested.narrativePov &&
+            savedNarrativePov !== requested.narrativePov
+          ) {
+            setNarrativePov(savedNarrativePov);
+          }
+          return true;
+        } catch {
+          setToastMsg("설정 저장 중 오류가 발생했습니다.");
+          const persisted = lastPersistedRoomSettingsRef.current;
+          if (
+            chatTitleRef.current === requested.chatTitle &&
+            narrativePovRef.current === requested.narrativePov
+          ) {
+            setChatTitle(persisted.chatTitle);
+            setNarrativePov(persisted.narrativePov);
+          }
+          return false;
+        } finally {
+          endSettingsSave();
+          // Re-run the dirty comparison. If the user changed POV/title while
+          // this request was in flight, the latest UI value is saved next.
+          setSettingsPersistRevision((revision) => revision + 1);
+        }
+      })();
+
+      settingsSavePromiseRef.current = savePromise;
+      try {
+        return await savePromise;
+      } finally {
+        if (settingsSavePromiseRef.current === savePromise) {
+          settingsSavePromiseRef.current = null;
+        }
+      }
+    },
+    [chatId, nsfwMode, widgetReservedChars]
+  );
+
+  const flushChatSettings = useCallback(async (): Promise<boolean> => {
+    if (settingsSaveTimerRef.current) {
+      clearTimeout(settingsSaveTimerRef.current);
+      settingsSaveTimerRef.current = null;
     }
-  }, [chatId, nsfwMode, chatTitle, narrativePov, povCharacterName, widgetReservedChars]);
+    return persistChatSettings({
+      chatTitle: chatTitleRef.current,
+      narrativePov: narrativePovRef.current,
+    });
+  }, [persistChatSettings]);
 
   const saveUserNote = useCallback(
     async (note: string): Promise<boolean> => {
@@ -966,7 +1054,6 @@ export default function ChatClient({
           setToastMsg(data.error || "유저 노트 저장에 실패했습니다.");
           return false;
         }
-        settingsSkipAutoSaveRef.current = true;
         return true;
       } catch {
         setToastMsg("유저 노트 저장 중 오류가 발생했습니다.");
@@ -1017,18 +1104,23 @@ export default function ChatClient({
 
   useEffect(() => {
     if (!chatId) return;
-    if (settingsSkipAutoSaveRef.current) {
-      settingsSkipAutoSaveRef.current = false;
+    const requested = { chatTitle, narrativePov };
+    const lastSaved = lastPersistedRoomSettingsRef.current;
+    if (
+      requested.chatTitle === lastSaved.chatTitle &&
+      requested.narrativePov === lastSaved.narrativePov
+    ) {
       return;
     }
     if (settingsSaveTimerRef.current) clearTimeout(settingsSaveTimerRef.current);
     settingsSaveTimerRef.current = setTimeout(() => {
-      void persistChatSettings();
+      settingsSaveTimerRef.current = null;
+      void persistChatSettings(requested);
     }, 600);
     return () => {
       if (settingsSaveTimerRef.current) clearTimeout(settingsSaveTimerRef.current);
     };
-  }, [chatId, nsfwMode, chatTitle, narrativePov, povCharacterName, persistChatSettings]);
+  }, [chatId, chatTitle, narrativePov, settingsPersistRevision, persistChatSettings]);
 
   useEffect(() => {
     if (initialGlobalModelNotice?.trim()) {
@@ -1037,7 +1129,14 @@ export default function ChatClient({
   }, [initialChatId, initialGlobalModelNotice]);
 
   useEffect(() => {
-    settingsSkipAutoSaveRef.current = true;
+    if (settingsSaveTimerRef.current) {
+      clearTimeout(settingsSaveTimerRef.current);
+      settingsSaveTimerRef.current = null;
+    }
+    lastPersistedRoomSettingsRef.current = {
+      chatTitle: initialChatTitle,
+      narrativePov: initialNarrativePov,
+    };
     setUserNote(initialUserNote);
     setNotePresets(initialNotePresets);
     setSelectedAI(initialSelectedAI);
@@ -1045,7 +1144,6 @@ export default function ChatClient({
     setTargetResponseChars(initialTargetResponseChars);
     setChatTitle(initialChatTitle);
     setNarrativePov(initialNarrativePov);
-    setPovCharacterName(initialPovCharacterName);
     // Prefer device localStorage so 에셋 ON/OFF survives leaving the room.
     setDisplayPrefs(resolveClientDisplayPrefs(initialDisplayPrefs ?? DEFAULT_CHAT_DISPLAY_PREFS));
     setSelectedPersonaId(initialSelectedPersonaId);
@@ -1058,7 +1156,6 @@ export default function ChatClient({
     initialTargetResponseChars,
     initialChatTitle,
     initialNarrativePov,
-    initialPovCharacterName,
     initialDisplayPrefs,
     initialSelectedPersonaId,
   ]);
@@ -2593,6 +2690,8 @@ export default function ChatClient({
 
   async function sendContinue() {
     if (!canContinue || inFlightRef.current) return;
+    if (!(await flushChatSettings())) return;
+    if (inFlightRef.current) return;
     inFlightRef.current = true;
     loadingRef.current = true;
     setError("");
@@ -2701,6 +2800,8 @@ export default function ChatClient({
       setError(`메시지는 ${CHAT_MESSAGE_MAX}자까지 입력할 수 있습니다.`);
       return;
     }
+    if (!(await flushChatSettings())) return;
+    if (inFlightRef.current) return;
     inFlightRef.current = true;
     loadingRef.current = true;
     setInput("");
@@ -2834,6 +2935,11 @@ export default function ChatClient({
     const prevAssistant = messages[targetAssistantIdx];
     if (!prevAssistant || prevAssistant.role !== "assistant") {
       setToastMsg("재생성할 AI 답변이 없습니다.");
+      return;
+    }
+    if (!(await flushChatSettings())) return;
+    if (inFlightRef.current) {
+      setToastMsg("이미 응답을 생성 중입니다. 잠시만 기다려 주세요.");
       return;
     }
     const regenIndex = targetAssistantIdx;
@@ -3486,9 +3592,6 @@ export default function ChatClient({
         contentKind={contentKind}
         narrativePov={narrativePov}
         onNarrativePovChange={setNarrativePov}
-        povCharacterName={povCharacterName}
-        onPovCharacterNameChange={setPovCharacterName}
-        povCharacterSuggestions={povCharacterSuggestions}
         displayPrefs={displayPrefs}
         onDisplayPrefsChange={handleDisplayPrefsChange}
         onSaveDisplaySettings={persistUserChatPrefs}

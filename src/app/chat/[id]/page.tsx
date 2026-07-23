@@ -45,8 +45,7 @@ import { filterOutMessageIds, purgeOrphanUserMessages } from "@/lib/chatMessageH
 import { recoverStaleInFlightAssistantMessages } from "@/lib/streamingPersistence";
 import { takeRecentTurns, takeRecentTurnsIncludingMessage } from "@/lib/chatMessagePagination";
 import { createChatSession } from "@/lib/chatSessionCreate";
-import { parseNarrativePov } from "@/lib/narrativePov";
-import { extractSimulationCastNames, type SimulationImportSnapshot } from "@/lib/simulationMode";
+import { resolveNarrativePov } from "@/lib/narrativePov";
 
 export const dynamic = "force-dynamic";
 
@@ -442,21 +441,12 @@ export default async function ChatPage({
   });
 
   const isSimulation = c.content_kind === "simulation";
-  let importedPovNames: string[] = [];
-  if (isSimulation) {
-    try {
-      const imported = JSON.parse(c.simulation_imports_json || "[]") as SimulationImportSnapshot[];
-      importedPovNames = imported.map((item) => item.name).filter(Boolean);
-    } catch {
-      importedPovNames = [];
-    }
-  }
-  const povCharacterSuggestions = isSimulation
-    ? Array.from(new Set([
-        ...extractSimulationCastNames(c.simulation_cast ?? ""),
-        ...importedPovNames,
-      ]))
-    : [c.name];
+  const initialNarrativePov = resolveNarrativePov({
+    mode: chat.narrative_pov,
+    contentKind: isSimulation ? "simulation" : "character",
+    mainCharacterName: c.name,
+    povCharacterName: chat.pov_character_name,
+  }).mode;
 
   return (
     <ChatClient
@@ -470,9 +460,7 @@ export default async function ChatPage({
         official: c.official,
       }}
       contentKind={isSimulation ? "simulation" : "character"}
-      povCharacterSuggestions={povCharacterSuggestions}
-      initialNarrativePov={parseNarrativePov(chat.narrative_pov)}
-      initialPovCharacterName={isSimulation ? (chat.pov_character_name ?? "") : c.name}
+      initialNarrativePov={initialNarrativePov}
       creatorName={c.creator_name}
       creatorId={c.creator_id}
       assets={assets}
