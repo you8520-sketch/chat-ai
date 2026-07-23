@@ -58,10 +58,10 @@ export function TasteFilterButtonRow({
             disabled={busy}
             aria-pressed={selected}
             onClick={() => onSelect(value)}
-            className={`min-h-11 rounded-xl border px-4 text-sm font-semibold transition disabled:opacity-50 ${
+            className={`min-h-10 rounded-full border px-4 text-sm font-semibold transition disabled:opacity-50 ${
               selected
-                ? "border-violet-500 bg-violet-600/20 text-violet-100 ring-1 ring-violet-500/40"
-                : "border-white/10 bg-[#161922] text-zinc-400 hover:border-white/20 hover:text-zinc-200"
+                ? "border-violet-400/60 bg-violet-500/20 text-violet-100 shadow-[0_0_18px_rgba(124,58,237,.12)]"
+                : "border-white/10 bg-white/[0.035] text-zinc-400 hover:border-white/20 hover:bg-white/[0.06] hover:text-zinc-200"
             }`}
           >
             {label}
@@ -269,14 +269,14 @@ export default function UserPreferenceControls({
   return (
     <div className="flex flex-col gap-4 rounded-xl border border-white/10 bg-[#131626] p-4">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-medium text-zinc-300">성인 캐릭터 보기</span>
+        <span className="text-sm font-medium text-zinc-300">성인 캐릭터 표시</span>
         <button
           type="button"
           onClick={toggleNsfw}
           disabled={busy}
           aria-pressed={nsfwOn}
           className={`relative h-6 w-11 rounded-full transition-colors ${
-            nsfwOn ? "bg-rose-600" : "bg-zinc-700"
+            nsfwOn ? "bg-violet-500" : "bg-zinc-700"
           }`}
         >
           <span
@@ -286,7 +286,7 @@ export default function UserPreferenceControls({
           />
         </button>
       </div>
-      {!isAdult && <p className="text-xs text-zinc-400">성인인증 후 켤 수 있어요.</p>}
+      {!isAdult && <p className="text-xs text-zinc-400">성인인증 후 표시 여부를 선택할 수 있어요.</p>}
 
       <div>
         <p className="mb-2 text-sm font-medium text-zinc-300">취향 필터</p>
@@ -310,17 +310,20 @@ function HeaderNsfwToggle({
   return (
     <div
       className="flex min-h-9 items-center gap-1.5 rounded-xl border border-white/10 bg-[#161922] px-2 py-1"
-      title={isAdult ? "성인 캐릭터 보기" : "성인인증 후 사용 가능"}
+      title={isAdult ? "성인 캐릭터 표시" : "성인인증 후 표시 여부를 선택할 수 있습니다"}
     >
-      <span className="text-[10px] font-semibold text-rose-400">19+</span>
+      <span className="text-[10px] font-medium text-zinc-300">
+        <span className="sm:hidden">성인</span>
+        <span className="hidden sm:inline">성인 캐릭터</span>
+      </span>
       <button
         type="button"
         onClick={onToggleNsfw}
-        disabled={busy || !isAdult}
+        disabled={busy}
         aria-pressed={nsfwOn}
-        aria-label="성인 캐릭터 보기"
+        aria-label={isAdult ? "성인 캐릭터 표시" : "성인인증으로 이동"}
         className={`relative h-5 w-8 shrink-0 rounded-full transition-colors disabled:opacity-40 sm:w-9 ${
-          nsfwOn ? "bg-rose-600" : "bg-zinc-700"
+          nsfwOn ? "bg-violet-500" : "bg-zinc-700"
         }`}
       >
         <span

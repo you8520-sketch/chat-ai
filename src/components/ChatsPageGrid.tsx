@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
+import AdultContentBadge from "@/components/AdultContentBadge";
 import { CHARACTER_THUMB_ASPECT } from "@/components/CharacterCard";
 import CharacterChatBranchModal from "@/components/CharacterChatBranchModal";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -68,9 +69,7 @@ function ChatCharacterCard({
             </span>
           )}
           {group.nsfw === 1 && (
-            <span className="absolute left-1 top-1 rounded bg-rose-600 px-1 py-0.5 text-[8px] font-bold text-white">
-              19
-            </span>
+            <AdultContentBadge className="absolute left-1 top-1 px-1 text-[8px]" />
           )}
         </div>
       </Link>

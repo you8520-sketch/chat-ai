@@ -19,8 +19,16 @@ type Comment = {
   is_staff_reply: number;
 };
 
-export default async function BoardPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function BoardPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ post?: string }>;
+}) {
   const { slug } = await params;
+  const { post: focusedPostParam } = await searchParams;
+  const focusedPostId = Number(focusedPostParam);
   const board = BOARD_CONFIG[slug as keyof typeof BOARD_CONFIG];
   if (!board) notFound();
 
@@ -85,7 +93,12 @@ export default async function BoardPage({ params }: { params: Promise<{ slug: st
           const comments = commentsByPost.get(p.id) ?? [];
           const hasStaffReply = comments.some((c) => c.is_staff_reply === 1);
           return (
-            <details key={p.id} className={cn(studioSurface.card, "p-4")}>
+            <details
+              id={`post-${p.id}`}
+              key={p.id}
+              open={Number.isFinite(focusedPostId) && focusedPostId === p.id}
+              className={cn(studioSurface.card, "scroll-mt-20 p-4")}
+            >
               <summary className="cursor-pointer list-none">
                 <span className="font-semibold text-zinc-50">{p.title}</span>
                 {boardComments && hasStaffReply && (

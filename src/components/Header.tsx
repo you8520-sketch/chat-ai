@@ -31,14 +31,20 @@ export default async function Header() {
 
   return (
     <>
-      <header className="site-header sticky top-0 z-40 border-b border-white/10 bg-[#0b0d14]/95 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl flex-nowrap items-center justify-between gap-2 px-3 py-2.5 text-xs sm:gap-3 sm:px-4">
+      <header className="site-header sticky top-0 z-40 border-b border-white/[0.08] bg-[#070910]/88 shadow-[0_12px_40px_rgba(0,0,0,.18)] backdrop-blur-xl">
+        <div className="mx-auto flex min-h-16 max-w-7xl flex-nowrap items-center justify-between gap-2 px-3 text-xs sm:gap-3 sm:px-4">
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <Link
               href="/"
-              className="shrink-0 text-lg font-semibold tracking-tight text-zinc-50 sm:text-xl"
+              className="group flex shrink-0 items-center gap-2.5 text-lg font-semibold tracking-tight text-zinc-50 sm:text-xl"
             >
-              하비 <span className="text-violet-400">AI</span>
+              <span className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-[0.7rem] border border-violet-300/25 bg-gradient-to-br from-violet-500 to-indigo-700 text-xs font-black text-white shadow-[0_0_24px_rgba(124,58,237,.26)] transition group-hover:rotate-[-3deg] group-hover:scale-105">
+                H
+                <span className="absolute inset-[4px] rounded-[0.45rem] border border-white/20" />
+              </span>
+              <span className="hidden tracking-[-0.035em] sm:inline">
+                하비 <span className="text-violet-400">AI</span>
+              </span>
             </Link>
             <HeaderMainNavRow />
             <HeaderBoardLinks unreadNotice={unreadNotice} />
@@ -86,7 +92,7 @@ export default async function Header() {
           </div>
         </div>
       </header>
-      <MobileBottomNav loggedIn={!!user} />
+      <MobileBottomNav loggedIn={!!user} unreadCount={unreadCount} />
       {user && <ExpiringPointsPopup />}
     </>
   );

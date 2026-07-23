@@ -63,7 +63,7 @@ export async function PATCH(req: Request) {
 
   const nsfw = isAdultMode ?? isNsfwMode ?? nsfwMode;
   if (nsfw === true && !user.is_adult) {
-    return Response.json({ error: "19+ 모드는 성인인증 후 이용할 수 있습니다.", needVerify: true }, { status: 403 });
+    return Response.json({ error: "성인용 콘텐츠는 성인인증 후 이용할 수 있습니다.", needVerify: true }, { status: 403 });
   }
 
   const db = getDb();

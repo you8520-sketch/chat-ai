@@ -241,7 +241,7 @@ export function formatBillingReceiptText(
 ): string {
   const lines: string[] = [];
   if (extra?.route) {
-    lines.push(`모드: ${extra.route === "nsfw" ? "19+" : "일반"}`);
+    lines.push(`모드: ${extra.route === "nsfw" ? "성인" : "일반"}`);
   }
   lines.push(
     `모델: ${receipt.modelLabel}`,

@@ -6,6 +6,7 @@ import { cn } from "@/lib/studioDesign";
 
 type Props = {
   loggedIn: boolean;
+  unreadCount?: number;
 };
 
 function isActive(pathname: string, href: string): boolean {
@@ -14,13 +15,14 @@ function isActive(pathname: string, href: string): boolean {
 }
 
 /** md 미만: 하단 고정 네비. 드롭다운/시트 없음. */
-export default function MobileBottomNav({ loggedIn }: Props) {
+export default function MobileBottomNav({ loggedIn, unreadCount = 0 }: Props) {
   const pathname = usePathname();
   if (!loggedIn) return null;
 
   const items = [
     { href: "/", label: "홈" },
     { href: "/chats", label: "대화" },
+    { href: "/notifications", label: "알림", badge: unreadCount },
     { href: "/studio", label: "제작" },
     { href: "/settings", label: "설정" },
   ] as const;
@@ -43,6 +45,11 @@ export default function MobileBottomNav({ loggedIn }: Props) {
               )}
             >
               {item.label}
+              {"badge" in item && item.badge > 0 ? (
+                <span className="absolute right-[calc(50%-1.4rem)] top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-violet-500 px-1 text-[9px] font-bold text-white">
+                  {item.badge > 99 ? "99+" : item.badge}
+                </span>
+              ) : null}
               {active ? (
                 <span
                   className="absolute inset-x-8 bottom-1.5 h-0.5 rounded-full bg-violet-500"

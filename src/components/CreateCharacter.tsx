@@ -1724,7 +1724,7 @@ export default function CreateCharacter({
               <div>
                 <h2 className="text-sm font-semibold text-zinc-100">공개 설정</h2>
                 <p className="mt-0.5 text-xs text-zinc-400">
-                  공개 범위 · NSFW · 댓글을 먼저 설정합니다.
+                  공개 범위 · 이용등급 · 댓글을 먼저 설정합니다.
                 </p>
               </div>
 
@@ -1760,17 +1760,19 @@ export default function CreateCharacter({
                 </div>
               </div>
 
-              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-rose-500/30 bg-rose-500/5 p-4">
+              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-[#161922] p-4 transition hover:border-violet-400/25">
                 <input
                   type="checkbox"
                   checked={form.nsfw}
                   onChange={(e) => setForm({ ...form, nsfw: e.target.checked })}
-                  className="h-5 w-5 accent-rose-600"
+                  className="h-5 w-5 accent-violet-500"
                 />
                 <div>
-                  <p className="font-semibold text-rose-300">NSFW {form.content_kind === "simulation" ? "시뮬레이션" : "캐릭터"}</p>
+                  <p className="font-semibold text-zinc-100">
+                    성인용 {form.content_kind === "simulation" ? "시뮬레이션" : "캐릭터"}
+                  </p>
                   <p className="text-xs text-zinc-400">
-                    성인인증 + 성인 보기 ON 사용자에게만 노출
+                    성인인증을 완료하고 ‘성인 캐릭터 표시’를 켠 사용자에게만 목록에 노출됩니다.
                   </p>
                 </div>
               </label>
@@ -1810,7 +1812,7 @@ export default function CreateCharacter({
                       checked={form.simulation_nsfw_allowed}
                       onChange={(next) => setForm({ ...form, simulation_nsfw_allowed: next })}
                       disabled={loading}
-                      label="19+ 시뮬레이션에서도 사용 허용"
+                    label="성인용 시뮬레이션에서도 사용 허용"
                     />
                   </div>
                 ) : null}

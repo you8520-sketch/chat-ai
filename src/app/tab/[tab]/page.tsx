@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import AdultContentBadge from "@/components/AdultContentBadge";
 import CharacterCard, { type CharacterRow, CHARACTER_THUMB_ASPECT } from "@/components/CharacterCard";
 import StudioButton from "@/components/studio/StudioButton";
 import { CHARACTER_GENRES, genreFilterSql, type CharacterGenre } from "@/lib/characterGenres";
@@ -259,12 +260,10 @@ export default async function TabPage({
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-semibold text-zinc-50">
-                        {c.name}
-                        {c.nsfw === 1 && (
-                          <span className="ml-2 rounded bg-rose-600 px-1 text-[10px] font-bold text-white">
-                            19
-                          </span>
-                        )}
+                      {c.name}
+                      {c.nsfw === 1 && (
+                        <AdultContentBadge className="ml-2 align-middle" />
+                      )}
                       </p>
                       <p className={cn(studioType.caption, "truncate")}>
                         {hidden

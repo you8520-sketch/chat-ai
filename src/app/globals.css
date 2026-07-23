@@ -21,8 +21,58 @@ html {
 }
 
 body {
-  background: #0b0d14;
+  background:
+    radial-gradient(circle at 82% -8%, rgba(124, 58, 237, 0.12), transparent 24rem),
+    radial-gradient(circle at -8% 28%, rgba(37, 99, 235, 0.06), transparent 26rem),
+    #070910;
   color: #e6e8f0;
+  font-family:
+    "Pretendard Variable", Pretendard, "Noto Sans KR", ui-sans-serif, system-ui,
+    -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+@keyframes home-hero-copy-in {
+  from {
+    opacity: 0.25;
+    transform: translateY(0.65rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes home-hero-orb-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(8deg);
+  }
+  50% {
+    transform: translateY(-0.55rem) rotate(6deg);
+  }
+}
+
+.home-hero-copy {
+  animation: home-hero-copy-in 420ms ease-out both;
+}
+
+.home-hero-orb {
+  animation: home-hero-orb-float 7s ease-in-out infinite;
+}
+
+.home-hero-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(90deg, transparent 8%, black 65%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-hero-copy,
+  .home-hero-orb {
+    animation: none;
+  }
 }
 
 @keyframes float-points-up {

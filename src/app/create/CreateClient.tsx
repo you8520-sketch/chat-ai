@@ -276,12 +276,14 @@ export default function CreateClient() {
           disabled={loading}
         />
 
-        <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-rose-500/30 bg-rose-500/5 p-4">
+        <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-[#161922] p-4 transition hover:border-violet-400/25">
           <input type="checkbox" checked={form.nsfw}
-            onChange={(e) => setForm({ ...form, nsfw: e.target.checked })} className="h-5 w-5 accent-rose-600" />
+            onChange={(e) => setForm({ ...form, nsfw: e.target.checked })} className="h-5 w-5 accent-violet-500" />
           <div>
-            <p className="font-semibold text-rose-300">🔞 NSFW 캐릭터</p>
-            <p className="text-xs text-gray-500">성인인증 + 성인 보기 ON 사용자에게만 노출됩니다.</p>
+            <p className="font-semibold text-zinc-100">성인용 캐릭터</p>
+            <p className="text-xs text-gray-500">
+              성인인증을 완료하고 ‘성인 캐릭터 표시’를 켠 사용자에게만 목록에 노출됩니다.
+            </p>
           </div>
         </label>
 

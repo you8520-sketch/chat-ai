@@ -376,7 +376,7 @@ export async function POST(req: Request) {
   if (!ch) return Response.json({ error: "캐릭터를 찾을 수 없습니다." }, { status: 404 });
 
   if (ch.nsfw && !user.is_adult) {
-    return Response.json({ error: "NSFW 캐릭터는 성인인증 후 이용할 수 있습니다.", needVerify: true }, { status: 403 });
+    return Response.json({ error: "성인용 캐릭터는 성인인증 후 이용할 수 있습니다.", needVerify: true }, { status: 403 });
   }
 
   let chat = chatId
@@ -484,7 +484,7 @@ export async function POST(req: Request) {
 
   if (isAdultMode && !user.is_adult) {
     return Response.json(
-      { error: "19+ 모드는 성인인증 후 이용할 수 있습니다.", needVerify: true },
+      { error: "성인용 콘텐츠는 성인인증 후 이용할 수 있습니다.", needVerify: true },
       { status: 403 }
     );
   }

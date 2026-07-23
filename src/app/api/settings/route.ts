@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 
-// 내 설정 변경: 닉네임 / 취향(pref) / 성인 캐릭터 보기(nsfw_on)
+// 내 설정 변경: 닉네임 / 취향(pref) / 성인 캐릭터 표시(nsfw_on)
 export async function PATCH(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
