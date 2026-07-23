@@ -50,7 +50,11 @@ import {
   shouldBlurAssetForViewer,
   type CharacterAsset,
 } from "@/lib/characterAssets";
-import { resolveEmotionTag, stripEmotionTag, stripEmotionTagsForDisplay } from "@/lib/emotionTag";
+import {
+  resolveEmotionTag,
+  stripEmotionTag,
+  stripEmotionTagsForDisplay,
+} from "@/lib/emotionTag";
 import {
   loadUnlockedCharacterAssetUrls,
   saveCharacterAssetAlbum,
@@ -3952,7 +3956,10 @@ export default function ChatClient({
                       const displayBody = stripIncompleteStatusWidgetTail(
                         stripRepeatedTrailingQuoteMarks(
                           stripRpMetaPreamble(
-                            stripEmotionTagsForDisplay(stripInternalTagLeakage(variantContent))
+                            stripEmotionTagsForDisplay(
+                              stripInternalTagLeakage(variantContent),
+                              { streaming: isStreamingThisMessage }
+                            )
                           )
                         )
                       );

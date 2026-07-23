@@ -5,6 +5,8 @@ import {
   buildEmotionTagPrompt,
   resolveEmotionTag,
   sanitizeEmotionTagInText,
+  stripEmotionTagsForDisplay,
+  stripTrailingEmotionTagStreamCandidate,
 } from "@/lib/emotionTag";
 import { findAssetByTag } from "@/lib/characterAssets";
 
@@ -31,6 +33,39 @@ describe("sanitizeEmotionTagInText", () => {
   it("keeps allowed exact tag", () => {
     const out = sanitizeEmotionTagInText("본문.\n[태그: 부끄러움]", ["부끄러움", "무표정"]);
     assert.equal(out, "본문.\n[태그: 부끄러움]");
+  });
+});
+
+describe("streaming emotion tag display firewall", () => {
+  const prose = "본문 마지막 문장입니다.";
+
+  it("holds every split prefix before an asset marker can be painted", () => {
+    for (const suffix of ["[", "[태", "[태그", "[태그:", "[태그: 침대", "[태그: 침대에 누움]"]) {
+      assert.equal(
+        stripTrailingEmotionTagStreamCandidate(`${prose}\n${suffix}`),
+        prose
+      );
+      assert.equal(
+        stripEmotionTagsForDisplay(`${prose}\n${suffix}`, { streaming: true }),
+        prose
+      );
+    }
+  });
+
+  it("releases an ordinary bracketed sentence once it is not an asset marker", () => {
+    const ordinary = `${prose}\n[다음 장면`;
+    assert.equal(stripTrailingEmotionTagStreamCandidate(ordinary), ordinary);
+    assert.equal(
+      stripEmotionTagsForDisplay(ordinary, { streaming: true }),
+      ordinary
+    );
+  });
+
+  it("also accepts harmless whitespace inside the streamed marker", () => {
+    assert.equal(
+      stripTrailingEmotionTagStreamCandidate(`${prose}\n[ 태그 : 침대에 누움`),
+      prose
+    );
   });
 });
 
