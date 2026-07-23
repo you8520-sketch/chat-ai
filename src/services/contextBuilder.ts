@@ -147,7 +147,7 @@ import {
   buildRuntimePromptContaminationGuardBlock,
   sanitizeRuntimePromptSource,
 } from "@/lib/runtimePromptContaminationGuard";
-import { buildSceneMomentumBlockString } from "@/lib/sceneMomentum/extractor";
+import { buildSceneMomentumBlock } from "@/lib/sceneMomentum/extractor";
 import {
   resolveMomentumActivation,
   type MomentumActivationObservability,
@@ -1100,6 +1100,24 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const momentumModelPolicyOn =
     deepSeekXmlMode && layeredCanonActive && input.sceneMomentumInput != null;
   const momentumActive = momentumModelPolicyOn && momentumPredicate.momentumEligible;
+  let momentumBlockObservability: Pick<
+    MomentumActivationObservability,
+    "fieldsPresent" | "blockChars"
+  > = {
+    fieldsPresent: [],
+    blockChars: 0,
+  };
+  let deepSeekMomentumExtra: string | null = null;
+  if (input.sceneMomentumInput) {
+    const momentumBlockResult = buildSceneMomentumBlock(input.sceneMomentumInput);
+    momentumBlockObservability = {
+      fieldsPresent: momentumBlockResult.meta.fieldsPresent,
+      blockChars: momentumBlockResult.meta.blockChars,
+    };
+    if (momentumActive) {
+      deepSeekMomentumExtra = momentumBlockResult.block;
+    }
+  }
   const momentumActivation: MomentumActivationObservability = {
     existingThinHistory: momentumPredicate.existingThinHistory,
     alternatingExchanges: momentumPredicate.alternatingExchanges,
@@ -1108,17 +1126,12 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     activationReason: momentumModelPolicyOn
       ? momentumPredicate.activationReason
       : "MODEL_POLICY_OFF",
+    ...momentumBlockObservability,
   };
   if (deepSeekXmlMode) {
     const userBodyWithOpening = deepSeekOpeningSceneContext
       ? `${deepSeekOpeningSceneContext}\n\n${userTurnContent}`
       : userTurnContent;
-    let deepSeekMomentumExtra: string | null = null;
-    if (momentumActive && input.sceneMomentumInput) {
-      deepSeekMomentumExtra = buildSceneMomentumBlockString(
-        input.sceneMomentumInput
-      );
-    }
     const deepSeekUserExtras = [
       deepSeekMomentumExtra,
       deepSeekShortHistoryExtra,

@@ -119,6 +119,10 @@ export type MomentumActivationObservability = {
   /** Actual Momentum ON/OFF for this turn (predicate AND model policy). */
   momentumActive: boolean;
   activationReason: MomentumActivationReason;
+  /** Extractor fields present when sceneMomentumInput was threaded (empty when omitted). */
+  fieldsPresent: string[];
+  /** Rendered block size in chars (0 when block omitted or inactive). */
+  blockChars: number;
 };
 
 /**
