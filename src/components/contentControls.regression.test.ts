@@ -31,4 +31,11 @@ describe("content controls and navigation regression", () => {
     assert.match(mobileNav, /href: "\/notifications", label: "알림"/);
     assert.match(mobileNav, /badge: unreadCount/);
   });
+
+  it("does not reopen the home notice during an in-place preference refresh", () => {
+    const popup = read("src/components/HomePopupNotice.tsx");
+    assert.match(popup, /handledForThisHomeVisitRef = useRef\(false\)/);
+    assert.match(popup, /if \(handledForThisHomeVisitRef\.current\) return/);
+    assert.match(popup, /handledForThisHomeVisitRef\.current = true/);
+  });
 });

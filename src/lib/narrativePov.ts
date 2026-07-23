@@ -20,18 +20,19 @@ export function resolveNarrativePov(input: {
   mainCharacterName: string;
   povCharacterName?: unknown;
 }): ResolvedNarrativePov {
+  // Multi-character simulations always use the ensemble-friendly third-person
+  // owner. Keep this rule here so settings, generation, continuation, recovery,
+  // and regeneration cannot drift even when an old client or DB row requests
+  // first person.
+  if (input.contentKind === "simulation") {
+    return { mode: DEFAULT_NARRATIVE_POV, povCharacterName: "" };
+  }
+
   const requestedMode = parseNarrativePov(input.mode);
-  const requestedName = String(input.povCharacterName ?? "").trim().slice(0, 80);
-  const povCharacterName =
-    input.contentKind === "simulation" ? requestedName : input.mainCharacterName.trim();
-
-  // A simulation title is not a character. Never enable first person until an
-  // actual cast member has been selected or entered for this room.
-  const mode = requestedMode === "first_person" && !povCharacterName
-    ? DEFAULT_NARRATIVE_POV
-    : requestedMode;
-
-  return { mode, povCharacterName };
+  return {
+    mode: requestedMode,
+    povCharacterName: input.mainCharacterName.trim().slice(0, 80),
+  };
 }
 
 export function buildNarrativePovPrompt(pov: ResolvedNarrativePov): string {

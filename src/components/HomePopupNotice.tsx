@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { HomePopupNotice as HomePopupNoticeRow } from "@/lib/homePopupNotice";
 
 type Props = {
@@ -21,10 +21,16 @@ function storageKey(notice: HomePopupNoticeRow) {
 export default function HomePopupNotice({ notice }: Props) {
   const [visible, setVisible] = useState(false);
   const [hideToday, setHideToday] = useState(false);
+  const handledForThisHomeVisitRef = useRef(false);
   const key = useMemo(() => (notice ? storageKey(notice) : ""), [notice]);
 
   useEffect(() => {
     if (!notice || !key) return;
+    // Preference/adult filters refresh the home Server Component in place.
+    // Treat those refreshes as the same home visit so a dismissed notice does
+    // not reopen. Leaving home and entering it again remounts this component.
+    if (handledForThisHomeVisitRef.current) return;
+    handledForThisHomeVisitRef.current = true;
     const hiddenDate = window.localStorage.getItem(key);
     if (hiddenDate === todayKey()) return;
     setVisible(true);

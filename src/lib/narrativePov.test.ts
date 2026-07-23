@@ -23,20 +23,23 @@ describe("narrative POV owner", () => {
     assert.equal(resolved.povCharacterName, "에녹");
   });
 
-  it("requires an actual POV cast name for a simulation", () => {
+  it("forces every multi-character simulation to third person", () => {
     const missing = resolveNarrativePov({
       mode: "first_person",
       mainCharacterName: "시뮬레이션 제목",
       contentKind: "simulation",
     });
     assert.equal(missing.mode, "third_person");
+    assert.equal(missing.povCharacterName, "");
+
     const selected = resolveNarrativePov({
       mode: "first_person",
       mainCharacterName: "시뮬레이션 제목",
       contentKind: "simulation",
       povCharacterName: "권태현",
     });
-    assert.equal(selected.povCharacterName, "권태현");
+    assert.equal(selected.mode, "third_person");
+    assert.equal(selected.povCharacterName, "");
   });
 
   it("keeps address, knowledge, and agency rules independent", () => {
