@@ -19,14 +19,21 @@
 const ENV_ENABLED = "INTERACTIVE_USER_OWNERSHIP_LOCK_ENABLED";
 const ENV_USER_IDS = "INTERACTIVE_USER_OWNERSHIP_LOCK_USER_IDS";
 
+/**
+ * Canonical positive-integer token: /^[1-9]\d*$/.
+ * Rejects "1.9", "1e2", "+1", "-1", "0", "01", "abc", "" — admin-only safety
+ * gate requires EXACT positive integer id matching (no coercion, no flooring).
+ */
+const CANONICAL_POSITIVE_INT_RE = /^[1-9]\d*$/;
+
 function parseAllowlist(raw: string | undefined): number[] {
   if (!raw) return [];
   const out: number[] = [];
   for (const part of raw.split(",")) {
     const t = part.trim();
-    if (!t) continue;
+    if (!CANONICAL_POSITIVE_INT_RE.test(t)) continue; // fail closed on malformed token
     const n = Number(t);
-    if (Number.isFinite(n) && n > 0) out.push(Math.floor(n));
+    if (Number.isSafeInteger(n) && n > 0) out.push(n);
   }
   return out;
 }
@@ -34,6 +41,7 @@ function parseAllowlist(raw: string | undefined): number[] {
 /**
  * Returns true ONLY when the gate is enabled AND userId is in the allowlist.
  * No env / no allowlist / non-allowlisted user → false (old behavior preserved).
+ * Runtime userId must itself be a safe positive integer (no flooring / coercion).
  */
 export function isInteractiveUserOwnershipLockEnabledForUser(
   userId: number | null | undefined
@@ -41,9 +49,9 @@ export function isInteractiveUserOwnershipLockEnabledForUser(
   const enabled = process.env[ENV_ENABLED]?.trim();
   if (enabled !== "1" && enabled?.toLowerCase() !== "true") return false;
   const allow = parseAllowlist(process.env[ENV_USER_IDS]);
-  if (allow.length === 0) return false;
-  if (userId == null || !Number.isFinite(userId)) return false;
-  return allow.includes(Math.floor(userId));
+  if (allow.length === 0) return false; // enabled but no valid allowlist → all OFF
+  if (userId == null || !Number.isSafeInteger(userId) || userId <= 0) return false;
+  return allow.includes(userId);
 }
 
 /** Test-only: reset is implicit (reads env live). Kept for symmetry with canon cohort helpers. */

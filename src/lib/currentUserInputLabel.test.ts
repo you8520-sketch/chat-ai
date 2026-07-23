@@ -186,6 +186,55 @@ describe("INTERACTIVE_USER_OWNERSHIP_LOCK gate (separate from Canon cohort)", ()
     assert.equal(isInteractiveUserOwnershipLockEnabledForUser(8), false);
   });
 
+  // ---- A-E: allowlist exact-integer strictness regression ----
+  it("A. USER_IDS='1.9' userId=1 -> false (no flooring)", () => {
+    process.env.INTERACTIVE_USER_OWNERSHIP_LOCK_ENABLED = "1";
+    process.env.INTERACTIVE_USER_OWNERSHIP_LOCK_USER_IDS = "1.9";
+    assert.equal(isInteractiveUserOwnershipLockEnabledForUser(1), false);
+    assert.equal(isInteractiveUserOwnershipLockEnabledForUser(2), false);
+  });
+
+  it("B. USER_IDS='1e2' userId=100 -> false (exponent rejected)", () => {
+    process.env.INTERACTIVE_USER_OWNERSHIP_LOCK_ENABLED = "1";
+    process.env.INTERACTIVE_USER_OWNERSHIP_LOCK_USER_IDS = "1e2";
+    assert.equal(isInteractiveUserOwnershipLockEnabledForUser(100), false);
+    assert.equal(isInteractiveUserOwnershipLockEnabledForUser(1), false);
+  });
+
+  it("C. '1,abc,2.5,7' -> user1 true, user7 true, others false", () => {
+    process.env.INTERACTIVE_USER_OWNERSHIP_LOCK_ENABLED = "1";
+    process.env.INTERACTIVE_USER_OWNERSHIP_LOCK_USER_IDS = "1,abc,2.5,7";
+    assert.equal(isInteractiveUserOwnershipLockEnabledForUser(1), true);
+    assert.equal(isInteractiveUserOwnershipLockEnabledForUser(7), true);
+    assert.equal(isInteractiveUserOwnershipLockEnabledForUser(2), false);
+    assert.equal(isInteractiveUserOwnershipLockEnabledForUser(3), false);
+  });
+
+  it("D. runtime userId=1.9 allowlist=1 -> false (no flooring runtime id)", () => {
+    process.env.INTERACTIVE_USER_OWNERSHIP_LOCK_ENABLED = "1";
+    process.env.INTERACTIVE_USER_OWNERSHIP_LOCK_USER_IDS = "1";
+    assert.equal(isInteractiveUserOwnershipLockEnabledForUser(1.9), false);
+    assert.equal(isInteractiveUserOwnershipLockEnabledForUser(1), true);
+  });
+
+  it("E. very large unsafe integer -> false", () => {
+    process.env.INTERACTIVE_USER_OWNERSHIP_LOCK_ENABLED = "1";
+    const unsafe = Number.MAX_SAFE_INTEGER + 1; // 9007199254740992
+    process.env.INTERACTIVE_USER_OWNERSHIP_LOCK_USER_IDS = String(unsafe);
+    assert.equal(isInteractiveUserOwnershipLockEnabledForUser(unsafe), false);
+    // valid large safe integer still works
+    process.env.INTERACTIVE_USER_OWNERSHIP_LOCK_USER_IDS = "9007199254740991";
+    assert.equal(isInteractiveUserOwnershipLockEnabledForUser(9007199254740991), true);
+  });
+
+  it("extra: 0 / +1 / -1 / 01 / blank all rejected", () => {
+    process.env.INTERACTIVE_USER_OWNERSHIP_LOCK_ENABLED = "1";
+    process.env.INTERACTIVE_USER_OWNERSHIP_LOCK_USER_IDS = "0,+1,-1,01, ,";
+    assert.equal(isInteractiveUserOwnershipLockEnabledForUser(0), false);
+    assert.equal(isInteractiveUserOwnershipLockEnabledForUser(1), false);
+    assert.equal(isInteractiveUserOwnershipLockEnabledForUser(10), false);
+  });
+
   // Cleanup
   it("cleanup env", () => {
     delete process.env.INTERACTIVE_USER_OWNERSHIP_LOCK_ENABLED;
