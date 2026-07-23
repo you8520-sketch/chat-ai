@@ -10,15 +10,17 @@ import {
   openRouterInputTokenSurchargeKrw,
 } from "@/lib/points";
 import {
+  OPENROUTER_DEEPSEEK_V3_MODEL,
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_25_PRO_MODEL,
+  OPENROUTER_TENCENT_HY3_MODEL,
 } from "@/lib/chatModels";
 
 describe("OpenRouter input token surcharge", () => {
   const geminiId = OPENROUTER_GEMINI_25_PRO_MODEL;
   const deepseekId = OPENROUTER_DEEPSEEK_V4_PRO_MODEL;
 
-  it("uses 10000 threshold; default 1P, DeepSeek 0.5P per 1000 excess", () => {
+  it("keeps the legacy threshold constants for non-proportional models", () => {
     assert.equal(OPENROUTER_INPUT_SURCHARGE_THRESHOLD_TOKENS, 10000);
     assert.equal(OPENROUTER_INPUT_SURCHARGE_PER_1000_TOKENS, 1);
     assert.equal(OPENROUTER_DEEPSEEK_INPUT_SURCHARGE_PER_1000_TOKENS, 0.5);
@@ -37,11 +39,24 @@ describe("OpenRouter input token surcharge", () => {
     assert.equal(openRouterInputTokenSurchargeKrw(11001, geminiId), 2);
   });
 
-  it("DeepSeek: proportional 0.5P/1k with no mid ceil", () => {
-    assert.equal(openRouterInputTokenSurchargeKrw(10001, deepseekId), 0.0005);
-    assert.equal(openRouterInputTokenSurchargeKrw(10500, deepseekId), 0.25);
-    assert.equal(openRouterInputTokenSurchargeKrw(11000, deepseekId), 0.5);
-    assert.equal(openRouterInputTokenSurchargeKrw(12000, deepseekId), 1);
+  it("V4 Pro and Hy3 do not double-charge a 10k input surcharge", () => {
+    assert.equal(openRouterInputTokenSurchargeKrw(10001, deepseekId), 0);
+    assert.equal(openRouterInputTokenSurchargeKrw(12000, deepseekId), 0);
+    assert.equal(
+      openRouterInputTokenSurchargeKrw(12000, OPENROUTER_TENCENT_HY3_MODEL),
+      0
+    );
+  });
+
+  it("keeps the 0.5P/1k rule for legacy DeepSeek V3 paths", () => {
+    assert.equal(
+      openRouterInputTokenSurchargeKrw(10500, OPENROUTER_DEEPSEEK_V3_MODEL),
+      0.25
+    );
+    assert.equal(
+      openRouterInputTokenSurchargeKrw(12000, OPENROUTER_DEEPSEEK_V3_MODEL),
+      1
+    );
   });
 
   it("adds surcharge to output-token billing (Gemini)", () => {
@@ -51,17 +66,14 @@ describe("OpenRouter input token surcharge", () => {
     assert.equal(withSurcharge - base, 1);
   });
 
-  it("DeepSeek final total ceils only once when surcharge has a decimal", () => {
-    const outputTokens = 500; // floor = ceil(500*0.018) = 9
+  it("DeepSeek V4 Pro bills all input through the cache-neutral margin formula", () => {
+    const outputTokens = 500;
     const explain = explainOpenRouterDeepSeekTurnCost(10500, outputTokens, deepseekId);
-    assert.equal(explain.inputSurchargeKrw, 0.25);
-    assert.equal(explain.charFloorKrw, 9);
-    // 9 + 0.25 → ceil → 10 (중간 할증 올림 없음)
-    assert.equal(explain.total, 10);
-    assert.equal(
-      computeOpenRouterTurnCost(10500, outputTokens, deepseekId),
-      10
-    );
+    assert.equal(openRouterInputTokenSurchargeKrw(10500, deepseekId), 0);
+    assert.equal(explain.inputSurchargeKrw, undefined);
+    assert.equal(explain.charFloorKrw, 0);
+    assert.equal(explain.applied, "cost_plus_margin");
+    assert.equal(computeOpenRouterTurnCost(10500, outputTokens, deepseekId), explain.total);
   });
 
   it("explain breakdown includes inputSurchargeKrw", () => {

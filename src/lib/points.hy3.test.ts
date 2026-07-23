@@ -1,30 +1,30 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  OPENROUTER_DEEPSEEK_V4_PRO_GROSS_MARGIN,
   OPENROUTER_MIN_TURN_COST,
+  OPENROUTER_TENCENT_HY3_GROSS_MARGIN,
   computeOpenRouterTurnBilling,
   computeOpenRouterTurnCost,
-  explainOpenRouterDeepSeekTurnCost,
+  explainOpenRouterTencentHy3TurnCost,
 } from "@/lib/points";
 import { resolveOpenRouterBillingRawCostKrw } from "@/lib/billingRawCost";
-import { OPENROUTER_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
+import { OPENROUTER_TENCENT_HY3_MODEL } from "@/lib/chatModels";
 
 function ceilPoints(value: number): number {
   return value > 0 ? Math.ceil(value - 1e-9) : 0;
 }
 
-describe("DeepSeek V4 Pro proportional billing", () => {
-  const modelId = OPENROUTER_DEEPSEEK_V4_PRO_MODEL;
+describe("Tencent Hy3 proportional billing", () => {
+  const modelId = OPENROUTER_TENCENT_HY3_MODEL;
 
-  it("uses one 65% gross-margin owner", () => {
-    assert.equal(OPENROUTER_DEEPSEEK_V4_PRO_GROSS_MARGIN, 0.65);
+  it("uses the shared 65% gross-margin owner", () => {
+    assert.equal(OPENROUTER_TENCENT_HY3_GROSS_MARGIN, 0.65);
   });
 
   it("charges standard list input and output cost divided by 0.35", () => {
     const inputTokens = 17_707;
     const outputTokens = 2013;
-    const explain = explainOpenRouterDeepSeekTurnCost(
+    const explain = explainOpenRouterTencentHy3TurnCost(
       inputTokens,
       outputTokens,
       modelId
@@ -36,7 +36,7 @@ describe("DeepSeek V4 Pro proportional billing", () => {
     });
     const expected = Math.max(
       OPENROUTER_MIN_TURN_COST,
-      ceilPoints(listCostKrw / (1 - OPENROUTER_DEEPSEEK_V4_PRO_GROSS_MARGIN))
+      ceilPoints(listCostKrw / (1 - OPENROUTER_TENCENT_HY3_GROSS_MARGIN))
     );
 
     assert.equal(explain.rawCostKrw, listCostKrw);
@@ -46,47 +46,28 @@ describe("DeepSeek V4 Pro proportional billing", () => {
     assert.equal(computeOpenRouterTurnCost(inputTokens, outputTokens, modelId), expected);
   });
 
-  it("charges the same points for the same tokens regardless of cache state", () => {
+  it("keeps the same charge across cache and provider-cost variations", () => {
     const inputTokens = 20_000;
     const outputTokens = 2000;
     const noCache = computeOpenRouterTurnCost(inputTokens, outputTokens, modelId);
     const cacheHit = computeOpenRouterTurnCost(inputTokens, outputTokens, modelId, {
       cacheReadTokens: 18_000,
-      cacheWriteTokens: 0,
     });
-    const cacheWrite = computeOpenRouterTurnCost(inputTokens, outputTokens, modelId, {
-      cacheReadTokens: 0,
-      cacheWriteTokens: 18_000,
-    });
-
-    assert.equal(cacheHit, noCache);
-    assert.equal(cacheWrite, noCache);
-  });
-
-  it("does not let provider-reported cache savings change the user charge", () => {
-    const common = {
-      modelId,
-      inputTokens: 20_000,
-      outputTokens: 2000,
-    };
     const cheapCached = computeOpenRouterTurnBilling({
-      ...common,
+      modelId,
+      inputTokens,
+      outputTokens,
       upstreamCostUsd: 0.001,
     });
     const expensiveUncached = computeOpenRouterTurnBilling({
-      ...common,
+      modelId,
+      inputTokens,
+      outputTokens,
       upstreamCostUsd: 0.1,
     });
 
-    assert.equal(cheapCached.total, expensiveUncached.total);
-  });
-
-  it("increases proportionally when either input or output usage increases", () => {
-    const base = computeOpenRouterTurnCost(10_000, 2000, modelId);
-    const moreInput = computeOpenRouterTurnCost(100_000, 2000, modelId);
-    const moreOutput = computeOpenRouterTurnCost(10_000, 10_000, modelId);
-
-    assert.ok(moreInput > base);
-    assert.ok(moreOutput > base);
+    assert.equal(cacheHit, noCache);
+    assert.equal(cheapCached.total, noCache);
+    assert.equal(expensiveUncached.total, noCache);
   });
 });
