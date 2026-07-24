@@ -24,6 +24,7 @@ import { consumeSelectedAiEntryNotice } from "@/lib/userSelectedAI";
 import { ensureDefaultPersona, validatePersonaSelection } from "@/lib/userPersonas";
 import { listUserNotePresets } from "@/lib/userNotePresets";
 import { listStatusWidgetPresets } from "@/lib/statusWidgetPresets";
+import { isPersonaSecretBoundaryEnabled } from "@/lib/personaSecretBoundaryPolicy";
 import { canAccessCharacter } from "@/lib/characterVisibility";
 import { recordCharacterClick } from "@/lib/characterClicks";
 import {
@@ -503,6 +504,7 @@ export default async function ChatPage({
         (c as { status_widget_allow_user_override?: number }).status_widget_allow_user_override !== 0
       }
       showFullBillingReceipt={showFullBillingReceipt}
+      personaSecretBoundaryEnabled={isPersonaSecretBoundaryEnabled({ userId: user.id })}
     />
   );
 }

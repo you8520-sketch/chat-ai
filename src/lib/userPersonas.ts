@@ -7,9 +7,12 @@ import { getDb } from "./db";
 import {
   PERSONA_NAME_LIMIT,
   PERSONA_CONTENT_MAX,
+  PERSONA_SECRET_CONTENT_MAX,
   validatePersonaContentLength,
+  validatePersonaSecretContentLength,
   personaContentLength,
 } from "./persona";
+import { formatPublicPersonaForPrompt } from "./personaSecretPrompt";
 
 export type SubscriptionTier = "free" | "basic" | "pro";
 
@@ -20,11 +23,16 @@ export type DbUserPersona = {
   memo: string;
   gender: CharacterGender;
   description: string;
+  secret_description: string;
   speech_examples: string;
   created_at: string;
 };
 
 export type PersonaListItem = DbUserPersona;
+
+export type PersonaPromptCoNarrationOpts = {
+  coNarrationEnabled?: boolean;
+};
 
 export function getSubscriptionTier(user: User): SubscriptionTier {
   if (!isSubscribed(user)) return "free";
@@ -33,34 +41,34 @@ export function getSubscriptionTier(user: User): SubscriptionTier {
   return "basic";
 }
 
-export function listUserPersonas(userId: number): DbUserPersona[] {
-  const rows = getDb()
-    .prepare(
-      "SELECT id, user_id, name, memo, gender, description, speech_examples, created_at FROM user_personas WHERE user_id=? ORDER BY created_at ASC"
-    )
-    .all(userId) as DbUserPersona[];
-  return rows.map((row) => ({
+const PERSONA_SELECT =
+  "SELECT id, user_id, name, memo, gender, description, secret_description, speech_examples, created_at FROM user_personas";
+
+function mapPersonaRow(row: DbUserPersona): DbUserPersona {
+  return {
     ...row,
     name: row.name ?? "",
     memo: row.memo ?? "",
     description: row.description ?? "",
+    secret_description: row.secret_description ?? "",
     gender: resolveCharacterGender(row.gender),
     speech_examples: row.speech_examples ?? "",
-  }));
+  };
+}
+
+export function listUserPersonas(userId: number): DbUserPersona[] {
+  const rows = getDb()
+    .prepare(`${PERSONA_SELECT} WHERE user_id=? ORDER BY created_at ASC`)
+    .all(userId) as DbUserPersona[];
+  return rows.map(mapPersonaRow);
 }
 
 export function getPersonaById(userId: number, personaId: number): DbUserPersona | null {
   const row = getDb()
-    .prepare(
-      "SELECT id, user_id, name, memo, gender, description, speech_examples, created_at FROM user_personas WHERE id=? AND user_id=?"
-    )
+    .prepare(`${PERSONA_SELECT} WHERE id=? AND user_id=?`)
     .get(personaId, userId) as DbUserPersona | undefined;
   if (!row) return null;
-  return {
-    ...row,
-    gender: resolveCharacterGender(row.gender),
-    speech_examples: row.speech_examples ?? "",
-  };
+  return mapPersonaRow(row);
 }
 
 export function resolveChatSelectedPersona(
@@ -115,13 +123,9 @@ export function ensureDefaultPersona(userId: number, nickname: string): DbUserPe
     | undefined;
   const name = (user?.persona_name?.trim() || nickname || "기본").slice(0, PERSONA_NAME_LIMIT);
   const desc = (user?.persona_bio ?? "").trim();
-  db.prepare("INSERT INTO user_personas (user_id, name, memo, gender, description) VALUES (?,?,?,?,?)").run(
-    userId,
-    name,
-    "",
-    "other",
-    desc
-  );
+  db.prepare(
+    "INSERT INTO user_personas (user_id, name, memo, gender, description, secret_description) VALUES (?,?,?,?,?,?)"
+  ).run(userId, name, "", "other", desc, "");
   return listUserPersonas(userId);
 }
 
@@ -135,41 +139,17 @@ const PERSONA_GENDER_LABELS: Record<CharacterGender, string> = {
   other: "기타",
 };
 
+/** Public persona only — never pass secret_description here. */
 export function formatSelectedPersonaForPrompt(
   name: string,
   gender: CharacterGender,
   description: string,
-  opts?: { coNarrationEnabled?: boolean }
+  opts?: PersonaPromptCoNarrationOpts
 ): string | null {
-  const parts: string[] = [];
-  const trimmedName = name.trim();
-  const trimmedDesc = description.trim();
-  if (trimmedName) parts.push(`이름/호칭: ${trimmedName}`);
-  if (gender === "male" || gender === "female") {
-    parts.push(
-      `성별: ${PERSONA_GENDER_LABELS[gender]} — 절대 준수. 유저를 ${
-        gender === "male"
-          ? "여성으로 묘사 금지 (드레스·코르셋·아내 등 여성 전용 복장·호칭·신체 묘사 금지, 설정에 명시된 경우 제외)"
-          : "남성으로 묘사 금지 (남편 등 남성 전용 호칭·신체 묘사 금지, 설정에 명시된 경우 제외)"
-      }.`
-    );
-  }
-  if (trimmedDesc) parts.push(trimmedDesc);
-  // 말투 유지 규칙은 AI가 유저 대사를 쓸 권한이 있을 때(co-narration/소설 모드)만.
-  // 사칭 OFF에서 주입하면 [NO GODMODDING]과 충돌 — "매 턴 유지"가 유저 대사 작성을 전제하는 신호가 된다.
-  if (trimmedDesc && opts?.coNarrationEnabled) {
-    parts.push(
-      `[유저 페르소나 — 말투]\n"${trimmedName}"의 말투는 위 설정·성격과 채팅에서 유저가 직접 입력한 대사에서 추론해 매 턴 일관 유지한다. AI 캐릭터 말투와 혼동하지 마라.`
-    );
-    if (/반말|구어|캐주얼|informal/i.test(trimmedDesc)) {
-      parts.push(
-        `[유저 말투 고정] "${trimmedName}"은(는) 반말·구어체 ONLY. ~습니다/~요/~십니다/~니다 종결 금지 (유저가 직접 그렇게 입력한 경우 제외).`
-      );
-    }
-  }
-  if (parts.length === 0) return null;
-  return parts.join("\n\n");
+  return formatPublicPersonaForPrompt(name, gender, description, opts);
 }
+
+export { formatPublicPersonaForPrompt } from "./personaSecretPrompt";
 
 export function formatSelectedPersonaIdentityForBackground(
   name: string,
@@ -200,15 +180,24 @@ export function sanitizePersonaInput(
   name: string,
   description: string,
   memo = "",
-  gender: unknown = "other"
+  gender: unknown = "other",
+  secretDescription = ""
 ) {
   const desc = description.trim();
+  const secret = secretDescription.trim();
   return {
     name: name.trim().slice(0, PERSONA_NAME_LIMIT),
     memo: memo.trim(),
     gender: resolveCharacterGender(gender),
     description: desc,
+    secret_description: secret,
   };
 }
 
-export { validatePersonaContentLength, personaContentLength, PERSONA_CONTENT_MAX };
+export {
+  validatePersonaContentLength,
+  validatePersonaSecretContentLength,
+  personaContentLength,
+  PERSONA_CONTENT_MAX,
+  PERSONA_SECRET_CONTENT_MAX,
+};

@@ -47,6 +47,10 @@ export type ContextBuildInput = {
   chunks: CharacterChunk[];
   userNickname: string;
   userPersona?: string | null;
+  /** Chat-scoped persona facts revealed in-scene — never global secret_description */
+  revealedPersonaFactsBlock?: string | null;
+  /** Novel / explicit full co-narration — B narration secrets, not [A] knowledge */
+  privatePersonaSecretNarrationBlock?: string | null;
   userNote?: string | null;
   longTermMemory?: string | null;
   /** archive_summary — identity/rules 아래 별도 주입 */

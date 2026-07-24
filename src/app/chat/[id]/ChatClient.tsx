@@ -648,6 +648,7 @@ export default function ChatClient({
   showFullBillingReceipt = false,
   contentKind = "character",
   initialNarrativePov = "third_person",
+  personaSecretBoundaryEnabled = false,
 }: {
   character: { id: number; name: string; emoji: string; hue: number; nsfw: number; official?: number };
   creatorName: string;
@@ -687,6 +688,7 @@ export default function ChatClient({
   showFullBillingReceipt?: boolean;
   contentKind?: "character" | "simulation";
   initialNarrativePov?: NarrativePov;
+  personaSecretBoundaryEnabled?: boolean;
 }) {
   const router = useRouter();
   const isOfficialCharacter = Number(character.official) === 1;
@@ -3601,6 +3603,7 @@ export default function ChatClient({
         statusWidgetDisplayMode={liveStatusWidgetDisplayMode}
         userWidgetJson={liveUserWidgetJson}
         characterWidgetAllowUserOverride={characterWidgetAllowUserOverride}
+        personaSecretBoundaryEnabled={personaSecretBoundaryEnabled}
         onStatusWidgetChange={(saved) => {
           setLiveStatusWidgetMode(saved.mode);
           setLiveStatusWidgetDisplayMode(saved.displayMode);

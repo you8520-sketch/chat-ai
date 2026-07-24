@@ -1,0 +1,273 @@
+import type Database from "better-sqlite3";
+import { sanitizePrimaryModelContextSource } from "@/lib/flashOwnedOutputFirewall";
+import { getDb } from "@/lib/db";
+import { splitPersonaSecretItems, type PersonaSecretItem } from "@/lib/personaSecretItems";
+import { sanitizeRuntimePromptSource } from "@/lib/runtimePromptContaminationGuard";
+
+export type PersonaSecretRevealSource =
+  | "USER_AUTHORED_DISCLOSURE"
+  | "EXPLICIT_SYSTEM_TRIGGER"
+  | "MANUAL_REVEAL";
+
+export type ChatPersonaSecretRevealRow = {
+  id: number;
+  chat_id: number;
+  persona_id: number;
+  secret_key: string;
+  revealed_fact_text: string;
+  revealed_at_turn: number;
+  source: PersonaSecretRevealSource;
+  created_at: string;
+};
+
+export function ensureChatPersonaSecretRevealsSchema(db: Database.Database = getDb()): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS chat_persona_secret_reveals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      chat_id INTEGER NOT NULL,
+      persona_id INTEGER NOT NULL,
+      secret_key TEXT NOT NULL,
+      revealed_fact_text TEXT NOT NULL,
+      revealed_at_turn INTEGER NOT NULL,
+      source TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(chat_id, persona_id, secret_key)
+    );
+    CREATE INDEX IF NOT EXISTS idx_chat_persona_secret_reveals_chat
+      ON chat_persona_secret_reveals(chat_id, persona_id);
+  `);
+}
+
+export function listChatPersonaSecretReveals(
+  chatId: number,
+  personaId: number,
+  db: Database.Database = getDb()
+): ChatPersonaSecretRevealRow[] {
+  ensureChatPersonaSecretRevealsSchema(db);
+  return db
+    .prepare(
+      `SELECT id, chat_id, persona_id, secret_key, revealed_fact_text, revealed_at_turn, source, created_at
+       FROM chat_persona_secret_reveals
+       WHERE chat_id=? AND persona_id=?
+       ORDER BY revealed_at_turn ASC, id ASC`
+    )
+    .all(chatId, personaId) as ChatPersonaSecretRevealRow[];
+}
+
+export function insertChatPersonaSecretReveal(
+  opts: {
+    chatId: number;
+    personaId: number;
+    secretKey: string;
+    revealedFactText: string;
+    revealedAtTurn: number;
+    source: PersonaSecretRevealSource;
+  },
+  db: Database.Database = getDb()
+): boolean {
+  ensureChatPersonaSecretRevealsSchema(db);
+  const text = sanitizeRevealedFactForPrompt(opts.revealedFactText);
+  if (!text) return false;
+  const info = db
+    .prepare(
+      `INSERT OR IGNORE INTO chat_persona_secret_reveals
+       (chat_id, persona_id, secret_key, revealed_fact_text, revealed_at_turn, source)
+       VALUES (?,?,?,?,?,?)`
+    )
+    .run(
+      opts.chatId,
+      opts.personaId,
+      opts.secretKey,
+      text,
+      opts.revealedAtTurn,
+      opts.source
+    );
+  return info.changes > 0;
+}
+
+/** Canonical trusted fact text — never raw user chat message. */
+export function buildCanonicalRevealedFactText(item: PersonaSecretItem): string {
+  return sanitizeRevealedFactForPrompt(item.normalizedText);
+}
+
+export function sanitizeRevealedFactForPrompt(text: string): string {
+  const raw = text?.trim() ?? "";
+  if (!raw) return "";
+  return sanitizeRuntimePromptSource(sanitizePrimaryModelContextSource(raw)).trim();
+}
+
+export function buildRevealedPersonaFactsBlock(reveals: ChatPersonaSecretRevealRow[]): string | null {
+  const lines = reveals
+    .map((r) => sanitizeRevealedFactForPrompt(r.revealed_fact_text))
+    .filter(Boolean)
+    .map((text) => `- ${text}`);
+  if (lines.length === 0) return null;
+  return `[REVEALED PERSONA FACTS — KNOWN IN THIS CHAT]
+These facts were disclosed in this chat's story. [A] may treat them as in-scene knowledge.
+Do not treat unrevealed persona secrets as known.
+
+${lines.join("\n")}`;
+}
+
+function normalizeForMatch(text: string): string {
+  return text.replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+/** ONE secret paragraph = ONE atomic reveal unit; split multi-claim items deterministically. */
+export function extractSecretClaimSegments(secretText: string): string[] {
+  let segments = [secretText.trim()].filter(Boolean);
+  const splitters = [
+    /[，,;；]/,
+    /\s+(?:이며|이고|하고|또는|또|및|그리고|뿐\s*아니라|동시에)\s+/,
+    /\s+(?:\S+고)\s+(?=\S)/,
+  ];
+  for (const splitter of splitters) {
+    segments = segments.flatMap((seg) =>
+      seg
+        .split(splitter)
+        .map((p) => p.trim())
+        .filter((p) => p.length >= 3)
+    );
+  }
+  return segments.length > 0 ? segments : [secretText.trim()];
+}
+
+function isQuestionLike(text: string): boolean {
+  const t = text.trim();
+  if (/[?？]\s*$/.test(t)) return true;
+  if (/^(?:혹시|설마|무슨|왜|어떻게|누가|언제|어디)\s*/.test(t) && /[?？]/.test(t)) return true;
+  if (/(?:일까|일까요|할까|할까요|인가요|인가|니\?|나\?|까\?)\s*$/.test(t)) return true;
+  if (/(?:알아|알고\s*있|모르|궁금|생각해|같아)/.test(t) && /[?？]/.test(t)) return true;
+  if (/(?:라고\s*생각|일\s*거\s*같|같다고\s*봐|처럼\s*보여)\s*[?？]/.test(t)) return true;
+  return false;
+}
+
+function isHypothetical(text: string): boolean {
+  return /(?:라면|라고\s*생각|일\s*거\s*같|인\s*척|웃기|농담|가정|만약|혹시\s*내가|라고\s*해봐|처럼\s*말|장난|놀리|픽션|소설\s*속|RP\s*속|연기)/.test(
+    text
+  );
+}
+
+function isNegatedDisclosure(text: string): boolean {
+  return /(?:아니(?:야|다|에요|야|냐|니)?|아닌|아닙|절대\s*아|모른|알\s*수\s*없|거짓|농담|놀리|장난|해명|틀렸|거짓말|농담이|장난이)/.test(
+    text
+  );
+}
+
+function isThirdPartyOrQuotedDisclosure(text: string): boolean {
+  return /(?:그(?:는|가|녀|들|분)|(?:카일|캐릭터|그\s*사람|상대)(?:는|가)|(?:라고|이라고)\s*(?:말|했다|해|들)|(?:전해|듣|들었|말하길|라더라|전했다)|인용|대사\s*[:：]|「|"|'|')/.test(
+    text
+  );
+}
+
+function isFictionalInRoleStatement(text: string): boolean {
+  return /(?:소설|설정|RP|롤|역할|캐릭터|연기|놀이|세계관|if\s|가정|픽션|대본|시나리오)\s*(?:속|에서|이라면|처럼)|(?:라고\s*치면|인\s*척|흉내)/.test(
+    text
+  );
+}
+
+function hasSelfDisclosureCue(text: string): boolean {
+  return /(?:사실|솔직히|고백|말(?:하)?(?:자면|할)|밝히|들(?:켰|키)|내\s*정체|나(?:는|가)|저(?:는|가)|내가|진짜(?:로)?)/.test(
+    text
+  );
+}
+
+function meaningfulOverlap(secretText: string, userMessage: string): boolean {
+  const msg = normalizeForMatch(userMessage);
+  const secret = normalizeForMatch(secretText);
+  if (!msg || !secret) return false;
+
+  const tokens = secret.split(/\s+/).filter((t) => t.length >= 2);
+  let matched = 0;
+  for (const tok of tokens) {
+    if (msg.includes(tok)) matched++;
+  }
+  if (matched >= 2) return true;
+  if (tokens.length === 1 && matched >= 1 && tokens[0]!.length >= 3) return true;
+
+  for (let len = Math.min(24, secret.length); len >= 4; len--) {
+    for (let i = 0; i <= secret.length - len; i++) {
+      const sub = secret.slice(i, i + len);
+      if (msg.includes(sub)) return true;
+    }
+  }
+  return false;
+}
+
+/** Multi-claim secret items require every claim segment to overlap — no partial unlock. */
+function isAtomicRevealUnitFullyDisclosed(secretText: string, userMessage: string): boolean {
+  const segments = extractSecretClaimSegments(secretText);
+  if (segments.length <= 1) {
+    return meaningfulOverlap(secretText, userMessage);
+  }
+  return segments.every((segment) => meaningfulOverlap(segment, userMessage));
+}
+
+export type PersonaSecretRevealCandidate = {
+  item: PersonaSecretItem;
+  revealedFactText: string;
+};
+
+/** Conservative USER-only detector — false negative preferred over false positive. */
+export function detectUserAuthoredPersonaSecretReveals(
+  userMessage: string,
+  secretItems: PersonaSecretItem[]
+): PersonaSecretRevealCandidate[] {
+  const msg = userMessage.trim();
+  if (!msg || secretItems.length === 0) return [];
+  if (
+    isQuestionLike(msg) ||
+    isHypothetical(msg) ||
+    isNegatedDisclosure(msg) ||
+    isThirdPartyOrQuotedDisclosure(msg) ||
+    isFictionalInRoleStatement(msg)
+  ) {
+    return [];
+  }
+  if (!hasSelfDisclosureCue(msg)) return [];
+
+  const out: PersonaSecretRevealCandidate[] = [];
+  for (const item of secretItems) {
+    if (!isAtomicRevealUnitFullyDisclosed(item.normalizedText, msg)) continue;
+    out.push({
+      item,
+      revealedFactText: buildCanonicalRevealedFactText(item),
+    });
+  }
+  return out;
+}
+
+export function persistUserAuthoredPersonaSecretReveals(opts: {
+  chatId: number;
+  personaId: number;
+  revealedAtTurn: number;
+  userMessage: string;
+  secretDescription: string;
+  db?: Database.Database;
+}): PersonaSecretRevealCandidate[] {
+  const db = opts.db ?? getDb();
+  const items = splitPersonaSecretItems(opts.secretDescription);
+  const candidates = detectUserAuthoredPersonaSecretReveals(opts.userMessage, items);
+  for (const c of candidates) {
+    insertChatPersonaSecretReveal(
+      {
+        chatId: opts.chatId,
+        personaId: opts.personaId,
+        secretKey: c.item.secretKey,
+        revealedFactText: c.revealedFactText,
+        revealedAtTurn: opts.revealedAtTurn,
+        source: "USER_AUTHORED_DISCLOSURE",
+      },
+      db
+    );
+  }
+  return candidates;
+}
+
+/** Assistant text must never create reveals — explicit guard for callers. */
+export function detectAssistantPersonaSecretReveals(
+  _assistantMessage: string,
+  _secretItems: PersonaSecretItem[]
+): PersonaSecretRevealCandidate[] {
+  return [];
+}

@@ -165,6 +165,13 @@ import {
   resolveChatSelectedPersona,
   validatePersonaSelection,
 } from "@/lib/userPersonas";
+import { isPersonaSecretBoundaryEnabled } from "@/lib/personaSecretBoundaryPolicy";
+import { formatPrivatePersonaSecretForNovelNarration } from "@/lib/personaSecretPrompt";
+import {
+  buildRevealedPersonaFactsBlock,
+  listChatPersonaSecretReveals,
+  persistUserAuthoredPersonaSecretReveals,
+} from "@/lib/personaSecretReveal";
 import { resolveUserImpersonationAllowance } from "@/lib/userImpersonationPolicy";
 import { resolveChatRuntimeMode } from "@/lib/chatRuntimeMode";
 import {
@@ -516,7 +523,9 @@ export async function POST(req: Request) {
   }
 
   const personaDescription = selectedPersona?.description ?? "";
+  const personaSecretDescription = selectedPersona?.secret_description ?? "";
   const personaDisplayName = selectedPersona?.name?.trim() || user.nickname;
+  const personaSecretBoundaryOn = isPersonaSecretBoundaryEnabled({ userId: user.id });
   const userNotePrompt = formatUserNoteForPrompt(effectiveUserNote);
   const oocUserImpersonationAllowed = resolveUserImpersonationAllowance({
     personaDescription: selectedPersona?.description ?? "",
@@ -1017,6 +1026,33 @@ export async function POST(req: Request) {
     normalizedMemoryMeta: normalizedRelationshipMemoryMeta,
   });
 
+  let revealedPersonaFactsBlock: string | null = null;
+  let privatePersonaSecretNarrationBlock: string | null = null;
+  if (personaSecretBoundaryOn && resolvedPersonaId) {
+    if (
+      !autoContinueContext &&
+      messageText.trim() &&
+      !isContinueUserMessage(messageText) &&
+      personaSecretDescription.trim()
+    ) {
+      persistUserAuthoredPersonaSecretReveals({
+        chatId: chat.id,
+        personaId: resolvedPersonaId,
+        revealedAtTurn: playableTurnCount + 1,
+        userMessage: messageText,
+        secretDescription: personaSecretDescription,
+      });
+    }
+    revealedPersonaFactsBlock = buildRevealedPersonaFactsBlock(
+      listChatPersonaSecretReveals(chat.id, resolvedPersonaId)
+    );
+    if (novelModeEnabled && !autoContinueContext && personaSecretDescription.trim()) {
+      privatePersonaSecretNarrationBlock = formatPrivatePersonaSecretForNovelNarration(
+        personaSecretDescription
+      );
+    }
+  }
+
   const contextBuildInput = {
     charName: ch.name,
     contentKind: ch.content_kind === "simulation" ? "simulation" as const : "character" as const,
@@ -1032,6 +1068,8 @@ export async function POST(req: Request) {
     exampleDialog: effectiveExampleDialog,
     userNickname: user.nickname,
     userPersona: userPersonaPrompt,
+    revealedPersonaFactsBlock: revealedPersonaFactsBlock ?? undefined,
+    privatePersonaSecretNarrationBlock: privatePersonaSecretNarrationBlock ?? undefined,
     userNote: userNotePrompt,
     longTermMemory: memoryFeatureOn ? memoryInjection.text : "",
     archiveMemory: memoryFeatureOn ? memoryInjection.archiveText : "",

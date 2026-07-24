@@ -6,6 +6,8 @@ export const PERSONA_MEMO_LIMIT = 20;
 export const USER_PERSONA_MAX_COUNT = 50;
 /** 페르소나 설정(description) 상한 */
 export const PERSONA_CONTENT_MAX = 1200;
+/** 비밀 설정(secret_description) 상한 — public과 별도 */
+export const PERSONA_SECRET_CONTENT_MAX = 1200;
 /** @deprecated PERSONA_CONTENT_MAX 사용 */
 export const USER_PERSONA_LIMIT = PERSONA_CONTENT_MAX;
 /** @deprecated PERSONA_CONTENT_MAX */
@@ -39,6 +41,19 @@ export function validatePersonaContentLength(
     return {
       ok: false,
       error: `페르소나 설정은 ${PERSONA_CONTENT_MAX.toLocaleString()}자 이하여야 합니다. (현재 ${len.toLocaleString()}자)`,
+    };
+  }
+  return { ok: true };
+}
+
+export function validatePersonaSecretContentLength(
+  secretDescription: string
+): { ok: true } | { ok: false; error: string } {
+  const len = secretDescription.trim().length;
+  if (len > PERSONA_SECRET_CONTENT_MAX) {
+    return {
+      ok: false,
+      error: `비밀 설정은 ${PERSONA_SECRET_CONTENT_MAX.toLocaleString()}자 이하여야 합니다. (현재 ${len.toLocaleString()}자)`,
     };
   }
   return { ok: true };

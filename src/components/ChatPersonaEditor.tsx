@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GENDER_LABELS, type CharacterGender } from "@/lib/characterGender";
-import { PERSONA_NAME_LIMIT, PERSONA_CONTENT_MAX, personaContentLength } from "@/lib/persona";
+import { PERSONA_NAME_LIMIT, PERSONA_CONTENT_MAX, PERSONA_SECRET_CONTENT_MAX, personaContentLength } from "@/lib/persona";
 import type { PersonaListItem } from "@/lib/userPersonas";
 
 type Props = {
@@ -10,16 +10,23 @@ type Props = {
   onUpdated: (persona: PersonaListItem) => void;
   /** false — 읽기 전용, true — 편집·자동 저장 */
   editing?: boolean;
+  personaSecretBoundaryEnabled?: boolean;
 };
 
 const readOnlyFieldClass =
   "max-h-48 overflow-y-auto whitespace-pre-wrap rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs leading-relaxed scrollbar-hide";
 
-export default function ChatPersonaEditor({ persona, onUpdated, editing = true }: Props) {
+export default function ChatPersonaEditor({
+  persona,
+  onUpdated,
+  editing = true,
+  personaSecretBoundaryEnabled = false,
+}: Props) {
   const [name, setName] = useState(persona.name);
   const [memo, setMemo] = useState(persona.memo ?? "");
   const [gender, setGender] = useState<CharacterGender>(persona.gender ?? "other");
   const [description, setDescription] = useState(persona.description);
+  const [secretDescription, setSecretDescription] = useState(persona.secret_description ?? "");
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const lastPersonaIdRef = useRef(persona.id);
@@ -29,6 +36,7 @@ export default function ChatPersonaEditor({ persona, onUpdated, editing = true }
     memo: persona.memo ?? "",
     gender: persona.gender ?? "other",
     description: persona.description,
+    secret_description: persona.secret_description ?? "",
   });
 
   useEffect(() => {
@@ -39,17 +47,25 @@ export default function ChatPersonaEditor({ persona, onUpdated, editing = true }
     setMemo(persona.memo ?? "");
     setGender(persona.gender ?? "other");
     setDescription(persona.description);
+    setSecretDescription(persona.secret_description ?? "");
     savedRef.current = {
       id: persona.id,
       name: persona.name,
       memo: persona.memo ?? "",
       gender: persona.gender ?? "other",
       description: persona.description,
+      secret_description: persona.secret_description ?? "",
     };
   }, [persona, editing]);
 
   const save = useCallback(async () => {
-    const payload = { name: name.trim(), memo, gender, description };
+    const payload = {
+      name: name.trim(),
+      memo,
+      gender,
+      description,
+      secret_description: personaSecretBoundaryEnabled ? secretDescription : persona.secret_description ?? "",
+    };
     if (!payload.name) {
       setStatus("error");
       setErrorMsg("페르소나 이름을 입력하세요.");
@@ -77,6 +93,7 @@ export default function ChatPersonaEditor({ persona, onUpdated, editing = true }
         memo: updated.memo ?? "",
         gender: updated.gender ?? "other",
         description: updated.description,
+        secret_description: updated.secret_description ?? "",
       };
       onUpdated(updated);
       setStatus("saved");
@@ -85,7 +102,7 @@ export default function ChatPersonaEditor({ persona, onUpdated, editing = true }
       setStatus("error");
       setErrorMsg("저장 중 오류가 발생했습니다.");
     }
-  }, [persona.id, name, memo, gender, description, onUpdated]);
+  }, [persona.id, name, memo, gender, description, secretDescription, onUpdated]);
 
   useEffect(() => {
     if (!editing) return;
@@ -95,14 +112,15 @@ export default function ChatPersonaEditor({ persona, onUpdated, editing = true }
       name !== s.name ||
       memo !== s.memo ||
       gender !== s.gender ||
-      description !== s.description;
+      description !== s.description ||
+      secretDescription !== s.secret_description;
     if (!dirty) return;
 
     const t = window.setTimeout(() => {
       void save();
     }, 700);
     return () => window.clearTimeout(t);
-  }, [name, memo, gender, description, persona.id, save, editing]);
+  }, [name, memo, gender, description, secretDescription, persona.id, save, editing]);
 
   if (!editing) {
     return (
@@ -130,7 +148,7 @@ export default function ChatPersonaEditor({ persona, onUpdated, editing = true }
           </div>
         )}
         <div>
-          <p className="mb-1 font-bold text-zinc-400">페르소나 설정</p>
+          <p className="mb-1 font-bold text-zinc-400">기본 페르소나 설정</p>
           <div
             className={`${readOnlyFieldClass} ${
               description.trim() ? "text-zinc-200" : "text-zinc-600"
@@ -139,6 +157,12 @@ export default function ChatPersonaEditor({ persona, onUpdated, editing = true }
             {description.trim() || "설정 없음"}
           </div>
         </div>
+        {personaSecretBoundaryEnabled && secretDescription.trim() && (
+          <div>
+            <p className="mb-1 font-bold text-zinc-400">비밀 설정</p>
+            <div className={`${readOnlyFieldClass} text-zinc-200`}>{secretDescription}</div>
+          </div>
+        )}
         <p className="text-[10px] text-zinc-600">
           {personaContentLength(description).toLocaleString()} / {PERSONA_CONTENT_MAX.toLocaleString()}자
         </p>
@@ -196,7 +220,7 @@ export default function ChatPersonaEditor({ persona, onUpdated, editing = true }
       </label>
 
       <div className="flex items-center justify-between gap-2 rounded-lg border border-violet-500/20 bg-violet-500/5 px-3 py-2">
-        <span className="text-[11px] text-zinc-400">페르소나 설정</span>
+        <span className="text-[11px] text-zinc-400">기본 페르소나 설정</span>
         <span
           className={`text-[11px] font-semibold tabular-nums ${
             personaContentLength(description) >= PERSONA_CONTENT_MAX
@@ -211,16 +235,42 @@ export default function ChatPersonaEditor({ persona, onUpdated, editing = true }
       </div>
 
       <label className="block space-y-1">
-        <span className="font-bold text-zinc-400">페르소나 설정</span>
+        <span className="font-bold text-zinc-400">기본 페르소나 설정</span>
         <textarea
           rows={10}
           maxLength={PERSONA_CONTENT_MAX}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="나이, 외모, 성격, 배경, 말투, AI에게 알려줄 역할 설정…"
+          placeholder="나이, 외모, 성격, 배경, 말투, AI에게 알려줄 공개 역할 설정…"
           className="max-h-56 w-full resize-none overflow-y-auto rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 font-mono text-xs leading-relaxed text-zinc-200 outline-none focus:border-violet-500/40"
         />
       </label>
+
+      {personaSecretBoundaryEnabled ? (
+        <label className="block space-y-1">
+          <span className="font-bold text-zinc-400">비밀 설정</span>
+          <p className="text-[10px] leading-relaxed text-zinc-500">
+            AI 캐릭터는 이 내용을 처음부터 알지 못합니다. 대화에서 직접 공개하면 해당 채팅의 캐릭터가
+            알게 될 수 있습니다. 비밀 하나당 한 문단으로 작성하세요. 한 문단은 하나의 공개 단위로
+            처리됩니다.
+          </p>
+          <textarea
+            rows={6}
+            maxLength={PERSONA_SECRET_CONTENT_MAX}
+            value={secretDescription}
+            onChange={(e) => setSecretDescription(e.target.value)}
+            placeholder="캐릭터가 아직 모르는 비밀… (문단마다 하나)"
+            className="max-h-40 w-full resize-none overflow-y-auto rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 font-mono text-xs leading-relaxed text-zinc-200 outline-none focus:border-violet-500/40"
+          />
+          <span className="text-[10px] text-zinc-600">
+            {secretDescription.trim().length.toLocaleString()} / {PERSONA_SECRET_CONTENT_MAX.toLocaleString()}자
+          </span>
+        </label>
+      ) : (
+        <p className="rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-[10px] leading-relaxed text-zinc-500">
+          비밀 설정은 현재 일부 사용자에게 순차 공개 중입니다.
+        </p>
+      )}
 
       <div className="flex items-center gap-2 pt-1">
         {status === "saving" && <span className="text-violet-300">저장 중…</span>}
@@ -246,6 +296,7 @@ export async function restorePersonaSnapshot(
         memo: snapshot.memo ?? "",
         gender: snapshot.gender ?? "other",
         description: snapshot.description,
+        secret_description: snapshot.secret_description ?? "",
       }),
     });
     const data = await res.json();
