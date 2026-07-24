@@ -251,6 +251,8 @@ describe("Scene Momentum P2 — wiring invariants (model policy, kill switch, ca
       assert.equal(built.meta.momentumActivation.momentumActive, false, m.id + ": not active");
       assert.equal(built.meta.momentumActivation.activationReason, "MODEL_POLICY_OFF", m.id + ": MODEL_POLICY_OFF");
       assert.equal(built.meta.momentumActivation.existingThinHistory, true, m.id + ": thin still computed");
+      assert.deepEqual(built.meta.momentumActivation.fieldsPresent, [], m.id + ": inactive fieldsPresent");
+      assert.equal(built.meta.momentumActivation.blockChars, 0, m.id + ": inactive blockChars");
     }
   });
 
@@ -269,6 +271,8 @@ describe("Scene Momentum P2 — wiring invariants (model policy, kill switch, ca
     assert.match(lastUser.content, /SHORT HISTORY/);
     assert.equal(built.meta.momentumActivation.momentumActive, false);
     assert.equal(built.meta.momentumActivation.activationReason, "MODEL_POLICY_OFF");
+    assert.deepEqual(built.meta.momentumActivation.fieldsPresent, []);
+    assert.equal(built.meta.momentumActivation.blockChars, 0);
   });
 
   it("D2 canary ON + THIN -> Momentum ON (positive gate + observability)", () => {
@@ -287,6 +291,8 @@ describe("Scene Momentum P2 — wiring invariants (model policy, kill switch, ca
     assert.equal(built.meta.momentumActivation.activationReason, "THIN_LENGTH_AND_LOW_EXCHANGES");
     assert.equal(built.meta.momentumActivation.alternatingExchanges, 2);
     assert.equal(built.meta.momentumActivation.structuralMature, false);
+    assert.ok(built.meta.momentumActivation.fieldsPresent.length > 0);
+    assert.ok(built.meta.momentumActivation.blockChars > 0);
   });
 
   it("D2 canary ON + many-short mature -> Momentum auto-off (MATURE_EXCHANGE_GUARD)", () => {
@@ -306,5 +312,7 @@ describe("Scene Momentum P2 — wiring invariants (model policy, kill switch, ca
     assert.equal(built.meta.momentumActivation.existingThinHistory, true);
     assert.equal(built.meta.momentumActivation.structuralMature, true);
     assert.ok(built.meta.momentumActivation.alternatingExchanges > MOMENTUM_BOOTSTRAP_MAX_EXCHANGES);
+    assert.deepEqual(built.meta.momentumActivation.fieldsPresent, []);
+    assert.equal(built.meta.momentumActivation.blockChars, 0);
   });
 });

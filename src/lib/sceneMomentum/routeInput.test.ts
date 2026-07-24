@@ -285,6 +285,8 @@ describe("Scene Momentum route wiring — buildContext gating (B–F, I)", () =>
       built.meta.momentumActivation?.activationReason,
       "MATURE_EXCHANGE_GUARD"
     );
+    assert.deepEqual(built.meta.momentumActivation?.fieldsPresent, []);
+    assert.equal(built.meta.momentumActivation?.blockChars, 0);
   });
 
   it("D. DeepSeek without Layered Canon -> no Momentum block", () => {
@@ -298,6 +300,8 @@ describe("Scene Momentum route wiring — buildContext gating (B–F, I)", () =>
     assert.doesNotMatch(lastUser, /CURRENT SCENE CONTINUITY/);
     assert.equal(built.meta.momentumActivation?.momentumActive, false);
     assert.equal(built.meta.momentumActivation?.activationReason, "MODEL_POLICY_OFF");
+    assert.deepEqual(built.meta.momentumActivation?.fieldsPresent, []);
+    assert.equal(built.meta.momentumActivation?.blockChars, 0);
   });
 
   it("E. Muse / Gemini / HY3 with same route input -> no Momentum prompt block", () => {
@@ -311,6 +315,12 @@ describe("Scene Momentum route wiring — buildContext gating (B–F, I)", () =>
         provider: "gemini" as const,
       },
     ]) {
+      const withoutInput = buildWithMomentum({
+        modelId: m.modelId,
+        provider: m.provider,
+        policy: D2_CANARY_ON_POLICY,
+        sceneMomentumInput: null,
+      });
       const built = buildWithMomentum({
         modelId: m.modelId,
         provider: m.provider,
@@ -327,6 +337,17 @@ describe("Scene Momentum route wiring — buildContext gating (B–F, I)", () =>
                   .join("\n")
               : "")
           : `${built.systemPrompt ?? ""}\n${built.history.map((h) => h.content).join("\n")}`;
+      const baselinePayload =
+        m.provider === "gemini"
+          ? (withoutInput.systemPrompt ?? "") +
+            (Array.isArray(withoutInput.contents)
+              ? withoutInput.contents
+                  .flatMap((turn) => turn.parts ?? [])
+                  .map((p) => p.text ?? "")
+                  .join("\n")
+              : "")
+          : `${withoutInput.systemPrompt ?? ""}\n${withoutInput.history.map((h) => h.content).join("\n")}`;
+      assert.equal(payload, baselinePayload, m.id + ": prompt identical with/without input");
       assert.doesNotMatch(payload, /CURRENT SCENE CONTINUITY/, m.id);
       assert.equal(built.meta.momentumActivation?.momentumActive, false, m.id);
       assert.equal(
@@ -334,6 +355,8 @@ describe("Scene Momentum route wiring — buildContext gating (B–F, I)", () =>
         "MODEL_POLICY_OFF",
         m.id
       );
+      assert.deepEqual(built.meta.momentumActivation?.fieldsPresent, [], m.id);
+      assert.equal(built.meta.momentumActivation?.blockChars, 0, m.id);
     }
   });
 

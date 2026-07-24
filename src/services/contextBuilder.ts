@@ -1108,15 +1108,13 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     blockChars: 0,
   };
   let deepSeekMomentumExtra: string | null = null;
-  if (input.sceneMomentumInput) {
+  if (momentumActive && input.sceneMomentumInput) {
     const momentumBlockResult = buildSceneMomentumBlock(input.sceneMomentumInput);
     momentumBlockObservability = {
       fieldsPresent: momentumBlockResult.meta.fieldsPresent,
       blockChars: momentumBlockResult.meta.blockChars,
     };
-    if (momentumActive) {
-      deepSeekMomentumExtra = momentumBlockResult.block;
-    }
+    deepSeekMomentumExtra = momentumBlockResult.block;
   }
   const momentumActivation: MomentumActivationObservability = {
     existingThinHistory: momentumPredicate.existingThinHistory,
