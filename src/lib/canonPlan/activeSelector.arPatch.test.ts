@@ -98,18 +98,18 @@ describe("AR-A3 patch — A. Enoch-active baseline replay (production == audited
     assert.ok(prod.selectedChars <= 1200, "budget ceiling respected");
   });
 
-  it("marks the 1 CORE-covered required chunk as not ACTIVE's responsibility", () => {
+  it("marks CORE-covered required chunks as not ACTIVE's responsibility", () => {
     const fx = FIXTURES_AR0[0];
     const plan = compile(fx.creatorRawDescription);
     const coreSet = new Set(plan.coreIds);
     const req = requiredHitIds(plan, fx.requiredLore);
     const coreRequired = [...req].filter((id) => coreSet.has(id));
-    // Exactly one required chunk is CORE-covered: ee399939833ce695 ([외형] "목 뒤에
-    // 실패한 브레인 포드 접촉 흔적..."). The other 13 required are ACTIVE-responsibility.
-    // (AR0 report initially mis-counted 2 CORE-covered; db07a9e9f30c8ab3 is actually
-    // dormant world "총성은 죽음을 부른다" — a genuine vocab-miss, NOT CORE.)
-    assert.equal(coreRequired.length, 1, "coreRequired=" + coreRequired.length);
+    // ee399939833ce695 ([외형] 브레인 포드 흔적) — identity CORE.
+    // db07a9e9f30c8ab3 ([세계관 — 회색 안개 수위] "총성은 죽음을 부른다") — Phase 2B
+    // hazard-law CORE under explicit law section; no longer an ACTIVE vocab-miss target.
+    assert.equal(coreRequired.length, 2, "coreRequired=" + coreRequired.length);
     assert.ok(coreRequired.includes("ee399939833ce695"));
+    assert.ok(coreRequired.includes("db07a9e9f30c8ab3"));
   });
 });
 
