@@ -14,9 +14,9 @@ describe("content controls and navigation regression", () => {
     assert.doesNotMatch(controls, />19\+</);
   });
 
-  it("keeps all chat-room navigation tools alongside notifications", () => {
+  it("keeps chat-room navigation tools without a duplicate notification button", () => {
     const chatClient = read("src/app/chat/[id]/ChatClient.tsx");
-    assert.match(chatClient, /<NotificationBell/);
+    assert.doesNotMatch(chatClient, /NotificationBell/);
     assert.match(chatClient, /<ChatRoomMobileMenu/);
     assert.match(chatClient, /settingsPanel=\{renderSettingsPanel\("rail"\)\}/);
     assert.match(chatClient, /bookmarksPanel=\{<BookmarksPanel variant="rail" \/>}/);
@@ -24,12 +24,12 @@ describe("content controls and navigation regression", () => {
     assert.match(chatClient, /aria-label="뒤로가기"/);
   });
 
-  it("keeps an explicit notification destination in desktop and mobile navigation", () => {
+  it("keeps notifications in the desktop header but removes the mobile bottom item", () => {
     const header = read("src/components/Header.tsx");
     const mobileNav = read("src/components/MobileBottomNav.tsx");
     assert.match(header, /<NotificationBell count=\{unreadCount\} \/>/);
-    assert.match(mobileNav, /href: "\/notifications", label: "알림"/);
-    assert.match(mobileNav, /badge: unreadCount/);
+    assert.doesNotMatch(mobileNav, /\/notifications/);
+    assert.doesNotMatch(mobileNav, /unreadCount/);
   });
 
   it("does not reopen the home notice during an in-place preference refresh", () => {
