@@ -280,7 +280,7 @@ export default function ChatSessionList({
         title="대화 삭제"
         message={
           pendingDelete
-            ? `「${getBranchDisplayTitle(pendingDelete)}」 대화를 삭제할까요? 메시지와 기록이 permanent 삭제되며 되돌릴 수 없습니다.`
+            ? `「${getBranchDisplayTitle(pendingDelete)}」 대화를 삭제할까요? 메시지와 기록이 영구 삭제되며 되돌릴 수 없습니다.`
             : ""
         }
         confirmLabel="삭제"
