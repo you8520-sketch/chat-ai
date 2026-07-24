@@ -78,4 +78,15 @@ export type Usage = {
     upstreamCostUsd?: number;
     estimated?: boolean;
   };
+  /**
+   * Provider/stream finish reason from the primary billable stage
+   * (e.g. stop / length). Safe telemetry — not stripped for public receipts.
+   */
+  finishReason?: string;
+  /** Smoke-only: requested max_tokens override (admin+env gated). */
+  requestedMaxTokens?: number;
+  /** Smoke-only: effective max_tokens sent upstream when override applied. */
+  effectiveMaxTokens?: number;
+  /** Target response chars for the turn (smoke observability). */
+  targetResponseChars?: number;
 };

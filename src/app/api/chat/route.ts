@@ -257,6 +257,10 @@ import {
   statusWidgetApiCostChargePoints,
 } from "@/lib/statusWidget/receiptUsage";
 import type { Usage } from "@/lib/chatUsage";
+import {
+  isVNextSmokeMaxTokensEnvEnabled,
+  resolveVNextSmokeMaxTokensOverride,
+} from "@/lib/smoke/vnextCleanSmokeFixtures";
 import { userMessageRequestsStatusWindowOoc } from "@/lib/statusMeta/ooc";
 import { isOocHtmlRequest } from "@/lib/oocHtmlRequest";
 import { isHtmlDisplayOnlyTurn, isHtmlFlashOnlyTurn, isOocCreativeHtmlTurn, chatInputSuppressesStatusWidget } from "@/lib/htmlDisplayOnlyTurn";
@@ -360,6 +364,14 @@ export async function POST(req: Request) {
     email: user.email,
     is_admin: userAdminRow?.is_admin ?? 0,
   });
+  /** TEST PATH ONLY — admin + env + body.smokeMaxTokens; default unset → no prod change. */
+  const smokeMaxTokensOverride =
+    showFullBillingReceipt && isVNextSmokeMaxTokensEnvEnabled()
+      ? resolveVNextSmokeMaxTokensOverride({
+          envEnabled: true,
+          smokeMaxTokens: body.smokeMaxTokens,
+        })
+      : undefined;
   const userNoteRow = db
     .prepare("SELECT user_note, chat_prefs FROM users WHERE id=?")
     .get(user.id) as { user_note: string; chat_prefs: string };
@@ -1446,6 +1458,9 @@ export async function POST(req: Request) {
               generationOverrides: regenerateMessageId
                 ? resolveRegenerateGenerationOverrides(openRouterApiModelId, targetResponseCharsRef)
                 : undefined,
+              ...(smokeMaxTokensOverride != null
+                ? { maxTokensOverride: smokeMaxTokensOverride }
+                : {}),
             },
             turnApiBudget
           );
@@ -2654,6 +2669,16 @@ export async function POST(req: Request) {
           ...(primaryStage?.lengthRecoveryPasses != null && primaryStage.lengthRecoveryPasses > 0
             ? { lengthRecoveryPasses: primaryStage.lengthRecoveryPasses }
             : {}),
+          ...(primaryStage?.finishReason
+            ? { finishReason: primaryStage.finishReason }
+            : {}),
+          ...(smokeMaxTokensOverride != null
+            ? {
+                requestedMaxTokens: smokeMaxTokensOverride,
+                effectiveMaxTokens: smokeMaxTokensOverride,
+                targetResponseChars: targetResponseCharsRef,
+              }
+            : {}),
           savedOutputChars: billableChars,
           model: usageModel,
           provider: billingProvider,
@@ -3196,6 +3221,7 @@ export async function POST(req: Request) {
           paidPoints: balanceAfter.paid,
           freePoints: balanceAfter.free,
           usage: usageRecord,
+          ...(usageRecord.finishReason ? { finishReason: usageRecord.finishReason } : {}),
           memoryUpdated: true,
           statusMetaPending: statusMetaEnabled,
           statusWidgetActive,

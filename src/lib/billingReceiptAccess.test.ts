@@ -79,4 +79,32 @@ describe("canShowFullBillingReceipt", () => {
     assert.equal(sanitized.exchangeRateKrwPerUsd, undefined);
     assert.equal(sanitized.breakdown.length, 0);
   });
+
+  it("preserves finishReason and smoke max-token telemetry on public sanitize", () => {
+    const usage = {
+      input: 10,
+      output: 20,
+      model: "deepseek/deepseek-v4-pro",
+      route: "safe" as const,
+      cost: 1,
+      breakdown: [],
+      finishReason: "length",
+      requestedMaxTokens: 4096,
+      effectiveMaxTokens: 4096,
+      targetResponseChars: 2200,
+      statusWidgetExtract: {
+        model: "x",
+        modelLabel: "widget",
+        input: 1,
+        output: 1,
+        apiRawCostKrw: 3,
+      },
+    } satisfies Usage;
+    const sanitized = sanitizeUsageForPublicReceipt(usage);
+    assert.equal(sanitized.finishReason, "length");
+    assert.equal(sanitized.requestedMaxTokens, 4096);
+    assert.equal(sanitized.effectiveMaxTokens, 4096);
+    assert.equal(sanitized.targetResponseChars, 2200);
+    assert.equal(sanitized.statusWidgetExtract, undefined);
+  });
 });
