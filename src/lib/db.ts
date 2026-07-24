@@ -617,7 +617,23 @@ function migrate(db: Database.Database) {
   addColumn("user_personas", "memo", "TEXT NOT NULL DEFAULT ''");
   addColumn("user_personas", "gender", "TEXT NOT NULL DEFAULT 'other'");
   addColumn("user_personas", "speech_examples", "TEXT NOT NULL DEFAULT ''");
+  addColumn("user_personas", "secret_description", "TEXT NOT NULL DEFAULT ''");
   migrateLegacyPersonas(db);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS chat_persona_secret_reveals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      chat_id INTEGER NOT NULL,
+      persona_id INTEGER NOT NULL,
+      secret_key TEXT NOT NULL,
+      revealed_fact_text TEXT NOT NULL,
+      revealed_at_turn INTEGER NOT NULL,
+      source TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(chat_id, persona_id, secret_key)
+    );
+    CREATE INDEX IF NOT EXISTS idx_chat_persona_secret_reveals_chat
+      ON chat_persona_secret_reveals(chat_id, persona_id);
+  `);
   db.exec(`
     CREATE TABLE IF NOT EXISTS user_note_presets (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

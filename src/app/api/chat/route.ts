@@ -165,6 +165,16 @@ import {
   resolveChatSelectedPersona,
   validatePersonaSelection,
 } from "@/lib/userPersonas";
+import { isPersonaSecretBoundaryEnabled } from "@/lib/personaSecretBoundaryPolicy";
+import { formatPrivatePersonaSecretForNovelNarration } from "@/lib/personaSecretPrompt";
+import { splitPersonaSecretItems } from "@/lib/personaSecretItems";
+import {
+  buildRevealedPersonaFactsBlockForPersona,
+  detectUserAuthoredPersonaSecretReveals,
+  listChatPersonaSecretReveals,
+  persistPersonaSecretRevealCandidates,
+  type PersonaSecretRevealCandidate,
+} from "@/lib/personaSecretReveal";
 import { resolveUserImpersonationAllowance } from "@/lib/userImpersonationPolicy";
 import { resolveChatRuntimeMode } from "@/lib/chatRuntimeMode";
 import {
@@ -516,7 +526,9 @@ export async function POST(req: Request) {
   }
 
   const personaDescription = selectedPersona?.description ?? "";
+  const personaSecretDescription = selectedPersona?.secret_description ?? "";
   const personaDisplayName = selectedPersona?.name?.trim() || user.nickname;
+  const personaSecretBoundaryOn = isPersonaSecretBoundaryEnabled({ userId: user.id });
   const userNotePrompt = formatUserNoteForPrompt(effectiveUserNote);
   const oocUserImpersonationAllowed = resolveUserImpersonationAllowance({
     personaDescription: selectedPersona?.description ?? "",
@@ -1017,6 +1029,32 @@ export async function POST(req: Request) {
     normalizedMemoryMeta: normalizedRelationshipMemoryMeta,
   });
 
+  let revealedPersonaFactsBlock: string | null = null;
+  let privatePersonaSecretNarrationBlock: string | null = null;
+  let pendingPersonaSecretRevealCandidates: PersonaSecretRevealCandidate[] = [];
+  if (personaSecretBoundaryOn && resolvedPersonaId) {
+    if (
+      !autoContinueContext &&
+      messageText.trim() &&
+      !isContinueUserMessage(messageText) &&
+      personaSecretDescription.trim()
+    ) {
+      pendingPersonaSecretRevealCandidates = detectUserAuthoredPersonaSecretReveals(
+        messageText,
+        splitPersonaSecretItems(personaSecretDescription)
+      );
+    }
+    revealedPersonaFactsBlock = buildRevealedPersonaFactsBlockForPersona(
+      listChatPersonaSecretReveals(chat.id, resolvedPersonaId),
+      personaSecretDescription
+    );
+    if (novelModeEnabled && !autoContinueContext && personaSecretDescription.trim()) {
+      privatePersonaSecretNarrationBlock = formatPrivatePersonaSecretForNovelNarration(
+        personaSecretDescription
+      );
+    }
+  }
+
   const contextBuildInput = {
     charName: ch.name,
     contentKind: ch.content_kind === "simulation" ? "simulation" as const : "character" as const,
@@ -1032,6 +1070,8 @@ export async function POST(req: Request) {
     exampleDialog: effectiveExampleDialog,
     userNickname: user.nickname,
     userPersona: userPersonaPrompt,
+    revealedPersonaFactsBlock: revealedPersonaFactsBlock ?? undefined,
+    privatePersonaSecretNarrationBlock: privatePersonaSecretNarrationBlock ?? undefined,
     userNote: userNotePrompt,
     longTermMemory: memoryFeatureOn ? memoryInjection.text : "",
     archiveMemory: memoryFeatureOn ? memoryInjection.archiveText : "",
@@ -1238,6 +1278,19 @@ export async function POST(req: Request) {
   persistenceDiag.userMessageSaved = bootstrapped.userMessageSaved;
   persistenceDiag.assistantPlaceholderCreated = bootstrapped.assistantPlaceholderCreated;
   persistenceDiag.reusedExisting = bootstrapped.reusedExisting;
+  if (
+    bootstrapped.userMessageSaved &&
+    personaSecretBoundaryOn &&
+    resolvedPersonaId &&
+    pendingPersonaSecretRevealCandidates.length > 0
+  ) {
+    persistPersonaSecretRevealCandidates({
+      chatId: chatRef.id,
+      personaId: resolvedPersonaId,
+      revealedAtTurn: playableTurnCount + 1,
+      candidates: pendingPersonaSecretRevealCandidates,
+    });
+  }
   const alreadyBilledForRequest = existingByRequest.alreadyBilled;
 
   const stream = new ReadableStream({

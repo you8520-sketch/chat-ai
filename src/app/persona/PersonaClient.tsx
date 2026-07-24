@@ -7,6 +7,7 @@ import { GENDER_LABELS, type CharacterGender } from "@/lib/characterGender";
 import {
   PERSONA_NAME_LIMIT,
   PERSONA_CONTENT_MAX,
+  PERSONA_SECRET_CONTENT_MAX,
   USER_PERSONA_MAX_COUNT,
   USER_NOTE_MAX,
   USER_NOTE_FOCUS_MAX,
@@ -41,11 +42,13 @@ export default function PersonaClient({
   initialNotePresets,
   initialStatusWidgetPresets,
   nickname,
+  personaSecretBoundaryEnabled = false,
 }: {
   initialPersonas: PersonaListItem[];
   initialNotePresets: UserNotePresetItem[];
   initialStatusWidgetPresets: StatusWidgetPresetItem[];
   nickname: string;
+  personaSecretBoundaryEnabled?: boolean;
 }) {
   const router = useRouter();
   const [personas, setPersonas] = useState(initialPersonas);
@@ -56,6 +59,7 @@ export default function PersonaClient({
   const [draftMemo, setDraftMemo] = useState("");
   const [draftGender, setDraftGender] = useState<CharacterGender | "">("");
   const [draftDesc, setDraftDesc] = useState("");
+  const [draftSecretDesc, setDraftSecretDesc] = useState("");
   const [creating, setCreating] = useState(false);
   const [noteCreating, setNoteCreating] = useState(false);
   const [noteEditingId, setNoteEditingId] = useState<number | null>(null);
@@ -82,6 +86,7 @@ export default function PersonaClient({
     setDraftMemo(p.memo ?? "");
     setDraftGender(p.gender ?? "other");
     setDraftDesc(p.description);
+    setDraftSecretDesc(p.secret_description ?? "");
     setCreating(false);
     setError("");
     setMsg("");
@@ -99,6 +104,7 @@ export default function PersonaClient({
     setDraftMemo("");
     setDraftGender("");
     setDraftDesc("");
+    setDraftSecretDesc("");
     setError("");
     setMsg("");
   }
@@ -110,6 +116,7 @@ export default function PersonaClient({
     setDraftMemo("");
     setDraftGender("");
     setDraftDesc("");
+    setDraftSecretDesc("");
   }
 
   async function refreshList() {
@@ -140,6 +147,7 @@ export default function PersonaClient({
       memo: draftMemo,
       gender: draftGender,
       description: draftDesc,
+      ...(personaSecretBoundaryEnabled ? { secret_description: draftSecretDesc } : {}),
     };
 
     const res = editingId
@@ -557,7 +565,7 @@ export default function PersonaClient({
             </div>
             <div>
               <div className="mb-1 flex justify-between">
-                <label className={studioType.label}>설명</label>
+                <label className={studioType.label}>기본 페르소나 설정</label>
                 <span className={studioType.counter}>
                   {personaContentLength(draftDesc).toLocaleString()} / {PERSONA_CONTENT_MAX.toLocaleString()}자
                 </span>
@@ -566,9 +574,41 @@ export default function PersonaClient({
                 rows={8}
                 maxLength={PERSONA_CONTENT_MAX}
                 className={studioTextareaClass}
+                placeholder="나이, 외모, 성격, 배경, 말투, AI에게 알려줄 공개 역할 설정…"
                 value={draftDesc}
                 onChange={(e) => setDraftDesc(e.target.value)}
               />
+            </div>
+            <div>
+              <div className="mb-1 flex justify-between">
+                <label className={studioType.label}>비밀 설정</label>
+                {personaSecretBoundaryEnabled && (
+                  <span className={studioType.counter}>
+                    {draftSecretDesc.trim().length.toLocaleString()} / {PERSONA_SECRET_CONTENT_MAX.toLocaleString()}자
+                  </span>
+                )}
+              </div>
+              {personaSecretBoundaryEnabled ? (
+                <>
+                  <p className={`mb-2 ${studioType.caption}`}>
+                    AI 캐릭터는 이 내용을 처음부터 알지 못합니다. 대화에서 직접 공개하면 해당 채팅의
+                    캐릭터가 알게 될 수 있습니다. 비밀 하나당 한 문단으로 작성하세요. 한 문단은 하나의
+                    공개 단위로 처리됩니다.
+                  </p>
+                  <textarea
+                    rows={6}
+                    maxLength={PERSONA_SECRET_CONTENT_MAX}
+                    className={studioTextareaClass}
+                    placeholder="캐릭터가 아직 모르는 비밀… (문단마다 하나)"
+                    value={draftSecretDesc}
+                    onChange={(e) => setDraftSecretDesc(e.target.value)}
+                  />
+                </>
+              ) : (
+                <p className={`rounded-xl border border-white/10 bg-[#0e1120] px-3 py-2 ${studioType.caption}`}>
+                  비밀 설정은 현재 일부 사용자에게 순차 공개 중입니다. 공개 페르소나 설정만 사용됩니다.
+                </p>
+              )}
             </div>
             <div className="flex gap-2">
               <button

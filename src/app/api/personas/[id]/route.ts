@@ -5,7 +5,9 @@ import {
   getPersonaById,
   sanitizePersonaInput,
   validatePersonaContentLength,
+  validatePersonaSecretContentLength,
 } from "@/lib/userPersonas";
+import { isPersonaSecretBoundaryEnabled } from "@/lib/personaSecretBoundaryPolicy";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -20,11 +22,12 @@ export async function PUT(req: Request, { params }: Params) {
   if (!existing) return NextResponse.json({ error: "페르소나를 찾을 수 없습니다." }, { status: 404 });
 
   const body = await req.json();
-  const { name, memo, gender, description } = sanitizePersonaInput(
+  const { name, memo, gender, description, secret_description } = sanitizePersonaInput(
     String(body.name ?? existing.name),
     String(body.description ?? existing.description),
     String(body.memo ?? existing.memo ?? ""),
-    body.gender ?? existing.gender
+    body.gender ?? existing.gender,
+    String(body.secret_description ?? existing.secret_description ?? "")
   );
 
   if (!name) {
@@ -35,12 +38,20 @@ export async function PUT(req: Request, { params }: Params) {
   if (!contentCheck.ok) {
     return NextResponse.json({ error: contentCheck.error }, { status: 400 });
   }
+  const boundaryOn = isPersonaSecretBoundaryEnabled({ userId: user.id });
+  const effectiveSecretDescription = boundaryOn
+    ? secret_description
+    : (existing.secret_description ?? "");
+  const secretCheck = validatePersonaSecretContentLength(effectiveSecretDescription);
+  if (!secretCheck.ok) {
+    return NextResponse.json({ error: secretCheck.error }, { status: 400 });
+  }
 
   getDb()
     .prepare(
-      "UPDATE user_personas SET name=?, memo=?, gender=?, description=? WHERE id=? AND user_id=?"
+      "UPDATE user_personas SET name=?, memo=?, gender=?, description=?, secret_description=? WHERE id=? AND user_id=?"
     )
-    .run(name, memo, gender, description, personaId, user.id);
+    .run(name, memo, gender, description, effectiveSecretDescription, personaId, user.id);
 
   const persona = getPersonaById(user.id, personaId);
 

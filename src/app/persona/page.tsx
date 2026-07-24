@@ -4,6 +4,7 @@ import PersonaClient from "./PersonaClient";
 import { ensureDefaultPersona } from "@/lib/userPersonas";
 import { listUserNotePresets } from "@/lib/userNotePresets";
 import { listStatusWidgetPresets } from "@/lib/statusWidgetPresets";
+import { isPersonaSecretBoundaryEnabled } from "@/lib/personaSecretBoundaryPolicy";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,7 @@ export default async function PersonaPage() {
       initialNotePresets={notePresets}
       initialStatusWidgetPresets={statusWidgetPresets}
       nickname={user.nickname}
+      personaSecretBoundaryEnabled={isPersonaSecretBoundaryEnabled({ userId: user.id })}
     />
   );
 }

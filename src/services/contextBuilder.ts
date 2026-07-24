@@ -638,6 +638,30 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   };
 
+  const pushRevealedPersonaFacts = () => {
+    const block = input.revealedPersonaFactsBlock?.trim() ?? "";
+    if (!block) return;
+    pushSection(
+      "revealed-persona-facts",
+      "[0b] Revealed persona facts (this chat)",
+      "persona",
+      block,
+      isOpenRouter ? "dynamic" : "dynamic"
+    );
+  };
+
+  const pushPrivatePersonaSecretNarration = () => {
+    const block = input.privatePersonaSecretNarrationBlock?.trim() ?? "";
+    if (!block) return;
+    pushSection(
+      "private-persona-secret-narration",
+      "[0c] Private user persona secret (novel narration)",
+      "persona",
+      block,
+      isOpenRouter ? "dynamic" : "dynamic"
+    );
+  };
+
   const pushReferenceUserNote = () => {
     if (!referenceUserNote) return;
     const recentContextForNoteRag = input.shortTermHistory
@@ -739,6 +763,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   pushPrivateSpeechControl();
   // ───── [0] Identity & Rules (persona + mandatory user note) ─────
   pushIdentityAndRules();
+  pushRevealedPersonaFacts();
   flushDeepSeekXmlSections(["persona", "world_lore"]);
 
   // "possession" style is for OOC/explicit co-narration only — not auto progression.
@@ -889,6 +914,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
 
   // Legacy novel / explicit_full only — auto progression must never inject this.
   if (novelModeEnabled && !autoProgressionEnabled) {
+    pushPrivatePersonaSecretNarration();
     pushSection(
       "novel-mode-persona-rules",
       "Novel mode user persona rules",

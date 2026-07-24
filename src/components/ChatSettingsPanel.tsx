@@ -136,6 +136,7 @@ type Props = {
   layout?: "rail" | "drawer" | "inline";
   onClose?: () => void;
   relationshipMetaDock?: ReactNode;
+  personaSecretBoundaryEnabled?: boolean;
 };
 
 const SECTIONS: { id: SettingsTab; label: string; railLabel: string; icon: ChatSettingsRailIconId }[] = [
@@ -181,6 +182,7 @@ export default function ChatSettingsPanel({
   layout = "rail",
   onClose,
   relationshipMetaDock,
+  personaSecretBoundaryEnabled = false,
 }: Props) {
   const [active, setActive] = useState<SettingsTab | null>(null);
   const [liveWidgetMode, setLiveWidgetMode] = useState(statusWidgetMode);
@@ -313,6 +315,7 @@ export default function ChatSettingsPanel({
           onPersonaSelectedChange={onPersonaSelectedChange}
           selectedPersona={selectedPersona}
           onPersonaUpdated={onPersonaUpdated}
+          personaSecretBoundaryEnabled={personaSecretBoundaryEnabled}
         />
       );
     }
@@ -569,6 +572,7 @@ function PersonaSection({
   onPersonaSelectedChange,
   selectedPersona,
   onPersonaUpdated,
+  personaSecretBoundaryEnabled = false,
 }: {
   chatId: number | null;
   personas: PersonaListItem[];
@@ -576,6 +580,7 @@ function PersonaSection({
   onPersonaSelectedChange: (id: number) => void;
   selectedPersona: PersonaListItem | null;
   onPersonaUpdated: (persona: PersonaListItem) => void;
+  personaSecretBoundaryEnabled?: boolean;
 }) {
   const [personaEditing, setPersonaEditing] = useState(false);
   const [personaRestoring, setPersonaRestoring] = useState(false);
@@ -615,6 +620,7 @@ function PersonaSection({
             persona={selectedPersona}
             onUpdated={onPersonaUpdated}
             editing={personaEditing}
+            personaSecretBoundaryEnabled={personaSecretBoundaryEnabled}
           />
           <div className="flex justify-end gap-1.5">
             {personaEditing ? (

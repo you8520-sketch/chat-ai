@@ -8,8 +8,10 @@ import {
   listUserPersonas,
   sanitizePersonaInput,
   validatePersonaContentLength,
+  validatePersonaSecretContentLength,
 } from "@/lib/userPersonas";
 import { USER_PERSONA_MAX_COUNT } from "@/lib/persona";
+import { isPersonaSecretBoundaryEnabled } from "@/lib/personaSecretBoundaryPolicy";
 
 export async function GET() {
   const user = await getSessionUser();
@@ -28,11 +30,12 @@ export async function POST(req: Request) {
   if (!parseCharacterGender(body.gender)) {
     return NextResponse.json({ error: "페르소나 성별을 선택하세요." }, { status: 400 });
   }
-  const { name, memo, gender, description } = sanitizePersonaInput(
+  const { name, memo, gender, description, secret_description } = sanitizePersonaInput(
     String(body.name ?? ""),
     String(body.description ?? ""),
     String(body.memo ?? ""),
-    body.gender
+    body.gender,
+    String(body.secret_description ?? "")
   );
 
   if (!name) {
@@ -42,6 +45,12 @@ export async function POST(req: Request) {
   const contentCheck = validatePersonaContentLength(description);
   if (!contentCheck.ok) {
     return NextResponse.json({ error: contentCheck.error }, { status: 400 });
+  }
+  const boundaryOn = isPersonaSecretBoundaryEnabled({ userId: user.id });
+  const effectiveSecretDescription = boundaryOn ? secret_description : "";
+  const secretCheck = validatePersonaSecretContentLength(effectiveSecretDescription);
+  if (!secretCheck.ok) {
+    return NextResponse.json({ error: secretCheck.error }, { status: 400 });
   }
 
   const db = getDb();
@@ -57,9 +66,9 @@ export async function POST(req: Request) {
 
   const info = db
     .prepare(
-      "INSERT INTO user_personas (user_id, name, memo, gender, description, speech_examples) VALUES (?,?,?,?,?,?)"
+      "INSERT INTO user_personas (user_id, name, memo, gender, description, secret_description, speech_examples) VALUES (?,?,?,?,?,?,?)"
     )
-    .run(user.id, name, memo, gender, description, "");
+    .run(user.id, name, memo, gender, description, effectiveSecretDescription, "");
   const personaId = Number(info.lastInsertRowid);
   const persona = getPersonaById(user.id, personaId);
 
