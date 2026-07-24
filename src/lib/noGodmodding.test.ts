@@ -13,17 +13,24 @@ const userCharacterName = "테스트_유저_캐릭터";
 const aiCharacterName = "테스트_AI_캐릭터";
 
 describe("buildCompactNoGodmoddingStandardBlock", () => {
-  it("forbids voluntary [B] content without output-length rules", () => {
+  it("FOUNDATION: single MAY/MUST NOT agency contract without output-length rules", () => {
     const block = buildCompactNoGodmoddingStandardBlock();
 
     assert.match(block, /\[NO GODMODDING\]/);
-    assert.match(block, /의도적 행동, 대사, 생각, 결정, 감정 결론, 신체 반응/);
-    assert.match(block, /미입력 상태를 서술 사실로 단정하지 않는다/);
-    assert.match(block, /유저 행동을 대신 쓰지 않아도 장면을 이어간다/);
+    assert.match(block, /\[USER CONTROL MODE - INTERACTIVE\]/);
+    assert.match(block, /\[A\]\/NPC MAY:/);
+    assert.match(block, /\[A\]\/NPC MUST NOT invent as fact:/);
+    assert.match(block, /자발적 행동·순응/);
+    assert.match(block, /감정 결론/);
+    assert.match(block, /의도적 표정·신체 반응/);
+    assert.match(block, /미입력 상태를 사실로 단정하지 않는다/);
+    assert.match(block, /유저 행동을 대신 쓰지 않아도 장면을 이어가/);
     assert.doesNotMatch(block, /짧은 비자발 반응/);
-    assert.match(block, /\[INTERACTIVE USER CONTROL\]/);
-    assert.match(block, /분량을 채우기 위해 유저를 움직이지 않는다/);
-    assert.match(block, /매 턴 질문으로 멈추지 않는다/);
+    // Nested INTERACTIVE USER CONTROL removed (consolidated into FOUNDATION).
+    assert.doesNotMatch(block, /\[INTERACTIVE USER CONTROL\]/);
+    assert.match(block, /분량을 채우기 위해 \[B\]를 움직이지 않는다/);
+    assert.match(block, /매 턴 메타 질문으로 멈추지 않는다/);
+    assert.match(block, /전에 말했잖아\/아까 네가\/네가 약속했잖아/);
     assert.doesNotMatch(block, /TARGET_LENGTH/);
     assert.doesNotMatch(block, /MINIMUM_FLOOR/);
     assert.doesNotMatch(block, /<TURN_HANDOFF_AND_PACING>/);
@@ -54,7 +61,7 @@ describe("buildNoGodmoddingBlock", () => {
     const block = buildNoGodmoddingBlock(aiCharacterName, userCharacterName, "standard");
 
     assert.match(block, /\[NO GODMODDING\]/);
-    assert.match(block, /의도적 행동/);
+    assert.match(block, /MUST NOT invent as fact/);
     assert.doesNotMatch(block, /TARGET_LENGTH/);
   });
 

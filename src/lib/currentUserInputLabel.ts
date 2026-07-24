@@ -56,11 +56,10 @@ If the input contains parentheses or action text, treat it as completed user inp
  * Compact wrapper — provider-agnostic (OpenRouter + Gemini + others).
  *
  * Mode isolation:
- *  - interactive + ownershipLockEnabled: injects the strict INTERACTIVE-ONLY
- *    RECENCY OWNERSHIP LOCK (the primary fix for the cross-model interactive
- *    user impersonation issue). Global / provider-agnostic — no character or
- *    persona name is hard-coded; the current request's resolved persona
- *    display name is used as the [B] actor, with a generic fallback.
+ *  - interactive + ownershipLockEnabled: injects compact INTERACTIVE-ONLY
+ *    RECENCY ownership echo (unique current-turn ownership CORE only;
+ *    full agency contract lives in no-godmodding FOUNDATION). Provider-
+ *    agnostic — [B] uses the request's resolved persona display name.
  *  - interactive + !ownershipLockEnabled: legacy compact behavior
  *    (pre-patch). Default gate is OFF → no global behavior change.
  *  - auto_progression / ooc_user_impersonation_allowed: existing limited /
@@ -87,23 +86,18 @@ If the input contains parentheses or action text, treat it as completed user inp
     return buildLegacyInteractiveWrapper();
   }
 
-  // interactive + ownership lock enabled — strict user ownership recency lock.
+  // interactive + ownership lock enabled — compact RECENCY ownership echo.
+  // Full agency MAY/MUST NOT lives once in FOUNDATION (no-godmodding cache).
+  // Unique CORE only: [B]=persona, current-turn authorship, past-history-not-
+  // permission, one-line forbid, one-line continue-via-AI. Target <=250 est tok.
   const personaName = sanitizePersonaName(opts?.personaName);
   const actor = personaName ?? GENERIC_USER_PERSONA_ACTOR;
   return `${CURRENT_USER_INPUT_HEADER}
-The following is the user's latest input. It is what the user already said/did this turn — nothing more.
-Do not continue writing the user's future actions, dialogue, thoughts, or decisions.
-
 ${INTERACTIVE_OWNERSHIP_LOCK_MARKER}
 [B] = ${actor}
-[B] is controlled ONLY by the user. Only content explicitly present in [CURRENT USER INPUT] above is authored by [B] this turn: dialogue, actions, thoughts, decisions, emotions, reactions, choices.
-Do NOT write any NEW [B] dialogue, intentional action, thought / inner monologue, decision, agreement / refusal, emotional conclusion, facial expression, or voluntary physical reaction.
-Past history is NOT permission:
-- Past user messages showing how [B] speaks/acts are continuity/style only — NOT permission to write [B]'s next line.
-- Past assistant messages that may contain [B] dialogue/actions are NOT precedent or permission; do not imitate that ownership pattern.
-- Character example dialogue / persona speech style does NOT authorize writing new [B] content.
-Continue the scene through AI-controlled characters, NPCs, environment, world events, consequences. Leave pressure/opportunity for [B] to respond; do not stop every turn merely to ask a meta-question.
-If the input contains parentheses or action text, treat it as completed user input — not permission to keep narrating the user.`;
+Only CURRENT USER INPUT this turn authors [B]. Past history/past assistant [B]/example dialog is NOT permission.
+Forbid [B] dialogue/action/decision/thought/emotion/expression.
+Continue via AI cast/NPC/world.`;
 }
 
 /**

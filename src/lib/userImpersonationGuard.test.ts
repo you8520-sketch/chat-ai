@@ -48,15 +48,15 @@ describe("chatRuntimeMode", () => {
 });
 
 describe("interactive user control prompt", () => {
-  it("includes compact INTERACTIVE USER CONTROL rule", () => {
+  it("FOUNDATION consolidates ownership/agency (no nested INTERACTIVE USER CONTROL)", () => {
     const block = buildCompactNoGodmoddingStandardBlock();
-    assert.match(block, /\[INTERACTIVE USER CONTROL\]/);
-    assert.match(block, /분량을 채우기 위해 유저를 움직이지 않는다/);
-    assert.ok(block.includes(INTERACTIVE_USER_CONTROL_BLOCK));
-    assert.match(
-      block,
-      /실제 대화·기억·페르소나에 없는 일을 .전에 말했잖아\/아까 네가\/네가 약속했잖아.로 꾸며 쓰지 말고/
-    );
+    assert.match(block, /\[A\]\/NPC MAY:/);
+    assert.match(block, /\[A\]\/NPC MUST NOT invent as fact:/);
+    assert.match(block, /분량을 채우기 위해 \[B\]를 움직이지 않는다/);
+    assert.doesNotMatch(block, /\[INTERACTIVE USER CONTROL\]/);
+    // Deprecated nested block must not reappear as a second contract.
+    assert.equal(INTERACTIVE_USER_CONTROL_BLOCK, "");
+    assert.match(block, /전에 말했잖아\/아까 네가\/네가 약속했잖아/);
     assert.doesNotMatch(block, /TARGET_LENGTH/);
     assert.doesNotMatch(block, /MINIMUM_FLOOR/);
   });
