@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import { compileCanonPlanV1 } from "@/lib/canonPlan/compiler";
 import {
   detectFundamentalConstraint,
+  hasFundamentalConstraintContext,
   inferSalienceWithReason,
   isDeterministicHazardResponse,
   isMandatoryCapabilityCost,
@@ -187,6 +188,50 @@ describe("Phase 2B — adversarial near misses", () => {
     ]) {
       assert.equal(isDeterministicHazardResponse(text), false);
     }
+  });
+});
+
+describe("Phase 2B — world-bucket context gate adversarial", () => {
+  const negatives = [
+    {
+      label: "F1 medicine impossibility (not universal law)",
+      text: "현재의 의학으로는 이 병을 치료할 수 없다.",
+      section: "[세계관]",
+    },
+    {
+      label: "F2 army movement food (not capability cost)",
+      text: "군대가 이동할 때마다 식량이 줄어든다.",
+      section: "[세계관]",
+    },
+    {
+      label: "F3 city gunshot police (institutional response)",
+      text: "도시 안에서 총을 쏘면 경찰이 몰려든다.",
+      section: "[세계관]",
+    },
+  ];
+
+  for (const n of negatives) {
+    it(`${n.label} stays DORMANT`, () => {
+      const d = inferSalienceWithReason({ text: n.text, sectionTitle: n.section, bucket: "world" });
+      assert.equal(d.salience, "dormant", d.reason);
+      assert.notEqual(d.reason, "FUNDAMENTAL_IMPOSSIBILITY");
+      assert.notEqual(d.reason, "FUNDAMENTAL_MANDATORY_COST");
+      assert.notEqual(d.reason, "FUNDAMENTAL_HAZARD_RESPONSE");
+    });
+  }
+
+  it("F1 positive resurrection in generic [세계관] stays CORE", () => {
+    const text = "이 세계에서는 죽은 사람을 어떤 마법으로도 되살릴 수 없다.";
+    const d = inferSalienceWithReason({ text, sectionTitle: "[세계관]", bucket: "world" });
+    assert.equal(d.salience, "core");
+    assert.ok(
+      d.reason === "FUNDAMENTAL_IMPOSSIBILITY" || d.reason === "EXPLICIT_LAW_SECTION",
+      d.reason
+    );
+  });
+
+  it("hasFundamentalConstraintContext is true for all world-bucket [세계관] prose", () => {
+    assert.equal(hasFundamentalConstraintContext("[세계관]", "world"), true);
   });
 });
 
