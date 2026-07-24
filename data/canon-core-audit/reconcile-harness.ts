@@ -5,7 +5,7 @@
 import { normalizeCanonSource } from "@/lib/canonPlan/hash";
 import { compileCanonPlanV1 } from "@/lib/canonPlan/compiler";
 import { selectActiveCanonChunks } from "@/lib/canonPlan/activeSelector";
-import type { CanonPlanChunk, CanonPlanV1 } from "@/lib/canonPlan/types";
+import type { CanonChunkSalience, CanonPlanChunk, CanonPlanV1 } from "@/lib/canonPlan/types";
 import type { AtomicFact, BudgetPressureScene } from "./types";
 import { FIXED_NOW } from "./harness";
 
@@ -85,7 +85,7 @@ export type SalienceTrace = {
   coreIdentityBodyMatch: boolean;
   coreWorldLawTextMatch: boolean;
   worldLawTitleMatch: boolean;
-  inferredSalience: "core" | "dormant";
+  inferredSalience: CanonChunkSalience;
 };
 
 export function traceSalience(chunk: Pick<CanonPlanChunk, "text" | "bucket" | "sectionTitle">): SalienceTrace {
