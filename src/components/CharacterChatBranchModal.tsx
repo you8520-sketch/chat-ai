@@ -213,7 +213,7 @@ export default function CharacterChatBranchModal({
                         type="button"
                         disabled={deletingId === b.chat_id}
                         onClick={() => onDeleteRequest(b)}
-                        className="shrink-0 self-center rounded-lg px-2 py-1 text-[11px] font-semibold text-zinc-500 hover:bg-rose-500/15 hover:text-rose-400 disabled:opacity-40"
+                        className="mr-1 shrink-0 self-center rounded-lg bg-rose-500/10 px-2.5 py-1.5 text-[11px] font-bold text-rose-300/90 hover:bg-rose-500/20 hover:text-rose-200 disabled:opacity-40"
                       >
                         {deletingId === b.chat_id ? "…" : "삭제"}
                       </button>
@@ -239,6 +239,16 @@ export default function CharacterChatBranchModal({
               className="rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white hover:bg-violet-500"
             >
               이어서 대화
+            </button>
+          )}
+          {!multi && latest && onDeleteRequest && !hidden && (
+            <button
+              type="button"
+              disabled={deletingId === latest.chat_id}
+              onClick={() => onDeleteRequest(latest)}
+              className="rounded-xl border border-rose-400/25 bg-rose-500/10 px-4 py-2.5 text-sm font-bold text-rose-300 hover:bg-rose-500/20 disabled:opacity-40"
+            >
+              {deletingId === latest.chat_id ? "삭제 중…" : "이 대화 삭제"}
             </button>
           )}
           <button
