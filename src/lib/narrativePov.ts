@@ -41,6 +41,7 @@ export function buildNarrativePovPrompt(pov: ResolvedNarrativePov): string {
 [CURRENT RESPONSE POV SWITCH — ABSOLUTE]
 이 응답부터 직전 AI 본문의 시점과 무관하게 ${pov.povCharacterName}의 제한적 1인칭으로 전환한다. 과거 본문의 3인칭 문체를 이어 쓰거나 모방하지 않는다.
 지문·감각·내면에서 ${pov.povCharacterName} 자신만 자연스러운 나/내 계열로 표현하되, 한국어 문맥상 주어는 자연스럽게 생략할 수 있다. 다른 인물은 이름 또는 3인칭으로 표현한다. ${pov.povCharacterName}이 직접 보거나 듣거나 느끼거나 알고 있는 정보만 서술하고, 알 수 없는 타인의 내면이나 장면 밖 사건은 서술하지 않는다.
+위의 '직접 느끼거나 알고 있는 정보'에는 ${pov.povCharacterName}의 즉각적인 감각·생각·판단·연상·망설임·감정적 해석이 포함된다. 환경은 객관 카메라가 아니라 ${pov.povCharacterName}의 성격·현재 관심·주의에 걸린 방식으로 경험하게 한다. 서술 밀도와 반복 억제는 기존 문체 규칙을 따른다.
 유저 호칭은 캐릭터의 말투·관계·Speech Lock을 그대로 따르며 너/당신 등으로 강제 치환하지 않는다. 이 시점 규칙은 co-narration, Novel Mode, No Godmodding, Speech Lock의 권한과 규칙을 변경하지 않는다.`;
   }
 

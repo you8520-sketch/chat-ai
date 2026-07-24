@@ -126,8 +126,9 @@ export function ensureDefaultPersona(userId: number, nickname: string): DbUserPe
 }
 
 /**
- * 페르소나 성별 규칙(userPersonaGenderPrompt)은 contextBuilder의 base system rules에서
- * 이미 주입되므로 여기서 중복 주입하지 않는다 (턴당 ~300자 절약).
+ * 성별에 따른 현재 턴 지칭 규칙은 contextBuilder의 단일
+ * user-persona-reference owner가 담당한다. 이 블록에는 선택 페르소나의
+ * 정체성 사실만 포함하고 별도의 지칭 owner를 만들지 않는다.
  */
 const PERSONA_GENDER_LABELS: Record<CharacterGender, string> = {
   male: "남성",
@@ -137,7 +138,7 @@ const PERSONA_GENDER_LABELS: Record<CharacterGender, string> = {
 
 export function formatSelectedPersonaForPrompt(
   name: string,
-  gender: CharacterGender,
+  _gender: CharacterGender,
   description: string,
   opts?: { coNarrationEnabled?: boolean }
 ): string | null {
@@ -145,15 +146,6 @@ export function formatSelectedPersonaForPrompt(
   const trimmedName = name.trim();
   const trimmedDesc = description.trim();
   if (trimmedName) parts.push(`이름/호칭: ${trimmedName}`);
-  if (gender === "male" || gender === "female") {
-    parts.push(
-      `성별: ${PERSONA_GENDER_LABELS[gender]} — 절대 준수. 유저를 ${
-        gender === "male"
-          ? "여성으로 묘사 금지 (드레스·코르셋·아내 등 여성 전용 복장·호칭·신체 묘사 금지, 설정에 명시된 경우 제외)"
-          : "남성으로 묘사 금지 (남편 등 남성 전용 호칭·신체 묘사 금지, 설정에 명시된 경우 제외)"
-      }.`
-    );
-  }
   if (trimmedDesc) parts.push(trimmedDesc);
   // 말투 유지 규칙은 AI가 유저 대사를 쓸 권한이 있을 때(co-narration/소설 모드)만.
   // 사칭 OFF에서 주입하면 [NO GODMODDING]과 충돌 — "매 턴 유지"가 유저 대사 작성을 전제하는 신호가 된다.
