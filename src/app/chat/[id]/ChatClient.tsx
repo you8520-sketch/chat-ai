@@ -35,7 +35,6 @@ import ReportRefundButton from "@/components/ReportRefundButton";
 import ChatSelectionQuoteToolbar from "@/components/ChatSelectionQuoteToolbar";
 import MessageVariantPicker from "@/components/MessageVariantPicker";
 import ChatToast from "@/components/ChatToast";
-import NotificationBell from "@/components/NotificationBell";
 import CharacterAssetImage from "@/components/CharacterAssetImage";
 import GenerationPreparationIndicator from "@/components/GenerationPreparationIndicator";
 import {
@@ -3731,7 +3730,6 @@ export default function ChatClient({
                   ) : null}
                 </div>
                 <div className="flex shrink-0 items-center gap-1.5">
-                  <NotificationBell />
                   <button
                     type="button"
                     onClick={() => setAssetAlbumOpen(true)}
@@ -3772,7 +3770,6 @@ export default function ChatClient({
               ) : null}
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
-              <NotificationBell />
               <button
                 type="button"
                 onClick={() => setAssetAlbumOpen(true)}
@@ -3847,7 +3844,6 @@ export default function ChatClient({
               ) : null
             )}
           </div>
-          <NotificationBell />
           <button
             type="button"
             onClick={() => setAssetAlbumOpen(true)}

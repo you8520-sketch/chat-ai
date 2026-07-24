@@ -92,7 +92,7 @@ export default async function Header() {
           </div>
         </div>
       </header>
-      <MobileBottomNav loggedIn={!!user} unreadCount={unreadCount} />
+      <MobileBottomNav loggedIn={!!user} />
       {user && <ExpiringPointsPopup />}
     </>
   );
