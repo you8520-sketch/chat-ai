@@ -146,4 +146,23 @@ describe("creatorDescriptionTriggerCompiler", () => {
     assert.equal(merged.length, 1);
     assert.equal(merged[0]?.event_key, "manual_event");
   });
+
+  it("recognizes 호감 threshold parity with 호감도", () => {
+    const compiled = compileCreatorDescriptionTriggers({
+      description: "호감 70 이상이면 과거 고백 트리거. 캐릭터는 모른다.",
+      statusWidget: widget,
+    });
+    assert.equal(compiled.trigger_candidates.length, 1);
+    assert.equal(compiled.trigger_candidates[0]?.status_key, "affection");
+    assert.equal(compiled.trigger_candidates[0]?.value, 70);
+    assert.equal(compiled.trigger_candidates[0]?.character_knowledge, "unknown");
+  });
+
+  it("routes hidden knowledge with 캐릭터는 모른다 to hidden_event_notes", () => {
+    const line = "호감 70 이상이면 과거 고백 트리거. 캐릭터는 모른다.";
+    const compiled = compileCreatorDescriptionTriggers({ description: line, statusWidget: widget });
+    assert.ok(compiled.hidden_event_notes.some((n) => n.includes("호감 70")));
+    assert.ok(compiled.hidden_event_notes.some((n) => /캐릭터(?:는|가)\s*(?:이를\s*)?모른다/.test(n)));
+    assert.deepEqual(compiled.public_canon, []);
+  });
 });

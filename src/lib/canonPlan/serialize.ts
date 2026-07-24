@@ -3,6 +3,7 @@ import {
   CANON_PLAN_VERSION,
   type CanonPlanV1,
 } from "@/lib/canonPlan/types";
+import type { KnowledgeVisibility } from "@/lib/canonPlan/canonVisibility";
 
 export function serializeCanonPlanV1(plan: CanonPlanV1): string {
   return JSON.stringify(plan);
@@ -32,11 +33,18 @@ export function parseCanonPlanV1(raw: string | null | undefined): CanonPlanV1 | 
           chunk.salience === "core" || chunk.salience === "active" ? chunk.salience : "dormant";
         const source: CanonPlanV1["chunks"][number]["provenance"]["source"] =
           chunk.provenance?.source === "compiled_sentence" ? "compiled_sentence" : "public_canon";
+        const visibility: KnowledgeVisibility =
+          chunk.visibility === "LOCKED_SECRET" ||
+          chunk.visibility === "CONDITIONAL" ||
+          chunk.visibility === "PUBLIC"
+            ? chunk.visibility
+            : "PUBLIC";
         return {
           ...chunk,
           text: chunk.text.trim(),
           sectionTitle: chunk.sectionTitle ?? "",
           salience,
+          visibility,
           provenance: {
             sectionIndex: chunk.provenance?.sectionIndex ?? 0,
             paragraphIndex: chunk.provenance?.paragraphIndex ?? 0,

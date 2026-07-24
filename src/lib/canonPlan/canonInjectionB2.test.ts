@@ -67,6 +67,7 @@ function makeTestPlan(): CanonPlanV1 {
       text: SENTINEL_CORE,
       salience: "core",
       bucket: "character",
+      visibility: "PUBLIC",
       order: 0,
       sectionTitle: "[Identity]",
       provenance: { sectionIndex: 0, paragraphIndex: 0, source: "public_canon" },
@@ -76,13 +77,14 @@ function makeTestPlan(): CanonPlanV1 {
       text: SENTINEL_DORMANT,
       salience: "dormant",
       bucket: "player",
+      visibility: "CONDITIONAL",
       order: 1,
       sectionTitle: "[Secret]",
       provenance: { sectionIndex: 1, paragraphIndex: 0, source: "public_canon" },
     },
   ];
   return {
-    version: 1,
+    version: 2,
     sourceHash: "test-hash-fixed",
     compilerVersion: CANON_COMPILER_VERSION,
     chunks,

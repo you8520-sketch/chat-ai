@@ -1,5 +1,6 @@
 import { extractKeywords } from "@/lib/memory/memory-injector";
 import type { CanonKnowledgeBucket } from "@/lib/characterKnowledgeBoundary";
+import { isPublicVisibleChunk } from "@/lib/canonPlan/canonVisibility";
 import type { CanonPlanChunk, CanonPlanV1 } from "@/lib/canonPlan/types";
 
 export type ActiveSelectionInput = {
@@ -88,7 +89,8 @@ function eligibleActiveChunks(plan: CanonPlanV1): CanonPlanChunk[] {
     (c) =>
       !coreSet.has(c.id) &&
       c.salience !== "core" &&
-      !ACTIVE_RESTRICTED_BUCKETS.has(c.bucket)
+      !ACTIVE_RESTRICTED_BUCKETS.has(c.bucket) &&
+      isPublicVisibleChunk(c.visibility)
   );
 }
 
