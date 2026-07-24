@@ -16,7 +16,7 @@ Module._load = function (request, parent, isMain) {
 import assert from "node:assert/strict";
 import { afterEach, before, beforeEach, describe, it } from "node:test";
 import { resolveCanonInjectionPolicy } from "@/lib/canonInjectionPolicy";
-import type { CanonPlanV1, CanonPlanChunk } from "@/lib/canonPlan/types";
+import { CANON_COMPILER_VERSION, type CanonPlanV1, type CanonPlanChunk } from "@/lib/canonPlan/types";
 import {
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_25_PRO_MODEL,
@@ -104,7 +104,7 @@ function makeTestPlan(): CanonPlanV1 {
   return {
     version: 1,
     sourceHash: "test-hash-fixed-d3",
-    compilerVersion: 1,
+    compilerVersion: CANON_COMPILER_VERSION,
     chunks,
     coreIds: ["core-1"],
     provenance: { sourceLength: 120, compiledAt: "2026-01-01T00:00:00.000Z", publicCanonLineCount: 6, chunkCount: 4 },

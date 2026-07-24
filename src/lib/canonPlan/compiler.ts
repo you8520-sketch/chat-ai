@@ -5,6 +5,7 @@ import {
 import { parseCharacterSettingIntoSections } from "@/lib/characterSettingSections";
 import { compileCreatorDescriptionTriggers } from "@/lib/creatorDescriptionTriggerCompiler";
 import { hashCanonSource, normalizeCanonSource, stableCanonChunkId } from "@/lib/canonPlan/hash";
+import { inferSalience } from "@/lib/canonPlan/canonSalience";
 import {
   CANON_COMPILER_VERSION,
   CANON_PLAN_VERSION,
@@ -13,19 +14,6 @@ import {
   type CanonPlanCompileResult,
   type CanonPlanV1,
 } from "@/lib/canonPlan/types";
-
-const CORE_SECTION_TITLE =
-  /(?:^|\[)(?:name|identity|alias|appearance|personality|current\s*status|말투|외형|외모|성격|정체성|이름|호칭|별명|현재\s*신분|speech|abilities|능력|저주|curse|hidden\s*(?:condition|ability)|숨겨진\s*(?:조건|능력|저주))/i;
-
-const CORE_IDENTITY_BODY =
-  /^(?:이름|name|본명|별명|정체성|직업|신분|종족|나이|성별)/i;
-
-const CORE_WORLD_LAW =
-  /(?:불변|절대\s*규칙|항상\s*적용|must\s*never|immutable|never\s*break|위반\s*불가)/i;
-
-/** Plot hooks / secrets — important but not always-on CORE */
-const DORMANT_PLOT_HOOK =
-  /(?:비밀|secret|트리거|trigger|조건\s*(?:충족|달성)|해금|루트|고백|폭주|숨긴|모른다|알지\s*못한다|폭로\s*전|발각\s*전)/i;
 
 const DEFAULT_ACTIVE_BUDGET_CHARS = 1200;
 const DEFAULT_ARCHIVE_BUDGET_CHARS = 1500;
@@ -49,24 +37,6 @@ function splitCompiledSentences(lines: string[]): string[] {
     out.push(...(parts.length > 0 ? parts : [trimmed]));
   }
   return out;
-}
-
-function inferSalience(chunk: Pick<CanonPlanChunk, "text" | "bucket" | "sectionTitle">): CanonChunkSalience {
-  if (chunk.bucket === "player" || chunk.bucket === "scenario_meta") return "dormant";
-  if (DORMANT_PLOT_HOOK.test(chunk.text)) return "dormant";
-
-  if (chunk.bucket === "character") {
-    if (CORE_SECTION_TITLE.test(chunk.sectionTitle)) return "core";
-    if (CORE_IDENTITY_BODY.test(chunk.text.slice(0, 48))) return "core";
-    return "dormant";
-  }
-
-  if (chunk.bucket === "world") {
-    if (CORE_WORLD_LAW.test(chunk.text)) return "core";
-    return "dormant";
-  }
-
-  return "dormant";
 }
 
 function pushChunk(

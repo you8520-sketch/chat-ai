@@ -1,7 +1,7 @@
 import type { CanonKnowledgeBucket } from "@/lib/characterKnowledgeBoundary";
 
 export const CANON_PLAN_VERSION = 1 as const;
-export const CANON_COMPILER_VERSION = 1 as const;
+export const CANON_COMPILER_VERSION = 2 as const;
 
 export type CanonChunkSalience = "core" | "active" | "dormant";
 
