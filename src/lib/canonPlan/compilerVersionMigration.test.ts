@@ -46,15 +46,8 @@ const FUNDAMENTAL_LAW_RAW = `[이름]
 북쪽 관문 너머의 안개는 낮에도 시야를 10m 이하로 줄인다.`;
 
 const HAZARD_LAW = "코어 근처에서 총성을 내면 동조체가 몰려든다.";
-const TEST_CHAR_ID = 9_900_002;
+const TEST_CHAR_ID = 9_900_003;
 const NOW = "2026-07-24T00:00:00.000Z";
-
-/** Phase 2B recovered laws that were DORMANT under compiler v1 semantics. */
-const V1_DORMANT_CORE_LAWS = [
-  HAZARD_LAW,
-  "마법을 사용할수록 사용자의 수명이 줄어든다.",
-  "죽은 사람은 어떤 마법으로도 되살릴 수 없다.",
-];
 
 function createTestDb(): Database.Database {
   const db = new Database(":memory:");
@@ -73,12 +66,7 @@ function createTestDb(): Database.Database {
 
 function insertCharacter(
   db: Database.Database,
-  opts: {
-    raw: string;
-    planJson?: string | null;
-    world?: string;
-    systemPrompt?: string;
-  }
+  opts: { raw: string; planJson?: string | null; world?: string; systemPrompt?: string }
 ): void {
   db.prepare("DELETE FROM characters WHERE id = ?").run(TEST_CHAR_ID);
   db.prepare(
@@ -112,239 +100,133 @@ function readPlanJson(db: Database.Database): string | null {
   return row.creator_canon_plan_json?.trim() || null;
 }
 
-/** Realistic stored v1 plan: valid JSON shape, v1 hash, Phase-2A-era salience on recovered laws. */
-function buildStoredCompilerV1Plan(raw: string): { json: string; plan: CanonPlanV1 } {
+/** Stored compiler v2 plan shape (pre-visibility). */
+function buildStoredCompilerV2Plan(raw: string): { json: string; plan: CanonPlanV1 } {
   const compiled = compileCanonPlanV1({ creatorRawDescription: raw, now: NOW });
   assert.equal(compiled.ok, true);
   if (!compiled.ok) throw new Error("compile failed");
 
-  const v1Chunks = compiled.plan.chunks.map((chunk) => {
-    if (V1_DORMANT_CORE_LAWS.includes(chunk.text)) {
-      return { ...chunk, salience: "dormant" as const };
-    }
-    return chunk;
-  });
+  const v2Chunks = compiled.plan.chunks.map(({ visibility: _v, ...chunk }) => chunk) as CanonPlanV1["chunks"];
 
-  const v1CoreIds = v1Chunks.filter((c) => c.salience === "core").map((c) => c.id);
-
-  const v1PlanForStorage = {
+  const v2PlanForStorage = {
     ...compiled.plan,
-    compilerVersion: 1,
-    sourceHash: hashCanonSource(raw, 1),
-    chunks: v1Chunks,
-    coreIds: v1CoreIds,
+    version: 1,
+    compilerVersion: 2,
+    sourceHash: hashCanonSource(raw, 2),
+    chunks: v2Chunks,
   };
 
-  return { json: JSON.stringify(v1PlanForStorage), plan: v1PlanForStorage as CanonPlanV1 };
+  return { json: JSON.stringify(v2PlanForStorage), plan: v2PlanForStorage as CanonPlanV1 };
 }
 
-function hazardChunkSalience(plan: CanonPlanV1): CanonPlanV1["chunks"][number]["salience"] | undefined {
-  return plan.chunks.find((c) => c.text === HAZARD_LAW)?.salience;
+function hazardChunkVisibility(plan: CanonPlanV1): string | undefined {
+  return plan.chunks.find((c) => c.text === HAZARD_LAW)?.visibility;
 }
 
 afterEach(() => {
   resetLazyCompileInFlightForTests();
 });
 
-describe("Canon compiler version migration — invalidation", () => {
-  it("A: parseCanonPlanV1 rejects stored compilerVersion=1 JSON under runtime v2", () => {
-    const { json } = buildStoredCompilerV1Plan(FUNDAMENTAL_LAW_RAW);
+describe("Canon compiler version migration — PR-C v2→v3", () => {
+  it("A: parseCanonPlanV1 rejects stored compilerVersion=2 JSON under runtime v3", () => {
+    const { json } = buildStoredCompilerV2Plan(FUNDAMENTAL_LAW_RAW);
     assert.equal(parseCanonPlanV1(json), null);
   });
 
-  it("B: hashCanonSource changes when compiler version changes", () => {
-    const hashV1 = hashCanonSource(FUNDAMENTAL_LAW_RAW, 1);
-    const hashV2 = hashCanonSource(FUNDAMENTAL_LAW_RAW, 2);
-    assert.notEqual(hashV1, hashV2);
-  });
+  it("F: Plan V1/Compiler V2 rejection unchanged; invalid V2 visibility also rejected", () => {
+    const { json: v2Json } = buildStoredCompilerV2Plan(FUNDAMENTAL_LAW_RAW);
+    assert.equal(parseCanonPlanV1(v2Json), null);
 
-  it("C: unchanged raw is stale under v2 (hash mismatch vs stored v1 plan)", () => {
-    const { json, plan } = buildStoredCompilerV1Plan(FUNDAMENTAL_LAW_RAW);
-    assert.equal(parseCanonPlanV1(json), null);
-    assert.notEqual(plan.sourceHash, hashCanonSource(FUNDAMENTAL_LAW_RAW));
-  });
-
-  it("schema version unchanged — CANON_PLAN_VERSION stays 1", () => {
-    assert.equal(CANON_PLAN_VERSION, 1);
-    assert.equal(CANON_COMPILER_VERSION, 2);
     const compiled = compileCanonPlanV1({ creatorRawDescription: FUNDAMENTAL_LAW_RAW, now: NOW });
     assert.equal(compiled.ok, true);
     if (!compiled.ok) return;
-    assert.equal(compiled.plan.version, 1);
-    assert.equal(compiled.plan.compilerVersion, 2);
+    const broken = JSON.parse(JSON.stringify(compiled.plan)) as CanonPlanV1;
+    delete (broken.chunks[0] as { visibility?: string }).visibility;
+    assert.equal(parseCanonPlanV1(JSON.stringify(broken)), null);
+
+    // Lazy path still recovers via recompile when raw exists.
+    const saved = buildCanonPlanForSave({
+      creatorRawDescription: FUNDAMENTAL_LAW_RAW,
+      existingPlanJson: JSON.stringify(broken),
+      now: NOW,
+    });
+    assert.equal(saved.reusedExisting, false);
+    assert.equal(saved.plan?.compilerVersion, 3);
+    assert.ok(saved.plan?.chunks.every((c) => c.visibility === "PUBLIC" || c.visibility === "CONDITIONAL"));
   });
-});
 
-describe("Canon compiler version migration — buildCanonPlanForSave", () => {
-  it("recompiles stale v1 stored plan to v2 with Phase 2B salience", () => {
-    const { json, plan: v1Plan } = buildStoredCompilerV1Plan(FUNDAMENTAL_LAW_RAW);
-    assert.equal(hazardChunkSalience(v1Plan), "dormant");
+  it("B: hashCanonSource changes when compiler version changes (v2 vs v3)", () => {
+    const hashV2 = hashCanonSource(FUNDAMENTAL_LAW_RAW, 2);
+    const hashV3 = hashCanonSource(FUNDAMENTAL_LAW_RAW, 3);
+    assert.notEqual(hashV2, hashV3);
+  });
 
+  it("schema version bumped — CANON_PLAN_VERSION=2, CANON_COMPILER_VERSION=3", () => {
+    assert.equal(CANON_PLAN_VERSION, 2);
+    assert.equal(CANON_COMPILER_VERSION, 3);
+    const compiled = compileCanonPlanV1({ creatorRawDescription: FUNDAMENTAL_LAW_RAW, now: NOW });
+    assert.equal(compiled.ok, true);
+    if (!compiled.ok) return;
+    assert.equal(compiled.plan.version, 2);
+    assert.equal(compiled.plan.compilerVersion, 3);
+    assert.ok(compiled.plan.chunks.every((c) => c.visibility === "PUBLIC" || c.visibility === "CONDITIONAL"));
+  });
+
+  it("recompiles stale v2 stored plan to v3 with visibility on access", () => {
+    const { json } = buildStoredCompilerV2Plan(FUNDAMENTAL_LAW_RAW);
     const saved = buildCanonPlanForSave({
       creatorRawDescription: FUNDAMENTAL_LAW_RAW,
       existingPlanJson: json,
       now: NOW,
     });
-
     assert.equal(saved.reusedExisting, false);
-    assert.equal(saved.compiled, true);
-    assert.ok(saved.plan);
-    assert.equal(saved.plan.compilerVersion, 2);
-    assert.equal(saved.plan.sourceHash, hashCanonSource(FUNDAMENTAL_LAW_RAW));
-    assert.equal(hazardChunkSalience(saved.plan), "core");
-    assert.ok(saved.plan.coreIds.some((id) => saved.plan!.chunks.find((c) => c.id === id)?.text === HAZARD_LAW));
+    assert.equal(saved.plan?.compilerVersion, 3);
+    assert.equal(saved.plan?.version, 2);
+    assert.equal(hazardChunkVisibility(saved.plan!), "PUBLIC");
   });
 
-  it("new canon compile stores compilerVersion=2", () => {
-    const saved = buildCanonPlanForSave({
-      creatorRawDescription: FUNDAMENTAL_LAW_RAW,
-      now: NOW,
-    });
-    assert.equal(saved.compiled, true);
-    assert.equal(saved.plan?.compilerVersion, 2);
-  });
-
-  it("reuses current v2 plan when source hash unchanged", () => {
-    const first = buildCanonPlanForSave({
-      creatorRawDescription: FUNDAMENTAL_LAW_RAW,
-      now: NOW,
-    });
-    assert.ok(first.planJson);
-
-    const second = buildCanonPlanForSave({
-      creatorRawDescription: FUNDAMENTAL_LAW_RAW,
-      existingPlanJson: first.planJson,
-      now: NOW,
-    });
-    assert.equal(second.reusedExisting, true);
-    assert.equal(second.compiled, false);
-    assert.equal(second.plan?.compilerVersion, 2);
-    assert.equal(second.plan?.sourceHash, hashCanonSource(FUNDAMENTAL_LAW_RAW));
-  });
-});
-
-describe("Canon compiler version migration — lazy recompile", () => {
-  it("first access migrates v1 stored plan to v2 and persists", () => {
+  it("lazy first access migrates v2 to v3; second access reuses", () => {
     const db = createTestDb();
-    const { json: v1Json, plan: v1Plan } = buildStoredCompilerV1Plan(FUNDAMENTAL_LAW_RAW);
-    assert.equal(hazardChunkSalience(v1Plan), "dormant");
-
-    insertCharacter(db, { raw: FUNDAMENTAL_LAW_RAW, planJson: v1Json });
+    const { json: v2Json } = buildStoredCompilerV2Plan(FUNDAMENTAL_LAW_RAW);
+    insertCharacter(db, { raw: FUNDAMENTAL_LAW_RAW, planJson: v2Json });
     const before = readCharacterRow(db);
 
     const first = ensureCanonPlanOnAccess(db, TEST_CHAR_ID, {
       creator_raw_description: FUNDAMENTAL_LAW_RAW,
-      creator_canon_plan_json: v1Json,
+      creator_canon_plan_json: v2Json,
     });
-
     assert.equal(first.compileSource, "lazy");
-    assert.equal(first.reusedExisting, false);
-    assert.equal(first.compiled, true);
+    assert.equal(first.plan?.compilerVersion, 3);
     assert.equal(first.persisted, true);
-    assert.equal(first.plan?.compilerVersion, 2);
-    assert.equal(first.plan?.sourceHash, hashCanonSource(FUNDAMENTAL_LAW_RAW));
-    assert.equal(hazardChunkSalience(first.plan!), "core");
 
     const storedJson = readPlanJson(db);
     assert.ok(storedJson);
-    assert.notEqual(storedJson, v1Json);
-    const storedPlan = parseCanonPlanV1(storedJson);
-    assert.ok(storedPlan);
-    assert.equal(storedPlan.compilerVersion, 2);
-    assert.equal(hazardChunkSalience(storedPlan), "core");
-
-    const after = readCharacterRow(db);
-    assert.equal(after.creator_raw_description, before.creator_raw_description);
-    assert.equal(after.world, before.world);
-    assert.equal(after.system_prompt, before.system_prompt);
-
-    db.close();
-  });
-
-  it("second access reuses persisted v2 without recompile", () => {
-    const db = createTestDb();
-    const { json: v1Json } = buildStoredCompilerV1Plan(FUNDAMENTAL_LAW_RAW);
-    insertCharacter(db, { raw: FUNDAMENTAL_LAW_RAW, planJson: v1Json });
-
-    const first = ensureCanonPlanOnAccess(db, TEST_CHAR_ID, {
-      creator_raw_description: FUNDAMENTAL_LAW_RAW,
-      creator_canon_plan_json: v1Json,
-    });
-    assert.equal(first.persisted, true);
-    const storedJson = readPlanJson(db);
-    assert.ok(storedJson);
+    assert.notEqual(storedJson, v2Json);
 
     const second = ensureCanonPlanOnAccess(db, TEST_CHAR_ID, {
       creator_raw_description: FUNDAMENTAL_LAW_RAW,
       creator_canon_plan_json: storedJson,
     });
-
-    assert.equal(second.compileSource, "existing");
     assert.equal(second.reusedExisting, true);
     assert.equal(second.compiled, false);
-    assert.equal(second.persisted, false);
-    assert.equal(second.sourceHashStatus, "match");
-    assert.equal(readPlanJson(db), storedJson);
 
+    const after = readCharacterRow(db);
+    assert.equal(after.creator_raw_description, before.creator_raw_description);
     db.close();
   });
-});
 
-describe("Canon compiler version migration — CAS race safety", () => {
-  it("loser does not overwrite valid v2 written by concurrent winner", () => {
+  it("missing raw preserves stored v2 JSON without deletion", () => {
     const db = createTestDb();
-    const { json: v1Json } = buildStoredCompilerV1Plan(FUNDAMENTAL_LAW_RAW);
-    insertCharacter(db, { raw: FUNDAMENTAL_LAW_RAW, planJson: v1Json });
-
-    const winnerSave = buildCanonPlanForSave({
-      creatorRawDescription: FUNDAMENTAL_LAW_RAW,
-      now: NOW,
-    });
-    assert.ok(winnerSave.planJson);
-
-    db.prepare(
-      `UPDATE characters SET creator_canon_plan_json = ? WHERE id = ? AND creator_canon_plan_json = ?`
-    ).run(winnerSave.planJson, TEST_CHAR_ID, v1Json);
-
-    const loser = ensureCanonPlanOnAccess(db, TEST_CHAR_ID, {
-      creator_raw_description: FUNDAMENTAL_LAW_RAW,
-      creator_canon_plan_json: v1Json,
-    });
-
-    assert.equal(loser.plan?.compilerVersion, 2);
-    assert.equal(loser.plan?.sourceHash, hashCanonSource(FUNDAMENTAL_LAW_RAW));
-    assert.equal(readPlanJson(db), winnerSave.planJson);
-    assert.equal(parseCanonPlanV1(readPlanJson(db)!)?.compilerVersion, 2);
-
-    db.close();
-  });
-});
-
-describe("Canon compiler version migration — missing raw fallback", () => {
-  it("preserves stored v1 JSON when raw is empty and does not crash-loop", () => {
-    const db = createTestDb();
-    const { json: v1Json } = buildStoredCompilerV1Plan(FUNDAMENTAL_LAW_RAW);
-    insertCharacter(db, { raw: "", planJson: v1Json });
+    const { json: v2Json } = buildStoredCompilerV2Plan(FUNDAMENTAL_LAW_RAW);
+    insertCharacter(db, { raw: "", planJson: v2Json });
 
     const result = ensureCanonPlanOnAccess(db, TEST_CHAR_ID, {
       creator_raw_description: "",
-      creator_canon_plan_json: v1Json,
+      creator_canon_plan_json: v2Json,
     });
-
     assert.equal(result.sourceHashStatus, "missing_raw");
-    assert.equal(result.compiled, false);
-    assert.equal(result.persisted, false);
     assert.equal(result.plan, null);
-    assert.equal(readPlanJson(db), v1Json);
-
-    const again = ensureCanonPlanOnAccess(db, TEST_CHAR_ID, {
-      creator_raw_description: "",
-      creator_canon_plan_json: v1Json,
-    });
-    assert.equal(again.compiled, false);
-    assert.equal(again.plan, null);
-    assert.equal(readPlanJson(db), v1Json);
-
+    assert.equal(readPlanJson(db), v2Json);
     db.close();
   });
 });

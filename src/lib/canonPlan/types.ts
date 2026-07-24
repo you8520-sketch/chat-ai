@@ -1,7 +1,8 @@
 import type { CanonKnowledgeBucket } from "@/lib/characterKnowledgeBoundary";
+import type { KnowledgeVisibility } from "@/lib/canonPlan/canonVisibility";
 
-export const CANON_PLAN_VERSION = 1 as const;
-export const CANON_COMPILER_VERSION = 2 as const;
+export const CANON_PLAN_VERSION = 2 as const;
+export const CANON_COMPILER_VERSION = 3 as const;
 
 export type CanonChunkSalience = "core" | "active" | "dormant";
 
@@ -10,6 +11,8 @@ export type CanonPlanChunk = {
   text: string;
   salience: CanonChunkSalience;
   bucket: CanonKnowledgeBucket;
+  /** Who may know vs whether it may be ordinarily exposed now */
+  visibility: KnowledgeVisibility;
   /** Stable compile order — lower first */
   order: number;
   sectionTitle: string;

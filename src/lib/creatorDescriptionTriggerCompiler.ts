@@ -71,6 +71,7 @@ export const STATUS_LABEL_TO_KEY: Record<string, string> = {
   "D-day": "d_day",
   "디데이": "d_day",
   "호감도": "affection",
+  "호감": "affection",
   "신뢰도": "trust",
   "불신도": "distrust",
   "오염도": "corruption",
@@ -78,7 +79,8 @@ export const STATUS_LABEL_TO_KEY: Record<string, string> = {
 
 const SPEECH_RULE_RE = /말투|대사\s*규칙|존댓말|반말|해요체|다나까체|군대식|사적인\s*장소|단둘이\s*있을\s*때|평소에는/;
 const STATUS_DISPLAY_RE = /(D-?DAY|디데이|호감도|신뢰도|불신도|오염도).{0,24}(상태창|표시|마지막)/i;
-const HIDDEN_KNOWLEDGE_RE = /(?:이\s*사실|그\s*사실|비밀|결과|조건).{0,24}(모른다|알지\s*못한다|숨긴다|비밀이다)/;
+const HIDDEN_KNOWLEDGE_RE =
+  /(?:이\s*사실|그\s*사실|비밀|결과|조건).{0,24}(모른다|알지\s*못한다|숨긴다|비밀이다)|캐릭터(?:는|가)\s*(?:이를\s*)?모른다/i;
 
 function splitSentences(text: string): string[] {
   return text
@@ -130,7 +132,7 @@ function inferEffectText(statusKey: string, sentence: string): string {
 }
 
 function inferTrigger(sentence: string): StatusWidgetTriggerInput | null {
-  const statusLabel = /(D-?DAY|디데이|호감도|신뢰도|불신도|오염도)/i.exec(sentence)?.[1];
+  const statusLabel = /(D-?DAY|디데이|호감도|호감|신뢰도|불신도|오염도)/i.exec(sentence)?.[1];
   if (!statusLabel) return null;
   const statusKey = normalizeStatusKey(statusLabel);
   if (!statusKey) return null;
@@ -150,9 +152,10 @@ function inferTrigger(sentence: string): StatusWidgetTriggerInput | null {
   if (!operator) return null;
 
   const triggerId = makeStableId(statusKey, operator, value);
-  const characterKnowledge: StatusTriggerCharacterKnowledge = /모른다|알지\s*못한다|비밀/.test(sentence)
-    ? "unknown"
-    : "revealed_on_trigger";
+  const characterKnowledge: StatusTriggerCharacterKnowledge =
+    /모른다|알지\s*못한다|비밀|캐릭터(?:는|가)\s*(?:이를\s*)?모른다/.test(sentence)
+      ? "unknown"
+      : "revealed_on_trigger";
 
   return {
     trigger_id: triggerId,

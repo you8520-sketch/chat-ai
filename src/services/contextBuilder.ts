@@ -126,6 +126,7 @@ import {
   isSelectiveArchiveActive,
 } from "@/lib/canonInjectionPolicy";
 import { renderCoreCanonBlock, renderCanonChunksBlock } from "@/lib/canonPlan/coreRenderer";
+import { renderPrivateCharacterSecretBlock } from "@/lib/canonPlan/privateCharacterSecretRenderer";
 import { selectActiveCanonChunks } from "@/lib/canonPlan/activeSelector";
 import { selectArchiveChunksSelective } from "@/lib/memory/archiveSelective";
 import {
@@ -627,6 +628,19 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   };
 
+  const pushPrivateCharacterSecret = () => {
+    if (!layeredCanonActive) return;
+    const s2 = renderPrivateCharacterSecretBlock(canonPlan!, { charName: input.charName });
+    if (!s2.block?.trim()) return;
+    pushSection(
+      "character-private-secret",
+      "[2d] Private character secret (concealed knowledge)",
+      "characterSetting",
+      s2.block,
+      "dynamic"
+    );
+  };
+
   const pushIdentityAndRules = () => {
     if (!identityBlock) return;
     pushSection(
@@ -871,6 +885,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   pushVolatileContextSections();
 
   pushActiveCanon();
+  pushPrivateCharacterSecret();
 
   flushDeepSeekXmlSections(["ltm"]);
 

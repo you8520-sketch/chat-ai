@@ -5,6 +5,7 @@ import {
   selectActiveCanonChunks,
   isActiveSelectionEmpty,
 } from "@/lib/canonPlan/activeSelector";
+import { isPublicVisibleChunk } from "@/lib/canonPlan/canonVisibility";
 import { compileCanonPlanV1 } from "@/lib/canonPlan/compiler";
 import {
   resolveCanonInjectionPolicy,
@@ -267,7 +268,8 @@ describe("AR-A3 patch — H. Bucket boundary (B1)", () => {
           !plan.coreIds.includes(c.id) &&
           c.salience !== "core" &&
           c.bucket !== "player" &&
-          c.bucket !== "scenario_meta"
+          c.bucket !== "scenario_meta" &&
+          isPublicVisibleChunk(c.visibility)
       ).length
     );
   });

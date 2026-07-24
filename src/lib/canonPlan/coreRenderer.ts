@@ -1,4 +1,5 @@
 import type { CanonKnowledgeBucket } from "@/lib/characterKnowledgeBoundary";
+import { isPublicVisibleChunk } from "@/lib/canonPlan/canonVisibility";
 import type { CanonPlanChunk, CanonPlanV1 } from "@/lib/canonPlan/types";
 
 export type CanonSerializationPath = "legacy_structured";
@@ -35,13 +36,17 @@ function groupByBucket(chunks: CanonPlanChunk[]): Record<CanonKnowledgeBucket, s
   return buckets;
 }
 
-/** Deterministic CORE-only renderer — matches legacy structured bucket headers/order */
+function filterPublicRenderChunks(chunks: CanonPlanChunk[]): CanonPlanChunk[] {
+  return chunks.filter((c) => isPublicVisibleChunk(c.visibility));
+}
+
+/** Deterministic CORE-only renderer — PUBLIC visibility chunks in coreIds only */
 export function renderCoreCanonBlock(
   plan: CanonPlanV1,
   opts?: { charName?: string; serializationPath?: CanonSerializationPath }
 ): string {
   const coreSet = new Set(plan.coreIds);
-  const coreChunks = plan.chunks.filter((c) => coreSet.has(c.id));
+  const coreChunks = filterPublicRenderChunks(plan.chunks.filter((c) => coreSet.has(c.id)));
   return renderCanonChunksBlock(coreChunks, opts);
 }
 
@@ -51,7 +56,7 @@ export function renderCanonChunksBlock(
 ): string {
   void (opts?.serializationPath ?? "legacy_structured");
   const aiLabel = opts?.charName?.trim() || "[A]";
-  const buckets = groupByBucket(chunks);
+  const buckets = groupByBucket(filterPublicRenderChunks(chunks));
   const parts: string[] = [];
 
   if (buckets.character.length) {

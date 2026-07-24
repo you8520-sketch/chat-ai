@@ -6,6 +6,7 @@ import { parseCharacterSettingIntoSections } from "@/lib/characterSettingSection
 import { compileCreatorDescriptionTriggers } from "@/lib/creatorDescriptionTriggerCompiler";
 import { hashCanonSource, normalizeCanonSource, stableCanonChunkId } from "@/lib/canonPlan/hash";
 import { inferSalience } from "@/lib/canonPlan/canonSalience";
+import { resolveChunkVisibility } from "@/lib/canonPlan/canonVisibility";
 import {
   CANON_COMPILER_VERSION,
   CANON_PLAN_VERSION,
@@ -65,6 +66,11 @@ function pushChunk(
     text,
     salience: "dormant" as CanonChunkSalience,
     bucket: input.bucket,
+    visibility: resolveChunkVisibility({
+      sectionTitle: input.sectionTitle,
+      bucket: input.bucket,
+      text,
+    }),
     order: chunks.length,
     sectionTitle: input.sectionTitle,
     provenance: {
@@ -105,7 +111,7 @@ function compileChunksFromPublicCanon(publicCanonText: string): CanonPlanChunk[]
         pushChunk(chunks, {
           text: paragraph,
           bucket: classified.bucket,
-          sectionTitle: classified.title,
+          sectionTitle: section.title || classified.title,
           sectionIndex,
           paragraphIndex,
           source: "public_canon",
