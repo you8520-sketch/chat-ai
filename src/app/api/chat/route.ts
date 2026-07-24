@@ -82,6 +82,7 @@ import {
   sanitizeVisualAppearance,
 } from "@/lib/visualAnchor";
 import { formatMemoryMetaForPrompt, normalizeMemoryMeta, parseMemoryMeta, type RelationshipMetaDelta } from "@/lib/chatMemory";
+import { buildSceneMomentumInputFromRoute } from "@/lib/sceneMomentum/routeInput";
 import { resolveRelationshipMetaNames } from "@/lib/relationshipMetaCharacterName";
 import {
   messagesToTurns,
@@ -952,10 +953,11 @@ export async function POST(req: Request) {
   const queuedStatusTriggerEventIds = queuedStatusTriggerEvents.map((event) => event.id);
   const triggeredScenarioEventsBlock =
     buildTriggeredScenarioEventsPromptBlock(queuedStatusTriggerEvents);
+  const normalizedRelationshipMemoryMeta = memoryFeatureOn
+    ? normalizeMemoryMeta(parseMemoryMeta(chat.memory_meta), relationshipNames)
+    : null;
   const relationshipMemoryForPrompt = memoryFeatureOn
-    ? formatMemoryMetaForPrompt(
-        normalizeMemoryMeta(parseMemoryMeta(chat.memory_meta), relationshipNames)
-      )
+    ? formatMemoryMetaForPrompt(normalizedRelationshipMemoryMeta!)
     : "";
   const recentChatTextForEpisodicMemory = shortTermHistory
     .map((m) => m.content)
@@ -1002,6 +1004,12 @@ export async function POST(req: Request) {
     progressionTypes: sceneDirective.progressionTypes,
     recommendedIntensity: sceneDirective.recommendedIntensity,
     phase: "preparing",
+  });
+
+  const sceneMomentumInput = buildSceneMomentumInputFromRoute({
+    shortTermHistory,
+    currentUserMessage: policyUserMessage,
+    normalizedMemoryMeta: normalizedRelationshipMemoryMeta,
   });
 
   const contextBuildInput = {
@@ -1053,6 +1061,7 @@ export async function POST(req: Request) {
     globalLorebookBlock: globalLorebookBlock || undefined,
     canonInjectionPolicy: canonInjectionPolicy,
     canonPlan: canonLazyCompileResult?.plan ?? null,
+    sceneMomentumInput,
   };
 
   const built = buildContext({
