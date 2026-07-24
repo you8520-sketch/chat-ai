@@ -167,10 +167,13 @@ import {
 } from "@/lib/userPersonas";
 import { isPersonaSecretBoundaryEnabled } from "@/lib/personaSecretBoundaryPolicy";
 import { formatPrivatePersonaSecretForNovelNarration } from "@/lib/personaSecretPrompt";
+import { splitPersonaSecretItems } from "@/lib/personaSecretItems";
 import {
-  buildRevealedPersonaFactsBlock,
+  buildRevealedPersonaFactsBlockForPersona,
+  detectUserAuthoredPersonaSecretReveals,
   listChatPersonaSecretReveals,
-  persistUserAuthoredPersonaSecretReveals,
+  persistPersonaSecretRevealCandidates,
+  type PersonaSecretRevealCandidate,
 } from "@/lib/personaSecretReveal";
 import { resolveUserImpersonationAllowance } from "@/lib/userImpersonationPolicy";
 import { resolveChatRuntimeMode } from "@/lib/chatRuntimeMode";
@@ -1028,6 +1031,7 @@ export async function POST(req: Request) {
 
   let revealedPersonaFactsBlock: string | null = null;
   let privatePersonaSecretNarrationBlock: string | null = null;
+  let pendingPersonaSecretRevealCandidates: PersonaSecretRevealCandidate[] = [];
   if (personaSecretBoundaryOn && resolvedPersonaId) {
     if (
       !autoContinueContext &&
@@ -1035,16 +1039,14 @@ export async function POST(req: Request) {
       !isContinueUserMessage(messageText) &&
       personaSecretDescription.trim()
     ) {
-      persistUserAuthoredPersonaSecretReveals({
-        chatId: chat.id,
-        personaId: resolvedPersonaId,
-        revealedAtTurn: playableTurnCount + 1,
-        userMessage: messageText,
-        secretDescription: personaSecretDescription,
-      });
+      pendingPersonaSecretRevealCandidates = detectUserAuthoredPersonaSecretReveals(
+        messageText,
+        splitPersonaSecretItems(personaSecretDescription)
+      );
     }
-    revealedPersonaFactsBlock = buildRevealedPersonaFactsBlock(
-      listChatPersonaSecretReveals(chat.id, resolvedPersonaId)
+    revealedPersonaFactsBlock = buildRevealedPersonaFactsBlockForPersona(
+      listChatPersonaSecretReveals(chat.id, resolvedPersonaId),
+      personaSecretDescription
     );
     if (novelModeEnabled && !autoContinueContext && personaSecretDescription.trim()) {
       privatePersonaSecretNarrationBlock = formatPrivatePersonaSecretForNovelNarration(
@@ -1276,6 +1278,19 @@ export async function POST(req: Request) {
   persistenceDiag.userMessageSaved = bootstrapped.userMessageSaved;
   persistenceDiag.assistantPlaceholderCreated = bootstrapped.assistantPlaceholderCreated;
   persistenceDiag.reusedExisting = bootstrapped.reusedExisting;
+  if (
+    bootstrapped.userMessageSaved &&
+    personaSecretBoundaryOn &&
+    resolvedPersonaId &&
+    pendingPersonaSecretRevealCandidates.length > 0
+  ) {
+    persistPersonaSecretRevealCandidates({
+      chatId: chatRef.id,
+      personaId: resolvedPersonaId,
+      revealedAtTurn: playableTurnCount + 1,
+      candidates: pendingPersonaSecretRevealCandidates,
+    });
+  }
   const alreadyBilledForRequest = existingByRequest.alreadyBilled;
 
   const stream = new ReadableStream({

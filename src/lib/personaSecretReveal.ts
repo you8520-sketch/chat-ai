@@ -96,6 +96,18 @@ export function sanitizeRevealedFactForPrompt(text: string): string {
   return sanitizeRuntimePromptSource(sanitizePrimaryModelContextSource(raw)).trim();
 }
 
+/** Intersect stored reveals with current secret_description keys (persona retcon semantics). */
+export function filterVisiblePersonaSecretReveals(
+  reveals: ChatPersonaSecretRevealRow[],
+  secretDescription: string
+): ChatPersonaSecretRevealRow[] {
+  const currentKeys = new Set(
+    splitPersonaSecretItems(secretDescription).map((item) => item.secretKey)
+  );
+  if (currentKeys.size === 0) return [];
+  return reveals.filter((row) => currentKeys.has(row.secret_key));
+}
+
 export function buildRevealedPersonaFactsBlock(reveals: ChatPersonaSecretRevealRow[]): string | null {
   const lines = reveals
     .map((r) => sanitizeRevealedFactForPrompt(r.revealed_fact_text))
@@ -109,9 +121,63 @@ Do not treat unrevealed persona secrets as known.
 ${lines.join("\n")}`;
 }
 
+export function buildRevealedPersonaFactsBlockForPersona(
+  reveals: ChatPersonaSecretRevealRow[],
+  secretDescription: string
+): string | null {
+  return buildRevealedPersonaFactsBlock(
+    filterVisiblePersonaSecretReveals(reveals, secretDescription)
+  );
+}
+
 function normalizeForMatch(text: string): string {
   return text.replace(/\s+/g, " ").trim().toLowerCase();
 }
+
+const GENERIC_INFORMATIVE_STOPWORDS = new Set([
+  "나는",
+  "내가",
+  "저는",
+  "제가",
+  "나",
+  "내",
+  "저",
+  "제",
+  "사실",
+  "진짜",
+  "솔직히",
+  "고백",
+  "말하자면",
+  "밝히",
+  "정체",
+  "있다",
+  "없다",
+  "수",
+  "것",
+  "등",
+  "이",
+  "가",
+  "은",
+  "는",
+  "을",
+  "를",
+  "의",
+  "에",
+  "와",
+  "과",
+  "도",
+  "로",
+  "다",
+  "야",
+  "이야",
+  "이다",
+  "입니다",
+  "있다",
+  "있어",
+  "있음",
+]);
+
+const TOPIC_ONLY_TERMS = new Set(["역사", "이야기", "설", "설화", "전설", "소문", "관심", "후회"]);
 
 /** ONE secret paragraph = ONE atomic reveal unit; split multi-claim items deterministically. */
 export function extractSecretClaimSegments(secretText: string): string[] {
@@ -130,6 +196,73 @@ export function extractSecretClaimSegments(secretText: string): string[] {
     );
   }
   return segments.length > 0 ? segments : [secretText.trim()];
+}
+
+export function extractDistinctiveInformativeTerms(secretText: string): string[] {
+  let normalized = normalizeForMatch(secretText);
+  for (const stop of GENERIC_INFORMATIVE_STOPWORDS) {
+    normalized = normalized.replace(new RegExp(stop, "g"), " ");
+  }
+  const terms = (normalized.match(/[가-힣]{2,}/g) ?? []).filter(
+    (term) => !GENERIC_INFORMATIVE_STOPWORDS.has(term) && !TOPIC_ONLY_TERMS.has(term)
+  );
+  return [...new Set(terms)];
+}
+
+type EssentialPredicate = {
+  id: string;
+  secretPattern: RegExp;
+  userPattern: RegExp;
+};
+
+const ESSENTIAL_PREDICATES: EssentialPredicate[] = [
+  {
+    id: "heir",
+    secretPattern: /후계자/,
+    userPattern: /후계자(?:이?(?:다|야|이)?|)/,
+  },
+  {
+    id: "daughter",
+    secretPattern: /(?:범인(?:의)?\s*)?딸(?:이)?(?:다|야|이)?|딸이다/,
+    userPattern: /(?:범인(?:의)?\s*)?딸(?:이?(?:다|야|이)?|)/,
+  },
+  {
+    id: "time_rewind",
+    secretPattern: /시간(?:을)?\s*되돌릴\s*수\s*있/,
+    userPattern: /시간(?:을)?\s*되돌릴\s*수/,
+  },
+];
+
+function essentialPredicatesSatisfied(secretText: string, userMessage: string): boolean {
+  const msg = normalizeForMatch(userMessage);
+  for (const pred of ESSENTIAL_PREDICATES) {
+    if (!pred.secretPattern.test(secretText)) continue;
+    if (!pred.userPattern.test(msg)) return false;
+  }
+  return true;
+}
+
+function isTopicOnlyOverlap(secretText: string, userMessage: string): boolean {
+  const msg = normalizeForMatch(userMessage);
+  if (!/(?:역사|이야기|설|설화|전설|소문|관심|후회|들었)/.test(msg)) return false;
+  if (/후계자|딸(?:이)?(?:다|야)|되돌릴\s*수/.test(msg)) return false;
+  const terms = extractDistinctiveInformativeTerms(secretText);
+  return terms.length > 0 && terms.every((term) => msg.includes(term));
+}
+
+function informativeSecretDisclosureOverlap(secretText: string, userMessage: string): boolean {
+  const msg = normalizeForMatch(userMessage);
+  const terms = extractDistinctiveInformativeTerms(secretText);
+  if (terms.length === 0) return false;
+  if (isTopicOnlyOverlap(secretText, userMessage)) return false;
+  if (!essentialPredicatesSatisfied(secretText, userMessage)) return false;
+
+  let matched = 0;
+  for (const term of terms) {
+    if (msg.includes(term)) matched++;
+  }
+  const coverage = matched / terms.length;
+  return matched >= 1 && coverage >= 0.75;
 }
 
 function isQuestionLike(text: string): boolean {
@@ -172,35 +305,13 @@ function hasSelfDisclosureCue(text: string): boolean {
   );
 }
 
-function meaningfulOverlap(secretText: string, userMessage: string): boolean {
-  const msg = normalizeForMatch(userMessage);
-  const secret = normalizeForMatch(secretText);
-  if (!msg || !secret) return false;
-
-  const tokens = secret.split(/\s+/).filter((t) => t.length >= 2);
-  let matched = 0;
-  for (const tok of tokens) {
-    if (msg.includes(tok)) matched++;
-  }
-  if (matched >= 2) return true;
-  if (tokens.length === 1 && matched >= 1 && tokens[0]!.length >= 3) return true;
-
-  for (let len = Math.min(24, secret.length); len >= 4; len--) {
-    for (let i = 0; i <= secret.length - len; i++) {
-      const sub = secret.slice(i, i + len);
-      if (msg.includes(sub)) return true;
-    }
-  }
-  return false;
-}
-
 /** Multi-claim secret items require every claim segment to overlap — no partial unlock. */
 function isAtomicRevealUnitFullyDisclosed(secretText: string, userMessage: string): boolean {
   const segments = extractSecretClaimSegments(secretText);
   if (segments.length <= 1) {
-    return meaningfulOverlap(secretText, userMessage);
+    return informativeSecretDisclosureOverlap(secretText, userMessage);
   }
-  return segments.every((segment) => meaningfulOverlap(segment, userMessage));
+  return segments.every((segment) => informativeSecretDisclosureOverlap(segment, userMessage));
 }
 
 export type PersonaSecretRevealCandidate = {
@@ -237,6 +348,32 @@ export function detectUserAuthoredPersonaSecretReveals(
   return out;
 }
 
+export function persistPersonaSecretRevealCandidates(opts: {
+  chatId: number;
+  personaId: number;
+  revealedAtTurn: number;
+  candidates: PersonaSecretRevealCandidate[];
+  source?: PersonaSecretRevealSource;
+  db?: Database.Database;
+}): PersonaSecretRevealCandidate[] {
+  const db = opts.db ?? getDb();
+  const source = opts.source ?? "USER_AUTHORED_DISCLOSURE";
+  for (const c of opts.candidates) {
+    insertChatPersonaSecretReveal(
+      {
+        chatId: opts.chatId,
+        personaId: opts.personaId,
+        secretKey: c.item.secretKey,
+        revealedFactText: c.revealedFactText,
+        revealedAtTurn: opts.revealedAtTurn,
+        source,
+      },
+      db
+    );
+  }
+  return opts.candidates;
+}
+
 export function persistUserAuthoredPersonaSecretReveals(opts: {
   chatId: number;
   personaId: number;
@@ -245,22 +382,15 @@ export function persistUserAuthoredPersonaSecretReveals(opts: {
   secretDescription: string;
   db?: Database.Database;
 }): PersonaSecretRevealCandidate[] {
-  const db = opts.db ?? getDb();
   const items = splitPersonaSecretItems(opts.secretDescription);
   const candidates = detectUserAuthoredPersonaSecretReveals(opts.userMessage, items);
-  for (const c of candidates) {
-    insertChatPersonaSecretReveal(
-      {
-        chatId: opts.chatId,
-        personaId: opts.personaId,
-        secretKey: c.item.secretKey,
-        revealedFactText: c.revealedFactText,
-        revealedAtTurn: opts.revealedAtTurn,
-        source: "USER_AUTHORED_DISCLOSURE",
-      },
-      db
-    );
-  }
+  persistPersonaSecretRevealCandidates({
+    chatId: opts.chatId,
+    personaId: opts.personaId,
+    revealedAtTurn: opts.revealedAtTurn,
+    candidates,
+    db: opts.db,
+  });
   return candidates;
 }
 

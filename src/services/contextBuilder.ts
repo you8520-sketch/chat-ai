@@ -19,6 +19,7 @@ import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
 import { buildFlashOwnedEmotionTagUserOverlay } from "@/lib/emotionTag";
 import { buildNarrativeStyleLayer } from "@/lib/narrativeStyle";
 import { buildNarrativePovPrompt } from "@/lib/narrativePov";
+import { buildUserPersonaReferencePrompt } from "@/lib/userPersonaReference";
 import { isRegisterPatch } from "@/lib/registerPatchExperiment";
 import { buildOocCoNarrationHint } from "@/lib/userImpersonationPolicy";
 import {
@@ -981,6 +982,17 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       );
     }
   }
+
+  // The selected persona can change between adjacent turns. Keep one dynamic,
+  // recent owner for the user actor's name, gender, and narrative references.
+  // This is wording-only and remains independent from user-agency rules.
+  pushSection(
+    "user-persona-reference-owner",
+    "User persona reference owner (current-turn gender and naming)",
+    "systemRules",
+    buildUserPersonaReferencePrompt(personaLabel, userGender),
+    "dynamic"
+  );
 
   // Room POV can change between adjacent turns. Keep its single owner at the
   // dynamic system tail so cached rules and prior assistant prose cannot make

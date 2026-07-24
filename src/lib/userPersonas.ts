@@ -12,7 +12,6 @@ import {
   validatePersonaSecretContentLength,
   personaContentLength,
 } from "./persona";
-import { formatPublicPersonaForPrompt } from "./personaSecretPrompt";
 
 export type SubscriptionTier = "free" | "basic" | "pro";
 
@@ -130,8 +129,9 @@ export function ensureDefaultPersona(userId: number, nickname: string): DbUserPe
 }
 
 /**
- * 페르소나 성별 규칙(userPersonaGenderPrompt)은 contextBuilder의 base system rules에서
- * 이미 주입되므로 여기서 중복 주입하지 않는다 (턴당 ~300자 절약).
+ * 성별에 따른 현재 턴 지칭 규칙은 contextBuilder의 단일
+ * user-persona-reference owner가 담당한다. 이 블록에는 선택 페르소나의
+ * 정체성 사실만 포함하고 별도의 지칭 owner를 만들지 않는다.
  */
 const PERSONA_GENDER_LABELS: Record<CharacterGender, string> = {
   male: "남성",
@@ -142,14 +142,28 @@ const PERSONA_GENDER_LABELS: Record<CharacterGender, string> = {
 /** Public persona only — never pass secret_description here. */
 export function formatSelectedPersonaForPrompt(
   name: string,
-  gender: CharacterGender,
+  _gender: CharacterGender,
   description: string,
   opts?: PersonaPromptCoNarrationOpts
 ): string | null {
-  return formatPublicPersonaForPrompt(name, gender, description, opts);
+  const parts: string[] = [];
+  const trimmedName = name.trim();
+  const trimmedDesc = description.trim();
+  if (trimmedName) parts.push(`이름/호칭: ${trimmedName}`);
+  if (trimmedDesc) parts.push(trimmedDesc);
+  if (trimmedDesc && opts?.coNarrationEnabled) {
+    parts.push(
+      `[유저 페르소나 — 말투]\n"${trimmedName}"의 말투는 위 설정·성격과 채팅에서 유저가 직접 입력한 대사에서 추론해 매 턴 일관 유지한다. AI 캐릭터 말투와 혼동하지 마라.`
+    );
+    if (/반말|구어|캐주얼|informal/i.test(trimmedDesc)) {
+      parts.push(
+        `[유저 말투 고정] "${trimmedName}"은(는) 반말·구어체 ONLY. ~습니다/~요/~십니다/~니다 종결 금지 (유저가 직접 그렇게 입력한 경우 제외).`
+      );
+    }
+  }
+  if (parts.length === 0) return null;
+  return parts.join("\n\n");
 }
-
-export { formatPublicPersonaForPrompt } from "./personaSecretPrompt";
 
 export function formatSelectedPersonaIdentityForBackground(
   name: string,

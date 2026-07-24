@@ -49,6 +49,9 @@ describe("narrative POV owner", () => {
     assert.match(prompt, /너\/당신 등으로 강제 치환하지 않는다/);
     assert.match(prompt, /알 수 없는 타인의 내면이나 장면 밖 사건은 서술하지 않는다/);
     assert.match(prompt, /다른 인물은 이름 또는 3인칭/);
+    assert.match(prompt, /즉각적인 감각·생각·판단·연상·망설임·감정적 해석/);
+    assert.match(prompt, /객관 카메라가 아니라 .*성격·현재 관심·주의에 걸린 방식/);
+    assert.match(prompt, /서술 밀도와 반복 억제는 기존 문체 규칙을 따른다/);
     assert.match(prompt, /co-narration, Novel Mode, No Godmodding, Speech Lock/);
   });
 
