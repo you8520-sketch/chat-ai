@@ -59,8 +59,13 @@ export function resolveChunkVisibility(input: {
   return "PUBLIC";
 }
 
+/** Fail-closed: only explicit PUBLIC is eligible for ordinary public render/ACTIVE. */
 export function isPublicVisibleChunk(visibility: KnowledgeVisibility | undefined): boolean {
-  return (visibility ?? "PUBLIC") === "PUBLIC";
+  return visibility === "PUBLIC";
+}
+
+export function isValidKnowledgeVisibility(value: unknown): value is KnowledgeVisibility {
+  return value === "PUBLIC" || value === "LOCKED_SECRET" || value === "CONDITIONAL";
 }
 
 export function isLockedCharacterSecretChunk(
@@ -80,10 +85,10 @@ export function countVisibility(chunks: { visibility?: KnowledgeVisibility }[]):
   let lockedSecretCount = 0;
   let conditionalCount = 0;
   for (const chunk of chunks) {
-    const v = chunk.visibility ?? "PUBLIC";
+    const v = chunk.visibility;
     if (v === "PUBLIC") publicCount++;
     else if (v === "LOCKED_SECRET") lockedSecretCount++;
-    else conditionalCount++;
+    else if (v === "CONDITIONAL") conditionalCount++;
   }
   return { publicCount, lockedSecretCount, conditionalCount };
 }

@@ -14,6 +14,7 @@ import { selectActiveCanonChunks } from "@/lib/canonPlan/activeSelector";
 import { renderCoreCanonBlock, renderCanonChunksBlock } from "@/lib/canonPlan/coreRenderer";
 import {
   AUTHOR_MARKER_CHARACTER_KNOWN,
+  isPublicVisibleChunk,
   resolveChunkVisibility,
   resolveSectionAuthorVisibility,
 } from "@/lib/canonPlan/canonVisibility";
@@ -21,6 +22,7 @@ import {
   PRIVATE_CHARACTER_SECRET_MAX_CHARS,
   renderPrivateCharacterSecretBlock,
 } from "@/lib/canonPlan/privateCharacterSecretRenderer";
+import { parseCanonPlanV1, serializeCanonPlanV1 } from "@/lib/canonPlan/serialize";
 import { compileCreatorDescriptionTriggers } from "@/lib/creatorDescriptionTriggerCompiler";
 import {
   CANON_COMPILER_VERSION,
@@ -240,15 +242,57 @@ describe("PR-C restricted C audit matrix", () => {
   }
 });
 
-describe("PR-C S2 bounds and player exclusion", () => {
-  it("S2 hard cap 1200 with omittedCount when overflow", () => {
+describe("PR-C S2 body budget (header outside 1200)", () => {
+  it("A: no locked secrets → body=0, block=null", () => {
+    const plan = compile(`[성격]\n차분하다.`);
+    const s2 = renderPrivateCharacterSecretBlock(plan);
+    assert.equal(s2.block, null);
+    assert.equal(s2.s2BodyChars, 0);
+    assert.equal(s2.s2BlockChars, 0);
+    assert.equal(s2.s2IncludedCount, 0);
+  });
+
+  it("B: ~900-char secret body fits even when header makes total block >1200", () => {
+    const secretBody = "비밀본문".padEnd(900, "가");
+    const plan = compile(`[이름]\n테스트\n\n[비밀 — 캐릭터는 앎]\n${secretBody}`);
+    const locked = plan.chunks.find((c) => c.visibility === "LOCKED_SECRET");
+    assert.ok(locked);
+    const s2 = renderPrivateCharacterSecretBlock(plan);
+    assert.ok(s2.block);
+    assert.equal(s2.s2IncludedCount, 1);
+    assert.equal(s2.s2OmittedCount, 0);
+    assert.ok(s2.s2BodyChars <= PRIVATE_CHARACTER_SECRET_MAX_CHARS);
+    assert.ok(s2.s2BodyChars >= 900);
+    assert.ok(
+      s2.s2BlockChars > PRIVATE_CHARACTER_SECRET_MAX_CHARS,
+      "header must push total block above body budget"
+    );
+    assert.ok(s2.s2BlockChars > s2.s2BodyChars);
+  });
+
+  it("C: multiple secrets with combined body <=1200 all included", () => {
+    const plan = compile(
+      `[이름]\n테스트\n\n[비밀 — 캐릭터는 앎]\n짧은비밀하나\n\n[비밀 — 캐릭터는 앎]\n짧은비밀둘`
+    );
+    const s2 = renderPrivateCharacterSecretBlock(plan);
+    assert.equal(s2.s2IncludedCount, 2);
+    assert.equal(s2.s2OmittedCount, 0);
+    assert.ok(s2.s2BodyChars <= PRIVATE_CHARACTER_SECRET_MAX_CHARS);
+    assert.match(s2.block ?? "", /짧은비밀하나/);
+    assert.match(s2.block ?? "", /짧은비밀둘/);
+  });
+
+  it("D/E: next full secret exceeding body 1200 is omitted with accurate omittedCount", () => {
     const lines = Array.from({ length: 20 }, (_, i) =>
       `[비밀 — 캐릭터는 앎]\n비밀항목${i} `.padEnd(120, "x")
     ).join("\n\n");
     const plan = compile(lines);
+    const eligible = plan.chunks.filter((c) => c.visibility === "LOCKED_SECRET").length;
     const s2 = renderPrivateCharacterSecretBlock(plan);
-    assert.ok(s2.s2BlockChars <= PRIVATE_CHARACTER_SECRET_MAX_CHARS);
+    assert.ok(s2.s2BodyChars <= PRIVATE_CHARACTER_SECRET_MAX_CHARS);
+    assert.ok(s2.s2IncludedCount > 0);
     assert.ok(s2.s2OmittedCount > 0);
+    assert.equal(s2.s2IncludedCount + s2.s2OmittedCount, eligible);
   });
 
   it("player-only facts remain structurally excluded from ACTIVE and S2", () => {
@@ -265,6 +309,62 @@ describe("PR-C S2 bounds and player exclusion", () => {
   });
 });
 
+describe("PR-C visibility fail-closed parse", () => {
+  function mutateStoredPlan(mutator: (plan: CanonPlanV1) => unknown): string {
+    const plan = compile(`[성격]\n차분하다.\n\n[세계관]\n북쪽 안개.`);
+    const cloned = JSON.parse(serializeCanonPlanV1(plan)) as CanonPlanV1;
+    return JSON.stringify(mutator(cloned));
+  }
+
+  it("A: missing chunk.visibility → parse rejects (not PUBLIC)", () => {
+    const json = mutateStoredPlan((plan) => {
+      const { visibility: _v, ...rest } = plan.chunks[0]!;
+      plan.chunks[0] = rest as CanonPlanV1["chunks"][number];
+      return plan;
+    });
+    assert.equal(parseCanonPlanV1(json), null);
+    assert.equal(isPublicVisibleChunk(undefined), false);
+  });
+
+  it('B: visibility="UNKNOWN" → parse rejects (not PUBLIC)', () => {
+    const json = mutateStoredPlan((plan) => {
+      (plan.chunks[0] as { visibility: string }).visibility = "UNKNOWN";
+      return plan;
+    });
+    assert.equal(parseCanonPlanV1(json), null);
+  });
+
+  it("C: valid PUBLIC → parse + CORE/ACTIVE preserved", () => {
+    const plan = compile(`[성격]\n차분하다.\n\n[세계관 — 북쪽]\n북쪽 관문 안개.`);
+    const roundTrip = parseCanonPlanV1(serializeCanonPlanV1(plan));
+    assert.ok(roundTrip);
+    assert.ok(roundTrip!.chunks.every((c) => c.visibility === "PUBLIC" || c.visibility === "CONDITIONAL"));
+    assert.ok(corePublicText(roundTrip!).length > 0);
+    const active = selectActiveCanonChunks({ plan: roundTrip!, userMessage: "북쪽 관문 안개" });
+    assert.ok(active.activeChunks.every((c) => c.visibility === "PUBLIC"));
+  });
+
+  it("D: valid LOCKED_SECRET → CORE=0 ACTIVE=0 S2 eligible", () => {
+    const plan = compile(POL_C1_MARKED);
+    const roundTrip = parseCanonPlanV1(serializeCanonPlanV1(plan));
+    assert.ok(roundTrip);
+    assert.equal(corePublicText(roundTrip!).includes("정보원"), false);
+    assert.equal(activeCount(roundTrip!, "검은 깃발 정보원"), 0);
+    assert.match(s2Text(roundTrip!) ?? "", /정보원/);
+  });
+
+  it("E: valid CONDITIONAL → CORE=0 ACTIVE=0 S2=0", () => {
+    const plan = compile(`[비밀]\n숨겨진 과거가 있다.`);
+    const roundTrip = parseCanonPlanV1(serializeCanonPlanV1(plan));
+    assert.ok(roundTrip);
+    const cond = roundTrip!.chunks.find((c) => c.visibility === "CONDITIONAL");
+    assert.ok(cond);
+    assert.equal(isPublicVisibleChunk(cond!.visibility), false);
+    assert.equal(activeCount(roundTrip!, "숨겨진 과거"), 0);
+    assert.equal(s2Text(roundTrip!), null);
+  });
+});
+
 describe("PR-C visibility resolution helpers", () => {
   it("resolveChunkVisibility defaults", () => {
     assert.equal(resolveChunkVisibility({ sectionTitle: "[성격]", bucket: "character" }), "PUBLIC");
@@ -273,5 +373,12 @@ describe("PR-C visibility resolution helpers", () => {
       resolveChunkVisibility({ sectionTitle: "[비밀 — 캐릭터는 앎]", bucket: "character" }),
       "LOCKED_SECRET"
     );
+  });
+
+  it("isPublicVisibleChunk is fail-closed for undefined", () => {
+    assert.equal(isPublicVisibleChunk("PUBLIC"), true);
+    assert.equal(isPublicVisibleChunk("LOCKED_SECRET"), false);
+    assert.equal(isPublicVisibleChunk("CONDITIONAL"), false);
+    assert.equal(isPublicVisibleChunk(undefined), false);
   });
 });

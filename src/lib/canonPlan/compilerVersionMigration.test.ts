@@ -133,6 +133,28 @@ describe("Canon compiler version migration — PR-C v2→v3", () => {
     assert.equal(parseCanonPlanV1(json), null);
   });
 
+  it("F: Plan V1/Compiler V2 rejection unchanged; invalid V2 visibility also rejected", () => {
+    const { json: v2Json } = buildStoredCompilerV2Plan(FUNDAMENTAL_LAW_RAW);
+    assert.equal(parseCanonPlanV1(v2Json), null);
+
+    const compiled = compileCanonPlanV1({ creatorRawDescription: FUNDAMENTAL_LAW_RAW, now: NOW });
+    assert.equal(compiled.ok, true);
+    if (!compiled.ok) return;
+    const broken = JSON.parse(JSON.stringify(compiled.plan)) as CanonPlanV1;
+    delete (broken.chunks[0] as { visibility?: string }).visibility;
+    assert.equal(parseCanonPlanV1(JSON.stringify(broken)), null);
+
+    // Lazy path still recovers via recompile when raw exists.
+    const saved = buildCanonPlanForSave({
+      creatorRawDescription: FUNDAMENTAL_LAW_RAW,
+      existingPlanJson: JSON.stringify(broken),
+      now: NOW,
+    });
+    assert.equal(saved.reusedExisting, false);
+    assert.equal(saved.plan?.compilerVersion, 3);
+    assert.ok(saved.plan?.chunks.every((c) => c.visibility === "PUBLIC" || c.visibility === "CONDITIONAL"));
+  });
+
   it("B: hashCanonSource changes when compiler version changes (v2 vs v3)", () => {
     const hashV2 = hashCanonSource(FUNDAMENTAL_LAW_RAW, 2);
     const hashV3 = hashCanonSource(FUNDAMENTAL_LAW_RAW, 3);
