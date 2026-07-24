@@ -505,16 +505,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   }
 
-  if (input.narrativePov) {
-    pushSection(
-      "narrative-pov-owner",
-      "[0c] Narrative POV owner",
-      "systemRules",
-      buildNarrativePovPrompt(input.narrativePov),
-      isOpenRouter ? "cacheRules" : "dynamic"
-    );
-  }
-
   // ───── [1] Core Master Rules (OpenRouter: merged into CANON/SCOPE/KNOWLEDGE top) ─────
   if (!isOpenRouter) {
     pushSection(
@@ -964,6 +954,20 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
         "dynamic"
       );
     }
+  }
+
+  // Room POV can change between adjacent turns. Keep its single owner at the
+  // dynamic system tail so cached rules and prior assistant prose cannot make
+  // the previous narrative person look more authoritative than the current
+  // room setting.
+  if (input.narrativePov) {
+    pushSection(
+      "narrative-pov-owner",
+      "Narrative POV owner (current-response terminal lock)",
+      "systemRules",
+      buildNarrativePovPrompt(input.narrativePov),
+      "dynamic"
+    );
   }
 
   pushSection(

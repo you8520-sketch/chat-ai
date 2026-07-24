@@ -23,6 +23,11 @@ describe("contextBuilder narrative POV owner", () => {
     for (const built of [build(), build({ isContinue: true }), build({ regenerate: true })]) {
       assert.equal((built.systemPrompt.match(/\[NARRATIVE POV OWNER:/g) ?? []).length, 1);
       assert.match(built.systemPrompt, /FIRST PERSON — POV CHARACTER: 서윤/);
+      assert.doesNotMatch(
+        built.openRouterSystemSplit?.systemRulesBlock ?? "",
+        /\[NARRATIVE POV OWNER:/
+      );
+      assert.match(built.openRouterSystemSplit?.dynamicBlock ?? "", /\[NARRATIVE POV OWNER:/);
     }
   });
 

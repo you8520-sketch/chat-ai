@@ -45,9 +45,18 @@ describe("narrative POV owner", () => {
   it("keeps address, knowledge, and agency rules independent", () => {
     const prompt = buildNarrativePovPrompt({ mode: "first_person", povCharacterName: "권태현" });
     assert.match(prompt, /권태현 자신만.*나\/내/);
+    assert.match(prompt, /직전 AI 본문의 시점과 무관하게.*1인칭으로 전환/);
     assert.match(prompt, /너\/당신 등으로 강제 치환하지 않는다/);
     assert.match(prompt, /알 수 없는 타인의 내면이나 장면 밖 사건은 서술하지 않는다/);
-    assert.match(prompt, /다른 인물은 3인칭/);
+    assert.match(prompt, /다른 인물은 이름 또는 3인칭/);
     assert.match(prompt, /co-narration, Novel Mode, No Godmodding, Speech Lock/);
+  });
+
+  it("explicitly switches third-person prose even after first-person history", () => {
+    const prompt = buildNarrativePovPrompt({ mode: "third_person", povCharacterName: "권태현" });
+    assert.match(prompt, /직전 AI 본문의 시점과 무관하게.*3인칭 소설형으로 전환/);
+    assert.match(prompt, /과거 본문의 1인칭 문체를 이어 쓰거나 모방하지 않는다/);
+    assert.match(prompt, /나\/나는\/내가\/나를\/내\/나의 등의 1인칭 자기지칭을 사용하지 않는다/);
+    assert.match(prompt, /따옴표 안의 대사.*1인칭.*허용/);
   });
 });
