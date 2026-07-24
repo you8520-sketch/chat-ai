@@ -4,7 +4,7 @@
 // parasites/originals/factions/silence-protocol/equipment/background). Same plan used for C and D
 // so quiet-vs-active selector behavior is directly comparable on one canon plan.
 
-import type { Fixture } from "./_tmp-d2-fixtures";
+import type { Fixture } from "./d2-fixtures";
 
 const ENOCH_CANON = `[이름]
 에녹 베일 Enoch Vale

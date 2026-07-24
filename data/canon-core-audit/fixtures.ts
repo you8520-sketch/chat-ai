@@ -1,5 +1,5 @@
-import { FIXTURES } from "../../scripts/_tmp-d2-fixtures";
-import { ENOCH_FIXTURES } from "../../scripts/_tmp-d2-enoch-fixtures";
+import { FIXTURES } from "./d2-fixtures";
+import { ENOCH_FIXTURES } from "./d2-enoch-fixtures";
 import type { AuditFixture } from "./types";
 
 const LEON_FANTASY = [
