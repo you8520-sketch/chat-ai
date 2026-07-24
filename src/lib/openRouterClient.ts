@@ -2,9 +2,9 @@ import { resolveMaxOutputTokensForTarget } from "@/lib/responseLength";
 import { normalizeOpenRouterModelId } from "@/lib/openRouterConfig";
 import {
   isAnthropicModel,
+  isGemini36FlashModel,
   isGeminiFlashOpenRouterModel,
   isGeminiProOpenRouterModel,
-  isGemini3ProOpenRouterModel,
 } from "@/lib/chatModels";
 
 /** OpenRouter — temperature + max_tokens + Claude 반복 억제 */
@@ -127,7 +127,7 @@ export function isTencentHy3OpenRouterModel(modelId: string): boolean {
 /**
  * RP primary·continuation — DeepSeek/Qwen/GLM/Kimi/Tencent Hy3: reasoning OFF (effort none).
  * Muse Spark: mandatory reasoning — NOT in this set (see Muse-specific policy).
- * Gemini 2.5 Pro: reasoning.max_tokens cap · Gemini 3.x Pro: reasoning.effort low.
+ * Gemini 3.x: reasoning.effort. Gemini 2.5 전용 reasoning cap은 제거됨.
  */
 export function isOpenRouterRpReasoningDisabledModel(modelId: string): boolean {
   return (
@@ -173,18 +173,6 @@ export const OPENROUTER_RP_REASONING_GEMINI_FLASH = {
   exclude: true,
 } as const;
 
-/**
- * Gemini 2.5 Pro RP — thinkingBudget via reasoning.max_tokens (OpenRouter 2.5 경로).
- * Deliberately low for cost: reasoning tokens are billed as output. This is NOT a
- * visible-prose length cap — 128 still often yields 3000+ char RP replies.
- */
-export const OPENROUTER_RP_REASONING_GEMINI_25_PRO_CAP = {
-  max_tokens: 128,
-} as const;
-
-/** @deprecated OPENROUTER_RP_REASONING_GEMINI_25_PRO_CAP — 2.5 Pro 전용 */
-export const OPENROUTER_RP_REASONING_GEMINI_PRO_CAP = OPENROUTER_RP_REASONING_GEMINI_25_PRO_CAP;
-
 /** Gemini 3.x Pro RP — thinkingLevel via reasoning.effort (geminiClient.ts native와 동일) */
 export const OPENROUTER_RP_REASONING_GEMINI_3_PRO = {
   effort: "low",
@@ -198,14 +186,11 @@ export const GEMINI_PRO_GENERATION_PARAMS = {
 function applyGeminiProReasoning(body: Record<string, unknown>, modelId: string): void {
   delete body.reasoning_effort;
   delete body.provider;
-  const reasoning = isGemini3ProOpenRouterModel(modelId)
-    ? OPENROUTER_RP_REASONING_GEMINI_3_PRO
-    : OPENROUTER_RP_REASONING_GEMINI_25_PRO_CAP;
+  const reasoning = OPENROUTER_RP_REASONING_GEMINI_3_PRO;
   body.reasoning = { ...reasoning };
   body.include_reasoning = false;
   console.log("[openrouter-reasoning] gemini-pro", {
     model: normalizeOpenRouterModelId(modelId),
-    gemini3: isGemini3ProOpenRouterModel(modelId),
     reasoning,
     include_reasoning: false,
   });
@@ -326,8 +311,15 @@ export function normalizeOpenRouterGenerationParams(
     base.seed = Math.floor(overrides.seed);
   }
 
+  // Gemini 3.6+ 공식 API: sampling parameters are deprecated and may become 400s.
+  // OpenRouter currently lists them for compatibility, but omit them proactively.
+  if (isGemini36FlashModel(modelId ?? "")) {
+    delete base.temperature;
+    delete base.top_p;
+  }
+
   return base as {
-    temperature: number;
+    temperature?: number;
     max_tokens?: number;
     stream_options: { include_usage: true };
     top_p?: number;
@@ -343,20 +335,24 @@ export function resolveRegenerateGenerationOverrides(
   modelId: string,
   targetResponseChars?: number | null
 ): OpenRouterGenerationOverrides {
+  if (isGemini36FlashModel(modelId)) {
+    return { seed: Math.floor(Math.random() * 2_147_483_647) };
+  }
   const base = normalizeOpenRouterGenerationParams(
     resolveOpenRouterMaxTokens(targetResponseChars, undefined, modelId),
     modelId,
     undefined,
     targetResponseChars
   );
+  const baseTemperature = base.temperature ?? EURYALE_GENERATION_PARAMS.temperature;
   const overrides: OpenRouterGenerationOverrides = {
     // Qwen: keep regen below 1.0 — temp≥1.0 strongly correlates with mid-stream script salad aborts.
     // DeepSeek: smaller bump than other OR models — large +0.28→1.2 correlated with thin-history length collapse.
     temperature: isQwenOpenRouterModel(modelId)
-      ? Math.min(0.95, Math.max(0.75, base.temperature + 0.15))
+      ? Math.min(0.95, Math.max(0.75, baseTemperature + 0.15))
       : isDeepSeekOpenRouterModel(modelId)
-        ? Math.min(1.05, Math.max(0.95, base.temperature + 0.1))
-        : Math.min(1.2, Math.max(1.0, base.temperature + 0.28)),
+        ? Math.min(1.05, Math.max(0.95, baseTemperature + 0.1))
+        : Math.min(1.2, Math.max(1.0, baseTemperature + 0.28)),
     seed: Math.floor(Math.random() * 2_147_483_647),
   };
   if (base.top_p != null) overrides.top_p = Math.min(0.98, base.top_p + 0.05);

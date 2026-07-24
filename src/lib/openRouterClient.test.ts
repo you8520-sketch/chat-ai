@@ -12,7 +12,6 @@ import {
   isQwenOpenRouterModel,
   GEMINI_PRO_GENERATION_PARAMS,
   OPENROUTER_RP_REASONING_GEMINI_FLASH,
-  OPENROUTER_RP_REASONING_GEMINI_25_PRO_CAP,
   OPENROUTER_RP_REASONING_GEMINI_3_PRO,
   OPENROUTER_RP_REASONING_MUSE_SPARK,
   OPENROUTER_RP_REASONING_OFF,
@@ -22,9 +21,9 @@ import {
 import { resolveMaxOutputTokensForTarget } from "@/lib/responseLength";
 import {
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
-  OPENROUTER_GEMINI_25_FLASH_MODEL,
   OPENROUTER_GEMINI_25_PRO_MODEL,
   OPENROUTER_GEMINI_31_PRO_MODEL,
+  OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_GLM_52_MODEL,
   OPENROUTER_KIMI_K3_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
@@ -80,7 +79,7 @@ describe("OpenRouter reasoning-disable model detection", () => {
   });
 
   it("mandatory reasoning policy covers Gemini 2.5 and 3.1 Pro", () => {
-    assert.equal(isOpenRouterRpReasoningMandatoryModel(OPENROUTER_GEMINI_25_PRO_MODEL), true);
+    assert.equal(isOpenRouterRpReasoningMandatoryModel(OPENROUTER_GEMINI_25_PRO_MODEL), false);
     assert.equal(isOpenRouterRpReasoningMandatoryModel(OPENROUTER_GEMINI_31_PRO_MODEL), true);
     assert.equal(isOpenRouterRpReasoningMandatoryModel(OPENROUTER_DEEPSEEK_V4_PRO_MODEL), false);
   });
@@ -90,7 +89,7 @@ describe("resolveRpOpenRouterModelId — keeps Pro slug", () => {
   it("keeps 2.5 Pro slug", () => {
     assert.equal(
       resolveRpOpenRouterModelId(OPENROUTER_GEMINI_25_PRO_MODEL),
-      OPENROUTER_GEMINI_25_PRO_MODEL
+      OPENROUTER_GEMINI_36_FLASH_MODEL
     );
   });
 
@@ -126,14 +125,17 @@ describe("buildOpenRouterRequestBody — RP reasoning policy", () => {
 
   it("uses minimal reasoning for Gemini Flash", () => {
     const body = buildOpenRouterRequestBody(
-      OPENROUTER_GEMINI_25_FLASH_MODEL,
+      OPENROUTER_GEMINI_36_FLASH_MODEL,
       [{ role: "user", content: "test" }],
       true,
       3500,
       "chat-1"
     ) as Record<string, unknown>;
     assert.deepEqual(body.reasoning, OPENROUTER_RP_REASONING_GEMINI_FLASH);
+    assert.equal(OPENROUTER_RP_REASONING_GEMINI_FLASH.effort, "minimal");
     assert.equal(body.include_reasoning, false);
+    assert.equal(body.temperature, undefined);
+    assert.equal(body.top_p, undefined);
   });
 
   it("disables reasoning for Qwen RP requests", () => {
@@ -220,23 +222,21 @@ describe("buildOpenRouterRequestBody — RP reasoning policy", () => {
     assert.deepEqual(kimi.reasoning, OPENROUTER_RP_REASONING_OFF);
   });
 
-  it("caps Gemini 2.5 Pro reasoning at 128 tokens (cost-oriented thinking budget)", () => {
+  it("does not preserve a Gemini 2.5 dedicated reasoning path", () => {
     const body = buildOpenRouterRequestBody(
-      OPENROUTER_GEMINI_25_PRO_MODEL,
+      resolveRpOpenRouterModelId(OPENROUTER_GEMINI_25_PRO_MODEL),
       [{ role: "user", content: "test" }],
       true,
       3500,
       "chat-1"
     ) as Record<string, unknown>;
-    assert.deepEqual(body.reasoning, OPENROUTER_RP_REASONING_GEMINI_25_PRO_CAP);
-    assert.equal(OPENROUTER_RP_REASONING_GEMINI_25_PRO_CAP.max_tokens, 128);
+    assert.deepEqual(body.reasoning, OPENROUTER_RP_REASONING_GEMINI_FLASH);
     assert.equal(body.reasoning_effort, undefined);
     assert.equal(body.include_reasoning, false);
     assert.equal(body.provider, undefined);
     assert.equal(body.max_tokens, undefined);
-    assert.equal(resolveMaxOutputTokensForTarget(3500, OPENROUTER_GEMINI_25_PRO_MODEL), undefined);
-    assert.equal(body.temperature, GEMINI_PRO_GENERATION_PARAMS.temperature);
-    assert.equal(body.model, OPENROUTER_GEMINI_25_PRO_MODEL);
+    assert.equal(body.temperature, undefined);
+    assert.equal(body.model, OPENROUTER_GEMINI_36_FLASH_MODEL);
   });
 
   it("uses effort low for Gemini 3.1 Pro reasoning (thinkingLevel path)", () => {
@@ -284,6 +284,16 @@ describe("buildOpenRouterRequestBody — RP reasoning policy", () => {
 });
 
 describe("resolveRegenerateGenerationOverrides", () => {
+  it("keeps Gemini 3.6 sampling parameters omitted on regenerate", () => {
+    const overrides = resolveRegenerateGenerationOverrides(
+      OPENROUTER_GEMINI_36_FLASH_MODEL,
+      3500
+    );
+    assert.equal(overrides.temperature, undefined);
+    assert.equal(overrides.top_p, undefined);
+    assert.ok(overrides.seed != null);
+  });
+
   it("keeps Qwen regen temperature below 1.0 to reduce mid-stream script salad", () => {
     const overrides = resolveRegenerateGenerationOverrides(OPENROUTER_QWEN_37_MAX_MODEL, 3500);
     assert.ok(overrides.temperature != null);

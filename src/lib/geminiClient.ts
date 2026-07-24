@@ -80,25 +80,16 @@ function geminiModelSupportsThinking(modelId: string): boolean {
   return !/flash-lite/i.test(modelId.toLowerCase());
 }
 
-/** Gemini 2.5 Pro — thinking 상한 (동적 -1 금지, 출력 토큰 잠식 방지) */
-export const GEMINI_25_PRO_THINKING_BUDGET = 1024;
-
-/** Gemini 2.5 Pro — thinking 필수, budget 0 불가 */
-export function geminiModelRequiresThinkingMode(modelId: string): boolean {
-  return /2\.5-pro/i.test(modelId.toLowerCase());
-}
-
-/** Gemini 3.x — thinkingLevel API (2.5 thinkingBudget와 별도) */
+/** Gemini 3.x — thinkingLevel API */
 function isGemini3SeriesModel(modelId: string): boolean {
   const id = modelId.toLowerCase();
-  return /gemini-3|3\.1-pro|3-flash|3\.0-flash|3\.5-flash/i.test(id);
+  return /gemini-3|3\.1-pro|3-flash|3\.0-flash|3\.5-flash|3\.6-flash/i.test(id);
 }
 
 /**
  * 모델별 thinkingConfig.
- * - 2.5 Pro: thinkingBudget 1024 고정 (-1·0 금지)
- * - 2.5 Flash 등: thinkingBudget 0 (비용·지연 절감)
  * - 3.x: thinkingLevel (budget 0 미지원)
+ * - 구형 비-3.x: thinkingBudget 0 (비용·지연 절감)
  */
 export function buildGeminiThinkingConfig(
   modelId: string,
@@ -107,17 +98,6 @@ export function buildGeminiThinkingConfig(
   if (!geminiModelSupportsThinking(modelId)) return undefined;
 
   const id = modelId.toLowerCase();
-
-  if (geminiModelRequiresThinkingMode(modelId)) {
-    const raw = process.env.GEMINI_25_PRO_THINKING_BUDGET?.trim();
-    if (raw) {
-      const n = Number(raw);
-      if (Number.isFinite(n) && n >= 128) {
-        return { thinkingBudget: Math.min(32_768, Math.floor(n)) };
-      }
-    }
-    return { thinkingBudget: GEMINI_25_PRO_THINKING_BUDGET };
-  }
 
   if (isGemini3SeriesModel(modelId)) {
     if (/pro/i.test(id)) return { thinkingLevel: "low" };
@@ -145,11 +125,12 @@ export function buildGeminiGenerationConfig(
     resolvedMaxOutputTokens = resolveMaxOutputTokensForTarget(targetResponseChars, modelId);
   }
 
-  const config: Record<string, unknown> = {
-    temperature: isBackground ? 0.3 : 0.9,
-    topK: 40,
-    topP: 0.95,
-  };
+  const config: Record<string, unknown> = {};
+  if (!/gemini-3\.6-flash/i.test(modelId)) {
+    config.temperature = isBackground ? 0.3 : 0.9;
+    config.topK = 40;
+    config.topP = 0.95;
+  }
   if (resolvedMaxOutputTokens != null) {
     config.maxOutputTokens = resolvedMaxOutputTokens;
   }

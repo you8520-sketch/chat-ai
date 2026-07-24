@@ -6,9 +6,9 @@ import {
   billingModelId,
   isDeepSeekModel,
   isDeepSeekV4ProModel,
-  isGemini25ProModel,
+  isGemini36FlashModel,
   isGemini31ProModel,
-  isGeminiProOpenRouterModel,
+  isGeminiChatOpenRouterModel,
   isGlmModel,
   isKimiModel,
   isMuseModel,
@@ -52,7 +52,7 @@ const BASE_GEMINI_OUTPUT = 9;
 
 /** tier — Flash 1.0 (배경·메모리 작업용) */
 const GEMINI_TIER: Record<string, number> = {
-  "gemini-2.5-flash": 1.0,
+  "gemini-3.1-flash-lite": 1.0,
   "gemini-3-flash-preview": 1.0,
 };
 
@@ -72,8 +72,8 @@ export const DEEPSEEK_WAIVER_SUCCESS_MIN_COST = 20;
 /** Qwen — 0P 면제 턴이라도 유의미한 본문이 전달되면 최소 차감 */
 export const QWEN_WAIVER_SUCCESS_MIN_COST = 50;
 
-/** Gemini 2.5 Pro — 0P 면제 턴이라도 유의미한 본문이 전달되면 최소 차감 (Qwen과 동일) */
-export const GEMINI_25_WAIVER_SUCCESS_MIN_COST = 50;
+/** Gemini 3.6 Flash — 0P 면제 턴이라도 유의미한 본문이 전달되면 최소 차감 */
+export const GEMINI_36_WAIVER_SUCCESS_MIN_COST = 50;
 
 /** Gemini 3.1 Pro — 0P 면제 턴이라도 유의미한 본문이 전달되면 최소 65P 차감 */
 export const GEMINI_31_WAIVER_SUCCESS_MIN_COST = 65;
@@ -343,9 +343,9 @@ export const OPENROUTER_MUSE_GROSS_MARGIN =
 /** Muse — 과금 면제 턴 최소 차감 */
 export const MUSE_WAIVER_SUCCESS_MIN_COST = 50;
 
-/** Gemini 2.5 Pro — API 원가 대비 최저 매출총이익률 (55% → 원가÷0.45) */
-export const OPENROUTER_GEMINI_25_GROSS_MARGIN =
-  Number(process.env.OPENROUTER_GEMINI_25_GROSS_MARGIN) || 0.55;
+/** Gemini 3.6 Flash — API 원가 대비 최저 매출총이익률 (55% → 원가÷0.45) */
+export const OPENROUTER_GEMINI_36_GROSS_MARGIN =
+  Number(process.env.OPENROUTER_GEMINI_36_GROSS_MARGIN) || 0.55;
 
 /** Gemini 3.1 Pro — 출력 1토큰당 청구 (P) */
 export const OPENROUTER_GEMINI_31_POINTS_PER_OUTPUT_TOKEN = (() => {
@@ -353,13 +353,6 @@ export const OPENROUTER_GEMINI_31_POINTS_PER_OUTPUT_TOKEN = (() => {
   if (perToken) return Number(perToken) || 0.075;
   return 0.075;
 })();
-
-/** @deprecated OPENROUTER_GEMINI_PRO_GROSS_MARGIN — 마진 과금 제거, 토큰 단가만 사용 */
-export const OPENROUTER_GEMINI_PRO_GROSS_MARGIN =
-  Number(process.env.OPENROUTER_GEMINI_PRO_GROSS_MARGIN) ||
-  Number(process.env.OPENROUTER_GEMINI_31_PRO_GROSS_MARGIN) ||
-  Number(process.env.OPENROUTER_SONNET_GROSS_MARGIN) ||
-  0.55;
 
 export type BillingProvider = "gemini" | "openrouter";
 
@@ -645,7 +638,7 @@ function openRouterGemini31TokenFloorKrw(outputTokens: number): number {
  * 입력 10k 초과 할증.
  * - DeepSeek V4 Pro / Tencent Hy3: 0P. Every input token is already charged
  *   by the proportional list-cost formula, so a surcharge would double-charge.
- * - Muse / Gemini 2.5 Pro: 0P. Every visible input token is already billed by
+ * - Muse / Gemini 3.6 Flash: 0P. Every visible input token is already billed by
  *   the same cache-neutral list-cost formula, so a surcharge would duplicate it.
  * - Legacy DeepSeek paths: 초과분/1000 × 0.5P
  * - 그 외: ceil(초과/1000) × 1P
@@ -660,7 +653,7 @@ export function openRouterInputTokenSurchargeKrw(
     isDeepSeekV4ProModel(modelId ?? "") ||
     isTencentHy3Model(modelId ?? "") ||
     isMuseModel(modelId ?? "") ||
-    isGemini25ProModel(modelId ?? "")
+    isGemini36FlashModel(modelId ?? "")
   ) {
     return 0;
   }
@@ -712,14 +705,6 @@ function openRouterKimiMarginChargeKrw(rawCostKrw: number): number {
 
 function openRouterMuseMarginChargeKrw(rawCostKrw: number): number {
   return openRouterGrossMarginChargeKrw(rawCostKrw, OPENROUTER_MUSE_GROSS_MARGIN);
-}
-
-function openRouterGemini25MarginChargeKrw(rawCostKrw: number): number {
-  return openRouterGrossMarginChargeKrw(rawCostKrw, OPENROUTER_GEMINI_25_GROSS_MARGIN);
-}
-
-function openRouterGeminiProMarginChargeKrw(rawCostKrw: number): number {
-  return openRouterGrossMarginChargeKrw(rawCostKrw, OPENROUTER_GEMINI_PRO_GROSS_MARGIN);
 }
 
 type OpenRouterTurnBillingBasis = {
@@ -847,8 +832,8 @@ export function computeOpenRouterTurnCost(
     ).total;
   }
 
-  if (isGemini25ProModel(modelId ?? "")) {
-    return explainOpenRouterGemini25TurnCost(
+  if (isGemini36FlashModel(modelId ?? "")) {
+    return explainOpenRouterGemini36TurnCost(
       inputTokens,
       outputTokens,
       modelId ?? "",
@@ -1231,7 +1216,7 @@ function explainOpenRouterTokenOnlyTurnCost(
   billingBasis?: OpenRouterTurnBillingBasis
 ): OpenRouterTurnCostBreakdown & { total: number } {
   const rawCostKrw =
-    isGemini25ProModel(modelId) || isGemini31ProModel(modelId)
+    isGemini31ProModel(modelId)
       ? resolveOpenRouterTurnRawCostKrw(inputTokens, outputTokens, modelId, cache, billingBasis)
       : roundCostIntermediate(
           openRouterUsdCostDetailed({
@@ -1381,10 +1366,10 @@ export function explainOpenRouterMuseTurnCost(
 }
 
 /**
- * Gemini 2.5 Pro: standard no-cache list input + visible content output,
+ * Gemini 3.6 Flash: standard no-cache list input + visible content output,
  * divided by 0.45. Cache, upstream cost, and hidden reasoning are excluded.
  */
-export function explainOpenRouterGemini25TurnCost(
+export function explainOpenRouterGemini36TurnCost(
   inputTokens: number,
   outputTokens: number,
   modelId: string,
@@ -1395,7 +1380,7 @@ export function explainOpenRouterGemini25TurnCost(
     inputTokens,
     outputTokens,
     modelId,
-    OPENROUTER_GEMINI_25_GROSS_MARGIN
+    OPENROUTER_GEMINI_36_GROSS_MARGIN
   );
 }
 
@@ -1417,16 +1402,16 @@ export function explainOpenRouterGemini31TurnCost(
   );
 }
 
-/** OpenRouter Gemini Pro — 2.5/3.1 토큰 단가 과금 상세 */
-export function explainOpenRouterGeminiProTurnCost(
+/** 현재 사용자 선택 Gemini와 과거 3.1 영수증용 과금 상세 */
+export function explainOpenRouterGeminiTurnCost(
   inputTokens: number,
   outputTokens: number,
   modelId: string,
   cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">,
   billingBasis?: OpenRouterTurnBillingBasis
 ): OpenRouterTurnCostBreakdown & { total: number } {
-  if (isGemini25ProModel(modelId)) {
-    return explainOpenRouterGemini25TurnCost(
+  if (isGemini36FlashModel(modelId)) {
+    return explainOpenRouterGemini36TurnCost(
       inputTokens,
       outputTokens,
       modelId,
@@ -1476,7 +1461,7 @@ export function computeOpenRouterTurnBilling(opts: {
   const modelLabel = opts.modelLabel ?? opts.modelId;
   const messageCount = opts.messageCount ?? 1;
 
-  const billingBasis: OpenRouterTurnBillingBasis | undefined = isGeminiProOpenRouterModel(
+  const billingBasis: OpenRouterTurnBillingBasis | undefined = isGeminiChatOpenRouterModel(
     opts.modelId
   )
     ? {
@@ -1751,8 +1736,8 @@ export function resolveMuseWaiverMinimumCharge(
   );
 }
 
-/** Gemini 2.5 Pro — 과금 면제 턴이어도 본문이 유의미하게 전달됐으면 최소 50P 차감 */
-export function resolveGemini25WaiverMinimumCharge(
+/** Gemini 3.6 Flash — 과금 면제 턴이어도 본문이 유의미하게 전달됐으면 최소 50P 차감 */
+export function resolveGemini36WaiverMinimumCharge(
   savedText: string,
   waiverReason: BillingWaiverReason,
   opts?: {
@@ -1763,7 +1748,7 @@ export function resolveGemini25WaiverMinimumCharge(
   return resolveModelWaiverMinimumCharge(
     savedText,
     waiverReason,
-    GEMINI_25_WAIVER_SUCCESS_MIN_COST,
+    GEMINI_36_WAIVER_SUCCESS_MIN_COST,
     opts
   );
 }
@@ -1826,7 +1811,7 @@ export function sumOpenRouterStageUpstreamUsd(stages: StageUsage[]): number {
 }
 
 /**
- * Muse/Gemini Pro hidden reasoning is provider cost only.
+ * Muse/Gemini chat hidden reasoning is provider cost only.
  * User billing and receipts use visible content output tokens.
  */
 export function billableOpenRouterOutputTokens(
@@ -1836,7 +1821,7 @@ export function billableOpenRouterOutputTokens(
 ): number {
   if (totalApiOutputTokens <= 0) return 0;
   if (
-    (isMuseModel(modelId) || isGeminiProOpenRouterModel(modelId)) &&
+    (isMuseModel(modelId) || isGeminiChatOpenRouterModel(modelId)) &&
     reasoningTokens > 0
   ) {
     return Math.max(0, totalApiOutputTokens - reasoningTokens);
@@ -1928,7 +1913,7 @@ export function billingTierBenchmark() {
   const input = 5000;
   const output = 2500;
   return {
-    flash: computeGeminiStageCost("gemini-2.5-flash", input, output),
+    flash: computeGeminiStageCost("gemini-3.1-flash-lite", input, output),
   };
 }
 

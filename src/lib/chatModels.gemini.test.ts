@@ -4,60 +4,62 @@ import {
   DEFAULT_SELECTED_AI,
   OPENROUTER_GEMINI_25_PRO_MODEL,
   OPENROUTER_GEMINI_31_PRO_MODEL,
+  OPENROUTER_GEMINI_36_FLASH_MODEL,
   SELECTED_AI_OPTIONS,
-  isGemini25ProModel,
   isGemini31ProModel,
+  isGemini36FlashModel,
   isValidSelectedAI,
   resolveSelectedAI,
   selectedAILabel,
 } from "@/lib/chatModels";
-import { resolveOpenRouterModelId } from "@/lib/openRouterConfig";
+import {
+  resolveOpenRouterModelId,
+  resolveRpOpenRouterModelId,
+} from "@/lib/openRouterConfig";
 import { resolveOpenRouterModelRates } from "@/lib/openRouterModelPricing";
 
-describe("Gemini 2.5 Pro on OpenRouter", () => {
-  it("is a selectable UI option", () => {
-    assert.ok(SELECTED_AI_OPTIONS.some((o) => o.id === OPENROUTER_GEMINI_25_PRO_MODEL));
-    assert.ok(isValidSelectedAI(OPENROUTER_GEMINI_25_PRO_MODEL));
+describe("Gemini 3.6 Flash on OpenRouter", () => {
+  it("is the only selectable Gemini option", () => {
+    assert.ok(
+      SELECTED_AI_OPTIONS.some(
+        (o: { id: string }) => o.id === OPENROUTER_GEMINI_36_FLASH_MODEL
+      )
+    );
+    assert.ok(isValidSelectedAI(OPENROUTER_GEMINI_36_FLASH_MODEL));
+    assert.equal(isValidSelectedAI(OPENROUTER_GEMINI_25_PRO_MODEL), false);
+    assert.equal(isValidSelectedAI(OPENROUTER_GEMINI_31_PRO_MODEL), false);
   });
 
-  it("maps legacy gemini-2.5-pro slugs", () => {
-    assert.equal(resolveSelectedAI("gemini-2.5-pro"), OPENROUTER_GEMINI_25_PRO_MODEL);
-    assert.equal(resolveSelectedAI("google/gemini-2.5-pro"), OPENROUTER_GEMINI_25_PRO_MODEL);
+  it("migrates removed Gemini 2.5 selections and routing to 3.6 Flash", () => {
+    for (const legacy of [
+      "gemini-2.5-pro",
+      "google/gemini-2.5-pro",
+      "gemini-2.5-flash",
+    ]) {
+      assert.equal(resolveSelectedAI(legacy), OPENROUTER_GEMINI_36_FLASH_MODEL);
+      assert.equal(resolveRpOpenRouterModelId(legacy), OPENROUTER_GEMINI_36_FLASH_MODEL);
+    }
     assert.equal(
       resolveOpenRouterModelId(OPENROUTER_GEMINI_25_PRO_MODEL),
-      OPENROUTER_GEMINI_25_PRO_MODEL
+      OPENROUTER_GEMINI_36_FLASH_MODEL
     );
   });
 
-  it("uses Google pricing tier", () => {
-    assert.ok(isGemini25ProModel(OPENROUTER_GEMINI_25_PRO_MODEL));
-    const rates = resolveOpenRouterModelRates(OPENROUTER_GEMINI_25_PRO_MODEL);
+  it("uses the OpenRouter 3.6 list-price tier", () => {
+    assert.ok(isGemini36FlashModel(OPENROUTER_GEMINI_36_FLASH_MODEL));
+    const rates = resolveOpenRouterModelRates(OPENROUTER_GEMINI_36_FLASH_MODEL);
     assert.equal(rates.family, "google");
-    assert.equal(rates.inputUsdPerM, 1.25);
-    assert.equal(rates.outputUsdPerM, 10);
+    assert.equal(rates.inputUsdPerM, 1.5);
+    assert.equal(rates.outputUsdPerM, 7.5);
+    assert.equal(rates.cacheReadUsdPerM, 0.15);
   });
 });
 
-describe("Gemini 3.1 Pro retired from selection", () => {
-  it("is not a selectable UI option", () => {
-    assert.ok(!SELECTED_AI_OPTIONS.some((o) => o.id === OPENROUTER_GEMINI_31_PRO_MODEL));
-    assert.equal(isValidSelectedAI(OPENROUTER_GEMINI_31_PRO_MODEL), false);
-    assert.ok(!SELECTED_AI_OPTIONS.some((o) => o.id.includes("claude-sonnet")));
-  });
-
-  it("maps legacy gemini-3.1 and retired sonnet slugs", () => {
-    assert.equal(resolveSelectedAI("gemini-3.1-pro-preview"), DEFAULT_SELECTED_AI);
-    assert.equal(resolveSelectedAI("google/gemini-3.1-pro-preview"), DEFAULT_SELECTED_AI);
+describe("retired Gemini compatibility", () => {
+  it("keeps 3.1 historical receipt metadata without making it selectable", () => {
     assert.equal(resolveSelectedAI(OPENROUTER_GEMINI_31_PRO_MODEL), DEFAULT_SELECTED_AI);
-    assert.equal(resolveSelectedAI("anthropic/claude-sonnet-4"), OPENROUTER_GEMINI_25_PRO_MODEL);
-    // Retired slug is no longer a selectable OpenRouter selectedAI — falls back to default.
-    assert.equal(resolveOpenRouterModelId(OPENROUTER_GEMINI_31_PRO_MODEL), DEFAULT_SELECTED_AI);
-  });
-
-  it("keeps Gemini 3.1 pricing detection for residual receipts", () => {
     assert.ok(isGemini31ProModel(OPENROUTER_GEMINI_31_PRO_MODEL));
     const rates = resolveOpenRouterModelRates(OPENROUTER_GEMINI_31_PRO_MODEL);
-    assert.equal(rates.family, "google");
     assert.equal(rates.inputUsdPerM, 2);
     assert.equal(rates.outputUsdPerM, 12);
     assert.equal(selectedAILabel(OPENROUTER_GEMINI_31_PRO_MODEL), "Gemini 3.1 Pro");

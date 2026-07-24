@@ -2,7 +2,7 @@ import fs from "fs/promises";
 import path from "path";
 import { isDemoEnv } from "@/lib/demo";
 import { BACKGROUND_VISION_OPENROUTER_MODEL } from "@/lib/ai";
-import { OPENROUTER_GEMINI_25_FLASH_MODEL } from "@/lib/chatModels";
+import { OPENROUTER_GEMINI_31_FLASH_MODEL } from "@/lib/chatModels";
 import {
   OPENROUTER_CHAT_COMPLETIONS_URL,
   buildOpenRouterHeaders,
@@ -19,7 +19,7 @@ export type AssetModerationResult = {
 const DEV_API_BYPASS_NOTE = "개발: 검수 API 연결 실패 — 자동 통과 (키/모델 확인)";
 
 const DEFAULT_MODERATION_MODEL = BACKGROUND_VISION_OPENROUTER_MODEL;
-const DEFAULT_MODERATION_FALLBACK_MODEL = OPENROUTER_GEMINI_25_FLASH_MODEL;
+const DEFAULT_MODERATION_FALLBACK_MODEL = OPENROUTER_GEMINI_31_FLASH_MODEL;
 
 type ModerationVerdict = {
   safe: boolean;

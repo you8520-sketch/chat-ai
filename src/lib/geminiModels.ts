@@ -7,7 +7,7 @@ export function getGeminiModelCandidates(envKey?: string): string[] {
     process.env.GEMINI_MODEL,
   ].filter(Boolean) as string[];
 
-  const defaults = ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"];
+  const defaults = ["gemini-3.1-flash-lite", "gemini-2.0-flash"];
   const seen = new Set<string>();
   const out: string[] = [];
   for (const m of [...fromEnv, ...defaults]) {

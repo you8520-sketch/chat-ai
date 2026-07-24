@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { OPENROUTER_GEMINI_25_FLASH_MODEL } from "@/lib/chatModels";
+import { OPENROUTER_GEMINI_31_FLASH_MODEL } from "@/lib/chatModels";
 import { callOpenRouterCompletion } from "@/lib/openRouterCompletion";
 import { isDemoEnv } from "@/lib/demo";
 
@@ -62,7 +62,7 @@ Verdict:`;
     const { text } = await callOpenRouterCompletion({
       system: MODERATION_SYSTEM,
       history: [{ role: "user", content: userPrompt }],
-      model: process.env.COMMENT_MODERATION_MODEL?.trim() || OPENROUTER_GEMINI_25_FLASH_MODEL,
+      model: process.env.COMMENT_MODERATION_MODEL?.trim() || OPENROUTER_GEMINI_31_FLASH_MODEL,
       temperature: 0.1,
       maxTokens: 64,
       requestKind: "comment-moderation",

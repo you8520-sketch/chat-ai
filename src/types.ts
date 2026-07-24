@@ -220,7 +220,6 @@ export const OPENROUTER_HISTORY_TOKEN_BUDGET = MAX_HISTORY_TOKENS;
 
 /** 모델별 시스템 프롬프트 토큰 상한 (보수적) */
 export const MODEL_SYSTEM_BUDGETS: Record<string, number> = {
-  "gemini-2.5-flash": 28_000,
   "gemini-3-flash-preview": 28_000,
   "cohere/command-r-plus": 20_000,
   "meta-llama/llama-3-8b-instruct": 12_000,
@@ -229,11 +228,10 @@ export const MODEL_SYSTEM_BUDGETS: Record<string, number> = {
   "anthropic/claude-3.5-sonnet": 28_000,
   "anthropic/claude-sonnet-4": 28_000,
   "google/gemini-3.1-pro-preview": 28_000,
+  "google/gemini-3.6-flash": 28_000,
   "deepseek/deepseek-v4-pro": 28_000,
   "qwen/qwen3.7-max": 28_000,
   "meta/muse-spark-1.1": 28_000,
-  "google/gemini-2.5-pro": 28_000,
-  "google/gemini-2.5-flash": 28_000,
   "google/gemini-3.1-flash-lite": 28_000,
   default: DEFAULT_SYSTEM_TOKEN_BUDGET,
 };

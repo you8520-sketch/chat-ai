@@ -17,6 +17,7 @@ import type { Usage } from "@/lib/chatUsage";
 import {
   isDeepSeekV4ProModel,
   isGemini25ProModel,
+  isGemini36FlashModel,
   isGemini31ProModel,
   isGeminiProOpenRouterModel,
   isMuseModel,
@@ -42,12 +43,14 @@ function ReceiptBody({
   const reasoningExcludedFromBilling =
     usage.provider === "openrouter" &&
     (isMuseModel(usage.model ?? "") ||
+      isGemini25ProModel(usage.model ?? "") ||
+      isGemini36FlashModel(usage.model ?? "") ||
       (isGeminiProOpenRouterModel(usage.model ?? "") &&
         !isGemini31ProModel(usage.model ?? "")));
   const cacheNeutralGrossMarginPercent =
     isDeepSeekV4ProModel(usage.model ?? "") || isTencentHy3Model(usage.model ?? "")
       ? 65
-      : isMuseModel(usage.model ?? "") || isGemini25ProModel(usage.model ?? "")
+      : isMuseModel(usage.model ?? "") || isGemini36FlashModel(usage.model ?? "")
         ? 55
         : null;
   const widgetExtractCallCount = resolveStoredWidgetExtractCallCount(

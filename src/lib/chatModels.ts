@@ -45,8 +45,11 @@ export const OPENROUTER_MUSE_SPARK_11_MODEL = "meta/muse-spark-1.1";
 
 export const OPENROUTER_SOLAR_PRO_3_MODEL = "upstage/solar-pro-3";
 
-/** OpenRouter — Google Gemini 2.5 Pro */
+/** @deprecated 사용자 선택 제거 — 기존 선택값·영수증 마이그레이션 전용 */
 export const OPENROUTER_GEMINI_25_PRO_MODEL = "google/gemini-2.5-pro";
+
+/** OpenRouter — Google Gemini 3.6 Flash */
+export const OPENROUTER_GEMINI_36_FLASH_MODEL = "google/gemini-3.6-flash";
 
 /** @deprecated UI 선택 제거 — legacy slug·과금 경로 호환용 */
 export const OPENROUTER_GEMINI_31_PRO_MODEL = "google/gemini-3.1-pro-preview";
@@ -78,6 +81,9 @@ export const SOLAR_PRO_3_DISPLAY_NAME = "Solar Pro 3";
 
 export const TENCENT_HY3_DISPLAY_NAME = "Tencent Hy3";
 
+export const GEMINI_36_FLASH_DISPLAY_NAME = "Gemini 3.6 Flash";
+
+/** @deprecated 기존 영수증 표시 호환용 */
 export const GEMINI_25_PRO_DISPLAY_NAME = "Gemini 2.5 Pro";
 
 export const GEMINI_31_PRO_DISPLAY_NAME = "Gemini 3.1 Pro";
@@ -107,8 +113,8 @@ export const SELECTED_AI_OPTIONS = [
     recommended: true,
   },
   {
-    id: OPENROUTER_GEMINI_25_PRO_MODEL,
-    label: GEMINI_25_PRO_DISPLAY_NAME,
+    id: OPENROUTER_GEMINI_36_FLASH_MODEL,
+    label: GEMINI_36_FLASH_DISPLAY_NAME,
     tier: "pro" as const,
     hint: "Google",
   },
@@ -182,6 +188,12 @@ export function isGemini25ProModel(modelId: string): boolean {
   return id === OPENROUTER_GEMINI_25_PRO_MODEL || id.includes("gemini-2.5-pro");
 }
 
+/** OpenRouter Google Gemini 3.6 Flash */
+export function isGemini36FlashModel(modelId: string): boolean {
+  const id = modelId.trim().toLowerCase();
+  return id === OPENROUTER_GEMINI_36_FLASH_MODEL || id.includes("gemini-3.6-flash");
+}
+
 /** OpenRouter Gemini 3.1 Pro Preview */
 export function isGemini31ProModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
@@ -190,7 +202,7 @@ export function isGemini31ProModel(modelId: string): boolean {
 
 /** Gemini 3.x Pro on OpenRouter — native thinkingLevel (2.5 Pro thinkingBudget cap과 별도) */
 export function isGemini3ProOpenRouterModel(modelId: string): boolean {
-  return isGeminiProOpenRouterModel(modelId) && !isGemini25ProModel(modelId);
+  return isGemini31ProModel(modelId);
 }
 
 /** OpenRouter Gemini Flash (RP 라우팅·배경 작업) */
@@ -198,18 +210,22 @@ export function isGeminiFlashOpenRouterModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
   if (!id.includes("gemini") || !id.includes("flash")) return false;
   return (
-    id === OPENROUTER_GEMINI_25_FLASH_MODEL ||
     id === OPENROUTER_GEMINI_31_FLASH_MODEL ||
-    id === GEMINI_CHAT_FLASH_25 ||
-    id.includes("gemini-2.5-flash") ||
+    id === OPENROUTER_GEMINI_36_FLASH_MODEL ||
     id.includes("gemini-3.1-flash") ||
+    id.includes("gemini-3.6-flash") ||
     id.includes("gemini-3-flash")
   );
 }
 
-/** OpenRouter Gemini Pro — 2.5 Pro · 3.1 Pro (유저 선택·과금·reasoning 정책 공통) */
+/** 기존 Gemini Pro — 사용자 선택에서는 제거, 과거 영수증·호환 경로만 유지 */
 export function isGeminiProOpenRouterModel(modelId: string): boolean {
-  return isGemini25ProModel(modelId) || isGemini31ProModel(modelId);
+  return isGemini31ProModel(modelId);
+}
+
+/** 현재·과거 Gemini 채팅 모델 공통 판별 */
+export function isGeminiChatOpenRouterModel(modelId: string): boolean {
+  return isGemini36FlashModel(modelId) || isGeminiProOpenRouterModel(modelId);
 }
 
 /** OpenRouter Tencent Hy3 계열 (tencent/hy3 등) */
@@ -261,8 +277,7 @@ export function isOpenRouterSharedProseModel(modelId: string): boolean {
       isKimiModel(id) ||
       isMuseModel(id) ||
       isDeepSeekV4ProModel(id) ||
-      isGemini25ProModel(id) ||
-      isGemini31ProModel(id) ||
+      isGeminiChatOpenRouterModel(id) ||
       id.includes("/"))
   );
 }
@@ -270,17 +285,20 @@ export function isOpenRouterSharedProseModel(modelId: string): boolean {
 const VALID = new Set<string>(SELECTED_AI_OPTIONS.map((o) => o.id));
 
 const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
-  "gemini-2.5-pro": OPENROUTER_GEMINI_25_PRO_MODEL,
-  "gemini-2.5-flash": DEFAULT_SELECTED_AI,
-  "gemini-2.5": DEFAULT_SELECTED_AI,
+  /** Gemini 2.5 제거 — 기존 채팅·선택값은 3.6 Flash로 자동 이전 */
+  "gemini-2.5-pro": OPENROUTER_GEMINI_36_FLASH_MODEL,
+  "gemini-2.5-flash": OPENROUTER_GEMINI_36_FLASH_MODEL,
+  "gemini-2.5": OPENROUTER_GEMINI_36_FLASH_MODEL,
   "gemini-3.0": DEFAULT_SELECTED_AI,
   "gemini-3-flash-preview": DEFAULT_SELECTED_AI,
   "gemini-3.5-flash": DEFAULT_SELECTED_AI,
   /** Gemini 3.1 Pro 제거 — 기존 채팅·legacy slug는 Muse로 이전 */
   "gemini-3.1": DEFAULT_SELECTED_AI,
   "gemini-3.1-pro-preview": DEFAULT_SELECTED_AI,
-  "google/gemini-2.5-pro": OPENROUTER_GEMINI_25_PRO_MODEL,
-  "google/gemini-2.5-pro-preview": OPENROUTER_GEMINI_25_PRO_MODEL,
+  "google/gemini-2.5-pro": OPENROUTER_GEMINI_36_FLASH_MODEL,
+  "google/gemini-2.5-pro-preview": OPENROUTER_GEMINI_36_FLASH_MODEL,
+  "gemini-3.6-flash": OPENROUTER_GEMINI_36_FLASH_MODEL,
+  "google/gemini-3.6-flash": OPENROUTER_GEMINI_36_FLASH_MODEL,
   "google/gemini-3.1-pro-preview": DEFAULT_SELECTED_AI,
   masterpiece: DEFAULT_SELECTED_AI,
   [CLAUDE_OPUS_MODEL_LEGACY]: CLAUDE_OPUS_MODEL,
@@ -317,10 +335,10 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   "solar-pro": DEFAULT_SELECTED_AI,
   "solar-pro-3": DEFAULT_SELECTED_AI,
   "upstage/solar-pro-3": DEFAULT_SELECTED_AI,
-  /** Retired Sonnet → Gemini 2.5 Pro (3.1 Pro selection removed) */
-  "anthropic/claude-3.5-sonnet": OPENROUTER_GEMINI_25_PRO_MODEL,
-  "claude-3.5-sonnet": OPENROUTER_GEMINI_25_PRO_MODEL,
-  "anthropic/claude-sonnet-4": OPENROUTER_GEMINI_25_PRO_MODEL,
+  /** Retired Sonnet → 현재 Google 채팅 모델 */
+  "anthropic/claude-3.5-sonnet": OPENROUTER_GEMINI_36_FLASH_MODEL,
+  "claude-3.5-sonnet": OPENROUTER_GEMINI_36_FLASH_MODEL,
+  "anthropic/claude-sonnet-4": OPENROUTER_GEMINI_36_FLASH_MODEL,
 };
 
 export function isValidSelectedAI(v: unknown): v is SelectedAI {

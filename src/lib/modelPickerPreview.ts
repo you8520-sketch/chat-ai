@@ -4,11 +4,11 @@
  */
 import {
   isDeepSeekV4ProModel,
-  isGemini25ProModel,
+  isGemini36FlashModel,
   isMuseModel,
   isTencentHy3Model,
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
-  OPENROUTER_GEMINI_25_PRO_MODEL,
+  OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
   OPENROUTER_TENCENT_HY3_MODEL,
   resolveSelectedAI,
@@ -49,7 +49,7 @@ export {
 export const MODEL_PICKER_ACTIVE_MODEL_IDS = [
   OPENROUTER_MUSE_SPARK_11_MODEL,
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
-  OPENROUTER_GEMINI_25_PRO_MODEL,
+  OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_TENCENT_HY3_MODEL,
 ] as const satisfies readonly SelectedAI[];
 
@@ -63,7 +63,6 @@ export const MODEL_PICKER_FALLBACK_INPUT_TOKENS = 4000;
 /** Measured cold-start output P50 from dev DB normal RP (scripts/_tmp-model-picker-baselines.ts). */
 export const MODEL_PICKER_MEASURED_COLD_BASELINES: Partial<Record<ModelPickerActiveModelId, number>> = {
   [OPENROUTER_DEEPSEEK_V4_PRO_MODEL]: 2063,
-  [OPENROUTER_GEMINI_25_PRO_MODEL]: 1383,
 };
 
 export function isActivePickerModel(modelId: string): modelId is ModelPickerActiveModelId {
@@ -156,7 +155,7 @@ export function resolveColdOutputBaseline(modelId: string): number {
   }
   // Temporary prior when measured data unavailable — not audit placeholders.
   const aim = resolveAimOutputTokens();
-  if (isGemini25ProModel(modelId)) return Math.round(aim * 0.45);
+  if (isGemini36FlashModel(modelId)) return Math.round(aim * 0.55);
   if (isDeepSeekV4ProModel(modelId) || isTencentHy3Model(modelId)) return Math.round(aim * 0.65);
   if (isMuseModel(modelId)) return Math.round(aim * 0.75);
   return Math.round(aim * 0.55);

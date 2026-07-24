@@ -41,7 +41,7 @@ import { resolveNarrativePov } from "@/lib/narrativePov";
 import { auditAssembledPrompt, formatPromptAuditLog } from "@/services/promptAudit";
 import { invalidateModelPickerInputSnapshot } from "@/services/modelPickerInputSnapshot";
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
-import { deductPoints, getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini25WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterTencentHy3TurnCost, explainOpenRouterGeminiProTurnCost, type DeductionSlice } from "@/lib/points";
+import { deductPoints, getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterTencentHy3TurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
 import { createChatSession } from "@/lib/chatSessionCreate";
 import { incrementCharacterTotalTurns } from "@/lib/characterEngagementStats";
 import {
@@ -58,7 +58,7 @@ import {
   restoreAssistantFromAlternatesOnFailedRegen,
   type StreamingPersistenceDiag,
 } from "@/lib/streamingPersistence";
-import { isDeepSeekV4ProModel, isGemini25ProModel, isGemini31ProModel, isGeminiProOpenRouterModel, isGlmModel, isKimiModel, isMuseModel, isQwenModel, isTencentHy3Model } from "@/lib/chatModels";
+import { isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isKimiModel, isMuseModel, isQwenModel, isTencentHy3Model } from "@/lib/chatModels";
 import { openRouterNormalizedRawCostKrw, openRouterRawCostKrw } from "@/lib/billingRawCost";
 import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
 import { maybeCreditCreatorReward, paidCreatorRewardSpend } from "@/lib/creatorPoints";
@@ -2332,9 +2332,11 @@ export async function POST(req: Request) {
                   apiCompletionTokens: apiCompletionTokensForCost,
                 }
               : undefined;
-          const geminiProExplain =
-            billingOpenRouterModelId && isGeminiProOpenRouterModel(billingOpenRouterModelId)
-              ? explainOpenRouterGeminiProTurnCost(
+          const geminiExplain =
+            billingOpenRouterModelId &&
+            (isGemini36FlashModel(billingOpenRouterModelId) ||
+              isGemini31ProModel(billingOpenRouterModelId))
+              ? explainOpenRouterGeminiTurnCost(
                   totalInput,
                   totalOutput,
                   billingOpenRouterModelId,
@@ -2375,11 +2377,11 @@ export async function POST(req: Request) {
                   tencentHy3Applied: tencentHy3Explain.applied,
                 }
               : {}),
-            ...(geminiProExplain
+            ...(geminiExplain
               ? {
-                  geminiProRawCostKrw: geminiProExplain.rawCostKrw,
-                  geminiProCostPlusMarginKrw: geminiProExplain.costPlusMarginKrw,
-                  geminiProApplied: geminiProExplain.applied,
+                  geminiRawCostKrw: geminiExplain.rawCostKrw,
+                  geminiCostPlusMarginKrw: geminiExplain.costPlusMarginKrw,
+                  geminiApplied: geminiExplain.applied,
                 }
               : {}),
           });
@@ -2424,8 +2426,8 @@ export async function POST(req: Request) {
               degenerationAborted,
               targetResponseChars: targetResponseCharsRef,
             });
-          } else if (isGemini25ProModel(modelId)) {
-            waiverMin = resolveGemini25WaiverMinimumCharge(savedText, billingWaiverReason, {
+          } else if (isGemini36FlashModel(modelId)) {
+            waiverMin = resolveGemini36WaiverMinimumCharge(savedText, billingWaiverReason, {
               degenerationAborted,
               targetResponseChars: targetResponseCharsRef,
             });

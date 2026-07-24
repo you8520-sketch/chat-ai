@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import {
-  isGeminiProOpenRouterModel,
+  isGeminiChatOpenRouterModel,
   isAnthropicModel,
   isQwenModel,
   isDeepSeekV4ProModel,
@@ -85,7 +85,7 @@ export { WIDGET_EXTRACT_NARRATIVE_CHAR_BUDGET } from "./proseStrip";
 export function resolveStatusWidgetModelFamily(modelId: string): StatusWidgetModelFamily {
   const id = modelId.toLowerCase();
   if (isDeepSeekV4ProModel(modelId) || id.includes("deepseek")) return "deepseek";
-  if (isGeminiProOpenRouterModel(modelId) || id.includes("gemini") || id.startsWith("google/")) {
+  if (isGeminiChatOpenRouterModel(modelId) || id.includes("gemini") || id.startsWith("google/")) {
     return "gemini";
   }
   if (isAnthropicModel(modelId) || id.includes("claude")) return "anthropic";
@@ -95,7 +95,7 @@ export function resolveStatusWidgetModelFamily(modelId: string): StatusWidgetMod
 }
 
 export function resolveStatusWidgetParserMode(modelId: string): StatusWidgetParserMode {
-  return isDeepSeekV4ProModel(modelId) || isGeminiProOpenRouterModel(modelId)
+  return isDeepSeekV4ProModel(modelId) || isGeminiChatOpenRouterModel(modelId)
     ? "deepseek"
     : "standard";
 }

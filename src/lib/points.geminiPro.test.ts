@@ -5,7 +5,7 @@ import {
   GEMINI_31_WAIVER_SUCCESS_MIN_COST,
   computeOpenRouterTurnCost,
   computeTurnBilling,
-  explainOpenRouterGeminiProTurnCost,
+  explainOpenRouterGemini31TurnCost,
   resolveGemini31WaiverMinimumCharge,
 } from "@/lib/points";
 import { OPENROUTER_GEMINI_31_PRO_MODEL } from "@/lib/chatModels";
@@ -20,7 +20,7 @@ describe("OpenRouter Gemini 3.1 Pro billing", () => {
 
   it("token floor = outputTokens × 0.075", () => {
     const outputTokens = 2000;
-    const explain = explainOpenRouterGeminiProTurnCost(1000, outputTokens, modelId);
+    const explain = explainOpenRouterGemini31TurnCost(1000, outputTokens, modelId);
     assert.equal(explain.charFloorKrw, Math.ceil(outputTokens * 0.075 - 1e-9));
     assert.equal(explain.costPlusMarginKrw, 0);
   });
@@ -28,7 +28,7 @@ describe("OpenRouter Gemini 3.1 Pro billing", () => {
   it("charges output token floor only", () => {
     const outputTokens = 2000;
     const lowUsage = computeOpenRouterTurnCost(100, outputTokens, modelId);
-    const explain = explainOpenRouterGeminiProTurnCost(100, outputTokens, modelId);
+    const explain = explainOpenRouterGemini31TurnCost(100, outputTokens, modelId);
     assert.equal(lowUsage, explain.total);
   });
 
@@ -50,7 +50,7 @@ describe("OpenRouter Gemini 3.1 Pro billing", () => {
 
   it("waiver with meaningful text charges minimum 65P", () => {
     const min = resolveGemini31WaiverMinimumCharge(
-      "유의미한 본문이 있는 응답입니다.",
+      "유의미한 본문이 있는 응답입니다. ".repeat(20),
       "forced_abort"
     );
     assert.equal(min, 65);
