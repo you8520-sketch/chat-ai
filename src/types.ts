@@ -88,6 +88,11 @@ export type ContextBuildInput = {
   targetResponseChars?: number;
   /** 현재 턴 직전까지 완료된 대화 턴 수 */
   completedTurns?: number;
+  /**
+   * LTM에 연속 반영 완료된 playable turns (`chat_memories.summarized_turn_count`).
+   * RAW trim coverage floor 계산용 — greeting(turn 0) 제외.
+   */
+  summarizedTurnCount?: number;
   /** Selected User Persona 성별 (호칭·관계 규칙용) */
   userPersonaGender?: CharacterGender;
   /** openrouter — 히스토리 예산·소설 타임라인 조립 분기 */
