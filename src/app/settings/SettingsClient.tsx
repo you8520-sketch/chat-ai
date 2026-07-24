@@ -32,6 +32,9 @@ const SUPPORT_LINKS = [
   { href: "/board/faq", label: "FAQ" },
 ] as const;
 
+const SETTINGS_ACTION_LINK_CLASS =
+  "inline-flex min-h-11 items-center justify-center rounded-xl border border-white/10 bg-[#11131a] px-4 py-2.5 text-center text-sm font-semibold text-zinc-100 transition hover:border-violet-400/30 hover:bg-[#181b24] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/70";
+
 function SupportChevron() {
   return (
     <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4 shrink-0 text-zinc-500" aria-hidden>
@@ -127,16 +130,16 @@ export default function SettingsClient({ user, unreadNotice = false }: Props) {
           채팅용 페르소나·유저노트와 크리에이터 페이지로 이동합니다. 캐릭터 제작은 하단 「제작」탭을
           이용하세요.
         </p>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
           <Link
             href="/persona"
-            className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-200 hover:bg-white/5"
+            className={SETTINGS_ACTION_LINK_CLASS}
           >
             페르소나 · 유저노트
           </Link>
           <Link
             href="/creator"
-            className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-500"
+            className={SETTINGS_ACTION_LINK_CLASS}
           >
             크리에이터 페이지
           </Link>
@@ -152,58 +155,58 @@ export default function SettingsClient({ user, unreadNotice = false }: Props) {
         <section className="mt-6 rounded-xl border border-violet-500/30 bg-violet-950/30 p-5">
           <h2 className="font-semibold tracking-tight text-violet-200">관리자</h2>
           <p className={cn(studioType.helper, "mt-1")}>이벤트 승인·포인트 지급·공지/FAQ·문의 답변·정산</p>
-          <div className="mt-3 flex flex-wrap gap-2">
+          <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
             <Link
               href="/admin/point-grant"
-              className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-500"
+              className={SETTINGS_ACTION_LINK_CLASS}
             >
               무료 포인트 지급
             </Link>
             <Link
               href="/admin/beta-free-points"
-              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-200 hover:bg-white/5"
+              className={SETTINGS_ACTION_LINK_CLASS}
             >
               클로즈베타 포인트 신청 관리
             </Link>
             <Link
               href="/admin/create-migration"
-              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-200 hover:bg-white/5"
+              className={SETTINGS_ACTION_LINK_CLASS}
             >
               캐릭터 제작 포인트 신청 관리
             </Link>
             <Link
               href="/admin/report-refunds"
-              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-200 hover:bg-white/5"
+              className={SETTINGS_ACTION_LINK_CLASS}
             >
               오류 신고 환불
             </Link>
             <Link
               href="/admin/comment-banned-words"
-              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-200 hover:bg-white/5"
+              className={SETTINGS_ACTION_LINK_CLASS}
             >
               댓글 금지어 관리
             </Link>
             <Link
               href="/admin/payout"
-              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-200 hover:bg-white/5"
+              className={SETTINGS_ACTION_LINK_CLASS}
             >
               크리에이터 정산
             </Link>
             <Link
               href="/admin/boards"
-              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-200 hover:bg-white/5"
+              className={SETTINGS_ACTION_LINK_CLASS}
             >
               공지 · FAQ 관리
             </Link>
             <Link
               href="/admin/inquiries"
-              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-200 hover:bg-white/5"
+              className={SETTINGS_ACTION_LINK_CLASS}
             >
               문의 게시판 관리
             </Link>
             <Link
               href="/admin/home-popup-notice"
-              className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-zinc-200 hover:bg-white/5"
+              className={SETTINGS_ACTION_LINK_CLASS}
             >
               홈 팝업 공지
             </Link>
