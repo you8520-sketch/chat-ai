@@ -83,6 +83,11 @@ import {
 } from "@/lib/visualAnchor";
 import { formatMemoryMetaForPrompt, normalizeMemoryMeta, parseMemoryMeta, type RelationshipMetaDelta } from "@/lib/chatMemory";
 import { buildSceneMomentumInputFromRoute } from "@/lib/sceneMomentum/routeInput";
+import {
+  buildSceneMomentumProductionTelemetry,
+  logSceneMomentumProductionTelemetry,
+  shouldLogSceneMomentumProductionTelemetry,
+} from "@/lib/sceneMomentum/productionTelemetry";
 import { resolveRelationshipMetaNames } from "@/lib/relationshipMetaCharacterName";
 import {
   messagesToTurns,
@@ -1071,6 +1076,23 @@ export async function POST(req: Request) {
     promptDumpSource: "db",
     promptDumpDetail: `chat=${chat.id} user=${user.id} character=${ch.id}`,
   });
+  if (
+    shouldLogSceneMomentumProductionTelemetry({
+      modelId: openRouterApiModelId,
+      canaryActualInjection: canonInjectionPolicy.canaryActualInjection,
+    }) &&
+    built.meta.momentumActivation
+  ) {
+    logSceneMomentumProductionTelemetry(
+      buildSceneMomentumProductionTelemetry({
+        requestId: clientRequestId,
+        chatId: chat.id,
+        modelId: openRouterApiModelId,
+        canonInjectionPolicy,
+        momentumActivation: built.meta.momentumActivation,
+      })
+    );
+  }
   if (shouldRunCanonInjectionSideEffects(canonInjectionPolicy) && canonLazyCompileResult) {
     logCanonShadowTurnRecord(
       computeCanonShadowTurnRecord({
