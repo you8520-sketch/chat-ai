@@ -1,6 +1,6 @@
 import {
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
-  OPENROUTER_GEMINI_25_PRO_MODEL,
+  OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
   OPENROUTER_TENCENT_HY3_MODEL,
 } from "@/lib/chatModels";
@@ -66,10 +66,10 @@ function isUnvalidatedDefaultFullLegacyModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
   return (
     id === OPENROUTER_MUSE_SPARK_11_MODEL ||
-    id === OPENROUTER_GEMINI_25_PRO_MODEL ||
+    id === OPENROUTER_GEMINI_36_FLASH_MODEL ||
     id === OPENROUTER_TENCENT_HY3_MODEL ||
     id.includes("muse-spark") ||
-    id.includes("gemini-2.5-pro") ||
+    id.includes("gemini-3.6-flash") ||
     id.includes("tencent/hy3")
   );
 }

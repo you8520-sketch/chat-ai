@@ -83,6 +83,17 @@ const GEMINI_25_PRO_RATES: OpenRouterModelRates = {
   explicitCacheInjection: false,
 };
 
+/** Google Gemini 3.6 Flash — OpenRouter list (2026-07-21) */
+const GEMINI_36_FLASH_RATES: OpenRouterModelRates = {
+  family: "google",
+  label: "Google Gemini prompt cache",
+  inputUsdPerM: 1.5,
+  outputUsdPerM: 7.5,
+  cacheReadUsdPerM: 0.15,
+  cacheWriteMultiplier: 1 / 18,
+  explicitCacheInjection: false,
+};
+
 /** Google Gemini 3.1 Pro Preview — OpenRouter list */
 const GEMINI_31_PRO_RATES: OpenRouterModelRates = {
   family: "google",
@@ -174,6 +185,7 @@ export function resolveOpenRouterModelRates(modelId?: string | null): OpenRouter
   const id = (modelId ?? "").trim().toLowerCase();
   // Exact / specific model ids before broad family matches.
   if (id.includes("gemini-2.5-flash")) return GEMINI_25_FLASH_RATES;
+  if (id.includes("gemini-3.6-flash")) return GEMINI_36_FLASH_RATES;
   if (id.includes("deepseek-chat-v3-0324")) return DEEPSEEK_V3_0324_RATES;
   if (id.includes("deepseek")) return DEEPSEEK_V4_PRO_RATES;
   if (id.includes("gemini-3.1-pro")) return GEMINI_31_PRO_RATES;

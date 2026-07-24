@@ -7,12 +7,12 @@ import type { TokenUsage } from "@/lib/ai";
 /** Google AI Studio 대략 단가 (USD / 1M tokens) — 진단용 추정치 */
 const USD_PER_M: Record<string, { input: number; output: number; cacheWrite: number }> = {
   "gemini-3-flash-preview": { input: 0.5, output: 3.0, cacheWrite: 0.5 },
-  "gemini-2.5-flash": { input: 0.3, output: 2.5, cacheWrite: 0.3 },
+  "gemini-3.1-flash-lite": { input: 0.25, output: 1.5, cacheWrite: 0.25 },
 };
 
 const DEFAULT_USD_PER_M = { input: 1.0, output: 6.0, cacheWrite: 1.0 };
 const KRW_PER_USD = Number(process.env.GEMINI_TRACE_KRW_PER_USD) || 1350;
-/** Gemini explicit cache read — input 대비 ~90% 할인 (2.5-flash 진단용) */
+/** Gemini explicit cache read — input 대비 ~90% 할인 (진단용) */
 const GEMINI_CACHE_READ_INPUT_RATE_MULTIPLIER = 0.1;
 
 export type GeminiRequestTraceRecord = {
@@ -60,7 +60,7 @@ function resolveRates(modelId: string) {
     }
   }
   if (/3-flash|3\.0-flash/i.test(key)) return USD_PER_M["gemini-3-flash-preview"]!;
-  if (/2\.5-flash/i.test(key)) return USD_PER_M["gemini-2.5-flash"]!;
+  if (/3\.1-flash-lite/i.test(key)) return USD_PER_M["gemini-3.1-flash-lite"]!;
   return DEFAULT_USD_PER_M;
 }
 

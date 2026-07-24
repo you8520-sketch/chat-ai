@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { OPENROUTER_GEMINI_25_PRO_MODEL } from "@/lib/chatModels";
+import { OPENROUTER_GEMINI_36_FLASH_MODEL } from "@/lib/chatModels";
 import { billableOpenRouterOutputTokens } from "@/lib/points";
 
-describe("billableOpenRouterOutputTokens — Gemini 2.5 Pro", () => {
+describe("billableOpenRouterOutputTokens — Gemini 3.6 Flash", () => {
   it("excludes reasoning tokens from billable output", () => {
     assert.equal(
-      billableOpenRouterOutputTokens(OPENROUTER_GEMINI_25_PRO_MODEL, 2293, 1618),
+      billableOpenRouterOutputTokens(OPENROUTER_GEMINI_36_FLASH_MODEL, 2293, 1618),
       675
     );
   });

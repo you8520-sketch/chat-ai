@@ -6,19 +6,19 @@ import {
   OPENROUTER_INPUT_SURCHARGE_THRESHOLD_TOKENS,
   computeOpenRouterTurnCost,
   explainOpenRouterDeepSeekTurnCost,
-  explainOpenRouterGemini25TurnCost,
+  explainOpenRouterGemini36TurnCost,
   openRouterInputTokenSurchargeKrw,
 } from "@/lib/points";
 import {
   OPENROUTER_DEEPSEEK_V3_MODEL,
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
-  OPENROUTER_GEMINI_25_PRO_MODEL,
+  OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
   OPENROUTER_TENCENT_HY3_MODEL,
 } from "@/lib/chatModels";
 
 describe("OpenRouter input token surcharge", () => {
-  const geminiId = OPENROUTER_GEMINI_25_PRO_MODEL;
+  const geminiId = OPENROUTER_GEMINI_36_FLASH_MODEL;
   const deepseekId = OPENROUTER_DEEPSEEK_V4_PRO_MODEL;
 
   it("keeps the legacy threshold constants for non-proportional models", () => {
@@ -49,7 +49,7 @@ describe("OpenRouter input token surcharge", () => {
     );
   });
 
-  it("Muse and Gemini 2.5 bill all input directly without a legacy surcharge", () => {
+  it("Muse and Gemini 3.6 bill all input directly without a legacy surcharge", () => {
     assert.equal(openRouterInputTokenSurchargeKrw(50_000, geminiId), 0);
     assert.equal(
       openRouterInputTokenSurchargeKrw(50_000, OPENROUTER_MUSE_SPARK_11_MODEL),
@@ -86,7 +86,7 @@ describe("OpenRouter input token surcharge", () => {
   });
 
   it("Gemini explain breakdown uses one margin owner without a surcharge field", () => {
-    const explain = explainOpenRouterGemini25TurnCost(10500, 100, geminiId);
+    const explain = explainOpenRouterGemini36TurnCost(10500, 100, geminiId);
     assert.equal(explain.inputSurchargeKrw, undefined);
     assert.equal(explain.charFloorKrw, 0);
     assert.equal(explain.applied, "cost_plus_margin");

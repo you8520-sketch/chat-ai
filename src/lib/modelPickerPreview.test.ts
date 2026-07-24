@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
-  OPENROUTER_GEMINI_25_PRO_MODEL,
+  OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
   OPENROUTER_TENCENT_HY3_MODEL,
 } from "@/lib/chatModels";
@@ -23,7 +23,7 @@ import {
 const ACTIVE = [
   OPENROUTER_MUSE_SPARK_11_MODEL,
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
-  OPENROUTER_GEMINI_25_PRO_MODEL,
+  OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_TENCENT_HY3_MODEL,
 ] as const;
 
@@ -209,7 +209,7 @@ describe("modelPickerPreview V2", () => {
   });
 
   it("Gemini preview uses content output (reasoning excluded)", () => {
-    const gemBillable = previewBillableOutputTokens(OPENROUTER_GEMINI_25_PRO_MODEL, {
+    const gemBillable = previewBillableOutputTokens(OPENROUTER_GEMINI_36_FLASH_MODEL, {
       apiOutputTokens: 2500,
       apiContentOutputTokens: 1700,
       apiReasoningOutputTokens: 800,
@@ -242,7 +242,7 @@ describe("modelPickerPreview V2", () => {
       messages: [],
     });
     const gem = resolveModelPickerOutputTokens({
-      modelId: OPENROUTER_GEMINI_25_PRO_MODEL,
+      modelId: OPENROUTER_GEMINI_36_FLASH_MODEL,
       messages: [],
     });
     assert.notEqual(muse.tokens, gem.tokens);

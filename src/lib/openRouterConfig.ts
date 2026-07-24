@@ -2,6 +2,7 @@ import {
   CLAUDE_OPUS_MODEL_LEGACY,
   DEFAULT_SELECTED_AI,
   OPENROUTER_CLAUDE_DEFAULT,
+  OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_GEMINI_31_PRO_MODEL,
   coerceUserSelectableAI,
   isOpenRouterSelectedAI,
@@ -11,6 +12,11 @@ import {
 /** OpenRouter에서 endpoint가 제거된 구 slug → 현재 사용 가능한 slug */
 const DEPRECATED_OPENROUTER_MODELS: Record<string, string> = {
   [CLAUDE_OPUS_MODEL_LEGACY]: OPENROUTER_CLAUDE_DEFAULT,
+  "gemini-2.5-pro": OPENROUTER_GEMINI_36_FLASH_MODEL,
+  "google/gemini-2.5-pro": OPENROUTER_GEMINI_36_FLASH_MODEL,
+  "google/gemini-2.5-pro-preview": OPENROUTER_GEMINI_36_FLASH_MODEL,
+  "gemini-2.5-flash": OPENROUTER_GEMINI_36_FLASH_MODEL,
+  "google/gemini-2.5-flash": OPENROUTER_GEMINI_36_FLASH_MODEL,
   "gemini-3.1": OPENROUTER_GEMINI_31_PRO_MODEL,
   "gemini-3.1-pro-preview": OPENROUTER_GEMINI_31_PRO_MODEL,
   "google/gemini-3.1-pro-preview": OPENROUTER_GEMINI_31_PRO_MODEL,
@@ -58,9 +64,11 @@ export function normalizeOpenRouterModelId(modelId: string): string {
 export function resolveOpenRouterModelId(selectedAI?: string | null): string {
   const trimmed = selectedAI ? stripEnvQuotes(selectedAI) : null;
   const fromSelection =
-    trimmed && isOpenRouterSelectedAI(trimmed)
-      ? coerceUserSelectableAI(trimmed as SelectedAI)
-      : null;
+    trimmed && DEPRECATED_OPENROUTER_MODELS[trimmed]
+      ? DEPRECATED_OPENROUTER_MODELS[trimmed]
+      : trimmed && isOpenRouterSelectedAI(trimmed)
+        ? coerceUserSelectableAI(trimmed as SelectedAI)
+        : null;
   const fromEnv = process.env.OPENROUTER_MODEL
     ? stripEnvQuotes(process.env.OPENROUTER_MODEL)
     : null;
@@ -75,7 +83,8 @@ export function resolveOpenRouterModelId(selectedAI?: string | null): string {
 
 /** RP OpenRouter HTTP model slug — UI·과금과 동일 Pro slug (Flash 우회 없음) */
 export function resolveRpOpenRouterModelId(modelId: string): string {
-  return normalizeOpenRouterModelId(modelId);
+  const normalized = normalizeOpenRouterModelId(modelId);
+  return DEPRECATED_OPENROUTER_MODELS[normalized] ?? normalized;
 }
 
 export function resolveOpenRouterApiKey(): string {
