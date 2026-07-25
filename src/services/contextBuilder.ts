@@ -315,24 +315,25 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       speechTraits: input.speechTraits ?? "",
       characterPersonality: input.characterPersonality ?? "",
     });
+    // Boundary is fail-closed: when the gate is ON, always apply the sanitized
+    // runtime representation. STYLE_COVERAGE_INSUFFICIENT is diagnostic only;
+    // it must never cause a fallback to raw example dialogue or raw speech settings.
+    effectiveExampleDialog = sanitized.exampleDialog;
+    effectiveCharacterSettingText = sanitized.text;
     if (sanitized.coverage === "STYLE_COVERAGE_INSUFFICIENT") {
-      // Fail-safe: do not silently flatten voice. Log diagnostic and fall back to legacy.
       if (process.env.NODE_ENV !== "production") {
         console.warn(
-          `[museExampleDialogBoundary] style coverage insufficient for character ${input.charName}; falling back to legacy examples`,
+          `[museExampleDialogBoundary] style coverage insufficient for character ${input.charName}; using sanitized fingerprint anyway`,
           { missing: sanitized.missingFields }
         );
       }
-    } else {
-      effectiveExampleDialog = sanitized.exampleDialog;
-      effectiveCharacterSettingText = sanitized.text;
-      // The combined setting now carries the sanitized speech fingerprint, so
-      // ensure no raw trap phrases remain in the prompt for this admin canary.
-      if (process.env.NODE_ENV !== "production" && containsTrapPhrases(effectiveCharacterSettingText).length) {
-        console.warn(
-          `[museExampleDialogBoundary] trap phrases remain after sanitization for ${input.charName}`
-        );
-      }
+    }
+    // The combined setting now carries the sanitized speech fingerprint, so
+    // ensure no raw trap phrases remain in the prompt for this admin canary.
+    if (process.env.NODE_ENV !== "production" && containsTrapPhrases(effectiveCharacterSettingText).length) {
+      console.warn(
+        `[museExampleDialogBoundary] trap phrases remain after sanitization for ${input.charName}`
+      );
     }
   }
 

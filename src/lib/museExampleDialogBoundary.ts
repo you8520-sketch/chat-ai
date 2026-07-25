@@ -208,14 +208,8 @@ export function extractSpeechStyleFingerprint(
       missingFields.push(key);
     }
   }
-  // rhythm/hesitation minimum: cadence or hesitationPattern must be non-trivial
-  if (
-    lines.length > 0 &&
-    !cadence.includes("hesitant") &&
-    !hesitationPattern.includes("hesitates")
-  ) {
-    missingFields.push("hesitation/rhythm");
-  }
+  // Hesitation is not a required style dimension. A direct, fluent character is
+  // valid, so hesitationPattern: "none" must not trigger coverage failure.
 
   const signals: string[] = [];
   if (endings.length > 0) signals.push(`endings: ${endings.join(", ")}`);
@@ -372,7 +366,12 @@ export function sanitizeSpeechMetadataInSettingText(
   return out.join("\n\n").trim();
 }
 
-/** Sanitize a speech_profile JSON at runtime. */
+/** Sanitize a speech_profile JSON at runtime.
+ *
+ * Fail-closed: malformed JSON does not return the raw string. The raw profile
+ * may contain example utterances or scene-specific metadata, so any parse
+ * failure is treated as an empty profile.
+ */
 export function sanitizeSpeechProfileRuntimeJson(raw: string): string {
   if (!raw.trim()) return "";
   raw = normalizeSmartQuotes(raw);
@@ -389,7 +388,7 @@ export function sanitizeSpeechProfileRuntimeJson(raw: string): string {
     }
     return JSON.stringify(sanitized);
   } catch {
-    return raw;
+    return "";
   }
 }
 
