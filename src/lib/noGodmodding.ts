@@ -12,13 +12,12 @@ export const NO_FALSE_SHARED_MEMORY_RULE = `[NO FALSE SHARED MEMORY]
 실제 최근 대화, 장기기억, 에피소드 기억, 캐릭터 정본, 유저 페르소나에 없는 일을 "전에 말했잖아", "네가 약속했잖아", "그때 우리", "예전에 네가"처럼 이미 있었던 공유 기억으로 쓰지 않는다.
 불확실하면 질문, 관찰, 추측, 새 발견으로 처리한다.`;
 
-/**
- * @deprecated Phase-1 ownership FOUNDATION consolidated the nested
- * `[INTERACTIVE USER CONTROL]` reinforcement into
- * `buildCompactNoGodmoddingStandardBlock`. Kept as an empty marker string so
- * legacy imports do not break; do not re-nest this into the standard block.
- */
-export const INTERACTIVE_USER_CONTROL_BLOCK = "";
+/** Compact interactive-only reinforcement (no length rules). */
+export const INTERACTIVE_USER_CONTROL_BLOCK = `[INTERACTIVE USER CONTROL]
+일반 입력 턴에서는 유저의 대사, 의도적 행동, 생각, 결정, 동의/거절, 감정 결론, 신체 반응, 표정, 기억, 약속을 쓰지 않는다.
+분량을 채우기 위해 유저를 움직이지 않는다.
+NPC, 환경, 사건의 여파, 긴장으로 장면을 이어간다. 유저 행동을 대신 쓰지 않아도 매 턴 질문으로 멈추지 않는다.
+실제 대화·기억·페르소나에 없는 일을 “전에 말했잖아/아까 네가/네가 약속했잖아”로 꾸며 쓰지 말고, 불확실하면 질문·관찰·추측으로 한다.`;
 
 export const POSSESSION_MODE_HINT =
   `[possession_mode] Co-narrate user persona minimally; do not inflate user dialogue or romance beyond their input.`;
@@ -27,19 +26,15 @@ export const POSSESSION_MODE_HINT =
 export const CO_NARRATION_ON_LINE =
   `7. 유저 대사: co-narration(사칭 허용) ON — [USER_PERSONA]에 맞춰 유저 페르소나 대사·행동을 사용자 입력 의도 내에서만 최소 공동 서술. 감정·결정 창작 금지.`;
 
-/**
- * FOUNDATION — single authoritative interactive ownership/agency contract
- * (stable/cached no-godmodding section). Expresses the full MAY / MUST NOT /
- * anti-passivity semantics once; RECENCY (`currentUserInputLabel`) only echoes
- * unique current-turn ownership facts.
- */
 export function buildCompactNoGodmoddingStandardBlock(): string {
   return `[NO GODMODDING]
 [USER CONTROL MODE - INTERACTIVE]
-[A]/NPC MAY: [B]를 향해 행동·접촉·밀치기·막기·공격·보호; 외부로 보이는 사실 관찰; 유저가 쓴 행동에 반응; [B] 내면 진실을 단정하지 않은 조심스러운 추론.
-[A]/NPC MUST NOT invent as fact: [B] 대사, 자발적 행동·순응, 결정, 생각, 감정 결론, 미언급 선호, 의도적 표정·신체 반응. 분량을 채우기 위해 [B]를 움직이지 않는다.
-Continue via [A]/NPC/환경/사건. 유저 행동을 대신 쓰지 않아도 장면을 이어가고, 매 턴 메타 질문으로 멈추지 않는다. 미입력 상태를 사실로 단정하지 않는다. [B]를 장면 밖으로 밀지 말고 [A] 중심으로 진행.
-거짓 공유기억("전에 말했잖아/아까 네가/네가 약속했잖아") 금지; 불확실하면 질문·관찰·추측.`;
+- [B]의 의도적 행동, 대사, 생각, 결정, 감정 결론, 신체 반응, 표정, 물건 수취·사용, 동행·순응을 입력 없이 확정하지 않는다.
+- [A]의 추측·관찰·대기는 가능하나, 미입력 상태를 서술 사실로 단정하지 않는다.
+- [A], NPC, 환경, 시간 경과, 외부 사건, 이전 선택의 결과는 자연스럽게 움직일 수 있다. 유저 행동을 대신 쓰지 않아도 장면을 이어간다.
+- [B]를 장면 밖으로 밀어내지 말고, [A]가 지금 무엇을 느끼고 선택하는지 중심으로 진행한다.
+
+${INTERACTIVE_USER_CONTROL_BLOCK}`;
 }
 
 /** Near [예시 대화] — style reference only; does not authorize [B] writing in interactive mode. */
