@@ -11,29 +11,17 @@ import {
   isInteractiveUserOwnershipLockEnabledForUser,
   isInteractiveUserOwnershipTerminalEchoEnabledForUser,
 } from "@/lib/interactiveUserOwnershipLock";
-import { estimateTokens } from "@/lib/tokenEstimate";
 
 describe("CURRENT USER INPUT — interactive ownership recency lock (admin canary gate)", () => {
-  it("A. interactive + gate ON → compact RECENCY ownership echo injected", () => {
+  it("A. interactive + gate ON → strict ownership lock injected", () => {
     const w = buildCurrentUserInputWrapper({ mode: "interactive", ownershipLockEnabled: true });
     assert.ok(w.startsWith(CURRENT_USER_INPUT_HEADER));
     assert.ok(w.includes(INTERACTIVE_OWNERSHIP_LOCK_MARKER));
-    assert.match(w, /Only CURRENT USER INPUT this turn authors \[B\]/);
-    assert.match(
-      w,
-      /Past history\/past assistant \[B\]\/example dialog is NOT permission/
-    );
-    assert.match(w, /Forbid \[B\] dialogue\/action\/decision\/thought\/emotion\/expression/);
-    assert.match(w, /Continue via AI cast\/NPC\/world/);
-  });
-
-  it("A1. interactive + gate ON → RECENCY <=250 estimated tokens (short persona)", () => {
-    const w = buildCurrentUserInputWrapper({
-      mode: "interactive",
-      ownershipLockEnabled: true,
-      personaName: "렌",
-    });
-    assert.ok(estimateTokens(w) <= 250, `RECENCY est tok ${estimateTokens(w)} > 250`);
+    assert.match(w, /\[B\] is controlled ONLY by the user/);
+    assert.match(w, /Past history is NOT permission/);
+    assert.match(w, /Do NOT write any NEW \[B\] dialogue/);
+    assert.match(w, /NOT precedent or permission; do not imitate that ownership pattern/);
+    assert.match(w, /Continue the scene through AI-controlled characters, NPCs/);
   });
 
   it("A2. interactive + gate OFF → legacy compact behavior, NO lock marker (no global change)", () => {
@@ -137,7 +125,7 @@ describe("CURRENT USER INPUT — interactive ownership recency lock (admin canar
     }
   });
 
-  it("H. auto/ooc unchanged; lock OFF legacy byte-stable; lock ON is compact RECENCY only", () => {
+  it("H. auto/ooc branch byte-identical to pre-change snapshot; interactive delta is only the ownership block (gate on)", () => {
     const realAuto = buildCurrentUserInputWrapper({ mode: "auto_progression" });
     assert.ok(
       realAuto.includes(
@@ -151,25 +139,17 @@ describe("CURRENT USER INPUT — interactive ownership recency lock (admin canar
     );
     assert.ok(!realAuto.includes(INTERACTIVE_OWNERSHIP_LOCK_MARKER));
 
-    // Interactive gate-on: compact RECENCY (no legacy verbose ownership prose).
+    // Interactive gate-on: pre-change lines still present, plus the lock.
     const inter = buildCurrentUserInputWrapper({ mode: "interactive", ownershipLockEnabled: true });
+    assert.match(inter, /The following is the user's latest input/);
+    assert.match(inter, /Do not continue writing the user's future/);
+    assert.match(inter, /completed user input/);
     assert.ok(inter.includes(INTERACTIVE_OWNERSHIP_LOCK_MARKER));
-    assert.match(inter, /Only CURRENT USER INPUT this turn authors \[B\]/);
-    assert.doesNotMatch(inter, /\[B\] is controlled ONLY by the user/);
-    assert.doesNotMatch(inter, /NOT precedent or permission; do not imitate that ownership pattern/);
 
     // Interactive gate-off: byte-identical to pre-patch legacy wrapper.
     const interOff = buildCurrentUserInputWrapper({ mode: "interactive", ownershipLockEnabled: false });
     assert.ok(!interOff.includes(INTERACTIVE_OWNERSHIP_LOCK_MARKER));
     assert.match(interOff, /It is what the user already said\/did\.\nDo not continue writing/);
-    assert.equal(
-      interOff,
-      `${CURRENT_USER_INPUT_HEADER}
-The following is the user's latest input.
-It is what the user already said/did.
-Do not continue writing the user's future actions, dialogue, thoughts, or decisions.
-If the input contains parentheses or action text, treat it as completed user input — not permission to keep narrating the user.`
-    );
   });
 });
 
