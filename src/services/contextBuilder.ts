@@ -5,6 +5,11 @@ import {
   resolveHairDescriptionPolicy,
 } from "@/lib/bodyHairRules";
 import { filterExampleDialogInSetting } from "@/lib/exampleDialogSceneFilter";
+import { isMuseExampleDialogBoundaryEnabledForUser } from "@/lib/museExampleDialogBoundaryPolicy";
+import {
+  buildRuntimeSpeechStyleMetadata,
+  containsTrapPhrases,
+} from "@/lib/museExampleDialogBoundary";
 import {
   buildCharacterCanonBlock,
   buildCharacterSpeechRecencyTail,
@@ -283,6 +288,10 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     isContinue: autoProgressionEnabled,
     oocUserImpersonationAllowed: oocLimitedCoNarration,
   });
+  const museExampleDialogBoundaryEnabled = isMuseExampleDialogBoundaryEnabledForUser(
+    input.userId,
+    input.modelId
+  );
   const characterSettingTextRaw = collectCharacterSettingText(chunks);
   const recentHistoryText = input.shortTermHistory
     .slice(-4)
@@ -294,16 +303,49 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     recentHistory: recentHistoryText,
   });
   const characterSettingText = injectExampleDialogStyleOnlyNote(characterSettingTextFiltered);
+
+  let effectiveExampleDialog = input.exampleDialog ?? "";
+  let effectiveCharacterSettingText = characterSettingText;
+  if (museExampleDialogBoundaryEnabled) {
+    const sanitized = buildRuntimeSpeechStyleMetadata({
+      exampleDialog: effectiveExampleDialog,
+      speechProfileJson: input.speechProfileJson ?? "",
+      combinedSetting: characterSettingText,
+      speechPersonality: input.speechPersonality ?? "",
+      speechTraits: input.speechTraits ?? "",
+      characterPersonality: input.characterPersonality ?? "",
+    });
+    if (sanitized.coverage === "STYLE_COVERAGE_INSUFFICIENT") {
+      // Fail-safe: do not silently flatten voice. Log diagnostic and fall back to legacy.
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(
+          `[museExampleDialogBoundary] style coverage insufficient for character ${input.charName}; falling back to legacy examples`,
+          { missing: sanitized.missingFields }
+        );
+      }
+    } else {
+      effectiveExampleDialog = sanitized.exampleDialog;
+      effectiveCharacterSettingText = sanitized.text;
+      // The combined setting now carries the sanitized speech fingerprint, so
+      // ensure no raw trap phrases remain in the prompt for this admin canary.
+      if (process.env.NODE_ENV !== "production" && containsTrapPhrases(effectiveCharacterSettingText).length) {
+        console.warn(
+          `[museExampleDialogBoundary] trap phrases remain after sanitization for ${input.charName}`
+        );
+      }
+    }
+  }
+
   const bilingualDialoguePolicy = resolveBilingualDialoguePolicyFromSources({
     chunks,
-    characterSettingText,
+    characterSettingText: effectiveCharacterSettingText,
     systemPrompt: input.systemPrompt,
     world: input.world,
-    exampleDialog: input.exampleDialog,
+    exampleDialog: effectiveExampleDialog,
   });
   const charGender = resolveCharacterGender(input.gender);
   const userGender = resolveCharacterGender(input.userPersonaGender ?? "other");
-  const hairPolicy = resolveHairDescriptionPolicy(charGender, characterSettingText, userGender);
+  const hairPolicy = resolveHairDescriptionPolicy(charGender, effectiveCharacterSettingText, userGender);
 
   const persona = input.userPersona?.trim();
   const rawNote = input.userNote?.trim() || "";
@@ -311,13 +353,13 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     userNote: rawNote,
     userPersona: persona,
     userMessage: input.currentUserMessage,
-    characterSetting: characterSettingText,
+    characterSetting: effectiveCharacterSettingText,
     statusWidgetActive: input.statusWidgetActive === true,
   });
   const htmlVisualCardPolicy = resolveHtmlVisualCardPolicyFromSources({
     userNote: rawNote,
     userPersona: persona,
-    characterSetting: characterSettingText,
+    characterSetting: effectiveCharacterSettingText,
     userMessage: input.currentUserMessage,
     markdownStatusWindowActive: markdownPipeTableStatusWindowActive(statusWindowPolicy),
   });
@@ -367,7 +409,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     novelModeEnabled,
     autoProgressionEnabled,
     completedTurns: input.completedTurns ?? 0,
-    hasMindReading: hasMindReading || settingHasMindReadingAbility(characterSettingText),
+    hasMindReading: hasMindReading || settingHasMindReadingAbility(effectiveCharacterSettingText),
     allowsBeard: hairPolicy.allowsBeard,
     allowsBodyHair: hairPolicy.allowsBodyHair,
     party: input.party,
@@ -575,7 +617,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     }
     const coreBlock = layeredCanonActive
       ? renderCoreCanonBlock(canonPlan!, { charName: input.charName })
-      : buildCharacterCanonBlock(characterSettingText, input.charName);
+      : buildCharacterCanonBlock(effectiveCharacterSettingText, input.charName);
     if (!coreBlock) return;
     const coreBlockForModel =
       deepSeekAppearanceRuleMode && /\[(?:외형|외모|Appearance)[^\]]*\]/i.test(coreBlock)
@@ -940,7 +982,9 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   }
 
   if (isRegisterPatch("D")) {
-    const speechTail = buildCharacterSpeechRecencyTail(characterSettingText);
+    const speechTail = buildCharacterSpeechRecencyTail(
+      museExampleDialogBoundaryEnabled ? effectiveCharacterSettingText : characterSettingText
+    );
     if (speechTail) {
       pushSection(
         "character-speech-recency",

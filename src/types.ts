@@ -122,6 +122,14 @@ export type ContextBuildInput = {
   systemPrompt?: string;
   world?: string;
   exampleDialog?: string;
+  /** Stored speech_profile JSON (runtime-only metadata, not creator-visible) */
+  speechProfileJson?: string | null;
+  /** Explicit creator speech personality text (from structured speech form) */
+  speechPersonality?: string | null;
+  /** Explicit creator speech traits text (from structured speech form) */
+  speechTraits?: string | null;
+  /** Character personality / description text for secondary style support */
+  characterPersonality?: string | null;
   /** Gemini static cache 6순위 — chat_turn_summaries(5턴마다 저장) 최신 1~15개 블록 */
   staticHistoryBlock?: string | null;
   /** Gemini — Static/Dynamic 분리 조립 (explicit cache) */
