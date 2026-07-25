@@ -180,7 +180,9 @@ import { resolveChatRuntimeMode } from "@/lib/chatRuntimeMode";
 import {
   detectInteractiveUserImpersonation,
   isUserImpersonationAutoRepairEnabled,
+  logOwnershipShadowGuardV2,
   logUserImpersonationGuard,
+  runOwnershipShadowGuardV2,
 } from "@/lib/userImpersonationGuard";
 import {
   detectUserPovTakeover,
@@ -1796,6 +1798,34 @@ export async function POST(req: Request) {
             autoRepairEnabled: isUserImpersonationAutoRepairEnabled(),
             repairAttempted: false,
           });
+
+          const userAuthoredHistory = recentHistoryRef
+            .filter((m) => m.role === "user")
+            .map((m) => m.content)
+            .slice(-8);
+          const shadowResult = runOwnershipShadowGuardV2({
+            mode: runtimeMode,
+            text: savedText,
+            userAliases: [personaDisplayName, user.nickname, "{{user}}", "[B]"].filter(Boolean),
+            actorNames: [ch.name],
+            currentUserInput: policyUserMessageRef,
+            userAuthoredHistory,
+            messageRef: persistedAssistantId,
+            chatId: chatRef.id,
+            modelId: openRouterApiModelId,
+            route: "/api/chat",
+          });
+          if (shadowResult) {
+            logOwnershipShadowGuardV2(shadowResult, {
+              mode: runtimeMode,
+              text: savedText,
+              messageRef: persistedAssistantId,
+              chatId: chatRef.id,
+              modelId: openRouterApiModelId,
+              route: "/api/chat",
+            });
+          }
+
           if (runtimeMode === "auto_progression") {
             const povHit = detectUserPovTakeover(savedText, {
               mode: "auto_progression",
