@@ -29,6 +29,14 @@ const CHAR_17_EXAMPLE_DIALOG = [
   '- “낯선 사람을 상대하는 건 아직 익숙하지 않습니다.”,',
 ].join("\n");
 
+const DIRECT_FLUENT_EXAMPLE_DIALOG = [
+  "[말투 — GENERATION METADATA]",
+  "style_notes:",
+  '- formal honorific speech; direct and fluent;',
+  '- “안녕하세요. 준비되셨습니까?”',
+  '- “바로 시작하겠습니다.”',
+].join("\n");
+
 const SPEECH_PROFILE_JSON = JSON.stringify({
   speech_tone: "formal",
   speech_formality: "formal",
@@ -222,5 +230,69 @@ describe("buildContext — Muse example-dialog boundary", () => {
       onTokens <= offTokens,
       `boundary ON tokens (${onTokens}) must not exceed OFF tokens (${offTokens})`
     );
+  });
+
+  it("boundary ON + direct/fluent character → no legacy fallback, register/formality preserved", () => {
+    process.env.MUSE_EXAMPLE_DIALOG_BOUNDARY_ENABLED = "1";
+    process.env.MUSE_EXAMPLE_DIALOG_BOUNDARY_USER_IDS = "1";
+    process.env.MUSE_EXAMPLE_DIALOG_BOUNDARY_MODEL_IDS = MUSE;
+
+    const built = buildContext({
+      ...baseInput(),
+      exampleDialog: DIRECT_FLUENT_EXAMPLE_DIALOG,
+      speechTraits: "formal; direct; fluent",
+      speechPersonality: "formal, direct, fluent",
+      characterPersonality: "단호하고 유창한 인물",
+    });
+    const system = built.systemPrompt;
+    assert.ok(system.includes("formality:"), "formality preserved");
+    assert.ok(system.includes("register:"), "register preserved");
+    assert.ok(!system.includes("hesitationPattern: hesitates"), "direct/fluent character must not be forced to hesitate");
+    assert.ok(!system.includes("안녕하세요"), "raw example not included");
+    assert.ok(!system.includes("바로 시작하겠습니다"), "raw example not included");
+    // Legacy fallback would re-introduce the raw example dialog; confirm it is absent.
+    for (const trap of MUSE_EXAMPLE_DIALOG_TRAP_PHRASES) {
+      assert.ok(!system.includes(trap), `no legacy fallback: ${trap}`);
+    }
+  });
+
+  it("boundary ON + style coverage insufficient → still uses sanitized fingerprint, no raw examples", () => {
+    process.env.MUSE_EXAMPLE_DIALOG_BOUNDARY_ENABLED = "1";
+    process.env.MUSE_EXAMPLE_DIALOG_BOUNDARY_USER_IDS = "1";
+    process.env.MUSE_EXAMPLE_DIALOG_BOUNDARY_MODEL_IDS = MUSE;
+
+    const built = buildContext({
+      ...baseInput(),
+      exampleDialog: "",
+      speechProfileJson: "",
+      speechTraits: "",
+      speechPersonality: "",
+      characterPersonality: "",
+    });
+    const system = built.systemPrompt;
+    // Even with insufficient coverage, the boundary ON path must never fall back to raw.
+    for (const trap of MUSE_EXAMPLE_DIALOG_TRAP_PHRASES) {
+      assert.ok(!system.includes(trap), `expected no raw examples when coverage insufficient: ${trap}`);
+    }
+    // Non-speech character identity/settings must remain present.
+    assert.ok(system.includes("[이름]"), "identity section preserved");
+    assert.ok(system.includes("서강우"), "character name preserved");
+    assert.ok(system.includes("[성격]"), "personality section preserved");
+  });
+
+  it("boundary ON + malformed speech_profile → raw malformed string not included, assembly succeeds", () => {
+    process.env.MUSE_EXAMPLE_DIALOG_BOUNDARY_ENABLED = "1";
+    process.env.MUSE_EXAMPLE_DIALOG_BOUNDARY_USER_IDS = "1";
+    process.env.MUSE_EXAMPLE_DIALOG_BOUNDARY_MODEL_IDS = MUSE;
+
+    const malformed = "{not valid json: dialogue_examples: [\"그렇게 가까이 오시면\"]";
+    const built = buildContext({
+      ...baseInput(),
+      speechProfileJson: malformed,
+    });
+    const system = built.systemPrompt;
+    assert.ok(!system.includes(malformed), "malformed raw speech_profile must not appear");
+    assert.ok(!system.includes("그렇게 가까이 오시면"), "no leaked example from malformed profile");
+    assert.ok(system.includes("register:"), "sanitized fingerprint still present");
   });
 });

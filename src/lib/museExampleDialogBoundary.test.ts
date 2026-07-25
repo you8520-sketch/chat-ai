@@ -59,6 +59,27 @@ describe("museExampleDialogBoundary — style fingerprint extraction", () => {
     assert.equal(coverage, "STYLE_COVERAGE_INSUFFICIENT");
     assert.ok(missingFields.length > 0);
   });
+
+  it("does not flag direct/fluent characters as coverage-insufficient", () => {
+    const directDialog = [
+      "[말투 — GENERATION METADATA]",
+      "style_notes:",
+      '- formal honorific speech; direct and fluent;',
+      '- “안녕하세요. 오늘 미팅을 위해 준비된 자료를 바로 시작하겠습니다. 준비되셨습니까?”',
+      '- “반갑습니다. 회의실로 안내해 드리겠습니다.”',
+    ].join("\n");
+    const { fingerprint, coverage, missingFields } = extractSpeechStyleFingerprint(
+      directDialog,
+      "formal, direct, fluent",
+      "formal; direct; fluent",
+      "단호하고 유창한 인물"
+    );
+    assert.equal(coverage, "ok");
+    assert.ok(!missingFields.includes("hesitation/rhythm"));
+    assert.equal(fingerprint.hesitationPattern, "none");
+    assert.equal(fingerprint.cadence, "brief");
+    assert.equal(fingerprint.formality, "formal");
+  });
 });
 
 describe("museExampleDialogBoundary — sanitization", () => {
@@ -81,6 +102,13 @@ describe("museExampleDialogBoundary — sanitization", () => {
     assert.ok(!out.includes("ending_anchors"));
     assert.ok(!out.includes("가까이 오시면"));
     assert.ok(out.includes("speech_formality"));
+  });
+
+  it("returns empty string for malformed speech_profile JSON", () => {
+    const out = sanitizeSpeechProfileRuntimeJson("{not valid json");
+    assert.equal(out, "");
+    const out2 = sanitizeSpeechProfileRuntimeJson("{\"dialogue_examples\": [\"그렇게 가까이 오시면\"]");
+    assert.equal(out2, "");
   });
 
   it("removes speech metadata examples from combined setting", () => {
