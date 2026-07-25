@@ -389,6 +389,7 @@ export async function POST(req: Request) {
   const ch = db.prepare("SELECT * FROM characters WHERE id = ?").get(characterId) as {
     id: number;
     name: string;
+    description: string;
     system_prompt: string;
     greeting: string;
     nsfw: number;
@@ -400,6 +401,9 @@ export async function POST(req: Request) {
     official: number;
     genres: string;
     recommended_writing_style: string;
+    speech_profile?: string | null;
+    speech_personality?: string | null;
+    speech_traits?: string | null;
     creator_compiled_description_json?: string | null;
     content_kind?: "character" | "simulation" | null;
   } | undefined;
@@ -1082,6 +1086,10 @@ export async function POST(req: Request) {
     systemPrompt: ch.system_prompt,
     world: ch.world,
     exampleDialog: effectiveExampleDialog,
+    speechProfileJson: (ch as { speech_profile?: string }).speech_profile,
+    speechPersonality: (ch as { speech_personality?: string }).speech_personality,
+    speechTraits: (ch as { speech_traits?: string }).speech_traits,
+    characterPersonality: ch.description,
     userNickname: user.nickname,
     userPersona: userPersonaPrompt,
     revealedPersonaFactsBlock: revealedPersonaFactsBlock ?? undefined,
