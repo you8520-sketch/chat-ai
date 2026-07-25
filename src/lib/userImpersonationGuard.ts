@@ -3,6 +3,14 @@ import {
   type ChatRuntimeMode,
 } from "@/lib/chatRuntimeMode";
 import { findPossibleFalseSharedMemoryPhrases } from "@/lib/runtimePromptContaminationGuard";
+import {
+  buildOwnershipShadowPrivacyLog,
+  detectOwnershipShadowV2,
+  logOwnershipShadowV2,
+  runOwnershipShadowDetectorV2Safely,
+  type OwnershipShadowDetectionResult,
+  type OwnershipShadowPrivacyLog,
+} from "@/lib/ownershipShadowDetectorV2";
 
 export type UserImpersonationSeverity = "none" | "low" | "medium" | "high";
 
@@ -228,3 +236,55 @@ export function logUserImpersonationGuard(payload: UserImpersonationGuardLog): v
     repairAttempted: payload.repairAttempted,
   });
 }
+
+export type OwnershipShadowGuardOpts = {
+  mode: ChatRuntimeMode;
+  text: string;
+  userAliases?: string[];
+  actorNames?: string[];
+  currentUserInput?: string;
+  userAuthoredHistory?: string[];
+  messageRef?: string | number | null;
+  chatId?: number | null;
+  modelId?: string | null;
+  route?: string;
+};
+
+/** Shadow-only ownership detector v2 — never mutates output. */
+export function runOwnershipShadowGuardV2(
+  opts: OwnershipShadowGuardOpts
+): OwnershipShadowDetectionResult | null {
+  return runOwnershipShadowDetectorV2Safely(opts.text, {
+    mode: opts.mode,
+    userAliases: opts.userAliases,
+    actorNames: opts.actorNames,
+    currentUserInput: opts.currentUserInput,
+    userAuthoredHistory: opts.userAuthoredHistory,
+  });
+}
+
+export function logOwnershipShadowGuardV2(
+  result: OwnershipShadowDetectionResult,
+  opts: OwnershipShadowGuardOpts
+): OwnershipShadowPrivacyLog {
+  const payload = buildOwnershipShadowPrivacyLog({
+    result,
+    messageRef: opts.messageRef ?? null,
+    chatId: opts.chatId ?? null,
+    mode: opts.mode,
+    modelId: opts.modelId ?? null,
+    route: opts.route ?? "/api/chat",
+    outputChars: opts.text.length,
+    autoRepairEnabled: isUserImpersonationAutoRepairEnabled(),
+  });
+  logOwnershipShadowV2(payload);
+  return payload;
+}
+
+export {
+  detectOwnershipShadowV2,
+  OWNERSHIP_SHADOW_CATEGORY_LIST,
+  OWNERSHIP_SHADOW_DETECTOR_VERSION,
+  type OwnershipShadowDetectionResult,
+  type OwnershipShadowPrivacyLog,
+} from "@/lib/ownershipShadowDetectorV2";
