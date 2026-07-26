@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GENDER_LABELS, type CharacterGender } from "@/lib/characterGender";
 import { PERSONA_NAME_LIMIT, PERSONA_CONTENT_MAX, PERSONA_SECRET_CONTENT_MAX, personaContentLength } from "@/lib/persona";
-import type { PersonaListItem } from "@/lib/userPersonas";
+import {
+  PERSONA_IMAGE_FOCUS_DEFAULT,
+  type PersonaListItem,
+} from "@/lib/userPersonas";
+import PersonaAvatar from "@/components/PersonaAvatar";
+import PersonaImageEditor from "@/components/PersonaImageEditor";
 
 type Props = {
   persona: PersonaListItem;
@@ -27,6 +32,13 @@ export default function ChatPersonaEditor({
   const [gender, setGender] = useState<CharacterGender>(persona.gender ?? "other");
   const [description, setDescription] = useState(persona.description);
   const [secretDescription, setSecretDescription] = useState(persona.secret_description ?? "");
+  const [imageUrl, setImageUrl] = useState(persona.image_url ?? "");
+  const [imageFocusX, setImageFocusX] = useState(
+    persona.image_focus_x ?? PERSONA_IMAGE_FOCUS_DEFAULT.x
+  );
+  const [imageFocusY, setImageFocusY] = useState(
+    persona.image_focus_y ?? PERSONA_IMAGE_FOCUS_DEFAULT.y
+  );
   const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const lastPersonaIdRef = useRef(persona.id);
@@ -37,6 +49,9 @@ export default function ChatPersonaEditor({
     gender: persona.gender ?? "other",
     description: persona.description,
     secret_description: persona.secret_description ?? "",
+    image_url: persona.image_url ?? "",
+    image_focus_x: persona.image_focus_x ?? PERSONA_IMAGE_FOCUS_DEFAULT.x,
+    image_focus_y: persona.image_focus_y ?? PERSONA_IMAGE_FOCUS_DEFAULT.y,
   });
 
   useEffect(() => {
@@ -48,6 +63,9 @@ export default function ChatPersonaEditor({
     setGender(persona.gender ?? "other");
     setDescription(persona.description);
     setSecretDescription(persona.secret_description ?? "");
+    setImageUrl(persona.image_url ?? "");
+    setImageFocusX(persona.image_focus_x ?? PERSONA_IMAGE_FOCUS_DEFAULT.x);
+    setImageFocusY(persona.image_focus_y ?? PERSONA_IMAGE_FOCUS_DEFAULT.y);
     savedRef.current = {
       id: persona.id,
       name: persona.name,
@@ -55,6 +73,9 @@ export default function ChatPersonaEditor({
       gender: persona.gender ?? "other",
       description: persona.description,
       secret_description: persona.secret_description ?? "",
+      image_url: persona.image_url ?? "",
+      image_focus_x: persona.image_focus_x ?? PERSONA_IMAGE_FOCUS_DEFAULT.x,
+      image_focus_y: persona.image_focus_y ?? PERSONA_IMAGE_FOCUS_DEFAULT.y,
     };
   }, [persona, editing]);
 
@@ -65,6 +86,9 @@ export default function ChatPersonaEditor({
       gender,
       description,
       secret_description: personaSecretBoundaryEnabled ? secretDescription : persona.secret_description ?? "",
+      image_url: imageUrl,
+      image_focus_x: imageFocusX,
+      image_focus_y: imageFocusY,
     };
     if (!payload.name) {
       setStatus("error");
@@ -94,6 +118,9 @@ export default function ChatPersonaEditor({
         gender: updated.gender ?? "other",
         description: updated.description,
         secret_description: updated.secret_description ?? "",
+        image_url: updated.image_url ?? "",
+        image_focus_x: updated.image_focus_x ?? PERSONA_IMAGE_FOCUS_DEFAULT.x,
+        image_focus_y: updated.image_focus_y ?? PERSONA_IMAGE_FOCUS_DEFAULT.y,
       };
       onUpdated(updated);
       setStatus("saved");
@@ -102,7 +129,20 @@ export default function ChatPersonaEditor({
       setStatus("error");
       setErrorMsg("저장 중 오류가 발생했습니다.");
     }
-  }, [persona.id, name, memo, gender, description, secretDescription, onUpdated]);
+  }, [
+    persona.id,
+    persona.secret_description,
+    personaSecretBoundaryEnabled,
+    name,
+    memo,
+    gender,
+    description,
+    secretDescription,
+    imageUrl,
+    imageFocusX,
+    imageFocusY,
+    onUpdated,
+  ]);
 
   useEffect(() => {
     if (!editing) return;
@@ -113,18 +153,46 @@ export default function ChatPersonaEditor({
       memo !== s.memo ||
       gender !== s.gender ||
       description !== s.description ||
-      secretDescription !== s.secret_description;
+      secretDescription !== s.secret_description ||
+      imageUrl !== s.image_url ||
+      imageFocusX !== s.image_focus_x ||
+      imageFocusY !== s.image_focus_y;
     if (!dirty) return;
 
     const t = window.setTimeout(() => {
       void save();
     }, 700);
     return () => window.clearTimeout(t);
-  }, [name, memo, gender, description, secretDescription, persona.id, save, editing]);
+  }, [
+    name,
+    memo,
+    gender,
+    description,
+    secretDescription,
+    imageUrl,
+    imageFocusX,
+    imageFocusY,
+    persona.id,
+    save,
+    editing,
+  ]);
 
   if (!editing) {
     return (
       <div className="mx-auto max-w-xl space-y-3 text-xs">
+        <div className="flex items-center gap-3">
+          <PersonaAvatar
+            name={name}
+            imageUrl={imageUrl}
+            focusX={imageFocusX}
+            focusY={imageFocusY}
+            sizeClassName="h-14 w-14"
+          />
+          <div className="min-w-0">
+            <p className="font-semibold text-zinc-200">{name.trim() || "—"}</p>
+            <p className="text-[10px] text-zinc-500">{GENDER_LABELS[gender]}</p>
+          </div>
+        </div>
         <div className="grid gap-2 sm:grid-cols-2">
           <div>
             <p className="mb-1 font-bold text-zinc-400">이름 / 호칭</p>
@@ -177,6 +245,20 @@ export default function ChatPersonaEditor({
         반영됩니다. AI 캐릭터·세계가 장면을 이어 가고 유저의 짧은 행동·대사만 보조하게 하려면 채팅창 하단의{" "}
         <strong className="text-zinc-400">자동진행</strong>을 사용하세요.
       </p>
+
+      <PersonaImageEditor
+        compact
+        value={{
+          image_url: imageUrl,
+          image_focus_x: imageFocusX,
+          image_focus_y: imageFocusY,
+        }}
+        onChange={(next) => {
+          setImageUrl(next.image_url);
+          setImageFocusX(next.image_focus_x);
+          setImageFocusY(next.image_focus_y);
+        }}
+      />
 
       <label className="block space-y-1">
         <span className="font-bold text-zinc-400">이름 / 호칭</span>
@@ -297,6 +379,9 @@ export async function restorePersonaSnapshot(
         gender: snapshot.gender ?? "other",
         description: snapshot.description,
         secret_description: snapshot.secret_description ?? "",
+        image_url: snapshot.image_url ?? "",
+        image_focus_x: snapshot.image_focus_x ?? PERSONA_IMAGE_FOCUS_DEFAULT.x,
+        image_focus_y: snapshot.image_focus_y ?? PERSONA_IMAGE_FOCUS_DEFAULT.y,
       }),
     });
     const data = await res.json();

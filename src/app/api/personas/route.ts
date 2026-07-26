@@ -6,6 +6,9 @@ import {
   ensureDefaultPersona,
   getPersonaById,
   listUserPersonas,
+  PERSONA_IMAGE_FOCUS_DEFAULT,
+  sanitizePersonaImageFocus,
+  sanitizePersonaImageUrl,
   sanitizePersonaInput,
   validatePersonaContentLength,
   validatePersonaSecretContentLength,
@@ -37,9 +40,21 @@ export async function POST(req: Request) {
     body.gender,
     String(body.secret_description ?? "")
   );
+  const imageUrl = sanitizePersonaImageUrl(body.image_url);
+  const imageFocusX = sanitizePersonaImageFocus(
+    body.image_focus_x,
+    PERSONA_IMAGE_FOCUS_DEFAULT.x
+  );
+  const imageFocusY = sanitizePersonaImageFocus(
+    body.image_focus_y,
+    PERSONA_IMAGE_FOCUS_DEFAULT.y
+  );
 
   if (!name) {
     return NextResponse.json({ error: "페르소나 이름을 입력하세요." }, { status: 400 });
+  }
+  if (body.image_url != null && String(body.image_url).trim() && !imageUrl) {
+    return NextResponse.json({ error: "대표 이미지 URL이 올바르지 않습니다." }, { status: 400 });
   }
 
   const contentCheck = validatePersonaContentLength(description);
@@ -66,9 +81,20 @@ export async function POST(req: Request) {
 
   const info = db
     .prepare(
-      "INSERT INTO user_personas (user_id, name, memo, gender, description, secret_description, speech_examples) VALUES (?,?,?,?,?,?,?)"
+      "INSERT INTO user_personas (user_id, name, memo, gender, description, secret_description, speech_examples, image_url, image_focus_x, image_focus_y) VALUES (?,?,?,?,?,?,?,?,?,?)"
     )
-    .run(user.id, name, memo, gender, description, effectiveSecretDescription, "");
+    .run(
+      user.id,
+      name,
+      memo,
+      gender,
+      description,
+      effectiveSecretDescription,
+      "",
+      imageUrl,
+      imageFocusX,
+      imageFocusY
+    );
   const personaId = Number(info.lastInsertRowid);
   const persona = getPersonaById(user.id, personaId);
 
