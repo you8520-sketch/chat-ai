@@ -34,6 +34,13 @@ import {
   MUSE_STRUCTURAL_LENGTH_ANCHOR_BLOCK,
   MUSE_STRUCTURAL_LENGTH_ANCHOR_SECTION_ID,
 } from "@/lib/museStructuralLengthAnchor";
+import { isMusePositiveLengthOwnerEnabledForUser } from "@/lib/musePositiveLengthOwnerPolicy";
+import {
+  MUSE_POSITIVE_LENGTH_OWNER_BLOCK,
+  MUSE_POSITIVE_LENGTH_OWNER_SECTION_ID,
+  MUSE_POSITIVE_LENGTH_TERMINAL_BLOCK,
+  MUSE_POSITIVE_LENGTH_TERMINAL_SECTION_ID,
+} from "@/lib/musePositiveLengthOwner";
 import {
   buildCharacterCanonBlock,
   buildCharacterSpeechRecencyTail,
@@ -104,6 +111,7 @@ import {
   settingHasMindReadingFromChunks,
 } from "@/lib/userActionThoughtRules";
 import {
+  buildCompactTerminalLayoutRecencyLine,
   buildUserInputParsingBlock,
   buildWebnovelOutputLayoutRecencyBlock,
   unwrapRoleplayMarkdownInText,
@@ -1065,7 +1073,23 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   }
 
-  if (!isOpenRouter) {
+  // Admin-only Muse canary: Positive Length Owner REPLACES rule-length-control
+  // (never stacked with it). Gate OFF → existing LENGTH path byte-stable.
+  const musePositiveLengthOwnerOn = isMusePositiveLengthOwnerEnabledForUser(
+    input.userId,
+    input.modelId,
+    input.chatId
+  );
+
+  if (musePositiveLengthOwnerOn) {
+    pushSection(
+      MUSE_POSITIVE_LENGTH_OWNER_SECTION_ID,
+      "Muse positive length owner (admin canary replacement)",
+      "systemRules",
+      MUSE_POSITIVE_LENGTH_OWNER_BLOCK,
+      "dynamic"
+    );
+  } else if (!isOpenRouter) {
     pushSection(
       "rule-length-control",
       "Length control (single rule)",
@@ -1130,13 +1154,25 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   }
 
-  pushSection(
-    "rule-terminal-length-override",
-    "Terminal length compact tail (absolute end)",
-    "systemRules",
-    buildTerminalLengthOverrideBlock(input.targetResponseChars),
-    "dynamic"
-  );
+  // Positive Length Owner also REPLACES rule-terminal-length-override
+  // (never stacked). Truth Guard remains the final system tail after this slot.
+  if (musePositiveLengthOwnerOn) {
+    pushSection(
+      MUSE_POSITIVE_LENGTH_TERMINAL_SECTION_ID,
+      "Muse positive length terminal (admin canary replacement)",
+      "systemRules",
+      MUSE_POSITIVE_LENGTH_TERMINAL_BLOCK,
+      "dynamic"
+    );
+  } else {
+    pushSection(
+      "rule-terminal-length-override",
+      "Terminal length compact tail (absolute end)",
+      "systemRules",
+      buildTerminalLengthOverrideBlock(input.targetResponseChars),
+      "dynamic"
+    );
+  }
 
   // Admin-only Muse canary: unknown-information truth priority as the final
   // system section AFTER Terminal. Gate OFF → byte-stable prior assembly
@@ -1340,10 +1376,19 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     }
   }
   if (isOpenRouter) {
-    userTurnContent = appendCompactTerminalLengthToUserTurn(
-      userTurnContent,
-      input.targetResponseChars
-    );
+    if (musePositiveLengthOwnerOn) {
+      // Keep layout recency; replace legacy negative length tail with positive
+      // terminal so LENGTH/Terminal are not dual-injected with the owner.
+      const layoutLine = buildCompactTerminalLayoutRecencyLine();
+      const tail = `${layoutLine}\n${MUSE_POSITIVE_LENGTH_TERMINAL_BLOCK}`;
+      const body = userTurnContent.trim();
+      userTurnContent = body ? `${body}\n\n${tail}` : tail;
+    } else {
+      userTurnContent = appendCompactTerminalLengthToUserTurn(
+        userTurnContent,
+        input.targetResponseChars
+      );
+    }
   }
   const estimatePayloadTokens = (hist: ContextBuildInput["shortTermHistory"]) =>
     estimateTokens(

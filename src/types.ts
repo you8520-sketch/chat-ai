@@ -85,8 +85,8 @@ export type ContextBuildInput = {
    */
   userId?: number;
   /**
-   * Current chat id — used by Muse scene-bootstrap chat allowlists
-   * (compact semantic state / structural length anchor). Optional for
+   * Current chat id — used by Muse admin chat allowlists
+   * (scene-bootstrap components / positive length owner). Optional for
    * typecheck compatibility with non-route callers; `/api/chat` supplies it.
    */
   chatId?: number;
