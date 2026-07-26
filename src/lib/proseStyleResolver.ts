@@ -1,11 +1,12 @@
 /**
- * Prose style-section resolver — single slot: Legacy | VNext | Muse M1.
+ * Prose style-section resolver — single slot: Legacy | VNext | Muse M1 | Muse M1.1.
  *
  * Muse routing:
- *   1. M1 admin or M1 public rollout → MUSE_PROSE_M1_STYLE_SECTION
- *   2. VNext admin canary only → PROSE_VNEXT_STYLE_SECTION (controlled Muse×VNext test)
- *   3. VNext public rollout never applies to Muse
- *   4. otherwise → Legacy (undefined)
+ *   1. M1.1 admin gate → MUSE_PROSE_M11_STYLE_SECTION
+ *   2. M1 admin or M1 public rollout → MUSE_PROSE_M1_STYLE_SECTION
+ *   3. VNext admin canary only → PROSE_VNEXT_STYLE_SECTION (controlled Muse×VNext test)
+ *   4. VNext public rollout never applies to Muse
+ *   5. otherwise → Legacy (undefined)
  *
  * Non-Muse: PR #104 isProseVNextOn semantics unchanged.
  */
@@ -16,6 +17,8 @@ import {
   isMuseM1RolloutEnabledForModel,
   isMuseSparkModel,
 } from "@/lib/proseMuseM1Policy";
+import { MUSE_PROSE_M11_STYLE_SECTION } from "@/lib/proseMuseM11";
+import { isMuseM11EnabledForUser } from "@/lib/proseMuseM11Policy";
 import { PROSE_VNEXT_STYLE_SECTION } from "@/lib/proseVNext";
 import {
   isProseVNextEnabledForUser,
@@ -30,6 +33,9 @@ export function resolveProseStyleSection(
   modelId?: string | null | undefined
 ): string | undefined {
   if (isMuseSparkModel(modelId)) {
+    if (isMuseM11EnabledForUser(userId, modelId)) {
+      return MUSE_PROSE_M11_STYLE_SECTION;
+    }
     if (isMuseM1EnabledForUser(userId, modelId) || isMuseM1RolloutEnabledForModel(modelId)) {
       return MUSE_PROSE_M1_STYLE_SECTION;
     }

@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 
 import { MUSE_PROSE_M1_STYLE_SECTION } from "@/lib/proseMuseM1";
 import { PROSE_MUSE_M1_ENV } from "@/lib/proseMuseM1Policy";
+import { MUSE_PROSE_M11_STYLE_SECTION } from "@/lib/proseMuseM11";
+import { PROSE_MUSE_M11_ENV } from "@/lib/proseMuseM11Policy";
 import { PROSE_VNEXT_STYLE_SECTION } from "@/lib/proseVNext";
 import {
   PROSE_VNEXT_ENV,
@@ -14,6 +16,12 @@ import { resolveProseStyleSection } from "@/lib/proseStyleResolver";
 const MUSE = "meta/muse-spark-1.1";
 const DEEPSEEK = "deepseek/deepseek-v4-pro";
 const HY3 = "tencent/hy3";
+
+const M11_KEYS = [
+  PROSE_MUSE_M11_ENV.ENABLED,
+  PROSE_MUSE_M11_ENV.USER_IDS,
+  PROSE_MUSE_M11_ENV.MODEL_IDS,
+] as const;
 
 const M1_KEYS = [
   PROSE_MUSE_M1_ENV.ENABLED,
@@ -31,7 +39,7 @@ const VNEXT_KEYS = [
   PROSE_VNEXT_ENV.ROLLOUT_MODEL_IDS,
 ] as const;
 
-const ALL_KEYS = [...M1_KEYS, ...VNEXT_KEYS] as const;
+const ALL_KEYS = [...M11_KEYS, ...M1_KEYS, ...VNEXT_KEYS] as const;
 
 function saveEnv(): Record<string, string | undefined> {
   return Object.fromEntries(ALL_KEYS.map((k) => [k, process.env[k]]));
@@ -118,6 +126,60 @@ describe("resolveProseStyleSection", () => {
     process.env.PROSE_MUSE_M1_ROLLOUT_ENABLED = "1";
     process.env.PROSE_MUSE_M1_ROLLOUT_MODEL_IDS = MUSE;
     assert.equal(resolveProseStyleSection(null, MUSE), MUSE_PROSE_M1_STYLE_SECTION);
+  });
+
+  it("M1.1 admin OFF + M1 admin ON → M1 section", () => {
+    process.env.PROSE_MUSE_M1_ENABLED = "1";
+    process.env.PROSE_MUSE_M1_USER_IDS = "1";
+    assert.equal(resolveProseStyleSection(1, MUSE), MUSE_PROSE_M1_STYLE_SECTION);
+  });
+
+  it("M1.1 admin ON for allowlisted user → M1.1 section", () => {
+    process.env.PROSE_MUSE_M11_ENABLED = "1";
+    process.env.PROSE_MUSE_M11_USER_IDS = "1";
+    assert.equal(resolveProseStyleSection(1, MUSE), MUSE_PROSE_M11_STYLE_SECTION);
+  });
+
+  it("M1.1 admin ON but non-admin user → Legacy", () => {
+    process.env.PROSE_MUSE_M11_ENABLED = "1";
+    process.env.PROSE_MUSE_M11_USER_IDS = "1";
+    assert.equal(resolveProseStyleSection(2, MUSE), undefined);
+  });
+
+  it("M1.1 admin ON + exact MODEL_IDS → M1.1 section", () => {
+    process.env.PROSE_MUSE_M11_ENABLED = "1";
+    process.env.PROSE_MUSE_M11_USER_IDS = "1";
+    process.env.PROSE_MUSE_M11_MODEL_IDS = MUSE;
+    assert.equal(resolveProseStyleSection(1, MUSE), MUSE_PROSE_M11_STYLE_SECTION);
+  });
+
+  it("M1.1 admin ON + wrong MODEL_IDS → Legacy", () => {
+    process.env.PROSE_MUSE_M11_ENABLED = "1";
+    process.env.PROSE_MUSE_M11_USER_IDS = "1";
+    process.env.PROSE_MUSE_M11_MODEL_IDS = "muse-spark";
+    assert.equal(resolveProseStyleSection(1, MUSE), undefined);
+  });
+
+  it("M1.1 admin wins over M1 admin when both ON for Muse", () => {
+    process.env.PROSE_MUSE_M11_ENABLED = "1";
+    process.env.PROSE_MUSE_M11_USER_IDS = "1";
+    process.env.PROSE_MUSE_M1_ENABLED = "1";
+    process.env.PROSE_MUSE_M1_USER_IDS = "1";
+    assert.equal(resolveProseStyleSection(1, MUSE), MUSE_PROSE_M11_STYLE_SECTION);
+  });
+
+  it("M1.1 admin wins over M1 rollout when both ON for Muse", () => {
+    process.env.PROSE_MUSE_M11_ENABLED = "1";
+    process.env.PROSE_MUSE_M11_USER_IDS = "1";
+    process.env.PROSE_MUSE_M1_ROLLOUT_ENABLED = "1";
+    process.env.PROSE_MUSE_M1_ROLLOUT_MODEL_IDS = MUSE;
+    assert.equal(resolveProseStyleSection(1, MUSE), MUSE_PROSE_M11_STYLE_SECTION);
+  });
+
+  it("M1.1 admin does not affect DeepSeek → Legacy", () => {
+    process.env.PROSE_MUSE_M11_ENABLED = "1";
+    process.env.PROSE_MUSE_M11_USER_IDS = "1";
+    assert.equal(resolveProseStyleSection(1, DEEPSEEK), undefined);
   });
 
   it("VNext admin helper unchanged for Muse when M1 off", () => {
