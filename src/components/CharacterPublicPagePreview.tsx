@@ -15,6 +15,22 @@ import { shouldBlurAssetForViewer, type CharacterAsset } from "@/lib/characterAs
 import { loadUnlockedCharacterAssetUrls } from "@/lib/characterAssetUnlocks";
 import { studioSurface } from "@/lib/studioDesign";
 
+function ChatBubbleIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className={className} fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h8M8 14h5m7-2a8 8 0 0 1-8 8 8.7 8.7 0 0 1-3.5-.74L4 20l.9-3.62A8 8 0 1 1 20 12Z" />
+    </svg>
+  );
+}
+
+function ImageStackIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className={className} fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 7v10a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V7M3 7l9 6 9-6M3 7a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2" />
+    </svg>
+  );
+}
+
 function AssetGalleryStrip({
   assets,
   viewerIsCreator,
@@ -238,9 +254,19 @@ export default function CharacterPublicPagePreview({
               </span>
             )}
             {creatorIsPartner && <OfficialCreatorBadge />}
-            <span>
-              · ❤️ {likes.toLocaleString()} · 💬 {turnCount.toLocaleString()}턴
-              {imageCount > 0 ? ` · 🖼️ ${imageCount.toLocaleString()}장` : null}
+            <span className="flex items-center gap-2">
+              {turnCount > 0 ? (
+                <span className="flex items-center gap-1" title="누적 대화 턴" aria-label={`누적 대화 ${turnCount.toLocaleString()}턴`}>
+                  <ChatBubbleIcon className="h-3.5 w-3.5" />
+                  {turnCount.toLocaleString()}턴
+                </span>
+              ) : null}
+              {imageCount > 0 ? (
+                <span className="flex items-center gap-1" title="갤러리 이미지 수" aria-label={`이미지 ${imageCount.toLocaleString()}장`}>
+                  <ImageStackIcon className="h-3.5 w-3.5" />
+                  {imageCount.toLocaleString()}장
+                </span>
+              ) : null}
             </span>
           </p>
 
