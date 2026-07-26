@@ -28,7 +28,20 @@ jobs:
 
       - name: Apply focused patch
         run: |
-          git apply --check .agent/muse-billing-60.patch
+          set +e
+          git apply --check .agent/muse-billing-60.patch > /tmp/muse-apply.log 2>&1
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            cat /tmp/muse-apply.log
+            cp /tmp/muse-apply.log .agent/apply-check.log
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add .agent/apply-check.log
+            git commit -m 'chore: capture Muse billing patch failure'
+            git push origin HEAD:agent/fix-muse-billing-60-margin
+            exit "$status"
+          fi
           git apply .agent/muse-billing-60.patch
 
       - name: Install dependencies
@@ -42,7 +55,7 @@ jobs:
 
       - name: Commit validated changes
         run: |
-          rm -f .agent/muse-billing-60.patch
+          rm -f .agent/muse-billing-60.patch .agent/apply-check.log
           rmdir .agent 2>/dev/null || true
           rm -f .github/workflows/agent-apply-muse-billing.yml
           git config user.name 'github-actions[bot]'
