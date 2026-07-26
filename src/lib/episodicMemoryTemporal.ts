@@ -28,6 +28,14 @@ export const CLEARLY_TEMPORARY_EPISODIC_ATTRIBUTES = new Set<string>([
   "temporary_condition",
   "current_weather",
   "current_time_of_day",
+  "current_attitude",
+  "current_hostility",
+  "current_aggression",
+  "current_possessiveness",
+  "current_jealousy",
+  "current_control_intent",
+  "current_attachment",
+  "current_relationship_tension",
 ]);
 
 type TemporalFactInput = {

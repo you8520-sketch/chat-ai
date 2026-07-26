@@ -37,8 +37,22 @@ export const EXTRACTED_FACTS_STATUS_VALUES_INSTRUCTIONS = `Structured facts for 
 - value: concise current value, short, not a sentence, no spaces.
 - importance MUST be one of: critical, important, normal.
 - fact_text MUST be one complete Korean sentence understandable without surrounding conversation.
-- Extract ONLY NEW or CHANGED long-term facts likely useful in future conversations: relationship changes, important character traits, persistent preferences, acquired items, rules, goals, important locations, organizations, major world changes.
+- Episodic facts store concrete events, explicit facts, promises, decisions, and secret disclosures.
+- Do NOT infer persistent personality or relationship stage from a single turn's actions, dialogue, or emotions.
+- Specifically, do NOT confirm attachment, possessiveness, jealousy, obsession, dominance, control, obedience, or psychopathy/aggression tendencies from a single turn.
+- If aggressive behavior is important for continuity, record it as an observable event, not as an abstract personality evaluation.
+- Stable personality/relationship facts are only allowed when there is an explicit user declaration, explicit mutual agreement, provided canon, or established durable fact.
+- Dialogue is only saved as factual statements when it produces long-term consequences (promises, decisions, rules, boundaries, secret disclosures). Do not store raw dialogue quotes without such long-term consequences.
+- Extract ONLY NEW or CHANGED long-term facts likely useful in future conversations: concrete events, explicit facts, promises, decisions, secret disclosures, durable preferences, acquired items, rules, goals, important locations, organizations, major world changes. Specifically, record explicitly revealed durable character facts, not inferred personality traits.
 - Never extract greetings, jokes, filler, temporary emotions, transient combat states, one-time reactions, small talk, or information unlikely to matter later.
+- Forbidden examples:
+  - {"category":"character","subject":"enoch","attribute":"personality_change","value":"possessive","importance":"important","fact_text":"에녹은 유저에게 극단적인 소유욕을 가진 인물로 변했다."}
+  - {"category":"relationship","subject":"enoch_user","attribute":"relationship_dynamic","value":"domination","importance":"important","fact_text":"둘의 관계는 강압적인 지배 관계가 되었다."}
+- Allowed examples:
+  - {"category":"character","subject":"enoch","attribute":"action","value":"locked_door","importance":"important","fact_text":"에녹은 유저가 떠나려 하자 문을 잠그고 남으라고 요구했다."}
+  - {"category":"character","subject":"user","attribute":"response","value":"refused","importance":"important","fact_text":"유저는 에녹의 요구를 거절했다."}
+  - {"category":"relationship","subject":"enoch_user","attribute":"relationship_status","value":"lovers","importance":"important","fact_text":"에녹과 유저는 서로 연인이 되기로 명시적으로 합의했다."}
+  - {"category":"preference","subject":"user","attribute":"roleplay_preference","value":"consensual_control","importance":"important","fact_text":"사용자는 상호 합의된 통제 역할극을 선호한다고 명시했다."}
 - If uncertain, omit it. If none, output exactly "extracted_facts": []. Maximum 3 facts.
 - NEVER generate source_turn, id, uuid, or timestamp.`;
 
