@@ -14,7 +14,14 @@ import {
   UNKNOWN_INFORMATION_TRUTH_GUARD_BLOCK,
   UNKNOWN_INFORMATION_TRUTH_GUARD_SECTION_ID,
 } from "@/lib/unknownInformationTruthGuard";
-import { isMuseUnknownInformationTruthGuardEnabledForUser } from "@/lib/museUnknownInformationTruthGuardPolicy";
+import {
+  isMuseIntraWorldProvenanceGuardEnabledForUser,
+  isMuseUnknownInformationTruthGuardEnabledForUser,
+} from "@/lib/museUnknownInformationTruthGuardPolicy";
+import {
+  INTRA_WORLD_PROVENANCE_GUARD_BLOCK,
+  INTRA_WORLD_PROVENANCE_GUARD_SECTION_ID,
+} from "@/lib/intraWorldProvenanceGuard";
 import {
   buildCharacterCanonBlock,
   buildCharacterSpeechRecencyTail,
@@ -1090,6 +1097,19 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       "Unknown-information truth absolute priority (final system tail)",
       "systemRules",
       UNKNOWN_INFORMATION_TRUTH_GUARD_BLOCK,
+      "dynamic"
+    );
+  }
+
+  // Admin-only Muse canary: intra-world provenance guard as the absolute final
+  // system section AFTER the Unknown Information Truth Guard. Requires the base
+  // Truth Guard to be ON, plus MUSE_INTRAWORLD_PROVENANCE_GUARD_ENABLED=1.
+  if (isMuseIntraWorldProvenanceGuardEnabledForUser(input.userId, input.modelId)) {
+    pushSection(
+      INTRA_WORLD_PROVENANCE_GUARD_SECTION_ID,
+      "Intra-world provenance guard (absolute final system tail)",
+      "systemRules",
+      INTRA_WORLD_PROVENANCE_GUARD_BLOCK,
       "dynamic"
     );
   }
