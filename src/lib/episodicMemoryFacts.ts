@@ -167,7 +167,10 @@ export function hasExplicitPsychologicalResolutionEvidence(factText: string): bo
   const t = factText.replace(/\s+/g, " ").trim();
   if (!t) return false;
 
-  // Reject failed/pretended resolutions that are immediately re-strengthened.
+  // Reject negated, incomplete, or pretended resolutions before accepting any
+  // completed-resolution marker. This includes "disappeared but got stronger again",
+  // "failed to overcome", and "did not decrease/disappear/end".
+  if (/(?:사라지|줄어들|가라앉|극복|해소|끝나|벗어나).{0,8}(?:지\s*않|지\s*못|못했|않았|되지\s*않)/.test(t)) return false;
   if (/(?:극복|해소|끝|벗어나|사라지|줄어들|가라앉)\s*하지\s*못했/.test(t)) return false;
   if (/(?:사라진|줄어든|가라앉은|극복한)\s*척했/.test(t)) return false;
   if (/(?:사라진|줄어든|가라앉은|극복한)\s*척.*(?:강해|커지|늘어|다시|여전히)/.test(t)) return false;
@@ -182,14 +185,14 @@ export function hasExplicitPsychologicalResolutionEvidence(factText: string): bo
   if (!hasRisk) return false;
 
   // Resolution / negation / recovery markers in completed/affirmative form.
+  // "사실/진실" alone is not resolution; only explicit negation (아니라는) counts.
   const resolutionPatterns = [
     /(?:이|그것|것)?\s*아니(?:라는|라고|다는|었)/,
     /오해(?:가|라는)?\s*풀렸/,
     /오해(?:가|라는)?\s*해소/,
-    /(?:사실|진실)(?:이|이었)/,
     /사라졌/,
-    /줄어들/,
-    /가라앉/,
+    /(?:줄어들었|줄어든)/,
+    /(?:가라앉았|가라앉은)/,
     /극복했/,
     /해소됐/,
     /해소되었/,

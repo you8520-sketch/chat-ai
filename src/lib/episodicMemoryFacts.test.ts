@@ -2070,6 +2070,14 @@ describe("episodic abstract psychological inference recall guard", () => {
         fact_text: "에녹의 소유욕이 가라앉았다.",
       },
       {
+        category: "character",
+        subject: "enoch",
+        attribute: "control_tendency",
+        value: "reduced",
+        importance: "important",
+        fact_text: "에녹의 통제욕이 사라졌다.",
+      },
+      {
         category: "relationship",
         subject: "enoch_user",
         attribute: "relationship_status",
@@ -2139,6 +2147,110 @@ describe("episodic abstract psychological inference recall guard", () => {
         `should block: ${fact.fact_text}`
       );
     }
+  });
+
+  it("rejects 사실/진실 false-negative bypass and negated resolution forms", () => {
+    const db = createDb();
+    const blocked: ExtractedStatusFact[] = [
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "psychopathy",
+        value: "confirmed",
+        importance: "important",
+        fact_text: "에녹은 사이코패스라는 사실이 밝혀졌다.",
+      },
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "aggression_tendency",
+        value: "confirmed",
+        importance: "important",
+        fact_text: "에녹은 본질적으로 공격적인 인물이라는 사실이 확인됐다.",
+      },
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "possessiveness",
+        value: "permanent",
+        importance: "important",
+        fact_text: "에녹의 소유욕이 영구적인 성격이라는 사실이 드러났다.",
+      },
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "control_tendency",
+        value: "unchanged",
+        importance: "important",
+        fact_text: "에녹의 통제욕은 줄어들지 않았다.",
+      },
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "possessiveness",
+        value: "unchanged",
+        importance: "important",
+        fact_text: "에녹의 소유욕은 가라앉지 않았다.",
+      },
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "psychopathy",
+        value: "unchanged",
+        importance: "important",
+        fact_text: "사이코패스라는 오해는 해소되지 않았다.",
+      },
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "obsession",
+        value: "unresolved",
+        importance: "important",
+        fact_text: "에녹은 병적인 집착을 극복하지 않았다.",
+      },
+      {
+        category: "relationship",
+        subject: "enoch_user",
+        attribute: "relationship_dynamic",
+        value: "ongoing",
+        importance: "important",
+        fact_text: "두 사람의 강압적인 관계는 끝나지 않았다.",
+      },
+    ];
+
+    // Save-time: all must be rejected.
+    for (const fact of blocked) {
+      assert.equal(
+        hasExplicitPsychologicalResolutionEvidence(fact.fact_text),
+        false,
+        `should not treat as resolution: ${fact.fact_text}`
+      );
+    }
+    const inserted = persistEpisodicMemoryFactsBestEffort(db, {
+      chatId: 1,
+      sourceTurn: 1,
+      facts: blocked,
+    });
+    assert.equal(inserted, 0, "all blocked fixtures must be rejected at save time");
+
+    // Recall-time: existing DB rows with the same content must also be blocked.
+    for (let i = 0; i < blocked.length; i++) {
+      const fact = blocked[i]!;
+      insertRawFact(db, {
+        chatId: 2,
+        sourceTurn: i + 1,
+        category: fact.category,
+        subject: fact.subject,
+        attribute: fact.attribute,
+        value: fact.value,
+        factText: fact.fact_text,
+      });
+    }
+    const recall = getEpisodicMemoryForPrompt(db, { chatId: 2, currentTurn: 20 }, recallOnNoMinAge);
+    assert.equal(recall.facts.length, 0);
+    const debug = inspectEpisodicMemoryFactsForDebug(db, { chatId: 2, currentTurn: 20 });
+    assert.equal(debug.length, blocked.length);
+    assert.ok(debug.every((f) => f.blocked_reason === "abstract_psychological_inference"));
   });
 
   it("classifies current_possessiveness with explicit psychological text as clearly_temporary", () => {
