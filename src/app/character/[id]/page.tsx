@@ -235,16 +235,26 @@ export default async function CharacterPage({
     <div className="mt-8 space-y-4">
 
       <div className="flex flex-wrap items-center gap-2">
-        {c.official === 1 && <span className="rounded bg-violet-600 px-2 py-0.5 text-xs font-bold">공식</span>}
-        {c.nsfw === 1 && <AdultContentBadge className="px-2 text-xs" />}
-        {c.content_kind === "simulation" && <span className="rounded bg-cyan-600 px-2 py-0.5 text-xs font-bold">다인 시뮬레이션</span>}
+        {c.official === 1 && (
+          <span className="rounded-md border border-violet-500/20 bg-violet-500/15 px-2 py-0.5 text-xs font-semibold text-violet-200">
+            공식
+          </span>
+        )}
+        {c.nsfw === 1 && <AdultContentBadge />}
+        {c.content_kind === "simulation" && (
+          <span className="rounded-md border border-cyan-500/20 bg-cyan-500/15 px-2 py-0.5 text-xs font-semibold text-cyan-200">
+            다인 시뮬레이션
+          </span>
+        )}
         {c.official === 0 && c.creator_id && (
-          <span className="rounded bg-white/10 px-2 py-0.5 text-xs text-gray-300">
+          <span className="rounded-md border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-semibold text-zinc-300">
             {visibilityLabel(c.visibility ?? "private")}
           </span>
         )}
         {c.moderation_status === "rejected" && (
-          <span className="rounded bg-rose-500/20 px-2 py-0.5 text-xs text-rose-300">검수 반려</span>
+          <span className="rounded-md border border-rose-500/20 bg-rose-500/15 px-2 py-0.5 text-xs font-semibold text-rose-300">
+            검수 반려
+          </span>
         )}
         <CharacterBookmarkBadge characterId={c.id} bookmarked={liked} loggedIn={!!user} />
       </div>

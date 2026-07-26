@@ -18,6 +18,7 @@ type Props = {
   loggedIn: boolean;
   branches: UserChatSession[];
   selectedPersonaId?: number | null;
+  className?: string;
 };
 
 export function chatEntryHref(
@@ -38,6 +39,7 @@ export default function StartChatButton({
   loggedIn,
   branches,
   selectedPersonaId = null,
+  className,
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -56,13 +58,14 @@ export default function StartChatButton({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, close]);
 
+  const baseClass =
+    className ??
+    "rounded-full bg-violet-600 px-8 py-3 font-bold text-white hover:bg-violet-500";
+
   if (!loggedIn) {
     const loginHref = `/login?redirect=${encodeURIComponent(`/character/${characterId}`)}`;
     return (
-      <Link
-        href={loginHref}
-        className="rounded-full bg-violet-600 px-8 py-3 font-bold text-white hover:bg-violet-500"
-      >
+      <Link href={loginHref} className={baseClass}>
         대화 시작하기
       </Link>
     );
@@ -72,7 +75,7 @@ export default function StartChatButton({
     return (
       <Link
         href={chatEntryHref(characterId, { fresh: true, personaId: selectedPersonaId })}
-        className="rounded-full bg-violet-600 px-8 py-3 font-bold text-white hover:bg-violet-500"
+        className={baseClass}
       >
         대화 시작하기
       </Link>
@@ -83,11 +86,7 @@ export default function StartChatButton({
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="rounded-full bg-violet-600 px-8 py-3 font-bold text-white hover:bg-violet-500"
-      >
+      <button type="button" onClick={() => setOpen(true)} className={baseClass}>
         대화 시작하기
       </button>
 
