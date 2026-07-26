@@ -1,0 +1,48 @@
+name: Apply Muse billing fix
+
+on:
+  push:
+    branches:
+      - agent/fix-muse-billing-60-margin
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Apply focused patch
+        run: |
+          git apply --check .agent/muse-billing-60.patch
+          git apply .agent/muse-billing-60.patch
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run focused billing tests
+        run: npx tsx --test src/lib/openRouterUsage.test.ts src/lib/points.muse.test.ts
+
+      - name: Typecheck app
+        run: npm run typecheck:app
+
+      - name: Commit validated changes
+        run: |
+          rm -f .agent/muse-billing-60.patch
+          rmdir .agent 2>/dev/null || true
+          rm -f .github/workflows/agent-apply-muse-billing.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix(billing): charge full Muse usage at 60% margin'
+          git push origin HEAD:agent/fix-muse-billing-60-margin
