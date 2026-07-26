@@ -213,6 +213,8 @@ function selectedAIOptionLabel(
   return modelPickerOptionLabel({
     displayName,
     estimatedPoints: row?.estimatedPoints ?? null,
+    estimatedPointsLow: row?.estimatedPointsLow ?? null,
+    estimatedPointsHigh: row?.estimatedPointsHigh ?? null,
   });
 }
 

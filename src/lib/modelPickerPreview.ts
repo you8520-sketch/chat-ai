@@ -42,6 +42,7 @@ export type {
 export {
   formatModelPickerCostLabel,
   formatModelPickerCostLabelFromPreview,
+  formatModelPickerCostLabelRange,
   modelPickerOptionLabel,
 } from "@/lib/modelPickerPreviewTypes";
 
@@ -60,10 +61,23 @@ export const MODEL_PICKER_OUTPUT_SAMPLE_LIMIT = 8;
 /** Last-resort input when no snapshot / receipts exist (not a primary path). */
 export const MODEL_PICKER_FALLBACK_INPUT_TOKENS = 4000;
 
-/** Measured cold-start output P50 from dev DB normal RP (scripts/_tmp-model-picker-baselines.ts). */
-export const MODEL_PICKER_MEASURED_COLD_BASELINES: Partial<Record<ModelPickerActiveModelId, number>> = {
-  [OPENROUTER_DEEPSEEK_V4_PRO_MODEL]: 2063,
-};
+/**
+ * Measured / calibrated cold-start completion-token P50 (content + thinking).
+ * Tuned down vs early aim-fraction priors to reduce overestimate vs typical RP turns.
+ */
+export const MODEL_PICKER_MEASURED_COLD_BASELINES: Partial<Record<ModelPickerActiveModelId, number>> =
+  {
+    [OPENROUTER_MUSE_SPARK_11_MODEL]: 1700,
+    [OPENROUTER_DEEPSEEK_V4_PRO_MODEL]: 1800,
+    [OPENROUTER_GEMINI_36_FLASH_MODEL]: 1450,
+    [OPENROUTER_TENCENT_HY3_MODEL]: 1550,
+  };
+
+/** Output band around the central estimate for low/high point labels. */
+export const MODEL_PICKER_OUTPUT_RANGE_RATIO = 0.15;
+
+/** Collapse low–high into a single label when the spread is this small. */
+export const MODEL_PICKER_RANGE_COLLAPSE_POINTS = 5;
 
 export function isActivePickerModel(modelId: string): modelId is ModelPickerActiveModelId {
   return (MODEL_PICKER_ACTIVE_MODEL_IDS as readonly string[]).includes(modelId);
@@ -166,12 +180,12 @@ export function resolveColdOutputBaseline(modelId: string): number {
   if (isActivePickerModel(modelId) && MODEL_PICKER_MEASURED_COLD_BASELINES[modelId] != null) {
     return MODEL_PICKER_MEASURED_COLD_BASELINES[modelId]!;
   }
-  // Temporary prior when measured data unavailable — not audit placeholders.
+  // Fallback priors when a new active model lacks a measured baseline.
   const aim = resolveAimOutputTokens();
-  if (isGemini36FlashModel(modelId)) return Math.round(aim * 0.55);
-  if (isDeepSeekV4ProModel(modelId) || isTencentHy3Model(modelId)) return Math.round(aim * 0.65);
-  if (isMuseModel(modelId)) return Math.round(aim * 0.75);
-  return Math.round(aim * 0.55);
+  if (isGemini36FlashModel(modelId)) return Math.round(aim * 0.45);
+  if (isDeepSeekV4ProModel(modelId) || isTencentHy3Model(modelId)) return Math.round(aim * 0.55);
+  if (isMuseModel(modelId)) return Math.round(aim * 0.55);
+  return Math.round(aim * 0.45);
 }
 
 export function collectModelOutputSamples(opts: {
@@ -195,7 +209,8 @@ export function collectModelOutputSamples(opts: {
 }
 
 /**
- * Per-model output estimate — no shared-room median, no aim hard floor.
+ * Per-model output estimate — p40 + recent blend, always sanity-capped.
+ * samples[] is newest-first from collectModelOutputSamples.
  */
 export function resolveModelPickerOutputTokens(opts: {
   modelId: string;
@@ -205,10 +220,13 @@ export function resolveModelPickerOutputTokens(opts: {
 }): { tokens: number; basis: ModelPickerOutputBasis } {
   const samples = collectModelOutputSamples(opts);
   const med = medianInt(samples);
+  const p40 = pPercentile(samples, 0.4);
+  const recent = samples[0] ?? null;
 
-  if (samples.length >= 3 && med != null && med > 0) {
+  if (samples.length >= 3 && p40 != null && p40 > 0 && recent != null) {
+    const blended = Math.round(p40 * 0.7 + recent * 0.3);
     return {
-      tokens: med,
+      tokens: capOutputSanityUpper(blended, opts.targetResponseChars),
       basis: "model_median",
     };
   }
@@ -230,6 +248,26 @@ export function resolveModelPickerOutputTokens(opts: {
     tokens: capOutputSanityUpper(resolveColdOutputBaseline(opts.modelId), opts.targetResponseChars),
     basis: "cold_baseline",
   };
+}
+
+/** Latest billable/API input tokens for this model from chat receipts. */
+export function resolveLastModelReceiptInputTokens(
+  modelId: string,
+  messages: ModelPickerMessageSample[]
+): number | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (!m || m.role !== "assistant") continue;
+    const usage = resolveActiveUsageFromMessage(m);
+    if (!usage || usage.htmlFlashOnly || usage.billingWaived) continue;
+    const canonical = canonicalizePreviewModelId(usage, m.model);
+    if (canonical !== modelId) continue;
+    const apiIn = usage.apiInputTokens;
+    if (typeof apiIn === "number" && apiIn > 0) return apiIn;
+    const billedIn = usage.input;
+    if (typeof billedIn === "number" && billedIn > 0) return billedIn;
+  }
+  return null;
 }
 
 export function resolveModelPickerBaseInputTokens(opts: {
@@ -272,6 +310,48 @@ export function resolveModelPickerBaseInputTokens(opts: {
   return { tokens: MODEL_PICKER_FALLBACK_INPUT_TOKENS, basis: "fallback" };
 }
 
+/**
+ * Align preview input with billing: min(assembled, last receipt api) + draft.
+ * Prevents assembled-only overestimates when the last billed prompt was smaller.
+ */
+export function resolveAlignedPreviewInputTokens(opts: {
+  modelId: string;
+  assembledTokens: number | null | undefined;
+  messages: ModelPickerMessageSample[];
+  draftTokens?: number;
+}): { tokens: number; basis: ModelPickerInputBasis } {
+  const draft = Math.max(0, opts.draftTokens ?? 0);
+  const assembled =
+    typeof opts.assembledTokens === "number" && opts.assembledTokens > 0
+      ? opts.assembledTokens
+      : null;
+  const receipt = resolveLastModelReceiptInputTokens(opts.modelId, opts.messages);
+
+  if (assembled != null && receipt != null) {
+    const capped = Math.min(assembled, receipt);
+    return {
+      tokens: Math.max(1, Math.round(capped + draft)),
+      basis: capped < assembled ? "assembled_capped_by_api" : "assembled_snapshot",
+    };
+  }
+  if (assembled != null) {
+    return {
+      tokens: Math.max(1, Math.round(assembled + draft)),
+      basis: "assembled_snapshot",
+    };
+  }
+  if (receipt != null) {
+    return {
+      tokens: Math.max(1, Math.round(receipt + draft)),
+      basis: "api_input",
+    };
+  }
+  return {
+    tokens: Math.max(1, MODEL_PICKER_FALLBACK_INPUT_TOKENS + draft),
+    basis: "fallback",
+  };
+}
+
 export function resolvePreviewInputTokens(opts: {
   baseInputTokens: number;
   draftInput?: string;
@@ -290,6 +370,42 @@ export function computePreviewTurnPoints(opts: {
   }
   // outputTokens are total completion tokens (content + thinking) from previewCostOutputTokens.
   return computeOpenRouterTurnCost(opts.inputTokens, opts.outputTokens, opts.modelId);
+}
+
+export function computePreviewPointBand(opts: {
+  modelId: string;
+  inputTokens: number;
+  outputTokens: number;
+  targetResponseChars?: number;
+}): { low: number; mid: number; high: number } | null {
+  const mid = computePreviewTurnPoints(opts);
+  if (mid == null) return null;
+  const loOut = Math.max(
+    1,
+    Math.round(opts.outputTokens * (1 - MODEL_PICKER_OUTPUT_RANGE_RATIO))
+  );
+  const hiOut = capOutputSanityUpper(
+    Math.round(opts.outputTokens * (1 + MODEL_PICKER_OUTPUT_RANGE_RATIO)),
+    opts.targetResponseChars
+  );
+  const low = computePreviewTurnPoints({
+    modelId: opts.modelId,
+    inputTokens: opts.inputTokens,
+    outputTokens: loOut,
+  });
+  const high = computePreviewTurnPoints({
+    modelId: opts.modelId,
+    inputTokens: opts.inputTokens,
+    outputTokens: hiOut,
+  });
+  if (low == null || high == null) return { low: mid, mid, high: mid };
+  let a = Math.min(low, high);
+  let b = Math.max(low, high);
+  if (b - a <= MODEL_PICKER_RANGE_COLLAPSE_POINTS) {
+    a = mid;
+    b = mid;
+  }
+  return { low: a, mid, high: b };
 }
 
 export function buildModelPickerPreview(opts: {
@@ -329,6 +445,8 @@ export function buildModelPickerPreview(opts: {
         estimatedInputTokens: 0,
         estimatedOutputTokens: 0,
         estimatedPoints: null,
+        estimatedPointsLow: null,
+        estimatedPointsHigh: null,
         supported: false,
         outputBasis: "unsupported",
       };
@@ -339,25 +457,45 @@ export function buildModelPickerPreview(opts: {
       messages: opts.messages,
       targetResponseChars: opts.targetResponseChars,
     });
-    const modelBaseInput =
-      opts.assembledSnapshotTokensByModel?.[modelId] ?? baseInput.tokens;
-    const modelInputTokens =
-      inputOverride ??
-      Math.max(1, Math.round(modelBaseInput) + draftTokens);
 
-    const points = computePreviewTurnPoints({
+    let modelInputTokens: number;
+    let modelInputBasis: ModelPickerInputBasis;
+    if (inputOverride != null) {
+      modelInputTokens = inputOverride;
+      modelInputBasis = "assembled_snapshot";
+    } else {
+      const assembled =
+        opts.assembledSnapshotTokensByModel?.[modelId] ??
+        (typeof opts.assembledSnapshotTokens === "number"
+          ? opts.assembledSnapshotTokens
+          : null);
+      const aligned = resolveAlignedPreviewInputTokens({
+        modelId,
+        assembledTokens: assembled,
+        messages: opts.messages,
+        draftTokens,
+      });
+      modelInputTokens = aligned.tokens;
+      modelInputBasis = aligned.basis;
+    }
+
+    const band = computePreviewPointBand({
       modelId,
       inputTokens: modelInputTokens,
       outputTokens,
+      targetResponseChars: opts.targetResponseChars,
     });
 
     return {
       modelId,
       estimatedInputTokens: modelInputTokens,
       estimatedOutputTokens: outputTokens,
-      estimatedPoints: points,
-      supported: points != null,
+      estimatedPoints: band?.mid ?? null,
+      estimatedPointsLow: band?.low ?? null,
+      estimatedPointsHigh: band?.high ?? null,
+      supported: band != null,
       outputBasis: basis,
+      inputBasis: modelInputBasis,
     };
   });
 
