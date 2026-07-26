@@ -82,7 +82,7 @@ export function resolveBackgroundMemoryFallbackModel(
   return trimmed;
 }
 
-/** 백그라운드 비전 — 이미지 검열·에셋 태그 (DeepSeek V3는 vision 미지원) */
+/** 백그라운드 비전 1차 — 이미지 검열·에셋 태그 (실패 시 Qwen3-VL-8B Instruct) */
 export const BACKGROUND_VISION_OPENROUTER_MODEL =
   process.env.BACKGROUND_VISION_MODEL?.trim() ||
   process.env.ASSET_VISION_MODEL?.trim() ||

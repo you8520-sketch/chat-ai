@@ -233,7 +233,7 @@ export default function CreateClient() {
           <button type="button" onClick={() => fileRef.current?.click()}
             disabled={files.length >= MAX_IMAGES}
             className="w-full rounded-xl border border-dashed border-white/15 bg-[#0e1120] py-6 text-sm text-gray-400 hover:border-violet-500/50 disabled:opacity-40">
-            🖼️ 클릭해서 이미지 추가 (최대 {MAX_IMAGES}장 · 장당 8MB)
+            🖼️ 클릭해서 이미지 추가 (최대 {MAX_IMAGES}장 · 장당 4MB)
           </button>
           {previews.length > 0 && (
             <div className="mt-3 grid grid-cols-5 gap-2">
