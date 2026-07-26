@@ -80,7 +80,7 @@ export function canonicalizePreviewModelId(
   return isActivePickerModel(resolved) ? resolved : null;
 }
 
-/** Billable output tokens aligned with points.ts for preview sampling. */
+/** Visible content output tokens for receipt-aligned sampling labels. */
 export function previewBillableOutputTokens(
   modelId: string,
   usage: ModelPickerUsageSample
@@ -96,6 +96,19 @@ export function previewBillableOutputTokens(
   return null;
 }
 
+/** Total output tokens used for next-turn cost preview (content + thinking when billed). */
+export function previewCostOutputTokens(
+  modelId: string,
+  usage: ModelPickerUsageSample
+): number | null {
+  const totalApi = usage.apiOutputTokens ?? usage.output ?? 0;
+  if (totalApi > 0) return totalApi;
+  const content = usage.apiContentOutputTokens ?? 0;
+  const reasoning = usage.apiReasoningOutputTokens ?? 0;
+  if (content + reasoning > 0) return content + reasoning;
+  return previewBillableOutputTokens(modelId, usage);
+}
+
 export function isUsableMainRpUsage(
   usage: ModelPickerUsageSample | null | undefined,
   messageModel?: string | null
@@ -105,7 +118,7 @@ export function isUsableMainRpUsage(
   if (usage.billingWaived) return false;
   if (messageModel === "greeting") return false;
   if (!canonicalizePreviewModelId(usage, messageModel)) return false;
-  return previewBillableOutputTokens(
+  return previewCostOutputTokens(
     canonicalizePreviewModelId(usage, messageModel)!,
     usage
   ) != null;
@@ -175,7 +188,7 @@ export function collectModelOutputSamples(opts: {
     if (!isUsableMainRpUsage(usage, m.model)) continue;
     const canonical = canonicalizePreviewModelId(usage, m.model);
     if (canonical !== opts.modelId) continue;
-    const out = previewBillableOutputTokens(opts.modelId, usage!);
+    const out = previewCostOutputTokens(opts.modelId, usage!);
     if (out != null && out > 0) samples.push(out);
   }
   return samples;
@@ -275,6 +288,7 @@ export function computePreviewTurnPoints(opts: {
   if (!isActivePickerModel(opts.modelId)) {
     return null;
   }
+  // outputTokens are total completion tokens (content + thinking) from previewCostOutputTokens.
   return computeOpenRouterTurnCost(opts.inputTokens, opts.outputTokens, opts.modelId);
 }
 

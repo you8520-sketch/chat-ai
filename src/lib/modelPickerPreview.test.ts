@@ -14,6 +14,7 @@ import {
   computePreviewTurnPoints,
   formatModelPickerCostLabelFromPreview,
   previewBillableOutputTokens,
+  previewCostOutputTokens,
   resolveAimOutputTokens,
   resolveModelPickerBaseInputTokens,
   resolveModelPickerOutputTokens,
@@ -206,6 +207,45 @@ describe("modelPickerPreview V2", () => {
       apiReasoningOutputTokens: 800,
     });
     assert.equal(museBillable, 1700);
+  });
+
+  it("cost preview uses total completion tokens (content + thinking)", () => {
+    const usage = {
+      apiOutputTokens: 2500,
+      apiContentOutputTokens: 1700,
+      apiReasoningOutputTokens: 800,
+    };
+    assert.equal(
+      previewCostOutputTokens(OPENROUTER_MUSE_SPARK_11_MODEL, usage),
+      2500
+    );
+    const input = 20_000;
+    const preview = buildModelPickerPreview({
+      messages: [
+        assistantUsage(OPENROUTER_MUSE_SPARK_11_MODEL, 2500, {
+          apiContentOutputTokens: 1700,
+          apiReasoningOutputTokens: 800,
+        }),
+        assistantUsage(OPENROUTER_MUSE_SPARK_11_MODEL, 2400, {
+          apiContentOutputTokens: 1600,
+          apiReasoningOutputTokens: 800,
+        }),
+        assistantUsage(OPENROUTER_MUSE_SPARK_11_MODEL, 2600, {
+          apiContentOutputTokens: 1800,
+          apiReasoningOutputTokens: 800,
+        }),
+      ],
+      modelIds: [OPENROUTER_MUSE_SPARK_11_MODEL],
+      assembledSnapshotTokensByModel: {
+        [OPENROUTER_MUSE_SPARK_11_MODEL]: input,
+      },
+    });
+    const row = preview.models[0]!;
+    assert.equal(row.estimatedOutputTokens, 2500);
+    assert.equal(
+      row.estimatedPoints,
+      computeOpenRouterTurnCost(input, 2500, OPENROUTER_MUSE_SPARK_11_MODEL)
+    );
   });
 
   it("Gemini preview uses content output (reasoning excluded)", () => {

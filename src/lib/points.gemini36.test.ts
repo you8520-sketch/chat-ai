@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   GEMINI_36_WAIVER_SUCCESS_MIN_COST,
-  OPENROUTER_GEMINI_36_GROSS_MARGIN,
+  OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES,
   OPENROUTER_MIN_TURN_COST,
   computeOpenRouterTurnCost,
   computeTurnBilling,
@@ -10,52 +10,55 @@ import {
   resolveGemini36WaiverMinimumCharge,
 } from "@/lib/points";
 import { OPENROUTER_GEMINI_36_FLASH_MODEL } from "@/lib/chatModels";
-import { resolveOpenRouterBillingRawCostKrw } from "@/lib/billingRawCost";
 
-describe("OpenRouter Gemini 3.6 Flash billing", () => {
+function expectedSimplePointCost(
+  inputTokens: number,
+  outputTokens: number,
+  reasoningTokens: number
+): number {
+  const price = OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES[OPENROUTER_GEMINI_36_FLASH_MODEL];
+  const inputCost = inputTokens >= 10000 ? (inputTokens / 1000) * 0.5 : 0;
+  const outputCost = (outputTokens + reasoningTokens) * price;
+  const total = inputCost + outputCost;
+  return Number.isInteger(total) ? total : Math.ceil(total - 1e-9);
+}
+
+describe("OpenRouter Gemini 3.6 Flash simple point billing", () => {
   const modelId = OPENROUTER_GEMINI_36_FLASH_MODEL;
+  const price = OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES[modelId];
 
-  it("uses one 55% gross-margin owner", () => {
-    assert.equal(OPENROUTER_GEMINI_36_GROSS_MARGIN, 0.55);
+  it("uses the configured output token price", () => {
+    assert.equal(price, 0.0274);
     assert.equal(GEMINI_36_WAIVER_SUCCESS_MIN_COST, 50);
   });
 
-  it("charges standard list input and visible output divided by 0.45", () => {
+  it("charges input 0.5P/1k when input >= 10k and output price per token", () => {
     const inputTokens = 20_000;
     const outputTokens = 2000;
-    const raw = resolveOpenRouterBillingRawCostKrw({
-      promptTokens: inputTokens,
-      outputTokens,
-      modelId,
-    });
-    const expected = Math.max(
-      OPENROUTER_MIN_TURN_COST,
-      Math.ceil(raw / (1 - OPENROUTER_GEMINI_36_GROSS_MARGIN) - 1e-9)
-    );
+    const expected = expectedSimplePointCost(inputTokens, outputTokens, 0);
     const explain = explainOpenRouterGemini36TurnCost(
       inputTokens,
       outputTokens,
       modelId
     );
-    assert.equal(explain.rawCostKrw, raw);
+    assert.equal(explain.rawCostKrw, 0);
     assert.equal(explain.charFloorKrw, 0);
-    assert.equal(explain.costPlusMarginKrw, expected);
+    assert.equal(explain.costPlusMarginKrw, 0);
+    assert.equal(explain.applied, "cost_plus_margin");
     assert.equal(explain.total, expected);
     assert.equal(computeOpenRouterTurnCost(inputTokens, outputTokens, modelId), expected);
   });
 
-  it("ignores cache, upstream cost, and hidden reasoning in user pricing", () => {
+  it("ignores cache and upstream cost; bills reasoning with output", () => {
     const outputTokens = 400;
+    const reasoningTokens = 2000;
     const withProviderDetails = explainOpenRouterGemini36TurnCost(
       100,
       outputTokens,
       modelId,
       undefined,
-      {
-        upstreamCostUsd: 0.066,
-        apiPromptTokens: 12_000,
-        apiCompletionTokens: 2500,
-      }
+      undefined,
+      reasoningTokens
     );
     const withoutProviderDetails = explainOpenRouterGemini36TurnCost(
       100,
@@ -67,20 +70,43 @@ describe("OpenRouter Gemini 3.6 Flash billing", () => {
       openRouterModelId: modelId,
       inputTokens: 100,
       outputTokens,
+      reasoningTokens,
       upstreamCostUsd: 0.066,
       apiPromptTokens: 12_000,
       apiCompletionTokens: 2500,
       userContextChars: 8000,
     });
+    const expectedWithReasoning = expectedSimplePointCost(100, outputTokens, reasoningTokens);
+    const expectedWithoutReasoning = expectedSimplePointCost(100, outputTokens, 0);
+
     assert.equal(billing.contextSurcharge, 0);
     assert.equal(billing.total, withProviderDetails.total);
-    assert.equal(withProviderDetails.total, withoutProviderDetails.total);
+    assert.equal(withProviderDetails.total, expectedWithReasoning);
+    assert.equal(withoutProviderDetails.total, expectedWithoutReasoning);
+    assert.ok(withProviderDetails.total > withoutProviderDetails.total);
   });
 
   it("charges more when visible input grows", () => {
     const shortInput = computeOpenRouterTurnCost(5000, 400, modelId);
     const longInput = computeOpenRouterTurnCost(50_000, 400, modelId);
     assert.ok(longInput > shortInput);
+  });
+
+  it("bills reasoning tokens together with output tokens", () => {
+    const inputTokens = 20_000;
+    const outputTokens = 2000;
+    const reasoningTokens = 1500;
+    const expected = expectedSimplePointCost(inputTokens, outputTokens, reasoningTokens);
+    const explain = explainOpenRouterGemini36TurnCost(
+      inputTokens,
+      outputTokens,
+      modelId,
+      undefined,
+      undefined,
+      reasoningTokens
+    );
+    assert.equal(explain.total, expected);
+    assert.ok(explain.total > computeOpenRouterTurnCost(inputTokens, outputTokens, modelId));
   });
 
   it("charges the 50P waiver minimum for meaningful interrupted output", () => {

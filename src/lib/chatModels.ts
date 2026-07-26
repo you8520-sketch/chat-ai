@@ -51,6 +51,14 @@ export const OPENROUTER_GEMINI_25_PRO_MODEL = "google/gemini-2.5-pro";
 /** OpenRouter — Google Gemini 3.6 Flash */
 export const OPENROUTER_GEMINI_36_FLASH_MODEL = "google/gemini-3.6-flash";
 
+/** OpenRouter models that use the simple per-token point formula (no USD margin). */
+export const OPENROUTER_SIMPLE_POINT_MODELS: readonly string[] = [
+  OPENROUTER_TENCENT_HY3_MODEL,
+  OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
+  OPENROUTER_MUSE_SPARK_11_MODEL,
+  OPENROUTER_GEMINI_36_FLASH_MODEL,
+];
+
 /** @deprecated UI 선택 제거 — legacy slug·과금 경로 호환용 */
 export const OPENROUTER_GEMINI_31_PRO_MODEL = "google/gemini-3.1-pro-preview";
 
@@ -109,8 +117,6 @@ export const SELECTED_AI_OPTIONS = [
     label: MUSE_SPARK_11_DISPLAY_NAME,
     tier: "pro" as const,
     hint: "Meta",
-    badge: "기본 추천",
-    recommended: true,
   },
   {
     id: OPENROUTER_GEMINI_36_FLASH_MODEL,
@@ -192,6 +198,11 @@ export function isGemini25ProModel(modelId: string): boolean {
 export function isGemini36FlashModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
   return id === OPENROUTER_GEMINI_36_FLASH_MODEL || id.includes("gemini-3.6-flash");
+}
+
+/** OpenRouter models billed by the simple per-token point formula. */
+export function isOpenRouterSimplePointModel(modelId: string): boolean {
+  return OPENROUTER_SIMPLE_POINT_MODELS.includes(modelId.trim().toLowerCase());
 }
 
 /** OpenRouter Gemini 3.1 Pro Preview */
