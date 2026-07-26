@@ -960,7 +960,9 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   // Note: memory/canon sit after prose in this builder, so "after memory and
   // before prose" is impossible; this seam is the closest source-grounded
   // scene-dynamic slot that still precedes operational length tails.
-  if (isMuseCompactSceneStateEnabledForUser(input.userId, input.modelId)) {
+  if (
+    isMuseCompactSceneStateEnabledForUser(input.userId, input.modelId, input.chatId)
+  ) {
     pushSection(
       MUSE_COMPACT_SCENE_STATE_SECTION_ID,
       "Muse compact scene state (admin canary internal context)",
@@ -1047,7 +1049,13 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   // earlier) and IMMEDIATELY BEFORE existing LENGTH CONTROL. Terminal and
   // Truth Guard keep their existing absolute-tail positions. Independent of
   // Compact Semantic State. Gate OFF → no section (byte-stable).
-  if (isMuseStructuralLengthAnchorEnabledForUser(input.userId, input.modelId)) {
+  if (
+    isMuseStructuralLengthAnchorEnabledForUser(
+      input.userId,
+      input.modelId,
+      input.chatId
+    )
+  ) {
     pushSection(
       MUSE_STRUCTURAL_LENGTH_ANCHOR_SECTION_ID,
       "Muse structural length anchor (admin canary scene depth)",

@@ -19,14 +19,16 @@ const FORBIDDEN = [
   "dialogue",
   "paragraph",
   "문단",
-  "대사",
+  "첫 자연스러운 착지",
+  "첫 착지",
+  "조기 종료",
+  "금지",
   "2500",
   "2900",
   "3200",
-  "금지",
 ];
 
-describe("museStructuralLengthAnchor — causal scene-depth contract", () => {
+describe("museStructuralLengthAnchor — second-order scene-depth contract", () => {
   it("section id is stable", () => {
     assert.equal(
       MUSE_STRUCTURAL_LENGTH_ANCHOR_SECTION_ID,
@@ -44,14 +46,17 @@ describe("museStructuralLengthAnchor — causal scene-depth contract", () => {
     assert.ok(estimateTokens(MUSE_STRUCTURAL_LENGTH_ANCHOR_BLOCK) >= 100);
   });
 
-  it("contains causal progression and second-order scene change", () => {
+  it("contains purposeful action, direct consequence, follow-on change", () => {
     assert.ok(MUSE_STRUCTURAL_LENGTH_ANCHOR_BLOCK.includes("목적 있는 행동"));
     assert.ok(MUSE_STRUCTURAL_LENGTH_ANCHOR_BLOCK.includes("공간·사물·관계"));
-    assert.ok(MUSE_STRUCTURAL_LENGTH_ANCHOR_BLOCK.includes("한 번 더 변화"));
-    assert.ok(MUSE_STRUCTURAL_LENGTH_ANCHOR_BLOCK.includes("첫 자연스러운 착지"));
+    assert.ok(MUSE_STRUCTURAL_LENGTH_ANCHOR_BLOCK.includes("직접 결과"));
+    assert.ok(MUSE_STRUCTURAL_LENGTH_ANCHOR_BLOCK.includes("후속 선택"));
+    assert.ok(MUSE_STRUCTURAL_LENGTH_ANCHOR_BLOCK.includes("충분한 장면 단위"));
+    assert.ok(MUSE_STRUCTURAL_LENGTH_ANCHOR_BLOCK.includes("대사가 짧아도"));
+    assert.ok(MUSE_STRUCTURAL_LENGTH_ANCHOR_BLOCK.includes("판단과 환경 변화"));
   });
 
-  it("excludes numeric length/dialogue/paragraph requirements and world/fixture terms", () => {
+  it("excludes soft-landing / continuation-priority duplication and world/fixture terms", () => {
     for (const bad of FORBIDDEN) {
       assert.ok(
         !MUSE_STRUCTURAL_LENGTH_ANCHOR_BLOCK.includes(bad),
