@@ -23,14 +23,43 @@ function countOccurrences(haystack: string, needle: string): number {
 }
 
 describe("MUSE_PROSE_M11_STYLE_SECTION — admin-only single-slot candidate", () => {
-  it("preserves mechanical shell + 8 M1.1 principles", () => {
+  it("preserves mechanical shell + 7 M1.1-B principles", () => {
     assert.match(MUSE_PROSE_M11_STYLE_SECTION, /\[NARRATION REGISTER\]/);
     assert.match(MUSE_PROSE_M11_STYLE_SECTION, /\[SCENE FLOW\]/);
     assert.match(MUSE_PROSE_M11_STYLE_SECTION, /\[RHYTHM\]/);
-    assert.match(MUSE_PROSE_M11_STYLE_SECTION, /\[MUSE PROSE M1\.1 — 장면 연속 계약\]/);
-    assert.match(MUSE_PROSE_M11_STYLE_SECTION, /1\. 사용자 입력은 이미 일어난 사실/);
-    assert.match(MUSE_PROSE_M11_STYLE_SECTION, /8\. 종료 전 내부 점검/);
-    assert.doesNotMatch(MUSE_PROSE_M11_STYLE_SECTION, /9\./);
+    assert.match(MUSE_PROSE_M11_STYLE_SECTION, /\[MUSE PROSE M1\.1-B — 장면 확장 계약\]/);
+    assert.match(MUSE_PROSE_M11_STYLE_SECTION, /1\. 다음 순간부터 이어간다/);
+    assert.match(MUSE_PROSE_M11_STYLE_SECTION, /7\. 장면의 변화 위에 착지한다/);
+    assert.doesNotMatch(MUSE_PROSE_M11_STYLE_SECTION, /8\./);
+  });
+
+  it("states the scene-expansion intent", () => {
+    for (const phrase of [
+      "[MUSE PROSE M1.1-B — 장면 확장 계약]",
+      "짧은 입력은 장면 축약 신호가 아니다",
+      "하나의 장면 단위를 충분히 진행",
+      "확인 결과 자체가 주어지지 않았다면 결과 내용을 발명하지 않는다",
+      "장면 안에서는 여러 변화가 일어날 수 있지만",
+      "마지막에 사용자에게 열어두는 핵심 질문이나 반응 요구는 하나",
+    ]) {
+      assert.ok(
+        MUSE_PROSE_M11_STYLE_SECTION.includes(phrase),
+        `missing phrase: ${phrase}`
+      );
+    }
+  });
+
+  it("drops dialogue count targets and early-close pressure", () => {
+    for (const phrase of [
+      "1~4개",
+      "0~2개",
+      "다음 사용자 반응이 필요한 지점까지",
+    ]) {
+      assert.ok(
+        !MUSE_PROSE_M11_STYLE_SECTION.includes(phrase),
+        `unexpected phrase: ${phrase}`
+      );
+    }
   });
 
   it("no VNext or legacy behavioral body", () => {
@@ -44,21 +73,27 @@ describe("MUSE_PROSE_M11_STYLE_SECTION — admin-only single-slot candidate", ()
   it("no LENGTH/Terminal or fixture leakage", () => {
     assert.doesNotMatch(MUSE_PROSE_M11_STYLE_SECTION, /\[LENGTH/);
     assert.doesNotMatch(MUSE_PROSE_M11_STYLE_SECTION, /TERMINAL/);
-    assert.doesNotMatch(MUSE_PROSE_M11_STYLE_SECTION, /플러드/);
-    assert.doesNotMatch(MUSE_PROSE_M11_STYLE_SECTION, /복도/);
     assert.doesNotMatch(MUSE_PROSE_M11_STYLE_SECTION, /대사량\s*\d/);
     assert.doesNotMatch(MUSE_PROSE_M11_STYLE_SECTION, /한 줄 이내/);
+    for (const fixture of ["B동", "브리핑룸", "서강우", "플러드", "복도"]) {
+      assert.ok(
+        !MUSE_PROSE_M11_STYLE_SECTION.includes(fixture),
+        `unexpected fixture: ${fixture}`
+      );
+    }
   });
 
-  it("M1.1 ON via proseStyleSection seam — exactly once, legacy when OFF", () => {
+  it("M1.1-B ON via proseStyleSection seam — exactly once, legacy when OFF", () => {
     const legacyBundle = buildProseStyleXmlBundle({ nsfwEnabled: false });
     const m11Bundle = buildProseStyleXmlBundle({
       nsfwEnabled: false,
       proseStyleSection: MUSE_PROSE_M11_STYLE_SECTION,
     });
-    assert.equal(countOccurrences(legacyBundle, "[MUSE PROSE M1.1"), 0);
-    assert.equal(countOccurrences(m11Bundle, "[MUSE PROSE M1.1"), 1);
+    assert.equal(countOccurrences(legacyBundle, "[MUSE PROSE M1.1-B"), 0);
+    assert.equal(countOccurrences(m11Bundle, "[MUSE PROSE M1.1-B"), 1);
+    assert.equal(countOccurrences(m11Bundle, "[MUSE PROSE M1 "), 0);
     assert.equal(countOccurrences(m11Bundle, "[PROSE VNEXT"), 0);
+    assert.equal(countOccurrences(m11Bundle, PROSE_STYLE_SECTION), 0);
     assert.equal(
       buildAdvancedProseNsfwGuidelines({ nsfwEnabled: false }).includes(PROSE_STYLE_SECTION),
       true
@@ -79,6 +114,21 @@ describe("MUSE_PROSE_M11_STYLE_SECTION — admin-only single-slot candidate", ()
     );
   });
 
+  it("LENGTH and Terminal marker counts unchanged by the M1.1-B swap", () => {
+    const legacyBundle = buildProseStyleXmlBundle({ nsfwEnabled: false });
+    const m11Bundle = buildProseStyleXmlBundle({
+      nsfwEnabled: false,
+      proseStyleSection: MUSE_PROSE_M11_STYLE_SECTION,
+    });
+    for (const marker of ["[LENGTH", "TARGET_LENGTH:", "MINIMUM_FLOOR:", "TERMINAL"]) {
+      assert.equal(
+        countOccurrences(m11Bundle, marker),
+        countOccurrences(legacyBundle, marker),
+        `marker count changed: ${marker}`
+      );
+    }
+  });
+
   it("similar magnitude to M1 section (not empty, not huge)", () => {
     const m11 = MUSE_PROSE_M11_STYLE_SECTION.length;
     const m1 = MUSE_PROSE_M1_STYLE_SECTION.length;
@@ -90,8 +140,9 @@ describe("MUSE_PROSE_M11_STYLE_SECTION — admin-only single-slot candidate", ()
     assert.ok(MUSE_PROSE_M11_STYLE_SECTION !== MUSE_PROSE_M1_STYLE_SECTION);
     assert.ok(MUSE_PROSE_M11_STYLE_SECTION !== PROSE_VNEXT_STYLE_SECTION);
     assert.ok(MUSE_PROSE_M11_STYLE_SECTION.includes("[NARRATION REGISTER]"));
-    assert.ok(MUSE_PROSE_M11_STYLE_SECTION.includes("[MUSE PROSE M1.1 — 장면 연속 계약]"));
+    assert.ok(MUSE_PROSE_M11_STYLE_SECTION.includes("[MUSE PROSE M1.1-B — 장면 확장 계약]"));
     assert.ok(!MUSE_PROSE_M11_STYLE_SECTION.includes("[MUSE PROSE M1 — 장면 연속 계약]"));
+    assert.ok(!MUSE_PROSE_M11_STYLE_SECTION.includes("[MUSE PROSE M1.1 — 장면 연속 계약]"));
   });
 
   it("does not expose internal implementation terms", () => {
@@ -100,27 +151,5 @@ describe("MUSE_PROSE_M11_STYLE_SECTION — admin-only single-slot candidate", ()
     assert.ok(!MUSE_PROSE_M11_STYLE_SECTION.includes("2차 호출"));
     assert.ok(!MUSE_PROSE_M11_STYLE_SECTION.includes("source-bound"));
     assert.ok(!MUSE_PROSE_M11_STYLE_SECTION.includes("source가"));
-  });
-
-  it("includes natural-language intent phrases", () => {
-    assert.ok(MUSE_PROSE_M11_STYLE_SECTION.includes("한 번의 응답 안에서 전개"));
-    assert.ok(
-      MUSE_PROSE_M11_STYLE_SECTION.includes(
-        "다음 사용자 반응이 필요한 지점까지 진행"
-      )
-    );
-    assert.ok(
-      MUSE_PROSE_M11_STYLE_SECTION.includes("근거가 확인된 정보만 구체화")
-    );
-    assert.ok(
-      MUSE_PROSE_M11_STYLE_SECTION.includes(
-        "1~4개 대사 덩어리는 우선 기준이며 절대 상한이 아님"
-      )
-    );
-    assert.ok(
-      MUSE_PROSE_M11_STYLE_SECTION.includes(
-        "과묵한 캐릭터는 침묵과 행동으로 반응 가능"
-      )
-    );
   });
 });
