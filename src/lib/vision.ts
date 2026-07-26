@@ -1,21 +1,47 @@
 import fs from "fs/promises";
 import path from "path";
-import { EMOTION_TAGS } from "./characterAssets";
 import { filenameFromUploadUrl, resolveExistingUploadPath } from "@/lib/uploadStorage";
 import {
   OPENROUTER_CHAT_COMPLETIONS_URL,
   buildOpenRouterHeaders,
 } from "@/lib/openRouterConfig";
+import {
+  OPENROUTER_GEMINI_20_FLASH_MODEL,
+  OPENROUTER_QWEN3_VL_8B_INSTRUCT_MODEL,
+} from "@/lib/chatModels";
 
-import { BACKGROUND_VISION_OPENROUTER_MODEL } from "@/lib/ai";
+const DEFAULT_VISION_MODEL = OPENROUTER_GEMINI_20_FLASH_MODEL;
+const DEFAULT_VISION_FALLBACK_MODEL = OPENROUTER_QWEN3_VL_8B_INSTRUCT_MODEL;
 
-const VISION_MODEL =
-  process.env.ASSET_VISION_MODEL?.trim() || BACKGROUND_VISION_OPENROUTER_MODEL;
+function visionModels(): string[] {
+  const primary =
+    process.env.ASSET_VISION_MODEL?.trim() ||
+    process.env.BACKGROUND_VISION_MODEL?.trim() ||
+    DEFAULT_VISION_MODEL;
+  const fallback =
+    process.env.ASSET_VISION_MODEL_FALLBACK?.trim() || DEFAULT_VISION_FALLBACK_MODEL;
+  return primary === fallback ? [primary] : [primary, fallback];
+}
 
-const VISION_PROMPT = `너는 캐릭터 애니메이션 에셋 분석기야. 이미지를 보고 표정·포즈·상황을 짧은 한국어 태그 하나로 요약해 줘.
+/**
+ * Image-grounded tagging only. The model must observe the attached pixels —
+ * not invent tags from a free-form "generate tags" request.
+ */
+const VISION_PROMPT = `너는 캐릭터 일러스트 이미지 분석기다.
+첨부된 이미지를 직접 보고, 그 이미지에 실제로 보이는 표정·자세·상황만 짧은 한국어 태그 하나로 요약한다.
+
+필수:
+- 반드시 첨부 이미지의 시각 정보(얼굴 표정, 몸의 자세, 배경/장소, 소품)에만 근거한다.
+- 이미지에 없는 표정·장소·행동을 상상하거나 만들어 내지 않는다.
+- "이 이미지의 태그를 생성해줘"처럼 자유롭게 창작하지 말고, 관찰한 내용만 태깅한다.
+
 이 이미지는 성인 대상 픽션 캐릭터 일러스트일 수 있다. 상반신 노출·젖은 상의·선정적 의상도 거부하지 말고 태깅만 한다.
-예: 기쁨, 슬픔, 부끄러움, 무표정, 대화, 전투, 침대에 누움, 소파에 앉음, 서 있음, 침실, 젖은 상의
-태그는 2~12자 내외의 짧은 구문. 결과는 다른 설명 없이 { "tag": "태그명" } JSON만.`;
+
+좋은 예(이미지에 실제로 보일 때): 기쁨, 슬픔, 부끄러움, 무표정, 대화, 전투, 침대에 누움, 소파에 앉음, 서 있음, 침실, 젖은 상의
+태그는 2~12자 내외의 짧은 구문.
+
+결과는 다른 설명 없이 JSON만:
+{ "tag": "태그명" }`;
 
 async function loadImageBase64(url: string): Promise<{ mime: string; data: string }> {
   let buf: Buffer;
@@ -49,8 +75,10 @@ async function loadImageBase64(url: string): Promise<{ mime: string; data: strin
 
 function parseTagJson(raw: string): string {
   const trimmed = raw.trim();
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
+  const candidate = (fenced ? fenced[1] : trimmed).trim();
   try {
-    const json = JSON.parse(trimmed);
+    const json = JSON.parse(candidate);
     if (typeof json.tag === "string" && json.tag.trim()) return json.tag.trim();
   } catch {
     const m = trimmed.match(/"tag"\s*:\s*"([^"]+)"/);
@@ -59,27 +87,28 @@ function parseTagJson(raw: string): string {
   throw new Error("태그 JSON 파싱 실패");
 }
 
-function demoTag(index: number): string {
-  return EMOTION_TAGS[index % EMOTION_TAGS.length];
+/** API·파싱 전부 실패 시 — 감정 목록 순환이 아니라 중립 라벨 (이미지와 무관한 가짜 태그 방지) */
+function unresolvedTag(index: number): string {
+  return `미분류 ${index + 1}`;
 }
 
-/** OpenRouter vision으로 캐릭터 에셋 감정 태그 추출 */
-export async function analyzeAssetImage(url: string, index = 0): Promise<{ tag: string; estimated: boolean }> {
-  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
-  if (!apiKey) {
-    return { tag: demoTag(index), estimated: true };
-  }
+type VisionAttempt = {
+  tag: string | null;
+  retryable: boolean;
+};
 
-  const { mime, data } = await loadImageBase64(url);
-  const dataUrl = `data:${mime};base64,${data}`;
-
+async function analyzeWithModel(
+  model: string,
+  dataUrl: string,
+  apiKey: string
+): Promise<VisionAttempt> {
   let res: Response;
   try {
     res = await fetch(OPENROUTER_CHAT_COMPLETIONS_URL, {
       method: "POST",
       headers: buildOpenRouterHeaders(apiKey),
       body: JSON.stringify({
-        model: VISION_MODEL,
+        model,
         messages: [
           {
             role: "user",
@@ -89,18 +118,18 @@ export async function analyzeAssetImage(url: string, index = 0): Promise<{ tag: 
             ],
           },
         ],
-        temperature: 0.2,
+        temperature: 0.1,
         max_tokens: 64,
       }),
     });
   } catch (err) {
-    console.error("[vision] OpenRouter fetch failed:", err);
-    return { tag: demoTag(index), estimated: true };
+    console.error("[vision] OpenRouter fetch failed:", model, err);
+    return { tag: null, retryable: true };
   }
 
   if (!res.ok) {
-    console.error("[vision] OpenRouter 오류:", await res.text());
-    return { tag: demoTag(index), estimated: true };
+    console.error("[vision] OpenRouter 오류:", model, await res.text());
+    return { tag: null, retryable: true };
   }
 
   const body = (await res.json()) as {
@@ -108,13 +137,53 @@ export async function analyzeAssetImage(url: string, index = 0): Promise<{ tag: 
   };
   const rawContent = body.choices?.[0]?.message?.content;
   const text = typeof rawContent === "string" ? rawContent : "";
-  if (!text) return { tag: demoTag(index), estimated: true };
+  if (!text) {
+    console.warn("[vision] empty response:", model);
+    return { tag: null, retryable: true };
+  }
 
   try {
-    return { tag: parseTagJson(text), estimated: false };
+    return { tag: parseTagJson(text), retryable: false };
   } catch {
-    return { tag: demoTag(index), estimated: true };
+    console.warn("[vision] unparseable response:", model, text.slice(0, 200));
+    return { tag: null, retryable: true };
   }
+}
+
+/** OpenRouter vision으로 캐릭터 에셋 감정·자세·상황 태그 추출 (이미지 첨부 필수) */
+export async function analyzeAssetImage(
+  url: string,
+  index = 0
+): Promise<{ tag: string; estimated: boolean }> {
+  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
+  if (!apiKey) {
+    return { tag: unresolvedTag(index), estimated: true };
+  }
+
+  let img: { mime: string; data: string };
+  try {
+    img = await loadImageBase64(url);
+  } catch (err) {
+    console.error("[vision] image load failed:", err);
+    return { tag: unresolvedTag(index), estimated: true };
+  }
+
+  const dataUrl = `data:${img.mime};base64,${img.data}`;
+  const models = visionModels();
+
+  for (let i = 0; i < models.length; i++) {
+    const model = models[i]!;
+    const result = await analyzeWithModel(model, dataUrl, apiKey);
+    if (result.tag) {
+      return { tag: result.tag, estimated: false };
+    }
+    const next = models[i + 1];
+    if (next) {
+      console.warn("[vision] retrying with fallback model:", { from: model, to: next });
+    }
+  }
+
+  return { tag: unresolvedTag(index), estimated: true };
 }
 
 /** 여러 에셋 일괄 태깅 */

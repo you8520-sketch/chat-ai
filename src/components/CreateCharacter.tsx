@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -352,7 +352,7 @@ export default function CreateCharacter({
         return;
       }
 
-      setProgress("Gemini Vision으로 감정 태그 분석 중…");
+      setProgress("이미지 표정·자세 태그 분석 중…");
       let taggedAssets: { url: string; tag: string }[] = [];
       try {
         const tagRes = await fetch("/api/assets/tag", {
@@ -1489,7 +1489,7 @@ export default function CreateCharacter({
               >
                 + 에셋 이미지 추가
                 <span className="mt-1.5 block text-xs font-semibold tracking-normal text-zinc-200/80 sm:text-sm">
-                  최대 {MAX_IMAGES}장 · Gemini 자동 태깅
+                  최대 {MAX_IMAGES}장 · 장당 4MB · 자동 태깅
                 </span>
               </button>
 

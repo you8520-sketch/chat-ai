@@ -4,16 +4,11 @@ import fs from "fs/promises";
 import crypto from "crypto";
 import { getSessionUser } from "@/lib/auth";
 import { uploadPublicUrl, uploadsDataDir } from "@/lib/uploadStorage";
+import { optimizeUploadImage } from "@/lib/uploadImageOptimize";
 
 const MAX_FILES = 100;
-const MAX_SIZE = 8 * 1024 * 1024; // 8MB per file
+const MAX_SIZE = 4 * 1024 * 1024; // 4MB per file
 const ALLOWED = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
-const EXT: Record<string, string> = {
-  "image/png": "png",
-  "image/jpeg": "jpg",
-  "image/webp": "webp",
-  "image/gif": "gif",
-};
 
 // 캐릭터 이미지 업로드 (최대 100장)
 export async function POST(req: Request) {
@@ -37,10 +32,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: `지원하지 않는 형식입니다: ${file.name}` }, { status: 400 });
     }
     if (file.size > MAX_SIZE) {
-      return NextResponse.json({ error: `8MB를 초과하는 파일입니다: ${file.name}` }, { status: 400 });
+      return NextResponse.json({ error: `4MB를 초과하는 파일입니다: ${file.name}` }, { status: 400 });
     }
-    const name = `${crypto.randomUUID()}.${EXT[file.type]}`;
-    await fs.writeFile(path.join(dir, name), Buffer.from(await file.arrayBuffer()));
+    const input = Buffer.from(await file.arrayBuffer());
+    const optimized = await optimizeUploadImage(input, file.type);
+    const name = `${crypto.randomUUID()}.${optimized.ext}`;
+    await fs.writeFile(path.join(dir, name), optimized.buffer);
     urls.push(uploadPublicUrl(name));
   }
   return NextResponse.json({ ok: true, urls });

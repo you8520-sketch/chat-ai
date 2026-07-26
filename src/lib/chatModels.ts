@@ -65,6 +65,9 @@ export const OPENROUTER_GEMINI_31_PRO_MODEL = "google/gemini-3.1-pro-preview";
 /** OpenRouter — Gemini 2.0 Flash (백그라운드 비전: 이미지 검열·에셋 태그) */
 export const OPENROUTER_GEMINI_20_FLASH_MODEL = "google/gemini-2.0-flash-001";
 
+/** OpenRouter — Qwen3 VL 8B Instruct (에셋 태그·검열 Vision fallback) */
+export const OPENROUTER_QWEN3_VL_8B_INSTRUCT_MODEL = "qwen/qwen3-vl-8b-instruct";
+
 /** OpenRouter — Gemini 2.5 Flash (HTML·백그라운드 등 직접 호출용) */
 export const OPENROUTER_GEMINI_25_FLASH_MODEL = "google/gemini-2.5-flash";
 
