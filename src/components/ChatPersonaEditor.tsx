@@ -6,7 +6,7 @@ import { PERSONA_NAME_LIMIT, PERSONA_CONTENT_MAX, PERSONA_SECRET_CONTENT_MAX, pe
 import {
   PERSONA_IMAGE_FOCUS_DEFAULT,
   type PersonaListItem,
-} from "@/lib/userPersonas";
+} from "@/lib/userPersonasClient";
 import PersonaAvatar from "@/components/PersonaAvatar";
 import PersonaImageEditor from "@/components/PersonaImageEditor";
 

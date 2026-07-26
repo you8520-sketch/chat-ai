@@ -1,6 +1,6 @@
 "use client";
 
-import { personaImageObjectPosition } from "@/lib/userPersonas";
+import { personaImageObjectPosition } from "@/lib/userPersonasClient";
 
 type Props = {
   name?: string;

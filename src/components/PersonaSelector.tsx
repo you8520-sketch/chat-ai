@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import type { PersonaListItem } from "@/lib/userPersonas";
+import type { PersonaListItem } from "@/lib/userPersonasClient";
 import PersonaAvatar from "@/components/PersonaAvatar";
 
 type Props = {

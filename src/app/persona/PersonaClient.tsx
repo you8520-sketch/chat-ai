@@ -15,7 +15,7 @@ import {
 import {
   PERSONA_IMAGE_FOCUS_DEFAULT,
   type PersonaListItem,
-} from "@/lib/userPersonas";
+} from "@/lib/userPersonasClient";
 import type { UserNotePresetItem } from "@/lib/userNotePresetTypes";
 import { USER_NOTE_PRESET_TITLE_MAX } from "@/lib/userNotePresetTypes";
 import UserNoteSplitEditor from "@/components/UserNoteSplitEditor";

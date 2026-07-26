@@ -11,7 +11,7 @@ import {
   PERSONA_IMAGE_FOCUS_DEFAULT,
   personaImageObjectPosition,
   sanitizePersonaImageFocus,
-} from "@/lib/userPersonas";
+} from "@/lib/userPersonasClient";
 
 export type PersonaImageValue = {
   image_url: string;
