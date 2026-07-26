@@ -93,4 +93,34 @@ describe("MUSE_PROSE_M11_STYLE_SECTION — admin-only single-slot candidate", ()
     assert.ok(MUSE_PROSE_M11_STYLE_SECTION.includes("[MUSE PROSE M1.1 — 장면 연속 계약]"));
     assert.ok(!MUSE_PROSE_M11_STYLE_SECTION.includes("[MUSE PROSE M1 — 장면 연속 계약]"));
   });
+
+  it("does not expose internal implementation terms", () => {
+    assert.ok(!MUSE_PROSE_M11_STYLE_SECTION.includes("LENGTH owner"));
+    assert.ok(!MUSE_PROSE_M11_STYLE_SECTION.includes("continuation"));
+    assert.ok(!MUSE_PROSE_M11_STYLE_SECTION.includes("2차 호출"));
+    assert.ok(!MUSE_PROSE_M11_STYLE_SECTION.includes("source-bound"));
+    assert.ok(!MUSE_PROSE_M11_STYLE_SECTION.includes("source가"));
+  });
+
+  it("includes natural-language intent phrases", () => {
+    assert.ok(MUSE_PROSE_M11_STYLE_SECTION.includes("한 번의 응답 안에서 전개"));
+    assert.ok(
+      MUSE_PROSE_M11_STYLE_SECTION.includes(
+        "다음 사용자 반응이 필요한 지점까지 진행"
+      )
+    );
+    assert.ok(
+      MUSE_PROSE_M11_STYLE_SECTION.includes("근거가 확인된 정보만 구체화")
+    );
+    assert.ok(
+      MUSE_PROSE_M11_STYLE_SECTION.includes(
+        "1~4개 대사 덩어리는 우선 기준이며 절대 상한이 아님"
+      )
+    );
+    assert.ok(
+      MUSE_PROSE_M11_STYLE_SECTION.includes(
+        "과묵한 캐릭터는 침묵과 행동으로 반응 가능"
+      )
+    );
+  });
 });
