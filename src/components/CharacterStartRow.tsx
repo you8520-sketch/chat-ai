@@ -90,6 +90,9 @@ export default function CharacterStartRow({
     }
   }
 
+  const actionBtn =
+    "inline-flex items-center justify-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-semibold text-zinc-200 transition hover:bg-white/10";
+
   return (
     <div className="flex flex-wrap items-center gap-2">
       <StartChatButton
@@ -98,6 +101,7 @@ export default function CharacterStartRow({
         loggedIn={loggedIn}
         branches={branches}
         selectedPersonaId={selectedPersonaId}
+        className={actionBtn}
       />
       {loggedIn && personas.length > 0 && (
         <PersonaSelector
@@ -105,7 +109,7 @@ export default function CharacterStartRow({
           personas={personas}
           selectedPersonaId={selectedPersonaId}
           onSelectedChange={handlePersonaChange}
-          triggerClassName="max-w-[14rem] rounded-full border-0 bg-white/5 px-8 py-3 text-base font-bold text-gray-200 hover:bg-white/10"
+          triggerClassName={`${actionBtn} max-w-[14rem]`}
           addPersonaHref="/persona#personas"
         />
       )}

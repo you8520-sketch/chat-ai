@@ -11,6 +11,14 @@ import {
 } from "@/lib/pointGiftsShared";
 import { isPaymentsEnabledClient } from "@/lib/paymentsEnabledClient";
 
+function GiftIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className={className} fill="none" stroke="currentColor" strokeWidth="1.8">
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v13m0-13V6a2 2 0 1 0-4 0v2m4 0V6a2 2 0 1 1 4 0v2m-8 0h12M4 11h16v4H4v-4zm4 4v6m8-6v6" />
+    </svg>
+  );
+}
+
 type Props = {
   recipientId: number;
   recipientNickname: string;
@@ -27,7 +35,7 @@ const DEFAULT_BUTTON_CLASS =
   "inline-flex items-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-2 text-sm font-bold text-amber-200 transition hover:bg-amber-500/20";
 
 const ACTION_ROW_BUTTON_CLASS =
-  "inline-flex items-center gap-1.5 rounded-full px-6 py-3 font-semibold border border-amber-500/40 bg-amber-500/10 text-amber-200 transition hover:bg-amber-500/20";
+  "inline-flex items-center justify-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-semibold text-zinc-200 transition hover:bg-white/10";
 
 const QUICK_AMOUNTS = [100, 500, 1000, 5000];
 
@@ -134,7 +142,8 @@ export default function CreatorGiftPanel({
         href={`/login?redirect=${encodeURIComponent(loginRedirect)}`}
         className={btnClass}
       >
-        🎁 포인트 선물
+        <GiftIcon className="h-4 w-4" />
+        포인트 선물
       </Link>
     );
   }
@@ -149,7 +158,8 @@ export default function CreatorGiftPanel({
         }}
         className={btnClass}
       >
-        🎁 포인트 선물
+        <GiftIcon className="h-4 w-4" />
+        포인트 선물
       </button>
 
       {open && (

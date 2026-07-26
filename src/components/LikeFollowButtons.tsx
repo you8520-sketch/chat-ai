@@ -3,6 +3,28 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+function HeartIcon({ filled, className }: { filled?: boolean; className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      aria-hidden
+      className={className}
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth="1.8"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+      />
+    </svg>
+  );
+}
+
+const actionBtn =
+  "inline-flex items-center justify-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-semibold text-zinc-200 transition hover:bg-white/10";
+
 export default function LikeFollowButtons({
   characterId,
   liked: initialLiked,
@@ -31,19 +53,21 @@ export default function LikeFollowButtons({
     <>
       <button
         onClick={() => toggle("like")}
-        className={`rounded-full px-6 py-3 font-semibold ${
-          liked ? "bg-amber-600/20 text-amber-200" : "bg-white/5 text-gray-300 hover:bg-white/10"
+        className={`${actionBtn} ${
+          liked ? "border-rose-500/20 bg-rose-500/10 text-rose-300" : ""
         }`}
+        aria-pressed={liked}
+        title={liked ? "좋아요 취소" : "좋아요"}
       >
-        {liked ? "🔖 북마크됨" : "🔖 북마크"}
+        <HeartIcon filled={liked} className="h-4 w-4" />
       </button>
       <button
         onClick={() => toggle("follow")}
-        className={`rounded-full px-6 py-3 font-semibold ${
-          followed ? "bg-violet-600/20 text-violet-300" : "bg-white/5 text-gray-300 hover:bg-white/10"
+        className={`${actionBtn} ${
+          followed ? "border-violet-500/20 bg-violet-500/10 text-violet-300" : ""
         }`}
       >
-        {followed ? "팔로잉 ✓" : "+ 팔로우"}
+        {followed ? "팔로잉" : "+ 팔로우"}
       </button>
     </>
   );

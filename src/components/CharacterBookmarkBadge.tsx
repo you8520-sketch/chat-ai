@@ -40,10 +40,10 @@ export default function CharacterBookmarkBadge({
       type="button"
       onClick={() => void toggle()}
       disabled={busy}
-      className={`rounded px-2 py-0.5 text-xs font-bold transition disabled:opacity-50 ${
+      className={`rounded-md border px-2 py-0.5 text-xs font-semibold transition disabled:opacity-50 ${
         bookmarked
-          ? "bg-amber-500/25 text-amber-200 ring-1 ring-amber-400/40"
-          : "bg-white/10 text-zinc-300 hover:bg-white/15"
+          ? "border-amber-500/20 bg-amber-500/15 text-amber-200"
+          : "border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10"
       }`}
       aria-pressed={bookmarked}
       title={bookmarked ? "북마크 해제" : "북마크"}
