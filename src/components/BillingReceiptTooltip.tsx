@@ -7,6 +7,7 @@ import {
   formatBillingReceiptText,
   formatPoints,
   resolveApiRawCostKrw,
+  resolveMainRpApiCostPartsKrw,
   resolveOpenRouterCacheReceipt,
   resolveExchangeRateReceiptLabel,
   resolveStoredWidgetExtractCallCount,
@@ -26,6 +27,7 @@ function ReceiptBody({
   receipt,
   usage,
   apiRawCostKrw,
+  mainRpCostParts,
   cacheReceipt,
   exchangeRateLabel,
   showFullReceipt,
@@ -33,6 +35,7 @@ function ReceiptBody({
   receipt: BillingReceipt;
   usage: Usage;
   apiRawCostKrw: number | null;
+  mainRpCostParts: ReturnType<typeof resolveMainRpApiCostPartsKrw>;
   cacheReceipt: ReturnType<typeof resolveOpenRouterCacheReceipt>;
   exchangeRateLabel: string;
   showFullReceipt: boolean;
@@ -43,9 +46,10 @@ function ReceiptBody({
     (isGemini25ProModel(usage.model ?? "") ||
       (isGeminiProOpenRouterModel(usage.model ?? "") &&
         !isGemini31ProModel(usage.model ?? "")));
+  // 실현 마진율 = 1 - (API 원가 KRW / 차감 P). 유료 1P=1원 기준.
+  // 단순 단가 모델도 과금 공식에 마진%가 없을 뿐, 원가 대비 실현 마진은 동일하게 표시한다.
   const marginRateLabel = (() => {
     if (!showFullReceipt || receipt.waived) return null;
-    if (isOpenRouterSimplePointModel(usage.model ?? "")) return "직접 단가 (0%)";
     if (apiRawCostKrw != null && apiRawCostKrw > 0 && receipt.totalCost > 0) {
       const margin = 1 - apiRawCostKrw / receipt.totalCost;
       return `${Math.round(margin * 100)}%`;
@@ -220,24 +224,60 @@ function ReceiptBody({
         </>
       )}
       {apiRawCostKrw != null && apiRawCostKrw > 0 && (
-        <p>
-          <span className="text-zinc-500">
-            {usage.statusWidgetExtract ? "메인 RP API 원가:" : "실제 API 원가:"}
-          </span>{" "}
-          <span className="text-cyan-300/90">
-            ~{formatPoints(usage.mainApiRawCostKrw ?? apiRawCostKrw)}원
-          </span>
-          {!usage.statusWidgetExtract &&
-            usage.upstreamCostUsd != null &&
-            usage.upstreamCostUsd > 0 && (
-              <span className="text-zinc-600"> (OpenRouter USD 합산)</span>
-            )}
-          {!usage.statusWidgetExtract &&
-            usage.apiRawCostKrw == null &&
-            usage.upstreamCostUsd == null && (
-              <span className="text-zinc-600"> (요율 추정)</span>
-            )}
-        </p>
+        <>
+          <p>
+            <span className="text-zinc-500">
+              {usage.statusWidgetExtract ? "메인 RP API 원가:" : "실제 API 원가:"}
+            </span>{" "}
+            <span className="text-cyan-300/90">
+              ~{formatPoints(usage.mainApiRawCostKrw ?? apiRawCostKrw)}원
+            </span>
+            {!usage.statusWidgetExtract &&
+              usage.upstreamCostUsd != null &&
+              usage.upstreamCostUsd > 0 && (
+                <span className="text-zinc-600"> (OpenRouter USD 합산)</span>
+              )}
+            {!usage.statusWidgetExtract &&
+              usage.apiRawCostKrw == null &&
+              usage.upstreamCostUsd == null && (
+                <span className="text-zinc-600"> (요율 추정)</span>
+              )}
+          </p>
+          {mainRpCostParts && (
+            <>
+              <p>
+                <span className="text-zinc-500">입력 토큰 원가:</span>{" "}
+                <span className="text-cyan-300/90">
+                  ~{formatPoints(mainRpCostParts.inputKrw)}원
+                </span>
+                <span className="text-zinc-600">
+                  {" "}
+                  ({mainRpCostParts.inputTokens.toLocaleString()} tok)
+                </span>
+              </p>
+              <p>
+                <span className="text-zinc-500">출력 토큰 원가:</span>{" "}
+                <span className="text-cyan-300/90">
+                  ~{formatPoints(mainRpCostParts.outputKrw)}원
+                </span>
+                <span className="text-zinc-600">
+                  {" "}
+                  ({mainRpCostParts.outputContentTokens.toLocaleString()} tok · content)
+                </span>
+              </p>
+              <p>
+                <span className="text-zinc-500">thinking 토큰 원가:</span>{" "}
+                <span className="text-cyan-300/90">
+                  ~{formatPoints(mainRpCostParts.thinkingKrw)}원
+                </span>
+                <span className="text-zinc-600">
+                  {" "}
+                  ({mainRpCostParts.thinkingTokens.toLocaleString()} tok)
+                </span>
+              </p>
+            </>
+          )}
+        </>
       )}
       {usage.statusWidgetExtract && apiRawCostKrw != null && apiRawCostKrw > 0 && (
         <p>
@@ -354,6 +394,7 @@ export default function BillingReceiptTooltip({
 }) {
   const receipt = buildBillingReceipt(usage);
   const apiRawCostKrw = resolveApiRawCostKrw(usage);
+  const mainRpCostParts = showFullReceipt ? resolveMainRpApiCostPartsKrw(usage) : null;
   const cacheReceipt = resolveOpenRouterCacheReceipt(usage);
   const exchangeRateLabel = resolveExchangeRateReceiptLabel(usage);
   const [open, setOpen] = useState(false);
@@ -402,6 +443,7 @@ export default function BillingReceiptTooltip({
       apiContentOutputTokens: usage.apiContentOutputTokens,
       statusWidgetExtract: usage.statusWidgetExtract,
       mainApiRawCostKrw: usage.mainApiRawCostKrw,
+      mainRpCostParts,
     });
     try {
       await navigator.clipboard.writeText(text);
@@ -432,6 +474,7 @@ export default function BillingReceiptTooltip({
             receipt={receipt}
             usage={usage}
             apiRawCostKrw={apiRawCostKrw}
+            mainRpCostParts={mainRpCostParts}
             cacheReceipt={cacheReceipt}
             exchangeRateLabel={exchangeRateLabel}
             showFullReceipt={showFullReceipt}
