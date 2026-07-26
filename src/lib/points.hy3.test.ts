@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  OPENROUTER_SIMPLE_POINT_INPUT_PRICES,
+  OPENROUTER_SIMPLE_POINT_INPUT_SURCHARGE_PER_1000,
   OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES,
   computeOpenRouterTurnBilling,
   computeOpenRouterTurnCost,
@@ -13,22 +15,29 @@ function expectedSimplePointCost(
   outputTokens: number,
   reasoningTokens: number
 ): number {
-  const price = OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES[OPENROUTER_TENCENT_HY3_MODEL];
-  const inputCost = inputTokens >= 10000 ? (inputTokens / 1000) * 0.5 : 0;
-  const outputCost = (outputTokens + reasoningTokens) * price;
-  const total = inputCost + outputCost;
+  const inputPrice = OPENROUTER_SIMPLE_POINT_INPUT_PRICES[OPENROUTER_TENCENT_HY3_MODEL];
+  const outputPrice = OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES[OPENROUTER_TENCENT_HY3_MODEL];
+  const inputTokCost = inputTokens * inputPrice;
+  const inputSurcharge =
+    inputTokens >= 10000
+      ? (inputTokens / 1000) * OPENROUTER_SIMPLE_POINT_INPUT_SURCHARGE_PER_1000
+      : 0;
+  const outputCost = (outputTokens + reasoningTokens) * outputPrice;
+  const total = inputTokCost + inputSurcharge + outputCost;
   return Number.isInteger(total) ? total : Math.ceil(total - 1e-9);
 }
 
-describe("Tencent Hy3 simple point billing", () => {
+describe("Tencent Hy3 dual-rate simple point billing", () => {
   const modelId = OPENROUTER_TENCENT_HY3_MODEL;
-  const price = OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES[modelId];
+  const inputPrice = OPENROUTER_SIMPLE_POINT_INPUT_PRICES[modelId];
+  const outputPrice = OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES[modelId];
 
-  it("uses the configured output token price", () => {
-    assert.equal(price, 0.0028);
+  it("uses the configured dual-rate token prices (70% target margin)", () => {
+    assert.equal(inputPrice, 0.00071);
+    assert.equal(outputPrice, 0.003);
   });
 
-  it("charges input 0.5P/1k when input >= 10k and output price per token", () => {
+  it("charges inputP/tok + optional 0.5P/1k (≥10k) + outputP/tok", () => {
     const inputTokens = 17_707;
     const outputTokens = 2013;
     const expected = expectedSimplePointCost(inputTokens, outputTokens, 0);
