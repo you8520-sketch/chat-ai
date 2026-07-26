@@ -75,7 +75,7 @@ describe("OpenRouter input token surcharge", () => {
     assert.ok(longContext > base);
   });
 
-  it("DeepSeek V4 Pro bills all input through the simple point formula", () => {
+  it("DeepSeek V4 Pro bills all input through the dual-rate simple point formula", () => {
     const outputTokens = 500;
     const explain = explainOpenRouterDeepSeekTurnCost(10500, outputTokens, deepseekId);
     assert.equal(openRouterInputTokenSurchargeKrw(10500, deepseekId), 0);
@@ -83,7 +83,8 @@ describe("OpenRouter input token surcharge", () => {
     assert.equal(explain.charFloorKrw, 0);
     assert.equal(explain.applied, "cost_plus_margin");
     assert.equal(computeOpenRouterTurnCost(10500, outputTokens, deepseekId), explain.total);
-    assert.equal(explain.total, 8);
+    // 10500×0.0019 + 10.5×0.5 + 500×0.0038 = 19.95 + 5.25 + 1.9 = 27.1 → 28
+    assert.equal(explain.total, 28);
   });
 
   it("Gemini explain breakdown uses one margin owner without a surcharge field", () => {

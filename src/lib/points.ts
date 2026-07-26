@@ -290,15 +290,14 @@ export const OPENROUTER_DEEPSEEK_GROSS_MARGIN =
 export const OPENROUTER_DEEPSEEK_COST_MARKUP = OPENROUTER_DEEPSEEK_GROSS_MARGIN;
 
 /**
- * DeepSeek V4 Pro and Tencent Hy3 share one cache-neutral pricing owner.
- * Standard input/output list cost ÷ 0.35 gives a 65% no-cache gross margin.
+ * Target no-cache gross margins for dual-rate simple point models.
  * Provider cache savings are deliberately not reflected in the user charge.
  */
-export const OPENROUTER_TOKEN_PROPORTIONAL_GROSS_MARGIN = 0.65;
-export const OPENROUTER_DEEPSEEK_V4_PRO_GROSS_MARGIN =
-  OPENROUTER_TOKEN_PROPORTIONAL_GROSS_MARGIN;
-export const OPENROUTER_TENCENT_HY3_GROSS_MARGIN =
-  OPENROUTER_TOKEN_PROPORTIONAL_GROSS_MARGIN;
+export const OPENROUTER_DEEPSEEK_V4_PRO_GROSS_MARGIN = 0.65;
+export const OPENROUTER_TENCENT_HY3_GROSS_MARGIN = 0.7;
+/** @deprecated Use model-specific margins (DeepSeek 65% / Hy3 70%). */
+export const OPENROUTER_TOKEN_PROPORTIONAL_GROSS_MARGIN =
+  OPENROUTER_DEEPSEEK_V4_PRO_GROSS_MARGIN;
 
 /** Qwen 3.7 — 출력 1토큰당 청구 (P) */
 export const OPENROUTER_QWEN_POINTS_PER_OUTPUT_TOKEN = (() => {
@@ -342,29 +341,44 @@ export const OPENROUTER_KIMI_GROSS_MARGIN =
 /** Kimi — 과금 면제 턴 최소 차감 */
 export const KIMI_WAIVER_SUCCESS_MIN_COST = 65;
 
-/** Muse — API 원가 대비 최저 매출총이익률 (55% → 원가÷0.45) */
+/** Muse — 목표 매출총이익률 (60%) */
 export const OPENROUTER_MUSE_GROSS_MARGIN =
-  Number(process.env.OPENROUTER_MUSE_GROSS_MARGIN) || 0.55;
+  Number(process.env.OPENROUTER_MUSE_GROSS_MARGIN) || 0.6;
 
 /** Muse — 과금 면제 턴 최소 차감 */
 export const MUSE_WAIVER_SUCCESS_MIN_COST = 50;
 
-/** Gemini 3.6 Flash — API 원가 대비 최저 매출총이익률 (55% → 원가÷0.45) */
+/** Gemini 3.6 Flash — 목표 매출총이익률 (45%) */
 export const OPENROUTER_GEMINI_36_GROSS_MARGIN =
-  Number(process.env.OPENROUTER_GEMINI_36_GROSS_MARGIN) || 0.55;
+  Number(process.env.OPENROUTER_GEMINI_36_GROSS_MARGIN) || 0.45;
 
 /**
- * Simple per-token point pricing for the four active OpenRouter chat models.
- * Input: 0.5P per 1k tokens when inputTokens >= 10,000; otherwise 0P.
- * Output: price per token × (outputTokens + reasoningTokens).
- * No USD conversion, no cache-neutral margin, no provider-cost floor.
+ * Dual-rate simple point pricing for the four active OpenRouter chat models.
+ *
+ * charge =
+ *   inputTokens × inputP/tok
+ *   + (inputTokens >= 10k ? inputTokens/1000 × 0.5P : 0)
+ *   + (outputTokens + reasoningTokens) × outputP/tok
+ *
+ * Rates target list-price margins at ~₩1,530/USD (no cache credit):
+ *   Muse 60% · DeepSeek V4 Pro 65% · Hy3 70% · Gemini 3.6 Flash 45%
  */
-export const OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES: Record<string, number> = {
-  [OPENROUTER_TENCENT_HY3_MODEL]: 0.0028,
-  [OPENROUTER_DEEPSEEK_V4_PRO_MODEL]: 0.004,
-  [OPENROUTER_MUSE_SPARK_11_MODEL]: 0.0156,
-  [OPENROUTER_GEMINI_36_FLASH_MODEL]: 0.0274,
+export const OPENROUTER_SIMPLE_POINT_INPUT_PRICES: Record<string, number> = {
+  [OPENROUTER_TENCENT_HY3_MODEL]: 0.00071,
+  [OPENROUTER_DEEPSEEK_V4_PRO_MODEL]: 0.0019,
+  [OPENROUTER_MUSE_SPARK_11_MODEL]: 0.0042,
+  [OPENROUTER_GEMINI_36_FLASH_MODEL]: 0.0042,
 };
+
+export const OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES: Record<string, number> = {
+  [OPENROUTER_TENCENT_HY3_MODEL]: 0.003,
+  [OPENROUTER_DEEPSEEK_V4_PRO_MODEL]: 0.0038,
+  [OPENROUTER_MUSE_SPARK_11_MODEL]: 0.0062,
+  [OPENROUTER_GEMINI_36_FLASH_MODEL]: 0.0209,
+};
+
+/** Large-context surcharge inside the simple-point formula (P per 1k input). */
+export const OPENROUTER_SIMPLE_POINT_INPUT_SURCHARGE_PER_1000 = 0.5;
 
 /** Round up only when the value has a fractional part; otherwise keep the integer. */
 function ceilFractional(n: number): number {
@@ -378,14 +392,20 @@ function computeOpenRouterSimplePointCost(
   reasoningTokens: number,
   modelId: string
 ): number {
-  const price = OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES[modelId.trim().toLowerCase()];
-  if (price == null) return 0;
+  const id = modelId.trim().toLowerCase();
+  const inputPrice = OPENROUTER_SIMPLE_POINT_INPUT_PRICES[id];
+  const outputPrice = OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES[id];
+  if (inputPrice == null || outputPrice == null) return 0;
   const input = Math.max(0, inputTokens);
   const output = Math.max(0, outputTokens);
   const reasoning = Math.max(0, reasoningTokens);
-  const inputCost = input >= 10000 ? (input / 1000) * 0.5 : 0;
-  const outputCost = (output + reasoning) * price;
-  return ceilFractional(inputCost + outputCost);
+  const inputTokCost = input * inputPrice;
+  const inputSurcharge =
+    input >= OPENROUTER_INPUT_SURCHARGE_THRESHOLD_TOKENS
+      ? (input / 1000) * OPENROUTER_SIMPLE_POINT_INPUT_SURCHARGE_PER_1000
+      : 0;
+  const outputCost = (output + reasoning) * outputPrice;
+  return ceilFractional(inputTokCost + inputSurcharge + outputCost);
 }
 
 function explainOpenRouterSimplePointTurnCost(
@@ -1330,7 +1350,7 @@ function explainOpenRouterCacheNeutralMarginTurnCost(
 
 /**
  * DeepSeek V4 Pro billing detail.
- * Simple per-token point formula: input 0.5P/1k when >=10k, output price × (output+thinking).
+ * Dual-rate simple point: inputP/tok + optional 0.5P/1k (≥10k) + outputP/tok × (output+thinking).
  */
 export function explainOpenRouterDeepSeekTurnCost(
   inputTokens: number,
@@ -1349,7 +1369,7 @@ export function explainOpenRouterDeepSeekTurnCost(
 
 /**
  * Tencent Hy3 billing detail.
- * Simple per-token point formula: input 0.5P/1k when >=10k, output price × (output+thinking).
+ * Dual-rate simple point: inputP/tok + optional 0.5P/1k (≥10k) + outputP/tok × (output+thinking).
  */
 export function explainOpenRouterTencentHy3TurnCost(
   inputTokens: number,
@@ -1419,7 +1439,7 @@ export function explainOpenRouterKimiTurnCost(
 
 /**
  * Muse Spark 1.1 billing detail.
- * Simple per-token point formula: input 0.5P/1k when >=10k, output price × (output+thinking).
+ * Dual-rate simple point: inputP/tok + optional 0.5P/1k (≥10k) + outputP/tok × (output+thinking).
  */
 export function explainOpenRouterMuseTurnCost(
   inputTokens: number,
@@ -1439,7 +1459,7 @@ export function explainOpenRouterMuseTurnCost(
 
 /**
  * Gemini 3.6 Flash billing detail.
- * Simple per-token point formula: input 0.5P/1k when >=10k, output price × (output+thinking).
+ * Dual-rate simple point: inputP/tok + optional 0.5P/1k (≥10k) + outputP/tok × (output+thinking).
  */
 export function explainOpenRouterGemini36TurnCost(
   inputTokens: number,

@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   GEMINI_36_WAIVER_SUCCESS_MIN_COST,
+  OPENROUTER_SIMPLE_POINT_INPUT_PRICES,
+  OPENROUTER_SIMPLE_POINT_INPUT_SURCHARGE_PER_1000,
   OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES,
-  OPENROUTER_MIN_TURN_COST,
   computeOpenRouterTurnCost,
   computeTurnBilling,
   explainOpenRouterGemini36TurnCost,
@@ -16,23 +17,30 @@ function expectedSimplePointCost(
   outputTokens: number,
   reasoningTokens: number
 ): number {
-  const price = OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES[OPENROUTER_GEMINI_36_FLASH_MODEL];
-  const inputCost = inputTokens >= 10000 ? (inputTokens / 1000) * 0.5 : 0;
-  const outputCost = (outputTokens + reasoningTokens) * price;
-  const total = inputCost + outputCost;
+  const inputPrice = OPENROUTER_SIMPLE_POINT_INPUT_PRICES[OPENROUTER_GEMINI_36_FLASH_MODEL];
+  const outputPrice = OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES[OPENROUTER_GEMINI_36_FLASH_MODEL];
+  const inputTokCost = inputTokens * inputPrice;
+  const inputSurcharge =
+    inputTokens >= 10000
+      ? (inputTokens / 1000) * OPENROUTER_SIMPLE_POINT_INPUT_SURCHARGE_PER_1000
+      : 0;
+  const outputCost = (outputTokens + reasoningTokens) * outputPrice;
+  const total = inputTokCost + inputSurcharge + outputCost;
   return Number.isInteger(total) ? total : Math.ceil(total - 1e-9);
 }
 
-describe("OpenRouter Gemini 3.6 Flash simple point billing", () => {
+describe("OpenRouter Gemini 3.6 Flash dual-rate simple point billing", () => {
   const modelId = OPENROUTER_GEMINI_36_FLASH_MODEL;
-  const price = OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES[modelId];
+  const inputPrice = OPENROUTER_SIMPLE_POINT_INPUT_PRICES[modelId];
+  const outputPrice = OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES[modelId];
 
-  it("uses the configured output token price", () => {
-    assert.equal(price, 0.0274);
+  it("uses the configured dual-rate token prices (45% target margin)", () => {
+    assert.equal(inputPrice, 0.0042);
+    assert.equal(outputPrice, 0.0209);
     assert.equal(GEMINI_36_WAIVER_SUCCESS_MIN_COST, 50);
   });
 
-  it("charges input 0.5P/1k when input >= 10k and output price per token", () => {
+  it("charges inputP/tok + optional 0.5P/1k (≥10k) + outputP/tok", () => {
     const inputTokens = 20_000;
     const outputTokens = 2000;
     const expected = expectedSimplePointCost(inputTokens, outputTokens, 0);
