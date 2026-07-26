@@ -62,10 +62,11 @@ describe("modelPickerPreview V2", () => {
       assert.ok(row!.estimatedPoints != null && row!.estimatedPoints >= 5);
       assert.ok(row!.estimatedPointsLow != null);
       assert.ok(row!.estimatedPointsHigh != null);
+      assert.ok(row!.estimatedPointsHigh! > row!.estimatedPointsLow!, id);
     }
   });
 
-  it("uses p40+recent blend under sanity cap — median 1800 stays ~1800 not aim", () => {
+  it("uses p30+recent blend under sanity cap — stays below aim", () => {
     const { tokens } = resolveModelPickerOutputTokens({
       modelId: OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
       targetResponseChars: DEFAULT_TARGET_RESPONSE_CHARS,
@@ -75,12 +76,12 @@ describe("modelPickerPreview V2", () => {
         assistantUsage(OPENROUTER_DEEPSEEK_V4_PRO_MODEL, 1900),
       ],
     });
-    // newest=1900, p40=1800 → round(1800*0.7 + 1900*0.3)=1830
-    assert.equal(tokens, 1830);
+    // newest=1900, p30=1700 → round(1700*0.75 + 1900*0.25)=1750
+    assert.equal(tokens, 1750);
     assert.notEqual(tokens, resolveAimOutputTokens(3200));
   });
 
-  it("caps extreme sample medians to aim×1.15", () => {
+  it("caps extreme sample medians to aim×0.9", () => {
     const messages = [
       assistantUsage(OPENROUTER_DEEPSEEK_V4_PRO_MODEL, 2000),
       assistantUsage(OPENROUTER_DEEPSEEK_V4_PRO_MODEL, 2200),
@@ -91,11 +92,8 @@ describe("modelPickerPreview V2", () => {
       modelId: OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
       messages,
     });
-    // newest=2400 among DS samples [2400,2200,2000] wait order newest-first: 2400,2200,2000
-    // Actually messages scanned from end: Muse 8000 skipped, then 2400,2200,2000
-    // p40 of [2400,2200,2000] sorted [2000,2200,2400], idx floor(3*0.4)=1 → 2200
-    // blend 2200*0.7+2400*0.3=2260
-    assert.equal(ds.tokens, 2260);
+    // newest-first: 2400,2200,2000 → p30=2000 → blend 2000*0.75+2400*0.25=2100
+    assert.equal(ds.tokens, 2100);
     const muse = resolveModelPickerOutputTokens({
       modelId: OPENROUTER_MUSE_SPARK_11_MODEL,
       messages: [
@@ -107,6 +105,7 @@ describe("modelPickerPreview V2", () => {
     const upper = capOutputSanityUpper(8000, DEFAULT_TARGET_RESPONSE_CHARS);
     assert.equal(muse.tokens, upper);
     assert.ok(muse.tokens < 8000);
+    assert.ok(upper <= Math.ceil(resolveAimOutputTokens(DEFAULT_TARGET_RESPONSE_CHARS) * 0.9));
   });
 
   it("uses active variant usage for regen/variant", () => {
@@ -269,14 +268,14 @@ describe("modelPickerPreview V2", () => {
       },
     });
     const row = preview.models[0]!;
-    // newest=2600, p40 of [2600,2400,2500] sorted [2400,2500,2600] idx1=2500
-    // blend 2500*0.7+2600*0.3=2530
-    assert.equal(row.estimatedOutputTokens, 2530);
+    // newest=2600, p30 of [2600,2400,2500] sorted [2400,2500,2600] idx0=2400
+    // blend 2400*0.75+2600*0.25=2450
+    assert.equal(row.estimatedOutputTokens, 2450);
     assert.equal(
       row.estimatedPoints,
-      computeOpenRouterTurnCost(input, 2530, OPENROUTER_MUSE_SPARK_11_MODEL)
+      computeOpenRouterTurnCost(input, 2450, OPENROUTER_MUSE_SPARK_11_MODEL)
     );
-    assert.ok((row.estimatedPointsHigh ?? 0) >= (row.estimatedPointsLow ?? 0));
+    assert.ok((row.estimatedPointsHigh ?? 0) > (row.estimatedPointsLow ?? 0));
   });
 
   it("Gemini preview uses content output (reasoning excluded)", () => {
@@ -301,6 +300,25 @@ describe("modelPickerPreview V2", () => {
     assert.equal(formatModelPickerCostLabelRange(48, 72), "약 48–72P");
     assert.equal(formatModelPickerCostLabelFromPreview(60, 48, 72), "약 48–72P");
     assert.equal(formatModelPickerCostLabelFromPreview(60, 60, 60), "약 60P");
+  });
+
+  it("always shows a P range for cheap and expensive active models", () => {
+    const preview = buildModelPickerPreview({
+      messages: [],
+      modelIds: [...ACTIVE],
+      assembledSnapshotTokensByModel: Object.fromEntries(ACTIVE.map((id) => [id, 12_000])),
+    });
+    for (const id of ACTIVE) {
+      const row = preview.models.find((m) => m.modelId === id)!;
+      assert.ok(row.estimatedPointsLow != null && row.estimatedPointsHigh != null, id);
+      assert.ok(row.estimatedPointsHigh! > row.estimatedPointsLow!, id);
+      const label = formatModelPickerCostLabelFromPreview(
+        row.estimatedPoints,
+        row.estimatedPointsLow,
+        row.estimatedPointsHigh
+      );
+      assert.match(label, /약 \d[\d,]*–\d[\d,]*P/, `${id}: ${label}`);
+    }
   });
 
   it("does not assume input always increases — lower assembled snapshot wins", () => {

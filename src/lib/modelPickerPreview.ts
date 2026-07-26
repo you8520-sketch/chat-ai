@@ -63,21 +63,25 @@ export const MODEL_PICKER_FALLBACK_INPUT_TOKENS = 4000;
 
 /**
  * Measured / calibrated cold-start completion-token P50 (content + thinking).
- * Tuned down vs early aim-fraction priors to reduce overestimate vs typical RP turns.
+ * Kept below typical aim so cold-start labels do not read as worst-case ceilings.
  */
 export const MODEL_PICKER_MEASURED_COLD_BASELINES: Partial<Record<ModelPickerActiveModelId, number>> =
   {
-    [OPENROUTER_MUSE_SPARK_11_MODEL]: 1700,
-    [OPENROUTER_DEEPSEEK_V4_PRO_MODEL]: 1800,
-    [OPENROUTER_GEMINI_36_FLASH_MODEL]: 1450,
-    [OPENROUTER_TENCENT_HY3_MODEL]: 1550,
+    [OPENROUTER_MUSE_SPARK_11_MODEL]: 1400,
+    [OPENROUTER_DEEPSEEK_V4_PRO_MODEL]: 1500,
+    [OPENROUTER_GEMINI_36_FLASH_MODEL]: 1200,
+    [OPENROUTER_TENCENT_HY3_MODEL]: 1300,
   };
 
-/** Output band around the central estimate for low/high point labels. */
-export const MODEL_PICKER_OUTPUT_RANGE_RATIO = 0.15;
+/** Output-token band used when deriving low/high point labels. */
+export const MODEL_PICKER_OUTPUT_RANGE_RATIO = 0.2;
 
-/** Collapse low–high into a single label when the spread is this small. */
-export const MODEL_PICKER_RANGE_COLLAPSE_POINTS = 5;
+/**
+ * Minimum displayed point-band width as a fraction of mid.
+ * Cheap dual-rate models otherwise collapse to a single number because ±output
+ * only moves a few P while Gemini's higher out-rate still spreads.
+ */
+export const MODEL_PICKER_DISPLAY_RANGE_RATIO = 0.12;
 
 export function isActivePickerModel(modelId: string): modelId is ModelPickerActiveModelId {
   return (MODEL_PICKER_ACTIVE_MODEL_IDS as readonly string[]).includes(modelId);
@@ -169,10 +173,10 @@ export function resolveAimOutputTokens(targetResponseChars?: number): number {
   return Math.max(1, Math.ceil(chars * 0.9));
 }
 
-/** Sanity upper bound only — not a hard floor. */
+/** Sanity upper bound only — not a hard floor. Tighter than aim so long outliers do not stick. */
 export function capOutputSanityUpper(outputTokens: number, targetResponseChars?: number): number {
   const aim = resolveAimOutputTokens(targetResponseChars);
-  const upper = Math.ceil(aim * 1.15);
+  const upper = Math.ceil(aim * 0.9);
   return Math.min(Math.max(1, outputTokens), upper);
 }
 
@@ -182,10 +186,10 @@ export function resolveColdOutputBaseline(modelId: string): number {
   }
   // Fallback priors when a new active model lacks a measured baseline.
   const aim = resolveAimOutputTokens();
-  if (isGemini36FlashModel(modelId)) return Math.round(aim * 0.45);
-  if (isDeepSeekV4ProModel(modelId) || isTencentHy3Model(modelId)) return Math.round(aim * 0.55);
-  if (isMuseModel(modelId)) return Math.round(aim * 0.55);
-  return Math.round(aim * 0.45);
+  if (isGemini36FlashModel(modelId)) return Math.round(aim * 0.4);
+  if (isDeepSeekV4ProModel(modelId) || isTencentHy3Model(modelId)) return Math.round(aim * 0.5);
+  if (isMuseModel(modelId)) return Math.round(aim * 0.48);
+  return Math.round(aim * 0.4);
 }
 
 export function collectModelOutputSamples(opts: {
@@ -209,7 +213,7 @@ export function collectModelOutputSamples(opts: {
 }
 
 /**
- * Per-model output estimate — p40 + recent blend, always sanity-capped.
+ * Per-model output estimate — p30 + recent blend, always sanity-capped.
  * samples[] is newest-first from collectModelOutputSamples.
  */
 export function resolveModelPickerOutputTokens(opts: {
@@ -220,11 +224,11 @@ export function resolveModelPickerOutputTokens(opts: {
 }): { tokens: number; basis: ModelPickerOutputBasis } {
   const samples = collectModelOutputSamples(opts);
   const med = medianInt(samples);
-  const p40 = pPercentile(samples, 0.4);
+  const p30 = pPercentile(samples, 0.3);
   const recent = samples[0] ?? null;
 
-  if (samples.length >= 3 && p40 != null && p40 > 0 && recent != null) {
-    const blended = Math.round(p40 * 0.7 + recent * 0.3);
+  if (samples.length >= 3 && p30 != null && p30 > 0 && recent != null) {
+    const blended = Math.round(p30 * 0.75 + recent * 0.25);
     return {
       tokens: capOutputSanityUpper(blended, opts.targetResponseChars),
       basis: "model_median",
@@ -399,12 +403,12 @@ export function computePreviewPointBand(opts: {
     outputTokens: hiOut,
   });
   if (low == null || high == null) return { low: mid, mid, high: mid };
-  let a = Math.min(low, high);
-  let b = Math.max(low, high);
-  if (b - a <= MODEL_PICKER_RANGE_COLLAPSE_POINTS) {
-    a = mid;
-    b = mid;
-  }
+
+  // Token-based band (can be tiny on cheap out-rates) ∪ minimum relative display band.
+  const displayLow = Math.max(1, Math.floor(mid * (1 - MODEL_PICKER_DISPLAY_RANGE_RATIO)));
+  const displayHigh = Math.max(mid + 1, Math.ceil(mid * (1 + MODEL_PICKER_DISPLAY_RANGE_RATIO)));
+  const a = Math.min(low, high, displayLow);
+  const b = Math.max(low, high, displayHigh);
   return { low: a, mid, high: b };
 }
 
