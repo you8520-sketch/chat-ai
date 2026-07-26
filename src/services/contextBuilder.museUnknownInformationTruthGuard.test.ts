@@ -22,7 +22,14 @@ import {
   UNKNOWN_INFORMATION_TRUTH_GUARD_BLOCK,
   UNKNOWN_INFORMATION_TRUTH_GUARD_SECTION_ID,
 } from "@/lib/unknownInformationTruthGuard";
-import { MUSE_UNKNOWN_INFO_TRUTH_GUARD_ENV } from "@/lib/museUnknownInformationTruthGuardPolicy";
+import {
+  isMuseIntraWorldProvenanceGuardEnabledForUser,
+  MUSE_UNKNOWN_INFO_TRUTH_GUARD_ENV,
+} from "@/lib/museUnknownInformationTruthGuardPolicy";
+import {
+  INTRA_WORLD_PROVENANCE_GUARD_BLOCK,
+  INTRA_WORLD_PROVENANCE_GUARD_SECTION_ID,
+} from "@/lib/intraWorldProvenanceGuard";
 import type { CharacterChunk } from "@/types";
 
 let buildContext: typeof BuildContextFn;
@@ -35,6 +42,7 @@ const TRUTH_KEYS = [
   MUSE_UNKNOWN_INFO_TRUTH_GUARD_ENV.ENABLED,
   MUSE_UNKNOWN_INFO_TRUTH_GUARD_ENV.USER_IDS,
   MUSE_UNKNOWN_INFO_TRUTH_GUARD_ENV.MODEL_IDS,
+  MUSE_UNKNOWN_INFO_TRUTH_GUARD_ENV.INTRA_WORLD_ENABLED,
 ] as const;
 
 const PROSE_KEYS = [
@@ -87,6 +95,11 @@ function buildMuse(userId: number, modelId = OPENROUTER_MUSE_SPARK_11_MODEL) {
 function enableTruthGuard(userIds = "1") {
   process.env.MUSE_UNKNOWN_INFO_TRUTH_GUARD_ENABLED = "1";
   process.env.MUSE_UNKNOWN_INFO_TRUTH_GUARD_USER_IDS = userIds;
+}
+
+function enableIntraWorldProvenanceGuard(userIds = "1") {
+  enableTruthGuard(userIds);
+  process.env.MUSE_INTRAWORLD_PROVENANCE_GUARD_ENABLED = "1";
 }
 
 describe("buildContext — Muse unknown-information truth guard assembly", () => {
@@ -308,6 +321,226 @@ describe("buildContext — Muse unknown-information truth guard assembly", () =>
 
   it("status-widget extract path unchanged (no status extract sections introduced)", () => {
     enableTruthGuard("1");
+    const built = buildMuse(1);
+    const ids = (built.meta?.trackedSections ?? []).map((s) => s.id);
+    assert.ok(!ids.some((id) => /status[-_]?widget|status[-_]?extract/i.test(id)));
+  });
+});
+
+describe("buildContext — Muse intra-world provenance guard assembly", () => {
+  let envSnapshot: Record<string, string | undefined>;
+
+  beforeEach(() => {
+    envSnapshot = saveEnv();
+    for (const key of ALL_KEYS) delete process.env[key];
+  });
+
+  afterEach(() => {
+    restoreEnv(envSnapshot);
+  });
+
+  it("provenance gate OFF → assembled prompt byte-stable vs no-guard baseline", () => {
+    const off = buildMuse(1);
+    const off2 = buildMuse(1);
+    assert.equal(off.systemPrompt, off2.systemPrompt);
+    assert.equal(
+      (off.meta?.trackedSections ?? []).filter(
+        (s) => s.id === INTRA_WORLD_PROVENANCE_GUARD_SECTION_ID
+      ).length,
+      0
+    );
+    assert.equal(
+      (off.systemPrompt.match(/세계 내부 구체 설정 — 출처 우선/g) ?? []).length,
+      0
+    );
+  });
+
+  it("provenance gate ON without base Truth Guard → OFF (fail-closed)", () => {
+    process.env.MUSE_INTRAWORLD_PROVENANCE_GUARD_ENABLED = "1";
+    process.env.MUSE_UNKNOWN_INFO_TRUTH_GUARD_USER_IDS = "1";
+    const built = buildMuse(1);
+    assert.equal(isMuseIntraWorldProvenanceGuardEnabledForUser(1, OPENROUTER_MUSE_SPARK_11_MODEL), false);
+    assert.equal(
+      (built.meta?.trackedSections ?? []).filter(
+        (s) => s.id === INTRA_WORLD_PROVENANCE_GUARD_SECTION_ID
+      ).length,
+      0
+    );
+  });
+
+  it("provenance gate ON → markers exactly once and final after Truth Guard", () => {
+    enableIntraWorldProvenanceGuard("1");
+    const built = buildMuse(1);
+    const ids = (built.meta?.trackedSections ?? []).map((s) => s.id);
+
+    assert.equal(
+      ids.filter((id) => id === INTRA_WORLD_PROVENANCE_GUARD_SECTION_ID).length,
+      1
+    );
+    assert.equal(
+      ids.filter((id) => id === UNKNOWN_INFORMATION_TRUTH_GUARD_SECTION_ID).length,
+      1
+    );
+    assert.equal(
+      ids.filter((id) => id === "rule-terminal-length-override").length,
+      1
+    );
+    assert.ok(built.systemPrompt.includes(INTRA_WORLD_PROVENANCE_GUARD_BLOCK));
+    assert.ok(built.systemPrompt.includes(UNKNOWN_INFORMATION_TRUTH_GUARD_BLOCK));
+
+    const terminalIdx = ids.indexOf("rule-terminal-length-override");
+    const truthIdx = ids.indexOf(UNKNOWN_INFORMATION_TRUTH_GUARD_SECTION_ID);
+    const provenanceIdx = ids.indexOf(INTRA_WORLD_PROVENANCE_GUARD_SECTION_ID);
+
+    assert.ok(terminalIdx >= 0);
+    assert.ok(truthIdx > terminalIdx, "Truth Guard must follow Terminal");
+    assert.ok(provenanceIdx > truthIdx, "Provenance Guard must follow Truth Guard");
+    assert.equal(ids[ids.length - 1], INTRA_WORLD_PROVENANCE_GUARD_SECTION_ID);
+    assert.ok(built.systemPrompt.trimEnd().endsWith(INTRA_WORLD_PROVENANCE_GUARD_BLOCK.trim()));
+  });
+
+  it("provenance gate ON + wrong user → 0 provenance markers", () => {
+    enableIntraWorldProvenanceGuard("1");
+    const built = buildMuse(2);
+    assert.equal(
+      (built.meta?.trackedSections ?? []).filter(
+        (s) => s.id === INTRA_WORLD_PROVENANCE_GUARD_SECTION_ID
+      ).length,
+      0
+    );
+  });
+
+  it("provenance gate ON + non-Muse → 0 provenance markers", () => {
+    enableIntraWorldProvenanceGuard("1");
+    const built = buildMuse(1, OPENROUTER_DEEPSEEK_V4_PRO_MODEL);
+    assert.equal(
+      (built.meta?.trackedSections ?? []).filter(
+        (s) => s.id === INTRA_WORLD_PROVENANCE_GUARD_SECTION_ID
+      ).length,
+      0
+    );
+  });
+
+  it("provenance gate ON → LENGTH/Terminal/Truth markers unchanged", () => {
+    enableIntraWorldProvenanceGuard("1");
+    const built = buildMuse(1);
+    assert.equal(
+      (built.systemPrompt.match(/\[LENGTH CONTROL & SCENE EXPANSION\]/g) ?? []).length,
+      1
+    );
+    assert.equal((built.systemPrompt.match(/TARGET_LENGTH:/g) ?? []).length, 1);
+    assert.equal((built.systemPrompt.match(/MINIMUM_FLOOR:/g) ?? []).length, 1);
+    assert.equal(
+      (built.meta?.trackedSections ?? []).filter((s) => s.id === "rule-terminal-length-override").length,
+      1
+    );
+    assert.equal(
+      (built.meta?.trackedSections ?? []).filter(
+        (s) => s.id === UNKNOWN_INFORMATION_TRUTH_GUARD_SECTION_ID
+      ).length,
+      1
+    );
+  });
+
+  it("M1 / M1.1 prose selection unchanged with provenance guard ON", () => {
+    enableIntraWorldProvenanceGuard("1");
+    process.env.PROSE_MUSE_M1_ENABLED = "1";
+    process.env.PROSE_MUSE_M1_USER_IDS = "1";
+    const m1 = buildMuse(1);
+    assert.ok(m1.systemPrompt.includes(MUSE_PROSE_M1_STYLE_SECTION));
+    assert.equal(
+      (m1.meta?.trackedSections ?? []).filter(
+        (s) => s.id === INTRA_WORLD_PROVENANCE_GUARD_SECTION_ID
+      ).length,
+      1
+    );
+
+    process.env.PROSE_MUSE_M11_ENABLED = "1";
+    process.env.PROSE_MUSE_M11_USER_IDS = "1";
+    const m11 = buildMuse(1);
+    assert.ok(m11.systemPrompt.includes(MUSE_PROSE_M11_STYLE_SECTION));
+    assert.equal(
+      (m11.systemPrompt.match(/\[MUSE PROSE M1 /g) ?? []).length,
+      0
+    );
+    assert.equal(
+      (m11.meta?.trackedSections ?? []).filter(
+        (s) => s.id === INTRA_WORLD_PROVENANCE_GUARD_SECTION_ID
+      ).length,
+      1
+    );
+  });
+
+  it("tracked tail order: length → layout → persona → terminal → truth → provenance (when both ON)", () => {
+    enableIntraWorldProvenanceGuard("1");
+    const built = buildMuse(1);
+    const ids = (built.meta?.trackedSections ?? []).map((s) => s.id);
+    const order = (id: string) => {
+      const idx = ids.indexOf(id);
+      assert.ok(idx >= 0, `missing ${id}`);
+      return idx;
+    };
+    assert.ok(order("rule-length-control") < order("rule-output-layout-recency"));
+    assert.ok(order("rule-output-layout-recency") < order("user-persona-reference-owner"));
+    assert.ok(order("user-persona-reference-owner") < order("rule-terminal-length-override"));
+    assert.ok(
+      order("rule-terminal-length-override") < order(UNKNOWN_INFORMATION_TRUTH_GUARD_SECTION_ID)
+    );
+    assert.ok(
+      order(UNKNOWN_INFORMATION_TRUTH_GUARD_SECTION_ID) < order(INTRA_WORLD_PROVENANCE_GUARD_SECTION_ID)
+    );
+  });
+
+  it("token budget: provenance gate ON adds only dynamic tokens when base truth is already ON", () => {
+    enableTruthGuard("1");
+    const truthOnly = buildMuse(1);
+    process.env.MUSE_INTRAWORLD_PROVENANCE_GUARD_ENABLED = "1";
+    const withProvenance = buildMuse(1);
+
+    const truthSplit = truthOnly.openRouterSystemSplit!;
+    const provSplit = withProvenance.openRouterSystemSplit!;
+    assert.ok(truthSplit && provSplit);
+
+    const cacheRulesDelta =
+      estimateTokens(provSplit.systemRulesBlock) - estimateTokens(truthSplit.systemRulesBlock);
+    const cacheCharacterDelta =
+      estimateTokens(provSplit.characterSettingsBlock) -
+      estimateTokens(truthSplit.characterSettingsBlock);
+    const dynamicDelta =
+      estimateTokens(provSplit.dynamicBlock) - estimateTokens(truthSplit.dynamicBlock);
+    const totalDelta = estimateTokens(withProvenance.systemPrompt) - estimateTokens(truthOnly.systemPrompt);
+    const guardTokens = estimateTokens(INTRA_WORLD_PROVENANCE_GUARD_BLOCK);
+
+    assert.equal(cacheRulesDelta, 0, `cacheRules delta must be 0, got ${cacheRulesDelta}`);
+    assert.equal(
+      cacheCharacterDelta,
+      0,
+      `cacheCharacter delta must be 0, got ${cacheCharacterDelta}`
+    );
+    assert.ok(
+      dynamicDelta >= 250 && dynamicDelta <= 502,
+      `dynamic delta expected ~250–500, got ${dynamicDelta}`
+    );
+    assert.equal(dynamicDelta, totalDelta);
+    assert.ok(
+      Math.abs(dynamicDelta - guardTokens) <= 2,
+      `dynamic delta ${dynamicDelta} should match guard tokens ${guardTokens}`
+    );
+
+    console.log(
+      JSON.stringify({
+        intraWorldGuardChars: INTRA_WORLD_PROVENANCE_GUARD_BLOCK.length,
+        intraWorldGuardEstimateTokens: guardTokens,
+        truthOnPromptTokenDelta: totalDelta,
+        cacheRulesDelta,
+        cacheCharacterDelta,
+        dynamicDelta,
+      })
+    );
+  });
+
+  it("status-widget extract path unchanged when provenance gate ON", () => {
+    enableIntraWorldProvenanceGuard("1");
     const built = buildMuse(1);
     const ids = (built.meta?.trackedSections ?? []).map((s) => s.id);
     assert.ok(!ids.some((id) => /status[-_]?widget|status[-_]?extract/i.test(id)));
