@@ -15,13 +15,10 @@ import {
 import { filterUsageBreakdownForReceipt } from "@/lib/billingReceiptAccess";
 import type { Usage } from "@/lib/chatUsage";
 import {
-  isDeepSeekV4ProModel,
   isGemini25ProModel,
-  isGemini36FlashModel,
   isGemini31ProModel,
   isGeminiProOpenRouterModel,
-  isMuseModel,
-  isTencentHy3Model,
+  isOpenRouterSimplePointModel,
 } from "@/lib/chatModels";
 import { IconInfo } from "./ChatToolbarIcons";
 
@@ -42,17 +39,19 @@ function ReceiptBody({
 }) {
   const reasoningExcludedFromBilling =
     usage.provider === "openrouter" &&
-    (isMuseModel(usage.model ?? "") ||
-      isGemini25ProModel(usage.model ?? "") ||
-      isGemini36FlashModel(usage.model ?? "") ||
+    !isOpenRouterSimplePointModel(usage.model ?? "") &&
+    (isGemini25ProModel(usage.model ?? "") ||
       (isGeminiProOpenRouterModel(usage.model ?? "") &&
         !isGemini31ProModel(usage.model ?? "")));
-  const cacheNeutralGrossMarginPercent =
-    isDeepSeekV4ProModel(usage.model ?? "") || isTencentHy3Model(usage.model ?? "")
-      ? 65
-      : isMuseModel(usage.model ?? "") || isGemini36FlashModel(usage.model ?? "")
-        ? 55
-        : null;
+  const marginRateLabel = (() => {
+    if (!showFullReceipt || receipt.waived) return null;
+    if (isOpenRouterSimplePointModel(usage.model ?? "")) return "직접 단가 (0%)";
+    if (apiRawCostKrw != null && apiRawCostKrw > 0 && receipt.totalCost > 0) {
+      const margin = 1 - apiRawCostKrw / receipt.totalCost;
+      return `${Math.round(margin * 100)}%`;
+    }
+    return null;
+  })();
   const widgetExtractCallCount = resolveStoredWidgetExtractCallCount(
     usage.statusWidgetExtract?.callCount
   );
@@ -68,6 +67,18 @@ function ReceiptBody({
           {receipt.inputTokens.toLocaleString()} / {receipt.outputTokens.toLocaleString()}
           {receipt.estimated ? " (추정)" : ""}
         </p>
+        {usage.apiReasoningOutputTokens != null && usage.apiReasoningOutputTokens > 0 && (
+          <>
+            <p>
+              <span className="text-zinc-500">thinking:</span>{" "}
+              {usage.apiReasoningOutputTokens.toLocaleString()} tokens
+            </p>
+            <p>
+              <span className="text-zinc-500">output + thinking:</span>{" "}
+              {(usage.apiOutputTokens ?? 0).toLocaleString()} tokens
+            </p>
+          </>
+        )}
         {receipt.waived ? (
           <p className="font-semibold text-emerald-300/95">
             <span className="text-zinc-500">포인트 차감:</span> 0 P (면제)
@@ -115,10 +126,17 @@ function ReceiptBody({
             <span className="text-zinc-600">
               {reasoningExcludedFromBilling
                 ? " (reasoning은 과금·미저장)"
-                : isGemini31ProModel(usage.model ?? "")
-                  ? " (3.1 Pro thinking — 과금·미저장, low 최저)"
-                  : " (과금·미저장)"}
+                : isOpenRouterSimplePointModel(usage.model ?? "")
+                  ? " (표시 RP · 미저장)"
+                  : isGemini31ProModel(usage.model ?? "")
+                    ? " (3.1 Pro thinking — 과금·미저장, low 최저)"
+                    : " (과금·미저장)"}
             </span>
+          </p>
+          <p>
+            <span className="text-zinc-500">output + thinking:</span>{" "}
+            {(usage.apiOutputTokens ?? 0).toLocaleString()} tokens
+            <span className="text-zinc-600"> (과금 기준)</span>
           </p>
         </>
       )}
@@ -165,13 +183,6 @@ function ReceiptBody({
           <span className="text-emerald-400/90">
             ${usage.cacheDiscountUsd.toFixed(4)}
           </span>
-        </p>
-      )}
-      {cacheNeutralGrossMarginPercent != null && (
-        <p className="text-[10px] leading-relaxed text-zinc-500">
-          포인트는 캐시 여부와 관계없이 표시된 입력·출력 토큰의 모델 정가에{" "}
-          {cacheNeutralGrossMarginPercent}% 기준 마진을 적용합니다.
-          캐시 내역은 제공사 원가 참고용입니다.
         </p>
       )}
       {usage.statusWidgetExtract && (
@@ -281,6 +292,9 @@ function ReceiptBody({
             )}
           <p className="font-semibold text-zinc-100">
             <span className="text-zinc-500">포인트 차감:</span> {formatPoints(receipt.totalCost)} P
+            {marginRateLabel != null && (
+              <span className="text-zinc-500"> (마진율: {marginRateLabel})</span>
+            )}
           </p>
         </>
       )}

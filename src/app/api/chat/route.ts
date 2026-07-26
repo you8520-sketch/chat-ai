@@ -2372,6 +2372,7 @@ export async function POST(req: Request) {
             openRouterModelId: billingOpenRouterModelId,
             inputTokens: totalInput,
             outputTokens: totalOutput,
+            reasoningTokens: summedApiReasoning,
             cacheReadTokens: primaryStage?.cacheReadTokens ?? primaryStage?.cachedContentTokens,
             cacheWriteTokens: primaryStage?.cacheWriteTokens,
             userContextChars,
@@ -2418,7 +2419,8 @@ export async function POST(req: Request) {
                   totalInput,
                   totalOutput,
                   billingOpenRouterModelId,
-                  cacheOpts
+                  cacheOpts,
+                  summedApiReasoning
                 )
               : null;
           const tencentHy3Explain =
@@ -2427,7 +2429,8 @@ export async function POST(req: Request) {
                   totalInput,
                   totalOutput,
                   billingOpenRouterModelId,
-                  cacheOpts
+                  cacheOpts,
+                  summedApiReasoning
                 )
               : null;
           const geminiBillingBasis =

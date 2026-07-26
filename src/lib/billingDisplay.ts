@@ -248,10 +248,13 @@ export function formatBillingReceiptText(
     `입력/출력 토큰: ${receipt.inputTokens.toLocaleString()} / ${receipt.outputTokens.toLocaleString()}${receipt.estimated ? " (추정)" : ""}`
   );
   if (extra?.apiReasoningOutputTokens != null && extra.apiReasoningOutputTokens > 0) {
-    lines.push(`reasoning: ${extra.apiReasoningOutputTokens.toLocaleString()} tokens`);
+    lines.push(`thinking: ${extra.apiReasoningOutputTokens.toLocaleString()} tokens`);
     lines.push(
       `content (표시 RP): ${(extra.apiContentOutputTokens ?? 0).toLocaleString()} tokens`
     );
+    const outputPlusThinking =
+      (extra.apiContentOutputTokens ?? 0) + extra.apiReasoningOutputTokens;
+    lines.push(`output + thinking: ${outputPlusThinking.toLocaleString()} tokens`);
   }
   if (extra?.apiRawCostKrw != null && extra.apiRawCostKrw > 0) {
     if (extra.statusWidgetExtract) {

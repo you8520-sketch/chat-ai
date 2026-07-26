@@ -12,9 +12,15 @@ import {
   isGlmModel,
   isKimiModel,
   isMuseModel,
+  isOpenRouterSimplePointModel,
   isQwenModel,
   isTencentHy3Model,
   OPENROUTER_DEEPSEEK_V3_MODEL,
+  OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
+  OPENROUTER_GEMINI_36_FLASH_MODEL,
+  OPENROUTER_MUSE_SPARK_11_MODEL,
+  OPENROUTER_SIMPLE_POINT_MODELS,
+  OPENROUTER_TENCENT_HY3_MODEL,
   type SelectedAI,
   resolveSelectedAI,
 } from "./chatModels";
@@ -346,6 +352,62 @@ export const MUSE_WAIVER_SUCCESS_MIN_COST = 50;
 /** Gemini 3.6 Flash — API 원가 대비 최저 매출총이익률 (55% → 원가÷0.45) */
 export const OPENROUTER_GEMINI_36_GROSS_MARGIN =
   Number(process.env.OPENROUTER_GEMINI_36_GROSS_MARGIN) || 0.55;
+
+/**
+ * Simple per-token point pricing for the four active OpenRouter chat models.
+ * Input: 0.5P per 1k tokens when inputTokens >= 10,000; otherwise 0P.
+ * Output: price per token × (outputTokens + reasoningTokens).
+ * No USD conversion, no cache-neutral margin, no provider-cost floor.
+ */
+export const OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES: Record<string, number> = {
+  [OPENROUTER_TENCENT_HY3_MODEL]: 0.0028,
+  [OPENROUTER_DEEPSEEK_V4_PRO_MODEL]: 0.004,
+  [OPENROUTER_MUSE_SPARK_11_MODEL]: 0.0156,
+  [OPENROUTER_GEMINI_36_FLASH_MODEL]: 0.0274,
+};
+
+/** Round up only when the value has a fractional part; otherwise keep the integer. */
+function ceilFractional(n: number): number {
+  if (!Number.isFinite(n) || n <= 0) return 0;
+  return Number.isInteger(n) ? n : Math.ceil(n - 1e-9);
+}
+
+function computeOpenRouterSimplePointCost(
+  inputTokens: number,
+  outputTokens: number,
+  reasoningTokens: number,
+  modelId: string
+): number {
+  const price = OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES[modelId.trim().toLowerCase()];
+  if (price == null) return 0;
+  const input = Math.max(0, inputTokens);
+  const output = Math.max(0, outputTokens);
+  const reasoning = Math.max(0, reasoningTokens);
+  const inputCost = input >= 10000 ? (input / 1000) * 0.5 : 0;
+  const outputCost = (output + reasoning) * price;
+  return ceilFractional(inputCost + outputCost);
+}
+
+function explainOpenRouterSimplePointTurnCost(
+  inputTokens: number,
+  outputTokens: number,
+  reasoningTokens: number,
+  modelId: string
+): OpenRouterTurnCostBreakdown & { total: number } {
+  const total = computeOpenRouterSimplePointCost(
+    inputTokens,
+    outputTokens,
+    reasoningTokens,
+    modelId
+  );
+  return {
+    rawCostKrw: 0,
+    charFloorKrw: 0,
+    costPlusMarginKrw: 0,
+    applied: "cost_plus_margin",
+    total,
+  };
+}
 
 /** Gemini 3.1 Pro — 출력 1토큰당 청구 (P) */
 export const OPENROUTER_GEMINI_31_POINTS_PER_OUTPUT_TOKEN = (() => {
@@ -770,10 +832,19 @@ export function computeOpenRouterTurnCost(
   outputTokens: number,
   modelId?: string,
   cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">,
-  opts?: { outputChars?: number; billingBasis?: OpenRouterTurnBillingBasis }
+  opts?: { outputChars?: number; billingBasis?: OpenRouterTurnBillingBasis; reasoningTokens?: number }
 ): number {
   if (process.env.OPENROUTER_BILLING_MODE === "fixed") {
     return OPENROUTER_ADULT_FIXED_TURN_COST;
+  }
+
+  if (isOpenRouterSimplePointModel(modelId ?? "")) {
+    return computeOpenRouterSimplePointCost(
+      inputTokens,
+      outputTokens,
+      opts?.reasoningTokens ?? 0,
+      modelId ?? ""
+    );
   }
 
   if (isOpenRouterOpusModel(modelId)) {
@@ -1259,39 +1330,39 @@ function explainOpenRouterCacheNeutralMarginTurnCost(
 
 /**
  * DeepSeek V4 Pro billing detail.
- * Uses standard list rates for every input/output token and ignores provider
- * cache state, so identical token usage always has an identical user charge.
+ * Simple per-token point formula: input 0.5P/1k when >=10k, output price × (output+thinking).
  */
 export function explainOpenRouterDeepSeekTurnCost(
   inputTokens: number,
   outputTokens: number,
   modelId: string,
-  _cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">
+  _cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">,
+  reasoningTokens?: number
 ): OpenRouterTurnCostBreakdown & { total: number } {
-  return explainOpenRouterCacheNeutralMarginTurnCost(
+  return explainOpenRouterSimplePointTurnCost(
     inputTokens,
     outputTokens,
-    modelId,
-    OPENROUTER_DEEPSEEK_V4_PRO_GROSS_MARGIN
+    reasoningTokens ?? 0,
+    modelId
   );
 }
 
 /**
  * Tencent Hy3 billing detail.
- * Uses standard list rates for every input/output token and ignores provider
- * cache state, so identical token usage always has an identical user charge.
+ * Simple per-token point formula: input 0.5P/1k when >=10k, output price × (output+thinking).
  */
 export function explainOpenRouterTencentHy3TurnCost(
   inputTokens: number,
   outputTokens: number,
   modelId: string,
-  _cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">
+  _cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">,
+  reasoningTokens?: number
 ): OpenRouterTurnCostBreakdown & { total: number } {
-  return explainOpenRouterCacheNeutralMarginTurnCost(
+  return explainOpenRouterSimplePointTurnCost(
     inputTokens,
     outputTokens,
-    modelId,
-    OPENROUTER_TENCENT_HY3_GROSS_MARGIN
+    reasoningTokens ?? 0,
+    modelId
   );
 }
 
@@ -1347,40 +1418,42 @@ export function explainOpenRouterKimiTurnCost(
 }
 
 /**
- * Muse Spark 1.1: standard no-cache list input + visible content output,
- * divided by 0.45 for a 55% gross-margin target.
+ * Muse Spark 1.1 billing detail.
+ * Simple per-token point formula: input 0.5P/1k when >=10k, output price × (output+thinking).
  */
 export function explainOpenRouterMuseTurnCost(
   inputTokens: number,
   outputTokens: number,
   modelId: string,
   _outputChars?: number,
-  _cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">
+  _cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">,
+  reasoningTokens?: number
 ): OpenRouterTurnCostBreakdown & { total: number } {
-  return explainOpenRouterCacheNeutralMarginTurnCost(
+  return explainOpenRouterSimplePointTurnCost(
     inputTokens,
     outputTokens,
-    modelId,
-    OPENROUTER_MUSE_GROSS_MARGIN
+    reasoningTokens ?? 0,
+    modelId
   );
 }
 
 /**
- * Gemini 3.6 Flash: standard no-cache list input + visible content output,
- * divided by 0.45. Cache, upstream cost, and hidden reasoning are excluded.
+ * Gemini 3.6 Flash billing detail.
+ * Simple per-token point formula: input 0.5P/1k when >=10k, output price × (output+thinking).
  */
 export function explainOpenRouterGemini36TurnCost(
   inputTokens: number,
   outputTokens: number,
   modelId: string,
   _cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">,
-  _billingBasis?: OpenRouterTurnBillingBasis
+  _billingBasis?: OpenRouterTurnBillingBasis,
+  reasoningTokens?: number
 ): OpenRouterTurnCostBreakdown & { total: number } {
-  return explainOpenRouterCacheNeutralMarginTurnCost(
+  return explainOpenRouterSimplePointTurnCost(
     inputTokens,
     outputTokens,
-    modelId,
-    OPENROUTER_GEMINI_36_GROSS_MARGIN
+    reasoningTokens ?? 0,
+    modelId
   );
 }
 
@@ -1432,6 +1505,7 @@ export function computeOpenRouterTurnBilling(opts: {
   modelId: string;
   inputTokens: number;
   outputTokens: number;
+  reasoningTokens?: number;
   cacheReadTokens?: number;
   cacheWriteTokens?: number;
   outputChars?: number;
@@ -1479,7 +1553,7 @@ export function computeOpenRouterTurnBilling(opts: {
       cacheReadTokens: cacheRead,
       cacheWriteTokens: cacheWrite,
     },
-    { outputChars, billingBasis }
+    { outputChars, billingBasis, reasoningTokens: opts.reasoningTokens }
   );
   const explainForShield = isOpenRouterOpusModel(opts.modelId)
     ? explainOpenRouterOpusTurnCost(
@@ -1811,8 +1885,10 @@ export function sumOpenRouterStageUpstreamUsd(stages: StageUsage[]): number {
 }
 
 /**
- * Muse/Gemini chat hidden reasoning is provider cost only.
- * User billing and receipts use visible content output tokens.
+ * Receipt/content output tokens (visible RP) for all OpenRouter models.
+ * For simple-point models and Muse/Gemini chat, reasoning is split out so
+ * receipts can show content and thinking separately. Billing adds reasoning
+ * back for simple-point models via the per-token formula.
  */
 export function billableOpenRouterOutputTokens(
   modelId: string,
@@ -1820,6 +1896,9 @@ export function billableOpenRouterOutputTokens(
   reasoningTokens: number
 ): number {
   if (totalApiOutputTokens <= 0) return 0;
+  if (isOpenRouterSimplePointModel(modelId)) {
+    return Math.max(0, totalApiOutputTokens - reasoningTokens);
+  }
   if (
     (isMuseModel(modelId) || isGeminiChatOpenRouterModel(modelId)) &&
     reasoningTokens > 0
@@ -1848,6 +1927,7 @@ export function computeTurnBilling(opts: {
   openRouterModelId?: string;
   inputTokens: number;
   outputTokens: number;
+  reasoningTokens?: number;
   cacheReadTokens?: number;
   cacheWriteTokens?: number;
   userContextChars?: number;
@@ -1874,6 +1954,7 @@ export function computeTurnBilling(opts: {
       modelId: opts.openRouterModelId ?? "openrouter",
       inputTokens: opts.inputTokens,
       outputTokens: opts.outputTokens,
+      reasoningTokens: opts.reasoningTokens,
       cacheReadTokens: opts.cacheReadTokens,
       cacheWriteTokens: opts.cacheWriteTokens,
       outputChars: opts.savedTextChars,
