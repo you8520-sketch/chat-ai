@@ -11,6 +11,11 @@ import {
   containsTrapPhrases,
 } from "@/lib/museExampleDialogBoundary";
 import {
+  UNKNOWN_INFORMATION_TRUTH_GUARD_BLOCK,
+  UNKNOWN_INFORMATION_TRUTH_GUARD_SECTION_ID,
+} from "@/lib/unknownInformationTruthGuard";
+import { isMuseUnknownInformationTruthGuardEnabledForUser } from "@/lib/museUnknownInformationTruthGuardPolicy";
+import {
   buildCharacterCanonBlock,
   buildCharacterSpeechRecencyTail,
   CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK,
@@ -1075,6 +1080,19 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     buildTerminalLengthOverrideBlock(input.targetResponseChars),
     "dynamic"
   );
+
+  // Admin-only Muse canary: unknown-information truth priority as the final
+  // system section AFTER Terminal. Gate OFF → byte-stable prior assembly
+  // (Terminal remains the absolute final section). Independent of M1/M1.1.
+  if (isMuseUnknownInformationTruthGuardEnabledForUser(input.userId, input.modelId)) {
+    pushSection(
+      UNKNOWN_INFORMATION_TRUTH_GUARD_SECTION_ID,
+      "Unknown-information truth absolute priority (final system tail)",
+      "systemRules",
+      UNKNOWN_INFORMATION_TRUTH_GUARD_BLOCK,
+      "dynamic"
+    );
+  }
 
   const openRouterDynamicLorePrefix = isOpenRouter
     ? buildOpenRouterDynamicLoreUserPrefix(dynamicLorebookParts)
