@@ -3,6 +3,9 @@ import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import {
   getPersonaById,
+  PERSONA_IMAGE_FOCUS_DEFAULT,
+  sanitizePersonaImageFocus,
+  sanitizePersonaImageUrl,
   sanitizePersonaInput,
   validatePersonaContentLength,
   validatePersonaSecretContentLength,
@@ -29,9 +32,24 @@ export async function PUT(req: Request, { params }: Params) {
     body.gender ?? existing.gender,
     String(body.secret_description ?? existing.secret_description ?? "")
   );
+  const imageUrl =
+    body.image_url !== undefined
+      ? sanitizePersonaImageUrl(body.image_url)
+      : sanitizePersonaImageUrl(existing.image_url);
+  const imageFocusX = sanitizePersonaImageFocus(
+    body.image_focus_x !== undefined ? body.image_focus_x : existing.image_focus_x,
+    PERSONA_IMAGE_FOCUS_DEFAULT.x
+  );
+  const imageFocusY = sanitizePersonaImageFocus(
+    body.image_focus_y !== undefined ? body.image_focus_y : existing.image_focus_y,
+    PERSONA_IMAGE_FOCUS_DEFAULT.y
+  );
 
   if (!name) {
     return NextResponse.json({ error: "페르소나 이름을 입력하세요." }, { status: 400 });
+  }
+  if (body.image_url != null && String(body.image_url).trim() && !imageUrl) {
+    return NextResponse.json({ error: "대표 이미지 URL이 올바르지 않습니다." }, { status: 400 });
   }
 
   const contentCheck = validatePersonaContentLength(description);
@@ -49,9 +67,20 @@ export async function PUT(req: Request, { params }: Params) {
 
   getDb()
     .prepare(
-      "UPDATE user_personas SET name=?, memo=?, gender=?, description=?, secret_description=? WHERE id=? AND user_id=?"
+      "UPDATE user_personas SET name=?, memo=?, gender=?, description=?, secret_description=?, image_url=?, image_focus_x=?, image_focus_y=? WHERE id=? AND user_id=?"
     )
-    .run(name, memo, gender, description, effectiveSecretDescription, personaId, user.id);
+    .run(
+      name,
+      memo,
+      gender,
+      description,
+      effectiveSecretDescription,
+      imageUrl,
+      imageFocusX,
+      imageFocusY,
+      personaId,
+      user.id
+    );
 
   const persona = getPersonaById(user.id, personaId);
 

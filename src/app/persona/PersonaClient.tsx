@@ -12,12 +12,17 @@ import {
   USER_NOTE_FOCUS_MAX,
   personaContentLength,
 } from "@/lib/persona";
-import type { PersonaListItem } from "@/lib/userPersonas";
+import {
+  PERSONA_IMAGE_FOCUS_DEFAULT,
+  type PersonaListItem,
+} from "@/lib/userPersonas";
 import type { UserNotePresetItem } from "@/lib/userNotePresetTypes";
 import { USER_NOTE_PRESET_TITLE_MAX } from "@/lib/userNotePresetTypes";
 import UserNoteSplitEditor from "@/components/UserNoteSplitEditor";
 import StatusWidgetEditor from "@/components/StatusWidgetEditor";
 import ShareLinkBox from "@/components/ShareLinkBox";
+import PersonaAvatar from "@/components/PersonaAvatar";
+import PersonaImageEditor from "@/components/PersonaImageEditor";
 import { validateUserNoteCombined, userNoteCombinedCharCount, parseUserNoteCombined, extractFocusZoneNote, validateUserNoteFocusPreset } from "@/lib/userNoteStatusWindow";
 import type { StatusWidgetPresetItem } from "@/lib/statusWidgetPresetTypes";
 import { STATUS_WIDGET_PRESET_TITLE_MAX } from "@/lib/statusWidgetPresetTypes";
@@ -56,6 +61,9 @@ export default function PersonaClient({
   const [draftMemo, setDraftMemo] = useState("");
   const [draftGender, setDraftGender] = useState<CharacterGender | "">("");
   const [draftDesc, setDraftDesc] = useState("");
+  const [draftImageUrl, setDraftImageUrl] = useState("");
+  const [draftImageFocusX, setDraftImageFocusX] = useState<number>(PERSONA_IMAGE_FOCUS_DEFAULT.x);
+  const [draftImageFocusY, setDraftImageFocusY] = useState<number>(PERSONA_IMAGE_FOCUS_DEFAULT.y);
   const [creating, setCreating] = useState(false);
   const [noteCreating, setNoteCreating] = useState(false);
   const [noteEditingId, setNoteEditingId] = useState<number | null>(null);
@@ -82,6 +90,9 @@ export default function PersonaClient({
     setDraftMemo(p.memo ?? "");
     setDraftGender(p.gender ?? "other");
     setDraftDesc(p.description);
+    setDraftImageUrl(p.image_url ?? "");
+    setDraftImageFocusX(p.image_focus_x ?? PERSONA_IMAGE_FOCUS_DEFAULT.x);
+    setDraftImageFocusY(p.image_focus_y ?? PERSONA_IMAGE_FOCUS_DEFAULT.y);
     setCreating(false);
     setError("");
     setMsg("");
@@ -99,6 +110,9 @@ export default function PersonaClient({
     setDraftMemo("");
     setDraftGender("");
     setDraftDesc("");
+    setDraftImageUrl("");
+    setDraftImageFocusX(PERSONA_IMAGE_FOCUS_DEFAULT.x);
+    setDraftImageFocusY(PERSONA_IMAGE_FOCUS_DEFAULT.y);
     setError("");
     setMsg("");
   }
@@ -110,6 +124,9 @@ export default function PersonaClient({
     setDraftMemo("");
     setDraftGender("");
     setDraftDesc("");
+    setDraftImageUrl("");
+    setDraftImageFocusX(PERSONA_IMAGE_FOCUS_DEFAULT.x);
+    setDraftImageFocusY(PERSONA_IMAGE_FOCUS_DEFAULT.y);
   }
 
   async function refreshList() {
@@ -140,6 +157,9 @@ export default function PersonaClient({
       memo: draftMemo,
       gender: draftGender,
       description: draftDesc,
+      image_url: draftImageUrl,
+      image_focus_x: draftImageFocusX,
+      image_focus_y: draftImageFocusY,
     };
 
     const res = editingId
@@ -450,7 +470,15 @@ export default function PersonaClient({
               className="rounded-xl border border-white/10 bg-[#0e1120] px-4 py-3"
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 flex-1 items-start gap-3">
+                  <PersonaAvatar
+                    name={p.name}
+                    imageUrl={p.image_url}
+                    focusX={p.image_focus_x}
+                    focusY={p.image_focus_y}
+                    sizeClassName="h-12 w-12"
+                  />
+                  <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-2 font-semibold text-white">
                     {p.name || "(이름 없음)"}
                     <span className="text-[10px] font-normal text-zinc-500">
@@ -468,6 +496,7 @@ export default function PersonaClient({
                   <p className="mt-1 text-[10px] text-zinc-600">
                     {desc.length.toLocaleString()} / {PERSONA_CONTENT_MAX.toLocaleString()}자
                   </p>
+                  </div>
                 </div>
                 <div className="flex shrink-0 gap-1.5">
                   <button
@@ -512,6 +541,19 @@ export default function PersonaClient({
             <p className="text-[11px] text-zinc-500">
               설명은 {PERSONA_CONTENT_MAX.toLocaleString()}자까지 입력할 수 있습니다.
             </p>
+            <PersonaImageEditor
+              disabled={busy}
+              value={{
+                image_url: draftImageUrl,
+                image_focus_x: draftImageFocusX,
+                image_focus_y: draftImageFocusY,
+              }}
+              onChange={(next) => {
+                setDraftImageUrl(next.image_url);
+                setDraftImageFocusX(next.image_focus_x);
+                setDraftImageFocusY(next.image_focus_y);
+              }}
+            />
             <div>
               <label className={studioType.label}>이름</label>
               <input

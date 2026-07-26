@@ -618,6 +618,9 @@ function migrate(db: Database.Database) {
   addColumn("user_personas", "gender", "TEXT NOT NULL DEFAULT 'other'");
   addColumn("user_personas", "speech_examples", "TEXT NOT NULL DEFAULT ''");
   addColumn("user_personas", "secret_description", "TEXT NOT NULL DEFAULT ''");
+  addColumn("user_personas", "image_url", "TEXT NOT NULL DEFAULT ''");
+  addColumn("user_personas", "image_focus_x", "REAL NOT NULL DEFAULT 0.5");
+  addColumn("user_personas", "image_focus_y", "REAL NOT NULL DEFAULT 0.28");
   migrateLegacyPersonas(db);
   db.exec(`
     CREATE TABLE IF NOT EXISTS chat_persona_secret_reveals (
