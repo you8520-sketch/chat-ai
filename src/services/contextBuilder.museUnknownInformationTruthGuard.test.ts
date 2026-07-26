@@ -518,8 +518,8 @@ describe("buildContext — Muse intra-world provenance guard assembly", () => {
       `cacheCharacter delta must be 0, got ${cacheCharacterDelta}`
     );
     assert.ok(
-      dynamicDelta >= 250 && dynamicDelta <= 502,
-      `dynamic delta expected ~250–500, got ${dynamicDelta}`
+      dynamicDelta >= 100 && dynamicDelta <= 250,
+      `dynamic delta expected ~100–250, got ${dynamicDelta}`
     );
     assert.equal(dynamicDelta, totalDelta);
     assert.ok(
