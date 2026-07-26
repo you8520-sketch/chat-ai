@@ -5,13 +5,105 @@ import {
   type SelectedAI,
 } from "./chatModels";
 import { openRouterRawCostKrw } from "@/lib/billingRawCost";
-import { buildOpenRouterCacheReceiptInfo } from "@/lib/openRouterModelPricing";
 import {
+  buildOpenRouterCacheReceiptInfo,
+  openRouterUsdCostFromRates,
+  resolveOpenRouterModelRates,
+} from "@/lib/openRouterModelPricing";
+import {
+  convertUsdToKrw,
   formatExchangeRateLabel,
   OVERSEAS_CARD_FEE_RATE,
   resolveBillingExchangeRateSnapshot,
 } from "@/lib/exchangeRate";
 import type { Usage } from "@/lib/chatUsage";
+
+function roundReceiptKrw(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
+export type MainRpApiCostPartsKrw = {
+  /** 입력(캐시 반영) 원가 */
+  inputKrw: number;
+  /** content 출력 원가 (thinking 제외) */
+  outputKrw: number;
+  /** thinking/reasoning 원가 (출력 단가) */
+  thinkingKrw: number;
+  inputTokens: number;
+  outputContentTokens: number;
+  thinkingTokens: number;
+};
+
+/**
+ * 관리자 영수증용 — 메인 RP API 원가를 입력 / content 출력 / thinking으로 분리.
+ * 모델 list 요율 기준. thinking은 OpenRouter와 같이 출력 단가로 산정.
+ * 저장된 메인 합계(mainApiRawCostKrw)가 있으면 비율 스케일해 합이 맞도록 맞춤.
+ */
+export function resolveMainRpApiCostPartsKrw(usage: Usage): MainRpApiCostPartsKrw | null {
+  if (usage.provider !== "openrouter") return null;
+
+  const inputTokens = Math.max(0, usage.apiInputTokens ?? usage.input ?? 0);
+  const thinkingTokens = Math.max(0, usage.apiReasoningOutputTokens ?? 0);
+  const apiOut = Math.max(0, usage.apiOutputTokens ?? usage.output ?? 0);
+  const outputContentTokens = Math.max(
+    0,
+    usage.apiContentOutputTokens ?? Math.max(0, apiOut - thinkingTokens)
+  );
+
+  if (inputTokens <= 0 && outputContentTokens <= 0 && thinkingTokens <= 0) {
+    return null;
+  }
+
+  const rates = resolveOpenRouterModelRates(usage.model);
+  const inputUsd = openRouterUsdCostFromRates({
+    promptTokens: inputTokens,
+    outputTokens: 0,
+    cacheReadTokens: usage.cacheReadTokens,
+    cacheWriteTokens: usage.cacheWriteTokens,
+    modelId: usage.model,
+  }).usdCost;
+  const outputUsd = (outputContentTokens / 1_000_000) * rates.outputUsdPerM;
+  const thinkingUsd = (thinkingTokens / 1_000_000) * rates.outputUsdPerM;
+  const rateTotalUsd = inputUsd + outputUsd + thinkingUsd;
+  if (rateTotalUsd <= 0) return null;
+
+  const effectiveRate =
+    usage.exchangeRateKrwPerUsd != null && usage.exchangeRateKrwPerUsd > 0
+      ? usage.exchangeRateKrwPerUsd
+      : resolveBillingExchangeRateSnapshot().effectiveKrwPerUsd;
+
+  let inputKrw = convertUsdToKrw(inputUsd, effectiveRate);
+  let outputKrw = convertUsdToKrw(outputUsd, effectiveRate);
+  let thinkingKrw = convertUsdToKrw(thinkingUsd, effectiveRate);
+
+  const mainTotal =
+    usage.mainApiRawCostKrw != null && usage.mainApiRawCostKrw > 0
+      ? usage.mainApiRawCostKrw
+      : usage.statusWidgetExtract
+        ? null
+        : usage.apiRawCostKrw != null && usage.apiRawCostKrw > 0
+          ? usage.apiRawCostKrw
+          : null;
+
+  if (mainTotal != null && mainTotal > 0) {
+    const partsSum = inputKrw + outputKrw + thinkingKrw;
+    if (partsSum > 0) {
+      const scale = mainTotal / partsSum;
+      inputKrw *= scale;
+      outputKrw *= scale;
+      thinkingKrw *= scale;
+    }
+  }
+
+  return {
+    inputKrw: roundReceiptKrw(inputKrw),
+    outputKrw: roundReceiptKrw(outputKrw),
+    thinkingKrw: roundReceiptKrw(thinkingKrw),
+    inputTokens,
+    outputContentTokens,
+    thinkingTokens,
+  };
+}
 
 export function billingModelDisplayName(selectedAI: string): string {
   return selectedAILabel(selectedAI);
@@ -237,6 +329,7 @@ export function formatBillingReceiptText(
     apiContentOutputTokens?: number;
     statusWidgetExtract?: Usage["statusWidgetExtract"];
     mainApiRawCostKrw?: number;
+    mainRpCostParts?: MainRpApiCostPartsKrw | null;
   }
 ): string {
   const lines: string[] = [];
@@ -267,12 +360,30 @@ export function formatBillingReceiptText(
       );
       const callCountSuffix = callCount != null ? ` · ${callCount}회` : "";
       lines.push(
-        `메인 RP API 원가: ~${formatPoints(extra.mainApiRawCostKrw ?? extra.apiRawCostKrw)}원`,
+        `메인 RP API 원가: ~${formatPoints(extra.mainApiRawCostKrw ?? extra.apiRawCostKrw)}원`
+      );
+      if (extra.mainRpCostParts) {
+        const p = extra.mainRpCostParts;
+        lines.push(
+          `  입력 토큰 원가: ~${formatPoints(p.inputKrw)}원 (${p.inputTokens.toLocaleString()} tok)`,
+          `  출력 토큰 원가: ~${formatPoints(p.outputKrw)}원 (${p.outputContentTokens.toLocaleString()} tok)`,
+          `  thinking 토큰 원가: ~${formatPoints(p.thinkingKrw)}원 (${p.thinkingTokens.toLocaleString()} tok)`
+        );
+      }
+      lines.push(
         `위젯 API 원가 (${widgetLabel}${callCountSuffix}): ${extra.statusWidgetExtract.input.toLocaleString()} / ${extra.statusWidgetExtract.output.toLocaleString()} tokens · ~${formatPoints(extra.statusWidgetExtract.apiRawCostKrw)}원`,
         `API 원가 합계 (메인+위젯): ~${formatPoints(extra.apiRawCostKrw)}원`
       );
     } else {
       lines.push(`실제 API 원가: ~${formatPoints(extra.apiRawCostKrw)}원`);
+      if (extra.mainRpCostParts) {
+        const p = extra.mainRpCostParts;
+        lines.push(
+          `  입력 토큰 원가: ~${formatPoints(p.inputKrw)}원 (${p.inputTokens.toLocaleString()} tok)`,
+          `  출력 토큰 원가: ~${formatPoints(p.outputKrw)}원 (${p.outputContentTokens.toLocaleString()} tok)`,
+          `  thinking 토큰 원가: ~${formatPoints(p.thinkingKrw)}원 (${p.thinkingTokens.toLocaleString()} tok)`
+        );
+      }
     }
   }
   if (extra?.coldStartShieldApplied) {
