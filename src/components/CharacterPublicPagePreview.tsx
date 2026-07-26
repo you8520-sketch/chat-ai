@@ -240,7 +240,6 @@ export default function CharacterPublicPagePreview({
             {creatorIsPartner && <OfficialCreatorBadge />}
             <span>
               · ❤️ {likes.toLocaleString()} · 💬 {turnCount.toLocaleString()}턴
-              {users > 0 ? ` · 👥 ${users.toLocaleString()}명` : null}
               {imageCount > 0 ? ` · 🖼️ ${imageCount.toLocaleString()}장` : null}
             </span>
           </p>

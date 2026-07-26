@@ -90,14 +90,6 @@ function ChatMetricIcon() {
   );
 }
 
-function UserMetricIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M16 20v-1.5A3.5 3.5 0 0 0 12.5 15h-5A3.5 3.5 0 0 0 4 18.5V20m5.75-8.5a3.25 3.25 0 1 0 0-6.5 3.25 3.25 0 0 0 0 6.5Zm7.5.5a2.75 2.75 0 0 0 0-5.5m2.75 13v-1.25a3 3 0 0 0-2.5-2.96" />
-    </svg>
-  );
-}
-
 function parseCardTags(raw: string): string[] {
   try {
     const parsed = JSON.parse(raw || "[]") as unknown;
@@ -208,12 +200,6 @@ export default function CharacterCard({ c, blurNsfw, loggedIn = false }: Props) 
                 <ChatMetricIcon />
                 {fmt(c.total_turns ?? 0)}
               </span>
-              {(c.chats_count ?? 0) > 0 ? (
-                <span className="flex items-center gap-1" title="이용 유저 수" aria-label={`이용자 ${fmt(c.chats_count)}`}>
-                  <UserMetricIcon />
-                  {fmt(c.chats_count)}
-                </span>
-              ) : null}
             </div>
           </div>
         </div>
