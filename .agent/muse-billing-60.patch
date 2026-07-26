@@ -1,0 +1,255 @@
+diff --git a/src/lib/points.ts b/src/lib/points.ts
+index 93623f2..0000000 100644
+--- a/src/lib/points.ts
++++ b/src/lib/points.ts
+@@ -348,6 +348,17 @@ export const OPENROUTER_MUSE_GROSS_MARGIN =
+ /** Muse — 과금 면제 턴 최소 차감 */
+ export const MUSE_WAIVER_SUCCESS_MIN_COST = 50;
+ 
++/**
++ * Muse Spark 1.1 — OpenRouter list $1.25/M input, $4.25/M output.
++ * ₩1,530/USD 기준 60% 매출총이익률을 보수적으로 올림한 고정 포인트 단가.
++ *
++ * input:  1.25 × 1,530 / 1,000,000 / (1 - 0.60) = 0.00478125 → 0.0048P/tok
++ * output: 4.25 × 1,530 / 1,000,000 / (1 - 0.60) = 0.01625625 → 0.0163P/tok
++ */
++export const OPENROUTER_MUSE_INPUT_POINTS_PER_TOKEN = 0.0048;
++export const OPENROUTER_MUSE_OUTPUT_POINTS_PER_TOKEN = 0.0163;
++
+ /** Gemini 3.6 Flash — 목표 매출총이익률 (45%) */
+ export const OPENROUTER_GEMINI_36_GROSS_MARGIN =
+   Number(process.env.OPENROUTER_GEMINI_36_GROSS_MARGIN) || 0.45;
+@@ -367,14 +378,14 @@ export const OPENROUTER_GEMINI_36_GROSS_MARGIN =
+ export const OPENROUTER_SIMPLE_POINT_INPUT_PRICES: Record<string, number> = {
+   [OPENROUTER_TENCENT_HY3_MODEL]: 0.00071,
+   [OPENROUTER_DEEPSEEK_V4_PRO_MODEL]: 0.0019,
+-  [OPENROUTER_MUSE_SPARK_11_MODEL]: 0.0042,
++  [OPENROUTER_MUSE_SPARK_11_MODEL]: OPENROUTER_MUSE_INPUT_POINTS_PER_TOKEN,
+   [OPENROUTER_GEMINI_36_FLASH_MODEL]: 0.0042,
+ };
+ 
+ export const OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES: Record<string, number> = {
+   [OPENROUTER_TENCENT_HY3_MODEL]: 0.003,
+   [OPENROUTER_DEEPSEEK_V4_PRO_MODEL]: 0.0038,
+-  [OPENROUTER_MUSE_SPARK_11_MODEL]: 0.0062,
++  [OPENROUTER_MUSE_SPARK_11_MODEL]: OPENROUTER_MUSE_OUTPUT_POINTS_PER_TOKEN,
+   [OPENROUTER_GEMINI_36_FLASH_MODEL]: 0.0209,
+ };
+ 
+diff --git a/src/lib/openRouterUsage.ts b/src/lib/openRouterUsage.ts
+index 46fc137..0000000 100644
+--- a/src/lib/openRouterUsage.ts
++++ b/src/lib/openRouterUsage.ts
+@@ -6,7 +6,10 @@ import { resolveOpenRouterModelRates } from "@/lib/openRouterModelPricing";
+ /** OpenRouter / Anthropic usage — cache 분리 정산용 */
+ export type OpenRouterUsageBreakdown = {
+   promptTokens: number;
++  /**
++   * Provider가 보고한 전체 과금 completion 토큰. visible content/reasoning 부분합보다 우선한다.
++   */
+   completionTokens: number;
+   /** completion_tokens_details.reasoning_tokens (Qwen thinking 등) */
+   reasoningTokens: number;
+@@ -38,6 +41,12 @@ function readSignedUsd(v: unknown): number | undefined {
+   return n;
+ }
+ 
++function readPositiveUsd(v: unknown): number | undefined {
++  const n = Number(v);
++  if (!Number.isFinite(n) || n <= 0) return undefined;
++  return n;
++}
++
+ /** Extract numeric fields from prompt_tokens_details for diagnostics */
+ export function extractPromptTokensDetailsRaw(
+   details: Record<string, unknown> | null
+@@ -73,6 +82,27 @@ export function parseReasoningTokens(usage: unknown): number {
+   return pickUsageField(u, ["reasoning_tokens"]);
+ }
+ 
++/**
++ * OpenRouter가 실제 과금에 사용한 전체 completion 토큰을 고른다.
++ * 일부 provider 응답은 completion_tokens보다 native_tokens_completion/tokens_completion이
++ * 더 크므로 content + thinking 부분합으로 재구성하지 않고 가장 큰 공식 total을 사용한다.
++ */
++export function parseBillableCompletionTokens(usage: unknown, promptTokens = 0): number {
++  if (!usage || typeof usage !== "object") return 0;
++  const u = usage as Record<string, unknown>;
++  const totalTokens = Math.max(readNum(u.total_tokens), readNum(u.totalTokens));
++  const derivedFromTotal = totalTokens > promptTokens ? totalTokens - promptTokens : 0;
++  return Math.max(
++    readNum(u.completion_tokens),
++    readNum(u.output_tokens),
++    readNum(u.native_tokens_completion),
++    readNum(u.tokens_completion),
++    derivedFromTotal
++  );
++}
++
+ /** usage 객체·응답 헤더에서 cache read / creation 토큰 분리 파싱 */
+ export function parseOpenRouterUsage(
+   usage: unknown,
+@@ -96,7 +126,7 @@ export function parseOpenRouterUsage(
+       : null;
+ 
+   const promptTokens = readNum(u.prompt_tokens ?? u.input_tokens);
+-  const completionTokens = readNum(u.completion_tokens ?? u.output_tokens);
++  const completionTokens = parseBillableCompletionTokens(u, promptTokens);
+   const reasoningTokens = parseReasoningTokens(u);
+ 
+   let cacheReadTokens = 0;
+@@ -161,7 +191,7 @@ export function parseOpenRouterUsage(
+ 
+   const standardInputTokens = Math.max(0, promptTokens - cacheReadTokens - cacheWriteTokens);
+ 
+-  let upstreamCostUsd = 0;
++  let upstreamCostUsd: number | undefined;
+   let upstreamPromptCostUsd: number | undefined;
+   let upstreamCompletionCostUsd: number | undefined;
+   const costDetails =
+@@ -169,12 +199,12 @@ export function parseOpenRouterUsage(
+       ? (u.cost_details as Record<string, unknown>)
+       : null;
+   if (costDetails) {
+-    upstreamCostUsd = readNum(costDetails.upstream_inference_cost);
++    upstreamCostUsd = readPositiveUsd(costDetails.upstream_inference_cost);
+     upstreamPromptCostUsd = readSignedUsd(costDetails.upstream_inference_prompt_cost);
+     upstreamCompletionCostUsd = readSignedUsd(costDetails.upstream_inference_completions_cost);
+   }
+-  if (!upstreamCostUsd) {
+-    upstreamCostUsd = readNum(u.cost);
++  if (upstreamCostUsd == null) {
++    upstreamCostUsd = readPositiveUsd(u.cost);
+   }
+   const cacheDiscountUsd = readSignedUsd(u.cache_discount);
+   const promptTokensDetailsRaw = extractPromptTokensDetailsRaw(details);
+@@ -186,7 +216,7 @@ export function parseOpenRouterUsage(
+     cacheReadTokens,
+     cacheWriteTokens,
+     standardInputTokens,
+-    ...(upstreamCostUsd > 0 ? { upstreamCostUsd } : {}),
++    ...(upstreamCostUsd != null ? { upstreamCostUsd } : {}),
+     ...(upstreamPromptCostUsd != null ? { upstreamPromptCostUsd } : {}),
+     ...(upstreamCompletionCostUsd != null ? { upstreamCompletionCostUsd } : {}),
+     ...(cacheDiscountUsd != null ? { cacheDiscountUsd } : {}),
+diff --git a/src/lib/openRouterUsage.test.ts b/src/lib/openRouterUsage.test.ts
+index f0d07b6..0000000 100644
+--- a/src/lib/openRouterUsage.test.ts
++++ b/src/lib/openRouterUsage.test.ts
+@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
+ import { describe, it } from "node:test";
+ import {
++  parseBillableCompletionTokens,
+   parseOpenRouterUsage,
+   parseReasoningTokens,
+   tokenUsageFromOpenRouterBreakdown,
+@@ -37,6 +38,25 @@ describe("parseOpenRouterUsage", () => {
+     assert.equal(b.estimated, false);
+   });
+ 
++  it("prefers the provider's full native billable completion total", () => {
++    const rawUsage = {
++      prompt_tokens: 10_000,
++      completion_tokens: 1_366,
++      native_tokens_completion: 2_070,
++      total_tokens: 12_070,
++      completion_tokens_details: {
++        content_tokens: 1_159,
++        reasoning_tokens: 207,
++      },
++    };
++    assert.equal(parseBillableCompletionTokens(rawUsage, 10_000), 2_070);
++    const b = parseOpenRouterUsage(rawUsage);
++    assert.equal(b.completionTokens, 2_070);
++    assert.equal(b.reasoningTokens, 207);
++    const mapped = tokenUsageFromOpenRouterBreakdown(b);
++    assert.equal(mapped.outputTokens, 2_070);
++  });
++
+   it("reads Gemini implicit cache from prompt_tokens_details.cached_tokens", () => {
+     const b = parseOpenRouterUsage({
+       prompt_tokens: 4541,
+@@ -54,6 +74,7 @@ describe("parseOpenRouterUsage", () => {
+     assert.equal(b.cacheReadTokens, 4290);
+     assert.equal(b.cacheWriteTokens, 0);
+     assert.equal(b.standardInputTokens, 251);
++    assert.equal(b.upstreamCostUsd, 0.01324875);
+     assert.equal(b.upstreamPromptCostUsd, 0.00245875);
+     assert.equal(b.promptTokensDetailsRaw?.cached_tokens, 4290);
+   });
+diff --git a/src/lib/points.muse.test.ts b/src/lib/points.muse.test.ts
+index 20e7aa1..0000000 100644
+--- a/src/lib/points.muse.test.ts
++++ b/src/lib/points.muse.test.ts
+@@ -4,10 +4,13 @@ import { describe, it } from "node:test";
+ import {
+   MUSE_WAIVER_SUCCESS_MIN_COST,
++  OPENROUTER_MUSE_INPUT_POINTS_PER_TOKEN,
++  OPENROUTER_MUSE_OUTPUT_POINTS_PER_TOKEN,
+   OPENROUTER_SIMPLE_POINT_INPUT_PRICES,
+   OPENROUTER_SIMPLE_POINT_INPUT_SURCHARGE_PER_1000,
+   OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES,
++  billableOpenRouterOutputTokens,
+   computeOpenRouterTurnCost,
+   explainOpenRouterMuseTurnCost,
+   resolveMuseWaiverMinimumCharge,
+@@ -36,8 +39,10 @@ describe("Muse Spark 1.1 dual-rate simple point billing", () => {
+   const outputPrice = OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES[modelId];
+ 
+   it("uses the configured dual-rate token prices (60% target margin)", () => {
+-    assert.equal(inputPrice, 0.0042);
+-    assert.equal(outputPrice, 0.0062);
++    assert.equal(OPENROUTER_MUSE_INPUT_POINTS_PER_TOKEN, 0.0048);
++    assert.equal(OPENROUTER_MUSE_OUTPUT_POINTS_PER_TOKEN, 0.0163);
++    assert.equal(inputPrice, OPENROUTER_MUSE_INPUT_POINTS_PER_TOKEN);
++    assert.equal(outputPrice, OPENROUTER_MUSE_OUTPUT_POINTS_PER_TOKEN);
+     assert.equal(MUSE_WAIVER_SUCCESS_MIN_COST, 50);
+   });
+ 
+@@ -54,12 +59,12 @@ describe("Muse Spark 1.1 dual-rate simple point billing", () => {
+     assert.equal(computeOpenRouterTurnCost(inputTokens, outputTokens, modelId), expected);
+   });
+ 
+-  it("lands near 65P on the recommended Muse receipt shape", () => {
++  it("lands near 90P on the recommended Muse receipt shape", () => {
+     // 11,524 in + (1,142 out + 624 thinking) — dual-rate + large-context surcharge
+     const total = computeOpenRouterTurnCost(11_524, 1_142, modelId, undefined, {
+       reasoningTokens: 624,
+     });
+-    assert.ok(total >= 64 && total <= 67, `expected ~65P, got ${total}`);
++    assert.ok(total >= 89 && total <= 91, `expected ~90P, got ${total}`);
+   });
+ 
+   it("increases with visible input/output but not cache state", () => {
+@@ -89,6 +94,29 @@ describe("Muse Spark 1.1 dual-rate simple point billing", () => {
+     assert.ok(explain.total > computeOpenRouterTurnCost(inputTokens, outputTokens, modelId));
+   });
+ 
++  it("charges the full 2,070 provider output tokens, not content + thinking only", () => {
++    const inputTokens = 10_000;
++    const providerBillableOutputTokens = 2_070;
++    const visibleContentTokens = 1_159;
++    const reasoningTokens = 207;
++    assert.ok(providerBillableOutputTokens > visibleContentTokens + reasoningTokens);
++
++    const formulaOutputTokens = billableOpenRouterOutputTokens(
++      modelId,
++      providerBillableOutputTokens,
++      reasoningTokens
++    );
++    assert.equal(formulaOutputTokens + reasoningTokens, providerBillableOutputTokens);
++
++    const charged = computeOpenRouterTurnCost(inputTokens, formulaOutputTokens, modelId, undefined, {
++      reasoningTokens,
++    });
++    const fullProviderTotal = computeOpenRouterTurnCost(
++      inputTokens,
++      providerBillableOutputTokens,
++      modelId
++    );
++    assert.equal(charged, fullProviderTotal);
++  });
++
+   it("waiver with meaningful text charges minimum 50P", () => {
+     const prose = "그는 창가에 서서 빗소리를 들었다. ".repeat(40);
+     const min = resolveMuseWaiverMinimumCharge(prose, "forced_abort");
