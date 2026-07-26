@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { PersonaListItem } from "@/lib/userPersonas";
+import PersonaAvatar from "@/components/PersonaAvatar";
 
 type Props = {
   chatId: number | null;
@@ -130,6 +131,13 @@ export default function PersonaSelector({
           onClick={() => setOpen((v) => !v)}
           className="flex w-full items-center gap-2 rounded-lg border border-white/10 bg-[#1a1a1a] px-2.5 py-2 text-left text-xs transition hover:bg-white/5 disabled:opacity-50"
         >
+          <PersonaAvatar
+            name={selected?.name}
+            imageUrl={selected?.image_url}
+            focusX={selected?.image_focus_x}
+            focusY={selected?.image_focus_y}
+            sizeClassName="h-7 w-7"
+          />
           <span className="min-w-0 flex-1 truncate font-semibold text-zinc-200">
             {selected?.name ?? "페르소나를 선택하세요"}
           </span>
@@ -154,6 +162,13 @@ export default function PersonaSelector({
                     : "text-zinc-200 hover:bg-white/5"
                 }`}
               >
+                <PersonaAvatar
+                  name={p.name}
+                  imageUrl={p.image_url}
+                  focusX={p.image_focus_x}
+                  focusY={p.image_focus_y}
+                  sizeClassName="h-7 w-7"
+                />
                 <span className="min-w-0 flex-1 truncate">
                   <span className="block truncate font-semibold">{p.name}</span>
                   {p.memo?.trim() && (
@@ -193,6 +208,13 @@ export default function PersonaSelector({
           }
           title="페르소나 선택"
         >
+          <PersonaAvatar
+            name={selected?.name}
+            imageUrl={selected?.image_url}
+            focusX={selected?.image_focus_x}
+            focusY={selected?.image_focus_y}
+            sizeClassName="h-5 w-5"
+          />
           <span className="truncate">{selected?.name ?? "페르소나"}</span>
           <span className={`shrink-0 ${isCustomTrigger ? "text-sm text-gray-400" : "text-zinc-500"}`}>▾</span>
         </button>
@@ -211,6 +233,13 @@ export default function PersonaSelector({
                     : "text-zinc-200 hover:bg-white/5"
                 }`}
               >
+                <PersonaAvatar
+                  name={p.name}
+                  imageUrl={p.image_url}
+                  focusX={p.image_focus_x}
+                  focusY={p.image_focus_y}
+                  sizeClassName="h-6 w-6"
+                />
                 <span className="min-w-0 flex-1 truncate">
                   <span className="block truncate">{p.name}</span>
                   {p.memo?.trim() && (
