@@ -112,6 +112,119 @@ const EPISODIC_MEMORY_CONTAMINATION_PATTERNS: Array<{ reason: string; pattern: R
   { reason: "private_visibility_marker", pattern: /user_only|engine_only/i },
 ];
 
+const ABSTRACT_PSYCHOLOGICAL_EPISODIC_ATTRIBUTES = new Set<string>([
+  "personality_change",
+  "relationship_stage",
+  "relationship_dynamic",
+  "possessiveness",
+  "obsession",
+  "dominance",
+  "control_tendency",
+  "obedience",
+  "psychopathy",
+  "aggression_tendency",
+  "attachment_level",
+]);
+
+const ABSTRACT_PSYCHOLOGICAL_EPISODIC_PATTERNS: Array<{ reason: string; pattern: RegExp }> = [
+  { reason: "abstract_psychological_inference", pattern: /극단적인\s*소유욕/ },
+  { reason: "abstract_psychological_inference", pattern: /집착\s*성향/ },
+  { reason: "abstract_psychological_inference", pattern: /병적으로\s*집착/ },
+  { reason: "abstract_psychological_inference", pattern: /지배욕/ },
+  { reason: "abstract_psychological_inference", pattern: /통제욕/ },
+  { reason: "abstract_psychological_inference", pattern: /통제하려는\s*성격/ },
+  { reason: "abstract_psychological_inference", pattern: /본질적으로.{0,24}(?:공격|소유|통제|집착)/ },
+  { reason: "abstract_psychological_inference", pattern: /강압적(?:인)?(?:\s*.{0,12})?관계/ },
+  { reason: "abstract_psychological_inference", pattern: /지배[·・･]?\s*복종\s*관계/ },
+  { reason: "abstract_psychological_inference", pattern: /사이코패스/ },
+  { reason: "abstract_psychological_inference", pattern: /성격이\s*변했/ },
+  { reason: "abstract_psychological_inference", pattern: /애착\s*(?:수준|단계)/ },
+];
+
+/**
+ * Light durable-evidence exemption (no evidence_type column).
+ * Preserves explicit agreements, declarations, promises, and canon statements
+ * even when a high-risk attribute name is reused.
+ */
+export function hasExplicitDurableEvidence(factText: string): boolean {
+  const t = factText.replace(/\s+/g, " ").trim();
+  if (!t) return false;
+  if (/(?:명시(?:적으로)?\s*)?(?:합의|동의)(?:했다|하였다)/.test(t)) return true;
+  if (/명시(?:적으로)?\s*(?:선언|밝혀|선호)/.test(t)) return true;
+  if (/약속(?:했다|하였다)/.test(t)) return true;
+  if (/정본/.test(t)) return true;
+  if (/서로\s*연인(?:이\s*)?되기로/.test(t)) return true;
+  if (/동맹을\s*맺었/.test(t)) return true;
+  return false;
+}
+
+/**
+ * Preserves facts that explicitly negate, resolve, or recover from a risky
+ * psychological state. We require both a psychological risk concept and a
+ * clear completion/resolution marker, and reject negated/failed resolutions.
+ */
+export function hasExplicitPsychologicalResolutionEvidence(factText: string): boolean {
+  const t = factText.replace(/\s+/g, " ").trim();
+  if (!t) return false;
+
+  // Reject negated, incomplete, or pretended resolutions before accepting any
+  // completed-resolution marker. This includes "disappeared but got stronger again",
+  // "failed to overcome", and "did not decrease/disappear/end".
+  if (/(?:사라지|줄어들|가라앉|극복|해소|끝나|벗어나).{0,8}(?:지\s*않|지\s*못|못했|않았|되지\s*않)/.test(t)) return false;
+  if (/(?:극복|해소|끝|벗어나|사라지|줄어들|가라앉)\s*하지\s*못했/.test(t)) return false;
+  if (/(?:사라진|줄어든|가라앉은|극복한)\s*척했/.test(t)) return false;
+  if (/(?:사라진|줄어든|가라앉은|극복한)\s*척.*(?:강해|커지|늘어|다시|여전히)/.test(t)) return false;
+  if (/(?:다시|더욱|오히려|여전히).{0,24}(?:강해|커지|늘어|심해|계속)/.test(t)) return false;
+
+  // Psychological risk concepts that may be resolved.
+  const hasRisk =
+    /(?:사이코패스|집착|소유욕|통제욕|지배욕|강압|지배|복종|통제|애착|적대|공격)/.test(t) ||
+    /(?:강압적(?:인)?(?:\s*.{0,12})?관계|지배[·・･]?\s*복종\s*관계|본질적으로.{0,24}(?:공격|소유|통제|집착))/.test(
+      t
+    );
+  if (!hasRisk) return false;
+
+  // Resolution / negation / recovery markers in completed/affirmative form.
+  // "사실/진실" alone is not resolution; only explicit negation (아니라는) counts.
+  const resolutionPatterns = [
+    /(?:이|그것|것)?\s*아니(?:라는|라고|다는|었)/,
+    /오해(?:가|라는)?\s*풀렸/,
+    /오해(?:가|라는)?\s*해소/,
+    /사라졌/,
+    /(?:줄어들었|줄어든)/,
+    /(?:가라앉았|가라앉은)/,
+    /극복했/,
+    /해소됐/,
+    /해소되었/,
+    /해소했/,
+    /끝냈/,
+    /끝났/,
+    /벗어났/,
+  ];
+  return resolutionPatterns.some((p) => p.test(t));
+}
+
+export function detectAbstractPsychologicalInference(
+  fact: Pick<ExtractedStatusFact, "category" | "attribute" | "value" | "fact_text">
+): "abstract_psychological_inference" | null {
+  const category = String(fact.category ?? "").trim().toLowerCase();
+  if (category !== "character" && category !== "relationship") return null;
+  const factText = String(fact.fact_text ?? "");
+  // Prefer preserving explicit agreements / canon over attribute-name heuristics.
+  if (hasExplicitDurableEvidence(factText)) return null;
+  // Preserve completed resolution / negation / recovery events.
+  if (hasExplicitPsychologicalResolutionEvidence(factText)) return null;
+  const attribute = String(fact.attribute ?? "").trim().toLowerCase();
+  if (ABSTRACT_PSYCHOLOGICAL_EPISODIC_ATTRIBUTES.has(attribute)) {
+    return "abstract_psychological_inference";
+  }
+  const text = `${fact.value ?? ""}\n${factText}`;
+  for (const { pattern } of ABSTRACT_PSYCHOLOGICAL_EPISODIC_PATTERNS) {
+    if (pattern.test(text)) return "abstract_psychological_inference";
+  }
+  return null;
+}
+
 export function episodicMemoryRecallEnabled(env = process.env): boolean {
   const raw = env.EPISODIC_MEMORY_RECALL_ENABLED?.trim().toLowerCase();
   if (raw === "0" || raw === "false" || raw === "off" || raw === "disabled") return false;
@@ -186,6 +299,19 @@ function filterContaminatedFactsForSave(facts: ExtractedStatusFact[]): Extracted
   return facts.filter((fact) => !detectEpisodicMemoryContamination(fact));
 }
 
+function filterAbstractPsychologicalInferenceFactsForSave(
+  facts: ExtractedStatusFact[]
+): ExtractedStatusFact[] {
+  return facts.filter((fact) => {
+    if (fact.category === "preference" || fact.category === "rule") return true;
+    return !detectAbstractPsychologicalInference(fact);
+  });
+}
+
+function filterUnsafeEpisodicFactsForSave(facts: ExtractedStatusFact[]): ExtractedStatusFact[] {
+  return filterAbstractPsychologicalInferenceFactsForSave(filterContaminatedFactsForSave(facts));
+}
+
 /** Dev/audit — counts for [StatusMemoryPipeline] without inserting. */
 export type EpisodicFactPersistSummary = {
   rawCount: number;
@@ -202,13 +328,16 @@ export function summarizeEpisodicFactPersistCandidates(
   const rawArr = Array.isArray(raw) ? raw : [];
   const valid = sanitizeExtractedFacts(raw);
   const afterContamination = filterContaminatedFactsForSave(valid);
-  const insertable = dedupeFactsWithinResponse(afterContamination);
+  const afterPsychological = filterAbstractPsychologicalInferenceFactsForSave(afterContamination);
+  const insertable = dedupeFactsWithinResponse(afterPsychological);
   const skippedReasons: string[] = [];
   const schemaRejected = rawArr.length - valid.length;
   if (schemaRejected > 0) skippedReasons.push(`schema_rejected:${schemaRejected}`);
   const contaminated = valid.length - afterContamination.length;
   if (contaminated > 0) skippedReasons.push(`contamination:${contaminated}`);
-  const deduped = afterContamination.length - insertable.length;
+  const psychological = afterContamination.length - afterPsychological.length;
+  if (psychological > 0) skippedReasons.push(`abstract_psychological_inference:${psychological}`);
+  const deduped = afterPsychological.length - insertable.length;
   if (deduped > 0) skippedReasons.push(`within_response_dedupe:${deduped}`);
   return {
     rawCount: rawArr.length,
@@ -351,7 +480,7 @@ export function persistEpisodicMemoryFactsBestEffort(
     }
 
     const facts = dedupeFactsWithinResponse(
-      filterContaminatedFactsForSave(sanitizeExtractedFacts(input.facts))
+      filterUnsafeEpisodicFactsForSave(sanitizeExtractedFacts(input.facts))
     );
     if (facts.length === 0) return 0;
 
@@ -696,6 +825,7 @@ export function getEpisodicMemoryForPrompt(
     }]).length === 1);
     const uncontaminatedRows: EpisodicMemoryFactRecord[] = [];
     let blockedContaminatedCount = 0;
+    let blockedPsychologicalCount = 0;
     let temporarySkippedCount = 0;
     for (const row of validRows) {
       const blockedReason = detectEpisodicMemoryContamination(row);
@@ -721,6 +851,25 @@ export function getEpisodicMemoryForPrompt(
       // Recent raw history owns current emotion/pose/action; DB rows stay (no migration).
       if (isClearlyTemporaryEpisodicFact(row)) {
         temporarySkippedCount += 1;
+        continue;
+      }
+      const psychologicalReason = detectAbstractPsychologicalInference(row);
+      if (psychologicalReason) {
+        blockedPsychologicalCount += 1;
+        if (process.env.NODE_ENV !== "production") {
+          console.info("[EpisodicMemory] blocked abstract psychological inference fact:", {
+            chat_id: chatId,
+            id: row.id,
+            source_turn: row.source_turn,
+            category: row.category,
+            subject: row.subject,
+            attribute: row.attribute,
+            value: row.value,
+            importance: row.importance,
+            fact_text: row.fact_text,
+            blocked_reason: psychologicalReason,
+          });
+        }
         continue;
       }
       uncontaminatedRows.push(row);
@@ -830,6 +979,7 @@ export function getEpisodicMemoryForPrompt(
         })),
         skipped_conflict_facts_count: skippedConflictFactsCount,
         blocked_contaminated_facts_count: blockedContaminatedCount,
+        blocked_abstract_psychological_facts_count: blockedPsychologicalCount,
         temporary_skipped_count: temporarySkippedCount,
         omitted_due_to_budget_count: omittedDueToBudgetCount,
       });
@@ -924,6 +1074,7 @@ export function inspectEpisodicMemoryFactsForDebug(
     if (!blockedReason && isClearlyTemporaryEpisodicFact(fact)) {
       blockedReason = "clearly_temporary";
     }
+    if (!blockedReason) blockedReason = detectAbstractPsychologicalInference(fact);
     if (
       !blockedReason &&
       currentTurn != null &&

@@ -124,6 +124,30 @@ describe("classifyEpisodicFactTemporalNature", () => {
     }
   });
 
+  it("marks new current_* psychological attributes as clearly_temporary", () => {
+    for (const attribute of [
+      "current_attitude",
+      "current_hostility",
+      "current_aggression",
+      "current_possessiveness",
+      "current_jealousy",
+      "current_control_intent",
+      "current_attachment",
+      "current_relationship_tension",
+    ]) {
+      assert.equal(
+        classifyEpisodicFactTemporalNature({
+          category: "character",
+          attribute,
+          value: "high",
+          fact_text: "캐릭터는 현재 일시적인 상태다.",
+        }),
+        "clearly_temporary",
+        attribute
+      );
+    }
+  });
+
   it("marks preference facts as durable and unknown otherwise", () => {
     assert.equal(
       classifyEpisodicFactTemporalNature({

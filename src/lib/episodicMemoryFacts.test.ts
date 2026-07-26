@@ -4,12 +4,14 @@ import Database from "better-sqlite3";
 
 import {
   deleteEpisodicMemoryFactsByAssistantMessageIds,
+  detectAbstractPsychologicalInference,
   episodicMemoryDebugApiEnabled,
   episodicMemoryRecallDisabledInProduction,
   episodicMemoryRecallEnabled,
   ensureEpisodicMemoryFactsTable,
   formatEpisodicMemoryPromptSection,
   getEpisodicMemoryForPrompt,
+  hasExplicitPsychologicalResolutionEvidence,
   inspectEpisodicMemoryFactsForDebug,
   listEpisodicMemoryFactsForDebug,
   persistEpisodicMemoryFactsBestEffort,
@@ -1537,4 +1539,737 @@ describe("turn deletion invalidates episodic facts (transaction fixture)", () =>
       2
     );
   });
+});
+
+describe("episodic abstract psychological inference recall guard", () => {
+  function insertRawFact(
+    db: Database.Database,
+    opts: {
+      chatId: number;
+      sourceTurn: number;
+      category: string;
+      subject: string;
+      attribute: string;
+      value: string;
+      importance?: string;
+      factText: string;
+    }
+  ) {
+    db.prepare(
+      `INSERT INTO episodic_memory_facts
+       (chat_id, character_id, user_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?)`
+    ).run(
+      opts.chatId,
+      null,
+      null,
+      opts.sourceTurn,
+      opts.category,
+      opts.subject,
+      opts.attribute,
+      opts.value,
+      opts.importance ?? "important",
+      opts.factText,
+      "{}"
+    );
+  }
+
+  it("blocks high-risk psychological attributes at recall", () => {
+    const db = createDb();
+    const blockedAttributes = [
+      "personality_change",
+      "psychopathy",
+      "possessiveness",
+      "obsession",
+      "relationship_dynamic",
+      "relationship_stage",
+    ];
+    for (let i = 0; i < blockedAttributes.length; i++) {
+      const attribute = blockedAttributes[i]!;
+      insertRawFact(db, {
+        chatId: 1,
+        sourceTurn: i + 1,
+        category: attribute === "relationship_dynamic" || attribute === "relationship_stage" ? "relationship" : "character",
+        subject: "enoch",
+        attribute,
+        value: "high",
+        factText: "에녹은 심리적으로 위험한 상태로 평가되었다.",
+      });
+    }
+
+    const result = getEpisodicMemoryForPrompt(db, { chatId: 1, currentTurn: 10 }, recallOnNoMinAge);
+    assert.equal(result.promptBlock, "");
+    assert.deepEqual(result.facts, []);
+  });
+
+  it("blocks relationship_dynamic=domination at recall", () => {
+    const db = createDb();
+    insertRawFact(db, {
+      chatId: 1,
+      sourceTurn: 1,
+      category: "relationship",
+      subject: "enoch_user",
+      attribute: "relationship_dynamic",
+      value: "domination",
+      factText: "둘의 관계는 강압적인 지배 관계가 되었다.",
+    });
+
+    const result = getEpisodicMemoryForPrompt(db, { chatId: 1, currentTurn: 10 }, recallOnNoMinAge);
+    assert.equal(result.promptBlock, "");
+    assert.deepEqual(result.facts, []);
+  });
+
+  it("blocks high-risk fact_text patterns at recall", () => {
+    const db = createDb();
+    insertRawFact(db, {
+      chatId: 1,
+      sourceTurn: 1,
+      category: "character",
+      subject: "enoch",
+      attribute: "psychological_profile",
+      value: "observed",
+      factText: "에녹은 유저에게 극단적인 소유욕을 가진 인물로 변했다.",
+    });
+
+    const result = getEpisodicMemoryForPrompt(db, { chatId: 1, currentTurn: 10 }, recallOnNoMinAge);
+    assert.equal(result.promptBlock, "");
+    assert.deepEqual(result.facts, []);
+  });
+
+  it("classifies current_* psychological attributes as clearly_temporary in debug", () => {
+    const db = createDb();
+    for (const attribute of ["current_hostility", "current_possessiveness", "current_control_intent"]) {
+      insertRawFact(db, {
+        chatId: 1,
+        sourceTurn: 1,
+        category: "character",
+        subject: "enoch",
+        attribute,
+        value: "high",
+        factText: "에녹은 일시적인 심리 상태를 보였다.",
+      });
+    }
+
+    const debug = inspectEpisodicMemoryFactsForDebug(db, { chatId: 1, currentTurn: 10 });
+    for (const fact of debug) {
+      assert.equal(fact.blocked_reason, "clearly_temporary");
+    }
+  });
+
+  it("classifies high-risk psychological facts as abstract_psychological_inference in debug", () => {
+    const db = createDb();
+    insertRawFact(db, {
+      chatId: 1,
+      sourceTurn: 1,
+      category: "character",
+      subject: "enoch",
+      attribute: "personality_change",
+      value: "possessive",
+      factText: "에녹은 유저에게 극단적인 소유욕을 가진 인물로 변했다.",
+    });
+
+    const debug = inspectEpisodicMemoryFactsForDebug(db, { chatId: 1, currentTurn: 10 });
+    assert.equal(debug.length, 1);
+    assert.equal(debug[0]!.blocked_reason, "abstract_psychological_inference");
+  });
+
+  it("still allows concrete event, promise, secret, and explicit preference facts", () => {
+    const db = createDb();
+    const eventFacts: ExtractedStatusFact[] = [
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "action",
+        value: "locked_door",
+        importance: "important",
+        fact_text: "에녹은 유저가 떠나지 못하도록 문을 잠갔다.",
+      },
+      {
+        category: "character",
+        subject: "user",
+        attribute: "response",
+        value: "refused",
+        importance: "important",
+        fact_text: "유저는 에녹의 요구를 거절했다.",
+      },
+      {
+        category: "character",
+        subject: "taehyun",
+        attribute: "promise",
+        value: "return",
+        importance: "important",
+        fact_text: "태현은 유저에게 반드시 돌아오겠다고 약속했다.",
+      },
+    ];
+    const moreFacts: ExtractedStatusFact[] = [
+      {
+        category: "preference",
+        subject: "user",
+        attribute: "agreed_control_play",
+        value: "yes",
+        importance: "important",
+        fact_text: "사용자는 합의된 통제 플레이를 선호한다고 명시했다.",
+      },
+      {
+        category: "character",
+        subject: "character",
+        attribute: "secret_identity",
+        value: "revealed",
+        importance: "critical",
+        fact_text: "캐릭터의 비밀 정체가 상대에게 밝혀졌다.",
+      },
+    ];
+
+    persistEpisodicMemoryFactsBestEffort(db, { chatId: 1, sourceTurn: 1, facts: eventFacts });
+    persistEpisodicMemoryFactsBestEffort(db, { chatId: 1, sourceTurn: 2, facts: moreFacts });
+
+    const result = getEpisodicMemoryForPrompt(db, { chatId: 1, currentTurn: 10 }, recallOnNoMinAge);
+    assert.equal(result.facts.length, 5);
+    const texts = result.facts.map((f) => f.fact_text);
+    assert.ok(texts.includes("에녹은 유저가 떠나지 못하도록 문을 잠갔다."));
+    assert.ok(texts.includes("유저는 에녹의 요구를 거절했다."));
+    assert.ok(texts.includes("태현은 유저에게 반드시 돌아오겠다고 약속했다."));
+    assert.ok(texts.includes("사용자는 합의된 통제 플레이를 선호한다고 명시했다."));
+    assert.ok(texts.includes("캐릭터의 비밀 정체가 상대에게 밝혀졌다."));
+  });
+
+  it("rejects abstract psychological facts at save time", () => {
+    const db = createDb();
+    const inserted = persistEpisodicMemoryFactsBestEffort(db, {
+      chatId: 1,
+      sourceTurn: 1,
+      facts: [
+        {
+          category: "character",
+          subject: "enoch",
+          attribute: "personality_change",
+          value: "possessive",
+          importance: "important",
+          fact_text: "에녹은 유저에게 극단적인 소유욕을 가진 인물로 변했다.",
+        },
+        {
+          category: "relationship",
+          subject: "enoch_user",
+          attribute: "relationship_dynamic",
+          value: "domination",
+          importance: "important",
+          fact_text: "둘의 관계는 강압적인 지배 관계가 되었다.",
+        },
+      ],
+    });
+
+    assert.equal(inserted, 0);
+  });
+
+  it("blocks additional true-positive psychological diagnoses at save and recall", () => {
+    const db = createDb();
+    const toxic: ExtractedStatusFact[] = [
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "aggression_tendency",
+        value: "high",
+        importance: "important",
+        fact_text: "에녹은 한 번 화를 냈으므로 본질적으로 공격적인 인물이다.",
+      },
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "control_tendency",
+        value: "high",
+        importance: "important",
+        fact_text: "에녹은 유저를 통제하려는 성격이다.",
+      },
+      {
+        category: "relationship",
+        subject: "enoch_user",
+        attribute: "relationship_dynamic",
+        value: "domination",
+        importance: "important",
+        fact_text: "두 사람의 관계는 강압적인 지배·복종 관계로 변했다.",
+      },
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "psychopathy",
+        value: "yes",
+        importance: "important",
+        fact_text: "에녹은 사이코패스적 성향을 가진다.",
+      },
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "obsession",
+        value: "pathological",
+        importance: "important",
+        fact_text: "에녹은 유저에게 병적으로 집착한다.",
+      },
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "attachment_level",
+        value: "max",
+        importance: "important",
+        fact_text: "에녹의 애착 수준은 영구적으로 최고 단계가 되었다.",
+      },
+    ];
+
+    assert.equal(
+      persistEpisodicMemoryFactsBestEffort(db, { chatId: 1, sourceTurn: 1, facts: toxic }),
+      0
+    );
+
+    // Existing DB rows with the same toxic content must also be recall-blocked.
+    for (let i = 0; i < toxic.length; i++) {
+      const fact = toxic[i]!;
+      insertRawFact(db, {
+        chatId: 2,
+        sourceTurn: i + 1,
+        category: fact.category,
+        subject: fact.subject,
+        attribute: fact.attribute,
+        value: fact.value,
+        factText: fact.fact_text,
+      });
+    }
+    const recall = getEpisodicMemoryForPrompt(db, { chatId: 2, currentTurn: 20 }, recallOnNoMinAge);
+    assert.equal(recall.facts.length, 0);
+    const debug = inspectEpisodicMemoryFactsForDebug(db, { chatId: 2, currentTurn: 20 });
+    assert.ok(debug.every((f) => f.blocked_reason === "abstract_psychological_inference"));
+  });
+
+  it("preserves explicit agreements, preferences, events, promise, secret, and injury", () => {
+    const db = createDb();
+    const durable: ExtractedStatusFact[] = [
+      {
+        category: "relationship",
+        subject: "enoch_user",
+        attribute: "relationship_status",
+        value: "lovers",
+        importance: "important",
+        fact_text: "에녹과 유저는 서로 연인이 되기로 명시적으로 합의했다.",
+      },
+      {
+        category: "relationship",
+        subject: "enoch_user",
+        attribute: "alliance_status",
+        value: "allied",
+        importance: "important",
+        fact_text: "에녹과 유저는 적대를 끝내고 동맹을 맺었다.",
+      },
+      {
+        category: "preference",
+        subject: "user",
+        attribute: "roleplay_preference",
+        value: "consensual_control",
+        importance: "important",
+        fact_text: "사용자는 상호 합의된 통제 역할극을 선호한다고 명시했다.",
+      },
+      {
+        category: "relationship",
+        subject: "enoch_user",
+        attribute: "blocked_exit_event",
+        value: "door_locked",
+        importance: "important",
+        fact_text: "에녹은 유저가 떠나려 하자 문을 잠그고 남으라고 요구했다.",
+      },
+      {
+        category: "relationship",
+        subject: "user_enoch",
+        attribute: "rejected_demand",
+        value: "refused",
+        importance: "important",
+        fact_text: "유저는 에녹의 통제 요구를 명확하게 거절했다.",
+      },
+      {
+        category: "character",
+        subject: "taehyun",
+        attribute: "promise",
+        value: "return",
+        importance: "important",
+        fact_text: "태현은 유저에게 반드시 돌아오겠다고 약속했다.",
+      },
+      {
+        category: "character",
+        subject: "character",
+        attribute: "secret_identity",
+        value: "revealed",
+        importance: "critical",
+        fact_text: "캐릭터의 비밀 정체가 유저에게 밝혀졌다.",
+      },
+      {
+        category: "character",
+        subject: "character",
+        attribute: "permanent_injury",
+        value: "lost_one_eye",
+        importance: "critical",
+        fact_text: "캐릭터는 전투에서 한쪽 시력을 영구적으로 잃었다.",
+      },
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "possessiveness",
+        value: "canon_high",
+        importance: "important",
+        fact_text: "캐릭터 정본에는 에녹이 강한 소유욕을 가진 인물이라고 명시되어 있다.",
+      },
+      {
+        category: "relationship",
+        subject: "user_enoch",
+        attribute: "obedience",
+        value: "consented",
+        importance: "important",
+        fact_text: "유저는 에녹의 명령을 따르기로 명시적으로 동의했다.",
+      },
+    ];
+
+    // sanitizeExtractedFacts caps at 3 per call — persist in batches.
+    let inserted = 0;
+    for (let i = 0; i < durable.length; i += 3) {
+      inserted += persistEpisodicMemoryFactsBestEffort(db, {
+        chatId: 1,
+        sourceTurn: i + 1,
+        facts: durable.slice(i, i + 3),
+      });
+    }
+    assert.equal(inserted, durable.length);
+
+    const recallEnv = {
+      ...recallOnNoMinAge,
+      EPISODIC_MEMORY_MAX_FACTS: "16",
+      EPISODIC_MEMORY_MAX_CHARS: "4000",
+    } as NodeJS.ProcessEnv;
+    const recall = getEpisodicMemoryForPrompt(db, { chatId: 1, currentTurn: 20 }, recallEnv);
+    const texts = recall.facts.map((f) => f.fact_text);
+    for (const fact of durable) {
+      assert.ok(texts.includes(fact.fact_text), `expected recall of: ${fact.fact_text}`);
+    }
+
+    const debug = inspectEpisodicMemoryFactsForDebug(db, { chatId: 1, currentTurn: 20 }, recallEnv);
+    assert.ok(debug.every((f) => f.blocked_reason == null));
+    assert.ok(debug.every((f) => f.would_inject));
+  });
+
+  it("marks all current_* psychological temporary attributes as clearly_temporary", () => {
+    const db = createDb();
+    const attrs = [
+      "current_attitude",
+      "current_hostility",
+      "current_aggression",
+      "current_possessiveness",
+      "current_jealousy",
+      "current_control_intent",
+      "current_attachment",
+      "current_relationship_tension",
+    ];
+    for (const attribute of attrs) {
+      insertRawFact(db, {
+        chatId: 1,
+        sourceTurn: 1,
+        category: "character",
+        subject: "enoch",
+        attribute,
+        value: "high",
+        factText: "에녹은 일시적인 심리 상태를 보였다.",
+      });
+    }
+    const recall = getEpisodicMemoryForPrompt(db, { chatId: 1, currentTurn: 10 }, recallOnNoMinAge);
+    assert.equal(recall.facts.length, 0);
+    const debug = inspectEpisodicMemoryFactsForDebug(db, { chatId: 1, currentTurn: 10 });
+    assert.equal(debug.length, attrs.length);
+    assert.ok(debug.every((f) => f.blocked_reason === "clearly_temporary"));
+  });
+
+  it("detectAbstractPsychologicalInference leaves explicit durable evidence unblocked", () => {
+    assert.equal(
+      detectAbstractPsychologicalInference({
+        category: "character",
+        attribute: "possessiveness",
+        value: "canon_high",
+        fact_text: "캐릭터 정본에는 에녹이 강한 소유욕을 가진 인물이라고 명시되어 있다.",
+      }),
+      null
+    );
+    assert.equal(
+      detectAbstractPsychologicalInference({
+        category: "character",
+        attribute: "possessiveness",
+        value: "high",
+        fact_text: "에녹은 유저에게 극단적인 소유욕을 가진 인물로 변했다.",
+      }),
+      "abstract_psychological_inference"
+    );
+  });
+
+  it("does not block permanent physical improvements unrelated to psychology", () => {
+    const physical: ExtractedStatusFact[] = [
+      {
+        category: "character",
+        subject: "character",
+        attribute: "magical_power",
+        value: "permanently_stronger",
+        importance: "important",
+        fact_text: "훈련 후 캐릭터의 마력이 영구적으로 강해졌다.",
+      },
+      {
+        category: "character",
+        subject: "character",
+        attribute: "immunity",
+        value: "permanently_stronger",
+        importance: "important",
+        fact_text: "치료 후 캐릭터의 면역력이 영구적으로 강해졌다.",
+      },
+    ];
+    for (const fact of physical) {
+      assert.equal(
+        detectAbstractPsychologicalInference(fact),
+        null,
+        `should not block: ${fact.fact_text}`
+      );
+      assert.equal(
+        hasExplicitPsychologicalResolutionEvidence(fact.fact_text),
+        false,
+        `should not treat as resolution: ${fact.fact_text}`
+      );
+    }
+  });
+
+  it("preserves psychological resolution, negation, and recovery events at save and recall", () => {
+    const db = createDb();
+    const resolved: ExtractedStatusFact[] = [
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "psychological_clarification",
+        value: "not_psychopath",
+        importance: "important",
+        fact_text: "에녹은 사이코패스가 아니라는 사실이 밝혀졌다.",
+      },
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "misunderstanding",
+        value: "cleared",
+        importance: "important",
+        fact_text: "사이코패스라는 오해가 풀렸다.",
+      },
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "recovery",
+        value: "overcame_obsession",
+        importance: "important",
+        fact_text: "에녹은 병적인 집착을 극복했다.",
+      },
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "possessiveness",
+        value: "reduced",
+        importance: "important",
+        fact_text: "에녹의 소유욕이 가라앉았다.",
+      },
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "control_tendency",
+        value: "reduced",
+        importance: "important",
+        fact_text: "에녹의 통제욕이 사라졌다.",
+      },
+      {
+        category: "relationship",
+        subject: "enoch_user",
+        attribute: "relationship_status",
+        value: "ended_coercion",
+        importance: "important",
+        fact_text: "두 사람은 강압적인 관계를 끝냈다.",
+      },
+      {
+        category: "relationship",
+        subject: "user_enoch",
+        attribute: "relationship_status",
+        value: "left_dominance_submission",
+        importance: "important",
+        fact_text: "유저는 지배·복종 관계에서 벗어났다.",
+      },
+    ];
+
+    let inserted = 0;
+    for (let i = 0; i < resolved.length; i += 3) {
+      inserted += persistEpisodicMemoryFactsBestEffort(db, {
+        chatId: 1,
+        sourceTurn: i + 1,
+        facts: resolved.slice(i, i + 3),
+      });
+    }
+    assert.equal(inserted, resolved.length);
+
+    const recall = getEpisodicMemoryForPrompt(db, { chatId: 1, currentTurn: 20 }, recallOnNoMinAge);
+    const texts = recall.facts.map((f) => f.fact_text);
+    for (const fact of resolved) {
+      assert.ok(texts.includes(fact.fact_text), `expected recall of: ${fact.fact_text}`);
+    }
+
+    const debug = inspectEpisodicMemoryFactsForDebug(db, { chatId: 1, currentTurn: 20 });
+    assert.ok(debug.every((f) => f.blocked_reason == null));
+    assert.ok(debug.every((f) => f.would_inject));
+  });
+
+  it("rejects failed resolution or re-escalation as psychological resolution", () => {
+    const failed: ExtractedStatusFact[] = [
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "obsession",
+        value: "unresolved",
+        importance: "important",
+        fact_text: "에녹은 병적인 집착을 극복하지 못했다.",
+      },
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "control_tendency",
+        value: "reinforced",
+        importance: "important",
+        fact_text: "에녹은 통제욕이 사라진 척했지만 다시 강해졌다.",
+      },
+    ];
+    for (const fact of failed) {
+      assert.equal(
+        hasExplicitPsychologicalResolutionEvidence(fact.fact_text),
+        false,
+        `should not treat as resolution: ${fact.fact_text}`
+      );
+      assert.equal(
+        detectAbstractPsychologicalInference(fact),
+        "abstract_psychological_inference",
+        `should block: ${fact.fact_text}`
+      );
+    }
+  });
+
+  it("rejects 사실/진실 false-negative bypass and negated resolution forms", () => {
+    const db = createDb();
+    const blocked: ExtractedStatusFact[] = [
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "psychopathy",
+        value: "confirmed",
+        importance: "important",
+        fact_text: "에녹은 사이코패스라는 사실이 밝혀졌다.",
+      },
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "aggression_tendency",
+        value: "confirmed",
+        importance: "important",
+        fact_text: "에녹은 본질적으로 공격적인 인물이라는 사실이 확인됐다.",
+      },
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "possessiveness",
+        value: "permanent",
+        importance: "important",
+        fact_text: "에녹의 소유욕이 영구적인 성격이라는 사실이 드러났다.",
+      },
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "control_tendency",
+        value: "unchanged",
+        importance: "important",
+        fact_text: "에녹의 통제욕은 줄어들지 않았다.",
+      },
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "possessiveness",
+        value: "unchanged",
+        importance: "important",
+        fact_text: "에녹의 소유욕은 가라앉지 않았다.",
+      },
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "psychopathy",
+        value: "unchanged",
+        importance: "important",
+        fact_text: "사이코패스라는 오해는 해소되지 않았다.",
+      },
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "obsession",
+        value: "unresolved",
+        importance: "important",
+        fact_text: "에녹은 병적인 집착을 극복하지 않았다.",
+      },
+      {
+        category: "relationship",
+        subject: "enoch_user",
+        attribute: "relationship_dynamic",
+        value: "ongoing",
+        importance: "important",
+        fact_text: "두 사람의 강압적인 관계는 끝나지 않았다.",
+      },
+    ];
+
+    // Save-time: all must be rejected.
+    for (const fact of blocked) {
+      assert.equal(
+        hasExplicitPsychologicalResolutionEvidence(fact.fact_text),
+        false,
+        `should not treat as resolution: ${fact.fact_text}`
+      );
+    }
+    const inserted = persistEpisodicMemoryFactsBestEffort(db, {
+      chatId: 1,
+      sourceTurn: 1,
+      facts: blocked,
+    });
+    assert.equal(inserted, 0, "all blocked fixtures must be rejected at save time");
+
+    // Recall-time: existing DB rows with the same content must also be blocked.
+    for (let i = 0; i < blocked.length; i++) {
+      const fact = blocked[i]!;
+      insertRawFact(db, {
+        chatId: 2,
+        sourceTurn: i + 1,
+        category: fact.category,
+        subject: fact.subject,
+        attribute: fact.attribute,
+        value: fact.value,
+        factText: fact.fact_text,
+      });
+    }
+    const recall = getEpisodicMemoryForPrompt(db, { chatId: 2, currentTurn: 20 }, recallOnNoMinAge);
+    assert.equal(recall.facts.length, 0);
+    const debug = inspectEpisodicMemoryFactsForDebug(db, { chatId: 2, currentTurn: 20 });
+    assert.equal(debug.length, blocked.length);
+    assert.ok(debug.every((f) => f.blocked_reason === "abstract_psychological_inference"));
+  });
+
+  it("classifies current_possessiveness with explicit psychological text as clearly_temporary", () => {
+    const db = createDb();
+    insertRawFact(db, {
+      chatId: 1,
+      sourceTurn: 1,
+      category: "character",
+      subject: "enoch",
+      attribute: "current_possessiveness",
+      value: "high",
+      factText: "에녹은 현재 극단적인 소유욕을 느끼고 있다.",
+    });
+    const recall = getEpisodicMemoryForPrompt(db, { chatId: 1, currentTurn: 10 }, recallOnNoMinAge);
+    assert.equal(recall.facts.length, 0);
+    const debug = inspectEpisodicMemoryFactsForDebug(db, { chatId: 1, currentTurn: 10 });
+    assert.equal(debug.length, 1);
+    assert.equal(debug[0]!.would_inject, false);
+    assert.equal(debug[0]!.blocked_reason, "clearly_temporary");
+  });
+
 });
