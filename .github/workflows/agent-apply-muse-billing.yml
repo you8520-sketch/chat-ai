@@ -1,12 +1,9 @@
-name: Apply Muse billing fix
+name: Apply Muse billing rate fix
 
 on:
   push:
     branches:
       - agent/fix-muse-billing-60-margin
-  pull_request:
-    branches:
-      - main
 
 permissions:
   contents: write
@@ -18,7 +15,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 0
 
       - uses: actions/setup-node@v4
@@ -26,40 +22,29 @@ jobs:
           node-version: '22'
           cache: npm
 
-      - name: Apply focused patch
+      - name: Apply Muse token-rate patch only
         run: |
-          set +e
-          git apply --check .agent/muse-billing-60.patch > /tmp/muse-apply.log 2>&1
-          status=$?
-          set -e
-          if [ "$status" -ne 0 ]; then
-            cat /tmp/muse-apply.log
-            cp /tmp/muse-apply.log .agent/apply-check.log
-            git config user.name 'github-actions[bot]'
-            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add .agent/apply-check.log
-            git commit -m 'chore: capture Muse billing patch failure'
-            git push origin HEAD:agent/fix-muse-billing-60-margin
-            exit "$status"
-          fi
-          git apply .agent/muse-billing-60.patch
+          git apply --check .agent/muse-billing-rate-only.patch
+          git apply .agent/muse-billing-rate-only.patch
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Run focused billing tests
-        run: npx tsx --test src/lib/openRouterUsage.test.ts src/lib/points.muse.test.ts
+      - name: Run focused Muse billing tests
+        run: npx tsx --test src/lib/points.muse.test.ts
 
       - name: Typecheck app
         run: npm run typecheck:app
 
       - name: Commit validated changes
         run: |
-          rm -f .agent/muse-billing-60.patch .agent/apply-check.log
+          rm -f .agent/muse-billing-60.patch
+          rm -f .agent/muse-billing-rate-only.patch
+          rm -f .agent/apply-check.log
           rmdir .agent 2>/dev/null || true
           rm -f .github/workflows/agent-apply-muse-billing.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
-          git commit -m 'fix(billing): charge full Muse usage at 60% margin'
+          git commit -m 'fix(billing): apply Muse 60% token rates'
           git push origin HEAD:agent/fix-muse-billing-60-margin
