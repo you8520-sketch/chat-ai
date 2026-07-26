@@ -23,6 +23,18 @@ import {
   INTRA_WORLD_PROVENANCE_GUARD_SECTION_ID,
 } from "@/lib/intraWorldProvenanceGuard";
 import {
+  isMuseCompactSceneStateEnabledForUser,
+  isMuseStructuralLengthAnchorEnabledForUser,
+} from "@/lib/museSceneBootstrapPolicy";
+import {
+  MUSE_COMPACT_SCENE_STATE_BLOCK,
+  MUSE_COMPACT_SCENE_STATE_SECTION_ID,
+} from "@/lib/museCompactSceneState";
+import {
+  MUSE_STRUCTURAL_LENGTH_ANCHOR_BLOCK,
+  MUSE_STRUCTURAL_LENGTH_ANCHOR_SECTION_ID,
+} from "@/lib/museStructuralLengthAnchor";
+import {
   buildCharacterCanonBlock,
   buildCharacterSpeechRecencyTail,
   CHARACTER_KNOWLEDGE_BOUNDARY_BLOCK,
@@ -942,6 +954,24 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   pushActiveCanon();
   pushPrivateCharacterSecret();
 
+  // Admin-only Muse canary: compact semantic scene state AFTER canon/memory /
+  // private secret and BEFORE LENGTH / Terminal / Truth Guard. Independent of
+  // Structural Length Anchor. Gate OFF → no section (byte-stable).
+  // Note: memory/canon sit after prose in this builder, so "after memory and
+  // before prose" is impossible; this seam is the closest source-grounded
+  // scene-dynamic slot that still precedes operational length tails.
+  if (
+    isMuseCompactSceneStateEnabledForUser(input.userId, input.modelId, input.chatId)
+  ) {
+    pushSection(
+      MUSE_COMPACT_SCENE_STATE_SECTION_ID,
+      "Muse compact scene state (admin canary internal context)",
+      "systemRules",
+      MUSE_COMPACT_SCENE_STATE_BLOCK,
+      "dynamic"
+    );
+  }
+
   flushDeepSeekXmlSections(["ltm"]);
 
   // ───── [4] OOC co-narration (explicit OOC opt-in only — never auto progression) ─────
@@ -1014,6 +1044,26 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     htmlFlashOwned: isOpenRouter,
     statusWidgetActive: input.statusWidgetActive === true,
   };
+
+  // Admin-only Muse canary: structural length anchor AFTER M1 prose (pushed
+  // earlier) and IMMEDIATELY BEFORE existing LENGTH CONTROL. Terminal and
+  // Truth Guard keep their existing absolute-tail positions. Independent of
+  // Compact Semantic State. Gate OFF → no section (byte-stable).
+  if (
+    isMuseStructuralLengthAnchorEnabledForUser(
+      input.userId,
+      input.modelId,
+      input.chatId
+    )
+  ) {
+    pushSection(
+      MUSE_STRUCTURAL_LENGTH_ANCHOR_SECTION_ID,
+      "Muse structural length anchor (admin canary scene depth)",
+      "systemRules",
+      MUSE_STRUCTURAL_LENGTH_ANCHOR_BLOCK,
+      "dynamic"
+    );
+  }
 
   if (!isOpenRouter) {
     pushSection(

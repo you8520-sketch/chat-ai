@@ -1109,6 +1109,7 @@ export async function POST(req: Request) {
     runtimeMode,
     personaDisplayName,
     userId: user.id,
+    chatId: chat.id,
     targetResponseChars,
     completedTurns: playableTurnCount,
     userPersonaGender: selectedPersona?.gender ?? "other",

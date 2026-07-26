@@ -84,6 +84,12 @@ export type ContextBuildInput = {
    * typecheck compatibility; route.ts always supplies it.
    */
   userId?: number;
+  /**
+   * Current chat id — used by Muse scene-bootstrap chat allowlists
+   * (compact semantic state / structural length anchor). Optional for
+   * typecheck compatibility with non-route callers; `/api/chat` supplies it.
+   */
+  chatId?: number;
   /** AI 출력 목표 글자 수 (채팅방별) */
   targetResponseChars?: number;
   /** 현재 턴 직전까지 완료된 대화 턴 수 */
