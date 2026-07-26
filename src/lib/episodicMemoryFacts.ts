@@ -139,7 +139,6 @@ const ABSTRACT_PSYCHOLOGICAL_EPISODIC_PATTERNS: Array<{ reason: string; pattern:
   { reason: "abstract_psychological_inference", pattern: /사이코패스/ },
   { reason: "abstract_psychological_inference", pattern: /성격이\s*변했/ },
   { reason: "abstract_psychological_inference", pattern: /애착\s*(?:수준|단계)/ },
-  { reason: "abstract_psychological_inference", pattern: /영구적으로\s*(?:강해|최고)/ },
 ];
 
 /**
@@ -159,6 +158,49 @@ export function hasExplicitDurableEvidence(factText: string): boolean {
   return false;
 }
 
+/**
+ * Preserves facts that explicitly negate, resolve, or recover from a risky
+ * psychological state. We require both a psychological risk concept and a
+ * clear completion/resolution marker, and reject negated/failed resolutions.
+ */
+export function hasExplicitPsychologicalResolutionEvidence(factText: string): boolean {
+  const t = factText.replace(/\s+/g, " ").trim();
+  if (!t) return false;
+
+  // Reject failed/pretended resolutions that are immediately re-strengthened.
+  if (/(?:극복|해소|끝|벗어나|사라지|줄어들|가라앉)\s*하지\s*못했/.test(t)) return false;
+  if (/(?:사라진|줄어든|가라앉은|극복한)\s*척했/.test(t)) return false;
+  if (/(?:사라진|줄어든|가라앉은|극복한)\s*척.*(?:강해|커지|늘어|다시|여전히)/.test(t)) return false;
+  if (/(?:다시|더욱|오히려|여전히).{0,24}(?:강해|커지|늘어|심해|계속)/.test(t)) return false;
+
+  // Psychological risk concepts that may be resolved.
+  const hasRisk =
+    /(?:사이코패스|집착|소유욕|통제욕|지배욕|강압|지배|복종|통제|애착|적대|공격)/.test(t) ||
+    /(?:강압적(?:인)?(?:\s*.{0,12})?관계|지배[·・･]?\s*복종\s*관계|본질적으로.{0,24}(?:공격|소유|통제|집착))/.test(
+      t
+    );
+  if (!hasRisk) return false;
+
+  // Resolution / negation / recovery markers in completed/affirmative form.
+  const resolutionPatterns = [
+    /(?:이|그것|것)?\s*아니(?:라는|라고|다는|었)/,
+    /오해(?:가|라는)?\s*풀렸/,
+    /오해(?:가|라는)?\s*해소/,
+    /(?:사실|진실)(?:이|이었)/,
+    /사라졌/,
+    /줄어들/,
+    /가라앉/,
+    /극복했/,
+    /해소됐/,
+    /해소되었/,
+    /해소했/,
+    /끝냈/,
+    /끝났/,
+    /벗어났/,
+  ];
+  return resolutionPatterns.some((p) => p.test(t));
+}
+
 export function detectAbstractPsychologicalInference(
   fact: Pick<ExtractedStatusFact, "category" | "attribute" | "value" | "fact_text">
 ): "abstract_psychological_inference" | null {
@@ -167,6 +209,8 @@ export function detectAbstractPsychologicalInference(
   const factText = String(fact.fact_text ?? "");
   // Prefer preserving explicit agreements / canon over attribute-name heuristics.
   if (hasExplicitDurableEvidence(factText)) return null;
+  // Preserve completed resolution / negation / recovery events.
+  if (hasExplicitPsychologicalResolutionEvidence(factText)) return null;
   const attribute = String(fact.attribute ?? "").trim().toLowerCase();
   if (ABSTRACT_PSYCHOLOGICAL_EPISODIC_ATTRIBUTES.has(attribute)) {
     return "abstract_psychological_inference";
@@ -800,6 +844,12 @@ export function getEpisodicMemoryForPrompt(
         }
         continue;
       }
+      // Exclude clearly momentary states before latest-wins / ranking / budget.
+      // Recent raw history owns current emotion/pose/action; DB rows stay (no migration).
+      if (isClearlyTemporaryEpisodicFact(row)) {
+        temporarySkippedCount += 1;
+        continue;
+      }
       const psychologicalReason = detectAbstractPsychologicalInference(row);
       if (psychologicalReason) {
         blockedPsychologicalCount += 1;
@@ -817,12 +867,6 @@ export function getEpisodicMemoryForPrompt(
             blocked_reason: psychologicalReason,
           });
         }
-        continue;
-      }
-      // Exclude clearly momentary states before latest-wins / ranking / budget.
-      // Recent raw history owns current emotion/pose/action; DB rows stay (no migration).
-      if (isClearlyTemporaryEpisodicFact(row)) {
-        temporarySkippedCount += 1;
         continue;
       }
       uncontaminatedRows.push(row);
@@ -1024,10 +1068,10 @@ export function inspectEpisodicMemoryFactsForDebug(
     let blockedReason: string | null = null;
     if (!structurallyValid) blockedReason = "invalid_fact_schema";
     if (!blockedReason) blockedReason = detectEpisodicMemoryContamination(fact);
-    if (!blockedReason) blockedReason = detectAbstractPsychologicalInference(fact);
     if (!blockedReason && isClearlyTemporaryEpisodicFact(fact)) {
       blockedReason = "clearly_temporary";
     }
+    if (!blockedReason) blockedReason = detectAbstractPsychologicalInference(fact);
     if (
       !blockedReason &&
       currentTurn != null &&

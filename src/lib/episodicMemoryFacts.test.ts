@@ -11,6 +11,7 @@ import {
   ensureEpisodicMemoryFactsTable,
   formatEpisodicMemoryPromptSection,
   getEpisodicMemoryForPrompt,
+  hasExplicitPsychologicalResolutionEvidence,
   inspectEpisodicMemoryFactsForDebug,
   listEpisodicMemoryFactsForDebug,
   persistEpisodicMemoryFactsBestEffort,
@@ -1998,6 +1999,165 @@ describe("episodic abstract psychological inference recall guard", () => {
       }),
       "abstract_psychological_inference"
     );
+  });
+
+  it("does not block permanent physical improvements unrelated to psychology", () => {
+    const physical: ExtractedStatusFact[] = [
+      {
+        category: "character",
+        subject: "character",
+        attribute: "magical_power",
+        value: "permanently_stronger",
+        importance: "important",
+        fact_text: "훈련 후 캐릭터의 마력이 영구적으로 강해졌다.",
+      },
+      {
+        category: "character",
+        subject: "character",
+        attribute: "immunity",
+        value: "permanently_stronger",
+        importance: "important",
+        fact_text: "치료 후 캐릭터의 면역력이 영구적으로 강해졌다.",
+      },
+    ];
+    for (const fact of physical) {
+      assert.equal(
+        detectAbstractPsychologicalInference(fact),
+        null,
+        `should not block: ${fact.fact_text}`
+      );
+      assert.equal(
+        hasExplicitPsychologicalResolutionEvidence(fact.fact_text),
+        false,
+        `should not treat as resolution: ${fact.fact_text}`
+      );
+    }
+  });
+
+  it("preserves psychological resolution, negation, and recovery events at save and recall", () => {
+    const db = createDb();
+    const resolved: ExtractedStatusFact[] = [
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "psychological_clarification",
+        value: "not_psychopath",
+        importance: "important",
+        fact_text: "에녹은 사이코패스가 아니라는 사실이 밝혀졌다.",
+      },
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "misunderstanding",
+        value: "cleared",
+        importance: "important",
+        fact_text: "사이코패스라는 오해가 풀렸다.",
+      },
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "recovery",
+        value: "overcame_obsession",
+        importance: "important",
+        fact_text: "에녹은 병적인 집착을 극복했다.",
+      },
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "possessiveness",
+        value: "reduced",
+        importance: "important",
+        fact_text: "에녹의 소유욕이 가라앉았다.",
+      },
+      {
+        category: "relationship",
+        subject: "enoch_user",
+        attribute: "relationship_status",
+        value: "ended_coercion",
+        importance: "important",
+        fact_text: "두 사람은 강압적인 관계를 끝냈다.",
+      },
+      {
+        category: "relationship",
+        subject: "user_enoch",
+        attribute: "relationship_status",
+        value: "left_dominance_submission",
+        importance: "important",
+        fact_text: "유저는 지배·복종 관계에서 벗어났다.",
+      },
+    ];
+
+    let inserted = 0;
+    for (let i = 0; i < resolved.length; i += 3) {
+      inserted += persistEpisodicMemoryFactsBestEffort(db, {
+        chatId: 1,
+        sourceTurn: i + 1,
+        facts: resolved.slice(i, i + 3),
+      });
+    }
+    assert.equal(inserted, resolved.length);
+
+    const recall = getEpisodicMemoryForPrompt(db, { chatId: 1, currentTurn: 20 }, recallOnNoMinAge);
+    const texts = recall.facts.map((f) => f.fact_text);
+    for (const fact of resolved) {
+      assert.ok(texts.includes(fact.fact_text), `expected recall of: ${fact.fact_text}`);
+    }
+
+    const debug = inspectEpisodicMemoryFactsForDebug(db, { chatId: 1, currentTurn: 20 });
+    assert.ok(debug.every((f) => f.blocked_reason == null));
+    assert.ok(debug.every((f) => f.would_inject));
+  });
+
+  it("rejects failed resolution or re-escalation as psychological resolution", () => {
+    const failed: ExtractedStatusFact[] = [
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "obsession",
+        value: "unresolved",
+        importance: "important",
+        fact_text: "에녹은 병적인 집착을 극복하지 못했다.",
+      },
+      {
+        category: "character",
+        subject: "enoch",
+        attribute: "control_tendency",
+        value: "reinforced",
+        importance: "important",
+        fact_text: "에녹은 통제욕이 사라진 척했지만 다시 강해졌다.",
+      },
+    ];
+    for (const fact of failed) {
+      assert.equal(
+        hasExplicitPsychologicalResolutionEvidence(fact.fact_text),
+        false,
+        `should not treat as resolution: ${fact.fact_text}`
+      );
+      assert.equal(
+        detectAbstractPsychologicalInference(fact),
+        "abstract_psychological_inference",
+        `should block: ${fact.fact_text}`
+      );
+    }
+  });
+
+  it("classifies current_possessiveness with explicit psychological text as clearly_temporary", () => {
+    const db = createDb();
+    insertRawFact(db, {
+      chatId: 1,
+      sourceTurn: 1,
+      category: "character",
+      subject: "enoch",
+      attribute: "current_possessiveness",
+      value: "high",
+      factText: "에녹은 현재 극단적인 소유욕을 느끼고 있다.",
+    });
+    const recall = getEpisodicMemoryForPrompt(db, { chatId: 1, currentTurn: 10 }, recallOnNoMinAge);
+    assert.equal(recall.facts.length, 0);
+    const debug = inspectEpisodicMemoryFactsForDebug(db, { chatId: 1, currentTurn: 10 });
+    assert.equal(debug.length, 1);
+    assert.equal(debug[0]!.would_inject, false);
+    assert.equal(debug[0]!.blocked_reason, "clearly_temporary");
   });
 
 });
