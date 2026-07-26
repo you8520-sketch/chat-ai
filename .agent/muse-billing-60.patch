@@ -40,7 +40,7 @@ diff --git a/src/lib/openRouterUsage.ts b/src/lib/openRouterUsage.ts
 index 46fc137..0000000 100644
 --- a/src/lib/openRouterUsage.ts
 +++ b/src/lib/openRouterUsage.ts
-@@ -6,7 +6,10 @@ import { resolveOpenRouterModelRates } from "@/lib/openRouterModelPricing";
+@@ -6,6 +6,9 @@ import { resolveOpenRouterModelRates } from "@/lib/openRouterModelPricing";
  /** OpenRouter / Anthropic usage — cache 분리 정산용 */
  export type OpenRouterUsageBreakdown = {
    promptTokens: number;
@@ -136,7 +136,7 @@ diff --git a/src/lib/openRouterUsage.test.ts b/src/lib/openRouterUsage.test.ts
 index f0d07b6..0000000 100644
 --- a/src/lib/openRouterUsage.test.ts
 +++ b/src/lib/openRouterUsage.test.ts
-@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
+@@ -3,5 +3,6 @@ import assert from "node:assert/strict";
  import { describe, it } from "node:test";
  import {
 +  parseBillableCompletionTokens,
@@ -181,7 +181,7 @@ diff --git a/src/lib/points.muse.test.ts b/src/lib/points.muse.test.ts
 index 20e7aa1..0000000 100644
 --- a/src/lib/points.muse.test.ts
 +++ b/src/lib/points.muse.test.ts
-@@ -4,10 +4,13 @@ import { describe, it } from "node:test";
+@@ -4,8 +4,11 @@ import { describe, it } from "node:test";
  import {
    MUSE_WAIVER_SUCCESS_MIN_COST,
 +  OPENROUTER_MUSE_INPUT_POINTS_PER_TOKEN,
@@ -221,7 +221,7 @@ index 20e7aa1..0000000 100644
    });
  
    it("increases with visible input/output but not cache state", () => {
-@@ -89,6 +94,29 @@ describe("Muse Spark 1.1 dual-rate simple point billing", () => {
+@@ -89,6 +94,31 @@ describe("Muse Spark 1.1 dual-rate simple point billing", () => {
      assert.ok(explain.total > computeOpenRouterTurnCost(inputTokens, outputTokens, modelId));
    });
  
