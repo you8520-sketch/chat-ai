@@ -12,16 +12,14 @@ describe("INTRA_WORLD_PROVENANCE_GUARD_BLOCK", () => {
     assert.equal(INTRA_WORLD_PROVENANCE_GUARD_SECTION_ID, "rule-intraworld-provenance-absolute-tail");
   });
 
-  it("includes required intent phrases", () => {
+  it("includes required persistence-based intent phrases", () => {
     for (const phrase of [
-      "사용자가 묻지 않았더라도",
-      "제도·규정·절차",
-      "전용 장치의 존재나 기능",
-      "장르상 그럴듯하다는 이유만으로",
-      "비고유 배경 디테일은 사용할 수 있다",
-      "새로운 규칙·제도·기관 관행",
-      "분량이나 분위기를 채우기 위해",
-      "이 규칙 자체를 본문에서 설명하거나 인용하지 않는다",
+      "설정 근거",
+      "없는 세계관 사실",
+      "일회성 비고유 묘사는 허용",
+      "이후에도 사실로 남을 새 설정은 만들지 않는다",
+      "이미 확립된 요소로 전개",
+      "본문에 드러내지 않는다",
     ]) {
       assert.ok(
         INTRA_WORLD_PROVENANCE_GUARD_BLOCK.includes(phrase),
@@ -30,8 +28,21 @@ describe("INTRA_WORLD_PROVENANCE_GUARD_BLOCK", () => {
     }
   });
 
-  it("excludes canary failure exact expressions", () => {
+  it("excludes old category enumeration and failure terms", () => {
     for (const phrase of [
+      "제도",
+      "규정",
+      "절차",
+      "의무",
+      "검사",
+      "서식",
+      "기록 체계",
+      "전용 장치",
+      "장치 체계",
+      "기관 관행",
+      "단말기",
+      "바이탈",
+      "시스템",
       "별도로 체크",
       "범위를 체크",
       "바이탈을 체크",
@@ -59,13 +70,13 @@ describe("INTRA_WORLD_PROVENANCE_GUARD_BLOCK", () => {
     }
   });
 
-  it("stays in the target token band", () => {
+  it("stays in the compact target band", () => {
     const chars = [...INTRA_WORLD_PROVENANCE_GUARD_BLOCK].length;
     const tokens = estimateTokens(INTRA_WORLD_PROVENANCE_GUARD_BLOCK);
-    assert.ok(chars >= 300, `chars ${chars} < 300`);
-    assert.ok(chars <= 500, `chars ${chars} > 500`);
-    assert.ok(tokens >= 250, `tokens ${tokens} < 250`);
-    assert.ok(tokens <= 500, `tokens ${tokens} > 500`);
+    assert.ok(chars >= 120, `chars ${chars} < 120`);
+    assert.ok(chars <= 220, `chars ${chars} > 220`);
+    assert.ok(tokens >= 80, `tokens ${tokens} < 80`);
+    assert.ok(tokens <= 250, `tokens ${tokens} > 250`);
     console.log(JSON.stringify({ chars, tokens }));
   });
 
