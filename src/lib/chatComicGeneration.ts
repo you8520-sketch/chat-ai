@@ -1,11 +1,12 @@
 export const CHAT_COMIC_TEMPLATE_ID = "comic_horizontal_2_4" as const;
 export const CHAT_COMIC_TEMPLATE_NAME = "2~4컷 가로 만화";
 export const CHAT_COMIC_TEMPLATE_PREVIEW_URL =
-  "/image-templates/comic-horizontal-sample.webp";
+  "/image-templates/comic-vertical-sample-hq.webp";
 
 export const CHAT_COMIC_DEFAULT_PLANNER_MODEL = "gpt-4o-mini";
 export const CHAT_COMIC_MAX_INPUT_CHARS = 800;
 export const CHAT_COMIC_IMAGE_OUTPUT_SIZE = "1008x1408" as const;
+export const CHAT_COMIC_FOUR_PANEL_OUTPUT_SIZE = "864x1824" as const;
 export const CHAT_COMIC_GENERATION_DEFAULT_POINTS = 220;
 
 export const CHAT_COMIC_PANEL_OPTIONS = [
@@ -60,6 +61,12 @@ export type ChatComicPlan = {
   panelCount: ChatComicPanelCount;
   panels: ChatComicPanel[];
 };
+
+export function resolveChatComicOutputSize(panelCount: ChatComicPanelCount) {
+  return panelCount === 4
+    ? CHAT_COMIC_FOUR_PANEL_OUTPUT_SIZE
+    : CHAT_COMIC_IMAGE_OUTPUT_SIZE;
+}
 
 function toMood(raw: unknown): ChatComicMood {
   const value = String(raw ?? "");

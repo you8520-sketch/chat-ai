@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  CHAT_COMIC_FOUR_PANEL_OUTPUT_SIZE,
   CHAT_COMIC_IMAGE_OUTPUT_SIZE,
   CHAT_COMIC_MAX_INPUT_CHARS,
   buildChatComicImagePrompt,
@@ -9,6 +10,7 @@ import {
   extractQuotedComicDialogue,
   extractUnquotedComicNarration,
   resolveChatComicPlannerModel,
+  resolveChatComicOutputSize,
   resolveChatComicPrice,
   sanitizeChatComicOptions,
   sanitizeChatComicPlan,
@@ -23,8 +25,12 @@ describe("chatComicGeneration", () => {
     });
   });
 
-  it("uses the near-1000x1400 portrait output size accepted by OpenAI", () => {
+  it("uses a taller output only when the planner selects four panels", () => {
     assert.equal(CHAT_COMIC_IMAGE_OUTPUT_SIZE, "1008x1408");
+    assert.equal(CHAT_COMIC_FOUR_PANEL_OUTPUT_SIZE, "864x1824");
+    assert.equal(resolveChatComicOutputSize(2), "1008x1408");
+    assert.equal(resolveChatComicOutputSize(3), "1008x1408");
+    assert.equal(resolveChatComicOutputSize(4), "864x1824");
   });
 
   it("uses an OpenAI-direct planner and ignores the old OpenRouter setting", () => {
