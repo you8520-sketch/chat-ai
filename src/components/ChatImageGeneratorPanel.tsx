@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 
 import {
   CHAT_COMIC_MAX_INPUT_CHARS,
@@ -431,7 +432,7 @@ export default function ChatImageGeneratorPanel() {
         </span>
       </button>
 
-      {open ? (
+      {open ? createPortal(
         <div
           className="fixed inset-0 z-[140] flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm"
           role="dialog"
@@ -742,7 +743,8 @@ export default function ChatImageGeneratorPanel() {
               )}
             </div>
           </section>
-        </div>
+        </div>,
+        document.body
       ) : null}
     </>
   );
