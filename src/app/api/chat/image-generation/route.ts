@@ -19,6 +19,7 @@ import {
   CHAT_COUPLE_STAMP_TEMPLATE_PREVIEW_URL,
   buildChatCoupleStampPrompt,
   resolveChatCoupleStampPrice,
+  sanitizeChatCoupleStampOptions,
 } from "@/lib/chatCoupleStampGeneration";
 import {
   CHAT_EMOTICON_API_OUTPUT_SIZE,
@@ -656,9 +657,17 @@ export async function POST(req: Request) {
     let referenceSources: string[];
     let generationOptions: Record<string, unknown>;
     if (isCoupleStamp) {
+      const coupleOptions = sanitizeChatCoupleStampOptions({
+        motif: body.coupleMotif,
+        height: body.coupleHeight,
+        background: body.coupleBackground,
+        border: body.coupleBorder,
+        animalEars: body.coupleAnimalEars,
+      });
       prompt = buildChatCoupleStampPrompt({
         characterName: context.character.name,
         personaName: context.persona.name,
+        options: coupleOptions,
       });
       referenceSources = [
         CHAT_COUPLE_STAMP_TEMPLATE_PREVIEW_URL,
@@ -668,6 +677,7 @@ export async function POST(req: Request) {
       generationOptions = {
         mode: "couple_stamp",
         quality,
+        ...coupleOptions,
       };
     } else if (isEmoticon) {
       const scenes = selectRandomChatEmoticonScenes();
