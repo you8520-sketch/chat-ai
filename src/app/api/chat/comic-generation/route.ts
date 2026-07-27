@@ -12,16 +12,17 @@ import {
 import { listSelectableCharacterImages } from "@/lib/chatCharacterImageSelection.server";
 import {
   CHAT_COMIC_MAX_INPUT_CHARS,
-  CHAT_COMIC_IMAGE_OUTPUT_SIZE,
   CHAT_COMIC_TEMPLATE_ID,
   CHAT_COMIC_TEMPLATE_NAME,
   CHAT_COMIC_TEMPLATE_PREVIEW_URL,
   buildChatComicImagePrompt,
   buildChatComicPlannerPrompt,
   resolveChatComicPlannerModel,
+  resolveChatComicOutputSize,
   resolveChatComicPrice,
   sanitizeChatComicOptions,
   sanitizeChatComicPlan,
+  type ChatComicPanelCount,
   type ChatComicPlan,
 } from "@/lib/chatComicGeneration";
 import { resolveChatImageGenerationModel } from "@/lib/chatImageGeneration";
@@ -382,6 +383,7 @@ async function generateComicImage(opts: {
   model: string;
   prompt: string;
   references: string[];
+  panelCount: ChatComicPanelCount;
 }): Promise<{ buffer: Buffer; costUsd: number | null }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 285_000);
@@ -390,7 +392,7 @@ async function generateComicImage(opts: {
       model: opts.model,
       prompt: opts.prompt,
       references: opts.references,
-      size: CHAT_COMIC_IMAGE_OUTPUT_SIZE,
+      size: resolveChatComicOutputSize(opts.panelCount),
       quality: "medium",
       outputCompression: 84,
       signal: controller.signal,
@@ -484,6 +486,7 @@ export async function POST(req: Request) {
       model,
       prompt,
       references: [styleReference, characterReference, personaReference],
+      panelCount,
     });
 
     await fs.mkdir(uploadsDataDir(), { recursive: true });

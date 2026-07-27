@@ -675,12 +675,12 @@ export default function ChatImageGeneratorPanel() {
                                 ? "랜덤 9종 이모티콘 고정틀"
                                 : "선물상자 SD 고정틀"
                         }
-                        className={`max-h-[62dvh] w-full object-contain ${
+                        className={`max-h-[62dvh] object-contain ${
                           tab === "comic"
-                            ? "aspect-[3/4]"
+                            ? "h-auto max-w-full"
                             : sdProduct === "emoticon"
-                              ? "aspect-square"
-                              : "aspect-[3/2]"
+                              ? "aspect-square w-full"
+                              : "aspect-[3/2] w-full"
                         }`}
                       />
                       {tab === "sd" ? (
