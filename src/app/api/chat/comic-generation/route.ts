@@ -6,6 +6,10 @@ import sharp from "sharp";
 
 import { getSessionUser } from "@/lib/auth";
 import {
+  selectCharacterImageUrl,
+} from "@/lib/chatCharacterImageSelection";
+import { listSelectableCharacterImages } from "@/lib/chatCharacterImageSelection.server";
+import {
   CHAT_COMIC_MAX_INPUT_CHARS,
   CHAT_COMIC_IMAGE_OUTPUT_SIZE,
   CHAT_COMIC_TEMPLATE_ID,
@@ -20,7 +24,6 @@ import {
   type ChatComicPlan,
 } from "@/lib/chatComicGeneration";
 import { resolveChatImageGenerationModel } from "@/lib/chatImageGeneration";
-import { getCharacterRepresentativeImageUrl } from "@/lib/characterAssets";
 import { getDb } from "@/lib/db";
 import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
 import { saveGeneratedImageToCharacterAlbum } from "@/lib/chatImageAlbum";
@@ -120,6 +123,7 @@ function resolveGenerationContext(opts: {
   characterId: number | null;
   chatId: number | null;
   personaId: number | null;
+  requestedCharacterImageUrl?: unknown;
 }): GenerationContext {
   const db = getDb();
   let characterId = opts.characterId;
@@ -164,8 +168,18 @@ function resolveGenerationContext(opts: {
   }
   if (!persona) throw new RequestError("유저 페르소나가 필요합니다.");
 
+  const characterImages = listSelectableCharacterImages({
+    userId: opts.userId,
+    characterId: character.id,
+    creatorId: character.creator_id,
+    assetsRaw: character.assets,
+    imagesRaw: character.images,
+  });
   const characterImageUrl =
-    getCharacterRepresentativeImageUrl(character.assets, character.images)?.trim() ?? "";
+    selectCharacterImageUrl(characterImages, opts.requestedCharacterImageUrl) ?? "";
+  if (opts.requestedCharacterImageUrl && !characterImageUrl) {
+    throw new RequestError("선택할 수 없는 캐릭터 이미지입니다.", 403);
+  }
   const personaImageUrl = personaImageBaseUrl(sanitizePersonaImageUrl(persona.image_url));
   if (!characterImageUrl) throw new RequestError("캐릭터 대표 이미지가 필요합니다.");
   if (!personaImageUrl) throw new RequestError("페르소나 대표 이미지가 필요합니다.");
@@ -402,6 +416,7 @@ export async function POST(req: Request) {
       characterId: positiveInt(body.characterId),
       chatId: positiveInt(body.chatId),
       personaId: positiveInt(body.personaId),
+      requestedCharacterImageUrl: body.characterImageUrl,
     });
     const options = sanitizeChatComicOptions({
       panelCount: body.panelCount,

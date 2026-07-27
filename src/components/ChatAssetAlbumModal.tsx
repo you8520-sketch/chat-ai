@@ -77,6 +77,7 @@ export default function ChatAssetAlbumModal({
   const [generatedAssets, setGeneratedAssets] = useState<AlbumAsset[]>([]);
   const [generatedLoading, setGeneratedLoading] = useState(false);
   const [generatedError, setGeneratedError] = useState("");
+  const [selectedAsset, setSelectedAsset] = useState<AlbumAsset | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -89,6 +90,7 @@ export default function ChatAssetAlbumModal({
     setSelectedId(currentCharacterId);
     setGeneratedAssets([]);
     setGeneratedError("");
+    setSelectedAsset(null);
     setGeneratedLoading(true);
 
     let cancelled = false;
@@ -253,16 +255,23 @@ export default function ChatAssetAlbumModal({
                     key={asset.url}
                     className="overflow-hidden rounded-xl border border-white/10 bg-[#0a0a0a]"
                   >
-                    <CharacterAssetImage
-                      src={asset.url}
-                      alt={asset.tag}
-                      className="aspect-[3/4] w-full"
-                      imgClassName={
-                        asset.generated
-                          ? "h-full w-full object-contain object-center"
-                          : "h-full w-full object-cover object-top"
-                      }
-                    />
+                    <button
+                      type="button"
+                      onClick={() => setSelectedAsset(asset)}
+                      className="block w-full cursor-zoom-in bg-transparent"
+                      aria-label={`${asset.tag || "이미지"} 크게 보기`}
+                    >
+                      <CharacterAssetImage
+                        src={asset.url}
+                        alt={asset.tag}
+                        className="aspect-[3/4] w-full"
+                        imgClassName={
+                          asset.generated
+                            ? "h-full w-full object-contain object-center"
+                            : "h-full w-full object-cover object-top"
+                        }
+                      />
+                    </button>
                     <figcaption className="flex items-center justify-between gap-2 px-2 py-1.5 text-[11px] text-zinc-400">
                       <span className="truncate">{asset.tag || "이미지"}</span>
                       {asset.generated ? (
@@ -278,6 +287,38 @@ export default function ChatAssetAlbumModal({
           </div>
         </div>
       </section>
+      {selectedAsset ? (
+        <div
+          className="fixed inset-0 z-[135] flex items-center justify-center bg-black/90 p-3 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="앨범 이미지 크게 보기"
+          onClick={(event) => {
+            event.stopPropagation();
+            setSelectedAsset(null);
+          }}
+        >
+          <div
+            className="relative flex h-full w-full max-w-6xl items-center justify-center"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <CharacterAssetImage
+              src={selectedAsset.url}
+              alt={selectedAsset.tag || "앨범 이미지"}
+              className="flex h-full w-full items-center justify-center"
+              imgClassName="max-h-full max-w-full object-contain"
+            />
+            <button
+              type="button"
+              onClick={() => setSelectedAsset(null)}
+              className="absolute right-1 top-1 flex h-10 w-10 items-center justify-center rounded-full border border-white/20 bg-black/60 text-xl text-white hover:bg-black/80"
+              aria-label="크게 보기 닫기"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
