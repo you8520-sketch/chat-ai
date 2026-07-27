@@ -15,11 +15,11 @@ export const UNIFIED_TIER_AIM_CHARS = 3200;
 export const UNIFIED_RESPONSE_LENGTH_TARGET = UNIFIED_TIER_AIM_CHARS;
 export type ResponseLengthTierTarget = typeof UNIFIED_RESPONSE_LENGTH_TARGET;
 
-/** AI 출력 목표 분량 — 단일 tier (최소 2,700 · 목표 3,200 · 상한 없음·과금은 실제 출력) */
+/** AI 출력 목표 분량 — 단일 tier (프롬프트 aim 3,200 · 과금은 실제 출력). UI는 최소 보장 문구 없음. */
 export const TARGET_RESPONSE_TIERS = [
   {
     id: "unified",
-    label: "목표 3,200자 · 최소 2,700자",
+    label: "목표 약 3,200자 · 장면과 대화 맥락에 따라 자연스럽게 조절",
     min: UNIFIED_TIER_MIN_CHARS,
     target: UNIFIED_RESPONSE_LENGTH_TARGET,
   },

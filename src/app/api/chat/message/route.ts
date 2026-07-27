@@ -9,6 +9,7 @@ import {
   resolveActiveVariantContent,
   serializeVariantsForClient,
 } from "@/lib/messageAlternates";
+import { stripMuseAcceptanceFromUsage } from "@/lib/museAcceptanceTelemetry";
 import { normalizeEditedProseForSave } from "@/lib/canonicalProse";
 import {
   parseStoredStatusWidgetValuesJson,
@@ -74,6 +75,7 @@ export async function GET(req: Request) {
   const variantMeta = serializeVariantsForClient(variants, activeVariant);
   const rowUsage = row.usage ? (JSON.parse(row.usage) as Usage) : null;
   const activeUsage = variants[activeVariant]?.usage ?? rowUsage;
+  const clientUsage = activeUsage ? stripMuseAcceptanceFromUsage(activeUsage) : null;
   const activeContent = resolveActiveVariantContent({
     content: row.content,
     variants: variantMeta.variants,
@@ -104,7 +106,7 @@ export async function GET(req: Request) {
     generationStatus: row.generation_status ?? "generating",
     content: activeContent,
     model: row.model,
-    usage: activeUsage,
+    usage: clientUsage,
     variants: variantMeta.variants,
     activeVariant: variantMeta.activeVariant,
     variantCount: variantMeta.variantCount,

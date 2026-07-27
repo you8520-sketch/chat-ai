@@ -88,4 +88,7 @@ export type GenerationContextInput = {
   nsfw: boolean;
   regenerate?: boolean;
   variantIndex?: number;
+  personaId?: number | null;
+  /** Muse-only local acceptance telemetry (no auto-continuation). */
+  museAcceptance?: Record<string, unknown>;
 };

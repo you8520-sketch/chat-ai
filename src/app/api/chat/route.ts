@@ -63,6 +63,14 @@ import { openRouterNormalizedRawCostKrw, openRouterRawCostKrw } from "@/lib/bill
 import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
 import { maybeCreditCreatorReward, paidCreatorRewardSpend } from "@/lib/creatorPoints";
 import { TurnApiBudget, NARRATIVE_LENGTH_CONTINUATION_ENABLED } from "@/lib/turnApiBudget";
+import {
+  classifyMuseAcceptance,
+  logMuseAcceptanceTelemetry,
+  shouldRecordMuseAcceptanceTelemetry,
+  stripMuseAcceptanceFromUsage,
+  toMuseAcceptanceUsageFields,
+  type MuseOwnershipTelemetry,
+} from "@/lib/museAcceptanceTelemetry";
 import { maybeRewriteNarrationLexicon } from "@/lib/speechLock";
 import { isMockApiMode, logMockModeOnce } from "@/lib/mockApiMode";
 import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
@@ -324,6 +332,7 @@ function parseMessageIdInput(input: unknown): number | null {
 }
 
 export async function POST(req: Request) {
+  const requestStartedAt = Date.now();
   const user = await getSessionUser();
   if (!user) return Response.json({ error: "로그인이 필요합니다." }, { status: 401 });
 
@@ -1793,6 +1802,7 @@ export async function POST(req: Request) {
         }
 
         // Interactive user-impersonation detector — log only; never auto-repair unless flagged.
+        let ownershipTelemetry: MuseOwnershipTelemetry = null;
         if (!oocHtmlMode) {
           const impersonationHit = detectInteractiveUserImpersonation(savedText, {
             mode: runtimeMode,
@@ -1825,6 +1835,13 @@ export async function POST(req: Request) {
             route: "/api/chat",
           });
           if (shadowResult) {
+            ownershipTelemetry = {
+              hardCount: shadowResult.hardCount,
+              softCount: shadowResult.softCount,
+              categoryBitmask: shadowResult.categoryBitmask,
+              confidenceBucket: shadowResult.confidenceBucket,
+              processingMs: shadowResult.processingMs,
+            };
             logOwnershipShadowGuardV2(shadowResult, {
               mode: runtimeMode,
               text: savedText,
@@ -2900,15 +2917,47 @@ export async function POST(req: Request) {
           "remove stray repeated quote marks at assistant output tail"
         );
 
+        // Billing/public base usage (may still include admin receipt fields).
+        let baseUsageRecord: Usage = usageRecord;
         if (!showFullBillingReceipt) {
-          usageRecord = sanitizeUsageForPublicReceipt(usageRecord);
+          baseUsageRecord = sanitizeUsageForPublicReceipt(usageRecord);
         }
+
+        // Muse 1-pass acceptance telemetry — DB/context only; never client SSE/variants.
+        let museAcceptanceFields: Record<string, unknown> | null = null;
+        let dbUsageRecord: Usage = baseUsageRecord;
+        if (
+          shouldRecordMuseAcceptanceTelemetry(openRouterApiModelId) &&
+          !htmlFlashOnlyTurn
+        ) {
+          const museTelemetry = classifyMuseAcceptance({
+            text: savedText,
+            finishReason: primaryStage?.finishReason ?? baseUsageRecord.finishReason,
+            ownership: ownershipTelemetry,
+            completedTurns: playableTurnCount,
+            characterId: ch.id,
+            personaId: resolvedPersonaId ?? null,
+            modelId: openRouterApiModelId,
+            selectedAI: receiptFields.selectedAI ?? null,
+            requestLatencyMs: Date.now() - requestStartedAt,
+            cost: baseUsageRecord.cost ?? null,
+            isRegenerationRequest: !!regenerateMessageId,
+            isContinueRequest: isContinue,
+            apiCallCount: baseUsageRecord.apiCallCount ?? 1,
+          });
+          museAcceptanceFields = toMuseAcceptanceUsageFields(museTelemetry);
+          dbUsageRecord = { ...baseUsageRecord, museAcceptance: museAcceptanceFields };
+          logMuseAcceptanceTelemetry(museTelemetry);
+        }
+        // Even for full billing receipt admins — never send museAcceptance to clients.
+        const clientUsageRecord = stripMuseAcceptanceFromUsage(dbUsageRecord);
+        usageRecord = dbUsageRecord;
 
         const createdAt = new Date().toISOString();
         let newVariant: MessageVariant = {
           content: savedText,
-          model: usageRecord.model,
-          usage: usageRecord,
+          model: dbUsageRecord.model,
+          usage: dbUsageRecord,
           created_at: createdAt,
           statusWidgetValues: statusWidgetValuesPayload,
           statusWidgetTurnActive: statusWidgetActive,
@@ -2983,8 +3032,8 @@ export async function POST(req: Request) {
             assistantMessageId: regenerateMessageId,
             chatId: chatRef.id,
             content: savedText,
-            model: usageRecord.model,
-            usageJson: JSON.stringify(usageRecord),
+            model: dbUsageRecord.model,
+            usageJson: JSON.stringify(dbUsageRecord),
             alternatesJson: JSON.stringify(appended.variants),
             activeVariant: appended.activeVariant,
             statusWidgetValuesJson,
@@ -3262,8 +3311,10 @@ export async function POST(req: Request) {
           remainingPoints: balanceAfter.total,
           paidPoints: balanceAfter.paid,
           freePoints: balanceAfter.free,
-          usage: usageRecord,
-          ...(usageRecord.finishReason ? { finishReason: usageRecord.finishReason } : {}),
+          usage: clientUsageRecord,
+          ...(clientUsageRecord.finishReason
+            ? { finishReason: clientUsageRecord.finishReason }
+            : {}),
           memoryUpdated: true,
           statusMetaPending: statusMetaEnabled,
           statusWidgetActive,
@@ -3309,6 +3360,10 @@ export async function POST(req: Request) {
               nsfw: isAdultMode,
               regenerate: !!regenerateMessageId,
               variantIndex: snapshotVariantIndex,
+              personaId: resolvedPersonaId ?? null,
+              ...(museAcceptanceFields
+                ? { museAcceptance: museAcceptanceFields }
+                : {}),
             });
             recordGenerationSnapshot({
               messageId: aiMessageId,

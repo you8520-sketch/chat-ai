@@ -11,6 +11,7 @@ import { resolveEmotionTag, stripEmotionTag } from "@/lib/emotionTag";
 
 import { parseStatusMetaRecord } from "@/lib/statusMeta/types";
 import { normalizeMessageVariants, serializeVariantsForClient, resolveActiveVariantContent } from "@/lib/messageAlternates";
+import { stripMuseAcceptanceFromUsage } from "@/lib/museAcceptanceTelemetry";
 import { resolveClientStatusMetaFlags } from "@/lib/statusMeta/displayPolicy";
 import {
   markdownPipeTableStatusWindowActive,
@@ -334,6 +335,7 @@ export default async function ChatPage({
     const variantMeta = serializeVariantsForClient(variants, activeVariant);
     const rowUsage = m.usage ? (JSON.parse(m.usage) as Usage) : null;
     const activeUsage = variants[activeVariant]?.usage ?? rowUsage;
+    const clientUsage = activeUsage ? stripMuseAcceptanceFromUsage(activeUsage) : null;
     const statusRecord = parseStatusMetaRecord(m.status_meta);
     const activeContent = resolveActiveVariantContent({
       content: m.content,
@@ -370,7 +372,7 @@ export default async function ChatPage({
       role: m.role,
       content: activeContent,
       model: m.model,
-      usage: activeUsage,
+      usage: clientUsage,
       isRefunded: !!m.is_refunded,
       variants: variantMeta.variants,
       activeVariant: variantMeta.activeVariant,

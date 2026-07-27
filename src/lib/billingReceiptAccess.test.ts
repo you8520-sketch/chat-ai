@@ -107,4 +107,18 @@ describe("canShowFullBillingReceipt", () => {
     assert.equal(sanitized.targetResponseChars, 2200);
     assert.equal(sanitized.statusWidgetExtract, undefined);
   });
+
+  it("strips museAcceptance from public sanitize (defense in depth)", () => {
+    const usage = {
+      input: 10,
+      output: 20,
+      model: "meta/muse-spark-1.1",
+      route: "nsfw" as const,
+      cost: 1,
+      breakdown: [],
+      museAcceptance: { acceptanceClass: "SHORT_QUALITY_PASS", visibleChars: 1200 },
+    } satisfies Usage;
+    const sanitized = sanitizeUsageForPublicReceipt(usage);
+    assert.equal(sanitized.museAcceptance, undefined);
+  });
 });

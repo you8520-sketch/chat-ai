@@ -39,6 +39,7 @@ export function sanitizeUsageForPublicReceipt(usage: Usage): Usage {
     exchangeRateDateKey: _exchangeRateDateKey,
     exchangeRateMode: _exchangeRateMode,
     exchangeRateSource: _exchangeRateSource,
+    museAcceptance: _museAcceptance,
     ...rest
   } = usage;
   return {

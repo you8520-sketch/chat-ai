@@ -1,4 +1,5 @@
 import type { Usage } from "@/lib/chatUsage";
+import { stripMuseAcceptanceFromUsage } from "@/lib/museAcceptanceTelemetry";
 import type { ParsedStatusWidgetTurnValues } from "@/lib/statusWidget/types";
 
 export type MessageVariant = {
@@ -94,8 +95,16 @@ export function latestVariantIndexByGenerationSequence(variants: MessageVariant[
   return latestIndex;
 }
 
+/**
+ * Client serialization — strips internal Muse acceptance telemetry from every
+ * variant.usage. DB/alternates may still store museAcceptance; never expose it.
+ */
 export function serializeVariantsForClient(variants: MessageVariant[], activeVariant: number) {
-  return { variants, activeVariant, variantCount: variants.length };
+  const clientVariants = variants.map((v) => ({
+    ...v,
+    usage: v.usage ? stripMuseAcceptanceFromUsage(v.usage) : null,
+  }));
+  return { variants: clientVariants, activeVariant, variantCount: clientVariants.length };
 }
 
 export function editedMessageVariant(input: {
