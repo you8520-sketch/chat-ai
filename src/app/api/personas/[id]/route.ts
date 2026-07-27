@@ -11,6 +11,10 @@ import {
   validatePersonaSecretContentLength,
 } from "@/lib/userPersonas";
 import { isPersonaSecretBoundaryEnabled } from "@/lib/personaSecretBoundaryPolicy";
+import {
+  deletePersonaSecretData,
+  savePersonaWithSecretCompilation,
+} from "@/lib/personaSaveWithSecrets";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -57,34 +61,37 @@ export async function PUT(req: Request, { params }: Params) {
     return NextResponse.json({ error: contentCheck.error }, { status: 400 });
   }
   const boundaryOn = isPersonaSecretBoundaryEnabled({ userId: user.id });
-  const effectiveSecretDescription = boundaryOn
-    ? secret_description
-    : (existing.secret_description ?? "");
-  const secretCheck = validatePersonaSecretContentLength(effectiveSecretDescription);
+  const secretCheck = validatePersonaSecretContentLength(secret_description);
   if (!secretCheck.ok) {
     return NextResponse.json({ error: secretCheck.error }, { status: 400 });
   }
 
-  getDb()
-    .prepare(
-      "UPDATE user_personas SET name=?, memo=?, gender=?, description=?, secret_description=?, image_url=?, image_focus_x=?, image_focus_y=? WHERE id=? AND user_id=?"
-    )
-    .run(
+  const saved = savePersonaWithSecretCompilation({
+    userId: user.id,
+    personaId,
+    fields: {
       name,
       memo,
       gender,
       description,
-      effectiveSecretDescription,
-      imageUrl,
-      imageFocusX,
-      imageFocusY,
-      personaId,
-      user.id
-    );
+      secret_description,
+      image_url: imageUrl,
+      image_focus_x: imageFocusX,
+      image_focus_y: imageFocusY,
+    },
+  });
+  if (!saved.ok) {
+    return NextResponse.json({ error: saved.error }, { status: saved.status });
+  }
 
   const persona = getPersonaById(user.id, personaId);
 
-  return NextResponse.json({ ok: true, persona });
+  return NextResponse.json({
+    ok: true,
+    persona,
+    ...(saved.compile ? { compile: saved.compile } : {}),
+    ...(saved.compilePreservedPrior ? { compilePreservedPrior: true } : {}),
+  });
 }
 
 export async function DELETE(_req: Request, { params }: Params) {
@@ -109,12 +116,16 @@ export async function DELETE(_req: Request, { params }: Params) {
     .prepare("SELECT id FROM user_personas WHERE user_id=? AND id!=? ORDER BY created_at ASC LIMIT 1")
     .get(user.id, personaId) as { id: number };
 
-  db.prepare("UPDATE chats SET selected_persona_id=? WHERE user_id=? AND selected_persona_id=?").run(
-    fallback.id,
-    user.id,
-    personaId
-  );
-  db.prepare("DELETE FROM user_personas WHERE id=? AND user_id=?").run(personaId, user.id);
+  const tx = db.transaction(() => {
+    db.prepare("UPDATE chats SET selected_persona_id=? WHERE user_id=? AND selected_persona_id=?").run(
+      fallback.id,
+      user.id,
+      personaId
+    );
+    deletePersonaSecretData(personaId, db);
+    db.prepare("DELETE FROM user_personas WHERE id=? AND user_id=?").run(personaId, user.id);
+  });
+  tx();
 
   return NextResponse.json({ ok: true, fallbackPersonaId: fallback.id });
 }

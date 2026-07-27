@@ -1134,39 +1134,9 @@ export async function POST(req: Request) {
         { chatId: chat.id }
       );
 
-      // S1: same-turn deterministic direct disclosure → evidence+knowledge before assemble.
-      // Never injects canonical_secret_text; aliases + confirmed_fact only.
-      if (
-        !autoContinueContext &&
-        messageText.trim() &&
-        !isContinueUserMessage(messageText)
-      ) {
-        const matches = detectDeterministicDirectDisclosures(
-          messageText,
-          resolvedPersonaId
-        );
-        for (const match of matches) {
-          confirmPersonaSecretDisclosure({
-            chatId: chat.id,
-            personaId: resolvedPersonaId,
-            secretId: match.secret.id,
-            characterId: ch.id,
-            turnNumber: playableTurnCount + 1,
-            sourceMessageId: null,
-            sourceType: "USER_MESSAGE_DETERMINISTIC",
-            discoveryRuleId: match.rule.id,
-            revealedFactText: match.revealedFactText,
-            idempotencyKey: buildDeterministicDisclosureIdempotencyKey({
-              chatId: chat.id,
-              personaId: resolvedPersonaId,
-              secretId: match.secret.id,
-              characterId: ch.id,
-              turnNumber: playableTurnCount + 1,
-            }),
-            evidenceJson: { matchedAlias: match.matchedAlias },
-          });
-        }
-      }
+      // S1 direct disclosure runs after durable user-message bootstrap (below),
+      // so evidence stores the real sourceMessageId and knowledge writes stay 0 on
+      // regenerate/continue/save-failed requests.
 
       revealedPersonaFactsBlock = buildPersonaKnowledgePromptBlock({
         decision: personaKnowledgePromptDecision,
@@ -1435,6 +1405,46 @@ export async function POST(req: Request) {
     body as Record<string, unknown>
   );
 
+  const discoveryWritesAllowed =
+    personaSecretDiscoveryOn &&
+    bootstrapped.userMessageSaved &&
+    userMessageId != null &&
+    !autoContinueContext &&
+    !regenerate &&
+    messageText.trim() &&
+    !isContinueUserMessage(messageText);
+
+  // PR-S1: direct disclosure first — after durable user-message bootstrap so evidence
+  // stores the real sourceMessageId. 0 knowledge/evidence writes on regenerate/continue/save-fail.
+  if (discoveryWritesAllowed && resolvedPersonaId) {
+    const matches = detectDeterministicDirectDisclosures(
+      messageText,
+      resolvedPersonaId
+    );
+    for (const match of matches) {
+      confirmPersonaSecretDisclosure({
+        chatId: chatRef.id,
+        personaId: resolvedPersonaId,
+        secretId: match.secret.id,
+        characterId: ch.id,
+        turnNumber: playableTurnCount + 1,
+        sourceMessageId: userMessageId,
+        sourceType: "USER_MESSAGE_DETERMINISTIC",
+        discoveryRuleId: match.rule.id,
+        revealedFactText: match.revealedFactText,
+        idempotencyKey: buildDeterministicDisclosureIdempotencyKey({
+          chatId: chatRef.id,
+          personaId: resolvedPersonaId,
+          secretId: match.secret.id,
+          characterId: ch.id,
+          sourceMessageId: userMessageId,
+          turnNumber: playableTurnCount + 1,
+        }),
+        evidenceJson: { matchedAlias: match.matchedAlias },
+      });
+    }
+  }
+
   // PR-S4A: user-allowed scene presence only (never SERVER/CREATOR from public body).
   if (
     personaSecretDiscoveryOn &&
@@ -1453,7 +1463,7 @@ export async function POST(req: Request) {
     }
   }
 
-  // PR-S2A/S2B/S3/S4D: scene evidence → visual → investigation → transfer → rebuild known-facts.
+  // PR-S2A/S2B/S3/S4D: direct disclosure → scene evidence → visual → investigation → transfer → rebuild known-facts.
   // Authoritative outcomes/transfers are NOT read from the public chat body.
   if (
     personaSecretDiscoveryOn &&

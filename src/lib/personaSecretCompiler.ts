@@ -3,6 +3,7 @@ import type Database from "better-sqlite3";
 import { isPersonaSecretBoundaryEnabled } from "@/lib/personaSecretBoundaryPolicy";
 import { compilePersonaSecretsDeterministic } from "@/lib/personaSecretCompilerDeterministic";
 import {
+  applyEmptyPersonaSecretCompilation,
   applyPersonaSecretCompilation,
   findSuccessfulCompilationRun,
   listExistingPersonaSecrets,
@@ -51,12 +52,22 @@ export function compileAndApplyPersonaSecrets(
   const trimmed = source.trim();
   const sourceHash = hashPersonaSecretSource(source);
 
-  // Empty source: do not invent; leave prior compilation intact.
+  // Empty source: successful zero-secret compile — inactivate all, disable rules.
   if (!trimmed) {
+    const { runId } = applyEmptyPersonaSecretCompilation({
+      personaId: opts.personaId,
+      sourceHash,
+      db: opts.db,
+    });
     return {
-      ok: false,
-      errorCode: "EMPTY_SOURCE",
-      preservedPrior: true,
+      ok: true,
+      reused: false,
+      secretCount: 0,
+      titles: [],
+      needsReview: false,
+      warnings: ["empty_source"],
+      runId,
+      diffWarnings: [],
     };
   }
 

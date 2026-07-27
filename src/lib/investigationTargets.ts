@@ -19,17 +19,39 @@ export type UpsertInvestigationTargetInput = {
   requiredAccess?: InvestigationResultPayload["requiredAccess"];
 };
 
+/** Enforced owner mapping: WORLD/CREATOR are global; PERSONA/CHAT must carry their id. */
+export function resolveInvestigationOwnerId(opts: {
+  ownerScope: InvestigationOwnerScope;
+  ownerId?: string | null;
+  worldId?: string | null;
+  creatorId?: string | null;
+  personaId?: number | null;
+  chatId?: number | null;
+}): string | null {
+  if (opts.ownerScope === "WORLD") return opts.ownerId ?? opts.worldId ?? null;
+  if (opts.ownerScope === "CREATOR") return opts.ownerId ?? opts.creatorId ?? null;
+  if (opts.ownerScope === "PERSONA") {
+    return opts.ownerId ?? (opts.personaId != null ? String(opts.personaId) : null);
+  }
+  return opts.ownerId ?? (opts.chatId != null ? String(opts.chatId) : null);
+}
+
 /**
  * Create/update a concrete investigation target.
  * MUST NOT be called from secret compiler paths — only from presented documents,
  * creator/world systems, or test fixtures.
  */
 export function upsertInvestigationTarget(
-  input: UpsertInvestigationTargetInput,
+  input: UpsertInvestigationTargetInput & {
+    worldId?: string | null;
+    creatorId?: string | null;
+    personaId?: number | null;
+    chatId?: number | null;
+  },
   db: Database.Database = getDb()
 ): InvestigationTargetRow {
   ensureInvestigationSchema(db);
-  const ownerId = input.ownerId ?? null;
+  const ownerId = resolveInvestigationOwnerId(input);
   const existing = db
     .prepare(
       `SELECT * FROM investigation_targets

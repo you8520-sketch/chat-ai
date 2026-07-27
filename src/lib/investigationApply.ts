@@ -200,24 +200,7 @@ export function applyInvestigationDiscoveryMatches(opts: {
         db,
       });
 
-      if (nextState === "CONFIRMED") {
-        const secret = db
-          .prepare(`SELECT secret_key FROM persona_secrets WHERE id=?`)
-          .get(secretId) as { secret_key: string } | undefined;
-        if (secret?.secret_key) {
-          insertChatPersonaSecretReveal(
-            {
-              chatId: opts.chatId,
-              personaId: opts.personaId,
-              secretKey: secret.secret_key,
-              revealedFactText: storeFact,
-              revealedAtTurn: opts.turnNumber,
-              source: "USER_AUTHORED_DISCLOSURE",
-            },
-            db
-          );
-        }
-      }
+      // USER_AUTHORED_DISCLOSURE compatibility reveal writes are Direct-Disclosure only.
 
       applied.push({
         secretId,
