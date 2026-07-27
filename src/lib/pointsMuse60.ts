@@ -4,20 +4,54 @@ import {
   OPENROUTER_MUSE_SPARK_11_MODEL,
   resolveSelectedAI,
 } from "./chatModels";
+import { getEffectiveKrwPerUsd } from "./exchangeRate";
 import * as core from "./points";
 
+/** OpenRouter public list prices for Muse Spark 1.1. */
+export const OPENROUTER_MUSE_INPUT_USD_PER_MILLION = 1.25;
+export const OPENROUTER_MUSE_OUTPUT_USD_PER_MILLION = 4.25;
+export const OPENROUTER_MUSE_GROSS_MARGIN = 0.6;
+
+type MusePointRates = {
+  effectiveKrwPerUsd: number;
+  inputPointsPerToken: number;
+  outputPointsPerToken: number;
+};
+
 /**
- * Muse Spark 1.1 — 60% gross-margin point rates.
+ * Muse Spark 1.1 point rates.
  *
- * OpenRouter list price basis at ₩1,530/USD:
- * - input:  $1.25/M → 0.0048P/token
- * - output: $4.25/M → 0.0163P/token
+ * Formula:
+ *   token raw cost in KRW = USD list price / 1,000,000 × effective USD/KRW
+ *   sale price = raw cost / (1 - 0.60)
  *
- * Thinking uses the same rate as output. Token aggregation is intentionally
- * unchanged; this module changes only the Muse per-token point rates.
+ * No cache discount, context surcharge, character floor, or fixed-turn price is
+ * applied. Thinking tokens use the same rate as output tokens.
  */
-export const OPENROUTER_MUSE_INPUT_POINTS_PER_TOKEN = 0.0048;
-export const OPENROUTER_MUSE_OUTPUT_POINTS_PER_TOKEN = 0.0163;
+export function resolveOpenRouterMusePointRates(
+  effectiveKrwPerUsd = getEffectiveKrwPerUsd()
+): MusePointRates {
+  const marginDivisor = 1 - OPENROUTER_MUSE_GROSS_MARGIN;
+  return {
+    effectiveKrwPerUsd,
+    inputPointsPerToken:
+      ((OPENROUTER_MUSE_INPUT_USD_PER_MILLION / 1_000_000) *
+        effectiveKrwPerUsd) /
+      marginDivisor,
+    outputPointsPerToken:
+      ((OPENROUTER_MUSE_OUTPUT_USD_PER_MILLION / 1_000_000) *
+        effectiveKrwPerUsd) /
+      marginDivisor,
+  };
+}
+
+const initialMuseRates = resolveOpenRouterMusePointRates();
+
+/** Current-process snapshot for tables and diagnostics. Billing resolves rates per call. */
+export const OPENROUTER_MUSE_INPUT_POINTS_PER_TOKEN =
+  initialMuseRates.inputPointsPerToken;
+export const OPENROUTER_MUSE_OUTPUT_POINTS_PER_TOKEN =
+  initialMuseRates.outputPointsPerToken;
 
 export const OPENROUTER_SIMPLE_POINT_INPUT_PRICES: Record<string, number> = {
   ...core.OPENROUTER_SIMPLE_POINT_INPUT_PRICES,
@@ -34,53 +68,67 @@ function ceilFractional(n: number): number {
   return Number.isInteger(n) ? n : Math.ceil(n - 1e-9);
 }
 
+type MusePointCost = {
+  rawCostKrw: number;
+  costPlusMarginKrw: number;
+  total: number;
+};
+
 function computeMusePointCost(
   inputTokens: number,
   outputTokens: number,
   reasoningTokens: number
-): number {
+): MusePointCost {
   const input = Math.max(0, inputTokens);
   const output = Math.max(0, outputTokens);
   const reasoning = Math.max(0, reasoningTokens);
-  const inputTokenCost = input * OPENROUTER_MUSE_INPUT_POINTS_PER_TOKEN;
-  const inputSurcharge =
-    input >= core.OPENROUTER_INPUT_SURCHARGE_THRESHOLD_TOKENS
-      ? (input / 1000) * core.OPENROUTER_SIMPLE_POINT_INPUT_SURCHARGE_PER_1000
-      : 0;
-  const outputTokenCost =
-    (output + reasoning) * OPENROUTER_MUSE_OUTPUT_POINTS_PER_TOKEN;
-  return ceilFractional(inputTokenCost + inputSurcharge + outputTokenCost);
+  const rates = resolveOpenRouterMusePointRates();
+  const rawInputCostKrw =
+    input *
+    (OPENROUTER_MUSE_INPUT_USD_PER_MILLION / 1_000_000) *
+    rates.effectiveKrwPerUsd;
+  const rawOutputCostKrw =
+    (output + reasoning) *
+    (OPENROUTER_MUSE_OUTPUT_USD_PER_MILLION / 1_000_000) *
+    rates.effectiveKrwPerUsd;
+  const rawCostKrw = rawInputCostKrw + rawOutputCostKrw;
+  const costPlusMarginKrw = rawCostKrw / (1 - OPENROUTER_MUSE_GROSS_MARGIN);
+  return {
+    rawCostKrw,
+    costPlusMarginKrw,
+    total: ceilFractional(costPlusMarginKrw),
+  };
 }
 
 export function computeOpenRouterTurnCost(
   ...args: Parameters<typeof core.computeOpenRouterTurnCost>
 ): ReturnType<typeof core.computeOpenRouterTurnCost> {
   const [inputTokens, outputTokens, modelId, , opts] = args;
-  if (!isMuseModel(modelId ?? "") || process.env.OPENROUTER_BILLING_MODE === "fixed") {
+  if (!isMuseModel(modelId ?? "")) {
     return core.computeOpenRouterTurnCost(...args);
   }
   return computeMusePointCost(
     inputTokens,
     outputTokens,
     opts?.reasoningTokens ?? 0
-  );
+  ).total;
 }
 
 export function explainOpenRouterMuseTurnCost(
   ...args: Parameters<typeof core.explainOpenRouterMuseTurnCost>
 ): ReturnType<typeof core.explainOpenRouterMuseTurnCost> {
   const [inputTokens, outputTokens, , , , reasoningTokens] = args;
-  const total = computeMusePointCost(
+  const result = computeMusePointCost(
     inputTokens,
     outputTokens,
     reasoningTokens ?? 0
   );
   return {
-    rawCostKrw: 0,
+    rawCostKrw: result.rawCostKrw,
     charFloorKrw: 0,
-    costPlusMarginKrw: 0,
+    costPlusMarginKrw: result.costPlusMarginKrw,
     applied: "cost_plus_margin",
-    total,
+    total: result.total,
   };
 }
 
