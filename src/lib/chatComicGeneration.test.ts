@@ -14,10 +14,9 @@ import {
 } from "./chatComicGeneration";
 
 describe("chatComicGeneration", () => {
-  it("accepts only 2-4 panels and caps source text at 800 characters", () => {
+  it("caps source text at 800 characters and leaves panel selection to the planner", () => {
     const source = "가".repeat(CHAT_COMIC_MAX_INPUT_CHARS + 30);
-    assert.deepEqual(sanitizeChatComicOptions({ panelCount: 7, mood: "wrong", sourceText: source }), {
-      panelCount: 4,
+    assert.deepEqual(sanitizeChatComicOptions({ mood: "wrong", sourceText: source }), {
       mood: "comic",
       sourceText: "가".repeat(CHAT_COMIC_MAX_INPUT_CHARS),
     });
@@ -44,22 +43,23 @@ describe("chatComicGeneration", () => {
     );
   });
 
-  it("uses low-cost fixed pricing per panel count with env overrides", () => {
-    assert.equal(resolveChatComicPrice(2, {} as NodeJS.ProcessEnv), 250);
-    assert.equal(resolveChatComicPrice(3, {} as NodeJS.ProcessEnv), 300);
-    assert.equal(resolveChatComicPrice(4, {} as NodeJS.ProcessEnv), 350);
+  it("charges 220P regardless of the automatically selected panel count", () => {
+    assert.equal(resolveChatComicPrice(2, {} as NodeJS.ProcessEnv), 220);
+    assert.equal(resolveChatComicPrice(3, {} as NodeJS.ProcessEnv), 220);
+    assert.equal(resolveChatComicPrice(4, {} as NodeJS.ProcessEnv), 220);
     assert.equal(
-      resolveChatComicPrice(4, { CHAT_COMIC_4_POINTS: "399.1" } as NodeJS.ProcessEnv),
-      400
+      resolveChatComicPrice(4, { CHAT_COMIC_GENERATION_POINTS: "229.1" } as NodeJS.ProcessEnv),
+      230
     );
   });
 
-  it("requires the planner to make the exact requested number of panels", () => {
+  it("uses the planner-selected 2-4 panel count", () => {
     const sourceText =
       '태형이 "대장님, 내 깻잎도 떼어줘!"라고 말했다. 렌은 "진정하고 깻잎이나 먹어."라고 답했다.';
     const plan = sanitizeChatComicPlan(
       {
         title: "깻잎 한입",
+        panelCount: 2,
         panels: [
           {
             scene: "태형이 렌의 어깨에 기대 징징거린다.",
@@ -75,13 +75,19 @@ describe("chatComicGeneration", () => {
           },
         ],
       },
-      2,
       sourceText
     );
+    assert.equal(plan.panelCount, 2);
     assert.equal(plan.panels.length, 2);
     assert.equal(plan.panels[0]?.dialogue[0]?.text, "대장님, 내 깻잎도 떼어줘!");
     assert.equal(plan.panels[1]?.dialogue[0]?.speaker, "persona");
-    assert.throws(() => sanitizeChatComicPlan({ title: "x", panels: [{}] }, 2, sourceText));
+    assert.throws(() => sanitizeChatComicPlan({ title: "x", panels: [{}] }, sourceText));
+    assert.throws(() =>
+      sanitizeChatComicPlan(
+        { title: "x", panelCount: 4, panels: [{}, {}] },
+        sourceText
+      )
+    );
   });
 
   it("removes invented dialogue and every generated caption", () => {
@@ -96,6 +102,7 @@ describe("chatComicGeneration", () => {
     const plan = sanitizeChatComicPlan(
       {
         title: "경계",
+        panelCount: 2,
         panels: [
           {
             scene: "태현이 앞을 막는다.",
@@ -115,7 +122,6 @@ describe("chatComicGeneration", () => {
           },
         ],
       },
-      2,
       sourceText
     );
 
@@ -125,15 +131,15 @@ describe("chatComicGeneration", () => {
     assert.equal(plan.panels[1]?.caption, undefined);
   });
 
-  it("asks the cheap planner to preserve quoted Korean dialogue and speech style", () => {
+  it("asks the cheap planner to choose the smallest natural panel count", () => {
     const prompt = buildChatComicPlannerPrompt({
       characterName: "태형",
       personaName: "렌",
-      panelCount: 4,
       mood: "comic",
       sourceText: "태형이 깻잎을 떼어달라고 징징거렸다.",
     });
-    assert.match(prompt, /exactly 4 horizontal comic panels/);
+    assert.match(prompt, /smallest natural panel count from 2, 3, or 4/);
+    assert.match(prompt, /Never stretch a short scene/);
     assert.match(prompt, /Use only verbatim contiguous excerpts/);
     assert.match(prompt, /Never invent, paraphrase, combine, complete, or add reaction dialogue/);
     assert.match(prompt, /The chat character is 태형; the user persona is 렌/);
@@ -144,11 +150,11 @@ describe("chatComicGeneration", () => {
     const prompt = buildChatComicImagePrompt({
       characterName: "태형",
       personaName: "렌",
-      panelCount: 2,
       mood: "lovely",
       sourceText: "태형이 조르고 렌이 한입 먹여준다.",
       plan: {
         title: "깻잎 한입",
+        panelCount: 2,
         panels: [
           {
             panel: 1,

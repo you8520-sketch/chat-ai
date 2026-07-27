@@ -6,6 +6,11 @@ import sharp from "sharp";
 
 import { getSessionUser } from "@/lib/auth";
 import {
+  CHAT_COMIC_TEMPLATE_ID,
+  type ChatComicPanelCount,
+} from "@/lib/chatComicGeneration";
+import { isAdminUser } from "@/lib/isAdminUser";
+import {
   selectCharacterImageUrl,
   type SelectableCharacterImage,
 } from "@/lib/chatCharacterImageSelection";
@@ -405,7 +410,8 @@ export async function GET(req: Request) {
     ensureGenerationTable();
     const latest = getDb()
       .prepare(
-        `SELECT result_url, charged_points, created_at
+        `SELECT template_id, options_json, result_url, upstream_cost_usd,
+                charged_points, created_at
          FROM chat_image_generations
          WHERE user_id=? AND character_id=? AND persona_id=?
            AND (chat_id IS ? OR chat_id=?)
@@ -418,8 +424,38 @@ export async function GET(req: Request) {
         context.chatId,
         context.chatId
       ) as
-      | { result_url: string; charged_points: number; created_at: string }
+      | {
+          template_id: string;
+          options_json: string;
+          result_url: string;
+          upstream_cost_usd: number | null;
+          charged_points: number;
+          created_at: string;
+        }
       | undefined;
+    let latestOptions: {
+      mode?: "sd" | "comic";
+      title?: string;
+      panelCount?: ChatComicPanelCount;
+    } = {};
+    if (latest?.options_json) {
+      try {
+        latestOptions = JSON.parse(latest.options_json) as typeof latestOptions;
+      } catch {
+        latestOptions = {};
+      }
+    }
+    const latestMode: "sd" | "comic" =
+      latest?.template_id === CHAT_COMIC_TEMPLATE_ID || latestOptions.mode === "comic"
+        ? "comic"
+        : "sd";
+    const canSeeCost = isAdminUser(user as typeof user & { is_admin?: number });
+    const upstreamCostUsd =
+      latest?.upstream_cost_usd != null &&
+      latest.upstream_cost_usd > 0 &&
+      Number.isFinite(latest.upstream_cost_usd)
+        ? latest.upstream_cost_usd
+        : null;
     return NextResponse.json({
       ...publicContextResponse(context),
       balance: getPointBalance(user.id),
@@ -428,6 +464,14 @@ export async function GET(req: Request) {
             imageUrl: latest.result_url,
             chargedPoints: latest.charged_points,
             createdAt: latest.created_at,
+            mode: latestMode,
+            title: latestOptions.title,
+            panelCount: latestOptions.panelCount,
+            upstreamCostUsd: canSeeCost ? upstreamCostUsd : undefined,
+            upstreamCostKrw:
+              canSeeCost && upstreamCostUsd != null
+                ? Math.round(upstreamCostUsd * getEffectiveKrwPerUsd() * 10) / 10
+                : undefined,
           }
         : null,
     });

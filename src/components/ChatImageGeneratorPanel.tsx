@@ -4,9 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
 import {
+  CHAT_COMIC_GENERATION_DEFAULT_POINTS,
   CHAT_COMIC_MAX_INPUT_CHARS,
   CHAT_COMIC_MOODS,
-  CHAT_COMIC_PANEL_OPTIONS,
   CHAT_COMIC_TEMPLATE_PREVIEW_URL,
   type ChatComicMood,
   type ChatComicPanelCount,
@@ -49,6 +49,11 @@ type Preflight = {
     imageUrl: string;
     chargedPoints: number;
     createdAt: string;
+    mode?: ResultMode;
+    title?: string;
+    panelCount?: ChatComicPanelCount;
+    upstreamCostUsd?: number;
+    upstreamCostKrw?: number;
   } | null;
 };
 
@@ -57,6 +62,9 @@ type GenerateResult = {
   error?: string;
   imageUrl?: string;
   title?: string;
+  panelCount?: ChatComicPanelCount;
+  upstreamCostUsd?: number;
+  upstreamCostKrw?: number;
   totalPointsCost?: number;
   remainingPoints?: number;
   paidPoints?: number;
@@ -200,6 +208,10 @@ export default function ChatImageGeneratorPanel() {
   const [sdResultUrl, setSdResultUrl] = useState("");
   const [comicResultUrl, setComicResultUrl] = useState("");
   const [comicTitle, setComicTitle] = useState("");
+  const [comicPanelCount, setComicPanelCount] = useState<ChatComicPanelCount | null>(null);
+  const [comicChargedPoints, setComicChargedPoints] = useState<number | null>(null);
+  const [comicUpstreamCostUsd, setComicUpstreamCostUsd] = useState<number | null>(null);
+  const [comicUpstreamCostKrw, setComicUpstreamCostKrw] = useState<number | null>(null);
   const [savedUrls, setSavedUrls] = useState<Set<string>>(() => new Set());
   const [selectedCharacterImageUrl, setSelectedCharacterImageUrl] = useState("");
   const [characterPickerOpen, setCharacterPickerOpen] = useState(false);
@@ -217,13 +229,7 @@ export default function ChatImageGeneratorPanel() {
     CHAT_IMAGE_GENERATION_DEFAULT_OPTIONS.mood
   );
   const [comicText, setComicText] = useState("");
-  const [panelCount, setPanelCount] = useState<ChatComicPanelCount>(4);
   const [comicMood, setComicMood] = useState<ChatComicMood>("comic");
-
-  const comicPrice = useMemo(
-    () => CHAT_COMIC_PANEL_OPTIONS.find((item) => item.id === panelCount)?.points ?? 350,
-    [panelCount]
-  );
 
   const activeResultUrl = tab === "comic" ? comicResultUrl : sdResultUrl;
   const activeMode: ResultMode = tab === "comic" ? "comic" : "sd";
@@ -305,7 +311,18 @@ export default function ChatImageGeneratorPanel() {
           : data.character.imageUrl
       );
       setCharacterPickerOpen(false);
-      if (!sdResultUrl && data.latestResult?.imageUrl) setSdResultUrl(data.latestResult.imageUrl);
+      if (data.latestResult?.imageUrl) {
+        if (data.latestResult.mode === "comic") {
+          if (!comicResultUrl) setComicResultUrl(data.latestResult.imageUrl);
+          setComicTitle(data.latestResult.title || "");
+          setComicPanelCount(data.latestResult.panelCount ?? null);
+          setComicChargedPoints(data.latestResult.chargedPoints);
+          setComicUpstreamCostUsd(data.latestResult.upstreamCostUsd ?? null);
+          setComicUpstreamCostKrw(data.latestResult.upstreamCostKrw ?? null);
+        } else if (!sdResultUrl) {
+          setSdResultUrl(data.latestResult.imageUrl);
+        }
+      }
       await loadSavedImages();
     } catch (caught) {
       setInfo(null);
@@ -313,7 +330,7 @@ export default function ChatImageGeneratorPanel() {
     } finally {
       setLoadingInfo(false);
     }
-  }, [loadSavedImages, sdResultUrl]);
+  }, [comicResultUrl, loadSavedImages, sdResultUrl]);
 
   useEffect(() => {
     if (!open) return;
@@ -395,6 +412,10 @@ export default function ChatImageGeneratorPanel() {
     setNotice("");
     setComicResultUrl("");
     setComicTitle("");
+    setComicPanelCount(null);
+    setComicChargedPoints(null);
+    setComicUpstreamCostUsd(null);
+    setComicUpstreamCostKrw(null);
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), 300_000);
     try {
@@ -406,7 +427,6 @@ export default function ChatImageGeneratorPanel() {
         body: JSON.stringify({
           ...ids,
           sourceText,
-          panelCount,
           mood: comicMood,
           characterImageUrl: selectedCharacterImageUrl || info.character.imageUrl,
         }),
@@ -421,6 +441,10 @@ export default function ChatImageGeneratorPanel() {
         setSavedUrls((previous) => new Set(previous).add(data.imageUrl!));
       }
       setComicTitle(data.title || "");
+      setComicPanelCount(data.panelCount ?? null);
+      setComicChargedPoints(data.totalPointsCost ?? CHAT_COMIC_GENERATION_DEFAULT_POINTS);
+      setComicUpstreamCostUsd(data.upstreamCostUsd ?? null);
+      setComicUpstreamCostKrw(data.upstreamCostKrw ?? null);
       updateBalance(data);
       setNotice("대사·말풍선·표정 연출을 자동 구성해 기존 캐릭터 이미지 앨범에 추가했습니다.");
     } catch (caught) {
@@ -730,19 +754,12 @@ export default function ChatImageGeneratorPanel() {
                           />
                         </label>
                         <div className="grid grid-cols-2 gap-2">
-                          <label className="block space-y-1">
+                          <div className="block space-y-1">
                             <span className="text-[11px] font-semibold text-zinc-400">컷 수</span>
-                            <select
-                              value={panelCount}
-                              onChange={(event) => setPanelCount(Number(event.target.value) as ChatComicPanelCount)}
-                              disabled={generating}
-                              className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
-                            >
-                              {CHAT_COMIC_PANEL_OPTIONS.map((item) => (
-                                <option key={item.id} value={item.id}>{item.label}</option>
-                              ))}
-                            </select>
-                          </label>
+                            <div className="rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-300">
+                              AI 자동 · 2~4컷
+                            </div>
+                          </div>
                           <label className="block space-y-1">
                             <span className="text-[11px] font-semibold text-zinc-400">분위기</span>
                             <select
@@ -760,11 +777,18 @@ export default function ChatImageGeneratorPanel() {
                         {comicTitle ? (
                           <p className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-zinc-300">
                             생성 제목: <strong>{comicTitle}</strong>
+                            {comicPanelCount ? ` · AI가 ${comicPanelCount}컷으로 구성` : ""}
+                          </p>
+                        ) : null}
+                        {comicUpstreamCostUsd != null && comicUpstreamCostKrw != null ? (
+                          <p className="rounded-lg border border-amber-400/20 bg-amber-400/[0.06] px-3 py-2 text-[11px] text-amber-100">
+                            관리자 실제 API 원가: ${comicUpstreamCostUsd.toFixed(6)} · 약{" "}
+                            {comicUpstreamCostKrw.toLocaleString()}원
                           </p>
                         ) : null}
                         <PriceBox
-                          label={`${panelCount}컷 만화 1장`}
-                          price={comicPrice}
+                          label={comicPanelCount ? `${comicPanelCount}컷 만화 1장` : "AI 자동 2~4컷 만화 1장"}
+                          price={comicChargedPoints ?? CHAT_COMIC_GENERATION_DEFAULT_POINTS}
                           balance={info?.balance}
                         />
                         <button
@@ -775,15 +799,16 @@ export default function ChatImageGeneratorPanel() {
                             loadingInfo ||
                             !info?.ready ||
                             !comicText.trim() ||
-                            (info.balance != null && info.balance.total < comicPrice)
+                            (info.balance != null &&
+                              info.balance.total < CHAT_COMIC_GENERATION_DEFAULT_POINTS)
                           }
                           className="w-full rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           {generating
                             ? "대사와 컷을 구성해 만화 생성 중…"
                             : comicResultUrl
-                              ? `다시 생성 · ${comicPrice.toLocaleString()}P`
-                              : `${panelCount}컷 만화 생성 · ${comicPrice.toLocaleString()}P`}
+                              ? `다시 생성 · ${CHAT_COMIC_GENERATION_DEFAULT_POINTS.toLocaleString()}P`
+                              : `자동 컷만화 생성 · ${CHAT_COMIC_GENERATION_DEFAULT_POINTS.toLocaleString()}P`}
                         </button>
                       </>
                     )}

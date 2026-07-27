@@ -6,11 +6,12 @@ export const CHAT_COMIC_TEMPLATE_PREVIEW_URL =
 export const CHAT_COMIC_DEFAULT_PLANNER_MODEL = "gpt-4o-mini";
 export const CHAT_COMIC_MAX_INPUT_CHARS = 800;
 export const CHAT_COMIC_IMAGE_OUTPUT_SIZE = "1008x1408" as const;
+export const CHAT_COMIC_GENERATION_DEFAULT_POINTS = 220;
 
 export const CHAT_COMIC_PANEL_OPTIONS = [
-  { id: 2, label: "2컷", points: 250 },
-  { id: 3, label: "3컷", points: 300 },
-  { id: 4, label: "4컷", points: 350 },
+  { id: 2, label: "2컷" },
+  { id: 3, label: "3컷" },
+  { id: 4, label: "4컷" },
 ] as const;
 
 export const CHAT_COMIC_MOODS = [
@@ -56,13 +57,9 @@ export type ChatComicPanel = {
 
 export type ChatComicPlan = {
   title: string;
+  panelCount: ChatComicPanelCount;
   panels: ChatComicPanel[];
 };
-
-function toPanelCount(raw: unknown): ChatComicPanelCount {
-  const value = Number(raw);
-  return value === 2 || value === 3 || value === 4 ? value : 4;
-}
 
 function toMood(raw: unknown): ChatComicMood {
   const value = String(raw ?? "");
@@ -72,26 +69,23 @@ function toMood(raw: unknown): ChatComicMood {
 }
 
 export function sanitizeChatComicOptions(raw: {
-  panelCount?: unknown;
   mood?: unknown;
   sourceText?: unknown;
 }) {
   const sourceText = String(raw.sourceText ?? "").trim();
   return {
-    panelCount: toPanelCount(raw.panelCount),
     mood: toMood(raw.mood),
     sourceText: sourceText.slice(0, CHAT_COMIC_MAX_INPUT_CHARS),
   };
 }
 
 export function resolveChatComicPrice(
-  panelCount: ChatComicPanelCount,
+  _panelCount: ChatComicPanelCount,
   env: NodeJS.ProcessEnv = process.env
 ): number {
-  const envName = `CHAT_COMIC_${panelCount}_POINTS`;
-  const override = Number(env[envName]);
+  const override = Number(env.CHAT_COMIC_GENERATION_POINTS);
   if (Number.isFinite(override) && override >= 1) return Math.ceil(override);
-  return CHAT_COMIC_PANEL_OPTIONS.find((item) => item.id === panelCount)?.points ?? 350;
+  return CHAT_COMIC_GENERATION_DEFAULT_POINTS;
 }
 
 export function resolveChatComicPlannerModel(
@@ -103,13 +97,13 @@ export function resolveChatComicPlannerModel(
 export function buildChatComicPlannerPrompt(opts: {
   characterName: string;
   personaName: string;
-  panelCount: ChatComicPanelCount;
   mood: ChatComicMood;
   sourceText: string;
 }): string {
   return [
     "You are a Korean comic storyboard editor.",
-    `Convert the supplied Korean prose into exactly ${opts.panelCount} horizontal comic panels stacked vertically on one page.`,
+    "Choose the smallest natural panel count from 2, 3, or 4, then convert the supplied Korean prose into that many horizontal comic panels stacked vertically on one page.",
+    "Use 2 panels for one setup and one payoff in the same beat. Use 3 panels when a transition or reaction beat is needed. Use 4 panels only when multiple distinct actions, dialogue beats, or scene changes are necessary. Never stretch a short scene to fill extra panels.",
     `The chat character is ${opts.characterName}; the user persona is ${opts.personaName}.`,
     "Infer who is speaking from the prose and preserve their identities throughout.",
     "Dialogue is closed-book extraction. Use only verbatim contiguous excerpts from text enclosed in quotation marks in SOURCE PROSE.",
@@ -120,6 +114,7 @@ export function buildChatComicPlannerPrompt(opts: {
     "Return JSON only, without markdown fences, using this exact schema:",
     JSON.stringify({
       title: "short Korean title",
+      panelCount: 2,
       panels: [
         {
           panel: 1,
@@ -157,13 +152,28 @@ function isVerbatimQuotedExcerpt(text: string, quotedDialogue: string[]): boolea
   return quotedDialogue.some((quote) => quote.includes(text));
 }
 
+export function resolveAutoComicPanelCount(raw: unknown): ChatComicPanelCount {
+  if (!raw || typeof raw !== "object") throw new Error("컷 구성 응답이 올바르지 않습니다.");
+  const source = raw as { panelCount?: unknown; panels?: unknown };
+  if (!Array.isArray(source.panels)) throw new Error("컷 구성 목록이 없습니다.");
+  const count = source.panels.length;
+  if (count !== 2 && count !== 3 && count !== 4) {
+    throw new Error("AI가 선택한 컷 수가 2~4컷 범위를 벗어났습니다.");
+  }
+  const declared = Number(source.panelCount);
+  if (Number.isFinite(declared) && declared !== count) {
+    throw new Error("AI가 선택한 컷 수와 구성 결과가 일치하지 않습니다.");
+  }
+  return count;
+}
+
 export function sanitizeChatComicPlan(
   raw: unknown,
-  panelCount: ChatComicPanelCount,
   sourceText: string
 ): ChatComicPlan {
   if (!raw || typeof raw !== "object") throw new Error("컷 구성 응답이 올바르지 않습니다.");
   const source = raw as { title?: unknown; panels?: unknown };
+  const panelCount = resolveAutoComicPanelCount(raw);
   if (!Array.isArray(source.panels) || source.panels.length !== panelCount) {
     throw new Error("요청한 컷 수와 구성 결과가 일치하지 않습니다.");
   }
@@ -200,6 +210,7 @@ export function sanitizeChatComicPlan(
 
   return {
     title: cleanText(source.title, 40) || "우리 둘의 한 장면",
+    panelCount,
     panels,
   };
 }
@@ -207,7 +218,6 @@ export function sanitizeChatComicPlan(
 export function buildChatComicImagePrompt(opts: {
   characterName: string;
   personaName: string;
-  panelCount: ChatComicPanelCount;
   mood: ChatComicMood;
   sourceText: string;
   plan: ChatComicPlan;
@@ -242,7 +252,7 @@ export function buildChatComicImagePrompt(opts: {
     .join("\n\n");
 
   return [
-    `Create one polished Korean manhwa-style page with exactly ${opts.panelCount} wide horizontal panels stacked vertically.`,
+    `Create one polished Korean manhwa-style page with exactly ${opts.plan.panelCount} wide horizontal panels stacked vertically.`,
     "Reference image 1 is the comic layout and finish reference. Follow its clean gutters, readable Korean bubbles, expressive acting, polished full-color rendering, and romantic-comedy timing, but do not copy its exact poses.",
     `Reference image 2 is the identity reference for the chat character ${opts.characterName}.`,
     `Reference image 3 is the identity reference for the user persona ${opts.personaName}.`,
