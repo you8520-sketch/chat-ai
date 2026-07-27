@@ -12,6 +12,11 @@ import {
   type ChatComicPanelCount,
 } from "@/lib/chatComicGeneration";
 import {
+  CHAT_EMOTICON_GENERATION_DEFAULT_POINTS,
+  CHAT_EMOTICON_TEMPLATE_ID,
+  CHAT_EMOTICON_TEMPLATE_PREVIEW_URL,
+} from "@/lib/chatEmoticonGeneration";
+import {
   CHAT_IMAGE_EXPRESSIONS,
   CHAT_IMAGE_GENERATION_DEFAULT_POINTS,
   CHAT_IMAGE_GENERATION_DEFAULT_OPTIONS,
@@ -26,7 +31,8 @@ import { dispatchPointsDeducted } from "@/lib/pointsEvents";
 const PERSONA_STORAGE_KEY = "habi:lastPersonaId";
 
 type Tab = "sd" | "comic";
-type ResultMode = "sd" | "comic";
+type ResultMode = "sd" | "emoticon" | "comic";
+type SdProduct = "gift" | "emoticon";
 
 type ReferenceInfo = {
   id: number;
@@ -54,7 +60,8 @@ type Preflight = {
   averageCosts?: {
     exchangeRateKrwPerUsd: number;
     sd: AverageImageCost;
-    comic: AverageImageCost;
+    emoticon: AverageImageCost;
+    comic: Record<ChatComicPanelCount, AverageImageCost>;
   };
   latestResult?: {
     imageUrl: string;
@@ -73,6 +80,8 @@ type GenerateResult = {
   error?: string;
   imageUrl?: string;
   title?: string;
+  mode?: ResultMode;
+  templateId?: string;
   panelCount?: ChatComicPanelCount;
   upstreamCostUsd?: number;
   upstreamCostKrw?: number;
@@ -171,45 +180,49 @@ function ReferenceCard({
 }
 
 function PriceBox({
-  label,
-  price,
   balance,
+  averageCosts,
   averageCost,
   exchangeRateKrwPerUsd,
 }: {
-  label: string;
-  price: number;
   balance?: { total: number; paid: number; free: number };
+  averageCosts?: Array<{ label: string; cost: AverageImageCost }>;
   averageCost?: AverageImageCost;
   exchangeRateKrwPerUsd?: number;
 }) {
+  const costRows =
+    averageCosts ?? (averageCost ? [{ label: "평균", cost: averageCost }] : []);
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-[11px] text-zinc-400">
-      <div className="flex justify-between gap-3">
-        <span>{label}</span>
-        <strong className="text-violet-200">{price.toLocaleString()}P</strong>
-      </div>
       {balance ? (
-        <div className="mt-1 flex justify-between gap-3">
+        <div className="flex justify-between gap-3">
           <span>보유 포인트</span>
           <strong className="text-zinc-200">{balance.total.toLocaleString()}P</strong>
         </div>
       ) : null}
-      {averageCost ? (
+      {costRows.length ? (
         <div className="mt-2 rounded-lg border border-amber-400/20 bg-amber-400/[0.06] px-2.5 py-2 text-amber-100">
-          <p className="font-semibold">관리자 평균 API 원가</p>
-          {averageCost.averageUsd != null && averageCost.averageKrw != null ? (
-            <p className="mt-0.5 leading-relaxed">
-              약 {averageCost.averageKrw.toLocaleString()}원
-              {" · "}${averageCost.averageUsd.toFixed(6)}
-              {" · "}성공 {averageCost.sampleCount.toLocaleString()}건 기준
-              {exchangeRateKrwPerUsd != null
-                ? ` · 환율 ${exchangeRateKrwPerUsd.toLocaleString()}원/USD`
-                : ""}
+          <p className="font-semibold">관리자 종류별 평균 API 원가</p>
+          <div className="mt-1 space-y-1">
+            {costRows.map(({ label, cost }) => (
+              <p key={label} className="leading-relaxed">
+                <strong>{label}</strong>:{" "}
+                {cost.averageUsd != null && cost.averageKrw != null ? (
+                  <>
+                    약 {cost.averageKrw.toLocaleString()}원 · ${cost.averageUsd.toFixed(6)}
+                    {" · "}성공 {cost.sampleCount.toLocaleString()}건
+                  </>
+                ) : (
+                  <span className="text-amber-200/70">집계 기록 없음</span>
+                )}
+              </p>
+            ))}
+          </div>
+          {exchangeRateKrwPerUsd != null ? (
+            <p className="mt-1 text-amber-200/70">
+              적용 환율 {exchangeRateKrwPerUsd.toLocaleString()}원/USD
             </p>
-          ) : (
-            <p className="mt-0.5 text-amber-200/70">아직 집계할 성공 기록이 없습니다.</p>
-          )}
+          ) : null}
         </div>
       ) : null}
       <p className="mt-2 leading-relaxed text-zinc-500">
@@ -222,7 +235,7 @@ function PriceBox({
 function downloadImage(imageUrl: string, mode: ResultMode) {
   const anchor = document.createElement("a");
   anchor.href = imageUrl;
-  anchor.download = `habi-${mode === "comic" ? "comic" : "sd"}-${Date.now()}.webp`;
+  anchor.download = `habi-${mode}-${Date.now()}.webp`;
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
@@ -237,13 +250,15 @@ export default function ChatImageGeneratorPanel() {
   const [info, setInfo] = useState<Preflight | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [sdProduct, setSdProduct] = useState<SdProduct>("gift");
   const [sdResultUrl, setSdResultUrl] = useState("");
+  const [emoticonResultUrl, setEmoticonResultUrl] = useState("");
   const [comicResultUrl, setComicResultUrl] = useState("");
   const [comicTitle, setComicTitle] = useState("");
   const [comicPanelCount, setComicPanelCount] = useState<ChatComicPanelCount | null>(null);
-  const [comicChargedPoints, setComicChargedPoints] = useState<number | null>(null);
-  const [comicUpstreamCostUsd, setComicUpstreamCostUsd] = useState<number | null>(null);
-  const [comicUpstreamCostKrw, setComicUpstreamCostKrw] = useState<number | null>(null);
+  const [actualCosts, setActualCosts] = useState<
+    Partial<Record<ResultMode, { usd: number; krw: number }>>
+  >({});
   const [savedUrls, setSavedUrls] = useState<Set<string>>(() => new Set());
   const [selectedCharacterImageUrl, setSelectedCharacterImageUrl] = useState("");
   const [characterPickerOpen, setCharacterPickerOpen] = useState(false);
@@ -263,8 +278,20 @@ export default function ChatImageGeneratorPanel() {
   const [comicText, setComicText] = useState("");
   const [comicMood, setComicMood] = useState<ChatComicMood>("comic");
 
-  const activeResultUrl = tab === "comic" ? comicResultUrl : sdResultUrl;
-  const activeMode: ResultMode = tab === "comic" ? "comic" : "sd";
+  const activeResultUrl =
+    tab === "comic"
+      ? comicResultUrl
+      : sdProduct === "emoticon"
+        ? emoticonResultUrl
+        : sdResultUrl;
+  const activeMode: ResultMode =
+    tab === "comic" ? "comic" : sdProduct === "emoticon" ? "emoticon" : "sd";
+  const activePrice =
+    activeMode === "comic"
+      ? CHAT_COMIC_GENERATION_DEFAULT_POINTS
+      : activeMode === "emoticon"
+        ? CHAT_EMOTICON_GENERATION_DEFAULT_POINTS
+        : info?.pricePoints ?? CHAT_IMAGE_GENERATION_DEFAULT_POINTS;
   const activeSaved = activeResultUrl ? savedUrls.has(activeResultUrl) : false;
   const selectedCharacterInfo = useMemo<ReferenceInfo | null>(() => {
     if (!info?.character) return null;
@@ -348,11 +375,23 @@ export default function ChatImageGeneratorPanel() {
           if (!comicResultUrl) setComicResultUrl(data.latestResult.imageUrl);
           setComicTitle(data.latestResult.title || "");
           setComicPanelCount(data.latestResult.panelCount ?? null);
-          setComicChargedPoints(data.latestResult.chargedPoints);
-          setComicUpstreamCostUsd(data.latestResult.upstreamCostUsd ?? null);
-          setComicUpstreamCostKrw(data.latestResult.upstreamCostKrw ?? null);
+        } else if (data.latestResult.mode === "emoticon") {
+          if (!emoticonResultUrl) setEmoticonResultUrl(data.latestResult.imageUrl);
         } else if (!sdResultUrl) {
           setSdResultUrl(data.latestResult.imageUrl);
+        }
+        if (
+          data.latestResult.mode &&
+          data.latestResult.upstreamCostUsd != null &&
+          data.latestResult.upstreamCostKrw != null
+        ) {
+          setActualCosts((previous) => ({
+            ...previous,
+            [data.latestResult!.mode!]: {
+              usd: data.latestResult!.upstreamCostUsd!,
+              krw: data.latestResult!.upstreamCostKrw!,
+            },
+          }));
         }
       }
       await loadSavedImages();
@@ -362,7 +401,7 @@ export default function ChatImageGeneratorPanel() {
     } finally {
       setLoadingInfo(false);
     }
-  }, [comicResultUrl, loadSavedImages, sdResultUrl]);
+  }, [comicResultUrl, emoticonResultUrl, loadSavedImages, sdResultUrl]);
 
   useEffect(() => {
     if (!open) return;
@@ -383,7 +422,8 @@ export default function ChatImageGeneratorPanel() {
     setGenerating(true);
     setError("");
     setNotice("");
-    setSdResultUrl("");
+    if (sdProduct === "emoticon") setEmoticonResultUrl("");
+    else setSdResultUrl("");
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), 300_000);
     try {
@@ -398,6 +438,10 @@ export default function ChatImageGeneratorPanel() {
           topExpression,
           bottomExpression,
           mood: sdMood,
+          templateId:
+            sdProduct === "emoticon"
+              ? CHAT_EMOTICON_TEMPLATE_ID
+              : info.template.id,
           characterImageUrl: selectedCharacterImageUrl || info.character.imageUrl,
         }),
       });
@@ -406,12 +450,26 @@ export default function ChatImageGeneratorPanel() {
         if (data) updateBalance(data);
         throw new Error(data?.error || "SD 이미지 생성에 실패했습니다.");
       }
-      setSdResultUrl(data.imageUrl);
+      if (sdProduct === "emoticon") setEmoticonResultUrl(data.imageUrl);
+      else setSdResultUrl(data.imageUrl);
       if (data.savedToCharacterAlbum) {
         setSavedUrls((previous) => new Set(previous).add(data.imageUrl!));
       }
+      if (data.upstreamCostUsd != null && data.upstreamCostKrw != null) {
+        setActualCosts((previous) => ({
+          ...previous,
+          [sdProduct === "emoticon" ? "emoticon" : "sd"]: {
+            usd: data.upstreamCostUsd!,
+            krw: data.upstreamCostKrw!,
+          },
+        }));
+      }
       updateBalance(data);
-      setNotice("완성되어 기존 캐릭터 이미지 앨범에 자동으로 추가했습니다.");
+      setNotice(
+        sdProduct === "emoticon"
+          ? "랜덤 문구 9종 이모티콘을 완성해 기존 캐릭터 이미지 앨범에 추가했습니다."
+          : "완성되어 기존 캐릭터 이미지 앨범에 자동으로 추가했습니다."
+      );
       void loadInfo();
     } catch (caught) {
       const timedOut = caught instanceof DOMException && caught.name === "AbortError";
@@ -446,9 +504,6 @@ export default function ChatImageGeneratorPanel() {
     setComicResultUrl("");
     setComicTitle("");
     setComicPanelCount(null);
-    setComicChargedPoints(null);
-    setComicUpstreamCostUsd(null);
-    setComicUpstreamCostKrw(null);
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), 300_000);
     try {
@@ -475,9 +530,15 @@ export default function ChatImageGeneratorPanel() {
       }
       setComicTitle(data.title || "");
       setComicPanelCount(data.panelCount ?? null);
-      setComicChargedPoints(data.totalPointsCost ?? CHAT_COMIC_GENERATION_DEFAULT_POINTS);
-      setComicUpstreamCostUsd(data.upstreamCostUsd ?? null);
-      setComicUpstreamCostKrw(data.upstreamCostKrw ?? null);
+      if (data.upstreamCostUsd != null && data.upstreamCostKrw != null) {
+        setActualCosts((previous) => ({
+          ...previous,
+          comic: {
+            usd: data.upstreamCostUsd!,
+            krw: data.upstreamCostKrw!,
+          },
+        }));
+      }
       updateBalance(data);
       setNotice("대사·말풍선·표정 연출을 자동 구성해 기존 캐릭터 이미지 앨범에 추가했습니다.");
       void loadInfo();
@@ -545,7 +606,6 @@ export default function ChatImageGeneratorPanel() {
             <div className="shrink-0 border-b border-white/10 px-4 pt-3">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-[11px] font-semibold text-violet-300">OpenAI · GPT Image 2</p>
                   <h2 className="text-base font-bold text-white">{modalTitle}</h2>
                 </div>
                 <button
@@ -592,27 +652,67 @@ export default function ChatImageGeneratorPanel() {
               ) : (
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(19rem,0.95fr)]">
                   <div className="space-y-3">
-                    <div className="flex max-h-[64dvh] min-h-56 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white p-1">
+                    <div className="relative flex max-h-[64dvh] min-h-56 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white p-1">
                       <img
                         src={
                           activeResultUrl ||
                           (tab === "comic"
                             ? CHAT_COMIC_TEMPLATE_PREVIEW_URL
-                            : info?.template.previewUrl || "")
+                            : sdProduct === "emoticon"
+                              ? CHAT_EMOTICON_TEMPLATE_PREVIEW_URL
+                              : info?.template.previewUrl || "")
                         }
                         alt={
                           activeResultUrl
                             ? tab === "comic"
                               ? "생성된 컷만화"
-                              : "생성된 SD 이미지"
+                              : sdProduct === "emoticon"
+                                ? "생성된 랜덤 9종 이모티콘"
+                                : "생성된 SD 이미지"
                             : tab === "comic"
                               ? "2~4컷 만화 예시"
-                              : "선물상자 SD 고정틀"
+                              : sdProduct === "emoticon"
+                                ? "랜덤 9종 이모티콘 고정틀"
+                                : "선물상자 SD 고정틀"
                         }
                         className={`max-h-[62dvh] w-full object-contain ${
-                          tab === "comic" ? "aspect-[3/4]" : "aspect-[3/2]"
+                          tab === "comic"
+                            ? "aspect-[3/4]"
+                            : sdProduct === "emoticon"
+                              ? "aspect-square"
+                              : "aspect-[3/2]"
                         }`}
                       />
+                      {tab === "sd" ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSdProduct((previous) =>
+                                previous === "gift" ? "emoticon" : "gift"
+                              )
+                            }
+                            disabled={generating || saving}
+                            className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-xl font-bold text-white shadow hover:bg-black/70 disabled:opacity-40"
+                            aria-label="이전 SD 굿즈"
+                          >
+                            ‹
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSdProduct((previous) =>
+                                previous === "gift" ? "emoticon" : "gift"
+                              )
+                            }
+                            disabled={generating || saving}
+                            className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-xl font-bold text-white shadow hover:bg-black/70 disabled:opacity-40"
+                            aria-label="다음 SD 굿즈"
+                          >
+                            ›
+                          </button>
+                        </>
+                      ) : null}
                     </div>
                     <p className="text-center text-[10px] leading-relaxed text-zinc-500">
                       {activeResultUrl
@@ -621,8 +721,23 @@ export default function ChatImageGeneratorPanel() {
                           : "생성 결과는 기존 캐릭터 이미지 앨범에 자동으로 추가됩니다."
                         : tab === "comic"
                           ? "본문만 붙여넣으면 핵심 대사·말풍선·표정과 2~4컷 구성을 자동으로 만듭니다."
-                          : "선물상자·리본·인형·사탕 장식을 유지하면서 두 사람의 외형을 반영합니다."}
+                          : sdProduct === "emoticon"
+                            ? "매번 다른 문구 9개를 뽑아 캐릭터 단독·페르소나 단독·두 사람 장면을 섞어 만듭니다."
+                            : "선물상자·리본·인형·사탕 장식을 유지하면서 두 사람의 외형을 반영합니다."}
                     </p>
+                    {tab === "sd" ? (
+                      <div className="flex items-center justify-center gap-2 text-[10px]">
+                        <span className={sdProduct === "gift" ? "text-violet-300" : "text-zinc-600"}>
+                          ●
+                        </span>
+                        <span className={sdProduct === "emoticon" ? "text-violet-300" : "text-zinc-600"}>
+                          ●
+                        </span>
+                        <strong className="ml-1 text-zinc-400">
+                          {sdProduct === "gift" ? "선물상자 2인 SD" : "랜덤 9종 이모티콘"}
+                        </strong>
+                      </div>
+                    ) : null}
                     {activeResultUrl ? (
                       <button
                         type="button"
@@ -687,10 +802,19 @@ export default function ChatImageGeneratorPanel() {
                         </div>
                       </div>
                     ) : null}
+                    {actualCosts[activeMode] ? (
+                      <p className="rounded-lg border border-amber-400/20 bg-amber-400/[0.06] px-3 py-2 text-[11px] text-amber-100">
+                        관리자 방금 생성 실제 API 원가: $
+                        {actualCosts[activeMode]!.usd.toFixed(6)} · 약{" "}
+                        {actualCosts[activeMode]!.krw.toLocaleString()}원
+                      </p>
+                    ) : null}
 
                     {tab === "sd" ? (
                       <>
-                        <label className="block space-y-1">
+                        {sdProduct === "gift" ? (
+                          <>
+                          <label className="block space-y-1">
                           <span className="text-[11px] font-semibold text-zinc-400">자리 배치</span>
                           <select
                             value={placement}
@@ -703,7 +827,7 @@ export default function ChatImageGeneratorPanel() {
                             ))}
                           </select>
                         </label>
-                        <div className="grid grid-cols-2 gap-2">
+                          <div className="grid grid-cols-2 gap-2">
                           <label className="block space-y-1">
                             <span className="text-[11px] font-semibold text-zinc-400">위 인물 표정</span>
                             <select
@@ -730,8 +854,8 @@ export default function ChatImageGeneratorPanel() {
                               ))}
                             </select>
                           </label>
-                        </div>
-                        <label className="block space-y-1">
+                          </div>
+                          <label className="block space-y-1">
                           <span className="text-[11px] font-semibold text-zinc-400">분위기</span>
                           <select
                             value={sdMood}
@@ -743,12 +867,35 @@ export default function ChatImageGeneratorPanel() {
                               <option key={item.id} value={item.id}>{item.label}</option>
                             ))}
                           </select>
-                        </label>
+                          </label>
+                          </>
+                        ) : (
+                          <div className="rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-3 text-[11px] leading-relaxed text-zinc-300">
+                            <strong className="text-violet-200">랜덤 9종 · 900×900 · 중품질 고정</strong>
+                            <p className="mt-1">
+                              문구 풀에서 매번 중복 없이 9개를 선택하고, 캐릭터 단독 3개·페르소나 단독
+                              3개·두 사람 장면 3개를 문구에 맞는 표정과 행동으로 구성합니다.
+                            </p>
+                          </div>
+                        )}
                         <PriceBox
-                          label="SD 1장 생성"
-                          price={info?.pricePoints ?? CHAT_IMAGE_GENERATION_DEFAULT_POINTS}
                           balance={info?.balance}
-                          averageCost={info?.averageCosts?.sd}
+                          averageCosts={
+                            info?.averageCosts
+                              ? [
+                                  {
+                                    label:
+                                      sdProduct === "emoticon"
+                                        ? "랜덤 9종 이모티콘"
+                                        : "선물상자 SD 고정틀",
+                                    cost:
+                                      sdProduct === "emoticon"
+                                        ? info.averageCosts.emoticon
+                                        : info.averageCosts.sd,
+                                  },
+                                ]
+                              : undefined
+                          }
                           exchangeRateKrwPerUsd={info?.averageCosts?.exchangeRateKrwPerUsd}
                         />
                         <button
@@ -756,17 +903,19 @@ export default function ChatImageGeneratorPanel() {
                           onClick={() => void generateSd()}
                           disabled={
                             generating ||
-                            loadingInfo ||
-                            !info?.ready ||
-                            (info.balance != null && info.balance.total < info.pricePoints)
+                             loadingInfo ||
+                             !info?.ready ||
+                             (info.balance != null && info.balance.total < activePrice)
                           }
                           className="w-full rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40"
                         >
-                          {generating
-                            ? "SD 이미지 생성 중…"
-                            : sdResultUrl
-                              ? `다시 생성 · ${(info?.pricePoints ?? CHAT_IMAGE_GENERATION_DEFAULT_POINTS).toLocaleString()}P`
-                              : `SD 이미지 생성 · ${(info?.pricePoints ?? CHAT_IMAGE_GENERATION_DEFAULT_POINTS).toLocaleString()}P`}
+                           {generating
+                             ? sdProduct === "emoticon"
+                               ? "랜덤 이모티콘 9종 생성 중…"
+                               : "SD 이미지 생성 중…"
+                             : activeResultUrl
+                               ? `다시 생성 · ${activePrice.toLocaleString()}P`
+                               : `${sdProduct === "emoticon" ? "랜덤 9종 이모티콘 생성" : "SD 이미지 생성"} · ${activePrice.toLocaleString()}P`}
                         </button>
                       </>
                     ) : (
@@ -816,17 +965,16 @@ export default function ChatImageGeneratorPanel() {
                             {comicPanelCount ? ` · AI가 ${comicPanelCount}컷으로 구성` : ""}
                           </p>
                         ) : null}
-                        {comicUpstreamCostUsd != null && comicUpstreamCostKrw != null ? (
-                          <p className="rounded-lg border border-amber-400/20 bg-amber-400/[0.06] px-3 py-2 text-[11px] text-amber-100">
-                            관리자 실제 API 원가: ${comicUpstreamCostUsd.toFixed(6)} · 약{" "}
-                            {comicUpstreamCostKrw.toLocaleString()}원
-                          </p>
-                        ) : null}
                         <PriceBox
-                          label={comicPanelCount ? `${comicPanelCount}컷 만화 1장` : "AI 자동 2~4컷 만화 1장"}
-                          price={comicChargedPoints ?? CHAT_COMIC_GENERATION_DEFAULT_POINTS}
                           balance={info?.balance}
-                          averageCost={info?.averageCosts?.comic}
+                          averageCosts={
+                            info?.averageCosts
+                              ? ([2, 3, 4] as const).map((panelCount) => ({
+                                  label: `${panelCount}컷 만화`,
+                                  cost: info.averageCosts!.comic[panelCount],
+                                }))
+                              : undefined
+                          }
                           exchangeRateKrwPerUsd={info?.averageCosts?.exchangeRateKrwPerUsd}
                         />
                         <button
