@@ -129,7 +129,7 @@ export default function SidebarShell({ user, chatSessions, blurNsfw, navItems }:
         className={
           isChatRoomRoute
             ? "chat-room-left-rail-spacer hidden shrink-0 min-[576px]:block"
-            : "hidden shrink-0 md:block"
+            : "app-left-rail-spacer hidden shrink-0 min-[576px]:block"
         }
         style={{ width: railWidth }}
         aria-hidden
@@ -153,7 +153,7 @@ export default function SidebarShell({ user, chatSessions, blurNsfw, navItems }:
         className={cn(
           isChatRoomRoute
             ? "chat-room-left-rail fixed z-30 hidden flex-col gap-2 overflow-y-auto overflow-x-hidden overscroll-contain border-r border-white/10 bg-[#0b0d14] pb-4 transition-[width] duration-200 ease-out min-[576px]:flex"
-            : "fixed z-30 hidden flex-col gap-2 overflow-y-auto overflow-x-hidden overscroll-contain bg-[#0b0d14] pb-4 transition-[width] duration-200 ease-out md:flex",
+            : "app-left-rail fixed z-30 hidden flex-col gap-2 overflow-y-auto overflow-x-hidden overscroll-contain bg-[#0b0d14] pb-4 transition-[width] duration-200 ease-out min-[576px]:flex",
         )}
       >
         {isChatRoomRoute && (
