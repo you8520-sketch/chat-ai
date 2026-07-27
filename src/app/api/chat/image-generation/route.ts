@@ -408,7 +408,8 @@ export async function GET(req: Request) {
       personaId: positiveInt(url.searchParams.get("personaId")),
     });
     ensureGenerationTable();
-    const latest = getDb()
+    const db = getDb();
+    const latest = db
       .prepare(
         `SELECT template_id, options_json, result_url, upstream_cost_usd,
                 charged_points, created_at
@@ -450,15 +451,54 @@ export async function GET(req: Request) {
         ? "comic"
         : "sd";
     const canSeeCost = isAdminUser(user as typeof user & { is_admin?: number });
+    const exchangeRateKrwPerUsd = getEffectiveKrwPerUsd();
     const upstreamCostUsd =
       latest?.upstream_cost_usd != null &&
       latest.upstream_cost_usd > 0 &&
       Number.isFinite(latest.upstream_cost_usd)
         ? latest.upstream_cost_usd
         : null;
+    const averageRows = canSeeCost
+      ? (db
+          .prepare(
+            `SELECT template_id,
+                    AVG(upstream_cost_usd) AS average_cost_usd,
+                    COUNT(*) AS sample_count
+             FROM chat_image_generations
+             WHERE upstream_cost_usd IS NOT NULL
+               AND upstream_cost_usd > 0
+               AND template_id IN (?, ?)
+             GROUP BY template_id`
+          )
+          .all(CHAT_IMAGE_TEMPLATE_ID, CHAT_COMIC_TEMPLATE_ID) as Array<{
+          template_id: string;
+          average_cost_usd: number;
+          sample_count: number;
+        }>)
+      : [];
+    const averageCost = (templateId: string) => {
+      const row = averageRows.find((item) => item.template_id === templateId);
+      const averageUsd =
+        row && Number.isFinite(row.average_cost_usd) ? row.average_cost_usd : null;
+      return {
+        averageUsd,
+        averageKrw:
+          averageUsd == null
+            ? null
+            : Math.round(averageUsd * exchangeRateKrwPerUsd * 10) / 10,
+        sampleCount: row?.sample_count ?? 0,
+      };
+    };
     return NextResponse.json({
       ...publicContextResponse(context),
       balance: getPointBalance(user.id),
+      averageCosts: canSeeCost
+        ? {
+            exchangeRateKrwPerUsd,
+            sd: averageCost(CHAT_IMAGE_TEMPLATE_ID),
+            comic: averageCost(CHAT_COMIC_TEMPLATE_ID),
+          }
+        : undefined,
       latestResult: latest
         ? {
             imageUrl: latest.result_url,
@@ -470,7 +510,7 @@ export async function GET(req: Request) {
             upstreamCostUsd: canSeeCost ? upstreamCostUsd : undefined,
             upstreamCostKrw:
               canSeeCost && upstreamCostUsd != null
-                ? Math.round(upstreamCostUsd * getEffectiveKrwPerUsd() * 10) / 10
+                ? Math.round(upstreamCostUsd * exchangeRateKrwPerUsd * 10) / 10
                 : undefined,
           }
         : null,

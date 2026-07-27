@@ -34,6 +34,12 @@ type ReferenceInfo = {
   imageUrl: string;
 };
 
+type AverageImageCost = {
+  averageUsd: number | null;
+  averageKrw: number | null;
+  sampleCount: number;
+};
+
 type Preflight = {
   ready: boolean;
   missing: string[];
@@ -45,6 +51,11 @@ type Preflight = {
   characterImages?: Array<{ url: string; tag: string }>;
   persona: ReferenceInfo | null;
   balance?: { total: number; paid: number; free: number };
+  averageCosts?: {
+    exchangeRateKrwPerUsd: number;
+    sd: AverageImageCost;
+    comic: AverageImageCost;
+  };
   latestResult?: {
     imageUrl: string;
     chargedPoints: number;
@@ -163,10 +174,14 @@ function PriceBox({
   label,
   price,
   balance,
+  averageCost,
+  exchangeRateKrwPerUsd,
 }: {
   label: string;
   price: number;
   balance?: { total: number; paid: number; free: number };
+  averageCost?: AverageImageCost;
+  exchangeRateKrwPerUsd?: number;
 }) {
   return (
     <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-[11px] text-zinc-400">
@@ -178,6 +193,23 @@ function PriceBox({
         <div className="mt-1 flex justify-between gap-3">
           <span>보유 포인트</span>
           <strong className="text-zinc-200">{balance.total.toLocaleString()}P</strong>
+        </div>
+      ) : null}
+      {averageCost ? (
+        <div className="mt-2 rounded-lg border border-amber-400/20 bg-amber-400/[0.06] px-2.5 py-2 text-amber-100">
+          <p className="font-semibold">관리자 평균 API 원가</p>
+          {averageCost.averageUsd != null && averageCost.averageKrw != null ? (
+            <p className="mt-0.5 leading-relaxed">
+              약 {averageCost.averageKrw.toLocaleString()}원
+              {" · "}${averageCost.averageUsd.toFixed(6)}
+              {" · "}성공 {averageCost.sampleCount.toLocaleString()}건 기준
+              {exchangeRateKrwPerUsd != null
+                ? ` · 환율 ${exchangeRateKrwPerUsd.toLocaleString()}원/USD`
+                : ""}
+            </p>
+          ) : (
+            <p className="mt-0.5 text-amber-200/70">아직 집계할 성공 기록이 없습니다.</p>
+          )}
         </div>
       ) : null}
       <p className="mt-2 leading-relaxed text-zinc-500">
@@ -380,6 +412,7 @@ export default function ChatImageGeneratorPanel() {
       }
       updateBalance(data);
       setNotice("완성되어 기존 캐릭터 이미지 앨범에 자동으로 추가했습니다.");
+      void loadInfo();
     } catch (caught) {
       const timedOut = caught instanceof DOMException && caught.name === "AbortError";
       setError(
@@ -447,6 +480,7 @@ export default function ChatImageGeneratorPanel() {
       setComicUpstreamCostKrw(data.upstreamCostKrw ?? null);
       updateBalance(data);
       setNotice("대사·말풍선·표정 연출을 자동 구성해 기존 캐릭터 이미지 앨범에 추가했습니다.");
+      void loadInfo();
     } catch (caught) {
       const timedOut = caught instanceof DOMException && caught.name === "AbortError";
       setError(
@@ -714,6 +748,8 @@ export default function ChatImageGeneratorPanel() {
                           label="SD 1장 생성"
                           price={info?.pricePoints ?? CHAT_IMAGE_GENERATION_DEFAULT_POINTS}
                           balance={info?.balance}
+                          averageCost={info?.averageCosts?.sd}
+                          exchangeRateKrwPerUsd={info?.averageCosts?.exchangeRateKrwPerUsd}
                         />
                         <button
                           type="button"
@@ -790,6 +826,8 @@ export default function ChatImageGeneratorPanel() {
                           label={comicPanelCount ? `${comicPanelCount}컷 만화 1장` : "AI 자동 2~4컷 만화 1장"}
                           price={comicChargedPoints ?? CHAT_COMIC_GENERATION_DEFAULT_POINTS}
                           balance={info?.balance}
+                          averageCost={info?.averageCosts?.comic}
+                          exchangeRateKrwPerUsd={info?.averageCosts?.exchangeRateKrwPerUsd}
                         />
                         <button
                           type="button"
