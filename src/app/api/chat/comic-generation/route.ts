@@ -363,7 +363,7 @@ async function planComic(opts: {
       })?.usage
     );
     return {
-      plan: sanitizeChatComicPlan(parsed, opts.panelCount),
+      plan: sanitizeChatComicPlan(parsed, opts.panelCount, opts.sourceText),
       costUsd,
       model,
     };
