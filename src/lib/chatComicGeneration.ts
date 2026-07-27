@@ -3,7 +3,7 @@ export const CHAT_COMIC_TEMPLATE_NAME = "2~4컷 가로 만화";
 export const CHAT_COMIC_TEMPLATE_PREVIEW_URL =
   "/image-templates/comic-horizontal-sample.webp";
 
-export const CHAT_COMIC_DEFAULT_PLANNER_MODEL = "google/gemini-2.5-flash-lite";
+export const CHAT_COMIC_DEFAULT_PLANNER_MODEL = "gpt-4o-mini";
 export const CHAT_COMIC_MAX_INPUT_CHARS = 800;
 export const CHAT_COMIC_IMAGE_OUTPUT_SIZE = "1008x1408" as const;
 
@@ -97,7 +97,7 @@ export function resolveChatComicPrice(
 export function resolveChatComicPlannerModel(
   env: NodeJS.ProcessEnv = process.env
 ): string {
-  return env.OPENROUTER_COMIC_PLANNER_MODEL?.trim() || CHAT_COMIC_DEFAULT_PLANNER_MODEL;
+  return env.OPENAI_COMIC_PLANNER_MODEL?.trim() || CHAT_COMIC_DEFAULT_PLANNER_MODEL;
 }
 
 export function buildChatComicPlannerPrompt(opts: {
