@@ -36,9 +36,10 @@ export function runInvestigationDiscoveryForTurn(opts: {
   userMessage?: string;
   explicitActions?: ReturnType<typeof parseInvestigationExplicitActions>;
   authoritativeOutcomes?: ReturnType<typeof parseInvestigationAuthoritativeOutcomes>;
+  userId?: number | null;
   db?: Database.Database;
 }): RunInvestigationDiscoveryResult {
-  if (!isPersonaSecretDiscoveryEnabled()) {
+  if (!isPersonaSecretDiscoveryEnabled({ userId: opts.userId })) {
     return {
       attemptCount: 0,
       resultCount: 0,

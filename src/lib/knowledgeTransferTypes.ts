@@ -68,6 +68,7 @@ export type KnowledgeTransferEventRow = {
 
 export type KnowledgeTransferRejectReason =
   | "FORBIDDEN_SOURCE"
+  | "FORBIDDEN_TRANSFER_TYPE"
   | "MISSING_ACTION_REF"
   | "INVALID_SENDER"
   | "INVALID_RECEIVER"

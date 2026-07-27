@@ -540,6 +540,7 @@ export async function POST(req: Request) {
       characterId: ch.id,
       displayName: typeof ch.name === "string" ? ch.name : "",
       turnNumber: 0,
+      userId: user.id,
     });
   }
 
@@ -1447,6 +1448,7 @@ export async function POST(req: Request) {
         chatId: chatRef.id,
         turnNumber: playableTurnCount + 1,
         actions: publicDiscoveryInputs.scenePresenceActions,
+        userId: user.id,
       });
     }
   }
@@ -1469,6 +1471,7 @@ export async function POST(req: Request) {
       userMessage: messageText,
       explicitActions: sceneActions,
       publicPersonaId: resolvedPersonaId,
+      userId: user.id,
     });
 
     if (resolvedPersonaId) {
@@ -1478,6 +1481,7 @@ export async function POST(req: Request) {
         characterId: ch.id,
         turnNumber: playableTurnCount + 1,
         sourceMessageId: userMessageId,
+        userId: user.id,
       });
 
       runInvestigationDiscoveryForTurn({
@@ -1490,6 +1494,7 @@ export async function POST(req: Request) {
         explicitActions: publicDiscoveryInputs.investigationActions,
         // Internal-only — never body.investigationOutcomes.
         authoritativeOutcomes: [],
+        userId: user.id,
       });
 
       // PR-S4D: user transfers only; server assigns sourceMessageId from saved turn.
@@ -1512,6 +1517,7 @@ export async function POST(req: Request) {
           ),
           // Internal-only — never body.knowledgeTransferAuthoritativeActions.
           authoritativeActions: [],
+          userId: user.id,
         });
       }
 

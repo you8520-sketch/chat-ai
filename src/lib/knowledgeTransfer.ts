@@ -36,9 +36,10 @@ export function runKnowledgeTransfersForTurn(opts: {
    * `body.knowledgeTransferAuthoritativeActions`.
    */
   authoritativeActions?: KnowledgeTransferAuthoritativeAction[];
+  userId?: number | null;
   db?: Database.Database;
 }): KnowledgeTransferTurnResult {
-  if (!isPersonaSecretDiscoveryEnabled()) {
+  if (!isPersonaSecretDiscoveryEnabled({ userId: opts.userId })) {
     return { results: [], appliedCount: 0, changedCount: 0 };
   }
   const db = opts.db ?? getDb();

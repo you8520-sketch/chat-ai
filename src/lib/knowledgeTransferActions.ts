@@ -95,6 +95,8 @@ export function parseKnowledgeTransferActions(
     }
     const parsed = parseOneActionBase(item);
     if (!parsed) continue;
+    // SERVER_DISCLOSURE is internal-only — never accept on the public user array.
+    if (parsed.transferType === "SERVER_DISCLOSURE") continue;
     // sourceMessageId is assigned by the chat route from the saved user message.
     out.push(parsed);
   }

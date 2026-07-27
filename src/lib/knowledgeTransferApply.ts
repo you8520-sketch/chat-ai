@@ -172,6 +172,14 @@ export function applyKnowledgeTransferAction(opts: {
   }
 
   const { action } = opts;
+  // SERVER_DISCLOSURE is reserved for authoritative server/creator paths.
+  if (
+    action.transferType === "SERVER_DISCLOSURE" &&
+    opts.sourceType === "USER_EXPLICIT_TRANSFER"
+  ) {
+    return { ok: false, reason: "FORBIDDEN_TRANSFER_TYPE" };
+  }
+
   const actionRef = resolveKnowledgeTransferActionRef({
     sourceMessageId: action.sourceMessageId,
     actionId: action.actionId,

@@ -41,9 +41,10 @@ export function runVisualDiscoveryForTurn(opts: {
   characterId: number;
   turnNumber: number;
   sourceMessageId?: number | null;
+  userId?: number | null;
   db?: Database.Database;
 }): RunVisualDiscoveryResult {
-  if (!isPersonaSecretDiscoveryEnabled()) {
+  if (!isPersonaSecretDiscoveryEnabled({ userId: opts.userId })) {
     return {
       matchCount: 0,
       appliedCount: 0,
@@ -57,6 +58,7 @@ export function runVisualDiscoveryForTurn(opts: {
     chatId: opts.chatId,
     characterId: opts.characterId,
     turnNumber: opts.turnNumber,
+    userId: opts.userId,
     db: opts.db,
   });
 

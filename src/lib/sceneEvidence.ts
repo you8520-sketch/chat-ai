@@ -35,7 +35,7 @@ export function extractAndPersistSceneEvidence(
   input: SceneEvidenceExtractorInput,
   db?: Database.Database
 ): ExtractAndPersistSceneEvidenceResult {
-  if (!isPersonaSecretDiscoveryEnabled()) {
+  if (!isPersonaSecretDiscoveryEnabled({ userId: input.userId })) {
     return {
       draftCount: 0,
       rejectedCount: 0,

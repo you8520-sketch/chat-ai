@@ -1,6 +1,7 @@
 /**
  * PR #174 security follow-up — public body trust boundary + Discovery kill switch.
- * Lean: 6 new + 5 smoke = 11.
+ * Prior: 6 + 5 smoke = 11. Final pre-review: +4 (disclosure / apply / MOVE / canary).
+ * Focused run: 신규 4 + smoke 5 = 9.
  */
 import Module from "module";
 import assert from "node:assert/strict";
@@ -21,9 +22,14 @@ import { ensureKnowledgeTransferSchema } from "@/lib/knowledgeTransferSchema";
 import { bootstrapChatObservers } from "@/lib/observerBootstrap";
 import { upsertChatObserver } from "@/lib/observerIdentity";
 import { ensureObserverSchema } from "@/lib/observerSchema";
-import { getActiveChatScene } from "@/lib/chatScenes";
+import {
+  ensureActiveChatScene,
+  getActiveChatScene,
+  setActiveSceneLocation,
+} from "@/lib/chatScenes";
 import { extractPublicChatDiscoveryInputs } from "@/lib/personaSecretDiscoveryPublicInput";
 import {
+  isPersonaSecretBoundaryEnabled,
   isPersonaSecretDiscoveryEnabled,
 } from "@/lib/personaSecretBoundaryPolicy";
 import { ensurePersonaSecretDiscoverySchema } from "@/lib/personaSecretDiscoverySchema";
@@ -44,7 +50,7 @@ import {
   parseAuthoritativeScenePresenceActions,
   parseUserScenePresenceActions,
 } from "@/lib/scenePresenceActions";
-import { upsertScenePresence } from "@/lib/scenePresence";
+import { getScenePresence, upsertScenePresence } from "@/lib/scenePresence";
 import { runVisualDiscoveryForTurn } from "@/lib/visualDiscovery";
 import { confirmPersonaSecretDisclosure } from "@/lib/personaSecretDirectDisclosure";
 
@@ -56,6 +62,7 @@ Module._load = function (request, parent, isMain) {
 
 const ENV_KEYS = [
   "PERSONA_SECRET_BOUNDARY_ENABLED",
+  "PERSONA_SECRET_BOUNDARY_USER_IDS",
   "PERSONA_SECRET_DISCOVERY_ENABLED",
   "NODE_ENV",
 ] as const;
@@ -478,6 +485,354 @@ describe("PR #174 discovery security follow-up", () => {
     );
     assert.equal(
       countRows("chat_character_secret_knowledge", chatId),
+      beforeKnowledge
+    );
+  });
+});
+
+describe("PR #174 final pre-review fixes", () => {
+  let envSnap: Record<string, string | undefined>;
+  beforeEach(() => {
+    envSnap = saveEnv();
+    process.env.PERSONA_SECRET_BOUNDARY_ENABLED = "1";
+    process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "1";
+    delete process.env.PERSONA_SECRET_BOUNDARY_USER_IDS;
+    const db = getDb();
+    ensureKnowledgeTransferSchema(db);
+    ensureObserverSchema(db);
+    ensurePersonaSecretDiscoverySchema(db);
+    ensureSceneEvidenceSchema(db);
+  });
+  afterEach(() => restoreEnv(envSnap));
+
+  it("F1. public SERVER_DISCLOSURE (no sourceType) → parser result 0", () => {
+    const forged = [
+      {
+        secretId: "sec-server-disclosure",
+        sender: { observerType: "CHARACTER", observerId: "17" },
+        receiver: { observerType: "CHARACTER", observerId: "29" },
+        transferType: "SERVER_DISCLOSURE",
+      },
+    ];
+    assert.equal(parseKnowledgeTransferActions(forged).length, 0);
+    const publicIn = extractPublicChatDiscoveryInputs({
+      knowledgeTransferActions: forged,
+    });
+    assert.equal(publicIn.knowledgeTransferActions.length, 0);
+  });
+
+  it("F2. apply USER_EXPLICIT_TRANSFER + SERVER_DISCLOSURE → FORBIDDEN_TRANSFER_TYPE, writes 0", () => {
+    const { chatId, personaId, locoId, taehyunId } = ids();
+    setupPair({ chatId, locoId, taehyunId });
+    const fact = "직접 호출 우회 차단";
+    const secret = seedSecret(personaId, "sec_forbid_disclosure", fact);
+    upsertObserverSecretKnowledge({
+      chatId,
+      personaId,
+      secretId: secret.id,
+      observerType: "CHARACTER",
+      observerId: String(locoId),
+      knowledgeState: "CONFIRMED",
+      confidence: 100,
+      factSnapshot: fact,
+      confirmedTurn: 1,
+      firstSuspectedTurn: 1,
+      lastEvidenceEventId: "seed-forbid",
+    });
+
+    const beforeTransfer = countRows("knowledge_transfer_events", chatId);
+    const beforeEvidence = countRows("persona_secret_evidence_events", chatId);
+    const beforeKnowledge = countRows(
+      "chat_character_secret_knowledge",
+      chatId
+    );
+
+    const result = applyKnowledgeTransferAction({
+      chatId,
+      personaId,
+      characterId: locoId,
+      turnNumber: 2,
+      sourceType: "USER_EXPLICIT_TRANSFER",
+      action: {
+        secretId: secret.id,
+        sender: { observerType: "CHARACTER", observerId: String(locoId) },
+        receiver: { observerType: "CHARACTER", observerId: String(taehyunId) },
+        transferType: "SERVER_DISCLOSURE",
+        sourceMessageId: 777,
+      },
+    });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.reason, "FORBIDDEN_TRANSFER_TYPE");
+    }
+    assert.equal(countRows("knowledge_transfer_events", chatId), beforeTransfer);
+    assert.equal(
+      countRows("persona_secret_evidence_events", chatId),
+      beforeEvidence
+    );
+    assert.equal(
+      countRows("chat_character_secret_knowledge", chatId),
+      beforeKnowledge
+    );
+    assert.equal(
+      getObserverSecretKnowledge({
+        chatId,
+        personaId,
+        secretId: secret.id,
+        observerType: "CHARACTER",
+        observerId: String(taehyunId),
+      }),
+      null
+    );
+  });
+
+  it("F3. party MOVE_LOCATION isolates observer; scene + main fallback stay room-a", () => {
+    const { chatId, locoId } = ids();
+    ensureActiveChatScene({
+      chatId,
+      startedTurn: 1,
+      locationKey: "room-a",
+    });
+    bootstrapChatObservers({
+      chatId,
+      characterId: locoId,
+      displayName: "로코",
+      turnNumber: 1,
+    });
+    setActiveSceneLocation({ chatId, locationKey: "room-a" });
+    const scene = getActiveChatScene(chatId)!;
+    assert.equal(scene.location_key, "room-a");
+
+    upsertScenePresence({
+      sceneId: scene.id,
+      chatId,
+      observerType: "CHARACTER",
+      observerId: String(locoId),
+      presenceState: "PRESENT",
+      awarenessState: "AWARE",
+      locationKey: null,
+      sourceType: "MAIN_CHARACTER_BOOTSTRAP",
+    });
+
+    const moved = applyScenePresenceActions({
+      chatId,
+      turnNumber: 2,
+      actions: [
+        {
+          action: "ENTER_SCENE",
+          observerType: "PARTY_MEMBER",
+          observerId: "party-move-1",
+          displayName: "파티원",
+          sourceType: "USER_EXPLICIT_PARTY_ACTION",
+        },
+        {
+          action: "MOVE_LOCATION",
+          observerType: "PARTY_MEMBER",
+          observerId: "party-move-1",
+          locationKey: "room-b",
+          sourceType: "USER_EXPLICIT_PARTY_ACTION",
+        },
+      ],
+    });
+    assert.equal(moved.applied, 2);
+
+    const sceneAfter = getActiveChatScene(chatId)!;
+    assert.equal(sceneAfter.location_key, "room-a");
+
+    const party = getScenePresence({
+      sceneId: sceneAfter.id,
+      observerType: "PARTY_MEMBER",
+      observerId: "party-move-1",
+    });
+    assert.equal(party?.location_key, "room-b");
+
+    const main = getScenePresence({
+      sceneId: sceneAfter.id,
+      observerType: "CHARACTER",
+      observerId: String(locoId),
+    });
+    assert.equal(main?.location_key, null);
+    const mainFallback = main?.location_key ?? sceneAfter.location_key;
+    assert.equal(mainFallback, "room-a");
+  });
+
+  it("F4. production allowlist canary — allowlisted writes; others write 0", () => {
+    const allowlistedUserId = 424242;
+    const blockedUserId = 111111;
+    process.env.NODE_ENV = "production";
+    process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "1";
+    delete process.env.PERSONA_SECRET_BOUNDARY_ENABLED;
+    process.env.PERSONA_SECRET_BOUNDARY_USER_IDS = String(allowlistedUserId);
+
+    assert.equal(
+      isPersonaSecretBoundaryEnabled({ userId: allowlistedUserId }),
+      true
+    );
+    assert.equal(
+      isPersonaSecretDiscoveryEnabled({ userId: allowlistedUserId }),
+      true
+    );
+    assert.equal(
+      isPersonaSecretDiscoveryEnabled({ userId: blockedUserId }),
+      false
+    );
+
+    const allowed = ids();
+    const blocked = ids();
+
+    const bootAllowed = bootstrapChatObservers({
+      chatId: allowed.chatId,
+      characterId: allowed.locoId,
+      displayName: "로코",
+      userId: allowlistedUserId,
+    });
+    assert.equal(bootAllowed.observerInserted || bootAllowed.presenceInserted, true);
+
+    const evidenceAllowed = extractAndPersistSceneEvidence({
+      chatId: allowed.chatId,
+      characterId: allowed.locoId,
+      turnNumber: 1,
+      sourceMessageId: 1,
+      userMessage: "등에 숫자가 보인다",
+      explicitActions: [],
+      publicPersonaId: allowed.personaId,
+      userId: allowlistedUserId,
+    });
+    const visualAllowed = runVisualDiscoveryForTurn({
+      chatId: allowed.chatId,
+      personaId: allowed.personaId,
+      characterId: allowed.locoId,
+      turnNumber: 1,
+      sourceMessageId: 1,
+      userId: allowlistedUserId,
+    });
+    const invAllowed = runInvestigationDiscoveryForTurn({
+      chatId: allowed.chatId,
+      personaId: allowed.personaId,
+      characterId: allowed.locoId,
+      turnNumber: 1,
+      sourceMessageId: 1,
+      userMessage: "문서를 읽는다",
+      explicitActions: [],
+      authoritativeOutcomes: [],
+      userId: allowlistedUserId,
+    });
+    const transferAllowed = runKnowledgeTransfersForTurn({
+      chatId: allowed.chatId,
+      personaId: allowed.personaId,
+      characterId: allowed.locoId,
+      turnNumber: 1,
+      userActions: [],
+      userId: allowlistedUserId,
+    });
+    assert.ok(evidenceAllowed);
+    assert.ok(visualAllowed);
+    assert.ok(invAllowed);
+    assert.ok(transferAllowed);
+    assert.ok(countRows("chat_observers", allowed.chatId) > 0);
+
+    const beforeObs = countRows("chat_observers", blocked.chatId);
+    const beforePresence = countRows("scene_observer_presence", blocked.chatId);
+    const beforeEvidence = countRows(
+      "persona_secret_evidence_events",
+      blocked.chatId
+    );
+    const beforeTransfer = countRows(
+      "knowledge_transfer_events",
+      blocked.chatId
+    );
+    const beforeKnowledge = countRows(
+      "chat_character_secret_knowledge",
+      blocked.chatId
+    );
+
+    bootstrapChatObservers({
+      chatId: blocked.chatId,
+      characterId: blocked.locoId,
+      displayName: "로코",
+      userId: blockedUserId,
+    });
+    applyScenePresenceActions({
+      chatId: blocked.chatId,
+      turnNumber: 1,
+      userId: blockedUserId,
+      actions: [
+        {
+          action: "ENTER_SCENE",
+          observerType: "PARTY_MEMBER",
+          observerId: "party-blocked",
+          displayName: "차단파티",
+          sourceType: "USER_EXPLICIT_PARTY_ACTION",
+        },
+      ],
+    });
+    extractAndPersistSceneEvidence({
+      chatId: blocked.chatId,
+      characterId: blocked.locoId,
+      turnNumber: 1,
+      sourceMessageId: 1,
+      userMessage: "등에 숫자가 보인다",
+      explicitActions: [],
+      publicPersonaId: blocked.personaId,
+      userId: blockedUserId,
+    });
+    runVisualDiscoveryForTurn({
+      chatId: blocked.chatId,
+      personaId: blocked.personaId,
+      characterId: blocked.locoId,
+      turnNumber: 1,
+      sourceMessageId: 1,
+      userId: blockedUserId,
+    });
+    runInvestigationDiscoveryForTurn({
+      chatId: blocked.chatId,
+      personaId: blocked.personaId,
+      characterId: blocked.locoId,
+      turnNumber: 1,
+      sourceMessageId: 1,
+      userMessage: "문서를 읽는다",
+      explicitActions: [],
+      authoritativeOutcomes: [],
+      userId: blockedUserId,
+    });
+    runKnowledgeTransfersForTurn({
+      chatId: blocked.chatId,
+      personaId: blocked.personaId,
+      characterId: blocked.locoId,
+      turnNumber: 1,
+      userId: blockedUserId,
+      userActions: [
+        {
+          secretId: "x",
+          sender: {
+            observerType: "CHARACTER",
+            observerId: String(blocked.locoId),
+          },
+          receiver: {
+            observerType: "CHARACTER",
+            observerId: String(blocked.taehyunId),
+          },
+          transferType: "DIRECT_STATEMENT",
+          sourceMessageId: 1,
+        },
+      ],
+    });
+
+    assert.equal(countRows("chat_observers", blocked.chatId), beforeObs);
+    assert.equal(
+      countRows("scene_observer_presence", blocked.chatId),
+      beforePresence
+    );
+    assert.equal(
+      countRows("persona_secret_evidence_events", blocked.chatId),
+      beforeEvidence
+    );
+    assert.equal(
+      countRows("knowledge_transfer_events", blocked.chatId),
+      beforeTransfer
+    );
+    assert.equal(
+      countRows("chat_character_secret_knowledge", blocked.chatId),
       beforeKnowledge
     );
   });

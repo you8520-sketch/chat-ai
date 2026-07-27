@@ -3,7 +3,6 @@ import { getDb } from "@/lib/db";
 import {
   ensureActiveChatScene,
   getActiveChatScene,
-  setActiveSceneLocation,
 } from "@/lib/chatScenes";
 import {
   getChatObserver,
@@ -199,9 +198,10 @@ export function applyScenePresenceActions(opts: {
   chatId: number;
   turnNumber: number;
   actions: ScenePresenceAction[];
+  userId?: number | null;
   db?: Database.Database;
 }): ApplyPresenceActionsResult {
-  if (!isPersonaSecretDiscoveryEnabled()) {
+  if (!isPersonaSecretDiscoveryEnabled({ userId: opts.userId })) {
     return { applied: 0, rejected: opts.actions.length };
   }
   const db = opts.db ?? getDb();
@@ -393,30 +393,23 @@ function applyOne(opts: {
       return true;
 
     case "MOVE_LOCATION": {
+      // Observer-local only — never rewrite the active scene location.
       if (action.locationKey === undefined) return false;
-      setActiveSceneLocation({
-        chatId,
-        locationKey: action.locationKey,
-        db,
-      });
       const active = getActiveChatScene(chatId, db);
       if (!active) return false;
+      const prior = getPresenceOrUnknown(
+        active.id,
+        action.observerType,
+        action.observerId,
+        db
+      );
       upsertScenePresence(
         {
           sceneId: active.id,
           chatId,
           observerType: action.observerType,
           observerId: action.observerId,
-          presenceState:
-            getPresenceOrUnknown(active.id, action.observerType, action.observerId, db) ===
-            "UNKNOWN"
-              ? "PRESENT"
-              : getPresenceOrUnknown(
-                  active.id,
-                  action.observerType,
-                  action.observerId,
-                  db
-                ),
+          presenceState: prior === "UNKNOWN" ? "PRESENT" : prior,
           locationKey: action.locationKey,
           sourceType: action.sourceType,
         },

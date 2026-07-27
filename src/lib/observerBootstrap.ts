@@ -31,10 +31,11 @@ export function bootstrapChatObservers(opts: {
   displayName?: string;
   turnNumber?: number;
   locationKey?: string | null;
+  userId?: number | null;
   db?: Database.Database;
 }): BootstrapChatObserversResult {
   const observerId = mainCharacterObserverId(opts.characterId);
-  if (!isPersonaSecretDiscoveryEnabled()) {
+  if (!isPersonaSecretDiscoveryEnabled({ userId: opts.userId })) {
     return {
       observerInserted: false,
       sceneCreated: false,

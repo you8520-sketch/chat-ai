@@ -119,6 +119,8 @@ export type SceneEvidenceExtractorInput = {
   /** Public persona identity (never secret fields). */
   publicPersonaId?: number | null;
   publicPersonaDisplayName?: string | null;
+  /** Rollout / allowlist context for Discovery kill switch. */
+  userId?: number | null;
 };
 
 export type SceneEvidenceDraft = Omit<
