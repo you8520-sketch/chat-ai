@@ -4,7 +4,7 @@ export const CHAT_IMAGE_TEMPLATE_PREVIEW_URL =
   "/image-templates/sd-gift-box-duo.webp";
 
 export const CHAT_IMAGE_GENERATION_DEFAULT_MODEL = "openai/gpt-image-2";
-export const CHAT_IMAGE_GENERATION_DEFAULT_POINTS = 900;
+export const CHAT_IMAGE_GENERATION_DEFAULT_POINTS = 350;
 
 export const CHAT_IMAGE_PLACEMENTS = [
   { id: "character_top", label: "위: 캐릭터 · 아래: 페르소나" },
