@@ -6,11 +6,19 @@ import {
   useState,
   type ChangeEvent,
   type PointerEvent,
+  type WheelEvent,
 } from "react";
 import {
   PERSONA_IMAGE_FOCUS_DEFAULT,
-  personaImageObjectPosition,
+  PERSONA_IMAGE_SCALE_DEFAULT,
+  PERSONA_IMAGE_SCALE_MAX,
+  PERSONA_IMAGE_SCALE_MIN,
+  personaImageBaseUrl,
+  personaImageRenderStyle,
+  personaImageScale,
   sanitizePersonaImageFocus,
+  sanitizePersonaImageScale,
+  withPersonaImageScale,
 } from "@/lib/userPersonasClient";
 
 export type PersonaImageValue = {
@@ -26,6 +34,8 @@ type Props = {
   /** Compact layout for chat settings drawer */
   compact?: boolean;
 };
+
+const SCALE_STEP = 0.15;
 
 function clamp01(n: number): number {
   return Math.min(1, Math.max(0, n));
@@ -49,19 +59,37 @@ export default function PersonaImageEditor({
     originFocusY: number;
   } | null>(null);
 
-  const url = value.image_url.trim();
-  const focusX = sanitizePersonaImageFocus(value.image_focus_x, PERSONA_IMAGE_FOCUS_DEFAULT.x);
-  const focusY = sanitizePersonaImageFocus(value.image_focus_y, PERSONA_IMAGE_FOCUS_DEFAULT.y);
+  const storedUrl = value.image_url.trim();
+  const url = personaImageBaseUrl(storedUrl);
+  const scale = personaImageScale(storedUrl);
+  const focusX = sanitizePersonaImageFocus(
+    value.image_focus_x,
+    PERSONA_IMAGE_FOCUS_DEFAULT.x
+  );
+  const focusY = sanitizePersonaImageFocus(
+    value.image_focus_y,
+    PERSONA_IMAGE_FOCUS_DEFAULT.y
+  );
 
-  const setFocus = useCallback(
-    (x: number, y: number) => {
+  const setTransform = useCallback(
+    (x: number, y: number, nextScale = scale) => {
       onChange({
-        image_url: value.image_url,
+        image_url: withPersonaImageScale(
+          value.image_url,
+          sanitizePersonaImageScale(nextScale, PERSONA_IMAGE_SCALE_DEFAULT)
+        ),
         image_focus_x: clamp01(x),
         image_focus_y: clamp01(y),
       });
     },
-    [onChange, value.image_url]
+    [onChange, scale, value.image_url]
+  );
+
+  const setScale = useCallback(
+    (nextScale: number) => {
+      setTransform(focusX, focusY, nextScale);
+    },
+    [focusX, focusY, setTransform]
   );
 
   async function uploadFile(file: File) {
@@ -77,7 +105,10 @@ export default function PersonaImageEditor({
         return;
       }
       onChange({
-        image_url: data.urls[0],
+        image_url: withPersonaImageScale(
+          data.urls[0],
+          PERSONA_IMAGE_SCALE_DEFAULT
+        ),
         image_focus_x: PERSONA_IMAGE_FOCUS_DEFAULT.x,
         image_focus_y: PERSONA_IMAGE_FOCUS_DEFAULT.y,
       });
@@ -115,16 +146,30 @@ export default function PersonaImageEditor({
     if (!frame) return;
     const rect = frame.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return;
-    // Drag image with the pointer: content moves with finger → focus moves opposite.
-    const dx = (e.clientX - drag.startX) / rect.width;
-    const dy = (e.clientY - drag.startY) / rect.height;
-    setFocus(drag.originFocusX - dx, drag.originFocusY - dy);
+
+    // The image follows the pointer. Higher zoom uses a gentler focal movement.
+    const zoomSensitivity = Math.max(1, scale);
+    const dx = (e.clientX - drag.startX) / rect.width / zoomSensitivity;
+    const dy = (e.clientY - drag.startY) / rect.height / zoomSensitivity;
+    setTransform(
+      drag.originFocusX - dx,
+      drag.originFocusY - dy,
+      scale
+    );
   }
 
   function endDrag(e: PointerEvent<HTMLDivElement>) {
-    if (dragRef.current?.pointerId === e.pointerId) {
-      dragRef.current = null;
+    if (dragRef.current?.pointerId !== e.pointerId) return;
+    dragRef.current = null;
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
     }
+  }
+
+  function onWheel(e: WheelEvent<HTMLDivElement>) {
+    if (disabled || !url) return;
+    e.preventDefault();
+    setScale(scale + (e.deltaY < 0 ? SCALE_STEP : -SCALE_STEP));
   }
 
   function clearImage() {
@@ -136,9 +181,17 @@ export default function PersonaImageEditor({
     setError("");
   }
 
+  function resetTransform() {
+    setTransform(
+      PERSONA_IMAGE_FOCUS_DEFAULT.x,
+      PERSONA_IMAGE_FOCUS_DEFAULT.y,
+      PERSONA_IMAGE_SCALE_DEFAULT
+    );
+  }
+
   const frameClass = compact
-    ? "h-36 w-36"
-    : "h-44 w-44 sm:h-52 sm:w-52";
+    ? "h-44 w-44"
+    : "h-56 w-56 sm:h-64 sm:w-64";
 
   return (
     <div className="space-y-2">
@@ -146,8 +199,7 @@ export default function PersonaImageEditor({
         <div>
           <p className="text-xs font-bold text-zinc-300">대표 이미지</p>
           <p className="mt-0.5 text-[10px] leading-relaxed text-zinc-500">
-            전체 원본을 저장합니다(용량만 화질 유지선에서 압축). 미리보기에서 드래그해 얼굴 위치를
-            맞출 수 있습니다.
+            이미지 전체를 저장하며 파일 자체는 자르지 않습니다. 미리보기에서 드래그하고 휠이나 버튼으로 확대하세요.
           </p>
         </div>
         {url ? (
@@ -163,42 +215,46 @@ export default function PersonaImageEditor({
       </div>
 
       <div className="flex flex-wrap items-start gap-3">
-        <div
-          ref={frameRef}
-          className={`${frameClass} relative touch-none overflow-hidden rounded-2xl border border-white/10 bg-[#0e1120] ${
-            url && !disabled ? "cursor-grab active:cursor-grabbing" : ""
-          }`}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
-        >
+        <div className="space-y-1.5">
+          <div
+            ref={frameRef}
+            className={`${frameClass} relative touch-none overflow-hidden rounded-2xl border border-white/10 bg-[#0e1120] ${
+              url && !disabled ? "cursor-grab active:cursor-grabbing" : ""
+            }`}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={endDrag}
+            onPointerCancel={endDrag}
+            onWheel={onWheel}
+          >
+            {url ? (
+              <>
+                <img
+                  src={url}
+                  alt="페르소나 대표 이미지 미리보기"
+                  className="h-full w-full select-none object-cover"
+                  style={personaImageRenderStyle(storedUrl, focusX, focusY)}
+                  draggable={false}
+                />
+                <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10" />
+              </>
+            ) : (
+              <button
+                type="button"
+                disabled={disabled || uploading}
+                onClick={() => fileRef.current?.click()}
+                className="flex h-full w-full flex-col items-center justify-center gap-1 px-3 text-center text-[11px] text-zinc-500 transition hover:bg-white/[0.03] disabled:opacity-40"
+              >
+                <span className="text-lg text-zinc-400">＋</span>
+                <span>{uploading ? "업로드 중…" : "이미지 선택"}</span>
+              </button>
+            )}
+          </div>
           {url ? (
-            <>
-              <img
-                src={url}
-                alt="페르소나 대표 이미지 미리보기"
-                className="h-full w-full select-none object-cover"
-                style={{ objectPosition: personaImageObjectPosition(focusX, focusY) }}
-                draggable={false}
-              />
-              <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10" />
-              <div className="pointer-events-none absolute left-1/2 top-[28%] h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/70 shadow-[0_0_0_1px_rgba(0,0,0,0.35)]" />
-              <p className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2 pb-1.5 pt-5 text-center text-[10px] text-zinc-200">
-                드래그하여 얼굴 위치 조정
-              </p>
-            </>
-          ) : (
-            <button
-              type="button"
-              disabled={disabled || uploading}
-              onClick={() => fileRef.current?.click()}
-              className="flex h-full w-full flex-col items-center justify-center gap-1 px-3 text-center text-[11px] text-zinc-500 transition hover:bg-white/[0.03] disabled:opacity-40"
-            >
-              <span className="text-lg text-zinc-400">＋</span>
-              <span>{uploading ? "업로드 중…" : "이미지 선택"}</span>
-            </button>
-          )}
+            <p className="text-center text-[10px] text-zinc-500">
+              드래그로 위치 이동 · 마우스 휠로 확대/축소
+            </p>
+          ) : null}
         </div>
 
         <div className="min-w-[10rem] flex-1 space-y-2">
@@ -210,60 +266,51 @@ export default function PersonaImageEditor({
             disabled={disabled || uploading}
             onChange={onFileChange}
           />
-          {url ? (
-            <button
-              type="button"
-              disabled={disabled || uploading}
-              onClick={() => fileRef.current?.click()}
-              className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-zinc-200 transition hover:bg-white/10 disabled:opacity-40"
-            >
-              {uploading ? "업로드 중…" : "이미지 바꾸기"}
-            </button>
-          ) : null}
 
           {url ? (
-            <div className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
-              <label className="block space-y-1">
-                <span className="flex justify-between text-[10px] text-zinc-500">
-                  <span>가로 위치</span>
-                  <span className="tabular-nums">{Math.round(focusX * 100)}%</span>
+            <>
+              <button
+                type="button"
+                disabled={disabled || uploading}
+                onClick={() => fileRef.current?.click()}
+                className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] font-semibold text-zinc-200 transition hover:bg-white/10 disabled:opacity-40"
+              >
+                {uploading ? "업로드 중…" : "이미지 바꾸기"}
+              </button>
+
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  aria-label="이미지 축소"
+                  disabled={disabled || scale <= PERSONA_IMAGE_SCALE_MIN}
+                  onClick={() => setScale(scale - SCALE_STEP)}
+                  className="h-8 w-8 rounded-lg border border-white/10 bg-white/[0.03] text-sm font-bold text-zinc-300 hover:bg-white/10 disabled:opacity-30"
+                >
+                  −
+                </button>
+                <span className="min-w-[3.8rem] text-center text-[11px] tabular-nums text-zinc-300">
+                  {scale.toFixed(2)}×
                 </span>
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={Math.round(focusX * 100)}
-                  disabled={disabled}
-                  onChange={(e) => setFocus(Number(e.target.value) / 100, focusY)}
-                  className="w-full accent-violet-500"
-                />
-              </label>
-              <label className="block space-y-1">
-                <span className="flex justify-between text-[10px] text-zinc-500">
-                  <span>세로 위치 (얼굴)</span>
-                  <span className="tabular-nums">{Math.round(focusY * 100)}%</span>
-                </span>
-                <input
-                  type="range"
-                  min={0}
-                  max={100}
-                  value={Math.round(focusY * 100)}
-                  disabled={disabled}
-                  onChange={(e) => setFocus(focusX, Number(e.target.value) / 100)}
-                  className="w-full accent-violet-500"
-                />
-              </label>
+                <button
+                  type="button"
+                  aria-label="이미지 확대"
+                  disabled={disabled || scale >= PERSONA_IMAGE_SCALE_MAX}
+                  onClick={() => setScale(scale + SCALE_STEP)}
+                  className="h-8 w-8 rounded-lg border border-white/10 bg-white/[0.03] text-sm font-bold text-zinc-300 hover:bg-white/10 disabled:opacity-30"
+                >
+                  ＋
+                </button>
+              </div>
+
               <button
                 type="button"
                 disabled={disabled}
-                onClick={() =>
-                  setFocus(PERSONA_IMAGE_FOCUS_DEFAULT.x, PERSONA_IMAGE_FOCUS_DEFAULT.y)
-                }
+                onClick={resetTransform}
                 className="text-[10px] text-violet-300/90 hover:text-violet-200 disabled:opacity-40"
               >
-                기본 얼굴 위치로 초기화
+                위치·확대 초기화
               </button>
-            </div>
+            </>
           ) : (
             <p className="text-[10px] leading-relaxed text-zinc-600">
               PNG/JPEG/WebP/GIF · 최대 4MB · 성인인증 필요
