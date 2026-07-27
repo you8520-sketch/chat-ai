@@ -262,9 +262,9 @@ export function isChatRoomPathname(pathname: string): boolean {
   return /^\/chat\/\d+/.test(pathname);
 }
 
-/** 채팅방 — 모바일: 뒤로+프로필 / 메뉴 · md+: 제목 바 */
+/** 채팅방 — 모바일: 뒤로+프로필 / 메뉴 · chat desktop+: 제목 바 숨김 */
 export const CHAT_ROOM_TITLE_BAR_CLASS =
-  "fixed inset-x-0 top-0 z-50 shrink-0 border-b border-white/5 bg-[#121212]/95 px-2 py-2 backdrop-blur min-[576px]:px-0 min-[576px]:hidden";
+  "chat-room-mobile-title-bar fixed inset-x-0 top-0 z-50 shrink-0 border-b border-white/5 bg-[#121212]/95 px-2 py-2 backdrop-blur min-[576px]:px-0 min-[576px]:hidden";
 
 /** 제목 바 아래부터 초상 시작 (모바일 헤더 없음 ≈ 2.75rem, md+ ≈ 5.25rem) */
 export const CHAT_PORTRAIT_TITLE_STACK_REM = "2.75rem";
@@ -289,7 +289,7 @@ export const CHAT_PORTRAIT_GRID_CLASS =
  * so the tab sits above chat; album content stays in the portrait track only.
  */
 export const CHAT_PORTRAIT_INFO_STICKY_CLASS =
-  "hidden min-[576px]:col-span-2 min-[576px]:col-start-1 min-[576px]:row-start-1 min-[576px]:block min-[576px]:sticky min-[576px]:top-[var(--site-header-height,44px)] min-[576px]:z-30 min-[576px]:h-[3.25rem] min-[576px]:w-full min-[576px]:border-b min-[576px]:border-white/5 min-[576px]:bg-[#121212]/95 min-[576px]:backdrop-blur";
+  "chat-room-desktop-name-strip hidden min-[576px]:col-span-2 min-[576px]:col-start-1 min-[576px]:row-start-1 min-[576px]:block min-[576px]:sticky min-[576px]:top-[var(--site-header-height,44px)] min-[576px]:z-30 min-[576px]:h-[3.25rem] min-[576px]:w-full min-[576px]:border-b min-[576px]:border-white/5 min-[576px]:bg-[#121212]/95 min-[576px]:backdrop-blur";
 
 export const CHAT_PORTRAIT_INFO_STICKY_INNER_CLASS =
   `grid h-full w-full ${CHAT_PORTRAIT_DESKTOP_TRACK_CLASS} pl-0 pr-1`;
@@ -299,7 +299,7 @@ export const CHAT_PORTRAIT_INFO_STICKY_INNER_CLASS =
  * mobile intent: always visible above the chat column.
  */
 export const CHAT_INFO_STICKY_NO_PORTRAIT_CLASS =
-  "hidden min-[576px]:sticky min-[576px]:top-[var(--site-header-height,44px)] min-[576px]:z-30 min-[576px]:mx-auto min-[576px]:flex min-[576px]:h-[3.25rem] min-[576px]:w-full min-[576px]:max-w-[780px] min-[576px]:items-center min-[576px]:justify-between min-[576px]:gap-3 min-[576px]:border-b min-[576px]:border-white/5 min-[576px]:bg-[#121212]/95 min-[576px]:pl-0 min-[576px]:pr-1 min-[576px]:backdrop-blur";
+  "chat-room-desktop-name-strip chat-room-desktop-name-strip--row hidden min-[576px]:sticky min-[576px]:top-[var(--site-header-height,44px)] min-[576px]:z-30 min-[576px]:mx-auto min-[576px]:flex min-[576px]:h-[3.25rem] min-[576px]:w-full min-[576px]:max-w-[780px] min-[576px]:items-center min-[576px]:justify-between min-[576px]:gap-3 min-[576px]:border-b min-[576px]:border-white/5 min-[576px]:bg-[#121212]/95 min-[576px]:pl-0 min-[576px]:pr-1 min-[576px]:backdrop-blur";
 
 /** 초상 열 sticky — 모바일 채팅은 글로벌 헤더 없음(제목만), md+는 헤더+제목 */
 export const CHAT_PORTRAIT_STICKY_CLASS =

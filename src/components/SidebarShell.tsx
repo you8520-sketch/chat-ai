@@ -128,7 +128,7 @@ export default function SidebarShell({ user, chatSessions, blurNsfw, navItems }:
         ref={spacerRef}
         className={
           isChatRoomRoute
-            ? "hidden shrink-0 min-[576px]:block"
+            ? "chat-room-left-rail-spacer hidden shrink-0 min-[576px]:block"
             : "hidden shrink-0 md:block"
         }
         style={{ width: railWidth }}
@@ -138,15 +138,21 @@ export default function SidebarShell({ user, chatSessions, blurNsfw, navItems }:
       <aside
         onClick={expandFromCollapsed}
         style={{
-          top: geometry.top,
-          left: geometry.left,
+          top: isChatRoomRoute ? 0 : geometry.top,
+          // Chat rooms pin to the viewport edge — spacer-measured left can drift
+          // when chat-room-active toggles max-width and looks like the rail vanished.
+          left: isChatRoomRoute ? 0 : geometry.left,
           width: railWidth,
-          height: `calc(100dvh - ${geometry.top}px)`,
-          maxHeight: `calc(100dvh - ${geometry.top}px)`,
+          height: isChatRoomRoute
+            ? "100dvh"
+            : `calc(100dvh - ${geometry.top}px)`,
+          maxHeight: isChatRoomRoute
+            ? "100dvh"
+            : `calc(100dvh - ${geometry.top}px)`,
         }}
         className={cn(
           isChatRoomRoute
-            ? "fixed z-30 hidden flex-col gap-2 overflow-y-auto overflow-x-hidden overscroll-contain bg-[#0b0d14] pb-4 transition-[width] duration-200 ease-out min-[576px]:flex"
+            ? "chat-room-left-rail fixed z-30 hidden flex-col gap-2 overflow-y-auto overflow-x-hidden overscroll-contain border-r border-white/10 bg-[#0b0d14] pb-4 transition-[width] duration-200 ease-out min-[576px]:flex"
             : "fixed z-30 hidden flex-col gap-2 overflow-y-auto overflow-x-hidden overscroll-contain bg-[#0b0d14] pb-4 transition-[width] duration-200 ease-out md:flex",
         )}
       >
