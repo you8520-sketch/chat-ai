@@ -68,6 +68,12 @@ function ceilFractional(n: number): number {
   return Number.isInteger(n) ? n : Math.ceil(n - 1e-9);
 }
 
+function resolveReportedTokens(value: number | undefined, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.max(0, value)
+    : Math.max(0, fallback);
+}
+
 type MusePointCost = {
   rawCostKrw: number;
   costPlusMarginKrw: number;
@@ -141,16 +147,26 @@ export function computeOpenRouterTurnBilling(
 
   const cacheReadTokens = Math.max(0, opts.cacheReadTokens ?? 0);
   const cacheWriteTokens = Math.max(0, opts.cacheWriteTokens ?? 0);
-  const baseCost = computeOpenRouterTurnCost(
-    opts.inputTokens,
-    opts.outputTokens,
-    opts.modelId,
-    { cacheReadTokens, cacheWriteTokens },
-    {
-      outputChars: opts.outputChars,
-      reasoningTokens: opts.reasoningTokens,
-    }
+
+  // API totals are the authoritative billing basis when present. OpenRouter's
+  // completion total already includes hidden thinking/reasoning tokens, so do
+  // not add reasoningTokens again in that case.
+  const billedInputTokens = resolveReportedTokens(
+    opts.apiPromptTokens,
+    opts.inputTokens
   );
+  const hasApiCompletionTokens =
+    typeof opts.apiCompletionTokens === "number" &&
+    Number.isFinite(opts.apiCompletionTokens);
+  const billedOutputTokens = resolveReportedTokens(
+    opts.apiCompletionTokens,
+    opts.outputTokens + (opts.reasoningTokens ?? 0)
+  );
+  const baseCost = computeMusePointCost(
+    billedInputTokens,
+    billedOutputTokens,
+    hasApiCompletionTokens ? 0 : 0
+  ).total;
 
   return {
     modelId: opts.modelId,
@@ -162,7 +178,7 @@ export function computeOpenRouterTurnBilling(
     cacheWriteTokens,
     standardInputTokens: Math.max(
       0,
-      opts.inputTokens - cacheReadTokens - cacheWriteTokens
+      billedInputTokens - cacheReadTokens - cacheWriteTokens
     ),
   };
 }
