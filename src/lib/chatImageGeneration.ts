@@ -6,6 +6,7 @@ export const CHAT_IMAGE_TEMPLATE_PREVIEW_URL =
 export const CHAT_IMAGE_GENERATION_DEFAULT_MODEL = "gpt-image-2";
 export const CHAT_IMAGE_GENERATION_DEFAULT_POINTS = 350;
 export const CHAT_IMAGE_GENERATION_OUTPUT_SIZE = "1200x800" as const;
+export type ChatImageGenerationQuality = "medium" | "high";
 
 export const CHAT_IMAGE_PLACEMENTS = [
   { id: "character_top", label: "위: 캐릭터 · 아래: 페르소나" },
@@ -154,6 +155,13 @@ export function resolveChatImageGenerationPrice(
   const raw = Number(env.CHAT_IMAGE_GENERATION_POINTS);
   if (!Number.isFinite(raw) || raw < 1) return CHAT_IMAGE_GENERATION_DEFAULT_POINTS;
   return Math.ceil(raw);
+}
+
+export function resolveChatImageGenerationQuality(
+  raw: unknown,
+  canSelectQuality: boolean
+): ChatImageGenerationQuality {
+  return canSelectQuality && raw === "medium" ? "medium" : "high";
 }
 
 export function resolveChatImageGenerationModel(
