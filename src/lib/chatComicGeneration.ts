@@ -1,7 +1,7 @@
 export const CHAT_COMIC_TEMPLATE_ID = "comic_horizontal_2_4" as const;
 export const CHAT_COMIC_TEMPLATE_NAME = "2~4컷 가로 만화";
 export const CHAT_COMIC_TEMPLATE_PREVIEW_URL =
-  "/image-templates/comic-horizontal-sample.svg";
+  "/image-templates/comic-horizontal-sample.webp";
 
 export const CHAT_COMIC_DEFAULT_PLANNER_MODEL = "google/gemini-2.5-flash-lite";
 export const CHAT_COMIC_MAX_INPUT_CHARS = 500;
