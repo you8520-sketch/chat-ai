@@ -1,7 +1,7 @@
 export const CHAT_IMAGE_TEMPLATE_ID = "gift_box_duo" as const;
 export const CHAT_IMAGE_TEMPLATE_NAME = "선물상자 2인 SD";
 export const CHAT_IMAGE_TEMPLATE_PREVIEW_URL =
-  "/image-templates/sd-gift-box-duo.svg";
+  "/image-templates/sd-gift-box-duo.webp";
 
 export const CHAT_IMAGE_GENERATION_DEFAULT_MODEL = "openai/gpt-image-2";
 export const CHAT_IMAGE_GENERATION_DEFAULT_POINTS = 900;
