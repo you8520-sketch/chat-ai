@@ -75,13 +75,13 @@ describe("mobile chat portrait background", () => {
   });
 
   it("keeps desktop portrait and messages below the fixed character info row", () => {
-    assert.match(CHAT_PORTRAIT_GRID_CLASS, /sm:grid-rows-\[auto_minmax\(0,1fr\)\]/);
-    assert.match(CHAT_PORTRAIT_STICKY_CLASS, /sm:row-start-2/);
-    assert.match(CHAT_MESSAGES_COLUMN_CLASS, /sm:row-start-2/);
-    assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /sm:row-start-1/);
+    assert.match(CHAT_PORTRAIT_GRID_CLASS, /min-\[576px\]:grid-rows-\[auto_minmax\(0,1fr\)\]/);
+    assert.match(CHAT_PORTRAIT_STICKY_CLASS, /min-\[576px\]:row-start-2/);
+    assert.match(CHAT_MESSAGES_COLUMN_CLASS, /min-\[576px\]:row-start-2/);
+    assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /min-\[576px\]:row-start-1/);
     assert.match(
       CHAT_ROOM_HEADER_OFFSET_CLASS,
-      /md:top-\[calc\(var\(--site-header-height,44px\)\+3\.25rem\)\]/
+      /min-\[576px\]:top-\[calc\(var\(--site-header-height,44px\)\+3\.25rem\)\]/
     );
   });
 
@@ -94,13 +94,14 @@ describe("mobile chat portrait background", () => {
   it("keeps sticky name/album strip full-grid with album in the portrait track", () => {
     // Outer strip spans both columns (sticky tab above chat); inner track matches
     // the portrait grid so name/creator/album stay on the asset column top-right.
-    // sm:block is required — without it `hidden` stays display:none and the tab never shows.
+    // Semantic class + min-[576px]:block — globals.css also forces display as fallback.
+    assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /chat-room-desktop-name-strip/);
     assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /\bhidden\b/);
-    assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /\bsm:block\b/);
-    assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /sm:col-span-2/);
-    assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /sm:sticky/);
+    assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /min-\[576px\]:block/);
+    assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /min-\[576px\]:col-span-2/);
+    assert.match(CHAT_PORTRAIT_INFO_STICKY_CLASS, /min-\[576px\]:sticky/);
     assert.match(CHAT_PORTRAIT_STICKY_CLASS, /\bhidden\b/);
-    assert.match(CHAT_PORTRAIT_STICKY_CLASS, /\bsm:flex\b/);
+    assert.match(CHAT_PORTRAIT_STICKY_CLASS, /min-\[576px\]:flex/);
     assert.match(CHAT_PORTRAIT_DESKTOP_TRACK_CLASS, /minmax\(340px,400px\)/);
     assert.match(CHAT_PORTRAIT_DESKTOP_TRACK_CLASS, /minmax\(0,780px\)/);
     assert.match(CHAT_PORTRAIT_INFO_STICKY_INNER_CLASS, /minmax\(340px,400px\)/);
@@ -108,10 +109,15 @@ describe("mobile chat portrait background", () => {
   });
 
   it("keeps desktop name/creator/album sticky when portrait assets are off", () => {
+    assert.match(CHAT_INFO_STICKY_NO_PORTRAIT_CLASS, /chat-room-desktop-name-strip/);
+    assert.match(CHAT_INFO_STICKY_NO_PORTRAIT_CLASS, /chat-room-desktop-name-strip--row/);
     assert.match(CHAT_INFO_STICKY_NO_PORTRAIT_CLASS, /\bhidden\b/);
-    assert.match(CHAT_INFO_STICKY_NO_PORTRAIT_CLASS, /\bsm:flex\b/);
-    assert.match(CHAT_INFO_STICKY_NO_PORTRAIT_CLASS, /\bsm:sticky\b/);
-    assert.match(CHAT_INFO_STICKY_NO_PORTRAIT_CLASS, /sm:top-\[var\(--site-header-height,44px\)\]/);
+    assert.match(CHAT_INFO_STICKY_NO_PORTRAIT_CLASS, /min-\[576px\]:flex/);
+    assert.match(CHAT_INFO_STICKY_NO_PORTRAIT_CLASS, /min-\[576px\]:sticky/);
+    assert.match(
+      CHAT_INFO_STICKY_NO_PORTRAIT_CLASS,
+      /min-\[576px\]:top-\[var\(--site-header-height,44px\)\]/
+    );
     assert.match(CHAT_INFO_STICKY_NO_PORTRAIT_CLASS, /max-w-\[780px\]/);
   });
 

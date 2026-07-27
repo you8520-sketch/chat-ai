@@ -399,6 +399,37 @@ html.chat-room-active .mobile-bottom-nav {
   html.chat-room-active .app-shell > main {
     min-height: 0;
   }
+
+  /*
+   * Hard fallbacks for chat desktop chrome.
+   * Do not rely only on Tailwind `hidden` + `min-[576px]:*` pairs — a stale CSS
+   * chunk without the arbitrary variant leaves rails/name strip at display:none.
+   */
+  html.chat-room-active .chat-room-left-rail-spacer {
+    display: block !important;
+  }
+
+  html.chat-room-active aside.chat-room-left-rail {
+    display: flex !important;
+    left: 0 !important;
+  }
+
+  /* Portrait strip: block + inner grid. No-portrait: --row → flex. */
+  html.chat-room-active .chat-room-desktop-name-strip {
+    display: block !important;
+  }
+
+  html.chat-room-active .chat-room-desktop-name-strip.chat-room-desktop-name-strip--row {
+    display: flex !important;
+  }
+
+  html.chat-room-active aside.chat-room-right-rail {
+    display: flex !important;
+  }
+
+  html.chat-room-active .chat-room-mobile-title-bar {
+    display: none !important;
+  }
 }
 
 @media (max-width: 575px) {
@@ -409,5 +440,12 @@ html.chat-room-active .mobile-bottom-nav {
     padding-right: 0;
     padding-top: 0;
     padding-bottom: 0;
+  }
+
+  html.chat-room-active .chat-room-left-rail-spacer,
+  html.chat-room-active aside.chat-room-left-rail,
+  html.chat-room-active .chat-room-desktop-name-strip,
+  html.chat-room-active aside.chat-room-right-rail {
+    display: none !important;
   }
 }
