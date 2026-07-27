@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 640" role="img" aria-labelledby="title desc">
+  <title id="title">2~4컷 가로 만화 예시</title>
+  <desc id="desc">두 캐릭터와 말풍선이 있는 네 개의 가로 컷 예시</desc>
+  <defs>
+    <linearGradient id="bg1" x1="0" x2="1"><stop stop-color="#f5e8df"/><stop offset="1" stop-color="#efe9e2"/></linearGradient>
+    <linearGradient id="bg2" x1="0" x2="1"><stop stop-color="#e4efe2"/><stop offset="1" stop-color="#f1ecdf"/></linearGradient>
+    <linearGradient id="bg3" x1="0" x2="1"><stop stop-color="#f8dfe7"/><stop offset="1" stop-color="#fff1d8"/></linearGradient>
+    <linearGradient id="bg4" x1="0" x2="1"><stop stop-color="#e8e2f0"/><stop offset="1" stop-color="#f3e6e1"/></linearGradient>
+    <style>
+      .panel{stroke:#34343a;stroke-width:3}.skin{fill:#f8d8c5;stroke:#513f3b;stroke-width:2}.coat{fill:#282b30}.green{fill:#365f3d}.black{fill:#202127}.eye{fill:#4c9b68}.bubble{fill:#fff;stroke:#34343a;stroke-width:2}.line{fill:#666}
+    </style>
+  </defs>
+  <rect width="480" height="640" fill="#f7f3f0"/>
+  <rect x="145" y="5" width="190" height="26" rx="13" fill="#27272c"/>
+  <text x="240" y="23" text-anchor="middle" fill="#fff" font-family="sans-serif" font-size="13" font-weight="700">2–4 PANEL COMIC</text>
+  <g transform="translate(8 38)">
+    <g><rect class="panel" width="464" height="142" rx="12" fill="url(#bg1)"/><rect x="4" y="104" width="456" height="34" fill="#b88766"/>
+      <g transform="translate(104 38)"><path class="coat" d="M-42 62q0-24 42-24t42 24v42h-84z"/><circle class="skin" r="38"/><path class="green" d="M-42-3q8-43 42-43T42-3L25-24 12-3 0-26-13-3-26-23z"/><circle class="eye" cx="-15" cy="7" r="5"/><circle class="eye" cx="15" cy="7" r="5"/></g>
+      <g transform="translate(250 42)"><path class="coat" d="M-42 58q0-24 42-24t42 24v42h-84z"/><circle class="skin" r="38"/><path class="black" d="M-42-3q8-43 42-43T42-3L25-24 12-3 0-26-13-3-26-23z"/><circle class="eye" cx="-15" cy="7" r="5"/><circle class="eye" cx="15" cy="7" r="5"/></g>
+      <ellipse class="bubble" cx="385" cy="45" rx="64" ry="31"/><path class="bubble" d="M348 66l-15 18 30-14z"/><rect class="line" x="349" y="31" width="69" height="4" rx="2"/><rect class="line" x="358" y="43" width="55" height="4" rx="2"/><rect class="line" x="365" y="55" width="42" height="4" rx="2"/>
+    </g>
+    <g transform="translate(0 150)"><rect class="panel" width="464" height="142" rx="12" fill="url(#bg2)"/>
+      <g transform="translate(142 66)"><circle class="skin" r="38"/><path class="green" d="M-42-3q8-43 42-43T42-3L25-24 12-3 0-26-13-3-26-23z"/><circle class="eye" cx="-15" cy="7" r="5"/><circle class="eye" cx="15" cy="7" r="5"/></g>
+      <g transform="translate(292 66)"><circle class="skin" r="38"/><path class="black" d="M-42-3q8-43 42-43T42-3L25-24 12-3 0-26-13-3-26-23z"/><circle class="eye" cx="-15" cy="7" r="5"/><circle class="eye" cx="15" cy="7" r="5"/><path d="M-12 20q12 18 24 0" fill="none" stroke="#7c3540" stroke-width="3"/></g>
+      <path d="M175 104L258 83" stroke="#555" stroke-width="5"/><ellipse cx="256" cy="82" rx="12" ry="7" fill="#d79b55"/>
+      <ellipse class="bubble" cx="65" cy="38" rx="51" ry="27"/><rect class="line" x="34" y="29" width="64" height="4" rx="2"/><rect class="line" x="44" y="41" width="46" height="4" rx="2"/>
+    </g>
+    <g transform="translate(0 300)"><rect class="panel" width="464" height="142" rx="12" fill="url(#bg3)"/>
+      <g transform="translate(275 69) scale(1.18)"><circle class="skin" r="42"/><path class="black" d="M-46-3q8-46 46-46T46-3L28-27 13-3 0-29-14-3-29-26z"/><circle class="eye" cx="-16" cy="6" r="7"/><circle class="eye" cx="16" cy="6" r="7"/><path d="M-13 23q13 12 26 0" fill="none" stroke="#7c3540" stroke-width="3"/></g>
+      <path d="M78 108l9-20 9 20 20 9-20 9-9 20-9-20-20-9z" fill="#fff2a8"/><circle cx="382" cy="35" r="9" fill="#f396ae"/><circle cx="410" cy="78" r="6" fill="#f396ae"/>
+      <ellipse class="bubble" cx="389" cy="103" rx="57" ry="27"/><rect class="line" x="354" y="95" width="69" height="4" rx="2"/><rect class="line" x="365" y="107" width="48" height="4" rx="2"/>
+    </g>
+    <g transform="translate(0 450)"><rect class="panel" width="464" height="142" rx="12" fill="url(#bg4)"/><rect x="4" y="105" width="456" height="33" fill="#b88766"/>
+      <g transform="translate(176 62)"><path class="coat" d="M-45 45q0-25 45-25t45 25v67h-90z"/><circle class="skin" r="38"/><path class="green" d="M-42-3q8-43 42-43T42-3L25-24 12-3 0-26-13-3-26-23z"/><circle class="eye" cx="-15" cy="7" r="5"/><circle class="eye" cx="15" cy="7" r="5"/></g>
+      <g transform="translate(250 67)"><path class="coat" d="M-42 38q0-22 42-22t42 22v62h-84z"/><circle class="skin" r="35"/><path class="black" d="M-39-3q8-40 39-40T39-3L23-22 11-3 0-25-12-3-24-21z"/><circle class="eye" cx="-14" cy="7" r="5"/><circle class="eye" cx="14" cy="7" r="5"/></g>
+      <path d="M215 86q38 45 78 0" fill="none" stroke="#f8d8c5" stroke-width="13" stroke-linecap="round"/>
+      <ellipse class="bubble" cx="70" cy="48" rx="56" ry="30"/><rect class="line" x="35" y="38" width="70" height="4" rx="2"/><rect class="line" x="44" y="51" width="52" height="4" rx="2"/>
+    </g>
+  </g>
+</svg>

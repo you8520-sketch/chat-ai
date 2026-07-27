@@ -4,10 +4,15 @@ on:
   pull_request:
     paths:
       - "src/app/api/chat/image-generation/**"
+      - "src/app/api/chat/comic-generation/**"
       - "src/components/ChatImageGeneratorRailButton.tsx"
+      - "src/components/ChatAssetAlbumModal.tsx"
       - "src/components/ChatRoomDisplayQuickRail.tsx"
+      - "src/lib/chatComicPlanner.ts"
       - "src/lib/chatImageGeneration.ts"
       - "src/lib/chatImageGeneration.test.ts"
+      - "src/lib/characterAssetUnlocks.ts"
+      - "src/lib/characterAssetUnlocks.album.test.ts"
       - "public/image-templates/**"
       - ".github/workflows/validate-chat-image-generator.yml"
 
@@ -26,4 +31,4 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck:app
-      - run: node --import tsx --test src/lib/chatImageGeneration.test.ts
+      - run: node --import tsx --test src/lib/chatImageGeneration.test.ts src/lib/characterAssetUnlocks.album.test.ts

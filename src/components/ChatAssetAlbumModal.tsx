@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import CharacterAssetImage from "@/components/CharacterAssetImage";
 import {
+  CHARACTER_ASSET_ALBUM_UPDATED_EVENT,
   listCharacterAssetAlbums,
+  mergeCharacterAlbumAssets,
   type StoredCharacterAssetAlbum,
 } from "@/lib/characterAssetUnlocks";
 import type { CharacterAsset } from "@/lib/characterAssets";
@@ -48,8 +50,20 @@ export default function ChatAssetAlbumModal({
 
   useEffect(() => {
     if (!open) return;
-    setAlbums(listCharacterAssetAlbums());
+    const refresh = () => setAlbums(listCharacterAssetAlbums());
+    refresh();
     setSelectedId(currentCharacterId);
+
+    const onAlbumUpdated = () => refresh();
+    const onStorage = (event: StorageEvent) => {
+      if (!event.key || event.key === "playai-character-asset-albums") refresh();
+    };
+    window.addEventListener(CHARACTER_ASSET_ALBUM_UPDATED_EVENT, onAlbumUpdated);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener(CHARACTER_ASSET_ALBUM_UPDATED_EVENT, onAlbumUpdated);
+      window.removeEventListener("storage", onStorage);
+    };
   }, [currentCharacterId, open]);
 
   useEffect(() => {
@@ -61,15 +75,16 @@ export default function ChatAssetAlbumModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  const currentAlbum = useMemo<Album>(
-    () => ({
+  const currentAlbum = useMemo<Album>(() => {
+    const stored = albums.find((album) => album.characterId === currentCharacterId);
+    const canonical = currentAssets.map((asset) => ({ url: asset.url, tag: asset.tag }));
+    return {
       characterId: currentCharacterId,
       characterName: currentCharacterName,
-      assets: currentAssets.map((asset) => ({ url: asset.url, tag: asset.tag })),
-      updatedAt: "",
-    }),
-    [currentAssets, currentCharacterId, currentCharacterName]
-  );
+      assets: mergeCharacterAlbumAssets(canonical, stored?.assets ?? []),
+      updatedAt: stored?.updatedAt ?? "",
+    };
+  }, [albums, currentAssets, currentCharacterId, currentCharacterName]);
 
   const mergedAlbums = useMemo(() => {
     const others = albums.filter((album) => album.characterId !== currentCharacterId);
@@ -148,7 +163,7 @@ export default function ChatAssetAlbumModal({
           <div className="min-h-0 flex-1 overflow-y-auto p-3">
             {selectedAlbum.assets.length === 0 ? (
               <p className="py-16 text-center text-sm text-zinc-500">
-                아직 해금된 이미지가 없습니다.
+                아직 해금되거나 생성된 이미지가 없습니다.
               </p>
             ) : (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -161,7 +176,7 @@ export default function ChatAssetAlbumModal({
                       src={asset.url}
                       alt={asset.tag}
                       className="aspect-[3/4] w-full"
-                      imgClassName="h-full w-full object-cover object-top"
+                      imgClassName="h-full w-full object-contain object-center"
                     />
                     <figcaption className="truncate px-2 py-1.5 text-[11px] text-zinc-400">
                       {asset.tag || "이미지"}
