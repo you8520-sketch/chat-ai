@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" role="img" aria-labelledby="title desc">
+  <title id="title">선물상자 2인 SD 고정틀</title>
+  <desc id="desc">두 명의 SD 캐릭터를 위한 리본과 인형 장식 선물상자 구도</desc>
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="70%">
+      <stop offset="0" stop-color="#fffdfd"/>
+      <stop offset="1" stop-color="#f3eff1"/>
+    </radialGradient>
+    <linearGradient id="box" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff9ee"/>
+      <stop offset="1" stop-color="#ead9bd"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#89996c"/>
+      <stop offset="1" stop-color="#586b48"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="14" stdDeviation="15" flood-color="#5f4a45" flood-opacity=".18"/>
+    </filter>
+    <pattern id="stripe" width="34" height="34" patternUnits="userSpaceOnUse">
+      <rect width="34" height="34" fill="#f8eddc"/>
+      <rect width="15" height="34" fill="#fff8ee" opacity=".7"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="900" fill="url(#bg)"/>
+
+  <g fill="none" stroke-linecap="round" opacity=".9">
+    <path d="M205 225c-38 26-34 74 9 85 49 12 54 57 15 83" stroke="#f39fa7" stroke-width="13"/>
+    <path d="M995 220c37 28 31 75-12 84-49 11-55 55-19 82" stroke="#f39fa7" stroke-width="13"/>
+    <path d="M184 482c-54 20-63 77-18 103 40 23 27 71-15 80" stroke="#f2a0a8" stroke-width="12"/>
+    <path d="M1025 472c54 22 62 78 16 103-41 23-29 72 14 80" stroke="#f2a0a8" stroke-width="12"/>
+  </g>
+
+  <g fill="#ffb5bd" stroke="#e7808b" stroke-width="4">
+    <path d="M230 154c-24-31-73 2-33 42l33 30 33-30c40-40-9-73-33-42z"/>
+    <path d="M970 360c-22-29-66 2-30 38l30 27 30-27c36-36-8-67-30-38z"/>
+  </g>
+  <g fill="#ffd98b" stroke="#e7aa4f" stroke-width="4">
+    <path d="m280 305 12 25 28 4-20 20 5 28-25-13-25 13 5-28-20-20 28-4z"/>
+    <path d="m920 258 12 25 28 4-20 20 5 28-25-13-25 13 5-28-20-20 28-4z"/>
+  </g>
+  <g fill="#fff3b5" stroke="#e6ad4b" stroke-width="3">
+    <path d="M340 132v38M321 151h38"/>
+    <path d="M865 128v42M844 149h42"/>
+    <path d="M1000 540v36M982 558h36"/>
+    <path d="M187 625v34M170 642h34"/>
+  </g>
+
+  <!-- top character placement silhouette -->
+  <g opacity=".22" fill="#738166">
+    <circle cx="600" cy="255" r="148"/>
+    <ellipse cx="600" cy="420" rx="188" ry="100"/>
+    <circle cx="465" cy="420" r="48"/>
+    <circle cx="735" cy="420" r="48"/>
+  </g>
+
+  <!-- box and lower character placement -->
+  <g filter="url(#shadow)">
+    <path d="M355 505 470 442h260l115 63-93 53H448z" fill="#ead7b8" stroke="#c9ac7f" stroke-width="8"/>
+    <path d="M355 505 448 558h304l93-53 42 39-99 62H412l-99-62z" fill="#fff7e9" stroke="#c9ac7f" stroke-width="8"/>
+    <rect x="360" y="535" width="480" height="260" rx="18" fill="url(#stripe)" stroke="#bfa174" stroke-width="9"/>
+    <path d="M360 586h480" stroke="#75865d" stroke-width="52" opacity=".95"/>
+    <path d="M572 535h58v260h-58z" fill="url(#green)"/>
+    <path d="M379 537q36 36 72 0 36 36 72 0 36 36 72 0 36 36 72 0 36 36 72 0 36 36 72 0 36 36 72 0" fill="none" stroke="#fff8e9" stroke-width="20"/>
+  </g>
+
+  <g opacity=".28" fill="#6e7b60">
+    <circle cx="600" cy="500" r="130"/>
+    <ellipse cx="600" cy="625" rx="176" ry="86"/>
+    <circle cx="480" cy="610" r="42"/>
+    <circle cx="720" cy="610" r="42"/>
+  </g>
+
+  <!-- central bow -->
+  <g filter="url(#shadow)" stroke="#46583c" stroke-width="7">
+    <path d="M588 662c-65-76-151-82-165-20-12 56 74 81 165 49z" fill="url(#green)"/>
+    <path d="M612 662c65-76 151-82 165-20 12 56-74 81-165 49z" fill="url(#green)"/>
+    <path d="M585 687 500 782l88-28 17 35 8-102z" fill="#70835a"/>
+    <path d="M615 687 700 782l-88-28-17 35-8-102z" fill="#70835a"/>
+    <circle cx="600" cy="675" r="39" fill="#d5b465"/>
+    <path d="M600 697c-38-24-31-55-10-55 8 0 10 5 10 5s2-5 10-5c21 0 28 31-10 55z" fill="#fff4cf" stroke-width="4"/>
+  </g>
+
+  <!-- teddy -->
+  <g transform="translate(190 610)" stroke="#9b7659" stroke-width="6" filter="url(#shadow)">
+    <circle cx="58" cy="48" r="45" fill="#d8b58d"/>
+    <circle cx="25" cy="15" r="22" fill="#d8b58d"/>
+    <circle cx="91" cy="15" r="22" fill="#d8b58d"/>
+    <ellipse cx="58" cy="126" rx="53" ry="65" fill="#d8b58d"/>
+    <circle cx="43" cy="43" r="5" fill="#4b342c" stroke="none"/>
+    <circle cx="73" cy="43" r="5" fill="#4b342c" stroke="none"/>
+    <ellipse cx="58" cy="59" rx="18" ry="14" fill="#f4ddc1"/>
+    <circle cx="58" cy="56" r="5" fill="#4b342c" stroke="none"/>
+    <path d="M30 103 58 124 86 103 77 147 58 131 39 147z" fill="#71845b" stroke="#46583c"/>
+  </g>
+
+  <!-- bunny -->
+  <g transform="translate(900 620)" stroke="#aa8178" stroke-width="6" filter="url(#shadow)">
+    <ellipse cx="38" cy="13" rx="20" ry="55" fill="#fff9f1" transform="rotate(-10 38 13)"/>
+    <ellipse cx="84" cy="13" rx="20" ry="55" fill="#fff9f1" transform="rotate(10 84 13)"/>
+    <ellipse cx="38" cy="13" rx="7" ry="36" fill="#f2b7b6" stroke="none" transform="rotate(-10 38 13)"/>
+    <ellipse cx="84" cy="13" rx="7" ry="36" fill="#f2b7b6" stroke="none" transform="rotate(10 84 13)"/>
+    <circle cx="61" cy="72" r="49" fill="#fff9f1"/>
+    <ellipse cx="61" cy="145" rx="55" ry="66" fill="#fff9f1"/>
+    <circle cx="45" cy="66" r="5" fill="#4b342c" stroke="none"/>
+    <circle cx="77" cy="66" r="5" fill="#4b342c" stroke="none"/>
+    <circle cx="61" cy="82" r="5" fill="#d88e91" stroke="none"/>
+    <path d="M31 118 61 140 91 118 80 159 61 146 42 159z" fill="#71845b" stroke="#46583c"/>
+  </g>
+
+  <!-- candy and small gifts -->
+  <g filter="url(#shadow)">
+    <circle cx="1015" cy="655" r="55" fill="#f8b3b5" stroke="#d9898d" stroke-width="7"/>
+    <path d="M1015 655c-38-28-39 28 0 0s42 30 0 0 3-43 0 0" fill="none" stroke="#fff0ea" stroke-width="9"/>
+    <path d="M998 707h34l-7 93h-20z" fill="#e6d3ad" stroke="#ad9367" stroke-width="5"/>
+    <rect x="940" y="735" width="90" height="70" rx="8" fill="#8fa172" stroke="#526447" stroke-width="6"/>
+    <path d="M985 735v70M940 770h90" stroke="#f1dfb8" stroke-width="12"/>
+    <rect x="260" y="740" width="110" height="66" rx="28" fill="#f1a9ad" stroke="#ca7c83" stroke-width="6"/>
+    <path d="M315 740v66M260 773h110" stroke="#ffe1dc" stroke-width="10"/>
+  </g>
+
+  <g fill="#f6c7b5" stroke="#d98e87" stroke-width="4">
+    <circle cx="285" cy="830" r="13"/><circle cx="330" cy="835" r="10"/>
+    <circle cx="860" cy="827" r="13"/><circle cx="905" cy="835" r="10"/>
+  </g>
+  <g fill="#a8b68d" stroke="#667653" stroke-width="4">
+    <circle cx="307" cy="821" r="12"/><circle cx="884" cy="817" r="12"/>
+  </g>
+</svg>
