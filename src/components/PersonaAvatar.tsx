@@ -1,6 +1,9 @@
 "use client";
 
-import { personaImageObjectPosition } from "@/lib/userPersonasClient";
+import {
+  personaImageBaseUrl,
+  personaImageRenderStyle,
+} from "@/lib/userPersonasClient";
 
 type Props = {
   name?: string;
@@ -19,7 +22,7 @@ export default function PersonaAvatar({
   className = "",
   sizeClassName = "h-9 w-9",
 }: Props) {
-  const url = (imageUrl ?? "").trim();
+  const url = personaImageBaseUrl(imageUrl);
   const initial = (name.trim()[0] || "?").toUpperCase();
 
   if (!url) {
@@ -40,8 +43,8 @@ export default function PersonaAvatar({
       <img
         src={url}
         alt=""
-        className="h-full w-full object-cover"
-        style={{ objectPosition: personaImageObjectPosition(focusX, focusY) }}
+        className="h-full w-full select-none object-cover"
+        style={personaImageRenderStyle(imageUrl, focusX, focusY)}
         draggable={false}
       />
     </span>
