@@ -4,6 +4,7 @@ import { resolveOpenRouterModelRates } from "@/lib/openRouterModelPricing";
 /** OpenRouter / Anthropic usage — cache 분리 정산용 */
 export type OpenRouterUsageBreakdown = {
   promptTokens: number;
+  /** Provider가 보고한 전체 과금 completion 토큰. visible content/reasoning 부분합보다 우선한다. */
   completionTokens: number;
   /** completion_tokens_details.reasoning_tokens (Qwen thinking 등) */
   reasoningTokens: number;
@@ -33,6 +34,12 @@ function readNum(v: unknown): number {
 function readSignedUsd(v: unknown): number | undefined {
   const n = Number(v);
   if (!Number.isFinite(n) || n === 0) return undefined;
+  return n;
+}
+
+function readPositiveUsd(v: unknown): number | undefined {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return undefined;
   return n;
 }
 
@@ -71,6 +78,24 @@ export function parseReasoningTokens(usage: unknown): number {
   return pickUsageField(u, ["reasoning_tokens"]);
 }
 
+/**
+ * OpenRouter가 실제 과금에 사용한 전체 completion 토큰을 고른다.
+ * content + thinking 부분합보다 native/total completion 값을 우선한다.
+ */
+export function parseBillableCompletionTokens(usage: unknown, promptTokens = 0): number {
+  if (!usage || typeof usage !== "object") return 0;
+  const u = usage as Record<string, unknown>;
+  const totalTokens = Math.max(readNum(u.total_tokens), readNum(u.totalTokens));
+  const derivedFromTotal = totalTokens > promptTokens ? totalTokens - promptTokens : 0;
+  return Math.max(
+    readNum(u.completion_tokens),
+    readNum(u.output_tokens),
+    readNum(u.native_tokens_completion),
+    readNum(u.tokens_completion),
+    derivedFromTotal
+  );
+}
+
 /** usage 객체·응답 헤더에서 cache read / creation 토큰 분리 파싱 */
 export function parseOpenRouterUsage(
   usage: unknown,
@@ -94,7 +119,7 @@ export function parseOpenRouterUsage(
       : null;
 
   const promptTokens = readNum(u.prompt_tokens ?? u.input_tokens);
-  const completionTokens = readNum(u.completion_tokens ?? u.output_tokens);
+  const completionTokens = parseBillableCompletionTokens(u, promptTokens);
   const reasoningTokens = parseReasoningTokens(u);
 
   let cacheReadTokens = 0;
@@ -159,7 +184,7 @@ export function parseOpenRouterUsage(
 
   const standardInputTokens = Math.max(0, promptTokens - cacheReadTokens - cacheWriteTokens);
 
-  let upstreamCostUsd = 0;
+  let upstreamCostUsd: number | undefined;
   let upstreamPromptCostUsd: number | undefined;
   let upstreamCompletionCostUsd: number | undefined;
   const costDetails =
@@ -167,12 +192,12 @@ export function parseOpenRouterUsage(
       ? (u.cost_details as Record<string, unknown>)
       : null;
   if (costDetails) {
-    upstreamCostUsd = readNum(costDetails.upstream_inference_cost);
+    upstreamCostUsd = readPositiveUsd(costDetails.upstream_inference_cost);
     upstreamPromptCostUsd = readSignedUsd(costDetails.upstream_inference_prompt_cost);
     upstreamCompletionCostUsd = readSignedUsd(costDetails.upstream_inference_completions_cost);
   }
-  if (!upstreamCostUsd) {
-    upstreamCostUsd = readNum(u.cost);
+  if (upstreamCostUsd == null) {
+    upstreamCostUsd = readPositiveUsd(u.cost);
   }
   const cacheDiscountUsd = readSignedUsd(u.cache_discount);
   const promptTokensDetailsRaw = extractPromptTokensDetailsRaw(details);
@@ -184,7 +209,7 @@ export function parseOpenRouterUsage(
     cacheReadTokens,
     cacheWriteTokens,
     standardInputTokens,
-    ...(upstreamCostUsd > 0 ? { upstreamCostUsd } : {}),
+    ...(upstreamCostUsd != null ? { upstreamCostUsd } : {}),
     ...(upstreamPromptCostUsd != null ? { upstreamPromptCostUsd } : {}),
     ...(upstreamCompletionCostUsd != null ? { upstreamCompletionCostUsd } : {}),
     ...(cacheDiscountUsd != null ? { cacheDiscountUsd } : {}),

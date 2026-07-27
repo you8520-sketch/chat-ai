@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  parseBillableCompletionTokens,
   parseOpenRouterUsage,
   parseReasoningTokens,
   tokenUsageFromOpenRouterBreakdown,
@@ -35,6 +36,25 @@ describe("parseOpenRouterUsage", () => {
     assert.equal(b.estimated, false);
   });
 
+  it("prefers the provider's full native billable completion total", () => {
+    const rawUsage = {
+      prompt_tokens: 10_000,
+      completion_tokens: 1_366,
+      native_tokens_completion: 2_070,
+      total_tokens: 12_070,
+      completion_tokens_details: {
+        content_tokens: 1_159,
+        reasoning_tokens: 207,
+      },
+    };
+    assert.equal(parseBillableCompletionTokens(rawUsage, 10_000), 2_070);
+    const b = parseOpenRouterUsage(rawUsage);
+    assert.equal(b.completionTokens, 2_070);
+    assert.equal(b.reasoningTokens, 207);
+    const mapped = tokenUsageFromOpenRouterBreakdown(b);
+    assert.equal(mapped.outputTokens, 2_070);
+  });
+
   it("reads Gemini implicit cache from prompt_tokens_details.cached_tokens", () => {
     const b = parseOpenRouterUsage({
       prompt_tokens: 4541,
@@ -52,6 +72,7 @@ describe("parseOpenRouterUsage", () => {
     assert.equal(b.cacheReadTokens, 4290);
     assert.equal(b.cacheWriteTokens, 0);
     assert.equal(b.standardInputTokens, 251);
+    assert.equal(b.upstreamCostUsd, 0.01324875);
     assert.equal(b.upstreamPromptCostUsd, 0.00245875);
     assert.equal(b.promptTokensDetailsRaw?.cached_tokens, 4290);
   });
