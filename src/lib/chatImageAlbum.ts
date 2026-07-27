@@ -1,6 +1,6 @@
 import { getDb } from "@/lib/db";
 
-export type ChatImageAlbumMode = "sd" | "comic";
+export type ChatImageAlbumMode = "sd" | "emoticon" | "comic";
 
 export function ensureCharacterImageAlbumTable() {
   getDb().exec(`

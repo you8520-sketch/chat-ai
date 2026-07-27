@@ -9,6 +9,18 @@ import {
   CHAT_COMIC_TEMPLATE_ID,
   type ChatComicPanelCount,
 } from "@/lib/chatComicGeneration";
+import {
+  CHAT_EMOTICON_API_OUTPUT_SIZE,
+  CHAT_EMOTICON_OUTPUT_HEIGHT,
+  CHAT_EMOTICON_OUTPUT_WIDTH,
+  CHAT_EMOTICON_QUALITY,
+  CHAT_EMOTICON_TEMPLATE_ID,
+  CHAT_EMOTICON_TEMPLATE_NAME,
+  CHAT_EMOTICON_TEMPLATE_PREVIEW_URL,
+  buildChatEmoticonPrompt,
+  resolveChatEmoticonPrice,
+  selectRandomChatEmoticonScenes,
+} from "@/lib/chatEmoticonGeneration";
 import { isAdminUser } from "@/lib/isAdminUser";
 import {
   selectCharacterImageUrl,
@@ -307,6 +319,10 @@ async function callOpenAiImage(opts: {
   model: string;
   prompt: string;
   references: string[];
+  requestSize: string;
+  outputWidth: number;
+  outputHeight: number;
+  quality: "low" | "medium" | "high";
 }): Promise<{ buffer: Buffer; costUsd: number | null }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 285_000);
@@ -315,8 +331,8 @@ async function callOpenAiImage(opts: {
       model: opts.model,
       prompt: opts.prompt,
       references: opts.references,
-      size: CHAT_IMAGE_GENERATION_OUTPUT_SIZE,
-      quality: CHAT_IMAGE_GENERATION_QUALITY,
+      size: opts.requestSize,
+      quality: opts.quality,
       outputCompression: 88,
       signal: controller.signal,
     });
@@ -329,14 +345,14 @@ async function callOpenAiImage(opts: {
       }
       if (
         metadata.format !== "webp" ||
-        metadata.width !== CHAT_IMAGE_GENERATION_OUTPUT_WIDTH ||
-        metadata.height !== CHAT_IMAGE_GENERATION_OUTPUT_HEIGHT
+        metadata.width !== opts.outputWidth ||
+        metadata.height !== opts.outputHeight
       ) {
         output = await sharp(output, { failOn: "none" })
           .rotate()
           .resize({
-            width: CHAT_IMAGE_GENERATION_OUTPUT_WIDTH,
-            height: CHAT_IMAGE_GENERATION_OUTPUT_HEIGHT,
+            width: opts.outputWidth,
+            height: opts.outputHeight,
             fit: "fill",
           })
           .webp({ quality: 92, effort: 4 })
@@ -408,7 +424,8 @@ export async function GET(req: Request) {
       personaId: positiveInt(url.searchParams.get("personaId")),
     });
     ensureGenerationTable();
-    const latest = getDb()
+    const db = getDb();
+    const latest = db
       .prepare(
         `SELECT template_id, options_json, result_url, upstream_cost_usd,
                 charged_points, created_at
@@ -434,7 +451,7 @@ export async function GET(req: Request) {
         }
       | undefined;
     let latestOptions: {
-      mode?: "sd" | "comic";
+      mode?: "sd" | "emoticon" | "comic";
       title?: string;
       panelCount?: ChatComicPanelCount;
     } = {};
@@ -445,20 +462,82 @@ export async function GET(req: Request) {
         latestOptions = {};
       }
     }
-    const latestMode: "sd" | "comic" =
+    const latestMode: "sd" | "emoticon" | "comic" =
       latest?.template_id === CHAT_COMIC_TEMPLATE_ID || latestOptions.mode === "comic"
         ? "comic"
-        : "sd";
+        : latest?.template_id === CHAT_EMOTICON_TEMPLATE_ID ||
+            latestOptions.mode === "emoticon"
+          ? "emoticon"
+          : "sd";
     const canSeeCost = isAdminUser(user as typeof user & { is_admin?: number });
+    const exchangeRateKrwPerUsd = getEffectiveKrwPerUsd();
     const upstreamCostUsd =
       latest?.upstream_cost_usd != null &&
       latest.upstream_cost_usd > 0 &&
       Number.isFinite(latest.upstream_cost_usd)
         ? latest.upstream_cost_usd
         : null;
+    const averageRows = canSeeCost
+      ? (db
+          .prepare(
+            `SELECT template_id,
+                    CASE
+                      WHEN template_id = ? AND json_valid(options_json)
+                      THEN CAST(json_extract(options_json, '$.panelCount') AS INTEGER)
+                      ELSE NULL
+                    END AS panel_count,
+                    AVG(upstream_cost_usd) AS average_cost_usd,
+                    COUNT(*) AS sample_count
+             FROM chat_image_generations
+             WHERE upstream_cost_usd IS NOT NULL
+               AND upstream_cost_usd > 0
+               AND template_id IN (?, ?, ?)
+             GROUP BY template_id, panel_count`
+          )
+          .all(
+            CHAT_COMIC_TEMPLATE_ID,
+            CHAT_IMAGE_TEMPLATE_ID,
+            CHAT_EMOTICON_TEMPLATE_ID,
+            CHAT_COMIC_TEMPLATE_ID
+          ) as Array<{
+          template_id: string;
+          panel_count: number | null;
+          average_cost_usd: number;
+          sample_count: number;
+        }>)
+      : [];
+    const averageCost = (templateId: string, panelCount?: ChatComicPanelCount) => {
+      const row = averageRows.find(
+        (item) =>
+          item.template_id === templateId &&
+          (panelCount == null || item.panel_count === panelCount)
+      );
+      const averageUsd =
+        row && Number.isFinite(row.average_cost_usd) ? row.average_cost_usd : null;
+      return {
+        averageUsd,
+        averageKrw:
+          averageUsd == null
+            ? null
+            : Math.round(averageUsd * exchangeRateKrwPerUsd * 10) / 10,
+        sampleCount: row?.sample_count ?? 0,
+      };
+    };
     return NextResponse.json({
       ...publicContextResponse(context),
       balance: getPointBalance(user.id),
+      averageCosts: canSeeCost
+        ? {
+            exchangeRateKrwPerUsd,
+            sd: averageCost(CHAT_IMAGE_TEMPLATE_ID),
+            emoticon: averageCost(CHAT_EMOTICON_TEMPLATE_ID),
+            comic: {
+              2: averageCost(CHAT_COMIC_TEMPLATE_ID, 2),
+              3: averageCost(CHAT_COMIC_TEMPLATE_ID, 3),
+              4: averageCost(CHAT_COMIC_TEMPLATE_ID, 4),
+            },
+          }
+        : undefined,
       latestResult: latest
         ? {
             imageUrl: latest.result_url,
@@ -470,7 +549,7 @@ export async function GET(req: Request) {
             upstreamCostUsd: canSeeCost ? upstreamCostUsd : undefined,
             upstreamCostKrw:
               canSeeCost && upstreamCostUsd != null
-                ? Math.round(upstreamCostUsd * getEffectiveKrwPerUsd() * 10) / 10
+                ? Math.round(upstreamCostUsd * exchangeRateKrwPerUsd * 10) / 10
                 : undefined,
           }
         : null,
@@ -496,13 +575,24 @@ export async function POST(req: Request) {
       personaId: positiveInt(body.personaId),
       requestedCharacterImageUrl: body.characterImageUrl,
     });
-    const quality = CHAT_IMAGE_GENERATION_QUALITY;
+    const isEmoticon = body.templateId === CHAT_EMOTICON_TEMPLATE_ID;
+    const templateId = isEmoticon
+      ? CHAT_EMOTICON_TEMPLATE_ID
+      : CHAT_IMAGE_TEMPLATE_ID;
+    const templateName = isEmoticon
+      ? CHAT_EMOTICON_TEMPLATE_NAME
+      : CHAT_IMAGE_TEMPLATE_NAME;
+    const quality = isEmoticon
+      ? CHAT_EMOTICON_QUALITY
+      : CHAT_IMAGE_GENERATION_QUALITY;
     const state = readiness(context);
     if (!state.ready || !context.persona) {
       throw new RequestError(`${state.missing.join(", ")}가 필요합니다.`);
     }
 
-    const pricePoints = resolveChatImageGenerationPrice();
+    const pricePoints = isEmoticon
+      ? resolveChatEmoticonPrice()
+      : resolveChatImageGenerationPrice();
     const balanceBefore = getPointBalance(user.id);
     if (balanceBefore.total < pricePoints) {
       return NextResponse.json(
@@ -515,40 +605,80 @@ export async function POST(req: Request) {
       );
     }
 
-    const options = sanitizeChatImageGenerationOptions({
-      placement: body.placement,
-      topExpression: body.topExpression,
-      bottomExpression: body.bottomExpression,
-      mood: body.mood,
-    });
-    const order = resolveChatImageReferenceOrder({
-      characterName: context.character.name,
-      characterImageUrl: context.characterImageUrl,
-      personaName: context.persona.name,
-      personaImageUrl: context.personaImageUrl,
-      placement: options.placement,
-    });
-    const prompt = buildChatImageGenerationPrompt({
-      characterName: context.character.name,
-      personaName: context.persona.name,
-      ...options,
-    });
+    let prompt: string;
+    let referenceSources: string[];
+    let generationOptions: Record<string, unknown>;
+    if (isEmoticon) {
+      const scenes = selectRandomChatEmoticonScenes();
+      prompt = buildChatEmoticonPrompt({
+        characterName: context.character.name,
+        personaName: context.persona.name,
+        scenes,
+      });
+      referenceSources = [
+        CHAT_EMOTICON_TEMPLATE_PREVIEW_URL,
+        context.characterImageUrl,
+        context.personaImageUrl,
+      ];
+      generationOptions = {
+        mode: "emoticon",
+        quality,
+        scenes,
+      };
+    } else {
+      const options = sanitizeChatImageGenerationOptions({
+        placement: body.placement,
+        topExpression: body.topExpression,
+        bottomExpression: body.bottomExpression,
+        mood: body.mood,
+      });
+      const order = resolveChatImageReferenceOrder({
+        characterName: context.character.name,
+        characterImageUrl: context.characterImageUrl,
+        personaName: context.persona.name,
+        personaImageUrl: context.personaImageUrl,
+        placement: options.placement,
+      });
+      prompt = buildChatImageGenerationPrompt({
+        characterName: context.character.name,
+        personaName: context.persona.name,
+        ...options,
+      });
+      referenceSources = [
+        CHAT_IMAGE_TEMPLATE_PREVIEW_URL,
+        order.top.imageUrl,
+        order.bottom.imageUrl,
+      ];
+      generationOptions = {
+        mode: "sd",
+        ...options,
+        quality,
+      };
+    }
 
-    const [templateReference, topReference, bottomReference] = await Promise.all([
-      imageSourceToDataUrl(CHAT_IMAGE_TEMPLATE_PREVIEW_URL),
-      imageSourceToDataUrl(order.top.imageUrl),
-      imageSourceToDataUrl(order.bottom.imageUrl),
-    ]);
+    const references = await Promise.all(
+      referenceSources.map((source) => imageSourceToDataUrl(source))
+    );
 
     const model = resolveChatImageGenerationModel();
     const generated = await callOpenAiImage({
       model,
       prompt,
-      references: [templateReference, topReference, bottomReference],
+      references,
+      requestSize: isEmoticon
+        ? CHAT_EMOTICON_API_OUTPUT_SIZE
+        : CHAT_IMAGE_GENERATION_OUTPUT_SIZE,
+      outputWidth: isEmoticon
+        ? CHAT_EMOTICON_OUTPUT_WIDTH
+        : CHAT_IMAGE_GENERATION_OUTPUT_WIDTH,
+      outputHeight: isEmoticon
+        ? CHAT_EMOTICON_OUTPUT_HEIGHT
+        : CHAT_IMAGE_GENERATION_OUTPUT_HEIGHT,
+      quality,
     });
 
     await fs.mkdir(uploadsDataDir(), { recursive: true });
-    const filename = `ai-sd-${crypto.randomUUID()}.webp`;
+    const filename = `${isEmoticon ? "ai-emoticon" : "ai-sd"}-${crypto.randomUUID()}.webp`;
     savedPath = path.join(uploadsDataDir(), filename);
     await fs.writeFile(savedPath, generated.buffer);
     const resultUrl = uploadPublicUrl(filename);
@@ -558,7 +688,7 @@ export async function POST(req: Request) {
       deduction = deductPoints(
         user.id,
         pricePoints,
-        `GPT Image 2 · ${CHAT_IMAGE_TEMPLATE_NAME}`,
+        `GPT Image 2 · ${templateName}`,
         context.chatId ? { chatId: context.chatId } : undefined
       );
     } catch (error) {
@@ -593,9 +723,9 @@ export async function POST(req: Request) {
           context.chatId,
           context.character.id,
           context.persona.id,
-          CHAT_IMAGE_TEMPLATE_ID,
+          templateId,
           model,
-          JSON.stringify({ ...options, quality }),
+          JSON.stringify(generationOptions),
           resultUrl,
           generated.costUsd,
           deduction.total
@@ -608,7 +738,7 @@ export async function POST(req: Request) {
         chatId: context.chatId,
         generationId,
         imageUrl: resultUrl,
-        mode: "sd",
+        mode: isEmoticon ? "emoticon" : "sd",
       });
       savedToCharacterAlbum = true;
     } catch (error) {
@@ -619,6 +749,7 @@ export async function POST(req: Request) {
       generated.costUsd == null
         ? null
         : Math.round(generated.costUsd * getEffectiveKrwPerUsd() * 10) / 10;
+    const canSeeCost = isAdminUser(user as typeof user & { is_admin?: number });
     console.info("[chat-image-generation] completed", {
       userId: user.id,
       chatId: context.chatId,
@@ -626,7 +757,7 @@ export async function POST(req: Request) {
       personaId: context.persona.id,
       model,
       quality,
-      templateId: CHAT_IMAGE_TEMPLATE_ID,
+      templateId,
       upstreamCostUsd: generated.costUsd,
       upstreamCostKrw: costKrw,
       chargedPoints: deduction.total,
@@ -634,11 +765,15 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       ok: true,
+      mode: isEmoticon ? "emoticon" : "sd",
       imageUrl: resultUrl,
+      templateId,
       modelId: model,
       modelLabel: "GPT Image 2",
       quality,
       savedToCharacterAlbum,
+      upstreamCostUsd: canSeeCost ? generated.costUsd : undefined,
+      upstreamCostKrw: canSeeCost ? costKrw : undefined,
       pricePoints: deduction.total,
       totalPointsCost: deduction.total,
       remainingPoints: deduction.balance.total,

@@ -14,6 +14,8 @@ on:
       - "src/lib/chatImageGeneration.test.ts"
       - "src/lib/chatComicGeneration.ts"
       - "src/lib/chatComicGeneration.test.ts"
+      - "src/lib/chatEmoticonGeneration.ts"
+      - "src/lib/chatEmoticonGeneration.test.ts"
       - "public/image-templates/**"
       - ".github/workflows/validate-chat-image-generator.yml"
 
@@ -34,3 +36,4 @@ jobs:
       - run: npm run typecheck:app
       - run: node --import tsx --test src/lib/chatImageGeneration.test.ts
       - run: node --import tsx --test src/lib/chatComicGeneration.test.ts
+      - run: node --import tsx --test src/lib/chatEmoticonGeneration.test.ts

@@ -108,7 +108,8 @@ export function buildChatComicPlannerPrompt(opts: {
     "Infer who is speaking from the prose and preserve their identities throughout.",
     "Dialogue is closed-book extraction. Use only verbatim contiguous excerpts from text enclosed in quotation marks in SOURCE PROSE.",
     "Never invent, paraphrase, combine, complete, or add reaction dialogue. If a panel has no suitable quoted line, return an empty dialogue array and communicate the reaction visually.",
-    "Use at most two bubbles per panel. Never create narration, captions, labels, or sound-effect text.",
+    "Narration is also closed-book extraction. A caption may contain only one short verbatim contiguous excerpt from the unquoted descriptive prose in SOURCE PROSE. Never paraphrase or invent narration. Return an empty caption when no suitable excerpt exists.",
+    "Use at most two speech bubbles and at most one rectangular narration box per panel. Never create labels or sound-effect text.",
     "Each panel needs a clear action, camera framing, and natural facial expressions. The final panel should land the emotional payoff or comedic punchline.",
     `Mood: ${CHAT_COMIC_MOODS.find((item) => item.id === opts.mood)?.prompt ?? "comic"}.`,
     "Return JSON only, without markdown fences, using this exact schema:",
@@ -152,6 +153,25 @@ function isVerbatimQuotedExcerpt(text: string, quotedDialogue: string[]): boolea
   return quotedDialogue.some((quote) => quote.includes(text));
 }
 
+export function extractUnquotedComicNarration(sourceText: string): string[] {
+  const segments: string[] = [];
+  const quotedPattern = /“[^”]*”|"[^"]*"|‘[^’]*’|'[^']*'/g;
+  let cursor = 0;
+  for (const match of sourceText.matchAll(quotedPattern)) {
+    const index = match.index ?? cursor;
+    const segment = cleanText(sourceText.slice(cursor, index), 800);
+    if (segment) segments.push(segment);
+    cursor = index + match[0].length;
+  }
+  const tail = cleanText(sourceText.slice(cursor), 800);
+  if (tail) segments.push(tail);
+  return segments;
+}
+
+function isVerbatimNarrationExcerpt(text: string, unquotedNarration: string[]): boolean {
+  return text.length >= 2 && unquotedNarration.some((segment) => segment.includes(text));
+}
+
 export function resolveAutoComicPanelCount(raw: unknown): ChatComicPanelCount {
   if (!raw || typeof raw !== "object") throw new Error("컷 구성 응답이 올바르지 않습니다.");
   const source = raw as { panelCount?: unknown; panels?: unknown };
@@ -178,6 +198,7 @@ export function sanitizeChatComicPlan(
     throw new Error("요청한 컷 수와 구성 결과가 일치하지 않습니다.");
   }
   const quotedDialogue = extractQuotedComicDialogue(sourceText);
+  const unquotedNarration = extractUnquotedComicNarration(sourceText);
 
   const panels = source.panels.map((entry, index): ChatComicPanel => {
     if (!entry || typeof entry !== "object") {
@@ -198,13 +219,17 @@ export function sanitizeChatComicPlan(
         ? [{ speaker, text }]
         : [];
     });
+    const caption = cleanText(panel.caption, 100);
     return {
       panel: index + 1,
       scene: cleanText(panel.scene, 220) || `Panel ${index + 1}`,
       characterExpression: cleanText(panel.characterExpression, 100) || "natural expression",
       personaExpression: cleanText(panel.personaExpression, 100) || "natural expression",
       dialogue,
-      caption: undefined,
+      caption:
+        caption && isVerbatimNarrationExcerpt(caption, unquotedNarration)
+          ? caption
+          : undefined,
     };
   });
 
@@ -223,7 +248,12 @@ export function buildChatComicImagePrompt(opts: {
   plan: ChatComicPlan;
 }): string {
   const approvedText = Array.from(
-    new Set(opts.plan.panels.flatMap((panel) => panel.dialogue.map((line) => line.text)))
+    new Set(
+      opts.plan.panels.flatMap((panel) => [
+        ...panel.dialogue.map((line) => line.text),
+        ...(panel.caption ? [panel.caption] : []),
+      ])
+    )
   );
   const panels = opts.plan.panels
     .map((panel) => {
@@ -246,7 +276,10 @@ export function buildChatComicImagePrompt(opts: {
         `${opts.characterName} expression: ${panel.characterExpression}`,
         `${opts.personaName} expression: ${panel.personaExpression}`,
         `Exact Korean text: ${dialogue}`,
-        "No caption box, label, narration, or sound-effect text",
+        panel.caption
+          ? `Exact rectangular narration box: “${panel.caption}”`
+          : "No narration box",
+        "No label or sound-effect text",
       ].join("\n");
     })
     .join("\n\n");
@@ -262,13 +295,13 @@ export function buildChatComicImagePrompt(opts: {
     approvedText.length
       ? approvedText.map((text) => `- “${text}”`).join("\n")
       : "- NO TEXT IS ALLOWED",
-    "Never invent reaction dialogue, bridge dialogue, narration, captions, labels, titles, signs, or sound effects. Do not create a speech bubble for a panel marked No speech bubble.",
-    "Use proper speech bubbles with tails pointing to the correct speaker. Keep approved text large, centered, uncropped, and easy to read.",
+    "Never invent reaction dialogue, bridge dialogue, narration, captions, labels, titles, signs, or sound effects. Only the approved narration explicitly assigned to a panel may appear in a rectangular caption box. Do not create a speech bubble or narration box for a panel marked No speech bubble or No narration box.",
+    "Use proper speech bubbles with tails pointing to the correct speaker. Render approved narration only in a tail-less rectangular narration box. Keep all approved text large, centered, uncropped, and easy to read.",
     "Exactly two recurring human characters. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.",
     "Keep all panel borders and the full page visible. Do not crop off speech bubbles or the last panel.",
     `Story title for internal guidance: ${opts.plan.title}`,
     panels,
-    "Original prose context is for visual acting only. Never turn unquoted narration into visible text:",
+    "Original prose context is for visual acting only. Do not turn any other prose into visible text:",
     opts.sourceText,
   ].join("\n\n");
 }

@@ -7,6 +7,7 @@ import {
   buildChatComicImagePrompt,
   buildChatComicPlannerPrompt,
   extractQuotedComicDialogue,
+  extractUnquotedComicNarration,
   resolveChatComicPlannerModel,
   resolveChatComicPrice,
   sanitizeChatComicOptions,
@@ -90,14 +91,23 @@ describe("chatComicGeneration", () => {
     );
   });
 
-  it("removes invented dialogue and every generated caption", () => {
+  it("removes invented text but keeps verbatim unquoted narration", () => {
     const sourceText =
-      '태현은 "야."라고 말했다. 이어 "거기 보지 마. 나 봐."라고 경고했다. 마지막에는 “딱 한 걸음만 와.”라고 했다.';
+      '식당 안의 공기가 순간 얼어붙었다. 태현은 "야."라고 말했다. 이어 "거기 보지 마. 나 봐."라고 경고했다. 마지막에는 “딱 한 걸음만 와.”라고 했다.';
     assert.deepEqual(extractQuotedComicDialogue(sourceText), [
       "야.",
       "거기 보지 마. 나 봐.",
       "딱 한 걸음만 와.",
     ]);
+    assert.deepEqual(
+      extractUnquotedComicNarration(sourceText),
+      [
+        "식당 안의 공기가 순간 얼어붙었다. 태현은",
+        "라고 말했다. 이어",
+        "라고 경고했다. 마지막에는",
+        "라고 했다.",
+      ]
+    );
 
     const plan = sanitizeChatComicPlan(
       {
@@ -110,7 +120,7 @@ describe("chatComicGeneration", () => {
               { speaker: "character", text: "야." },
               { speaker: "persona", text: "…알겠어." },
             ],
-            caption: "태현의 경고가 시작된다.",
+            caption: "식당 안의 공기가 순간 얼어붙었다.",
           },
           {
             scene: "태현이 렌을 바라본다.",
@@ -127,7 +137,7 @@ describe("chatComicGeneration", () => {
 
     assert.deepEqual(plan.panels[0]?.dialogue, [{ speaker: "character", text: "야." }]);
     assert.deepEqual(plan.panels[1]?.dialogue, [{ speaker: "character", text: "나 봐." }]);
-    assert.equal(plan.panels[0]?.caption, undefined);
+    assert.equal(plan.panels[0]?.caption, "식당 안의 공기가 순간 얼어붙었다.");
     assert.equal(plan.panels[1]?.caption, undefined);
   });
 
@@ -162,6 +172,7 @@ describe("chatComicGeneration", () => {
             characterExpression: "삐친 표정",
             personaExpression: "차분한 표정",
             dialogue: [{ speaker: "character", text: "대장님, 내 것도 먹여줘!" }],
+            caption: "태형이 조르고",
           },
           {
             panel: 2,
@@ -177,8 +188,9 @@ describe("chatComicGeneration", () => {
     assert.match(prompt, /Never invent reaction dialogue/);
     assert.match(prompt, /태형: “대장님, 내 것도 먹여줘!”/);
     assert.match(prompt, /렌: “진정하고 한입 먹어.”/);
+    assert.match(prompt, /Exact rectangular narration box: “태형이 조르고”/);
     assert.match(prompt, /Never swap or blend them/);
-    assert.match(prompt, /No caption box, label, narration, or sound-effect text/);
+    assert.match(prompt, /Render approved narration only in a tail-less rectangular narration box/);
     assert.match(prompt, /Do not crop off speech bubbles or the last panel/);
   });
 });
