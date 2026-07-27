@@ -126,7 +126,11 @@ export default function SidebarShell({ user, chatSessions, blurNsfw, navItems }:
       {/* Keeps main column from sliding under the fixed rail */}
       <div
         ref={spacerRef}
-        className="hidden shrink-0 md:block"
+        className={
+          isChatRoomRoute
+            ? "hidden shrink-0 min-[576px]:block"
+            : "hidden shrink-0 md:block"
+        }
         style={{ width: railWidth }}
         aria-hidden
       />
