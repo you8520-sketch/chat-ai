@@ -1,12 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  OPENROUTER_SIMPLE_POINT_INPUT_PRICES,
   OPENROUTER_SIMPLE_POINT_INPUT_SURCHARGE_PER_1000,
-  OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES,
   computeOpenRouterTurnBilling,
   computeOpenRouterTurnCost,
   explainOpenRouterTencentHy3TurnCost,
+  resolveOpenRouterSimplePointPrices,
 } from "@/lib/points";
 import { OPENROUTER_TENCENT_HY3_MODEL } from "@/lib/chatModels";
 
@@ -15,26 +14,36 @@ function expectedSimplePointCost(
   outputTokens: number,
   reasoningTokens: number
 ): number {
-  const inputPrice = OPENROUTER_SIMPLE_POINT_INPUT_PRICES[OPENROUTER_TENCENT_HY3_MODEL];
-  const outputPrice = OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES[OPENROUTER_TENCENT_HY3_MODEL];
-  const inputTokCost = inputTokens * inputPrice;
+  const prices = resolveOpenRouterSimplePointPrices(
+    OPENROUTER_TENCENT_HY3_MODEL,
+    1530
+  )!;
+  const inputTokCost = inputTokens * prices.inputPointsPerToken;
   const inputSurcharge =
     inputTokens >= 10000
       ? (inputTokens / 1000) * OPENROUTER_SIMPLE_POINT_INPUT_SURCHARGE_PER_1000
       : 0;
-  const outputCost = (outputTokens + reasoningTokens) * outputPrice;
+  const outputCost =
+    (outputTokens + reasoningTokens) * prices.outputPointsPerToken;
   const total = inputTokCost + inputSurcharge + outputCost;
   return Number.isInteger(total) ? total : Math.ceil(total - 1e-9);
 }
 
 describe("Tencent Hy3 dual-rate simple point billing", () => {
   const modelId = OPENROUTER_TENCENT_HY3_MODEL;
-  const inputPrice = OPENROUTER_SIMPLE_POINT_INPUT_PRICES[modelId];
-  const outputPrice = OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES[modelId];
-
   it("uses the configured dual-rate token prices (70% target margin)", () => {
-    assert.equal(inputPrice, 0.00071);
-    assert.equal(outputPrice, 0.003);
+    const prices = resolveOpenRouterSimplePointPrices(modelId, 1530)!;
+    assert.ok(
+      Math.abs(
+        prices.inputPointsPerToken - (0.14 * 1530) / 1_000_000 / 0.3
+      ) < 1e-15
+    );
+    assert.ok(
+      Math.abs(
+        prices.outputPointsPerToken - (0.58 * 1530) / 1_000_000 / 0.3
+      ) < 1e-15
+    );
+    assert.equal(prices.grossMargin, 0.7);
   });
 
   it("charges inputP/tok + optional 0.5P/1k (≥10k) + outputP/tok", () => {

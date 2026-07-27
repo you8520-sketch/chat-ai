@@ -104,6 +104,16 @@ import {
   type OpenRouterBillingInput,
 } from "@/lib/billingRawCost";
 import { openRouterNormalizedUsdCostFromRates } from "@/lib/openRouterModelPricing";
+import {
+  OPENROUTER_SIMPLE_POINT_GROSS_MARGINS,
+  resolveOpenRouterSimplePointPrices,
+} from "@/lib/openRouterSimplePointPricing";
+export {
+  OPENROUTER_MUSE_INPUT_POINTS_PER_TOKEN,
+  OPENROUTER_MUSE_OUTPUT_POINTS_PER_TOKEN,
+  OPENROUTER_SIMPLE_POINT_GROSS_MARGINS,
+  resolveOpenRouterSimplePointPrices,
+} from "@/lib/openRouterSimplePointPricing";
 export {
   openRouterRawCostKrw,
   resolveOpenRouterBillingRawCostKrw,
@@ -293,8 +303,10 @@ export const OPENROUTER_DEEPSEEK_COST_MARKUP = OPENROUTER_DEEPSEEK_GROSS_MARGIN;
  * Target no-cache gross margins for dual-rate simple point models.
  * Provider cache savings are deliberately not reflected in the user charge.
  */
-export const OPENROUTER_DEEPSEEK_V4_PRO_GROSS_MARGIN = 0.65;
-export const OPENROUTER_TENCENT_HY3_GROSS_MARGIN = 0.7;
+export const OPENROUTER_DEEPSEEK_V4_PRO_GROSS_MARGIN =
+  OPENROUTER_SIMPLE_POINT_GROSS_MARGINS[OPENROUTER_DEEPSEEK_V4_PRO_MODEL];
+export const OPENROUTER_TENCENT_HY3_GROSS_MARGIN =
+  OPENROUTER_SIMPLE_POINT_GROSS_MARGINS[OPENROUTER_TENCENT_HY3_MODEL];
 /** @deprecated Use model-specific margins (DeepSeek 65% / Hy3 70%). */
 export const OPENROUTER_TOKEN_PROPORTIONAL_GROSS_MARGIN =
   OPENROUTER_DEEPSEEK_V4_PRO_GROSS_MARGIN;
@@ -343,14 +355,14 @@ export const KIMI_WAIVER_SUCCESS_MIN_COST = 65;
 
 /** Muse — 목표 매출총이익률 (60%) */
 export const OPENROUTER_MUSE_GROSS_MARGIN =
-  Number(process.env.OPENROUTER_MUSE_GROSS_MARGIN) || 0.6;
+  OPENROUTER_SIMPLE_POINT_GROSS_MARGINS[OPENROUTER_MUSE_SPARK_11_MODEL];
 
 /** Muse — 과금 면제 턴 최소 차감 */
 export const MUSE_WAIVER_SUCCESS_MIN_COST = 50;
 
-/** Gemini 3.6 Flash — 목표 매출총이익률 (45%) */
+/** Gemini 3.6 Flash — target gross margin (50%). */
 export const OPENROUTER_GEMINI_36_GROSS_MARGIN =
-  Number(process.env.OPENROUTER_GEMINI_36_GROSS_MARGIN) || 0.45;
+  OPENROUTER_SIMPLE_POINT_GROSS_MARGINS[OPENROUTER_GEMINI_36_FLASH_MODEL];
 
 /**
  * Dual-rate simple point pricing for the four active OpenRouter chat models.
@@ -360,23 +372,9 @@ export const OPENROUTER_GEMINI_36_GROSS_MARGIN =
  *   + (inputTokens >= 10k ? inputTokens/1000 × 0.5P : 0)
  *   + (outputTokens + reasoningTokens) × outputP/tok
  *
- * Rates target list-price margins at ~₩1,530/USD (no cache credit):
- *   Muse 60% · DeepSeek V4 Pro 65% · Hy3 70% · Gemini 3.6 Flash 45%
+ * Dynamic rates use the effective billing exchange-rate snapshot and the
+ * central OpenRouter USD/M price table. Muse retains its fixed rates.
  */
-export const OPENROUTER_SIMPLE_POINT_INPUT_PRICES: Record<string, number> = {
-  [OPENROUTER_TENCENT_HY3_MODEL]: 0.00071,
-  [OPENROUTER_DEEPSEEK_V4_PRO_MODEL]: 0.0019,
-  [OPENROUTER_MUSE_SPARK_11_MODEL]: 0.0042,
-  [OPENROUTER_GEMINI_36_FLASH_MODEL]: 0.0042,
-};
-
-export const OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES: Record<string, number> = {
-  [OPENROUTER_TENCENT_HY3_MODEL]: 0.003,
-  [OPENROUTER_DEEPSEEK_V4_PRO_MODEL]: 0.0038,
-  [OPENROUTER_MUSE_SPARK_11_MODEL]: 0.0062,
-  [OPENROUTER_GEMINI_36_FLASH_MODEL]: 0.0209,
-};
-
 /** Large-context surcharge inside the simple-point formula (P per 1k input). */
 export const OPENROUTER_SIMPLE_POINT_INPUT_SURCHARGE_PER_1000 = 0.5;
 
@@ -392,19 +390,17 @@ function computeOpenRouterSimplePointCost(
   reasoningTokens: number,
   modelId: string
 ): number {
-  const id = modelId.trim().toLowerCase();
-  const inputPrice = OPENROUTER_SIMPLE_POINT_INPUT_PRICES[id];
-  const outputPrice = OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES[id];
-  if (inputPrice == null || outputPrice == null) return 0;
+  const prices = resolveOpenRouterSimplePointPrices(modelId);
+  if (!prices) return 0;
   const input = Math.max(0, inputTokens);
   const output = Math.max(0, outputTokens);
   const reasoning = Math.max(0, reasoningTokens);
-  const inputTokCost = input * inputPrice;
+  const inputTokCost = input * prices.inputPointsPerToken;
   const inputSurcharge =
     input >= OPENROUTER_INPUT_SURCHARGE_THRESHOLD_TOKENS
       ? (input / 1000) * OPENROUTER_SIMPLE_POINT_INPUT_SURCHARGE_PER_1000
       : 0;
-  const outputCost = (output + reasoning) * outputPrice;
+  const outputCost = (output + reasoning) * prices.outputPointsPerToken;
   return ceilFractional(inputTokCost + inputSurcharge + outputCost);
 }
 

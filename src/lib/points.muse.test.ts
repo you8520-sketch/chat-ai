@@ -4,11 +4,10 @@ import {
   MUSE_WAIVER_SUCCESS_MIN_COST,
   OPENROUTER_MUSE_INPUT_POINTS_PER_TOKEN,
   OPENROUTER_MUSE_OUTPUT_POINTS_PER_TOKEN,
-  OPENROUTER_SIMPLE_POINT_INPUT_PRICES,
   OPENROUTER_SIMPLE_POINT_INPUT_SURCHARGE_PER_1000,
-  OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES,
   computeOpenRouterTurnCost,
   explainOpenRouterMuseTurnCost,
+  resolveOpenRouterSimplePointPrices,
   resolveMuseWaiverMinimumCharge,
 } from "@/lib/points";
 import { OPENROUTER_MUSE_SPARK_11_MODEL } from "@/lib/chatModels";
@@ -18,28 +17,36 @@ function expectedSimplePointCost(
   outputTokens: number,
   reasoningTokens: number
 ): number {
-  const inputPrice = OPENROUTER_SIMPLE_POINT_INPUT_PRICES[OPENROUTER_MUSE_SPARK_11_MODEL];
-  const outputPrice = OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES[OPENROUTER_MUSE_SPARK_11_MODEL];
-  const inputTokCost = inputTokens * inputPrice;
+  const prices = resolveOpenRouterSimplePointPrices(
+    OPENROUTER_MUSE_SPARK_11_MODEL,
+    9999
+  )!;
+  const inputTokCost = inputTokens * prices.inputPointsPerToken;
   const inputSurcharge =
     inputTokens >= 10000
       ? (inputTokens / 1000) * OPENROUTER_SIMPLE_POINT_INPUT_SURCHARGE_PER_1000
       : 0;
-  const outputCost = (outputTokens + reasoningTokens) * outputPrice;
+  const outputCost =
+    (outputTokens + reasoningTokens) * prices.outputPointsPerToken;
   const total = inputTokCost + inputSurcharge + outputCost;
   return Number.isInteger(total) ? total : Math.ceil(total - 1e-9);
 }
 
 describe("Muse Spark 1.1 dual-rate simple point billing", () => {
   const modelId = OPENROUTER_MUSE_SPARK_11_MODEL;
-  const inputPrice = OPENROUTER_SIMPLE_POINT_INPUT_PRICES[modelId];
-  const outputPrice = OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES[modelId];
-
   it("uses the configured token prices for the 60% target margin", () => {
+    const prices = resolveOpenRouterSimplePointPrices(modelId, 9999)!;
     assert.equal(OPENROUTER_MUSE_INPUT_POINTS_PER_TOKEN, 0.0048);
     assert.equal(OPENROUTER_MUSE_OUTPUT_POINTS_PER_TOKEN, 0.0163);
-    assert.equal(inputPrice, OPENROUTER_MUSE_INPUT_POINTS_PER_TOKEN);
-    assert.equal(outputPrice, OPENROUTER_MUSE_OUTPUT_POINTS_PER_TOKEN);
+    assert.equal(
+      prices.inputPointsPerToken,
+      OPENROUTER_MUSE_INPUT_POINTS_PER_TOKEN
+    );
+    assert.equal(
+      prices.outputPointsPerToken,
+      OPENROUTER_MUSE_OUTPUT_POINTS_PER_TOKEN
+    );
+    assert.equal(prices.grossMargin, 0.6);
     assert.equal(MUSE_WAIVER_SUCCESS_MIN_COST, 50);
   });
 

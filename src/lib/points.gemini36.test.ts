@@ -2,12 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   GEMINI_36_WAIVER_SUCCESS_MIN_COST,
-  OPENROUTER_SIMPLE_POINT_INPUT_PRICES,
   OPENROUTER_SIMPLE_POINT_INPUT_SURCHARGE_PER_1000,
-  OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES,
   computeOpenRouterTurnCost,
   computeTurnBilling,
   explainOpenRouterGemini36TurnCost,
+  resolveOpenRouterSimplePointPrices,
   resolveGemini36WaiverMinimumCharge,
 } from "@/lib/points";
 import { OPENROUTER_GEMINI_36_FLASH_MODEL } from "@/lib/chatModels";
@@ -17,26 +16,28 @@ function expectedSimplePointCost(
   outputTokens: number,
   reasoningTokens: number
 ): number {
-  const inputPrice = OPENROUTER_SIMPLE_POINT_INPUT_PRICES[OPENROUTER_GEMINI_36_FLASH_MODEL];
-  const outputPrice = OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES[OPENROUTER_GEMINI_36_FLASH_MODEL];
-  const inputTokCost = inputTokens * inputPrice;
+  const prices = resolveOpenRouterSimplePointPrices(
+    OPENROUTER_GEMINI_36_FLASH_MODEL,
+    1530
+  )!;
+  const inputTokCost = inputTokens * prices.inputPointsPerToken;
   const inputSurcharge =
     inputTokens >= 10000
       ? (inputTokens / 1000) * OPENROUTER_SIMPLE_POINT_INPUT_SURCHARGE_PER_1000
       : 0;
-  const outputCost = (outputTokens + reasoningTokens) * outputPrice;
+  const outputCost =
+    (outputTokens + reasoningTokens) * prices.outputPointsPerToken;
   const total = inputTokCost + inputSurcharge + outputCost;
   return Number.isInteger(total) ? total : Math.ceil(total - 1e-9);
 }
 
 describe("OpenRouter Gemini 3.6 Flash dual-rate simple point billing", () => {
   const modelId = OPENROUTER_GEMINI_36_FLASH_MODEL;
-  const inputPrice = OPENROUTER_SIMPLE_POINT_INPUT_PRICES[modelId];
-  const outputPrice = OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES[modelId];
-
-  it("uses the configured dual-rate token prices (45% target margin)", () => {
-    assert.equal(inputPrice, 0.0042);
-    assert.equal(outputPrice, 0.0209);
+  it("uses exchange-rate-derived token prices (50% target margin)", () => {
+    const prices = resolveOpenRouterSimplePointPrices(modelId, 1530)!;
+    assert.equal(prices.inputPointsPerToken, (1.5 * 1530) / 1_000_000 / 0.5);
+    assert.equal(prices.outputPointsPerToken, (7.5 * 1530) / 1_000_000 / 0.5);
+    assert.equal(prices.grossMargin, 0.5);
     assert.equal(GEMINI_36_WAIVER_SUCCESS_MIN_COST, 50);
   });
 
