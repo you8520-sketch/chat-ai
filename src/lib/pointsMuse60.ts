@@ -148,16 +148,13 @@ export function computeOpenRouterTurnBilling(
   const cacheReadTokens = Math.max(0, opts.cacheReadTokens ?? 0);
   const cacheWriteTokens = Math.max(0, opts.cacheWriteTokens ?? 0);
 
-  // API totals are the authoritative billing basis when present. OpenRouter's
-  // completion total already includes hidden thinking/reasoning tokens, so do
-  // not add reasoningTokens again in that case.
+  // API totals are authoritative when present. OpenRouter completion totals
+  // already include hidden thinking/reasoning tokens, so reasoning is not added
+  // a second time when apiCompletionTokens is available.
   const billedInputTokens = resolveReportedTokens(
     opts.apiPromptTokens,
     opts.inputTokens
   );
-  const hasApiCompletionTokens =
-    typeof opts.apiCompletionTokens === "number" &&
-    Number.isFinite(opts.apiCompletionTokens);
   const billedOutputTokens = resolveReportedTokens(
     opts.apiCompletionTokens,
     opts.outputTokens + (opts.reasoningTokens ?? 0)
@@ -165,7 +162,7 @@ export function computeOpenRouterTurnBilling(
   const baseCost = computeMusePointCost(
     billedInputTokens,
     billedOutputTokens,
-    hasApiCompletionTokens ? 0 : 0
+    0
   ).total;
 
   return {
