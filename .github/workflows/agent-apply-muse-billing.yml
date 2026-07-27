@@ -35,7 +35,7 @@ jobs:
       - name: Run focused billing tests
         run: |
           set +e
-          npx tsx --test src/lib/openRouterUsage.test.ts src/lib/points.muse.test.ts > .agent/test-failure.txt 2>&1
+          NODE_OPTIONS=--conditions=react-server npx tsx --test src/lib/openRouterUsage.test.ts src/lib/points.muse.test.ts > .agent/test-failure.txt 2>&1
           status=$?
           set -e
           cat .agent/test-failure.txt
