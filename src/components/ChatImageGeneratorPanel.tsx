@@ -12,9 +12,20 @@ import {
   type ChatComicPanelCount,
 } from "@/lib/chatComicGeneration";
 import {
+  CHAT_COUPLE_STAMP_ANIMAL_EARS,
+  CHAT_COUPLE_STAMP_BACKGROUNDS,
+  CHAT_COUPLE_STAMP_BORDERS,
+  CHAT_COUPLE_STAMP_DEFAULT_OPTIONS,
   CHAT_COUPLE_STAMP_GENERATION_DEFAULT_POINTS,
+  CHAT_COUPLE_STAMP_HEIGHTS,
+  CHAT_COUPLE_STAMP_MOTIFS,
   CHAT_COUPLE_STAMP_TEMPLATE_ID,
   CHAT_COUPLE_STAMP_TEMPLATE_PREVIEW_URL,
+  type ChatCoupleStampAnimalEars,
+  type ChatCoupleStampBackground,
+  type ChatCoupleStampBorder,
+  type ChatCoupleStampHeight,
+  type ChatCoupleStampMotif,
 } from "@/lib/chatCoupleStampGeneration";
 import {
   CHAT_EMOTICON_GENERATION_DEFAULT_POINTS,
@@ -268,7 +279,7 @@ export default function ChatImageGeneratorPanel({
   showRailTrigger = true,
 }: ChatImageGeneratorPanelProps) {
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<Tab>("sd");
+  const [tab, setTab] = useState<Tab>("comic");
   const [loadingInfo, setLoadingInfo] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -276,7 +287,22 @@ export default function ChatImageGeneratorPanel({
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [sdProduct, setSdProduct] = useState<SdProduct>("gift");
-  const [ldProduct, setLdProduct] = useState<LdProduct>("comic");
+  const [ldProduct, setLdProduct] = useState<LdProduct>("illustration");
+  const [coupleMotif, setCoupleMotif] = useState<ChatCoupleStampMotif>(
+    CHAT_COUPLE_STAMP_DEFAULT_OPTIONS.motif
+  );
+  const [coupleHeight, setCoupleHeight] = useState<ChatCoupleStampHeight>(
+    CHAT_COUPLE_STAMP_DEFAULT_OPTIONS.height
+  );
+  const [coupleBackground, setCoupleBackground] = useState<ChatCoupleStampBackground>(
+    CHAT_COUPLE_STAMP_DEFAULT_OPTIONS.background
+  );
+  const [coupleBorder, setCoupleBorder] = useState<ChatCoupleStampBorder>(
+    CHAT_COUPLE_STAMP_DEFAULT_OPTIONS.border
+  );
+  const [coupleAnimalEars, setCoupleAnimalEars] = useState<ChatCoupleStampAnimalEars>(
+    CHAT_COUPLE_STAMP_DEFAULT_OPTIONS.animalEars
+  );
   const [sdResultUrl, setSdResultUrl] = useState("");
   const [emoticonResultUrl, setEmoticonResultUrl] = useState("");
   const [coupleStampResultUrl, setCoupleStampResultUrl] = useState("");
@@ -507,6 +533,15 @@ export default function ChatImageGeneratorPanel({
                 ? CHAT_COUPLE_STAMP_TEMPLATE_ID
                 : info.template.id,
           characterImageUrl: selectedCharacterImageUrl || info.character.imageUrl,
+          ...(sdProduct === "coupleStamp"
+            ? {
+                coupleMotif,
+                coupleHeight,
+                coupleBackground,
+                coupleBorder,
+                coupleAnimalEars,
+              }
+            : {}),
         }),
       });
       const data = (await response.json().catch(() => null)) as GenerateResult | null;
@@ -540,7 +575,7 @@ export default function ChatImageGeneratorPanel({
         sdProduct === "emoticon"
           ? "랜덤 문구 9종 이모티콘을 완성해 기존 캐릭터 이미지 앨범에 추가했습니다."
           : sdProduct === "coupleStamp"
-            ? "커플 인장 4종을 완성해 기존 캐릭터 이미지 앨범에 추가했습니다."
+            ? "선택한 커플 인장을 완성해 기존 캐릭터 이미지 앨범에 추가했습니다."
           : "완성되어 기존 캐릭터 이미지 앨범에 자동으로 추가했습니다."
       );
       void loadInfo();
@@ -706,8 +741,8 @@ export default function ChatImageGeneratorPanel({
               <div className="mt-3 grid grid-cols-2 gap-1 rounded-xl bg-black/25 p-1">
                 {(
                   [
-                    ["sd", "SD 이미지"],
                     ["comic", "LD 이미지"],
+                    ["sd", "SD 이미지"],
                   ] as const
                 ).map(([id, label]) => (
                   <button
@@ -737,6 +772,34 @@ export default function ChatImageGeneratorPanel({
               ) : (
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(19rem,0.95fr)]">
                   <div className="space-y-3">
+                    {tab === "comic" ? (
+                      <div className="grid grid-cols-2 gap-1 rounded-xl bg-black/25 p-1">
+                        {(
+                          [
+                            ["illustration", "현재 턴 일러스트"],
+                            ["comic", "자동 컷만화"],
+                          ] as const
+                        ).map(([id, label]) => (
+                          <button
+                            key={id}
+                            type="button"
+                            onClick={() => {
+                              setLdProduct(id);
+                              setError("");
+                              setNotice("");
+                            }}
+                            disabled={generating || saving}
+                            className={`rounded-lg px-2 py-2 text-xs font-semibold transition ${
+                              ldProduct === id
+                                ? "bg-violet-600 text-white"
+                                : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
                     <div
                       className={`relative flex max-h-[64dvh] min-h-56 items-center justify-center overflow-hidden rounded-2xl border border-white/10 ${
                         tab === "comic" ? "bg-[#08090d] p-0" : "bg-white p-1"
@@ -764,7 +827,7 @@ export default function ChatImageGeneratorPanel({
                               : sdProduct === "emoticon"
                                 ? "생성된 랜덤 9종 이모티콘"
                                 : sdProduct === "coupleStamp"
-                                  ? "생성된 커플 인장 4종"
+                                  ? "생성된 커플 인장"
                                 : "생성된 SD 이미지"
                             : tab === "comic"
                               ? ldProduct === "illustration"
@@ -773,7 +836,7 @@ export default function ChatImageGeneratorPanel({
                               : sdProduct === "emoticon"
                                 ? "랜덤 9종 이모티콘 고정틀"
                                 : sdProduct === "coupleStamp"
-                                  ? "커플 인장 4종 고정틀"
+                                  ? "커플 인장 고정틀 샘플"
                                 : "선물상자 SD 고정틀"
                         }
                         className={`max-h-[62dvh] object-contain ${
@@ -821,7 +884,7 @@ export default function ChatImageGeneratorPanel({
                           : sdProduct === "emoticon"
                             ? "매번 다른 문구 9개를 뽑아 캐릭터 단독·페르소나 단독·두 사람 장면을 섞어 만듭니다."
                             : sdProduct === "coupleStamp"
-                              ? "트위터·커뮤니티 프로필용 원형 커플 인장 4종을 서로 다른 그림체와 소품으로 한 장에 만듭니다."
+                              ? "고정틀 샘플에서 모티프를 고른 뒤 키·배경·테두리·동물귀 옵션으로 원형 커플 인장 한 장을 만듭니다."
                             : "선물상자·리본·인형·사탕 장식을 유지하면서 두 사람의 외형을 반영합니다."}
                     </p>
                     {tab === "sd" ? (
@@ -840,7 +903,7 @@ export default function ChatImageGeneratorPanel({
                             ? "선물상자 2인 SD"
                             : sdProduct === "emoticon"
                               ? "랜덤 9종 이모티콘"
-                              : "커플 인장 4종"}
+                              : "커플 인장"}
                         </strong>
                       </div>
                     ) : null}
@@ -984,12 +1047,102 @@ export default function ChatImageGeneratorPanel({
                             </p>
                           </div>
                         ) : (
-                          <div className="rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-3 text-[11px] leading-relaxed text-zinc-300">
-                            <strong className="text-violet-200">커플 인장 4종 · 800×800 · 중품질 고정</strong>
-                            <p className="mt-1">
-                              고양이 발바닥 셀카, 인형 포옹, 토끼 후드 손하트, 동물 요소 없는
-                              커플 인장을 서로 다른 그림체로 한 장에 구성합니다.
-                            </p>
+                          <div className="space-y-2">
+                            <div className="rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-3 text-[11px] leading-relaxed text-zinc-300">
+                              <strong className="text-violet-200">커플 인장 · 1000×1000 · 중품질 고정</strong>
+                              <p className="mt-1">
+                                왼쪽 샘플은 4종 고정틀입니다. 아래에서 한 모티프를 고른 뒤 옵션을 맞춰 뽑습니다.
+                              </p>
+                            </div>
+                            <label className="block space-y-1">
+                              <span className="text-[11px] font-semibold text-zinc-400">모티프</span>
+                              <select
+                                value={coupleMotif}
+                                onChange={(event) =>
+                                  setCoupleMotif(event.target.value as ChatCoupleStampMotif)
+                                }
+                                disabled={generating}
+                                className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
+                              >
+                                {CHAT_COUPLE_STAMP_MOTIFS.map((item) => (
+                                  <option key={item.id} value={item.id}>
+                                    {item.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="block space-y-1">
+                              <span className="text-[11px] font-semibold text-zinc-400">키 높이</span>
+                              <select
+                                value={coupleHeight}
+                                onChange={(event) =>
+                                  setCoupleHeight(event.target.value as ChatCoupleStampHeight)
+                                }
+                                disabled={generating}
+                                className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
+                              >
+                                {CHAT_COUPLE_STAMP_HEIGHTS.map((item) => (
+                                  <option key={item.id} value={item.id}>
+                                    {item.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="block space-y-1">
+                              <span className="text-[11px] font-semibold text-zinc-400">배경 장식</span>
+                              <select
+                                value={coupleBackground}
+                                onChange={(event) =>
+                                  setCoupleBackground(
+                                    event.target.value as ChatCoupleStampBackground
+                                  )
+                                }
+                                disabled={generating}
+                                className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
+                              >
+                                {CHAT_COUPLE_STAMP_BACKGROUNDS.map((item) => (
+                                  <option key={item.id} value={item.id}>
+                                    {item.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="block space-y-1">
+                              <span className="text-[11px] font-semibold text-zinc-400">테두리 장식</span>
+                              <select
+                                value={coupleBorder}
+                                onChange={(event) =>
+                                  setCoupleBorder(event.target.value as ChatCoupleStampBorder)
+                                }
+                                disabled={generating}
+                                className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
+                              >
+                                {CHAT_COUPLE_STAMP_BORDERS.map((item) => (
+                                  <option key={item.id} value={item.id}>
+                                    {item.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
+                            <label className="block space-y-1">
+                              <span className="text-[11px] font-semibold text-zinc-400">동물귀</span>
+                              <select
+                                value={coupleAnimalEars}
+                                onChange={(event) =>
+                                  setCoupleAnimalEars(
+                                    event.target.value as ChatCoupleStampAnimalEars
+                                  )
+                                }
+                                disabled={generating}
+                                className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
+                              >
+                                {CHAT_COUPLE_STAMP_ANIMAL_EARS.map((item) => (
+                                  <option key={item.id} value={item.id}>
+                                    {item.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </label>
                           </div>
                         )}
                         <PriceBox
@@ -1002,7 +1155,7 @@ export default function ChatImageGeneratorPanel({
                                       sdProduct === "emoticon"
                                         ? "랜덤 9종 이모티콘"
                                         : sdProduct === "coupleStamp"
-                                          ? "커플 인장 4종"
+                                          ? "커플 인장"
                                         : "선물상자 SD 고정틀",
                                     cost:
                                       sdProduct === "emoticon"
@@ -1031,7 +1184,7 @@ export default function ChatImageGeneratorPanel({
                              ? sdProduct === "emoticon"
                                ? "랜덤 이모티콘 9종 생성 중…"
                                : sdProduct === "coupleStamp"
-                                 ? "커플 인장 4종 생성 중…"
+                                 ? "커플 인장 생성 중…"
                                : "SD 이미지 생성 중…"
                              : activeResultUrl
                                ? `다시 생성 · ${activePrice.toLocaleString()}P`
@@ -1039,39 +1192,13 @@ export default function ChatImageGeneratorPanel({
                                    sdProduct === "emoticon"
                                      ? "랜덤 9종 이모티콘 생성"
                                      : sdProduct === "coupleStamp"
-                                       ? "커플 인장 4종 생성"
+                                       ? "커플 인장 생성"
                                        : "SD 이미지 생성"
                                  } · ${activePrice.toLocaleString()}P`}
                         </button>
                       </>
                     ) : (
                       <>
-                        <div className="grid grid-cols-2 gap-1 rounded-xl bg-black/25 p-1">
-                          {(
-                            [
-                              ["comic", "자동 컷만화"],
-                              ["illustration", "현재 턴 일러스트"],
-                            ] as const
-                          ).map(([id, label]) => (
-                            <button
-                              key={id}
-                              type="button"
-                              onClick={() => {
-                                setLdProduct(id);
-                                setError("");
-                                setNotice("");
-                              }}
-                              disabled={generating || saving}
-                              className={`rounded-lg px-2 py-2 text-xs font-semibold transition ${
-                                ldProduct === id
-                                  ? "bg-violet-600 text-white"
-                                  : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"
-                              }`}
-                            >
-                              {label}
-                            </button>
-                          ))}
-                        </div>
                         {ldProduct === "comic" ? (
                           <>
                             <label className="block space-y-1">
