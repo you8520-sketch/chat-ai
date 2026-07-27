@@ -1,0 +1,29 @@
+name: Validate chat image generator
+
+on:
+  pull_request:
+    paths:
+      - "src/app/api/chat/image-generation/**"
+      - "src/components/ChatImageGeneratorRailButton.tsx"
+      - "src/components/ChatRoomDisplayQuickRail.tsx"
+      - "src/lib/chatImageGeneration.ts"
+      - "src/lib/chatImageGeneration.test.ts"
+      - "public/image-templates/**"
+      - ".github/workflows/validate-chat-image-generator.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck:app
+      - run: node --import tsx --test src/lib/chatImageGeneration.test.ts
