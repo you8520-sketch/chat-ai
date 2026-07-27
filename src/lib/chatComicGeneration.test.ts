@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  CHAT_COMIC_IMAGE_OUTPUT_SIZE,
   CHAT_COMIC_MAX_INPUT_CHARS,
   buildChatComicImagePrompt,
   buildChatComicPlannerPrompt,
@@ -11,13 +12,17 @@ import {
 } from "./chatComicGeneration";
 
 describe("chatComicGeneration", () => {
-  it("accepts only 2-4 panels and caps source text at 500 characters", () => {
+  it("accepts only 2-4 panels and caps source text at 800 characters", () => {
     const source = "가".repeat(CHAT_COMIC_MAX_INPUT_CHARS + 30);
     assert.deepEqual(sanitizeChatComicOptions({ panelCount: 7, mood: "wrong", sourceText: source }), {
       panelCount: 4,
       mood: "comic",
       sourceText: "가".repeat(CHAT_COMIC_MAX_INPUT_CHARS),
     });
+  });
+
+  it("uses the near-1000x1400 portrait output size accepted by OpenAI", () => {
+    assert.equal(CHAT_COMIC_IMAGE_OUTPUT_SIZE, "1008x1408");
   });
 
   it("uses low-cost fixed pricing per panel count with env overrides", () => {

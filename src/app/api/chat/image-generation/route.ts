@@ -9,6 +9,7 @@ import {
   CHAT_IMAGE_TEMPLATE_ID,
   CHAT_IMAGE_TEMPLATE_NAME,
   CHAT_IMAGE_TEMPLATE_PREVIEW_URL,
+  CHAT_IMAGE_GENERATION_OUTPUT_SIZE,
   buildChatImageGenerationPrompt,
   resolveChatImageGenerationModel,
   resolveChatImageGenerationPrice,
@@ -33,11 +34,14 @@ import {
   personaImageBaseUrl,
   sanitizePersonaImageUrl,
 } from "@/lib/userPersonasClient";
+import {
+  OpenAiImageError,
+  callOpenAiImageEdit,
+} from "@/lib/openAiImageEdit";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-const OPENROUTER_IMAGES_URL = "https://openrouter.ai/api/v1/images";
 const MAX_REFERENCE_BYTES = 12 * 1024 * 1024;
 const TEMPLATE_FILE = path.join(
   process.cwd(),
@@ -273,76 +277,24 @@ async function imageSourceToDataUrl(source: string): Promise<string> {
   }
 }
 
-function upstreamErrorMessage(data: unknown): string {
-  if (!data || typeof data !== "object") return "이미지 생성 요청에 실패했습니다.";
-  const error = (data as { error?: unknown }).error;
-  if (typeof error === "string" && error.trim()) return error.slice(0, 240);
-  if (error && typeof error === "object") {
-    const message = (error as { message?: unknown }).message;
-    if (typeof message === "string" && message.trim()) return message.slice(0, 240);
-  }
-  return "이미지 생성 요청에 실패했습니다.";
-}
-
-async function callOpenRouterImage(opts: {
+async function callOpenAiImage(opts: {
   model: string;
   prompt: string;
   references: string[];
 }): Promise<{ buffer: Buffer; costUsd: number | null }> {
-  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
-  if (!apiKey) throw new RequestError("OpenRouter API 키가 설정되지 않았습니다.", 503);
-
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 285_000);
   try {
-    const headers: Record<string, string> = {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      "X-Title": "Habi Chat SD Image Generator",
-    };
-    const referer =
-      process.env.NEXT_PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim();
-    if (referer) headers["HTTP-Referer"] = referer;
-
-    const response = await fetch(OPENROUTER_IMAGES_URL, {
-      method: "POST",
-      headers,
+    const generated = await callOpenAiImageEdit({
+      model: opts.model,
+      prompt: opts.prompt,
+      references: opts.references,
+      size: CHAT_IMAGE_GENERATION_OUTPUT_SIZE,
+      quality: "high",
+      outputCompression: 88,
       signal: controller.signal,
-      body: JSON.stringify({
-        model: opts.model,
-        prompt: opts.prompt,
-        n: 1,
-        quality: "high",
-        aspect_ratio: "4:3",
-        background: "opaque",
-        output_format: "webp",
-        output_compression: 88,
-        input_references: opts.references.map((url) => ({
-          type: "image_url",
-          image_url: { url },
-        })),
-      }),
     });
-
-    const text = await response.text();
-    let data: unknown = null;
-    try {
-      data = text ? JSON.parse(text) : null;
-    } catch {
-      data = null;
-    }
-    if (!response.ok) {
-      throw new RequestError(upstreamErrorMessage(data), response.status >= 500 ? 502 : 400);
-    }
-
-    const image = (data as { data?: Array<{ b64_json?: string; media_type?: string }> })
-      ?.data?.[0];
-    const encoded = image?.b64_json?.replace(/^data:[^;]+;base64,/, "");
-    if (!encoded) throw new RequestError("생성된 이미지 데이터가 비어 있습니다.", 502);
-
-    let output = Buffer.from(encoded, "base64");
-    if (!output.length) throw new RequestError("생성된 이미지 데이터가 비어 있습니다.", 502);
+    let output = generated.buffer;
 
     try {
       const metadata = await sharp(output, { failOn: "none" }).metadata();
@@ -359,18 +311,19 @@ async function callOpenRouterImage(opts: {
       throw new RequestError("생성된 이미지 형식이 올바르지 않습니다.", 502);
     }
 
-    const rawCost = (data as { usage?: { cost?: unknown } })?.usage?.cost;
-    const parsedCost = Number(rawCost);
     return {
       buffer: output,
-      costUsd: Number.isFinite(parsedCost) && parsedCost >= 0 ? parsedCost : null,
+      costUsd: generated.costUsd,
     };
   } catch (error) {
     if (error instanceof RequestError) throw error;
+    if (error instanceof OpenAiImageError) {
+      throw new RequestError(error.message, error.status);
+    }
     if (error instanceof Error && error.name === "AbortError") {
       throw new RequestError("이미지 생성 시간이 초과되었습니다. 다시 시도해 주세요.", 504);
     }
-    throw new RequestError("OpenRouter 이미지 생성 중 오류가 발생했습니다.", 502);
+    throw new RequestError("OpenAI 이미지 생성 중 오류가 발생했습니다.", 502);
   } finally {
     clearTimeout(timer);
   }
@@ -511,7 +464,7 @@ export async function POST(req: Request) {
     ]);
 
     const model = resolveChatImageGenerationModel();
-    const generated = await callOpenRouterImage({
+    const generated = await callOpenAiImage({
       model,
       prompt,
       references: [templateReference, topReference, bottomReference],

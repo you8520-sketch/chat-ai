@@ -7,6 +7,7 @@ import sharp from "sharp";
 import { getSessionUser } from "@/lib/auth";
 import {
   CHAT_COMIC_MAX_INPUT_CHARS,
+  CHAT_COMIC_IMAGE_OUTPUT_SIZE,
   CHAT_COMIC_TEMPLATE_ID,
   CHAT_COMIC_TEMPLATE_NAME,
   CHAT_COMIC_TEMPLATE_PREVIEW_URL,
@@ -37,12 +38,15 @@ import {
   personaImageBaseUrl,
   sanitizePersonaImageUrl,
 } from "@/lib/userPersonasClient";
+import {
+  OpenAiImageError,
+  callOpenAiImageEdit,
+} from "@/lib/openAiImageEdit";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
 const OPENROUTER_CHAT_URL = "https://openrouter.ai/api/v1/chat/completions";
-const OPENROUTER_IMAGES_URL = "https://openrouter.ai/api/v1/images";
 const MAX_REFERENCE_BYTES = 12 * 1024 * 1024;
 
 type CharacterRow = {
@@ -347,39 +351,16 @@ async function generateComicImage(opts: {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 285_000);
   try {
-    const response = await fetch(OPENROUTER_IMAGES_URL, {
-      method: "POST",
-      headers: openRouterHeaders("Habi 2-4 Panel Comic Generator"),
+    const generated = await callOpenAiImageEdit({
+      model: opts.model,
+      prompt: opts.prompt,
+      references: opts.references,
+      size: CHAT_COMIC_IMAGE_OUTPUT_SIZE,
+      quality: "medium",
+      outputCompression: 84,
       signal: controller.signal,
-      body: JSON.stringify({
-        model: opts.model,
-        prompt: opts.prompt,
-        n: 1,
-        quality: "medium",
-        aspect_ratio: "3:4",
-        background: "opaque",
-        output_format: "webp",
-        output_compression: 84,
-        input_references: opts.references.map((url) => ({
-          type: "image_url",
-          image_url: { url },
-        })),
-      }),
     });
-    const text = await response.text();
-    let data: unknown = null;
-    try {
-      data = text ? JSON.parse(text) : null;
-    } catch {
-      data = null;
-    }
-    if (!response.ok) {
-      throw new RequestError(upstreamMessage(data, "컷만화 이미지 생성에 실패했습니다."), 502);
-    }
-    const encoded = (data as { data?: Array<{ b64_json?: string }> })?.data?.[0]?.b64_json
-      ?.replace(/^data:[^;]+;base64,/, "");
-    if (!encoded) throw new RequestError("생성된 이미지 데이터가 비어 있습니다.", 502);
-    let output = Buffer.from(encoded, "base64");
+    let output = generated.buffer;
     const metadata = await sharp(output, { failOn: "none" }).metadata();
     if (!metadata.width || !metadata.height) {
       throw new RequestError("생성된 이미지 형식이 올바르지 않습니다.", 502);
@@ -390,17 +371,19 @@ async function generateComicImage(opts: {
         .webp({ quality: 90, effort: 4 })
         .toBuffer();
     }
-    const rawCost = Number((data as { usage?: { cost?: unknown } })?.usage?.cost);
     return {
       buffer: output,
-      costUsd: Number.isFinite(rawCost) && rawCost >= 0 ? rawCost : null,
+      costUsd: generated.costUsd,
     };
   } catch (error) {
     if (error instanceof RequestError) throw error;
+    if (error instanceof OpenAiImageError) {
+      throw new RequestError(error.message, error.status);
+    }
     if (error instanceof Error && error.name === "AbortError") {
       throw new RequestError("컷만화 생성 시간이 초과되었습니다. 다시 시도해 주세요.", 504);
     }
-    throw new RequestError("컷만화 이미지 생성 중 오류가 발생했습니다.", 502);
+    throw new RequestError("OpenAI 컷만화 이미지 생성 중 오류가 발생했습니다.", 502);
   } finally {
     clearTimeout(timer);
   }

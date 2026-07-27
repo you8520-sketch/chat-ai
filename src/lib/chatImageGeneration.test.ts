@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  CHAT_IMAGE_GENERATION_OUTPUT_SIZE,
   buildChatImageGenerationPrompt,
   resolveChatImageGenerationPrice,
   resolveChatImageReferenceOrder,
@@ -9,6 +10,10 @@ import {
 } from "./chatImageGeneration";
 
 describe("chatImageGeneration", () => {
+  it("uses the exact 1200x800 SD output size", () => {
+    assert.equal(CHAT_IMAGE_GENERATION_OUTPUT_SIZE, "1200x800");
+  });
+
   it("fails closed to the fixed preset defaults", () => {
     assert.deepEqual(
       sanitizeChatImageGenerationOptions({
