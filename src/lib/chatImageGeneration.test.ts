@@ -56,15 +56,15 @@ describe("chatImageGeneration", () => {
     assert.match(prompt, /Do not blend the two identities/);
   });
 
-  it("uses a premium fixed price with a safe env override", () => {
-    assert.equal(resolveChatImageGenerationPrice({} as NodeJS.ProcessEnv), 900);
+  it("uses the budget 350P fixed price with a safe env override", () => {
+    assert.equal(resolveChatImageGenerationPrice({} as NodeJS.ProcessEnv), 350);
     assert.equal(
-      resolveChatImageGenerationPrice({ CHAT_IMAGE_GENERATION_POINTS: "750.1" } as NodeJS.ProcessEnv),
-      751
+      resolveChatImageGenerationPrice({ CHAT_IMAGE_GENERATION_POINTS: "399.1" } as NodeJS.ProcessEnv),
+      400
     );
     assert.equal(
       resolveChatImageGenerationPrice({ CHAT_IMAGE_GENERATION_POINTS: "nope" } as NodeJS.ProcessEnv),
-      900
+      350
     );
   });
 });
