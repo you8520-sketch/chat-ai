@@ -24,7 +24,7 @@
     ],
     "paths": {
       "@/lib/points": [
-        "./src/lib/pointsMuse60"
+        "./src/lib/pointsReasoningMargins"
       ],
       "@/*": [
         "./src/*"
