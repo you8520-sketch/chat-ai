@@ -50,7 +50,7 @@ import {
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-const OPENROUTER_CHAT_URL = "https://openrouter.ai/api/v1/chat/completions";
+const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
 const MAX_REFERENCE_BYTES = 12 * 1024 * 1024;
 
 type CharacterRow = {
@@ -260,18 +260,14 @@ async function imageSourceToDataUrl(source: string): Promise<string> {
   }
 }
 
-function openRouterHeaders(title: string): Record<string, string> {
-  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
-  if (!apiKey) throw new RequestError("OpenRouter API 키가 설정되지 않았습니다.", 503);
-  const headers: Record<string, string> = {
+function openAiHeaders(): Record<string, string> {
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!apiKey) throw new RequestError("OpenAI API 키가 설정되지 않았습니다.", 503);
+  return {
     Authorization: `Bearer ${apiKey}`,
     "Content-Type": "application/json",
     Accept: "application/json",
-    "X-Title": title,
   };
-  const referer = process.env.NEXT_PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim();
-  if (referer) headers["HTTP-Referer"] = referer;
-  return headers;
 }
 
 function upstreamMessage(data: unknown, fallback: string): string {
@@ -293,6 +289,24 @@ function stripJsonFence(raw: string): string {
     .trim();
 }
 
+function plannerCostUsd(
+  model: string,
+  usage: { prompt_tokens?: unknown; completion_tokens?: unknown } | null | undefined
+): number | null {
+  if (model !== "gpt-4o-mini" || !usage) return null;
+  const promptTokens = Number(usage.prompt_tokens);
+  const completionTokens = Number(usage.completion_tokens);
+  if (
+    !Number.isFinite(promptTokens) ||
+    promptTokens < 0 ||
+    !Number.isFinite(completionTokens) ||
+    completionTokens < 0
+  ) {
+    return null;
+  }
+  return promptTokens * 0.00000015 + completionTokens * 0.0000006;
+}
+
 async function planComic(opts: {
   characterName: string;
   personaName: string;
@@ -304,14 +318,15 @@ async function planComic(opts: {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 60_000);
   try {
-    const response = await fetch(OPENROUTER_CHAT_URL, {
+    const response = await fetch(OPENAI_CHAT_URL, {
       method: "POST",
-      headers: openRouterHeaders("Habi Comic Storyboard Planner"),
+      headers: openAiHeaders(),
       signal: controller.signal,
       body: JSON.stringify({
         model,
         temperature: 0.2,
         max_tokens: 1800,
+        response_format: { type: "json_object" },
         messages: [
           {
             role: "user",
@@ -341,10 +356,15 @@ async function planComic(opts: {
     } catch {
       throw new RequestError("컷 구성 응답을 해석하지 못했습니다.", 502);
     }
-    const rawCost = Number((data as { usage?: { cost?: unknown } })?.usage?.cost);
+    const costUsd = plannerCostUsd(
+      model,
+      (data as {
+        usage?: { prompt_tokens?: unknown; completion_tokens?: unknown };
+      })?.usage
+    );
     return {
       plan: sanitizeChatComicPlan(parsed, opts.panelCount),
-      costUsd: Number.isFinite(rawCost) && rawCost >= 0 ? rawCost : null,
+      costUsd,
       model,
     };
   } catch (error) {

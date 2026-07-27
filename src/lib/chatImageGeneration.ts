@@ -4,7 +4,7 @@ export const CHAT_IMAGE_TEMPLATE_PREVIEW_URL =
   "/image-templates/sd-gift-box-duo.webp";
 
 export const CHAT_IMAGE_GENERATION_DEFAULT_MODEL = "gpt-image-2";
-export const CHAT_IMAGE_GENERATION_DEFAULT_POINTS = 350;
+export const CHAT_IMAGE_GENERATION_DEFAULT_POINTS = 200;
 export const CHAT_IMAGE_GENERATION_OUTPUT_WIDTH = 1008;
 export const CHAT_IMAGE_GENERATION_OUTPUT_HEIGHT = 672;
 export const CHAT_IMAGE_GENERATION_OUTPUT_SIZE =
@@ -153,11 +153,9 @@ export function buildChatImageGenerationPrompt(opts: {
 }
 
 export function resolveChatImageGenerationPrice(
-  env: NodeJS.ProcessEnv = process.env
+  _env: NodeJS.ProcessEnv = process.env
 ): number {
-  const raw = Number(env.CHAT_IMAGE_GENERATION_POINTS);
-  if (!Number.isFinite(raw) || raw < 1) return CHAT_IMAGE_GENERATION_DEFAULT_POINTS;
-  return Math.ceil(raw);
+  return CHAT_IMAGE_GENERATION_DEFAULT_POINTS;
 }
 
 export function resolveChatImageGenerationModel(

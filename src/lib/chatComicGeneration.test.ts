@@ -6,6 +6,7 @@ import {
   CHAT_COMIC_MAX_INPUT_CHARS,
   buildChatComicImagePrompt,
   buildChatComicPlannerPrompt,
+  resolveChatComicPlannerModel,
   resolveChatComicPrice,
   sanitizeChatComicOptions,
   sanitizeChatComicPlan,
@@ -23,6 +24,23 @@ describe("chatComicGeneration", () => {
 
   it("uses the near-1000x1400 portrait output size accepted by OpenAI", () => {
     assert.equal(CHAT_COMIC_IMAGE_OUTPUT_SIZE, "1008x1408");
+  });
+
+  it("uses an OpenAI-direct planner and ignores the old OpenRouter setting", () => {
+    assert.equal(resolveChatComicPlannerModel({} as NodeJS.ProcessEnv), "gpt-4o-mini");
+    assert.equal(
+      resolveChatComicPlannerModel({
+        OPENAI_COMIC_PLANNER_MODEL: "gpt-4.1-mini",
+        OPENROUTER_COMIC_PLANNER_MODEL: "google/gemini-2.5-flash-lite",
+      } as NodeJS.ProcessEnv),
+      "gpt-4.1-mini"
+    );
+    assert.equal(
+      resolveChatComicPlannerModel({
+        OPENROUTER_COMIC_PLANNER_MODEL: "google/gemini-2.5-flash-lite",
+      } as NodeJS.ProcessEnv),
+      "gpt-4o-mini"
+    );
   });
 
   it("uses low-cost fixed pricing per panel count with env overrides", () => {

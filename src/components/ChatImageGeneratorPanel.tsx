@@ -13,6 +13,7 @@ import {
 } from "@/lib/chatComicGeneration";
 import {
   CHAT_IMAGE_EXPRESSIONS,
+  CHAT_IMAGE_GENERATION_DEFAULT_POINTS,
   CHAT_IMAGE_GENERATION_DEFAULT_OPTIONS,
   CHAT_IMAGE_MOODS,
   CHAT_IMAGE_PLACEMENTS,
@@ -687,7 +688,7 @@ export default function ChatImageGeneratorPanel() {
                         </label>
                         <PriceBox
                           label="SD 1장 생성"
-                          price={info?.pricePoints ?? 350}
+                          price={info?.pricePoints ?? CHAT_IMAGE_GENERATION_DEFAULT_POINTS}
                           balance={info?.balance}
                         />
                         <button
@@ -704,8 +705,8 @@ export default function ChatImageGeneratorPanel() {
                           {generating
                             ? "SD 이미지 생성 중…"
                             : sdResultUrl
-                              ? `다시 생성 · ${(info?.pricePoints ?? 350).toLocaleString()}P`
-                              : `SD 이미지 생성 · ${(info?.pricePoints ?? 350).toLocaleString()}P`}
+                              ? `다시 생성 · ${(info?.pricePoints ?? CHAT_IMAGE_GENERATION_DEFAULT_POINTS).toLocaleString()}P`
+                              : `SD 이미지 생성 · ${(info?.pricePoints ?? CHAT_IMAGE_GENERATION_DEFAULT_POINTS).toLocaleString()}P`}
                         </button>
                       </>
                     ) : (
