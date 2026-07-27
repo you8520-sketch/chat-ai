@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
 import { usePathname } from "next/navigation";
 import { isChatRoomPathname } from "@/lib/chatDisplayPrefs";
 
@@ -9,7 +9,8 @@ export default function ChatRoomDocumentClass() {
   const pathname = usePathname();
   const inChatRoom = isChatRoomPathname(pathname);
 
-  useEffect(() => {
+  // useLayoutEffect: apply before paint so chat chrome does not flash then vanish.
+  useLayoutEffect(() => {
     const root = document.documentElement;
     const isCharacterIntroEmbed =
       /^\/character\/\d+/.test(pathname) &&

@@ -389,7 +389,7 @@ html.chat-room-active .mobile-bottom-nav {
   display: none;
 }
 
-@media (min-width: 768px) {
+@media (min-width: 576px) {
   html.chat-room-active .app-shell {
     max-width: none;
     padding-top: 0;
@@ -401,7 +401,7 @@ html.chat-room-active .mobile-bottom-nav {
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 575px) {
   html.chat-room-active .app-shell {
     max-width: none;
     gap: 0;
