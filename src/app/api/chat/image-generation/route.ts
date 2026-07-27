@@ -96,7 +96,11 @@ function positiveInt(raw: unknown): number | null {
   return Number.isInteger(value) && value > 0 ? value : null;
 }
 
-function canSelectTestQuality(user: { id: number; email: string }): boolean {
+function canSelectTestQuality(
+  user: { id: number; email: string },
+  context: GenerationContext
+): boolean {
+  if (context.character.creator_id === user.id) return true;
   const row = getDb()
     .prepare("SELECT is_admin FROM users WHERE id=?")
     .get(user.id) as { is_admin: number } | undefined;
@@ -401,7 +405,7 @@ export async function GET(req: Request) {
       | undefined;
     return NextResponse.json({
       ...publicContextResponse(context),
-      canSelectQuality: canSelectTestQuality(user),
+      canSelectQuality: canSelectTestQuality(user, context),
       balance: getPointBalance(user.id),
       latestResult: latest
         ? {
@@ -425,16 +429,16 @@ export async function POST(req: Request) {
   let savedPath: string | null = null;
   try {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-    const quality = resolveChatImageGenerationQuality(
-      body.quality,
-      canSelectTestQuality(user)
-    );
     const context = resolveGenerationContext({
       userId: user.id,
       characterId: positiveInt(body.characterId),
       chatId: positiveInt(body.chatId),
       personaId: positiveInt(body.personaId),
     });
+    const quality = resolveChatImageGenerationQuality(
+      body.quality,
+      canSelectTestQuality(user, context)
+    );
     const state = readiness(context);
     if (!state.ready || !context.persona) {
       throw new RequestError(`${state.missing.join(", ")}가 필요합니다.`);
