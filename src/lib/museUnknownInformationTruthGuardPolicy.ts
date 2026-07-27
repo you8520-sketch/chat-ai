@@ -10,7 +10,7 @@
  *   AND optional MUSE_UNKNOWN_INFO_TRUTH_GUARD_MODEL_IDS, when set, contains the
  *       exact canonical ID (no substring / alias match).
  *
- * Independent of PROSE_MUSE_M1 / PROSE_MUSE_M11 gates.
+ * Independent of PROSE_MUSE_M1 gates.
  * No public rollout path.
  */
 
@@ -78,27 +78,10 @@ export function isMuseUnknownInformationTruthGuardEnabledForUser(
   return models.includes(id);
 }
 
-const ENV_INTRA_WORLD_ENABLED = "MUSE_INTRAWORLD_PROVENANCE_GUARD_ENABLED";
-
 export const MUSE_UNKNOWN_INFO_TRUTH_GUARD_ENV = {
   ENABLED: ENV_ENABLED,
   USER_IDS: ENV_USER_IDS,
   MODEL_IDS: ENV_MODEL_IDS,
-  INTRA_WORLD_ENABLED: ENV_INTRA_WORLD_ENABLED,
 };
-
-/**
- * Admin-only Muse intra-world provenance guard.
- * Reuses the existing Unknown Information Truth Guard user/model allowlists,
- * and additionally requires MUSE_INTRAWORLD_PROVENANCE_GUARD_ENABLED=1.
- * Fail-closed: OFF if the base Truth Guard is OFF.
- */
-export function isMuseIntraWorldProvenanceGuardEnabledForUser(
-  userId: number | null | undefined,
-  modelId?: string | null | undefined
-): boolean {
-  if (!isMuseUnknownInformationTruthGuardEnabledForUser(userId, modelId)) return false;
-  return isTruthyEnvFlag(process.env[ENV_INTRA_WORLD_ENABLED]);
-}
 
 export { MUSE_SPARK_MODEL_ID, isMuseSparkModel };
