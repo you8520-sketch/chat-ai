@@ -32,6 +32,8 @@ export function buildGenerationContextJson(input: GenerationContextInput): strin
   if (input.speechProfileCharName) ctx.speechProfile = input.speechProfileCharName;
   if (input.regenerate) ctx.regenerate = true;
   if (input.variantIndex != null) ctx.variantIndex = input.variantIndex;
+  if (input.personaId != null) ctx.personaId = input.personaId;
+  if (input.museAcceptance) ctx.museAcceptance = input.museAcceptance;
   const auditSummary = summarizePromptAudit(input.promptAudit);
   if (auditSummary) ctx.promptAudit = auditSummary;
   return JSON.stringify(ctx);

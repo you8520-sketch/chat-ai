@@ -89,4 +89,9 @@ export type Usage = {
   effectiveMaxTokens?: number;
   /** Target response chars for the turn (smoke observability). */
   targetResponseChars?: number;
+  /**
+   * Muse-only local acceptance telemetry (1-pass). Not used for billing or
+   * auto-continuation. Stripped from public receipts.
+   */
+  museAcceptance?: Record<string, unknown>;
 };
