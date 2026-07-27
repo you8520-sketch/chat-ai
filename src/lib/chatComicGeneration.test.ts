@@ -50,10 +50,10 @@ describe("chatComicGeneration", () => {
     );
   });
 
-  it("charges 220P regardless of the automatically selected panel count", () => {
-    assert.equal(resolveChatComicPrice(2, {} as NodeJS.ProcessEnv), 220);
-    assert.equal(resolveChatComicPrice(3, {} as NodeJS.ProcessEnv), 220);
-    assert.equal(resolveChatComicPrice(4, {} as NodeJS.ProcessEnv), 220);
+  it("charges 230P regardless of the automatically selected panel count", () => {
+    assert.equal(resolveChatComicPrice(2, {} as NodeJS.ProcessEnv), 230);
+    assert.equal(resolveChatComicPrice(3, {} as NodeJS.ProcessEnv), 230);
+    assert.equal(resolveChatComicPrice(4, {} as NodeJS.ProcessEnv), 230);
     assert.equal(
       resolveChatComicPrice(4, { CHAT_COMIC_GENERATION_POINTS: "229.1" } as NodeJS.ProcessEnv),
       230

@@ -21,7 +21,7 @@ type Album = Omit<StoredCharacterAssetAlbum, "assets"> & {
 type GeneratedAlbumEntry = {
   id: number;
   imageUrl: string;
-  mode: "sd" | "comic";
+  mode: "sd" | "emoticon" | "couple_stamp" | "comic" | "illustration";
   createdAt: string;
 };
 
@@ -110,7 +110,16 @@ export default function ChatAssetAlbumModal({
         setGeneratedAssets(
           rows.map((item) => ({
             url: item.imageUrl,
-            tag: item.mode === "comic" ? "AI 컷만화" : "AI SD 굿즈",
+            tag:
+              item.mode === "comic"
+                ? "AI 컷만화"
+                : item.mode === "illustration"
+                  ? "AI LD 일러스트"
+                : item.mode === "emoticon"
+                  ? "AI 이모티콘"
+                  : item.mode === "couple_stamp"
+                    ? "AI 커플 인장"
+                    : "AI SD 이미지",
             generated: true,
           }))
         );

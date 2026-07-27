@@ -10,10 +10,16 @@ on:
       - "src/components/ChatImageGeneratorPanel.tsx"
       - "src/components/ChatImageGeneratorRailButton.tsx"
       - "src/components/ChatRoomDisplayQuickRail.tsx"
+      - "src/components/MessageBubbleToolbar.tsx"
+      - "src/components/ChatToolbarIcons.tsx"
       - "src/lib/chatImageGeneration.ts"
       - "src/lib/chatImageGeneration.test.ts"
       - "src/lib/chatComicGeneration.ts"
       - "src/lib/chatComicGeneration.test.ts"
+      - "src/lib/chatCoupleStampGeneration.ts"
+      - "src/lib/chatCoupleStampGeneration.test.ts"
+      - "src/lib/chatLdIllustrationGeneration.ts"
+      - "src/lib/chatLdIllustrationGeneration.test.ts"
       - "src/lib/chatEmoticonGeneration.ts"
       - "src/lib/chatEmoticonGeneration.test.ts"
       - "public/image-templates/**"
@@ -36,4 +42,6 @@ jobs:
       - run: npm run typecheck:app
       - run: node --import tsx --test src/lib/chatImageGeneration.test.ts
       - run: node --import tsx --test src/lib/chatComicGeneration.test.ts
+      - run: node --import tsx --test src/lib/chatCoupleStampGeneration.test.ts
+      - run: node --import tsx --test src/lib/chatLdIllustrationGeneration.test.ts
       - run: node --import tsx --test src/lib/chatEmoticonGeneration.test.ts

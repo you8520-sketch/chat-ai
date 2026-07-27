@@ -10,6 +10,17 @@ import {
   type ChatComicPanelCount,
 } from "@/lib/chatComicGeneration";
 import {
+  CHAT_COUPLE_STAMP_API_OUTPUT_SIZE,
+  CHAT_COUPLE_STAMP_OUTPUT_HEIGHT,
+  CHAT_COUPLE_STAMP_OUTPUT_WIDTH,
+  CHAT_COUPLE_STAMP_QUALITY,
+  CHAT_COUPLE_STAMP_TEMPLATE_ID,
+  CHAT_COUPLE_STAMP_TEMPLATE_NAME,
+  CHAT_COUPLE_STAMP_TEMPLATE_PREVIEW_URL,
+  buildChatCoupleStampPrompt,
+  resolveChatCoupleStampPrice,
+} from "@/lib/chatCoupleStampGeneration";
+import {
   CHAT_EMOTICON_API_OUTPUT_SIZE,
   CHAT_EMOTICON_OUTPUT_HEIGHT,
   CHAT_EMOTICON_OUTPUT_WIDTH,
@@ -41,6 +52,7 @@ import {
   resolveChatImageReferenceOrder,
   sanitizeChatImageGenerationOptions,
 } from "@/lib/chatImageGeneration";
+import { CHAT_LD_ILLUSTRATION_TEMPLATE_ID } from "@/lib/chatLdIllustrationGeneration";
 import { getDb } from "@/lib/db";
 import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
 import { saveGeneratedImageToCharacterAlbum } from "@/lib/chatImageAlbum";
@@ -451,7 +463,7 @@ export async function GET(req: Request) {
         }
       | undefined;
     let latestOptions: {
-      mode?: "sd" | "emoticon" | "comic";
+      mode?: "sd" | "emoticon" | "couple_stamp" | "comic" | "illustration";
       title?: string;
       panelCount?: ChatComicPanelCount;
     } = {};
@@ -462,15 +474,27 @@ export async function GET(req: Request) {
         latestOptions = {};
       }
     }
-    const latestMode: "sd" | "emoticon" | "comic" =
+    const latestMode:
+      | "sd"
+      | "emoticon"
+      | "couple_stamp"
+      | "comic"
+      | "illustration" =
       latest?.template_id === CHAT_COMIC_TEMPLATE_ID || latestOptions.mode === "comic"
         ? "comic"
+        : latest?.template_id === CHAT_LD_ILLUSTRATION_TEMPLATE_ID ||
+            latestOptions.mode === "illustration"
+          ? "illustration"
+        : latest?.template_id === CHAT_COUPLE_STAMP_TEMPLATE_ID ||
+            latestOptions.mode === "couple_stamp"
+          ? "couple_stamp"
         : latest?.template_id === CHAT_EMOTICON_TEMPLATE_ID ||
             latestOptions.mode === "emoticon"
           ? "emoticon"
           : "sd";
     const canSeeCost = isAdminUser(user as typeof user & { is_admin?: number });
     const exchangeRateKrwPerUsd = getEffectiveKrwPerUsd();
+    const currentImageModel = resolveChatImageGenerationModel();
     const upstreamCostUsd =
       latest?.upstream_cost_usd != null &&
       latest.upstream_cost_usd > 0 &&
@@ -491,13 +515,25 @@ export async function GET(req: Request) {
              FROM chat_image_generations
              WHERE upstream_cost_usd IS NOT NULL
                AND upstream_cost_usd > 0
-               AND template_id IN (?, ?, ?)
+               AND model = ?
+               AND (
+                 template_id = ?
+                 OR (
+                   json_valid(options_json)
+                   AND json_extract(options_json, '$.quality') = 'medium'
+                 )
+               )
+               AND template_id IN (?, ?, ?, ?, ?)
              GROUP BY template_id, panel_count`
           )
           .all(
             CHAT_COMIC_TEMPLATE_ID,
+            currentImageModel,
+            CHAT_COMIC_TEMPLATE_ID,
             CHAT_IMAGE_TEMPLATE_ID,
             CHAT_EMOTICON_TEMPLATE_ID,
+            CHAT_COUPLE_STAMP_TEMPLATE_ID,
+            CHAT_LD_ILLUSTRATION_TEMPLATE_ID,
             CHAT_COMIC_TEMPLATE_ID
           ) as Array<{
           template_id: string;
@@ -531,6 +567,8 @@ export async function GET(req: Request) {
             exchangeRateKrwPerUsd,
             sd: averageCost(CHAT_IMAGE_TEMPLATE_ID),
             emoticon: averageCost(CHAT_EMOTICON_TEMPLATE_ID),
+            coupleStamp: averageCost(CHAT_COUPLE_STAMP_TEMPLATE_ID),
+            illustration: averageCost(CHAT_LD_ILLUSTRATION_TEMPLATE_ID),
             comic: {
               2: averageCost(CHAT_COMIC_TEMPLATE_ID, 2),
               3: averageCost(CHAT_COMIC_TEMPLATE_ID, 3),
@@ -576,23 +614,32 @@ export async function POST(req: Request) {
       requestedCharacterImageUrl: body.characterImageUrl,
     });
     const isEmoticon = body.templateId === CHAT_EMOTICON_TEMPLATE_ID;
-    const templateId = isEmoticon
-      ? CHAT_EMOTICON_TEMPLATE_ID
-      : CHAT_IMAGE_TEMPLATE_ID;
-    const templateName = isEmoticon
-      ? CHAT_EMOTICON_TEMPLATE_NAME
-      : CHAT_IMAGE_TEMPLATE_NAME;
-    const quality = isEmoticon
-      ? CHAT_EMOTICON_QUALITY
-      : CHAT_IMAGE_GENERATION_QUALITY;
+    const isCoupleStamp = body.templateId === CHAT_COUPLE_STAMP_TEMPLATE_ID;
+    const templateId = isCoupleStamp
+      ? CHAT_COUPLE_STAMP_TEMPLATE_ID
+      : isEmoticon
+        ? CHAT_EMOTICON_TEMPLATE_ID
+        : CHAT_IMAGE_TEMPLATE_ID;
+    const templateName = isCoupleStamp
+      ? CHAT_COUPLE_STAMP_TEMPLATE_NAME
+      : isEmoticon
+        ? CHAT_EMOTICON_TEMPLATE_NAME
+        : CHAT_IMAGE_TEMPLATE_NAME;
+    const quality = isCoupleStamp
+      ? CHAT_COUPLE_STAMP_QUALITY
+      : isEmoticon
+        ? CHAT_EMOTICON_QUALITY
+        : CHAT_IMAGE_GENERATION_QUALITY;
     const state = readiness(context);
     if (!state.ready || !context.persona) {
       throw new RequestError(`${state.missing.join(", ")}가 필요합니다.`);
     }
 
-    const pricePoints = isEmoticon
-      ? resolveChatEmoticonPrice()
-      : resolveChatImageGenerationPrice();
+    const pricePoints = isCoupleStamp
+      ? resolveChatCoupleStampPrice()
+      : isEmoticon
+        ? resolveChatEmoticonPrice()
+        : resolveChatImageGenerationPrice();
     const balanceBefore = getPointBalance(user.id);
     if (balanceBefore.total < pricePoints) {
       return NextResponse.json(
@@ -608,7 +655,21 @@ export async function POST(req: Request) {
     let prompt: string;
     let referenceSources: string[];
     let generationOptions: Record<string, unknown>;
-    if (isEmoticon) {
+    if (isCoupleStamp) {
+      prompt = buildChatCoupleStampPrompt({
+        characterName: context.character.name,
+        personaName: context.persona.name,
+      });
+      referenceSources = [
+        CHAT_COUPLE_STAMP_TEMPLATE_PREVIEW_URL,
+        context.characterImageUrl,
+        context.personaImageUrl,
+      ];
+      generationOptions = {
+        mode: "couple_stamp",
+        quality,
+      };
+    } else if (isEmoticon) {
       const scenes = selectRandomChatEmoticonScenes();
       prompt = buildChatEmoticonPrompt({
         characterName: context.character.name,
@@ -667,18 +728,26 @@ export async function POST(req: Request) {
       references,
       requestSize: isEmoticon
         ? CHAT_EMOTICON_API_OUTPUT_SIZE
-        : CHAT_IMAGE_GENERATION_OUTPUT_SIZE,
+        : isCoupleStamp
+          ? CHAT_COUPLE_STAMP_API_OUTPUT_SIZE
+          : CHAT_IMAGE_GENERATION_OUTPUT_SIZE,
       outputWidth: isEmoticon
         ? CHAT_EMOTICON_OUTPUT_WIDTH
-        : CHAT_IMAGE_GENERATION_OUTPUT_WIDTH,
+        : isCoupleStamp
+          ? CHAT_COUPLE_STAMP_OUTPUT_WIDTH
+          : CHAT_IMAGE_GENERATION_OUTPUT_WIDTH,
       outputHeight: isEmoticon
         ? CHAT_EMOTICON_OUTPUT_HEIGHT
-        : CHAT_IMAGE_GENERATION_OUTPUT_HEIGHT,
+        : isCoupleStamp
+          ? CHAT_COUPLE_STAMP_OUTPUT_HEIGHT
+          : CHAT_IMAGE_GENERATION_OUTPUT_HEIGHT,
       quality,
     });
 
     await fs.mkdir(uploadsDataDir(), { recursive: true });
-    const filename = `${isEmoticon ? "ai-emoticon" : "ai-sd"}-${crypto.randomUUID()}.webp`;
+    const filename = `${
+      isCoupleStamp ? "ai-couple-stamp" : isEmoticon ? "ai-emoticon" : "ai-sd"
+    }-${crypto.randomUUID()}.webp`;
     savedPath = path.join(uploadsDataDir(), filename);
     await fs.writeFile(savedPath, generated.buffer);
     const resultUrl = uploadPublicUrl(filename);
@@ -738,7 +807,7 @@ export async function POST(req: Request) {
         chatId: context.chatId,
         generationId,
         imageUrl: resultUrl,
-        mode: isEmoticon ? "emoticon" : "sd",
+        mode: isCoupleStamp ? "couple_stamp" : isEmoticon ? "emoticon" : "sd",
       });
       savedToCharacterAlbum = true;
     } catch (error) {
@@ -765,7 +834,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       ok: true,
-      mode: isEmoticon ? "emoticon" : "sd",
+      mode: isCoupleStamp ? "couple_stamp" : isEmoticon ? "emoticon" : "sd",
       imageUrl: resultUrl,
       templateId,
       modelId: model,

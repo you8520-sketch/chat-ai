@@ -25,6 +25,13 @@ import {
   type ChatComicPanelCount,
   type ChatComicPlan,
 } from "@/lib/chatComicGeneration";
+import {
+  CHAT_LD_ILLUSTRATION_OUTPUT_SIZE,
+  CHAT_LD_ILLUSTRATION_QUALITY,
+  CHAT_LD_ILLUSTRATION_TEMPLATE_ID,
+  buildChatLdIllustrationPrompt,
+  resolveChatLdIllustrationPrice,
+} from "@/lib/chatLdIllustrationGeneration";
 import { resolveChatImageGenerationModel } from "@/lib/chatImageGeneration";
 import { getDb } from "@/lib/db";
 import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
@@ -193,6 +200,33 @@ function resolveGenerationContext(opts: {
     characterImageUrl,
     personaImageUrl,
   };
+}
+
+function currentChatTurn(chatId: number | null): string {
+  if (!chatId) throw new RequestError("현재 턴 일러스트는 채팅방에서 만들 수 있습니다.");
+  const rows = getDb()
+    .prepare(
+      `SELECT role, content
+       FROM messages
+       WHERE chat_id=? AND role IN ('user', 'assistant')
+       ORDER BY id DESC
+       LIMIT 2`
+    )
+    .all(chatId) as Array<{ role: "user" | "assistant"; content: string }>;
+  const cleaned = rows
+    .reverse()
+    .map((row) => {
+      const content = String(row.content ?? "")
+        .replace(/<!--[\s\S]*?-->/g, " ")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 3_000);
+      return content ? `${row.role === "assistant" ? "캐릭터" : "유저"}: ${content}` : "";
+    })
+    .filter(Boolean);
+  if (!cleaned.length) throw new RequestError("그림으로 만들 현재 대화가 없습니다.");
+  return cleaned.join("\n").slice(0, 6_000);
 }
 
 function safePublicFilePath(url: string): string | null {
@@ -426,6 +460,54 @@ async function generateComicImage(opts: {
   }
 }
 
+async function generateLdIllustrationImage(opts: {
+  model: string;
+  prompt: string;
+  references: string[];
+}): Promise<{ buffer: Buffer; costUsd: number | null }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 285_000);
+  try {
+    const generated = await callOpenAiImageEdit({
+      model: opts.model,
+      prompt: opts.prompt,
+      references: opts.references,
+      size: CHAT_LD_ILLUSTRATION_OUTPUT_SIZE,
+      quality: CHAT_LD_ILLUSTRATION_QUALITY,
+      outputCompression: 86,
+      signal: controller.signal,
+    });
+    let output = generated.buffer;
+    const metadata = await sharp(output, { failOn: "none" }).metadata();
+    if (!metadata.width || !metadata.height) {
+      throw new RequestError("생성된 이미지 형식이 올바르지 않습니다.", 502);
+    }
+    if (
+      metadata.width !== 800 ||
+      metadata.height !== 1200 ||
+      metadata.format !== "webp"
+    ) {
+      output = await sharp(output, { failOn: "none" })
+        .rotate()
+        .resize({ width: 800, height: 1200, fit: "cover", position: "centre" })
+        .webp({ quality: 90, effort: 4 })
+        .toBuffer();
+    }
+    return { buffer: output, costUsd: generated.costUsd };
+  } catch (error) {
+    if (error instanceof RequestError) throw error;
+    if (error instanceof OpenAiImageError) {
+      throw new RequestError(error.message, error.status);
+    }
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new RequestError("LD 일러스트 생성 시간이 초과되었습니다. 다시 시도해 주세요.", 504);
+    }
+    throw new RequestError("OpenAI LD 일러스트 생성 중 오류가 발생했습니다.", 502);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
@@ -440,6 +522,134 @@ export async function POST(req: Request) {
       personaId: positiveInt(body.personaId),
       requestedCharacterImageUrl: body.characterImageUrl,
     });
+    if (body.mode === "illustration") {
+      const pricePoints = resolveChatLdIllustrationPrice();
+      const balanceBefore = getPointBalance(user.id);
+      if (balanceBefore.total < pricePoints) {
+        return NextResponse.json(
+          {
+            error: `포인트가 부족합니다. 현재 턴 LD 일러스트에는 ${pricePoints.toLocaleString()}P가 필요합니다.`,
+            pricePoints,
+            remainingPoints: balanceBefore.total,
+            paidPoints: balanceBefore.paid,
+            freePoints: balanceBefore.free,
+          },
+          { status: 402 }
+        );
+      }
+
+      const turnText = currentChatTurn(context.chatId);
+      const prompt = buildChatLdIllustrationPrompt({
+        characterName: context.character.name,
+        personaName: context.persona.name,
+        currentTurn: turnText,
+      });
+      const [characterReference, personaReference] = await Promise.all([
+        imageSourceToDataUrl(context.characterImageUrl),
+        imageSourceToDataUrl(context.personaImageUrl),
+      ]);
+      const model = resolveChatImageGenerationModel();
+      const generated = await generateLdIllustrationImage({
+        model,
+        prompt,
+        references: [characterReference, personaReference],
+      });
+
+      await fs.mkdir(uploadsDataDir(), { recursive: true });
+      const filename = `ai-ld-current-turn-${crypto.randomUUID()}.webp`;
+      savedPath = path.join(uploadsDataDir(), filename);
+      await fs.writeFile(savedPath, generated.buffer);
+      const resultUrl = uploadPublicUrl(filename);
+
+      let deduction;
+      try {
+        deduction = deductPoints(
+          user.id,
+          pricePoints,
+          "GPT Image 2 · 현재 턴 LD 일러스트",
+          context.chatId ? { chatId: context.chatId } : undefined
+        );
+      } catch (error) {
+        await fs.unlink(savedPath).catch(() => {});
+        savedPath = null;
+        if (error instanceof InsufficientPointsError) {
+          return NextResponse.json(
+            {
+              error: `포인트가 부족합니다. ${pricePoints.toLocaleString()}P가 필요합니다.`,
+              remainingPoints: error.balance.total,
+              paidPoints: error.balance.paid,
+              freePoints: error.balance.free,
+            },
+            { status: 402 }
+          );
+        }
+        throw error;
+      }
+
+      ensureGenerationTable();
+      let generationId: number | null = null;
+      let savedToCharacterAlbum = false;
+      try {
+        const insert = getDb()
+          .prepare(
+            `INSERT INTO chat_image_generations (
+               user_id, chat_id, character_id, persona_id, template_id, model,
+               options_json, result_url, upstream_cost_usd, charged_points
+             ) VALUES (?,?,?,?,?,?,?,?,?,?)`
+          )
+          .run(
+            user.id,
+            context.chatId,
+            context.character.id,
+            context.persona.id,
+            CHAT_LD_ILLUSTRATION_TEMPLATE_ID,
+            model,
+            JSON.stringify({
+              mode: "illustration",
+              source: "latest_chat_turn",
+              quality: CHAT_LD_ILLUSTRATION_QUALITY,
+              outputSize: CHAT_LD_ILLUSTRATION_OUTPUT_SIZE,
+            }),
+            resultUrl,
+            generated.costUsd,
+            deduction.total
+          );
+        generationId = Number(insert.lastInsertRowid);
+        saveGeneratedImageToCharacterAlbum({
+          userId: user.id,
+          characterId: context.character.id,
+          personaId: context.persona.id,
+          chatId: context.chatId,
+          generationId,
+          imageUrl: resultUrl,
+          mode: "illustration",
+        });
+        savedToCharacterAlbum = true;
+      } catch (error) {
+        console.error("[chat-ld-illustration] history/album insert failed", error);
+      }
+
+      const totalCostKrw =
+        generated.costUsd == null
+          ? null
+          : Math.round(generated.costUsd * getEffectiveKrwPerUsd() * 10) / 10;
+      const canSeeCost = isAdminUser(user as typeof user & { is_admin?: number });
+      return NextResponse.json({
+        ok: true,
+        mode: "illustration",
+        generationId,
+        imageUrl: resultUrl,
+        savedToCharacterAlbum,
+        title: "현재 턴 LD 일러스트",
+        modelLabel: "GPT Image 2",
+        upstreamCostUsd: canSeeCost ? generated.costUsd : undefined,
+        upstreamCostKrw: canSeeCost ? totalCostKrw : undefined,
+        totalPointsCost: deduction.total,
+        remainingPoints: deduction.balance.total,
+        paidPoints: deduction.balance.paid,
+        freePoints: deduction.balance.free,
+      });
+    }
     const options = sanitizeChatComicOptions({
       mood: body.mood,
       sourceText: body.sourceText,
@@ -551,6 +761,7 @@ export async function POST(req: Request) {
             plan: planned.plan,
             plannerModel: planned.model,
             plannerCostUsd: planned.costUsd,
+            quality: "medium",
           }),
           resultUrl,
           totalCostUsd,
