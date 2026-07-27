@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import {
   CHAT_IMAGE_GENERATION_OUTPUT_SIZE,
   buildChatImageGenerationPrompt,
+  resolveChatImageGenerationQuality,
   resolveChatImageGenerationPrice,
   resolveChatImageReferenceOrder,
   sanitizeChatImageGenerationOptions,
@@ -12,6 +13,13 @@ import {
 describe("chatImageGeneration", () => {
   it("uses the exact 1200x800 SD output size", () => {
     assert.equal(CHAT_IMAGE_GENERATION_OUTPUT_SIZE, "1200x800");
+  });
+
+  it("allows medium quality only on the administrator test path", () => {
+    assert.equal(resolveChatImageGenerationQuality("medium", true), "medium");
+    assert.equal(resolveChatImageGenerationQuality("high", true), "high");
+    assert.equal(resolveChatImageGenerationQuality("medium", false), "high");
+    assert.equal(resolveChatImageGenerationQuality("unexpected", true), "high");
   });
 
   it("fails closed to the fixed preset defaults", () => {

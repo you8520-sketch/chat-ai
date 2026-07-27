@@ -11,6 +11,7 @@ import {
   CHAT_IMAGE_TEMPLATE_PREVIEW_URL,
   CHAT_IMAGE_GENERATION_OUTPUT_SIZE,
   buildChatImageGenerationPrompt,
+  resolveChatImageGenerationQuality,
   resolveChatImageGenerationModel,
   resolveChatImageGenerationPrice,
   resolveChatImageReferenceOrder,
@@ -19,6 +20,7 @@ import {
 import { getCharacterRepresentativeImageUrl } from "@/lib/characterAssets";
 import { getDb } from "@/lib/db";
 import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
+import { isAdminUser } from "@/lib/isAdminUser";
 import {
   InsufficientPointsError,
   deductPoints,
@@ -92,6 +94,13 @@ class RequestError extends Error {
 function positiveInt(raw: unknown): number | null {
   const value = Number(raw);
   return Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function canSelectTestQuality(user: { id: number; email: string }): boolean {
+  const row = getDb()
+    .prepare("SELECT is_admin FROM users WHERE id=?")
+    .get(user.id) as { is_admin: number } | undefined;
+  return isAdminUser({ email: user.email, is_admin: row?.is_admin ?? 0 });
 }
 
 function ensureGenerationTable() {
@@ -281,6 +290,7 @@ async function callOpenAiImage(opts: {
   model: string;
   prompt: string;
   references: string[];
+  quality: "medium" | "high";
 }): Promise<{ buffer: Buffer; costUsd: number | null }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 285_000);
@@ -290,7 +300,7 @@ async function callOpenAiImage(opts: {
       prompt: opts.prompt,
       references: opts.references,
       size: CHAT_IMAGE_GENERATION_OUTPUT_SIZE,
-      quality: "high",
+      quality: opts.quality,
       outputCompression: 88,
       signal: controller.signal,
     });
@@ -391,6 +401,7 @@ export async function GET(req: Request) {
       | undefined;
     return NextResponse.json({
       ...publicContextResponse(context),
+      canSelectQuality: canSelectTestQuality(user),
       balance: getPointBalance(user.id),
       latestResult: latest
         ? {
@@ -414,6 +425,10 @@ export async function POST(req: Request) {
   let savedPath: string | null = null;
   try {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+    const quality = resolveChatImageGenerationQuality(
+      body.quality,
+      canSelectTestQuality(user)
+    );
     const context = resolveGenerationContext({
       userId: user.id,
       characterId: positiveInt(body.characterId),
@@ -468,6 +483,7 @@ export async function POST(req: Request) {
       model,
       prompt,
       references: [templateReference, topReference, bottomReference],
+      quality,
     });
 
     await fs.mkdir(uploadsDataDir(), { recursive: true });
@@ -516,7 +532,7 @@ export async function POST(req: Request) {
           context.persona.id,
           CHAT_IMAGE_TEMPLATE_ID,
           model,
-          JSON.stringify(options),
+          JSON.stringify({ ...options, quality }),
           resultUrl,
           generated.costUsd,
           deduction.total
@@ -535,6 +551,7 @@ export async function POST(req: Request) {
       characterId: context.character.id,
       personaId: context.persona.id,
       model,
+      quality,
       templateId: CHAT_IMAGE_TEMPLATE_ID,
       upstreamCostUsd: generated.costUsd,
       upstreamCostKrw: costKrw,
@@ -546,6 +563,7 @@ export async function POST(req: Request) {
       imageUrl: resultUrl,
       modelId: model,
       modelLabel: "GPT Image 2",
+      quality,
       pricePoints: deduction.total,
       totalPointsCost: deduction.total,
       remainingPoints: deduction.balance.total,
