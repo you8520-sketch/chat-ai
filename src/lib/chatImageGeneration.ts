@@ -3,8 +3,9 @@ export const CHAT_IMAGE_TEMPLATE_NAME = "선물상자 2인 SD";
 export const CHAT_IMAGE_TEMPLATE_PREVIEW_URL =
   "/image-templates/sd-gift-box-duo.webp";
 
-export const CHAT_IMAGE_GENERATION_DEFAULT_MODEL = "openai/gpt-image-2";
+export const CHAT_IMAGE_GENERATION_DEFAULT_MODEL = "gpt-image-2";
 export const CHAT_IMAGE_GENERATION_DEFAULT_POINTS = 350;
+export const CHAT_IMAGE_GENERATION_OUTPUT_SIZE = "1200x800" as const;
 
 export const CHAT_IMAGE_PLACEMENTS = [
   { id: "character_top", label: "위: 캐릭터 · 아래: 페르소나" },
@@ -158,5 +159,5 @@ export function resolveChatImageGenerationPrice(
 export function resolveChatImageGenerationModel(
   env: NodeJS.ProcessEnv = process.env
 ): string {
-  return env.OPENROUTER_IMAGE_MODEL?.trim() || CHAT_IMAGE_GENERATION_DEFAULT_MODEL;
+  return env.OPENAI_IMAGE_MODEL?.trim() || CHAT_IMAGE_GENERATION_DEFAULT_MODEL;
 }

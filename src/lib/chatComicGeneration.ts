@@ -4,7 +4,8 @@ export const CHAT_COMIC_TEMPLATE_PREVIEW_URL =
   "/image-templates/comic-horizontal-sample.webp";
 
 export const CHAT_COMIC_DEFAULT_PLANNER_MODEL = "google/gemini-2.5-flash-lite";
-export const CHAT_COMIC_MAX_INPUT_CHARS = 500;
+export const CHAT_COMIC_MAX_INPUT_CHARS = 800;
+export const CHAT_COMIC_IMAGE_OUTPUT_SIZE = "1008x1408" as const;
 
 export const CHAT_COMIC_PANEL_OPTIONS = [
   { id: 2, label: "2컷", points: 250 },
