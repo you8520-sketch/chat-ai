@@ -22,6 +22,7 @@ import {
 import ChatEmotionPortraitPanel from "@/components/ChatEmotionPortraitPanel";
 import ChatSettingsPanel from "@/components/ChatSettingsPanel";
 import ChatRoomDisplayQuickRail from "@/components/ChatRoomDisplayQuickRail";
+import ChatImageGeneratorPanel from "@/components/ChatImageGeneratorPanel";
 import ChatRoomMobileMenu from "@/components/ChatRoomMobileMenu";
 import ChatAssetAlbumModal, { IconAlbum } from "@/components/ChatAssetAlbumModal";
 import RelationshipMetaDock from "@/components/RelationshipMetaDock";
@@ -167,6 +168,7 @@ import {
   CHAT_PORTRAIT_STICKY_CLASS,
   CHAT_ROOM_TITLE_BAR_CLASS,
   CHAT_ROOM_HEADER_OFFSET_CLASS,
+  CHAT_DESKTOP_MEDIA_QUERY,
   DEFAULT_CHAT_DISPLAY_PREFS,
   resolveClientDisplayPrefs,
   saveChatDisplayPrefs,
@@ -1643,7 +1645,7 @@ export default function ChatClient({
   const getInputDockHeight = useCallback(() => inputDockRef.current?.offsetHeight ?? 0, []);
   const getInputDockBottomOffset = useCallback(() => {
     if (typeof window === "undefined") return 0;
-    return window.matchMedia("(min-width: 640px)").matches ? 0 : 48;
+    return window.matchMedia(CHAT_DESKTOP_MEDIA_QUERY).matches ? 0 : 48;
   }, []);
 
   /** sticky 입력창 위쪽을 “시각적 하단”으로 간주 */
@@ -1663,7 +1665,7 @@ export default function ChatClient({
       if (!anchor || typeof window === "undefined") return;
       const dockH = getInputDockHeight();
       const dockBottom = getInputDockBottomOffset();
-      const isMobile = !window.matchMedia("(min-width: 640px)").matches;
+      const isMobile = !window.matchMedia(CHAT_DESKTOP_MEDIA_QUERY).matches;
       const toolbars = document.querySelectorAll<HTMLElement>('[data-chat-message-toolbar="true"]');
       const targetElement =
         toolbars && toolbars.length > 0 ? toolbars[toolbars.length - 1] : anchor;
@@ -3785,7 +3787,7 @@ export default function ChatClient({
           </div>
         )}
         {showCharacterPortrait && (
-          <div className={`${CHAT_PORTRAIT_STICKY_CLASS} pl-1 sm:pl-0`}>
+          <div className={`${CHAT_PORTRAIT_STICKY_CLASS} pl-1 min-[576px]:pl-0`}>
             <ChatEmotionPortraitPanel
               characterName={character.name}
               emoji={character.emoji}
@@ -3809,11 +3811,11 @@ export default function ChatClient({
           }
         >
       <div className={CHAT_ROOM_TITLE_BAR_CLASS}>
-        <div className="flex min-w-0 items-center gap-1.5 md:gap-2">
+        <div className="flex min-w-0 items-center gap-1.5 min-[576px]:gap-2">
           <button
             type="button"
             onClick={() => router.back()}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-zinc-300 transition hover:bg-white/[0.06] hover:text-white md:hidden"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-zinc-300 transition hover:bg-white/[0.06] hover:text-white min-[576px]:hidden"
             aria-label="뒤로가기"
             title="뒤로가기"
           >
@@ -3849,7 +3851,7 @@ export default function ChatClient({
           <button
             type="button"
             onClick={() => setAssetAlbumOpen(true)}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-zinc-200 transition hover:bg-white/[0.08] hover:text-white md:hidden"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 bg-white/[0.04] text-zinc-200 transition hover:bg-white/[0.08] hover:text-white min-[576px]:hidden"
             title="이미지 앨범"
             aria-label="이미지 앨범 열기"
           >
@@ -3863,7 +3865,7 @@ export default function ChatClient({
           />
         </div>
       </div>
-      <div className="h-[3.25rem] shrink-0 md:hidden" aria-hidden />
+      <div className="h-[3.25rem] shrink-0 min-[576px]:hidden" aria-hidden />
       {showCharacterPortrait && mobilePortraitUrl && (
         <div
           data-testid="mobile-chat-portrait-background"
@@ -4340,7 +4342,7 @@ export default function ChatClient({
       </div>
 
       <aside
-        className={`sticky ${CHAT_ROOM_HEADER_OFFSET_CLASS} z-40 hidden w-16 shrink-0 flex-col gap-1 self-start overflow-visible px-1 py-2 md:flex md:w-[68px]`}
+        className={`sticky ${CHAT_ROOM_HEADER_OFFSET_CLASS} z-40 hidden w-16 shrink-0 flex-col gap-1 self-start overflow-visible px-1 py-2 min-[576px]:flex min-[576px]:w-[68px]`}
       >
         <div className="hidden">
           <div className="min-w-0">
@@ -4381,6 +4383,9 @@ export default function ChatClient({
         {renderSettingsPanel("rail")}
         <BookmarksPanel variant="rail" />
       </aside>
+
+      {/* Message-toolbar image button opens this host panel (no duplicate rail trigger). */}
+      <ChatImageGeneratorPanel showRailTrigger={false} />
 
     </div>
   );

@@ -259,7 +259,14 @@ function downloadImage(imageUrl: string, mode: ResultMode) {
   anchor.remove();
 }
 
-export default function ChatImageGeneratorPanel() {
+type ChatImageGeneratorPanelProps = {
+  /** When false, only the modal host mounts (message toolbar opens via event). */
+  showRailTrigger?: boolean;
+};
+
+export default function ChatImageGeneratorPanel({
+  showRailTrigger = true,
+}: ChatImageGeneratorPanelProps) {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<Tab>("sd");
   const [loadingInfo, setLoadingInfo] = useState(false);
@@ -652,18 +659,20 @@ export default function ChatImageGeneratorPanel() {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="flex w-full flex-col items-center gap-0.5 rounded-md px-0 py-1.5 text-zinc-400 transition hover:bg-white/[0.06] hover:text-violet-200"
-        title="SD 이미지와 LD 이미지 생성"
-        aria-label="이미지 생성"
-      >
-        <IconImageSpark className="h-4 w-4 shrink-0" />
-        <span className="max-w-full px-0.5 text-center text-[9px] font-medium leading-[1.15] tracking-tight">
-          이미지
-        </span>
-      </button>
+      {showRailTrigger ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="flex w-full flex-col items-center gap-0.5 rounded-md px-0 py-1.5 text-zinc-400 transition hover:bg-white/[0.06] hover:text-violet-200"
+          title="SD 이미지와 LD 이미지 생성"
+          aria-label="이미지 생성"
+        >
+          <IconImageSpark className="h-4 w-4 shrink-0" />
+          <span className="max-w-full px-0.5 text-center text-[9px] font-medium leading-[1.15] tracking-tight">
+            이미지
+          </span>
+        </button>
+      ) : null}
 
       {open ? createPortal(
         <div
@@ -1105,18 +1114,7 @@ export default function ChatImageGeneratorPanel() {
                               </label>
                             </div>
                           </>
-                        ) : (
-                          <div className="rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-3 text-[11px] leading-relaxed text-zinc-300">
-                            <strong className="text-violet-200">
-                              현재 턴 · 800×1200 · 중품질 고정
-                            </strong>
-                            <p className="mt-1">
-                              최신 유저·캐릭터 대화를 자동으로 읽고, 선택한 캐릭터 이미지와
-                              페르소나의 외형·그림체를 최대한 닮게 반영한 세로 2:3 일러스트를 만듭니다.
-                              글자나 말풍선은 넣지 않습니다.
-                            </p>
-                          </div>
-                        )}
+                        ) : null}
                         {ldProduct === "comic" && comicTitle ? (
                           <p className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-zinc-300">
                             생성 제목: <strong>{comicTitle}</strong>

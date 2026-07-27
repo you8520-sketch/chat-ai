@@ -30,7 +30,7 @@ export default function ChatRoomMobileMenu({
   }, [open]);
 
   return (
-    <div className="md:hidden">
+    <div className="min-[576px]:hidden">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -48,7 +48,7 @@ export default function ChatRoomMobileMenu({
       </button>
 
       {open ? (
-        <div className="fixed inset-0 z-[60] md:hidden" role="presentation">
+        <div className="fixed inset-0 z-[60] min-[576px]:hidden" role="presentation">
           <button
             type="button"
             className="absolute inset-0 bg-black/25"

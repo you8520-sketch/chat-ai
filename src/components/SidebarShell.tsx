@@ -141,7 +141,9 @@ export default function SidebarShell({ user, chatSessions, blurNsfw, navItems }:
           maxHeight: `calc(100dvh - ${geometry.top}px)`,
         }}
         className={cn(
-          "fixed z-30 hidden flex-col gap-2 overflow-y-auto overflow-x-hidden overscroll-contain bg-[#0b0d14] pb-4 transition-[width] duration-200 ease-out md:flex",
+          isChatRoomRoute
+            ? "fixed z-30 hidden flex-col gap-2 overflow-y-auto overflow-x-hidden overscroll-contain bg-[#0b0d14] pb-4 transition-[width] duration-200 ease-out min-[576px]:flex"
+            : "fixed z-30 hidden flex-col gap-2 overflow-y-auto overflow-x-hidden overscroll-contain bg-[#0b0d14] pb-4 transition-[width] duration-200 ease-out md:flex",
         )}
       >
         {isChatRoomRoute && (
