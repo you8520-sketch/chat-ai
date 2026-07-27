@@ -9,6 +9,7 @@ import {
   OPENROUTER_MUSE_OUTPUT_USD_PER_MILLION,
   OPENROUTER_SIMPLE_POINT_INPUT_PRICES,
   OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES,
+  computeOpenRouterTurnBilling,
   computeOpenRouterTurnCost,
   explainOpenRouterMuseTurnCost,
   resolveMuseWaiverMinimumCharge,
@@ -87,6 +88,35 @@ describe("Muse Spark 1.1 exact 60% token-margin billing", () => {
       }),
       expected
     );
+  });
+
+  it("uses API-reported prompt/completion totals as the authoritative billing basis", () => {
+    const billing = computeOpenRouterTurnBilling({
+      modelId,
+      inputTokens: 15_233,
+      outputTokens: 1_159,
+      reasoningTokens: 207,
+      apiPromptTokens: 15_233,
+      apiCompletionTokens: 2_070,
+    });
+
+    assert.equal(billing.baseCost, expectedMusePointCost(15_233, 2_070, 0));
+    assert.equal(billing.total, billing.baseCost);
+    assert.notEqual(
+      billing.total,
+      expectedMusePointCost(15_233, 1_159, 207)
+    );
+  });
+
+  it("falls back to output plus thinking when API completion totals are absent", () => {
+    const billing = computeOpenRouterTurnBilling({
+      modelId,
+      inputTokens: 15_233,
+      outputTokens: 1_863,
+      reasoningTokens: 207,
+    });
+
+    assert.equal(billing.total, expectedMusePointCost(15_233, 1_863, 207));
   });
 
   it("does not add a 10k large-context surcharge", () => {
