@@ -285,12 +285,16 @@ export default function ChatImageGeneratorPanel() {
   useEffect(() => {
     if (!open) return;
     void loadInfo();
+  }, [open, loadInfo]);
+
+  useEffect(() => {
+    if (!open) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !generating && !saving) setOpen(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, generating, saving, loadInfo]);
+  }, [open, generating, saving]);
 
   async function generateSd() {
     if (!info?.ready || generating) return;
