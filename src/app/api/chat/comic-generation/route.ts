@@ -23,6 +23,7 @@ import { resolveChatImageGenerationModel } from "@/lib/chatImageGeneration";
 import { getCharacterRepresentativeImageUrl } from "@/lib/characterAssets";
 import { getDb } from "@/lib/db";
 import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
+import { saveGeneratedImageToCharacterAlbum } from "@/lib/chatImageAlbum";
 import {
   InsufficientPointsError,
   deductPoints,
@@ -483,6 +484,7 @@ export async function POST(req: Request) {
 
     ensureGenerationTable();
     let generationId: number | null = null;
+    let savedToCharacterAlbum = false;
     try {
       const insert = getDb()
         .prepare(
@@ -513,8 +515,18 @@ export async function POST(req: Request) {
           deduction.total
         );
       generationId = Number(insert.lastInsertRowid);
+      saveGeneratedImageToCharacterAlbum({
+        userId: user.id,
+        characterId: context.character.id,
+        personaId: context.persona.id,
+        chatId: context.chatId,
+        generationId,
+        imageUrl: resultUrl,
+        mode: "comic",
+      });
+      savedToCharacterAlbum = true;
     } catch (error) {
-      console.error("[chat-comic-generation] history insert failed", error);
+      console.error("[chat-comic-generation] history/album insert failed", error);
     }
 
     const totalCostUsd = (generated.costUsd ?? 0) + (planned.costUsd ?? 0);
@@ -536,6 +548,7 @@ export async function POST(req: Request) {
       mode: "comic",
       generationId,
       imageUrl: resultUrl,
+      savedToCharacterAlbum,
       title: planned.plan.title,
       panelCount: options.panelCount,
       modelLabel: "GPT Image 2",
