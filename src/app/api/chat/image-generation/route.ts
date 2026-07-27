@@ -658,11 +658,9 @@ export async function POST(req: Request) {
     let generationOptions: Record<string, unknown>;
     if (isCoupleStamp) {
       const coupleOptions = sanitizeChatCoupleStampOptions({
-        motif: body.coupleMotif,
         height: body.coupleHeight,
         background: body.coupleBackground,
         border: body.coupleBorder,
-        animalEars: body.coupleAnimalEars,
       });
       prompt = buildChatCoupleStampPrompt({
         characterName: context.character.name,

@@ -12,20 +12,16 @@ import {
   type ChatComicPanelCount,
 } from "@/lib/chatComicGeneration";
 import {
-  CHAT_COUPLE_STAMP_ANIMAL_EARS,
   CHAT_COUPLE_STAMP_BACKGROUNDS,
   CHAT_COUPLE_STAMP_BORDERS,
   CHAT_COUPLE_STAMP_DEFAULT_OPTIONS,
   CHAT_COUPLE_STAMP_GENERATION_DEFAULT_POINTS,
   CHAT_COUPLE_STAMP_HEIGHTS,
-  CHAT_COUPLE_STAMP_MOTIFS,
   CHAT_COUPLE_STAMP_TEMPLATE_ID,
   CHAT_COUPLE_STAMP_TEMPLATE_PREVIEW_URL,
-  type ChatCoupleStampAnimalEars,
   type ChatCoupleStampBackground,
   type ChatCoupleStampBorder,
   type ChatCoupleStampHeight,
-  type ChatCoupleStampMotif,
 } from "@/lib/chatCoupleStampGeneration";
 import {
   CHAT_EMOTICON_GENERATION_DEFAULT_POINTS,
@@ -288,9 +284,6 @@ export default function ChatImageGeneratorPanel({
   const [notice, setNotice] = useState("");
   const [sdProduct, setSdProduct] = useState<SdProduct>("gift");
   const [ldProduct, setLdProduct] = useState<LdProduct>("illustration");
-  const [coupleMotif, setCoupleMotif] = useState<ChatCoupleStampMotif>(
-    CHAT_COUPLE_STAMP_DEFAULT_OPTIONS.motif
-  );
   const [coupleHeight, setCoupleHeight] = useState<ChatCoupleStampHeight>(
     CHAT_COUPLE_STAMP_DEFAULT_OPTIONS.height
   );
@@ -299,9 +292,6 @@ export default function ChatImageGeneratorPanel({
   );
   const [coupleBorder, setCoupleBorder] = useState<ChatCoupleStampBorder>(
     CHAT_COUPLE_STAMP_DEFAULT_OPTIONS.border
-  );
-  const [coupleAnimalEars, setCoupleAnimalEars] = useState<ChatCoupleStampAnimalEars>(
-    CHAT_COUPLE_STAMP_DEFAULT_OPTIONS.animalEars
   );
   const [sdResultUrl, setSdResultUrl] = useState("");
   const [emoticonResultUrl, setEmoticonResultUrl] = useState("");
@@ -535,11 +525,9 @@ export default function ChatImageGeneratorPanel({
           characterImageUrl: selectedCharacterImageUrl || info.character.imageUrl,
           ...(sdProduct === "coupleStamp"
             ? {
-                coupleMotif,
                 coupleHeight,
                 coupleBackground,
                 coupleBorder,
-                coupleAnimalEars,
               }
             : {}),
         }),
@@ -1049,28 +1037,11 @@ export default function ChatImageGeneratorPanel({
                         ) : (
                           <div className="space-y-2">
                             <div className="rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-3 text-[11px] leading-relaxed text-zinc-300">
-                              <strong className="text-violet-200">커플 인장 · 1000×1000 · 중품질 고정</strong>
+                              <strong className="text-violet-200">커플 인장 · 1000×1000 · 중품질 고정 · 200P</strong>
                               <p className="mt-1">
-                                왼쪽 샘플은 4종 고정틀입니다. 아래에서 한 모티프를 고른 뒤 옵션을 맞춰 뽑습니다.
+                                왼쪽 샘플은 스타일 고정틀입니다. 키·배경·테두리만 맞춰 원형 커플 인장을 생성합니다.
                               </p>
                             </div>
-                            <label className="block space-y-1">
-                              <span className="text-[11px] font-semibold text-zinc-400">모티프</span>
-                              <select
-                                value={coupleMotif}
-                                onChange={(event) =>
-                                  setCoupleMotif(event.target.value as ChatCoupleStampMotif)
-                                }
-                                disabled={generating}
-                                className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
-                              >
-                                {CHAT_COUPLE_STAMP_MOTIFS.map((item) => (
-                                  <option key={item.id} value={item.id}>
-                                    {item.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
                             <label className="block space-y-1">
                               <span className="text-[11px] font-semibold text-zinc-400">키 높이</span>
                               <select
@@ -1118,25 +1089,6 @@ export default function ChatImageGeneratorPanel({
                                 className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
                               >
                                 {CHAT_COUPLE_STAMP_BORDERS.map((item) => (
-                                  <option key={item.id} value={item.id}>
-                                    {item.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </label>
-                            <label className="block space-y-1">
-                              <span className="text-[11px] font-semibold text-zinc-400">동물귀</span>
-                              <select
-                                value={coupleAnimalEars}
-                                onChange={(event) =>
-                                  setCoupleAnimalEars(
-                                    event.target.value as ChatCoupleStampAnimalEars
-                                  )
-                                }
-                                disabled={generating}
-                                className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
-                              >
-                                {CHAT_COUPLE_STAMP_ANIMAL_EARS.map((item) => (
                                   <option key={item.id} value={item.id}>
                                     {item.label}
                                   </option>
