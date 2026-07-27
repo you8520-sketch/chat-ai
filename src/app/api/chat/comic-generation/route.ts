@@ -5,6 +5,7 @@ import { NextResponse } from "next/server";
 import sharp from "sharp";
 
 import { getSessionUser } from "@/lib/auth";
+import { isAdminUser } from "@/lib/isAdminUser";
 import {
   selectCharacterImageUrl,
 } from "@/lib/chatCharacterImageSelection";
@@ -310,7 +311,6 @@ function plannerCostUsd(
 async function planComic(opts: {
   characterName: string;
   personaName: string;
-  panelCount: 2 | 3 | 4;
   mood: "comic" | "lovely" | "daily" | "serious";
   sourceText: string;
 }): Promise<{ plan: ChatComicPlan; costUsd: number | null; model: string }> {
@@ -363,7 +363,7 @@ async function planComic(opts: {
       })?.usage
     );
     return {
-      plan: sanitizeChatComicPlan(parsed, opts.panelCount, opts.sourceText),
+      plan: sanitizeChatComicPlan(parsed, opts.sourceText),
       costUsd,
       model,
     };
@@ -439,7 +439,6 @@ export async function POST(req: Request) {
       requestedCharacterImageUrl: body.characterImageUrl,
     });
     const options = sanitizeChatComicOptions({
-      panelCount: body.panelCount,
       mood: body.mood,
       sourceText: body.sourceText,
     });
@@ -448,12 +447,12 @@ export async function POST(req: Request) {
       throw new RequestError(`내용은 최대 ${CHAT_COMIC_MAX_INPUT_CHARS}자까지 입력할 수 있습니다.`);
     }
 
-    const pricePoints = resolveChatComicPrice(options.panelCount);
     const balanceBefore = getPointBalance(user.id);
+    const pricePoints = resolveChatComicPrice(2);
     if (balanceBefore.total < pricePoints) {
       return NextResponse.json(
         {
-          error: `포인트가 부족합니다. ${options.panelCount}컷 만화에는 ${pricePoints.toLocaleString()}P가 필요합니다.`,
+          error: `포인트가 부족합니다. 자동 컷만화에는 ${pricePoints.toLocaleString()}P가 필요합니다.`,
           pricePoints,
           remainingPoints: balanceBefore.total,
           paidPoints: balanceBefore.paid,
@@ -468,6 +467,7 @@ export async function POST(req: Request) {
       personaName: context.persona.name,
       ...options,
     });
+    const panelCount = planned.plan.panelCount;
     const prompt = buildChatComicImagePrompt({
       characterName: context.character.name,
       personaName: context.persona.name,
@@ -487,7 +487,7 @@ export async function POST(req: Request) {
     });
 
     await fs.mkdir(uploadsDataDir(), { recursive: true });
-    const filename = `ai-comic-${options.panelCount}p-${crypto.randomUUID()}.webp`;
+    const filename = `ai-comic-${panelCount}p-${crypto.randomUUID()}.webp`;
     savedPath = path.join(uploadsDataDir(), filename);
     await fs.writeFile(savedPath, generated.buffer);
     const resultUrl = uploadPublicUrl(filename);
@@ -497,7 +497,7 @@ export async function POST(req: Request) {
       deduction = deductPoints(
         user.id,
         pricePoints,
-        `GPT Image 2 · ${options.panelCount}컷 만화`,
+        `GPT Image 2 · ${panelCount}컷 만화`,
         context.chatId ? { chatId: context.chatId } : undefined
       );
     } catch (error) {
@@ -517,6 +517,10 @@ export async function POST(req: Request) {
       throw error;
     }
 
+    const totalCostUsd =
+      generated.costUsd == null
+        ? null
+        : generated.costUsd + (planned.costUsd ?? 0);
     ensureGenerationTable();
     let generationId: number | null = null;
     let savedToCharacterAlbum = false;
@@ -537,7 +541,7 @@ export async function POST(req: Request) {
           model,
           JSON.stringify({
             mode: "comic",
-            panelCount: options.panelCount,
+            panelCount,
             mood: options.mood,
             sourceText: options.sourceText,
             title: planned.plan.title,
@@ -546,7 +550,7 @@ export async function POST(req: Request) {
             plannerCostUsd: planned.costUsd,
           }),
           resultUrl,
-          (generated.costUsd ?? 0) + (planned.costUsd ?? 0),
+          totalCostUsd,
           deduction.total
         );
       generationId = Number(insert.lastInsertRowid);
@@ -564,20 +568,24 @@ export async function POST(req: Request) {
       console.error("[chat-comic-generation] history/album insert failed", error);
     }
 
-    const totalCostUsd = (generated.costUsd ?? 0) + (planned.costUsd ?? 0);
+    const totalCostKrw =
+      totalCostUsd == null
+        ? null
+        : Math.round(totalCostUsd * getEffectiveKrwPerUsd() * 10) / 10;
     console.info("[chat-comic-generation] completed", {
       userId: user.id,
       chatId: context.chatId,
       characterId: context.character.id,
       personaId: context.persona.id,
-      panelCount: options.panelCount,
+      panelCount,
       imageModel: model,
       plannerModel: planned.model,
       upstreamCostUsd: totalCostUsd,
-      upstreamCostKrw: Math.round(totalCostUsd * getEffectiveKrwPerUsd() * 10) / 10,
+      upstreamCostKrw: totalCostKrw,
       chargedPoints: deduction.total,
     });
 
+    const canSeeCost = isAdminUser(user as typeof user & { is_admin?: number });
     return NextResponse.json({
       ok: true,
       mode: "comic",
@@ -585,8 +593,10 @@ export async function POST(req: Request) {
       imageUrl: resultUrl,
       savedToCharacterAlbum,
       title: planned.plan.title,
-      panelCount: options.panelCount,
+      panelCount,
       modelLabel: "GPT Image 2",
+      upstreamCostUsd: canSeeCost ? totalCostUsd : undefined,
+      upstreamCostKrw: canSeeCost ? totalCostKrw : undefined,
       totalPointsCost: deduction.total,
       remainingPoints: deduction.balance.total,
       paidPoints: deduction.balance.paid,
