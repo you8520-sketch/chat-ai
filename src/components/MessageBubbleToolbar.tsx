@@ -14,13 +14,10 @@ import {
   IconBookmark,
   IconEdit,
   IconFork,
+  IconImageSpark,
   IconRegenerate,
   IconTrash,
 } from "./ChatToolbarIcons";
-import {
-  ThumbsDownFeedbackControl,
-  useThumbsDownFeedback,
-} from "./MessageThumbsDownFeedback";
 
 const toolbarBtn =
   "flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-white/[0.08] hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-30";
@@ -105,10 +102,6 @@ export default function MessageBubbleToolbar({
   const [forkOpen, setForkOpen] = useState(false);
   const [bookmarkOpen, setBookmarkOpen] = useState(false);
   const receipt = role === "assistant" && usage ? buildBillingReceipt(usage) : null;
-  const feedback = useThumbsDownFeedback({
-    disabled: disabled || busy,
-    onToast,
-  });
 
   if (!messageId || messageId <= 0 || !chatId) return null;
 
@@ -269,16 +262,16 @@ export default function MessageBubbleToolbar({
               />
             </button>
             {role === "assistant" && (
-              <ThumbsDownFeedbackControl
-                open={feedback.open}
-                text={feedback.text}
-                busy={feedback.busy}
-                disabled={disabled || busy}
-                onToggle={() => feedback.setOpen((v) => !v)}
-                onTextChange={feedback.setText}
-                onCancel={feedback.closeForm}
-                onSubmit={() => void feedback.submitFeedback()}
-              />
+              <button
+                type="button"
+                aria-label="이미지 생성"
+                disabled={busy || disabled}
+                onClick={() => window.dispatchEvent(new Event("chat:image-generator:open"))}
+                className={toolbarBtn}
+                title="이미지 생성"
+              >
+                <IconImageSpark />
+              </button>
             )}
           </div>
 

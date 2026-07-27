@@ -62,6 +62,17 @@ export function IconBookmark({ className = base }: IconProps) {
   );
 }
 
+export function IconImageSpark({ className = base }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className={className} aria-hidden>
+      <rect x="3" y="5" width="14" height="14" rx="2" />
+      <circle cx="8" cy="10" r="1.4" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="m5 17 4-4 3 3 2-2 3 3" />
+      <path strokeLinecap="round" d="M19.5 2.5v4M17.5 4.5h4" />
+    </svg>
+  );
+}
+
 export function IconFork({ className = base }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" className={className} aria-hidden>

@@ -12,6 +12,11 @@ import {
   type ChatComicPanelCount,
 } from "@/lib/chatComicGeneration";
 import {
+  CHAT_COUPLE_STAMP_GENERATION_DEFAULT_POINTS,
+  CHAT_COUPLE_STAMP_TEMPLATE_ID,
+  CHAT_COUPLE_STAMP_TEMPLATE_PREVIEW_URL,
+} from "@/lib/chatCoupleStampGeneration";
+import {
   CHAT_EMOTICON_GENERATION_DEFAULT_POINTS,
   CHAT_EMOTICON_TEMPLATE_ID,
   CHAT_EMOTICON_TEMPLATE_PREVIEW_URL,
@@ -26,13 +31,24 @@ import {
   type ChatImageMood,
   type ChatImagePlacement,
 } from "@/lib/chatImageGeneration";
+import {
+  CHAT_LD_ILLUSTRATION_DEFAULT_POINTS,
+} from "@/lib/chatLdIllustrationGeneration";
 import { dispatchPointsDeducted } from "@/lib/pointsEvents";
 
 const PERSONA_STORAGE_KEY = "habi:lastPersonaId";
 
 type Tab = "sd" | "comic";
-type ResultMode = "sd" | "emoticon" | "comic";
-type SdProduct = "gift" | "emoticon";
+type ResultMode = "sd" | "emoticon" | "couple_stamp" | "comic" | "illustration";
+type SdProduct = "gift" | "emoticon" | "coupleStamp";
+type LdProduct = "comic" | "illustration";
+
+const SD_PRODUCTS: readonly SdProduct[] = ["gift", "emoticon", "coupleStamp"];
+
+function cycleSdProduct(current: SdProduct, direction: -1 | 1): SdProduct {
+  const index = SD_PRODUCTS.indexOf(current);
+  return SD_PRODUCTS[(index + direction + SD_PRODUCTS.length) % SD_PRODUCTS.length]!;
+}
 
 type ReferenceInfo = {
   id: number;
@@ -61,6 +77,8 @@ type Preflight = {
     exchangeRateKrwPerUsd: number;
     sd: AverageImageCost;
     emoticon: AverageImageCost;
+    coupleStamp: AverageImageCost;
+    illustration: AverageImageCost;
     comic: Record<ChatComicPanelCount, AverageImageCost>;
   };
   latestResult?: {
@@ -251,9 +269,12 @@ export default function ChatImageGeneratorPanel() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [sdProduct, setSdProduct] = useState<SdProduct>("gift");
+  const [ldProduct, setLdProduct] = useState<LdProduct>("comic");
   const [sdResultUrl, setSdResultUrl] = useState("");
   const [emoticonResultUrl, setEmoticonResultUrl] = useState("");
+  const [coupleStampResultUrl, setCoupleStampResultUrl] = useState("");
   const [comicResultUrl, setComicResultUrl] = useState("");
+  const [illustrationResultUrl, setIllustrationResultUrl] = useState("");
   const [comicTitle, setComicTitle] = useState("");
   const [comicPanelCount, setComicPanelCount] = useState<ChatComicPanelCount | null>(null);
   const [actualCosts, setActualCosts] = useState<
@@ -278,20 +299,42 @@ export default function ChatImageGeneratorPanel() {
   const [comicText, setComicText] = useState("");
   const [comicMood, setComicMood] = useState<ChatComicMood>("comic");
 
+  useEffect(() => {
+    const openGenerator = () => setOpen(true);
+    window.addEventListener("chat:image-generator:open", openGenerator);
+    return () => window.removeEventListener("chat:image-generator:open", openGenerator);
+  }, []);
+
   const activeResultUrl =
     tab === "comic"
-      ? comicResultUrl
+      ? ldProduct === "illustration"
+        ? illustrationResultUrl
+        : comicResultUrl
       : sdProduct === "emoticon"
         ? emoticonResultUrl
-        : sdResultUrl;
+        : sdProduct === "coupleStamp"
+          ? coupleStampResultUrl
+          : sdResultUrl;
   const activeMode: ResultMode =
-    tab === "comic" ? "comic" : sdProduct === "emoticon" ? "emoticon" : "sd";
+    tab === "comic"
+      ? ldProduct === "illustration"
+        ? "illustration"
+        : "comic"
+      : sdProduct === "emoticon"
+        ? "emoticon"
+        : sdProduct === "coupleStamp"
+          ? "couple_stamp"
+          : "sd";
   const activePrice =
-    activeMode === "comic"
+    activeMode === "illustration"
+      ? CHAT_LD_ILLUSTRATION_DEFAULT_POINTS
+      : activeMode === "comic"
       ? CHAT_COMIC_GENERATION_DEFAULT_POINTS
       : activeMode === "emoticon"
         ? CHAT_EMOTICON_GENERATION_DEFAULT_POINTS
-        : info?.pricePoints ?? CHAT_IMAGE_GENERATION_DEFAULT_POINTS;
+        : activeMode === "couple_stamp"
+          ? CHAT_COUPLE_STAMP_GENERATION_DEFAULT_POINTS
+          : info?.pricePoints ?? CHAT_IMAGE_GENERATION_DEFAULT_POINTS;
   const activeSaved = activeResultUrl ? savedUrls.has(activeResultUrl) : false;
   const selectedCharacterInfo = useMemo<ReferenceInfo | null>(() => {
     if (!info?.character) return null;
@@ -371,12 +414,16 @@ export default function ChatImageGeneratorPanel() {
       );
       setCharacterPickerOpen(false);
       if (data.latestResult?.imageUrl) {
-        if (data.latestResult.mode === "comic") {
+        if (data.latestResult.mode === "illustration") {
+          if (!illustrationResultUrl) setIllustrationResultUrl(data.latestResult.imageUrl);
+        } else if (data.latestResult.mode === "comic") {
           if (!comicResultUrl) setComicResultUrl(data.latestResult.imageUrl);
           setComicTitle(data.latestResult.title || "");
           setComicPanelCount(data.latestResult.panelCount ?? null);
         } else if (data.latestResult.mode === "emoticon") {
           if (!emoticonResultUrl) setEmoticonResultUrl(data.latestResult.imageUrl);
+        } else if (data.latestResult.mode === "couple_stamp") {
+          if (!coupleStampResultUrl) setCoupleStampResultUrl(data.latestResult.imageUrl);
         } else if (!sdResultUrl) {
           setSdResultUrl(data.latestResult.imageUrl);
         }
@@ -401,7 +448,14 @@ export default function ChatImageGeneratorPanel() {
     } finally {
       setLoadingInfo(false);
     }
-  }, [comicResultUrl, emoticonResultUrl, loadSavedImages, sdResultUrl]);
+  }, [
+    comicResultUrl,
+    coupleStampResultUrl,
+    emoticonResultUrl,
+    illustrationResultUrl,
+    loadSavedImages,
+    sdResultUrl,
+  ]);
 
   useEffect(() => {
     if (!open) return;
@@ -423,6 +477,7 @@ export default function ChatImageGeneratorPanel() {
     setError("");
     setNotice("");
     if (sdProduct === "emoticon") setEmoticonResultUrl("");
+    else if (sdProduct === "coupleStamp") setCoupleStampResultUrl("");
     else setSdResultUrl("");
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), 300_000);
@@ -441,7 +496,9 @@ export default function ChatImageGeneratorPanel() {
           templateId:
             sdProduct === "emoticon"
               ? CHAT_EMOTICON_TEMPLATE_ID
-              : info.template.id,
+              : sdProduct === "coupleStamp"
+                ? CHAT_COUPLE_STAMP_TEMPLATE_ID
+                : info.template.id,
           characterImageUrl: selectedCharacterImageUrl || info.character.imageUrl,
         }),
       });
@@ -451,6 +508,7 @@ export default function ChatImageGeneratorPanel() {
         throw new Error(data?.error || "SD 이미지 생성에 실패했습니다.");
       }
       if (sdProduct === "emoticon") setEmoticonResultUrl(data.imageUrl);
+      else if (sdProduct === "coupleStamp") setCoupleStampResultUrl(data.imageUrl);
       else setSdResultUrl(data.imageUrl);
       if (data.savedToCharacterAlbum) {
         setSavedUrls((previous) => new Set(previous).add(data.imageUrl!));
@@ -458,7 +516,13 @@ export default function ChatImageGeneratorPanel() {
       if (data.upstreamCostUsd != null && data.upstreamCostKrw != null) {
         setActualCosts((previous) => ({
           ...previous,
-          [sdProduct === "emoticon" ? "emoticon" : "sd"]: {
+          [
+            sdProduct === "emoticon"
+              ? "emoticon"
+              : sdProduct === "coupleStamp"
+                ? "couple_stamp"
+                : "sd"
+          ]: {
             usd: data.upstreamCostUsd!,
             krw: data.upstreamCostKrw!,
           },
@@ -468,6 +532,8 @@ export default function ChatImageGeneratorPanel() {
       setNotice(
         sdProduct === "emoticon"
           ? "랜덤 문구 9종 이모티콘을 완성해 기존 캐릭터 이미지 앨범에 추가했습니다."
+          : sdProduct === "coupleStamp"
+            ? "커플 인장 4종을 완성해 기존 캐릭터 이미지 앨범에 추가했습니다."
           : "완성되어 기존 캐릭터 이미지 앨범에 자동으로 추가했습니다."
       );
       void loadInfo();
@@ -488,12 +554,13 @@ export default function ChatImageGeneratorPanel() {
 
   async function generateComic() {
     if (!info?.ready || generating) return;
+    const isIllustration = ldProduct === "illustration";
     const sourceText = comicText.trim();
-    if (!sourceText) {
+    if (!isIllustration && !sourceText) {
       setError("만화로 만들 내용을 입력해 주세요.");
       return;
     }
-    if (sourceText.length > CHAT_COMIC_MAX_INPUT_CHARS) {
+    if (!isIllustration && sourceText.length > CHAT_COMIC_MAX_INPUT_CHARS) {
       setError(`내용은 최대 ${CHAT_COMIC_MAX_INPUT_CHARS}자까지 입력할 수 있습니다.`);
       return;
     }
@@ -501,7 +568,8 @@ export default function ChatImageGeneratorPanel() {
     setGenerating(true);
     setError("");
     setNotice("");
-    setComicResultUrl("");
+    if (isIllustration) setIllustrationResultUrl("");
+    else setComicResultUrl("");
     setComicTitle("");
     setComicPanelCount(null);
     const controller = new AbortController();
@@ -514,6 +582,7 @@ export default function ChatImageGeneratorPanel() {
         signal: controller.signal,
         body: JSON.stringify({
           ...ids,
+          mode: isIllustration ? "illustration" : "comic",
           sourceText,
           mood: comicMood,
           characterImageUrl: selectedCharacterImageUrl || info.character.imageUrl,
@@ -524,32 +593,39 @@ export default function ChatImageGeneratorPanel() {
         if (data) updateBalance(data);
         throw new Error(data?.error || "컷만화 생성에 실패했습니다.");
       }
-      setComicResultUrl(data.imageUrl);
+      if (isIllustration) setIllustrationResultUrl(data.imageUrl);
+      else setComicResultUrl(data.imageUrl);
       if (data.savedToCharacterAlbum) {
         setSavedUrls((previous) => new Set(previous).add(data.imageUrl!));
       }
-      setComicTitle(data.title || "");
-      setComicPanelCount(data.panelCount ?? null);
+      if (!isIllustration) {
+        setComicTitle(data.title || "");
+        setComicPanelCount(data.panelCount ?? null);
+      }
       if (data.upstreamCostUsd != null && data.upstreamCostKrw != null) {
         setActualCosts((previous) => ({
           ...previous,
-          comic: {
+          [isIllustration ? "illustration" : "comic"]: {
             usd: data.upstreamCostUsd!,
             krw: data.upstreamCostKrw!,
           },
         }));
       }
       updateBalance(data);
-      setNotice("대사·말풍선·표정 연출을 자동 구성해 기존 캐릭터 이미지 앨범에 추가했습니다.");
+      setNotice(
+        isIllustration
+          ? "현재 턴을 반영한 2:3 LD 일러스트를 기존 캐릭터 이미지 앨범에 추가했습니다."
+          : "대사·말풍선·표정 연출을 자동 구성해 기존 캐릭터 이미지 앨범에 추가했습니다."
+      );
       void loadInfo();
     } catch (caught) {
       const timedOut = caught instanceof DOMException && caught.name === "AbortError";
       setError(
         timedOut
-          ? "컷만화 생성 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요."
+          ? `${isIllustration ? "LD 일러스트" : "컷만화"} 생성 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요.`
           : caught instanceof Error
             ? caught.message
-            : "컷만화 생성 중 오류가 발생했습니다."
+            : `${isIllustration ? "LD 일러스트" : "컷만화"} 생성 중 오류가 발생했습니다.`
       );
     } finally {
       window.clearTimeout(timer);
@@ -572,7 +648,7 @@ export default function ChatImageGeneratorPanel() {
     }
   }
 
-  const modalTitle = tab === "sd" ? "캐릭터 × 페르소나 SD 굿즈" : "2~4컷 만화 만들기";
+  const modalTitle = tab === "sd" ? "캐릭터 × 페르소나 SD 이미지" : "캐릭터 × 페르소나 LD 이미지";
 
   return (
     <>
@@ -580,7 +656,7 @@ export default function ChatImageGeneratorPanel() {
         type="button"
         onClick={() => setOpen(true)}
         className="flex w-full flex-col items-center gap-0.5 rounded-md px-0 py-1.5 text-zinc-400 transition hover:bg-white/[0.06] hover:text-violet-200"
-        title="SD 굿즈와 2~4컷 만화 생성"
+        title="SD 이미지와 LD 이미지 생성"
         aria-label="이미지 생성"
       >
         <IconImageSpark className="h-4 w-4 shrink-0" />
@@ -621,8 +697,8 @@ export default function ChatImageGeneratorPanel() {
               <div className="mt-3 grid grid-cols-2 gap-1 rounded-xl bg-black/25 p-1">
                 {(
                   [
-                    ["sd", "SD 굿즈"],
-                    ["comic", "2~4컷 만화"],
+                    ["sd", "SD 이미지"],
+                    ["comic", "LD 이미지"],
                   ] as const
                 ).map(([id, label]) => (
                   <button
@@ -652,33 +728,51 @@ export default function ChatImageGeneratorPanel() {
               ) : (
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(19rem,0.95fr)]">
                   <div className="space-y-3">
-                    <div className="relative flex max-h-[64dvh] min-h-56 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white p-1">
+                    <div
+                      className={`relative flex max-h-[64dvh] min-h-56 items-center justify-center overflow-hidden rounded-2xl border border-white/10 ${
+                        tab === "comic" ? "bg-[#08090d] p-0" : "bg-white p-1"
+                      }`}
+                    >
                       <img
                         src={
                           activeResultUrl ||
                           (tab === "comic"
-                            ? CHAT_COMIC_TEMPLATE_PREVIEW_URL
+                            ? ldProduct === "illustration"
+                              ? selectedCharacterInfo?.imageUrl || CHAT_COMIC_TEMPLATE_PREVIEW_URL
+                              : CHAT_COMIC_TEMPLATE_PREVIEW_URL
                             : sdProduct === "emoticon"
                               ? CHAT_EMOTICON_TEMPLATE_PREVIEW_URL
+                              : sdProduct === "coupleStamp"
+                                ? CHAT_COUPLE_STAMP_TEMPLATE_PREVIEW_URL
                               : info?.template.previewUrl || "")
                         }
                         alt={
                           activeResultUrl
                             ? tab === "comic"
-                              ? "생성된 컷만화"
+                              ? ldProduct === "illustration"
+                                ? "생성된 현재 턴 LD 일러스트"
+                                : "생성된 컷만화"
                               : sdProduct === "emoticon"
                                 ? "생성된 랜덤 9종 이모티콘"
+                                : sdProduct === "coupleStamp"
+                                  ? "생성된 커플 인장 4종"
                                 : "생성된 SD 이미지"
                             : tab === "comic"
-                              ? "2~4컷 만화 예시"
+                              ? ldProduct === "illustration"
+                                ? "현재 턴 LD 일러스트 참조 이미지"
+                                : "2~4컷 만화 예시"
                               : sdProduct === "emoticon"
                                 ? "랜덤 9종 이모티콘 고정틀"
+                                : sdProduct === "coupleStamp"
+                                  ? "커플 인장 4종 고정틀"
                                 : "선물상자 SD 고정틀"
                         }
                         className={`max-h-[62dvh] object-contain ${
                           tab === "comic"
-                            ? "h-auto max-w-full"
-                            : sdProduct === "emoticon"
+                            ? ldProduct === "illustration"
+                              ? "aspect-[2/3] h-auto max-w-full"
+                              : "h-auto max-w-full"
+                            : sdProduct === "emoticon" || sdProduct === "coupleStamp"
                               ? "aspect-square w-full"
                               : "aspect-[3/2] w-full"
                         }`}
@@ -687,27 +781,19 @@ export default function ChatImageGeneratorPanel() {
                         <>
                           <button
                             type="button"
-                            onClick={() =>
-                              setSdProduct((previous) =>
-                                previous === "gift" ? "emoticon" : "gift"
-                              )
-                            }
+                            onClick={() => setSdProduct((previous) => cycleSdProduct(previous, -1))}
                             disabled={generating || saving}
                             className="absolute left-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-xl font-bold text-white shadow hover:bg-black/70 disabled:opacity-40"
-                            aria-label="이전 SD 굿즈"
+                            aria-label="이전 SD 이미지"
                           >
                             ‹
                           </button>
                           <button
                             type="button"
-                            onClick={() =>
-                              setSdProduct((previous) =>
-                                previous === "gift" ? "emoticon" : "gift"
-                              )
-                            }
+                            onClick={() => setSdProduct((previous) => cycleSdProduct(previous, 1))}
                             disabled={generating || saving}
                             className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-black/55 text-xl font-bold text-white shadow hover:bg-black/70 disabled:opacity-40"
-                            aria-label="다음 SD 굿즈"
+                            aria-label="다음 SD 이미지"
                           >
                             ›
                           </button>
@@ -720,9 +806,13 @@ export default function ChatImageGeneratorPanel() {
                           ? "캐릭터 앨범에 저장된 이미지입니다."
                           : "생성 결과는 기존 캐릭터 이미지 앨범에 자동으로 추가됩니다."
                         : tab === "comic"
-                          ? "본문만 붙여넣으면 핵심 대사·말풍선·표정과 2~4컷 구성을 자동으로 만듭니다."
+                          ? ldProduct === "illustration"
+                            ? "현재 채팅의 최신 턴을 자동으로 읽어 두 사람의 외형과 그림체를 최대한 닮게 반영합니다."
+                            : "본문만 붙여넣으면 핵심 대사·말풍선·표정과 2~4컷 구성을 자동으로 만듭니다."
                           : sdProduct === "emoticon"
                             ? "매번 다른 문구 9개를 뽑아 캐릭터 단독·페르소나 단독·두 사람 장면을 섞어 만듭니다."
+                            : sdProduct === "coupleStamp"
+                              ? "트위터·커뮤니티 프로필용 원형 커플 인장 4종을 서로 다른 그림체와 소품으로 한 장에 만듭니다."
                             : "선물상자·리본·인형·사탕 장식을 유지하면서 두 사람의 외형을 반영합니다."}
                     </p>
                     {tab === "sd" ? (
@@ -733,8 +823,15 @@ export default function ChatImageGeneratorPanel() {
                         <span className={sdProduct === "emoticon" ? "text-violet-300" : "text-zinc-600"}>
                           ●
                         </span>
+                        <span className={sdProduct === "coupleStamp" ? "text-violet-300" : "text-zinc-600"}>
+                          ●
+                        </span>
                         <strong className="ml-1 text-zinc-400">
-                          {sdProduct === "gift" ? "선물상자 2인 SD" : "랜덤 9종 이모티콘"}
+                          {sdProduct === "gift"
+                            ? "선물상자 2인 SD"
+                            : sdProduct === "emoticon"
+                              ? "랜덤 9종 이모티콘"
+                              : "커플 인장 4종"}
                         </strong>
                       </div>
                     ) : null}
@@ -869,12 +966,20 @@ export default function ChatImageGeneratorPanel() {
                           </select>
                           </label>
                           </>
-                        ) : (
+                        ) : sdProduct === "emoticon" ? (
                           <div className="rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-3 text-[11px] leading-relaxed text-zinc-300">
                             <strong className="text-violet-200">랜덤 9종 · 900×900 · 중품질 고정</strong>
                             <p className="mt-1">
                               문구 풀에서 매번 중복 없이 9개를 선택하고, 캐릭터 단독 3개·페르소나 단독
                               3개·두 사람 장면 3개를 문구에 맞는 표정과 행동으로 구성합니다.
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-3 text-[11px] leading-relaxed text-zinc-300">
+                            <strong className="text-violet-200">커플 인장 4종 · 800×800 · 중품질 고정</strong>
+                            <p className="mt-1">
+                              고양이 발바닥 셀카, 인형 포옹, 토끼 후드 손하트, 동물 요소 없는
+                              커플 인장을 서로 다른 그림체로 한 장에 구성합니다.
                             </p>
                           </div>
                         )}
@@ -887,10 +992,14 @@ export default function ChatImageGeneratorPanel() {
                                     label:
                                       sdProduct === "emoticon"
                                         ? "랜덤 9종 이모티콘"
+                                        : sdProduct === "coupleStamp"
+                                          ? "커플 인장 4종"
                                         : "선물상자 SD 고정틀",
                                     cost:
                                       sdProduct === "emoticon"
                                         ? info.averageCosts.emoticon
+                                        : sdProduct === "coupleStamp"
+                                          ? info.averageCosts.coupleStamp
                                         : info.averageCosts.sd,
                                   },
                                 ]
@@ -912,54 +1021,103 @@ export default function ChatImageGeneratorPanel() {
                            {generating
                              ? sdProduct === "emoticon"
                                ? "랜덤 이모티콘 9종 생성 중…"
+                               : sdProduct === "coupleStamp"
+                                 ? "커플 인장 4종 생성 중…"
                                : "SD 이미지 생성 중…"
                              : activeResultUrl
                                ? `다시 생성 · ${activePrice.toLocaleString()}P`
-                               : `${sdProduct === "emoticon" ? "랜덤 9종 이모티콘 생성" : "SD 이미지 생성"} · ${activePrice.toLocaleString()}P`}
+                               : `${
+                                   sdProduct === "emoticon"
+                                     ? "랜덤 9종 이모티콘 생성"
+                                     : sdProduct === "coupleStamp"
+                                       ? "커플 인장 4종 생성"
+                                       : "SD 이미지 생성"
+                                 } · ${activePrice.toLocaleString()}P`}
                         </button>
                       </>
                     ) : (
                       <>
-                        <label className="block space-y-1">
-                          <span className="flex items-center justify-between text-[11px] font-semibold text-zinc-400">
-                            <span>만화로 만들 내용</span>
-                            <span className={comicText.length >= CHAT_COMIC_MAX_INPUT_CHARS ? "text-amber-300" : "text-zinc-500"}>
-                              {comicText.length}/{CHAT_COMIC_MAX_INPUT_CHARS}
-                            </span>
-                          </span>
-                          <textarea
-                            value={comicText}
-                            onChange={(event) =>
-                              setComicText(event.target.value.slice(0, CHAT_COMIC_MAX_INPUT_CHARS))
-                            }
-                            disabled={generating}
-                            rows={9}
-                            placeholder="장면이나 RP 본문을 붙여넣으세요. AI가 핵심 대사를 추출하고 말풍선·표정·컷 구성을 자동으로 처리합니다."
-                            className="w-full resize-y rounded-xl border border-white/10 bg-[#1a1a1a] px-3 py-2.5 text-xs leading-relaxed text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-violet-500/50"
-                          />
-                        </label>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="block space-y-1">
-                            <span className="text-[11px] font-semibold text-zinc-400">컷 수</span>
-                            <div className="rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-300">
-                              AI 자동 · 2~4컷
-                            </div>
-                          </div>
-                          <label className="block space-y-1">
-                            <span className="text-[11px] font-semibold text-zinc-400">분위기</span>
-                            <select
-                              value={comicMood}
-                              onChange={(event) => setComicMood(event.target.value as ChatComicMood)}
-                              disabled={generating}
-                              className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
+                        <div className="grid grid-cols-2 gap-1 rounded-xl bg-black/25 p-1">
+                          {(
+                            [
+                              ["comic", "자동 컷만화"],
+                              ["illustration", "현재 턴 일러스트"],
+                            ] as const
+                          ).map(([id, label]) => (
+                            <button
+                              key={id}
+                              type="button"
+                              onClick={() => {
+                                setLdProduct(id);
+                                setError("");
+                                setNotice("");
+                              }}
+                              disabled={generating || saving}
+                              className={`rounded-lg px-2 py-2 text-xs font-semibold transition ${
+                                ldProduct === id
+                                  ? "bg-violet-600 text-white"
+                                  : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"
+                              }`}
                             >
-                              {CHAT_COMIC_MOODS.map((item) => (
-                                <option key={item.id} value={item.id}>{item.label}</option>
-                              ))}
-                            </select>
-                          </label>
+                              {label}
+                            </button>
+                          ))}
                         </div>
-                        {comicTitle ? (
+                        {ldProduct === "comic" ? (
+                          <>
+                            <label className="block space-y-1">
+                              <span className="flex items-center justify-between text-[11px] font-semibold text-zinc-400">
+                                <span>만화로 만들 내용</span>
+                                <span className={comicText.length >= CHAT_COMIC_MAX_INPUT_CHARS ? "text-amber-300" : "text-zinc-500"}>
+                                  {comicText.length}/{CHAT_COMIC_MAX_INPUT_CHARS}
+                                </span>
+                              </span>
+                              <textarea
+                                value={comicText}
+                                onChange={(event) =>
+                                  setComicText(event.target.value.slice(0, CHAT_COMIC_MAX_INPUT_CHARS))
+                                }
+                                disabled={generating}
+                                rows={9}
+                                placeholder="장면이나 RP 본문을 붙여넣으세요. AI가 핵심 대사를 추출하고 말풍선·표정·컷 구성을 자동으로 처리합니다."
+                                className="w-full resize-y rounded-xl border border-white/10 bg-[#1a1a1a] px-3 py-2.5 text-xs leading-relaxed text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-violet-500/50"
+                              />
+                            </label>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="block space-y-1">
+                                <span className="text-[11px] font-semibold text-zinc-400">컷 수</span>
+                                <div className="rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-300">
+                                  AI 자동 · 2~4컷
+                                </div>
+                              </div>
+                              <label className="block space-y-1">
+                                <span className="text-[11px] font-semibold text-zinc-400">분위기</span>
+                                <select
+                                  value={comicMood}
+                                  onChange={(event) => setComicMood(event.target.value as ChatComicMood)}
+                                  disabled={generating}
+                                  className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
+                                >
+                                  {CHAT_COMIC_MOODS.map((item) => (
+                                    <option key={item.id} value={item.id}>{item.label}</option>
+                                  ))}
+                                </select>
+                              </label>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-3 text-[11px] leading-relaxed text-zinc-300">
+                            <strong className="text-violet-200">
+                              현재 턴 · 800×1200 · 중품질 고정
+                            </strong>
+                            <p className="mt-1">
+                              최신 유저·캐릭터 대화를 자동으로 읽고, 선택한 캐릭터 이미지와
+                              페르소나의 외형·그림체를 최대한 닮게 반영한 세로 2:3 일러스트를 만듭니다.
+                              글자나 말풍선은 넣지 않습니다.
+                            </p>
+                          </div>
+                        )}
+                        {ldProduct === "comic" && comicTitle ? (
                           <p className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-zinc-300">
                             생성 제목: <strong>{comicTitle}</strong>
                             {comicPanelCount ? ` · AI가 ${comicPanelCount}컷으로 구성` : ""}
@@ -969,10 +1127,15 @@ export default function ChatImageGeneratorPanel() {
                           balance={info?.balance}
                           averageCosts={
                             info?.averageCosts
-                              ? ([2, 3, 4] as const).map((panelCount) => ({
-                                  label: `${panelCount}컷 만화`,
-                                  cost: info.averageCosts!.comic[panelCount],
-                                }))
+                              ? ldProduct === "illustration"
+                                ? [{
+                                    label: "현재 턴 LD 일러스트",
+                                    cost: info.averageCosts.illustration,
+                                  }]
+                                : ([2, 3, 4] as const).map((panelCount) => ({
+                                    label: `${panelCount}컷 만화`,
+                                    cost: info.averageCosts!.comic[panelCount],
+                                  }))
                               : undefined
                           }
                           exchangeRateKrwPerUsd={info?.averageCosts?.exchangeRateKrwPerUsd}
@@ -984,17 +1147,23 @@ export default function ChatImageGeneratorPanel() {
                             generating ||
                             loadingInfo ||
                             !info?.ready ||
-                            !comicText.trim() ||
+                            (ldProduct === "comic" && !comicText.trim()) ||
                             (info.balance != null &&
-                              info.balance.total < CHAT_COMIC_GENERATION_DEFAULT_POINTS)
+                              info.balance.total < activePrice)
                           }
                           className="w-full rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           {generating
-                            ? "대사와 컷을 구성해 만화 생성 중…"
-                            : comicResultUrl
-                              ? `다시 생성 · ${CHAT_COMIC_GENERATION_DEFAULT_POINTS.toLocaleString()}P`
-                              : `자동 컷만화 생성 · ${CHAT_COMIC_GENERATION_DEFAULT_POINTS.toLocaleString()}P`}
+                            ? ldProduct === "illustration"
+                              ? "현재 턴 LD 일러스트 생성 중…"
+                              : "대사와 컷을 구성해 만화 생성 중…"
+                            : activeResultUrl
+                              ? `다시 생성 · ${activePrice.toLocaleString()}P`
+                              : `${
+                                  ldProduct === "illustration"
+                                    ? "현재 턴 일러스트 생성"
+                                    : "자동 컷만화 생성"
+                                } · ${activePrice.toLocaleString()}P`}
                         </button>
                       </>
                     )}

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
+import type { ChatImageAlbumMode } from "@/lib/chatImageAlbum";
 
 export const runtime = "nodejs";
 
@@ -86,7 +87,9 @@ function listAlbum(userId: number, characterId: number) {
     .all(userId, characterId) as AlbumRow[]).map((row) => ({
     id: row.id,
     imageUrl: row.image_url,
-    mode: row.mode === "comic" ? "comic" : "sd",
+    mode: (["sd", "emoticon", "couple_stamp", "comic", "illustration"].includes(row.mode)
+      ? row.mode
+      : "sd") as ChatImageAlbumMode,
     createdAt: row.created_at,
   }));
 }
@@ -154,10 +157,17 @@ export async function POST(req: Request) {
     } catch {
       options = {};
     }
-    const mode =
-      generation.template_id === "comic_horizontal_2_4" || options.mode === "comic"
+    const requestedMode = String(options.mode ?? "");
+    const mode: ChatImageAlbumMode =
+      generation.template_id === "comic_horizontal_2_4" || requestedMode === "comic"
         ? "comic"
-        : "sd";
+        : requestedMode === "illustration"
+          ? "illustration"
+        : requestedMode === "emoticon"
+          ? "emoticon"
+          : requestedMode === "couple_stamp"
+            ? "couple_stamp"
+            : "sd";
 
     getDb()
       .prepare(
