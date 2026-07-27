@@ -2,24 +2,27 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  CHAT_IMAGE_GENERATION_OUTPUT_HEIGHT,
   CHAT_IMAGE_GENERATION_OUTPUT_SIZE,
+  CHAT_IMAGE_GENERATION_OUTPUT_WIDTH,
+  CHAT_IMAGE_GENERATION_QUALITY,
   buildChatImageGenerationPrompt,
-  resolveChatImageGenerationQuality,
   resolveChatImageGenerationPrice,
   resolveChatImageReferenceOrder,
   sanitizeChatImageGenerationOptions,
 } from "./chatImageGeneration";
 
 describe("chatImageGeneration", () => {
-  it("uses the exact 1200x800 SD output size", () => {
-    assert.equal(CHAT_IMAGE_GENERATION_OUTPUT_SIZE, "1200x800");
+  it("uses the nearest valid 3:2 size to a 1000px-wide SD output", () => {
+    assert.equal(CHAT_IMAGE_GENERATION_OUTPUT_WIDTH, 1008);
+    assert.equal(CHAT_IMAGE_GENERATION_OUTPUT_HEIGHT, 672);
+    assert.equal(CHAT_IMAGE_GENERATION_OUTPUT_SIZE, "1008x672");
+    assert.equal(CHAT_IMAGE_GENERATION_OUTPUT_WIDTH % 16, 0);
+    assert.equal(CHAT_IMAGE_GENERATION_OUTPUT_HEIGHT % 16, 0);
   });
 
-  it("allows medium quality only on the administrator test path", () => {
-    assert.equal(resolveChatImageGenerationQuality("medium", true), "medium");
-    assert.equal(resolveChatImageGenerationQuality("high", true), "high");
-    assert.equal(resolveChatImageGenerationQuality("medium", false), "high");
-    assert.equal(resolveChatImageGenerationQuality("unexpected", true), "high");
+  it("fixes every SD generation to medium quality", () => {
+    assert.equal(CHAT_IMAGE_GENERATION_QUALITY, "medium");
   });
 
   it("fails closed to the fixed preset defaults", () => {

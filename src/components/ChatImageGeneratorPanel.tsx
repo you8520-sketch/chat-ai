@@ -17,7 +17,6 @@ import {
   CHAT_IMAGE_MOODS,
   CHAT_IMAGE_PLACEMENTS,
   type ChatImageExpression,
-  type ChatImageGenerationQuality,
   type ChatImageMood,
   type ChatImagePlacement,
 } from "@/lib/chatImageGeneration";
@@ -50,7 +49,6 @@ type Preflight = {
     chargedPoints: number;
     createdAt: string;
   } | null;
-  canSelectQuality?: boolean;
 };
 
 type GenerateResult = {
@@ -217,8 +215,6 @@ export default function ChatImageGeneratorPanel() {
   const [sdMood, setSdMood] = useState<ChatImageMood>(
     CHAT_IMAGE_GENERATION_DEFAULT_OPTIONS.mood
   );
-  const [sdQuality, setSdQuality] = useState<ChatImageGenerationQuality>("high");
-
   const [comicText, setComicText] = useState("");
   const [panelCount, setPanelCount] = useState<ChatComicPanelCount>(4);
   const [comicMood, setComicMood] = useState<ChatComicMood>("comic");
@@ -352,7 +348,6 @@ export default function ChatImageGeneratorPanel() {
           topExpression,
           bottomExpression,
           mood: sdMood,
-          quality: sdQuality,
           characterImageUrl: selectedCharacterImageUrl || info.character.imageUrl,
         }),
       });
@@ -556,7 +551,7 @@ export default function ChatImageGeneratorPanel() {
                               : "선물상자 SD 고정틀"
                         }
                         className={`max-h-[62dvh] w-full object-contain ${
-                          tab === "comic" ? "aspect-[3/4]" : "aspect-[4/3]"
+                          tab === "comic" ? "aspect-[3/4]" : "aspect-[3/2]"
                         }`}
                       />
                     </div>
@@ -649,24 +644,6 @@ export default function ChatImageGeneratorPanel() {
                             ))}
                           </select>
                         </label>
-                        {info?.canSelectQuality ? (
-                          <label className="block space-y-1">
-                            <span className="text-[11px] font-semibold text-zinc-400">
-                              관리자 품질 시험
-                            </span>
-                            <select
-                              value={sdQuality}
-                              onChange={(event) =>
-                                setSdQuality(event.target.value as ChatImageGenerationQuality)
-                              }
-                              disabled={generating}
-                              className="w-full rounded-lg border border-amber-400/25 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-200 outline-none focus:border-amber-400/60"
-                            >
-                              <option value="medium">중품질 · 시험 생성</option>
-                              <option value="high">고품질 · 기본</option>
-                            </select>
-                          </label>
-                        ) : null}
                         <div className="grid grid-cols-2 gap-2">
                           <label className="block space-y-1">
                             <span className="text-[11px] font-semibold text-zinc-400">위 인물 표정</span>

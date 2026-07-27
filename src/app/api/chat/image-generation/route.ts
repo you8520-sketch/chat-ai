@@ -14,9 +14,11 @@ import {
   CHAT_IMAGE_TEMPLATE_ID,
   CHAT_IMAGE_TEMPLATE_NAME,
   CHAT_IMAGE_TEMPLATE_PREVIEW_URL,
+  CHAT_IMAGE_GENERATION_OUTPUT_HEIGHT,
   CHAT_IMAGE_GENERATION_OUTPUT_SIZE,
+  CHAT_IMAGE_GENERATION_OUTPUT_WIDTH,
+  CHAT_IMAGE_GENERATION_QUALITY,
   buildChatImageGenerationPrompt,
-  resolveChatImageGenerationQuality,
   resolveChatImageGenerationModel,
   resolveChatImageGenerationPrice,
   resolveChatImageReferenceOrder,
@@ -25,7 +27,6 @@ import {
 import { getDb } from "@/lib/db";
 import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
 import { saveGeneratedImageToCharacterAlbum } from "@/lib/chatImageAlbum";
-import { isAdminUser } from "@/lib/isAdminUser";
 import {
   InsufficientPointsError,
   deductPoints,
@@ -100,17 +101,6 @@ class RequestError extends Error {
 function positiveInt(raw: unknown): number | null {
   const value = Number(raw);
   return Number.isInteger(value) && value > 0 ? value : null;
-}
-
-function canSelectTestQuality(
-  user: { id: number; email: string },
-  context: GenerationContext
-): boolean {
-  if (context.character.creator_id === user.id) return true;
-  const row = getDb()
-    .prepare("SELECT is_admin FROM users WHERE id=?")
-    .get(user.id) as { is_admin: number } | undefined;
-  return isAdminUser({ email: user.email, is_admin: row?.is_admin ?? 0 });
 }
 
 function ensureGenerationTable() {
@@ -312,7 +302,6 @@ async function callOpenAiImage(opts: {
   model: string;
   prompt: string;
   references: string[];
-  quality: "medium" | "high";
 }): Promise<{ buffer: Buffer; costUsd: number | null }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 285_000);
@@ -322,7 +311,7 @@ async function callOpenAiImage(opts: {
       prompt: opts.prompt,
       references: opts.references,
       size: CHAT_IMAGE_GENERATION_OUTPUT_SIZE,
-      quality: opts.quality,
+      quality: CHAT_IMAGE_GENERATION_QUALITY,
       outputCompression: 88,
       signal: controller.signal,
     });
@@ -333,9 +322,18 @@ async function callOpenAiImage(opts: {
       if (!metadata.width || !metadata.height) {
         throw new Error("missing dimensions");
       }
-      if (metadata.format !== "webp") {
+      if (
+        metadata.format !== "webp" ||
+        metadata.width !== CHAT_IMAGE_GENERATION_OUTPUT_WIDTH ||
+        metadata.height !== CHAT_IMAGE_GENERATION_OUTPUT_HEIGHT
+      ) {
         output = await sharp(output, { failOn: "none" })
           .rotate()
+          .resize({
+            width: CHAT_IMAGE_GENERATION_OUTPUT_WIDTH,
+            height: CHAT_IMAGE_GENERATION_OUTPUT_HEIGHT,
+            fit: "fill",
+          })
           .webp({ quality: 92, effort: 4 })
           .toBuffer();
       }
@@ -424,7 +422,6 @@ export async function GET(req: Request) {
       | undefined;
     return NextResponse.json({
       ...publicContextResponse(context),
-      canSelectQuality: canSelectTestQuality(user, context),
       balance: getPointBalance(user.id),
       latestResult: latest
         ? {
@@ -455,10 +452,7 @@ export async function POST(req: Request) {
       personaId: positiveInt(body.personaId),
       requestedCharacterImageUrl: body.characterImageUrl,
     });
-    const quality = resolveChatImageGenerationQuality(
-      body.quality,
-      canSelectTestQuality(user, context)
-    );
+    const quality = CHAT_IMAGE_GENERATION_QUALITY;
     const state = readiness(context);
     if (!state.ready || !context.persona) {
       throw new RequestError(`${state.missing.join(", ")}가 필요합니다.`);
@@ -507,7 +501,6 @@ export async function POST(req: Request) {
       model,
       prompt,
       references: [templateReference, topReference, bottomReference],
-      quality,
     });
 
     await fs.mkdir(uploadsDataDir(), { recursive: true });
