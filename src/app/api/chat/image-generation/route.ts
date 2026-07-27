@@ -20,6 +20,7 @@ import {
 import { getCharacterRepresentativeImageUrl } from "@/lib/characterAssets";
 import { getDb } from "@/lib/db";
 import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
+import { saveGeneratedImageToCharacterAlbum } from "@/lib/chatImageAlbum";
 import { isAdminUser } from "@/lib/isAdminUser";
 import {
   InsufficientPointsError,
@@ -521,8 +522,10 @@ export async function POST(req: Request) {
     }
 
     ensureGenerationTable();
+    let generationId: number | null = null;
+    let savedToCharacterAlbum = false;
     try {
-      getDb()
+      const insert = getDb()
         .prepare(
           `INSERT INTO chat_image_generations (
              user_id, chat_id, character_id, persona_id, template_id, model,
@@ -541,8 +544,19 @@ export async function POST(req: Request) {
           generated.costUsd,
           deduction.total
         );
+      generationId = Number(insert.lastInsertRowid);
+      saveGeneratedImageToCharacterAlbum({
+        userId: user.id,
+        characterId: context.character.id,
+        personaId: context.persona.id,
+        chatId: context.chatId,
+        generationId,
+        imageUrl: resultUrl,
+        mode: "sd",
+      });
+      savedToCharacterAlbum = true;
     } catch (error) {
-      console.error("[chat-image-generation] history insert failed", error);
+      console.error("[chat-image-generation] history/album insert failed", error);
     }
 
     const costKrw =
@@ -568,6 +582,7 @@ export async function POST(req: Request) {
       modelId: model,
       modelLabel: "GPT Image 2",
       quality,
+      savedToCharacterAlbum,
       pricePoints: deduction.total,
       totalPointsCost: deduction.total,
       remainingPoints: deduction.balance.total,
