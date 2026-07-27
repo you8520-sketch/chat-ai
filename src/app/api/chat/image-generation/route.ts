@@ -6,6 +6,11 @@ import sharp from "sharp";
 
 import { getSessionUser } from "@/lib/auth";
 import {
+  selectCharacterImageUrl,
+  type SelectableCharacterImage,
+} from "@/lib/chatCharacterImageSelection";
+import { listSelectableCharacterImages } from "@/lib/chatCharacterImageSelection.server";
+import {
   CHAT_IMAGE_TEMPLATE_ID,
   CHAT_IMAGE_TEMPLATE_NAME,
   CHAT_IMAGE_TEMPLATE_PREVIEW_URL,
@@ -17,7 +22,6 @@ import {
   resolveChatImageReferenceOrder,
   sanitizeChatImageGenerationOptions,
 } from "@/lib/chatImageGeneration";
-import { getCharacterRepresentativeImageUrl } from "@/lib/characterAssets";
 import { getDb } from "@/lib/db";
 import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
 import { saveGeneratedImageToCharacterAlbum } from "@/lib/chatImageAlbum";
@@ -79,6 +83,7 @@ type GenerationContext = {
   character: CharacterRow;
   persona: PersonaRow | null;
   characterImageUrl: string;
+  characterImages: SelectableCharacterImage[];
   personaImageUrl: string;
 };
 
@@ -135,6 +140,7 @@ function resolveGenerationContext(opts: {
   characterId: number | null;
   chatId: number | null;
   personaId: number | null;
+  requestedCharacterImageUrl?: unknown;
 }): GenerationContext {
   const db = getDb();
   let characterId = opts.characterId;
@@ -179,8 +185,18 @@ function resolveGenerationContext(opts: {
       .get(opts.userId) as PersonaRow | undefined;
   }
 
+  const characterImages = listSelectableCharacterImages({
+    userId: opts.userId,
+    characterId: character.id,
+    creatorId: character.creator_id,
+    assetsRaw: character.assets,
+    imagesRaw: character.images,
+  });
   const characterImageUrl =
-    getCharacterRepresentativeImageUrl(character.assets, character.images)?.trim() ?? "";
+    selectCharacterImageUrl(characterImages, opts.requestedCharacterImageUrl) ?? "";
+  if (opts.requestedCharacterImageUrl && !characterImageUrl) {
+    throw new RequestError("선택할 수 없는 캐릭터 이미지입니다.", 403);
+  }
   const personaImageUrl = persona
     ? personaImageBaseUrl(sanitizePersonaImageUrl(persona.image_url))
     : "";
@@ -190,6 +206,7 @@ function resolveGenerationContext(opts: {
     character,
     persona: persona ?? null,
     characterImageUrl,
+    characterImages,
     personaImageUrl,
   };
 }
@@ -364,6 +381,7 @@ function publicContextResponse(context: GenerationContext) {
       name: context.character.name,
       imageUrl: context.characterImageUrl,
     },
+    characterImages: context.characterImages,
     persona: context.persona
       ? {
           id: context.persona.id,
@@ -435,6 +453,7 @@ export async function POST(req: Request) {
       characterId: positiveInt(body.characterId),
       chatId: positiveInt(body.chatId),
       personaId: positiveInt(body.personaId),
+      requestedCharacterImageUrl: body.characterImageUrl,
     });
     const quality = resolveChatImageGenerationQuality(
       body.quality,

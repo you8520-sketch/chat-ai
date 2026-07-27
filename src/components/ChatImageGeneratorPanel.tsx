@@ -42,6 +42,7 @@ type Preflight = {
   modelLabel: string;
   template: { id: string; name: string; previewUrl: string };
   character: ReferenceInfo;
+  characterImages?: Array<{ url: string; tag: string }>;
   persona: ReferenceInfo | null;
   balance?: { total: number; paid: number; free: number };
   latestResult?: {
@@ -107,9 +108,17 @@ function IconImageSpark({ className }: { className?: string }) {
   );
 }
 
-function ReferenceCard({ label, info }: { label: string; info: ReferenceInfo | null }) {
-  return (
-    <div className="min-w-0 rounded-xl border border-white/10 bg-white/[0.03] p-2">
+function ReferenceCard({
+  label,
+  info,
+  onClick,
+}: {
+  label: string;
+  info: ReferenceInfo | null;
+  onClick?: () => void;
+}) {
+  const content = (
+    <>
       <p className="mb-1.5 text-[10px] font-semibold text-zinc-400">{label}</p>
       <div className="flex items-center gap-2">
         <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-black/25">
@@ -125,7 +134,21 @@ function ReferenceCard({ label, info }: { label: string; info: ReferenceInfo | n
           {info?.name || "선택 안 됨"}
         </p>
       </div>
-    </div>
+      {onClick ? (
+        <p className="mt-1.5 text-[9px] font-semibold text-violet-300">
+          눌러서 해금 이미지 선택
+        </p>
+      ) : null}
+    </>
+  );
+  const className =
+    "min-w-0 rounded-xl border border-white/10 bg-white/[0.03] p-2 text-left";
+  return onClick ? (
+    <button type="button" onClick={onClick} className={`${className} hover:border-violet-400/40`}>
+      {content}
+    </button>
+  ) : (
+    <div className={className}>{content}</div>
   );
 }
 
@@ -157,18 +180,13 @@ function PriceBox({
   );
 }
 
-async function downloadImage(imageUrl: string, mode: ResultMode) {
-  const response = await fetch(imageUrl, { cache: "no-store" });
-  if (!response.ok) throw new Error("이미지 파일을 불러오지 못했습니다.");
-  const blob = await response.blob();
-  const objectUrl = URL.createObjectURL(blob);
+function downloadImage(imageUrl: string, mode: ResultMode) {
   const anchor = document.createElement("a");
-  anchor.href = objectUrl;
+  anchor.href = imageUrl;
   anchor.download = `habi-${mode === "comic" ? "comic" : "sd"}-${Date.now()}.webp`;
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
-  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1_000);
 }
 
 export default function ChatImageGeneratorPanel() {
@@ -184,6 +202,8 @@ export default function ChatImageGeneratorPanel() {
   const [comicResultUrl, setComicResultUrl] = useState("");
   const [comicTitle, setComicTitle] = useState("");
   const [savedUrls, setSavedUrls] = useState<Set<string>>(() => new Set());
+  const [selectedCharacterImageUrl, setSelectedCharacterImageUrl] = useState("");
+  const [characterPickerOpen, setCharacterPickerOpen] = useState(false);
 
   const [placement, setPlacement] = useState<ChatImagePlacement>(
     CHAT_IMAGE_GENERATION_DEFAULT_OPTIONS.placement
@@ -211,6 +231,13 @@ export default function ChatImageGeneratorPanel() {
   const activeResultUrl = tab === "comic" ? comicResultUrl : sdResultUrl;
   const activeMode: ResultMode = tab === "comic" ? "comic" : "sd";
   const activeSaved = activeResultUrl ? savedUrls.has(activeResultUrl) : false;
+  const selectedCharacterInfo = useMemo<ReferenceInfo | null>(() => {
+    if (!info?.character) return null;
+    return {
+      ...info.character,
+      imageUrl: selectedCharacterImageUrl || info.character.imageUrl,
+    };
+  }, [info?.character, selectedCharacterImageUrl]);
 
   const updateBalance = useCallback((data: GenerateResult) => {
     if (
@@ -272,6 +299,15 @@ export default function ChatImageGeneratorPanel() {
         | null;
       if (!response.ok || !data) throw new Error(data?.error || "이미지 생성 정보를 불러오지 못했습니다.");
       setInfo(data);
+      const selectableImages = Array.isArray(data.characterImages)
+        ? data.characterImages
+        : [];
+      setSelectedCharacterImageUrl((previous) =>
+        selectableImages.some((image) => image.url === previous)
+          ? previous
+          : data.character.imageUrl
+      );
+      setCharacterPickerOpen(false);
       if (!sdResultUrl && data.latestResult?.imageUrl) setSdResultUrl(data.latestResult.imageUrl);
       await loadSavedImages();
     } catch (caught) {
@@ -317,6 +353,7 @@ export default function ChatImageGeneratorPanel() {
           bottomExpression,
           mood: sdMood,
           quality: sdQuality,
+          characterImageUrl: selectedCharacterImageUrl || info.character.imageUrl,
         }),
       });
       const data = (await response.json().catch(() => null)) as GenerateResult | null;
@@ -375,6 +412,7 @@ export default function ChatImageGeneratorPanel() {
           sourceText,
           panelCount,
           mood: comicMood,
+          characterImageUrl: selectedCharacterImageUrl || info.character.imageUrl,
         }),
       });
       const data = (await response.json().catch(() => null)) as GenerateResult | null;
@@ -547,9 +585,54 @@ export default function ChatImageGeneratorPanel() {
 
                   <div className="space-y-3">
                     <div className="grid grid-cols-2 gap-2">
-                      <ReferenceCard label="채팅 캐릭터" info={info?.character ?? null} />
+                      <ReferenceCard
+                        label="채팅 캐릭터"
+                        info={selectedCharacterInfo}
+                        onClick={
+                          (info?.characterImages?.length ?? 0) > 1
+                            ? () => setCharacterPickerOpen((previous) => !previous)
+                            : undefined
+                        }
+                      />
                       <ReferenceCard label="선택 페르소나" info={info?.persona ?? null} />
                     </div>
+                    {characterPickerOpen && (info?.characterImages?.length ?? 0) > 1 ? (
+                      <div className="rounded-xl border border-violet-400/20 bg-black/25 p-2">
+                        <p className="mb-2 text-[10px] font-semibold text-violet-200">
+                          해금된 캐릭터 이미지
+                        </p>
+                        <div className="grid max-h-52 grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4">
+                          {info!.characterImages!.map((image) => {
+                            const selected = image.url === selectedCharacterImageUrl;
+                            return (
+                              <button
+                                key={image.url}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedCharacterImageUrl(image.url);
+                                  setCharacterPickerOpen(false);
+                                }}
+                                className={`overflow-hidden rounded-lg border text-left transition ${
+                                  selected
+                                    ? "border-violet-400 bg-violet-500/15"
+                                    : "border-white/10 bg-white/[0.03] hover:border-white/25"
+                                }`}
+                                aria-label={`캐릭터 이미지 선택: ${image.tag || "이미지"}`}
+                              >
+                                <img
+                                  src={image.url}
+                                  alt=""
+                                  className="aspect-square w-full object-cover object-top"
+                                />
+                                <span className="block truncate px-1.5 py-1 text-[9px] text-zinc-300">
+                                  {image.tag || "이미지"}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
 
                     {tab === "sd" ? (
                       <>
