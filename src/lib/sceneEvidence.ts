@@ -5,6 +5,7 @@
  * knowledge, compiler, or secret_description accessors.
  */
 import type Database from "better-sqlite3";
+import { isPersonaSecretDiscoveryEnabled } from "@/lib/personaSecretBoundaryPolicy";
 import {
   draftsFromExplicitActions,
   draftsFromServerOrCreatorEvents,
@@ -34,6 +35,14 @@ export function extractAndPersistSceneEvidence(
   input: SceneEvidenceExtractorInput,
   db?: Database.Database
 ): ExtractAndPersistSceneEvidenceResult {
+  if (!isPersonaSecretDiscoveryEnabled()) {
+    return {
+      draftCount: 0,
+      rejectedCount: 0,
+      inserted: [],
+      reused: [],
+    };
+  }
   const drafts: SceneEvidenceDraft[] = [];
 
   if (input.explicitActions?.length) {

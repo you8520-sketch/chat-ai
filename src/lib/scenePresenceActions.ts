@@ -18,16 +18,16 @@ import type {
   ScenePresenceSourceType,
   VisualCapability,
 } from "@/lib/observerTypes";
+import { isPersonaSecretDiscoveryEnabled } from "@/lib/personaSecretBoundaryPolicy";
 import {
   requireRegisteredObserver,
   upsertScenePresence,
 } from "@/lib/scenePresence";
 
-const ALLOWED_SOURCES = new Set<ScenePresenceSourceType>([
+const AUTHORITATIVE_SOURCES = new Set<ScenePresenceSourceType>([
   "MAIN_CHARACTER_BOOTSTRAP",
   "CREATOR_STRUCTURED_CAST",
   "SERVER_SCENE_EVENT",
-  "USER_EXPLICIT_PARTY_ACTION",
   "ADMIN_CANARY",
 ]);
 
@@ -50,57 +50,137 @@ const ACTIONS = new Set<string>([
   "MOVE_LOCATION",
 ]);
 
+/** User-public body: party enter/leave/move only — no capability spoofing. */
+const USER_ACTIONS = new Set<string>([
+  "ENTER_SCENE",
+  "LEAVE_SCENE",
+  "MOVE_LOCATION",
+]);
+
 function looksLikeSecretSmuggle(keys: string[]): boolean {
   return keys.some((k) =>
     /secret|knowledge|canonical_secret|discovery|alias|revealed/i.test(k)
   );
 }
 
+function parseBaseFields(
+  o: Record<string, unknown>
+): Omit<ScenePresenceAction, "sourceType"> | null {
+  if (looksLikeSecretSmuggle(Object.keys(o))) return null;
+  const action = String(o.action ?? "");
+  const observerType = String(o.observerType ?? "");
+  const observerId = String(o.observerId ?? "").trim().slice(0, 128);
+  if (!ACTIONS.has(action) || !OBSERVER_TYPES.has(observerType) || !observerId) {
+    return null;
+  }
+  const parsed: Omit<ScenePresenceAction, "sourceType"> = {
+    action: action as ScenePresenceAction["action"],
+    observerType: observerType as ObserverType,
+    observerId,
+  };
+  if (o.awarenessState && AWARENESS.has(String(o.awarenessState))) {
+    parsed.awarenessState = String(o.awarenessState) as AwarenessState;
+  }
+  if (o.visualCapability && VISUAL.has(String(o.visualCapability))) {
+    parsed.visualCapability = String(o.visualCapability) as VisualCapability;
+  }
+  if (o.auditoryCapability && AUDITORY.has(String(o.auditoryCapability))) {
+    parsed.auditoryCapability = String(o.auditoryCapability) as AuditoryCapability;
+  }
+  if (typeof o.locationKey === "string") {
+    parsed.locationKey = o.locationKey.slice(0, 64);
+  }
+  if (typeof o.displayName === "string") {
+    parsed.displayName = o.displayName.slice(0, 120);
+  }
+  return parsed;
+}
+
 /**
- * Parse client/server scenePresenceActions.
- * Rejects assistant-origin fields and secret-smuggling keys.
- * Never accepts free-text simulation_cast as an action source.
+ * Public chat body scene actions.
+ * Forces USER_EXPLICIT_PARTY_ACTION. Rejects SERVER/CREATOR/ADMIN forgeries and
+ * capability spoofing (BLIND/DEAF/UNCONSCIOUS) / NPC registration.
  */
-export function parseScenePresenceActions(raw: unknown): ScenePresenceAction[] {
+export function parseUserScenePresenceActions(raw: unknown): ScenePresenceAction[] {
   if (!Array.isArray(raw)) return [];
   const out: ScenePresenceAction[] = [];
   for (const item of raw.slice(0, 16)) {
     if (!item || typeof item !== "object" || Array.isArray(item)) continue;
     const o = item as Record<string, unknown>;
-    if (looksLikeSecretSmuggle(Object.keys(o))) continue;
-    const action = String(o.action ?? "");
-    const observerType = String(o.observerType ?? "");
-    const observerId = String(o.observerId ?? "").trim().slice(0, 128);
+    if (o.sourceType != null) {
+      const st = String(o.sourceType);
+      if (
+        st === "SERVER_SCENE_EVENT" ||
+        st === "CREATOR_STRUCTURED_CAST" ||
+        st === "ADMIN_CANARY" ||
+        st === "MAIN_CHARACTER_BOOTSTRAP"
+      ) {
+        continue;
+      }
+      if (st && st !== "USER_EXPLICIT_PARTY_ACTION") continue;
+    }
+    const base = parseBaseFields(o);
+    if (!base) continue;
+    if (!USER_ACTIONS.has(base.action)) continue;
+    if (base.observerType !== "PARTY_MEMBER") continue;
+    // Strip capability/awareness spoof fields from public path.
+    out.push({
+      action: base.action,
+      observerType: base.observerType,
+      observerId: base.observerId,
+      sourceType: "USER_EXPLICIT_PARTY_ACTION",
+      ...(base.locationKey !== undefined ? { locationKey: base.locationKey } : {}),
+      ...(base.displayName ? { displayName: base.displayName } : {}),
+    });
+  }
+  return out;
+}
+
+/**
+ * Internal authoritative scene actions (server/creator/admin).
+ * Never wire to public chat body without ownership checks.
+ */
+export function parseAuthoritativeScenePresenceActions(
+  raw: unknown
+): ScenePresenceAction[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ScenePresenceAction[] = [];
+  for (const item of raw.slice(0, 16)) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const o = item as Record<string, unknown>;
     const sourceType = String(o.sourceType ?? "");
-    if (!ACTIONS.has(action) || !OBSERVER_TYPES.has(observerType) || !observerId) {
+    if (!AUTHORITATIVE_SOURCES.has(sourceType as ScenePresenceSourceType)) {
       continue;
     }
-    if (!ALLOWED_SOURCES.has(sourceType as ScenePresenceSourceType)) continue;
-    // Bootstrap source is server-internal only.
+    // Bootstrap source is server-internal registration only — not a body action.
     if (sourceType === "MAIN_CHARACTER_BOOTSTRAP") continue;
-
-    const parsed: ScenePresenceAction = {
-      action: action as ScenePresenceAction["action"],
-      observerType: observerType as ObserverType,
-      observerId,
+    const base = parseBaseFields(o);
+    if (!base) continue;
+    out.push({
+      ...base,
       sourceType: sourceType as ScenePresenceSourceType,
-    };
-    if (o.awarenessState && AWARENESS.has(String(o.awarenessState))) {
-      parsed.awarenessState = String(o.awarenessState) as AwarenessState;
-    }
-    if (o.visualCapability && VISUAL.has(String(o.visualCapability))) {
-      parsed.visualCapability = String(o.visualCapability) as VisualCapability;
-    }
-    if (o.auditoryCapability && AUDITORY.has(String(o.auditoryCapability))) {
-      parsed.auditoryCapability = String(o.auditoryCapability) as AuditoryCapability;
-    }
-    if (typeof o.locationKey === "string") {
-      parsed.locationKey = o.locationKey.slice(0, 64);
-    }
-    if (typeof o.displayName === "string") {
-      parsed.displayName = o.displayName.slice(0, 120);
-    }
-    out.push(parsed);
+    });
+  }
+  return out;
+}
+
+/**
+ * @deprecated Prefer parseUserScenePresenceActions (public) or
+ * parseAuthoritativeScenePresenceActions (internal). Kept for older tests:
+ * USER_EXPLICIT_PARTY_ACTION → user parser; SERVER/CREATOR/ADMIN → authoritative.
+ */
+export function parseScenePresenceActions(raw: unknown): ScenePresenceAction[] {
+  if (!Array.isArray(raw)) return [];
+  const user = parseUserScenePresenceActions(raw);
+  const auth = parseAuthoritativeScenePresenceActions(raw);
+  // Deduplicate by action+observer+source
+  const seen = new Set<string>();
+  const out: ScenePresenceAction[] = [];
+  for (const a of [...user, ...auth]) {
+    const key = `${a.action}|${a.observerType}|${a.observerId}|${a.sourceType}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(a);
   }
   return out;
 }
@@ -121,6 +201,9 @@ export function applyScenePresenceActions(opts: {
   actions: ScenePresenceAction[];
   db?: Database.Database;
 }): ApplyPresenceActionsResult {
+  if (!isPersonaSecretDiscoveryEnabled()) {
+    return { applied: 0, rejected: opts.actions.length };
+  }
   const db = opts.db ?? getDb();
   let applied = 0;
   let rejected = 0;

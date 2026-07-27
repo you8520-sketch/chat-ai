@@ -13,6 +13,7 @@ import {
   parseInvestigationExplicitActions,
 } from "@/lib/investigationRequests";
 import { resolveInvestigationTurn } from "@/lib/investigationResolver";
+import { isPersonaSecretDiscoveryEnabled } from "@/lib/personaSecretBoundaryPolicy";
 
 export type RunInvestigationDiscoveryResult = {
   attemptCount: number;
@@ -37,6 +38,15 @@ export function runInvestigationDiscoveryForTurn(opts: {
   authoritativeOutcomes?: ReturnType<typeof parseInvestigationAuthoritativeOutcomes>;
   db?: Database.Database;
 }): RunInvestigationDiscoveryResult {
+  if (!isPersonaSecretDiscoveryEnabled()) {
+    return {
+      attemptCount: 0,
+      resultCount: 0,
+      matchCount: 0,
+      appliedCount: 0,
+      changedCount: 0,
+    };
+  }
   const resolved = resolveInvestigationTurn(
     {
       chatId: opts.chatId,

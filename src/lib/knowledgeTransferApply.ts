@@ -21,10 +21,7 @@ import {
   upsertObserverSecretKnowledge,
 } from "@/lib/personaSecretKnowledge";
 import { getPersonaSecretById } from "@/lib/personaSecrets";
-import {
-  insertChatPersonaSecretReveal,
-  sanitizeRevealedFactForPrompt,
-} from "@/lib/personaSecretReveal";
+import { sanitizeRevealedFactForPrompt } from "@/lib/personaSecretReveal";
 import {
   canObserveAuditorily,
   canObserveVisually,
@@ -51,6 +48,18 @@ function resolveMergedState(
       : incoming;
 }
 
+export function resolveKnowledgeTransferActionRef(opts: {
+  sourceMessageId?: number | null;
+  actionId?: string | null;
+  authoritativeEventId?: string | null;
+}): string | null {
+  if (opts.sourceMessageId != null && Number.isFinite(opts.sourceMessageId)) {
+    return String(Math.floor(opts.sourceMessageId));
+  }
+  const actionId = opts.actionId?.trim() || opts.authoritativeEventId?.trim();
+  return actionId ? actionId : null;
+}
+
 export function buildKnowledgeTransferIdempotencyKey(opts: {
   chatId: number;
   secretId: string;
@@ -60,15 +69,12 @@ export function buildKnowledgeTransferIdempotencyKey(opts: {
   receiverId: string;
   sourceMessageId?: number | null;
   actionId?: string | null;
+  authoritativeEventId?: string | null;
   transferType: KnowledgeTransferType;
   version?: number;
-}): string {
-  const actionRef =
-    opts.sourceMessageId != null
-      ? String(opts.sourceMessageId)
-      : opts.actionId?.trim()
-        ? opts.actionId.trim()
-        : "na";
+}): string | null {
+  const actionRef = resolveKnowledgeTransferActionRef(opts);
+  if (!actionRef) return null;
   return [
     "knowledge-transfer",
     opts.chatId,
@@ -166,6 +172,15 @@ export function applyKnowledgeTransferAction(opts: {
   }
 
   const { action } = opts;
+  const actionRef = resolveKnowledgeTransferActionRef({
+    sourceMessageId: action.sourceMessageId,
+    actionId: action.actionId,
+    authoritativeEventId: action.authoritativeEventId,
+  });
+  if (!actionRef) {
+    return { ok: false, reason: "MISSING_ACTION_REF" };
+  }
+
   const senderType = action.sender.observerType;
   const senderId = action.sender.observerId;
   const receiverType = action.receiver.observerType;
@@ -249,8 +264,12 @@ export function applyKnowledgeTransferAction(opts: {
     receiverId,
     sourceMessageId: action.sourceMessageId,
     actionId: action.actionId,
+    authoritativeEventId: action.authoritativeEventId,
     transferType: action.transferType,
   });
+  if (!idempotencyKey) {
+    return { ok: false, reason: "MISSING_ACTION_REF" };
+  }
 
   let result: KnowledgeTransferApplyResult = {
     ok: true,
@@ -415,23 +434,9 @@ export function applyKnowledgeTransferAction(opts: {
       db,
     });
 
-    if (
-      nextState === "CONFIRMED" &&
-      receiverType === "CHARACTER" &&
-      receiverId === String(opts.characterId)
-    ) {
-      insertChatPersonaSecretReveal(
-        {
-          chatId: opts.chatId,
-          personaId: opts.personaId,
-          secretKey: secret.secret_key,
-          revealedFactText: storeFact,
-          revealedAtTurn: opts.turnNumber,
-          source: "USER_AUTHORED_DISCLOSURE",
-        },
-        db
-      );
-    }
+    // Provenance lives on knowledge_transfer_events + persona_secret_evidence_events
+    // (method KNOWLEDGE_TRANSFER). Do not write legacy chat_persona_secret_reveals
+    // with USER_AUTHORED_DISCLOSURE — that mislabels transfer success.
 
     result = {
       ok: true,

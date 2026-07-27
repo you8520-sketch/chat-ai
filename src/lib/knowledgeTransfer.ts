@@ -1,6 +1,10 @@
 /**
  * PR-S4D — Turn-level knowledge transfer orchestrator.
  * Never parses assistant prose into transfers.
+ *
+ * Public chat body may supply `userActions` only. `authoritativeActions` must be
+ * resolved internally (creator trigger / server scene engine / admin endpoint /
+ * queued event) — never from HTTP chat body fields.
  */
 
 import type Database from "better-sqlite3";
@@ -12,6 +16,7 @@ import type {
   KnowledgeTransferAuthoritativeAction,
   PersonaSecretTransferAction,
 } from "@/lib/knowledgeTransferTypes";
+import { isPersonaSecretDiscoveryEnabled } from "@/lib/personaSecretBoundaryPolicy";
 
 export type KnowledgeTransferTurnResult = {
   results: KnowledgeTransferApplyResult[];
@@ -24,12 +29,18 @@ export function runKnowledgeTransfersForTurn(opts: {
   personaId: number;
   characterId: number;
   turnNumber: number;
-  /** Parsed USER_EXPLICIT_TRANSFER actions (body.knowledgeTransferActions). */
+  /** Public-path USER_EXPLICIT_TRANSFER actions (source forced server-side). */
   userActions?: PersonaSecretTransferAction[];
-  /** Parsed SERVER/CREATOR actions (body.knowledgeTransferAuthoritativeActions). */
+  /**
+   * Internal-only SERVER/CREATOR actions. Callers must not populate this from
+   * `body.knowledgeTransferAuthoritativeActions`.
+   */
   authoritativeActions?: KnowledgeTransferAuthoritativeAction[];
   db?: Database.Database;
 }): KnowledgeTransferTurnResult {
+  if (!isPersonaSecretDiscoveryEnabled()) {
+    return { results: [], appliedCount: 0, changedCount: 0 };
+  }
   const db = opts.db ?? getDb();
   ensureKnowledgeTransferSchema(db);
 

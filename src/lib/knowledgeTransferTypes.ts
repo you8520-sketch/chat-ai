@@ -32,9 +32,12 @@ export type PersonaSecretTransferAction = {
     observerId: string;
   };
   transferType: KnowledgeTransferType;
+  /** Server-assigned for user transfers; never trust client-chosen ids on public body. */
   sourceMessageId?: number;
-  /** Stable client/server action id for idempotency when sourceMessageId is absent. */
+  /** Server-generated action id for idempotency (authoritative path). */
   actionId?: string;
+  /** Alias for authoritative internal event id → stored as actionId. */
+  authoritativeEventId?: string;
 };
 
 export type KnowledgeTransferAuthoritativeAction = PersonaSecretTransferAction & {
@@ -65,6 +68,7 @@ export type KnowledgeTransferEventRow = {
 
 export type KnowledgeTransferRejectReason =
   | "FORBIDDEN_SOURCE"
+  | "MISSING_ACTION_REF"
   | "INVALID_SENDER"
   | "INVALID_RECEIVER"
   | "SAME_OBSERVER"

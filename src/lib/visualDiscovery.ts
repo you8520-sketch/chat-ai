@@ -12,6 +12,7 @@
  */
 import type Database from "better-sqlite3";
 import { bootstrapChatObservers } from "@/lib/observerBootstrap";
+import { isPersonaSecretDiscoveryEnabled } from "@/lib/personaSecretBoundaryPolicy";
 import type { PersonaSecretObserverType } from "@/lib/personaSecretDiscoveryTypes";
 import {
   listObservedObserversForEvent,
@@ -42,6 +43,15 @@ export function runVisualDiscoveryForTurn(opts: {
   sourceMessageId?: number | null;
   db?: Database.Database;
 }): RunVisualDiscoveryResult {
+  if (!isPersonaSecretDiscoveryEnabled()) {
+    return {
+      matchCount: 0,
+      appliedCount: 0,
+      changedCount: 0,
+      observedObserverCount: 0,
+      rejectedObserverCount: 0,
+    };
+  }
   // Ensure main character observer + active scene exist (idempotent).
   bootstrapChatObservers({
     chatId: opts.chatId,

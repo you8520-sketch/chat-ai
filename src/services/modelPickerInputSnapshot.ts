@@ -39,7 +39,10 @@ import { normalizeTargetResponseChars } from "@/lib/responseLength";
 import { collectCharacterSettingText } from "@/lib/bodyHairRules";
 import type { User } from "@/lib/auth";
 import { buildContext } from "@/services/contextBuilder";
-import { isPersonaSecretBoundaryEnabled } from "@/lib/personaSecretBoundaryPolicy";
+import {
+  isPersonaSecretBoundaryEnabled,
+  isPersonaSecretDiscoveryEnabled,
+} from "@/lib/personaSecretBoundaryPolicy";
 import { buildPersonaKnowledgePromptBlock } from "@/lib/personaSecretKnowledge";
 import {
   buildGenerationKnowledgeContext,
@@ -248,7 +251,10 @@ export async function resolveModelPickerAssembledInputSnapshots(opts: {
   let contentKind: "character" | "simulation" = "character";
   const personaKnowledgeAssemble = <T,>(fn: () => T): T => fn();
   let assemblePickerContext = personaKnowledgeAssemble;
-  if (isPersonaSecretBoundaryEnabled()) {
+  if (
+    isPersonaSecretBoundaryEnabled() &&
+    isPersonaSecretDiscoveryEnabled({ userId: opts.user.id })
+  ) {
     const personaId = selectedPersona?.id ?? chat.selected_persona_id;
     contentKind = String(ch.content_kind ?? "") === "simulation" ? "simulation" : "character";
     const decision = resolvePersonaKnowledgePromptDecisionForChat(

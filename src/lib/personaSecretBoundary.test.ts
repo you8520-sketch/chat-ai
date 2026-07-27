@@ -11,7 +11,10 @@ import { afterEach, before, beforeEach, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
 import { formatPublicPersonaForPrompt } from "@/lib/personaSecretPrompt";
 import { splitPersonaSecretItems } from "@/lib/personaSecretItems";
-import { isPersonaSecretBoundaryEnabled } from "@/lib/personaSecretBoundaryPolicy";
+import {
+  isPersonaSecretBoundaryEnabled,
+  isPersonaSecretDiscoveryEnabled,
+} from "@/lib/personaSecretBoundaryPolicy";
 import {
   buildCanonicalRevealedFactText,
   buildRevealedPersonaFactsBlock,
@@ -364,6 +367,37 @@ describe("persona secret boundary", () => {
         PERSONA_SECRET_BOUNDARY_USER_IDS: undefined,
       }),
       false
+    );
+  });
+
+  it("Discovery kill switch default OFF in production; explicit OFF wins", () => {
+    restoreEnv(env);
+    assert.equal(
+      isPersonaSecretDiscoveryEnabled({ userId: 42 }, {
+        ...process.env,
+        NODE_ENV: "production",
+        PERSONA_SECRET_BOUNDARY_ENABLED: "1",
+        PERSONA_SECRET_DISCOVERY_ENABLED: undefined,
+      }),
+      false
+    );
+    assert.equal(
+      isPersonaSecretDiscoveryEnabled({ userId: 42 }, {
+        ...process.env,
+        NODE_ENV: "production",
+        PERSONA_SECRET_BOUNDARY_ENABLED: "1",
+        PERSONA_SECRET_DISCOVERY_ENABLED: "0",
+      }),
+      false
+    );
+    assert.equal(
+      isPersonaSecretDiscoveryEnabled({ userId: 42 }, {
+        ...process.env,
+        NODE_ENV: "production",
+        PERSONA_SECRET_BOUNDARY_ENABLED: "1",
+        PERSONA_SECRET_DISCOVERY_ENABLED: "1",
+      }),
+      true
     );
   });
 

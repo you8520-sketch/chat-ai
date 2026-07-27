@@ -346,6 +346,7 @@ describe("PR-S4A observer identity & scene membership", () => {
     it("rejects unregistered observer presence mutation", () => {
       const { chatId, characterId } = ids();
       bootstrapChatObservers({ chatId, characterId });
+      // Apply-layer gate (public parser already drops NPC + USER_EXPLICIT).
       const r = applyScenePresenceActions({
         chatId,
         turnNumber: 1,
@@ -354,7 +355,7 @@ describe("PR-S4A observer identity & scene membership", () => {
             action: "ENTER_SCENE",
             observerType: "NPC",
             observerId: "ghost-npc",
-            sourceType: "USER_EXPLICIT_PARTY_ACTION",
+            sourceType: "SERVER_SCENE_EVENT",
           },
         ],
       });

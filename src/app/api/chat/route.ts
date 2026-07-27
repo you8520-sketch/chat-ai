@@ -173,12 +173,17 @@ import {
   resolveChatSelectedPersona,
   validatePersonaSelection,
 } from "@/lib/userPersonas";
-import { isPersonaSecretBoundaryEnabled } from "@/lib/personaSecretBoundaryPolicy";
+import {
+  isPersonaSecretBoundaryEnabled,
+  isPersonaSecretDiscoveryEnabled,
+} from "@/lib/personaSecretBoundaryPolicy";
 import { formatPublicPersonaForPrompt } from "@/lib/personaSecretPrompt";
 import { toPublicPersonaDescription } from "@/lib/personaSecretLegacyMarkers";
 import { splitPersonaSecretItems } from "@/lib/personaSecretItems";
 import {
+  buildRevealedPersonaFactsBlockForPersona,
   detectUserAuthoredPersonaSecretReveals,
+  listChatPersonaSecretReveals,
   persistPersonaSecretRevealCandidates,
   type PersonaSecretRevealCandidate,
 } from "@/lib/personaSecretReveal";
@@ -200,21 +205,11 @@ import {
   parseSceneEvidenceExplicitActions,
 } from "@/lib/sceneEvidence";
 import { runVisualDiscoveryForTurn } from "@/lib/visualDiscovery";
-import {
-  parseInvestigationAuthoritativeOutcomes,
-  parseInvestigationExplicitActions,
-  runInvestigationDiscoveryForTurn,
-} from "@/lib/investigationDiscovery";
-import {
-  parseKnowledgeTransferActions,
-  parseKnowledgeTransferAuthoritativeActions,
-} from "@/lib/knowledgeTransferActions";
+import { runInvestigationDiscoveryForTurn } from "@/lib/investigationDiscovery";
 import { runKnowledgeTransfersForTurn } from "@/lib/knowledgeTransfer";
+import { extractPublicChatDiscoveryInputs } from "@/lib/personaSecretDiscoveryPublicInput";
 import { bootstrapChatObservers } from "@/lib/observerBootstrap";
-import {
-  applyScenePresenceActions,
-  parseScenePresenceActions,
-} from "@/lib/scenePresenceActions";
+import { applyScenePresenceActions } from "@/lib/scenePresenceActions";
 import { resolveUserImpersonationAllowance } from "@/lib/userImpersonationPolicy";
 import { resolveChatRuntimeMode } from "@/lib/chatRuntimeMode";
 import {
@@ -532,13 +527,21 @@ export async function POST(req: Request) {
     return Response.json({ error: "채팅방을 찾을 수 없습니다." }, { status: 404 });
   }
 
-  // PR-S4A: lazy bootstrap main character observer + active scene (idempotent).
-  bootstrapChatObservers({
-    chatId: chat.id,
-    characterId: ch.id,
-    displayName: typeof ch.name === "string" ? ch.name : "",
-    turnNumber: 0,
+  const personaSecretBoundaryOn = isPersonaSecretBoundaryEnabled({ userId: user.id });
+  const personaSecretDiscoveryOn = isPersonaSecretDiscoveryEnabled({
+    userId: user.id,
   });
+
+  // PR-S4A: lazy bootstrap main character observer + active scene (idempotent).
+  // Discovery kill switch — no observer/scene writes when OFF.
+  if (personaSecretDiscoveryOn) {
+    bootstrapChatObservers({
+      chatId: chat.id,
+      characterId: ch.id,
+      displayName: typeof ch.name === "string" ? ch.name : "",
+      turnNumber: 0,
+    });
+  }
 
   if (userNoteInput !== undefined) {
     const widgetReserved = resolveStatusWidgetReservedChars({
@@ -595,7 +598,6 @@ export async function POST(req: Request) {
 
   const personaDescription = toPublicPersonaDescription(selectedPersona?.description ?? "");
   const personaDisplayName = selectedPersona?.name?.trim() || user.nickname;
-  const personaSecretBoundaryOn = isPersonaSecretBoundaryEnabled({ userId: user.id });
   const userNotePrompt = formatUserNoteForPrompt(effectiveUserNote);
   const oocUserImpersonationAllowed = resolveUserImpersonationAllowance({
     personaDescription,
@@ -1108,63 +1110,76 @@ export async function POST(req: Request) {
     const secretPayload = getPersonaSecretPayload(user.id, resolvedPersonaId);
     personaSecretDescriptionForFacts = secretPayload?.secretDescription ?? "";
 
-    personaKnowledgePromptDecision = resolvePersonaKnowledgePromptDecisionForChat(
-      buildGenerationKnowledgeContext({
-        contentKind: ch.content_kind,
-        simulationCast: ch.simulation_cast ?? ch.system_prompt,
-        characterId: ch.id,
-      }),
-      { chatId: chat.id }
-    );
-
-    // S1: same-turn deterministic direct disclosure → evidence+knowledge before assemble.
-    // Never injects canonical_secret_text; aliases + confirmed_fact only.
+    // Legacy blank-line secret_description compatibility (Discovery OFF still allows).
     if (
       !autoContinueContext &&
       messageText.trim() &&
-      !isContinueUserMessage(messageText)
+      !isContinueUserMessage(messageText) &&
+      personaSecretDescriptionForFacts.trim()
     ) {
-      const matches = detectDeterministicDirectDisclosures(
+      pendingPersonaSecretRevealCandidates = detectUserAuthoredPersonaSecretReveals(
         messageText,
-        resolvedPersonaId
+        splitPersonaSecretItems(personaSecretDescriptionForFacts)
       );
-      for (const match of matches) {
-        confirmPersonaSecretDisclosure({
-          chatId: chat.id,
-          personaId: resolvedPersonaId,
-          secretId: match.secret.id,
+    }
+
+    if (personaSecretDiscoveryOn) {
+      personaKnowledgePromptDecision = resolvePersonaKnowledgePromptDecisionForChat(
+        buildGenerationKnowledgeContext({
+          contentKind: ch.content_kind,
+          simulationCast: ch.simulation_cast ?? ch.system_prompt,
           characterId: ch.id,
-          turnNumber: playableTurnCount + 1,
-          sourceMessageId: null,
-          sourceType: "USER_MESSAGE_DETERMINISTIC",
-          discoveryRuleId: match.rule.id,
-          revealedFactText: match.revealedFactText,
-          idempotencyKey: buildDeterministicDisclosureIdempotencyKey({
+        }),
+        { chatId: chat.id }
+      );
+
+      // S1: same-turn deterministic direct disclosure → evidence+knowledge before assemble.
+      // Never injects canonical_secret_text; aliases + confirmed_fact only.
+      if (
+        !autoContinueContext &&
+        messageText.trim() &&
+        !isContinueUserMessage(messageText)
+      ) {
+        const matches = detectDeterministicDirectDisclosures(
+          messageText,
+          resolvedPersonaId
+        );
+        for (const match of matches) {
+          confirmPersonaSecretDisclosure({
             chatId: chat.id,
             personaId: resolvedPersonaId,
             secretId: match.secret.id,
             characterId: ch.id,
             turnNumber: playableTurnCount + 1,
-          }),
-          evidenceJson: { matchedAlias: match.matchedAlias },
-        });
+            sourceMessageId: null,
+            sourceType: "USER_MESSAGE_DETERMINISTIC",
+            discoveryRuleId: match.rule.id,
+            revealedFactText: match.revealedFactText,
+            idempotencyKey: buildDeterministicDisclosureIdempotencyKey({
+              chatId: chat.id,
+              personaId: resolvedPersonaId,
+              secretId: match.secret.id,
+              characterId: ch.id,
+              turnNumber: playableTurnCount + 1,
+            }),
+            evidenceJson: { matchedAlias: match.matchedAlias },
+          });
+        }
       }
 
-      // Legacy blank-line secret_description compatibility (no S1 secret rows required).
-      if (personaSecretDescriptionForFacts.trim()) {
-        pendingPersonaSecretRevealCandidates = detectUserAuthoredPersonaSecretReveals(
-          messageText,
-          splitPersonaSecretItems(personaSecretDescriptionForFacts)
-        );
-      }
+      revealedPersonaFactsBlock = buildPersonaKnowledgePromptBlock({
+        decision: personaKnowledgePromptDecision,
+        chatId: chat.id,
+        personaId: resolvedPersonaId,
+        legacySecretDescription: personaSecretDescriptionForFacts,
+      });
+    } else {
+      // Discovery OFF: legacy reveal-table projection only (no ensemble knowledge).
+      revealedPersonaFactsBlock = buildRevealedPersonaFactsBlockForPersona(
+        listChatPersonaSecretReveals(chat.id, resolvedPersonaId),
+        personaSecretDescriptionForFacts
+      );
     }
-
-    revealedPersonaFactsBlock = buildPersonaKnowledgePromptBlock({
-      decision: personaKnowledgePromptDecision,
-      chatId: chat.id,
-      personaId: resolvedPersonaId,
-      legacySecretDescription: personaSecretDescriptionForFacts,
-    });
   }
 
   const contextBuildInput = {
@@ -1415,26 +1430,31 @@ export async function POST(req: Request) {
     });
   }
 
-  // PR-S4A: authoritative scene presence mutations (never from assistant prose).
+  const publicDiscoveryInputs = extractPublicChatDiscoveryInputs(
+    body as Record<string, unknown>
+  );
+
+  // PR-S4A: user-allowed scene presence only (never SERVER/CREATOR from public body).
   if (
+    personaSecretDiscoveryOn &&
     !autoContinueContext &&
     !regenerate &&
     messageText.trim() &&
     !isContinueUserMessage(messageText)
   ) {
-    const presenceActions = parseScenePresenceActions(body.scenePresenceActions);
-    if (presenceActions.length > 0) {
+    if (publicDiscoveryInputs.scenePresenceActions.length > 0) {
       applyScenePresenceActions({
         chatId: chatRef.id,
         turnNumber: playableTurnCount + 1,
-        actions: presenceActions,
+        actions: publicDiscoveryInputs.scenePresenceActions,
       });
     }
   }
 
-  // PR-S2A/S2B/S3: scene evidence → visual → investigation → rebuild known-facts before generation.
+  // PR-S2A/S2B/S3/S4D: scene evidence → visual → investigation → transfer → rebuild known-facts.
+  // Authoritative outcomes/transfers are NOT read from the public chat body.
   if (
-    personaSecretBoundaryOn &&
+    personaSecretDiscoveryOn &&
     !autoContinueContext &&
     !regenerate &&
     messageText.trim() &&
@@ -1460,12 +1480,6 @@ export async function POST(req: Request) {
         sourceMessageId: userMessageId,
       });
 
-      const investigationActions = parseInvestigationExplicitActions(
-        body.investigationActions
-      );
-      const investigationOutcomes = parseInvestigationAuthoritativeOutcomes(
-        body.investigationOutcomes
-      );
       runInvestigationDiscoveryForTurn({
         chatId: chatRef.id,
         personaId: resolvedPersonaId,
@@ -1473,39 +1487,31 @@ export async function POST(req: Request) {
         turnNumber: playableTurnCount + 1,
         sourceMessageId: userMessageId,
         userMessage: messageText,
-        explicitActions: investigationActions,
-        authoritativeOutcomes: investigationOutcomes,
+        explicitActions: publicDiscoveryInputs.investigationActions,
+        // Internal-only — never body.investigationOutcomes.
+        authoritativeOutcomes: [],
       });
 
-      // PR-S4D: structured knowledge transfer only (never assistant prose).
-      const knowledgeTransferActions = parseKnowledgeTransferActions(
-        body.knowledgeTransferActions
-      );
-      const knowledgeTransferAuthoritativeActions =
-        parseKnowledgeTransferAuthoritativeActions(
-          body.knowledgeTransferAuthoritativeActions
-        );
+      // PR-S4D: user transfers only; server assigns sourceMessageId from saved turn.
       if (
-        knowledgeTransferActions.length > 0 ||
-        knowledgeTransferAuthoritativeActions.length > 0
+        publicDiscoveryInputs.knowledgeTransferActions.length > 0 &&
+        userMessageId != null
       ) {
         runKnowledgeTransfersForTurn({
           chatId: chatRef.id,
           personaId: resolvedPersonaId,
           characterId: ch.id,
           turnNumber: playableTurnCount + 1,
-          userActions: knowledgeTransferActions.map((a) => ({
-            ...a,
-            sourceMessageId:
-              a.sourceMessageId ?? userMessageId ?? undefined,
-          })),
-          authoritativeActions: knowledgeTransferAuthoritativeActions.map(
+          userActions: publicDiscoveryInputs.knowledgeTransferActions.map(
             (a) => ({
               ...a,
-              sourceMessageId:
-                a.sourceMessageId ?? userMessageId ?? undefined,
+              sourceMessageId: userMessageId,
+              actionId: undefined,
+              authoritativeEventId: undefined,
             })
           ),
+          // Internal-only — never body.knowledgeTransferAuthoritativeActions.
+          authoritativeActions: [],
         });
       }
 
