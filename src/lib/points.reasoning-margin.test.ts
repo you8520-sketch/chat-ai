@@ -72,8 +72,8 @@ const MODELS = [
     inputUsd: OPENROUTER_TENCENT_HY3_INPUT_USD_PER_MILLION,
     outputUsd: OPENROUTER_TENCENT_HY3_OUTPUT_USD_PER_MILLION,
     margin: OPENROUTER_TENCENT_HY3_GROSS_MARGIN,
-    expectedInputRate: 0.0003213,
-    expectedOutputRate: 0.001071,
+    expectedInputRate: 0.000714,
+    expectedOutputRate: 0.002958,
   },
   {
     id: OPENROUTER_GEMINI_36_FLASH_MODEL,
@@ -186,9 +186,10 @@ describe("reasoning models use pure token billing at target margins", () => {
     }
   });
 
-  it("matches the requested rates at ₩1,530/USD", () => {
-    assert.equal(expectedCost(OPENROUTER_DEEPSEEK_V4_PRO_MODEL, 10_000, 2_000), 27);
-    assert.equal(expectedCost(OPENROUTER_TENCENT_HY3_MODEL, 10_000, 2_000), 6);
-    assert.equal(expectedCost(OPENROUTER_GEMINI_36_FLASH_MODEL, 10_000, 2_000), 92);
+  it("matches requested point totals at ₩1,530/USD", () => {
+    assert.equal(expectedCost(OPENROUTER_MUSE_SPARK_11_MODEL, 15_233, 2_070), 107);
+    assert.equal(expectedCost(OPENROUTER_DEEPSEEK_V4_PRO_MODEL, 15_233, 2_070), 37);
+    assert.equal(expectedCost(OPENROUTER_TENCENT_HY3_MODEL, 15_233, 2_070), 18);
+    assert.equal(expectedCost(OPENROUTER_GEMINI_36_FLASH_MODEL, 15_233, 2_070), 118);
   });
 });
