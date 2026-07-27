@@ -1,0 +1,139 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 1200" role="img" aria-labelledby="title desc">
+  <title id="title">2~4컷 가로 만화 예시</title>
+  <desc id="desc">초록 머리와 검은 머리 두 인물이 식당에서 대화하는 4컷 한국어 만화 예시</desc>
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fffdfb"/>
+      <stop offset="1" stop-color="#f5eee9"/>
+    </linearGradient>
+    <linearGradient id="warm" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ecd7bd"/>
+      <stop offset="1" stop-color="#b58c68"/>
+    </linearGradient>
+    <linearGradient id="pink" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffe6ee"/>
+      <stop offset="1" stop-color="#fff8d9"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="5" stdDeviation="5" flood-opacity=".2"/>
+    </filter>
+  </defs>
+  <rect width="900" height="1200" fill="#161616"/>
+
+  <g transform="translate(6 6)">
+    <rect width="888" height="286" fill="url(#warm)"/>
+    <g opacity=".25" stroke="#fff" stroke-width="8">
+      <path d="M0 65h888M0 130h888M0 195h888"/>
+      <path d="M120 0v286M330 0v286M680 0v286"/>
+    </g>
+    <rect y="212" width="888" height="74" fill="#8b5f42"/>
+    <ellipse cx="315" cy="238" rx="125" ry="30" fill="#ddd" stroke="#555" stroke-width="5"/>
+    <ellipse cx="655" cy="238" rx="125" ry="30" fill="#ddd" stroke="#555" stroke-width="5"/>
+    <g filter="url(#shadow)">
+      <circle cx="310" cy="126" r="84" fill="#f2d1be"/>
+      <path d="M226 125Q222 26 310 25Q408 30 397 137Q365 88 320 88Q274 88 226 125" fill="#315a3d"/>
+      <path d="M228 129Q212 198 188 227H423Q407 166 397 128" fill="#151a1b"/>
+      <path d="M252 142Q310 169 366 142" fill="none" stroke="#b16d5c" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="282" cy="126" r="8" fill="#6eaa79"/><circle cx="340" cy="126" r="8" fill="#6eaa79"/>
+      <circle cx="493" cy="126" r="80" fill="#f2d1be"/>
+      <path d="M410 132Q404 29 493 29Q584 32 579 137Q545 84 493 89Q449 87 410 132" fill="#17191d"/>
+      <path d="M410 134Q386 194 369 227H610Q596 174 577 132" fill="#171a1e"/>
+      <path d="M421 45Q493 -5 568 45L586 112Q550 72 493 73Q442 69 401 111Z" fill="#f8f7f4" stroke="#d6d0cb" stroke-width="6"/>
+      <circle cx="443" cy="119" r="8" fill="#54ad79"/><circle cx="514" cy="119" r="8" fill="#54ad79"/>
+      <path d="M457 150Q493 170 528 147" fill="none" stroke="#b16d5c" stroke-width="5" stroke-linecap="round"/>
+    </g>
+    <g filter="url(#shadow)">
+      <path d="M600 25h245q28 0 28 28v99q0 28-28 28H688l-50 36 13-36h-51q-28 0-28-28V53q0-28 28-28Z" fill="#fff" stroke="#222" stroke-width="5"/>
+      <text x="722" y="78" text-anchor="middle" font-family="sans-serif" font-size="26" font-weight="700" fill="#222">대장님, 내 것도</text>
+      <text x="722" y="116" text-anchor="middle" font-family="sans-serif" font-size="26" font-weight="700" fill="#222">먹여주면 안 돼?</text>
+    </g>
+  </g>
+
+  <g transform="translate(6 304)">
+    <rect width="888" height="286" fill="url(#warm)"/>
+    <rect y="215" width="888" height="71" fill="#8b5f42"/>
+    <g filter="url(#shadow)">
+      <circle cx="325" cy="128" r="91" fill="#f2d1be"/>
+      <path d="M230 130Q228 23 325 24Q424 26 420 142Q380 88 326 89Q273 87 230 130" fill="#315a3d"/>
+      <path d="M233 141Q220 194 194 230H448Q428 181 418 141" fill="#171b1b"/>
+      <circle cx="292" cy="122" r="8" fill="#6eaa79"/><circle cx="357" cy="122" r="8" fill="#6eaa79"/>
+      <path d="M300 153Q326 166 352 151" fill="none" stroke="#b16d5c" stroke-width="5" stroke-linecap="round"/>
+      <path d="M390 178Q467 139 526 119" fill="none" stroke="#666" stroke-width="9" stroke-linecap="round"/>
+      <ellipse cx="538" cy="113" rx="30" ry="18" fill="#755229"/>
+      <circle cx="620" cy="130" r="88" fill="#f2d1be"/>
+      <path d="M530 135Q528 25 620 27Q720 31 714 146Q675 91 622 92Q568 88 530 135" fill="#17191d"/>
+      <path d="M535 145Q515 198 499 230H742Q729 182 713 142" fill="#151a1e"/>
+      <path d="M543 51Q620 -5 696 50L718 116Q677 77 620 78Q566 74 522 116Z" fill="#faf9f7" stroke="#d6d0cb" stroke-width="6"/>
+      <circle cx="582" cy="123" r="8" fill="#54ad79"/><circle cx="653" cy="123" r="8" fill="#54ad79"/>
+      <ellipse cx="620" cy="164" rx="26" ry="35" fill="#7b3f3f"/>
+    </g>
+    <g filter="url(#shadow)">
+      <path d="M30 28h230q26 0 26 26v91q0 26-26 26H120l-45 33 12-33H30q-26 0-26-26V54q0-26 26-26Z" fill="#fff" stroke="#222" stroke-width="5"/>
+      <text x="145" y="82" text-anchor="middle" font-family="sans-serif" font-size="25" font-weight="700" fill="#222">진정하고</text>
+      <text x="145" y="120" text-anchor="middle" font-family="sans-serif" font-size="25" font-weight="700" fill="#222">한입 먹어.</text>
+    </g>
+    <text x="756" y="91" font-family="sans-serif" font-size="38" font-weight="800" fill="#fff" stroke="#222" stroke-width="2">아~</text>
+  </g>
+
+  <g transform="translate(6 602)">
+    <rect width="888" height="286" fill="url(#pink)"/>
+    <g fill="#ff9fc2" opacity=".8">
+      <path d="M80 55c22-35 70 2 0 50c-70-48-22-85 0-50Z"/>
+      <path d="M770 52c17-28 55 1 0 40c-55-39-17-68 0-40Z"/>
+      <path d="M690 205c20-32 63 1 0 45c-63-44-20-77 0-45Z"/>
+    </g>
+    <g filter="url(#shadow)">
+      <circle cx="498" cy="134" r="112" fill="#f2d1be"/>
+      <path d="M380 141Q378 14 498 13Q625 18 617 152Q567 86 500 89Q431 85 380 141" fill="#17191d"/>
+      <path d="M386 151Q354 217 345 278H650Q638 213 614 149" fill="#171a1e"/>
+      <path d="M397 51Q498 -19 600 52L623 128Q568 75 500 80Q433 75 375 128Z" fill="#faf9f7" stroke="#d6d0cb" stroke-width="6"/>
+      <circle cx="452" cy="132" r="13" fill="#54ad79"/><circle cx="547" cy="132" r="13" fill="#54ad79"/>
+      <path d="M466 182Q499 208 535 179" fill="none" stroke="#b16d5c" stroke-width="7" stroke-linecap="round"/>
+      <ellipse cx="424" cy="168" rx="32" ry="13" fill="#f3a6a6" opacity=".55"/>
+      <ellipse cx="574" cy="168" rx="32" ry="13" fill="#f3a6a6" opacity=".55"/>
+    </g>
+    <g filter="url(#shadow)">
+      <path d="M660 34h196q24 0 24 24v98q0 24-24 24H718l-42 30 11-30h-27q-24 0-24-24V58q0-24 24-24Z" fill="#fff" stroke="#222" stroke-width="5"/>
+      <text x="759" y="85" text-anchor="middle" font-family="sans-serif" font-size="23" font-weight="700" fill="#222">역시 대장님이</text>
+      <text x="759" y="123" text-anchor="middle" font-family="sans-serif" font-size="23" font-weight="700" fill="#222">최고야!</text>
+    </g>
+    <g transform="translate(43 68)" filter="url(#shadow)">
+      <rect width="215" height="164" rx="20" fill="#25282a" stroke="#fff" stroke-width="7"/>
+      <circle cx="108" cy="83" r="62" fill="#f2d1be"/>
+      <path d="M45 88Q44 17 108 17Q179 20 172 97Q145 58 108 59Q74 58 45 88" fill="#315a3d"/>
+      <circle cx="86" cy="82" r="10" fill="#fff"/><circle cx="132" cy="82" r="10" fill="#fff"/>
+      <text x="174" y="40" font-family="sans-serif" font-size="34" font-weight="900" fill="#fff">?!</text>
+    </g>
+    <text x="292" y="72" font-family="sans-serif" font-size="42" font-weight="900" fill="#e9689b">행복~</text>
+  </g>
+
+  <g transform="translate(6 900)">
+    <rect width="888" height="294" fill="url(#warm)"/>
+    <rect y="228" width="888" height="66" fill="#8b5f42"/>
+    <g filter="url(#shadow)">
+      <circle cx="505" cy="139" r="94" fill="#f2d1be"/>
+      <path d="M407 143Q405 30 505 30Q610 35 602 154Q563 96 507 98Q452 95 407 143" fill="#315a3d"/>
+      <path d="M411 153Q390 211 376 244H632Q618 206 600 151" fill="#171b1b"/>
+      <circle cx="470" cy="137" r="8" fill="#6eaa79"/><circle cx="542" cy="137" r="8" fill="#6eaa79"/>
+      <path d="M478 172Q507 182 536 169" fill="none" stroke="#b16d5c" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="350" cy="154" r="87" fill="#f2d1be"/>
+      <path d="M260 158Q257 55 350 53Q448 58 442 168Q401 112 352 114Q304 110 260 158" fill="#17191d"/>
+      <path d="M265 168Q240 221 226 254H470Q456 215 440 166" fill="#151a1e"/>
+      <path d="M271 77Q350 17 429 78L449 140Q405 100 351 102Q300 99 249 140Z" fill="#faf9f7" stroke="#d6d0cb" stroke-width="6"/>
+      <path d="M310 173Q350 207 392 170" fill="none" stroke="#b16d5c" stroke-width="7" stroke-linecap="round"/>
+      <path d="M270 199Q346 251 453 203" fill="none" stroke="#151a1e" stroke-width="48" stroke-linecap="round"/>
+    </g>
+    <g filter="url(#shadow)">
+      <path d="M25 25h260q25 0 25 25v112q0 25-25 25H106l-48 34 13-34H25q-25 0-25-25V50q0-25 25-25Z" fill="#fff" stroke="#222" stroke-width="5"/>
+      <text x="155" y="75" text-anchor="middle" font-family="sans-serif" font-size="23" font-weight="700" fill="#222">봤지? 직접</text>
+      <text x="155" y="111" text-anchor="middle" font-family="sans-serif" font-size="23" font-weight="700" fill="#222">먹여줬다!</text>
+      <text x="155" y="147" text-anchor="middle" font-family="sans-serif" font-size="23" font-weight="700" fill="#222">내가 압승이야!</text>
+    </g>
+    <g filter="url(#shadow)">
+      <path d="M650 45h215q23 0 23 23v84q0 23-23 23H729l-42 29 11-29h-48q-23 0-23-23V68q0-23 23-23Z" fill="#fff" stroke="#222" stroke-width="5"/>
+      <text x="758" y="96" text-anchor="middle" font-family="sans-serif" font-size="22" font-weight="700" fill="#222">그, 그게…</text>
+      <text x="758" y="132" text-anchor="middle" font-family="sans-serif" font-size="22" font-weight="700" fill="#222">너라서…</text>
+    </g>
+    <text x="579" y="65" font-family="sans-serif" font-size="38" font-weight="900" fill="#e9689b">꽉~♡</text>
+  </g>
+</svg>
