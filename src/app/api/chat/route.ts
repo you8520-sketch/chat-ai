@@ -67,6 +67,7 @@ import {
   classifyMuseAcceptance,
   logMuseAcceptanceTelemetry,
   shouldRecordMuseAcceptanceTelemetry,
+  stripMuseAcceptanceFromUsage,
   toMuseAcceptanceUsageFields,
   type MuseOwnershipTelemetry,
 } from "@/lib/museAcceptanceTelemetry";
@@ -2916,41 +2917,47 @@ export async function POST(req: Request) {
           "remove stray repeated quote marks at assistant output tail"
         );
 
+        // Billing/public base usage (may still include admin receipt fields).
+        let baseUsageRecord: Usage = usageRecord;
         if (!showFullBillingReceipt) {
-          usageRecord = sanitizeUsageForPublicReceipt(usageRecord);
+          baseUsageRecord = sanitizeUsageForPublicReceipt(usageRecord);
         }
 
-        // Muse 1-pass acceptance telemetry only — never triggers extra API calls.
+        // Muse 1-pass acceptance telemetry — DB/context only; never client SSE/variants.
         let museAcceptanceFields: Record<string, unknown> | null = null;
+        let dbUsageRecord: Usage = baseUsageRecord;
         if (
           shouldRecordMuseAcceptanceTelemetry(openRouterApiModelId) &&
           !htmlFlashOnlyTurn
         ) {
           const museTelemetry = classifyMuseAcceptance({
             text: savedText,
-            finishReason: primaryStage?.finishReason ?? usageRecord.finishReason,
+            finishReason: primaryStage?.finishReason ?? baseUsageRecord.finishReason,
             ownership: ownershipTelemetry,
             completedTurns: playableTurnCount,
             characterId: ch.id,
             personaId: resolvedPersonaId ?? null,
             modelId: openRouterApiModelId,
             selectedAI: receiptFields.selectedAI ?? null,
-            latencyMs: Date.now() - requestStartedAt,
-            cost: usageRecord.cost ?? null,
-            userRegenerate: !!regenerateMessageId,
-            manualContinueRequest: isContinue,
-            apiCallCount: usageRecord.apiCallCount ?? 1,
+            requestLatencyMs: Date.now() - requestStartedAt,
+            cost: baseUsageRecord.cost ?? null,
+            isRegenerationRequest: !!regenerateMessageId,
+            isContinueRequest: isContinue,
+            apiCallCount: baseUsageRecord.apiCallCount ?? 1,
           });
           museAcceptanceFields = toMuseAcceptanceUsageFields(museTelemetry);
-          usageRecord = { ...usageRecord, museAcceptance: museAcceptanceFields };
+          dbUsageRecord = { ...baseUsageRecord, museAcceptance: museAcceptanceFields };
           logMuseAcceptanceTelemetry(museTelemetry);
         }
+        // Even for full billing receipt admins — never send museAcceptance to clients.
+        const clientUsageRecord = stripMuseAcceptanceFromUsage(dbUsageRecord);
+        usageRecord = dbUsageRecord;
 
         const createdAt = new Date().toISOString();
         let newVariant: MessageVariant = {
           content: savedText,
-          model: usageRecord.model,
-          usage: usageRecord,
+          model: dbUsageRecord.model,
+          usage: dbUsageRecord,
           created_at: createdAt,
           statusWidgetValues: statusWidgetValuesPayload,
           statusWidgetTurnActive: statusWidgetActive,
@@ -3025,8 +3032,8 @@ export async function POST(req: Request) {
             assistantMessageId: regenerateMessageId,
             chatId: chatRef.id,
             content: savedText,
-            model: usageRecord.model,
-            usageJson: JSON.stringify(usageRecord),
+            model: dbUsageRecord.model,
+            usageJson: JSON.stringify(dbUsageRecord),
             alternatesJson: JSON.stringify(appended.variants),
             activeVariant: appended.activeVariant,
             statusWidgetValuesJson,
@@ -3304,8 +3311,10 @@ export async function POST(req: Request) {
           remainingPoints: balanceAfter.total,
           paidPoints: balanceAfter.paid,
           freePoints: balanceAfter.free,
-          usage: usageRecord,
-          ...(usageRecord.finishReason ? { finishReason: usageRecord.finishReason } : {}),
+          usage: clientUsageRecord,
+          ...(clientUsageRecord.finishReason
+            ? { finishReason: clientUsageRecord.finishReason }
+            : {}),
           memoryUpdated: true,
           statusMetaPending: statusMetaEnabled,
           statusWidgetActive,

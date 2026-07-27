@@ -3,13 +3,16 @@ import { describe, it } from "node:test";
 
 import {
   classifyMuseAcceptance,
+  MUSE_ACCEPTANCE_CLASSIFICATION_SCOPE,
   MUSE_ACCEPTANCE_NORMAL_FLOOR_CHARS,
   MUSE_ACCEPTANCE_SHORT_FLOOR_CHARS,
   shouldRecordMuseAcceptanceTelemetry,
+  stripMuseAcceptanceFromUsage,
   toMuseAcceptanceUsageFields,
 } from "@/lib/museAcceptanceTelemetry";
 import { TURN_LENGTH_SUPPLEMENT_API_ENABLED } from "@/lib/turnApiBudget";
 import { OPENROUTER_MUSE_SPARK_11_MODEL } from "@/lib/chatModels";
+import type { Usage } from "@/lib/chatUsage";
 
 function base(overrides: Partial<Parameters<typeof classifyMuseAcceptance>[0]> = {}) {
   return {
@@ -20,10 +23,10 @@ function base(overrides: Partial<Parameters<typeof classifyMuseAcceptance>[0]> =
     personaId: 1,
     modelId: OPENROUTER_MUSE_SPARK_11_MODEL,
     selectedAI: OPENROUTER_MUSE_SPARK_11_MODEL,
-    latencyMs: 1200,
+    requestLatencyMs: 1200,
     cost: 40,
-    userRegenerate: false,
-    manualContinueRequest: false,
+    isRegenerationRequest: false,
+    isContinueRequest: false,
     apiCallCount: 1,
     ...overrides,
   };
@@ -45,6 +48,19 @@ describe("museAcceptanceTelemetry", () => {
   it("gates recording to Muse Spark only", () => {
     assert.equal(shouldRecordMuseAcceptanceTelemetry(OPENROUTER_MUSE_SPARK_11_MODEL), true);
     assert.equal(shouldRecordMuseAcceptanceTelemetry("deepseek/deepseek-v4-pro"), false);
+  });
+
+  it("scope is length_and_local_output_health — not a style quality score", () => {
+    const t = classifyMuseAcceptance(base({ text: healthyProse(2000) }));
+    assert.equal(t.classificationScope, MUSE_ACCEPTANCE_CLASSIFICATION_SCOPE);
+    assert.equal(t.classificationScope, "length_and_local_output_health");
+    const fields = toMuseAcceptanceUsageFields(t);
+    assert.equal(fields.classificationScope, "length_and_local_output_health");
+    // Ownership is a separate risk signal field; class itself does not encode invention/voice.
+    assert.ok("ownership" in fields);
+    assert.ok(!("styleQualityScore" in fields));
+    assert.ok(!("hardInvention" in fields));
+    assert.ok(!("reExplanation" in fields));
   });
 
   it("NORMAL_PASS for >=1800 healthy complete prose", () => {
@@ -101,24 +117,46 @@ describe("museAcceptanceTelemetry", () => {
     assert.equal(t.acceptanceClass, "FAIL");
   });
 
-  it("records regenerate / continue flags without triggering auto continuation", () => {
+  it("records regeneration / continue flags without auto continuation", () => {
     const t = classifyMuseAcceptance(
       base({
-        userRegenerate: true,
-        manualContinueRequest: true,
+        isRegenerationRequest: true,
+        isContinueRequest: true,
       })
     );
-    assert.equal(t.userRegenerate, true);
-    assert.equal(t.manualContinueRequest, true);
+    assert.equal(t.isRegenerationRequest, true);
+    assert.equal(t.isContinueRequest, true);
     assert.equal(t.autoContinuationTriggered, false);
+    assert.equal(t.requestLatencyMs, 1200);
   });
 
-  it("usage fields omit raw prose", () => {
+  it("usage fields omit raw prose and use renamed keys", () => {
     const t = classifyMuseAcceptance(base());
     const fields = toMuseAcceptanceUsageFields(t);
     assert.equal("text" in fields, false);
-    assert.equal(fields.acceptanceClass, t.acceptanceClass);
-    assert.equal(fields.characterId, 17);
+    assert.equal("latencyMs" in fields, false);
+    assert.equal("userRegenerate" in fields, false);
+    assert.equal("manualContinueRequest" in fields, false);
+    assert.equal(fields.requestLatencyMs, 1200);
+    assert.equal(fields.isRegenerationRequest, false);
+    assert.equal(fields.isContinueRequest, false);
+  });
+
+  it("stripMuseAcceptanceFromUsage removes internal telemetry for clients", () => {
+    const usage = {
+      input: 1,
+      output: 2,
+      model: OPENROUTER_MUSE_SPARK_11_MODEL,
+      route: "nsfw" as const,
+      cost: 1,
+      breakdown: [],
+      museAcceptance: { acceptanceClass: "NORMAL_PASS" },
+      finishReason: "stop",
+    } satisfies Usage;
+    const stripped = stripMuseAcceptanceFromUsage(usage);
+    assert.equal(stripped.museAcceptance, undefined);
+    assert.equal(stripped.finishReason, "stop");
+    assert.equal(stripped.cost, 1);
   });
 
   it("telemetry floor constants are not the billing 2700 floor", () => {

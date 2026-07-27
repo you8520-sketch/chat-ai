@@ -108,7 +108,7 @@ describe("canShowFullBillingReceipt", () => {
     assert.equal(sanitized.statusWidgetExtract, undefined);
   });
 
-  it("strips museAcceptance from public sanitize (re-attached post-sanitize for DB)", () => {
+  it("strips museAcceptance from public sanitize (defense in depth)", () => {
     const usage = {
       input: 10,
       output: 20,

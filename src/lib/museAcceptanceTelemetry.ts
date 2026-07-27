@@ -2,6 +2,11 @@
  * Muse acceptance telemetry — local classification only.
  * Does NOT trigger recovery/continuation/regenerate API calls.
  * Floor numbers (1800/900) are telemetry thresholds only — never injected into prompts.
+ *
+ * classificationScope is "length_and_local_output_health":
+ * - acceptanceClass is NOT a style quality score
+ * - Does NOT judge hard invention / voice / re-explanation / satisfaction
+ * - ownership telemetry is a separate risk signal only
  */
 
 import {
@@ -16,10 +21,15 @@ import {
 } from "@/lib/gibberishGuard";
 import { isMuseSparkModel } from "@/lib/proseMuseM1Policy";
 import { endsAtCompleteSentence } from "@/lib/responseLength";
+import type { Usage } from "@/lib/chatUsage";
 
 /** Telemetry-only floors — not prompt / billing constants. */
 export const MUSE_ACCEPTANCE_NORMAL_FLOOR_CHARS = 1800;
 export const MUSE_ACCEPTANCE_SHORT_FLOOR_CHARS = 900;
+
+/** Explicit scope — length + local output health only (not style quality). */
+export const MUSE_ACCEPTANCE_CLASSIFICATION_SCOPE =
+  "length_and_local_output_health" as const;
 
 export type MuseAcceptanceClass =
   | "NORMAL_PASS"
@@ -37,22 +47,25 @@ export type MuseOwnershipTelemetry = {
 export type MuseAcceptanceClassifyInput = {
   text: string;
   finishReason?: string | null;
+  /** Separate risk signal — not part of acceptanceClass quality judgment. */
   ownership?: MuseOwnershipTelemetry;
   completedTurns: number;
   characterId: number;
   personaId: number | null;
   modelId: string;
   selectedAI?: string | null;
-  latencyMs: number | null;
+  requestLatencyMs: number | null;
   cost: number | null;
-  userRegenerate: boolean;
+  isRegenerationRequest: boolean;
   /** This request used isContinue (manual/auto continue of prior assistant). */
-  manualContinueRequest: boolean;
+  isContinueRequest: boolean;
   apiCallCount?: number | null;
 };
 
 export type MuseAcceptanceTelemetry = {
   event: "muse_acceptance";
+  /** length + local output health only — NOT a style quality score. */
+  classificationScope: typeof MUSE_ACCEPTANCE_CLASSIFICATION_SCOPE;
   acceptanceClass: MuseAcceptanceClass;
   visibleChars: number;
   finishReason: string | null;
@@ -61,16 +74,17 @@ export type MuseAcceptanceTelemetry = {
   degeneration: boolean;
   degenerationReason: string | null;
   truncatedIncomplete: boolean;
+  /** Separate risk signal — not folded into acceptanceClass. */
   ownership: MuseOwnershipTelemetry;
   completedTurns: number;
   characterId: number;
   personaId: number | null;
   modelId: string;
   selectedAI: string | null;
-  latencyMs: number | null;
+  requestLatencyMs: number | null;
   cost: number | null;
-  userRegenerate: boolean;
-  manualContinueRequest: boolean;
+  isRegenerationRequest: boolean;
+  isContinueRequest: boolean;
   apiCallCount: number;
   /** Always false under current 1-pass policy — documented for analytics. */
   autoContinuationTriggered: false;
@@ -97,6 +111,11 @@ function isLoopOrDegenerationFinish(finish: string): boolean {
   );
 }
 
+/**
+ * Classify Muse output for local telemetry.
+ * Judges: visible length, complete sentence, healthy Korean, truncation, degeneration.
+ * Does NOT judge: hard invention, voice, re-explanation, satisfaction, or style quality.
+ */
 export function classifyMuseAcceptance(
   input: MuseAcceptanceClassifyInput
 ): MuseAcceptanceTelemetry {
@@ -137,6 +156,7 @@ export function classifyMuseAcceptance(
 
   return {
     event: "muse_acceptance",
+    classificationScope: MUSE_ACCEPTANCE_CLASSIFICATION_SCOPE,
     acceptanceClass,
     visibleChars,
     finishReason,
@@ -151,20 +171,21 @@ export function classifyMuseAcceptance(
     personaId: input.personaId,
     modelId: input.modelId,
     selectedAI: input.selectedAI ?? null,
-    latencyMs: input.latencyMs,
+    requestLatencyMs: input.requestLatencyMs,
     cost: input.cost,
-    userRegenerate: input.userRegenerate,
-    manualContinueRequest: input.manualContinueRequest,
+    isRegenerationRequest: input.isRegenerationRequest,
+    isContinueRequest: input.isContinueRequest,
     apiCallCount: input.apiCallCount ?? 1,
     autoContinuationTriggered: false,
   };
 }
 
-/** Compact payload for messages.usage / context_json (no prose text). */
+/** Compact payload for messages.usage / context_json (no prose text). Never send to clients. */
 export function toMuseAcceptanceUsageFields(
   t: MuseAcceptanceTelemetry
 ): Record<string, unknown> {
   return {
+    classificationScope: t.classificationScope,
     acceptanceClass: t.acceptanceClass,
     visibleChars: t.visibleChars,
     finishReason: t.finishReason,
@@ -179,13 +200,20 @@ export function toMuseAcceptanceUsageFields(
     personaId: t.personaId,
     modelId: t.modelId,
     selectedAI: t.selectedAI,
-    latencyMs: t.latencyMs,
+    requestLatencyMs: t.requestLatencyMs,
     cost: t.cost,
-    userRegenerate: t.userRegenerate,
-    manualContinueRequest: t.manualContinueRequest,
+    isRegenerationRequest: t.isRegenerationRequest,
+    isContinueRequest: t.isContinueRequest,
     apiCallCount: t.apiCallCount,
     autoContinuationTriggered: t.autoContinuationTriggered,
   };
+}
+
+/** Strip internal Muse telemetry from any Usage object destined for clients. */
+export function stripMuseAcceptanceFromUsage(usage: Usage): Usage {
+  if (!usage || usage.museAcceptance == null) return usage;
+  const { museAcceptance: _museAcceptance, ...rest } = usage;
+  return rest;
 }
 
 export function logMuseAcceptanceTelemetry(t: MuseAcceptanceTelemetry): void {

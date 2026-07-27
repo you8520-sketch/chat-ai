@@ -7,6 +7,7 @@ import {
   serializeVariantsForClient,
   variantToRowFields,
 } from "@/lib/messageAlternates";
+import { stripMuseAcceptanceFromUsage } from "@/lib/museAcceptanceTelemetry";
 import { serializeStatusWidgetValuesJson } from "@/lib/statusWidget";
 import { PREFERENCE_EVENT } from "@/lib/feedback/events";
 import { recordPreferenceEvent } from "@/lib/feedback/feedback-db";
@@ -49,11 +50,12 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "잘못된 버전 번호입니다." }, { status: 400 });
   }
   if (variantIndex === activeVariant) {
+    const current = variants[activeVariant];
     return NextResponse.json({
       ok: true,
       ...serializeVariantsForClient(variants, activeVariant),
-      content: variants[activeVariant].content,
-      usage: variants[activeVariant].usage,
+      content: current.content,
+      usage: current.usage ? stripMuseAcceptanceFromUsage(current.usage) : null,
     });
   }
 
@@ -109,6 +111,6 @@ export async function PATCH(req: Request) {
     ok: true,
     ...serializeVariantsForClient(variants, variantIndex),
     content: selected.content,
-    usage: selected.usage,
+    usage: selected.usage ? stripMuseAcceptanceFromUsage(selected.usage) : null,
   });
 }
