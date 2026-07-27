@@ -63,16 +63,26 @@ describe("Muse Spark 1.1 dual-rate simple point billing", () => {
     assert.equal(total, 90);
   });
 
-  it("uses only the existing input/content/thinking token split from the current receipt", () => {
+  it("keeps the current 2,070-token billing basis and changes rates only", () => {
     const inputTokens = 15_233;
-    const contentTokens = 1_159;
+    const billedOutputTokensExcludingThinking = 1_863;
     const thinkingTokens = 207;
-    const expected = expectedSimplePointCost(inputTokens, contentTokens, thinkingTokens);
-    const total = computeOpenRouterTurnCost(inputTokens, contentTokens, modelId, undefined, {
-      reasoningTokens: thinkingTokens,
-    });
+    assert.equal(billedOutputTokensExcludingThinking + thinkingTokens, 2_070);
+
+    const expected = expectedSimplePointCost(
+      inputTokens,
+      billedOutputTokensExcludingThinking,
+      thinkingTokens
+    );
+    const total = computeOpenRouterTurnCost(
+      inputTokens,
+      billedOutputTokensExcludingThinking,
+      modelId,
+      undefined,
+      { reasoningTokens: thinkingTokens }
+    );
     assert.equal(total, expected);
-    assert.equal(total, 104);
+    assert.equal(total, 115);
   });
 
   it("increases with visible input/output but not cache state", () => {
