@@ -6,6 +6,7 @@ import {
   CHAT_COMIC_MAX_INPUT_CHARS,
   buildChatComicImagePrompt,
   buildChatComicPlannerPrompt,
+  extractQuotedComicDialogue,
   resolveChatComicPlannerModel,
   resolveChatComicPrice,
   sanitizeChatComicOptions,
@@ -54,6 +55,8 @@ describe("chatComicGeneration", () => {
   });
 
   it("requires the planner to make the exact requested number of panels", () => {
+    const sourceText =
+      '태형이 "대장님, 내 깻잎도 떼어줘!"라고 말했다. 렌은 "진정하고 깻잎이나 먹어."라고 답했다.';
     const plan = sanitizeChatComicPlan(
       {
         title: "깻잎 한입",
@@ -72,12 +75,54 @@ describe("chatComicGeneration", () => {
           },
         ],
       },
-      2
+      2,
+      sourceText
     );
     assert.equal(plan.panels.length, 2);
     assert.equal(plan.panels[0]?.dialogue[0]?.text, "대장님, 내 깻잎도 떼어줘!");
     assert.equal(plan.panels[1]?.dialogue[0]?.speaker, "persona");
-    assert.throws(() => sanitizeChatComicPlan({ title: "x", panels: [{}] }, 2));
+    assert.throws(() => sanitizeChatComicPlan({ title: "x", panels: [{}] }, 2, sourceText));
+  });
+
+  it("removes invented dialogue and every generated caption", () => {
+    const sourceText =
+      '태현은 "야."라고 말했다. 이어 "거기 보지 마. 나 봐."라고 경고했다. 마지막에는 “딱 한 걸음만 와.”라고 했다.';
+    assert.deepEqual(extractQuotedComicDialogue(sourceText), [
+      "야.",
+      "거기 보지 마. 나 봐.",
+      "딱 한 걸음만 와.",
+    ]);
+
+    const plan = sanitizeChatComicPlan(
+      {
+        title: "경계",
+        panels: [
+          {
+            scene: "태현이 앞을 막는다.",
+            dialogue: [
+              { speaker: "character", text: "야." },
+              { speaker: "persona", text: "…알겠어." },
+            ],
+            caption: "태현의 경고가 시작된다.",
+          },
+          {
+            scene: "태현이 렌을 바라본다.",
+            dialogue: [
+              { speaker: "character", text: "나 봐." },
+              { speaker: "persona", text: "이게 무슨 상황이야!" },
+            ],
+            caption: "긴장감 속에서 유머가 터진다.",
+          },
+        ],
+      },
+      2,
+      sourceText
+    );
+
+    assert.deepEqual(plan.panels[0]?.dialogue, [{ speaker: "character", text: "야." }]);
+    assert.deepEqual(plan.panels[1]?.dialogue, [{ speaker: "character", text: "나 봐." }]);
+    assert.equal(plan.panels[0]?.caption, undefined);
+    assert.equal(plan.panels[1]?.caption, undefined);
   });
 
   it("asks the cheap planner to preserve quoted Korean dialogue and speech style", () => {
@@ -89,7 +134,8 @@ describe("chatComicGeneration", () => {
       sourceText: "태형이 깻잎을 떼어달라고 징징거렸다.",
     });
     assert.match(prompt, /exactly 4 horizontal comic panels/);
-    assert.match(prompt, /Preserve quoted wording and each character's speech style/);
+    assert.match(prompt, /Use only verbatim contiguous excerpts/);
+    assert.match(prompt, /Never invent, paraphrase, combine, complete, or add reaction dialogue/);
     assert.match(prompt, /The chat character is 태형; the user persona is 렌/);
     assert.match(prompt, /SOURCE PROSE/);
   });
@@ -121,10 +167,12 @@ describe("chatComicGeneration", () => {
         ],
       },
     });
-    assert.match(prompt, /Render every Korean dialogue and caption EXACTLY/);
+    assert.match(prompt, /STRICT CLOSED TEXT WHITELIST/);
+    assert.match(prompt, /Never invent reaction dialogue/);
     assert.match(prompt, /태형: “대장님, 내 것도 먹여줘!”/);
     assert.match(prompt, /렌: “진정하고 한입 먹어.”/);
     assert.match(prompt, /Never swap or blend them/);
+    assert.match(prompt, /No caption box, label, narration, or sound-effect text/);
     assert.match(prompt, /Do not crop off speech bubbles or the last panel/);
   });
 });

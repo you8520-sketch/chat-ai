@@ -112,9 +112,9 @@ export function buildChatComicPlannerPrompt(opts: {
     `Convert the supplied Korean prose into exactly ${opts.panelCount} horizontal comic panels stacked vertically on one page.`,
     `The chat character is ${opts.characterName}; the user persona is ${opts.personaName}.`,
     "Infer who is speaking from the prose and preserve their identities throughout.",
-    "Extract the most important spoken lines from the source. Preserve quoted wording and each character's speech style whenever possible. Do not invent a different plot.",
-    "Dialogue must be concise enough for readable Korean speech bubbles: at most two bubbles per panel and normally no more than 32 Korean characters per bubble.",
-    "Use narration only when a visual beat cannot communicate the transition. At most one short narration box per panel.",
+    "Dialogue is closed-book extraction. Use only verbatim contiguous excerpts from text enclosed in quotation marks in SOURCE PROSE.",
+    "Never invent, paraphrase, combine, complete, or add reaction dialogue. If a panel has no suitable quoted line, return an empty dialogue array and communicate the reaction visually.",
+    "Use at most two bubbles per panel. Never create narration, captions, labels, or sound-effect text.",
     "Each panel needs a clear action, camera framing, and natural facial expressions. The final panel should land the emotional payoff or comedic punchline.",
     `Mood: ${CHAT_COMIC_MOODS.find((item) => item.id === opts.mood)?.prompt ?? "comic"}.`,
     "Return JSON only, without markdown fences, using this exact schema:",
@@ -130,7 +130,7 @@ export function buildChatComicPlannerPrompt(opts: {
             { speaker: "character", text: "Korean bubble text" },
             { speaker: "persona", text: "Korean bubble text" },
           ],
-          caption: "optional short Korean narration",
+          caption: "",
         },
       ],
     }),
@@ -143,15 +143,31 @@ function cleanText(raw: unknown, max: number): string {
   return String(raw ?? "").replace(/\s+/g, " ").trim().slice(0, max);
 }
 
+export function extractQuotedComicDialogue(sourceText: string): string[] {
+  const quoted: string[] = [];
+  const pattern = /“([^”]+)”|"([^"]+)"|‘([^’]+)’|'([^']+)'/g;
+  for (const match of sourceText.matchAll(pattern)) {
+    const text = cleanText(match[1] ?? match[2] ?? match[3] ?? match[4], 400);
+    if (text && !quoted.includes(text)) quoted.push(text);
+  }
+  return quoted;
+}
+
+function isVerbatimQuotedExcerpt(text: string, quotedDialogue: string[]): boolean {
+  return quotedDialogue.some((quote) => quote.includes(text));
+}
+
 export function sanitizeChatComicPlan(
   raw: unknown,
-  panelCount: ChatComicPanelCount
+  panelCount: ChatComicPanelCount,
+  sourceText: string
 ): ChatComicPlan {
   if (!raw || typeof raw !== "object") throw new Error("컷 구성 응답이 올바르지 않습니다.");
   const source = raw as { title?: unknown; panels?: unknown };
   if (!Array.isArray(source.panels) || source.panels.length !== panelCount) {
     throw new Error("요청한 컷 수와 구성 결과가 일치하지 않습니다.");
   }
+  const quotedDialogue = extractQuotedComicDialogue(sourceText);
 
   const panels = source.panels.map((entry, index): ChatComicPanel => {
     if (!entry || typeof entry !== "object") {
@@ -164,11 +180,13 @@ export function sanitizeChatComicPlan(
       const row = item as Record<string, unknown>;
       const speakerRaw = String(row.speaker ?? "");
       const speaker: ChatComicSpeaker =
-        speakerRaw === "character" || speakerRaw === "persona" || speakerRaw === "narration"
+        speakerRaw === "character" || speakerRaw === "persona"
           ? speakerRaw
-          : "narration";
+          : "persona";
       const text = cleanText(row.text, 40);
-      return text ? [{ speaker, text }] : [];
+      return text && isVerbatimQuotedExcerpt(text, quotedDialogue)
+        ? [{ speaker, text }]
+        : [];
     });
     return {
       panel: index + 1,
@@ -176,7 +194,7 @@ export function sanitizeChatComicPlan(
       characterExpression: cleanText(panel.characterExpression, 100) || "natural expression",
       personaExpression: cleanText(panel.personaExpression, 100) || "natural expression",
       dialogue,
-      caption: cleanText(panel.caption, 70) || undefined,
+      caption: undefined,
     };
   });
 
@@ -194,6 +212,9 @@ export function buildChatComicImagePrompt(opts: {
   sourceText: string;
   plan: ChatComicPlan;
 }): string {
+  const approvedText = Array.from(
+    new Set(opts.plan.panels.flatMap((panel) => panel.dialogue.map((line) => line.text)))
+  );
   const panels = opts.plan.panels
     .map((panel) => {
       const dialogue = panel.dialogue.length
@@ -215,7 +236,7 @@ export function buildChatComicImagePrompt(opts: {
         `${opts.characterName} expression: ${panel.characterExpression}`,
         `${opts.personaName} expression: ${panel.personaExpression}`,
         `Exact Korean text: ${dialogue}`,
-        panel.caption ? `Exact caption box: “${panel.caption}”` : "No caption box",
+        "No caption box, label, narration, or sound-effect text",
       ].join("\n");
     })
     .join("\n\n");
@@ -227,13 +248,17 @@ export function buildChatComicImagePrompt(opts: {
     `Reference image 3 is the identity reference for the user persona ${opts.personaName}.`,
     "Identity separation is critical. Preserve each person's hair color, eye color, hairstyle, facial details, accessories, body build, and signature outfit impression. Never swap or blend them.",
     `Overall tone: ${CHAT_COMIC_MOODS.find((item) => item.id === opts.mood)?.prompt ?? "comic"}.`,
-    "Render every Korean dialogue and caption EXACTLY as written below. Do not paraphrase, translate, omit, duplicate, or assign it to the wrong person.",
-    "Use proper speech bubbles with tails pointing to the correct speaker. Keep text large, centered, uncropped, and easy to read. Use short sound effects only when visually helpful.",
-    "Exactly two recurring human characters. No extra person, duplicate face, identity swap, malformed hands, watermark, logo, or text outside the specified bubbles/captions/sound effects.",
+    "STRICT CLOSED TEXT WHITELIST: the only text allowed anywhere in the image is listed below. Copy each used string exactly, character for character.",
+    approvedText.length
+      ? approvedText.map((text) => `- “${text}”`).join("\n")
+      : "- NO TEXT IS ALLOWED",
+    "Never invent reaction dialogue, bridge dialogue, narration, captions, labels, titles, signs, or sound effects. Do not create a speech bubble for a panel marked No speech bubble.",
+    "Use proper speech bubbles with tails pointing to the correct speaker. Keep approved text large, centered, uncropped, and easy to read.",
+    "Exactly two recurring human characters. No extra person, duplicate face, identity swap, malformed hands, watermark, or logo.",
     "Keep all panel borders and the full page visible. Do not crop off speech bubbles or the last panel.",
     `Story title for internal guidance: ${opts.plan.title}`,
     panels,
-    "Original prose context (visual guidance only; bubble text must still match the exact lines above):",
+    "Original prose context is for visual acting only. Never turn unquoted narration into visible text:",
     opts.sourceText,
   ].join("\n\n");
 }
