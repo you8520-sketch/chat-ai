@@ -1,0 +1,842 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import {
+  CHAT_COMIC_MAX_INPUT_CHARS,
+  CHAT_COMIC_MOODS,
+  CHAT_COMIC_PANEL_OPTIONS,
+  CHAT_COMIC_TEMPLATE_PREVIEW_URL,
+  type ChatComicMood,
+  type ChatComicPanelCount,
+} from "@/lib/chatComicGeneration";
+import {
+  CHAT_IMAGE_EXPRESSIONS,
+  CHAT_IMAGE_GENERATION_DEFAULT_OPTIONS,
+  CHAT_IMAGE_MOODS,
+  CHAT_IMAGE_PLACEMENTS,
+  type ChatImageExpression,
+  type ChatImageMood,
+  type ChatImagePlacement,
+} from "@/lib/chatImageGeneration";
+import { dispatchPointsDeducted } from "@/lib/pointsEvents";
+
+const PERSONA_STORAGE_KEY = "habi:lastPersonaId";
+
+type Tab = "sd" | "comic" | "album";
+type ResultMode = "sd" | "comic";
+
+type ReferenceInfo = {
+  id: number;
+  name: string;
+  imageUrl: string;
+};
+
+type Preflight = {
+  ready: boolean;
+  missing: string[];
+  pricePoints: number;
+  modelId: string;
+  modelLabel: string;
+  template: { id: string; name: string; previewUrl: string };
+  character: ReferenceInfo;
+  persona: ReferenceInfo | null;
+  balance?: { total: number; paid: number; free: number };
+  latestResult?: {
+    imageUrl: string;
+    chargedPoints: number;
+    createdAt: string;
+  } | null;
+};
+
+type GenerateResult = {
+  ok?: boolean;
+  error?: string;
+  imageUrl?: string;
+  title?: string;
+  totalPointsCost?: number;
+  remainingPoints?: number;
+  paidPoints?: number;
+  freePoints?: number;
+};
+
+type AlbumEntry = {
+  id: number;
+  imageUrl: string;
+  mode: ResultMode;
+  createdAt: string;
+};
+
+function currentRouteIds() {
+  const match = window.location.pathname.match(/^\/chat\/(\d+)/);
+  const params = new URLSearchParams(window.location.search);
+  const storedPersona = Number(localStorage.getItem(PERSONA_STORAGE_KEY));
+  const chatId = Number(params.get("chat"));
+  return {
+    characterId: match ? Number(match[1]) : null,
+    chatId: Number.isInteger(chatId) && chatId > 0 ? chatId : null,
+    personaId:
+      Number.isInteger(storedPersona) && storedPersona > 0 ? storedPersona : null,
+  };
+}
+
+function queryString(ids: ReturnType<typeof currentRouteIds>) {
+  const params = new URLSearchParams();
+  if (ids.characterId) params.set("characterId", String(ids.characterId));
+  if (ids.chatId) params.set("chatId", String(ids.chatId));
+  if (ids.personaId) params.set("personaId", String(ids.personaId));
+  return params.toString();
+}
+
+function IconImageSpark({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      className={className}
+      aria-hidden
+    >
+      <rect x="3" y="5" width="14" height="14" rx="2" />
+      <circle cx="8" cy="10" r="1.4" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="m5 17 4-4 3 3 2-2 3 3" />
+      <path strokeLinecap="round" d="M19.5 2.5v4M17.5 4.5h4" />
+    </svg>
+  );
+}
+
+function ReferenceCard({ label, info }: { label: string; info: ReferenceInfo | null }) {
+  return (
+    <div className="min-w-0 rounded-xl border border-white/10 bg-white/[0.03] p-2">
+      <p className="mb-1.5 text-[10px] font-semibold text-zinc-400">{label}</p>
+      <div className="flex items-center gap-2">
+        <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-black/25">
+          {info?.imageUrl ? (
+            <img src={info.imageUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full items-center justify-center text-[9px] text-zinc-600">
+              이미지 없음
+            </div>
+          )}
+        </div>
+        <p className="min-w-0 truncate text-xs font-semibold text-zinc-200">
+          {info?.name || "선택 안 됨"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function PriceBox({
+  label,
+  price,
+  balance,
+}: {
+  label: string;
+  price: number;
+  balance?: { total: number; paid: number; free: number };
+}) {
+  return (
+    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-[11px] text-zinc-400">
+      <div className="flex justify-between gap-3">
+        <span>{label}</span>
+        <strong className="text-violet-200">{price.toLocaleString()}P</strong>
+      </div>
+      {balance ? (
+        <div className="mt-1 flex justify-between gap-3">
+          <span>보유 포인트</span>
+          <strong className="text-zinc-200">{balance.total.toLocaleString()}P</strong>
+        </div>
+      ) : null}
+      <p className="mt-2 leading-relaxed text-zinc-500">
+        생성에 성공한 경우에만 차감됩니다. 실패한 요청에는 포인트를 차감하지 않습니다.
+      </p>
+    </div>
+  );
+}
+
+function formatDate(raw: string) {
+  const date = new Date(raw.endsWith("Z") ? raw : `${raw}Z`);
+  return Number.isNaN(date.getTime())
+    ? ""
+    : new Intl.DateTimeFormat("ko-KR", {
+        month: "numeric",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(date);
+}
+
+async function downloadImage(imageUrl: string, mode: ResultMode) {
+  const response = await fetch(imageUrl, { cache: "no-store" });
+  if (!response.ok) throw new Error("이미지 파일을 불러오지 못했습니다.");
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = `habi-${mode === "comic" ? "comic" : "sd"}-${Date.now()}.webp`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1_000);
+}
+
+export default function ChatImageGeneratorPanel() {
+  const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<Tab>("sd");
+  const [loadingInfo, setLoadingInfo] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [info, setInfo] = useState<Preflight | null>(null);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [sdResultUrl, setSdResultUrl] = useState("");
+  const [comicResultUrl, setComicResultUrl] = useState("");
+  const [comicTitle, setComicTitle] = useState("");
+  const [album, setAlbum] = useState<AlbumEntry[]>([]);
+  const [albumLoading, setAlbumLoading] = useState(false);
+  const [savedUrls, setSavedUrls] = useState<Set<string>>(() => new Set());
+
+  const [placement, setPlacement] = useState<ChatImagePlacement>(
+    CHAT_IMAGE_GENERATION_DEFAULT_OPTIONS.placement
+  );
+  const [topExpression, setTopExpression] = useState<ChatImageExpression>(
+    CHAT_IMAGE_GENERATION_DEFAULT_OPTIONS.topExpression
+  );
+  const [bottomExpression, setBottomExpression] = useState<ChatImageExpression>(
+    CHAT_IMAGE_GENERATION_DEFAULT_OPTIONS.bottomExpression
+  );
+  const [sdMood, setSdMood] = useState<ChatImageMood>(
+    CHAT_IMAGE_GENERATION_DEFAULT_OPTIONS.mood
+  );
+
+  const [comicText, setComicText] = useState("");
+  const [panelCount, setPanelCount] = useState<ChatComicPanelCount>(4);
+  const [comicMood, setComicMood] = useState<ChatComicMood>("comic");
+
+  const comicPrice = useMemo(
+    () => CHAT_COMIC_PANEL_OPTIONS.find((item) => item.id === panelCount)?.points ?? 350,
+    [panelCount]
+  );
+
+  const activeResultUrl = tab === "comic" ? comicResultUrl : sdResultUrl;
+  const activeMode: ResultMode = tab === "comic" ? "comic" : "sd";
+  const activeSaved = activeResultUrl ? savedUrls.has(activeResultUrl) : false;
+
+  const updateBalance = useCallback((data: GenerateResult) => {
+    if (
+      typeof data.totalPointsCost === "number" &&
+      typeof data.remainingPoints === "number"
+    ) {
+      dispatchPointsDeducted({
+        totalPointsCost: data.totalPointsCost,
+        remainingPoints: data.remainingPoints,
+        paidPoints: data.paidPoints ?? 0,
+        freePoints: data.freePoints ?? 0,
+      });
+    }
+    if (typeof data.remainingPoints === "number") {
+      setInfo((previous) =>
+        previous
+          ? {
+              ...previous,
+              balance: {
+                total: data.remainingPoints!,
+                paid: data.paidPoints ?? previous.balance?.paid ?? 0,
+                free: data.freePoints ?? previous.balance?.free ?? 0,
+              },
+            }
+          : previous
+      );
+    }
+  }, []);
+
+  const loadAlbum = useCallback(async () => {
+    const ids = currentRouteIds();
+    if (!ids.characterId) return;
+    setAlbumLoading(true);
+    try {
+      const response = await fetch(
+        `/api/chat/image-album?characterId=${encodeURIComponent(String(ids.characterId))}`,
+        { cache: "no-store" }
+      );
+      const data = (await response.json().catch(() => null)) as
+        | { album?: AlbumEntry[]; error?: string }
+        | null;
+      if (!response.ok || !data) throw new Error(data?.error || "앨범을 불러오지 못했습니다.");
+      const rows = Array.isArray(data.album) ? data.album : [];
+      setAlbum(rows);
+      setSavedUrls(new Set(rows.map((item) => item.imageUrl)));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "앨범을 불러오지 못했습니다.");
+    } finally {
+      setAlbumLoading(false);
+    }
+  }, []);
+
+  const loadInfo = useCallback(async () => {
+    setLoadingInfo(true);
+    setError("");
+    try {
+      const ids = currentRouteIds();
+      const response = await fetch(`/api/chat/image-generation?${queryString(ids)}`, {
+        cache: "no-store",
+      });
+      const data = (await response.json().catch(() => null)) as
+        | (Preflight & { error?: string })
+        | null;
+      if (!response.ok || !data) throw new Error(data?.error || "이미지 생성 정보를 불러오지 못했습니다.");
+      setInfo(data);
+      if (!sdResultUrl && data.latestResult?.imageUrl) setSdResultUrl(data.latestResult.imageUrl);
+      await loadAlbum();
+    } catch (caught) {
+      setInfo(null);
+      setError(caught instanceof Error ? caught.message : "이미지 생성 정보를 불러오지 못했습니다.");
+    } finally {
+      setLoadingInfo(false);
+    }
+  }, [loadAlbum, sdResultUrl]);
+
+  useEffect(() => {
+    if (!open) return;
+    void loadInfo();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !generating && !saving) setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, generating, saving, loadInfo]);
+
+  async function generateSd() {
+    if (!info?.ready || generating) return;
+    setGenerating(true);
+    setError("");
+    setNotice("");
+    setSdResultUrl("");
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 300_000);
+    try {
+      const ids = currentRouteIds();
+      const response = await fetch("/api/chat/image-generation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          ...ids,
+          placement,
+          topExpression,
+          bottomExpression,
+          mood: sdMood,
+        }),
+      });
+      const data = (await response.json().catch(() => null)) as GenerateResult | null;
+      if (!response.ok || !data?.imageUrl) {
+        if (data) updateBalance(data);
+        throw new Error(data?.error || "SD 이미지 생성에 실패했습니다.");
+      }
+      setSdResultUrl(data.imageUrl);
+      updateBalance(data);
+      setNotice("완성되었습니다. 저장하기를 누르면 파일 저장과 캐릭터 앨범 등록이 함께 됩니다.");
+    } catch (caught) {
+      const timedOut = caught instanceof DOMException && caught.name === "AbortError";
+      setError(
+        timedOut
+          ? "이미지 생성 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요."
+          : caught instanceof Error
+            ? caught.message
+            : "이미지 생성 중 오류가 발생했습니다."
+      );
+    } finally {
+      window.clearTimeout(timer);
+      setGenerating(false);
+    }
+  }
+
+  async function generateComic() {
+    if (!info?.ready || generating) return;
+    const sourceText = comicText.trim();
+    if (!sourceText) {
+      setError("만화로 만들 내용을 입력해 주세요.");
+      return;
+    }
+    if (sourceText.length > CHAT_COMIC_MAX_INPUT_CHARS) {
+      setError(`내용은 최대 ${CHAT_COMIC_MAX_INPUT_CHARS}자까지 입력할 수 있습니다.`);
+      return;
+    }
+
+    setGenerating(true);
+    setError("");
+    setNotice("");
+    setComicResultUrl("");
+    setComicTitle("");
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 300_000);
+    try {
+      const ids = currentRouteIds();
+      const response = await fetch("/api/chat/comic-generation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          ...ids,
+          sourceText,
+          panelCount,
+          mood: comicMood,
+        }),
+      });
+      const data = (await response.json().catch(() => null)) as GenerateResult | null;
+      if (!response.ok || !data?.imageUrl) {
+        if (data) updateBalance(data);
+        throw new Error(data?.error || "컷만화 생성에 실패했습니다.");
+      }
+      setComicResultUrl(data.imageUrl);
+      setComicTitle(data.title || "");
+      updateBalance(data);
+      setNotice("대사·말풍선·표정 연출을 자동 구성했습니다. 저장하기를 누르면 앨범에도 들어갑니다.");
+    } catch (caught) {
+      const timedOut = caught instanceof DOMException && caught.name === "AbortError";
+      setError(
+        timedOut
+          ? "컷만화 생성 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요."
+          : caught instanceof Error
+            ? caught.message
+            : "컷만화 생성 중 오류가 발생했습니다."
+      );
+    } finally {
+      window.clearTimeout(timer);
+      setGenerating(false);
+    }
+  }
+
+  async function saveCurrentResult() {
+    if (!activeResultUrl || saving) return;
+    const ids = currentRouteIds();
+    if (!ids.characterId) {
+      setError("캐릭터 정보가 없습니다.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    setNotice("");
+    try {
+      const response = await fetch("/api/chat/image-album", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          characterId: ids.characterId,
+          imageUrl: activeResultUrl,
+        }),
+      });
+      const data = (await response.json().catch(() => null)) as
+        | { album?: AlbumEntry[]; error?: string }
+        | null;
+      if (!response.ok || !data) throw new Error(data?.error || "앨범 저장에 실패했습니다.");
+      const rows = Array.isArray(data.album) ? data.album : [];
+      setAlbum(rows);
+      setSavedUrls(new Set(rows.map((item) => item.imageUrl)));
+      await downloadImage(activeResultUrl, activeMode);
+      setNotice("파일로 저장했고 캐릭터 앨범에도 추가했습니다.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "저장에 실패했습니다.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function downloadAlbumItem(item: AlbumEntry) {
+    setError("");
+    try {
+      await downloadImage(item.imageUrl, item.mode);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "파일 저장에 실패했습니다.");
+    }
+  }
+
+  const modalTitle =
+    tab === "sd" ? "캐릭터 × 페르소나 SD 굿즈" : tab === "comic" ? "2~4컷 만화 만들기" : "캐릭터 앨범";
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="flex w-full flex-col items-center gap-0.5 rounded-md px-0 py-1.5 text-zinc-400 transition hover:bg-white/[0.06] hover:text-violet-200"
+        title="SD 굿즈와 2~4컷 만화 생성"
+        aria-label="이미지 생성"
+      >
+        <IconImageSpark className="h-4 w-4 shrink-0" />
+        <span className="max-w-full px-0.5 text-center text-[9px] font-medium leading-[1.15] tracking-tight">
+          이미지
+        </span>
+      </button>
+
+      {open ? (
+        <div
+          className="fixed inset-0 z-[140] flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="이미지 생성 및 앨범"
+          onClick={() => {
+            if (!generating && !saving) setOpen(false);
+          }}
+        >
+          <section
+            className="flex max-h-[94dvh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-[#111217] shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="shrink-0 border-b border-white/10 px-4 pt-3">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-[11px] font-semibold text-violet-300">OpenRouter · GPT Image 2</p>
+                  <h2 className="text-base font-bold text-white">{modalTitle}</h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  disabled={generating || saving}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-lg text-zinc-300 hover:bg-white/10 disabled:opacity-40"
+                  aria-label="닫기"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-1 rounded-xl bg-black/25 p-1">
+                {(
+                  [
+                    ["sd", "SD 굿즈"],
+                    ["comic", "2~4컷 만화"],
+                    ["album", `캐릭터 앨범${album.length ? ` ${album.length}` : ""}`],
+                  ] as const
+                ).map(([id, label]) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => {
+                      setTab(id);
+                      setError("");
+                      setNotice("");
+                    }}
+                    disabled={generating || saving}
+                    className={`rounded-lg px-2 py-2 text-xs font-semibold transition ${
+                      tab === id
+                        ? "bg-violet-600 text-white"
+                        : "text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="min-h-0 flex-1 overflow-y-auto p-4">
+              {loadingInfo && !info ? (
+                <p className="py-12 text-center text-sm text-zinc-400">이미지 정보를 불러오는 중…</p>
+              ) : tab === "album" ? (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs text-zinc-400">
+                      저장하기를 누른 SD 이미지와 컷만화를 이 캐릭터별로 모아봅니다.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void loadAlbum()}
+                      disabled={albumLoading}
+                      className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-zinc-300 hover:bg-white/[0.06] disabled:opacity-40"
+                    >
+                      {albumLoading ? "불러오는 중…" : "새로고침"}
+                    </button>
+                  </div>
+                  {album.length ? (
+                    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
+                      {album.map((item) => (
+                        <article
+                          key={item.id}
+                          className="overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (item.mode === "comic") {
+                                setComicResultUrl(item.imageUrl);
+                                setTab("comic");
+                              } else {
+                                setSdResultUrl(item.imageUrl);
+                                setTab("sd");
+                              }
+                            }}
+                            className="block w-full bg-white"
+                          >
+                            <img
+                              src={item.imageUrl}
+                              alt={item.mode === "comic" ? "저장된 컷만화" : "저장된 SD 이미지"}
+                              className="aspect-[4/3] w-full object-contain"
+                            />
+                          </button>
+                          <div className="p-2">
+                            <div className="flex items-center justify-between gap-2 text-[10px] text-zinc-500">
+                              <span>{item.mode === "comic" ? "컷만화" : "SD 굿즈"}</span>
+                              <span>{formatDate(item.createdAt)}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => void downloadAlbumItem(item)}
+                              className="mt-2 w-full rounded-lg border border-violet-500/25 bg-violet-500/10 px-2 py-1.5 text-xs font-semibold text-violet-200 hover:bg-violet-500/15"
+                            >
+                              파일 저장
+                            </button>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-white/10 py-20 text-center text-sm text-zinc-500">
+                      아직 캐릭터 앨범에 저장한 이미지가 없습니다.
+                    </div>
+                  )}
+                  {error ? (
+                    <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+                      {error}
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(19rem,0.95fr)]">
+                  <div className="space-y-3">
+                    <div className="flex max-h-[64dvh] min-h-56 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white p-1">
+                      <img
+                        src={
+                          activeResultUrl ||
+                          (tab === "comic"
+                            ? CHAT_COMIC_TEMPLATE_PREVIEW_URL
+                            : info?.template.previewUrl || "")
+                        }
+                        alt={
+                          activeResultUrl
+                            ? tab === "comic"
+                              ? "생성된 컷만화"
+                              : "생성된 SD 이미지"
+                            : tab === "comic"
+                              ? "2~4컷 만화 예시"
+                              : "선물상자 SD 고정틀"
+                        }
+                        className={`max-h-[62dvh] w-full object-contain ${
+                          tab === "comic" ? "aspect-[3/4]" : "aspect-[4/3]"
+                        }`}
+                      />
+                    </div>
+                    <p className="text-center text-[10px] leading-relaxed text-zinc-500">
+                      {activeResultUrl
+                        ? activeSaved
+                          ? "캐릭터 앨범에 저장된 이미지입니다."
+                          : "저장하기를 누르면 파일 다운로드와 캐릭터 앨범 등록이 동시에 처리됩니다."
+                        : tab === "comic"
+                          ? "본문만 붙여넣으면 핵심 대사·말풍선·표정과 2~4컷 구성을 자동으로 만듭니다."
+                          : "선물상자·리본·인형·사탕 장식을 유지하면서 두 사람의 외형을 반영합니다."}
+                    </p>
+                    {activeResultUrl ? (
+                      <button
+                        type="button"
+                        onClick={() => void saveCurrentResult()}
+                        disabled={saving}
+                        className="block w-full rounded-lg border border-violet-500/30 bg-violet-500/10 px-3 py-2.5 text-center text-xs font-bold text-violet-200 hover:bg-violet-500/15 disabled:opacity-40"
+                      >
+                        {saving
+                          ? "저장 중…"
+                          : activeSaved
+                            ? "다시 파일 저장"
+                            : "저장하기 · 파일 + 캐릭터 앨범"}
+                      </button>
+                    ) : null}
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <ReferenceCard label="채팅 캐릭터" info={info?.character ?? null} />
+                      <ReferenceCard label="선택 페르소나" info={info?.persona ?? null} />
+                    </div>
+
+                    {tab === "sd" ? (
+                      <>
+                        <label className="block space-y-1">
+                          <span className="text-[11px] font-semibold text-zinc-400">자리 배치</span>
+                          <select
+                            value={placement}
+                            onChange={(event) => setPlacement(event.target.value as ChatImagePlacement)}
+                            disabled={generating}
+                            className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
+                          >
+                            {CHAT_IMAGE_PLACEMENTS.map((item) => (
+                              <option key={item.id} value={item.id}>{item.label}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <label className="block space-y-1">
+                            <span className="text-[11px] font-semibold text-zinc-400">위 인물 표정</span>
+                            <select
+                              value={topExpression}
+                              onChange={(event) => setTopExpression(event.target.value as ChatImageExpression)}
+                              disabled={generating}
+                              className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
+                            >
+                              {CHAT_IMAGE_EXPRESSIONS.map((item) => (
+                                <option key={item.id} value={item.id}>{item.label}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="block space-y-1">
+                            <span className="text-[11px] font-semibold text-zinc-400">아래 인물 표정</span>
+                            <select
+                              value={bottomExpression}
+                              onChange={(event) => setBottomExpression(event.target.value as ChatImageExpression)}
+                              disabled={generating}
+                              className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
+                            >
+                              {CHAT_IMAGE_EXPRESSIONS.map((item) => (
+                                <option key={item.id} value={item.id}>{item.label}</option>
+                              ))}
+                            </select>
+                          </label>
+                        </div>
+                        <label className="block space-y-1">
+                          <span className="text-[11px] font-semibold text-zinc-400">분위기</span>
+                          <select
+                            value={sdMood}
+                            onChange={(event) => setSdMood(event.target.value as ChatImageMood)}
+                            disabled={generating}
+                            className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
+                          >
+                            {CHAT_IMAGE_MOODS.map((item) => (
+                              <option key={item.id} value={item.id}>{item.label}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <PriceBox
+                          label="SD 1장 생성"
+                          price={info?.pricePoints ?? 350}
+                          balance={info?.balance}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => void generateSd()}
+                          disabled={
+                            generating ||
+                            loadingInfo ||
+                            !info?.ready ||
+                            (info.balance != null && info.balance.total < info.pricePoints)
+                          }
+                          className="w-full rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          {generating
+                            ? "SD 이미지 생성 중…"
+                            : sdResultUrl
+                              ? `다시 생성 · ${(info?.pricePoints ?? 350).toLocaleString()}P`
+                              : `SD 이미지 생성 · ${(info?.pricePoints ?? 350).toLocaleString()}P`}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <label className="block space-y-1">
+                          <span className="flex items-center justify-between text-[11px] font-semibold text-zinc-400">
+                            <span>만화로 만들 내용</span>
+                            <span className={comicText.length >= CHAT_COMIC_MAX_INPUT_CHARS ? "text-amber-300" : "text-zinc-500"}>
+                              {comicText.length}/{CHAT_COMIC_MAX_INPUT_CHARS}
+                            </span>
+                          </span>
+                          <textarea
+                            value={comicText}
+                            onChange={(event) =>
+                              setComicText(event.target.value.slice(0, CHAT_COMIC_MAX_INPUT_CHARS))
+                            }
+                            disabled={generating}
+                            rows={9}
+                            placeholder="장면이나 RP 본문을 붙여넣으세요. AI가 핵심 대사를 추출하고 말풍선·표정·컷 구성을 자동으로 처리합니다."
+                            className="w-full resize-y rounded-xl border border-white/10 bg-[#1a1a1a] px-3 py-2.5 text-xs leading-relaxed text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-violet-500/50"
+                          />
+                        </label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <label className="block space-y-1">
+                            <span className="text-[11px] font-semibold text-zinc-400">컷 수</span>
+                            <select
+                              value={panelCount}
+                              onChange={(event) => setPanelCount(Number(event.target.value) as ChatComicPanelCount)}
+                              disabled={generating}
+                              className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
+                            >
+                              {CHAT_COMIC_PANEL_OPTIONS.map((item) => (
+                                <option key={item.id} value={item.id}>{item.label}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="block space-y-1">
+                            <span className="text-[11px] font-semibold text-zinc-400">분위기</span>
+                            <select
+                              value={comicMood}
+                              onChange={(event) => setComicMood(event.target.value as ChatComicMood)}
+                              disabled={generating}
+                              className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
+                            >
+                              {CHAT_COMIC_MOODS.map((item) => (
+                                <option key={item.id} value={item.id}>{item.label}</option>
+                              ))}
+                            </select>
+                          </label>
+                        </div>
+                        {comicTitle ? (
+                          <p className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-zinc-300">
+                            생성 제목: <strong>{comicTitle}</strong>
+                          </p>
+                        ) : null}
+                        <PriceBox
+                          label={`${panelCount}컷 만화 1장`}
+                          price={comicPrice}
+                          balance={info?.balance}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => void generateComic()}
+                          disabled={
+                            generating ||
+                            loadingInfo ||
+                            !info?.ready ||
+                            !comicText.trim() ||
+                            (info.balance != null && info.balance.total < comicPrice)
+                          }
+                          className="w-full rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                          {generating
+                            ? "대사와 컷을 구성해 만화 생성 중…"
+                            : comicResultUrl
+                              ? `다시 생성 · ${comicPrice.toLocaleString()}P`
+                              : `${panelCount}컷 만화 생성 · ${comicPrice.toLocaleString()}P`}
+                        </button>
+                      </>
+                    )}
+
+                    {info && !info.ready ? (
+                      <p className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-200">
+                        먼저 {info.missing.join(", ")}를 등록해 주세요.
+                      </p>
+                    ) : null}
+                    {notice ? (
+                      <p className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-3 py-2 text-xs leading-relaxed text-emerald-200">
+                        {notice}
+                      </p>
+                    ) : null}
+                    {error ? (
+                      <p className="rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-xs leading-relaxed text-rose-200">
+                        {error}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      ) : null}
+    </>
+  );
+}
