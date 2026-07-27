@@ -91,4 +91,10 @@ export type GenerationContextInput = {
   personaId?: number | null;
   /** Muse-only local acceptance telemetry (no auto-continuation). */
   museAcceptance?: Record<string, unknown>;
+  /** PR-S4C — mode/reason only; never secret fact text. */
+  personaKnowledgePrompt?: {
+    personaKnowledgePromptMode: string;
+    reasonCode: string;
+    includedObserverFacts: boolean;
+  };
 };

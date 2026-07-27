@@ -28,6 +28,13 @@ import {
   sanitizePersonaImageUrl,
   sanitizePersonaImageFocus,
 } from "./userPersonasClient";
+import { toPublicPersonaDescription } from "./personaSecretLegacyMarkers";
+import {
+  asSecretPersonaDescription,
+  type PersonaSecretPayload,
+  type PublicPersonaDescription,
+  type PublicPersonaRow,
+} from "./personaSecretTypes";
 
 export type SubscriptionTier = "free" | "basic" | "pro";
 
@@ -42,8 +49,42 @@ export function getSubscriptionTier(user: User): SubscriptionTier {
   return "basic";
 }
 
-const PERSONA_SELECT =
+/** Public runtime projection — never includes secret_description. */
+export const PERSONA_PUBLIC_SELECT =
+  "SELECT id, user_id, name, memo, gender, description, speech_examples, image_url, image_focus_x, image_focus_y, created_at FROM user_personas";
+
+/** Owner editor projection — includes secret_description. */
+export const PERSONA_EDITOR_SELECT =
   "SELECT id, user_id, name, memo, gender, description, secret_description, speech_examples, image_url, image_focus_x, image_focus_y, created_at FROM user_personas";
+
+/** Narrow secret hub projection. */
+export const PERSONA_SECRET_SELECT =
+  "SELECT id AS persona_id, secret_description FROM user_personas";
+
+/** @deprecated Use PERSONA_EDITOR_SELECT — kept for call-site clarity during migration. */
+const PERSONA_SELECT = PERSONA_EDITOR_SELECT;
+
+type PublicPersonaDbRow = Omit<DbUserPersona, "secret_description">;
+
+function mapPublicPersonaRow(row: PublicPersonaDbRow): PublicPersonaDbRow {
+  return {
+    ...row,
+    name: row.name ?? "",
+    memo: row.memo ?? "",
+    description: toPublicPersonaDescription(row.description ?? ""),
+    gender: resolveCharacterGender(row.gender),
+    speech_examples: row.speech_examples ?? "",
+    image_url: sanitizePersonaImageUrl(row.image_url),
+    image_focus_x: sanitizePersonaImageFocus(
+      row.image_focus_x,
+      PERSONA_IMAGE_FOCUS_DEFAULT.x
+    ),
+    image_focus_y: sanitizePersonaImageFocus(
+      row.image_focus_y,
+      PERSONA_IMAGE_FOCUS_DEFAULT.y
+    ),
+  };
+}
 
 function mapPersonaRow(row: DbUserPersona): DbUserPersona {
   return {
@@ -66,28 +107,89 @@ function mapPersonaRow(row: DbUserPersona): DbUserPersona {
   };
 }
 
-export function listUserPersonas(userId: number): DbUserPersona[] {
+/** Public runtime list — secret_description never loaded. */
+export function listPublicUserPersonas(userId: number): PublicPersonaDbRow[] {
   const rows = getDb()
-    .prepare(`${PERSONA_SELECT} WHERE user_id=? ORDER BY created_at ASC`)
+    .prepare(`${PERSONA_PUBLIC_SELECT} WHERE user_id=? ORDER BY created_at ASC`)
+    .all(userId) as PublicPersonaDbRow[];
+  return rows.map(mapPublicPersonaRow);
+}
+
+/** Owner editor list — includes secret_description. */
+export function listEditorUserPersonas(userId: number): DbUserPersona[] {
+  const rows = getDb()
+    .prepare(`${PERSONA_EDITOR_SELECT} WHERE user_id=? ORDER BY created_at ASC`)
     .all(userId) as DbUserPersona[];
   return rows.map(mapPersonaRow);
 }
 
+/**
+ * @deprecated Prefer listPublicUserPersonas / listEditorUserPersonas.
+ * Returns editor rows for backward compatibility with owner APIs.
+ */
+export function listUserPersonas(userId: number): DbUserPersona[] {
+  return listEditorUserPersonas(userId);
+}
+
+export function getPublicPersonaById(
+  userId: number,
+  personaId: number
+): PublicPersonaDbRow | null {
+  const row = getDb()
+    .prepare(`${PERSONA_PUBLIC_SELECT} WHERE id=? AND user_id=?`)
+    .get(personaId, userId) as PublicPersonaDbRow | undefined;
+  if (!row) return null;
+  return mapPublicPersonaRow(row);
+}
+
 export function getPersonaById(userId: number, personaId: number): DbUserPersona | null {
   const row = getDb()
-    .prepare(`${PERSONA_SELECT} WHERE id=? AND user_id=?`)
+    .prepare(`${PERSONA_EDITOR_SELECT} WHERE id=? AND user_id=?`)
     .get(personaId, userId) as DbUserPersona | undefined;
   if (!row) return null;
   return mapPersonaRow(row);
 }
 
-export function resolveChatSelectedPersona(
+/** Narrow secret load for Boundary reveal hub only. */
+export function getPersonaSecretPayload(
+  userId: number,
+  personaId: number
+): PersonaSecretPayload | null {
+  const row = getDb()
+    .prepare(`${PERSONA_SECRET_SELECT} WHERE id=? AND user_id=?`)
+    .get(personaId, userId) as
+    | { persona_id: number; secret_description: string | null }
+    | undefined;
+  if (!row) return null;
+  return {
+    personaId: row.persona_id,
+    secretDescription: asSecretPersonaDescription(row.secret_description ?? ""),
+  };
+}
+
+export function toPublicPersonaRow(persona: {
+  id: number;
+  user_id: number;
+  name: string;
+  gender: CharacterGender;
+  description: string;
+}): PublicPersonaRow {
+  return {
+    id: persona.id,
+    userId: persona.user_id,
+    name: persona.name,
+    gender: persona.gender,
+    description: toPublicPersonaDescription(persona.description),
+  };
+}
+
+export function resolveChatSelectedPersona<T extends { id: number }>(
   _user: User,
-  personas: DbUserPersona[],
+  personas: T[],
   selectedPersonaId: number | null | undefined,
   chatId?: number
 ): {
-  persona: DbUserPersona | null;
+  persona: T | null;
   personaId: number | null;
   fallbackApplied: boolean;
 } {
@@ -112,10 +214,10 @@ export function resolveChatSelectedPersona(
   return { persona, personaId: targetId, fallbackApplied };
 }
 
-export function validatePersonaSelection(
-  personas: DbUserPersona[],
+export function validatePersonaSelection<T extends { id: number }>(
+  personas: T[],
   personaId: number
-): { ok: true; persona: DbUserPersona } | { ok: false; fallbackPersona: DbUserPersona | null } {
+): { ok: true; persona: T } | { ok: false; fallbackPersona: T | null } {
   const persona = personas.find((p) => p.id === personaId);
   if (!persona) {
     return { ok: false, fallbackPersona: personas[0] ?? null };
@@ -123,10 +225,12 @@ export function validatePersonaSelection(
   return { ok: true, persona };
 }
 
-export function ensureDefaultPersona(userId: number, nickname: string): DbUserPersona[] {
+function ensureDefaultPersonaRow(userId: number, nickname: string): void {
   const db = getDb();
-  let personas = listUserPersonas(userId);
-  if (personas.length > 0) return personas;
+  const existing = db
+    .prepare("SELECT id FROM user_personas WHERE user_id=? LIMIT 1")
+    .get(userId) as { id: number } | undefined;
+  if (existing) return;
 
   const user = db.prepare("SELECT persona_name, persona_bio FROM users WHERE id=?").get(userId) as
     | { persona_name: string; persona_bio: string }
@@ -136,7 +240,32 @@ export function ensureDefaultPersona(userId: number, nickname: string): DbUserPe
   db.prepare(
     "INSERT INTO user_personas (user_id, name, memo, gender, description, secret_description) VALUES (?,?,?,?,?,?)"
   ).run(userId, name, "", "other", desc, "");
-  return listUserPersonas(userId);
+}
+
+/** Public runtime ensure — secret_description never returned. */
+export function ensureDefaultPublicPersona(
+  userId: number,
+  nickname: string
+): PublicPersonaDbRow[] {
+  ensureDefaultPersonaRow(userId, nickname);
+  return listPublicUserPersonas(userId);
+}
+
+/** Owner editor ensure — includes secret_description. */
+export function ensureDefaultEditorPersona(
+  userId: number,
+  nickname: string
+): DbUserPersona[] {
+  ensureDefaultPersonaRow(userId, nickname);
+  return listEditorUserPersonas(userId);
+}
+
+/**
+ * @deprecated Prefer ensureDefaultPublicPersona / ensureDefaultEditorPersona.
+ * Returns editor rows for backward compatibility with owner APIs.
+ */
+export function ensureDefaultPersona(userId: number, nickname: string): DbUserPersona[] {
+  return ensureDefaultEditorPersona(userId, nickname);
 }
 
 /**
@@ -150,16 +279,16 @@ const PERSONA_GENDER_LABELS: Record<CharacterGender, string> = {
   other: "기타",
 };
 
-/** Public persona only — never pass secret_description here. */
+/** Public persona only — pass PublicPersonaDescription (or already-stripped public text). */
 export function formatSelectedPersonaForPrompt(
   name: string,
   _gender: CharacterGender,
-  description: string,
+  description: PublicPersonaDescription | string,
   opts?: PersonaPromptCoNarrationOpts
 ): string | null {
   const parts: string[] = [];
   const trimmedName = name.trim();
-  const trimmedDesc = description.trim();
+  const trimmedDesc = toPublicPersonaDescription(String(description ?? "")).trim();
   if (trimmedName) parts.push(`이름/호칭: ${trimmedName}`);
   if (trimmedDesc) parts.push(trimmedDesc);
   if (trimmedDesc && opts?.coNarrationEnabled) {

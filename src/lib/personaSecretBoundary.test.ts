@@ -250,7 +250,6 @@ describe("persona secret boundary", () => {
       userNickname: "렌",
       userPersona: publicPrompt,
       revealedPersonaFactsBlock: null,
-      privatePersonaSecretNarrationBlock: null,
       shortTermHistory: [],
       currentUserMessage: "안녕",
       nsfw: false,
@@ -368,7 +367,7 @@ describe("persona secret boundary", () => {
     );
   });
 
-  it("P: novel private channel omitted in interactive mode", () => {
+  it("P: novel private full-secret channel removed (interactive)", () => {
     const built = buildContext({
       charName: "카일",
       chunks: [
@@ -384,7 +383,6 @@ describe("persona secret boundary", () => {
       ],
       userNickname: "렌",
       userPersona: formatPublicPersonaForPrompt("렌", "female", PUBLIC),
-      privatePersonaSecretNarrationBlock: null,
       novelModeEnabled: false,
       shortTermHistory: [],
       currentUserMessage: "hi",
@@ -398,8 +396,7 @@ describe("persona secret boundary", () => {
     assert.doesNotMatch(full, /시간을 되돌릴/);
   });
 
-  it("P-novel: private channel present only when novel block supplied", () => {
-    const secretBlock = `[PRIVATE USER PERSONA SECRET — B NARRATION ONLY]\n${SECRET_S2}`;
+  it("P-novel: full secret_description never injected even when novel mode ON", () => {
     const built = buildContext({
       charName: "카일",
       chunks: [
@@ -415,7 +412,6 @@ describe("persona secret boundary", () => {
       ],
       userNickname: "렌",
       userPersona: formatPublicPersonaForPrompt("렌", "female", PUBLIC),
-      privatePersonaSecretNarrationBlock: secretBlock,
       novelModeEnabled: true,
       shortTermHistory: [],
       currentUserMessage: "hi",
@@ -425,11 +421,9 @@ describe("persona secret boundary", () => {
       provider: "openrouter",
     });
     const full = `${built.systemPrompt ?? ""}\n${built.openRouterSystemSplit?.dynamicBlock ?? ""}`;
-    assert.match(full, /PRIVATE USER PERSONA SECRET/);
-    assert.match(full, /시간을 되돌릴/);
-    const userPersonaMatch = full.match(/\[USER_PERSONA\]\n([\s\S]*?)(?:\n\n\[|$)/);
-    assert.ok(userPersonaMatch, "expected [USER_PERSONA] block");
-    assert.doesNotMatch(userPersonaMatch[1] ?? "", /시간을 되돌릴/);
+    assert.doesNotMatch(full, /PRIVATE USER PERSONA SECRET/);
+    assert.doesNotMatch(full, /시간을 되돌릴/);
+    assert.doesNotMatch(full, new RegExp(NEEDLE_S1));
   });
 
   it("atomic: multi-claim paragraph does not partially unlock", () => {

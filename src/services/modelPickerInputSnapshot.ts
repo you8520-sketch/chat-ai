@@ -25,7 +25,8 @@ import { resolveUserImpersonationAllowance } from "@/lib/userImpersonationPolicy
 import { resolveChatRuntimeMode } from "@/lib/chatRuntimeMode";
 import {
   formatSelectedPersonaForPrompt,
-  listUserPersonas,
+  getPersonaSecretPayload,
+  listPublicUserPersonas,
   resolveChatSelectedPersona,
 } from "@/lib/userPersonas";
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
@@ -38,6 +39,13 @@ import { normalizeTargetResponseChars } from "@/lib/responseLength";
 import { collectCharacterSettingText } from "@/lib/bodyHairRules";
 import type { User } from "@/lib/auth";
 import { buildContext } from "@/services/contextBuilder";
+import { isPersonaSecretBoundaryEnabled } from "@/lib/personaSecretBoundaryPolicy";
+import { buildPersonaKnowledgePromptBlock } from "@/lib/personaSecretKnowledge";
+import {
+  buildGenerationKnowledgeContext,
+  resolvePersonaKnowledgePromptDecisionForChat,
+  withEnsembleRedactedPromptAssembly,
+} from "@/lib/personaKnowledgePromptPolicy";
 import type { ChatMsg } from "@/lib/ai";
 
 type SnapshotCacheEntry = {
@@ -138,14 +146,15 @@ export async function resolveModelPickerAssembledInputSnapshots(opts: {
     .prepare(
       `SELECT id, name, gender, system_prompt, world, example_dialog, assets, genres,
               setting_chunks, setting_chunks_en, prompt_translation_hash, speech_profile,
-              creator_compiled_description_json, appearance_raw, appearance_compiled
+              creator_compiled_description_json, appearance_raw, appearance_compiled,
+              content_kind, simulation_cast
        FROM characters WHERE id=?`
     )
     .get(chat.character_id) as Record<string, unknown> | undefined;
 
   if (!ch) return cached?.tokensByModel ?? null;
 
-  const personas = listUserPersonas(opts.user.id);
+  const personas = listPublicUserPersonas(opts.user.id);
   const { persona: selectedPersona } = resolveChatSelectedPersona(
     opts.user,
     personas,
@@ -234,11 +243,44 @@ export async function resolveModelPickerAssembledInputSnapshots(opts: {
   const assetTags = [...new Set(characterAssets.map((a) => a.tag))];
   collectCharacterSettingText(characterChunks);
 
+  // PR-S4C: same decision as main generation — never show observer facts on ensemble.
+  let revealedPersonaFactsBlock: string | null | undefined;
+  let contentKind: "character" | "simulation" = "character";
+  const personaKnowledgeAssemble = <T,>(fn: () => T): T => fn();
+  let assemblePickerContext = personaKnowledgeAssemble;
+  if (isPersonaSecretBoundaryEnabled()) {
+    const personaId = selectedPersona?.id ?? chat.selected_persona_id;
+    contentKind = String(ch.content_kind ?? "") === "simulation" ? "simulation" : "character";
+    const decision = resolvePersonaKnowledgePromptDecisionForChat(
+      buildGenerationKnowledgeContext({
+        contentKind,
+        simulationCast: String(ch.simulation_cast ?? ch.system_prompt ?? ""),
+        characterId: Number(ch.id),
+      }),
+      { chatId: chat.id }
+    );
+    if (personaId != null) {
+      const secretPayload = getPersonaSecretPayload(opts.user.id, Number(personaId));
+      revealedPersonaFactsBlock = buildPersonaKnowledgePromptBlock({
+        decision,
+        chatId: chat.id,
+        personaId: Number(personaId),
+        legacySecretDescription: secretPayload?.secretDescription ?? "",
+      });
+    }
+    if (decision.mode === "ENSEMBLE_REDACTED") {
+      assemblePickerContext = (fn) => withEnsembleRedactedPromptAssembly(fn);
+    }
+  }
+
   const tokensByModel: Partial<Record<ModelPickerActiveModelId, number>> = {};
   for (const modelId of MODEL_PICKER_ACTIVE_MODEL_IDS) {
-    const built = buildContext({
+    const built = assemblePickerContext(() =>
+      buildContext({
       charName: String(ch.name),
+      contentKind,
       chunks: characterChunks,
+      revealedPersonaFactsBlock: revealedPersonaFactsBlock ?? undefined,
       systemPrompt: String(ch.system_prompt ?? ""),
       world: String(ch.world ?? ""),
       exampleDialog: resolveExampleDialogForPrompt(String(ch.example_dialog ?? ""), String(ch.name)),
@@ -272,7 +314,8 @@ export async function resolveModelPickerAssembledInputSnapshots(opts: {
       geminiStaticDynamicMode: false,
       statusWidgetActive: false,
       mainModelOwnsRelationshipExtract: false,
-    });
+    })
+    );
     const tokens =
       built.meta.promptAudit?.totalAssembledTokens ?? built.meta.estimatedInputTokens;
     if (typeof tokens === "number" && tokens > 0) {

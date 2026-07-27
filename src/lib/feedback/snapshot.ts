@@ -34,6 +34,9 @@ export function buildGenerationContextJson(input: GenerationContextInput): strin
   if (input.variantIndex != null) ctx.variantIndex = input.variantIndex;
   if (input.personaId != null) ctx.personaId = input.personaId;
   if (input.museAcceptance) ctx.museAcceptance = input.museAcceptance;
+  if (input.personaKnowledgePrompt) {
+    ctx.personaKnowledgePrompt = input.personaKnowledgePrompt;
+  }
   const auditSummary = summarizePromptAudit(input.promptAudit);
   if (auditSummary) ctx.promptAudit = auditSummary;
   return JSON.stringify(ctx);

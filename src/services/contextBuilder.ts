@@ -701,23 +701,13 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   };
 
   const pushRevealedPersonaFacts = () => {
+    // PR-S4C: simulation ensemble must never inject observer-specific secret facts.
+    if (input.contentKind === "simulation") return;
     const block = input.revealedPersonaFactsBlock?.trim() ?? "";
     if (!block) return;
     pushSection(
       "revealed-persona-facts",
       "[0b] Revealed persona facts (this chat)",
-      "persona",
-      block,
-      isOpenRouter ? "dynamic" : "dynamic"
-    );
-  };
-
-  const pushPrivatePersonaSecretNarration = () => {
-    const block = input.privatePersonaSecretNarrationBlock?.trim() ?? "";
-    if (!block) return;
-    pushSection(
-      "private-persona-secret-narration",
-      "[0c] Private user persona secret (novel narration)",
       "persona",
       block,
       isOpenRouter ? "dynamic" : "dynamic"
@@ -975,9 +965,8 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   }
 
-  // Legacy novel / explicit_full only — auto progression must never inject this.
+  // Novel mode persona rules only — full secret_description is never injected.
   if (novelModeEnabled && !autoProgressionEnabled) {
-    pushPrivatePersonaSecretNarration();
     pushSection(
       "novel-mode-persona-rules",
       "Novel mode user persona rules",

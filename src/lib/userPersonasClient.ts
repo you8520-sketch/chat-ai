@@ -19,7 +19,11 @@ export type DbUserPersona = {
   created_at: string;
 };
 
-export type PersonaListItem = DbUserPersona;
+/** Client list/chat hydration — secret_description is never present. */
+export type PersonaListItem = Omit<DbUserPersona, "secret_description"> & {
+  /** Present only on owner-editor Boundary-ON API responses. */
+  secret_description?: string;
+};
 
 /** Default focus ≈ upper-center (face-friendly) for portrait cover crops. */
 export const PERSONA_IMAGE_FOCUS_DEFAULT = { x: 0.5, y: 0.28 } as const;
