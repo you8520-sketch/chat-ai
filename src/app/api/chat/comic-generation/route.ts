@@ -1,0 +1,575 @@
+import crypto from "crypto";
+import fs from "fs/promises";
+import path from "path";
+import { NextResponse } from "next/server";
+import sharp from "sharp";
+
+import { getSessionUser } from "@/lib/auth";
+import {
+  CHAT_COMIC_MAX_INPUT_CHARS,
+  CHAT_COMIC_TEMPLATE_ID,
+  CHAT_COMIC_TEMPLATE_NAME,
+  CHAT_COMIC_TEMPLATE_PREVIEW_URL,
+  buildChatComicImagePrompt,
+  buildChatComicPlannerPrompt,
+  resolveChatComicPlannerModel,
+  resolveChatComicPrice,
+  sanitizeChatComicOptions,
+  sanitizeChatComicPlan,
+  type ChatComicPlan,
+} from "@/lib/chatComicGeneration";
+import { resolveChatImageGenerationModel } from "@/lib/chatImageGeneration";
+import { getCharacterRepresentativeImageUrl } from "@/lib/characterAssets";
+import { getDb } from "@/lib/db";
+import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
+import {
+  InsufficientPointsError,
+  deductPoints,
+  getPointBalance,
+} from "@/lib/points";
+import {
+  filenameFromUploadUrl,
+  resolveExistingUploadPath,
+  uploadPublicUrl,
+  uploadsDataDir,
+} from "@/lib/uploadStorage";
+import {
+  personaImageBaseUrl,
+  sanitizePersonaImageUrl,
+} from "@/lib/userPersonasClient";
+
+export const runtime = "nodejs";
+export const maxDuration = 300;
+
+const OPENROUTER_CHAT_URL = "https://openrouter.ai/api/v1/chat/completions";
+const OPENROUTER_IMAGES_URL = "https://openrouter.ai/api/v1/images";
+const MAX_REFERENCE_BYTES = 12 * 1024 * 1024;
+
+type CharacterRow = {
+  id: number;
+  name: string;
+  assets: string;
+  images: string;
+  creator_id: number | null;
+  visibility: string;
+};
+
+type PersonaRow = {
+  id: number;
+  name: string;
+  image_url: string;
+};
+
+type ChatRow = {
+  id: number;
+  character_id: number;
+  selected_persona_id: number | null;
+};
+
+type GenerationContext = {
+  chatId: number | null;
+  character: CharacterRow;
+  persona: PersonaRow;
+  characterImageUrl: string;
+  personaImageUrl: string;
+};
+
+class RequestError extends Error {
+  constructor(
+    message: string,
+    public status = 400
+  ) {
+    super(message);
+    this.name = "RequestError";
+  }
+}
+
+function positiveInt(raw: unknown): number | null {
+  const value = Number(raw);
+  return Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function ensureGenerationTable() {
+  getDb().exec(`
+    CREATE TABLE IF NOT EXISTS chat_image_generations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      chat_id INTEGER,
+      character_id INTEGER NOT NULL,
+      persona_id INTEGER NOT NULL,
+      template_id TEXT NOT NULL,
+      model TEXT NOT NULL,
+      options_json TEXT NOT NULL DEFAULT '{}',
+      result_url TEXT NOT NULL,
+      upstream_cost_usd REAL,
+      charged_points INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_chat_image_generations_user_recent
+      ON chat_image_generations(user_id, created_at DESC, id DESC);
+  `);
+}
+
+function resolveGenerationContext(opts: {
+  userId: number;
+  characterId: number | null;
+  chatId: number | null;
+  personaId: number | null;
+}): GenerationContext {
+  const db = getDb();
+  let characterId = opts.characterId;
+  let selectedPersonaId = opts.personaId;
+  let chatId: number | null = null;
+
+  if (opts.chatId) {
+    const chat = db
+      .prepare(
+        "SELECT id, character_id, selected_persona_id FROM chats WHERE id=? AND user_id=?"
+      )
+      .get(opts.chatId, opts.userId) as ChatRow | undefined;
+    if (!chat) throw new RequestError("채팅방을 찾을 수 없습니다.", 404);
+    chatId = chat.id;
+    characterId = chat.character_id;
+    selectedPersonaId = chat.selected_persona_id ?? selectedPersonaId;
+  }
+
+  if (!characterId) throw new RequestError("캐릭터 정보가 없습니다.");
+  const character = db
+    .prepare(
+      "SELECT id, name, assets, images, creator_id, visibility FROM characters WHERE id=?"
+    )
+    .get(characterId) as CharacterRow | undefined;
+  if (!character) throw new RequestError("캐릭터를 찾을 수 없습니다.", 404);
+  if (character.visibility === "private" && character.creator_id !== opts.userId) {
+    throw new RequestError("캐릭터를 찾을 수 없습니다.", 404);
+  }
+
+  let persona: PersonaRow | undefined;
+  if (selectedPersonaId) {
+    persona = db
+      .prepare("SELECT id, name, image_url FROM user_personas WHERE id=? AND user_id=?")
+      .get(selectedPersonaId, opts.userId) as PersonaRow | undefined;
+  }
+  if (!persona) {
+    persona = db
+      .prepare(
+        "SELECT id, name, image_url FROM user_personas WHERE user_id=? ORDER BY created_at ASC, id ASC LIMIT 1"
+      )
+      .get(opts.userId) as PersonaRow | undefined;
+  }
+  if (!persona) throw new RequestError("유저 페르소나가 필요합니다.");
+
+  const characterImageUrl =
+    getCharacterRepresentativeImageUrl(character.assets, character.images)?.trim() ?? "";
+  const personaImageUrl = personaImageBaseUrl(sanitizePersonaImageUrl(persona.image_url));
+  if (!characterImageUrl) throw new RequestError("캐릭터 대표 이미지가 필요합니다.");
+  if (!personaImageUrl) throw new RequestError("페르소나 대표 이미지가 필요합니다.");
+
+  return {
+    chatId,
+    character,
+    persona,
+    characterImageUrl,
+    personaImageUrl,
+  };
+}
+
+function safePublicFilePath(url: string): string | null {
+  const clean = url.split("#", 1)[0]!.split("?", 1)[0]!;
+  if (!clean.startsWith("/") || clean.startsWith("//")) return null;
+  let relative: string;
+  try {
+    relative = decodeURIComponent(clean.slice(1));
+  } catch {
+    return null;
+  }
+  const publicRoot = path.resolve(process.cwd(), "public");
+  const candidate = path.resolve(publicRoot, relative);
+  if (candidate !== publicRoot && !candidate.startsWith(`${publicRoot}${path.sep}`)) return null;
+  return candidate;
+}
+
+async function readImageSource(source: string): Promise<Buffer> {
+  const clean = source.trim().split("#", 1)[0]!;
+  const uploadName = filenameFromUploadUrl(clean);
+  if (uploadName) {
+    const uploadPath = resolveExistingUploadPath(uploadName);
+    if (!uploadPath) throw new RequestError("참조 이미지를 찾을 수 없습니다.", 404);
+    const input = await fs.readFile(uploadPath);
+    if (input.length > MAX_REFERENCE_BYTES) throw new RequestError("참조 이미지가 너무 큽니다.");
+    return input;
+  }
+
+  if (/^https?:\/\//i.test(clean)) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 30_000);
+    try {
+      const response = await fetch(clean, {
+        signal: controller.signal,
+        redirect: "follow",
+        headers: { Accept: "image/*" },
+      });
+      if (!response.ok) throw new RequestError("참조 이미지를 불러오지 못했습니다.", 502);
+      const input = Buffer.from(await response.arrayBuffer());
+      if (input.length > MAX_REFERENCE_BYTES) throw new RequestError("참조 이미지가 너무 큽니다.");
+      return input;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  const publicPath = safePublicFilePath(clean);
+  if (!publicPath) throw new RequestError("참조 이미지 경로가 올바르지 않습니다.");
+  try {
+    return await fs.readFile(publicPath);
+  } catch {
+    throw new RequestError("참조 이미지를 찾을 수 없습니다.", 404);
+  }
+}
+
+async function imageSourceToDataUrl(source: string): Promise<string> {
+  const input = await readImageSource(source);
+  try {
+    const optimized = await sharp(input, { failOn: "none", animated: false })
+      .rotate()
+      .resize({ width: 1280, height: 1280, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 86, effort: 4 })
+      .toBuffer();
+    return `data:image/webp;base64,${optimized.toString("base64")}`;
+  } catch {
+    throw new RequestError("참조 이미지를 처리하지 못했습니다.");
+  }
+}
+
+function openRouterHeaders(title: string): Record<string, string> {
+  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
+  if (!apiKey) throw new RequestError("OpenRouter API 키가 설정되지 않았습니다.", 503);
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${apiKey}`,
+    "Content-Type": "application/json",
+    Accept: "application/json",
+    "X-Title": title,
+  };
+  const referer = process.env.NEXT_PUBLIC_APP_URL?.trim() || process.env.APP_URL?.trim();
+  if (referer) headers["HTTP-Referer"] = referer;
+  return headers;
+}
+
+function upstreamMessage(data: unknown, fallback: string): string {
+  if (!data || typeof data !== "object") return fallback;
+  const error = (data as { error?: unknown }).error;
+  if (typeof error === "string" && error.trim()) return error.slice(0, 240);
+  if (error && typeof error === "object") {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) return message.slice(0, 240);
+  }
+  return fallback;
+}
+
+function stripJsonFence(raw: string): string {
+  return raw
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "")
+    .trim();
+}
+
+async function planComic(opts: {
+  characterName: string;
+  personaName: string;
+  panelCount: 2 | 3 | 4;
+  mood: "comic" | "lovely" | "daily" | "serious";
+  sourceText: string;
+}): Promise<{ plan: ChatComicPlan; costUsd: number | null; model: string }> {
+  const model = resolveChatComicPlannerModel();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 60_000);
+  try {
+    const response = await fetch(OPENROUTER_CHAT_URL, {
+      method: "POST",
+      headers: openRouterHeaders("Habi Comic Storyboard Planner"),
+      signal: controller.signal,
+      body: JSON.stringify({
+        model,
+        temperature: 0.2,
+        max_tokens: 1800,
+        messages: [
+          {
+            role: "user",
+            content: buildChatComicPlannerPrompt(opts),
+          },
+        ],
+      }),
+    });
+    const text = await response.text();
+    let data: unknown = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = null;
+    }
+    if (!response.ok) {
+      throw new RequestError(upstreamMessage(data, "컷 구성을 만들지 못했습니다."), 502);
+    }
+    const content = (data as { choices?: Array<{ message?: { content?: unknown } }> })
+      ?.choices?.[0]?.message?.content;
+    if (typeof content !== "string" || !content.trim()) {
+      throw new RequestError("컷 구성 응답이 비어 있습니다.", 502);
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(stripJsonFence(content));
+    } catch {
+      throw new RequestError("컷 구성 응답을 해석하지 못했습니다.", 502);
+    }
+    const rawCost = Number((data as { usage?: { cost?: unknown } })?.usage?.cost);
+    return {
+      plan: sanitizeChatComicPlan(parsed, opts.panelCount),
+      costUsd: Number.isFinite(rawCost) && rawCost >= 0 ? rawCost : null,
+      model,
+    };
+  } catch (error) {
+    if (error instanceof RequestError) throw error;
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new RequestError("컷 구성 시간이 초과되었습니다.", 504);
+    }
+    throw new RequestError("컷 구성 중 오류가 발생했습니다.", 502);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function generateComicImage(opts: {
+  model: string;
+  prompt: string;
+  references: string[];
+}): Promise<{ buffer: Buffer; costUsd: number | null }> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 285_000);
+  try {
+    const response = await fetch(OPENROUTER_IMAGES_URL, {
+      method: "POST",
+      headers: openRouterHeaders("Habi 2-4 Panel Comic Generator"),
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: opts.model,
+        prompt: opts.prompt,
+        n: 1,
+        quality: "medium",
+        aspect_ratio: "3:4",
+        background: "opaque",
+        output_format: "webp",
+        output_compression: 84,
+        input_references: opts.references.map((url) => ({
+          type: "image_url",
+          image_url: { url },
+        })),
+      }),
+    });
+    const text = await response.text();
+    let data: unknown = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      data = null;
+    }
+    if (!response.ok) {
+      throw new RequestError(upstreamMessage(data, "컷만화 이미지 생성에 실패했습니다."), 502);
+    }
+    const encoded = (data as { data?: Array<{ b64_json?: string }> })?.data?.[0]?.b64_json
+      ?.replace(/^data:[^;]+;base64,/, "");
+    if (!encoded) throw new RequestError("생성된 이미지 데이터가 비어 있습니다.", 502);
+    let output = Buffer.from(encoded, "base64");
+    const metadata = await sharp(output, { failOn: "none" }).metadata();
+    if (!metadata.width || !metadata.height) {
+      throw new RequestError("생성된 이미지 형식이 올바르지 않습니다.", 502);
+    }
+    if (metadata.format !== "webp") {
+      output = await sharp(output, { failOn: "none" })
+        .rotate()
+        .webp({ quality: 90, effort: 4 })
+        .toBuffer();
+    }
+    const rawCost = Number((data as { usage?: { cost?: unknown } })?.usage?.cost);
+    return {
+      buffer: output,
+      costUsd: Number.isFinite(rawCost) && rawCost >= 0 ? rawCost : null,
+    };
+  } catch (error) {
+    if (error instanceof RequestError) throw error;
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new RequestError("컷만화 생성 시간이 초과되었습니다. 다시 시도해 주세요.", 504);
+    }
+    throw new RequestError("컷만화 이미지 생성 중 오류가 발생했습니다.", 502);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export async function POST(req: Request) {
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+
+  let savedPath: string | null = null;
+  try {
+    const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+    const context = resolveGenerationContext({
+      userId: user.id,
+      characterId: positiveInt(body.characterId),
+      chatId: positiveInt(body.chatId),
+      personaId: positiveInt(body.personaId),
+    });
+    const options = sanitizeChatComicOptions({
+      panelCount: body.panelCount,
+      mood: body.mood,
+      sourceText: body.sourceText,
+    });
+    if (!options.sourceText) throw new RequestError("만화로 만들 내용을 입력해 주세요.");
+    if (String(body.sourceText ?? "").trim().length > CHAT_COMIC_MAX_INPUT_CHARS) {
+      throw new RequestError(`내용은 최대 ${CHAT_COMIC_MAX_INPUT_CHARS}자까지 입력할 수 있습니다.`);
+    }
+
+    const pricePoints = resolveChatComicPrice(options.panelCount);
+    const balanceBefore = getPointBalance(user.id);
+    if (balanceBefore.total < pricePoints) {
+      return NextResponse.json(
+        {
+          error: `포인트가 부족합니다. ${options.panelCount}컷 만화에는 ${pricePoints.toLocaleString()}P가 필요합니다.`,
+          pricePoints,
+          remainingPoints: balanceBefore.total,
+          paidPoints: balanceBefore.paid,
+          freePoints: balanceBefore.free,
+        },
+        { status: 402 }
+      );
+    }
+
+    const planned = await planComic({
+      characterName: context.character.name,
+      personaName: context.persona.name,
+      ...options,
+    });
+    const prompt = buildChatComicImagePrompt({
+      characterName: context.character.name,
+      personaName: context.persona.name,
+      plan: planned.plan,
+      ...options,
+    });
+    const [styleReference, characterReference, personaReference] = await Promise.all([
+      imageSourceToDataUrl(CHAT_COMIC_TEMPLATE_PREVIEW_URL),
+      imageSourceToDataUrl(context.characterImageUrl),
+      imageSourceToDataUrl(context.personaImageUrl),
+    ]);
+    const model = resolveChatImageGenerationModel();
+    const generated = await generateComicImage({
+      model,
+      prompt,
+      references: [styleReference, characterReference, personaReference],
+    });
+
+    await fs.mkdir(uploadsDataDir(), { recursive: true });
+    const filename = `ai-comic-${options.panelCount}p-${crypto.randomUUID()}.webp`;
+    savedPath = path.join(uploadsDataDir(), filename);
+    await fs.writeFile(savedPath, generated.buffer);
+    const resultUrl = uploadPublicUrl(filename);
+
+    let deduction;
+    try {
+      deduction = deductPoints(
+        user.id,
+        pricePoints,
+        `GPT Image 2 · ${options.panelCount}컷 만화`,
+        context.chatId ? { chatId: context.chatId } : undefined
+      );
+    } catch (error) {
+      await fs.unlink(savedPath).catch(() => {});
+      savedPath = null;
+      if (error instanceof InsufficientPointsError) {
+        return NextResponse.json(
+          {
+            error: `포인트가 부족합니다. ${pricePoints.toLocaleString()}P가 필요합니다.`,
+            remainingPoints: error.balance.total,
+            paidPoints: error.balance.paid,
+            freePoints: error.balance.free,
+          },
+          { status: 402 }
+        );
+      }
+      throw error;
+    }
+
+    ensureGenerationTable();
+    let generationId: number | null = null;
+    try {
+      const insert = getDb()
+        .prepare(
+          `INSERT INTO chat_image_generations (
+             user_id, chat_id, character_id, persona_id, template_id, model,
+             options_json, result_url, upstream_cost_usd, charged_points
+           ) VALUES (?,?,?,?,?,?,?,?,?,?)`
+        )
+        .run(
+          user.id,
+          context.chatId,
+          context.character.id,
+          context.persona.id,
+          CHAT_COMIC_TEMPLATE_ID,
+          model,
+          JSON.stringify({
+            mode: "comic",
+            panelCount: options.panelCount,
+            mood: options.mood,
+            sourceText: options.sourceText,
+            title: planned.plan.title,
+            plan: planned.plan,
+            plannerModel: planned.model,
+            plannerCostUsd: planned.costUsd,
+          }),
+          resultUrl,
+          (generated.costUsd ?? 0) + (planned.costUsd ?? 0),
+          deduction.total
+        );
+      generationId = Number(insert.lastInsertRowid);
+    } catch (error) {
+      console.error("[chat-comic-generation] history insert failed", error);
+    }
+
+    const totalCostUsd = (generated.costUsd ?? 0) + (planned.costUsd ?? 0);
+    console.info("[chat-comic-generation] completed", {
+      userId: user.id,
+      chatId: context.chatId,
+      characterId: context.character.id,
+      personaId: context.persona.id,
+      panelCount: options.panelCount,
+      imageModel: model,
+      plannerModel: planned.model,
+      upstreamCostUsd: totalCostUsd,
+      upstreamCostKrw: Math.round(totalCostUsd * getEffectiveKrwPerUsd() * 10) / 10,
+      chargedPoints: deduction.total,
+    });
+
+    return NextResponse.json({
+      ok: true,
+      mode: "comic",
+      generationId,
+      imageUrl: resultUrl,
+      title: planned.plan.title,
+      panelCount: options.panelCount,
+      modelLabel: "GPT Image 2",
+      totalPointsCost: deduction.total,
+      remainingPoints: deduction.balance.total,
+      paidPoints: deduction.balance.paid,
+      freePoints: deduction.balance.free,
+    });
+  } catch (error) {
+    if (savedPath) await fs.unlink(savedPath).catch(() => {});
+    const status = error instanceof RequestError ? error.status : 500;
+    const message = error instanceof Error ? error.message : "컷만화 생성에 실패했습니다.";
+    console.error("[chat-comic-generation] failed", {
+      status,
+      message,
+      error: error instanceof RequestError ? undefined : error,
+    });
+    return NextResponse.json({ error: message }, { status });
+  }
+}
