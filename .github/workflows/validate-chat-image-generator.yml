@@ -6,6 +6,7 @@ on:
       - "src/app/api/chat/image-generation/**"
       - "src/app/api/chat/comic-generation/**"
       - "src/app/api/chat/image-album/**"
+      - "src/components/ChatAssetAlbumModal.tsx"
       - "src/components/ChatImageGeneratorPanel.tsx"
       - "src/components/ChatImageGeneratorRailButton.tsx"
       - "src/components/ChatRoomDisplayQuickRail.tsx"

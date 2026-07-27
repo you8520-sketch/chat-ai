@@ -8,7 +8,22 @@ import {
 } from "@/lib/characterAssetUnlocks";
 import type { CharacterAsset } from "@/lib/characterAssets";
 
-type Album = StoredCharacterAssetAlbum;
+type AlbumAsset = {
+  url: string;
+  tag: string;
+  generated?: boolean;
+};
+
+type Album = Omit<StoredCharacterAssetAlbum, "assets"> & {
+  assets: AlbumAsset[];
+};
+
+type GeneratedAlbumEntry = {
+  id: number;
+  imageUrl: string;
+  mode: "sd" | "comic";
+  createdAt: string;
+};
 
 type Props = {
   open: boolean;
@@ -17,6 +32,20 @@ type Props = {
   currentAssets: CharacterAsset[];
   onClose: () => void;
 };
+
+function mergeAssets(...groups: AlbumAsset[][]): AlbumAsset[] {
+  const seen = new Set<string>();
+  const merged: AlbumAsset[] = [];
+  for (const group of groups) {
+    for (const asset of group) {
+      const url = asset.url.trim();
+      if (!url || seen.has(url)) continue;
+      seen.add(url);
+      merged.push({ ...asset, url });
+    }
+  }
+  return merged;
+}
 
 export function IconAlbum({ className = "h-4 w-4" }: { className?: string }) {
   return (
@@ -45,11 +74,58 @@ export default function ChatAssetAlbumModal({
 }: Props) {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [selectedId, setSelectedId] = useState(currentCharacterId);
+  const [generatedAssets, setGeneratedAssets] = useState<AlbumAsset[]>([]);
+  const [generatedLoading, setGeneratedLoading] = useState(false);
+  const [generatedError, setGeneratedError] = useState("");
 
   useEffect(() => {
     if (!open) return;
-    setAlbums(listCharacterAssetAlbums());
+    setAlbums(
+      listCharacterAssetAlbums().map((album) => ({
+        ...album,
+        assets: album.assets.map((asset) => ({ ...asset, generated: false })),
+      }))
+    );
     setSelectedId(currentCharacterId);
+    setGeneratedAssets([]);
+    setGeneratedError("");
+    setGeneratedLoading(true);
+
+    let cancelled = false;
+    void fetch(
+      `/api/chat/image-album?characterId=${encodeURIComponent(String(currentCharacterId))}`,
+      { cache: "no-store" }
+    )
+      .then(async (response) => {
+        const data = (await response.json().catch(() => null)) as
+          | { album?: GeneratedAlbumEntry[]; error?: string }
+          | null;
+        if (!response.ok || !data) {
+          throw new Error(data?.error || "생성 이미지 앨범을 불러오지 못했습니다.");
+        }
+        if (cancelled) return;
+        const rows = Array.isArray(data.album) ? data.album : [];
+        setGeneratedAssets(
+          rows.map((item) => ({
+            url: item.imageUrl,
+            tag: item.mode === "comic" ? "AI 컷만화" : "AI SD 굿즈",
+            generated: true,
+          }))
+        );
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setGeneratedError(
+          error instanceof Error ? error.message : "생성 이미지 앨범을 불러오지 못했습니다."
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setGeneratedLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [currentCharacterId, open]);
 
   useEffect(() => {
@@ -61,15 +137,20 @@ export default function ChatAssetAlbumModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  const currentAlbum = useMemo<Album>(
-    () => ({
+  const currentAlbum = useMemo<Album>(() => {
+    const storedCurrent = albums.find((album) => album.characterId === currentCharacterId);
+    const canonicalAssets: AlbumAsset[] = currentAssets.map((asset) => ({
+      url: asset.url,
+      tag: asset.tag,
+      generated: false,
+    }));
+    return {
       characterId: currentCharacterId,
       characterName: currentCharacterName,
-      assets: currentAssets.map((asset) => ({ url: asset.url, tag: asset.tag })),
-      updatedAt: "",
-    }),
-    [currentAssets, currentCharacterId, currentCharacterName]
-  );
+      assets: mergeAssets(canonicalAssets, storedCurrent?.assets ?? [], generatedAssets),
+      updatedAt: storedCurrent?.updatedAt ?? "",
+    };
+  }, [albums, currentAssets, currentCharacterId, currentCharacterName, generatedAssets]);
 
   const mergedAlbums = useMemo(() => {
     const others = albums.filter((album) => album.characterId !== currentCharacterId);
@@ -86,7 +167,7 @@ export default function ChatAssetAlbumModal({
       className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 backdrop-blur-[2px]"
       role="dialog"
       aria-modal="true"
-      aria-label="해금 이미지 앨범"
+      aria-label="이미지 앨범"
       onClick={onClose}
     >
       <section
@@ -121,6 +202,11 @@ export default function ChatAssetAlbumModal({
             <div className="min-w-0">
               <p className="text-[11px] font-semibold text-violet-200/80">이미지 앨범</p>
               <h2 className="truncate text-base font-bold text-white">{selectedAlbum.characterName}</h2>
+              {selectedAlbum.characterId === currentCharacterId ? (
+                <p className="mt-0.5 text-[10px] text-zinc-500">
+                  기존 캐릭터 에셋과 저장한 SD·컷만화를 함께 표시합니다.
+                </p>
+              ) : null}
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <select
@@ -146,9 +232,19 @@ export default function ChatAssetAlbumModal({
           </header>
 
           <div className="min-h-0 flex-1 overflow-y-auto p-3">
+            {generatedLoading && selectedAlbum.characterId === currentCharacterId ? (
+              <p className="mb-3 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-zinc-400">
+                저장한 생성 이미지를 불러오는 중…
+              </p>
+            ) : null}
+            {generatedError && selectedAlbum.characterId === currentCharacterId ? (
+              <p className="mb-3 rounded-lg border border-rose-500/25 bg-rose-500/10 px-3 py-2 text-xs text-rose-200">
+                {generatedError}
+              </p>
+            ) : null}
             {selectedAlbum.assets.length === 0 ? (
               <p className="py-16 text-center text-sm text-zinc-500">
-                아직 해금된 이미지가 없습니다.
+                아직 앨범 이미지가 없습니다.
               </p>
             ) : (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -161,10 +257,19 @@ export default function ChatAssetAlbumModal({
                       src={asset.url}
                       alt={asset.tag}
                       className="aspect-[3/4] w-full"
-                      imgClassName="h-full w-full object-cover object-top"
+                      imgClassName={
+                        asset.generated
+                          ? "h-full w-full object-contain object-center"
+                          : "h-full w-full object-cover object-top"
+                      }
                     />
-                    <figcaption className="truncate px-2 py-1.5 text-[11px] text-zinc-400">
-                      {asset.tag || "이미지"}
+                    <figcaption className="flex items-center justify-between gap-2 px-2 py-1.5 text-[11px] text-zinc-400">
+                      <span className="truncate">{asset.tag || "이미지"}</span>
+                      {asset.generated ? (
+                        <span className="shrink-0 rounded bg-violet-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-violet-200">
+                          생성
+                        </span>
+                      ) : null}
                     </figcaption>
                   </figure>
                 ))}
