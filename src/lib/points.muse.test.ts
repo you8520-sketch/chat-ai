@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   MUSE_WAIVER_SUCCESS_MIN_COST,
+  OPENROUTER_MUSE_INPUT_POINTS_PER_TOKEN,
+  OPENROUTER_MUSE_OUTPUT_POINTS_PER_TOKEN,
   OPENROUTER_SIMPLE_POINT_INPUT_PRICES,
   OPENROUTER_SIMPLE_POINT_INPUT_SURCHARGE_PER_1000,
   OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES,
@@ -33,13 +35,15 @@ describe("Muse Spark 1.1 dual-rate simple point billing", () => {
   const inputPrice = OPENROUTER_SIMPLE_POINT_INPUT_PRICES[modelId];
   const outputPrice = OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES[modelId];
 
-  it("uses the configured dual-rate token prices (60% target margin)", () => {
-    assert.equal(inputPrice, 0.0042);
-    assert.equal(outputPrice, 0.0062);
+  it("uses the configured token prices for the 60% target margin", () => {
+    assert.equal(OPENROUTER_MUSE_INPUT_POINTS_PER_TOKEN, 0.0048);
+    assert.equal(OPENROUTER_MUSE_OUTPUT_POINTS_PER_TOKEN, 0.0163);
+    assert.equal(inputPrice, OPENROUTER_MUSE_INPUT_POINTS_PER_TOKEN);
+    assert.equal(outputPrice, OPENROUTER_MUSE_OUTPUT_POINTS_PER_TOKEN);
     assert.equal(MUSE_WAIVER_SUCCESS_MIN_COST, 50);
   });
 
-  it("charges inputP/tok + optional 0.5P/1k (≥10k) + outputP/tok", () => {
+  it("charges inputP/tok + existing large-context surcharge + outputP/tok", () => {
     const inputTokens = 20_000;
     const outputTokens = 2000;
     const expected = expectedSimplePointCost(inputTokens, outputTokens, 0);
@@ -52,12 +56,33 @@ describe("Muse Spark 1.1 dual-rate simple point billing", () => {
     assert.equal(computeOpenRouterTurnCost(inputTokens, outputTokens, modelId), expected);
   });
 
-  it("lands near 65P on the recommended Muse receipt shape", () => {
-    // 11,524 in + (1,142 out + 624 thinking) — dual-rate + large-context surcharge
+  it("lands at 90P on the recommended Muse receipt shape", () => {
     const total = computeOpenRouterTurnCost(11_524, 1_142, modelId, undefined, {
       reasoningTokens: 624,
     });
-    assert.ok(total >= 64 && total <= 67, `expected ~65P, got ${total}`);
+    assert.equal(total, 90);
+  });
+
+  it("keeps the current 2,070-token billing basis and changes rates only", () => {
+    const inputTokens = 15_233;
+    const billedOutputTokensExcludingThinking = 1_863;
+    const thinkingTokens = 207;
+    assert.equal(billedOutputTokensExcludingThinking + thinkingTokens, 2_070);
+
+    const expected = expectedSimplePointCost(
+      inputTokens,
+      billedOutputTokensExcludingThinking,
+      thinkingTokens
+    );
+    const total = computeOpenRouterTurnCost(
+      inputTokens,
+      billedOutputTokensExcludingThinking,
+      modelId,
+      undefined,
+      { reasoningTokens: thinkingTokens }
+    );
+    assert.equal(total, expected);
+    assert.equal(total, 115);
   });
 
   it("increases with visible input/output but not cache state", () => {
@@ -71,7 +96,7 @@ describe("Muse Spark 1.1 dual-rate simple point billing", () => {
     assert.equal(longCacheHit, longNoCache);
   });
 
-  it("bills reasoning tokens together with output tokens", () => {
+  it("bills thinking tokens with the same rate as output tokens", () => {
     const inputTokens = 20_000;
     const outputTokens = 2000;
     const reasoningTokens = 500;
