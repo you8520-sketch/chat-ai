@@ -46,4 +46,17 @@ describe("/api/chat Muse acceptance client/DB usage split", () => {
     assert.doesNotMatch(src, /SHORT_QUALITY_PASS[\s\S]{0,200}continueNarrative/);
     assert.doesNotMatch(src, /acceptanceClass[\s\S]{0,120}NARRATIVE_LENGTH_CONTINUATION/);
   });
+
+  it("counts Muse acceptance apiCallCount as main RP + length supplements only", () => {
+    const src = readFileSync(routeUrl, "utf8");
+    assert.match(
+      src,
+      /apiCallCount:\s*\n\s*1\s*\+\s*\n\s*Math\.max\(0,\s*primaryStage\?\.lengthRecoveryPasses/
+    );
+    assert.match(src, /lengthContinuationPasses/);
+    assert.doesNotMatch(
+      src,
+      /classifyMuseAcceptance\([\s\S]{0,400}apiCallCount:\s*baseUsageRecord\.apiCallCount/
+    );
+  });
 });

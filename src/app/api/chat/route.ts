@@ -2943,7 +2943,11 @@ export async function POST(req: Request) {
             cost: baseUsageRecord.cost ?? null,
             isRegenerationRequest: !!regenerateMessageId,
             isContinueRequest: isContinue,
-            apiCallCount: baseUsageRecord.apiCallCount ?? 1,
+            // Main RP + length supplements only (exclude HTML flash / widget extract).
+            apiCallCount:
+              1 +
+              Math.max(0, primaryStage?.lengthRecoveryPasses ?? 0) +
+              lengthContinuationPasses,
           });
           museAcceptanceFields = toMuseAcceptanceUsageFields(museTelemetry);
           dbUsageRecord = { ...baseUsageRecord, museAcceptance: museAcceptanceFields };
