@@ -14,33 +14,7 @@ import {
   UNKNOWN_INFORMATION_TRUTH_GUARD_BLOCK,
   UNKNOWN_INFORMATION_TRUTH_GUARD_SECTION_ID,
 } from "@/lib/unknownInformationTruthGuard";
-import {
-  isMuseIntraWorldProvenanceGuardEnabledForUser,
-  isMuseUnknownInformationTruthGuardEnabledForUser,
-} from "@/lib/museUnknownInformationTruthGuardPolicy";
-import {
-  INTRA_WORLD_PROVENANCE_GUARD_BLOCK,
-  INTRA_WORLD_PROVENANCE_GUARD_SECTION_ID,
-} from "@/lib/intraWorldProvenanceGuard";
-import {
-  isMuseCompactSceneStateEnabledForUser,
-  isMuseStructuralLengthAnchorEnabledForUser,
-} from "@/lib/museSceneBootstrapPolicy";
-import {
-  MUSE_COMPACT_SCENE_STATE_BLOCK,
-  MUSE_COMPACT_SCENE_STATE_SECTION_ID,
-} from "@/lib/museCompactSceneState";
-import {
-  MUSE_STRUCTURAL_LENGTH_ANCHOR_BLOCK,
-  MUSE_STRUCTURAL_LENGTH_ANCHOR_SECTION_ID,
-} from "@/lib/museStructuralLengthAnchor";
-import { isMusePositiveLengthOwnerEnabledForUser } from "@/lib/musePositiveLengthOwnerPolicy";
-import {
-  MUSE_POSITIVE_LENGTH_OWNER_BLOCK,
-  MUSE_POSITIVE_LENGTH_OWNER_SECTION_ID,
-  MUSE_POSITIVE_LENGTH_TERMINAL_BLOCK,
-  MUSE_POSITIVE_LENGTH_TERMINAL_SECTION_ID,
-} from "@/lib/musePositiveLengthOwner";
+import { isMuseUnknownInformationTruthGuardEnabledForUser } from "@/lib/museUnknownInformationTruthGuardPolicy";
 import {
   buildCharacterCanonBlock,
   buildCharacterSpeechRecencyTail,
@@ -111,7 +85,6 @@ import {
   settingHasMindReadingFromChunks,
 } from "@/lib/userActionThoughtRules";
 import {
-  buildCompactTerminalLayoutRecencyLine,
   buildUserInputParsingBlock,
   buildWebnovelOutputLayoutRecencyBlock,
   unwrapRoleplayMarkdownInText,
@@ -962,24 +935,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   pushActiveCanon();
   pushPrivateCharacterSecret();
 
-  // Admin-only Muse canary: compact semantic scene state AFTER canon/memory /
-  // private secret and BEFORE LENGTH / Terminal / Truth Guard. Independent of
-  // Structural Length Anchor. Gate OFF → no section (byte-stable).
-  // Note: memory/canon sit after prose in this builder, so "after memory and
-  // before prose" is impossible; this seam is the closest source-grounded
-  // scene-dynamic slot that still precedes operational length tails.
-  if (
-    isMuseCompactSceneStateEnabledForUser(input.userId, input.modelId, input.chatId)
-  ) {
-    pushSection(
-      MUSE_COMPACT_SCENE_STATE_SECTION_ID,
-      "Muse compact scene state (admin canary internal context)",
-      "systemRules",
-      MUSE_COMPACT_SCENE_STATE_BLOCK,
-      "dynamic"
-    );
-  }
-
   flushDeepSeekXmlSections(["ltm"]);
 
   // ───── [4] OOC co-narration (explicit OOC opt-in only — never auto progression) ─────
@@ -1053,43 +1008,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     statusWidgetActive: input.statusWidgetActive === true,
   };
 
-  // Admin-only Muse canary: structural length anchor AFTER M1 prose (pushed
-  // earlier) and IMMEDIATELY BEFORE existing LENGTH CONTROL. Terminal and
-  // Truth Guard keep their existing absolute-tail positions. Independent of
-  // Compact Semantic State. Gate OFF → no section (byte-stable).
-  if (
-    isMuseStructuralLengthAnchorEnabledForUser(
-      input.userId,
-      input.modelId,
-      input.chatId
-    )
-  ) {
-    pushSection(
-      MUSE_STRUCTURAL_LENGTH_ANCHOR_SECTION_ID,
-      "Muse structural length anchor (admin canary scene depth)",
-      "systemRules",
-      MUSE_STRUCTURAL_LENGTH_ANCHOR_BLOCK,
-      "dynamic"
-    );
-  }
-
-  // Admin-only Muse canary: Positive Length Owner REPLACES rule-length-control
-  // (never stacked with it). Gate OFF → existing LENGTH path byte-stable.
-  const musePositiveLengthOwnerOn = isMusePositiveLengthOwnerEnabledForUser(
-    input.userId,
-    input.modelId,
-    input.chatId
-  );
-
-  if (musePositiveLengthOwnerOn) {
-    pushSection(
-      MUSE_POSITIVE_LENGTH_OWNER_SECTION_ID,
-      "Muse positive length owner (admin canary replacement)",
-      "systemRules",
-      MUSE_POSITIVE_LENGTH_OWNER_BLOCK,
-      "dynamic"
-    );
-  } else if (!isOpenRouter) {
+  if (!isOpenRouter) {
     pushSection(
       "rule-length-control",
       "Length control (single rule)",
@@ -1154,48 +1073,23 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   }
 
-  // Positive Length Owner also REPLACES rule-terminal-length-override
-  // (never stacked). Truth Guard remains the final system tail after this slot.
-  if (musePositiveLengthOwnerOn) {
-    pushSection(
-      MUSE_POSITIVE_LENGTH_TERMINAL_SECTION_ID,
-      "Muse positive length terminal (admin canary replacement)",
-      "systemRules",
-      MUSE_POSITIVE_LENGTH_TERMINAL_BLOCK,
-      "dynamic"
-    );
-  } else {
-    pushSection(
-      "rule-terminal-length-override",
-      "Terminal length compact tail (absolute end)",
-      "systemRules",
-      buildTerminalLengthOverrideBlock(input.targetResponseChars),
-      "dynamic"
-    );
-  }
+  pushSection(
+    "rule-terminal-length-override",
+    "Terminal length compact tail (absolute end)",
+    "systemRules",
+    buildTerminalLengthOverrideBlock(input.targetResponseChars),
+    "dynamic"
+  );
 
   // Admin-only Muse canary: unknown-information truth priority as the final
   // system section AFTER Terminal. Gate OFF → byte-stable prior assembly
-  // (Terminal remains the absolute final section). Independent of M1/M1.1.
+  // (Terminal remains the absolute final section). Independent of M1.
   if (isMuseUnknownInformationTruthGuardEnabledForUser(input.userId, input.modelId)) {
     pushSection(
       UNKNOWN_INFORMATION_TRUTH_GUARD_SECTION_ID,
       "Unknown-information truth absolute priority (final system tail)",
       "systemRules",
       UNKNOWN_INFORMATION_TRUTH_GUARD_BLOCK,
-      "dynamic"
-    );
-  }
-
-  // Admin-only Muse canary: intra-world provenance guard as the absolute final
-  // system section AFTER the Unknown Information Truth Guard. Requires the base
-  // Truth Guard to be ON, plus MUSE_INTRAWORLD_PROVENANCE_GUARD_ENABLED=1.
-  if (isMuseIntraWorldProvenanceGuardEnabledForUser(input.userId, input.modelId)) {
-    pushSection(
-      INTRA_WORLD_PROVENANCE_GUARD_SECTION_ID,
-      "Intra-world provenance guard (absolute final system tail)",
-      "systemRules",
-      INTRA_WORLD_PROVENANCE_GUARD_BLOCK,
       "dynamic"
     );
   }
@@ -1376,19 +1270,10 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     }
   }
   if (isOpenRouter) {
-    if (musePositiveLengthOwnerOn) {
-      // Keep layout recency; replace legacy negative length tail with positive
-      // terminal so LENGTH/Terminal are not dual-injected with the owner.
-      const layoutLine = buildCompactTerminalLayoutRecencyLine();
-      const tail = `${layoutLine}\n${MUSE_POSITIVE_LENGTH_TERMINAL_BLOCK}`;
-      const body = userTurnContent.trim();
-      userTurnContent = body ? `${body}\n\n${tail}` : tail;
-    } else {
-      userTurnContent = appendCompactTerminalLengthToUserTurn(
-        userTurnContent,
-        input.targetResponseChars
-      );
-    }
+    userTurnContent = appendCompactTerminalLengthToUserTurn(
+      userTurnContent,
+      input.targetResponseChars
+    );
   }
   const estimatePayloadTokens = (hist: ContextBuildInput["shortTermHistory"]) =>
     estimateTokens(
