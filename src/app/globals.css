@@ -390,6 +390,22 @@ html.chat-room-active .mobile-bottom-nav {
 }
 
 @media (min-width: 576px) {
+  /*
+   * App shell left rail (home / non-chat). Same 576px threshold as chat chrome.
+   * Hard fallbacks beat stale Tailwind chunks missing md:/min-[576px]: utilities.
+   */
+  html:not(.chat-room-active) .app-left-rail-spacer {
+    display: block !important;
+  }
+
+  html:not(.chat-room-active) aside.app-left-rail {
+    display: flex !important;
+  }
+
+  .mobile-bottom-nav {
+    display: none !important;
+  }
+
   html.chat-room-active .app-shell {
     max-width: none;
     padding-top: 0;
@@ -430,9 +446,48 @@ html.chat-room-active .mobile-bottom-nav {
   html.chat-room-active .chat-room-mobile-title-bar {
     display: none !important;
   }
+
+  /* 에셋 ON — desktop portrait column + 2-col grid (Tailwind variant fallback). */
+  html.chat-room-active .chat-room-portrait-grid {
+    grid-template-columns: minmax(340px, 400px) minmax(0, 780px);
+    grid-template-rows: auto minmax(0, 1fr);
+    column-gap: 1.5rem;
+  }
+
+  html.chat-room-active .chat-room-portrait-track {
+    grid-template-columns: minmax(340px, 400px) minmax(0, 780px);
+    column-gap: 1.5rem;
+  }
+
+  html.chat-room-active .chat-room-portrait-rail {
+    display: flex !important;
+    flex-direction: column;
+    grid-column-start: 1;
+    grid-row-start: 2;
+    position: sticky;
+    top: calc(var(--site-header-height, 44px) + 3.25rem);
+    z-index: 10;
+    width: 100%;
+    height: calc(100dvh - var(--site-header-height, 44px) - 3.25rem);
+    align-self: start;
+  }
+
+  html.chat-room-active .chat-room-messages-column {
+    grid-column-start: 2;
+    grid-row-start: 2;
+  }
+
+  html.chat-room-active .chat-room-mobile-portrait-bg {
+    display: none !important;
+  }
 }
 
 @media (max-width: 575px) {
+  html:not(.chat-room-active) .app-left-rail-spacer,
+  html:not(.chat-room-active) aside.app-left-rail {
+    display: none !important;
+  }
+
   html.chat-room-active .app-shell {
     max-width: none;
     gap: 0;
@@ -445,7 +500,8 @@ html.chat-room-active .mobile-bottom-nav {
   html.chat-room-active .chat-room-left-rail-spacer,
   html.chat-room-active aside.chat-room-left-rail,
   html.chat-room-active .chat-room-desktop-name-strip,
-  html.chat-room-active aside.chat-room-right-rail {
+  html.chat-room-active aside.chat-room-right-rail,
+  html.chat-room-active .chat-room-portrait-rail {
     display: none !important;
   }
 }

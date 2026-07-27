@@ -282,7 +282,7 @@ export const CHAT_PORTRAIT_DESKTOP_TRACK_CLASS =
 
 /** 초상 ON — 좌: 에셋 / 우: 채팅+입력 */
 export const CHAT_PORTRAIT_GRID_CLASS =
-  `mx-auto grid w-full max-w-[75.25rem] min-w-0 flex-1 grid-cols-1 items-start ${CHAT_PORTRAIT_DESKTOP_TRACK_CLASS} min-[576px]:grid-rows-[auto_minmax(0,1fr)]`;
+  `chat-room-portrait-grid mx-auto grid w-full max-w-[75.25rem] min-w-0 flex-1 grid-cols-1 items-start ${CHAT_PORTRAIT_DESKTOP_TRACK_CLASS} min-[576px]:grid-rows-[auto_minmax(0,1fr)]`;
 
 /**
  * Desktop sticky name/creator/album strip (portrait ON) — spans both grid columns
@@ -292,7 +292,7 @@ export const CHAT_PORTRAIT_INFO_STICKY_CLASS =
   "chat-room-desktop-name-strip hidden min-[576px]:col-span-2 min-[576px]:col-start-1 min-[576px]:row-start-1 min-[576px]:block min-[576px]:sticky min-[576px]:top-[var(--site-header-height,44px)] min-[576px]:z-30 min-[576px]:h-[3.25rem] min-[576px]:w-full min-[576px]:border-b min-[576px]:border-white/5 min-[576px]:bg-[#121212]/95 min-[576px]:backdrop-blur";
 
 export const CHAT_PORTRAIT_INFO_STICKY_INNER_CLASS =
-  `grid h-full w-full ${CHAT_PORTRAIT_DESKTOP_TRACK_CLASS} pl-0 pr-1`;
+  `chat-room-portrait-track grid h-full w-full ${CHAT_PORTRAIT_DESKTOP_TRACK_CLASS} pl-0 pr-1`;
 
 /**
  * Desktop sticky name/creator/album strip (portrait OFF) — same fixed top bar as
@@ -301,9 +301,9 @@ export const CHAT_PORTRAIT_INFO_STICKY_INNER_CLASS =
 export const CHAT_INFO_STICKY_NO_PORTRAIT_CLASS =
   "chat-room-desktop-name-strip chat-room-desktop-name-strip--row hidden min-[576px]:sticky min-[576px]:top-[var(--site-header-height,44px)] min-[576px]:z-30 min-[576px]:mx-auto min-[576px]:flex min-[576px]:h-[3.25rem] min-[576px]:w-full min-[576px]:max-w-[780px] min-[576px]:items-center min-[576px]:justify-between min-[576px]:gap-3 min-[576px]:border-b min-[576px]:border-white/5 min-[576px]:bg-[#121212]/95 min-[576px]:pl-0 min-[576px]:pr-1 min-[576px]:backdrop-blur";
 
-/** 초상 열 sticky — 모바일 채팅은 글로벌 헤더 없음(제목만), md+는 헤더+제목 */
+/** 초상 열 sticky — 모바일 채팅은 글로벌 헤더 없음(제목만), chat desktop+: 에셋 열 */
 export const CHAT_PORTRAIT_STICKY_CLASS =
-  "hidden min-[576px]:col-start-1 min-[576px]:row-start-2 min-[576px]:sticky min-[576px]:top-[calc(var(--site-header-height,44px)+3.25rem)] min-[576px]:z-10 min-[576px]:flex min-[576px]:h-[calc(100dvh-var(--site-header-height,44px)-3.25rem)] min-[576px]:w-full min-[576px]:flex-col min-[576px]:self-start";
+  "chat-room-portrait-rail hidden min-[576px]:col-start-1 min-[576px]:row-start-2 min-[576px]:sticky min-[576px]:top-[calc(var(--site-header-height,44px)+3.25rem)] min-[576px]:z-10 min-[576px]:flex min-[576px]:h-[calc(100dvh-var(--site-header-height,44px)-3.25rem)] min-[576px]:w-full min-[576px]:flex-col min-[576px]:self-start";
 
 /** @deprecated CHAT_PORTRAIT_PANEL_HEIGHT + 인라인 height 사용 */
 export const CHAT_PORTRAIT_VIEWPORT_MIN_H_CLASS = "";
@@ -314,11 +314,11 @@ export const CHAT_PORTRAIT_VIEWPORT_MIN_H_CLASS = "";
  * so the composer scrolls away with the message list. Clip X only if needed.
  */
 export const CHAT_MESSAGES_COLUMN_CLASS =
-  "relative col-start-1 row-start-1 flex min-w-0 flex-col overflow-x-clip min-[576px]:col-start-2 min-[576px]:row-start-2";
+  "chat-room-messages-column relative col-start-1 row-start-1 flex min-w-0 flex-col overflow-x-clip min-[576px]:col-start-2 min-[576px]:row-start-2";
 
 /** Mobile portrait background is pinned to the stable viewport, never the growing message list. */
 export const CHAT_MOBILE_PORTRAIT_BACKGROUND_CLASS =
-  "pointer-events-none fixed inset-x-0 top-0 z-0 h-[100svh] w-[100svw] select-none overflow-hidden bg-[#121212] min-[576px]:hidden";
+  "chat-room-mobile-portrait-bg pointer-events-none fixed inset-x-0 top-0 z-0 h-[100svh] w-[100svw] select-none overflow-hidden bg-[#121212] min-[576px]:hidden";
 
 /** Keep crop geometry invariant while streaming; only the image opacity may change. */
 export const CHAT_MOBILE_PORTRAIT_IMAGE_CLASS =

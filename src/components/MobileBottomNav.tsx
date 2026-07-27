@@ -27,7 +27,7 @@ export default function MobileBottomNav({ loggedIn }: Props) {
 
   return (
     <nav
-      className="mobile-bottom-nav fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-[#0b0d14]/95 backdrop-blur md:hidden"
+      className="mobile-bottom-nav fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-[#0b0d14]/95 backdrop-blur min-[576px]:hidden"
       aria-label="모바일 메뉴"
     >
       <div className="mx-auto flex max-w-lg">
