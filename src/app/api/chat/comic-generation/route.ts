@@ -33,6 +33,11 @@ import {
   resolveChatLdIllustrationPrice,
 } from "@/lib/chatLdIllustrationGeneration";
 import { resolveChatImageGenerationModel } from "@/lib/chatImageGeneration";
+import {
+  finishChatImageGenerationJob,
+  hasRunningChatImageGenerationJob,
+  startChatImageGenerationJob,
+} from "@/lib/chatImageGenerationJobs";
 import { getDb } from "@/lib/db";
 import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
 import { saveGeneratedImageToCharacterAlbum } from "@/lib/chatImageAlbum";
@@ -513,7 +518,14 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
 
   let savedPath: string | null = null;
+  let jobId: number | null = null;
   try {
+    if (hasRunningChatImageGenerationJob(user.id)) {
+      return NextResponse.json(
+        { error: "이미 생성 중인 이미지가 있습니다. 완료된 뒤에 다시 시도해 주세요." },
+        { status: 409 }
+      );
+    }
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     const context = resolveGenerationContext({
       userId: user.id,
@@ -522,6 +534,16 @@ export async function POST(req: Request) {
       personaId: positiveInt(body.personaId),
       requestedCharacterImageUrl: body.characterImageUrl,
     });
+    const startJob = (templateId: string, mode: string) => {
+      jobId = startChatImageGenerationJob({
+        userId: user.id,
+        chatId: context.chatId,
+        characterId: context.character.id,
+        personaId: context.persona.id,
+        templateId,
+        mode,
+      });
+    };
     if (body.mode === "illustration") {
       const pricePoints = resolveChatLdIllustrationPrice();
       const balanceBefore = getPointBalance(user.id);
@@ -538,6 +560,7 @@ export async function POST(req: Request) {
         );
       }
 
+      startJob(CHAT_LD_ILLUSTRATION_TEMPLATE_ID, "illustration");
       const turnText = currentChatTurn(context.chatId);
       const prompt = buildChatLdIllustrationPrompt({
         characterName: context.character.name,
@@ -573,6 +596,12 @@ export async function POST(req: Request) {
         await fs.unlink(savedPath).catch(() => {});
         savedPath = null;
         if (error instanceof InsufficientPointsError) {
+          finishChatImageGenerationJob({
+            jobId,
+            status: "failed",
+            errorMessage: "포인트가 부족합니다.",
+          });
+          jobId = null;
           return NextResponse.json(
             {
               error: `포인트가 부족합니다. ${pricePoints.toLocaleString()}P가 필요합니다.`,
@@ -629,6 +658,9 @@ export async function POST(req: Request) {
         console.error("[chat-ld-illustration] history/album insert failed", error);
       }
 
+      finishChatImageGenerationJob({ jobId, status: "completed", resultUrl });
+      jobId = null;
+
       const totalCostKrw =
         generated.costUsd == null
           ? null
@@ -674,6 +706,7 @@ export async function POST(req: Request) {
       );
     }
 
+    startJob(CHAT_COMIC_TEMPLATE_ID, "comic");
     const planned = await planComic({
       characterName: context.character.name,
       personaName: context.persona.name,
@@ -717,6 +750,12 @@ export async function POST(req: Request) {
       await fs.unlink(savedPath).catch(() => {});
       savedPath = null;
       if (error instanceof InsufficientPointsError) {
+        finishChatImageGenerationJob({
+          jobId,
+          status: "failed",
+          errorMessage: "포인트가 부족합니다.",
+        });
+        jobId = null;
         return NextResponse.json(
           {
             error: `포인트가 부족합니다. ${pricePoints.toLocaleString()}P가 필요합니다.`,
@@ -782,6 +821,9 @@ export async function POST(req: Request) {
       console.error("[chat-comic-generation] history/album insert failed", error);
     }
 
+    finishChatImageGenerationJob({ jobId, status: "completed", resultUrl });
+    jobId = null;
+
     const totalCostKrw =
       totalCostUsd == null
         ? null
@@ -820,6 +862,7 @@ export async function POST(req: Request) {
     if (savedPath) await fs.unlink(savedPath).catch(() => {});
     const status = error instanceof RequestError ? error.status : 500;
     const message = error instanceof Error ? error.message : "컷만화 생성에 실패했습니다.";
+    finishChatImageGenerationJob({ jobId, status: "failed", errorMessage: message });
     console.error("[chat-comic-generation] failed", {
       status,
       message,
