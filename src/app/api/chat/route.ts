@@ -167,14 +167,18 @@ import { resolveStatusWidgetReservedChars } from "@/lib/statusWidget";
 import { splitAndNormalizeRelationshipMemoryTail } from "@/lib/relationshipMemoryTail";
 import { parseUserChatPrefs } from "@/lib/userChatPrefs";
 import {
-  ensureDefaultPersona,
+  ensureDefaultPublicPersona,
   formatSelectedPersonaIdentityForBackground,
-  formatSelectedPersonaForPrompt,
+  getPersonaSecretPayload,
   resolveChatSelectedPersona,
   validatePersonaSelection,
 } from "@/lib/userPersonas";
-import { isPersonaSecretBoundaryEnabled } from "@/lib/personaSecretBoundaryPolicy";
-import { formatPrivatePersonaSecretForNovelNarration } from "@/lib/personaSecretPrompt";
+import {
+  isPersonaSecretBoundaryEnabled,
+  isPersonaSecretDiscoveryEnabled,
+} from "@/lib/personaSecretBoundaryPolicy";
+import { formatPublicPersonaForPrompt } from "@/lib/personaSecretPrompt";
+import { toPublicPersonaDescription } from "@/lib/personaSecretLegacyMarkers";
 import { splitPersonaSecretItems } from "@/lib/personaSecretItems";
 import {
   buildRevealedPersonaFactsBlockForPersona,
@@ -183,6 +187,29 @@ import {
   persistPersonaSecretRevealCandidates,
   type PersonaSecretRevealCandidate,
 } from "@/lib/personaSecretReveal";
+import {
+  buildDeterministicDisclosureIdempotencyKey,
+  confirmPersonaSecretDisclosure,
+  detectDeterministicDirectDisclosures,
+} from "@/lib/personaSecretDirectDisclosure";
+import { buildPersonaKnowledgePromptBlock } from "@/lib/personaSecretKnowledge";
+import {
+  buildGenerationKnowledgeContext,
+  personaKnowledgePromptDecisionMeta,
+  resolvePersonaKnowledgePromptDecisionForChat,
+  withEnsembleRedactedPromptAssembly,
+  type PersonaKnowledgePromptDecision,
+} from "@/lib/personaKnowledgePromptPolicy";
+import {
+  extractAndPersistSceneEvidence,
+  parseSceneEvidenceExplicitActions,
+} from "@/lib/sceneEvidence";
+import { runVisualDiscoveryForTurn } from "@/lib/visualDiscovery";
+import { runInvestigationDiscoveryForTurn } from "@/lib/investigationDiscovery";
+import { runKnowledgeTransfersForTurn } from "@/lib/knowledgeTransfer";
+import { extractPublicChatDiscoveryInputs } from "@/lib/personaSecretDiscoveryPublicInput";
+import { bootstrapChatObservers } from "@/lib/observerBootstrap";
+import { applyScenePresenceActions } from "@/lib/scenePresenceActions";
 import { resolveUserImpersonationAllowance } from "@/lib/userImpersonationPolicy";
 import { resolveChatRuntimeMode } from "@/lib/chatRuntimeMode";
 import {
@@ -389,7 +416,7 @@ export async function POST(req: Request) {
   const accountChatPrefs = parseUserChatPrefs(userNoteRow?.chat_prefs);
   const userNoteInput =
     typeof userNote === "string" ? userNote.trim() : undefined;
-  const personas = ensureDefaultPersona(user.id, user.nickname);
+  const personas = ensureDefaultPublicPersona(user.id, user.nickname);
   const requestedPersonaId =
     selectedPersonaId != null && selectedPersonaId !== ""
       ? Number(selectedPersonaId)
@@ -415,6 +442,7 @@ export async function POST(req: Request) {
     speech_traits?: string | null;
     creator_compiled_description_json?: string | null;
     content_kind?: "character" | "simulation" | null;
+    simulation_cast?: string | null;
   } | undefined;
   if (!ch) return Response.json({ error: "캐릭터를 찾을 수 없습니다." }, { status: 404 });
 
@@ -499,6 +527,23 @@ export async function POST(req: Request) {
     return Response.json({ error: "채팅방을 찾을 수 없습니다." }, { status: 404 });
   }
 
+  const personaSecretBoundaryOn = isPersonaSecretBoundaryEnabled({ userId: user.id });
+  const personaSecretDiscoveryOn = isPersonaSecretDiscoveryEnabled({
+    userId: user.id,
+  });
+
+  // PR-S4A: lazy bootstrap main character observer + active scene (idempotent).
+  // Discovery kill switch — no observer/scene writes when OFF.
+  if (personaSecretDiscoveryOn) {
+    bootstrapChatObservers({
+      chatId: chat.id,
+      characterId: ch.id,
+      displayName: typeof ch.name === "string" ? ch.name : "",
+      turnNumber: 0,
+      userId: user.id,
+    });
+  }
+
   if (userNoteInput !== undefined) {
     const widgetReserved = resolveStatusWidgetReservedChars({
       characterWidgetJson: (ch as { status_widget_json?: string }).status_widget_json,
@@ -552,13 +597,11 @@ export async function POST(req: Request) {
     chat.selected_persona_id = resolvedPersonaId;
   }
 
-  const personaDescription = selectedPersona?.description ?? "";
-  const personaSecretDescription = selectedPersona?.secret_description ?? "";
+  const personaDescription = toPublicPersonaDescription(selectedPersona?.description ?? "");
   const personaDisplayName = selectedPersona?.name?.trim() || user.nickname;
-  const personaSecretBoundaryOn = isPersonaSecretBoundaryEnabled({ userId: user.id });
   const userNotePrompt = formatUserNoteForPrompt(effectiveUserNote);
   const oocUserImpersonationAllowed = resolveUserImpersonationAllowance({
-    personaDescription: selectedPersona?.description ?? "",
+    personaDescription,
     userNote: extractFocusZoneNote(effectiveUserNote),
   });
   // Auto progression uses limited_external agency — not full impersonation / possession.
@@ -567,7 +610,7 @@ export async function POST(req: Request) {
     isContinue: autoProgressionEnabled,
     oocUserImpersonationAllowed,
   });
-  const userPersonaPrompt = formatSelectedPersonaForPrompt(
+  const userPersonaPrompt = formatPublicPersonaForPrompt(
     personaDisplayName,
     selectedPersona?.gender ?? "other",
     personaDescription,
@@ -1057,27 +1100,55 @@ export async function POST(req: Request) {
   });
 
   let revealedPersonaFactsBlock: string | null = null;
-  let privatePersonaSecretNarrationBlock: string | null = null;
   let pendingPersonaSecretRevealCandidates: PersonaSecretRevealCandidate[] = [];
+  // PR-S4C: compute once per request — shared by main/rebuild/recovery/snapshot.
+  let personaKnowledgePromptDecision: PersonaKnowledgePromptDecision = {
+    mode: "ENSEMBLE_REDACTED",
+    reasonCode: "MISSING_AUTHORITATIVE_SPEAKER",
+  };
+  let personaSecretDescriptionForFacts = "";
   if (personaSecretBoundaryOn && resolvedPersonaId) {
+    const secretPayload = getPersonaSecretPayload(user.id, resolvedPersonaId);
+    personaSecretDescriptionForFacts = secretPayload?.secretDescription ?? "";
+
+    // Legacy blank-line secret_description compatibility (Discovery OFF still allows).
     if (
       !autoContinueContext &&
       messageText.trim() &&
       !isContinueUserMessage(messageText) &&
-      personaSecretDescription.trim()
+      personaSecretDescriptionForFacts.trim()
     ) {
       pendingPersonaSecretRevealCandidates = detectUserAuthoredPersonaSecretReveals(
         messageText,
-        splitPersonaSecretItems(personaSecretDescription)
+        splitPersonaSecretItems(personaSecretDescriptionForFacts)
       );
     }
-    revealedPersonaFactsBlock = buildRevealedPersonaFactsBlockForPersona(
-      listChatPersonaSecretReveals(chat.id, resolvedPersonaId),
-      personaSecretDescription
-    );
-    if (novelModeEnabled && !autoContinueContext && personaSecretDescription.trim()) {
-      privatePersonaSecretNarrationBlock = formatPrivatePersonaSecretForNovelNarration(
-        personaSecretDescription
+
+    if (personaSecretDiscoveryOn) {
+      personaKnowledgePromptDecision = resolvePersonaKnowledgePromptDecisionForChat(
+        buildGenerationKnowledgeContext({
+          contentKind: ch.content_kind,
+          simulationCast: ch.simulation_cast ?? ch.system_prompt,
+          characterId: ch.id,
+        }),
+        { chatId: chat.id }
+      );
+
+      // S1 direct disclosure runs after durable user-message bootstrap (below),
+      // so evidence stores the real sourceMessageId and knowledge writes stay 0 on
+      // regenerate/continue/save-failed requests.
+
+      revealedPersonaFactsBlock = buildPersonaKnowledgePromptBlock({
+        decision: personaKnowledgePromptDecision,
+        chatId: chat.id,
+        personaId: resolvedPersonaId,
+        legacySecretDescription: personaSecretDescriptionForFacts,
+      });
+    } else {
+      // Discovery OFF: legacy reveal-table projection only (no ensemble knowledge).
+      revealedPersonaFactsBlock = buildRevealedPersonaFactsBlockForPersona(
+        listChatPersonaSecretReveals(chat.id, resolvedPersonaId),
+        personaSecretDescriptionForFacts
       );
     }
   }
@@ -1102,7 +1173,6 @@ export async function POST(req: Request) {
     userNickname: user.nickname,
     userPersona: userPersonaPrompt,
     revealedPersonaFactsBlock: revealedPersonaFactsBlock ?? undefined,
-    privatePersonaSecretNarrationBlock: privatePersonaSecretNarrationBlock ?? undefined,
     userNote: userNotePrompt,
     longTermMemory: memoryFeatureOn ? memoryInjection.text : "",
     archiveMemory: memoryFeatureOn ? memoryInjection.archiveText : "",
@@ -1141,13 +1211,20 @@ export async function POST(req: Request) {
     sceneMomentumInput,
   };
 
-  const built = buildContext({
-    ...contextBuildInput,
-    statusWidgetActive: statusWidgetActive,
-    mainModelOwnsRelationshipExtract,
-    promptDumpSource: "db",
-    promptDumpDetail: `chat=${chat.id} user=${user.id} character=${ch.id}`,
-  });
+  const assembleContext = <T,>(fn: () => T): T =>
+    personaKnowledgePromptDecision.mode === "ENSEMBLE_REDACTED"
+      ? withEnsembleRedactedPromptAssembly(fn)
+      : fn();
+
+  const built = assembleContext(() =>
+    buildContext({
+      ...contextBuildInput,
+      statusWidgetActive: statusWidgetActive,
+      mainModelOwnsRelationshipExtract,
+      promptDumpSource: "db",
+      promptDumpDetail: `chat=${chat.id} user=${user.id} character=${ch.id}`,
+    })
+  );
   if (
     shouldLogSceneMomentumProductionTelemetry({
       modelId: openRouterApiModelId,
@@ -1187,11 +1264,11 @@ export async function POST(req: Request) {
       openRouterSystemSplitForTurn = patchOpenRouterSplitForStatusWidget(openRouterSystemSplitForTurn);
     }
   }
-  const system = systemPromptForTurn;
-  const history: ChatMsg[] = built.history;
-  const promptAudit = built.meta.promptAudit;
-  const promptAuditRef = promptAudit;
-  const trackedSectionsRef = built.meta.trackedSections ?? [];
+  let system = systemPromptForTurn;
+  let history: ChatMsg[] = built.history;
+  let promptAudit = built.meta.promptAudit;
+  let promptAuditRef = promptAudit;
+  let trackedSectionsRef = built.meta.trackedSections ?? [];
   const shouldAuditPrompt =
     process.env.PROMPT_AUDIT === "1" || process.env.NODE_ENV === "development";
   if (shouldAuditPrompt && promptAudit) {
@@ -1232,9 +1309,9 @@ export async function POST(req: Request) {
   const recentHistoryRef = recentHistory;
   const resolvedUserMessageRef = promptUserMessage;
   const policyUserMessageRef = policyUserMessage;
-  const systemRef = system;
-  const openRouterSystemSplitRef = openRouterSystemSplitForTurn;
-  const statusWindowPolicyRef = built.statusWindowPolicy;
+  let systemRef = system;
+  let openRouterSystemSplitRef = openRouterSystemSplitForTurn;
+  let statusWindowPolicyRef = built.statusWindowPolicy;
   const statusArtifactOpts = {
     modelOutputsPlainStatus: false,
     modelOutputsHtmlVisualCard: false,
@@ -1263,7 +1340,7 @@ export async function POST(req: Request) {
     recentHistory: recentHistory,
     loreBlock: [keywordLorebookBlock, globalLorebookBlock].filter(Boolean).join("\n\n"),
   };
-  const historyRef = history;
+  let historyRef = history;
 
   // ── Durable turn bootstrap (before model call) ───────────────────────────
   const persistenceDiag: StreamingPersistenceDiag = {
@@ -1323,6 +1400,171 @@ export async function POST(req: Request) {
       candidates: pendingPersonaSecretRevealCandidates,
     });
   }
+
+  const publicDiscoveryInputs = extractPublicChatDiscoveryInputs(
+    body as Record<string, unknown>
+  );
+
+  const discoveryWritesAllowed =
+    personaSecretDiscoveryOn &&
+    bootstrapped.userMessageSaved &&
+    userMessageId != null &&
+    !autoContinueContext &&
+    !regenerate &&
+    messageText.trim() &&
+    !isContinueUserMessage(messageText);
+
+  // PR-S1: direct disclosure first — after durable user-message bootstrap so evidence
+  // stores the real sourceMessageId. 0 knowledge/evidence writes on regenerate/continue/save-fail.
+  if (discoveryWritesAllowed && resolvedPersonaId) {
+    const matches = detectDeterministicDirectDisclosures(
+      messageText,
+      resolvedPersonaId
+    );
+    for (const match of matches) {
+      confirmPersonaSecretDisclosure({
+        chatId: chatRef.id,
+        personaId: resolvedPersonaId,
+        secretId: match.secret.id,
+        characterId: ch.id,
+        turnNumber: playableTurnCount + 1,
+        sourceMessageId: userMessageId,
+        sourceType: "USER_MESSAGE_DETERMINISTIC",
+        discoveryRuleId: match.rule.id,
+        revealedFactText: match.revealedFactText,
+        idempotencyKey: buildDeterministicDisclosureIdempotencyKey({
+          chatId: chatRef.id,
+          personaId: resolvedPersonaId,
+          secretId: match.secret.id,
+          characterId: ch.id,
+          sourceMessageId: userMessageId,
+          turnNumber: playableTurnCount + 1,
+        }),
+        evidenceJson: { matchedAlias: match.matchedAlias },
+      });
+    }
+  }
+
+  // PR-S4A: user-allowed scene presence only (never SERVER/CREATOR from public body).
+  if (discoveryWritesAllowed) {
+    if (publicDiscoveryInputs.scenePresenceActions.length > 0) {
+      applyScenePresenceActions({
+        chatId: chatRef.id,
+        turnNumber: playableTurnCount + 1,
+        actions: publicDiscoveryInputs.scenePresenceActions,
+        userId: user.id,
+      });
+    }
+  }
+
+  // PR-S2A/S2B/S3/S4D: direct disclosure → scene evidence → visual → investigation → transfer → rebuild known-facts.
+  // Authoritative outcomes/transfers are NOT read from the public chat body.
+  // Shares discoveryWritesAllowed with direct disclosure so a turn whose user message
+  // never persisted cannot write evidence/knowledge with a null sourceMessageId.
+  if (discoveryWritesAllowed) {
+    const sceneActions = parseSceneEvidenceExplicitActions(body.sceneActions);
+    extractAndPersistSceneEvidence({
+      chatId: chatRef.id,
+      characterId: ch.id,
+      turnNumber: playableTurnCount + 1,
+      sourceMessageId: userMessageId,
+      userMessage: messageText,
+      explicitActions: sceneActions,
+      publicPersonaId: resolvedPersonaId,
+      userId: user.id,
+    });
+
+    if (resolvedPersonaId) {
+      runVisualDiscoveryForTurn({
+        chatId: chatRef.id,
+        personaId: resolvedPersonaId,
+        characterId: ch.id,
+        turnNumber: playableTurnCount + 1,
+        sourceMessageId: userMessageId,
+        userId: user.id,
+      });
+
+      runInvestigationDiscoveryForTurn({
+        chatId: chatRef.id,
+        personaId: resolvedPersonaId,
+        characterId: ch.id,
+        turnNumber: playableTurnCount + 1,
+        sourceMessageId: userMessageId,
+        userMessage: messageText,
+        explicitActions: publicDiscoveryInputs.investigationActions,
+        // Internal-only — never body.investigationOutcomes.
+        authoritativeOutcomes: [],
+        userId: user.id,
+      });
+
+      // PR-S4D: user transfers only; server assigns sourceMessageId from saved turn.
+      if (
+        publicDiscoveryInputs.knowledgeTransferActions.length > 0 &&
+        userMessageId != null
+      ) {
+        runKnowledgeTransfersForTurn({
+          chatId: chatRef.id,
+          personaId: resolvedPersonaId,
+          characterId: ch.id,
+          turnNumber: playableTurnCount + 1,
+          userActions: publicDiscoveryInputs.knowledgeTransferActions.map(
+            (a) => ({
+              ...a,
+              sourceMessageId: userMessageId,
+              actionId: undefined,
+              authoritativeEventId: undefined,
+            })
+          ),
+          // Internal-only — never body.knowledgeTransferAuthoritativeActions.
+          authoritativeActions: [],
+          userId: user.id,
+        });
+      }
+
+      // PR-S4C: reuse the same request decision (never re-resolve to main-character fallback).
+      const updatedKnownFacts = buildPersonaKnowledgePromptBlock({
+        decision: personaKnowledgePromptDecision,
+        chatId: chatRef.id,
+        personaId: resolvedPersonaId,
+        legacySecretDescription: personaSecretDescriptionForFacts,
+      });
+
+      // Same-turn reaction: rebuild prompt after visual/investigation/transfer knowledge transitions.
+      if (updatedKnownFacts !== revealedPersonaFactsBlock) {
+        revealedPersonaFactsBlock = updatedKnownFacts;
+        const rebuilt = assembleContext(() =>
+          buildContext({
+            ...contextBuildInput,
+            revealedPersonaFactsBlock: revealedPersonaFactsBlock ?? undefined,
+            statusWidgetActive: statusWidgetActive,
+            mainModelOwnsRelationshipExtract,
+            promptDumpSource: "db",
+            promptDumpDetail: `chat=${chat.id} user=${user.id} character=${ch.id}`,
+          })
+        );
+        systemPromptForTurn = rebuilt.systemPrompt;
+        openRouterSystemSplitForTurn = rebuilt.openRouterSystemSplit;
+        if (statusWidgetActive) {
+          systemPromptForTurn = applyStatusWidgetSystemPromptOverrides(systemPromptForTurn);
+          if (openRouterSystemSplitForTurn) {
+            openRouterSystemSplitForTurn = patchOpenRouterSplitForStatusWidget(
+              openRouterSystemSplitForTurn
+            );
+          }
+        }
+        system = systemPromptForTurn;
+        history = rebuilt.history;
+        promptAudit = rebuilt.meta.promptAudit;
+        promptAuditRef = promptAudit;
+        trackedSectionsRef = rebuilt.meta.trackedSections ?? [];
+        systemRef = system;
+        openRouterSystemSplitRef = openRouterSystemSplitForTurn;
+        historyRef = history;
+        statusWindowPolicyRef = rebuilt.statusWindowPolicy;
+      }
+    }
+  }
+
   const alreadyBilledForRequest = existingByRequest.alreadyBilled;
 
   const stream = new ReadableStream({
@@ -3365,6 +3607,9 @@ export async function POST(req: Request) {
               regenerate: !!regenerateMessageId,
               variantIndex: snapshotVariantIndex,
               personaId: resolvedPersonaId ?? null,
+              personaKnowledgePrompt: personaKnowledgePromptDecisionMeta(
+                personaKnowledgePromptDecision
+              ),
               ...(museAcceptanceFields
                 ? { museAcceptance: museAcceptanceFields }
                 : {}),

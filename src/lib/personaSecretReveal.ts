@@ -3,6 +3,7 @@ import { sanitizePrimaryModelContextSource } from "@/lib/flashOwnedOutputFirewal
 import { getDb } from "@/lib/db";
 import { splitPersonaSecretItems, type PersonaSecretItem } from "@/lib/personaSecretItems";
 import { sanitizeRuntimePromptSource } from "@/lib/runtimePromptContaminationGuard";
+import { assertObserverSpecificKnowledgeQueryAllowed } from "@/lib/personaKnowledgePromptPolicy";
 
 export type PersonaSecretRevealSource =
   | "USER_AUTHORED_DISCLOSURE"
@@ -54,6 +55,12 @@ export function listChatPersonaSecretReveals(
     .all(chatId, personaId) as ChatPersonaSecretRevealRow[];
 }
 
+const ALLOWED_REVEAL_WRITE_SOURCES: ReadonlySet<PersonaSecretRevealSource> = new Set([
+  "USER_AUTHORED_DISCLOSURE",
+  "EXPLICIT_SYSTEM_TRIGGER",
+  "MANUAL_REVEAL",
+]);
+
 export function insertChatPersonaSecretReveal(
   opts: {
     chatId: number;
@@ -65,6 +72,10 @@ export function insertChatPersonaSecretReveal(
   },
   db: Database.Database = getDb()
 ): boolean {
+  // S0: assistant-only / unknown sources must never create new reveal rows.
+  if (!ALLOWED_REVEAL_WRITE_SOURCES.has(opts.source)) return false;
+  if (String(opts.source).toLowerCase().includes("assistant")) return false;
+
   ensureChatPersonaSecretRevealsSchema(db);
   const text = sanitizeRevealedFactForPrompt(opts.revealedFactText);
   if (!text) return false;
@@ -109,6 +120,7 @@ export function filterVisiblePersonaSecretReveals(
 }
 
 export function buildRevealedPersonaFactsBlock(reveals: ChatPersonaSecretRevealRow[]): string | null {
+  assertObserverSpecificKnowledgeQueryAllowed();
   const lines = reveals
     .map((r) => sanitizeRevealedFactForPrompt(r.revealed_fact_text))
     .filter(Boolean)

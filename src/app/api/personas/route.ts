@@ -15,6 +15,7 @@ import {
 } from "@/lib/userPersonas";
 import { USER_PERSONA_MAX_COUNT } from "@/lib/persona";
 import { isPersonaSecretBoundaryEnabled } from "@/lib/personaSecretBoundaryPolicy";
+import { savePersonaWithSecretCompilation } from "@/lib/personaSaveWithSecrets";
 
 export async function GET() {
   const user = await getSessionUser();
@@ -62,8 +63,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: contentCheck.error }, { status: 400 });
   }
   const boundaryOn = isPersonaSecretBoundaryEnabled({ userId: user.id });
-  const effectiveSecretDescription = boundaryOn ? secret_description : "";
-  const secretCheck = validatePersonaSecretContentLength(effectiveSecretDescription);
+  const secretCheck = validatePersonaSecretContentLength(secret_description);
   if (!secretCheck.ok) {
     return NextResponse.json({ error: secretCheck.error }, { status: 400 });
   }
@@ -79,24 +79,29 @@ export async function POST(req: Request) {
     );
   }
 
-  const info = db
-    .prepare(
-      "INSERT INTO user_personas (user_id, name, memo, gender, description, secret_description, speech_examples, image_url, image_focus_x, image_focus_y) VALUES (?,?,?,?,?,?,?,?,?,?)"
-    )
-    .run(
-      user.id,
+  const saved = savePersonaWithSecretCompilation({
+    userId: user.id,
+    fields: {
       name,
       memo,
       gender,
       description,
-      effectiveSecretDescription,
-      "",
-      imageUrl,
-      imageFocusX,
-      imageFocusY
-    );
-  const personaId = Number(info.lastInsertRowid);
-  const persona = getPersonaById(user.id, personaId);
+      secret_description,
+      image_url: imageUrl,
+      image_focus_x: imageFocusX,
+      image_focus_y: imageFocusY,
+    },
+    db,
+  });
+  if (!saved.ok) {
+    return NextResponse.json({ error: saved.error }, { status: saved.status });
+  }
+  const persona = getPersonaById(user.id, saved.personaId);
 
-  return NextResponse.json({ ok: true, persona });
+  return NextResponse.json({
+    ok: true,
+    persona,
+    ...(saved.compile ? { compile: saved.compile } : {}),
+    ...(saved.compilePreservedPrior ? { compilePreservedPrior: true } : {}),
+  });
 }

@@ -638,6 +638,329 @@ function migrate(db: Database.Database) {
       ON chat_persona_secret_reveals(chat_id, persona_id);
   `);
   db.exec(`
+    CREATE TABLE IF NOT EXISTS persona_secrets (
+      id TEXT PRIMARY KEY,
+      persona_id INTEGER NOT NULL,
+      secret_key TEXT NOT NULL,
+      owner_title TEXT NOT NULL DEFAULT '',
+      category TEXT NOT NULL DEFAULT 'OTHER',
+      importance TEXT NOT NULL DEFAULT 'NORMAL',
+      canonical_secret_text TEXT NOT NULL,
+      suspected_fact_text TEXT NOT NULL DEFAULT '',
+      confirmed_fact_text TEXT NOT NULL,
+      discoverability TEXT NOT NULL DEFAULT 'DISCOVERABLE',
+      chat_scope_policy TEXT NOT NULL DEFAULT 'CHAT_ONLY',
+      is_active INTEGER NOT NULL DEFAULT 1,
+      revision INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(persona_id, secret_key)
+    );
+    CREATE INDEX IF NOT EXISTS idx_persona_secrets_persona
+      ON persona_secrets(persona_id, is_active);
+
+    CREATE TABLE IF NOT EXISTS persona_secret_discovery_rules (
+      id TEXT PRIMARY KEY,
+      secret_id TEXT NOT NULL,
+      method TEXT NOT NULL,
+      rule_key TEXT NOT NULL,
+      result_state TEXT NOT NULL,
+      revealed_fact_text TEXT NOT NULL,
+      conditions_json TEXT NOT NULL DEFAULT '{}',
+      priority INTEGER NOT NULL DEFAULT 0,
+      enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(secret_id, rule_key)
+    );
+    CREATE INDEX IF NOT EXISTS idx_secret_discovery_rules_secret
+      ON persona_secret_discovery_rules(secret_id, method, enabled);
+
+    CREATE TABLE IF NOT EXISTS persona_secret_evidence_events (
+      id TEXT PRIMARY KEY,
+      idempotency_key TEXT NOT NULL UNIQUE,
+      chat_id INTEGER NOT NULL,
+      turn_number INTEGER NOT NULL,
+      source_message_id INTEGER,
+      persona_id INTEGER NOT NULL,
+      secret_id TEXT NOT NULL,
+      discovery_rule_id TEXT,
+      observer_type TEXT NOT NULL,
+      observer_id TEXT NOT NULL,
+      method TEXT NOT NULL,
+      source_type TEXT NOT NULL,
+      resulting_state TEXT NOT NULL,
+      revealed_fact_snapshot TEXT NOT NULL,
+      evidence_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_secret_evidence_chat_observer
+      ON persona_secret_evidence_events(chat_id, observer_type, observer_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_secret_evidence_secret
+      ON persona_secret_evidence_events(secret_id, chat_id);
+
+    CREATE TABLE IF NOT EXISTS chat_character_secret_knowledge (
+      chat_id INTEGER NOT NULL,
+      persona_id INTEGER NOT NULL,
+      secret_id TEXT NOT NULL,
+      observer_type TEXT NOT NULL,
+      observer_id TEXT NOT NULL,
+      knowledge_state TEXT NOT NULL,
+      confidence INTEGER NOT NULL DEFAULT 0,
+      fact_snapshot TEXT NOT NULL,
+      first_suspected_turn INTEGER,
+      confirmed_turn INTEGER,
+      last_evidence_event_id TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (chat_id, persona_id, secret_id, observer_type, observer_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_secret_knowledge_runtime
+      ON chat_character_secret_knowledge(
+        chat_id, observer_type, observer_id, knowledge_state
+      );
+
+    CREATE TABLE IF NOT EXISTS knowledge_transfer_events (
+      id TEXT PRIMARY KEY,
+      idempotency_key TEXT NOT NULL UNIQUE,
+
+      chat_id INTEGER NOT NULL,
+      turn_number INTEGER NOT NULL,
+      source_message_id INTEGER,
+
+      persona_id INTEGER NOT NULL,
+      secret_id TEXT NOT NULL,
+
+      sender_type TEXT NOT NULL,
+      sender_id TEXT NOT NULL,
+
+      receiver_type TEXT NOT NULL,
+      receiver_id TEXT NOT NULL,
+
+      sender_state_snapshot TEXT NOT NULL,
+      resulting_state TEXT NOT NULL,
+      fact_snapshot TEXT NOT NULL,
+
+      transfer_type TEXT NOT NULL,
+      source_type TEXT NOT NULL,
+
+      channel_type TEXT NOT NULL DEFAULT 'DIRECT',
+      evidence_json TEXT NOT NULL DEFAULT '{}',
+
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_knowledge_transfer_receiver
+      ON knowledge_transfer_events(
+        chat_id,
+        receiver_type,
+        receiver_id,
+        created_at
+      );
+
+    CREATE TABLE IF NOT EXISTS persona_secret_compilation_runs (
+      id TEXT PRIMARY KEY,
+      persona_id INTEGER NOT NULL,
+      source_hash TEXT NOT NULL,
+      compiler_version INTEGER NOT NULL,
+      status TEXT NOT NULL,
+      result_json TEXT,
+      error_code TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_persona_secret_compilation_runs_persona
+      ON persona_secret_compilation_runs(persona_id, created_at);
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_persona_secret_compilation_success
+      ON persona_secret_compilation_runs(persona_id, source_hash, compiler_version)
+      WHERE status='success';
+
+    CREATE TABLE IF NOT EXISTS scene_evidence_events (
+      id TEXT PRIMARY KEY,
+      idempotency_key TEXT NOT NULL UNIQUE,
+      chat_id INTEGER NOT NULL,
+      turn_number INTEGER NOT NULL,
+      source_message_id INTEGER,
+      event_type TEXT NOT NULL,
+      subject_type TEXT NOT NULL,
+      subject_id TEXT NOT NULL,
+      actor_type TEXT,
+      actor_id TEXT,
+      source_type TEXT NOT NULL,
+      confidence INTEGER NOT NULL,
+      attributes_json TEXT NOT NULL DEFAULT '{}',
+      visibility_json TEXT NOT NULL DEFAULT '{}',
+      extractor_version INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_scene_evidence_chat_turn
+      ON scene_evidence_events(chat_id, turn_number);
+    CREATE INDEX IF NOT EXISTS idx_scene_evidence_type
+      ON scene_evidence_events(chat_id, event_type);
+
+    CREATE TABLE IF NOT EXISTS investigation_targets (
+      id TEXT PRIMARY KEY,
+      owner_scope TEXT NOT NULL,
+      owner_id TEXT,
+      target_type TEXT NOT NULL,
+      target_key TEXT NOT NULL,
+      display_label TEXT NOT NULL DEFAULT '',
+      required_access_json TEXT NOT NULL DEFAULT '{}',
+      result_payload_json TEXT NOT NULL DEFAULT '{}',
+      is_active INTEGER NOT NULL DEFAULT 1,
+      revision INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(owner_scope, owner_id, target_key)
+    );
+    CREATE INDEX IF NOT EXISTS idx_investigation_targets_scope
+      ON investigation_targets(owner_scope, owner_id, is_active);
+
+    CREATE TABLE IF NOT EXISTS investigation_attempts (
+      id TEXT PRIMARY KEY,
+      idempotency_key TEXT NOT NULL UNIQUE,
+      chat_id INTEGER NOT NULL,
+      turn_number INTEGER NOT NULL,
+      source_message_id INTEGER,
+      actor_type TEXT NOT NULL,
+      actor_id TEXT NOT NULL,
+      target_id TEXT,
+      target_type TEXT NOT NULL,
+      target_key TEXT NOT NULL,
+      action_type TEXT NOT NULL,
+      source_type TEXT NOT NULL,
+      request_json TEXT NOT NULL DEFAULT '{}',
+      status TEXT NOT NULL,
+      failure_code TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      resolved_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_investigation_attempts_chat
+      ON investigation_attempts(chat_id, turn_number);
+
+    CREATE TABLE IF NOT EXISTS investigation_results (
+      id TEXT PRIMARY KEY,
+      idempotency_key TEXT NOT NULL UNIQUE,
+      attempt_id TEXT NOT NULL,
+      chat_id INTEGER NOT NULL,
+      turn_number INTEGER NOT NULL,
+      target_id TEXT,
+      result_type TEXT NOT NULL,
+      result_state TEXT NOT NULL,
+      result_tags_json TEXT NOT NULL DEFAULT '[]',
+      observable_facts_json TEXT NOT NULL DEFAULT '[]',
+      observer_type TEXT NOT NULL,
+      observer_id TEXT NOT NULL,
+      source_type TEXT NOT NULL,
+      confidence INTEGER NOT NULL DEFAULT 100,
+      resolver_version INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_investigation_results_chat
+      ON investigation_results(chat_id, turn_number);
+
+    CREATE TABLE IF NOT EXISTS chat_observers (
+      chat_id INTEGER NOT NULL,
+      observer_type TEXT NOT NULL,
+      observer_id TEXT NOT NULL,
+      canonical_source_type TEXT NOT NULL,
+      canonical_source_id TEXT,
+      display_name TEXT NOT NULL DEFAULT '',
+      entity_scope TEXT NOT NULL DEFAULT 'CHAT',
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_turn INTEGER,
+      retired_turn INTEGER,
+      metadata_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (chat_id, observer_type, observer_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_chat_observers_active
+      ON chat_observers(chat_id, is_active);
+
+    CREATE TABLE IF NOT EXISTS chat_scenes (
+      id TEXT PRIMARY KEY,
+      chat_id INTEGER NOT NULL,
+      status TEXT NOT NULL,
+      location_key TEXT,
+      started_turn INTEGER NOT NULL,
+      ended_turn INTEGER,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_chat_scenes_active
+      ON chat_scenes(chat_id, status);
+
+    CREATE TABLE IF NOT EXISTS scene_observer_presence (
+      scene_id TEXT NOT NULL,
+      chat_id INTEGER NOT NULL,
+      observer_type TEXT NOT NULL,
+      observer_id TEXT NOT NULL,
+      presence_state TEXT NOT NULL,
+      awareness_state TEXT NOT NULL,
+      location_key TEXT,
+      visual_capability TEXT NOT NULL DEFAULT 'NORMAL',
+      auditory_capability TEXT NOT NULL DEFAULT 'NORMAL',
+      joined_turn INTEGER,
+      left_turn INTEGER,
+      source_type TEXT NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      PRIMARY KEY (scene_id, observer_type, observer_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_scene_presence_chat
+      ON scene_observer_presence(chat_id, presence_state);
+
+    CREATE TABLE IF NOT EXISTS scene_event_observation_runs (
+      id TEXT PRIMARY KEY,
+      idempotency_key TEXT NOT NULL UNIQUE,
+      scene_evidence_event_id TEXT NOT NULL,
+      chat_id INTEGER NOT NULL,
+      scene_id TEXT NOT NULL,
+      resolver_version INTEGER NOT NULL,
+      status TEXT NOT NULL,
+      candidate_count INTEGER NOT NULL DEFAULT 0,
+      observed_count INTEGER NOT NULL DEFAULT 0,
+      rejected_count INTEGER NOT NULL DEFAULT 0,
+      error_code TEXT,
+      started_at TEXT NOT NULL DEFAULT (datetime('now')),
+      completed_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_observation_runs_event
+      ON scene_event_observation_runs(
+        scene_evidence_event_id,
+        resolver_version
+      );
+
+    CREATE TABLE IF NOT EXISTS scene_event_observations (
+      id TEXT PRIMARY KEY,
+      idempotency_key TEXT NOT NULL UNIQUE,
+      observation_run_id TEXT NOT NULL,
+      scene_evidence_event_id TEXT NOT NULL,
+      chat_id INTEGER NOT NULL,
+      scene_id TEXT NOT NULL,
+      turn_number INTEGER NOT NULL,
+      observer_type TEXT NOT NULL,
+      observer_id TEXT NOT NULL,
+      modality TEXT NOT NULL,
+      observation_state TEXT NOT NULL,
+      reason_code TEXT NOT NULL,
+      confidence INTEGER NOT NULL,
+      observer_state_snapshot_json TEXT NOT NULL DEFAULT '{}',
+      event_scope_snapshot_json TEXT NOT NULL DEFAULT '{}',
+      resolver_version INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_scene_observations_event
+      ON scene_event_observations(
+        scene_evidence_event_id,
+        observation_state
+      );
+    CREATE INDEX IF NOT EXISTS idx_scene_observations_observer
+      ON scene_event_observations(
+        chat_id,
+        observer_type,
+        observer_id,
+        turn_number
+      );
+  `);
+  db.exec(`
     CREATE TABLE IF NOT EXISTS user_note_presets (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
