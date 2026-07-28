@@ -692,6 +692,7 @@ export default function ChatClient({
   contentKind?: "character" | "simulation";
   initialNarrativePov?: NarrativePov;
   personaSecretBoundaryEnabled?: boolean;
+  showSecretDiscoveryInspector?: boolean;
 }) {
   const router = useRouter();
   const isOfficialCharacter = Number(character.official) === 1;
@@ -1349,13 +1350,20 @@ export default function ChatClient({
     return () => window.clearTimeout(timer);
   }, [chatId, input, fetchPickerPreview, pickerPreviewReady]);
 
-  /** Multi-tab: refresh global selected_ai on focus (server remains SoT for generation). */
+  /** Multi-tab: refresh global selected_ai on focus (server remains SoT for generation).
+   * Read latest via ref so a focus/visibility sync never overwrites an optimistic
+   * in-flight model change with a stale value (Safari fires focus on select open). */
+  const selectedAIRef = useRef(selectedAI);
+  useEffect(() => {
+    selectedAIRef.current = selectedAI;
+  }, [selectedAI]);
+
   useEffect(() => {
     const sync = () => {
       void fetch("/api/user/selected-ai")
         .then((r) => (r.ok ? r.json() : null))
         .then((data: { selectedAI?: SelectedAI } | null) => {
-          if (data?.selectedAI && data.selectedAI !== selectedAI) {
+          if (data?.selectedAI && data.selectedAI !== selectedAIRef.current) {
             setSelectedAI(data.selectedAI);
           }
         })
@@ -1370,7 +1378,7 @@ export default function ChatClient({
       window.removeEventListener("focus", sync);
       document.removeEventListener("visibilitychange", onVis);
     };
-  }, [selectedAI]);
+  }, []);
 
   const clientMaxMessageId = useMemo(
     () => messages.reduce((max, m) => (m.id != null && m.id > max ? m.id : max), 0),
