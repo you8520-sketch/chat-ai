@@ -10,6 +10,12 @@ import {
   type ChatComicPanelCount,
 } from "@/lib/chatComicGeneration";
 import {
+  finishChatImageGenerationJob,
+  findLatestChatImageGenerationJob,
+  hasRunningChatImageGenerationJob,
+  startChatImageGenerationJob,
+} from "@/lib/chatImageGenerationJobs";
+import {
   CHAT_COUPLE_STAMP_API_OUTPUT_SIZE,
   CHAT_COUPLE_STAMP_OUTPUT_HEIGHT,
   CHAT_COUPLE_STAMP_OUTPUT_WIDTH,
@@ -563,6 +569,11 @@ export async function GET(req: Request) {
     return NextResponse.json({
       ...publicContextResponse(context),
       balance: getPointBalance(user.id),
+      activeJob: findLatestChatImageGenerationJob({
+        userId: user.id,
+        characterId: context.character.id,
+        chatId: context.chatId,
+      }),
       averageCosts: canSeeCost
         ? {
             exchangeRateKrwPerUsd,
@@ -605,7 +616,14 @@ export async function POST(req: Request) {
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
 
   let savedPath: string | null = null;
+  let jobId: number | null = null;
   try {
+    if (hasRunningChatImageGenerationJob(user.id)) {
+      return NextResponse.json(
+        { error: "이미 생성 중인 이미지가 있습니다. 완료된 뒤에 다시 시도해 주세요." },
+        { status: 409 }
+      );
+    }
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     const context = resolveGenerationContext({
       userId: user.id,
@@ -727,6 +745,17 @@ export async function POST(req: Request) {
       };
     }
 
+    const mode = isCoupleStamp ? "couple_stamp" : isEmoticon ? "emoticon" : "sd";
+    // Written before the upstream call so a refreshed client still sees 생성중.
+    jobId = startChatImageGenerationJob({
+      userId: user.id,
+      chatId: context.chatId,
+      characterId: context.character.id,
+      personaId: context.persona.id,
+      templateId,
+      mode,
+    });
+
     const references = await Promise.all(
       referenceSources.map((source) => imageSourceToDataUrl(source))
     );
@@ -774,6 +803,12 @@ export async function POST(req: Request) {
       await fs.unlink(savedPath).catch(() => {});
       savedPath = null;
       if (error instanceof InsufficientPointsError) {
+        finishChatImageGenerationJob({
+          jobId,
+          status: "failed",
+          errorMessage: "포인트가 부족합니다.",
+        });
+        jobId = null;
         return NextResponse.json(
           {
             error: `포인트가 부족합니다. 이미지 생성에는 ${pricePoints.toLocaleString()}P가 필요합니다.`,
@@ -817,12 +852,15 @@ export async function POST(req: Request) {
         chatId: context.chatId,
         generationId,
         imageUrl: resultUrl,
-        mode: isCoupleStamp ? "couple_stamp" : isEmoticon ? "emoticon" : "sd",
+        mode,
       });
       savedToCharacterAlbum = true;
     } catch (error) {
       console.error("[chat-image-generation] history/album insert failed", error);
     }
+
+    finishChatImageGenerationJob({ jobId, status: "completed", resultUrl });
+    jobId = null;
 
     const costKrw =
       generated.costUsd == null
@@ -844,7 +882,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       ok: true,
-      mode: isCoupleStamp ? "couple_stamp" : isEmoticon ? "emoticon" : "sd",
+      mode,
       imageUrl: resultUrl,
       templateId,
       modelId: model,
@@ -863,6 +901,7 @@ export async function POST(req: Request) {
     if (savedPath) await fs.unlink(savedPath).catch(() => {});
     const status = error instanceof RequestError ? error.status : 500;
     const message = error instanceof Error ? error.message : "이미지 생성에 실패했습니다.";
+    finishChatImageGenerationJob({ jobId, status: "failed", errorMessage: message });
     console.error("[chat-image-generation] failed", {
       status,
       message,

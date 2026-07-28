@@ -76,7 +76,7 @@ describe("chatCoupleStampGeneration", () => {
     );
   });
 
-  it("uses the fixed 200P price", () => {
-    assert.equal(resolveChatCoupleStampPrice(), 200);
+  it("uses the fixed 240P price", () => {
+    assert.equal(resolveChatCoupleStampPrice(), 240);
   });
 });

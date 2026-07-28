@@ -11,7 +11,7 @@ export const CHAT_COUPLE_STAMP_TEMPLATE_NAME = "커플 인장";
 export const CHAT_COUPLE_STAMP_TEMPLATE_PREVIEW_URL =
   "/image-templates/sd-couple-stamps-4.webp";
 
-export const CHAT_COUPLE_STAMP_GENERATION_DEFAULT_POINTS = 200;
+export const CHAT_COUPLE_STAMP_GENERATION_DEFAULT_POINTS = 240;
 /** gpt-image-2 requires edges as multiples of 16 — nearest valid square to 1000. */
 export const CHAT_COUPLE_STAMP_API_OUTPUT_WIDTH = 1008;
 export const CHAT_COUPLE_STAMP_API_OUTPUT_HEIGHT = 1008;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import {
@@ -100,7 +100,19 @@ type Preflight = {
     upstreamCostUsd?: number;
     upstreamCostKrw?: number;
   } | null;
+  activeJob?: {
+    id: number;
+    status: "running" | "completed" | "failed";
+    mode: string;
+    templateId: string;
+    resultUrl: string | null;
+    errorMessage: string | null;
+    startedAt: string;
+  } | null;
 };
+
+/** Poll cadence while a server-side generation job is still running. */
+const JOB_POLL_INTERVAL_MS = 4000;
 
 type GenerateResult = {
   ok?: boolean;
@@ -280,6 +292,7 @@ export default function ChatImageGeneratorPanel({
   const [tab, setTab] = useState<Tab>("comic");
   const [loadingInfo, setLoadingInfo] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [trackedJobId, setTrackedJobId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [info, setInfo] = useState<Preflight | null>(null);
   const [error, setError] = useState("");
@@ -437,6 +450,12 @@ export default function ChatImageGeneratorPanel({
         | null;
       if (!response.ok || !data) throw new Error(data?.error || "이미지 생성 정보를 불러오지 못했습니다.");
       setInfo(data);
+      // A generation started before a refresh keeps running on the server, so restore
+      // the 생성중 state instead of offering an enabled button for a paid job.
+      if (data.activeJob?.status === "running") {
+        setTrackedJobId(data.activeJob.id);
+        setGenerating(true);
+      }
       const selectableImages = Array.isArray(data.characterImages)
         ? data.characterImages
         : [];
@@ -494,6 +513,55 @@ export default function ChatImageGeneratorPanel({
     if (!open) return;
     void loadInfo();
   }, [open, loadInfo]);
+
+  const loadInfoRef = useRef(loadInfo);
+  useEffect(() => {
+    loadInfoRef.current = loadInfo;
+  }, [loadInfo]);
+
+  /** Watch a job that was started outside this panel instance until it terminalizes. */
+  useEffect(() => {
+    if (trackedJobId == null) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const ids = currentRouteIds();
+        const response = await fetch(`/api/chat/image-generation?${queryString(ids)}`, {
+          cache: "no-store",
+        });
+        const data = (await response.json().catch(() => null)) as Preflight | null;
+        if (cancelled || !data) return;
+        const job = data.activeJob;
+        if (job && job.id === trackedJobId && job.status === "running") return;
+        setTrackedJobId(null);
+        setGenerating(false);
+        if (job && job.id === trackedJobId && job.status === "failed") {
+          setError(job.errorMessage || "이미지 생성이 중단되었습니다.");
+          return;
+        }
+        setNotice("이미지 생성이 완료되었습니다.");
+        await loadInfoRef.current();
+      } catch {
+        // Transient network failure — keep polling.
+      }
+    };
+    const interval = window.setInterval(() => void poll(), JOB_POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [trackedJobId]);
+
+  /** Generation survives a refresh, but warn before the user loses the result view. */
+  useEffect(() => {
+    if (!generating) return;
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [generating]);
 
   useEffect(() => {
     if (!open) return;
@@ -1045,7 +1113,7 @@ export default function ChatImageGeneratorPanel({
                         ) : (
                           <div className="space-y-2">
                             <div className="rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-3 text-[11px] leading-relaxed text-zinc-300">
-                              <strong className="text-violet-200">커플 인장 · 1000×1000 · 중품질 고정 · 200P</strong>
+                              <strong className="text-violet-200">커플 인장 · 1000×1000 · 중품질 고정 · 240P</strong>
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                               <label className="block space-y-1">
@@ -1293,6 +1361,12 @@ export default function ChatImageGeneratorPanel({
                     {info && !info.ready ? (
                       <p className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-200">
                         먼저 {info.missing.join(", ")}를 등록해 주세요.
+                      </p>
+                    ) : null}
+                    {generating ? (
+                      <p className="rounded-lg border border-violet-500/25 bg-violet-500/10 px-3 py-2 text-xs leading-relaxed text-violet-200">
+                        이미지를 생성하고 있습니다. 새로고침하거나 창을 닫아도 생성은 계속되고,
+                        완료되면 캐릭터 이미지 앨범에 저장됩니다.
                       </p>
                     ) : null}
                     {notice ? (
