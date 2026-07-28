@@ -661,6 +661,8 @@ export async function POST(req: Request) {
         height: body.coupleHeight,
         background: body.coupleBackground,
         border: body.coupleBorder,
+        characterExpression: body.coupleCharacterExpression,
+        personaExpression: body.couplePersonaExpression,
       });
       prompt = buildChatCoupleStampPrompt({
         characterName: context.character.name,

@@ -26,6 +26,12 @@ import ChatImageGeneratorPanel from "@/components/ChatImageGeneratorPanel";
 import ChatRoomMobileMenu from "@/components/ChatRoomMobileMenu";
 import ChatAssetAlbumModal, { IconAlbum } from "@/components/ChatAssetAlbumModal";
 import RelationshipMetaDock from "@/components/RelationshipMetaDock";
+import {
+  CHAT_BACK_FALLBACK_DELAY_MS,
+  chatBackFallbackHref,
+  shouldRunChatBackFallback,
+  shouldSkipHistoryBack,
+} from "@/lib/chatBackNavigation";
 import { CONTINUE_USER_DISPLAY, isContinueUserMessage } from "@/lib/continueNarrative";
 import { GEMINI_TRAFFIC_OVERLOAD_MESSAGE } from "@/lib/geminiTrafficError";
 import { isPaymentsEnabledClient } from "@/lib/paymentsEnabledClient";
@@ -1229,6 +1235,28 @@ export default function ChatClient({
     },
     [router]
   );
+
+  const goBack = useCallback(() => {
+    const fallbackHref = chatBackFallbackHref(character.id);
+    if (typeof window === "undefined") return;
+    if (shouldSkipHistoryBack(window.history.length)) {
+      router.replace(fallbackHref);
+      return;
+    }
+    const startedAt = Date.now();
+    const startUrl = window.location.href;
+    router.back();
+    window.setTimeout(() => {
+      if (
+        shouldRunChatBackFallback({
+          elapsedMs: Date.now() - startedAt,
+          urlChanged: window.location.href !== startUrl,
+        })
+      ) {
+        router.replace(fallbackHref);
+      }
+    }, CHAT_BACK_FALLBACK_DELAY_MS);
+  }, [character.id, router]);
 
   applyEmotionRef.current = (text: string, showUnlockNotice = true) => {
     const { tag } = stripEmotionTag(text);
@@ -3822,7 +3850,7 @@ export default function ChatClient({
         <div className="flex min-w-0 items-center gap-1.5 min-[576px]:gap-2">
           <button
             type="button"
-            onClick={() => router.back()}
+            onClick={goBack}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-zinc-300 transition hover:bg-white/[0.06] hover:text-white min-[576px]:hidden"
             aria-label="뒤로가기"
             title="뒤로가기"
