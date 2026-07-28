@@ -15,12 +15,14 @@ import {
   CHAT_COUPLE_STAMP_BACKGROUNDS,
   CHAT_COUPLE_STAMP_BORDERS,
   CHAT_COUPLE_STAMP_DEFAULT_OPTIONS,
+  CHAT_COUPLE_STAMP_EXPRESSIONS,
   CHAT_COUPLE_STAMP_GENERATION_DEFAULT_POINTS,
   CHAT_COUPLE_STAMP_HEIGHTS,
   CHAT_COUPLE_STAMP_TEMPLATE_ID,
   CHAT_COUPLE_STAMP_TEMPLATE_PREVIEW_URL,
   type ChatCoupleStampBackground,
   type ChatCoupleStampBorder,
+  type ChatCoupleStampExpression,
   type ChatCoupleStampHeight,
 } from "@/lib/chatCoupleStampGeneration";
 import {
@@ -293,6 +295,14 @@ export default function ChatImageGeneratorPanel({
   const [coupleBorder, setCoupleBorder] = useState<ChatCoupleStampBorder>(
     CHAT_COUPLE_STAMP_DEFAULT_OPTIONS.border
   );
+  const [coupleCharacterExpression, setCoupleCharacterExpression] =
+    useState<ChatCoupleStampExpression>(
+      CHAT_COUPLE_STAMP_DEFAULT_OPTIONS.characterExpression
+    );
+  const [couplePersonaExpression, setCouplePersonaExpression] =
+    useState<ChatCoupleStampExpression>(
+      CHAT_COUPLE_STAMP_DEFAULT_OPTIONS.personaExpression
+    );
   const [sdResultUrl, setSdResultUrl] = useState("");
   const [emoticonResultUrl, setEmoticonResultUrl] = useState("");
   const [coupleStampResultUrl, setCoupleStampResultUrl] = useState("");
@@ -528,6 +538,8 @@ export default function ChatImageGeneratorPanel({
                 coupleHeight,
                 coupleBackground,
                 coupleBorder,
+                coupleCharacterExpression,
+                couplePersonaExpression,
               }
             : {}),
         }),
@@ -1029,18 +1041,51 @@ export default function ChatImageGeneratorPanel({
                         ) : sdProduct === "emoticon" ? (
                           <div className="rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-3 text-[11px] leading-relaxed text-zinc-300">
                             <strong className="text-violet-200">랜덤 9종 · 900×900 · 중품질 고정</strong>
-                            <p className="mt-1">
-                              문구 풀에서 매번 중복 없이 9개를 선택하고, 캐릭터 단독 3개·페르소나 단독
-                              3개·두 사람 장면 3개를 문구에 맞는 표정과 행동으로 구성합니다.
-                            </p>
                           </div>
                         ) : (
                           <div className="space-y-2">
                             <div className="rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-3 text-[11px] leading-relaxed text-zinc-300">
                               <strong className="text-violet-200">커플 인장 · 1000×1000 · 중품질 고정 · 200P</strong>
-                              <p className="mt-1">
-                                왼쪽 샘플은 스타일 고정틀입니다. 키·배경·테두리만 맞춰 원형 커플 인장을 생성합니다.
-                              </p>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <label className="block space-y-1">
+                                <span className="text-[11px] font-semibold text-zinc-400">캐릭터 표정</span>
+                                <select
+                                  value={coupleCharacterExpression}
+                                  onChange={(event) =>
+                                    setCoupleCharacterExpression(
+                                      event.target.value as ChatCoupleStampExpression
+                                    )
+                                  }
+                                  disabled={generating}
+                                  className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
+                                >
+                                  {CHAT_COUPLE_STAMP_EXPRESSIONS.map((item) => (
+                                    <option key={item.id} value={item.id}>
+                                      {item.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              <label className="block space-y-1">
+                                <span className="text-[11px] font-semibold text-zinc-400">페르소나 표정</span>
+                                <select
+                                  value={couplePersonaExpression}
+                                  onChange={(event) =>
+                                    setCouplePersonaExpression(
+                                      event.target.value as ChatCoupleStampExpression
+                                    )
+                                  }
+                                  disabled={generating}
+                                  className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
+                                >
+                                  {CHAT_COUPLE_STAMP_EXPRESSIONS.map((item) => (
+                                    <option key={item.id} value={item.id}>
+                                      {item.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
                             </div>
                             <label className="block space-y-1">
                               <span className="text-[11px] font-semibold text-zinc-400">키 높이</span>

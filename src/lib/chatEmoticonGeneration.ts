@@ -3,7 +3,7 @@ export const CHAT_EMOTICON_TEMPLATE_NAME = "랜덤 9종 이모티콘";
 export const CHAT_EMOTICON_TEMPLATE_PREVIEW_URL =
   "/image-templates/sd-emoticon-grid-9.webp";
 
-export const CHAT_EMOTICON_GENERATION_DEFAULT_POINTS = 220;
+export const CHAT_EMOTICON_GENERATION_DEFAULT_POINTS = 230;
 export const CHAT_EMOTICON_API_OUTPUT_WIDTH = 896;
 export const CHAT_EMOTICON_API_OUTPUT_HEIGHT = 896;
 export const CHAT_EMOTICON_API_OUTPUT_SIZE =

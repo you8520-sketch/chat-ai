@@ -45,6 +45,6 @@ describe("chatEmoticonGeneration", () => {
     }
     assert.match(prompt, /exactly nine equal panels/i);
     assert.match(prompt, /Never blend or swap/);
-    assert.equal(resolveChatEmoticonPrice(), 220);
+    assert.equal(resolveChatEmoticonPrice(), 230);
   });
 });
