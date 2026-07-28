@@ -67,8 +67,10 @@ export function hasExplicitLegacySecretMarkers(rawDescription: string): boolean 
   return extractLegacySecretBlocks(raw).length > 0;
 }
 
+const LEGACY_BLOCK_RE = /\[[^\]]*\]|\([^)]*\)/g;
+
 /**
- * Extract opaque legacy marker blocks in source order.
+ * Extract opaque legacy marker blocks in source order with multiplicity.
  * Never logs or returns the inner secret for telemetry — callers must treat
  * returned strings as opaque raw storage fragments only.
  */
@@ -77,20 +79,27 @@ export function extractLegacySecretBlocks(rawDescription: string): string[] {
   if (!raw) return [];
 
   const blocks: string[] = [];
-  const seen = new Set<string>();
 
-  for (const match of raw.matchAll(/\[[^\]]*\]/g)) {
+  for (const match of raw.matchAll(LEGACY_BLOCK_RE)) {
     const block = match[0]!;
-    if (!isLegacySecretInner(block.slice(1, -1)) || seen.has(block)) continue;
-    seen.add(block);
-    blocks.push(block);
+    const opener = block[0];
+    const closer = block[block.length - 1];
+
+    if (
+      !(
+        (opener === "[" && closer === "]") ||
+        (opener === "(" && closer === ")")
+      )
+    ) {
+      continue;
+    }
+
+    const inner = block.slice(1, -1);
+    if (isLegacySecretInner(inner)) {
+      blocks.push(block);
+    }
   }
-  for (const match of raw.matchAll(/\([^)]*\)/g)) {
-    const block = match[0]!;
-    if (!isLegacySecretInner(block.slice(1, -1)) || seen.has(block)) continue;
-    seen.add(block);
-    blocks.push(block);
-  }
+
   return blocks;
 }
 

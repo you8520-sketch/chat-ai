@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  extractLegacySecretBlocks,
   hasExplicitLegacySecretMarkers,
   preserveLegacySecretBlocksOnPublicDescriptionUpdate,
   toPublicPersonaDescription,
@@ -83,5 +84,42 @@ describe("legacy secret marker preservation on public description update", () =>
       preserveLegacySecretBlocksOnPublicDescriptionUpdate("공개만", "새 공개"),
       "새 공개"
     );
+  });
+
+  it("preserves mixed delimiter markers in source order", () => {
+    const existing = `(NPC가 모르는 비밀설정: FIRST)
+공개 문장
+[NPC들은 모르는 비밀설정: SECOND]`;
+    const blocks = extractLegacySecretBlocks(existing);
+    assert.equal(blocks.length, 2);
+    assert.match(blocks[0]!, /FIRST/);
+    assert.match(blocks[1]!, /SECOND/);
+
+    const next = preserveLegacySecretBlocksOnPublicDescriptionUpdate(existing, "공개만 유지");
+    const firstIdx = next.indexOf("FIRST");
+    const secondIdx = next.indexOf("SECOND");
+    assert.ok(firstIdx >= 0);
+    assert.ok(secondIdx >= 0);
+    assert.ok(firstIdx < secondIdx);
+
+    const pub = toPublicPersonaDescription(next);
+    assert.doesNotMatch(pub, /FIRST/);
+    assert.doesNotMatch(pub, /SECOND/);
+  });
+
+  it("preserves duplicate marker multiplicity without Set collapsing", () => {
+    const existing = `[NPC들은 모르는 비밀설정: SAME]
+공개 문장
+[NPC들은 모르는 비밀설정: SAME]`;
+    const blocks = extractLegacySecretBlocks(existing);
+    assert.equal(blocks.length, 2);
+    assert.equal(blocks[0], blocks[1]);
+
+    const next = preserveLegacySecretBlocksOnPublicDescriptionUpdate(existing, "공개 B");
+    const sameMatches = next.match(/SAME/g) ?? [];
+    assert.equal(sameMatches.length, 2);
+
+    const pub = toPublicPersonaDescription(next);
+    assert.equal((pub.match(/SAME/g) ?? []).length, 0);
   });
 });

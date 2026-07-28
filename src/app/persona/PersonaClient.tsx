@@ -83,7 +83,6 @@ export default function PersonaClient({
   const [draftSecretDescriptionDirty, setDraftSecretDescriptionDirty] = useState(false);
   const [secretSettings, setSecretSettings] =
     useState<PersonaSecretSettingsCapability>(initialSecretSettings);
-  const [secretSettingsLoaded, setSecretSettingsLoaded] = useState(true);
   const [editorPersonas, setEditorPersonas] = useState<Record<number, OwnerPersonaEditorItem>>({});
   const [compileSummary, setCompileSummary] = useState<PersonaSecretCompileSummaryDto | null>(null);
   const [compilePreservedPrior, setCompilePreservedPrior] = useState(false);
@@ -112,7 +111,6 @@ export default function PersonaClient({
 
   useEffect(() => {
     setSecretSettings(initialSecretSettings);
-    setSecretSettingsLoaded(true);
   }, [initialSecretSettings]);
 
   useEffect(() => {
@@ -128,7 +126,6 @@ export default function PersonaClient({
         if (Array.isArray(publicData.personas)) setPersonas(publicData.personas);
         const capability = publicData.capabilities?.personaSecretSettings ?? DEFAULT_SECRET_SETTINGS;
         setSecretSettings(capability);
-        setSecretSettingsLoaded(true);
         if (!capability.canEdit) return;
 
         const editorRes = await fetch("/api/personas/editor", { cache: "no-store" });
@@ -140,7 +137,6 @@ export default function PersonaClient({
       } catch {
         // The public editor remains usable; do not convert an owner secret load
         // failure into an empty secret draft.
-        if (!cancelled) setSecretSettingsLoaded(true);
       }
     }
     void loadOwnerCapabilities();
