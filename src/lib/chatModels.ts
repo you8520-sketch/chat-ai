@@ -25,9 +25,6 @@ export const CLAUDE_OPUS_MODEL = OPENROUTER_CLAUDE_DEFAULT;
 /** OpenRouter — DeepSeek V4 Pro */
 export const OPENROUTER_DEEPSEEK_V4_PRO_MODEL = "deepseek/deepseek-v4-pro";
 
-/** OpenRouter — Tencent Hy3 (295B MoE, 21B active, reasoning) */
-export const OPENROUTER_TENCENT_HY3_MODEL = "tencent/hy3";
-
 /** OpenRouter — DeepSeek V3 (백그라운드 기억·상태창·번역 등) */
 export const OPENROUTER_DEEPSEEK_V3_MODEL = "deepseek/deepseek-chat-v3-0324";
 
@@ -53,7 +50,6 @@ export const OPENROUTER_GEMINI_36_FLASH_MODEL = "google/gemini-3.6-flash";
 
 /** OpenRouter models that use the simple per-token point formula (no USD margin). */
 export const OPENROUTER_SIMPLE_POINT_MODELS: readonly string[] = [
-  OPENROUTER_TENCENT_HY3_MODEL,
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
@@ -89,8 +85,6 @@ export const KIMI_K3_DISPLAY_NAME = "Kimi K3";
 export const MUSE_SPARK_11_DISPLAY_NAME = "Muse Spark 1.1";
 
 export const SOLAR_PRO_3_DISPLAY_NAME = "Solar Pro 3";
-
-export const TENCENT_HY3_DISPLAY_NAME = "Tencent Hy3";
 
 export const GEMINI_36_FLASH_DISPLAY_NAME = "Gemini 3.6 Flash";
 
@@ -130,12 +124,6 @@ export const SELECTED_AI_OPTIONS = [
   {
     id: OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
     label: DEEPSEEK_DISPLAY_NAME,
-    tier: "pro" as const,
-    hint: "Reasoning",
-  },
-  {
-    id: OPENROUTER_TENCENT_HY3_MODEL,
-    label: TENCENT_HY3_DISPLAY_NAME,
     tier: "pro" as const,
     hint: "Reasoning",
   },
@@ -240,12 +228,6 @@ export function isGeminiProOpenRouterModel(modelId: string): boolean {
 /** 현재·과거 Gemini 채팅 모델 공통 판별 */
 export function isGeminiChatOpenRouterModel(modelId: string): boolean {
   return isGemini36FlashModel(modelId) || isGeminiProOpenRouterModel(modelId);
-}
-
-/** OpenRouter Tencent Hy3 계열 (tencent/hy3 등) */
-export function isTencentHy3Model(modelId: string): boolean {
-  const id = modelId.trim().toLowerCase();
-  return id === OPENROUTER_TENCENT_HY3_MODEL || id.includes("/hy3") || /(^|\/)hy3\b/i.test(id);
 }
 
 /** OpenRouter Qwen 계열 (Qwen3.7 Max 등) */

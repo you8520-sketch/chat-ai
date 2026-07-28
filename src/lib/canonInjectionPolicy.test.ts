@@ -6,7 +6,6 @@ import {
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_25_PRO_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
-  OPENROUTER_TENCENT_HY3_MODEL,
 } from "@/lib/chatModels";
 
 const ENV_KEYS = [
@@ -55,11 +54,10 @@ describe("resolveCanonInjectionPolicy", () => {
     assert.equal(policy.injectionEnabled, false);
   });
 
-  it("Muse/Gemini/HY3 default FULL_LEGACY", () => {
+  it("Muse/Gemini default FULL_LEGACY", () => {
     for (const modelId of [
       OPENROUTER_MUSE_SPARK_11_MODEL,
       OPENROUTER_GEMINI_25_PRO_MODEL,
-      OPENROUTER_TENCENT_HY3_MODEL,
     ]) {
       const policy = resolveCanonInjectionPolicy(modelId);
       assert.equal(policy.canonMode, "FULL_LEGACY");
@@ -115,10 +113,10 @@ describe("resolveCanonInjectionPolicy", () => {
     assert.equal(d1.canonMode, "FULL_LEGACY");
   });
 
-  it("D1.1: DeepSeek canary selective archive is active only for DeepSeek, not Muse/Gemini/HY3", () => {
+  it("D1.1: DeepSeek canary selective archive is active only for DeepSeek, not Muse/Gemini", () => {
     // D1.1 improved selective-archive retrieval is a COMMON capability, but the
     // ACTUAL injection rollout is MODEL-GATED. Even with the DeepSeek canary +
-    // selective archive env fully enabled, Muse/Gemini/HY3 must remain on
+    // selective archive env fully enabled, Muse/Gemini must remain on
     // FULL_ALWAYS archive so their actual provider payload is byte-identical to
     // HEAD (selectArchiveChunksSelective is never invoked in their path).
     process.env.CANON_INJECTION_ENABLED = "1";
@@ -137,7 +135,6 @@ describe("resolveCanonInjectionPolicy", () => {
     for (const modelId of [
       OPENROUTER_MUSE_SPARK_11_MODEL,
       OPENROUTER_GEMINI_25_PRO_MODEL,
-      OPENROUTER_TENCENT_HY3_MODEL,
     ]) {
       const policy = resolveCanonInjectionPolicy(modelId);
       assert.equal(

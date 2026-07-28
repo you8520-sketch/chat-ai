@@ -17,7 +17,6 @@ import {
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_25_PRO_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
-  OPENROUTER_TENCENT_HY3_MODEL,
 } from "@/lib/chatModels";
 import { SCENE_MOMENTUM_HEADER } from "@/lib/sceneMomentum/types";
 import {
@@ -304,11 +303,10 @@ describe("Scene Momentum route wiring — buildContext gating (B–F, I)", () =>
     assert.equal(built.meta.momentumActivation?.blockChars, 0);
   });
 
-  it("E. Muse / Gemini / HY3 with same route input -> no Momentum prompt block", () => {
+  it("E. Muse / Gemini with same route input -> no Momentum prompt block", () => {
     const input = routeMomentumInput();
     for (const m of [
       { id: "Muse", modelId: OPENROUTER_MUSE_SPARK_11_MODEL, provider: "openrouter" as const },
-      { id: "HY3", modelId: OPENROUTER_TENCENT_HY3_MODEL, provider: "openrouter" as const },
       {
         id: "Gemini",
         modelId: OPENROUTER_GEMINI_25_PRO_MODEL,

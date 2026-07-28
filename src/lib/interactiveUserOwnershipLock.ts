@@ -66,7 +66,7 @@ export const INTERACTIVE_USER_OWNERSHIP_LOCK_ENV = {
  * Separate from the ownership lock gate above. Enables a COMPACT terminal
  * ownership echo appended AFTER the current-user body (literal prompt tail)
  * ONLY for an admin allowlist AND a model allowlist (default: Muse Spark).
- * DeepSeek/Gemini/HY3 production behavior is unchanged (model not matched).
+ * DeepSeek/Gemini production behavior is unchanged (model not matched).
  *
  * This is a compliance recency shim, NOT a Muse prose adapter: it adds no
  * dialogue quotas, prose, LENGTH, or stable/cached content.
@@ -100,7 +100,7 @@ function modelMatchesAllowlist(modelId: string | null | undefined, allow: string
  * Returns true ONLY when the R1 echo gate is enabled AND userId is in the
  * allowlist AND the request model matches the model allowlist (default Muse
  * Spark). No env / empty allowlist / non-allowlisted user / non-matching model
- * → false (old behavior preserved for DeepSeek/Gemini/HY3 and all non-admin).
+ * → false (old behavior preserved for DeepSeek/Gemini and all non-admin).
  */
 export function isInteractiveUserOwnershipTerminalEchoEnabledForUser(
   userId: number | null | undefined,

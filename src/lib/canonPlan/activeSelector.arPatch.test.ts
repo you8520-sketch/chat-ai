@@ -361,7 +361,7 @@ describe("AR-A3 patch — K. ACTIVE=0 implies no fallback", () => {
   });
 });
 
-describe("AR-A3 patch — L. Muse/Gemini/HY3 provider payload unchanged", () => {
+describe("AR-A3 patch — L. Muse/Gemini provider payload unchanged", () => {
   it("non-DeepSeek unvalidated models stay FULL_LEGACY (AR-A3 not invoked)", () => {
     const muse = resolveCanonInjectionPolicy(
       "openrouter/muse/muse-spark-11"
@@ -369,8 +369,7 @@ describe("AR-A3 patch — L. Muse/Gemini/HY3 provider payload unchanged", () => 
     const gemini = resolveCanonInjectionPolicy(
       "openrouter/google/gemini-2.5-pro"
     );
-    const hy3 = resolveCanonInjectionPolicy("openrouter/tencent/hy3");
-    for (const p of [muse, gemini, hy3]) {
+    for (const p of [muse, gemini]) {
       assert.equal(p.actualCanonMode, "FULL_LEGACY");
       assert.equal(p.actualArchiveMode, "FULL_ALWAYS");
       assert.equal(isLayeredCanonActive(p), false, "LAYERED must not activate");

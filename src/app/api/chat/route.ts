@@ -41,7 +41,7 @@ import { resolveNarrativePov } from "@/lib/narrativePov";
 import { auditAssembledPrompt, formatPromptAuditLog } from "@/services/promptAudit";
 import { invalidateModelPickerInputSnapshot } from "@/services/modelPickerInputSnapshot";
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
-import { deductPoints, getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterTencentHy3TurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
+import { deductPoints, getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
 import { createChatSession } from "@/lib/chatSessionCreate";
 import { incrementCharacterTotalTurns } from "@/lib/characterEngagementStats";
 import {
@@ -58,7 +58,7 @@ import {
   restoreAssistantFromAlternatesOnFailedRegen,
   type StreamingPersistenceDiag,
 } from "@/lib/streamingPersistence";
-import { isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isKimiModel, isMuseModel, isQwenModel, isTencentHy3Model } from "@/lib/chatModels";
+import { isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isKimiModel, isMuseModel, isQwenModel } from "@/lib/chatModels";
 import { openRouterNormalizedRawCostKrw, openRouterRawCostKrw } from "@/lib/billingRawCost";
 import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
 import { maybeCreditCreatorReward, paidCreatorRewardSpend } from "@/lib/creatorPoints";
@@ -2683,16 +2683,6 @@ export async function POST(req: Request) {
                   summedApiReasoning
                 )
               : null;
-          const tencentHy3Explain =
-            billingOpenRouterModelId && isTencentHy3Model(billingOpenRouterModelId)
-              ? explainOpenRouterTencentHy3TurnCost(
-                  totalInput,
-                  totalOutput,
-                  billingOpenRouterModelId,
-                  cacheOpts,
-                  summedApiReasoning
-                )
-              : null;
           const geminiBillingBasis =
             summedUpstreamUsd > 0 || apiPromptTokensForCost > 0 || apiCompletionTokensForCost > 0
               ? {
@@ -2736,14 +2726,6 @@ export async function POST(req: Request) {
                   deepSeekCacheNeutralChargeKrw: deepSeekExplain.costPlusMarginKrw,
                   deepSeekCostPlusMarginKrw: deepSeekExplain.costPlusMarginKrw,
                   deepSeekApplied: deepSeekExplain.applied,
-                }
-              : {}),
-            ...(tencentHy3Explain
-              ? {
-                  tencentHy3RawCostKrw: tencentHy3Explain.rawCostKrw,
-                  tencentHy3CacheNeutralChargeKrw: tencentHy3Explain.costPlusMarginKrw,
-                  tencentHy3CostPlusMarginKrw: tencentHy3Explain.costPlusMarginKrw,
-                  tencentHy3Applied: tencentHy3Explain.applied,
                 }
               : {}),
             ...(geminiExplain

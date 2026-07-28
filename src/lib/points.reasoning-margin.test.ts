@@ -10,9 +10,6 @@ import {
   OPENROUTER_MUSE_GROSS_MARGIN,
   OPENROUTER_MUSE_INPUT_USD_PER_MILLION,
   OPENROUTER_MUSE_OUTPUT_USD_PER_MILLION,
-  OPENROUTER_TENCENT_HY3_GROSS_MARGIN,
-  OPENROUTER_TENCENT_HY3_INPUT_USD_PER_MILLION,
-  OPENROUTER_TENCENT_HY3_OUTPUT_USD_PER_MILLION,
   computeOpenRouterTurnBilling,
   computeOpenRouterTurnCost,
   resolveOpenRouterReasoningPointRates,
@@ -21,7 +18,6 @@ import {
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
-  OPENROUTER_TENCENT_HY3_MODEL,
 } from "@/lib/chatModels";
 
 function assertClose(actual: number, expected: number, epsilon = 1e-12): void {
@@ -66,14 +62,6 @@ const MODELS = [
     margin: OPENROUTER_DEEPSEEK_V4_PRO_GROSS_MARGIN,
     expectedInputRate: 0.0019015714285714287,
     expectedOutputRate: 0.0038031428571428574,
-  },
-  {
-    id: OPENROUTER_TENCENT_HY3_MODEL,
-    inputUsd: OPENROUTER_TENCENT_HY3_INPUT_USD_PER_MILLION,
-    outputUsd: OPENROUTER_TENCENT_HY3_OUTPUT_USD_PER_MILLION,
-    margin: OPENROUTER_TENCENT_HY3_GROSS_MARGIN,
-    expectedInputRate: 0.000714,
-    expectedOutputRate: 0.002958,
   },
   {
     id: OPENROUTER_GEMINI_36_FLASH_MODEL,
@@ -189,7 +177,6 @@ describe("reasoning models use pure token billing at target margins", () => {
   it("matches requested point totals at ₩1,530/USD", () => {
     assert.equal(expectedCost(OPENROUTER_MUSE_SPARK_11_MODEL, 15_233, 2_070), 107);
     assert.equal(expectedCost(OPENROUTER_DEEPSEEK_V4_PRO_MODEL, 15_233, 2_070), 37);
-    assert.equal(expectedCost(OPENROUTER_TENCENT_HY3_MODEL, 15_233, 2_070), 18);
     assert.equal(expectedCost(OPENROUTER_GEMINI_36_FLASH_MODEL, 15_233, 2_070), 118);
   });
 });

@@ -14,7 +14,6 @@ import {
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
-  OPENROUTER_TENCENT_HY3_MODEL,
 } from "@/lib/chatModels";
 
 describe("OpenRouter input token surcharge", () => {
@@ -40,13 +39,9 @@ describe("OpenRouter input token surcharge", () => {
     assert.equal(openRouterInputTokenSurchargeKrw(11001, "qwen/qwen3.7-max"), 2);
   });
 
-  it("V4 Pro and Hy3 do not double-charge a 10k input surcharge", () => {
+  it("V4 Pro does not double-charge a 10k input surcharge", () => {
     assert.equal(openRouterInputTokenSurchargeKrw(10001, deepseekId), 0);
     assert.equal(openRouterInputTokenSurchargeKrw(12000, deepseekId), 0);
-    assert.equal(
-      openRouterInputTokenSurchargeKrw(12000, OPENROUTER_TENCENT_HY3_MODEL),
-      0
-    );
   });
 
   it("Muse and Gemini 3.6 bill all input directly without a legacy surcharge", () => {

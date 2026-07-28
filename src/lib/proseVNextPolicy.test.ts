@@ -121,7 +121,6 @@ describe("isProseVNextRolloutEnabledForModel — fail-closed public rollout", ()
 
   it("A: rollout env unset → every model LEGACY", () => {
     assert.equal(isProseVNextRolloutEnabledForModel("deepseek/deepseek-v4-pro"), false);
-    assert.equal(isProseVNextRolloutEnabledForModel("tencent/hy3"), false);
     assert.equal(isProseVNextRolloutEnabledForModel("meta/muse-spark-1.1"), false);
   });
 
@@ -138,12 +137,10 @@ describe("isProseVNextRolloutEnabledForModel — fail-closed public rollout", ()
 
   it("C: qualified exact model listed → VNEXT", () => {
     process.env.PROSE_VNEXT_ROLLOUT_ENABLED = "1";
-    process.env.PROSE_VNEXT_ROLLOUT_MODEL_IDS =
-      "deepseek/deepseek-v4-pro,tencent/hy3";
+    process.env.PROSE_VNEXT_ROLLOUT_MODEL_IDS = "deepseek/deepseek-v4-pro";
 
     assert.equal(isProseVNextRolloutEnabledForModel("deepseek/deepseek-v4-pro"), true);
     assert.equal(isProseVNextRolloutEnabledForModel("DEEPSEEK/DEEPSEEK-V4-PRO"), true);
-    assert.equal(isProseVNextRolloutEnabledForModel("tencent/hy3"), true);
   });
 
   it("D: non-qualified model → LEGACY", () => {
@@ -156,7 +153,7 @@ describe("isProseVNextRolloutEnabledForModel — fail-closed public rollout", ()
 
   it("E: Muse → LEGACY unless explicitly admin-canary tested", () => {
     process.env.PROSE_VNEXT_ROLLOUT_ENABLED = "1";
-    process.env.PROSE_VNEXT_ROLLOUT_MODEL_IDS = "deepseek/deepseek-v4-pro,tencent/hy3";
+    process.env.PROSE_VNEXT_ROLLOUT_MODEL_IDS = "deepseek/deepseek-v4-pro";
 
     assert.equal(isProseVNextRolloutEnabledForModel("meta/muse-spark-1.1"), false);
   });
