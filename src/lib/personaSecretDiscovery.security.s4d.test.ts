@@ -5,6 +5,7 @@
  */
 import Module from "module";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
 import {
@@ -964,5 +965,28 @@ describe("PR #174 security smoke (S1–S4D)", () => {
     });
     assert.ok(result);
     assert.equal(typeof result.changed, "boolean");
+  });
+
+  /**
+   * Review P1: scene presence + S2A/S2B/S3/S4D used a weaker guard than direct
+   * disclosure, so a turn whose user message never persisted could still write
+   * evidence/knowledge with a null sourceMessageId. All discovery writes in the
+   * chat route must share the durable-bootstrap gate.
+   */
+  it("chat route gates every discovery write on discoveryWritesAllowed", () => {
+    const route = readFileSync("src/app/api/chat/route.ts", "utf8");
+    assert.match(
+      route,
+      /const discoveryWritesAllowed =\s*\n\s*personaSecretDiscoveryOn &&\s*\n\s*bootstrapped\.userMessageSaved &&\s*\n\s*userMessageId != null/
+    );
+    for (const marker of [
+      "// PR-S4A: user-allowed scene presence only (never SERVER/CREATOR from public body).",
+      "// PR-S2A/S2B/S3/S4D: direct disclosure",
+    ]) {
+      const at = route.indexOf(marker);
+      assert.ok(at > 0, `missing route marker: ${marker}`);
+      const block = route.slice(at, at + 600);
+      assert.match(block, /if \(discoveryWritesAllowed\)/);
+    }
   });
 });

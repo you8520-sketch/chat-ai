@@ -1446,13 +1446,7 @@ export async function POST(req: Request) {
   }
 
   // PR-S4A: user-allowed scene presence only (never SERVER/CREATOR from public body).
-  if (
-    personaSecretDiscoveryOn &&
-    !autoContinueContext &&
-    !regenerate &&
-    messageText.trim() &&
-    !isContinueUserMessage(messageText)
-  ) {
+  if (discoveryWritesAllowed) {
     if (publicDiscoveryInputs.scenePresenceActions.length > 0) {
       applyScenePresenceActions({
         chatId: chatRef.id,
@@ -1465,13 +1459,9 @@ export async function POST(req: Request) {
 
   // PR-S2A/S2B/S3/S4D: direct disclosure → scene evidence → visual → investigation → transfer → rebuild known-facts.
   // Authoritative outcomes/transfers are NOT read from the public chat body.
-  if (
-    personaSecretDiscoveryOn &&
-    !autoContinueContext &&
-    !regenerate &&
-    messageText.trim() &&
-    !isContinueUserMessage(messageText)
-  ) {
+  // Shares discoveryWritesAllowed with direct disclosure so a turn whose user message
+  // never persisted cannot write evidence/knowledge with a null sourceMessageId.
+  if (discoveryWritesAllowed) {
     const sceneActions = parseSceneEvidenceExplicitActions(body.sceneActions);
     extractAndPersistSceneEvidence({
       chatId: chatRef.id,
