@@ -5,17 +5,25 @@ import { GENDER_LABELS, type CharacterGender } from "@/lib/characterGender";
 import { PERSONA_NAME_LIMIT, PERSONA_CONTENT_MAX, PERSONA_SECRET_CONTENT_MAX, personaContentLength } from "@/lib/persona";
 import {
   PERSONA_IMAGE_FOCUS_DEFAULT,
-  type PersonaListItem,
+  type OwnerPersonaEditorItem,
+  type PublicPersonaListItem,
 } from "@/lib/userPersonasClient";
+import type { PersonaSecretCompileSummaryDto } from "@/lib/personaSecretCompiler";
+import type { PersonaSecretSettingsCapability } from "@/lib/personaSecretCapabilities";
+import {
+  buildExplicitSecretSavePayload,
+  buildPublicPersonaUpdatePayload,
+} from "@/lib/personaEditorPayload";
 import PersonaAvatar from "@/components/PersonaAvatar";
 import PersonaImageEditor from "@/components/PersonaImageEditor";
 
 type Props = {
-  persona: PersonaListItem;
-  onUpdated: (persona: PersonaListItem) => void;
+  persona: PublicPersonaListItem;
+  onUpdated: (persona: PublicPersonaListItem) => void;
   /** false — 읽기 전용, true — 편집·자동 저장 */
   editing?: boolean;
-  personaSecretBoundaryEnabled?: boolean;
+  personaSecretSettings?: PersonaSecretSettingsCapability;
+  onSecretDraftStateChange?: (dirty: boolean) => void;
 };
 
 const readOnlyFieldClass =
@@ -25,13 +33,21 @@ export default function ChatPersonaEditor({
   persona,
   onUpdated,
   editing = true,
-  personaSecretBoundaryEnabled = false,
+  personaSecretSettings = { canEdit: false, discoveryActive: false },
+  onSecretDraftStateChange,
 }: Props) {
   const [name, setName] = useState(persona.name);
   const [memo, setMemo] = useState(persona.memo ?? "");
   const [gender, setGender] = useState<CharacterGender>(persona.gender ?? "other");
   const [description, setDescription] = useState(persona.description);
-  const [secretDescription, setSecretDescription] = useState(persona.secret_description ?? "");
+  const [secretDescription, setSecretDescription] = useState("");
+  const [secretDescriptionLoaded, setSecretDescriptionLoaded] = useState(false);
+  const [secretDescriptionDirty, setSecretDescriptionDirty] = useState(false);
+  const [secretDescriptionSaving, setSecretDescriptionSaving] = useState(false);
+  const [secretLoadError, setSecretLoadError] = useState("");
+  const [secretSaveError, setSecretSaveError] = useState("");
+  const [compileSummary, setCompileSummary] = useState<PersonaSecretCompileSummaryDto | null>(null);
+  const [compilePreservedPrior, setCompilePreservedPrior] = useState(false);
   const [imageUrl, setImageUrl] = useState(persona.image_url ?? "");
   const [imageFocusX, setImageFocusX] = useState(
     persona.image_focus_x ?? PERSONA_IMAGE_FOCUS_DEFAULT.x
@@ -48,7 +64,6 @@ export default function ChatPersonaEditor({
     memo: persona.memo ?? "",
     gender: persona.gender ?? "other",
     description: persona.description,
-    secret_description: persona.secret_description ?? "",
     image_url: persona.image_url ?? "",
     image_focus_x: persona.image_focus_x ?? PERSONA_IMAGE_FOCUS_DEFAULT.x,
     image_focus_y: persona.image_focus_y ?? PERSONA_IMAGE_FOCUS_DEFAULT.y,
@@ -62,7 +77,14 @@ export default function ChatPersonaEditor({
     setMemo(persona.memo ?? "");
     setGender(persona.gender ?? "other");
     setDescription(persona.description);
-    setSecretDescription(persona.secret_description ?? "");
+    setSecretDescription("");
+    setSecretDescriptionLoaded(false);
+    setSecretDescriptionDirty(false);
+    setSecretDescriptionSaving(false);
+    setSecretLoadError("");
+    setSecretSaveError("");
+    setCompileSummary(null);
+    setCompilePreservedPrior(false);
     setImageUrl(persona.image_url ?? "");
     setImageFocusX(persona.image_focus_x ?? PERSONA_IMAGE_FOCUS_DEFAULT.x);
     setImageFocusY(persona.image_focus_y ?? PERSONA_IMAGE_FOCUS_DEFAULT.y);
@@ -72,24 +94,53 @@ export default function ChatPersonaEditor({
       memo: persona.memo ?? "",
       gender: persona.gender ?? "other",
       description: persona.description,
-      secret_description: persona.secret_description ?? "",
       image_url: persona.image_url ?? "",
       image_focus_x: persona.image_focus_x ?? PERSONA_IMAGE_FOCUS_DEFAULT.x,
       image_focus_y: persona.image_focus_y ?? PERSONA_IMAGE_FOCUS_DEFAULT.y,
     };
   }, [persona, editing]);
 
+  useEffect(() => {
+    if (!editing || !personaSecretSettings.canEdit) return;
+    let cancelled = false;
+    setSecretDescriptionLoaded(false);
+    setSecretLoadError("");
+
+    void fetch(`/api/personas/${persona.id}/editor`, { cache: "no-store" })
+      .then(async (res) => ({ res, data: await res.json() }))
+      .then(({ res, data }) => {
+        if (cancelled) return;
+        if (!res.ok) {
+          setSecretLoadError(data.error || "비밀 설정을 불러오지 못했습니다.");
+          return;
+        }
+        const editor = data.persona as OwnerPersonaEditorItem;
+        setSecretDescription(editor.secret_description);
+        setSecretDescriptionLoaded(true);
+      })
+      .catch(() => {
+        if (!cancelled) setSecretLoadError("비밀 설정을 불러오지 못했습니다.");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [editing, persona.id, personaSecretSettings.canEdit]);
+
+  useEffect(() => {
+    onSecretDraftStateChange?.(secretDescriptionDirty);
+  }, [onSecretDraftStateChange, secretDescriptionDirty]);
+
   const save = useCallback(async () => {
-    const payload = {
+    const payload = buildPublicPersonaUpdatePayload({
       name: name.trim(),
       memo,
       gender,
       description,
-      secret_description: personaSecretBoundaryEnabled ? secretDescription : persona.secret_description ?? "",
       image_url: imageUrl,
       image_focus_x: imageFocusX,
       image_focus_y: imageFocusY,
-    };
+    });
     if (!payload.name) {
       setStatus("error");
       setErrorMsg("페르소나 이름을 입력하세요.");
@@ -110,14 +161,13 @@ export default function ChatPersonaEditor({
         setErrorMsg(data.error || "저장에 실패했습니다.");
         return;
       }
-      const updated = data.persona as PersonaListItem;
+      const updated = data.persona as PublicPersonaListItem;
       savedRef.current = {
         id: updated.id,
         name: updated.name,
         memo: updated.memo ?? "",
         gender: updated.gender ?? "other",
         description: updated.description,
-        secret_description: updated.secret_description ?? "",
         image_url: updated.image_url ?? "",
         image_focus_x: updated.image_focus_x ?? PERSONA_IMAGE_FOCUS_DEFAULT.x,
         image_focus_y: updated.image_focus_y ?? PERSONA_IMAGE_FOCUS_DEFAULT.y,
@@ -131,17 +181,58 @@ export default function ChatPersonaEditor({
     }
   }, [
     persona.id,
-    persona.secret_description,
-    personaSecretBoundaryEnabled,
     name,
     memo,
     gender,
     description,
-    secretDescription,
     imageUrl,
     imageFocusX,
     imageFocusY,
     onUpdated,
+  ]);
+
+  const saveSecretDescription = useCallback(async () => {
+    if (
+      !personaSecretSettings.canEdit ||
+      !secretDescriptionLoaded ||
+      !secretDescriptionDirty ||
+      secretDescriptionSaving
+    ) {
+      return;
+    }
+
+    setSecretDescriptionSaving(true);
+    setSecretSaveError("");
+    setCompileSummary(null);
+    setCompilePreservedPrior(false);
+    try {
+      const res = await fetch(`/api/personas/${persona.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(buildExplicitSecretSavePayload(secretDescription)),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setSecretSaveError(data.error || "비밀 설정 저장에 실패했습니다.");
+        return;
+      }
+      if (data.persona) onUpdated(data.persona as PublicPersonaListItem);
+      setSecretDescriptionDirty(false);
+      setCompileSummary((data.compile as PersonaSecretCompileSummaryDto | undefined) ?? null);
+      setCompilePreservedPrior(Boolean(data.compilePreservedPrior));
+    } catch {
+      setSecretSaveError("비밀 설정 저장 중 오류가 발생했습니다.");
+    } finally {
+      setSecretDescriptionSaving(false);
+    }
+  }, [
+    onUpdated,
+    persona.id,
+    personaSecretSettings.canEdit,
+    secretDescription,
+    secretDescriptionDirty,
+    secretDescriptionLoaded,
+    secretDescriptionSaving,
   ]);
 
   useEffect(() => {
@@ -153,7 +244,6 @@ export default function ChatPersonaEditor({
       memo !== s.memo ||
       gender !== s.gender ||
       description !== s.description ||
-      secretDescription !== s.secret_description ||
       imageUrl !== s.image_url ||
       imageFocusX !== s.image_focus_x ||
       imageFocusY !== s.image_focus_y;
@@ -168,7 +258,6 @@ export default function ChatPersonaEditor({
     memo,
     gender,
     description,
-    secretDescription,
     imageUrl,
     imageFocusX,
     imageFocusY,
@@ -225,12 +314,6 @@ export default function ChatPersonaEditor({
             {description.trim() || "설정 없음"}
           </div>
         </div>
-        {personaSecretBoundaryEnabled && secretDescription.trim() && (
-          <div>
-            <p className="mb-1 font-bold text-zinc-400">비밀 설정</p>
-            <div className={`${readOnlyFieldClass} text-zinc-200`}>{secretDescription}</div>
-          </div>
-        )}
         <p className="text-[10px] text-zinc-600">
           {personaContentLength(description).toLocaleString()} / {PERSONA_CONTENT_MAX.toLocaleString()}자
         </p>
@@ -328,26 +411,80 @@ export default function ChatPersonaEditor({
         />
       </label>
 
-      {personaSecretBoundaryEnabled ? (
-        <label className="block space-y-1">
-          <span className="font-bold text-zinc-400">비밀 설정</span>
-          <p className="text-[10px] leading-relaxed text-zinc-500">
-            AI 캐릭터는 이 내용을 처음부터 알지 못합니다. 대화에서 직접 공개하면 해당 채팅의 캐릭터가
-            알게 될 수 있습니다. 비밀 하나당 한 문단으로 작성하세요. 한 문단은 하나의 공개 단위로
-            처리됩니다.
-          </p>
-          <textarea
-            rows={6}
-            maxLength={PERSONA_SECRET_CONTENT_MAX}
-            value={secretDescription}
-            onChange={(e) => setSecretDescription(e.target.value)}
-            placeholder="캐릭터가 아직 모르는 비밀… (문단마다 하나)"
-            className="max-h-40 w-full resize-none overflow-y-auto rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 font-mono text-xs leading-relaxed text-zinc-200 outline-none focus:border-violet-500/40"
-          />
-          <span className="text-[10px] text-zinc-600">
-            {secretDescription.trim().length.toLocaleString()} / {PERSONA_SECRET_CONTENT_MAX.toLocaleString()}자
-          </span>
-        </label>
+      {personaSecretSettings.canEdit ? (
+        <div className="space-y-2 rounded-lg border border-violet-500/20 bg-violet-500/5 p-3">
+          <label className="block space-y-1">
+            <span className="font-bold text-zinc-300">비밀 설정 (선택)</span>
+            <p className="text-[10px] leading-relaxed text-zinc-500">
+              캐릭터가 대화 시작 시점에는 모르는 설정입니다. 외형, 성격, 직업, 평소 말투처럼 처음부터
+              알아야 하는 내용은 일반 설정에 작성하세요.
+            </p>
+            {personaSecretSettings.discoveryActive ? (
+              <p className="text-[10px] leading-relaxed text-zinc-500">
+                직접 공개하거나, 목격·조사·전달을 통해 알게 될 수 있습니다.
+              </p>
+            ) : (
+              <p className="text-[10px] leading-relaxed text-zinc-500">
+                비밀 설정은 일반 설정과 분리해 저장됩니다. 대화 중 발견 기능은 준비 중입니다.
+              </p>
+            )}
+            <textarea
+              rows={6}
+              maxLength={PERSONA_SECRET_CONTENT_MAX}
+              value={secretDescription}
+              disabled={!secretDescriptionLoaded || secretDescriptionSaving}
+              onChange={(e) => {
+                setSecretDescription(e.target.value);
+                setSecretDescriptionDirty(true);
+              }}
+              placeholder="예: 과거 포드 감염 실험에 자원했으며, 오른팔의 감염 흔적을 긴 장갑으로 숨기고 있다."
+              className="max-h-40 w-full resize-none overflow-y-auto rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 font-mono text-xs leading-relaxed text-zinc-200 outline-none focus:border-violet-500/40 disabled:opacity-50"
+            />
+            <span className="text-[10px] text-zinc-600">
+              {secretDescription.trim().length.toLocaleString()} / {PERSONA_SECRET_CONTENT_MAX.toLocaleString()}자
+            </span>
+          </label>
+          {!secretDescriptionLoaded && !secretLoadError && (
+            <p className="text-[10px] text-zinc-500">비밀 설정을 불러오는 중…</p>
+          )}
+          {secretLoadError && <p className="text-[10px] text-rose-400">{secretLoadError}</p>}
+          <button
+            type="button"
+            disabled={
+              !secretDescriptionLoaded ||
+              !secretDescriptionDirty ||
+              secretDescriptionSaving ||
+              !!secretLoadError
+            }
+            onClick={() => void saveSecretDescription()}
+            className="rounded-lg border border-violet-500/40 px-3 py-1.5 text-[11px] text-violet-100 disabled:opacity-40"
+          >
+            {secretDescriptionSaving ? "비밀 설정 저장 중…" : "비밀 설정 저장"}
+          </button>
+          {secretSaveError && <p className="text-[10px] text-rose-400">{secretSaveError}</p>}
+          {compileSummary && (
+            <details className="text-[10px] text-zinc-400">
+              <summary>
+                비밀 설정이 저장되었습니다. 발견 가능한 비밀 {compileSummary.compiledSecretCount}개가
+                정리되었습니다.
+              </summary>
+              <p className="mt-1">
+                {compileSummary.titles.join(" · ") || "정리된 비밀 없음"}
+                {compileSummary.needsReview ? " · 검토 필요" : ""}
+                {compileSummary.reused ? " · 기존 분석 재사용" : ""}
+              </p>
+              {compileSummary.warnings.length > 0 && (
+                <p className="mt-1">{compileSummary.warnings.join(" · ")}</p>
+              )}
+            </details>
+          )}
+          {compilePreservedPrior && (
+            <p className="text-[10px] leading-relaxed text-amber-300">
+              페르소나 설정은 저장됐지만 비밀 설정 분석에 실패했습니다. 기존 분석 결과는 보존되었으며,
+              같은 내용을 다시 저장하면 분석을 재시도합니다.
+            </p>
+          )}
+        </div>
       ) : (
         <p className="rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-[10px] leading-relaxed text-zinc-500">
           비밀 설정은 현재 일부 사용자에게 순차 공개 중입니다.
@@ -366,8 +503,8 @@ export default function ChatPersonaEditor({
 
 /** 편집 시작 전 스냅샷으로 서버·UI 복원 */
 export async function restorePersonaSnapshot(
-  snapshot: PersonaListItem,
-  onUpdated: (persona: PersonaListItem) => void
+  snapshot: PublicPersonaListItem,
+  onUpdated: (persona: PublicPersonaListItem) => void
 ): Promise<boolean> {
   try {
     const res = await fetch(`/api/personas/${snapshot.id}`, {
@@ -378,7 +515,6 @@ export async function restorePersonaSnapshot(
         memo: snapshot.memo ?? "",
         gender: snapshot.gender ?? "other",
         description: snapshot.description,
-        secret_description: snapshot.secret_description ?? "",
         image_url: snapshot.image_url ?? "",
         image_focus_x: snapshot.image_focus_x ?? PERSONA_IMAGE_FOCUS_DEFAULT.x,
         image_focus_y: snapshot.image_focus_y ?? PERSONA_IMAGE_FOCUS_DEFAULT.y,
@@ -386,7 +522,7 @@ export async function restorePersonaSnapshot(
     });
     const data = await res.json();
     if (!res.ok) return false;
-    onUpdated(data.persona as PersonaListItem);
+    onUpdated(data.persona as PublicPersonaListItem);
     return true;
   } catch {
     return false;

@@ -1,8 +1,12 @@
 import { toPublicPersonaDescription } from "@/lib/personaSecretLegacyMarkers";
-import type { DbUserPersona, PersonaListItem } from "@/lib/userPersonasClient";
+import type {
+  DbUserPersona,
+  OwnerPersonaEditorItem,
+  PublicPersonaListItem,
+} from "@/lib/userPersonasClient";
 
 /** Client/list DTO — never includes secret_description. */
-export type PublicPersonaClientRow = Omit<PersonaListItem, "secret_description">;
+export type PublicPersonaClientRow = PublicPersonaListItem;
 
 export function toPublicPersonaClientRow(
   persona: Pick<
@@ -57,9 +61,7 @@ export function toPublicPersonaClientRows(
 }
 
 /** Owner editor DTO when Boundary is ON — secret field included; description still stripped. */
-export type EditorPersonaClientRow = PublicPersonaClientRow & {
-  secret_description: string;
-};
+export type EditorPersonaClientRow = OwnerPersonaEditorItem;
 
 export function toEditorPersonaClientRow(persona: DbUserPersona): EditorPersonaClientRow {
   return {

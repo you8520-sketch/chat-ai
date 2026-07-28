@@ -8,7 +8,8 @@ import StatusWidgetChatSettings from "@/components/StatusWidgetChatSettings";
 import { ChatPortraitPrefs } from "@/components/ChatStatusPortraitPrefs";
 import type { StatusWidgetSourceMode, StatusWidgetDisplayMode } from "@/lib/statusWidget";
 import { resolveStatusWidgetReservedChars } from "@/lib/statusWidget";
-import type { PersonaListItem } from "@/lib/userPersonas";
+import type { PublicPersonaListItem } from "@/lib/userPersonasClient";
+import type { PersonaSecretSettingsCapability } from "@/lib/personaSecretCapabilities";
 import {
   CHAT_FONT_OPTIONS,
   CHAT_FONT_SIZE_PRESETS,
@@ -107,9 +108,9 @@ type Props = {
   defaultUserNote: string;
   /** 유저 노트 저장 PATCH 진행 중 */
   settingsSaving?: boolean;
-  selectedPersona: PersonaListItem | null;
-  onPersonaUpdated: (persona: PersonaListItem) => void;
-  personas: PersonaListItem[];
+  selectedPersona: PublicPersonaListItem | null;
+  onPersonaUpdated: (persona: PublicPersonaListItem) => void;
+  personas: PublicPersonaListItem[];
   selectedPersonaId: number | null;
   onPersonaSelectedChange: (id: number) => void;
   targetResponseChars: number;
@@ -136,7 +137,7 @@ type Props = {
   layout?: "rail" | "drawer" | "inline";
   onClose?: () => void;
   relationshipMetaDock?: ReactNode;
-  personaSecretBoundaryEnabled?: boolean;
+  personaSecretSettings?: PersonaSecretSettingsCapability;
 };
 
 const SECTIONS: { id: SettingsTab; label: string; railLabel: string; icon: ChatSettingsRailIconId }[] = [
@@ -182,7 +183,7 @@ export default function ChatSettingsPanel({
   layout = "rail",
   onClose,
   relationshipMetaDock,
-  personaSecretBoundaryEnabled = false,
+  personaSecretSettings = { canEdit: false, discoveryActive: false },
 }: Props) {
   const [active, setActive] = useState<SettingsTab | null>(null);
   const [liveWidgetMode, setLiveWidgetMode] = useState(statusWidgetMode);
@@ -315,7 +316,7 @@ export default function ChatSettingsPanel({
           onPersonaSelectedChange={onPersonaSelectedChange}
           selectedPersona={selectedPersona}
           onPersonaUpdated={onPersonaUpdated}
-          personaSecretBoundaryEnabled={personaSecretBoundaryEnabled}
+          personaSecretSettings={personaSecretSettings}
         />
       );
     }
@@ -572,32 +573,41 @@ function PersonaSection({
   onPersonaSelectedChange,
   selectedPersona,
   onPersonaUpdated,
-  personaSecretBoundaryEnabled = false,
+  personaSecretSettings = { canEdit: false, discoveryActive: false },
 }: {
   chatId: number | null;
-  personas: PersonaListItem[];
+  personas: PublicPersonaListItem[];
   selectedPersonaId: number | null;
   onPersonaSelectedChange: (id: number) => void;
-  selectedPersona: PersonaListItem | null;
-  onPersonaUpdated: (persona: PersonaListItem) => void;
-  personaSecretBoundaryEnabled?: boolean;
+  selectedPersona: PublicPersonaListItem | null;
+  onPersonaUpdated: (persona: PublicPersonaListItem) => void;
+  personaSecretSettings?: PersonaSecretSettingsCapability;
 }) {
   const [personaEditing, setPersonaEditing] = useState(false);
   const [personaRestoring, setPersonaRestoring] = useState(false);
-  const personaSnapshotRef = useRef<PersonaListItem | null>(null);
+  const [personaSecretDraftDirty, setPersonaSecretDraftDirty] = useState(false);
+  const personaSnapshotRef = useRef<PublicPersonaListItem | null>(null);
 
   useEffect(() => {
     setPersonaEditing(false);
+    setPersonaSecretDraftDirty(false);
     personaSnapshotRef.current = null;
   }, [selectedPersona?.id]);
 
   async function cancelPersonaEdit() {
+    if (
+      personaSecretDraftDirty &&
+      !window.confirm("저장하지 않은 비밀 설정 변경이 있습니다. 버리시겠습니까?")
+    ) {
+      return;
+    }
     const snap = personaSnapshotRef.current;
     if (snap && selectedPersona) {
       setPersonaRestoring(true);
       await restorePersonaSnapshot(snap, onPersonaUpdated);
       setPersonaRestoring(false);
     }
+    setPersonaSecretDraftDirty(false);
     setPersonaEditing(false);
   }
 
@@ -620,7 +630,8 @@ function PersonaSection({
             persona={selectedPersona}
             onUpdated={onPersonaUpdated}
             editing={personaEditing}
-            personaSecretBoundaryEnabled={personaSecretBoundaryEnabled}
+            personaSecretSettings={personaSecretSettings}
+            onSecretDraftStateChange={setPersonaSecretDraftDirty}
           />
           <div className="flex justify-end gap-1.5">
             {personaEditing ? (
@@ -635,7 +646,16 @@ function PersonaSection({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setPersonaEditing(false)}
+                  onClick={() => {
+                    if (
+                      personaSecretDraftDirty &&
+                      !window.confirm("저장하지 않은 비밀 설정 변경이 있습니다. 버리시겠습니까?")
+                    ) {
+                      return;
+                    }
+                    setPersonaSecretDraftDirty(false);
+                    setPersonaEditing(false);
+                  }}
                   className="rounded-lg border border-violet-500/40 px-3 py-1 text-[11px] text-violet-200 hover:bg-violet-500/10"
                 >
                   완료
@@ -646,6 +666,7 @@ function PersonaSection({
                 type="button"
                 onClick={() => {
                   personaSnapshotRef.current = selectedPersona;
+                  setPersonaSecretDraftDirty(false);
                   setPersonaEditing(true);
                 }}
                 className="rounded-lg border border-violet-500/30 px-3 py-1 text-[11px] text-violet-200/90 hover:bg-violet-500/10"

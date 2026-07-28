@@ -3,7 +3,11 @@ import { getDb } from "@/lib/db";
 import { normalizeMemoryMeta, parseMemoryMeta } from "@/lib/chatMemory";
 import { resolveRelationshipMetaNamesForCharacter } from "@/lib/relationshipMetaCharacterName";
 import { messagesToTurns } from "@/lib/hybridMemory";
-import { getSubscriptionTier, listUserPersonas, resolveChatSelectedPersona } from "@/lib/userPersonas";
+import {
+  getSubscriptionTier,
+  listPublicUserPersonas,
+  resolveChatSelectedPersona,
+} from "@/lib/userPersonas";
 import {
   clearMemoryForChat,
   getMemorySnapshot,
@@ -65,7 +69,7 @@ function resolveRelationshipMetaNames(
   chat: { character_id: number; selected_persona_id: number | null },
   chatId: number
 ) {
-  const personas = listUserPersonas(user.id);
+  const personas = listPublicUserPersonas(user.id);
   const { persona } = resolveChatSelectedPersona(user, personas, chat.selected_persona_id, chatId);
   const userName = persona?.name?.trim() || user.nickname;
   return resolveRelationshipMetaNamesForCharacter(chat.character_id, userName);

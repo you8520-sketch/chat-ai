@@ -11,9 +11,11 @@ import {
   validatePersonaSecretContentLength,
 } from "@/lib/userPersonas";
 import { isPersonaSecretBoundaryEnabled } from "@/lib/personaSecretBoundaryPolicy";
+import { toPublicPersonaClientRow } from "@/lib/personaSecretSerialization";
 import {
   deletePersonaSecretData,
   savePersonaWithSecretCompilation,
+  type PersonaSecretInput,
 } from "@/lib/personaSaveWithSecrets";
 
 type Params = { params: Promise<{ id: string }> };
@@ -29,6 +31,7 @@ export async function PUT(req: Request, { params }: Params) {
   if (!existing) return NextResponse.json({ error: "페르소나를 찾을 수 없습니다." }, { status: 404 });
 
   const body = await req.json();
+  const secretSupplied = Object.prototype.hasOwnProperty.call(body, "secret_description");
   const { name, memo, gender, description, secret_description } = sanitizePersonaInput(
     String(body.name ?? existing.name),
     String(body.description ?? existing.description),
@@ -61,9 +64,14 @@ export async function PUT(req: Request, { params }: Params) {
     return NextResponse.json({ error: contentCheck.error }, { status: 400 });
   }
   const boundaryOn = isPersonaSecretBoundaryEnabled({ userId: user.id });
-  const secretCheck = validatePersonaSecretContentLength(secret_description);
-  if (!secretCheck.ok) {
-    return NextResponse.json({ error: secretCheck.error }, { status: 400 });
+  const secretInput: PersonaSecretInput = secretSupplied
+    ? { supplied: true, value: secret_description }
+    : { supplied: false };
+  if (boundaryOn && secretInput.supplied) {
+    const secretCheck = validatePersonaSecretContentLength(secretInput.value);
+    if (!secretCheck.ok) {
+      return NextResponse.json({ error: secretCheck.error }, { status: 400 });
+    }
   }
 
   const saved = savePersonaWithSecretCompilation({
@@ -75,20 +83,24 @@ export async function PUT(req: Request, { params }: Params) {
       gender,
       description,
       secret_description,
+      secretInput,
       image_url: imageUrl,
       image_focus_x: imageFocusX,
       image_focus_y: imageFocusY,
     },
   });
   if (!saved.ok) {
-    return NextResponse.json({ error: saved.error }, { status: saved.status });
+    return NextResponse.json(
+      { error: saved.error, ...(saved.code ? { code: saved.code } : {}) },
+      { status: saved.status }
+    );
   }
 
   const persona = getPersonaById(user.id, personaId);
 
   return NextResponse.json({
     ok: true,
-    persona,
+    persona: persona ? toPublicPersonaClientRow(persona) : null,
     ...(saved.compile ? { compile: saved.compile } : {}),
     ...(saved.compilePreservedPrior ? { compilePreservedPrior: true } : {}),
   });

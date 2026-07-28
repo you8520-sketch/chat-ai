@@ -1,7 +1,7 @@
 import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import {
-  ensureDefaultPersona,
+  ensureDefaultPublicPersona,
   validatePersonaSelection,
 } from "@/lib/userPersonas";
 
@@ -21,7 +21,7 @@ export async function PATCH(req: Request) {
     .get(chatId, user.id) as { id: number } | undefined;
   if (!chat) return Response.json({ error: "채팅방을 찾을 수 없습니다." }, { status: 404 });
 
-  const personas = ensureDefaultPersona(user.id, user.nickname);
+  const personas = ensureDefaultPublicPersona(user.id, user.nickname);
   const selection = validatePersonaSelection(personas, Number(selectedPersonaId));
 
   if (!selection.ok) {
