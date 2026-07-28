@@ -52,39 +52,8 @@ export function compileAndApplyPersonaSecrets(
   const trimmed = source.trim();
   const sourceHash = hashPersonaSecretSource(source);
 
-  // Empty source: successful zero-secret compile — inactivate all, disable rules.
-  if (!trimmed) {
-    const { runId } = applyEmptyPersonaSecretCompilation({
-      personaId: opts.personaId,
-      sourceHash,
-      db: opts.db,
-    });
-    return {
-      ok: true,
-      reused: false,
-      secretCount: 0,
-      titles: [],
-      needsReview: false,
-      warnings: ["empty_source"],
-      runId,
-      diffWarnings: [],
-    };
-  }
-
-  if (trimmed.length > PERSONA_SECRET_CONTENT_MAX) {
-    recordFailedCompilationRun({
-      personaId: opts.personaId,
-      sourceHash,
-      errorCode: "SOURCE_TOO_LONG",
-      db: opts.db,
-    });
-    return {
-      ok: false,
-      errorCode: "SOURCE_TOO_LONG",
-      preservedPrior: true,
-    };
-  }
-
+  // Success-cache lookup first: reuse covers both empty and non-empty sources,
+  // so re-saves do not rewrite rows, and missing cache always forces recompile.
   if (!opts.force) {
     const cached = findSuccessfulCompilationRun({
       personaId: opts.personaId,
@@ -112,6 +81,53 @@ export function compileAndApplyPersonaSecrets(
         // fall through to recompile
       }
     }
+  }
+
+  // Empty source: successful zero-secret compile — inactivate all, disable rules.
+  if (!trimmed) {
+    try {
+      const { runId } = applyEmptyPersonaSecretCompilation({
+        personaId: opts.personaId,
+        sourceHash,
+        db: opts.db,
+      });
+      return {
+        ok: true,
+        reused: false,
+        secretCount: 0,
+        titles: [],
+        needsReview: false,
+        warnings: ["empty_source"],
+        runId,
+        diffWarnings: [],
+      };
+    } catch {
+      recordFailedCompilationRun({
+        personaId: opts.personaId,
+        sourceHash,
+        errorCode: "APPLY_TX_FAIL",
+        db: opts.db,
+      });
+      return {
+        ok: false,
+        errorCode: "APPLY_TX_FAIL",
+        preservedPrior: true,
+      };
+    }
+  }
+
+  if (trimmed.length > PERSONA_SECRET_CONTENT_MAX) {
+    recordFailedCompilationRun({
+      personaId: opts.personaId,
+      sourceHash,
+      errorCode: "SOURCE_TOO_LONG",
+      db: opts.db,
+    });
+    return {
+      ok: false,
+      errorCode: "SOURCE_TOO_LONG",
+      preservedPrior: true,
+    };
   }
 
   let result: PersonaSecretCompilerResult;

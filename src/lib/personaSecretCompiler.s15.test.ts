@@ -327,7 +327,7 @@ describe("PR-S1.5 persona secret compiler", () => {
   });
 
   describe("failure handling", () => {
-    it("preserves prior compilation when validation would fail (empty after prior)", () => {
+    it("empty source after prior → zero-secret success, priors inactivated", () => {
       const personaId = uniquePersonaId();
       const source = "등에 문신이 있다.";
       const ok = compileAndApplyPersonaSecrets({ personaId, source });
@@ -336,11 +336,17 @@ describe("PR-S1.5 persona secret compiler", () => {
       assert.ok(prior.length >= 1);
 
       const empty = compileAndApplyPersonaSecrets({ personaId, source: "   " });
-      assert.equal(empty.ok, false);
-      if (!empty.ok) assert.equal(empty.preservedPrior, true);
+      assert.equal(empty.ok, true);
+      if (!empty.ok) return;
+      assert.equal(empty.secretCount, 0);
       const after = listExistingPersonaSecrets(personaId).filter((s) => s.is_active === 1);
-      assert.equal(after.length, prior.length);
-      assert.equal(after[0]!.id, prior[0]!.id);
+      assert.equal(after.length, 0);
+
+      // Second empty compile reuses the zero-secret success cache (no rewrite).
+      const again = compileAndApplyPersonaSecrets({ personaId, source: "   " });
+      assert.equal(again.ok, true);
+      if (!again.ok) return;
+      assert.equal(again.reused, true);
     });
 
     it("reuses successful compilation for same source hash + version", () => {

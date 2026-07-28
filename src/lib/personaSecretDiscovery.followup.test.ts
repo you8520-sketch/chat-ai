@@ -1,7 +1,7 @@
 /**
  * PR #174 follow-up lean tests — save compile, stable rules, delete cleanup,
  * bootstrap-failure isolation, and legacy provenance.
- * 신규 6 + existing smoke 6.
+ * 신규 8 (incl. merge-blocker fixes: compile retry + investigation delete cleanup).
  */
 import Module from "module";
 import assert from "node:assert/strict";
@@ -9,6 +9,10 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 import { getDb } from "@/lib/db";
 import { ensureInvestigationSchema } from "@/lib/investigationSchema";
 import { runInvestigationDiscoveryForTurn } from "@/lib/investigationDiscovery";
+import {
+  persistInvestigationAttempt,
+  persistInvestigationResult,
+} from "@/lib/investigationPersist";
 import { upsertInvestigationTarget } from "@/lib/investigationTargets";
 import { ensureKnowledgeTransferSchema } from "@/lib/knowledgeTransferSchema";
 import { bootstrapChatObservers } from "@/lib/observerBootstrap";
@@ -367,5 +371,167 @@ describe("PR #174 follow-up — save / delete / provenance", () => {
       personaId
     );
     assert.equal(legacy, 0);
+  });
+
+  it("7. compile failure on same source → re-save retries, secrets + rules created", () => {
+    const userId = uniqueUserId();
+    const db = getDb();
+    // Force the apply transaction to fail at the DB layer (INSERT on persona_secrets).
+    db.exec(`CREATE TRIGGER IF NOT EXISTS trg_followup7_fail_secret_insert
+             BEFORE INSERT ON persona_secrets
+             BEGIN SELECT RAISE(ABORT, 'followup7_forced_fail'); END;`);
+    let first: ReturnType<typeof savePersonaWithSecretCompilation>;
+    try {
+      first = savePersonaWithSecretCompilation({ userId, fields: baseFields() });
+    } finally {
+      db.exec(`DROP TRIGGER IF EXISTS trg_followup7_fail_secret_insert`);
+    }
+    assert.equal(first.ok, true);
+    if (!first.ok) return;
+    assert.equal(first.compile, null);
+    assert.equal(first.compilePreservedPrior, true);
+    const personaId = first.personaId;
+
+    // Persona source was saved despite the compile failure.
+    const personaRow = db
+      .prepare(`SELECT secret_description FROM user_personas WHERE id=?`)
+      .get(personaId) as { secret_description: string };
+    assert.match(personaRow.secret_description, /문신/);
+    // No successful compilation run; failed run recorded; no secrets written.
+    assert.equal(
+      countRows("persona_secret_compilation_runs", "persona_id=? AND status='success'", personaId),
+      0
+    );
+    assert.ok(
+      countRows(
+        "persona_secret_compilation_runs",
+        "persona_id=? AND status='failed' AND error_code='APPLY_TX_FAIL'",
+        personaId
+      ) >= 1
+    );
+    assert.equal(countRows("persona_secrets", "persona_id=?", personaId), 0);
+
+    // Same source re-save → compiler must retry (no success cache for current source).
+    const retry = savePersonaWithSecretCompilation({
+      userId,
+      personaId,
+      fields: baseFields(),
+    });
+    assert.equal(retry.ok, true);
+    if (!retry.ok) return;
+    assert.ok(retry.compile, "compiler reran after prior failure");
+    assert.equal(retry.compilePreservedPrior, false);
+    assert.equal(
+      countRows("persona_secret_compilation_runs", "persona_id=? AND status='success'", personaId),
+      1
+    );
+    assert.ok(
+      countRows("persona_secrets", "persona_id=? AND is_active=1", personaId) >= 1
+    );
+    assert.ok(
+      countRows(
+        "persona_secret_discovery_rules",
+        "secret_id IN (SELECT id FROM persona_secrets WHERE persona_id=?)",
+        personaId
+      ) >= 1
+    );
+
+    // Third save with identical source → success cache reused, no new compilation rows.
+    const runsBefore = countRows("persona_secret_compilation_runs", "persona_id=?", personaId);
+    const third = savePersonaWithSecretCompilation({
+      userId,
+      personaId,
+      fields: baseFields(),
+    });
+    assert.equal(third.ok, true);
+    if (!third.ok) return;
+    assert.equal(third.compile, null, "success cache hit skips recompile");
+    assert.equal(
+      countRows("persona_secret_compilation_runs", "persona_id=?", personaId),
+      runsBefore
+    );
+  });
+
+  it("8. persona delete → PERSONA investigation target/attempt/result removed; other scopes kept", () => {
+    const userId = uniqueUserId();
+    const chatId = uniqueChatId();
+    const first = savePersonaWithSecretCompilation({ userId, fields: baseFields() });
+    assert.equal(first.ok, true);
+    if (!first.ok) return;
+    const personaId = first.personaId;
+    const second = savePersonaWithSecretCompilation({ userId, fields: baseFields() });
+    assert.equal(second.ok, true);
+    if (!second.ok) return;
+    const otherPersonaId = second.personaId;
+
+    const mkTarget = (ownerScope: "PERSONA" | "CHAT", ownerId: string, key: string) =>
+      upsertInvestigationTarget({
+        ownerScope,
+        ownerId,
+        targetType: "DOCUMENT",
+        targetKey: key,
+        displayLabel: key,
+        payload: {
+          resultType: "DOCUMENT_CONTENT_VERIFIED",
+          resultState: "VERIFIED",
+          resultTags: [],
+          observableFacts: ["팩트"],
+        },
+      });
+
+    const seedAttemptAndResult = (targetId: string, targetKey: string, turn: number) => {
+      const attempt = persistInvestigationAttempt({
+        chatId,
+        turnNumber: turn,
+        sourceMessageId: 100 + turn,
+        actorType: "USER",
+        actorId: String(userId),
+        targetId,
+        targetType: "DOCUMENT",
+        targetKey,
+        actionType: "READ_DOCUMENT",
+        sourceType: "USER_EXPLICIT_ACTION",
+        status: "SUCCEEDED",
+      });
+      assert.equal(attempt.inserted, true);
+      const result = persistInvestigationResult({
+        attemptId: attempt.row.id,
+        chatId,
+        turnNumber: turn,
+        targetId,
+        resultType: "DOCUMENT_CONTENT_VERIFIED",
+        resultState: "VERIFIED",
+        resultTags: [],
+        observableFacts: ["팩트"],
+        observerType: "CHARACTER",
+        observerId: "17",
+        sourceType: "USER_EXPLICIT_ACTION",
+      });
+      assert.equal(result.inserted, true);
+    };
+
+    const targetA = mkTarget("PERSONA", String(personaId), "doc:followup8-a");
+    seedAttemptAndResult(targetA.id, "doc:followup8-a", 1);
+    const targetB = mkTarget("PERSONA", String(otherPersonaId), "doc:followup8-b");
+    seedAttemptAndResult(targetB.id, "doc:followup8-b", 2);
+    const targetC = mkTarget("CHAT", String(chatId), "doc:followup8-c");
+    seedAttemptAndResult(targetC.id, "doc:followup8-c", 3);
+
+    assert.equal(countRows("investigation_attempts", "target_id=?", targetA.id), 1);
+    assert.equal(countRows("investigation_results", "target_id=?", targetA.id), 1);
+
+    deletePersonaSecretData(personaId);
+
+    // Persona A target chain fully removed.
+    assert.equal(countRows("investigation_targets", "id=?", targetA.id), 0);
+    assert.equal(countRows("investigation_attempts", "target_id=?", targetA.id), 0);
+    assert.equal(countRows("investigation_results", "target_id=?", targetA.id), 0);
+    // Other persona + chat rows untouched.
+    assert.equal(countRows("investigation_targets", "id=?", targetB.id), 1);
+    assert.equal(countRows("investigation_attempts", "target_id=?", targetB.id), 1);
+    assert.equal(countRows("investigation_results", "target_id=?", targetB.id), 1);
+    assert.equal(countRows("investigation_targets", "id=?", targetC.id), 1);
+    assert.equal(countRows("investigation_attempts", "target_id=?", targetC.id), 1);
+    assert.equal(countRows("investigation_results", "target_id=?", targetC.id), 1);
   });
 });

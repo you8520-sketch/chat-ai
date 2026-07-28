@@ -9,9 +9,13 @@ import { getDb } from "@/lib/db";
 import { isPersonaSecretBoundaryEnabled } from "@/lib/personaSecretBoundaryPolicy";
 import {
   compileAndApplyPersonaSecrets,
+  hashPersonaSecretSource,
   toCompileSummaryDto,
   type PersonaSecretCompileSummaryDto,
 } from "@/lib/personaSecretCompiler";
+import { findSuccessfulCompilationRun } from "@/lib/personaSecretCompilerApply";
+import { PERSONA_SECRET_COMPILER_VERSION } from "@/lib/personaSecretCompilerCatalog";
+import { ensureInvestigationSchema } from "@/lib/investigationSchema";
 import type { CharacterGender } from "@/lib/characterGender";
 import { getPersonaById } from "@/lib/userPersonas";
 import { ensurePersonaSecretDiscoverySchema } from "@/lib/personaSecretDiscoverySchema";
@@ -106,17 +110,30 @@ export function savePersonaWithSecretCompilation(opts: {
 
   let compile: PersonaSecretCompileSummaryDto | null = null;
   let compilePreservedPrior = false;
-  if (boundaryOn && sourceChanged) {
-    const result = compileAndApplyPersonaSecrets({
-      personaId,
-      source: newSource,
-      userId: opts.userId,
-      db,
-    });
-    if (result.ok) {
-      compile = toCompileSummaryDto(result);
-    } else {
-      compilePreservedPrior = true;
+  if (boundaryOn) {
+    // Compile when the source changed OR when the current source has no successful
+    // compilation run — a prior attempt may have failed after the source was saved,
+    // and an unchanged source must not leave compilation permanently unretried.
+    const hasSuccessCache =
+      !sourceChanged &&
+      findSuccessfulCompilationRun({
+        personaId,
+        sourceHash: hashPersonaSecretSource(newSource),
+        compilerVersion: PERSONA_SECRET_COMPILER_VERSION,
+        db,
+      }) != null;
+    if (sourceChanged || !hasSuccessCache) {
+      const result = compileAndApplyPersonaSecrets({
+        personaId,
+        source: newSource,
+        userId: opts.userId,
+        db,
+      });
+      if (result.ok) {
+        compile = toCompileSummaryDto(result);
+      } else {
+        compilePreservedPrior = true;
+      }
     }
   }
 
@@ -129,10 +146,33 @@ export function deletePersonaSecretData(
   db: Database.Database = getDb()
 ): void {
   ensurePersonaSecretDiscoverySchema(db);
+  ensureInvestigationSchema(db);
   const secretIds = (
     db.prepare(`SELECT id FROM persona_secrets WHERE persona_id=?`).all(personaId) as Array<{ id: string }>
   ).map((r) => r.id);
   const placeholders = secretIds.length > 0 ? secretIds.map(() => "?").join(",") : null;
+
+  // PERSONA investigation targets: delete linked results → attempts → targets,
+  // in this order, so no attempt/result can keep referencing a removed target.
+  const personaTargetIds = (
+    db
+      .prepare(`SELECT id FROM investigation_targets WHERE owner_scope='PERSONA' AND owner_id=?`)
+      .all(String(personaId)) as Array<{ id: string }>
+  ).map((r) => r.id);
+  if (personaTargetIds.length > 0) {
+    const targetPh = personaTargetIds.map(() => "?").join(",");
+    db.prepare(
+      `DELETE FROM investigation_results
+       WHERE target_id IN (${targetPh})
+          OR attempt_id IN (
+            SELECT id FROM investigation_attempts WHERE target_id IN (${targetPh})
+          )`
+    ).run(...personaTargetIds, ...personaTargetIds);
+    db.prepare(
+      `DELETE FROM investigation_attempts WHERE target_id IN (${targetPh})`
+    ).run(...personaTargetIds);
+  }
+  db.prepare(`DELETE FROM investigation_targets WHERE owner_scope='PERSONA' AND owner_id=?`).run(String(personaId));
 
   db.prepare(`DELETE FROM persona_secret_discovery_rules WHERE secret_id IN (SELECT id FROM persona_secrets WHERE persona_id=?)`).run(personaId);
   db.prepare(`DELETE FROM persona_secret_compilation_runs WHERE persona_id=?`).run(personaId);
@@ -140,7 +180,6 @@ export function deletePersonaSecretData(
   db.prepare(`DELETE FROM chat_character_secret_knowledge WHERE persona_id=?`).run(personaId);
   db.prepare(`DELETE FROM knowledge_transfer_events WHERE persona_id=?`).run(personaId);
   db.prepare(`DELETE FROM chat_persona_secret_reveals WHERE persona_id=?`).run(personaId);
-  db.prepare(`DELETE FROM investigation_targets WHERE owner_scope='PERSONA' AND owner_id=?`).run(String(personaId));
   if (placeholders) {
     db.prepare(`DELETE FROM persona_secret_evidence_events WHERE secret_id IN (${placeholders})`).run(...secretIds);
     db.prepare(`DELETE FROM chat_character_secret_knowledge WHERE secret_id IN (${placeholders})`).run(...secretIds);
