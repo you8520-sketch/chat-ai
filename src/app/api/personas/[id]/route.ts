@@ -11,6 +11,7 @@ import {
   validatePersonaSecretContentLength,
 } from "@/lib/userPersonas";
 import { isPersonaSecretBoundaryEnabled } from "@/lib/personaSecretBoundaryPolicy";
+import { preserveLegacySecretBlocksOnPublicDescriptionUpdate } from "@/lib/personaSecretLegacyMarkers";
 import { toPublicPersonaClientRow } from "@/lib/personaSecretSerialization";
 import {
   deletePersonaSecretData,
@@ -32,9 +33,16 @@ export async function PUT(req: Request, { params }: Params) {
 
   const body = await req.json();
   const secretSupplied = Object.prototype.hasOwnProperty.call(body, "secret_description");
+  const descriptionSupplied = Object.prototype.hasOwnProperty.call(body, "description");
+  const effectiveDescription = descriptionSupplied
+    ? preserveLegacySecretBlocksOnPublicDescriptionUpdate(
+        existing.description,
+        String(body.description ?? "")
+      )
+    : existing.description;
   const { name, memo, gender, description, secret_description } = sanitizePersonaInput(
     String(body.name ?? existing.name),
-    String(body.description ?? existing.description),
+    effectiveDescription,
     String(body.memo ?? existing.memo ?? ""),
     body.gender ?? existing.gender,
     String(body.secret_description ?? existing.secret_description ?? "")

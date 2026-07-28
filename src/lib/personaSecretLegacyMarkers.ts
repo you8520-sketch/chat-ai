@@ -37,6 +37,14 @@ function stripParenBlocks(raw: string): string {
   });
 }
 
+function collapsePublicWhitespace(text: string): string {
+  return text
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
 /**
  * Convert raw stored persona.description into a public-only description.
  * Returns public string only — never extracted fragments or logs.
@@ -47,12 +55,61 @@ export function toPublicPersonaDescription(rawDescription: string): PublicPerson
 
   let out = stripBracketBlocks(raw);
   out = stripParenBlocks(out);
-  // Collapse leftover blank runs from removed blocks without eating intentional spacing.
-  out = out
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .replace(/[ \t]{2,}/g, " ")
-    .trim();
+  out = collapsePublicWhitespace(out);
 
   return asPublicPersonaDescription(out);
+}
+
+/** True when raw description contains an explicit legacy secret marker block. */
+export function hasExplicitLegacySecretMarkers(rawDescription: string): boolean {
+  const raw = String(rawDescription ?? "");
+  if (!raw) return false;
+  return extractLegacySecretBlocks(raw).length > 0;
+}
+
+/**
+ * Extract opaque legacy marker blocks in source order.
+ * Never logs or returns the inner secret for telemetry — callers must treat
+ * returned strings as opaque raw storage fragments only.
+ */
+export function extractLegacySecretBlocks(rawDescription: string): string[] {
+  const raw = String(rawDescription ?? "");
+  if (!raw) return [];
+
+  const blocks: string[] = [];
+  const seen = new Set<string>();
+
+  for (const match of raw.matchAll(/\[[^\]]*\]/g)) {
+    const block = match[0]!;
+    if (!isLegacySecretInner(block.slice(1, -1)) || seen.has(block)) continue;
+    seen.add(block);
+    blocks.push(block);
+  }
+  for (const match of raw.matchAll(/\([^)]*\)/g)) {
+    const block = match[0]!;
+    if (!isLegacySecretInner(block.slice(1, -1)) || seen.has(block)) continue;
+    seen.add(block);
+    blocks.push(block);
+  }
+  return blocks;
+}
+
+/**
+ * Server-only save helper: apply a public description update while preserving
+ * existing explicit legacy secret marker blocks in the DB raw description.
+ *
+ * Does not migrate markers into secret_description or invoke the compiler.
+ */
+export function preserveLegacySecretBlocksOnPublicDescriptionUpdate(
+  existingRawDescription: string,
+  nextPublicDescription: string
+): string {
+  const existingRaw = String(existingRawDescription ?? "");
+  const nextPublic = String(toPublicPersonaDescription(nextPublicDescription));
+  const legacyBlocks = extractLegacySecretBlocks(existingRaw);
+  if (legacyBlocks.length === 0) return nextPublic;
+
+  const legacyPart = legacyBlocks.join("\n");
+  if (!nextPublic) return legacyPart;
+  return `${nextPublic}\n${legacyPart}`;
 }

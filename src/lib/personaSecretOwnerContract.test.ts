@@ -5,6 +5,10 @@ import {
   buildExplicitSecretSavePayload,
   buildPublicPersonaUpdatePayload,
 } from "@/lib/personaEditorPayload";
+import {
+  preserveLegacySecretBlocksOnPublicDescriptionUpdate,
+  toPublicPersonaDescription,
+} from "@/lib/personaSecretLegacyMarkers";
 import { toPublicPersonaClientRow } from "@/lib/personaSecretSerialization";
 import { savePersonaWithSecretCompilation } from "@/lib/personaSaveWithSecrets";
 import { ensureDefaultPublicPersona, getPersonaById } from "@/lib/userPersonas";
@@ -207,5 +211,53 @@ describe("persona secret owner contracts", () => {
     assert.equal(personas.length, 1);
     assert.equal("secret_description" in personas[0]!, false);
     assert.doesNotMatch(serialized, new RegExp(needle));
+  });
+
+  it("name/image-only public update preserves legacy marker bytes in DB raw description", () => {
+    process.env.PERSONA_SECRET_BOUNDARY_ENABLED = "0";
+    const db = getDb();
+    const userId = uniqueUserId();
+    const needle = "LEGACY_SECRET_NEEDLE_PRESERVE_77";
+    const raw = `공개 A\n[NPC들은 모르는 비밀설정: ${needle}]`;
+    db.prepare(
+      `INSERT INTO user_personas
+       (user_id, name, memo, gender, description, secret_description, speech_examples, image_url, image_focus_x, image_focus_y)
+       VALUES (?,?,?,?,?,?,?,?,?,?)`
+    ).run(userId, "레거시", "", "other", raw, "", "", "", 0.5, 0.5);
+    const personaId = (
+      db.prepare("SELECT id FROM user_personas WHERE user_id=? LIMIT 1").get(userId) as { id: number }
+    ).id;
+
+    const publicProjection = String(toPublicPersonaDescription(raw));
+    const effectiveDescription = preserveLegacySecretBlocksOnPublicDescriptionUpdate(
+      raw,
+      publicProjection
+    );
+    const saved = savePersonaWithSecretCompilation({
+      userId,
+      personaId,
+      fields: {
+        ...fields({
+          name: "레거시 이름 수정",
+          description: effectiveDescription,
+          secret_description: "",
+        }),
+        secretInput: { supplied: false },
+      },
+      db,
+    });
+    assert.equal(saved.ok, true);
+
+    const row = getPersonaById(userId, personaId);
+    assert.ok(row);
+    assert.match(row!.description, new RegExp(needle));
+    assert.match(row!.name, /이름 수정/);
+
+    const publicRow = toPublicPersonaClientRow(row!);
+    assert.doesNotMatch(JSON.stringify(publicRow), new RegExp(needle));
+    assert.doesNotMatch(String(toPublicPersonaDescription(row!.description)), new RegExp(needle));
+
+    const hydrated = ensureDefaultPublicPersona(userId, "레거시");
+    assert.doesNotMatch(JSON.stringify(hydrated), new RegExp(needle));
   });
 });

@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { toPublicPersonaDescription } from "@/lib/personaSecretLegacyMarkers";
+import {
+  hasExplicitLegacySecretMarkers,
+  preserveLegacySecretBlocksOnPublicDescriptionUpdate,
+  toPublicPersonaDescription,
+} from "@/lib/personaSecretLegacyMarkers";
 
 describe("toPublicPersonaDescription legacy marker strip", () => {
   it("strips explicit NPC-unknown bracket markers and keeps surrounding public prose", () => {
@@ -49,5 +53,35 @@ describe("toPublicPersonaDescription legacy marker strip", () => {
     assert.equal(typeof pub, "string");
     assert.match(pub, /^공개$/);
     assert.equal(Object.getOwnPropertyNames(Object(pub)).includes("extractedSecretFragments"), false);
+  });
+});
+
+describe("legacy secret marker preservation on public description update", () => {
+  it("detects explicit markers and ignores ambiguous phrases", () => {
+    assert.equal(
+      hasExplicitLegacySecretMarkers("공개 A\n[NPC들은 모르는 비밀설정: LEGACY_SECRET_NEEDLE]"),
+      true
+    );
+    assert.equal(hasExplicitLegacySecretMarkers("공개 A\n[비밀]\n실은 숨겨진 정체"), false);
+  });
+
+  it("preserves opaque legacy blocks when public prose is rewritten", () => {
+    const existing = `공개 A
+[NPC들은 모르는 비밀설정: LEGACY_SECRET_NEEDLE]`;
+    const next = preserveLegacySecretBlocksOnPublicDescriptionUpdate(existing, "공개 B 이름만 바꿈");
+    assert.match(next, /공개 B 이름만 바꿈/);
+    assert.match(next, /LEGACY_SECRET_NEEDLE/);
+    assert.match(next, /NPC들은 모르는 비밀설정/);
+
+    const pub = toPublicPersonaDescription(next);
+    assert.match(pub, /공개 B 이름만 바꿈/);
+    assert.doesNotMatch(pub, /LEGACY_SECRET_NEEDLE/);
+  });
+
+  it("leaves descriptions without markers unchanged", () => {
+    assert.equal(
+      preserveLegacySecretBlocksOnPublicDescriptionUpdate("공개만", "새 공개"),
+      "새 공개"
+    );
   });
 });

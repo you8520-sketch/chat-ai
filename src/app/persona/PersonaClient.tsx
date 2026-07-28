@@ -20,6 +20,11 @@ import {
 } from "@/lib/userPersonasClient";
 import type { PersonaSecretSettingsCapability } from "@/lib/personaSecretCapabilities";
 import type { PersonaSecretCompileSummaryDto } from "@/lib/personaSecretCompiler";
+import {
+  applyOwnerEditorCacheUpdate,
+  resolveSecretDraftOnStartEdit,
+  shouldHydrateSecretDraftFromEditor,
+} from "@/lib/personaSecretEditHydration";
 import type { UserNotePresetItem } from "@/lib/userNotePresetTypes";
 import { USER_NOTE_PRESET_TITLE_MAX } from "@/lib/userNotePresetTypes";
 import UserNoteSplitEditor from "@/components/UserNoteSplitEditor";
@@ -45,15 +50,23 @@ import {
   studioType,
 } from "@/lib/studioDesign";
 
+const DEFAULT_SECRET_SETTINGS: PersonaSecretSettingsCapability = {
+  canEdit: false,
+  discoveryActive: false,
+};
+
 export default function PersonaClient({
   initialPersonas,
   initialNotePresets,
   initialStatusWidgetPresets,
+  initialSecretSettings = DEFAULT_SECRET_SETTINGS,
   nickname,
 }: {
   initialPersonas: PublicPersonaListItem[];
   initialNotePresets: UserNotePresetItem[];
   initialStatusWidgetPresets: StatusWidgetPresetItem[];
+  /** Safe capability only — never includes secret source. */
+  initialSecretSettings?: PersonaSecretSettingsCapability;
   nickname: string;
 }) {
   const router = useRouter();
@@ -68,10 +81,9 @@ export default function PersonaClient({
   const [draftSecretDescription, setDraftSecretDescription] = useState("");
   const [draftSecretDescriptionLoaded, setDraftSecretDescriptionLoaded] = useState(false);
   const [draftSecretDescriptionDirty, setDraftSecretDescriptionDirty] = useState(false);
-  const [secretSettings, setSecretSettings] = useState<PersonaSecretSettingsCapability>({
-    canEdit: false,
-    discoveryActive: false,
-  });
+  const [secretSettings, setSecretSettings] =
+    useState<PersonaSecretSettingsCapability>(initialSecretSettings);
+  const [secretSettingsLoaded, setSecretSettingsLoaded] = useState(true);
   const [editorPersonas, setEditorPersonas] = useState<Record<number, OwnerPersonaEditorItem>>({});
   const [compileSummary, setCompileSummary] = useState<PersonaSecretCompileSummaryDto | null>(null);
   const [compilePreservedPrior, setCompilePreservedPrior] = useState(false);
@@ -99,6 +111,11 @@ export default function PersonaClient({
   }, [initialPersonas]);
 
   useEffect(() => {
+    setSecretSettings(initialSecretSettings);
+    setSecretSettingsLoaded(true);
+  }, [initialSecretSettings]);
+
+  useEffect(() => {
     let cancelled = false;
     async function loadOwnerCapabilities() {
       try {
@@ -109,11 +126,9 @@ export default function PersonaClient({
         };
         if (cancelled || !publicRes.ok) return;
         if (Array.isArray(publicData.personas)) setPersonas(publicData.personas);
-        const capability = publicData.capabilities?.personaSecretSettings ?? {
-          canEdit: false,
-          discoveryActive: false,
-        };
+        const capability = publicData.capabilities?.personaSecretSettings ?? DEFAULT_SECRET_SETTINGS;
         setSecretSettings(capability);
+        setSecretSettingsLoaded(true);
         if (!capability.canEdit) return;
 
         const editorRes = await fetch("/api/personas/editor", { cache: "no-store" });
@@ -125,6 +140,7 @@ export default function PersonaClient({
       } catch {
         // The public editor remains usable; do not convert an owner secret load
         // failure into an empty secret draft.
+        if (!cancelled) setSecretSettingsLoaded(true);
       }
     }
     void loadOwnerCapabilities();
@@ -140,8 +156,9 @@ export default function PersonaClient({
     setDraftGender(p.gender ?? "other");
     setDraftDesc(p.description);
     const editor = editorPersonas[p.id];
-    setDraftSecretDescription(editor?.secret_description ?? "");
-    setDraftSecretDescriptionLoaded(!secretSettings.canEdit || !!editor);
+    const secretDraft = resolveSecretDraftOnStartEdit(editor);
+    setDraftSecretDescription(secretDraft.draftSecretDescription);
+    setDraftSecretDescriptionLoaded(secretDraft.draftSecretDescriptionLoaded);
     setDraftSecretDescriptionDirty(false);
     setCompileSummary(null);
     setCompilePreservedPrior(false);
@@ -195,17 +212,19 @@ export default function PersonaClient({
   }
 
   useEffect(() => {
+    if (editingId == null) return;
+    const editor = editorPersonas[editingId];
     if (
-      editingId == null ||
-      !secretSettings.canEdit ||
-      draftSecretDescriptionLoaded ||
-      draftSecretDescriptionDirty
+      !shouldHydrateSecretDraftFromEditor({
+        canEdit: secretSettings.canEdit,
+        draftSecretDescriptionLoaded,
+        draftSecretDescriptionDirty,
+        hasEditor: Boolean(editor),
+      })
     ) {
       return;
     }
-    const editor = editorPersonas[editingId];
-    if (!editor) return;
-    setDraftSecretDescription(editor.secret_description);
+    setDraftSecretDescription(editor!.secret_description);
     setDraftSecretDescriptionLoaded(true);
   }, [
     draftSecretDescriptionDirty,
@@ -229,6 +248,22 @@ export default function PersonaClient({
     }
   }
 
+  async function refreshOwnerEditorPersona(personaId: number) {
+    if (!secretSettings.canEdit) return null;
+    try {
+      const res = await fetch(`/api/personas/${personaId}/editor`, { cache: "no-store" });
+      const data = (await res.json()) as {
+        persona?: OwnerPersonaEditorItem;
+        error?: string;
+      };
+      if (!res.ok || !data.persona) return null;
+      setEditorPersonas((prev) => applyOwnerEditorCacheUpdate(prev, data.persona!));
+      return data.persona;
+    } catch {
+      return null;
+    }
+  }
+
   async function savePersona() {
     setBusy(true);
     setError("");
@@ -238,6 +273,11 @@ export default function PersonaClient({
       setError("페르소나 성별을 선택하세요.");
       return;
     }
+    const secretWasSubmitted =
+      secretSettings.canEdit &&
+      (creating ||
+        (editingId != null && draftSecretDescriptionLoaded && draftSecretDescriptionDirty));
+    const submittedSecret = draftSecretDescription;
     const payload: Record<string, unknown> = {
       name: draftName,
       memo: draftMemo,
@@ -294,8 +334,25 @@ export default function PersonaClient({
     }
     setCompileSummary(data.compile ?? null);
     setCompilePreservedPrior(Boolean(data.compilePreservedPrior));
-    if (secretSettings.canEdit && (creating || draftSecretDescriptionDirty)) {
+    if (secretWasSubmitted) {
       setDraftSecretDescriptionDirty(false);
+    }
+    if (data.persona && secretSettings.canEdit && (secretWasSubmitted || creating)) {
+      const authoritative = await refreshOwnerEditorPersona(data.persona.id);
+      if (authoritative) {
+        setDraftSecretDescription(authoritative.secret_description);
+        setDraftSecretDescriptionLoaded(true);
+      } else if (secretWasSubmitted) {
+        // Fallback: keep submitted source in cache until next authoritative fetch.
+        setEditorPersonas((prev) =>
+          applyOwnerEditorCacheUpdate(prev, {
+            ...(data.persona as PublicPersonaListItem),
+            secret_description: submittedSecret,
+          })
+        );
+        setDraftSecretDescription(submittedSecret);
+        setDraftSecretDescriptionLoaded(true);
+      }
     }
     setMsg(editingId ? "페르소나가 수정되었습니다." : "페르소나가 생성되었습니다.");
     if (!data.compile && !data.compilePreservedPrior) {
