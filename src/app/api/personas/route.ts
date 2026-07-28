@@ -3,9 +3,8 @@ import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import { parseCharacterGender } from "@/lib/characterGender";
 import {
-  ensureDefaultPersona,
   getPersonaById,
-  listUserPersonas,
+  ensureDefaultPublicPersona,
   PERSONA_IMAGE_FOCUS_DEFAULT,
   sanitizePersonaImageFocus,
   sanitizePersonaImageUrl,
@@ -15,15 +14,25 @@ import {
 } from "@/lib/userPersonas";
 import { USER_PERSONA_MAX_COUNT } from "@/lib/persona";
 import { isPersonaSecretBoundaryEnabled } from "@/lib/personaSecretBoundaryPolicy";
-import { savePersonaWithSecretCompilation } from "@/lib/personaSaveWithSecrets";
+import { getPersonaSecretSettingsCapability } from "@/lib/personaSecretCapabilities";
+import { toPublicPersonaClientRow } from "@/lib/personaSecretSerialization";
+import {
+  savePersonaWithSecretCompilation,
+  type PersonaSecretInput,
+} from "@/lib/personaSaveWithSecrets";
 
 export async function GET() {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
 
-  const personas = ensureDefaultPersona(user.id, user.nickname);
+  const personas = ensureDefaultPublicPersona(user.id, user.nickname);
 
-  return NextResponse.json({ personas });
+  return NextResponse.json({
+    personas: personas.map(toPublicPersonaClientRow),
+    capabilities: {
+      personaSecretSettings: getPersonaSecretSettingsCapability(user.id),
+    },
+  });
 }
 
 export async function POST(req: Request) {
@@ -34,6 +43,7 @@ export async function POST(req: Request) {
   if (!parseCharacterGender(body.gender)) {
     return NextResponse.json({ error: "페르소나 성별을 선택하세요." }, { status: 400 });
   }
+  const secretSupplied = Object.prototype.hasOwnProperty.call(body, "secret_description");
   const { name, memo, gender, description, secret_description } = sanitizePersonaInput(
     String(body.name ?? ""),
     String(body.description ?? ""),
@@ -63,9 +73,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: contentCheck.error }, { status: 400 });
   }
   const boundaryOn = isPersonaSecretBoundaryEnabled({ userId: user.id });
-  const secretCheck = validatePersonaSecretContentLength(secret_description);
-  if (!secretCheck.ok) {
-    return NextResponse.json({ error: secretCheck.error }, { status: 400 });
+  const secretInput: PersonaSecretInput = secretSupplied
+    ? { supplied: true, value: secret_description }
+    : { supplied: false };
+  if (boundaryOn && secretInput.supplied) {
+    const secretCheck = validatePersonaSecretContentLength(secretInput.value);
+    if (!secretCheck.ok) {
+      return NextResponse.json({ error: secretCheck.error }, { status: 400 });
+    }
   }
 
   const db = getDb();
@@ -87,6 +102,7 @@ export async function POST(req: Request) {
       gender,
       description,
       secret_description,
+      secretInput,
       image_url: imageUrl,
       image_focus_x: imageFocusX,
       image_focus_y: imageFocusY,
@@ -94,13 +110,16 @@ export async function POST(req: Request) {
     db,
   });
   if (!saved.ok) {
-    return NextResponse.json({ error: saved.error }, { status: saved.status });
+    return NextResponse.json(
+      { error: saved.error, ...(saved.code ? { code: saved.code } : {}) },
+      { status: saved.status }
+    );
   }
   const persona = getPersonaById(user.id, saved.personaId);
 
   return NextResponse.json({
     ok: true,
-    persona,
+    persona: persona ? toPublicPersonaClientRow(persona) : null,
     ...(saved.compile ? { compile: saved.compile } : {}),
     ...(saved.compilePreservedPrior ? { compilePreservedPrior: true } : {}),
   });

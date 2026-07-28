@@ -22,10 +22,10 @@ import ChatClient from "./ChatClient";
 
 import { consumeSelectedAiEntryNotice } from "@/lib/userSelectedAI";
 
-import { ensureDefaultPersona, validatePersonaSelection } from "@/lib/userPersonas";
+import { ensureDefaultPublicPersona, validatePersonaSelection } from "@/lib/userPersonas";
 import { listUserNotePresets } from "@/lib/userNotePresets";
 import { listStatusWidgetPresets } from "@/lib/statusWidgetPresets";
-import { isPersonaSecretBoundaryEnabled } from "@/lib/personaSecretBoundaryPolicy";
+import { getPersonaSecretSettingsCapability } from "@/lib/personaSecretCapabilities";
 import { canAccessCharacter } from "@/lib/characterVisibility";
 import { recordCharacterClick } from "@/lib/characterClicks";
 import {
@@ -180,7 +180,8 @@ export default async function ChatPage({
     .prepare("SELECT user_note, chat_prefs FROM users WHERE id=?")
     .get(user.id) as { user_note: string; chat_prefs: string };
 
-  const personaList = ensureDefaultPersona(user.id, user.nickname);
+  const personaList = ensureDefaultPublicPersona(user.id, user.nickname);
+  const personaSecretSettings = getPersonaSecretSettingsCapability(user.id);
   const notePresetList = listUserNotePresets(user.id);
   const statusWidgetPresetList = listStatusWidgetPresets(user.id);
 
@@ -506,7 +507,7 @@ export default async function ChatPage({
         (c as { status_widget_allow_user_override?: number }).status_widget_allow_user_override !== 0
       }
       showFullBillingReceipt={showFullBillingReceipt}
-      personaSecretBoundaryEnabled={isPersonaSecretBoundaryEnabled({ userId: user.id })}
+      personaSecretSettings={personaSecretSettings}
     />
   );
 }

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import PersonaSelector from "@/components/PersonaSelector";
 import StartChatButton from "@/components/StartChatButton";
-import type { PersonaListItem } from "@/lib/userPersonas";
+import type { PublicPersonaListItem } from "@/lib/userPersonasClient";
 import type { UserChatSession } from "@/lib/recentChats";
 
 const PERSONA_STORAGE_KEY = "habi:lastPersonaId";
@@ -14,7 +14,7 @@ type Props = {
   characterName: string;
   loggedIn: boolean;
   branches: UserChatSession[];
-  personas: PersonaListItem[];
+  personas: PublicPersonaListItem[];
   initialPersonaId: number | null;
 };
 
@@ -40,7 +40,7 @@ export default function CharacterStartRow({
       try {
         const res = await fetch("/api/personas", { cache: "no-store" });
         if (!res.ok) return;
-        const data = (await res.json()) as { personas?: PersonaListItem[] };
+        const data = (await res.json()) as { personas?: PublicPersonaListItem[] };
         if (cancelled || !Array.isArray(data.personas)) return;
         setPersonas(data.personas);
       } catch {
