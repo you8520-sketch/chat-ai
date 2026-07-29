@@ -13,12 +13,11 @@ import {
 } from "./chatImageGeneration";
 
 describe("chatImageGeneration", () => {
-  it("uses the nearest valid 3:2 size to a 1000px-wide SD output", () => {
-    assert.equal(CHAT_IMAGE_GENERATION_OUTPUT_WIDTH, 1008);
-    assert.equal(CHAT_IMAGE_GENERATION_OUTPUT_HEIGHT, 672);
-    assert.equal(CHAT_IMAGE_GENERATION_OUTPUT_SIZE, "1008x672");
-    assert.equal(CHAT_IMAGE_GENERATION_OUTPUT_WIDTH % 16, 0);
-    assert.equal(CHAT_IMAGE_GENERATION_OUTPUT_HEIGHT % 16, 0);
+  it("uses a 1024px-wide near-3:2 SD output", () => {
+    assert.equal(CHAT_IMAGE_GENERATION_OUTPUT_WIDTH, 1024);
+    assert.equal(CHAT_IMAGE_GENERATION_OUTPUT_HEIGHT, 683);
+    assert.equal(CHAT_IMAGE_GENERATION_OUTPUT_SIZE, "1024x683");
+    assert.equal(Math.round((CHAT_IMAGE_GENERATION_OUTPUT_WIDTH / CHAT_IMAGE_GENERATION_OUTPUT_HEIGHT) * 1000), 1499);
   });
 
   it("fixes every SD generation to medium quality", () => {

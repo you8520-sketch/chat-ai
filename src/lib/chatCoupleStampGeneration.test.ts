@@ -16,12 +16,12 @@ import {
 } from "./chatCoupleStampGeneration";
 
 describe("chatCoupleStampGeneration", () => {
-  it("uses webp preview, 16-aligned API size, and 1000x1000 medium output", () => {
-    assert.equal(CHAT_COUPLE_STAMP_API_OUTPUT_SIZE, "1008x1008");
+  it("uses webp preview, 16-aligned API size, and 1024x1024 medium output", () => {
+    assert.equal(CHAT_COUPLE_STAMP_API_OUTPUT_SIZE, "1024x1024");
     assert.equal(CHAT_COUPLE_STAMP_API_OUTPUT_WIDTH % 16, 0);
     assert.equal(CHAT_COUPLE_STAMP_API_OUTPUT_HEIGHT % 16, 0);
-    assert.equal(CHAT_COUPLE_STAMP_OUTPUT_WIDTH, 1000);
-    assert.equal(CHAT_COUPLE_STAMP_OUTPUT_HEIGHT, 1000);
+    assert.equal(CHAT_COUPLE_STAMP_OUTPUT_WIDTH, 1024);
+    assert.equal(CHAT_COUPLE_STAMP_OUTPUT_HEIGHT, 1024);
     assert.equal(CHAT_COUPLE_STAMP_QUALITY, "medium");
     assert.match(CHAT_COUPLE_STAMP_TEMPLATE_PREVIEW_URL, /sd-couple-stamps-4\.webp$/);
   });

@@ -6,12 +6,12 @@ export const CHAT_EMOTICON_TEMPLATE_PREVIEW_URL =
   "/image-templates/sd-emoticon-grid-9.webp";
 
 export const CHAT_EMOTICON_GENERATION_DEFAULT_POINTS = 230;
-export const CHAT_EMOTICON_API_OUTPUT_WIDTH = 896;
-export const CHAT_EMOTICON_API_OUTPUT_HEIGHT = 896;
+export const CHAT_EMOTICON_API_OUTPUT_WIDTH = 1024;
+export const CHAT_EMOTICON_API_OUTPUT_HEIGHT = 1024;
 export const CHAT_EMOTICON_API_OUTPUT_SIZE =
   `${CHAT_EMOTICON_API_OUTPUT_WIDTH}x${CHAT_EMOTICON_API_OUTPUT_HEIGHT}` as const;
-export const CHAT_EMOTICON_OUTPUT_WIDTH = 900;
-export const CHAT_EMOTICON_OUTPUT_HEIGHT = 900;
+export const CHAT_EMOTICON_OUTPUT_WIDTH = 1024;
+export const CHAT_EMOTICON_OUTPUT_HEIGHT = 1024;
 export const CHAT_EMOTICON_QUALITY = "medium" as const;
 
 export type ChatEmoticonSubject = "character" | "persona" | "duo";

@@ -16,13 +16,13 @@ export const CHAT_COUPLE_STAMP_TEMPLATE_PREVIEW_URL =
   "/image-templates/sd-couple-stamps-4.webp";
 
 export const CHAT_COUPLE_STAMP_GENERATION_DEFAULT_POINTS = 240;
-/** gpt-image-2 requires edges as multiples of 16 — nearest valid square to 1000. */
-export const CHAT_COUPLE_STAMP_API_OUTPUT_WIDTH = 1008;
-export const CHAT_COUPLE_STAMP_API_OUTPUT_HEIGHT = 1008;
+/** gpt-image-2 square output. */
+export const CHAT_COUPLE_STAMP_API_OUTPUT_WIDTH = 1024;
+export const CHAT_COUPLE_STAMP_API_OUTPUT_HEIGHT = 1024;
 export const CHAT_COUPLE_STAMP_API_OUTPUT_SIZE =
   `${CHAT_COUPLE_STAMP_API_OUTPUT_WIDTH}x${CHAT_COUPLE_STAMP_API_OUTPUT_HEIGHT}` as const;
-export const CHAT_COUPLE_STAMP_OUTPUT_WIDTH = 1000;
-export const CHAT_COUPLE_STAMP_OUTPUT_HEIGHT = 1000;
+export const CHAT_COUPLE_STAMP_OUTPUT_WIDTH = 1024;
+export const CHAT_COUPLE_STAMP_OUTPUT_HEIGHT = 1024;
 export const CHAT_COUPLE_STAMP_QUALITY = "medium" as const;
 
 /** Fixed 2x2 layout of the template sheet — always rendered in this order. */
