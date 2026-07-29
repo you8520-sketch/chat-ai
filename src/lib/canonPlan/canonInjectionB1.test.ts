@@ -29,7 +29,6 @@ import {
   OPENROUTER_GEMINI_25_PRO_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
   OPENROUTER_QWEN_37_MAX_MODEL,
-  OPENROUTER_TENCENT_HY3_MODEL,
 } from "@/lib/chatModels";
 import type { buildContext as BuildContextFn } from "@/services/contextBuilder";
 import type { CharacterChunk } from "@/types";
@@ -317,12 +316,11 @@ describe("Canon injection B1 — D0 shadow + policy", () => {
     assert.equal(shouldRunCanonInjectionSideEffects(policy), false);
   });
 
-  it("H: Muse/Gemini/HY3 policy stays FULL_LEGACY", () => {
+  it("H: Muse/Gemini policy stays FULL_LEGACY", () => {
     process.env.CANON_INJECTION_ENABLED = "1";
     for (const modelId of [
       OPENROUTER_MUSE_SPARK_11_MODEL,
       OPENROUTER_GEMINI_25_PRO_MODEL,
-      OPENROUTER_TENCENT_HY3_MODEL,
     ]) {
       const policy = resolveCanonInjectionPolicy(modelId);
       assert.equal(policy.canonMode, "FULL_LEGACY");

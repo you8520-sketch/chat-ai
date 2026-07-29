@@ -1142,7 +1142,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const ownershipLockEnabled = isInteractiveUserOwnershipLockEnabledForUser(input.userId);
   // R1 — COMPACT TERMINAL OWNERSHIP ECHO: Muse-targeted admin canary. Appends a
   // compact ownership reminder AFTER the current-user body (literal prompt tail)
-  // ONLY for admin + Muse — DeepSeek/Gemini/HY3 unchanged. Compliance recency
+  // ONLY for admin + Muse — DeepSeek/Gemini unchanged. Compliance recency
   // shim only; gated on the lock being active (interactive + lock ON).
   const ownershipTerminalEchoEnabled =
     ownershipLockEnabled &&
@@ -1203,7 +1203,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   // layered-canon canary (isLayeredCanonActive) AND an explicit sceneMomentumInput
   // (opt-in data channel — preserves existing harness/callers that do not thread it).
   // Candidate A content/extractor is FROZEN (header/fields/source/wording/budget/
-  // insertion untouched). Terminal/LENGTH tail unchanged. Muse/Gemini/HY3 do not
+  // insertion untouched). Terminal/LENGTH tail unchanged. Muse/Gemini do not
   // assemble deepSeekUserExtras, so their payloads are unaffected.
   const momentumPredicate = resolveMomentumActivation(input.shortTermHistory);
   const momentumModelPolicyOn =

@@ -165,7 +165,7 @@ export type ContextBuildInput = {
    * AND the DeepSeek D2 canary is active AND the thin-history predicate fires, the
    * CURRENT SCENE CONTINUITY block is injected into the DeepSeek user-turn extras
    * (dynamic, non-cached, below the CORE cache prefix). Phase 1: DeepSeek canary only.
-   * Muse/Gemini/HY3 see no actual prompt change.
+   * Muse/Gemini see no actual prompt change.
    */
   sceneMomentumInput?: import("@/lib/sceneMomentum/types").SceneMomentumInput | null;
 };

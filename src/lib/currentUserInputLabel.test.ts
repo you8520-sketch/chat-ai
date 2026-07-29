@@ -386,7 +386,6 @@ describe("R1 gate — isInteractiveUserOwnershipTerminalEchoEnabledForUser (Muse
   const MUSE = "meta/muse-spark-1.1";
   const DEEPSEEK = "deepseek/deepseek-v4-pro";
   const GEMINI = "google/gemini-2.5-pro";
-  const HY3 = "tencent/hy3";
 
   it("default OFF when env unset (all models, admin included)", () => {
     delete process.env.INTERACTIVE_USER_OWNERSHIP_TERMINAL_ECHO_ENABLED;
@@ -404,7 +403,6 @@ describe("R1 gate — isInteractiveUserOwnershipTerminalEchoEnabledForUser (Muse
     // Non-Muse models unchanged.
     assert.equal(E(1, DEEPSEEK), false);
     assert.equal(E(1, GEMINI), false);
-    assert.equal(E(1, HY3), false);
     // Non-admin user unchanged.
     assert.equal(E(2, MUSE), false);
     assert.equal(E(null, MUSE), false);

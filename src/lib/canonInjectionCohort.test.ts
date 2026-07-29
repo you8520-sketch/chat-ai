@@ -17,7 +17,6 @@ import {
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_25_PRO_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
-  OPENROUTER_TENCENT_HY3_MODEL,
 } from "@/lib/chatModels";
 
 const ENV_KEYS = [
@@ -185,14 +184,13 @@ describe("resolveCanonInjectionPolicy — cohort gating contract", () => {
     assert.equal(resolveDeepSeekCohortKey({ userId: TEST_USER_A, chatId: 999 }).keyKind, "user");
   });
 
-  it("J/K/L: Muse/Gemini/HY3 unchanged FULL_LEGACY", () => {
+  it("J/K/L: Muse/Gemini unchanged FULL_LEGACY", () => {
     process.env.CANON_INJECTION_ROLLOUT_STAGE = "D2";
     process.env.CANON_INJECTION_DEEPSEEK_CANARY = "1";
     process.env.CANON_INJECTION_DEEPSEEK_CANARY_PERCENT = "100";
     for (const modelId of [
       OPENROUTER_MUSE_SPARK_11_MODEL,
       OPENROUTER_GEMINI_25_PRO_MODEL,
-      OPENROUTER_TENCENT_HY3_MODEL,
     ]) {
       const policy = resolveCanonInjectionPolicy(modelId, { userId: TEST_USER_A });
       assert.equal(policy.actualCanonMode, "FULL_LEGACY");

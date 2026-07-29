@@ -235,7 +235,7 @@ describe("Scene Momentum — extractor determinism (A-H)", () => {
 });
 
 describe("Scene Momentum — wiring gating (I, J)", () => {
-  it("I. Muse/Gemini/HY3 (non-DeepSeek) actual payload unchanged (no momentum)", () => {
+  it("I. Muse/Gemini (non-DeepSeek) actual payload unchanged (no momentum)", () => {
     const plan = compilePlan();
     const built = buildContext({
       charName: "이준서",

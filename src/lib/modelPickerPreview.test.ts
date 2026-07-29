@@ -4,7 +4,6 @@ import {
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
-  OPENROUTER_TENCENT_HY3_MODEL,
 } from "@/lib/chatModels";
 import { DEFAULT_TARGET_RESPONSE_CHARS } from "@/lib/responseLengthConstants";
 import { computeOpenRouterTurnCost } from "@/lib/points";
@@ -30,7 +29,6 @@ const ACTIVE = [
   OPENROUTER_MUSE_SPARK_11_MODEL,
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
-  OPENROUTER_TENCENT_HY3_MODEL,
 ] as const;
 
 function assistantUsage(
@@ -52,9 +50,9 @@ function assistantUsage(
 }
 
 describe("modelPickerPreview V2", () => {
-  it("covers all four active models", () => {
+  it("covers all active models", () => {
     const preview = buildModelPickerPreview({ messages: [], modelIds: [...ACTIVE] });
-    assert.equal(preview.models.length, 4);
+    assert.equal(preview.models.length, 3);
     for (const id of ACTIVE) {
       const row = preview.models.find((m) => m.modelId === id);
       assert.ok(row, id);
@@ -168,27 +166,27 @@ describe("modelPickerPreview V2", () => {
 
   it("uses each model's assembled input snapshot with billing parity when no receipt", () => {
     const deepSeekInput = 22_000;
-    const hy3Input = 15_000;
+    const museInput = 15_000;
     const preview = buildModelPickerPreview({
       messages: [],
       modelIds: [
         OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
-        OPENROUTER_TENCENT_HY3_MODEL,
+        OPENROUTER_MUSE_SPARK_11_MODEL,
       ],
       assembledSnapshotTokensByModel: {
         [OPENROUTER_DEEPSEEK_V4_PRO_MODEL]: deepSeekInput,
-        [OPENROUTER_TENCENT_HY3_MODEL]: hy3Input,
+        [OPENROUTER_MUSE_SPARK_11_MODEL]: museInput,
       },
     });
     const deepSeek = preview.models.find(
       (row) => row.modelId === OPENROUTER_DEEPSEEK_V4_PRO_MODEL
     )!;
-    const hy3 = preview.models.find(
-      (row) => row.modelId === OPENROUTER_TENCENT_HY3_MODEL
+    const muse = preview.models.find(
+      (row) => row.modelId === OPENROUTER_MUSE_SPARK_11_MODEL
     )!;
 
     assert.equal(deepSeek.estimatedInputTokens, deepSeekInput);
-    assert.equal(hy3.estimatedInputTokens, hy3Input);
+    assert.equal(muse.estimatedInputTokens, museInput);
     assert.equal(
       deepSeek.estimatedPoints,
       computeOpenRouterTurnCost(
@@ -198,11 +196,11 @@ describe("modelPickerPreview V2", () => {
       )
     );
     assert.equal(
-      hy3.estimatedPoints,
+      muse.estimatedPoints,
       computeOpenRouterTurnCost(
-        hy3Input,
-        hy3.estimatedOutputTokens,
-        hy3.modelId
+        museInput,
+        muse.estimatedOutputTokens,
+        muse.modelId
       )
     );
   });
@@ -213,11 +211,11 @@ describe("modelPickerPreview V2", () => {
       messages: [],
       modelIds: [
         OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
-        OPENROUTER_TENCENT_HY3_MODEL,
+        OPENROUTER_MUSE_SPARK_11_MODEL,
       ],
       assembledSnapshotTokensByModel: {
         [OPENROUTER_DEEPSEEK_V4_PRO_MODEL]: 20_000,
-        [OPENROUTER_TENCENT_HY3_MODEL]: 10_000,
+        [OPENROUTER_MUSE_SPARK_11_MODEL]: 10_000,
       },
       draftInput,
     });

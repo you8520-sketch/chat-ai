@@ -14,13 +14,11 @@ import {
   isMuseModel,
   isOpenRouterSimplePointModel,
   isQwenModel,
-  isTencentHy3Model,
   OPENROUTER_DEEPSEEK_V3_MODEL,
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
   OPENROUTER_SIMPLE_POINT_MODELS,
-  OPENROUTER_TENCENT_HY3_MODEL,
   type SelectedAI,
   resolveSelectedAI,
 } from "./chatModels";
@@ -127,7 +125,7 @@ export const OPENROUTER_INPUT_SURCHARGE_PER_1000_TOKENS = (() => {
   return 1;
 })();
 
-/** Legacy DeepSeek V3 paths only; V4 Pro/Hy3 bill every input token directly. */
+/** Legacy DeepSeek V3 paths only; V4 Pro bills every input token directly. */
 export const OPENROUTER_DEEPSEEK_INPUT_SURCHARGE_PER_1000_TOKENS = (() => {
   const per1000 = process.env.OPENROUTER_DEEPSEEK_INPUT_SURCHARGE_PER_1000_TOKENS?.trim();
   if (per1000) return Number(per1000) || 0.5;
@@ -294,8 +292,7 @@ export const OPENROUTER_DEEPSEEK_COST_MARKUP = OPENROUTER_DEEPSEEK_GROSS_MARGIN;
  * Provider cache savings are deliberately not reflected in the user charge.
  */
 export const OPENROUTER_DEEPSEEK_V4_PRO_GROSS_MARGIN = 0.65;
-export const OPENROUTER_TENCENT_HY3_GROSS_MARGIN = 0.7;
-/** @deprecated Use model-specific margins (DeepSeek 65% / Hy3 70%). */
+/** @deprecated Use the model-specific margins. */
 export const OPENROUTER_TOKEN_PROPORTIONAL_GROSS_MARGIN =
   OPENROUTER_DEEPSEEK_V4_PRO_GROSS_MARGIN;
 
@@ -353,7 +350,7 @@ export const OPENROUTER_GEMINI_36_GROSS_MARGIN =
   Number(process.env.OPENROUTER_GEMINI_36_GROSS_MARGIN) || 0.45;
 
 /**
- * Dual-rate simple point pricing for the four active OpenRouter chat models.
+ * Dual-rate simple point pricing for active OpenRouter chat models.
  *
  * charge =
  *   inputTokens × inputP/tok
@@ -361,17 +358,15 @@ export const OPENROUTER_GEMINI_36_GROSS_MARGIN =
  *   + (outputTokens + reasoningTokens) × outputP/tok
  *
  * Rates target list-price margins at ~₩1,530/USD (no cache credit):
- *   Muse 60% · DeepSeek V4 Pro 65% · Hy3 70% · Gemini 3.6 Flash 45%
+ *   Muse 60% · DeepSeek V4 Pro 65% · Gemini 3.6 Flash 45%
  */
 export const OPENROUTER_SIMPLE_POINT_INPUT_PRICES: Record<string, number> = {
-  [OPENROUTER_TENCENT_HY3_MODEL]: 0.00071,
   [OPENROUTER_DEEPSEEK_V4_PRO_MODEL]: 0.0019,
   [OPENROUTER_MUSE_SPARK_11_MODEL]: 0.0042,
   [OPENROUTER_GEMINI_36_FLASH_MODEL]: 0.0042,
 };
 
 export const OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES: Record<string, number> = {
-  [OPENROUTER_TENCENT_HY3_MODEL]: 0.003,
   [OPENROUTER_DEEPSEEK_V4_PRO_MODEL]: 0.0038,
   [OPENROUTER_MUSE_SPARK_11_MODEL]: 0.0062,
   [OPENROUTER_GEMINI_36_FLASH_MODEL]: 0.0209,
@@ -718,7 +713,7 @@ function openRouterGemini31TokenFloorKrw(outputTokens: number): number {
 
 /**
  * 입력 10k 초과 할증.
- * - DeepSeek V4 Pro / Tencent Hy3: 0P. Every input token is already charged
+ * - DeepSeek V4 Pro: 0P. Every input token is already charged
  *   by the proportional list-cost formula, so a surcharge would double-charge.
  * - Muse / Gemini 3.6 Flash: 0P. Every visible input token is already billed by
  *   the same cache-neutral list-cost formula, so a surcharge would duplicate it.
@@ -733,7 +728,6 @@ export function openRouterInputTokenSurchargeKrw(
   const excess = inputTokens - OPENROUTER_INPUT_SURCHARGE_THRESHOLD_TOKENS;
   if (
     isDeepSeekV4ProModel(modelId ?? "") ||
-    isTencentHy3Model(modelId ?? "") ||
     isMuseModel(modelId ?? "") ||
     isGemini36FlashModel(modelId ?? "")
   ) {
@@ -883,14 +877,6 @@ export function computeOpenRouterTurnCost(
     ).total;
   }
 
-  if (isTencentHy3Model(modelId ?? "")) {
-    return explainOpenRouterTencentHy3TurnCost(
-      inputTokens,
-      outputTokens,
-      modelId ?? ""
-    ).total;
-  }
-
   if (isQwenModel(modelId ?? "")) {
     return openRouterTokenOnlyTurnCost(
       openRouterQwenTokenFloorKrw(outputTokens),
@@ -958,7 +944,7 @@ export type OpenRouterTurnCostBreakdown = {
   /** Opus — cache-hit-normalized API 원가 (로그·비교용) */
   normalizedRawCostKrw?: number;
   charFloorKrw: number;
-  /** 입력 10k 초과 할증 (V4 Pro/Hy3 are 0 because all input is already billed) */
+  /** 입력 10k 초과 할증 (V4 Pro is 0 because all input is already billed) */
   inputSurchargeKrw?: number;
   costPlusMarginKrw: number;
   applied: "char_floor" | "cost_plus_margin" | "min_turn" | "cost_blend" | "cold_start_shield";
@@ -1353,25 +1339,6 @@ function explainOpenRouterCacheNeutralMarginTurnCost(
  * Dual-rate simple point: inputP/tok + optional 0.5P/1k (≥10k) + outputP/tok × (output+thinking).
  */
 export function explainOpenRouterDeepSeekTurnCost(
-  inputTokens: number,
-  outputTokens: number,
-  modelId: string,
-  _cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">,
-  reasoningTokens?: number
-): OpenRouterTurnCostBreakdown & { total: number } {
-  return explainOpenRouterSimplePointTurnCost(
-    inputTokens,
-    outputTokens,
-    reasoningTokens ?? 0,
-    modelId
-  );
-}
-
-/**
- * Tencent Hy3 billing detail.
- * Dual-rate simple point: inputP/tok + optional 0.5P/1k (≥10k) + outputP/tok × (output+thinking).
- */
-export function explainOpenRouterTencentHy3TurnCost(
   inputTokens: number,
   outputTokens: number,
   modelId: string,
@@ -1956,7 +1923,7 @@ export function computeTurnBilling(opts: {
   upstreamCostUsd?: number;
   apiPromptTokens?: number;
   apiCompletionTokens?: number;
-  /** Saved visible characters are used by character-priced models only; V4 Pro/Hy3 use input/output tokens. */
+  /** Saved visible characters are used by character-priced models only; V4 Pro uses input/output tokens. */
   savedTextChars?: number;
   /** pricing-debug — 완료 턴 수 (messageCount = completedTurnsBeforeRequest + 1) */
   completedTurnsBeforeRequest?: number;

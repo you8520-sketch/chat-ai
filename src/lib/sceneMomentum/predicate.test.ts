@@ -174,7 +174,6 @@ describe("Scene Momentum P2 — wiring invariants (model policy, kill switch, ca
   let buildContext: any;
   let DEEPSEEK: string;
   let MUSE: string;
-  let HY3: string;
   let GEMINI: string;
   let QWEN: string;
   let compilePlan: () => any;
@@ -210,7 +209,6 @@ describe("Scene Momentum P2 — wiring invariants (model policy, kill switch, ca
     const cm = await import("@/lib/chatModels");
     DEEPSEEK = cm.OPENROUTER_DEEPSEEK_V4_PRO_MODEL;
     MUSE = cm.OPENROUTER_MUSE_SPARK_11_MODEL;
-    HY3 = cm.OPENROUTER_TENCENT_HY3_MODEL;
     GEMINI = cm.OPENROUTER_GEMINI_25_PRO_MODEL;
     QWEN = cm.OPENROUTER_QWEN_37_MAX_MODEL;
     const cfs = await import("@/lib/canonPlan/compileForSave");
@@ -221,11 +219,10 @@ describe("Scene Momentum P2 — wiring invariants (model policy, kill switch, ca
     };
   });
 
-  it("Muse/Gemini/HY3/Qwen (non-DeepSeek) -> payload unchanged + MODEL_POLICY_OFF", () => {
+  it("Muse/Gemini/Qwen (non-DeepSeek) -> payload unchanged + MODEL_POLICY_OFF", () => {
     const plan = compilePlan();
     const nonDeepSeek = [
       { id: "Muse", modelId: MUSE, provider: "openrouter" },
-      { id: "HY3", modelId: HY3, provider: "openrouter" },
       { id: "Qwen", modelId: QWEN, provider: "openrouter" },
       { id: "Gemini", modelId: GEMINI, provider: "gemini" },
     ];

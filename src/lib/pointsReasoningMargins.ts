@@ -3,11 +3,9 @@ import {
   isDeepSeekV4ProModel,
   isGemini36FlashModel,
   isMuseModel,
-  isTencentHy3Model,
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
-  OPENROUTER_TENCENT_HY3_MODEL,
   resolveSelectedAI,
 } from "./chatModels";
 import { getEffectiveKrwPerUsd } from "./exchangeRate";
@@ -16,14 +14,11 @@ import * as core from "./pointsMuse60";
 /** Standard, non-cache OpenRouter prices per 1M tokens. */
 export const OPENROUTER_DEEPSEEK_V4_PRO_INPUT_USD_PER_MILLION = 0.435;
 export const OPENROUTER_DEEPSEEK_V4_PRO_OUTPUT_USD_PER_MILLION = 0.87;
-export const OPENROUTER_TENCENT_HY3_INPUT_USD_PER_MILLION = 0.14;
-export const OPENROUTER_TENCENT_HY3_OUTPUT_USD_PER_MILLION = 0.58;
 export const OPENROUTER_GEMINI_36_INPUT_USD_PER_MILLION = 1.5;
 export const OPENROUTER_GEMINI_36_OUTPUT_USD_PER_MILLION = 7.5;
 
 /** Requested gross margins. Muse remains 60% in the underlying owner. */
 export const OPENROUTER_DEEPSEEK_V4_PRO_GROSS_MARGIN = 0.65;
-export const OPENROUTER_TENCENT_HY3_GROSS_MARGIN = 0.7;
 export const OPENROUTER_GEMINI_36_GROSS_MARGIN = 0.5;
 
 type ReasoningTokenPricing = {
@@ -53,13 +48,6 @@ const DEEPSEEK_PRICING: ReasoningTokenPricing = {
   grossMargin: OPENROUTER_DEEPSEEK_V4_PRO_GROSS_MARGIN,
 };
 
-const HY3_PRICING: ReasoningTokenPricing = {
-  modelId: OPENROUTER_TENCENT_HY3_MODEL,
-  inputUsdPerMillion: OPENROUTER_TENCENT_HY3_INPUT_USD_PER_MILLION,
-  outputUsdPerMillion: OPENROUTER_TENCENT_HY3_OUTPUT_USD_PER_MILLION,
-  grossMargin: OPENROUTER_TENCENT_HY3_GROSS_MARGIN,
-};
-
 const GEMINI_36_PRICING: ReasoningTokenPricing = {
   modelId: OPENROUTER_GEMINI_36_FLASH_MODEL,
   inputUsdPerMillion: OPENROUTER_GEMINI_36_INPUT_USD_PER_MILLION,
@@ -70,7 +58,6 @@ const GEMINI_36_PRICING: ReasoningTokenPricing = {
 function resolveReasoningTokenPricing(modelId: string): ReasoningTokenPricing | null {
   if (isMuseModel(modelId)) return MUSE_PRICING;
   if (isDeepSeekV4ProModel(modelId)) return DEEPSEEK_PRICING;
-  if (isTencentHy3Model(modelId)) return HY3_PRICING;
   if (isGemini36FlashModel(modelId)) return GEMINI_36_PRICING;
   return null;
 }
@@ -108,9 +95,6 @@ export function resolveOpenRouterReasoningPointRates(
 const initialDeepSeekRates = resolveOpenRouterReasoningPointRates(
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL
 )!;
-const initialHy3Rates = resolveOpenRouterReasoningPointRates(
-  OPENROUTER_TENCENT_HY3_MODEL
-)!;
 const initialGemini36Rates = resolveOpenRouterReasoningPointRates(
   OPENROUTER_GEMINI_36_FLASH_MODEL
 )!;
@@ -119,10 +103,6 @@ export const OPENROUTER_DEEPSEEK_V4_PRO_INPUT_POINTS_PER_TOKEN =
   initialDeepSeekRates.inputPointsPerToken;
 export const OPENROUTER_DEEPSEEK_V4_PRO_OUTPUT_POINTS_PER_TOKEN =
   initialDeepSeekRates.outputPointsPerToken;
-export const OPENROUTER_TENCENT_HY3_INPUT_POINTS_PER_TOKEN =
-  initialHy3Rates.inputPointsPerToken;
-export const OPENROUTER_TENCENT_HY3_OUTPUT_POINTS_PER_TOKEN =
-  initialHy3Rates.outputPointsPerToken;
 export const OPENROUTER_GEMINI_36_INPUT_POINTS_PER_TOKEN =
   initialGemini36Rates.inputPointsPerToken;
 export const OPENROUTER_GEMINI_36_OUTPUT_POINTS_PER_TOKEN =
@@ -132,7 +112,6 @@ export const OPENROUTER_SIMPLE_POINT_INPUT_PRICES: Record<string, number> = {
   ...core.OPENROUTER_SIMPLE_POINT_INPUT_PRICES,
   [OPENROUTER_DEEPSEEK_V4_PRO_MODEL]:
     OPENROUTER_DEEPSEEK_V4_PRO_INPUT_POINTS_PER_TOKEN,
-  [OPENROUTER_TENCENT_HY3_MODEL]: OPENROUTER_TENCENT_HY3_INPUT_POINTS_PER_TOKEN,
   [OPENROUTER_GEMINI_36_FLASH_MODEL]:
     OPENROUTER_GEMINI_36_INPUT_POINTS_PER_TOKEN,
 };
@@ -141,7 +120,6 @@ export const OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES: Record<string, number> = {
   ...core.OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES,
   [OPENROUTER_DEEPSEEK_V4_PRO_MODEL]:
     OPENROUTER_DEEPSEEK_V4_PRO_OUTPUT_POINTS_PER_TOKEN,
-  [OPENROUTER_TENCENT_HY3_MODEL]: OPENROUTER_TENCENT_HY3_OUTPUT_POINTS_PER_TOKEN,
   [OPENROUTER_GEMINI_36_FLASH_MODEL]:
     OPENROUTER_GEMINI_36_OUTPUT_POINTS_PER_TOKEN,
 };
@@ -238,18 +216,6 @@ export function explainOpenRouterMuseTurnCost(
 export function explainOpenRouterDeepSeekTurnCost(
   ...args: Parameters<typeof core.explainOpenRouterDeepSeekTurnCost>
 ): ReturnType<typeof core.explainOpenRouterDeepSeekTurnCost> {
-  const [inputTokens, outputTokens, modelId, , reasoningTokens] = args;
-  return reasoningCostBreakdown(
-    modelId,
-    inputTokens,
-    outputTokens,
-    reasoningTokens ?? 0
-  );
-}
-
-export function explainOpenRouterTencentHy3TurnCost(
-  ...args: Parameters<typeof core.explainOpenRouterTencentHy3TurnCost>
-): ReturnType<typeof core.explainOpenRouterTencentHy3TurnCost> {
   const [inputTokens, outputTokens, modelId, , reasoningTokens] = args;
   return reasoningCostBreakdown(
     modelId,
