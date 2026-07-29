@@ -58,7 +58,7 @@ import {
   restoreAssistantFromAlternatesOnFailedRegen,
   type StreamingPersistenceDiag,
 } from "@/lib/streamingPersistence";
-import { isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isKimiModel, isMuseModel, isOpenAiTerraModel, isQwenModel, selectedAIProvider } from "@/lib/chatModels";
+import { isCheaperInferenceModel, isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isKimiModel, isMuseModel, isOpenAiTerraModel, isQwenModel, selectedAIProvider } from "@/lib/chatModels";
 import { openRouterNormalizedRawCostKrw, openRouterRawCostKrw } from "@/lib/billingRawCost";
 import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
 import { maybeCreditCreatorReward, paidCreatorRewardSpend } from "@/lib/creatorPoints";
@@ -886,7 +886,8 @@ export async function POST(req: Request) {
     userId: user.id,
     chatId: chat.id,
   });
-  const contextProvider = primaryProvider;
+  const contextProvider =
+    primaryProvider === "cheaperinference" ? "openrouter" : primaryProvider;
   const contextModelId = openRouterApiModelId;
   const historyTokenBudget = resolveHistoryTokenBudget(contextModelId, contextProvider);
 
@@ -1658,11 +1659,14 @@ export async function POST(req: Request) {
           isAdultMode,
           chatMode: chatRef.mode,
           userAdultVerified: !!user.is_adult,
-          strategy: "openrouter-direct",
+          strategy: `${primaryProvider}-direct`,
           openRouterModel: openRouterApiModelId,
           billingOpenRouterModel: billingOpenRouterModelId,
           selectedAI: selectedAIRef,
           hasOpenRouterKey: Boolean(process.env.OPENROUTER_API_KEY?.trim()),
+          hasCheaperInferenceKey: Boolean(
+            process.env.CHEAPER_INFERENCE_API_KEY?.trim()
+          ),
         });
 
         send({
@@ -1708,7 +1712,7 @@ export async function POST(req: Request) {
             streamVisibleTextRef = "";
           } else {
           const primaryHistory =
-            primaryProvider === "openrouter" ? convertToOpenRouterFormat(historyRef) : historyRef;
+            primaryProvider === "openai" ? historyRef : convertToOpenRouterFormat(historyRef);
           const terraStream =
             primaryProvider === "openai" && isOpenAiTerraModel(openRouterApiModelId)
               ? streamOpenAiTerraResponses(
@@ -1739,8 +1743,11 @@ export async function POST(req: Request) {
               generationOverrides: regenerateMessageId
                 ? resolveRegenerateGenerationOverrides(openRouterApiModelId, targetResponseCharsRef)
                 : undefined,
-              ...(primaryProvider === "openai"
+              ...(primaryProvider === "openai" || primaryProvider === "cheaperinference"
                 ? { allowOpenRouterUnderLengthRecovery: false }
+                : {}),
+              ...(isCheaperInferenceModel(openRouterApiModelId)
+                ? { transportProvider: "cheaperinference" as const }
                 : {}),
               ...(smokeMaxTokensOverride != null
                 ? { maxTokensOverride: smokeMaxTokensOverride }

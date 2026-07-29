@@ -104,7 +104,7 @@ function ReceiptBody({
       </p>
       {usage.htmlFlashOnly && (
         <p className="text-[10px] leading-relaxed text-zinc-500">
-          HTML 전용 턴 — DeepSeek V3 단독 호출 (영수증 모델: HTML전용모델). API 원가에 55% 마진 적용. 입력 컨텍스트 최대
+          HTML 전용 턴 — DeepSeek V4 Flash 단독 호출 (영수증 모델: HTML전용모델). API 원가에 55% 마진 적용. 입력 컨텍스트 최대
           24,000토큰(장기기억·히스토리·페르소나·설정·로어북 등), 출력 최대 8,000토큰. 실제 출력량으로 과금 (메인 RP
           모델 미호출).
         </p>

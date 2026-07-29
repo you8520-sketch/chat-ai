@@ -8,8 +8,10 @@ import {
 import { estimateTokens } from "@/lib/tokenEstimate";
 import { callOpenRouterCompletion } from "@/lib/openRouterCompletion";
 import {
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   OPENROUTER_DEEPSEEK_V3_MODEL,
   OPENROUTER_GEMINI_20_FLASH_MODEL,
+  isCheaperInferenceModel,
 } from "@/lib/chatModels";
 import {
   GeminiTrafficOverloadError,
@@ -50,7 +52,7 @@ export type TokenUsage = {
   debugRawUsage?: unknown;
 };
 
-/** 백그라운드 기억·요약·상태창·번역 등 — OpenRouter DeepSeek V3 */
+/** 백그라운드 기억·요약·상태창·번역 등 — Cheaper Inference DeepSeek V4 Flash */
 export const BACKGROUND_MAX_INPUT_TOKENS = 12_000;
 /** 6턴 RP raw + 기억 요약 system 전체 (12k는 ~13k 대화에서 system 지시 잘림) — env로 상향 가능 */
 export const BACKGROUND_MEMORY_EXTRACT_MAX_INPUT_TOKENS_DEFAULT = 48_000;
@@ -62,8 +64,21 @@ export function resolveBackgroundMemoryExtractMaxInputTokens(): number {
   if (Number.isFinite(n) && n >= 16_000) return Math.floor(n);
   return BACKGROUND_MEMORY_EXTRACT_MAX_INPUT_TOKENS_DEFAULT;
 }
+
+/** Legacy Railway values are migrated in-process so deploys cannot stay on V3. */
+export function resolveBackgroundTextModelId(modelId?: string | null): string {
+  const trimmed = modelId?.trim();
+  if (
+    !trimmed ||
+    trimmed.toLowerCase() === OPENROUTER_DEEPSEEK_V3_MODEL.toLowerCase()
+  ) {
+    return CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
+  }
+  return trimmed;
+}
+
 export const BACKGROUND_OPENROUTER_MODEL =
-  process.env.BACKGROUND_MEMORY_MODEL?.trim() || OPENROUTER_DEEPSEEK_V3_MODEL;
+  resolveBackgroundTextModelId(process.env.BACKGROUND_MEMORY_MODEL);
 
 /**
  * Optional cross-model fallback after primary background calls fail.
@@ -76,8 +91,9 @@ export function resolveBackgroundMemoryFallbackModel(
 ): string | null {
   const raw = env.BACKGROUND_MEMORY_FALLBACK_MODEL;
   if (raw == null) return null;
-  const trimmed = String(raw).trim();
-  if (!trimmed) return null;
+  const rawTrimmed = String(raw).trim();
+  if (!rawTrimmed) return null;
+  const trimmed = resolveBackgroundTextModelId(rawTrimmed);
   if (trimmed.toLowerCase() === primaryModelId.trim().toLowerCase()) return null;
   return trimmed;
 }
@@ -182,10 +198,12 @@ function resolveBackgroundMaxInputTokens(requestKind: string): number {
 
 function resolveBackgroundMaxOutputTokens(requestKind: string): number {
   if (/background-lorebook-compact/i.test(requestKind)) return 3500;
-  if (/background-status-meta-extract/i.test(requestKind)) return 1024;
-  if (/background-status-widget-extract/i.test(requestKind)) return 512;
+  // V4 Flash reports internal reasoning inside completion_tokens, so leave
+  // enough room for the requested structured result after thinking.
+  if (/background-status-meta-extract/i.test(requestKind)) return 1536;
+  if (/background-status-widget-extract/i.test(requestKind)) return 1024;
   if (/background-html-visual-card/i.test(requestKind)) return HTML_FLASH_MAX_OUTPUT_TOKENS;
-  return 2048;
+  return 3072;
 }
 
 export type StageUsage = {
@@ -242,8 +260,16 @@ async function callGeminiOnce(
   modelId: string,
   opts?: { requestKind?: string; maxTokens?: number; temperature?: number }
 ): Promise<{ text: string; usage: TokenUsage }> {
-  if (!process.env.OPENROUTER_API_KEY?.trim()) {
-    throw new Error("NO_OPENROUTER_KEY");
+  if (
+    isCheaperInferenceModel(modelId)
+      ? !process.env.CHEAPER_INFERENCE_API_KEY?.trim()
+      : !process.env.OPENROUTER_API_KEY?.trim()
+  ) {
+    throw new Error(
+      isCheaperInferenceModel(modelId)
+        ? "NO_CHEAPER_INFERENCE_KEY"
+        : "NO_OPENROUTER_KEY"
+    );
   }
   const requestKind = opts?.requestKind ?? "generateContent";
   let effectiveSystem = system;
@@ -265,8 +291,11 @@ async function callGeminiOnce(
     effectiveHistory = trimmed.history;
   }
   if (process.env.NODE_ENV !== "production" && /background-memory|background-lorebook-compact|background-status-meta-extract|background-status-widget-extract/i.test(requestKind)) {
-    console.log("[background-memory] OpenRouter request", {
+    console.log("[background-memory] compatible API request", {
       model: modelId,
+      provider: isCheaperInferenceModel(modelId)
+        ? "cheaperinference"
+        : "openrouter",
       requestKind,
       messages: effectiveHistory.length + 1,
       inputTokensEst:
@@ -300,7 +329,7 @@ export function* chunkText(text: string, size = 24): Generator<string> {
   }
 }
 
-/** 백그라운드 기억·요약·압축 — primary BACKGROUND_MEMORY_MODEL (default DeepSeek V3) */
+/** 백그라운드 기억·요약·압축 — primary BACKGROUND_MEMORY_MODEL (default DeepSeek V4 Flash) */
 export async function callBackgroundMemory(
   system: string,
   history: ChatMsg[],
@@ -308,7 +337,9 @@ export async function callBackgroundMemory(
   requestKind = "background-memory-extract",
   opts?: { maxTokens?: number; temperature?: number; modelId?: string }
 ): Promise<{ text: string; usage: TokenUsage }> {
-  const modelId = opts?.modelId?.trim() || BACKGROUND_OPENROUTER_MODEL;
+  const modelId = resolveBackgroundTextModelId(
+    opts?.modelId?.trim() || BACKGROUND_OPENROUTER_MODEL
+  );
   return callGeminiOnce(system, history, modelId, {
     requestKind,
     maxTokens: opts?.maxTokens ?? resolveBackgroundMaxOutputTokens(requestKind),

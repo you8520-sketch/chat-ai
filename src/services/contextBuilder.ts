@@ -214,8 +214,10 @@ function needsUserInputParsingGuide(input: ContextBuildInput): boolean {
  */
 export function buildContext(input: ContextBuildInput): BuiltContext {
   const budget = resolveSystemBudget(input.modelId, input.tokenBudget);
-  const isOpenRouter = input.provider === "openrouter";
-  const contextTrack = resolveContextTrack(input.modelId, input.provider);
+  const compatibleProvider =
+    input.provider === "cheaperinference" ? "openrouter" : input.provider;
+  const isOpenRouter = compatibleProvider === "openrouter";
+  const contextTrack = resolveContextTrack(input.modelId, compatibleProvider);
   let truncatedMemory = false;
   const chunks = promoteAppearanceChunkImportance(input.chunks);
   const hasMindReading = settingHasMindReadingFromChunks(chunks);
@@ -1129,7 +1131,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     }
   }
 
-  const historyBudget = resolveHistoryTokenBudget(input.modelId, input.provider);
+  const historyBudget = resolveHistoryTokenBudget(input.modelId, compatibleProvider);
   const maxPayload = resolveMaxPayloadInputTokens(input.modelId);
   const formattedUser = input.isContinue
     ? input.currentUserMessage.trim()
@@ -1386,7 +1388,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     writePromptBuildDump({
       sections: trackedSections,
       history: historyWithCurrent,
-      provider: input.provider ?? "gemini",
+      provider: compatibleProvider ?? "gemini",
       modelId: input.modelId ?? "unknown",
       charName: input.charName,
       source: promptDump.source,

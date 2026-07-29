@@ -4,7 +4,7 @@ export type Usage = {
   input: number;
   output: number;
   model: string;
-  provider?: "gemini" | "openrouter" | "openai";
+  provider?: "gemini" | "openrouter" | "openai" | "cheaperinference";
   route: "safe" | "nsfw";
   cost: number;
   estimated?: boolean;
@@ -60,7 +60,7 @@ export type Usage = {
   coldStartShieldApplied?: boolean;
   uncappedChargePoints?: number;
   coldStartCostFloorPoints?: number;
-  /** HTML 전용 턴 — DeepSeek V3, 메인 RP 모델 미사용 */
+  /** HTML 전용 턴 — DeepSeek V4 Flash, 메인 RP 모델 미사용 */
   htmlFlashOnly?: boolean;
   /** 메인 RP OpenRouter 원가 (KRW) — 상태창 추출 분리 표시용 */
   mainApiRawCostKrw?: number;
@@ -75,6 +75,8 @@ export type Usage = {
     apiRawCostKrw: number;
     /** background extract API calls this turn (1–4); absent on legacy stored receipts */
     callCount?: number;
+    cacheReadTokens?: number;
+    cacheWriteTokens?: number;
     upstreamCostUsd?: number;
     estimated?: boolean;
   };

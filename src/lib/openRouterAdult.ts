@@ -42,6 +42,13 @@ import {
   normalizeOpenRouterModelId,
   assertOpenRouterEndpoint,
 } from "@/lib/openRouterConfig";
+import {
+  CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
+  adaptCheaperInferenceChatBody,
+  assertCheaperInferenceEndpoint,
+  buildCheaperInferenceHeaders,
+  resolveCheaperInferenceApiKey,
+} from "@/lib/cheaperInferenceConfig";
 import { estimateTokens, type ChatMsg, type StageUsage, type TokenUsage } from "@/lib/ai";
 import { billableOutputTokens } from "@/lib/points";
 import { dumpOpenRouterRequest } from "@/services/promptDebugDump";
@@ -522,6 +529,8 @@ export type OpenRouterMessageOpts = {
   generationOverrides?: import("@/lib/openRouterClient").OpenRouterGenerationOverrides;
   /** Direct-provider streams must not perform an OpenRouter continuation. */
   allowOpenRouterUnderLengthRecovery?: boolean;
+  /** OpenAI-compatible HTTP transport used by the primary RP stream. */
+  transportProvider?: "openrouter" | "cheaperinference";
 };
 
 export type PrimaryTextStream = AsyncGenerator<string, TokenUsage>;
@@ -996,6 +1005,52 @@ function openRouterHeaders(key: string): Record<string, string> {
   return buildOpenRouterHeaders(key);
 }
 
+type CompatibleTransport = {
+  provider: "openrouter" | "cheaperinference";
+  label: "OpenRouter" | "CheaperInference";
+  endpoint: string;
+  headers: Record<string, string>;
+};
+
+function resolveCompatibleTransport(messageOpts?: OpenRouterMessageOpts): CompatibleTransport {
+  if (messageOpts?.transportProvider === "cheaperinference") {
+    let key: string;
+    try {
+      key = resolveCheaperInferenceApiKey();
+    } catch {
+      throw new OpenRouterApiError({
+        message:
+          "Cheaper Inference API 키가 설정되지 않았습니다. " +
+          "Railway Variables에 CHEAPER_INFERENCE_API_KEY를 등록해 주세요.",
+      });
+    }
+    assertCheaperInferenceEndpoint(CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL);
+    return {
+      provider: "cheaperinference",
+      label: "CheaperInference",
+      endpoint: CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
+      headers: buildCheaperInferenceHeaders(key),
+    };
+  }
+
+  const key = openRouterKey();
+  assertOpenRouterEndpoint(OPENROUTER_CHAT_COMPLETIONS_URL);
+  return {
+    provider: "openrouter",
+    label: "OpenRouter",
+    endpoint: OPENROUTER_CHAT_COMPLETIONS_URL,
+    headers: openRouterHeaders(key),
+  };
+}
+
+function adaptRequestBodyForTransport(
+  body: Record<string, unknown>,
+  transport: CompatibleTransport
+): Record<string, unknown> {
+  if (transport.provider !== "cheaperinference") return body;
+  return adaptCheaperInferenceChatBody(body);
+}
+
 /** OpenRouter 스트리밍 — Claude 등 (Gemini 경로와 분리) */
 export async function* streamOpenRouterAdult(
   system: string,
@@ -1007,15 +1062,15 @@ export async function* streamOpenRouterAdult(
 ): AsyncGenerator<string, TokenUsage> {
   const billingModelId = normalizeOpenRouterModelId(modelId);
   const apiModelId = billingModelId;
-  console.log("[OpenRouter] streaming request", {
+  const transport = resolveCompatibleTransport(messageOpts);
+  console.log(`[${transport.label}] streaming request`, {
     model: apiModelId,
     billingModel: billingModelId,
-    endpoint: OPENROUTER_CHAT_COMPLETIONS_URL,
+    endpoint: transport.endpoint,
     historyMessages: history.length,
     novelMode: messageOpts?.novelMode === true,
   });
 
-  const key = openRouterKey();
   assertPayloadWithinTokenLimit(system, history, 0, resolveMaxPayloadInputTokens(billingModelId));
   const oocHtmlMode = messageOpts?.oocHtmlMode === true;
   const effectiveSystem = oocHtmlMode
@@ -1029,6 +1084,7 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
   const degenerationCtx = { oocHtmlMode };
 
   const canRetryWithoutPrefill =
+    transport.provider === "openrouter" &&
     isAnthropicModel(apiModelId) &&
     !messageOpts?.recoveryAssistantPrefill?.trim() &&
     !messageOpts?.skipAssistantPrefill;
@@ -1048,23 +1104,29 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
     }
 
     // Claude(Anthropic): system 블록 캐싱 + assistant prefill (그 외 모델은 no-op)
-    const { messages, prefill } = applyAnthropicCacheAndPrefill(
-      baseMessages,
+    const { messages, prefill } =
+      transport.provider === "openrouter"
+        ? applyAnthropicCacheAndPrefill(
+            baseMessages,
+            apiModelId,
+            messageOpts?.charName,
+            {
+              recoveryAssistantPrefill: messageOpts?.recoveryAssistantPrefill,
+              skipAssistantPrefill,
+            }
+          )
+        : { messages: baseMessages, prefill: "" };
+  const requestBody = adaptRequestBodyForTransport(
+    buildOpenRouterRequestBody(
       apiModelId,
-      messageOpts?.charName,
-      {
-        recoveryAssistantPrefill: messageOpts?.recoveryAssistantPrefill,
-        skipAssistantPrefill,
-      }
-    );
-  const requestBody = buildOpenRouterRequestBody(
-    apiModelId,
-    messages,
-    true,
-    targetResponseChars,
-    messageOpts?.sessionId,
-    messageOpts?.maxTokensOverride,
-    messageOpts?.generationOverrides
+      messages,
+      true,
+      targetResponseChars,
+      messageOpts?.sessionId,
+      messageOpts?.maxTokensOverride,
+      messageOpts?.generationOverrides
+    ),
+    transport
   );
   const lengthTarget = resolveResponseLengthTarget(targetResponseChars);
   const configuredMaxTokens = resolveOpenRouterMaxTokens(
@@ -1087,8 +1149,8 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
   console.log("[OPENROUTER REQUEST]", summarizeOpenRouterPayload(requestBody as Record<string, unknown>));
   logOpenRouterSystemPromptBeforeFetch(requestBody as Record<string, unknown>);
 
-  assertOpenRouterEndpoint(OPENROUTER_CHAT_COMPLETIONS_URL);
-  const requestKind = debugMeta?.requestKind ?? "openrouter-stream";
+  const requestKind =
+    debugMeta?.requestKind ?? `${transport.provider}-stream`;
   assertLengthSupplementApiAllowed(requestKind);
   if (debugMeta?.chargeTurnBudget !== false && emptyAttempt === 0) {
     debugMeta?.turnApiBudget?.beforeFetch(requestKind);
@@ -1097,8 +1159,8 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
   if (isMockApiMode()) {
     const { chars, tokens } = estimatePayloadFromBody(requestBody);
     recordMockApiPayload({
-      provider: "openrouter",
-      requestKind: debugMeta?.requestKind ?? "openrouter-stream",
+      provider: transport.provider,
+      requestKind: debugMeta?.requestKind ?? `${transport.provider}-stream`,
       model: apiModelId,
       payloadChars: chars,
       payloadTokens: tokens,
@@ -1115,8 +1177,8 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
     });
   } else {
     res = await fetchOpenRouterChatWithCreditRetry(
-      OPENROUTER_CHAT_COMPLETIONS_URL,
-      openRouterHeaders(key),
+      transport.endpoint,
+      transport.headers,
       requestBody as Record<string, unknown>,
       240_000
     );
@@ -1485,7 +1547,7 @@ export async function streamOpenRouterAdultToClient(
       targetResponseChars,
       { ...messageOpts, turnApiBudget },
       {
-        requestKind: "openrouter-primary-stream",
+        requestKind: `${messageOpts?.transportProvider ?? "openrouter"}-primary-stream`,
         stage: stageLabel,
         turnApiBudget,
       }
@@ -1806,15 +1868,16 @@ export async function callOpenRouterAdult(
 ): Promise<{ text: string; usage: TokenUsage }> {
   const billingModelId = normalizeOpenRouterModelId(modelId);
   const apiModelId = billingModelId;
-  console.log("[OpenRouter] generate request", {
+  const transport = resolveCompatibleTransport(messageOpts);
+  console.log(`[${transport.label}] generate request`, {
     model: apiModelId,
     billingModel: billingModelId,
     stream: false,
   });
 
-  const key = openRouterKey();
   const baseMessages = buildOpenRouterMessages(system, history, messageOpts);
   const canRetryWithoutPrefill =
+    transport.provider === "openrouter" &&
     isAnthropicModel(apiModelId) &&
     !messageOpts?.recoveryAssistantPrefill?.trim() &&
     !messageOpts?.skipAssistantPrefill;
@@ -1829,38 +1892,43 @@ export async function callOpenRouterAdult(
       });
     }
 
-    const { messages, prefill } = applyAnthropicCacheAndPrefill(
-      baseMessages,
-      apiModelId,
-      messageOpts?.charName,
-      {
-        recoveryAssistantPrefill: messageOpts?.recoveryAssistantPrefill,
-        skipAssistantPrefill,
-      }
-    );
-    const requestBody = buildOpenRouterRequestBody(
-      apiModelId,
-      messages,
-      false,
-      targetResponseChars,
-      messageOpts?.sessionId,
-      messageOpts?.maxTokensOverride,
-      messageOpts?.generationOverrides
+    const { messages, prefill } =
+      transport.provider === "openrouter"
+        ? applyAnthropicCacheAndPrefill(
+            baseMessages,
+            apiModelId,
+            messageOpts?.charName,
+            {
+              recoveryAssistantPrefill: messageOpts?.recoveryAssistantPrefill,
+              skipAssistantPrefill,
+            }
+          )
+        : { messages: baseMessages, prefill: "" };
+    const requestBody = adaptRequestBodyForTransport(
+      buildOpenRouterRequestBody(
+        apiModelId,
+        messages,
+        false,
+        targetResponseChars,
+        messageOpts?.sessionId,
+        messageOpts?.maxTokensOverride,
+        messageOpts?.generationOverrides
+      ),
+      transport
     );
     dumpOpenRouterRequest(requestBody as Record<string, unknown>, {
       ...debugMeta,
-      requestKind: debugMeta?.requestKind ?? "openrouter-generate",
+      requestKind: debugMeta?.requestKind ?? `${transport.provider}-generate`,
       stage: debugMeta?.stage ?? apiModelId,
     });
     logOpenRouterSystemPromptBeforeFetch(requestBody as Record<string, unknown>);
 
-    assertOpenRouterEndpoint(OPENROUTER_CHAT_COMPLETIONS_URL);
     let res: Response;
     if (isMockApiMode()) {
     const { chars, tokens } = estimatePayloadFromBody(requestBody);
     recordMockApiPayload({
-      provider: "openrouter",
-      requestKind: debugMeta?.requestKind ?? "openrouter-generate",
+      provider: transport.provider,
+      requestKind: debugMeta?.requestKind ?? `${transport.provider}-generate`,
       model: apiModelId,
       payloadChars: chars,
       payloadTokens: tokens,
@@ -1875,14 +1943,15 @@ export async function callOpenRouterAdult(
       headers: { "Content-Type": "application/json" },
     });
     } else {
-      const requestKind = debugMeta?.requestKind ?? "openrouter-generate";
+      const requestKind =
+        debugMeta?.requestKind ?? `${transport.provider}-generate`;
       assertLengthSupplementApiAllowed(requestKind);
       if (debugMeta?.chargeTurnBudget !== false && attempt === 0) {
         debugMeta?.turnApiBudget?.beforeFetch(requestKind);
       }
       res = await fetchOpenRouterChatWithCreditRetry(
-        OPENROUTER_CHAT_COMPLETIONS_URL,
-        openRouterHeaders(key),
+        transport.endpoint,
+        transport.headers,
         requestBody as Record<string, unknown>,
         120_000
       );

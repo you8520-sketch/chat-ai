@@ -51,6 +51,12 @@ export const OPENROUTER_GEMINI_36_FLASH_MODEL = "google/gemini-3.6-flash";
 /** OpenAI Responses API — GPT-5.6 Terra */
 export const OPENAI_GPT_56_TERRA_MODEL = "gpt-5.6-terra";
 
+/** Cheaper Inference OpenAI-compatible API — Claude Opus 5 */
+export const CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL = "claude-opus-5";
+
+/** Cheaper Inference — background memory/status/HTML/translation */
+export const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL = "deepseek-v4-flash";
+
 /** OpenRouter models that use the simple per-token point formula (no USD margin). */
 export const OPENROUTER_SIMPLE_POINT_MODELS: readonly string[] = [
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
@@ -93,6 +99,8 @@ export const GEMINI_36_FLASH_DISPLAY_NAME = "Gemini 3.6 Flash";
 
 export const GPT_56_TERRA_DISPLAY_NAME = "GPT-5.6 Terra";
 
+export const CLAUDE_OPUS_5_DISPLAY_NAME = "Claude Opus 5";
+
 /** @deprecated 기존 영수증 표시 호환용 */
 export const GEMINI_25_PRO_DISPLAY_NAME = "Gemini 2.5 Pro";
 
@@ -106,7 +114,7 @@ export function isOpusUserSelectable(): boolean {
 export type SelectedAIOptionMeta = {
   id: string;
   label: string;
-  provider: "openrouter" | "openai";
+  provider: "openrouter" | "openai" | "cheaperinference";
   tier: "pro";
   hint: string;
   /** 기본 추천 배지 */
@@ -144,6 +152,13 @@ export const SELECTED_AI_OPTIONS = [
     hint: "Premium",
   },
   {
+    id: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+    label: CLAUDE_OPUS_5_DISPLAY_NAME,
+    provider: "cheaperinference" as const,
+    tier: "pro" as const,
+    hint: "Anthropic",
+  },
+  {
     id: OPENAI_GPT_56_TERRA_MODEL,
     label: GPT_56_TERRA_DISPLAY_NAME,
     provider: "openai" as const,
@@ -154,7 +169,8 @@ export const SELECTED_AI_OPTIONS = [
 
 /** Anthropic(Claude) 계열 모델 여부 — OpenRouter 경로 + prompt caching + prefill 적용 기준 */
 export function isAnthropicModel(modelId: string): boolean {
-  return modelId.toLowerCase().startsWith("anthropic/");
+  const id = modelId.trim().toLowerCase();
+  return id.startsWith("anthropic/") || id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL;
 }
 
 /** Anthropic(Claude) 전용 — prefill·캐시 breakpoint 적용 기준 */
@@ -166,6 +182,14 @@ export function isOpenAiTerraModel(modelId: string): boolean {
   return modelId.trim().toLowerCase() === OPENAI_GPT_56_TERRA_MODEL;
 }
 
+export function isCheaperInferenceModel(modelId: string): boolean {
+  const id = modelId.trim().toLowerCase();
+  return (
+    id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL ||
+    id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+  );
+}
+
 export type SelectedAI = (typeof SELECTED_AI_OPTIONS)[number]["id"];
 export type SelectedAITier = (typeof SELECTED_AI_OPTIONS)[number]["tier"];
 
@@ -174,11 +198,18 @@ export const DEFAULT_SELECTED_AI: SelectedAI = OPENROUTER_MUSE_SPARK_11_MODEL;
 
 /** 채팅 모델 선택 UI에만 노출 (Opus는 기본 숨김) */
 export const USER_SELECTABLE_AI_OPTIONS = SELECTED_AI_OPTIONS.filter(
-  (o) => isOpusUserSelectable() || !isClaudeSelectedAI(o.id)
+  (o) =>
+    o.id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL ||
+    isOpusUserSelectable() ||
+    !isClaudeSelectedAI(o.id)
 );
 
 export function coerceUserSelectableAI(id: SelectedAI): SelectedAI {
-  if (!isOpusUserSelectable() && isClaudeSelectedAI(id)) {
+  if (
+    id !== CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL &&
+    !isOpusUserSelectable() &&
+    isClaudeSelectedAI(id)
+  ) {
     return DEFAULT_SELECTED_AI;
   }
   return id;

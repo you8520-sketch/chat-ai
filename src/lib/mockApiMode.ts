@@ -31,7 +31,7 @@ export const MOCK_OUTPUT_TOKENS = 500;
 
 export type MockPayloadRecord = {
   at: string;
-  provider: "gemini" | "openrouter" | "gemini-cache";
+  provider: "gemini" | "openrouter" | "cheaperinference" | "gemini-cache";
   requestKind?: string;
   model?: string;
   payloadChars: number;
