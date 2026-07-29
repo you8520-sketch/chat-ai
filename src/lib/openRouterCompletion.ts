@@ -11,6 +11,7 @@ import {
 } from "@/lib/cheaperInferenceConfig";
 import { isCheaperInferenceModel } from "@/lib/chatModels";
 import { parseOpenRouterUsage } from "@/lib/openRouterUsage";
+import { recordApiCost } from "@/lib/adminFinance";
 import {
   getMockResponseText,
   isMockApiMode,
@@ -125,13 +126,29 @@ export async function callOpenRouterCompletion(opts: {
   const parsedUsage = parseOpenRouterUsage(data.usage, res.headers);
   const promptTokens = parsedUsage.promptTokens || undefined;
   const completionTokens = parsedUsage.completionTokens || undefined;
+  const resolvedInputTokens =
+    promptTokens ??
+    estimateTokens(opts.system + opts.history.map((m) => m.content).join("\n"));
+  const resolvedOutputTokens = completionTokens ?? estimateTokens(text);
+  try {
+    recordApiCost({
+      provider: useCheaperInference ? "cheaperinference" : "openrouter",
+      model,
+      requestKind: opts.requestKind,
+      inputTokens: resolvedInputTokens,
+      outputTokens: resolvedOutputTokens,
+      cacheReadTokens: parsedUsage.cacheReadTokens || undefined,
+      cacheWriteTokens: parsedUsage.cacheWriteTokens || undefined,
+      estimated: promptTokens == null || completionTokens == null,
+    });
+  } catch (error) {
+    console.warn("[api-cost-ledger] usage record skipped:", (error as Error).message);
+  }
   return {
     text,
     usage: {
-      inputTokens:
-        promptTokens ??
-        estimateTokens(opts.system + opts.history.map((m) => m.content).join("\n")),
-      outputTokens: completionTokens ?? estimateTokens(text),
+      inputTokens: resolvedInputTokens,
+      outputTokens: resolvedOutputTokens,
       estimated: promptTokens == null || completionTokens == null,
       finishReason: data.choices?.[0]?.finish_reason,
       cacheReadTokens: parsedUsage.cacheReadTokens || undefined,

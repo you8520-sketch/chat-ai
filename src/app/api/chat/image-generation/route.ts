@@ -160,11 +160,26 @@ function ensureGenerationTable() {
       result_url TEXT NOT NULL,
       upstream_cost_usd REAL,
       charged_points INTEGER NOT NULL,
+      deduction_slices TEXT,
+      exchange_rate_krw_per_usd REAL,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_chat_image_generations_user_recent
       ON chat_image_generations(user_id, created_at DESC, id DESC);
   `);
+  const columns = new Set(
+    (
+      db.prepare("PRAGMA table_info(chat_image_generations)").all() as {
+        name: string;
+      }[]
+    ).map((column) => column.name)
+  );
+  if (!columns.has("deduction_slices")) {
+    db.exec("ALTER TABLE chat_image_generations ADD COLUMN deduction_slices TEXT");
+  }
+  if (!columns.has("exchange_rate_krw_per_usd")) {
+    db.exec("ALTER TABLE chat_image_generations ADD COLUMN exchange_rate_krw_per_usd REAL");
+  }
 }
 
 function resolveGenerationContext(opts: {
@@ -843,8 +858,9 @@ export async function POST(req: Request) {
         .prepare(
           `INSERT INTO chat_image_generations (
              user_id, chat_id, character_id, persona_id, template_id, model,
-             options_json, result_url, upstream_cost_usd, charged_points
-           ) VALUES (?,?,?,?,?,?,?,?,?,?)`
+             options_json, result_url, upstream_cost_usd, charged_points,
+             deduction_slices, exchange_rate_krw_per_usd
+           ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
         )
         .run(
           user.id,
@@ -856,7 +872,9 @@ export async function POST(req: Request) {
           JSON.stringify(generationOptions),
           resultUrl,
           generated.costUsd,
-          deduction.total
+          deduction.total,
+          JSON.stringify(deduction.slices),
+          getEffectiveKrwPerUsd()
         );
       generationId = Number(insert.lastInsertRowid);
       saveGeneratedImageToCharacterAlbum({
