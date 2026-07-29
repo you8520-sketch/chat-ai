@@ -54,6 +54,9 @@ export const OPENAI_GPT_56_TERRA_MODEL = "gpt-5.6-terra";
 /** Cheaper Inference OpenAI-compatible API — Claude Opus 5 */
 export const CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL = "claude-opus-5";
 
+/** Cheaper Inference OpenAI-compatible API — GPT-5.6 Luna */
+export const CHEAPER_INFERENCE_GPT_56_LUNA_MODEL = "gpt-5.6-luna";
+
 /** Cheaper Inference — background memory/status/HTML/translation */
 export const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL = "deepseek-v4-flash";
 
@@ -100,6 +103,8 @@ export const GEMINI_36_FLASH_DISPLAY_NAME = "Gemini 3.6 Flash";
 export const GPT_56_TERRA_DISPLAY_NAME = "GPT-5.6 Terra";
 
 export const CLAUDE_OPUS_5_DISPLAY_NAME = "Claude Opus 5";
+
+export const GPT_56_LUNA_DISPLAY_NAME = "GPT-5.6 Luna";
 
 /** @deprecated 기존 영수증 표시 호환용 */
 export const GEMINI_25_PRO_DISPLAY_NAME = "Gemini 2.5 Pro";
@@ -159,6 +164,13 @@ export const SELECTED_AI_OPTIONS = [
     hint: "Anthropic",
   },
   {
+    id: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+    label: GPT_56_LUNA_DISPLAY_NAME,
+    provider: "cheaperinference" as const,
+    tier: "pro" as const,
+    hint: "OpenAI",
+  },
+  {
     id: OPENAI_GPT_56_TERRA_MODEL,
     label: GPT_56_TERRA_DISPLAY_NAME,
     provider: "openai" as const,
@@ -182,10 +194,15 @@ export function isOpenAiTerraModel(modelId: string): boolean {
   return modelId.trim().toLowerCase() === OPENAI_GPT_56_TERRA_MODEL;
 }
 
+export function isGpt56LunaModel(modelId: string): boolean {
+  return modelId.trim().toLowerCase() === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
+}
+
 export function isCheaperInferenceModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
   return (
     id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL ||
+    id === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL ||
     id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
   );
 }
@@ -330,6 +347,7 @@ export function isOpenRouterSharedProseModel(modelId: string): boolean {
       isGlmModel(id) ||
       isKimiModel(id) ||
       isMuseModel(id) ||
+      isGpt56LunaModel(id) ||
       isDeepSeekV4ProModel(id) ||
       isGeminiChatOpenRouterModel(id) ||
       id.includes("/"))

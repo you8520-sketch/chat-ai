@@ -4,6 +4,7 @@
  */
 import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   isDeepSeekV4ProModel,
   isGemini36FlashModel,
   isMuseModel,
@@ -54,6 +55,7 @@ export const MODEL_PICKER_ACTIVE_MODEL_IDS = [
   OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENAI_GPT_56_TERRA_MODEL,
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
 ] as const satisfies readonly SelectedAI[];
 
 export type ModelPickerActiveModelId = (typeof MODEL_PICKER_ACTIVE_MODEL_IDS)[number];
@@ -74,6 +76,7 @@ export const MODEL_PICKER_MEASURED_COLD_BASELINES: Partial<Record<ModelPickerAct
     [OPENROUTER_GEMINI_36_FLASH_MODEL]: 1200,
     [OPENAI_GPT_56_TERRA_MODEL]: 1400,
     [CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL]: 1400,
+    [CHEAPER_INFERENCE_GPT_56_LUNA_MODEL]: 1400,
   };
 
 /** Output-token band used when deriving low/high point labels. */
