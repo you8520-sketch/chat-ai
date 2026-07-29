@@ -6,6 +6,7 @@ import {
   buildBillingReceipt,
   formatBillingReceiptText,
   formatPoints,
+  isMeteredReceiptProvider,
   resolveApiRawCostKrw,
   resolveMainRpApiCostPartsKrw,
   resolveOpenRouterCacheReceipt,
@@ -41,7 +42,7 @@ function ReceiptBody({
   showFullReceipt: boolean;
 }) {
   const reasoningExcludedFromBilling =
-    usage.provider === "openrouter" &&
+    isMeteredReceiptProvider(usage.provider) &&
     !isOpenRouterSimplePointModel(usage.model ?? "") &&
     (isGemini25ProModel(usage.model ?? "") ||
       (isGeminiProOpenRouterModel(usage.model ?? "") &&
@@ -112,7 +113,7 @@ function ReceiptBody({
         <span className="text-zinc-500">과금 기준 입력/출력:</span>{" "}
         {receipt.inputTokens.toLocaleString()} / {receipt.outputTokens.toLocaleString()}
         {receipt.estimated ? " (추정)" : ""}
-        {usage.provider === "openrouter" &&
+        {isMeteredReceiptProvider(usage.provider) &&
         usage.apiOutputTokens != null &&
         usage.apiOutputTokens !== receipt.outputTokens ? (
           <span className="text-zinc-600"> (content·조립 입력 — API raw와 다름)</span>
@@ -151,7 +152,7 @@ function ReceiptBody({
           <span className="text-zinc-600"> (화면 표시 · HTML·마크업 코드 제외)</span>
         </p>
       )}
-      {usage.provider === "openrouter" &&
+      {isMeteredReceiptProvider(usage.provider) &&
         usage.apiInputTokens != null &&
         usage.apiOutputTokens != null &&
         (usage.apiInputTokens !== receipt.inputTokens ||

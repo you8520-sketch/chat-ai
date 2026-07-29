@@ -22,6 +22,11 @@ function roundReceiptKrw(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
+/** OpenRouter + OpenAI Terra — token-metered receipt / raw-cost providers */
+export function isMeteredReceiptProvider(provider?: string | null): boolean {
+  return provider === "openrouter" || provider === "openai";
+}
+
 export type MainRpApiCostPartsKrw = {
   /** 입력(캐시 반영) 원가 */
   inputKrw: number;
@@ -40,7 +45,7 @@ export type MainRpApiCostPartsKrw = {
  * 저장된 메인 합계(mainApiRawCostKrw)가 있으면 비율 스케일해 합이 맞도록 맞춤.
  */
 export function resolveMainRpApiCostPartsKrw(usage: Usage): MainRpApiCostPartsKrw | null {
-  if (usage.provider !== "openrouter") return null;
+  if (!isMeteredReceiptProvider(usage.provider)) return null;
 
   const inputTokens = Math.max(0, usage.apiInputTokens ?? usage.input ?? 0);
   const thinkingTokens = Math.max(0, usage.apiReasoningOutputTokens ?? 0);
@@ -140,9 +145,9 @@ export function resolveStoredWidgetExtractCallCount(
   return null;
 }
 
-/** OpenRouter 영수증용 API 실원가 (KRW) — 저장 스냅샷 우선 */
+/** OpenRouter/OpenAI 영수증용 API 실원가 (KRW) — 저장 스냅샷 우선 */
 export function resolveApiRawCostKrw(usage: Usage): number | null {
-  if (usage.provider !== "openrouter") return null;
+  if (!isMeteredReceiptProvider(usage.provider)) return null;
   if (usage.apiRawCostKrw != null && usage.apiRawCostKrw > 0) {
     return usage.apiRawCostKrw;
   }
@@ -247,7 +252,7 @@ function resolveReceiptModelLabel(usage: {
     usage.modelLabel ??
     (usage.selectedAI
       ? billingModelDisplayName(usage.selectedAI)
-      : usage.provider === "openrouter" && usage.model
+      : isMeteredReceiptProvider(usage.provider) && usage.model
         ? usage.model
         : usage.model ?? "")
   );
