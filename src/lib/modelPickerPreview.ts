@@ -6,6 +6,8 @@ import {
   isDeepSeekV4ProModel,
   isGemini36FlashModel,
   isMuseModel,
+  isOpenAiTerraModel,
+  OPENAI_GPT_56_TERRA_MODEL,
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
@@ -49,6 +51,7 @@ export const MODEL_PICKER_ACTIVE_MODEL_IDS = [
   OPENROUTER_MUSE_SPARK_11_MODEL,
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
+  OPENAI_GPT_56_TERRA_MODEL,
 ] as const satisfies readonly SelectedAI[];
 
 export type ModelPickerActiveModelId = (typeof MODEL_PICKER_ACTIVE_MODEL_IDS)[number];
@@ -67,6 +70,7 @@ export const MODEL_PICKER_MEASURED_COLD_BASELINES: Partial<Record<ModelPickerAct
     [OPENROUTER_MUSE_SPARK_11_MODEL]: 1400,
     [OPENROUTER_DEEPSEEK_V4_PRO_MODEL]: 1500,
     [OPENROUTER_GEMINI_36_FLASH_MODEL]: 1200,
+    [OPENAI_GPT_56_TERRA_MODEL]: 1400,
   };
 
 /** Output-token band used when deriving low/high point labels. */
@@ -185,6 +189,7 @@ export function resolveColdOutputBaseline(modelId: string): number {
   if (isGemini36FlashModel(modelId)) return Math.round(aim * 0.4);
   if (isDeepSeekV4ProModel(modelId)) return Math.round(aim * 0.5);
   if (isMuseModel(modelId)) return Math.round(aim * 0.48);
+  if (isOpenAiTerraModel(modelId)) return Math.round(aim * 0.5);
   return Math.round(aim * 0.4);
 }
 

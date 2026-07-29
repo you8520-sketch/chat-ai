@@ -132,7 +132,7 @@ export function buildHierarchicalMemoryPromptLayers(opts: {
   chatId: number;
   completedTurns: number;
   modelId?: string | null;
-  provider?: "gemini" | "openrouter";
+  provider?: "gemini" | "openrouter" | "openai";
   /** 재생성 — 해당 assistant가 마지막인 요약 블록 제외 */
   excludeAssistantMessageId?: number | null;
 }): {
@@ -161,7 +161,7 @@ export async function buildMemoryContextForPreview(opts: {
   memoryCapacity: number;
   userMessage: string;
   modelId?: string | null;
-  provider?: "gemini" | "openrouter";
+  provider?: "gemini" | "openrouter" | "openai";
   excludeSummaryTurnStartGte?: number;
   pastEventSummaryDedupe?: boolean;
 }): Promise<MemoryInjection> {
@@ -206,7 +206,7 @@ export async function buildMemoryContextForChat(opts: {
   memoryCapacity: number;
   userMessage: string;
   modelId?: string | null;
-  provider?: "gemini" | "openrouter";
+  provider?: "gemini" | "openrouter" | "openai";
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
   /** raw history에 포함된 최초 턴(1-indexed) — 이 턴 이후 요약본 제외 (DeepSeek) */
   excludeSummaryTurnStartGte?: number;

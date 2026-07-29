@@ -1,4 +1,4 @@
-/** 채팅방 AI 선택 (selectedAI) — OpenRouter 전용 · 사용자 전역 선택 */
+/** 채팅방 AI 선택 (selectedAI) — 사용자 전역 선택 */
 /** 유저가 보내는 메시지 최대 글자 수 */
 export const CHAT_MESSAGE_MAX = 1000;
 
@@ -48,6 +48,9 @@ export const OPENROUTER_GEMINI_25_PRO_MODEL = "google/gemini-2.5-pro";
 /** OpenRouter — Google Gemini 3.6 Flash */
 export const OPENROUTER_GEMINI_36_FLASH_MODEL = "google/gemini-3.6-flash";
 
+/** OpenAI Responses API — GPT-5.6 Terra */
+export const OPENAI_GPT_56_TERRA_MODEL = "gpt-5.6-terra";
+
 /** OpenRouter models that use the simple per-token point formula (no USD margin). */
 export const OPENROUTER_SIMPLE_POINT_MODELS: readonly string[] = [
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
@@ -88,6 +91,8 @@ export const SOLAR_PRO_3_DISPLAY_NAME = "Solar Pro 3";
 
 export const GEMINI_36_FLASH_DISPLAY_NAME = "Gemini 3.6 Flash";
 
+export const GPT_56_TERRA_DISPLAY_NAME = "GPT-5.6 Terra";
+
 /** @deprecated 기존 영수증 표시 호환용 */
 export const GEMINI_25_PRO_DISPLAY_NAME = "Gemini 2.5 Pro";
 
@@ -101,6 +106,7 @@ export function isOpusUserSelectable(): boolean {
 export type SelectedAIOptionMeta = {
   id: string;
   label: string;
+  provider: "openrouter" | "openai";
   tier: "pro";
   hint: string;
   /** 기본 추천 배지 */
@@ -112,26 +118,37 @@ export const SELECTED_AI_OPTIONS = [
   {
     id: OPENROUTER_MUSE_SPARK_11_MODEL,
     label: MUSE_SPARK_11_DISPLAY_NAME,
+    provider: "openrouter" as const,
     tier: "pro" as const,
     hint: "Meta",
   },
   {
     id: OPENROUTER_GEMINI_36_FLASH_MODEL,
     label: GEMINI_36_FLASH_DISPLAY_NAME,
+    provider: "openrouter" as const,
     tier: "pro" as const,
     hint: "Google",
   },
   {
     id: OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
     label: DEEPSEEK_DISPLAY_NAME,
+    provider: "openrouter" as const,
     tier: "pro" as const,
     hint: "Reasoning",
   },
   {
     id: CLAUDE_OPUS_MODEL,
     label: "Claude Opus 4P",
+    provider: "openrouter" as const,
     tier: "pro" as const,
     hint: "Premium",
+  },
+  {
+    id: OPENAI_GPT_56_TERRA_MODEL,
+    label: GPT_56_TERRA_DISPLAY_NAME,
+    provider: "openai" as const,
+    tier: "pro" as const,
+    hint: "OpenAI",
   },
 ] as const satisfies readonly SelectedAIOptionMeta[];
 
@@ -143,6 +160,10 @@ export function isAnthropicModel(modelId: string): boolean {
 /** Anthropic(Claude) 전용 — prefill·캐시 breakpoint 적용 기준 */
 export function isClaudeSelectedAI(selected: string): boolean {
   return isAnthropicModel(selected);
+}
+
+export function isOpenAiTerraModel(modelId: string): boolean {
+  return modelId.trim().toLowerCase() === OPENAI_GPT_56_TERRA_MODEL;
 }
 
 export type SelectedAI = (typeof SELECTED_AI_OPTIONS)[number]["id"];
@@ -163,9 +184,15 @@ export function coerceUserSelectableAI(id: SelectedAI): SelectedAI {
   return id;
 }
 
-/** selectedAI가 OpenRouter 라우팅 대상인지 (유저 채팅은 전부 OpenRouter) */
+export function selectedAIProvider(
+  selected: SelectedAI
+): (typeof SELECTED_AI_OPTIONS)[number]["provider"] {
+  return selectedAIOptionMeta(selected)?.provider ?? "openrouter";
+}
+
+/** selectedAI가 OpenRouter 라우팅 대상인지 */
 export function isOpenRouterSelectedAI(selected: string): boolean {
-  return isValidSelectedAI(selected);
+  return isValidSelectedAI(selected) && selectedAIProvider(selected) === "openrouter";
 }
 
 /** OpenRouter DeepSeek V4 Pro — generation·prompt·style tuning 대상 */

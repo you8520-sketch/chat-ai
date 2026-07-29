@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  OPENAI_GPT_56_TERRA_MODEL,
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
@@ -29,6 +30,7 @@ const ACTIVE = [
   OPENROUTER_MUSE_SPARK_11_MODEL,
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
+  OPENAI_GPT_56_TERRA_MODEL,
 ] as const;
 
 function assistantUsage(
@@ -52,7 +54,7 @@ function assistantUsage(
 describe("modelPickerPreview V2", () => {
   it("covers all active models", () => {
     const preview = buildModelPickerPreview({ messages: [], modelIds: [...ACTIVE] });
-    assert.equal(preview.models.length, 3);
+    assert.equal(preview.models.length, 4);
     for (const id of ACTIVE) {
       const row = preview.models.find((m) => m.modelId === id);
       assert.ok(row, id);

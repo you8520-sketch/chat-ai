@@ -96,7 +96,7 @@ export type PromptDebugDuplicate = {
 
 export type PromptDebugPayload = {
   timestamp: string;
-  provider: "gemini" | "openrouter";
+  provider: "gemini" | "openrouter" | "openai";
   model: string;
   promptDumpSource?: PromptDumpSource;
   promptDumpDetail?: string;
@@ -353,7 +353,7 @@ export function sectionsFromOpenRouterMessages(messages: OpenRouterChatMessage[]
 }
 
 function buildPayload(
-  provider: "gemini" | "openrouter",
+  provider: "gemini" | "openrouter" | "openai",
   model: string,
   sections: PromptDebugSection[],
   apiRequestBody: Record<string, unknown>,

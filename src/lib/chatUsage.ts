@@ -4,7 +4,7 @@ export type Usage = {
   input: number;
   output: number;
   model: string;
-  provider?: "gemini" | "openrouter";
+  provider?: "gemini" | "openrouter" | "openai";
   route: "safe" | "nsfw";
   cost: number;
   estimated?: boolean;
@@ -24,7 +24,7 @@ export type Usage = {
   cacheReadLine?: string | null;
   cacheWriteLine?: string | null;
   cacheRateSummary?: string;
-  cacheFamily?: "anthropic" | "deepseek" | "google" | "unknown";
+  cacheFamily?: "anthropic" | "deepseek" | "google" | "openai" | "unknown";
   /** OpenRouter — 턴 내 API completion_tokens 합산 (recovery 포함) */
   apiOutputTokens?: number;
   /** OpenRouter — reasoning_tokens 합산 (과금·미저장) */

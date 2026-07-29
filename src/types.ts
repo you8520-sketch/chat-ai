@@ -96,8 +96,8 @@ export type ContextBuildInput = {
   completedTurns?: number;
   /** Selected User Persona 성별 (호칭·관계 규칙용) */
   userPersonaGender?: CharacterGender;
-  /** openrouter — 히스토리 예산·소설 타임라인 조립 분기 */
-  provider?: "gemini" | "openrouter";
+  /** 모델 공급자 — 히스토리 예산·소설 타임라인 조립 분기 */
+  provider?: "gemini" | "openrouter" | "openai";
   /** 캐릭터 장르 — narrative style layer 톤 매칭 */
   genres?: CharacterGenre[];
   /** 캐릭터 설정이 영문 번역본으로 주입될 때 true — 한국어 출력 지시어 append */

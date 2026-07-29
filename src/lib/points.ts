@@ -431,7 +431,7 @@ export const OPENROUTER_GEMINI_31_POINTS_PER_OUTPUT_TOKEN = (() => {
   return 0.075;
 })();
 
-export type BillingProvider = "gemini" | "openrouter";
+export type BillingProvider = "gemini" | "openrouter" | "openai";
 
 export type PointType = "PAID" | "FREE";
 
@@ -1936,7 +1936,7 @@ export function computeTurnBilling(opts: {
   multiplier: number;
   total: number;
 } {
-  if (opts.provider === "openrouter") {
+  if (opts.provider === "openrouter" || opts.provider === "openai") {
     return computeOpenRouterTurnBilling({
       modelId: opts.openRouterModelId ?? "openrouter",
       inputTokens: opts.inputTokens,

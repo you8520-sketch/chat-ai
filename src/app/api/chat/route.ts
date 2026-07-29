@@ -58,7 +58,7 @@ import {
   restoreAssistantFromAlternatesOnFailedRegen,
   type StreamingPersistenceDiag,
 } from "@/lib/streamingPersistence";
-import { isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isKimiModel, isMuseModel, isQwenModel } from "@/lib/chatModels";
+import { isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isKimiModel, isMuseModel, isOpenAiTerraModel, isQwenModel, selectedAIProvider } from "@/lib/chatModels";
 import { openRouterNormalizedRawCostKrw, openRouterRawCostKrw } from "@/lib/billingRawCost";
 import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
 import { maybeCreditCreatorReward, paidCreatorRewardSpend } from "@/lib/creatorPoints";
@@ -310,6 +310,7 @@ import {
   streamOpenRouterAdultToClient,
   convertToOpenRouterFormat,
 } from "@/lib/openRouterAdult";
+import { streamOpenAiTerraResponses } from "@/lib/openAiResponsesClient";
 import { formatClientApiError } from "@/lib/apiErrors";
 import { resolveOpenRouterModelId } from "@/lib/openRouterConfig";
 import { resolveRegenerateGenerationOverrides } from "@/lib/openRouterClient";
@@ -871,13 +872,15 @@ export async function POST(req: Request) {
     ? getOrCreateChatMemory(chat.id, user.id, ch.id, memoryTier)
     : null;
 
-  const billingOpenRouterModelId = resolveOpenRouterModelId(selectedAI);
+  const primaryProvider = selectedAIProvider(selectedAI);
+  const billingOpenRouterModelId =
+    primaryProvider === "openrouter" ? resolveOpenRouterModelId(selectedAI) : selectedAI;
   const openRouterApiModelId = billingOpenRouterModelId;
   const canonInjectionPolicy = resolveCanonInjectionPolicy(openRouterApiModelId, {
     userId: user.id,
     chatId: chat.id,
   });
-  const contextProvider = "openrouter" as const;
+  const contextProvider = primaryProvider;
   const contextModelId = openRouterApiModelId;
   const historyTokenBudget = resolveHistoryTokenBudget(contextModelId, contextProvider);
 
@@ -1698,11 +1701,21 @@ export async function POST(req: Request) {
             fullText = "";
             streamVisibleTextRef = "";
           } else {
-          const orHistory = convertToOpenRouterFormat(historyRef);
+          const primaryHistory =
+            primaryProvider === "openrouter" ? convertToOpenRouterFormat(historyRef) : historyRef;
+          const terraStream =
+            primaryProvider === "openai" && isOpenAiTerraModel(openRouterApiModelId)
+              ? streamOpenAiTerraResponses(
+                  systemRef,
+                  historyRef,
+                  targetResponseCharsRef,
+                  smokeMaxTokensOverride
+                )
+              : undefined;
           const result = await streamOpenRouterAdultToClient(
             send,
             systemRef,
-            orHistory,
+            primaryHistory,
             openRouterApiModelId,
             selectedAILabel(selectedAIRef),
             targetResponseCharsRef,
@@ -1720,11 +1733,15 @@ export async function POST(req: Request) {
               generationOverrides: regenerateMessageId
                 ? resolveRegenerateGenerationOverrides(openRouterApiModelId, targetResponseCharsRef)
                 : undefined,
+              ...(primaryProvider === "openai"
+                ? { allowOpenRouterUnderLengthRecovery: false }
+                : {}),
               ...(smokeMaxTokensOverride != null
                 ? { maxTokensOverride: smokeMaxTokensOverride }
                 : {}),
             },
-            turnApiBudget
+            turnApiBudget,
+            terraStream
           );
           fullText = result.text;
           streamVisibleTextRef = result.streamVisibleText ?? fullText;
@@ -2576,7 +2593,7 @@ export async function POST(req: Request) {
 
         const billableChars = billableOutputChars(savedText, targetResponseCharsRef, billableOpts);
 
-        const billingProvider = "openrouter" as const;
+        const billingProvider = primaryProvider;
         const receiptFields = stealthReceiptModelFields(selectedAIRef);
 
         let totalInput: number;
