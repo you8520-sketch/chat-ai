@@ -1,3 +1,5 @@
+import { isCheaperInferenceGemini31ProModel } from "@/lib/chatModels";
+
 /** Cheaper Inference OpenAI-compatible API root. */
 export const CHEAPER_INFERENCE_BASE_URL = "https://api.cheaperinference.com/v1";
 
@@ -38,5 +40,11 @@ export function adaptCheaperInferenceChatBody(
   delete adapted.frequency_penalty;
   delete adapted.presence_penalty;
   delete adapted.repetition_penalty;
+  if (
+    typeof adapted.model === "string" &&
+    isCheaperInferenceGemini31ProModel(adapted.model)
+  ) {
+    adapted.reasoning_effort = "low";
+  }
   return adapted;
 }

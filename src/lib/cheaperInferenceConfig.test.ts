@@ -39,3 +39,18 @@ test("OpenRouter-only request extensions are removed", () => {
   });
   assert.equal(body.session_id, "chat-1", "input must not be mutated");
 });
+
+test("Gemini 3.1 Pro always uses low thinking on CheaperInference", () => {
+  const body = {
+    model: "gemini-3.1-pro-preview",
+    messages: [{ role: "user", content: "hello" }],
+    reasoning_effort: "high",
+  };
+
+  assert.deepEqual(adaptCheaperInferenceChatBody(body), {
+    model: "gemini-3.1-pro-preview",
+    messages: [{ role: "user", content: "hello" }],
+    reasoning_effort: "low",
+  });
+  assert.equal(body.reasoning_effort, "high", "input must not be mutated");
+});
