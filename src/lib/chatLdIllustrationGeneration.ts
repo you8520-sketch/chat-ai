@@ -1,3 +1,5 @@
+import { buildImageGenderLockPrompt, type ImagePromptGender } from "@/lib/chatImageGeneration";
+
 export const CHAT_LD_ILLUSTRATION_TEMPLATE_ID = "current_turn_ld_illustration" as const;
 export const CHAT_LD_ILLUSTRATION_TEMPLATE_NAME = "현재 턴 2:3 LD 일러스트";
 export const CHAT_LD_ILLUSTRATION_OUTPUT_SIZE = "800x1200" as const;
@@ -14,13 +16,27 @@ export function resolveChatLdIllustrationPrice(
 
 export function buildChatLdIllustrationPrompt(opts: {
   characterName: string;
+  characterGender?: ImagePromptGender;
   personaName: string;
+  personaGender?: ImagePromptGender;
   currentTurn: string;
 }) {
   return [
     "Create one polished vertical 2:3 Korean character illustration, not a comic page.",
     `Reference image 1 is the identity and art-style reference for ${opts.characterName}, the chat character.`,
     `Reference image 2 is the identity and art-style reference for ${opts.personaName}, the user persona.`,
+    buildImageGenderLockPrompt([
+      {
+        label: "chat character",
+        name: opts.characterName,
+        gender: opts.characterGender ?? "other",
+      },
+      {
+        label: "user persona",
+        name: opts.personaName,
+        gender: opts.personaGender ?? "other",
+      },
+    ]),
     "Depict the current chat turn below as one cinematic, emotionally accurate scene.",
     "Keep both identities clearly separate and highly recognizable. Preserve each person's face, hairstyle, hair color, eye color, body impression, outfit details, accessories, and distinguishing traits.",
     "Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the two references differ, harmonize them into one coherent polished style without changing either identity.",

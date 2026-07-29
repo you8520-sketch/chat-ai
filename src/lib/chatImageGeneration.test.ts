@@ -72,6 +72,24 @@ describe("chatImageGeneration", () => {
     assert.match(prompt, /Do not blend the two identities/);
   });
 
+  it("locks male subjects against long-hair or cute-style female body drift", () => {
+    const prompt = buildChatImageGenerationPrompt({
+      characterName: "Long-haired male character",
+      characterGender: "male",
+      personaName: "Male persona",
+      personaGender: "male",
+      placement: "character_top",
+      topExpression: "shy",
+      bottomExpression: "bright",
+      mood: "lovely",
+    });
+    assert.match(prompt, /GENDER LOCK/);
+    assert.match(prompt, /confirmed MALE/);
+    assert.match(prompt, /Long hair.*must NOT be interpreted as female/);
+    assert.match(prompt, /flat masculine chest/);
+    assert.match(prompt, /Do not draw breasts, cleavage/);
+  });
+
   it("uses the fixed 200P price even when a stale env override exists", () => {
     assert.equal(resolveChatImageGenerationPrice({} as NodeJS.ProcessEnv), 200);
     assert.equal(

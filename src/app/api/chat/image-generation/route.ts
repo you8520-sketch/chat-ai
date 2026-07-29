@@ -54,6 +54,7 @@ import {
   CHAT_IMAGE_GENERATION_OUTPUT_WIDTH,
   CHAT_IMAGE_GENERATION_QUALITY,
   buildChatImageGenerationPrompt,
+  type ImagePromptGender,
   resolveChatImageGenerationModel,
   resolveChatImageGenerationPrice,
   resolveChatImageReferenceOrder,
@@ -61,6 +62,7 @@ import {
 } from "@/lib/chatImageGeneration";
 import { CHAT_LD_ILLUSTRATION_TEMPLATE_ID } from "@/lib/chatLdIllustrationGeneration";
 import { getDb } from "@/lib/db";
+import { resolveCharacterGender } from "@/lib/characterGender";
 import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
 import { saveGeneratedImageToCharacterAlbum } from "@/lib/chatImageAlbum";
 import {
@@ -97,6 +99,7 @@ const TEMPLATE_FILE = path.join(
 type CharacterRow = {
   id: number;
   name: string;
+  gender: string;
   assets: string;
   images: string;
   creator_id: number | null;
@@ -106,6 +109,7 @@ type CharacterRow = {
 type PersonaRow = {
   id: number;
   name: string;
+  gender: string;
   image_url: string;
 };
 
@@ -119,6 +123,8 @@ type GenerationContext = {
   chatId: number | null;
   character: CharacterRow;
   persona: PersonaRow | null;
+  characterGender: ImagePromptGender;
+  personaGender: ImagePromptGender;
   characterImageUrl: string;
   characterImages: SelectableCharacterImage[];
   personaImageUrl: string;
@@ -189,7 +195,7 @@ function resolveGenerationContext(opts: {
 
   const character = db
     .prepare(
-      "SELECT id, name, assets, images, creator_id, visibility FROM characters WHERE id=?"
+      "SELECT id, name, gender, assets, images, creator_id, visibility FROM characters WHERE id=?"
     )
     .get(characterId) as CharacterRow | undefined;
   if (!character) throw new RequestError("캐릭터를 찾을 수 없습니다.", 404);
@@ -200,13 +206,13 @@ function resolveGenerationContext(opts: {
   let persona: PersonaRow | undefined;
   if (selectedPersonaId) {
     persona = db
-      .prepare("SELECT id, name, image_url FROM user_personas WHERE id=? AND user_id=?")
+      .prepare("SELECT id, name, gender, image_url FROM user_personas WHERE id=? AND user_id=?")
       .get(selectedPersonaId, opts.userId) as PersonaRow | undefined;
   }
   if (!persona) {
     persona = db
       .prepare(
-        "SELECT id, name, image_url FROM user_personas WHERE user_id=? ORDER BY created_at ASC, id ASC LIMIT 1"
+        "SELECT id, name, gender, image_url FROM user_personas WHERE user_id=? ORDER BY created_at ASC, id ASC LIMIT 1"
       )
       .get(opts.userId) as PersonaRow | undefined;
   }
@@ -231,6 +237,8 @@ function resolveGenerationContext(opts: {
     chatId,
     character,
     persona: persona ?? null,
+    characterGender: resolveCharacterGender(character.gender),
+    personaGender: resolveCharacterGender(persona?.gender),
     characterImageUrl,
     characterImages,
     personaImageUrl,
@@ -684,7 +692,9 @@ export async function POST(req: Request) {
       });
       prompt = buildChatCoupleStampPrompt({
         characterName: context.character.name,
+        characterGender: context.characterGender,
         personaName: context.persona.name,
+        personaGender: context.personaGender,
         options: coupleOptions,
       });
       referenceSources = [
@@ -701,7 +711,9 @@ export async function POST(req: Request) {
       const scenes = selectRandomChatEmoticonScenes();
       prompt = buildChatEmoticonPrompt({
         characterName: context.character.name,
+        characterGender: context.characterGender,
         personaName: context.persona.name,
+        personaGender: context.personaGender,
         scenes,
       });
       referenceSources = [
@@ -730,7 +742,9 @@ export async function POST(req: Request) {
       });
       prompt = buildChatImageGenerationPrompt({
         characterName: context.character.name,
+        characterGender: context.characterGender,
         personaName: context.persona.name,
+        personaGender: context.personaGender,
         ...options,
       });
       referenceSources = [

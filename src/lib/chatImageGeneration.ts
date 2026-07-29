@@ -11,6 +11,8 @@ export const CHAT_IMAGE_GENERATION_OUTPUT_SIZE =
   `${CHAT_IMAGE_GENERATION_OUTPUT_WIDTH}x${CHAT_IMAGE_GENERATION_OUTPUT_HEIGHT}` as const;
 export const CHAT_IMAGE_GENERATION_QUALITY = "medium" as const;
 
+export type ImagePromptGender = "male" | "female" | "other";
+
 export const CHAT_IMAGE_PLACEMENTS = [
   { id: "character_top", label: "위: 캐릭터 · 아래: 페르소나" },
   { id: "persona_top", label: "위: 페르소나 · 아래: 캐릭터" },
@@ -109,6 +111,47 @@ function promptForMood(id: ChatImageMood): string {
   return CHAT_IMAGE_MOODS.find((item) => item.id === id)?.prompt ?? "lovely pastel mood";
 }
 
+function imageGenderLabel(gender: ImagePromptGender): string {
+  if (gender === "male") return "male";
+  if (gender === "female") return "female";
+  return "unspecified / non-binary";
+}
+
+export function buildImageGenderLockPrompt(
+  subjects: readonly { label: string; name: string; gender: ImagePromptGender }[]
+): string {
+  const rules = subjects.map((subject) => {
+    const name = subject.name.trim() || subject.label;
+    if (subject.gender === "male") {
+      return [
+        `${subject.label} ${name}: confirmed MALE.`,
+        "Keep him male in face, torso and body shape.",
+        "Long hair, soft facial features, slim build, cute SD/chibi styling, blush, eyelashes, delicate clothing or androgynous beauty must NOT be interpreted as female.",
+        "Use a flat masculine chest and male-coded torso. Do not draw breasts, cleavage, a feminine chest mound, a bra-like chest shape, wide feminine hips, or a girl/woman body.",
+      ].join(" ");
+    }
+    if (subject.gender === "female") {
+      return [
+        `${subject.label} ${name}: confirmed FEMALE.`,
+        "Keep her female in face, torso and body shape.",
+        "Short hair, uniforms, combat gear, androgynous styling or a tall/lean build must NOT be interpreted as male.",
+        "Do not masculinize her body, jaw, torso or clothing beyond the reference identity.",
+      ].join(" ");
+    }
+    return [
+      `${subject.label} ${name}: gender is unspecified / non-binary.`,
+      "Do not infer or change gender from hair length, cuteness, outfit, pose, blush, eyelashes or body size.",
+      "Follow the reference identity without adding stereotyped male or female anatomy unless it is clearly present in the reference.",
+    ].join(" ");
+  });
+
+  return [
+    "GENDER LOCK — mandatory identity rule.",
+    ...rules,
+    "Never change a person's gender to fit hairstyle, prettiness, cute SD proportions, pose, outfit, or template decoration.",
+  ].join("\n");
+}
+
 export function resolveChatImageReferenceOrder(opts: {
   characterName: string;
   characterImageUrl: string;
@@ -130,7 +173,9 @@ export function resolveChatImageReferenceOrder(opts: {
 
 export function buildChatImageGenerationPrompt(opts: {
   characterName: string;
+  characterGender?: ImagePromptGender;
   personaName: string;
+  personaGender?: ImagePromptGender;
   placement: ChatImagePlacement;
   topExpression: ChatImageExpression;
   bottomExpression: ChatImageExpression;
@@ -138,11 +183,21 @@ export function buildChatImageGenerationPrompt(opts: {
 }): string {
   const topName = opts.placement === "persona_top" ? opts.personaName : opts.characterName;
   const bottomName = opts.placement === "persona_top" ? opts.characterName : opts.personaName;
+  const topGender = opts.placement === "persona_top"
+    ? (opts.personaGender ?? "other")
+    : (opts.characterGender ?? "other");
+  const bottomGender = opts.placement === "persona_top"
+    ? (opts.characterGender ?? "other")
+    : (opts.personaGender ?? "other");
 
   return [
     "Create one polished 4:3 two-person SD/chibi fixed-template commission illustration.",
     "Reference image 1 is the composition and decoration template. Preserve its recognizable luxury gift-box layout: a cream gift box with lace trim, sage-green ribbon and heart charm, teddy bear, bunny plush, candies, pearls, floating hearts, curling ribbons and golden sparkles on a clean pale background.",
-    `Reference image 2 is the identity reference for the TOP person, ${topName}. Reference image 3 is the identity reference for the BOTTOM person, ${bottomName}.`,
+    `Reference image 2 is the identity reference for the TOP person, ${topName} (${imageGenderLabel(topGender)}). Reference image 3 is the identity reference for the BOTTOM person, ${bottomName} (${imageGenderLabel(bottomGender)}).`,
+    buildImageGenderLockPrompt([
+      { label: "TOP person", name: topName, gender: topGender },
+      { label: "BOTTOM person", name: bottomName, gender: bottomGender },
+    ]),
     "Identity separation is critical. Do not blend the two identities. Preserve each referenced person's hair color, eye color, hairstyle, facial details, accessories and signature outfit impression while converting them into cohesive cute SD/chibi proportions.",
     `TOP person expression: ${promptForExpression(opts.topExpression)}. The top person leans over from above and gently hugs or rests both hands on the bottom person's head.`,
     `BOTTOM person expression: ${promptForExpression(opts.bottomExpression)}. The bottom person sits inside the decorative gift box with both forearms resting naturally on the box edge.`,
