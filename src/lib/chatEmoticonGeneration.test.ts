@@ -12,10 +12,10 @@ import {
 } from "./chatEmoticonGeneration";
 
 describe("chatEmoticonGeneration", () => {
-  it("uses a medium-quality square request and saves an exact 900x900 result", () => {
-    assert.equal(CHAT_EMOTICON_API_OUTPUT_SIZE, "896x896");
-    assert.equal(CHAT_EMOTICON_OUTPUT_WIDTH, 900);
-    assert.equal(CHAT_EMOTICON_OUTPUT_HEIGHT, 900);
+  it("uses a medium-quality square request and saves an exact 1024x1024 result", () => {
+    assert.equal(CHAT_EMOTICON_API_OUTPUT_SIZE, "1024x1024");
+    assert.equal(CHAT_EMOTICON_OUTPUT_WIDTH, 1024);
+    assert.equal(CHAT_EMOTICON_OUTPUT_HEIGHT, 1024);
     assert.equal(CHAT_EMOTICON_QUALITY, "medium");
   });
 

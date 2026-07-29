@@ -1106,15 +1106,8 @@ export default function ChatImageGeneratorPanel({
                           </select>
                           </label>
                           </>
-                        ) : sdProduct === "emoticon" ? (
-                          <div className="rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-3 text-[11px] leading-relaxed text-zinc-300">
-                            <strong className="text-violet-200">랜덤 9종 · 900×900 · 중품질 고정</strong>
-                          </div>
-                        ) : (
+                        ) : sdProduct === "emoticon" ? null : (
                           <div className="space-y-2">
-                            <div className="rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-3 text-[11px] leading-relaxed text-zinc-300">
-                              <strong className="text-violet-200">커플 인장 · 1000×1000 · 중품질 고정 · 240P</strong>
-                            </div>
                             <div className="grid grid-cols-2 gap-2">
                               <label className="block space-y-1">
                                 <span className="text-[11px] font-semibold text-zinc-400">캐릭터 표정</span>
