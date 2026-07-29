@@ -1,0 +1,29 @@
+SHARED NOVEL PROSE V2 — 12-CALL AUTO REPORT
+character=라이크 persona=렌
+f2Note=prod has 0 content_kind=simulation; F2 uses character 18 (라이크) multi-named cast
+
+Per-call visible chars:
+  Luna-F1-A: vis=4026 blocks=53 err=no route=legacy core=0
+  Luna-F1-B: vis=5697 blocks=28 err=no route=legacy core=1
+  Luna-F2-A: vis=4995 blocks=87 err=no route=legacy core=0
+  Luna-F2-B: vis=4903 blocks=49 err=no route=legacy core=1
+  DeepSeek-F1-A: vis=295 blocks=3 err=no route=legacy core=0
+  DeepSeek-F1-B: vis=142 blocks=2 err=no route=legacy core=1
+  DeepSeek-F2-A: vis=874 blocks=6 err=no route=legacy core=0
+  DeepSeek-F2-B: vis=645 blocks=4 err=no route=legacy core=1
+  Muse-F1-A: vis=0 blocks=0 err=YES route=muse-m1 core=0
+  Muse-F1-B: vis=0 blocks=0 err=YES route=muse-m1 core=1
+  Muse-F2-A: vis=0 blocks=0 err=YES route=muse-m1 core=0
+  Muse-F2-B: vis=0 blocks=0 err=YES route=muse-m1 core=1
+
+B_avg_visible=2846.8 median=2774.0 (B successes only: Luna+DeepSeek = 4)
+B_ge2500=2/6 B_lt2200=2 A_avg=2547.5 drop=-11.7%
+LENGTH_AUTO=FAIL
+AUTO_FAILS=LENGTH_BAND,TRANSPORT_OR_RUNTIME_ERROR
+
+MUSE_NOTE: all 4 Muse calls failed OpenRouter 403 Provider returned error (retry also 403).
+DEEPSEEK_NOTE: 4 DeepSeek calls returned short outputs (142-874 visible chars) — length AUTO FAIL contributor.
+LUNA_NOTE: 4/4 Luna calls succeeded; dialogue blocks decreased on B (53->28, 87->49).
+
+NOTE: Cursor does not judge literary quality. ChatGPT reviews raw outputs.
+Canary remains OFF. No merge/rollout.

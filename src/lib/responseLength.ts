@@ -18,6 +18,10 @@ import {
   NO_INPUT_ECHO_RULE,
 } from "@/lib/sceneExpansionPolicy";
 import { SCENE_CONTINUATION_PRIORITY_BLOCK } from "./turnHandoffAndPacing";
+import {
+  NARRATIVE_DENSITY_BLOCK_V2,
+  SCENE_CONTINUATION_PRIORITY_BLOCK_V2,
+} from "@/lib/sharedNovelProseV2Styles";
 import { buildCompactTerminalLayoutRecencyLine } from "@/lib/webnovelOutputFormat";
 export * from "./responseLengthConstants";
 import {
@@ -136,6 +140,8 @@ export type LengthInstructionOpts = {
   htmlFlashOwned?: boolean;
   /** true — 제작자 상태창 위젯; prose 분량과 <<<STATUS_VALUES>>> tail 분리 */
   statusWidgetActive?: boolean;
+  /** Shared Novel Prose V2 canary — floor 2500 + V2 continuation/density/terminal */
+  sharedNovelProseV2?: boolean;
 };
 
 const LENGTH_LIMIT_STATUS_LINE_OOC =
@@ -157,11 +163,16 @@ function assembleLengthInstructionBlock(
   targetInput?: number | null,
   opts?: LengthInstructionOpts
 ): string {
-  const t = resolveResponseLengthTarget(targetInput);
+  const v2 = !!opts?.sharedNovelProseV2;
+  const t = resolveResponseLengthTarget(targetInput, { sharedNovelProseV2: v2 });
   const jsonOrStatusLine = buildJsonStatusLengthLine(opts);
+  const continuation = v2
+    ? SCENE_CONTINUATION_PRIORITY_BLOCK_V2
+    : SCENE_CONTINUATION_PRIORITY_BLOCK;
+  const density = v2 ? NARRATIVE_DENSITY_BLOCK_V2 : NARRATIVE_DENSITY_BLOCK;
 
-  // Style fill materials live in common [IMMERSIVE PROSE]; keep LENGTH numeric + expansion only.
-  // REACTION VARIETY absorbed into IMMERSIVE — NO_GENERIC_REACTIONS_BLOCK is empty by design.
+  // Style fill materials live in prose style section; keep LENGTH numeric + expansion only.
+  // REACTION VARIETY absorbed into immersive/core — NO_GENERIC_REACTIONS_BLOCK is empty by design.
   return `[LENGTH CONTROL & SCENE EXPANSION]
 TARGET_LENGTH: ${t.aimChars.toLocaleString()}+ 한국어 글자
 MINIMUM_FLOOR: ${t.min.toLocaleString()}+
@@ -172,9 +183,9 @@ ${NO_INPUT_ECHO_RULE}
 - 새 서사 비트(행동·반응·전환)로 확장; 문단 수를 맞추려 하지 마라
 - 장면·대사 사이를 행동·반응·감각·분위기로 확장한다 — 대사마다 기계적 교대나 동일 길이 블록을 맞추지 마라
 
-${SCENE_CONTINUATION_PRIORITY_BLOCK}
+${continuation}
 
-${NARRATIVE_DENSITY_BLOCK}${NO_GENERIC_REACTIONS_BLOCK ? `\n\n${NO_GENERIC_REACTIONS_BLOCK}` : ""}${jsonOrStatusLine}`;
+${density}${NO_GENERIC_REACTIONS_BLOCK ? `\n\n${NO_GENERIC_REACTIONS_BLOCK}` : ""}${jsonOrStatusLine}`;
 }
 
 /**
@@ -188,17 +199,25 @@ export function buildTerminalLengthOverrideRecencyBlock(
 
 /** 터미널 맨 끝 1줄 — 분량 recency (LENGTH CONTROL과 중복 설명 없음) */
 export function buildCompactTerminalLengthAbsoluteTail(
-  targetInput?: number | null
+  targetInput?: number | null,
+  opts?: { sharedNovelProseV2?: boolean }
 ): string {
-  const t = resolveResponseLengthTarget(targetInput);
-  return `TARGET_LENGTH ${t.aimChars.toLocaleString()}+ · MINIMUM_FLOOR ${t.min.toLocaleString()}+ — 단일 응답 최대 전개·미달 조기 종료 금지.`;
+  const v2 = !!opts?.sharedNovelProseV2;
+  const t = resolveResponseLengthTarget(targetInput, { sharedNovelProseV2: v2 });
+  const suffix = v2
+    ? "현재 장면 안에서 충분히 전개하고 미달 조기 종료를 피한다."
+    : "단일 응답 최대 전개·미달 조기 종료 금지.";
+  return `TARGET_LENGTH ${t.aimChars.toLocaleString()}+ · MINIMUM_FLOOR ${t.min.toLocaleString()}+ — ${suffix}`;
 }
 
 /** @deprecated buildCompactTerminalLengthAbsoluteTail() */
 export const TERMINAL_LENGTH_OVERRIDE_BLOCK = "";
 
-export function buildTerminalLengthOverrideBlock(targetInput?: number | null): string {
-  return buildCompactTerminalLengthAbsoluteTail(targetInput);
+export function buildTerminalLengthOverrideBlock(
+  targetInput?: number | null,
+  opts?: { sharedNovelProseV2?: boolean }
+): string {
+  return buildCompactTerminalLengthAbsoluteTail(targetInput, opts);
 }
 
 /** 모든 모델 공통 — LENGTH CONTROL + TARGET/FLOOR (자동진행·재생성 포함 단일 출처) */
@@ -585,15 +604,17 @@ MINIMUM_FLOOR 미달·조기 handoff 금지. [LENGTH CONTROL & SCENE EXPANSION] 
 /** OpenRouter user-turn bottom — layout + compact terminal length tail recency (10b) */
 export function appendCompactTerminalLengthToUserTurn(
   userContent: string,
-  targetInput?: number | null
+  targetInput?: number | null,
+  opts?: { sharedNovelProseV2?: boolean }
 ): string {
   const layoutLine = buildCompactTerminalLayoutRecencyLine();
-  const lengthTail = buildCompactTerminalLengthAbsoluteTail(targetInput);
+  const lengthTail = buildCompactTerminalLengthAbsoluteTail(targetInput, opts);
   const tail = `${layoutLine}\n${lengthTail}`;
   const body = userContent.trim();
   if (!body) return tail;
   if (
-    body.includes("단일 응답 최대 전개·미달 조기 종료 금지") &&
+    (body.includes("단일 응답 최대 전개·미달 조기 종료 금지") ||
+      body.includes("현재 장면 안에서 충분히 전개하고 미달 조기 종료를 피한다.")) &&
     body.includes("지문과 \"…\" 대사 사이 빈 줄")
   ) {
     return body;

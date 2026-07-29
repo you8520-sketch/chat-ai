@@ -48,6 +48,8 @@ import { stripRpMetaPreamble } from "@/lib/narrativeRules";
 import { buildAdvancedProseNsfwGuidelines } from "@/lib/advancedProseNsfwGuidelines";
 import { buildProseStyleXmlBundle } from "@/lib/proseStyleXmlBundle";
 import { resolveProseStyleSection } from "@/lib/proseStyleResolver";
+import { resolveDeepSeekLengthAdapterSection } from "@/lib/sharedNovelProseModelAdapters";
+import { isSharedNovelProseV2EnabledForUser } from "@/lib/sharedNovelProseV2Policy";
 import { buildRegenerateSystemDirective } from "@/lib/continueNarrative";
 import {
   buildNoGodmoddingBlock,
@@ -993,10 +995,15 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     }
   }
 
+  const sharedNovelProseV2 = isSharedNovelProseV2EnabledForUser(
+    input.userId,
+    input.modelId
+  );
   const lengthInstructionOpts = {
     statusWindowEveryTurn: statusWindowPolicy.everyTurn,
     htmlFlashOwned: isOpenRouter,
     statusWidgetActive: input.statusWidgetActive === true,
+    sharedNovelProseV2,
   };
 
   if (!isOpenRouter) {
@@ -1068,9 +1075,24 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     "rule-terminal-length-override",
     "Terminal length compact tail (absolute end)",
     "systemRules",
-    buildTerminalLengthOverrideBlock(input.targetResponseChars),
+    buildTerminalLengthOverrideBlock(input.targetResponseChars, {
+      sharedNovelProseV2,
+    }),
     "dynamic"
   );
+
+  // Experiment-only DeepSeek length adapter (SNPV2_DEEPSEEK_LENGTH_ARM=B|C).
+  // Default OFF → no section → prior assembly unchanged.
+  const deepSeekLengthAdapter = resolveDeepSeekLengthAdapterSection(input.modelId);
+  if (deepSeekLengthAdapter) {
+    pushSection(
+      "rule-deepseek-length-adapter",
+      "DeepSeek length adapter (experiment)",
+      "systemRules",
+      deepSeekLengthAdapter,
+      "dynamic"
+    );
+  }
 
   // Admin-only Muse canary: unknown-information truth priority as the final
   // system section AFTER Terminal. Gate OFF → byte-stable prior assembly
@@ -1263,7 +1285,8 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   if (isOpenRouter) {
     userTurnContent = appendCompactTerminalLengthToUserTurn(
       userTurnContent,
-      input.targetResponseChars
+      input.targetResponseChars,
+      { sharedNovelProseV2 }
     );
   }
   const estimatePayloadTokens = (hist: ContextBuildInput["shortTermHistory"]) =>

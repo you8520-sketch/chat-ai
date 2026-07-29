@@ -531,6 +531,11 @@ export type OpenRouterMessageOpts = {
   allowOpenRouterUnderLengthRecovery?: boolean;
   /** OpenAI-compatible HTTP transport used by the primary RP stream. */
   transportProvider?: "openrouter" | "cheaperinference";
+  /**
+   * Experiment harness — when false, do not issue a second non-stream call
+   * after an empty primary stream. Production default remains enabled.
+   */
+  allowEmptyStreamFallback?: boolean;
 };
 
 export type PrimaryTextStream = AsyncGenerator<string, TokenUsage>;
@@ -1202,6 +1207,15 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
   let finishReason: string | undefined;
   let lastStreamUsage: unknown = null;
   let usageDebugLogged = false;
+  let responseModelId: string | undefined;
+  let providerRequestId: string | undefined;
+  if (!isMockApiMode() && res) {
+    providerRequestId =
+      res.headers.get("x-request-id") ||
+      res.headers.get("x-openrouter-request-id") ||
+      res.headers.get("cf-ray") ||
+      undefined;
+  }
 
   // finalResponse = charName + aiGeneratedText — API는 prefill 이후만 생성, SSE에는 prefill 포함 전송
   const prefillStripper = createPrefillEchoStripper(prefill);
@@ -1234,6 +1248,8 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
         if (!payload || payload === "[DONE]") continue;
         try {
           const json = JSON.parse(payload) as {
+            model?: string | null;
+            id?: string | null;
             choices?: {
               delta?: { content?: string | null; text?: string | null; reasoning?: string | null };
               message?: { content?: string | null };
@@ -1246,6 +1262,12 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
               prompt_tokens_details?: { cached_tokens?: number; cache_write_tokens?: number };
             };
           };
+          if (typeof json.model === "string" && json.model.trim()) {
+            responseModelId = json.model.trim();
+          }
+          if (!providerRequestId && typeof json.id === "string" && json.id.trim()) {
+            providerRequestId = json.id.trim();
+          }
           const choice = json.choices?.[0];
           if (!choice) continue;
           if (choice.finish_reason) finishReason = choice.finish_reason;
@@ -1450,32 +1472,41 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
     ...tokenUsageFromOpenRouterBreakdown(finalBreakdown),
     finishReason,
     debugRawUsage: lastStreamUsage,
+    ...(responseModelId ? { responseModelId } : {}),
+    ...(providerRequestId ? { providerRequestId } : {}),
   };
   }
 
-  try {
-    console.warn("[OpenRouter] empty stream — non-stream fallback", {
-      model: apiModelId,
-    });
-    const fallback = await callOpenRouterAdult(
-      system,
-      history,
-      modelId,
-      targetResponseChars,
-      { ...messageOpts, skipAssistantPrefill: true },
-      {
-        ...debugMeta,
-        requestKind: debugMeta?.requestKind ?? "openrouter-stream-fallback",
-        chargeTurnBudget: false,
+  if (messageOpts?.allowEmptyStreamFallback !== false) {
+    try {
+      console.warn("[OpenRouter] empty stream — non-stream fallback", {
+        model: apiModelId,
+      });
+      const fallback = await callOpenRouterAdult(
+        system,
+        history,
+        modelId,
+        targetResponseChars,
+        { ...messageOpts, skipAssistantPrefill: true },
+        {
+          ...debugMeta,
+          requestKind: debugMeta?.requestKind ?? "openrouter-stream-fallback",
+          chargeTurnBudget: false,
+        }
+      );
+      const cleaned = trimLoopTail(sanitizeStreamArtifacts(fallback.text)).trim();
+      if (cleaned) {
+        yield cleaned;
+        return {
+          ...fallback.usage,
+          finishReason: fallback.usage.finishReason ?? "stop",
+          responseModelId: fallback.usage.responseModelId ?? responseModelId ?? apiModelId,
+          providerRequestId: fallback.usage.providerRequestId ?? providerRequestId,
+        };
       }
-    );
-    const cleaned = trimLoopTail(sanitizeStreamArtifacts(fallback.text)).trim();
-    if (cleaned) {
-      yield cleaned;
-      return { ...fallback.usage, finishReason: fallback.usage.finishReason ?? "stop" };
+    } catch (fallbackErr) {
+      console.error("[OpenRouter] non-stream fallback failed", (fallbackErr as Error).message);
     }
-  } catch (fallbackErr) {
-    console.error("[OpenRouter] non-stream fallback failed", (fallbackErr as Error).message);
   }
 
   throw new OpenRouterApiError({

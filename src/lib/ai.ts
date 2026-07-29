@@ -50,6 +50,10 @@ export type TokenUsage = {
   reasoningOutputTokens?: number;
   /** Dev-only — raw OpenRouter usage payload for diagnostics */
   debugRawUsage?: unknown;
+  /** Provider-reported model id from stream/completion payload (when present) */
+  responseModelId?: string;
+  /** Provider request id from response headers (when present) */
+  providerRequestId?: string;
 };
 
 /** 백그라운드 기억·요약·상태창·번역 등 — Cheaper Inference DeepSeek V4 Flash */
