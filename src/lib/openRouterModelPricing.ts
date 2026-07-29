@@ -46,6 +46,18 @@ const CHEAPER_INFERENCE_CLAUDE_OPUS_5_RATES: OpenRouterModelRates = {
   explicitCacheInjection: true,
 };
 
+/** Cheaper Inference GPT-5.6 Luna — account catalog snapshot (2026-07-29). */
+const CHEAPER_INFERENCE_GPT_56_LUNA_RATES: OpenRouterModelRates = {
+  family: "openai",
+  label: "Cheaper Inference · OpenAI automatic cache",
+  inputUsdPerM: 1,
+  outputUsdPerM: 6,
+  cacheReadUsdPerM: 0.1,
+  cacheWriteUsdPerM: 1,
+  cacheWriteMultiplier: 1,
+  explicitCacheInjection: false,
+};
+
 /**
  * DeepSeek V3 0324 — OpenRouter headline estimate (fallback only).
  * Checked 2026-07-17: ~$0.24/M in, ~$0.90/M out; provider prices vary.
@@ -212,6 +224,7 @@ export function resolveOpenRouterModelRates(modelId?: string | null): OpenRouter
   const id = (modelId ?? "").trim().toLowerCase();
   // Exact / specific model ids before broad family matches.
   if (id === "claude-opus-5") return CHEAPER_INFERENCE_CLAUDE_OPUS_5_RATES;
+  if (id === "gpt-5.6-luna") return CHEAPER_INFERENCE_GPT_56_LUNA_RATES;
   if (id === "deepseek-v4-flash") {
     return CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_RATES;
   }
