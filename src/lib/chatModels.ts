@@ -22,8 +22,11 @@ export const CLAUDE_OPUS_MODEL_LEGACY = "anthropic/claude-3-opus";
 /** selectedAI·OpenRouter model param 기본값 */
 export const CLAUDE_OPUS_MODEL = OPENROUTER_CLAUDE_DEFAULT;
 
-/** OpenRouter — DeepSeek V4 Pro */
+/** @deprecated 기존 OpenRouter 선택값·영수증 호환용 */
 export const OPENROUTER_DEEPSEEK_V4_PRO_MODEL = "deepseek/deepseek-v4-pro";
+
+/** Cheaper Inference OpenAI-compatible API — DeepSeek V4 Pro */
+export const CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL = "deepseek-v4-pro";
 
 /** OpenRouter — DeepSeek V3 (백그라운드 기억·상태창·번역 등) */
 export const OPENROUTER_DEEPSEEK_V3_MODEL = "deepseek/deepseek-chat-v3-0324";
@@ -48,8 +51,11 @@ export const OPENROUTER_GEMINI_25_PRO_MODEL = "google/gemini-2.5-pro";
 /** OpenRouter — Google Gemini 3.6 Flash */
 export const OPENROUTER_GEMINI_36_FLASH_MODEL = "google/gemini-3.6-flash";
 
-/** OpenAI Responses API — GPT-5.6 Terra */
-export const OPENAI_GPT_56_TERRA_MODEL = "gpt-5.6-terra";
+/** Cheaper Inference OpenAI-compatible API — GPT-5.6 Terra */
+export const CHEAPER_INFERENCE_GPT_56_TERRA_MODEL = "gpt-5.6-terra";
+
+/** @deprecated CheaperInference Terra 상수 사용 — 기존 import 호환용 */
+export const OPENAI_GPT_56_TERRA_MODEL = CHEAPER_INFERENCE_GPT_56_TERRA_MODEL;
 
 /** Cheaper Inference OpenAI-compatible API — Claude Opus 5 */
 export const CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL = "claude-opus-5";
@@ -57,12 +63,17 @@ export const CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL = "claude-opus-5";
 /** Cheaper Inference OpenAI-compatible API — GPT-5.6 Luna */
 export const CHEAPER_INFERENCE_GPT_56_LUNA_MODEL = "gpt-5.6-luna";
 
+/** Cheaper Inference OpenAI-compatible API — Gemini 3.1 Pro Preview */
+export const CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL =
+  "gemini-3.1-pro-preview";
+
 /** Cheaper Inference — background memory/status/HTML/translation */
 export const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL = "deepseek-v4-flash";
 
 /** OpenRouter models that use the simple per-token point formula (no USD margin). */
 export const OPENROUTER_SIMPLE_POINT_MODELS: readonly string[] = [
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
 ];
@@ -106,6 +117,8 @@ export const CLAUDE_OPUS_5_DISPLAY_NAME = "Claude Opus 5";
 
 export const GPT_56_LUNA_DISPLAY_NAME = "GPT-5.6 Luna";
 
+export const GEMINI_31_PRO_PREVIEW_DISPLAY_NAME = "Gemini 3.1 Pro Preview";
+
 /** @deprecated 기존 영수증 표시 호환용 */
 export const GEMINI_25_PRO_DISPLAY_NAME = "Gemini 2.5 Pro";
 
@@ -143,9 +156,9 @@ export const SELECTED_AI_OPTIONS = [
     hint: "Google",
   },
   {
-    id: OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
+    id: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
     label: DEEPSEEK_DISPLAY_NAME,
-    provider: "openrouter" as const,
+    provider: "cheaperinference" as const,
     tier: "pro" as const,
     hint: "Reasoning",
   },
@@ -171,11 +184,18 @@ export const SELECTED_AI_OPTIONS = [
     hint: "OpenAI",
   },
   {
-    id: OPENAI_GPT_56_TERRA_MODEL,
+    id: CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
     label: GPT_56_TERRA_DISPLAY_NAME,
-    provider: "openai" as const,
+    provider: "cheaperinference" as const,
     tier: "pro" as const,
     hint: "OpenAI",
+  },
+  {
+    id: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+    label: GEMINI_31_PRO_PREVIEW_DISPLAY_NAME,
+    provider: "cheaperinference" as const,
+    tier: "pro" as const,
+    hint: "Google",
   },
 ] as const satisfies readonly SelectedAIOptionMeta[];
 
@@ -195,18 +215,43 @@ export function isCheaperInferenceClaudeOpus5Model(modelId: string): boolean {
 }
 
 export function isOpenAiTerraModel(modelId: string): boolean {
-  return modelId.trim().toLowerCase() === OPENAI_GPT_56_TERRA_MODEL;
+  return isGpt56TerraModel(modelId);
+}
+
+export function isGpt56TerraModel(modelId: string): boolean {
+  return (
+    modelId.trim().toLowerCase() === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL
+  );
 }
 
 export function isGpt56LunaModel(modelId: string): boolean {
   return modelId.trim().toLowerCase() === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
 }
 
+export function isCheaperInferenceGemini31ProModel(modelId: string): boolean {
+  return (
+    modelId.trim().toLowerCase() ===
+    CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL
+  );
+}
+
+export function isCheaperInferenceDeepSeekV4ProModel(
+  modelId: string
+): boolean {
+  return (
+    modelId.trim().toLowerCase() ===
+    CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+  );
+}
+
 export function isCheaperInferenceModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
   return (
     id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL ||
+    id === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL ||
+    id === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL ||
     id === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL ||
+    id === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL ||
     id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
   );
 }
@@ -238,7 +283,7 @@ export function coerceUserSelectableAI(id: SelectedAI): SelectedAI {
 
 export function selectedAIProvider(
   selected: SelectedAI
-): (typeof SELECTED_AI_OPTIONS)[number]["provider"] {
+): SelectedAIOptionMeta["provider"] {
   return selectedAIOptionMeta(selected)?.provider ?? "openrouter";
 }
 
@@ -249,13 +294,17 @@ export function isOpenRouterSelectedAI(selected: string): boolean {
 
 /** OpenRouter DeepSeek V4 Pro — generation·prompt·style tuning 대상 */
 export function isDeepSeekV4ProModel(modelId: string): boolean {
-  return modelId.trim() === OPENROUTER_DEEPSEEK_V4_PRO_MODEL;
+  const id = modelId.trim().toLowerCase();
+  return (
+    id === OPENROUTER_DEEPSEEK_V4_PRO_MODEL ||
+    id === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+  );
 }
 
 /** Any OpenRouter DeepSeek family model, including current chat V4 Pro and background V3. */
 export function isDeepSeekModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
-  return id === OPENROUTER_DEEPSEEK_V4_PRO_MODEL || id === OPENROUTER_DEEPSEEK_V3_MODEL || id.startsWith("deepseek/") || id.includes("/deepseek-");
+  return isDeepSeekV4ProModel(id) || id === OPENROUTER_DEEPSEEK_V3_MODEL || id.startsWith("deepseek/") || id.includes("/deepseek-");
 }
 
 /** OpenRouter Google Gemini 2.5 Pro */
@@ -370,7 +419,7 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   "gemini-3.5-flash": DEFAULT_SELECTED_AI,
   /** Gemini 3.1 Pro 제거 — 기존 채팅·legacy slug는 Muse로 이전 */
   "gemini-3.1": DEFAULT_SELECTED_AI,
-  "gemini-3.1-pro-preview": DEFAULT_SELECTED_AI,
+  "gemini-3.1-pro-preview": CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   "google/gemini-2.5-pro": OPENROUTER_GEMINI_36_FLASH_MODEL,
   "google/gemini-2.5-pro-preview": OPENROUTER_GEMINI_36_FLASH_MODEL,
   "gemini-3.6-flash": OPENROUTER_GEMINI_36_FLASH_MODEL,
@@ -380,10 +429,10 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   [CLAUDE_OPUS_MODEL_LEGACY]: CLAUDE_OPUS_MODEL,
   "claude-opus": CLAUDE_OPUS_MODEL,
   "anthropic/claude-opus-latest": CLAUDE_OPUS_MODEL,
-  deepseek: OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
-  "deepseek-v4-pro": OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
-  "deepseek-4-pro": OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
-  "deepseek/deepseek-v4-pro": OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
+  deepseek: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  "deepseek-v4-pro": CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  "deepseek-4-pro": CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  "deepseek/deepseek-v4-pro": CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   /** Qwen 3.7 Max 제거 — Muse로 이전 */
   qwen: DEFAULT_SELECTED_AI,
   "qwen3.7-max": DEFAULT_SELECTED_AI,

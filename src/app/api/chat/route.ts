@@ -58,7 +58,7 @@ import {
   restoreAssistantFromAlternatesOnFailedRegen,
   type StreamingPersistenceDiag,
 } from "@/lib/streamingPersistence";
-import { isCheaperInferenceModel, isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isKimiModel, isMuseModel, isOpenAiTerraModel, isQwenModel, selectedAIProvider } from "@/lib/chatModels";
+import { isCheaperInferenceModel, isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isGpt56TerraModel, isKimiModel, isMuseModel, isQwenModel, selectedAIProvider } from "@/lib/chatModels";
 import { openRouterNormalizedRawCostKrw, openRouterRawCostKrw } from "@/lib/billingRawCost";
 import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
 import { maybeCreditCreatorReward, paidCreatorRewardSpend } from "@/lib/creatorPoints";
@@ -314,10 +314,12 @@ import {
   convertToOpenRouterFormat,
 } from "@/lib/openRouterAdult";
 import {
-  isRetryableOpenAiTerraFinishReason,
-  streamOpenAiTerraResponses,
+  buildTerraInstructions,
+  isRetryableTerraFinishReason,
+  TERRA_MAX_OUTPUT_TOKENS,
 } from "@/lib/openAiResponsesClient";
 import { formatClientApiError } from "@/lib/apiErrors";
+import { refreshCheaperInferenceCatalogPricing } from "@/lib/cheaperInferenceCatalogPricing.server";
 import { resolveOpenRouterModelId } from "@/lib/openRouterConfig";
 import { resolveRegenerateGenerationOverrides } from "@/lib/openRouterClient";
 import { sanitizePrimaryModelAssistantHistory } from "@/lib/flashOwnedOutputFirewall";
@@ -879,6 +881,10 @@ export async function POST(req: Request) {
     : null;
 
   const primaryProvider = selectedAIProvider(selectedAI);
+  const cheaperPricingRefreshed =
+    primaryProvider === "cheaperinference"
+      ? await refreshCheaperInferenceCatalogPricing()
+      : false;
   const billingOpenRouterModelId =
     primaryProvider === "openrouter" ? resolveOpenRouterModelId(selectedAI) : selectedAI;
   const openRouterApiModelId = billingOpenRouterModelId;
@@ -1713,18 +1719,13 @@ export async function POST(req: Request) {
           } else {
           const primaryHistory =
             primaryProvider === "openai" ? historyRef : convertToOpenRouterFormat(historyRef);
-          const terraStream =
-            primaryProvider === "openai" && isOpenAiTerraModel(openRouterApiModelId)
-              ? streamOpenAiTerraResponses(
-                  systemRef,
-                  historyRef,
-                  targetResponseCharsRef,
-                  smokeMaxTokensOverride
-                )
-              : undefined;
+          const terraChat = isGpt56TerraModel(openRouterApiModelId);
+          const primarySystem = terraChat
+            ? buildTerraInstructions(systemRef)
+            : systemRef;
           const result = await streamOpenRouterAdultToClient(
             send,
-            systemRef,
+            primarySystem,
             primaryHistory,
             openRouterApiModelId,
             selectedAILabel(selectedAIRef),
@@ -1749,12 +1750,14 @@ export async function POST(req: Request) {
               ...(isCheaperInferenceModel(openRouterApiModelId)
                 ? { transportProvider: "cheaperinference" as const }
                 : {}),
-              ...(smokeMaxTokensOverride != null
-                ? { maxTokensOverride: smokeMaxTokensOverride }
+              ...(smokeMaxTokensOverride != null || terraChat
+                ? {
+                    maxTokensOverride:
+                      smokeMaxTokensOverride ?? TERRA_MAX_OUTPUT_TOKENS,
+                  }
                 : {}),
             },
-            turnApiBudget,
-            terraStream
+            turnApiBudget
           );
           fullText = result.text;
           streamVisibleTextRef = result.streamVisibleText ?? fullText;
@@ -2512,9 +2515,8 @@ export async function POST(req: Request) {
           visibleForLengthCheck
         );
         const terraInterruptedTurn =
-          primaryProvider === "openai" &&
-          isOpenAiTerraModel(openRouterApiModelId) &&
-          isRetryableOpenAiTerraFinishReason(primaryStage?.finishReason) &&
+          isGpt56TerraModel(openRouterApiModelId) &&
+          isRetryableTerraFinishReason(primaryStage?.finishReason) &&
           resolveVisibleTierCharCount(savedText) >= CATASTROPHIC_MIN_RESPONSE_CHARS;
 
         if (generationFailure === "under_length" && terraInterruptedTurn) {
@@ -2986,6 +2988,15 @@ export async function POST(req: Request) {
 
         const usageModel = htmlFlashOnlyTurn ? billing.modelId : receiptFields.model;
         const usageModelLabel = htmlFlashOnlyTurn ? HTML_ONLY_MODEL_LABEL : receiptFields.modelLabel;
+        const apiRawCostSource: Usage["apiRawCostSource"] =
+          summedUpstreamUsd > 0 ||
+          (primaryStage?.upstreamCostUsd != null &&
+            primaryStage.upstreamCostUsd > 0)
+            ? "provider_reported"
+            : primaryProvider === "cheaperinference" &&
+                cheaperPricingRefreshed
+              ? "live_catalog"
+              : "fallback_catalog";
 
         const mainOpenRouterApiRawCostKrw =
           meteredReceiptBilling && billingExchangeRate
@@ -3092,6 +3103,7 @@ export async function POST(req: Request) {
                 ...(mainOpenRouterApiRawCostKrw != null
                   ? {
                       apiRawCostKrw: mainOpenRouterApiRawCostKrw,
+                      apiRawCostSource,
                       mainApiRawCostKrw: mainOpenRouterApiRawCostKrw,
                     }
                   : {}),

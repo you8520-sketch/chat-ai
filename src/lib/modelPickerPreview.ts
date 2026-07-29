@@ -4,13 +4,14 @@
  */
 import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+  CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
   isDeepSeekV4ProModel,
   isGemini36FlashModel,
+  isGpt56TerraModel,
   isMuseModel,
-  isOpenAiTerraModel,
-  OPENAI_GPT_56_TERRA_MODEL,
-  OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
   resolveSelectedAI,
@@ -20,6 +21,7 @@ import {
 import type { Usage } from "@/lib/chatUsage";
 import {
   billableOpenRouterOutputTokens,
+  computeCheaperInferenceMarketPreviewCost,
   computeOpenRouterTurnCost,
 } from "@/lib/points";
 import { DEFAULT_TARGET_RESPONSE_CHARS } from "@/lib/responseLengthConstants";
@@ -51,11 +53,12 @@ export {
 /** Active picker models — preview tuning scope for V2. */
 export const MODEL_PICKER_ACTIVE_MODEL_IDS = [
   OPENROUTER_MUSE_SPARK_11_MODEL,
-  OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
-  OPENAI_GPT_56_TERRA_MODEL,
+  CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+  CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
 ] as const satisfies readonly SelectedAI[];
 
 export type ModelPickerActiveModelId = (typeof MODEL_PICKER_ACTIVE_MODEL_IDS)[number];
@@ -72,11 +75,12 @@ export const MODEL_PICKER_FALLBACK_INPUT_TOKENS = 4000;
 export const MODEL_PICKER_MEASURED_COLD_BASELINES: Partial<Record<ModelPickerActiveModelId, number>> =
   {
     [OPENROUTER_MUSE_SPARK_11_MODEL]: 1400,
-    [OPENROUTER_DEEPSEEK_V4_PRO_MODEL]: 1500,
+    [CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL]: 1500,
     [OPENROUTER_GEMINI_36_FLASH_MODEL]: 1200,
-    [OPENAI_GPT_56_TERRA_MODEL]: 1400,
+    [CHEAPER_INFERENCE_GPT_56_TERRA_MODEL]: 1400,
     [CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL]: 1400,
     [CHEAPER_INFERENCE_GPT_56_LUNA_MODEL]: 1400,
+    [CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL]: 1400,
   };
 
 /** Output-token band used when deriving low/high point labels. */
@@ -195,7 +199,7 @@ export function resolveColdOutputBaseline(modelId: string): number {
   if (isGemini36FlashModel(modelId)) return Math.round(aim * 0.4);
   if (isDeepSeekV4ProModel(modelId)) return Math.round(aim * 0.5);
   if (isMuseModel(modelId)) return Math.round(aim * 0.48);
-  if (isOpenAiTerraModel(modelId)) return Math.round(aim * 0.5);
+  if (isGpt56TerraModel(modelId)) return Math.round(aim * 0.5);
   return Math.round(aim * 0.4);
 }
 
@@ -380,7 +384,15 @@ export function computePreviewTurnPoints(opts: {
     return null;
   }
   // outputTokens are total completion tokens (content + thinking) from previewCostOutputTokens.
-  return computeOpenRouterTurnCost(opts.inputTokens, opts.outputTokens, opts.modelId);
+  return (
+    computeCheaperInferenceMarketPreviewCost(
+      opts.inputTokens,
+      opts.outputTokens,
+      opts.modelId,
+      0.15
+    ) ??
+    computeOpenRouterTurnCost(opts.inputTokens, opts.outputTokens, opts.modelId)
+  );
 }
 
 export function computePreviewPointBand(opts: {
@@ -399,16 +411,30 @@ export function computePreviewPointBand(opts: {
     Math.round(opts.outputTokens * (1 + MODEL_PICKER_OUTPUT_RANGE_RATIO)),
     opts.targetResponseChars
   );
-  const low = computePreviewTurnPoints({
-    modelId: opts.modelId,
-    inputTokens: opts.inputTokens,
-    outputTokens: loOut,
-  });
-  const high = computePreviewTurnPoints({
-    modelId: opts.modelId,
-    inputTokens: opts.inputTokens,
-    outputTokens: hiOut,
-  });
+  const low =
+    computeCheaperInferenceMarketPreviewCost(
+      opts.inputTokens,
+      loOut,
+      opts.modelId,
+      0.3
+    ) ??
+    computePreviewTurnPoints({
+      modelId: opts.modelId,
+      inputTokens: opts.inputTokens,
+      outputTokens: loOut,
+    });
+  const high =
+    computeCheaperInferenceMarketPreviewCost(
+      opts.inputTokens,
+      hiOut,
+      opts.modelId,
+      0
+    ) ??
+    computePreviewTurnPoints({
+      modelId: opts.modelId,
+      inputTokens: opts.inputTokens,
+      outputTokens: hiOut,
+    });
   if (low == null || high == null) return { low: mid, mid, high: mid };
 
   // Token-based band (can be tiny on cheap out-rates) ∪ minimum relative display band.

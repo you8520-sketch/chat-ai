@@ -43,6 +43,8 @@ export type Usage = {
   assembledInputTokens?: number;
   /** OpenRouter API 원가 (KRW, 마진 전) */
   apiRawCostKrw?: number;
+  /** 공급자 실비 또는 해당 턴의 카탈로그 요율 추정 구분 */
+  apiRawCostSource?: "provider_reported" | "live_catalog" | "fallback_catalog";
   /** Opus — cache-hit-normalized API 원가 (KRW, 마진 floor 입력) */
   normalizedRawCostKrw?: number;
   /** 과금 시점 USD→KRW (×2% 포함) */

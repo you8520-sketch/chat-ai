@@ -3,6 +3,7 @@
  * @see https://openrouter.ai/docs/guides/best-practices/prompt-caching
  * @see https://api-docs.deepseek.com/quick_start/pricing (DeepSeek V4 Pro cache hit)
  */
+import { resolveCheaperInferenceCatalogPricing } from "@/lib/cheaperInferenceCatalogPricing";
 
 export type OpenRouterCacheFamily = "anthropic" | "deepseek" | "google" | "openai" | "unknown";
 
@@ -54,6 +55,30 @@ const CHEAPER_INFERENCE_GPT_56_LUNA_RATES: OpenRouterModelRates = {
   outputUsdPerM: 6,
   cacheReadUsdPerM: 0.1,
   cacheWriteUsdPerM: 1,
+  cacheWriteMultiplier: 1,
+  explicitCacheInjection: false,
+};
+
+/** Cheaper Inference DeepSeek V4 Pro — account catalog snapshot (2026-07-29). */
+const CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_RATES: OpenRouterModelRates = {
+  family: "deepseek",
+  label: "Cheaper Inference · DeepSeek automatic cache",
+  inputUsdPerM: 0.3045,
+  outputUsdPerM: 0.609,
+  cacheReadUsdPerM: 0.231,
+  cacheWriteUsdPerM: 0.3045,
+  cacheWriteMultiplier: 1,
+  explicitCacheInjection: false,
+};
+
+/** Cheaper Inference Gemini 3.1 Pro Preview — live fallback snapshot (2026-07-29). */
+const CHEAPER_INFERENCE_GEMINI_31_PRO_RATES: OpenRouterModelRates = {
+  family: "google",
+  label: "Cheaper Inference · Google automatic cache",
+  inputUsdPerM: 1.4,
+  outputUsdPerM: 8.4,
+  cacheReadUsdPerM: 0.4375,
+  cacheWriteUsdPerM: 1.4,
   cacheWriteMultiplier: 1,
   explicitCacheInjection: false,
 };
@@ -198,15 +223,15 @@ const SOLAR_PRO_3_RATES: OpenRouterModelRates = {
   explicitCacheInjection: false,
 };
 
-/** OpenAI GPT-5.6 Terra — Responses API list (short-context) */
-const OPENAI_GPT_56_TERRA_RATES: OpenRouterModelRates = {
+/** Cheaper Inference GPT-5.6 Terra — account catalog snapshot (2026-07-29). */
+const CHEAPER_INFERENCE_GPT_56_TERRA_RATES: OpenRouterModelRates = {
   family: "openai",
-  label: "OpenAI GPT-5.6 Terra prompt cache",
+  label: "Cheaper Inference · OpenAI automatic cache",
   inputUsdPerM: 2.5,
   outputUsdPerM: 15,
   cacheReadUsdPerM: 0.25,
-  cacheWriteUsdPerM: 3.125,
-  cacheWriteMultiplier: 1.25,
+  cacheWriteUsdPerM: 2.5,
+  cacheWriteMultiplier: 1,
   explicitCacheInjection: false,
 };
 
@@ -220,11 +245,48 @@ const GENERIC_OPENROUTER_RATES: OpenRouterModelRates = {
   explicitCacheInjection: false,
 };
 
+function withLiveCheaperInferenceRates(
+  modelId: string,
+  fallback: OpenRouterModelRates
+): OpenRouterModelRates {
+  const live = resolveCheaperInferenceCatalogPricing(modelId);
+  if (!live) return fallback;
+  return {
+    ...fallback,
+    inputUsdPerM: live.inputUsdPerMillion,
+    outputUsdPerM: live.outputUsdPerMillion,
+    cacheReadUsdPerM: live.cacheReadUsdPerMillion,
+    cacheWriteUsdPerM: live.cacheWriteUsdPerMillion,
+    cacheWriteMultiplier:
+      live.inputUsdPerMillion > 0
+        ? live.cacheWriteUsdPerMillion / live.inputUsdPerMillion
+        : fallback.cacheWriteMultiplier,
+  };
+}
+
 export function resolveOpenRouterModelRates(modelId?: string | null): OpenRouterModelRates {
   const id = (modelId ?? "").trim().toLowerCase();
   // Exact / specific model ids before broad family matches.
   if (id === "claude-opus-5") return CHEAPER_INFERENCE_CLAUDE_OPUS_5_RATES;
+  if (id === "deepseek-v4-pro") {
+    return withLiveCheaperInferenceRates(
+      id,
+      CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_RATES
+    );
+  }
+  if (id === "gpt-5.6-terra") {
+    return withLiveCheaperInferenceRates(
+      id,
+      CHEAPER_INFERENCE_GPT_56_TERRA_RATES
+    );
+  }
   if (id === "gpt-5.6-luna") return CHEAPER_INFERENCE_GPT_56_LUNA_RATES;
+  if (id === "gemini-3.1-pro-preview") {
+    return withLiveCheaperInferenceRates(
+      id,
+      CHEAPER_INFERENCE_GEMINI_31_PRO_RATES
+    );
+  }
   if (id === "deepseek-v4-flash") {
     return CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_RATES;
   }
@@ -245,9 +307,6 @@ export function resolveOpenRouterModelRates(modelId?: string | null): OpenRouter
   }
   if (id.includes("/solar-pro-3") || /(^|\/)solar[-.]?pro[-.]?3\b/.test(id)) {
     return SOLAR_PRO_3_RATES;
-  }
-  if (id === "gpt-5.6-terra" || id.includes("gpt-5.6-terra")) {
-    return OPENAI_GPT_56_TERRA_RATES;
   }
   return GENERIC_OPENROUTER_RATES;
 }
@@ -326,7 +385,11 @@ export function buildOpenRouterCacheReceiptInfo(opts: {
     } else if (rates.family === "google") {
       cacheWriteLine = `${cacheWrite.toLocaleString()} (캐시 저장 · 입력과 동일 단가)`;
     } else if (rates.family === "openai") {
-      cacheWriteLine = `${cacheWrite.toLocaleString()} (캐시 저장 · 입력 125% 단가)`;
+      const cacheWriteRateLabel =
+        Math.abs(rates.cacheWriteMultiplier - 1) < 0.0001
+          ? "입력과 동일 단가"
+          : `입력 ${Math.round(rates.cacheWriteMultiplier * 100)}% 단가`;
+      cacheWriteLine = `${cacheWrite.toLocaleString()} (캐시 저장 · ${cacheWriteRateLabel})`;
     } else {
       cacheWriteLine = `${cacheWrite.toLocaleString()} (캐시 저장)`;
     }

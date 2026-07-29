@@ -36,6 +36,12 @@ function readSignedUsd(v: unknown): number | undefined {
   return n;
 }
 
+function readPositiveUsd(v: unknown): number | undefined {
+  const n = Number(v);
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  return n;
+}
+
 /** Extract numeric fields from prompt_tokens_details for diagnostics */
 export function extractPromptTokensDetailsRaw(
   details: Record<string, unknown> | null
@@ -159,7 +165,7 @@ export function parseOpenRouterUsage(
 
   const standardInputTokens = Math.max(0, promptTokens - cacheReadTokens - cacheWriteTokens);
 
-  let upstreamCostUsd = 0;
+  let upstreamCostUsd: number | undefined;
   let upstreamPromptCostUsd: number | undefined;
   let upstreamCompletionCostUsd: number | undefined;
   const costDetails =
@@ -167,12 +173,12 @@ export function parseOpenRouterUsage(
       ? (u.cost_details as Record<string, unknown>)
       : null;
   if (costDetails) {
-    upstreamCostUsd = readNum(costDetails.upstream_inference_cost);
+    upstreamCostUsd = readPositiveUsd(costDetails.upstream_inference_cost);
     upstreamPromptCostUsd = readSignedUsd(costDetails.upstream_inference_prompt_cost);
     upstreamCompletionCostUsd = readSignedUsd(costDetails.upstream_inference_completions_cost);
   }
   if (!upstreamCostUsd) {
-    upstreamCostUsd = readNum(u.cost);
+    upstreamCostUsd = readPositiveUsd(u.cost);
   }
   const cacheDiscountUsd = readSignedUsd(u.cache_discount);
   const promptTokensDetailsRaw = extractPromptTokensDetailsRaw(details);
@@ -184,7 +190,7 @@ export function parseOpenRouterUsage(
     cacheReadTokens,
     cacheWriteTokens,
     standardInputTokens,
-    ...(upstreamCostUsd > 0 ? { upstreamCostUsd } : {}),
+    ...(upstreamCostUsd != null ? { upstreamCostUsd } : {}),
     ...(upstreamPromptCostUsd != null ? { upstreamPromptCostUsd } : {}),
     ...(upstreamCompletionCostUsd != null ? { upstreamCompletionCostUsd } : {}),
     ...(cacheDiscountUsd != null ? { cacheDiscountUsd } : {}),

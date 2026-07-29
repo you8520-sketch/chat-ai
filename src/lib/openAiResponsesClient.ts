@@ -88,14 +88,22 @@ export function resolveOpenAiResponsesFinishReason(
   return status ? status.toUpperCase() : undefined;
 }
 
-export function isRetryableOpenAiTerraFinishReason(finishReason?: string | null): boolean {
+export function isRetryableTerraFinishReason(finishReason?: string | null): boolean {
   const value = (finishReason ?? "").trim().toUpperCase();
   return (
     value === "MAX_OUTPUT_TOKENS" ||
+    value === "LENGTH" ||
     value === "INCOMPLETE" ||
     value === "STREAM_ERROR" ||
     value === "RESPONSE_FAILED"
   );
+}
+
+/** @deprecated Terra 공통 Chat Completions 판별 함수 사용 */
+export function isRetryableOpenAiTerraFinishReason(
+  finishReason?: string | null
+): boolean {
+  return isRetryableTerraFinishReason(finishReason);
 }
 
 function usageCount(value: unknown): number {
