@@ -14,6 +14,7 @@ import {
   isMuseModel,
   isOpenRouterSimplePointModel,
   isQwenModel,
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   OPENROUTER_DEEPSEEK_V3_MODEL,
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
@@ -280,7 +281,7 @@ export const OPENROUTER_OPUS_GROSS_MARGIN =
 /** @deprecated OPENROUTER_OPUS_GROSS_MARGIN 사용 (markup ≠ gross margin) */
 export const OPENROUTER_OPUS_COST_MARKUP = OPENROUTER_OPUS_GROSS_MARGIN;
 
-/** DeepSeek V3 background/HTML path — V4 Pro pricing uses a separate owner below. */
+/** DeepSeek background/HTML path — V4 Pro pricing uses a separate owner below. */
 export const OPENROUTER_DEEPSEEK_GROSS_MARGIN =
   Number(process.env.OPENROUTER_DEEPSEEK_GROSS_MARGIN) || 0.55;
 
@@ -431,7 +432,7 @@ export const OPENROUTER_GEMINI_31_POINTS_PER_OUTPUT_TOKEN = (() => {
   return 0.075;
 })();
 
-export type BillingProvider = "gemini" | "openrouter" | "openai";
+export type BillingProvider = "gemini" | "openrouter" | "openai" | "cheaperinference";
 
 export type PointType = "PAID" | "FREE";
 
@@ -1936,7 +1937,11 @@ export function computeTurnBilling(opts: {
   multiplier: number;
   total: number;
 } {
-  if (opts.provider === "openrouter" || opts.provider === "openai") {
+  if (
+    opts.provider === "openrouter" ||
+    opts.provider === "openai" ||
+    opts.provider === "cheaperinference"
+  ) {
     return computeOpenRouterTurnBilling({
       modelId: opts.openRouterModelId ?? "openrouter",
       inputTokens: opts.inputTokens,
@@ -2002,7 +2007,7 @@ export function computeFlashHtmlOnlyCharCharge(outputChars: number): number {
   return computeFlashHtmlOnlyOutputCharge(Math.max(400, Math.ceil(outputChars * 0.55)));
 }
 
-/** HTML 전용 턴 — DeepSeek V3 단독, API 원가 + 55% 마진 */
+/** HTML 전용 턴 — DeepSeek V4 Flash 단독, API 원가 + 55% 마진 */
 export function computeHtmlFlashOnlyTurnBilling(opts: {
   savedTextChars: number;
   userContextChars?: number;
@@ -2058,21 +2063,21 @@ export function computeHtmlFlashOnlyTurnBilling(opts: {
   const rawCostKrw = resolveOpenRouterTurnRawCostKrw(
     estimatedInputTokens,
     estimatedOutputTokens,
-    OPENROUTER_DEEPSEEK_V3_MODEL,
+    CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
     cache,
     billingBasis
   );
   const costPlusMarginKrw = openRouterDeepSeekMarginChargeKrw(rawCostKrw);
   const inputSurchargeKrw = openRouterInputTokenSurchargeKrw(
     estimatedInputTokens,
-    OPENROUTER_DEEPSEEK_V3_MODEL
+    CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
   );
   const total = Math.max(
     OPENROUTER_MIN_TURN_COST,
     chargePoints(costPlusMarginKrw + inputSurchargeKrw)
   );
   return {
-    modelId: OPENROUTER_DEEPSEEK_V3_MODEL,
+    modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
     modelLabel: HTML_ONLY_MODEL_LABEL,
     baseCost: costPlusMarginKrw,
     contextSurcharge: inputSurchargeKrw,

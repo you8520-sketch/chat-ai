@@ -34,6 +34,18 @@ const ANTHROPIC_OPUS_RATES: OpenRouterModelRates = {
   explicitCacheInjection: true,
 };
 
+/** Cheaper Inference Claude Opus 5 — account catalog snapshot (2026-07-29). */
+const CHEAPER_INFERENCE_CLAUDE_OPUS_5_RATES: OpenRouterModelRates = {
+  family: "anthropic",
+  label: "Cheaper Inference · Anthropic prompt cache",
+  inputUsdPerM: 3.5,
+  outputUsdPerM: 17.5,
+  cacheReadUsdPerM: 0.35,
+  cacheWriteUsdPerM: 4.375,
+  cacheWriteMultiplier: 1.25,
+  explicitCacheInjection: true,
+};
+
 /**
  * DeepSeek V3 0324 — OpenRouter headline estimate (fallback only).
  * Checked 2026-07-17: ~$0.24/M in, ~$0.90/M out; provider prices vary.
@@ -44,6 +56,18 @@ const DEEPSEEK_V3_0324_RATES: OpenRouterModelRates = {
   label: "DeepSeek V3 0324 (fallback estimate)",
   inputUsdPerM: 0.24,
   outputUsdPerM: 0.9,
+  cacheWriteMultiplier: 1,
+  explicitCacheInjection: false,
+};
+
+/** Cheaper Inference DeepSeek V4 Flash — account catalog snapshot (2026-07-29). */
+const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_RATES: OpenRouterModelRates = {
+  family: "deepseek",
+  label: "Cheaper Inference · DeepSeek automatic cache",
+  inputUsdPerM: 0.098,
+  outputUsdPerM: 0.196,
+  cacheReadUsdPerM: 0.0196,
+  cacheWriteUsdPerM: 0.098,
   cacheWriteMultiplier: 1,
   explicitCacheInjection: false,
 };
@@ -187,6 +211,10 @@ const GENERIC_OPENROUTER_RATES: OpenRouterModelRates = {
 export function resolveOpenRouterModelRates(modelId?: string | null): OpenRouterModelRates {
   const id = (modelId ?? "").trim().toLowerCase();
   // Exact / specific model ids before broad family matches.
+  if (id === "claude-opus-5") return CHEAPER_INFERENCE_CLAUDE_OPUS_5_RATES;
+  if (id === "deepseek-v4-flash") {
+    return CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_RATES;
+  }
   if (id.includes("gemini-2.5-flash")) return GEMINI_25_FLASH_RATES;
   if (id.includes("gemini-3.6-flash")) return GEMINI_36_FLASH_RATES;
   if (id.includes("deepseek-chat-v3-0324")) return DEEPSEEK_V3_0324_RATES;

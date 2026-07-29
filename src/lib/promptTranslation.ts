@@ -1,7 +1,11 @@
 import crypto from "crypto";
 import { getDb } from "@/lib/db";
-import { callGemini, BACKGROUND_OPENROUTER_MODEL } from "@/lib/ai";
-import { OPENROUTER_DEEPSEEK_V3_MODEL } from "@/lib/chatModels";
+import {
+  callGemini,
+  BACKGROUND_OPENROUTER_MODEL,
+  resolveBackgroundTextModelId,
+} from "@/lib/ai";
+import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL } from "@/lib/chatModels";
 import { toOpenRouterModelId } from "@/lib/openRouterCompletion";
 import { deserializeCharacterChunks } from "@/utils/characterParser";
 import type { CharacterChunk } from "@/types";
@@ -73,7 +77,7 @@ Output protocol:
 - Output nothing outside the segment delimiters.`;
 
 const DEFAULT_TRANSLATION_FALLBACK_MODELS = [
-  OPENROUTER_DEEPSEEK_V3_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
 ];
 
 /** Primary + fallback OpenRouter models for save-time KO→EN translation (deduped). */
@@ -89,10 +93,11 @@ export function resolveTranslationModels(): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const model of [primary, ...fallbacks]) {
-    const key = toOpenRouterModelId(model);
+    const resolvedModel = resolveBackgroundTextModelId(model);
+    const key = toOpenRouterModelId(resolvedModel);
     if (!key || seen.has(key)) continue;
     seen.add(key);
-    out.push(model);
+    out.push(resolvedModel);
   }
   return out;
 }

@@ -14,6 +14,7 @@ import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
 import { openRouterRawCostKrw } from "@/lib/billingRawCost";
 import { resolveOpenRouterModelRates } from "@/lib/openRouterModelPricing";
 import {
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   OPENROUTER_CLAUDE_DEFAULT,
   OPENROUTER_DEEPSEEK_V3_MODEL,
   OPENROUTER_GEMINI_25_FLASH_MODEL,
@@ -51,13 +52,27 @@ function baseUsage(overrides: Partial<Usage> = {}): Usage {
 describe("statusWidget receiptUsage", () => {
   it("mergeStatusWidgetExtractUsages sums token fields", () => {
     const merged = mergeStatusWidgetExtractUsages([
-      { inputTokens: 1000, outputTokens: 50, estimated: false },
-      { inputTokens: 800, outputTokens: 40, estimated: true, upstreamCostUsd: 0.01 },
+      {
+        inputTokens: 1000,
+        outputTokens: 50,
+        estimated: false,
+        cacheReadTokens: 600,
+      },
+      {
+        inputTokens: 800,
+        outputTokens: 40,
+        estimated: true,
+        upstreamCostUsd: 0.01,
+        cacheReadTokens: 200,
+        cacheWriteTokens: 100,
+      },
     ]);
     assert.equal(merged?.inputTokens, 1800);
     assert.equal(merged?.outputTokens, 90);
     assert.equal(merged?.estimated, true);
     assert.equal(merged?.upstreamCostUsd, 0.01);
+    assert.equal(merged?.cacheReadTokens, 800);
+    assert.equal(merged?.cacheWriteTokens, 100);
   });
 
   it("Flash billing meta never records Opus as extract model", () => {
@@ -255,6 +270,10 @@ describe("statusWidget receiptUsage", () => {
     assert.equal(
       statusWidgetExtractModelLabel(OPENROUTER_DEEPSEEK_V3_MODEL),
       "DeepSeek V3 0324 (상태창 추출)"
+    );
+    assert.equal(
+      statusWidgetExtractModelLabel(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),
+      "DeepSeek V4 Flash (상태창 추출)"
     );
     assert.equal(
       statusWidgetExtractModelLabel("vendor/custom-model"),

@@ -22,9 +22,13 @@ function roundReceiptKrw(n: number): number {
   return Math.round(n * 10) / 10;
 }
 
-/** OpenRouter + OpenAI Terra — token-metered receipt / raw-cost providers */
+/** Token-metered receipt / raw-cost providers. */
 export function isMeteredReceiptProvider(provider?: string | null): boolean {
-  return provider === "openrouter" || provider === "openai";
+  return (
+    provider === "openrouter" ||
+    provider === "openai" ||
+    provider === "cheaperinference"
+  );
 }
 
 export type MainRpApiCostPartsKrw = {

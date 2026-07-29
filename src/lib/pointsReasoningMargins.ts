@@ -346,7 +346,11 @@ export function computeOpenRouterTurnBilling(
 export function computeTurnBilling(
   opts: Parameters<typeof core.computeTurnBilling>[0]
 ): ReturnType<typeof core.computeTurnBilling> {
-  if (opts.provider === "openrouter" || opts.provider === "openai") {
+  if (
+    opts.provider === "openrouter" ||
+    opts.provider === "openai" ||
+    opts.provider === "cheaperinference"
+  ) {
     const modelId =
       opts.openRouterModelId ??
       (opts.selectedAI ? billingModelId(resolveSelectedAI(opts.selectedAI)) : "");

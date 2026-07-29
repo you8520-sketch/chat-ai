@@ -10,7 +10,7 @@ import {
   OPENROUTER_DEEPSEEK_GROSS_MARGIN,
   computeHtmlFlashOnlyTurnBilling,
 } from "@/lib/points";
-import { OPENROUTER_DEEPSEEK_V3_MODEL } from "@/lib/chatModels";
+import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL } from "@/lib/chatModels";
 
 describe("HTML-only turn limits", () => {
   it("uses 30k input context and 6k output (same as secondary HTML flash)", () => {
@@ -21,14 +21,14 @@ describe("HTML-only turn limits", () => {
 });
 
 describe("computeHtmlFlashOnlyTurnBilling", () => {
-  it("uses DeepSeek V3 with HTML전용모델 label and margin-based billing", () => {
+  it("uses DeepSeek V4 Flash with HTML전용모델 label and margin-based billing", () => {
     const flash = computeHtmlFlashOnlyTurnBilling({
       savedTextChars: 1200,
       userContextChars: 500,
       inputTokens: 8420,
       outputTokens: 2180,
     });
-    assert.equal(flash.modelId, OPENROUTER_DEEPSEEK_V3_MODEL);
+    assert.equal(flash.modelId, CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL);
     assert.equal(flash.modelLabel, HTML_ONLY_MODEL_LABEL);
     assert.equal(flash.estimatedInputTokens, 8420);
     assert.equal(flash.estimatedOutputTokens, 2180);
@@ -45,10 +45,10 @@ describe("computeHtmlFlashOnlyTurnBilling", () => {
       inputTokens: 10_000,
       outputTokens: 8000,
     });
-    const marginRatio = flash.baseCost / flash.rawCostKrw;
-    // ceil(P) on small KRW raw (V3 exact rates) can nudge ratio slightly above 1/0.45
-    assert.ok(marginRatio >= 1 / (1 - OPENROUTER_DEEPSEEK_GROSS_MARGIN) - 0.03);
-    assert.ok(marginRatio <= 1 / (1 - OPENROUTER_DEEPSEEK_GROSS_MARGIN) + 0.03);
+    const expected = Math.ceil(
+      flash.rawCostKrw / (1 - OPENROUTER_DEEPSEEK_GROSS_MARGIN) - 1e-9
+    );
+    assert.equal(flash.baseCost, expected);
   });
 
   it("caps estimated output tokens at 6k when API usage missing", () => {

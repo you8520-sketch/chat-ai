@@ -97,7 +97,7 @@ export type ContextBuildInput = {
   /** Selected User Persona 성별 (호칭·관계 규칙용) */
   userPersonaGender?: CharacterGender;
   /** 모델 공급자 — 히스토리 예산·소설 타임라인 조립 분기 */
-  provider?: "gemini" | "openrouter" | "openai";
+  provider?: "gemini" | "openrouter" | "openai" | "cheaperinference";
   /** 캐릭터 장르 — narrative style layer 톤 매칭 */
   genres?: CharacterGenre[];
   /** 캐릭터 설정이 영문 번역본으로 주입될 때 true — 한국어 출력 지시어 append */
@@ -142,7 +142,7 @@ export type ContextBuildInput = {
   geminiStaticDynamicMode?: boolean;
   /** 제작자 상태창 위젯 ON — Flash 방화벽·상태 정책 분기 */
   statusWidgetActive?: boolean;
-  /** @deprecated HTML은 DeepSeek V3 전담 — 메인 모델에 PART I 주입하지 않음 */
+  /** @deprecated HTML은 background model 전담 — 메인 모델에 PART I 주입하지 않음 */
   mainModelOwnsHtmlVisualCard?: boolean;
   /** DeepSeek/Qwen — 메인 모델이 관계메모 JSON tail 출력 */
   mainModelOwnsRelationshipExtract?: boolean;

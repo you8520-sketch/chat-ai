@@ -72,7 +72,7 @@ const OOC_FLASH_MEMORY_HINTS_ONLY_MAX = 1_200;
 export const HTML_FLASH_MAX_OUTPUT_TOKENS = 6000;
 /** HTML 요청 전용 턴 — 출력 상한 (실제 출력량으로 과금) */
 export const HTML_ONLY_TURN_MAX_OUTPUT_TOKENS = 8_000;
-/** 영수증·UI 표시명 (실제 API: DeepSeek V3) */
+/** 영수증·UI 표시명 (실제 API: DeepSeek V4 Flash) */
 export const HTML_ONLY_MODEL_LABEL = "HTML전용모델";
 
 /** Flash ```html 카드 블록 크기 — compact 재조립·fallback용 (RP prose cap 아님) */
@@ -1170,7 +1170,7 @@ Do NOT stop after the account bio.`;
 Expand OOC HTML — minimum ${minChars} visible Korean characters. Follow [USER MESSAGE] layout; add scene-specific detail.`;
 }
 
-/** DeepSeek V3 — HTML visual card 생성 (상태창 meta extract와 동일 패턴) */
+/** DeepSeek V4 Flash — HTML visual card 생성 (상태창 meta extract와 동일 패턴) */
 export async function generateHtmlVisualCardWithFlash(
   opts: GenerateHtmlVisualCardOpts
 ): Promise<HtmlVisualCardFlashGenerateResult> {

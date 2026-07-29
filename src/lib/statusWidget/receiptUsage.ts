@@ -1,5 +1,6 @@
 import type { TokenUsage } from "@/lib/ai";
 import {
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   OPENROUTER_DEEPSEEK_V3_MODEL,
   OPENROUTER_GEMINI_25_FLASH_LITE_MODEL,
   OPENROUTER_GEMINI_25_FLASH_MODEL,
@@ -28,6 +29,8 @@ export type StatusWidgetExtractReceipt = {
   apiRawCostKrw: number;
   callCount: number;
   upstreamCostUsd?: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
   estimated?: boolean;
 };
 
@@ -72,6 +75,12 @@ export function statusWidgetExtractModelLabel(modelId: string): string {
     return "Google Gemini 2.5 Flash (상태창 추출)";
   }
   if (
+    lower === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL ||
+    lower.includes("deepseek-v4-flash")
+  ) {
+    return "DeepSeek V4 Flash (상태창 추출)";
+  }
+  if (
     lower === OPENROUTER_DEEPSEEK_V3_MODEL ||
     lower.includes("deepseek-chat-v3-0324")
   ) {
@@ -89,10 +98,14 @@ export function mergeStatusWidgetExtractUsages(usages: TokenUsage[]): TokenUsage
   let hasUpstream = false;
   let apiReportedInputTokens = 0;
   let hasApiReported = false;
+  let cacheReadTokens = 0;
+  let cacheWriteTokens = 0;
 
   for (const u of usages) {
     inputTokens += nonNegativeFinite(u.inputTokens);
     outputTokens += nonNegativeFinite(u.outputTokens);
+    cacheReadTokens += nonNegativeFinite(u.cacheReadTokens);
+    cacheWriteTokens += nonNegativeFinite(u.cacheWriteTokens);
     if (u.estimated) estimated = true;
     const reported = nonNegativeFinite(u.apiReportedInputTokens);
     if (reported > 0) {
@@ -112,6 +125,8 @@ export function mergeStatusWidgetExtractUsages(usages: TokenUsage[]): TokenUsage
     estimated,
     ...(hasApiReported ? { apiReportedInputTokens } : {}),
     ...(hasUpstream ? { upstreamCostUsd } : {}),
+    ...(cacheReadTokens > 0 ? { cacheReadTokens } : {}),
+    ...(cacheWriteTokens > 0 ? { cacheWriteTokens } : {}),
   };
 }
 
@@ -134,11 +149,19 @@ export function buildStatusWidgetExtractReceipt(
       promptTokens: input,
       outputTokens: output,
       modelId,
+      cacheReadTokens: usage.cacheReadTokens,
+      cacheWriteTokens: usage.cacheWriteTokens,
       upstreamCostUsd: usage.upstreamCostUsd,
       exchangeRate,
     }),
     ...(usage.upstreamCostUsd != null && usage.upstreamCostUsd > 0
       ? { upstreamCostUsd: usage.upstreamCostUsd }
+      : {}),
+    ...(usage.cacheReadTokens != null && usage.cacheReadTokens > 0
+      ? { cacheReadTokens: usage.cacheReadTokens }
+      : {}),
+    ...(usage.cacheWriteTokens != null && usage.cacheWriteTokens > 0
+      ? { cacheWriteTokens: usage.cacheWriteTokens }
       : {}),
     estimated: usage.estimated,
   };
