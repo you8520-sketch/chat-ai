@@ -7,11 +7,12 @@ import { GENDER_LABELS, type CharacterGender } from "@/lib/characterGender";
 import {
   PERSONA_NAME_LIMIT,
   PERSONA_CONTENT_MAX,
-  PERSONA_SECRET_CONTENT_MAX,
   USER_PERSONA_MAX_COUNT,
   USER_NOTE_MAX,
   USER_NOTE_FOCUS_MAX,
   personaContentLength,
+  personaCombinedContentLength,
+  capPersonaFieldToSharedBudget,
 } from "@/lib/persona";
 import {
   PERSONA_IMAGE_FOCUS_DEFAULT,
@@ -603,7 +604,8 @@ export default function PersonaClient({
               내 페르소나 ({personas.length} / {USER_PERSONA_MAX_COUNT})
             </h2>
             <p className="mt-0.5 text-[11px] text-zinc-500">
-              최대 {USER_PERSONA_MAX_COUNT.toLocaleString()}개 · 설명 최대 {PERSONA_CONTENT_MAX.toLocaleString()}자
+              최대 {USER_PERSONA_MAX_COUNT.toLocaleString()}개 · 기본+비밀 합계 최대{" "}
+              {PERSONA_CONTENT_MAX.toLocaleString()}자
             </p>
           </div>
           <button
@@ -689,18 +691,21 @@ export default function PersonaClient({
               <p className={studioType.label}>{creating ? "새 페르소나" : "페르소나 수정"}</p>
               <span
                 className={`text-xs font-semibold tabular-nums ${
-                  personaContentLength(draftDesc) >= PERSONA_CONTENT_MAX
+                  personaCombinedContentLength(draftDesc, draftSecretDescription) >=
+                  PERSONA_CONTENT_MAX
                     ? "text-rose-400"
-                    : personaContentLength(draftDesc) >= PERSONA_CONTENT_MAX * 0.9
+                    : personaCombinedContentLength(draftDesc, draftSecretDescription) >=
+                        PERSONA_CONTENT_MAX * 0.9
                       ? "text-zinc-300"
                       : "text-zinc-400"
                 }`}
               >
-                {personaContentLength(draftDesc).toLocaleString()} / {PERSONA_CONTENT_MAX.toLocaleString()}자
+                {personaCombinedContentLength(draftDesc, draftSecretDescription).toLocaleString()} /{" "}
+                {PERSONA_CONTENT_MAX.toLocaleString()}자
               </span>
             </div>
             <p className="text-[11px] text-zinc-500">
-              설명은 {PERSONA_CONTENT_MAX.toLocaleString()}자까지 입력할 수 있습니다.
+              기본 설정과 비밀 설정의 합계는 {PERSONA_CONTENT_MAX.toLocaleString()}자까지입니다.
             </p>
             <PersonaImageEditor
               disabled={busy}
@@ -762,16 +767,23 @@ export default function PersonaClient({
               <div className="mb-1 flex justify-between">
                 <label className={studioType.label}>기본 페르소나 설정</label>
                 <span className={studioType.counter}>
-                  {personaContentLength(draftDesc).toLocaleString()} / {PERSONA_CONTENT_MAX.toLocaleString()}자
+                  {personaContentLength(draftDesc).toLocaleString()}자
                 </span>
               </div>
               <textarea
                 rows={8}
-                maxLength={PERSONA_CONTENT_MAX}
+                maxLength={Math.max(
+                  draftDesc.length,
+                  PERSONA_CONTENT_MAX - personaContentLength(draftSecretDescription)
+                )}
                 className={studioTextareaClass}
                 placeholder="나이, 외모, 성격, 배경, 말투, AI에게 알려줄 공개 역할 설정…"
                 value={draftDesc}
-                onChange={(e) => setDraftDesc(e.target.value)}
+                onChange={(e) =>
+                  setDraftDesc(
+                    capPersonaFieldToSharedBudget(draftSecretDescription, e.target.value)
+                  )
+                }
               />
             </div>
             {secretSettings.canEdit ? (
@@ -779,8 +791,7 @@ export default function PersonaClient({
                 <div className="flex justify-between gap-2">
                   <label className={studioType.label}>비밀 설정 (선택)</label>
                   <span className={studioType.counter}>
-                    {draftSecretDescription.trim().length.toLocaleString()} /{" "}
-                    {PERSONA_SECRET_CONTENT_MAX.toLocaleString()}자
+                    {personaContentLength(draftSecretDescription).toLocaleString()}자
                   </span>
                 </div>
                 <p className={studioType.caption}>
@@ -791,20 +802,21 @@ export default function PersonaClient({
                   <p className={studioType.caption}>
                     직접 공개하거나, 목격·조사·전달을 통해 알게 될 수 있습니다.
                   </p>
-                ) : (
-                  <p className={studioType.caption}>
-                    비밀 설정은 일반 설정과 분리해 저장됩니다. 대화 중 발견 기능은 준비 중입니다.
-                  </p>
-                )}
+                ) : null}
                 <textarea
                   rows={6}
-                  maxLength={PERSONA_SECRET_CONTENT_MAX}
+                  maxLength={Math.max(
+                    draftSecretDescription.length,
+                    PERSONA_CONTENT_MAX - personaContentLength(draftDesc)
+                  )}
                   disabled={!creating && !draftSecretDescriptionLoaded}
                   className={`${studioTextareaClass} disabled:opacity-50`}
                   placeholder="예: 과거 포드 감염 실험에 자원했으며, 오른팔의 감염 흔적을 긴 장갑으로 숨기고 있다."
                   value={draftSecretDescription}
                   onChange={(e) => {
-                    setDraftSecretDescription(e.target.value);
+                    setDraftSecretDescription(
+                      capPersonaFieldToSharedBudget(draftDesc, e.target.value)
+                    );
                     setDraftSecretDescriptionDirty(true);
                   }}
                 />

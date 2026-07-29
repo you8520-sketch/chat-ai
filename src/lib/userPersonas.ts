@@ -9,8 +9,11 @@ import {
   PERSONA_CONTENT_MAX,
   PERSONA_SECRET_CONTENT_MAX,
   validatePersonaContentLength,
+  validatePersonaCombinedContentLength,
   validatePersonaSecretContentLength,
   personaContentLength,
+  personaCombinedContentLength,
+  capPersonaFieldToSharedBudget,
 } from "./persona";
 
 export {
@@ -350,8 +353,11 @@ export function sanitizePersonaInput(
 
 export {
   validatePersonaContentLength,
+  validatePersonaCombinedContentLength,
   validatePersonaSecretContentLength,
   personaContentLength,
+  personaCombinedContentLength,
+  capPersonaFieldToSharedBudget,
   PERSONA_CONTENT_MAX,
   PERSONA_SECRET_CONTENT_MAX,
 };

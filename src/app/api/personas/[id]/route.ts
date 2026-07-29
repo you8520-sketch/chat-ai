@@ -7,10 +7,8 @@ import {
   sanitizePersonaImageFocus,
   sanitizePersonaImageUrl,
   sanitizePersonaInput,
-  validatePersonaContentLength,
-  validatePersonaSecretContentLength,
+  validatePersonaCombinedContentLength,
 } from "@/lib/userPersonas";
-import { isPersonaSecretBoundaryEnabled } from "@/lib/personaSecretBoundaryPolicy";
 import { preserveLegacySecretBlocksOnPublicDescriptionUpdate } from "@/lib/personaSecretLegacyMarkers";
 import { toPublicPersonaClientRow } from "@/lib/personaSecretSerialization";
 import {
@@ -67,19 +65,15 @@ export async function PUT(req: Request, { params }: Params) {
     return NextResponse.json({ error: "대표 이미지 URL이 올바르지 않습니다." }, { status: 400 });
   }
 
-  const contentCheck = validatePersonaContentLength(description);
-  if (!contentCheck.ok) {
-    return NextResponse.json({ error: contentCheck.error }, { status: 400 });
-  }
-  const boundaryOn = isPersonaSecretBoundaryEnabled({ userId: user.id });
   const secretInput: PersonaSecretInput = secretSupplied
     ? { supplied: true, value: secret_description }
     : { supplied: false };
-  if (boundaryOn && secretInput.supplied) {
-    const secretCheck = validatePersonaSecretContentLength(secretInput.value);
-    if (!secretCheck.ok) {
-      return NextResponse.json({ error: secretCheck.error }, { status: 400 });
-    }
+  const contentCheck = validatePersonaCombinedContentLength(
+    description,
+    secret_description
+  );
+  if (!contentCheck.ok) {
+    return NextResponse.json({ error: contentCheck.error }, { status: 400 });
   }
 
   const saved = savePersonaWithSecretCompilation({
