@@ -238,17 +238,31 @@ export function giftPoints(
     const recipientReason = `포인트 선물 수령 (${breakdown.net}P)`;
     creditPaidPointsInTx(db, recipient.id, breakdown.net, recipientReason);
 
+    const giftColumns = db.prepare("PRAGMA table_info(point_gifts)").all() as {
+      name: string;
+    }[];
+    const giftColumnNames = new Set(giftColumns.map((column) => column.name));
+    if (!giftColumnNames.has("paid_fee_amount")) {
+      db.exec("ALTER TABLE point_gifts ADD COLUMN paid_fee_amount REAL NOT NULL DEFAULT 0");
+    }
+    if (!giftColumnNames.has("free_fee_amount")) {
+      db.exec("ALTER TABLE point_gifts ADD COLUMN free_fee_amount REAL NOT NULL DEFAULT 0");
+    }
     const gift = db
       .prepare(
-        `INSERT INTO point_gifts (sender_id, recipient_id, gross_amount, fee_amount, net_amount)
-         VALUES (?, ?, ?, ?, ?)`
+        `INSERT INTO point_gifts
+          (sender_id, recipient_id, gross_amount, fee_amount, net_amount,
+           paid_fee_amount, free_fee_amount)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         senderId,
         recipient.id,
         breakdown.gross,
         breakdown.fee,
-        breakdown.net
+        breakdown.net,
+        breakdown.paidFee,
+        breakdown.freeFee
       );
 
     const giftId = Number(gift.lastInsertRowid);

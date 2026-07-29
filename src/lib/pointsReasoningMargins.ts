@@ -4,12 +4,14 @@ import {
   isCheaperInferenceClaudeOpus5Model,
   isDeepSeekV4ProModel,
   isGemini36FlashModel,
+  isGpt56LunaModel,
   isMuseModel,
   isOpenAiTerraModel,
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
   OPENAI_GPT_56_TERRA_MODEL,
+  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   resolveSelectedAI,
 } from "./chatModels";
 import { getEffectiveKrwPerUsd } from "./exchangeRate";
@@ -29,12 +31,17 @@ export const CHEAPER_INFERENCE_CLAUDE_OPUS_5_INPUT_USD_PER_MILLION = 3.5;
 export const CHEAPER_INFERENCE_CLAUDE_OPUS_5_CACHED_INPUT_USD_PER_MILLION = 0.35;
 export const CHEAPER_INFERENCE_CLAUDE_OPUS_5_CACHE_WRITE_USD_PER_MILLION = 4.375;
 export const CHEAPER_INFERENCE_CLAUDE_OPUS_5_OUTPUT_USD_PER_MILLION = 17.5;
+export const CHEAPER_INFERENCE_GPT_56_LUNA_INPUT_USD_PER_MILLION = 1;
+export const CHEAPER_INFERENCE_GPT_56_LUNA_CACHED_INPUT_USD_PER_MILLION = 0.1;
+export const CHEAPER_INFERENCE_GPT_56_LUNA_CACHE_WRITE_USD_PER_MILLION = 1;
+export const CHEAPER_INFERENCE_GPT_56_LUNA_OUTPUT_USD_PER_MILLION = 6;
 
 /** Requested gross margins. Muse remains 60% in the underlying owner. */
 export const OPENROUTER_DEEPSEEK_V4_PRO_GROSS_MARGIN = 0.65;
 export const OPENROUTER_GEMINI_36_GROSS_MARGIN = 0.5;
 export const OPENAI_GPT_56_TERRA_GROSS_MARGIN = 0.55;
 export const CHEAPER_INFERENCE_CLAUDE_OPUS_5_GROSS_MARGIN = 0.45;
+export const CHEAPER_INFERENCE_GPT_56_LUNA_GROSS_MARGIN = 0.55;
 
 type ReasoningTokenPricing = {
   modelId: string;
@@ -104,6 +111,17 @@ const CHEAPER_INFERENCE_CLAUDE_OPUS_5_PRICING: ReasoningTokenPricing = {
   grossMargin: CHEAPER_INFERENCE_CLAUDE_OPUS_5_GROSS_MARGIN,
 };
 
+const CHEAPER_INFERENCE_LUNA_PRICING: ReasoningTokenPricing = {
+  modelId: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+  inputUsdPerMillion: CHEAPER_INFERENCE_GPT_56_LUNA_INPUT_USD_PER_MILLION,
+  cacheReadUsdPerMillion:
+    CHEAPER_INFERENCE_GPT_56_LUNA_CACHED_INPUT_USD_PER_MILLION,
+  cacheWriteUsdPerMillion:
+    CHEAPER_INFERENCE_GPT_56_LUNA_CACHE_WRITE_USD_PER_MILLION,
+  outputUsdPerMillion: CHEAPER_INFERENCE_GPT_56_LUNA_OUTPUT_USD_PER_MILLION,
+  grossMargin: CHEAPER_INFERENCE_GPT_56_LUNA_GROSS_MARGIN,
+};
+
 function resolveReasoningTokenPricing(modelId: string): ReasoningTokenPricing | null {
   if (isCheaperInferenceClaudeOpus5Model(modelId)) {
     return CHEAPER_INFERENCE_CLAUDE_OPUS_5_PRICING;
@@ -112,6 +130,7 @@ function resolveReasoningTokenPricing(modelId: string): ReasoningTokenPricing | 
   if (isDeepSeekV4ProModel(modelId)) return DEEPSEEK_PRICING;
   if (isGemini36FlashModel(modelId)) return GEMINI_36_PRICING;
   if (isOpenAiTerraModel(modelId)) return OPENAI_TERRA_PRICING;
+  if (isGpt56LunaModel(modelId)) return CHEAPER_INFERENCE_LUNA_PRICING;
   return null;
 }
 
