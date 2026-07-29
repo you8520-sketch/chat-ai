@@ -370,12 +370,64 @@ describe("persona secret boundary", () => {
     );
   });
 
-  it("Discovery kill switch default OFF in production; explicit OFF wins", () => {
+  it("fail-closed matrix: NODE_ENV alone never enables Boundary/Discovery", () => {
+    restoreEnv(env);
+    const base = {
+      ...process.env,
+      PERSONA_SECRET_BOUNDARY_ENABLED: undefined,
+      PERSONA_SECRET_BOUNDARY_USER_IDS: undefined,
+      PERSONA_SECRET_BOUNDARY_CANARY_PERCENT: undefined,
+      PERSONA_SECRET_DISCOVERY_ENABLED: undefined,
+    };
+    for (const nodeEnv of [undefined, "development", "production"] as const) {
+      const envStub = { ...base, NODE_ENV: nodeEnv as string | undefined };
+      assert.equal(isPersonaSecretBoundaryEnabled({ userId: 42 }, envStub), false);
+      assert.equal(isPersonaSecretDiscoveryEnabled({ userId: 42 }, envStub), false);
+    }
+  });
+
+  it("BOUNDARY_ENABLED=0 kill switch wins over admin allowlist", () => {
+    restoreEnv(env);
+    assert.equal(
+      isPersonaSecretBoundaryEnabled(
+        { userId: 1 },
+        {
+          ...process.env,
+          PERSONA_SECRET_BOUNDARY_ENABLED: "0",
+          PERSONA_SECRET_BOUNDARY_USER_IDS: "1",
+        }
+      ),
+      false
+    );
+  });
+
+  it("unset BOUNDARY_ENABLED + admin allowlist enables only allowlisted users", () => {
+    restoreEnv(env);
+    const envStub = {
+      ...process.env,
+      PERSONA_SECRET_BOUNDARY_ENABLED: undefined,
+      PERSONA_SECRET_BOUNDARY_USER_IDS: "1",
+      PERSONA_SECRET_BOUNDARY_CANARY_PERCENT: undefined,
+    };
+    assert.equal(isPersonaSecretBoundaryEnabled({ userId: 1 }, envStub), true);
+    assert.equal(isPersonaSecretBoundaryEnabled({ userId: 99 }, envStub), false);
+  });
+
+  it("Discovery kill switch default OFF; explicit OFF wins; ON requires Boundary", () => {
     restoreEnv(env);
     assert.equal(
       isPersonaSecretDiscoveryEnabled({ userId: 42 }, {
         ...process.env,
         NODE_ENV: "production",
+        PERSONA_SECRET_BOUNDARY_ENABLED: "1",
+        PERSONA_SECRET_DISCOVERY_ENABLED: undefined,
+      }),
+      false
+    );
+    assert.equal(
+      isPersonaSecretDiscoveryEnabled({ userId: 42 }, {
+        ...process.env,
+        NODE_ENV: "development",
         PERSONA_SECRET_BOUNDARY_ENABLED: "1",
         PERSONA_SECRET_DISCOVERY_ENABLED: undefined,
       }),
@@ -393,7 +445,14 @@ describe("persona secret boundary", () => {
     assert.equal(
       isPersonaSecretDiscoveryEnabled({ userId: 42 }, {
         ...process.env,
-        NODE_ENV: "production",
+        PERSONA_SECRET_BOUNDARY_ENABLED: "0",
+        PERSONA_SECRET_DISCOVERY_ENABLED: "1",
+      }),
+      false
+    );
+    assert.equal(
+      isPersonaSecretDiscoveryEnabled({ userId: 42 }, {
+        ...process.env,
         PERSONA_SECRET_BOUNDARY_ENABLED: "1",
         PERSONA_SECRET_DISCOVERY_ENABLED: "1",
       }),
