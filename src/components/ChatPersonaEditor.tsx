@@ -2,7 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GENDER_LABELS, type CharacterGender } from "@/lib/characterGender";
-import { PERSONA_NAME_LIMIT, PERSONA_CONTENT_MAX, PERSONA_SECRET_CONTENT_MAX, personaContentLength } from "@/lib/persona";
+import {
+  PERSONA_NAME_LIMIT,
+  PERSONA_CONTENT_MAX,
+  personaContentLength,
+  personaCombinedContentLength,
+  capPersonaFieldToSharedBudget,
+} from "@/lib/persona";
 import {
   PERSONA_IMAGE_FOCUS_DEFAULT,
   type OwnerPersonaEditorItem,
@@ -385,17 +391,19 @@ export default function ChatPersonaEditor({
       </label>
 
       <div className="flex items-center justify-between gap-2 rounded-lg border border-violet-500/20 bg-violet-500/5 px-3 py-2">
-        <span className="text-[11px] text-zinc-400">기본 페르소나 설정</span>
+        <span className="text-[11px] text-zinc-400">기본+비밀 합계</span>
         <span
           className={`text-[11px] font-semibold tabular-nums ${
-            personaContentLength(description) >= PERSONA_CONTENT_MAX
+            personaCombinedContentLength(description, secretDescription) >= PERSONA_CONTENT_MAX
               ? "text-rose-400"
-              : personaContentLength(description) >= PERSONA_CONTENT_MAX * 0.9
+              : personaCombinedContentLength(description, secretDescription) >=
+                  PERSONA_CONTENT_MAX * 0.9
                 ? "text-amber-400"
                 : "text-violet-300/90"
           }`}
         >
-          {personaContentLength(description).toLocaleString()} / {PERSONA_CONTENT_MAX.toLocaleString()}자
+          {personaCombinedContentLength(description, secretDescription).toLocaleString()} /{" "}
+          {PERSONA_CONTENT_MAX.toLocaleString()}자
         </span>
       </div>
 
@@ -403,12 +411,20 @@ export default function ChatPersonaEditor({
         <span className="font-bold text-zinc-400">기본 페르소나 설정</span>
         <textarea
           rows={10}
-          maxLength={PERSONA_CONTENT_MAX}
+          maxLength={Math.max(
+            description.length,
+            PERSONA_CONTENT_MAX - personaContentLength(secretDescription)
+          )}
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={(e) =>
+            setDescription(capPersonaFieldToSharedBudget(secretDescription, e.target.value))
+          }
           placeholder="나이, 외모, 성격, 배경, 말투, AI에게 알려줄 공개 역할 설정…"
           className="max-h-56 w-full resize-none overflow-y-auto rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 font-mono text-xs leading-relaxed text-zinc-200 outline-none focus:border-violet-500/40"
         />
+        <span className="text-[10px] text-zinc-600">
+          {personaContentLength(description).toLocaleString()}자
+        </span>
       </label>
 
       {personaSecretSettings.canEdit ? (
@@ -423,25 +439,26 @@ export default function ChatPersonaEditor({
               <p className="text-[10px] leading-relaxed text-zinc-500">
                 직접 공개하거나, 목격·조사·전달을 통해 알게 될 수 있습니다.
               </p>
-            ) : (
-              <p className="text-[10px] leading-relaxed text-zinc-500">
-                비밀 설정은 일반 설정과 분리해 저장됩니다. 대화 중 발견 기능은 준비 중입니다.
-              </p>
-            )}
+            ) : null}
             <textarea
               rows={6}
-              maxLength={PERSONA_SECRET_CONTENT_MAX}
+              maxLength={Math.max(
+                secretDescription.length,
+                PERSONA_CONTENT_MAX - personaContentLength(description)
+              )}
               value={secretDescription}
               disabled={!secretDescriptionLoaded || secretDescriptionSaving}
               onChange={(e) => {
-                setSecretDescription(e.target.value);
+                setSecretDescription(
+                  capPersonaFieldToSharedBudget(description, e.target.value)
+                );
                 setSecretDescriptionDirty(true);
               }}
               placeholder="예: 과거 포드 감염 실험에 자원했으며, 오른팔의 감염 흔적을 긴 장갑으로 숨기고 있다."
               className="max-h-40 w-full resize-none overflow-y-auto rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 font-mono text-xs leading-relaxed text-zinc-200 outline-none focus:border-violet-500/40 disabled:opacity-50"
             />
             <span className="text-[10px] text-zinc-600">
-              {secretDescription.trim().length.toLocaleString()} / {PERSONA_SECRET_CONTENT_MAX.toLocaleString()}자
+              {personaContentLength(secretDescription).toLocaleString()}자
             </span>
           </label>
           {!secretDescriptionLoaded && !secretLoadError && (

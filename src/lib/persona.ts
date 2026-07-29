@@ -4,10 +4,13 @@ export const PERSONA_NAME_LIMIT = 30;
 export const PERSONA_MEMO_LIMIT = 20;
 /** 유저가 만들 수 있는 페르소나 최대 개수 */
 export const USER_PERSONA_MAX_COUNT = 50;
-/** 페르소나 설정(description) 상한 */
+/** 기본 설정 + 비밀 설정 합산 상한 */
 export const PERSONA_CONTENT_MAX = 1200;
-/** 비밀 설정(secret_description) 상한 — public과 별도 */
-export const PERSONA_SECRET_CONTENT_MAX = 1200;
+/**
+ * 비밀 설정 단독 상한 — 기본 설정과 합산 시 PERSONA_CONTENT_MAX를 넘을 수 없음.
+ * (컴파일러 등 비밀 필드만 보는 경로용)
+ */
+export const PERSONA_SECRET_CONTENT_MAX = PERSONA_CONTENT_MAX;
 /** @deprecated PERSONA_CONTENT_MAX 사용 */
 export const USER_PERSONA_LIMIT = PERSONA_CONTENT_MAX;
 /** @deprecated PERSONA_CONTENT_MAX */
@@ -33,6 +36,13 @@ export function personaContentLength(description: string): number {
   return description.trim().length;
 }
 
+export function personaCombinedContentLength(
+  description: string,
+  secretDescription = ""
+): number {
+  return personaContentLength(description) + personaContentLength(secretDescription);
+}
+
 export function validatePersonaContentLength(
   description: string
 ): { ok: true } | { ok: false; error: string } {
@@ -46,17 +56,36 @@ export function validatePersonaContentLength(
   return { ok: true };
 }
 
-export function validatePersonaSecretContentLength(
-  secretDescription: string
+export function validatePersonaCombinedContentLength(
+  description: string,
+  secretDescription = ""
 ): { ok: true } | { ok: false; error: string } {
-  const len = secretDescription.trim().length;
-  if (len > PERSONA_SECRET_CONTENT_MAX) {
+  const len = personaCombinedContentLength(description, secretDescription);
+  if (len > PERSONA_CONTENT_MAX) {
     return {
       ok: false,
-      error: `비밀 설정은 ${PERSONA_SECRET_CONTENT_MAX.toLocaleString()}자 이하여야 합니다. (현재 ${len.toLocaleString()}자)`,
+      error: `기본 설정과 비밀 설정의 합계는 ${PERSONA_CONTENT_MAX.toLocaleString()}자 이하여야 합니다. (현재 ${len.toLocaleString()}자)`,
     };
   }
   return { ok: true };
+}
+
+export function validatePersonaSecretContentLength(
+  secretDescription: string,
+  publicDescription = ""
+): { ok: true } | { ok: false; error: string } {
+  return validatePersonaCombinedContentLength(publicDescription, secretDescription);
+}
+
+/** 다른 필드 길이를 반영해 합산 예산 안으로 잘라 냄 */
+export function capPersonaFieldToSharedBudget(
+  otherField: string,
+  nextValue: string,
+  max = PERSONA_CONTENT_MAX
+): string {
+  const budget = Math.max(0, max - personaContentLength(otherField));
+  if (nextValue.length <= budget) return nextValue;
+  return nextValue.slice(0, budget);
 }
 
 /** UI 입력 — 설명 1200자 이내로 필드 값 제한 */
