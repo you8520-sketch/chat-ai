@@ -52,6 +52,7 @@ describe("parseOpenRouterUsage", () => {
     assert.equal(b.cacheReadTokens, 4290);
     assert.equal(b.cacheWriteTokens, 0);
     assert.equal(b.standardInputTokens, 251);
+    assert.equal(b.upstreamCostUsd, 0.01324875);
     assert.equal(b.upstreamPromptCostUsd, 0.00245875);
     assert.equal(b.promptTokensDetailsRaw?.cached_tokens, 4290);
   });
@@ -78,6 +79,15 @@ describe("parseOpenRouterUsage", () => {
       prompt_tokens_details: { cached_tokens: 800, cache_write_tokens: 800 },
     });
     assert.equal(b.cacheDiscountUsd, -0.0025);
+  });
+
+  it("preserves sub-dollar provider cost without rounding it to zero", () => {
+    const b = parseOpenRouterUsage({
+      prompt_tokens: 100,
+      completion_tokens: 10,
+      cost: 0.000321,
+    });
+    assert.equal(b.upstreamCostUsd, 0.000321);
   });
 });
 

@@ -59,6 +59,7 @@ describe("GPT-5.6 Terra Responses request", () => {
       "STOP"
     );
     assert.equal(isRetryableOpenAiTerraFinishReason("MAX_OUTPUT_TOKENS"), true);
+    assert.equal(isRetryableOpenAiTerraFinishReason("length"), true);
     assert.equal(isRetryableOpenAiTerraFinishReason("STOP"), false);
     assert.equal(isRetryableOpenAiTerraFinishReason("CONTENT_FILTER"), false);
   });

@@ -1,20 +1,26 @@
 import {
   billingModelId,
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+  CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  isCheaperInferenceModel,
   isCheaperInferenceClaudeOpus5Model,
+  isCheaperInferenceDeepSeekV4ProModel,
+  isCheaperInferenceGemini31ProModel,
   isDeepSeekV4ProModel,
   isGemini36FlashModel,
   isGpt56LunaModel,
+  isGpt56TerraModel,
   isMuseModel,
-  isOpenAiTerraModel,
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
-  OPENAI_GPT_56_TERRA_MODEL,
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   resolveSelectedAI,
 } from "./chatModels";
 import { getEffectiveKrwPerUsd } from "./exchangeRate";
+import { resolveCheaperInferenceCatalogPricing } from "./cheaperInferenceCatalogPricing";
 import * as core from "./pointsMuse60";
 
 /** Standard, non-cache OpenRouter prices per 1M tokens. */
@@ -22,11 +28,16 @@ export const OPENROUTER_DEEPSEEK_V4_PRO_INPUT_USD_PER_MILLION = 0.435;
 export const OPENROUTER_DEEPSEEK_V4_PRO_OUTPUT_USD_PER_MILLION = 0.87;
 export const OPENROUTER_GEMINI_36_INPUT_USD_PER_MILLION = 1.5;
 export const OPENROUTER_GEMINI_36_OUTPUT_USD_PER_MILLION = 7.5;
-export const OPENAI_GPT_56_TERRA_INPUT_USD_PER_MILLION = 2.5;
-export const OPENAI_GPT_56_TERRA_CACHED_INPUT_USD_PER_MILLION = 0.25;
-export const OPENAI_GPT_56_TERRA_CACHE_WRITE_USD_PER_MILLION = 3.125;
-export const OPENAI_GPT_56_TERRA_OUTPUT_USD_PER_MILLION = 15;
-export const OPENAI_GPT_56_TERRA_LONG_CONTEXT_THRESHOLD_TOKENS = 272_000;
+export const CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_INPUT_USD_PER_MILLION = 0.3045;
+export const CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_CACHED_INPUT_USD_PER_MILLION =
+  0.231;
+export const CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_CACHE_WRITE_USD_PER_MILLION =
+  0.3045;
+export const CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_OUTPUT_USD_PER_MILLION = 0.609;
+export const CHEAPER_INFERENCE_GPT_56_TERRA_INPUT_USD_PER_MILLION = 2.5;
+export const CHEAPER_INFERENCE_GPT_56_TERRA_CACHED_INPUT_USD_PER_MILLION = 0.25;
+export const CHEAPER_INFERENCE_GPT_56_TERRA_CACHE_WRITE_USD_PER_MILLION = 2.5;
+export const CHEAPER_INFERENCE_GPT_56_TERRA_OUTPUT_USD_PER_MILLION = 15;
 export const CHEAPER_INFERENCE_CLAUDE_OPUS_5_INPUT_USD_PER_MILLION = 3.5;
 export const CHEAPER_INFERENCE_CLAUDE_OPUS_5_CACHED_INPUT_USD_PER_MILLION = 0.35;
 export const CHEAPER_INFERENCE_CLAUDE_OPUS_5_CACHE_WRITE_USD_PER_MILLION = 4.375;
@@ -35,13 +46,20 @@ export const CHEAPER_INFERENCE_GPT_56_LUNA_INPUT_USD_PER_MILLION = 1;
 export const CHEAPER_INFERENCE_GPT_56_LUNA_CACHED_INPUT_USD_PER_MILLION = 0.1;
 export const CHEAPER_INFERENCE_GPT_56_LUNA_CACHE_WRITE_USD_PER_MILLION = 1;
 export const CHEAPER_INFERENCE_GPT_56_LUNA_OUTPUT_USD_PER_MILLION = 6;
+export const CHEAPER_INFERENCE_GEMINI_31_PRO_INPUT_USD_PER_MILLION = 1.4;
+export const CHEAPER_INFERENCE_GEMINI_31_PRO_CACHED_INPUT_USD_PER_MILLION =
+  0.4375;
+export const CHEAPER_INFERENCE_GEMINI_31_PRO_CACHE_WRITE_USD_PER_MILLION = 1.4;
+export const CHEAPER_INFERENCE_GEMINI_31_PRO_OUTPUT_USD_PER_MILLION = 8.4;
 
 /** Requested gross margins. Muse remains 60% in the underlying owner. */
 export const OPENROUTER_DEEPSEEK_V4_PRO_GROSS_MARGIN = 0.65;
 export const OPENROUTER_GEMINI_36_GROSS_MARGIN = 0.5;
-export const OPENAI_GPT_56_TERRA_GROSS_MARGIN = 0.55;
+export const CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_GROSS_MARGIN = 0.65;
+export const CHEAPER_INFERENCE_GPT_56_TERRA_GROSS_MARGIN = 0.5;
 export const CHEAPER_INFERENCE_CLAUDE_OPUS_5_GROSS_MARGIN = 0.45;
 export const CHEAPER_INFERENCE_GPT_56_LUNA_GROSS_MARGIN = 0.55;
+export const CHEAPER_INFERENCE_GEMINI_31_PRO_GROSS_MARGIN = 0.5;
 
 type ReasoningTokenPricing = {
   modelId: string;
@@ -77,6 +95,19 @@ const DEEPSEEK_PRICING: ReasoningTokenPricing = {
   grossMargin: OPENROUTER_DEEPSEEK_V4_PRO_GROSS_MARGIN,
 };
 
+const CHEAPER_INFERENCE_DEEPSEEK_PRICING: ReasoningTokenPricing = {
+  modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  inputUsdPerMillion:
+    CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_INPUT_USD_PER_MILLION,
+  cacheReadUsdPerMillion:
+    CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_CACHED_INPUT_USD_PER_MILLION,
+  cacheWriteUsdPerMillion:
+    CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_CACHE_WRITE_USD_PER_MILLION,
+  outputUsdPerMillion:
+    CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_OUTPUT_USD_PER_MILLION,
+  grossMargin: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_GROSS_MARGIN,
+};
+
 const GEMINI_36_PRICING: ReasoningTokenPricing = {
   modelId: OPENROUTER_GEMINI_36_FLASH_MODEL,
   inputUsdPerMillion: OPENROUTER_GEMINI_36_INPUT_USD_PER_MILLION,
@@ -84,18 +115,15 @@ const GEMINI_36_PRICING: ReasoningTokenPricing = {
   grossMargin: OPENROUTER_GEMINI_36_GROSS_MARGIN,
 };
 
-const OPENAI_TERRA_PRICING: ReasoningTokenPricing = {
-  modelId: OPENAI_GPT_56_TERRA_MODEL,
-  inputUsdPerMillion: OPENAI_GPT_56_TERRA_INPUT_USD_PER_MILLION,
-  cacheReadUsdPerMillion: OPENAI_GPT_56_TERRA_CACHED_INPUT_USD_PER_MILLION,
-  cacheWriteUsdPerMillion: OPENAI_GPT_56_TERRA_CACHE_WRITE_USD_PER_MILLION,
-  outputUsdPerMillion: OPENAI_GPT_56_TERRA_OUTPUT_USD_PER_MILLION,
-  longContextInputUsdPerMillion: 5,
-  longContextCacheReadUsdPerMillion: 0.5,
-  longContextCacheWriteUsdPerMillion: 6.25,
-  longContextOutputUsdPerMillion: 22.5,
-  longContextThresholdTokens: OPENAI_GPT_56_TERRA_LONG_CONTEXT_THRESHOLD_TOKENS,
-  grossMargin: OPENAI_GPT_56_TERRA_GROSS_MARGIN,
+const CHEAPER_INFERENCE_TERRA_PRICING: ReasoningTokenPricing = {
+  modelId: CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  inputUsdPerMillion: CHEAPER_INFERENCE_GPT_56_TERRA_INPUT_USD_PER_MILLION,
+  cacheReadUsdPerMillion:
+    CHEAPER_INFERENCE_GPT_56_TERRA_CACHED_INPUT_USD_PER_MILLION,
+  cacheWriteUsdPerMillion:
+    CHEAPER_INFERENCE_GPT_56_TERRA_CACHE_WRITE_USD_PER_MILLION,
+  outputUsdPerMillion: CHEAPER_INFERENCE_GPT_56_TERRA_OUTPUT_USD_PER_MILLION,
+  grossMargin: CHEAPER_INFERENCE_GPT_56_TERRA_GROSS_MARGIN,
 };
 
 const CHEAPER_INFERENCE_CLAUDE_OPUS_5_PRICING: ReasoningTokenPricing = {
@@ -122,15 +150,54 @@ const CHEAPER_INFERENCE_LUNA_PRICING: ReasoningTokenPricing = {
   grossMargin: CHEAPER_INFERENCE_GPT_56_LUNA_GROSS_MARGIN,
 };
 
+const CHEAPER_INFERENCE_GEMINI_31_PRO_PRICING: ReasoningTokenPricing = {
+  modelId: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+  inputUsdPerMillion: CHEAPER_INFERENCE_GEMINI_31_PRO_INPUT_USD_PER_MILLION,
+  cacheReadUsdPerMillion:
+    CHEAPER_INFERENCE_GEMINI_31_PRO_CACHED_INPUT_USD_PER_MILLION,
+  cacheWriteUsdPerMillion:
+    CHEAPER_INFERENCE_GEMINI_31_PRO_CACHE_WRITE_USD_PER_MILLION,
+  outputUsdPerMillion: CHEAPER_INFERENCE_GEMINI_31_PRO_OUTPUT_USD_PER_MILLION,
+  grossMargin: CHEAPER_INFERENCE_GEMINI_31_PRO_GROSS_MARGIN,
+};
+
+function withLiveCheaperInferenceCatalogPricing(
+  fallback: ReasoningTokenPricing
+): ReasoningTokenPricing {
+  const live = resolveCheaperInferenceCatalogPricing(fallback.modelId);
+  if (!live) return fallback;
+  return {
+    ...fallback,
+    inputUsdPerMillion: live.inputUsdPerMillion,
+    cacheReadUsdPerMillion: live.cacheReadUsdPerMillion,
+    cacheWriteUsdPerMillion: live.cacheWriteUsdPerMillion,
+    outputUsdPerMillion: live.outputUsdPerMillion,
+  };
+}
+
 function resolveReasoningTokenPricing(modelId: string): ReasoningTokenPricing | null {
   if (isCheaperInferenceClaudeOpus5Model(modelId)) {
     return CHEAPER_INFERENCE_CLAUDE_OPUS_5_PRICING;
   }
   if (isMuseModel(modelId)) return MUSE_PRICING;
+  if (isCheaperInferenceDeepSeekV4ProModel(modelId)) {
+    return withLiveCheaperInferenceCatalogPricing(
+      CHEAPER_INFERENCE_DEEPSEEK_PRICING
+    );
+  }
   if (isDeepSeekV4ProModel(modelId)) return DEEPSEEK_PRICING;
   if (isGemini36FlashModel(modelId)) return GEMINI_36_PRICING;
-  if (isOpenAiTerraModel(modelId)) return OPENAI_TERRA_PRICING;
+  if (isGpt56TerraModel(modelId)) {
+    return withLiveCheaperInferenceCatalogPricing(
+      CHEAPER_INFERENCE_TERRA_PRICING
+    );
+  }
   if (isGpt56LunaModel(modelId)) return CHEAPER_INFERENCE_LUNA_PRICING;
+  if (isCheaperInferenceGemini31ProModel(modelId)) {
+    return withLiveCheaperInferenceCatalogPricing(
+      CHEAPER_INFERENCE_GEMINI_31_PRO_PRICING
+    );
+  }
   return null;
 }
 
@@ -199,6 +266,52 @@ export const OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES: Record<string, number> = {
 function ceilFractional(n: number): number {
   if (!Number.isFinite(n) || n <= 0) return 0;
   return Number.isInteger(n) ? n : Math.ceil(n - 1e-9);
+}
+
+const MARKET_PREVIEW_DIRECT_RATES: Record<
+  string,
+  { inputUsdPerMillion: number; outputUsdPerMillion: number; grossMargin: number }
+> = {
+  [CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL]: {
+    inputUsdPerMillion: 0.435,
+    outputUsdPerMillion: 0.87,
+    grossMargin: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_GROSS_MARGIN,
+  },
+  [CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL]: {
+    inputUsdPerMillion: 2,
+    outputUsdPerMillion: 12,
+    grossMargin: CHEAPER_INFERENCE_GEMINI_31_PRO_GROSS_MARGIN,
+  },
+  [CHEAPER_INFERENCE_GPT_56_TERRA_MODEL]: {
+    inputUsdPerMillion: 2.5,
+    outputUsdPerMillion: 15,
+    grossMargin: CHEAPER_INFERENCE_GPT_56_TERRA_GROSS_MARGIN,
+  },
+};
+
+/**
+ * Stable model-picker estimate for market-priced CheaperInference models.
+ * discount=0.15 is the fixed midpoint; 0.30/0 are the stable low/high bounds.
+ * Actual turn billing continues to use the live authenticated catalog snapshot.
+ */
+export function computeCheaperInferenceMarketPreviewCost(
+  inputTokens: number,
+  outputTokens: number,
+  modelId: string,
+  discount = 0.15
+): number | null {
+  const pricing = MARKET_PREVIEW_DIRECT_RATES[modelId.trim().toLowerCase()];
+  if (!pricing) return null;
+  const boundedDiscount = Math.min(0.3, Math.max(0, discount));
+  const discountedInput = pricing.inputUsdPerMillion * (1 - boundedDiscount);
+  const discountedOutput = pricing.outputUsdPerMillion * (1 - boundedDiscount);
+  const rawUsd =
+    (Math.max(0, inputTokens) * discountedInput +
+      Math.max(0, outputTokens) * discountedOutput) /
+    1_000_000;
+  return ceilFractional(
+    (rawUsd * getEffectiveKrwPerUsd()) / (1 - pricing.grossMargin)
+  );
 }
 
 function resolveReportedTokens(value: number | undefined, fallback: number): number {
@@ -361,14 +474,28 @@ export function computeOpenRouterTurnBilling(
     opts.apiCompletionTokens,
     opts.outputTokens + (opts.reasoningTokens ?? 0)
   );
-  const baseCost = computeReasoningPointCost(
-    opts.modelId,
-    billedInputTokens,
-    billedCompletionTokens,
-    0,
-    cacheReadTokens,
-    cacheWriteTokens
-  ).total;
+  const rates = resolveOpenRouterReasoningPointRates(opts.modelId);
+  const upstreamCostUsd =
+    isCheaperInferenceModel(opts.modelId) &&
+    typeof opts.upstreamCostUsd === "number" &&
+    Number.isFinite(opts.upstreamCostUsd) &&
+    opts.upstreamCostUsd > 0
+      ? opts.upstreamCostUsd
+      : null;
+  const baseCost =
+    upstreamCostUsd != null && rates
+      ? ceilFractional(
+          (upstreamCostUsd * rates.effectiveKrwPerUsd) /
+            (1 - rates.grossMargin)
+        )
+      : computeReasoningPointCost(
+          opts.modelId,
+          billedInputTokens,
+          billedCompletionTokens,
+          0,
+          cacheReadTokens,
+          cacheWriteTokens
+        ).total;
 
   return {
     modelId: opts.modelId,

@@ -338,6 +338,7 @@ export function formatBillingReceiptText(
     apiContentOutputTokens?: number;
     statusWidgetExtract?: Usage["statusWidgetExtract"];
     mainApiRawCostKrw?: number;
+    apiRawCostSource?: Usage["apiRawCostSource"];
     mainRpCostParts?: MainRpApiCostPartsKrw | null;
   }
 ): string {
@@ -384,7 +385,13 @@ export function formatBillingReceiptText(
         `API 원가 합계 (메인+위젯): ~${formatPoints(extra.apiRawCostKrw)}원`
       );
     } else {
-      lines.push(`실제 API 원가: ~${formatPoints(extra.apiRawCostKrw)}원`);
+      const rawCostLabel =
+        extra.apiRawCostSource === "provider_reported"
+          ? "공급자 보고 API 원가"
+          : extra.apiRawCostSource === "live_catalog"
+            ? "API 원가 (실시간 카탈로그 추정)"
+            : "API 원가 (저장 요율 추정)";
+      lines.push(`${rawCostLabel}: ~${formatPoints(extra.apiRawCostKrw)}원`);
       if (extra.mainRpCostParts) {
         const p = extra.mainRpCostParts;
         lines.push(

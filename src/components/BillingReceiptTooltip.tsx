@@ -234,14 +234,19 @@ function ReceiptBody({
               ~{formatPoints(usage.mainApiRawCostKrw ?? apiRawCostKrw)}원
             </span>
             {!usage.statusWidgetExtract &&
-              usage.upstreamCostUsd != null &&
-              usage.upstreamCostUsd > 0 && (
-                <span className="text-zinc-600"> (OpenRouter USD 합산)</span>
+              usage.apiRawCostSource === "provider_reported" && (
+                <span className="text-zinc-600"> (공급자 USD 합산)</span>
               )}
             {!usage.statusWidgetExtract &&
-              usage.apiRawCostKrw == null &&
-              usage.upstreamCostUsd == null && (
-                <span className="text-zinc-600"> (요율 추정)</span>
+              usage.apiRawCostSource === "live_catalog" && (
+                <span className="text-zinc-600"> (실시간 카탈로그 추정)</span>
+              )}
+            {!usage.statusWidgetExtract &&
+              (usage.apiRawCostSource === "fallback_catalog" ||
+                (usage.apiRawCostSource == null &&
+                  usage.apiRawCostKrw == null &&
+                  usage.upstreamCostUsd == null)) && (
+                <span className="text-zinc-600"> (저장 요율 추정)</span>
               )}
           </p>
           {mainRpCostParts && (
@@ -444,6 +449,7 @@ export default function BillingReceiptTooltip({
       apiContentOutputTokens: usage.apiContentOutputTokens,
       statusWidgetExtract: usage.statusWidgetExtract,
       mainApiRawCostKrw: usage.mainApiRawCostKrw,
+      apiRawCostSource: usage.apiRawCostSource,
       mainRpCostParts,
     });
     try {
