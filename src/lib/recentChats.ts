@@ -48,6 +48,39 @@ export type CharacterChatGroup = {
 
 const RECENT_CHAT_LIMIT = 20;
 const SESSION_LIST_LIMIT = 50;
+/** 사이드바·대화 목록 — 최근 활동 캐릭터 수 (세션 수가 아님) */
+export const RECENT_CHARACTER_LIST_LIMIT = 40;
+
+const USER_CHAT_SESSION_SELECT = `
+         ch.id AS chat_id,
+         ch.character_id,
+         ch.title,
+         ch.created_at AS chat_created_at,
+         c.name, c.emoji, c.hue, c.nsfw, c.images,
+         (
+           SELECT m.content FROM messages m
+           WHERE m.chat_id = ch.id AND m.role IN ('user', 'assistant') AND m.model != 'greeting'
+           ORDER BY m.id DESC LIMIT 1
+         ) AS last_content,
+         (
+           SELECT m.role FROM messages m
+           WHERE m.chat_id = ch.id AND m.role IN ('user', 'assistant') AND m.model != 'greeting'
+           ORDER BY m.id DESC LIMIT 1
+         ) AS last_role,
+         COALESCE(
+           (SELECT MAX(m.created_at) FROM messages m WHERE m.chat_id = ch.id),
+           ch.created_at
+         ) AS last_at,
+         (
+           SELECT COUNT(*) FROM messages m
+           WHERE m.chat_id = ch.id AND m.role IN ('user', 'assistant')
+         ) AS msg_count,
+         (
+           SELECT COUNT(*) FROM messages m
+           WHERE m.chat_id = ch.id AND m.role = 'user'
+         ) AS user_turn_count,
+         COUNT(*) OVER (PARTITION BY ch.character_id) AS character_session_count,
+         ROW_NUMBER() OVER (PARTITION BY ch.character_id ORDER BY ch.id ASC) AS session_ordinal`;
 
 /** 사용자가 대화한 캐릭터 목록 (최근 메시지 기준, 캐릭터당 최신 채팅방 1개) */
 export function fetchRecentChattedCharacters(
@@ -81,7 +114,7 @@ export function fetchRecentChattedCharacters(
     .all(userId, limit) as RecentChatCharacter[];
 }
 
-/** 사용자의 모든 채팅방 (최근 활동 순) */
+/** 사용자의 모든 채팅방 (최근 활동 순) — 세션 한도. 캐릭터 목록 UI에는 사용하지 말 것. */
 export function fetchUserChatSessions(
   db: Database.Database,
   userId: number,
@@ -89,36 +122,7 @@ export function fetchUserChatSessions(
 ): UserChatSession[] {
   return db
     .prepare(
-      `SELECT
-         ch.id AS chat_id,
-         ch.character_id,
-         ch.title,
-         ch.created_at AS chat_created_at,
-         c.name, c.emoji, c.hue, c.nsfw, c.images,
-         (
-           SELECT m.content FROM messages m
-           WHERE m.chat_id = ch.id AND m.role IN ('user', 'assistant') AND m.model != 'greeting'
-           ORDER BY m.id DESC LIMIT 1
-         ) AS last_content,
-         (
-           SELECT m.role FROM messages m
-           WHERE m.chat_id = ch.id AND m.role IN ('user', 'assistant') AND m.model != 'greeting'
-           ORDER BY m.id DESC LIMIT 1
-         ) AS last_role,
-         COALESCE(
-           (SELECT MAX(m.created_at) FROM messages m WHERE m.chat_id = ch.id),
-           ch.created_at
-         ) AS last_at,
-         (
-           SELECT COUNT(*) FROM messages m
-           WHERE m.chat_id = ch.id AND m.role IN ('user', 'assistant')
-         ) AS msg_count,
-         (
-           SELECT COUNT(*) FROM messages m
-           WHERE m.chat_id = ch.id AND m.role = 'user'
-         ) AS user_turn_count,
-         COUNT(*) OVER (PARTITION BY ch.character_id) AS character_session_count,
-         ROW_NUMBER() OVER (PARTITION BY ch.character_id ORDER BY ch.id ASC) AS session_ordinal
+      `SELECT ${USER_CHAT_SESSION_SELECT}
        FROM chats ch
        JOIN characters c ON c.id = ch.character_id
        WHERE ch.user_id = ?
@@ -128,6 +132,78 @@ export function fetchUserChatSessions(
     .all(userId, limit) as UserChatSession[];
 }
 
+/**
+ * 캐릭터당 최신 채팅방 1개만 — 최근 활동 캐릭터 N명.
+ * 같은 캐릭터 분기가 많아도 다른 캐릭터가 목록에서 밀려나지 않는다.
+ */
+export function fetchLatestSessionsPerCharacter(
+  db: Database.Database,
+  userId: number,
+  characterLimit = RECENT_CHARACTER_LIST_LIMIT
+): UserChatSession[] {
+  return db
+    .prepare(
+      `WITH sessions AS (
+         SELECT ${USER_CHAT_SESSION_SELECT},
+                ROW_NUMBER() OVER (
+                  PARTITION BY ch.character_id
+                  ORDER BY COALESCE(
+                    (SELECT MAX(m.created_at) FROM messages m WHERE m.chat_id = ch.id),
+                    ch.created_at
+                  ) DESC,
+                  ch.id DESC
+                ) AS character_recency_rank
+         FROM chats ch
+         JOIN characters c ON c.id = ch.character_id
+         WHERE ch.user_id = ?
+       )
+       SELECT
+         chat_id, character_id, title, chat_created_at,
+         name, emoji, hue, nsfw, images,
+         last_content, last_role, last_at, msg_count, user_turn_count,
+         character_session_count, session_ordinal
+       FROM sessions
+       WHERE character_recency_rank = 1
+       ORDER BY last_at DESC
+       LIMIT ?`
+    )
+    .all(userId, characterLimit) as UserChatSession[];
+}
+
+/**
+ * 최근 활동 캐릭터 N명의 모든 채팅방(분기 포함).
+ * /chats 그리드용 — 세션 LIMIT로 캐릭터가 잘리지 않는다.
+ */
+export function fetchUserChatSessionsForRecentCharacters(
+  db: Database.Database,
+  userId: number,
+  characterLimit = RECENT_CHARACTER_LIST_LIMIT
+): UserChatSession[] {
+  return db
+    .prepare(
+      `WITH recent_characters AS (
+         SELECT ch.character_id,
+                MAX(COALESCE(
+                  (SELECT MAX(m.created_at) FROM messages m WHERE m.chat_id = ch.id),
+                  ch.created_at
+                )) AS character_last_at
+         FROM chats ch
+         JOIN characters c ON c.id = ch.character_id
+         WHERE ch.user_id = ?
+         GROUP BY ch.character_id
+         ORDER BY character_last_at DESC
+         LIMIT ?
+       )
+       SELECT ${USER_CHAT_SESSION_SELECT}
+       FROM chats ch
+       JOIN characters c ON c.id = ch.character_id
+       JOIN recent_characters rc ON rc.character_id = ch.character_id
+       WHERE ch.user_id = ?
+       ORDER BY last_at DESC`
+    )
+    .all(userId, characterLimit, userId) as UserChatSession[];
+}
+
 /** 특정 캐릭터의 모든 채팅방 (최근 활동 순) */
 export function fetchCharacterChatSessions(
   db: Database.Database,
@@ -135,8 +211,16 @@ export function fetchCharacterChatSessions(
   characterId: number,
   limit = 20
 ): UserChatSession[] {
-  const all = fetchUserChatSessions(db, userId, 200);
-  return all.filter((s) => s.character_id === characterId).slice(0, limit);
+  return db
+    .prepare(
+      `SELECT ${USER_CHAT_SESSION_SELECT}
+       FROM chats ch
+       JOIN characters c ON c.id = ch.character_id
+       WHERE ch.user_id = ? AND ch.character_id = ?
+       ORDER BY last_at DESC
+       LIMIT ?`
+    )
+    .all(userId, characterId, limit) as UserChatSession[];
 }
 
 /** 대화 목록 — 캐릭터별 그룹 (그룹 내 최근 활동 순) */

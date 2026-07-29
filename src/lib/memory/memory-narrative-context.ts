@@ -66,7 +66,7 @@ export function buildStoredHistoryStaticBlock(
   currentTurn: number,
   limit?: number,
   modelId?: string | null,
-  provider?: "gemini" | "openrouter"
+  provider?: "gemini" | "openrouter" | "openai"
 ): string {
   const records = listMemoryRecordsForChat(chatId).filter(isPromptInjectedRecord);
   if (records.length === 0) return "";

@@ -14,7 +14,6 @@ import {
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_25_PRO_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
-  OPENROUTER_TENCENT_HY3_MODEL,
 } from "@/lib/chatModels";
 import {
   assertSceneMomentumTelemetryPrivacySafe,
@@ -209,7 +208,6 @@ describe("Scene Momentum production telemetry — logging gate (C–F)", () => {
   for (const [label, modelId] of [
     ["D. Muse", OPENROUTER_MUSE_SPARK_11_MODEL],
     ["E. Gemini", OPENROUTER_GEMINI_25_PRO_MODEL],
-    ["F. HY3", OPENROUTER_TENCENT_HY3_MODEL],
   ] as const) {
     it(`${label} → no production [scene-momentum] log`, () => {
       assert.equal(

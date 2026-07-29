@@ -160,17 +160,6 @@ const SOLAR_PRO_3_RATES: OpenRouterModelRates = {
   explicitCacheInjection: false,
 };
 
-/** Tencent Hy3 — OpenRouter list ($0.14/M in, $0.58/M out, cache read $0.035/M) */
-const TENCENT_HY3_RATES: OpenRouterModelRates = {
-  family: "unknown",
-  label: "Tencent Hy3 자동 캐시",
-  inputUsdPerM: 0.14,
-  outputUsdPerM: 0.58,
-  cacheReadUsdPerM: 0.035,
-  cacheWriteMultiplier: 1,
-  explicitCacheInjection: false,
-};
-
 const GENERIC_OPENROUTER_RATES: OpenRouterModelRates = {
   family: "unknown",
   label: "제공자 자동 캐시",
@@ -201,9 +190,6 @@ export function resolveOpenRouterModelRates(modelId?: string | null): OpenRouter
   }
   if (id.includes("/solar-pro-3") || /(^|\/)solar[-.]?pro[-.]?3\b/.test(id)) {
     return SOLAR_PRO_3_RATES;
-  }
-  if (id.includes("/hy3") || /(^|\/)hy3\b/i.test(id)) {
-    return TENCENT_HY3_RATES;
   }
   return GENERIC_OPENROUTER_RATES;
 }

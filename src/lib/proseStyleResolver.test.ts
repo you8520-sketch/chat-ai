@@ -13,7 +13,6 @@ import { resolveProseStyleSection } from "@/lib/proseStyleResolver";
 
 const MUSE = "meta/muse-spark-1.1";
 const DEEPSEEK = "deepseek/deepseek-v4-pro";
-const HY3 = "tencent/hy3";
 
 const M1_KEYS = [
   PROSE_MUSE_M1_ENV.ENABLED,
@@ -100,12 +99,6 @@ describe("resolveProseStyleSection", () => {
     process.env.PROSE_VNEXT_ROLLOUT_ENABLED = "1";
     process.env.PROSE_VNEXT_ROLLOUT_MODEL_IDS = DEEPSEEK;
     assert.equal(resolveProseStyleSection(null, DEEPSEEK), PROSE_VNEXT_STYLE_SECTION);
-  });
-
-  it("HY3 VNext rollout unchanged → VNext", () => {
-    process.env.PROSE_VNEXT_ROLLOUT_ENABLED = "1";
-    process.env.PROSE_VNEXT_ROLLOUT_MODEL_IDS = HY3;
-    assert.equal(resolveProseStyleSection(999, HY3), PROSE_VNEXT_STYLE_SECTION);
   });
 
   it("M1 admin does not affect DeepSeek → Legacy", () => {

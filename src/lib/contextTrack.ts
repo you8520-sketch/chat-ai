@@ -81,10 +81,10 @@ export function isQwenModelId(modelId: string): boolean {
 
 export function resolveContextTrack(
   modelId?: string | null,
-  provider?: "gemini" | "openrouter"
+  provider?: "gemini" | "openrouter" | "openai"
 ): ContextTrack {
   const id = (modelId ?? "").trim().toLowerCase();
-  if (isClaudeModelId(id) || provider === "openrouter") {
+  if (isClaudeModelId(id) || provider === "openrouter" || provider === "openai") {
     return "claude-diet";
   }
   if (isGeminiModelId(id) || provider === "gemini") {
@@ -95,7 +95,7 @@ export function resolveContextTrack(
 
 export function resolveHistoryTokenBudget(
   modelId?: string | null,
-  provider?: "gemini" | "openrouter"
+  provider?: "gemini" | "openrouter" | "openai"
 ): number {
   void modelId;
   void provider;
@@ -104,7 +104,7 @@ export function resolveHistoryTokenBudget(
 
 export function resolveRawRecentTurnWindow(
   modelId?: string | null,
-  provider?: "gemini" | "openrouter"
+  provider?: "gemini" | "openrouter" | "openai"
 ): number {
   void modelId;
   void provider;
@@ -114,7 +114,7 @@ export function resolveRawRecentTurnWindow(
 /** @deprecated raw 풀은 전체 대화 — trimHistoryToBudget만 적용 */
 export function resolveRawRecentTurnWindowForHistory(
   modelId: string | null | undefined,
-  provider: "gemini" | "openrouter",
+  provider: "gemini" | "openrouter" | "openai",
   totalCompletedTurns: number
 ): number {
   void modelId;
@@ -124,7 +124,7 @@ export function resolveRawRecentTurnWindowForHistory(
 
 export function resolveMinNarrativeContext(
   modelId?: string | null,
-  provider?: "gemini" | "openrouter"
+  provider?: "gemini" | "openrouter" | "openai"
 ): number {
   return resolveContextTrack(modelId, provider) === "gemini-bulk"
     ? GEMINI_MIN_NARRATIVE_CONTEXT
@@ -133,7 +133,7 @@ export function resolveMinNarrativeContext(
 
 export function resolveMemoryTokenReserve(
   modelId?: string | null,
-  provider?: "gemini" | "openrouter"
+  provider?: "gemini" | "openrouter" | "openai"
 ): number {
   if (isDeepSeekModelId(modelId ?? "")) return DEEPSEEK_MEMORY_TOKEN_RESERVE;
   return resolveContextTrack(modelId, provider) === "gemini-bulk"
@@ -143,7 +143,7 @@ export function resolveMemoryTokenReserve(
 
 export function resolveStaticStoredSummaryLimit(
   modelId?: string | null,
-  provider?: "gemini" | "openrouter"
+  provider?: "gemini" | "openrouter" | "openai"
 ): number {
   if (isDeepSeekModelId(modelId ?? "")) return DEEPSEEK_STATIC_STORED_SUMMARY_LIMIT;
   return resolveContextTrack(modelId, provider) === "gemini-bulk"
@@ -158,7 +158,7 @@ export function resolveMaxPayloadInputTokens(modelId?: string | null): number {
 
 export function resolveRecentNarrativeContextLimit(
   modelId?: string | null,
-  provider?: "gemini" | "openrouter"
+  provider?: "gemini" | "openrouter" | "openai"
 ): number {
   if (isDeepSeekModelId(modelId ?? "")) return DEEPSEEK_STATIC_STORED_SUMMARY_LIMIT;
   return resolveContextTrack(modelId, provider) === "gemini-bulk"
@@ -169,7 +169,7 @@ export function resolveRecentNarrativeContextLimit(
 /** archive_summary 비어 있지 않으면 관련성 필터 없이 항상 주입 */
 export function shouldIncludeArchiveAlways(
   _modelId?: string | null,
-  _provider?: "gemini" | "openrouter"
+  _provider?: "gemini" | "openrouter" | "openai"
 ): boolean {
   return true;
 }
@@ -177,7 +177,7 @@ export function shouldIncludeArchiveAlways(
 /** Gemini bulk + OpenRouter — 캐릭터 설정은 코어 아이덴티티 매턴 + RAG 보조 */
 export function usesFullLoreInjection(
   _modelId?: string | null,
-  _provider?: "gemini" | "openrouter"
+  _provider?: "gemini" | "openrouter" | "openai"
 ): boolean {
   return false;
 }

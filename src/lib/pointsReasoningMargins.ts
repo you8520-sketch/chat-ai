@@ -3,11 +3,11 @@ import {
   isDeepSeekV4ProModel,
   isGemini36FlashModel,
   isMuseModel,
-  isTencentHy3Model,
+  isOpenAiTerraModel,
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
-  OPENROUTER_TENCENT_HY3_MODEL,
+  OPENAI_GPT_56_TERRA_MODEL,
   resolveSelectedAI,
 } from "./chatModels";
 import { getEffectiveKrwPerUsd } from "./exchangeRate";
@@ -16,21 +16,31 @@ import * as core from "./pointsMuse60";
 /** Standard, non-cache OpenRouter prices per 1M tokens. */
 export const OPENROUTER_DEEPSEEK_V4_PRO_INPUT_USD_PER_MILLION = 0.435;
 export const OPENROUTER_DEEPSEEK_V4_PRO_OUTPUT_USD_PER_MILLION = 0.87;
-export const OPENROUTER_TENCENT_HY3_INPUT_USD_PER_MILLION = 0.14;
-export const OPENROUTER_TENCENT_HY3_OUTPUT_USD_PER_MILLION = 0.58;
 export const OPENROUTER_GEMINI_36_INPUT_USD_PER_MILLION = 1.5;
 export const OPENROUTER_GEMINI_36_OUTPUT_USD_PER_MILLION = 7.5;
+export const OPENAI_GPT_56_TERRA_INPUT_USD_PER_MILLION = 2.5;
+export const OPENAI_GPT_56_TERRA_CACHED_INPUT_USD_PER_MILLION = 0.25;
+export const OPENAI_GPT_56_TERRA_CACHE_WRITE_USD_PER_MILLION = 3.125;
+export const OPENAI_GPT_56_TERRA_OUTPUT_USD_PER_MILLION = 15;
+export const OPENAI_GPT_56_TERRA_LONG_CONTEXT_THRESHOLD_TOKENS = 272_000;
 
 /** Requested gross margins. Muse remains 60% in the underlying owner. */
 export const OPENROUTER_DEEPSEEK_V4_PRO_GROSS_MARGIN = 0.65;
-export const OPENROUTER_TENCENT_HY3_GROSS_MARGIN = 0.7;
 export const OPENROUTER_GEMINI_36_GROSS_MARGIN = 0.5;
+export const OPENAI_GPT_56_TERRA_GROSS_MARGIN = 0.55;
 
 type ReasoningTokenPricing = {
   modelId: string;
   inputUsdPerMillion: number;
   outputUsdPerMillion: number;
   grossMargin: number;
+  cacheReadUsdPerMillion?: number;
+  cacheWriteUsdPerMillion?: number;
+  longContextInputUsdPerMillion?: number;
+  longContextCacheReadUsdPerMillion?: number;
+  longContextCacheWriteUsdPerMillion?: number;
+  longContextOutputUsdPerMillion?: number;
+  longContextThresholdTokens?: number;
 };
 
 export type ReasoningPointRates = ReasoningTokenPricing & {
@@ -53,13 +63,6 @@ const DEEPSEEK_PRICING: ReasoningTokenPricing = {
   grossMargin: OPENROUTER_DEEPSEEK_V4_PRO_GROSS_MARGIN,
 };
 
-const HY3_PRICING: ReasoningTokenPricing = {
-  modelId: OPENROUTER_TENCENT_HY3_MODEL,
-  inputUsdPerMillion: OPENROUTER_TENCENT_HY3_INPUT_USD_PER_MILLION,
-  outputUsdPerMillion: OPENROUTER_TENCENT_HY3_OUTPUT_USD_PER_MILLION,
-  grossMargin: OPENROUTER_TENCENT_HY3_GROSS_MARGIN,
-};
-
 const GEMINI_36_PRICING: ReasoningTokenPricing = {
   modelId: OPENROUTER_GEMINI_36_FLASH_MODEL,
   inputUsdPerMillion: OPENROUTER_GEMINI_36_INPUT_USD_PER_MILLION,
@@ -67,11 +70,25 @@ const GEMINI_36_PRICING: ReasoningTokenPricing = {
   grossMargin: OPENROUTER_GEMINI_36_GROSS_MARGIN,
 };
 
+const OPENAI_TERRA_PRICING: ReasoningTokenPricing = {
+  modelId: OPENAI_GPT_56_TERRA_MODEL,
+  inputUsdPerMillion: OPENAI_GPT_56_TERRA_INPUT_USD_PER_MILLION,
+  cacheReadUsdPerMillion: OPENAI_GPT_56_TERRA_CACHED_INPUT_USD_PER_MILLION,
+  cacheWriteUsdPerMillion: OPENAI_GPT_56_TERRA_CACHE_WRITE_USD_PER_MILLION,
+  outputUsdPerMillion: OPENAI_GPT_56_TERRA_OUTPUT_USD_PER_MILLION,
+  longContextInputUsdPerMillion: 5,
+  longContextCacheReadUsdPerMillion: 0.5,
+  longContextCacheWriteUsdPerMillion: 6.25,
+  longContextOutputUsdPerMillion: 22.5,
+  longContextThresholdTokens: OPENAI_GPT_56_TERRA_LONG_CONTEXT_THRESHOLD_TOKENS,
+  grossMargin: OPENAI_GPT_56_TERRA_GROSS_MARGIN,
+};
+
 function resolveReasoningTokenPricing(modelId: string): ReasoningTokenPricing | null {
   if (isMuseModel(modelId)) return MUSE_PRICING;
   if (isDeepSeekV4ProModel(modelId)) return DEEPSEEK_PRICING;
-  if (isTencentHy3Model(modelId)) return HY3_PRICING;
   if (isGemini36FlashModel(modelId)) return GEMINI_36_PRICING;
+  if (isOpenAiTerraModel(modelId)) return OPENAI_TERRA_PRICING;
   return null;
 }
 
@@ -108,9 +125,6 @@ export function resolveOpenRouterReasoningPointRates(
 const initialDeepSeekRates = resolveOpenRouterReasoningPointRates(
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL
 )!;
-const initialHy3Rates = resolveOpenRouterReasoningPointRates(
-  OPENROUTER_TENCENT_HY3_MODEL
-)!;
 const initialGemini36Rates = resolveOpenRouterReasoningPointRates(
   OPENROUTER_GEMINI_36_FLASH_MODEL
 )!;
@@ -119,10 +133,6 @@ export const OPENROUTER_DEEPSEEK_V4_PRO_INPUT_POINTS_PER_TOKEN =
   initialDeepSeekRates.inputPointsPerToken;
 export const OPENROUTER_DEEPSEEK_V4_PRO_OUTPUT_POINTS_PER_TOKEN =
   initialDeepSeekRates.outputPointsPerToken;
-export const OPENROUTER_TENCENT_HY3_INPUT_POINTS_PER_TOKEN =
-  initialHy3Rates.inputPointsPerToken;
-export const OPENROUTER_TENCENT_HY3_OUTPUT_POINTS_PER_TOKEN =
-  initialHy3Rates.outputPointsPerToken;
 export const OPENROUTER_GEMINI_36_INPUT_POINTS_PER_TOKEN =
   initialGemini36Rates.inputPointsPerToken;
 export const OPENROUTER_GEMINI_36_OUTPUT_POINTS_PER_TOKEN =
@@ -132,7 +142,6 @@ export const OPENROUTER_SIMPLE_POINT_INPUT_PRICES: Record<string, number> = {
   ...core.OPENROUTER_SIMPLE_POINT_INPUT_PRICES,
   [OPENROUTER_DEEPSEEK_V4_PRO_MODEL]:
     OPENROUTER_DEEPSEEK_V4_PRO_INPUT_POINTS_PER_TOKEN,
-  [OPENROUTER_TENCENT_HY3_MODEL]: OPENROUTER_TENCENT_HY3_INPUT_POINTS_PER_TOKEN,
   [OPENROUTER_GEMINI_36_FLASH_MODEL]:
     OPENROUTER_GEMINI_36_INPUT_POINTS_PER_TOKEN,
 };
@@ -141,7 +150,6 @@ export const OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES: Record<string, number> = {
   ...core.OPENROUTER_SIMPLE_POINT_OUTPUT_PRICES,
   [OPENROUTER_DEEPSEEK_V4_PRO_MODEL]:
     OPENROUTER_DEEPSEEK_V4_PRO_OUTPUT_POINTS_PER_TOKEN,
-  [OPENROUTER_TENCENT_HY3_MODEL]: OPENROUTER_TENCENT_HY3_OUTPUT_POINTS_PER_TOKEN,
   [OPENROUTER_GEMINI_36_FLASH_MODEL]:
     OPENROUTER_GEMINI_36_OUTPUT_POINTS_PER_TOKEN,
 };
@@ -167,16 +175,41 @@ function computeReasoningPointCost(
   modelId: string,
   inputTokens: number,
   outputTokens: number,
-  reasoningTokens: number
+  reasoningTokens: number,
+  cacheReadTokens = 0,
+  cacheWriteTokens = 0
 ): ReasoningPointCost {
   const rates = resolveOpenRouterReasoningPointRates(modelId);
   if (!rates) return { rawCostKrw: 0, costPlusMarginKrw: 0, total: 0 };
   const input = Math.max(0, inputTokens);
   const completion = Math.max(0, outputTokens) + Math.max(0, reasoningTokens);
+  const longContext =
+    rates.longContextThresholdTokens != null && input > rates.longContextThresholdTokens;
+  const inputUsdPerMillion =
+    longContext && rates.longContextInputUsdPerMillion != null
+      ? rates.longContextInputUsdPerMillion
+      : rates.inputUsdPerMillion;
+  const cacheReadUsdPerMillion =
+    longContext && rates.longContextCacheReadUsdPerMillion != null
+      ? rates.longContextCacheReadUsdPerMillion
+      : rates.cacheReadUsdPerMillion ?? inputUsdPerMillion;
+  const cacheWriteUsdPerMillion =
+    longContext && rates.longContextCacheWriteUsdPerMillion != null
+      ? rates.longContextCacheWriteUsdPerMillion
+      : rates.cacheWriteUsdPerMillion ?? inputUsdPerMillion;
+  const outputUsdPerMillion =
+    longContext && rates.longContextOutputUsdPerMillion != null
+      ? rates.longContextOutputUsdPerMillion
+      : rates.outputUsdPerMillion;
+  const cacheRead = Math.min(Math.max(0, cacheReadTokens), input);
+  const cacheWrite = Math.min(Math.max(0, cacheWriteTokens), Math.max(0, input - cacheRead));
+  const standardInput = Math.max(0, input - cacheRead - cacheWrite);
   const rawCostKrw =
-    input * (rates.inputUsdPerMillion / 1_000_000) * rates.effectiveKrwPerUsd +
+    standardInput * (inputUsdPerMillion / 1_000_000) * rates.effectiveKrwPerUsd +
+    cacheRead * (cacheReadUsdPerMillion / 1_000_000) * rates.effectiveKrwPerUsd +
+    cacheWrite * (cacheWriteUsdPerMillion / 1_000_000) * rates.effectiveKrwPerUsd +
     completion *
-      (rates.outputUsdPerMillion / 1_000_000) *
+      (outputUsdPerMillion / 1_000_000) *
       rates.effectiveKrwPerUsd;
   const costPlusMarginKrw = rawCostKrw / (1 - rates.grossMargin);
   return {
@@ -247,18 +280,6 @@ export function explainOpenRouterDeepSeekTurnCost(
   );
 }
 
-export function explainOpenRouterTencentHy3TurnCost(
-  ...args: Parameters<typeof core.explainOpenRouterTencentHy3TurnCost>
-): ReturnType<typeof core.explainOpenRouterTencentHy3TurnCost> {
-  const [inputTokens, outputTokens, modelId, , reasoningTokens] = args;
-  return reasoningCostBreakdown(
-    modelId,
-    inputTokens,
-    outputTokens,
-    reasoningTokens ?? 0
-  );
-}
-
 export function explainOpenRouterGemini36TurnCost(
   ...args: Parameters<typeof core.explainOpenRouterGemini36TurnCost>
 ): ReturnType<typeof core.explainOpenRouterGemini36TurnCost> {
@@ -302,7 +323,9 @@ export function computeOpenRouterTurnBilling(
     opts.modelId,
     billedInputTokens,
     billedCompletionTokens,
-    0
+    0,
+    cacheReadTokens,
+    cacheWriteTokens
   ).total;
 
   return {
@@ -323,7 +346,7 @@ export function computeOpenRouterTurnBilling(
 export function computeTurnBilling(
   opts: Parameters<typeof core.computeTurnBilling>[0]
 ): ReturnType<typeof core.computeTurnBilling> {
-  if (opts.provider === "openrouter") {
+  if (opts.provider === "openrouter" || opts.provider === "openai") {
     const modelId =
       opts.openRouterModelId ??
       (opts.selectedAI ? billingModelId(resolveSelectedAI(opts.selectedAI)) : "");

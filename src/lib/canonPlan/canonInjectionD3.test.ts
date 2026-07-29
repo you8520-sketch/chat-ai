@@ -2,7 +2,7 @@
 //   (1) knowledge boundary: player + scenario_meta dormant sentinels -> BOTH absent from LAYERED ACTIVE prompt
 //   (2) dormant provenance: dormant sentinel in archive -> not in context; no LTM/episodic/lorebook/history bypass
 //   (3) kill-switch: KILL_SWITCH=1 -> FULL_LEGACY canon + FULL_ALWAYS archive + ACTIVE OFF + Momentum OFF (exact rollback)
-//   (4) other-model isolation: Muse/Gemini/HY3 -> FULL_LEGACY + FULL_ALWAYS (no LAYERED)
+//   (4) other-model isolation: Muse/Gemini -> FULL_LEGACY + FULL_ALWAYS (no LAYERED)
 // No live calls. No frozen component modified.
 import Module from "module";
 import { createHash } from "node:crypto";
@@ -21,7 +21,6 @@ import {
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_25_PRO_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
-  OPENROUTER_TENCENT_HY3_MODEL,
 } from "@/lib/chatModels";
 import type { buildContext as BuildContextFn } from "@/services/contextBuilder";
 import type { CharacterChunk } from "@/types";
@@ -276,7 +275,7 @@ describe("D3 payload — 3. kill-switch (exact rollback)", () => {
   });
 });
 
-describe("D3 payload — 4. other-model isolation (Muse/Gemini/HY3 FULL_LEGACY)", () => {
+describe("D3 payload — 4. other-model isolation (Muse/Gemini FULL_LEGACY)", () => {
   let env: Record<string, string | undefined>;
   before(async () => {
     ({ buildContext } = await import("@/services/contextBuilder"));
@@ -288,8 +287,8 @@ describe("D3 payload — 4. other-model isolation (Muse/Gemini/HY3 FULL_LEGACY)"
   });
   afterEach(() => restoreEnv(env));
 
-  it("Muse/Gemini/HY3 stay FULL_LEGACY + FULL_ALWAYS (no LAYERED, no ACTIVE)", () => {
-    for (const m of [OPENROUTER_MUSE_SPARK_11_MODEL, OPENROUTER_GEMINI_25_PRO_MODEL, OPENROUTER_TENCENT_HY3_MODEL]) {
+  it("Muse/Gemini stay FULL_LEGACY + FULL_ALWAYS (no LAYERED, no ACTIVE)", () => {
+    for (const m of [OPENROUTER_MUSE_SPARK_11_MODEL, OPENROUTER_GEMINI_25_PRO_MODEL]) {
       const policy = resolveCanonInjectionPolicy(m);
       assert.equal(policy.actualCanonMode, "FULL_LEGACY", `${m}: canon FULL_LEGACY`);
       assert.equal(policy.actualArchiveMode, "FULL_ALWAYS", `${m}: archive FULL_ALWAYS`);

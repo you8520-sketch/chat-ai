@@ -520,7 +520,11 @@ export type OpenRouterMessageOpts = {
   oocHtmlMode?: boolean;
   /** 재생성 등 — temperature·penalty 오버라이드 */
   generationOverrides?: import("@/lib/openRouterClient").OpenRouterGenerationOverrides;
+  /** Direct-provider streams must not perform an OpenRouter continuation. */
+  allowOpenRouterUnderLengthRecovery?: boolean;
 };
+
+export type PrimaryTextStream = AsyncGenerator<string, TokenUsage>;
 
 /** user role에 붙은 API 전용 지시문 제거 (프롬프트 누출·에코 방지) */
 export function stripOpenRouterUserInstructionBleed(content: string): string {
@@ -1452,7 +1456,8 @@ export async function streamOpenRouterAdultToClient(
   stageLabel: string,
   targetResponseChars?: number | null,
   messageOpts?: OpenRouterMessageOpts,
-  turnApiBudget?: TurnApiBudget
+  turnApiBudget?: TurnApiBudget,
+  streamOverride?: PrimaryTextStream
 ): Promise<{
   text: string;
   streamVisibleText: string;
@@ -1471,18 +1476,20 @@ export async function streamOpenRouterAdultToClient(
   const statusArtifactsOpts = messageOpts?.statusArtifactsOpts;
   const oocHtmlMode = messageOpts?.oocHtmlMode === true;
   const degenerationCtx = { oocHtmlMode };
-  const gen = streamOpenRouterAdult(
-    system,
-    history,
-    modelId,
-    targetResponseChars,
-    { ...messageOpts, turnApiBudget },
-    {
-      requestKind: "openrouter-primary-stream",
-      stage: stageLabel,
-      turnApiBudget,
-    }
-  );
+  const gen =
+    streamOverride ??
+    streamOpenRouterAdult(
+      system,
+      history,
+      modelId,
+      targetResponseChars,
+      { ...messageOpts, turnApiBudget },
+      {
+        requestKind: "openrouter-primary-stream",
+        stage: stageLabel,
+        turnApiBudget,
+      }
+    );
   let usage: TokenUsage = { inputTokens: 0, outputTokens: 0, estimated: true };
   while (true) {
     const { value, done } = await gen.next();
@@ -1620,7 +1627,7 @@ export async function streamOpenRouterAdultToClient(
 
   let recoveryStage: StageUsage | undefined;
   let lengthRecoveryPasses = 0;
-  if (SERVER_UNDER_LENGTH_RECOVERY_ENABLED) {
+  if (SERVER_UNDER_LENGTH_RECOVERY_ENABLED && messageOpts?.allowOpenRouterUnderLengthRecovery !== false) {
     const recoveryResult = await tryServerUnderLengthRecovery({
       prose: mergedText,
       finishReason: usage.finishReason,

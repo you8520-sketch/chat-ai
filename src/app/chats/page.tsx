@@ -3,7 +3,10 @@ import { AppPageShell } from "@/components/AppPageShell";
 import ChatsPageGrid from "@/components/ChatsPageGrid";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { fetchUserChatSessions } from "@/lib/recentChats";
+import {
+  fetchUserChatSessionsForRecentCharacters,
+  RECENT_CHARACTER_LIST_LIMIT,
+} from "@/lib/recentChats";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +15,11 @@ export default async function ChatsPage() {
   if (!user) redirect("/login?redirect=/chats");
 
   const blurNsfw = !user.is_adult || !user.nsfw_on;
-  const sessions = fetchUserChatSessions(getDb(), user.id, 100);
+  const sessions = fetchUserChatSessionsForRecentCharacters(
+    getDb(),
+    user.id,
+    RECENT_CHARACTER_LIST_LIMIT
+  );
 
   const characterCount = new Set(sessions.map((s) => s.character_id)).size;
 

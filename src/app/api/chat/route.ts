@@ -41,7 +41,7 @@ import { resolveNarrativePov } from "@/lib/narrativePov";
 import { auditAssembledPrompt, formatPromptAuditLog } from "@/services/promptAudit";
 import { invalidateModelPickerInputSnapshot } from "@/services/modelPickerInputSnapshot";
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
-import { deductPoints, getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterTencentHy3TurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
+import { deductPoints, getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
 import { createChatSession } from "@/lib/chatSessionCreate";
 import { incrementCharacterTotalTurns } from "@/lib/characterEngagementStats";
 import {
@@ -58,7 +58,7 @@ import {
   restoreAssistantFromAlternatesOnFailedRegen,
   type StreamingPersistenceDiag,
 } from "@/lib/streamingPersistence";
-import { isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isKimiModel, isMuseModel, isQwenModel, isTencentHy3Model } from "@/lib/chatModels";
+import { isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isKimiModel, isMuseModel, isOpenAiTerraModel, isQwenModel, selectedAIProvider } from "@/lib/chatModels";
 import { openRouterNormalizedRawCostKrw, openRouterRawCostKrw } from "@/lib/billingRawCost";
 import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
 import { maybeCreditCreatorReward, paidCreatorRewardSpend } from "@/lib/creatorPoints";
@@ -310,6 +310,7 @@ import {
   streamOpenRouterAdultToClient,
   convertToOpenRouterFormat,
 } from "@/lib/openRouterAdult";
+import { streamOpenAiTerraResponses } from "@/lib/openAiResponsesClient";
 import { formatClientApiError } from "@/lib/apiErrors";
 import { resolveOpenRouterModelId } from "@/lib/openRouterConfig";
 import { resolveRegenerateGenerationOverrides } from "@/lib/openRouterClient";
@@ -871,13 +872,15 @@ export async function POST(req: Request) {
     ? getOrCreateChatMemory(chat.id, user.id, ch.id, memoryTier)
     : null;
 
-  const billingOpenRouterModelId = resolveOpenRouterModelId(selectedAI);
+  const primaryProvider = selectedAIProvider(selectedAI);
+  const billingOpenRouterModelId =
+    primaryProvider === "openrouter" ? resolveOpenRouterModelId(selectedAI) : selectedAI;
   const openRouterApiModelId = billingOpenRouterModelId;
   const canonInjectionPolicy = resolveCanonInjectionPolicy(openRouterApiModelId, {
     userId: user.id,
     chatId: chat.id,
   });
-  const contextProvider = "openrouter" as const;
+  const contextProvider = primaryProvider;
   const contextModelId = openRouterApiModelId;
   const historyTokenBudget = resolveHistoryTokenBudget(contextModelId, contextProvider);
 
@@ -1698,11 +1701,21 @@ export async function POST(req: Request) {
             fullText = "";
             streamVisibleTextRef = "";
           } else {
-          const orHistory = convertToOpenRouterFormat(historyRef);
+          const primaryHistory =
+            primaryProvider === "openrouter" ? convertToOpenRouterFormat(historyRef) : historyRef;
+          const terraStream =
+            primaryProvider === "openai" && isOpenAiTerraModel(openRouterApiModelId)
+              ? streamOpenAiTerraResponses(
+                  systemRef,
+                  historyRef,
+                  targetResponseCharsRef,
+                  smokeMaxTokensOverride
+                )
+              : undefined;
           const result = await streamOpenRouterAdultToClient(
             send,
             systemRef,
-            orHistory,
+            primaryHistory,
             openRouterApiModelId,
             selectedAILabel(selectedAIRef),
             targetResponseCharsRef,
@@ -1720,11 +1733,15 @@ export async function POST(req: Request) {
               generationOverrides: regenerateMessageId
                 ? resolveRegenerateGenerationOverrides(openRouterApiModelId, targetResponseCharsRef)
                 : undefined,
+              ...(primaryProvider === "openai"
+                ? { allowOpenRouterUnderLengthRecovery: false }
+                : {}),
               ...(smokeMaxTokensOverride != null
                 ? { maxTokensOverride: smokeMaxTokensOverride }
                 : {}),
             },
-            turnApiBudget
+            turnApiBudget,
+            terraStream
           );
           fullText = result.text;
           streamVisibleTextRef = result.streamVisibleText ?? fullText;
@@ -2576,7 +2593,7 @@ export async function POST(req: Request) {
 
         const billableChars = billableOutputChars(savedText, targetResponseCharsRef, billableOpts);
 
-        const billingProvider = "openrouter" as const;
+        const billingProvider = primaryProvider;
         const receiptFields = stealthReceiptModelFields(selectedAIRef);
 
         let totalInput: number;
@@ -2683,16 +2700,6 @@ export async function POST(req: Request) {
                   summedApiReasoning
                 )
               : null;
-          const tencentHy3Explain =
-            billingOpenRouterModelId && isTencentHy3Model(billingOpenRouterModelId)
-              ? explainOpenRouterTencentHy3TurnCost(
-                  totalInput,
-                  totalOutput,
-                  billingOpenRouterModelId,
-                  cacheOpts,
-                  summedApiReasoning
-                )
-              : null;
           const geminiBillingBasis =
             summedUpstreamUsd > 0 || apiPromptTokensForCost > 0 || apiCompletionTokensForCost > 0
               ? {
@@ -2736,14 +2743,6 @@ export async function POST(req: Request) {
                   deepSeekCacheNeutralChargeKrw: deepSeekExplain.costPlusMarginKrw,
                   deepSeekCostPlusMarginKrw: deepSeekExplain.costPlusMarginKrw,
                   deepSeekApplied: deepSeekExplain.applied,
-                }
-              : {}),
-            ...(tencentHy3Explain
-              ? {
-                  tencentHy3RawCostKrw: tencentHy3Explain.rawCostKrw,
-                  tencentHy3CacheNeutralChargeKrw: tencentHy3Explain.costPlusMarginKrw,
-                  tencentHy3CostPlusMarginKrw: tencentHy3Explain.costPlusMarginKrw,
-                  tencentHy3Applied: tencentHy3Explain.applied,
                 }
               : {}),
             ...(geminiExplain

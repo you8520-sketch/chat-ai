@@ -1,14 +1,20 @@
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import { fetchUserChatSessions } from "@/lib/recentChats";
+import {
+  fetchLatestSessionsPerCharacter,
+  RECENT_CHARACTER_LIST_LIMIT,
+} from "@/lib/recentChats";
 import SidebarShell, { type SidebarNavItem } from "./SidebarShell";
 
-const SIDEBAR_SESSION_LIMIT = 25;
+/** 캐릭터 기준 — 분기 세션이 많아도 다른 캐릭터가 밀려나지 않음 */
+const SIDEBAR_CHARACTER_LIMIT = RECENT_CHARACTER_LIST_LIMIT;
 
 export default async function Sidebar() {
   const user = await getSessionUser();
   const blurNsfw = !user?.is_adult || !user?.nsfw_on;
-  const chatSessions = user ? fetchUserChatSessions(getDb(), user.id, SIDEBAR_SESSION_LIMIT) : [];
+  const chatSessions = user
+    ? fetchLatestSessionsPerCharacter(getDb(), user.id, SIDEBAR_CHARACTER_LIMIT)
+    : [];
 
   const navItems: SidebarNavItem[] = [];
   if (user) {

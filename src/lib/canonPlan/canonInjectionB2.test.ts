@@ -16,7 +16,6 @@ import {
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_25_PRO_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
-  OPENROUTER_TENCENT_HY3_MODEL,
 } from "@/lib/chatModels";
 import type { buildContext as BuildContextFn } from "@/services/contextBuilder";
 import type { CharacterChunk } from "@/types";
@@ -204,11 +203,11 @@ describe("Canon injection B2 — D1 archive", () => {
     assert.ok(r.systemPrompt.includes("단락B"), "kill switch → whole blob");
   });
 
-  it("Muse/Gemini/HY3 → whole blob archive unchanged", () => {
+  it("Muse/Gemini → whole blob archive unchanged", () => {
     process.env.CANON_INJECTION_ENABLED = "1";
     process.env.CANON_INJECTION_ROLLOUT_STAGE = "D2";
     process.env.CANON_INJECTION_DEEPSEEK_CANARY = "1";
-    for (const m of [OPENROUTER_MUSE_SPARK_11_MODEL, OPENROUTER_GEMINI_25_PRO_MODEL, OPENROUTER_TENCENT_HY3_MODEL]) {
+    for (const m of [OPENROUTER_MUSE_SPARK_11_MODEL, OPENROUTER_GEMINI_25_PRO_MODEL]) {
       const policy = resolveCanonInjectionPolicy(m);
       assert.equal(policy.actualArchiveMode, "FULL_ALWAYS");
       assert.equal(policy.actualCanonMode, "FULL_LEGACY");
@@ -307,11 +306,11 @@ describe("Canon injection B2 — D2 canon layering", () => {
     assert.ok(!r.systemPrompt.includes("character-active-canon"), "no ACTIVE under kill switch");
   });
 
-  it("Muse/Gemini/HY3 → FULL canon unchanged (no LAYERED)", () => {
+  it("Muse/Gemini → FULL canon unchanged (no LAYERED)", () => {
     process.env.CANON_INJECTION_ENABLED = "1";
     process.env.CANON_INJECTION_ROLLOUT_STAGE = "D2";
     process.env.CANON_INJECTION_DEEPSEEK_CANARY = "1";
-    for (const m of [OPENROUTER_MUSE_SPARK_11_MODEL, OPENROUTER_GEMINI_25_PRO_MODEL, OPENROUTER_TENCENT_HY3_MODEL]) {
+    for (const m of [OPENROUTER_MUSE_SPARK_11_MODEL, OPENROUTER_GEMINI_25_PRO_MODEL]) {
       const policy = resolveCanonInjectionPolicy(m);
       assert.equal(policy.actualCanonMode, "FULL_LEGACY");
     }
