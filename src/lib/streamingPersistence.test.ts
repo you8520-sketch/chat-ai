@@ -180,6 +180,45 @@ describe("streamingPersistence", () => {
     assert.equal(row.generation_status, "interrupted");
   });
 
+  it("finalizes an interrupted response with usage so its receipt remains available", () => {
+    const db = createMessagesDb();
+    const boot = bootstrapStreamingTurn(db, {
+      chatId: 1,
+      requestId: "cr_interrupt_receipt",
+      userContent: "continue",
+      skipUserInsert: false,
+    });
+    const usage = {
+      cost: 12,
+      finishReason: "MAX_OUTPUT_TOKENS",
+      apiInputTokens: 1200,
+      apiOutputTokens: 800,
+    };
+
+    const result = finalizeAssistantMessage(db, {
+      assistantMessageId: boot.assistantMessageId,
+      chatId: 1,
+      content: "partial but billable response",
+      model: "gpt-5.6-terra",
+      usageJson: JSON.stringify(usage),
+      alternatesJson: "[]",
+      activeVariant: 0,
+      generationStatus: "interrupted",
+    });
+
+    assert.equal(result.wrote, true);
+    const row = db
+      .prepare(`SELECT content, usage, generation_status FROM messages WHERE id=?`)
+      .get(boot.assistantMessageId) as {
+      content: string;
+      usage: string;
+      generation_status: string;
+    };
+    assert.equal(row.content, "partial but billable response");
+    assert.deepEqual(JSON.parse(row.usage), usage);
+    assert.equal(row.generation_status, "interrupted");
+  });
+
   it("post-processing failure path keeps assistant content via stream-complete save", () => {
     const db = createMessagesDb();
     const boot = bootstrapStreamingTurn(db, {

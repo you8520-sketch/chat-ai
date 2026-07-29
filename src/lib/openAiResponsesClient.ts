@@ -1,7 +1,13 @@
 import OpenAI from "openai";
 import { estimateTokens, type ChatMsg, type TokenUsage } from "@/lib/ai";
 import { OPENAI_GPT_56_TERRA_MODEL } from "@/lib/chatModels";
-import { resolveMaxOutputTokensForTarget } from "@/lib/responseLength";
+
+/**
+ * The RP target is 3,200 visible characters. Give Terra enough headroom for
+ * Korean text plus hidden reasoning/accounting tokens instead of relying on
+ * the provider default, which can end a response mid-sentence.
+ */
+export const TERRA_MAX_OUTPUT_TOKENS = 8_192;
 
 export const TERRA_FALLBACK_PROSE_DIRECTIVE = [
   "장면을 요약하거나 설명하지 말고, 인물의 구체적인 행동·반응·대사로 진행한다.",
@@ -37,8 +43,7 @@ export function buildOpenAiTerraResponseRequest(
     )
     .map((message) => ({ role: message.role, content: message.content }));
   const maxOutputTokens =
-    maxTokensOverride ??
-    resolveMaxOutputTokensForTarget(targetResponseChars, OPENAI_GPT_56_TERRA_MODEL);
+    maxTokensOverride ?? TERRA_MAX_OUTPUT_TOKENS;
   return {
     model: OPENAI_GPT_56_TERRA_MODEL,
     instructions: buildTerraInstructions(system),
@@ -48,6 +53,49 @@ export function buildOpenAiTerraResponseRequest(
     stream: true as const,
     ...(maxOutputTokens != null ? { max_output_tokens: maxOutputTokens } : {}),
   };
+}
+
+function responseRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+/**
+ * Normalize Responses API terminal states to the finish reasons already used
+ * by the chat length guard and persisted receipts.
+ */
+export function resolveOpenAiResponsesFinishReason(
+  eventType: unknown,
+  response: unknown
+): string | undefined {
+  const type = typeof eventType === "string" ? eventType : "";
+  const value = responseRecord(response);
+  const status = typeof value.status === "string" ? value.status.toLowerCase() : "";
+
+  if (type === "response.completed" || status === "completed") return "STOP";
+
+  if (type === "response.incomplete" || status === "incomplete") {
+    const details = responseRecord(value.incomplete_details);
+    const reason =
+      typeof details.reason === "string" ? details.reason.trim().toLowerCase() : "";
+    if (reason === "max_tokens" || reason === "max_output_tokens") {
+      return "MAX_OUTPUT_TOKENS";
+    }
+    if (reason === "content_filter") return "CONTENT_FILTER";
+    return reason ? reason.toUpperCase() : "INCOMPLETE";
+  }
+
+  if (type === "response.failed" || status === "failed") return "RESPONSE_FAILED";
+  return status ? status.toUpperCase() : undefined;
+}
+
+export function isRetryableOpenAiTerraFinishReason(finishReason?: string | null): boolean {
+  const value = (finishReason ?? "").trim().toUpperCase();
+  return (
+    value === "MAX_OUTPUT_TOKENS" ||
+    value === "INCOMPLETE" ||
+    value === "STREAM_ERROR" ||
+    value === "RESPONSE_FAILED"
+  );
 }
 
 function usageCount(value: unknown): number {
@@ -113,21 +161,50 @@ export async function* streamOpenAiTerraResponses(
   let completedUsage: unknown;
   let finishReason: string | undefined;
   let fullText = "";
-  for await (const event of stream as unknown as AsyncIterable<Record<string, unknown>>) {
-    if (event.type === "response.output_text.delta" && typeof event.delta === "string") {
-      fullText += event.delta;
-      yield event.delta;
-      continue;
+  try {
+    for await (const event of stream as unknown as AsyncIterable<Record<string, unknown>>) {
+      if (event.type === "response.output_text.delta" && typeof event.delta === "string") {
+        fullText += event.delta;
+        yield event.delta;
+        continue;
+      }
+      if (
+        event.type === "response.completed" ||
+        event.type === "response.incomplete" ||
+        event.type === "response.failed"
+      ) {
+        const response = responseRecord(event.response);
+        completedUsage = response.usage;
+        finishReason = resolveOpenAiResponsesFinishReason(event.type, response);
+        if (event.type === "response.failed" && !fullText.trim()) {
+          const error = responseRecord(response.error);
+          throw new Error(
+            typeof error.message === "string"
+              ? error.message
+              : "OpenAI Responses stream failed"
+          );
+        }
+      }
+      if (event.type === "error") {
+        const error = responseRecord(event.error);
+        if (!fullText.trim()) {
+          throw new Error(
+            typeof error.message === "string"
+              ? error.message
+              : "OpenAI Responses stream failed"
+          );
+        }
+        finishReason = "STREAM_ERROR";
+        break;
+      }
     }
-    if (event.type === "response.completed") {
-      const response = event.response as Record<string, unknown> | undefined;
-      completedUsage = response?.usage;
-      finishReason = typeof response?.status === "string" ? response.status : "stop";
-    }
-    if (event.type === "error") {
-      const error = event.error as { message?: unknown } | undefined;
-      throw new Error(typeof error?.message === "string" ? error.message : "OpenAI Responses stream failed");
-    }
+  } catch (error) {
+    if (!fullText.trim()) throw error;
+    console.warn("[OpenAI Responses] Terra stream ended after partial output", {
+      message: (error as Error).message,
+      outputChars: fullText.length,
+    });
+    finishReason = "STREAM_ERROR";
   }
 
   return {

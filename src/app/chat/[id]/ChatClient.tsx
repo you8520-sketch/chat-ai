@@ -1986,6 +1986,7 @@ export default function ChatClient({
       statusWidgetActive?: boolean;
       statusWidgetTurnActive?: boolean;
       statusWidgetValues?: ParsedStatusWidgetTurnValues | null;
+      generationStatus?: GenerationStatus | string;
     } | null = null;
 
     /** reset 후 첫 청크까지 기존 텍스트 유지 — "초안 작성 중" 깜빡임 방지 */
@@ -2260,7 +2261,7 @@ export default function ChatClient({
             variants: data.variants,
             activeVariant: data.activeVariant,
             variantCount: data.variantCount,
-            generationStatus: "completed",
+            generationStatus: data.generationStatus ?? "completed",
             requestId: cur.requestId,
             statusMetaPending: flashScheduled,
             statusMetaRequested: flashScheduled,
