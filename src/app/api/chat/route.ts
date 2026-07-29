@@ -310,7 +310,10 @@ import {
   streamOpenRouterAdultToClient,
   convertToOpenRouterFormat,
 } from "@/lib/openRouterAdult";
-import { streamOpenAiTerraResponses } from "@/lib/openAiResponsesClient";
+import {
+  isRetryableOpenAiTerraFinishReason,
+  streamOpenAiTerraResponses,
+} from "@/lib/openAiResponsesClient";
 import { formatClientApiError } from "@/lib/apiErrors";
 import { resolveOpenRouterModelId } from "@/lib/openRouterConfig";
 import { resolveRegenerateGenerationOverrides } from "@/lib/openRouterClient";
@@ -2498,6 +2501,20 @@ export async function POST(req: Request) {
           targetResponseCharsRef,
           visibleForLengthCheck
         );
+        const terraInterruptedTurn =
+          primaryProvider === "openai" &&
+          isOpenAiTerraModel(openRouterApiModelId) &&
+          isRetryableOpenAiTerraFinishReason(primaryStage?.finishReason) &&
+          resolveVisibleTierCharCount(savedText) >= CATASTROPHIC_MIN_RESPONSE_CHARS;
+
+        if (generationFailure === "under_length" && terraInterruptedTurn) {
+          console.warn("[/api/chat] preserving billable partial Terra response", {
+            finishReason: primaryStage?.finishReason,
+            outputChars: savedText.length,
+            targetResponseChars: targetResponseCharsRef,
+          });
+          generationFailure = null;
+        }
 
         if (
           generationFailure === "under_length" &&
@@ -2568,6 +2585,9 @@ export async function POST(req: Request) {
           controller.close();
           return;
         }
+        const persistedGenerationStatus = terraInterruptedTurn
+          ? ("interrupted" as const)
+          : ("completed" as const);
 
         const stageBillableInput =
           primaryStage?.input ?? estimateTokens(system + history.map((m) => m.content).join(""));
@@ -3283,7 +3303,7 @@ export async function POST(req: Request) {
             activeVariant: appended.activeVariant,
             statusWidgetValuesJson,
             statusWidgetTurnActive: statusWidgetTurnActiveFlag,
-            generationStatus: "completed",
+            generationStatus: persistedGenerationStatus,
           });
           logStatusWidgetLiveTrace({
             requestId: clientRequestId ?? null,
@@ -3342,7 +3362,7 @@ export async function POST(req: Request) {
             activeVariant: 0,
             statusWidgetValuesJson,
             statusWidgetTurnActive: statusWidgetTurnActiveFlag,
-            generationStatus: "completed",
+            generationStatus: persistedGenerationStatus,
           });
           logStatusWidgetLiveTrace({
             requestId: clientRequestId ?? null,
@@ -3387,8 +3407,8 @@ export async function POST(req: Request) {
           aiMessageId = persistedAssistantId;
           if (userMessageId != null) {
             db.prepare(
-              "UPDATE messages SET user_message_id=?, generation_status='completed' WHERE id=? AND chat_id=?"
-            ).run(userMessageId, aiMessageId, chatRef.id);
+              "UPDATE messages SET user_message_id=?, generation_status=? WHERE id=? AND chat_id=?"
+            ).run(userMessageId, persistedGenerationStatus, aiMessageId, chatRef.id);
           }
         }
         clearPartialTimer();
@@ -3567,6 +3587,7 @@ export async function POST(req: Request) {
           statusWidgetValues: statusWidgetValuesPayload
             ? stripExtractedFactsForClient(statusWidgetValuesPayload)
             : null,
+          generationStatus: persistedGenerationStatus,
           htmlFlashTurn: (htmlVisualCardPolicyRef.enabled || chatOocRpUnrelated) && htmlFlashOnlyTurn,
           showStatusMarkdown: userMessageRequestsStatusWindowOoc(policyUserMessageRef),
           finalContent: savedText,
