@@ -178,6 +178,10 @@ export function isClaudeSelectedAI(selected: string): boolean {
   return isAnthropicModel(selected);
 }
 
+export function isCheaperInferenceClaudeOpus5Model(modelId: string): boolean {
+  return modelId.trim().toLowerCase() === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL;
+}
+
 export function isOpenAiTerraModel(modelId: string): boolean {
   return modelId.trim().toLowerCase() === OPENAI_GPT_56_TERRA_MODEL;
 }
