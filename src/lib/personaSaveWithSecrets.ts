@@ -20,12 +20,21 @@ import type { CharacterGender } from "@/lib/characterGender";
 import { getPersonaById } from "@/lib/userPersonas";
 import { ensurePersonaSecretDiscoverySchema } from "@/lib/personaSecretDiscoverySchema";
 
+export type PersonaSecretInput =
+  | { supplied: false }
+  | { supplied: true; value: string };
+
 export type PersonaSaveFields = {
   name: string;
   memo: string;
   gender: CharacterGender;
   description: string;
+  /**
+   * Legacy direct-service callers may still provide this value. API routes must
+   * use secretInput to preserve omitted vs explicit-empty intent.
+   */
   secret_description: string;
+  secretInput?: PersonaSecretInput;
   image_url: string | null;
   image_focus_x: number;
   image_focus_y: number;
@@ -36,7 +45,7 @@ export type PersonaSaveWithSecretsResult = {
   personaId: number;
   compile: PersonaSecretCompileSummaryDto | null;
   compilePreservedPrior: boolean;
-} | { ok: false; error: string; status: number };
+} | { ok: false; error: string; status: number; code?: "SECRET_SETTINGS_DISABLED" };
 
 /** Insert or update persona + compile secrets when Boundary ON and source changed. */
 export function savePersonaWithSecretCompilation(opts: {
@@ -63,7 +72,28 @@ export function savePersonaWithSecretCompilation(opts: {
     existingId != null
       ? (getPersonaById(opts.userId, existingId)?.secret_description ?? "")
       : "";
-  const newSource = boundaryOn ? f.secret_description : priorSource;
+  const secretInput: PersonaSecretInput = f.secretInput ?? {
+    supplied: true,
+    value: f.secret_description,
+  };
+
+  // Authorization is decided before the persona INSERT/UPDATE so a rejected
+  // secret mutation can never partially save unrelated fields.
+  if (
+    !boundaryOn &&
+    secretInput.supplied &&
+    secretInput.value.trim() !== priorSource.trim()
+  ) {
+    return {
+      ok: false,
+      status: 403,
+      code: "SECRET_SETTINGS_DISABLED",
+      error: "비밀 설정은 현재 사용할 수 없습니다.",
+    };
+  }
+
+  const newSource =
+    boundaryOn && secretInput.supplied ? secretInput.value : priorSource;
   const sourceChanged = newSource.trim() !== priorSource.trim();
 
   let personaId: number;

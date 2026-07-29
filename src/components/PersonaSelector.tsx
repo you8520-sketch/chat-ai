@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import type { PersonaListItem } from "@/lib/userPersonasClient";
+import type { PublicPersonaListItem } from "@/lib/userPersonasClient";
 import PersonaAvatar from "@/components/PersonaAvatar";
 
 type Props = {
   chatId: number | null;
-  personas: PersonaListItem[];
+  personas: PublicPersonaListItem[];
   selectedPersonaId: number | null;
   onSelectedChange: (personaId: number) => void;
   onOpenEditor?: () => void;
@@ -72,7 +72,7 @@ export default function PersonaSelector({
     window.setTimeout(() => setNotice(""), 2800);
   }
 
-  async function pickPersona(persona: PersonaListItem) {
+  async function pickPersona(persona: PublicPersonaListItem) {
     if (persona.id === selectedPersonaId) {
       setOpen(false);
       return;

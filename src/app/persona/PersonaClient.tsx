@@ -7,6 +7,7 @@ import { GENDER_LABELS, type CharacterGender } from "@/lib/characterGender";
 import {
   PERSONA_NAME_LIMIT,
   PERSONA_CONTENT_MAX,
+  PERSONA_SECRET_CONTENT_MAX,
   USER_PERSONA_MAX_COUNT,
   USER_NOTE_MAX,
   USER_NOTE_FOCUS_MAX,
@@ -14,8 +15,16 @@ import {
 } from "@/lib/persona";
 import {
   PERSONA_IMAGE_FOCUS_DEFAULT,
-  type PersonaListItem,
+  type OwnerPersonaEditorItem,
+  type PublicPersonaListItem,
 } from "@/lib/userPersonasClient";
+import type { PersonaSecretSettingsCapability } from "@/lib/personaSecretCapabilities";
+import type { PersonaSecretCompileSummaryDto } from "@/lib/personaSecretCompiler";
+import {
+  applyOwnerEditorCacheUpdate,
+  resolveSecretDraftOnStartEdit,
+  shouldHydrateSecretDraftFromEditor,
+} from "@/lib/personaSecretEditHydration";
 import type { UserNotePresetItem } from "@/lib/userNotePresetTypes";
 import { USER_NOTE_PRESET_TITLE_MAX } from "@/lib/userNotePresetTypes";
 import UserNoteSplitEditor from "@/components/UserNoteSplitEditor";
@@ -41,15 +50,23 @@ import {
   studioType,
 } from "@/lib/studioDesign";
 
+const DEFAULT_SECRET_SETTINGS: PersonaSecretSettingsCapability = {
+  canEdit: false,
+  discoveryActive: false,
+};
+
 export default function PersonaClient({
   initialPersonas,
   initialNotePresets,
   initialStatusWidgetPresets,
+  initialSecretSettings = DEFAULT_SECRET_SETTINGS,
   nickname,
 }: {
-  initialPersonas: PersonaListItem[];
+  initialPersonas: PublicPersonaListItem[];
   initialNotePresets: UserNotePresetItem[];
   initialStatusWidgetPresets: StatusWidgetPresetItem[];
+  /** Safe capability only — never includes secret source. */
+  initialSecretSettings?: PersonaSecretSettingsCapability;
   nickname: string;
 }) {
   const router = useRouter();
@@ -61,6 +78,14 @@ export default function PersonaClient({
   const [draftMemo, setDraftMemo] = useState("");
   const [draftGender, setDraftGender] = useState<CharacterGender | "">("");
   const [draftDesc, setDraftDesc] = useState("");
+  const [draftSecretDescription, setDraftSecretDescription] = useState("");
+  const [draftSecretDescriptionLoaded, setDraftSecretDescriptionLoaded] = useState(false);
+  const [draftSecretDescriptionDirty, setDraftSecretDescriptionDirty] = useState(false);
+  const [secretSettings, setSecretSettings] =
+    useState<PersonaSecretSettingsCapability>(initialSecretSettings);
+  const [editorPersonas, setEditorPersonas] = useState<Record<number, OwnerPersonaEditorItem>>({});
+  const [compileSummary, setCompileSummary] = useState<PersonaSecretCompileSummaryDto | null>(null);
+  const [compilePreservedPrior, setCompilePreservedPrior] = useState(false);
   const [draftImageUrl, setDraftImageUrl] = useState("");
   const [draftImageFocusX, setDraftImageFocusX] = useState<number>(PERSONA_IMAGE_FOCUS_DEFAULT.x);
   const [draftImageFocusY, setDraftImageFocusY] = useState<number>(PERSONA_IMAGE_FOCUS_DEFAULT.y);
@@ -84,12 +109,55 @@ export default function PersonaClient({
     setPersonas(initialPersonas);
   }, [initialPersonas]);
 
-  function startEdit(p: PersonaListItem) {
+  useEffect(() => {
+    setSecretSettings(initialSecretSettings);
+  }, [initialSecretSettings]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadOwnerCapabilities() {
+      try {
+        const publicRes = await fetch("/api/personas", { cache: "no-store" });
+        const publicData = (await publicRes.json()) as {
+          personas?: PublicPersonaListItem[];
+          capabilities?: { personaSecretSettings?: PersonaSecretSettingsCapability };
+        };
+        if (cancelled || !publicRes.ok) return;
+        if (Array.isArray(publicData.personas)) setPersonas(publicData.personas);
+        const capability = publicData.capabilities?.personaSecretSettings ?? DEFAULT_SECRET_SETTINGS;
+        setSecretSettings(capability);
+        if (!capability.canEdit) return;
+
+        const editorRes = await fetch("/api/personas/editor", { cache: "no-store" });
+        const editorData = (await editorRes.json()) as { personas?: OwnerPersonaEditorItem[] };
+        if (cancelled || !editorRes.ok || !Array.isArray(editorData.personas)) return;
+        setEditorPersonas(
+          Object.fromEntries(editorData.personas.map((persona) => [persona.id, persona]))
+        );
+      } catch {
+        // The public editor remains usable; do not convert an owner secret load
+        // failure into an empty secret draft.
+      }
+    }
+    void loadOwnerCapabilities();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function startEdit(p: PublicPersonaListItem) {
     setEditingId(p.id);
     setDraftName(p.name);
     setDraftMemo(p.memo ?? "");
     setDraftGender(p.gender ?? "other");
     setDraftDesc(p.description);
+    const editor = editorPersonas[p.id];
+    const secretDraft = resolveSecretDraftOnStartEdit(editor);
+    setDraftSecretDescription(secretDraft.draftSecretDescription);
+    setDraftSecretDescriptionLoaded(secretDraft.draftSecretDescriptionLoaded);
+    setDraftSecretDescriptionDirty(false);
+    setCompileSummary(null);
+    setCompilePreservedPrior(false);
     setDraftImageUrl(p.image_url ?? "");
     setDraftImageFocusX(p.image_focus_x ?? PERSONA_IMAGE_FOCUS_DEFAULT.x);
     setDraftImageFocusY(p.image_focus_y ?? PERSONA_IMAGE_FOCUS_DEFAULT.y);
@@ -110,6 +178,11 @@ export default function PersonaClient({
     setDraftMemo("");
     setDraftGender("");
     setDraftDesc("");
+    setDraftSecretDescription("");
+    setDraftSecretDescriptionLoaded(true);
+    setDraftSecretDescriptionDirty(false);
+    setCompileSummary(null);
+    setCompilePreservedPrior(false);
     setDraftImageUrl("");
     setDraftImageFocusX(PERSONA_IMAGE_FOCUS_DEFAULT.x);
     setDraftImageFocusY(PERSONA_IMAGE_FOCUS_DEFAULT.y);
@@ -124,15 +197,43 @@ export default function PersonaClient({
     setDraftMemo("");
     setDraftGender("");
     setDraftDesc("");
+    setDraftSecretDescription("");
+    setDraftSecretDescriptionLoaded(false);
+    setDraftSecretDescriptionDirty(false);
+    setCompileSummary(null);
+    setCompilePreservedPrior(false);
     setDraftImageUrl("");
     setDraftImageFocusX(PERSONA_IMAGE_FOCUS_DEFAULT.x);
     setDraftImageFocusY(PERSONA_IMAGE_FOCUS_DEFAULT.y);
   }
 
+  useEffect(() => {
+    if (editingId == null) return;
+    const editor = editorPersonas[editingId];
+    if (
+      !shouldHydrateSecretDraftFromEditor({
+        canEdit: secretSettings.canEdit,
+        draftSecretDescriptionLoaded,
+        draftSecretDescriptionDirty,
+        hasEditor: Boolean(editor),
+      })
+    ) {
+      return;
+    }
+    setDraftSecretDescription(editor!.secret_description);
+    setDraftSecretDescriptionLoaded(true);
+  }, [
+    draftSecretDescriptionDirty,
+    draftSecretDescriptionLoaded,
+    editingId,
+    editorPersonas,
+    secretSettings.canEdit,
+  ]);
+
   async function refreshList() {
     try {
       const res = await fetch("/api/personas", { cache: "no-store" });
-      const data = (await res.json()) as { personas?: PersonaListItem[]; error?: string };
+      const data = (await res.json()) as { personas?: PublicPersonaListItem[]; error?: string };
       if (!res.ok) {
         setError(data.error || "페르소나 목록을 불러오지 못했습니다.");
         return;
@@ -140,6 +241,22 @@ export default function PersonaClient({
       setPersonas(Array.isArray(data.personas) ? data.personas : []);
     } catch {
       setError("페르소나 목록을 불러오지 못했습니다.");
+    }
+  }
+
+  async function refreshOwnerEditorPersona(personaId: number) {
+    if (!secretSettings.canEdit) return null;
+    try {
+      const res = await fetch(`/api/personas/${personaId}/editor`, { cache: "no-store" });
+      const data = (await res.json()) as {
+        persona?: OwnerPersonaEditorItem;
+        error?: string;
+      };
+      if (!res.ok || !data.persona) return null;
+      setEditorPersonas((prev) => applyOwnerEditorCacheUpdate(prev, data.persona!));
+      return data.persona;
+    } catch {
+      return null;
     }
   }
 
@@ -152,7 +269,12 @@ export default function PersonaClient({
       setError("페르소나 성별을 선택하세요.");
       return;
     }
-    const payload = {
+    const secretWasSubmitted =
+      secretSettings.canEdit &&
+      (creating ||
+        (editingId != null && draftSecretDescriptionLoaded && draftSecretDescriptionDirty));
+    const submittedSecret = draftSecretDescription;
+    const payload: Record<string, unknown> = {
       name: draftName,
       memo: draftMemo,
       gender: draftGender,
@@ -161,6 +283,16 @@ export default function PersonaClient({
       image_focus_x: draftImageFocusX,
       image_focus_y: draftImageFocusY,
     };
+    if (secretSettings.canEdit && creating) {
+      payload.secret_description = draftSecretDescription;
+    } else if (
+      secretSettings.canEdit &&
+      editingId != null &&
+      draftSecretDescriptionLoaded &&
+      draftSecretDescriptionDirty
+    ) {
+      payload.secret_description = draftSecretDescription;
+    }
 
     const res = editingId
       ? await fetch(`/api/personas/${editingId}`, {
@@ -177,7 +309,9 @@ export default function PersonaClient({
     setBusy(false);
     const data = (await res.json()) as {
       error?: string;
-      persona?: PersonaListItem;
+      persona?: PublicPersonaListItem;
+      compile?: PersonaSecretCompileSummaryDto;
+      compilePreservedPrior?: boolean;
     };
     if (!res.ok) {
       setError(data.error || "저장에 실패했습니다.");
@@ -194,8 +328,35 @@ export default function PersonaClient({
         return [...prev, data.persona!];
       });
     }
+    setCompileSummary(data.compile ?? null);
+    setCompilePreservedPrior(Boolean(data.compilePreservedPrior));
+    if (secretWasSubmitted) {
+      setDraftSecretDescriptionDirty(false);
+    }
+    if (data.persona && secretSettings.canEdit && (secretWasSubmitted || creating)) {
+      const authoritative = await refreshOwnerEditorPersona(data.persona.id);
+      if (authoritative) {
+        setDraftSecretDescription(authoritative.secret_description);
+        setDraftSecretDescriptionLoaded(true);
+      } else if (secretWasSubmitted) {
+        // Fallback: keep submitted source in cache until next authoritative fetch.
+        setEditorPersonas((prev) =>
+          applyOwnerEditorCacheUpdate(prev, {
+            ...(data.persona as PublicPersonaListItem),
+            secret_description: submittedSecret,
+          })
+        );
+        setDraftSecretDescription(submittedSecret);
+        setDraftSecretDescriptionLoaded(true);
+      }
+    }
     setMsg(editingId ? "페르소나가 수정되었습니다." : "페르소나가 생성되었습니다.");
-    cancelForm();
+    if (!data.compile && !data.compilePreservedPrior) {
+      cancelForm();
+    } else if (data.persona) {
+      setCreating(false);
+      setEditingId(data.persona.id);
+    }
     await refreshList();
     router.refresh();
   }
@@ -613,6 +774,71 @@ export default function PersonaClient({
                 onChange={(e) => setDraftDesc(e.target.value)}
               />
             </div>
+            {secretSettings.canEdit ? (
+              <div className="space-y-2 rounded-xl border border-violet-500/20 bg-violet-500/5 p-3">
+                <div className="flex justify-between gap-2">
+                  <label className={studioType.label}>비밀 설정 (선택)</label>
+                  <span className={studioType.counter}>
+                    {draftSecretDescription.trim().length.toLocaleString()} /{" "}
+                    {PERSONA_SECRET_CONTENT_MAX.toLocaleString()}자
+                  </span>
+                </div>
+                <p className={studioType.caption}>
+                  캐릭터가 대화 시작 시점에는 모르는 설정입니다. 외형, 성격, 직업, 평소 말투처럼
+                  처음부터 알아야 하는 내용은 일반 설정에 작성하세요.
+                </p>
+                {secretSettings.discoveryActive ? (
+                  <p className={studioType.caption}>
+                    직접 공개하거나, 목격·조사·전달을 통해 알게 될 수 있습니다.
+                  </p>
+                ) : (
+                  <p className={studioType.caption}>
+                    비밀 설정은 일반 설정과 분리해 저장됩니다. 대화 중 발견 기능은 준비 중입니다.
+                  </p>
+                )}
+                <textarea
+                  rows={6}
+                  maxLength={PERSONA_SECRET_CONTENT_MAX}
+                  disabled={!creating && !draftSecretDescriptionLoaded}
+                  className={`${studioTextareaClass} disabled:opacity-50`}
+                  placeholder="예: 과거 포드 감염 실험에 자원했으며, 오른팔의 감염 흔적을 긴 장갑으로 숨기고 있다."
+                  value={draftSecretDescription}
+                  onChange={(e) => {
+                    setDraftSecretDescription(e.target.value);
+                    setDraftSecretDescriptionDirty(true);
+                  }}
+                />
+                {!creating && !draftSecretDescriptionLoaded && (
+                  <p className="text-[11px] text-zinc-500">비밀 설정을 불러오는 중…</p>
+                )}
+                {compileSummary && (
+                  <details className="text-[11px] text-zinc-400">
+                    <summary>
+                      비밀 설정이 저장되었습니다. 발견 가능한 비밀{" "}
+                      {compileSummary.compiledSecretCount}개가 정리되었습니다.
+                    </summary>
+                    <p className="mt-1">
+                      {compileSummary.titles.join(" · ") || "정리된 비밀 없음"}
+                      {compileSummary.needsReview ? " · 검토 필요" : ""}
+                      {compileSummary.reused ? " · 기존 분석 재사용" : ""}
+                    </p>
+                    {compileSummary.warnings.length > 0 && (
+                      <p className="mt-1">{compileSummary.warnings.join(" · ")}</p>
+                    )}
+                  </details>
+                )}
+                {compilePreservedPrior && (
+                  <p className="text-[11px] leading-relaxed text-amber-300">
+                    페르소나 설정은 저장됐지만 비밀 설정 분석에 실패했습니다. 기존 분석 결과는
+                    보존되었으며, 같은 내용을 다시 저장하면 분석을 재시도합니다.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="rounded-lg border border-white/10 bg-[#0e1120] px-3 py-2 text-[11px] text-zinc-500">
+                비밀 설정은 현재 일부 사용자에게 순차 공개 중입니다.
+              </p>
+            )}
             <div className="flex gap-2">
               <button
                 type="button"

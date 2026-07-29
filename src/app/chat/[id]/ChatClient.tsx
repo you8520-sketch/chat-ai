@@ -131,7 +131,8 @@ import {
   reconcileStreamEof,
   type EofReconcileSnapshot,
 } from "@/lib/chatStreamEofReconcile";
-import type { PersonaListItem } from "@/lib/userPersonas";
+import type { PublicPersonaListItem } from "@/lib/userPersonasClient";
+import type { PersonaSecretSettingsCapability } from "@/lib/personaSecretCapabilities";
 import type { UserNotePresetItem } from "@/lib/userNotePresetTypes";
 import type { StatusWidgetPresetItem } from "@/lib/statusWidgetPresetTypes";
 import {
@@ -657,7 +658,7 @@ export default function ChatClient({
   showFullBillingReceipt = false,
   contentKind = "character",
   initialNarrativePov = "third_person",
-  personaSecretBoundaryEnabled = false,
+  personaSecretSettings = { canEdit: false, discoveryActive: false },
 }: {
   character: { id: number; name: string; emoji: string; hue: number; nsfw: number; official?: number };
   creatorName: string;
@@ -676,7 +677,7 @@ export default function ChatClient({
   defaultUserNote: string;
   initialNotePresets: UserNotePresetItem[];
   initialStatusWidgetPresets?: StatusWidgetPresetItem[];
-  initialPersonas: PersonaListItem[];
+  initialPersonas: PublicPersonaListItem[];
   initialSelectedPersonaId: number | null;
   nickname: string;
   isAdult: boolean;
@@ -697,7 +698,7 @@ export default function ChatClient({
   showFullBillingReceipt?: boolean;
   contentKind?: "character" | "simulation";
   initialNarrativePov?: NarrativePov;
-  personaSecretBoundaryEnabled?: boolean;
+  personaSecretSettings?: PersonaSecretSettingsCapability;
   showSecretDiscoveryInspector?: boolean;
 }) {
   const router = useRouter();
@@ -1633,7 +1634,7 @@ export default function ChatClient({
     activeStreamRevealRef.current?.syncOptions();
   }, [displayPrefs]);
 
-  function handlePersonaUpdated(updated: PersonaListItem) {
+  function handlePersonaUpdated(updated: PublicPersonaListItem) {
     setPersonas((prev) => prev.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)));
   }
 
@@ -1647,7 +1648,7 @@ export default function ChatClient({
       try {
         const res = await fetch("/api/personas", { cache: "no-store" });
         if (!res.ok) return;
-        const data = (await res.json()) as { personas?: PersonaListItem[] };
+        const data = (await res.json()) as { personas?: PublicPersonaListItem[] };
         if (cancelled || !Array.isArray(data.personas)) return;
         setPersonas(data.personas);
         setSelectedPersonaId((prev) => {
@@ -3642,7 +3643,7 @@ export default function ChatClient({
         statusWidgetDisplayMode={liveStatusWidgetDisplayMode}
         userWidgetJson={liveUserWidgetJson}
         characterWidgetAllowUserOverride={characterWidgetAllowUserOverride}
-        personaSecretBoundaryEnabled={personaSecretBoundaryEnabled}
+        personaSecretSettings={personaSecretSettings}
         onStatusWidgetChange={(saved) => {
           setLiveStatusWidgetMode(saved.mode);
           setLiveStatusWidgetDisplayMode(saved.displayMode);
