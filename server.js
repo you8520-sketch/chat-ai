@@ -13,6 +13,9 @@
  */
 const bootStart = Date.now();
 
+const { assertRailwayProductionNodeEnv } = require("./src/lib/railwayProductionBootGuard.js");
+assertRailwayProductionNodeEnv();
+
 const { createServer } = require("http");
 const { parse } = require("url");
 const next = require("next");

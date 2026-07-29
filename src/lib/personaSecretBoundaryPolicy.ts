@@ -1,11 +1,20 @@
 /**
- * Persona Secret Boundary rollout — default OFF in production.
+ * Persona Secret Boundary rollout — fail-closed by default in every environment.
  * Affects secret exclusion + chat-scoped reveal only; does not alter Canon rollout.
+ *
+ * Priority:
+ * 1) PERSONA_SECRET_BOUNDARY_ENABLED=0 → force OFF for all users
+ * 2) PERSONA_SECRET_BOUNDARY_ENABLED=1 → force ON for all users
+ * 3) unset + user allowlist / percent canary → ON for matching users only
+ * 4) otherwise → OFF
  *
  * Discovery kill switch (`PERSONA_SECRET_DISCOVERY_ENABLED`) gates observer/scene/
  * evidence/visual/investigation/transfer/knowledge-prompt writes. When Discovery is
  * OFF, Boundary still allows legacy marker strip, public-only persona projection,
  * and UNKNOWN secret zero-byte isolation.
+ *
+ * Discovery is also fail-closed: unset/OFF → OFF; explicit ON only when Boundary is
+ * enabled for that user.
  */
 
 export type PersonaSecretBoundaryContext = {
@@ -50,12 +59,12 @@ export function isPersonaSecretBoundaryEnabled(
     }
   }
 
-  return env.NODE_ENV !== "production";
+  return false;
 }
 
 /**
  * Runtime kill switch for Persona Secret Discovery (S0–S4D engine writes).
- * Production default OFF. Explicit OFF always wins over Boundary canary.
+ * Fail-closed: unset/OFF → OFF. Explicit ON only when Boundary is enabled for the user.
  */
 export function isPersonaSecretDiscoveryEnabled(
   opts?: PersonaSecretBoundaryContext,
@@ -67,7 +76,6 @@ export function isPersonaSecretDiscoveryEnabled(
     // Discovery never outruns Boundary isolation.
     return isPersonaSecretBoundaryEnabled(opts, env);
   }
-  // Unset: follow Boundary in non-production; stay OFF in production.
-  if (env.NODE_ENV === "production") return false;
-  return isPersonaSecretBoundaryEnabled(opts, env);
+  // Unset: always OFF (no development auto-enable fallback).
+  return false;
 }
