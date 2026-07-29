@@ -133,7 +133,7 @@ import {
   renderSceneDirectiveForPrompt,
 } from "@/lib/sceneDirective";
 import { deriveGenerationPreparationUi } from "@/lib/generationPreparationUi";
-import { stealthReceiptModelFields } from "@/lib/billingDisplay";
+import { isMeteredReceiptProvider, stealthReceiptModelFields } from "@/lib/billingDisplay";
 import {
   buildLorebookActivationText,
   loadKeywordLorebookPromptBlockFromActivation,
@@ -159,7 +159,10 @@ import {
 } from "@/lib/htmlVisualCardRecovery";
 import { continueNarrativeIfUnderMinimum, needsVisibleLengthContinuation } from "@/lib/narrativeLengthContinuation";
 import { responseHasHtmlVisualCard, splitChatRichBlocks } from "@/lib/chatRichContent";
-import { buildOpenRouterCacheReceiptInfo } from "@/lib/openRouterModelPricing";
+import {
+  buildOpenRouterCacheReceiptInfo,
+  resolveOpenRouterRateSummary,
+} from "@/lib/openRouterModelPricing";
 import { estimateUserContextChars } from "@/lib/userContextBilling";
 import { formatUserNoteForPrompt } from "@/lib/persona";
 import { validateUserNoteCombined, userNoteCombinedCharCount, parseUserNoteCombined, extractFocusZoneNote } from "@/lib/userNoteStatusWindow";
@@ -2927,20 +2930,30 @@ export async function POST(req: Request) {
 
         const routeMode: Route = isAdultMode ? "nsfw" : "safe";
 
-        const orCacheReceipt =
-          billingProvider === "openrouter"
-            ? buildOpenRouterCacheReceiptInfo({
-                modelId: billingOpenRouterModelId ?? undefined,
-                promptTokens: totalInput,
-                cacheReadTokens:
-                  primaryStage?.cacheReadTokens ?? primaryStage?.cachedContentTokens,
-                cacheWriteTokens: primaryStage?.cacheWriteTokens,
-                standardInputTokens: primaryStage?.standardInputTokens,
-              })
-            : null;
+        const meteredReceiptBilling = isMeteredReceiptProvider(billingProvider);
 
-        const billingExchangeRate =
-          billingProvider === "openrouter" ? resolveBillingExchangeRateSnapshot() : null;
+        const orCacheReceipt = meteredReceiptBilling
+          ? buildOpenRouterCacheReceiptInfo({
+              modelId: billingOpenRouterModelId ?? undefined,
+              promptTokens: totalInput,
+              cacheReadTokens:
+                primaryStage?.cacheReadTokens ?? primaryStage?.cachedContentTokens,
+              cacheWriteTokens: primaryStage?.cacheWriteTokens,
+              standardInputTokens: primaryStage?.standardInputTokens,
+            })
+          : null;
+        const cacheRateSummary = meteredReceiptBilling
+          ? (orCacheReceipt?.rateSummary ??
+            resolveOpenRouterRateSummary(billingOpenRouterModelId))
+          : undefined;
+        const cacheFamily = meteredReceiptBilling
+          ? (orCacheReceipt?.family ??
+            (billingProvider === "openai" ? ("openai" as const) : ("unknown" as const)))
+          : undefined;
+
+        const billingExchangeRate = meteredReceiptBilling
+          ? resolveBillingExchangeRateSnapshot()
+          : null;
 
         const apiInputTokens = htmlFlashOnlyTurn
           ? (flashHtmlUsage?.apiReportedInputTokens ??
@@ -2968,7 +2981,7 @@ export async function POST(req: Request) {
         const usageModelLabel = htmlFlashOnlyTurn ? HTML_ONLY_MODEL_LABEL : receiptFields.modelLabel;
 
         const mainOpenRouterApiRawCostKrw =
-          billingProvider === "openrouter" && billingExchangeRate
+          meteredReceiptBilling && billingExchangeRate
             ? openRouterRawCostKrw({
                 promptTokens: apiInputTokens,
                 outputTokens: apiOutputTokens,
@@ -3046,10 +3059,10 @@ export async function POST(req: Request) {
                 ...(orCacheReceipt?.cacheWriteLine
                   ? { cacheWriteLine: orCacheReceipt.cacheWriteLine }
                   : {}),
-                ...(orCacheReceipt
+                ...(cacheRateSummary
                   ? {
-                      cacheRateSummary: orCacheReceipt.rateSummary,
-                      cacheFamily: orCacheReceipt.family,
+                      cacheRateSummary,
+                      ...(cacheFamily ? { cacheFamily } : {}),
                     }
                   : {}),
               } ),
@@ -3063,7 +3076,7 @@ export async function POST(req: Request) {
           ...(billingWaiverReason && cost <= 0
             ? { billingWaived: true, billingWaiverReason: billingWaiverReason }
             : {}),
-          ...(billingProvider === "openrouter" && billingExchangeRate
+          ...(meteredReceiptBilling && billingExchangeRate
             ? {
                 exchangeRateKrwPerUsd: billingExchangeRate.effectiveKrwPerUsd,
                 exchangeRateDateKey: billingExchangeRate.dateKey,
@@ -3129,7 +3142,7 @@ export async function POST(req: Request) {
           if (
             widgetResolved.widgetExtractUsage &&
             widgetResolved.widgetExtractBillingMeta &&
-            billingProvider === "openrouter" &&
+            meteredReceiptBilling &&
             billingExchangeRate
           ) {
             if (showFullBillingReceipt) {

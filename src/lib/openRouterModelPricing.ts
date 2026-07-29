@@ -4,7 +4,7 @@
  * @see https://api-docs.deepseek.com/quick_start/pricing (DeepSeek V4 Pro cache hit)
  */
 
-export type OpenRouterCacheFamily = "anthropic" | "deepseek" | "google" | "unknown";
+export type OpenRouterCacheFamily = "anthropic" | "deepseek" | "google" | "openai" | "unknown";
 
 export type OpenRouterModelRates = {
   family: OpenRouterCacheFamily;
@@ -15,6 +15,8 @@ export type OpenRouterModelRates = {
   cacheReadUsdPerM?: number;
   /** cache read — 입력 대비 배율 (Claude 0.1 = 90% 할인) */
   cacheReadMultiplier?: number;
+  /** cache write — 절대 $/1M (OpenAI Terra) */
+  cacheWriteUsdPerM?: number;
   /** cache write — 입력 대비 배율 (Claude 5분 TTL 1.25) */
   cacheWriteMultiplier: number;
   /** 우리가 cache_control을 주입·지원하는 모델 */
@@ -160,6 +162,18 @@ const SOLAR_PRO_3_RATES: OpenRouterModelRates = {
   explicitCacheInjection: false,
 };
 
+/** OpenAI GPT-5.6 Terra — Responses API list (short-context) */
+const OPENAI_GPT_56_TERRA_RATES: OpenRouterModelRates = {
+  family: "openai",
+  label: "OpenAI GPT-5.6 Terra prompt cache",
+  inputUsdPerM: 2.5,
+  outputUsdPerM: 15,
+  cacheReadUsdPerM: 0.25,
+  cacheWriteUsdPerM: 3.125,
+  cacheWriteMultiplier: 1.25,
+  explicitCacheInjection: false,
+};
+
 const GENERIC_OPENROUTER_RATES: OpenRouterModelRates = {
   family: "unknown",
   label: "제공자 자동 캐시",
@@ -191,6 +205,9 @@ export function resolveOpenRouterModelRates(modelId?: string | null): OpenRouter
   if (id.includes("/solar-pro-3") || /(^|\/)solar[-.]?pro[-.]?3\b/.test(id)) {
     return SOLAR_PRO_3_RATES;
   }
+  if (id === "gpt-5.6-terra" || id.includes("gpt-5.6-terra")) {
+    return OPENAI_GPT_56_TERRA_RATES;
+  }
   return GENERIC_OPENROUTER_RATES;
 }
 
@@ -201,6 +218,7 @@ export function resolveCacheReadUsdPerM(rates: OpenRouterModelRates): number {
 }
 
 export function resolveCacheWriteUsdPerM(rates: OpenRouterModelRates): number {
+  if (rates.cacheWriteUsdPerM != null) return rates.cacheWriteUsdPerM;
   return rates.inputUsdPerM * rates.cacheWriteMultiplier;
 }
 
@@ -251,6 +269,8 @@ export function buildOpenRouterCacheReceiptInfo(opts: {
       cacheReadLine = `${cacheRead.toLocaleString()} (DeepSeek 자동 prefix 캐시 · 입력 ~${discountPct}% 할인)`;
     } else if (rates.family === "google" && discountPct != null) {
       cacheReadLine = `${cacheRead.toLocaleString()} (Google Gemini 자동 캐시 · 입력 ~${discountPct}% 할인)`;
+    } else if (rates.family === "openai" && discountPct != null) {
+      cacheReadLine = `${cacheRead.toLocaleString()} (OpenAI prompt cache · 입력 ~${discountPct}% 할인)`;
     } else {
       cacheReadLine = `${cacheRead.toLocaleString()} (${rates.label} · 할인율 미등록)`;
     }
@@ -264,19 +284,14 @@ export function buildOpenRouterCacheReceiptInfo(opts: {
       cacheWriteLine = `${cacheWrite.toLocaleString()} (캐시 저장 · 입력과 동일 단가)`;
     } else if (rates.family === "google") {
       cacheWriteLine = `${cacheWrite.toLocaleString()} (캐시 저장 · 입력과 동일 단가)`;
+    } else if (rates.family === "openai") {
+      cacheWriteLine = `${cacheWrite.toLocaleString()} (캐시 저장 · 입력 125% 단가)`;
     } else {
       cacheWriteLine = `${cacheWrite.toLocaleString()} (캐시 저장)`;
     }
   }
 
-  const rateSummary =
-    rates.family === "deepseek"
-      ? `입력 $${rates.inputUsdPerM}/M · 캐시히트 $${rates.cacheReadUsdPerM}/M · 출력 $${rates.outputUsdPerM}/M`
-      : rates.family === "anthropic"
-        ? `입력 $${rates.inputUsdPerM}/M · 캐시히트 10% · 캐시쓰기 125% · 출력 $${rates.outputUsdPerM}/M`
-        : rates.family === "google"
-          ? `입력 $${rates.inputUsdPerM}/M · 캐시히트 25% · 출력 $${rates.outputUsdPerM}/M`
-          : `입력 $${rates.inputUsdPerM}/M · 출력 $${rates.outputUsdPerM}/M`;
+  const rateSummary = formatOpenRouterRateSummary(rates);
 
   return {
     family: rates.family,
@@ -287,6 +302,29 @@ export function buildOpenRouterCacheReceiptInfo(opts: {
     cacheWriteLine,
     rateSummary,
   };
+}
+
+export function formatOpenRouterRateSummary(rates: OpenRouterModelRates): string {
+  if (rates.family === "deepseek") {
+    return `입력 $${rates.inputUsdPerM}/M · 캐시히트 $${rates.cacheReadUsdPerM}/M · 출력 $${rates.outputUsdPerM}/M`;
+  }
+  if (rates.family === "anthropic") {
+    return `입력 $${rates.inputUsdPerM}/M · 캐시히트 10% · 캐시쓰기 125% · 출력 $${rates.outputUsdPerM}/M`;
+  }
+  if (rates.family === "google") {
+    return `입력 $${rates.inputUsdPerM}/M · 캐시히트 25% · 출력 $${rates.outputUsdPerM}/M`;
+  }
+  if (rates.family === "openai") {
+    const write = resolveCacheWriteUsdPerM(rates);
+    const read = resolveCacheReadUsdPerM(rates);
+    return `입력 $${rates.inputUsdPerM}/M · 캐시히트 $${read}/M · 캐시쓰기 $${write}/M · 출력 $${rates.outputUsdPerM}/M`;
+  }
+  return `입력 $${rates.inputUsdPerM}/M · 출력 $${rates.outputUsdPerM}/M`;
+}
+
+/** 캐시 토큰이 없어도 영수증에 모델 요율을 붙일 때 사용 */
+export function resolveOpenRouterRateSummary(modelId?: string | null): string {
+  return formatOpenRouterRateSummary(resolveOpenRouterModelRates(modelId));
 }
 
 export type OpenRouterBillingBreakdown = {
