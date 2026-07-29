@@ -5,6 +5,7 @@ import {
   CHAT_EMOTICON_API_OUTPUT_SIZE,
   CHAT_EMOTICON_OUTPUT_HEIGHT,
   CHAT_EMOTICON_OUTPUT_WIDTH,
+  CHAT_EMOTICON_SCENE_POOL,
   CHAT_EMOTICON_QUALITY,
   buildChatEmoticonPrompt,
   resolveChatEmoticonPrice,
@@ -17,6 +18,15 @@ describe("chatEmoticonGeneration", () => {
     assert.equal(CHAT_EMOTICON_OUTPUT_WIDTH, 1024);
     assert.equal(CHAT_EMOTICON_OUTPUT_HEIGHT, 1024);
     assert.equal(CHAT_EMOTICON_QUALITY, "medium");
+  });
+
+  it("keeps a broad random emoticon scene candidate pool", () => {
+    assert.ok(CHAT_EMOTICON_SCENE_POOL.length >= 45);
+    for (const subject of ["character", "persona", "duo"] as const) {
+      assert.ok(
+        CHAT_EMOTICON_SCENE_POOL.filter((scene) => scene.subject === subject).length >= 15
+      );
+    }
   });
 
   it("selects nine unique random phrases with three solo/duo scenes per subject", () => {
