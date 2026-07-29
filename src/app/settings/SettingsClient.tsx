@@ -193,6 +193,12 @@ export default function SettingsClient({ user, unreadNotice = false }: Props) {
               크리에이터 정산
             </Link>
             <Link
+              href="/admin/finance"
+              className={SETTINGS_ACTION_LINK_CLASS}
+            >
+              유지비 · 실제 수익률
+            </Link>
+            <Link
               href="/admin/boards"
               className={SETTINGS_ACTION_LINK_CLASS}
             >

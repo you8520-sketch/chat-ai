@@ -10,6 +10,8 @@
  * - PAYOUT_FORCE_FAIL=1         지급대행 시뮬레이션 전체 실패
  * - ENABLE_TRAINING_PIPELINE=1  RP 학습 파이프라인 스케줄러 활성화
  * - TRAINING_RUN_ON_BOOT=1      기동 시 daily analysis 1회 (개발용)
+ * - DISABLE_FINANCE_SCHEDULER=1 운영비 12시 집계 비활성화
+ * - FINANCE_RUN_ON_BOOT=1       기동 시 운영비 스냅샷 즉시 저장
  */
 const bootStart = Date.now();
 
@@ -75,6 +77,17 @@ async function runBackgroundInitialization() {
     }
   } else {
     console.log("[server] training pipeline disabled (set ENABLE_TRAINING_PIPELINE=1 to enable)");
+  }
+
+  if (process.env.DISABLE_FINANCE_SCHEDULER !== "1") {
+    try {
+      const { startFinanceScheduler } = await import("./src/cron/financeScheduler.ts");
+      startFinanceScheduler();
+    } catch (err) {
+      console.error("[server] finance scheduler 시작 실패:", err);
+    }
+  } else {
+    console.log("[server] finance scheduler disabled (DISABLE_FINANCE_SCHEDULER=1)");
   }
 
   try {
