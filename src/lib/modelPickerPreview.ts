@@ -13,7 +13,6 @@ import {
   isGpt56TerraModel,
   isMuseModel,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
-  OPENROUTER_MUSE_SPARK_11_MODEL,
   resolveSelectedAI,
   USER_SELECTABLE_AI_OPTIONS,
   type SelectedAI,
@@ -52,7 +51,6 @@ export {
 
 /** Active picker models — preview tuning scope for V2. */
 export const MODEL_PICKER_ACTIVE_MODEL_IDS = [
-  OPENROUTER_MUSE_SPARK_11_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
@@ -74,7 +72,6 @@ export const MODEL_PICKER_FALLBACK_INPUT_TOKENS = 4000;
  */
 export const MODEL_PICKER_MEASURED_COLD_BASELINES: Partial<Record<ModelPickerActiveModelId, number>> =
   {
-    [OPENROUTER_MUSE_SPARK_11_MODEL]: 1400,
     [CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL]: 1500,
     [OPENROUTER_GEMINI_36_FLASH_MODEL]: 1200,
     [CHEAPER_INFERENCE_GPT_56_TERRA_MODEL]: 1400,
@@ -104,6 +101,9 @@ export function canonicalizePreviewModelId(
 ): SelectedAI | null {
   const raw = usage?.selectedAI || usage?.model || messageModel || "";
   if (!raw.trim()) return null;
+  // Retired Muse samples have a different output profile and must not skew
+  // the replacement DeepSeek model's picker estimate.
+  if (isMuseModel(raw)) return null;
   const resolved = resolveSelectedAI(raw, raw);
   return isActivePickerModel(resolved) ? resolved : null;
 }

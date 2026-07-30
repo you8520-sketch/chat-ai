@@ -1,9 +1,9 @@
 import {
   CLAUDE_OPUS_MODEL_LEGACY,
-  DEFAULT_SELECTED_AI,
   OPENROUTER_CLAUDE_DEFAULT,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_GEMINI_31_PRO_MODEL,
+  OPENROUTER_MUSE_SPARK_11_MODEL,
   coerceUserSelectableAI,
   isOpenRouterSelectedAI,
   type SelectedAI,
@@ -20,7 +20,11 @@ const DEPRECATED_OPENROUTER_MODELS: Record<string, string> = {
   "gemini-3.1": OPENROUTER_GEMINI_31_PRO_MODEL,
   "gemini-3.1-pro-preview": OPENROUTER_GEMINI_31_PRO_MODEL,
   "google/gemini-3.1-pro-preview": OPENROUTER_GEMINI_31_PRO_MODEL,
+  [OPENROUTER_MUSE_SPARK_11_MODEL]: OPENROUTER_GEMINI_36_FLASH_MODEL,
 };
+
+/** OpenRouter 전용 무지정 예비 모델 — 전역 기본 모델의 provider와 분리한다. */
+export const DEFAULT_OPENROUTER_MODEL = OPENROUTER_GEMINI_36_FLASH_MODEL;
 
 /** OpenRouter OpenAI-compatible API root — SDK baseURL과 동일 */
 export const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
@@ -59,7 +63,7 @@ export function normalizeOpenRouterModelId(modelId: string): string {
 
 /**
  * OpenRouter 호출용 model slug.
- * selectedAI(openrouter 계열) → OPENROUTER_MODEL env → DEFAULT_SELECTED_AI 기본값
+ * selectedAI(openrouter 계열) → OPENROUTER_MODEL env → OpenRouter 전용 기본값
  */
 export function resolveOpenRouterModelId(selectedAI?: string | null): string {
   const trimmed = selectedAI ? stripEnvQuotes(selectedAI) : null;
@@ -72,7 +76,7 @@ export function resolveOpenRouterModelId(selectedAI?: string | null): string {
   const fromEnv = process.env.OPENROUTER_MODEL
     ? stripEnvQuotes(process.env.OPENROUTER_MODEL)
     : null;
-  const raw = fromSelection ?? fromEnv ?? DEFAULT_SELECTED_AI;
+  const raw = fromSelection ?? fromEnv ?? DEFAULT_OPENROUTER_MODEL;
   const normalized = normalizeOpenRouterModelId(raw);
   const mapped = DEPRECATED_OPENROUTER_MODELS[normalized] ?? normalized;
   if (mapped !== normalized) {
