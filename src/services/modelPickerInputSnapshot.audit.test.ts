@@ -8,7 +8,7 @@ import {
   modelPickerSnapshotCacheSize,
   rememberModelPickerInputSnapshot,
 } from "@/services/modelPickerInputSnapshot";
-import { OPENROUTER_MUSE_SPARK_11_MODEL } from "@/lib/chatModels";
+import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
 
 const SNAPSHOT_SOURCE = fs.readFileSync(
   path.join(process.cwd(), "src/services/modelPickerInputSnapshot.ts"),
@@ -51,7 +51,7 @@ describe("modelPickerInputSnapshot cache bound", () => {
     for (let chatId = 1; chatId <= MODEL_PICKER_SNAPSHOT_CACHE_MAX_ENTRIES + 5; chatId += 1) {
       rememberModelPickerInputSnapshot(chatId, {
         tokensByModel: {
-          [OPENROUTER_MUSE_SPARK_11_MODEL]: 1000 + chatId,
+          [CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL]: 1000 + chatId,
         },
         messageCount: 1,
         personaId: null,
