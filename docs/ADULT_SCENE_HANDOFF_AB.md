@@ -1,8 +1,9 @@
-# Adult scene handoff A/B — 5-scenario gate
+# Adult scene handoff A/B — micro-fixture prompt-continuity test
 
-This replaces the original 30-scenario integration and quality-evaluation plan.
-It is an offline, no-DB-write, no-point-charge gate and does not enable the
-production feature flag.
+This document preserves the first small synthetic experiment. It is **not a
+production-equivalent handoff test**, a production cost forecast, or evidence
+of a real general-model → DeepSeek transition. The production-equivalent gate
+is documented separately in `ADULT_SCENE_HANDOFF_PRODUCTION_AB.md`.
 
 ## Models
 
@@ -29,7 +30,7 @@ people, and actual non-consensual violence.
 
 ```text
 existing common prompt
-+ latest 4 RAW messages (2 complete user-assistant exchanges)
++ latest 4 RAW messages (only 2 complete user-assistant exchanges)
 + current user input
 ```
 
@@ -37,13 +38,15 @@ existing common prompt
 
 ```text
 existing common prompt
-+ latest 6 RAW messages
++ latest 6 RAW messages (only 3 complete user-assistant exchanges)
 + SceneContinuityPacket
 + current user input
 + short continuation instruction
 ```
 
-The current user input is inserted exactly once in both arms.
+These message counts were a harness defect. Production RAW 4 turns means four
+complete exchanges (eight messages), while handoff RAW 6 turns means six
+complete exchanges (twelve messages). The current user input was inserted once.
 
 ## Evaluation
 
@@ -76,7 +79,7 @@ Results are written under `data/adult-scene-handoff-ab/` and are ignored by
 Git. The harness performs exactly 10 calls per selected model: five scenarios
 times two arms, without automatic retries.
 
-## Initial Gemini 3.6 Flash run
+## Initial Gemini 3.6 Flash micro-fixture run
 
 Run date: 2026-07-30
 
@@ -85,8 +88,8 @@ Run date: 2026-07-30
 - 0 refusal-like responses
 - A anchor retention: 11/25
 - B anchor retention: 14/25
-- A average input/output: 252.2 / 988.8 tokens
-- B average input/output: 555.6 / 1,025.0 tokens
+- A average input/output: 252.2 / 988.8 tokens (micro-fixture only)
+- B average input/output: 555.6 / 1,025.0 tokens (micro-fixture only)
 - A/B average latency: 7,268 / 6,823 ms
 
 Paired review favored B in four of five scenarios. The clearest difference was
@@ -97,6 +100,7 @@ interaction. B also retained more of the time/location transition in
 to repeat one more literal anchor, while both preserved the intended emotional
 continuity.
 
-This initial gate does not justify another 10 Luna calls. Use the optional Luna
-confirmation only after a Gemini refusal, a failed arm, or a future prompt
-change with an ambiguous result.
+The low prompt-token totals occurred because the harness used a short
+`COMMON_SYSTEM`, short synthetic dialogue, and message slicing instead of the
+production `buildContext()` path. The numbers above must not be mixed with
+production prompt sizes, costs, latency, or handoff-quality claims.

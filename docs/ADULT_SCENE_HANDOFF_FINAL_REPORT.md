@@ -5,6 +5,12 @@ Branch: `codex/adult-scene-model-handoff`
 Production flag: **not enabled**  
 Main merge: **not performed**
 
+> Revalidation update: the production-equivalent dry gate failed because B can
+> retain fewer RAW exchanges than A and the two DeepSeek probes were about 48–
+> 50% below the available production prompt-token reference. See
+> `ADULT_SCENE_HANDOFF_PRODUCTION_AB.md`. The 40-call blind A/B was not run, so
+> this branch is not mergeable and no production quality claim is made.
+
 This report distinguishes measured results from code inspection and from work
 that remains unmeasured. It does not assign invented scores to tests that were
 not run.
@@ -308,17 +314,18 @@ Passed:
 - `npm run lint`
 - `git diff --check`
 - five-scenario pure routing test: 5/5 passed
+- provider-mock/RAW/bridge integration tests: 9/9 passed
 
 Not completed:
 
 - The original 42-item mandatory unit-test matrix has not been implemented.
-- Provider-specific refusal normalization, streamed partial-output fallback,
-  one-charge settlement, and bridge filtering still need dedicated integration
-  mocks.
+- The mocks cover common refusal text, stream visibility, one fallback,
+  one-charge accounting, hidden overhead, RAW selection, and bridge filtering;
+  provider-specific wire-format fixtures for every upstream remain incomplete.
 
-## 17. Integration test result
+## 17. Small synthetic test result (not production-equivalent)
 
-Initial gate:
+Initial micro-fixture prompt-continuity run:
 
 - model: Gemini 3.6 Flash only
 - five scenarios, A/B, ten successful API responses
@@ -326,11 +333,18 @@ Initial gate:
 - refusal-like responses: 0/10
 - Luna was not run because Gemini produced no failed arm or ambiguous overall
   result.
+- prompt assembly used a short test-only `COMMON_SYSTEM`, not `buildContext()`
+- A used four messages (two exchanges), not four exchanges
+- B used six messages (three exchanges), not six exchanges
+- historical assistant messages did not reproduce the production 2,000–4,000
+  character distribution
+- both arms output Gemini, so this was not a general-model → DeepSeek handoff
 
-This was a prompt-continuity A/B, not a deployed end-to-end
-Gemini-to-DeepSeek switch.
+The 252.2/555.6 prompt-token averages and all results below are retained only as
+the historical **micro-fixture** result. They are not production cost or
+production handoff-quality estimates.
 
-## 18. A/B quality comparison
+## 18. Micro-fixture A/B quality comparison
 
 Scale: 1 is poor, 5 is best. For negative criteria, 5 means the problem was
 absent. Scores are direct review of the ten saved Gemini outputs.
@@ -363,9 +377,9 @@ Literal continuity anchors:
 - A: 11/25
 - B: 14/25
 
-The A/B result supports the continuity packet and six-exchange history design,
-but does not yet prove that DeepSeek’s prose will blend invisibly with Gemini,
-Luna, or another general model.
+This small result suggested that a continuity packet was worth testing. It does
+not establish the value of six complete exchanges and does not prove that
+DeepSeek’s prose blends with Gemini, Luna, or another general model.
 
 ## 19. Routing-quality metrics
 
@@ -391,7 +405,7 @@ Interpretation:
 - Five curated cases are too few to treat 100% precision/recall as a production
   estimate.
 
-## 20. Cost and latency comparison
+## 20. Micro-fixture cost and latency (not a production forecast)
 
 Gemini 3.6 Flash price assumption used for the estimate:
 
@@ -423,7 +437,7 @@ Gemini 3.6 Flash price assumption used for the estimate:
 }
 ```
 
-B versus A:
+B versus A inside this small synthetic fixture only:
 
 - average input: +303.4 tokens (+120.3%)
 - average output: +36.2 tokens (+3.7%)
@@ -431,13 +445,16 @@ B versus A:
 - average latency: -445 ms in this run
 - p95 latency: -368 ms in this run
 
-The latency improvement is noise-prone at `n=5`; the reliable change is the
-extra input context. Production prompts and the DeepSeek adult route are much
-larger, so these fixture costs are not production cost forecasts.
+The prior approximately 11.52 KRW and 12.59 KRW figures are explicitly
+micro-fixture values. They must not be used for pricing, margin decisions, or a
+production handoff forecast. A production-equivalent rerun must use the actual
+`buildContext()` result, complete RAW exchanges, production output-length
+controls, DeepSeek V4 Pro as the final model, and provider-reported usage.
 
 ## 21. Remaining weaknesses
 
-1. No real general-model → DeepSeek prose A/B has been run.
+1. Only a two-call Gemini-origin → DeepSeek transport/length probe has been run;
+   the 40-call production-quality A/B is blocked by the dry gates.
 2. DeepSeek-specific style protrusion and perceived switch remain unmeasured.
 3. The five scenarios have one sample per arm and no repeated seeds.
 4. Only the main character is currently supplied as a structured participant
@@ -476,6 +493,8 @@ Priority order:
 
 ## Final status
 
-The guarded implementation and initial five-scenario gate are on the independent
-branch. Main has not been merged by this work, and
-`ADULT_SCENE_ROUTING_ENABLED` remains `false`.
+The guarded implementation, corrected production-equivalent harness, failed
+dry-gate evidence, two-call DeepSeek provider probe, and provider-mock tests are
+on the independent branch. The requested 40-call A/B is blocked by the RAW and
+prompt-size gates. Main has not been merged by this work, and
+`ADULT_SCENE_ROUTING_ENABLED` remains `false`. The branch is not ready to merge.
