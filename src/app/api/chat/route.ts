@@ -131,7 +131,33 @@ import { stripRuntimePromptContaminationFromVisibleOutput } from "@/lib/runtimeP
 import {
   buildSceneDirective,
   renderSceneDirectiveForPrompt,
+  type SceneProgressionType,
 } from "@/lib/sceneDirective";
+import {
+  buildLivingSceneDirective,
+  renderLivingSceneDirectiveForPrompt,
+  type LivingProgressionType,
+} from "@/lib/livingSceneDirective";
+import { isLivingSceneDirectiveV2EnabledForUser } from "@/lib/livingSceneDirectivePolicy";
+import {
+  buildSceneDirectiveV2,
+  buildSceneDirectiveV2Telemetry,
+  getUpdatedReconvergenceStateFromBuild,
+  logSceneDirectiveV2Telemetry,
+  renderSceneDirectiveV2ForPrompt,
+} from "@/lib/sceneDirectiveV2";
+import {
+  getSceneDirectiveV2Mode,
+  isSceneDirectiveV2ComputeEnabled,
+  isSceneDirectiveV2InjectEnabled,
+  resolveScenePacingPromptOwner,
+} from "@/lib/sceneDirectiveV2Policy";
+import {
+  commitReconvergenceTransition,
+  loadReconvergenceState,
+  prepareReconvergenceTransition,
+  type PendingReconvergenceTransition,
+} from "@/lib/reconvergenceState";
 import { deriveGenerationPreparationUi } from "@/lib/generationPreparationUi";
 import { isMeteredReceiptProvider, stealthReceiptModelFields } from "@/lib/billingDisplay";
 import {
@@ -1089,7 +1115,14 @@ export async function POST(req: Request) {
   const privateSpeechControlBlock = buildPrivateSpeechControlBlock(
     parseCreatorDescriptionCompiled(ch.creator_compiled_description_json)
   );
-  const sceneDirective = buildSceneDirective({
+  const livingSceneDirectiveOn = isLivingSceneDirectiveV2EnabledForUser(
+    user.id,
+    selectedAI
+  );
+  const sceneDirectiveV2Mode = getSceneDirectiveV2Mode();
+  const sceneDirectiveV2Compute = isSceneDirectiveV2ComputeEnabled();
+  const sceneDirectiveV2Inject = isSceneDirectiveV2InjectEnabled();
+  const legacySceneDirective = buildSceneDirective({
     mode: autoContinueContext ? "auto_progression" : "interactive",
     recentMessages: shortTermHistory,
     currentUserMessage: policyUserMessage,
@@ -1100,12 +1133,150 @@ export async function POST(req: Request) {
     lorebookText: [keywordLorebookBlock, globalLorebookBlock].filter(Boolean).join("\n"),
     triggeredEventText: triggeredScenarioEventsBlock,
   });
-  const sceneDirectiveBlock = renderSceneDirectiveForPrompt(sceneDirective);
+  const livingSceneDirective = livingSceneDirectiveOn
+    ? buildLivingSceneDirective({
+        mode: autoContinueContext ? "auto_progression" : "interactive",
+        recentMessages: shortTermHistory,
+        currentUserMessage: policyUserMessage,
+        triggeredEventText: triggeredScenarioEventsBlock,
+        // Grounded pools only — not used for direction classification.
+        memoryText: memoryFeatureOn
+          ? [memoryInjection.text, memoryInjection.archiveText].filter(Boolean).join("\n")
+          : "",
+        relationshipMemoryText: relationshipMemoryForPrompt,
+        lorebookText: [keywordLorebookBlock, globalLorebookBlock].filter(Boolean).join("\n"),
+      })
+    : null;
+  // Prepare-only: never commit reconvergence until assistant finalize succeeds.
+  let pendingReconvergenceTransition: PendingReconvergenceTransition | null = null;
+  const eventRestraintV2 =
+    sceneDirectiveV2Compute
+      ? (() => {
+          const namespace = sceneDirectiveV2Inject ? "production" : "shadow";
+          const prevReconv = loadReconvergenceState(chat.id, ch.id, namespace);
+          const built = buildSceneDirectiveV2({
+            mode: autoContinueContext ? "auto_progression" : "interactive",
+            recentMessages: shortTermHistory,
+            currentUserMessage: policyUserMessage,
+            memoryText: memoryFeatureOn
+              ? [memoryInjection.text, memoryInjection.archiveText].filter(Boolean).join("\n")
+              : "",
+            relationshipMemoryText: relationshipMemoryForPrompt,
+            lorebookText: [keywordLorebookBlock, globalLorebookBlock]
+              .filter(Boolean)
+              .join("\n"),
+            triggeredEventText: triggeredScenarioEventsBlock,
+            reconvergenceState: prevReconv,
+            currentTurn: playableTurnCount + 1,
+            isRegenerate: Boolean(regenerateMessageId),
+          });
+          const nextReconv = getUpdatedReconvergenceStateFromBuild(
+            {
+              mode: autoContinueContext ? "auto_progression" : "interactive",
+              recentMessages: shortTermHistory,
+              currentUserMessage: policyUserMessage,
+              triggeredEventText: triggeredScenarioEventsBlock,
+              reconvergenceState: prevReconv,
+              currentTurn: playableTurnCount + 1,
+              isRegenerate: Boolean(regenerateMessageId),
+            },
+            built
+          );
+          pendingReconvergenceTransition = prepareReconvergenceTransition({
+            namespace,
+            chatId: chat.id,
+            characterId: ch.id,
+            currentTurn: playableTurnCount + 1,
+            currentUserMessage: policyUserMessage,
+            recentMessages: shortTermHistory,
+            triggerPresent: Boolean(triggeredScenarioEventsBlock?.trim()),
+            triggerImpliesReunion: /재회|만남|찾아왔|도착|노크|전화가|메시지가/.test(
+              triggeredScenarioEventsBlock || ""
+            ),
+            requestId: clientRequestId ?? null,
+            generationSequence: 0,
+            isRegenerate: Boolean(regenerateMessageId),
+            previousOverride: prevReconv,
+          });
+          // If V2 selected reconverge offer, ensure pending next reflects offered state.
+          if (
+            built.pacingDecision === "reconverge" &&
+            !built.reconvergence?.blockedNoGroundedPath
+          ) {
+            pendingReconvergenceTransition = {
+              ...pendingReconvergenceTransition,
+              next: {
+                ...nextReconv,
+                chatId: chat.id,
+                characterId: ch.id,
+              },
+              reconvergenceDue: true,
+            };
+          } else {
+            pendingReconvergenceTransition = {
+              ...pendingReconvergenceTransition,
+              next: {
+                ...pendingReconvergenceTransition.next,
+                ...nextReconv,
+                chatId: chat.id,
+                characterId: ch.id,
+              },
+            };
+          }
+          logSceneDirectiveV2Telemetry(
+            buildSceneDirectiveV2Telemetry(
+              built,
+              Boolean(triggeredScenarioEventsBlock?.trim())
+            )
+          );
+          return built;
+        })()
+      : null;
+  // Priority when V2 ON: Event-Restraint V2 is the single scene pacing owner
+  // (V1 + Living scene directive are not dual-injected).
+  // V2 shadow / OFF: Living canary (if enabled) else legacy V1.
+  const scenePacingOwner = resolveScenePacingPromptOwner({
+    v2Mode: sceneDirectiveV2Mode,
+    livingEnabled: Boolean(livingSceneDirective),
+  });
+  const sceneDirectiveBlock =
+    scenePacingOwner === "event_restraint_v2" && eventRestraintV2
+      ? renderSceneDirectiveV2ForPrompt(eventRestraintV2)
+      : scenePacingOwner === "living_continuity_director" && livingSceneDirective
+        ? renderLivingSceneDirectiveForPrompt(livingSceneDirective)
+        : renderSceneDirectiveForPrompt(legacySceneDirective);
+
+  const livingToLegacyProgression = (
+    types: LivingProgressionType[]
+  ): SceneProgressionType[] => {
+    const out: SceneProgressionType[] = [];
+    for (const t of types) {
+      if (t === "relationship_aftereffect") out.push("relationship");
+      else if (t === "character_routine" || t === "established_task") out.push("daily_life");
+      else if (t === "environment_continuity") out.push("environment");
+      else if (t === "active_thread_consequence") out.push("consequence");
+      else if (t === "triggered_event_followthrough") out.push("world_reaction");
+      else if (t === "ensemble_aftereffect") out.push("relationship");
+      else if (t === "future_intent") out.push("relationship");
+    }
+    return out.slice(0, 3);
+  };
+
   /** UI-safe allowlist only — never includes nextBeatHint / directive prose. */
   const generationPreparationUi = deriveGenerationPreparationUi({
     runtimeMode,
-    progressionTypes: sceneDirective.progressionTypes,
-    recommendedIntensity: sceneDirective.recommendedIntensity,
+    progressionTypes:
+      scenePacingOwner === "event_restraint_v2" && eventRestraintV2
+        ? eventRestraintV2.progressionTypes
+        : scenePacingOwner === "living_continuity_director" && livingSceneDirective
+          ? livingToLegacyProgression(livingSceneDirective.progressionTypes)
+          : legacySceneDirective.progressionTypes,
+    recommendedIntensity:
+      scenePacingOwner === "event_restraint_v2" && eventRestraintV2
+        ? eventRestraintV2.recommendedIntensity
+        : scenePacingOwner === "living_continuity_director" && livingSceneDirective
+          ? livingSceneDirective.recommendedIntensityInternal
+          : legacySceneDirective.recommendedIntensity,
     phase: "preparing",
   });
 
@@ -3448,6 +3619,27 @@ export async function POST(req: Request) {
         persistenceDiag.partialSaveCount = partialSaver.partialSaveCount;
         persistenceDiag.lastPartialChars = savedText.length;
         logStreamingPersistence(persistenceDiag);
+
+        // SceneDirective V2 reconvergence: commit only after authoritative finalize.
+        if (pendingReconvergenceTransition) {
+          try {
+            const commitResult = commitReconvergenceTransition(
+              {
+                ...pendingReconvergenceTransition,
+                generationSequence: snapshotVariantIndex ?? 0,
+              },
+              { assistantMessageId: aiMessageId ?? null }
+            );
+            if (
+              commitResult.reason === "stale_version" ||
+              commitResult.reason === "idempotent_replay"
+            ) {
+              console.info("[scene-directive-v2] reconvergence commit", commitResult.reason);
+            }
+          } catch (err) {
+            console.warn("[scene-directive-v2] reconvergence commit failed", err);
+          }
+        }
 
         const extractedFactsForPersistence = statusWidgetValuesPayload?.extracted_facts ?? [];
         const factPersistSummary = summarizeEpisodicFactPersistCandidates(
