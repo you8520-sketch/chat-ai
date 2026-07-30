@@ -115,6 +115,9 @@ export type StatusWidgetLiveTraceEvent = {
   extractAttemptIndex?: number;
   inputTokens?: number;
   outputTokens?: number;
+  httpStatus?: number | null;
+  finishReason?: string | null;
+  errorCode?: string | null;
   latencyMs?: number;
 };
 

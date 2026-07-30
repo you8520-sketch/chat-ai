@@ -82,6 +82,18 @@ export type Usage = {
     upstreamCostUsd?: number;
     estimated?: boolean;
   };
+  /** 관리자 전용 — 위젯 추출 실패/폴백 진단. 일반 사용자 영수증에서는 제거됨. */
+  statusWidgetExtractDiagnostics?: {
+    exhausted: boolean;
+    usedFallback: boolean;
+    attempts: Array<{
+      stage: "initial" | "repair" | "fallback" | "volatile_echo_repair";
+      modelId: string;
+      httpStatus: number | null;
+      finishReason: string | null;
+      errorCode: string | null;
+    }>;
+  };
   /**
    * Provider/stream finish reason from the primary billable stage
    * (e.g. stop / length). Safe telemetry — not stripped for public receipts.

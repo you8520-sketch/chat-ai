@@ -615,18 +615,19 @@ export function resolveRepairMaxTokens(widget: StatusWidget, keys: string[]): nu
   return Math.min(512, Math.max(256, Math.round(tokens)));
 }
 
+/** V4 Flash reasoning + final JSON budget. Actual billing uses consumed tokens only. */
+export const STATUS_WIDGET_V4_FLASH_MAX_OUTPUT_TOKENS = 3072;
+
 /**
  * Dual combined initial output budget (combined call only — not single/repair).
  *
  * Reuses per-source resolveRepairMaxTokens as a size proxy, then adds envelope slack:
  *   characterBudget + userBudget + 256
- * clamped to [768, 1536].
+ * clamped to [2048, 3072] so a reasoning model still has room for final JSON.
  *
  * Rationale:
  * - Global background-status-widget-extract default stays 512 for single/repair paths.
- * - Small dual widgets need at least 768 so character_values + user_values + facts fit.
- * - Large dual widgets (many free-text fields) can approach ~1280 (=512+512+256).
- * - Cap 1536 is a safety ceiling; billed tokens are actual usage, not the maxTokens ask.
+ * - Actual billing uses consumed tokens, not the maxTokens request.
  */
 export function resolveCombinedDualWidgetExtractMaxTokens(
   characterWidget: StatusWidget,
@@ -638,7 +639,10 @@ export function resolveCombinedDualWidgetExtractMaxTokens(
   );
   const userBudget = resolveRepairMaxTokens(userWidget, collectWidgetJsonKeys(userWidget));
   const combined = characterBudget + userBudget + 256;
-  return Math.min(1536, Math.max(768, Math.round(combined)));
+  return Math.min(
+    STATUS_WIDGET_V4_FLASH_MAX_OUTPUT_TOKENS,
+    Math.max(2048, Math.round(combined))
+  );
 }
 
 /** Diagnostic-only: does not change repair/persist policy. */

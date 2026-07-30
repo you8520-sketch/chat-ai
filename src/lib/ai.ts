@@ -201,7 +201,7 @@ function resolveBackgroundMaxOutputTokens(requestKind: string): number {
   // V4 Flash reports internal reasoning inside completion_tokens, so leave
   // enough room for the requested structured result after thinking.
   if (/background-status-meta-extract/i.test(requestKind)) return 1536;
-  if (/background-status-widget-extract/i.test(requestKind)) return 1024;
+  if (/background-status-widget-extract/i.test(requestKind)) return 3072;
   if (/background-html-visual-card/i.test(requestKind)) return HTML_FLASH_MAX_OUTPUT_TOKENS;
   return 3072;
 }

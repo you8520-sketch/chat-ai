@@ -18,6 +18,7 @@ import {
 import { sanitizeExtractedFacts } from "./extractedFacts";
 import { splitProseAndStatusWidgetValuesDeepSeek } from "./deepseekCapture";
 import type { TokenUsage } from "@/lib/ai";
+import type { Usage } from "@/lib/chatUsage";
 import type { StatusWidgetExtractBillingMeta } from "./receiptUsage";
 import { fieldPlaceholderKey } from "./fieldKeys";
 import {
@@ -127,6 +128,7 @@ export type ResolveStatusWidgetTurnValuesResult = {
   widgetExtractUsage: TokenUsage | null;
   /** Same lifetime as widgetExtractUsage — null when background extract was not called or left no usage. */
   widgetExtractBillingMeta: StatusWidgetExtractBillingMeta | null;
+  widgetExtractDiagnostics: NonNullable<Usage["statusWidgetExtractDiagnostics"]> | null;
   telemetry: StatusWidgetTurnTelemetry;
 };
 
@@ -210,6 +212,9 @@ export async function resolveStatusWidgetTurnValues(
   let valuesPayload: ParsedStatusWidgetTurnValues | null = null;
   let widgetExtractUsage: TokenUsage | null = null;
   let widgetExtractBillingMeta: StatusWidgetExtractBillingMeta | null = null;
+  let widgetExtractDiagnostics: NonNullable<
+    Usage["statusWidgetExtractDiagnostics"]
+  > | null = null;
   let resolutionSource: StatusWidgetResolutionSource = "none";
   let splitRawHit = false;
   let splitRawParseError: string | null = null;
@@ -344,6 +349,11 @@ export async function resolveStatusWidgetTurnValues(
         trace: traceBase,
         seedValues: valuesPayload,
       });
+      widgetExtractDiagnostics = {
+        exhausted: v3Result.meta.exhausted,
+        usedFallback: v3Result.meta.usedFallback,
+        attempts: v3Result.meta.attemptDiagnostics,
+      };
       // usage + billing meta share the same lifetime (both null or both set).
       if (v3Result.usage && v3Result.meta.billing) {
         widgetExtractUsage = v3Result.usage;
@@ -489,6 +499,7 @@ export async function resolveStatusWidgetTurnValues(
     values: finalHasContent ? valuesPayload : null,
     widgetExtractUsage,
     widgetExtractBillingMeta,
+    widgetExtractDiagnostics,
     telemetry,
   };
 }

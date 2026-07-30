@@ -29,6 +29,7 @@ import type { Usage } from "@/lib/chatUsage";
 import type { ResolvedStatusWidgetTurn, StatusWidget } from "./types";
 import type { TokenUsage } from "@/lib/ai";
 import {
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   OPENROUTER_DEEPSEEK_V3_MODEL,
   OPENROUTER_GEMINI_25_FLASH_LITE_MODEL,
   OPENROUTER_GEMINI_25_FLASH_MODEL,
@@ -134,10 +135,10 @@ describe("status widget empty-extract retry (V3 repair only)", () => {
     });
     assert.equal(result.meta.exhausted, true);
     assert.equal(result.values.character, null);
-    assert.equal(result.meta.totalCallCount, 2);
+    assert.equal(result.meta.totalCallCount, 3);
     assert.ok(result.usage);
     assert.ok(result.meta.billing);
-    assert.equal(result.meta.billing!.callCount, 2);
+    assert.equal(result.meta.billing!.callCount, 3);
   });
 
   it("character success / user fail → only user repairs", async () => {
@@ -485,6 +486,7 @@ describe("repair echo validator", () => {
       userMessage: "x",
       assistantProse: "장면",
       resolved: characterResolved(widget),
+      fallbackModelId: null,
       caller,
     });
     assert.equal(result.meta.exhausted, true);
@@ -580,7 +582,7 @@ describe("repair maxTokens", () => {
     assert.ok(heavy >= twelve);
   });
 
-  it("repair call uses dynamic maxTokens", async () => {
+  it("V4 Flash repair call receives reasoning-safe maxTokens", async () => {
     let seenMax: number | undefined;
     const caller: StatusWidgetExtractCaller = async (_s, _h, opts) => {
       if (opts.requestKind.includes("repair")) {
@@ -598,7 +600,7 @@ describe("repair maxTokens", () => {
       caller,
     });
     assert.equal(typeof seenMax, "number");
-    assert.ok((seenMax ?? 0) >= 256 && (seenMax ?? 0) <= 512);
+    assert.equal(seenMax, 3072);
   });
 });
 
@@ -623,6 +625,7 @@ describe("extract usage merge", () => {
       userMessage: "x",
       assistantProse: "장면",
       resolved: characterResolved(),
+      fallbackModelId: null,
       caller: async (_s, _h, opts) => {
         if (opts.requestKind.includes("repair")) {
           return { text: jsonForWidget(DEFAULT_STATUS_WIDGET), usage: usage(20) };
@@ -641,6 +644,7 @@ describe("extract usage merge", () => {
       userMessage: "x",
       assistantProse: "장면",
       resolved: characterResolved(),
+      fallbackModelId: null,
       caller: async (_s, _h, opts) => {
         if (opts.requestKind.includes("repair")) throw new Error("boom");
         return { text: "", usage: usage(7) };
@@ -1222,7 +1226,7 @@ describe("dual combined status extract", () => {
       resolved: characterResolved(),
       caller: async (_s, _h, opts) => {
         kinds.push(opts.requestKind);
-        assert.equal(opts.maxTokens, undefined);
+        assert.equal(opts.maxTokens, 3072);
         return { text: jsonForWidget(DEFAULT_STATUS_WIDGET), usage: usage(1) };
       },
     });
@@ -1274,7 +1278,7 @@ function oversizedCombinedJson(character: StatusWidget, user: StatusWidget): str
 }
 
 describe("combined dual output budget", () => {
-  it("1. small dual → combined maxTokens=768 and caller receives 768", async () => {
+  it("1. small dual → combined maxTokens=2048 and caller receives 2048", async () => {
     const smallChar: StatusWidget = {
       version: 1,
       name: "소형 캐릭터",
@@ -1296,7 +1300,7 @@ describe("combined dual output budget", () => {
       ],
     };
     const budget = resolveCombinedDualWidgetExtractMaxTokens(smallChar, smallUser);
-    assert.equal(budget, 768);
+    assert.equal(budget, 2048);
 
     let seenMax: number | undefined;
     await extractStatusWidgetValuesForTurn({
@@ -1317,10 +1321,10 @@ describe("combined dual output budget", () => {
         };
       },
     });
-    assert.equal(seenMax, 768);
+    assert.equal(seenMax, 2048);
   });
 
-  it("2–3. large dual → maxTokens > 512 and <= 1536; formula clamp", () => {
+  it("2–3. large dual → reasoning-safe 2048–3072 budget", () => {
     // Enough free-text fields to hit per-source repair cap 512.
     const maxed: StatusWidget = {
       version: 1,
@@ -1339,9 +1343,9 @@ describe("combined dual output budget", () => {
     assert.equal(userBudget, 512);
     const combined = resolveCombinedDualWidgetExtractMaxTokens(maxed, maxed);
     assert.ok(combined > 512);
-    assert.ok(combined <= 1536);
-    assert.equal(combined, Math.min(1536, Math.max(768, charBudget + userBudget + 256)));
-    assert.equal(combined, 1280);
+    assert.ok(combined <= 3072);
+    assert.equal(combined, Math.min(3072, Math.max(2048, charBudget + userBudget + 256)));
+    assert.equal(combined, 2048);
   });
 
   it("4. oversized combined JSON fixture → parse ok, repair 0, callCount=1", async () => {
@@ -1472,14 +1476,14 @@ describe("combined dual output budget", () => {
       resolved: userOnly,
       caller: async (_s, _h, opts) => {
         kinds.push(opts.requestKind);
-        assert.equal(opts.maxTokens, undefined);
+        assert.equal(opts.maxTokens, 3072);
         return { text: JSON.stringify({ 기분: "평온", extracted_facts: [] }), usage: usage(1) };
       },
     });
     assert.ok(!kinds.some((k) => k.includes("combined")));
   });
 
-  it("8. repair maxTokens still 256–512 after combined helper exists", async () => {
+  it("8. V4 Flash repair maxTokens is raised to 3072", async () => {
     let seenRepair: number | undefined;
     await extractStatusWidgetValuesForTurn({
       charName: "레온",
@@ -1495,7 +1499,7 @@ describe("combined dual output budget", () => {
         return { text: "", usage: usage(1) };
       },
     });
-    assert.ok((seenRepair ?? 0) >= 256 && (seenRepair ?? 0) <= 512);
+    assert.equal(seenRepair, 3072);
   });
 });
 
@@ -1724,7 +1728,7 @@ describe("background cross-model fallback (DeepSeek primary → Gemini Flash Lit
     assert.equal(result.meta.actualCallCount, 2);
   });
 
-  it("8. fallback env unset → OFF", async () => {
+  it("8. fallback env unset → DeepSeek V3 once", async () => {
     const models: string[] = [];
     const caller: StatusWidgetExtractCaller = async (_s, _h, opts) => {
       models.push(opts.modelId);
@@ -1736,12 +1740,16 @@ describe("background cross-model fallback (DeepSeek primary → Gemini Flash Lit
       userMessage: "x",
       assistantProse: "장면",
       resolved: characterResolved(),
-      primaryModelId: PRIMARY,
+      primaryModelId: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
       env: {},
       caller,
     });
-    assert.deepEqual(models, [PRIMARY, PRIMARY]);
-    assert.equal(result.meta.usedFallback, false);
+    assert.deepEqual(models, [
+      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+      OPENROUTER_DEEPSEEK_V3_MODEL,
+    ]);
+    assert.equal(result.meta.usedFallback, true);
   });
 
   it("9. usage merged once per attempt", async () => {
