@@ -14,6 +14,7 @@ import { seedGlobalLorebookEntries } from "@/lib/globalLorebook";
 import { backfillCharacterEngagementStats } from "@/lib/characterEngagementStats";
 import { ensureCharacterClicksTable } from "@/lib/characterClicks";
 import { UNIFIED_TIER_AIM_CHARS } from "@/lib/responseLengthConstants";
+import { inferAdultStatusFromLegacyText } from "@/lib/adultSceneRouting";
 
 validateAuthEnvironment();
 
@@ -447,6 +448,7 @@ function migrate(db: Database.Database) {
   addColumn("chats", "pov_character_name", "TEXT NOT NULL DEFAULT ''");
   addColumn("chats", "title", "TEXT NOT NULL DEFAULT ''");
   addColumn("chats", "current_summary", "TEXT NOT NULL DEFAULT ''");
+  addColumn("chats", "model_route_state_json", "TEXT NOT NULL DEFAULT '{}'");
   addColumn("chats", "memory_capacity", "INTEGER NOT NULL DEFAULT 7000");
   addColumn("chats", "status_window_enabled", "INTEGER NOT NULL DEFAULT 0");
   addColumn("characters", "status_widget_json", "TEXT NOT NULL DEFAULT ''");
@@ -454,6 +456,14 @@ function migrate(db: Database.Database) {
   addColumn("characters", "creator_raw_description", "TEXT NOT NULL DEFAULT ''");
   addColumn("characters", "creator_compiled_description_json", "TEXT NOT NULL DEFAULT ''");
   addColumn("characters", "creator_canon_plan_json", "TEXT");
+  addColumn("characters", "adult_dialogue_profile", "TEXT NOT NULL DEFAULT 'auto'");
+  addColumn("characters", "adult_status", "TEXT NOT NULL DEFAULT 'unknown'");
+  addColumn(
+    "characters",
+    "adult_consent_modes_json",
+    "TEXT NOT NULL DEFAULT '[\"standard\"]'"
+  );
+  migrateCharacterAdultStatusMetadata(db);
   ensureCharacterAppearanceColumns(db);
   addColumn("chats", "status_widget_mode", "TEXT NOT NULL DEFAULT 'character_only'");
   addColumn("chats", "user_status_widget_json", "TEXT NOT NULL DEFAULT ''");
@@ -475,6 +485,7 @@ function migrate(db: Database.Database) {
   addColumn("messages", "status_widget_generation_sequence", "INTEGER");
   addColumn("messages", "status_widget_request_id", "TEXT");
   addColumn("messages", "usage", "TEXT");
+  addColumn("messages", "adult_route_meta_json", "TEXT NOT NULL DEFAULT ''");
   addColumn("messages", "status", "TEXT NOT NULL DEFAULT 'ok'");
   addColumn("messages", "is_refunded", "INTEGER NOT NULL DEFAULT 0");
   addColumn("messages", "deduction_slices", "TEXT");
@@ -1529,6 +1540,61 @@ function migrateMemoryCapacityFixed10000(db: Database.Database) {
   if (done?.ok) return;
   db.prepare("UPDATE chats SET memory_capacity = 10000").run();
   db.prepare("INSERT INTO _schema_flags (key) VALUES ('memory_capacity_fixed_10000')").run();
+}
+
+/**
+ * One-time legacy normalization. Unknown stays unknown; explicit minor signals
+ * win over adult signals through inferAdultStatusFromLegacyText().
+ */
+function migrateCharacterAdultStatusMetadata(db: Database.Database) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS _schema_flags (
+      key TEXT PRIMARY KEY,
+      applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+  const done = db
+    .prepare(
+      "SELECT 1 AS ok FROM _schema_flags WHERE key='character_adult_status_metadata_v1'"
+    )
+    .get() as { ok: number } | undefined;
+  if (done?.ok) return;
+
+  const rows = db
+    .prepare(
+      `SELECT id, description, system_prompt, world, simulation_cast
+       FROM characters
+       WHERE adult_status IS NULL OR adult_status='' OR adult_status='unknown'`
+    )
+    .all() as Array<{
+    id: number;
+    description: string | null;
+    system_prompt: string | null;
+    world: string | null;
+    simulation_cast: string | null;
+  }>;
+  const update = db.prepare(
+    "UPDATE characters SET adult_status=? WHERE id=? AND (adult_status IS NULL OR adult_status='' OR adult_status='unknown')"
+  );
+  const apply = db.transaction(() => {
+    for (const row of rows) {
+      const inferred = inferAdultStatusFromLegacyText(
+        [
+          row.description,
+          row.system_prompt,
+          row.world,
+          row.simulation_cast,
+        ]
+          .filter(Boolean)
+          .join("\n")
+      );
+      if (inferred !== "unknown") update.run(inferred, row.id);
+    }
+    db.prepare(
+      "INSERT INTO _schema_flags (key) VALUES ('character_adult_status_metadata_v1')"
+    ).run();
+  });
+  apply();
 }
 
 /** 시드·기존 캐릭터 audience 백필 (취향 필터용) */

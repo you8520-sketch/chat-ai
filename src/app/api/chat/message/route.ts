@@ -10,6 +10,7 @@ import {
   serializeVariantsForClient,
 } from "@/lib/messageAlternates";
 import { stripMuseAcceptanceFromUsage } from "@/lib/museAcceptanceTelemetry";
+import { stripAdultRoutingForClient } from "@/lib/billingReceiptAccess";
 import { normalizeEditedProseForSave } from "@/lib/canonicalProse";
 import {
   parseStoredStatusWidgetValuesJson,
@@ -75,7 +76,9 @@ export async function GET(req: Request) {
   const variantMeta = serializeVariantsForClient(variants, activeVariant);
   const rowUsage = row.usage ? (JSON.parse(row.usage) as Usage) : null;
   const activeUsage = variants[activeVariant]?.usage ?? rowUsage;
-  const clientUsage = activeUsage ? stripMuseAcceptanceFromUsage(activeUsage) : null;
+  const clientUsage = activeUsage
+    ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(activeUsage))
+    : null;
   const activeContent = resolveActiveVariantContent({
     content: row.content,
     variants: variantMeta.variants,
@@ -202,9 +205,7 @@ export async function PATCH(req: Request) {
     return NextResponse.json({
       ok: true,
       content: text,
-      variants: [variant],
-      activeVariant: 0,
-      variantCount: 1,
+      ...serializeVariantsForClient([variant], 0),
       ...(clientWidgetValues != null ? { statusWidgetValues: clientWidgetValues } : {}),
     });
   }

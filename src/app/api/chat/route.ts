@@ -58,7 +58,7 @@ import {
   restoreAssistantFromAlternatesOnFailedRegen,
   type StreamingPersistenceDiag,
 } from "@/lib/streamingPersistence";
-import { isCheaperInferenceModel, isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isGpt56TerraModel, isKimiModel, isMuseModel, isQwenModel, selectedAIProvider } from "@/lib/chatModels";
+import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, isCheaperInferenceModel, isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isGpt56TerraModel, isKimiModel, isMuseModel, isQwenModel, selectedAIProvider, type SelectedAI } from "@/lib/chatModels";
 import { openRouterNormalizedRawCostKrw, openRouterRawCostKrw } from "@/lib/billingRawCost";
 import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
 import { maybeCreditCreatorReward, paidCreatorRewardSpend } from "@/lib/creatorPoints";
@@ -271,6 +271,7 @@ import {
   BILLING_BREAKDOWN_KEYWORD_LOREBOOK_LABEL,
   canShowFullBillingReceipt,
   sanitizeUsageForPublicReceipt,
+  stripAdultRoutingForClient,
 } from "@/lib/billingReceiptAccess";
 import { scheduleStatusMetaExtraction, markMessageStatusMetaPending } from "@/lib/statusMeta/job";
 import { resolveStatusMetaExtractionEnabled } from "@/lib/statusMeta/displayPolicy";
@@ -340,6 +341,29 @@ import {
   buildPrivateSpeechControlBlock,
   parseCreatorDescriptionCompiled,
 } from "@/lib/creatorDescriptionTriggerCompiler";
+import {
+  advanceModelRouteState,
+  appendAdultHandoffPrompt,
+  appendAdultHandoffToSystemSplit,
+  buildAdultProviderRoutingRequest,
+  buildGeneralProviderContext,
+  buildGeneralRouteBridge,
+  buildSceneContinuityPacket,
+  classifySceneMode,
+  createInitialStreamBuffer,
+  decideAdultModelRoute,
+  detectModelRefusal,
+  normalizeAdultDialogueProfile,
+  parseModelRouteState,
+  resolveAdultEligibility,
+  resolveAdultRoutingConfig,
+  resolveRequestedConsentMode,
+  selectAdultHandoffRawHistory,
+  serializeModelRouteState,
+  type ActiveModelRoute,
+  type CanonicalRouteHistoryMessage,
+  type SceneMode,
+} from "@/lib/adultSceneRouting";
 
 const SSE_HEADERS = {
   "Content-Type": "text/event-stream; charset=utf-8",
@@ -452,6 +476,9 @@ export async function POST(req: Request) {
     creator_compiled_description_json?: string | null;
     content_kind?: "character" | "simulation" | null;
     simulation_cast?: string | null;
+    adult_dialogue_profile?: string | null;
+    adult_status?: string | null;
+    adult_consent_modes_json?: string | null;
   } | undefined;
   if (!ch) return Response.json({ error: "캐릭터를 찾을 수 없습니다." }, { status: 404 });
 
@@ -478,6 +505,7 @@ export async function POST(req: Request) {
             status_window_enabled?: number;
             narrative_pov?: string;
             pov_character_name?: string;
+            model_route_state_json?: string;
           }
         | undefined)
     : undefined;
@@ -734,13 +762,15 @@ export async function POST(req: Request) {
 
   const msgRowsWithId = db
     .prepare(
-      "SELECT id, role, content, model, generation_status, user_message_id FROM messages WHERE chat_id=? ORDER BY id ASC"
+      "SELECT id, role, content, model, usage, adult_route_meta_json, generation_status, user_message_id FROM messages WHERE chat_id=? ORDER BY id ASC"
     )
     .all(chat.id) as {
     id: number;
     role: "user" | "assistant";
     content: string;
     model: string;
+    usage?: string | null;
+    adult_route_meta_json?: string | null;
     generation_status?: string | null;
     user_message_id?: number | null;
   }[];
@@ -768,6 +798,8 @@ export async function POST(req: Request) {
             role: "user" | "assistant";
             content: string;
             model?: string | null;
+            usage?: string | null;
+            adult_route_meta_json?: string | null;
             user_message_id?: number | null;
           }>,
           regenerateMessageId
@@ -834,6 +866,88 @@ export async function POST(req: Request) {
       : isChatOocRpContinuing(storedUserMessage)
         ? buildChatOocRpContinuingUserPrompt(displayUserMessage)
         : displayUserMessage;
+
+  const adultRoutingConfig = resolveAdultRoutingConfig();
+  const priorModelRouteState = parseModelRouteState(chat.model_route_state_json);
+  let requestedConsentMode = resolveRequestedConsentMode(
+    body.adultConsentMode ?? body.adult_consent_mode,
+    priorModelRouteState.activeConsentMode,
+    storedUserMessage
+  );
+  let allowedConsentModes: string[] = ["standard"];
+  try {
+    const parsed = JSON.parse(ch.adult_consent_modes_json || "[\"standard\"]");
+    if (Array.isArray(parsed)) {
+      allowedConsentModes = parsed.filter((value): value is string => typeof value === "string");
+    }
+  } catch {
+    allowedConsentModes = ["standard"];
+  }
+  if (!allowedConsentModes.includes(requestedConsentMode)) {
+    requestedConsentMode = "standard";
+  }
+
+  const recentRawForSceneClassification = turnsForRecentHistory
+    .slice(-3)
+    .flatMap((turn) => [turn.user, turn.assistant])
+    .join("\n");
+  const sceneClassification = classifySceneMode({
+    currentInput: storedUserMessage,
+    previousSceneMode: priorModelRouteState.currentSceneMode,
+    recentRawText: recentRawForSceneClassification,
+    adultDialogueProfile: normalizeAdultDialogueProfile(
+      ch.adult_dialogue_profile
+    ),
+    activeConsentMode: requestedConsentMode,
+  });
+  const characterAdultDescription = [
+    ch.adult_status,
+    ch.description,
+    ch.system_prompt,
+    ch.world,
+    ch.simulation_cast,
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const adultEligibility = resolveAdultEligibility({
+    userAdultVerified: !!user.is_adult,
+    characterAdultContentEnabled: isAdultMode && ch.nsfw === 1,
+    participants: [
+      {
+        adultStatus: ch.adult_status,
+        description: characterAdultDescription,
+      },
+    ],
+    actualNonConsent: sceneClassification.actualNonConsent,
+  });
+  const adultRouteDecision = decideAdultModelRoute({
+    config: adultRoutingConfig,
+    state: priorModelRouteState,
+    classification: sceneClassification,
+    eligibility: adultEligibility,
+    adultDialogueProfile: normalizeAdultDialogueProfile(
+      ch.adult_dialogue_profile
+    ),
+    selectedModelId: selectedAI,
+  });
+
+  if (adultRoutingConfig.enabled && adultRouteDecision.shouldBlock) {
+    const eligibilityMessage =
+      adultRouteDecision.blockReason === "participant_unknown"
+        ? "등장인물의 성인 여부를 확인할 수 없어 이 장면을 진행할 수 없습니다."
+        : "이 설정에서는 해당 성인 장면을 진행할 수 없습니다.";
+    return Response.json({ error: eligibilityMessage }, { status: 400 });
+  }
+  if (
+    adultRoutingConfig.enabled &&
+    !isDeepSeekV4ProModel(adultRoutingConfig.adultModelId)
+  ) {
+    return Response.json(
+      { error: "성인 장면 라우팅 모델 설정을 확인해 주세요." },
+      { status: 500 }
+    );
+  }
+
   const { chunks: characterChunks, usedEnglish: usedEnglishCharacterPrompt } =
     loadCharacterChunksForPrompt(
       {
@@ -880,13 +994,19 @@ export async function POST(req: Request) {
     ? getOrCreateChatMemory(chat.id, user.id, ch.id, memoryTier)
     : null;
 
-  const primaryProvider = selectedAIProvider(selectedAI);
+  const effectiveSelectedAI: SelectedAI =
+    adultRoutingConfig.enabled && adultRouteDecision.activeRoute === "adult"
+      ? (adultRoutingConfig.adultModelId as SelectedAI)
+      : selectedAI;
+  const primaryProvider = selectedAIProvider(effectiveSelectedAI);
   const cheaperPricingRefreshed =
     primaryProvider === "cheaperinference"
       ? await refreshCheaperInferenceCatalogPricing()
       : false;
   const billingOpenRouterModelId =
-    primaryProvider === "openrouter" ? resolveOpenRouterModelId(selectedAI) : selectedAI;
+    primaryProvider === "openrouter"
+      ? resolveOpenRouterModelId(effectiveSelectedAI)
+      : effectiveSelectedAI;
   const openRouterApiModelId = billingOpenRouterModelId;
   const canonInjectionPolicy = resolveCanonInjectionPolicy(openRouterApiModelId, {
     userId: user.id,
@@ -897,15 +1017,94 @@ export async function POST(req: Request) {
   const contextModelId = openRouterApiModelId;
   const historyTokenBudget = resolveHistoryTokenBudget(contextModelId, contextProvider);
 
-  const recentHistoryFull: ChatMsg[] = rawRecentTurnsToHistory(turnsForRecentHistory).map(
+  const canonicalRecentHistoryFull: ChatMsg[] = rawRecentTurnsToHistory(turnsForRecentHistory).map(
     (m) => ({
       ...m,
       content: replaceUserPlaceholder(m.content, personaDisplayName, user.nickname),
     })
   );
-  const trimmedHistoryForLorebook = trimHistoryToBudget(recentHistoryFull, historyTokenBudget);
-  const recentHistory: ChatMsg[] = recentHistoryFull;
-  const shortTermHistory = recentHistory;
+  const canonicalRouteHistory: CanonicalRouteHistoryMessage[] = msgRowsSource
+    .filter((row) => row.role === "user" || row.role === "assistant")
+    .map((row) => {
+      let sceneMode: SceneMode | undefined;
+      let activeRoute: ActiveModelRoute | undefined;
+      const storedAdultRouteMeta =
+        row.role === "assistant"
+          ? row.adult_route_meta_json || row.usage
+          : null;
+      if (storedAdultRouteMeta) {
+        try {
+          const parsed = JSON.parse(storedAdultRouteMeta) as {
+            sceneModeAfter?: unknown;
+            activeRoute?: unknown;
+            adultRouting?: {
+              sceneModeAfter?: unknown;
+              activeRoute?: unknown;
+            };
+          };
+          const routing = parsed.adultRouting ?? parsed;
+          if (
+            typeof routing.sceneModeAfter === "string"
+          ) {
+            sceneMode = routing.sceneModeAfter as SceneMode;
+          }
+          if (
+            routing.activeRoute === "adult" ||
+            routing.activeRoute === "general"
+          ) {
+            activeRoute = routing.activeRoute;
+          }
+        } catch {
+          // Legacy usage is allowed to remain unclassified.
+        }
+      }
+      return {
+        role: row.role,
+        content: replaceUserPlaceholder(
+          row.content,
+          personaDisplayName,
+          user.nickname
+        ),
+        ...(sceneMode ? { sceneMode } : {}),
+        ...(activeRoute ? { activeRoute } : {}),
+      };
+    });
+  let providerRecentHistoryFull: ChatMsg[] = canonicalRecentHistoryFull;
+  if (
+    adultRoutingConfig.enabled &&
+    adultRouteDecision.activeRoute === "general" &&
+    priorModelRouteState.generalRouteBridge
+  ) {
+    providerRecentHistoryFull = buildGeneralProviderContext(
+      canonicalRouteHistory,
+      priorModelRouteState.generalRouteBridge
+    );
+  }
+  let handoffRawTurnsIncluded = 0;
+  let handoffRawTokensIncluded = 0;
+  if (
+    adultRoutingConfig.enabled &&
+    adultRouteDecision.activeRoute === "adult" &&
+    adultRouteDecision.firstAdultHandoff
+  ) {
+    const handoffHistory = selectAdultHandoffRawHistory(
+      canonicalRecentHistoryFull,
+      {
+        targetTurns: adultRoutingConfig.handoffRawTurns,
+        maxTokens: adultRoutingConfig.handoffMaxTokens,
+        minimumTurns: 2,
+      }
+    );
+    providerRecentHistoryFull = handoffHistory.history;
+    handoffRawTurnsIncluded = handoffHistory.rawTurnsIncluded;
+    handoffRawTokensIncluded = handoffHistory.rawTokensIncluded;
+  }
+  const trimmedHistoryForLorebook = trimHistoryToBudget(
+    canonicalRecentHistoryFull,
+    historyTokenBudget
+  );
+  const recentHistory: ChatMsg[] = canonicalRecentHistoryFull;
+  const shortTermHistory = providerRecentHistoryFull;
 
   const memoryInjection = await buildMemoryContextForChat({
     chatId: chat.id,
@@ -1062,7 +1261,7 @@ export async function POST(req: Request) {
   const relationshipMemoryForPrompt = memoryFeatureOn
     ? formatMemoryMetaForPrompt(normalizedRelationshipMemoryMeta!)
     : "";
-  const recentChatTextForEpisodicMemory = shortTermHistory
+  const recentChatTextForEpisodicMemory = recentHistory
     .map((m) => m.content)
     .filter(Boolean)
     .join("\n");
@@ -1280,6 +1479,97 @@ export async function POST(req: Request) {
       openRouterSystemSplitForTurn = patchOpenRouterSplitForStatusWidget(openRouterSystemSplitForTurn);
     }
   }
+  const continuityPacket = buildSceneContinuityPacket({
+    previousSceneMode: priorModelRouteState.currentSceneMode,
+    sexualContextActive:
+      sceneClassification.sexualContextActive ||
+      priorModelRouteState.sexualContextActive === true,
+    activeConsentMode: requestedConsentMode,
+    charactersPresent: [ch.name, personaDisplayName],
+    currentPov: contextBuildInput.narrativePov,
+  });
+  if (
+    adultRoutingConfig.enabled &&
+    adultRouteDecision.activeRoute === "adult" &&
+    adultRouteDecision.firstAdultHandoff
+  ) {
+    systemPromptForTurn = appendAdultHandoffPrompt(
+      systemPromptForTurn,
+      continuityPacket
+    );
+    openRouterSystemSplitForTurn = appendAdultHandoffToSystemSplit(
+      openRouterSystemSplitForTurn,
+      continuityPacket
+    );
+  }
+
+  let fallbackAdultContext:
+    | {
+        systemPrompt: string;
+        history: ChatMsg[];
+        openRouterSystemSplit: typeof openRouterSystemSplitForTurn;
+        promptAudit: typeof built.meta.promptAudit;
+        trackedSections: typeof built.meta.trackedSections;
+        rawTurnsIncluded: number;
+        rawTokensIncluded: number;
+      }
+    | null = null;
+  if (
+    adultRoutingConfig.enabled &&
+    adultRouteDecision.activeRoute === "general" &&
+    adultEligibility.eligible &&
+    adultRoutingConfig.silentRefusalFallback
+  ) {
+    const fallbackRaw = selectAdultHandoffRawHistory(
+      canonicalRecentHistoryFull,
+      {
+        targetTurns: adultRoutingConfig.handoffRawTurns,
+        maxTokens: adultRoutingConfig.handoffMaxTokens,
+        minimumTurns: 2,
+      }
+    );
+    const fallbackCanonPolicy = resolveCanonInjectionPolicy(
+      adultRoutingConfig.adultModelId,
+      { userId: user.id, chatId: chat.id }
+    );
+    const fallbackBuilt = assembleContext(() =>
+      buildContext({
+        ...contextBuildInput,
+        modelId: adultRoutingConfig.adultModelId,
+        provider: "openrouter" as const,
+        shortTermHistory: fallbackRaw.history,
+        canonInjectionPolicy: fallbackCanonPolicy,
+      })
+    );
+    let fallbackSystemPrompt = fallbackBuilt.systemPrompt;
+    let fallbackSystemSplit = fallbackBuilt.openRouterSystemSplit;
+    if (statusWidgetActive) {
+      fallbackSystemPrompt = applyStatusWidgetSystemPromptOverrides(
+        fallbackSystemPrompt
+      );
+      if (fallbackSystemSplit) {
+        fallbackSystemSplit =
+          patchOpenRouterSplitForStatusWidget(fallbackSystemSplit);
+      }
+    }
+    fallbackSystemPrompt = appendAdultHandoffPrompt(
+      fallbackSystemPrompt,
+      continuityPacket
+    );
+    fallbackSystemSplit = appendAdultHandoffToSystemSplit(
+      fallbackSystemSplit,
+      continuityPacket
+    );
+    fallbackAdultContext = {
+      systemPrompt: fallbackSystemPrompt,
+      history: fallbackBuilt.history,
+      openRouterSystemSplit: fallbackSystemSplit,
+      promptAudit: fallbackBuilt.meta.promptAudit,
+      trackedSections: fallbackBuilt.meta.trackedSections,
+      rawTurnsIncluded: fallbackRaw.rawTurnsIncluded,
+      rawTokensIncluded: fallbackRaw.rawTokensIncluded,
+    };
+  }
   let system = systemPromptForTurn;
   let history: ChatMsg[] = built.history;
   let promptAudit = built.meta.promptAudit;
@@ -1321,6 +1611,15 @@ export async function POST(req: Request) {
 
   const chatRef = chat;
   const selectedAIRef = selectedAI;
+  let deliveredSelectedAI: SelectedAI = effectiveSelectedAI;
+  let deliveredModelId = openRouterApiModelId;
+  let deliveredProvider = primaryProvider;
+  let deliveredActiveRoute: ActiveModelRoute =
+    adultRoutingConfig.enabled ? adultRouteDecision.activeRoute : "general";
+  let adultFallbackAttempted = false;
+  let adultFallbackSucceeded = false;
+  let hiddenFallbackOverheadCostUsd = 0;
+  let adultRouteStartedAt = requestStartedAt;
   const targetResponseCharsRef = targetResponseChars;
   const recentHistoryRef = recentHistory;
   const resolvedUserMessageRef = promptUserMessage;
@@ -1640,7 +1939,13 @@ export async function POST(req: Request) {
             | { content: string; usage: string | null }
             | undefined;
           const content = row?.content ?? "";
-          const usage = row?.usage ? JSON.parse(row.usage) : null;
+          const usage = row?.usage
+            ? stripAdultRoutingForClient(
+                stripMuseAcceptanceFromUsage(
+                  JSON.parse(row.usage) as Usage
+                )
+              )
+            : null;
           send({ type: "replace", text: content, instant: true });
           send({
             type: "done",
@@ -1717,48 +2022,162 @@ export async function POST(req: Request) {
             fullText = "";
             streamVisibleTextRef = "";
           } else {
-          const primaryHistory =
-            primaryProvider === "openai" ? historyRef : convertToOpenRouterFormat(historyRef);
-          const terraChat = isGpt56TerraModel(openRouterApiModelId);
-          const primarySystem = terraChat
-            ? buildTerraInstructions(systemRef)
-            : systemRef;
-          const result = await streamOpenRouterAdultToClient(
+          const shouldBufferGeneral =
+            adultRoutingConfig.enabled &&
+            adultRouteDecision.activeRoute === "general" &&
+            adultRouteDecision.refusalBufferRecommended &&
+            fallbackAdultContext != null;
+          const streamGate = createInitialStreamBuffer(
             send,
-            primarySystem,
-            primaryHistory,
-            openRouterApiModelId,
-            selectedAILabel(selectedAIRef),
-            targetResponseCharsRef,
-            {
-              charName: ch.name,
-              personaName: personaDisplayName,
-              systemSplit: openRouterSystemSplitRef,
-            sessionId: regenerateMessageId
-              ? `chat-${chatRef.id}-regen-${regenerateMessageId}-${regenAttemptId ?? Date.now()}`
-              : chatRef.id
-                  ? `chat-${chatRef.id}`
-                  : undefined,
-              oocHtmlMode: oocHtmlMode || undefined,
-              statusArtifactsOpts: statusArtifactOpts,
-              generationOverrides: regenerateMessageId
-                ? resolveRegenerateGenerationOverrides(openRouterApiModelId, targetResponseCharsRef)
-                : undefined,
-              ...(primaryProvider === "openai" || primaryProvider === "cheaperinference"
-                ? { allowOpenRouterUnderLengthRecovery: false }
-                : {}),
-              ...(isCheaperInferenceModel(openRouterApiModelId)
-                ? { transportProvider: "cheaperinference" as const }
-                : {}),
-              ...(smokeMaxTokensOverride != null || terraChat
-                ? {
-                    maxTokensOverride:
-                      smokeMaxTokensOverride ?? TERRA_MAX_OUTPUT_TOKENS,
-                  }
-                : {}),
-            },
-            turnApiBudget
+            shouldBufferGeneral
+              ? adultRoutingConfig.initialStreamBufferChars
+              : 0
           );
+          const sessionId = regenerateMessageId
+            ? `chat-${chatRef.id}-regen-${regenerateMessageId}-${regenAttemptId ?? Date.now()}`
+            : chatRef.id
+              ? `chat-${chatRef.id}`
+              : undefined;
+
+          const runStream = async (input: {
+            send: (obj: object) => void;
+            system: string;
+            history: ChatMsg[];
+            systemSplit: typeof openRouterSystemSplitRef;
+            modelId: string;
+            selectedModel: SelectedAI;
+            provider: typeof primaryProvider;
+            adultRoute: boolean;
+          }) => {
+            const requestHistory =
+              input.provider === "openai"
+                ? input.history
+                : convertToOpenRouterFormat(input.history);
+            const terraChat = isGpt56TerraModel(input.modelId);
+            const requestSystem = terraChat
+              ? buildTerraInstructions(input.system)
+              : input.system;
+            return streamOpenRouterAdultToClient(
+              input.send,
+              requestSystem,
+              requestHistory,
+              input.modelId,
+              selectedAILabel(input.selectedModel),
+              targetResponseCharsRef,
+              {
+                charName: ch.name,
+                personaName: personaDisplayName,
+                systemSplit: input.systemSplit,
+                sessionId,
+                oocHtmlMode: oocHtmlMode || undefined,
+                statusArtifactsOpts: statusArtifactOpts,
+                generationOverrides: regenerateMessageId
+                  ? resolveRegenerateGenerationOverrides(
+                      input.modelId,
+                      targetResponseCharsRef
+                    )
+                  : undefined,
+                ...(input.provider === "openai" ||
+                input.provider === "cheaperinference" ||
+                shouldBufferGeneral
+                  ? { allowOpenRouterUnderLengthRecovery: false }
+                  : {}),
+                ...(input.provider === "cheaperinference"
+                  ? { transportProvider: "cheaperinference" as const }
+                  : {}),
+                ...(input.adultRoute
+                  ? {
+                      providerRouting:
+                        buildAdultProviderRoutingRequest(adultRoutingConfig),
+                    }
+                  : {}),
+                ...(smokeMaxTokensOverride != null || terraChat
+                  ? {
+                      maxTokensOverride:
+                        smokeMaxTokensOverride ?? TERRA_MAX_OUTPUT_TOKENS,
+                    }
+                  : {}),
+              },
+              turnApiBudget
+            );
+          };
+
+          const canFallback = () =>
+            adultRoutingConfig.enabled &&
+            adultRoutingConfig.silentRefusalFallback &&
+            adultEligibility.eligible &&
+            adultEligibility.allowedByAdultContentPolicy &&
+            !streamGate.hasVisibleTokens() &&
+            !adultFallbackAttempted &&
+            fallbackAdultContext != null;
+
+          const runAdultFallback = async () => {
+            adultFallbackAttempted = true;
+            streamGate.discard();
+            const fallback = fallbackAdultContext!;
+            const fallbackResult = await runStream({
+              send,
+              system: fallback.systemPrompt,
+              history: fallback.history,
+              systemSplit: fallback.openRouterSystemSplit,
+              modelId: adultRoutingConfig.adultModelId,
+              selectedModel: adultRoutingConfig.adultModelId as SelectedAI,
+              provider: "cheaperinference",
+              adultRoute: true,
+            });
+            adultFallbackSucceeded = true;
+            deliveredActiveRoute = "adult";
+            deliveredSelectedAI =
+              adultRoutingConfig.adultModelId as SelectedAI;
+            deliveredModelId = adultRoutingConfig.adultModelId;
+            deliveredProvider = "cheaperinference";
+            systemRef = fallback.systemPrompt;
+            historyRef = fallback.history;
+            openRouterSystemSplitRef = fallback.openRouterSystemSplit;
+            promptAuditRef = fallback.promptAudit;
+            trackedSectionsRef = fallback.trackedSections ?? [];
+            handoffRawTurnsIncluded = fallback.rawTurnsIncluded;
+            handoffRawTokensIncluded = fallback.rawTokensIncluded;
+            return fallbackResult;
+          };
+
+          let result: Awaited<
+            ReturnType<typeof streamOpenRouterAdultToClient>
+          >;
+          try {
+            result = await runStream({
+              send: streamGate.send,
+              system: systemRef,
+              history: historyRef,
+              systemSplit: openRouterSystemSplitRef,
+              modelId: deliveredModelId,
+              selectedModel: deliveredSelectedAI,
+              provider: deliveredProvider,
+              adultRoute: deliveredActiveRoute === "adult",
+            });
+          } catch (primaryError) {
+            const refusal = detectModelRefusal({ error: primaryError });
+            if (refusal.refused && canFallback()) {
+              result = await runAdultFallback();
+            } else {
+              streamGate.flush();
+              throw primaryError;
+            }
+          }
+
+          if (!adultFallbackSucceeded) {
+            const refusal = detectModelRefusal({
+              text: result.text,
+              finishReason: result.stage.finishReason,
+            });
+            if (refusal.refused && canFallback()) {
+              hiddenFallbackOverheadCostUsd =
+                result.stage.upstreamCostUsd ?? 0;
+              result = await runAdultFallback();
+            } else {
+              streamGate.flush();
+            }
+          }
           fullText = result.text;
           streamVisibleTextRef = result.streamVisibleText ?? fullText;
           stages.push(result.stage);
@@ -1786,7 +2205,7 @@ export async function POST(req: Request) {
                   m.role === "user" || m.role === "assistant"
                 )
                 .map((m) => ({ role: m.role, content: m.content ?? "" })),
-              model: openRouterApiModelId,
+              model: deliveredModelId,
               targetResponseChars: targetResponseCharsRef,
               requestKind: `chat-${chatRef.id}`,
               turnApiBudget,
@@ -2106,7 +2525,7 @@ export async function POST(req: Request) {
             userAuthoredHistory,
             messageRef: persistedAssistantId,
             chatId: chatRef.id,
-            modelId: openRouterApiModelId,
+            modelId: deliveredModelId,
             route: "/api/chat",
           });
           if (shadowResult) {
@@ -2122,7 +2541,7 @@ export async function POST(req: Request) {
               text: savedText,
               messageRef: persistedAssistantId,
               chatId: chatRef.id,
-              modelId: openRouterApiModelId,
+              modelId: deliveredModelId,
               route: "/api/chat",
             });
           }
@@ -2195,7 +2614,7 @@ export async function POST(req: Request) {
           const contResult = await continueNarrativeIfUnderMinimum({
             prose: proseOnly,
             system: systemRef,
-            modelId: openRouterApiModelId,
+            modelId: deliveredModelId,
             targetResponseChars: targetResponseCharsRef,
             charName: ch.name,
             turnApiBudget,
@@ -2515,7 +2934,7 @@ export async function POST(req: Request) {
           visibleForLengthCheck
         );
         const terraInterruptedTurn =
-          isGpt56TerraModel(openRouterApiModelId) &&
+          isGpt56TerraModel(deliveredModelId) &&
           isRetryableTerraFinishReason(primaryStage?.finishReason) &&
           resolveVisibleTierCharCount(savedText) >= CATASTROPHIC_MIN_RESPONSE_CHARS;
 
@@ -2618,14 +3037,14 @@ export async function POST(req: Request) {
             ? summedApiOutput
             : primaryStage?.apiOutputTokens ?? primaryStage?.output ?? 0;
         const billableApiOutputTokens = billableOpenRouterOutputTokens(
-          billingOpenRouterModelId ?? "",
+          deliveredModelId ?? "",
           opusApiOutputTokens,
           summedApiReasoning
         );
 
         const billableChars = billableOutputChars(savedText, targetResponseCharsRef, billableOpts);
 
-        const billingProvider = primaryProvider;
+        const billingProvider = deliveredProvider;
         const receiptFields = stealthReceiptModelFields(selectedAIRef);
 
         let totalInput: number;
@@ -2677,8 +3096,8 @@ export async function POST(req: Request) {
                 );
           billing = computeTurnBilling({
             provider: billingProvider,
-            selectedAI: selectedAIRef,
-            openRouterModelId: billingOpenRouterModelId,
+            selectedAI: deliveredSelectedAI,
+            openRouterModelId: deliveredModelId,
             inputTokens: totalInput,
             outputTokens: totalOutput,
             reasoningTokens: summedApiReasoning,
@@ -2687,7 +3106,7 @@ export async function POST(req: Request) {
             userContextChars,
             savedTextChars: billableChars,
             completedTurnsBeforeRequest: playableTurnCount,
-            modelLabel: selectedAILabel(selectedAIRef),
+            modelLabel: selectedAILabel(deliveredSelectedAI),
             upstreamCostUsd: summedUpstreamUsd > 0 ? summedUpstreamUsd : undefined,
             apiPromptTokens: apiPromptTokensForCost,
             apiCompletionTokens: apiCompletionTokensForCost,
@@ -2713,21 +3132,21 @@ export async function POST(req: Request) {
             cacheWriteTokens: primaryStage?.cacheWriteTokens,
           };
           const opusExplain =
-            billingOpenRouterModelId && /opus/i.test(billingOpenRouterModelId)
+            deliveredModelId && /opus/i.test(deliveredModelId)
               ? explainOpenRouterOpusTurnCost(
                   totalInput,
                   totalOutput,
-                  billingOpenRouterModelId,
+                  deliveredModelId,
                   billableChars,
                   cacheOpts
                 )
               : null;
           const deepSeekExplain =
-            billingOpenRouterModelId && isDeepSeekV4ProModel(billingOpenRouterModelId)
+            deliveredModelId && isDeepSeekV4ProModel(deliveredModelId)
               ? explainOpenRouterDeepSeekTurnCost(
                   totalInput,
                   totalOutput,
-                  billingOpenRouterModelId,
+                  deliveredModelId,
                   cacheOpts,
                   summedApiReasoning
                 )
@@ -2741,13 +3160,13 @@ export async function POST(req: Request) {
                 }
               : undefined;
           const geminiExplain =
-            billingOpenRouterModelId &&
-            (isGemini36FlashModel(billingOpenRouterModelId) ||
-              isGemini31ProModel(billingOpenRouterModelId))
+            deliveredModelId &&
+            (isGemini36FlashModel(deliveredModelId) ||
+              isGemini31ProModel(deliveredModelId))
               ? explainOpenRouterGeminiTurnCost(
                   totalInput,
                   totalOutput,
-                  billingOpenRouterModelId,
+                  deliveredModelId,
                   cacheOpts,
                   geminiBillingBasis
                 )
@@ -2799,7 +3218,7 @@ export async function POST(req: Request) {
         let cost = billingWaiverReason ? 0 : billing.total;
 
         if (billingWaiverReason && !isMockApiMode()) {
-          const modelId = billingOpenRouterModelId ?? "";
+          const modelId = deliveredModelId ?? "";
           let waiverMin = 0;
           if (isDeepSeekV4ProModel(modelId)) {
             waiverMin = resolveDeepSeekWaiverMinimumCharge(savedText, billingWaiverReason, {
@@ -2943,7 +3362,7 @@ export async function POST(req: Request) {
 
         const orCacheReceipt = meteredReceiptBilling
           ? buildOpenRouterCacheReceiptInfo({
-              modelId: billingOpenRouterModelId ?? undefined,
+              modelId: deliveredModelId ?? undefined,
               promptTokens: totalInput,
               cacheReadTokens:
                 primaryStage?.cacheReadTokens ?? primaryStage?.cachedContentTokens,
@@ -2953,7 +3372,7 @@ export async function POST(req: Request) {
           : null;
         const cacheRateSummary = meteredReceiptBilling
           ? (orCacheReceipt?.rateSummary ??
-            resolveOpenRouterRateSummary(billingOpenRouterModelId))
+            resolveOpenRouterRateSummary(deliveredModelId))
           : undefined;
         const cacheFamily = meteredReceiptBilling
           ? (orCacheReceipt?.family ??
@@ -2982,9 +3401,55 @@ export async function POST(req: Request) {
             : undefined;
         const apiCallCount =
           1 +
+          (adultFallbackAttempted ? 1 : 0) +
           Math.max(0, primaryStage?.lengthRecoveryPasses ?? 0) +
           lengthContinuationPasses +
           htmlFlashPasses;
+
+        const postSceneClassification = adultRoutingConfig.enabled
+          ? classifySceneMode({
+              currentInput: savedText,
+              previousSceneMode: adultRouteDecision.sceneMode,
+              recentRawText: `${recentRawForSceneClassification}\n${storedUserMessage}`,
+              adultDialogueProfile: normalizeAdultDialogueProfile(
+                ch.adult_dialogue_profile
+              ),
+              activeConsentMode: requestedConsentMode,
+            })
+          : null;
+        const sceneModeAfter: SceneMode = postSceneClassification?.sceneMode ??
+          priorModelRouteState.currentSceneMode;
+        const nextGeneralBridge =
+          adultRoutingConfig.enabled && deliveredActiveRoute === "adult"
+            ? buildGeneralRouteBridge({
+                ...continuityPacket,
+                previousSceneMode: sceneModeAfter,
+                sexualContextActive:
+                  postSceneClassification?.sexualContextActive ??
+                  adultRouteDecision.sexualContextActive,
+              })
+            : priorModelRouteState.generalRouteBridge;
+        const nextModelRouteState = advanceModelRouteState({
+          previous: priorModelRouteState,
+          deliveredRoute: deliveredActiveRoute,
+          sceneModeAfter,
+          sexualContextActive:
+            postSceneClassification?.sexualContextActive ??
+            adultRouteDecision.sexualContextActive,
+          routeTriggerReason:
+            adultFallbackSucceeded
+              ? "general_model_refusal"
+              : adultRouteDecision.routeTriggerReason,
+          config: adultRoutingConfig,
+          enteredAdultThisTurn:
+            deliveredActiveRoute === "adult" &&
+            (adultRouteDecision.firstAdultHandoff || adultFallbackSucceeded),
+          explicitSceneEnd:
+            sceneClassification.oocStop ||
+            sceneClassification.clearSceneTransition,
+          activeConsentMode: requestedConsentMode,
+          generalRouteBridge: nextGeneralBridge,
+        });
 
         const usageModel = htmlFlashOnlyTurn ? billing.modelId : receiptFields.model;
         const usageModelLabel = htmlFlashOnlyTurn ? HTML_ONLY_MODEL_LABEL : receiptFields.modelLabel;
@@ -2993,7 +3458,7 @@ export async function POST(req: Request) {
           (primaryStage?.upstreamCostUsd != null &&
             primaryStage.upstreamCostUsd > 0)
             ? "provider_reported"
-            : primaryProvider === "cheaperinference" &&
+            : deliveredProvider === "cheaperinference" &&
                 cheaperPricingRefreshed
               ? "live_catalog"
               : "fallback_catalog";
@@ -3003,7 +3468,7 @@ export async function POST(req: Request) {
             ? openRouterRawCostKrw({
                 promptTokens: apiInputTokens,
                 outputTokens: apiOutputTokens,
-                modelId: billingOpenRouterModelId,
+                modelId: deliveredModelId,
                 cacheReadTokens:
                   primaryStage?.cacheReadTokens ?? primaryStage?.cachedContentTokens,
                 cacheWriteTokens: primaryStage?.cacheWriteTokens,
@@ -3107,20 +3572,60 @@ export async function POST(req: Request) {
                       mainApiRawCostKrw: mainOpenRouterApiRawCostKrw,
                     }
                   : {}),
-                ...(billingOpenRouterModelId && /opus/i.test(billingOpenRouterModelId)
+                ...(deliveredModelId && /opus/i.test(deliveredModelId)
                   ? {
                       normalizedRawCostKrw: openRouterNormalizedRawCostKrw({
                         promptTokens: apiInputTokens,
                         outputTokens: apiOutputTokens,
-                        modelId: billingOpenRouterModelId,
+                        modelId: deliveredModelId,
                         exchangeRate: billingExchangeRate,
                       }),
                     }
                   : {}),
               }
             : {}),
+          ...(adultRoutingConfig.enabled
+            ? {
+                adultRouting: {
+                  activeRoute: deliveredActiveRoute,
+                  sceneModeBefore: priorModelRouteState.currentSceneMode,
+                  sceneModeAfter,
+                  routeTriggerReason:
+                    adultFallbackSucceeded
+                      ? "general_model_refusal"
+                      : adultRouteDecision.routeTriggerReason,
+                  requestedModel: selectedAIRef,
+                  actualModel: deliveredModelId,
+                  actualProvider: deliveredProvider,
+                  userSelectedModel: selectedAIRef,
+                  userSelectedModelLabel: selectedAILabel(selectedAIRef),
+                  userSelectedProvider: selectedAIProvider(selectedAIRef),
+                  rawTurnsIncluded:
+                    handoffRawTurnsIncluded > 0
+                      ? handoffRawTurnsIncluded
+                      : undefined,
+                  rawTokensIncluded:
+                    handoffRawTokensIncluded > 0
+                      ? handoffRawTokensIncluded
+                      : undefined,
+                  fallbackAttempted: adultFallbackAttempted,
+                  fallbackSucceeded: adultFallbackSucceeded,
+                  hiddenFallbackOverheadCostUsd:
+                    hiddenFallbackOverheadCostUsd > 0
+                      ? hiddenFallbackOverheadCostUsd
+                      : undefined,
+                  finalDeliveredModelCostUsd:
+                    summedUpstreamUsd > 0 ? summedUpstreamUsd : undefined,
+                  totalUpstreamCostUsd:
+                    summedUpstreamUsd + hiddenFallbackOverheadCostUsd > 0
+                      ? summedUpstreamUsd + hiddenFallbackOverheadCostUsd
+                      : undefined,
+                  userChargedPoints: cost,
+                  latencyMs: Date.now() - adultRouteStartedAt,
+                },
+              }
+            : {}),
         };
-
         invalidateModelPickerInputSnapshot(chatRef.id);
 
         const rawWidgetSourceText = preStatusPartitionText;
@@ -3140,7 +3645,7 @@ export async function POST(req: Request) {
         if (statusWidgetActive) {
           const widgetResolved = await resolveStatusWidgetTurnValues({
             chatId: chatRef.id,
-            modelId: openRouterApiModelId,
+            modelId: deliveredModelId,
             regenerate: !!regenerateMessageId,
             savedText,
             rawWidgetSourceText,
@@ -3210,6 +3715,17 @@ export async function POST(req: Request) {
           "remove stray repeated quote marks at assistant output tail"
         );
 
+        if (usageRecord.adultRouting) {
+          usageRecord = {
+            ...usageRecord,
+            adultRouting: {
+              ...usageRecord.adultRouting,
+              userChargedPoints: cost,
+            },
+          };
+        }
+        const internalAdultRouteMeta = usageRecord.adultRouting ?? null;
+
         // Billing/public base usage (may still include admin receipt fields).
         let baseUsageRecord: Usage = usageRecord;
         if (!showFullBillingReceipt) {
@@ -3220,7 +3736,7 @@ export async function POST(req: Request) {
         let museAcceptanceFields: Record<string, unknown> | null = null;
         let dbUsageRecord: Usage = baseUsageRecord;
         if (
-          shouldRecordMuseAcceptanceTelemetry(openRouterApiModelId) &&
+          shouldRecordMuseAcceptanceTelemetry(deliveredModelId) &&
           !htmlFlashOnlyTurn
         ) {
           const museTelemetry = classifyMuseAcceptance({
@@ -3230,7 +3746,7 @@ export async function POST(req: Request) {
             completedTurns: playableTurnCount,
             characterId: ch.id,
             personaId: resolvedPersonaId ?? null,
-            modelId: openRouterApiModelId,
+            modelId: deliveredModelId,
             selectedAI: receiptFields.selectedAI ?? null,
             requestLatencyMs: Date.now() - requestStartedAt,
             cost: baseUsageRecord.cost ?? null,
@@ -3247,14 +3763,19 @@ export async function POST(req: Request) {
           logMuseAcceptanceTelemetry(museTelemetry);
         }
         // Even for full billing receipt admins — never send museAcceptance to clients.
-        const clientUsageRecord = stripMuseAcceptanceFromUsage(dbUsageRecord);
+        const clientUsageRecord = stripAdultRoutingForClient(
+          stripMuseAcceptanceFromUsage(dbUsageRecord)
+        );
         usageRecord = dbUsageRecord;
+        const variantUsageRecord: Usage = internalAdultRouteMeta
+          ? { ...dbUsageRecord, adultRouting: internalAdultRouteMeta }
+          : dbUsageRecord;
 
         const createdAt = new Date().toISOString();
         let newVariant: MessageVariant = {
           content: savedText,
           model: dbUsageRecord.model,
-          usage: dbUsageRecord,
+          usage: variantUsageRecord,
           created_at: createdAt,
           statusWidgetValues: statusWidgetValuesPayload,
           statusWidgetTurnActive: statusWidgetActive,
@@ -3276,7 +3797,7 @@ export async function POST(req: Request) {
           resolved: statusWidgetTurn,
           statusWidgetTurnActive: statusWidgetActive,
           values: statusWidgetValuesPayload,
-          model: openRouterApiModelId,
+          model: deliveredModelId,
         });
         const statusWidgetSaveReason =
           statusWidgetSaveDiag.reasonCode === "MISSING_REQUIRED_KEYS" &&
@@ -3442,6 +3963,24 @@ export async function POST(req: Request) {
               "UPDATE messages SET user_message_id=?, generation_status=? WHERE id=? AND chat_id=?"
             ).run(userMessageId, persistedGenerationStatus, aiMessageId, chatRef.id);
           }
+        }
+        if (adultRoutingConfig.enabled) {
+          db.prepare(
+            "UPDATE messages SET adult_route_meta_json=? WHERE id=? AND chat_id=?"
+          ).run(
+            internalAdultRouteMeta ? JSON.stringify(internalAdultRouteMeta) : "",
+            aiMessageId,
+            chatRef.id
+          );
+          db.prepare(
+            "UPDATE chats SET model_route_state_json=? WHERE id=? AND user_id=?"
+          ).run(
+            serializeModelRouteState(nextModelRouteState),
+            chatRef.id,
+            user.id
+          );
+          chatRef.model_route_state_json =
+            serializeModelRouteState(nextModelRouteState);
         }
         clearPartialTimer();
         persistenceDiag.finalized = true;
@@ -3664,6 +4203,12 @@ export async function POST(req: Request) {
               ),
               ...(museAcceptanceFields
                 ? { museAcceptance: museAcceptanceFields }
+                : {}),
+              ...(internalAdultRouteMeta
+                ? {
+                    adultRouting:
+                      internalAdultRouteMeta as unknown as Record<string, unknown>,
+                  }
                 : {}),
             });
             recordGenerationSnapshot({

@@ -531,6 +531,14 @@ export type OpenRouterMessageOpts = {
   allowOpenRouterUnderLengthRecovery?: boolean;
   /** OpenAI-compatible HTTP transport used by the primary RP stream. */
   transportProvider?: "openrouter" | "cheaperinference";
+  /** Adult-route provider pinning. Omitted for all existing/general requests. */
+  providerRouting?: {
+    order?: string[];
+    only?: string[];
+    allow_fallbacks: boolean;
+    require_parameters: boolean;
+    quantizations?: string[];
+  };
 };
 
 export type PrimaryTextStream = AsyncGenerator<string, TokenUsage>;
@@ -1045,10 +1053,14 @@ function resolveCompatibleTransport(messageOpts?: OpenRouterMessageOpts): Compat
 
 function adaptRequestBodyForTransport(
   body: Record<string, unknown>,
-  transport: CompatibleTransport
+  transport: CompatibleTransport,
+  messageOpts?: OpenRouterMessageOpts
 ): Record<string, unknown> {
-  if (transport.provider !== "cheaperinference") return body;
-  return adaptCheaperInferenceChatBody(body);
+  const routedBody = messageOpts?.providerRouting
+    ? { ...body, provider: messageOpts.providerRouting }
+    : body;
+  if (transport.provider !== "cheaperinference") return routedBody;
+  return adaptCheaperInferenceChatBody(routedBody);
 }
 
 /** OpenRouter 스트리밍 — Claude 등 (Gemini 경로와 분리) */
@@ -1126,7 +1138,8 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
       messageOpts?.maxTokensOverride,
       messageOpts?.generationOverrides
     ),
-    transport
+    transport,
+    messageOpts
   );
   const lengthTarget = resolveResponseLengthTarget(targetResponseChars);
   const configuredMaxTokens = resolveOpenRouterMaxTokens(
@@ -1914,7 +1927,8 @@ export async function callOpenRouterAdult(
         messageOpts?.maxTokensOverride,
         messageOpts?.generationOverrides
       ),
-      transport
+      transport,
+      messageOpts
     );
     dumpOpenRouterRequest(requestBody as Record<string, unknown>, {
       ...debugMeta,

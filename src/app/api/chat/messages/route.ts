@@ -10,6 +10,7 @@ import {
 } from "@/lib/statusWindowNotePolicy";
 import { parseStatusMetaRecord } from "@/lib/statusMeta/types";
 import type { Usage } from "@/lib/chatUsage";
+import { stripAdultRoutingForClient } from "@/lib/billingReceiptAccess";
 import { stripMuseAcceptanceFromUsage } from "@/lib/museAcceptanceTelemetry";
 import {
   parseStoredStatusWidgetValuesJson,
@@ -48,7 +49,9 @@ function mapDbMessageForClient(
   const variantMeta = serializeVariantsForClient(variants, activeVariant);
   const rowUsage = m.usage ? (JSON.parse(m.usage) as Usage) : null;
   const activeUsage = variants[activeVariant]?.usage ?? rowUsage;
-  const clientUsage = activeUsage ? stripMuseAcceptanceFromUsage(activeUsage) : null;
+  const clientUsage = activeUsage
+    ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(activeUsage))
+    : null;
   const statusRecord = parseStatusMetaRecord(m.status_meta);
   const activeContent = resolveActiveVariantContent({
     content: m.content,

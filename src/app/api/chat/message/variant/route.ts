@@ -8,6 +8,7 @@ import {
   variantToRowFields,
 } from "@/lib/messageAlternates";
 import { stripMuseAcceptanceFromUsage } from "@/lib/museAcceptanceTelemetry";
+import { stripAdultRoutingForClient } from "@/lib/billingReceiptAccess";
 import { serializeStatusWidgetValuesJson } from "@/lib/statusWidget";
 import { PREFERENCE_EVENT } from "@/lib/feedback/events";
 import { recordPreferenceEvent } from "@/lib/feedback/feedback-db";
@@ -55,13 +56,18 @@ export async function PATCH(req: Request) {
       ok: true,
       ...serializeVariantsForClient(variants, activeVariant),
       content: current.content,
-      usage: current.usage ? stripMuseAcceptanceFromUsage(current.usage) : null,
+      usage: current.usage
+        ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(current.usage))
+        : null,
     });
   }
 
   const fromVariant = activeVariant;
   const fields = variantToRowFields(variants, variantIndex);
   const selectedVariant = variants[variantIndex];
+  const selectedAdultRouteMetaJson = selectedVariant?.usage?.adultRouting
+    ? JSON.stringify(selectedVariant.usage.adultRouting)
+    : "";
   const hasVariantStatusSnapshot = Object.prototype.hasOwnProperty.call(
     selectedVariant ?? {},
     "statusWidgetValues"
@@ -73,11 +79,12 @@ export async function PATCH(req: Request) {
     : undefined;
   if (selectedStatusWidgetValuesJson !== undefined) {
     db.prepare(
-      "UPDATE messages SET content=?, model=?, usage=?, alternates=?, active_variant=?, status_widget_values_json=?, status_widget_turn_active=? WHERE id=?"
+      "UPDATE messages SET content=?, model=?, usage=?, adult_route_meta_json=?, alternates=?, active_variant=?, status_widget_values_json=?, status_widget_turn_active=? WHERE id=?"
     ).run(
       fields.content,
       fields.model,
       fields.usage,
+      selectedAdultRouteMetaJson,
       JSON.stringify(variants),
       variantIndex,
       selectedStatusWidgetValuesJson,
@@ -86,11 +93,12 @@ export async function PATCH(req: Request) {
     );
   } else {
     db.prepare(
-      "UPDATE messages SET content=?, model=?, usage=?, alternates=?, active_variant=? WHERE id=?"
+      "UPDATE messages SET content=?, model=?, usage=?, adult_route_meta_json=?, alternates=?, active_variant=? WHERE id=?"
     ).run(
       fields.content,
       fields.model,
       fields.usage,
+      selectedAdultRouteMetaJson,
       JSON.stringify(variants),
       variantIndex,
       messageId
@@ -111,6 +119,8 @@ export async function PATCH(req: Request) {
     ok: true,
     ...serializeVariantsForClient(variants, variantIndex),
     content: selected.content,
-    usage: selected.usage ? stripMuseAcceptanceFromUsage(selected.usage) : null,
+    usage: selected.usage
+      ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(selected.usage))
+      : null,
   });
 }
