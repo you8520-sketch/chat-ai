@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { callOpenRouterCompletion } from "./openRouterCompletion";
+import {
+  callOpenRouterCompletion,
+  CompatibleCompletionError,
+} from "./openRouterCompletion";
 
 test("background DeepSeek uses Cheaper Inference and preserves cache usage", async () => {
   const previousFetch = globalThis.fetch;
@@ -47,6 +50,42 @@ test("background DeepSeek uses Cheaper Inference and preserves cache usage", asy
     assert.equal(result.usage.standardInputTokens, 25);
     assert.equal(result.usage.reasoningOutputTokens, 12);
     assert.equal(result.usage.estimated, false);
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousKey == null) delete process.env.CHEAPER_INFERENCE_API_KEY;
+    else process.env.CHEAPER_INFERENCE_API_KEY = previousKey;
+  }
+});
+
+test("empty completion preserves HTTP status and finish reason", async () => {
+  const previousFetch = globalThis.fetch;
+  const previousKey = process.env.CHEAPER_INFERENCE_API_KEY;
+  process.env.CHEAPER_INFERENCE_API_KEY = "test-key";
+  globalThis.fetch = (async () =>
+    new Response(
+      JSON.stringify({
+        choices: [{ message: { content: "" }, finish_reason: "length" }],
+        usage: { prompt_tokens: 100, completion_tokens: 3072 },
+      }),
+      { status: 200, headers: { "Content-Type": "application/json" } }
+    )) as typeof fetch;
+
+  try {
+    await assert.rejects(
+      () =>
+        callOpenRouterCompletion({
+          model: "deepseek-v4-flash",
+          system: "system",
+          history: [{ role: "user", content: "hello" }],
+          maxTokens: 3072,
+        }),
+      (error: unknown) => {
+        assert.ok(error instanceof CompatibleCompletionError);
+        assert.equal(error.httpStatus, 200);
+        assert.equal(error.finishReason, "length");
+        return true;
+      }
+    );
   } finally {
     globalThis.fetch = previousFetch;
     if (previousKey == null) delete process.env.CHEAPER_INFERENCE_API_KEY;

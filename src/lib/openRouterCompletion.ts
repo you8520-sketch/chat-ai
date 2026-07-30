@@ -33,6 +33,25 @@ export type OpenRouterCompletionUsage = {
   debugRawUsage?: unknown;
 };
 
+export class CompatibleCompletionError extends Error {
+  readonly provider: "OpenRouter" | "CheaperInference";
+  readonly httpStatus: number | null;
+  readonly finishReason: string | null;
+
+  constructor(opts: {
+    message: string;
+    provider: "OpenRouter" | "CheaperInference";
+    httpStatus?: number | null;
+    finishReason?: string | null;
+  }) {
+    super(opts.message);
+    this.name = "CompatibleCompletionError";
+    this.provider = opts.provider;
+    this.httpStatus = opts.httpStatus ?? null;
+    this.finishReason = opts.finishReason ?? null;
+  }
+}
+
 /** bare gemini-* slug → OpenRouter google/ slug */
 export function toOpenRouterModelId(modelId: string): string {
   const trimmed = modelId.trim();
@@ -109,7 +128,11 @@ export async function callOpenRouterCompletion(opts: {
 
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`${providerLabel} ${res.status}: ${body.slice(0, 240)}`);
+    throw new CompatibleCompletionError({
+      message: `${providerLabel} ${res.status}: ${body.slice(0, 240)}`,
+      provider: providerLabel,
+      httpStatus: res.status,
+    });
   }
 
   const data = (await res.json()) as {
@@ -118,9 +141,13 @@ export async function callOpenRouterCompletion(opts: {
   };
   const text = data.choices?.[0]?.message?.content?.trim() ?? "";
   if (!text) {
-    throw new Error(
-      `[${providerLabel}] empty completion (finish=${data.choices?.[0]?.finish_reason ?? "unknown"})`
-    );
+    const finishReason = data.choices?.[0]?.finish_reason ?? null;
+    throw new CompatibleCompletionError({
+      message: `[${providerLabel}] empty completion (finish=${finishReason ?? "unknown"})`,
+      provider: providerLabel,
+      httpStatus: res.status,
+      finishReason,
+    });
   }
 
   const parsedUsage = parseOpenRouterUsage(data.usage, res.headers);

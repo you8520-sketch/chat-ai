@@ -224,6 +224,28 @@ function ReceiptBody({
           </p>
         </>
       )}
+      {usage.statusWidgetExtractDiagnostics && (
+        <div className="mt-1 border-t border-zinc-800 pt-1">
+          <p className="text-zinc-500">
+            위젯 진단:{" "}
+            {usage.statusWidgetExtractDiagnostics.usedFallback
+              ? "V3 폴백 사용"
+              : usage.statusWidgetExtractDiagnostics.exhausted
+                ? "추출 실패"
+                : "정상"}
+          </p>
+          {usage.statusWidgetExtractDiagnostics.attempts.map((attempt, index) => (
+            <p key={`${attempt.stage}-${attempt.modelId}-${index}`}>
+              <span className="text-zinc-500">
+                {attempt.stage} · {attempt.modelId}:
+              </span>{" "}
+              HTTP {attempt.httpStatus ?? "없음"} · finish{" "}
+              {attempt.finishReason ?? "없음"}
+              {attempt.errorCode ? ` · ${attempt.errorCode}` : ""}
+            </p>
+          ))}
+        </div>
+      )}
       {apiRawCostKrw != null && apiRawCostKrw > 0 && (
         <>
           <p>
@@ -448,6 +470,7 @@ export default function BillingReceiptTooltip({
       apiReasoningOutputTokens: usage.apiReasoningOutputTokens,
       apiContentOutputTokens: usage.apiContentOutputTokens,
       statusWidgetExtract: usage.statusWidgetExtract,
+      statusWidgetExtractDiagnostics: usage.statusWidgetExtractDiagnostics,
       mainApiRawCostKrw: usage.mainApiRawCostKrw,
       apiRawCostSource: usage.apiRawCostSource,
       mainRpCostParts,

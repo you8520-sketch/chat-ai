@@ -3158,6 +3158,13 @@ export async function POST(req: Request) {
           savedText = widgetResolved.prose;
           statusWidgetValuesPayload = widgetResolved.values;
           logStatusWidgetTurnTelemetry(widgetResolved.telemetry);
+          if (showFullBillingReceipt && widgetResolved.widgetExtractDiagnostics) {
+            usageRecord = {
+              ...usageRecord,
+              statusWidgetExtractDiagnostics:
+                widgetResolved.widgetExtractDiagnostics,
+            };
+          }
           if (
             widgetResolved.widgetExtractUsage &&
             widgetResolved.widgetExtractBillingMeta &&
