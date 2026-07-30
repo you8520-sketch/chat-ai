@@ -1,6 +1,8 @@
 SceneDirective V2 — Pre-Merge Audit
 Generated: 2026-07-30
 Branch: feature/scene-directive-v2
+HEAD: 1d19d7a (test) / 6936c81 (feat)
+Draft PR: https://github.com/you8520-sketch/chat-ai/pull/198
 Status: remote preserve + Draft PR only (NO main merge, NO rollout)
 
 Absolute constraints honored
