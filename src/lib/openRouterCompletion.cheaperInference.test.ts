@@ -43,6 +43,7 @@ test("background DeepSeek uses Cheaper Inference and preserves cache usage", asy
       "https://api.cheaperinference.com/v1/chat/completions"
     );
     assert.equal(requestedBody?.model, "deepseek-v4-flash");
+    assert.equal(requestedBody?.reasoning_effort, "none");
     assert.equal(result.text, "OK");
     assert.equal(result.usage.inputTokens, 100);
     assert.equal(result.usage.outputTokens, 20);
