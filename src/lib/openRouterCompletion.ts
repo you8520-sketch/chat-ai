@@ -8,6 +8,7 @@ import {
   CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
   buildCheaperInferenceHeaders,
   resolveCheaperInferenceApiKey,
+  adaptCheaperInferenceChatBody,
 } from "@/lib/cheaperInferenceConfig";
 import { isCheaperInferenceModel } from "@/lib/chatModels";
 import { parseOpenRouterUsage } from "@/lib/openRouterUsage";
@@ -111,16 +112,25 @@ export async function callOpenRouterCompletion(opts: {
   const headers = useCheaperInference
     ? buildCheaperInferenceHeaders(key)
     : buildOpenRouterHeaders(key);
+  const requestBody = useCheaperInference
+    ? adaptCheaperInferenceChatBody({
+        model,
+        messages,
+        stream: false,
+        temperature: opts.temperature ?? 0.3,
+        max_tokens: opts.maxTokens ?? 2048,
+      })
+    : {
+        model,
+        messages,
+        stream: false,
+        temperature: opts.temperature ?? 0.3,
+        max_tokens: opts.maxTokens ?? 2048,
+      };
   const res = await fetch(endpoint, {
     method: "POST",
     headers,
-    body: JSON.stringify({
-      model,
-      messages,
-      stream: false,
-      temperature: opts.temperature ?? 0.3,
-      max_tokens: opts.maxTokens ?? 2048,
-    }),
+    body: JSON.stringify(requestBody),
     signal: AbortSignal.timeout(
       opts.timeoutMs ?? resolveOpenRouterCompletionTimeoutMs(opts.requestKind)
     ),

@@ -237,6 +237,10 @@ export function isCheaperInferenceDeepSeekV4ProModel(
   );
 }
 
+export function isCheaperInferenceDeepSeekV4FlashModel(modelId: string): boolean {
+  return modelId.trim().toLowerCase() === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
+}
+
 export function isCheaperInferenceModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
   return (
