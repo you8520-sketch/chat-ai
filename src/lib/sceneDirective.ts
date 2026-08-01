@@ -1,6 +1,7 @@
 import type { ChatMsg } from "@/lib/ai";
 import { AUTO_PROGRESSION_SCENE_USER_CONTROL } from "@/lib/autoProgressionRules";
 import { NO_FALSE_SHARED_MEMORY_RULE } from "@/lib/noGodmodding";
+import type { SceneProgressionHistoryEntry } from "@/lib/sceneProgressionState";
 
 export type SceneDirectiveMode = "interactive" | "auto_progression";
 
@@ -20,6 +21,13 @@ export type SceneUserControl =
   | "limited_reactions"
   | "persona_based_dialogue_allowed";
 
+export type SceneKind =
+  | "rest"
+  | "investigation"
+  | "operation"
+  | "climax"
+  | "neutral";
+
 export type SceneDirective = {
   mode: SceneDirectiveMode;
   recentStagnation: boolean;
@@ -38,7 +46,56 @@ export type SceneDirectiveInput = {
   relationshipMemoryText?: string | null;
   lorebookText?: string | null;
   triggeredEventText?: string | null;
+  /** Chat id for seeded RNG + history (optional for pure unit callers). */
+  chatId?: number | string | null;
+  /** Source turn number (playableTurnCount + 1). */
+  currentTurn?: number | null;
+  /** Recent committed progression history (last ≤4 turns). */
+  progressionHistory?: SceneProgressionHistoryEntry[] | null;
 };
+
+/** Internal telemetry — never rendered into the model prompt. */
+export type ProgressionSelectionMeta = {
+  sceneKind: SceneKind;
+  eligible: SceneProgressionType[];
+  weights: Partial<Record<SceneProgressionType, number>>;
+  cooldownOverrides: string[];
+  seed: string;
+  pickCount: number;
+};
+
+export const SCENE_DIRECTIVE_VERSION = "world-motion-v1.1";
+
+export const BASE_PROGRESSION_WEIGHTS: Record<SceneProgressionType, number> = {
+  relationship: 1,
+  daily_life: 1,
+  lore_clue: 1,
+  npc_action: 1,
+  world_reaction: 1,
+  tactical_planning: 1,
+  consequence: 1,
+  comedy: 0.5,
+  environment: 1,
+};
+
+export const COOLDOWN_MULTIPLIERS = {
+  lastTurn: 0.15,
+  twoTurnsAgo: 0.4,
+  threeTurnsAgo: 0.7,
+  older: 1,
+} as const;
+
+const ALL_PROGRESSION_TYPES: SceneProgressionType[] = [
+  "relationship",
+  "daily_life",
+  "lore_clue",
+  "npc_action",
+  "world_reaction",
+  "tactical_planning",
+  "consequence",
+  "comedy",
+  "environment",
+];
 
 const PROGRESSION_LABELS: Record<SceneProgressionType, string> = {
   relationship: "관계 변화",
@@ -66,6 +123,28 @@ const BASE_SCENE_ENGINE_RULE = [
 
 const AUTO_PROGRESSION_ENSEMBLE_SCENE_RULE =
   "다인물: 전개는 현재 중심 인물 하나에 고정되지 않는다. 여러 AI 캐릭터·NPC의 대화·판단·갈등·협력·적대·세계 사건을 함께 진행할 수 있다. [B] 내면 시점으로 전환하지 않는다.";
+
+const OPERATION_TERMS = ["작전", "임무", "침투", "추적", "협상", "함정", "구출", "제한시간", "전투"];
+const INVESTIGATION_TERMS = ["조사", "단서", "기록", "소문", "흔적", "보고서", "메시지"];
+const REST_TERMS = ["휴식", "식사", "잠", "치료", "회복", "데이트", "연인", "키스", "집"];
+const QUIET_INTIMACY_TERMS = [
+  "휴게실",
+  "소파",
+  "곁",
+  "어깨",
+  "손끝",
+  "호흡",
+  "가만히",
+  "이대로",
+  "손을",
+  "손 ",
+];
+const CLIMAX_TERMS = ["결전", "최종", "붕괴", "배신", "대형 위기", "보스"];
+const DANGER_TERMS = ["공격", "폭발", "붕괴", "배신", "납치", "전투", "함정", "추락", "경보", "습격", "위험"];
+const RELATIONSHIP_TERMS = ["연인", "고백", "질투", "미안", "괜찮", "걱정", "친구", "관계"];
+const DAILY_TERMS = ["식사", "잠", "집", "휴식", "회복", "정비"];
+const NPC_GROUND_TERMS = ["NPC", "동료", "상관", "담당", "방문객", "손님", "병사", "경비", "의사", "점원"];
+const COMEDY_BLOCK_TERMS = ["사망", "중상", "즉사", "대형 위기", "습격", "경보", "납치", "붕괴"];
 
 function includesAny(text: string, terms: string[]): boolean {
   return terms.some((term) => text.includes(term));
@@ -133,24 +212,59 @@ export function detectSceneStagnation(recentMessages: ChatMsg[] | undefined): bo
   );
 }
 
-function resolveSceneKind(text: string): "rest" | "investigation" | "operation" | "climax" | "neutral" {
-  if (includesAny(text, ["결전", "최종", "붕괴", "배신", "대형 위기", "보스"])) return "climax";
-  if (includesAny(text, ["작전", "임무", "침투", "추적", "협상", "함정", "구출", "제한시간", "전투"])) {
+/** Scene kind from current-scene signals only — never memory/lorebook. */
+export function resolveSceneKind(text: string): SceneKind {
+  if (includesAny(text, CLIMAX_TERMS)) return "climax";
+  // Danger/operation terms only count from scene signal text (caller must isolate).
+  if (includesAny(text, OPERATION_TERMS) || includesAny(text, DANGER_TERMS)) {
+    // Prefer climax already handled; treat active danger as operation for boosts.
+    if (includesAny(text, ["결전", "보스", "대형 위기"])) return "climax";
     return "operation";
   }
-  if (includesAny(text, ["조사", "단서", "기록", "소문", "흔적", "보고서", "메시지"])) return "investigation";
-  if (includesAny(text, ["휴식", "식사", "잠", "치료", "회복", "데이트", "연인", "키스", "집"])) return "rest";
+  if (includesAny(text, INVESTIGATION_TERMS)) return "investigation";
+  if (
+    includesAny(text, REST_TERMS) ||
+    includesAny(text, RELATIONSHIP_TERMS) ||
+    includesAny(text, QUIET_INTIMACY_TERMS)
+  ) {
+    return "rest";
+  }
   return "neutral";
+}
+
+export function buildSceneSignalText(input: {
+  recentMessages?: ChatMsg[];
+  currentUserMessage?: string | null;
+  triggeredEventText?: string | null;
+}): string {
+  return [
+    compactText(input.recentMessages),
+    input.currentUserMessage ?? "",
+    input.triggeredEventText ?? "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+export function buildGroundingText(input: {
+  memoryText?: string | null;
+  relationshipMemoryText?: string | null;
+  lorebookText?: string | null;
+}): string {
+  return [input.memoryText ?? "", input.relationshipMemoryText ?? "", input.lorebookText ?? ""]
+    .filter(Boolean)
+    .join("\n");
 }
 
 export function selectSceneIntensity(input: {
   recentMessages?: ChatMsg[];
   currentUserMessage?: string | null;
+  triggeredEventText?: string | null;
   recentStagnation?: boolean;
 }): 0 | 1 | 2 | 3 | 4 | 5 {
-  const text = [compactText(input.recentMessages), input.currentUserMessage ?? ""].join("\n");
+  const text = buildSceneSignalText(input);
   const kind = resolveSceneKind(text);
-  const recentHighIntensity = countMatches(text, ["공격", "폭발", "붕괴", "배신", "납치", "전투", "함정", "추락"]) >= 2;
+  const recentHighIntensity = countMatches(text, DANGER_TERMS) >= 2;
 
   if (recentHighIntensity) return input.recentStagnation ? 1 : 0;
   if (kind === "rest") return input.recentStagnation ? 1 : 0;
@@ -160,33 +274,301 @@ export function selectSceneIntensity(input: {
   return input.recentStagnation ? 2 : 1;
 }
 
-function selectProgressionTypes(text: string, intensity: number, stagnant: boolean): SceneProgressionType[] {
-  const selected: SceneProgressionType[] = [];
-  const add = (type: SceneProgressionType) => {
-    if (!selected.includes(type) && selected.length < 3) selected.push(type);
-  };
+/** FNV-1a 32-bit → mulberry32 seed. */
+export function hashSeed(parts: Array<string | number>): number {
+  const s = parts.map(String).join(":");
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
 
-  if (includesAny(text, ["작전", "임무", "침투", "추적", "협상", "함정", "구출"])) {
-    add("tactical_planning");
-    add("npc_action");
-    add("consequence");
+export function createSeededRng(seed: number): () => number {
+  let state = seed >>> 0;
+  if (state === 0) state = 0x9e3779b9;
+  return () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state / 0x100000000;
+  };
+}
+
+function sceneKindBoosts(kind: SceneKind): Partial<Record<SceneProgressionType, number>> {
+  switch (kind) {
+    case "rest":
+      return {
+        relationship: 4,
+        daily_life: 3,
+        environment: 2,
+        lore_clue: 1,
+        comedy: 1,
+        // Quiet rest: ambient world_reaction only when stagnant (applied separately).
+        world_reaction: -0.5,
+        consequence: 0.5,
+        tactical_planning: -10,
+        npc_action: -2,
+      };
+    case "investigation":
+      return {
+        lore_clue: 5,
+        world_reaction: 3,
+        consequence: 2,
+        environment: 2,
+        relationship: 1,
+        daily_life: 0.5,
+        comedy: -2,
+      };
+    case "operation":
+      return {
+        tactical_planning: 5,
+        npc_action: 4,
+        consequence: 3,
+        environment: 2,
+        world_reaction: 2,
+        relationship: 0.5,
+        comedy: -5,
+      };
+    case "climax":
+      return {
+        world_reaction: 5,
+        npc_action: 4,
+        tactical_planning: 4,
+        consequence: 4,
+        environment: 2,
+        comedy: -10,
+        daily_life: -5,
+      };
+    default:
+      return {
+        environment: 3,
+        relationship: 2,
+        daily_life: 2,
+        world_reaction: 1,
+        lore_clue: 1,
+        comedy: 0.5,
+      };
   }
-  if (includesAny(text, ["조사", "단서", "기록", "소문", "흔적", "메시지"])) {
-    add("lore_clue");
-    add("world_reaction");
+}
+
+function stagnationBoosts(): Partial<Record<SceneProgressionType, number>> {
+  return {
+    environment: 3,
+    world_reaction: 2.5,
+    relationship: 2,
+    daily_life: 2,
+    lore_clue: 1.5,
+    consequence: 1.5,
+  };
+}
+
+function triggerBoosts(): Partial<Record<SceneProgressionType, number>> {
+  return {
+    consequence: 5,
+    world_reaction: 4,
+    npc_action: 3,
+    tactical_planning: 2,
+  };
+}
+
+function cooldownMultiplierForType(
+  type: SceneProgressionType,
+  history: SceneProgressionHistoryEntry[],
+  currentTurn: number
+): number {
+  if (!history.length || !Number.isFinite(currentTurn) || currentTurn <= 0) {
+    return COOLDOWN_MULTIPLIERS.older;
   }
-  if (includesAny(text, ["연인", "고백", "질투", "미안", "괜찮", "걱정", "친구"])) add("relationship");
-  if (includesAny(text, ["식사", "잠", "집", "휴식", "회복", "정비"])) add("daily_life");
-  if (stagnant) {
-    add("relationship");
-    add(intensity >= 2 ? "lore_clue" : "daily_life");
-    add("environment");
+  let best: number = COOLDOWN_MULTIPLIERS.older;
+  for (const entry of history) {
+    if (!entry.types.includes(type)) continue;
+    const age = currentTurn - entry.turn;
+    if (age <= 0) continue;
+    if (age === 1) best = Math.min(best, COOLDOWN_MULTIPLIERS.lastTurn);
+    else if (age === 2) best = Math.min(best, COOLDOWN_MULTIPLIERS.twoTurnsAgo);
+    else if (age === 3) best = Math.min(best, COOLDOWN_MULTIPLIERS.threeTurnsAgo);
   }
-  if (selected.length === 0) {
-    add("environment");
-    add("relationship");
+  return best;
+}
+
+function pickCountForIntensity(intensity: number, rng: () => number): number {
+  if (intensity <= 1) return 1;
+  if (intensity === 2) return rng() < 0.55 ? 1 : 2;
+  if (intensity === 3) return 2;
+  return rng() < 0.55 ? 2 : 3;
+}
+
+function weightedPickWithoutReplacement(
+  weights: Map<SceneProgressionType, number>,
+  count: number,
+  rng: () => number
+): SceneProgressionType[] {
+  const selected: SceneProgressionType[] = [];
+  const pool = new Map(weights);
+  for (let i = 0; i < count; i++) {
+    let total = 0;
+    for (const w of pool.values()) total += w;
+    if (total <= 0) break;
+    let r = rng() * total;
+    let chosen: SceneProgressionType | null = null;
+    for (const [type, w] of pool) {
+      r -= w;
+      if (r <= 0) {
+        chosen = type;
+        break;
+      }
+    }
+    if (!chosen) {
+      chosen = [...pool.keys()].pop() ?? null;
+    }
+    if (!chosen) break;
+    selected.push(chosen);
+    pool.delete(chosen);
   }
   return selected;
+}
+
+export function selectProgressionTypesWeighted(input: {
+  sceneSignalText: string;
+  groundingText: string;
+  intensity: number;
+  stagnant: boolean;
+  triggeredEventText?: string | null;
+  chatId?: number | string | null;
+  currentTurn?: number | null;
+  progressionHistory?: SceneProgressionHistoryEntry[] | null;
+}): { types: SceneProgressionType[]; meta: ProgressionSelectionMeta } {
+  const sceneKind = resolveSceneKind(input.sceneSignalText);
+  const hasTrigger = Boolean(input.triggeredEventText?.trim());
+  const dangerCue =
+    includesAny(input.sceneSignalText, DANGER_TERMS) || sceneKind === "climax" || sceneKind === "operation";
+  const npcGrounded =
+    includesAny(input.sceneSignalText, NPC_GROUND_TERMS) ||
+    includesAny(input.groundingText, NPC_GROUND_TERMS) ||
+    (hasTrigger && includesAny(input.triggeredEventText || "", NPC_GROUND_TERMS));
+  const loreGrounded =
+    includesAny(input.groundingText, ["단서", "기록", "소문", "조직", "장소", "세계"]) ||
+    includesAny(input.sceneSignalText, INVESTIGATION_TERMS);
+  const comedyOk =
+    (sceneKind === "rest" || sceneKind === "neutral") &&
+    !dangerCue &&
+    !hasTrigger &&
+    !includesAny(input.sceneSignalText, COMEDY_BLOCK_TERMS);
+
+  const weights = new Map<SceneProgressionType, number>();
+  for (const type of ALL_PROGRESSION_TYPES) {
+    weights.set(type, BASE_PROGRESSION_WEIGHTS[type]);
+  }
+
+  const applyBoost = (boost: Partial<Record<SceneProgressionType, number>>) => {
+    for (const [type, delta] of Object.entries(boost) as Array<[SceneProgressionType, number]>) {
+      weights.set(type, (weights.get(type) ?? 0) + delta);
+    }
+  };
+
+  applyBoost(sceneKindBoosts(sceneKind));
+  if (input.stagnant) applyBoost(stagnationBoosts());
+  if (hasTrigger) applyBoost(triggerBoosts());
+
+  // Eligibility gates — zero unfit (memory/lore never force operation).
+  if (sceneKind === "rest" || sceneKind === "neutral") {
+    if (!dangerCue && !hasTrigger) {
+      weights.set("tactical_planning", 0);
+      // Quiet scenes: no ambient world crisis beat unless stagnant needs motion.
+      if (!input.stagnant) weights.set("world_reaction", 0);
+    }
+    if (!npcGrounded) {
+      weights.set("npc_action", 0);
+    }
+  }
+  if (!comedyOk) {
+    weights.set("comedy", 0);
+  }
+  if (!loreGrounded && sceneKind === "rest" && !input.stagnant) {
+    // Keep a thin lore weight via scene boost only when stagnant/investigation.
+    const lore = weights.get("lore_clue") ?? 0;
+    if (lore > 1.5) weights.set("lore_clue", 1);
+  }
+  if (hasTrigger) {
+    // Prefer trigger aftermath — do not invent unrelated large plots.
+    for (const type of ALL_PROGRESSION_TYPES) {
+      if (
+        type !== "consequence" &&
+        type !== "world_reaction" &&
+        type !== "npc_action" &&
+        type !== "tactical_planning" &&
+        type !== "relationship" &&
+        type !== "environment"
+      ) {
+        const w = weights.get(type) ?? 0;
+        weights.set(type, Math.min(w, 0.5));
+      }
+    }
+  }
+
+  const history = input.progressionHistory ?? [];
+  const turn = Number(input.currentTurn ?? 0);
+  const cooldownOverrides: string[] = [];
+  const positiveBeforeCooldown = [...weights.entries()].filter(([, w]) => w > 0);
+  const onlyOneEligible = positiveBeforeCooldown.length <= 1;
+
+  for (const type of ALL_PROGRESSION_TYPES) {
+    const base = weights.get(type) ?? 0;
+    if (base <= 0) continue;
+    const mult = cooldownMultiplierForType(type, history, turn);
+    if (mult < 1) {
+      const forceOverride =
+        onlyOneEligible ||
+        (hasTrigger &&
+          (type === "consequence" || type === "world_reaction" || type === "npc_action")) ||
+        (input.stagnant && positiveBeforeCooldown.length <= 2 && mult <= COOLDOWN_MULTIPLIERS.lastTurn);
+      if (forceOverride) {
+        cooldownOverrides.push(`${type}:override`);
+      } else {
+        weights.set(type, base * mult);
+      }
+    }
+  }
+
+  // Floor: ensure at least one eligible candidate.
+  let eligible = ALL_PROGRESSION_TYPES.filter((t) => (weights.get(t) ?? 0) > 0);
+  if (eligible.length === 0) {
+    weights.set("environment", 1);
+    weights.set("relationship", 1);
+    eligible = ["environment", "relationship"];
+  }
+
+  const chatKey = input.chatId == null || input.chatId === "" ? "0" : String(input.chatId);
+  const seedStr = `${chatKey}:${turn || 0}:${SCENE_DIRECTIVE_VERSION}`;
+  const seed = hashSeed([seedStr]);
+  const rng = createSeededRng(seed);
+  const pickCount = Math.min(
+    pickCountForIntensity(input.intensity, rng),
+    eligible.length
+  );
+
+  const weightMap = new Map(
+    eligible.map((t) => [t, Math.max(0, weights.get(t) ?? 0)] as const)
+  );
+  const types = weightedPickWithoutReplacement(weightMap, pickCount, rng);
+
+  const weightSnapshot: Partial<Record<SceneProgressionType, number>> = {};
+  for (const t of ALL_PROGRESSION_TYPES) {
+    const w = weights.get(t) ?? 0;
+    if (w > 0) weightSnapshot[t] = Math.round(w * 1000) / 1000;
+  }
+
+  return {
+    types,
+    meta: {
+      sceneKind,
+      eligible,
+      weights: weightSnapshot,
+      cooldownOverrides,
+      seed: seedStr,
+      pickCount,
+    },
+  };
 }
 
 function buildAvoidList(mode: SceneDirectiveMode, intensity: number): string[] {
@@ -213,36 +595,86 @@ function sanitizeHint(hint: string): string {
     .trim();
 }
 
-function buildNextBeatHint(types: SceneProgressionType[], intensity: number, triggeredEventText?: string | null): string {
+const HINT_BY_TYPE: Record<SceneProgressionType, string> = {
+  tactical_planning: "작전 논의 중 작은 기록 하나가 이전 선택의 결과와 연결된다.",
+  lore_clue: "조용한 순간, 이전 대화와 연결된 작은 단서 하나가 다시 눈에 띈다.",
+  daily_life: "평범한 생활 변수 하나가 관계의 온도를 조금 바꾼다.",
+  relationship: "반복 확인 대신 작은 행동 하나로 관계의 거리감이 미세하게 달라진다.",
+  environment: "주변 환경의 작은 변화가 다음 대화의 방향을 자연스럽게 열어 준다.",
+  world_reaction: "세계 쪽의 작은 반응 하나가 현재 장소의 분위기를 바꾼다.",
+  npc_action: "이미 장면에 있는 인물의 짧은 행동이 다음 선택을 연다.",
+  consequence: "직전 선택의 결과가 지금의 형태를 바꿔 놓는다.",
+  comedy: "가벼운 오해나 엇갈림이 긴장 없이 장면을 한 박자 움직인다.",
+};
+
+function buildNextBeatHint(
+  types: SceneProgressionType[],
+  intensity: number,
+  triggeredEventText?: string | null
+): string {
   if (triggeredEventText?.trim()) {
     return "이미 발생한 사건의 여파를 우선 이어가며 장면은 그 결과에 맞춰 자연스럽게 진행한다.";
   }
-  if (types.includes("tactical_planning")) {
-    return intensity >= 4
-      ? "현재 작전의 빈틈 하나가 드러나며 외부 요청이나 시간 압박이 조용히 끼어든다."
-      : "작전 논의 중 작은 기록 하나가 이전 선택의 결과와 연결된다.";
+  const primary = types[0];
+  const support = types[1];
+  if (!primary) return HINT_BY_TYPE.environment;
+  if (primary === "tactical_planning" && intensity >= 4) {
+    return "현재 작전의 빈틈 하나가 드러나며 외부 요청이나 시간 압박이 조용히 끼어든다.";
   }
-  if (types.includes("lore_clue")) return "조용한 순간, 이전 대화와 연결된 작은 단서 하나가 다시 눈에 띈다.";
-  if (types.includes("daily_life")) return "평범한 생활 변수 하나가 관계의 온도를 조금 바꾼다.";
-  if (types.includes("relationship")) return "반복 확인 대신 작은 행동 하나로 관계의 거리감이 미세하게 달라진다.";
-  return "주변 환경의 작은 변화가 다음 대화의 방향을 자연스럽게 열어 준다.";
+  const primaryHint = HINT_BY_TYPE[primary];
+  if (
+    support &&
+    support !== primary &&
+    (support === "relationship" || support === "environment" || support === "consequence")
+  ) {
+    const shortSupport =
+      support === "relationship"
+        ? "관계 온도도 살짝 움직인다"
+        : support === "consequence"
+          ? "직전 선택의 여파가 겹친다"
+          : "장소 감각도 조금 바뀐다";
+    return `${primaryHint.replace(/다\.$/, "고, ")}${shortSupport}.`;
+  }
+  return primaryHint;
+}
+
+let lastSelectionMeta: ProgressionSelectionMeta | null = null;
+
+/** Test/harness helper — last buildSceneDirective selection telemetry. */
+export function getLastProgressionSelectionMeta(): ProgressionSelectionMeta | null {
+  return lastSelectionMeta;
 }
 
 export function buildSceneDirective(input: SceneDirectiveInput): SceneDirective {
   const recentStagnation = detectSceneStagnation(input.recentMessages);
+  const sceneSignalText = buildSceneSignalText({
+    recentMessages: input.recentMessages,
+    currentUserMessage: input.currentUserMessage,
+    triggeredEventText: input.triggeredEventText,
+  });
   const recommendedIntensity = selectSceneIntensity({
     recentMessages: input.recentMessages,
     currentUserMessage: input.currentUserMessage,
+    triggeredEventText: input.triggeredEventText,
     recentStagnation,
   });
-  const text = [
-    compactText(input.recentMessages),
-    input.currentUserMessage ?? "",
-    input.memoryText ?? "",
-    input.relationshipMemoryText ?? "",
-    input.lorebookText ?? "",
-  ].join("\n");
-  const progressionTypes = selectProgressionTypes(text, recommendedIntensity, recentStagnation);
+  const groundingText = buildGroundingText({
+    memoryText: input.memoryText,
+    relationshipMemoryText: input.relationshipMemoryText,
+    lorebookText: input.lorebookText,
+  });
+  const { types: progressionTypes, meta } = selectProgressionTypesWeighted({
+    sceneSignalText,
+    groundingText,
+    intensity: recommendedIntensity,
+    stagnant: recentStagnation,
+    triggeredEventText: input.triggeredEventText,
+    chatId: input.chatId,
+    currentTurn: input.currentTurn,
+    progressionHistory: input.progressionHistory,
+  });
+  lastSelectionMeta = meta;
+
   const userControl: SceneUserControl =
     input.mode === "auto_progression" ? "persona_based_dialogue_allowed" : "no_user_control";
 
@@ -252,7 +684,9 @@ export function buildSceneDirective(input: SceneDirectiveInput): SceneDirective 
     recommendedIntensity,
     progressionTypes,
     avoid: buildAvoidList(input.mode, recommendedIntensity),
-    nextBeatHint: sanitizeHint(buildNextBeatHint(progressionTypes, recommendedIntensity, input.triggeredEventText)),
+    nextBeatHint: sanitizeHint(
+      buildNextBeatHint(progressionTypes, recommendedIntensity, input.triggeredEventText)
+    ),
     userControl,
   };
 }
