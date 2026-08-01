@@ -242,7 +242,7 @@ import {
   serializeVariantsForClient,
   type MessageVariant,
 } from "@/lib/messageAlternates";
-import { DegenerationAbortError, DEGENERATION_USER_MESSAGE, isDegenerateOutput, getDegenerationReason, stripUnexpectedForeignScriptLeak } from "@/lib/gibberishGuard";
+import { DegenerationAbortError, MetaLeakageAbortError, DEGENERATION_USER_MESSAGE, isDegenerateOutput, getDegenerationReason, stripUnexpectedForeignScriptLeak } from "@/lib/gibberishGuard";
 import { PREFERENCE_EVENT } from "@/lib/feedback/events";
 import { recordGenerationSnapshot, recordPreferenceEvent } from "@/lib/feedback/feedback-db";
 import { enqueueScoreRecompute } from "@/lib/feedback/queue";
@@ -1802,8 +1802,12 @@ export async function POST(req: Request) {
           }
         } catch (e) {
           clearPartialTimer();
-          if (e instanceof DegenerationAbortError) {
-            console.warn("[/api/chat] OpenRouter DEGENERATION_ABORT — billing skipped");
+          if (e instanceof DegenerationAbortError || e instanceof MetaLeakageAbortError) {
+            console.warn(
+              e instanceof MetaLeakageAbortError
+                ? "[/api/chat] OpenRouter META_LEAKAGE_ABORT — billing skipped"
+                : "[/api/chat] OpenRouter DEGENERATION_ABORT — billing skipped"
+            );
             const partial = streamVisibleTextRef || fullText;
             try {
               markAssistantFailed(db, persistedAssistantId, partial);
@@ -1815,8 +1819,9 @@ export async function POST(req: Request) {
             } catch {
               /* ignore */
             }
-            // Keep substantial partial on screen (same threshold as under-length); only wipe tiny junk.
-            if (partial.trim().length < CATASTROPHIC_MIN_RESPONSE_CHARS) {
+            if (e instanceof MetaLeakageAbortError) {
+              send({ type: "reset" });
+            } else if (partial.trim().length < CATASTROPHIC_MIN_RESPONSE_CHARS) {
               send({ type: "reset" });
             }
             send({ type: "error", error: DEGENERATION_USER_MESSAGE });
@@ -3738,7 +3743,7 @@ export async function POST(req: Request) {
         }
         if (e instanceof GeminiTrafficOverloadError) {
           sendTrafficOverloadGracefulStream(send);
-        } else if (e instanceof DegenerationAbortError) {
+        } else if (e instanceof DegenerationAbortError || e instanceof MetaLeakageAbortError) {
           send({ type: "reset" });
           send({ type: "error", error: DEGENERATION_USER_MESSAGE });
         } else {

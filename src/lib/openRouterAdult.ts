@@ -17,6 +17,7 @@ import {
   detectStreamingDegeneration,
   detectChunkDegeneration,
   DegenerationAbortError,
+  MetaLeakageAbortError,
   isDegenerateOutput,
   hasUnexpectedForeignScriptLeak,
   isStripableForeignScriptOnly,
@@ -54,7 +55,13 @@ import { billableOutputTokens } from "@/lib/points";
 import { dumpOpenRouterRequest } from "@/services/promptDebugDump";
 import type { PromptDebugMeta } from "@/services/promptDebugDump";
 import { buildControlledPossessionRules } from "@/lib/controlledPossession";
-import { stripRpMetaLeakage, streamDeltaAfterRpMetaStrip, stripInternalTagLeakage } from "@/lib/narrativeRules";
+import {
+  detectRpMetaLeakage,
+  RP_META_LEAK_RECOVERY_USER_TAIL,
+  stripRpMetaLeakage,
+  streamDeltaAfterRpMetaStrip,
+  stripInternalTagLeakage,
+} from "@/lib/narrativeRules";
 import { parseOpenRouterUsage, logOpenRouterUsageCacheDiagnostics, tokenUsageFromOpenRouterBreakdown } from "@/lib/openRouterUsage";
 import { logOpenRouterCacheStabilityCheck } from "@/lib/openRouterCacheStability";
 import { logCharsPerTokenDiagnostic, logBannedVerbCheck, logHanjaLeakCheck, logLengthDiagnosticV2 } from "@/lib/lengthDiagnosticV2";
@@ -531,6 +538,11 @@ export type OpenRouterMessageOpts = {
   allowOpenRouterUnderLengthRecovery?: boolean;
   /** OpenAI-compatible HTTP transport used by the primary RP stream. */
   transportProvider?: "openrouter" | "cheaperinference";
+  /**
+   * Experiment harness — when false, do not issue a second non-stream call
+   * after an empty primary stream. Production default remains enabled.
+   */
+  allowEmptyStreamFallback?: boolean;
 };
 
 export type PrimaryTextStream = AsyncGenerator<string, TokenUsage>;
@@ -1051,6 +1063,89 @@ function adaptRequestBodyForTransport(
   return adaptCheaperInferenceChatBody(body);
 }
 
+export type AssembledPrimaryRpRequest = {
+  transport: CompatibleTransport;
+  messages: OpenRouterChatMessage[];
+  requestBodyBeforeAdapt: Record<string, unknown>;
+  requestBody: Record<string, unknown>;
+  adaptationKeyDiff: {
+    removed: string[];
+    added: string[];
+    changed: string[];
+  };
+};
+
+function requestBodyKeyDiff(
+  before: Record<string, unknown>,
+  after: Record<string, unknown>
+): AssembledPrimaryRpRequest["adaptationKeyDiff"] {
+  const bk = new Set(Object.keys(before));
+  const ak = new Set(Object.keys(after));
+  return {
+    removed: [...bk].filter((k) => !ak.has(k)).sort(),
+    added: [...ak].filter((k) => !bk.has(k)).sort(),
+    changed: [...bk]
+      .filter((k) => ak.has(k) && JSON.stringify(before[k]) !== JSON.stringify(after[k]))
+      .sort(),
+  };
+}
+
+/**
+ * Shared primary RP wire assembler (production stream + parity harness).
+ * Builds messages via buildOpenRouterMessages, then OpenRouter request body,
+ * then CheaperInference adaptation when transport is cheaperinference.
+ * Does not apply Anthropic cache/prefill (OpenRouter Anthropic-only overlay).
+ */
+/**
+ * Wire-body assembler shared by production stream + parity harness.
+ * Does not require API credentials — credentialed transport is resolved at fetch time.
+ */
+export function assemblePrimaryRpRequest(opts: {
+  system: string;
+  history: ChatMsg[];
+  modelId?: string;
+  targetResponseChars?: number | null;
+  messageOpts?: OpenRouterMessageOpts;
+  stream?: boolean;
+  messagesOverride?: OpenRouterChatMessage[];
+}): AssembledPrimaryRpRequest {
+  const modelId = opts.modelId ?? OPENROUTER_ADULT_MODEL;
+  const provider =
+    opts.messageOpts?.transportProvider === "cheaperinference"
+      ? ("cheaperinference" as const)
+      : ("openrouter" as const);
+  // Credential-free transport descriptor for body adaptation / manifest only.
+  const transport: CompatibleTransport = {
+    provider,
+    label: provider === "cheaperinference" ? "CheaperInference" : "OpenRouter",
+    endpoint:
+      provider === "cheaperinference"
+        ? CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL
+        : OPENROUTER_CHAT_COMPLETIONS_URL,
+    headers: {},
+  };
+  const messages =
+    opts.messagesOverride ??
+    buildOpenRouterMessages(opts.system, opts.history, opts.messageOpts);
+  const requestBodyBeforeAdapt = buildOpenRouterRequestBody(
+    modelId,
+    messages,
+    opts.stream !== false,
+    opts.targetResponseChars,
+    opts.messageOpts?.sessionId,
+    opts.messageOpts?.maxTokensOverride,
+    opts.messageOpts?.generationOverrides
+  ) as Record<string, unknown>;
+  const requestBody = adaptRequestBodyForTransport(requestBodyBeforeAdapt, transport);
+  return {
+    transport,
+    messages,
+    requestBodyBeforeAdapt,
+    requestBody,
+    adaptationKeyDiff: requestBodyKeyDiff(requestBodyBeforeAdapt, requestBody),
+  };
+}
+
 /** OpenRouter 스트리밍 — Claude 등 (Gemini 경로와 분리) */
 export async function* streamOpenRouterAdult(
   system: string,
@@ -1116,18 +1211,15 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
             }
           )
         : { messages: baseMessages, prefill: "" };
-  const requestBody = adaptRequestBodyForTransport(
-    buildOpenRouterRequestBody(
-      apiModelId,
-      messages,
-      true,
-      targetResponseChars,
-      messageOpts?.sessionId,
-      messageOpts?.maxTokensOverride,
-      messageOpts?.generationOverrides
-    ),
-    transport
-  );
+  const { requestBody } = assemblePrimaryRpRequest({
+    system: effectiveSystem,
+    history,
+    modelId: apiModelId,
+    targetResponseChars,
+    messageOpts,
+    stream: true,
+    messagesOverride: messages,
+  });
   const lengthTarget = resolveResponseLengthTarget(targetResponseChars);
   const configuredMaxTokens = resolveOpenRouterMaxTokens(
     targetResponseChars,
@@ -1202,6 +1294,15 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
   let finishReason: string | undefined;
   let lastStreamUsage: unknown = null;
   let usageDebugLogged = false;
+  let responseModelId: string | undefined;
+  let providerRequestId: string | undefined;
+  if (!isMockApiMode() && res) {
+    providerRequestId =
+      res.headers.get("x-request-id") ||
+      res.headers.get("x-openrouter-request-id") ||
+      res.headers.get("cf-ray") ||
+      undefined;
+  }
 
   // finalResponse = charName + aiGeneratedText — API는 prefill 이후만 생성, SSE에는 prefill 포함 전송
   const prefillStripper = createPrefillEchoStripper(prefill);
@@ -1234,6 +1335,8 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
         if (!payload || payload === "[DONE]") continue;
         try {
           const json = JSON.parse(payload) as {
+            model?: string | null;
+            id?: string | null;
             choices?: {
               delta?: { content?: string | null; text?: string | null; reasoning?: string | null };
               message?: { content?: string | null };
@@ -1246,6 +1349,12 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
               prompt_tokens_details?: { cached_tokens?: number; cache_write_tokens?: number };
             };
           };
+          if (typeof json.model === "string" && json.model.trim()) {
+            responseModelId = json.model.trim();
+          }
+          if (!providerRequestId && typeof json.id === "string" && json.id.trim()) {
+            providerRequestId = json.id.trim();
+          }
           const choice = json.choices?.[0];
           if (!choice) continue;
           if (choice.finish_reason) finishReason = choice.finish_reason;
@@ -1450,32 +1559,39 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
     ...tokenUsageFromOpenRouterBreakdown(finalBreakdown),
     finishReason,
     debugRawUsage: lastStreamUsage,
+    ...(responseModelId ? { responseModelId } : {}),
+    ...(providerRequestId ? { providerRequestId } : {}),
   };
   }
 
-  try {
-    console.warn("[OpenRouter] empty stream — non-stream fallback", {
-      model: apiModelId,
-    });
-    const fallback = await callOpenRouterAdult(
-      system,
-      history,
-      modelId,
-      targetResponseChars,
-      { ...messageOpts, skipAssistantPrefill: true },
-      {
-        ...debugMeta,
-        requestKind: debugMeta?.requestKind ?? "openrouter-stream-fallback",
-        chargeTurnBudget: false,
+  if (messageOpts?.allowEmptyStreamFallback !== false) {
+    try {
+      console.warn("[OpenRouter] empty stream — non-stream fallback", {
+        model: apiModelId,
+      });
+      const fallback = await callOpenRouterAdult(
+        system,
+        history,
+        modelId,
+        targetResponseChars,
+        { ...messageOpts, skipAssistantPrefill: true },
+        {
+          ...debugMeta,
+          requestKind: debugMeta?.requestKind ?? "openrouter-stream-fallback",
+          chargeTurnBudget: false,
+        }
+      );
+      const cleaned = trimLoopTail(sanitizeStreamArtifacts(fallback.text)).trim();
+      if (cleaned) {
+        yield cleaned;
+        return {
+          ...fallback.usage,
+          finishReason: fallback.usage.finishReason ?? "stop",
+        };
       }
-    );
-    const cleaned = trimLoopTail(sanitizeStreamArtifacts(fallback.text)).trim();
-    if (cleaned) {
-      yield cleaned;
-      return { ...fallback.usage, finishReason: fallback.usage.finishReason ?? "stop" };
+    } catch (fallbackErr) {
+      console.error("[OpenRouter] non-stream fallback failed", (fallbackErr as Error).message);
     }
-  } catch (fallbackErr) {
-    console.error("[OpenRouter] non-stream fallback failed", (fallbackErr as Error).message);
   }
 
   throw new OpenRouterApiError({
@@ -1509,6 +1625,21 @@ function mergeOpenRouterUsage(a: TokenUsage, b: TokenUsage): TokenUsage {
   };
 }
 
+function appendRpMetaLeakRecoveryTail(history: ChatMsg[]): ChatMsg[] {
+  const out = history.map((m) => ({ ...m }));
+  for (let i = out.length - 1; i >= 0; i--) {
+    const msg = out[i]!;
+    if (msg.role !== "user") continue;
+    const prev = typeof msg.content === "string" ? msg.content : String(msg.content ?? "");
+    out[i] = {
+      ...msg,
+      content: `${prev.trimEnd()}\n\n${RP_META_LEAK_RECOVERY_USER_TAIL}`,
+    };
+    break;
+  }
+  return out;
+}
+
 /** OpenRouter → SSE */
 export async function streamOpenRouterAdultToClient(
   send: (obj: object) => void,
@@ -1538,57 +1669,97 @@ export async function streamOpenRouterAdultToClient(
   const statusArtifactsOpts = messageOpts?.statusArtifactsOpts;
   const oocHtmlMode = messageOpts?.oocHtmlMode === true;
   const degenerationCtx = { oocHtmlMode };
-  const gen =
-    streamOverride ??
-    streamOpenRouterAdult(
-      system,
-      history,
-      modelId,
-      targetResponseChars,
-      { ...messageOpts, turnApiBudget },
-      {
-        requestKind: `${messageOpts?.transportProvider ?? "openrouter"}-primary-stream`,
-        stage: stageLabel,
-        turnApiBudget,
-      }
-    );
   let usage: TokenUsage = { inputTokens: 0, outputTokens: 0, estimated: true };
-  while (true) {
-    const { value, done } = await gen.next();
-    if (done) {
-      usage = value;
-      break;
+  let streamHistory = history;
+
+  leakGate:
+  for (let leakAttempt = 0; leakAttempt < 2; leakAttempt++) {
+    const bufferStream = leakAttempt === 0;
+    const streamSend: (obj: object) => void = bufferStream ? () => {} : send;
+    fullText = "";
+    lastCleanSent = "";
+    lastSentToClient = "";
+
+    const gen =
+      streamOverride ??
+      streamOpenRouterAdult(
+        system,
+        streamHistory,
+        modelId,
+        targetResponseChars,
+        { ...messageOpts, turnApiBudget },
+        {
+          requestKind: `${messageOpts?.transportProvider ?? "openrouter"}-primary-stream`,
+          stage: stageLabel,
+          turnApiBudget,
+        }
+      );
+    while (true) {
+      const { value, done } = await gen.next();
+      if (done) {
+        usage = value;
+        break;
+      }
+      fullText += value;
+      const prepared = liveStreamProse(fullText, statusArtifactsOpts, oocHtmlMode);
+      const { delta, clean, replace, replaceInstant } = streamDeltaAfterRpMetaStrip(
+        prepared,
+        lastCleanSent
+      );
+      const streamDelta = pushLiveStreamDelta(streamSend, clean, lastCleanSent, replace, {
+        ...liveDeltaOpts,
+        replaceInstant,
+        explicitDelta: replace == null ? delta : undefined,
+        lastSentToClient,
+      });
+      lastCleanSent = streamDelta.lastCleanSent;
+      lastSentToClient = streamDelta.lastSentToClient;
     }
-    fullText += value;
-    const prepared = liveStreamProse(fullText, statusArtifactsOpts, oocHtmlMode);
-    const { delta, clean, replace, replaceInstant } = streamDeltaAfterRpMetaStrip(
-      prepared,
+
+    const {
+      clean: tailClean,
+      replace: tailReplace,
+      replaceInstant: tailReplaceInstant,
+      delta: tailDelta,
+    } = streamDeltaAfterRpMetaStrip(
+      liveStreamProse(fullText, statusArtifactsOpts, oocHtmlMode),
       lastCleanSent
     );
-    const streamDelta = pushLiveStreamDelta(send, clean, lastCleanSent, replace, {
+    const tailStreamDelta = pushLiveStreamDelta(streamSend, tailClean, lastCleanSent, tailReplace, {
       ...liveDeltaOpts,
-      replaceInstant,
-      explicitDelta: replace == null ? delta : undefined,
+      replaceInstant: tailReplaceInstant,
+      explicitDelta: tailReplace == null ? tailDelta : undefined,
       lastSentToClient,
     });
-    lastCleanSent = streamDelta.lastCleanSent;
-    lastSentToClient = streamDelta.lastSentToClient;
-  }
+    lastCleanSent = tailStreamDelta.lastCleanSent;
+    lastSentToClient = tailStreamDelta.lastSentToClient;
 
-  const {
-    clean: tailClean,
-    replace: tailReplace,
-    replaceInstant: tailReplaceInstant,
-    delta: tailDelta,
-  } = streamDeltaAfterRpMetaStrip(liveStreamProse(fullText, statusArtifactsOpts, oocHtmlMode), lastCleanSent);
-  const tailStreamDelta = pushLiveStreamDelta(send, tailClean, lastCleanSent, tailReplace, {
-    ...liveDeltaOpts,
-    replaceInstant: tailReplaceInstant,
-    explicitDelta: tailReplace == null ? tailDelta : undefined,
-    lastSentToClient,
-  });
-  lastCleanSent = tailStreamDelta.lastCleanSent;
-  lastSentToClient = tailStreamDelta.lastSentToClient;
+    const visibleForLeakGate = liveStreamProse(fullText, statusArtifactsOpts, oocHtmlMode);
+    const leakResult = detectRpMetaLeakage(visibleForLeakGate);
+    if (leakResult.status === "PASS") {
+      if (bufferStream && visibleForLeakGate.trim()) {
+        send({ type: "replace", text: visibleForLeakGate, instant: true });
+        lastCleanSent = visibleForLeakGate.trimEnd();
+        lastSentToClient = visibleForLeakGate.trimEnd();
+      }
+      break leakGate;
+    }
+
+    if (leakAttempt >= 1) {
+      console.warn("[OpenRouter] repeated RP meta leak — blocking output", {
+        matchedMarkers: leakResult.matchedMarkers,
+        leakStartIndex: leakResult.leakStartIndex,
+      });
+      throw new MetaLeakageAbortError();
+    }
+
+    console.warn("[OpenRouter] RP meta leak — full regeneration", {
+      attempt: leakAttempt + 1,
+      matchedMarkers: leakResult.matchedMarkers,
+      leakStartIndex: leakResult.leakStartIndex,
+    });
+    streamHistory = appendRpMetaLeakRecoveryTail(history);
+  }
 
   /** stream-first — dedupe/loop tail 금지, 유저가 본 텍스트 기준 */
   const streamVisibleText = lastSentToClient.trimEnd();

@@ -13,6 +13,14 @@ export class DegenerationAbortError extends Error {
   }
 }
 
+/** Repeated provider meta-leak after one full regeneration — same user-facing message as degeneration. */
+export class MetaLeakageAbortError extends Error {
+  constructor(message = DEGENERATION_USER_MESSAGE) {
+    super(message);
+    this.name = "MetaLeakageAbortError";
+  }
+}
+
 export type DegenerationGuardContext = { oocHtmlMode?: boolean };
 
 const HANGUL = /[가-힣]/g;
