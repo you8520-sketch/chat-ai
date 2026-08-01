@@ -132,6 +132,7 @@ import {
   buildSceneDirective,
   renderSceneDirectiveForPrompt,
 } from "@/lib/sceneDirective";
+import { extractSimulationCastNames } from "@/lib/simulationMode";
 import {
   commitSceneProgressionState,
   loadSceneProgressionState,
@@ -1108,6 +1109,12 @@ export async function POST(req: Request) {
     chatId: chat.id,
     currentTurn: sceneProgressionTurn,
     progressionHistory: sceneProgressionState.recent,
+    contentKind: ch.content_kind === "simulation" ? "simulation" : "character",
+    primaryCharacterName: ch.name,
+    establishedActiveCastNames:
+      ch.content_kind === "simulation"
+        ? extractSimulationCastNames(ch.simulation_cast ?? "")
+        : undefined,
   });
   const sceneDirectiveBlock = renderSceneDirectiveForPrompt(sceneDirective);
   /** UI-safe allowlist only — never includes nextBeatHint / directive prose. */

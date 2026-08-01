@@ -244,17 +244,19 @@ describe("world-motion-v1.1 weighted rotation", () => {
     }
   });
 
-  it("prompt has single ENGINE RULE and stays under 600 chars for directive body", () => {
+  it("prompt has single ENGINE RULE and stays under 650 chars for directive body", () => {
     const d = buildSceneDirective({
       mode: "interactive",
       recentMessages: quietHistory,
       currentUserMessage: "손을 겹친다.",
       chatId: 1,
       currentTurn: 1,
+      primaryCharacterName: "태형",
+      contentKind: "character",
     });
     const block = renderSceneDirectiveForPrompt(d);
     assert.equal((block.match(/\[PRIVATE SCENE ENGINE RULE\]/g) || []).length, 1);
-    assert.ok(block.length < 600, `directiveCharCount=${block.length}`);
+    assert.ok(block.length < 650, `directiveCharCount=${block.length}`);
     assert.doesNotMatch(block, /weight|cooldown|seed|world-motion/i);
   });
 
