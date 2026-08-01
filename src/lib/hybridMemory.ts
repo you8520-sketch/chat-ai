@@ -79,7 +79,39 @@ export function recentTurnsToHistory(
   return out;
 }
 
-/** 채팅 히스토리 — 토큰 예산 + 최소 턴 floor (예산 초과해도 최근 MIN_HISTORY_TURN_FLOOR턴 유지) */
+/**
+ * RAW history 최소 보존 턴 수 — LTM coverage invariant.
+ *
+ * completedTurns = 메인 모델 호출 직전까지 완료된 playable turns (greeting 제외)
+ * summarizedTurnCount = LTM에 연속 반영 완료된 playable turns
+ *
+ * coverageFloor = max(MIN_HISTORY_TURN_FLOOR, unsummarizedTurns)
+ * → 미요약 구간이 기본 floor(4)보다 길면 그 전체를 RAW에서 보호 (soft-over-budget 허용)
+ */
+export function resolveMemoryCoverageTurnFloor(opts: {
+  completedTurns: number;
+  summarizedTurnCount?: number | null;
+  minimumTurns?: number;
+}): number {
+  const completed = Math.max(0, Math.floor(Number(opts.completedTurns) || 0));
+  const summarized = Math.max(0, Math.floor(Number(opts.summarizedTurnCount) || 0));
+  const minimum = Math.max(0, Math.floor(opts.minimumTurns ?? MIN_HISTORY_TURN_FLOOR));
+  const unsummarizedTurns = Math.max(0, completed - summarized);
+  return Math.max(minimum, unsummarizedTurns);
+}
+
+/** Coverage gap: first RAW playable turn should be <= summarizedTurnCount + 1 (gap 0). */
+export function resolveMemoryCoverageGap(opts: {
+  firstRawPlayableTurn: number | null | undefined;
+  summarizedTurnCount: number;
+}): number {
+  const firstRaw = opts.firstRawPlayableTurn;
+  if (firstRaw == null || !Number.isFinite(firstRaw) || firstRaw < 1) return 0;
+  const summarized = Math.max(0, Math.floor(opts.summarizedTurnCount));
+  return Math.max(0, Math.floor(firstRaw) - (summarized + 1));
+}
+
+/** 채팅 히스토리 — 토큰 예산 + 최소 턴 floor (예산 초과해도 최근 minTurnFloor턴 유지) */
 export function trimHistoryToBudget(
   history: ChatMsg[],
   budget: number,
@@ -125,7 +157,7 @@ function alignHistoryPrefixDrop(
 
 /**
  * 전체 대화 턴 풀 — opening + playable 전부.
- * 주입량은 trimHistoryToBudget(전 모델 10K + 최소 4턴 floor)만 결정.
+ * 주입량은 trimHistoryToBudget(전 모델 10K + coverage-aware floor)만 결정.
  */
 export function resolveRawRecentTurnPool(
   turns: DialogueTurn[],

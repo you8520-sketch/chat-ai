@@ -102,6 +102,7 @@ import {
   countPlayableTurns,
   rawRecentTurnsToHistory,
   resolveLorebookExcludeFromTrimmedHistory,
+  resolveMemoryCoverageTurnFloor,
   trimHistoryToBudget,
 } from "@/lib/hybridMemory";
 import { resolveHistoryTokenBudget } from "@/lib/contextTrack";
@@ -903,7 +904,16 @@ export async function POST(req: Request) {
       content: replaceUserPlaceholder(m.content, personaDisplayName, user.nickname),
     })
   );
-  const trimmedHistoryForLorebook = trimHistoryToBudget(recentHistoryFull, historyTokenBudget);
+  const summarizedTurnCount = chatMemory?.summarized_turn_count ?? 0;
+  const memoryCoverageFloor = resolveMemoryCoverageTurnFloor({
+    completedTurns: playableTurnCount,
+    summarizedTurnCount,
+  });
+  const trimmedHistoryForLorebook = trimHistoryToBudget(
+    recentHistoryFull,
+    historyTokenBudget,
+    memoryCoverageFloor
+  );
   const recentHistory: ChatMsg[] = recentHistoryFull;
   const shortTermHistory = recentHistory;
 
@@ -1207,6 +1217,7 @@ export async function POST(req: Request) {
     chatId: chat.id,
     targetResponseChars,
     completedTurns: playableTurnCount,
+    summarizedTurnCount,
     userPersonaGender: selectedPersona?.gender ?? "other",
     provider: "openrouter" as const,
     genres: characterGenres,
