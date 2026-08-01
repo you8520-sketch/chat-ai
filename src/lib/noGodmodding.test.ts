@@ -22,6 +22,7 @@ describe("buildCompactNoGodmoddingStandardBlock", () => {
     assert.match(block, /유저 행동을 대신 쓰지 않아도 장면을 이어간다/);
     assert.doesNotMatch(block, /짧은 비자발 반응/);
     assert.match(block, /\[INTERACTIVE USER CONTROL\]/);
+    assert.match(block, /현재까지 확정되지 않은 유저의 이동·대사·동의·선택·주도 행동을 새로 일어난 사실처럼 쓰지 않는다/);
     assert.match(block, /분량을 채우기 위해 유저를 움직이지 않는다/);
     assert.match(block, /매 턴 질문으로 멈추지 않는다/);
     assert.doesNotMatch(block, /TARGET_LENGTH/);

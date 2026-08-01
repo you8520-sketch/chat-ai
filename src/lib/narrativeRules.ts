@@ -292,6 +292,225 @@ export function streamDeltaAfterRpMetaStrip(
   return { delta: "", clean: cleaned, replace: cleaned, replaceInstant: true };
 }
 
+export type RpMetaLeakageResult = {
+  status: "PASS" | "FAILURE";
+  leakStartIndex: number | null;
+  matchedMarkers: string[];
+  matchedLines: string[];
+  highConfidenceMarkerCount: number;
+  metaLineCount: number;
+  tailOnly: boolean;
+};
+
+/** One-time user tail for leak full-regeneration — not persisted in prompt templates. */
+export const RP_META_LEAK_RECOVERY_USER_TAIL =
+  "직전 생성에는 장면 밖의 내부 작업 메모가 섞였다.\n같은 장면을 처음부터 다시 작성하고,\n한국어 RP 본문 외의 지시·계획·길이 계산·출력 점검 문장은 쓰지 않는다.";
+
+type RpMetaMarkerDef = { id: string; re: RegExp; strong?: boolean };
+
+const RP_META_HC_MARKERS: RpMetaMarkerDef[] = [
+  { id: "need_length", re: /\bNeed length\b/i },
+  { id: "need_final", re: /\bNeed final\b/i },
+  { id: "need_output", re: /\bNeed output\b/i },
+  { id: "developer_says", re: /\bdeveloper says\b/i, strong: true },
+  { id: "system_says", re: /\bsystem says\b/i },
+  { id: "system_prompt", re: /\bsystem prompt\b/i, strong: true },
+  { id: "need_final_response", re: /\bNeed final response\b/i, strong: true },
+  { id: "final_response", re: /\bfinal response\b/i },
+  { id: "lets_answer", re: /\bLet's answer\b/i },
+  { id: "we_need", re: /\bWe need\b/i },
+  { id: "i_should", re: /\bI should\b/i },
+  { id: "target_chars", re: /\btarget chars\b/i },
+  { id: "character_count", re: /\bcharacter count\b/i },
+  { id: "token_count", re: /\btoken count\b/i },
+  { id: "no_markdown", re: /\bno markdown\b/i },
+  { id: "assistant_response", re: /\bassistant response\b/i },
+  { id: "user_requested", re: /\buser requested\b/i },
+  { id: "policy_says", re: /\bpolicy says\b/i },
+  { id: "ko_char_check", re: /글자\s*수를\s*확인/ },
+  { id: "ko_final_response", re: /최종\s*응답/ },
+  { id: "ko_system_directive", re: /시스템\s*지시/ },
+  { id: "ko_dev_directive", re: /개발자\s*지시/ },
+  { id: "ko_output_only", re: /출력만\s*해야/ },
+  { id: "ko_prompt_follow", re: /프롬프트에\s*따르면/ },
+];
+
+const RP_META_STRONG_IDS = new Set(["developer_says", "system_prompt", "need_final_response"]);
+
+const RP_META_SELF_EVAL_RE =
+  /\b(?:character|token)\s*count\b|\btarget\s*(?:chars|length|maybe)\b|\bno\s*markdown\b|(?:글자|문자|토큰)\s*수[^.\n]{0,24}(?:확인|맞|부족|충분|계산)|(?:지시|instruction)[^.\n]{0,32}(?:준수|follow|comply)|최종\s*(?:답변|응답)[^.\n]{0,24}(?:확인|점검)/i;
+
+function rpMetaHangulCount(text: string): number {
+  return (text.match(/[가-힣]/g) ?? []).length;
+}
+
+function isRpMetaEnglishReviewLine(line: string): boolean {
+  const t = line.trim();
+  if (!t) return false;
+  if (rpMetaHangulCount(t) > t.length * 0.35) return false;
+  return (
+    RP_META_HC_MARKERS.some((m) => m.re.test(t)) ||
+    RP_META_SELF_EVAL_RE.test(t) ||
+    /\b(?:Need|Let's|Wait|However|Good\.|Done\.)\b/.test(t)
+  );
+}
+
+function isRpMetaOutOfSceneSelfReviewLine(line: string): boolean {
+  const t = line.trim();
+  if (!t) return false;
+  if (/^[「『""]/.test(t) && !RP_META_HC_MARKERS.some((m) => m.re.test(t))) return false;
+  if (
+    /[「『""][^""」\n]{0,200}[""」]/.test(t) &&
+    !/\b(?:Need|Let's|developer|system prompt|We need|I should)\b/i.test(t)
+  ) {
+    return false;
+  }
+  return (
+    RP_META_HC_MARKERS.some((m) => m.re.test(t)) ||
+    RP_META_SELF_EVAL_RE.test(t)
+  );
+}
+
+type RpMetaMarkerHit = {
+  lineIndex: number;
+  markerId: string;
+  strong: boolean;
+  line: string;
+  charIndex: number;
+};
+
+function findRpMetaMarkerHits(text: string): RpMetaMarkerHit[] {
+  const lines = text.split("\n");
+  const hits: RpMetaMarkerHit[] = [];
+  let offset = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    for (const marker of RP_META_HC_MARKERS) {
+      const match = marker.re.exec(line);
+      if (match) {
+        hits.push({
+          lineIndex: i,
+          markerId: marker.id,
+          strong: Boolean(marker.strong || RP_META_STRONG_IDS.has(marker.id)),
+          line: line.trim(),
+          charIndex: offset + (match.index ?? 0),
+        });
+      }
+    }
+    offset += line.length + 1;
+  }
+  return hits;
+}
+
+function rpMetaMarkersWithinSixLines(hits: RpMetaMarkerHit[]): boolean {
+  const indices = [...new Set(hits.map((h) => h.lineIndex))].sort((a, b) => a - b);
+  if (indices.length < 2) return false;
+  for (let i = 0; i < indices.length; i++) {
+    for (let j = i + 1; j < indices.length; j++) {
+      if (indices[j]! - indices[i]! <= 5) return true;
+    }
+  }
+  return false;
+}
+
+function rpMetaEnglishSelfReviewTailAfterKorean(text: string): number | null {
+  const lines = text.split("\n");
+  let lastKoLine = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const t = lines[i]!.trim();
+    if (rpMetaHangulCount(t) >= 12 && !isRpMetaEnglishReviewLine(t)) lastKoLine = i;
+  }
+  if (lastKoLine < 0 || lastKoLine >= lines.length - 2) return null;
+
+  let consecutive = 0;
+  let startOffset = 0;
+  for (let i = 0; i <= lastKoLine; i++) startOffset += lines[i]!.length + 1;
+
+  for (let i = lastKoLine + 1; i < lines.length; i++) {
+    const t = lines[i]!.trim();
+    if (!t) continue;
+    if (isRpMetaEnglishReviewLine(t)) {
+      consecutive++;
+      if (consecutive >= 2) return startOffset;
+    } else if (rpMetaHangulCount(t) >= 8) {
+      break;
+    } else {
+      startOffset += lines[i]!.length + 1;
+    }
+  }
+  return null;
+}
+
+/** Hard detector for provider meta / self-review leakage in visible RP prose. Does not mutate text. */
+export function detectRpMetaLeakage(text: string): RpMetaLeakageResult {
+  if (!text.trim()) {
+    return {
+      status: "PASS",
+      leakStartIndex: null,
+      matchedMarkers: [],
+      matchedLines: [],
+      highConfidenceMarkerCount: 0,
+      metaLineCount: 0,
+      tailOnly: false,
+    };
+  }
+
+  const hits = findRpMetaMarkerHits(text);
+  const matchedMarkers = [...new Set(hits.map((h) => h.markerId))];
+  const matchedLines = [...new Set(hits.map((h) => h.line))].slice(0, 12);
+  const metaLineCount = matchedLines.length;
+  const highConfidenceMarkerCount = matchedMarkers.length;
+
+  const lines = text.split("\n");
+  const selfEvalLine = lines.find(
+    (line) => RP_META_SELF_EVAL_RE.test(line.trim()) && isRpMetaOutOfSceneSelfReviewLine(line)
+  );
+
+  let failure = false;
+  let leakStartIndex: number | null =
+    hits.length > 0 ? Math.min(...hits.map((h) => h.charIndex)) : null;
+
+  if (hits.length >= 2 && rpMetaMarkersWithinSixLines(hits)) {
+    failure = true;
+  }
+
+  if (!failure) {
+    for (const hit of hits) {
+      if (hit.strong && isRpMetaOutOfSceneSelfReviewLine(hit.line)) {
+        failure = true;
+        leakStartIndex = hit.charIndex;
+        break;
+      }
+    }
+  }
+
+  if (!failure) {
+    const tailStart = rpMetaEnglishSelfReviewTailAfterKorean(text);
+    if (tailStart != null) {
+      failure = true;
+      leakStartIndex = tailStart;
+    }
+  }
+
+  if (!failure && selfEvalLine) {
+    failure = true;
+    leakStartIndex = text.indexOf(selfEvalLine.trim());
+  }
+
+  const tailOnly =
+    failure && leakStartIndex != null && leakStartIndex >= Math.floor(text.length * 0.65);
+
+  return {
+    status: failure ? "FAILURE" : "PASS",
+    leakStartIndex: failure ? leakStartIndex : null,
+    matchedMarkers,
+    matchedLines,
+    highConfidenceMarkerCount,
+    metaLineCount,
+    tailOnly,
+  };
+}
+
 /** Part 1: … / 파트 2: … 등 메타 장면 라벨만 제거 — 본문은 유지 */
 export function stripNarrativePartLabels(text: string): string {
   const stripLinePrefix = (line: string) =>

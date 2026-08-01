@@ -1,0 +1,15 @@
+# Luna Minimal Core V1 — dialogue block re-eval
+generatedAt=2026-08-01T00:27:05.188Z
+apiCallsExecuted=0
+runtimePromptChanged=false
+productionCodeChanged=false
+
+## data/luna-minimal-core-v1-review.txt
+Q1 dialogueBlockCount=12
+S1 dialogueBlockCount=3
+M1 dialogueBlockCount=6
+U1 dialogueBlockCount=7
+
+## data/luna-minimal-core-v1-agency-a1-review.txt
+U1-A1 dialogueBlockCount=5
+Q1-A1 dialogueBlockCount=5

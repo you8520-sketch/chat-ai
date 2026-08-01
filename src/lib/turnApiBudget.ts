@@ -20,12 +20,20 @@ export const SERVER_UNDER_LENGTH_RECOVERY_ENABLED = TURN_LENGTH_SUPPLEMENT_API_E
 
 export const HTML_RECOVERY_SUB_CALLS_ENABLED = TURN_LENGTH_SUPPLEMENT_API_ENABLED;
 
+/**
+ * RP meta-leak full regeneration — one extra provider call per turn when detector fires.
+ * Distinct from length supplement APIs (TURN_LENGTH_SUPPLEMENT_API_ENABLED).
+ */
+export const RP_META_LEAK_REGEN_API_ENABLED = true;
+
 /** 유저 1턴당 내부 API 재호출 상한 — 초기 1회(본 호출) 제외 */
 export const MAX_TURN_SUB_API_CALLS = TURN_LENGTH_SUPPLEMENT_API_ENABLED
   ? (RECOVERY_SUB_CALLS_ENABLED ? 1 : 0) +
     (NARRATIVE_LENGTH_CONTINUATION_ENABLED ? 1 : 0) +
     (SERVER_UNDER_LENGTH_RECOVERY_ENABLED ? 1 : 0)
-  : 0;
+  : RP_META_LEAK_REGEN_API_ENABLED
+    ? 1
+    : 0;
 
 const LENGTH_SUPPLEMENT_REQUEST_KIND =
   /continuation|truncation-recovery|under-length|length-recovery|narrative-length/i;
@@ -223,9 +231,11 @@ export class TurnApiBudget {
   }
 
   canSubCall(): boolean {
-    if (!TURN_LENGTH_SUPPLEMENT_API_ENABLED) return false;
     if (isGeminiIsolationMode()) return this.fetchCount < 1;
-    return this.fetchCount <= MAX_TURN_SUB_API_CALLS;
+    if (TURN_LENGTH_SUPPLEMENT_API_ENABLED) {
+      return this.fetchCount <= MAX_TURN_SUB_API_CALLS;
+    }
+    return RP_META_LEAK_REGEN_API_ENABLED && this.fetchCount <= MAX_TURN_SUB_API_CALLS;
   }
 
   get fetchCountSnapshot(): number {

@@ -13,11 +13,25 @@ export const NO_FALSE_SHARED_MEMORY_RULE = `[NO FALSE SHARED MEMORY]
 불확실하면 질문, 관찰, 추측, 새 발견으로 처리한다.`;
 
 /** Compact interactive-only reinforcement (no length rules). */
+export const LUNA_MINIMAL_CORE_V1_AGENCY_A1_SENTENCE =
+  "현재까지 확정되지 않은 유저의 이동·대사·동의·선택·주도 행동을 새로 일어난 사실처럼 쓰지 않는다.";
+
+/** Compact interactive-only reinforcement (no length rules). */
 export const INTERACTIVE_USER_CONTROL_BLOCK = `[INTERACTIVE USER CONTROL]
 일반 입력 턴에서는 유저의 대사, 의도적 행동, 생각, 결정, 동의/거절, 감정 결론, 신체 반응, 표정, 기억, 약속을 쓰지 않는다.
+${LUNA_MINIMAL_CORE_V1_AGENCY_A1_SENTENCE}
 분량을 채우기 위해 유저를 움직이지 않는다.
 NPC, 환경, 사건의 여파, 긴장으로 장면을 이어간다. 유저 행동을 대신 쓰지 않아도 매 턴 질문으로 멈추지 않는다.
 실제 대화·기억·페르소나에 없는 일을 “전에 말했잖아/아까 네가/네가 약속했잖아”로 꾸며 쓰지 말고, 불확실하면 질문·관찰·추측으로 한다.`;
+
+/**
+ * V3.1-era candidate ownership string (legacy export).
+ * V3.1 harness freezes its own copy in deepseekSurgicalV31.ts.
+ * V3.2 owner lives in deepseekLivingV32.ts (AI_ACTION_USER_RESPONSE_BLOCK_V32).
+ * Not injected on production default path.
+ */
+export const AI_ACTION_USER_RESPONSE_BLOCK = `[AI ACTION / USER RESPONSE]
+AI는 성격·능력·관계·상황에 맞게 유저에게 접촉·물리 개입할 수 있다(턱·손목 잡기, 끌어당기기, 길 막기, 짧게 제압 등 실제 성립 가능). 소유권은 접촉 금지가 아니다. 단 유저 감정·수락·저항 포기·후속 대사·장시간 행동 연쇄는 대신 쓰지 않고, 성공한 저항·이탈은 소급 무효화하지 않는다. 강제 이동 완료·의식 상실·중대 부상·장시간 결박 전 반응 지점을 남긴다.`;
 
 export const POSSESSION_MODE_HINT =
   `[possession_mode] Co-narrate user persona minimally; do not inflate user dialogue or romance beyond their input.`;

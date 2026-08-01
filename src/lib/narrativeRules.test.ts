@@ -5,6 +5,7 @@ import {
   stripInternalTagLeakage,
   stripModelXmlLeakage,
   stripSceneAnalysisLeakage,
+  detectRpMetaLeakage,
 } from "@/lib/narrativeRules";
 
 describe("stripModelXmlLeakage", () => {
@@ -65,6 +66,36 @@ describe("stripInternalTagLeakage", () => {
   it("also strips speech profile brackets", () => {
     const input = "[SPEECH PROFILE test]\n본문";
     assert.equal(stripInternalTagLeakage(input), "본문");
+  });
+});
+
+describe("detectRpMetaLeakage", () => {
+  const koRp =
+    "재현은 천천히 고개를 들었다. 창밖으로 빗줄기가 떨어지고 있었다.\n\n「조용히 있어.」\n\n그는 손을 내밀었다.";
+
+  it("PASS — normal Korean RP with English equipment name", () => {
+    const input = `${koRp}\n\n그는 M4A1 소총을 조용히 내려놓았다.`;
+    assert.equal(detectRpMetaLeakage(input).status, "PASS");
+  });
+
+  it("PASS — short English dialogue inside RP", () => {
+    const input = `${koRp}\n\n「Stay close.」\n\n그녀는 속삭였다.`;
+    assert.equal(detectRpMetaLeakage(input).status, "PASS");
+  });
+
+  it("FAILURE — Need length count tail", () => {
+    const input = `${koRp}\n\nNeed length count. Need final response.`;
+    assert.equal(detectRpMetaLeakage(input).status, "FAILURE");
+  });
+
+  it("FAILURE — developer says tail", () => {
+    const input = `${koRp}\n\ndeveloper says no markdown in output.`;
+    assert.equal(detectRpMetaLeakage(input).status, "FAILURE");
+  });
+
+  it("FAILURE — Korean length calculation memo", () => {
+    const input = `${koRp}\n\n글자 수를 확인해야 한다. 최종 응답이 부족하다.`;
+    assert.equal(detectRpMetaLeakage(input).status, "FAILURE");
   });
 });
 
