@@ -461,3 +461,61 @@ productionAdoptionAuthorized=false — awaiting single human approval before mer
 deepseekLivingV32/33/33r + livingNovelSimulationV3Styles not included in this branch (worktree from origin/main)
 branch=feature/world-motion-v1.1-weighted-rotation (worktree E:/ai chat/_wm-v11)
 base=origin/main @ ee2e570
+## POST_DEPLOY_MAIN_HOME_SMOKE
+
+mergeCommit=942bc14a0c6847f82cb2508dd58a5f247f893277
+railwayDeployment=SUCCESS (enchanting-ambition - chat-ai @ chat-ai-production-3e84.up.railway.app)
+deploymentHealth=/health PASS (200 ok=true)
+productionDirectiveSource=legacy_v1 (unchanged; no V2/Living flags)
+scene_progression_state=CREATE TABLE IF NOT EXISTS (idempotent; no chat data migration)
+
+turn1=
+  selectedProgressionTypes=inferred:relationship+npc_action+daily_life (pair talk -> 윤태건 summons to meeting; cafeteria ambient)
+  visibleChars=태형, 윤태건, ambient 가이드 glance, 식당 직원/방송
+  newNpcCount=1 (윤태건 — existing world cast, not invented fanout)
+  npcDialogueBlockCount=1 chain (태건↔태형; not multi-NPC cascade)
+  unrelatedMajorEventCount=0
+  samePrimaryAsPreviousTurn=n/a
+  userMovementInvented=false
+  userDialogueInvented=false
+  sceneStillMoves=true
+  result=PASS
+
+turn2=
+  selectedProgressionTypes=inferred:relationship+consequence (return plan, orientation schedule, temp call card left)
+  visibleChars=태형, 윤태건 (brief)
+  newNpcCount=0
+  npcDialogueBlockCount=1 brief (태건 재촉)
+  unrelatedMajorEventCount=0
+  samePrimaryAsPreviousTurn=partial overlap on relationship (allowed once)
+  userMovementInvented=false
+  userDialogueInvented=false
+  sceneStillMoves=true
+  result=PASS
+
+turn3=
+  selectedProgressionTypes=inferred:world_reaction+npc_action+lore_clue (orientation staff, cafeteria gossip, facility check notice, registration mystery)
+  visibleChars=태형, 윤태건, 지원국 안내 직원, 식당 직원, ambient 가이드/센티넬
+  newNpcCount=world-grounded staff/ambient only (not ungrounded multi-NPC spawn)
+  npcDialogueBlockCount=ambient+태건+태형 (no dialogue cascade hijack)
+  unrelatedMajorEventCount=0 (registration/meeting/orientation all grounded in prior turns)
+  samePrimaryAsPreviousTurn=false (primary shifts to world_reaction/lore)
+  userMovementInvented=false
+  userDialogueInvented=false
+  sceneStillMoves=true
+  result=PASS
+
+npcFanoutRemaining=false
+memoryKeywordSkewRemaining=false
+agencyRegression=false
+finalProductionVerdict=PASS_WEIGHTED_WORLD_MOTION_IN_PRODUCTION
+
+## production final
+officialStatus=WORLD_MOTION_V1_1_PRODUCTION_PASSED
+officialVerdict=PASS_WEIGHTED_WORLD_MOTION_IN_PRODUCTION
+WORLD_MOTION_V1_1_PRODUCTION_SMOKE_PASS=true
+WORLD_MOTION_WORK_COMPLETE=true
+STYLE_WORK_REOPENED=false
+productionAdoptionAuthorized=true
+mergeAuthorized=true
+deploymentAuthorized=true
