@@ -2,6 +2,7 @@ import type { ChatMsg } from "@/lib/ai";
 import { AUTO_PROGRESSION_SCENE_USER_CONTROL } from "@/lib/autoProgressionRules";
 import { NO_FALSE_SHARED_MEMORY_RULE } from "@/lib/noGodmodding";
 import type { SceneProgressionHistoryEntry } from "@/lib/sceneProgressionState";
+import type { ContentKind } from "@/lib/simulationMode";
 
 export type SceneDirectiveMode = "interactive" | "auto_progression";
 
@@ -28,6 +29,19 @@ export type SceneKind =
   | "climax"
   | "neutral";
 
+/**
+ * Cast mode from explicit character/chat settings only.
+ * Never inferred from recent-message NPC counts or operation keywords.
+ */
+export type SceneCastMode = "single_primary" | "ensemble" | "simulation";
+
+export type SceneCastFocus = {
+  sceneCastMode: SceneCastMode;
+  primaryCharacterName: string | null;
+  /** Server/eval only — never rendered into the model prompt. */
+  supportingCastBudget: number;
+};
+
 export type SceneDirective = {
   mode: SceneDirectiveMode;
   recentStagnation: boolean;
@@ -36,6 +50,8 @@ export type SceneDirective = {
   avoid: string[];
   nextBeatHint?: string;
   userControl: SceneUserControl;
+  /** Focus computed from settings — budget is never prompt-exposed. */
+  castFocus: SceneCastFocus;
 };
 
 export type SceneDirectiveInput = {
@@ -52,6 +68,17 @@ export type SceneDirectiveInput = {
   currentTurn?: number | null;
   /** Recent committed progression history (last ≤4 turns). */
   progressionHistory?: SceneProgressionHistoryEntry[] | null;
+  /** Explicit content kind from character settings (`character` | `simulation`). */
+  contentKind?: ContentKind | null;
+  /** Representative character name for single-primary chats. */
+  primaryCharacterName?: string | null;
+  /** Explicit party/ensemble chat flag — not inferred from scene NPC count. */
+  party?: boolean | null;
+  /**
+   * Established active cast names from settings (simulation cast / party members).
+   * Used only for ensemble/simulation supportingCastBudget — not for mode detection.
+   */
+  establishedActiveCastNames?: string[] | null;
 };
 
 /** Internal telemetry — never rendered into the model prompt. */
@@ -437,6 +464,8 @@ export function selectProgressionTypesWeighted(input: {
   chatId?: number | string | null;
   currentTurn?: number | null;
   progressionHistory?: SceneProgressionHistoryEntry[] | null;
+  /** Soft priority only — never used to flip cast mode. */
+  sceneCastMode?: SceneCastMode | null;
 }): { types: SceneProgressionType[]; meta: ProgressionSelectionMeta } {
   const sceneKind = resolveSceneKind(input.sceneSignalText);
   const hasTrigger = Boolean(input.triggeredEventText?.trim());
@@ -469,6 +498,14 @@ export function selectProgressionTypesWeighted(input: {
   applyBoost(sceneKindBoosts(sceneKind));
   if (input.stagnant) applyBoost(stagnationBoosts());
   if (hasTrigger) applyBoost(triggerBoosts());
+
+  // single_primary: keep npc_action available, but prefer advancing the main interaction.
+  if (input.sceneCastMode === "single_primary" && !hasTrigger) {
+    const npc = weights.get("npc_action") ?? 0;
+    if (npc > 0) weights.set("npc_action", npc * 0.55);
+    weights.set("relationship", (weights.get("relationship") ?? 0) * 1.2);
+    weights.set("daily_life", (weights.get("daily_life") ?? 0) * 1.15);
+  }
 
   // Eligibility gates — zero unfit (memory/lore never force operation).
   if (sceneKind === "rest" || sceneKind === "neutral") {
@@ -607,10 +644,64 @@ const HINT_BY_TYPE: Record<SceneProgressionType, string> = {
   comedy: "가벼운 오해나 엇갈림이 긴장 없이 장면을 한 박자 움직인다.",
 };
 
+/** Soft framing for single_primary — prefers expression through the main interaction, not bans. */
+const SINGLE_PRIMARY_NPC_ACTION_HINT =
+  "보조 인물의 움직임은 장면 밖 결과, 메시지·환경 변화, 또는 중심 인물의 대응으로 현재 상호작용을 전진시킨다.";
+
+/**
+ * Resolve cast focus from explicit character/chat settings only.
+ * Does not inspect recent-message speaker counts or scene keywords.
+ */
+export function resolveSceneCastFocus(input: {
+  contentKind?: ContentKind | null;
+  primaryCharacterName?: string | null;
+  party?: boolean | null;
+  establishedActiveCastNames?: string[] | null;
+}): SceneCastFocus {
+  const primary =
+    typeof input.primaryCharacterName === "string" && input.primaryCharacterName.trim()
+      ? input.primaryCharacterName.trim()
+      : null;
+  const castNames = (input.establishedActiveCastNames ?? [])
+    .map((name) => name.trim())
+    .filter(Boolean);
+
+  if (input.contentKind === "simulation") {
+    const budget = Math.max(2, Math.min(6, castNames.length || 3));
+    return {
+      sceneCastMode: "simulation",
+      primaryCharacterName: primary,
+      supportingCastBudget: budget,
+    };
+  }
+  if (input.party === true) {
+    const budget = Math.max(2, Math.min(6, castNames.length || 3));
+    return {
+      sceneCastMode: "ensemble",
+      primaryCharacterName: primary,
+      supportingCastBudget: budget,
+    };
+  }
+  return {
+    sceneCastMode: "single_primary",
+    primaryCharacterName: primary,
+    supportingCastBudget: 1,
+  };
+}
+
+/** Positive focus line for single_primary only — never a ban list. */
+export function renderPrimaryFocusLine(focus: SceneCastFocus): string | null {
+  if (focus.sceneCastMode !== "single_primary") return null;
+  const name = focus.primaryCharacterName?.trim();
+  if (!name) return null;
+  return `장면 중심: ${name}와 유저의 현재 상호작용. 세계 변화와 보조 인물은 이 상호작용을 전진시키는 범위에서 사용한다.`;
+}
+
 function buildNextBeatHint(
   types: SceneProgressionType[],
   intensity: number,
-  triggeredEventText?: string | null
+  triggeredEventText?: string | null,
+  castFocus?: SceneCastFocus | null
 ): string {
   if (triggeredEventText?.trim()) {
     return "이미 발생한 사건의 여파를 우선 이어가며 장면은 그 결과에 맞춰 자연스럽게 진행한다.";
@@ -621,7 +712,11 @@ function buildNextBeatHint(
   if (primary === "tactical_planning" && intensity >= 4) {
     return "현재 작전의 빈틈 하나가 드러나며 외부 요청이나 시간 압박이 조용히 끼어든다.";
   }
-  const primaryHint = HINT_BY_TYPE[primary];
+  const preferPrimaryFramedNpc =
+    castFocus?.sceneCastMode === "single_primary" && primary === "npc_action";
+  const primaryHint = preferPrimaryFramedNpc
+    ? SINGLE_PRIMARY_NPC_ACTION_HINT
+    : HINT_BY_TYPE[primary];
   if (
     support &&
     support !== primary &&
@@ -647,10 +742,11 @@ export function getLastProgressionSelectionMeta(): ProgressionSelectionMeta | nu
 
 export function buildSceneDirective(input: SceneDirectiveInput): SceneDirective {
   const recentStagnation = detectSceneStagnation(input.recentMessages);
-  const sceneSignalText = buildSceneSignalText({
-    recentMessages: input.recentMessages,
-    currentUserMessage: input.currentUserMessage,
-    triggeredEventText: input.triggeredEventText,
+  const castFocus = resolveSceneCastFocus({
+    contentKind: input.contentKind,
+    primaryCharacterName: input.primaryCharacterName,
+    party: input.party,
+    establishedActiveCastNames: input.establishedActiveCastNames,
   });
   const recommendedIntensity = selectSceneIntensity({
     recentMessages: input.recentMessages,
@@ -663,6 +759,11 @@ export function buildSceneDirective(input: SceneDirectiveInput): SceneDirective 
     relationshipMemoryText: input.relationshipMemoryText,
     lorebookText: input.lorebookText,
   });
+  const sceneSignalText = buildSceneSignalText({
+    recentMessages: input.recentMessages,
+    currentUserMessage: input.currentUserMessage,
+    triggeredEventText: input.triggeredEventText,
+  });
   const { types: progressionTypes, meta } = selectProgressionTypesWeighted({
     sceneSignalText,
     groundingText,
@@ -672,6 +773,7 @@ export function buildSceneDirective(input: SceneDirectiveInput): SceneDirective 
     chatId: input.chatId,
     currentTurn: input.currentTurn,
     progressionHistory: input.progressionHistory,
+    sceneCastMode: castFocus.sceneCastMode,
   });
   lastSelectionMeta = meta;
 
@@ -685,9 +787,15 @@ export function buildSceneDirective(input: SceneDirectiveInput): SceneDirective 
     progressionTypes,
     avoid: buildAvoidList(input.mode, recommendedIntensity),
     nextBeatHint: sanitizeHint(
-      buildNextBeatHint(progressionTypes, recommendedIntensity, input.triggeredEventText)
+      buildNextBeatHint(
+        progressionTypes,
+        recommendedIntensity,
+        input.triggeredEventText,
+        castFocus
+      )
     ),
     userControl,
+    castFocus,
   };
 }
 
@@ -699,6 +807,7 @@ function renderIntensity(value: SceneDirective["recommendedIntensity"], stagnant
 export function renderSceneDirectiveForPrompt(directive: SceneDirective): string {
   const modeLabel = directive.mode === "auto_progression" ? "자동진행" : "일반 RP";
   const progression = directive.progressionTypes.map((type) => PROGRESSION_LABELS[type]).join(" + ");
+  const primaryFocusLine = renderPrimaryFocusLine(directive.castFocus);
   return [
     BASE_SCENE_ENGINE_RULE,
     "",
@@ -709,6 +818,7 @@ export function renderSceneDirectiveForPrompt(directive: SceneDirective): string
     `전개 방향: ${progression}`,
     `피할 것: ${directive.avoid.join(", ")}`,
     directive.nextBeatHint ? `다음 장면 힌트: ${directive.nextBeatHint}` : "",
+    primaryFocusLine ?? "",
     `유저 조종: ${USER_CONTROL_LABELS[directive.userControl]}`,
     directive.mode === "auto_progression" ? AUTO_PROGRESSION_ENSEMBLE_SCENE_RULE : "",
     directive.mode === "auto_progression" ? NO_FALSE_SHARED_MEMORY_RULE : "",
