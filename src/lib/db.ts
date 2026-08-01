@@ -1079,6 +1079,12 @@ function migrate(db: Database.Database) {
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+    CREATE TABLE IF NOT EXISTS scene_progression_state (
+      chat_id INTEGER PRIMARY KEY,
+      last_committed_turn INTEGER NOT NULL DEFAULT 0,
+      recent_types_json TEXT NOT NULL DEFAULT '[]',
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
     CREATE INDEX IF NOT EXISTS idx_chat_memories_user
       ON chat_memories(user_id);
     CREATE INDEX IF NOT EXISTS idx_chat_memories_character

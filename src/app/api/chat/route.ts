@@ -132,6 +132,10 @@ import {
   buildSceneDirective,
   renderSceneDirectiveForPrompt,
 } from "@/lib/sceneDirective";
+import {
+  commitSceneProgressionState,
+  loadSceneProgressionState,
+} from "@/lib/sceneProgressionState";
 import { deriveGenerationPreparationUi } from "@/lib/generationPreparationUi";
 import { isMeteredReceiptProvider, stealthReceiptModelFields } from "@/lib/billingDisplay";
 import {
@@ -1089,6 +1093,8 @@ export async function POST(req: Request) {
   const privateSpeechControlBlock = buildPrivateSpeechControlBlock(
     parseCreatorDescriptionCompiled(ch.creator_compiled_description_json)
   );
+  const sceneProgressionTurn = playableTurnCount + 1;
+  const sceneProgressionState = loadSceneProgressionState(chat.id);
   const sceneDirective = buildSceneDirective({
     mode: autoContinueContext ? "auto_progression" : "interactive",
     recentMessages: shortTermHistory,
@@ -1099,6 +1105,9 @@ export async function POST(req: Request) {
     relationshipMemoryText: relationshipMemoryForPrompt,
     lorebookText: [keywordLorebookBlock, globalLorebookBlock].filter(Boolean).join("\n"),
     triggeredEventText: triggeredScenarioEventsBlock,
+    chatId: chat.id,
+    currentTurn: sceneProgressionTurn,
+    progressionHistory: sceneProgressionState.recent,
   });
   const sceneDirectiveBlock = renderSceneDirectiveForPrompt(sceneDirective);
   /** UI-safe allowlist only — never includes nextBeatHint / directive prose. */
@@ -3460,6 +3469,16 @@ export async function POST(req: Request) {
         persistenceDiag.partialSaveCount = partialSaver.partialSaveCount;
         persistenceDiag.lastPartialChars = savedText.length;
         logStreamingPersistence(persistenceDiag);
+        // World-Motion V1.1: commit progression history only after successful finalize.
+        try {
+          commitSceneProgressionState({
+            chatId: chatRef.id,
+            turn: sceneProgressionTurn,
+            types: sceneDirective.progressionTypes,
+          });
+        } catch (err) {
+          console.warn("[scene-progression] commit failed", err);
+        }
 
         const extractedFactsForPersistence = statusWidgetValuesPayload?.extracted_facts ?? [];
         const factPersistSummary = summarizeEpisodicFactPersistCandidates(
