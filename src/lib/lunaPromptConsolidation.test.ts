@@ -86,7 +86,8 @@ function buildE1Wire(systemPrompt: string) {
   );
   const shortTermHistory = rawRecentTurnsToHistory(dialogueTurns);
   const playableTurnCount = countPlayableTurns(dialogueTurns);
-  const resolved = resolveSelectedAI(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL);
+  // Luna remains a valid runtime model id even while temporarily hidden from the picker.
+  const resolved = CHEAPER_INFERENCE_GPT_56_LUNA_MODEL;
   const { chunks, usedEnglish } = loadCharacterChunksForPrompt(
     {
       id: 95001,

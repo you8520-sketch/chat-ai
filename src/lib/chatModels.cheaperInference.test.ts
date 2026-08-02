@@ -39,12 +39,12 @@ test("Claude Opus 5 is a selectable Cheaper Inference model", () => {
   );
 });
 
-test("GPT-5.6 Luna is a selectable Cheaper Inference model", () => {
+test("GPT-5.6 Luna stays Cheaper Inference but is temporarily hidden from picker", () => {
   assert.equal(
     USER_SELECTABLE_AI_OPTIONS.some(
       (option) => option.id === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL
     ),
-    true
+    false
   );
   assert.equal(
     selectedAIProvider(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL),
@@ -52,6 +52,10 @@ test("GPT-5.6 Luna is a selectable Cheaper Inference model", () => {
   );
   assert.equal(selectedAILabel(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL), "GPT-5.6 Luna");
   assert.equal(isCheaperInferenceModel(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL), true);
+  assert.equal(
+    resolveSelectedAI(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL),
+    CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+  );
 });
 
 test("GPT-5.6 Terra is a selectable Cheaper Inference model", () => {
