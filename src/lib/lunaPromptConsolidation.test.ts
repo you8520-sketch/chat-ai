@@ -19,7 +19,6 @@ import { buildContext } from "@/services/contextBuilder";
 import {
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
-  resolveSelectedAI,
 } from "@/lib/chatModels";
 import { formatUserPersonaForPrompt } from "@/lib/persona";
 import { loadCharacterChunksForPrompt } from "@/lib/characterChunks";
