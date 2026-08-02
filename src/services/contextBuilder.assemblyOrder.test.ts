@@ -106,20 +106,15 @@ describe("buildContext — persona-before-prose assembly order", () => {
       sectionOrder(ids, "user-note-reference") < sectionOrder(ids, "scene-directive")
     );
     assert.ok(
-      sectionOrder(ids, "scene-directive") < sectionOrder(ids, "rule-length-control")
-    );
-    assert.ok(
-      sectionOrder(ids, "rule-length-control") <
+      sectionOrder(ids, "scene-directive") <
         sectionOrder(ids, "rule-output-layout-recency")
     );
     assert.ok(
-      sectionOrder(ids, "rule-output-layout-recency") <
-        sectionOrder(ids, "rule-terminal-length-override")
-    );
-    assert.ok(
       sectionOrder(ids, "current-memory") <
-        sectionOrder(ids, "rule-terminal-length-override")
+        sectionOrder(ids, "rule-output-layout-recency")
     );
+    assert.ok(!ids.includes("rule-length-control"), "length lives on user-turn tail");
+    assert.ok(!ids.includes("rule-terminal-length-override"));
     assert.ok(!ids.some((id) => id.startsWith("chunk-lore-")));
 
     const split = built.openRouterSystemSplit;
@@ -133,9 +128,11 @@ describe("buildContext — persona-before-prose assembly order", () => {
     assert.doesNotMatch(split!.systemRulesBlock, /<PROSE_STYLE_POLICY>/);
 
     assert.equal((built.systemPrompt.match(/\[OUTPUT LAYOUT\]\n\[SEMANTIC/g) ?? []).length, 1);
-    const layoutIdx = built.systemPrompt.indexOf("[OUTPUT LAYOUT]");
-    const terminalIdx = built.systemPrompt.indexOf("TARGET_LENGTH 3,200+ · MINIMUM_FLOOR");
-    assert.ok(layoutIdx >= 0 && terminalIdx > layoutIdx, "OUTPUT LAYOUT must precede terminal length tail");
+    assert.doesNotMatch(built.systemPrompt, /3,200~4,200자/);
+    assert.doesNotMatch(built.systemPrompt, /TARGET_LENGTH/);
+    const lastUser = built.history[built.history.length - 1];
+    assert.equal(lastUser?.role, "user");
+    assert.match(lastUser!.content, /3,200~4,200자/);
     assert.doesNotMatch(split!.characterSettingsBlock, /NEVER append spoken dialogue/i);
     assert.doesNotMatch(split!.characterSettingsBlock, /ALWAYS starts a new paragraph/i);
   });
@@ -164,7 +161,7 @@ describe("buildContext — persona-before-prose assembly order", () => {
     assert.match(built.systemPrompt, /WORLD_LORE|<world_lore>/i);
   });
 
-  it("preserves output length control markers and order during prompt cleanup", () => {
+  it("preserves user-tail length owner and layout order during prompt cleanup", () => {
     const built = buildContext({
       charName: "Hero",
       chunks: [criticalChunk],
@@ -178,23 +175,17 @@ describe("buildContext — persona-before-prose assembly order", () => {
     });
 
     const ids = (built.meta.trackedSections ?? []).map((s) => s.id);
-    assert.ok(
-      sectionOrder(ids, "rule-length-control") <
-        sectionOrder(ids, "rule-output-layout-recency")
-    );
-    assert.ok(
-      sectionOrder(ids, "rule-output-layout-recency") <
-        sectionOrder(ids, "rule-terminal-length-override")
-    );
-    assert.equal((built.systemPrompt.match(/\[LENGTH CONTROL & SCENE EXPANSION\]/g) ?? []).length, 1);
-    assert.equal((built.systemPrompt.match(/TARGET_LENGTH:/g) ?? []).length, 1);
-    assert.equal((built.systemPrompt.match(/MINIMUM_FLOOR:/g) ?? []).length, 1);
+    assert.ok(ids.includes("rule-output-layout-recency"));
+    assert.ok(!ids.includes("rule-terminal-length-override"));
+    assert.ok(!ids.includes("rule-length-control"));
+    assert.equal((built.systemPrompt.match(/3,200~4,200자/g) ?? []).length, 0);
+    assert.equal((built.systemPrompt.match(/TARGET_LENGTH:/g) ?? []).length, 0);
+    assert.equal((built.systemPrompt.match(/MINIMUM_FLOOR:/g) ?? []).length, 0);
     assert.equal((built.systemPrompt.match(/\[OUTPUT LAYOUT\]\n\[SEMANTIC/g) ?? []).length, 1);
-    assert.ok(
-      built.systemPrompt.trimEnd().endsWith(
-        (built.meta.trackedSections ?? []).find((s) => s.id === "rule-terminal-length-override")?.text.trim() ?? ""
-      )
-    );
+    const lastUser = built.history[built.history.length - 1];
+    assert.equal(lastUser?.role, "user");
+    assert.equal((lastUser!.content.match(/3,200~4,200자/g) ?? []).length, 1);
+    assert.ok(lastUser!.content.indexOf("지문과") < lastUser!.content.indexOf("3,200~4,200자"));
   });
 
   it("omits episodic memory section when block is empty", () => {

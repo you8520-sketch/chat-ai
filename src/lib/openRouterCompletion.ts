@@ -8,6 +8,7 @@ import {
   CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
   buildCheaperInferenceHeaders,
   resolveCheaperInferenceApiKey,
+  adaptCheaperInferenceChatBody,
 } from "@/lib/cheaperInferenceConfig";
 import { isCheaperInferenceModel } from "@/lib/chatModels";
 import { parseOpenRouterUsage } from "@/lib/openRouterUsage";
@@ -32,6 +33,25 @@ export type OpenRouterCompletionUsage = {
   reasoningOutputTokens?: number;
   debugRawUsage?: unknown;
 };
+
+export class CompatibleCompletionError extends Error {
+  readonly provider: "OpenRouter" | "CheaperInference";
+  readonly httpStatus: number | null;
+  readonly finishReason: string | null;
+
+  constructor(opts: {
+    message: string;
+    provider: "OpenRouter" | "CheaperInference";
+    httpStatus?: number | null;
+    finishReason?: string | null;
+  }) {
+    super(opts.message);
+    this.name = "CompatibleCompletionError";
+    this.provider = opts.provider;
+    this.httpStatus = opts.httpStatus ?? null;
+    this.finishReason = opts.finishReason ?? null;
+  }
+}
 
 /** bare gemini-* slug → OpenRouter google/ slug */
 export function toOpenRouterModelId(modelId: string): string {
@@ -92,16 +112,25 @@ export async function callOpenRouterCompletion(opts: {
   const headers = useCheaperInference
     ? buildCheaperInferenceHeaders(key)
     : buildOpenRouterHeaders(key);
+  const requestBody = useCheaperInference
+    ? adaptCheaperInferenceChatBody({
+        model,
+        messages,
+        stream: false,
+        temperature: opts.temperature ?? 0.3,
+        max_tokens: opts.maxTokens ?? 2048,
+      })
+    : {
+        model,
+        messages,
+        stream: false,
+        temperature: opts.temperature ?? 0.3,
+        max_tokens: opts.maxTokens ?? 2048,
+      };
   const res = await fetch(endpoint, {
     method: "POST",
     headers,
-    body: JSON.stringify({
-      model,
-      messages,
-      stream: false,
-      temperature: opts.temperature ?? 0.3,
-      max_tokens: opts.maxTokens ?? 2048,
-    }),
+    body: JSON.stringify(requestBody),
     signal: AbortSignal.timeout(
       opts.timeoutMs ?? resolveOpenRouterCompletionTimeoutMs(opts.requestKind)
     ),
@@ -109,7 +138,11 @@ export async function callOpenRouterCompletion(opts: {
 
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`${providerLabel} ${res.status}: ${body.slice(0, 240)}`);
+    throw new CompatibleCompletionError({
+      message: `${providerLabel} ${res.status}: ${body.slice(0, 240)}`,
+      provider: providerLabel,
+      httpStatus: res.status,
+    });
   }
 
   const data = (await res.json()) as {
@@ -118,9 +151,13 @@ export async function callOpenRouterCompletion(opts: {
   };
   const text = data.choices?.[0]?.message?.content?.trim() ?? "";
   if (!text) {
-    throw new Error(
-      `[${providerLabel}] empty completion (finish=${data.choices?.[0]?.finish_reason ?? "unknown"})`
-    );
+    const finishReason = data.choices?.[0]?.finish_reason ?? null;
+    throw new CompatibleCompletionError({
+      message: `[${providerLabel}] empty completion (finish=${finishReason ?? "unknown"})`,
+      provider: providerLabel,
+      httpStatus: res.status,
+      finishReason,
+    });
   }
 
   const parsedUsage = parseOpenRouterUsage(data.usage, res.headers);

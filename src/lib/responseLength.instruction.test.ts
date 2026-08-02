@@ -3,13 +3,17 @@ import { createRequire } from "node:module";
 import { describe, it } from "node:test";
 import {
   appendCompactTerminalLengthToUserTurn,
+  BOUNDED_LENGTH_OWNER_SENTENCE,
   buildCompactTerminalLengthAbsoluteTail,
   buildLengthInstruction,
   buildSingleShotLengthReminder,
   buildTerminalLengthOverrideBlock,
   buildTerminalLengthOverrideRecencyBlock,
   normalizeTargetResponseChars,
+  USER_TAIL_LENGTH_OWNER_SENTENCE,
 } from "@/lib/responseLength";
+import { LUNA_TERMINAL_OUTPUT_CONTRACT } from "@/lib/lunaSinglePrimaryAdapter";
+
 async function withServerOnlyMock<T>(fn: () => Promise<T>): Promise<T> {
   const require = createRequire(import.meta.url);
   require.cache[require.resolve("server-only")] = {
@@ -32,210 +36,105 @@ function countOccurrences(hay: string, needle: string): number {
 }
 
 describe("buildLengthInstruction", () => {
-  it("uses Phase 13 LENGTH CONTROL block as sole numeric source", () => {
+  it("system length instruction is empty; owner lives on user tail", () => {
     const block = buildLengthInstruction();
-    assert.match(block, /\[LENGTH CONTROL & SCENE EXPANSION\]/);
-    assert.match(block, /TARGET_LENGTH: 3,200\+ 한국어 글자/);
-    assert.match(block, /MINIMUM_FLOOR: 2,700\+/);
-    assert.match(block, /\[NO INPUT ECHO — STRICT\]/);
-    assert.doesNotMatch(block, /Never paraphrase the user's input/);
-    assert.match(block, /\[SCENE CONTINUATION PRIORITY\]/);
-    assert.match(block, /MINIMUM_FLOOR 미달 전 조기 종료·관찰자 붕괴 결말 금지/);
-    assert.doesNotMatch(block, /한국어 장편 소설형 RP로/);
-    assert.doesNotMatch(block, /지문과 "…" 대사를 한 문단·한 줄에 병합하지 마라/);
-
-    assert.match(block, /기계적 교대나 동일 길이 블록을 맞추지 마라/);
-    assert.match(block, /새 서사 비트\(행동·반응·전환\)로 확장/);
-    assert.match(block, /\[NARRATIVE DENSITY\]/);
-    assert.match(block, /모든 중간 동작을 기록하지 않는다/);
-    assert.doesNotMatch(block, /중간 단계를 건너뛰지/);
-    assert.doesNotMatch(block, /\[MOMENT-TO-MOMENT WRITING\]/);
-    assert.doesNotMatch(block, /\[REACTION VARIETY\]/);
-    assert.doesNotMatch(block, /\[NO GENERIC REACTIONS\]/);
-    assert.doesNotMatch(block, /한 줄·한 문단에 붙여 쓰라는 뜻이 아니다/);
-    assert.doesNotMatch(block, /8~10/);
-    assert.doesNotMatch(block, /4~5줄/);
-    assert.doesNotMatch(block, /\[SCENE COMPLETION CONTROL\]/);
-    assert.doesNotMatch(block, /\[LENGTH BUDGET\]/);
-    assert.doesNotMatch(block, /\[SCENE COMPLETION\]/);
-    assert.doesNotMatch(block, /CEILING:/);
-    assert.doesNotMatch(block, /Write a highly detailed, immersive response/);
-    assert.doesNotMatch(block, /end naturally when the moment is complete/);
-    assert.doesNotMatch(block, /\[TIME DILATION — MICRO-PACING TECHNIQUE\]/);
+    assert.equal(block, "");
+    assert.equal(BOUNDED_LENGTH_OWNER_SENTENCE, "");
+    assert.match(USER_TAIL_LENGTH_OWNER_SENTENCE, /3,200~4,200자 범위의 하나의 밀도 있는 장면으로 전개한다/);
+    assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /최초로 확인 가능한 결과/);
+    assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /TARGET_LENGTH/);
+    assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /MINIMUM_FLOOR/);
+    assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /Never stop at the first satisfying ending/);
   });
 
-  it("null targetInput uses default aim (not floor)", () => {
-    const block = buildLengthInstruction(null);
-    assert.match(block, /TARGET_LENGTH: 3,200\+/);
-    assert.match(block, /MINIMUM_FLOOR: 2,700\+/);
+  it("null targetInput still keeps empty system length (tier normalize unchanged)", () => {
+    assert.equal(buildLengthInstruction(null), "");
+    assert.equal(normalizeTargetResponseChars(2400), 3200);
   });
 
-  it("ignores legacy per-user aim — always unified 3200 / 2700", () => {
-    for (const legacy of [2400, 2700, 2800, 3000]) {
+  it("legacy per-user aim still normalizes; system length stays empty", () => {
+    for (const legacy of [2000, 2400, 2700, 2800, 3000]) {
       assert.equal(normalizeTargetResponseChars(legacy), 3200);
-      const block = buildLengthInstruction(legacy);
-      assert.match(block, /TARGET_LENGTH: 3,200\+ 한국어 글자/);
-      assert.match(block, /MINIMUM_FLOOR: 2,700\+/);
+      assert.equal(buildLengthInstruction(legacy), "");
     }
   });
 
-  it("legacy 2000/3000 DB values remap to unified aim in prompt", () => {
-    for (const legacy of [2000, 3000]) {
-      const block = buildLengthInstruction(legacy);
-      assert.match(block, /TARGET_LENGTH: 3,200\+ 한국어 글자/);
-      assert.match(block, /MINIMUM_FLOOR: 2,700\+/);
-      assert.doesNotMatch(block, /CEILING:/);
-    }
-  });
-
-  it("appendCompactTerminalLengthToUserTurn adds layout + length tail at user bottom", () => {
+  it("appendCompactTerminalLengthToUserTurn: layout then length owner last", () => {
     const out = appendCompactTerminalLengthToUserTurn("밤이 깊었어.", 3200);
     assert.match(out, /^밤이 깊었어\./);
     assert.match(out, /지문과 "…" 대사 사이 빈 줄/);
-    assert.match(out, /TARGET_LENGTH 3,200\+/);
-    assert.match(out, /MINIMUM_FLOOR 2,700\+/);
-    // Production: numeric terminal only (no longform / early-stop prose suffix).
-    assert.doesNotMatch(out, /단일 응답 최대 전개·미달 조기 종료 금지/);
-    assert.doesNotMatch(out, /한국어 장편 소설형 RP로/);
+    assert.match(out, /3,200~4,200자 범위의 하나의 밀도 있는 장면으로 전개한다/);
+    assert.ok(out.endsWith(USER_TAIL_LENGTH_OWNER_SENTENCE));
+    const layoutIdx = out.indexOf("지문과");
+    const lengthIdx = out.indexOf(USER_TAIL_LENGTH_OWNER_SENTENCE);
+    assert.ok(layoutIdx >= 0 && lengthIdx > layoutIdx, "layout must precede length");
+    assert.equal(countOccurrences(out, USER_TAIL_LENGTH_OWNER_SENTENCE), 1);
+    assert.doesNotMatch(out, /TARGET_LENGTH/);
+    assert.doesNotMatch(out, /MINIMUM_FLOOR/);
+    assert.doesNotMatch(out, /미달 조기 종료/);
+    assert.doesNotMatch(out, /최초로 확인 가능한 결과/);
   });
 
-  it("single-shot reminder defers to LENGTH CONTROL without Time Dilation", () => {
+  it("terminal length override is empty after consolidation", () => {
+    assert.equal(buildCompactTerminalLengthAbsoluteTail(undefined), "");
+    assert.equal(buildTerminalLengthOverrideBlock(3200), "");
+    assert.equal(buildTerminalLengthOverrideRecencyBlock(undefined), "");
+  });
+
+  it("single-shot reminder still exists for recovery paths (not primary owner)", () => {
     const tail = buildSingleShotLengthReminder();
-    assert.match(tail, /\[LENGTH CONTROL & SCENE EXPANSION\]/);
-    assert.match(tail, /\[SCENE CONTINUATION PRIORITY\]/);
-    assert.doesNotMatch(tail, /<TURN_HANDOFF_AND_PACING>/);
+    assert.match(tail, /\[분량 — 이번 턴 1회 출력\]/);
   });
 
-  it("omits duplicate status length line when every-turn status window", () => {
-    const block = buildLengthInstruction(undefined, { statusWindowEveryTurn: true });
-    assert.doesNotMatch(block, /RP length = prose\/dialogue only/);
-  });
-
-  it("omits duplicate status length line when Flash firewall owns status (OpenRouter)", () => {
-    const block = buildLengthInstruction(undefined, { htmlFlashOwned: true });
-    assert.doesNotMatch(block, /RP length = prose\/dialogue only/);
-  });
-
-  it("compact terminal tail uses tier constants at absolute end", () => {
-    const tail = buildCompactTerminalLengthAbsoluteTail(undefined);
-    assert.match(tail, /TARGET_LENGTH 3,200\+/);
-    assert.match(tail, /MINIMUM_FLOOR 2,700\+/);
-    assert.doesNotMatch(tail, /단일 응답 최대 전개·미달 조기 종료 금지/);
-    assert.doesNotMatch(tail, /한국어 장편 소설형 RP로/);
-    assert.doesNotMatch(tail, /\[TERMINAL LENGTH AUTHORITY\]/);
-    assert.doesNotMatch(tail, /\[최우선 절대 지침\]/);
-    assert.equal(buildTerminalLengthOverrideRecencyBlock(undefined), tail);
-  });
-
-  it("terminal override is compact tail only at absolute end", () => {
-    const block = buildTerminalLengthOverrideBlock(3200);
-    assert.equal(block, buildCompactTerminalLengthAbsoluteTail(3200));
-    assert.match(block, /TARGET_LENGTH 3,200\+/);
-    assert.match(block, /MINIMUM_FLOOR 2,700\+/);
-    assert.doesNotMatch(block, /단일 응답 최대 전개·미달 조기 종료 금지/);
-    assert.doesNotMatch(block, /<TURN_HANDOFF_AND_PACING>/);
-    assert.doesNotMatch(block, /\[TERMINAL LENGTH AUTHORITY\]/);
-  });
-
-  it("OpenRouter dynamicBlock — one numeric length block, no handoff shell", async () => {
+  it("OpenRouter Luna: system owners=0; terminal contract last on user turn", async () => {
     await withServerOnlyMock(async () => {
       const { buildContext } = await import("@/services/contextBuilder");
-      const { parseCharacterSetting } = await import("@/utils/characterParser");
-      const { formatUserNoteForPrompt } = await import("@/lib/persona");
-      const { formatMemoryMetaForPrompt, parseMemoryMeta } = await import("@/lib/chatMemory");
+      const { CHEAPER_INFERENCE_GPT_56_LUNA_MODEL } = await import("@/lib/chatModels");
 
-      const charName = "백하율";
-      const persona = "렌";
-      const chunks = parseCharacterSetting({
-        characterId: "mock-1",
-        characterName: charName,
-        gender: "male",
-        systemPrompt: "# 성격\n차분.",
-        world: "# 세계관\n현대.",
-        exampleDialog: `유저: hi\n${charName}: …`,
-        statusWindowPrompt: "",
-      });
       const built = buildContext({
-        charName,
-        personaDisplayName: persona,
-        chunks,
-        userPersona: `이름/호칭: ${persona}\n20대.`,
-        userNote: formatUserNoteForPrompt(""),
-        longTermMemory: "",
-        memoryMeta: formatMemoryMetaForPrompt(
-          parseMemoryMeta(JSON.stringify({ affection: 40, trust: 35 }))
-        ),
+        charName: "태형",
+        chunks: [
+          {
+            id: "c0",
+            characterId: "95001",
+            content: "태형: 본부 센티넬.",
+            category: "identity",
+            importance: "CRITICAL",
+            tokenCount: 8,
+            keywords: ["태형"],
+          },
+        ],
+        userNickname: "렌",
         shortTermHistory: [],
-        currentUserMessage: "밤이 깊었어.",
-        nsfw: true,
+        currentUserMessage: "안녕",
+        nsfw: false,
         gender: "male",
-        userPersonaGender: "other",
-        userImpersonation: false,
-        novelModeEnabled: false,
-        targetResponseChars: 2800,
-        completedTurns: 5,
-        genres: ["공포/추리"],
-        userNickname: persona,
-        modelId: "google/gemini-2.5-pro",
+        userId: 1,
+        chatId: 1,
+        targetResponseChars: 3200,
+        completedTurns: 2,
+        modelId: CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
         provider: "openrouter",
+        personaDisplayName: "렌",
+        contentKind: "character",
       });
-      const dyn = built.openRouterSystemSplit?.dynamicBlock ?? "";
-      const sys = built.systemPrompt ?? "";
-      const lengthSec = built.meta.trackedSections?.find((s) => s.id === "rule-length-control");
-      assert.ok(lengthSec?.text);
-      assert.equal(lengthSec!.text, buildLengthInstruction(3200));
 
-      assert.ok(countOccurrences(sys, "[LENGTH CONTROL & SCENE EXPANSION]") >= 1);
-      assert.equal(countOccurrences(sys, "TARGET_LENGTH:"), 1);
-      assert.equal(countOccurrences(sys, "MINIMUM_FLOOR:"), 1);
-      assert.equal(countOccurrences(sys, "CEILING:"), 0);
-      assert.equal(
-        countOccurrences(sys, "3,200"),
-        2,
-        "LENGTH CONTROL + compact terminal cite 3,200"
-      );
-      assert.equal(countOccurrences(sys, "2,800"), 0);
-      assert.equal((sys.match(/<\/TURN_HANDOFF_AND_PACING>/g) ?? []).length, 0);
+      const sys = built.systemPrompt ?? "";
+      assert.equal(countOccurrences(sys, LUNA_TERMINAL_OUTPUT_CONTRACT), 0);
+      assert.equal(countOccurrences(sys, USER_TAIL_LENGTH_OWNER_SENTENCE), 0);
+      assert.doesNotMatch(sys, /3,200~4,200/);
+      assert.ok(!(built.meta.trackedSections ?? []).some((s) => s.id === "luna-single-primary-adapter"));
+      assert.ok(!(built.meta.trackedSections ?? []).some((s) => s.id === "rule-length-control"));
+
       const lastUser = built.history[built.history.length - 1];
       assert.equal(lastUser?.role, "user");
-      assert.match(lastUser?.content ?? "", /TARGET_LENGTH 3,200\+/);
-      assert.match(lastUser?.content ?? "", /MINIMUM_FLOOR 2,700\+/);
-      assert.doesNotMatch(lastUser?.content ?? "", /단일 응답 최대 전개·미달 조기 종료 금지/);
-      assert.doesNotMatch(lastUser?.content ?? "", /한국어 장편 소설형 RP로/);
-
-      const legacySoft = [
-        /Write a highly detailed, immersive response/,
-        /end naturally when the moment is complete/,
-        /Do not rush the scene/,
-        /natural narrative flow/,
-        /internal thoughts, sensory details/,
-      ];
-      for (const pattern of legacySoft) {
-        assert.doesNotMatch(dyn, pattern, `legacy soft wording still in dynamicBlock: ${pattern}`);
-        assert.doesNotMatch(lengthSec!.text, pattern);
-      }
-
-      const sections = built.meta.trackedSections ?? [];
-      const lastSection = sections[sections.length - 1];
-      assert.equal(lastSection?.id, "rule-terminal-length-override");
-      assert.match(lastSection!.text, /TARGET_LENGTH 3,200\+/);
-      assert.match(lastSection!.text, /MINIMUM_FLOOR 2,700\+/);
-      assert.doesNotMatch(lastSection!.text, /단일 응답 최대 전개·미달 조기 종료 금지/);
-      assert.doesNotMatch(lastSection!.text, /<TURN_HANDOFF_AND_PACING>/);
-      assert.doesNotMatch(lastSection!.text, /\[TERMINAL LENGTH AUTHORITY\]/);
-      assert.doesNotMatch(lastSection!.text, /\[최우선 절대 지침\]/);
+      assert.match(lastUser!.content, /지문과 "…" 대사 사이 빈 줄/);
+      assert.equal(countOccurrences(lastUser!.content, LUNA_TERMINAL_OUTPUT_CONTRACT), 1);
+      assert.ok(lastUser!.content.trimEnd().endsWith(LUNA_TERMINAL_OUTPUT_CONTRACT));
       assert.ok(
-        !sections.some((s) => s.id === "turn-handoff-and-pacing"),
-        "turn-handoff section removed Step 7"
+        lastUser!.content.indexOf("지문과") < lastUser!.content.indexOf(LUNA_TERMINAL_OUTPUT_CONTRACT)
       );
-      assert.ok(
-        built.systemPrompt.trimEnd().endsWith(buildTerminalLengthOverrideBlock(3200).trim()),
-        "terminal override must be last block in full system prompt"
-      );
-      assert.ok(
-        dyn.trimEnd().endsWith(buildTerminalLengthOverrideBlock(3200).trim()),
-        "terminal override must be last block in OpenRouter dynamicBlock"
-      );
+      assert.doesNotMatch(lastUser!.content, /TARGET_LENGTH|MINIMUM_FLOOR/);
     });
   });
 });

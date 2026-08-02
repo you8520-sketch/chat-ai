@@ -19,11 +19,14 @@ describe("buildCompactNoGodmoddingStandardBlock", () => {
     assert.match(block, /\[NO GODMODDING\]/);
     assert.match(block, /의도적 행동, 대사, 생각, 결정, 감정 결론, 신체 반응/);
     assert.match(block, /미입력 상태를 서술 사실로 단정하지 않는다/);
-    assert.match(block, /유저 행동을 대신 쓰지 않아도 장면을 이어간다/);
+    assert.match(block, /유저의 새 대사·선택·동의·주도 행동은 대신 확정하지 않는다/);
+    assert.match(block, /즉각적이고 가역적인 신체 반응만 제한적으로 묘사한다/);
     assert.doesNotMatch(block, /짧은 비자발 반응/);
+    assert.doesNotMatch(block, /NPC, 환경/);
+    assert.doesNotMatch(block, /자연스럽게 움직일 수 있다/);
     assert.match(block, /\[INTERACTIVE USER CONTROL\]/);
+    assert.match(block, /현재까지 확정되지 않은 유저의 이동·대사·동의·선택·주도 행동을 새로 일어난 사실처럼 쓰지 않는다/);
     assert.match(block, /분량을 채우기 위해 유저를 움직이지 않는다/);
-    assert.match(block, /매 턴 질문으로 멈추지 않는다/);
     assert.doesNotMatch(block, /TARGET_LENGTH/);
     assert.doesNotMatch(block, /MINIMUM_FLOOR/);
     assert.doesNotMatch(block, /<TURN_HANDOFF_AND_PACING>/);

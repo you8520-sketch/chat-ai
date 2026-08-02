@@ -40,7 +40,7 @@ export const OPENROUTER_GLM_52_MODEL = "z-ai/glm-5.2";
 /** @deprecated UI 선택 제거 — legacy slug·과금·영수증 호환용 (재활성화 가능) */
 export const OPENROUTER_KIMI_K3_MODEL = "moonshotai/kimi-k3";
 
-/** OpenRouter — Meta Muse Spark 1.1 */
+/** @deprecated 사용자 선택 제거 — 과거 영수증·과금·표시 호환용 */
 export const OPENROUTER_MUSE_SPARK_11_MODEL = "meta/muse-spark-1.1";
 
 export const OPENROUTER_SOLAR_PRO_3_MODEL = "upstage/solar-pro-3";
@@ -142,13 +142,6 @@ export type SelectedAIOptionMeta = {
 
 export const SELECTED_AI_OPTIONS = [
   {
-    id: OPENROUTER_MUSE_SPARK_11_MODEL,
-    label: MUSE_SPARK_11_DISPLAY_NAME,
-    provider: "openrouter" as const,
-    tier: "pro" as const,
-    hint: "Meta",
-  },
-  {
     id: OPENROUTER_GEMINI_36_FLASH_MODEL,
     label: GEMINI_36_FLASH_DISPLAY_NAME,
     provider: "openrouter" as const,
@@ -244,6 +237,10 @@ export function isCheaperInferenceDeepSeekV4ProModel(
   );
 }
 
+export function isCheaperInferenceDeepSeekV4FlashModel(modelId: string): boolean {
+  return modelId.trim().toLowerCase() === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
+}
+
 export function isCheaperInferenceModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
   return (
@@ -259,8 +256,9 @@ export function isCheaperInferenceModel(modelId: string): boolean {
 export type SelectedAI = (typeof SELECTED_AI_OPTIONS)[number]["id"];
 export type SelectedAITier = (typeof SELECTED_AI_OPTIONS)[number]["tier"];
 
-/** 신규·미선택 사용자 기본값 — Muse Spark 1.1 */
-export const DEFAULT_SELECTED_AI: SelectedAI = OPENROUTER_MUSE_SPARK_11_MODEL;
+/** 신규·미선택 사용자 기본값 — CheaperInference DeepSeek V4 Pro */
+export const DEFAULT_SELECTED_AI: SelectedAI =
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
 
 /** 채팅 모델 선택 UI에만 노출 (Opus는 기본 숨김) */
 export const USER_SELECTABLE_AI_OPTIONS = SELECTED_AI_OPTIONS.filter(
@@ -417,7 +415,7 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   "gemini-3.0": DEFAULT_SELECTED_AI,
   "gemini-3-flash-preview": DEFAULT_SELECTED_AI,
   "gemini-3.5-flash": DEFAULT_SELECTED_AI,
-  /** Gemini 3.1 Pro 제거 — 기존 채팅·legacy slug는 Muse로 이전 */
+  /** 구 Gemini 3.1 slug는 현재 기본 모델로 이전 */
   "gemini-3.1": DEFAULT_SELECTED_AI,
   "gemini-3.1-pro-preview": CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   "google/gemini-2.5-pro": OPENROUTER_GEMINI_36_FLASH_MODEL,
@@ -433,28 +431,29 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   "deepseek-v4-pro": CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   "deepseek-4-pro": CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   "deepseek/deepseek-v4-pro": CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-  /** Qwen 3.7 Max 제거 — Muse로 이전 */
+  /** Qwen 3.7 Max 제거 — 현재 기본 모델로 이전 */
   qwen: DEFAULT_SELECTED_AI,
   "qwen3.7-max": DEFAULT_SELECTED_AI,
   "qwen/qwen3.7-max": DEFAULT_SELECTED_AI,
-  /** GLM 5.2 제거 — Muse로 이전 */
+  /** GLM 5.2 제거 — 현재 기본 모델로 이전 */
   glm: DEFAULT_SELECTED_AI,
   "glm-5.2": DEFAULT_SELECTED_AI,
   "glm5.2": DEFAULT_SELECTED_AI,
   "z-ai/glm-5.2": DEFAULT_SELECTED_AI,
   "z-ai/glm-5.1": DEFAULT_SELECTED_AI,
   "z-ai/glm-5": DEFAULT_SELECTED_AI,
-  /** Kimi K3 제거 — Muse로 이전 (재활성화 시 상수·detector 유지) */
+  /** Kimi K3 제거 — 현재 기본 모델로 이전 (상수·detector는 영수증 호환용) */
   kimi: DEFAULT_SELECTED_AI,
   "kimi-k3": DEFAULT_SELECTED_AI,
   kimik3: DEFAULT_SELECTED_AI,
   "moonshotai/kimi-k3": DEFAULT_SELECTED_AI,
   "moonshotai/kimi-latest": DEFAULT_SELECTED_AI,
-  muse: OPENROUTER_MUSE_SPARK_11_MODEL,
-  "muse-spark": OPENROUTER_MUSE_SPARK_11_MODEL,
-  "muse-spark-1.1": OPENROUTER_MUSE_SPARK_11_MODEL,
-  musespark: OPENROUTER_MUSE_SPARK_11_MODEL,
-  "meta/muse-spark-1.1": OPENROUTER_MUSE_SPARK_11_MODEL,
+  /** Muse Spark 제거 — 저장된 선택값은 현재 기본 모델로 이전 */
+  muse: DEFAULT_SELECTED_AI,
+  "muse-spark": DEFAULT_SELECTED_AI,
+  "muse-spark-1.1": DEFAULT_SELECTED_AI,
+  musespark: DEFAULT_SELECTED_AI,
+  "meta/muse-spark-1.1": DEFAULT_SELECTED_AI,
   /** Solar Pro 3 retired after runaway-generation incident — migrate stored prefs to default. */
   solar: DEFAULT_SELECTED_AI,
   "solar-pro": DEFAULT_SELECTED_AI,
@@ -500,6 +499,9 @@ export function selectedAILabel(id: string): string {
   }
   if (id === OPENROUTER_GLM_52_MODEL || isGlmModel(id)) {
     return GLM_52_DISPLAY_NAME;
+  }
+  if (id === OPENROUTER_MUSE_SPARK_11_MODEL || isMuseModel(id)) {
+    return MUSE_SPARK_11_DISPLAY_NAME;
   }
   if (id === GEMINI_CHAT_FLASH_25 || id === GEMINI_CHAT_FLASH) return id;
   return id;

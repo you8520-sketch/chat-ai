@@ -76,7 +76,8 @@ describe("DeepSeek narration fragment guard (prompt snapshot)", () => {
     assert.match(layout, /한 줄 한 화법 = 화자가 바뀌면 문단을 나눈다는 뜻/);
     assert.match(layout, /지문 한 문장마다 새 문단을 만들라는 뜻이 아니다/);
     assert.match(layout, /초점이 조금 바뀌더라도 한 문단 안에서 자연스럽게 연결/);
-    assert.match(layout, /대사는 화자별 독립 문단/);
+    assert.match(layout, /대사는 독립 문단으로 표시한다/);
+    assert.match(layout, /화자가 바뀌면 새 대사 문단을 사용한다/);
     assert.match(layout, /Never append dialogue/);
   });
 
@@ -143,7 +144,7 @@ describe("DeepSeek narration fragment guard (prompt snapshot)", () => {
     const layout = buildWebnovelOutputLayoutRecencyBlock();
     assert.match(layout, /Wrong:\s*그는 고개를 들었다\. "대사\."/);
     assert.match(layout, /\[DIALOGUE & NARRATION\]/);
-    assert.match(layout, /하나의 발화는 하나의 인용문/);
+    assert.match(layout, /대사는 독립 문단으로 표시한다/);
   });
 
   it("does not stack DeepSeek anti-fragment into RHYTHM / IMMERSIVE", () => {

@@ -337,6 +337,7 @@ export function formatBillingReceiptText(
     apiReasoningOutputTokens?: number;
     apiContentOutputTokens?: number;
     statusWidgetExtract?: Usage["statusWidgetExtract"];
+    statusWidgetExtractDiagnostics?: Usage["statusWidgetExtractDiagnostics"];
     mainApiRawCostKrw?: number;
     apiRawCostSource?: Usage["apiRawCostSource"];
     mainRpCostParts?: MainRpApiCostPartsKrw | null;
@@ -400,6 +401,22 @@ export function formatBillingReceiptText(
           `  thinking 토큰 원가: ~${formatPoints(p.thinkingKrw)}원 (${p.thinkingTokens.toLocaleString()} tok)`
         );
       }
+    }
+  }
+  if (extra?.statusWidgetExtractDiagnostics) {
+    lines.push(
+      `위젯 진단: ${
+        extra.statusWidgetExtractDiagnostics.usedFallback
+          ? "V3 폴백 사용"
+          : extra.statusWidgetExtractDiagnostics.exhausted
+            ? "추출 실패"
+            : "정상"
+      }`
+    );
+    for (const attempt of extra.statusWidgetExtractDiagnostics.attempts) {
+      lines.push(
+        `- ${attempt.stage} · ${attempt.modelId}: HTTP ${attempt.httpStatus ?? "없음"} · finish ${attempt.finishReason ?? "없음"}${attempt.errorCode ? ` · ${attempt.errorCode}` : ""}`
+      );
     }
   }
   if (extra?.coldStartShieldApplied) {

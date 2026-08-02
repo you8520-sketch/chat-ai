@@ -82,3 +82,18 @@ test("GPT-5.6 Terra disables hidden reasoning on CheaperInference", () => {
     reasoning_effort: "none",
   });
 });
+
+test("DeepSeek V4 Flash disables hidden reasoning on CheaperInference", () => {
+  const body = {
+    model: "deepseek-v4-flash",
+    messages: [{ role: "user", content: "hello" }],
+    reasoning: { effort: "minimal", exclude: true },
+    include_reasoning: false,
+  };
+
+  assert.deepEqual(adaptCheaperInferenceChatBody(body), {
+    model: "deepseek-v4-flash",
+    messages: [{ role: "user", content: "hello" }],
+    reasoning_effort: "none",
+  });
+});

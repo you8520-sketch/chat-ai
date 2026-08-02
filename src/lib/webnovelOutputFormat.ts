@@ -10,7 +10,6 @@ export const OUTPUT_LAYOUT_SEMANTIC_CORE = `[SEMANTIC PARAGRAPHING]
 화자 변경, 뚜렷한 시간·장소 전환, 장면의 중심 상황 변경이 있을 때 새 문단을 시작한다.
 문장 수를 절대 수치로 강제하지 않되, 같은 서술 비트의 문장을 습관적으로 각각 별도 문단으로 분리하지 않는다.
 
-대사는 화자별 독립 문단으로 출력한다.
 "…" spoken dialogue = always its own paragraph, separated by a blank line (\\n\\n) from narration.
 Never append dialogue to the end of a narration line or paragraph.
 한 줄 한 화법 = 화자가 바뀌면 문단을 나눈다는 뜻이며, 지문 한 문장마다 새 문단을 만들라는 뜻이 아니다.
@@ -21,9 +20,10 @@ Right:
 
 "대사."`;
 
-/** Moved from advanced prose — dialogue utterance integrity (static dedup item 7). */
+/** Dialogue formatting owner only — concentration lives in Luna adapter / common RP. */
 export const DIALOGUE_NARRATION_STRUCTURE_RULE = `[DIALOGUE & NARRATION]
-- 하나의 발화는 하나의 인용문으로 유지할 것.
+대사는 독립 문단으로 표시한다.
+화자가 바뀌면 새 대사 문단을 사용한다.
 - 대사 중간에 지문을 끼워 넣어 발화를 분절하지 말 것.`;
 
 /** 마크다운·RP 표기 금지 — 출력 규칙만 (입력 해석은 USER INPUT PARSING). */

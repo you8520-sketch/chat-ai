@@ -158,6 +158,11 @@ import {
   prepareReconvergenceTransition,
   type PendingReconvergenceTransition,
 } from "@/lib/reconvergenceState";
+import { extractSimulationCastNames } from "@/lib/simulationMode";
+import {
+  commitSceneProgressionState,
+  loadSceneProgressionState,
+} from "@/lib/sceneProgressionState";
 import { deriveGenerationPreparationUi } from "@/lib/generationPreparationUi";
 import { isMeteredReceiptProvider, stealthReceiptModelFields } from "@/lib/billingDisplay";
 import {
@@ -268,7 +273,7 @@ import {
   serializeVariantsForClient,
   type MessageVariant,
 } from "@/lib/messageAlternates";
-import { DegenerationAbortError, DEGENERATION_USER_MESSAGE, isDegenerateOutput, getDegenerationReason, stripUnexpectedForeignScriptLeak } from "@/lib/gibberishGuard";
+import { DegenerationAbortError, MetaLeakageAbortError, DEGENERATION_USER_MESSAGE, isDegenerateOutput, getDegenerationReason, stripUnexpectedForeignScriptLeak } from "@/lib/gibberishGuard";
 import { PREFERENCE_EVENT } from "@/lib/feedback/events";
 import { recordGenerationSnapshot, recordPreferenceEvent } from "@/lib/feedback/feedback-db";
 import { enqueueScoreRecompute } from "@/lib/feedback/queue";
@@ -1122,6 +1127,8 @@ export async function POST(req: Request) {
   const sceneDirectiveV2Mode = getSceneDirectiveV2Mode();
   const sceneDirectiveV2Compute = isSceneDirectiveV2ComputeEnabled();
   const sceneDirectiveV2Inject = isSceneDirectiveV2InjectEnabled();
+  const sceneProgressionTurn = playableTurnCount + 1;
+  const sceneProgressionState = loadSceneProgressionState(chat.id);
   const legacySceneDirective = buildSceneDirective({
     mode: autoContinueContext ? "auto_progression" : "interactive",
     recentMessages: shortTermHistory,
@@ -1132,7 +1139,17 @@ export async function POST(req: Request) {
     relationshipMemoryText: relationshipMemoryForPrompt,
     lorebookText: [keywordLorebookBlock, globalLorebookBlock].filter(Boolean).join("\n"),
     triggeredEventText: triggeredScenarioEventsBlock,
+    chatId: chat.id,
+    currentTurn: sceneProgressionTurn,
+    progressionHistory: sceneProgressionState.recent,
+    contentKind: ch.content_kind === "simulation" ? "simulation" : "character",
+    primaryCharacterName: ch.name,
+    establishedActiveCastNames:
+      ch.content_kind === "simulation"
+        ? extractSimulationCastNames(ch.simulation_cast ?? "")
+        : undefined,
   });
+  const sceneDirective = legacySceneDirective;
   const livingSceneDirective = livingSceneDirectiveOn
     ? buildLivingSceneDirective({
         mode: autoContinueContext ? "auto_progression" : "interactive",
@@ -1973,8 +1990,12 @@ export async function POST(req: Request) {
           }
         } catch (e) {
           clearPartialTimer();
-          if (e instanceof DegenerationAbortError) {
-            console.warn("[/api/chat] OpenRouter DEGENERATION_ABORT — billing skipped");
+          if (e instanceof DegenerationAbortError || e instanceof MetaLeakageAbortError) {
+            console.warn(
+              e instanceof MetaLeakageAbortError
+                ? "[/api/chat] OpenRouter META_LEAKAGE_ABORT — billing skipped"
+                : "[/api/chat] OpenRouter DEGENERATION_ABORT — billing skipped"
+            );
             const partial = streamVisibleTextRef || fullText;
             try {
               markAssistantFailed(db, persistedAssistantId, partial);
@@ -1986,8 +2007,9 @@ export async function POST(req: Request) {
             } catch {
               /* ignore */
             }
-            // Keep substantial partial on screen (same threshold as under-length); only wipe tiny junk.
-            if (partial.trim().length < CATASTROPHIC_MIN_RESPONSE_CHARS) {
+            if (e instanceof MetaLeakageAbortError) {
+              send({ type: "reset" });
+            } else if (partial.trim().length < CATASTROPHIC_MIN_RESPONSE_CHARS) {
               send({ type: "reset" });
             }
             send({ type: "error", error: DEGENERATION_USER_MESSAGE });
@@ -3329,6 +3351,13 @@ export async function POST(req: Request) {
           savedText = widgetResolved.prose;
           statusWidgetValuesPayload = widgetResolved.values;
           logStatusWidgetTurnTelemetry(widgetResolved.telemetry);
+          if (showFullBillingReceipt && widgetResolved.widgetExtractDiagnostics) {
+            usageRecord = {
+              ...usageRecord,
+              statusWidgetExtractDiagnostics:
+                widgetResolved.widgetExtractDiagnostics,
+            };
+          }
           if (
             widgetResolved.widgetExtractUsage &&
             widgetResolved.widgetExtractBillingMeta &&
@@ -3619,6 +3648,16 @@ export async function POST(req: Request) {
         persistenceDiag.partialSaveCount = partialSaver.partialSaveCount;
         persistenceDiag.lastPartialChars = savedText.length;
         logStreamingPersistence(persistenceDiag);
+        // World-Motion V1.1: commit progression history only after successful finalize.
+        try {
+          commitSceneProgressionState({
+            chatId: chatRef.id,
+            turn: sceneProgressionTurn,
+            types: sceneDirective.progressionTypes,
+          });
+        } catch (err) {
+          console.warn("[scene-progression] commit failed", err);
+        }
 
         // SceneDirective V2 reconvergence: commit only after authoritative finalize.
         if (pendingReconvergenceTransition) {
@@ -3923,7 +3962,7 @@ export async function POST(req: Request) {
         }
         if (e instanceof GeminiTrafficOverloadError) {
           sendTrafficOverloadGracefulStream(send);
-        } else if (e instanceof DegenerationAbortError) {
+        } else if (e instanceof DegenerationAbortError || e instanceof MetaLeakageAbortError) {
           send({ type: "reset" });
           send({ type: "error", error: DEGENERATION_USER_MESSAGE });
         } else {

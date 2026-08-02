@@ -33,6 +33,7 @@ export function filterUsageBreakdownForReceipt(
 export function sanitizeUsageForPublicReceipt(usage: Usage): Usage {
   const {
     statusWidgetExtract: _statusWidgetExtract,
+    statusWidgetExtractDiagnostics: _statusWidgetExtractDiagnostics,
     widgetCostPoints: _widgetCostPoints,
     mainApiRawCostKrw: _mainApiRawCostKrw,
     exchangeRateKrwPerUsd: _exchangeRateKrwPerUsd,

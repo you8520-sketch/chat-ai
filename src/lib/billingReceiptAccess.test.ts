@@ -69,12 +69,26 @@ describe("canShowFullBillingReceipt", () => {
         output: 1,
         apiRawCostKrw: 3,
       },
+      statusWidgetExtractDiagnostics: {
+        exhausted: true,
+        usedFallback: false,
+        attempts: [
+          {
+            stage: "initial",
+            modelId: "deepseek-v4-flash",
+            httpStatus: 503,
+            finishReason: null,
+            errorCode: "CompatibleCompletionError",
+          },
+        ],
+      },
       widgetCostPoints: 3,
       exchangeRateKrwPerUsd: 1400,
       exchangeRateDateKey: "2026-01-01",
     } satisfies Usage;
     const sanitized = sanitizeUsageForPublicReceipt(usage);
     assert.equal(sanitized.statusWidgetExtract, undefined);
+    assert.equal(sanitized.statusWidgetExtractDiagnostics, undefined);
     assert.equal(sanitized.widgetCostPoints, undefined);
     assert.equal(sanitized.exchangeRateKrwPerUsd, undefined);
     assert.equal(sanitized.breakdown.length, 0);

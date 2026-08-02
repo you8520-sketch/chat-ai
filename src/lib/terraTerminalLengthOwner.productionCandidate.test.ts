@@ -7,6 +7,7 @@ import {
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
   OPENROUTER_QWEN_37_MAX_MODEL,
 } from "@/lib/chatModels";
+import { LUNA_TERMINAL_OUTPUT_CONTRACT } from "@/lib/lunaSinglePrimaryAdapter";
 import {
   resolveTerraTerminalLengthOwnerContract,
   TERRA_TERMINAL_LENGTH_OWNER_CONTRACT,
@@ -14,7 +15,7 @@ import {
 import { bootstrapStreamingTurn } from "@/lib/streamingPersistence";
 import {
   appendTerraTerminalLengthOwnerToUserTurn,
-  buildLengthInstruction,
+  USER_TAIL_LENGTH_OWNER_SENTENCE,
 } from "@/lib/responseLength";
 
 async function withServerOnlyMock<T>(fn: () => Promise<T>): Promise<T> {
@@ -75,10 +76,12 @@ describe("Terra terminal length owner — production candidate gates", () => {
       }),
       null
     );
-    const lunaLength = buildLengthInstruction(3200);
-    assert.match(lunaLength, /TARGET_LENGTH/);
-    assert.match(lunaLength, /MINIMUM_FLOOR/);
-    assert.doesNotMatch(lunaLength, /한국어 RP 본문만 3,200~4,200자/);
+    // Terra-unique second sentence must not appear in Luna terminal contract.
+    assert.doesNotMatch(
+      LUNA_TERMINAL_OUTPUT_CONTRACT,
+      /최초로 확인 가능한 결과에 도달한 뒤 마무리한다/
+    );
+    assert.notEqual(LUNA_TERMINAL_OUTPUT_CONTRACT, FROZEN_CONTRACT);
   });
 
   it("DB-persisted user message does not store terminal contract", () => {
@@ -122,7 +125,7 @@ describe("Terra terminal length owner — production candidate gates", () => {
     db.close();
   });
 
-  it("buildContext: Terra single_primary user-turn ends with contract; Luna keeps TARGET_LENGTH", async () => {
+  it("buildContext: Terra single_primary ends with Terra contract; Luna keeps Luna owner", async () => {
     await withServerOnlyMock(async () => {
       const { buildContext } = await import("@/services/contextBuilder");
       const terra = buildContext({
@@ -141,6 +144,7 @@ describe("Terra terminal length owner — production candidate gates", () => {
       assert.ok(terraUser.trimEnd().endsWith(FROZEN_CONTRACT));
       assert.equal((terra.systemPrompt.match(/TARGET_LENGTH/g) ?? []).length, 0);
       assert.equal((terraUser.match(/TARGET_LENGTH/g) ?? []).length, 0);
+      assert.equal(terraUser.includes(LUNA_TERMINAL_OUTPUT_CONTRACT), false);
 
       const terraSim = buildContext({
         charName: "회색 생태권",
@@ -156,7 +160,7 @@ describe("Terra terminal length owner — production candidate gates", () => {
       });
       const simUser = terraSim.history.at(-1)?.content ?? "";
       assert.equal(simUser.includes(FROZEN_CONTRACT), false);
-      assert.match(terraSim.systemPrompt, /TARGET_LENGTH/);
+      assert.ok(simUser.includes(USER_TAIL_LENGTH_OWNER_SENTENCE));
 
       const luna = buildContext({
         charName: "에녹",
@@ -172,8 +176,8 @@ describe("Terra terminal length owner — production candidate gates", () => {
       });
       const lunaUser = luna.history.at(-1)?.content ?? "";
       assert.equal(lunaUser.includes(FROZEN_CONTRACT), false);
-      assert.match(luna.systemPrompt, /TARGET_LENGTH/);
-      assert.match(lunaUser, /TARGET_LENGTH 3,200\+/);
+      assert.ok(lunaUser.trimEnd().endsWith(LUNA_TERMINAL_OUTPUT_CONTRACT));
+      assert.equal((luna.systemPrompt.match(/TARGET_LENGTH/g) ?? []).length, 0);
     });
   });
 });

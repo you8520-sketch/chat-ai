@@ -12,6 +12,7 @@ import {
   statusWidgetDiagnosticHash,
 } from "@/lib/statusWidget/diagnostics";
 import { statusWidgetValuesHasContent } from "@/lib/statusWidget/displayPolicy";
+import type { Usage } from "@/lib/chatUsage";
 
 type DiagnosticMessageRow = {
   id: number;
@@ -25,6 +26,7 @@ type DiagnosticMessageRow = {
   status_widget_turn_active: number | null;
   request_id: string | null;
   generation_status: string | null;
+  usage: string | null;
   chat_status_widget_mode: string | null;
   user_status_widget_json: string | null;
   status_widget_stack_order: string | null;
@@ -79,6 +81,18 @@ function activeVariantHasStatusValues(raw: string | null, activeVariant: number 
   }
 }
 
+function parseWidgetExtractDiagnostics(
+  raw: string | null
+): Usage["statusWidgetExtractDiagnostics"] | null {
+  if (!raw?.trim()) return null;
+  try {
+    const parsed = JSON.parse(raw) as Usage;
+    return parsed.statusWidgetExtractDiagnostics ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(req: Request) {
   if (!requireDebugToken(req)) {
     return NextResponse.json({ error: "admin diagnostics access denied" }, { status: 403 });
@@ -95,6 +109,7 @@ export async function GET(req: Request) {
       `SELECT
         m.id, m.chat_id, m.role, m.content, m.model, m.alternates, m.active_variant,
         m.status_widget_values_json, m.status_widget_turn_active, m.request_id, m.generation_status,
+        m.usage,
         ch.status_widget_mode AS chat_status_widget_mode,
         ch.user_status_widget_json,
         ch.status_widget_stack_order,
@@ -159,5 +174,6 @@ export async function GET(req: Request) {
     reasonCode: diagnostic.reasonCode,
     requestId: row.request_id ?? null,
     generationStatus: row.generation_status ?? null,
+    extractDiagnostics: parseWidgetExtractDiagnostics(row.usage),
   });
 }

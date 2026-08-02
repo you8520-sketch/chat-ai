@@ -4,6 +4,7 @@ import {
   assertLengthSupplementApiAllowed,
   MAX_TURN_SUB_API_CALLS,
   NARRATIVE_LENGTH_CONTINUATION_ENABLED,
+  RP_META_LEAK_REGEN_API_ENABLED,
   SERVER_UNDER_LENGTH_RECOVERY_ENABLED,
   TURN_LENGTH_SUPPLEMENT_API_ENABLED,
   TurnApiBudget,
@@ -14,13 +15,16 @@ describe("turn length supplement API — disabled for all models", () => {
     assert.equal(TURN_LENGTH_SUPPLEMENT_API_ENABLED, false);
     assert.equal(NARRATIVE_LENGTH_CONTINUATION_ENABLED, false);
     assert.equal(SERVER_UNDER_LENGTH_RECOVERY_ENABLED, false);
-    assert.equal(MAX_TURN_SUB_API_CALLS, 0);
+    assert.equal(RP_META_LEAK_REGEN_API_ENABLED, true);
+    assert.equal(MAX_TURN_SUB_API_CALLS, 1);
   });
 
-  it("canSubCall is always false", () => {
+  it("canSubCall allows one meta-leak regen slot when supplements off", () => {
     const budget = new TurnApiBudget();
-    assert.equal(budget.canSubCall(), false);
+    assert.equal(budget.canSubCall(), true);
     budget.beforeFetch("primary");
+    assert.equal(budget.canSubCall(), true);
+    budget.beforeFetch("rp-meta-leak-regen");
     assert.equal(budget.canSubCall(), false);
   });
 

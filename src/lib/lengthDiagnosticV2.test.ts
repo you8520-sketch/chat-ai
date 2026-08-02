@@ -10,15 +10,16 @@ import {
 } from "@/lib/lengthDiagnosticV2";
 
 describe("probeLengthPromptBlocks", () => {
-  it("detects length control without turn handoff shell", () => {
+  it("system length owner removed — length-control marker absent", () => {
     const system = buildLengthInstruction();
     const probe = probeLengthPromptBlocks(system);
+    assert.equal(system, "");
     assert.equal(probe.time_dilation_active, false);
     assert.equal(probe.scene_blueprint_active, false);
-    assert.equal(probe.length_control_active, true);
+    assert.equal(probe.length_control_active, false);
     assert.equal(probe.turn_handoff_active, false);
     assert.equal(probe.scene_blueprint_occurrences, 0);
-    assert.ok(probe.length_control_occurrences >= 1);
+    assert.equal(probe.length_control_occurrences, 0);
   });
 
   it("returns false flags when blocks are missing", () => {
@@ -126,7 +127,7 @@ describe("logCharsPerTokenDiagnostic", () => {
 
 describe("logBannedVerbCheck", () => {
   it("detects banned ending verbs and anti-resolution rule index", () => {
-    const system = buildLengthInstruction(2400);
+    const system = "";
     const logs: unknown[] = [];
     const orig = console.log;
     console.log = (...args: unknown[]) => {
@@ -141,7 +142,6 @@ describe("logBannedVerbCheck", () => {
     const row = logs[0] as Record<string, unknown>;
     assert.equal(row.output_ends_with_banned_verb, true);
     assert.equal(row.anti_resolution_rule_index_in_prompt, null);
-    assert.ok(system.includes("[SCENE CONTINUATION PRIORITY]"));
   });
 });
 

@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   DEFAULT_SELECTED_AI,
   OPENROUTER_KIMI_K3_MODEL,
-  OPENROUTER_MUSE_SPARK_11_MODEL,
   SELECTED_AI_OPTIONS,
   isKimiModel,
   isValidSelectedAI,
@@ -18,12 +18,12 @@ describe("Kimi K3 retired from selection", () => {
     assert.equal(isValidSelectedAI(OPENROUTER_KIMI_K3_MODEL), false);
   });
 
-  it("maps legacy kimi slugs to Muse Spark 1.1", () => {
-    assert.equal(DEFAULT_SELECTED_AI, OPENROUTER_MUSE_SPARK_11_MODEL);
-    assert.equal(resolveSelectedAI("kimi"), OPENROUTER_MUSE_SPARK_11_MODEL);
-    assert.equal(resolveSelectedAI("kimi-k3"), OPENROUTER_MUSE_SPARK_11_MODEL);
-    assert.equal(resolveSelectedAI("moonshotai/kimi-latest"), OPENROUTER_MUSE_SPARK_11_MODEL);
-    assert.equal(resolveSelectedAI(OPENROUTER_KIMI_K3_MODEL), OPENROUTER_MUSE_SPARK_11_MODEL);
+  it("maps legacy kimi slugs to the current default", () => {
+    assert.equal(DEFAULT_SELECTED_AI, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL);
+    assert.equal(resolveSelectedAI("kimi"), DEFAULT_SELECTED_AI);
+    assert.equal(resolveSelectedAI("kimi-k3"), DEFAULT_SELECTED_AI);
+    assert.equal(resolveSelectedAI("moonshotai/kimi-latest"), DEFAULT_SELECTED_AI);
+    assert.equal(resolveSelectedAI(OPENROUTER_KIMI_K3_MODEL), DEFAULT_SELECTED_AI);
   });
 
   it("keeps Kimi display name and pricing for residual receipts", () => {

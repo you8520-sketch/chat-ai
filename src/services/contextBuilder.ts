@@ -124,10 +124,8 @@ import {
   appendCompactTerminalLengthToUserTurn,
   appendTerraTerminalLengthOwnerToUserTurn,
   buildLengthInstruction,
-  buildTerminalLengthOverrideBlock,
   resolveResponseLengthTarget,
 } from "@/lib/responseLength";
-import { SCENE_CONTINUATION_PRIORITY_BLOCK } from "@/lib/turnHandoffAndPacing";
 import { isTerraTerminalLengthOwnerActive } from "@/lib/sharedNovelProseModelAdapters";
 import type { OpenRouterSystemSplit } from "@/lib/openRouterCache";
 import { estimateOpenRouterCacheableTokens, buildOpenRouterDynamicLoreUserPrefix, HISTORY_CACHE_TAIL_EXCLUDE_MESSAGES } from "@/lib/openRouterCache";
@@ -447,13 +445,17 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       }),
       "cacheRules"
     );
-    pushSection(
-      "openrouter-co-narration-rule",
-      "[TOP] Co-narration rule",
-      "systemRules",
-      buildCoNarrationKoreanRule(coNarrationEnabled, novelModeEnabled, autoProgressionEnabled),
-      "dynamic"
-    );
+    // Co-narration OFF is covered by agency (no-godmodding); ON is empty (merged).
+    // Only inject novel/auto progression co-narration lines when non-empty.
+    if (novelModeEnabled || autoProgressionEnabled) {
+      pushSection(
+        "openrouter-co-narration-rule",
+        "[TOP] Co-narration rule",
+        "systemRules",
+        buildCoNarrationKoreanRule(coNarrationEnabled, novelModeEnabled, autoProgressionEnabled),
+        "dynamic"
+      );
+    }
     pushSection(
       "runtime-prompt-contamination-guard",
       "[TOP] Runtime prompt contamination guard",
@@ -871,6 +873,9 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   }
 
+  // Luna concentration+length live on user-tail LUNA_TERMINAL_OUTPUT_CONTRACT
+  // (system luna-single-primary-adapter removed).
+
   if (needsUserInputParsingGuide(input)) {
     pushSection(
       "rule-user-input-parsing",
@@ -1013,20 +1018,14 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     terraTerminalLengthOwner,
   };
 
+  // Length owner lives on the current user-turn tail only (system length removed).
+  // Non-OpenRouter historically had rule-length-control; pushSection skips empty.
   if (!isOpenRouter) {
     pushSection(
       "rule-length-control",
       "Length control (single rule)",
       "systemRules",
       buildLengthInstruction(input.targetResponseChars, lengthInstructionOpts)
-    );
-  } else {
-    pushSection(
-      "rule-length-control",
-      "Length control (single rule)",
-      "systemRules",
-      buildLengthInstruction(input.targetResponseChars, lengthInstructionOpts),
-      "dynamic"
     );
   }
 
@@ -1078,19 +1077,8 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   }
 
-  // Terra terminal-owner: omit system terminal TARGET/FLOOR — sole contract is
-  // appended at the current user-turn absolute end instead.
-  if (!terraTerminalLengthOwner) {
-    pushSection(
-      "rule-terminal-length-override",
-      "Terminal length compact tail (absolute end)",
-      "systemRules",
-      buildTerminalLengthOverrideBlock(input.targetResponseChars, {
-        sharedNovelProseV2,
-      }),
-      "dynamic"
-    );
-  }
+  // rule-terminal-length-override removed — length owned solely by
+  // USER_TAIL_LENGTH_OWNER_SENTENCE / Luna / Terra terminal contract on user turn.
 
   // Experiment-only DeepSeek length adapter (SNPV2_DEEPSEEK_LENGTH_ARM=B|C).
   // Default OFF → no section → prior assembly unchanged.
@@ -1106,8 +1094,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   }
 
   // Admin-only Muse canary: unknown-information truth priority as the final
-  // system section AFTER Terminal. Gate OFF → byte-stable prior assembly
-  // (Terminal remains the absolute final section). Independent of M1.
+  // system section. Independent of M1.
   if (isMuseUnknownInformationTruthGuardEnabledForUser(input.userId, input.modelId)) {
     pushSection(
       UNKNOWN_INFORMATION_TRUTH_GUARD_SECTION_ID,
@@ -1293,16 +1280,19 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       userTurnContent = `${userTurnContent}\n\n${emotionOverlay}`;
     }
   }
-  if (isOpenRouter) {
-    if (terraTerminalLengthOwner) {
-      userTurnContent = appendTerraTerminalLengthOwnerToUserTurn(userTurnContent);
-    } else {
-      userTurnContent = appendCompactTerminalLengthToUserTurn(
-        userTurnContent,
-        input.targetResponseChars,
-        { sharedNovelProseV2 }
-      );
-    }
+  if (terraTerminalLengthOwner) {
+    userTurnContent = appendTerraTerminalLengthOwnerToUserTurn(userTurnContent);
+  } else {
+    // Layout first, then Luna terminal contract (or non-Luna length) as last instruction.
+    userTurnContent = appendCompactTerminalLengthToUserTurn(
+      userTurnContent,
+      input.targetResponseChars,
+      {
+        modelId: input.modelId,
+        contentKind: input.contentKind,
+        party: input.party,
+      }
+    );
   }
   const estimatePayloadTokens = (hist: ContextBuildInput["shortTermHistory"]) =>
     estimateTokens(

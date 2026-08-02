@@ -26,9 +26,11 @@ const SCENE_MODE_BY_GENRE: Partial<Record<CharacterGenre, SceneMode>> = {
 };
 
 function buildSceneModeHint(genres: CharacterGenre[] | undefined): string | null {
-  const primary = primaryCharacterGenre(genres ?? []);
+  if (!genres || genres.length === 0) return null;
+  const primary = primaryCharacterGenre(genres);
+  if (!primary) return null;
   const mode = SCENE_MODE_BY_GENRE[primary] ?? "calm";
-  return `[SCENE MODE] ${primary} → ${mode} (pacing hint for [SCENE FLOW] only — not a cue to shorten; keep TARGET/FLOOR).`;
+  return `[SCENE MODE] ${primary} → ${mode} (pacing hint for [SCENE FLOW] only — not a cue to shorten).`;
 }
 
 export type NarrativeStyleMode = "standard" | "possession";
@@ -42,7 +44,9 @@ export type NarrativeStyleContext = {
 };
 
 function buildCompactGenreHint(genres: CharacterGenre[] | undefined): string | null {
-  const primary = primaryCharacterGenre(genres ?? []);
+  if (!genres || genres.length === 0) return null;
+  const primary = primaryCharacterGenre(genres);
+  if (!primary) return null;
   const hint = resolveGenreToneHints()[primary];
   if (!hint) return null;
   return `[genre_tone] ${primary}: ${hint}.`;

@@ -1,7 +1,6 @@
 import type Database from "better-sqlite3";
 import {
   DEFAULT_SELECTED_AI,
-  OPENROUTER_MUSE_SPARK_11_MODEL,
   type SelectedAI,
   isValidSelectedAI,
   resolveSelectedAI,
@@ -18,7 +17,7 @@ export type AiModelUxState = {
   changeNoticePending: boolean;
   /** 변경 확인 토스트에 쓸 모델 id */
   lastChangedModelId: string;
-  /** retired(Kimi/Qwen/GLM 등) → Muse 자동 전환 안내 대기 */
+  /** retired(Muse/Kimi/Qwen/GLM 등) → 기본 모델 자동 전환 안내 대기 */
   retiredRemapNoticePending: boolean;
 };
 
@@ -74,11 +73,11 @@ export function globalModelChangedNotice(modelId: SelectedAI): string {
 }
 
 export function globalModelRetiredRemapNotice(): string {
-  return `이전에 사용하던 모델의 제공이 종료되어 ${selectedAILabel(OPENROUTER_MUSE_SPARK_11_MODEL)}로 변경되었습니다. 선택한 모델은 모든 채팅에 공통으로 적용됩니다.`;
+  return `이전에 사용하던 모델의 제공이 종료되어 ${selectedAILabel(DEFAULT_SELECTED_AI)}로 변경되었습니다. 선택한 모델은 모든 채팅에 공통으로 적용됩니다.`;
 }
 
 /**
- * Ensure users.selected_ai is populated and remapped off retired models (Kimi/Qwen/GLM → Muse).
+ * Ensure users.selected_ai is populated and remapped off retired models.
  *
  * Lazy write: persists the resolved value on first ensure/get when empty or retired.
  * Does NOT resurrect chats.gemini_model into the global selection (past room models
@@ -105,8 +104,7 @@ export function ensureUserSelectedAI(
     selectedAI = resolveSelectedAI(stored);
   } else {
     selectedAI = resolveSelectedAI(stored);
-    remappedFromRetired = selectedAI === OPENROUTER_MUSE_SPARK_11_MODEL || selectedAI !== stored;
-    if (!isValidSelectedAI(stored)) remappedFromRetired = true;
+    remappedFromRetired = selectedAI !== stored || !isValidSelectedAI(stored);
   }
 
   selectedAI = resolveSelectedAI(selectedAI);

@@ -44,7 +44,11 @@ describe("buildContext — turn handoff shell removed Step 7", () => {
 
     assert.equal(countFullHandoffBlocks(built.systemPrompt), 0);
     assert.ok(!built.systemPrompt.includes("<TURN_HANDOFF_AND_PACING>"));
-    assert.ok(built.systemPrompt.includes("[SCENE CONTINUATION PRIORITY]"));
+    assert.ok(!built.systemPrompt.includes("[SCENE CONTINUATION PRIORITY]"));
+    assert.doesNotMatch(built.systemPrompt, /3,200~4,200자/);
+    const lastUser = built.history[built.history.length - 1];
+    assert.equal(lastUser?.role, "user");
+    assert.match(lastUser!.content, /3,200~4,200자/);
     assert.ok(!built.systemPrompt.includes("SCENE_PROGRESSION_&_NARRATION_PARAGRAPH_FLOOR"));
     assert.ok(!built.systemPrompt.includes("[ANTI-RESOLUTION RULE]\nDo NOT resolve"));
   });
@@ -100,11 +104,10 @@ describe("buildContext — turn handoff shell removed Step 7", () => {
     });
     const lastUser = built.history[built.history.length - 1];
     assert.equal(lastUser?.role, "user");
-    const tail = buildCompactTerminalLengthAbsoluteTail(undefined);
-    assert.ok(lastUser!.content.includes(tail), "OpenRouter continue gets 10b user-turn tail");
-    assert.match(lastUser!.content, /TARGET_LENGTH 3,200\+/);
-    assert.match(lastUser!.content, /MINIMUM_FLOOR 2,700\+/);
-    assert.doesNotMatch(lastUser!.content, /단일 응답 최대 전개·미달 조기 종료 금지/);
+    // Length owned by user-turn tail; layout precedes length owner sentence.
+    assert.match(lastUser!.content, /지문과 "…" 대사 사이 빈 줄/);
+    assert.doesNotMatch(lastUser!.content, /TARGET_LENGTH|MINIMUM_FLOOR|미달 조기 종료/);
+    assert.equal(buildCompactTerminalLengthAbsoluteTail(undefined), "");
   });
 
   it("no turn-handoff-and-pacing tracked section", () => {

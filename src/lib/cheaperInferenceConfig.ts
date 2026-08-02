@@ -1,4 +1,5 @@
 import {
+  isCheaperInferenceDeepSeekV4FlashModel,
   isCheaperInferenceGemini31ProModel,
   isGpt56LunaModel,
   isGpt56TerraModel,
@@ -50,8 +51,13 @@ export function adaptCheaperInferenceChatBody(
   if (typeof adapted.model === "string") {
     if (isCheaperInferenceGemini31ProModel(adapted.model)) {
       adapted.reasoning_effort = "low";
-    } else if (isGpt56LunaModel(adapted.model) || isGpt56TerraModel(adapted.model)) {
-      // Production (main #199): Cheaper Inference defaults to hidden reasoning unless off.
+    } else if (
+      isGpt56LunaModel(adapted.model) ||
+      isGpt56TerraModel(adapted.model) ||
+      isCheaperInferenceDeepSeekV4FlashModel(adapted.model)
+    ) {
+      // Cheaper Inference defaults to hidden reasoning unless explicitly off.
+      // Background JSON extract (widget/meta/memory) must not burn max_tokens on thinking alone.
       adapted.reasoning_effort = "none";
     }
   }
