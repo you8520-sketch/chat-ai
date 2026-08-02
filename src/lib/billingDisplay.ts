@@ -149,7 +149,13 @@ export function resolveStoredWidgetExtractCallCount(
   return null;
 }
 
-/** OpenRouter/OpenAI 영수증용 API 실원가 (KRW) — 저장 스냅샷 우선 */
+/**
+ * 영수증 API 원가 (KRW).
+ * 우선순위:
+ * 1) 과금 시점 저장 스냅샷 (apiRawCostKrw) — 당시 upstream 또는 카탈로그×환율
+ * 2) 공급자 실시간 차감 USD (upstreamCostUsd) × 저장/현재 환율
+ * 3) 이용 사이트 게시 요율(실시간 카탈로그 → 하드코드 스냅샷) × 토큰 × 환율
+ */
 export function resolveApiRawCostKrw(usage: Usage): number | null {
   if (!isMeteredReceiptProvider(usage.provider)) return null;
   if (usage.apiRawCostKrw != null && usage.apiRawCostKrw > 0) {
@@ -178,6 +184,20 @@ export function resolveApiRawCostKrw(usage: Usage): number | null {
           }
         : undefined,
   });
+}
+
+/**
+ * 실현 마진율(%) = 1 - (API 원가 KRW / 실제 차감 P). 1P=1원.
+ * 원가는 resolveApiRawCostKrw 우선순위(실시간 차감 → 게시 요율)를 따른다.
+ */
+export function resolveRealizedMarginRatePercent(
+  usage: Usage,
+  deductedPoints: number
+): number | null {
+  if (!(deductedPoints > 0)) return null;
+  const apiRawCostKrw = resolveApiRawCostKrw(usage);
+  if (apiRawCostKrw == null || !(apiRawCostKrw > 0)) return null;
+  return Math.round((1 - apiRawCostKrw / deductedPoints) * 100);
 }
 
 /** 영수증 환율 라벨 — 저장값 없으면 현재 고정 환율 */
