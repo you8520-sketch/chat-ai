@@ -128,7 +128,7 @@ import {
   resolveResponseLengthTarget,
 } from "@/lib/responseLength";
 import { SCENE_CONTINUATION_PRIORITY_BLOCK } from "@/lib/turnHandoffAndPacing";
-import { shouldUseTerraTerminalLengthOwner } from "@/lib/terraTerminalLengthOwner";
+import { isTerraTerminalLengthOwnerActive } from "@/lib/sharedNovelProseModelAdapters";
 import type { OpenRouterSystemSplit } from "@/lib/openRouterCache";
 import { estimateOpenRouterCacheableTokens, buildOpenRouterDynamicLoreUserPrefix, HISTORY_CACHE_TAIL_EXCLUDE_MESSAGES } from "@/lib/openRouterCache";
 import { isDeepSeekModel, isDeepSeekV4ProModel, isQwenModel } from "@/lib/chatModels";
@@ -1001,7 +1001,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     input.userId,
     input.modelId
   );
-  const terraTerminalLengthOwner = shouldUseTerraTerminalLengthOwner({
+  const terraTerminalLengthOwner = isTerraTerminalLengthOwnerActive({
     modelId: input.modelId,
     contentKind: input.contentKind,
   });

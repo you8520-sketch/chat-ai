@@ -1,9 +1,12 @@
 /**
- * Terra terminal single-owner length diagnosis (experiment).
+ * Terra terminal single-owner length adapter (production candidate).
  *
- * Consolidates length + scene-completion ownership into one user-turn-terminal
- * contract for gpt-5.6-terra + single_primary only. Not a production adapter
- * commit — diagnosis arm until A/B proves it.
+ * Applies only when model = gpt-5.6-terra AND scene cast = single_primary.
+ * Injects one length+completion contract at the absolute end of the current
+ * user turn; strips competing TARGET_LENGTH / MINIMUM_FLOOR owners on that path.
+ *
+ * Contract wording is frozen — do not edit for style experiments.
+ * Not adopted into shared/common layers; Luna and other models unchanged.
  */
 
 import { isGpt56TerraModel } from "@/lib/chatModels";
@@ -22,7 +25,10 @@ export function resolveRpSceneCastMode(
   return contentKind === "simulation" ? "simulation" : "single_primary";
 }
 
-/** Exact two-sentence terminal contract — inject once at absolute user-turn end. */
+/**
+ * Exact two-sentence terminal contract — inject once at absolute user-turn end.
+ * Frozen candidate text; do not modify.
+ */
 export const TERRA_TERMINAL_LENGTH_OWNER_CONTRACT =
   "이번 응답은 한국어 RP 본문만 3,200~4,200자로 작성한다. 현재 상호작용을 관찰·행동·대사·감각·심리의 인과적 연쇄로 전개하여, 조용한 장면에서는 관계나 상황의 확인 가능한 변화 하나에 도달하고, 행동 장면에서는 이번 턴에 시작된 주요 행동의 최초로 확인 가능한 결과에 도달한 뒤 마무리한다.";
 

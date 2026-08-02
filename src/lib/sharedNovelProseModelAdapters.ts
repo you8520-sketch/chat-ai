@@ -2,12 +2,27 @@
  * Shared Novel Prose — model-specific adapters (length / early-stop).
  *
  * Shared Novel Prose Core owns style. Adapters own model-specific length
- * completion only and activate when explicitly requested (experiment env).
+ * completion only.
  *
- * Default: all adapters OFF — production V2 canary does not inject these.
+ * Registry:
+ * - DeepSeek length arms: experiment env only (default OFF)
+ * - Terra terminal length owner: gpt-5.6-terra + single_primary (candidate)
+ * - Luna / Gemini Flash: reserved null stubs
  */
 
 import { isCheaperInferenceDeepSeekV4ProModel } from "@/lib/chatModels";
+import {
+  shouldUseTerraTerminalLengthOwner,
+  TERRA_TERMINAL_LENGTH_OWNER_CONTRACT,
+} from "@/lib/terraTerminalLengthOwner";
+import type { ContentKind } from "@/lib/simulationMode";
+
+export {
+  resolveRpSceneCastMode,
+  shouldUseTerraTerminalLengthOwner,
+  TERRA_TERMINAL_LENGTH_OWNER_CONTRACT,
+} from "@/lib/terraTerminalLengthOwner";
+export type { RpSceneCastMode } from "@/lib/terraTerminalLengthOwner";
 
 /** Experiment-only — DeepSeek length arm selector (A|B|C). Not a production flag. */
 export const SNPV2_DEEPSEEK_LENGTH_ARM_ENV = "SNPV2_DEEPSEEK_LENGTH_ARM";
@@ -88,7 +103,28 @@ export function resolveDeepSeekLengthAdapterSection(
   return buildDeepSeekLengthAdapterBlock(arm);
 }
 
-/** Luna / Gemini adapters — reserved; inactive until a model-specific need is proven. */
+/**
+ * Terra terminal single-owner — sole active Terra length adapter.
+ * Returns the frozen contract when model=gpt-5.6-terra and cast=single_primary;
+ * null for simulation / other models (caller keeps production TARGET/FLOOR owners).
+ */
+export function resolveTerraTerminalLengthOwnerContract(opts: {
+  modelId?: string | null;
+  contentKind?: ContentKind | string | null;
+}): string | null {
+  if (!shouldUseTerraTerminalLengthOwner(opts)) return null;
+  return TERRA_TERMINAL_LENGTH_OWNER_CONTRACT;
+}
+
+/** @deprecated Use resolveTerraTerminalLengthOwnerContract + scene cast gate. */
+export function isTerraTerminalLengthOwnerActive(opts: {
+  modelId?: string | null;
+  contentKind?: ContentKind | string | null;
+}): boolean {
+  return shouldUseTerraTerminalLengthOwner(opts);
+}
+
+/** Luna adapter — reserved; inactive (do not copy Terra contract here). */
 export function resolveLunaAdapterSection(): string | null {
   return null;
 }
