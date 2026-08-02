@@ -666,6 +666,7 @@ export function appendCompactTerminalLengthToUserTurn(
   const layoutMarker = "지문과 \"…\" 대사 사이 빈 줄";
   const terminalMarkers = [
     "한국어 RP 본문만 3,200~4,200자로 작성한다",
+    "한국어 RP 본문 기준 공백 포함 3,200~4,200자의 하나의 장면으로 작성한다",
     "3,200~4,200자 범위의 하나의 밀도 있는 장면으로 전개한다",
   ];
 
