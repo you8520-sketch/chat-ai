@@ -1,0 +1,52 @@
+SceneDirective V2 — Pre-Merge Audit
+Generated: 2026-07-30
+Branch: feature/scene-directive-v2
+HEAD: 1d19d7a (test) / 6936c81 (feat)
+Draft PR: https://github.com/you8520-sketch/chat-ai/pull/198
+Status: remote preserve + Draft PR only (NO main merge, NO rollout)
+
+Absolute constraints honored
+- main merge: none
+- production rollout: none
+- production env changes: none
+- SCENE_DIRECTIVE_V2_MODE default: off
+- Luna L2 factorial worktree: untouched
+- Living Continuity Director logic: unchanged (included as route dependency as-is)
+- Scene Momentum: unchanged
+- Model adapters: unchanged
+- Extra model API calls: none
+- Raw chat/memory/lorebook logs: none
+
+Candidate scope
+- Event Restraint V2 pacing governor (additive)
+- Two-turn reconvergence lifecycle with prepare/commit
+- Shadow state table isolated from production
+- Idempotency + concurrency CAS (version)
+- temporary_quiet / hard_no_contact
+- Grounded return paths only
+- Authoritative trigger defer (max 1)
+- Living × V2 prompt-owner matrix
+
+Schema (additive, idempotent)
+- chat_reconvergence_state (production)
+- chat_reconvergence_shadow_state (shadow only)
+- chat_reconvergence_transition_log (idempotency)
+
+Prompt ownership (resolveScenePacingPromptOwner)
+- Living OFF + V2 OFF → legacy_v1
+- Living ON  + V2 OFF → living_continuity_director
+- Living OFF + V2 shadow → legacy_v1 (V2 compute/telemetry only)
+- Living ON  + V2 shadow → living_continuity_director (V2 not injected)
+- Living OFF + V2 ON → event_restraint_v2 sole owner
+- Living ON  + V2 ON → event_restraint_v2 sole owner (no dual inject)
+
+Commit policy
+- prepare: pending transition only
+- commit: only after authoritative assistant finalize success
+- failed/interrupted/aborted/billing-cancel: no state advance
+- regenerate: does not advance separation/due clocks
+
+Pre-merge gates remaining (human/ops)
+- shadow T2 eligible offer rate telemetry review (>=98% target)
+- human review of Draft PR
+- Luna L2 experiment completion before any main movement

@@ -1,0 +1,325 @@
+# SceneDirective V1 vs Event-Restraint V2 fixture diffs
+# Generated: 2026-07-30T10:54:15.865Z
+# No model calls. Decision/prompt surface only.
+
+================================================================================
+FIXTURE A: 평온한 소파 접촉
+================================================================================
+V1 intensity=1 stagnation=false
+V1 progression=environment,relationship
+V1 hint=반복 확인 대신 작은 행동 하나로 관계의 거리감이 미세하게 달라진다.
+V2 pacing=hold_current_beat intensity=0 budget=0
+V2 progression=(none)
+V2 castPolicy=new_cast_forbidden allowNewNpc=false
+V2 reconvergenceState=together dueIn=null
+V2 reasonCodes=HOLD_ACTIVE_BEAT
+V2 telemetry={"version":"v2","pacingDecision":"hold_current_beat","recentStagnation":false,"recommendedIntensity":0,"eventBudget":0,"progressionTypes":[],"allowNewNpc":false,"triggerPresent":false,"reconvergenceState":"together","reconvergenceDueInTurns":null,"hookType":null,"reasonCodes":["HOLD_ACTIVE_BEAT"]}
+--- V1 prompt ---
+[PRIVATE SCENE ENGINE RULE]
+반복된 감정 확인에 멈추지 말고 관계, 단서, 환경, NPC, 세계 반응, 생활 변수, 이전 선택의 결과 중 하나를 조용히 움직인다.
+전개는 항상 전투나 대형 위기일 필요가 없다. 현재 모드와 유저 조종 범위를 따르고, 이 규칙을 본문에 언급하지 않는다.
+[이번 턴 장면 지시 - 비공개]
+모드: 일반 RP
+정체 감지: 없음
+권장 강도: 1
+전개 방향: 환경 변화 + 관계 변화
+피할 것: 갑작스러운 납치, 대형 전투, 위기 남발, 괜찮냐는 반복, 이미 지난 설명 반복
+다음 장면 힌트: 반복 확인 대신 작은 행동 하나로 관계의 거리감이 미세하게 달라진다.
+유저 조종: 유저의 의도적 행동/대사/감정 결론은 쓰지 않는다.
+트리거된 사건 지시가 있으면 이번 턴 장면 지시보다 우선한다.
+--- V2 prompt ---
+[PRIVATE SCENE PACING RULE]
+새 사건은 장면이 실제로 정체됐거나, 현재 행동의 결과가 도착했거나, 확정된 trigger·일정·미완료 hook이 있을 때만 만든다.
+장면이 이미 자연스럽게 진행 중이면 새로운 사건·NPC·메시지·단서·관계 단계를 추가하지 않는다.
+현재 감각, 행동, 접촉, 대화, 업무 또는 정서를 충분히 진행하고 그 비트에서 머물거나 종료할 수 있다.
+한 응답에서 새 외부 사건은 최대 하나다.
+[이번 턴 장면 조절 - 비공개]
+새 외부 사건: 만들지 않음
+진행: 현재 행동·접촉·대화·업무를 자연스럽게 이어가거나 닫는다.
+등장인물: 새 인물 생성 금지
+새 정보·NPC·메시지·일정: 금지
+유저 행동·감정·대사: 대신 쓰지 않음
+유저 조종: 유저의 의도적 행동/대사/감정 결론은 쓰지 않는다.
+대사 비중: 늘리지 않는다. 재접점도 대사 의무가 아니다.
+
+================================================================================
+FIXTURE B: 유저가 침대에서 3턴 휴식
+================================================================================
+V1 intensity=2 stagnation=true
+V1 progression=relationship,lore_clue,environment
+V1 hint=조용한 순간, 이전 대화와 연결된 작은 단서 하나가 다시 눈에 띈다.
+V2 pacing=hold_current_beat intensity=0 budget=0
+V2 progression=(none)
+V2 castPolicy=new_cast_forbidden allowNewNpc=false
+V2 reconvergenceState=together dueIn=null
+V2 reasonCodes=HOLD_QUIET_SCENE
+V2 telemetry={"version":"v2","pacingDecision":"hold_current_beat","recentStagnation":true,"recommendedIntensity":0,"eventBudget":0,"progressionTypes":[],"allowNewNpc":false,"triggerPresent":false,"reconvergenceState":"together","reconvergenceDueInTurns":null,"hookType":null,"reasonCodes":["HOLD_QUIET_SCENE"]}
+--- V1 prompt ---
+[PRIVATE SCENE ENGINE RULE]
+반복된 감정 확인에 멈추지 말고 관계, 단서, 환경, NPC, 세계 반응, 생활 변수, 이전 선택의 결과 중 하나를 조용히 움직인다.
+전개는 항상 전투나 대형 위기일 필요가 없다. 현재 모드와 유저 조종 범위를 따르고, 이 규칙을 본문에 언급하지 않는다.
+[이번 턴 장면 지시 - 비공개]
+모드: 일반 RP
+정체 감지: 있음
+권장 강도: 2~3
+전개 방향: 관계 변화 + 단서 + 환경 변화
+피할 것: 갑작스러운 납치, 대형 전투, 위기 남발, 괜찮냐는 반복, 이미 지난 설명 반복
+다음 장면 힌트: 조용한 순간, 이전 대화와 연결된 작은 단서 하나가 다시 눈에 띈다.
+유저 조종: 유저의 의도적 행동/대사/감정 결론은 쓰지 않는다.
+트리거된 사건 지시가 있으면 이번 턴 장면 지시보다 우선한다.
+--- V2 prompt ---
+[PRIVATE SCENE PACING RULE]
+새 사건은 장면이 실제로 정체됐거나, 현재 행동의 결과가 도착했거나, 확정된 trigger·일정·미완료 hook이 있을 때만 만든다.
+장면이 이미 자연스럽게 진행 중이면 새로운 사건·NPC·메시지·단서·관계 단계를 추가하지 않는다.
+현재 감각, 행동, 접촉, 대화, 업무 또는 정서를 충분히 진행하고 그 비트에서 머물거나 종료할 수 있다.
+한 응답에서 새 외부 사건은 최대 하나다.
+[이번 턴 장면 조절 - 비공개]
+새 외부 사건: 만들지 않음
+진행: 현재 행동·접촉·대화·업무를 자연스럽게 이어가거나 닫는다.
+등장인물: 새 인물 생성 금지
+새 정보·NPC·메시지·일정: 금지
+유저 행동·감정·대사: 대신 쓰지 않음
+유저 조종: 유저의 의도적 행동/대사/감정 결론은 쓰지 않는다.
+대사 비중: 늘리지 않는다. 재접점도 대사 의무가 아니다.
+
+================================================================================
+FIXTURE C: 작별 후 캐릭터가 업무 복귀
+================================================================================
+V1 intensity=0 stagnation=false
+V1 progression=daily_life
+V1 hint=평범한 생활 변수 하나가 관계의 온도를 조금 바꾼다.
+V2 pacing=hold_current_beat intensity=0 budget=0
+V2 progression=(none)
+V2 castPolicy=new_cast_forbidden allowNewNpc=false
+V2 reconvergenceState=separated dueIn=1
+V2 reasonCodes=HOLD_ACTIVE_BEAT,T1_INDEPENDENT_BEAT
+V2 telemetry={"version":"v2","pacingDecision":"hold_current_beat","recentStagnation":false,"recommendedIntensity":0,"eventBudget":0,"progressionTypes":[],"allowNewNpc":false,"triggerPresent":false,"reconvergenceState":"separated","reconvergenceDueInTurns":1,"hookType":null,"reasonCodes":["HOLD_ACTIVE_BEAT","T1_INDEPENDENT_BEAT"]}
+--- V1 prompt ---
+[PRIVATE SCENE ENGINE RULE]
+반복된 감정 확인에 멈추지 말고 관계, 단서, 환경, NPC, 세계 반응, 생활 변수, 이전 선택의 결과 중 하나를 조용히 움직인다.
+전개는 항상 전투나 대형 위기일 필요가 없다. 현재 모드와 유저 조종 범위를 따르고, 이 규칙을 본문에 언급하지 않는다.
+[이번 턴 장면 지시 - 비공개]
+모드: 일반 RP
+정체 감지: 없음
+권장 강도: 0
+전개 방향: 생활 변수
+피할 것: 갑작스러운 납치, 대형 전투, 위기 남발, 괜찮냐는 반복, 이미 지난 설명 반복
+다음 장면 힌트: 평범한 생활 변수 하나가 관계의 온도를 조금 바꾼다.
+유저 조종: 유저의 의도적 행동/대사/감정 결론은 쓰지 않는다.
+트리거된 사건 지시가 있으면 이번 턴 장면 지시보다 우선한다.
+--- V2 prompt ---
+[PRIVATE SCENE PACING RULE]
+새 사건은 장면이 실제로 정체됐거나, 현재 행동의 결과가 도착했거나, 확정된 trigger·일정·미완료 hook이 있을 때만 만든다.
+장면이 이미 자연스럽게 진행 중이면 새로운 사건·NPC·메시지·단서·관계 단계를 추가하지 않는다.
+현재 감각, 행동, 접촉, 대화, 업무 또는 정서를 충분히 진행하고 그 비트에서 머물거나 종료할 수 있다.
+한 응답에서 새 외부 사건은 최대 하나다.
+[이번 턴 장면 조절 - 비공개]
+새 외부 사건: 만들지 않음
+진행: 현재 행동·접촉·대화·업무를 자연스럽게 이어가거나 닫는다.
+등장인물: 새 인물 생성 금지
+새 정보·NPC·메시지·일정: 금지
+유저 행동·감정·대사: 대신 쓰지 않음
+유저 조종: 유저의 의도적 행동/대사/감정 결론은 쓰지 않는다.
+대사 비중: 늘리지 않는다. 재접점도 대사 의무가 아니다.
+
+================================================================================
+FIXTURE D: 작별 후 미완료 물건 존재
+================================================================================
+V1 intensity=0 stagnation=false
+V1 progression=daily_life
+V1 hint=평범한 생활 변수 하나가 관계의 온도를 조금 바꾼다.
+V2 pacing=reconverge intensity=1 budget=1
+V2 progression=relationship
+V2 castPolicy=new_cast_forbidden allowNewNpc=false
+V2 reconvergenceState=reconvergence_offered dueIn=null
+V2 reasonCodes=RECONVERGENCE_DUE,RECONVERGE_SELECTED
+V2 telemetry={"version":"v2","pacingDecision":"reconverge","recentStagnation":false,"recommendedIntensity":1,"eventBudget":1,"progressionTypes":["relationship"],"allowNewNpc":false,"triggerPresent":false,"reconvergenceState":"reconvergence_offered","reconvergenceDueInTurns":null,"hookType":"shared_item","reasonCodes":["RECONVERGENCE_DUE","RECONVERGE_SELECTED"]}
+--- V1 prompt ---
+[PRIVATE SCENE ENGINE RULE]
+반복된 감정 확인에 멈추지 말고 관계, 단서, 환경, NPC, 세계 반응, 생활 변수, 이전 선택의 결과 중 하나를 조용히 움직인다.
+전개는 항상 전투나 대형 위기일 필요가 없다. 현재 모드와 유저 조종 범위를 따르고, 이 규칙을 본문에 언급하지 않는다.
+[이번 턴 장면 지시 - 비공개]
+모드: 일반 RP
+정체 감지: 없음
+권장 강도: 0
+전개 방향: 생활 변수
+피할 것: 갑작스러운 납치, 대형 전투, 위기 남발, 괜찮냐는 반복, 이미 지난 설명 반복
+다음 장면 힌트: 평범한 생활 변수 하나가 관계의 온도를 조금 바꾼다.
+유저 조종: 유저의 의도적 행동/대사/감정 결론은 쓰지 않는다.
+트리거된 사건 지시가 있으면 이번 턴 장면 지시보다 우선한다.
+--- V2 prompt ---
+[PRIVATE SCENE PACING RULE]
+새 사건은 장면이 실제로 정체됐거나, 현재 행동의 결과가 도착했거나, 확정된 trigger·일정·미완료 hook이 있을 때만 만든다.
+장면이 이미 자연스럽게 진행 중이면 새로운 사건·NPC·메시지·단서·관계 단계를 추가하지 않는다.
+현재 감각, 행동, 접촉, 대화, 업무 또는 정서를 충분히 진행하고 그 비트에서 머물거나 종료할 수 있다.
+한 응답에서 새 외부 사건은 최대 하나다.
+[이번 턴 장면 조절 - 비공개]
+목적: 분리된 기존 캐릭터와 다시 상호작용할 기회를 만든다.
+근거: 맡긴 코트
+강도: 1
+새 외부 사건: 재접점 하나만
+등장인물: 재회 대상 기존 캐릭터만
+금지: 새 NPC, 새 위기, 새 명령, 새 일정, 유저의 인지·응답·이동 작성
+유저 조종: 유저의 의도적 행동/대사/감정 결론은 쓰지 않는다.
+대사 비중: 늘리지 않는다. 재접점도 대사 의무가 아니다.
+
+================================================================================
+FIXTURE E: 작별 후 유효 hook 없음
+================================================================================
+V1 intensity=1 stagnation=false
+V1 progression=environment,relationship
+V1 hint=반복 확인 대신 작은 행동 하나로 관계의 거리감이 미세하게 달라진다.
+V2 pacing=reconverge intensity=1 budget=1
+V2 progression=relationship
+V2 castPolicy=new_cast_forbidden allowNewNpc=false
+V2 reconvergenceState=reconvergence_offered dueIn=null
+V2 reasonCodes=RECONVERGENCE_DUE,RECONVERGE_SELECTED
+V2 telemetry={"version":"v2","pacingDecision":"reconverge","recentStagnation":false,"recommendedIntensity":1,"eventBudget":1,"progressionTypes":["relationship"],"allowNewNpc":false,"triggerPresent":false,"reconvergenceState":"reconvergence_offered","reconvergenceDueInTurns":null,"hookType":"relationship_initiative","reasonCodes":["RECONVERGENCE_DUE","RECONVERGE_SELECTED"]}
+--- V1 prompt ---
+[PRIVATE SCENE ENGINE RULE]
+반복된 감정 확인에 멈추지 말고 관계, 단서, 환경, NPC, 세계 반응, 생활 변수, 이전 선택의 결과 중 하나를 조용히 움직인다.
+전개는 항상 전투나 대형 위기일 필요가 없다. 현재 모드와 유저 조종 범위를 따르고, 이 규칙을 본문에 언급하지 않는다.
+[이번 턴 장면 지시 - 비공개]
+모드: 일반 RP
+정체 감지: 없음
+권장 강도: 1
+전개 방향: 환경 변화 + 관계 변화
+피할 것: 갑작스러운 납치, 대형 전투, 위기 남발, 괜찮냐는 반복, 이미 지난 설명 반복
+다음 장면 힌트: 반복 확인 대신 작은 행동 하나로 관계의 거리감이 미세하게 달라진다.
+유저 조종: 유저의 의도적 행동/대사/감정 결론은 쓰지 않는다.
+트리거된 사건 지시가 있으면 이번 턴 장면 지시보다 우선한다.
+--- V2 prompt ---
+[PRIVATE SCENE PACING RULE]
+새 사건은 장면이 실제로 정체됐거나, 현재 행동의 결과가 도착했거나, 확정된 trigger·일정·미완료 hook이 있을 때만 만든다.
+장면이 이미 자연스럽게 진행 중이면 새로운 사건·NPC·메시지·단서·관계 단계를 추가하지 않는다.
+현재 감각, 행동, 접촉, 대화, 업무 또는 정서를 충분히 진행하고 그 비트에서 머물거나 종료할 수 있다.
+한 응답에서 새 외부 사건은 최대 하나다.
+[이번 턴 장면 조절 - 비공개]
+목적: 분리된 기존 캐릭터와 다시 상호작용할 기회를 만든다.
+근거: 기존 관계 기반 직접 행동
+강도: 1
+새 외부 사건: 재접점 하나만
+등장인물: 재회 대상 기존 캐릭터만
+금지: 새 NPC, 새 위기, 새 명령, 새 일정, 유저의 인지·응답·이동 작성
+유저 조종: 유저의 의도적 행동/대사/감정 결론은 쓰지 않는다.
+대사 비중: 늘리지 않는다. 재접점도 대사 의무가 아니다.
+
+================================================================================
+FIXTURE F: 유저가 "찾아오지 마"라고 명시
+================================================================================
+V1 intensity=1 stagnation=false
+V1 progression=environment,relationship
+V1 hint=반복 확인 대신 작은 행동 하나로 관계의 거리감이 미세하게 달라진다.
+V2 pacing=hold_current_beat intensity=0 budget=0
+V2 progression=(none)
+V2 castPolicy=new_cast_forbidden allowNewNpc=false
+V2 reconvergenceState=user_separation_lock dueIn=null
+V2 reasonCodes=USER_SEPARATION_LOCK,HOLD_ACTIVE_BEAT
+V2 telemetry={"version":"v2","pacingDecision":"hold_current_beat","recentStagnation":false,"recommendedIntensity":0,"eventBudget":0,"progressionTypes":[],"allowNewNpc":false,"triggerPresent":false,"reconvergenceState":"user_separation_lock","reconvergenceDueInTurns":null,"hookType":null,"reasonCodes":["USER_SEPARATION_LOCK","HOLD_ACTIVE_BEAT"]}
+--- V1 prompt ---
+[PRIVATE SCENE ENGINE RULE]
+반복된 감정 확인에 멈추지 말고 관계, 단서, 환경, NPC, 세계 반응, 생활 변수, 이전 선택의 결과 중 하나를 조용히 움직인다.
+전개는 항상 전투나 대형 위기일 필요가 없다. 현재 모드와 유저 조종 범위를 따르고, 이 규칙을 본문에 언급하지 않는다.
+[이번 턴 장면 지시 - 비공개]
+모드: 일반 RP
+정체 감지: 없음
+권장 강도: 1
+전개 방향: 환경 변화 + 관계 변화
+피할 것: 갑작스러운 납치, 대형 전투, 위기 남발, 괜찮냐는 반복, 이미 지난 설명 반복
+다음 장면 힌트: 반복 확인 대신 작은 행동 하나로 관계의 거리감이 미세하게 달라진다.
+유저 조종: 유저의 의도적 행동/대사/감정 결론은 쓰지 않는다.
+트리거된 사건 지시가 있으면 이번 턴 장면 지시보다 우선한다.
+--- V2 prompt ---
+[PRIVATE SCENE PACING RULE]
+새 사건은 장면이 실제로 정체됐거나, 현재 행동의 결과가 도착했거나, 확정된 trigger·일정·미완료 hook이 있을 때만 만든다.
+장면이 이미 자연스럽게 진행 중이면 새로운 사건·NPC·메시지·단서·관계 단계를 추가하지 않는다.
+현재 감각, 행동, 접촉, 대화, 업무 또는 정서를 충분히 진행하고 그 비트에서 머물거나 종료할 수 있다.
+한 응답에서 새 외부 사건은 최대 하나다.
+[이번 턴 장면 조절 - 비공개]
+새 외부 사건: 만들지 않음
+진행: 현재 행동·접촉·대화·업무를 자연스럽게 이어가거나 닫는다.
+등장인물: 새 인물 생성 금지
+새 정보·NPC·메시지·일정: 금지
+유저 행동·감정·대사: 대신 쓰지 않음
+유저 조종: 유저의 의도적 행동/대사/감정 결론은 쓰지 않는다.
+대사 비중: 늘리지 않는다. 재접점도 대사 의무가 아니다.
+
+================================================================================
+FIXTURE G: 기존 작전 장면에 NPC 없음
+================================================================================
+V1 intensity=4 stagnation=false
+V1 progression=tactical_planning,npc_action,consequence
+V1 hint=현재 작전의 빈틈 하나가 드러나며 외부 요청이나 시간 압박이 조용히 끼어든다.
+V2 pacing=hold_current_beat intensity=0 budget=0
+V2 progression=(none)
+V2 castPolicy=new_cast_forbidden allowNewNpc=false
+V2 reconvergenceState=together dueIn=null
+V2 reasonCodes=HOLD_ACTIVE_BEAT
+V2 telemetry={"version":"v2","pacingDecision":"hold_current_beat","recentStagnation":false,"recommendedIntensity":0,"eventBudget":0,"progressionTypes":[],"allowNewNpc":false,"triggerPresent":false,"reconvergenceState":"together","reconvergenceDueInTurns":null,"hookType":null,"reasonCodes":["HOLD_ACTIVE_BEAT"]}
+--- V1 prompt ---
+[PRIVATE SCENE ENGINE RULE]
+반복된 감정 확인에 멈추지 말고 관계, 단서, 환경, NPC, 세계 반응, 생활 변수, 이전 선택의 결과 중 하나를 조용히 움직인다.
+전개는 항상 전투나 대형 위기일 필요가 없다. 현재 모드와 유저 조종 범위를 따르고, 이 규칙을 본문에 언급하지 않는다.
+[이번 턴 장면 지시 - 비공개]
+모드: 일반 RP
+정체 감지: 없음
+권장 강도: 4
+전개 방향: 작전/조사 + NPC 행동 + 이전 선택의 결과
+피할 것: 즉시 정체 확정, 강제 고백, 괜찮냐는 반복, 이미 지난 설명 반복, 트리거 조건 노출
+다음 장면 힌트: 현재 작전의 빈틈 하나가 드러나며 외부 요청이나 시간 압박이 조용히 끼어든다.
+유저 조종: 유저의 의도적 행동/대사/감정 결론은 쓰지 않는다.
+트리거된 사건 지시가 있으면 이번 턴 장면 지시보다 우선한다.
+--- V2 prompt ---
+[PRIVATE SCENE PACING RULE]
+새 사건은 장면이 실제로 정체됐거나, 현재 행동의 결과가 도착했거나, 확정된 trigger·일정·미완료 hook이 있을 때만 만든다.
+장면이 이미 자연스럽게 진행 중이면 새로운 사건·NPC·메시지·단서·관계 단계를 추가하지 않는다.
+현재 감각, 행동, 접촉, 대화, 업무 또는 정서를 충분히 진행하고 그 비트에서 머물거나 종료할 수 있다.
+한 응답에서 새 외부 사건은 최대 하나다.
+[이번 턴 장면 조절 - 비공개]
+새 외부 사건: 만들지 않음
+진행: 현재 행동·접촉·대화·업무를 자연스럽게 이어가거나 닫는다.
+등장인물: 새 인물 생성 금지
+새 정보·NPC·메시지·일정: 금지
+유저 행동·감정·대사: 대신 쓰지 않음
+유저 조종: 유저의 의도적 행동/대사/감정 결론은 쓰지 않는다.
+대사 비중: 늘리지 않는다. 재접점도 대사 의무가 아니다.
+
+================================================================================
+FIXTURE H: 정식 status trigger가 발동한 턴
+================================================================================
+V1 intensity=1 stagnation=false
+V1 progression=environment,relationship
+V1 hint=이미 발생한 사건의 여파를 우선 이어가며 장면은 그 결과에 맞춰 자연스럽게 진행한다.
+V2 pacing=resolve_trigger intensity=3 budget=0
+V2 progression=(none)
+V2 castPolicy=new_cast_forbidden allowNewNpc=false
+V2 reconvergenceState=together dueIn=null
+V2 reasonCodes=RESOLVE_TRIGGER
+V2 telemetry={"version":"v2","pacingDecision":"resolve_trigger","recentStagnation":true,"recommendedIntensity":3,"eventBudget":0,"progressionTypes":[],"allowNewNpc":false,"triggerPresent":true,"reconvergenceState":"together","reconvergenceDueInTurns":null,"hookType":null,"reasonCodes":["RESOLVE_TRIGGER"]}
+--- V1 prompt ---
+[PRIVATE SCENE ENGINE RULE]
+반복된 감정 확인에 멈추지 말고 관계, 단서, 환경, NPC, 세계 반응, 생활 변수, 이전 선택의 결과 중 하나를 조용히 움직인다.
+전개는 항상 전투나 대형 위기일 필요가 없다. 현재 모드와 유저 조종 범위를 따르고, 이 규칙을 본문에 언급하지 않는다.
+[이번 턴 장면 지시 - 비공개]
+모드: 일반 RP
+정체 감지: 없음
+권장 강도: 1
+전개 방향: 환경 변화 + 관계 변화
+피할 것: 갑작스러운 납치, 대형 전투, 위기 남발, 괜찮냐는 반복, 이미 지난 설명 반복
+다음 장면 힌트: 이미 발생한 사건의 여파를 우선 이어가며 장면은 그 결과에 맞춰 자연스럽게 진행한다.
+유저 조종: 유저의 의도적 행동/대사/감정 결론은 쓰지 않는다.
+트리거된 사건 지시가 있으면 이번 턴 장면 지시보다 우선한다.
+--- V2 prompt ---
+[PRIVATE SCENE PACING RULE]
+새 사건은 장면이 실제로 정체됐거나, 현재 행동의 결과가 도착했거나, 확정된 trigger·일정·미완료 hook이 있을 때만 만든다.
+장면이 이미 자연스럽게 진행 중이면 새로운 사건·NPC·메시지·단서·관계 단계를 추가하지 않는다.
+현재 감각, 행동, 접촉, 대화, 업무 또는 정서를 충분히 진행하고 그 비트에서 머물거나 종료할 수 있다.
+한 응답에서 새 외부 사건은 최대 하나다.
+[이번 턴 장면 조절 - 비공개]
+목적: 정식 trigger 사건만 처리한다.
+새 외부 사건: trigger 외 추가 금지
+등장인물: 새 인물 생성 금지
+금지: 별도 환경 변화, 새 NPC, 별도 관계 사건, 별도 재접점 사건
+유저 행동·감정·대사: 대신 쓰지 않음
+유저 조종: 유저의 의도적 행동/대사/감정 결론은 쓰지 않는다.
+대사 비중: 늘리지 않는다. 재접점도 대사 의무가 아니다.

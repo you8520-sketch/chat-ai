@@ -1588,6 +1588,7 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
         return {
           ...fallback.usage,
           finishReason: fallback.usage.finishReason ?? "stop",
+          responseModelId: fallback.usage.responseModelId ?? apiModelId,
         };
       }
     } catch (fallbackErr) {

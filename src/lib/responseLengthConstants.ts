@@ -8,6 +8,11 @@ export const ASSISTANT_MESSAGE_EDIT_MAX_CHARS = 5000;
 
 /** 통합 분량 — 통과 최소 (출력 표시 글자수) */
 export const UNIFIED_TIER_MIN_CHARS = 2700;
+/**
+ * Shared Novel Prose V2 canary floor only — production default stays 2700.
+ * Not a user-facing hard guarantee; one-pass soft floor for LENGTH/terminal.
+ */
+export const UNIFIED_TIER_MIN_CHARS_V2 = 2500;
 /** 프롬프트 aim band 하한 (= 통과 최소) */
 export const UNIFIED_TIER_TARGET_RANGE_MIN_CHARS = UNIFIED_TIER_MIN_CHARS;
 /** 프롬프트 soft aim target · DB normalize 기본값 (MINIMUM_FLOOR와 분리) */
@@ -15,11 +20,19 @@ export const UNIFIED_TIER_AIM_CHARS = 3200;
 export const UNIFIED_RESPONSE_LENGTH_TARGET = UNIFIED_TIER_AIM_CHARS;
 export type ResponseLengthTierTarget = typeof UNIFIED_RESPONSE_LENGTH_TARGET;
 
+/** Production UI label (gate OFF / non-canary). */
+export const RESPONSE_LENGTH_UI_LABEL =
+  "목표 약 3,200자 · 장면과 대화 맥락에 따라 자연스럽게 조절";
+
+/** Shared Novel Prose V2 canary UI label — no hard min guarantee copy. */
+export const RESPONSE_LENGTH_UI_LABEL_V2 =
+  "평균 약 3,000자 · 장면과 대화 맥락에 따라 자연스럽게 조절";
+
 /** AI 출력 목표 분량 — 단일 tier (프롬프트 aim 3,200 · 과금은 실제 출력). UI는 최소 보장 문구 없음. */
 export const TARGET_RESPONSE_TIERS = [
   {
     id: "unified",
-    label: "목표 약 3,200자 · 장면과 대화 맥락에 따라 자연스럽게 조절",
+    label: RESPONSE_LENGTH_UI_LABEL,
     min: UNIFIED_TIER_MIN_CHARS,
     target: UNIFIED_RESPONSE_LENGTH_TARGET,
   },
@@ -55,12 +68,28 @@ export function findResponseLengthTier(_targetInput?: number | null) {
   return TARGET_RESPONSE_TIERS[0]!;
 }
 
-export function resolveResponseLengthTarget(_targetInput?: number | null): ResponseLengthTarget {
+/** Canary-aware UI tier label — production default unchanged when V2 is false. */
+export function findResponseLengthTierForCanary(sharedNovelProseV2?: boolean) {
+  const base = TARGET_RESPONSE_TIERS[0]!;
+  if (!sharedNovelProseV2) return base;
+  return {
+    ...base,
+    label: RESPONSE_LENGTH_UI_LABEL_V2,
+    min: UNIFIED_TIER_MIN_CHARS_V2,
+  };
+}
+
+export function resolveResponseLengthTarget(
+  _targetInput?: number | null,
+  opts?: { sharedNovelProseV2?: boolean }
+): ResponseLengthTarget {
   const target = UNIFIED_RESPONSE_LENGTH_TARGET;
   return {
     target,
     aimChars: UNIFIED_TIER_AIM_CHARS,
-    ...TIER_BOUNDS[target],
+    min: opts?.sharedNovelProseV2
+      ? UNIFIED_TIER_MIN_CHARS_V2
+      : TIER_BOUNDS[target].min,
   };
 }
 

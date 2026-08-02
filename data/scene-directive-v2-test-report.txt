@@ -1,0 +1,32 @@
+# SceneDirective V2 — test / score report
+# Generated: 2026-07-30T10:54:15.877Z
+
+Unit tests: src/lib/sceneDirectiveV2.test.ts (+ preserved sceneDirective.test.ts)
+Command: node --conditions=react-server --import tsx --test src/lib/sceneDirectiveV2.test.ts
+Result: 53/53 pass (V2 suite + preserved V1 suite)
+
+## Gate checks
+2턴 재수렴 fixture 성공률: 100% (2/2)
+유저 소유권 위반: 0
+current-fact 위반: 0
+새 NPC 날조: 0
+trigger 중복 사건: 0
+평온 fixture 신규 외부 사건: 0
+
+## 100점 자체 평가
+- 평온한 장면에서 사건 억제: 15/15 (A/B eventBudget=0)
+- 현재 사실 grounding: 15/15 (lore≠scene class)
+- 2턴 재수렴 SLA: 15/15 (D/E 2/2)
+- 유저 소유권: 15/15 (no user cognition in prompt)
+- NPC·제3자 억제: 10/10 (G no npc_action)
+- trigger 중복 방지: 10/10 (H resolve_trigger budget0)
+- 정체 감지 정확도: 8/8 (axes tests green)
+- 대사·cast 비중 보호: 5/5 (dialoguePressure=none)
+- 반복 재회 cooldown: 4/4 (offer cooldown test)
+- telemetry·feature flag·회귀 테스트: 3/3 (mode default off + V1 suite)
+
+합계: 100/100
+VERDICT: PASS gates (candidate-ready for shadow; production ON not recommended until human review)
+
+Feature flag default: SCENE_DIRECTIVE_V2_MODE=off
+Production default unchanged. No merge/push/rollout.

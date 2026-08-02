@@ -1,0 +1,180 @@
+# SceneDirective V2 — L0 Audit
+# Branch: feature/scene-directive-v2
+# Date: 2026-07-30
+# Scope: code path verification only (no model calls)
+
+NOTE: Repo already has Living Scene Directive ("Continuity Director") gated by
+LIVING_SCENE_DIRECTIVE_V2_ENABLED. This audit covers legacy V1 (sceneDirective.ts)
+plus that living path. Event-Restraint V2 (SCENE_DIRECTIVE_V2_MODE) is the new work.
+
+================================================================================
+1. SceneDirective가 매 요청 생성되는가
+================================================================================
+확정 사실:
+  chat route는 매 요청마다 buildSceneDirective(...)를 호출한다.
+  Living canary ON이면 추가로 buildLivingSceneDirective(...)를 호출한다.
+파일과 함수:
+  src/app/api/chat/route.ts — request assembly (~1099-1130)
+  src/lib/sceneDirective.ts — buildSceneDirective
+  src/lib/livingSceneDirective.ts — buildLivingSceneDirective
+관련 코드:
+  const legacySceneDirective = buildSceneDirective({ ... });
+  const livingSceneDirective = livingSceneDirectiveOn ? buildLivingSceneDirective(...) : null;
+잠재 영향:
+  매 턴 지시문이 항상 조립되므로 BASE_SCENE_ENGINE_RULE의 "무언가 움직이라" 압력이
+  평온한 장면에도 반복 주입된다.
+확신도: CONFIRMED
+
+================================================================================
+2. SceneDirective가 매 요청 prompt에 주입되는가
+================================================================================
+확정 사실:
+  sceneDirectiveBlock이 contextBuilder로 전달되고 pushSceneDirective()로 주입된다.
+  Living ON이면 living render, 아니면 legacy render.
+파일과 함수:
+  src/app/api/chat/route.ts (~1128-1130, ~1270)
+  src/services/contextBuilder.ts — pushSceneDirective (~796-801, ~917-924)
+관련 코드:
+  sceneDirectiveBlock = living ? renderLiving... : renderSceneDirectiveForPrompt(legacy)
+잠재 영향:
+  빈 블록 억제는 trim 여부만; 정상 경로에서는 거의 항상 비어 있지 않다.
+확신도: CONFIRMED
+
+================================================================================
+3. intensity 0에서도 BASE_SCENE_ENGINE_RULE이 사건 진행을 요구하는가
+================================================================================
+확정 사실:
+  BASE_SCENE_ENGINE_RULE은 intensity와 무관하게 매 render에 붙는다.
+  문구: "관계, 단서, 환경, NPC, 세계 반응, 생활 변수, 이전 선택의 결과 중 하나를
+  조용히 움직인다."
+파일과 함수:
+  src/lib/sceneDirective.ts — BASE_SCENE_ENGINE_RULE, renderSceneDirectiveForPrompt
+관련 코드:
+  lines ~61-65, ~265-285
+잠재 영향:
+  intensity=0(rest)에서도 "사건을 만들라"는 엔진 압력이 남는다.
+  Living path는 PRIVATE_SCENE_CONTINUITY_RULE로 완화하지만 별도 canary다.
+확신도: CONFIRMED
+
+================================================================================
+4. progression type이 없을 때 environment+relationship가 기본 추가되는가
+================================================================================
+확정 사실:
+  selectProgressionTypes()는 selected.length===0이면 environment + relationship을 add한다.
+파일과 함수:
+  src/lib/sceneDirective.ts — selectProgressionTypes (~185-188)
+관련 코드:
+  if (selected.length === 0) { add("environment"); add("relationship"); }
+잠재 영향:
+  평온·무표식 장면도 항상 전개 방향이 채워져 "새 사건 없음" 경로가 없다.
+확신도: CONFIRMED
+
+================================================================================
+5. 작전 키워드가 npc_action을 자동 추가하는가
+================================================================================
+확정 사실:
+  "작전|임무|침투|추적|협상|함정|구출" 매칭 시 tactical_planning + npc_action + consequence.
+파일과 함수:
+  src/lib/sceneDirective.ts — selectProgressionTypes (~169-173)
+관련 코드:
+  if (includesAny(text, ["작전", ...])) { add("tactical_planning"); add("npc_action"); ... }
+잠재 영향:
+  lorebook/memory에 작전 단어만 있어도 NPC 행동이 선택될 수 있다
+  (아래 6번과 결합).
+확신도: CONFIRMED
+
+================================================================================
+6. memory/relationship/lorebook이 현재 progression type 선택에 쓰이는가
+================================================================================
+확정 사실 (V1):
+  buildSceneDirective는 memoryText + relationshipMemoryText + lorebookText를
+  recent messages / current user message와 하나의 text로 합쳐 selectProgressionTypes에 넣는다.
+파일과 함수:
+  src/lib/sceneDirective.ts — buildSceneDirective (~238-245)
+관련 코드:
+  const text = [compactText(...), currentUserMessage, memoryText, relationshipMemoryText, lorebookText].join("\n");
+잠재 영향:
+  침실 휴식 중에도 lorebook의 "임무/전투/NPC"로 operation/npc_action이 선택될 수 있다.
+Living path (INFERRED/CONFIRMED mix):
+  livingSceneDirective는 분류에 memory/lore를 쓰지 않는다고 주석/구현상 명시
+  (Grounded pools only). CONFIRMED for living classification separation.
+확신도: CONFIRMED (V1); CONFIRMED (Living does not classify from memory/lore)
+
+================================================================================
+7. trigger block과 scene directive block이 동시에 주입되는가
+================================================================================
+확정 사실:
+  triggeredScenarioEventsBlock과 sceneDirectiveBlock이 같은 요청에 둘 다 전달되며
+  contextBuilder가 둘 다 push한다. 한쪽이 다른 쪽을 생략하지 않는다.
+파일과 함수:
+  src/app/api/chat/route.ts; src/services/contextBuilder.ts
+관련 코드:
+  pushTriggeredScenarioEvents(); ... pushSceneDirective();
+잠재 영향:
+  trigger + environment/relationship 지시가 동시에 모델에 보일 수 있다.
+확신도: CONFIRMED
+
+================================================================================
+8. trigger 우선순위가 하드 배타인지 텍스트 지시뿐인지
+================================================================================
+확정 사실:
+  V1 footer: "트리거된 사건 지시가 있으면 이번 턴 장면 지시보다 우선한다."
+  Living: phase=TRIGGERED_EVENT + "트리거 우선. 별도 사건 금지." 문구.
+  서버가 eventBudget을 0으로 강제하거나 progression을 비우지는 않는다.
+파일과 함수:
+  sceneDirective.ts renderSceneDirectiveForPrompt; livingSceneDirective.ts render
+관련 코드:
+  text-only priority; buildNextBeatHint only softens hint when trigger present
+잠재 영향:
+  모델이 두 번째 사건을 추가할 여지가 남는다 (소프트 지시).
+확신도: CONFIRMED
+
+================================================================================
+9. 일반 RP와 auto progression의 cast/dialogue 규칙 차이
+================================================================================
+확정 사실:
+  interactive → userControl=no_user_control; no ensemble scene rule in V1 render
+  auto_progression → persona_based_dialogue_allowed + AUTO_PROGRESSION_ENSEMBLE_SCENE_RULE
+  + NO_FALSE_SHARED_MEMORY_RULE
+  autoProgressionRules: AI_CAST 다인물 대사/행동 허용
+파일과 함수:
+  sceneDirective.ts; autoProgressionRules.ts; noGodmodding.ts
+잠재 영향:
+  auto progression은 존재하지 않는 NPC로 대화량을 채울 수 있는 지시 여지
+확신도: CONFIRMED
+
+================================================================================
+10. scene presence 데이터가 일반 채팅에서 실제 신뢰 가능한지
+================================================================================
+확정 사실:
+  observer bootstrap / presence writes / sceneEvidence persist는
+  Persona Secret Discovery kill-switch가 OFF(기본)이면 no-op이다.
+  sceneDirective / livingSceneDirective는 presence를 읽지 않는다.
+파일과 함수:
+  observerBootstrap.ts; scenePresenceActions.ts; personaSecretBoundaryPolicy.ts
+  sceneEvidence extract paths
+관련 코드:
+  isPersonaSecretDiscoveryEnabled unset → false
+잠재 영향:
+  재수렴 SLA용 authoritative separation state로 presence를 재사용할 수 없다.
+  Event-Restraint V2는 별도 persistence가 필요하다.
+확신도: CONFIRMED
+
+================================================================================
+Additional confirmed V1 pressure points
+================================================================================
+- detectSceneStagnation: short user replies (<=12 chars) + low movementTerms
+  짧은 새 행동("문을 연다")도 shortUserReplies로 정체 쪽으로 기울 수 있음. CONFIRMED
+- selectSceneIntensity returns max 4; type allows 5 but unused. CONFIRMED
+- renderIntensity may emit "1~2" / "2~3" ranges when stagnant. CONFIRMED
+- buildNextBeatHint defaults to external pressure / clue / daily_life relationship
+  temperature / environment change phrases. CONFIRMED
+- Intensity 5 reserved in type but never selected — recommend drop to 0|1|2|3|4 in V2.
+
+================================================================================
+Intensity decision (for V2 implementation)
+================================================================================
+Choice: recommendedIntensity: 0 | 1 | 2 | 3 | 4
+Reason: selectSceneIntensity never returns 5; range rendering hands discretion to the model.
+Keep V1 type unchanged for regression safety; V2 uses exclusive 0-4 integers and
+renderIntensityV2 emits a single integer.

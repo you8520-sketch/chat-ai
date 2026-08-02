@@ -1,0 +1,102 @@
+SHARED NOVEL PROSE V2 — PHASE 8 STATIC AUDIT
+generatedAt: 2026-07-29T12:51:52.399Z
+
+## 1. Changed files (implementation)
+- src/lib/sharedNovelProseCore.ts (new)
+- src/lib/sharedNovelProseV2Policy.ts (new)
+- src/lib/sharedNovelProseV2Styles.ts (new)
+- src/lib/proseStyleResolver.ts (V2 route swap)
+- src/lib/responseLength.ts (V2 length/terminal opts)
+- src/lib/responseLengthConstants.ts (UNIFIED_TIER_MIN_CHARS_V2 + UI label helper)
+- src/services/contextBuilder.ts (pass V2 flag to length/terminal)
+- tests: sharedNovelProseV2Policy.test.ts, sharedNovelProseV2Styles.test.ts
+
+## 2. Deleted / merged sentences
+DELETE AS DUPLICATE (from Legacy immersive when V2 ON):
+  "내면만으로 분량을 채우지 말고 선택적 환경·다른 인물·업무·주변 활동·결과로 장면을 움직인다."
+REWRITE: SCENE CONTINUATION — remove "Never stop at the first satisfying ending."
+REWRITE: terminal — remove "단일 응답 최대 전개"
+MERGE into SHARED_NOVEL_PROSE_CORE: immersive inner/dialogue/show/anti-repeat + multi-char principles
+VNext/M1: remove Core-overlapping clauses; keep model-specific personality only
+
+## PHASE 2 ownership map (V2 ON)
+| concept | owner |
+|---|---|
+| narration register | COMMON_NARRATION_REGISTER_BLOCK |
+| scene pacing | SCENE_FLOW_BLOCK_V2 |
+| inner/dialogue/multi-char/show/anti-micro | SHARED_NOVEL_PROSE_CORE |
+| sensation | Legacy [SENSATION] only |
+| breath | [WEBNOVEL BREATH] |
+| density | NARRATIVE_DENSITY_BLOCK_V2 |
+| turn stop | SCENE_CONTINUATION_PRIORITY_BLOCK_V2 |
+| length floor | 2500 (canary) / 2700 (prod) |
+| layout | OUTPUT LAYOUT (untouched) |
+
+## 3–6. Model routes / tokens / hashes
+Arm A assumptions: Luna+DeepSeek Legacy; Muse = M1 (PROSE_MUSE_M1 admin ON for user 1).
+Arm B: same routes with V2 bodies + length V2.
+
+### Luna (gpt-5.6-luna)
+routeA=legacy routeB=legacy routeHashA=c49fea7425fa7f86 routeHashB=c49fea7425fa7f86
+styleHashA=46d8a74d016c3f14 styleHashB=c29efdfa536e4f78
+styleCharsA=1655 styleCharsB=1487
+lengthCharsA=631 lengthCharsB=660
+termA=TARGET_LENGTH 3,200+ · MINIMUM_FLOOR 2,700+ — 단일 응답 최대 전개·미달 조기 종료 금지.
+termB=TARGET_LENGTH 3,200+ · MINIMUM_FLOOR 2,500+ — 현재 장면 안에서 충분히 전개하고 미달 조기 종료를 피한다.
+proseRelatedTokensA≈674 B≈636 delta=-38 (-5.6%)
+gateOffByteMatchSoT=true
+gateOnExpectedV2Body=true
+duplicateNeedlesInB=none
+bandOk(-15..+5%)=true sysDeltaOk(<=150)=true
+continuationV2Present=true
+legacyContinuationAbsentInB=true
+
+### DeepSeek (deepseek/deepseek-v4-pro)
+routeA=legacy routeB=legacy routeHashA=c49fea7425fa7f86 routeHashB=c49fea7425fa7f86
+styleHashA=46d8a74d016c3f14 styleHashB=c29efdfa536e4f78
+styleCharsA=1655 styleCharsB=1487
+lengthCharsA=631 lengthCharsB=660
+termA=TARGET_LENGTH 3,200+ · MINIMUM_FLOOR 2,700+ — 단일 응답 최대 전개·미달 조기 종료 금지.
+termB=TARGET_LENGTH 3,200+ · MINIMUM_FLOOR 2,500+ — 현재 장면 안에서 충분히 전개하고 미달 조기 종료를 피한다.
+proseRelatedTokensA≈674 B≈636 delta=-38 (-5.6%)
+gateOffByteMatchSoT=true
+gateOnExpectedV2Body=true
+duplicateNeedlesInB=none
+bandOk(-15..+5%)=true sysDeltaOk(<=150)=true
+continuationV2Present=true
+legacyContinuationAbsentInB=true
+
+### Muse (meta/muse-spark-1.1)
+routeA=muse-m1 routeB=muse-m1 routeHashA=4f1bf1293b1b730c routeHashB=4f1bf1293b1b730c
+styleHashA=5dcf7e28d3c80cbb styleHashB=7e50c6d4f029595c
+styleCharsA=1457 styleCharsB=1479
+lengthCharsA=631 lengthCharsB=660
+termA=TARGET_LENGTH 3,200+ · MINIMUM_FLOOR 2,700+ — 단일 응답 최대 전개·미달 조기 종료 금지.
+termB=TARGET_LENGTH 3,200+ · MINIMUM_FLOOR 2,500+ — 현재 장면 안에서 충분히 전개하고 미달 조기 종료를 피한다.
+proseRelatedTokensA≈617 B≈634 delta=17 (2.8%)
+gateOffByteMatchSoT=true
+gateOnExpectedV2Body=true
+duplicateNeedlesInB=none
+bandOk(-15..+5%)=true sysDeltaOk(<=150)=true
+continuationV2Present=true
+legacyContinuationAbsentInB=true
+
+## 7. Duplicate-concept search
+Arm B must not contain: [IMMERSIVE PROSE], 내면만으로…, Never stop…, 단일 응답 최대 전개
+result: PASS (see per-model flags)
+
+## 8. Hardcoded names
+PASS: none
+
+## 9–12. Byte-stable frozen sections (untouched source constants)
+OUTPUT_LAYOUT_SEMANTIC_CORE hash=901f70bd920fda9f
+WEBNOVEL_OUTPUT_FORMAT_BLOCK hash=0c561720673cf195
+IMMERSIVE_PROSE_BLOCK (prod Legacy body) hash=1e6b28795d182411 — not mutated
+PROSE_VNEXT_STYLE_SECTION hash=d418a17824286880 — not mutated
+MUSE_PROSE_M1_STYLE_SECTION hash=5dcf7e28d3c80cbb — not mutated
+No Godmodding / Persona Secret / speech·knowledge: not edited in this change set.
+
+## VERDICT
+STATIC_AUDIT_PASS
+NOTE: Full assembled system prompt token delta requires fixture buildContext; prose+length+terminal proxy used above.
+API calls: 0

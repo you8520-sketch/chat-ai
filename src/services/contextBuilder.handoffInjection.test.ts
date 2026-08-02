@@ -45,7 +45,10 @@ describe("buildContext — turn handoff shell removed Step 7", () => {
     assert.equal(countFullHandoffBlocks(built.systemPrompt), 0);
     assert.ok(!built.systemPrompt.includes("<TURN_HANDOFF_AND_PACING>"));
     assert.ok(!built.systemPrompt.includes("[SCENE CONTINUATION PRIORITY]"));
-    assert.match(built.systemPrompt, /3,200~4,200자/);
+    assert.doesNotMatch(built.systemPrompt, /3,200~4,200자/);
+    const lastUser = built.history[built.history.length - 1];
+    assert.equal(lastUser?.role, "user");
+    assert.match(lastUser!.content, /3,200~4,200자/);
     assert.ok(!built.systemPrompt.includes("SCENE_PROGRESSION_&_NARRATION_PARAGRAPH_FLOOR"));
     assert.ok(!built.systemPrompt.includes("[ANTI-RESOLUTION RULE]\nDo NOT resolve"));
   });
@@ -101,7 +104,7 @@ describe("buildContext — turn handoff shell removed Step 7", () => {
     });
     const lastUser = built.history[built.history.length - 1];
     assert.equal(lastUser?.role, "user");
-    // Length owned by system bounded sentence; user turn keeps layout-only tail.
+    // Length owned by user-turn tail; layout precedes length owner sentence.
     assert.match(lastUser!.content, /지문과 "…" 대사 사이 빈 줄/);
     assert.doesNotMatch(lastUser!.content, /TARGET_LENGTH|MINIMUM_FLOOR|미달 조기 종료/);
     assert.equal(buildCompactTerminalLengthAbsoluteTail(undefined), "");

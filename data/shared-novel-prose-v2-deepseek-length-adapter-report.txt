@@ -1,0 +1,32 @@
+Shared Novel Prose V2 — DeepSeek length adapter report (mechanics)
+Literary quality is NOT judged here.
+
+Transport (CheaperInference exact path)
+- resolvedSelectedAI = deepseek-v4-pro
+- transportProvider = cheaperinference
+- endpointHost = api.cheaperinference.com
+- First DeepSeek-B call used empty-stream non-stream fallback → TRANSPORT_INVALID; discarded.
+- Rerun used allowEmptyStreamFallback=false (1 primary stream each). All three arms TRANSPORT_OK.
+
+Final one-pass lengths (visibleChars, whitespace stripped)
+DeepSeek-A (V2 only, no length adapter): 997  band=FAIL_SHORT  adapterPresent=false
+DeepSeek-B (safe scene-unit sentence + safety): 504  band=FAIL_SHORT  adapterPresent=true
+DeepSeek-C (exact 「단일 응답 최대 전개·미달 조기 종료 금지.」 + safety): 690  band=FAIL_SHORT  adapterPresent=true
+
+Arm comparison
+A=997 B=504 C=690
+B>A length? false
+C>B length? true
+C>A length? false
+
+Mechanical conclusion (not a literary PASS/FAIL)
+- Valid CheaperInference attribution confirmed for A/B/C after rerun.
+- None of A/B/C reached 1,500 visible chars on this F1 fixture.
+- Arm B did NOT increase length vs Arm A on this sample; do not adopt B from length alone.
+- Arm C (strong production phrase) also stayed short and is comparison-only — not a production candidate.
+- DeepSeek early-stop on CheaperInference remains the dominant length issue; shared V2 prose alone did not fix it in this 1차 sample.
+
+Next experiment candidates (out of this transport-1 scope)
+- Different max_tokens / reasoning settings (if provider exposes them)
+- Separate DeepSeek adapter iteration after human raw review
+- Do not restore 「단일 응답 최대 전개」 into Shared Novel Prose Core

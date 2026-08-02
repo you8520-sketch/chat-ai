@@ -1,0 +1,46 @@
+SceneDirective V2 — Pre-Merge Test Report
+Branch: feature/scene-directive-v2
+Date: 2026-07-30
+HEAD: 1d19d7a
+Draft PR: #198
+
+Commands
+  node --conditions=react-server --import tsx --test \
+    src/lib/sceneDirectiveV2.test.ts \
+    src/lib/sceneDirectiveV2.lifecycle.test.ts \
+    src/lib/sceneDirective.test.ts \
+    src/lib/livingSceneDirective.test.ts
+  npm.cmd run typecheck:app
+
+Results
+  sceneDirective V2 + lifecycle + V1 + Living: 81/81 pass
+  typecheck:app: pass
+  production env changed: no
+  main merge: no
+  rollout: no
+
+Coverage highlights
+  - Event restraint fixtures A–H
+  - Reconvergence methods / NPC forbid / grounded path block
+  - temporary_quiet vs hard_no_contact; quoted speech false positive guard
+  - Shadow vs production isolation
+  - prepare/commit; idempotent finalize; regenerate clock freeze
+  - Concurrent CAS stale_version
+  - Living × V2 owner matrix (6 cells)
+  - OFF prompt owner + V1 SHA stability
+
+Shadow telemetry aggregates (schema/reason codes ready; ops review pending)
+  eligibleSeparations, separationDetected, reconvergenceDue,
+  reconvergenceOfferedByT2, reconvergenceBlockedNoGroundedPath,
+  userInitiatedReconnections, noContactLocks, triggerDeferrals,
+  deadlineMisses, duplicateOffersPrevented, newNpcAllowed
+
+Target gates (post-shadow review, not production ON)
+  eligible T2 offer rate >= 98%
+  no-contact violation = 0
+  duplicate offer = 0
+  new NPC reconvergence = 0
+  trigger + reconvergence double event = 0
+  failed request state advance = 0
+  off-mode prompt difference = 0
+  shadow-mode visible prompt difference = 0

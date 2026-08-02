@@ -48,6 +48,8 @@ import { stripRpMetaPreamble } from "@/lib/narrativeRules";
 import { buildAdvancedProseNsfwGuidelines } from "@/lib/advancedProseNsfwGuidelines";
 import { buildProseStyleXmlBundle } from "@/lib/proseStyleXmlBundle";
 import { resolveProseStyleSection } from "@/lib/proseStyleResolver";
+import { resolveDeepSeekLengthAdapterSection } from "@/lib/sharedNovelProseModelAdapters";
+import { isSharedNovelProseV2EnabledForUser } from "@/lib/sharedNovelProseV2Policy";
 import { buildRegenerateSystemDirective } from "@/lib/continueNarrative";
 import {
   buildNoGodmoddingBlock,
@@ -120,9 +122,11 @@ import {
 } from "@/lib/bilingualDialoguePolicy";
 import {
   appendCompactTerminalLengthToUserTurn,
+  appendTerraTerminalLengthOwnerToUserTurn,
   buildLengthInstruction,
   resolveResponseLengthTarget,
 } from "@/lib/responseLength";
+import { isTerraTerminalLengthOwnerActive } from "@/lib/sharedNovelProseModelAdapters";
 import type { OpenRouterSystemSplit } from "@/lib/openRouterCache";
 import { estimateOpenRouterCacheableTokens, buildOpenRouterDynamicLoreUserPrefix, HISTORY_CACHE_TAIL_EXCLUDE_MESSAGES } from "@/lib/openRouterCache";
 import { isDeepSeekModel, isDeepSeekV4ProModel, isQwenModel } from "@/lib/chatModels";
@@ -998,10 +1002,20 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     }
   }
 
+  const sharedNovelProseV2 = isSharedNovelProseV2EnabledForUser(
+    input.userId,
+    input.modelId
+  );
+  const terraTerminalLengthOwner = isTerraTerminalLengthOwnerActive({
+    modelId: input.modelId,
+    contentKind: input.contentKind,
+  });
   const lengthInstructionOpts = {
     statusWindowEveryTurn: statusWindowPolicy.everyTurn,
     htmlFlashOwned: isOpenRouter,
     statusWidgetActive: input.statusWidgetActive === true,
+    sharedNovelProseV2,
+    terraTerminalLengthOwner,
   };
 
   // Length owner lives on the current user-turn tail only (system length removed).
@@ -1064,7 +1078,20 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   }
 
   // rule-terminal-length-override removed — length owned solely by
-  // USER_TAIL_LENGTH_OWNER_SENTENCE on the current user turn.
+  // USER_TAIL_LENGTH_OWNER_SENTENCE / Luna / Terra terminal contract on user turn.
+
+  // Experiment-only DeepSeek length adapter (SNPV2_DEEPSEEK_LENGTH_ARM=B|C).
+  // Default OFF → no section → prior assembly unchanged.
+  const deepSeekLengthAdapter = resolveDeepSeekLengthAdapterSection(input.modelId);
+  if (deepSeekLengthAdapter) {
+    pushSection(
+      "rule-deepseek-length-adapter",
+      "DeepSeek length adapter (experiment)",
+      "systemRules",
+      deepSeekLengthAdapter,
+      "dynamic"
+    );
+  }
 
   // Admin-only Muse canary: unknown-information truth priority as the final
   // system section. Independent of M1.
@@ -1253,16 +1280,20 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       userTurnContent = `${userTurnContent}\n\n${emotionOverlay}`;
     }
   }
-  // Layout first, then Luna terminal contract (or non-Luna length) as last instruction.
-  userTurnContent = appendCompactTerminalLengthToUserTurn(
-    userTurnContent,
-    input.targetResponseChars,
-    {
-      modelId: input.modelId,
-      contentKind: input.contentKind,
-      party: input.party,
-    }
-  );
+  if (terraTerminalLengthOwner) {
+    userTurnContent = appendTerraTerminalLengthOwnerToUserTurn(userTurnContent);
+  } else {
+    // Layout first, then Luna terminal contract (or non-Luna length) as last instruction.
+    userTurnContent = appendCompactTerminalLengthToUserTurn(
+      userTurnContent,
+      input.targetResponseChars,
+      {
+        modelId: input.modelId,
+        contentKind: input.contentKind,
+        party: input.party,
+      }
+    );
+  }
   const estimatePayloadTokens = (hist: ContextBuildInput["shortTermHistory"]) =>
     estimateTokens(
       `${systemPrompt}\n${[...hist, { role: "user" as const, content: userTurnContent }]

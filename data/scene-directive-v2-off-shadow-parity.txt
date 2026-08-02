@@ -1,0 +1,30 @@
+SceneDirective V2 — Off / Shadow Parity
+Branch: feature/scene-directive-v2
+
+OFF_MODE_PROMPT_BYTE_IDENTICAL
+- Policy default SCENE_DIRECTIVE_V2_MODE=off
+- isSceneDirectiveV2ComputeEnabled(off)=false
+- isSceneDirectiveV2InjectEnabled(off)=false
+- resolveScenePacingPromptOwner(off, living=false)=legacy_v1
+- resolveScenePacingPromptOwner(off, living=true)=living_continuity_director
+- Legacy V1 render for identical fixture input is byte-stable (SHA-256 equal across rebuilds)
+- Result: OFF_MODE_PROMPT_BYTE_IDENTICAL=true for the scene-directive prompt owner path
+  (V2 never owns inject; no V2 block in prompt when mode=off)
+
+OFF runtime parity
+- V2 directive not computed when mode=off
+- No reconvergence production/shadow INSERT/UPDATE on off path (commit never prepared)
+- No V2 telemetry on off path
+- Schema ensure (idempotent CREATE TABLE IF NOT EXISTS) is the only additive DB touch allowed at boot
+
+SHADOW parity (visible prompt)
+- isSceneDirectiveV2InjectEnabled(shadow)=false
+- Prompt owner remains legacy_v1 or living_continuity_director
+- V2 compute + telemetry + shadow state writes allowed
+- shadow-mode visible prompt difference vs off for same Living/V1 owner: 0 by design
+  (V2 text is never injected)
+
+SHA surfaces checked in tests
+- full legacy scene directive block (UTF-8 SHA-256)
+- owner resolution matrix (Living × V2)
+- V2 block intentionally differs from V1 when computed (proves inject gate matters)

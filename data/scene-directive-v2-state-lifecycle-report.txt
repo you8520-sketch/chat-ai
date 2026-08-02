@@ -1,0 +1,36 @@
+SceneDirective V2 — State Lifecycle Report
+Branch: feature/scene-directive-v2
+
+Shadow state storage
+- Table: chat_reconvergence_shadow_state (recommended isolation A)
+- Production ON path never reads shadow rows
+- Shadow compute never writes production rows
+- Stored fields: chat_id, character_id, state, separation_turn, due_turn,
+  offered_turn, hook metadata (type/summary clamp), last_method, reason codes
+  via transition log, request_id, generation_sequence, version, updated_at
+- Forbidden: raw user/assistant text, full hook prose dumps, memory/lorebook secrets
+
+Prepare / commit
+- prepareReconvergenceTransition: computes pending next state + expectedVersion
+- commitReconvergenceTransition: CAS on version; writes only after finalize
+- Idempotency: chat_reconvergence_transition_log UNIQUE on transition keys
+  (request_id / assistant_message_id / generation_sequence / source_turn)
+
+Outcomes covered by lifecycle tests
+1. off mode: no state write without commit
+2. shadow T0→T1→T2: state advances in shadow only
+3. production untouched by shadow commits
+4. failed finalize (no commit): advance 0
+5. successful finalize: advance 1
+6. duplicate finalize same request: advance 1 (idempotent replay)
+7. regenerate flag: completed-turn clocks not advanced
+8. concurrent due commits: stale_version rejects second writer
+9. user-initiated reconnection / trigger fulfilled cancel pending due
+10. trigger conflict: one-turn defer; second miss sets deadline_missed_due_to_trigger
+11. no-contact / temporary_quiet vs hard_no_contact
+12. grounded path absent → RECONVERGENCE_BLOCKED_NO_GROUNDED_PATH, no fabricated NPC/event
+
+T0/T1/T2
+- T0: separation detected → separated + due_turn = separation+2
+- T1: hold / no offer
+- T2: offer if eligible + grounded path; else blocked reason code

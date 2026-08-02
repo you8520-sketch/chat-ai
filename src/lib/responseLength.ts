@@ -12,10 +12,26 @@ import { visibleAssistantDisplayCharCount, visibleAssistantDisplayText } from ".
 import { visibleAssistantDisplayKoreanWordCount } from "./koreanWordCount";
 import type { BilingualDialoguePolicy } from "@/lib/bilingualDialoguePolicy";
 import { buildLangCriticalRule } from "@/lib/bilingualDialoguePolicy";
+import {
+  NARRATIVE_DENSITY_BLOCK,
+  NO_GENERIC_REACTIONS_BLOCK,
+  NO_INPUT_ECHO_RULE,
+} from "@/lib/sceneExpansionPolicy";
+import {
+  SCENE_CONTINUATION_PRIORITY_BLOCK,
+  SCENE_CONTINUATION_PRIORITY_BLOCK_CORE,
+} from "./turnHandoffAndPacing";
+import {
+  NARRATIVE_DENSITY_BLOCK_V2,
+  SCENE_CONTINUATION_PRIORITY_BLOCK_V2,
+} from "@/lib/sharedNovelProseV2Styles";
 import { buildCompactTerminalLayoutRecencyLine } from "@/lib/webnovelOutputFormat";
+import { TERRA_TERMINAL_LENGTH_OWNER_CONTRACT } from "@/lib/terraTerminalLengthOwner";
 import { resolveLunaTerminalOutputContract } from "@/lib/lunaSinglePrimaryAdapter";
 import type { ContentKind } from "@/lib/simulationMode";
 export * from "./responseLengthConstants";
+/** @deprecated Experiment-1 — not injected; see terraTerminalLengthOwner */
+export { LONGFORM_RP_SCENE_CONTRACT } from "./turnHandoffAndPacing";
 import {
   CATASTROPHIC_MIN_RESPONSE_CHARS,
   DEFAULT_TARGET_RESPONSE_CHARS,
@@ -132,6 +148,13 @@ export type LengthInstructionOpts = {
   htmlFlashOwned?: boolean;
   /** true — 제작자 상태창 위젯; prose 분량과 <<<STATUS_VALUES>>> tail 분리 */
   statusWidgetActive?: boolean;
+  /** Shared Novel Prose V2 canary — floor 2500 + V2 continuation/density/terminal */
+  sharedNovelProseV2?: boolean;
+  /**
+   * Terra terminal single-owner diagnosis — strip numeric/system length owners;
+   * contract is appended once at the user-turn absolute end instead.
+   */
+  terraTerminalLengthOwner?: boolean;
 };
 
 /**
@@ -148,14 +171,46 @@ export type UserTailTerminalOpts = {
   modelId?: string | null;
   contentKind?: ContentKind | null;
   party?: boolean | null;
+  sharedNovelProseV2?: boolean;
+  terraTerminalLengthOwner?: boolean;
 };
 
-function assembleLengthInstructionBlock(
-  _targetInput?: number | null,
-  _opts?: LengthInstructionOpts
-): string {
-  // Length owner moved to current user-tail; system returns empty.
+function buildJsonStatusLengthLine(opts?: LengthInstructionOpts): string {
+  if (opts?.statusWidgetActive) {
+    return "";
+  }
   return "";
+}
+
+function assembleLengthInstructionBlock(
+  targetInput?: number | null,
+  opts?: LengthInstructionOpts
+): string {
+  const terraTerminal = !!opts?.terraTerminalLengthOwner;
+  if (!terraTerminal) {
+    // Length owner moved to current user-tail; system returns empty.
+    return "";
+  }
+
+  const v2 = !!opts?.sharedNovelProseV2;
+  const jsonOrStatusLine = buildJsonStatusLengthLine(opts);
+  const continuation = v2
+    ? SCENE_CONTINUATION_PRIORITY_BLOCK_V2
+    : SCENE_CONTINUATION_PRIORITY_BLOCK_CORE;
+  const density = v2 ? NARRATIVE_DENSITY_BLOCK_V2 : NARRATIVE_DENSITY_BLOCK;
+
+  // Terra terminal-owner: omit TARGET_LENGTH / MINIMUM_FLOOR / early-stop length lines;
+  // keep expansion + density (density wording unchanged per experiment scope).
+  return `[SCENE EXPANSION]
+${NO_INPUT_ECHO_RULE}
+
+- 짧은 유저 입력에 동조(Mirroring) 금지 — 장문 출력
+- 새 서사 비트(행동·반응·전환)로 확장; 문단 수를 맞추려 하지 마라
+- 장면·대사 사이를 행동·반응·감각·분위기로 확장한다 — 대사마다 기계적 교대나 동일 길이 블록을 맞추지 마라
+
+${continuation}
+
+${density}${NO_GENERIC_REACTIONS_BLOCK ? `\n\n${NO_GENERIC_REACTIONS_BLOCK}` : ""}${jsonOrStatusLine}`;
 }
 
 /**
@@ -169,16 +224,21 @@ export function buildTerminalLengthOverrideRecencyBlock(
 
 /** Terminal length override removed — length owned solely by USER_TAIL_LENGTH_OWNER_SENTENCE. */
 export function buildCompactTerminalLengthAbsoluteTail(
-  _targetInput?: number | null
+  _targetInput?: number | null,
+  opts?: { sharedNovelProseV2?: boolean; terraTerminalLengthOwner?: boolean }
 ): string {
+  if (opts?.terraTerminalLengthOwner) return "";
   return "";
 }
 
 /** @deprecated buildCompactTerminalLengthAbsoluteTail() */
 export const TERMINAL_LENGTH_OVERRIDE_BLOCK = "";
 
-export function buildTerminalLengthOverrideBlock(targetInput?: number | null): string {
-  return buildCompactTerminalLengthAbsoluteTail(targetInput);
+export function buildTerminalLengthOverrideBlock(
+  targetInput?: number | null,
+  opts?: { sharedNovelProseV2?: boolean; terraTerminalLengthOwner?: boolean }
+): string {
+  return buildCompactTerminalLengthAbsoluteTail(targetInput, opts);
 }
 
 /** 모든 모델 공통 — LENGTH CONTROL + TARGET/FLOOR (자동진행·재생성 포함 단일 출처) */
@@ -563,7 +623,28 @@ MINIMUM_FLOOR 미달·조기 handoff 금지. [LENGTH CONTROL & SCENE EXPANSION] 
 }
 
 /**
+ * Terra terminal single-owner — layout (format) then the sole length/completion
+ * contract as the absolute last RP instruction on the current user turn.
+ */
+export function appendTerraTerminalLengthOwnerToUserTurn(
+  userContent: string
+): string {
+  const layoutLine = buildCompactTerminalLayoutRecencyLine();
+  const contract = TERRA_TERMINAL_LENGTH_OWNER_CONTRACT;
+  const tail = `${layoutLine}\n${contract}`;
+  const body = userContent.trim();
+  if (!body) return tail;
+  if (body.includes(contract)) {
+    // Ensure contract remains the absolute end (no trailing instructions after it).
+    if (body.trimEnd().endsWith(contract)) return body;
+    return `${body.replace(contract, "").trim()}\n\n${tail}`;
+  }
+  return `${body}\n\n${tail}`;
+}
+
+/**
  * Current user-turn bottom: layout first, then the terminal owner last.
+ * Terra+single_primary → TERRA_TERMINAL_LENGTH_OWNER_CONTRACT.
  * Luna+single_primary → LUNA_TERMINAL_OUTPUT_CONTRACT (length + concentration).
  * Other models → USER_TAIL_LENGTH_OWNER_SENTENCE (length only).
  */
@@ -572,6 +653,9 @@ export function appendCompactTerminalLengthToUserTurn(
   _targetInput?: number | null,
   opts?: UserTailTerminalOpts
 ): string {
+  if (opts?.terraTerminalLengthOwner) {
+    return appendTerraTerminalLengthOwnerToUserTurn(userContent);
+  }
   const layoutLine = buildCompactTerminalLayoutRecencyLine();
   const lunaContract = resolveLunaTerminalOutputContract(
     opts?.modelId,

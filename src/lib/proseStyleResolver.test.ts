@@ -10,6 +10,7 @@ import {
   isProseVNextRolloutEnabledForModel,
 } from "@/lib/proseVNextPolicy";
 import { resolveProseStyleSection } from "@/lib/proseStyleResolver";
+import { SHARED_NOVEL_PROSE_V2_ENV } from "@/lib/sharedNovelProseV2Policy";
 
 const MUSE = "meta/muse-spark-1.1";
 const DEEPSEEK = "deepseek/deepseek-v4-pro";
@@ -30,7 +31,12 @@ const VNEXT_KEYS = [
   PROSE_VNEXT_ENV.ROLLOUT_MODEL_IDS,
 ] as const;
 
-const ALL_KEYS = [...M1_KEYS, ...VNEXT_KEYS] as const;
+const V2_KEYS = [
+  SHARED_NOVEL_PROSE_V2_ENV.ENABLED,
+  SHARED_NOVEL_PROSE_V2_ENV.USER_IDS,
+] as const;
+
+const ALL_KEYS = [...M1_KEYS, ...VNEXT_KEYS, ...V2_KEYS] as const;
 
 function saveEnv(): Record<string, string | undefined> {
   return Object.fromEntries(ALL_KEYS.map((k) => [k, process.env[k]]));

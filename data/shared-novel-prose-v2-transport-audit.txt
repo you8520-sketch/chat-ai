@@ -1,0 +1,130 @@
+===== Luna-A =====
+selectedAIInput=gpt-5.6-luna
+resolvedSelectedAI=gpt-5.6-luna
+transportProvider=cheaperinference
+endpointHost=api.cheaperinference.com
+requestModelId=gpt-5.6-luna
+responseModelId=openai/gpt-5.6-luna
+finishReason=stop
+transportStatus=N/A
+visibleChars=5006
+error=
+===== Luna-B =====
+selectedAIInput=gpt-5.6-luna
+resolvedSelectedAI=gpt-5.6-luna
+transportProvider=cheaperinference
+endpointHost=api.cheaperinference.com
+requestModelId=gpt-5.6-luna
+responseModelId=openai/gpt-5.6-luna
+finishReason=stop
+transportStatus=N/A
+visibleChars=5119
+error=
+===== Gemini-A =====
+selectedAIInput=google/gemini-3.6-flash
+resolvedSelectedAI=google/gemini-3.6-flash
+transportProvider=openrouter
+endpointHost=openrouter.ai
+requestModelId=google/gemini-3.6-flash
+responseModelId=google/gemini-3.6-flash
+finishReason=stop
+transportStatus=N/A
+visibleChars=1729
+error=
+===== Gemini-B =====
+selectedAIInput=google/gemini-3.6-flash
+resolvedSelectedAI=google/gemini-3.6-flash
+transportProvider=openrouter
+endpointHost=openrouter.ai
+requestModelId=google/gemini-3.6-flash
+responseModelId=google/gemini-3.6-flash
+finishReason=stop
+transportStatus=N/A
+visibleChars=1255
+error=
+===== DeepSeek-A =====
+selectedAIInput=deepseek-v4-pro
+resolvedSelectedAI=deepseek-v4-pro
+transportProvider=cheaperinference
+endpointHost=api.cheaperinference.com
+requestModelId=deepseek-v4-pro
+responseModelId=deepseek-v4-pro
+finishReason=stop
+transportStatus=OK
+visibleChars=967
+error=
+===== DeepSeek-B =====
+selectedAIInput=deepseek-v4-pro
+resolvedSelectedAI=deepseek-v4-pro
+transportProvider=cheaperinference
+endpointHost=api.cheaperinference.com
+requestModelId=deepseek-v4-pro
+responseModelId=(missing)
+finishReason=stop
+transportStatus=TRANSPORT_INVALID
+visibleChars=671
+error=
+===== DeepSeek-C =====
+selectedAIInput=deepseek-v4-pro
+resolvedSelectedAI=deepseek-v4-pro
+transportProvider=cheaperinference
+endpointHost=api.cheaperinference.com
+requestModelId=deepseek-v4-pro
+responseModelId=deepseek-v4-pro
+finishReason=stop
+transportStatus=OK
+visibleChars=1110
+error=
+
+=== PAIRITY ===
+Luna-A/Luna-B: PAIR_OK | inputTokens 11552 vs 11480
+Gemini-A/Gemini-B: PAIR_OK | inputTokens 11070 vs 11004
+DeepSeek-A/DeepSeek-B: PAIR_OK | inputTokens 12871 vs 12999
+DeepSeek-A/DeepSeek-C: PAIR_OK | inputTokens 12871 vs 12957
+
+=== DEEPSEEK RERUN 2026-07-29T14:26:00.334Z (no empty-stream fallback) ===
+===== DeepSeek-A =====
+selectedAIInput=deepseek-v4-pro
+resolvedSelectedAI=deepseek-v4-pro
+transportProvider=cheaperinference
+endpointHost=api.cheaperinference.com
+requestModelId=deepseek-v4-pro
+responseModelId=deepseek-v4-pro
+finishReason=stop
+transportStatus=OK
+visibleChars=997
+error=
+===== DeepSeek-B =====
+selectedAIInput=deepseek-v4-pro
+resolvedSelectedAI=deepseek-v4-pro
+transportProvider=cheaperinference
+endpointHost=api.cheaperinference.com
+requestModelId=deepseek-v4-pro
+responseModelId=deepseek-v4-pro
+finishReason=stop
+transportStatus=OK
+visibleChars=504
+error=
+===== DeepSeek-C =====
+selectedAIInput=deepseek-v4-pro
+resolvedSelectedAI=deepseek-v4-pro
+transportProvider=cheaperinference
+endpointHost=api.cheaperinference.com
+requestModelId=deepseek-v4-pro
+responseModelId=deepseek-v4-pro
+finishReason=stop
+transportStatus=OK
+visibleChars=690
+error=
+
+=== PAIRITY ===
+Luna-A/Luna-B: PAIR_OK | inputTokens 11552 vs 11480
+Gemini-A/Gemini-B: PAIR_OK | inputTokens 11070 vs 11004
+DeepSeek-A/DeepSeek-B: PAIR_OK | inputTokens 12871 vs 12999
+DeepSeek-A/DeepSeek-C: PAIR_OK | inputTokens 12871 vs 12957
+
+=== NOTE ===
+DeepSeek blocks above the RERUN marker are superseded by the rerun records in metadata.json.
+Final DeepSeek visibleChars: A=997 B=504 C=690 (all TRANSPORT_OK, 1 stream call each).
+Canary flags cleared after run (SHARED_NOVEL_PROSE_V2_ENABLED unset, SNPV2_DEEPSEEK_LENGTH_ARM unset).
+No merge / no production rollout.
