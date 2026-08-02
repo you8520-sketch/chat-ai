@@ -40,8 +40,17 @@ describe("buildLengthInstruction", () => {
     assert.match(block, /\[NO INPUT ECHO — STRICT\]/);
     assert.doesNotMatch(block, /Never paraphrase the user's input/);
     assert.match(block, /\[SCENE CONTINUATION PRIORITY\]/);
-    assert.match(block, /MINIMUM_FLOOR 미달 전 조기 종료·관찰자 붕괴 결말 금지/);
+    assert.match(
+      block,
+      /한국어 장편 소설형 RP로, 한 턴을 보통 3,200~4,200자의 하나의 밀도 있는 장면으로 전개한다/
+    );
+    assert.match(
+      block,
+      /요약하거나 다음 전개를 예고하며 끝내지 말고, 이번 턴에 시작된 주요 행동은 필요한 단계와 최초로 확인 가능한 결과까지 완성한다/
+    );
+    assert.doesNotMatch(block, /MINIMUM_FLOOR 미달 전 조기 종료·관찰자 붕괴 결말 금지/);
     assert.doesNotMatch(block, /지문과 "…" 대사를 한 문단·한 줄에 병합하지 마라/);
+
     assert.match(block, /기계적 교대나 동일 길이 블록을 맞추지 마라/);
     assert.match(block, /새 서사 비트\(행동·반응·전환\)로 확장/);
     assert.match(block, /\[NARRATIVE DENSITY\]/);
@@ -91,7 +100,10 @@ describe("buildLengthInstruction", () => {
     assert.match(out, /^밤이 깊었어\./);
     assert.match(out, /지문과 "…" 대사 사이 빈 줄/);
     assert.match(out, /TARGET_LENGTH 3,200\+/);
-    assert.match(out, /단일 응답 최대 전개·미달 조기 종료 금지\.$/);
+    assert.match(out, /MINIMUM_FLOOR 2,700\+/);
+    // Production: contract lives in SCENE CONTINUATION, not user-turn trailing prose.
+    assert.doesNotMatch(out, /단일 응답 최대 전개·미달 조기 종료 금지/);
+    assert.doesNotMatch(out, /한국어 장편 소설형 RP로/);
   });
 
   it("single-shot reminder defers to LENGTH CONTROL without Time Dilation", () => {
@@ -115,7 +127,8 @@ describe("buildLengthInstruction", () => {
     const tail = buildCompactTerminalLengthAbsoluteTail(undefined);
     assert.match(tail, /TARGET_LENGTH 3,200\+/);
     assert.match(tail, /MINIMUM_FLOOR 2,700\+/);
-    assert.match(tail, /단일 응답 최대 전개·미달 조기 종료 금지\./);
+    assert.doesNotMatch(tail, /단일 응답 최대 전개·미달 조기 종료 금지/);
+    assert.doesNotMatch(tail, /한국어 장편 소설형 RP로/);
     assert.doesNotMatch(tail, /\[TERMINAL LENGTH AUTHORITY\]/);
     assert.doesNotMatch(tail, /\[최우선 절대 지침\]/);
     assert.equal(buildTerminalLengthOverrideRecencyBlock(undefined), tail);
@@ -124,7 +137,9 @@ describe("buildLengthInstruction", () => {
   it("terminal override is compact tail only at absolute end", () => {
     const block = buildTerminalLengthOverrideBlock(3200);
     assert.equal(block, buildCompactTerminalLengthAbsoluteTail(3200));
-    assert.match(block, /단일 응답 최대 전개·미달 조기 종료 금지\.$/);
+    assert.match(block, /TARGET_LENGTH 3,200\+/);
+    assert.match(block, /MINIMUM_FLOOR 2,700\+/);
+    assert.doesNotMatch(block, /단일 응답 최대 전개·미달 조기 종료 금지/);
     assert.doesNotMatch(block, /<TURN_HANDOFF_AND_PACING>/);
     assert.doesNotMatch(block, /\[TERMINAL LENGTH AUTHORITY\]/);
   });
@@ -181,12 +196,19 @@ describe("buildLengthInstruction", () => {
       assert.equal(countOccurrences(sys, "TARGET_LENGTH:"), 1);
       assert.equal(countOccurrences(sys, "MINIMUM_FLOOR:"), 1);
       assert.equal(countOccurrences(sys, "CEILING:"), 0);
-      assert.equal(countOccurrences(sys, "3,200"), 2, "LENGTH CONTROL + compact terminal tail cite unified aim");
+      assert.equal(
+        countOccurrences(sys, "3,200"),
+        3,
+        "LENGTH CONTROL + longform contract + compact terminal cite 3,200"
+      );
       assert.equal(countOccurrences(sys, "2,800"), 0);
       assert.equal((sys.match(/<\/TURN_HANDOFF_AND_PACING>/g) ?? []).length, 0);
       const lastUser = built.history[built.history.length - 1];
       assert.equal(lastUser?.role, "user");
-      assert.match(lastUser?.content ?? "", /단일 응답 최대 전개·미달 조기 종료 금지\.$/);
+      assert.match(lastUser?.content ?? "", /TARGET_LENGTH 3,200\+/);
+      assert.match(lastUser?.content ?? "", /MINIMUM_FLOOR 2,700\+/);
+      assert.doesNotMatch(lastUser?.content ?? "", /단일 응답 최대 전개·미달 조기 종료 금지/);
+      assert.doesNotMatch(lastUser?.content ?? "", /한국어 장편 소설형 RP로/);
 
       const legacySoft = [
         /Write a highly detailed, immersive response/,
@@ -203,7 +225,9 @@ describe("buildLengthInstruction", () => {
       const sections = built.meta.trackedSections ?? [];
       const lastSection = sections[sections.length - 1];
       assert.equal(lastSection?.id, "rule-terminal-length-override");
-      assert.match(lastSection!.text, /단일 응답 최대 전개·미달 조기 종료 금지\./);
+      assert.match(lastSection!.text, /TARGET_LENGTH 3,200\+/);
+      assert.match(lastSection!.text, /MINIMUM_FLOOR 2,700\+/);
+      assert.doesNotMatch(lastSection!.text, /단일 응답 최대 전개·미달 조기 종료 금지/);
       assert.doesNotMatch(lastSection!.text, /<TURN_HANDOFF_AND_PACING>/);
       assert.doesNotMatch(lastSection!.text, /\[TERMINAL LENGTH AUTHORITY\]/);
       assert.doesNotMatch(lastSection!.text, /\[최우선 절대 지침\]/);

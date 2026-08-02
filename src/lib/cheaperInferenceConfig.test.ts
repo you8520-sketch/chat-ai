@@ -54,3 +54,31 @@ test("Gemini 3.1 Pro always uses low thinking on CheaperInference", () => {
   });
   assert.equal(body.reasoning_effort, "high", "input must not be mutated");
 });
+
+test("GPT-5.6 Luna disables hidden reasoning on CheaperInference", () => {
+  const body = {
+    model: "gpt-5.6-luna",
+    messages: [{ role: "user", content: "hello" }],
+    reasoning: { effort: "minimal", exclude: true },
+    include_reasoning: false,
+  };
+
+  assert.deepEqual(adaptCheaperInferenceChatBody(body), {
+    model: "gpt-5.6-luna",
+    messages: [{ role: "user", content: "hello" }],
+    reasoning_effort: "none",
+  });
+});
+
+test("GPT-5.6 Terra disables hidden reasoning on CheaperInference", () => {
+  const body = {
+    model: "gpt-5.6-terra",
+    messages: [{ role: "user", content: "hello" }],
+  };
+
+  assert.deepEqual(adaptCheaperInferenceChatBody(body), {
+    model: "gpt-5.6-terra",
+    messages: [{ role: "user", content: "hello" }],
+    reasoning_effort: "none",
+  });
+});

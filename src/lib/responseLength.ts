@@ -24,6 +24,7 @@ import {
 } from "@/lib/sharedNovelProseV2Styles";
 import { buildCompactTerminalLayoutRecencyLine } from "@/lib/webnovelOutputFormat";
 export * from "./responseLengthConstants";
+export { LONGFORM_RP_SCENE_CONTRACT } from "./turnHandoffAndPacing";
 import {
   CATASTROPHIC_MIN_RESPONSE_CHARS,
   DEFAULT_TARGET_RESPONSE_CHARS,
@@ -204,10 +205,12 @@ export function buildCompactTerminalLengthAbsoluteTail(
 ): string {
   const v2 = !!opts?.sharedNovelProseV2;
   const t = resolveResponseLengthTarget(targetInput, { sharedNovelProseV2: v2 });
-  const suffix = v2
-    ? "현재 장면 안에서 충분히 전개하고 미달 조기 종료를 피한다."
-    : "단일 응답 최대 전개·미달 조기 종료 금지.";
-  return `TARGET_LENGTH ${t.aimChars.toLocaleString()}+ · MINIMUM_FLOOR ${t.min.toLocaleString()}+ — ${suffix}`;
+  // Production: longform contract lives once in SCENE CONTINUATION; terminal stays numeric-only.
+  // V2 canary keeps its own early-stop suffix (unchanged by this experiment).
+  if (v2) {
+    return `TARGET_LENGTH ${t.aimChars.toLocaleString()}+ · MINIMUM_FLOOR ${t.min.toLocaleString()}+ — 현재 장면 안에서 충분히 전개하고 미달 조기 종료를 피한다.`;
+  }
+  return `TARGET_LENGTH ${t.aimChars.toLocaleString()}+ · MINIMUM_FLOOR ${t.min.toLocaleString()}+`;
 }
 
 /** @deprecated buildCompactTerminalLengthAbsoluteTail() */
@@ -613,9 +616,13 @@ export function appendCompactTerminalLengthToUserTurn(
   const body = userContent.trim();
   if (!body) return tail;
   if (
+    body.includes("지문과 \"…\" 대사 사이 빈 줄") &&
+    body.includes("TARGET_LENGTH") &&
+    body.includes("MINIMUM_FLOOR") &&
     (body.includes("단일 응답 최대 전개·미달 조기 종료 금지") ||
-      body.includes("현재 장면 안에서 충분히 전개하고 미달 조기 종료를 피한다.")) &&
-    body.includes("지문과 \"…\" 대사 사이 빈 줄")
+      body.includes("현재 장면 안에서 충분히 전개하고 미달 조기 종료를 피한다.") ||
+      // Production path: numeric-only terminal (contract lives in SCENE CONTINUATION).
+      !opts?.sharedNovelProseV2)
   ) {
     return body;
   }

@@ -102,7 +102,9 @@ describe("buildContext — turn handoff shell removed Step 7", () => {
     assert.equal(lastUser?.role, "user");
     const tail = buildCompactTerminalLengthAbsoluteTail(undefined);
     assert.ok(lastUser!.content.includes(tail), "OpenRouter continue gets 10b user-turn tail");
-    assert.match(lastUser!.content, /단일 응답 최대 전개·미달 조기 종료 금지\.$/);
+    assert.match(lastUser!.content, /TARGET_LENGTH 3,200\+/);
+    assert.match(lastUser!.content, /MINIMUM_FLOOR 2,700\+/);
+    assert.doesNotMatch(lastUser!.content, /단일 응답 최대 전개·미달 조기 종료 금지/);
   });
 
   it("no turn-handoff-and-pacing tracked section", () => {

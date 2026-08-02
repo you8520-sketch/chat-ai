@@ -1,4 +1,8 @@
-import { isCheaperInferenceGemini31ProModel } from "@/lib/chatModels";
+import {
+  isCheaperInferenceGemini31ProModel,
+  isGpt56LunaModel,
+  isGpt56TerraModel,
+} from "@/lib/chatModels";
 
 /** Cheaper Inference OpenAI-compatible API root. */
 export const CHEAPER_INFERENCE_BASE_URL = "https://api.cheaperinference.com/v1";
@@ -40,11 +44,16 @@ export function adaptCheaperInferenceChatBody(
   delete adapted.frequency_penalty;
   delete adapted.presence_penalty;
   delete adapted.repetition_penalty;
-  if (
-    typeof adapted.model === "string" &&
-    isCheaperInferenceGemini31ProModel(adapted.model)
-  ) {
-    adapted.reasoning_effort = "low";
+  delete adapted.reasoning;
+  delete adapted.include_reasoning;
+
+  if (typeof adapted.model === "string") {
+    if (isCheaperInferenceGemini31ProModel(adapted.model)) {
+      adapted.reasoning_effort = "low";
+    } else if (isGpt56LunaModel(adapted.model) || isGpt56TerraModel(adapted.model)) {
+      // Production (main #199): Cheaper Inference defaults to hidden reasoning unless off.
+      adapted.reasoning_effort = "none";
+    }
   }
   return adapted;
 }
