@@ -8,11 +8,11 @@ import {
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  isCheaperInferenceGemini31ProModel,
   isDeepSeekV4ProModel,
   isGemini36FlashModel,
   isGpt56TerraModel,
   isMuseModel,
-  OPENROUTER_GEMINI_36_FLASH_MODEL,
   resolveSelectedAI,
   USER_SELECTABLE_AI_OPTIONS,
   type SelectedAI,
@@ -52,7 +52,6 @@ export {
 /** Active picker models — preview tuning scope for V2. */
 export const MODEL_PICKER_ACTIVE_MODEL_IDS = [
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-  OPENROUTER_GEMINI_36_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
@@ -73,7 +72,6 @@ export const MODEL_PICKER_FALLBACK_INPUT_TOKENS = 4000;
 export const MODEL_PICKER_MEASURED_COLD_BASELINES: Partial<Record<ModelPickerActiveModelId, number>> =
   {
     [CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL]: 1500,
-    [OPENROUTER_GEMINI_36_FLASH_MODEL]: 1200,
     [CHEAPER_INFERENCE_GPT_56_TERRA_MODEL]: 1400,
     [CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL]: 1400,
     [CHEAPER_INFERENCE_GPT_56_LUNA_MODEL]: 1400,
@@ -196,7 +194,9 @@ export function resolveColdOutputBaseline(modelId: string): number {
   }
   // Fallback priors when a new active model lacks a measured baseline.
   const aim = resolveAimOutputTokens();
-  if (isGemini36FlashModel(modelId)) return Math.round(aim * 0.4);
+  if (isGemini36FlashModel(modelId) || isCheaperInferenceGemini31ProModel(modelId)) {
+    return Math.round(aim * 0.4);
+  }
   if (isDeepSeekV4ProModel(modelId)) return Math.round(aim * 0.5);
   if (isMuseModel(modelId)) return Math.round(aim * 0.48);
   if (isGpt56TerraModel(modelId)) return Math.round(aim * 0.5);
