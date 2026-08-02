@@ -61,6 +61,7 @@ import {
   stripRpMetaLeakage,
   streamDeltaAfterRpMetaStrip,
   stripInternalTagLeakage,
+  trimTrailingVisibleSelfCritique,
 } from "@/lib/narrativeRules";
 import { parseOpenRouterUsage, logOpenRouterUsageCacheDiagnostics, tokenUsageFromOpenRouterBreakdown } from "@/lib/openRouterUsage";
 import { logOpenRouterCacheStabilityCheck } from "@/lib/openRouterCacheStability";
@@ -1735,12 +1736,43 @@ export async function streamOpenRouterAdultToClient(
     lastSentToClient = tailStreamDelta.lastSentToClient;
 
     const visibleForLeakGate = liveStreamProse(fullText, statusArtifactsOpts, oocHtmlMode);
-    const leakResult = detectRpMetaLeakage(visibleForLeakGate);
+    const trailingTrim = trimTrailingVisibleSelfCritique(visibleForLeakGate);
+    if (trailingTrim.status === "UNSAFE_TO_TRIM") {
+      console.warn("[OpenRouter] trailing self-critique unsafe to trim — blocking (no retry)", {
+        matchedMarkers: trailingTrim.matchedMarkers,
+        trimStartIndex: trailingTrim.trimStartIndex,
+        metaLeakStatus: "UNSAFE_TO_TRIM",
+        responseBlocked: true,
+        persistence: false,
+        memoryWrite: false,
+        refund: true,
+        retry: false,
+      });
+      throw new MetaLeakageAbortError();
+    }
+    const visibleAfterTrim =
+      trailingTrim.status === "TRIMMED" ? trailingTrim.text : visibleForLeakGate;
+    if (trailingTrim.status === "TRIMMED") {
+      console.info("[OpenRouter] trimmed trailing visible self-critique", {
+        rawVisibleChars: trailingTrim.rawVisibleChars,
+        trimmedVisibleChars: trailingTrim.trimmedVisibleChars,
+        matchedMarkers: trailingTrim.matchedMarkers,
+      });
+      // Keep stream buffer aligned with trimmed visible prose (no extra provider call).
+      fullText = visibleAfterTrim;
+      lastCleanSent = visibleAfterTrim.trimEnd();
+      lastSentToClient = visibleAfterTrim.trimEnd();
+      if (bufferStream) {
+        send({ type: "replace", text: visibleAfterTrim, instant: true });
+      }
+    }
+
+    const leakResult = detectRpMetaLeakage(visibleAfterTrim);
     if (leakResult.status === "PASS") {
-      if (bufferStream && visibleForLeakGate.trim()) {
-        send({ type: "replace", text: visibleForLeakGate, instant: true });
-        lastCleanSent = visibleForLeakGate.trimEnd();
-        lastSentToClient = visibleForLeakGate.trimEnd();
+      if (bufferStream && visibleAfterTrim.trim()) {
+        send({ type: "replace", text: visibleAfterTrim, instant: true });
+        lastCleanSent = visibleAfterTrim.trimEnd();
+        lastSentToClient = visibleAfterTrim.trimEnd();
       }
       break leakGate;
     }
@@ -1779,6 +1811,28 @@ export async function streamOpenRouterAdultToClient(
     stripRpMetaLeakage(mergedText),
     "stripRpMetaLeakage — RP meta preamble leakage"
   );
+  {
+    const trailingTrim = trimTrailingVisibleSelfCritique(mergedText);
+    if (trailingTrim.status === "UNSAFE_TO_TRIM") {
+      console.warn("[OpenRouter] finalize trailing self-critique unsafe — blocking (no retry)", {
+        matchedMarkers: trailingTrim.matchedMarkers,
+        metaLeakStatus: "UNSAFE_TO_TRIM",
+        responseBlocked: true,
+        refund: true,
+        retry: false,
+      });
+      throw new MetaLeakageAbortError();
+    }
+    if (trailingTrim.status === "TRIMMED") {
+      mergedText = pushRemovalTraceStep(
+        removalTraceSteps,
+        "openRouter_trimTrailingVisibleSelfCritique",
+        mergedText,
+        trailingTrim.text,
+        "trimTrailingVisibleSelfCritique — trailing self-critique suffix"
+      );
+    }
+  }
   const afterStripFlash = pushRemovalTraceStep(
     removalTraceSteps,
     "openRouter_stripFlashOwnedArtifactsOnly",

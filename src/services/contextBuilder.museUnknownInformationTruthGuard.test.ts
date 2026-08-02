@@ -102,11 +102,12 @@ describe("buildContext — Muse unknown-information truth guard assembly", () =>
     assert.equal(ids.filter((id) => id === UNKNOWN_INFORMATION_TRUTH_GUARD_SECTION_ID).length, 0);
     assert.equal((off.systemPrompt.match(/미확인 정보 — 사실성 절대 우선/g) ?? []).length, 0);
 
-    const terminal = (off.meta?.trackedSections ?? []).find(
-      (s) => s.id === "rule-terminal-length-override"
+    assert.ok(
+      !(off.meta?.trackedSections ?? []).some((s) => s.id === "rule-terminal-length-override")
     );
-    assert.ok(terminal);
-    assert.ok(off.systemPrompt.trimEnd().endsWith(terminal!.text.trim()));
+    // Without Truth Guard, last dynamic section is typically persona reference (layout may precede).
+    const idsOff = (off.meta?.trackedSections ?? []).map((s) => s.id);
+    assert.ok(idsOff.includes("user-persona-reference-owner"));
 
     // Re-run with identical inputs must be byte-identical when gate OFF.
     const off2 = buildMuse(1);
@@ -125,7 +126,7 @@ describe("buildContext — Muse unknown-information truth guard assembly", () =>
     );
   });
 
-  it("gate ON → Truth Guard marker exactly once as final system section after Terminal", () => {
+  it("gate ON → Truth Guard marker exactly once as final system section", () => {
     enableTruthGuard("1");
     const built = buildMuse(1);
     const ids = (built.meta?.trackedSections ?? []).map((s) => s.id);
@@ -140,10 +141,11 @@ describe("buildContext — Muse unknown-information truth guard assembly", () =>
     );
     assert.ok(built.systemPrompt.includes(UNKNOWN_INFORMATION_TRUTH_GUARD_BLOCK));
 
-    const terminalIdx = ids.indexOf("rule-terminal-length-override");
+    const personaIdx = ids.indexOf("user-persona-reference-owner");
     const truthIdx = ids.indexOf(UNKNOWN_INFORMATION_TRUTH_GUARD_SECTION_ID);
-    assert.ok(terminalIdx >= 0);
-    assert.ok(truthIdx > terminalIdx, "Truth Guard must follow Terminal");
+    assert.ok(personaIdx >= 0);
+    assert.ok(truthIdx > personaIdx, "Truth Guard must follow persona reference");
+    assert.ok(!ids.includes("rule-terminal-length-override"));
 
     const lastId = ids[ids.length - 1];
     assert.equal(lastId, UNKNOWN_INFORMATION_TRUTH_GUARD_SECTION_ID);
@@ -174,22 +176,18 @@ describe("buildContext — Muse unknown-information truth guard assembly", () =>
     );
   });
 
-  it("LENGTH and Terminal markers remain exactly once when Truth Guard ON", () => {
+  it("bounded length owner remains exactly once when Truth Guard ON", () => {
     enableTruthGuard("1");
     const built = buildMuse(1);
-    assert.equal(
-      (built.systemPrompt.match(/\[LENGTH CONTROL & SCENE EXPANSION\]/g) ?? []).length,
-      1
-    );
-    assert.equal((built.systemPrompt.match(/TARGET_LENGTH:/g) ?? []).length, 1);
-    assert.equal((built.systemPrompt.match(/MINIMUM_FLOOR:/g) ?? []).length, 1);
+    assert.equal((built.systemPrompt.match(/3,200~4,200자/g) ?? []).length, 1);
+    assert.equal((built.systemPrompt.match(/TARGET_LENGTH:/g) ?? []).length, 0);
+    assert.equal((built.systemPrompt.match(/MINIMUM_FLOOR:/g) ?? []).length, 0);
     assert.equal(
       (built.meta?.trackedSections ?? []).filter(
         (s) => s.id === "rule-terminal-length-override"
       ).length,
-      1
+      0
     );
-    assert.equal((built.systemPrompt.match(/TARGET_LENGTH \d/g) ?? []).length, 1);
   });
 
   it("M1 / VNext prose selection unchanged by Truth Guard alone", () => {
@@ -224,7 +222,7 @@ describe("buildContext — Muse unknown-information truth guard assembly", () =>
     );
   });
 
-  it("tracked tail order: length → layout → persona → terminal → truth (when ON)", () => {
+  it("tracked tail order: layout → persona → truth (when ON); no terminal length", () => {
     enableTruthGuard("1");
     const built = buildMuse(1);
     const ids = (built.meta?.trackedSections ?? []).map((s) => s.id);
@@ -233,13 +231,14 @@ describe("buildContext — Muse unknown-information truth guard assembly", () =>
       assert.ok(idx >= 0, `missing ${id}`);
       return idx;
     };
-    assert.ok(order("rule-length-control") < order("rule-output-layout-recency"));
+    assert.ok(!ids.includes("rule-length-control"));
+    assert.ok(!ids.includes("rule-terminal-length-override"));
     assert.ok(order("rule-output-layout-recency") < order("user-persona-reference-owner"));
-    assert.ok(order("user-persona-reference-owner") < order("rule-terminal-length-override"));
     assert.ok(
-      order("rule-terminal-length-override") <
+      order("user-persona-reference-owner") <
         order(UNKNOWN_INFORMATION_TRUTH_GUARD_SECTION_ID)
     );
+    assert.match(built.systemPrompt, /3,200~4,200자/);
   });
 
   it("token budget: gate OFF delta 0; gate ON adds dynamic-only tokens", () => {
@@ -272,7 +271,11 @@ describe("buildContext — Muse unknown-information truth guard assembly", () =>
       dynamicDelta >= 100 && dynamicDelta <= 402,
       `dynamic delta expected ~100–400, got ${dynamicDelta}`
     );
-    assert.equal(dynamicDelta, totalDelta);
+    // Join separators can shift total vs dynamic by 1–2 tokens after length consolidation.
+    assert.ok(
+      Math.abs(dynamicDelta - totalDelta) <= 2,
+      `dynamic/total delta mismatch: dynamic=${dynamicDelta} total=${totalDelta}`
+    );
     assert.ok(
       Math.abs(dynamicDelta - guardTokens) <= 2,
       `dynamic delta ${dynamicDelta} should match guard tokens ${guardTokens}`

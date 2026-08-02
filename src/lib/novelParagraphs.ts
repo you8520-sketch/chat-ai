@@ -249,6 +249,25 @@ export function parseNovelSegments(text: string): NovelSegment[] {
   return segments;
 }
 
+export type DialogueBlockSpan = { text: string; start: number; end: number };
+
+/**
+ * 평가기용 대사 블록 span 추출 — 네 가지 따옴표 쌍을 모두 대사로 인식:
+ * ASCII "…", curly "…", corner 「…」, double-corner 『…』.
+ * 인용·서술 속 인용(isInlineNarratedQuote)은 제외.
+ * production 프롬프트가 아닌 평가기 전용이므로 「」/『』도 대사로 본다.
+ */
+export function extractDialogueBlockSpans(content: string): DialogueBlockSpan[] {
+  const spans: DialogueBlockSpan[] = [];
+  for (const m of content.matchAll(NOVEL_SEGMENT_RE)) {
+    const idx = m.index ?? 0;
+    const end = idx + m[0].length;
+    if (isInlineNarratedQuote(content, idx, end)) continue;
+    spans.push({ text: m[0], start: idx, end });
+  }
+  return spans;
+}
+
 /**
  * 제작자 입력(첫 메시지 등): Enter 줄바꿈을 수정 화면 textarea와 동일하게 유지.
  * 빈 줄도 문단으로 남겨 표시 간격이 원본과 어긋나지 않게 한다.

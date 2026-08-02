@@ -27,15 +27,14 @@ describe("scene continuity vs paragraph layout — disambiguated prose rules", (
     assert.doesNotMatch(buildLengthInstruction(), /\[REACTION VARIETY\]/);
   });
 
-  it("LENGTH CONTROL keeps scene expansion; paragraph layout lives in OUTPUT LAYOUT only", () => {
+  it("system length empty; paragraph layout lives in OUTPUT LAYOUT only", () => {
     const block = buildLengthInstruction();
     const layout = buildWebnovelOutputLayoutRecencyBlock();
+    assert.equal(block, "");
     assert.doesNotMatch(block, /\[GENERATION PROCESS — BEAT FLOW\]/);
-    assert.doesNotMatch(block, /지문과 "…" 대사를 한 문단·한 줄에 병합하지 마라/);
     assert.match(layout, /Never append dialogue to the end of a narration line/);
     assert.match(layout, /지문 한 문장이 완결됐다는 이유만으로/);
-    assert.match(block, /기계적 교대/);
-    assert.doesNotMatch(block, /따라붙게 한다/);
+    assert.doesNotMatch(layout, /따라붙게 한다/);
   });
 
   it("novel mode continuous refers to scene progression only", () => {

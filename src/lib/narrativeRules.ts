@@ -441,6 +441,192 @@ function rpMetaEnglishSelfReviewTailAfterKorean(text: string): number | null {
   return null;
 }
 
+export type TrailingSelfCritiqueTrimResult = {
+  status: "CLEAN" | "TRIMMED" | "UNSAFE_TO_TRIM";
+  text: string;
+  rawVisibleChars: number;
+  trimmedVisibleChars: number;
+  trimStartIndex: number | null;
+  matchedMarkers: string[];
+};
+
+/** Narrow trailing self-critique markers — RP body suffix only (not mid-scene English dialogue). */
+const TRAILING_SELF_CRITIQUE_MARKERS: { id: string; re: RegExp }[] = [
+  { id: "need_output_only", re: /\bNeed output only\b/i },
+  { id: "ensure_3200", re: /\bEnsure\s*3200\s*[-~–]\s*4200\b/i },
+  { id: "just_final_must", re: /\bJust final must continue\b/i },
+  { id: "final_must", re: /\bfinal must\b/i },
+  { id: "we_can_provide", re: /\bWe can provide\b/i },
+  { id: "must_not", re: /\bMust not\b/i },
+  { id: "current_approx", re: /\bcurrent\s*~?\s*\d{3,5}\b/i },
+  { id: "lets_output", re: /\bLet's output\b/i },
+  { id: "draft", re: /\bdraft\b/i },
+  { id: "remove_dot", re: /\bRemove\./ },
+  { id: "foreign_prohibited", re: /\bforeign prohibited\b/i },
+  { id: "diesmal", re: /\bdiesmal\??/i },
+  { id: "need_avoid", re: /\bNeed avoid\b/i },
+  { id: "observation_okay", re: /\bobservation okay\b/i },
+  { id: "korean_chars_meta", re: /\bKorean chars\b/i },
+  { id: "polished_longer", re: /\bpolished longer\b/i },
+];
+
+function countVisibleCharsForTrim(text: string): number {
+  return text.replace(/\s+/g, "").length;
+}
+
+function isInsideDialogueQuotes(text: string, index: number): boolean {
+  const before = text.slice(0, index);
+  const opens = (before.match(/[\u201C\u201D\u300C\u300E"']/g) ?? []).length;
+  // Odd count of quote chars → likely inside an open quote (heuristic).
+  return opens % 2 === 1;
+}
+
+function looksLikeKoreanRpEnding(text: string): boolean {
+  const t = text.trimEnd();
+  if (!t) return false;
+  if (/[가-힣]/.test(t.slice(-24)) && /[.!?。…」』"”]$/.test(t)) return true;
+  if (/[가-힣](?:다|요|죠|까|네|군|구나)\s*[.!?。…]?\s*$/.test(t)) return true;
+  return /[가-힣]/.test(t.slice(-12));
+}
+
+function isSelfCritiqueChunk(chunk: string): boolean {
+  const t = chunk.trim();
+  if (!t) return true;
+  const hangul = (t.match(/[가-힣]/g) ?? []).length;
+  if (hangul > t.length * 0.35) return false;
+  return (
+    TRAILING_SELF_CRITIQUE_MARKERS.some((m) => m.re.test(t)) ||
+    /\b(?:Need|Ensure|Let's|Must|We can|Remove|draft|final must|okay\.|chars)\b/i.test(t)
+  );
+}
+
+/**
+ * Trim a trailing model self-critique suffix after completed Korean RP.
+ * Does not remove mid-body English proper nouns / in-dialogue English.
+ * Unsafe / interleaved meta → UNSAFE_TO_TRIM (no mutation).
+ */
+export function trimTrailingVisibleSelfCritique(text: string): TrailingSelfCritiqueTrimResult {
+  const raw = text ?? "";
+  const rawVisibleChars = countVisibleCharsForTrim(raw);
+  if (!raw.trim()) {
+    return {
+      status: "CLEAN",
+      text: raw,
+      rawVisibleChars,
+      trimmedVisibleChars: rawVisibleChars,
+      trimStartIndex: null,
+      matchedMarkers: [],
+    };
+  }
+
+  let earliest = -1;
+  const matchedMarkers: string[] = [];
+  for (const marker of TRAILING_SELF_CRITIQUE_MARKERS) {
+    const m = marker.re.exec(raw);
+    if (!m || m.index == null) continue;
+    // Prefer the earliest marker in the trailing 40% of the text.
+    if (m.index < Math.floor(raw.length * 0.55)) continue;
+    if (isInsideDialogueQuotes(raw, m.index)) continue;
+    matchedMarkers.push(marker.id);
+    if (earliest < 0 || m.index < earliest) earliest = m.index;
+  }
+
+  if (earliest < 0) {
+    return {
+      status: "CLEAN",
+      text: raw,
+      rawVisibleChars,
+      trimmedVisibleChars: rawVisibleChars,
+      trimStartIndex: null,
+      matchedMarkers: [],
+    };
+  }
+
+  const suffix = raw.slice(earliest);
+  // Allow short Hangul fragments inside English meta (quoted names); reject real RP residue.
+  const suffixHangul = (suffix.match(/[가-힣]/g) ?? []).length;
+  const hasKoreanRpResidue =
+    suffixHangul >= 40 ||
+    /[가-힣][^.\n]{8,}(?:다|요|죠|까)\s*[.!?。…]/.test(suffix);
+  if (!isSelfCritiqueChunk(suffix) || hasKoreanRpResidue) {
+    return {
+      status: "UNSAFE_TO_TRIM",
+      text: raw,
+      rawVisibleChars,
+      trimmedVisibleChars: rawVisibleChars,
+      trimStartIndex: earliest,
+      matchedMarkers: [...new Set(matchedMarkers)],
+    };
+  }
+
+  // Cut at paragraph boundary before the paragraph containing meta start,
+  // unless meta continues after a completed Korean sentence on the same paragraph —
+  // then keep the Korean sentence and drop from the meta token.
+  const before = raw.slice(0, earliest);
+  const paraBreak = Math.max(before.lastIndexOf("\n\n"), before.lastIndexOf("\r\n\r\n"));
+  const paraStart = paraBreak >= 0 ? paraBreak + (before.includes("\r\n\r\n") ? 4 : 2) : 0;
+  const paraPrefix = before.slice(paraStart).trim();
+
+  let cutAt = paraBreak >= 0 ? paraBreak : -1;
+  if (paraPrefix && looksLikeKoreanRpEnding(paraPrefix) && !isSelfCritiqueChunk(paraPrefix)) {
+    // Same-paragraph Korean ending then meta — keep Korean prefix of that paragraph.
+    cutAt = earliest;
+  } else if (paraBreak < 0) {
+    return {
+      status: "UNSAFE_TO_TRIM",
+      text: raw,
+      rawVisibleChars,
+      trimmedVisibleChars: rawVisibleChars,
+      trimStartIndex: earliest,
+      matchedMarkers: [...new Set(matchedMarkers)],
+    };
+  }
+
+  let trimmed = raw.slice(0, cutAt).trimEnd();
+  // If cut was at meta index mid-paragraph, also trim dangling spaces after Korean period.
+  if (cutAt === earliest) {
+    trimmed = before.replace(/\s+$/u, "").trimEnd();
+  }
+
+  const trimmedVisibleChars = countVisibleCharsForTrim(trimmed);
+  if (trimmedVisibleChars < 2700 || !looksLikeKoreanRpEnding(trimmed)) {
+    return {
+      status: "UNSAFE_TO_TRIM",
+      text: raw,
+      rawVisibleChars,
+      trimmedVisibleChars: rawVisibleChars,
+      trimStartIndex: earliest,
+      matchedMarkers: [...new Set(matchedMarkers)],
+    };
+  }
+
+  // Entire suffix after cut must be critique-only.
+  const removed = raw.slice(trimmed.length).trim();
+  const removedHangul = (removed.match(/[가-힣]/g) ?? []).length;
+  const removedHasRp =
+    removedHangul >= 40 ||
+    /[가-힣][^.\n]{8,}(?:다|요|죠|까)\s*[.!?。…]/.test(removed);
+  if (!removed || !isSelfCritiqueChunk(removed) || removedHasRp) {
+    return {
+      status: "UNSAFE_TO_TRIM",
+      text: raw,
+      rawVisibleChars,
+      trimmedVisibleChars: rawVisibleChars,
+      trimStartIndex: earliest,
+      matchedMarkers: [...new Set(matchedMarkers)],
+    };
+  }
+
+  return {
+    status: "TRIMMED",
+    text: trimmed,
+    rawVisibleChars,
+    trimmedVisibleChars,
+    trimStartIndex: trimmed.length,
+    matchedMarkers: [...new Set(matchedMarkers)],
+  };
+}
+
 /** Hard detector for provider meta / self-review leakage in visible RP prose. Does not mutate text. */
 export function detectRpMetaLeakage(text: string): RpMetaLeakageResult {
   if (!text.trim()) {

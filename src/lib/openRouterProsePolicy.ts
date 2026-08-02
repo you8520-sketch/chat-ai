@@ -52,6 +52,7 @@ export function buildOpenRouterKoreanProseTopBlock(
     party: opts.party,
   });
 
+  // Length owner lives on the current user-turn tail (not in system).
   return `${canon}
 
 ${outputLang}`;
