@@ -66,7 +66,8 @@ describe("prose style anti-pattern fixtures (static)", () => {
     assert.match(terminal, /TARGET_LENGTH 3,200\+/);
     assert.match(terminal, /MINIMUM_FLOOR 2,700\+/);
     assert.doesNotMatch(terminal, /단일 응답 최대 전개·미달 조기 종료 금지/);
-    assert.match(length, /한국어 장편 소설형 RP로, 한 턴을 보통 3,200~4,200자/);
+    assert.match(length, /MINIMUM_FLOOR 미달 전 조기 종료·관찰자 붕괴 결말 금지/);
+    assert.doesNotMatch(length, /한국어 장편 소설형 RP로/);
     assert.match(DEEPSEEK_BOTTOM_REMINDER, /\[DEEPSEEK LENGTH — SINGLE CALL\]/);
 
     assert.match(DEEPSEEK_BOTTOM_REMINDER, /never imitate a short prior assistant reply/);

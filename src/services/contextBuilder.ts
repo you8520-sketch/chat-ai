@@ -122,11 +122,13 @@ import {
 } from "@/lib/bilingualDialoguePolicy";
 import {
   appendCompactTerminalLengthToUserTurn,
+  appendTerraTerminalLengthOwnerToUserTurn,
   buildLengthInstruction,
   buildTerminalLengthOverrideBlock,
   resolveResponseLengthTarget,
 } from "@/lib/responseLength";
 import { SCENE_CONTINUATION_PRIORITY_BLOCK } from "@/lib/turnHandoffAndPacing";
+import { shouldUseTerraTerminalLengthOwner } from "@/lib/terraTerminalLengthOwner";
 import type { OpenRouterSystemSplit } from "@/lib/openRouterCache";
 import { estimateOpenRouterCacheableTokens, buildOpenRouterDynamicLoreUserPrefix, HISTORY_CACHE_TAIL_EXCLUDE_MESSAGES } from "@/lib/openRouterCache";
 import { isDeepSeekModel, isDeepSeekV4ProModel, isQwenModel } from "@/lib/chatModels";
@@ -999,11 +1001,16 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     input.userId,
     input.modelId
   );
+  const terraTerminalLengthOwner = shouldUseTerraTerminalLengthOwner({
+    modelId: input.modelId,
+    contentKind: input.contentKind,
+  });
   const lengthInstructionOpts = {
     statusWindowEveryTurn: statusWindowPolicy.everyTurn,
     htmlFlashOwned: isOpenRouter,
     statusWidgetActive: input.statusWidgetActive === true,
     sharedNovelProseV2,
+    terraTerminalLengthOwner,
   };
 
   if (!isOpenRouter) {
@@ -1071,15 +1078,19 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   }
 
-  pushSection(
-    "rule-terminal-length-override",
-    "Terminal length compact tail (absolute end)",
-    "systemRules",
-    buildTerminalLengthOverrideBlock(input.targetResponseChars, {
-      sharedNovelProseV2,
-    }),
-    "dynamic"
-  );
+  // Terra terminal-owner: omit system terminal TARGET/FLOOR — sole contract is
+  // appended at the current user-turn absolute end instead.
+  if (!terraTerminalLengthOwner) {
+    pushSection(
+      "rule-terminal-length-override",
+      "Terminal length compact tail (absolute end)",
+      "systemRules",
+      buildTerminalLengthOverrideBlock(input.targetResponseChars, {
+        sharedNovelProseV2,
+      }),
+      "dynamic"
+    );
+  }
 
   // Experiment-only DeepSeek length adapter (SNPV2_DEEPSEEK_LENGTH_ARM=B|C).
   // Default OFF → no section → prior assembly unchanged.
@@ -1283,11 +1294,15 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     }
   }
   if (isOpenRouter) {
-    userTurnContent = appendCompactTerminalLengthToUserTurn(
-      userTurnContent,
-      input.targetResponseChars,
-      { sharedNovelProseV2 }
-    );
+    if (terraTerminalLengthOwner) {
+      userTurnContent = appendTerraTerminalLengthOwnerToUserTurn(userTurnContent);
+    } else {
+      userTurnContent = appendCompactTerminalLengthToUserTurn(
+        userTurnContent,
+        input.targetResponseChars,
+        { sharedNovelProseV2 }
+      );
+    }
   }
   const estimatePayloadTokens = (hist: ContextBuildInput["shortTermHistory"]) =>
     estimateTokens(

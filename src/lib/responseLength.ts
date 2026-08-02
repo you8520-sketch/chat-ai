@@ -17,13 +17,18 @@ import {
   NO_GENERIC_REACTIONS_BLOCK,
   NO_INPUT_ECHO_RULE,
 } from "@/lib/sceneExpansionPolicy";
-import { SCENE_CONTINUATION_PRIORITY_BLOCK } from "./turnHandoffAndPacing";
+import {
+  SCENE_CONTINUATION_PRIORITY_BLOCK,
+  SCENE_CONTINUATION_PRIORITY_BLOCK_CORE,
+} from "./turnHandoffAndPacing";
 import {
   NARRATIVE_DENSITY_BLOCK_V2,
   SCENE_CONTINUATION_PRIORITY_BLOCK_V2,
 } from "@/lib/sharedNovelProseV2Styles";
 import { buildCompactTerminalLayoutRecencyLine } from "@/lib/webnovelOutputFormat";
+import { TERRA_TERMINAL_LENGTH_OWNER_CONTRACT } from "@/lib/terraTerminalLengthOwner";
 export * from "./responseLengthConstants";
+/** @deprecated Experiment-1 — not injected; see terraTerminalLengthOwner */
 export { LONGFORM_RP_SCENE_CONTRACT } from "./turnHandoffAndPacing";
 import {
   CATASTROPHIC_MIN_RESPONSE_CHARS,
@@ -143,6 +148,11 @@ export type LengthInstructionOpts = {
   statusWidgetActive?: boolean;
   /** Shared Novel Prose V2 canary — floor 2500 + V2 continuation/density/terminal */
   sharedNovelProseV2?: boolean;
+  /**
+   * Terra terminal single-owner diagnosis — strip numeric/system length owners;
+   * contract is appended once at the user-turn absolute end instead.
+   */
+  terraTerminalLengthOwner?: boolean;
 };
 
 const LENGTH_LIMIT_STATUS_LINE_OOC =
@@ -165,15 +175,34 @@ function assembleLengthInstructionBlock(
   opts?: LengthInstructionOpts
 ): string {
   const v2 = !!opts?.sharedNovelProseV2;
+  const terraTerminal = !!opts?.terraTerminalLengthOwner;
   const t = resolveResponseLengthTarget(targetInput, { sharedNovelProseV2: v2 });
   const jsonOrStatusLine = buildJsonStatusLengthLine(opts);
   const continuation = v2
     ? SCENE_CONTINUATION_PRIORITY_BLOCK_V2
-    : SCENE_CONTINUATION_PRIORITY_BLOCK;
+    : terraTerminal
+      ? SCENE_CONTINUATION_PRIORITY_BLOCK_CORE
+      : SCENE_CONTINUATION_PRIORITY_BLOCK;
   const density = v2 ? NARRATIVE_DENSITY_BLOCK_V2 : NARRATIVE_DENSITY_BLOCK;
 
   // Style fill materials live in prose style section; keep LENGTH numeric + expansion only.
   // REACTION VARIETY absorbed into immersive/core — NO_GENERIC_REACTIONS_BLOCK is empty by design.
+  // Terra terminal-owner: omit TARGET_LENGTH / MINIMUM_FLOOR / early-stop length lines;
+  // keep expansion + density (density wording unchanged per experiment scope).
+  if (terraTerminal) {
+    // Same expansion body as production; only numeric/system length owners removed.
+    return `[SCENE EXPANSION]
+${NO_INPUT_ECHO_RULE}
+
+- 짧은 유저 입력에 동조(Mirroring) 금지 — 장문 출력
+- 새 서사 비트(행동·반응·전환)로 확장; 문단 수를 맞추려 하지 마라
+- 장면·대사 사이를 행동·반응·감각·분위기로 확장한다 — 대사마다 기계적 교대나 동일 길이 블록을 맞추지 마라
+
+${continuation}
+
+${density}${NO_GENERIC_REACTIONS_BLOCK ? `\n\n${NO_GENERIC_REACTIONS_BLOCK}` : ""}${jsonOrStatusLine}`;
+  }
+
   return `[LENGTH CONTROL & SCENE EXPANSION]
 TARGET_LENGTH: ${t.aimChars.toLocaleString()}+ 한국어 글자
 MINIMUM_FLOOR: ${t.min.toLocaleString()}+
@@ -201,12 +230,13 @@ export function buildTerminalLengthOverrideRecencyBlock(
 /** 터미널 맨 끝 1줄 — 분량 recency (LENGTH CONTROL과 중복 설명 없음) */
 export function buildCompactTerminalLengthAbsoluteTail(
   targetInput?: number | null,
-  opts?: { sharedNovelProseV2?: boolean }
+  opts?: { sharedNovelProseV2?: boolean; terraTerminalLengthOwner?: boolean }
 ): string {
+  if (opts?.terraTerminalLengthOwner) return "";
   const v2 = !!opts?.sharedNovelProseV2;
   const t = resolveResponseLengthTarget(targetInput, { sharedNovelProseV2: v2 });
-  // Production: longform contract lives once in SCENE CONTINUATION; terminal stays numeric-only.
-  // V2 canary keeps its own early-stop suffix (unchanged by this experiment).
+  // Production: numeric TARGET/FLOOR at terminal; V2 keeps early-stop suffix.
+  // Terra terminal-owner path omits this — contract is on the user turn instead.
   if (v2) {
     return `TARGET_LENGTH ${t.aimChars.toLocaleString()}+ · MINIMUM_FLOOR ${t.min.toLocaleString()}+ — 현재 장면 안에서 충분히 전개하고 미달 조기 종료를 피한다.`;
   }
@@ -218,7 +248,7 @@ export const TERMINAL_LENGTH_OVERRIDE_BLOCK = "";
 
 export function buildTerminalLengthOverrideBlock(
   targetInput?: number | null,
-  opts?: { sharedNovelProseV2?: boolean }
+  opts?: { sharedNovelProseV2?: boolean; terraTerminalLengthOwner?: boolean }
 ): string {
   return buildCompactTerminalLengthAbsoluteTail(targetInput, opts);
 }
@@ -604,15 +634,38 @@ export function buildSingleShotLengthReminder(_targetInput?: number | null): str
 MINIMUM_FLOOR 미달·조기 handoff 금지. [LENGTH CONTROL & SCENE EXPANSION] · [SCENE CONTINUATION PRIORITY] 준수.`;
 }
 
+/**
+ * Terra terminal single-owner — layout (format) then the sole length/completion
+ * contract as the absolute last RP instruction on the current user turn.
+ */
+export function appendTerraTerminalLengthOwnerToUserTurn(
+  userContent: string
+): string {
+  const layoutLine = buildCompactTerminalLayoutRecencyLine();
+  const contract = TERRA_TERMINAL_LENGTH_OWNER_CONTRACT;
+  const tail = `${layoutLine}\n${contract}`;
+  const body = userContent.trim();
+  if (!body) return tail;
+  if (body.includes(contract)) {
+    // Ensure contract remains the absolute end (no trailing instructions after it).
+    if (body.trimEnd().endsWith(contract)) return body;
+    return `${body.replace(contract, "").trim()}\n\n${tail}`;
+  }
+  return `${body}\n\n${tail}`;
+}
+
 /** OpenRouter user-turn bottom — layout + compact terminal length tail recency (10b) */
 export function appendCompactTerminalLengthToUserTurn(
   userContent: string,
   targetInput?: number | null,
-  opts?: { sharedNovelProseV2?: boolean }
+  opts?: { sharedNovelProseV2?: boolean; terraTerminalLengthOwner?: boolean }
 ): string {
+  if (opts?.terraTerminalLengthOwner) {
+    return appendTerraTerminalLengthOwnerToUserTurn(userContent);
+  }
   const layoutLine = buildCompactTerminalLayoutRecencyLine();
   const lengthTail = buildCompactTerminalLengthAbsoluteTail(targetInput, opts);
-  const tail = `${layoutLine}\n${lengthTail}`;
+  const tail = lengthTail ? `${layoutLine}\n${lengthTail}` : layoutLine;
   const body = userContent.trim();
   if (!body) return tail;
   if (
@@ -621,7 +674,7 @@ export function appendCompactTerminalLengthToUserTurn(
     body.includes("MINIMUM_FLOOR") &&
     (body.includes("단일 응답 최대 전개·미달 조기 종료 금지") ||
       body.includes("현재 장면 안에서 충분히 전개하고 미달 조기 종료를 피한다.") ||
-      // Production path: numeric-only terminal (contract lives in SCENE CONTINUATION).
+      // Production path: numeric-only terminal.
       !opts?.sharedNovelProseV2)
   ) {
     return body;
