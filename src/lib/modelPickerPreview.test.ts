@@ -4,7 +4,6 @@ import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
 } from "@/lib/chatModels";
@@ -39,7 +38,6 @@ const ACTIVE = [
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
-  CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
 ] as const;
 
 function assistantUsage(
@@ -63,7 +61,7 @@ function assistantUsage(
 describe("modelPickerPreview V2", () => {
   it("covers all active models", () => {
     const preview = buildModelPickerPreview({ messages: [], modelIds: [...ACTIVE] });
-    assert.equal(preview.models.length, 5);
+    assert.equal(preview.models.length, 4);
     for (const id of ACTIVE) {
       const row = preview.models.find((m) => m.modelId === id);
       assert.ok(row, id);
