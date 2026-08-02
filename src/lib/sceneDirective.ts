@@ -40,6 +40,13 @@ export type SceneCastFocus = {
   primaryCharacterName: string | null;
   /** Server/eval only — never rendered into the model prompt. */
   supportingCastBudget: number;
+  /**
+   * Server/eval only — active direct speakers for this turn.
+   * single_primary: [primary, optionalSupporting?] (max 1 supporting).
+   * ensemble/simulation: primary + established cast.
+   * Never rendered into the model prompt.
+   */
+  activeSpeakingCast: string[];
 };
 
 export type SceneDirective = {
@@ -79,6 +86,12 @@ export type SceneDirectiveInput = {
    * Used only for ensemble/simulation supportingCastBudget — not for mode detection.
    */
   establishedActiveCastNames?: string[] | null;
+  /**
+   * Known supporting NPC names from the character card / lore (single_primary).
+   * Used only to select at most one optional supporting speaker per turn —
+   * never rendered into the model prompt.
+   */
+  knownSupportingCastNames?: string[] | null;
 };
 
 /** Internal telemetry — never rendered into the model prompt. */
@@ -672,6 +685,7 @@ export function resolveSceneCastFocus(input: {
       sceneCastMode: "simulation",
       primaryCharacterName: primary,
       supportingCastBudget: budget,
+      activeSpeakingCast: primary ? [primary, ...castNames] : [...castNames],
     };
   }
   if (input.party === true) {
@@ -680,21 +694,75 @@ export function resolveSceneCastFocus(input: {
       sceneCastMode: "ensemble",
       primaryCharacterName: primary,
       supportingCastBudget: budget,
+      activeSpeakingCast: primary ? [primary, ...castNames] : [...castNames],
     };
   }
   return {
     sceneCastMode: "single_primary",
     primaryCharacterName: primary,
     supportingCastBudget: 1,
+    activeSpeakingCast: primary ? [primary] : [],
   };
 }
 
-/** Positive focus line for single_primary only — never a ban list. */
+/**
+ * For single_primary, select at most one optional supporting speaker based on:
+ * current user cue, active triggered event, last direct conversation partner,
+ * or a character required for the current procedure.
+ * Never selects all grounded NPCs — only the one most relevant this turn.
+ */
+function resolveActiveSpeakingCast(
+  focus: SceneCastFocus,
+  input: SceneDirectiveInput
+): SceneCastFocus {
+  if (focus.sceneCastMode !== "single_primary") return focus;
+  const primary = focus.primaryCharacterName;
+  if (!primary) return focus;
+  const candidates = (input.knownSupportingCastNames ?? [])
+    .map((n) => n.trim())
+    .filter((n) => n && n !== primary);
+  if (candidates.length === 0) {
+    return { ...focus, activeSpeakingCast: [primary] };
+  }
+  const userMsg = (input.currentUserMessage ?? "").trim();
+  const triggered = (input.triggeredEventText ?? "").trim();
+  const recent = (input.recentMessages ?? []).map((m) => m.content ?? "").join("\n");
+
+  const nameVariants = (name: string): string[] => {
+    const n = name.replace(/\s+/g, "");
+    const out = [n];
+    if (n.length >= 3) out.push(n.slice(-2));
+    if (n.length >= 4) out.push(n.slice(-3));
+    return out.filter((x) => x.length >= 2);
+  };
+
+  let best: string | null = null;
+  let bestScore = -1;
+  for (const name of candidates) {
+    const variants = nameVariants(name);
+    let score = 0;
+    for (const v of variants) {
+      if (userMsg.includes(v)) score += 3;
+      if (triggered.includes(v)) score += 2;
+      if (recent.includes(v)) score += 1;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      best = name;
+    }
+  }
+  // Only add a supporting speaker if there is a positive signal (score > 0).
+  const optional = bestScore > 0 && best ? [best] : [];
+  return { ...focus, activeSpeakingCast: [primary, ...optional] };
+}
+
+/** Direct-speaking-cast line for single_primary only — replaces the old focus line. */
 export function renderPrimaryFocusLine(focus: SceneCastFocus): string | null {
   if (focus.sceneCastMode !== "single_primary") return null;
-  const name = focus.primaryCharacterName?.trim();
-  if (!name) return null;
-  return `장면 중심: ${name}와 유저의 현재 상호작용. 세계 변화와 보조 인물은 이 상호작용을 전진시키는 범위에서 사용한다.`;
+  const cast = focus.activeSpeakingCast.filter((n) => n.trim());
+  if (cast.length === 0) return null;
+  const names = cast.join(", ");
+  return `직접 발화 중심: ${names}. 메인 캐릭터와 유저의 현재 상호작용을 이어가며, 그 밖의 인물과 세계 정보는 서술·메시지·환경 변화로 통합한다.`;
 }
 
 function buildNextBeatHint(
@@ -742,12 +810,13 @@ export function getLastProgressionSelectionMeta(): ProgressionSelectionMeta | nu
 
 export function buildSceneDirective(input: SceneDirectiveInput): SceneDirective {
   const recentStagnation = detectSceneStagnation(input.recentMessages);
-  const castFocus = resolveSceneCastFocus({
+  const baseCastFocus = resolveSceneCastFocus({
     contentKind: input.contentKind,
     primaryCharacterName: input.primaryCharacterName,
     party: input.party,
     establishedActiveCastNames: input.establishedActiveCastNames,
   });
+  const castFocus = resolveActiveSpeakingCast(baseCastFocus, input);
   const recommendedIntensity = selectSceneIntensity({
     recentMessages: input.recentMessages,
     currentUserMessage: input.currentUserMessage,

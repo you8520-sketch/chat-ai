@@ -9,6 +9,7 @@ import { buildWebnovelOutputLayoutRecencyBlock } from "@/lib/webnovelOutputForma
 import {
   buildLengthInstruction,
   buildTerminalLengthOverrideBlock,
+  USER_TAIL_LENGTH_OWNER_SENTENCE,
 } from "@/lib/responseLength";
 import { DEEPSEEK_BOTTOM_REMINDER } from "@/lib/deepseekPromptStructure";
 import { SPEECH_METADATA_INVISIBLE_RULE } from "@/lib/speechMetadataPolicy";
@@ -55,16 +56,15 @@ describe("prose style anti-pattern fixtures (static)", () => {
     assert.match(layout, /한 문단 안에서 자연스럽게 연결/);
     assert.match(layout, /지문 한 문장이 완결됐다는 이유만으로/);
     assert.doesNotMatch(layout, /감정 방향, 내면과 외부의 초점/);
-    assert.match(layout, /대사는 화자별 독립 문단/);
+    assert.match(layout, /대사는 독립 문단으로 표시한다/);
   });
 
-  it("length freeze: TARGET / FLOOR / Terminal intact; DeepSeek length-only", () => {
-    const length = buildLengthInstruction();
-    assert.match(length, /TARGET_LENGTH: 3,200\+/);
-    assert.match(length, /MINIMUM_FLOOR: 2,700\+/);
-    const terminal = buildTerminalLengthOverrideBlock();
-    assert.match(terminal, /TARGET_LENGTH 3,200\+/);
-    assert.match(terminal, /단일 응답 최대 전개·미달 조기 종료 금지/);
+  it("length consolidation: system empty; user-tail owner; DeepSeek length-only reminder", () => {
+    assert.equal(buildLengthInstruction(), "");
+    assert.equal(buildTerminalLengthOverrideBlock(), "");
+    assert.match(USER_TAIL_LENGTH_OWNER_SENTENCE, /3,200~4,200자/);
+    assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /TARGET_LENGTH/);
+    assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /MINIMUM_FLOOR/);
     assert.match(DEEPSEEK_BOTTOM_REMINDER, /\[DEEPSEEK LENGTH — SINGLE CALL\]/);
     assert.match(DEEPSEEK_BOTTOM_REMINDER, /never imitate a short prior assistant reply/);
     assert.doesNotMatch(DEEPSEEK_BOTTOM_REMINDER, /\[IMMERSIVE PROSE\]/);

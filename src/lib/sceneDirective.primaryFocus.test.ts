@@ -65,8 +65,8 @@ describe("world-motion-v1.1.1 primary focus (server cast focus)", () => {
     const block = renderSceneDirectiveForPrompt(d);
     const line = renderPrimaryFocusLine(d.castFocus);
     assert.ok(line);
-    assert.equal((block.match(/장면 중심:/g) ?? []).length, 1);
-    assert.match(block, /장면 중심: 태형와 유저의 현재 상호작용/);
+    assert.equal((block.match(/직접 발화 중심:/g) ?? []).length, 1);
+    assert.match(block, /직접 발화 중심: 태형\./);
     assert.doesNotMatch(block, /supportingCastBudget|발화자\s*1명|직원.*말시키지|퇴장시키지/);
     assert.ok(block.length < 650, `directive length ${block.length}`);
     assert.equal((block.match(/\[PRIVATE SCENE ENGINE RULE\]/g) ?? []).length, 1);
@@ -108,7 +108,7 @@ describe("world-motion-v1.1.1 primary focus (server cast focus)", () => {
     assert.equal(d.castFocus.sceneCastMode, "simulation");
     assert.ok(d.castFocus.supportingCastBudget >= 2);
     const block = renderSceneDirectiveForPrompt(d);
-    assert.doesNotMatch(block, /장면 중심:/);
+    assert.doesNotMatch(block, /직접 발화 중심:/);
   });
 
   it("explicit party flag resolves to ensemble without single-primary line", () => {
@@ -134,5 +134,74 @@ describe("world-motion-v1.1.1 primary focus (server cast focus)", () => {
     });
     const joined = d.avoid.join(" ");
     assert.doesNotMatch(joined, /NPC|직원|가이드|센티넬|퇴장|발화자/);
+  });
+
+  it("single_primary activeSpeakingCast defaults to [primary] only when no known supporting cast", () => {
+    const d = buildSceneDirective({
+      mode: "interactive",
+      contentKind: "character",
+      primaryCharacterName: "태형",
+      chatId: 17,
+      currentTurn: 1,
+      currentUserMessage: "밥 먹자.",
+    });
+    assert.deepEqual(d.castFocus.activeSpeakingCast, ["태형"]);
+  });
+
+  it("single_primary selects optional supporting when user cue mentions a known NPC name", () => {
+    const d = buildSceneDirective({
+      mode: "interactive",
+      contentKind: "character",
+      primaryCharacterName: "태형",
+      knownSupportingCastNames: ["윤태건", "서진화"],
+      chatId: 18,
+      currentTurn: 1,
+      currentUserMessage: "태건이 어디 있지?",
+    });
+    assert.deepEqual(d.castFocus.activeSpeakingCast, ["태형", "윤태건"]);
+  });
+
+  it("single_primary does not add optional supporting when no positive signal", () => {
+    const d = buildSceneDirective({
+      mode: "interactive",
+      contentKind: "character",
+      primaryCharacterName: "태형",
+      knownSupportingCastNames: ["윤태건", "서진화"],
+      chatId: 19,
+      currentTurn: 1,
+      currentUserMessage: "응. 여기서 조금 쉬자.",
+    });
+    assert.deepEqual(d.castFocus.activeSpeakingCast, ["태형"]);
+  });
+
+  it("simulation/ensemble activeSpeakingCast includes all established cast", () => {
+    const d = buildSceneDirective({
+      mode: "interactive",
+      contentKind: "simulation",
+      primaryCharacterName: "서윤",
+      establishedActiveCastNames: ["도진", "관리 AI 라움"],
+      chatId: 20,
+      currentTurn: 1,
+      currentUserMessage: "경보.",
+    });
+    assert.ok(d.castFocus.activeSpeakingCast.includes("서윤"));
+    assert.ok(d.castFocus.activeSpeakingCast.includes("도진"));
+    assert.ok(d.castFocus.activeSpeakingCast.includes("관리 AI 라움"));
+  });
+
+  it("new focus line concentrates dialogue on primary interaction", () => {
+    const d = buildSceneDirective({
+      mode: "interactive",
+      contentKind: "character",
+      primaryCharacterName: "태형",
+      chatId: 21,
+      currentTurn: 1,
+      currentUserMessage: "응.",
+    });
+    const line = renderPrimaryFocusLine(d.castFocus);
+    assert.ok(line);
+    assert.match(line!, /직접 발화 중심: 태형\./);
+    assert.match(line!, /메인 캐릭터와 유저의 현재 상호작용을 이어가며/);
+    assert.match(line!, /서술·메시지·환경 변화로 통합한다/);
   });
 });
