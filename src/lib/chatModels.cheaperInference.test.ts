@@ -114,3 +114,28 @@ test("DeepSeek V4 Pro migrates to the selectable Cheaper Inference model", () =>
     true
   );
 });
+
+test("DeepSeek V4 Flash is a selectable Cheaper Inference chat model", () => {
+  assert.equal(
+    USER_SELECTABLE_AI_OPTIONS.some(
+      (option) => option.id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+    ),
+    true
+  );
+  assert.equal(
+    selectedAIProvider(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),
+    "cheaperinference"
+  );
+  assert.equal(
+    selectedAILabel(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),
+    "DeepSeek V4 Flash"
+  );
+  assert.equal(
+    resolveSelectedAI(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),
+    CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+  );
+  assert.equal(
+    isCheaperInferenceModel(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL),
+    true
+  );
+});
