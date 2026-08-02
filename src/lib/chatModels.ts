@@ -67,7 +67,7 @@ export const CHEAPER_INFERENCE_GPT_56_LUNA_MODEL = "gpt-5.6-luna";
 export const CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL =
   "gemini-3.1-pro-preview";
 
-/** Cheaper Inference — background memory/status/HTML/translation */
+/** Cheaper Inference — chat selectable + background memory/status/HTML/translation */
 export const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL = "deepseek-v4-flash";
 
 /** OpenRouter models that use the simple per-token point formula (no USD margin). */
@@ -98,6 +98,8 @@ export const OPENROUTER_GEMINI_31_FLASH_MODEL = "google/gemini-3.1-flash-lite";
 
 /** 유저-facing 표시명 (채팅 선택·영수증) */
 export const DEEPSEEK_DISPLAY_NAME = "DeepSeek V4 Pro";
+
+export const DEEPSEEK_V4_FLASH_DISPLAY_NAME = "DeepSeek V4 Flash";
 
 export const QWEN_DISPLAY_NAME = "Qwen 3.7 Max";
 
@@ -154,6 +156,13 @@ export const SELECTED_AI_OPTIONS = [
     provider: "cheaperinference" as const,
     tier: "pro" as const,
     hint: "Reasoning",
+  },
+  {
+    id: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+    label: DEEPSEEK_V4_FLASH_DISPLAY_NAME,
+    provider: "cheaperinference" as const,
+    tier: "pro" as const,
+    hint: "Fast",
   },
   {
     id: CLAUDE_OPUS_MODEL,
@@ -309,10 +318,16 @@ export function isDeepSeekV4ProModel(modelId: string): boolean {
   );
 }
 
-/** Any OpenRouter DeepSeek family model, including current chat V4 Pro and background V3. */
+/** Any DeepSeek family model, including CI V4 Pro/Flash and background V3. */
 export function isDeepSeekModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
-  return isDeepSeekV4ProModel(id) || id === OPENROUTER_DEEPSEEK_V3_MODEL || id.startsWith("deepseek/") || id.includes("/deepseek-");
+  return (
+    isDeepSeekV4ProModel(id) ||
+    isCheaperInferenceDeepSeekV4FlashModel(id) ||
+    id === OPENROUTER_DEEPSEEK_V3_MODEL ||
+    id.startsWith("deepseek/") ||
+    id.includes("/deepseek-")
+  );
 }
 
 /** OpenRouter Google Gemini 2.5 Pro */
