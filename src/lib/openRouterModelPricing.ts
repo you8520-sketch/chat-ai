@@ -267,7 +267,10 @@ function withLiveCheaperInferenceRates(
 export function resolveOpenRouterModelRates(modelId?: string | null): OpenRouterModelRates {
   const id = (modelId ?? "").trim().toLowerCase();
   // Exact / specific model ids before broad family matches.
-  if (id === "claude-opus-5") return CHEAPER_INFERENCE_CLAUDE_OPUS_5_RATES;
+  // Cheaper Inference: prefer live /models catalog rates; else published snapshot fallback.
+  if (id === "claude-opus-5") {
+    return withLiveCheaperInferenceRates(id, CHEAPER_INFERENCE_CLAUDE_OPUS_5_RATES);
+  }
   if (id === "deepseek-v4-pro") {
     return withLiveCheaperInferenceRates(
       id,
@@ -280,7 +283,9 @@ export function resolveOpenRouterModelRates(modelId?: string | null): OpenRouter
       CHEAPER_INFERENCE_GPT_56_TERRA_RATES
     );
   }
-  if (id === "gpt-5.6-luna") return CHEAPER_INFERENCE_GPT_56_LUNA_RATES;
+  if (id === "gpt-5.6-luna") {
+    return withLiveCheaperInferenceRates(id, CHEAPER_INFERENCE_GPT_56_LUNA_RATES);
+  }
   if (id === "gemini-3.1-pro-preview") {
     return withLiveCheaperInferenceRates(
       id,
@@ -288,7 +293,10 @@ export function resolveOpenRouterModelRates(modelId?: string | null): OpenRouter
     );
   }
   if (id === "deepseek-v4-flash") {
-    return CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_RATES;
+    return withLiveCheaperInferenceRates(
+      id,
+      CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_RATES
+    );
   }
   if (id.includes("gemini-2.5-flash")) return GEMINI_25_FLASH_RATES;
   if (id.includes("gemini-3.6-flash")) return GEMINI_36_FLASH_RATES;

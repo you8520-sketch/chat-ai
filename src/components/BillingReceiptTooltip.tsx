@@ -11,6 +11,7 @@ import {
   resolveMainRpApiCostPartsKrw,
   resolveOpenRouterCacheReceipt,
   resolveExchangeRateReceiptLabel,
+  resolveRealizedMarginRatePercent,
   resolveStoredWidgetExtractCallCount,
   type BillingReceipt,
 } from "@/lib/billingDisplay";
@@ -47,15 +48,12 @@ function ReceiptBody({
     (isGemini25ProModel(usage.model ?? "") ||
       (isGeminiProOpenRouterModel(usage.model ?? "") &&
         !isGemini31ProModel(usage.model ?? "")));
-  // 실현 마진율 = 1 - (API 원가 KRW / 차감 P). 유료 1P=1원 기준.
-  // 단순 단가 모델도 과금 공식에 마진%가 없을 뿐, 원가 대비 실현 마진은 동일하게 표시한다.
+  // 실현 마진율 = 1 - (API 원가 KRW / 실제 차감 P). 유료 1P=1원.
+  // 원가: 공급자 실시간 차감 USD 우선, 없으면 이용 사이트 게시 요율×토큰×환율.
   const marginRateLabel = (() => {
     if (!showFullReceipt || receipt.waived) return null;
-    if (apiRawCostKrw != null && apiRawCostKrw > 0 && receipt.totalCost > 0) {
-      const margin = 1 - apiRawCostKrw / receipt.totalCost;
-      return `${Math.round(margin * 100)}%`;
-    }
-    return null;
+    const pct = resolveRealizedMarginRatePercent(usage, receipt.totalCost);
+    return pct != null ? `${pct}%` : null;
   })();
   const widgetExtractCallCount = resolveStoredWidgetExtractCallCount(
     usage.statusWidgetExtract?.callCount

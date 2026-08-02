@@ -90,11 +90,6 @@ import {
   selectedAIOptionMeta,
   type SelectedAI,
 } from "@/lib/chatModels";
-import {
-  modelPickerOptionLabel,
-  type ModelPickerPreviewResult,
-} from "@/lib/modelTurnCostEstimate";
-import { createModelPickerPreviewRequestGate } from "@/lib/modelPickerPreviewRequestGate";
 import { globalModelStatusLabel } from "@/lib/userSelectedAI";
 import { formatAssistantLengthLabel } from "@/lib/responseLengthConstants";
 import {
@@ -207,24 +202,15 @@ function isChatFetchTimeout(e: unknown): boolean {
   return e instanceof DOMException && e.name === "TimeoutError";
 }
 
-function selectedAIOptionLabel(
-  id: SelectedAI,
-  preview: ModelPickerPreviewResult | null
-): string {
+/** Model option label — estimate-P preview temporarily hidden (will restore after accurate cost work). */
+function selectedAIOptionLabel(id: SelectedAI): string {
   const meta = selectedAIOptionMeta(id);
   const badgeText =
     meta && "badge" in meta && typeof meta.badge === "string" && meta.badge
       ? meta.badge
       : "";
   const badge = badgeText ? ` [${badgeText}]` : "";
-  const displayName = `${selectedAILabel(id)}${badge}`;
-  const row = preview?.models.find((m) => m.modelId === id);
-  return modelPickerOptionLabel({
-    displayName,
-    estimatedPoints: row?.estimatedPoints ?? null,
-    estimatedPointsLow: row?.estimatedPointsLow ?? null,
-    estimatedPointsHigh: row?.estimatedPointsHigh ?? null,
-  });
+  return `${selectedAILabel(id)}${badge}`;
 }
 
 export type { Usage };
@@ -1321,63 +1307,6 @@ export default function ChatClient({
   }, [messages, lastAssistantIdx]);
 
   const inputLocked = loading || lastTurnInFlight;
-
-  const [pickerPreview, setPickerPreview] = useState<ModelPickerPreviewResult | null>(null);
-  const [pickerPreviewReady, setPickerPreviewReady] = useState(false);
-  const pickerPreviewGateRef = useRef(createModelPickerPreviewRequestGate());
-
-  useEffect(() => {
-    setPickerPreview(null);
-    setPickerPreviewReady(false);
-  }, [chatId]);
-
-  const fetchPickerPreview = useCallback(
-    async (opts: {
-      refreshContext?: boolean;
-      skipContextBuild?: boolean;
-      draftInput?: string;
-    }) => {
-      if (!chatId) return;
-      const requestSeq = pickerPreviewGateRef.current.next();
-      try {
-        const res = await fetch("/api/chat/model-picker-preview", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chatId,
-            targetResponseChars,
-            refreshContext: opts.refreshContext === true,
-            skipContextBuild: opts.skipContextBuild === true,
-            draftInput: opts.draftInput,
-          }),
-        });
-        if (!res.ok) return;
-        const data = (await res.json()) as ModelPickerPreviewResult;
-        if (!pickerPreviewGateRef.current.isLatest(requestSeq)) return;
-        setPickerPreview(data);
-        setPickerPreviewReady(true);
-      } catch {
-        /* non-blocking preview */
-      }
-    },
-    [chatId, targetResponseChars]
-  );
-
-  useEffect(() => {
-    if (!chatId || !pickerPreviewReady) return;
-    void fetchPickerPreview({ refreshContext: true });
-  }, [chatId, messages.length, userNote, selectedPersonaId, targetResponseChars, fetchPickerPreview]);
-
-  useEffect(() => {
-    if (!chatId) return;
-    const timer = window.setTimeout(() => {
-      void fetchPickerPreview({
-        skipContextBuild: true,
-        draftInput: input,
-      });
-    }, 350);
-    return () => window.clearTimeout(timer);
-  }, [chatId, input, fetchPickerPreview, pickerPreviewReady]);
 
   /** Multi-tab: refresh global selected_ai on focus (server remains SoT for generation).
    * Read latest via ref so a focus/visibility sync never overwrites an optimistic
@@ -4304,7 +4233,7 @@ export default function ChatClient({
               >
                 {USER_SELECTABLE_AI_OPTIONS.map((o) => (
                   <option key={o.id} value={o.id}>
-                    {selectedAIOptionLabel(o.id as SelectedAI, pickerPreview)}
+                    {selectedAIOptionLabel(o.id as SelectedAI)}
                   </option>
                 ))}
               </select>
