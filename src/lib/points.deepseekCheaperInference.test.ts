@@ -44,7 +44,7 @@ describe("CheaperInference DeepSeek V4 Pro billing", () => {
 });
 
 describe("CheaperInference DeepSeek V4 Flash billing", () => {
-  it("uses account catalog rates while preserving the 55% margin", () => {
+  it("uses account catalog rates while preserving the 68% margin", () => {
     const rates = resolveOpenRouterReasoningPointRates(
       CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
       1530
@@ -54,8 +54,8 @@ describe("CheaperInference DeepSeek V4 Flash billing", () => {
     assert.equal(rates.cacheReadUsdPerMillion, 0.0196);
     assert.equal(rates.cacheWriteUsdPerMillion, 0.098);
     assert.equal(rates.outputUsdPerMillion, 0.196);
-    assert.equal(rates.grossMargin, 0.55);
-    assert.equal(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_GROSS_MARGIN, 0.55);
+    assert.equal(rates.grossMargin, 0.68);
+    assert.equal(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_GROSS_MARGIN, 0.68);
 
     const billing = computeOpenRouterTurnBilling({
       modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
@@ -69,7 +69,7 @@ describe("CheaperInference DeepSeek V4 Flash billing", () => {
       (10_000 * 0.098 + 10_000 * 0.0196 + 2_000 * 0.196) / 1_000_000;
     assert.equal(
       billing.total,
-      Math.ceil((rawUsd * rates.effectiveKrwPerUsd) / (1 - 0.55) - 1e-9)
+      Math.ceil((rawUsd * rates.effectiveKrwPerUsd) / (1 - 0.68) - 1e-9)
     );
   });
 });
