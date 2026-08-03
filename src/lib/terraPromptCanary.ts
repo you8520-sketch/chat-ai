@@ -392,13 +392,19 @@ export function resolveCanarySceneProgressionAxis(opts: {
   }
 
   const user = (opts.userMessage ?? "").trim();
-  const history = recentHistoryText(opts.recentMessages);
-  const blob = `${user}\n${history}`;
+  const userHistory = (opts.recentMessages ?? [])
+    .filter((m) => m.role === "user")
+    .map((m) => m.content ?? "")
+    .join("\n");
+  const blob = `${user}\n${userHistory}`;
 
+  // Combat / procedure gates use user-side text only.
+  // Do NOT unlock the axis because a prior assistant turn invented registration
+  // staff — that feedback loop recreates NPC subplots on Turn 2.
   if (COMBAT_URGENT_RE.test(blob)) return null;
   if (USER_NPC_ADDRESS_RE.test(user)) return null;
   if (PROCEDURE_REQUEST_RE.test(user)) return null;
-  if (ACTIVE_EXTERNAL_EVENT_RE.test(history)) return null;
+  if (ACTIVE_EXTERNAL_EVENT_RE.test(userHistory)) return null;
 
   // User is addressing / approaching the primary character (default for single_primary turns).
   return "relationship";
