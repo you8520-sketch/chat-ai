@@ -10,6 +10,7 @@ import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { computeDialogueMetrics } from "../src/lib/dialogueMetrics";
+import { visibleAssistantDisplayCharCount } from "../src/lib/chatDisplayLength";
 
 const BASE = process.env.PROD_BASE ?? "https://chat-ai-production-3e84.up.railway.app";
 const COOKIE_FILE = process.env.PROD_COOKIE_FILE ?? "/tmp/terra_axis_cookies.txt";
@@ -385,11 +386,23 @@ async function main() {
       const dbSaved = chatId ? await fetchDbAssistant(chatId, token, turn) : resp.final_text;
       if (dbSaved) resp.db_saved = dbSaved;
 
-      const autoMetrics = analyze(resp.provider_raw, turn);
+      const rawMetrics = analyze(resp.provider_raw, turn);
       const finalMetrics = analyze(resp.final_text || resp.provider_raw, turn);
+      const doneUsage = (resp.done as { usage?: Record<string, unknown>; finishReason?: string } | null)?.usage;
+      const outputTokens =
+        typeof doneUsage?.output === "number"
+          ? doneUsage.output
+          : typeof doneUsage?.outputTokens === "number"
+            ? doneUsage.outputTokens
+            : null;
+      const finishReason =
+        (resp.done as { finishReason?: string } | null)?.finishReason ??
+        (typeof doneUsage?.finishReason === "string" ? doneUsage.finishReason : null);
+
       const payload = {
         ...finalMetrics,
-        auto_provider: autoMetrics,
+        visible_canonical_length: visibleAssistantDisplayCharCount(resp.final_text || resp.provider_raw),
+        auto_provider: rawMetrics,
         invalid: invalidReasons.length > 0,
         invalid_reason: invalidReasons.join("; ") || undefined,
         integrity,
@@ -397,9 +410,15 @@ async function main() {
           chatId,
           latency_s: resp.latency_s,
           model: (resp.done as { usage?: { model?: string } } | null)?.usage?.model,
+          provider: (resp.done as { usage?: { provider?: string } } | null)?.usage?.provider,
+          output_tokens: outputTokens,
+          finish_reason: finishReason,
           raw_equals_final: resp.provider_raw === resp.final_text,
           raw_hash: sha256(resp.provider_raw),
           final_hash: sha256(resp.final_text),
+          length_recovery_passes:
+            (doneUsage?.lengthRecoveryPasses as number | undefined) ?? 0,
+          retry_count: resp.statuses.filter((s) => /retry|재시도/i.test(s)).length,
         },
       };
 

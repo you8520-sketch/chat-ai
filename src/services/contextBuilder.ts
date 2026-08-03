@@ -103,6 +103,7 @@ import {
   rpDiagnosticDisablesDeepSeekExtras,
   rpDiagnosticRemovesSceneDirective,
   rpDiagnosticUsesDialogueReferenceScope,
+  rpDiagnosticUsesFlashLengthStack,
   rpDiagnosticUsesMinimalLayout,
   rpDiagnosticUsesMinimalLengthOwner,
   rpDiagnosticUsesMinimalRpStyle,
@@ -149,7 +150,7 @@ import {
 import { isTerraTerminalLengthOwnerActive } from "@/lib/sharedNovelProseModelAdapters";
 import type { OpenRouterSystemSplit } from "@/lib/openRouterCache";
 import { estimateOpenRouterCacheableTokens, buildOpenRouterDynamicLoreUserPrefix, HISTORY_CACHE_TAIL_EXCLUDE_MESSAGES } from "@/lib/openRouterCache";
-import { isDeepSeekModel, isDeepSeekV4ProModel, isQwenModel } from "@/lib/chatModels";
+import { isCheaperInferenceDeepSeekV4FlashModel, isDeepSeekModel, isDeepSeekV4ProModel, isQwenModel } from "@/lib/chatModels";
 import { DEEPSEEK_APPEARANCE_VARIATION_RULE } from "@/lib/appearanceCompiler";
 import { buildCoNarrationKoreanRule } from "@/lib/openRouterAdult";
 import { buildOpenRouterKoreanProseTopBlock } from "@/lib/openRouterProsePolicy";
@@ -1224,6 +1225,23 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       });
   if (isOpenRouter && openRouterDynamicLorePrefix) {
     userTurnContent = `${openRouterDynamicLorePrefix}\n\n${userTurnContent}`;
+  }
+
+  // RP diagnostic — Flash length stack (Pro-verified short-history / short-user extras only).
+  if (
+    rpVariant &&
+    rpDiagnosticUsesFlashLengthStack(rpVariant) &&
+    isCheaperInferenceDeepSeekV4FlashModel(input.modelId ?? "")
+  ) {
+    const flashLengthExtras = [
+      resolveDeepSeekShortHistoryLengthExtra(input.shortTermHistory),
+      resolveDeepSeekShortUserTurnExtra(input.currentUserMessage),
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+    if (flashLengthExtras) {
+      userTurnContent = `${userTurnContent.trimEnd()}\n\n${flashLengthExtras}`;
+    }
   }
 
   /**

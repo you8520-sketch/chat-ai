@@ -175,7 +175,8 @@ export type ContextBuildInput = {
       | "common_scene_directive_removed"
       | "common_rp_style_minimal"
       | "deepseek_final"
-      | "terra_cross_check";
+      | "terra_cross_check"
+      | "ds_length_normalized_baseline";
     progressionAxis?:
       | "relationship"
       | "investigation"

@@ -58,6 +58,7 @@ export const RP_DIAGNOSTIC_CANARY_VARIANTS = [
   "common_rp_style_minimal",
   "deepseek_final",
   "terra_cross_check",
+  "ds_length_normalized_baseline",
 ] as const;
 
 export type RpDiagnosticCanaryVariant = (typeof RP_DIAGNOSTIC_CANARY_VARIANTS)[number];
@@ -195,10 +196,66 @@ export function resolveRpDiagnosticGreeting(
   return null;
 }
 
+export function rpDiagnosticUsesFlashLengthStack(
+  variant: RpDiagnosticCanaryVariant
+): boolean {
+  if (variant === "ds_length_normalized_baseline") return true;
+  const env = process.env.RP_DIAGNOSTIC_CANARY_FLASH_LENGTH_STACK?.trim().toLowerCase();
+  return env === "1" || env === "true";
+}
+
 export function rpDiagnosticDisablesDeepSeekExtras(
   variant: RpDiagnosticCanaryVariant
 ): boolean {
   return variant === "ds_common_only";
+}
+
+export function evaluateLengthGate(
+  rows: Array<{
+    canonical_length_ws?: number;
+    visible_canonical_length?: number;
+    final_ws?: number;
+  }>
+): {
+  pass: boolean;
+  reason: string;
+  stats: {
+    canonical_avg: number;
+    canonical_median: number;
+    canonical_min: number;
+    canonical_max: number;
+    count_ge_3000: number;
+    count_ge_2700: number;
+    count_lt_2400: number;
+    count_lt_1500: number;
+    count_lt_1000: number;
+    n: number;
+  };
+} {
+  const canonicals = rows.map(
+    (r) => r.visible_canonical_length ?? r.canonical_length_ws ?? r.final_ws ?? 0
+  );
+  const n = canonicals.length;
+  const avg = n ? Math.round(canonicals.reduce((a, b) => a + b, 0) / n) : 0;
+  const sorted = [...canonicals].sort((a, b) => a - b);
+  const med = n ? sorted[Math.floor(n / 2)] ?? 0 : 0;
+  const stats = {
+    canonical_avg: avg,
+    canonical_median: med,
+    canonical_min: n ? Math.min(...canonicals) : 0,
+    canonical_max: n ? Math.max(...canonicals) : 0,
+    count_ge_3000: canonicals.filter((c) => c >= 3000).length,
+    count_ge_2700: canonicals.filter((c) => c >= 2700).length,
+    count_lt_2400: canonicals.filter((c) => c < 2400).length,
+    count_lt_1500: canonicals.filter((c) => c < 1500).length,
+    count_lt_1000: canonicals.filter((c) => c < 1000).length,
+    n,
+  };
+  if (n < 6) return { pass: false, reason: "INSUFFICIENT_SAMPLE", stats };
+  if (stats.count_lt_2400 > 0) return { pass: false, reason: "canonical_lt_2400", stats };
+  if (stats.count_ge_2700 < 5) return { pass: false, reason: "count_ge_2700_lt_5", stats };
+  if (stats.canonical_avg < 3000) return { pass: false, reason: "canonical_avg_lt_3000", stats };
+  return { pass: true, reason: "PASS", stats };
 }
 
 export function shouldRelocateRpDiagnosticSceneDirective(
