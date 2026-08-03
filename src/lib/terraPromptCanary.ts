@@ -46,7 +46,11 @@ export const TERRA_PROMPT_CANARY_VARIANTS = [
   "terra_dialogue_intent_adapter",
   /** NPC baseline fixed + Terra-only dialogue intent sentence. */
   "greeting_neutral_scene_terra_dialogue_intent",
-  /** Final candidate stack for main-home confirmation. */
+  /**
+   * Final confirmed stack for main-home confirmation:
+   * greeting_neutral + scene_relation_priority only
+   * (card/Terra dialogue residuals not confirmed).
+   */
   "final_main_home_candidate",
 ] as const;
 
@@ -104,8 +108,7 @@ export function canaryAppliesCardDialogueNeutral(
 ): boolean {
   return (
     variant === "greeting_neutral_card_dialogue_neutral" ||
-    variant === "greeting_neutral_scene_card_dialogue_neutral" ||
-    variant === "final_main_home_candidate"
+    variant === "greeting_neutral_scene_card_dialogue_neutral"
   );
 }
 
@@ -114,8 +117,7 @@ export function canaryAppliesTerraDialogueIntentAdapter(
 ): boolean {
   return (
     variant === "terra_dialogue_intent_adapter" ||
-    variant === "greeting_neutral_scene_terra_dialogue_intent" ||
-    variant === "final_main_home_candidate"
+    variant === "greeting_neutral_scene_terra_dialogue_intent"
   );
 }
 
