@@ -142,6 +142,8 @@ import { isLivingSceneDirectiveV2EnabledForUser } from "@/lib/livingSceneDirecti
 import {
   applyTerraPromptCanaryToHistory,
   applyTerraPromptCanaryToSceneDirectiveBlock,
+  canaryAppliesCardDialogueNeutral,
+  canaryAppliesDialogueIntentUnitLayout,
   DIALOGUE_LAYOUT_OWNER_KO_CANARY,
   DIALOGUE_LAYOUT_OWNER_KO_PRODUCTION,
   extractGreetingFromHistory,
@@ -896,7 +898,7 @@ export async function POST(req: Request) {
       personaDisplayName,
       user.nickname
     );
-  const effectiveExampleDialog = resolveExampleDialogForPrompt(ch.example_dialog, ch.name);
+  let effectiveExampleDialog = resolveExampleDialogForPrompt(ch.example_dialog, ch.name);
   const relationshipNames = resolveRelationshipMetaNames({
     displayName: ch.name,
     systemPrompt: ch.system_prompt,
@@ -1153,6 +1155,10 @@ export async function POST(req: Request) {
     characterId: ch.id,
     productionGreeting: ch.greeting ?? "",
   });
+  if (terraPromptCanary && canaryAppliesCardDialogueNeutral(terraPromptCanary.variant)) {
+    // Single-field card canary: drop example dialogue injection only.
+    effectiveExampleDialog = "";
+  }
   const legacySceneDirective = buildSceneDirective({
     mode: autoContinueContext ? "auto_progression" : "interactive",
     recentMessages: promptHistory,
@@ -1474,10 +1480,9 @@ export async function POST(req: Request) {
       sceneDirectiveFinal: sceneDirectiveBlock,
       greetingInjected: extractGreetingFromHistory(promptHistory),
       terraAdapter: TERRA_TERMINAL_LENGTH_OWNER_CONTRACT,
-      dialogueLayoutOwner:
-        terraPromptCanary.variant === "dialogue_intent_unit"
-          ? DIALOGUE_LAYOUT_OWNER_KO_CANARY
-          : DIALOGUE_LAYOUT_OWNER_KO_PRODUCTION,
+      dialogueLayoutOwner: canaryAppliesDialogueIntentUnitLayout(terraPromptCanary.variant)
+        ? DIALOGUE_LAYOUT_OWNER_KO_CANARY
+        : DIALOGUE_LAYOUT_OWNER_KO_PRODUCTION,
       userTurnTail1500: userTurnTail,
       providerRaw: null,
       finalText: null,
@@ -3898,10 +3903,11 @@ export async function POST(req: Request) {
             sceneDirectiveFinal: sceneDirectiveBlock,
             greetingInjected: extractGreetingFromHistory(promptHistory),
             terraAdapter: TERRA_TERMINAL_LENGTH_OWNER_CONTRACT,
-            dialogueLayoutOwner:
-              terraPromptCanary.variant === "dialogue_intent_unit"
-                ? DIALOGUE_LAYOUT_OWNER_KO_CANARY
-                : DIALOGUE_LAYOUT_OWNER_KO_PRODUCTION,
+            dialogueLayoutOwner: canaryAppliesDialogueIntentUnitLayout(
+              terraPromptCanary.variant
+            )
+              ? DIALOGUE_LAYOUT_OWNER_KO_CANARY
+              : DIALOGUE_LAYOUT_OWNER_KO_PRODUCTION,
             userTurnTail1500:
               typeof promptUserMessage === "string" ? promptUserMessage.slice(-1500) : "",
             providerRaw: null,

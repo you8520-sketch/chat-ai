@@ -91,6 +91,7 @@ import {
   buildWebnovelOutputLayoutRecencyBlock,
   unwrapRoleplayMarkdownInText,
 } from "@/lib/webnovelOutputFormat";
+import { TERRA_DIALOGUE_INTENT_ADAPTER_SENTENCE } from "@/lib/terraPromptCanary";
 import type { CharacterChunk, GeminiContextSplit } from "@/types";
 import {
   type BuiltContext,
@@ -1034,7 +1035,8 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     "Output layout recency (Korean webnovel paragraph breaks)",
     "systemRules",
     buildWebnovelOutputLayoutRecencyBlock({
-      dialogueIntentUnit: input.terraPromptCanary?.variant === "dialogue_intent_unit",
+      dialogueIntentUnit:
+        input.terraPromptCanary?.variant === "dialogue_intent_unit",
     }),
     "dynamic"
   );
@@ -1284,6 +1286,9 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   }
   if (terraTerminalLengthOwner) {
     userTurnContent = appendTerraTerminalLengthOwnerToUserTurn(userTurnContent);
+    if (input.terraPromptCanary?.variant === "terra_dialogue_intent_adapter") {
+      userTurnContent = `${userTurnContent.trimEnd()}\n\n${TERRA_DIALOGUE_INTENT_ADAPTER_SENTENCE}`;
+    }
   } else {
     // Layout first, then Luna terminal contract (or non-Luna length) as last instruction.
     userTurnContent = appendCompactTerminalLengthToUserTurn(

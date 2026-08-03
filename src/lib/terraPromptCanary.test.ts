@@ -17,6 +17,7 @@ import {
   V1_SCENE_PROGRESS_SENTENCE_CANARY,
   V1_SCENE_PROGRESS_SENTENCE_PRODUCTION,
 } from "@/lib/terraPromptCanary";
+// resolveCanaryGreeting / TERRA_PROMPT_CANARY_GREETING_NEUTRAL already imported
 import { buildWebnovelOutputLayoutRecencyBlock } from "@/lib/webnovelOutputFormat";
 
 const ENV_KEYS = Object.values(TERRA_PROMPT_CANARY_ENV);
@@ -237,6 +238,39 @@ describe("terraPromptCanary", () => {
       completedTurns: 5,
     });
     assert.equal(late, scene);
+  });
+
+  it("greeting_neutral_scene_relation_priority applies greeting + scene only", () => {
+    process.env[TERRA_PROMPT_CANARY_ENV.ENABLED] = "true";
+    process.env[TERRA_PROMPT_CANARY_ENV.USER_IDS] = "25";
+    process.env[TERRA_PROMPT_CANARY_ENV.VARIANT] =
+      "greeting_neutral_scene_relation_priority";
+    const canary = resolveTerraPromptCanary({
+      userId: 25,
+      modelId: CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+      contentKind: "character",
+    });
+    assert.ok(canary);
+    const staffGreeting =
+      '데스크 앞에 기대 선 그는 새로 발령받은 지원국 직원과 한창 실없는 농담을 주고받는 중이었다.\n\n“아니, 억울하다니까? 난 분명 보고서만 제출하면 끝인 줄 알았거든.';
+    assert.equal(
+      resolveCanaryGreeting({ canary, characterId: 18, greeting: staffGreeting }),
+      TERRA_PROMPT_CANARY_GREETING_NEUTRAL
+    );
+    const scene = renderSceneDirectiveForPrompt(
+      buildSceneDirective({
+        mode: "interactive",
+        recentMessages: [],
+        currentUserMessage: "같이갈래?",
+      })
+    );
+    const early = applyTerraPromptCanaryToSceneDirectiveBlock({
+      block: scene,
+      canary,
+      completedTurns: 1,
+    });
+    assert.ok(early.includes(V1_SCENE_PROGRESS_SENTENCE_CANARY));
+    assert.ok(!early.includes(V1_SCENE_PROGRESS_SENTENCE_PRODUCTION));
   });
 
   it("dialogue_intent_unit swaps layout owner strings only", () => {

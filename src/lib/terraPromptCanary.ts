@@ -38,7 +38,10 @@ export const TERRA_PROMPT_CANARY_VARIANTS = [
   "baseline",
   "greeting_neutral",
   "scene_relation_priority",
+  "greeting_neutral_scene_relation_priority",
   "dialogue_intent_unit",
+  "greeting_neutral_card_dialogue_neutral",
+  "terra_dialogue_intent_adapter",
 ] as const;
 
 export type TerraPromptCanaryVariant = (typeof TERRA_PROMPT_CANARY_VARIANTS)[number];
@@ -50,9 +53,51 @@ export const TERRA_PROMPT_CANARY_LIKE_CHARACTER_ID = 18;
 export const V1_SCENE_PROGRESS_SENTENCE_PRODUCTION =
   "반복된 감정 확인에 멈추지 말고 관계, 단서, 환경, NPC, 세계 반응, 생활 변수, 이전 선택의 결과 중 하나를 조용히 움직인다.";
 
-/** Diagnostic replacement for variant=scene_relation_priority only. */
+/**
+ * Diagnostic replacement for scene_relation_priority /
+ * greeting_neutral_scene_relation_priority (early relationship only).
+ */
 export const V1_SCENE_PROGRESS_SENTENCE_CANARY =
-  "초기 관계 장면에서는 주요 캐릭터와 사용자의 인식·거리·선택·상태가 달라지는 것 자체를 장면 진행으로 취급한다. 외부 변화는 현재 상호작용에 직접 필요한 경우에만 보조하며, 장면의 진행을 만들기 위해 별도 화자나 절차를 먼저 시작하지 않는다.";
+  "초기 관계 장면에서는 주요 캐릭터와 사용자의 인식·거리·선택·상태 변화가 장면의 진행을 충족한다. 외부 인물이나 별도 절차는 현재 상호작용에 직접 필요해진 경우에만 보조적으로 사용한다.";
+
+/** Terra-only dialogue utterance bundling — single_primary adapter canary. */
+export const TERRA_DIALOGUE_INTENT_ADAPTER_SENTENCE =
+  "같은 장면 순간에 이어지는 한 화자의 판단·설명·농담·반응은 중간의 짧은 행동이나 시선 묘사로 끊지 않고 하나의 발화 의도 안에서 마친다.";
+
+export function canaryAppliesGreetingNeutral(variant: TerraPromptCanaryVariant): boolean {
+  return (
+    variant === "greeting_neutral" ||
+    variant === "greeting_neutral_scene_relation_priority" ||
+    variant === "greeting_neutral_card_dialogue_neutral"
+  );
+}
+
+export function canaryAppliesSceneRelationPriority(
+  variant: TerraPromptCanaryVariant
+): boolean {
+  return (
+    variant === "scene_relation_priority" ||
+    variant === "greeting_neutral_scene_relation_priority"
+  );
+}
+
+export function canaryAppliesDialogueIntentUnitLayout(
+  variant: TerraPromptCanaryVariant
+): boolean {
+  return variant === "dialogue_intent_unit";
+}
+
+export function canaryAppliesCardDialogueNeutral(
+  variant: TerraPromptCanaryVariant
+): boolean {
+  return variant === "greeting_neutral_card_dialogue_neutral";
+}
+
+export function canaryAppliesTerraDialogueIntentAdapter(
+  variant: TerraPromptCanaryVariant
+): boolean {
+  return variant === "terra_dialogue_intent_adapter";
+}
 
 /** Common dialogue layout owners — production. */
 export const DIALOGUE_LAYOUT_OWNER_KO_PRODUCTION = "대사는 독립 문단으로 표시한다.";
@@ -180,7 +225,7 @@ export function resolveCanaryGreeting(opts: {
   greeting: string;
 }): string {
   const greeting = opts.greeting ?? "";
-  if (!opts.canary || opts.canary.variant !== "greeting_neutral") return greeting;
+  if (!opts.canary || !canaryAppliesGreetingNeutral(opts.canary.variant)) return greeting;
   if (!isTerraPromptCanaryGreetingTarget({ characterId: opts.characterId, greeting })) {
     return greeting;
   }
@@ -188,7 +233,7 @@ export function resolveCanaryGreeting(opts: {
 }
 
 /**
- * Replace greeting assistant turn in prompt history only when canary greeting_neutral.
+ * Replace greeting assistant turn in prompt history when canary applies greeting_neutral.
  * Leaves array identity unchanged when inactive.
  */
 export function applyTerraPromptCanaryToHistory(opts: {
@@ -197,7 +242,7 @@ export function applyTerraPromptCanaryToHistory(opts: {
   characterId: number;
   productionGreeting: string;
 }): ChatMsg[] {
-  if (!opts.canary || opts.canary.variant !== "greeting_neutral") return opts.history;
+  if (!opts.canary || !canaryAppliesGreetingNeutral(opts.canary.variant)) return opts.history;
   if (
     !isTerraPromptCanaryGreetingTarget({
       characterId: opts.characterId,
@@ -238,7 +283,7 @@ export function applyTerraPromptCanaryToSceneDirectiveBlock(opts: {
   canary: TerraPromptCanaryResolution | null;
   completedTurns: number;
 }): string {
-  if (!opts.canary || opts.canary.variant !== "scene_relation_priority") {
+  if (!opts.canary || !canaryAppliesSceneRelationPriority(opts.canary.variant)) {
     return opts.block;
   }
   if (!isTerraPromptCanaryEarlyRelationshipScene({ completedTurns: opts.completedTurns })) {
@@ -256,7 +301,7 @@ export function applyTerraPromptCanaryToSceneDirectiveBlock(opts: {
 export function shouldUseDialogueIntentUnitLayout(
   canary: TerraPromptCanaryResolution | null | undefined
 ): boolean {
-  return canary?.variant === "dialogue_intent_unit";
+  return Boolean(canary && canaryAppliesDialogueIntentUnitLayout(canary.variant));
 }
 
 export type TerraPromptCanaryDebugDump = {
