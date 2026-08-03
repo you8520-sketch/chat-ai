@@ -74,7 +74,19 @@ async function main() {
     }
   }
   const pass = variant === EXPECTED;
-  console.log(JSON.stringify({ pass, expected: EXPECTED, variant, integrity }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        pass,
+        expected: EXPECTED,
+        variant: variant ?? null,
+        has_pipeline: Boolean(variant),
+        integrity,
+      },
+      null,
+      2
+    )
+  );
   process.exit(pass ? 0 : 1);
 }
 

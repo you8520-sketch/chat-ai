@@ -33,8 +33,30 @@ while (Date.now() - start < MAX_WAIT) {
       },
     });
     process.exit(0);
-  } catch {
-    console.log(`waiting for variant ${EXPECTED}... (${Math.round((Date.now() - start) / 1000)}s)`);
+  } catch (err) {
+    let current: string | null = null;
+    try {
+      const out = execSync(`node --import tsx scripts/probe-canary-variant.ts`, {
+        stdio: "pipe",
+        env: { ...process.env, EXPECTED_VARIANT: EXPECTED },
+      }).toString();
+      const parsed = JSON.parse(out) as { variant?: string | null };
+      current = parsed.variant ?? null;
+    } catch (probeErr) {
+      const msg =
+        probeErr instanceof Error && "stdout" in probeErr
+          ? String((probeErr as { stdout?: Buffer }).stdout ?? "")
+          : "";
+      try {
+        const parsed = JSON.parse(msg) as { variant?: string | null };
+        current = parsed.variant ?? null;
+      } catch {
+        current = null;
+      }
+    }
+    console.log(
+      `waiting for variant ${EXPECTED} (current=${current ?? "unknown"})... (${Math.round((Date.now() - start) / 1000)}s)`
+    );
     execSync(`sleep ${Math.ceil(INTERVAL / 1000)}`);
   }
 }
