@@ -91,7 +91,10 @@ import {
   buildWebnovelOutputLayoutRecencyBlock,
   unwrapRoleplayMarkdownInText,
 } from "@/lib/webnovelOutputFormat";
-import { TERRA_DIALOGUE_INTENT_ADAPTER_SENTENCE } from "@/lib/terraPromptCanary";
+import {
+  canaryAppliesTerraDialogueIntentAdapter,
+  TERRA_DIALOGUE_INTENT_ADAPTER_SENTENCE,
+} from "@/lib/terraPromptCanary";
 import type { CharacterChunk, GeminiContextSplit } from "@/types";
 import {
   type BuiltContext,
@@ -1286,7 +1289,10 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   }
   if (terraTerminalLengthOwner) {
     userTurnContent = appendTerraTerminalLengthOwnerToUserTurn(userTurnContent);
-    if (input.terraPromptCanary?.variant === "terra_dialogue_intent_adapter") {
+    if (
+      input.terraPromptCanary &&
+      canaryAppliesTerraDialogueIntentAdapter(input.terraPromptCanary.variant)
+    ) {
       userTurnContent = `${userTurnContent.trimEnd()}\n\n${TERRA_DIALOGUE_INTENT_ADAPTER_SENTENCE}`;
     }
   } else {
