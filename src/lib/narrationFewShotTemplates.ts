@@ -84,7 +84,16 @@ export const NARRATION_FEWSHOT_PROFILES: NarrationFewShotProfile[] = [
   },
 ];
 
-/** Creator text wins; platform few-shot only when NARRATION_FEWSHOT_FALLBACK_ENABLED=1. */
+/**
+ * Creator text wins; platform few-shot only when NARRATION_FEWSHOT_FALLBACK_ENABLED=1.
+ *
+ * Audit scope (Terra dialogue fragmentation): example dialogue / speech lock are
+ * references for vocabulary, honorifics, address terms, tone, personality, and
+ * relationship-conditioned speech. Example sentence length, quote count,
+ * dialogue-block count, narration/dialogue placement, and whole-turn rhythm are
+ * not treated as the cause of Terra utterance fragmentation (prior canary).
+ * Do not inject additional style-scope wrappers for Terra-only experiments here.
+ */
 export function resolveExampleDialogForPrompt(
   raw: string | null | undefined,
   charName: string

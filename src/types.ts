@@ -130,12 +130,24 @@ export type ContextBuildInput = {
       | "greeting_neutral"
       | "scene_relation_priority"
       | "greeting_neutral_scene_relation_priority"
+      | "greeting_neutral_relationship_axis"
       | "dialogue_intent_unit"
       | "greeting_neutral_card_dialogue_neutral"
       | "greeting_neutral_scene_card_dialogue_neutral"
       | "terra_dialogue_intent_adapter"
       | "greeting_neutral_scene_terra_dialogue_intent"
       | "final_main_home_candidate";
+    progressionAxis?:
+      | "relationship"
+      | "investigation"
+      | "environment"
+      | "external_event"
+      | "combat"
+      | "multi_character"
+      | null;
+    /** When true, SceneDirective is omitted from system and appended on user-turn before Terra length owner. */
+    relocateSceneDirectiveToUserTurn?: boolean;
+    sceneDirectiveUserTail?: string | null;
   } | null;
   /** 플랫폼 전역 로어북 — Depth 0 tail (트리거 매칭 시) */
   globalLorebookBlock?: string | null;

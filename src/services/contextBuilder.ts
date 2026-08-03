@@ -801,6 +801,9 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   };
 
   const pushSceneDirective = () => {
+    // Relationship-axis canary relocates SceneDirective to the user-turn tail
+    // (before Terra length owner) so the confirmed focus sits next to the user input.
+    if (input.terraPromptCanary?.relocateSceneDirectiveToUserTurn) return;
     if (!sceneDirectiveBlock) return;
     pushSection(
       "scene-directive",
@@ -1287,14 +1290,23 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       userTurnContent = `${userTurnContent}\n\n${emotionOverlay}`;
     }
   }
+  if (
+    input.terraPromptCanary?.relocateSceneDirectiveToUserTurn &&
+    input.terraPromptCanary.sceneDirectiveUserTail?.trim()
+  ) {
+    // Order: user input → confirmed SceneDirective focus → Terra length owner.
+    userTurnContent = `${userTurnContent.trimEnd()}\n\n${input.terraPromptCanary.sceneDirectiveUserTail.trim()}`;
+  }
+  if (
+    terraTerminalLengthOwner &&
+    input.terraPromptCanary &&
+    canaryAppliesTerraDialogueIntentAdapter(input.terraPromptCanary.variant)
+  ) {
+    // Residual canary only — keep Terra length owner as absolute end.
+    userTurnContent = `${userTurnContent.trimEnd()}\n\n${TERRA_DIALOGUE_INTENT_ADAPTER_SENTENCE}`;
+  }
   if (terraTerminalLengthOwner) {
     userTurnContent = appendTerraTerminalLengthOwnerToUserTurn(userTurnContent);
-    if (
-      input.terraPromptCanary &&
-      canaryAppliesTerraDialogueIntentAdapter(input.terraPromptCanary.variant)
-    ) {
-      userTurnContent = `${userTurnContent.trimEnd()}\n\n${TERRA_DIALOGUE_INTENT_ADAPTER_SENTENCE}`;
-    }
   } else {
     // Layout first, then Luna terminal contract (or non-Luna length) as last instruction.
     userTurnContent = appendCompactTerminalLengthToUserTurn(

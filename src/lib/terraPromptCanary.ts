@@ -9,6 +9,14 @@
  *   scene mode = single_primary
  *
  * One prompt mutation per variant. Never activated by query params or client variant.
+ *
+ * Example dialogue / speech lock audit note (not a prompt injection):
+ * Card example dialogue and speech profiles are treated as references for
+ * vocabulary, honorifics, address terms, tone, personality, and relationship-
+ * conditioned speech. Sentence length, quote count, dialogue-block count,
+ * narration/dialogue layout, and whole-turn rhythm from those examples are
+ * NOT treated as the cause of Terra dialogue fragmentation (confirmed by
+ * prior canary). This experiment does not blank or rewrite those fields.
  */
 
 import { isGpt56TerraModel } from "@/lib/chatModels";
@@ -19,6 +27,7 @@ import {
 } from "@/lib/terraTerminalLengthOwner";
 import type { ChatMsg } from "@/lib/ai";
 import type { ContentKind } from "@/lib/simulationMode";
+import type { SceneDirective } from "@/lib/sceneDirective";
 import fs from "fs";
 import path from "path";
 
@@ -26,12 +35,14 @@ const ENV_ENABLED = "TERRA_PROMPT_CANARY_ENABLED";
 const ENV_USER_IDS = "TERRA_PROMPT_CANARY_USER_IDS";
 const ENV_VARIANT = "TERRA_PROMPT_CANARY_VARIANT";
 const ENV_DEBUG = "TERRA_PROMPT_CANARY_DEBUG";
+const ENV_TEMPERATURE = "TERRA_PROMPT_CANARY_TEMPERATURE";
 
 export const TERRA_PROMPT_CANARY_ENV = {
   ENABLED: ENV_ENABLED,
   USER_IDS: ENV_USER_IDS,
   VARIANT: ENV_VARIANT,
   DEBUG: ENV_DEBUG,
+  TEMPERATURE: ENV_TEMPERATURE,
 } as const;
 
 export const TERRA_PROMPT_CANARY_VARIANTS = [
@@ -39,22 +50,30 @@ export const TERRA_PROMPT_CANARY_VARIANTS = [
   "greeting_neutral",
   "scene_relation_priority",
   "greeting_neutral_scene_relation_priority",
+  /** greeting_neutral + server-locked relationship progression axis. */
+  "greeting_neutral_relationship_axis",
   "dialogue_intent_unit",
   "greeting_neutral_card_dialogue_neutral",
-  /** NPC baseline (greeting+scene) + blank example_dialog only. */
   "greeting_neutral_scene_card_dialogue_neutral",
   "terra_dialogue_intent_adapter",
-  /** NPC baseline fixed + Terra-only dialogue intent sentence. */
   "greeting_neutral_scene_terra_dialogue_intent",
-  /**
-   * Final confirmed stack for main-home confirmation:
-   * greeting_neutral + scene_relation_priority only
-   * (card/Terra dialogue residuals not confirmed).
-   */
   "final_main_home_candidate",
 ] as const;
 
 export type TerraPromptCanaryVariant = (typeof TERRA_PROMPT_CANARY_VARIANTS)[number];
+
+/**
+ * Server-owned scene progression axis (canary / future production).
+ * Early relationship scenes lock to "relationship" — the model does not pick
+ * from an enumerated candidate list.
+ */
+export type SceneProgressionAxis =
+  | "relationship"
+  | "investigation"
+  | "environment"
+  | "external_event"
+  | "combat"
+  | "multi_character";
 
 /** Production Like (라이크) character id on Railway main-home. */
 export const TERRA_PROMPT_CANARY_LIKE_CHARACTER_ID = 18;
@@ -64,13 +83,21 @@ export const V1_SCENE_PROGRESS_SENTENCE_PRODUCTION =
   "반복된 감정 확인에 멈추지 말고 관계, 단서, 환경, NPC, 세계 반응, 생활 변수, 이전 선택의 결과 중 하나를 조용히 움직인다.";
 
 /**
- * Diagnostic replacement for scene_relation_priority /
- * greeting_neutral_scene_relation_priority (early relationship only).
+ * Server-confirmed relationship progression sentence.
+ * Replaces the enumerated candidate list for early-relationship canary turns.
  */
-export const V1_SCENE_PROGRESS_SENTENCE_CANARY =
-  "초기 관계 장면에서는 주요 캐릭터와 사용자의 인식·거리·선택·상태 변화가 장면의 진행을 충족한다. 외부 인물이나 별도 절차는 현재 상호작용에 직접 필요해진 경우에만 보조적으로 사용한다.";
+export const V1_SCENE_PROGRESS_SENTENCE_RELATIONSHIP_AXIS =
+  "이번 턴의 진행축은 주요 캐릭터와 사용자의 관계·상태 변화다. 현재 대화와 행동이 서로의 인식·거리·선택을 실제로 바꾸는 지점까지 전개하고, 주변 환경과 인물은 그 변화를 뒷받침하는 장면 요소로 사용한다.";
 
-/** Terra-only dialogue utterance bundling — single_primary adapter canary. */
+/** @deprecated Prefer V1_SCENE_PROGRESS_SENTENCE_RELATIONSHIP_AXIS. */
+export const V1_SCENE_PROGRESS_SENTENCE_CANARY =
+  V1_SCENE_PROGRESS_SENTENCE_RELATIONSHIP_AXIS;
+
+/** Relationship next-beat hint when axis is server-locked. */
+export const RELATIONSHIP_AXIS_NEXT_BEAT_HINT =
+  "반복 확인 대신 작은 행동 하나로 관계의 거리감이 미세하게 달라진다.";
+
+/** Terra-only dialogue utterance bundling — prior residual only; not used in this experiment. */
 export const TERRA_DIALOGUE_INTENT_ADAPTER_SENTENCE =
   "같은 장면 순간에 이어지는 한 화자의 판단·설명·농담·반응은 중간의 짧은 행동이나 시선 묘사로 끊지 않고 하나의 발화 의도 안에서 마친다.";
 
@@ -78,6 +105,7 @@ export function canaryAppliesGreetingNeutral(variant: TerraPromptCanaryVariant):
   return (
     variant === "greeting_neutral" ||
     variant === "greeting_neutral_scene_relation_priority" ||
+    variant === "greeting_neutral_relationship_axis" ||
     variant === "greeting_neutral_card_dialogue_neutral" ||
     variant === "greeting_neutral_scene_card_dialogue_neutral" ||
     variant === "greeting_neutral_scene_terra_dialogue_intent" ||
@@ -91,8 +119,20 @@ export function canaryAppliesSceneRelationPriority(
   return (
     variant === "scene_relation_priority" ||
     variant === "greeting_neutral_scene_relation_priority" ||
+    variant === "greeting_neutral_relationship_axis" ||
     variant === "greeting_neutral_scene_card_dialogue_neutral" ||
     variant === "greeting_neutral_scene_terra_dialogue_intent" ||
+    variant === "final_main_home_candidate"
+  );
+}
+
+/** Server locks progression axis to relationship (no candidate list for the model). */
+export function canaryAppliesRelationshipProgressionAxis(
+  variant: TerraPromptCanaryVariant
+): boolean {
+  return (
+    variant === "greeting_neutral_relationship_axis" ||
+    variant === "greeting_neutral_scene_relation_priority" ||
     variant === "final_main_home_candidate"
   );
 }
@@ -133,6 +173,15 @@ export const DIALOGUE_LAYOUT_OWNER_EN_CANARY =
   '"…" spoken dialogue occupies its own paragraph by speaker utterance intent. Do not restart multiple dialogue paragraphs when the same speaker continues the same judgment, explanation, reaction, or joke across only a brief gesture or gaze.';
 
 const CANONICAL_POSITIVE_INT_RE = /^[1-9]\d*$/;
+
+const COMBAT_URGENT_RE =
+  /(전투|싸움|공격|추격|습격|도망쳐|긴급|경보|폭발|사살|발사|총격|칼싸움)/;
+const USER_NPC_ADDRESS_RE =
+  /(직원|스태프|간호사|의사|담당자|안내원|가이더|아저씨|저기\s*요)(씨|님)?[!?？.,…\s]*$/;
+const PROCEDURE_REQUEST_RE =
+  /(등록|접수|검사|진료|문진|신원\s*확인|바이탈).{0,16}(해|하자|부탁|가|좀|해줘|해주세요)/;
+const ACTIVE_EXTERNAL_EVENT_RE =
+  /(임시\s*등록|신원\s*대조|바이탈\s*단말기|보호\s*대상|확인실|등록\s*대기실|지원국.*도착|기본\s*신원\s*확인)/;
 
 function parseAllowlist(raw: string | undefined): number[] {
   if (!raw) return [];
@@ -202,6 +251,21 @@ export function resolveTerraPromptCanary(opts: {
 
 export function isTerraPromptCanaryDebugEnabled(): boolean {
   return isTruthyEnvFlag(process.env[ENV_DEBUG]);
+}
+
+/**
+ * Optional Terra temperature override for allowlisted canary only.
+ * Unset → production default (0.7 via EURYALE_GENERATION_PARAMS).
+ */
+export function resolveTerraPromptCanaryTemperature(
+  canary: TerraPromptCanaryResolution | null | undefined
+): number | null {
+  if (!canary) return null;
+  const raw = process.env[ENV_TEMPERATURE]?.trim();
+  if (!raw) return null;
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0 || n > 2) return null;
+  return n;
 }
 
 /** Fingerprint for Like greeting that already speaks with 지원국 staff. */
@@ -293,17 +357,72 @@ export function applyTerraPromptCanaryToHistory(opts: {
   return replaced ? next : opts.history;
 }
 
-/** Early relationship / new-chat gate for scene_relation_priority. */
+/** Early relationship / new-chat gate (assistant responses within 2). */
 export function isTerraPromptCanaryEarlyRelationshipScene(opts: {
   completedTurns: number;
 }): boolean {
   return Number.isFinite(opts.completedTurns) && opts.completedTurns <= 2;
 }
 
+function recentHistoryText(messages: ChatMsg[] | null | undefined): string {
+  if (!messages?.length) return "";
+  return messages
+    .slice(-6)
+    .map((m) => m.content ?? "")
+    .join("\n");
+}
+
+/**
+ * Resolve server-owned progression axis for canary early-relationship turns.
+ * Returns null when canary inactive or scene is out of early-relationship scope.
+ */
+export function resolveCanarySceneProgressionAxis(opts: {
+  canary: TerraPromptCanaryResolution | null;
+  completedTurns: number;
+  contentKind?: ContentKind | string | null;
+  userMessage?: string | null;
+  recentMessages?: ChatMsg[] | null;
+}): SceneProgressionAxis | null {
+  if (!opts.canary || !canaryAppliesRelationshipProgressionAxis(opts.canary.variant)) {
+    return null;
+  }
+  if (opts.contentKind === "simulation") return null;
+  if (!isTerraPromptCanaryEarlyRelationshipScene({ completedTurns: opts.completedTurns })) {
+    return null;
+  }
+
+  const user = (opts.userMessage ?? "").trim();
+  const history = recentHistoryText(opts.recentMessages);
+  const blob = `${user}\n${history}`;
+
+  if (COMBAT_URGENT_RE.test(blob)) return null;
+  if (USER_NPC_ADDRESS_RE.test(user)) return null;
+  if (PROCEDURE_REQUEST_RE.test(user)) return null;
+  if (ACTIVE_EXTERNAL_EVENT_RE.test(history)) return null;
+
+  // User is addressing / approaching the primary character (default for single_primary turns).
+  return "relationship";
+}
+
+/**
+ * Lock a V1 SceneDirective object to relationship progression (mutates a shallow copy).
+ * Does not add a new rule block — only narrows progressionTypes / nextBeatHint.
+ */
+export function lockSceneDirectiveToRelationshipAxis(
+  directive: SceneDirective
+): SceneDirective {
+  return {
+    ...directive,
+    progressionTypes: ["relationship"],
+    nextBeatHint: RELATIONSHIP_AXIS_NEXT_BEAT_HINT,
+  };
+}
+
 export function applyTerraPromptCanaryToSceneDirectiveBlock(opts: {
   block: string;
   canary: TerraPromptCanaryResolution | null;
   completedTurns: number;
+  progressionAxis?: SceneProgressionAxis | null;
 }): string {
   if (!opts.canary || !canaryAppliesSceneRelationPriority(opts.canary.variant)) {
     return opts.block;
@@ -311,12 +430,31 @@ export function applyTerraPromptCanaryToSceneDirectiveBlock(opts: {
   if (!isTerraPromptCanaryEarlyRelationshipScene({ completedTurns: opts.completedTurns })) {
     return opts.block;
   }
+  // When relationship-axis resolver ran and declined, leave production sentence.
+  if (
+    canaryAppliesRelationshipProgressionAxis(opts.canary.variant) &&
+    opts.progressionAxis !== "relationship"
+  ) {
+    return opts.block;
+  }
   if (!opts.block.includes(V1_SCENE_PROGRESS_SENTENCE_PRODUCTION)) {
     return opts.block;
   }
   return opts.block.replace(
     V1_SCENE_PROGRESS_SENTENCE_PRODUCTION,
-    V1_SCENE_PROGRESS_SENTENCE_CANARY
+    V1_SCENE_PROGRESS_SENTENCE_RELATIONSHIP_AXIS
+  );
+}
+
+/** Move confirmed SceneDirective next to user-turn, before Terra length owner. */
+export function shouldRelocateSceneDirectiveToUserTurn(
+  canary: TerraPromptCanaryResolution | null | undefined,
+  progressionAxis: SceneProgressionAxis | null | undefined
+): boolean {
+  return Boolean(
+    canary &&
+      canaryAppliesRelationshipProgressionAxis(canary.variant) &&
+      progressionAxis === "relationship"
   );
 }
 
@@ -334,6 +472,8 @@ export type TerraPromptCanaryDebugDump = {
   model: string;
   sceneMode: string;
   canaryVariant: TerraPromptCanaryVariant;
+  progressionAxis?: SceneProgressionAxis | null;
+  temperature?: number | null;
   sceneDirectiveFinal?: string | null;
   greetingInjected?: string | null;
   terraAdapter?: string | null;
@@ -346,7 +486,10 @@ export type TerraPromptCanaryDebugDump = {
 
 function redactSecrets(text: string): string {
   let out = text;
-  out = out.replace(/(api[_-]?key|authorization|bearer|cookie|session)["']?\s*[:=]\s*["']?([^\s"'\\]+)/gi, "$1=[REDACTED]");
+  out = out.replace(
+    /(api[_-]?key|authorization|bearer|cookie|session)["']?\s*[:=]\s*["']?([^\s"'\\]+)/gi,
+    "$1=[REDACTED]"
+  );
   out = out.replace(/sk-[a-zA-Z0-9_-]{10,}/g, "[REDACTED_KEY]");
   out = out.replace(/Bearer\s+[A-Za-z0-9._\-]+/gi, "Bearer [REDACTED]");
   return out;
