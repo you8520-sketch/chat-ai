@@ -150,6 +150,7 @@ import {
   lockSceneDirectiveToRelationshipAxis,
   logTerraPromptCanaryDebug,
   resolveCanarySceneProgressionAxis,
+  resolveCanaryTerraTerminalContract,
   resolveTerraPromptCanary,
   resolveTerraPromptCanaryTemperature,
   shouldRelocateSceneDirectiveToUserTurn,
@@ -1792,7 +1793,7 @@ export async function POST(req: Request) {
       temperature: canaryTemperature,
       sceneDirectiveFinal: sceneDirectiveBlock,
       greetingInjected: extractGreetingFromHistory(promptHistory),
-      terraAdapter: TERRA_TERMINAL_LENGTH_OWNER_CONTRACT,
+      terraAdapter: resolveCanaryTerraTerminalContract(terraPromptCanary.variant),
       dialogueLayoutOwner: canaryAppliesDialogueIntentUnitLayout(terraPromptCanary.variant)
         ? DIALOGUE_LAYOUT_OWNER_KO_CANARY
         : DIALOGUE_LAYOUT_OWNER_KO_PRODUCTION,
@@ -4701,7 +4702,7 @@ export async function POST(req: Request) {
             temperature: canaryTemperature,
             sceneDirectiveFinal: sceneDirectiveBlock,
             greetingInjected: extractGreetingFromHistory(promptHistory),
-            terraAdapter: TERRA_TERMINAL_LENGTH_OWNER_CONTRACT,
+            terraAdapter: resolveCanaryTerraTerminalContract(terraPromptCanary.variant),
             dialogueLayoutOwner: canaryAppliesDialogueIntentUnitLayout(
               terraPromptCanary.variant
             )

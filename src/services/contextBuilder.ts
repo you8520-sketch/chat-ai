@@ -93,6 +93,8 @@ import {
 } from "@/lib/webnovelOutputFormat";
 import {
   canaryAppliesTerraDialogueIntentAdapter,
+  injectDialogueReferenceScopeForCanary,
+  resolveCanaryTerraTerminalContract,
   TERRA_DIALOGUE_INTENT_ADAPTER_SENTENCE,
 } from "@/lib/terraPromptCanary";
 import type { CharacterChunk, GeminiContextSplit } from "@/types";
@@ -315,7 +317,10 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     userMessage: input.currentUserMessage,
     recentHistory: recentHistoryText,
   });
-  const characterSettingText = injectExampleDialogStyleOnlyNote(characterSettingTextFiltered);
+  const characterSettingText = injectDialogueReferenceScopeForCanary(
+    injectExampleDialogStyleOnlyNote(characterSettingTextFiltered),
+    input.terraPromptCanary?.variant
+  );
 
   let effectiveExampleDialog = input.exampleDialog ?? "";
   let effectiveCharacterSettingText = characterSettingText;
@@ -1306,7 +1311,13 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     userTurnContent = `${userTurnContent.trimEnd()}\n\n${TERRA_DIALOGUE_INTENT_ADAPTER_SENTENCE}`;
   }
   if (terraTerminalLengthOwner) {
-    userTurnContent = appendTerraTerminalLengthOwnerToUserTurn(userTurnContent);
+    const terminalContract = resolveCanaryTerraTerminalContract(
+      input.terraPromptCanary?.variant
+    );
+    userTurnContent = appendTerraTerminalLengthOwnerToUserTurn(
+      userTurnContent,
+      terminalContract
+    );
   } else {
     // Layout first, then Luna terminal contract (or non-Luna length) as last instruction.
     userTurnContent = appendCompactTerminalLengthToUserTurn(

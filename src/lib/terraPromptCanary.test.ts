@@ -13,11 +13,13 @@ import {
   parseTerraPromptCanaryVariant,
   resolveCanaryGreeting,
   resolveCanarySceneProgressionAxis,
+  resolveCanaryTerraTerminalContract,
   resolveTerraPromptCanary,
   resolveTerraPromptCanaryTemperature,
   shouldRelocateSceneDirectiveToUserTurn,
   TERRA_PROMPT_CANARY_ENV,
   TERRA_PROMPT_CANARY_GREETING_NEUTRAL,
+  TERRA_PROMPT_CANARY_GREETING_NEUTRAL_BUNDLED,
   V1_SCENE_PROGRESS_SENTENCE_PRODUCTION,
   V1_SCENE_PROGRESS_SENTENCE_RELATIONSHIP_AXIS,
 } from "@/lib/terraPromptCanary";
@@ -336,5 +338,52 @@ describe("terraPromptCanary", () => {
     assert.ok(!canaryLayout.includes(DIALOGUE_LAYOUT_OWNER_KO_PRODUCTION));
     assert.doesNotMatch(canaryLayout, /대사 블록 수/);
     assert.doesNotMatch(canaryLayout, /서술 80%/);
+  });
+
+  it("dialogue-root experiment variants apply bundled greeting, continuous terminal, scope", () => {
+    process.env[TERRA_PROMPT_CANARY_ENV.ENABLED] = "true";
+    process.env[TERRA_PROMPT_CANARY_ENV.USER_IDS] = "25";
+
+    process.env[TERRA_PROMPT_CANARY_ENV.VARIANT] = "greeting_dialogue_bundled";
+    const bundled = resolveTerraPromptCanary({
+      userId: 25,
+      modelId: CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+      contentKind: "character",
+    });
+    assert.ok(bundled);
+    assert.notEqual(
+      TERRA_PROMPT_CANARY_GREETING_NEUTRAL_BUNDLED,
+      TERRA_PROMPT_CANARY_GREETING_NEUTRAL
+    );
+    assert.ok(
+      TERRA_PROMPT_CANARY_GREETING_NEUTRAL_BUNDLED.includes(
+        "어디서 본 것 같은데. 신입이야?"
+      )
+    );
+
+    process.env[TERRA_PROMPT_CANARY_ENV.VARIANT] = "terminal_continuous_scene";
+    const terminal = resolveTerraPromptCanary({
+      userId: 25,
+      modelId: CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+      contentKind: "character",
+    });
+    assert.ok(terminal);
+    assert.match(
+      resolveCanaryTerraTerminalContract(terminal.variant),
+      /하나의 연속된 장면/
+    );
+    assert.doesNotMatch(
+      resolveCanaryTerraTerminalContract(terminal.variant),
+      /관찰·행동·대사·감각·심리/
+    );
+
+    process.env[TERRA_PROMPT_CANARY_ENV.VARIANT] = "best_structure_temp_05";
+    const t05 = resolveTerraPromptCanary({
+      userId: 25,
+      modelId: CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+      contentKind: "character",
+    });
+    assert.ok(t05);
+    assert.equal(resolveTerraPromptCanaryTemperature(t05), 0.5);
   });
 });
