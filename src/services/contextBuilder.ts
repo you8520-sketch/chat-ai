@@ -111,10 +111,6 @@ import {
 } from "@/lib/rpDiagnosticCanary";
 import type { CharacterChunk, GeminiContextSplit } from "@/types";
 import {
-  isDiagnosticDisplayParagraphGroupingBypassed,
-  isDiagnosticParagraphNormalizeBypassed,
-} from "@/lib/diagnosticRequestContext";
-import {
   type BuiltContext,
   type ContextBuildInput,
   MODEL_SYSTEM_BUDGETS,

@@ -171,7 +171,7 @@ import {
   shouldRelocateRpDiagnosticSceneDirective,
   type RpDiagnosticCanaryResolution,
 } from "@/lib/rpDiagnosticCanary";
-import { runWithDiagnosticContext } from "@/lib/diagnosticRequestContext";
+import { runWithDiagnosticContext } from "@/lib/diagnosticRequestContext.server";
 import {
   normalizeAiNovelProseLayout,
   normalizeAiNovelProsePreDisplay,
