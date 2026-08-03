@@ -269,6 +269,7 @@ describe("terraPromptCanary", () => {
       null
     );
 
+    // Assistant-invented registration must NOT unlock the axis (Turn2 feedback loop).
     assert.equal(
       resolveCanarySceneProgressionAxis({
         canary,
@@ -280,6 +281,23 @@ describe("terraPromptCanary", () => {
             role: "assistant",
             content:
               "직원이 말했다. “임시 등록과 신원 대조를 진행하겠습니다. 확인실로 안내드릴게요.”",
+          },
+        ],
+      }),
+      "relationship"
+    );
+
+    // User-side active procedure history still declines.
+    assert.equal(
+      resolveCanarySceneProgressionAxis({
+        canary,
+        completedTurns: 1,
+        contentKind: "character",
+        userMessage: "같이갈래?",
+        recentMessages: [
+          {
+            role: "user",
+            content: "방금 임시 등록이랑 신원 대조 때문에 확인실 가재",
           },
         ],
       }),
