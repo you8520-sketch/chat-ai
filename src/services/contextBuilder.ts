@@ -1033,7 +1033,9 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     "rule-output-layout-recency",
     "Output layout recency (Korean webnovel paragraph breaks)",
     "systemRules",
-    buildWebnovelOutputLayoutRecencyBlock(),
+    buildWebnovelOutputLayoutRecencyBlock({
+      dialogueIntentUnit: input.terraPromptCanary?.variant === "dialogue_intent_unit",
+    }),
     "dynamic"
   );
 

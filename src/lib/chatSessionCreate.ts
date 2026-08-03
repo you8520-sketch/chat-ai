@@ -6,6 +6,10 @@ import {
   normalizeTargetResponseChars,
 } from "@/lib/responseLength";
 import { MEMORY_CAPACITY_DEFAULT } from "@/lib/memory/memory-capacity-shared";
+import {
+  resolveCanaryGreeting,
+  resolveTerraPromptCanary,
+} from "@/lib/terraPromptCanary";
 
 export type CreateChatSessionInput = {
   userId: number;
@@ -29,6 +33,21 @@ export function createChatSession(input: CreateChatSessionInput): number {
 
   registerCharacterChatUser(db, input.characterId, input.userId);
 
+  const contentKindRow = db
+    .prepare("SELECT content_kind FROM characters WHERE id=?")
+    .get(input.characterId) as { content_kind?: string } | undefined;
+  const contentKind = contentKindRow?.content_kind === "simulation" ? "simulation" : "character";
+  const terraCanary = resolveTerraPromptCanary({
+    userId: input.userId,
+    modelId: selectedAI,
+    contentKind,
+  });
+  const greetingForInsert = resolveCanaryGreeting({
+    canary: terraCanary,
+    characterId: input.characterId,
+    greeting: input.greeting ?? "",
+  });
+
   const info = db
     .prepare(
       `INSERT INTO chats (user_id, character_id, mode, gemini_model, user_note, selected_persona_id, user_impersonation, target_response_chars, memory_capacity)
@@ -48,11 +67,11 @@ export function createChatSession(input: CreateChatSessionInput): number {
 
   const chatId = Number(info.lastInsertRowid);
 
-  if (input.greeting?.trim()) {
+  if (greetingForInsert.trim()) {
     db.prepare("INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)").run(
       chatId,
       "assistant",
-      input.greeting,
+      greetingForInsert,
       "greeting"
     );
   }
