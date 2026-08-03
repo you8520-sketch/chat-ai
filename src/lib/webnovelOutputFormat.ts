@@ -30,12 +30,44 @@ export const DIALOGUE_NARRATION_STRUCTURE_RULE = `[DIALOGUE & NARRATION]
 export const WEBNOVEL_OUTPUT_FORMAT_BLOCK = `[WEBNOVEL OUTPUT FORMAT]
 서술·행동에 마크다운/RP 표기(*, **, (), [], {})를 쓰지 않는다. 「」는 세계 내 고유명사·스킬·시스템 라벨만(속마음·대사 금지).`;
 
-/** 시스템 말미 recency — Length → **여기(유일)** → Terminal length */
-export function buildWebnovelOutputLayoutRecencyBlock(): string {
-  return `[OUTPUT LAYOUT]
-${OUTPUT_LAYOUT_SEMANTIC_CORE}
+export type WebnovelOutputLayoutOptions = {
+  /** Terra prompt canary variant=dialogue_intent_unit — replaces dialogue layout owner only. */
+  dialogueIntentUnit?: boolean;
+};
 
-${DIALOGUE_NARRATION_STRUCTURE_RULE}`;
+/** Keep in sync with terraPromptCanary DIALOGUE_LAYOUT_OWNER_*_CANARY. */
+const DIALOGUE_LAYOUT_OWNER_KO_PRODUCTION = "대사는 독립 문단으로 표시한다.";
+const DIALOGUE_LAYOUT_OWNER_KO_CANARY =
+  "대사는 화자의 발화 의도 단위로 독립 문단에 둔다. 같은 화자가 같은 순간에 이어서 전달하는 판단·설명·반응·농담은 짧은 동작이나 시선 묘사 때문에 여러 대사 문단으로 다시 시작하지 않는다.";
+const DIALOGUE_LAYOUT_OWNER_EN_PRODUCTION =
+  '"…" spoken dialogue = always its own paragraph, separated by a blank line (\\n\\n) from narration.';
+const DIALOGUE_LAYOUT_OWNER_EN_CANARY =
+  '"…" spoken dialogue occupies its own paragraph by speaker utterance intent. Do not restart multiple dialogue paragraphs when the same speaker continues the same judgment, explanation, reaction, or joke across only a brief gesture or gaze.';
+
+function buildSemanticCore(opts?: WebnovelOutputLayoutOptions): string {
+  if (!opts?.dialogueIntentUnit) return OUTPUT_LAYOUT_SEMANTIC_CORE;
+  return OUTPUT_LAYOUT_SEMANTIC_CORE.replace(
+    DIALOGUE_LAYOUT_OWNER_EN_PRODUCTION,
+    DIALOGUE_LAYOUT_OWNER_EN_CANARY
+  );
+}
+
+function buildDialogueNarrationRule(opts?: WebnovelOutputLayoutOptions): string {
+  if (!opts?.dialogueIntentUnit) return DIALOGUE_NARRATION_STRUCTURE_RULE;
+  return DIALOGUE_NARRATION_STRUCTURE_RULE.replace(
+    DIALOGUE_LAYOUT_OWNER_KO_PRODUCTION,
+    DIALOGUE_LAYOUT_OWNER_KO_CANARY
+  );
+}
+
+/** 시스템 말미 recency — Length → **여기(유일)** → Terminal length */
+export function buildWebnovelOutputLayoutRecencyBlock(
+  opts?: WebnovelOutputLayoutOptions
+): string {
+  return `[OUTPUT LAYOUT]
+${buildSemanticCore(opts)}
+
+${buildDialogueNarrationRule(opts)}`;
 }
 
 /** user-turn bottom — layout recency (paired with length tail in contextBuilder) */

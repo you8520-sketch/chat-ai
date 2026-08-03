@@ -120,6 +120,20 @@ export type ContextBuildInput = {
   privateSpeechControlBlock?: string | null;
   /** Compact private scene movement directive for this turn */
   sceneDirectiveBlock?: string | null;
+  /**
+   * Terra main-home prompt canary — optional.
+   * When absent/null, layout and other owners stay production-identical.
+   */
+  terraPromptCanary?: {
+    variant:
+      | "baseline"
+      | "greeting_neutral"
+      | "scene_relation_priority"
+      | "greeting_neutral_scene_relation_priority"
+      | "dialogue_intent_unit"
+      | "greeting_neutral_card_dialogue_neutral"
+      | "terra_dialogue_intent_adapter";
+  } | null;
   /** 플랫폼 전역 로어북 — Depth 0 tail (트리거 매칭 시) */
   globalLorebookBlock?: string | null;
   /** chat_turn_summaries 최신 N개 — [RECENT NARRATIVE CONTEXT] (read-only, not character profile) */

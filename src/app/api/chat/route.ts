@@ -140,6 +140,19 @@ import {
 } from "@/lib/livingSceneDirective";
 import { isLivingSceneDirectiveV2EnabledForUser } from "@/lib/livingSceneDirectivePolicy";
 import {
+  applyTerraPromptCanaryToHistory,
+  applyTerraPromptCanaryToSceneDirectiveBlock,
+  canaryAppliesCardDialogueNeutral,
+  canaryAppliesDialogueIntentUnitLayout,
+  DIALOGUE_LAYOUT_OWNER_KO_CANARY,
+  DIALOGUE_LAYOUT_OWNER_KO_PRODUCTION,
+  extractGreetingFromHistory,
+  logTerraPromptCanaryDebug,
+  resolveTerraPromptCanary,
+  type TerraPromptCanaryResolution,
+} from "@/lib/terraPromptCanary";
+import { TERRA_TERMINAL_LENGTH_OWNER_CONTRACT } from "@/lib/terraTerminalLengthOwner";
+import {
   buildSceneDirectiveV2,
   buildSceneDirectiveV2Telemetry,
   getUpdatedReconvergenceStateFromBuild,
@@ -885,7 +898,7 @@ export async function POST(req: Request) {
       personaDisplayName,
       user.nickname
     );
-  const effectiveExampleDialog = resolveExampleDialogForPrompt(ch.example_dialog, ch.name);
+  let effectiveExampleDialog = resolveExampleDialogForPrompt(ch.example_dialog, ch.name);
   const relationshipNames = resolveRelationshipMetaNames({
     displayName: ch.name,
     systemPrompt: ch.system_prompt,
@@ -1129,9 +1142,26 @@ export async function POST(req: Request) {
   const sceneDirectiveV2Inject = isSceneDirectiveV2InjectEnabled();
   const sceneProgressionTurn = playableTurnCount + 1;
   const sceneProgressionState = loadSceneProgressionState(chat.id);
+  const contentKindForCanary =
+    ch.content_kind === "simulation" ? "simulation" : "character";
+  const terraPromptCanary: TerraPromptCanaryResolution | null = resolveTerraPromptCanary({
+    userId: user.id,
+    modelId: openRouterApiModelId,
+    contentKind: contentKindForCanary,
+  });
+  const promptHistory = applyTerraPromptCanaryToHistory({
+    history: shortTermHistory,
+    canary: terraPromptCanary,
+    characterId: ch.id,
+    productionGreeting: ch.greeting ?? "",
+  });
+  if (terraPromptCanary && canaryAppliesCardDialogueNeutral(terraPromptCanary.variant)) {
+    // Single-field card canary: drop example dialogue injection only.
+    effectiveExampleDialog = "";
+  }
   const legacySceneDirective = buildSceneDirective({
     mode: autoContinueContext ? "auto_progression" : "interactive",
-    recentMessages: shortTermHistory,
+    recentMessages: promptHistory,
     currentUserMessage: policyUserMessage,
     memoryText: memoryFeatureOn
       ? [memoryInjection.text, memoryInjection.archiveText].filter(Boolean).join("\n")
@@ -1153,7 +1183,7 @@ export async function POST(req: Request) {
   const livingSceneDirective = livingSceneDirectiveOn
     ? buildLivingSceneDirective({
         mode: autoContinueContext ? "auto_progression" : "interactive",
-        recentMessages: shortTermHistory,
+        recentMessages: promptHistory,
         currentUserMessage: policyUserMessage,
         triggeredEventText: triggeredScenarioEventsBlock,
         // Grounded pools only — not used for direction classification.
@@ -1256,12 +1286,16 @@ export async function POST(req: Request) {
     v2Mode: sceneDirectiveV2Mode,
     livingEnabled: Boolean(livingSceneDirective),
   });
-  const sceneDirectiveBlock =
-    scenePacingOwner === "event_restraint_v2" && eventRestraintV2
-      ? renderSceneDirectiveV2ForPrompt(eventRestraintV2)
-      : scenePacingOwner === "living_continuity_director" && livingSceneDirective
-        ? renderLivingSceneDirectiveForPrompt(livingSceneDirective)
-        : renderSceneDirectiveForPrompt(legacySceneDirective);
+  const sceneDirectiveBlock = applyTerraPromptCanaryToSceneDirectiveBlock({
+    block:
+      scenePacingOwner === "event_restraint_v2" && eventRestraintV2
+        ? renderSceneDirectiveV2ForPrompt(eventRestraintV2)
+        : scenePacingOwner === "living_continuity_director" && livingSceneDirective
+          ? renderLivingSceneDirectiveForPrompt(livingSceneDirective)
+          : renderSceneDirectiveForPrompt(legacySceneDirective),
+    canary: terraPromptCanary,
+    completedTurns: playableTurnCount,
+  });
 
   const livingToLegacyProgression = (
     types: LivingProgressionType[]
@@ -1380,7 +1414,7 @@ export async function POST(req: Request) {
     userNote: userNotePrompt,
     longTermMemory: memoryFeatureOn ? memoryInjection.text : "",
     archiveMemory: memoryFeatureOn ? memoryInjection.archiveText : "",
-    shortTermHistory,
+    shortTermHistory: promptHistory,
     currentUserMessage: promptUserMessage,
     nsfw: isAdultMode,
     gender: resolveCharacterGender(ch.gender),
@@ -1413,6 +1447,9 @@ export async function POST(req: Request) {
     canonInjectionPolicy: canonInjectionPolicy,
     canonPlan: canonLazyCompileResult?.plan ?? null,
     sceneMomentumInput,
+    terraPromptCanary: terraPromptCanary
+      ? { variant: terraPromptCanary.variant }
+      : null,
   };
 
   const assembleContext = <T,>(fn: () => T): T =>
@@ -1429,6 +1466,33 @@ export async function POST(req: Request) {
       promptDumpDetail: `chat=${chat.id} user=${user.id} character=${ch.id}`,
     })
   );
+  if (terraPromptCanary) {
+    const userTurnTail =
+      typeof promptUserMessage === "string" ? promptUserMessage.slice(-1500) : "";
+    logTerraPromptCanaryDebug({
+      requestId: clientRequestId,
+      userId: user.id,
+      chatId: chat.id,
+      characterId: ch.id,
+      model: openRouterApiModelId,
+      sceneMode: "single_primary",
+      canaryVariant: terraPromptCanary.variant,
+      sceneDirectiveFinal: sceneDirectiveBlock,
+      greetingInjected: extractGreetingFromHistory(promptHistory),
+      terraAdapter: TERRA_TERMINAL_LENGTH_OWNER_CONTRACT,
+      dialogueLayoutOwner: canaryAppliesDialogueIntentUnitLayout(terraPromptCanary.variant)
+        ? DIALOGUE_LAYOUT_OWNER_KO_CANARY
+        : DIALOGUE_LAYOUT_OWNER_KO_PRODUCTION,
+      userTurnTail1500: userTurnTail,
+      providerRaw: null,
+      finalText: null,
+      metrics: {
+        phase: "prompt_assembled",
+        completedTurns: playableTurnCount,
+        historyLen: promptHistory.length,
+      },
+    });
+  }
   if (
     shouldLogSceneMomentumProductionTelemetry({
       modelId: openRouterApiModelId,
@@ -3824,6 +3888,36 @@ export async function POST(req: Request) {
             userNote: effectiveUserNote,
             formatSpec: statusWindowPolicyRef?.formatSpec ?? null,
             prefilledTableMarkdown: capturedStatusTable,
+          });
+        }
+
+        if (terraPromptCanary) {
+          logTerraPromptCanaryDebug({
+            requestId: clientRequestId,
+            userId: user.id,
+            chatId: chatRef.id,
+            characterId: ch.id,
+            model: openRouterApiModelId,
+            sceneMode: "single_primary",
+            canaryVariant: terraPromptCanary.variant,
+            sceneDirectiveFinal: sceneDirectiveBlock,
+            greetingInjected: extractGreetingFromHistory(promptHistory),
+            terraAdapter: TERRA_TERMINAL_LENGTH_OWNER_CONTRACT,
+            dialogueLayoutOwner: canaryAppliesDialogueIntentUnitLayout(
+              terraPromptCanary.variant
+            )
+              ? DIALOGUE_LAYOUT_OWNER_KO_CANARY
+              : DIALOGUE_LAYOUT_OWNER_KO_PRODUCTION,
+            userTurnTail1500:
+              typeof promptUserMessage === "string" ? promptUserMessage.slice(-1500) : "",
+            providerRaw: null,
+            finalText: savedText,
+            metrics: {
+              phase: "final",
+              canonicalLength: savedText.length,
+              finishReason: clientUsageRecord.finishReason ?? null,
+              cost,
+            },
           });
         }
 
