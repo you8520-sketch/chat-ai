@@ -262,10 +262,18 @@ async function main() {
     await fetch(`${BASE}/api/auth/me`, { headers: { Cookie: `session=${token}` } })
   ).json();
   await fetch(`${BASE}/api/user/selected-ai`, {
-    method: "POST",
+    method: "PATCH",
     headers: { "Content-Type": "application/json", Cookie: `session=${token}` },
     body: JSON.stringify({ selectedAI: "gpt-5.6-terra" }),
   });
+  const sel = await (
+    await fetch(`${BASE}/api/user/selected-ai`, {
+      headers: { Cookie: `session=${token}` },
+    })
+  ).json();
+  if (sel.selectedAI !== "gpt-5.6-terra") {
+    throw new Error(`Terra model not selected: ${sel.selectedAI}`);
+  }
 
   const meta = {
     variant_label: VARIANT_LABEL,
