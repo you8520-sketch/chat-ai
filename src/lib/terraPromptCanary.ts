@@ -41,7 +41,13 @@ export const TERRA_PROMPT_CANARY_VARIANTS = [
   "greeting_neutral_scene_relation_priority",
   "dialogue_intent_unit",
   "greeting_neutral_card_dialogue_neutral",
+  /** NPC baseline (greeting+scene) + blank example_dialog only. */
+  "greeting_neutral_scene_card_dialogue_neutral",
   "terra_dialogue_intent_adapter",
+  /** NPC baseline fixed + Terra-only dialogue intent sentence. */
+  "greeting_neutral_scene_terra_dialogue_intent",
+  /** Final candidate stack for main-home confirmation. */
+  "final_main_home_candidate",
 ] as const;
 
 export type TerraPromptCanaryVariant = (typeof TERRA_PROMPT_CANARY_VARIANTS)[number];
@@ -68,7 +74,10 @@ export function canaryAppliesGreetingNeutral(variant: TerraPromptCanaryVariant):
   return (
     variant === "greeting_neutral" ||
     variant === "greeting_neutral_scene_relation_priority" ||
-    variant === "greeting_neutral_card_dialogue_neutral"
+    variant === "greeting_neutral_card_dialogue_neutral" ||
+    variant === "greeting_neutral_scene_card_dialogue_neutral" ||
+    variant === "greeting_neutral_scene_terra_dialogue_intent" ||
+    variant === "final_main_home_candidate"
   );
 }
 
@@ -77,7 +86,10 @@ export function canaryAppliesSceneRelationPriority(
 ): boolean {
   return (
     variant === "scene_relation_priority" ||
-    variant === "greeting_neutral_scene_relation_priority"
+    variant === "greeting_neutral_scene_relation_priority" ||
+    variant === "greeting_neutral_scene_card_dialogue_neutral" ||
+    variant === "greeting_neutral_scene_terra_dialogue_intent" ||
+    variant === "final_main_home_candidate"
   );
 }
 
@@ -90,13 +102,21 @@ export function canaryAppliesDialogueIntentUnitLayout(
 export function canaryAppliesCardDialogueNeutral(
   variant: TerraPromptCanaryVariant
 ): boolean {
-  return variant === "greeting_neutral_card_dialogue_neutral";
+  return (
+    variant === "greeting_neutral_card_dialogue_neutral" ||
+    variant === "greeting_neutral_scene_card_dialogue_neutral" ||
+    variant === "final_main_home_candidate"
+  );
 }
 
 export function canaryAppliesTerraDialogueIntentAdapter(
   variant: TerraPromptCanaryVariant
 ): boolean {
-  return variant === "terra_dialogue_intent_adapter";
+  return (
+    variant === "terra_dialogue_intent_adapter" ||
+    variant === "greeting_neutral_scene_terra_dialogue_intent" ||
+    variant === "final_main_home_candidate"
+  );
 }
 
 /** Common dialogue layout owners — production. */
