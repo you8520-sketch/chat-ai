@@ -134,6 +134,7 @@ function main() {
   const p0Pipelines = loadPipelineCaptures(join(ROOT, "01-postprocess/ds_pipeline_baseline"));
 
   const baselineAvg = proD0?.canonical_avg ?? 3187;
+  const p0Agg = aggregate(p0Rows);
   const p0Parity = evaluateP0ParityGate({
     p0Samples: p0Rows,
     baselineAvg,
