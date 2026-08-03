@@ -91,6 +91,7 @@ async function postChat(opts: {
   let provider_raw = "";
   let final_text = "";
   let done: Record<string, unknown> | null = null;
+  let persistedChatId: number | undefined;
   const statuses: string[] = [];
   const events: unknown[] = [];
   let error: string | null = null;
@@ -115,15 +116,25 @@ async function postChat(opts: {
       events.push(ev);
       if (ev.type === "status" && typeof ev.message === "string") statuses.push(ev.message);
       if (ev.type === "delta" && typeof ev.text === "string") provider_raw += ev.text;
-      if (ev.type === "replace" && typeof ev.text === "string") provider_raw = ev.text;
+      if (ev.type === "replace" && typeof ev.text === "string") {
+        provider_raw = ev.text;
+        final_text = ev.text;
+      }
+      if (ev.type === "turn_persisted" && ev.chatId != null) {
+        persistedChatId = Number(ev.chatId);
+      }
       if (ev.type === "done") {
         done = ev;
-        if (typeof ev.text === "string") final_text = ev.text;
+        if (typeof ev.text === "string" && ev.text.length > 0) final_text = ev.text;
       }
       if (ev.type === "error") error = String(ev.message ?? JSON.stringify(ev));
     }
   }
   if (!final_text) final_text = provider_raw;
+  if (done && persistedChatId && !done.chatId) done.chatId = persistedChatId;
+  if (!done && persistedChatId && provider_raw.trim()) {
+    done = { chatId: persistedChatId, text: final_text };
+  }
   return {
     http_status: res.status,
     latency_s: (Date.now() - started) / 1000,
@@ -314,10 +325,18 @@ async function main() {
       });
       if (turn === 1) {
         chatId = Number((resp.done as { chatId?: number } | null)?.chatId);
+        if (!chatId && resp.provider_raw.trim().length === 0) {
+          save(runDir, `turn${turn}-error.json`, resp);
+          throw new Error(`run${run} turn1 failed: empty stream (${resp.error || resp.http_status})`);
+        }
         if (!chatId) {
           save(runDir, `turn${turn}-error.json`, resp);
-          throw new Error(`run${run} turn1 failed: ${resp.error || resp.http_status}`);
+          throw new Error(`run${run} turn1 failed: missing chatId`);
         }
+      }
+      if (!resp.provider_raw.trim()) {
+        save(runDir, `turn${turn}-error.json`, resp);
+        throw new Error(`run${run} turn${turn} failed: empty provider_raw`);
       }
       const m = analyze(resp.provider_raw, turn);
       const api = {
@@ -362,6 +381,7 @@ async function main() {
       `# Run ${run} manual dialogue review\n\nVariant: ${VARIANT_LABEL}\nChat: ${chatId}\n\nRecord manual resume-bundle counts after reading RAW.\n`
     );
     allRows.push({ run, chatId, metrics: runMetrics });
+    if (run < RUNS) await new Promise((r) => setTimeout(r, 3000));
   }
 
   save(OUT_ROOT, "all_runs.json", allRows);
