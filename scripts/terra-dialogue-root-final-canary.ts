@@ -13,6 +13,7 @@ const BASE = process.env.PROD_BASE ?? "https://chat-ai-production-3e84.up.railwa
 const COOKIE_FILE = process.env.PROD_COOKIE_FILE ?? "/tmp/terra_axis_cookies.txt";
 const VARIANT_LABEL = process.env.VARIANT_LABEL ?? "dialogue_root_baseline";
 const RUNS = Number(process.env.RUNS ?? "3");
+const START_RUN = Number(process.env.START_RUN ?? "1");
 const MAX_TURNS = Number(process.env.MAX_TURNS ?? "4");
 const OUT_ROOT =
   process.env.OUT_DIR ??
@@ -303,7 +304,7 @@ async function main() {
   console.log("start", meta);
 
   const allRows: unknown[] = [];
-  for (let run = 1; run <= RUNS; run++) {
+  for (let run = START_RUN; run <= RUNS; run++) {
     const runDir = join(OUT_ROOT, `run${run}`);
     const artDir = join(ART_ROOT, `run${run}`);
     mkdirSync(runDir, { recursive: true });
