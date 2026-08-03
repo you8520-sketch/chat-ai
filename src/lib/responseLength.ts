@@ -627,10 +627,10 @@ MINIMUM_FLOOR 미달·조기 handoff 금지. [LENGTH CONTROL & SCENE EXPANSION] 
  * contract as the absolute last RP instruction on the current user turn.
  */
 export function appendTerraTerminalLengthOwnerToUserTurn(
-  userContent: string
+  userContent: string,
+  contract: string = TERRA_TERMINAL_LENGTH_OWNER_CONTRACT
 ): string {
   const layoutLine = buildCompactTerminalLayoutRecencyLine();
-  const contract = TERRA_TERMINAL_LENGTH_OWNER_CONTRACT;
   const tail = `${layoutLine}\n${contract}`;
   const body = userContent.trim();
   if (!body) return tail;

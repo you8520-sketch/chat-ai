@@ -136,7 +136,14 @@ export type ContextBuildInput = {
       | "greeting_neutral_scene_card_dialogue_neutral"
       | "terra_dialogue_intent_adapter"
       | "greeting_neutral_scene_terra_dialogue_intent"
-      | "final_main_home_candidate";
+      | "final_main_home_candidate"
+      | "dialogue_root_baseline"
+      | "greeting_dialogue_bundled"
+      | "terminal_continuous_scene"
+      | "dialogue_reference_scope"
+      | "greeting_terminal_combined"
+      | "best_structure_temp_05"
+      | "best_structure_temp_06";
     progressionAxis?:
       | "relationship"
       | "investigation"

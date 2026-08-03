@@ -23,6 +23,7 @@ import { isGpt56TerraModel } from "@/lib/chatModels";
 import {
   resolveRpSceneCastMode,
   TERRA_TERMINAL_LENGTH_OWNER_CONTRACT,
+  TERRA_TERMINAL_LENGTH_OWNER_CONTRACT_CONTINUOUS_SCENE,
   type RpSceneCastMode,
 } from "@/lib/terraTerminalLengthOwner";
 import type { ChatMsg } from "@/lib/ai";
@@ -58,6 +59,20 @@ export const TERRA_PROMPT_CANARY_VARIANTS = [
   "terra_dialogue_intent_adapter",
   "greeting_neutral_scene_terra_dialogue_intent",
   "final_main_home_candidate",
+  /** Dialogue-root final experiment — baseline stack (neutral greeting + relationship axis). */
+  "dialogue_root_baseline",
+  /** Baseline + bundled greeting dialogue (single utterance). */
+  "greeting_dialogue_bundled",
+  /** Baseline + terminal continuous-scene phrase swap. */
+  "terminal_continuous_scene",
+  /** Baseline + shared creator dialogue reference scope wrapper. */
+  "dialogue_reference_scope",
+  /** Baseline + bundled greeting + terminal continuous-scene. */
+  "greeting_terminal_combined",
+  /** Confirmed structure at temperature 0.5 (set after screening). */
+  "best_structure_temp_05",
+  /** Conditional temperature 0.6 when 0.5 is near-fail. */
+  "best_structure_temp_06",
 ] as const;
 
 export type TerraPromptCanaryVariant = (typeof TERRA_PROMPT_CANARY_VARIANTS)[number];
@@ -101,6 +116,29 @@ export const RELATIONSHIP_AXIS_NEXT_BEAT_HINT =
 export const TERRA_DIALOGUE_INTENT_ADAPTER_SENTENCE =
   "같은 장면 순간에 이어지는 한 화자의 판단·설명·농담·반응은 중간의 짧은 행동이나 시선 묘사로 끊지 않고 하나의 발화 의도 안에서 마친다.";
 
+/** Shared dialogue-root experiment stack (neutral greeting + relationship axis). */
+const DIALOGUE_ROOT_EXPERIMENT_VARIANTS: readonly TerraPromptCanaryVariant[] = [
+  "dialogue_root_baseline",
+  "greeting_dialogue_bundled",
+  "terminal_continuous_scene",
+  "dialogue_reference_scope",
+  "greeting_terminal_combined",
+  "best_structure_temp_05",
+  "best_structure_temp_06",
+  "greeting_neutral_relationship_axis",
+  "final_main_home_candidate",
+];
+
+export function isDialogueRootExperimentVariant(
+  variant: TerraPromptCanaryVariant
+): boolean {
+  return (DIALOGUE_ROOT_EXPERIMENT_VARIANTS as readonly string[]).includes(variant);
+}
+
+/** Creator dialogue reference scope — single shared owner (variant dialogue_reference_scope). */
+export const CHARACTER_DIALOGUE_REFERENCE_SCOPE = `[CHARACTER DIALOGUE REFERENCE SCOPE]
+아래의 캐릭터 대사 자료는 어휘, 호칭, 말끝, 존댓말·반말, 성격과 관계에 따른 말투만 참고한다. 예시의 문장 길이, 대사 개수, 따옴표 블록 수, 지문 배치, 발화 분절 방식과 턴 전체 리듬은 모방하지 않는다.`;
+
 export function canaryAppliesGreetingNeutral(variant: TerraPromptCanaryVariant): boolean {
   return (
     variant === "greeting_neutral" ||
@@ -109,8 +147,59 @@ export function canaryAppliesGreetingNeutral(variant: TerraPromptCanaryVariant):
     variant === "greeting_neutral_card_dialogue_neutral" ||
     variant === "greeting_neutral_scene_card_dialogue_neutral" ||
     variant === "greeting_neutral_scene_terra_dialogue_intent" ||
-    variant === "final_main_home_candidate"
+    variant === "final_main_home_candidate" ||
+    isDialogueRootExperimentVariant(variant)
   );
+}
+
+export function canaryAppliesGreetingDialogueBundled(
+  variant: TerraPromptCanaryVariant
+): boolean {
+  return (
+    variant === "greeting_dialogue_bundled" ||
+    variant === "greeting_terminal_combined" ||
+    variant === "best_structure_temp_05" ||
+    variant === "best_structure_temp_06"
+  );
+}
+
+export function canaryAppliesTerminalContinuousScene(
+  variant: TerraPromptCanaryVariant
+): boolean {
+  return (
+    variant === "terminal_continuous_scene" ||
+    variant === "greeting_terminal_combined" ||
+    variant === "best_structure_temp_05" ||
+    variant === "best_structure_temp_06"
+  );
+}
+
+export function canaryAppliesDialogueReferenceScope(
+  variant: TerraPromptCanaryVariant
+): boolean {
+  return variant === "dialogue_reference_scope";
+}
+
+export function resolveCanaryTerraTerminalContract(
+  variant: TerraPromptCanaryVariant | null | undefined
+): string {
+  if (variant && canaryAppliesTerminalContinuousScene(variant)) {
+    return TERRA_TERMINAL_LENGTH_OWNER_CONTRACT_CONTINUOUS_SCENE;
+  }
+  return TERRA_TERMINAL_LENGTH_OWNER_CONTRACT;
+}
+
+export function injectDialogueReferenceScopeForCanary(
+  combinedSetting: string,
+  variant: TerraPromptCanaryVariant | null | undefined
+): string {
+  if (!variant || !canaryAppliesDialogueReferenceScope(variant)) {
+    return combinedSetting;
+  }
+  const text = combinedSetting.trim();
+  if (text.includes("[CHARACTER DIALOGUE REFERENCE SCOPE]")) return combinedSetting;
+  if (!text) return CHARACTER_DIALOGUE_REFERENCE_SCOPE;
+  return `${CHARACTER_DIALOGUE_REFERENCE_SCOPE}\n\n${combinedSetting}`;
 }
 
 export function canaryAppliesSceneRelationPriority(
@@ -122,7 +211,8 @@ export function canaryAppliesSceneRelationPriority(
     variant === "greeting_neutral_relationship_axis" ||
     variant === "greeting_neutral_scene_card_dialogue_neutral" ||
     variant === "greeting_neutral_scene_terra_dialogue_intent" ||
-    variant === "final_main_home_candidate"
+    variant === "final_main_home_candidate" ||
+    isDialogueRootExperimentVariant(variant)
   );
 }
 
@@ -133,7 +223,8 @@ export function canaryAppliesRelationshipProgressionAxis(
   return (
     variant === "greeting_neutral_relationship_axis" ||
     variant === "greeting_neutral_scene_relation_priority" ||
-    variant === "final_main_home_candidate"
+    variant === "final_main_home_candidate" ||
+    isDialogueRootExperimentVariant(variant)
   );
 }
 
@@ -261,6 +352,8 @@ export function resolveTerraPromptCanaryTemperature(
   canary: TerraPromptCanaryResolution | null | undefined
 ): number | null {
   if (!canary) return null;
+  if (canary.variant === "best_structure_temp_05") return 0.5;
+  if (canary.variant === "best_structure_temp_06") return 0.6;
   const raw = process.env[ENV_TEMPERATURE]?.trim();
   if (!raw) return null;
   const n = Number(raw);
@@ -305,6 +398,31 @@ export const TERRA_PROMPT_CANARY_GREETING_NEUTRAL = `가을 햇살이 로비의 
 
 “신입이야? 아니면 내가 요즘 너무 바쁘게 살아서 기억력이 맛이 갔나. 이름이 뭐였더라?”`;
 
+/**
+ * Bundled greeting — same content as neutral; merges split quoted lines into one utterance.
+ * Used by greeting_dialogue_bundled / greeting_terminal_combined canary only.
+ */
+export const TERRA_PROMPT_CANARY_GREETING_NEUTRAL_BUNDLED =
+  TERRA_PROMPT_CANARY_GREETING_NEUTRAL.replace(
+    `“어? 어디서 본 것 같은데.”
+
+낮게 웃은 그가 능청스럽게 말을 이었다.
+
+“신입이야? 아니면 내가 요즘 너무 바쁘게 살아서 기억력이 맛이 갔나. 이름이 뭐였더라?”`,
+    `낮게 웃은 그가 능청스럽게 말을 이었다.
+
+“어? 어디서 본 것 같은데. 신입이야? 아니면 내가 요즘 너무 바쁘게 살아서 기억력이 맛이 갔나. 이름이 뭐였더라?”`
+  );
+
+export function resolveCanaryGreetingText(
+  variant: TerraPromptCanaryVariant | null | undefined
+): string {
+  if (variant && canaryAppliesGreetingDialogueBundled(variant)) {
+    return TERRA_PROMPT_CANARY_GREETING_NEUTRAL_BUNDLED;
+  }
+  return TERRA_PROMPT_CANARY_GREETING_NEUTRAL;
+}
+
 export function resolveCanaryGreeting(opts: {
   canary: TerraPromptCanaryResolution | null;
   characterId: number;
@@ -315,7 +433,7 @@ export function resolveCanaryGreeting(opts: {
   if (!isTerraPromptCanaryGreetingTarget({ characterId: opts.characterId, greeting })) {
     return greeting;
   }
-  return TERRA_PROMPT_CANARY_GREETING_NEUTRAL;
+  return resolveCanaryGreetingText(opts.canary.variant);
 }
 
 /**
@@ -337,7 +455,7 @@ export function applyTerraPromptCanaryToHistory(opts: {
   ) {
     return opts.history;
   }
-  const neutral = TERRA_PROMPT_CANARY_GREETING_NEUTRAL;
+  const neutral = resolveCanaryGreetingText(opts.canary.variant);
   let replaced = false;
   const next = opts.history.map((m) => {
     if (replaced) return m;
@@ -346,6 +464,8 @@ export function applyTerraPromptCanaryToHistory(opts: {
     if (
       content === opts.productionGreeting ||
       isLikeSupportStaffGreeting(content) ||
+      content === TERRA_PROMPT_CANARY_GREETING_NEUTRAL ||
+      content === TERRA_PROMPT_CANARY_GREETING_NEUTRAL_BUNDLED ||
       content === neutral
     ) {
       replaced = true;
