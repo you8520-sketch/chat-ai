@@ -4,7 +4,7 @@ buildCommand = "npm run build"
 nixpacksConfigPath = "nixpacks.toml"
 
 [deploy]
-startCommand = "bash scripts/railway-canary-start.sh"
+startCommand = "npm run start"
 healthcheckPath = "/health"
 healthcheckTimeout = 120
 restartPolicyType = "on_failure"
