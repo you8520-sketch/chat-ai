@@ -1,13 +1,18 @@
 /**
- * Aggregate DeepSeek common-root audit metrics with length-first gate ordering.
+ * Aggregate DeepSeek common-root audit metrics — manual-first verdict ordering.
  */
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import {
   evaluateLengthGate,
   evaluateSampleVerdict,
+  evaluateP0ParityGate,
+  evaluateScreeningEffect,
+  evaluateCandidateLengthGate,
+  judgePostprocessPrimary,
   RP_DIAGNOSTIC_MIN_SCREENING_SAMPLES,
   RP_DIAGNOSTIC_MIN_FINAL_SAMPLES,
+  type PostprocessPipelineCapture,
 } from "../src/lib/rpDiagnosticCanary";
 
 const ROOT =
@@ -16,33 +21,21 @@ const ROOT =
 type TurnMetric = {
   canonical_length_ws?: number;
   provider_raw_ws?: number;
-  visible_canonical_length?: number;
+  raw_quote_blocks?: number;
+  manual_semantic_units?: number;
+  manual_resume_transitions?: number;
+  manual_fragmentation_multiplier?: number;
+  manual_resume_per_1000_chars?: number;
+  raw_quote_blocks_per_1000_chars?: number;
+  auto_metric_unreliable?: string | null;
   invalid?: boolean;
-  invalid_reason?: string;
-  quote_pair_count?: number;
-  semantic_utterance_units_auto?: number;
-  fragmentation_multiplier_auto?: number;
-  resume_transitions_auto?: number;
-  quote_blocks_per_1000_chars?: number;
-  resume_transitions_per_1000_chars?: number;
   npc_subplot?: boolean;
   trailing_reaction_points?: number;
   scene_completion?: boolean;
   api?: {
-    output_tokens?: number;
-    finishReason?: string;
     finish_reason?: string;
-    raw_equals_final?: boolean;
-    lengthRecoveryPasses?: number;
+    length_recovery_passes?: number;
     retry_count?: number;
-  };
-  auto_provider?: {
-    quote_pair_count?: number;
-    resume_transitions_auto?: number;
-    fragmentation_multiplier_auto?: number;
-    canonical_length_ws?: number;
-    quote_blocks_per_1000_chars?: number;
-    resume_transitions_per_1000_chars?: number;
   };
 };
 
@@ -60,173 +53,166 @@ function loadRunMetrics(dir: string): TurnMetric[] {
   return out;
 }
 
+function loadPipelineCaptures(dir: string): PostprocessPipelineCapture[] {
+  if (!existsSync(dir)) return [];
+  const out: PostprocessPipelineCapture[] = [];
+  for (const run of readdirSync(dir).filter((d) => d.startsWith("run"))) {
+    for (let t = 1; t <= 4; t++) {
+      const p = join(dir, run, `turn${t}-pipeline.json`);
+      if (!existsSync(p)) continue;
+      const raw = JSON.parse(readFileSync(p, "utf8")) as {
+        metrics?: PostprocessPipelineCapture["metrics"];
+        pipeline?: PostprocessPipelineCapture;
+      };
+      if (raw.metrics && raw.pipeline) {
+        out.push({
+          ...raw.pipeline,
+          metrics: raw.metrics,
+        } as PostprocessPipelineCapture);
+      }
+    }
+  }
+  return out;
+}
+
 function median(nums: number[]): number {
-  if (nums.length === 0) return 0;
+  if (!nums.length) return 0;
   const s = [...nums].sort((a, b) => a - b);
   return s[Math.floor(s.length / 2)] ?? 0;
 }
 
 function aggregate(rows: TurnMetric[]) {
   const valid = rows.filter((r) => !r.invalid);
-  if (valid.length === 0) return null;
-
-  const canonicals = valid.map(
-    (r) => r.provider_raw_ws ?? r.visible_canonical_length ?? r.canonical_length_ws ?? 0
-  );
-  const lengthGate = evaluateLengthGate(valid);
-  const outputTokens = valid
-    .map((r) => r.api?.output_tokens)
-    .filter((n): n is number => typeof n === "number");
-  const finishLength = valid.filter((r) => {
-    const fr = (r.api?.finishReason ?? r.api?.finish_reason ?? "").toLowerCase();
-    return fr === "length" || fr === "max_tokens";
-  }).length;
+  if (!valid.length) return null;
 
   const avg = (fn: (r: TurnMetric) => number) =>
     valid.reduce((a, r) => a + fn(r), 0) / valid.length;
 
-  const rawSubset = valid.filter((r) => (r.auto_provider?.canonical_length_ws ?? 0) >= 2700);
-  const rawGate = evaluateLengthGate(
-    rawSubset.map((r) => ({
-      canonical_length_ws: r.auto_provider?.canonical_length_ws,
-    }))
-  );
+  const lengthGate =
+    valid.length >= 6
+      ? evaluateLengthGate(valid)
+      : evaluateCandidateLengthGate(valid, 3187);
 
   return {
     n: valid.length,
-    invalid_excluded: rows.length - valid.length,
-    ...lengthGate.stats,
+    sample_verdict: evaluateSampleVerdict(valid.length, valid.length >= 6 ? "final" : "screening"),
+    canonical_avg: Math.round(avg((r) => r.provider_raw_ws ?? r.canonical_length_ws ?? 0)),
+    manual_semantic_units_avg: Math.round(avg((r) => r.manual_semantic_units ?? 0) * 100) / 100,
+    manual_resume_avg: Math.round(avg((r) => r.manual_resume_transitions ?? 0) * 100) / 100,
+    manual_resume_median: median(valid.map((r) => r.manual_resume_transitions ?? 0)),
+    manual_fragmentation_avg:
+      Math.round(avg((r) => r.manual_fragmentation_multiplier ?? 0) * 100) / 100,
+    manual_fragmentation_median: median(
+      valid.map((r) => r.manual_fragmentation_multiplier ?? 0)
+    ),
+    manual_resume_per_1000_avg:
+      Math.round(avg((r) => r.manual_resume_per_1000_chars ?? 0) * 100) / 100,
+    quote_blocks_per_1000_avg:
+      Math.round(avg((r) => r.raw_quote_blocks_per_1000_chars ?? 0) * 100) / 100,
+    auto_metric_unreliable_count: valid.filter((r) => r.auto_metric_unreliable).length,
     length_gate_pass: lengthGate.pass,
     length_invalid_reason: lengthGate.pass ? null : lengthGate.reason,
-    output_tokens_avg:
-      outputTokens.length > 0
-        ? Math.round(outputTokens.reduce((a, b) => a + b, 0) / outputTokens.length)
-        : null,
-    finish_length_count: finishLength,
-    quote_blocks_avg: Math.round(avg((r) => r.quote_pair_count ?? 0) * 10) / 10,
-    quote_blocks_raw_avg: Math.round(
-      avg((r) => r.auto_provider?.quote_pair_count ?? r.quote_pair_count ?? 0) * 10
-    ) / 10,
-    fragmentation_multiplier_median: median(
-      valid.map((r) => r.fragmentation_multiplier_auto ?? 0)
-    ),
-    fragmentation_multiplier_raw_median: median(
-      valid.map((r) => r.auto_provider?.fragmentation_multiplier_auto ?? 0)
-    ),
-    resume_transitions_median: median(valid.map((r) => r.resume_transitions_auto ?? 0)),
-    resume_transitions_raw_median: median(
-      valid.map((r) => r.auto_provider?.resume_transitions_auto ?? 0)
-    ),
-    quote_blocks_per_1000_chars: Math.round(avg((r) => r.quote_blocks_per_1000_chars ?? 0) * 100) / 100,
-    resume_per_1000_chars:
-      Math.round(avg((r) => r.resume_transitions_per_1000_chars ?? 0) * 100) / 100,
-    quote_blocks_per_1000_raw: Math.round(
-      avg((r) => r.auto_provider?.quote_blocks_per_1000_chars ?? 0) * 100
-    ) / 100,
-    resume_per_1000_raw: Math.round(
-      avg((r) => r.auto_provider?.resume_transitions_per_1000_chars ?? 0) * 100
-    ) / 100,
     npc_subplot_rate: `${valid.filter((r) => r.npc_subplot).length}/${valid.length}`,
     trailing_success: `${valid.filter((r) => (r.trailing_reaction_points ?? 0) >= 1).length}/${valid.length}`,
     scene_completion: `${valid.filter((r) => r.scene_completion).length}/${valid.length}`,
-    length_qualified_subset_n: rawSubset.length,
-    length_qualified_subset_gate: rawGate.pass,
-    root_cause_verdict:
-      lengthGate.pass && valid.length >= RP_DIAGNOSTIC_MIN_SCREENING_SAMPLES
-        ? "SCREENING_ALLOWED"
-        : lengthGate.pass
-          ? "INSUFFICIENT_SAMPLE"
-          : "LENGTH_GATE_BLOCKED",
   };
-}
-
-function screeningVerdict(
-  baseline: NonNullable<ReturnType<typeof aggregate>> | null,
-  candidate: NonNullable<ReturnType<typeof aggregate>> | null
-): string {
-  if (!candidate) return "NOT_RUN";
-  const sampleVerdict = evaluateSampleVerdict(candidate.n, "screening");
-  if (sampleVerdict !== "COMPLETED") return sampleVerdict;
-  if (!candidate.length_gate_pass) return "CANDIDATE_LENGTH_INVALID";
-  if (!baseline?.length_gate_pass) return "BASELINE_LENGTH_INVALID";
-  const resumeDelta =
-    baseline.resume_transitions_raw_median === 0
-      ? 0
-      : ((candidate.resume_transitions_raw_median - baseline.resume_transitions_raw_median) /
-          baseline.resume_transitions_raw_median) *
-        100;
-  const lenDrop =
-    baseline.canonical_avg === 0
-      ? 0
-      : ((candidate.canonical_avg - baseline.canonical_avg) / baseline.canonical_avg) * 100;
-  if (lenDrop < -15) return "CANDIDATE_LENGTH_INVALID";
-  if (resumeDelta <= -25) return "EFFECT_CONFIRMED";
-  return "NO_EFFECT_AT_THRESHOLD";
 }
 
 function main() {
   mkdirSync(ROOT, { recursive: true });
 
-  let d0Reaudit: { d0_status?: string; audit_permission?: string } | null = null;
-  const reauditPath = join(ROOT, "00-integrity/D0_LENGTH_REAUDIT.json");
-  if (existsSync(reauditPath)) {
-    d0Reaudit = JSON.parse(readFileSync(reauditPath, "utf8")) as typeof d0Reaudit;
+  let d0V2: { manual_resume_median?: number; manual_fragmentation_median?: number } | null =
+    null;
+  const d0Path = join(ROOT, "02-ds-pro-real-production/METRICS_V2.json");
+  if (existsSync(d0Path)) {
+    d0V2 = JSON.parse(readFileSync(d0Path, "utf8")) as typeof d0V2;
   }
 
-  const variants: Record<string, string> = {
-    flash_d0: "02-ds-real-production",
-    pro_d0: "02-ds-pro-real-production",
-    length_baseline: "02-ds-length-normalized-baseline",
-    p0: "01-postprocess/ds_postprocess_baseline",
-    p1: "01-postprocess/ds_paragraph_normalize_bypass",
-    d1: "03-ds-dialogue-control",
-    d2: "04-ds-common-only",
+  const proD0 = aggregate(loadRunMetrics(join(ROOT, "02-ds-pro-real-production")));
+  const p0Rows = loadRunMetrics(join(ROOT, "01-postprocess/ds_pipeline_baseline"));
+  const p1Rows = loadRunMetrics(join(ROOT, "01-postprocess/ds_display_grouping_bypass"));
+  const p0Pipelines = loadPipelineCaptures(join(ROOT, "01-postprocess/ds_pipeline_baseline"));
+
+  const baselineAvg = proD0?.canonical_avg ?? 3187;
+  const p0Parity = evaluateP0ParityGate({
+    p0Samples: p0Rows,
+    baselineAvg,
+  });
+
+  const postprocessVerdicts = p0Pipelines.map((c) => judgePostprocessPrimary(c));
+  const postprocessPrimary =
+    postprocessVerdicts.includes("POSTPROCESS_CREATES_FRAGMENTATION")
+      ? "POSTPROCESS_CREATES_FRAGMENTATION"
+      : postprocessVerdicts.includes("POSTPROCESS_VISUAL_AMPLIFIER")
+        ? "POSTPROCESS_VISUAL_AMPLIFIER"
+        : postprocessVerdicts.includes("POSTPROCESS_NOT_PRIMARY")
+          ? "POSTPROCESS_NOT_PRIMARY"
+          : p0Rows.length >= RP_DIAGNOSTIC_MIN_SCREENING_SAMPLES
+            ? "INSUFFICIENT_PIPELINE_EVIDENCE"
+            : "NOT_RUN";
+
+  const variants: Record<string, ReturnType<typeof aggregate>> = {
+    pro_d0: proD0,
+    p0: p0Agg,
+    p1: aggregate(p1Rows),
+    d1: aggregate(loadRunMetrics(join(ROOT, "03-ds-dialogue-control"))),
+    d2a: aggregate(loadRunMetrics(join(ROOT, "04-ds-common-only"))),
+    d2b: aggregate(loadRunMetrics(join(ROOT, "04-ds-common-only-length-probe"))),
+    c1: aggregate(loadRunMetrics(join(ROOT, "06-common-greeting"))),
+    c2: aggregate(loadRunMetrics(join(ROOT, "08-common-layout"))),
+    c3: aggregate(loadRunMetrics(join(ROOT, "09-common-length-owner"))),
+    c4: aggregate(loadRunMetrics(join(ROOT, "10-common-scene-directive"))),
+    c5: aggregate(loadRunMetrics(join(ROOT, "11-common-rp-style"))),
   };
 
-  const loaded: Record<string, ReturnType<typeof aggregate>> = {};
-  for (const [k, sub] of Object.entries(variants)) {
-    loaded[k] = aggregate(loadRunMetrics(join(ROOT, sub)));
-  }
+  const baselineManual = {
+    manual_resume_per_1000: d0V2?.manual_resume_median
+      ? (d0V2 as { manual_resume_per_1000_avg?: number }).manual_resume_per_1000_avg
+      : proD0?.manual_resume_per_1000_avg,
+    manual_fragmentation: d0V2?.manual_fragmentation_median ?? proD0?.manual_fragmentation_median,
+  };
 
-  const lengthBaseline = loaded.length_baseline;
-  const proBaseline = loaded.pro_d0;
-  const auditPermission =
-    proBaseline?.length_gate_pass && (proBaseline.n ?? 0) >= 6
-      ? "PRO_BASELINE_LENGTH_GATE_PASS"
-      : lengthBaseline?.length_gate_pass && (lengthBaseline.n ?? 0) >= 6
-        ? "FULL_COMMON_ROOT_MATRIX_ALLOWED"
-        : d0Reaudit?.audit_permission ?? "LENGTH_BASELINE_NOT_READY";
+  const screening = {
+    d1: evaluateScreeningEffect(baselineManual, {
+      manual_resume_per_1000: variants.d1?.manual_resume_per_1000_avg,
+      manual_fragmentation: variants.d1?.manual_fragmentation_median,
+    }),
+    d2a: evaluateScreeningEffect(baselineManual, {
+      manual_resume_per_1000: variants.d2a?.manual_resume_per_1000_avg,
+      manual_fragmentation: variants.d2a?.manual_fragmentation_median,
+    }),
+  };
 
   const out = {
     generated_at: new Date().toISOString(),
-    min_screening_samples: RP_DIAGNOSTIC_MIN_SCREENING_SAMPLES,
-    min_final_samples: RP_DIAGNOSTIC_MIN_FINAL_SAMPLES,
+    diagnostic_model: "deepseek-v4-pro",
     flash_d0_status: "SHORT_OUTPUT_SMOKE_ONLY",
     flash_matrix_status: "ON_HOLD",
-    diagnostic_model: "deepseek-v4-pro",
-    audit_permission: auditPermission,
-    d0_reaudit_status: d0Reaudit?.d0_status ?? "SHORT_OUTPUT_SMOKE_ONLY",
-    d0_previous_verdict_valid: false,
-    variants: loaded,
-    screening: {
-      postprocess_bypass: {
-        verdict: screeningVerdict(proBaseline ?? loaded.flash_d0, loaded.p1),
-      },
-      dialogue_control: {
-        verdict: screeningVerdict(proBaseline ?? loaded.flash_d0, loaded.d1),
-      },
-      common_only: {
-        verdict: screeningVerdict(proBaseline ?? loaded.flash_d0, loaded.d2),
-      },
-    },
+    metric_priority: [
+      "provider RAW manual review",
+      "manual resume / manual fragmentation",
+      "RAW normalized metrics",
+      "auto metrics",
+      "display grouping",
+    ],
+    pro_d0_manual: d0V2,
+    p0_parity_gate: p0Parity,
+    postprocess_primary_verdict: postprocessPrimary,
+    variants,
+    screening,
     verdict_order: [
       "sample count",
-      "integrity",
+      "request integrity",
       "length gate",
+      "RAW manual resume",
+      "RAW manual fragmentation",
       "NPC",
-      "fragmentation",
-      "trailing response",
+      "trailing reaction",
+      "character voice",
     ],
+    production_db_apply: false,
+    general_rollout: false,
+    auto_merge: false,
   };
 
   writeFileSync(join(ROOT, "FINAL_STATS.json"), JSON.stringify(out, null, 2), "utf8");

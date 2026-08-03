@@ -19,7 +19,7 @@ const BASE = process.env.PROD_BASE ?? "https://chat-ai-production-3e84.up.railwa
 const COOKIE_FILE = process.env.PROD_COOKIE_FILE ?? "/tmp/terra_axis_cookies.txt";
 const VARIANT_LABEL = process.env.VARIANT_LABEL ?? "ds_postprocess_baseline";
 const EXPECTED_VARIANT = process.env.EXPECTED_VARIANT ?? VARIANT_LABEL;
-const RUNS = Number(process.env.RUNS ?? "3");
+const RUNS = Number(process.env.RUNS ?? "2");
 const START_RUN = Number(process.env.START_RUN ?? "1");
 const MAX_TURNS = Number(process.env.MAX_TURNS ?? "2");
 const CHARACTER_ID = Number(process.env.CHARACTER_ID ?? "18");
@@ -172,17 +172,28 @@ async function postChat(opts: {
       pre_normalize?: unknown;
       post_normalize?: unknown;
     };
+    pipeline?: {
+      provider_raw_merged?: string;
+      pre_normalize?: string;
+      pre_display_grouping?: string;
+      post_display_grouping?: string;
+      sse_final?: string;
+      db_saved?: string;
+    };
     integrity?: { valid?: boolean; invalidReasons?: string[]; canaryVariant?: string };
   } | null;
+  const pipe = pipeline?.pipeline;
 
   return {
     http_status: res.status,
     latency_s: (Date.now() - started) / 1000,
     provider_raw,
-    pre_normalize: "",
-    post_normalize: "",
+    pre_normalize: pipe?.pre_normalize ?? pipe?.pre_display_grouping ?? "",
+    post_normalize: pipe?.post_display_grouping ?? "",
+    pre_display_grouping: pipe?.pre_display_grouping ?? "",
+    post_display_grouping: pipe?.post_display_grouping ?? "",
     final_text,
-    db_saved: final_text,
+    db_saved: pipe?.db_saved ?? final_text,
     done,
     diagnostic_pipeline,
     pipeline_integrity: pipeline?.integrity ?? null,
@@ -242,6 +253,16 @@ function analyze(text: string, turn: number) {
   return {
     turn,
     ...metrics,
+    raw_quote_blocks: metrics.raw_quote_blocks,
+    auto_semantic_units: metrics.auto_semantic_units,
+    manual_semantic_units: metrics.manual_semantic_units,
+    auto_resume_transitions: metrics.auto_resume_transitions,
+    manual_resume_transitions: metrics.manual_resume_transitions,
+    auto_fragmentation_multiplier: metrics.auto_fragmentation_multiplier,
+    manual_fragmentation_multiplier: metrics.manual_fragmentation_multiplier,
+    raw_quote_blocks_per_1000_chars: metrics.raw_quote_blocks_per_1000_chars,
+    manual_resume_per_1000_chars: metrics.manual_resume_per_1000_chars,
+    auto_metric_unreliable: metrics.auto_metric_unreliable ? "AUTO_METRIC_UNRELIABLE" : null,
     like_dialogue_blocks: Math.max(0, metrics.quote_pair_count - npc.external_dialogue_blocks),
     ...npc,
     trailing_reaction_points: trailing,
@@ -453,11 +474,22 @@ async function main() {
 
       save(runDir, `turn${turn}-provider-raw.txt`, resp.provider_raw);
       save(runDir, `turn${turn}-pre-normalize.txt`, resp.pre_normalize || resp.provider_raw);
+      save(runDir, `turn${turn}-pre-display-grouping.txt`, resp.pre_display_grouping || resp.pre_normalize || resp.provider_raw);
+      save(runDir, `turn${turn}-post-display-grouping.txt`, resp.post_display_grouping || resp.post_normalize || resp.final_text);
       save(runDir, `turn${turn}-post-normalize.txt`, resp.post_normalize || resp.final_text);
       save(runDir, `turn${turn}-sse-final.txt`, resp.final_text);
       save(runDir, `turn${turn}-db-saved.txt`, resp.db_saved);
       save(runDir, `turn${turn}-metrics.json`, payload);
-      save(runDir, `turn${turn}-manual-semantic-review.md`, `# Run ${run} Turn ${turn}\n\nManual semantic units: _fill_\nManual resume transitions: _fill_\n`);
+      save(
+        runDir,
+        `turn${turn}-manual-semantic-review.md`,
+        `# Run ${run} Turn ${turn}\n\n` +
+          `- raw_quote_blocks: ${rawMetrics.raw_quote_blocks}\n` +
+          `- manual_semantic_units: ${rawMetrics.manual_semantic_units}\n` +
+          `- manual_resume_transitions: ${rawMetrics.manual_resume_transitions}\n` +
+          `- manual_fragmentation_multiplier: ${rawMetrics.manual_fragmentation_multiplier}\n` +
+          `- auto_metric: ${rawMetrics.auto_metric_unreliable ?? "ok"}\n`
+      );
       if (resp.diagnostic_pipeline) {
         save(runDir, `turn${turn}-pipeline.json`, resp.diagnostic_pipeline);
       }
@@ -466,9 +498,10 @@ async function main() {
       console.log("turn", {
         turn,
         raw_len: rawMetrics.canonical_length_ws,
-        quotes_raw: rawMetrics.quote_pair_count,
-        frag_raw: rawMetrics.fragmentation_multiplier_auto,
-        resume_raw: rawMetrics.resume_transitions_auto,
+        quotes_raw: rawMetrics.raw_quote_blocks,
+        frag_manual: rawMetrics.manual_fragmentation_multiplier,
+        resume_manual: rawMetrics.manual_resume_transitions,
+        auto_unreliable: rawMetrics.auto_metric_unreliable,
         finish: finishReason,
         npc: rawMetrics.npc_subplot,
         invalid: invalidReasons.length > 0,

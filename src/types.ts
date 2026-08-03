@@ -163,11 +163,14 @@ export type ContextBuildInput = {
   rpDiagnosticCanary?: {
     variant:
       | "baseline"
+      | "ds_pipeline_baseline"
       | "ds_postprocess_baseline"
       | "ds_paragraph_normalize_bypass"
+      | "ds_display_grouping_bypass"
       | "ds_real_production"
       | "ds_dialogue_control"
       | "ds_common_only"
+      | "ds_common_only_length_probe"
       | "common_greeting_split_vs_bundled"
       | "common_creator_dialogue_scope"
       | "common_layout_minimal"

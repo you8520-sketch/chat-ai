@@ -48,11 +48,14 @@ export const RP_DIAGNOSTIC_CANARY_ENV = {
 
 export const RP_DIAGNOSTIC_CANARY_VARIANTS = [
   "baseline",
+  "ds_pipeline_baseline",
   "ds_postprocess_baseline",
   "ds_paragraph_normalize_bypass",
+  "ds_display_grouping_bypass",
   "ds_real_production",
   "ds_dialogue_control",
   "ds_common_only",
+  "ds_common_only_length_probe",
   "common_greeting_split_vs_bundled",
   "common_creator_dialogue_scope",
   "common_layout_minimal",
@@ -165,6 +168,38 @@ export function rpDiagnosticBypassParagraphNormalize(
   return variant === "ds_paragraph_normalize_bypass";
 }
 
+export function rpDiagnosticBypassDisplayGrouping(
+  variant: RpDiagnosticCanaryVariant
+): boolean {
+  return (
+    variant === "ds_display_grouping_bypass" ||
+    variant === "ds_paragraph_normalize_bypass"
+  );
+}
+
+export function rpDiagnosticEnablesPipelineCapture(
+  variant: RpDiagnosticCanaryVariant
+): boolean {
+  return (
+    variant === "ds_pipeline_baseline" ||
+    variant === "ds_postprocess_baseline" ||
+    variant === "ds_display_grouping_bypass" ||
+    variant === "ds_paragraph_normalize_bypass" ||
+    variant === "ds_real_production"
+  );
+}
+
+export type DeepSeekExtrasMode = "full" | "length_stack_only" | "off";
+
+export function resolveDeepSeekExtrasMode(
+  variant: RpDiagnosticCanaryVariant | undefined
+): DeepSeekExtrasMode {
+  if (!variant) return "full";
+  if (variant === "ds_common_only_length_probe") return "off";
+  if (variant === "ds_common_only") return "length_stack_only";
+  return "full";
+}
+
 export function rpDiagnosticUsesBundledGreeting(
   variant: RpDiagnosticCanaryVariant
 ): boolean {
@@ -172,6 +207,7 @@ export function rpDiagnosticUsesBundledGreeting(
   return (
     variant === "ds_dialogue_control" ||
     variant === "ds_common_only" ||
+    variant === "ds_common_only_length_probe" ||
     variant === "common_creator_dialogue_scope" ||
     variant === "common_layout_minimal" ||
     variant === "common_length_owner_minimal" ||
@@ -213,10 +249,24 @@ export function rpDiagnosticUsesFlashLengthStack(
   return env === "1" || env === "true";
 }
 
+/** @deprecated use resolveDeepSeekExtrasMode */
 export function rpDiagnosticDisablesDeepSeekExtras(
   variant: RpDiagnosticCanaryVariant
 ): boolean {
-  return variant === "ds_common_only";
+  return resolveDeepSeekExtrasMode(variant) !== "full";
+}
+
+export function rpDiagnosticDisablesDeepSeekStyleExtras(
+  variant: RpDiagnosticCanaryVariant
+): boolean {
+  const mode = resolveDeepSeekExtrasMode(variant);
+  return mode === "length_stack_only" || mode === "off";
+}
+
+export function rpDiagnosticDisablesDeepSeekLengthExtras(
+  variant: RpDiagnosticCanaryVariant
+): boolean {
+  return resolveDeepSeekExtrasMode(variant) === "off";
 }
 
 export function evaluateLengthGate(
@@ -380,6 +430,7 @@ export function rpDiagnosticUsesRelationshipAxis(
   return (
     variant === "ds_dialogue_control" ||
     variant === "ds_common_only" ||
+    variant === "ds_common_only_length_probe" ||
     variant === "common_greeting_split_vs_bundled" ||
     variant === "common_creator_dialogue_scope" ||
     variant === "common_layout_minimal" ||
@@ -489,16 +540,21 @@ export type PostprocessPipelineCapture = {
   provider_raw_merged: string;
   pre_normalize: string;
   post_normalize: string;
+  pre_display_grouping: string;
+  post_display_grouping: string;
   sse_final: string;
   db_saved: string;
   metrics: {
     provider_raw: DialogueMetrics;
     pre_normalize: DialogueMetrics;
     post_normalize: DialogueMetrics;
+    pre_display_grouping: DialogueMetrics;
+    post_display_grouping: DialogueMetrics;
     sse_final: DialogueMetrics;
     db_saved: DialogueMetrics;
     deltas: {
-      raw_to_post_normalize: Record<string, number>;
+      raw_to_pre_display: Record<string, number>;
+      raw_to_post_display: Record<string, number>;
       raw_to_sse: Record<string, number>;
       raw_to_db: Record<string, number>;
     };
@@ -509,12 +565,16 @@ export function capturePostprocessPipeline(opts: {
   providerRawMerged: string;
   preNormalize: string;
   postNormalize: string;
+  preDisplayGrouping: string;
+  postDisplayGrouping: string;
   sseFinal: string;
   dbSaved: string;
 }): PostprocessPipelineCapture {
   const provider_raw = computeDialogueMetrics({ text: opts.providerRawMerged });
   const pre_normalize = computeDialogueMetrics({ text: opts.preNormalize });
   const post_normalize = computeDialogueMetrics({ text: opts.postNormalize });
+  const pre_display_grouping = computeDialogueMetrics({ text: opts.preDisplayGrouping });
+  const post_display_grouping = computeDialogueMetrics({ text: opts.postDisplayGrouping });
   const sse_final = computeDialogueMetrics({ text: opts.sseFinal });
   const db_saved = computeDialogueMetrics({ text: opts.dbSaved });
 
@@ -522,16 +582,21 @@ export function capturePostprocessPipeline(opts: {
     provider_raw_merged: opts.providerRawMerged,
     pre_normalize: opts.preNormalize,
     post_normalize: opts.postNormalize,
+    pre_display_grouping: opts.preDisplayGrouping,
+    post_display_grouping: opts.postDisplayGrouping,
     sse_final: opts.sseFinal,
     db_saved: opts.dbSaved,
     metrics: {
       provider_raw,
       pre_normalize,
       post_normalize,
+      pre_display_grouping,
+      post_display_grouping,
       sse_final,
       db_saved,
       deltas: {
-        raw_to_post_normalize: diffPipelineMetrics(provider_raw, post_normalize),
+        raw_to_pre_display: diffPipelineMetrics(provider_raw, pre_display_grouping),
+        raw_to_post_display: diffPipelineMetrics(provider_raw, post_display_grouping),
         raw_to_sse: diffPipelineMetrics(provider_raw, sse_final),
         raw_to_db: diffPipelineMetrics(provider_raw, db_saved),
       },
@@ -539,34 +604,103 @@ export function capturePostprocessPipeline(opts: {
   };
 }
 
+export function evaluateCandidateLengthGate(
+  rows: Array<{ provider_raw_ws?: number; canonical_length_ws?: number }>,
+  baselineAvg: number
+): { pass: boolean; reason: string } {
+  const canonicals = rows.map((r) => r.provider_raw_ws ?? r.canonical_length_ws ?? 0);
+  const n = canonicals.length;
+  if (n < RP_DIAGNOSTIC_MIN_SCREENING_SAMPLES) {
+    return { pass: false, reason: "INSUFFICIENT_SAMPLE" };
+  }
+  const avg = n ? canonicals.reduce((a, b) => a + b, 0) / n : 0;
+  const lt2400 = canonicals.filter((c) => c < 2400).length;
+  if (avg < 2700) return { pass: false, reason: "canonical_avg_lt_2700" };
+  if (lt2400 > Math.ceil(n / 6)) return { pass: false, reason: "canonical_lt_2400" };
+  if (baselineAvg > 0 && (avg - baselineAvg) / baselineAvg < -0.15) {
+    return { pass: false, reason: "length_drop_gt_15pct" };
+  }
+  return { pass: true, reason: "PASS" };
+}
+
+export function evaluateScreeningEffect(
+  baseline: { manual_resume_per_1000?: number; manual_fragmentation?: number },
+  candidate: { manual_resume_per_1000?: number; manual_fragmentation?: number }
+): {
+  resume_delta_pct: number;
+  fragmentation_delta_pct: number;
+  effect_confirmed: boolean;
+  strong_effect: boolean;
+} {
+  const resumeBase = baseline.manual_resume_per_1000 ?? 0;
+  const fragBase = baseline.manual_fragmentation ?? 1;
+  const resumeDelta =
+    resumeBase === 0
+      ? 0
+      : ((candidate.manual_resume_per_1000 ?? 0) - resumeBase) / resumeBase;
+  const fragDelta =
+    fragBase === 0
+      ? 0
+      : ((candidate.manual_fragmentation ?? 0) - fragBase) / fragBase;
+  const resumePct = Math.round(resumeDelta * 1000) / 10;
+  const fragPct = Math.round(fragDelta * 1000) / 10;
+  const effectConfirmed = resumePct <= -25 && fragPct <= -25;
+  const strongEffect = resumePct <= -30 && fragPct <= -30;
+  return {
+    resume_delta_pct: resumePct,
+    fragmentation_delta_pct: fragPct,
+    effect_confirmed: effectConfirmed,
+    strong_effect: strongEffect,
+  };
+}
+
 export function judgePostprocessPrimary(
   capture: PostprocessPipelineCapture
 ): SampleVerdict | "POSTPROCESS_CREATES_FRAGMENTATION" | "POSTPROCESS_VISUAL_AMPLIFIER" | "POSTPROCESS_NOT_PRIMARY" {
   const raw = capture.metrics.provider_raw;
-  const postNorm = capture.metrics.post_normalize;
+  const postDisplay = capture.metrics.post_display_grouping;
   const sse = capture.metrics.sse_final;
-  const db = capture.metrics.db_saved;
 
-  if (postNorm.quote_pair_count > raw.quote_pair_count) {
+  if (postDisplay.raw_quote_blocks > raw.raw_quote_blocks) {
     return "POSTPROCESS_CREATES_FRAGMENTATION";
   }
-  if (postNorm.resume_transitions_auto > raw.resume_transitions_auto) {
+  if (postDisplay.manual_resume_transitions > raw.manual_resume_transitions) {
     return "POSTPROCESS_CREATES_FRAGMENTATION";
   }
   if (
-    sse.quote_pair_count === raw.quote_pair_count &&
-    sse.semantic_utterance_units_auto === raw.semantic_utterance_units_auto &&
-    sse.dialogue_paragraph_count > raw.dialogue_paragraph_count + 2
+    sse.raw_quote_blocks === raw.raw_quote_blocks &&
+    sse.manual_semantic_units === raw.manual_semantic_units &&
+    sse.paragraph_count < raw.paragraph_count - 2
   ) {
     return "POSTPROCESS_VISUAL_AMPLIFIER";
   }
   if (
-    db.quote_pair_count === raw.quote_pair_count &&
-    db.resume_transitions_auto === raw.resume_transitions_auto
+    sse.raw_quote_blocks === raw.raw_quote_blocks &&
+    sse.manual_resume_transitions === raw.manual_resume_transitions
   ) {
     return "POSTPROCESS_NOT_PRIMARY";
   }
   return "INSUFFICIENT_SAMPLE";
+}
+
+export function evaluateP0ParityGate(opts: {
+  p0Samples: Array<{ provider_raw_ws?: number; canonical_length_ws?: number }>;
+  baselineAvg: number;
+}): { pass: boolean; reason: string; avg_delta_pct: number } {
+  const canonicals = opts.p0Samples.map(
+    (r) => r.provider_raw_ws ?? r.canonical_length_ws ?? 0
+  );
+  const n = canonicals.length;
+  if (n < RP_DIAGNOSTIC_MIN_SCREENING_SAMPLES) {
+    return { pass: false, reason: "INSUFFICIENT_SAMPLE", avg_delta_pct: 0 };
+  }
+  const avg = canonicals.reduce((a, b) => a + b, 0) / n;
+  const avgDeltaPct =
+    opts.baselineAvg > 0 ? Math.round(((avg - opts.baselineAvg) / opts.baselineAvg) * 1000) / 10 : 0;
+  if (Math.abs(avgDeltaPct) > 15) {
+    return { pass: false, reason: "LENGTH_PARITY_DRIFT", avg_delta_pct: avgDeltaPct };
+  }
+  return { pass: true, reason: "PASS", avg_delta_pct: avgDeltaPct };
 }
 
 export type RpDiagnosticRunIntegrity = {

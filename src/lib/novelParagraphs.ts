@@ -1045,8 +1045,8 @@ export function stripEmptyQuoteParagraphs(text: string): string {
     .join("\n\n");
 }
 
-/** 저장·표시 직전 — 잘못된 대사 따옴표 제거 + 말줄임표 정리 + 지문 문단 정리 */
-export function normalizeAiNovelProseLayout(text: string, _opts?: { allowHtml?: boolean }): string {
+/** Pre-display normalization — prose cleanup without display paragraph grouping. */
+export function normalizeAiNovelProsePreDisplay(text: string): string {
   if (isDiagnosticParagraphNormalizeBypassed()) {
     return text.trimEnd();
   }
@@ -1058,8 +1058,18 @@ export function normalizeAiNovelProseLayout(text: string, _opts?: { allowHtml?: 
   body = fixCommonJapaneseLeaksInKoreanProse(body);
   body = collapseBlankLinesInsideDoubleQuotes(body);
   body = stripEmptyQuoteParagraphs(body);
-  body = groupNovelParagraphs(body).join("\n\n").trim();
   return body;
+}
+
+/** Display grouping stage only (may be bypassed for diagnostic canary). */
+export function applyDisplayParagraphGrouping(text: string): string {
+  return groupNovelParagraphs(text).join("\n\n").trim();
+}
+
+/** 저장·표시 직전 — 잘못된 대사 따옴표 제거 + 말줄임표 정리 + 지문 문단 정리 */
+export function normalizeAiNovelProseLayout(text: string, _opts?: { allowHtml?: boolean }): string {
+  const pre = normalizeAiNovelProsePreDisplay(text);
+  return applyDisplayParagraphGrouping(pre);
 }
 
 /**

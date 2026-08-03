@@ -100,7 +100,8 @@ import {
 import {
   COMMON_LAYOUT_MINIMAL_OWNER,
   COMMON_LENGTH_OWNER_MINIMAL,
-  rpDiagnosticDisablesDeepSeekExtras,
+  rpDiagnosticDisablesDeepSeekStyleExtras,
+  resolveDeepSeekExtrasMode,
   rpDiagnosticRemovesSceneDirective,
   rpDiagnosticUsesDialogueReferenceScope,
   rpDiagnosticUsesFlashLengthStack,
@@ -252,12 +253,14 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const dynamicParts: string[] = [];
   const trackedSections: TrackedPromptSection[] = [];
   let usedTokens = 0;
+  const deepSeekExtrasMode = resolveDeepSeekExtrasMode(input.rpDiagnosticCanary?.variant);
   const deepSeekXmlMode =
-    isDeepSeekV4ProModel(input.modelId ?? "") &&
-    !rpDiagnosticDisablesDeepSeekExtras(input.rpDiagnosticCanary?.variant ?? "baseline");
+    isDeepSeekV4ProModel(input.modelId ?? "") && deepSeekExtrasMode === "full";
+  const deepSeekLengthStackOnly =
+    isDeepSeekV4ProModel(input.modelId ?? "") && deepSeekExtrasMode === "length_stack_only";
   const deepSeekAppearanceRuleMode =
     isDeepSeekModel(input.modelId ?? "") &&
-    !rpDiagnosticDisablesDeepSeekExtras(input.rpDiagnosticCanary?.variant ?? "baseline");
+    !rpDiagnosticDisablesDeepSeekStyleExtras(input.rpDiagnosticCanary?.variant ?? "baseline");
   const deepSeekXmlBuffers = deepSeekXmlMode ? createDeepSeekXmlBuffers() : null;
   const memoryFeatureOn = isMemoryFeatureEnabled();
 
@@ -1336,6 +1339,16 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       userBodyWithOpening,
       deepSeekUserExtras || null
     );
+  } else if (deepSeekLengthStackOnly) {
+    const lengthStack = [
+      resolveDeepSeekShortHistoryLengthExtra(input.shortTermHistory),
+      resolveDeepSeekShortUserTurnExtra(input.currentUserMessage),
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+    if (lengthStack) {
+      userTurnContent = `${userTurnContent.trimEnd()}\n\n${lengthStack}`;
+    }
   }
   if (input.assetTags && input.assetTags.length > 0) {
     const emotionOverlay = buildFlashOwnedEmotionTagUserOverlay(input.assetTags);

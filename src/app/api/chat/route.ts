@@ -166,11 +166,17 @@ import {
   resolveRpDiagnosticCanary,
   resolveRpDiagnosticProgressionAxis,
   rpDiagnosticBypassParagraphNormalize,
+  rpDiagnosticBypassDisplayGrouping,
+  rpDiagnosticEnablesPipelineCapture,
   shouldRelocateRpDiagnosticSceneDirective,
   type RpDiagnosticCanaryResolution,
 } from "@/lib/rpDiagnosticCanary";
 import { runWithDiagnosticContext } from "@/lib/diagnosticRequestContext";
-import { normalizeAiNovelProseLayout } from "@/lib/novelParagraphs";
+import {
+  normalizeAiNovelProseLayout,
+  normalizeAiNovelProsePreDisplay,
+  applyDisplayParagraphGrouping,
+} from "@/lib/novelParagraphs";
 import { TERRA_TERMINAL_LENGTH_OWNER_CONTRACT } from "@/lib/terraTerminalLengthOwner";
 import {
   buildSceneDirectiveV2,
@@ -4781,16 +4787,23 @@ export async function POST(req: Request) {
           });
         }
 
-        if (rpDiagnosticCanary) {
-          const preNormalize = sanitizeStreamArtifacts(rawStreamTextRef || fullText);
+        if (rpDiagnosticCanary && rpDiagnosticEnablesPipelineCapture(rpDiagnosticCanary.variant)) {
+          const providerRawMerged = rawStreamTextRef || fullText;
+          const preNormalize = sanitizeStreamArtifacts(providerRawMerged);
           const bypassNormalize = rpDiagnosticBypassParagraphNormalize(rpDiagnosticCanary.variant);
-          const postNormalize = bypassNormalize
+          const preDisplayGrouping = bypassNormalize
             ? preNormalize
-            : normalizeAiNovelProseLayout(preNormalize);
+            : normalizeAiNovelProsePreDisplay(preNormalize);
+          const postDisplayGrouping = bypassNormalize
+            ? preDisplayGrouping
+            : applyDisplayParagraphGrouping(preDisplayGrouping);
+          const postNormalize = postDisplayGrouping;
           const pipelineCapture = capturePostprocessPipeline({
-            providerRawMerged: rawStreamTextRef || fullText,
+            providerRawMerged,
             preNormalize,
             postNormalize,
+            preDisplayGrouping,
+            postDisplayGrouping,
             sseFinal: savedText,
             dbSaved: savedText,
           });
@@ -4813,6 +4826,14 @@ export async function POST(req: Request) {
             variant: rpDiagnosticCanary.variant,
             integrity,
             metrics: pipelineCapture.metrics,
+            pipeline: {
+              provider_raw_merged: pipelineCapture.provider_raw_merged,
+              pre_normalize: pipelineCapture.pre_normalize,
+              pre_display_grouping: pipelineCapture.pre_display_grouping,
+              post_display_grouping: pipelineCapture.post_display_grouping,
+              sse_final: pipelineCapture.sse_final,
+              db_saved: pipelineCapture.db_saved,
+            },
           });
           logRpDiagnosticCanaryDebug({
             requestId: clientRequestId,
@@ -4986,7 +5007,7 @@ export async function POST(req: Request) {
             bypassParagraphNormalize: rpDiagnosticBypassParagraphNormalize(
               rpDiagnosticCanary.variant
             ),
-            bypassDisplayParagraphGrouping: rpDiagnosticBypassParagraphNormalize(
+            bypassDisplayParagraphGrouping: rpDiagnosticBypassDisplayGrouping(
               rpDiagnosticCanary.variant
             ),
           },
