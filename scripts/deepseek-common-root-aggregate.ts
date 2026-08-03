@@ -15,6 +15,7 @@ const ROOT =
 
 type TurnMetric = {
   canonical_length_ws?: number;
+  provider_raw_ws?: number;
   visible_canonical_length?: number;
   invalid?: boolean;
   invalid_reason?: string;
@@ -69,7 +70,9 @@ function aggregate(rows: TurnMetric[]) {
   const valid = rows.filter((r) => !r.invalid);
   if (valid.length === 0) return null;
 
-  const canonicals = valid.map((r) => r.visible_canonical_length ?? r.canonical_length_ws ?? 0);
+  const canonicals = valid.map(
+    (r) => r.provider_raw_ws ?? r.visible_canonical_length ?? r.canonical_length_ws ?? 0
+  );
   const lengthGate = evaluateLengthGate(valid);
   const outputTokens = valid
     .map((r) => r.api?.output_tokens)
@@ -171,7 +174,8 @@ function main() {
   }
 
   const variants: Record<string, string> = {
-    d0: "02-ds-real-production",
+    flash_d0: "02-ds-real-production",
+    pro_d0: "02-ds-pro-real-production",
     length_baseline: "02-ds-length-normalized-baseline",
     p0: "01-postprocess/ds_postprocess_baseline",
     p1: "01-postprocess/ds_paragraph_normalize_bypass",
@@ -185,29 +189,34 @@ function main() {
   }
 
   const lengthBaseline = loaded.length_baseline;
+  const proBaseline = loaded.pro_d0;
   const auditPermission =
-    lengthBaseline?.length_gate_pass && (lengthBaseline.n ?? 0) >= 6
-      ? "FULL_COMMON_ROOT_MATRIX_ALLOWED"
-      : d0Reaudit?.audit_permission ?? "LENGTH_BASELINE_NOT_READY";
+    proBaseline?.length_gate_pass && (proBaseline.n ?? 0) >= 6
+      ? "PRO_BASELINE_LENGTH_GATE_PASS"
+      : lengthBaseline?.length_gate_pass && (lengthBaseline.n ?? 0) >= 6
+        ? "FULL_COMMON_ROOT_MATRIX_ALLOWED"
+        : d0Reaudit?.audit_permission ?? "LENGTH_BASELINE_NOT_READY";
 
   const out = {
     generated_at: new Date().toISOString(),
     min_screening_samples: RP_DIAGNOSTIC_MIN_SCREENING_SAMPLES,
     min_final_samples: RP_DIAGNOSTIC_MIN_FINAL_SAMPLES,
-    d0_reaudit_status: d0Reaudit?.d0_status ?? "UNKNOWN",
-    d0_previous_verdict_valid: false,
+    flash_d0_status: "SHORT_OUTPUT_SMOKE_ONLY",
+    flash_matrix_status: "ON_HOLD",
+    diagnostic_model: "deepseek-v4-pro",
     audit_permission: auditPermission,
-    length_diagnosis: process.env.LENGTH_DIAGNOSIS ?? "FLASH_EARLY_STOP_DESPITE_OWNER",
+    d0_reaudit_status: d0Reaudit?.d0_status ?? "SHORT_OUTPUT_SMOKE_ONLY",
+    d0_previous_verdict_valid: false,
     variants: loaded,
     screening: {
       postprocess_bypass: {
-        verdict: screeningVerdict(loaded.length_baseline ?? loaded.d0, loaded.p1),
+        verdict: screeningVerdict(proBaseline ?? loaded.flash_d0, loaded.p1),
       },
       dialogue_control: {
-        verdict: screeningVerdict(loaded.length_baseline ?? loaded.d0, loaded.d1),
+        verdict: screeningVerdict(proBaseline ?? loaded.flash_d0, loaded.d1),
       },
       common_only: {
-        verdict: screeningVerdict(loaded.length_baseline ?? loaded.d0, loaded.d2),
+        verdict: screeningVerdict(proBaseline ?? loaded.flash_d0, loaded.d2),
       },
     },
     verdict_order: [

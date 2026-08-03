@@ -1,16 +1,19 @@
 /**
- * DeepSeek V4 Flash common-root audit harness (production main-home).
+ * DeepSeek common-root audit harness (production main-home).
+ *
+ * Diagnostic model default: deepseek-v4-pro (override via MODEL_UI env).
  *
  * Env:
  *   PROD_BASE, PROD_COOKIE_FILE, VARIANT_LABEL, OUT_DIR, ART_DIR
  *   RUNS (default 3), MAX_TURNS (default 2), EXPECTED_VARIANT (server env)
- *   CHARACTER_ID (default 18), PERSONA_NAME (default 렌)
+ *   MODEL_UI (default deepseek-v4-pro), CHARACTER_ID, PERSONA_NAME
  */
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { computeDialogueMetrics } from "../src/lib/dialogueMetrics";
 import { visibleAssistantDisplayCharCount } from "../src/lib/chatDisplayLength";
+import { evaluateLengthGate } from "../src/lib/rpDiagnosticCanary";
 
 const BASE = process.env.PROD_BASE ?? "https://chat-ai-production-3e84.up.railway.app";
 const COOKIE_FILE = process.env.PROD_COOKIE_FILE ?? "/tmp/terra_axis_cookies.txt";
@@ -25,7 +28,7 @@ const OUT_ROOT =
   process.env.OUT_DIR ??
   `/opt/cursor/artifacts/deepseek-common-root-audit/01-postprocess/${VARIANT_LABEL}`;
 const ART_ROOT = process.env.ART_DIR ?? OUT_ROOT;
-const MODEL_UI = "deepseek-v4-flash";
+const MODEL_UI = process.env.MODEL_UI ?? "deepseek-v4-pro";
 
 const TURNS = [
   "나는 렌이라고 부르면 돼....나는 본기억이 안나는데....나 알아?(갸웃)",
@@ -270,9 +273,10 @@ async function resolvePersonaId(token: string): Promise<{ id: number; name: stri
 }
 
 async function fetchDbAssistant(chatId: number, token: string, turn: number): Promise<string> {
-  const res = await fetch(`${BASE}/api/chats/${chatId}/messages`, {
-    headers: { Cookie: `session=${token}` },
-  });
+  const res = await fetch(
+    `${BASE}/api/chat/messages?chatId=${chatId}&turnLimit=${Math.max(turn + 2, 8)}`,
+    { headers: { Cookie: `session=${token}` } }
+  );
   if (!res.ok) return "";
   const data = (await res.json()) as {
     messages?: Array<{ role: string; content: string; model?: string }>;
@@ -280,6 +284,24 @@ async function fetchDbAssistant(chatId: number, token: string, turn: number): Pr
   const assistants = (data.messages ?? []).filter((m) => m.role === "assistant" && m.model !== "greeting");
   const msg = assistants[turn - 1];
   return msg?.content ?? assistants[assistants.length - 1]?.content ?? "";
+}
+
+function loadRunMetricsFromDisk(runDir: string): unknown[] {
+  const metrics: unknown[] = [];
+  for (let t = 1; t <= MAX_TURNS; t++) {
+    const p = join(runDir, `turn${t}-metrics.json`);
+    if (!existsSync(p)) continue;
+    metrics.push(JSON.parse(readFileSync(p, "utf8")) as unknown);
+  }
+  return metrics;
+}
+
+function collectAllRunMetrics(outRoot: string, runs: number): unknown[] {
+  const flat: unknown[] = [];
+  for (let r = 1; r <= runs; r++) {
+    flat.push(...loadRunMetricsFromDisk(join(outRoot, `run${r}`)));
+  }
+  return flat;
 }
 
 async function main() {
@@ -400,9 +422,16 @@ async function main() {
         (typeof doneUsage?.finishReason === "string" ? doneUsage.finishReason : null);
 
       const payload = {
-        ...finalMetrics,
+        ...rawMetrics,
+        metrics_source: "provider_raw",
+        provider_raw_ws: rawMetrics.canonical_length_ws,
+        sse_final_ws: finalMetrics.canonical_length_ws,
+        db_saved_ws: dbSaved.length,
         visible_canonical_length: visibleAssistantDisplayCharCount(resp.final_text || resp.provider_raw),
-        auto_provider: rawMetrics,
+        display_metrics: {
+          ...finalMetrics,
+          note: "display/SSE — not used for fragmentation root-cause verdict",
+        },
         invalid: invalidReasons.length > 0,
         invalid_reason: invalidReasons.join("; ") || undefined,
         integrity,
@@ -436,11 +465,12 @@ async function main() {
       runMetrics.push(payload);
       console.log("turn", {
         turn,
-        len: finalMetrics.canonical_length_ws,
-        quotes: finalMetrics.quote_pair_count,
-        frag: finalMetrics.fragmentation_multiplier_auto,
-        resume: finalMetrics.resume_transitions_auto,
-        npc: finalMetrics.npc_subplot,
+        raw_len: rawMetrics.canonical_length_ws,
+        quotes_raw: rawMetrics.quote_pair_count,
+        frag_raw: rawMetrics.fragmentation_multiplier_auto,
+        resume_raw: rawMetrics.resume_transitions_auto,
+        finish: finishReason,
+        npc: rawMetrics.npc_subplot,
         invalid: invalidReasons.length > 0,
       });
     }
@@ -449,8 +479,28 @@ async function main() {
     if (run < RUNS) await new Promise((r) => setTimeout(r, 3000));
   }
 
+  const flatMetrics = collectAllRunMetrics(OUT_ROOT, RUNS) as Array<{
+    provider_raw_ws?: number;
+    canonical_length_ws?: number;
+    api?: { finish_reason?: string; length_recovery_passes?: number; retry_count?: number };
+  }>;
+  const lengthGate = evaluateLengthGate(flatMetrics);
+  const gateSummary = {
+    variant: VARIANT_LABEL,
+    model: MODEL_UI,
+    diagnostic_model: "deepseek-v4-pro",
+    flash_matrix_status: "ON_HOLD",
+    flash_d0_status: "SHORT_OUTPUT_SMOKE_ONLY",
+    length_gate: lengthGate,
+    audit_permission: lengthGate.pass
+      ? "PRO_BASELINE_LENGTH_GATE_PASS"
+      : "LENGTH_BASELINE_NOT_READY",
+  };
+  save(OUT_ROOT, "length_gate.json", gateSummary);
+  save(join(OUT_ROOT, "..", "..", "00-integrity"), `${VARIANT_LABEL}-length_gate.json`, gateSummary);
+
   save(OUT_ROOT, "all_runs.json", allRows);
-  console.log("done", VARIANT_LABEL, "runs", allRows.length);
+  console.log("done", VARIANT_LABEL, "length_gate", lengthGate);
 }
 
 main().catch((e) => {

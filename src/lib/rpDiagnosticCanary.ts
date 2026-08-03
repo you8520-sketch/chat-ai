@@ -2,10 +2,13 @@
  * Model-neutral RP diagnostic canary (default OFF, fail-closed).
  *
  * Separate from TERRA_PROMPT_CANARY_* — used for cross-model root-cause audits
- * (DeepSeek V4 Flash primary diagnostic model).
+ * (DeepSeek V4 Pro primary diagnostic model; Flash retained for cross-check only).
  */
 
-import { isCheaperInferenceDeepSeekV4FlashModel } from "@/lib/chatModels";
+import {
+  isCheaperInferenceDeepSeekV4FlashModel,
+  isCheaperInferenceDeepSeekV4ProModel,
+} from "@/lib/chatModels";
 import { resolveRpSceneCastMode } from "@/lib/terraTerminalLengthOwner";
 import type { ContentKind } from "@/lib/simulationMode";
 import {
@@ -63,7 +66,8 @@ export const RP_DIAGNOSTIC_CANARY_VARIANTS = [
 
 export type RpDiagnosticCanaryVariant = (typeof RP_DIAGNOSTIC_CANARY_VARIANTS)[number];
 
-export const RP_DIAGNOSTIC_MIN_SCREENING_SAMPLES = 6;
+export const RP_DIAGNOSTIC_MIN_SCREENING_SAMPLES = 4;
+export const RP_DIAGNOSTIC_BASELINE_LENGTH_SAMPLES = 6;
 export const RP_DIAGNOSTIC_MIN_FINAL_SAMPLES = 12;
 
 export type SampleVerdict =
@@ -115,6 +119,11 @@ export type RpDiagnosticCanaryResolution = {
   sceneMode: "single_primary";
 };
 
+function isRpDiagnosticTargetModel(modelId: string): boolean {
+  const id = modelId.trim().toLowerCase();
+  return isCheaperInferenceDeepSeekV4ProModel(id) || isCheaperInferenceDeepSeekV4FlashModel(id);
+}
+
 export function resolveRpDiagnosticCanary(opts: {
   userId: number | null | undefined;
   modelId?: string | null | undefined;
@@ -133,7 +142,7 @@ export function resolveRpDiagnosticCanary(opts: {
   const modelId = (opts.modelId ?? "").trim().toLowerCase();
   if (!modelId) return null;
   if (models.length > 0 && !models.includes(modelId)) return null;
-  if (models.length === 0 && !isCheaperInferenceDeepSeekV4FlashModel(modelId)) return null;
+  if (models.length === 0 && !isCheaperInferenceDeepSeekV4ProModel(modelId)) return null;
 
   if (resolveRpSceneCastMode(opts.contentKind) !== "single_primary") return null;
 
@@ -215,7 +224,15 @@ export function evaluateLengthGate(
     canonical_length_ws?: number;
     visible_canonical_length?: number;
     final_ws?: number;
-  }>
+    provider_raw_ws?: number;
+    api?: {
+      finish_reason?: string;
+      finishReason?: string;
+      length_recovery_passes?: number;
+      retry_count?: number;
+    };
+  }>,
+  opts?: { requireStopFinish?: boolean }
 ): {
   pass: boolean;
   reason: string;
@@ -233,7 +250,12 @@ export function evaluateLengthGate(
   };
 } {
   const canonicals = rows.map(
-    (r) => r.visible_canonical_length ?? r.canonical_length_ws ?? r.final_ws ?? 0
+    (r) =>
+      r.provider_raw_ws ??
+      r.visible_canonical_length ??
+      r.canonical_length_ws ??
+      r.final_ws ??
+      0
   );
   const n = canonicals.length;
   const avg = n ? Math.round(canonicals.reduce((a, b) => a + b, 0) / n) : 0;
@@ -251,10 +273,23 @@ export function evaluateLengthGate(
     count_lt_1000: canonicals.filter((c) => c < 1000).length,
     n,
   };
-  if (n < 6) return { pass: false, reason: "INSUFFICIENT_SAMPLE", stats };
+  if (n < RP_DIAGNOSTIC_BASELINE_LENGTH_SAMPLES) {
+    return { pass: false, reason: "INSUFFICIENT_SAMPLE", stats };
+  }
   if (stats.count_lt_2400 > 0) return { pass: false, reason: "canonical_lt_2400", stats };
   if (stats.count_ge_2700 < 5) return { pass: false, reason: "count_ge_2700_lt_5", stats };
   if (stats.canonical_avg < 3000) return { pass: false, reason: "canonical_avg_lt_3000", stats };
+  if (opts?.requireStopFinish !== false) {
+    const badFinish = rows.filter((r) => {
+      const fr = (r.api?.finish_reason ?? r.api?.finishReason ?? "").toLowerCase();
+      return fr && fr !== "stop" && fr !== "end_turn";
+    }).length;
+    if (badFinish > 0) return { pass: false, reason: "finish_reason_not_stop", stats };
+    const recovery = rows.filter((r) => (r.api?.length_recovery_passes ?? 0) > 0).length;
+    if (recovery > 0) return { pass: false, reason: "length_recovery_nonzero", stats };
+    const retry = rows.filter((r) => (r.api?.retry_count ?? 0) > 0).length;
+    if (retry > 0) return { pass: false, reason: "retry_nonzero", stats };
+  }
   return { pass: true, reason: "PASS", stats };
 }
 
