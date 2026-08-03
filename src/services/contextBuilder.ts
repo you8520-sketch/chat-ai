@@ -97,7 +97,23 @@ import {
   resolveCanaryTerraTerminalContract,
   TERRA_DIALOGUE_INTENT_ADAPTER_SENTENCE,
 } from "@/lib/terraPromptCanary";
+import {
+  COMMON_LAYOUT_MINIMAL_OWNER,
+  COMMON_LENGTH_OWNER_MINIMAL,
+  rpDiagnosticDisablesDeepSeekStyleExtras,
+  resolveDeepSeekExtrasMode,
+  rpDiagnosticRemovesSceneDirective,
+  rpDiagnosticUsesDialogueReferenceScope,
+  rpDiagnosticUsesFlashLengthStack,
+  rpDiagnosticUsesMinimalLayout,
+  rpDiagnosticUsesMinimalLengthOwner,
+  rpDiagnosticUsesMinimalRpStyle,
+} from "@/lib/rpDiagnosticCanary";
 import type { CharacterChunk, GeminiContextSplit } from "@/types";
+import {
+  isDiagnosticDisplayParagraphGroupingBypassed,
+  isDiagnosticParagraphNormalizeBypassed,
+} from "@/lib/diagnosticRequestContext";
 import {
   type BuiltContext,
   type ContextBuildInput,
@@ -135,7 +151,7 @@ import {
 import { isTerraTerminalLengthOwnerActive } from "@/lib/sharedNovelProseModelAdapters";
 import type { OpenRouterSystemSplit } from "@/lib/openRouterCache";
 import { estimateOpenRouterCacheableTokens, buildOpenRouterDynamicLoreUserPrefix, HISTORY_CACHE_TAIL_EXCLUDE_MESSAGES } from "@/lib/openRouterCache";
-import { isDeepSeekModel, isDeepSeekV4ProModel, isQwenModel } from "@/lib/chatModels";
+import { isCheaperInferenceDeepSeekV4FlashModel, isDeepSeekModel, isDeepSeekV4ProModel, isQwenModel } from "@/lib/chatModels";
 import { DEEPSEEK_APPEARANCE_VARIATION_RULE } from "@/lib/appearanceCompiler";
 import { buildCoNarrationKoreanRule } from "@/lib/openRouterAdult";
 import { buildOpenRouterKoreanProseTopBlock } from "@/lib/openRouterProsePolicy";
@@ -237,8 +253,14 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const dynamicParts: string[] = [];
   const trackedSections: TrackedPromptSection[] = [];
   let usedTokens = 0;
-  const deepSeekXmlMode = isDeepSeekV4ProModel(input.modelId ?? "");
-  const deepSeekAppearanceRuleMode = isDeepSeekModel(input.modelId ?? "");
+  const deepSeekExtrasMode = resolveDeepSeekExtrasMode(input.rpDiagnosticCanary?.variant);
+  const deepSeekXmlMode =
+    isDeepSeekV4ProModel(input.modelId ?? "") && deepSeekExtrasMode === "full";
+  const deepSeekLengthStackOnly =
+    isDeepSeekV4ProModel(input.modelId ?? "") && deepSeekExtrasMode === "length_stack_only";
+  const deepSeekAppearanceRuleMode =
+    isDeepSeekModel(input.modelId ?? "") &&
+    !rpDiagnosticDisablesDeepSeekStyleExtras(input.rpDiagnosticCanary?.variant ?? "baseline");
   const deepSeekXmlBuffers = deepSeekXmlMode ? createDeepSeekXmlBuffers() : null;
   const memoryFeatureOn = isMemoryFeatureEnabled();
 
@@ -317,9 +339,12 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     userMessage: input.currentUserMessage,
     recentHistory: recentHistoryText,
   });
+  const rpVariant = input.rpDiagnosticCanary?.variant;
   const characterSettingText = injectDialogueReferenceScopeForCanary(
     injectExampleDialogStyleOnlyNote(characterSettingTextFiltered),
-    input.terraPromptCanary?.variant
+    rpVariant && rpDiagnosticUsesDialogueReferenceScope(rpVariant)
+      ? "dialogue_reference_scope"
+      : input.terraPromptCanary?.variant
   );
 
   let effectiveExampleDialog = input.exampleDialog ?? "";
@@ -806,9 +831,14 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   };
 
   const pushSceneDirective = () => {
-    // Relationship-axis canary relocates SceneDirective to the user-turn tail
-    // (before Terra length owner) so the confirmed focus sits next to the user input.
+    if (
+      rpVariant &&
+      rpDiagnosticRemovesSceneDirective(rpVariant)
+    ) {
+      return;
+    }
     if (input.terraPromptCanary?.relocateSceneDirectiveToUserTurn) return;
+    if (input.rpDiagnosticCanary?.relocateSceneDirectiveToUserTurn) return;
     if (!sceneDirectiveBlock) return;
     pushSection(
       "scene-directive",
@@ -844,8 +874,10 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     charName: input.charName,
     genres: input.genres,
   });
+  const skipNarrativeStyleForRpDiagnostic =
+    rpVariant != null && rpDiagnosticUsesMinimalRpStyle(rpVariant);
   let narrativeStylePushedEarly = false;
-  if (isRegisterPatch("C") && narrativeStyleBlock.trim()) {
+  if (isRegisterPatch("C") && narrativeStyleBlock.trim() && !skipNarrativeStyleForRpDiagnostic) {
     pushSection(
       "narrative-style",
       "[7] Style Mode",
@@ -961,7 +993,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   }
 
   // ───── [7] Style Mode ─────
-  if (!narrativeStylePushedEarly && narrativeStyleBlock.trim()) {
+  if (!narrativeStylePushedEarly && narrativeStyleBlock.trim() && !skipNarrativeStyleForRpDiagnostic) {
     pushSection(
       "narrative-style",
       "[7] Style Mode",
@@ -1045,10 +1077,12 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     "rule-output-layout-recency",
     "Output layout recency (Korean webnovel paragraph breaks)",
     "systemRules",
-    buildWebnovelOutputLayoutRecencyBlock({
-      dialogueIntentUnit:
-        input.terraPromptCanary?.variant === "dialogue_intent_unit",
-    }),
+    rpVariant && rpDiagnosticUsesMinimalLayout(rpVariant)
+      ? COMMON_LAYOUT_MINIMAL_OWNER
+      : buildWebnovelOutputLayoutRecencyBlock({
+          dialogueIntentUnit:
+            input.terraPromptCanary?.variant === "dialogue_intent_unit",
+        }),
     "dynamic"
   );
 
@@ -1196,6 +1230,23 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     userTurnContent = `${openRouterDynamicLorePrefix}\n\n${userTurnContent}`;
   }
 
+  // RP diagnostic — Flash length stack (Pro-verified short-history / short-user extras only).
+  if (
+    rpVariant &&
+    rpDiagnosticUsesFlashLengthStack(rpVariant) &&
+    isCheaperInferenceDeepSeekV4FlashModel(input.modelId ?? "")
+  ) {
+    const flashLengthExtras = [
+      resolveDeepSeekShortHistoryLengthExtra(input.shortTermHistory),
+      resolveDeepSeekShortUserTurnExtra(input.currentUserMessage),
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+    if (flashLengthExtras) {
+      userTurnContent = `${userTurnContent.trimEnd()}\n\n${flashLengthExtras}`;
+    }
+  }
+
   /**
    * DeepSeek + thin only: creator greeting (turn0 `[채팅 시작]`+assistant) leaves
    * conversational assistant history and becomes continuity context — length exemplar off.
@@ -1288,6 +1339,16 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       userBodyWithOpening,
       deepSeekUserExtras || null
     );
+  } else if (deepSeekLengthStackOnly) {
+    const lengthStack = [
+      resolveDeepSeekShortHistoryLengthExtra(input.shortTermHistory),
+      resolveDeepSeekShortUserTurnExtra(input.currentUserMessage),
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+    if (lengthStack) {
+      userTurnContent = `${userTurnContent.trimEnd()}\n\n${lengthStack}`;
+    }
   }
   if (input.assetTags && input.assetTags.length > 0) {
     const emotionOverlay = buildFlashOwnedEmotionTagUserOverlay(input.assetTags);
@@ -1301,6 +1362,12 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   ) {
     // Order: user input → confirmed SceneDirective focus → Terra length owner.
     userTurnContent = `${userTurnContent.trimEnd()}\n\n${input.terraPromptCanary.sceneDirectiveUserTail.trim()}`;
+  }
+  if (
+    input.rpDiagnosticCanary?.relocateSceneDirectiveToUserTurn &&
+    input.rpDiagnosticCanary.sceneDirectiveUserTail?.trim()
+  ) {
+    userTurnContent = `${userTurnContent.trimEnd()}\n\n${input.rpDiagnosticCanary.sceneDirectiveUserTail.trim()}`;
   }
   if (
     terraTerminalLengthOwner &&
@@ -1329,6 +1396,9 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
         party: input.party,
       }
     );
+    if (rpVariant && rpDiagnosticUsesMinimalLengthOwner(rpVariant)) {
+      userTurnContent = `${userTurnContent.trimEnd()}\n\n${COMMON_LENGTH_OWNER_MINIMAL}`;
+    }
   }
   const estimatePayloadTokens = (hist: ContextBuildInput["shortTermHistory"]) =>
     estimateTokens(

@@ -156,6 +156,41 @@ export type ContextBuildInput = {
     relocateSceneDirectiveToUserTurn?: boolean;
     sceneDirectiveUserTail?: string | null;
   } | null;
+  /**
+   * Model-neutral RP diagnostic canary (DeepSeek V4 Flash audit).
+   * Server env only — no client variant selection.
+   */
+  rpDiagnosticCanary?: {
+    variant:
+      | "baseline"
+      | "ds_pipeline_baseline"
+      | "ds_postprocess_baseline"
+      | "ds_paragraph_normalize_bypass"
+      | "ds_display_grouping_bypass"
+      | "ds_real_production"
+      | "ds_dialogue_control"
+      | "ds_common_only"
+      | "ds_common_only_length_probe"
+      | "common_greeting_split_vs_bundled"
+      | "common_creator_dialogue_scope"
+      | "common_layout_minimal"
+      | "common_length_owner_minimal"
+      | "common_scene_directive_removed"
+      | "common_rp_style_minimal"
+      | "deepseek_final"
+      | "terra_cross_check"
+      | "ds_length_normalized_baseline";
+    progressionAxis?:
+      | "relationship"
+      | "investigation"
+      | "environment"
+      | "external_event"
+      | "combat"
+      | "multi_character"
+      | null;
+    relocateSceneDirectiveToUserTurn?: boolean;
+    sceneDirectiveUserTail?: string | null;
+  } | null;
   /** 플랫폼 전역 로어북 — Depth 0 tail (트리거 매칭 시) */
   globalLorebookBlock?: string | null;
   /** chat_turn_summaries 최신 N개 — [RECENT NARRATIVE CONTEXT] (read-only, not character profile) */
