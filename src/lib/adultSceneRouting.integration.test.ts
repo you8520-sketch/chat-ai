@@ -1,0 +1,270 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import {
+  buildGeneralProviderContext,
+  createInitialStreamBuffer,
+  detectModelRefusal,
+  assertAdultHandoffRawSuperset,
+  selectAdultHandoffRawVariants,
+  type CanonicalRouteHistoryMessage,
+} from "./adultSceneRouting";
+import {
+  classifyAdultSceneHardFailure,
+  shouldFallbackToGlm,
+  type AdultSceneModelPolicyConfig,
+} from "./adultSceneModelPolicy";
+import { TurnApiBudget } from "./turnApiBudget";
+
+type MockProviderResult = {
+  text: string;
+  finishReason?: string;
+  costUsd: number;
+  emits?: string[];
+};
+
+async function runMockProviderFallback(input: {
+  primary: MockProviderResult;
+  fallback: MockProviderResult;
+  bufferChars: number;
+  eligible?: boolean;
+}) {
+  const sent: object[] = [];
+  const gate = createInitialStreamBuffer((event) => sent.push(event), input.bufferChars);
+  let fallbackAttempts = 0;
+  let fallbackSucceeded = false;
+  let userChargeCount = 0;
+  let hiddenFallbackOverheadCostUsd = 0;
+  let final = input.primary;
+
+  for (const text of input.primary.emits ?? [input.primary.text]) {
+    gate.send({ type: "delta", text });
+  }
+  const refusal = detectModelRefusal({
+    text: input.primary.text,
+    finishReason: input.primary.finishReason,
+  });
+  const canFallback =
+    input.eligible !== false &&
+    refusal.refused &&
+    !gate.hasVisibleTokens() &&
+    fallbackAttempts === 0;
+  if (canFallback) {
+    fallbackAttempts += 1;
+    hiddenFallbackOverheadCostUsd = input.primary.costUsd;
+    gate.discard();
+    final = input.fallback;
+    fallbackSucceeded = true;
+  } else {
+    gate.flush();
+  }
+  if (final.text.trim()) userChargeCount += 1;
+  return {
+    sent,
+    final,
+    fallbackAttempts,
+    fallbackSucceeded,
+    userChargeCount,
+    hiddenFallbackOverheadCostUsd,
+    totalUpstreamCostUsd:
+      final.costUsd + hiddenFallbackOverheadCostUsd,
+  };
+}
+
+describe("adult handoff provider-mock integration", () => {
+  it("uses GLM once for an Aion hard failure, then saves and charges only the delivered result", () => {
+    const config: AdultSceneModelPolicyConfig = {
+      aionPrimaryEnabled: true,
+      glmHardFailureFallbackEnabled: true,
+      adminOnly: true,
+    };
+    const budget = new TurnApiBudget();
+    const savedAssistantMessages: string[] = [];
+    let pointChargeCount = 0;
+
+    budget.beforeFetch("cheaperinference-primary-stream");
+    const reason = classifyAdultSceneHardFailure({ status: 503 });
+    assert.equal(shouldFallbackToGlm({
+      config,
+      isAdmin: true,
+      reason,
+      fallbackAttemptCount: 0,
+    }), true);
+    budget.beforeFetch("adult-aion-hard-failure-fallback");
+
+    const glmDeliveredText = "GLM이 동일한 장면을 이어 쓴 최종 응답";
+    savedAssistantMessages.push(glmDeliveredText);
+    pointChargeCount += 1;
+
+    assert.deepEqual(savedAssistantMessages, [glmDeliveredText]);
+    assert.equal(pointChargeCount, 1);
+    assert.throws(
+      () => budget.beforeFetch("adult-aion-hard-failure-fallback"),
+      /Max internal API calls exceeded/
+    );
+  });
+
+  it("keeps a short usable Aion response without invoking GLM", () => {
+    const config: AdultSceneModelPolicyConfig = {
+      aionPrimaryEnabled: true,
+      glmHardFailureFallbackEnabled: true,
+      adminOnly: true,
+    };
+    const reason = classifyAdultSceneHardFailure({
+      text: "짧지만 정상적으로 끝난 Aion 응답",
+      finishReason: "length",
+    });
+    assert.equal(reason, null);
+    assert.equal(shouldFallbackToGlm({
+      config,
+      isAdmin: true,
+      reason,
+      fallbackAttemptCount: 0,
+    }), false);
+  });
+
+  it("detects a provider refusal and silently falls back before visible text", async () => {
+    const result = await runMockProviderFallback({
+      primary: {
+        text: "요청에 응할 수 없습니다.",
+        finishReason: "stop",
+        costUsd: 0.003,
+      },
+      fallback: { text: "장면의 다음 순간이 이어졌다.", costUsd: 0.005 },
+      bufferChars: 400,
+    });
+    assert.equal(result.fallbackAttempts, 1);
+    assert.equal(result.fallbackSucceeded, true);
+    assert.equal(result.sent.length, 0);
+    assert.equal(result.final.text, "장면의 다음 순간이 이어졌다.");
+  });
+
+  it("never silently replaces output after the buffer became visible", async () => {
+    const result = await runMockProviderFallback({
+      primary: {
+        text: "요청에 응할 수 없습니다.",
+        costUsd: 0.003,
+        emits: ["이미 사용자에게 전달된 400자 이상의 문단.".repeat(30)],
+      },
+      fallback: { text: "대체 출력", costUsd: 0.005 },
+      bufferChars: 400,
+    });
+    assert.equal(result.fallbackAttempts, 0);
+    assert.equal(result.fallbackSucceeded, false);
+    assert.ok(result.sent.length > 0);
+  });
+
+  it("limits DeepSeek fallback to one attempt", async () => {
+    const result = await runMockProviderFallback({
+      primary: { text: "작성할 수 없습니다.", costUsd: 0.002 },
+      fallback: { text: "최종 오류가 아닌 단일 결과", costUsd: 0.004 },
+      bufferChars: 400,
+    });
+    assert.equal(result.fallbackAttempts, 1);
+  });
+
+  it("charges the user-facing result once and records hidden upstream overhead", async () => {
+    const result = await runMockProviderFallback({
+      primary: { text: "도와드릴 수 없습니다.", costUsd: 0.0025 },
+      fallback: { text: "최종 전달 응답", costUsd: 0.006 },
+      bufferChars: 400,
+    });
+    assert.equal(result.userChargeCount, 1);
+    assert.equal(result.hiddenFallbackOverheadCostUsd, 0.0025);
+    assert.equal(result.totalUpstreamCostUsd, 0.0085);
+  });
+
+  it("does not adult-fallback when policy eligibility fails", async () => {
+    const result = await runMockProviderFallback({
+      primary: { text: "요청에 응할 수 없습니다.", costUsd: 0.002 },
+      fallback: { text: "사용되면 안 됨", costUsd: 0.004 },
+      bufferChars: 400,
+      eligible: false,
+    });
+    assert.equal(result.fallbackAttempts, 0);
+  });
+
+  it("A selects four complete exchanges (eight messages)", () => {
+    const history = Array.from({ length: 6 }, (_, index) => [
+      { role: "user" as const, content: `user-${index}` },
+      { role: "assistant" as const, content: `assistant-${index}` },
+    ]).flat();
+    const selected = selectAdultHandoffRawVariants(history, {
+      baseExchanges: 4,
+      targetExchanges: 6,
+      extraRawTokens: 4_000,
+    });
+    assert.equal(selected.base.rawTurnsIncluded, 4);
+    assert.equal(selected.base.history.length, 8);
+  });
+
+  it("B selects six complete exchanges (twelve messages) when the budget permits", () => {
+    const history = Array.from({ length: 6 }, (_, index) => [
+      { role: "user" as const, content: `user-${index}` },
+      { role: "assistant" as const, content: `assistant-${index}` },
+    ]).flat();
+    const selected = selectAdultHandoffRawVariants(history, {
+      baseExchanges: 4,
+      targetExchanges: 6,
+      extraRawTokens: 4_000,
+    });
+    assert.equal(selected.handoff.rawTurnsIncluded, 6);
+    assert.equal(selected.handoff.history.length, 12);
+    assert.doesNotThrow(() => assertAdultHandoffRawSuperset(selected));
+  });
+
+  it("keeps tension_to_explicit_dialogue B as an A superset under long RAW", () => {
+    const long = "현실적인 장문 응답이다. ".repeat(220);
+    assert.ok(long.length >= 2_000);
+    const history = Array.from({ length: 6 }, (_, index) => [
+      { role: "user" as const, content: `user-${index}` },
+      { role: "assistant" as const, content: long },
+    ]).flat();
+    const selected = selectAdultHandoffRawVariants(history, {
+      baseExchanges: 4,
+      targetExchanges: 6,
+      extraRawTokens: 4_000,
+    });
+    assert.equal(selected.base.rawTurnsIncluded, 4);
+    assert.equal(selected.base.history.length, 8);
+    assert.ok(selected.handoff.rawTurnsIncluded >= 4);
+    assert.ok(selected.handoff.rawTurnsIncluded <= 6);
+    assert.ok(selected.handoff.history.length >= 8);
+    assert.deepEqual(
+      selected.handoff.history.slice(-selected.base.history.length),
+      selected.base.history,
+    );
+    assert.deepEqual(
+      selected.handoff.history.at(-1),
+      selected.base.history.at(-1),
+    );
+    assert.deepEqual(
+      [...selected.handoff.history].reverse().find((message) => message.role === "user"),
+      [...selected.base.history].reverse().find((message) => message.role === "user"),
+    );
+    assert.doesNotThrow(() => assertAdultHandoffRawSuperset(selected));
+  });
+
+  it("filters adult RAW and inserts GeneralRouteBridge for safe return", () => {
+    const history: CanonicalRouteHistoryMessage[] = [
+      { role: "user", content: "안전한 이전 입력", sceneMode: "romantic" },
+      { role: "assistant", content: "안전한 이전 출력", sceneMode: "romantic" },
+      { role: "user", content: "성인 장면 입력", sceneMode: "explicit" },
+      {
+        role: "assistant",
+        content: "성인 장면 상세",
+        sceneMode: "explicit",
+        activeRoute: "adult",
+      },
+      { role: "user", content: "다음 날 입력", sceneMode: "normal" },
+      { role: "assistant", content: "다음 날 출력", sceneMode: "normal" },
+    ];
+    const safe = buildGeneralProviderContext(history, {
+      relationshipChange: "서로의 신뢰가 깊어졌다.",
+      currentLocation: "본부 회의실",
+    });
+    const joined = safe.map((message) => message.content).join("\n");
+    assert.doesNotMatch(joined, /성인 장면 상세|성인 장면 입력/);
+    assert.match(joined, /서로의 신뢰가 깊어졌다/);
+    assert.match(joined, /다음 날 출력/);
+  });
+});

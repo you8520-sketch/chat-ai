@@ -28,6 +28,10 @@ export const OPENROUTER_DEEPSEEK_V4_PRO_MODEL = "deepseek/deepseek-v4-pro";
 /** Cheaper Inference OpenAI-compatible API — DeepSeek V4 Pro */
 export const CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL = "deepseek-v4-pro";
 
+/** Cheaper Inference adult-route canary candidates (not user-selectable). */
+export const CHEAPER_INFERENCE_AION_20_MODEL = "aion-labs.aion-2-0";
+export const CHEAPER_INFERENCE_GLM_52_MODEL = "glm-5.2";
+
 /** OpenRouter — DeepSeek V3 (백그라운드 기억·상태창·번역 등) */
 export const OPENROUTER_DEEPSEEK_V3_MODEL = "deepseek/deepseek-chat-v3-0324";
 
@@ -255,6 +259,8 @@ export function isCheaperInferenceModel(modelId: string): boolean {
   return (
     id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL ||
     id === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL ||
+    id === CHEAPER_INFERENCE_AION_20_MODEL ||
+    id === CHEAPER_INFERENCE_GLM_52_MODEL ||
     id === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL ||
     id === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL ||
     id === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL ||
@@ -389,7 +395,16 @@ export function isQwenModel(modelId: string): boolean {
 /** OpenRouter Z.ai GLM 계열 (GLM 5.2 등) */
 export function isGlmModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
-  return id === OPENROUTER_GLM_52_MODEL || id.startsWith("z-ai/glm") || id.includes("/glm-");
+  return (
+    id === OPENROUTER_GLM_52_MODEL ||
+    id === CHEAPER_INFERENCE_GLM_52_MODEL ||
+    id.startsWith("z-ai/glm") ||
+    id.includes("/glm-")
+  );
+}
+
+export function isAion20Model(modelId: string): boolean {
+  return modelId.trim().toLowerCase() === CHEAPER_INFERENCE_AION_20_MODEL;
 }
 
 /** OpenRouter MoonshotAI Kimi 계열 (Kimi K3 등) — UI 제거, 영수증·legacy 보존 */

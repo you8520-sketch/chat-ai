@@ -173,6 +173,13 @@ export type ContextBuildInput = {
   promptSectionSkipIds?: string[];
   /** Regression/ablation scripts only — inject full (non-compact) knowledge boundary */
   promptUseFullKnowledgeBoundary?: boolean;
+  /**
+   * Adult handoff only: shortTermHistory was already selected as the mandatory
+   * four-exchange base plus budgeted complete older exchanges. Preserve that
+   * validated RAW contract instead of applying the generic total RAW budget a
+   * second time.
+   */
+  preserveAdultHandoffRawHistory?: boolean;
   /** Canon injection policy — D1/D2 actual branches gated by this (DeepSeek canary only). */
   canonInjectionPolicy?: import("@/lib/canonInjectionPolicy").CanonInjectionPolicy;
   /** Compiled CanonPlanV1 — required for LAYERED canon / selective archive actual branches. */

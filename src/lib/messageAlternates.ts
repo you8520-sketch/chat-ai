@@ -1,4 +1,5 @@
 import type { Usage } from "@/lib/chatUsage";
+import { stripAdultRoutingForClient } from "@/lib/billingReceiptAccess";
 import { stripMuseAcceptanceFromUsage } from "@/lib/museAcceptanceTelemetry";
 import type { ParsedStatusWidgetTurnValues } from "@/lib/statusWidget/types";
 
@@ -102,7 +103,9 @@ export function latestVariantIndexByGenerationSequence(variants: MessageVariant[
 export function serializeVariantsForClient(variants: MessageVariant[], activeVariant: number) {
   const clientVariants = variants.map((v) => ({
     ...v,
-    usage: v.usage ? stripMuseAcceptanceFromUsage(v.usage) : null,
+    usage: v.usage
+      ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(v.usage))
+      : null,
   }));
   return { variants: clientVariants, activeVariant, variantCount: clientVariants.length };
 }

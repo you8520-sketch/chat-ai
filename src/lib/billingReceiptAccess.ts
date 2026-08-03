@@ -31,6 +31,7 @@ export function filterUsageBreakdownForReceipt(
 
 /** 일반 이용자 영수증 — 위젯·환율·시스템 규칙 breakdown 등 상세 필드 제거 */
 export function sanitizeUsageForPublicReceipt(usage: Usage): Usage {
+  const routing = usage.adultRouting;
   const {
     statusWidgetExtract: _statusWidgetExtract,
     statusWidgetExtractDiagnostics: _statusWidgetExtractDiagnostics,
@@ -41,10 +42,42 @@ export function sanitizeUsageForPublicReceipt(usage: Usage): Usage {
     exchangeRateMode: _exchangeRateMode,
     exchangeRateSource: _exchangeRateSource,
     museAcceptance: _museAcceptance,
+    adultRouting: _adultRouting,
     ...rest
   } = usage;
-  return {
+  const publicUsage: Usage = {
     ...rest,
     breakdown: filterUsageBreakdownForReceipt(rest.breakdown, false),
   };
+  if (routing?.activeRoute === "adult") {
+    publicUsage.model = routing.userSelectedModel;
+    publicUsage.modelLabel = routing.userSelectedModelLabel;
+    publicUsage.selectedAI = routing.userSelectedModel;
+    publicUsage.provider = routing.userSelectedProvider;
+    publicUsage.stages = publicUsage.stages?.map((stage) => ({
+      ...stage,
+      model: routing.userSelectedModel,
+      stage: "main",
+    }));
+  }
+  return publicUsage;
+}
+
+/** Keep admin receipt detail while hiding internal adult route/model identity. */
+export function stripAdultRoutingForClient(usage: Usage): Usage {
+  const routing = usage.adultRouting;
+  const { adultRouting: _adultRouting, ...rest } = usage;
+  const client = { ...rest } as Usage;
+  if (routing?.activeRoute === "adult") {
+    client.model = routing.userSelectedModel;
+    client.modelLabel = routing.userSelectedModelLabel;
+    client.selectedAI = routing.userSelectedModel;
+    client.provider = routing.userSelectedProvider;
+    client.stages = client.stages?.map((stage) => ({
+      ...stage,
+      model: routing.userSelectedModel,
+      stage: "main",
+    }));
+  }
+  return client;
 }

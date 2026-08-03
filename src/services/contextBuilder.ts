@@ -1315,11 +1315,11 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
 
   let effectiveHistoryBudget = historyBudget;
-  let historySource = input.geminiStaticDynamicMode
+  let historySource = input.geminiStaticDynamicMode || input.preserveAdultHandoffRawHistory
     ? historyForAssembly
     : trimHistoryToBudget(historyForAssembly, effectiveHistoryBudget);
 
-  if (!input.geminiStaticDynamicMode) {
+  if (!input.geminiStaticDynamicMode && !input.preserveAdultHandoffRawHistory) {
     while (estimatePayloadTokens(historySource) > maxPayload && effectiveHistoryBudget > 400) {
       effectiveHistoryBudget = Math.max(400, effectiveHistoryBudget - 1500);
       historySource = trimHistoryToBudget(

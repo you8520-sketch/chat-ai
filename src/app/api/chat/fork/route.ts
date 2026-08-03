@@ -37,7 +37,7 @@ export async function POST(req: Request) {
 
   const toCopy = db
     .prepare(
-      `SELECT id, role, content, model, usage, status, is_refunded, deduction_slices
+      `SELECT id, role, content, model, usage, adult_route_meta_json, status, is_refunded, deduction_slices
        FROM messages WHERE chat_id=? AND id <= ? ORDER BY id ASC`
     )
     .all(cId, mId) as {
@@ -46,6 +46,7 @@ export async function POST(req: Request) {
     content: string;
     model: string;
     usage: string | null;
+    adult_route_meta_json: string | null;
     status: string | null;
     is_refunded: number;
     deduction_slices: string | null;
@@ -92,8 +93,11 @@ export async function POST(req: Request) {
     const messageIdMap = new Map<number, number>();
 
     const ins = db.prepare(
-      `INSERT INTO messages (chat_id, role, content, model, usage, status, is_refunded, deduction_slices)
-       VALUES (?,?,?,?,?,?,?,?)`
+      `INSERT INTO messages (
+         chat_id, role, content, model, usage, adult_route_meta_json,
+         status, is_refunded, deduction_slices
+       )
+       VALUES (?,?,?,?,?,?,?,?,?)`
     );
     for (const m of toCopy) {
       const result = ins.run(
@@ -102,6 +106,7 @@ export async function POST(req: Request) {
         m.content,
         m.model ?? "",
         m.usage,
+        m.adult_route_meta_json ?? "",
         m.status ?? "ok",
         m.is_refunded ?? 0,
         m.deduction_slices

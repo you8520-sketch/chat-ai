@@ -39,4 +39,26 @@ describe("turn length supplement API — disabled for all models", () => {
     );
     assert.doesNotThrow(() => assertLengthSupplementApiAllowed("openrouter-primary-stream"));
   });
+
+  it("allows exactly one hard-failure fallback without enabling length supplements", () => {
+    const budget = new TurnApiBudget();
+    budget.beforeFetch("cheaperinference-primary-stream");
+    assert.doesNotThrow(() =>
+      budget.beforeFetch("adult-aion-hard-failure-fallback")
+    );
+    assert.throws(
+      () => budget.beforeFetch("adult-aion-hard-failure-fallback"),
+      /Max internal API calls exceeded/
+    );
+    assert.equal(budget.canSubCall(), false);
+  });
+
+  it("does not treat under-length output as an allowed fallback sub-call", () => {
+    const budget = new TurnApiBudget();
+    budget.beforeFetch("cheaperinference-primary-stream");
+    assert.throws(
+      () => budget.beforeFetch("server-under-length-recovery"),
+      /Max internal API calls exceeded/
+    );
+  });
 });

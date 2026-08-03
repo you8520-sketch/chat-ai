@@ -539,6 +539,8 @@ export type OpenRouterMessageOpts = {
   allowOpenRouterUnderLengthRecovery?: boolean;
   /** OpenAI-compatible HTTP transport used by the primary RP stream. */
   transportProvider?: "openrouter" | "cheaperinference";
+  /** Internal budget/diagnostic label for this upstream request. */
+  requestKind?: string;
   /**
    * Experiment harness — when false, do not issue a second non-stream call
    * after an empty primary stream. Production default remains enabled.
@@ -1691,7 +1693,9 @@ export async function streamOpenRouterAdultToClient(
         targetResponseChars,
         { ...messageOpts, turnApiBudget },
         {
-          requestKind: `${messageOpts?.transportProvider ?? "openrouter"}-primary-stream`,
+          requestKind:
+            messageOpts?.requestKind ??
+            `${messageOpts?.transportProvider ?? "openrouter"}-primary-stream`,
           stage: stageLabel,
           turnApiBudget,
         }

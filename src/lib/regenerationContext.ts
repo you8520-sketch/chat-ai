@@ -3,6 +3,8 @@ export type RegenerationMessageRow = {
   role: "user" | "assistant";
   content: string;
   model?: string | null;
+  usage?: string | null;
+  adult_route_meta_json?: string | null;
   user_message_id?: number | null;
 };
 

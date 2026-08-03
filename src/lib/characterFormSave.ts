@@ -59,6 +59,13 @@ import {
   type ContentKind,
   type SimulationImportSnapshot,
 } from "@/lib/simulationMode";
+import {
+  inferAdultStatusFromLegacyText,
+  normalizeAdultDialogueProfile,
+  type AdultConsentMode,
+  type AdultDialogueProfile,
+  type AdultStatus,
+} from "@/lib/adultSceneRouting";
 
 import {
   AI_LEARNING_LIMIT,
@@ -104,6 +111,9 @@ export type ParsedCharacterForm = {
   audience: string;
   requestedVisibility: CharacterVisibility;
   nsfw: boolean;
+  adultDialogueProfile: AdultDialogueProfile;
+  adultStatus: AdultStatus;
+  adultConsentModesAllowed: AdultConsentMode[];
   commentsEnabled: number;
   creatorComment: string;
   simulationReuseAllowed: number;
@@ -130,6 +140,24 @@ function parseAssetsFromFormBody(rawAssets: unknown): CharacterAsset[] {
     : [];
   if (parsed[0]) parsed[0] = { ...parsed[0], viewerBlur: false };
   return parsed;
+}
+
+function parseAdultConsentModes(value: unknown): AdultConsentMode[] {
+  const source = Array.isArray(value) ? value : [];
+  const allowed = source.filter(
+    (item): item is AdultConsentMode =>
+      item === "standard" || item === "power_play" || item === "cnc_opt_in"
+  );
+  return Array.from(new Set<AdultConsentMode>(["standard", ...allowed]));
+}
+
+function parseExplicitAdultStatus(value: unknown): AdultStatus | null {
+  return value === "confirmed" ||
+    value === "minor" ||
+    value === "conflict" ||
+    value === "unknown"
+    ? value
+    : null;
 }
 
 function parseSimulationImportIds(value: unknown): number[] {
@@ -249,6 +277,17 @@ export function parseCharacterFormBody(
   const exampleDialog = composeExampleDialog(speechInput);
   const greeting = String(b.greeting || "");
   const nsfw = b.nsfw === true;
+  const adultDialogueProfile = normalizeAdultDialogueProfile(
+    b.adult_dialogue_profile ?? b.adultDialogueProfile
+  );
+  const adultStatus =
+    parseExplicitAdultStatus(b.adult_status ?? b.adultStatus) ??
+    inferAdultStatusFromLegacyText(
+      [description, systemPrompt, world, simulationCast].filter(Boolean).join("\n")
+    );
+  const adultConsentModesAllowed = parseAdultConsentModes(
+    b.adult_consent_modes_allowed ?? b.adultConsentModesAllowed
+  );
 
   let worldId: number | null = null;
   const rawWorldId = b.world_id ?? b.worldId;
@@ -393,6 +432,9 @@ export function parseCharacterFormBody(
       audience: ["all", "female", "male"].includes(String(b.audience)) ? String(b.audience) : "all",
       requestedVisibility: parseVisibility(b.visibility),
       nsfw,
+      adultDialogueProfile,
+      adultStatus,
+      adultConsentModesAllowed,
       commentsEnabled: b.comments_enabled === false ? 0 : 1,
       creatorComment: String(b.creator_comment ?? b.creatorComment ?? "")
         .trim()
@@ -674,6 +716,16 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
     );
 
   const characterId = Number(info.lastInsertRowid);
+  db.prepare(
+    `UPDATE characters
+     SET adult_dialogue_profile=?, adult_status=?, adult_consent_modes_json=?
+     WHERE id=?`
+  ).run(
+    data.adultDialogueProfile,
+    data.adultStatus,
+    JSON.stringify(data.adultConsentModesAllowed),
+    characterId
+  );
   saveCharacterStatusWidgetTriggers(
     db,
     characterId,
@@ -721,7 +773,7 @@ export async function updateCharacterFromForm(
       `SELECT id, creator_id, official, share_slug, visibility, moderation_status, moderation_note,
               name, gender, system_prompt, world, example_dialog, status_widget_json,
               creator_compiled_description_json, creator_canon_plan_json, appearance_raw, appearance_compiled, appearance_compiled_source_hash, appearance_compiled_version, images, nsfw,
-              content_kind
+              content_kind, adult_dialogue_profile, adult_status, adult_consent_modes_json
        FROM characters WHERE id=?`
     )
     .get(characterId) as
@@ -748,6 +800,9 @@ export async function updateCharacterFromForm(
         images: string | null;
         nsfw: number | null;
         content_kind: string | null;
+        adult_dialogue_profile: string | null;
+        adult_status: string | null;
+        adult_consent_modes_json: string | null;
       }
     | undefined;
 
@@ -850,6 +905,28 @@ export async function updateCharacterFromForm(
     data.simulationImportsJson,
     data.simulationReuseAllowed,
     data.simulationNsfwAllowed,
+    characterId
+  );
+  const adultProfileWasProvided =
+    b.adult_dialogue_profile != null || b.adultDialogueProfile != null;
+  const adultStatusWasProvided =
+    b.adult_status != null || b.adultStatus != null;
+  const adultConsentModesWereProvided =
+    b.adult_consent_modes_allowed != null || b.adultConsentModesAllowed != null;
+  db.prepare(
+    `UPDATE characters
+     SET adult_dialogue_profile=?, adult_status=?, adult_consent_modes_json=?
+     WHERE id=?`
+  ).run(
+    adultProfileWasProvided
+      ? data.adultDialogueProfile
+      : normalizeAdultDialogueProfile(row.adult_dialogue_profile),
+    adultStatusWasProvided
+      ? data.adultStatus
+      : parseExplicitAdultStatus(row.adult_status) ?? data.adultStatus,
+    adultConsentModesWereProvided
+      ? JSON.stringify(data.adultConsentModesAllowed)
+      : row.adult_consent_modes_json || JSON.stringify(["standard"]),
     characterId
   );
   saveCharacterStatusWidgetTriggers(

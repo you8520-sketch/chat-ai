@@ -111,4 +111,32 @@ export type Usage = {
    * (including full billing receipt admins). Not used for billing or auto-continuation.
    */
   museAcceptance?: Record<string, unknown>;
+  /**
+   * Server-only adult scene routing telemetry. Public receipt sanitization
+   * removes this object and restores the user's selected model identity.
+   */
+  adultRouting?: {
+    activeRoute: "general" | "adult";
+    sceneModeBefore: string;
+    sceneModeAfter: string;
+    routeTriggerReason?: string;
+    requestedModel: string;
+    actualModel: string;
+    actualProvider: string;
+    userSelectedModel: string;
+    userSelectedModelLabel: string;
+    userSelectedProvider: "gemini" | "openrouter" | "openai" | "cheaperinference";
+    rawTurnsIncluded?: number;
+    rawTokensIncluded?: number;
+    fallbackAttempted: boolean;
+    fallbackSucceeded: boolean;
+    aionHardFailureFallbackAttempted?: boolean;
+    aionHardFailureFallbackSucceeded?: boolean;
+    aionHardFailureReason?: string;
+    hiddenFallbackOverheadCostUsd?: number;
+    finalDeliveredModelCostUsd?: number;
+    totalUpstreamCostUsd?: number;
+    userChargedPoints: number;
+    latencyMs?: number;
+  };
 };

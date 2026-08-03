@@ -10,7 +10,11 @@ import assert from "node:assert/strict";
 import { describe, it, before } from "node:test";
 import type { buildContext as BuildContextFn } from "./contextBuilder";
 import { buildCompactTerminalLengthAbsoluteTail } from "@/lib/responseLength";
-import { OPENROUTER_QWEN_37_MAX_MODEL, GEMINI_CHAT_FLASH_25 } from "@/lib/chatModels";
+import {
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  OPENROUTER_QWEN_37_MAX_MODEL,
+  GEMINI_CHAT_FLASH_25,
+} from "@/lib/chatModels";
 import type { CharacterChunk } from "@/types";
 
 let buildContext: typeof BuildContextFn;
@@ -124,6 +128,28 @@ describe("buildContext — turn handoff shell removed Step 7", () => {
     const ids = (built.meta?.trackedSections ?? []).map((s) => s.id);
     assert.ok(!ids.includes("turn-handoff-and-pacing"));
     assert.ok(!ids.includes("auto-continue-handoff-hint"));
+  });
+
+  it("preserves the already-selected adult handoff RAW without a second trim", () => {
+    const longAssistant = "장면의 위치와 미완료 행동을 이어 간다. ".repeat(260);
+    const shortTermHistory = Array.from({ length: 5 }, (_, index) => [
+      { role: "user" as const, content: `완전한 user 왕복 ${index}` },
+      { role: "assistant" as const, content: longAssistant },
+    ]).flat();
+    const built = buildContext({
+      charName: "Test",
+      chunks: [sampleChunk],
+      userNickname: "User",
+      shortTermHistory,
+      currentUserMessage: "현재 입력",
+      nsfw: true,
+      modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      provider: "cheaperinference",
+      preserveAdultHandoffRawHistory: true,
+    });
+    assert.equal(built.history.length, 11);
+    assert.equal(built.history.filter((message) => message.role === "assistant").length, 5);
+    assert.match(built.history.at(-1)?.content ?? "", /현재 입력/);
   });
 });
 
