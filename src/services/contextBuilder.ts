@@ -97,7 +97,21 @@ import {
   resolveCanaryTerraTerminalContract,
   TERRA_DIALOGUE_INTENT_ADAPTER_SENTENCE,
 } from "@/lib/terraPromptCanary";
+import {
+  COMMON_LAYOUT_MINIMAL_OWNER,
+  COMMON_LENGTH_OWNER_MINIMAL,
+  rpDiagnosticDisablesDeepSeekExtras,
+  rpDiagnosticRemovesSceneDirective,
+  rpDiagnosticUsesDialogueReferenceScope,
+  rpDiagnosticUsesMinimalLayout,
+  rpDiagnosticUsesMinimalLengthOwner,
+  rpDiagnosticUsesMinimalRpStyle,
+} from "@/lib/rpDiagnosticCanary";
 import type { CharacterChunk, GeminiContextSplit } from "@/types";
+import {
+  isDiagnosticDisplayParagraphGroupingBypassed,
+  isDiagnosticParagraphNormalizeBypassed,
+} from "@/lib/diagnosticRequestContext";
 import {
   type BuiltContext,
   type ContextBuildInput,
@@ -237,8 +251,12 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const dynamicParts: string[] = [];
   const trackedSections: TrackedPromptSection[] = [];
   let usedTokens = 0;
-  const deepSeekXmlMode = isDeepSeekV4ProModel(input.modelId ?? "");
-  const deepSeekAppearanceRuleMode = isDeepSeekModel(input.modelId ?? "");
+  const deepSeekXmlMode =
+    isDeepSeekV4ProModel(input.modelId ?? "") &&
+    !rpDiagnosticDisablesDeepSeekExtras(input.rpDiagnosticCanary?.variant ?? "baseline");
+  const deepSeekAppearanceRuleMode =
+    isDeepSeekModel(input.modelId ?? "") &&
+    !rpDiagnosticDisablesDeepSeekExtras(input.rpDiagnosticCanary?.variant ?? "baseline");
   const deepSeekXmlBuffers = deepSeekXmlMode ? createDeepSeekXmlBuffers() : null;
   const memoryFeatureOn = isMemoryFeatureEnabled();
 
@@ -317,9 +335,12 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     userMessage: input.currentUserMessage,
     recentHistory: recentHistoryText,
   });
+  const rpVariant = input.rpDiagnosticCanary?.variant;
   const characterSettingText = injectDialogueReferenceScopeForCanary(
     injectExampleDialogStyleOnlyNote(characterSettingTextFiltered),
-    input.terraPromptCanary?.variant
+    rpVariant && rpDiagnosticUsesDialogueReferenceScope(rpVariant)
+      ? "dialogue_reference_scope"
+      : input.terraPromptCanary?.variant
   );
 
   let effectiveExampleDialog = input.exampleDialog ?? "";
@@ -806,9 +827,14 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   };
 
   const pushSceneDirective = () => {
-    // Relationship-axis canary relocates SceneDirective to the user-turn tail
-    // (before Terra length owner) so the confirmed focus sits next to the user input.
+    if (
+      rpVariant &&
+      rpDiagnosticRemovesSceneDirective(rpVariant)
+    ) {
+      return;
+    }
     if (input.terraPromptCanary?.relocateSceneDirectiveToUserTurn) return;
+    if (input.rpDiagnosticCanary?.relocateSceneDirectiveToUserTurn) return;
     if (!sceneDirectiveBlock) return;
     pushSection(
       "scene-directive",
@@ -844,8 +870,10 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     charName: input.charName,
     genres: input.genres,
   });
+  const skipNarrativeStyleForRpDiagnostic =
+    rpVariant != null && rpDiagnosticUsesMinimalRpStyle(rpVariant);
   let narrativeStylePushedEarly = false;
-  if (isRegisterPatch("C") && narrativeStyleBlock.trim()) {
+  if (isRegisterPatch("C") && narrativeStyleBlock.trim() && !skipNarrativeStyleForRpDiagnostic) {
     pushSection(
       "narrative-style",
       "[7] Style Mode",
@@ -961,7 +989,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   }
 
   // ───── [7] Style Mode ─────
-  if (!narrativeStylePushedEarly && narrativeStyleBlock.trim()) {
+  if (!narrativeStylePushedEarly && narrativeStyleBlock.trim() && !skipNarrativeStyleForRpDiagnostic) {
     pushSection(
       "narrative-style",
       "[7] Style Mode",
@@ -1045,10 +1073,12 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     "rule-output-layout-recency",
     "Output layout recency (Korean webnovel paragraph breaks)",
     "systemRules",
-    buildWebnovelOutputLayoutRecencyBlock({
-      dialogueIntentUnit:
-        input.terraPromptCanary?.variant === "dialogue_intent_unit",
-    }),
+    rpVariant && rpDiagnosticUsesMinimalLayout(rpVariant)
+      ? COMMON_LAYOUT_MINIMAL_OWNER
+      : buildWebnovelOutputLayoutRecencyBlock({
+          dialogueIntentUnit:
+            input.terraPromptCanary?.variant === "dialogue_intent_unit",
+        }),
     "dynamic"
   );
 
@@ -1303,6 +1333,12 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     userTurnContent = `${userTurnContent.trimEnd()}\n\n${input.terraPromptCanary.sceneDirectiveUserTail.trim()}`;
   }
   if (
+    input.rpDiagnosticCanary?.relocateSceneDirectiveToUserTurn &&
+    input.rpDiagnosticCanary.sceneDirectiveUserTail?.trim()
+  ) {
+    userTurnContent = `${userTurnContent.trimEnd()}\n\n${input.rpDiagnosticCanary.sceneDirectiveUserTail.trim()}`;
+  }
+  if (
     terraTerminalLengthOwner &&
     input.terraPromptCanary &&
     canaryAppliesTerraDialogueIntentAdapter(input.terraPromptCanary.variant)
@@ -1329,6 +1365,9 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
         party: input.party,
       }
     );
+    if (rpVariant && rpDiagnosticUsesMinimalLengthOwner(rpVariant)) {
+      userTurnContent = `${userTurnContent.trimEnd()}\n\n${COMMON_LENGTH_OWNER_MINIMAL}`;
+    }
   }
   const estimatePayloadTokens = (hist: ContextBuildInput["shortTermHistory"]) =>
     estimateTokens(

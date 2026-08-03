@@ -1,4 +1,8 @@
 import { fixCommonJapaneseLeaksInKoreanProse } from "@/lib/koreanProseSanitize";
+import {
+  isDiagnosticDisplayParagraphGroupingBypassed,
+  isDiagnosticParagraphNormalizeBypassed,
+} from "@/lib/diagnosticRequestContext";
 
 export type NovelParagraphKind = "narration" | "dialogue" | "mixed";
 
@@ -634,6 +638,9 @@ export function groupNovelParagraphs(content: string, opts?: GroupNovelParagraph
   const streaming = opts?.streaming === true;
   const normalized = collapseBlankLinesInsideDoubleQuotes(content.replace(/\r\n/g, "\n").trim());
   if (!normalized) return [];
+  if (isDiagnosticDisplayParagraphGroupingBypassed()) {
+    return normalized.split(/\n{2,}/).map((b) => b.trim()).filter(Boolean);
+  }
 
   /** 빈 줄(\n\n)만 문단 경계 — 단일 줄바꿈은 같은 문단 안 문장 구분 */
   const blocks = normalized.split(/\n{2,}/).map((b) => b.trim()).filter(Boolean);
@@ -1040,6 +1047,9 @@ export function stripEmptyQuoteParagraphs(text: string): string {
 
 /** 저장·표시 직전 — 잘못된 대사 따옴표 제거 + 말줄임표 정리 + 지문 문단 정리 */
 export function normalizeAiNovelProseLayout(text: string, _opts?: { allowHtml?: boolean }): string {
+  if (isDiagnosticParagraphNormalizeBypassed()) {
+    return text.trimEnd();
+  }
   let body = text.trimEnd();
   body = splitStuckAdjacentDialogues(body);
   body = unwrapMisclassifiedDialogueQuotes(body);

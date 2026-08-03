@@ -133,14 +133,33 @@ function main() {
   }
 
   const layoutAudit = {
-    verdict: "COMMON_LAYOUT_ALREADY_TESTED_NOT_PRIMARY",
-    note: "Prior canary + static audit; no new unverified strong recency owner in code path",
+    verdict: "INCOMPLETE_EXPERIMENT_NO_FINAL_VERDICT",
+    note: "Prior Terra dialogue-root runs did not complete baseline 12/12 or full screening matrix. Do not use NO_STABLE_DIALOGUE_FIX_FOUND / DIALOGUE_NATIVE_LIKELY / GREETING_RHYTHM_NOT_PRIMARY as final.",
   };
+
+  const screeningWithGuard = Object.fromEntries(
+    Object.entries(screening).map(([k, v]) => {
+      const row = v as { pass?: boolean; notes?: string[] } | undefined;
+      if (!row) return [k, { verdict: "NOT_RUN" }];
+      const cand = loaded[
+        k === "greeting_dialogue_bundled"
+          ? "greeting"
+          : k === "terminal_continuous_scene"
+            ? "terminal"
+            : "scope"
+      ];
+      if (!cand || cand.n < 6) {
+        return [k, { verdict: "INSUFFICIENT_SAMPLE", n: cand?.n ?? 0, ...row }];
+      }
+      return [k, v];
+    })
+  );
 
   const out = {
     generated_at: new Date().toISOString(),
+    experiment_status: "INCOMPLETE_EXPERIMENT_NO_FINAL_VERDICT",
     variants: loaded,
-    screening,
+    screening: screeningWithGuard,
     layout_audit: layoutAudit,
   };
   writeFileSync(join(ROOT, "FINAL_STATS.json"), JSON.stringify(out, null, 2), "utf8");

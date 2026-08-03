@@ -157,6 +157,20 @@ import {
   type SceneProgressionAxis,
   type TerraPromptCanaryResolution,
 } from "@/lib/terraPromptCanary";
+import {
+  applyRpDiagnosticToHistory,
+  applyRpDiagnosticToSceneDirectiveBlock,
+  buildRpDiagnosticIntegrity,
+  capturePostprocessPipeline,
+  logRpDiagnosticCanaryDebug,
+  resolveRpDiagnosticCanary,
+  resolveRpDiagnosticProgressionAxis,
+  rpDiagnosticBypassParagraphNormalize,
+  shouldRelocateRpDiagnosticSceneDirective,
+  type RpDiagnosticCanaryResolution,
+} from "@/lib/rpDiagnosticCanary";
+import { runWithDiagnosticContext } from "@/lib/diagnosticRequestContext";
+import { normalizeAiNovelProseLayout } from "@/lib/novelParagraphs";
 import { TERRA_TERMINAL_LENGTH_OWNER_CONTRACT } from "@/lib/terraTerminalLengthOwner";
 import {
   buildSceneDirectiveV2,
@@ -1406,17 +1420,31 @@ export async function POST(req: Request) {
   const sceneProgressionState = loadSceneProgressionState(chat.id);
   const contentKindForCanary =
     ch.content_kind === "simulation" ? "simulation" : "character";
-  const terraPromptCanary: TerraPromptCanaryResolution | null = resolveTerraPromptCanary({
+  const rpDiagnosticCanary: RpDiagnosticCanaryResolution | null = resolveRpDiagnosticCanary({
     userId: user.id,
     modelId: openRouterApiModelId,
     contentKind: contentKindForCanary,
   });
-  const promptHistory = applyTerraPromptCanaryToHistory({
-    history: shortTermHistory,
-    canary: terraPromptCanary,
-    characterId: ch.id,
-    productionGreeting: ch.greeting ?? "",
-  });
+  const terraPromptCanary: TerraPromptCanaryResolution | null = rpDiagnosticCanary
+    ? null
+    : resolveTerraPromptCanary({
+        userId: user.id,
+        modelId: openRouterApiModelId,
+        contentKind: contentKindForCanary,
+      });
+  const promptHistory = rpDiagnosticCanary
+    ? applyRpDiagnosticToHistory({
+        history: shortTermHistory,
+        canary: rpDiagnosticCanary,
+        characterId: ch.id,
+        productionGreeting: ch.greeting ?? "",
+      })
+    : applyTerraPromptCanaryToHistory({
+        history: shortTermHistory,
+        canary: terraPromptCanary,
+        characterId: ch.id,
+        productionGreeting: ch.greeting ?? "",
+      });
   if (terraPromptCanary && canaryAppliesCardDialogueNeutral(terraPromptCanary.variant)) {
     // Single-field card canary: drop example dialogue injection only.
     effectiveExampleDialog = "";
@@ -1548,35 +1576,53 @@ export async function POST(req: Request) {
     v2Mode: sceneDirectiveV2Mode,
     livingEnabled: Boolean(livingSceneDirective),
   });
-  const canaryProgressionAxis: SceneProgressionAxis | null =
-    resolveCanarySceneProgressionAxis({
-      canary: terraPromptCanary,
-      completedTurns: playableTurnCount,
-      contentKind: contentKindForCanary,
-      userMessage: policyUserMessage,
-      recentMessages: promptHistory,
-    });
+  const canaryProgressionAxis: SceneProgressionAxis | null = rpDiagnosticCanary
+    ? resolveRpDiagnosticProgressionAxis({
+        canary: rpDiagnosticCanary,
+        completedTurns: playableTurnCount,
+        contentKind: contentKindForCanary,
+        userMessage: policyUserMessage,
+        recentMessages: promptHistory,
+      })
+    : resolveCanarySceneProgressionAxis({
+        canary: terraPromptCanary,
+        completedTurns: playableTurnCount,
+        contentKind: contentKindForCanary,
+        userMessage: policyUserMessage,
+        recentMessages: promptHistory,
+      });
   const sceneDirectiveForRender =
     canaryProgressionAxis === "relationship" &&
     scenePacingOwner !== "event_restraint_v2" &&
     scenePacingOwner !== "living_continuity_director"
       ? lockSceneDirectiveToRelationshipAxis(legacySceneDirective)
       : legacySceneDirective;
-  const sceneDirectiveBlock = applyTerraPromptCanaryToSceneDirectiveBlock({
-    block:
-      scenePacingOwner === "event_restraint_v2" && eventRestraintV2
-        ? renderSceneDirectiveV2ForPrompt(eventRestraintV2)
-        : scenePacingOwner === "living_continuity_director" && livingSceneDirective
-          ? renderLivingSceneDirectiveForPrompt(livingSceneDirective)
-          : renderSceneDirectiveForPrompt(sceneDirectiveForRender),
-    canary: terraPromptCanary,
-    completedTurns: playableTurnCount,
-    progressionAxis: canaryProgressionAxis,
-  });
-  const relocateSceneDirectiveToUserTurn = shouldRelocateSceneDirectiveToUserTurn(
-    terraPromptCanary,
-    canaryProgressionAxis
-  );
+  const sceneDirectiveBlock = rpDiagnosticCanary
+    ? applyRpDiagnosticToSceneDirectiveBlock({
+        block:
+          scenePacingOwner === "event_restraint_v2" && eventRestraintV2
+            ? renderSceneDirectiveV2ForPrompt(eventRestraintV2)
+            : scenePacingOwner === "living_continuity_director" && livingSceneDirective
+              ? renderLivingSceneDirectiveForPrompt(livingSceneDirective)
+              : renderSceneDirectiveForPrompt(sceneDirectiveForRender),
+        canary: rpDiagnosticCanary,
+        completedTurns: playableTurnCount,
+        progressionAxis: canaryProgressionAxis,
+      })
+    : applyTerraPromptCanaryToSceneDirectiveBlock({
+        block:
+          scenePacingOwner === "event_restraint_v2" && eventRestraintV2
+            ? renderSceneDirectiveV2ForPrompt(eventRestraintV2)
+            : scenePacingOwner === "living_continuity_director" && livingSceneDirective
+              ? renderLivingSceneDirectiveForPrompt(livingSceneDirective)
+              : renderSceneDirectiveForPrompt(sceneDirectiveForRender),
+        canary: terraPromptCanary,
+        completedTurns: playableTurnCount,
+        progressionAxis: canaryProgressionAxis,
+      });
+  const relocateSceneDirectiveToUserTurn = rpDiagnosticCanary
+    ? shouldRelocateRpDiagnosticSceneDirective(rpDiagnosticCanary, canaryProgressionAxis)
+    : shouldRelocateSceneDirectiveToUserTurn(terraPromptCanary, canaryProgressionAxis);
   const canaryTemperature = resolveTerraPromptCanaryTemperature(terraPromptCanary);
 
   const livingToLegacyProgression = (
@@ -1734,6 +1780,16 @@ export async function POST(req: Request) {
     terraPromptCanary: terraPromptCanary
       ? {
           variant: terraPromptCanary.variant,
+          progressionAxis: canaryProgressionAxis,
+          relocateSceneDirectiveToUserTurn,
+          sceneDirectiveUserTail: relocateSceneDirectiveToUserTurn
+            ? sceneDirectiveBlock
+            : null,
+        }
+      : null,
+    rpDiagnosticCanary: rpDiagnosticCanary
+      ? {
+          variant: rpDiagnosticCanary.variant,
           progressionAxis: canaryProgressionAxis,
           relocateSceneDirectiveToUserTurn,
           sceneDirectiveUserTail: relocateSceneDirectiveToUserTurn
@@ -2265,6 +2321,7 @@ export async function POST(req: Request) {
 
   const stream = new ReadableStream({
     async start(controller) {
+      const executeStream = async () => {
       const safe = createDisconnectSafeSend(
         (chunk) => controller.enqueue(chunk),
         sseEncode
@@ -2280,6 +2337,7 @@ export async function POST(req: Request) {
       const stages: StageUsage[] = [];
       let fullText = "";
       let streamVisibleTextRef = "";
+      let rawStreamTextRef = "";
       const partialSaver = createPartialSaveThrottler();
 
       const persistPartialBestEffort = (text: string) => {
@@ -2632,6 +2690,7 @@ export async function POST(req: Request) {
           }
           fullText = result.text;
           streamVisibleTextRef = result.streamVisibleText ?? fullText;
+          rawStreamTextRef = result.rawStreamText ?? fullText;
           stages.push(result.stage);
           openRouterRemovalTraceSteps = result.removalTraceSteps;
           if (result.recoveryStage) stages.push(result.recoveryStage);
@@ -4722,6 +4781,54 @@ export async function POST(req: Request) {
           });
         }
 
+        if (rpDiagnosticCanary) {
+          const preNormalize = sanitizeStreamArtifacts(rawStreamTextRef || fullText);
+          const bypassNormalize = rpDiagnosticBypassParagraphNormalize(rpDiagnosticCanary.variant);
+          const postNormalize = bypassNormalize
+            ? preNormalize
+            : normalizeAiNovelProseLayout(preNormalize);
+          const pipelineCapture = capturePostprocessPipeline({
+            providerRawMerged: rawStreamTextRef || fullText,
+            preNormalize,
+            postNormalize,
+            sseFinal: savedText,
+            dbSaved: savedText,
+          });
+          const integrity = buildRpDiagnosticIntegrity({
+            userId: user.id,
+            chatId: chatRef.id,
+            characterId: ch.id,
+            characterName: ch.name,
+            personaId: resolvedPersonaId,
+            personaName: personaDisplayName,
+            modelUiId: selectedAIRef,
+            resolvedProviderModelId: openRouterApiModelId,
+            contentKind: contentKindForCanary,
+            canary: rpDiagnosticCanary,
+            temperature: canaryTemperature,
+          });
+          send({
+            type: "diagnostic_pipeline",
+            requestId: clientRequestId,
+            variant: rpDiagnosticCanary.variant,
+            integrity,
+            metrics: pipelineCapture.metrics,
+          });
+          logRpDiagnosticCanaryDebug({
+            requestId: clientRequestId,
+            integrity,
+            pipeline: pipelineCapture,
+            promptRedacted: {
+              variant: rpDiagnosticCanary.variant,
+              progressionAxis: canaryProgressionAxis,
+              model: openRouterApiModelId,
+              characterId: ch.id,
+              chatId: chatRef.id,
+              personaId: resolvedPersonaId,
+            },
+          });
+        }
+
         send({
           type: "done",
           chatId: chatRef.id,
@@ -4870,6 +4977,23 @@ export async function POST(req: Request) {
           send({ type: "error", error: formatClientApiError(e, "Chat pipeline failed") });
         }
         controller.close();
+      }
+      };
+
+      if (rpDiagnosticCanary) {
+        await runWithDiagnosticContext(
+          {
+            bypassParagraphNormalize: rpDiagnosticBypassParagraphNormalize(
+              rpDiagnosticCanary.variant
+            ),
+            bypassDisplayParagraphGrouping: rpDiagnosticBypassParagraphNormalize(
+              rpDiagnosticCanary.variant
+            ),
+          },
+          executeStream
+        );
+      } else {
+        await executeStream();
       }
     },
   });

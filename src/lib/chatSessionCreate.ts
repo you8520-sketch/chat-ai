@@ -10,6 +10,10 @@ import {
   resolveCanaryGreeting,
   resolveTerraPromptCanary,
 } from "@/lib/terraPromptCanary";
+import {
+  resolveRpDiagnosticCanary,
+  resolveRpDiagnosticGreeting,
+} from "@/lib/rpDiagnosticCanary";
 
 export type CreateChatSessionInput = {
   userId: number;
@@ -42,11 +46,19 @@ export function createChatSession(input: CreateChatSessionInput): number {
     modelId: selectedAI,
     contentKind,
   });
-  const greetingForInsert = resolveCanaryGreeting({
-    canary: terraCanary,
-    characterId: input.characterId,
-    greeting: input.greeting ?? "",
+  const rpCanary = resolveRpDiagnosticCanary({
+    userId: input.userId,
+    modelId: selectedAI,
+    contentKind,
   });
+  const greetingForInsert = rpCanary
+    ? resolveRpDiagnosticGreeting(rpCanary.variant, input.characterId, input.greeting ?? "") ??
+      (input.greeting ?? "")
+    : resolveCanaryGreeting({
+        canary: terraCanary,
+        characterId: input.characterId,
+        greeting: input.greeting ?? "",
+      });
 
   const info = db
     .prepare(
