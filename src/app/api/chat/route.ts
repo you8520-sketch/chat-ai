@@ -147,8 +147,13 @@ import {
   DIALOGUE_LAYOUT_OWNER_KO_CANARY,
   DIALOGUE_LAYOUT_OWNER_KO_PRODUCTION,
   extractGreetingFromHistory,
+  lockSceneDirectiveToRelationshipAxis,
   logTerraPromptCanaryDebug,
+  resolveCanarySceneProgressionAxis,
   resolveTerraPromptCanary,
+  resolveTerraPromptCanaryTemperature,
+  shouldRelocateSceneDirectiveToUserTurn,
+  type SceneProgressionAxis,
   type TerraPromptCanaryResolution,
 } from "@/lib/terraPromptCanary";
 import { TERRA_TERMINAL_LENGTH_OWNER_CONTRACT } from "@/lib/terraTerminalLengthOwner";
@@ -1542,16 +1547,36 @@ export async function POST(req: Request) {
     v2Mode: sceneDirectiveV2Mode,
     livingEnabled: Boolean(livingSceneDirective),
   });
+  const canaryProgressionAxis: SceneProgressionAxis | null =
+    resolveCanarySceneProgressionAxis({
+      canary: terraPromptCanary,
+      completedTurns: playableTurnCount,
+      contentKind: contentKindForCanary,
+      userMessage: policyUserMessage,
+      recentMessages: promptHistory,
+    });
+  const sceneDirectiveForRender =
+    canaryProgressionAxis === "relationship" &&
+    scenePacingOwner !== "event_restraint_v2" &&
+    scenePacingOwner !== "living_continuity_director"
+      ? lockSceneDirectiveToRelationshipAxis(legacySceneDirective)
+      : legacySceneDirective;
   const sceneDirectiveBlock = applyTerraPromptCanaryToSceneDirectiveBlock({
     block:
       scenePacingOwner === "event_restraint_v2" && eventRestraintV2
         ? renderSceneDirectiveV2ForPrompt(eventRestraintV2)
         : scenePacingOwner === "living_continuity_director" && livingSceneDirective
           ? renderLivingSceneDirectiveForPrompt(livingSceneDirective)
-          : renderSceneDirectiveForPrompt(legacySceneDirective),
+          : renderSceneDirectiveForPrompt(sceneDirectiveForRender),
     canary: terraPromptCanary,
     completedTurns: playableTurnCount,
+    progressionAxis: canaryProgressionAxis,
   });
+  const relocateSceneDirectiveToUserTurn = shouldRelocateSceneDirectiveToUserTurn(
+    terraPromptCanary,
+    canaryProgressionAxis
+  );
+  const canaryTemperature = resolveTerraPromptCanaryTemperature(terraPromptCanary);
 
   const livingToLegacyProgression = (
     types: LivingProgressionType[]
@@ -1697,14 +1722,23 @@ export async function POST(req: Request) {
     episodicMemoryBlock: episodicMemory.promptBlock || undefined,
     triggeredScenarioEventsBlock: triggeredScenarioEventsBlock || undefined,
     privateSpeechControlBlock: privateSpeechControlBlock || undefined,
-    sceneDirectiveBlock,
+    sceneDirectiveBlock: relocateSceneDirectiveToUserTurn
+      ? null
+      : sceneDirectiveBlock,
     keywordLorebookBlock: keywordLorebookBlock || undefined,
     globalLorebookBlock: globalLorebookBlock || undefined,
     canonInjectionPolicy: canonInjectionPolicy,
     canonPlan: canonLazyCompileResult?.plan ?? null,
     sceneMomentumInput,
     terraPromptCanary: terraPromptCanary
-      ? { variant: terraPromptCanary.variant }
+      ? {
+          variant: terraPromptCanary.variant,
+          progressionAxis: canaryProgressionAxis,
+          relocateSceneDirectiveToUserTurn,
+          sceneDirectiveUserTail: relocateSceneDirectiveToUserTurn
+            ? sceneDirectiveBlock
+            : null,
+        }
       : null,
     preserveAdultHandoffRawHistory:
       adultRoutingConfig.enabled &&
@@ -1727,8 +1761,25 @@ export async function POST(req: Request) {
     })
   );
   if (terraPromptCanary) {
+    const assembledUserTurn =
+      [...(built.history ?? [])].reverse().find((m) => m.role === "user")?.content ??
+      promptUserMessage ??
+      "";
     const userTurnTail =
-      typeof promptUserMessage === "string" ? promptUserMessage.slice(-1500) : "";
+      typeof assembledUserTurn === "string" ? assembledUserTurn.slice(-1500) : "";
+    const terraLengthCount = (
+      assembledUserTurn.match(/한국어 RP 본문만 3,200~4,200자/g) ?? []
+    ).length;
+    const relationshipAxisCount = (
+      assembledUserTurn.match(
+        /이번 턴의 진행축은 주요 캐릭터와 사용자의 관계·상태 변화다/g
+      ) ?? []
+    ).length;
+    const enumeratedCount = (
+      `${assembledUserTurn}\n${sceneDirectiveBlock}`.match(
+        /관계, 단서, 환경, NPC, 세계 반응/g
+      ) ?? []
+    ).length;
     logTerraPromptCanaryDebug({
       requestId: clientRequestId,
       userId: user.id,
@@ -1737,6 +1788,8 @@ export async function POST(req: Request) {
       model: openRouterApiModelId,
       sceneMode: "single_primary",
       canaryVariant: terraPromptCanary.variant,
+      progressionAxis: canaryProgressionAxis,
+      temperature: canaryTemperature,
       sceneDirectiveFinal: sceneDirectiveBlock,
       greetingInjected: extractGreetingFromHistory(promptHistory),
       terraAdapter: TERRA_TERMINAL_LENGTH_OWNER_CONTRACT,
@@ -1750,6 +1803,15 @@ export async function POST(req: Request) {
         phase: "prompt_assembled",
         completedTurns: playableTurnCount,
         historyLen: promptHistory.length,
+        relocateSceneDirectiveToUserTurn,
+        relationshipAxisSentenceCount: relationshipAxisCount,
+        enumeratedProgressSentenceCount: enumeratedCount,
+        terraLengthOwnerCount: terraLengthCount,
+        relationshipBeforeLengthOwner:
+          relationshipAxisCount > 0 &&
+          terraLengthCount > 0 &&
+          assembledUserTurn.indexOf("이번 턴의 진행축은 주요 캐릭터와 사용자의 관계·상태 변화다") <
+            assembledUserTurn.indexOf("한국어 RP 본문만 3,200~4,200자"),
       },
     });
   }
@@ -2396,12 +2458,16 @@ export async function POST(req: Request) {
                 oocHtmlMode: oocHtmlMode || undefined,
                 statusArtifactsOpts: statusArtifactOpts,
                 requestKind: input.requestKind,
-                generationOverrides: regenerateMessageId
-                  ? resolveRegenerateGenerationOverrides(
-                      input.modelId,
-                      targetResponseCharsRef
-                    )
-                  : undefined,
+                generationOverrides: (() => {
+                  const regen = regenerateMessageId
+                    ? resolveRegenerateGenerationOverrides(
+                        input.modelId,
+                        targetResponseCharsRef
+                      )
+                    : undefined;
+                  if (canaryTemperature == null) return regen;
+                  return { ...(regen ?? {}), temperature: canaryTemperature };
+                })(),
                 ...(input.provider === "openai" ||
                 input.provider === "cheaperinference" ||
                 shouldBufferGeneral
@@ -4631,6 +4697,8 @@ export async function POST(req: Request) {
             model: openRouterApiModelId,
             sceneMode: "single_primary",
             canaryVariant: terraPromptCanary.variant,
+            progressionAxis: canaryProgressionAxis,
+            temperature: canaryTemperature,
             sceneDirectiveFinal: sceneDirectiveBlock,
             greetingInjected: extractGreetingFromHistory(promptHistory),
             terraAdapter: TERRA_TERMINAL_LENGTH_OWNER_CONTRACT,
@@ -4648,6 +4716,7 @@ export async function POST(req: Request) {
               canonicalLength: savedText.length,
               finishReason: clientUsageRecord.finishReason ?? null,
               cost,
+              relocateSceneDirectiveToUserTurn,
             },
           });
         }
