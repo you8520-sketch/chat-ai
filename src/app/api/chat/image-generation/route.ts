@@ -61,6 +61,17 @@ import {
   sanitizeChatImageGenerationOptions,
 } from "@/lib/chatImageGeneration";
 import { CHAT_LD_ILLUSTRATION_TEMPLATE_ID } from "@/lib/chatLdIllustrationGeneration";
+import {
+  CHAT_PERSONA_IMAGE_API_OUTPUT_SIZE,
+  CHAT_PERSONA_IMAGE_OUTPUT_HEIGHT,
+  CHAT_PERSONA_IMAGE_OUTPUT_WIDTH,
+  CHAT_PERSONA_IMAGE_QUALITY,
+  CHAT_PERSONA_IMAGE_TEMPLATE_ID,
+  CHAT_PERSONA_IMAGE_TEMPLATE_NAME,
+  buildChatPersonaImagePrompt,
+  personaImageReadiness,
+  resolveChatPersonaImagePrice,
+} from "@/lib/chatPersonaImageGeneration";
 import { getDb } from "@/lib/db";
 import { resolveCharacterGender } from "@/lib/characterGender";
 import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
@@ -110,6 +121,7 @@ type PersonaRow = {
   id: number;
   name: string;
   gender: string;
+  description: string;
   image_url: string;
 };
 
@@ -188,6 +200,7 @@ function resolveGenerationContext(opts: {
   chatId: number | null;
   personaId: number | null;
   requestedCharacterImageUrl?: unknown;
+  strictPersona?: boolean;
 }): GenerationContext {
   const db = getDb();
   let characterId = opts.characterId;
@@ -221,13 +234,16 @@ function resolveGenerationContext(opts: {
   let persona: PersonaRow | undefined;
   if (selectedPersonaId) {
     persona = db
-      .prepare("SELECT id, name, gender, image_url FROM user_personas WHERE id=? AND user_id=?")
+      .prepare("SELECT id, name, gender, description, image_url FROM user_personas WHERE id=? AND user_id=?")
       .get(selectedPersonaId, opts.userId) as PersonaRow | undefined;
+    if (!persona && opts.strictPersona) {
+      throw new RequestError("선택한 페르소나를 찾을 수 없습니다.", 404);
+    }
   }
   if (!persona) {
     persona = db
       .prepare(
-        "SELECT id, name, gender, image_url FROM user_personas WHERE user_id=? ORDER BY created_at ASC, id ASC LIMIT 1"
+        "SELECT id, name, gender, description, image_url FROM user_personas WHERE user_id=? ORDER BY created_at ASC, id ASC LIMIT 1"
       )
       .get(opts.userId) as PersonaRow | undefined;
   }
@@ -365,6 +381,7 @@ async function callOpenAiImage(opts: {
   outputWidth: number;
   outputHeight: number;
   quality: "low" | "medium" | "high";
+  resizeFit?: "fill" | "cover";
 }): Promise<{ buffer: Buffer; costUsd: number | null }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 285_000);
@@ -395,7 +412,8 @@ async function callOpenAiImage(opts: {
           .resize({
             width: opts.outputWidth,
             height: opts.outputHeight,
-            fit: "fill",
+            fit: opts.resizeFit ?? "fill",
+            position: "centre",
           })
           .webp({ quality: 92, effort: 4 })
           .toBuffer();
@@ -424,11 +442,17 @@ async function callOpenAiImage(opts: {
 
 function publicContextResponse(context: GenerationContext) {
   const state = readiness(context);
+  const personaState = personaImageReadiness(context.persona);
   const pricePoints = resolveChatImageGenerationPrice();
   const balance = getPointBalance(context.character.id ? 0 : 0);
   void balance;
   return {
     ...state,
+    personaReady: personaState.ready && !!context.characterImageUrl,
+    personaMissing: [
+      ...personaState.missing,
+      ...(!context.characterImageUrl ? ["캐릭터 그림체 참조 이미지"] : []),
+    ],
     pricePoints,
     modelId: resolveChatImageGenerationModel(),
     modelLabel: "GPT Image 2",
@@ -448,6 +472,8 @@ function publicContextResponse(context: GenerationContext) {
           id: context.persona.id,
           name: context.persona.name,
           imageUrl: context.personaImageUrl,
+          gender: context.persona.gender,
+          appearancePreview: personaState.appearance ?? "",
         }
       : null,
   };
@@ -493,7 +519,7 @@ export async function GET(req: Request) {
         }
       | undefined;
     let latestOptions: {
-      mode?: "sd" | "emoticon" | "couple_stamp" | "comic" | "illustration";
+      mode?: "sd" | "emoticon" | "couple_stamp" | "comic" | "illustration" | "persona";
       title?: string;
       panelCount?: ChatComicPanelCount;
     } = {};
@@ -509,9 +535,13 @@ export async function GET(req: Request) {
       | "emoticon"
       | "couple_stamp"
       | "comic"
-      | "illustration" =
+      | "illustration"
+      | "persona" =
       latest?.template_id === CHAT_COMIC_TEMPLATE_ID || latestOptions.mode === "comic"
         ? "comic"
+        : latest?.template_id === CHAT_PERSONA_IMAGE_TEMPLATE_ID ||
+            latestOptions.mode === "persona"
+          ? "persona"
         : latest?.template_id === CHAT_LD_ILLUSTRATION_TEMPLATE_ID ||
             latestOptions.mode === "illustration"
           ? "illustration"
@@ -553,7 +583,7 @@ export async function GET(req: Request) {
                    AND json_extract(options_json, '$.quality') = 'medium'
                  )
                )
-               AND template_id IN (?, ?, ?, ?, ?)
+               AND template_id IN (?, ?, ?, ?, ?, ?)
              GROUP BY template_id, panel_count`
           )
           .all(
@@ -564,6 +594,7 @@ export async function GET(req: Request) {
             CHAT_EMOTICON_TEMPLATE_ID,
             CHAT_COUPLE_STAMP_TEMPLATE_ID,
             CHAT_LD_ILLUSTRATION_TEMPLATE_ID,
+            CHAT_PERSONA_IMAGE_TEMPLATE_ID,
             CHAT_COMIC_TEMPLATE_ID
           ) as Array<{
           template_id: string;
@@ -603,6 +634,7 @@ export async function GET(req: Request) {
             sd: averageCost(CHAT_IMAGE_TEMPLATE_ID),
             emoticon: averageCost(CHAT_EMOTICON_TEMPLATE_ID),
             coupleStamp: averageCost(CHAT_COUPLE_STAMP_TEMPLATE_ID),
+            persona: averageCost(CHAT_PERSONA_IMAGE_TEMPLATE_ID),
             illustration: averageCost(CHAT_LD_ILLUSTRATION_TEMPLATE_ID),
             comic: {
               2: averageCost(CHAT_COMIC_TEMPLATE_ID, 2),
@@ -648,36 +680,51 @@ export async function POST(req: Request) {
       );
     }
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+    const isPersona = body.templateId === CHAT_PERSONA_IMAGE_TEMPLATE_ID;
     const context = resolveGenerationContext({
       userId: user.id,
       characterId: positiveInt(body.characterId),
       chatId: positiveInt(body.chatId),
       personaId: positiveInt(body.personaId),
       requestedCharacterImageUrl: body.characterImageUrl,
+      strictPersona: isPersona,
     });
     const isEmoticon = body.templateId === CHAT_EMOTICON_TEMPLATE_ID;
     const isCoupleStamp = body.templateId === CHAT_COUPLE_STAMP_TEMPLATE_ID;
-    const templateId = isCoupleStamp
+    const templateId = isPersona
+      ? CHAT_PERSONA_IMAGE_TEMPLATE_ID
+      : isCoupleStamp
       ? CHAT_COUPLE_STAMP_TEMPLATE_ID
       : isEmoticon
         ? CHAT_EMOTICON_TEMPLATE_ID
         : CHAT_IMAGE_TEMPLATE_ID;
-    const templateName = isCoupleStamp
+    const templateName = isPersona
+      ? CHAT_PERSONA_IMAGE_TEMPLATE_NAME
+      : isCoupleStamp
       ? CHAT_COUPLE_STAMP_TEMPLATE_NAME
       : isEmoticon
         ? CHAT_EMOTICON_TEMPLATE_NAME
         : CHAT_IMAGE_TEMPLATE_NAME;
-    const quality = isCoupleStamp
+    const quality = isPersona
+      ? CHAT_PERSONA_IMAGE_QUALITY
+      : isCoupleStamp
       ? CHAT_COUPLE_STAMP_QUALITY
       : isEmoticon
         ? CHAT_EMOTICON_QUALITY
         : CHAT_IMAGE_GENERATION_QUALITY;
-    const state = readiness(context);
+    const state = isPersona ? personaImageReadiness(context.persona) : readiness(context);
+    if (!context.characterImageUrl) {
+      throw new RequestError(
+        isPersona ? "캐릭터 그림체 참조 이미지가 필요합니다." : "캐릭터 대표 이미지가 필요합니다."
+      );
+    }
     if (!state.ready || !context.persona) {
       throw new RequestError(`${state.missing.join(", ")}가 필요합니다.`);
     }
 
-    const pricePoints = isCoupleStamp
+    const pricePoints = isPersona
+      ? resolveChatPersonaImagePrice()
+      : isCoupleStamp
       ? resolveChatCoupleStampPrice()
       : isEmoticon
         ? resolveChatEmoticonPrice()
@@ -697,7 +744,25 @@ export async function POST(req: Request) {
     let prompt: string;
     let referenceSources: string[];
     let generationOptions: Record<string, unknown>;
-    if (isCoupleStamp) {
+    if (isPersona) {
+      const personaState = personaImageReadiness(context.persona);
+      prompt = buildChatPersonaImagePrompt({
+        personaName: context.persona.name,
+        gender: context.persona.gender,
+        appearance: personaState.appearance ?? "",
+        characterName: context.character.name,
+      });
+      // The edit endpoint accepts an image array, so the character artwork is a
+      // direct style reference. Persona identity remains text-authoritative.
+      referenceSources = [context.characterImageUrl];
+      generationOptions = {
+        mode: "persona",
+        quality,
+        apiOutputSize: CHAT_PERSONA_IMAGE_API_OUTPUT_SIZE,
+        outputSize: `${CHAT_PERSONA_IMAGE_OUTPUT_WIDTH}x${CHAT_PERSONA_IMAGE_OUTPUT_HEIGHT}`,
+        styleReference: "character_image",
+      };
+    } else if (isCoupleStamp) {
       const coupleOptions = sanitizeChatCoupleStampOptions({
         height: body.coupleHeight,
         background: body.coupleBackground,
@@ -774,7 +839,13 @@ export async function POST(req: Request) {
       };
     }
 
-    const mode = isCoupleStamp ? "couple_stamp" : isEmoticon ? "emoticon" : "sd";
+    const mode = isPersona
+      ? "persona"
+      : isCoupleStamp
+        ? "couple_stamp"
+        : isEmoticon
+          ? "emoticon"
+          : "sd";
     // Written before the upstream call so a refreshed client still sees 생성중.
     jobId = startChatImageGenerationJob({
       userId: user.id,
@@ -796,25 +867,38 @@ export async function POST(req: Request) {
       references,
       requestSize: isEmoticon
         ? CHAT_EMOTICON_API_OUTPUT_SIZE
+        : isPersona
+          ? CHAT_PERSONA_IMAGE_API_OUTPUT_SIZE
         : isCoupleStamp
           ? CHAT_COUPLE_STAMP_API_OUTPUT_SIZE
           : CHAT_IMAGE_GENERATION_OUTPUT_SIZE,
       outputWidth: isEmoticon
         ? CHAT_EMOTICON_OUTPUT_WIDTH
+        : isPersona
+          ? CHAT_PERSONA_IMAGE_OUTPUT_WIDTH
         : isCoupleStamp
           ? CHAT_COUPLE_STAMP_OUTPUT_WIDTH
           : CHAT_IMAGE_GENERATION_OUTPUT_WIDTH,
       outputHeight: isEmoticon
         ? CHAT_EMOTICON_OUTPUT_HEIGHT
+        : isPersona
+          ? CHAT_PERSONA_IMAGE_OUTPUT_HEIGHT
         : isCoupleStamp
           ? CHAT_COUPLE_STAMP_OUTPUT_HEIGHT
           : CHAT_IMAGE_GENERATION_OUTPUT_HEIGHT,
       quality,
+      resizeFit: isPersona ? "cover" : undefined,
     });
 
     await fs.mkdir(uploadsDataDir(), { recursive: true });
     const filename = `${
-      isCoupleStamp ? "ai-couple-stamp" : isEmoticon ? "ai-emoticon" : "ai-sd"
+      isPersona
+        ? "ai-persona-ld"
+        : isCoupleStamp
+          ? "ai-couple-stamp"
+          : isEmoticon
+            ? "ai-emoticon"
+            : "ai-sd"
     }-${crypto.randomUUID()}.webp`;
     savedPath = path.join(uploadsDataDir(), filename);
     await fs.writeFile(savedPath, generated.buffer);
@@ -877,16 +961,23 @@ export async function POST(req: Request) {
           getEffectiveKrwPerUsd()
         );
       generationId = Number(insert.lastInsertRowid);
-      saveGeneratedImageToCharacterAlbum({
-        userId: user.id,
-        characterId: context.character.id,
-        personaId: context.persona.id,
-        chatId: context.chatId,
-        generationId,
-        imageUrl: resultUrl,
-        mode,
-      });
-      savedToCharacterAlbum = true;
+      if (!isPersona) {
+        const albumMode = isCoupleStamp
+          ? "couple_stamp"
+          : isEmoticon
+            ? "emoticon"
+            : "sd";
+        saveGeneratedImageToCharacterAlbum({
+          userId: user.id,
+          characterId: context.character.id,
+          personaId: context.persona.id,
+          chatId: context.chatId,
+          generationId,
+          imageUrl: resultUrl,
+          mode: albumMode,
+        });
+        savedToCharacterAlbum = true;
+      }
     } catch (error) {
       console.error("[chat-image-generation] history/album insert failed", error);
     }

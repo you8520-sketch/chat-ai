@@ -43,14 +43,18 @@ import {
 import {
   CHAT_LD_ILLUSTRATION_DEFAULT_POINTS,
 } from "@/lib/chatLdIllustrationGeneration";
+import {
+  CHAT_PERSONA_IMAGE_DEFAULT_POINTS,
+  CHAT_PERSONA_IMAGE_TEMPLATE_ID,
+} from "@/lib/chatPersonaImageGeneration";
 import { dispatchPointsDeducted } from "@/lib/pointsEvents";
 
 const PERSONA_STORAGE_KEY = "habi:lastPersonaId";
 
 type Tab = "sd" | "comic";
-type ResultMode = "sd" | "emoticon" | "couple_stamp" | "comic" | "illustration";
+type ResultMode = "sd" | "emoticon" | "couple_stamp" | "comic" | "illustration" | "persona";
 type SdProduct = "gift" | "emoticon" | "coupleStamp";
-type LdProduct = "comic" | "illustration";
+type LdProduct = "comic" | "illustration" | "persona";
 
 const SD_PRODUCTS: readonly SdProduct[] = ["gift", "emoticon", "coupleStamp"];
 
@@ -74,13 +78,15 @@ type AverageImageCost = {
 type Preflight = {
   ready: boolean;
   missing: string[];
+  personaReady: boolean;
+  personaMissing: string[];
   pricePoints: number;
   modelId: string;
   modelLabel: string;
   template: { id: string; name: string; previewUrl: string };
   character: ReferenceInfo;
   characterImages?: Array<{ url: string; tag: string }>;
-  persona: ReferenceInfo | null;
+  persona: (ReferenceInfo & { gender?: string; appearancePreview?: string }) | null;
   balance?: { total: number; paid: number; free: number };
   averageCosts?: {
     exchangeRateKrwPerUsd: number;
@@ -88,6 +94,7 @@ type Preflight = {
     emoticon: AverageImageCost;
     coupleStamp: AverageImageCost;
     illustration: AverageImageCost;
+    persona: AverageImageCost;
     comic: Record<ChatComicPanelCount, AverageImageCost>;
   };
   latestResult?: {
@@ -321,6 +328,7 @@ export default function ChatImageGeneratorPanel({
   const [coupleStampResultUrl, setCoupleStampResultUrl] = useState("");
   const [comicResultUrl, setComicResultUrl] = useState("");
   const [illustrationResultUrl, setIllustrationResultUrl] = useState("");
+  const [personaResultUrl, setPersonaResultUrl] = useState("");
   const [comicTitle, setComicTitle] = useState("");
   const [comicPanelCount, setComicPanelCount] = useState<ChatComicPanelCount | null>(null);
   const [actualCosts, setActualCosts] = useState<
@@ -353,9 +361,11 @@ export default function ChatImageGeneratorPanel({
 
   const activeResultUrl =
     tab === "comic"
-      ? ldProduct === "illustration"
-        ? illustrationResultUrl
-        : comicResultUrl
+      ? ldProduct === "persona"
+        ? personaResultUrl
+        : ldProduct === "illustration"
+          ? illustrationResultUrl
+          : comicResultUrl
       : sdProduct === "emoticon"
         ? emoticonResultUrl
         : sdProduct === "coupleStamp"
@@ -363,16 +373,20 @@ export default function ChatImageGeneratorPanel({
           : sdResultUrl;
   const activeMode: ResultMode =
     tab === "comic"
-      ? ldProduct === "illustration"
-        ? "illustration"
-        : "comic"
+      ? ldProduct === "persona"
+        ? "persona"
+        : ldProduct === "illustration"
+          ? "illustration"
+          : "comic"
       : sdProduct === "emoticon"
         ? "emoticon"
         : sdProduct === "coupleStamp"
           ? "couple_stamp"
           : "sd";
   const activePrice =
-    activeMode === "illustration"
+    activeMode === "persona"
+      ? CHAT_PERSONA_IMAGE_DEFAULT_POINTS
+      : activeMode === "illustration"
       ? CHAT_LD_ILLUSTRATION_DEFAULT_POINTS
       : activeMode === "comic"
       ? CHAT_COMIC_GENERATION_DEFAULT_POINTS
@@ -466,7 +480,9 @@ export default function ChatImageGeneratorPanel({
       );
       setCharacterPickerOpen(false);
       if (data.latestResult?.imageUrl) {
-        if (data.latestResult.mode === "illustration") {
+        if (data.latestResult.mode === "persona") {
+          if (!personaResultUrl) setPersonaResultUrl(data.latestResult.imageUrl);
+        } else if (data.latestResult.mode === "illustration") {
           if (!illustrationResultUrl) setIllustrationResultUrl(data.latestResult.imageUrl);
         } else if (data.latestResult.mode === "comic") {
           if (!comicResultUrl) setComicResultUrl(data.latestResult.imageUrl);
@@ -505,6 +521,7 @@ export default function ChatImageGeneratorPanel({
     coupleStampResultUrl,
     emoticonResultUrl,
     illustrationResultUrl,
+    personaResultUrl,
     loadSavedImages,
     sdResultUrl,
   ]);
@@ -662,6 +679,57 @@ export default function ChatImageGeneratorPanel({
     }
   }
 
+  async function generatePersona() {
+    if (!info?.personaReady || generating) return;
+    setGenerating(true);
+    setError("");
+    setNotice("");
+    setPersonaResultUrl("");
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 300_000);
+    try {
+      const ids = currentRouteIds();
+      const response = await fetch("/api/chat/image-generation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          ...ids,
+          personaId: info.persona?.id ?? null,
+          templateId: CHAT_PERSONA_IMAGE_TEMPLATE_ID,
+          characterImageUrl: selectedCharacterImageUrl || info.character.imageUrl,
+        }),
+      });
+      const data = (await response.json().catch(() => null)) as GenerateResult | null;
+      if (!response.ok || !data?.imageUrl) {
+        if (data) updateBalance(data);
+        throw new Error(data?.error || "페르소나 이미지 생성에 실패했습니다.");
+      }
+      setPersonaResultUrl(data.imageUrl);
+      if (data.upstreamCostUsd != null && data.upstreamCostKrw != null) {
+        setActualCosts((previous) => ({
+          ...previous,
+          persona: { usd: data.upstreamCostUsd!, krw: data.upstreamCostKrw! },
+        }));
+      }
+      updateBalance(data);
+      setNotice("840×1400 페르소나 이미지를 완성했습니다. 저장하기로 내려받을 수 있습니다.");
+      void loadInfo();
+    } catch (caught) {
+      const timedOut = caught instanceof DOMException && caught.name === "AbortError";
+      setError(
+        timedOut
+          ? "페르소나 이미지 생성 시간이 초과되었습니다. 잠시 후 다시 시도해 주세요."
+          : caught instanceof Error
+            ? caught.message
+            : "페르소나 이미지 생성 중 오류가 발생했습니다."
+      );
+    } finally {
+      window.clearTimeout(timer);
+      setGenerating(false);
+    }
+  }
+
   async function generateComic() {
     if (!info?.ready || generating) return;
     const isIllustration = ldProduct === "illustration";
@@ -758,7 +826,7 @@ export default function ChatImageGeneratorPanel({
     }
   }
 
-  const modalTitle = tab === "sd" ? "캐릭터 × 페르소나 SD 이미지" : "캐릭터 × 페르소나 LD 이미지";
+  const modalTitle = "이미지 생성";
 
   return (
     <>
@@ -841,10 +909,11 @@ export default function ChatImageGeneratorPanel({
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(19rem,0.95fr)]">
                   <div className="space-y-3">
                     {tab === "comic" ? (
-                      <div className="grid grid-cols-2 gap-1 rounded-xl bg-black/25 p-1">
+                      <div className="grid grid-cols-3 gap-1 rounded-xl bg-black/25 p-1">
                         {(
                           [
                             ["illustration", "현재 턴 일러스트"],
+                            ["persona", "페르소나"],
                             ["comic", "자동 컷만화"],
                           ] as const
                         ).map(([id, label]) => (
@@ -877,7 +946,7 @@ export default function ChatImageGeneratorPanel({
                         src={
                           activeResultUrl ||
                           (tab === "comic"
-                            ? ldProduct === "illustration"
+                            ? ldProduct === "illustration" || ldProduct === "persona"
                               ? selectedCharacterInfo?.imageUrl || CHAT_COMIC_TEMPLATE_PREVIEW_URL
                               : CHAT_COMIC_TEMPLATE_PREVIEW_URL
                             : sdProduct === "emoticon"
@@ -889,7 +958,9 @@ export default function ChatImageGeneratorPanel({
                         alt={
                           activeResultUrl
                             ? tab === "comic"
-                              ? ldProduct === "illustration"
+                              ? ldProduct === "persona"
+                                ? "생성된 페르소나 이미지"
+                                : ldProduct === "illustration"
                                 ? "생성된 현재 턴 LD 일러스트"
                                 : "생성된 컷만화"
                               : sdProduct === "emoticon"
@@ -898,7 +969,9 @@ export default function ChatImageGeneratorPanel({
                                   ? "생성된 커플 인장"
                                 : "생성된 SD 이미지"
                             : tab === "comic"
-                              ? ldProduct === "illustration"
+                              ? ldProduct === "persona"
+                                ? "캐릭터 그림체 참조 이미지"
+                                : ldProduct === "illustration"
                                 ? "현재 턴 LD 일러스트 참조 이미지"
                                 : "2~4컷 만화 예시"
                               : sdProduct === "emoticon"
@@ -909,8 +982,10 @@ export default function ChatImageGeneratorPanel({
                         }
                         className={`max-h-[62dvh] object-contain ${
                           tab === "comic"
-                            ? ldProduct === "illustration"
-                              ? "aspect-[2/3] h-auto max-w-full"
+                            ? ldProduct === "persona"
+                              ? "aspect-[3/5] h-auto max-w-full"
+                              : ldProduct === "illustration"
+                                ? "aspect-[2/3] h-auto max-w-full"
                               : "h-auto max-w-full"
                             : sdProduct === "emoticon" || sdProduct === "coupleStamp"
                               ? "aspect-square w-full"
@@ -942,11 +1017,15 @@ export default function ChatImageGeneratorPanel({
                     </div>
                     <p className="text-center text-[10px] leading-relaxed text-zinc-500">
                       {activeResultUrl
-                        ? activeSaved
+                        ? activeMode === "persona"
+                          ? "생성 결과는 840×1400 WebP로 저장되며 아래 버튼으로 내려받을 수 있습니다."
+                          : activeSaved
                           ? "캐릭터 앨범에 저장된 이미지입니다."
                           : "생성 결과는 기존 캐릭터 이미지 앨범에 자동으로 추가됩니다."
                         : tab === "comic"
-                          ? ldProduct === "illustration"
+                          ? ldProduct === "persona"
+                            ? "선택 페르소나의 성별·외관 설정을 반영하고, 캐릭터 이미지는 그림체만 직접 참조합니다."
+                            : ldProduct === "illustration"
                             ? "현재 채팅의 최신 턴을 자동으로 읽어 두 사람의 외형과 그림체를 최대한 닮게 반영합니다."
                             : "본문만 붙여넣으면 핵심 대사·말풍선·표정과 2~4컷 구성을 자동으로 만듭니다."
                           : sdProduct === "emoticon"
@@ -1257,6 +1336,20 @@ export default function ChatImageGeneratorPanel({
                       </>
                     ) : (
                       <>
+                        {ldProduct === "persona" ? (
+                          <div className="space-y-2 rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-3 text-[11px] leading-relaxed text-zinc-300">
+                            <p>
+                              <strong className="text-violet-200">선택 페르소나 설정으로 생성</strong>
+                              <br />성별: {info?.persona == null ? "선택 안 됨" : info.persona.gender === "male" ? "남성" : info.persona.gender === "female" ? "여성" : "기타"}
+                            </p>
+                            <p className="whitespace-pre-line text-zinc-400">
+                              {info?.persona?.appearancePreview || "인식 가능한 외관 설정이 없습니다."}
+                            </p>
+                            <p className="text-zinc-500">
+                              캐릭터 이미지는 외형이 아니라 그림체 참조로만 전달됩니다. 840×1400(3:5)로 직접 생성하고, 공급자 응답 크기가 다를 때만 중앙 기준으로 안전하게 보정합니다.
+                            </p>
+                          </div>
+                        ) : null}
                         {ldProduct === "comic" ? (
                           <>
                             <label className="block space-y-1">
@@ -1310,7 +1403,12 @@ export default function ChatImageGeneratorPanel({
                           balance={info?.balance}
                           averageCosts={
                             info?.averageCosts
-                              ? ldProduct === "illustration"
+                              ? ldProduct === "persona"
+                                ? [{
+                                    label: "페르소나 LD 이미지",
+                                    cost: info.averageCosts.persona,
+                                  }]
+                                : ldProduct === "illustration"
                                 ? [{
                                     label: "현재 턴 LD 일러스트",
                                     cost: info.averageCosts.illustration,
@@ -1325,25 +1423,29 @@ export default function ChatImageGeneratorPanel({
                         />
                         <button
                           type="button"
-                          onClick={() => void generateComic()}
+                          onClick={() => void (ldProduct === "persona" ? generatePersona() : generateComic())}
                           disabled={
                             generating ||
                             loadingInfo ||
-                            !info?.ready ||
+                            (ldProduct === "persona" ? !info?.personaReady : !info?.ready) ||
                             (ldProduct === "comic" && !comicText.trim()) ||
-                            (info.balance != null &&
+                            (info?.balance != null &&
                               info.balance.total < activePrice)
                           }
                           className="w-full rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           {generating
-                            ? ldProduct === "illustration"
-                              ? "현재 턴 LD 일러스트 생성 중…"
-                              : "대사와 컷을 구성해 만화 생성 중…"
+                            ? ldProduct === "persona"
+                              ? "페르소나 이미지 생성 중…"
+                              : ldProduct === "illustration"
+                                ? "현재 턴 LD 일러스트 생성 중…"
+                                : "대사와 컷을 구성해 만화 생성 중…"
                             : activeResultUrl
                               ? `다시 생성 · ${activePrice.toLocaleString()}P`
                               : `${
-                                  ldProduct === "illustration"
+                                  ldProduct === "persona"
+                                    ? "페르소나 이미지 생성"
+                                    : ldProduct === "illustration"
                                     ? "현재 턴 일러스트 생성"
                                     : "자동 컷만화 생성"
                                 } · ${activePrice.toLocaleString()}P`}
@@ -1351,15 +1453,22 @@ export default function ChatImageGeneratorPanel({
                       </>
                     )}
 
-                    {info && !info.ready ? (
+                    {info && (tab === "comic" && ldProduct === "persona" ? !info.personaReady : !info.ready) ? (
                       <p className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-200">
-                        먼저 {info.missing.join(", ")}를 등록해 주세요.
+                        먼저 {(tab === "comic" && ldProduct === "persona" ? info.personaMissing : info.missing).join(", ")}를 등록해 주세요.
+                        {tab === "comic" && ldProduct === "persona" && info.personaMissing.some((item) => item.startsWith("페르소나") || item === "선택 페르소나") ? (
+                          <a href="/persona" className="ml-2 font-semibold underline underline-offset-2 hover:text-amber-100">
+                            페르소나 설정 열기
+                          </a>
+                        ) : null}
                       </p>
                     ) : null}
                     {generating ? (
                       <p className="rounded-lg border border-violet-500/25 bg-violet-500/10 px-3 py-2 text-xs leading-relaxed text-violet-200">
                         이미지를 생성하고 있습니다. 새로고침하거나 창을 닫아도 생성은 계속되고,
-                        완료되면 캐릭터 이미지 앨범에 저장됩니다.
+                        {activeMode === "persona"
+                          ? "완료되면 이 창에서 결과를 저장할 수 있습니다."
+                          : "완료되면 캐릭터 이미지 앨범에 저장됩니다."}
                       </p>
                     ) : null}
                     {notice ? (
