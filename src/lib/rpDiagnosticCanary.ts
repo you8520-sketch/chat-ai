@@ -181,13 +181,9 @@ export function rpDiagnosticBypassDisplayGrouping(
 export function rpDiagnosticEnablesPipelineCapture(
   variant: RpDiagnosticCanaryVariant
 ): boolean {
-  return (
-    variant === "ds_pipeline_baseline" ||
-    variant === "ds_postprocess_baseline" ||
-    variant === "ds_display_grouping_bypass" ||
-    variant === "ds_paragraph_normalize_bypass" ||
-    variant === "ds_real_production"
-  );
+  // Audit matrix variants emit diagnostic_pipeline (with A→L route_save_stages)
+  // for integrity + stage capture. Only "baseline" (no canary) is excluded.
+  return variant !== "baseline";
 }
 
 export type DeepSeekExtrasMode = "full" | "length_stack_only" | "off";
