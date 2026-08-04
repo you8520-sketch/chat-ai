@@ -38,7 +38,7 @@ Module._load = function (request, parent, isMain) {
   return originalLoad.call(this, request, parent, isMain);
 } as typeof Module._load;
 
-const ENV_KEYS = ["PERSONA_SECRET_BOUNDARY_ENABLED"] as const;
+const ENV_KEYS = ["PERSONA_SECRET_BOUNDARY_ENABLED", "PERSONA_SECRET_DISCOVERY_ENABLED"] as const;
 function saveEnv(): Record<string, string | undefined> {
   return Object.fromEntries(ENV_KEYS.map((k) => [k, process.env[k]]));
 }
@@ -144,6 +144,7 @@ describe("PR-S4B multi-observer witness resolution", () => {
   beforeEach(() => {
     env = saveEnv();
     process.env.PERSONA_SECRET_BOUNDARY_ENABLED = "1";
+    process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "1";
     ensureObserverSchema(getDb());
     ensureSceneObservationSchema(getDb());
   });

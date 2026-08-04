@@ -13,7 +13,7 @@ import { applyKnowledgeTransferAction } from "@/lib/knowledgeTransferApply";
 import { ensureKnowledgeTransferSchema } from "@/lib/knowledgeTransferSchema";
 import { runKnowledgeTransfersForTurn } from "@/lib/knowledgeTransfer";
 import { bootstrapChatObservers } from "@/lib/observerBootstrap";
-import { upsertChatObserver } from "@/lib/observerIdentity";
+import { getChatObserver, upsertChatObserver } from "@/lib/observerIdentity";
 import { getActiveChatScene } from "@/lib/chatScenes";
 import {
   buildGenerationKnowledgeContext,
@@ -25,7 +25,8 @@ import {
   upsertObserverSecretKnowledge,
 } from "@/lib/personaSecretKnowledge";
 import { createPersonaSecret } from "@/lib/personaSecrets";
-import { upsertScenePresence } from "@/lib/scenePresence";
+import { getScenePresence, upsertScenePresence } from "@/lib/scenePresence";
+import type { PersonaSecretTransferAction } from "@/lib/knowledgeTransferTypes";
 
 const originalLoad = Module._load;
 Module._load = function (request, parent, isMain) {
@@ -33,7 +34,10 @@ Module._load = function (request, parent, isMain) {
   return originalLoad.call(this, request, parent, isMain);
 } as typeof Module._load;
 
-const ENV_KEYS = ["PERSONA_SECRET_BOUNDARY_ENABLED"] as const;
+const ENV_KEYS = [
+  "PERSONA_SECRET_BOUNDARY_ENABLED",
+  "PERSONA_SECRET_DISCOVERY_ENABLED",
+] as const;
 function saveEnv(): Record<string, string | undefined> {
   return Object.fromEntries(ENV_KEYS.map((k) => [k, process.env[k]]));
 }
@@ -72,6 +76,15 @@ function countEvidence(chatId: number, method = "KNOWLEDGE_TRANSFER"): number {
     )
     .get(chatId, method) as { c: number };
   return row.c;
+}
+
+function countKnowledge(chatId: number, personaId: number, secretId: string): number {
+  const row = getDb()
+    .prepare(
+      `SELECT COUNT(*) AS c FROM chat_character_secret_knowledge WHERE chat_id=? AND persona_id=? AND secret_id=?`
+    )
+    .get(chatId, personaId, secretId) as { c: number } | undefined;
+  return row?.c ?? 0;
 }
 
 function seedSecret(opts: {
@@ -115,6 +128,124 @@ function seedSenderKnowledge(opts: {
     firstSuspectedTurn: 1,
     lastEvidenceEventId: `seed-${opts.secretId}-${opts.observerId}`,
   });
+}
+
+/**
+ * Common valid transfer fixture: chat/scene/observers created, sender
+ * CONFIRMED knowledge, receiver PRESENT/AWARE/NORMAL, and a valid
+ * DIRECT_STATEMENT userAction. Both positive and negative controls use this
+ * so the negative control verifies Discovery OFF → no-op on transfer-capable input.
+ * Requires Discovery=1 at call time (bootstrapChatObservers is Discovery-gated).
+ */
+function setupValidTransferFixture() {
+  const n = Math.floor(Math.random() * 10000);
+  const chatId = 770000 + n;
+  const personaId = 772000 + n;
+  const locoId = 17;
+  const taehyunId = 29;
+  bootstrapChatObservers({
+    chatId,
+    characterId: locoId,
+    displayName: "로코",
+    userId: 1,
+  });
+  upsertChatObserver({
+    chatId,
+    observerType: "CHARACTER",
+    observerId: String(taehyunId),
+    canonicalSourceType: "PARTY_CHARACTER",
+    displayName: "태현",
+    createdTurn: 1,
+  });
+  const scene = getActiveChatScene(chatId)!;
+  upsertScenePresence({
+    sceneId: scene.id,
+    chatId,
+    observerType: "CHARACTER",
+    observerId: String(locoId),
+    presenceState: "PRESENT",
+    awarenessState: "AWARE",
+    visualCapability: "NORMAL",
+    auditoryCapability: "NORMAL",
+    joinedTurn: 1,
+    sourceType: "SERVER_SCENE_EVENT",
+  });
+  upsertScenePresence({
+    sceneId: scene.id,
+    chatId,
+    observerType: "CHARACTER",
+    observerId: String(taehyunId),
+    presenceState: "PRESENT",
+    awarenessState: "AWARE",
+    visualCapability: "NORMAL",
+    auditoryCapability: "NORMAL",
+    joinedTurn: 1,
+    sourceType: "SERVER_SCENE_EVENT",
+  });
+  const secret = seedSecret({
+    personaId,
+    secretKey: "s4d_valid_fixture",
+    fact: "유효 전달 사실.",
+  });
+  seedSenderKnowledge({
+    chatId,
+    personaId,
+    secretId: secret.id,
+    observerType: "CHARACTER",
+    observerId: String(locoId),
+    state: "CONFIRMED",
+    fact: "유효 전달 사실.",
+  });
+  const userAction: PersonaSecretTransferAction = {
+    secretId: secret.id,
+    sender: { observerType: "CHARACTER", observerId: String(locoId) },
+    receiver: { observerType: "CHARACTER", observerId: String(taehyunId) },
+    transferType: "DIRECT_STATEMENT",
+    sourceMessageId: 1,
+  };
+  return { chatId, personaId, locoId, taehyunId, secret, scene, userAction };
+}
+
+/** Assert the fixture is fully transfer-capable (observers/scene/knowledge/action). */
+function assertValidTransferFixture(
+  fx: ReturnType<typeof setupValidTransferFixture>
+): void {
+  const senderObs = getChatObserver({
+    chatId: fx.chatId,
+    observerType: "CHARACTER",
+    observerId: String(fx.locoId),
+  });
+  const receiverObs = getChatObserver({
+    chatId: fx.chatId,
+    observerType: "CHARACTER",
+    observerId: String(fx.taehyunId),
+  });
+  assert.ok(senderObs, "sender observer exists");
+  assert.ok(receiverObs, "receiver observer exists");
+  assert.ok(fx.scene, "active scene exists");
+  const senderKnow = getObserverSecretKnowledge({
+    chatId: fx.chatId,
+    personaId: fx.personaId,
+    secretId: fx.secret.id,
+    observerType: "CHARACTER",
+    observerId: String(fx.locoId),
+  });
+  assert.equal(senderKnow?.knowledge_state, "CONFIRMED", "sender CONFIRMED knowledge");
+  const receiverPresence = getScenePresence({
+    sceneId: fx.scene.id,
+    observerType: "CHARACTER",
+    observerId: String(fx.taehyunId),
+  });
+  assert.equal(receiverPresence?.presence_state, "PRESENT", "receiver PRESENT");
+  assert.equal(receiverPresence?.awareness_state, "AWARE", "receiver AWARE");
+  assert.equal(
+    receiverPresence?.auditory_capability,
+    "NORMAL",
+    "receiver auditory NORMAL"
+  );
+  assert.equal(fx.userAction.transferType, "DIRECT_STATEMENT");
+  assert.equal(fx.userAction.secretId, fx.secret.id);
+  assert.equal(fx.userAction.sourceMessageId, 1);
 }
 
 function setupObservers(opts: {
@@ -169,9 +300,102 @@ describe("PR-S4D controlled knowledge transfer", () => {
   beforeEach(() => {
     envSnap = saveEnv();
     process.env.PERSONA_SECRET_BOUNDARY_ENABLED = "1";
+    process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "1";
     ensureKnowledgeTransferSchema(getDb());
   });
   afterEach(() => restoreEnv(envSnap));
+
+  it("0. fail-closed: Boundary=1 + Discovery unset → 0 transfers/evidence/knowledge writes", () => {
+    // Build the same valid fixture while Discovery=1 (bootstrap is Discovery-gated).
+    process.env.PERSONA_SECRET_BOUNDARY_ENABLED = "1";
+    process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "1";
+    const fx = setupValidTransferFixture();
+    assertValidTransferFixture(fx);
+
+    // Flip Discovery OFF immediately before the transfer call.
+    process.env.PERSONA_SECRET_BOUNDARY_ENABLED = "1";
+    delete process.env.PERSONA_SECRET_DISCOVERY_ENABLED;
+
+    const beforeTransfers = countTransfers(fx.chatId);
+    const beforeEvidence = countEvidence(fx.chatId);
+    const beforeKnowledge = countKnowledge(fx.chatId, fx.personaId, fx.secret.id);
+    const result = runKnowledgeTransfersForTurn({
+      chatId: fx.chatId,
+      personaId: fx.personaId,
+      characterId: fx.locoId,
+      turnNumber: 1,
+      userActions: [fx.userAction],
+      authoritativeActions: [],
+      userId: 1,
+    });
+    assert.equal(result.appliedCount, 0, "appliedCount 0 when Discovery off (valid fixture)");
+    assert.equal(result.changedCount, 0, "changedCount 0 when Discovery off (valid fixture)");
+    assert.equal(
+      countTransfers(fx.chatId) - beforeTransfers,
+      0,
+      "transfer delta 0 when Discovery off (valid fixture)"
+    );
+    assert.equal(
+      countEvidence(fx.chatId) - beforeEvidence,
+      0,
+      "evidence delta 0 when Discovery off (valid fixture)"
+    );
+    assert.equal(
+      countKnowledge(fx.chatId, fx.personaId, fx.secret.id),
+      beforeKnowledge,
+      "no new knowledge rows when Discovery off (valid fixture)"
+    );
+    const receiver = getObserverSecretKnowledge({
+      chatId: fx.chatId,
+      personaId: fx.personaId,
+      secretId: fx.secret.id,
+      observerType: "CHARACTER",
+      observerId: String(fx.taehyunId),
+    });
+    assert.equal(receiver, null, "receiver knowledge null when Discovery off");
+  });
+
+  it("0.5 positive control: Discovery=1 + valid DIRECT_STATEMENT userAction → transfer applied", () => {
+    process.env.PERSONA_SECRET_BOUNDARY_ENABLED = "1";
+    process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "1";
+    // Same helper as the negative control — proves the fixture is transfer-capable.
+    const fx = setupValidTransferFixture();
+    assertValidTransferFixture(fx);
+
+    const beforeTransfers = countTransfers(fx.chatId);
+    const beforeEvidence = countEvidence(fx.chatId);
+    const result = runKnowledgeTransfersForTurn({
+      chatId: fx.chatId,
+      personaId: fx.personaId,
+      characterId: fx.locoId,
+      turnNumber: 1,
+      userActions: [fx.userAction],
+      authoritativeActions: [],
+      userId: 1,
+    });
+    assert.equal(result.appliedCount, 1, "appliedCount 1 when Discovery on + valid action");
+    assert.equal(result.changedCount, 1, "changedCount 1 when Discovery on + valid action");
+    assert.equal(
+      countTransfers(fx.chatId) - beforeTransfers,
+      1,
+      "transfer delta 1"
+    );
+    assert.equal(
+      countEvidence(fx.chatId) - beforeEvidence,
+      1,
+      "evidence delta 1"
+    );
+    const receiver = getObserverSecretKnowledge({
+      chatId: fx.chatId,
+      personaId: fx.personaId,
+      secretId: fx.secret.id,
+      observerType: "CHARACTER",
+      observerId: String(fx.taehyunId),
+    });
+    assert.equal(receiver?.knowledge_state, "CONFIRMED", "receiver knowledge CONFIRMED");
+  });
+
+
 
   it("1. CONFIRMED sender → receiver CONFIRMED", () => {
     const { chatId, personaId, locoId, taehyunId } = ids();
