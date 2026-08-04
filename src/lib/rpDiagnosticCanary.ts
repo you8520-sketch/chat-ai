@@ -62,6 +62,7 @@ export const RP_DIAGNOSTIC_CANARY_VARIANTS = [
   "common_length_owner_minimal",
   "common_scene_directive_removed",
   "common_rp_style_minimal",
+  "hair_sanitizer_paragraph_preserve",
   "deepseek_final",
   "terra_cross_check",
   "ds_length_normalized_baseline",

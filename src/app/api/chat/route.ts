@@ -83,6 +83,7 @@ import {
   buildCharacterCanonBlock,
   resolveHairDescriptionPolicy,
   sanitizeHairDescriptions,
+  sanitizeHairDescriptionsLegacy,
 } from "@/lib/bodyHairRules";
 import {
   extractVisualAppearancePolicyFromChunks,
@@ -2876,10 +2877,32 @@ export async function POST(req: Request) {
           stripInternalTagLeakage(traced),
           "stripInternalTagLeakage — XML/internal instruction tags"
         );
+        const hairSanitizerFixed = sanitizeHairDescriptions(traced, hairPolicy);
+        if (
+          rpDiagnosticCanary?.variant === "hair_sanitizer_paragraph_preserve"
+        ) {
+          const legacy = sanitizeHairDescriptionsLegacy(traced, hairPolicy);
+          const fixedPara = (hairSanitizerFixed.match(/\n\s*\n/g) ?? []).length + 1;
+          const legacyPara = (legacy.match(/\n\s*\n/g) ?? []).length + 1;
+          const inputPara = (traced.match(/\n\s*\n/g) ?? []).length + 1;
+          const wsNorm = (s: string) => s.replace(/\s+/g, " ").trim();
+          console.log("[hair-sanitizer-canary]", {
+            input_paragraph_count: inputPara,
+            legacy_output_paragraph_count: legacyPara,
+            fixed_output_paragraph_count: fixedPara,
+            legacy_char_length: legacy.length,
+            fixed_char_length: hairSanitizerFixed.length,
+            legacy_quote_count: (legacy.match(/["“]/g) ?? []).length,
+            fixed_quote_count: (hairSanitizerFixed.match(/["“]/g) ?? []).length,
+            violating_sentence_count: Math.max(0, legacyPara - fixedPara),
+            non_whitespace_hash_input: wsNorm(traced).length,
+            fixed_equals_input: hairSanitizerFixed === traced,
+          });
+        }
         traced = traceStep(
           "sanitizeHairDescriptions",
           traced,
-          sanitizeHairDescriptions(traced, hairPolicy),
+          hairSanitizerFixed,
           "sanitizeHairDescriptions — hair policy violations"
         );
         traced = traceStep(
