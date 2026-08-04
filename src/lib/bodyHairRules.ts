@@ -206,31 +206,36 @@ function removeHairViolationsPreservingParagraphs(
   text: string,
   policy: HairDescriptionPolicy
 ): { result: string; violations: string[]; droppedChars: number } {
-  // Split into [paragraph, separator, paragraph, separator, ...] keeping original blank-line separators.
+  // Split into [paragraph, separator, paragraph, separator, ..., paragraph] keeping
+  // original blank-line separators. Even indices are paragraphs, odd are separators.
   const parts = text.split(/(\r?\n\r?\n+)/);
   const violations: string[] = [];
   let droppedChars = 0;
-  const out: string[] = [];
 
+  // Build a list of { sep, para } items, where sep is the separator that PRECEDES para.
+  // The first paragraph has sep = "" (no preceding separator).
+  type Item = { sep: string; para: string };
+  const items: Item[] = [];
+  let curSep = "";
   for (let idx = 0; idx < parts.length; idx++) {
     const part = parts[idx]!;
-    // Even indices are paragraphs, odd indices are separators.
     if (idx % 2 === 1) {
-      out.push(part);
+      curSep = part;
       continue;
     }
-    if (!part) {
-      out.push(part);
-      continue;
-    }
+    items.push({ sep: curSep, para: part });
+    curSep = "";
+  }
 
+  // For each paragraph, compute the (possibly modified) kept text and whether the
+  // whole paragraph is dropped (all sentences are violations).
+  type Resolved = { sep: string; para: string; dropped: boolean };
+  const resolved: Resolved[] = items.map((it) => {
+    const part = it.para;
+    if (!part) return { sep: it.sep, para: part, dropped: !it.sep };
     const spans = findSentenceSpans(part);
-    if (spans.length === 0) {
-      out.push(part);
-      continue;
-    }
+    if (spans.length === 0) return { sep: it.sep, para: part, dropped: false };
 
-    // Identify violation sentence spans (by trimmed text).
     const keepMask = spans.map((s) => {
       const sentence = part.slice(s.start, s.end);
       const trimmed = sentence.trim();
@@ -246,14 +251,12 @@ function removeHairViolationsPreservingParagraphs(
 
     if (keepMask.every((k) => k)) {
       // No violation in this paragraph — keep byte-identical.
-      out.push(part);
-      continue;
+      return { sep: it.sep, para: part, dropped: false };
     }
     if (keepMask.every((k) => !k)) {
-      // Entire paragraph is violations — drop it (and its preceding separator
-      // will be cleaned below). Keep nothing for this paragraph slot.
-      out.push("");
-      continue;
+      // Entire paragraph is violations — drop the paragraph; its surrounding
+      // separators are cleaned up locally below.
+      return { sep: it.sep, para: "", dropped: true };
     }
 
     // Mixed: keep non-violation sentences joined by the ORIGINAL inter-sentence
@@ -263,8 +266,8 @@ function removeHairViolationsPreservingParagraphs(
       if (!keepMask[i]) continue;
       const sentence = part.slice(spans[i]!.start, spans[i]!.end);
       if (keptPieces.length === 0) {
-        // First kept sentence in this paragraph: drop any leading whitespace
-        // that was the separator from a removed preceding violation.
+        // First kept sentence: drop leading whitespace that was the separator
+        // from a removed preceding violation within this paragraph.
         keptPieces.push(sentence.replace(/^\s+/, ""));
       } else {
         // Reproduce original whitespace between the previous kept sentence
@@ -276,23 +279,61 @@ function removeHairViolationsPreservingParagraphs(
         keptPieces.push(sentence);
       }
     }
-    out.push(keptPieces.join(""));
+    return { sep: it.sep, para: keptPieces.join(""), dropped: false };
+  });
+
+  // Rebuild with localized separator cleanup. When a paragraph is dropped, the
+  // separator before it and the separator before the next kept paragraph become
+  // adjacent — merge them into ONE normal paragraph separator. Other separators
+  // (including unrelated 3+ newlines, scene gaps, trailing newlines, CRLF)
+  // are preserved byte-identical.
+  const out: string[] = [];
+  let pendingSep = "";
+  let pendingIsMerge = false;
+  for (let i = 0; i < resolved.length; i++) {
+    const r = resolved[i]!;
+    if (r.dropped) {
+      // This paragraph is removed. The separator that preceded it (r.sep) and
+      // the separator that will precede the next kept paragraph must merge into
+      // one normal separator. Mark pending merge.
+      if (i === 0) {
+        // First paragraph dropped — no preceding separator to keep; the following
+        // separator becomes a leading separator and must be dropped.
+        pendingSep = "";
+        pendingIsMerge = true;
+      } else if (pendingIsMerge) {
+        // Already merging (previous paragraph was also dropped) — keep merging.
+        pendingIsMerge = true;
+      } else {
+        // Begin a merge: the separator before this dropped paragraph is the
+        // start of the merged separator.
+        pendingSep = r.sep;
+        pendingIsMerge = true;
+      }
+      continue;
+    }
+    // Kept paragraph.
+    if (pendingIsMerge) {
+      // A previous paragraph was dropped: merge pendingSep + this paragraph's
+      // own preceding separator (r.sep) into one normal paragraph separator.
+      const nl = /\r/.test(pendingSep) || /\r/.test(r.sep) ? "\r\n\r\n" : "\n\n";
+      out.push(nl);
+      pendingIsMerge = false;
+      pendingSep = "";
+    } else {
+      // No drop occurred before this paragraph — emit its original preceding
+      // separator byte-identical.
+      out.push(r.sep);
+    }
+    out.push(r.para);
+  }
+  // If the LAST paragraph(s) were dropped, pendingIsMerge is true with nothing
+  // after them. The trailing separator(s) from the drop become trailing blank
+  // lines — drop them (no trailing blanks introduced by removal).
+  if (pendingIsMerge) {
+    // Trailing dropped paragraph(s): omit the trailing separator entirely.
+    // (Do NOT add a trailing blank line.)
   }
 
-  let result = out.join("");
-
-  // If a whole paragraph was dropped, its surrounding separators may now form
-  // 3+ consecutive newlines. Collapse runs of >2 newlines back to the max
-  // original separator width (2) — but only when a paragraph was removed.
-  if (violations.length > 0) {
-    result = result.replace(/(\r?\n){3,}/g, (m) => {
-      const nl = m.includes("\r\n") ? "\r\n" : "\n";
-      return nl + nl;
-    });
-    // Trim trailing blank lines introduced by a dropped trailing paragraph,
-    // but do NOT trim leading content or alter CRLF form otherwise.
-    result = result.replace(/(\r?\n){2,}$/, "");
-  }
-
-  return { result, violations, droppedChars };
+  return { result: out.join(""), violations, droppedChars };
 }

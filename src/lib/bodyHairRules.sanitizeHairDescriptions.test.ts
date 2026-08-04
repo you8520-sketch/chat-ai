@@ -145,4 +145,40 @@ describe("sanitizeHairDescriptions paragraph preservation", () => {
     assert.equal(out, "정상 문장. 정상 문장.");
     assert.equal(paragraphCount(out), 1);
   });
+
+  it("T13 — unrelated triple newline (scene gap) preserved", () => {
+    // A and B separated by a 3-newline scene gap; violation paragraph after B.
+    const input = "정상 장면 A.\n\n\n정상 장면 B.\n\n수염 위반 문장.\n\n정상 장면 C.";
+    const out = sanitizeHairDescriptions(input, restrictive);
+    // A-B triple newline byte sequence preserved; violation removed; B-C single sep.
+    assert.equal(out, "정상 장면 A.\n\n\n정상 장면 B.\n\n정상 장면 C.");
+    assert.ok(out.includes("\n\n\n"));
+    assert.equal(paragraphCount(out), 3);
+  });
+
+  it("T14 — unrelated trailing newline preserved", () => {
+    // Middle paragraph has a violation; input ends with a trailing newline.
+    const input = "정상 A.\n\n수염 위반 문장.\n\n정상 B.\n";
+    const out = sanitizeHairDescriptions(input, restrictive);
+    // Trailing newline (unrelated to the removed middle paragraph) preserved.
+    assert.ok(out.endsWith("\n"));
+    assert.ok(!out.includes("수염"));
+  });
+
+  it("T15 — violation-only middle paragraph separator cleanup (no 3+ newlines)", () => {
+    const input = "정상 A.\n\n위반-only 문단 수염.\n\n정상 B.";
+    const out = sanitizeHairDescriptions(input, restrictive);
+    assert.equal(out, "정상 A.\n\n정상 B.");
+    assert.equal(paragraphCount(out), 2);
+    assert.ok(!/\n{3,}/.test(out));
+  });
+
+  it("T16 — CRLF separator cleanup preserves CRLF, no LF conversion", () => {
+    const input = "정상 A.\r\n\r\n위반-only 문단 수염.\r\n\r\n정상 B.";
+    const out = sanitizeHairDescriptions(input, restrictive);
+    assert.equal(out, "정상 A.\r\n\r\n정상 B.");
+    assert.ok(out.includes("\r\n\r\n"));
+    assert.ok(!out.includes("\n\n"));
+    assert.equal(paragraphCount(out), 2);
+  });
 });
