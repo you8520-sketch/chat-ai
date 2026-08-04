@@ -176,7 +176,10 @@ import {
   normalizeAiNovelProseLayout,
   normalizeAiNovelProsePreDisplay,
   applyDisplayParagraphGrouping,
+  groupNovelParagraphs,
+  resolveNovelDisplayParagraphs,
 } from "@/lib/novelParagraphs";
+import { computeDialogueMetrics } from "@/lib/dialogueMetrics";
 import { TERRA_TERMINAL_LENGTH_OWNER_CONTRACT } from "@/lib/terraTerminalLengthOwner";
 import {
   buildSceneDirectiveV2,
@@ -474,6 +477,71 @@ function parseMessageIdInput(input: unknown): number | null {
   if (typeof input !== "string") return null;
   const n = Number(input.trim().replace(/^msg-/i, ""));
   return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+type RouteSaveStageSummary = {
+  stage: string;
+  char_len: number;
+  paragraph_count: number;
+  blank_line_count: number;
+  quote_pair_count: number;
+};
+
+/** A→L stage capture: compact paragraph-count trace across the route save path
+ *  plus client display stages, to pinpoint where paragraph_count inflates. */
+function buildRouteSaveStages(
+  modelDeliveredText: string,
+  streamVisibleText: string,
+  removalTraceSteps: { stage: string; before: string; after: string; reason: string }[],
+  savedTextFinal: string
+): {
+  stages: RouteSaveStageSummary[];
+  first_inflation: { from: string; to: string; delta: number } | null;
+} {
+  const summarize = (stage: string, text: string): RouteSaveStageSummary => {
+    const m = computeDialogueMetrics({ text });
+    return {
+      stage,
+      char_len: text.length,
+      paragraph_count: m.paragraph_count,
+      blank_line_count: (text.match(/\n\s*\n/g) ?? []).length,
+      quote_pair_count: m.raw_quote_blocks,
+    };
+  };
+  const stages: RouteSaveStageSummary[] = [];
+  stages.push(summarize("A_model_delivered", modelDeliveredText));
+  stages.push(summarize("B_stream_visible", streamVisibleText));
+  for (const step of removalTraceSteps) {
+    stages.push(summarize(`route:${step.stage}::after`, step.after));
+  }
+  stages.push(summarize("F_savedText_final", savedTextFinal));
+  // Client display stages on final savedText
+  const grouped = groupNovelParagraphs(savedTextFinal);
+  stages.push({
+    stage: "J_group_novel_paragraphs",
+    char_len: grouped.join("\n\n").length,
+    paragraph_count: grouped.length,
+    blank_line_count: Math.max(0, grouped.length - 1),
+    quote_pair_count: computeDialogueMetrics({ text: grouped.join("\n\n") }).raw_quote_blocks,
+  });
+  const dom = resolveNovelDisplayParagraphs(savedTextFinal);
+  stages.push({
+    stage: "K_dom_paragraphs",
+    char_len: dom.join("\n\n").length,
+    paragraph_count: dom.length,
+    blank_line_count: Math.max(0, dom.length - 1),
+    quote_pair_count: computeDialogueMetrics({ text: dom.join("\n\n") }).raw_quote_blocks,
+  });
+
+  let firstInflation: { from: string; to: string; delta: number } | null = null;
+  for (let i = 1; i < stages.length; i++) {
+    const delta = stages[i]!.paragraph_count - stages[i - 1]!.paragraph_count;
+    if (delta >= 2) {
+      firstInflation = { from: stages[i - 1]!.stage, to: stages[i]!.stage, delta };
+      break;
+    }
+  }
+  return { stages, first_inflation: firstInflation };
 }
 
 export async function POST(req: Request) {
@@ -4834,6 +4902,14 @@ export async function POST(req: Request) {
               sse_final: pipelineCapture.sse_final,
               db_saved: pipelineCapture.db_saved,
             },
+            // A→L stage capture: route save path + client display.
+            // Pinpoints the exact stage where paragraph_count inflates.
+            route_save_stages: buildRouteSaveStages(
+              modelDeliveredText,
+              streamVisibleTextRef,
+              routeRemovalTraceSteps,
+              savedText
+            ),
           });
           logRpDiagnosticCanaryDebug({
             requestId: clientRequestId,
