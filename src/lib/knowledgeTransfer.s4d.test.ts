@@ -184,15 +184,24 @@ describe("PR-S4D controlled knowledge transfer", () => {
     const probeChatId = 770000 + Math.floor(Math.random() * 10000);
     const beforeTransfers = countTransfers(probeChatId);
     const beforeEvidence = countEvidence(probeChatId);
+    // Real contract fields (not sourceMessageId/userMessage/explicitActions/authoritativeOutcomes).
+    // A valid DIRECT_STATEMENT userAction that WOULD transfer if Discovery were on —
+    // with Discovery off, runKnowledgeTransfersForTurn is a no-op (delta 0).
     const result = runKnowledgeTransfersForTurn({
       chatId: probeChatId,
       personaId,
       characterId: 17,
       turnNumber: 1,
       sourceMessageId: 1,
-      userMessage: "프로브 메시지",
-      explicitActions: [],
-      authoritativeOutcomes: [],
+      userActions: [
+        {
+          secretId: secret.id,
+          sender: { observerType: "CHARACTER", observerId: "17" },
+          receiver: { observerType: "CHARACTER", observerId: "29" },
+          transferType: "DIRECT_STATEMENT",
+        },
+      ],
+      authoritativeActions: [],
       userId: 1,
     });
     assert.equal(result.appliedCount, 0, "appliedCount 0 when Discovery off");
