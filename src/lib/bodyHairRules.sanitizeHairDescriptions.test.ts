@@ -181,4 +181,42 @@ describe("sanitizeHairDescriptions paragraph preservation", () => {
     assert.ok(!out.includes("\n\n"));
     assert.equal(paragraphCount(out), 2);
   });
+
+  it("T17 — violation-only leading paragraph (no leading blank line)", () => {
+    const input = "수염 위반 문장.\n\n정상 B.";
+    const out = sanitizeHairDescriptions(input, restrictive);
+    assert.equal(out, "정상 B.");
+    assert.ok(!out.startsWith("\n"));
+  });
+
+  it("T18 — violation-only leading paragraph CRLF (no leading CRLF blank)", () => {
+    const input = "수염 위반 문장.\r\n\r\n정상 B.";
+    const out = sanitizeHairDescriptions(input, restrictive);
+    assert.equal(out, "정상 B.");
+    assert.ok(!out.startsWith("\r\n"));
+  });
+
+  it("T19 — violation-only trailing paragraph with trailing separator", () => {
+    const input = "정상 A.\n\n수염 위반 문장.\n\n";
+    const out = sanitizeHairDescriptions(input, restrictive);
+    assert.equal(out, "정상 A.");
+    assert.ok(!out.endsWith("\n\n"));
+  });
+
+  it("T20 — consecutive leading violation paragraphs", () => {
+    const input = "수염 위반 문장.\n\n음모가 드러났다.\n\n정상 C.";
+    const out = sanitizeHairDescriptions(input, restrictive);
+    assert.equal(out, "정상 C.");
+    assert.ok(!out.startsWith("\n"));
+  });
+
+  it("T21 — unrelated trailing newline remains preserved (middle violation)", () => {
+    const input = "정상 A.\n\n수염 위반 문장.\n\n정상 B.\n";
+    const out = sanitizeHairDescriptions(input, restrictive);
+    // Trailing single newline of the kept last paragraph preserved.
+    assert.ok(out.endsWith("\n"));
+    assert.ok(!out.endsWith("\n\n"));
+    assert.ok(!out.includes("수염"));
+    assert.ok(out.includes("정상 B."));
+  });
 });

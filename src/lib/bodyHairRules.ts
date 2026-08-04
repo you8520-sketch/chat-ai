@@ -290,15 +290,22 @@ function removeHairViolationsPreservingParagraphs(
   const out: string[] = [];
   let pendingSep = "";
   let pendingIsMerge = false;
+  // Track whether any kept paragraph content has been emitted yet, so that a
+  // dropped leading paragraph does NOT produce a leading blank line: the first
+  // kept paragraph starts the result with no preceding separator.
+  let emittedKeptParagraph = false;
   for (let i = 0; i < resolved.length; i++) {
     const r = resolved[i]!;
+    const isLast = i === resolved.length - 1;
+    const isEmptyCarrier = r.para === "" && isLast;
+
     if (r.dropped) {
       // This paragraph is removed. The separator that preceded it (r.sep) and
       // the separator that will precede the next kept paragraph must merge into
       // one normal separator. Mark pending merge.
-      if (i === 0) {
-        // First paragraph dropped — no preceding separator to keep; the following
-        // separator becomes a leading separator and must be dropped.
+      if (!emittedKeptParagraph) {
+        // No kept content emitted yet — a leading dropped paragraph must not
+        // produce any leading separator. Keep pending empty.
         pendingSep = "";
         pendingIsMerge = true;
       } else if (pendingIsMerge) {
@@ -312,24 +319,47 @@ function removeHairViolationsPreservingParagraphs(
       }
       continue;
     }
-    // Kept paragraph.
+
+    // Trailing empty carrier item (input ended with a blank-line separator).
+    if (isEmptyCarrier) {
+      if (pendingIsMerge) {
+        // Preceded by a dropped trailing paragraph — absorb the trailing
+        // separator so no trailing blank line is (re)introduced.
+        pendingIsMerge = true;
+        continue;
+      }
+      // Preceded by a kept paragraph — preserve the original trailing
+      // separator byte-identical (unrelated trailing newline).
+      out.push(r.sep);
+      continue;
+    }
+
+    // Kept paragraph with content.
     if (pendingIsMerge) {
       // A previous paragraph was dropped: merge pendingSep + this paragraph's
-      // own preceding separator (r.sep) into one normal paragraph separator.
-      const nl = /\r/.test(pendingSep) || /\r/.test(r.sep) ? "\r\n\r\n" : "\n\n";
-      out.push(nl);
+      // own preceding separator (r.sep) into one normal paragraph separator —
+      // but ONLY if some kept content was already emitted. If this is the first
+      // kept paragraph, do not emit a leading separator.
+      if (emittedKeptParagraph) {
+        const nl = /\r/.test(pendingSep) || /\r/.test(r.sep) ? "\r\n\r\n" : "\n\n";
+        out.push(nl);
+      }
       pendingIsMerge = false;
       pendingSep = "";
     } else {
       // No drop occurred before this paragraph — emit its original preceding
-      // separator byte-identical.
-      out.push(r.sep);
+      // separator byte-identical (but never a leading separator before the
+      // first kept content).
+      if (emittedKeptParagraph) {
+        out.push(r.sep);
+      }
     }
     out.push(r.para);
+    emittedKeptParagraph = true;
   }
   // If the LAST paragraph(s) were dropped, pendingIsMerge is true with nothing
-  // after them. The trailing separator(s) from the drop become trailing blank
-  // lines — drop them (no trailing blanks introduced by removal).
+  // after them — omit any trailing separator (no trailing blanks introduced
+  // by removal). Nothing to push.
   if (pendingIsMerge) {
     // Trailing dropped paragraph(s): omit the trailing separator entirely.
     // (Do NOT add a trailing blank line.)
