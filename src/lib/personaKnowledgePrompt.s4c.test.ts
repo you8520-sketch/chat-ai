@@ -90,7 +90,8 @@ describe("PR-S4C persona knowledge prompt isolation", () => {
   beforeEach(() => {
     envSnap = saveEnv();
     process.env.PERSONA_SECRET_BOUNDARY_ENABLED = "1";
-    process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "1";    getDb();
+    process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "1";
+    getDb();
   });
   afterEach(() => restoreEnv(envSnap));
 

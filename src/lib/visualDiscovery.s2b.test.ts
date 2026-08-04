@@ -75,7 +75,8 @@ describe("PR-S2B visual discovery matcher", () => {
   beforeEach(() => {
     env = saveEnv();
     process.env.PERSONA_SECRET_BOUNDARY_ENABLED = "1";
-    process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "1";  });
+    process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "1";
+  });
   afterEach(() => restoreEnv(env));
 
   describe("body mark atomic boundary", () => {

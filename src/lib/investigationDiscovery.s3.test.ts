@@ -72,7 +72,7 @@ describe("PR-S3 investigation discovery", () => {
   beforeEach(() => {
     env = saveEnv();
     process.env.PERSONA_SECRET_BOUNDARY_ENABLED = "1";
-    process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "1";    process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "1";
+    process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "1";
     ensureInvestigationSchema(getDb());
   });
   afterEach(() => restoreEnv(env));

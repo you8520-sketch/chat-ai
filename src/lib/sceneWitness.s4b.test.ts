@@ -144,7 +144,7 @@ describe("PR-S4B multi-observer witness resolution", () => {
   beforeEach(() => {
     env = saveEnv();
     process.env.PERSONA_SECRET_BOUNDARY_ENABLED = "1";
-    process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "1";    process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "1";
+    process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "1";
     ensureObserverSchema(getDb());
     ensureSceneObservationSchema(getDb());
   });
