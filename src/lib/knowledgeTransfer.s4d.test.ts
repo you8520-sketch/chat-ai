@@ -33,7 +33,7 @@ Module._load = function (request, parent, isMain) {
   return originalLoad.call(this, request, parent, isMain);
 } as typeof Module._load;
 
-const ENV_KEYS = ["PERSONA_SECRET_BOUNDARY_ENABLED"] as const;
+const ENV_KEYS = ["PERSONA_SECRET_BOUNDARY_ENABLED", "PERSONA_SECRET_DISCOVERY_ENABLED"] as const;
 function saveEnv(): Record<string, string | undefined> {
   return Object.fromEntries(ENV_KEYS.map((k) => [k, process.env[k]]));
 }
@@ -169,9 +169,38 @@ describe("PR-S4D controlled knowledge transfer", () => {
   beforeEach(() => {
     envSnap = saveEnv();
     process.env.PERSONA_SECRET_BOUNDARY_ENABLED = "1";
+    process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "1";
     ensureKnowledgeTransferSchema(getDb());
   });
   afterEach(() => restoreEnv(envSnap));
+
+  it("0. fail-closed: Boundary=1 + Discovery unset → 0 transfers/evidence/knowledge writes", () => {
+    const envLocal = saveEnv();
+    process.env.PERSONA_SECRET_BOUNDARY_ENABLED = "1";
+    delete process.env.PERSONA_SECRET_DISCOVERY_ENABLED;
+    const { personaId } = ids();
+    const fact = "fail-closed 프로브 팩트.";
+    const secret = seedSecret({ personaId, secretKey: "s4d_failclosed", fact });
+    const probeChatId = 770000 + Math.floor(Math.random() * 10000);
+    const beforeTransfers = countTransfers(probeChatId);
+    const beforeEvidence = countEvidence(probeChatId);
+    const result = runKnowledgeTransfersForTurn({
+      chatId: probeChatId,
+      personaId,
+      characterId: 17,
+      turnNumber: 1,
+      sourceMessageId: 1,
+      userMessage: "프로브 메시지",
+      explicitActions: [],
+      authoritativeOutcomes: [],
+      userId: 1,
+    });
+    assert.equal(result.appliedCount, 0, "appliedCount 0 when Discovery off");
+    assert.equal(result.changedCount, 0, "changedCount 0 when Discovery off");
+    assert.equal(countTransfers(probeChatId), beforeTransfers, "no new transfer events when Discovery off");
+    assert.equal(countEvidence(probeChatId), beforeEvidence, "no new evidence when Discovery off");
+    restoreEnv(envLocal);
+  });
 
   it("1. CONFIRMED sender → receiver CONFIRMED", () => {
     const { chatId, personaId, locoId, taehyunId } = ids();
