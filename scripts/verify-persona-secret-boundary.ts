@@ -23,6 +23,16 @@ const NEEDLE = `GLOBAL_BOUNDARY_SECRET_NEEDLE_${Date.now()}`;
 
 mkdirSync(OUT_DIR, { recursive: true });
 
+async function safeJson(res: Response): Promise<unknown> {
+  const ct = res.headers.get("content-type") ?? "";
+  if (!ct.includes("application/json")) return { _text: await res.text(), _status: res.status };
+  try {
+    return await res.json();
+  } catch {
+    return { _text: await res.text(), _status: res.status };
+  }
+}
+
 function loadSessionCookie(): string {
   const raw = readFileSync(COOKIE_FILE, "utf8");
   for (const line of raw.split("\n")) {
@@ -39,15 +49,18 @@ async function signupNewUser(): Promise<{ token: string; userId: number } | null
   const res = await fetch(`${BASE}/api/auth/signup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password: "BoundaryVerify_12910", nickname: `bv_${Date.now().toString(36)}` }),
+    body: JSON.stringify({ email, password: "BoundaryVerify_12910", nickname: `bv_${Date.now().toString(36)}`, pref: "male" }),
   });
-  if (!res.ok) return null;
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    return { _signup_failed: res.status, _body: txt.slice(0, 200) } as never;
+  }
   const sc = res.headers.get("set-cookie") ?? "";
   const m = sc.match(/session=([^;]+)/);
   if (!m) return null;
   const token = m[1]!;
   const me = await (await fetch(`${BASE}/api/auth/me`, { headers: { Cookie: `session=${token}` } })).json();
-  return { token, me.user.id };
+  return { token, userId: me.user.id };
 }
 
 async function main() {
@@ -61,7 +74,7 @@ async function main() {
 
   // 2. /api/personas capability for general user (34)
   const personasRes = await fetch(`${BASE}/api/personas`, { headers: { Cookie: `session=${token}` } });
-  const personasBody = await personasRes.json();
+  const personasBody = await safeJson(personasRes);
   const cap = personasBody?.capabilities?.personaSecretSettings;
   report.general_user_canEdit = cap?.canEdit;
   report.general_user_discoveryActive = cap?.discoveryActive;
@@ -79,7 +92,7 @@ async function main() {
       secret_description: NEEDLE,
     }),
   });
-  const createBody = await createRes.json();
+  const createBody = await safeJson(createRes) as { ok?: boolean; persona?: { id?: number } };
   report.secret_create_status = createRes.status;
   report.secret_create_ok = createBody?.ok === true;
   const newPersonaId = createBody?.persona?.id;
@@ -87,7 +100,7 @@ async function main() {
 
   // 4. public /api/personas must NOT include secret needle
   const publicRes = await fetch(`${BASE}/api/personas`, { headers: { Cookie: `session=${token}` } });
-  const publicBody = await publicRes.json();
+  const publicBody = await safeJson(publicRes);
   const publicJson = JSON.stringify(publicBody);
   report.public_secret_needle_bytes = publicJson.includes(NEEDLE) ? publicJson.split(NEEDLE).length - 1 : 0;
   report.public_isolation_ok = !publicJson.includes(NEEDLE);
@@ -97,7 +110,7 @@ async function main() {
     const editorRes = await fetch(`${BASE}/api/personas/${newPersonaId}/editor`, {
       headers: { Cookie: `session=${token}` },
     });
-    const editorBody = await editorRes.json();
+    const editorBody = await safeJson(editorRes);
     report.owner_editor_status = editorRes.status;
     report.owner_editor_has_secret = JSON.stringify(editorBody).includes(NEEDLE);
 
@@ -111,18 +124,17 @@ async function main() {
       report.cross_user_blocked = crossRes.status === 404 || crossRes.status === 403;
     } else {
       report.cross_user_editor_status = "SKIP (signup failed)";
-    }
-  }
+    }  }
 
   // 6. secret edit + delete
   if (newPersonaId) {
     const editRes = await fetch(`${BASE}/api/personas/${newPersonaId}`, {
-      method: "PATCH",
+      method: "PUT",
       headers: { "Content-Type": "application/json", Cookie: `session=${token}` },
       body: JSON.stringify({ secret_description: NEEDLE + "_EDITED" }),
     });
     report.secret_edit_status = editRes.status;
-    const editBody = await editRes.json();
+    const editBody = await safeJson(editRes) as { ok?: boolean };
     report.secret_edit_ok = editBody?.ok === true;
 
     const delRes = await fetch(`${BASE}/api/personas/${newPersonaId}`, {
