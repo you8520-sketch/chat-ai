@@ -3,9 +3,10 @@
  *
  * Manual-run only: requires --execute. Reads the volume DB via getDb().
  * No public API, no cookie/token/secret logging, 0 paid model calls.
- * Whole audit runs inside ONE db.transaction and is rolled back at the end
+ * Audit uses synthetic IDs, strict preflight, finally cleanup,
+ * and post-cleanup zero-residual assertions.
  * (success or fail) → volume DB left with zero persistent delta,
- * zero residual test rows (no cleanup needed).
+ * zero residual test rows.
  *
  * Scope: S1 persistence, retry idempotency, observer isolation,
  *   cross-chat isolation, known/unknown/ensemble prompt policy.
@@ -118,8 +119,13 @@ const report: Record<string, unknown> = {
 };
 
 // Manual cleanup — delete every row this audit touched, keyed by the synthetic IDs.
+// Audit uses synthetic IDs, strict preflight, finally cleanup,
+// and post-cleanup zero-residual assertions.
 // Run after the audit body (success or fail) so the volume DB is left pristine.
 function cleanupAuditRows(): void {
+  const delDiscoveryRules = db.prepare(
+    `DELETE FROM persona_secret_discovery_rules WHERE secret_id=?`
+  );
   const delPersona = db.prepare(`DELETE FROM persona_secrets WHERE persona_id=?`);
   const delEvidence = db.prepare(`DELETE FROM persona_secret_evidence_events WHERE persona_id=?`);
   const delKnowledge = db.prepare(`DELETE FROM chat_character_secret_knowledge WHERE persona_id=?`);
@@ -133,6 +139,10 @@ function cleanupAuditRows(): void {
   const delScenes = db.prepare(`DELETE FROM chat_scenes WHERE chat_id=?`);
   const delPresence = db.prepare(`DELETE FROM scene_observer_presence WHERE chat_id=?`);
   const delObservers = db.prepare(`DELETE FROM chat_observers WHERE chat_id=?`);
+  // discovery rules must be deleted BEFORE the persona secret (rules cascade from the secret).
+  if (createdSecretId) {
+    delDiscoveryRules.run(createdSecretId);
+  }
   delPersona.run(PERSONA_ID);
   delEvidence.run(PERSONA_ID);
   delKnowledge.run(PERSONA_ID);
@@ -149,6 +159,7 @@ function cleanupAuditRows(): void {
 }
 
 let auditError: Error | null = null;
+let createdSecretId: string | null = null;
 
 // Discovery engine must be ON for the audit (bootstrapChatObservers is gated on it).
 process.env.PERSONA_SECRET_BOUNDARY_ENABLED = "1";
@@ -177,6 +188,9 @@ try {
       directDisclosureAliases: ["audit 프로브 비밀을 직접 고백한다"],
     });
     report.secret_created = Boolean(secret.ok);
+    if (secret.ok) {
+      createdSecretId = (secret.secret as { id?: string }).id ?? null;
+    }
     console.error("[audit] step 2 done secret_created=", report.secret_created);
 
     // 3. bootstrap chat observer for the test character
@@ -385,10 +399,21 @@ try {
   }
 }
 
-// Verify rollback: 0 residual rows across all related tables.
+// Verify cleanup: 0 residual rows across all related tables.
 const residual: Record<string, number> = {};
 for (const p of PREFLIGHT) {
   residual[p.t] = countRows(p.t, p.c, p.v);
+}
+// discovery_rules are scoped by the created secret_id (not in PREFLIGHT — they
+// cascade from the secret which is created during the audit body).
+if (createdSecretId) {
+  residual.persona_secret_discovery_rules = (
+    db
+      .prepare(
+        `SELECT COUNT(*) AS c FROM persona_secret_discovery_rules WHERE secret_id=?`
+      )
+      .get(createdSecretId) as { c: number } | undefined
+  )?.c ?? 0;
 }
 report.residual_rows = residual;
 report.all_residual_zero = Object.values(residual).every((n) => n === 0);

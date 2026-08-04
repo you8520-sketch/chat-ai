@@ -211,6 +211,65 @@ describe("PR-S4D controlled knowledge transfer", () => {
     restoreEnv(envLocal);
   });
 
+  it("0.5 positive control: Discovery=1 + valid DIRECT_STATEMENT userAction → transfer applied", () => {
+    const envLocal = saveEnv();
+    process.env.PERSONA_SECRET_BOUNDARY_ENABLED = "1";
+    process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "1";
+    const { chatId, personaId, locoId, taehyunId } = ids();
+    setupObservers({ chatId, locoId, taehyunId });
+    const fact = "positive control 전달 사실.";
+    const secret = seedSecret({ personaId, secretKey: "s4d_positive", fact });
+    seedSenderKnowledge({
+      chatId,
+      personaId,
+      secretId: secret.id,
+      observerType: "CHARACTER",
+      observerId: String(locoId),
+      state: "CONFIRMED",
+      fact,
+    });
+    const beforeTransfers = countTransfers(chatId);
+    const beforeEvidence = countEvidence(chatId);
+    const result = runKnowledgeTransfersForTurn({
+      chatId,
+      personaId,
+      characterId: locoId,
+      turnNumber: 1,
+      userActions: [
+        {
+          secretId: secret.id,
+          sender: { observerType: "CHARACTER", observerId: String(locoId) },
+          receiver: { observerType: "CHARACTER", observerId: String(taehyunId) },
+          transferType: "DIRECT_STATEMENT",
+          sourceMessageId: 1,
+        },
+      ],
+      authoritativeActions: [],
+      userId: 1,
+    });
+    assert.equal(result.appliedCount, 1, "appliedCount 1 when Discovery on + valid action");
+    assert.equal(result.changedCount, 1, "changedCount 1 when Discovery on + valid action");
+    assert.equal(
+      countTransfers(chatId) - beforeTransfers,
+      1,
+      "exactly one new transfer event"
+    );
+    assert.equal(
+      countEvidence(chatId) - beforeEvidence,
+      1,
+      "exactly one new evidence event"
+    );
+    const receiver = getObserverSecretKnowledge({
+      chatId,
+      personaId,
+      secretId: secret.id,
+      observerType: "CHARACTER",
+      observerId: String(taehyunId),
+    });
+    assert.equal(receiver?.knowledge_state, "CONFIRMED", "receiver knowledge CONFIRMED");
+    restoreEnv(envLocal);
+  });
+
   it("1. CONFIRMED sender → receiver CONFIRMED", () => {
     const { chatId, personaId, locoId, taehyunId } = ids();
     setupObservers({ chatId, locoId, taehyunId });
