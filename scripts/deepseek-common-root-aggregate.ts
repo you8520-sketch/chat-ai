@@ -142,10 +142,10 @@ function main() {
 
   const postprocessVerdicts = p0Pipelines.map((c) => judgePostprocessPrimary(c));
   const postprocessPrimary =
-    postprocessVerdicts.includes("POSTPROCESS_CREATES_FRAGMENTATION")
-      ? "POSTPROCESS_CREATES_FRAGMENTATION"
-      : postprocessVerdicts.includes("POSTPROCESS_VISUAL_AMPLIFIER")
-        ? "POSTPROCESS_VISUAL_AMPLIFIER"
+    postprocessVerdicts.includes("TEXT_MUTATION_CREATES_FRAGMENTATION")
+      ? "TEXT_MUTATION_CREATES_FRAGMENTATION"
+      : postprocessVerdicts.includes("DISPLAY_ONLY_PARAGRAPH_AMPLIFIER")
+        ? "DISPLAY_ONLY_PARAGRAPH_AMPLIFIER"
         : postprocessVerdicts.includes("POSTPROCESS_NOT_PRIMARY")
           ? "POSTPROCESS_NOT_PRIMARY"
           : p0Rows.length >= RP_DIAGNOSTIC_MIN_SCREENING_SAMPLES

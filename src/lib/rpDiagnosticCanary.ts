@@ -654,32 +654,63 @@ export function evaluateScreeningEffect(
   };
 }
 
-export function judgePostprocessPrimary(
-  capture: PostprocessPipelineCapture
-): SampleVerdict | "POSTPROCESS_CREATES_FRAGMENTATION" | "POSTPROCESS_VISUAL_AMPLIFIER" | "POSTPROCESS_NOT_PRIMARY" {
+export type PostprocessVerdict =
+  | "TEXT_MUTATION_CREATES_FRAGMENTATION"
+  | "DISPLAY_ONLY_PARAGRAPH_AMPLIFIER"
+  | "POSTPROCESS_NOT_PRIMARY"
+  | "INSUFFICIENT_SAMPLE";
+
+/**
+ * Judge whether postprocess is the primary fragmentation cause.
+ *
+ * Three cleanly separated verdicts (do not mix text mutation with visual change):
+ * - TEXT_MUTATION_CREATES_FRAGMENTATION: postprocess changed the actual dialogue
+ *   structure — more quote blocks (an utterance physically split), more manual
+ *   semantic units (new utterances introduced), or more manual resume transitions.
+ * - DISPLAY_ONLY_PARAGRAPH_AMPLIFIER: text content identical (same quotes, same
+ *   semantic units, same resume transitions) but SSE/DOM paragraph count or blank
+ *   lines increased vs provider RAW. Visual inflation only.
+ * - POSTPROCESS_NOT_PRIMARY: RAW through SSE — same semantic structure AND visual
+ *   paragraph count effectively unchanged.
+ *
+ * Note: visual amplification means SSE/DOM paragraph_count > RAW (more blocks),
+ * not fewer. The previous implementation compared the wrong direction.
+ */
+export function judgePostprocessPrimary(capture: PostprocessPipelineCapture): PostprocessVerdict {
   const raw = capture.metrics.provider_raw;
   const postDisplay = capture.metrics.post_display_grouping;
   const sse = capture.metrics.sse_final;
 
-  if (postDisplay.raw_quote_blocks > raw.raw_quote_blocks) {
-    return "POSTPROCESS_CREATES_FRAGMENTATION";
+  // Text mutation: any post-RAW stage altered the dialogue structure itself
+  // (more quote blocks = an utterance physically split, more manual semantic
+  // units = new utterances introduced, more manual resume transitions).
+  const postStages = [postDisplay, sse, capture.metrics.db_saved];
+  const textMutated = postStages.some(
+    (s) =>
+      s.raw_quote_blocks > raw.raw_quote_blocks ||
+      s.manual_semantic_units > raw.manual_semantic_units ||
+      s.manual_resume_transitions > raw.manual_resume_transitions
+  );
+  if (textMutated) {
+    return "TEXT_MUTATION_CREATES_FRAGMENTATION";
   }
-  if (postDisplay.manual_resume_transitions > raw.manual_resume_transitions) {
-    return "POSTPROCESS_CREATES_FRAGMENTATION";
-  }
-  if (
+
+  const textIdenticalVsRaw =
     sse.raw_quote_blocks === raw.raw_quote_blocks &&
     sse.manual_semantic_units === raw.manual_semantic_units &&
-    sse.paragraph_count < raw.paragraph_count - 2
-  ) {
-    return "POSTPROCESS_VISUAL_AMPLIFIER";
+    sse.manual_resume_transitions === raw.manual_resume_transitions;
+
+  // Display-only amplifier: same text content, but visual paragraphs inflated
+  // (SSE/DOM paragraph_count GREATER than RAW — not fewer).
+  if (textIdenticalVsRaw && sse.paragraph_count > raw.paragraph_count + 2) {
+    return "DISPLAY_ONLY_PARAGRAPH_AMPLIFIER";
   }
-  if (
-    sse.raw_quote_blocks === raw.raw_quote_blocks &&
-    sse.manual_resume_transitions === raw.manual_resume_transitions
-  ) {
+
+  // Not primary: same semantic structure AND visual paragraph count unchanged.
+  if (textIdenticalVsRaw && Math.abs(sse.paragraph_count - raw.paragraph_count) <= 2) {
     return "POSTPROCESS_NOT_PRIMARY";
   }
+
   return "INSUFFICIENT_SAMPLE";
 }
 
