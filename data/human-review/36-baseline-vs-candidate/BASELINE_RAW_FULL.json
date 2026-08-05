@@ -1,0 +1,76 @@
+{
+  "generated_at": "2026-08-05T23:08:35.987988+00:00",
+  "baseline_source": "02-ds-pro-real-production",
+  "candidate_ids": [
+    "C243-01",
+    "C243-02",
+    "C243-03",
+    "C243-04",
+    "C243-09",
+    "C243-10"
+  ],
+  "status": "PACKET_READY_HUMAN_AB_PENDING",
+  "promotion_rule": "If candidate not clearly better → CURRENT_STRUCTURED_STACK_REJECTED",
+  "baseline_attempts_meta": [
+    {
+      "attempt_id": "BASE-R1T1",
+      "run": 1,
+      "turn": 1,
+      "user_input": "나는 렌이라고 부르면 돼....나는 본기억이 안나는데....나 알아?(갸웃)",
+      "raw_chars": 2458,
+      "finish_reason": "stop",
+      "provider": "cheaperinference",
+      "model": "deepseek-v4-pro"
+    },
+    {
+      "attempt_id": "BASE-R1T2",
+      "run": 1,
+      "turn": 2,
+      "user_input": "같이갈래?*두리번 거리면서 다가오는 사람들을 보다가 다시 라이크를 쳐다본다*",
+      "raw_chars": 3720,
+      "finish_reason": "stop",
+      "provider": "cheaperinference",
+      "model": "deepseek-v4-pro"
+    },
+    {
+      "attempt_id": "BASE-R2T1",
+      "run": 2,
+      "turn": 1,
+      "user_input": "나는 렌이라고 부르면 돼....나는 본기억이 안나는데....나 알아?(갸웃)",
+      "raw_chars": 3160,
+      "finish_reason": "stop",
+      "provider": "cheaperinference",
+      "model": "deepseek-v4-pro"
+    },
+    {
+      "attempt_id": "BASE-R2T2",
+      "run": 2,
+      "turn": 2,
+      "user_input": "같이갈래?*두리번 거리면서 다가오는 사람들을 보다가 다시 라이크를 쳐다본다*",
+      "raw_chars": 3258,
+      "finish_reason": "stop",
+      "provider": "cheaperinference",
+      "model": "deepseek-v4-pro"
+    },
+    {
+      "attempt_id": "BASE-R3T1",
+      "run": 3,
+      "turn": 1,
+      "user_input": "나는 렌이라고 부르면 돼....나는 본기억이 안나는데....나 알아?(갸웃)",
+      "raw_chars": 3021,
+      "finish_reason": "stop",
+      "provider": "cheaperinference",
+      "model": "deepseek-v4-pro"
+    },
+    {
+      "attempt_id": "BASE-R3T2",
+      "run": 3,
+      "turn": 2,
+      "user_input": "같이갈래?*두리번 거리면서 다가오는 사람들을 보다가 다시 라이크를 쳐다본다*",
+      "raw_chars": 3505,
+      "finish_reason": "stop",
+      "provider": "cheaperinference",
+      "model": "deepseek-v4-pro"
+    }
+  ]
+}

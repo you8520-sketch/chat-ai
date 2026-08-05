@@ -1,0 +1,858 @@
+{
+  "generated_at": "2026-08-05T23:08:35.982696+00:00",
+  "annotation_count": 71,
+  "annotations": [
+    {
+      "attempt_id": "C243-02",
+      "blind_label": "A",
+      "label": "INTRUSIVE_EXTERNAL_SPEAKER",
+      "severity": "hard",
+      "span": {
+        "start": 751,
+        "end": 763,
+        "text": "조태형 씨! 보고서요!"
+      },
+      "reason": "Staff speaks; Like answers"
+    },
+    {
+      "attempt_id": "C243-02",
+      "blind_label": "A",
+      "label": "INTRUSIVE_EXTERNAL_SPEAKER",
+      "severity": "hard",
+      "span": {
+        "start": 767,
+        "end": 798,
+        "text": "아, 그거. 내일까지 할게요. 진짜로. 이번에는 진짜임."
+      },
+      "reason": "Primary answers staff"
+    },
+    {
+      "attempt_id": "C243-02",
+      "blind_label": "A",
+      "label": "INTRUSIVE_EXTERNAL_SPEAKER",
+      "severity": "hard",
+      "span": {
+        "start": 2053,
+        "end": 2077,
+        "text": "어머, 태형 씨. 오늘은 또 어떻게 왔어요?"
+      },
+      "reason": "Cafeteria woman speaks"
+    },
+    {
+      "attempt_id": "C243-02",
+      "blind_label": "A",
+      "label": "INTRUSIVE_EXTERNAL_SPEAKER",
+      "severity": "hard",
+      "span": {
+        "start": 2081,
+        "end": 2110,
+        "text": "아줌마, 돈까스 주세요. 오늘은 친구랑 같이 왔어요."
+      },
+      "reason": "Like answers cafeteria woman"
+    },
+    {
+      "attempt_id": "C243-02",
+      "blind_label": "A",
+      "label": "EXTERNAL_SCENE_TAKEOVER",
+      "severity": "hard",
+      "span": {
+        "start": 958,
+        "end": 994,
+        "text": "가자. 여기 사람들, 나만 보면 뭘 자꾸 맡기려고 해서 큰일이야."
+      },
+      "reason": "User dyad diverted by staff/work beat"
+    },
+    {
+      "attempt_id": "C243-02",
+      "blind_label": "A",
+      "label": "ADMINISTRATIVE_SUBPLOT",
+      "severity": "hard",
+      "span": {
+        "start": 751,
+        "end": 763,
+        "text": "조태형 씨! 보고서요!"
+      },
+      "reason": "Report chase subplot"
+    },
+    {
+      "attempt_id": "C243-02",
+      "blind_label": "A",
+      "label": "USER_STATE_INVENTION",
+      "severity": "hard",
+      "span": {
+        "start": 1501,
+        "end": 1521,
+        "text": "저기, S급이라고 써 있는 거 보여?"
+      },
+      "reason": "S-grade framing without user-turn evidence"
+    },
+    {
+      "attempt_id": "C243-02",
+      "blind_label": "A",
+      "label": "MULTIPLE_UNANSWERED_QUESTIONS",
+      "severity": "hard",
+      "span": {
+        "start": 2165,
+        "end": 2176,
+        "text": "렌, 뭐 먹고 싶어?"
+      },
+      "reason": "Stacked questions after NPC beats"
+    },
+    {
+      "attempt_id": "C243-02",
+      "blind_label": "A",
+      "label": "FALSE_REACTION_POINT",
+      "severity": "hard",
+      "span": {
+        "start": 2627,
+        "end": 2668,
+        "text": "그의 물음은 너무 가벼워서, 진지한 질문인지 장난인지 구분이 가지 않았다."
+      },
+      "reason": "Terminal ask after NPC takeover"
+    },
+    {
+      "attempt_id": "C243-02",
+      "blind_label": "A",
+      "label": "DECORATIVE_ENVIRONMENT_FILL",
+      "severity": "hard",
+      "span": {
+        "start": 2705,
+        "end": 2746,
+        "text": "창밖으로 붉은 단풍잎 하나가 바람에 날려 유리창에 살짝 부딪혔다 떨어졌다."
+      },
+      "reason": "Maple filler"
+    },
+    {
+      "attempt_id": "C243-02",
+      "blind_label": "A",
+      "label": "CROSS_OUTPUT_TEMPLATE_ECHO",
+      "severity": "hard",
+      "span": {
+        "start": 925,
+        "end": 931,
+        "text": "붉은 단풍잎"
+      },
+      "reason": "Shared scenic motif"
+    },
+    {
+      "attempt_id": "C243-02",
+      "blind_label": "A",
+      "label": "SEMANTIC_REPETITION",
+      "severity": "hard",
+      "span": {
+        "start": 145,
+        "end": 168,
+        "text": "본기억이 안 난다는 말이 채 가시기도 전에"
+      },
+      "reason": "Memory-loss proposition carried into T2"
+    },
+    {
+      "attempt_id": "C243-01",
+      "blind_label": "G",
+      "label": "INTRUSIVE_EXTERNAL_SPEAKER",
+      "severity": "hard",
+      "span": {
+        "start": 1102,
+        "end": 1114,
+        "text": "태형 씨, 조태형 씨!"
+      },
+      "reason": "Staff calls Like"
+    },
+    {
+      "attempt_id": "C243-01",
+      "blind_label": "G",
+      "label": "ADMINISTRATIVE_SUBPLOT",
+      "severity": "hard",
+      "span": {
+        "start": 1176,
+        "end": 1212,
+        "text": "아, 저거 또 보고서 수정 지시야. 벌써 열네 번째다 열네 번째."
+      },
+      "reason": "Report revision admin beat"
+    },
+    {
+      "attempt_id": "C243-01",
+      "blind_label": "G",
+      "label": "EXTERNAL_SCENE_TAKEOVER",
+      "severity": "hard",
+      "span": {
+        "start": 1491,
+        "end": 1555,
+        "text": "태형은 렌에게 마지막으로 손을 살짝 흔들어 보이고는, 어쩔 수 없다는 듯 어깨를 으쓱이며 직원 쪽으로 몸을 돌렸다."
+      },
+      "reason": "Leaves user for staff"
+    },
+    {
+      "attempt_id": "C243-01",
+      "blind_label": "G",
+      "label": "PREMATURE_CLOSURE",
+      "severity": "hard",
+      "span": {
+        "start": 1541,
+        "end": 1574,
+        "text": "직원 쪽으로 몸을 돌렸다. 그의 뒷모습은 여전히 여유로웠다."
+      },
+      "reason": "Ends on staff exit"
+    },
+    {
+      "attempt_id": "C243-01",
+      "blind_label": "G",
+      "label": "FALSE_REACTION_POINT",
+      "severity": "hard",
+      "span": {
+        "start": 1436,
+        "end": 1464,
+        "text": "무섭게 생겼지만 비비탄이야. 아마도. 응, 아마도."
+      },
+      "reason": "Gun joke then staff cut"
+    },
+    {
+      "attempt_id": "C243-01",
+      "blind_label": "G",
+      "label": "MULTIPLE_UNANSWERED_QUESTIONS",
+      "severity": "hard",
+      "span": {
+        "start": 593,
+        "end": 625,
+        "text": "렌이라고 했나? 이름 되게 예쁘다. 무슨 뜻이 담겨 있어?"
+      },
+      "reason": "Stacked question"
+    },
+    {
+      "attempt_id": "C243-01",
+      "blind_label": "G",
+      "label": "MULTIPLE_UNANSWERED_QUESTIONS",
+      "severity": "hard",
+      "span": {
+        "start": 868,
+        "end": 888,
+        "text": "아, 혹시 나 때문에 불편하면 말해."
+      },
+      "reason": "Another unanswered ask"
+    },
+    {
+      "attempt_id": "C243-01",
+      "blind_label": "G",
+      "label": "SEMANTIC_REPETITION",
+      "severity": "hard",
+      "span": {
+        "start": 104,
+        "end": 113,
+        "text": "본기억이 안 나?"
+      },
+      "reason": "Memory-loss proposition"
+    },
+    {
+      "attempt_id": "C243-01",
+      "blind_label": "G",
+      "label": "CROSS_OUTPUT_TEMPLATE_ECHO",
+      "severity": "hard",
+      "span": {
+        "start": 1585,
+        "end": 1593,
+        "text": "북극곰 귀 장식"
+      },
+      "reason": "Polar-bear ear motif"
+    },
+    {
+      "attempt_id": "C243-01",
+      "blind_label": "G",
+      "label": "CHARACTER_TRAIT_RESTATEMENT",
+      "severity": "hard",
+      "span": {
+        "start": 183,
+        "end": 209,
+        "text": "어깨를 으쓱이며 특유의 능글맞은 미소를 지었다."
+      },
+      "reason": "Shrug/smirk trait slot"
+    },
+    {
+      "attempt_id": "C243-04",
+      "blind_label": "E",
+      "label": "TEMPORAL_REWIND",
+      "severity": "hard",
+      "span": {
+        "start": 0,
+        "end": 49,
+        "text": "태형은 잠시 눈을 깜빡였다. 렌이라는 이름을 곱씹어보았지만 역시 떠오르는 얼굴은 없었다."
+      },
+      "reason": "T2 opens as T1 first meeting"
+    },
+    {
+      "attempt_id": "C243-04",
+      "blind_label": "E",
+      "label": "PREVIOUS_TURN_REPLAY",
+      "severity": "hard",
+      "span": {
+        "start": 3159,
+        "end": 3190,
+        "text": "나는 조태형. 코드네임은 라이크. S급 음압 센티넬이야."
+      },
+      "reason": "Self-intro replayed in T2"
+    },
+    {
+      "attempt_id": "C243-04",
+      "blind_label": "E",
+      "label": "USER_INPUT_REAUTHORING",
+      "severity": "hard",
+      "span": {
+        "start": 3499,
+        "end": 3506,
+        "text": "\"같이갈래?\""
+      },
+      "reason": "User line rewritten after long replay"
+    },
+    {
+      "attempt_id": "C243-04",
+      "blind_label": "E",
+      "label": "USER_STATE_INVENTION",
+      "severity": "hard",
+      "span": {
+        "start": 2365,
+        "end": 2383,
+        "text": "안정화 파동이 은은하게 느껴졌다."
+      },
+      "reason": "Invented guide wave"
+    },
+    {
+      "attempt_id": "C243-04",
+      "blind_label": "E",
+      "label": "USER_STATE_INVENTION",
+      "severity": "hard",
+      "span": {
+        "start": 3926,
+        "end": 3962,
+        "text": "어린아이처럼, 그저 단순한 호기심과 막연한 기대만이 담겨 있었다."
+      },
+      "reason": "Invented childlike affect"
+    },
+    {
+      "attempt_id": "C243-04",
+      "blind_label": "E",
+      "label": "SEMANTIC_REPETITION",
+      "severity": "hard",
+      "span": {
+        "start": 712,
+        "end": 729,
+        "text": "기억이 없다. 그것도 본기억이."
+      },
+      "reason": "Memory proposition restated"
+    },
+    {
+      "attempt_id": "C243-04",
+      "blind_label": "E",
+      "label": "FALSE_REACTION_POINT",
+      "severity": "hard",
+      "span": {
+        "start": 5885,
+        "end": 5909,
+        "text": "그는 능글맞게 웃으며 렌의 대답을 기다렸다."
+      },
+      "reason": "Wait after rewind"
+    },
+    {
+      "attempt_id": "C243-04",
+      "blind_label": "E",
+      "label": "CROSS_OUTPUT_TEMPLATE_ECHO",
+      "severity": "hard",
+      "span": {
+        "start": 5986,
+        "end": 6017,
+        "text": "가을 햇살이 두 사람의 그림자를 바닥에 길게 늘어뜨렸다."
+      },
+      "reason": "Autumn sun/shadow motif"
+    },
+    {
+      "attempt_id": "C243-04",
+      "blind_label": "E",
+      "label": "MULTIPLE_UNANSWERED_QUESTIONS",
+      "severity": "hard",
+      "span": {
+        "start": 4850,
+        "end": 4878,
+        "text": "그런데도 처음 보는 나한테 같이 가자고 하는 거야?"
+      },
+      "reason": "Stacked asks after reauthor"
+    },
+    {
+      "attempt_id": "C243-04",
+      "blind_label": "E",
+      "label": "ASSISTANT_MONOLOGUE",
+      "severity": "hard",
+      "span": {
+        "start": 110,
+        "end": 143,
+        "text": "보통 에이지스 본부에서 처음 만나는 사람이 건네는 인사치고는"
+      },
+      "reason": "Monologue before current action"
+    },
+    {
+      "attempt_id": "C243-06",
+      "blind_label": null,
+      "label": "INTRUSIVE_EXTERNAL_SPEAKER",
+      "severity": "hard",
+      "span": {
+        "start": 933,
+        "end": 953,
+        "text": "라이크. 어제 현장 보고서 제출했나?"
+      },
+      "reason": "Named NPC speaks"
+    },
+    {
+      "attempt_id": "C243-06",
+      "blind_label": null,
+      "label": "INTRUSIVE_EXTERNAL_SPEAKER",
+      "severity": "hard",
+      "span": {
+        "start": 995,
+        "end": 1019,
+        "text": "아, 스태틱. 보고서는 분명히 제출했다니까."
+      },
+      "reason": "Like answers named NPC"
+    },
+    {
+      "attempt_id": "C243-06",
+      "blind_label": null,
+      "label": "ADMINISTRATIVE_SUBPLOT",
+      "severity": "hard",
+      "span": {
+        "start": 1054,
+        "end": 1081,
+        "text": "13번 수정 요청 받은 인간이 할 소리는 아니지."
+      },
+      "reason": "Report admin subplot"
+    },
+    {
+      "attempt_id": "C243-06",
+      "blind_label": null,
+      "label": "EXTERNAL_SCENE_TAKEOVER",
+      "severity": "hard",
+      "span": {
+        "start": 1192,
+        "end": 1221,
+        "text": "윤태건의 시선이 라이크의 옆에 선 렌에게로 옮겨갔다."
+      },
+      "reason": "NPC observes user; dyad interrupted"
+    },
+    {
+      "attempt_id": "C243-06",
+      "blind_label": null,
+      "label": "INTRUSIVE_EXTERNAL_SPEAKER",
+      "severity": "hard",
+      "span": {
+        "start": 1276,
+        "end": 1286,
+        "text": "새로운 가이드인가?"
+      },
+      "reason": "NPC asks about user; Like answers NPC"
+    },
+    {
+      "attempt_id": "C243-08",
+      "blind_label": null,
+      "label": "TRANSPORT_INCOMPLETE_OUTPUT",
+      "severity": "runtime",
+      "span": {
+        "start": 90,
+        "end": 99,
+        "text": "로비에 울리던 발"
+      },
+      "reason": "Mid-sentence upstream cut"
+    },
+    {
+      "attempt_id": "C243-03",
+      "blind_label": "C",
+      "label": "USER_STATE_INVENTION",
+      "severity": "hard",
+      "span": {
+        "start": 2366,
+        "end": 2384,
+        "text": "안정화 파동이 은은하게 느껴졌다."
+      },
+      "reason": "Invented guide wave"
+    },
+    {
+      "attempt_id": "C243-03",
+      "blind_label": "C",
+      "label": "USER_STATE_INVENTION",
+      "severity": "hard",
+      "span": {
+        "start": 230,
+        "end": 243,
+        "text": "이 작은 체구의 가이드는"
+      },
+      "reason": "Invented guide role/body"
+    },
+    {
+      "attempt_id": "C243-03",
+      "blind_label": "C",
+      "label": "SEMANTIC_REPETITION",
+      "severity": "hard",
+      "span": {
+        "start": 98,
+        "end": 109,
+        "text": "본기억이 안 난다고?"
+      },
+      "reason": "Memory proposition"
+    },
+    {
+      "attempt_id": "C243-03",
+      "blind_label": "C",
+      "label": "CROSS_OUTPUT_TEMPLATE_ECHO",
+      "severity": "hard",
+      "span": {
+        "start": 3303,
+        "end": 3333,
+        "text": "붉게 물든 단풍잎 하나가 바람에 실려 천천히 떨어졌다."
+      },
+      "reason": "Maple motif"
+    },
+    {
+      "attempt_id": "C243-03",
+      "blind_label": "C",
+      "label": "FALSE_REACTION_POINT",
+      "severity": "hard",
+      "span": {
+        "start": 3235,
+        "end": 3267,
+        "text": "그는 또다시 능글맞은 미소를 지으며 렌의 반응을 기다렸다."
+      },
+      "reason": "Wait after monologue"
+    },
+    {
+      "attempt_id": "C243-03",
+      "blind_label": "C",
+      "label": "CHARACTER_TRAIT_RESTATEMENT",
+      "severity": "hard",
+      "span": {
+        "start": 501,
+        "end": 508,
+        "text": "능글맞은 미소"
+      },
+      "reason": "Trait restatement"
+    },
+    {
+      "attempt_id": "C243-09",
+      "blind_label": "J",
+      "label": "CROSS_OUTPUT_TEMPLATE_ECHO",
+      "severity": "hard",
+      "span": {
+        "start": 0,
+        "end": 26,
+        "text": "가을 햇살이 로비의 통유리창을 길게 가로질렀다."
+      },
+      "reason": "Autumn opening template"
+    },
+    {
+      "attempt_id": "C243-09",
+      "blind_label": "J",
+      "label": "SEMANTIC_REPETITION",
+      "severity": "hard",
+      "span": {
+        "start": 3225,
+        "end": 3234,
+        "text": "본기억이 안 나면"
+      },
+      "reason": "Memory proposition soft-close"
+    },
+    {
+      "attempt_id": "C243-09",
+      "blind_label": "J",
+      "label": "FALSE_REACTION_POINT",
+      "severity": "hard",
+      "span": {
+        "start": 3363,
+        "end": 3390,
+        "text": "그는 이내 고개를 갸웃하며 렌의 반응을 기다렸다."
+      },
+      "reason": "Terminal wait"
+    },
+    {
+      "attempt_id": "C243-09",
+      "blind_label": "J",
+      "label": "DECORATIVE_ENVIRONMENT_FILL",
+      "severity": "hard",
+      "span": {
+        "start": 3391,
+        "end": 3420,
+        "text": "로비 유리창 너머로 가을 나뭇잎들이 바람에 흩날렸다."
+      },
+      "reason": "Leaf fill"
+    },
+    {
+      "attempt_id": "C243-09",
+      "blind_label": "J",
+      "label": "CROSS_OUTPUT_TEMPLATE_ECHO",
+      "severity": "hard",
+      "span": {
+        "start": 1965,
+        "end": 2002,
+        "text": " 더 좁혀지자 은은한 여자 향수 냄새가 희미하게 풍겼다. 늘 태형에"
+      },
+      "reason": "Perfume motif"
+    },
+    {
+      "attempt_id": "C243-09",
+      "blind_label": "J",
+      "label": "CROSS_OUTPUT_TEMPLATE_ECHO",
+      "severity": "hard",
+      "span": {
+        "start": 1160,
+        "end": 1197,
+        "text": "이었다. 짧게 정리된 검은 네일이 박힌 손가락으로 턱을 한번 쓸어내"
+      },
+      "reason": "Nail motif"
+    },
+    {
+      "attempt_id": "C243-10",
+      "blind_label": "H",
+      "label": "USER_STATE_INVENTION",
+      "severity": "hard",
+      "span": {
+        "start": 1511,
+        "end": 1549,
+        "text": "S급 가이드. 그가 방금 전 데스크 직원에게서 슬쩍 들었던 정보였다."
+      },
+      "reason": "Invented S-grade guide via staff info"
+    },
+    {
+      "attempt_id": "C243-10",
+      "blind_label": "H",
+      "label": "USER_STATE_INVENTION",
+      "severity": "hard",
+      "span": {
+        "start": 1550,
+        "end": 1569,
+        "text": "신규 등록된 S급 가이드가 오늘부로"
+      },
+      "reason": "Unsupported registration fact"
+    },
+    {
+      "attempt_id": "C243-10",
+      "blind_label": "H",
+      "label": "ASSISTANT_MONOLOGUE",
+      "severity": "hard",
+      "span": {
+        "start": 2478,
+        "end": 2499,
+        "text": "새로운 S급 가이드가 어떤 선택을 할지"
+      },
+      "reason": "Monologue on invented user state"
+    },
+    {
+      "attempt_id": "C243-10",
+      "blind_label": "H",
+      "label": "CROSS_OUTPUT_TEMPLATE_ECHO",
+      "severity": "hard",
+      "span": {
+        "start": 2178,
+        "end": 2181,
+        "text": "북극곰"
+      },
+      "reason": "Polar-bear motif"
+    },
+    {
+      "attempt_id": "S242-03",
+      "blind_label": "B",
+      "label": "SEMANTIC_REPETITION",
+      "severity": "hard",
+      "span": {
+        "start": 30,
+        "end": 65,
+        "text": "본기억이 안 난다는 말. 그 짧은 문장이 이상하게 귀에 남았다."
+      },
+      "reason": "Memory dwelling"
+    },
+    {
+      "attempt_id": "S242-03",
+      "blind_label": "B",
+      "label": "CROSS_OUTPUT_TEMPLATE_ECHO",
+      "severity": "hard",
+      "span": {
+        "start": 2587,
+        "end": 2626,
+        "text": "로비 창밖으로 가을 햇살이 여전히 길게 늘어져 있었고, 붉은 나뭇잎들이"
+      },
+      "reason": "Autumn template"
+    },
+    {
+      "attempt_id": "S242-03",
+      "blind_label": "B",
+      "label": "FALSE_REACTION_POINT",
+      "severity": "hard",
+      "span": {
+        "start": 2560,
+        "end": 2586,
+        "text": "조태형은 그렇게 생각하며 렌의 반응을 기다렸다."
+      },
+      "reason": "Wait after monologue"
+    },
+    {
+      "attempt_id": "S242-03",
+      "blind_label": "B",
+      "label": "USER_STATE_INVENTION",
+      "severity": "hard",
+      "span": {
+        "start": 1298,
+        "end": 1355,
+        "text": " 사람은 거의 없었으니까. S급 음압 센티넬, 고위험 폭주형, 전과 기록자. 그런 수식어가 붙는 사람의"
+      },
+      "reason": "S-grade framing"
+    },
+    {
+      "attempt_id": "S242-04",
+      "blind_label": "D",
+      "label": "ASSISTANT_MONOLOGUE",
+      "severity": "hard",
+      "span": {
+        "start": 81,
+        "end": 116,
+        "text": "보통 사람이라면 최소한 목적지 정도는 말하고 권유하는 법이었다."
+      },
+      "reason": "Analyzes user instead of progressing"
+    },
+    {
+      "attempt_id": "S242-04",
+      "blind_label": "D",
+      "label": "CROSS_OUTPUT_TEMPLATE_ECHO",
+      "severity": "hard",
+      "span": {
+        "start": 3472,
+        "end": 3489,
+        "text": "구내식당 입구가 눈앞에 보였다."
+      },
+      "reason": "Cafeteria template"
+    },
+    {
+      "attempt_id": "S242-04",
+      "blind_label": "D",
+      "label": "CHARACTER_TRAIT_RESTATEMENT",
+      "severity": "hard",
+      "span": {
+        "start": 3443,
+        "end": 3471,
+        "text": "그는 어깨를 으쓱이며 다시 앞장서서 걷기 시작했다."
+      },
+      "reason": "Shrug trait"
+    },
+    {
+      "attempt_id": "S242-05",
+      "blind_label": "I",
+      "label": "CROSS_OUTPUT_TEMPLATE_ECHO",
+      "severity": "hard",
+      "span": {
+        "start": 0,
+        "end": 17,
+        "text": "새까만 곰 귀가 달린 하얀 후드"
+      },
+      "reason": "Bear-ear hoodie motif"
+    },
+    {
+      "attempt_id": "S242-05",
+      "blind_label": "I",
+      "label": "FALSE_REACTION_POINT",
+      "severity": "hard",
+      "span": {
+        "start": 2949,
+        "end": 2986,
+        "text": "무엇이든 대답이 나오기만을 기다리는, 느긋하면서도 날카로운 기다림."
+      },
+      "reason": "False wait"
+    },
+    {
+      "attempt_id": "S242-05",
+      "blind_label": "I",
+      "label": "SEMANTIC_REPETITION",
+      "severity": "hard",
+      "span": {
+        "start": 103,
+        "end": 135,
+        "text": "기억이 안 난다니, 그런 말을 할 거라고는 예상 못 했다."
+      },
+      "reason": "Memory proposition"
+    },
+    {
+      "attempt_id": "S242-05",
+      "blind_label": "I",
+      "label": "USER_STATE_INVENTION",
+      "severity": "hard",
+      "span": {
+        "start": 464,
+        "end": 517,
+        "text": "속이 빠르게 회전했다. 신규 등록된 가이드인가? 아니면 무슨 사고라도 있었나? 호기심이 꼬리에 "
+      },
+      "reason": "Guide attribution"
+    },
+    {
+      "attempt_id": "S242-06",
+      "blind_label": "F",
+      "label": "USER_INPUT_REAUTHORING",
+      "severity": "hard",
+      "span": {
+        "start": 0,
+        "end": 7,
+        "text": "\"같이갈래?\""
+      },
+      "reason": "Re-quotes current user input as opener"
+    },
+    {
+      "attempt_id": "S242-06",
+      "blind_label": "F",
+      "label": "USER_STATE_INVENTION",
+      "severity": "hard",
+      "span": {
+        "start": 1306,
+        "end": 1339,
+        "text": "S급 가이드라더니, 확실히 일반인과는 다른 분위기가 있었다."
+      },
+      "reason": "S-grade guide invention"
+    },
+    {
+      "attempt_id": "S242-06",
+      "blind_label": "F",
+      "label": "MULTIPLE_UNANSWERED_QUESTIONS",
+      "severity": "hard",
+      "span": {
+        "start": 781,
+        "end": 807,
+        "text": "아니면... 그냥 낯선 환경이라 좀 둘러본 거?"
+      },
+      "reason": "Stacked questions"
+    },
+    {
+      "attempt_id": "S242-06",
+      "blind_label": "F",
+      "label": "MULTIPLE_UNANSWERED_QUESTIONS",
+      "severity": "hard",
+      "span": {
+        "start": 2693,
+        "end": 2722,
+        "text": "너는 계란말이 좋아해? 아니면 계란후라이가 더 좋아?"
+      },
+      "reason": "More unanswered asks"
+    },
+    {
+      "attempt_id": "S242-06",
+      "blind_label": "F",
+      "label": "CROSS_OUTPUT_TEMPLATE_ECHO",
+      "severity": "hard",
+      "span": {
+        "start": 2917,
+        "end": 2934,
+        "text": "가을 햇살이 비스듬히 드는 식당"
+      },
+      "reason": "Sun+cafeteria template"
+    },
+    {
+      "attempt_id": "S242-06",
+      "blind_label": "F",
+      "label": "ASSISTANT_MONOLOGUE",
+      "severity": "hard",
+      "span": {
+        "start": 3081,
+        "end": 3100,
+        "text": "쓸데없이 감상적이네. 밥이나 먹자."
+      },
+      "reason": "Self-talk close"
+    }
+  ]
+}
