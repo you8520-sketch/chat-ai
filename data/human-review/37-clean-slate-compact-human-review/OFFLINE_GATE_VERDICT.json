@@ -1,0 +1,8 @@
+{
+  "verdict": "CLEAN_SLATE_COMPACT_CONTRACT_OFFLINE_PASS",
+  "contract_occurrence": 1,
+  "new_system_section": 0,
+  "new_user_tail_block": 0,
+  "rejected_markers_absent": true,
+  "scene_directive_location": "append_at_existing_block_end"
+}

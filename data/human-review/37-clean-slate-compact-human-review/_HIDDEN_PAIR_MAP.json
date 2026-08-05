@@ -1,0 +1,30 @@
+{
+  "Pair1": {
+    "X": "candidate",
+    "Y": "baseline",
+    "baseline_id": "BASE-R1T1",
+    "candidate_id": "CS-R1T1",
+    "turn": 1
+  },
+  "Pair2": {
+    "X": "candidate",
+    "Y": "baseline",
+    "baseline_id": "BASE-R2T1",
+    "candidate_id": "CS-R2T1",
+    "turn": 1
+  },
+  "Pair3": {
+    "X": "baseline",
+    "Y": "candidate",
+    "baseline_id": "BASE-R1T2",
+    "candidate_id": "CS-R1T2",
+    "turn": 2
+  },
+  "Pair4": {
+    "X": "baseline",
+    "Y": "candidate",
+    "baseline_id": "BASE-R2T2",
+    "candidate_id": "CS-R2T2",
+    "turn": 2
+  }
+}
