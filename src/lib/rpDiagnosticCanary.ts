@@ -65,6 +65,7 @@ export const RP_DIAGNOSTIC_CANARY_VARIANTS = [
   "deepseek_final",
   "terra_cross_check",
   "ds_length_normalized_baseline",
+  "early_active_interaction_focus",
 ] as const;
 
 export type RpDiagnosticCanaryVariant = (typeof RP_DIAGNOSTIC_CANARY_VARIANTS)[number];
@@ -185,7 +186,8 @@ export function rpDiagnosticEnablesPipelineCapture(
     variant === "ds_postprocess_baseline" ||
     variant === "ds_display_grouping_bypass" ||
     variant === "ds_paragraph_normalize_bypass" ||
-    variant === "ds_real_production"
+    variant === "ds_real_production" ||
+    variant === "early_active_interaction_focus"
   );
 }
 
@@ -475,6 +477,29 @@ export const COMMON_LAYOUT_MINIMAL_OWNER =
 
 export const COMMON_LENGTH_OWNER_MINIMAL =
   "같은 목표 분량 안에서 현재 상호작용의 하나의 연속된 장면을 완성한다.";
+
+/**
+ * Early-scene active interaction focus (user-turn tail, first 2 assistant responses).
+ * Single owner — does not alter greeting, SceneDirective placement, length owner,
+ * temperature, or DeepSeek Pro extras. Does not ban NPCs permanently.
+ */
+export function rpDiagnosticUsesActiveInteractionFocus(
+  variant: RpDiagnosticCanaryVariant
+): boolean {
+  return variant === "early_active_interaction_focus";
+}
+
+/** First two assistant responses only (completedTurns 0 and 1). */
+export function shouldApplyActiveInteractionFocus(
+  variant: RpDiagnosticCanaryVariant,
+  completedTurns: number
+): boolean {
+  return rpDiagnosticUsesActiveInteractionFocus(variant) && completedTurns < 2;
+}
+
+/** Inserted once on current user-turn tail, before the terminal length owner. */
+export const EARLY_ACTIVE_INTERACTION_FOCUS_OWNER = `[상호작용 초점]
+유저와 주 캐릭터가 의미 있는 대화·행동을 주고받는 동안 장면 중심을 두 사람에게 둔다. 장면을 움직이기 위한 신규 NPC 대사·직원 호출·등록·검사·보고 절차는 만들지 않는다. 외부 인물 없이도 짧게 끝내지 말고, 유저 행동 관찰·해석, 주 캐릭터의 판단·심리, 신체 행동·거리 변화, 환경 반응, 관계의 작은 결정·발견·변화로 분량을 채운다. 외부 subplot을 뺀 분량은 장면 종료가 아니라 핵심 상호작용에 재투자한다. NPC·외부 사건은 유저가 직접 요청·접근했거나, 이미 있는 NPC에 답해야 하거나, 즉각적 위협·임무·사건이 진행 중이거나, 상호작용이 실제로 정체되어 새 변화가 필요할 때만 허용한다.`;
 
 export function applyRpDiagnosticToHistory(opts: {
   history: ChatMsg[];

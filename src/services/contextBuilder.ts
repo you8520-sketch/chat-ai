@@ -100,6 +100,7 @@ import {
 import {
   COMMON_LAYOUT_MINIMAL_OWNER,
   COMMON_LENGTH_OWNER_MINIMAL,
+  EARLY_ACTIVE_INTERACTION_FOCUS_OWNER,
   rpDiagnosticDisablesDeepSeekStyleExtras,
   resolveDeepSeekExtrasMode,
   rpDiagnosticRemovesSceneDirective,
@@ -108,6 +109,7 @@ import {
   rpDiagnosticUsesMinimalLayout,
   rpDiagnosticUsesMinimalLengthOwner,
   rpDiagnosticUsesMinimalRpStyle,
+  shouldApplyActiveInteractionFocus,
 } from "@/lib/rpDiagnosticCanary";
 import type { CharacterChunk, GeminiContextSplit } from "@/types";
 import {
@@ -1372,6 +1374,14 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   ) {
     // Residual canary only — keep Terra length owner as absolute end.
     userTurnContent = `${userTurnContent.trimEnd()}\n\n${TERRA_DIALOGUE_INTENT_ADAPTER_SENTENCE}`;
+  }
+  // Active interaction focus: once on user-turn tail for first 2 assistant responses,
+  // before terminal length owner. Does not relocate SceneDirective or change length owner.
+  if (
+    rpVariant &&
+    shouldApplyActiveInteractionFocus(rpVariant, input.completedTurns ?? 0)
+  ) {
+    userTurnContent = `${userTurnContent.trimEnd()}\n\n${EARLY_ACTIVE_INTERACTION_FOCUS_OWNER}`;
   }
   if (terraTerminalLengthOwner) {
     const terminalContract = resolveCanaryTerraTerminalContract(
