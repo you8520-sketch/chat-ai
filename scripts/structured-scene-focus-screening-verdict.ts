@@ -138,11 +138,13 @@ function main() {
 
   const screen = EXPECTED_N <= 4;
   const mode = process.env.VERDICT_MODE ?? "concrete_beats";
-  const concreteMode = mode === "concrete_beats";
+  const concreteMode =
+    mode === "concrete_beats" || mode === "ds_opening_neutral";
+  const dsOpeningMode = mode === "ds_opening_neutral";
   const neutralMode = mode === "neutral_world_motion";
   const baseEngineMode = mode === "base_engine_preserved";
 
-  // Drop incomplete finish from valid n for concrete screening.
+  // Drop incomplete finish from valid n for concrete / DS-opening screening.
   const validRows = concreteMode
     ? rows.filter((r) => r.finish === "stop" || r.finish === "end_turn")
     : rows;
@@ -163,20 +165,24 @@ function main() {
   const vReaction = validRows.filter((r) => r.reaction > 0).length;
 
   let verdict = screen
-    ? concreteMode
-      ? "CONCRETE_BEAT_SCREEN_PASS"
-      : neutralMode
-        ? "NEUTRAL_WORLD_MOTION_SCREEN_PASS"
-        : baseEngineMode
-          ? "BASE_ENGINE_PRESERVED_SCREEN_PASS"
-          : "STRUCTURED_ACTIVE_SCREEN_PASS"
-    : concreteMode
-      ? "STRUCTURED_ACTIVE_DYAD_CONCRETE_BEATS_CONFIRMED"
-      : neutralMode
-        ? "STRUCTURED_ACTIVE_DYAD_NEUTRAL_WORLD_MOTION_CONFIRMED"
-        : baseEngineMode
-          ? "STRUCTURED_ACTIVE_DYAD_BASE_ENGINE_CONFIRMED"
-          : "STRUCTURED_ACTIVE_DYAD_CONFIRMED";
+    ? dsOpeningMode
+      ? "DS_OPENING_NEUTRAL_SCREEN_PASS"
+      : concreteMode
+        ? "CONCRETE_BEAT_SCREEN_PASS"
+        : neutralMode
+          ? "NEUTRAL_WORLD_MOTION_SCREEN_PASS"
+          : baseEngineMode
+            ? "BASE_ENGINE_PRESERVED_SCREEN_PASS"
+            : "STRUCTURED_ACTIVE_SCREEN_PASS"
+    : dsOpeningMode
+      ? "DEEPSEEK_ACTIVE_DYAD_STACK_CONFIRMED"
+      : concreteMode
+        ? "STRUCTURED_ACTIVE_DYAD_CONCRETE_BEATS_CONFIRMED"
+        : neutralMode
+          ? "STRUCTURED_ACTIVE_DYAD_NEUTRAL_WORLD_MOTION_CONFIRMED"
+          : baseEngineMode
+            ? "STRUCTURED_ACTIVE_DYAD_BASE_ENGINE_CONFIRMED"
+            : "STRUCTURED_ACTIVE_DYAD_CONFIRMED";
 
   // Concrete NPC gate uses subplot heuristic as EXTERNAL_SUBPLOT proxy;
   // ext total as incidental voice budget (manual review refines in report).
@@ -274,46 +280,56 @@ function main() {
     : true;
 
   if (concreteMode && !runtimeOk) {
-    verdict = "CONCRETE_BEAT_RUNTIME_INVALID";
+    verdict = dsOpeningMode
+      ? "DS_OPENING_NEUTRAL_RUNTIME_INVALID"
+      : "CONCRETE_BEAT_RUNTIME_INVALID";
   } else if (n < EXPECTED_N && !concreteMode) {
     verdict = "STRUCTURED_ACTIVE_CONFIRM_INVALID";
   } else if (!npcOk) {
     verdict = screen
-      ? concreteMode
-        ? "CONCRETE_BEAT_NPC_FAIL"
-        : neutralMode
-          ? "NEUTRAL_WORLD_MOTION_NPC_FAIL"
-          : baseEngineMode
-            ? "BASE_ENGINE_PRESERVED_NPC_FAIL"
-            : "STRUCTURED_ACTIVE_NPC_FAIL"
+      ? dsOpeningMode
+        ? "DS_OPENING_NEUTRAL_NPC_FAIL"
+        : concreteMode
+          ? "CONCRETE_BEAT_NPC_FAIL"
+          : neutralMode
+            ? "NEUTRAL_WORLD_MOTION_NPC_FAIL"
+            : baseEngineMode
+              ? "BASE_ENGINE_PRESERVED_NPC_FAIL"
+              : "STRUCTURED_ACTIVE_NPC_FAIL"
       : "STRUCTURED_ACTIVE_CONFIRM_INVALID";
   } else if (!lengthOk) {
     verdict = screen
-      ? concreteMode
-        ? "CONCRETE_BEAT_LENGTH_FAIL"
-        : neutralMode
-          ? "NEUTRAL_WORLD_MOTION_LENGTH_FAIL"
-          : baseEngineMode
-            ? "BASE_ENGINE_PRESERVED_LENGTH_FAIL"
-            : "STRUCTURED_ACTIVE_LENGTH_FAIL"
+      ? dsOpeningMode
+        ? "DS_OPENING_NEUTRAL_LENGTH_FAIL"
+        : concreteMode
+          ? "CONCRETE_BEAT_LENGTH_FAIL"
+          : neutralMode
+            ? "NEUTRAL_WORLD_MOTION_LENGTH_FAIL"
+            : baseEngineMode
+              ? "BASE_ENGINE_PRESERVED_LENGTH_FAIL"
+              : "STRUCTURED_ACTIVE_LENGTH_FAIL"
       : "STRUCTURED_ACTIVE_CONFIRM_INVALID";
   } else if (!reactionOk) {
     verdict = screen
-      ? concreteMode
-        ? "CONCRETE_BEAT_REACTION_FAIL"
-        : neutralMode
-          ? "NEUTRAL_WORLD_MOTION_REACTION_FAIL"
-          : "STRUCTURED_ACTIVE_REACTION_FAIL"
+      ? dsOpeningMode
+        ? "DS_OPENING_NEUTRAL_REACTION_FAIL"
+        : concreteMode
+          ? "CONCRETE_BEAT_REACTION_FAIL"
+          : neutralMode
+            ? "NEUTRAL_WORLD_MOTION_REACTION_FAIL"
+            : "STRUCTURED_ACTIVE_REACTION_FAIL"
       : "STRUCTURED_ACTIVE_CONFIRM_INVALID";
   } else if (!rhythmOk) {
     verdict = screen
-      ? concreteMode
-        ? "CONCRETE_BEAT_RHYTHM_FAIL"
-        : neutralMode
-          ? "NEUTRAL_WORLD_MOTION_RHYTHM_FAIL"
-          : baseEngineMode
-            ? "BASE_ENGINE_PRESERVED_RHYTHM_FAIL"
-            : "STRUCTURED_ACTIVE_RHYTHM_FAIL"
+      ? dsOpeningMode
+        ? "DS_OPENING_NEUTRAL_RHYTHM_FAIL"
+        : concreteMode
+          ? "CONCRETE_BEAT_RHYTHM_FAIL"
+          : neutralMode
+            ? "NEUTRAL_WORLD_MOTION_RHYTHM_FAIL"
+            : baseEngineMode
+              ? "BASE_ENGINE_PRESERVED_RHYTHM_FAIL"
+              : "STRUCTURED_ACTIVE_RHYTHM_FAIL"
       : "STRUCTURED_ACTIVE_CONFIRM_INVALID";
   }
 
