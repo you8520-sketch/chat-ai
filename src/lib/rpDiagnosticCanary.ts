@@ -65,7 +65,40 @@ export const RP_DIAGNOSTIC_CANARY_VARIANTS = [
   "deepseek_final",
   "terra_cross_check",
   "ds_length_normalized_baseline",
+  /** Clean-slate quality canary — single compact SceneDirective appendix only */
+  "clean_slate_compact_contract",
 ] as const;
+
+/**
+ * Exact one-line compact contract appended once at the end of the existing
+ * SceneDirective block. Owns continuity / user agency / unsupported facts /
+ * external takeover / semantic repetition / response window — not length,
+ * dialogue ratio, NPC bans, world-freeze, or beat counts.
+ */
+export const CLEAN_SLATE_COMPACT_CONTRACT =
+  "직전 장면의 마지막 상태에서 바로 이어간다. 이전 장면을 다시 재생하거나 유저의 현재 입력·행동을 대신 서술하지 않는다. 유저 설정·페르소나·확정 기억에 없는 등급·능력·소지품·과거·감정·의도를 사실로 만들지 않는다. 유저와 주 캐릭터가 직접 상호작용 중일 때는 새 발화 NPC나 행정 절차로 장면 중심을 옮기지 않는다. 같은 해석·감정·질문을 표현만 바꿔 반복하지 말고, 주 캐릭터의 한 가지 판단과 실제 행동·결과로 장면을 앞으로 움직인 뒤 유저가 답할 한 지점에서 멈춘다.";
+
+/** Rejected structured-stack markers that must not appear in this canary. */
+export const CLEAN_SLATE_REJECTED_STACK_MARKERS = [
+  "ACTIVE_DYAD",
+  "이번 턴 진행:",
+  "specific interpretation",
+  "consequential primary-character choices",
+  "observable change within the existing scene",
+] as const;
+
+export function rpDiagnosticUsesCleanSlateCompactContract(
+  variant: RpDiagnosticCanaryVariant
+): boolean {
+  return variant === "clean_slate_compact_contract";
+}
+
+export function appendCleanSlateCompactContract(block: string): string {
+  const trimmed = block.trimEnd();
+  if (!trimmed) return CLEAN_SLATE_COMPACT_CONTRACT;
+  if (trimmed.includes(CLEAN_SLATE_COMPACT_CONTRACT)) return trimmed;
+  return `${trimmed}\n${CLEAN_SLATE_COMPACT_CONTRACT}`;
+}
 
 export type RpDiagnosticCanaryVariant = (typeof RP_DIAGNOSTIC_CANARY_VARIANTS)[number];
 
@@ -185,7 +218,8 @@ export function rpDiagnosticEnablesPipelineCapture(
     variant === "ds_postprocess_baseline" ||
     variant === "ds_display_grouping_bypass" ||
     variant === "ds_paragraph_normalize_bypass" ||
-    variant === "ds_real_production"
+    variant === "ds_real_production" ||
+    variant === "clean_slate_compact_contract"
   );
 }
 
@@ -362,6 +396,11 @@ export function applyRpDiagnosticToSceneDirectiveBlock(opts: {
 }): string {
   if (!opts.canary) return opts.block;
   if (rpDiagnosticRemovesSceneDirective(opts.canary.variant)) return "";
+  // Clean-slate: production SceneDirective bytes + exactly one compact appendix.
+  // Do not route through Terra relationship-axis rewrite.
+  if (rpDiagnosticUsesCleanSlateCompactContract(opts.canary.variant)) {
+    return appendCleanSlateCompactContract(opts.block);
+  }
   return applyTerraPromptCanaryToSceneDirectiveBlock({
     block: opts.block,
     canary: {
