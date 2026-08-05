@@ -124,4 +124,18 @@ describe("RP diagnostic canary fail-closed scope", () => {
     assert.ok(res?.active);
     assert.equal(res?.variant, "structured_scene_focus_active_dyad");
   });
+
+  it("structured_scene_focus_active_dyad_base_engine_preserved resolves for user 34 + pro", () => {
+    enableCanary("structured_scene_focus_active_dyad_base_engine_preserved");
+    const res = resolveRpDiagnosticCanary({
+      userId: 34,
+      modelId: "deepseek-v4-pro",
+      contentKind: "character",
+    });
+    assert.ok(res?.active);
+    assert.equal(
+      res?.variant,
+      "structured_scene_focus_active_dyad_base_engine_preserved"
+    );
+  });
 });

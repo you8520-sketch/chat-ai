@@ -44,6 +44,11 @@ export type SceneFocusDiagnostics = {
   externalSourcesWithheld: SceneProgressionSource[];
   replacementSources: SceneProgressionSource[];
   resolvedProgressionTypes: SceneProgressionType[];
+  /**
+   * Palette motion sentence kept for diagnostics only — never serialized into
+   * the model prompt under base-engine-preservation variants.
+   */
+  engineMotionDiagnostic?: string | null;
 };
 
 /** Positive engine-rule body for ACTIVE_DYAD — selection, not prohibition. */
@@ -303,6 +308,7 @@ export function applySceneFocusPaletteToProgressionTypes(
       externalSourcesWithheld,
       replacementSources,
       resolvedProgressionTypes: [...resolvedTypes],
+      engineMotionDiagnostic: sceneEngineMotionForPalette(palette),
     },
   };
 }

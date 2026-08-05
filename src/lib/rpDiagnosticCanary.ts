@@ -77,8 +77,14 @@ export const RP_DIAGNOSTIC_CANARY_VARIANTS = [
   /**
    * Structured SceneDirective palette (ACTIVE_DYAD) — no new system/user section.
    * Harness sets state; production requests keep sceneFocusState=null.
+   * (Confounded: previously also replaced BASE_SCENE_ENGINE_RULE — superseded.)
    */
   "structured_scene_focus_active_dyad",
+  /**
+   * Same ACTIVE_DYAD palette as above, but BASE_SCENE_ENGINE_RULE stays
+   * production byte-identical in the serialized prompt.
+   */
+  "structured_scene_focus_active_dyad_base_engine_preserved",
 ] as const;
 
 export type RpDiagnosticCanaryVariant = (typeof RP_DIAGNOSTIC_CANARY_VARIANTS)[number];
@@ -200,14 +206,25 @@ export function rpDiagnosticEnablesPipelineCapture(
     variant === "ds_display_grouping_bypass" ||
     variant === "ds_paragraph_normalize_bypass" ||
     variant === "ds_real_production" ||
-    variant === "structured_scene_focus_active_dyad"
+    variant === "structured_scene_focus_active_dyad" ||
+    variant === "structured_scene_focus_active_dyad_base_engine_preserved"
   );
 }
 
 export function rpDiagnosticUsesStructuredSceneFocus(
   variant: RpDiagnosticCanaryVariant
 ): boolean {
-  return variant === "structured_scene_focus_active_dyad";
+  return (
+    variant === "structured_scene_focus_active_dyad" ||
+    variant === "structured_scene_focus_active_dyad_base_engine_preserved"
+  );
+}
+
+/** True when palette must keep BASE_SCENE_ENGINE_RULE byte-identical (all current structured paths). */
+export function rpDiagnosticPreservesBaseSceneEngineRule(
+  variant: RpDiagnosticCanaryVariant
+): boolean {
+  return variant === "structured_scene_focus_active_dyad_base_engine_preserved";
 }
 
 /**
