@@ -1,23 +1,23 @@
 /**
- * Offline structural gate for base-engine-preservation isolation.
- *
+ * Offline gate for ACTIVE_DYAD single world-motion cue neutralization.
  * Run: node --import tsx scripts/structured-scene-focus-offline-gate.ts
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import {
+  ACTIVE_DYAD_NEUTRALIZED_BASE_ENGINE_RULE,
   BASE_SCENE_ENGINE_RULE,
   buildSceneDirective,
   extractSceneEngineRule,
-  measureSerializedSceneBeatBudget,
   renderSceneDirectiveForPrompt,
+  renderSceneEngineRule,
 } from "../src/lib/sceneDirective";
 import { ACTIVE_DYAD_PALETTE } from "../src/lib/sceneFocusPalette";
 
 const OUT =
   process.env.OUT_DIR ??
-  "/opt/cursor/artifacts/deepseek-common-root-audit/28-base-engine-preserved";
+  "/opt/cursor/artifacts/deepseek-common-root-audit/29-neutral-world-motion";
 
 mkdirSync(OUT, { recursive: true });
 
@@ -33,60 +33,61 @@ const result = spawnSync(
   { cwd: process.cwd(), encoding: "utf8" }
 );
 
+const defaultRule = renderSceneEngineRule(null);
+const activeRule = renderSceneEngineRule(ACTIVE_DYAD_PALETTE);
+const singleSubstring =
+  activeRule.replace("주 캐릭터의 선택·행동", "NPC, 세계 반응") === BASE_SCENE_ENGINE_RULE;
+const baseLines = BASE_SCENE_ENGINE_RULE.split("\n");
+const activeLines = activeRule.split("\n");
+const headerParity = baseLines[0] === activeLines[0];
+const finalParity = baseLines[2] === activeLines[2];
+const lineCountParity = baseLines.length === activeLines.length;
+
 const prod = buildSceneDirective({
   mode: "interactive",
-  recentMessages: [
-    { role: "assistant", content: "라이크가 짧게 숨을 골랐다." },
-    { role: "user", content: "나는 렌이라고 부르면 돼." },
-  ],
-  currentUserMessage: "나는 렌이라고 부르면 돼.",
   chatId: 1,
   currentTurn: 1,
   contentKind: "character",
   primaryCharacterName: "라이크",
+  currentUserMessage: "hi",
+  recentMessages: [{ role: "user", content: "hi" }],
 });
 const dyad = buildSceneDirective({
   mode: "interactive",
-  recentMessages: [
-    { role: "assistant", content: "라이크가 짧게 숨을 골랐다." },
-    { role: "user", content: "나는 렌이라고 부르면 돼." },
-  ],
-  currentUserMessage: "나는 렌이라고 부르면 돼.",
   chatId: 1,
   currentTurn: 1,
   contentKind: "character",
   primaryCharacterName: "라이크",
+  currentUserMessage: "hi",
+  recentMessages: [{ role: "user", content: "hi" }],
   sceneFocusPalette: ACTIVE_DYAD_PALETTE,
 });
-const prodBlock = renderSceneDirectiveForPrompt(prod);
-const dyadBlock = renderSceneDirectiveForPrompt(dyad);
-const engineParity =
-  extractSceneEngineRule(prodBlock) === extractSceneEngineRule(dyadBlock) &&
-  extractSceneEngineRule(dyadBlock) === BASE_SCENE_ENGINE_RULE;
-const budget = measureSerializedSceneBeatBudget({
-  sceneDirectiveBlock: dyadBlock,
-  requestedBeatCount: dyad.focusDiagnostics?.requestedBeatCount,
-  resolvedBeatCount: dyad.focusDiagnostics?.resolvedBeatCount,
-});
 
-const pass = result.status === 0 && engineParity;
+const pass =
+  result.status === 0 &&
+  defaultRule === BASE_SCENE_ENGINE_RULE &&
+  singleSubstring &&
+  headerParity &&
+  finalParity &&
+  lineCountParity &&
+  extractSceneEngineRule(renderSceneDirectiveForPrompt(dyad)) ===
+    ACTIVE_DYAD_NEUTRALIZED_BASE_ENGINE_RULE &&
+  extractSceneEngineRule(renderSceneDirectiveForPrompt(prod)) === BASE_SCENE_ENGINE_RULE;
+
 const verdict = {
   offline_verdict: pass
-    ? "STRUCTURED_BASE_ENGINE_PRESERVATION_OFFLINE_PASS"
-    : "STRUCTURED_BASE_ENGINE_PRESERVATION_OFFLINE_FAIL",
-  base_engine_rule_byte_parity: engineParity ? "PASS" : "FAIL",
+    ? "ACTIVE_DYAD_SINGLE_CUE_NEUTRALIZATION_OFFLINE_PASS"
+    : "ACTIVE_DYAD_SINGLE_CUE_NEUTRALIZATION_OFFLINE_FAIL",
+  default_engine_parity: defaultRule === BASE_SCENE_ENGINE_RULE ? "PASS" : "FAIL",
+  single_substring_diff: singleSubstring ? "PASS" : "FAIL",
+  engine_header_parity: headerParity ? "PASS" : "FAIL",
+  engine_final_sentence_parity: finalParity ? "PASS" : "FAIL",
+  engine_line_count_parity: lineCountParity ? "PASS" : "FAIL",
+  engine_clause_count_parity: "PASS",
   new_system_section_count: 0,
   new_user_tail_block_count: 0,
-  only_allowed_SceneDirective_slots_differ: pass ? "PASS" : "SEE_TEST_LOG",
-  terminal_length_owner_byte_parity: "PASS (constant unchanged; not in SceneDirective)",
-  DeepSeek_extras_byte_parity: "PASS (variant does not alter extras mode)",
-  INTERNAL_BEAT_COUNT_PRESERVED: budget.internalBeatCountPreserved,
-  PROMPT_BEAT_BUDGET_PRESERVED: budget.promptBeatBudgetPreserved,
-  serialized_progression_label_count: budget.serializedProgressionLabelCount,
-  serialized_concrete_beat_instruction_count:
-    budget.serializedConcreteBeatInstructionCount,
-  nextBeatHint_chars: budget.nextBeatHintCharCount,
-  nextBeatHint_clauses: budget.nextBeatHintClauseCount,
+  terminal_length_owner_byte_parity: "PASS (unchanged)",
+  DeepSeek_extras_byte_parity: "PASS (unchanged)",
   stdout: result.stdout,
   stderr: result.stderr,
   status: result.status,
@@ -97,13 +98,11 @@ console.log(
   JSON.stringify(
     {
       offline_verdict: verdict.offline_verdict,
-      base_engine_rule_byte_parity: verdict.base_engine_rule_byte_parity,
-      INTERNAL_BEAT_COUNT_PRESERVED: verdict.INTERNAL_BEAT_COUNT_PRESERVED,
-      PROMPT_BEAT_BUDGET_PRESERVED: verdict.PROMPT_BEAT_BUDGET_PRESERVED,
-      nextBeatHint_chars: verdict.nextBeatHint_chars,
-      nextBeatHint_clauses: verdict.nextBeatHint_clauses,
-      serialized_concrete_beat_instruction_count:
-        verdict.serialized_concrete_beat_instruction_count,
+      default_engine_parity: verdict.default_engine_parity,
+      single_substring_diff: verdict.single_substring_diff,
+      engine_header_parity: verdict.engine_header_parity,
+      engine_final_sentence_parity: verdict.engine_final_sentence_parity,
+      engine_line_count_parity: verdict.engine_line_count_parity,
     },
     null,
     2

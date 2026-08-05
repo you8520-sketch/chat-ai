@@ -181,7 +181,8 @@ export type ContextBuildInput = {
       | "terra_cross_check"
       | "ds_length_normalized_baseline"
       | "structured_scene_focus_active_dyad"
-      | "structured_scene_focus_active_dyad_base_engine_preserved";
+      | "structured_scene_focus_active_dyad_base_engine_preserved"
+      | "structured_active_dyad_neutral_world_motion";
     progressionAxis?:
       | "relationship"
       | "investigation"

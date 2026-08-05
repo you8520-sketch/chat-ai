@@ -175,14 +175,45 @@ const USER_CONTROL_LABELS: Record<SceneUserControl, string> = {
 };
 
 /**
- * Production Scene Engine Rule — always serialized byte-identical when present.
- * Structured palette must NOT replace this block (base-engine-preservation isolation).
+ * Production Scene Engine Rule — used when sceneFocusPalette is null.
+ * Do not mutate this constant for canary experiments.
  */
 export const BASE_SCENE_ENGINE_RULE = [
   "[PRIVATE SCENE ENGINE RULE]",
   "반복된 감정 확인에 멈추지 말고 관계, 단서, 환경, NPC, 세계 반응, 생활 변수, 이전 선택의 결과 중 하나를 조용히 움직인다.",
   "전개는 항상 전투나 대형 위기일 필요가 없다. 현재 모드와 유저 조종 범위를 따르고, 이 규칙을 본문에 언급하지 않는다.",
 ].join("\n");
+
+/** Production motion clause (line 2 of BASE_SCENE_ENGINE_RULE). */
+export const BASE_SCENE_ENGINE_MOTION_CLAUSE =
+  "반복된 감정 확인에 멈추지 말고 관계, 단서, 환경, NPC, 세계 반응, 생활 변수, 이전 선택의 결과 중 하나를 조용히 움직인다.";
+
+/**
+ * ACTIVE_DYAD single-cue neutralization — only replaces "NPC, 세계 반응"
+ * with "주 캐릭터의 선택·행동". Header + final sentence stay production-identical.
+ */
+export const ACTIVE_DYAD_NEUTRALIZED_MOTION_CLAUSE =
+  "반복된 감정 확인에 멈추지 말고 관계, 단서, 환경, 주 캐릭터의 선택·행동, 생활 변수, 이전 선택의 결과 중 하나를 조용히 움직인다.";
+
+export const ACTIVE_DYAD_NEUTRALIZED_BASE_ENGINE_RULE = [
+  "[PRIVATE SCENE ENGINE RULE]",
+  ACTIVE_DYAD_NEUTRALIZED_MOTION_CLAUSE,
+  "전개는 항상 전투나 대형 위기일 필요가 없다. 현재 모드와 유저 조종 범위를 따르고, 이 규칙을 본문에 언급하지 않는다.",
+].join("\n");
+
+/**
+ * Serialize Scene Engine Rule for prompt.
+ * Production (null palette): BASE_SCENE_ENGINE_RULE byte-identical.
+ * ACTIVE_DYAD: single substring neutralization only — never the short palette motion rewrite.
+ */
+export function renderSceneEngineRule(
+  palette: SceneFocusPalette | null | undefined
+): string {
+  if (palette?.state === "ACTIVE_DYAD") {
+    return ACTIVE_DYAD_NEUTRALIZED_BASE_ENGINE_RULE;
+  }
+  return BASE_SCENE_ENGINE_RULE;
+}
 
 /** Extract the PRIVATE SCENE ENGINE RULE block from a SceneDirective prompt string. */
 export function extractSceneEngineRule(sceneDirectiveBlock: string): string {
@@ -1015,10 +1046,10 @@ export function renderSceneDirectiveForPrompt(directive: SceneDirective): string
   const modeLabel = directive.mode === "auto_progression" ? "자동진행" : "일반 RP";
   const progression = directive.progressionTypes.map((type) => PROGRESSION_LABELS[type]).join(" + ");
   const primaryFocusLine = renderPrimaryFocusLine(directive.castFocus);
-  // Base-engine preservation: palette never replaces BASE_SCENE_ENGINE_RULE in the prompt.
-  // Palette-specific motion strings stay diagnostic-only (see sceneFocusPalette helpers).
+  // ACTIVE_DYAD: neutralize only "NPC, 세계 반응" → "주 캐릭터의 선택·행동".
+  // Do not use short sceneEngineMotionForPalette rewrite in the serialized prompt.
   return [
-    BASE_SCENE_ENGINE_RULE,
+    renderSceneEngineRule(directive.focusPalette),
     "",
     "[이번 턴 장면 지시 - 비공개]",
     `모드: ${modeLabel}`,

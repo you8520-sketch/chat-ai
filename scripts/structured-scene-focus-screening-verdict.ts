@@ -137,60 +137,111 @@ function main() {
   const turn1Lt2400 = turn1.filter((r) => r.len < 2400).length;
 
   const screen = EXPECTED_N <= 4;
-  const baseEngineMode =
-    (process.env.VERDICT_MODE ?? "base_engine_preserved") === "base_engine_preserved";
-  let verdict = screen
-    ? baseEngineMode
-      ? "BASE_ENGINE_PRESERVED_SCREEN_PASS"
-      : "STRUCTURED_ACTIVE_SCREEN_PASS"
-    : baseEngineMode
-      ? "STRUCTURED_ACTIVE_DYAD_BASE_ENGINE_CONFIRMED"
-      : "STRUCTURED_ACTIVE_DYAD_CONFIRMED";
+  const mode = process.env.VERDICT_MODE ?? "neutral_world_motion";
+  const neutralMode = mode === "neutral_world_motion";
+  const baseEngineMode = mode === "base_engine_preserved";
 
-  const npcOk = screen ? npcCount <= 1 && extTotal <= 1 : npcCount <= 1 && extTotal <= 2;
-  const lengthOk =
-    avgLen >= 3000 &&
-    lt2400 === 0 &&
-    lengthDrop <= 0.1 &&
-    avgCore >= BASELINE_CORE * 0.95 &&
-    (screen ? turn1Avg >= 2700 && turn1Lt2400 === 0 : ge2700 >= 5 && turn1Avg >= 2700);
-  const rhythmOk = screen
-    ? resume <= 1.1 &&
-      frag <= 1.4 &&
-      dlgPct >= 10 &&
-      dlgPct <= 18 &&
-      narrPct >= 82 &&
-      narrPct <= 90
-    : resume <= 1.0 &&
-      frag <= 1.35 &&
-      dlgPct >= 10 &&
-      dlgPct <= 18 &&
-      narrPct >= 82 &&
-      narrPct <= 90;
+  let verdict = screen
+    ? neutralMode
+      ? "NEUTRAL_WORLD_MOTION_SCREEN_PASS"
+      : baseEngineMode
+        ? "BASE_ENGINE_PRESERVED_SCREEN_PASS"
+        : "STRUCTURED_ACTIVE_SCREEN_PASS"
+    : neutralMode
+      ? "STRUCTURED_ACTIVE_DYAD_NEUTRAL_WORLD_MOTION_CONFIRMED"
+      : baseEngineMode
+        ? "STRUCTURED_ACTIVE_DYAD_BASE_ENGINE_CONFIRMED"
+        : "STRUCTURED_ACTIVE_DYAD_CONFIRMED";
+
+  // Screening NPC: neutral mode requires 0/4 subplot + ext<=1; confirm allows <=1/6 + ext<=2.
+  const npcOk = neutralMode
+    ? screen
+      ? npcCount === 0 && extTotal <= 1
+      : npcCount <= 1 && extTotal <= 2
+    : screen
+      ? npcCount <= 1 && extTotal <= 1
+      : npcCount <= 1 && extTotal <= 2;
+
+  const lengthOk = neutralMode
+    ? screen
+      ? avgLen >= 3100 &&
+        lt2400 === 0 &&
+        turn1Avg >= 2700 &&
+        turn1Lt2400 === 0 &&
+        lengthDrop <= 0.12 &&
+        avgCore >= BASELINE_CORE * 0.95
+      : avgLen >= 3000 &&
+        lt2400 === 0 &&
+        lengthDrop <= 0.1 &&
+        ge2700 >= 5 &&
+        turn1Avg >= 2700 &&
+        avgCore >= BASELINE_CORE * 0.95
+    : avgLen >= 3000 &&
+      lt2400 === 0 &&
+      lengthDrop <= 0.1 &&
+      avgCore >= BASELINE_CORE * 0.95 &&
+      (screen ? turn1Avg >= 2700 && turn1Lt2400 === 0 : ge2700 >= 5 && turn1Avg >= 2700);
+
+  const rhythmOk = neutralMode
+    ? screen
+      ? resume <= 1.0 &&
+        frag <= 1.4 &&
+        dlgPct >= 10 &&
+        dlgPct <= 19 &&
+        narrPct >= 81 &&
+        narrPct <= 90
+      : resume <= 1.0 &&
+        frag <= 1.35 &&
+        dlgPct >= 10 &&
+        dlgPct <= 18 &&
+        narrPct >= 82 &&
+        narrPct <= 90
+    : screen
+      ? resume <= 1.1 &&
+        frag <= 1.4 &&
+        dlgPct >= 10 &&
+        dlgPct <= 18 &&
+        narrPct >= 82 &&
+        narrPct <= 90
+      : resume <= 1.0 &&
+        frag <= 1.35 &&
+        dlgPct >= 10 &&
+        dlgPct <= 18 &&
+        narrPct >= 82 &&
+        narrPct <= 90;
+
   const reactionOk = screen ? reaction >= 3 : reaction >= 5;
 
   if (n < EXPECTED_N) {
-    verdict = baseEngineMode
-      ? "STRUCTURED_ACTIVE_CONFIRM_INVALID"
-      : "STRUCTURED_ACTIVE_CONFIRM_INVALID";
+    verdict = "STRUCTURED_ACTIVE_CONFIRM_INVALID";
   } else if (!npcOk) {
     verdict = screen
-      ? baseEngineMode
-        ? "BASE_ENGINE_PRESERVED_NPC_FAIL"
-        : "STRUCTURED_ACTIVE_NPC_FAIL"
+      ? neutralMode
+        ? "NEUTRAL_WORLD_MOTION_NPC_FAIL"
+        : baseEngineMode
+          ? "BASE_ENGINE_PRESERVED_NPC_FAIL"
+          : "STRUCTURED_ACTIVE_NPC_FAIL"
       : "STRUCTURED_ACTIVE_CONFIRM_INVALID";
   } else if (!lengthOk) {
     verdict = screen
-      ? baseEngineMode
-        ? "BASE_ENGINE_PRESERVED_LENGTH_FAIL"
-        : "STRUCTURED_ACTIVE_LENGTH_FAIL"
+      ? neutralMode
+        ? "NEUTRAL_WORLD_MOTION_LENGTH_FAIL"
+        : baseEngineMode
+          ? "BASE_ENGINE_PRESERVED_LENGTH_FAIL"
+          : "STRUCTURED_ACTIVE_LENGTH_FAIL"
       : "STRUCTURED_ACTIVE_CONFIRM_INVALID";
-  } else if (!reactionOk || !rhythmOk) {
+  } else if (!reactionOk) {
     verdict = screen
-      ? baseEngineMode
-        ? "BASE_ENGINE_PRESERVED_RHYTHM_FAIL"
-        : !reactionOk
-          ? "STRUCTURED_ACTIVE_REACTION_FAIL"
+      ? neutralMode
+        ? "NEUTRAL_WORLD_MOTION_REACTION_FAIL"
+        : "STRUCTURED_ACTIVE_REACTION_FAIL"
+      : "STRUCTURED_ACTIVE_CONFIRM_INVALID";
+  } else if (!rhythmOk) {
+    verdict = screen
+      ? neutralMode
+        ? "NEUTRAL_WORLD_MOTION_RHYTHM_FAIL"
+        : baseEngineMode
+          ? "BASE_ENGINE_PRESERVED_RHYTHM_FAIL"
           : "STRUCTURED_ACTIVE_RHYTHM_FAIL"
       : "STRUCTURED_ACTIVE_CONFIRM_INVALID";
   }

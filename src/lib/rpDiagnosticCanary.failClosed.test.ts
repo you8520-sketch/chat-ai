@@ -138,4 +138,15 @@ describe("RP diagnostic canary fail-closed scope", () => {
       "structured_scene_focus_active_dyad_base_engine_preserved"
     );
   });
+
+  it("structured_active_dyad_neutral_world_motion resolves for user 34 + pro", () => {
+    enableCanary("structured_active_dyad_neutral_world_motion");
+    const res = resolveRpDiagnosticCanary({
+      userId: 34,
+      modelId: "deepseek-v4-pro",
+      contentKind: "character",
+    });
+    assert.ok(res?.active);
+    assert.equal(res?.variant, "structured_active_dyad_neutral_world_motion");
+  });
 });

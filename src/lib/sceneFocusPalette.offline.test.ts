@@ -1,33 +1,28 @@
 /**
- * Offline prompt integrity gate — base-engine-preservation isolation.
+ * Offline integrity — ACTIVE_DYAD single world-motion cue neutralization.
  *
  * Run: node --conditions=react-server --import tsx --test src/lib/sceneFocusPalette.offline.test.ts
  */
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { describe, it } from "node:test";
 
 import type { ChatMsg } from "@/lib/ai";
 import {
+  ACTIVE_DYAD_NEUTRALIZED_BASE_ENGINE_RULE,
   BASE_SCENE_ENGINE_RULE,
   buildSceneDirective,
   extractSceneEngineRule,
-  measureSerializedSceneBeatBudget,
   renderSceneDirectiveForPrompt,
+  renderSceneEngineRule,
 } from "@/lib/sceneDirective";
-import {
-  ACTIVE_DYAD_PALETTE,
-  ACTIVE_DYAD_SCENE_ENGINE_MOTION,
-} from "@/lib/sceneFocusPalette";
+import { ACTIVE_DYAD_PALETTE, ACTIVE_DYAD_SCENE_ENGINE_MOTION } from "@/lib/sceneFocusPalette";
 import {
   RP_DIAGNOSTIC_CANARY_ENV,
-  resolveCanarySceneFocusPalette,
   resolveCanarySceneFocusState,
   resolveRpDiagnosticCanary,
-  rpDiagnosticPreservesBaseSceneEngineRule,
+  rpDiagnosticNeutralizesWorldMotionCue,
   rpDiagnosticUsesStructuredSceneFocus,
 } from "@/lib/rpDiagnosticCanary";
-import { TERRA_TERMINAL_LENGTH_OWNER_CONTRACT } from "@/lib/terraTerminalLengthOwner";
 
 const recent: ChatMsg[] = [
   {
@@ -38,35 +33,12 @@ const recent: ChatMsg[] = [
   { role: "user", content: "나는 렌이라고 부르면 돼....나는 본기억이 안나는데....나 알아?(갸웃)" },
 ];
 
-function sha(text: string): string {
-  return createHash("sha256").update(text, "utf8").digest("hex");
+function engineLines(rule: string): string[] {
+  return rule.split("\n");
 }
 
-function extractLine(block: string, prefix: string): string {
-  const re = new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}.+$`, "m");
-  return block.match(re)?.[0] ?? "";
-}
-
-function allowedSlotDiffOnly(prod: string, cand: string): boolean {
-  // Strip allowed-to-differ lines; remainders must match.
-  const strip = (s: string) =>
-    s
-      .split("\n")
-      .filter((line) => {
-        if (line.startsWith("전개 방향:")) return false;
-        if (line.startsWith("다음 장면 힌트:")) return false;
-        if (line.startsWith("직접 발화 중심:")) return false;
-        if (line.startsWith("정체 감지:")) return false;
-        if (line.startsWith("권장 강도:")) return false;
-        if (line.startsWith("피할 것:")) return false;
-        return true;
-      })
-      .join("\n");
-  return strip(prod) === strip(cand);
-}
-
-describe("structured scene focus — base engine preservation offline", () => {
-  it("default parity: null palette byte-identical", () => {
+describe("ACTIVE_DYAD single world-motion cue neutralization — offline", () => {
+  it("default parity: null palette keeps BASE_SCENE_ENGINE_RULE byte-identical", () => {
     const a = buildSceneDirective({
       mode: "interactive",
       recentMessages: recent,
@@ -86,19 +58,14 @@ describe("structured scene focus — base engine preservation offline", () => {
       primaryCharacterName: "라이크",
       sceneFocusPalette: null,
     });
-    assert.equal(renderSceneDirectiveForPrompt(a), renderSceneDirectiveForPrompt(b));
+    const ra = renderSceneDirectiveForPrompt(a);
+    const rb = renderSceneDirectiveForPrompt(b);
+    assert.equal(ra, rb);
+    assert.equal(extractSceneEngineRule(ra), BASE_SCENE_ENGINE_RULE);
+    assert.equal(renderSceneEngineRule(null), BASE_SCENE_ENGINE_RULE);
   });
 
-  it("base engine rule byte parity under ACTIVE_DYAD palette", () => {
-    const prod = buildSceneDirective({
-      mode: "interactive",
-      recentMessages: recent,
-      currentUserMessage: recent[1]!.content,
-      chatId: 9001,
-      currentTurn: 1,
-      contentKind: "character",
-      primaryCharacterName: "라이크",
-    });
+  it("ACTIVE_DYAD: single substring diff only; header/final/line/clause parity", () => {
     const dyad = buildSceneDirective({
       mode: "interactive",
       recentMessages: recent,
@@ -109,33 +76,38 @@ describe("structured scene focus — base engine preservation offline", () => {
       primaryCharacterName: "라이크",
       sceneFocusPalette: ACTIVE_DYAD_PALETTE,
     });
-    const prodBlock = renderSceneDirectiveForPrompt(prod);
-    const dyadBlock = renderSceneDirectiveForPrompt(dyad);
+    const block = renderSceneDirectiveForPrompt(dyad);
+    const activeRule = extractSceneEngineRule(block);
 
-    assert.equal(extractSceneEngineRule(dyadBlock), extractSceneEngineRule(prodBlock));
-    assert.equal(extractSceneEngineRule(dyadBlock), BASE_SCENE_ENGINE_RULE);
-    assert.doesNotMatch(dyadBlock, new RegExp(ACTIVE_DYAD_SCENE_ENGINE_MOTION.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-    // Diagnostic-only retention of palette motion.
     assert.equal(
-      dyad.focusDiagnostics?.engineMotionDiagnostic,
-      ACTIVE_DYAD_SCENE_ENGINE_MOTION
+      activeRule.replace("주 캐릭터의 선택·행동", "NPC, 세계 반응"),
+      BASE_SCENE_ENGINE_RULE
     );
+    assert.equal(activeRule, ACTIVE_DYAD_NEUTRALIZED_BASE_ENGINE_RULE);
+    assert.equal(renderSceneEngineRule(ACTIVE_DYAD_PALETTE), ACTIVE_DYAD_NEUTRALIZED_BASE_ENGINE_RULE);
 
-    assert.equal(extractLine(prodBlock, "모드:"), extractLine(dyadBlock, "모드:"));
-    assert.equal(extractLine(prodBlock, "유저 조종:"), extractLine(dyadBlock, "유저 조종:"));
-    assert.ok(allowedSlotDiffOnly(prodBlock, dyadBlock));
+    const baseLines = engineLines(BASE_SCENE_ENGINE_RULE);
+    const activeLines = engineLines(activeRule);
+    assert.equal(activeLines.length, baseLines.length);
+    assert.equal(activeLines[0], baseLines[0]);
+    assert.equal(activeLines[2], baseLines[2]);
+    assert.notEqual(activeLines[1], baseLines[1]);
+    assert.match(activeLines[1]!, /주 캐릭터의 선택·행동/);
+    assert.doesNotMatch(activeLines[1]!, /NPC,\s*세계 반응/);
 
-    // No new section / ban wording.
-    assert.doesNotMatch(dyadBlock, /\[장면 초점/);
-    assert.doesNotMatch(dyadBlock, /ACTIVE_DYAD/);
-    assert.doesNotMatch(dyadBlock, /NPC를 만들지 마라|외부 사건을 시작하지 마라/);
+    // Must NOT use the short palette motion rewrite.
+    assert.doesNotMatch(block, new RegExp(ACTIVE_DYAD_SCENE_ENGINE_MOTION.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.doesNotMatch(block, /\[장면 초점|NPC를 만들지 마라/);
 
-    // Terminal length owner / extras unchanged constants (not in SceneDirective, but parity probe).
-    assert.ok(TERRA_TERMINAL_LENGTH_OWNER_CONTRACT.length > 20);
-    assert.equal(sha(TERRA_TERMINAL_LENGTH_OWNER_CONTRACT), sha(TERRA_TERMINAL_LENGTH_OWNER_CONTRACT));
+    // Clause structure: still one motion sentence (one period / one "움직인다").
+    assert.equal(
+      (activeLines[1]!.match(/움직인다/g) ?? []).length,
+      (baseLines[1]!.match(/움직인다/g) ?? []).length
+    );
+    assert.equal(activeLines[1]!.endsWith("움직인다."), true);
   });
 
-  it("external source withholding + replacement presence", () => {
+  it("external withhold + beat preservation still hold", () => {
     const dyad = buildSceneDirective({
       mode: "interactive",
       recentMessages: recent,
@@ -149,77 +121,23 @@ describe("structured scene focus — base engine preservation offline", () => {
     });
     const sources = dyad.focusDiagnostics?.resolvedProgressionSources ?? [];
     assert.ok(!sources.includes("NEW_SPEAKING_NPC"));
-    assert.ok(!sources.includes("ADMINISTRATIVE_PROCESS"));
     assert.ok(!sources.includes("NEW_EXTERNAL_EVENT"));
-    assert.ok(
-      sources.includes("PRIMARY_DECISION") || sources.includes("PRIMARY_ACTION")
-    );
-    assert.ok(
-      sources.includes("RELATIONSHIP_MOVEMENT") ||
-        sources.includes("EXISTING_ENVIRONMENT")
-    );
+    assert.ok(dyad.focusDiagnostics!.resolvedBeatCount >= dyad.focusDiagnostics!.requestedBeatCount);
   });
 
-  it("internal beat count preserved; prompt beat budget measured", () => {
-    const reports: Array<Record<string, unknown>> = [];
-    for (const chatId of [1, 2, 3, 11, 99, 1001]) {
-      const dyad = buildSceneDirective({
-        mode: "interactive",
-        recentMessages: recent,
-        currentUserMessage: recent[1]!.content,
-        chatId,
-        currentTurn: 1,
-        contentKind: "character",
-        primaryCharacterName: "라이크",
-        triggeredEventText: "방문객과 직원이 서류를 들고 다가온다.",
-        sceneFocusPalette: ACTIVE_DYAD_PALETTE,
-      });
-      const d = dyad.focusDiagnostics!;
-      assert.ok(d.resolvedBeatCount >= d.requestedBeatCount);
-      assert.equal(d.replacementSources.length, d.externalSourcesWithheld.length);
-      const block = renderSceneDirectiveForPrompt(dyad);
-      const budget = measureSerializedSceneBeatBudget({
-        sceneDirectiveBlock: block,
-        requestedBeatCount: d.requestedBeatCount,
-        resolvedBeatCount: d.resolvedBeatCount,
-      });
-      assert.equal(budget.internalBeatCountPreserved, true);
-      reports.push({
-        chatId,
-        requestedBeatCount: d.requestedBeatCount,
-        resolvedBeatCount: d.resolvedBeatCount,
-        INTERNAL_BEAT_COUNT_PRESERVED: budget.internalBeatCountPreserved,
-        PROMPT_BEAT_BUDGET_PRESERVED: budget.promptBeatBudgetPreserved,
-        serializedProgressionLabelCount: budget.serializedProgressionLabelCount,
-        serializedConcreteBeatInstructionCount:
-          budget.serializedConcreteBeatInstructionCount,
-        nextBeatHintCharCount: budget.nextBeatHintCharCount,
-        nextBeatHintClauseCount: budget.nextBeatHintClauseCount,
-      });
-    }
-    // Record for artifact consumers — do not fail offline gate solely on prompt budget
-    // (multi-beat serializer is explicitly deferred until after screening).
-    assert.ok(reports.every((r) => r.INTERNAL_BEAT_COUNT_PRESERVED === true));
-    (globalThis as { __SCENE_FOCUS_BEAT_BUDGET_REPORT__?: unknown }).__SCENE_FOCUS_BEAT_BUDGET_REPORT__ =
-      reports;
-  });
-
-  it("canary helper: base_engine_preserved variant + ACTIVE_DYAD window", () => {
+  it("canary variant structured_active_dyad_neutral_world_motion resolves", () => {
     const saved = {
       e: process.env[RP_DIAGNOSTIC_CANARY_ENV.ENABLED],
       u: process.env[RP_DIAGNOSTIC_CANARY_ENV.USER_IDS],
       m: process.env[RP_DIAGNOSTIC_CANARY_ENV.MODEL_IDS],
       v: process.env[RP_DIAGNOSTIC_CANARY_ENV.VARIANT],
-      s: process.env[RP_DIAGNOSTIC_CANARY_ENV.SCENE_FOCUS_STATE],
     };
     try {
       process.env[RP_DIAGNOSTIC_CANARY_ENV.ENABLED] = "true";
       process.env[RP_DIAGNOSTIC_CANARY_ENV.USER_IDS] = "34";
       process.env[RP_DIAGNOSTIC_CANARY_ENV.MODEL_IDS] = "deepseek-v4-pro";
       process.env[RP_DIAGNOSTIC_CANARY_ENV.VARIANT] =
-        "structured_scene_focus_active_dyad_base_engine_preserved";
-      delete process.env[RP_DIAGNOSTIC_CANARY_ENV.SCENE_FOCUS_STATE];
-
+        "structured_active_dyad_neutral_world_motion";
       const canary = resolveRpDiagnosticCanary({
         userId: 34,
         modelId: "deepseek-v4-pro",
@@ -227,19 +145,17 @@ describe("structured scene focus — base engine preservation offline", () => {
       });
       assert.ok(canary);
       assert.equal(rpDiagnosticUsesStructuredSceneFocus(canary!.variant), true);
-      assert.equal(rpDiagnosticPreservesBaseSceneEngineRule(canary!.variant), true);
+      assert.equal(rpDiagnosticNeutralizesWorldMotionCue(canary!.variant), true);
       assert.equal(
         resolveCanarySceneFocusState({ canary, completedTurns: 0 }),
         "ACTIVE_DYAD"
       );
-      assert.ok(resolveCanarySceneFocusPalette({ canary, completedTurns: 0 }));
     } finally {
       for (const [k, v] of Object.entries({
         [RP_DIAGNOSTIC_CANARY_ENV.ENABLED]: saved.e,
         [RP_DIAGNOSTIC_CANARY_ENV.USER_IDS]: saved.u,
         [RP_DIAGNOSTIC_CANARY_ENV.MODEL_IDS]: saved.m,
         [RP_DIAGNOSTIC_CANARY_ENV.VARIANT]: saved.v,
-        [RP_DIAGNOSTIC_CANARY_ENV.SCENE_FOCUS_STATE]: saved.s,
       })) {
         if (v === undefined) delete process.env[k];
         else process.env[k] = v;

@@ -85,6 +85,11 @@ export const RP_DIAGNOSTIC_CANARY_VARIANTS = [
    * production byte-identical in the serialized prompt.
    */
   "structured_scene_focus_active_dyad_base_engine_preserved",
+  /**
+   * ACTIVE_DYAD palette + single world-motion cue neutralization inside
+   * BASE_SCENE_ENGINE_RULE ("NPC, 세계 반응" → "주 캐릭터의 선택·행동").
+   */
+  "structured_active_dyad_neutral_world_motion",
 ] as const;
 
 export type RpDiagnosticCanaryVariant = (typeof RP_DIAGNOSTIC_CANARY_VARIANTS)[number];
@@ -207,7 +212,8 @@ export function rpDiagnosticEnablesPipelineCapture(
     variant === "ds_paragraph_normalize_bypass" ||
     variant === "ds_real_production" ||
     variant === "structured_scene_focus_active_dyad" ||
-    variant === "structured_scene_focus_active_dyad_base_engine_preserved"
+    variant === "structured_scene_focus_active_dyad_base_engine_preserved" ||
+    variant === "structured_active_dyad_neutral_world_motion"
   );
 }
 
@@ -216,15 +222,23 @@ export function rpDiagnosticUsesStructuredSceneFocus(
 ): boolean {
   return (
     variant === "structured_scene_focus_active_dyad" ||
-    variant === "structured_scene_focus_active_dyad_base_engine_preserved"
+    variant === "structured_scene_focus_active_dyad_base_engine_preserved" ||
+    variant === "structured_active_dyad_neutral_world_motion"
   );
 }
 
-/** True when palette must keep BASE_SCENE_ENGINE_RULE byte-identical (all current structured paths). */
+/** True when palette keeps the production engine rule fully byte-identical (no clause swap). */
 export function rpDiagnosticPreservesBaseSceneEngineRule(
   variant: RpDiagnosticCanaryVariant
 ): boolean {
   return variant === "structured_scene_focus_active_dyad_base_engine_preserved";
+}
+
+/** True when ACTIVE_DYAD applies single-clause world-motion neutralization. */
+export function rpDiagnosticNeutralizesWorldMotionCue(
+  variant: RpDiagnosticCanaryVariant
+): boolean {
+  return variant === "structured_active_dyad_neutral_world_motion";
 }
 
 /**
