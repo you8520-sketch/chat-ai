@@ -4819,6 +4819,7 @@ export async function POST(req: Request) {
             contentKind: contentKindForCanary,
             canary: rpDiagnosticCanary,
             temperature: canaryTemperature,
+            completedTurns: playableTurnCount,
           });
           send({
             type: "diagnostic_pipeline",

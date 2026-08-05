@@ -100,6 +100,7 @@ import {
 import {
   COMMON_LAYOUT_MINIMAL_OWNER,
   COMMON_LENGTH_OWNER_MINIMAL,
+  EARLY_EXTERNAL_INTERVENTION_GATE_OWNER,
   rpDiagnosticDisablesDeepSeekStyleExtras,
   resolveDeepSeekExtrasMode,
   rpDiagnosticRemovesSceneDirective,
@@ -108,6 +109,7 @@ import {
   rpDiagnosticUsesMinimalLayout,
   rpDiagnosticUsesMinimalLengthOwner,
   rpDiagnosticUsesMinimalRpStyle,
+  shouldApplyExternalInterventionGate,
 } from "@/lib/rpDiagnosticCanary";
 import type { CharacterChunk, GeminiContextSplit } from "@/types";
 import {
@@ -969,6 +971,20 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       pushReferenceUserNote();
     }
     pushSceneDirective();
+    // System-level external intervention gate — immediately after SceneDirective,
+    // before other dynamic system extras / current user message. Not on user-tail.
+    if (
+      rpVariant &&
+      shouldApplyExternalInterventionGate(rpVariant, input.completedTurns ?? 0)
+    ) {
+      pushSection(
+        "external-intervention-gate",
+        "[3e] External intervention gate (RP diagnostic canary)",
+        "systemRules",
+        EARLY_EXTERNAL_INTERVENTION_GATE_OWNER,
+        "dynamic"
+      );
+    }
   };
 
   pushVolatileContextSections();

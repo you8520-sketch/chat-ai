@@ -65,6 +65,7 @@ export const RP_DIAGNOSTIC_CANARY_VARIANTS = [
   "deepseek_final",
   "terra_cross_check",
   "ds_length_normalized_baseline",
+  "early_external_intervention_gate_system",
 ] as const;
 
 export type RpDiagnosticCanaryVariant = (typeof RP_DIAGNOSTIC_CANARY_VARIANTS)[number];
@@ -185,7 +186,8 @@ export function rpDiagnosticEnablesPipelineCapture(
     variant === "ds_postprocess_baseline" ||
     variant === "ds_display_grouping_bypass" ||
     variant === "ds_paragraph_normalize_bypass" ||
-    variant === "ds_real_production"
+    variant === "ds_real_production" ||
+    variant === "early_external_intervention_gate_system"
   );
 }
 
@@ -391,6 +393,7 @@ export function buildRpDiagnosticIntegrity(opts: {
   expectedPersonaId?: number | null;
   expectedModelId?: string | null;
   expectedVariant?: RpDiagnosticCanaryVariant | null;
+  completedTurns?: number | null;
 }): RpDiagnosticRunIntegrity {
   const invalidReasons: string[] = [];
   if (opts.expectedModelId && opts.resolvedProviderModelId !== opts.expectedModelId) {
@@ -406,6 +409,11 @@ export function buildRpDiagnosticIntegrity(opts: {
   if (opts.expectedVariant && opts.canary.variant !== opts.expectedVariant) {
     invalidReasons.push("variant mismatch");
   }
+  const completedTurns = opts.completedTurns ?? null;
+  const gateApplied =
+    rpDiagnosticUsesExternalInterventionGate(opts.canary.variant) &&
+    completedTurns != null &&
+    completedTurns < 2;
   return {
     userId: opts.userId,
     chatId: opts.chatId ?? null,
@@ -419,6 +427,18 @@ export function buildRpDiagnosticIntegrity(opts: {
     singlePrimary: true,
     canaryVariant: opts.canary.variant,
     temperature: opts.temperature ?? null,
+    completedTurns,
+    externalInterventionGateApplied: gateApplied,
+    promptInjectionOrder: gateApplied
+      ? [
+          "SYSTEM_COMMON",
+          "SCENE_DIRECTIVE",
+          "EXTERNAL_INTERVENTION_GATE",
+          "OTHER_EXISTING_SYSTEM_BLOCKS",
+          "CURRENT_USER",
+          "TERMINAL_LENGTH_OWNER",
+        ]
+      : undefined,
     valid: invalidReasons.length === 0,
     invalidReasons,
   };
@@ -475,6 +495,29 @@ export const COMMON_LAYOUT_MINIMAL_OWNER =
 
 export const COMMON_LENGTH_OWNER_MINIMAL =
   "같은 목표 분량 안에서 현재 상호작용의 하나의 연속된 장면을 완성한다.";
+
+/**
+ * System-level external intervention gate (after SceneDirective, first 2 assistant responses).
+ * Owns only cast / external-event start conditions — not length or prose density.
+ * Must not be injected on the user-turn tail.
+ */
+export function rpDiagnosticUsesExternalInterventionGate(
+  variant: RpDiagnosticCanaryVariant
+): boolean {
+  return variant === "early_external_intervention_gate_system";
+}
+
+/** First two assistant responses only (completedTurns 0 and 1). */
+export function shouldApplyExternalInterventionGate(
+  variant: RpDiagnosticCanaryVariant,
+  completedTurns: number
+): boolean {
+  return rpDiagnosticUsesExternalInterventionGate(variant) && completedTurns < 2;
+}
+
+/** Injected once as a system block immediately after SceneDirective. */
+export const EARLY_EXTERNAL_INTERVENTION_GATE_OWNER = `[외부 개입 조건]
+현재 유저와 주 캐릭터가 서로에게 직접 반응하며 대화나 행동을 이어가는 동안에는 새로 말하는 NPC나 등록·검사·호출·보고 절차를 시작하지 않는다. 외부 개입은 유저가 요청했거나, 이미 존재하는 외부 인물의 미해결 행동에 답해야 하거나, 즉각적인 위협·임무가 진행 중이거나, 두 차례 연속으로 새 결정·발견·행동 변화가 없는 명확한 정체가 생겼을 때만 시작한다.`;
 
 export function applyRpDiagnosticToHistory(opts: {
   history: ChatMsg[];
@@ -716,6 +759,10 @@ export type RpDiagnosticRunIntegrity = {
   singlePrimary: boolean;
   canaryVariant: RpDiagnosticCanaryVariant;
   temperature?: number | null;
+  completedTurns?: number | null;
+  externalInterventionGateApplied?: boolean;
+  /** Canonical order when external intervention gate is active. */
+  promptInjectionOrder?: string[];
   valid: boolean;
   invalidReasons: string[];
 };

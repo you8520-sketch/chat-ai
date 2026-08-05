@@ -113,4 +113,28 @@ describe("RP diagnostic canary fail-closed scope", () => {
     });
     assert.equal(res, null);
   });
+
+  it("early_external_intervention_gate_system: exact variant + single_primary scope", () => {
+    enableCanary("early_external_intervention_gate_system");
+    const res = resolveRpDiagnosticCanary({
+      userId: 34,
+      modelId: "deepseek-v4-pro",
+      contentKind: "character",
+    });
+    assert.ok(res?.active);
+    assert.equal(res?.variant, "early_external_intervention_gate_system");
+    assert.equal(res?.sceneMode, "single_primary");
+  });
+
+  it("early_external_intervention_gate_system: other user fail-closed", () => {
+    enableCanary("early_external_intervention_gate_system");
+    assert.equal(
+      resolveRpDiagnosticCanary({
+        userId: 99,
+        modelId: "deepseek-v4-pro",
+        contentKind: "character",
+      }),
+      null
+    );
+  });
 });
