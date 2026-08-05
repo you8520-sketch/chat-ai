@@ -163,6 +163,8 @@ import {
   buildRpDiagnosticIntegrity,
   capturePostprocessPipeline,
   logRpDiagnosticCanaryDebug,
+  resolveCanarySceneFocusPalette,
+  resolveCanarySceneFocusState,
   resolveRpDiagnosticCanary,
   resolveRpDiagnosticProgressionAxis,
   rpDiagnosticBypassParagraphNormalize,
@@ -1455,6 +1457,15 @@ export async function POST(req: Request) {
     // Single-field card canary: drop example dialogue injection only.
     effectiveExampleDialog = "";
   }
+  // Structured scene-focus palette — builder input only; never a new prompt section.
+  const canarySceneFocusState = resolveCanarySceneFocusState({
+    canary: rpDiagnosticCanary,
+    completedTurns: playableTurnCount,
+  });
+  const canarySceneFocusPalette = resolveCanarySceneFocusPalette({
+    canary: rpDiagnosticCanary,
+    completedTurns: playableTurnCount,
+  });
   const legacySceneDirective = buildSceneDirective({
     mode: autoContinueContext ? "auto_progression" : "interactive",
     recentMessages: promptHistory,
@@ -1474,8 +1485,10 @@ export async function POST(req: Request) {
       ch.content_kind === "simulation"
         ? extractSimulationCastNames(ch.simulation_cast ?? "")
         : undefined,
+    sceneFocusPalette: canarySceneFocusPalette,
   });
   const sceneDirective = legacySceneDirective;
+  const sceneFocusDiagnostics = legacySceneDirective.focusDiagnostics ?? null;
   const livingSceneDirective = livingSceneDirectiveOn
     ? buildLivingSceneDirective({
         mode: autoContinueContext ? "auto_progression" : "interactive",
@@ -4819,6 +4832,9 @@ export async function POST(req: Request) {
             contentKind: contentKindForCanary,
             canary: rpDiagnosticCanary,
             temperature: canaryTemperature,
+            completedTurns: playableTurnCount,
+            sceneFocusState: canarySceneFocusState,
+            sceneFocusDiagnostics,
           });
           send({
             type: "diagnostic_pipeline",
@@ -4842,6 +4858,7 @@ export async function POST(req: Request) {
             promptRedacted: {
               variant: rpDiagnosticCanary.variant,
               progressionAxis: canaryProgressionAxis,
+              sceneFocusState: canarySceneFocusState,
               model: openRouterApiModelId,
               characterId: ch.id,
               chatId: chatRef.id,

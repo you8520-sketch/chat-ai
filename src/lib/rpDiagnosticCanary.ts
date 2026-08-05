@@ -28,6 +28,12 @@ import {
   type SceneProgressionAxis,
 } from "@/lib/terraPromptCanary";
 import type { ChatMsg } from "@/lib/ai";
+import {
+  paletteForSceneFocusState,
+  type SceneFocusDiagnostics,
+  type SceneFocusPalette,
+  type SceneFocusState,
+} from "@/lib/sceneFocusPalette";
 import fs from "fs";
 import path from "path";
 import { computeDialogueMetrics, diffPipelineMetrics, type DialogueMetrics } from "@/lib/dialogueMetrics";
@@ -37,6 +43,8 @@ const ENV_USER_IDS = "RP_DIAGNOSTIC_CANARY_USER_IDS";
 const ENV_MODEL_IDS = "RP_DIAGNOSTIC_CANARY_MODEL_IDS";
 const ENV_VARIANT = "RP_DIAGNOSTIC_CANARY_VARIANT";
 const ENV_DEBUG = "RP_DIAGNOSTIC_CANARY_DEBUG";
+/** Harness-only override for stall suite Turn 3 (`STALLING`). Fail-closed when unset. */
+const ENV_SCENE_FOCUS_STATE = "RP_DIAGNOSTIC_CANARY_SCENE_FOCUS_STATE";
 
 export const RP_DIAGNOSTIC_CANARY_ENV = {
   ENABLED: ENV_ENABLED,
@@ -44,6 +52,7 @@ export const RP_DIAGNOSTIC_CANARY_ENV = {
   MODEL_IDS: ENV_MODEL_IDS,
   VARIANT: ENV_VARIANT,
   DEBUG: ENV_DEBUG,
+  SCENE_FOCUS_STATE: ENV_SCENE_FOCUS_STATE,
 } as const;
 
 export const RP_DIAGNOSTIC_CANARY_VARIANTS = [
@@ -65,6 +74,11 @@ export const RP_DIAGNOSTIC_CANARY_VARIANTS = [
   "deepseek_final",
   "terra_cross_check",
   "ds_length_normalized_baseline",
+  /**
+   * Structured SceneDirective palette (ACTIVE_DYAD) — no new system/user section.
+   * Harness sets state; production requests keep sceneFocusState=null.
+   */
+  "structured_scene_focus_active_dyad",
 ] as const;
 
 export type RpDiagnosticCanaryVariant = (typeof RP_DIAGNOSTIC_CANARY_VARIANTS)[number];
@@ -185,7 +199,52 @@ export function rpDiagnosticEnablesPipelineCapture(
     variant === "ds_postprocess_baseline" ||
     variant === "ds_display_grouping_bypass" ||
     variant === "ds_paragraph_normalize_bypass" ||
-    variant === "ds_real_production"
+    variant === "ds_real_production" ||
+    variant === "structured_scene_focus_active_dyad"
+  );
+}
+
+export function rpDiagnosticUsesStructuredSceneFocus(
+  variant: RpDiagnosticCanaryVariant
+): boolean {
+  return variant === "structured_scene_focus_active_dyad";
+}
+
+/**
+ * Resolve harness-owned sceneFocusState for structured canary.
+ * Production (canary inactive / wrong variant) → null.
+ * Active suite: first 2 assistant responses → ACTIVE_DYAD.
+ * Stall suite: env override STALLING on Turn 3 only.
+ */
+export function resolveCanarySceneFocusState(opts: {
+  canary: RpDiagnosticCanaryResolution | null | undefined;
+  completedTurns: number;
+}): SceneFocusState | null {
+  if (!opts.canary || !rpDiagnosticUsesStructuredSceneFocus(opts.canary.variant)) {
+    return null;
+  }
+  const override = process.env[ENV_SCENE_FOCUS_STATE]?.trim().toUpperCase();
+  if (
+    override === "ACTIVE_DYAD" ||
+    override === "STALLING" ||
+    override === "EXTERNAL_REQUIRED"
+  ) {
+    return override as SceneFocusState;
+  }
+  // First 2 assistant responses (completedTurns 0 and 1).
+  if (opts.completedTurns < 2) return "ACTIVE_DYAD";
+  return null;
+}
+
+export function resolveCanarySceneFocusPalette(opts: {
+  canary: RpDiagnosticCanaryResolution | null | undefined;
+  completedTurns: number;
+}): SceneFocusPalette | null {
+  return paletteForSceneFocusState(
+    resolveCanarySceneFocusState({
+      canary: opts.canary,
+      completedTurns: opts.completedTurns,
+    })
   );
 }
 
@@ -362,6 +421,11 @@ export function applyRpDiagnosticToSceneDirectiveBlock(opts: {
 }): string {
   if (!opts.canary) return opts.block;
   if (rpDiagnosticRemovesSceneDirective(opts.canary.variant)) return "";
+  // Structured palette already mutated SceneDirective content at build time —
+  // do not add sections or rewrite via relationship-axis string replace.
+  if (rpDiagnosticUsesStructuredSceneFocus(opts.canary.variant)) {
+    return opts.block;
+  }
   return applyTerraPromptCanaryToSceneDirectiveBlock({
     block: opts.block,
     canary: {
@@ -391,6 +455,9 @@ export function buildRpDiagnosticIntegrity(opts: {
   expectedPersonaId?: number | null;
   expectedModelId?: string | null;
   expectedVariant?: RpDiagnosticCanaryVariant | null;
+  completedTurns?: number | null;
+  sceneFocusState?: SceneFocusState | null;
+  sceneFocusDiagnostics?: SceneFocusDiagnostics | null;
 }): RpDiagnosticRunIntegrity {
   const invalidReasons: string[] = [];
   if (opts.expectedModelId && opts.resolvedProviderModelId !== opts.expectedModelId) {
@@ -406,6 +473,7 @@ export function buildRpDiagnosticIntegrity(opts: {
   if (opts.expectedVariant && opts.canary.variant !== opts.expectedVariant) {
     invalidReasons.push("variant mismatch");
   }
+  const structured = rpDiagnosticUsesStructuredSceneFocus(opts.canary.variant);
   return {
     userId: opts.userId,
     chatId: opts.chatId ?? null,
@@ -419,6 +487,19 @@ export function buildRpDiagnosticIntegrity(opts: {
     singlePrimary: true,
     canaryVariant: opts.canary.variant,
     temperature: opts.temperature ?? null,
+    completedTurns: opts.completedTurns ?? null,
+    sceneFocusState: structured ? (opts.sceneFocusState ?? null) : null,
+    sceneFocusApplied: structured ? Boolean(opts.sceneFocusState) : false,
+    sceneFocusDiagnostics: structured ? (opts.sceneFocusDiagnostics ?? null) : null,
+    promptInjectionOrder: structured
+      ? [
+          "SYSTEM_COMMON",
+          "SCENE_DIRECTIVE",
+          "OTHER_EXISTING_SYSTEM_BLOCKS",
+          "CURRENT_USER",
+          "TERMINAL_LENGTH_OWNER",
+        ]
+      : undefined,
     valid: invalidReasons.length === 0,
     invalidReasons,
   };
@@ -716,6 +797,12 @@ export type RpDiagnosticRunIntegrity = {
   singlePrimary: boolean;
   canaryVariant: RpDiagnosticCanaryVariant;
   temperature?: number | null;
+  completedTurns?: number | null;
+  sceneFocusState?: SceneFocusState | null;
+  sceneFocusApplied?: boolean;
+  sceneFocusDiagnostics?: SceneFocusDiagnostics | null;
+  /** Role/section order probe — structured variant never inserts a new section. */
+  promptInjectionOrder?: string[];
   valid: boolean;
   invalidReasons: string[];
 };
