@@ -34,6 +34,11 @@ export type SceneFocusPalette = {
   allowNewSpeakingNpc: boolean;
   allowAdministrativeProcess: boolean;
   allowNewExternalEvent: boolean;
+  /**
+   * When true, SceneDirective serializes 3 concrete beat lines in the
+   * nextBeatHint slot instead of a single compressed hint sentence.
+   */
+  serializeConcreteBeats?: boolean;
 };
 
 export type SceneFocusDiagnostics = {
@@ -81,7 +86,111 @@ export const ACTIVE_DYAD_PALETTE: SceneFocusPalette = {
   allowNewSpeakingNpc: false,
   allowAdministrativeProcess: false,
   allowNewExternalEvent: false,
+  serializeConcreteBeats: false,
 };
+
+/** ACTIVE_DYAD + 3-beat concrete serializer in nextBeatHint slot. */
+export const ACTIVE_DYAD_CONCRETE_BEATS_PALETTE: SceneFocusPalette = {
+  ...ACTIVE_DYAD_PALETTE,
+  serializeConcreteBeats: true,
+};
+
+export type ConcreteSceneBeatKind =
+  | "INTERPRETATION"
+  | "DECISION_OR_ACTION"
+  | "CONSEQUENCE_AND_OPEN_REACTION";
+
+const INTERPRETATION_SOURCES: SceneProgressionSource[] = [
+  "USER_CUE_RESPONSE",
+  "PRIMARY_INTERPRETATION",
+];
+const DECISION_ACTION_SOURCES: SceneProgressionSource[] = [
+  "PRIMARY_DECISION",
+  "PRIMARY_ACTION",
+  "EXISTING_GOAL",
+];
+const CONSEQUENCE_REACTION_SOURCES: SceneProgressionSource[] = [
+  "RELATIONSHIP_MOVEMENT",
+  "EXISTING_ENVIRONMENT",
+  "OPEN_REACTION_CHANGE",
+];
+
+const BEAT_INTERPRETATION =
+  "유저의 현재 말이나 행동에서 구체적인 단서 하나를 읽고, 주 캐릭터의 성격과 관계에 맞게 해석한다.";
+const BEAT_DECISION_ACTION =
+  "그 해석에 따라 주 캐릭터가 선택하고 실제 행동하여 거리·상태·목표 중 하나를 바꾼다.";
+const BEAT_CONSEQUENCE_REACTION =
+  "행동의 결과로 관계나 기존 환경에 확인 가능한 변화가 생기고, 유저가 답하거나 행동할 구체적인 여지를 남긴다.";
+
+const FORBIDDEN_CONCRETE_BEAT_TERMS = [
+  "NPC",
+  "직원",
+  "경비",
+  "등록",
+  "검사",
+  "호출",
+  "보고",
+  "새 인물",
+  "세계가 개입",
+];
+
+function resolveInterpretationBeat(_sources: SceneProgressionSource[]): string {
+  return BEAT_INTERPRETATION;
+}
+function resolveDecisionActionBeat(_sources: SceneProgressionSource[]): string {
+  return BEAT_DECISION_ACTION;
+}
+function resolveConsequenceReactionBeat(_sources: SceneProgressionSource[]): string {
+  return BEAT_CONSEQUENCE_REACTION;
+}
+
+/**
+ * Build exactly 3 concrete internal beats for ACTIVE_DYAD.
+ * Always INTERPRETATION → DECISION_OR_ACTION → CONSEQUENCE_AND_OPEN_REACTION.
+ * Never falls back to external/NPC/admin sources.
+ */
+export function buildConcreteActiveDyadBeats(
+  sources: SceneProgressionSource[]
+): string[] {
+  const beats = [
+    resolveInterpretationBeat(sources),
+    resolveDecisionActionBeat(sources),
+    resolveConsequenceReactionBeat(sources),
+  ];
+  for (const beat of beats) {
+    for (const term of FORBIDDEN_CONCRETE_BEAT_TERMS) {
+      if (beat.includes(term)) {
+        throw new Error(`concrete beat contains forbidden term: ${term}`);
+      }
+    }
+  }
+  return beats;
+}
+
+/** Multiline nextBeatHint value (no duplicate single-sentence hint). */
+export function serializeConcreteActiveDyadNextBeatHint(
+  sources: SceneProgressionSource[]
+): string {
+  const beats = buildConcreteActiveDyadBeats(sources);
+  return beats.map((b) => `- ${b}`).join("\n");
+}
+
+export function concreteBeatKindsPresent(beats: string[]): ConcreteSceneBeatKind[] {
+  const kinds: ConcreteSceneBeatKind[] = [];
+  if (beats.some((b) => b.includes("해석한다"))) kinds.push("INTERPRETATION");
+  if (beats.some((b) => b.includes("선택하고 실제 행동"))) kinds.push("DECISION_OR_ACTION");
+  if (beats.some((b) => b.includes("구체적인 여지를 남긴다"))) {
+    kinds.push("CONSEQUENCE_AND_OPEN_REACTION");
+  }
+  return kinds;
+}
+
+/** @internal test helpers — source group membership */
+export const CONCRETE_BEAT_SOURCE_GROUPS = {
+  INTERPRETATION: INTERPRETATION_SOURCES,
+  DECISION_OR_ACTION: DECISION_ACTION_SOURCES,
+  CONSEQUENCE_AND_OPEN_REACTION: CONSEQUENCE_REACTION_SOURCES,
+} as const;
 
 export const STALLING_PALETTE: SceneFocusPalette = {
   state: "STALLING",

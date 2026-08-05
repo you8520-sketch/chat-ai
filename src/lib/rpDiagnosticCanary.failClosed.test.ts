@@ -149,4 +149,15 @@ describe("RP diagnostic canary fail-closed scope", () => {
     assert.ok(res?.active);
     assert.equal(res?.variant, "structured_active_dyad_neutral_world_motion");
   });
+
+  it("structured_active_dyad_concrete_beats resolves for user 34 + pro", () => {
+    enableCanary("structured_active_dyad_concrete_beats");
+    const res = resolveRpDiagnosticCanary({
+      userId: 34,
+      modelId: "deepseek-v4-pro",
+      contentKind: "character",
+    });
+    assert.ok(res?.active);
+    assert.equal(res?.variant, "structured_active_dyad_concrete_beats");
+  });
 });

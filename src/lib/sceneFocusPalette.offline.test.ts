@@ -1,5 +1,5 @@
 /**
- * Offline integrity — ACTIVE_DYAD single world-motion cue neutralization.
+ * Offline integrity — ACTIVE_DYAD concrete 3-beat serializer.
  *
  * Run: node --conditions=react-server --import tsx --test src/lib/sceneFocusPalette.offline.test.ts
  */
@@ -12,38 +12,37 @@ import {
   BASE_SCENE_ENGINE_RULE,
   buildSceneDirective,
   extractSceneEngineRule,
+  measureSerializedSceneBeatBudget,
   renderSceneDirectiveForPrompt,
-  renderSceneEngineRule,
 } from "@/lib/sceneDirective";
-import { ACTIVE_DYAD_PALETTE, ACTIVE_DYAD_SCENE_ENGINE_MOTION } from "@/lib/sceneFocusPalette";
+import {
+  ACTIVE_DYAD_CONCRETE_BEATS_PALETTE,
+  ACTIVE_DYAD_PALETTE,
+  buildConcreteActiveDyadBeats,
+  concreteBeatKindsPresent,
+} from "@/lib/sceneFocusPalette";
 import {
   RP_DIAGNOSTIC_CANARY_ENV,
-  resolveCanarySceneFocusState,
+  resolveCanarySceneFocusPalette,
   resolveRpDiagnosticCanary,
-  rpDiagnosticNeutralizesWorldMotionCue,
-  rpDiagnosticUsesStructuredSceneFocus,
+  rpDiagnosticUsesConcreteBeatSerializer,
 } from "@/lib/rpDiagnosticCanary";
 
 const recent: ChatMsg[] = [
   {
     role: "assistant",
-    content:
-      "라이크가 가만히 렌을 바라보다가, 짧게 숨을 골랐다. 「……렌?」 목소리가 낮았다.",
+    content: "라이크가 가만히 렌을 바라보다가, 짧게 숨을 골랐다. 「……렌?」",
   },
   { role: "user", content: "나는 렌이라고 부르면 돼....나는 본기억이 안나는데....나 알아?(갸웃)" },
 ];
 
-function engineLines(rule: string): string[] {
-  return rule.split("\n");
-}
-
-describe("ACTIVE_DYAD single world-motion cue neutralization — offline", () => {
-  it("default parity: null palette keeps BASE_SCENE_ENGINE_RULE byte-identical", () => {
+describe("concrete beat serializer — offline", () => {
+  it("default parity: null palette byte-identical", () => {
     const a = buildSceneDirective({
       mode: "interactive",
       recentMessages: recent,
       currentUserMessage: recent[1]!.content,
-      chatId: 9001,
+      chatId: 1,
       currentTurn: 1,
       contentKind: "character",
       primaryCharacterName: "라이크",
@@ -52,80 +51,85 @@ describe("ACTIVE_DYAD single world-motion cue neutralization — offline", () =>
       mode: "interactive",
       recentMessages: recent,
       currentUserMessage: recent[1]!.content,
-      chatId: 9001,
+      chatId: 1,
       currentTurn: 1,
       contentKind: "character",
       primaryCharacterName: "라이크",
       sceneFocusPalette: null,
     });
-    const ra = renderSceneDirectiveForPrompt(a);
-    const rb = renderSceneDirectiveForPrompt(b);
-    assert.equal(ra, rb);
-    assert.equal(extractSceneEngineRule(ra), BASE_SCENE_ENGINE_RULE);
-    assert.equal(renderSceneEngineRule(null), BASE_SCENE_ENGINE_RULE);
+    assert.equal(renderSceneDirectiveForPrompt(a), renderSceneDirectiveForPrompt(b));
+    assert.equal(extractSceneEngineRule(renderSceneDirectiveForPrompt(a)), BASE_SCENE_ENGINE_RULE);
   });
 
-  it("ACTIVE_DYAD: single substring diff only; header/final/line/clause parity", () => {
-    const dyad = buildSceneDirective({
+  it("concrete beats: exactly 3 bullets; engine matches PR#239 neutralization", () => {
+    const d = buildSceneDirective({
       mode: "interactive",
       recentMessages: recent,
       currentUserMessage: recent[1]!.content,
-      chatId: 9001,
+      chatId: 9,
+      currentTurn: 1,
+      contentKind: "character",
+      primaryCharacterName: "라이크",
+      sceneFocusPalette: ACTIVE_DYAD_CONCRETE_BEATS_PALETTE,
+    });
+    const block = renderSceneDirectiveForPrompt(d);
+    assert.equal(extractSceneEngineRule(block), ACTIVE_DYAD_NEUTRALIZED_BASE_ENGINE_RULE);
+
+    const bullets = [...block.matchAll(/^- (.+)$/gm)].map((m) => m[1]!);
+    assert.equal(bullets.length, 3);
+    const kinds = concreteBeatKindsPresent(bullets);
+    assert.deepEqual(kinds, [
+      "INTERPRETATION",
+      "DECISION_OR_ACTION",
+      "CONSEQUENCE_AND_OPEN_REACTION",
+    ]);
+
+    assert.match(block, /다음 장면 힌트:\n- /);
+    // No duplicate single compressed ACTIVE_DYAD hint sentence alongside bullets.
+    assert.doesNotMatch(block, /다음 장면 힌트: 주 캐릭터가/);
+    assert.doesNotMatch(block, /먼저|다음으로|마지막으로/);
+    assert.doesNotMatch(block, /NPC|직원|경비|등록|검사|호출|보고|새 인물|세계가 개입/);
+    assert.doesNotMatch(block, /\[장면 초점/);
+
+    const budget = measureSerializedSceneBeatBudget({
+      sceneDirectiveBlock: block,
+      requestedBeatCount: d.focusDiagnostics?.requestedBeatCount,
+      resolvedBeatCount: d.focusDiagnostics?.resolvedBeatCount,
+    });
+    assert.ok(budget.serializedConcreteBeatInstructionCount >= 4);
+    assert.ok(budget.nextBeatHintClauseCount >= 3);
+    assert.ok(budget.primaryDecisionActionCueCount >= 2);
+    assert.ok(budget.relationshipEnvironmentCueCount >= 1);
+    assert.equal(budget.openReactionCuePresent, true);
+  });
+
+  it("neutral palette without concrete flag keeps single-line hint", () => {
+    const d = buildSceneDirective({
+      mode: "interactive",
+      recentMessages: recent,
+      currentUserMessage: recent[1]!.content,
+      chatId: 3,
       currentTurn: 1,
       contentKind: "character",
       primaryCharacterName: "라이크",
       sceneFocusPalette: ACTIVE_DYAD_PALETTE,
     });
-    const block = renderSceneDirectiveForPrompt(dyad);
-    const activeRule = extractSceneEngineRule(block);
-
-    assert.equal(
-      activeRule.replace("주 캐릭터의 선택·행동", "NPC, 세계 반응"),
-      BASE_SCENE_ENGINE_RULE
-    );
-    assert.equal(activeRule, ACTIVE_DYAD_NEUTRALIZED_BASE_ENGINE_RULE);
-    assert.equal(renderSceneEngineRule(ACTIVE_DYAD_PALETTE), ACTIVE_DYAD_NEUTRALIZED_BASE_ENGINE_RULE);
-
-    const baseLines = engineLines(BASE_SCENE_ENGINE_RULE);
-    const activeLines = engineLines(activeRule);
-    assert.equal(activeLines.length, baseLines.length);
-    assert.equal(activeLines[0], baseLines[0]);
-    assert.equal(activeLines[2], baseLines[2]);
-    assert.notEqual(activeLines[1], baseLines[1]);
-    assert.match(activeLines[1]!, /주 캐릭터의 선택·행동/);
-    assert.doesNotMatch(activeLines[1]!, /NPC,\s*세계 반응/);
-
-    // Must NOT use the short palette motion rewrite.
-    assert.doesNotMatch(block, new RegExp(ACTIVE_DYAD_SCENE_ENGINE_MOTION.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-    assert.doesNotMatch(block, /\[장면 초점|NPC를 만들지 마라/);
-
-    // Clause structure: still one motion sentence (one period / one "움직인다").
-    assert.equal(
-      (activeLines[1]!.match(/움직인다/g) ?? []).length,
-      (baseLines[1]!.match(/움직인다/g) ?? []).length
-    );
-    assert.equal(activeLines[1]!.endsWith("움직인다."), true);
+    const block = renderSceneDirectiveForPrompt(d);
+    assert.match(block, /^다음 장면 힌트: /m);
+    assert.equal([...block.matchAll(/^- /gm)].length, 0);
   });
 
-  it("external withhold + beat preservation still hold", () => {
-    const dyad = buildSceneDirective({
-      mode: "interactive",
-      recentMessages: recent,
-      currentUserMessage: recent[1]!.content,
-      chatId: 42,
-      currentTurn: 1,
-      contentKind: "character",
-      primaryCharacterName: "라이크",
-      triggeredEventText: "경비 담당자가 등록 절차를 안내한다.",
-      sceneFocusPalette: ACTIVE_DYAD_PALETTE,
-    });
-    const sources = dyad.focusDiagnostics?.resolvedProgressionSources ?? [];
-    assert.ok(!sources.includes("NEW_SPEAKING_NPC"));
-    assert.ok(!sources.includes("NEW_EXTERNAL_EVENT"));
-    assert.ok(dyad.focusDiagnostics!.resolvedBeatCount >= dyad.focusDiagnostics!.requestedBeatCount);
+  it("buildConcreteActiveDyadBeats always returns 3 internal beats", () => {
+    const beats = buildConcreteActiveDyadBeats(["PRIMARY_DECISION"]);
+    assert.equal(beats.length, 3);
+    assert.deepEqual(concreteBeatKindsPresent(beats), [
+      "INTERPRETATION",
+      "DECISION_OR_ACTION",
+      "CONSEQUENCE_AND_OPEN_REACTION",
+    ]);
   });
 
-  it("canary variant structured_active_dyad_neutral_world_motion resolves", () => {
+  it("canary variant resolves concrete palette", () => {
     const saved = {
       e: process.env[RP_DIAGNOSTIC_CANARY_ENV.ENABLED],
       u: process.env[RP_DIAGNOSTIC_CANARY_ENV.USER_IDS],
@@ -136,20 +140,17 @@ describe("ACTIVE_DYAD single world-motion cue neutralization — offline", () =>
       process.env[RP_DIAGNOSTIC_CANARY_ENV.ENABLED] = "true";
       process.env[RP_DIAGNOSTIC_CANARY_ENV.USER_IDS] = "34";
       process.env[RP_DIAGNOSTIC_CANARY_ENV.MODEL_IDS] = "deepseek-v4-pro";
-      process.env[RP_DIAGNOSTIC_CANARY_ENV.VARIANT] =
-        "structured_active_dyad_neutral_world_motion";
+      process.env[RP_DIAGNOSTIC_CANARY_ENV.VARIANT] = "structured_active_dyad_concrete_beats";
       const canary = resolveRpDiagnosticCanary({
         userId: 34,
         modelId: "deepseek-v4-pro",
         contentKind: "character",
       });
       assert.ok(canary);
-      assert.equal(rpDiagnosticUsesStructuredSceneFocus(canary!.variant), true);
-      assert.equal(rpDiagnosticNeutralizesWorldMotionCue(canary!.variant), true);
-      assert.equal(
-        resolveCanarySceneFocusState({ canary, completedTurns: 0 }),
-        "ACTIVE_DYAD"
-      );
+      assert.equal(rpDiagnosticUsesConcreteBeatSerializer(canary!.variant), true);
+      const palette = resolveCanarySceneFocusPalette({ canary, completedTurns: 0 });
+      assert.equal(palette?.serializeConcreteBeats, true);
+      assert.equal(palette?.state, "ACTIVE_DYAD");
     } finally {
       for (const [k, v] of Object.entries({
         [RP_DIAGNOSTIC_CANARY_ENV.ENABLED]: saved.e,

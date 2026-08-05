@@ -137,137 +137,225 @@ function main() {
   const turn1Lt2400 = turn1.filter((r) => r.len < 2400).length;
 
   const screen = EXPECTED_N <= 4;
-  const mode = process.env.VERDICT_MODE ?? "neutral_world_motion";
+  const mode = process.env.VERDICT_MODE ?? "concrete_beats";
+  const concreteMode = mode === "concrete_beats";
   const neutralMode = mode === "neutral_world_motion";
   const baseEngineMode = mode === "base_engine_preserved";
 
+  // Drop incomplete finish from valid n for concrete screening.
+  const validRows = concreteMode
+    ? rows.filter((r) => r.finish === "stop" || r.finish === "end_turn")
+    : rows;
+  const vn = validRows.length;
+  const vNpc = validRows.filter((r) => r.npc).length;
+  const vExt = validRows.reduce((a, r) => a + r.ext, 0);
+  const vAvgLen = avg(validRows.map((r) => r.len));
+  const vAvgCore = avg(validRows.map((r) => r.core));
+  const vLt2400 = validRows.filter((r) => r.len < 2400).length;
+  const vTurn1 = validRows.filter((r) => /\/turn1$/.test(r.id));
+  const vTurn1Avg = avg(vTurn1.map((r) => r.len));
+  const vTurn1Min = vTurn1.length ? Math.min(...vTurn1.map((r) => r.len)) : 0;
+  const vLengthDrop = (BASELINE_AVG - vAvgLen) / BASELINE_AVG;
+  const vResume = avg(validRows.map((r) => r.resume_per_1000));
+  const vFrag = avg(validRows.map((r) => r.frag));
+  const vDlg = avg(validRows.map((r) => r.dlg * 100));
+  const vNarr = avg(validRows.map((r) => r.narr * 100));
+  const vReaction = validRows.filter((r) => r.reaction > 0).length;
+
   let verdict = screen
-    ? neutralMode
-      ? "NEUTRAL_WORLD_MOTION_SCREEN_PASS"
-      : baseEngineMode
-        ? "BASE_ENGINE_PRESERVED_SCREEN_PASS"
-        : "STRUCTURED_ACTIVE_SCREEN_PASS"
+    ? concreteMode
+      ? "CONCRETE_BEAT_SCREEN_PASS"
+      : neutralMode
+        ? "NEUTRAL_WORLD_MOTION_SCREEN_PASS"
+        : baseEngineMode
+          ? "BASE_ENGINE_PRESERVED_SCREEN_PASS"
+          : "STRUCTURED_ACTIVE_SCREEN_PASS"
+    : concreteMode
+      ? "STRUCTURED_ACTIVE_DYAD_CONCRETE_BEATS_CONFIRMED"
+      : neutralMode
+        ? "STRUCTURED_ACTIVE_DYAD_NEUTRAL_WORLD_MOTION_CONFIRMED"
+        : baseEngineMode
+          ? "STRUCTURED_ACTIVE_DYAD_BASE_ENGINE_CONFIRMED"
+          : "STRUCTURED_ACTIVE_DYAD_CONFIRMED";
+
+  // Concrete NPC gate uses subplot heuristic as EXTERNAL_SUBPLOT proxy;
+  // ext total as incidental voice budget (manual review refines in report).
+  const npcOk = concreteMode
+    ? screen
+      ? vNpc === 0 && vExt <= 2
+      : vNpc <= 1 && vExt <= 2
     : neutralMode
-      ? "STRUCTURED_ACTIVE_DYAD_NEUTRAL_WORLD_MOTION_CONFIRMED"
-      : baseEngineMode
-        ? "STRUCTURED_ACTIVE_DYAD_BASE_ENGINE_CONFIRMED"
-        : "STRUCTURED_ACTIVE_DYAD_CONFIRMED";
+      ? screen
+        ? npcCount === 0 && extTotal <= 1
+        : npcCount <= 1 && extTotal <= 2
+      : screen
+        ? npcCount <= 1 && extTotal <= 1
+        : npcCount <= 1 && extTotal <= 2;
 
-  // Screening NPC: neutral mode requires 0/4 subplot + ext<=1; confirm allows <=1/6 + ext<=2.
-  const npcOk = neutralMode
+  const lengthOk = concreteMode
     ? screen
-      ? npcCount === 0 && extTotal <= 1
-      : npcCount <= 1 && extTotal <= 2
-    : screen
-      ? npcCount <= 1 && extTotal <= 1
-      : npcCount <= 1 && extTotal <= 2;
-
-  const lengthOk = neutralMode
-    ? screen
-      ? avgLen >= 3100 &&
-        lt2400 === 0 &&
-        turn1Avg >= 2700 &&
-        turn1Lt2400 === 0 &&
-        lengthDrop <= 0.12 &&
-        avgCore >= BASELINE_CORE * 0.95
+      ? vAvgLen >= 3100 &&
+        vLt2400 === 0 &&
+        vTurn1Avg >= 2700 &&
+        vTurn1Min >= 2400 &&
+        vLengthDrop <= 0.12 &&
+        vAvgCore >= BASELINE_CORE * 0.95
+      : vAvgLen >= 3000 &&
+        vLt2400 === 0 &&
+        vLengthDrop <= 0.1 &&
+        ge2700 >= 5 &&
+        vTurn1Avg >= 2700 &&
+        vAvgCore >= BASELINE_CORE * 0.95
+    : neutralMode
+      ? screen
+        ? avgLen >= 3100 &&
+          lt2400 === 0 &&
+          turn1Avg >= 2700 &&
+          turn1Lt2400 === 0 &&
+          lengthDrop <= 0.12 &&
+          avgCore >= BASELINE_CORE * 0.95
+        : avgLen >= 3000 &&
+          lt2400 === 0 &&
+          lengthDrop <= 0.1 &&
+          ge2700 >= 5 &&
+          turn1Avg >= 2700 &&
+          avgCore >= BASELINE_CORE * 0.95
       : avgLen >= 3000 &&
         lt2400 === 0 &&
         lengthDrop <= 0.1 &&
-        ge2700 >= 5 &&
-        turn1Avg >= 2700 &&
-        avgCore >= BASELINE_CORE * 0.95
-    : avgLen >= 3000 &&
-      lt2400 === 0 &&
-      lengthDrop <= 0.1 &&
-      avgCore >= BASELINE_CORE * 0.95 &&
-      (screen ? turn1Avg >= 2700 && turn1Lt2400 === 0 : ge2700 >= 5 && turn1Avg >= 2700);
+        avgCore >= BASELINE_CORE * 0.95 &&
+        (screen ? turn1Avg >= 2700 && turn1Lt2400 === 0 : ge2700 >= 5 && turn1Avg >= 2700);
 
-  const rhythmOk = neutralMode
+  const rhythmOk = concreteMode
+    ? vResume <= 1.0 &&
+      vFrag <= 1.35 &&
+      vDlg >= 10 &&
+      vDlg <= 18 &&
+      vNarr >= 82 &&
+      vNarr <= 90
+    : neutralMode
+      ? screen
+        ? resume <= 1.0 &&
+          frag <= 1.4 &&
+          dlgPct >= 10 &&
+          dlgPct <= 19 &&
+          narrPct >= 81 &&
+          narrPct <= 90
+        : resume <= 1.0 &&
+          frag <= 1.35 &&
+          dlgPct >= 10 &&
+          dlgPct <= 18 &&
+          narrPct >= 82 &&
+          narrPct <= 90
+      : screen
+        ? resume <= 1.1 &&
+          frag <= 1.4 &&
+          dlgPct >= 10 &&
+          dlgPct <= 18 &&
+          narrPct >= 82 &&
+          narrPct <= 90
+        : resume <= 1.0 &&
+          frag <= 1.35 &&
+          dlgPct >= 10 &&
+          dlgPct <= 18 &&
+          narrPct >= 82 &&
+          narrPct <= 90;
+
+  const reactionOk = concreteMode
     ? screen
-      ? resume <= 1.0 &&
-        frag <= 1.4 &&
-        dlgPct >= 10 &&
-        dlgPct <= 19 &&
-        narrPct >= 81 &&
-        narrPct <= 90
-      : resume <= 1.0 &&
-        frag <= 1.35 &&
-        dlgPct >= 10 &&
-        dlgPct <= 18 &&
-        narrPct >= 82 &&
-        narrPct <= 90
+      ? vReaction >= 3
+      : vReaction >= 5
     : screen
-      ? resume <= 1.1 &&
-        frag <= 1.4 &&
-        dlgPct >= 10 &&
-        dlgPct <= 18 &&
-        narrPct >= 82 &&
-        narrPct <= 90
-      : resume <= 1.0 &&
-        frag <= 1.35 &&
-        dlgPct >= 10 &&
-        dlgPct <= 18 &&
-        narrPct >= 82 &&
-        narrPct <= 90;
+      ? reaction >= 3
+      : reaction >= 5;
 
-  const reactionOk = screen ? reaction >= 3 : reaction >= 5;
+  const runtimeOk = concreteMode
+    ? vn >= EXPECTED_N && validRows.every((r) => r.retry === 0 && r.recovery === 0)
+    : true;
 
-  if (n < EXPECTED_N) {
+  if (concreteMode && !runtimeOk) {
+    verdict = "CONCRETE_BEAT_RUNTIME_INVALID";
+  } else if (n < EXPECTED_N && !concreteMode) {
     verdict = "STRUCTURED_ACTIVE_CONFIRM_INVALID";
   } else if (!npcOk) {
     verdict = screen
-      ? neutralMode
-        ? "NEUTRAL_WORLD_MOTION_NPC_FAIL"
-        : baseEngineMode
-          ? "BASE_ENGINE_PRESERVED_NPC_FAIL"
-          : "STRUCTURED_ACTIVE_NPC_FAIL"
+      ? concreteMode
+        ? "CONCRETE_BEAT_NPC_FAIL"
+        : neutralMode
+          ? "NEUTRAL_WORLD_MOTION_NPC_FAIL"
+          : baseEngineMode
+            ? "BASE_ENGINE_PRESERVED_NPC_FAIL"
+            : "STRUCTURED_ACTIVE_NPC_FAIL"
       : "STRUCTURED_ACTIVE_CONFIRM_INVALID";
   } else if (!lengthOk) {
     verdict = screen
-      ? neutralMode
-        ? "NEUTRAL_WORLD_MOTION_LENGTH_FAIL"
-        : baseEngineMode
-          ? "BASE_ENGINE_PRESERVED_LENGTH_FAIL"
-          : "STRUCTURED_ACTIVE_LENGTH_FAIL"
+      ? concreteMode
+        ? "CONCRETE_BEAT_LENGTH_FAIL"
+        : neutralMode
+          ? "NEUTRAL_WORLD_MOTION_LENGTH_FAIL"
+          : baseEngineMode
+            ? "BASE_ENGINE_PRESERVED_LENGTH_FAIL"
+            : "STRUCTURED_ACTIVE_LENGTH_FAIL"
       : "STRUCTURED_ACTIVE_CONFIRM_INVALID";
   } else if (!reactionOk) {
     verdict = screen
-      ? neutralMode
-        ? "NEUTRAL_WORLD_MOTION_REACTION_FAIL"
-        : "STRUCTURED_ACTIVE_REACTION_FAIL"
+      ? concreteMode
+        ? "CONCRETE_BEAT_REACTION_FAIL"
+        : neutralMode
+          ? "NEUTRAL_WORLD_MOTION_REACTION_FAIL"
+          : "STRUCTURED_ACTIVE_REACTION_FAIL"
       : "STRUCTURED_ACTIVE_CONFIRM_INVALID";
   } else if (!rhythmOk) {
     verdict = screen
-      ? neutralMode
-        ? "NEUTRAL_WORLD_MOTION_RHYTHM_FAIL"
-        : baseEngineMode
-          ? "BASE_ENGINE_PRESERVED_RHYTHM_FAIL"
-          : "STRUCTURED_ACTIVE_RHYTHM_FAIL"
+      ? concreteMode
+        ? "CONCRETE_BEAT_RHYTHM_FAIL"
+        : neutralMode
+          ? "NEUTRAL_WORLD_MOTION_RHYTHM_FAIL"
+          : baseEngineMode
+            ? "BASE_ENGINE_PRESERVED_RHYTHM_FAIL"
+            : "STRUCTURED_ACTIVE_RHYTHM_FAIL"
       : "STRUCTURED_ACTIVE_CONFIRM_INVALID";
   }
 
+  const reportN = concreteMode ? vn : n;
+  const reportNpc = concreteMode ? vNpc : npcCount;
+  const reportExt = concreteMode ? vExt : extTotal;
+  const reportAvgLen = concreteMode ? vAvgLen : avgLen;
+  const reportAvgCore = concreteMode ? vAvgCore : avgCore;
+  const reportTurn1Avg = concreteMode ? vTurn1Avg : turn1Avg;
+  const reportTurn1Min = concreteMode ? vTurn1Min : Math.min(...turn1.map((r) => r.len), Infinity);
+  const reportLt2400 = concreteMode ? vLt2400 : lt2400;
+  const reportDrop = concreteMode ? vLengthDrop : lengthDrop;
+  const reportResume = concreteMode ? vResume : resume;
+  const reportFrag = concreteMode ? vFrag : frag;
+  const reportDlg = concreteMode ? vDlg : dlgPct;
+  const reportNarr = concreteMode ? vNarr : narrPct;
+  const reportReaction = concreteMode ? vReaction : reaction;
+
   const out = {
     screen: SCREEN_LABEL,
-    n,
+    n: reportN,
     expected_n: EXPECTED_N,
-    NPC: `${npcCount}/${n}`,
-    external_dialogue: extTotal,
+    NPC: `${reportNpc}/${reportN}`,
+    external_dialogue: reportExt,
     administrative_subplot: adminTotal,
-    avg_length: avgLen,
-    avg_core: avgCore,
-    turn1_avg: turn1Avg,
+    avg_length: reportAvgLen,
+    avg_core: reportAvgCore,
+    turn1_avg: reportTurn1Avg,
+    turn1_min: Number.isFinite(reportTurn1Min) ? reportTurn1Min : 0,
     turn2_avg: turn2Avg,
     turn1_lt_2400: turn1Lt2400,
-    count_lt_2400: lt2400,
+    count_lt_2400: reportLt2400,
     count_ge_2700: ge2700,
-    length_drop: Math.round(lengthDrop * 10000) / 10000,
-    primary_resume_per_1000: resume,
-    fragmentation: frag,
-    dialogue_share: Math.round(dlgPct * 10) / 10,
-    narration_share: Math.round(narrPct * 10) / 10,
-    reaction: `${reaction}/${n}`,
+    length_drop: Math.round(reportDrop * 10000) / 10000,
+    primary_resume_per_1000: reportResume,
+    fragmentation: reportFrag,
+    dialogue_share: Math.round(reportDlg * 10) / 10,
+    narration_share: Math.round(reportNarr * 10) / 10,
+    reaction: `${reportReaction}/${reportN}`,
     finish_stop: finishOk,
     retry_recovery_zero: retryOk,
+    runtime_ok: runtimeOk,
     scene_focus_applied: `${focusApplied}/${n}`,
     npc_ok: npcOk,
     length_ok: lengthOk,
@@ -285,7 +373,7 @@ function main() {
       {
         verdict,
         NPC: out.NPC,
-        avg_length: avgLen,
+        avg_length: reportAvgLen,
         turn1_avg: turn1Avg,
         turn2_avg: turn2Avg,
         avg_core: avgCore,

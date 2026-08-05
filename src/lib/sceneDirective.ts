@@ -7,6 +7,7 @@ import {
   ACTIVE_DYAD_HINT_BY_TYPE,
   applyPaletteWeightGates,
   applySceneFocusPaletteToProgressionTypes,
+  serializeConcreteActiveDyadNextBeatHint,
   type SceneFocusDiagnostics,
   type SceneFocusPalette,
 } from "@/lib/sceneFocusPalette";
@@ -252,11 +253,25 @@ export function measureSerializedSceneBeatBudget(opts: {
     .split(/\s*\+\s*/)
     .map((s) => s.trim())
     .filter(Boolean);
-  const hint = block.match(/^다음 장면 힌트:\s*(.+)$/m)?.[1] ?? "";
-  const hintClauses = hint
-    ? hint.split(/[.。]/).map((s) => s.trim()).filter((s) => s.length >= 4)
+  // Multiline nextBeatHint: collect "- …" bullets after the label until next field.
+  const hintMatch = block.match(
+    /^다음 장면 힌트:\n((?:- .+\n?)+)|^다음 장면 힌트:\s*(.+)$/m
+  );
+  const bulletBlock = hintMatch?.[1] ?? "";
+  const bullets = bulletBlock
+    ? bulletBlock
+        .split("\n")
+        .map((l) => l.replace(/^- /, "").trim())
+        .filter(Boolean)
     : [];
-  // Concrete instruction lines beyond abstract labels: hint clauses + focus line.
+  const singleHint = (!bullets.length && hintMatch?.[2]?.trim()) || "";
+  const hint = bullets.length ? bullets.join(" ") : singleHint;
+  const hintClauses = bullets.length
+    ? bullets
+    : hint
+      ? hint.split(/[.。]/).map((s) => s.trim()).filter((s) => s.length >= 4)
+      : [];
+  // Concrete instruction lines: focus line + each concrete beat bullet.
   const focusLine = block.match(/^직접 발화 중심:\s*(.+)$/m)?.[1] ?? "";
   const concrete = hintClauses.length + (focusLine ? 1 : 0);
 
@@ -267,7 +282,7 @@ export function measureSerializedSceneBeatBudget(opts: {
     (hint.match(/관계|거리|환경|장소|온도/g) ?? []).length +
     (labels.some((l) => /관계|환경/.test(l)) ? 1 : 0);
   const openReaction =
-    /남긴다|연다|열어|다음\s*(응답|행동|선택)|고를\s*수|답할/.test(hint);
+    /남긴다|연다|열어|다음\s*(응답|행동|선택)|고를\s*수|답할|여지를 남긴다/.test(hint);
 
   const internalOk =
     opts.requestedBeatCount == null ||
@@ -1015,13 +1030,14 @@ export function buildSceneDirective(input: SceneDirectiveInput): SceneDirective 
   const userControl: SceneUserControl =
     input.mode === "auto_progression" ? "persona_based_dialogue_allowed" : "no_user_control";
 
-  return {
-    mode: input.mode,
-    recentStagnation,
-    recommendedIntensity,
-    progressionTypes,
-    avoid: buildAvoidList(input.mode, recommendedIntensity),
-    nextBeatHint: sanitizeHint(
+  // Concrete 3-beat serializer replaces single nextBeatHint (same slot; no new section).
+  // Skip sanitizeHint whitespace collapse so multiline bullets survive.
+  let nextBeatHint: string | undefined;
+  if (palette?.serializeConcreteBeats && palette.state === "ACTIVE_DYAD") {
+    const sources = diagnostics?.resolvedProgressionSources ?? [];
+    nextBeatHint = serializeConcreteActiveDyadNextBeatHint(sources);
+  } else {
+    nextBeatHint = sanitizeHint(
       buildNextBeatHint(
         progressionTypes,
         recommendedIntensity,
@@ -1029,7 +1045,16 @@ export function buildSceneDirective(input: SceneDirectiveInput): SceneDirective 
         castFocus,
         palette
       )
-    ),
+    );
+  }
+
+  return {
+    mode: input.mode,
+    recentStagnation,
+    recommendedIntensity,
+    progressionTypes,
+    avoid: buildAvoidList(input.mode, recommendedIntensity),
+    nextBeatHint,
     userControl,
     castFocus,
     focusPalette: palette,
@@ -1047,7 +1072,13 @@ export function renderSceneDirectiveForPrompt(directive: SceneDirective): string
   const progression = directive.progressionTypes.map((type) => PROGRESSION_LABELS[type]).join(" + ");
   const primaryFocusLine = renderPrimaryFocusLine(directive.castFocus);
   // ACTIVE_DYAD: neutralize only "NPC, 세계 반응" → "주 캐릭터의 선택·행동".
-  // Do not use short sceneEngineMotionForPalette rewrite in the serialized prompt.
+  // Concrete beats: expand nextBeatHint slot to multiline bullets (no second hint slot).
+  const hint = directive.nextBeatHint?.trim() ?? "";
+  const hintBlock = !hint
+    ? ""
+    : hint.includes("\n")
+      ? `다음 장면 힌트:\n${hint}`
+      : `다음 장면 힌트: ${hint}`;
   return [
     renderSceneEngineRule(directive.focusPalette),
     "",
@@ -1057,7 +1088,7 @@ export function renderSceneDirectiveForPrompt(directive: SceneDirective): string
     `권장 강도: ${renderIntensity(directive.recommendedIntensity, directive.recentStagnation)}`,
     `전개 방향: ${progression}`,
     `피할 것: ${directive.avoid.join(", ")}`,
-    directive.nextBeatHint ? `다음 장면 힌트: ${directive.nextBeatHint}` : "",
+    hintBlock,
     primaryFocusLine ?? "",
     `유저 조종: ${USER_CONTROL_LABELS[directive.userControl]}`,
     directive.mode === "auto_progression" ? AUTO_PROGRESSION_ENSEMBLE_SCENE_RULE : "",

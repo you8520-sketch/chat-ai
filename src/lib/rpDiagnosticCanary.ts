@@ -29,6 +29,7 @@ import {
 } from "@/lib/terraPromptCanary";
 import type { ChatMsg } from "@/lib/ai";
 import {
+  ACTIVE_DYAD_CONCRETE_BEATS_PALETTE,
   paletteForSceneFocusState,
   type SceneFocusDiagnostics,
   type SceneFocusPalette,
@@ -90,6 +91,11 @@ export const RP_DIAGNOSTIC_CANARY_VARIANTS = [
    * BASE_SCENE_ENGINE_RULE ("NPC, 세계 반응" → "주 캐릭터의 선택·행동").
    */
   "structured_active_dyad_neutral_world_motion",
+  /**
+   * PR #239 stack + 3 concrete beat lines in nextBeatHint slot
+   * (interpretation → decision/action → consequence/open-reaction).
+   */
+  "structured_active_dyad_concrete_beats",
 ] as const;
 
 export type RpDiagnosticCanaryVariant = (typeof RP_DIAGNOSTIC_CANARY_VARIANTS)[number];
@@ -213,7 +219,8 @@ export function rpDiagnosticEnablesPipelineCapture(
     variant === "ds_real_production" ||
     variant === "structured_scene_focus_active_dyad" ||
     variant === "structured_scene_focus_active_dyad_base_engine_preserved" ||
-    variant === "structured_active_dyad_neutral_world_motion"
+    variant === "structured_active_dyad_neutral_world_motion" ||
+    variant === "structured_active_dyad_concrete_beats"
   );
 }
 
@@ -223,7 +230,8 @@ export function rpDiagnosticUsesStructuredSceneFocus(
   return (
     variant === "structured_scene_focus_active_dyad" ||
     variant === "structured_scene_focus_active_dyad_base_engine_preserved" ||
-    variant === "structured_active_dyad_neutral_world_motion"
+    variant === "structured_active_dyad_neutral_world_motion" ||
+    variant === "structured_active_dyad_concrete_beats"
   );
 }
 
@@ -238,7 +246,16 @@ export function rpDiagnosticPreservesBaseSceneEngineRule(
 export function rpDiagnosticNeutralizesWorldMotionCue(
   variant: RpDiagnosticCanaryVariant
 ): boolean {
-  return variant === "structured_active_dyad_neutral_world_motion";
+  return (
+    variant === "structured_active_dyad_neutral_world_motion" ||
+    variant === "structured_active_dyad_concrete_beats"
+  );
+}
+
+export function rpDiagnosticUsesConcreteBeatSerializer(
+  variant: RpDiagnosticCanaryVariant
+): boolean {
+  return variant === "structured_active_dyad_concrete_beats";
 }
 
 /**
@@ -271,12 +288,19 @@ export function resolveCanarySceneFocusPalette(opts: {
   canary: RpDiagnosticCanaryResolution | null | undefined;
   completedTurns: number;
 }): SceneFocusPalette | null {
-  return paletteForSceneFocusState(
-    resolveCanarySceneFocusState({
-      canary: opts.canary,
-      completedTurns: opts.completedTurns,
-    })
-  );
+  const state = resolveCanarySceneFocusState({
+    canary: opts.canary,
+    completedTurns: opts.completedTurns,
+  });
+  if (!state) return null;
+  if (
+    opts.canary &&
+    rpDiagnosticUsesConcreteBeatSerializer(opts.canary.variant) &&
+    state === "ACTIVE_DYAD"
+  ) {
+    return ACTIVE_DYAD_CONCRETE_BEATS_PALETTE;
+  }
+  return paletteForSceneFocusState(state);
 }
 
 export type DeepSeekExtrasMode = "full" | "length_stack_only" | "off";
