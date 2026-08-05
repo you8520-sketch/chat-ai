@@ -1,0 +1,123 @@
+{
+  "note": "Hidden map for blind review — do not share with the blind reviewer.",
+  "shuffle_seed": 20260805,
+  "label_to_attempt": {
+    "A": {
+      "attempt_id": "C243-02",
+      "slug": "confirm-original-run1-turn2",
+      "phase": "confirmation_pr243",
+      "run": 1,
+      "turn": 2,
+      "chat_id": 646,
+      "original_or_replacement": "original",
+      "raw_chars": 2802,
+      "finish_reason": "stop"
+    },
+    "B": {
+      "attempt_id": "S242-03",
+      "slug": "screening-valid-run1-turn1",
+      "phase": "screening_pr242",
+      "run": 1,
+      "turn": 1,
+      "chat_id": 644,
+      "original_or_replacement": "replacement_rescreen",
+      "raw_chars": 2650,
+      "finish_reason": "stop"
+    },
+    "C": {
+      "attempt_id": "C243-03",
+      "slug": "confirm-original-run2-turn1",
+      "phase": "confirmation_pr243",
+      "run": 2,
+      "turn": 1,
+      "chat_id": 647,
+      "original_or_replacement": "original",
+      "raw_chars": 3333,
+      "finish_reason": "stop"
+    },
+    "D": {
+      "attempt_id": "S242-04",
+      "slug": "screening-valid-run1-turn2",
+      "phase": "screening_pr242",
+      "run": 1,
+      "turn": 2,
+      "chat_id": 644,
+      "original_or_replacement": "replacement_rescreen",
+      "raw_chars": 3621,
+      "finish_reason": "stop"
+    },
+    "E": {
+      "attempt_id": "C243-04",
+      "slug": "confirm-original-run2-turn2",
+      "phase": "confirmation_pr243",
+      "run": 2,
+      "turn": 2,
+      "chat_id": 647,
+      "original_or_replacement": "original",
+      "raw_chars": 6017,
+      "finish_reason": "stop"
+    },
+    "F": {
+      "attempt_id": "S242-06",
+      "slug": "screening-valid-run2-turn2",
+      "phase": "screening_pr242",
+      "run": 2,
+      "turn": 2,
+      "chat_id": 645,
+      "original_or_replacement": "replacement_rescreen",
+      "raw_chars": 3100,
+      "finish_reason": "stop"
+    },
+    "G": {
+      "attempt_id": "C243-01",
+      "slug": "confirm-original-run1-turn1",
+      "phase": "confirmation_pr243",
+      "run": 1,
+      "turn": 1,
+      "chat_id": 646,
+      "original_or_replacement": "original",
+      "raw_chars": 1610,
+      "finish_reason": "stop"
+    },
+    "H": {
+      "attempt_id": "C243-10",
+      "slug": "confirm-replacement2-run1-turn2",
+      "phase": "confirmation_pr243",
+      "run": 1,
+      "turn": 2,
+      "chat_id": 650,
+      "original_or_replacement": "replacement_round_2",
+      "raw_chars": 2585,
+      "finish_reason": "stop"
+    },
+    "I": {
+      "attempt_id": "S242-05",
+      "slug": "screening-valid-run2-turn1",
+      "phase": "screening_pr242",
+      "run": 2,
+      "turn": 1,
+      "chat_id": 645,
+      "original_or_replacement": "replacement_rescreen",
+      "raw_chars": 2986,
+      "finish_reason": "stop"
+    },
+    "J": {
+      "attempt_id": "C243-09",
+      "slug": "confirm-replacement2-run1-turn1",
+      "phase": "confirmation_pr243",
+      "run": 1,
+      "turn": 1,
+      "chat_id": 650,
+      "original_or_replacement": "replacement_round_2",
+      "raw_chars": 3420,
+      "finish_reason": "stop"
+    }
+  },
+  "quality_judgement_hold": {
+    "NPC quality": "UNVERIFIED_BY_HUMAN_RAW_REVIEW",
+    "dialogue quality": "UNVERIFIED_BY_HUMAN_RAW_REVIEW",
+    "prose quality": "UNVERIFIED_BY_HUMAN_RAW_REVIEW",
+    "reaction quality": "UNVERIFIED_BY_HUMAN_RAW_REVIEW",
+    "gesture quality": "UNVERIFIED_BY_HUMAN_RAW_REVIEW"
+  }
+}
