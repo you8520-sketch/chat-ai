@@ -175,6 +175,7 @@ export type ContextBuildInput = {
       | "common_creator_dialogue_scope"
       | "common_layout_minimal"
       | "common_length_owner_minimal"
+      | "early_relationship_axis_only"
       | "common_scene_directive_removed"
       | "common_rp_style_minimal"
       | "deepseek_final"

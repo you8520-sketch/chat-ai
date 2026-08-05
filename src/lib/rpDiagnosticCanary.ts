@@ -60,6 +60,7 @@ export const RP_DIAGNOSTIC_CANARY_VARIANTS = [
   "common_creator_dialogue_scope",
   "common_layout_minimal",
   "common_length_owner_minimal",
+  "early_relationship_axis_only",
   "common_scene_directive_removed",
   "common_rp_style_minimal",
   "deepseek_final",
@@ -185,7 +186,8 @@ export function rpDiagnosticEnablesPipelineCapture(
     variant === "ds_postprocess_baseline" ||
     variant === "ds_display_grouping_bypass" ||
     variant === "ds_paragraph_normalize_bypass" ||
-    variant === "ds_real_production"
+    variant === "ds_real_production" ||
+    variant === "early_relationship_axis_only"
   );
 }
 
@@ -347,6 +349,8 @@ export function shouldRelocateRpDiagnosticSceneDirective(
   canary: RpDiagnosticCanaryResolution | null | undefined,
   progressionAxis: SceneProgressionAxis | null | undefined
 ): boolean {
+  // early_relationship_axis_only: axis lock only — keep SceneDirective on system path.
+  if (canary?.variant === "early_relationship_axis_only") return false;
   return Boolean(
     canary &&
       rpDiagnosticUsesRelationshipAxis(canary.variant) &&
@@ -435,6 +439,7 @@ export function rpDiagnosticUsesRelationshipAxis(
     variant === "common_creator_dialogue_scope" ||
     variant === "common_layout_minimal" ||
     variant === "common_length_owner_minimal" ||
+    variant === "early_relationship_axis_only" ||
     variant === "common_rp_style_minimal" ||
     variant === "deepseek_final"
   );
@@ -514,6 +519,13 @@ export function resolveRpDiagnosticProgressionAxis(opts: {
   recentMessages?: ChatMsg[] | null;
 }): SceneProgressionAxis | null {
   if (!opts.canary || !rpDiagnosticUsesRelationshipAxis(opts.canary.variant)) return null;
+  // early_relationship_axis_only: first 2 assistant responses only (completedTurns 0,1).
+  if (
+    opts.canary.variant === "early_relationship_axis_only" &&
+    opts.completedTurns >= 2
+  ) {
+    return null;
+  }
   // Turn 1-2 lock; for deepseek_final turn 3-4 axis may unlock naturally
   if (opts.canary.variant !== "deepseek_final" && opts.completedTurns > 2) {
     return null;

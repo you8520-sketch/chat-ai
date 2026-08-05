@@ -113,4 +113,28 @@ describe("RP diagnostic canary fail-closed scope", () => {
     });
     assert.equal(res, null);
   });
+
+  it("early_relationship_axis_only: exact variant + single_primary scope", () => {
+    enableCanary("early_relationship_axis_only");
+    const res = resolveRpDiagnosticCanary({
+      userId: 34,
+      modelId: "deepseek-v4-pro",
+      contentKind: "character",
+    });
+    assert.ok(res?.active);
+    assert.equal(res?.variant, "early_relationship_axis_only");
+    assert.equal(res?.sceneMode, "single_primary");
+  });
+
+  it("early_relationship_axis_only: other user fail-closed", () => {
+    enableCanary("early_relationship_axis_only");
+    assert.equal(
+      resolveRpDiagnosticCanary({
+        userId: 99,
+        modelId: "deepseek-v4-pro",
+        contentKind: "character",
+      }),
+      null
+    );
+  });
 });
