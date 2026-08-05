@@ -3,6 +3,14 @@ import { AUTO_PROGRESSION_SCENE_USER_CONTROL } from "@/lib/autoProgressionRules"
 import { NO_FALSE_SHARED_MEMORY_RULE } from "@/lib/noGodmodding";
 import type { SceneProgressionHistoryEntry } from "@/lib/sceneProgressionState";
 import type { ContentKind } from "@/lib/simulationMode";
+import {
+  ACTIVE_DYAD_HINT_BY_TYPE,
+  applyPaletteWeightGates,
+  applySceneFocusPaletteToProgressionTypes,
+  sceneEngineMotionForPalette,
+  type SceneFocusDiagnostics,
+  type SceneFocusPalette,
+} from "@/lib/sceneFocusPalette";
 
 export type SceneDirectiveMode = "interactive" | "auto_progression";
 
@@ -59,6 +67,13 @@ export type SceneDirective = {
   userControl: SceneUserControl;
   /** Focus computed from settings — budget is never prompt-exposed. */
   castFocus: SceneCastFocus;
+  /**
+   * Structured focus palette used while building this directive.
+   * Diagnostic / canary only — never serialized as its own prompt section.
+   */
+  focusPalette?: SceneFocusPalette | null;
+  /** Structural integrity diagnostics — never rendered into the model prompt. */
+  focusDiagnostics?: SceneFocusDiagnostics | null;
 };
 
 export type SceneDirectiveInput = {
@@ -92,6 +107,11 @@ export type SceneDirectiveInput = {
    * never rendered into the model prompt.
    */
   knownSupportingCastNames?: string[] | null;
+  /**
+   * Structured scene-focus palette (canary / future resolver).
+   * null/undefined → production builder path unchanged.
+   */
+  sceneFocusPalette?: SceneFocusPalette | null;
 };
 
 /** Internal telemetry — never rendered into the model prompt. */
@@ -479,6 +499,8 @@ export function selectProgressionTypesWeighted(input: {
   progressionHistory?: SceneProgressionHistoryEntry[] | null;
   /** Soft priority only — never used to flip cast mode. */
   sceneCastMode?: SceneCastMode | null;
+  /** Structured focus palette — gates/boosts weights only; no new prompt section. */
+  sceneFocusPalette?: SceneFocusPalette | null;
 }): { types: SceneProgressionType[]; meta: ProgressionSelectionMeta } {
   const sceneKind = resolveSceneKind(input.sceneSignalText);
   const hasTrigger = Boolean(input.triggeredEventText?.trim());
@@ -555,6 +577,9 @@ export function selectProgressionTypesWeighted(input: {
       }
     }
   }
+
+  // Structured palette gates (ACTIVE_DYAD / STALLING) — selection, not bans in prompt.
+  applyPaletteWeightGates(weights, input.sceneFocusPalette);
 
   const history = input.progressionHistory ?? [];
   const turn = Number(input.currentTurn ?? 0);
@@ -769,7 +794,8 @@ function buildNextBeatHint(
   types: SceneProgressionType[],
   intensity: number,
   triggeredEventText?: string | null,
-  castFocus?: SceneCastFocus | null
+  castFocus?: SceneCastFocus | null,
+  palette?: SceneFocusPalette | null
 ): string {
   if (triggeredEventText?.trim()) {
     return "이미 발생한 사건의 여파를 우선 이어가며 장면은 그 결과에 맞춰 자연스럽게 진행한다.";
@@ -777,14 +803,20 @@ function buildNextBeatHint(
   const primary = types[0];
   const support = types[1];
   if (!primary) return HINT_BY_TYPE.environment;
-  if (primary === "tactical_planning" && intensity >= 4) {
+  if (
+    primary === "tactical_planning" &&
+    intensity >= 4 &&
+    palette?.state !== "ACTIVE_DYAD"
+  ) {
     return "현재 작전의 빈틈 하나가 드러나며 외부 요청이나 시간 압박이 조용히 끼어든다.";
   }
   const preferPrimaryFramedNpc =
     castFocus?.sceneCastMode === "single_primary" && primary === "npc_action";
-  const primaryHint = preferPrimaryFramedNpc
-    ? SINGLE_PRIMARY_NPC_ACTION_HINT
-    : HINT_BY_TYPE[primary];
+  const paletteHint =
+    palette?.state === "ACTIVE_DYAD" ? ACTIVE_DYAD_HINT_BY_TYPE[primary] : undefined;
+  const primaryHint =
+    paletteHint ??
+    (preferPrimaryFramedNpc ? SINGLE_PRIMARY_NPC_ACTION_HINT : HINT_BY_TYPE[primary]);
   if (
     support &&
     support !== primary &&
@@ -802,13 +834,20 @@ function buildNextBeatHint(
 }
 
 let lastSelectionMeta: ProgressionSelectionMeta | null = null;
+let lastFocusDiagnostics: SceneFocusDiagnostics | null = null;
 
 /** Test/harness helper — last buildSceneDirective selection telemetry. */
 export function getLastProgressionSelectionMeta(): ProgressionSelectionMeta | null {
   return lastSelectionMeta;
 }
 
+/** Test/harness helper — last structured focus diagnostics (null when palette unused). */
+export function getLastSceneFocusDiagnostics(): SceneFocusDiagnostics | null {
+  return lastFocusDiagnostics;
+}
+
 export function buildSceneDirective(input: SceneDirectiveInput): SceneDirective {
+  const palette = input.sceneFocusPalette ?? null;
   const recentStagnation = detectSceneStagnation(input.recentMessages);
   const baseCastFocus = resolveSceneCastFocus({
     contentKind: input.contentKind,
@@ -816,7 +855,19 @@ export function buildSceneDirective(input: SceneDirectiveInput): SceneDirective 
     party: input.party,
     establishedActiveCastNames: input.establishedActiveCastNames,
   });
-  const castFocus = resolveActiveSpeakingCast(baseCastFocus, input);
+  let castFocus = resolveActiveSpeakingCast(baseCastFocus, input);
+  // ACTIVE_DYAD: keep direct-speaking cast on primary only (no new speaking NPC slot).
+  if (
+    palette &&
+    !palette.allowNewSpeakingNpc &&
+    castFocus.sceneCastMode === "single_primary" &&
+    castFocus.primaryCharacterName
+  ) {
+    castFocus = {
+      ...castFocus,
+      activeSpeakingCast: [castFocus.primaryCharacterName],
+    };
+  }
   const recommendedIntensity = selectSceneIntensity({
     recentMessages: input.recentMessages,
     currentUserMessage: input.currentUserMessage,
@@ -833,7 +884,7 @@ export function buildSceneDirective(input: SceneDirectiveInput): SceneDirective 
     currentUserMessage: input.currentUserMessage,
     triggeredEventText: input.triggeredEventText,
   });
-  const { types: progressionTypes, meta } = selectProgressionTypesWeighted({
+  const { types: rawProgressionTypes, meta } = selectProgressionTypesWeighted({
     sceneSignalText,
     groundingText,
     intensity: recommendedIntensity,
@@ -843,8 +894,13 @@ export function buildSceneDirective(input: SceneDirectiveInput): SceneDirective 
     currentTurn: input.currentTurn,
     progressionHistory: input.progressionHistory,
     sceneCastMode: castFocus.sceneCastMode,
+    sceneFocusPalette: palette,
   });
   lastSelectionMeta = meta;
+
+  const { types: progressionTypes, diagnostics } =
+    applySceneFocusPaletteToProgressionTypes(rawProgressionTypes, palette);
+  lastFocusDiagnostics = diagnostics;
 
   const userControl: SceneUserControl =
     input.mode === "auto_progression" ? "persona_based_dialogue_allowed" : "no_user_control";
@@ -860,11 +916,14 @@ export function buildSceneDirective(input: SceneDirectiveInput): SceneDirective 
         progressionTypes,
         recommendedIntensity,
         input.triggeredEventText,
-        castFocus
+        castFocus,
+        palette
       )
     ),
     userControl,
     castFocus,
+    focusPalette: palette,
+    focusDiagnostics: diagnostics,
   };
 }
 
@@ -877,8 +936,16 @@ export function renderSceneDirectiveForPrompt(directive: SceneDirective): string
   const modeLabel = directive.mode === "auto_progression" ? "자동진행" : "일반 RP";
   const progression = directive.progressionTypes.map((type) => PROGRESSION_LABELS[type]).join(" + ");
   const primaryFocusLine = renderPrimaryFocusLine(directive.castFocus);
+  const paletteMotion = sceneEngineMotionForPalette(directive.focusPalette);
+  const engineRule = paletteMotion
+    ? [
+        "[PRIVATE SCENE ENGINE RULE]",
+        paletteMotion,
+        "전개는 항상 전투나 대형 위기일 필요가 없다. 현재 모드와 유저 조종 범위를 따르고, 이 규칙을 본문에 언급하지 않는다.",
+      ].join("\n")
+    : BASE_SCENE_ENGINE_RULE;
   return [
-    BASE_SCENE_ENGINE_RULE,
+    engineRule,
     "",
     "[이번 턴 장면 지시 - 비공개]",
     `모드: ${modeLabel}`,
