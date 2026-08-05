@@ -1,6 +1,6 @@
 # Representative cross-model matrix (planned — offline only)
 
-**Status:** `crossModelReady: false`  
+**Status:** `crossModelReady: false`
 **Do not run live calls** until DeepSeek runtime + functional reconfirmation pass.
 
 Gate updates from `34-deepseek-runtime-audit`:
@@ -15,9 +15,9 @@ Compare the **common SceneDirective stack** across prompt families after DeepSee
 
 ## Gate checklist (must all be true before live)
 
-1. DeepSeek provider truncation / runtime reliability audit complete  
-2. Functional reconfirmation of the candidate stack (external subplot / intrusive speaker / length floors)  
-3. Explicit `cross_model_ready: true` written in a later audit artifact  
+1. DeepSeek provider truncation / runtime reliability audit complete
+2. Functional reconfirmation of the candidate stack (external subplot / intrusive speaker / length floors)
+3. Explicit `cross_model_ready: true` written in a later audit artifact
 4. Canary remain fail-closed (`RP_DIAGNOSTIC_CANARY_*` unset in production after tests)
 
 ## Representative models (one per family)
@@ -55,13 +55,13 @@ Optional second wave (only after Pro baseline OK): canary `structured_active_dya
 
 ## Explicit non-goals for this inventory
 
-- No live OpenRouter / CheaperInference calls  
-- No Railway canary enablement  
-- No production DB writes / general rollout  
+- No live OpenRouter / CheaperInference calls
+- No Railway canary enablement
+- No production DB writes / general rollout
 - No freeze of DeepSeek SHORT HISTORY dense-internal (confirmation failed)
 
 ## Artifact links
 
-- Families: `MODEL_PROMPT_FAMILIES.md`  
-- Hashes: `PROMPT_HASHES.json`  
+- Families: `MODEL_PROMPT_FAMILIES.md`
+- Hashes: `PROMPT_HASHES.json`
 - Prior gate: `/opt/cursor/artifacts/deepseek-common-root-audit/33-dense-internal-confirm/FINAL_REPORT.json`

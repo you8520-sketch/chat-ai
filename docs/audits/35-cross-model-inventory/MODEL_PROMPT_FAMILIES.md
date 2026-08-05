@@ -1,8 +1,8 @@
 # Cross-model prompt families (offline inventory)
 
-**Scope:** static inventory of production `SELECTED_AI_OPTIONS` + adapter extras.  
-**Source tip:** `cursor/ds-dense-internal-confirm-6a91` @ `91be35edc3adbe790452ec9420dc7b28e3e6c97a`  
-**Live calls:** none.  
+**Scope:** static inventory of production `SELECTED_AI_OPTIONS` + adapter extras.
+**Source tip:** `cursor/ds-dense-internal-confirm-6a91` @ `91be35edc3adbe790452ec9420dc7b28e3e6c97a`
+**Live calls:** none.
 **Gate:** live cross-model matrix is **NOT ready** until DeepSeek runtime + functional reconfirmation pass (audit `33-dense-internal-confirm`: `cross_model_ready: false`, `DEEPSEEK_RUNTIME_CONFIRMATION_INVALID`).
 
 ## Registry snapshot
@@ -57,25 +57,25 @@ Canary-only SHORT HISTORY variants (not production default):
 
 ### F2 — DeepSeek V4 Flash minimal extras
 
-Production Flash: **no** XML mode / bottom reminder / SHORT HISTORY (Pro-only).  
-Always-on DeepSeek-family: appearance variation rule when `isDeepSeekModel`.  
+Production Flash: **no** XML mode / bottom reminder / SHORT HISTORY (Pro-only).
+Always-on DeepSeek-family: appearance variation rule when `isDeepSeekModel`.
 RP diagnostic canary may attach Flash length stack (`rpDiagnosticUsesFlashLengthStack`) — harness-only.
 
 ### F3 — Terra terminal length owner
 
-Gate: `gpt-5.6-terra` ∧ `single_primary` (`shouldUseTerraTerminalLengthOwner`).  
-Replaces TARGET/FLOOR / default user-tail length with frozen `TERRA_TERMINAL_LENGTH_OWNER_CONTRACT` at absolute user-turn end.  
+Gate: `gpt-5.6-terra` ∧ `single_primary` (`shouldUseTerraTerminalLengthOwner`).
+Replaces TARGET/FLOOR / default user-tail length with frozen `TERRA_TERMINAL_LENGTH_OWNER_CONTRACT` at absolute user-turn end.
 Canary swap: continuous-scene phrase variant.
 
 ### F4 — Luna terminal output contract
 
-Gate: `gpt-5.6-luna` ∧ character ∧ not party.  
-`LUNA_TERMINAL_OUTPUT_CONTRACT` on user-tail (system adapter removed / always null).  
+Gate: `gpt-5.6-luna` ∧ character ∧ not party.
+`LUNA_TERMINAL_OUTPUT_CONTRACT` on user-tail (system adapter removed / always null).
 Picker currently hidden → remapped to default on coerce.
 
 ### F5 — Common terminal (Claude / Gemini)
 
-No model-specific length adapter section (`resolveLunaAdapterSection` / `resolveGemini36FlashAdapterSection` return null).  
+No model-specific length adapter section (`resolveLunaAdapterSection` / `resolveGemini36FlashAdapterSection` return null).
 Uses F0 + `USER_TAIL_LENGTH_OWNER_SENTENCE`. Claude adds prefill/cache transport differences outside prose family.
 
 ### F6 — Muse retired policy (not matrix)
@@ -94,5 +94,5 @@ Uses F0 + `USER_TAIL_LENGTH_OWNER_SENTENCE`. Claude adds prefill/cache transport
 
 ## Hash index
 
-Full sha256 table: `PROMPT_HASHES.json` (43 keys).  
+Full sha256 table: `PROMPT_HASHES.json` (43 keys).
 Regenerate offline: `node --conditions=react-server --import tsx scripts/offline-cross-model-prompt-inventory.ts` against a tree that includes the SceneDirective palette stack (audit tip above).
