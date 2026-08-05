@@ -7,7 +7,6 @@ import {
   ACTIVE_DYAD_HINT_BY_TYPE,
   applyPaletteWeightGates,
   applySceneFocusPaletteToProgressionTypes,
-  sceneEngineMotionForPalette,
   type SceneFocusDiagnostics,
   type SceneFocusPalette,
 } from "@/lib/sceneFocusPalette";
@@ -175,11 +174,91 @@ const USER_CONTROL_LABELS: Record<SceneUserControl, string> = {
   persona_based_dialogue_allowed: AUTO_PROGRESSION_SCENE_USER_CONTROL,
 };
 
-const BASE_SCENE_ENGINE_RULE = [
+/**
+ * Production Scene Engine Rule — always serialized byte-identical when present.
+ * Structured palette must NOT replace this block (base-engine-preservation isolation).
+ */
+export const BASE_SCENE_ENGINE_RULE = [
   "[PRIVATE SCENE ENGINE RULE]",
   "반복된 감정 확인에 멈추지 말고 관계, 단서, 환경, NPC, 세계 반응, 생활 변수, 이전 선택의 결과 중 하나를 조용히 움직인다.",
   "전개는 항상 전투나 대형 위기일 필요가 없다. 현재 모드와 유저 조종 범위를 따르고, 이 규칙을 본문에 언급하지 않는다.",
 ].join("\n");
+
+/** Extract the PRIVATE SCENE ENGINE RULE block from a SceneDirective prompt string. */
+export function extractSceneEngineRule(sceneDirectiveBlock: string): string {
+  const start = sceneDirectiveBlock.indexOf("[PRIVATE SCENE ENGINE RULE]");
+  if (start < 0) return "";
+  const rest = sceneDirectiveBlock.slice(start);
+  // renderSceneDirectiveForPrompt uses .filter(Boolean), so there may be no blank
+  // line after the engine rule — stop at the scene-directive header instead.
+  const header = rest.indexOf("\n[이번 턴 장면 지시");
+  if (header >= 0) return rest.slice(0, header).trimEnd();
+  const blank = rest.indexOf("\n\n");
+  return (blank >= 0 ? rest.slice(0, blank) : rest).trimEnd();
+}
+
+/** Prompt-level beat budget (serialized SceneDirective), distinct from internal counts. */
+export type SerializedSceneBeatBudget = {
+  serializedProgressionLabelCount: number;
+  serializedConcreteBeatInstructionCount: number;
+  nextBeatHintCharCount: number;
+  nextBeatHintClauseCount: number;
+  primaryDecisionActionCueCount: number;
+  relationshipEnvironmentCueCount: number;
+  openReactionCuePresent: boolean;
+  internalBeatCountPreserved: boolean;
+  promptBeatBudgetPreserved: boolean;
+};
+
+export function measureSerializedSceneBeatBudget(opts: {
+  sceneDirectiveBlock: string;
+  requestedBeatCount?: number | null;
+  resolvedBeatCount?: number | null;
+}): SerializedSceneBeatBudget {
+  const block = opts.sceneDirectiveBlock;
+  const progLine = block.match(/^전개 방향:\s*(.+)$/m)?.[1] ?? "";
+  const labels = progLine
+    .split(/\s*\+\s*/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const hint = block.match(/^다음 장면 힌트:\s*(.+)$/m)?.[1] ?? "";
+  const hintClauses = hint
+    ? hint.split(/[.。]/).map((s) => s.trim()).filter((s) => s.length >= 4)
+    : [];
+  // Concrete instruction lines beyond abstract labels: hint clauses + focus line.
+  const focusLine = block.match(/^직접 발화 중심:\s*(.+)$/m)?.[1] ?? "";
+  const concrete = hintClauses.length + (focusLine ? 1 : 0);
+
+  const decisionAction =
+    (hint.match(/선택|행동|결정|받아내|골랐|움직/g) ?? []).length +
+    (labels.some((l) => /관계|생활|이전 선택/.test(l)) ? 1 : 0);
+  const relEnv =
+    (hint.match(/관계|거리|환경|장소|온도/g) ?? []).length +
+    (labels.some((l) => /관계|환경/.test(l)) ? 1 : 0);
+  const openReaction =
+    /남긴다|연다|열어|다음\s*(응답|행동|선택)|고를\s*수|답할/.test(hint);
+
+  const internalOk =
+    opts.requestedBeatCount == null ||
+    opts.resolvedBeatCount == null ||
+    opts.resolvedBeatCount >= opts.requestedBeatCount;
+  // Prompt budget: at least as many concrete cues as internal resolved beats,
+  // or ≥2 when resolved ≥2 (labels alone do not count as concrete).
+  const resolved = opts.resolvedBeatCount ?? labels.length;
+  const promptOk = concrete >= Math.min(resolved, 2) && hint.length >= 20;
+
+  return {
+    serializedProgressionLabelCount: labels.length,
+    serializedConcreteBeatInstructionCount: concrete,
+    nextBeatHintCharCount: hint.length,
+    nextBeatHintClauseCount: hintClauses.length,
+    primaryDecisionActionCueCount: decisionAction,
+    relationshipEnvironmentCueCount: relEnv,
+    openReactionCuePresent: openReaction,
+    internalBeatCountPreserved: internalOk,
+    promptBeatBudgetPreserved: promptOk,
+  };
+}
 
 const AUTO_PROGRESSION_ENSEMBLE_SCENE_RULE =
   "다인물: 전개는 현재 중심 인물 하나에 고정되지 않는다. 여러 AI 캐릭터·NPC의 대화·판단·갈등·협력·적대·세계 사건을 함께 진행할 수 있다. [B] 내면 시점으로 전환하지 않는다.";
@@ -936,16 +1015,10 @@ export function renderSceneDirectiveForPrompt(directive: SceneDirective): string
   const modeLabel = directive.mode === "auto_progression" ? "자동진행" : "일반 RP";
   const progression = directive.progressionTypes.map((type) => PROGRESSION_LABELS[type]).join(" + ");
   const primaryFocusLine = renderPrimaryFocusLine(directive.castFocus);
-  const paletteMotion = sceneEngineMotionForPalette(directive.focusPalette);
-  const engineRule = paletteMotion
-    ? [
-        "[PRIVATE SCENE ENGINE RULE]",
-        paletteMotion,
-        "전개는 항상 전투나 대형 위기일 필요가 없다. 현재 모드와 유저 조종 범위를 따르고, 이 규칙을 본문에 언급하지 않는다.",
-      ].join("\n")
-    : BASE_SCENE_ENGINE_RULE;
+  // Base-engine preservation: palette never replaces BASE_SCENE_ENGINE_RULE in the prompt.
+  // Palette-specific motion strings stay diagnostic-only (see sceneFocusPalette helpers).
   return [
-    engineRule,
+    BASE_SCENE_ENGINE_RULE,
     "",
     "[이번 턴 장면 지시 - 비공개]",
     `모드: ${modeLabel}`,

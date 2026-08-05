@@ -130,11 +130,22 @@ function main() {
   );
   const retryOk = rows.every((r) => r.retry === 0 && r.recovery === 0);
   const focusApplied = rows.filter((r) => r.sceneFocusApplied).length;
+  const turn1 = rows.filter((r) => /\/turn1$/.test(r.id));
+  const turn2 = rows.filter((r) => /\/turn2$/.test(r.id));
+  const turn1Avg = avg(turn1.map((r) => r.len));
+  const turn2Avg = avg(turn2.map((r) => r.len));
+  const turn1Lt2400 = turn1.filter((r) => r.len < 2400).length;
 
   const screen = EXPECTED_N <= 4;
+  const baseEngineMode =
+    (process.env.VERDICT_MODE ?? "base_engine_preserved") === "base_engine_preserved";
   let verdict = screen
-    ? "STRUCTURED_ACTIVE_SCREEN_PASS"
-    : "STRUCTURED_ACTIVE_DYAD_CONFIRMED";
+    ? baseEngineMode
+      ? "BASE_ENGINE_PRESERVED_SCREEN_PASS"
+      : "STRUCTURED_ACTIVE_SCREEN_PASS"
+    : baseEngineMode
+      ? "STRUCTURED_ACTIVE_DYAD_BASE_ENGINE_CONFIRMED"
+      : "STRUCTURED_ACTIVE_DYAD_CONFIRMED";
 
   const npcOk = screen ? npcCount <= 1 && extTotal <= 1 : npcCount <= 1 && extTotal <= 2;
   const lengthOk =
@@ -142,7 +153,7 @@ function main() {
     lt2400 === 0 &&
     lengthDrop <= 0.1 &&
     avgCore >= BASELINE_CORE * 0.95 &&
-    (screen || ge2700 >= 5);
+    (screen ? turn1Avg >= 2700 && turn1Lt2400 === 0 : ge2700 >= 5 && turn1Avg >= 2700);
   const rhythmOk = screen
     ? resume <= 1.1 &&
       frag <= 1.4 &&
@@ -158,15 +169,31 @@ function main() {
       narrPct <= 90;
   const reactionOk = screen ? reaction >= 3 : reaction >= 5;
 
-  if (n < EXPECTED_N) verdict = "STRUCTURED_ACTIVE_CONFIRM_INVALID";
-  else if (!npcOk)
-    verdict = screen ? "STRUCTURED_ACTIVE_NPC_FAIL" : "STRUCTURED_ACTIVE_CONFIRM_INVALID";
-  else if (!lengthOk)
-    verdict = screen ? "STRUCTURED_ACTIVE_LENGTH_FAIL" : "STRUCTURED_ACTIVE_CONFIRM_INVALID";
-  else if (!reactionOk)
-    verdict = screen ? "STRUCTURED_ACTIVE_REACTION_FAIL" : "STRUCTURED_ACTIVE_CONFIRM_INVALID";
-  else if (!rhythmOk)
-    verdict = screen ? "STRUCTURED_ACTIVE_RHYTHM_FAIL" : "STRUCTURED_ACTIVE_CONFIRM_INVALID";
+  if (n < EXPECTED_N) {
+    verdict = baseEngineMode
+      ? "STRUCTURED_ACTIVE_CONFIRM_INVALID"
+      : "STRUCTURED_ACTIVE_CONFIRM_INVALID";
+  } else if (!npcOk) {
+    verdict = screen
+      ? baseEngineMode
+        ? "BASE_ENGINE_PRESERVED_NPC_FAIL"
+        : "STRUCTURED_ACTIVE_NPC_FAIL"
+      : "STRUCTURED_ACTIVE_CONFIRM_INVALID";
+  } else if (!lengthOk) {
+    verdict = screen
+      ? baseEngineMode
+        ? "BASE_ENGINE_PRESERVED_LENGTH_FAIL"
+        : "STRUCTURED_ACTIVE_LENGTH_FAIL"
+      : "STRUCTURED_ACTIVE_CONFIRM_INVALID";
+  } else if (!reactionOk || !rhythmOk) {
+    verdict = screen
+      ? baseEngineMode
+        ? "BASE_ENGINE_PRESERVED_RHYTHM_FAIL"
+        : !reactionOk
+          ? "STRUCTURED_ACTIVE_REACTION_FAIL"
+          : "STRUCTURED_ACTIVE_RHYTHM_FAIL"
+      : "STRUCTURED_ACTIVE_CONFIRM_INVALID";
+  }
 
   const out = {
     screen: SCREEN_LABEL,
@@ -177,6 +204,9 @@ function main() {
     administrative_subplot: adminTotal,
     avg_length: avgLen,
     avg_core: avgCore,
+    turn1_avg: turn1Avg,
+    turn2_avg: turn2Avg,
+    turn1_lt_2400: turn1Lt2400,
     count_lt_2400: lt2400,
     count_ge_2700: ge2700,
     length_drop: Math.round(lengthDrop * 10000) / 10000,
@@ -205,6 +235,8 @@ function main() {
         verdict,
         NPC: out.NPC,
         avg_length: avgLen,
+        turn1_avg: turn1Avg,
+        turn2_avg: turn2Avg,
         avg_core: avgCore,
         reaction: out.reaction,
         resume,
