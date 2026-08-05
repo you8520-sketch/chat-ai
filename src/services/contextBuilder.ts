@@ -102,6 +102,7 @@ import {
   COMMON_LENGTH_OWNER_MINIMAL,
   rpDiagnosticDisablesDeepSeekStyleExtras,
   resolveDeepSeekExtrasMode,
+  rpDiagnosticNeutralizesDeepSeekOpeningWorldCue,
   rpDiagnosticRemovesSceneDirective,
   rpDiagnosticUsesDialogueReferenceScope,
   rpDiagnosticUsesFlashLengthStack,
@@ -1250,8 +1251,13 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
    */
   let historyForAssembly: ContextBuildInput["shortTermHistory"] = input.shortTermHistory;
   let deepSeekOpeningSceneContext: string | null = null;
+  const neutralizeDeepSeekOpeningWorldCue = Boolean(
+    rpVariant && rpDiagnosticNeutralizesDeepSeekOpeningWorldCue(rpVariant)
+  );
   const deepSeekShortHistoryExtra = deepSeekXmlMode
-    ? resolveDeepSeekShortHistoryLengthExtra(input.shortTermHistory)
+    ? resolveDeepSeekShortHistoryLengthExtra(input.shortTermHistory, {
+        neutralizeEnvironmentCue: neutralizeDeepSeekOpeningWorldCue,
+      })
     : null;
   if (deepSeekXmlMode && deepSeekShortHistoryExtra) {
     const peeled = peelCreatorOpeningGreetingFromHistory(input.shortTermHistory);

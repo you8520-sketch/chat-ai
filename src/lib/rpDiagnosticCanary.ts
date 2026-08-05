@@ -96,6 +96,11 @@ export const RP_DIAGNOSTIC_CANARY_VARIANTS = [
    * (interpretation → decision/action → consequence/open-reaction).
    */
   "structured_active_dyad_concrete_beats",
+  /**
+   * PR #240 concrete-beats stack + single DeepSeek SHORT HISTORY
+   * environment-sustain clause → primary-character internal cue.
+   */
+  "structured_active_dyad_concrete_beats_ds_opening_neutral",
 ] as const;
 
 export type RpDiagnosticCanaryVariant = (typeof RP_DIAGNOSTIC_CANARY_VARIANTS)[number];
@@ -220,7 +225,8 @@ export function rpDiagnosticEnablesPipelineCapture(
     variant === "structured_scene_focus_active_dyad" ||
     variant === "structured_scene_focus_active_dyad_base_engine_preserved" ||
     variant === "structured_active_dyad_neutral_world_motion" ||
-    variant === "structured_active_dyad_concrete_beats"
+    variant === "structured_active_dyad_concrete_beats" ||
+    variant === "structured_active_dyad_concrete_beats_ds_opening_neutral"
   );
 }
 
@@ -231,7 +237,8 @@ export function rpDiagnosticUsesStructuredSceneFocus(
     variant === "structured_scene_focus_active_dyad" ||
     variant === "structured_scene_focus_active_dyad_base_engine_preserved" ||
     variant === "structured_active_dyad_neutral_world_motion" ||
-    variant === "structured_active_dyad_concrete_beats"
+    variant === "structured_active_dyad_concrete_beats" ||
+    variant === "structured_active_dyad_concrete_beats_ds_opening_neutral"
   );
 }
 
@@ -248,14 +255,28 @@ export function rpDiagnosticNeutralizesWorldMotionCue(
 ): boolean {
   return (
     variant === "structured_active_dyad_neutral_world_motion" ||
-    variant === "structured_active_dyad_concrete_beats"
+    variant === "structured_active_dyad_concrete_beats" ||
+    variant === "structured_active_dyad_concrete_beats_ds_opening_neutral"
   );
 }
 
 export function rpDiagnosticUsesConcreteBeatSerializer(
   variant: RpDiagnosticCanaryVariant
 ): boolean {
-  return variant === "structured_active_dyad_concrete_beats";
+  return (
+    variant === "structured_active_dyad_concrete_beats" ||
+    variant === "structured_active_dyad_concrete_beats_ds_opening_neutral"
+  );
+}
+
+/**
+ * True when DeepSeek SHORT HISTORY sustain clause swaps environment fill
+ * for primary-character internal agency (single DeepSeek-adapter change).
+ */
+export function rpDiagnosticNeutralizesDeepSeekOpeningWorldCue(
+  variant: RpDiagnosticCanaryVariant
+): boolean {
+  return variant === "structured_active_dyad_concrete_beats_ds_opening_neutral";
 }
 
 /**

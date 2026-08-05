@@ -58,11 +58,29 @@ export function buildDeepSeekBottomReminderBlock(extraTail?: string | null): str
  * Desired visible band ~2,500–4,000 with spaces; TARGET/FLOOR live in common LENGTH.
  * Style/fill materials stay in common [IMMERSIVE PROSE].
  */
+/** Production sustain clause — environment listed as a fill/progression axis. */
+export const DEEPSEEK_SHORT_HISTORY_SUSTAIN_CLAUSE =
+  "Sustain it through meaningful development, consequences, environment, character decisions, relationships, and necessary inner experience rather than micro-action padding.";
+
+/**
+ * Single-clause internal neutralization for canary
+ * `structured_active_dyad_concrete_beats_ds_opening_neutral`.
+ * Replaces environment fill with primary-character agency; same propulsion.
+ */
+export const DEEPSEEK_SHORT_HISTORY_SUSTAIN_CLAUSE_INTERNAL =
+  "Sustain it through meaningful development, consequences, the primary character's choices and actions, relationships, and necessary inner experience rather than micro-action padding.";
+
 export const DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA =
   "[SHORT HISTORY]\n" +
   "Recent assistant length is context, not a response-length example. " +
   "In this single response, develop a full scene of roughly normal requested length even with sparse history. " +
-  "Sustain it through meaningful development, consequences, environment, character decisions, relationships, and necessary inner experience rather than micro-action padding.";
+  DEEPSEEK_SHORT_HISTORY_SUSTAIN_CLAUSE;
+
+export const DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA_INTERNAL =
+  "[SHORT HISTORY]\n" +
+  "Recent assistant length is context, not a response-length example. " +
+  "In this single response, develop a full scene of roughly normal requested length even with sparse history. " +
+  DEEPSEEK_SHORT_HISTORY_SUSTAIN_CLAUSE_INTERNAL;
 
 /**
  * DeepSeek + regenerate only — diverge ≠ shorten.
@@ -150,15 +168,19 @@ export function resolveDeepSeekShortUserTurnExtra(
 
 /** When recent assistants average under ~2200 no-ws (or none), return an extra length nudge. */
 export function resolveDeepSeekShortHistoryLengthExtra(
-  history: Array<{ role: string; content: string }>
+  history: Array<{ role: string; content: string }>,
+  opts?: { neutralizeEnvironmentCue?: boolean }
 ): string | null {
   const recent = history
     .filter((m) => m.role === "assistant" && m.content.trim())
     .slice(-3);
-  if (recent.length === 0) return DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA;
+  const block = opts?.neutralizeEnvironmentCue
+    ? DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA_INTERNAL
+    : DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA;
+  if (recent.length === 0) return block;
   const avg =
     recent.reduce((sum, m) => sum + countNoWsChars(m.content), 0) / recent.length;
-  if (avg < SHORT_HISTORY_AVG_NO_WS_THRESHOLD) return DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA;
+  if (avg < SHORT_HISTORY_AVG_NO_WS_THRESHOLD) return block;
   return null;
 }
 
