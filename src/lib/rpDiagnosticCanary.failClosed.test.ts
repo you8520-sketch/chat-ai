@@ -113,4 +113,26 @@ describe("RP diagnostic canary fail-closed scope", () => {
     });
     assert.equal(res, null);
   });
+
+  it("common_dialogue_resume_single_owner: exact variant match for allowlisted scope", () => {
+    enableCanary("common_dialogue_resume_single_owner");
+    const res = resolveRpDiagnosticCanary({
+      userId: 34,
+      modelId: "deepseek-v4-pro",
+      contentKind: "character",
+    });
+    assert.ok(res?.active);
+    assert.equal(res?.variant, "common_dialogue_resume_single_owner");
+    assert.equal(res?.sceneMode, "single_primary");
+  });
+
+  it("common_dialogue_resume_single_owner: non-allowlisted user remains fail-closed", () => {
+    enableCanary("common_dialogue_resume_single_owner");
+    const res = resolveRpDiagnosticCanary({
+      userId: 99,
+      modelId: "deepseek-v4-pro",
+      contentKind: "character",
+    });
+    assert.equal(res, null);
+  });
 });

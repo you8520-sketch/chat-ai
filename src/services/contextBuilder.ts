@@ -98,12 +98,14 @@ import {
   TERRA_DIALOGUE_INTENT_ADAPTER_SENTENCE,
 } from "@/lib/terraPromptCanary";
 import {
+  COMMON_DIALOGUE_RESUME_SINGLE_OWNER,
   COMMON_LAYOUT_MINIMAL_OWNER,
   COMMON_LENGTH_OWNER_MINIMAL,
   rpDiagnosticDisablesDeepSeekStyleExtras,
   resolveDeepSeekExtrasMode,
   rpDiagnosticRemovesSceneDirective,
   rpDiagnosticUsesDialogueReferenceScope,
+  rpDiagnosticUsesDialogueResumeSingleOwner,
   rpDiagnosticUsesFlashLengthStack,
   rpDiagnosticUsesMinimalLayout,
   rpDiagnosticUsesMinimalLengthOwner,
@@ -1372,6 +1374,11 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   ) {
     // Residual canary only — keep Terra length owner as absolute end.
     userTurnContent = `${userTurnContent.trimEnd()}\n\n${TERRA_DIALOGUE_INTENT_ADAPTER_SENTENCE}`;
+  }
+  // Dialogue-resume single owner: once on user-turn tail, before terminal length owner.
+  // Must not displace layout/length owners or alter greeting/SceneDirective/extras.
+  if (rpVariant && rpDiagnosticUsesDialogueResumeSingleOwner(rpVariant)) {
+    userTurnContent = `${userTurnContent.trimEnd()}\n\n${COMMON_DIALOGUE_RESUME_SINGLE_OWNER}`;
   }
   if (terraTerminalLengthOwner) {
     const terminalContract = resolveCanaryTerraTerminalContract(

@@ -60,6 +60,7 @@ export const RP_DIAGNOSTIC_CANARY_VARIANTS = [
   "common_creator_dialogue_scope",
   "common_layout_minimal",
   "common_length_owner_minimal",
+  "common_dialogue_resume_single_owner",
   "common_scene_directive_removed",
   "common_rp_style_minimal",
   "deepseek_final",
@@ -185,7 +186,8 @@ export function rpDiagnosticEnablesPipelineCapture(
     variant === "ds_postprocess_baseline" ||
     variant === "ds_display_grouping_bypass" ||
     variant === "ds_paragraph_normalize_bypass" ||
-    variant === "ds_real_production"
+    variant === "ds_real_production" ||
+    variant === "common_dialogue_resume_single_owner"
   );
 }
 
@@ -464,6 +466,16 @@ export function rpDiagnosticUsesMinimalLengthOwner(
   return variant === "common_length_owner_minimal";
 }
 
+/**
+ * Single-owner dialogue-resume rhythm rule (user-turn tail only).
+ * Does not alter greeting, SceneDirective, progression axis, or DeepSeek extras.
+ */
+export function rpDiagnosticUsesDialogueResumeSingleOwner(
+  variant: RpDiagnosticCanaryVariant
+): boolean {
+  return variant === "common_dialogue_resume_single_owner";
+}
+
 export function rpDiagnosticUsesMinimalRpStyle(
   variant: RpDiagnosticCanaryVariant
 ): boolean {
@@ -475,6 +487,10 @@ export const COMMON_LAYOUT_MINIMAL_OWNER =
 
 export const COMMON_LENGTH_OWNER_MINIMAL =
   "같은 목표 분량 안에서 현재 상호작용의 하나의 연속된 장면을 완성한다.";
+
+/** Inserted once on current user-turn tail, before the terminal length owner. */
+export const COMMON_DIALOGUE_RESUME_SINGLE_OWNER = `[대사 리듬]
+같은 화자의 한 번의 답변은 짧은 시선·표정·손동작만을 사이에 두고 여러 번 끊어 재개하지 않는다. 새 질문·새 결정·새 발견·상대의 실제 반응이 생기기 전까지 같은 발화 목적은 가능한 한 하나의 연속된 발화로 구성한다. 대사 사이를 채우기 위한 반복 제스처 대신, 행동·심리·환경의 실제 변화로 장면을 전개한다.`;
 
 export function applyRpDiagnosticToHistory(opts: {
   history: ChatMsg[];
