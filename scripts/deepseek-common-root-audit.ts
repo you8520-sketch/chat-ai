@@ -93,6 +93,7 @@ async function postChat(opts: {
     },
     body: JSON.stringify(body),
   });
+  const request_started_at = new Date(started).toISOString();
   if (!res.ok) {
     return {
       http_status: res.status,
@@ -107,6 +108,19 @@ async function postChat(opts: {
       statuses: [] as string[],
       error: (await res.text()).slice(0, 2000),
       events: [] as unknown[],
+      transport: {
+        request_started_at,
+        first_chunk_at: null as string | null,
+        last_chunk_at: null as string | null,
+        request_duration_ms: Date.now() - started,
+        inter_chunk_max_gap_ms: null as number | null,
+        chunk_count: 0,
+        content_chunk_count: 0,
+        stream_done_event: false,
+        usage_event_present: false,
+        provider_error_event: null as string | null,
+        event_type_counts: {} as Record<string, number>,
+      },
     };
   }
   const reader = res.body?.getReader();
@@ -121,6 +135,13 @@ async function postChat(opts: {
   const statuses: string[] = [];
   const events: unknown[] = [];
   let error: string | null = null;
+  let first_chunk_at: string | null = null;
+  let last_chunk_at: string | null = null;
+  let prev_chunk_at_ms: number | null = null;
+  let inter_chunk_max_gap_ms: number | null = null;
+  let chunk_count = 0;
+  let content_chunk_count = 0;
+  const event_type_counts: Record<string, number> = {};
   while (true) {
     const { done: eof, value } = await reader.read();
     if (eof) break;
@@ -139,12 +160,30 @@ async function postChat(opts: {
       } catch {
         continue;
       }
+      const now = Date.now();
+      const nowIso = new Date(now).toISOString();
+      chunk_count += 1;
+      if (!first_chunk_at) first_chunk_at = nowIso;
+      last_chunk_at = nowIso;
+      if (prev_chunk_at_ms != null) {
+        const gap = now - prev_chunk_at_ms;
+        if (inter_chunk_max_gap_ms == null || gap > inter_chunk_max_gap_ms) {
+          inter_chunk_max_gap_ms = gap;
+        }
+      }
+      prev_chunk_at_ms = now;
+      const evType = typeof ev.type === "string" ? ev.type : "unknown";
+      event_type_counts[evType] = (event_type_counts[evType] ?? 0) + 1;
       events.push(ev);
       if (ev.type === "status" && typeof ev.message === "string") statuses.push(ev.message);
-      if (ev.type === "delta" && typeof ev.text === "string") provider_raw += ev.text;
+      if (ev.type === "delta" && typeof ev.text === "string") {
+        provider_raw += ev.text;
+        content_chunk_count += 1;
+      }
       if (ev.type === "replace" && typeof ev.text === "string") {
         provider_raw = ev.text;
         final_text = ev.text;
+        content_chunk_count += 1;
       }
       if (ev.type === "turn_persisted" && ev.chatId != null) {
         persistedChatId = Number(ev.chatId);
@@ -183,6 +222,7 @@ async function postChat(opts: {
     integrity?: { valid?: boolean; invalidReasons?: string[]; canaryVariant?: string };
   } | null;
   const pipe = pipeline?.pipeline;
+  const doneUsage = (done as { usage?: Record<string, unknown> } | null)?.usage ?? null;
 
   return {
     http_status: res.status,
@@ -200,6 +240,48 @@ async function postChat(opts: {
     statuses,
     error,
     events,
+    transport: {
+      request_started_at,
+      first_chunk_at,
+      last_chunk_at,
+      request_duration_ms: Date.now() - started,
+      inter_chunk_max_gap_ms,
+      chunk_count,
+      content_chunk_count,
+      stream_done_event: (event_type_counts.done ?? 0) > 0,
+      usage_event_present: doneUsage != null,
+      provider_error_event: error,
+      event_type_counts,
+      // Diagnostic-only; do not print secrets. Region still typically unavailable from client usage.
+      provider_request_id:
+        typeof doneUsage?.providerRequestId === "string" ? doneUsage.providerRequestId : null,
+      response_model_id:
+        typeof doneUsage?.responseModelId === "string"
+          ? doneUsage.responseModelId
+          : typeof doneUsage?.model === "string"
+            ? doneUsage.model
+            : null,
+      resolved_provider:
+        typeof doneUsage?.provider === "string" ? doneUsage.provider : null,
+      reasoning_tokens:
+        typeof doneUsage?.apiReasoningOutputTokens === "number"
+          ? doneUsage.apiReasoningOutputTokens
+          : typeof doneUsage?.reasoningOutputTokens === "number"
+            ? doneUsage.reasoningOutputTokens
+            : null,
+      content_tokens:
+        typeof doneUsage?.apiContentOutputTokens === "number"
+          ? doneUsage.apiContentOutputTokens
+          : typeof doneUsage?.output === "number"
+            ? doneUsage.output
+            : null,
+      server_request_id:
+        typeof (done as { requestId?: string } | null)?.requestId === "string"
+          ? (done as { requestId: string }).requestId
+          : typeof (diagnostic_pipeline as { requestId?: string } | null)?.requestId === "string"
+            ? (diagnostic_pipeline as { requestId: string }).requestId
+            : null,
+    },
   };
 }
 
@@ -469,6 +551,24 @@ async function main() {
           length_recovery_passes:
             (doneUsage?.lengthRecoveryPasses as number | undefined) ?? 0,
           retry_count: resp.statuses.filter((s) => /retry|재시도/i.test(s)).length,
+          // Transport / route diagnostics for truncation audits (no secrets logged to console).
+          http_status: resp.http_status,
+          stream_done_event: resp.transport?.stream_done_event ?? null,
+          usage_event_present: resp.transport?.usage_event_present ?? null,
+          provider_request_id: resp.transport?.provider_request_id ?? null,
+          server_request_id: resp.transport?.server_request_id ?? null,
+          response_model_id: resp.transport?.response_model_id ?? null,
+          reasoning_tokens: resp.transport?.reasoning_tokens ?? null,
+          content_tokens: resp.transport?.content_tokens ?? null,
+          request_started_at: resp.transport?.request_started_at ?? null,
+          first_chunk_at: resp.transport?.first_chunk_at ?? null,
+          last_chunk_at: resp.transport?.last_chunk_at ?? null,
+          request_duration_ms: resp.transport?.request_duration_ms ?? null,
+          inter_chunk_max_gap_ms: resp.transport?.inter_chunk_max_gap_ms ?? null,
+          chunk_count: resp.transport?.chunk_count ?? null,
+          content_chunk_count: resp.transport?.content_chunk_count ?? null,
+          event_type_counts: resp.transport?.event_type_counts ?? null,
+          provider_error_event: resp.transport?.provider_error_event ?? resp.error ?? null,
         },
       };
 
@@ -492,6 +592,9 @@ async function main() {
       );
       if (resp.diagnostic_pipeline) {
         save(runDir, `turn${turn}-pipeline.json`, resp.diagnostic_pipeline);
+      }
+      if (resp.transport) {
+        save(runDir, `turn${turn}-transport.json`, resp.transport);
       }
 
       runMetrics.push(payload);

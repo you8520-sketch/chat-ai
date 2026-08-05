@@ -1,0 +1,131 @@
+{
+  "source_confirmation": "PR#243 / 33-dense-internal-confirm",
+  "prompt_change": "NONE",
+  "attempt_count": 10,
+  "failed_attempt_ids": [
+    "A06",
+    "A08"
+  ],
+  "failed_labels": [
+    "screen_confirm/run3/turn2",
+    "replacement1/run1/turn2"
+  ],
+  "failed_provider_routes": [
+    {
+      "attempt_id": "A06",
+      "provider": "cheaperinference",
+      "model": "deepseek-v4-pro",
+      "server_request_id": "srv_msg6cz23_qqxo92hu",
+      "chars": 1347,
+      "finish": null,
+      "latency_s": 48.325
+    },
+    {
+      "attempt_id": "A08",
+      "provider": null,
+      "model": "deepseek-v4-pro",
+      "server_request_id": "srv_msg6heye_or7gy9az",
+      "chars": 99,
+      "finish": null,
+      "latency_s": 14.496
+    }
+  ],
+  "truncation_1": {
+    "attempt_id": "A06",
+    "classification": "UPSTREAM_PROVIDER_STREAM_TRUNCATED",
+    "chars": 1347,
+    "evidence": [
+      "finish_reason=null",
+      "RAW=SSE=DB=1347 parity",
+      "usage tokens present (1213) without finish=stop",
+      "tail mid-dialogue",
+      "no client/server abort",
+      "no route parser exception",
+      "pipeline integrity valid"
+    ]
+  },
+  "truncation_2": {
+    "attempt_id": "A08",
+    "classification": "UPSTREAM_PROVIDER_STREAM_TRUNCATED",
+    "chars": 99,
+    "evidence": [
+      "finish_reason=null",
+      "RAW=SSE=99 parity; DB not persisted (server short-response guard)",
+      "tail mid-sentence (\"로비에 울리던 발\")",
+      "latency ~14.5s then stop",
+      "no output_tokens / normal done usage",
+      "diagnostic_pipeline missing as consequence of persist reject"
+    ]
+  },
+  "runtime_root_verdict": "UPSTREAM_PROVIDER_INSTABILITY_CONFIRMED",
+  "axis_verdicts": {
+    "A_PROVIDER_TRUNCATION": "UPSTREAM_PROVIDER_INSTABILITY_CONFIRMED",
+    "B_VALID_EARLY_STOP": "VALID_MODEL_EARLY_STOP",
+    "C_VALID_RHYTHM_REGRESSION": "RHYTHM_REGRESSION_SYSTEMIC"
+  },
+  "provider_route_verdict": "NO_PROVIDER_ROUTE_CORRELATION",
+  "provider_metadata": "PROVIDER_METADATA_UNAVAILABLE",
+  "early_stop_1610": {
+    "attempt_id": "A01",
+    "chars": 1610,
+    "raw_finish_reason": "stop",
+    "usage_event_present": true,
+    "usage_output_tokens": 1458,
+    "provider_content_complete": true,
+    "SSE_DB_raw_parity": "near_parity_postprocess_artifact",
+    "terminal_length_owner_present": true,
+    "SHORT_HISTORY_present": true,
+    "dense_internal_sustain_clause_present": true,
+    "ACTIVE_DYAD_state_applied": true,
+    "concrete_3_beats_present": true,
+    "max_tokens_identical": true,
+    "temperature_sampling_identical": true,
+    "body": {
+      "last_sentence_grammatically_complete": true,
+      "reaction_opening_present": true,
+      "ends_summary_or_passive_waiting": true,
+      "three_concrete_beats_realized": "PARTIAL",
+      "stopped_after_first_beat_only": false
+    },
+    "verdict": "VALID_MODEL_EARLY_STOP",
+    "separate_from_provider_truncation": true
+  },
+  "rhythm": {
+    "resume_mean_median_max": [
+      1.9567,
+      2.095,
+      3.11
+    ],
+    "resume_outputs_gt_1_2": 4,
+    "fragmentation_mean_median_max": [
+      1.8267,
+      1.875,
+      2.25
+    ],
+    "fragmentation_outputs_gt_1_5": 4,
+    "verdict": "RHYTHM_REGRESSION_SYSTEMIC"
+  },
+  "runtime_probe": {
+    "executed": false,
+    "reason": "Offline evidence sufficient for UPSTREAM_PROVIDER_INSTABILITY_CONFIRMED; probe reserved for indeterminate causes only"
+  },
+  "post_fix_runtime_probe": {
+    "executed": false,
+    "reason": "No runtime code fix in this PR; failover/pinning deferred to isolated canary"
+  },
+  "functional_reconfirmation": {
+    "executed": false,
+    "reason": "Blocked until runtime reliability passes (user-visible incomplete=0)"
+  },
+  "cross_model_inventory_ready": true,
+  "live_cross_model_ready": false,
+  "prompt_stack_unchanged": true,
+  "next_isolated_issue": "PROVIDER_TRANSPORT_FAILOVER_OR_PINNING_CANARY — transport-incomplete only (finish missing / stream done missing / mid-sentence RAW); do NOT retry finish=stop short outputs; do NOT change SHORT HISTORY / ACTIVE_DYAD / beats / terminal owner",
+  "safety": {
+    "production_DB_apply": "NO",
+    "general_rollout": "NO",
+    "auto_merge": "NO",
+    "auto_deploy": "NO",
+    "canary_enabled_after_test": "NO"
+  }
+}

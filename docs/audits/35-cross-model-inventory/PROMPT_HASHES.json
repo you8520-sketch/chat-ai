@@ -1,0 +1,347 @@
+{
+  "meta": {
+    "generatedAt": "2026-08-05T21:07:13.496Z",
+    "gitHead": "91be35edc3adbe790452ec9420dc7b28e3e6c97a",
+    "method": "sha256(utf8) of exported constant string values; JSON.stringify for structured constants; serializer output for concrete ACTIVE_DYAD beats",
+    "liveCalls": false,
+    "crossModelReady": false,
+    "gate": "Live cross-model matrix NOT ready until DeepSeek runtime + functional reconfirmation pass (see audit 33-dense-internal-confirm)."
+  },
+  "registry": {
+    "selectedAiOptions": [
+      {
+        "id": "google/gemini-3.6-flash",
+        "label": "Gemini 3.6 Flash",
+        "provider": "openrouter"
+      },
+      {
+        "id": "deepseek-v4-pro",
+        "label": "DeepSeek V4 Pro",
+        "provider": "cheaperinference"
+      },
+      {
+        "id": "deepseek-v4-flash",
+        "label": "DeepSeek V4 Flash",
+        "provider": "cheaperinference"
+      },
+      {
+        "id": "anthropic/claude-opus-4.5",
+        "label": "Claude Opus 4P",
+        "provider": "openrouter"
+      },
+      {
+        "id": "claude-opus-5",
+        "label": "Claude Opus 5",
+        "provider": "cheaperinference"
+      },
+      {
+        "id": "gpt-5.6-luna",
+        "label": "GPT-5.6 Luna",
+        "provider": "cheaperinference"
+      },
+      {
+        "id": "gpt-5.6-terra",
+        "label": "GPT-5.6 Terra",
+        "provider": "cheaperinference"
+      },
+      {
+        "id": "gemini-3.1-pro-preview",
+        "label": "Gemini 3.1 Pro Preview",
+        "provider": "cheaperinference"
+      }
+    ],
+    "defaultSelectedAi": "deepseek-v4-pro",
+    "userSelectableIds": [
+      "deepseek-v4-pro",
+      "deepseek-v4-flash",
+      "claude-opus-5",
+      "gpt-5.6-terra",
+      "gemini-3.1-pro-preview"
+    ],
+    "rpDiagnosticCanaryVariants": [
+      "baseline",
+      "ds_pipeline_baseline",
+      "ds_postprocess_baseline",
+      "ds_paragraph_normalize_bypass",
+      "ds_display_grouping_bypass",
+      "ds_real_production",
+      "ds_dialogue_control",
+      "ds_common_only",
+      "ds_common_only_length_probe",
+      "common_greeting_split_vs_bundled",
+      "common_creator_dialogue_scope",
+      "common_layout_minimal",
+      "common_length_owner_minimal",
+      "common_scene_directive_removed",
+      "common_rp_style_minimal",
+      "deepseek_final",
+      "terra_cross_check",
+      "ds_length_normalized_baseline",
+      "structured_scene_focus_active_dyad",
+      "structured_scene_focus_active_dyad_base_engine_preserved",
+      "structured_active_dyad_neutral_world_motion",
+      "structured_active_dyad_concrete_beats",
+      "structured_active_dyad_concrete_beats_ds_opening_neutral",
+      "structured_active_dyad_concrete_beats_ds_short_history_dense_internal"
+    ]
+  },
+  "families": {
+    "common_scene_directive_stack": [
+      "common.scene_directive.*",
+      "common.scene_focus.*",
+      "common.terminal.user_tail_length_owner_sentence",
+      "common.terminal.layout_recency_line",
+      "common.layout.*",
+      "common.prose.*"
+    ],
+    "deepseek_v4_pro_xml_extras": [
+      "adapter.deepseek.bottom_reminder",
+      "adapter.deepseek.ltm_absolute_facts_rule",
+      "adapter.deepseek.xml_tags_json",
+      "adapter.deepseek.short_history_*",
+      "adapter.deepseek.regen_length_block",
+      "adapter.deepseek.short_user_turn_block",
+      "adapter.deepseek.appearance_variation_rule",
+      "adapter.deepseek.length_arm_*"
+    ],
+    "deepseek_v4_flash_minimal_extras": [
+      "adapter.deepseek.appearance_variation_rule"
+    ],
+    "terra_terminal_owner": [
+      "adapter.terra.*"
+    ],
+    "luna_terminal_owner": [
+      "adapter.luna.terminal_output_contract"
+    ],
+    "muse_retired_policy": [
+      "adapter.muse.example_dialog_trap_phrases_json"
+    ],
+    "common_terminal_default_models": [
+      "claude-opus-5",
+      "anthropic/claude-opus-4.5",
+      "gemini-3.1-pro-preview",
+      "google/gemini-3.6-flash"
+    ]
+  },
+  "hashes": {
+    "common.scene_directive.version": {
+      "sha256": "d8cea5a8187f13c13ce17333f9edd75d6f14939fd8db81eac5c67bdddfd00746",
+      "bytes": 17,
+      "source": "src/lib/sceneDirective.ts#SCENE_DIRECTIVE_VERSION"
+    },
+    "common.scene_directive.base_scene_engine_rule": {
+      "sha256": "2985c89f47aa3b0cd0914fea1546439bf7ab566d88bbf7f11cfd864c1e816648",
+      "bytes": 354,
+      "source": "src/lib/sceneDirective.ts#BASE_SCENE_ENGINE_RULE"
+    },
+    "common.scene_directive.base_scene_engine_motion_clause": {
+      "sha256": "84d958c9998ca810b4e201d0e6ec77a004e223c9d09b2712a89f5c9be6fd0353",
+      "bytes": 164,
+      "source": "src/lib/sceneDirective.ts#BASE_SCENE_ENGINE_MOTION_CLAUSE"
+    },
+    "common.scene_directive.active_dyad_neutralized_motion_clause": {
+      "sha256": "bc53b1b6778c576ef26d019a49bdbb8e2f00b51e3026281b24dada6b1f894916",
+      "bytes": 177,
+      "source": "src/lib/sceneDirective.ts#ACTIVE_DYAD_NEUTRALIZED_MOTION_CLAUSE"
+    },
+    "common.scene_directive.active_dyad_neutralized_base_engine_rule": {
+      "sha256": "64823dc0a22620799e6f23b2d5e977dc14cdc446cebceec23575761f7dae088d",
+      "bytes": 367,
+      "source": "src/lib/sceneDirective.ts#ACTIVE_DYAD_NEUTRALIZED_BASE_ENGINE_RULE"
+    },
+    "common.scene_focus.active_dyad_scene_engine_motion": {
+      "sha256": "54424c31b3776869b10dd34c85b29c8b7f4c9757df4130b0ef5739f1f7db9b1f",
+      "bytes": 168,
+      "source": "src/lib/sceneFocusPalette.ts#ACTIVE_DYAD_SCENE_ENGINE_MOTION",
+      "note": "diagnostic motion; not serialized under base-engine-preserved"
+    },
+    "common.scene_focus.stalling_scene_engine_motion": {
+      "sha256": "84ca68cb50c57df356b18622e8dc8f98c98cad32f75f9f908a7a8cbb5c62fefb",
+      "bytes": 224,
+      "source": "src/lib/sceneFocusPalette.ts#STALLING_SCENE_ENGINE_MOTION"
+    },
+    "common.scene_focus.active_dyad_palette_json": {
+      "sha256": "43f66a0bfb3433ae9273eefdefc8cdce38ca86ea34fd0375bfcdf7c06f9aeef8",
+      "bytes": 485,
+      "source": "src/lib/sceneFocusPalette.ts#ACTIVE_DYAD_PALETTE"
+    },
+    "common.scene_focus.active_dyad_concrete_beats_palette_json": {
+      "sha256": "ecad86264ae7fcc95cef533c73c68b5e69162b2d45de7031f30ecc4fc56b85d8",
+      "bytes": 484,
+      "source": "src/lib/sceneFocusPalette.ts#ACTIVE_DYAD_CONCRETE_BEATS_PALETTE"
+    },
+    "common.scene_focus.stalling_palette_json": {
+      "sha256": "4afc11fee8ad922ab1cd8921ddb3664265254bba4b8f6767a55abbba6dadaafa",
+      "bytes": 389,
+      "source": "src/lib/sceneFocusPalette.ts#STALLING_PALETTE"
+    },
+    "common.scene_focus.active_dyad_hint_by_type_json": {
+      "sha256": "9a3ea98e51228e67c387ab64a880a1921956af8694d87bf082e1693689db909a",
+      "bytes": 988,
+      "source": "src/lib/sceneFocusPalette.ts#ACTIVE_DYAD_HINT_BY_TYPE"
+    },
+    "common.scene_focus.concrete_active_dyad_beats_joined": {
+      "sha256": "0f93d9c28df0dbfa141e6cc5accc9e249596f1392dd767d5e89902f575e430ff",
+      "bytes": 406,
+      "source": "src/lib/sceneFocusPalette.ts#buildConcreteActiveDyadBeats"
+    },
+    "common.scene_focus.concrete_active_dyad_next_beat_hint": {
+      "sha256": "856b15b8eaeab1b200d9d2356d5338b83f4278dce24c712bee436f53af032937",
+      "bytes": 412,
+      "source": "src/lib/sceneFocusPalette.ts#serializeConcreteActiveDyadNextBeatHint"
+    },
+    "common.terminal.user_tail_length_owner_sentence": {
+      "sha256": "122fece4c53d8a71141a279985f42dbdc25cbaceda8bde46bb51596d6ca4b092",
+      "bytes": 272,
+      "source": "src/lib/responseLength.ts#USER_TAIL_LENGTH_OWNER_SENTENCE"
+    },
+    "common.terminal.layout_recency_line": {
+      "sha256": "08e94fce1b4e423e7113675b8a43f8ac439dd4af880708480f030fe08e60faab",
+      "bytes": 112,
+      "source": "src/lib/webnovelOutputFormat.ts#buildCompactTerminalLayoutRecencyLine"
+    },
+    "common.layout.webnovel_output_format_block": {
+      "sha256": "0c561720673cf195ad272c6c37ec6f1ae7f4ecd3efac2c9198ddbeb8b879a0bb",
+      "bytes": 195,
+      "source": "src/lib/webnovelOutputFormat.ts#WEBNOVEL_OUTPUT_FORMAT_BLOCK"
+    },
+    "common.layout.output_layout_semantic_core": {
+      "sha256": "994337b2394dd11808b2c97f1ee0419ad0d934b21a5ec4740852afd1d2f81a9c",
+      "bytes": 1220,
+      "source": "src/lib/webnovelOutputFormat.ts#OUTPUT_LAYOUT_SEMANTIC_CORE"
+    },
+    "common.layout.dialogue_narration_structure_rule": {
+      "sha256": "eff51cda29a068b5a347f398a4009f049209fa56688d8da5a0d2a0ffdd86f085",
+      "bytes": 196,
+      "source": "src/lib/webnovelOutputFormat.ts#DIALOGUE_NARRATION_STRUCTURE_RULE"
+    },
+    "common.prose.immersive_prose_block": {
+      "sha256": "79e9a385a5687282cb50fdb68a5489f1c30feaaf73ae65ed96c563a779a13a68",
+      "bytes": 2225,
+      "source": "src/lib/advancedProseNsfwGuidelines.ts#IMMERSIVE_PROSE_BLOCK"
+    },
+    "common.prose.shared_novel_prose_core": {
+      "sha256": "4701b2d81a29e3be176f17689f92958486fd0dc6bee7fcf980c321fe2859f45a",
+      "bytes": 1900,
+      "source": "src/lib/sharedNovelProseCore.ts#SHARED_NOVEL_PROSE_CORE"
+    },
+    "adapter.deepseek.bottom_reminder": {
+      "sha256": "9031f97ab159c55e829326d775ae3e95c8c1cac49f21039e0d982876e84c9c7d",
+      "bytes": 686,
+      "source": "src/lib/deepseekPromptStructure.ts#DEEPSEEK_BOTTOM_REMINDER"
+    },
+    "adapter.deepseek.ltm_absolute_facts_rule": {
+      "sha256": "4d5f2fcb4e8fb930ac54da073188c64d23a43ac5d884064f41432983d245e7a9",
+      "bytes": 213,
+      "source": "src/lib/deepseekPromptStructure.ts#LTM_ABSOLUTE_FACTS_RULE"
+    },
+    "adapter.deepseek.xml_tags_json": {
+      "sha256": "14e7e8595436bba1ca0996bd54f68c2f9a3b44dde1d54e883cf499563c88c4b8",
+      "bytes": 111,
+      "source": "src/lib/deepseekPromptStructure.ts#DEEPSEEK_XML_TAGS"
+    },
+    "adapter.deepseek.short_history_sustain_clause": {
+      "sha256": "3445c7bef04a242f5d7895e74e035651e39d168a122684b489e2f03b7079e622",
+      "bytes": 170,
+      "source": "src/lib/deepseekPromptStructure.ts#DEEPSEEK_SHORT_HISTORY_SUSTAIN_CLAUSE"
+    },
+    "adapter.deepseek.short_history_sustain_clause_internal": {
+      "sha256": "1c8b74ce3dc032de159da148b9ad09949c651fa10f88186e723d586a50660760",
+      "bytes": 181,
+      "source": "src/lib/deepseekPromptStructure.ts#DEEPSEEK_SHORT_HISTORY_SUSTAIN_CLAUSE_INTERNAL"
+    },
+    "adapter.deepseek.short_history_sustain_clause_dense_internal": {
+      "sha256": "12291a05cc9257a73baec15525d9d04eb7077f1dd374dfb55f5e886a6b431564",
+      "bytes": 309,
+      "source": "src/lib/deepseekPromptStructure.ts#DEEPSEEK_SHORT_HISTORY_SUSTAIN_CLAUSE_DENSE_INTERNAL"
+    },
+    "adapter.deepseek.short_history_length_extra": {
+      "sha256": "84df294d375285094bc4da3007ce22838cff9212a65d8f300b469296fe4c0921",
+      "bytes": 360,
+      "source": "src/lib/deepseekPromptStructure.ts#DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA"
+    },
+    "adapter.deepseek.short_history_length_extra_internal": {
+      "sha256": "76fd37fe1287718c5dbb685dcdc58b64faff73a2dbc48248989caad5240ec5a3",
+      "bytes": 371,
+      "source": "src/lib/deepseekPromptStructure.ts#DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA_INTERNAL"
+    },
+    "adapter.deepseek.short_history_length_extra_dense_internal": {
+      "sha256": "905c197657f417036224e218c85c3d03533f880bb0322c2823fa0124decfe589",
+      "bytes": 499,
+      "source": "src/lib/deepseekPromptStructure.ts#DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA_DENSE_INTERNAL"
+    },
+    "adapter.deepseek.regen_length_block": {
+      "sha256": "64beb480b914a271c6a4e9a805f3b5e933681f6f2c656540254aa7b2819c5b91",
+      "bytes": 219,
+      "source": "src/lib/deepseekPromptStructure.ts#DEEPSEEK_REGEN_LENGTH_BLOCK"
+    },
+    "adapter.deepseek.short_user_turn_block": {
+      "sha256": "8cb1795a780f58a17f2f9abcd6212eb7d51df5f6863ee6856261b05660a30033",
+      "bytes": 174,
+      "source": "src/lib/deepseekPromptStructure.ts#DEEPSEEK_SHORT_USER_TURN_BLOCK"
+    },
+    "adapter.deepseek.appearance_variation_rule": {
+      "sha256": "fed89996b5ab740990d76489a6a10edc256b115247e6c1eb6cfec08448ad1686",
+      "bytes": 140,
+      "source": "src/lib/appearanceCompiler.ts#DEEPSEEK_APPEARANCE_VARIATION_RULE"
+    },
+    "adapter.deepseek.length_arm_b_block": {
+      "sha256": "e77047f6035effdcdf2395e646ae4291a1bdf836c05f672df0b4dd47f5e353ab",
+      "bytes": 474,
+      "source": "src/lib/sharedNovelProseModelAdapters.ts#buildDeepSeekLengthAdapterBlock(B)",
+      "note": "experiment env SNPV2_DEEPSEEK_LENGTH_ARM=B"
+    },
+    "adapter.deepseek.length_arm_c_block": {
+      "sha256": "763cc7bd70d49b321f6d87ede777f77484c8264ea975a4ff54513ddf24a08e4d",
+      "bytes": 307,
+      "source": "src/lib/sharedNovelProseModelAdapters.ts#buildDeepSeekLengthAdapterBlock(C)",
+      "note": "experiment env SNPV2_DEEPSEEK_LENGTH_ARM=C"
+    },
+    "adapter.deepseek.length_safety_sentence": {
+      "sha256": "668bbd4ae3006615332a4919bd954825b0b079f54f886f21b118c5f935c0a4b7",
+      "bytes": 217,
+      "source": "src/lib/sharedNovelProseModelAdapters.ts#DEEPSEEK_LENGTH_SAFETY_SENTENCE"
+    },
+    "adapter.deepseek.length_arm_b_sentence": {
+      "sha256": "7c9098136341a73412e280bb9e91f0a84adb0df921cab0c65a4b0fe0c390abf2",
+      "bytes": 224,
+      "source": "src/lib/sharedNovelProseModelAdapters.ts#DEEPSEEK_LENGTH_ARM_B_SENTENCE"
+    },
+    "adapter.deepseek.length_arm_c_sentence": {
+      "sha256": "8d573e426be234dec8505b74b1d77e2857b50b80afa7a80fd518487f9bcafc84",
+      "bytes": 57,
+      "source": "src/lib/sharedNovelProseModelAdapters.ts#DEEPSEEK_LENGTH_ARM_C_SENTENCE"
+    },
+    "adapter.terra.terminal_length_owner_contract": {
+      "sha256": "6e5b711ffd3b9bee507cc1e1479d940726de43c0b4e4019b3d7d47c12a60350e",
+      "bytes": 396,
+      "source": "src/lib/terraTerminalLengthOwner.ts#TERRA_TERMINAL_LENGTH_OWNER_CONTRACT"
+    },
+    "adapter.terra.terminal_length_owner_enumeration_phrase": {
+      "sha256": "80bfd4f2ef73f4be04d028f9e671c79e216b66763707e1bf863c1874f5228770",
+      "bytes": 58,
+      "source": "src/lib/terraTerminalLengthOwner.ts#TERRA_TERMINAL_LENGTH_OWNER_ENUMERATION_PHRASE"
+    },
+    "adapter.terra.terminal_length_owner_continuous_scene_phrase": {
+      "sha256": "08384398e15b5faf4fb9bcdc17eabced0f1ae56ae73b948a4dc34c29f0a42de2",
+      "bytes": 26,
+      "source": "src/lib/terraTerminalLengthOwner.ts#TERRA_TERMINAL_LENGTH_OWNER_CONTINUOUS_SCENE_PHRASE"
+    },
+    "adapter.terra.terminal_length_owner_contract_continuous_scene": {
+      "sha256": "7fafa7647561491d40dda5122ae6a71d883312421562cb10eda7dda9ab649f09",
+      "bytes": 367,
+      "source": "src/lib/terraTerminalLengthOwner.ts#TERRA_TERMINAL_LENGTH_OWNER_CONTRACT_CONTINUOUS_SCENE"
+    },
+    "adapter.luna.terminal_output_contract": {
+      "sha256": "5542bc74e6555dbf47775285413355f39bc73651b2b22d3a0f6658aef4eb847e",
+      "bytes": 328,
+      "source": "src/lib/lunaSinglePrimaryAdapter.ts#LUNA_TERMINAL_OUTPUT_CONTRACT"
+    },
+    "adapter.muse.example_dialog_trap_phrases_json": {
+      "sha256": "63f574633f85ef3043e91502de371476ce2c14473fea889cc99a878be883f93e",
+      "bytes": 92,
+      "source": "src/lib/museExampleDialogBoundary.ts#MUSE_EXAMPLE_DIALOG_TRAP_PHRASES",
+      "note": "retired model; policy/telemetry only"
+    }
+  }
+}
