@@ -184,7 +184,8 @@ export type ContextBuildInput = {
       | "structured_scene_focus_active_dyad_base_engine_preserved"
       | "structured_active_dyad_neutral_world_motion"
       | "structured_active_dyad_concrete_beats"
-      | "structured_active_dyad_concrete_beats_ds_opening_neutral";
+      | "structured_active_dyad_concrete_beats_ds_opening_neutral"
+      | "structured_active_dyad_concrete_beats_ds_short_history_dense_internal";
     progressionAxis?:
       | "relationship"
       | "investigation"

@@ -101,6 +101,11 @@ export const RP_DIAGNOSTIC_CANARY_VARIANTS = [
    * environment-sustain clause → primary-character internal cue.
    */
   "structured_active_dyad_concrete_beats_ds_opening_neutral",
+  /**
+   * PR #241 stack + denser SHORT HISTORY sustain clause only
+   * (interpretation / consequential choice / concrete action / open reaction).
+   */
+  "structured_active_dyad_concrete_beats_ds_short_history_dense_internal",
 ] as const;
 
 export type RpDiagnosticCanaryVariant = (typeof RP_DIAGNOSTIC_CANARY_VARIANTS)[number];
@@ -226,7 +231,8 @@ export function rpDiagnosticEnablesPipelineCapture(
     variant === "structured_scene_focus_active_dyad_base_engine_preserved" ||
     variant === "structured_active_dyad_neutral_world_motion" ||
     variant === "structured_active_dyad_concrete_beats" ||
-    variant === "structured_active_dyad_concrete_beats_ds_opening_neutral"
+    variant === "structured_active_dyad_concrete_beats_ds_opening_neutral" ||
+    variant === "structured_active_dyad_concrete_beats_ds_short_history_dense_internal"
   );
 }
 
@@ -238,7 +244,8 @@ export function rpDiagnosticUsesStructuredSceneFocus(
     variant === "structured_scene_focus_active_dyad_base_engine_preserved" ||
     variant === "structured_active_dyad_neutral_world_motion" ||
     variant === "structured_active_dyad_concrete_beats" ||
-    variant === "structured_active_dyad_concrete_beats_ds_opening_neutral"
+    variant === "structured_active_dyad_concrete_beats_ds_opening_neutral" ||
+    variant === "structured_active_dyad_concrete_beats_ds_short_history_dense_internal"
   );
 }
 
@@ -256,7 +263,8 @@ export function rpDiagnosticNeutralizesWorldMotionCue(
   return (
     variant === "structured_active_dyad_neutral_world_motion" ||
     variant === "structured_active_dyad_concrete_beats" ||
-    variant === "structured_active_dyad_concrete_beats_ds_opening_neutral"
+    variant === "structured_active_dyad_concrete_beats_ds_opening_neutral" ||
+    variant === "structured_active_dyad_concrete_beats_ds_short_history_dense_internal"
   );
 }
 
@@ -265,7 +273,8 @@ export function rpDiagnosticUsesConcreteBeatSerializer(
 ): boolean {
   return (
     variant === "structured_active_dyad_concrete_beats" ||
-    variant === "structured_active_dyad_concrete_beats_ds_opening_neutral"
+    variant === "structured_active_dyad_concrete_beats_ds_opening_neutral" ||
+    variant === "structured_active_dyad_concrete_beats_ds_short_history_dense_internal"
   );
 }
 
@@ -276,7 +285,19 @@ export function rpDiagnosticUsesConcreteBeatSerializer(
 export function rpDiagnosticNeutralizesDeepSeekOpeningWorldCue(
   variant: RpDiagnosticCanaryVariant
 ): boolean {
-  return variant === "structured_active_dyad_concrete_beats_ds_opening_neutral";
+  return (
+    variant === "structured_active_dyad_concrete_beats_ds_opening_neutral" ||
+    variant === "structured_active_dyad_concrete_beats_ds_short_history_dense_internal"
+  );
+}
+
+/** True when SHORT HISTORY uses the denser internal sustain re-substitution. */
+export function rpDiagnosticUsesDenseInternalShortHistorySustain(
+  variant: RpDiagnosticCanaryVariant
+): boolean {
+  return (
+    variant === "structured_active_dyad_concrete_beats_ds_short_history_dense_internal"
+  );
 }
 
 /**

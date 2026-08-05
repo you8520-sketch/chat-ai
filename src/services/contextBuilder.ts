@@ -103,6 +103,7 @@ import {
   rpDiagnosticDisablesDeepSeekStyleExtras,
   resolveDeepSeekExtrasMode,
   rpDiagnosticNeutralizesDeepSeekOpeningWorldCue,
+  rpDiagnosticUsesDenseInternalShortHistorySustain,
   rpDiagnosticRemovesSceneDirective,
   rpDiagnosticUsesDialogueReferenceScope,
   rpDiagnosticUsesFlashLengthStack,
@@ -1254,9 +1255,13 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const neutralizeDeepSeekOpeningWorldCue = Boolean(
     rpVariant && rpDiagnosticNeutralizesDeepSeekOpeningWorldCue(rpVariant)
   );
+  const denseInternalShortHistorySustain = Boolean(
+    rpVariant && rpDiagnosticUsesDenseInternalShortHistorySustain(rpVariant)
+  );
   const deepSeekShortHistoryExtra = deepSeekXmlMode
     ? resolveDeepSeekShortHistoryLengthExtra(input.shortTermHistory, {
         neutralizeEnvironmentCue: neutralizeDeepSeekOpeningWorldCue,
+        denseInternalSustain: denseInternalShortHistorySustain,
       })
     : null;
   if (deepSeekXmlMode && deepSeekShortHistoryExtra) {

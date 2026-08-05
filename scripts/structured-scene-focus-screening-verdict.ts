@@ -139,8 +139,11 @@ function main() {
   const screen = EXPECTED_N <= 4;
   const mode = process.env.VERDICT_MODE ?? "concrete_beats";
   const concreteMode =
-    mode === "concrete_beats" || mode === "ds_opening_neutral";
+    mode === "concrete_beats" ||
+    mode === "ds_opening_neutral" ||
+    mode === "ds_short_history_dense_internal";
   const dsOpeningMode = mode === "ds_opening_neutral";
+  const dsDenseMode = mode === "ds_short_history_dense_internal";
   const neutralMode = mode === "neutral_world_motion";
   const baseEngineMode = mode === "base_engine_preserved";
 
@@ -165,7 +168,9 @@ function main() {
   const vReaction = validRows.filter((r) => r.reaction > 0).length;
 
   let verdict = screen
-    ? dsOpeningMode
+    ? dsDenseMode
+      ? "DS_SHORT_HISTORY_DENSE_INTERNAL_SCREEN_PASS"
+      : dsOpeningMode
       ? "DS_OPENING_NEUTRAL_SCREEN_PASS"
       : concreteMode
         ? "CONCRETE_BEAT_SCREEN_PASS"
@@ -174,7 +179,7 @@ function main() {
           : baseEngineMode
             ? "BASE_ENGINE_PRESERVED_SCREEN_PASS"
             : "STRUCTURED_ACTIVE_SCREEN_PASS"
-    : dsOpeningMode
+    : dsDenseMode || dsOpeningMode
       ? "DEEPSEEK_ACTIVE_DYAD_STACK_CONFIRMED"
       : concreteMode
         ? "STRUCTURED_ACTIVE_DYAD_CONCRETE_BEATS_CONFIRMED"
@@ -280,14 +285,18 @@ function main() {
     : true;
 
   if (concreteMode && !runtimeOk) {
-    verdict = dsOpeningMode
+    verdict = dsDenseMode
+      ? "DS_SHORT_HISTORY_DENSE_INTERNAL_RUNTIME_INVALID"
+      : dsOpeningMode
       ? "DS_OPENING_NEUTRAL_RUNTIME_INVALID"
       : "CONCRETE_BEAT_RUNTIME_INVALID";
   } else if (n < EXPECTED_N && !concreteMode) {
     verdict = "STRUCTURED_ACTIVE_CONFIRM_INVALID";
   } else if (!npcOk) {
     verdict = screen
-      ? dsOpeningMode
+      ? dsDenseMode
+        ? "DS_SHORT_HISTORY_DENSE_INTERNAL_NPC_FAIL"
+        : dsOpeningMode
         ? "DS_OPENING_NEUTRAL_NPC_FAIL"
         : concreteMode
           ? "CONCRETE_BEAT_NPC_FAIL"
@@ -299,7 +308,9 @@ function main() {
       : "STRUCTURED_ACTIVE_CONFIRM_INVALID";
   } else if (!lengthOk) {
     verdict = screen
-      ? dsOpeningMode
+      ? dsDenseMode
+        ? "DS_SHORT_HISTORY_DENSE_INTERNAL_LENGTH_FAIL"
+        : dsOpeningMode
         ? "DS_OPENING_NEUTRAL_LENGTH_FAIL"
         : concreteMode
           ? "CONCRETE_BEAT_LENGTH_FAIL"
@@ -311,7 +322,9 @@ function main() {
       : "STRUCTURED_ACTIVE_CONFIRM_INVALID";
   } else if (!reactionOk) {
     verdict = screen
-      ? dsOpeningMode
+      ? dsDenseMode
+        ? "DS_SHORT_HISTORY_DENSE_INTERNAL_REACTION_FAIL"
+        : dsOpeningMode
         ? "DS_OPENING_NEUTRAL_REACTION_FAIL"
         : concreteMode
           ? "CONCRETE_BEAT_REACTION_FAIL"
@@ -321,7 +334,9 @@ function main() {
       : "STRUCTURED_ACTIVE_CONFIRM_INVALID";
   } else if (!rhythmOk) {
     verdict = screen
-      ? dsOpeningMode
+      ? dsDenseMode
+        ? "DS_SHORT_HISTORY_DENSE_INTERNAL_RHYTHM_FAIL"
+        : dsOpeningMode
         ? "DS_OPENING_NEUTRAL_RHYTHM_FAIL"
         : concreteMode
           ? "CONCRETE_BEAT_RHYTHM_FAIL"

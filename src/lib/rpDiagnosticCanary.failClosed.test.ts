@@ -174,4 +174,20 @@ describe("RP diagnostic canary fail-closed scope", () => {
       "structured_active_dyad_concrete_beats_ds_opening_neutral"
     );
   });
+
+  it("structured_active_dyad_concrete_beats_ds_short_history_dense_internal resolves", () => {
+    enableCanary(
+      "structured_active_dyad_concrete_beats_ds_short_history_dense_internal"
+    );
+    const res = resolveRpDiagnosticCanary({
+      userId: 34,
+      modelId: "deepseek-v4-pro",
+      contentKind: "character",
+    });
+    assert.ok(res?.active);
+    assert.equal(
+      res?.variant,
+      "structured_active_dyad_concrete_beats_ds_short_history_dense_internal"
+    );
+  });
 });
