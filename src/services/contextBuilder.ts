@@ -100,6 +100,7 @@ import {
 import {
   COMMON_LAYOUT_MINIMAL_OWNER,
   COMMON_LENGTH_OWNER_MINIMAL,
+  resolveActiveDyadGateText,
   rpDiagnosticDisablesDeepSeekStyleExtras,
   resolveDeepSeekExtrasMode,
   rpDiagnosticRemovesSceneDirective,
@@ -108,6 +109,7 @@ import {
   rpDiagnosticUsesMinimalLayout,
   rpDiagnosticUsesMinimalLengthOwner,
   rpDiagnosticUsesMinimalRpStyle,
+  shouldInjectActiveDyadSeparateSystem,
 } from "@/lib/rpDiagnosticCanary";
 import type { CharacterChunk, GeminiContextSplit } from "@/types";
 import {
@@ -969,6 +971,23 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       pushReferenceUserNote();
     }
     pushSceneDirective();
+    // ACTIVE_DYAD compact gate — separate system block immediately after SceneDirective
+    // (Screening A / C-separate). Embedded variants append inside SceneDirective instead.
+    if (
+      rpVariant &&
+      shouldInjectActiveDyadSeparateSystem(rpVariant, input.completedTurns ?? 0)
+    ) {
+      const dyadText = resolveActiveDyadGateText(rpVariant);
+      if (dyadText) {
+        pushSection(
+          "active-dyad-gate",
+          "[3e] Active dyad scene-focus gate (RP diagnostic canary)",
+          "systemRules",
+          dyadText,
+          "dynamic"
+        );
+      }
+    }
   };
 
   pushVolatileContextSections();

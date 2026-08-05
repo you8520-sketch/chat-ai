@@ -113,4 +113,28 @@ describe("RP diagnostic canary fail-closed scope", () => {
     });
     assert.equal(res, null);
   });
+
+  it("active_dyad_compact_system: exact variant + single_primary scope", () => {
+    enableCanary("active_dyad_compact_system");
+    const res = resolveRpDiagnosticCanary({
+      userId: 34,
+      modelId: "deepseek-v4-pro",
+      contentKind: "character",
+    });
+    assert.ok(res?.active);
+    assert.equal(res?.variant, "active_dyad_compact_system");
+    assert.equal(res?.sceneMode, "single_primary");
+  });
+
+  it("active_dyad_compact_system: other user fail-closed", () => {
+    enableCanary("active_dyad_compact_system");
+    assert.equal(
+      resolveRpDiagnosticCanary({
+        userId: 99,
+        modelId: "deepseek-v4-pro",
+        contentKind: "character",
+      }),
+      null
+    );
+  });
 });

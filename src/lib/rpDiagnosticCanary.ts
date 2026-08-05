@@ -65,6 +65,12 @@ export const RP_DIAGNOSTIC_CANARY_VARIANTS = [
   "deepseek_final",
   "terra_cross_check",
   "ds_length_normalized_baseline",
+  /** Screening A: compact ACTIVE_DYAD as separate system block after SceneDirective */
+  "active_dyad_compact_system",
+  /** Screening B: same compact text embedded as final SceneDirective cast/focus rule */
+  "active_dyad_compact_embedded",
+  /** Screening C: compact + internal progression fallback sentence */
+  "active_dyad_compact_fallback",
 ] as const;
 
 export type RpDiagnosticCanaryVariant = (typeof RP_DIAGNOSTIC_CANARY_VARIANTS)[number];
@@ -185,7 +191,10 @@ export function rpDiagnosticEnablesPipelineCapture(
     variant === "ds_postprocess_baseline" ||
     variant === "ds_display_grouping_bypass" ||
     variant === "ds_paragraph_normalize_bypass" ||
-    variant === "ds_real_production"
+    variant === "ds_real_production" ||
+    variant === "active_dyad_compact_system" ||
+    variant === "active_dyad_compact_embedded" ||
+    variant === "active_dyad_compact_fallback"
   );
 }
 
@@ -362,7 +371,7 @@ export function applyRpDiagnosticToSceneDirectiveBlock(opts: {
 }): string {
   if (!opts.canary) return opts.block;
   if (rpDiagnosticRemovesSceneDirective(opts.canary.variant)) return "";
-  return applyTerraPromptCanaryToSceneDirectiveBlock({
+  let block = applyTerraPromptCanaryToSceneDirectiveBlock({
     block: opts.block,
     canary: {
       active: true,
@@ -374,6 +383,17 @@ export function applyRpDiagnosticToSceneDirectiveBlock(opts: {
     completedTurns: opts.completedTurns,
     progressionAxis: opts.progressionAxis,
   });
+  // Screening B/C embedded path: append ACTIVE_DYAD as final cast/focus rule inside SceneDirective.
+  // No new section header — byte-identical compact body (+ optional fallback sentence).
+  if (
+    shouldEmbedActiveDyadInSceneDirective(opts.canary.variant, opts.completedTurns)
+  ) {
+    const embed = resolveActiveDyadGateText(opts.canary.variant);
+    if (embed && !block.includes(ACTIVE_DYAD_COMPACT_BODY)) {
+      block = `${block.trimEnd()}\n${embed}`;
+    }
+  }
+  return block;
 }
 
 export function buildRpDiagnosticIntegrity(opts: {
@@ -391,6 +411,7 @@ export function buildRpDiagnosticIntegrity(opts: {
   expectedPersonaId?: number | null;
   expectedModelId?: string | null;
   expectedVariant?: RpDiagnosticCanaryVariant | null;
+  completedTurns?: number | null;
 }): RpDiagnosticRunIntegrity {
   const invalidReasons: string[] = [];
   if (opts.expectedModelId && opts.resolvedProviderModelId !== opts.expectedModelId) {
@@ -406,6 +427,10 @@ export function buildRpDiagnosticIntegrity(opts: {
   if (opts.expectedVariant && opts.canary.variant !== opts.expectedVariant) {
     invalidReasons.push("variant mismatch");
   }
+  const completedTurns = opts.completedTurns ?? null;
+  const dyadMode = resolveActiveDyadInjectionMode(opts.canary.variant);
+  const dyadApplied =
+    dyadMode != null && completedTurns != null && completedTurns < 2;
   return {
     userId: opts.userId,
     chatId: opts.chatId ?? null,
@@ -419,6 +444,27 @@ export function buildRpDiagnosticIntegrity(opts: {
     singlePrimary: true,
     canaryVariant: opts.canary.variant,
     temperature: opts.temperature ?? null,
+    completedTurns,
+    activeDyadMode: dyadApplied ? dyadMode : null,
+    activeDyadApplied: dyadApplied,
+    promptInjectionOrder: dyadApplied
+      ? dyadMode === "separate" || dyadMode === "fallback_separate"
+        ? [
+            "SYSTEM_COMMON",
+            "SCENE_DIRECTIVE",
+            "ACTIVE_DYAD_GATE",
+            "OTHER_EXISTING_SYSTEM_BLOCKS",
+            "CURRENT_USER",
+            "TERMINAL_LENGTH_OWNER",
+          ]
+        : [
+            "SYSTEM_COMMON",
+            "SCENE_DIRECTIVE+ACTIVE_DYAD",
+            "OTHER_EXISTING_SYSTEM_BLOCKS",
+            "CURRENT_USER",
+            "TERMINAL_LENGTH_OWNER",
+          ]
+      : undefined,
     valid: invalidReasons.length === 0,
     invalidReasons,
   };
@@ -475,6 +521,89 @@ export const COMMON_LAYOUT_MINIMAL_OWNER =
 
 export const COMMON_LENGTH_OWNER_MINIMAL =
   "같은 목표 분량 안에서 현재 상호작용의 하나의 연속된 장면을 완성한다.";
+
+/** Compact ACTIVE_DYAD body — shared byte-identical across separate/embedded screenings. */
+export const ACTIVE_DYAD_COMPACT_BODY =
+  "이번 턴의 활성 화자는 유저와 주 캐릭터다. 새로 말하는 제3자와 새 행정 절차는 시작하지 않는다. 이미 진행 중인 외부 위협·기존 인물의 미해결 행동·유저가 직접 부른 대상만 예외다.";
+
+export const ACTIVE_DYAD_COMPACT_HEADER = "[장면 초점: ACTIVE_DYAD]";
+
+/** Full separate-block text for Screening A (and C separate). */
+export const ACTIVE_DYAD_COMPACT_GATE = `${ACTIVE_DYAD_COMPACT_HEADER}
+${ACTIVE_DYAD_COMPACT_BODY}`;
+
+/** Progression-source fallback — owns only internal next-change source, not length/style. */
+export const ACTIVE_DYAD_PROGRESSION_FALLBACK =
+  "외부 개입 없이 필요한 다음 변화는 주 캐릭터의 선택·질문·행동이나 이미 존재하는 환경·목표에서 만든다.";
+
+export type ActiveDyadInjectionMode =
+  | "separate"
+  | "embedded"
+  | "fallback_separate"
+  | "fallback_embedded";
+
+export function resolveActiveDyadInjectionMode(
+  variant: RpDiagnosticCanaryVariant
+): ActiveDyadInjectionMode | null {
+  if (variant === "active_dyad_compact_system") return "separate";
+  if (variant === "active_dyad_compact_embedded") return "embedded";
+  if (variant === "active_dyad_compact_fallback") {
+    // Default separate; set RP_DIAGNOSTIC_CANARY_ACTIVE_DYAD_EMBED=1 to embed after B wins.
+    const embed =
+      process.env.RP_DIAGNOSTIC_CANARY_ACTIVE_DYAD_EMBED?.trim().toLowerCase();
+    return embed === "1" || embed === "true" ? "fallback_embedded" : "fallback_separate";
+  }
+  return null;
+}
+
+export function isActiveDyadVariant(variant: RpDiagnosticCanaryVariant): boolean {
+  return resolveActiveDyadInjectionMode(variant) != null;
+}
+
+/** First two assistant responses only (completedTurns 0 and 1). */
+export function shouldApplyActiveDyadGate(
+  variant: RpDiagnosticCanaryVariant,
+  completedTurns: number
+): boolean {
+  return isActiveDyadVariant(variant) && completedTurns < 2;
+}
+
+export function shouldInjectActiveDyadSeparateSystem(
+  variant: RpDiagnosticCanaryVariant,
+  completedTurns: number
+): boolean {
+  if (!shouldApplyActiveDyadGate(variant, completedTurns)) return false;
+  const mode = resolveActiveDyadInjectionMode(variant);
+  return mode === "separate" || mode === "fallback_separate";
+}
+
+export function shouldEmbedActiveDyadInSceneDirective(
+  variant: RpDiagnosticCanaryVariant,
+  completedTurns: number
+): boolean {
+  if (!shouldApplyActiveDyadGate(variant, completedTurns)) return false;
+  const mode = resolveActiveDyadInjectionMode(variant);
+  return mode === "embedded" || mode === "fallback_embedded";
+}
+
+export function resolveActiveDyadGateText(
+  variant: RpDiagnosticCanaryVariant
+): string {
+  const mode = resolveActiveDyadInjectionMode(variant);
+  if (!mode) return "";
+  const withFallback =
+    mode === "fallback_separate" || mode === "fallback_embedded";
+  // Embedded: no extra section header — final cast/focus rule line(s) only.
+  if (mode === "embedded" || mode === "fallback_embedded") {
+    const body = withFallback
+      ? `${ACTIVE_DYAD_COMPACT_BODY} ${ACTIVE_DYAD_PROGRESSION_FALLBACK}`
+      : ACTIVE_DYAD_COMPACT_BODY;
+    return body;
+  }
+  return withFallback
+    ? `${ACTIVE_DYAD_COMPACT_GATE}\n${ACTIVE_DYAD_PROGRESSION_FALLBACK}`
+    : ACTIVE_DYAD_COMPACT_GATE;
+}
 
 export function applyRpDiagnosticToHistory(opts: {
   history: ChatMsg[];
@@ -716,6 +845,10 @@ export type RpDiagnosticRunIntegrity = {
   singlePrimary: boolean;
   canaryVariant: RpDiagnosticCanaryVariant;
   temperature?: number | null;
+  completedTurns?: number | null;
+  activeDyadMode?: ActiveDyadInjectionMode | null;
+  activeDyadApplied?: boolean;
+  promptInjectionOrder?: string[];
   valid: boolean;
   invalidReasons: string[];
 };

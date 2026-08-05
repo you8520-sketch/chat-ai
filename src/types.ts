@@ -179,7 +179,10 @@ export type ContextBuildInput = {
       | "common_rp_style_minimal"
       | "deepseek_final"
       | "terra_cross_check"
-      | "ds_length_normalized_baseline";
+      | "ds_length_normalized_baseline"
+      | "active_dyad_compact_system"
+      | "active_dyad_compact_embedded"
+      | "active_dyad_compact_fallback";
     progressionAxis?:
       | "relationship"
       | "investigation"
