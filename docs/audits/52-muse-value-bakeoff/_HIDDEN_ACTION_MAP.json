@@ -1,0 +1,15 @@
+{
+  "action": {
+    "ACT-T1": {
+      "A": "muse",
+      "B": "terra",
+      "C": "deepseek"
+    },
+    "ACT-T2": {
+      "A": "muse",
+      "B": "terra",
+      "C": "deepseek"
+    }
+  },
+  "note": "Reveal only after ChatGPT finishes blind scoring."
+}

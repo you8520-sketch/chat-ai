@@ -1,0 +1,86 @@
+{
+  "attempt_id": "MUSE-ACT-R1T2",
+  "run": 1,
+  "turn": 2,
+  "test_set": "action",
+  "user_input": "*렌은 태형의 소매를 잡고 곁에 붙는다.* 나도 같이 갈게.",
+  "finish_reason": "stop",
+  "latency_s": 28.842,
+  "visible_chars": 3415,
+  "korean_chars": 2388,
+  "chat_id": 9,
+  "replacement": false,
+  "raw_hash": "6a6cdb8954b031fe9d4a11c8375b86b847c343a8e62e170ee03c57a2b8a9f4bc",
+  "model": "meta/muse-spark-1.2",
+  "provider": "openrouter",
+  "cost_points": 88,
+  "input_tokens": 11749,
+  "visible_output_tokens": 2070,
+  "reasoning_tokens": null,
+  "total_billed_output_tokens": null,
+  "usage_cost": 88,
+  "api_raw_cost_krw": 34.1,
+  "usage": {
+    "input": 11749,
+    "output": 2004,
+    "finishReason": "stop",
+    "savedOutputChars": 3415,
+    "model": "meta/muse-spark-1.2",
+    "provider": "openrouter",
+    "route": "safe",
+    "selectedAI": "meta/muse-spark-1.2",
+    "cost": 88,
+    "baseCost": 86,
+    "modelLabel": "Muse Spark 1.2",
+    "estimated": false,
+    "breakdown": [
+      {
+        "label": "최근 raw 턴",
+        "tokens": 2877,
+        "pct": 24
+      },
+      {
+        "label": "캐릭터 프롬프트",
+        "tokens": 5342,
+        "pct": 45
+      },
+      {
+        "label": "선택 페르소나",
+        "tokens": 158,
+        "pct": 1
+      }
+    ],
+    "stages": [
+      {
+        "stage": "Muse Spark 1.2",
+        "model": "meta/muse-spark-1.2",
+        "input": 11749,
+        "output": 2070,
+        "apiReportedInputTokens": 11749,
+        "apiOutputTokens": 2070,
+        "lengthRecoveryPasses": 0,
+        "savedOutputChars": 3415,
+        "estimated": false,
+        "finishReason": "stop",
+        "truncated": true,
+        "loopAborted": false,
+        "degenerationAborted": false,
+        "apiReasoningOutputTokens": 66,
+        "standardInputTokens": 11749,
+        "upstreamCostUsd": 0.02348375,
+        "cost": 86
+      }
+    ],
+    "apiInputTokens": 11749,
+    "apiOutputTokens": 2070,
+    "apiReasoningOutputTokens": 66,
+    "apiContentOutputTokens": 2004,
+    "assembledInputTokens": 20061,
+    "standardInputTokens": 11749,
+    "upstreamCostUsd": 0.02348375,
+    "cacheRateSummary": "입력 $1.25/M · 출력 $4.25/M",
+    "cacheFamily": "unknown",
+    "apiRawCostKrw": 34.1,
+    "apiRawCostSource": "provider_reported"
+  }
+}

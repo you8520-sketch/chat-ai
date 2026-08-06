@@ -1,0 +1,9 @@
+{
+  "status": "MUSE_ACTION_BASELINE_CAPTURED",
+  "model": "meta/muse-spark-1.2",
+  "attempts": 2,
+  "valid": 2,
+  "replacement_calls": 0,
+  "exclusions": [],
+  "human_review": "NOT_RUN — waiting for ChatGPT"
+}

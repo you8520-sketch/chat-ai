@@ -1,0 +1,19 @@
+{
+  "deepseek": {
+    "audit": 44,
+    "arm": "COLLAB",
+    "root": "/opt/cursor/artifacts/default-collaborative/arm-COLLAB"
+  },
+  "terra": {
+    "audit": 46,
+    "root": "/opt/cursor/artifacts/luna-terra-value-bakeoff/relationship/terra"
+  },
+  "muse": {
+    "audit": 49,
+    "root": "/opt/cursor/artifacts/muse-spark-baseline"
+  },
+  "inputs": {
+    "turn1": "난 본기억없는데.... 나는 렌이라고 부르면 돼. *고개끄덕임* 신입 맞아.",
+    "turn2": "너는 이름이뭐야? 뭐하는 중이었어?"
+  }
+}

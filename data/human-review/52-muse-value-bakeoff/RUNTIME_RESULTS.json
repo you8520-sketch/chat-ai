@@ -1,0 +1,27 @@
+{
+  "status": "MUSE_VALUE_BAKEOFF_HUMAN_REVIEW_PENDING",
+  "offline_verdict": "MUSE_VALUE_BAKEOFF_OFFLINE_PASS",
+  "relationship_blind": true,
+  "action_blind": true,
+  "action_attempts": 2,
+  "action_valid": 2,
+  "action_replacement_calls": 0,
+  "action_exclusions": [],
+  "muse_aggregate": {
+    "actual_cost_sample_count": 6,
+    "average_actual_cost_krw": 27.183333333333334,
+    "median_actual_cost_krw": 27.7,
+    "average_charged_points": 76.33333333333333,
+    "gross_margin": 0.643886462882096,
+    "cost_per_1000_visible_chars": 11.327175498298493,
+    "p50_latency_s": 28.842,
+    "p95_latency_s": 37.925,
+    "exclusion_or_429_rate": 0,
+    "relationship_cost_incomplete": true,
+    "flags": [
+      "MUSE_RELATIONSHIP_COST_INCOMPLETE"
+    ]
+  },
+  "human_review": "NOT_RUN — waiting for ChatGPT",
+  "note": "Do not declare winner / public candidate / keep / remove / best value before blind review."
+}

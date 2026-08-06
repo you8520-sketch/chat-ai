@@ -1,0 +1,86 @@
+{
+  "attempt_id": "MUSE-ACT-R1T1",
+  "run": 1,
+  "turn": 1,
+  "test_set": "action",
+  "user_input": "*로비 천장에서 갑자기 비상 경보가 울리고 출입문 쪽에서 둔탁한 폭발음이 터진다. 렌은 소리가 난 쪽으로 고개를 돌린다.* 저거 뭐야?",
+  "finish_reason": "stop",
+  "latency_s": 35.738,
+  "visible_chars": 2738,
+  "korean_chars": 1919,
+  "chat_id": 9,
+  "replacement": false,
+  "raw_hash": "a7c487c967427a0fdf242fcbcb666334cc633c9ad1779644697b1568ecd5950b",
+  "model": "meta/muse-spark-1.2",
+  "provider": "openrouter",
+  "cost_points": 73,
+  "input_tokens": 10112,
+  "visible_output_tokens": 1652,
+  "reasoning_tokens": null,
+  "total_billed_output_tokens": null,
+  "usage_cost": 73,
+  "api_raw_cost_krw": 28.5,
+  "usage": {
+    "input": 10112,
+    "output": 1604,
+    "finishReason": "stop",
+    "savedOutputChars": 2738,
+    "model": "meta/muse-spark-1.2",
+    "provider": "openrouter",
+    "route": "safe",
+    "selectedAI": "meta/muse-spark-1.2",
+    "cost": 73,
+    "baseCost": 72,
+    "modelLabel": "Muse Spark 1.2",
+    "estimated": false,
+    "breakdown": [
+      {
+        "label": "최근 raw 턴",
+        "tokens": 1377,
+        "pct": 14
+      },
+      {
+        "label": "캐릭터 프롬프트",
+        "tokens": 5260,
+        "pct": 52
+      },
+      {
+        "label": "선택 페르소나",
+        "tokens": 156,
+        "pct": 2
+      }
+    ],
+    "stages": [
+      {
+        "stage": "Muse Spark 1.2",
+        "model": "meta/muse-spark-1.2",
+        "input": 10112,
+        "output": 1652,
+        "apiReportedInputTokens": 10112,
+        "apiOutputTokens": 1652,
+        "lengthRecoveryPasses": 0,
+        "savedOutputChars": 2738,
+        "estimated": false,
+        "finishReason": "stop",
+        "truncated": true,
+        "loopAborted": false,
+        "degenerationAborted": false,
+        "apiReasoningOutputTokens": 48,
+        "standardInputTokens": 10112,
+        "upstreamCostUsd": 0.019661,
+        "cost": 72
+      }
+    ],
+    "apiInputTokens": 10112,
+    "apiOutputTokens": 1652,
+    "apiReasoningOutputTokens": 48,
+    "apiContentOutputTokens": 1604,
+    "assembledInputTokens": 17538,
+    "standardInputTokens": 10112,
+    "upstreamCostUsd": 0.019661,
+    "cacheRateSummary": "입력 $1.25/M · 출력 $4.25/M",
+    "cacheFamily": "unknown",
+    "apiRawCostKrw": 28.5,
+    "apiRawCostSource": "provider_reported"
+  }
+}

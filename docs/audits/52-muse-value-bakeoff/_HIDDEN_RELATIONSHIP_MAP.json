@@ -1,0 +1,26 @@
+{
+  "seed_note": "per-pair independent shuffle",
+  "relationship": {
+    "REL-R1T1": {
+      "A": "muse",
+      "B": "terra",
+      "C": "deepseek"
+    },
+    "REL-R1T2": {
+      "A": "deepseek",
+      "B": "terra",
+      "C": "muse"
+    },
+    "REL-R2T1": {
+      "A": "deepseek",
+      "B": "terra",
+      "C": "muse"
+    },
+    "REL-R2T2": {
+      "A": "muse",
+      "B": "terra",
+      "C": "deepseek"
+    }
+  },
+  "note": "Reveal only after ChatGPT finishes blind scoring."
+}
