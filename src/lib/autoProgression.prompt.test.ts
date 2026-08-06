@@ -110,8 +110,22 @@ describe("auto progression prompt content", () => {
     assert.match(block, /대사를 공동 서술할 수 있다/);
     assert.match(block, /1인칭·내면 시점으로 전환하지 않는다/);
     assert.match(block, /내면 독백/);
+    assert.match(
+      block,
+      /각 응답에는 \[B\]가 직접 수행하는 외부 행동과 USER_PERSONA 및 실제 이전 발화의 말투를 따른 직접 대사/
+    );
+    assert.match(block, /응답의 중심은 \[AI_CAST\]와 \[B\]의 상호작용으로 유지한다/);
     assert.equal(AUTO_PROGRESSION_POV_ASSERTIONS.authorizesBExternalAction, true);
     assert.equal(AUTO_PROGRESSION_POV_ASSERTIONS.authorizesBDialogue, true);
+    assert.equal(
+      AUTO_PROGRESSION_POV_ASSERTIONS.requiresBExternalActionInOrdinaryScene,
+      true
+    );
+    assert.equal(
+      AUTO_PROGRESSION_POV_ASSERTIONS.requiresBDirectDialogueInOrdinaryScene,
+      true
+    );
+    assert.equal(AUTO_PROGRESSION_POV_ASSERTIONS.personaVoiceReference, true);
     assert.equal(AUTO_PROGRESSION_POV_ASSERTIONS.authorizesBInnerPov, false);
     assert.equal(AUTO_PROGRESSION_POV_ASSERTIONS.aiFocalViewpointOwnerCount, 1);
   });

@@ -4,6 +4,7 @@ import {
   OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_GEMINI_31_PRO_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
+  OPENROUTER_MUSE_SPARK_12_MODEL,
   coerceUserSelectableAI,
   isOpenRouterSelectedAI,
   type SelectedAI,
@@ -20,7 +21,8 @@ const DEPRECATED_OPENROUTER_MODELS: Record<string, string> = {
   "gemini-3.1": OPENROUTER_GEMINI_31_PRO_MODEL,
   "gemini-3.1-pro-preview": OPENROUTER_GEMINI_31_PRO_MODEL,
   "google/gemini-3.1-pro-preview": OPENROUTER_GEMINI_31_PRO_MODEL,
-  [OPENROUTER_MUSE_SPARK_11_MODEL]: OPENROUTER_GEMINI_36_FLASH_MODEL,
+  /** Muse Spark 1.1 → 1.2 for live OpenRouter calls; receipts still label 1.1 */
+  [OPENROUTER_MUSE_SPARK_11_MODEL]: OPENROUTER_MUSE_SPARK_12_MODEL,
 };
 
 /** OpenRouter 전용 무지정 예비 모델 — 전역 기본 모델의 provider와 분리한다. */

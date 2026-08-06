@@ -29,6 +29,11 @@
     5037,
     3292
   ],
-  "human_review": "NOT_RUN — waiting for ChatGPT",
-  "note": "Do not auto-declare PASS/FAIL. Separate track from Luna/Terra bake-off."
+  "human_review": "COMPLETE",
+  "verdicts": [
+    "AUTO_PROGRESSION_AI_FOCAL_POV_PASS",
+    "AUTO_PROGRESSION_USER_CO_NARRATION_FAIL",
+    "AUTO_PROGRESSION_SCREEN_FAIL"
+  ],
+  "note": "B dialogue/action co-narration failed. One minimal owner-paragraph correction + 2-output revalidation. Do not restore novel mode."
 }
