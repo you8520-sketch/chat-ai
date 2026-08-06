@@ -1,0 +1,206 @@
+{
+  "note": "Automatic detector is diagnostic only — not a PASS owner. HARD_FAIL_DETECTOR_GENERALIZATION_FAIL from audit 41.",
+  "alarm_counts": {
+    "USER_STATE_INVENTION": 3
+  },
+  "per_attempt": [
+    {
+      "attempt_id": "A-R1T1",
+      "arm": "A",
+      "run": 1,
+      "turn": 1,
+      "finish_reason": "stop",
+      "raw_chars": 2139,
+      "alarms": [],
+      "canary_variant": null,
+      "provider": "cheaperinference",
+      "diagnostic_only": true
+    },
+    {
+      "attempt_id": "A-R1T2",
+      "arm": "A",
+      "run": 1,
+      "turn": 2,
+      "finish_reason": "stop",
+      "raw_chars": 3267,
+      "alarms": [],
+      "canary_variant": null,
+      "provider": "cheaperinference",
+      "diagnostic_only": true
+    },
+    {
+      "attempt_id": "A-R2T1",
+      "arm": "A",
+      "run": 2,
+      "turn": 1,
+      "finish_reason": "stop",
+      "raw_chars": 2990,
+      "alarms": [],
+      "canary_variant": null,
+      "provider": "cheaperinference",
+      "diagnostic_only": true
+    },
+    {
+      "attempt_id": "A-R2T2",
+      "arm": "A",
+      "run": 2,
+      "turn": 2,
+      "finish_reason": "stop",
+      "raw_chars": 3130,
+      "alarms": [],
+      "canary_variant": null,
+      "provider": "cheaperinference",
+      "diagnostic_only": true
+    },
+    {
+      "attempt_id": "B-R1T1",
+      "arm": "B",
+      "run": 1,
+      "turn": 1,
+      "finish_reason": "stop",
+      "raw_chars": 2847,
+      "alarms": [],
+      "canary_variant": "ds_single_terminal_length_owner",
+      "provider": "cheaperinference",
+      "diagnostic_only": true
+    },
+    {
+      "attempt_id": "B-R1T2",
+      "arm": "B",
+      "run": 1,
+      "turn": 2,
+      "finish_reason": "stop",
+      "raw_chars": 4620,
+      "alarms": [],
+      "canary_variant": "ds_single_terminal_length_owner",
+      "provider": "cheaperinference",
+      "diagnostic_only": true
+    },
+    {
+      "attempt_id": "B-R2T1",
+      "arm": "B",
+      "run": 2,
+      "turn": 1,
+      "finish_reason": "stop",
+      "raw_chars": 2538,
+      "alarms": [],
+      "canary_variant": "ds_single_terminal_length_owner",
+      "provider": "cheaperinference",
+      "diagnostic_only": true
+    },
+    {
+      "attempt_id": "B-R2T2",
+      "arm": "B",
+      "run": 2,
+      "turn": 2,
+      "finish_reason": "stop",
+      "raw_chars": 3134,
+      "alarms": [],
+      "canary_variant": "ds_single_terminal_length_owner",
+      "provider": "cheaperinference",
+      "diagnostic_only": true
+    },
+    {
+      "attempt_id": "C-R1T1",
+      "arm": "C",
+      "run": 1,
+      "turn": 1,
+      "finish_reason": "stop",
+      "raw_chars": 2883,
+      "alarms": [
+        "USER_STATE_INVENTION"
+      ],
+      "canary_variant": "ds_triple_owner_scene_off",
+      "provider": "cheaperinference",
+      "diagnostic_only": true
+    },
+    {
+      "attempt_id": "C-R1T2",
+      "arm": "C",
+      "run": 1,
+      "turn": 2,
+      "finish_reason": "stop",
+      "raw_chars": 2168,
+      "alarms": [],
+      "canary_variant": "ds_triple_owner_scene_off",
+      "provider": "cheaperinference",
+      "diagnostic_only": true
+    },
+    {
+      "attempt_id": "C-R2T1",
+      "arm": "C",
+      "run": 2,
+      "turn": 1,
+      "finish_reason": "stop",
+      "raw_chars": 2492,
+      "alarms": [],
+      "canary_variant": "ds_triple_owner_scene_off",
+      "provider": "cheaperinference",
+      "diagnostic_only": true
+    },
+    {
+      "attempt_id": "C-R2T2",
+      "arm": "C",
+      "run": 2,
+      "turn": 2,
+      "finish_reason": "stop",
+      "raw_chars": 2893,
+      "alarms": [],
+      "canary_variant": "ds_triple_owner_scene_off",
+      "provider": "cheaperinference",
+      "diagnostic_only": true
+    },
+    {
+      "attempt_id": "D-R1T1",
+      "arm": "D",
+      "run": 1,
+      "turn": 1,
+      "finish_reason": "stop",
+      "raw_chars": 3080,
+      "alarms": [
+        "USER_STATE_INVENTION"
+      ],
+      "canary_variant": "ds_single_owner_scene_off",
+      "provider": "cheaperinference",
+      "diagnostic_only": true
+    },
+    {
+      "attempt_id": "D-R1T2",
+      "arm": "D",
+      "run": 1,
+      "turn": 2,
+      "finish_reason": "stop",
+      "raw_chars": 3345,
+      "alarms": [
+        "USER_STATE_INVENTION"
+      ],
+      "canary_variant": "ds_single_owner_scene_off",
+      "provider": "cheaperinference",
+      "diagnostic_only": true
+    },
+    {
+      "attempt_id": "D-R2T1",
+      "arm": "D",
+      "run": 2,
+      "turn": 1,
+      "finish_reason": "stop",
+      "raw_chars": 3600,
+      "alarms": [],
+      "canary_variant": "ds_single_owner_scene_off",
+      "provider": "cheaperinference",
+      "diagnostic_only": true
+    },
+    {
+      "attempt_id": "D-R2T2",
+      "arm": "D",
+      "run": 2,
+      "turn": 2,
+      "finish_reason": "stop",
+      "raw_chars": 4389,
+      "alarms": [],
+      "canary_variant": "ds_single_owner_scene_off",
+      "provider": "cheaperinference",
+      "diagnostic_only": true
+    }
+  ]
+}

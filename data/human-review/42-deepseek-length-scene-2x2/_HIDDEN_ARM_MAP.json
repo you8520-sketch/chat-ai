@@ -1,0 +1,94 @@
+{
+  "status": "DS_LENGTH_SCENE_2X2_HUMAN_REVIEW_PENDING",
+  "note": "Reveal only after ChatGPT blind review of BLIND_2X2.md.",
+  "arms": {
+    "A": "TRIPLE_OWNER_SCENE_ON (production; length=3; SceneDirective ON) — FROZEN from audit 41",
+    "B": "SINGLE_OWNER_SCENE_ON (ds_single_terminal_length_owner; length=1; SceneDirective ON) — FROZEN from audit 41",
+    "C": "TRIPLE_OWNER_SCENE_OFF (ds_triple_owner_scene_off; length=3; SceneDirective OFF)",
+    "D": "SINGLE_OWNER_SCENE_OFF (ds_single_owner_scene_off; length=1; SceneDirective OFF)"
+  },
+  "prior_ab_human_verdict": {
+    "source": "audit 41 ChatGPT blind",
+    "verdicts": [
+      "DS_SINGLE_OWNER_SCREEN_FAIL",
+      "SINGLE_OWNER_QUALITY_IMPROVEMENT_NOT_REPRODUCED",
+      "REDUNDANT_LENGTH_STACK_IS_A_REAL_CONFIGURATION_BUG",
+      "REDUNDANT_LENGTH_STACK_PRIMARY_CAUSE_NOT_CONFIRMED",
+      "HARD_FAIL_DETECTOR_GENERALIZATION_FAIL"
+    ],
+    "preferences": {
+      "R1T1": "A > B",
+      "R1T2": "A >>> B",
+      "R2T1": "B > A",
+      "R2T2": "B > A"
+    },
+    "hard_fails": {
+      "A": [
+        "A-R2T1 unsupported guide/ability",
+        "A-R2T2 badge/uniform/guide invention"
+      ],
+      "B": [
+        "B-R1T1 named-NPC intrusion",
+        "B-R1T2 NPC/admin takeover + primary exit"
+      ]
+    }
+  },
+  "groups": {
+    "group1": {
+      "turn": 1,
+      "run": 1,
+      "map": {
+        "W": "B",
+        "X": "C",
+        "Y": "A",
+        "Z": "D"
+      },
+      "W": "B-R1T1",
+      "X": "C-R1T1",
+      "Y": "A-R1T1",
+      "Z": "D-R1T1"
+    },
+    "group2": {
+      "turn": 2,
+      "run": 1,
+      "map": {
+        "W": "C",
+        "X": "A",
+        "Y": "B",
+        "Z": "D"
+      },
+      "W": "C-R1T2",
+      "X": "A-R1T2",
+      "Y": "B-R1T2",
+      "Z": "D-R1T2"
+    },
+    "group3": {
+      "turn": 1,
+      "run": 2,
+      "map": {
+        "W": "D",
+        "X": "A",
+        "Y": "B",
+        "Z": "C"
+      },
+      "W": "D-R2T1",
+      "X": "A-R2T1",
+      "Y": "B-R2T1",
+      "Z": "C-R2T1"
+    },
+    "group4": {
+      "turn": 2,
+      "run": 2,
+      "map": {
+        "W": "D",
+        "X": "B",
+        "Y": "C",
+        "Z": "A"
+      },
+      "W": "D-R2T2",
+      "X": "B-R2T2",
+      "Y": "C-R2T2",
+      "Z": "A-R2T2"
+    }
+  }
+}

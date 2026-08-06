@@ -1,0 +1,168 @@
+{
+  "status": "DS_LENGTH_SCENE_2X2_HUMAN_REVIEW_PENDING",
+  "generated_at": "2026-08-06T05:28:22.220Z",
+  "offline_parity": "DS_LENGTH_X_SCENE_2X2_OFFLINE_PASS",
+  "frozen_arms": [
+    "A",
+    "B"
+  ],
+  "new_arms": [
+    "C",
+    "D"
+  ],
+  "arms": {
+    "A": {
+      "label": "TRIPLE_OWNER_SCENE_ON",
+      "frozen": true,
+      "attempts": 5,
+      "valid": 4,
+      "replacement_calls": 1,
+      "exclusions": [
+        {
+          "run": 1,
+          "turn": 2,
+          "attempt": 1,
+          "reasons": [
+            "sse_error:{\"type\":\"error\",\"error\":\"AI 응답이 비정상적으로 짧거나 비어 있어 저장하지 않았습니다. 포인트는 차감되지 않습니다. 다시 시도해 주세요.\",\"messageId\":3417,\"userMessageI",
+            "finish_metadata_missing"
+          ]
+        }
+      ],
+      "chars": [
+        2139,
+        3267,
+        2990,
+        3130
+      ],
+      "avg": 2882,
+      "min": 2139,
+      "max": 3267
+    },
+    "B": {
+      "label": "SINGLE_OWNER_SCENE_ON",
+      "frozen": true,
+      "attempts": 6,
+      "valid": 4,
+      "replacement_calls": 1,
+      "exclusions": [
+        {
+          "run": 1,
+          "turn": 2,
+          "attempt": 1,
+          "reasons": [
+            "finish_metadata_missing"
+          ]
+        },
+        {
+          "run": 2,
+          "turn": 1,
+          "attempt": "final",
+          "reasons": [
+            "finish_metadata_missing"
+          ],
+          "usedReplacement": false
+        }
+      ],
+      "chars": [
+        2847,
+        4620,
+        2538,
+        3134
+      ],
+      "avg": 3285,
+      "min": 2538,
+      "max": 4620
+    },
+    "C": {
+      "label": "TRIPLE_OWNER_SCENE_OFF",
+      "frozen": false,
+      "attempts": 9,
+      "valid": 4,
+      "replacement_calls": 1,
+      "exclusions": [
+        {
+          "run": 2,
+          "turn": 1,
+          "attempt": 1,
+          "reasons": [
+            "finish_metadata_missing"
+          ]
+        },
+        {
+          "run": 2,
+          "turn": 2,
+          "attempt": "final",
+          "reasons": [
+            "finish_metadata_missing"
+          ],
+          "usedReplacement": false
+        },
+        {
+          "run": 2,
+          "turn": 2,
+          "attempt": "final",
+          "reasons": [
+            "finish_metadata_missing"
+          ],
+          "usedReplacement": false
+        }
+      ],
+      "chars": [
+        2883,
+        2168,
+        2492,
+        2893
+      ],
+      "avg": 2609,
+      "min": 2168,
+      "max": 2893
+    },
+    "D": {
+      "label": "SINGLE_OWNER_SCENE_OFF",
+      "frozen": false,
+      "attempts": 8,
+      "valid": 4,
+      "replacement_calls": 1,
+      "exclusions": [
+        {
+          "run": 1,
+          "turn": 1,
+          "attempt": 1,
+          "reasons": [
+            "sse_error:{\"type\":\"error\",\"error\":\"AI 응답이 비정상적으로 짧거나 비어 있어 저장하지 않았습니다. 포인트는 차감되지 않습니다. 다시 시도해 주세요.\",\"messageId\":3517,\"userMessageI",
+            "finish_metadata_missing"
+          ]
+        },
+        {
+          "run": 1,
+          "turn": 1,
+          "attempt": "final",
+          "reasons": [
+            "finish_metadata_missing"
+          ],
+          "usedReplacement": true
+        },
+        {
+          "run": 1,
+          "turn": 2,
+          "attempt": "final",
+          "reasons": [
+            "finish_metadata_missing"
+          ],
+          "usedReplacement": false
+        }
+      ],
+      "chars": [
+        3080,
+        3345,
+        3600,
+        4389
+      ],
+      "avg": 3604,
+      "min": 3080,
+      "max": 4389
+    }
+  },
+  "human_review": "NOT_RUN — waiting for ChatGPT",
+  "note": "Do not declare PASS / improved / root cause / best arm / production candidate before human review."
+}
