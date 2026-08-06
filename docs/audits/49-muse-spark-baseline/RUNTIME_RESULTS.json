@@ -1,0 +1,30 @@
+{
+  "status": "MUSE_BASELINE_HUMAN_REVIEW_PENDING",
+  "offline_verdict": "MUSE_COLLABORATIVE_BASELINE_OFFLINE_PASS",
+  "model": "meta/muse-spark-1.2",
+  "attempts": 6,
+  "valid": 4,
+  "replacement_calls": 1,
+  "exclusions": [
+    {
+      "run": 1,
+      "turn": 1,
+      "attempt": 1,
+      "reasons": [
+        "sse_error:{\"type\":\"error\",\"error\":\"429 Too Many Requests: Provider returned error\"}",
+        "empty_upstream_stream"
+      ]
+    },
+    {
+      "run": 1,
+      "turn": 1,
+      "attempt": "final",
+      "reasons": [
+        "sse_error:{\"type\":\"error\",\"error\":\"429 Too Many Requests: Provider returned error\"}",
+        "empty_upstream_stream"
+      ],
+      "usedReplacement": true
+    }
+  ],
+  "human_review": "NOT_RUN — waiting for ChatGPT"
+}

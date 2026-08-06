@@ -1,0 +1,10 @@
+{
+  "status": "TERRA_CONFIRMATION_HUMAN_REVIEW_PENDING",
+  "model": "gpt-5.6-terra",
+  "architecture": "PR #248 collaborative; Terra terminal owner only",
+  "attempts": 4,
+  "valid": 4,
+  "replacement_calls": 0,
+  "exclusions": [],
+  "human_review": "NOT_RUN — waiting for ChatGPT"
+}

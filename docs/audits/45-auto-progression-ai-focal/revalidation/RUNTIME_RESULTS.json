@@ -1,0 +1,10 @@
+{
+  "status": "AUTO_PROGRESSION_REVALIDATION_HUMAN_REVIEW_PENDING",
+  "offline_verdict": "AUTO_PROGRESSION_EXTERNAL_ACTION_DIALOGUE_OFFLINE_PASS",
+  "attempts": 6,
+  "valid": 2,
+  "replacement_calls": 0,
+  "exclusions": [],
+  "human_review": "NOT_RUN — waiting for ChatGPT",
+  "note": "Check B external action + persona-voice dialogue in both outputs. If either missing → HARD_FAIL then inspect owner placement before second wording revision."
+}
