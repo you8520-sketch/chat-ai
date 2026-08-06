@@ -1,0 +1,19 @@
+{
+  "verdict": "MUSE_VALUE_BAKEOFF_OFFLINE_PASS",
+  "reasons": [],
+  "modelId": "meta/muse-spark-1.2",
+  "assertions": {
+    "standard_SceneDirective": 0,
+    "standard_collaborative_owner": 1,
+    "legacy_novel_owner": 0,
+    "standard_user_control_owner": 1,
+    "model_terminal_length_owner": 1,
+    "muse_public_picker": false,
+    "muse_style_adapter": false
+  },
+  "collab": 1,
+  "novel": 0,
+  "scene": false,
+  "lengthOwners": 1,
+  "userTail": 1
+}

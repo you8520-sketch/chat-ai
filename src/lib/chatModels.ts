@@ -44,8 +44,11 @@ export const OPENROUTER_GLM_52_MODEL = "z-ai/glm-5.2";
 /** @deprecated UI 선택 제거 — legacy slug·과금·영수증 호환용 (재활성화 가능) */
 export const OPENROUTER_KIMI_K3_MODEL = "moonshotai/kimi-k3";
 
-/** @deprecated 사용자 선택 제거 — 과거 영수증·과금·표시 호환용 */
+/** @deprecated 영수증·legacy 호환 — 채팅 진단 선택은 Muse Spark 1.2 */
 export const OPENROUTER_MUSE_SPARK_11_MODEL = "meta/muse-spark-1.1";
+
+/** OpenRouter — Meta Muse Spark 1.2 (diagnostic selectable only; not public picker) */
+export const OPENROUTER_MUSE_SPARK_12_MODEL = "meta/muse-spark-1.2";
 
 export const OPENROUTER_SOLAR_PRO_3_MODEL = "upstage/solar-pro-3";
 
@@ -79,6 +82,7 @@ export const OPENROUTER_SIMPLE_POINT_MODELS: readonly string[] = [
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
+  OPENROUTER_MUSE_SPARK_12_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
 ];
 
@@ -113,6 +117,8 @@ export const KIMI_K3_DISPLAY_NAME = "Kimi K3";
 
 export const MUSE_SPARK_11_DISPLAY_NAME = "Muse Spark 1.1";
 
+export const MUSE_SPARK_12_DISPLAY_NAME = "Muse Spark 1.2";
+
 export const SOLAR_PRO_3_DISPLAY_NAME = "Solar Pro 3";
 
 export const GEMINI_36_FLASH_DISPLAY_NAME = "Gemini 3.6 Flash";
@@ -133,6 +139,14 @@ export const GEMINI_31_PRO_DISPLAY_NAME = "Gemini 3.1 Pro";
 /** 채팅 UI에 Claude Opus 노출 — `OPENROUTER_OPUS_USER_SELECTABLE=1`로 재활성화 */
 export function isOpusUserSelectable(): boolean {
   return process.env.OPENROUTER_OPUS_USER_SELECTABLE?.trim() === "1";
+}
+
+/**
+ * Muse Spark 1.2 diagnostic API selection — `MUSE_DIAGNOSTIC_SELECTABLE=1`.
+ * Public picker stays closed; production must not set this env.
+ */
+export function isMuseDiagnosticSelectable(): boolean {
+  return process.env.MUSE_DIAGNOSTIC_SELECTABLE?.trim() === "1";
 }
 
 export type SelectedAIOptionMeta = {
@@ -174,6 +188,13 @@ export const SELECTED_AI_OPTIONS = [
     provider: "openrouter" as const,
     tier: "pro" as const,
     hint: "Premium",
+  },
+  {
+    id: OPENROUTER_MUSE_SPARK_12_MODEL,
+    label: MUSE_SPARK_12_DISPLAY_NAME,
+    provider: "openrouter" as const,
+    tier: "pro" as const,
+    hint: "Meta",
   },
   {
     id: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
@@ -275,15 +296,22 @@ export type SelectedAITier = (typeof SELECTED_AI_OPTIONS)[number]["tier"];
 export const DEFAULT_SELECTED_AI: SelectedAI =
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
 
-/** 채팅 모델 선택 UI에만 노출 (OpenRouter Opus·Gemini 3.6 Flash·Luna는 기본 숨김) */
+/** 채팅 모델 선택 UI에만 노출 (OpenRouter Opus·Gemini 3.6 Flash·Luna·Muse는 기본 숨김) */
 export const USER_SELECTABLE_AI_OPTIONS = SELECTED_AI_OPTIONS.filter(
   (o) =>
     o.id !== OPENROUTER_GEMINI_36_FLASH_MODEL &&
     o.id !== CHEAPER_INFERENCE_GPT_56_LUNA_MODEL &&
+    o.id !== OPENROUTER_MUSE_SPARK_12_MODEL &&
     (o.id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL ||
       isOpusUserSelectable() ||
       !isClaudeSelectedAI(o.id))
 );
+
+/** PATCH /api/user/selected-ai allow-list — Muse 1.2 only with diagnostic env. */
+export function isUserApiSelectableAI(id: string): boolean {
+  if (USER_SELECTABLE_AI_OPTIONS.some((o) => o.id === id)) return true;
+  return id === OPENROUTER_MUSE_SPARK_12_MODEL && isMuseDiagnosticSelectable();
+}
 
 export function coerceUserSelectableAI(id: SelectedAI): SelectedAI {
   if (
@@ -418,14 +446,19 @@ export function isKimiModel(modelId: string): boolean {
   );
 }
 
-/** OpenRouter Meta Muse Spark 계열 (Muse Spark 1.1 등) */
+/** OpenRouter Meta Muse Spark 계열 (Muse Spark 1.1 / 1.2) */
 export function isMuseModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
   return (
     id === OPENROUTER_MUSE_SPARK_11_MODEL ||
+    id === OPENROUTER_MUSE_SPARK_12_MODEL ||
     id.includes("muse-spark") ||
     /(^|\/)muse[-.]?spark\b/i.test(id)
   );
+}
+
+export function isMuseSpark12Model(modelId: string): boolean {
+  return modelId.trim().toLowerCase() === OPENROUTER_MUSE_SPARK_12_MODEL;
 }
 
 /** @deprecated provider === "openrouter" — 모든 OpenRouter 모델에 통합 prose 적용 */
@@ -488,12 +521,14 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   kimik3: DEFAULT_SELECTED_AI,
   "moonshotai/kimi-k3": DEFAULT_SELECTED_AI,
   "moonshotai/kimi-latest": DEFAULT_SELECTED_AI,
-  /** Muse Spark 제거 — 저장된 선택값은 현재 기본 모델로 이전 */
-  muse: DEFAULT_SELECTED_AI,
-  "muse-spark": DEFAULT_SELECTED_AI,
-  "muse-spark-1.1": DEFAULT_SELECTED_AI,
-  musespark: DEFAULT_SELECTED_AI,
-  "meta/muse-spark-1.1": DEFAULT_SELECTED_AI,
+  /** Muse Spark 1.1 aliases → 1.2 (diagnostic); receipts keep 1.1 slug readable */
+  muse: OPENROUTER_MUSE_SPARK_12_MODEL,
+  "muse-spark": OPENROUTER_MUSE_SPARK_12_MODEL,
+  "muse-spark-1.1": OPENROUTER_MUSE_SPARK_12_MODEL,
+  "muse-spark-1.2": OPENROUTER_MUSE_SPARK_12_MODEL,
+  musespark: OPENROUTER_MUSE_SPARK_12_MODEL,
+  "meta/muse-spark-1.1": OPENROUTER_MUSE_SPARK_12_MODEL,
+  "meta/muse-spark-1.2": OPENROUTER_MUSE_SPARK_12_MODEL,
   /** Solar Pro 3 retired after runaway-generation incident — migrate stored prefs to default. */
   solar: DEFAULT_SELECTED_AI,
   "solar-pro": DEFAULT_SELECTED_AI,
@@ -539,6 +574,9 @@ export function selectedAILabel(id: string): string {
   }
   if (id === OPENROUTER_GLM_52_MODEL || isGlmModel(id)) {
     return GLM_52_DISPLAY_NAME;
+  }
+  if (id === OPENROUTER_MUSE_SPARK_12_MODEL || id.toLowerCase().includes("muse-spark-1.2")) {
+    return MUSE_SPARK_12_DISPLAY_NAME;
   }
   if (id === OPENROUTER_MUSE_SPARK_11_MODEL || isMuseModel(id)) {
     return MUSE_SPARK_11_DISPLAY_NAME;
