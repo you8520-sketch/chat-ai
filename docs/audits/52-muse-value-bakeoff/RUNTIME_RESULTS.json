@@ -1,6 +1,16 @@
 {
-  "status": "MUSE_VALUE_BAKEOFF_HUMAN_REVIEW_PENDING",
+  "status": "MUSE_VALUE_BAKEOFF_COMPLETE",
   "offline_verdict": "MUSE_VALUE_BAKEOFF_OFFLINE_PASS",
+  "human_verdict": "MUSE_PUBLIC_CANDIDATE_FAIL",
+  "flags": [
+    "DEEPSEEK_RELATIONSHIP_WINNER",
+    "TERRA_ACTION_WINNER",
+    "MUSE_STABLE_SECOND_PLACE",
+    "MUSE_NO_DISTINCT_PUBLIC_SLOT",
+    "MUSE_PUBLIC_CANDIDATE_FAIL",
+    "MUSE_ADAPTER_NOT_JUSTIFIED",
+    "MUSE_RELATIONSHIP_COST_INCOMPLETE"
+  ],
   "relationship_blind": true,
   "action_blind": true,
   "action_attempts": 2,
@@ -22,6 +32,10 @@
       "MUSE_RELATIONSHIP_COST_INCOMPLETE"
     ]
   },
-  "human_review": "NOT_RUN — waiting for ChatGPT",
-  "note": "Do not declare winner / public candidate / keep / remove / best value before blind review."
+  "public_lineup": {
+    "public": ["deepseek-v4-pro", "gpt-5.6-terra"],
+    "not_public": ["meta/muse-spark-1.2", "gpt-5.6-luna"]
+  },
+  "human_review": "COMPLETED — ChatGPT",
+  "note": "Close PR #252 without merge. Do not cherry-pick Muse into PR #250."
 }
