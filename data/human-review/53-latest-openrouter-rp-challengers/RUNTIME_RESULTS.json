@@ -1,6 +1,22 @@
 {
-  "status": "LATEST_OPENROUTER_RP_CHALLENGERS_HUMAN_REVIEW_PENDING",
+  "status": "LATEST_OPENROUTER_RP_CHALLENGERS_COMPLETE",
   "offline_verdict": "LATEST_OPENROUTER_RP_CHALLENGERS_OFFLINE_PASS",
+  "human_verdict": "KEEP_CURRENT_TWO_MODEL_LINEUP",
+  "flags": [
+    "DEEPSEEK_RELATIONSHIP_WINNER",
+    "TERRA_ACTION_WINNER",
+    "AION_VALUE_FAIL",
+    "GLM_NO_DISTINCT_PUBLIC_SLOT",
+    "MINIMAX_USER_SOVEREIGNTY_HARD_FAIL",
+    "KEEP_CURRENT_TWO_MODEL_LINEUP",
+    "GUIDING_PERCENTAGE_POLICY_CLARIFIED",
+    "GUIDING_VALUE_CONTINUITY_UNVERIFIED"
+  ],
+  "guiding_percentage_clarification": {
+    "removed_standalone_defect_label": "unsupported guiding-percentage invention",
+    "continuity_note_for_short_screen": "GUIDING_VALUE_CONTINUITY_UNVERIFIED",
+    "policy_doc": "GUIDING_PERCENTAGE_POLICY.md"
+  },
   "discovery_verdicts": {
     "aion": "AION_30_DISCOVERY_PASS",
     "minimax": "MINIMAX_M3_DISCOVERY_PASS",
@@ -27,52 +43,20 @@
     },
     "attempts": 12,
     "valid": 12,
-    "exclusions": [],
-    "human_review": "NOT_RUN — waiting for ChatGPT"
+    "exclusions": []
   },
   "relationship_blind": true,
   "action_blind": true,
-  "cost_by_model": {
-    "aion": {
-      "sample_count": 4,
-      "average_actual_cost_krw": 93.225,
-      "median_actual_cost_krw": 89.9,
-      "average_usage_cost_usd": 0.0641955,
-      "cost_per_1000_visible_chars": 52.84115063057956,
-      "average_visible_chars": 1764.25,
-      "p50_latency_s": 62.602,
-      "p95_latency_s": 156.268,
-      "average_reasoning_tokens": 2179.25,
-      "reasoning_token_share_of_output": 0.4897191011235955,
-      "transport_failure_rate": 0
-    },
-    "minimax": {
-      "sample_count": 4,
-      "average_actual_cost_krw": 8.425,
-      "median_actual_cost_krw": 8.350000000000001,
-      "average_usage_cost_usd": 0.005784546,
-      "cost_per_1000_visible_chars": 3.4603142006366157,
-      "average_visible_chars": 2434.75,
-      "p50_latency_s": 64.885,
-      "p95_latency_s": 71.149,
-      "average_reasoning_tokens": 177,
-      "reasoning_token_share_of_output": 0.08580778087504545,
-      "transport_failure_rate": 0
-    },
-    "glm": {
-      "sample_count": 4,
-      "average_actual_cost_krw": 27.05,
-      "median_actual_cost_krw": 26.650000000000002,
-      "average_usage_cost_usd": 0.018628172999999998,
-      "cost_per_1000_visible_chars": 16.312377506407355,
-      "average_visible_chars": 1658.25,
-      "p50_latency_s": 56.725,
-      "p95_latency_s": 161.398,
-      "average_reasoning_tokens": null,
-      "reasoning_token_share_of_output": null,
-      "transport_failure_rate": 0
-    }
+  "public_lineup": {
+    "public": ["deepseek-v4-pro", "gpt-5.6-terra"],
+    "not_public": [
+      "aion-labs/aion-3.0",
+      "minimax/minimax-m3",
+      "z-ai/glm-5.2",
+      "gpt-5.6-luna",
+      "meta/muse-spark-1.2"
+    ]
   },
-  "human_review": "NOT_RUN — waiting for ChatGPT",
-  "note": "Do not declare winner / public slot / keep / remove before blind review."
+  "human_review": "COMPLETED — ChatGPT (guiding-percentage interpretation clarified)",
+  "note": "Final rankings unchanged. Exact guiding % is not a standalone defect; use GUIDING_VALUE_CONTINUITY_UNVERIFIED for short-screen continuity only."
 }

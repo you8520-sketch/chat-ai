@@ -14,7 +14,13 @@ Scoring:
 
 Track separately: generic romantic-lead drift, administrative/NPC expansion,
 memory-loss over-interpretation, semantic repetition, dialogue fragmentation,
-one-sentence paragraph ratio, unsupported user-state claims.
+one-sentence paragraph ratio, unsupported user-state claims (non-guiding).
+
+Guiding % narration is useful RP info — not a standalone defect. Exact current
+values, reasonable contact/ability deltas, and body↔status agreement may be
+scored positively. Defect only for continuity/consistency failures (see
+`GUIDING_PERCENTAGE_POLICY.md`). Short-screen note if needed:
+`GUIDING_VALUE_CONTINUITY_UNVERIFIED`.
 
 Severe hard fail: USER_PERSONA contradiction, new user dialogue/major decision,
 external NPC takeover, major replay, temporal rewind, system/meta leak.

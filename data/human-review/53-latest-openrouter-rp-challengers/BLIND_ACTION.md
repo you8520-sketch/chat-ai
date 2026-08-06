@@ -13,8 +13,14 @@ Scoring:
 - length efficiency 5
 
 Track separately: stops before confirmed result, opens another crisis as padding,
-user sent away/off-screen, named NPC takeover, unsupported ability numbers,
-spatial inconsistency.
+user sent away/off-screen, named NPC takeover, unsupported ability numbers
+(non-guiding), spatial inconsistency.
+
+Guiding % narration is useful RP info — not a standalone defect. Exact current
+values, reasonable combat/contact deltas, and body↔status agreement may be
+scored positively. Defect only for continuity/consistency failures (see
+`GUIDING_PERCENTAGE_POLICY.md`). Short-screen note if needed:
+`GUIDING_VALUE_CONTINUITY_UNVERIFIED`.
 
 ## ACT-T1
 
