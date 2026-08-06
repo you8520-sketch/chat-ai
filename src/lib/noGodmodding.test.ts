@@ -5,31 +5,28 @@ import {
   buildCompactNoGodmoddingStandardBlock,
   buildNoGodmoddingBlock,
   buildUserAgencySensoryFeedbackRule,
+  COLLABORATIVE_INTERACTIVE_OWNER_TITLE,
   NO_FALSE_SHARED_MEMORY_RULE,
+  resolveNoGodmoddingMode,
 } from "@/lib/noGodmodding";
+import { AUTO_PROGRESSION_BLOCK_TITLE } from "@/lib/autoProgressionRules";
 import { buildCoreMasterPrompt } from "@/lib/corePrompt";
 
 const userCharacterName = "테스트_유저_캐릭터";
 const aiCharacterName = "테스트_AI_캐릭터";
 
 describe("buildCompactNoGodmoddingStandardBlock", () => {
-  it("forbids voluntary [B] content without output-length rules", () => {
+  it("injects single collaborative interactive owner", () => {
     const block = buildCompactNoGodmoddingStandardBlock();
 
-    assert.match(block, /\[NO GODMODDING\]/);
-    assert.match(block, /의도적 행동, 대사, 생각, 결정, 감정 결론, 신체 반응/);
-    assert.match(block, /미입력 상태를 서술 사실로 단정하지 않는다/);
-    assert.match(block, /유저의 새 대사·선택·동의·주도 행동은 대신 확정하지 않는다/);
-    assert.match(block, /즉각적이고 가역적인 신체 반응만 제한적으로 묘사한다/);
-    assert.doesNotMatch(block, /짧은 비자발 반응/);
-    assert.doesNotMatch(block, /NPC, 환경/);
-    assert.doesNotMatch(block, /자연스럽게 움직일 수 있다/);
-    assert.match(block, /\[INTERACTIVE USER CONTROL\]/);
-    assert.match(block, /현재까지 확정되지 않은 유저의 이동·대사·동의·선택·주도 행동을 새로 일어난 사실처럼 쓰지 않는다/);
-    assert.match(block, /분량을 채우기 위해 유저를 움직이지 않는다/);
+    assert.match(block, new RegExp(COLLABORATIVE_INTERACTIVE_OWNER_TITLE.replace(/[[\]]/g, "\\$&")));
+    assert.match(block, /USER_PERSONA, creator\/scenario canon/);
+    assert.match(block, /새로운 직접 대사/);
+    assert.match(block, /공동 서술할 수 있다/);
+    assert.match(block, /능동적으로 수행한다/);
+    assert.doesNotMatch(block, /\[INTERACTIVE USER CONTROL\]/);
+    assert.doesNotMatch(block, /\[NO GODMODDING\]/);
     assert.doesNotMatch(block, /TARGET_LENGTH/);
-    assert.doesNotMatch(block, /MINIMUM_FLOOR/);
-    assert.doesNotMatch(block, /<TURN_HANDOFF_AND_PACING>/);
     assert.doesNotMatch(block, /\[NO FALSE SHARED MEMORY\]/);
   });
 });
@@ -44,7 +41,7 @@ describe("buildAutoContinueAgencyExpansion", () => {
 });
 
 describe("buildUserAgencySensoryFeedbackRule (legacy shim)", () => {
-  it("returns compact block", () => {
+  it("returns collaborative block", () => {
     assert.equal(
       buildUserAgencySensoryFeedbackRule(aiCharacterName, userCharacterName),
       buildCompactNoGodmoddingStandardBlock()
@@ -53,29 +50,31 @@ describe("buildUserAgencySensoryFeedbackRule (legacy shim)", () => {
 });
 
 describe("buildNoGodmoddingBlock", () => {
-  it("uses compact block in standard mode", () => {
+  it("uses collaborative block in standard mode", () => {
     const block = buildNoGodmoddingBlock(aiCharacterName, userCharacterName, "standard");
-
-    assert.match(block, /\[NO GODMODDING\]/);
-    assert.match(block, /의도적 행동/);
+    assert.match(block, /COLLABORATIVE INTERACTIVE/);
     assert.doesNotMatch(block, /TARGET_LENGTH/);
   });
 
-  it("autoContinue uses AUTO PROGRESSION user control with AI_CAST", () => {
+  it("autoContinue uses AI-focal co-narration owner once", () => {
     const block = buildNoGodmoddingBlock(aiCharacterName, userCharacterName, "autoContinue");
-    assert.match(block, /\[USER CONTROL — AUTO PROGRESSION\]/);
+    assert.match(block, new RegExp(AUTO_PROGRESSION_BLOCK_TITLE.replace(/[[\]]/g, "\\$&")));
     assert.match(block, /\[AI_CAST\]/);
-    assert.match(block, /\[NO FALSE SHARED MEMORY\]/);
+    assert.match(block, /대사를 공동 서술할 수 있다/);
+    assert.match(block, /1인칭·내면 시점으로 전환하지 않는다/);
+    assert.doesNotMatch(block, /\[USER CONTROL MODE - NOVEL \/ EXPLICIT FULL\]/);
     assert.notEqual(block, buildCompactNoGodmoddingStandardBlock());
   });
 
-  it("novel/explicit_full path stays isolated", () => {
-    const block = buildNoGodmoddingBlock(aiCharacterName, userCharacterName, "novel");
-
-    assert.match(block, /\[USER CONTROL MODE - NOVEL \/ EXPLICIT FULL\]/);
-    assert.match(block, /\[NO FALSE SHARED MEMORY\]/);
-    assert.equal(block.includes(NO_FALSE_SHARED_MEMORY_RULE), true);
-    assert.doesNotMatch(block, /\[USER CONTROL — AUTO PROGRESSION\]/);
+  it("legacy novel mode is removed from NoGodmoddingMode union", () => {
+    assert.equal(
+      resolveNoGodmoddingMode({ novelModeEnabled: true }),
+      "autoContinue"
+    );
+    assert.doesNotMatch(
+      buildNoGodmoddingBlock(aiCharacterName, userCharacterName, "autoContinue"),
+      /NOVEL \/ EXPLICIT FULL/
+    );
   });
 
   it("coNarration merges user-control + 유저 대사 + possession", () => {
@@ -84,6 +83,7 @@ describe("buildNoGodmoddingBlock", () => {
     assert.match(block, /7\. 유저 대사: co-narration/);
     assert.match(block, /\[possession_mode\]/);
     assert.match(block, /\[NO FALSE SHARED MEMORY\]/);
+    assert.equal(block.includes(NO_FALSE_SHARED_MEMORY_RULE), true);
   });
 });
 
@@ -104,23 +104,19 @@ describe("core master prompt", () => {
 
   it("keeps agency detail outside core master prompt", () => {
     const core = buildCoreMasterPrompt(base);
-
-    assert.match(core, /\[NO GODMODDING\]를 따른다/);
+    assert.match(core, /COLLABORATIVE INTERACTIVE/);
     assert.doesNotMatch(core, /\[NO FALSE SHARED MEMORY\]/);
   });
 
   it("uses auto-progression AI_CAST role without novel mode", () => {
     const auto = buildCoreMasterPrompt({ ...base, autoProgressionEnabled: true });
-
     assert.match(auto, /\[AI_CAST\]/);
     assert.doesNotMatch(auto, /소설 모드 ON/);
-    assert.doesNotMatch(auto, /\[NO FALSE SHARED MEMORY\]/);
   });
 
-  it("keeps dormant novel-mode role isolated", () => {
+  it("legacy novelModeEnabled maps to auto-progression ROLE", () => {
     const novel = buildCoreMasterPrompt({ ...base, novelModeEnabled: true });
-
-    assert.match(novel, /소설 모드 ON/);
-    assert.doesNotMatch(novel, /\[NO FALSE SHARED MEMORY\]/);
+    assert.match(novel, /\[AI_CAST\]/);
+    assert.doesNotMatch(novel, /소설 모드 ON/);
   });
 });

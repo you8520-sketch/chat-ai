@@ -356,7 +356,7 @@ export type ContinueNarrativeCommandInput = {
 /**
  * 자동진행 버튼 전용 — API user 턴에 주입되는 히든 마스터 지시서.
  * DB에는 CONTINUE_USER_DISPLAY만 저장한다.
- * Full agency rules live in [AUTO PROGRESSION — AI-CENTERED] (system); this command only short-refs.
+ * Full agency rules live in [AUTO PROGRESSION — AI-FOCAL CO-NARRATION] (system); this command only short-refs.
  */
 export function buildContinueNarrativeCommand(input: ContinueNarrativeCommandInput): string {
   void input.personaName;

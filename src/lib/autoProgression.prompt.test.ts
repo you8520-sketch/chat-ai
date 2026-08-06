@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   AUTO_PROGRESSION_BLOCK_TITLE,
   AUTO_PROGRESSION_CORE_ROLE,
+  AUTO_PROGRESSION_POV_ASSERTIONS,
   AUTO_PROGRESSION_SCENE_USER_CONTROL,
   buildAutoProgressionAiCenteredBlock,
   buildAutoProgressionUserControlBlock,
@@ -29,22 +30,23 @@ function assertNoNovelModeLeak(text: string) {
   assert.doesNotMatch(text, /속마음까지 모두 주도적으로 서술/);
   assert.doesNotMatch(text, /CONTROLLED POSSESSION MODE — ACTIVE/);
   assert.doesNotMatch(text, /ROLE — 소설 모드 ON/);
+  assert.doesNotMatch(text, /\[USER CONTROL MODE - NOVEL \/ EXPLICIT FULL\]/);
 }
 
 describe("auto progression vs novel mode separation", () => {
-  it("isContinue does not force novelModeEnabled (co-narration mode)", () => {
+  it("legacy novelModeEnabled normalizes to limited_external auto progression", () => {
     assert.equal(
       resolveUserCoNarrationMode({ autoProgressionEnabled: true, novelModeEnabled: false }),
       "limited_external"
     );
     assert.equal(
-      resolveUserCoNarrationMode({ autoProgressionEnabled: true, novelModeEnabled: true }),
-      "explicit_full"
+      resolveUserCoNarrationMode({ autoProgressionEnabled: false, novelModeEnabled: true }),
+      "limited_external"
     );
     assert.equal(resolveUserCoNarrationMode({ autoProgressionEnabled: false }), "off");
   });
 
-  it("auto progression does not enable full user impersonation", () => {
+  it("auto progression does not enable full novel POV", () => {
     const mode = resolveUserCoNarrationMode({
       autoProgressionEnabled: true,
       novelModeEnabled: false,
@@ -52,28 +54,9 @@ describe("auto progression vs novel mode separation", () => {
     });
     assert.equal(mode, "limited_external");
     assert.equal(userCoNarrationAllowsExternalAssist(mode), true);
-    assert.notEqual(mode, "explicit_full");
   });
 
-  it("auto progression resolves to limited_external co-narration", () => {
-    assert.equal(
-      resolveUserCoNarrationMode({ autoProgressionEnabled: true }),
-      "limited_external"
-    );
-  });
-
-  it("auto progression never resolves to explicit_full even with OOC opt-in present", () => {
-    assert.equal(
-      resolveUserCoNarrationMode({
-        autoProgressionEnabled: true,
-        oocUserImpersonationAllowed: true,
-        novelModeEnabled: false,
-      }),
-      "limited_external"
-    );
-  });
-
-  it("OOC opt-in alone maps to limited_external (LIMITED CO-NARRATION), not explicit_full", () => {
+  it("OOC opt-in alone maps to limited_external", () => {
     assert.equal(
       resolveUserCoNarrationMode({
         autoProgressionEnabled: false,
@@ -84,14 +67,18 @@ describe("auto progression vs novel mode separation", () => {
     );
   });
 
-  it("resolveNoGodmoddingMode: continue → autoContinue, not novel", () => {
+  it("resolveNoGodmoddingMode: continue and legacy novel → autoContinue", () => {
     assert.equal(
       resolveNoGodmoddingMode({ isContinue: true, novelModeEnabled: false }),
       "autoContinue"
     );
     assert.equal(
       resolveNoGodmoddingMode({ isContinue: true, novelModeEnabled: true }),
-      "novel"
+      "autoContinue"
+    );
+    assert.equal(
+      resolveNoGodmoddingMode({ novelModeEnabled: true }),
+      "autoContinue"
     );
     assert.equal(
       resolveNoGodmoddingMode({
@@ -103,8 +90,8 @@ describe("auto progression vs novel mode separation", () => {
     );
   });
 
-  it("novelModeEnabled alone does not map to auto_progression runtime", () => {
-    assert.equal(resolveChatRuntimeMode({ novelModeEnabled: true }), "interactive");
+  it("legacy novelModeEnabled maps to auto_progression runtime", () => {
+    assert.equal(resolveChatRuntimeMode({ novelModeEnabled: true }), "auto_progression");
     assert.equal(resolveChatRuntimeMode({ isContinue: true }), "auto_progression");
   });
 });
@@ -114,51 +101,38 @@ describe("auto progression prompt content", () => {
     const block = buildAutoProgressionUserControlBlock();
     assertNoNovelModeLeak(block);
     assert.match(block, /\[AI_CAST\]/);
-    assert.match(block, /\[USER CONTROL — AUTO PROGRESSION\]/);
-    assert.match(block, /\[AUTO PROGRESSION — AI-CENTERED\]/);
+    assert.match(block, new RegExp(AUTO_PROGRESSION_BLOCK_TITLE.replace(/[[\]]/g, "\\$&")));
+  });
+
+  it("authorizes B external action and dialogue; forbids inner POV", () => {
+    const block = buildAutoProgressionUserControlBlock();
+    assert.match(block, /외부에서 관찰 가능한 행동/);
+    assert.match(block, /대사를 공동 서술할 수 있다/);
+    assert.match(block, /1인칭·내면 시점으로 전환하지 않는다/);
+    assert.match(block, /내면 독백/);
+    assert.equal(AUTO_PROGRESSION_POV_ASSERTIONS.authorizesBExternalAction, true);
+    assert.equal(AUTO_PROGRESSION_POV_ASSERTIONS.authorizesBDialogue, true);
+    assert.equal(AUTO_PROGRESSION_POV_ASSERTIONS.authorizesBInnerPov, false);
+    assert.equal(AUTO_PROGRESSION_POV_ASSERTIONS.aiFocalViewpointOwnerCount, 1);
   });
 
   it("supports ensemble cast focalization", () => {
     const block = buildAutoProgressionAiCenteredBlock();
     assert.match(block, /\[AI_CAST\]/);
-    assert.match(block, /여러 AI/);
-    assert.match(block, /head-hopping/);
-    assert.match(block, /고정 주인공/);
-    assert.match(block, /다른 \[AI_CAST\] 구성원/);
+    assert.match(block, /능동적으로 진행/);
     assert.doesNotMatch(block, /기본 서술 시점은 \[A\]/);
-  });
-
-  it("forbids [B] inner thought / decision / desire / memory interpretation", () => {
-    const block = buildAutoProgressionUserControlBlock();
-    assert.match(block, /내면 독백/);
-    assert.match(block, /감정 결론/);
-    assert.match(block, /욕망/);
-    assert.match(block, /자각/);
-    assert.match(block, /기억 해석/);
-    assert.match(block, /중대 결정|되돌릴 수 없는 결정/);
-  });
-
-  it("allows short observable [B] action/dialogue", () => {
-    const block = buildAutoProgressionUserControlBlock();
-    assert.match(block, /짧은 외부 행동·대사/);
-  });
-
-  it("leaving focal AI does not switch to [B] POV", () => {
-    const block = buildAutoProgressionAiCenteredBlock();
-    assert.match(block, /\[B\]의 내면 시점으로 자동 전환하지 않는다/);
-    assert.match(block, /다른 \[AI_CAST\] 구성원/);
   });
 
   it("continue command short-refs AI_CAST without novel rules", () => {
     const cmd = buildContinueNarrativeCommand({
       personaName: userCharacterName,
       charName: aiCharacterName,
-      novelModeEnabled: true, // ignored
+      novelModeEnabled: true, // ignored / normalized elsewhere
     });
     assertNoNovelModeLeak(cmd);
     assert.match(cmd, /\[AI_CAST\]/);
-    assert.match(cmd, /AUTO PROGRESSION — AI-CENTERED/);
-    assert.doesNotMatch(cmd, /buildNovelModeUserPersonaRules|속마음까지/);
+    assert.match(cmd, /AI-focal auto-progression owner/);
+    assert.doesNotMatch(cmd, /\[AUTO PROGRESSION — AI-FOCAL CO-NARRATION\]/);
   });
 
   it("buildNovelModeUserPersonaRules is not the auto progression path", () => {
@@ -185,7 +159,6 @@ describe("auto progression prompt content", () => {
     });
     assertNoNovelModeLeak(core);
     assert.match(core, /\[AI_CAST\]/);
-    assert.match(core, /USER CONTROL/);
     assert.equal(core.includes(AUTO_PROGRESSION_CORE_ROLE.split("\n")[0]!), true);
   });
 
@@ -195,20 +168,18 @@ describe("auto progression prompt content", () => {
     assert.match(canon, /\[AI_CAST\]/);
   });
 
-  it("scene directive uses external-only ensemble wording", () => {
+  it("scene directive uses external ensemble wording", () => {
     const block = buildSceneDirectivePromptBlock({
       mode: "auto_progression",
       recentMessages: [],
       currentUserMessage: "자동진행",
     });
-    assert.match(block, /짧은 외부 행동·대사/);
+    assert.match(block, /외부 행동·대사/);
     assert.match(block, /내면/);
-    assert.match(block, /다인물|여러 AI/);
     assert.match(block, new RegExp(AUTO_PROGRESSION_SCENE_USER_CONTROL.slice(0, 20)));
-    assert.doesNotMatch(block, /유저 페르소나와 최근 말투에 맞는 행동\/대사를 쓸 수 있으나/);
   });
 
-  it("interactive mode remains unchanged (no AI_CAST CORE)", () => {
+  it("interactive mode uses collaborative owner reference", () => {
     const core = buildCoreMasterPrompt({
       charName: aiCharacterName,
       userName: userCharacterName,
@@ -224,7 +195,7 @@ describe("auto progression prompt content", () => {
       allowsBodyHair: false,
     });
     assert.match(core, /\[A\]=AI · \[B\]=user/);
-    assert.match(core, /\[NO GODMODDING\]를 따른다/);
+    assert.match(core, /COLLABORATIVE INTERACTIVE/);
   });
 
   it("contextBuilder auto progression injects no novel / possession", () => {
@@ -248,15 +219,37 @@ describe("auto progression prompt content", () => {
     });
     assertNoNovelModeLeak(built.systemPrompt);
     assert.match(built.systemPrompt, /\[AI_CAST\]/);
-    assert.match(built.systemPrompt, /\[AUTO PROGRESSION — AI-CENTERED\]/);
+    assert.match(built.systemPrompt, /AI-FOCAL CO-NARRATION/);
     assert.doesNotMatch(built.systemPrompt, /CONTROLLED POSSESSION MODE — ACTIVE/);
-    assert.doesNotMatch(built.systemPrompt, /속마음까지 모두 주도적으로/);
+  });
+
+  it("contextBuilder legacy novelModeEnabled injects auto owner only", () => {
+    const built = buildContext({
+      charName: aiCharacterName,
+      chunks: [],
+      userNickname: userCharacterName,
+      userPersona: `이름/호칭: ${userCharacterName}`,
+      shortTermHistory: [],
+      currentUserMessage: "이어가줘",
+      nsfw: false,
+      provider: "openrouter",
+      isContinue: false,
+      novelModeEnabled: true,
+      userImpersonation: false,
+      personaDisplayName: userCharacterName,
+      completedTurns: 2,
+    });
+    assertNoNovelModeLeak(built.systemPrompt);
+    assert.match(built.systemPrompt, /AI-FOCAL CO-NARRATION/);
+    assert.equal(
+      built.systemPrompt.split("[AUTO PROGRESSION — AI-FOCAL CO-NARRATION]").length - 1,
+      1
+    );
   });
 
   it("godmodding autoContinue block is used for continue", () => {
     const block = buildNoGodmoddingBlock(aiCharacterName, userCharacterName, "autoContinue");
-    assert.match(block, /\[USER CONTROL — AUTO PROGRESSION\]/);
-    assert.match(block, /\[NO FALSE SHARED MEMORY\]/);
+    assert.match(block, /AI-FOCAL CO-NARRATION/);
     assert.notEqual(
       block,
       buildNoGodmoddingBlock(aiCharacterName, userCharacterName, "standard")

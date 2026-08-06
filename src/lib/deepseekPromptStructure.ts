@@ -14,16 +14,26 @@ export const DEEPSEEK_XML_TAGS = {
 
 export const LTM_ABSOLUTE_FACTS_RULE = `이 항목에 기록된 내용은 과거에 실제로 일어난 '절대적인 기정사실(Absolute Facts)'이다. 대화를 진행할 때 이 사실들과 모순되는 발언이나 행동을 절대 하지 마라.`;
 
+/** DeepSeek style-only reminder (production default — length lives in USER_TAIL only). */
+export const DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY =
+  "[System Reminder: 지문은 -다/-했다체(경어 금지), 실제 발화만 큰따옴표, 속마음·감정은 따옴표 없이 지문으로. 대사는 캐릭터 말투에 따라 짧을 수 있다. 지문은 이어지는 행동·감각·의도를 같은 의미 단락 안에서 자연스럽게 연결하며, 짧은 문장마다 새 문단을 만들거나 한두 단어짜리 파편문을 습관적으로 반복하지 않는다.]";
+
 /**
- * DeepSeek-only user-turn reminder (V4 Pro xml mode).
- * Anti-fragment fencing + length stabilization only — style lives in common [IMMERSIVE PROSE].
+ * @deprecated Competing length owner — not injected on production DeepSeek path.
+ * Length is owned solely by USER_TAIL_LENGTH_OWNER_SENTENCE.
  */
-export const DEEPSEEK_BOTTOM_REMINDER =
-  "[System Reminder: 지문은 -다/-했다체(경어 금지), 실제 발화만 큰따옴표, 속마음·감정은 따옴표 없이 지문으로. 대사는 캐릭터 말투에 따라 짧을 수 있다. 지문은 이어지는 행동·감각·의도를 같은 의미 단락 안에서 자연스럽게 연결하며, 짧은 문장마다 새 문단을 만들거나 한두 단어짜리 파편문을 습관적으로 반복하지 않는다.]" +
-  "\n[DEEPSEEK LENGTH — SINGLE CALL]\n" +
+export const DEEPSEEK_LENGTH_SINGLE_CALL_BLOCK =
+  "[DEEPSEEK LENGTH — SINGLE CALL]\n" +
   "Complete the requested narrative depth in this single response. " +
   "Obey TARGET_LENGTH / MINIMUM_FLOOR independently of the length of recent messages; " +
   "never imitate a short prior assistant reply as the desired response length.";
+
+/**
+ * Legacy combined reminder (style + length). Production uses STYLE_ONLY + USER_TAIL.
+ * Kept so older tests/fixtures that match the combined string still compile.
+ */
+export const DEEPSEEK_BOTTOM_REMINDER =
+  `${DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY}\n${DEEPSEEK_LENGTH_SINGLE_CALL_BLOCK}`;
 
 export function wrapDeepSeekXmlTag(tag: string, body: string): string {
   const trimmed = body.trim();
@@ -51,6 +61,13 @@ export function buildDeepSeekBottomReminderBlock(extraTail?: string | null): str
   const extra = extraTail?.trim();
   if (!extra) return DEEPSEEK_BOTTOM_REMINDER;
   return `${DEEPSEEK_BOTTOM_REMINDER}\n${extra}`;
+}
+
+/** Production DeepSeek reminder — style only; numeric length is USER_TAIL. */
+export function buildDeepSeekStyleOnlyReminderBlock(extraTail?: string | null): string {
+  const extra = extraTail?.trim();
+  if (!extra) return DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY;
+  return `${DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY}\n${extra}`;
 }
 
 /**
@@ -170,6 +187,23 @@ export function prependDeepSeekBottomReminder(
   const body = userContent.trim();
   if (!body) return reminder;
   if (body.startsWith(DEEPSEEK_BOTTOM_REMINDER)) return body;
+  return `${reminder}\n\n${body}`;
+}
+
+/** Production path: style-only reminder + optional non-length extras (e.g. momentum). */
+export function prependDeepSeekStyleOnlyReminder(
+  userContent: string,
+  extraTail?: string | null
+): string {
+  const reminder = buildDeepSeekStyleOnlyReminderBlock(extraTail);
+  const body = userContent.trim();
+  if (!body) return reminder;
+  if (
+    body.startsWith(DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY) ||
+    body.startsWith(DEEPSEEK_BOTTOM_REMINDER)
+  ) {
+    return body;
+  }
   return `${reminder}\n\n${body}`;
 }
 
