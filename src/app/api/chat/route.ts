@@ -688,9 +688,12 @@ export async function POST(req: Request) {
       : normalizeTargetResponseChars(
           accountChatPrefs?.targetResponseChars ?? chat.target_response_chars
         );
-  // Legacy novel/explicit_full is dormant — never derive from isContinue.
+  // Legacy novelModeEnabled (body or saved prefs) → autoContinue compatibility.
+  // Never inject `[USER CONTROL MODE - NOVEL / EXPLICIT FULL]`.
+  const legacyNovelModeEnabled =
+    body.novelModeEnabled === true || accountChatPrefs?.novelModeEnabled === true;
   const novelModeEnabled = false;
-  const autoProgressionEnabled = isContinue === true;
+  const autoProgressionEnabled = isContinue === true || legacyNovelModeEnabled;
 
   if (isAdultMode && !user.is_adult) {
     return Response.json(
@@ -729,7 +732,8 @@ export async function POST(req: Request) {
   // Auto progression uses limited_external agency — not full impersonation / possession.
   const userImpersonation = oocUserImpersonationAllowed;
   let runtimeMode = resolveChatRuntimeMode({
-    isContinue: autoProgressionEnabled,
+    isContinue: isContinue === true,
+    legacyNovelModeEnabled,
     oocUserImpersonationAllowed,
   });
   const userPersonaPrompt = formatPublicPersonaForPrompt(
@@ -901,9 +905,11 @@ export async function POST(req: Request) {
   const storedUserMessage = messageText;
   const personaUsesBanmal = personaUsesInformalSpeech(selectedPersona?.description ?? "");
   const autoContinueContext =
-    isContinue || (regenerate && isContinueUserMessage(storedUserMessage));
+    autoProgressionEnabled ||
+    (regenerate && isContinueUserMessage(storedUserMessage));
   runtimeMode = resolveChatRuntimeMode({
-    isContinue: autoContinueContext,
+    isContinue: isContinue === true || (regenerate && isContinueUserMessage(storedUserMessage)),
+    legacyNovelModeEnabled,
     oocUserImpersonationAllowed: !autoContinueContext && oocUserImpersonationAllowed,
   });
   const autoContinueHistory = autoContinueContext

@@ -28,8 +28,8 @@ describe("chatRuntimeMode", () => {
     assert.equal(resolveChatRuntimeMode({ isContinue: true }), "auto_progression");
   });
 
-  it("does not map novelModeEnabled alone → auto_progression", () => {
-    assert.equal(resolveChatRuntimeMode({ novelModeEnabled: true }), "interactive");
+  it("maps legacy novelModeEnabled → auto_progression (compatibility)", () => {
+    assert.equal(resolveChatRuntimeMode({ novelModeEnabled: true }), "auto_progression");
   });
 
   it("maps OOC opt-in → ooc_user_impersonation_allowed", () => {
@@ -48,24 +48,23 @@ describe("chatRuntimeMode", () => {
 });
 
 describe("interactive user control prompt", () => {
-  it("includes compact INTERACTIVE USER CONTROL rule", () => {
+  it("includes collaborative interactive owner", () => {
     const block = buildCompactNoGodmoddingStandardBlock();
-    assert.match(block, /\[INTERACTIVE USER CONTROL\]/);
-    assert.match(block, /분량을 채우기 위해 유저를 움직이지 않는다/);
-    assert.ok(block.includes(INTERACTIVE_USER_CONTROL_BLOCK));
-    assert.match(
-      block,
-      /실제 대화·기억·페르소나에 없는 일을 .전에 말했잖아\/아까 네가\/네가 약속했잖아.로 꾸며 쓰지 말고/
-    );
+    assert.match(block, /\[USER CONTROL — COLLABORATIVE INTERACTIVE\]/);
+    assert.match(block, /새로운 직접 대사/);
+    assert.match(block, /공동 서술할 수 있다/);
+    assert.doesNotMatch(block, /\[INTERACTIVE USER CONTROL\]/);
+    // Deprecated nested block remains exported for fixtures only
+    assert.match(INTERACTIVE_USER_CONTROL_BLOCK, /분량을 채우기 위해 유저를 움직이지 않는다/);
     assert.doesNotMatch(block, /TARGET_LENGTH/);
     assert.doesNotMatch(block, /MINIMUM_FLOOR/);
   });
 
-  it("auto progression uses limited external USER CONTROL (not novel)", () => {
+  it("auto progression uses AI-focal co-narration owner (not novel)", () => {
     const block = buildNoGodmoddingBlock("테스트_AI_캐릭터", "테스트_유저_캐릭터", "autoContinue");
-    assert.match(block, /\[USER CONTROL — AUTO PROGRESSION\]/);
+    assert.match(block, /\[AUTO PROGRESSION — AI-FOCAL CO-NARRATION\]/);
     assert.match(block, /\[AI_CAST\]/);
-    assert.match(block, /짧은 외부 행동·대사/);
+    assert.match(block, /대사를 공동 서술할 수 있다/);
     assert.doesNotMatch(block, /\[INTERACTIVE USER CONTROL\]/);
     assert.doesNotMatch(block, /NOVEL MODE/);
   });
@@ -76,14 +75,14 @@ describe("interactive user control prompt", () => {
     assert.match(block, /짧은 행동\/대사 보조/);
   });
 
-  it("resolveNoGodmoddingMode: continue → autoContinue; novel stays isolated", () => {
+  it("resolveNoGodmoddingMode: continue and legacy novel → autoContinue", () => {
     assert.equal(
       resolveNoGodmoddingMode({ novelModeEnabled: false, isContinue: true }),
       "autoContinue"
     );
     assert.equal(
       resolveNoGodmoddingMode({ novelModeEnabled: true, isContinue: true }),
-      "novel"
+      "autoContinue"
     );
     assert.equal(
       resolveNoGodmoddingMode({

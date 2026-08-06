@@ -1,0 +1,97 @@
+{
+  "verdict": "DEFAULT_AND_AUTO_MODE_UNIFICATION_OFFLINE_PASS",
+  "reasons": [],
+  "standard": {
+    "mode": "standard",
+    "runtime": "interactive",
+    "lengthOwnerCount": 1,
+    "flags": {
+      "deepseek_length": false,
+      "short_history": false,
+      "short_user": false,
+      "regen_length": false,
+      "user_tail": true
+    },
+    "counts": {
+      "collaborative": 1,
+      "autoFocal": 0,
+      "legacyNovel": 0,
+      "interactiveNested": 0,
+      "sceneEngine": 0,
+      "sceneTurn": 0,
+      "deepseekLength": 0,
+      "shortHistory": 0,
+      "shortUser": 0,
+      "regenLength": 0,
+      "userTail": 1,
+      "bInnerPovAuth": 0
+    },
+    "sceneSectionPresent": false
+  },
+  "auto": {
+    "mode": "autoContinue",
+    "runtime": "auto_progression",
+    "counts": {
+      "collaborative": 0,
+      "autoFocal": 1,
+      "legacyNovel": 0,
+      "interactiveNested": 0,
+      "sceneEngine": 1,
+      "sceneTurn": 1,
+      "deepseekLength": 0,
+      "shortHistory": 0,
+      "shortUser": 0,
+      "regenLength": 0,
+      "userTail": 1,
+      "bInnerPovAuth": 0
+    },
+    "pov": {
+      "authorizesBExternalAction": true,
+      "authorizesBDialogue": true,
+      "authorizesPersonaVoiceImitation": true,
+      "authorizesBInnerPov": false,
+      "authorizesBPrivateThought": false,
+      "aiFocalViewpointOwnerCount": 1
+    },
+    "sceneSectionPresent": true
+  },
+  "legacyNovel": {
+    "mode": "autoContinue",
+    "runtime": "auto_progression",
+    "counts": {
+      "collaborative": 0,
+      "autoFocal": 1,
+      "legacyNovel": 0,
+      "interactiveNested": 0,
+      "sceneEngine": 1,
+      "sceneTurn": 1,
+      "deepseekLength": 0,
+      "shortHistory": 0,
+      "shortUser": 0,
+      "regenLength": 0,
+      "userTail": 1,
+      "bInnerPovAuth": 0
+    }
+  },
+  "both": {
+    "mode": "autoContinue",
+    "counts": {
+      "collaborative": 0,
+      "autoFocal": 1,
+      "legacyNovel": 0,
+      "interactiveNested": 0,
+      "sceneEngine": 1,
+      "sceneTurn": 1,
+      "deepseekLength": 0,
+      "shortHistory": 0,
+      "shortUser": 0,
+      "regenLength": 0,
+      "userTail": 1,
+      "bInnerPovAuth": 0
+    }
+  },
+  "ooc": {
+    "mode": "coNarration",
+    "runtime": "ooc_user_impersonation_allowed"
+  }
+}

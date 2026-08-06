@@ -8,6 +8,7 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  OPENROUTER_MUSE_SPARK_12_MODEL,
   isCheaperInferenceGemini31ProModel,
   isDeepSeekV4ProModel,
   isGemini36FlashModel,
@@ -56,6 +57,7 @@ export const MODEL_PICKER_ACTIVE_MODEL_IDS = [
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+  OPENROUTER_MUSE_SPARK_12_MODEL,
 ] as const satisfies readonly SelectedAI[];
 
 export type ModelPickerActiveModelId = (typeof MODEL_PICKER_ACTIVE_MODEL_IDS)[number];
@@ -76,6 +78,7 @@ export const MODEL_PICKER_MEASURED_COLD_BASELINES: Partial<Record<ModelPickerAct
     [CHEAPER_INFERENCE_GPT_56_TERRA_MODEL]: 1400,
     [CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL]: 1400,
     [CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL]: 1400,
+    [OPENROUTER_MUSE_SPARK_12_MODEL]: 1400,
   };
 
 /** Output-token band used when deriving low/high point labels. */
@@ -99,10 +102,10 @@ export function canonicalizePreviewModelId(
 ): SelectedAI | null {
   const raw = usage?.selectedAI || usage?.model || messageModel || "";
   if (!raw.trim()) return null;
-  // Retired Muse samples have a different output profile and must not skew
-  // the replacement DeepSeek model's picker estimate.
-  if (isMuseModel(raw)) return null;
   const resolved = resolveSelectedAI(raw, raw);
+  // Legacy Muse 1.1 receipts that still resolve to Muse 1.2 keep Muse samples;
+  // if Muse were remapped away, do not skew DeepSeek estimates.
+  if (isMuseModel(raw) && !isMuseModel(resolved)) return null;
   return isActivePickerModel(resolved) ? resolved : null;
 }
 

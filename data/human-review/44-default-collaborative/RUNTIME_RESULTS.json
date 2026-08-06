@@ -1,0 +1,91 @@
+{
+  "status": "DEFAULT_COLLABORATIVE_HUMAN_REVIEW_PENDING",
+  "generated_at": "2026-08-06T06:29:06.556Z",
+  "offline_parity": "DEFAULT_AND_AUTO_MODE_UNIFICATION_OFFLINE_PASS",
+  "persona_correction": "렌 S급 가이드 = SOURCE_BACKED_USER_PERSONA (unsupported invention withdrawn)",
+  "arms": {
+    "D": {
+      "label": "FROZEN_AUDIT42_ARM_D_SINGLE_OWNER_SCENE_OFF",
+      "frozen": true,
+      "attempts": 8,
+      "valid": 4,
+      "replacement_calls": 1,
+      "exclusions": [
+        {
+          "run": 1,
+          "turn": 1,
+          "attempt": 1,
+          "reasons": [
+            "sse_error:{\"type\":\"error\",\"error\":\"AI 응답이 비정상적으로 짧거나 비어 있어 저장하지 않았습니다. 포인트는 차감되지 않습니다. 다시 시도해 주세요.\",\"messageId\":3517,\"userMessageI",
+            "finish_metadata_missing"
+          ]
+        },
+        {
+          "run": 1,
+          "turn": 1,
+          "attempt": "final",
+          "reasons": [
+            "finish_metadata_missing"
+          ],
+          "usedReplacement": true
+        },
+        {
+          "run": 1,
+          "turn": 2,
+          "attempt": "final",
+          "reasons": [
+            "finish_metadata_missing"
+          ],
+          "usedReplacement": false
+        }
+      ],
+      "chars": [
+        3080,
+        3345,
+        3600,
+        4389
+      ],
+      "avg": 3604,
+      "min": 3080,
+      "max": 4389
+    },
+    "COLLAB": {
+      "label": "COLLABORATIVE_DEFAULT_CANDIDATE",
+      "frozen": false,
+      "attempts": 6,
+      "valid": 4,
+      "replacement_calls": 1,
+      "exclusions": [
+        {
+          "run": 1,
+          "turn": 2,
+          "attempt": 1,
+          "reasons": [
+            "sse_error:{\"type\":\"error\",\"error\":\"The operation was aborted due to timeout\"}",
+            "empty_upstream_stream"
+          ]
+        },
+        {
+          "run": 2,
+          "turn": 1,
+          "attempt": "final",
+          "reasons": [
+            "finish_metadata_missing"
+          ],
+          "usedReplacement": false
+        }
+      ],
+      "chars": [
+        2017,
+        2278,
+        2650,
+        3202
+      ],
+      "avg": 2537,
+      "min": 2017,
+      "max": 3202
+    }
+  },
+  "human_review": "NOT_RUN — waiting for ChatGPT",
+  "auto_progression": "NOT_RUN unless standard human screen passes"
+}

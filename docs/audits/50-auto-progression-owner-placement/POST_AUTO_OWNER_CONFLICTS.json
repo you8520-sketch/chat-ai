@@ -1,0 +1,18 @@
+{
+  "verdict": "AUTO_OWNER_PLACEMENT_PASS",
+  "conflicts": [],
+  "structural": {
+    "autoCount": 1,
+    "collabCount": 0,
+    "autoInFinalUser": false,
+    "hasUserTail": true,
+    "after_owner_section_ids": [
+      "character-core-identity",
+      "identity-and-rules",
+      "prose-style-xml-bundle",
+      "scene-directive",
+      "rule-output-layout-recency",
+      "user-persona-reference-owner"
+    ]
+  }
+}

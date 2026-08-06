@@ -1,0 +1,10 @@
+{
+  "verdict": "MUSE_COLLABORATIVE_BASELINE_OFFLINE_PASS",
+  "reasons": [],
+  "modelId": "meta/muse-spark-1.2",
+  "collab": 1,
+  "novel": 0,
+  "scene": false,
+  "lengthOwners": 1,
+  "userTail": 1
+}
