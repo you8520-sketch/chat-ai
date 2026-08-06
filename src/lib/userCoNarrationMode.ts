@@ -1,35 +1,41 @@
 /**
- * Platform-wide user co-narration mode — independent of legacy novelModeEnabled.
+ * Platform-wide user co-narration mode.
  *
- * - off: interactive turns; do not write deliberate [B]
+ * - off: interactive collaborative turns
  * - limited_external:
- *   - auto progression (short observable [B] action/dialogue)
- *   - OOC opt-in "사칭 허용" → LIMITED CO-NARRATION (최소 공동 서술; 감정·결정 창작 금지)
- * - explicit_full: dormant novelModeEnabled path only (never from isContinue / auto progression)
+ *   - auto progression (external [B] action/dialogue, AI-focal)
+ *   - OOC opt-in "사칭 허용" → LIMITED CO-NARRATION
+ * - explicit_full: removed from production — legacy novelModeEnabled normalizes to
+ *   auto progression (limited_external), never novel inner POV
  */
 
-export type UserCoNarrationMode = "off" | "limited_external" | "explicit_full";
+export type UserCoNarrationMode = "off" | "limited_external";
 
 export type ResolveUserCoNarrationModeInput = {
   autoProgressionEnabled?: boolean;
-  /** Legacy novel / full impersonation — must never be derived from isContinue */
+  /** Legacy novel — normalized to limited_external via auto progression */
   novelModeEnabled?: boolean;
+  legacyNovelModeEnabled?: boolean;
   oocUserImpersonationAllowed?: boolean;
 };
 
 export function resolveUserCoNarrationMode(
   input: ResolveUserCoNarrationModeInput
 ): UserCoNarrationMode {
-  if (input.novelModeEnabled === true) return "explicit_full";
-  if (input.autoProgressionEnabled === true) return "limited_external";
+  const legacyNovel =
+    input.legacyNovelModeEnabled === true || input.novelModeEnabled === true;
+  if (input.autoProgressionEnabled === true || legacyNovel) {
+    return "limited_external";
+  }
   if (input.oocUserImpersonationAllowed === true) return "limited_external";
   return "off";
 }
 
 export function userCoNarrationAllowsExternalAssist(mode: UserCoNarrationMode): boolean {
-  return mode === "limited_external" || mode === "explicit_full";
+  return mode === "limited_external";
 }
 
-export function userCoNarrationIsExplicitFull(mode: UserCoNarrationMode): boolean {
-  return mode === "explicit_full";
+/** @deprecated explicit_full removed from production */
+export function userCoNarrationIsExplicitFull(_mode: UserCoNarrationMode): boolean {
+  return false;
 }
