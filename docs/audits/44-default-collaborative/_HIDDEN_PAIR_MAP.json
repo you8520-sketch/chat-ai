@@ -1,0 +1,38 @@
+{
+  "status": "DEFAULT_COLLABORATIVE_HUMAN_REVIEW_PENDING",
+  "note": "Reveal only after ChatGPT blind review.",
+  "arms": {
+    "D": "Frozen Audit 42 ARM D (single length + Scene OFF; canary-era)",
+    "COLLAB": "New production collaborative default (single length + Scene OFF + collaborative interactive owner)"
+  },
+  "pairs": {
+    "pair1": {
+      "turn": 1,
+      "run": 1,
+      "map": "X_is_D",
+      "X": "D-R1T1",
+      "Y": "COLLAB-R1T1"
+    },
+    "pair2": {
+      "turn": 2,
+      "run": 1,
+      "map": "X_is_COLLAB",
+      "X": "COLLAB-R1T2",
+      "Y": "D-R1T2"
+    },
+    "pair3": {
+      "turn": 1,
+      "run": 2,
+      "map": "X_is_COLLAB",
+      "X": "COLLAB-R2T1",
+      "Y": "D-R2T1"
+    },
+    "pair4": {
+      "turn": 2,
+      "run": 2,
+      "map": "X_is_D",
+      "X": "D-R2T2",
+      "Y": "COLLAB-R2T2"
+    }
+  }
+}
