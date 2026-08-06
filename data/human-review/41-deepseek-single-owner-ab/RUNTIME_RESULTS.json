@@ -1,0 +1,68 @@
+{
+  "status": "DS_SINGLE_OWNER_HUMAN_REVIEW_PENDING",
+  "generated_at": "2026-08-06T03:34:46.130Z",
+  "offline_parity": "DS_SINGLE_OWNER_FULL_PAYLOAD_PARITY_PASS",
+  "arms": {
+    "A": {
+      "label": "PRODUCTION_TRIPLE_OWNER",
+      "attempts": 5,
+      "valid": 4,
+      "replacement_calls": 1,
+      "exclusions": [
+        {
+          "run": 1,
+          "turn": 2,
+          "attempt": 1,
+          "reasons": [
+            "sse_error:{\"type\":\"error\",\"error\":\"AI 응답이 비정상적으로 짧거나 비어 있어 저장하지 않았습니다. 포인트는 차감되지 않습니다. 다시 시도해 주세요.\",\"messageId\":3417,\"userMessageI",
+            "finish_metadata_missing"
+          ]
+        }
+      ],
+      "chars": [
+        2139,
+        3267,
+        2990,
+        3130
+      ],
+      "avg": 2882,
+      "min": 2139,
+      "max": 3267
+    },
+    "B": {
+      "label": "SINGLE_TERMINAL_OWNER",
+      "attempts": 6,
+      "valid": 4,
+      "replacement_calls": 1,
+      "exclusions": [
+        {
+          "run": 1,
+          "turn": 2,
+          "attempt": 1,
+          "reasons": [
+            "finish_metadata_missing"
+          ]
+        },
+        {
+          "run": 2,
+          "turn": 1,
+          "attempt": "final",
+          "reasons": [
+            "finish_metadata_missing"
+          ],
+          "usedReplacement": false
+        }
+      ],
+      "chars": [
+        2847,
+        4620,
+        2538,
+        3134
+      ],
+      "avg": 3285,
+      "min": 2538,
+      "max": 4620
+    }
+  },
+  "human_review": "NOT_RUN — waiting for ChatGPT"
+}

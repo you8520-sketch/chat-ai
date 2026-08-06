@@ -1,0 +1,38 @@
+{
+  "status": "DS_SINGLE_OWNER_HUMAN_REVIEW_PENDING",
+  "note": "Reveal only after ChatGPT blind review.",
+  "arms": {
+    "A": "PRODUCTION_TRIPLE_OWNER (canary OFF, length owners=3)",
+    "B": "SINGLE_TERMINAL_OWNER (ds_single_terminal_length_owner, length owners=1)"
+  },
+  "pairs": {
+    "pair1": {
+      "turn": 1,
+      "run": 1,
+      "map": "X_is_A",
+      "X": "A-R1T1",
+      "Y": "B-R1T1"
+    },
+    "pair2": {
+      "turn": 2,
+      "run": 1,
+      "map": "X_is_A",
+      "X": "A-R1T2",
+      "Y": "B-R1T2"
+    },
+    "pair3": {
+      "turn": 1,
+      "run": 2,
+      "map": "X_is_A",
+      "X": "A-R2T1",
+      "Y": "B-R2T1"
+    },
+    "pair4": {
+      "turn": 2,
+      "run": 2,
+      "map": "X_is_A",
+      "X": "A-R2T2",
+      "Y": "B-R2T2"
+    }
+  }
+}

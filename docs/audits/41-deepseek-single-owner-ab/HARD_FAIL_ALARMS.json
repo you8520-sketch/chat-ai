@@ -1,0 +1,96 @@
+{
+  "generated_at": "2026-08-06T03:34:46.133Z",
+  "status": "DS_SINGLE_OWNER_HUMAN_REVIEW_PENDING",
+  "note": "Detector alarms only — not a PASS/FAIL quality verdict.",
+  "per_attempt": [
+    {
+      "attempt_id": "A-R1T1",
+      "arm": "A",
+      "run": 1,
+      "turn": 1,
+      "finish_reason": "stop",
+      "raw_chars": 2139,
+      "alarms": [],
+      "canary_variant": null,
+      "provider": "cheaperinference"
+    },
+    {
+      "attempt_id": "A-R1T2",
+      "arm": "A",
+      "run": 1,
+      "turn": 2,
+      "finish_reason": "stop",
+      "raw_chars": 3267,
+      "alarms": [],
+      "canary_variant": null,
+      "provider": "cheaperinference"
+    },
+    {
+      "attempt_id": "A-R2T1",
+      "arm": "A",
+      "run": 2,
+      "turn": 1,
+      "finish_reason": "stop",
+      "raw_chars": 2990,
+      "alarms": [],
+      "canary_variant": null,
+      "provider": "cheaperinference"
+    },
+    {
+      "attempt_id": "A-R2T2",
+      "arm": "A",
+      "run": 2,
+      "turn": 2,
+      "finish_reason": "stop",
+      "raw_chars": 3130,
+      "alarms": [],
+      "canary_variant": null,
+      "provider": "cheaperinference"
+    },
+    {
+      "attempt_id": "B-R1T1",
+      "arm": "B",
+      "run": 1,
+      "turn": 1,
+      "finish_reason": "stop",
+      "raw_chars": 2847,
+      "alarms": [],
+      "canary_variant": "ds_single_terminal_length_owner",
+      "provider": "cheaperinference"
+    },
+    {
+      "attempt_id": "B-R1T2",
+      "arm": "B",
+      "run": 1,
+      "turn": 2,
+      "finish_reason": "stop",
+      "raw_chars": 4620,
+      "alarms": [],
+      "canary_variant": "ds_single_terminal_length_owner",
+      "provider": "cheaperinference"
+    },
+    {
+      "attempt_id": "B-R2T1",
+      "arm": "B",
+      "run": 2,
+      "turn": 1,
+      "finish_reason": "stop",
+      "raw_chars": 2538,
+      "alarms": [],
+      "canary_variant": "ds_single_terminal_length_owner",
+      "provider": "cheaperinference"
+    },
+    {
+      "attempt_id": "B-R2T2",
+      "arm": "B",
+      "run": 2,
+      "turn": 2,
+      "finish_reason": "stop",
+      "raw_chars": 3134,
+      "alarms": [],
+      "canary_variant": "ds_single_terminal_length_owner",
+      "provider": "cheaperinference"
+    }
+  ],
+  "alarm_counts": {}
+}
