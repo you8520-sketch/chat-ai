@@ -38,8 +38,14 @@ export const OPENROUTER_DEEPSEEK_V3_MODEL = "deepseek/deepseek-chat-v3-0324";
 /** @deprecated UI 선택 제거 — legacy slug·과금 경로 호환용 */
 export const OPENROUTER_QWEN_37_MAX_MODEL = "qwen/qwen3.7-max";
 
-/** @deprecated UI 선택 제거 — legacy slug·과금 경로 호환용 */
+/** OpenRouter Z.ai GLM 5.2 — diagnostic RP challenger (not public picker) */
 export const OPENROUTER_GLM_52_MODEL = "z-ai/glm-5.2";
+
+/** OpenRouter AionLabs Aion 3.0 — diagnostic RP challenger (not public picker) */
+export const OPENROUTER_AION_30_MODEL = "aion-labs/aion-3.0";
+
+/** OpenRouter MiniMax M3 — diagnostic RP challenger (not public picker) */
+export const OPENROUTER_MINIMAX_M3_MODEL = "minimax/minimax-m3";
 
 /** @deprecated UI 선택 제거 — legacy slug·과금·영수증 호환용 (재활성화 가능) */
 export const OPENROUTER_KIMI_K3_MODEL = "moonshotai/kimi-k3";
@@ -109,6 +115,10 @@ export const QWEN_DISPLAY_NAME = "Qwen 3.7 Max";
 
 export const GLM_52_DISPLAY_NAME = "GLM 5.2";
 
+export const AION_30_DISPLAY_NAME = "Aion 3.0";
+
+export const MINIMAX_M3_DISPLAY_NAME = "MiniMax M3";
+
 export const KIMI_K3_DISPLAY_NAME = "Kimi K3";
 
 export const MUSE_SPARK_11_DISPLAY_NAME = "Muse Spark 1.1";
@@ -133,6 +143,24 @@ export const GEMINI_31_PRO_DISPLAY_NAME = "Gemini 3.1 Pro";
 /** 채팅 UI에 Claude Opus 노출 — `OPENROUTER_OPUS_USER_SELECTABLE=1`로 재활성화 */
 export function isOpusUserSelectable(): boolean {
   return process.env.OPENROUTER_OPUS_USER_SELECTABLE?.trim() === "1";
+}
+
+/**
+ * Latest OpenRouter RP challengers (Aion 3.0 / MiniMax M3 / GLM 5.2).
+ * API select only when `LATEST_RP_CHALLENGER_DIAGNOSTIC_SELECTABLE=1`.
+ * Public picker stays closed; production must not set this env.
+ */
+export function isLatestRpChallengerDiagnosticSelectable(): boolean {
+  return process.env.LATEST_RP_CHALLENGER_DIAGNOSTIC_SELECTABLE?.trim() === "1";
+}
+
+export function isLatestRpChallengerModel(modelId: string): boolean {
+  const id = modelId.trim().toLowerCase();
+  return (
+    id === OPENROUTER_AION_30_MODEL ||
+    id === OPENROUTER_MINIMAX_M3_MODEL ||
+    id === OPENROUTER_GLM_52_MODEL
+  );
 }
 
 export type SelectedAIOptionMeta = {
@@ -174,6 +202,27 @@ export const SELECTED_AI_OPTIONS = [
     provider: "openrouter" as const,
     tier: "pro" as const,
     hint: "Premium",
+  },
+  {
+    id: OPENROUTER_AION_30_MODEL,
+    label: AION_30_DISPLAY_NAME,
+    provider: "openrouter" as const,
+    tier: "pro" as const,
+    hint: "AionLabs",
+  },
+  {
+    id: OPENROUTER_MINIMAX_M3_MODEL,
+    label: MINIMAX_M3_DISPLAY_NAME,
+    provider: "openrouter" as const,
+    tier: "pro" as const,
+    hint: "MiniMax",
+  },
+  {
+    id: OPENROUTER_GLM_52_MODEL,
+    label: GLM_52_DISPLAY_NAME,
+    provider: "openrouter" as const,
+    tier: "pro" as const,
+    hint: "Z.ai",
   },
   {
     id: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
@@ -275,15 +324,22 @@ export type SelectedAITier = (typeof SELECTED_AI_OPTIONS)[number]["tier"];
 export const DEFAULT_SELECTED_AI: SelectedAI =
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
 
-/** 채팅 모델 선택 UI에만 노출 (OpenRouter Opus·Gemini 3.6 Flash·Luna는 기본 숨김) */
+/** 채팅 모델 선택 UI에만 노출 (OpenRouter Opus·Gemini 3.6 Flash·Luna·RP challengers 기본 숨김) */
 export const USER_SELECTABLE_AI_OPTIONS = SELECTED_AI_OPTIONS.filter(
   (o) =>
     o.id !== OPENROUTER_GEMINI_36_FLASH_MODEL &&
     o.id !== CHEAPER_INFERENCE_GPT_56_LUNA_MODEL &&
+    !isLatestRpChallengerModel(o.id) &&
     (o.id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL ||
       isOpusUserSelectable() ||
       !isClaudeSelectedAI(o.id))
 );
+
+/** PATCH /api/user/selected-ai allow-list — RP challengers only with diagnostic env. */
+export function isUserApiSelectableAI(id: string): boolean {
+  if (USER_SELECTABLE_AI_OPTIONS.some((o) => o.id === id)) return true;
+  return isLatestRpChallengerModel(id) && isLatestRpChallengerDiagnosticSelectable();
+}
 
 export function coerceUserSelectableAI(id: SelectedAI): SelectedAI {
   if (
@@ -299,6 +355,10 @@ export function coerceUserSelectableAI(id: SelectedAI): SelectedAI {
   }
   // Luna temporarily hidden from picker.
   if (id === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL) {
+    return DEFAULT_SELECTED_AI;
+  }
+  // Latest OpenRouter RP challengers — normalize away unless diagnostic env is set.
+  if (isLatestRpChallengerModel(id) && !isLatestRpChallengerDiagnosticSelectable()) {
     return DEFAULT_SELECTED_AI;
   }
   return id;
@@ -407,6 +467,14 @@ export function isAion20Model(modelId: string): boolean {
   return modelId.trim().toLowerCase() === CHEAPER_INFERENCE_AION_20_MODEL;
 }
 
+export function isAion30Model(modelId: string): boolean {
+  return modelId.trim().toLowerCase() === OPENROUTER_AION_30_MODEL;
+}
+
+export function isMinimaxM3Model(modelId: string): boolean {
+  return modelId.trim().toLowerCase() === OPENROUTER_MINIMAX_M3_MODEL;
+}
+
 /** OpenRouter MoonshotAI Kimi 계열 (Kimi K3 등) — UI 제거, 영수증·legacy 보존 */
 export function isKimiModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
@@ -475,13 +543,21 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   qwen: DEFAULT_SELECTED_AI,
   "qwen3.7-max": DEFAULT_SELECTED_AI,
   "qwen/qwen3.7-max": DEFAULT_SELECTED_AI,
-  /** GLM 5.2 제거 — 현재 기본 모델로 이전 */
-  glm: DEFAULT_SELECTED_AI,
-  "glm-5.2": DEFAULT_SELECTED_AI,
-  "glm5.2": DEFAULT_SELECTED_AI,
-  "z-ai/glm-5.2": DEFAULT_SELECTED_AI,
+  /** GLM aliases — OpenRouter z-ai/glm-5.2 is registry id; CI slug stays remapped */
+  glm: OPENROUTER_GLM_52_MODEL,
+  "glm-5.2": OPENROUTER_GLM_52_MODEL,
+  "glm5.2": OPENROUTER_GLM_52_MODEL,
+  "z-ai/glm-5.2": OPENROUTER_GLM_52_MODEL,
   "z-ai/glm-5.1": DEFAULT_SELECTED_AI,
   "z-ai/glm-5": DEFAULT_SELECTED_AI,
+  /** Aion 3.0 / MiniMax M3 diagnostic aliases */
+  aion: OPENROUTER_AION_30_MODEL,
+  "aion-3.0": OPENROUTER_AION_30_MODEL,
+  "aion-3": OPENROUTER_AION_30_MODEL,
+  "aion-labs/aion-3.0": OPENROUTER_AION_30_MODEL,
+  minimax: OPENROUTER_MINIMAX_M3_MODEL,
+  "minimax-m3": OPENROUTER_MINIMAX_M3_MODEL,
+  "minimax/minimax-m3": OPENROUTER_MINIMAX_M3_MODEL,
   /** Kimi K3 제거 — 현재 기본 모델로 이전 (상수·detector는 영수증 호환용) */
   kimi: DEFAULT_SELECTED_AI,
   "kimi-k3": DEFAULT_SELECTED_AI,
@@ -536,6 +612,12 @@ export function selectedAILabel(id: string): string {
   }
   if (id === OPENROUTER_GEMINI_31_PRO_MODEL || id.toLowerCase().includes("gemini-3.1-pro")) {
     return GEMINI_31_PRO_DISPLAY_NAME;
+  }
+  if (id === OPENROUTER_AION_30_MODEL || isAion30Model(id)) {
+    return AION_30_DISPLAY_NAME;
+  }
+  if (id === OPENROUTER_MINIMAX_M3_MODEL || isMinimaxM3Model(id)) {
+    return MINIMAX_M3_DISPLAY_NAME;
   }
   if (id === OPENROUTER_GLM_52_MODEL || isGlmModel(id)) {
     return GLM_52_DISPLAY_NAME;

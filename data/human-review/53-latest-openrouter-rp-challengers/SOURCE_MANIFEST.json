@@ -1,0 +1,16 @@
+{
+  "frozen_relationship": {
+    "deepseek": "Audit 44 COLLAB R1 T1/T2",
+    "terra": "Audit 46 relationship R1 T1/T2"
+  },
+  "frozen_action": {
+    "deepseek": "Audit 46 action T1/T2",
+    "terra": "Audit 46 action T1/T2"
+  },
+  "new_models": {
+    "aion": "aion-labs/aion-3.0",
+    "minimax": "minimax/minimax-m3",
+    "glm": "z-ai/glm-5.2"
+  },
+  "architecture": "PR #250 standard collaborative + USER_TAIL length owner only"
+}

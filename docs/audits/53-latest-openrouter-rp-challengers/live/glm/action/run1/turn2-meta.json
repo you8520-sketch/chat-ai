@@ -1,0 +1,92 @@
+{
+  "attempt_id": "GLM-ACT-R1T2",
+  "model_key": "glm",
+  "model_ui": "z-ai/glm-5.2",
+  "requested_model": "z-ai/glm-5.2",
+  "resolved_model": "z-ai/glm-5.2",
+  "test_set": "action",
+  "run": 1,
+  "turn": 2,
+  "user_input": "*렌은 태형의 소매를 잡고 곁에 붙는다.* 나도 같이 갈게.",
+  "finish_reason": "stop",
+  "latency_s": 85.768,
+  "ttft_s": 80.494,
+  "visible_chars": 2844,
+  "korean_chars": 1958,
+  "chat_id": 15,
+  "replacement": false,
+  "raw_hash": "5873d77893f1993ecea0b7ac4bfe52b4624e7c60041ef5b4d705820eace19cea",
+  "provider": "openrouter",
+  "cost_points": 82,
+  "reasoning_requested": "none",
+  "reasoning_effort": "none",
+  "reasoning_mandatory": false,
+  "input_tokens": 16254,
+  "cached_input_tokens": null,
+  "visible_output_tokens": 2454,
+  "reasoning_tokens": null,
+  "total_billed_output_tokens": null,
+  "usage_cost_usd": 0.022145112,
+  "api_raw_cost_krw": 32.2,
+  "usage_cost_points": 82,
+  "usage": {
+    "input": 16254,
+    "output": 2454,
+    "finishReason": "stop",
+    "savedOutputChars": 2844,
+    "model": "z-ai/glm-5.2",
+    "provider": "openrouter",
+    "route": "safe",
+    "selectedAI": "z-ai/glm-5.2",
+    "cost": 82,
+    "baseCost": 81,
+    "modelLabel": "GLM 5.2",
+    "estimated": false,
+    "breakdown": [
+      {
+        "label": "최근 raw 턴",
+        "tokens": 3831,
+        "pct": 24
+      },
+      {
+        "label": "캐릭터 프롬프트",
+        "tokens": 7481,
+        "pct": 46
+      },
+      {
+        "label": "선택 페르소나",
+        "tokens": 222,
+        "pct": 1
+      }
+    ],
+    "stages": [
+      {
+        "stage": "GLM 5.2",
+        "model": "z-ai/glm-5.2",
+        "input": 16254,
+        "output": 2454,
+        "apiReportedInputTokens": 16254,
+        "apiOutputTokens": 2454,
+        "lengthRecoveryPasses": 0,
+        "savedOutputChars": 2844,
+        "estimated": false,
+        "finishReason": "stop",
+        "truncated": true,
+        "loopAborted": false,
+        "degenerationAborted": false,
+        "standardInputTokens": 16254,
+        "upstreamCostUsd": 0.022145112,
+        "cost": 81
+      }
+    ],
+    "apiInputTokens": 16254,
+    "apiOutputTokens": 2454,
+    "assembledInputTokens": 19819,
+    "standardInputTokens": 16254,
+    "upstreamCostUsd": 0.022145112,
+    "cacheRateSummary": "입력 $0.532/M · 출력 $1.672/M",
+    "cacheFamily": "unknown",
+    "apiRawCostKrw": 32.2,
+    "apiRawCostSource": "provider_reported"
+  }
+}

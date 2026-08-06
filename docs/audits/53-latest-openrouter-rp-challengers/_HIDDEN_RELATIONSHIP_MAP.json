@@ -1,0 +1,19 @@
+{
+  "relationship": {
+    "REL-T1": {
+      "A": "aion",
+      "B": "deepseek",
+      "C": "minimax",
+      "D": "terra",
+      "E": "glm"
+    },
+    "REL-T2": {
+      "A": "minimax",
+      "B": "glm",
+      "C": "deepseek",
+      "D": "aion",
+      "E": "terra"
+    }
+  },
+  "note": "Reveal only after ChatGPT finishes blind scoring."
+}
