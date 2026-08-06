@@ -65,6 +65,13 @@ export const RP_DIAGNOSTIC_CANARY_VARIANTS = [
   "deepseek_final",
   "terra_cross_check",
   "ds_length_normalized_baseline",
+  /**
+   * Audit 40 — collapse DeepSeek competing length owners to a single terminal owner.
+   * Keeps USER_TAIL_LENGTH_OWNER_SENTENCE; strips DEEPSEEK LENGTH block + SHORT HISTORY /
+   * SHORT USER TURN / REGEN length extras. Opening-scene peel still uses thin-history
+   * detection (not the injected SHORT HISTORY text).
+   */
+  "ds_single_terminal_length_owner",
 ] as const;
 
 export type RpDiagnosticCanaryVariant = (typeof RP_DIAGNOSTIC_CANARY_VARIANTS)[number];
@@ -247,6 +254,13 @@ export function rpDiagnosticUsesFlashLengthStack(
   if (variant === "ds_length_normalized_baseline") return true;
   const env = process.env.RP_DIAGNOSTIC_CANARY_FLASH_LENGTH_STACK?.trim().toLowerCase();
   return env === "1" || env === "true";
+}
+
+/** One length owner only: USER_TAIL_LENGTH_OWNER_SENTENCE (suppress DeepSeek length extras). */
+export function rpDiagnosticUsesSingleTerminalLengthOwner(
+  variant: RpDiagnosticCanaryVariant
+): boolean {
+  return variant === "ds_single_terminal_length_owner";
 }
 
 /** @deprecated use resolveDeepSeekExtrasMode */

@@ -108,6 +108,7 @@ import {
   rpDiagnosticUsesMinimalLayout,
   rpDiagnosticUsesMinimalLengthOwner,
   rpDiagnosticUsesMinimalRpStyle,
+  rpDiagnosticUsesSingleTerminalLengthOwner,
 } from "@/lib/rpDiagnosticCanary";
 import type { CharacterChunk, GeminiContextSplit } from "@/types";
 import {
@@ -1250,10 +1251,17 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
    */
   let historyForAssembly: ContextBuildInput["shortTermHistory"] = input.shortTermHistory;
   let deepSeekOpeningSceneContext: string | null = null;
-  const deepSeekShortHistoryExtra = deepSeekXmlMode
-    ? resolveDeepSeekShortHistoryLengthExtra(input.shortTermHistory)
-    : null;
-  if (deepSeekXmlMode && deepSeekShortHistoryExtra) {
+  const singleTerminalLengthOwner =
+    !!rpVariant && rpDiagnosticUsesSingleTerminalLengthOwner(rpVariant);
+  // Thin-history detection (for opening peel) — independent of whether SHORT HISTORY text is injected.
+  const deepSeekThinHistory = deepSeekXmlMode
+    ? resolveDeepSeekShortHistoryLengthExtra(input.shortTermHistory) != null
+    : false;
+  const deepSeekShortHistoryExtra =
+    deepSeekXmlMode && !singleTerminalLengthOwner && deepSeekThinHistory
+      ? resolveDeepSeekShortHistoryLengthExtra(input.shortTermHistory)
+      : null;
+  if (deepSeekXmlMode && deepSeekThinHistory) {
     const peeled = peelCreatorOpeningGreetingFromHistory(input.shortTermHistory);
     if (
       shouldRemapDeepSeekOpeningGreeting({
@@ -1271,6 +1279,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
           peeledSyntheticOpeningTurn: peeled.peeledSyntheticOpeningTurn,
           greetingChars: peeled.openingGreeting!.length,
           remainingHistoryMessages: historyForAssembly.length,
+          singleTerminalLengthOwner,
         });
       }
     }
@@ -1323,17 +1332,22 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     const userBodyWithOpening = deepSeekOpeningSceneContext
       ? `${deepSeekOpeningSceneContext}\n\n${userTurnContent}`
       : userTurnContent;
-    const deepSeekUserExtras = [
-      deepSeekMomentumExtra,
-      deepSeekShortHistoryExtra,
-      resolveDeepSeekShortUserTurnExtra(input.currentUserMessage),
-      input.regenerate === true ? DEEPSEEK_REGEN_LENGTH_BLOCK : null,
-    ]
-      .filter(Boolean)
-      .join("\n");
+    // single-terminal-length canary: suppress competing DeepSeek length extras;
+    // USER_TAIL_LENGTH_OWNER_SENTENCE remains the sole numeric length owner below.
+    const deepSeekUserExtras = singleTerminalLengthOwner
+      ? [deepSeekMomentumExtra].filter(Boolean).join("\n")
+      : [
+          deepSeekMomentumExtra,
+          deepSeekShortHistoryExtra,
+          resolveDeepSeekShortUserTurnExtra(input.currentUserMessage),
+          input.regenerate === true ? DEEPSEEK_REGEN_LENGTH_BLOCK : null,
+        ]
+          .filter(Boolean)
+          .join("\n");
     userTurnContent = prependDeepSeekBottomReminder(
       userBodyWithOpening,
-      deepSeekUserExtras || null
+      deepSeekUserExtras || null,
+      { styleOnly: singleTerminalLengthOwner }
     );
   } else if (deepSeekLengthStackOnly) {
     const lengthStack = [

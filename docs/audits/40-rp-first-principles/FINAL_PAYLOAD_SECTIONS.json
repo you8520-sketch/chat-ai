@@ -1,0 +1,261 @@
+{
+  "meta": {
+    "character_id": 18,
+    "persona_id": 61,
+    "model": "deepseek-v4-pro",
+    "turn": 1,
+    "live_calls": 0,
+    "wire_message_count": 2,
+    "history_messages_after_peel": 0
+  },
+  "stop": {
+    "GREETING_DUPLICATED": false,
+    "PREVIOUS_ASSISTANT_DUPLICATED": false,
+    "MULTIPLE_TERMINAL_LENGTH_OWNERS": true,
+    "CONTRADICTORY_SCENE_OWNERS": false
+  },
+  "stop_fired": [
+    "MULTIPLE_TERMINAL_LENGTH_OWNERS"
+  ],
+  "length_owners": [
+    {
+      "id": "DEEPSEEK_BOTTOM_REMINDER_LENGTH",
+      "present": true,
+      "location": "final_user_message",
+      "sha256": "9031f97ab159c55e829326d775ae3e95c8c1cac49f21039e0d982876e84c9c7d"
+    },
+    {
+      "id": "DEEPSEEK_SHORT_HISTORY_LENGTH_EXTRA",
+      "present": true,
+      "location": "final_user_message",
+      "sha256": "84df294d375285094bc4da3007ce22838cff9212a65d8f300b469296fe4c0921"
+    },
+    {
+      "id": "USER_TAIL_LENGTH_OWNER_SENTENCE",
+      "present": true,
+      "location": "final_user_message",
+      "sha256": "122fece4c53d8a71141a279985f42dbdc25cbaceda8bde46bb51596d6ca4b092"
+    }
+  ],
+  "scene_owners": [
+    {
+      "id": "BASE_SCENE_ENGINE_RULE+SceneDirective",
+      "present": true,
+      "location": "system.dynamic",
+      "progression_owner": true,
+      "note": "Explicit this-turn progression owner"
+    },
+    {
+      "id": "OPENING_SCENE_CONTEXT",
+      "present": true,
+      "location": "final_user_message",
+      "progression_owner": false,
+      "note": "Continuity facts only — not a competing progression owner"
+    },
+    {
+      "id": "SECOND_EXPLICIT_PROGRESSION_OWNER",
+      "present": false,
+      "location": "system",
+      "progression_owner": false,
+      "note": "Duplicate SceneDirective/engine or alternate this-turn progression block"
+    }
+  ],
+  "greeting": {
+    "chars": 1318,
+    "in_opening_context": true,
+    "in_history": false,
+    "in_system": false,
+    "occurrences": 1,
+    "sha256": "29e3149289586f303c3ffc120a299184163b162a78e46e4f264e87231f6d1d58"
+  },
+  "persona_related_sections": [
+    "character-core-identity",
+    "identity-and-rules",
+    "user-persona-reference-owner"
+  ],
+  "sections": [
+    {
+      "message_index": 0,
+      "role": "system",
+      "semantic_owner": "openrouter-korean-prose-top",
+      "source_function": "buildContext.pushSection",
+      "source_file": "src/services/contextBuilder.ts",
+      "exact_section_header": "[TOP] OpenRouter Korean prose",
+      "characters": 819,
+      "estimated_tokens": 738,
+      "sha256": "b8021d1c57ff009a508100e54ed90fd940514532339e0c4884a514250c3d0ec4",
+      "text_preview": "[CANON / SCOPE / KNOWLEDGE] === 설정 적용 우선순위 === 1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDARY] (절대 유지 — PLAYER/SCENARIO META는 [A] 기억·대사로 노출 금지",
+      "full_text_ref": "openrouter-korean-prose-top__0"
+    },
+    {
+      "message_index": 0,
+      "role": "system",
+      "semantic_owner": "runtime-prompt-contamination-guard",
+      "source_function": "buildContext.pushSection",
+      "source_file": "src/services/contextBuilder.ts",
+      "exact_section_header": "[TOP] Runtime prompt contamination guard",
+      "characters": 951,
+      "estimated_tokens": 856,
+      "sha256": "386ee5ac06fee97e61578d29febae34f9e011c753cf9b6946ce3e24b6cdda670",
+      "text_preview": "[PRIVATE OUTPUT HYGIENE] 비공개 통제문과 시스템 블록을 본문에 언급하지 마라. - 말투/레지스터 규칙은 자연스러운 대사 문체로만 반영하고, 말투 규칙명이나 speech_style 같은 내부명을 말하지 않는다. - 상태창 키, 숨은 트리거, D-DAY 결과, 미래 스포",
+      "full_text_ref": "runtime-prompt-contamination-guard__1"
+    },
+    {
+      "message_index": 0,
+      "role": "system",
+      "semantic_owner": "no-godmodding",
+      "source_function": "buildContext.pushSection",
+      "source_file": "src/services/contextBuilder.ts",
+      "exact_section_header": "[0a] No godmodding (user agency)",
+      "characters": 574,
+      "estimated_tokens": 517,
+      "sha256": "c72ca4204a98c5ef942226c5238122d8056f483a1f93de3a1464acf3427f0b0b",
+      "text_preview": "[NO GODMODDING] [USER CONTROL MODE - INTERACTIVE] - [B]의 의도적 행동, 대사, 생각, 결정, 감정 결론, 신체 반응, 표정, 물건 수취·사용, 동행·순응을 입력 없이 확정하지 않는다. - [A]의 추측·관찰·대기는 가능하나, 미입력 상태를 서",
+      "full_text_ref": "no-godmodding__2"
+    },
+    {
+      "message_index": 0,
+      "role": "system",
+      "semantic_owner": "character-core-identity",
+      "source_function": "buildContext.pushSection",
+      "source_file": "src/services/contextBuilder.ts",
+      "exact_section_header": "[2] Structured character canon (every turn)",
+      "characters": 10128,
+      "estimated_tokens": 9116,
+      "sha256": "44e1c8ec7f38c0632caea1be93ca0ebd6704833f146f5eba2cf08c6288d36293",
+      "text_preview": "[CHARACTER CANON — 라이크 MAY KNOW & ROLEPLAY] [이름] 라이크 [정체성] 성별: 남성 인종 구분 및 세계 구조 #센티넬 -강화된 감각과 전투 능력을 가진 전투 특화 인류 ##기본 특성 -오감 및 신경 반응 속도가 비정상적으로 강화됨 -환경 정보 처리 능력",
+      "full_text_ref": "character-core-identity__3"
+    },
+    {
+      "message_index": 0,
+      "role": "system",
+      "semantic_owner": "identity-and-rules",
+      "source_function": "buildContext.pushSection",
+      "source_file": "src/services/contextBuilder.ts",
+      "exact_section_header": "[0] Identity & Rules (absolute)",
+      "characters": 300,
+      "estimated_tokens": 270,
+      "sha256": "72185c501e7bc58b55a707baa408fb246460740aa7457ef4a8bf31a1b08940bd",
+      "text_preview": "[IDENTITY_AND_RULES] The following defines the USER's roleplay persona (NOT the AI character). [USER_PERSONA] describes [B] — involuntary physiological cues OK;",
+      "full_text_ref": "identity-and-rules__4"
+    },
+    {
+      "message_index": 0,
+      "role": "system",
+      "semantic_owner": "prose-style-xml-bundle",
+      "source_function": "buildContext.pushSection",
+      "source_file": "src/services/contextBuilder.ts",
+      "exact_section_header": "[1.4] Prose style policy (XML)",
+      "characters": 1746,
+      "estimated_tokens": 1572,
+      "sha256": "90ab305b53eaa45cf08e6b7397c0396d5762bf0380da42bb17a81c28a36faa90",
+      "text_preview": "[WEBNOVEL OUTPUT FORMAT] 서술·행동에 마크다운/RP 표기(*, **, (), [], {})를 쓰지 않는다. 「」는 세계 내 고유명사·스킬·시스템 라벨만(속마음·대사 금지). [NARRATION REGISTER] 지문·서술은 해체(-다/-했다/-이었다)만. (대사 re",
+      "full_text_ref": "prose-style-xml-bundle__5"
+    },
+    {
+      "message_index": 0,
+      "role": "system",
+      "semantic_owner": "scene-directive",
+      "source_function": "buildContext.pushSection",
+      "source_file": "src/services/contextBuilder.ts",
+      "exact_section_header": "[3d] Private scene directive",
+      "characters": 425,
+      "estimated_tokens": 383,
+      "sha256": "4a0c33fde5abcee928d85ca165d008880043d6e0452bdf66dcb3fbf7874df62a",
+      "text_preview": "[PRIVATE SCENE ENGINE RULE] 반복된 감정 확인에 멈추지 말고 관계, 단서, 환경, NPC, 세계 반응, 생활 변수, 이전 선택의 결과 중 하나를 조용히 움직인다. 전개는 항상 전투나 대형 위기일 필요가 없다. 현재 모드와 유저 조종 범위를 따르고, 이 규칙을 본문에",
+      "full_text_ref": "scene-directive__6"
+    },
+    {
+      "message_index": 0,
+      "role": "system",
+      "semantic_owner": "rule-output-layout-recency",
+      "source_function": "buildContext.pushSection",
+      "source_file": "src/services/contextBuilder.ts",
+      "exact_section_header": "Output layout recency (Korean webnovel paragraph breaks)",
+      "characters": 744,
+      "estimated_tokens": 670,
+      "sha256": "bfd0acd498fb01003eaeffea09e462fcd182aaaa780cabcf3d773454e1215621",
+      "text_preview": "[OUTPUT LAYOUT] [SEMANTIC PARAGRAPHING] 같은 인물, 같은 장소, 같은 순간, 같은 중심 반응에 속하는 연속 지문은 행동·감각·생각·기억·판단 사이에서 초점이 조금 바뀌더라도 한 문단 안에서 자연스럽게 연결한다. 지문 한 문장이 완결됐다는 이유만으로 새 문",
+      "full_text_ref": "rule-output-layout-recency__7"
+    },
+    {
+      "message_index": 0,
+      "role": "system",
+      "semantic_owner": "user-persona-reference-owner",
+      "source_function": "buildContext.pushSection",
+      "source_file": "src/services/contextBuilder.ts",
+      "exact_section_header": "User persona reference owner (current-turn gender and naming)",
+      "characters": 605,
+      "estimated_tokens": 545,
+      "sha256": "b40195d8a4c1d137110221fcf6df67a9e52c98d8df6896ca19ebc39243ff008f",
+      "text_preview": "[USER PERSONA REFERENCE OWNER — CURRENT TURN] [B]는 AI 담당 캐릭터가 아니라 사용자가 선택한 페르소나다. 이름/호칭: 렌. 확정 성별: 기타. 이 성별을 모든 지문·외형·신체·호칭에서 유지한다. 성별이 기타이므로 [B]의 이름, 페르소나 설정에 ",
+      "full_text_ref": "user-persona-reference-owner__8"
+    },
+    {
+      "message_index": 0,
+      "role": "system",
+      "semantic_owner": "wire.system_part_0",
+      "source_function": "buildOpenRouterMessages",
+      "source_file": "src/lib/openRouterAdult.ts",
+      "exact_section_header": "[CANON / SCOPE / KNOWLEDGE]",
+      "characters": 2650,
+      "estimated_tokens": 2385,
+      "sha256": "dc84e045ea1323955fe016c3a31b6fd18dd910a0517850bd607f556f8493ad0a",
+      "text_preview": "[CANON / SCOPE / KNOWLEDGE] === 설정 적용 우선순위 === 1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDARY] (절대 유지 — PLAYER/SCENARIO META는 [A] 기억·대사로 노출 금지",
+      "full_text_ref": "wire.system_part_0__9"
+    },
+    {
+      "message_index": 0,
+      "role": "system",
+      "semantic_owner": "wire.system_part_1",
+      "source_function": "buildOpenRouterMessages",
+      "source_file": "src/lib/openRouterAdult.ts",
+      "exact_section_header": "<WORLD_LORE>",
+      "characters": 11903,
+      "estimated_tokens": 10713,
+      "sha256": "aee4f8a4e0459edb04a9b6989cd0cd6c8035a229ca268eca231487e3811d111c",
+      "text_preview": "<WORLD_LORE> [CHARACTER CANON — 라이크 MAY KNOW & ROLEPLAY] [이름] 라이크 [정체성] 성별: 남성 인종 구분 및 세계 구조 #센티넬 -강화된 감각과 전투 능력을 가진 전투 특화 인류 ##기본 특성 -오감 및 신경 반응 속도가 비정상적으로 강화됨",
+      "full_text_ref": "wire.system_part_1__10"
+    },
+    {
+      "message_index": 0,
+      "role": "system",
+      "semantic_owner": "wire.system_part_2",
+      "source_function": "buildOpenRouterMessages",
+      "source_file": "src/lib/openRouterAdult.ts",
+      "exact_section_header": "[PRIVATE SCENE ENGINE RULE]",
+      "characters": 1778,
+      "estimated_tokens": 1601,
+      "sha256": "a2c0d9fd2d3171113885b043dd2358839edaa1234f5263a2d6811343036c879e",
+      "text_preview": "[PRIVATE SCENE ENGINE RULE] 반복된 감정 확인에 멈추지 말고 관계, 단서, 환경, NPC, 세계 반응, 생활 변수, 이전 선택의 결과 중 하나를 조용히 움직인다. 전개는 항상 전투나 대형 위기일 필요가 없다. 현재 모드와 유저 조종 범위를 따르고, 이 규칙을 본문에",
+      "full_text_ref": "wire.system_part_2__11"
+    },
+    {
+      "message_index": 1,
+      "role": "user",
+      "semantic_owner": "final_user_message",
+      "source_function": "buildContext → historyWithCurrent",
+      "source_file": "src/services/contextBuilder.ts",
+      "exact_section_header": "[System Reminder: 지문은 -다/-했다체(경어 금지), 실제 발화만 큰따옴표, 속마음·감정은 따옴표 없이 지문으로. 대사는 캐릭터 말투에 따라 짧을 수 있다. 지문은 이어지는 행동·감각·의도를 같은 의미",
+      "characters": 2841,
+      "estimated_tokens": 2557,
+      "sha256": "11eff2182f476ee82adb7ae5d0ccc53df58a7b87dc88b1576980813e16773641",
+      "text_preview": "[System Reminder: 지문은 -다/-했다체(경어 금지), 실제 발화만 큰따옴표, 속마음·감정은 따옴표 없이 지문으로. 대사는 캐릭터 말투에 따라 짧을 수 있다. 지문은 이어지는 행동·감각·의도를 같은 의미 단락 안에서 자연스럽게 연결하며, 짧은 문장마다 새 문단을 만들거나 한",
+      "full_text_ref": "final_user_message__12"
+    }
+  ],
+  "wire_headers": [
+    {
+      "index": 0,
+      "role": "system",
+      "header": "[CANON / SCOPE / KNOWLEDGE]",
+      "chars": 16333
+    },
+    {
+      "index": 1,
+      "role": "user",
+      "header": "[System Reminder: 지문은 -다/-했다체(경어 금지), 실제 발화만 큰따옴표, 속마음·감정은 따옴표 없이 지문으로. 대사는 캐릭터 말투에 따라 짧을 수 있다. 지문은 이어지는 행동·감각·의도를 같은 의미",
+      "chars": 2841
+    }
+  ]
+}
