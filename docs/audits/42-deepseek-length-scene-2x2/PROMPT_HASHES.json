@@ -1,0 +1,264 @@
+{
+  "verdict": "DS_LENGTH_X_SCENE_2X2_OFFLINE_PASS",
+  "generated_at": "2026-08-06T04:39:22.231Z",
+  "model": "deepseek-v4-pro",
+  "character_id": 18,
+  "persona_id": 61,
+  "user_id": 34,
+  "arms": {
+    "A": {
+      "label": "TRIPLE_OWNER_SCENE_ON",
+      "canary": null,
+      "turn1": {
+        "lengthOwnerCount": 3,
+        "sceneOn": true,
+        "flags": {
+          "deepseek_length": true,
+          "short_history": true,
+          "short_user": false,
+          "regen_length": false,
+          "user_tail": true,
+          "style_reminder": true,
+          "opening": true,
+          "scene_engine": false,
+          "scene_turn": false
+        },
+        "hashes": {
+          "system": "58b6b80095c26fb987b375727caf4a14c03b1bf2a973e45deb156cada83440bf",
+          "final_user": "11eff2182f476ee82adb7ae5d0ccc53df58a7b87dc88b1576980813e16773641",
+          "scene_directive_input": "4a0c33fde5abcee928d85ca165d008880043d6e0452bdf66dcb3fbf7874df62a",
+          "persona_block": "72185c501e7bc58b55a707baa408fb246460740aa7457ef4a8bf31a1b08940bd",
+          "character_core": "44e1c8ec7f38c0632caea1be93ca0ebd6704833f146f5eba2cf08c6288d36293",
+          "prose_top": "b8021d1c57ff009a508100e54ed90fd940514532339e0c4884a514250c3d0ec4",
+          "scene_section": "4a0c33fde5abcee928d85ca165d008880043d6e0452bdf66dcb3fbf7874df62a"
+        },
+        "wireRoles": [
+          "system",
+          "user"
+        ]
+      },
+      "turn2": {
+        "lengthOwnerCount": 4,
+        "sceneOn": true,
+        "flags": {
+          "deepseek_length": true,
+          "short_history": true,
+          "short_user": true,
+          "regen_length": false,
+          "user_tail": true,
+          "style_reminder": true,
+          "opening": true,
+          "scene_engine": false,
+          "scene_turn": false
+        },
+        "hashes": {
+          "system": "58b6b80095c26fb987b375727caf4a14c03b1bf2a973e45deb156cada83440bf",
+          "final_user": "49aad40b86518ebda2b4299167b5c5ebe50dd7b2d79b35f1d71d8fac0005bbee",
+          "scene_directive_input": "4a0c33fde5abcee928d85ca165d008880043d6e0452bdf66dcb3fbf7874df62a",
+          "persona_block": "72185c501e7bc58b55a707baa408fb246460740aa7457ef4a8bf31a1b08940bd",
+          "character_core": "44e1c8ec7f38c0632caea1be93ca0ebd6704833f146f5eba2cf08c6288d36293",
+          "prose_top": "b8021d1c57ff009a508100e54ed90fd940514532339e0c4884a514250c3d0ec4",
+          "scene_section": "4a0c33fde5abcee928d85ca165d008880043d6e0452bdf66dcb3fbf7874df62a"
+        }
+      }
+    },
+    "B": {
+      "label": "SINGLE_OWNER_SCENE_ON",
+      "canary": "ds_single_terminal_length_owner",
+      "turn1": {
+        "lengthOwnerCount": 1,
+        "sceneOn": true,
+        "flags": {
+          "deepseek_length": false,
+          "short_history": false,
+          "short_user": false,
+          "regen_length": false,
+          "user_tail": true,
+          "style_reminder": true,
+          "opening": true,
+          "scene_engine": false,
+          "scene_turn": false
+        },
+        "hashes": {
+          "system": "58b6b80095c26fb987b375727caf4a14c03b1bf2a973e45deb156cada83440bf",
+          "final_user": "735e358eeb36728bd06cd58f6d80a48bc77c93bb2b9d7d9ec2d4578f426e1d29",
+          "scene_directive_input": "4a0c33fde5abcee928d85ca165d008880043d6e0452bdf66dcb3fbf7874df62a",
+          "persona_block": "72185c501e7bc58b55a707baa408fb246460740aa7457ef4a8bf31a1b08940bd",
+          "character_core": "44e1c8ec7f38c0632caea1be93ca0ebd6704833f146f5eba2cf08c6288d36293",
+          "prose_top": "b8021d1c57ff009a508100e54ed90fd940514532339e0c4884a514250c3d0ec4",
+          "scene_section": "4a0c33fde5abcee928d85ca165d008880043d6e0452bdf66dcb3fbf7874df62a"
+        },
+        "wireRoles": [
+          "system",
+          "user"
+        ]
+      },
+      "turn2": {
+        "lengthOwnerCount": 1,
+        "sceneOn": true,
+        "flags": {
+          "deepseek_length": false,
+          "short_history": false,
+          "short_user": false,
+          "regen_length": false,
+          "user_tail": true,
+          "style_reminder": true,
+          "opening": true,
+          "scene_engine": false,
+          "scene_turn": false
+        },
+        "hashes": {
+          "system": "58b6b80095c26fb987b375727caf4a14c03b1bf2a973e45deb156cada83440bf",
+          "final_user": "445987a1aed76049ff4192de713fc2a7df1760691c73741574cfefa042b2f28a",
+          "scene_directive_input": "4a0c33fde5abcee928d85ca165d008880043d6e0452bdf66dcb3fbf7874df62a",
+          "persona_block": "72185c501e7bc58b55a707baa408fb246460740aa7457ef4a8bf31a1b08940bd",
+          "character_core": "44e1c8ec7f38c0632caea1be93ca0ebd6704833f146f5eba2cf08c6288d36293",
+          "prose_top": "b8021d1c57ff009a508100e54ed90fd940514532339e0c4884a514250c3d0ec4",
+          "scene_section": "4a0c33fde5abcee928d85ca165d008880043d6e0452bdf66dcb3fbf7874df62a"
+        }
+      }
+    },
+    "C": {
+      "label": "TRIPLE_OWNER_SCENE_OFF",
+      "canary": "ds_triple_owner_scene_off",
+      "turn1": {
+        "lengthOwnerCount": 3,
+        "sceneOn": false,
+        "flags": {
+          "deepseek_length": true,
+          "short_history": true,
+          "short_user": false,
+          "regen_length": false,
+          "user_tail": true,
+          "style_reminder": true,
+          "opening": true,
+          "scene_engine": false,
+          "scene_turn": false
+        },
+        "hashes": {
+          "system": "eab5d2f7e33484a9ad4123985b7a90f6eb238b61d04c4e98ca80ea2a5f4544b2",
+          "final_user": "11eff2182f476ee82adb7ae5d0ccc53df58a7b87dc88b1576980813e16773641",
+          "scene_directive_input": "4a0c33fde5abcee928d85ca165d008880043d6e0452bdf66dcb3fbf7874df62a",
+          "persona_block": "72185c501e7bc58b55a707baa408fb246460740aa7457ef4a8bf31a1b08940bd",
+          "character_core": "44e1c8ec7f38c0632caea1be93ca0ebd6704833f146f5eba2cf08c6288d36293",
+          "prose_top": "b8021d1c57ff009a508100e54ed90fd940514532339e0c4884a514250c3d0ec4",
+          "scene_section": null
+        },
+        "wireRoles": [
+          "system",
+          "user"
+        ]
+      },
+      "turn2": {
+        "lengthOwnerCount": 4,
+        "sceneOn": false,
+        "flags": {
+          "deepseek_length": true,
+          "short_history": true,
+          "short_user": true,
+          "regen_length": false,
+          "user_tail": true,
+          "style_reminder": true,
+          "opening": true,
+          "scene_engine": false,
+          "scene_turn": false
+        },
+        "hashes": {
+          "system": "eab5d2f7e33484a9ad4123985b7a90f6eb238b61d04c4e98ca80ea2a5f4544b2",
+          "final_user": "49aad40b86518ebda2b4299167b5c5ebe50dd7b2d79b35f1d71d8fac0005bbee",
+          "scene_directive_input": "4a0c33fde5abcee928d85ca165d008880043d6e0452bdf66dcb3fbf7874df62a",
+          "persona_block": "72185c501e7bc58b55a707baa408fb246460740aa7457ef4a8bf31a1b08940bd",
+          "character_core": "44e1c8ec7f38c0632caea1be93ca0ebd6704833f146f5eba2cf08c6288d36293",
+          "prose_top": "b8021d1c57ff009a508100e54ed90fd940514532339e0c4884a514250c3d0ec4",
+          "scene_section": null
+        }
+      }
+    },
+    "D": {
+      "label": "SINGLE_OWNER_SCENE_OFF",
+      "canary": "ds_single_owner_scene_off",
+      "turn1": {
+        "lengthOwnerCount": 1,
+        "sceneOn": false,
+        "flags": {
+          "deepseek_length": false,
+          "short_history": false,
+          "short_user": false,
+          "regen_length": false,
+          "user_tail": true,
+          "style_reminder": true,
+          "opening": true,
+          "scene_engine": false,
+          "scene_turn": false
+        },
+        "hashes": {
+          "system": "eab5d2f7e33484a9ad4123985b7a90f6eb238b61d04c4e98ca80ea2a5f4544b2",
+          "final_user": "735e358eeb36728bd06cd58f6d80a48bc77c93bb2b9d7d9ec2d4578f426e1d29",
+          "scene_directive_input": "4a0c33fde5abcee928d85ca165d008880043d6e0452bdf66dcb3fbf7874df62a",
+          "persona_block": "72185c501e7bc58b55a707baa408fb246460740aa7457ef4a8bf31a1b08940bd",
+          "character_core": "44e1c8ec7f38c0632caea1be93ca0ebd6704833f146f5eba2cf08c6288d36293",
+          "prose_top": "b8021d1c57ff009a508100e54ed90fd940514532339e0c4884a514250c3d0ec4",
+          "scene_section": null
+        },
+        "wireRoles": [
+          "system",
+          "user"
+        ]
+      },
+      "turn2": {
+        "lengthOwnerCount": 1,
+        "sceneOn": false,
+        "flags": {
+          "deepseek_length": false,
+          "short_history": false,
+          "short_user": false,
+          "regen_length": false,
+          "user_tail": true,
+          "style_reminder": true,
+          "opening": true,
+          "scene_engine": false,
+          "scene_turn": false
+        },
+        "hashes": {
+          "system": "eab5d2f7e33484a9ad4123985b7a90f6eb238b61d04c4e98ca80ea2a5f4544b2",
+          "final_user": "445987a1aed76049ff4192de713fc2a7df1760691c73741574cfefa042b2f28a",
+          "scene_directive_input": "4a0c33fde5abcee928d85ca165d008880043d6e0452bdf66dcb3fbf7874df62a",
+          "persona_block": "72185c501e7bc58b55a707baa408fb246460740aa7457ef4a8bf31a1b08940bd",
+          "character_core": "44e1c8ec7f38c0632caea1be93ca0ebd6704833f146f5eba2cf08c6288d36293",
+          "prose_top": "b8021d1c57ff009a508100e54ed90fd940514532339e0c4884a514250c3d0ec4",
+          "scene_section": null
+        }
+      }
+    }
+  },
+  "pair_checks": {
+    "A_vs_C_t1": {
+      "ok": true,
+      "reasons": [],
+      "nonSceneTrackedMismatches": [],
+      "userMatch": true,
+      "systemWithoutSceneMatch": true
+    },
+    "A_vs_C_t2": {
+      "ok": true,
+      "reasons": [],
+      "nonSceneTrackedMismatches": [],
+      "userMatch": true,
+      "systemWithoutSceneMatch": true
+    },
+    "B_vs_D_t1": {
+      "ok": true,
+      "reasons": [],
+      "nonSceneTrackedMismatches": [],
+      "userMatch": true,
+      "systemWithoutSceneMatch": true
+    },
+    "B_vs_D_t2": {
+      "ok": true,
+      "reasons": [],
+      "nonSceneTrackedMismatches": [],
+      "userMatch": true,
+      "systemWithoutSceneMatch": true
+    }
+  }
+}

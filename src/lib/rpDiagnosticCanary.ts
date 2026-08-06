@@ -72,6 +72,15 @@ export const RP_DIAGNOSTIC_CANARY_VARIANTS = [
    * detection (not the injected SHORT HISTORY text).
    */
   "ds_single_terminal_length_owner",
+  /**
+   * Audit 42 — ARM C: production triple length owners, SceneDirective / BASE_SCENE_ENGINE OFF.
+   * Does NOT rewrite greeting (unlike common_scene_directive_removed).
+   */
+  "ds_triple_owner_scene_off",
+  /**
+   * Audit 42 — ARM D: single terminal length owner + SceneDirective OFF.
+   */
+  "ds_single_owner_scene_off",
 ] as const;
 
 export type RpDiagnosticCanaryVariant = (typeof RP_DIAGNOSTIC_CANARY_VARIANTS)[number];
@@ -193,7 +202,9 @@ export function rpDiagnosticEnablesPipelineCapture(
     variant === "ds_display_grouping_bypass" ||
     variant === "ds_paragraph_normalize_bypass" ||
     variant === "ds_real_production" ||
-    variant === "ds_single_terminal_length_owner"
+    variant === "ds_single_terminal_length_owner" ||
+    variant === "ds_triple_owner_scene_off" ||
+    variant === "ds_single_owner_scene_off"
   );
 }
 
@@ -261,7 +272,10 @@ export function rpDiagnosticUsesFlashLengthStack(
 export function rpDiagnosticUsesSingleTerminalLengthOwner(
   variant: RpDiagnosticCanaryVariant
 ): boolean {
-  return variant === "ds_single_terminal_length_owner";
+  return (
+    variant === "ds_single_terminal_length_owner" ||
+    variant === "ds_single_owner_scene_off"
+  );
 }
 
 /** @deprecated use resolveDeepSeekExtrasMode */
@@ -458,7 +472,11 @@ export function rpDiagnosticUsesRelationshipAxis(
 export function rpDiagnosticRemovesSceneDirective(
   variant: RpDiagnosticCanaryVariant
 ): boolean {
-  return variant === "common_scene_directive_removed";
+  return (
+    variant === "common_scene_directive_removed" ||
+    variant === "ds_triple_owner_scene_off" ||
+    variant === "ds_single_owner_scene_off"
+  );
 }
 
 export function rpDiagnosticUsesDialogueReferenceScope(

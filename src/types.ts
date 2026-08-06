@@ -180,7 +180,9 @@ export type ContextBuildInput = {
       | "deepseek_final"
       | "terra_cross_check"
       | "ds_length_normalized_baseline"
-      | "ds_single_terminal_length_owner";
+      | "ds_single_terminal_length_owner"
+      | "ds_triple_owner_scene_off"
+      | "ds_single_owner_scene_off";
     progressionAxis?:
       | "relationship"
       | "investigation"

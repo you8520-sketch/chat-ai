@@ -1,0 +1,45 @@
+{
+  "verdict": "DS_LENGTH_X_SCENE_2X2_OFFLINE_PASS",
+  "lengthMatrix": {
+    "A_t1": 3,
+    "A_t2": 4,
+    "B_t1": 1,
+    "B_t2": 1,
+    "C_t1": 3,
+    "C_t2": 4,
+    "D_t1": 1,
+    "D_t2": 1
+  },
+  "sceneMatrix": {
+    "A": true,
+    "B": true,
+    "C": false,
+    "D": false
+  },
+  "pairChecks": {
+    "A_vs_C_t1": {
+      "ok": true,
+      "reasons": [],
+      "userMatch": true,
+      "systemWithoutSceneMatch": true
+    },
+    "A_vs_C_t2": {
+      "ok": true,
+      "reasons": [],
+      "userMatch": true,
+      "systemWithoutSceneMatch": true
+    },
+    "B_vs_D_t1": {
+      "ok": true,
+      "reasons": [],
+      "userMatch": true,
+      "systemWithoutSceneMatch": true
+    },
+    "B_vs_D_t2": {
+      "ok": true,
+      "reasons": [],
+      "userMatch": true,
+      "systemWithoutSceneMatch": true
+    }
+  }
+}
