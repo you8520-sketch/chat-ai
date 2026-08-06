@@ -26,6 +26,11 @@
     "luna_action_valid": 2,
     "terra_action_valid": 2
   },
-  "human_review": "NOT_RUN — waiting for ChatGPT",
-  "note": "Do not declare winner / PASS / best value / production candidate before blind review."
+  "human_review": "COMPLETE",
+  "verdicts": [
+    "TERRA_OVERALL_QUALITY_WINNER",
+    "DEEPSEEK_RELATIONSHIP_VALUE_WINNER",
+    "LUNA_STANDARD_RELATIONSHIP_FAIL"
+  ],
+  "note": "Keep DeepSeek + Terra public. Remove Luna from public picker. Close PR #249 without merge."
 }
