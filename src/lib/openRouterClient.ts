@@ -102,6 +102,16 @@ export function isGlmOpenRouterModel(modelId: string): boolean {
   return id.startsWith("z-ai/glm") || id.includes("/glm-") || /(^|\/)glm[-.]?\d/i.test(id);
 }
 
+/** OpenRouter MiniMax M3 — minimax/minimax-m3 */
+export function isMinimaxM3OpenRouterModel(modelId: string): boolean {
+  return modelId.trim().toLowerCase() === "minimax/minimax-m3";
+}
+
+/** OpenRouter Aion 3.0 — aion-labs/aion-3.0 (mandatory reasoning; not 3.0-mini) */
+export function isAion30OpenRouterModel(modelId: string): boolean {
+  return modelId.trim().toLowerCase() === "aion-labs/aion-3.0";
+}
+
 /** OpenRouter MoonshotAI Kimi 계열 — moonshotai/kimi-k3 등 */
 export function isKimiOpenRouterModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
@@ -119,8 +129,8 @@ export function isMuseOpenRouterModel(modelId: string): boolean {
 }
 
 /**
- * RP primary·continuation — DeepSeek/Qwen/GLM/Kimi: reasoning OFF (effort none).
- * Muse Spark: mandatory reasoning — NOT in this set (see Muse-specific policy).
+ * RP primary·continuation — DeepSeek/Qwen/GLM/Kimi/MiniMax M3: reasoning OFF (effort none).
+ * Aion 3.0 / Muse Spark: mandatory reasoning — NOT in this set.
  * Gemini 3.x: reasoning.effort. Gemini 2.5 전용 reasoning cap은 제거됨.
  */
 export function isOpenRouterRpReasoningDisabledModel(modelId: string): boolean {
@@ -128,7 +138,8 @@ export function isOpenRouterRpReasoningDisabledModel(modelId: string): boolean {
     isDeepSeekOpenRouterModel(modelId) ||
     isQwenOpenRouterModel(modelId) ||
     isGlmOpenRouterModel(modelId) ||
-    isKimiOpenRouterModel(modelId)
+    isKimiOpenRouterModel(modelId) ||
+    isMinimaxM3OpenRouterModel(modelId)
   );
 }
 
@@ -156,6 +167,12 @@ export const OPENROUTER_RP_REASONING_OFF = {
  * OpenRouter rejects effort "none" / enabled:false for this endpoint.
  */
 export const OPENROUTER_RP_REASONING_MUSE_SPARK = {
+  effort: "minimal",
+  exclude: true,
+} as const;
+
+/** Aion 3.0 RP — mandatory reasoning; lowest supported effort + exclude */
+export const OPENROUTER_RP_REASONING_AION_30 = {
   effort: "minimal",
   exclude: true,
 } as const;
@@ -222,6 +239,18 @@ function applyOpenRouterRpReasoningPolicy(body: Record<string, unknown>, modelId
     return;
   }
 
+  // Aion 3.0: mandatory reasoning — none unsupported; use minimal + exclude.
+  if (isAion30OpenRouterModel(modelId)) {
+    body.reasoning = { ...OPENROUTER_RP_REASONING_AION_30 };
+    console.log("[openrouter-reasoning] aion-30-mandatory-minimal", {
+      model: normalized,
+      effort: OPENROUTER_RP_REASONING_AION_30.effort,
+      exclude: true,
+      include_reasoning: false,
+    });
+    return;
+  }
+
   if (!isOpenRouterRpReasoningDisabledModel(modelId)) return;
 
   body.reasoning = { ...OPENROUTER_RP_REASONING_OFF };
@@ -229,9 +258,11 @@ function applyOpenRouterRpReasoningPolicy(body: Record<string, unknown>, modelId
     ? "kimi"
     : isGlmOpenRouterModel(modelId)
       ? "glm"
-      : isQwenOpenRouterModel(modelId)
-        ? "qwen"
-        : "deepseek";
+      : isMinimaxM3OpenRouterModel(modelId)
+        ? "minimax-m3"
+        : isQwenOpenRouterModel(modelId)
+          ? "qwen"
+          : "deepseek";
   console.log("[openrouter-reasoning] disabled: true", { model: normalized, family });
   if (family === "deepseek") {
     console.log("[deepseek-thinking] disabled: true", { model: normalized });

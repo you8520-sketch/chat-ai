@@ -190,6 +190,28 @@ const GLM_52_RATES: OpenRouterModelRates = {
   explicitCacheInjection: false,
 };
 
+/** AionLabs Aion 3.0 — OpenRouter list snapshot (Audit 53 discovery) */
+const AION_30_RATES: OpenRouterModelRates = {
+  family: "unknown",
+  label: "AionLabs Aion 3.0 prompt cache",
+  inputUsdPerM: 3,
+  outputUsdPerM: 6,
+  cacheReadUsdPerM: 0.75,
+  cacheWriteMultiplier: 1,
+  explicitCacheInjection: false,
+};
+
+/** MiniMax M3 — OpenRouter list snapshot (Audit 53 discovery) */
+const MINIMAX_M3_RATES: OpenRouterModelRates = {
+  family: "unknown",
+  label: "MiniMax M3 prompt cache",
+  inputUsdPerM: 0.3,
+  outputUsdPerM: 1.2,
+  cacheReadUsdPerM: 0.06,
+  cacheWriteMultiplier: 1,
+  explicitCacheInjection: false,
+};
+
 /** MoonshotAI Kimi K3 — OpenRouter list ($3/M in, $15/M out, cache read $0.30/M) */
 const KIMI_K3_RATES: OpenRouterModelRates = {
   family: "unknown",
@@ -306,6 +328,8 @@ export function resolveOpenRouterModelRates(modelId?: string | null): OpenRouter
   if (id.includes("gemini-2.5-pro")) return GEMINI_25_PRO_RATES;
   if (id.includes("claude") || id.includes("anthropic/")) return ANTHROPIC_OPUS_RATES;
   if (id.includes("qwen")) return QWEN_37_MAX_RATES;
+  if (id === "aion-labs/aion-3.0") return AION_30_RATES;
+  if (id === "minimax/minimax-m3") return MINIMAX_M3_RATES;
   if (id.startsWith("z-ai/glm") || id.includes("/glm-")) return GLM_52_RATES;
   if (id.startsWith("moonshotai/kimi") || id.includes("/kimi-k3") || /(^|\/)kimi[-.]?k3\b/.test(id)) {
     return KIMI_K3_RATES;
