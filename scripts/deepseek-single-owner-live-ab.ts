@@ -309,11 +309,17 @@ async function main() {
   let replacementCalls = 0;
   let replacementBudget = 1;
 
-  for (let run = 1; run <= 2; run++) {
+  let completedRuns = 0;
+  let runSlot = 0;
+  const maxRunSlots = 4; // allow a couple of chat aborts within call budget
+  while (completedRuns < 2 && runSlot < maxRunSlots) {
+    runSlot += 1;
+    const run = completedRuns + 1;
     const runDir = join(OUT_ROOT, `run${run}`);
     mkdirSync(runDir, { recursive: true });
     let chatId: number | undefined;
     let prevRaw: string | undefined;
+    let runFailed = false;
 
     for (let turn = 1; turn <= 2; turn++) {
       const userInput = TURNS[turn - 1]!;
@@ -355,26 +361,34 @@ async function main() {
           usedReplacement,
         });
         exclusions.push({ run, turn, attempt: "final", reasons, usedReplacement });
-        throw new Error(
+        // Abort this chat; try next independent run if available.
+        console.error(
           `ARM ${ARM} r${run}t${turn} runtime excluded: ${reasons.join(",")}`
         );
+        runFailed = true;
+        break;
       }
 
       if (turn === 1) {
         chatId = resp.chatId;
-        if (!chatId) throw new Error("no chatId");
+        if (!chatId) {
+          runFailed = true;
+          break;
+        }
       }
       const dbSaved = chatId
         ? (await fetchDbAssistant(chatId, token, turn)) || resp.final_text
         : resp.final_text;
 
       // Integrity hints from diagnostic pipeline when present
-      const integrity = (resp.diagnostic_pipeline as {
+      const pipe = resp.diagnostic_pipeline as {
+        variant?: string;
         integrity?: {
           canaryVariant?: string;
           resolvedProviderModelId?: string;
         };
-      } | null)?.integrity;
+      } | null;
+      const integrity = pipe?.integrity;
 
       const attemptId = `${ARM}-R${run}T${turn}`;
       const alarms = simpleAlarms(resp.provider_raw, turn, prevRaw);
@@ -397,7 +411,8 @@ async function main() {
         raw_hash: sha256(resp.provider_raw),
         model: resp.model,
         provider: resp.provider,
-        canary_variant: integrity?.canaryVariant ?? null,
+        canary_variant:
+          integrity?.canaryVariant ?? pipe?.variant ?? null,
         resolved_model: integrity?.resolvedProviderModelId ?? null,
       };
       outputs.push(row);
@@ -424,7 +439,26 @@ async function main() {
         latency_s: row.latency_s,
       });
     }
-    if (run < 2) await new Promise((r) => setTimeout(r, 2000));
+    if (runFailed) {
+      // Discard partial outputs for this run number
+      const partial = outputs.filter(
+        (o) => (o as { run?: number }).run === run
+      );
+      for (const p of partial) {
+        const i = outputs.indexOf(p);
+        if (i >= 0) outputs.splice(i, 1);
+      }
+      console.log("RUN_ABORTED", run, "will retry as new chat");
+      await new Promise((r) => setTimeout(r, 3000));
+      continue;
+    }
+    completedRuns += 1;
+    if (completedRuns < 2) await new Promise((r) => setTimeout(r, 2000));
+  }
+  if (completedRuns < 2) {
+    throw new Error(
+      `ARM ${ARM} incomplete: completedRuns=${completedRuns} calls=${newCalls}`
+    );
   }
 
   save(OUT_ROOT, "outputs_index.json", {
