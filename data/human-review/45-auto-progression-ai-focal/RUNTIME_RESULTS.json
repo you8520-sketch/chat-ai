@@ -1,0 +1,34 @@
+{
+  "status": "AUTO_PROGRESSION_HUMAN_REVIEW_PENDING",
+  "generated_at": "2026-08-06T07:00:49.436Z",
+  "model": "deepseek-v4-pro",
+  "architecture": "PR #248 collaborative default + AI-focal auto owner",
+  "attempts": 8,
+  "valid": 2,
+  "replacement_calls": 2,
+  "exclusions": [
+    {
+      "phase": "prep",
+      "run": 2,
+      "turn": 2,
+      "attempt": 1,
+      "reasons": [
+        "finish_metadata_missing"
+      ]
+    },
+    {
+      "phase": "auto",
+      "run": 2,
+      "attempt": 1,
+      "reasons": [
+        "finish_metadata_missing"
+      ]
+    }
+  ],
+  "chars": [
+    5037,
+    3292
+  ],
+  "human_review": "NOT_RUN — waiting for ChatGPT",
+  "note": "Do not auto-declare PASS/FAIL. Separate track from Luna/Terra bake-off."
+}
