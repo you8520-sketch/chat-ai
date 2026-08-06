@@ -1,0 +1,26 @@
+{
+  "status": "OPUS_PROMPT_HEALTH_SCREEN_CAPTURED",
+  "human_blind_review": "HUMAN_BLIND_REVIEW_REQUIRED",
+  "model_lineup_decision": "MODEL_LINEUP_DECISION_NOT_RUN",
+  "production_change": false,
+  "audit55_correction": [
+    "AUDIT55_MODEL_RANKING_NOT_DECISION_GRADE",
+    "COMMON_PROMPT_HEALTH_UNVERIFIED",
+    "OPUS_QUALITY_ANCHOR_REQUIRED",
+    "CURRENT_TWO_MODEL_LINEUP_PROVISIONAL",
+    "NO_PRODUCTION_CHANGE"
+  ],
+  "model": "claude-opus-5",
+  "provider": "cheaperinference",
+  "arms": 3,
+  "scenarios": 6,
+  "runs_per_cell": 1,
+  "valid_outputs": 36,
+  "expected_outputs": 36,
+  "exclusions": [],
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "phase2": "NOT_RUN — waiting for human blind review",
+  "provider_parity": "OPUS_PROVIDER_PARITY_UNVERIFIED"
+}
