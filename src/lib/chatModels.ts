@@ -285,6 +285,21 @@ export const USER_SELECTABLE_AI_OPTIONS = SELECTED_AI_OPTIONS.filter(
       !isClaudeSelectedAI(o.id))
 );
 
+/**
+ * Audit-only: allow selecting picker-hidden models via API without exposing them in the UI.
+ * Comma-separated SelectedAI ids, e.g. `gpt-5.6-luna`. Default OFF / empty.
+ */
+export function isAuditHiddenSelectedAIAllowed(id: string): boolean {
+  const raw = process.env.AUDIT_ALLOW_HIDDEN_SELECTED_AI?.trim();
+  if (!raw) return false;
+  const wanted = id.trim().toLowerCase();
+  return raw
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean)
+    .includes(wanted);
+}
+
 export function coerceUserSelectableAI(id: SelectedAI): SelectedAI {
   if (
     id !== CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL &&
@@ -297,8 +312,11 @@ export function coerceUserSelectableAI(id: SelectedAI): SelectedAI {
   if (id === OPENROUTER_GEMINI_36_FLASH_MODEL) {
     return DEFAULT_SELECTED_AI;
   }
-  // Luna temporarily hidden from picker.
-  if (id === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL) {
+  // Luna temporarily hidden from picker (audit can re-enable via AUDIT_ALLOW_HIDDEN_SELECTED_AI).
+  if (
+    id === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL &&
+    !isAuditHiddenSelectedAIAllowed(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL)
+  ) {
     return DEFAULT_SELECTED_AI;
   }
   return id;
