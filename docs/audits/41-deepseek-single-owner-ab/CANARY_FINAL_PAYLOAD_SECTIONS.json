@@ -1,0 +1,108 @@
+{
+  "verdict": "DS_SINGLE_OWNER_FULL_PAYLOAD_PARITY_PASS",
+  "turn1": {
+    "flags": {
+      "deepseek_length": false,
+      "short_history": false,
+      "short_user": false,
+      "regen_length": false,
+      "user_tail": true,
+      "style_reminder": true,
+      "opening": true,
+      "current_user": true
+    },
+    "lengthOwnerCount": 1,
+    "hashes": {
+      "system": "58b6b80095c26fb987b375727caf4a14c03b1bf2a973e45deb156cada83440bf",
+      "final_user": "735e358eeb36728bd06cd58f6d80a48bc77c93bb2b9d7d9ec2d4578f426e1d29",
+      "scene_directive": "4a0c33fde5abcee928d85ca165d008880043d6e0452bdf66dcb3fbf7874df62a",
+      "persona_block": "72185c501e7bc58b55a707baa408fb246460740aa7457ef4a8bf31a1b08940bd",
+      "character_core": "44e1c8ec7f38c0632caea1be93ca0ebd6704833f146f5eba2cf08c6288d36293",
+      "prose_top": "b8021d1c57ff009a508100e54ed90fd940514532339e0c4884a514250c3d0ec4"
+    },
+    "tracked": [
+      {
+        "id": "openrouter-korean-prose-top",
+        "sha256": "b8021d1c57ff009a508100e54ed90fd940514532339e0c4884a514250c3d0ec4",
+        "chars": 819,
+        "header": "[CANON / SCOPE / KNOWLEDGE]"
+      },
+      {
+        "id": "runtime-prompt-contamination-guard",
+        "sha256": "386ee5ac06fee97e61578d29febae34f9e011c753cf9b6946ce3e24b6cdda670",
+        "chars": 951,
+        "header": "[PRIVATE OUTPUT HYGIENE]"
+      },
+      {
+        "id": "no-godmodding",
+        "sha256": "c72ca4204a98c5ef942226c5238122d8056f483a1f93de3a1464acf3427f0b0b",
+        "chars": 574,
+        "header": "[NO GODMODDING]"
+      },
+      {
+        "id": "character-core-identity",
+        "sha256": "44e1c8ec7f38c0632caea1be93ca0ebd6704833f146f5eba2cf08c6288d36293",
+        "chars": 10128,
+        "header": "[CHARACTER CANON — 라이크 MAY KNOW & ROLEPLAY]"
+      },
+      {
+        "id": "identity-and-rules",
+        "sha256": "72185c501e7bc58b55a707baa408fb246460740aa7457ef4a8bf31a1b08940bd",
+        "chars": 300,
+        "header": "[IDENTITY_AND_RULES]"
+      },
+      {
+        "id": "prose-style-xml-bundle",
+        "sha256": "90ab305b53eaa45cf08e6b7397c0396d5762bf0380da42bb17a81c28a36faa90",
+        "chars": 1746,
+        "header": "[WEBNOVEL OUTPUT FORMAT]"
+      },
+      {
+        "id": "scene-directive",
+        "sha256": "4a0c33fde5abcee928d85ca165d008880043d6e0452bdf66dcb3fbf7874df62a",
+        "chars": 425,
+        "header": "[PRIVATE SCENE ENGINE RULE]"
+      },
+      {
+        "id": "rule-output-layout-recency",
+        "sha256": "bfd0acd498fb01003eaeffea09e462fcd182aaaa780cabcf3d773454e1215621",
+        "chars": 744,
+        "header": "[OUTPUT LAYOUT]"
+      },
+      {
+        "id": "user-persona-reference-owner",
+        "sha256": "b40195d8a4c1d137110221fcf6df67a9e52c98d8df6896ca19ebc39243ff008f",
+        "chars": 605,
+        "header": "[USER PERSONA REFERENCE OWNER — CURRENT TURN]"
+      }
+    ],
+    "wireRoles": [
+      "system",
+      "user"
+    ],
+    "final_user_sha256": "735e358eeb36728bd06cd58f6d80a48bc77c93bb2b9d7d9ec2d4578f426e1d29"
+  },
+  "turn2": {
+    "flags": {
+      "deepseek_length": false,
+      "short_history": false,
+      "short_user": false,
+      "regen_length": false,
+      "user_tail": true,
+      "style_reminder": true,
+      "opening": true,
+      "current_user": true
+    },
+    "lengthOwnerCount": 1,
+    "hashes": {
+      "system": "58b6b80095c26fb987b375727caf4a14c03b1bf2a973e45deb156cada83440bf",
+      "final_user": "445987a1aed76049ff4192de713fc2a7df1760691c73741574cfefa042b2f28a",
+      "scene_directive": "4a0c33fde5abcee928d85ca165d008880043d6e0452bdf66dcb3fbf7874df62a",
+      "persona_block": "72185c501e7bc58b55a707baa408fb246460740aa7457ef4a8bf31a1b08940bd",
+      "character_core": "44e1c8ec7f38c0632caea1be93ca0ebd6704833f146f5eba2cf08c6288d36293",
+      "prose_top": "b8021d1c57ff009a508100e54ed90fd940514532339e0c4884a514250c3d0ec4"
+    },
+    "short_user_suppressed": true,
+    "prod_turn2_short_user": true
+  }
+}

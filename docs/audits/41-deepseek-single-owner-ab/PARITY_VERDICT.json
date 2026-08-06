@@ -1,0 +1,17 @@
+{
+  "verdict": "DS_SINGLE_OWNER_FULL_PAYLOAD_PARITY_PASS",
+  "production_length_owner_count_t1": 3,
+  "canary_length_owner_count_t1": 1,
+  "production_length_owner_count_t2": 4,
+  "canary_length_owner_count_t2": 1,
+  "invariant_mismatches": [],
+  "input_parity": {
+    "t1_prod": true,
+    "t1_can": true,
+    "t2_prod": true,
+    "t2_can": true
+  },
+  "prod_length_ok": true,
+  "canary_length_ok": true,
+  "live_ab_allowed": true
+}
