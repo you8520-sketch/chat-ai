@@ -1,0 +1,33 @@
+{
+  "verdict": "LATEST_OPENROUTER_RP_CHALLENGERS_OFFLINE_PASS",
+  "reasons": [],
+  "perModel": [
+    {
+      "modelId": "aion-labs/aion-3.0",
+      "reasons": [],
+      "collab": 1,
+      "novel": 0,
+      "scene": 0,
+      "lengthOwners": 1,
+      "userTail": 1
+    },
+    {
+      "modelId": "minimax/minimax-m3",
+      "reasons": [],
+      "collab": 1,
+      "novel": 0,
+      "scene": 0,
+      "lengthOwners": 1,
+      "userTail": 1
+    },
+    {
+      "modelId": "z-ai/glm-5.2",
+      "reasons": [],
+      "collab": 1,
+      "novel": 0,
+      "scene": 0,
+      "lengthOwners": 1,
+      "userTail": 1
+    }
+  ]
+}

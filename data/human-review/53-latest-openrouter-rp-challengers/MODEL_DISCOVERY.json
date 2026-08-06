@@ -1,0 +1,1618 @@
+{
+  "queried_at": "2026-08-06T15:39:32.155607Z",
+  "source": "https://openrouter.ai/api/v1/models + /models/{id}/endpoints + live reasoning probes",
+  "models": {
+    "aion-labs/aion-3.0": {
+      "exists": true,
+      "name": "AionLabs: Aion-3.0",
+      "context_length": 131072,
+      "supported_parameters": [
+        "include_reasoning",
+        "max_tokens",
+        "reasoning",
+        "response_format",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_p"
+      ],
+      "pricing_usd_per_million_tokens": {
+        "input": 3.0,
+        "output": 6.0,
+        "cache_read": 0.75
+      },
+      "pricing_per_token": {
+        "prompt": "0.000003",
+        "completion": "0.000006",
+        "input_cache_read": "0.00000075"
+      },
+      "architecture": {
+        "modality": "text->text",
+        "input_modalities": [
+          "text"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      },
+      "top_provider": {
+        "context_length": 131072,
+        "max_completion_tokens": 32768,
+        "is_moderated": false
+      },
+      "endpoint_count": 1,
+      "endpoints": [
+        {
+          "name": "AionLabs | aion-labs/aion-3.0-20260707",
+          "provider_name": "AionLabs",
+          "tag": "aion-labs",
+          "context_length": 131072,
+          "max_completion_tokens": 32768,
+          "quantization": "unknown",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "response_format",
+            "tools",
+            "tool_choice"
+          ],
+          "pricing": {
+            "prompt": "0.000003",
+            "completion": "0.000006",
+            "input_cache_read": "0.00000075",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        }
+      ],
+      "reasoning": {
+        "parameter_supported": true,
+        "mandatory": true,
+        "none_supported": false,
+        "probe_none_error": "Reasoning is mandatory for this endpoint and cannot be disabled.",
+        "lowest_supported_effort": "minimal",
+        "requested_policy": {
+          "effort": "minimal",
+          "exclude": true
+        },
+        "probe_minimal_ok": true,
+        "probe_minimal_reasoning_tokens_sample": 33
+      },
+      "discovery_verdict": "AION_30_DISCOVERY_PASS"
+    },
+    "minimax/minimax-m3": {
+      "exists": true,
+      "name": "MiniMax: MiniMax M3",
+      "context_length": 1048576,
+      "supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "logit_bias",
+        "logprobs",
+        "max_tokens",
+        "min_p",
+        "presence_penalty",
+        "reasoning",
+        "repetition_penalty",
+        "response_format",
+        "seed",
+        "stop",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_k",
+        "top_logprobs",
+        "top_p"
+      ],
+      "pricing_usd_per_million_tokens": {
+        "input": 0.3,
+        "output": 1.2,
+        "cache_read": 0.06
+      },
+      "pricing_per_token": {
+        "prompt": "0.0000003",
+        "completion": "0.0000012",
+        "input_cache_read": "0.00000006"
+      },
+      "architecture": {
+        "modality": "text+image+video->text",
+        "input_modalities": [
+          "text",
+          "image",
+          "video"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      },
+      "top_provider": {
+        "context_length": 524288,
+        "max_completion_tokens": 512000,
+        "is_moderated": false
+      },
+      "endpoint_count": 9,
+      "endpoints": [
+        {
+          "name": "GMICloud | minimax/minimax-m3-20260531",
+          "provider_name": "GMICloud",
+          "tag": "gmicloud/fp8",
+          "context_length": 1048576,
+          "max_completion_tokens": null,
+          "quantization": "fp8",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "seed",
+            "response_format"
+          ],
+          "pricing": {
+            "prompt": "0.00000024",
+            "completion": "0.00000096",
+            "input_cache_read": "0.000000048",
+            "discount": 0.6
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "Novita | minimax/minimax-m3-20260531",
+          "provider_name": "Novita",
+          "tag": "novita/fp8",
+          "context_length": 1000000,
+          "max_completion_tokens": 131072,
+          "quantization": "fp8",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "stop",
+            "frequency_penalty",
+            "presence_penalty",
+            "seed",
+            "top_k",
+            "repetition_penalty",
+            "tools",
+            "tool_choice"
+          ],
+          "pricing": {
+            "prompt": "0.0000003",
+            "completion": "0.0000012",
+            "input_cache_read": "0.00000006",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "Venice | minimax/minimax-m3-20260531",
+          "provider_name": "Venice",
+          "tag": "venice/fp8",
+          "context_length": 524288,
+          "max_completion_tokens": 65536,
+          "quantization": "fp8",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "stop",
+            "frequency_penalty",
+            "presence_penalty",
+            "top_k",
+            "tools",
+            "tool_choice"
+          ],
+          "pricing": {
+            "prompt": "0.0000003",
+            "completion": "0.0000012",
+            "input_cache_read": "0.00000006",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "Minimax | minimax/minimax-m3-20260531",
+          "provider_name": "Minimax",
+          "tag": "minimax/fp8",
+          "context_length": 524288,
+          "max_completion_tokens": 512000,
+          "quantization": "fp8",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "response_format",
+            "tool_choice",
+            "tools"
+          ],
+          "pricing": {
+            "prompt": "0.0000003",
+            "completion": "0.0000012",
+            "input_cache_read": "0.00000006",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "AtlasCloud | minimax/minimax-m3-20260531",
+          "provider_name": "AtlasCloud",
+          "tag": "atlas-cloud/fp8",
+          "context_length": 524300,
+          "max_completion_tokens": 524288,
+          "quantization": "fp8",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "tools"
+          ],
+          "pricing": {
+            "prompt": "0.0000003",
+            "completion": "0.0000012",
+            "input_cache_read": "0.00000006",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "Together | minimax/minimax-m3-20260531",
+          "provider_name": "Together",
+          "tag": "together",
+          "context_length": 524288,
+          "max_completion_tokens": null,
+          "quantization": "unknown",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "stop",
+            "frequency_penalty",
+            "presence_penalty",
+            "top_k",
+            "repetition_penalty",
+            "logit_bias",
+            "min_p",
+            "response_format",
+            "structured_outputs",
+            "tools",
+            "tool_choice"
+          ],
+          "pricing": {
+            "prompt": "0.0000003",
+            "completion": "0.0000012",
+            "input_cache_read": "0.00000006",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "Morph | minimax/minimax-m3-20260531",
+          "provider_name": "Morph",
+          "tag": "morph",
+          "context_length": 256000,
+          "max_completion_tokens": 256000,
+          "quantization": "unknown",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "stop",
+            "top_p",
+            "top_k",
+            "min_p",
+            "frequency_penalty",
+            "presence_penalty",
+            "repetition_penalty",
+            "seed",
+            "logit_bias",
+            "response_format",
+            "structured_outputs",
+            "tools",
+            "tool_choice",
+            "logprobs",
+            "top_logprobs"
+          ],
+          "pricing": {
+            "prompt": "0.0000003",
+            "completion": "0.0000012",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "DeepInfra | minimax/minimax-m3-20260531",
+          "provider_name": "DeepInfra",
+          "tag": "deepinfra/fp8",
+          "context_length": 524288,
+          "max_completion_tokens": 512000,
+          "quantization": "fp8",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "stop",
+            "frequency_penalty",
+            "presence_penalty",
+            "repetition_penalty",
+            "top_k",
+            "seed",
+            "min_p",
+            "response_format",
+            "logit_bias",
+            "tools",
+            "tool_choice"
+          ],
+          "pricing": {
+            "prompt": "0.0000003",
+            "completion": "0.0000012",
+            "input_cache_read": "0.00000006",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "Parasail | minimax/minimax-m3-20260531",
+          "provider_name": "Parasail",
+          "tag": "parasail/fp8",
+          "context_length": 1048576,
+          "max_completion_tokens": 32768,
+          "quantization": "fp8",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "frequency_penalty",
+            "presence_penalty",
+            "repetition_penalty",
+            "seed",
+            "stop",
+            "top_k",
+            "logit_bias",
+            "response_format",
+            "structured_outputs",
+            "tools",
+            "tool_choice",
+            "logprobs",
+            "top_logprobs"
+          ],
+          "pricing": {
+            "prompt": "0.0000003",
+            "completion": "0.0000012",
+            "input_cache_read": "0.00000006",
+            "discount": 0
+          },
+          "status": -2,
+          "supports_implicit_caching": false
+        }
+      ],
+      "reasoning": {
+        "parameter_supported": true,
+        "mandatory": false,
+        "none_supported": true,
+        "lowest_supported_effort": "none",
+        "requested_policy": {
+          "effort": "none",
+          "exclude": true
+        },
+        "probe_none_ok": true,
+        "probe_none_reasoning_tokens_sample": 0
+      },
+      "discovery_verdict": "MINIMAX_M3_DISCOVERY_PASS"
+    },
+    "z-ai/glm-5.2": {
+      "exists": true,
+      "name": "Z.ai: GLM 5.2",
+      "context_length": 1048576,
+      "supported_parameters": [
+        "frequency_penalty",
+        "include_reasoning",
+        "logit_bias",
+        "logprobs",
+        "max_tokens",
+        "min_p",
+        "parallel_tool_calls",
+        "presence_penalty",
+        "reasoning",
+        "reasoning_effort",
+        "repetition_penalty",
+        "response_format",
+        "seed",
+        "stop",
+        "structured_outputs",
+        "temperature",
+        "tool_choice",
+        "tools",
+        "top_k",
+        "top_logprobs",
+        "top_p"
+      ],
+      "pricing_usd_per_million_tokens": {
+        "input": 0.546,
+        "output": 1.716,
+        "cache_read": 0.10139999999999999
+      },
+      "pricing_per_token": {
+        "prompt": "0.000000546",
+        "completion": "0.000001716",
+        "input_cache_read": "0.0000001014"
+      },
+      "architecture": {
+        "modality": "text->text",
+        "input_modalities": [
+          "text"
+        ],
+        "output_modalities": [
+          "text"
+        ],
+        "tokenizer": "Other",
+        "instruct_type": null
+      },
+      "top_provider": {
+        "context_length": 1048576,
+        "max_completion_tokens": 131072,
+        "is_moderated": false
+      },
+      "endpoint_count": 32,
+      "endpoints": [
+        {
+          "name": "Baidu | z-ai/glm-5.2-20260616",
+          "provider_name": "Baidu",
+          "tag": "baidu/fp8",
+          "context_length": 1048576,
+          "max_completion_tokens": 131072,
+          "quantization": "fp8",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "temperature",
+            "top_p",
+            "max_tokens",
+            "frequency_penalty",
+            "presence_penalty",
+            "repetition_penalty",
+            "stop",
+            "response_format",
+            "structured_outputs",
+            "tools",
+            "tool_choice",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.000000546",
+            "completion": "0.000001716",
+            "input_cache_read": "0.0000001014",
+            "discount": 0.61
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "StreamLake | z-ai/glm-5.2-20260616",
+          "provider_name": "StreamLake",
+          "tag": "streamlake/fp8",
+          "context_length": 1024000,
+          "max_completion_tokens": 128000,
+          "quantization": "fp8",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "frequency_penalty",
+            "stop",
+            "tool_choice",
+            "tools",
+            "response_format",
+            "structured_outputs",
+            "logprobs",
+            "top_logprobs",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.00000056",
+            "completion": "0.00000176",
+            "input_cache_read": "0.000000104",
+            "discount": 0.6
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "Novita | z-ai/glm-5.2-20260616",
+          "provider_name": "Novita",
+          "tag": "novita/fp8",
+          "context_length": 1048576,
+          "max_completion_tokens": 131072,
+          "quantization": "fp8",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "stop",
+            "frequency_penalty",
+            "presence_penalty",
+            "seed",
+            "top_k",
+            "repetition_penalty",
+            "tools",
+            "tool_choice",
+            "response_format",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.0000006986",
+            "completion": "0.0000021956",
+            "input_cache_read": "0.00000012974",
+            "discount": 0.501
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "DigitalOcean | z-ai/glm-5.2-20260616",
+          "provider_name": "DigitalOcean",
+          "tag": "digitalocean",
+          "context_length": 262144,
+          "max_completion_tokens": null,
+          "quantization": "unknown",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "temperature",
+            "top_p",
+            "max_tokens",
+            "tool_choice",
+            "tools",
+            "response_format",
+            "logprobs",
+            "top_logprobs",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.0000007",
+            "completion": "0.0000022",
+            "input_cache_read": "0.000000119998",
+            "discount": 0
+          },
+          "status": -2,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "Decart | z-ai/glm-5.2-20260616",
+          "provider_name": "Decart",
+          "tag": "decart/fp4",
+          "context_length": 1048576,
+          "max_completion_tokens": 1048576,
+          "quantization": "fp4",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "temperature",
+            "top_p",
+            "top_k",
+            "min_p",
+            "frequency_penalty",
+            "presence_penalty",
+            "repetition_penalty",
+            "stop",
+            "seed",
+            "max_tokens",
+            "response_format",
+            "structured_outputs",
+            "tools",
+            "tool_choice",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.00000072",
+            "completion": "0.0000018",
+            "input_cache_read": "0.00000012",
+            "discount": 0.4
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "DeepInfra | z-ai/glm-5.2-20260616",
+          "provider_name": "DeepInfra",
+          "tag": "deepinfra/fp4",
+          "context_length": 1048576,
+          "max_completion_tokens": 131072,
+          "quantization": "fp4",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "stop",
+            "frequency_penalty",
+            "presence_penalty",
+            "repetition_penalty",
+            "top_k",
+            "seed",
+            "min_p",
+            "response_format",
+            "logit_bias",
+            "structured_outputs",
+            "tools",
+            "tool_choice",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.00000075",
+            "completion": "0.0000024",
+            "input_cache_read": "0.00000014",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "Inceptron | z-ai/glm-5.2-20260616",
+          "provider_name": "Inceptron",
+          "tag": "inceptron/fp4",
+          "context_length": 1048576,
+          "max_completion_tokens": 1048576,
+          "quantization": "fp4",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "temperature",
+            "max_tokens",
+            "top_p",
+            "stop",
+            "frequency_penalty",
+            "logit_bias",
+            "parallel_tool_calls",
+            "presence_penalty",
+            "seed",
+            "response_format",
+            "logprobs",
+            "top_logprobs",
+            "structured_outputs",
+            "tools",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.00000075",
+            "completion": "0.0000029",
+            "input_cache_read": "0.00000017",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "CoreWeave | z-ai/glm-5.2-20260616",
+          "provider_name": "CoreWeave",
+          "tag": "coreweave/fp4",
+          "context_length": 262144,
+          "max_completion_tokens": 262144,
+          "quantization": "fp4",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "top_k",
+            "repetition_penalty",
+            "frequency_penalty",
+            "presence_penalty",
+            "stop",
+            "seed",
+            "response_format",
+            "tools",
+            "tool_choice",
+            "logprobs",
+            "top_logprobs",
+            "structured_outputs",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.00000076",
+            "completion": "0.00000242",
+            "input_cache_read": "0.00000014",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "AkashML | z-ai/glm-5.2-20260616",
+          "provider_name": "AkashML",
+          "tag": "akashml/fp8",
+          "context_length": 96890,
+          "max_completion_tokens": 96890,
+          "quantization": "fp8",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "temperature",
+            "top_p",
+            "top_k",
+            "repetition_penalty",
+            "frequency_penalty",
+            "presence_penalty",
+            "stop",
+            "seed",
+            "max_tokens",
+            "tools",
+            "logprobs",
+            "top_logprobs",
+            "response_format",
+            "tool_choice",
+            "structured_outputs",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.00000077",
+            "completion": "0.00000242",
+            "input_cache_read": "0.000000143",
+            "discount": 0.45
+          },
+          "status": -2,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "Sail Research | z-ai/glm-5.2-20260616",
+          "provider_name": "Sail Research",
+          "tag": "sail-research/fp8",
+          "context_length": 1048576,
+          "max_completion_tokens": 131072,
+          "quantization": "fp8",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "response_format",
+            "tools",
+            "temperature",
+            "top_p",
+            "top_k",
+            "frequency_penalty",
+            "presence_penalty",
+            "stop",
+            "seed",
+            "max_tokens",
+            "logprobs",
+            "top_logprobs",
+            "tool_choice",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.0000009",
+            "completion": "0.00000315",
+            "input_cache_read": "0.00000018",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "GMICloud | z-ai/glm-5.2-20260616",
+          "provider_name": "GMICloud",
+          "tag": "gmicloud/fp8",
+          "context_length": 1048576,
+          "max_completion_tokens": null,
+          "quantization": "fp8",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "seed",
+            "structured_outputs",
+            "response_format",
+            "tools",
+            "tool_choice",
+            "logprobs",
+            "top_logprobs",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.000000924",
+            "completion": "0.000002904",
+            "input_cache_read": "0.0000001716",
+            "discount": 0.34
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "Alibaba | z-ai/glm-5.2-20260616",
+          "provider_name": "Alibaba",
+          "tag": "alibaba/fp8",
+          "context_length": 1048576,
+          "max_completion_tokens": 131072,
+          "quantization": "fp8",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "seed",
+            "presence_penalty",
+            "response_format",
+            "structured_outputs",
+            "tools",
+            "tool_choice",
+            "logprobs",
+            "top_logprobs",
+            "top_k",
+            "frequency_penalty",
+            "stop",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.000000966",
+            "completion": "0.000003036",
+            "input_cache_read": "0.0000001932",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "Ambient | z-ai/glm-5.2-20260616",
+          "provider_name": "Ambient",
+          "tag": "ambient/fp8",
+          "context_length": 202752,
+          "max_completion_tokens": 202752,
+          "quantization": "fp8",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "temperature",
+            "max_tokens",
+            "response_format",
+            "structured_outputs",
+            "logprobs",
+            "top_logprobs",
+            "tools",
+            "tool_choice",
+            "frequency_penalty",
+            "presence_penalty",
+            "repetition_penalty",
+            "seed",
+            "stop",
+            "top_k",
+            "top_p",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.00000105",
+            "completion": "0.0000044",
+            "input_cache_read": "0.0000002",
+            "discount": 0
+          },
+          "status": -2,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "Morph | z-ai/glm-5.2-20260616",
+          "provider_name": "Morph",
+          "tag": "morph",
+          "context_length": 1048576,
+          "max_completion_tokens": 1048576,
+          "quantization": "unknown",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "stop",
+            "top_p",
+            "top_k",
+            "min_p",
+            "frequency_penalty",
+            "presence_penalty",
+            "repetition_penalty",
+            "seed",
+            "logit_bias",
+            "response_format",
+            "structured_outputs",
+            "logprobs",
+            "top_logprobs",
+            "tools",
+            "tool_choice",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.0000011",
+            "completion": "0.0000041",
+            "input_cache_read": "0.00000022",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "SiliconFlow | z-ai/glm-5.2-20260616",
+          "provider_name": "SiliconFlow",
+          "tag": "siliconflow/fp8",
+          "context_length": 1048576,
+          "max_completion_tokens": 262144,
+          "quantization": "fp8",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "temperature",
+            "top_p",
+            "top_k",
+            "frequency_penalty",
+            "max_tokens",
+            "tools",
+            "tool_choice",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.00000119",
+            "completion": "0.00000374",
+            "input_cache_read": "0.000000221",
+            "discount": 0.15
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "Wafer | z-ai/glm-5.2-20260616",
+          "provider_name": "Wafer",
+          "tag": "wafer",
+          "context_length": 1048576,
+          "max_completion_tokens": 131072,
+          "quantization": "fp4",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "temperature",
+            "top_p",
+            "top_k",
+            "min_p",
+            "frequency_penalty",
+            "presence_penalty",
+            "repetition_penalty",
+            "stop",
+            "seed",
+            "max_tokens",
+            "logit_bias",
+            "structured_outputs",
+            "response_format",
+            "tools",
+            "tool_choice",
+            "logprobs",
+            "top_logprobs",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.00000126",
+            "completion": "0.00000396",
+            "input_cache_read": "0.000000234",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "AtlasCloud | z-ai/glm-5.2-20260616",
+          "provider_name": "AtlasCloud",
+          "tag": "atlas-cloud/fp8",
+          "context_length": 1048576,
+          "max_completion_tokens": 131072,
+          "quantization": "fp8",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "top_k",
+            "min_p",
+            "frequency_penalty",
+            "presence_penalty",
+            "repetition_penalty",
+            "stop",
+            "seed",
+            "logit_bias",
+            "response_format",
+            "tools",
+            "tool_choice",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.00000126",
+            "completion": "0.00000396",
+            "input_cache_read": "0.000000234",
+            "discount": 0.1
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "Phala | z-ai/glm-5.2-20260616",
+          "provider_name": "Phala",
+          "tag": "phala",
+          "context_length": 1048576,
+          "max_completion_tokens": 131072,
+          "quantization": "unknown",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "stop",
+            "frequency_penalty",
+            "presence_penalty",
+            "seed",
+            "top_k",
+            "min_p",
+            "repetition_penalty",
+            "response_format",
+            "tools",
+            "tool_choice",
+            "structured_outputs",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.00000126",
+            "completion": "0.00000396",
+            "input_cache_read": "0.000000234",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "Z.AI | z-ai/glm-5.2-20260616",
+          "provider_name": "Z.AI",
+          "tag": "z-ai/fp8",
+          "context_length": 1048576,
+          "max_completion_tokens": 131072,
+          "quantization": "fp8",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "tools",
+            "tool_choice",
+            "top_k",
+            "response_format",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.0000014",
+            "completion": "0.0000044",
+            "input_cache_read": "0.00000026",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "Fireworks | z-ai/glm-5.2-20260616",
+          "provider_name": "Fireworks",
+          "tag": "fireworks",
+          "context_length": 1048576,
+          "max_completion_tokens": null,
+          "quantization": "unknown",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "stop",
+            "frequency_penalty",
+            "presence_penalty",
+            "top_k",
+            "repetition_penalty",
+            "logit_bias",
+            "logprobs",
+            "top_logprobs",
+            "response_format",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.0000014",
+            "completion": "0.0000044",
+            "input_cache_read": "0.00000014",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "Cloudflare | z-ai/glm-5.2-20260616",
+          "provider_name": "Cloudflare",
+          "tag": "cloudflare",
+          "context_length": 262144,
+          "max_completion_tokens": 262144,
+          "quantization": "unknown",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "top_k",
+            "seed",
+            "repetition_penalty",
+            "frequency_penalty",
+            "presence_penalty",
+            "min_p",
+            "stop",
+            "logit_bias",
+            "tools",
+            "structured_outputs",
+            "response_format",
+            "logprobs",
+            "top_logprobs",
+            "tool_choice",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.0000014",
+            "completion": "0.0000044",
+            "input_cache_read": "0.00000026",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "Friendli | z-ai/glm-5.2-20260616",
+          "provider_name": "Friendli",
+          "tag": "friendli",
+          "context_length": 1048576,
+          "max_completion_tokens": 1048576,
+          "quantization": "unknown",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "stop",
+            "frequency_penalty",
+            "presence_penalty",
+            "seed",
+            "top_k",
+            "min_p",
+            "repetition_penalty",
+            "response_format",
+            "structured_outputs",
+            "tools",
+            "tool_choice",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.0000014",
+            "completion": "0.0000044",
+            "input_cache_read": "0.00000026",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "Parasail | z-ai/glm-5.2-20260616",
+          "provider_name": "Parasail",
+          "tag": "parasail/fp4",
+          "context_length": 262144,
+          "max_completion_tokens": 262144,
+          "quantization": "fp4",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "frequency_penalty",
+            "presence_penalty",
+            "repetition_penalty",
+            "seed",
+            "stop",
+            "top_k",
+            "logit_bias",
+            "response_format",
+            "structured_outputs",
+            "tools",
+            "tool_choice",
+            "logprobs",
+            "top_logprobs",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.0000014",
+            "completion": "0.0000044",
+            "input_cache_read": "0.00000026",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "Venice | z-ai/glm-5.2-20260616",
+          "provider_name": "Venice",
+          "tag": "venice/fp8",
+          "context_length": 1000000,
+          "max_completion_tokens": 131072,
+          "quantization": "fp8",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "stop",
+            "frequency_penalty",
+            "presence_penalty",
+            "top_k",
+            "response_format",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.0000014",
+            "completion": "0.0000044",
+            "input_cache_read": "0.00000026",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "Together | z-ai/glm-5.2-20260616",
+          "provider_name": "Together",
+          "tag": "together",
+          "context_length": 512000,
+          "max_completion_tokens": null,
+          "quantization": "unknown",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "stop",
+            "frequency_penalty",
+            "presence_penalty",
+            "top_k",
+            "repetition_penalty",
+            "logit_bias",
+            "min_p",
+            "response_format",
+            "structured_outputs",
+            "tools",
+            "tool_choice",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.0000014",
+            "completion": "0.0000044",
+            "input_cache_read": "0.00000026",
+            "discount": 0
+          },
+          "status": -5,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "Crusoe | z-ai/glm-5.2-20260616",
+          "provider_name": "Crusoe",
+          "tag": "crusoe/fp8",
+          "context_length": 1048576,
+          "max_completion_tokens": null,
+          "quantization": "fp8",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "stop",
+            "frequency_penalty",
+            "presence_penalty",
+            "seed",
+            "min_p",
+            "repetition_penalty",
+            "top_k",
+            "logit_bias",
+            "response_format",
+            "structured_outputs",
+            "tools",
+            "tool_choice",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.0000014",
+            "completion": "0.0000044",
+            "input_cache_read": "0.00000026",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "BaseTen | z-ai/glm-5.2-20260616",
+          "provider_name": "BaseTen",
+          "tag": "baseten/fp8",
+          "context_length": 1048576,
+          "max_completion_tokens": 262144,
+          "quantization": "fp8",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "structured_outputs",
+            "response_format",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "stop",
+            "frequency_penalty",
+            "presence_penalty",
+            "tools",
+            "tool_choice",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.0000014",
+            "completion": "0.0000044",
+            "input_cache_read": "0.00000014",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "Wafer | z-ai/glm-5.2-20260616",
+          "provider_name": "Wafer",
+          "tag": "wafer/fast",
+          "context_length": 1048576,
+          "max_completion_tokens": 131072,
+          "quantization": "fp4",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "temperature",
+            "top_p",
+            "top_k",
+            "min_p",
+            "frequency_penalty",
+            "presence_penalty",
+            "repetition_penalty",
+            "stop",
+            "seed",
+            "max_tokens",
+            "logit_bias",
+            "tools",
+            "tool_choice",
+            "response_format",
+            "structured_outputs",
+            "logprobs",
+            "top_logprobs",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.0000021",
+            "completion": "0.0000066",
+            "input_cache_read": "0.00000021",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "Fireworks | z-ai/glm-5.2-20260616",
+          "provider_name": "Fireworks",
+          "tag": "fireworks/fast",
+          "context_length": 1048576,
+          "max_completion_tokens": null,
+          "quantization": "unknown",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "stop",
+            "frequency_penalty",
+            "presence_penalty",
+            "top_k",
+            "repetition_penalty",
+            "logit_bias",
+            "logprobs",
+            "top_logprobs",
+            "response_format",
+            "structured_outputs",
+            "tool_choice",
+            "tools",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.0000021",
+            "completion": "0.0000066",
+            "input_cache_read": "0.00000021",
+            "discount": 0
+          },
+          "status": -2,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "Cloudflare | z-ai/glm-5.2-20260616",
+          "provider_name": "Cloudflare",
+          "tag": "cloudflare/fast",
+          "context_length": 262144,
+          "max_completion_tokens": 262144,
+          "quantization": "unknown",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "top_k",
+            "seed",
+            "repetition_penalty",
+            "frequency_penalty",
+            "presence_penalty",
+            "min_p",
+            "stop",
+            "logit_bias",
+            "response_format",
+            "structured_outputs",
+            "tools",
+            "tool_choice",
+            "logprobs",
+            "top_logprobs",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.0000021",
+            "completion": "0.0000066",
+            "input_cache_read": "0.00000021",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "BaseTen | z-ai/glm-5.2-20260616",
+          "provider_name": "BaseTen",
+          "tag": "baseten/fast",
+          "context_length": 524288,
+          "max_completion_tokens": 262144,
+          "quantization": "fp8",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "structured_outputs",
+            "response_format",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "stop",
+            "frequency_penalty",
+            "presence_penalty",
+            "tools",
+            "tool_choice",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.0000021",
+            "completion": "0.0000066",
+            "input_cache_read": "0.00000021",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        },
+        {
+          "name": "Alibaba | z-ai/glm-5.2-20260616",
+          "provider_name": "Alibaba",
+          "tag": "alibaba/fast",
+          "context_length": 1048576,
+          "max_completion_tokens": 131072,
+          "quantization": "fp8",
+          "supported_parameters": [
+            "reasoning",
+            "include_reasoning",
+            "max_tokens",
+            "temperature",
+            "top_p",
+            "seed",
+            "presence_penalty",
+            "response_format",
+            "structured_outputs",
+            "tools",
+            "tool_choice",
+            "logprobs",
+            "top_logprobs",
+            "top_k",
+            "frequency_penalty",
+            "stop",
+            "reasoning_effort"
+          ],
+          "pricing": {
+            "prompt": "0.00000231",
+            "completion": "0.00000726",
+            "input_cache_read": "0.000000462",
+            "discount": 0
+          },
+          "status": 0,
+          "supports_implicit_caching": false
+        }
+      ],
+      "reasoning": {
+        "parameter_supported": true,
+        "mandatory": false,
+        "none_supported": true,
+        "reasoning_effort_param": true,
+        "lowest_supported_effort": "none",
+        "requested_policy": {
+          "effort": "none",
+          "exclude": true
+        },
+        "probe_none_ok": true,
+        "probe_none_reasoning_tokens_sample": 0
+      },
+      "discovery_verdict": "GLM_52_DISCOVERY_PASS"
+    }
+  },
+  "verdicts": {
+    "aion-labs/aion-3.0": "AION_30_DISCOVERY_PASS",
+    "minimax/minimax-m3": "MINIMAX_M3_DISCOVERY_PASS",
+    "z-ai/glm-5.2": "GLM_52_DISCOVERY_PASS"
+  },
+  "rejected_substitutes": [
+    "aion-labs.aion-2-0",
+    "aion-labs/aion-2.0",
+    "minimax-m2.7",
+    "minimax/minimax-m2.7",
+    "aion-labs/aion-3.0-mini"
+  ]
+}

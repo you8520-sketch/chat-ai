@@ -1,0 +1,24 @@
+{
+  "status": "LATEST_OPENROUTER_RP_CHALLENGERS_LIVE_CAPTURED",
+  "perModel": {
+    "aion": {
+      "attempts": 4,
+      "valid": 4,
+      "replacements_used": 0
+    },
+    "minimax": {
+      "attempts": 4,
+      "valid": 4,
+      "replacements_used": 0
+    },
+    "glm": {
+      "attempts": 4,
+      "valid": 4,
+      "replacements_used": 0
+    }
+  },
+  "attempts": 12,
+  "valid": 12,
+  "exclusions": [],
+  "human_review": "NOT_RUN — waiting for ChatGPT"
+}

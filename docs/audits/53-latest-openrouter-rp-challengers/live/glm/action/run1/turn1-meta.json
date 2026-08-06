@@ -1,0 +1,92 @@
+{
+  "attempt_id": "GLM-ACT-R1T1",
+  "model_key": "glm",
+  "model_ui": "z-ai/glm-5.2",
+  "requested_model": "z-ai/glm-5.2",
+  "resolved_model": "z-ai/glm-5.2",
+  "test_set": "action",
+  "run": 1,
+  "turn": 1,
+  "user_input": "*로비 천장에서 갑자기 비상 경보가 울리고 출입문 쪽에서 둔탁한 폭발음이 터진다. 렌은 소리가 난 쪽으로 고개를 돌린다.* 저거 뭐야?",
+  "finish_reason": "stop",
+  "latency_s": 161.398,
+  "ttft_s": 150.979,
+  "visible_chars": 2470,
+  "korean_chars": 1725,
+  "chat_id": 15,
+  "replacement": false,
+  "raw_hash": "598243398ffb3a57ad643a340a2a104ba88f3fa44c5c5d7763b14283e99b2cec",
+  "provider": "openrouter",
+  "cost_points": 71,
+  "reasoning_requested": "none",
+  "reasoning_effort": "none",
+  "reasoning_mandatory": false,
+  "input_tokens": 14038,
+  "cached_input_tokens": null,
+  "visible_output_tokens": 2165,
+  "reasoning_tokens": null,
+  "total_billed_output_tokens": null,
+  "usage_cost_usd": 0.02626128,
+  "api_raw_cost_krw": 38.1,
+  "usage_cost_points": 71,
+  "usage": {
+    "input": 14038,
+    "output": 2165,
+    "finishReason": "stop",
+    "savedOutputChars": 2470,
+    "model": "z-ai/glm-5.2",
+    "provider": "openrouter",
+    "route": "safe",
+    "selectedAI": "z-ai/glm-5.2",
+    "cost": 71,
+    "baseCost": 70,
+    "modelLabel": "GLM 5.2",
+    "estimated": false,
+    "breakdown": [
+      {
+        "label": "최근 raw 턴",
+        "tokens": 1912,
+        "pct": 14
+      },
+      {
+        "label": "캐릭터 프롬프트",
+        "tokens": 7302,
+        "pct": 52
+      },
+      {
+        "label": "선택 페르소나",
+        "tokens": 216,
+        "pct": 2
+      }
+    ],
+    "stages": [
+      {
+        "stage": "GLM 5.2",
+        "model": "z-ai/glm-5.2",
+        "input": 14038,
+        "output": 2165,
+        "apiReportedInputTokens": 14038,
+        "apiOutputTokens": 2165,
+        "lengthRecoveryPasses": 0,
+        "savedOutputChars": 2470,
+        "estimated": false,
+        "finishReason": "stop",
+        "truncated": true,
+        "loopAborted": false,
+        "degenerationAborted": false,
+        "standardInputTokens": 14038,
+        "upstreamCostUsd": 0.02626128,
+        "cost": 70
+      }
+    ],
+    "apiInputTokens": 14038,
+    "apiOutputTokens": 2165,
+    "assembledInputTokens": 17538,
+    "standardInputTokens": 14038,
+    "upstreamCostUsd": 0.02626128,
+    "cacheRateSummary": "입력 $0.532/M · 출력 $1.672/M",
+    "cacheFamily": "unknown",
+    "apiRawCostKrw": 38.1,
+    "apiRawCostSource": "provider_reported"
+  }
+}

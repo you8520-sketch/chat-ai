@@ -1,0 +1,78 @@
+{
+  "status": "LATEST_OPENROUTER_RP_CHALLENGERS_HUMAN_REVIEW_PENDING",
+  "offline_verdict": "LATEST_OPENROUTER_RP_CHALLENGERS_OFFLINE_PASS",
+  "discovery_verdicts": {
+    "aion": "AION_30_DISCOVERY_PASS",
+    "minimax": "MINIMAX_M3_DISCOVERY_PASS",
+    "glm": "GLM_52_DISCOVERY_PASS"
+  },
+  "live": {
+    "status": "LATEST_OPENROUTER_RP_CHALLENGERS_LIVE_CAPTURED",
+    "perModel": {
+      "aion": {
+        "attempts": 4,
+        "valid": 4,
+        "replacements_used": 0
+      },
+      "minimax": {
+        "attempts": 4,
+        "valid": 4,
+        "replacements_used": 0
+      },
+      "glm": {
+        "attempts": 4,
+        "valid": 4,
+        "replacements_used": 0
+      }
+    },
+    "attempts": 12,
+    "valid": 12,
+    "exclusions": [],
+    "human_review": "NOT_RUN — waiting for ChatGPT"
+  },
+  "relationship_blind": true,
+  "action_blind": true,
+  "cost_by_model": {
+    "aion": {
+      "sample_count": 4,
+      "average_actual_cost_krw": 93.225,
+      "median_actual_cost_krw": 89.9,
+      "average_usage_cost_usd": 0.0641955,
+      "cost_per_1000_visible_chars": 52.84115063057956,
+      "average_visible_chars": 1764.25,
+      "p50_latency_s": 62.602,
+      "p95_latency_s": 156.268,
+      "average_reasoning_tokens": 2179.25,
+      "reasoning_token_share_of_output": 0.4897191011235955,
+      "transport_failure_rate": 0
+    },
+    "minimax": {
+      "sample_count": 4,
+      "average_actual_cost_krw": 8.425,
+      "median_actual_cost_krw": 8.350000000000001,
+      "average_usage_cost_usd": 0.005784546,
+      "cost_per_1000_visible_chars": 3.4603142006366157,
+      "average_visible_chars": 2434.75,
+      "p50_latency_s": 64.885,
+      "p95_latency_s": 71.149,
+      "average_reasoning_tokens": 177,
+      "reasoning_token_share_of_output": 0.08580778087504545,
+      "transport_failure_rate": 0
+    },
+    "glm": {
+      "sample_count": 4,
+      "average_actual_cost_krw": 27.05,
+      "median_actual_cost_krw": 26.650000000000002,
+      "average_usage_cost_usd": 0.018628172999999998,
+      "cost_per_1000_visible_chars": 16.312377506407355,
+      "average_visible_chars": 1658.25,
+      "p50_latency_s": 56.725,
+      "p95_latency_s": 161.398,
+      "average_reasoning_tokens": null,
+      "reasoning_token_share_of_output": null,
+      "transport_failure_rate": 0
+    }
+  },
+  "human_review": "NOT_RUN — waiting for ChatGPT",
+  "note": "Do not declare winner / public slot / keep / remove before blind review."
+}

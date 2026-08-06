@@ -229,6 +229,15 @@ function buildCost() {
       for (const turn of [1, 2]) {
         const meta = liveMeta(model, testSet, turn);
         if (!meta) throw new Error(`missing meta ${model} ${testSet} t${turn}`);
+        const usage = (meta.usage as Record<string, unknown> | undefined) ?? {};
+        const reasoningTokens =
+          (typeof meta.reasoning_tokens === "number" ? meta.reasoning_tokens : null) ??
+          (typeof usage.apiReasoningOutputTokens === "number"
+            ? usage.apiReasoningOutputTokens
+            : null);
+        const usageCostUsd =
+          (typeof meta.usage_cost_usd === "number" ? meta.usage_cost_usd : null) ??
+          (typeof usage.upstreamCostUsd === "number" ? usage.upstreamCostUsd : null);
         perOutput.push({
           attempt_id: meta.attempt_id,
           model_key: model,
@@ -237,13 +246,16 @@ function buildCost() {
           resolved_provider: meta.provider,
           test_set: testSet,
           turn,
-          input_tokens: meta.input_tokens ?? null,
-          cached_input_tokens: meta.cached_input_tokens ?? null,
-          visible_output_tokens: meta.visible_output_tokens ?? null,
-          reasoning_tokens: meta.reasoning_tokens ?? null,
+          input_tokens: meta.input_tokens ?? usage.apiInputTokens ?? null,
+          cached_input_tokens:
+            meta.cached_input_tokens ?? usage.cacheReadTokens ?? null,
+          visible_output_tokens:
+            meta.visible_output_tokens ?? usage.apiOutputTokens ?? null,
+          reasoning_tokens: reasoningTokens,
           billed_output_tokens: meta.total_billed_output_tokens ?? null,
-          usage_cost_usd: meta.usage_cost_usd ?? null,
-          api_raw_cost_krw: meta.api_raw_cost_krw ?? null,
+          usage_cost_usd: usageCostUsd,
+          api_raw_cost_krw:
+            meta.api_raw_cost_krw ?? usage.apiRawCostKrw ?? null,
           charged_points: meta.cost_points ?? null,
           visible_korean_chars: meta.korean_chars ?? null,
           visible_chars: meta.visible_chars ?? null,
@@ -273,15 +285,16 @@ function buildCost() {
     const reasoning = rows
       .map((r) => r.reasoning_tokens)
       .filter((n): n is number => typeof n === "number");
+    const outTok = rows
+      .map((r) => r.visible_output_tokens)
+      .filter((n): n is number => typeof n === "number");
     const avgCost = avg(costs);
     const avgChars = avg(chars);
-    const reasoningShare =
-      costs.length && reasoning.length
-        ? null // share needs USD; leave null unless usage_cost_usd present
-        : null;
     const usd = rows
       .map((r) => r.usage_cost_usd)
       .filter((n): n is number => typeof n === "number");
+    const avgReason = avg(reasoning);
+    const avgOut = avg(outTok);
     byModel[model] = {
       sample_count: rows.length,
       average_actual_cost_krw: avgCost,
@@ -294,8 +307,11 @@ function buildCost() {
       average_visible_chars: avgChars,
       p50_latency_s: pct(lats, 0.5),
       p95_latency_s: pct(lats, 0.95),
-      average_reasoning_tokens: avg(reasoning),
-      reasoning_cost_share: reasoningShare,
+      average_reasoning_tokens: avgReason,
+      reasoning_token_share_of_output:
+        avgReason != null && avgOut != null && avgOut > 0
+          ? avgReason / avgOut
+          : null,
       transport_failure_rate: 0,
     };
   }
