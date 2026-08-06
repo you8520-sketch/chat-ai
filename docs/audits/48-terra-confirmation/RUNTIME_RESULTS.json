@@ -6,5 +6,24 @@
   "valid": 4,
   "replacement_calls": 0,
   "exclusions": [],
-  "human_review": "NOT_RUN — waiting for ChatGPT"
+  "human_review": "COMPLETE",
+  "verdicts": [
+    "TERRA_CONFIRMATION_PASS",
+    "TERRA_PUBLIC_PREMIUM_CANDIDATE"
+  ],
+  "scores": {
+    "TERRA-REL-T1": 78,
+    "TERRA-REL-T2": 80,
+    "relationship_average": 79,
+    "TERRA-ACT-T1": 86,
+    "TERRA-ACT-T2": 88,
+    "action_average": 87
+  },
+  "failures": {
+    "severe_hard_fail": 0,
+    "major_replay": 0,
+    "temporal_rewind": 0,
+    "external_takeover": 0,
+    "user_persona_contradiction": 0
+  }
 }

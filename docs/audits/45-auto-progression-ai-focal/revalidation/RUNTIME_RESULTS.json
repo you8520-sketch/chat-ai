@@ -5,6 +5,11 @@
   "valid": 2,
   "replacement_calls": 0,
   "exclusions": [],
-  "human_review": "NOT_RUN — waiting for ChatGPT",
-  "note": "Check B external action + persona-voice dialogue in both outputs. If either missing → HARD_FAIL then inspect owner placement before second wording revision."
+  "human_review": "COMPLETE",
+  "verdicts": [
+    "AUTO_PROGRESSION_AI_FOCAL_POV_PASS",
+    "AUTO_PROGRESSION_EXTERNAL_ACTION_DIALOGUE_FAIL",
+    "AUTO_PROGRESSION_CO_NARRATION_HARD_FAIL"
+  ],
+  "note": "Positive execution paragraph failed 2/2. No further wording revision until owner placement audit (Audit 50)."
 }
