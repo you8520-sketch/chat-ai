@@ -320,12 +320,13 @@ function toRow(
     usage,
     cost_points: opts.resp.cost_points,
     total_points_cost: opts.resp.total_points_cost,
-    upstream_cost_usd: num(done as Record<string, unknown>, "upstreamCostUsd") ??
-      num(usage, "upstreamCostUsd", "cost"),
-    api_raw_cost_krw: num(done as Record<string, unknown>, "apiRawCostKrw") ??
-      num(usage, "apiRawCostKrw"),
-    input_tokens: num(usage, "input", "inputTokens", "prompt_tokens"),
-    output_tokens: num(usage, "output", "outputTokens", "completion_tokens"),
+    // App `usage.cost` = charged points. Actual provider money cost = apiRawCostKrw.
+    upstream_cost_usd: num(usage, "upstreamCostUsd") ??
+      num(done as Record<string, unknown>, "upstreamCostUsd"),
+    api_raw_cost_krw: num(usage, "apiRawCostKrw") ??
+      num(done as Record<string, unknown>, "apiRawCostKrw"),
+    input_tokens: num(usage, "apiInputTokens", "input", "inputTokens", "prompt_tokens"),
+    output_tokens: num(usage, "apiOutputTokens", "output", "outputTokens", "completion_tokens"),
     reasoning_tokens: num(
       usage,
       "reasoning",
@@ -335,6 +336,7 @@ function toRow(
     ),
     total_billed_output_tokens: num(
       usage,
+      "apiOutputTokens",
       "totalOutput",
       "total_output_tokens",
       "completion_tokens"

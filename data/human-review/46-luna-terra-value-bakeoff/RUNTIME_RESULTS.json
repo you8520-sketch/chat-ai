@@ -1,0 +1,31 @@
+{
+  "status": "LUNA_TERRA_VALUE_BAKEOFF_HUMAN_REVIEW_PENDING",
+  "generated_at": "2026-08-06T07:30:46.626Z",
+  "architecture": "PR #248 collaborative interactive; model terminal length owners only",
+  "offline_verdict": "LUNA_TERRA_COLLABORATIVE_BAKEOFF_OFFLINE_PASS",
+  "attempts": 15,
+  "replacement_calls": 1,
+  "exclusions": [
+    {
+      "model": "deepseek",
+      "test_set": "action",
+      "run": 1,
+      "turn": 2,
+      "attempt": 1,
+      "reasons": [
+        "finish_metadata_missing"
+      ]
+    }
+  ],
+  "frozen_deepseek_relationship": 4,
+  "counts": {
+    "deepseek_relationship_valid": 4,
+    "luna_relationship_valid": 4,
+    "terra_relationship_valid": 4,
+    "deepseek_action_valid": 2,
+    "luna_action_valid": 2,
+    "terra_action_valid": 2
+  },
+  "human_review": "NOT_RUN — waiting for ChatGPT",
+  "note": "Do not declare winner / PASS / best value / production candidate before blind review."
+}

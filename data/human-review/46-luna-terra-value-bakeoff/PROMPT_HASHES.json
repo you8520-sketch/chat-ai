@@ -1,0 +1,72 @@
+{
+  "verdict": "LUNA_TERRA_COLLABORATIVE_BAKEOFF_OFFLINE_PASS",
+  "reasons": [],
+  "results": {
+    "deepseek": {
+      "modelId": "deepseek-v4-pro",
+      "hashes": {
+        "system": "1d2150ff34d3fa858919bdcd70c9d865871e9cf6fa56a024062a170cdc0e1790",
+        "final_user": "735e358eeb36728bd06cd58f6d80a48bc77c93bb2b9d7d9ec2d4578f426e1d29",
+        "persona": "72185c501e7bc58b55a707baa408fb246460740aa7457ef4a8bf31a1b08940bd",
+        "character_core": "44e1c8ec7f38c0632caea1be93ca0ebd6704833f146f5eba2cf08c6288d36293",
+        "collaborative": "b8325c8bca9adabac1152928e95f853e5d6157c71fc95ab4f7bfd5ec8bfa77d1"
+      },
+      "owners": {
+        "user_tail": 1,
+        "luna": 0,
+        "terra": 0,
+        "deepseek_length": 0,
+        "short_history": 0,
+        "collaborative": 1,
+        "scene_engine": 0,
+        "novel": 0
+      },
+      "lengthOwnerCount": 1,
+      "sceneSectionPresent": false
+    },
+    "luna": {
+      "modelId": "gpt-5.6-luna",
+      "hashes": {
+        "system": "9e60332435abdd8222f947eec625949b95489b00660837381a3d9de30ce69a6a",
+        "final_user": "408cf7edc3f05b0ecec21d66af6f81b8cb083c1bcdfbd03ba071732cc128bb66",
+        "persona": "72185c501e7bc58b55a707baa408fb246460740aa7457ef4a8bf31a1b08940bd",
+        "character_core": "44e1c8ec7f38c0632caea1be93ca0ebd6704833f146f5eba2cf08c6288d36293",
+        "collaborative": "b8325c8bca9adabac1152928e95f853e5d6157c71fc95ab4f7bfd5ec8bfa77d1"
+      },
+      "owners": {
+        "user_tail": 0,
+        "luna": 1,
+        "terra": 0,
+        "deepseek_length": 0,
+        "short_history": 0,
+        "collaborative": 1,
+        "scene_engine": 0,
+        "novel": 0
+      },
+      "lengthOwnerCount": 1,
+      "sceneSectionPresent": false
+    },
+    "terra": {
+      "modelId": "gpt-5.6-terra",
+      "hashes": {
+        "system": "9e60332435abdd8222f947eec625949b95489b00660837381a3d9de30ce69a6a",
+        "final_user": "472c6e27285257ef99e22c503ab3c707722fd7f5809c5cdfa3cad3f6fd201ab3",
+        "persona": "72185c501e7bc58b55a707baa408fb246460740aa7457ef4a8bf31a1b08940bd",
+        "character_core": "44e1c8ec7f38c0632caea1be93ca0ebd6704833f146f5eba2cf08c6288d36293",
+        "collaborative": "b8325c8bca9adabac1152928e95f853e5d6157c71fc95ab4f7bfd5ec8bfa77d1"
+      },
+      "owners": {
+        "user_tail": 0,
+        "luna": 0,
+        "terra": 1,
+        "deepseek_length": 0,
+        "short_history": 0,
+        "collaborative": 1,
+        "scene_engine": 0,
+        "novel": 0
+      },
+      "lengthOwnerCount": 1,
+      "sceneSectionPresent": false
+    }
+  }
+}

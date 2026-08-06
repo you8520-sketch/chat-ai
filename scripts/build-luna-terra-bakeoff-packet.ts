@@ -271,37 +271,46 @@ function main() {
     rawLines.push("");
   }
 
-  // Cost aggregates (live rows only for cost; frozen deepseek rel may lack usage.cost)
+  // Cost aggregates — prefer usage.apiRawCostKrw (provider money). usage.cost = charged points.
   const costByModel: Record<string, unknown> = {};
   for (const mk of ["deepseek", "luna", "terra"] as const) {
-    const live = rows.filter(
-      (r) => r.model_key === mk && r.upstream_cost_usd != null
+    const withKrw = rows.filter(
+      (r) => r.model_key === mk && r.api_raw_cost_krw != null
     );
     const allModel = rows.filter((r) => r.model_key === mk);
-    const costs = live
-      .map((r) => r.upstream_cost_usd!)
+    const costsKrw = withKrw
+      .map((r) => r.api_raw_cost_krw!)
       .filter((n) => Number.isFinite(n));
     const points = allModel
       .map((r) => r.total_points_cost ?? r.cost_points)
       .filter((n): n is number => typeof n === "number");
-    const lat = allModel.map((r) => r.latency_s).filter((n) => n > 0);
+    const lat = allModel
+      .filter((r) => !(r.test_set === "relationship" && r.model_key === "deepseek"))
+      .map((r) => r.latency_s)
+      .filter((n) => n > 0);
     const chars = allModel.map((r) => r.visible_chars);
-    const costPer1k = live
-      .filter((r) => r.visible_chars > 0 && r.upstream_cost_usd != null)
-      .map((r) => (r.upstream_cost_usd! / r.visible_chars) * 1000);
+    const costPer1k = withKrw
+      .filter((r) => r.visible_chars > 0)
+      .map((r) => (r.api_raw_cost_krw! / r.visible_chars) * 1000);
+    const avgCost = avg(costsKrw);
+    const avgPoints = avg(points);
     costByModel[mk] = {
       model_ui: allModel[0]?.model_ui,
       n_valid: allModel.length,
-      n_with_usage_cost: live.length,
-      average_actual_cost_usd: avg(costs),
-      median_actual_cost_usd: median(costs),
-      average_charged_points: avg(points),
-      // gross margin needs revenue; leave null without pricing table
-      gross_margin: null,
-      cost_per_1000_visible_chars_usd: avg(costPer1k),
+      n_with_actual_cost: withKrw.length,
+      actual_cost_unit: "KRW (usage.apiRawCostKrw)",
+      average_actual_cost_krw: avgCost,
+      median_actual_cost_krw: median(costsKrw),
+      average_charged_points: avgPoints,
+      // rough margin proxy: points charged vs KRW raw — not production pricing decision
+      gross_margin_proxy_points_minus_krw:
+        avgPoints != null && avgCost != null ? avgPoints - avgCost : null,
+      cost_per_1000_visible_chars_krw: avg(costPer1k),
       p50_latency_s: median(lat),
       p95_latency_s: p95(lat),
       average_visible_chars: avg(chars),
+      transport_failure_rate_note:
+        "see RUNTIME_RESULTS.exclusions (per-model×set replacement budget)",
       rows: allModel.map((r) => ({
         attempt_id: r.attempt_id,
         test_set: r.test_set,
@@ -314,7 +323,7 @@ function main() {
         total_billed_output_tokens: r.total_billed_output_tokens,
         upstream_cost_usd: r.upstream_cost_usd,
         api_raw_cost_krw: r.api_raw_cost_krw,
-        cost_points: r.cost_points,
+        charged_points_usage_cost: r.cost_points,
         total_points_cost: r.total_points_cost,
         provider: r.provider,
         resolved_model: r.resolved_model,

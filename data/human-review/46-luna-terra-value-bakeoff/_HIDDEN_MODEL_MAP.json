@@ -1,0 +1,38 @@
+{
+  "seed": 2100051516,
+  "relationship": {
+    "REL-R1T1": {
+      "A": "luna",
+      "B": "terra",
+      "C": "deepseek"
+    },
+    "REL-R1T2": {
+      "A": "terra",
+      "B": "luna",
+      "C": "deepseek"
+    },
+    "REL-R2T1": {
+      "A": "terra",
+      "B": "deepseek",
+      "C": "luna"
+    },
+    "REL-R2T2": {
+      "A": "luna",
+      "B": "terra",
+      "C": "deepseek"
+    }
+  },
+  "action": {
+    "ACT-T1": {
+      "A": "terra",
+      "B": "luna",
+      "C": "deepseek"
+    },
+    "ACT-T2": {
+      "A": "terra",
+      "B": "deepseek",
+      "C": "luna"
+    }
+  },
+  "note": "Reveal only after ChatGPT finishes blind scoring."
+}
