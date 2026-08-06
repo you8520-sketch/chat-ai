@@ -1,0 +1,31 @@
+{
+  "generated_at": "2026-08-06T00:21:53.890Z",
+  "status": "MODEL_BAKEOFF_HUMAN_REVIEW_PENDING",
+  "user_id": 34,
+  "character_id": 18,
+  "persona_id": 61,
+  "new_call_count": 12,
+  "replacement_calls": 0,
+  "runtime_exclusions": [],
+  "events": [],
+  "valid_outputs": 12,
+  "per_model": [
+    {
+      "model_id": "gpt-5.6-terra",
+      "outputs": 4,
+      "replacements": 0
+    },
+    {
+      "model_id": "claude-opus-5",
+      "outputs": 4,
+      "replacements": 0
+    },
+    {
+      "model_id": "gemini-3.1-pro-preview",
+      "outputs": 4,
+      "replacements": 0
+    }
+  ],
+  "deepseek_new_calls": 0,
+  "human_review": "NOT_RUN — waiting for ChatGPT"
+}

@@ -1,0 +1,29 @@
+{
+  "generated_at": "2026-08-06T00:21:53.893Z",
+  "git_head": "2d4c91c69943066ceaf0970df8e6a5779b9db4cb",
+  "method": "sha256 of production adapter/common constants for each bake-off arm (offline). No live prompt dump (canary OFF).",
+  "models": {
+    "gpt-5.6-terra": {
+      "family": "F3",
+      "hashes": {
+        "adapter.terra.terminal_length_owner_contract": "6e5b711ffd3b9bee507cc1e1479d940726de43c0b4e4019b3d7d47c12a60350e",
+        "common.scene_directive.version": "d8cea5a8187f13c13ce17333f9edd75d6f14939fd8db81eac5c67bdddfd00746"
+      }
+    },
+    "claude-opus-5": {
+      "family": "F5",
+      "hashes": {
+        "common.terminal.user_tail_length_owner_sentence": "122fece4c53d8a71141a279985f42dbdc25cbaceda8bde46bb51596d6ca4b092",
+        "common.scene_directive.version": "d8cea5a8187f13c13ce17333f9edd75d6f14939fd8db81eac5c67bdddfd00746"
+      }
+    },
+    "gemini-3.1-pro-preview": {
+      "family": "F5",
+      "hashes": {
+        "common.terminal.user_tail_length_owner_sentence": "122fece4c53d8a71141a279985f42dbdc25cbaceda8bde46bb51596d6ca4b092",
+        "common.scene_directive.version": "d8cea5a8187f13c13ce17333f9edd75d6f14939fd8db81eac5c67bdddfd00746"
+      }
+    }
+  },
+  "note": "Each arm uses its production prompt stack only — no compact/canary overlays."
+}

@@ -1,0 +1,20 @@
+{
+  "status": "MODEL_BAKEOFF_HUMAN_REVIEW_PENDING",
+  "selected_representative_models": [
+    "gpt-5.6-terra",
+    "claude-opus-5",
+    "gemini-3.1-pro-preview"
+  ],
+  "new_call_count": 12,
+  "runtime_exclusions": 0,
+  "replacement_calls": 0,
+  "blind_packet": "data/human-review/38-production-model-bakeoff",
+  "hard_fail_alarms": "data/human-review/38-production-model-bakeoff/HARD_FAIL_ALARMS.json",
+  "human_review": "NOT_RUN — waiting for ChatGPT",
+  "deepseek_optimization": "STOPPED",
+  "pr_245": "CLOSED WITHOUT MERGE",
+  "production_db_apply": "NO",
+  "general_rollout": "NO",
+  "auto_merge": "NO",
+  "auto_deploy": "NO"
+}

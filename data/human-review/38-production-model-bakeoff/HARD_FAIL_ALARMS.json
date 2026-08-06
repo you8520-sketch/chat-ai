@@ -1,0 +1,322 @@
+{
+  "generated_at": "2026-08-06T00:21:53.892Z",
+  "status": "MODEL_BAKEOFF_HUMAN_REVIEW_PENDING",
+  "note": "Detector alarms only — not a PASS/FAIL quality verdict. Human review required.",
+  "valid_outputs": 12,
+  "per_attempt": [
+    {
+      "attempt_id": "A-R1T1",
+      "model_id": "gpt-5.6-terra",
+      "slot": "A",
+      "run": 1,
+      "turn": 1,
+      "finish_reason": "stop",
+      "raw_chars": 2680,
+      "alarms": []
+    },
+    {
+      "attempt_id": "A-R1T2",
+      "model_id": "gpt-5.6-terra",
+      "slot": "A",
+      "run": 1,
+      "turn": 2,
+      "finish_reason": "stop",
+      "raw_chars": 3403,
+      "alarms": [
+        "USER_STATE_INVENTION"
+      ]
+    },
+    {
+      "attempt_id": "A-R2T1",
+      "model_id": "gpt-5.6-terra",
+      "slot": "A",
+      "run": 2,
+      "turn": 1,
+      "finish_reason": "stop",
+      "raw_chars": 2605,
+      "alarms": [
+        "SEMANTIC_REPETITION"
+      ]
+    },
+    {
+      "attempt_id": "A-R2T2",
+      "model_id": "gpt-5.6-terra",
+      "slot": "A",
+      "run": 2,
+      "turn": 2,
+      "finish_reason": "stop",
+      "raw_chars": 3155,
+      "alarms": []
+    },
+    {
+      "attempt_id": "B-R1T1",
+      "model_id": "claude-opus-5",
+      "slot": "B",
+      "run": 1,
+      "turn": 1,
+      "finish_reason": "stop",
+      "raw_chars": 2659,
+      "alarms": []
+    },
+    {
+      "attempt_id": "B-R1T2",
+      "model_id": "claude-opus-5",
+      "slot": "B",
+      "run": 1,
+      "turn": 2,
+      "finish_reason": "stop",
+      "raw_chars": 2870,
+      "alarms": [
+        "ADMINISTRATIVE_SUBPLOT"
+      ]
+    },
+    {
+      "attempt_id": "B-R2T1",
+      "model_id": "claude-opus-5",
+      "slot": "B",
+      "run": 2,
+      "turn": 1,
+      "finish_reason": "stop",
+      "raw_chars": 2326,
+      "alarms": [
+        "ADMINISTRATIVE_SUBPLOT",
+        "USER_STATE_INVENTION",
+        "SEMANTIC_REPETITION"
+      ]
+    },
+    {
+      "attempt_id": "B-R2T2",
+      "model_id": "claude-opus-5",
+      "slot": "B",
+      "run": 2,
+      "turn": 2,
+      "finish_reason": "stop",
+      "raw_chars": 3290,
+      "alarms": [
+        "USER_STATE_INVENTION"
+      ]
+    },
+    {
+      "attempt_id": "C-R1T1",
+      "model_id": "gemini-3.1-pro-preview",
+      "slot": "C",
+      "run": 1,
+      "turn": 1,
+      "finish_reason": "stop",
+      "raw_chars": 3436,
+      "alarms": [
+        "SEMANTIC_REPETITION"
+      ]
+    },
+    {
+      "attempt_id": "C-R1T2",
+      "model_id": "gemini-3.1-pro-preview",
+      "slot": "C",
+      "run": 1,
+      "turn": 2,
+      "finish_reason": "stop",
+      "raw_chars": 6049,
+      "alarms": [
+        "SEMANTIC_REPETITION"
+      ]
+    },
+    {
+      "attempt_id": "C-R2T1",
+      "model_id": "gemini-3.1-pro-preview",
+      "slot": "C",
+      "run": 2,
+      "turn": 1,
+      "finish_reason": "stop",
+      "raw_chars": 4039,
+      "alarms": [
+        "USER_STATE_INVENTION",
+        "SEMANTIC_REPETITION"
+      ]
+    },
+    {
+      "attempt_id": "C-R2T2",
+      "model_id": "gemini-3.1-pro-preview",
+      "slot": "C",
+      "run": 2,
+      "turn": 2,
+      "finish_reason": "stop",
+      "raw_chars": 4262,
+      "alarms": [
+        "USER_STATE_INVENTION"
+      ]
+    }
+  ],
+  "alarm_counts": {
+    "USER_STATE_INVENTION": 5,
+    "SEMANTIC_REPETITION": 5,
+    "ADMINISTRATIVE_SUBPLOT": 2
+  },
+  "by_model": {
+    "gpt-5.6-terra": {
+      "attempts": [
+        {
+          "attempt_id": "A-R1T1",
+          "model_id": "gpt-5.6-terra",
+          "slot": "A",
+          "run": 1,
+          "turn": 1,
+          "finish_reason": "stop",
+          "raw_chars": 2680,
+          "alarms": []
+        },
+        {
+          "attempt_id": "A-R1T2",
+          "model_id": "gpt-5.6-terra",
+          "slot": "A",
+          "run": 1,
+          "turn": 2,
+          "finish_reason": "stop",
+          "raw_chars": 3403,
+          "alarms": [
+            "USER_STATE_INVENTION"
+          ]
+        },
+        {
+          "attempt_id": "A-R2T1",
+          "model_id": "gpt-5.6-terra",
+          "slot": "A",
+          "run": 2,
+          "turn": 1,
+          "finish_reason": "stop",
+          "raw_chars": 2605,
+          "alarms": [
+            "SEMANTIC_REPETITION"
+          ]
+        },
+        {
+          "attempt_id": "A-R2T2",
+          "model_id": "gpt-5.6-terra",
+          "slot": "A",
+          "run": 2,
+          "turn": 2,
+          "finish_reason": "stop",
+          "raw_chars": 3155,
+          "alarms": []
+        }
+      ],
+      "alarm_counts": {
+        "USER_STATE_INVENTION": 1,
+        "SEMANTIC_REPETITION": 1
+      }
+    },
+    "claude-opus-5": {
+      "attempts": [
+        {
+          "attempt_id": "B-R1T1",
+          "model_id": "claude-opus-5",
+          "slot": "B",
+          "run": 1,
+          "turn": 1,
+          "finish_reason": "stop",
+          "raw_chars": 2659,
+          "alarms": []
+        },
+        {
+          "attempt_id": "B-R1T2",
+          "model_id": "claude-opus-5",
+          "slot": "B",
+          "run": 1,
+          "turn": 2,
+          "finish_reason": "stop",
+          "raw_chars": 2870,
+          "alarms": [
+            "ADMINISTRATIVE_SUBPLOT"
+          ]
+        },
+        {
+          "attempt_id": "B-R2T1",
+          "model_id": "claude-opus-5",
+          "slot": "B",
+          "run": 2,
+          "turn": 1,
+          "finish_reason": "stop",
+          "raw_chars": 2326,
+          "alarms": [
+            "ADMINISTRATIVE_SUBPLOT",
+            "USER_STATE_INVENTION",
+            "SEMANTIC_REPETITION"
+          ]
+        },
+        {
+          "attempt_id": "B-R2T2",
+          "model_id": "claude-opus-5",
+          "slot": "B",
+          "run": 2,
+          "turn": 2,
+          "finish_reason": "stop",
+          "raw_chars": 3290,
+          "alarms": [
+            "USER_STATE_INVENTION"
+          ]
+        }
+      ],
+      "alarm_counts": {
+        "ADMINISTRATIVE_SUBPLOT": 2,
+        "USER_STATE_INVENTION": 2,
+        "SEMANTIC_REPETITION": 1
+      }
+    },
+    "gemini-3.1-pro-preview": {
+      "attempts": [
+        {
+          "attempt_id": "C-R1T1",
+          "model_id": "gemini-3.1-pro-preview",
+          "slot": "C",
+          "run": 1,
+          "turn": 1,
+          "finish_reason": "stop",
+          "raw_chars": 3436,
+          "alarms": [
+            "SEMANTIC_REPETITION"
+          ]
+        },
+        {
+          "attempt_id": "C-R1T2",
+          "model_id": "gemini-3.1-pro-preview",
+          "slot": "C",
+          "run": 1,
+          "turn": 2,
+          "finish_reason": "stop",
+          "raw_chars": 6049,
+          "alarms": [
+            "SEMANTIC_REPETITION"
+          ]
+        },
+        {
+          "attempt_id": "C-R2T1",
+          "model_id": "gemini-3.1-pro-preview",
+          "slot": "C",
+          "run": 2,
+          "turn": 1,
+          "finish_reason": "stop",
+          "raw_chars": 4039,
+          "alarms": [
+            "USER_STATE_INVENTION",
+            "SEMANTIC_REPETITION"
+          ]
+        },
+        {
+          "attempt_id": "C-R2T2",
+          "model_id": "gemini-3.1-pro-preview",
+          "slot": "C",
+          "run": 2,
+          "turn": 2,
+          "finish_reason": "stop",
+          "raw_chars": 4262,
+          "alarms": [
+            "USER_STATE_INVENTION"
+          ]
+        }
+      ],
+      "alarm_counts": {
+        "SEMANTIC_REPETITION": 3,
+        "USER_STATE_INVENTION": 2
+      }
+    }
+  }
+}

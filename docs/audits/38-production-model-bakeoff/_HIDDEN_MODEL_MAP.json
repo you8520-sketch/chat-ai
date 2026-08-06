@@ -1,0 +1,113 @@
+{
+  "status": "MODEL_BAKEOFF_HUMAN_REVIEW_PENDING",
+  "note": "Reveal only after ChatGPT blind review is recorded.",
+  "map": {
+    "pair1_SIDEA": {
+      "pair": "Pair 1",
+      "side": "SIDE A",
+      "model_id": "gemini-3.1-pro-preview",
+      "attempt_id": "C-R1T1",
+      "slot": "C"
+    },
+    "pair1_SIDEB": {
+      "pair": "Pair 1",
+      "side": "SIDE B",
+      "model_id": "claude-opus-5",
+      "attempt_id": "B-R1T1",
+      "slot": "B"
+    },
+    "pair1_SIDEC": {
+      "pair": "Pair 1",
+      "side": "SIDE C",
+      "model_id": "gpt-5.6-terra",
+      "attempt_id": "A-R1T1",
+      "slot": "A"
+    },
+    "pair2_SIDEA": {
+      "pair": "Pair 2",
+      "side": "SIDE A",
+      "model_id": "gemini-3.1-pro-preview",
+      "attempt_id": "C-R1T2",
+      "slot": "C"
+    },
+    "pair2_SIDEB": {
+      "pair": "Pair 2",
+      "side": "SIDE B",
+      "model_id": "claude-opus-5",
+      "attempt_id": "B-R1T2",
+      "slot": "B"
+    },
+    "pair2_SIDEC": {
+      "pair": "Pair 2",
+      "side": "SIDE C",
+      "model_id": "gpt-5.6-terra",
+      "attempt_id": "A-R1T2",
+      "slot": "A"
+    },
+    "pair3_SIDEA": {
+      "pair": "Pair 3",
+      "side": "SIDE A",
+      "model_id": "gemini-3.1-pro-preview",
+      "attempt_id": "C-R2T1",
+      "slot": "C"
+    },
+    "pair3_SIDEB": {
+      "pair": "Pair 3",
+      "side": "SIDE B",
+      "model_id": "claude-opus-5",
+      "attempt_id": "B-R2T1",
+      "slot": "B"
+    },
+    "pair3_SIDEC": {
+      "pair": "Pair 3",
+      "side": "SIDE C",
+      "model_id": "gpt-5.6-terra",
+      "attempt_id": "A-R2T1",
+      "slot": "A"
+    },
+    "pair4_SIDEA": {
+      "pair": "Pair 4",
+      "side": "SIDE A",
+      "model_id": "gemini-3.1-pro-preview",
+      "attempt_id": "C-R2T2",
+      "slot": "C"
+    },
+    "pair4_SIDEB": {
+      "pair": "Pair 4",
+      "side": "SIDE B",
+      "model_id": "gpt-5.6-terra",
+      "attempt_id": "A-R2T2",
+      "slot": "A"
+    },
+    "pair4_SIDEC": {
+      "pair": "Pair 4",
+      "side": "SIDE C",
+      "model_id": "claude-opus-5",
+      "attempt_id": "B-R2T2",
+      "slot": "B"
+    }
+  },
+  "models": [
+    {
+      "slot": "A",
+      "id": "gpt-5.6-terra",
+      "family": "F3_terra_terminal_length_owner",
+      "role": "best_quality_korean_long_rp",
+      "note": "Production Korean long-RP flagship (Terra terminal length owner)."
+    },
+    {
+      "slot": "B",
+      "id": "claude-opus-5",
+      "family": "F5_common_terminal_anthropic",
+      "role": "muse_family_substitute_premium",
+      "note": "Muse Spark remapped to deepseek-v4-pro (not live selectable). Substitute: picker-visible Anthropic premium with distinct provider/adapter."
+    },
+    {
+      "slot": "C",
+      "id": "gemini-3.1-pro-preview",
+      "family": "F5_common_terminal_google",
+      "role": "other_provider_premium",
+      "note": "Picker-visible Google premium on CheaperInference; F5 common terminal."
+    }
+  ]
+}
