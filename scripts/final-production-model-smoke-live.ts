@@ -1,6 +1,10 @@
 /**
- * Final production smoke — DeepSeek 4 + Terra 4 (Opus = 0).
- * Uses production assemble path on this branch (Arm E wired for Opus only).
+ * Final production smoke — DeepSeek / Terra capture via production assemble path.
+ *
+ * DeepSeek re-smoke (pre-merge fix):
+ *   SMOKE_MODELS=deepseek OUT_ROOT=... npx tsx scripts/final-production-model-smoke-live.ts
+ *
+ * Historical 8-cell capture remains under the prior OUT_ROOT; do not delete it.
  */
 import { createHash } from "node:crypto";
 import {
@@ -18,9 +22,20 @@ if (!process.env.NODE_ENV) {
   (process.env as Record<string, string>).NODE_ENV = "development";
 }
 
+const SMOKE_MODELS = (process.env.SMOKE_MODELS ?? "all").toLowerCase();
+const DEEPSEEK_ONLY =
+  SMOKE_MODELS === "deepseek" || process.env.DEEPSEEK_ONLY === "1";
+
 const OUT_ROOT =
-  process.env.OUT_ROOT ?? "/opt/cursor/artifacts/final-production-model-smoke";
-const DOCS = "docs/audits/final-production-model-smoke";
+  process.env.OUT_ROOT ??
+  (DEEPSEEK_ONLY
+    ? "/opt/cursor/artifacts/final-production-deepseek-boundary-resmoke"
+    : "/opt/cursor/artifacts/final-production-model-smoke");
+const DOCS =
+  process.env.DOCS_DIR ??
+  (DEEPSEEK_ONLY
+    ? "docs/audits/final-production-deepseek-boundary-resmoke"
+    : "docs/audits/final-production-model-smoke");
 const FIXTURE_DIR =
   process.env.FIXTURE_DIR ??
   "/opt/cursor/artifacts/opus-quality-anchor/fixtures";
@@ -35,7 +50,7 @@ type Scenario = {
   turns: [string, string];
 };
 
-const SCENARIOS: Scenario[] = [
+const ALL_SCENARIOS: Scenario[] = [
   {
     id: "deepseek_instruction",
     modelId: "deepseek-v4-pro",
@@ -82,6 +97,10 @@ const SCENARIOS: Scenario[] = [
   },
 ];
 
+const SCENARIOS = DEEPSEEK_ONLY
+  ? ALL_SCENARIOS.filter((s) => s.modelId === "deepseek-v4-pro")
+  : ALL_SCENARIOS;
+
 function sha256(t: string) {
   return createHash("sha256").update(t).digest("hex");
 }
@@ -94,13 +113,132 @@ function save(dir: string, name: string, content: string | object) {
   );
 }
 
+type StreamState = {
+  text: string;
+  finish: string | null;
+  usage: Record<string, unknown> | null;
+  resolved: string | null;
+  firstDeltaAt: number | null;
+  sawDone: boolean;
+};
+
+function processSseLine(line: string, state: StreamState): void {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith("data:")) return;
+  const data = trimmed.slice(5).trim();
+  if (!data) return;
+  if (data === "[DONE]") {
+    state.sawDone = true;
+    return;
+  }
+  let ev: Record<string, unknown>;
+  try {
+    ev = JSON.parse(data) as Record<string, unknown>;
+  } catch {
+    return;
+  }
+  if (typeof ev.model === "string") state.resolved = ev.model;
+  const choices = ev.choices as Array<Record<string, unknown>> | undefined;
+  const choice0 = choices?.[0];
+  const delta = choice0?.delta as Record<string, unknown> | undefined;
+  const content =
+    typeof delta?.content === "string"
+      ? delta.content
+      : typeof (choice0?.message as Record<string, unknown> | undefined)
+            ?.content === "string"
+        ? String((choice0!.message as Record<string, unknown>).content)
+        : "";
+  if (content) {
+    if (state.firstDeltaAt == null) state.firstDeltaAt = Date.now();
+    state.text += content;
+  }
+  if (typeof choice0?.finish_reason === "string" && choice0.finish_reason) {
+    state.finish = choice0.finish_reason;
+  }
+  if (ev.usage && typeof ev.usage === "object") {
+    state.usage = ev.usage as Record<string, unknown>;
+  }
+}
+
+function processSseChunk(chunk: string, state: StreamState, buf: { value: string }): void {
+  buf.value += chunk;
+  const parts = buf.value.split("\n");
+  buf.value = parts.pop() ?? "";
+  for (const line of parts) {
+    processSseLine(line, state);
+  }
+}
+
+function flushRemainingSseBuffer(
+  dec: TextDecoder,
+  buf: { value: string },
+  state: StreamState
+): void {
+  // Final UTF-8 flush — required so trailing multibyte sequences are not dropped.
+  const tail = dec.decode();
+  if (tail) buf.value += tail;
+  if (buf.value.trim()) {
+    processSseLine(buf.value, state);
+    buf.value = "";
+  }
+}
+
+function looksObviouslyIncomplete(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return true;
+  // Hangul/Latin/digit at end without sentence closer → mid-sentence cut.
+  if (/[가-힣a-zA-Z0-9]$/.test(trimmed)) return true;
+  // Open quote imbalance
+  const doubles = (trimmed.match(/"/g) ?? []).length;
+  if (doubles % 2 !== 0) return true;
+  return false;
+}
+
+function classifyStreamCapture(opts: {
+  httpStatus: number;
+  text: string;
+  finishReason: string | null;
+  resolvedModel: string | null;
+  sawDone: boolean;
+  error: string | null;
+}): { invalid: boolean; reasons: string[] } {
+  const reasons: string[] = [];
+  if (opts.error) reasons.push(`error:${opts.error.slice(0, 200)}`);
+  if (opts.httpStatus !== 200) reasons.push(`http_${opts.httpStatus}`);
+  if (!opts.text.trim()) reasons.push("empty_text");
+  if (opts.finishReason == null) reasons.push("finish_reason_null");
+  if (opts.resolvedModel == null) reasons.push("resolved_model_null");
+  if (looksObviouslyIncomplete(opts.text)) reasons.push("incomplete_ending");
+  if (!opts.sawDone && opts.finishReason == null) {
+    reasons.push("missing_stream_completion_marker");
+  }
+  // usage==null alone is NOT an exclusion reason (provider variance).
+  // finish_reason=null + incomplete ending is always invalid.
+  const invalid =
+    reasons.includes("finish_reason_null") ||
+    reasons.includes("resolved_model_null") ||
+    reasons.includes("incomplete_ending") ||
+    reasons.includes("missing_stream_completion_marker") ||
+    reasons.includes("empty_text") ||
+    opts.httpStatus !== 200 ||
+    !!opts.error;
+  return { invalid, reasons };
+}
+
 async function streamCi(body: Record<string, unknown>) {
   const {
     CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
     buildCheaperInferenceHeaders,
   } = await import("../src/lib/cheaperInferenceConfig");
   const started = Date.now();
-  let firstDeltaAt: number | null = null;
+  const state: StreamState = {
+    text: "",
+    finish: null,
+    usage: null,
+    resolved: null,
+    firstDeltaAt: null,
+    sawDone: false,
+  };
   try {
     const res = await fetch(CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL, {
       method: "POST",
@@ -114,6 +252,7 @@ async function streamCi(body: Record<string, unknown>) {
         finish_reason: null as string | null,
         usage: null as Record<string, unknown> | null,
         resolved_model: null as string | null,
+        saw_done: false,
         error: (await res.text()).slice(0, 2000),
         http_status: res.status,
       };
@@ -121,70 +260,31 @@ async function streamCi(body: Record<string, unknown>) {
     const reader = res.body?.getReader();
     if (!reader) throw new Error("no body");
     const dec = new TextDecoder();
-    let buf = "";
-    let text = "";
-    let finish: string | null = null;
-    let usage: Record<string, unknown> | null = null;
-    let resolved: string | null = null;
+    const buf = { value: "" };
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      buf += dec.decode(value, { stream: true });
-      const parts = buf.split("\n");
-      buf = parts.pop() ?? "";
-      for (const line of parts) {
-        const trimmed = line.trim();
-        if (!trimmed.startsWith("data:")) continue;
-        const data = trimmed.slice(5).trim();
-        if (!data || data === "[DONE]") continue;
-        let ev: Record<string, unknown>;
-        try {
-          ev = JSON.parse(data) as Record<string, unknown>;
-        } catch {
-          continue;
-        }
-        if (typeof ev.model === "string") resolved = ev.model;
-        const choices = ev.choices as Array<Record<string, unknown>> | undefined;
-        const choice0 = choices?.[0];
-        const delta = choice0?.delta as Record<string, unknown> | undefined;
-        const content =
-          typeof delta?.content === "string"
-            ? delta.content
-            : typeof (choice0?.message as Record<string, unknown> | undefined)
-                  ?.content === "string"
-              ? String((choice0!.message as Record<string, unknown>).content)
-              : "";
-        if (content) {
-          if (firstDeltaAt == null) firstDeltaAt = Date.now();
-          text += content;
-        }
-        if (
-          typeof choice0?.finish_reason === "string" &&
-          choice0.finish_reason
-        ) {
-          finish = choice0.finish_reason;
-        }
-        if (ev.usage && typeof ev.usage === "object") {
-          usage = ev.usage as Record<string, unknown>;
-        }
-      }
+      processSseChunk(dec.decode(value, { stream: true }), state, buf);
     }
+    flushRemainingSseBuffer(dec, buf, state);
     return {
-      text,
+      text: state.text,
       latency_s: (Date.now() - started) / 1000,
-      finish_reason: finish,
-      usage,
-      resolved_model: resolved,
+      finish_reason: state.finish,
+      usage: state.usage,
+      resolved_model: state.resolved,
+      saw_done: state.sawDone,
       error: null as string | null,
       http_status: 200,
     };
   } catch (e) {
     return {
-      text: "",
+      text: state.text,
       latency_s: (Date.now() - started) / 1000,
-      finish_reason: null as string | null,
-      usage: null as Record<string, unknown> | null,
-      resolved_model: null as string | null,
+      finish_reason: state.finish,
+      usage: state.usage,
+      resolved_model: state.resolved,
+      saw_done: state.sawDone,
       error: String(e),
       http_status: 0,
     };
@@ -251,6 +351,8 @@ async function assemble(opts: {
   const { OPENING_TURN_USER } = await import("../src/lib/chatGreetingContext");
   const { buildContext } = await import("../src/services/contextBuilder");
   const { assemblePrimaryRpRequest } = await import("../src/lib/openRouterAdult");
+  const { resolveNarrativePov } = await import("../src/lib/narrativePov");
+  const { buildNarrativePovPrompt } = await import("../src/lib/narrativePov");
 
   const ch = opts.fixture.character;
   const persona = opts.fixture.persona;
@@ -282,6 +384,14 @@ async function assemble(opts: {
           { role: "assistant", content: String(ch.greeting ?? "") },
         ] as ChatMsg[]);
 
+  // Room default narrative_pov is third_person (DB DEFAULT). Smoke must pass
+  // the same POV owner production chat injects — never omit it.
+  const narrativePov = resolveNarrativePov({
+    mode: "third_person",
+    contentKind: "character",
+    mainCharacterName: String(ch.name),
+  });
+
   const built = buildContext({
     charName: String(ch.name),
     chunks,
@@ -305,6 +415,7 @@ async function assemble(opts: {
     contentKind: "character",
     exampleDialog: String(ch.example_dialog ?? ""),
     userId: Number(opts.fixture.user.id ?? 4),
+    narrativePov,
   });
 
   const wire = assemblePrimaryRpRequest({
@@ -324,7 +435,16 @@ async function assemble(opts: {
     stream: true,
     stream_options: { include_usage: true },
   };
-  return { requestBody, messages: requestBody.messages as ChatMsg[] };
+  const messages = requestBody.messages as ChatMsg[];
+  const payload = JSON.stringify(messages);
+  const povOwnerPresent = payload.includes("NARRATIVE POV OWNER: THIRD PERSON");
+  return {
+    requestBody,
+    messages,
+    narrativePov,
+    povOwnerText: buildNarrativePovPrompt(narrativePov),
+    povOwnerPresent,
+  };
 }
 
 async function main() {
@@ -340,6 +460,9 @@ async function main() {
   const fx = 1452.09532128;
   const rows: Record<string, unknown>[] = [];
   const exclusions: unknown[] = [];
+  const invalidCaptures: unknown[] = [];
+  let apiCalls = 0;
+  const maxCalls = DEEPSEEK_ONLY ? 4 : 8;
 
   for (const scenario of SCENARIOS) {
     const fixture = await loadFixture(scenario.characterId);
@@ -366,6 +489,13 @@ async function main() {
         ) as Record<string, unknown>;
         meta.provider_raw = readFileSync(rawPath, "utf8");
         rows.push(meta);
+        if (meta.invalid_stream_capture) {
+          invalidCaptures.push({
+            scenario: scenario.id,
+            turn,
+            reasons: meta.invalid_reasons,
+          });
+        }
         history = [
           ...history,
           { role: "user", content: scenario.turns[turn - 1]! },
@@ -374,6 +504,9 @@ async function main() {
         continue;
       }
       try {
+        if (apiCalls >= maxCalls) {
+          throw new Error(`API_CALL_BUDGET_EXCEEDED:${apiCalls}/${maxCalls}`);
+        }
         const assembled = await assemble({
           modelId: scenario.modelId,
           fixture,
@@ -381,18 +514,23 @@ async function main() {
           currentUserMessage: scenario.turns[turn - 1]!,
         });
         console.log(`\n=== ${scenario.id} ${scenario.modelId} T${turn} ===`);
+        console.log({
+          configured_narrative_pov: assembled.narrativePov.mode,
+          pov_owner_present: assembled.povOwnerPresent,
+        });
+        apiCalls += 1;
         let resp = await streamCi(assembled.requestBody as Record<string, unknown>);
-        if (
-          (!resp.text.trim() || resp.error) &&
-          /terminated|SocketError|UND_ERR_SOCKET|other side closed/i.test(
-            String(resp.error ?? "")
-          )
-        ) {
-          await new Promise((r) => setTimeout(r, 2000));
-          resp = await streamCi(assembled.requestBody as Record<string, unknown>);
-        }
-        if (resp.error || resp.http_status !== 200 || !resp.text.trim()) {
-          save(dir, `turn${turn}-FAIL.json`, resp);
+        // No retry / continuation / recovery (budget policy).
+        const capture = classifyStreamCapture({
+          httpStatus: resp.http_status,
+          text: resp.text,
+          finishReason: resp.finish_reason,
+          resolvedModel: resp.resolved_model,
+          sawDone: resp.saw_done,
+          error: resp.error,
+        });
+        if (resp.http_status !== 200 || resp.error || !resp.text.trim()) {
+          save(dir, `turn${turn}-FAIL.json`, { ...resp, capture });
           throw new Error(
             `CI fail ${scenario.id}/t${turn}: ${resp.error ?? resp.http_status}`
           );
@@ -408,6 +546,13 @@ async function main() {
             error: `MODEL_SUBSTITUTION:${resolved}`,
           });
           throw new Error(`MODEL_SUBSTITUTION_EXCLUSION:${resolved}`);
+        }
+        if (capture.invalid) {
+          invalidCaptures.push({
+            scenario: scenario.id,
+            turn,
+            reasons: capture.reasons,
+          });
         }
         const uf = extractUsage(resp.usage);
         const totalVisible = visibleAssistantDisplayCharCount(resp.text);
@@ -435,7 +580,12 @@ async function main() {
           user_input: scenario.turns[turn - 1],
           http_status: resp.http_status,
           finish_reason: resp.finish_reason,
+          saw_done: resp.saw_done,
+          invalid_stream_capture: capture.invalid,
+          invalid_reasons: capture.reasons,
           total_visible_chars: totalVisible,
+          configured_narrative_pov: assembled.narrativePov.mode,
+          pov_owner_present: assembled.povOwnerPresent,
           ...uf,
           usage_cost_usd: usd,
           api_raw_cost_krw: krw,
@@ -445,10 +595,16 @@ async function main() {
           recovery: 0,
           raw_hash: sha256(resp.text),
           provider_raw: resp.text,
+          acceptance_eligible: !capture.invalid,
         };
         save(dir, `turn${turn}-provider-raw.txt`, resp.text);
         save(dir, `turn${turn}-meta.json`, { ...row, provider_raw: undefined });
         save(dir, `turn${turn}-messages.json`, assembled.messages);
+        save(dir, `turn${turn}-pov.json`, {
+          configured_narrative_pov: assembled.narrativePov.mode,
+          assembled_pov_owner_present: assembled.povOwnerPresent,
+          pov_owner_preview: assembled.povOwnerText.slice(0, 240),
+        });
         rows.push(row);
         history = [
           ...history,
@@ -460,20 +616,25 @@ async function main() {
           totalVisible,
           krw,
           finish: resp.finish_reason,
+          invalid: capture.invalid,
+          reasons: capture.reasons,
         });
       } catch (e) {
         exclusions.push({ scenario: scenario.id, turn, error: String(e) });
         save(OUT_ROOT, "RUNTIME_RESULTS.json", {
-          status: "FINAL_PRODUCTION_SMOKE_RUNTIME_FAIL",
+          status: DEEPSEEK_ONLY
+            ? "DEEPSEEK_BOUNDARY_RESMOKE_RUNTIME_FAIL"
+            : "FINAL_PRODUCTION_SMOKE_RUNTIME_FAIL",
           error: String(e),
           exclusions,
+          invalid_captures: invalidCaptures,
+          api_calls: apiCalls,
         });
         throw e;
       }
     }
   }
 
-  // reload all
   const all: Record<string, unknown>[] = [];
   for (const sc of readdirSync(join(OUT_ROOT, "live"))) {
     for (const turn of [1, 2] as const) {
@@ -496,8 +657,12 @@ async function main() {
     }
   }
 
-  function modelStats(model: string) {
-    const m = all.filter((r) => r.model === model);
+  function modelStats(model: string, acceptanceOnly: boolean) {
+    const m = all.filter(
+      (r) =>
+        r.model === model &&
+        (!acceptanceOnly || r.acceptance_eligible !== false)
+    );
     const chars = m
       .map((r) => r.total_visible_chars)
       .filter((x): x is number => typeof x === "number")
@@ -514,23 +679,57 @@ async function main() {
         ? krw.reduce((a, b) => a + b, 0) / krw.length
         : null,
       sum_api_raw_cost_krw: krw.reduce((a, b) => a + b, 0),
+      finish_reasons: m.map((r) => r.finish_reason),
+      visible_chars: m.map((r) => r.total_visible_chars),
+      resolved_models: m.map((r) => r.resolved_model),
     };
   }
 
+  const deepseekAll = all.filter((r) => r.model === "deepseek-v4-pro");
+  const deepseekInvalid = deepseekAll.filter((r) => r.invalid_stream_capture);
   const runtime = {
-    status: "FINAL_PRODUCTION_SMOKE_CAPTURED",
-    DEEPSEEK_FINAL_SMOKE_CAPTURED: true,
-    TERRA_FINAL_SMOKE_CAPTURED: true,
+    status: DEEPSEEK_ONLY
+      ? "DEEPSEEK_BOUNDARY_RESMOKE_CAPTURED"
+      : "FINAL_PRODUCTION_SMOKE_CAPTURED",
+    DEEPSEEK_ONLY,
+    DEEPSEEK_FINAL_SMOKE_CAPTURED: deepseekAll.length > 0,
+    TERRA_FINAL_SMOKE_CAPTURED: !DEEPSEEK_ONLY,
     FINAL_HUMAN_REVIEW_REQUIRED: true,
     opus_calls: 0,
-    deepseek_calls: all.filter((r) => r.model === "deepseek-v4-pro").length,
-    terra_calls: all.filter((r) => r.model === "gpt-5.6-terra").length,
-    expected: 8,
+    terra_calls: DEEPSEEK_ONLY
+      ? 0
+      : all.filter((r) => r.model === "gpt-5.6-terra").length,
+    deepseek_calls: deepseekAll.length,
+    api_calls: apiCalls,
+    expected: maxCalls,
+    retry: 0,
+    continuation: 0,
+    recovery: 0,
+    invalid_stream_captures: deepseekInvalid.length,
+    invalid_capture_details: deepseekInvalid.map((r) => ({
+      attempt_id: r.attempt_id,
+      reasons: r.invalid_reasons,
+      finish_reason: r.finish_reason,
+      total_visible_chars: r.total_visible_chars,
+    })),
     exclusions,
     by_model: {
-      "deepseek-v4-pro": modelStats("deepseek-v4-pro"),
-      "gpt-5.6-terra": modelStats("gpt-5.6-terra"),
+      "deepseek-v4-pro": {
+        all: modelStats("deepseek-v4-pro", false),
+        acceptance_eligible: modelStats("deepseek-v4-pro", true),
+      },
+      ...(DEEPSEEK_ONLY
+        ? {}
+        : {
+            "gpt-5.6-terra": {
+              all: modelStats("gpt-5.6-terra", false),
+              acceptance_eligible: modelStats("gpt-5.6-terra", true),
+            },
+          }),
     },
+    historical_note: DEEPSEEK_ONLY
+      ? "Prior 904/884 invalid T2 cells remain under final-production-model-smoke as historical raw; excluded from acceptance."
+      : null,
     merge: "NOT_RUN — waiting for ChatGPT final human review",
     production_change: false,
   };

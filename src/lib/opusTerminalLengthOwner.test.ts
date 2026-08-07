@@ -143,6 +143,12 @@ describe("opusTerminalLengthOwner", () => {
     assert.ok(deepseek.includes(DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY));
     assert.ok(deepseek.trimEnd().endsWith(USER_TAIL_LENGTH_OWNER_SENTENCE));
     assert.ok(!deepseek.includes(OPUS_ARM_E_TERMINAL_MARKER));
+    // Compact future-instruction boundary is DeepSeek-only (not Arm E).
+    assert.ok(
+      deepseek.includes(
+        "포괄적으로 순응 의사를 밝혀도 이후 모든 행동·대사·선택을 대신 수행하라는 뜻은 아니다"
+      )
+    );
   });
 
   it("keeps numeric user-tail for Opus auto progression", () => {

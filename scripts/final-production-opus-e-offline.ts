@@ -147,10 +147,22 @@ async function main() {
     "../src/lib/deepseekPromptStructure"
   );
   const {
+    DEEPSEEK_COMPACT_FUTURE_INSTRUCTION_BOUNDARY,
+    DEEPSEEK_COMPACT_FUTURE_INSTRUCTION_BOUNDARY_MARKER,
+    DEEPSEEK_FORBIDDEN_ARM_E_STOP_SENTENCE,
+  } = await import("../src/lib/deepseekFutureInstructionBoundary");
+  const {
     OPUS_ARM_E_TERMINAL,
     OPUS_ARM_E_TERMINAL_MARKER,
     OPUS_ARM_F_REJECTED_STOP_MARKER,
   } = await import("../src/lib/opusTerminalLengthOwner");
+
+  const FROZEN_TERRA_TERMINAL_SHA256 =
+    "6e5b711ffd3b9bee507cc1e1479d940726de43c0b4e4019b3d7d47c12a60350e";
+  const FROZEN_DEEPSEEK_STYLE_SHA256 =
+    "92c367910f6f9319362e21c04c254478a8ef1e3b6e7ff22535f8c6dae322c9e4";
+  const FROZEN_USER_TAIL_SHA256 =
+    "122fece4c53d8a71141a279985f42dbdc25cbaceda8bde46bb51596d6ca4b092";
 
   const armESha = createHash("sha256").update(OPUS_ARM_E_TERMINAL).digest("hex");
   if (armESha !== FROZEN_ARM_E_SHA256) {
@@ -158,6 +170,37 @@ async function main() {
   }
   if (OPUS_ARM_E_TERMINAL.includes(OPUS_ARM_F_REJECTED_STOP_MARKER)) {
     reasons.push("arm_f_present_in_constant");
+  }
+  const terraSha = createHash("sha256")
+    .update(TERRA_TERMINAL_LENGTH_OWNER_CONTRACT)
+    .digest("hex");
+  if (terraSha !== FROZEN_TERRA_TERMINAL_SHA256) {
+    reasons.push(`terra_terminal_sha_mismatch:${terraSha}`);
+  }
+  const dsStyleSha = createHash("sha256")
+    .update(DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY)
+    .digest("hex");
+  if (dsStyleSha !== FROZEN_DEEPSEEK_STYLE_SHA256) {
+    reasons.push(`deepseek_style_sha_mismatch:${dsStyleSha}`);
+  }
+  const userTailSha = createHash("sha256")
+    .update(USER_TAIL_LENGTH_OWNER_SENTENCE)
+    .digest("hex");
+  if (userTailSha !== FROZEN_USER_TAIL_SHA256) {
+    reasons.push(`user_tail_sha_mismatch:${userTailSha}`);
+  }
+  if (
+    DEEPSEEK_COMPACT_FUTURE_INSTRUCTION_BOUNDARY.includes(
+      DEEPSEEK_FORBIDDEN_ARM_E_STOP_SENTENCE
+    ) ||
+    DEEPSEEK_COMPACT_FUTURE_INSTRUCTION_BOUNDARY.includes(
+      OPUS_ARM_F_REJECTED_STOP_MARKER
+    ) ||
+    DEEPSEEK_COMPACT_FUTURE_INSTRUCTION_BOUNDARY.includes(
+      "첫 번째로 새롭게 요구되는 [B]의 행동 직전에 멈춘다"
+    )
+  ) {
+    reasons.push("deepseek_forbidden_stop_sentence");
   }
 
   const msg = "시키는 대로 할게요. 뭘 하면 돼요?";
@@ -228,23 +271,101 @@ async function main() {
     reasons.push("terra_collab");
   }
 
-  // DeepSeek — style reminder + numeric tail; no Arm E
+  // DeepSeek — style reminder + compact future boundary + numeric tail; no Arm E
   const ds = await assemble({
     modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
     contentKind: "character",
     userMessage: msg,
   });
   const dsStyle = countOcc(ds.lastUser, DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY);
+  const dsBoundary = countOcc(
+    ds.lastUser,
+    DEEPSEEK_COMPACT_FUTURE_INSTRUCTION_BOUNDARY
+  );
   const dsTail = countOcc(ds.lastUser, USER_TAIL_LENGTH_OWNER_SENTENCE);
   const dsArmE = countOcc(ds.lastUser, OPUS_ARM_E_TERMINAL_MARKER);
-  if (dsStyle < 1) reasons.push(`deepseek_style_${dsStyle}`);
+  const dsForbiddenStop = countOcc(
+    ds.payload,
+    DEEPSEEK_FORBIDDEN_ARM_E_STOP_SENTENCE
+  );
+  if (dsStyle !== 1) reasons.push(`deepseek_style_${dsStyle}`);
+  if (dsBoundary !== 1) reasons.push(`deepseek_compact_boundary_${dsBoundary}`);
   if (dsTail !== 1) reasons.push(`deepseek_tail_${dsTail}`);
   if (dsArmE !== 0) reasons.push(`deepseek_arm_e_${dsArmE}`);
+  if (dsForbiddenStop !== 0) reasons.push(`deepseek_forbidden_stop_${dsForbiddenStop}`);
+  if (!ds.lastUser.trimEnd().endsWith(USER_TAIL_LENGTH_OWNER_SENTENCE)) {
+    reasons.push("deepseek_tail_not_absolute_final");
+  }
+  const boundaryIdx = ds.lastUser.indexOf(
+    DEEPSEEK_COMPACT_FUTURE_INSTRUCTION_BOUNDARY
+  );
+  const tailIdx = ds.lastUser.indexOf(USER_TAIL_LENGTH_OWNER_SENTENCE);
+  if (!(boundaryIdx >= 0 && tailIdx > boundaryIdx)) {
+    reasons.push("deepseek_boundary_not_before_user_tail");
+  }
+
+  // DeepSeek leak paths — compact boundary must NOT appear
+  const dsAuto = await assemble({
+    modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+    contentKind: "character",
+    isContinue: true,
+    userMessage: msg,
+  });
+  const dsCo = await assemble({
+    modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+    contentKind: "character",
+    userImpersonation: true,
+    userMessage: msg,
+  });
+  const dsSim = await assemble({
+    modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+    contentKind: "simulation",
+    userMessage: msg,
+  });
+  const dsParty = await assemble({
+    modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+    contentKind: "character",
+    party: true,
+    userMessage: msg,
+  });
+  const leakAuto = countOcc(
+    dsAuto.lastUser,
+    DEEPSEEK_COMPACT_FUTURE_INSTRUCTION_BOUNDARY_MARKER
+  );
+  const leakCo = countOcc(
+    dsCo.lastUser,
+    DEEPSEEK_COMPACT_FUTURE_INSTRUCTION_BOUNDARY_MARKER
+  );
+  const leakSim = countOcc(
+    dsSim.lastUser,
+    DEEPSEEK_COMPACT_FUTURE_INSTRUCTION_BOUNDARY_MARKER
+  );
+  const leakParty = countOcc(
+    dsParty.lastUser,
+    DEEPSEEK_COMPACT_FUTURE_INSTRUCTION_BOUNDARY_MARKER
+  );
+  const leakTerra = countOcc(
+    terra.lastUser,
+    DEEPSEEK_COMPACT_FUTURE_INSTRUCTION_BOUNDARY_MARKER
+  );
+  const leakOpus = countOcc(
+    opus.lastUser,
+    DEEPSEEK_COMPACT_FUTURE_INSTRUCTION_BOUNDARY_MARKER
+  );
+  if (leakAuto !== 0) reasons.push("auto_progression_boundary_leak");
+  if (leakCo !== 0) reasons.push("co_narration_boundary_leak");
+  if (leakSim !== 0) reasons.push("simulation_boundary_leak");
+  if (leakParty !== 0) reasons.push("party_boundary_leak");
+  if (leakTerra !== 0) reasons.push("terra_boundary_leak");
+  if (leakOpus !== 0) reasons.push("opus_boundary_leak");
 
   const results = {
     status: reasons.length === 0 ? "PASS" : "FAIL",
     frozen_arm_e_sha256: armESha,
     expected_arm_e_sha256: FROZEN_ARM_E_SHA256,
+    terra_terminal_sha256: terraSha,
+    deepseek_style_sha256: dsStyleSha,
+    user_tail_sha256: userTailSha,
     arm_f_absent: opusF === 0,
     counts: {
       opus_standard: {
@@ -254,30 +375,44 @@ async function main() {
         scene_directive: opusScene,
       },
       terra: { terminal: terraTerm, arm_e: terraArmE },
-      deepseek: { style: dsStyle, numeric_tail: dsTail, arm_e: dsArmE },
+      deepseek: {
+        style: dsStyle,
+        compact_future_boundary: dsBoundary,
+        numeric_tail: dsTail,
+        arm_e: dsArmE,
+      },
     },
     leak_checks: {
       opus_auto_arm_e: countOcc(opusAuto.lastUser, OPUS_ARM_E_TERMINAL_MARKER),
       opus_conarration_arm_e: countOcc(opusCo.lastUser, OPUS_ARM_E_TERMINAL_MARKER),
       opus_simulation_arm_e: countOcc(opusSim.lastUser, OPUS_ARM_E_TERMINAL_MARKER),
+      deepseek_auto_boundary: leakAuto,
+      deepseek_conarration_boundary: leakCo,
+      deepseek_simulation_boundary: leakSim,
+      deepseek_party_boundary: leakParty,
+      terra_boundary: leakTerra,
+      opus_boundary: leakOpus,
     },
     reasons,
   };
   save("OFFLINE_RESULTS.json", results);
   save(
     "PROMPT_OWNER_MATRIX.md",
-    `# PROMPT_OWNER_MATRIX — Final production Opus E integration
+    `# PROMPT_OWNER_MATRIX — Final production Opus E + DeepSeek compact boundary
 
-| Path | collaborative | numeric USER_TAIL | Arm E | Terra terminal | DeepSeek style | Arm F |
-|---|---|---|---|---|---|---|
-| Opus standard interactive character | 1 | 0 | 1 | 0 | 0 | 0 |
-| Opus auto progression | 0/mode | 1 | 0 | 0 | 0 | 0 |
-| Opus co-narration | mode | 1 | 0 | 0 | 0 | 0 |
-| Opus simulation | mode | 1 | 0 | 0 | 0 | 0 |
-| Terra single_primary | 1 | 0 | 0 | 1 | 0 | 0 |
-| DeepSeek standard | 1 | 1 | 0 | 0 | 1 | 0 |
+| Path | collaborative | numeric USER_TAIL | Arm E | Terra terminal | DeepSeek style | DeepSeek compact future boundary | Arm F |
+|---|---|---|---|---|---|---|---|
+| Opus standard interactive character | 1 | 0 | 1 | 0 | 0 | 0 | 0 |
+| Opus auto progression | 0/mode | 1 | 0 | 0 | 0 | 0 | 0 |
+| Opus co-narration | mode | 1 | 0 | 0 | 0 | 0 | 0 |
+| Opus simulation | mode | 1 | 0 | 0 | 0 | 0 | 0 |
+| Terra single_primary | 1 | 0 | 0 | 1 | 0 | 0 | 0 |
+| DeepSeek standard interactive character | 1 | 1 | 0 | 0 | 1 | 1 | 0 |
+| DeepSeek auto / co-narration / simulation / party | mode | 1 | 0 | 0 | style? | 0 | 0 |
 
 Frozen Arm E SHA-256: \`${FROZEN_ARM_E_SHA256}\`
+Frozen Terra terminal SHA-256: \`${FROZEN_TERRA_TERMINAL_SHA256}\`
+Frozen DeepSeek style SHA-256: \`${FROZEN_DEEPSEEK_STYLE_SHA256}\`
 `
   );
   console.log(JSON.stringify(results, null, 2));
