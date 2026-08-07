@@ -398,6 +398,7 @@ import {
   getEpisodicMemoryForPrompt,
   logStatusMemoryPipelineDev,
   persistEpisodicMemoryFactsBestEffort,
+  reconcileEpisodicMemoryFactsForGeneration,
   summarizeEpisodicFactPersistCandidates,
 } from "@/lib/episodicMemoryFacts";
 import { stripExtractedFactsForClient } from "@/lib/statusWidget/parseValues";
@@ -407,6 +408,10 @@ import {
   loadQueuedStatusTriggerEventsForPrompt,
   markStatusTriggerEventsConsumed,
 } from "@/lib/statusWidgetTriggers";
+import {
+  isCanonicalDerivedStateGenerationStatus,
+  supersedeStatusTriggerEventsForSourceMessage,
+} from "@/lib/rpDerivedStateLifecycle";
 import {
   buildPrivateSpeechControlBlock,
   parseCreatorDescriptionCompiled,
@@ -4363,6 +4368,13 @@ export async function POST(req: Request) {
           reasonCode: statusWidgetSaveReason,
         });
 
+        // Phase B0: derived-state writes (episodic facts, trigger events) are
+        // allowed only when this request actually finalized the assistant
+        // (not an idempotent duplicate finalize) AND the generation status is
+        // canonical. `interrupted` / `failed_partial` / `failed` must not
+        // advance derived state.
+        let assistantFinalizedThisRequest = false;
+
         if (regenerateMessageId) {
           const existing = db
             .prepare(
@@ -4442,6 +4454,7 @@ export async function POST(req: Request) {
           if (finalizeResult.wrote) {
             incrementCharacterTotalTurns(db, ch.id, 1);
           }
+          assistantFinalizedThisRequest = finalizeResult.wrote;
           aiMessageId = regenerateMessageId;
         } else {
           const alternatesJson = JSON.stringify([newVariant]);
@@ -4497,6 +4510,7 @@ export async function POST(req: Request) {
               ? "FINALIZE_OVERWROTE_VALUES_PREVENTED"
               : statusWidgetSaveReason,
           });
+          assistantFinalizedThisRequest = finalizeResult.wrote;
           aiMessageId = persistedAssistantId;
           if (userMessageId != null) {
             db.prepare(
@@ -4592,15 +4606,24 @@ export async function POST(req: Request) {
             ),
           ],
         });
-        if (extractedFactsForPersistence.length > 0) {
+        // Phase B0: derived-state writes are allowed only when this request
+        // actually finalized the assistant (not an idempotent duplicate) AND
+        // the generation status is canonical. `interrupted` / `failed_partial`
+        // / `failed` must not create new durable episodic facts or trigger
+        // events. Queued-trigger consumption semantics are unchanged.
+        const derivedStateAllowed =
+          assistantFinalizedThisRequest &&
+          isCanonicalDerivedStateGenerationStatus(persistedGenerationStatus);
+
+        if (derivedStateAllowed) {
           const persistFacts = () => {
-            persistEpisodicMemoryFactsBestEffort(db, {
+            reconcileEpisodicMemoryFactsForGeneration(db, {
               chatId: chatRef.id,
               characterId: ch.id,
               userId: user.id,
               sourceTurn: playableTurnCount + 1,
               facts: extractedFactsForPersistence,
-              replaceSourceTurn: !!regenerateMessageId,
+              isRegeneration: !!regenerateMessageId,
               metadata: {
                 assistant_message_id: aiMessageId,
                 request_id: clientRequestId ?? null,
@@ -4624,16 +4647,35 @@ export async function POST(req: Request) {
           console.error("[StatusTrigger] consume failed:", (e as Error).message);
         }
 
-        if (statusWidgetValuesPayload && statusWidgetValuesHasContent(statusWidgetValuesPayload)) {
-          evaluateStatusWidgetTriggersBestEffort(db, {
-            chatId: chatRef.id,
-            characterId: ch.id,
-            sourceTurn: playableTurnCount + 1,
-            statusValues: statusWidgetValuesPayload,
-            sourceMessageId: aiMessageId,
-            requestId: clientRequestId ?? null,
-            generationSequence: snapshotVariantIndex,
-          });
+        if (derivedStateAllowed) {
+          // Regeneration: supersede the prior variant's active trigger events
+          // for this source assistant message BEFORE re-evaluating, so a
+          // rejected variant cannot be consumed next turn or permanently
+          // block a fire_once trigger. Missing event > stale wrong event.
+          if (regenerateMessageId) {
+            try {
+              supersedeStatusTriggerEventsForSourceMessage(
+                db,
+                chatRef.id,
+                regenerateMessageId,
+                "regeneration"
+              );
+            } catch (e) {
+              console.error("[StatusTrigger] regen supersede failed:", (e as Error).message);
+            }
+          }
+
+          if (statusWidgetValuesPayload && statusWidgetValuesHasContent(statusWidgetValuesPayload)) {
+            evaluateStatusWidgetTriggersBestEffort(db, {
+              chatId: chatRef.id,
+              characterId: ch.id,
+              sourceTurn: playableTurnCount + 1,
+              statusValues: statusWidgetValuesPayload,
+              sourceMessageId: aiMessageId,
+              requestId: clientRequestId ?? null,
+              generationSequence: snapshotVariantIndex,
+            });
+          }
         }
 
         const nextMode: Route = isAdultMode ? "nsfw" : "safe";

@@ -537,6 +537,56 @@ export function persistEpisodicMemoryFactsBestEffort(
 }
 
 /**
+ * Phase B0 — explicit episodic-memory reconciliation contract for a finalized
+ * assistant generation. Centralizes the regeneration empty-fact replacement
+ * fix so the route layer does not gate persistence on raw array length.
+ *
+ * Contract:
+ *   normal generation + facts > 0  → insert (no replace)
+ *   normal generation + facts = 0  → noop (do not delete prior turns)
+ *   regeneration + facts > 0      → replace source-turn facts then insert
+ *   regeneration + facts = 0      → replace (delete) source-turn facts only
+ *
+ * MUST only be called when assistant finalization actually wrote for this
+ * request (finalizeAssistantMessage().wrote === true) AND the generation
+ * status is canonical (completed / ok / completed_with_postprocess_error).
+ * The route layer is responsible for those guards.
+ */
+export type ReconcileEpisodicMemoryFactsInput = {
+  chatId: number;
+  characterId?: number | null;
+  userId?: number | null;
+  sourceTurn: number;
+  facts?: ExtractedStatusFact[] | null;
+  isRegeneration: boolean;
+  metadata?: Record<string, unknown>;
+};
+
+export function reconcileEpisodicMemoryFactsForGeneration(
+  db: Database.Database,
+  input: ReconcileEpisodicMemoryFactsInput
+): { replaced: boolean; inserted: number } {
+  const facts = input.facts ?? [];
+  // Normal generation with no facts: noop. Never delete a prior turn's facts.
+  if (!input.isRegeneration && facts.length === 0) {
+    return { replaced: false, inserted: 0 };
+  }
+  // Regeneration: always invoke persist with replaceSourceTurn so the prior
+  // variant's facts are deleted even when the new variant produces no facts.
+  // Normal generation with facts: insert without replacing.
+  const inserted = persistEpisodicMemoryFactsBestEffort(db, {
+    chatId: input.chatId,
+    characterId: input.characterId,
+    userId: input.userId,
+    sourceTurn: input.sourceTurn,
+    facts,
+    replaceSourceTurn: input.isRegeneration,
+    metadata: input.metadata,
+  });
+  return { replaced: input.isRegeneration, inserted };
+}
+
+/**
  * Physically delete episodic facts derived from the given assistant message IDs.
  * Scoped by chat_id + metadata.assistant_message_id only (never by user message id).
  * Returns deleted row count. Empty ID list is a no-op (0).

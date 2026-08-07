@@ -10,6 +10,13 @@ import {
 import { stripMuseAcceptanceFromUsage } from "@/lib/museAcceptanceTelemetry";
 import { stripAdultRoutingForClient } from "@/lib/billingReceiptAccess";
 import { serializeStatusWidgetValuesJson } from "@/lib/statusWidget";
+import { persistEpisodicMemoryFactsBestEffort } from "@/lib/episodicMemoryFacts";
+import { evaluateStatusWidgetTriggersBestEffort } from "@/lib/statusWidgetTriggers";
+import {
+  getAssistantSourceTurn,
+  isLatestCanonicalAssistantMessage,
+  supersedeStatusTriggerEventsForSourceMessage,
+} from "@/lib/rpDerivedStateLifecycle";
 import { PREFERENCE_EVENT } from "@/lib/feedback/events";
 import { recordPreferenceEvent } from "@/lib/feedback/feedback-db";
 import { enqueueScoreRecompute } from "@/lib/feedback/queue";
@@ -113,6 +120,59 @@ export async function PATCH(req: Request) {
     payload: { from: fromVariant, to: variantIndex },
   });
   enqueueScoreRecompute(messageId);
+
+  // Phase B0: latest assistant variant switch reconciles derived state.
+  // Historical variant switch requires downstream replay (out of scope for
+  // B0); only the display snapshot is updated and a diagnostic is logged.
+  try {
+    if (isLatestCanonicalAssistantMessage(db, msg.chat_id, messageId)) {
+      supersedeStatusTriggerEventsForSourceMessage(
+        db,
+        msg.chat_id,
+        messageId,
+        "variant_switch"
+      );
+      const sourceTurn = getAssistantSourceTurn(db, msg.chat_id, messageId);
+      const selectedFacts = selectedVariant?.statusWidgetValues?.extracted_facts ?? [];
+      if (sourceTurn != null) {
+        persistEpisodicMemoryFactsBestEffort(db, {
+          chatId: msg.chat_id,
+          characterId: msg.character_id,
+          userId: msg.user_id,
+          sourceTurn,
+          facts: selectedFacts,
+          replaceSourceTurn: true,
+          metadata: {
+            assistant_message_id: messageId,
+            request_id: selectedVariant?.requestId ?? null,
+            variant_switch: true,
+            variant_index: variantIndex,
+          },
+        });
+      }
+      if (
+        sourceTurn != null &&
+        selectedVariant?.statusWidgetValues &&
+        Object.keys(selectedVariant.statusWidgetValues.character ?? {}).length > 0
+      ) {
+        evaluateStatusWidgetTriggersBestEffort(db, {
+          chatId: msg.chat_id,
+          characterId: msg.character_id,
+          sourceTurn,
+          statusValues: selectedVariant.statusWidgetValues,
+          sourceMessageId: messageId,
+          requestId: selectedVariant?.requestId ?? null,
+          generationSequence: selectedVariant?.generationSequence ?? null,
+        });
+      }
+    } else {
+      console.warn(
+        "[DerivedState] HISTORICAL_VARIANT_DERIVED_STATE_REPLAY_UNSUPPORTED — historical variant switch; downstream derived-state replay not performed"
+      );
+    }
+  } catch (e) {
+    console.error("[DerivedState] variant switch reconcile failed:", (e as Error).message);
+  }
 
   const selected = variants[variantIndex];
   return NextResponse.json({

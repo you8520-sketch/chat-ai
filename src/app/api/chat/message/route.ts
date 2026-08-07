@@ -11,7 +11,7 @@ import {
 } from "@/lib/messageAlternates";
 import { stripMuseAcceptanceFromUsage } from "@/lib/museAcceptanceTelemetry";
 import { stripAdultRoutingForClient } from "@/lib/billingReceiptAccess";
-import { normalizeEditedProseForSave } from "@/lib/canonicalProse";
+import { normalizeEditedProseForSave, isMaterialProseEdit } from "@/lib/canonicalProse";
 import {
   parseStoredStatusWidgetValuesJson,
   sanitizeParsedStatusWidgetValues,
@@ -26,6 +26,13 @@ import {
   resolveUserNoteStatusWindowPolicy,
 } from "@/lib/statusWindowNotePolicy";
 import type { Usage } from "@/lib/chatUsage";
+import { deleteEpisodicMemoryFactsByAssistantMessageIds } from "@/lib/episodicMemoryFacts";
+import { evaluateStatusWidgetTriggersBestEffort } from "@/lib/statusWidgetTriggers";
+import {
+  getAssistantSourceTurn,
+  isLatestCanonicalAssistantMessage,
+  supersedeStatusTriggerEventsForSourceMessage,
+} from "@/lib/rpDerivedStateLifecycle";
 
 /** Read-only snapshot for stream EOF reconciliation (generationStatus + final content). */
 export async function GET(req: Request) {
@@ -167,6 +174,12 @@ export async function PATCH(req: Request) {
 
   const db = getDb();
   if (msg.role === "assistant") {
+    // Phase B0: detect material prose change vs format-only edit. A material
+    // prose edit invalidates episodic facts derived from the old prose (wrong
+    // stale memory > missing memory is rejected). Format-only / status-only
+    // edits preserve facts.
+    const materialProseChange = isMaterialProseEdit(msg.content, text);
+
     const variant = editedMessageVariant({
       content: text,
       model: msg.model,
@@ -177,12 +190,16 @@ export async function PATCH(req: Request) {
     let clientWidgetValues: ParsedStatusWidgetTurnValues | undefined;
     if (hasWidgetPatch) {
       const existing = parseStoredStatusWidgetValuesJson(msg.status_widget_values_json);
+      // Material prose edit: drop embedded extracted_facts (stale).
+      // Status-only / format-only edit: preserve existing facts.
+      const preserveFacts =
+        !materialProseChange && existing.extracted_facts?.length
+          ? { extracted_facts: existing.extracted_facts }
+          : {};
       const merged: ParsedStatusWidgetTurnValues = {
         character: incomingWidgets?.character ?? null,
         user: incomingWidgets?.user ?? null,
-        ...(existing.extracted_facts?.length
-          ? { extracted_facts: existing.extracted_facts }
-          : {}),
+        ...preserveFacts,
       };
       const sanitized = sanitizeParsedStatusWidgetValues(merged);
       statusWidgetValuesJson = serializeStatusWidgetValuesJson(sanitized);
@@ -199,6 +216,61 @@ export async function PATCH(req: Request) {
         JSON.stringify([variant]),
         0,
         id
+      );
+    }
+
+    // Phase B0: material prose edit → invalidate episodic facts derived from
+    // this assistant message. No re-extraction (missing memory > wrong memory).
+    if (materialProseChange) {
+      try {
+        deleteEpisodicMemoryFactsByAssistantMessageIds(db, msg.chat_id, [id]);
+      } catch (e) {
+        console.error("[EpisodicMemory] manual edit invalidate failed:", (e as Error).message);
+      }
+    }
+
+    // Phase B0: latest assistant status-only edit → reconcile triggers.
+    // Historical status edit: display snapshot only, no derived trigger
+    // reconciliation (downstream replay out of scope for B0).
+    if (
+      !materialProseChange &&
+      hasWidgetPatch &&
+      incomingWidgets &&
+      isLatestCanonicalAssistantMessage(db, msg.chat_id, id)
+    ) {
+      try {
+        supersedeStatusTriggerEventsForSourceMessage(
+          db,
+          msg.chat_id,
+          id,
+          "manual_status_edit"
+        );
+        const sourceTurn = getAssistantSourceTurn(db, msg.chat_id, id);
+        if (sourceTurn != null) {
+          evaluateStatusWidgetTriggersBestEffort(db, {
+            chatId: msg.chat_id,
+            characterId: msg.character_id,
+            sourceTurn,
+            statusValues: incomingWidgets,
+            sourceMessageId: id,
+            requestId: null,
+            generationSequence: null,
+          });
+        }
+      } catch (e) {
+        console.error("[StatusTrigger] manual status edit reconcile failed:", (e as Error).message);
+      }
+    } else if (
+      !materialProseChange &&
+      hasWidgetPatch &&
+      incomingWidgets &&
+      !isLatestCanonicalAssistantMessage(db, msg.chat_id, id)
+    ) {
+      // Historical manual status edit: derived trigger reconciliation is out
+      // of scope for B0 (would require downstream replay). Phase B1 numeric
+      // chats will fail-closed historical numeric edits.
+      console.warn(
+        "[DerivedState] HISTORICAL_MANUAL_EDIT_LONG_TERM_SUMMARY_RECONCILIATION_UNVERIFIED — historical status edit; trigger replay not performed"
       );
     }
 
