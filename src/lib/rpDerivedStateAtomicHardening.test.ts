@@ -613,6 +613,8 @@ describe("Phase B0.1 — Fix B: atomic canonical mutation core (TX1-TX5)", () =>
       statusWidgetValuesJson,
       materialProseChange: false,
       sourceTurn: getAssistantSourceTurn(db, 1, 50),
+      supersedeTriggers: true,
+      triggerSupersessionReason: "manual_status_edit",
     });
 
     // What DB saved:
@@ -620,7 +622,6 @@ describe("Phase B0.1 — Fix B: atomic canonical mutation core (TX1-TX5)", () =>
     assert.deepEqual(stored, sanitized, "stored sanitized payload == sanitized");
 
     // Trigger evaluator receives the same sanitized payload (§13 parity).
-    supersedeStatusTriggerEventsForSourceMessage(db, 1, 50, "manual_status_edit");
     const sourceTurn = getAssistantSourceTurn(db, 1, 50);
     assert(sourceTurn != null);
     evaluateStatusWidgetTriggers(db, {
@@ -629,6 +630,275 @@ describe("Phase B0.1 — Fix B: atomic canonical mutation core (TX1-TX5)", () =>
       sourceMessageId: 50, requestId: null, generationSequence: null,
     });
     assert.equal(activeTriggerEvents(db, 1, 50), 1, "trigger fired from saved sanitized status");
+  });
+});
+
+describe("Phase B0.2 — manual status trigger atomicity (TX6-TX9)", () => {
+  function triggerDef(over: Partial<StatusWidgetTriggerDefinition>): StatusWidgetTriggerDefinition {
+    return {
+      trigger_id: over.trigger_id ?? "corruption_70",
+      status_key: over.status_key ?? "corruption",
+      operator: over.operator ?? ">=",
+      value: over.value ?? 70,
+      fire_once: over.fire_once ?? true,
+      event_key: over.event_key ?? "corruption_event",
+      effect_text: over.effect_text ?? "환각 이벤트",
+      character_knowledge: over.character_knowledge ?? "unknown",
+      is_enabled: over.is_enabled ?? true,
+    } as StatusWidgetTriggerDefinition;
+  }
+
+  function countSuperseded(
+    db: Database.Database,
+    chatId: number,
+    sourceMessageId: number
+  ): number {
+    const row = db
+      .prepare(
+        `SELECT COUNT(*) AS c FROM status_trigger_events
+         WHERE chat_id=? AND source_message_id=? AND is_superseded=1`
+      )
+      .get(chatId, sourceMessageId) as { c: number };
+    return row.c;
+  }
+
+  it("TX6 status-only supersession forced-failure → message/status + trigger all roll back", () => {
+    const db = makeMessagesDb();
+    db.prepare(
+      "INSERT INTO messages (id, chat_id, role, content, model, status_widget_values_json, generation_status) VALUES (?,?,?,?,?,?,?)"
+    ).run(
+      50, 1, "assistant", "동일 본문입니다.", "test",
+      JSON.stringify({ character: { corruption: "80" }, user: null }),
+      "completed"
+    );
+    insertStatusWidgetTriggerForTest(db, triggerDef({ character_id: 7 }));
+    evaluateStatusWidgetTriggers(db, {
+      chatId: 1, characterId: 7, sourceTurn: 1,
+      statusValues: { character: { corruption: "80" }, user: null },
+      sourceMessageId: 50, requestId: "r1", generationSequence: 0,
+    });
+    assert.equal(activeTriggerEvents(db, 1, 50), 1, "old trigger active");
+
+    const same = "동일 본문입니다.";
+    const { statusWidgetValuesJson } = buildManualEditPayload({
+      existingJson: storedWidgetJson(db, 50),
+      hasWidgetPatch: true,
+      incomingWidgets: { character: { corruption: "20" }, user: null },
+      materialProseChange: false,
+    });
+
+    // Force supersession UPDATE to abort inside the atomic core transaction.
+    db.exec(`
+      CREATE TRIGGER fail_supersede BEFORE UPDATE ON status_trigger_events
+      WHEN NEW.is_superseded = 1
+      BEGIN
+        SELECT RAISE(ABORT, 'forced supersession failure');
+      END;
+    `);
+
+    assert.throws(() => {
+      executeAtomicManualEditCore(db, {
+        chatId: 1, messageId: 50, content: same,
+        alternatesJson: JSON.stringify([variantRow(same)]),
+        statusWidgetValuesJson,
+        materialProseChange: false,
+        sourceTurn: getAssistantSourceTurn(db, 1, 50),
+        supersedeTriggers: true,
+        triggerSupersessionReason: "manual_status_edit",
+      });
+    }, /forced supersession failure/);
+
+    // No NEW STATUS + OLD TRIGGER half-state.
+    const stored = parseStoredStatusWidgetValuesJson(storedWidgetJson(db, 50));
+    assert.deepEqual(stored.character, { corruption: "80" }, "status rolled back to 80");
+    assert.equal(messageContent(db, 50), same, "prose unchanged");
+    assert.equal(activeTriggerEvents(db, 1, 50), 1, "old trigger remains active");
+    assert.equal(countSuperseded(db, 1, 50), 0, "no supersession committed");
+  });
+
+  it("TX7 material prose + widget → episodic invalidate + trigger supersede atomically; re-eval uses new status", () => {
+    const db = makeMessagesDb();
+    db.prepare(
+      "INSERT INTO messages (id, chat_id, role, content, model, status_widget_values_json, generation_status) VALUES (?,?,?,?,?,?,?)"
+    ).run(
+      50, 1, "assistant", "원본 본문 A입니다.", "test",
+      JSON.stringify({
+        character: { corruption: "80" },
+        user: null,
+        extracted_facts: [fact("둘은 동행하기로 합의했다.")],
+      }),
+      "completed"
+    );
+    persistEpisodicMemoryFactsBestEffort(db, {
+      chatId: 1, characterId: 7, userId: 4, sourceTurn: 1,
+      facts: [fact("둘은 동행하기로 합의했다.")],
+      metadata: { assistant_message_id: 50, request_id: "r1" },
+    });
+    insertStatusWidgetTriggerForTest(db, triggerDef({ character_id: 7 }));
+    evaluateStatusWidgetTriggers(db, {
+      chatId: 1, characterId: 7, sourceTurn: 1,
+      statusValues: { character: { corruption: "80" }, user: null },
+      sourceMessageId: 50, requestId: "r1", generationSequence: 0,
+    });
+    assert.equal(activeTriggerEvents(db, 1, 50), 1);
+    assert.equal(countFacts(db, 1, 1), 1);
+
+    const newText = "완전히 다른 전개 B로 바뀌었다.";
+    assert.equal(isMaterialProseEdit("원본 본문 A입니다.", newText), true);
+    const { statusWidgetValuesJson, sanitized } = buildManualEditPayload({
+      existingJson: storedWidgetJson(db, 50),
+      hasWidgetPatch: true,
+      incomingWidgets: { character: { corruption: "20" }, user: null },
+      materialProseChange: true,
+    });
+
+    executeAtomicManualEditCore(db, {
+      chatId: 1, messageId: 50, content: newText,
+      alternatesJson: JSON.stringify([variantRow(newText)]),
+      statusWidgetValuesJson,
+      materialProseChange: true,
+      sourceTurn: getAssistantSourceTurn(db, 1, 50),
+      supersedeTriggers: true,
+      triggerSupersessionReason: "manual_status_edit",
+    });
+
+    assert.equal(messageContent(db, 50), newText, "prose = B");
+    const stored = parseStoredStatusWidgetValuesJson(storedWidgetJson(db, 50));
+    assert.deepEqual(stored.character, { corruption: "20" }, "status = 20");
+    assert.equal(stored.extracted_facts, undefined, "embedded facts cleared");
+    assert.equal(countFacts(db, 1, 1), 0, "old episodic fact deleted");
+    assert.equal(activeTriggerEvents(db, 1, 50), 0, "old trigger superseded");
+    assert.equal(countSuperseded(db, 1, 50), 1, "exactly one supersession");
+
+    // Post-commit re-eval with saved sanitized payload (corruption=20 < 70 → no fire).
+    const sourceTurn = getAssistantSourceTurn(db, 1, 50);
+    assert(sourceTurn != null);
+    evaluateStatusWidgetTriggers(db, {
+      chatId: 1, characterId: 7, sourceTurn,
+      statusValues: sanitized,
+      sourceMessageId: 50, requestId: null, generationSequence: null,
+    });
+    assert.equal(activeTriggerEvents(db, 1, 50), 0, "20 does not re-fire corruption>=70");
+    assert.deepEqual(stored, sanitized, "DB SAVED STATUS == TRIGGER EVALUATION STATUS");
+  });
+
+  it("TX8 material prose no-widget → facts cleared, triggers untouched", () => {
+    const db = makeMessagesDb();
+    db.prepare(
+      "INSERT INTO messages (id, chat_id, role, content, model, status_widget_values_json, generation_status) VALUES (?,?,?,?,?,?,?)"
+    ).run(
+      50, 1, "assistant", "원본 본문입니다.", "test",
+      JSON.stringify({
+        character: { corruption: "80", affection: "40" },
+        user: { mood: "tense" },
+        extracted_facts: [fact("둘은 동행하기로 합의했다.")],
+      }),
+      "completed"
+    );
+    persistEpisodicMemoryFactsBestEffort(db, {
+      chatId: 1, characterId: 7, userId: 4, sourceTurn: 1,
+      facts: [fact("둘은 동행하기로 합의했다.")],
+      metadata: { assistant_message_id: 50, request_id: "r1" },
+    });
+    assert.equal(countFacts(db, 1, 1), 1, "precondition: episodic fact present");
+    insertStatusWidgetTriggerForTest(db, triggerDef({ character_id: 7 }));
+    evaluateStatusWidgetTriggers(db, {
+      chatId: 1, characterId: 7, sourceTurn: 1,
+      statusValues: { character: { corruption: "80" }, user: null },
+      sourceMessageId: 50, requestId: "r1", generationSequence: 0,
+    });
+    assert.equal(activeTriggerEvents(db, 1, 50), 1);
+
+    const newText = "완전히 다른 전개로 바뀌었다.";
+    const { statusWidgetValuesJson } = buildManualEditPayload({
+      existingJson: storedWidgetJson(db, 50),
+      hasWidgetPatch: false,
+      incomingWidgets: null,
+      materialProseChange: true,
+    });
+
+    executeAtomicManualEditCore(db, {
+      chatId: 1, messageId: 50, content: newText,
+      alternatesJson: JSON.stringify([variantRow(newText)]),
+      statusWidgetValuesJson,
+      materialProseChange: true,
+      sourceTurn: getAssistantSourceTurn(db, 1, 50),
+      supersedeTriggers: false,
+    });
+
+    const stored = parseStoredStatusWidgetValuesJson(storedWidgetJson(db, 50));
+    assert.deepEqual(stored.character, { corruption: "80", affection: "40" }, "status preserved");
+    assert.deepEqual(stored.user, { mood: "tense" }, "user preserved");
+    assert.equal(stored.extracted_facts, undefined, "embedded facts cleared");
+    assert.equal(countFacts(db, 1, 1), 0, "DB episodic deleted");
+    assert.equal(activeTriggerEvents(db, 1, 50), 1, "trigger events unchanged");
+    assert.equal(countSuperseded(db, 1, 50), 0, "no supersession");
+  });
+
+  it("TX9 format-only + widget → episodic preserved, trigger superseded atomically, re-eval on new status", () => {
+    const db = makeMessagesDb();
+    const before = "에녹은 렌의 손을 잡았다.\n\n그는 대답하지 않았다.";
+    const after = "에녹은 렌의 손을 잡았다.  \r\n\r\n  그는 대답하지 않았다.";
+    assert.equal(isMaterialProseEdit(before, after), false);
+
+    db.prepare(
+      "INSERT INTO messages (id, chat_id, role, content, model, status_widget_values_json, generation_status) VALUES (?,?,?,?,?,?,?)"
+    ).run(
+      50, 1, "assistant", before, "test",
+      JSON.stringify({
+        character: { corruption: "80" },
+        user: null,
+        extracted_facts: [fact("둘은 동행하기로 합의했다.")],
+      }),
+      "completed"
+    );
+    persistEpisodicMemoryFactsBestEffort(db, {
+      chatId: 1, characterId: 7, userId: 4, sourceTurn: 1,
+      facts: [fact("둘은 동행하기로 합의했다.")],
+      metadata: { assistant_message_id: 50, request_id: "r1" },
+    });
+    assert.equal(countFacts(db, 1, 1), 1, "precondition: episodic fact present");
+    insertStatusWidgetTriggerForTest(db, triggerDef({ character_id: 7 }));
+    evaluateStatusWidgetTriggers(db, {
+      chatId: 1, characterId: 7, sourceTurn: 1,
+      statusValues: { character: { corruption: "80" }, user: null },
+      sourceMessageId: 50, requestId: "r1", generationSequence: 0,
+    });
+    assert.equal(activeTriggerEvents(db, 1, 50), 1);
+
+    const { statusWidgetValuesJson, sanitized } = buildManualEditPayload({
+      existingJson: storedWidgetJson(db, 50),
+      hasWidgetPatch: true,
+      incomingWidgets: { character: { corruption: "20" }, user: null },
+      materialProseChange: false,
+    });
+
+    executeAtomicManualEditCore(db, {
+      chatId: 1, messageId: 50, content: after,
+      alternatesJson: JSON.stringify([variantRow(after)]),
+      statusWidgetValuesJson,
+      materialProseChange: false,
+      sourceTurn: getAssistantSourceTurn(db, 1, 50),
+      supersedeTriggers: true,
+      triggerSupersessionReason: "manual_status_edit",
+    });
+
+    assert.equal(countFacts(db, 1, 1), 1, "episodic facts preserved");
+    const stored = parseStoredStatusWidgetValuesJson(storedWidgetJson(db, 50));
+    assert.deepEqual(stored.character, { corruption: "20" }, "status snapshot updated");
+    assert.equal(stored.extracted_facts?.length, 1, "embedded facts preserved");
+    assert.equal(activeTriggerEvents(db, 1, 50), 0, "old trigger superseded");
+    assert.equal(countSuperseded(db, 1, 50), 1);
+
+    const sourceTurn = getAssistantSourceTurn(db, 1, 50);
+    assert(sourceTurn != null);
+    evaluateStatusWidgetTriggers(db, {
+      chatId: 1, characterId: 7, sourceTurn,
+      statusValues: sanitized,
+      sourceMessageId: 50, requestId: null, generationSequence: null,
+    });
+    assert.equal(activeTriggerEvents(db, 1, 50), 0, "new status 20 does not fire >=70");
+    assert.deepEqual(stored, sanitized, "DB SAVED STATUS == TRIGGER EVALUATION STATUS");
   });
 });
 

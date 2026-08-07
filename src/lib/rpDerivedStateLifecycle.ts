@@ -305,6 +305,11 @@ export function executeAtomicVariantSwitchCore(
  * `materialProseChange` selects the embedded-facts contract:
  *   true  → embedded extracted_facts are cleared (stale memory > wrong memory)
  *   false → existing extracted_facts are preserved (format/status-only edit)
+ *
+ * `supersedeTriggers` is an explicit caller policy (Phase B0.2). Recommended:
+ *   supersedeTriggers = hasWidgetPatch && isLatest
+ * Material prose without a widget patch must NOT supersede triggers — status
+ * values did not change. Historical widget edits also pass false (display-only).
  */
 export type AtomicManualEditInput = {
   chatId: number;
@@ -316,6 +321,13 @@ export type AtomicManualEditInput = {
   materialProseChange: boolean;
   /** Source turn for episodic invalidation (material edit only). */
   sourceTurn: number | null;
+  /**
+   * When true, previous active trigger events for this source message are
+   * superseded inside the same transaction as the message/status UPDATE.
+   */
+  supersedeTriggers?: boolean;
+  /** Required when supersedeTriggers is true. */
+  triggerSupersessionReason?: TriggerSupersessionReason;
 };
 
 /**
@@ -323,8 +335,14 @@ export type AtomicManualEditInput = {
  *
  *   1. message content / alternates / active_variant / status_widget_values_json UPDATE
  *   2. (material edit only) episodic_memory_facts invalidation for this assistant message
+ *   3. (supersedeTriggers) previous active trigger events supersession
  *
- * Throws on DB failure so no "new prose + old memory" half-state survives.
+ * Throws on DB failure so no partial state survives:
+ *   - "new prose + old memory"
+ *   - "new status + old trigger"
+ *
+ * Trigger re-evaluation is intentionally OUTSIDE this core (best-effort after
+ * commit). Prefer a briefly missing new trigger over a stale rejected one.
  */
 export function executeAtomicManualEditCore(
   db: Database.Database,
@@ -345,6 +363,16 @@ export function executeAtomicManualEditCore(
       deleteEpisodicMemoryFactsByAssistantMessageIds(db, input.chatId, [
         input.messageId,
       ]);
+    }
+
+    if (input.supersedeTriggers) {
+      const reason = input.triggerSupersessionReason ?? "manual_status_edit";
+      supersedeStatusTriggerEventsForSourceMessage(
+        db,
+        input.chatId,
+        input.messageId,
+        reason
+      );
     }
   });
   tx();

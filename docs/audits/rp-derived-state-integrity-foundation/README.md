@@ -13,6 +13,16 @@ INTERRUPTED_NEW_EPISODIC_GHOST = BLOCKED
 INTERRUPTED_NEW_TRIGGER_GHOST = BLOCKED
 LATEST_VARIANT_EPISODIC_RECONCILIATION = PASS
 LATEST_VARIANT_TRIGGER_RECONCILIATION = PASS
+PHASE_B0_ATOMIC_HARDENING_PASS
+MATERIAL_EDIT_EMBEDDED_FACT_INDEPENDENT_OF_WIDGET_PATCH = PASS
+LATEST_VARIANT_CANONICAL_MUTATION_ATOMIC = PASS
+MANUAL_MATERIAL_EDIT_ATOMIC = PASS
+LATEST_MANUAL_STATUS_CANONICAL_MUTATION_ATOMIC = PASS
+MATERIAL_PLUS_WIDGET_TRIGGER_RECONCILIATION = PASS
+STATUS_ONLY_SUPERSESSION_ROLLBACK = PASS
+DB_SAVED_STATUS_EQUALS_TRIGGER_INPUT = PASS
+MATERIAL_NO_WIDGET_TRIGGER_UNCHANGED = PASS
+TRIGGER_REEVALUATION_FAIL_SAFE = PASS
 main RP prompt change = 0
 background prompt change = 0
 API calls = 0
@@ -39,6 +49,25 @@ API calls = 0
 
 ### Latest manual status edit → trigger reconciliation
 - `src/app/api/chat/message/route.ts`: latest assistant status-only edit → supersede old events + re-evaluate with edited status (provenance preserved, `manual_status_edit` reason). Historical status edit → display snapshot only + `HISTORICAL_MANUAL_EDIT_LONG_TERM_SUMMARY_RECONCILIATION_UNVERIFIED` diagnostic.
+
+### Phase B0.1 — atomic mutation hardening
+- Material prose edit clears embedded `extracted_facts` even when `statusWidgetValues` is omitted (character/user preserved).
+- `persistEpisodicMemoryFactsCore` (strict) + best-effort wrapper; canonical mutations use `replaceEpisodicMemoryFactsForCanonicalMutation`.
+- `executeAtomicVariantSwitchCore`: message UPDATE + trigger supersession + episodic reconcile = ONE TRANSACTION; trigger re-eval after commit (best-effort).
+- `executeAtomicManualEditCore` (B0.1): message UPDATE + episodic invalidation = ONE TRANSACTION.
+
+### Phase B0.2 — manual status trigger atomicity (final B0 gate)
+- `executeAtomicManualEditCore` extended: when caller sets `supersedeTriggers=true`, previous active trigger events are superseded **inside the same transaction** as message/status UPDATE (+ episodic invalidation when material).
+- Route policy: `supersedeTriggers = hasWidgetPatch && isLatest` (explicit caller policy; material prose without widget patch leaves triggers untouched).
+- Trigger re-evaluation after commit uses **saved sanitized** payload; `materialProseChange` no longer blocks re-eval when a widget patch is present (material+widget reconciles triggers).
+- No double supersession in the route — core supersedes once; route only evaluates.
+- Transaction boundary:
+  ```text
+  LATEST_MANUAL_WIDGET_EDIT_CANONICAL_CORE:
+  message/status UPDATE + episodic invalidation if needed + trigger supersession
+  = ONE TRANSACTION
+  TRIGGER_REEVALUATION: AFTER COMMIT, BEST-EFFORT
+  ```
 
 ### Interrupted / failed_partial derived-state guards
 - `src/lib/rpDerivedStateLifecycle.ts`: `isCanonicalDerivedStateGenerationStatus` (only completed / ok / completed_with_postprocess_error).
@@ -74,6 +103,7 @@ deploy = NO
 - `src/lib/rpDerivedStateEpisodic.test.ts` — E1-E8
 - `src/lib/rpDerivedStateTriggers.test.ts` — T1-T9
 - `src/lib/rpDerivedStateGuards.test.ts` — I1-I6, V1-V5
+- `src/lib/rpDerivedStateAtomicHardening.test.ts` — A1-A4, TX1-TX5 (B0.1), TX6-TX9 (B0.2)
 - Existing: episodicMemoryFacts, statusWidgetTriggers, canonicalProse, streamingPersistence, messageAlternates, regenerationContext all PASS (no regression).
 
 ## Verification

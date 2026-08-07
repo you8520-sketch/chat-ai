@@ -31,7 +31,6 @@ import {
   executeAtomicManualEditCore,
   getAssistantSourceTurn,
   isLatestCanonicalAssistantMessage,
-  supersedeStatusTriggerEventsForSourceMessage,
 } from "@/lib/rpDerivedStateLifecycle";
 
 /** Read-only snapshot for stream EOF reconciliation (generationStatus + final content). */
@@ -214,10 +213,16 @@ export async function PATCH(req: Request) {
     const clientWidgetValues = stripExtractedFactsForClient(sanitized);
 
     const isLatest = isLatestCanonicalAssistantMessage(db, msg.chat_id, id);
+    // Phase B0.2: supersession belongs in the atomic core whenever the
+    // latest message's status snapshot is being patched — including
+    // material prose + widget edits. Material prose without a widget patch
+    // leaves status values unchanged, so triggers stay untouched.
+    const supersedeTriggers = hasWidgetPatch && isLatest;
 
-    // Phase B0.1 Fix B: atomic manual-edit core. Message UPDATE + embedded
-    // facts clearing + episodic invalidation commit together or roll back
-    // together. No "new prose + old memory" half-state can survive.
+    // Phase B0.1/B0.2: atomic manual-edit core. Message UPDATE + embedded
+    // facts clearing + episodic invalidation + (when supersedeTriggers)
+    // trigger supersession commit together or roll back together. No
+    // "new prose + old memory" or "new status + old trigger" half-state.
     try {
       executeAtomicManualEditCore(db, {
         chatId: msg.chat_id,
@@ -227,6 +232,10 @@ export async function PATCH(req: Request) {
         statusWidgetValuesJson,
         materialProseChange,
         sourceTurn: getAssistantSourceTurn(db, msg.chat_id, id),
+        supersedeTriggers,
+        triggerSupersessionReason: supersedeTriggers
+          ? "manual_status_edit"
+          : undefined,
       });
     } catch (e) {
       console.error(
@@ -239,20 +248,12 @@ export async function PATCH(req: Request) {
       );
     }
 
-    // Phase B0.1: latest assistant status-only edit → reconcile triggers
-    // AFTER the canonical core committed. Trigger re-evaluation is
-    // best-effort; a missing new trigger is preferred over a stale one (so
-    // we never roll back the core to restore old events). The evaluator
-    // receives the actually-stored sanitized canonical widget payload, so
-    // what DB saved == what trigger sees (§13).
-    if (!materialProseChange && hasWidgetPatch && isLatest) {
+    // Phase B0.2: AFTER the canonical core committed, best-effort trigger
+    // re-evaluation on the saved sanitized payload. materialProseChange is
+    // NOT a gate — material+widget and status-only both re-evaluate.
+    // Supersession already happened once inside the core (no double call).
+    if (hasWidgetPatch && isLatest) {
       try {
-        supersedeStatusTriggerEventsForSourceMessage(
-          db,
-          msg.chat_id,
-          id,
-          "manual_status_edit"
-        );
         const sourceTurn = getAssistantSourceTurn(db, msg.chat_id, id);
         if (sourceTurn != null) {
           evaluateStatusWidgetTriggersBestEffort(db, {
@@ -268,8 +269,8 @@ export async function PATCH(req: Request) {
       } catch (e) {
         console.error("[StatusTrigger] manual status edit reconcile failed:", (e as Error).message);
       }
-    } else if (!materialProseChange && hasWidgetPatch && !isLatest) {
-      // Historical manual status edit: derived trigger reconciliation is out
+    } else if (hasWidgetPatch && !isLatest) {
+      // Historical manual widget edit: derived trigger reconciliation is out
       // of scope for B0 (would require downstream replay). Phase B1 numeric
       // chats will fail-closed historical numeric edits.
       console.warn(
