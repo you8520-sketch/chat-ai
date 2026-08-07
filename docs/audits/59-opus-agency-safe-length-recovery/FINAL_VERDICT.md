@@ -1,12 +1,37 @@
-# FINAL_VERDICT — Audit 59
+# FINAL_VERDICT — Audit 59 (and Opus 57–59 freeze)
 
 ```text
 OPUS_AGENCY_SAFE_LENGTH_RECOVERY_STAGE2_FAIL_AGENCY
 OPUS_AGENCY_SAFE_LENGTH_RECOVERY_CANARY_FAIL
+ARM_F_REJECTED
+ARM_E_REMAINS_AGENCY_SAFE
+LENGTH_RECOVERY_UNRESOLVED
+```
+
+## Cross-audit freeze (authoritative)
+
+```text
+ARM_D_REJECTED_AGENCY
+ARM_E_ACCEPTED_AS_OPUS_TERMINAL_CANDIDATE
+ARM_F_REJECTED_AGENCY
+OPUS_AGENCY_BOUNDARY_SOLVED
+OPUS_OVER_FREEZE_NOT_OBSERVED
+OPUS_STYLE_REGRESSION_NOT_OBSERVED
+OPUS_LENGTH_RECOVERY_BY_STOP_RELAXATION_REJECTED
+
+OPUS_TERMINAL_CANDIDATE = ARM_E
+```
+
+Arm F Stage 1 recovered length but Stage 2 relationship severe reappeared.
+Arm F stop-relaxation wording is **not** part of the production candidate.
+
+See `docs/audits/OPUS_AUDIT_57_59_FINAL_FREEZE.md`.
+
+```text
+additional Opus audit calls: NO
+DeepSeek regression: NOT_RUN
+Terra regression: NOT_RUN
+production integration: NOT_RUN
 LARGER_CONFIRMATION_NOT_RUN
 PRODUCTION_CHANGE_NO
 ```
-
-Severe T2 Side B mapped to **Arm F**.
-
-See `MAPPED_HUMAN_VERDICT_STAGE2.md` for full gates and arm stats.
