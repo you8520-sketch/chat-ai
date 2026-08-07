@@ -16,13 +16,14 @@ describe("adult scene handoff admin canary", () => {
     ADULT_SCENE_HANDOFF_ADMIN_CHAT_IDS: "315, 400",
   });
 
-  it("enables the general rollout by default after final approval", () => {
+  it("keeps general users OFF by default until separate activation approval", () => {
     const defaults = resolveAdultSceneHandoffCanaryConfig({});
-    assert.equal(defaults.generalEnabled, true);
+    assert.equal(defaults.generalEnabled, false);
+    assert.equal(defaults.adminCanaryEnabled, false);
     assert.equal(resolveAdultSceneRoutingEnabledForRequest({
       generalEnabled: defaults.generalEnabled,
       adminCanaryAccess: false,
-    }), true);
+    }), false);
   });
 
   it("requires admin plus both numeric allowlists", () => {

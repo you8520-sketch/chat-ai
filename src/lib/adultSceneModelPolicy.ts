@@ -1,11 +1,16 @@
 import {
-  CHEAPER_INFERENCE_AION_20_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GLM_52_MODEL,
   OPENROUTER_QWEN_37_MAX_MODEL,
 } from "@/lib/chatModels";
 
+/**
+ * Confirmed production adult primary after Muse bakeoff:
+ * KEEP_CURRENT_ADULT_MODEL = deepseek-v4-pro (no Muse/Aion replacement).
+ * GLM remains hard-failure fallback only (max 1).
+ */
 export const ADULT_SCENE_MODEL_POLICY = {
-  primaryModelId: CHEAPER_INFERENCE_AION_20_MODEL,
+  primaryModelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   hardFailureFallbackModelId: CHEAPER_INFERENCE_GLM_52_MODEL,
   heldModelId: OPENROUTER_QWEN_37_MAX_MODEL,
   maximumFallbackAttempts: 1,
@@ -21,6 +26,7 @@ export type AdultSceneHardFailureReason =
   | "stream_parse_failure";
 
 export type AdultSceneModelPolicyConfig = {
+  /** Legacy Aion primary switch — must stay false unless explicitly re-approved. */
   aionPrimaryEnabled: boolean;
   glmHardFailureFallbackEnabled: boolean;
   adminOnly: boolean;
@@ -40,7 +46,8 @@ export function resolveAdultSceneModelPolicyConfig(
   env: NodeJS.ProcessEnv = process.env
 ): AdultSceneModelPolicyConfig {
   return {
-    aionPrimaryEnabled: envFlag(env, "ADULT_SCENE_AION_PRIMARY_ENABLED", true),
+    // Default OFF: confirmed adult model is DeepSeek V4 Pro.
+    aionPrimaryEnabled: envFlag(env, "ADULT_SCENE_AION_PRIMARY_ENABLED", false),
     glmHardFailureFallbackEnabled: envFlag(
       env,
       "ADULT_SCENE_GLM_HARD_FAILURE_FALLBACK_ENABLED",
@@ -50,6 +57,7 @@ export function resolveAdultSceneModelPolicyConfig(
   };
 }
 
+/** True only when the legacy Aion primary path is explicitly enabled. */
 export function isAdultSceneModelPolicyActive(input: {
   config: AdultSceneModelPolicyConfig;
   isAdmin: boolean;
@@ -60,15 +68,18 @@ export function isAdultSceneModelPolicyActive(input: {
   );
 }
 
+/** GLM hard-failure fallback — independent of Aion primary. */
 export function shouldFallbackToGlm(input: {
   config: AdultSceneModelPolicyConfig;
   isAdmin: boolean;
   reason: AdultSceneHardFailureReason | null;
   fallbackAttemptCount: number;
 }): boolean {
-  return (
-    isAdultSceneModelPolicyActive(input) &&
+  const policyAllows =
     input.config.glmHardFailureFallbackEnabled &&
+    (!input.config.adminOnly || input.isAdmin);
+  return (
+    policyAllows &&
     input.reason != null &&
     input.fallbackAttemptCount < ADULT_SCENE_MODEL_POLICY.maximumFallbackAttempts
   );

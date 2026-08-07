@@ -44,13 +44,21 @@ describe("turn length supplement API — disabled for all models", () => {
     const budget = new TurnApiBudget();
     budget.beforeFetch("cheaperinference-primary-stream");
     assert.doesNotThrow(() =>
-      budget.beforeFetch("adult-aion-hard-failure-fallback")
+      budget.beforeFetch("adult-hard-failure-fallback")
     );
     assert.throws(
-      () => budget.beforeFetch("adult-aion-hard-failure-fallback"),
+      () => budget.beforeFetch("adult-hard-failure-fallback"),
       /Max internal API calls exceeded/
     );
     assert.equal(budget.canSubCall(), false);
+  });
+
+  it("still accepts the legacy aion hard-failure requestKind alias", () => {
+    const budget = new TurnApiBudget();
+    budget.beforeFetch("cheaperinference-primary-stream");
+    assert.doesNotThrow(() =>
+      budget.beforeFetch("adult-aion-hard-failure-fallback")
+    );
   });
 
   it("does not treat under-length output as an allowed fallback sub-call", () => {

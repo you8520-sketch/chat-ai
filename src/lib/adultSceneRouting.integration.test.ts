@@ -71,11 +71,11 @@ async function runMockProviderFallback(input: {
 }
 
 describe("adult handoff provider-mock integration", () => {
-  it("uses GLM once for an Aion hard failure, then saves and charges only the delivered result", () => {
+  it("uses GLM once for a DeepSeek hard failure, then saves and charges only the delivered result", () => {
     const config: AdultSceneModelPolicyConfig = {
-      aionPrimaryEnabled: true,
+      aionPrimaryEnabled: false,
       glmHardFailureFallbackEnabled: true,
-      adminOnly: true,
+      adminOnly: false,
     };
     const budget = new TurnApiBudget();
     const savedAssistantMessages: string[] = [];
@@ -89,7 +89,7 @@ describe("adult handoff provider-mock integration", () => {
       reason,
       fallbackAttemptCount: 0,
     }), true);
-    budget.beforeFetch("adult-aion-hard-failure-fallback");
+    budget.beforeFetch("adult-hard-failure-fallback");
 
     const glmDeliveredText = "GLM이 동일한 장면을 이어 쓴 최종 응답";
     savedAssistantMessages.push(glmDeliveredText);
@@ -98,19 +98,19 @@ describe("adult handoff provider-mock integration", () => {
     assert.deepEqual(savedAssistantMessages, [glmDeliveredText]);
     assert.equal(pointChargeCount, 1);
     assert.throws(
-      () => budget.beforeFetch("adult-aion-hard-failure-fallback"),
+      () => budget.beforeFetch("adult-hard-failure-fallback"),
       /Max internal API calls exceeded/
     );
   });
 
-  it("keeps a short usable Aion response without invoking GLM", () => {
+  it("keeps a short usable DeepSeek response without invoking GLM", () => {
     const config: AdultSceneModelPolicyConfig = {
-      aionPrimaryEnabled: true,
+      aionPrimaryEnabled: false,
       glmHardFailureFallbackEnabled: true,
-      adminOnly: true,
+      adminOnly: false,
     };
     const reason = classifyAdultSceneHardFailure({
-      text: "짧지만 정상적으로 끝난 Aion 응답",
+      text: "짧지만 정상적으로 끝난 DeepSeek 응답",
       finishReason: "length",
     });
     assert.equal(reason, null);
