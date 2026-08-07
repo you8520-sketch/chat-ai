@@ -193,3 +193,15 @@ it("extracts actor/target contact direction to block handoff inversion", () => {
   assert.ok(extracted.location);
   assert.equal(extracted.currentSpeechState, "괜찮아?");
 });
+
+it("uses user-stated waist wrap as character→persona contact direction", () => {
+  const extracted = extractHandoffContinuityFromAssistantText({
+    text: "호텔 거실 조명이 낮았다.",
+    characterName: "밤의 비서실장",
+    personaName: "렌",
+    currentUserText: "내 허리를 감싼 손길을 느끼며 더 가까이 간다.",
+  });
+  assert.equal(extracted.previousActionTarget, "렌");
+  assert.ok(extracted.previousActionActor);
+  assert.match(extracted.contactDirection ?? "", /→ 렌 contact/);
+});

@@ -1940,6 +1940,7 @@ export async function POST(req: Request) {
     text: priorAssistantForHandoff,
     characterName: ch.name,
     personaName: personaDisplayName,
+    currentUserText: storedUserMessage,
   });
   const continuityPacket = buildSceneContinuityPacket({
     previousSceneMode: priorModelRouteState.currentSceneMode,

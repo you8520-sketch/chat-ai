@@ -1135,6 +1135,8 @@ export function extractHandoffContinuityFromAssistantText(input: {
   text: string;
   characterName: string;
   personaName: string;
+  /** Current user turn — used when user already states contact direction. */
+  currentUserText?: string;
 }): Pick<
   SceneContinuityPacket,
   | "location"
@@ -1146,13 +1148,14 @@ export function extractHandoffContinuityFromAssistantText(input: {
   | "contactDirection"
 > {
   const text = input.text.trim();
-  if (!text) return {};
+  const currentUserText = input.currentUserText?.trim() ?? "";
+  if (!text && !currentUserText) return {};
 
   const characterName = input.characterName.trim();
   const personaName = input.personaName.trim();
   const out: ReturnType<typeof extractHandoffContinuityFromAssistantText> = {};
 
-  const locationMatch = text.match(
+  const locationMatch = `${text}\n${currentUserText}`.match(
     /(?:호텔|침실|침대|거실|소파|벽|복도|욕실|방\s*안|창문\s*앞|카페|옥상)[^\n。.!?]{0,24}/
   );
   if (locationMatch?.[0]) out.location = locationMatch[0].trim().slice(0, 80);
@@ -1165,6 +1168,26 @@ export function extractHandoffContinuityFromAssistantText(input: {
   const speechMatch = text.match(/[「"“]([^」"”]{2,40})[」"”]/);
   if (speechMatch?.[1]) {
     out.currentSpeechState = speechMatch[1].trim().slice(0, 80);
+  }
+
+  // User already established contact: "내 허리를 감싼 …" → character → persona.
+  if (
+    personaName &&
+    /(?:내|나의)\s*(?:허리|어깨|손목|손|허리춤)[을를]?\s*(?:감싸|끌어|붙잡|잡)/.test(
+      currentUserText
+    )
+  ) {
+    const named = currentUserText.match(
+      /([가-힣]{2,8})[이가은는]?\s*(?:내|나의)\s*(?:허리|어깨|손목|손|허리춤)/
+    );
+    const fallbackActor = characterName.includes(" ")
+      ? characterName.split(/\s+/).at(-1) || characterName
+      : characterName;
+    out.previousActionActor = named?.[1] && named[1] !== personaName
+      ? named[1]
+      : fallbackActor;
+    out.previousActionTarget = personaName;
+    out.contactDirection = `${out.previousActionActor} → ${personaName} contact`;
   }
 
   const persona = personaName.trim();
