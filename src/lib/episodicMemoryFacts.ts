@@ -433,107 +433,146 @@ function shouldReplaceSourceTurn(input: PersistEpisodicMemoryFactsInput): boolea
   return input.metadata?.regenerated === true;
 }
 
+/**
+ * Strict internal persistence core — sanitize / dedupe / replace source turn /
+ * insert. NEVER swallows DB exceptions: a failure inside this core propagates
+ * so a surrounding canonical-mutation transaction can roll back.
+ *
+ * Returns the number of facts inserted (0 when the sanitized set is empty,
+ * which is a valid canonical-replace outcome — see §11).
+ *
+ * Idempotent finalize (same assistant message + request) is honored: a prior
+ * finalize for the same (assistant_message_id, request_id) is a no-op that
+ * does NOT touch the DB, so it is safe to call inside a transaction.
+ */
+export function persistEpisodicMemoryFactsCore(
+  db: Database.Database,
+  input: PersistEpisodicMemoryFactsInput
+): number {
+  const chatId = finitePositiveInt(input.chatId);
+  const sourceTurn = finitePositiveInt(input.sourceTurn);
+  if (!chatId || !sourceTurn) return 0;
+
+  const characterId =
+    input.characterId != null && Number.isFinite(input.characterId)
+      ? Math.trunc(input.characterId)
+      : null;
+  const userId =
+    input.userId != null && Number.isFinite(input.userId)
+      ? Math.trunc(input.userId)
+      : null;
+
+  const assistantMessageId = metadataAssistantMessageId(input.metadata);
+  const requestId = metadataRequestId(input.metadata);
+
+  // Idempotent finalize: same assistant message + request already persisted → no-op.
+  if (assistantMessageId != null && requestId) {
+    const existing = db
+      .prepare(
+        `SELECT COUNT(*) AS c FROM episodic_memory_facts
+         WHERE chat_id = ?
+           AND json_extract(metadata, '$.assistant_message_id') = ?
+           AND json_extract(metadata, '$.request_id') = ?`
+      )
+      .get(chatId, assistantMessageId, requestId) as { c: number };
+    if (existing.c > 0) return 0;
+  }
+
+  const replaceTurn = shouldReplaceSourceTurn(input);
+  if (replaceTurn) {
+    // Option B: wipe prior attempts for this logical turn only.
+    db.prepare(
+      `DELETE FROM episodic_memory_facts
+       WHERE chat_id = ?
+         AND source_turn = ?
+         AND (? IS NULL OR character_id IS NULL OR character_id = ?)
+         AND (? IS NULL OR user_id IS NULL OR user_id = ?)`
+    ).run(chatId, sourceTurn, characterId, characterId, userId, userId);
+  }
+
+  const facts = dedupeFactsWithinResponse(
+    filterUnsafeEpisodicFactsForSave(sanitizeExtractedFacts(input.facts))
+  );
+  if (facts.length === 0) return 0;
+
+  const metadataJson = JSON.stringify(input.metadata ?? {});
+
+  const insert = db.prepare(`
+    INSERT INTO episodic_memory_facts
+      (chat_id, character_id, user_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+    VALUES
+      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  for (const fact of facts) {
+    insert.run(
+      chatId,
+      characterId,
+      userId,
+      sourceTurn,
+      fact.category,
+      fact.subject,
+      fact.attribute,
+      fact.value,
+      fact.importance,
+      fact.fact_text,
+      metadataJson
+    );
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    console.info("[EpisodicMemory] saved facts:", {
+      chat_id: chatId,
+      source_turn: sourceTurn,
+      replaced_source_turn: replaceTurn,
+      facts: facts.map((fact) => ({
+        category: fact.category,
+        subject: fact.subject,
+        attribute: fact.attribute,
+        value: fact.value,
+        importance: fact.importance,
+        fact_text: fact.fact_text,
+      })),
+    });
+  }
+
+  return facts.length;
+}
+
 export function persistEpisodicMemoryFactsBestEffort(
   db: Database.Database,
   input: PersistEpisodicMemoryFactsInput
 ): number {
   try {
-    const chatId = finitePositiveInt(input.chatId);
-    const sourceTurn = finitePositiveInt(input.sourceTurn);
-    if (!chatId || !sourceTurn) return 0;
-
-    const characterId =
-      input.characterId != null && Number.isFinite(input.characterId)
-        ? Math.trunc(input.characterId)
-        : null;
-    const userId =
-      input.userId != null && Number.isFinite(input.userId)
-        ? Math.trunc(input.userId)
-        : null;
-
-    const assistantMessageId = metadataAssistantMessageId(input.metadata);
-    const requestId = metadataRequestId(input.metadata);
-
-    // Idempotent finalize: same assistant message + request already persisted → no-op.
-    if (assistantMessageId != null && requestId) {
-      const existing = db
-        .prepare(
-          `SELECT COUNT(*) AS c FROM episodic_memory_facts
-           WHERE chat_id = ?
-             AND json_extract(metadata, '$.assistant_message_id') = ?
-             AND json_extract(metadata, '$.request_id') = ?`
-        )
-        .get(chatId, assistantMessageId, requestId) as { c: number };
-      if (existing.c > 0) return 0;
-    }
-
-    const replaceTurn = shouldReplaceSourceTurn(input);
-    if (replaceTurn) {
-      // Option B: wipe prior attempts for this logical turn only.
-      db.prepare(
-        `DELETE FROM episodic_memory_facts
-         WHERE chat_id = ?
-           AND source_turn = ?
-           AND (? IS NULL OR character_id IS NULL OR character_id = ?)
-           AND (? IS NULL OR user_id IS NULL OR user_id = ?)`
-      ).run(chatId, sourceTurn, characterId, characterId, userId, userId);
-    }
-
-    const facts = dedupeFactsWithinResponse(
-      filterUnsafeEpisodicFactsForSave(sanitizeExtractedFacts(input.facts))
-    );
-    if (facts.length === 0) return 0;
-
-    const metadataJson = JSON.stringify(input.metadata ?? {});
-
-    const insert = db.prepare(`
-      INSERT INTO episodic_memory_facts
-        (chat_id, character_id, user_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
-      VALUES
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    const tx = db.transaction((rows: ExtractedStatusFact[]) => {
-      for (const fact of rows) {
-        insert.run(
-          chatId,
-          characterId,
-          userId,
-          sourceTurn,
-          fact.category,
-          fact.subject,
-          fact.attribute,
-          fact.value,
-          fact.importance,
-          fact.fact_text,
-          metadataJson
-        );
-      }
-    });
-
-    tx(facts);
-
-    if (process.env.NODE_ENV !== "production") {
-      console.info("[EpisodicMemory] saved facts:", {
-        chat_id: chatId,
-        source_turn: sourceTurn,
-        replaced_source_turn: replaceTurn,
-        facts: facts.map((fact) => ({
-          category: fact.category,
-          subject: fact.subject,
-          attribute: fact.attribute,
-          value: fact.value,
-          importance: fact.importance,
-          fact_text: fact.fact_text,
-        })),
-      });
-    }
-
-    return facts.length;
+    return persistEpisodicMemoryFactsCore(db, input);
   } catch (e) {
     console.error("[EpisodicMemory] failed to save facts:", (e as Error).message);
     return 0;
   }
+}
+
+/**
+ * Phase B0.1 — strict episodic reconciliation for a canonical mutation
+ * (latest variant switch / manual canonical edit).
+ *
+ * Wraps `persistEpisodicMemoryFactsCore` with `replaceSourceTurn: true` and
+ * does NOT swallow exceptions. A DELETE-then-INSERT failure must propagate so
+ * the surrounding atomic canonical-mutation transaction rolls back as a unit.
+ *
+ * Contract:
+ *   selected variant facts = []  → DELETE old canonical source-turn facts (success, 0 inserted)
+ *   selected variant facts > 0  → DELETE old + INSERT new (all-or-nothing)
+ *
+ * Returns the number of inserted facts.
+ */
+export function replaceEpisodicMemoryFactsForCanonicalMutation(
+  db: Database.Database,
+  input: PersistEpisodicMemoryFactsInput
+): number {
+  return persistEpisodicMemoryFactsCore(db, {
+    ...input,
+    replaceSourceTurn: true,
+  });
 }
 
 /**

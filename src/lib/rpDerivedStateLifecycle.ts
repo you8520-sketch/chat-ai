@@ -11,6 +11,11 @@
  * No prompt changes, no LLM calls.
  */
 import type Database from "better-sqlite3";
+import type { ExtractedStatusFact } from "@/lib/statusWidget/types";
+import {
+  deleteEpisodicMemoryFactsByAssistantMessageIds,
+  replaceEpisodicMemoryFactsForCanonicalMutation,
+} from "@/lib/episodicMemoryFacts";
 
 /** Generation statuses that may anchor canonical derived state. */
 export const CANONICAL_DERIVED_STATE_GENERATION_STATUSES = [
@@ -187,4 +192,160 @@ export function deleteStatusTriggerEventsForSourceMessage(
     )
     .run(chatId, sourceMessageId);
   return Number(result.changes) || 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Phase B0.1 — atomic canonical mutation core                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Inputs for an atomic latest-variant canonical switch.
+ *
+ * The caller supplies the already-resolved selected-variant row fields plus
+ * the canonical status snapshot (if any) and the selected variant's
+ * extracted_facts. The core performs, in ONE SQLite transaction:
+ *
+ *   1. message content/model/usage/active_variant/status snapshot UPDATE
+ *   2. old active trigger events supersession
+ *   3. episodic facts replace/invalidate for the selected canonical variant
+ *
+ * All three succeed together or roll back together. After this returns,
+ * the caller performs best-effort trigger re-evaluation (§6).
+ */
+export type AtomicVariantSwitchInput = {
+  chatId: number;
+  messageId: number;
+  /** Selected variant row fields (content/model/usage). */
+  content: string;
+  model: string;
+  /** Serialized usage JSON (or null). */
+  usageJson: string | null;
+  /** Serialized adult route meta JSON ("" when none). */
+  adultRouteMetaJson: string;
+  /** Re-serialized variants array (all variants, with new active). */
+  variantsJson: string;
+  variantIndex: number;
+  /** Canonical status snapshot for the selected variant, if any. */
+  statusWidgetValuesJson: string | undefined;
+  statusWidgetTurnActive: boolean | undefined;
+  /** Selected variant source-turn facts (may be empty — valid success). */
+  sourceTurn: number;
+  characterId?: number | null;
+  userId?: number | null;
+  selectedFacts: ExtractedStatusFact[] | null | undefined;
+  selectedRequestId: string | null;
+  selectedGenerationSequence: number | null;
+};
+
+/**
+ * Execute the atomic canonical variant-switch core. Throws on any DB failure
+ * so the caller's HTTP layer can surface a 500; no partial mutation is left
+ * behind (SQLite rolls back the whole transaction).
+ */
+export function executeAtomicVariantSwitchCore(
+  db: Database.Database,
+  input: AtomicVariantSwitchInput
+): void {
+  const tx = db.transaction(() => {
+    if (input.statusWidgetValuesJson !== undefined) {
+      db.prepare(
+        "UPDATE messages SET content=?, model=?, usage=?, adult_route_meta_json=?, alternates=?, active_variant=?, status_widget_values_json=?, status_widget_turn_active=? WHERE id=?"
+      ).run(
+        input.content,
+        input.model,
+        input.usageJson,
+        input.adultRouteMetaJson,
+        input.variantsJson,
+        input.variantIndex,
+        input.statusWidgetValuesJson,
+        input.statusWidgetTurnActive ? 1 : 0,
+        input.messageId
+      );
+    } else {
+      db.prepare(
+        "UPDATE messages SET content=?, model=?, usage=?, adult_route_meta_json=?, alternates=?, active_variant=? WHERE id=?"
+      ).run(
+        input.content,
+        input.model,
+        input.usageJson,
+        input.adultRouteMetaJson,
+        input.variantsJson,
+        input.variantIndex,
+        input.messageId
+      );
+    }
+
+    supersedeStatusTriggerEventsForSourceMessage(
+      db,
+      input.chatId,
+      input.messageId,
+      "variant_switch"
+    );
+
+    replaceEpisodicMemoryFactsForCanonicalMutation(db, {
+      chatId: input.chatId,
+      characterId: input.characterId,
+      userId: input.userId,
+      sourceTurn: input.sourceTurn,
+      facts: input.selectedFacts,
+      metadata: {
+        assistant_message_id: input.messageId,
+        request_id: input.selectedRequestId,
+        variant_switch: true,
+        variant_index: input.variantIndex,
+      },
+    });
+  });
+  tx();
+}
+
+/**
+ * Inputs for an atomic manual assistant edit.
+ *
+ * `materialProseChange` selects the embedded-facts contract:
+ *   true  → embedded extracted_facts are cleared (stale memory > wrong memory)
+ *   false → existing extracted_facts are preserved (format/status-only edit)
+ */
+export type AtomicManualEditInput = {
+  chatId: number;
+  messageId: number;
+  content: string;
+  alternatesJson: string;
+  /** Final canonical status_widget_values_json to store. */
+  statusWidgetValuesJson: string;
+  materialProseChange: boolean;
+  /** Source turn for episodic invalidation (material edit only). */
+  sourceTurn: number | null;
+};
+
+/**
+ * Execute the atomic manual-edit core. In ONE transaction:
+ *
+ *   1. message content / alternates / active_variant / status_widget_values_json UPDATE
+ *   2. (material edit only) episodic_memory_facts invalidation for this assistant message
+ *
+ * Throws on DB failure so no "new prose + old memory" half-state survives.
+ */
+export function executeAtomicManualEditCore(
+  db: Database.Database,
+  input: AtomicManualEditInput
+): void {
+  const tx = db.transaction(() => {
+    db.prepare(
+      "UPDATE messages SET content=?, alternates=?, active_variant=?, status_widget_values_json=? WHERE id=?"
+    ).run(
+      input.content,
+      input.alternatesJson,
+      0,
+      input.statusWidgetValuesJson,
+      input.messageId
+    );
+
+    if (input.materialProseChange) {
+      deleteEpisodicMemoryFactsByAssistantMessageIds(db, input.chatId, [
+        input.messageId,
+      ]);
+    }
+  });
+  tx();
 }

@@ -10,12 +10,11 @@ import {
 import { stripMuseAcceptanceFromUsage } from "@/lib/museAcceptanceTelemetry";
 import { stripAdultRoutingForClient } from "@/lib/billingReceiptAccess";
 import { serializeStatusWidgetValuesJson } from "@/lib/statusWidget";
-import { persistEpisodicMemoryFactsBestEffort } from "@/lib/episodicMemoryFacts";
 import { evaluateStatusWidgetTriggersBestEffort } from "@/lib/statusWidgetTriggers";
 import {
+  executeAtomicVariantSwitchCore,
   getAssistantSourceTurn,
   isLatestCanonicalAssistantMessage,
-  supersedeStatusTriggerEventsForSourceMessage,
 } from "@/lib/rpDerivedStateLifecycle";
 import { PREFERENCE_EVENT } from "@/lib/feedback/events";
 import { recordPreferenceEvent } from "@/lib/feedback/feedback-db";
@@ -84,77 +83,62 @@ export async function PATCH(req: Request) {
       ? serializeStatusWidgetValuesJson(selectedVariant.statusWidgetValues)
       : ""
     : undefined;
-  if (selectedStatusWidgetValuesJson !== undefined) {
-    db.prepare(
-      "UPDATE messages SET content=?, model=?, usage=?, adult_route_meta_json=?, alternates=?, active_variant=?, status_widget_values_json=?, status_widget_turn_active=? WHERE id=?"
-    ).run(
-      fields.content,
-      fields.model,
-      fields.usage,
-      selectedAdultRouteMetaJson,
-      JSON.stringify(variants),
-      variantIndex,
-      selectedStatusWidgetValuesJson,
-      selectedVariant?.statusWidgetTurnActive ? 1 : 0,
-      messageId
-    );
-  } else {
-    db.prepare(
-      "UPDATE messages SET content=?, model=?, usage=?, adult_route_meta_json=?, alternates=?, active_variant=? WHERE id=?"
-    ).run(
-      fields.content,
-      fields.model,
-      fields.usage,
-      selectedAdultRouteMetaJson,
-      JSON.stringify(variants),
-      variantIndex,
-      messageId
-    );
-  }
 
-  recordPreferenceEvent({
-    userId: user.id,
-    chatId: msg.chat_id,
-    messageId,
-    eventType: PREFERENCE_EVENT.VARIANT_SWITCH,
-    payload: { from: fromVariant, to: variantIndex },
-  });
-  enqueueScoreRecompute(messageId);
+  const isLatest = isLatestCanonicalAssistantMessage(db, msg.chat_id, messageId);
 
-  // Phase B0: latest assistant variant switch reconciles derived state.
-  // Historical variant switch requires downstream replay (out of scope for
-  // B0); only the display snapshot is updated and a diagnostic is logged.
-  try {
-    if (isLatestCanonicalAssistantMessage(db, msg.chat_id, messageId)) {
-      supersedeStatusTriggerEventsForSourceMessage(
-        db,
-        msg.chat_id,
+  if (isLatest) {
+    // Phase B0.1: atomic canonical mutation core. Message UPDATE + trigger
+    // supersession + episodic reconciliation commit together or roll back
+    // together. Trigger re-evaluation runs AFTER commit (best-effort).
+    const sourceTurn = getAssistantSourceTurn(db, msg.chat_id, messageId);
+    try {
+      executeAtomicVariantSwitchCore(db, {
+        chatId: msg.chat_id,
         messageId,
-        "variant_switch"
+        content: fields.content,
+        model: fields.model,
+        usageJson: fields.usage,
+        adultRouteMetaJson: selectedAdultRouteMetaJson,
+        variantsJson: JSON.stringify(variants),
+        variantIndex,
+        statusWidgetValuesJson: selectedStatusWidgetValuesJson,
+        statusWidgetTurnActive: selectedVariant?.statusWidgetTurnActive,
+        sourceTurn: sourceTurn ?? 0,
+        characterId: msg.character_id,
+        userId: msg.user_id,
+        selectedFacts: selectedVariant?.statusWidgetValues?.extracted_facts ?? [],
+        selectedRequestId: selectedVariant?.requestId ?? null,
+        selectedGenerationSequence: selectedVariant?.generationSequence ?? null,
+      });
+    } catch (e) {
+      console.error(
+        "[DerivedState] atomic variant switch core failed:",
+        (e as Error).message
       );
-      const sourceTurn = getAssistantSourceTurn(db, msg.chat_id, messageId);
-      const selectedFacts = selectedVariant?.statusWidgetValues?.extracted_facts ?? [];
-      if (sourceTurn != null) {
-        persistEpisodicMemoryFactsBestEffort(db, {
-          chatId: msg.chat_id,
-          characterId: msg.character_id,
-          userId: msg.user_id,
-          sourceTurn,
-          facts: selectedFacts,
-          replaceSourceTurn: true,
-          metadata: {
-            assistant_message_id: messageId,
-            request_id: selectedVariant?.requestId ?? null,
-            variant_switch: true,
-            variant_index: variantIndex,
-          },
-        });
-      }
-      if (
-        sourceTurn != null &&
-        selectedVariant?.statusWidgetValues &&
-        Object.keys(selectedVariant.statusWidgetValues.character ?? {}).length > 0
-      ) {
+      return NextResponse.json(
+        { error: "버전 전환 중 오류가 발생했습니다." },
+        { status: 500 }
+      );
+    }
+
+    recordPreferenceEvent({
+      userId: user.id,
+      chatId: msg.chat_id,
+      messageId,
+      eventType: PREFERENCE_EVENT.VARIANT_SWITCH,
+      payload: { from: fromVariant, to: variantIndex },
+    });
+    enqueueScoreRecompute(messageId);
+
+    // Best-effort trigger re-evaluation AFTER the canonical core committed.
+    // A missing new trigger is strictly preferred over a stale rejected
+    // variant's trigger (§12): never roll back the core to restore old events.
+    if (
+      sourceTurn != null &&
+      selectedVariant?.statusWidgetValues &&
+      Object.keys(selectedVariant.statusWidgetValues.character ?? {}).length > 0
+    ) {
+      try {
         evaluateStatusWidgetTriggersBestEffort(db, {
           chatId: msg.chat_id,
           characterId: msg.character_id,
@@ -164,14 +148,72 @@ export async function PATCH(req: Request) {
           requestId: selectedVariant?.requestId ?? null,
           generationSequence: selectedVariant?.generationSequence ?? null,
         });
+      } catch (e) {
+        console.error(
+          "[StatusTrigger] post-commit variant trigger re-evaluation failed:",
+          (e as Error).message
+        );
       }
-    } else {
-      console.warn(
-        "[DerivedState] HISTORICAL_VARIANT_DERIVED_STATE_REPLAY_UNSUPPORTED — historical variant switch; downstream derived-state replay not performed"
+    }
+  } else {
+    // Historical variant switch: only the display snapshot is updated. The
+    // atomic core is still used so the message UPDATE + status snapshot are
+    // consistent, but derived-state replay for downstream turns is out of
+    // scope for B0 (would require replay). No trigger supersession / episodic
+    // reconciliation is performed for historical switches.
+    try {
+      db.transaction(() => {
+        if (selectedStatusWidgetValuesJson !== undefined) {
+          db.prepare(
+            "UPDATE messages SET content=?, model=?, usage=?, adult_route_meta_json=?, alternates=?, active_variant=?, status_widget_values_json=?, status_widget_turn_active=? WHERE id=?"
+          ).run(
+            fields.content,
+            fields.model,
+            fields.usage,
+            selectedAdultRouteMetaJson,
+            JSON.stringify(variants),
+            variantIndex,
+            selectedStatusWidgetValuesJson,
+            selectedVariant?.statusWidgetTurnActive ? 1 : 0,
+            messageId
+          );
+        } else {
+          db.prepare(
+            "UPDATE messages SET content=?, model=?, usage=?, adult_route_meta_json=?, alternates=?, active_variant=? WHERE id=?"
+          ).run(
+            fields.content,
+            fields.model,
+            fields.usage,
+            selectedAdultRouteMetaJson,
+            JSON.stringify(variants),
+            variantIndex,
+            messageId
+          );
+        }
+      })();
+    } catch (e) {
+      console.error(
+        "[DerivedState] historical variant switch update failed:",
+        (e as Error).message
+      );
+      return NextResponse.json(
+        { error: "버전 전환 중 오류가 발생했습니다." },
+        { status: 500 }
       );
     }
-  } catch (e) {
-    console.error("[DerivedState] variant switch reconcile failed:", (e as Error).message);
+
+    recordPreferenceEvent({
+      userId: user.id,
+      chatId: msg.chat_id,
+      messageId,
+      eventType: PREFERENCE_EVENT.VARIANT_SWITCH,
+      payload: { from: fromVariant, to: variantIndex },
+    });
+    enqueueScoreRecompute(messageId);
+
+    console.warn(
+      "[DerivedState] HISTORICAL_VARIANT_DERIVED_STATE_REPLAY_UNSUPPORTED — historical variant switch; downstream derived-state replay not performed"
+    );
   }
 
   const selected = variants[variantIndex];
