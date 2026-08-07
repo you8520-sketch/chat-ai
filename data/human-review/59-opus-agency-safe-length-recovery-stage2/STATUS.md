@@ -1,12 +1,62 @@
-# STATUS — Audit 59 Stage 2 (review packet)
+# STATUS — Audit 59
 
 ```text
-AUDIT59_STAGE2_CAPTURED
-HUMAN_BLIND_REVIEW_STAGE2_REQUIRED
+HUMAN_BLIND_REVIEW_STAGE1_COMPLETE
+HIDDEN_MAP_STAGE1_SEAL_VERIFIED
 OPUS_AGENCY_SAFE_LENGTH_RECOVERY_STAGE1_PASS
+HUMAN_BLIND_REVIEW_STAGE2_COMPLETE
+HIDDEN_MAP_STAGE2_SEAL_VERIFIED
+OPUS_AGENCY_SAFE_LENGTH_RECOVERY_STAGE2_FAIL_AGENCY
+OPUS_AGENCY_SAFE_LENGTH_RECOVERY_CANARY_FAIL
+LARGER_CONFIRMATION_NOT_RUN
 PHASE2_NOT_RUN
 PRODUCTION_CHANGE_NO
 ```
 
-Operator length/cost metrics are excluded from this review packet.
-Do not compute winners until scores are sealed.
+## Stage 2 severe ownership
+
+```text
+s5 T2 Side B → Arm F
+```
+
+## Mapped Stage 2
+
+```text
+Arm E mean=94.0 median=94 severe=0/2 moderate=1/2 chars=3104 cost=133.45
+Arm F mean=75.0 median=58 severe=1/2 moderate=1/2 chars=2778 cost=114.05
+```
+
+## Extra
+
+```text
+{
+  "ARM_F_REJECTED": true,
+  "ARM_E_REMAINS_AGENCY_SAFE": true,
+  "LENGTH_RECOVERY_UNRESOLVED": true,
+  "OPUS_TERMINAL_CANDIDATE_F_READY": false,
+  "LARGER_CONFIRMATION_READY": false
+}
+```
+
+## Audit 58 (unchanged)
+
+```text
+OPUS_INSTRUCTION_BOUNDARY_AGENCY_PASS
+OPUS_INSTRUCTION_BOUNDARY_CANARY_OVERALL_FAIL_LENGTH
+AGENCY_BOUNDARY_SOLVED
+LENGTH_RECOVERY_REQUIRED
+```
+
+## Safety
+
+```text
+additional Opus calls: NO
+large Phase 2: NO
+DeepSeek regression: NO
+Terra regression: NO
+PR #250 / #257 / #258 modification: NO
+production DB apply: NO
+general rollout: NO
+auto merge: NO
+auto deploy: NO
+```
