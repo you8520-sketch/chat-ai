@@ -5,9 +5,11 @@ import {
 } from "@/lib/chatModels";
 
 /**
- * Confirmed production adult primary after Muse bakeoff:
- * KEEP_CURRENT_ADULT_MODEL = deepseek-v4-pro (no Muse/Aion replacement).
+ * Final locked production adult primary (Muse audit + Aion challenger):
+ * FINAL_ADULT_MODEL / KEEP_CURRENT_ADULT_MODEL = deepseek-v4-pro
+ * (no Muse replacement; Aion primary candidate = NO).
  * GLM remains hard-failure fallback only (max 1).
+ * Legacy Aion path may remain in tree but must stay primary-disabled.
  */
 export const ADULT_SCENE_MODEL_POLICY = {
   primaryModelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,

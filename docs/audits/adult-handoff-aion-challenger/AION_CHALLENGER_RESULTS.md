@@ -136,19 +136,25 @@ AION_ADULT_PRIMARY_CANDIDATE = NO
 
 ---
 
-## Final adult model recommendation
+## Final adult model selection (approved)
 
 ```text
-KEEP_CURRENT_ADULT_MODEL
-deepseek-v4-pro
+FINAL_ADULT_MODEL = deepseek-v4-pro
+FINAL_MODEL_LOCKED = true
+AION_ADULT_PRIMARY_CANDIDATE = NO
+MUSE_REPLACEMENT = NO
+KEEP_CURRENT_ADULT_MODEL = FINAL
 ```
 
-Do **not** treat this as automatic main merge / general-user enable / Railway global enable / pricing change. DeepSeek-primary implementation on PR #265 remains temporary until an explicit final lock + merge approval.
+Adult model selection is closed (Muse/DeepSeek audit + Aion challenger). No further model calls / Stage 2 / Aion·Muse retest required for this lock.
 
 ```text
 AION_CHALLENGER_STATUS = COMPLETE
-ADULT_SCENE_HANDOFF_READY = PENDING_FINAL_MODEL_LOCK
+ADULT_SCENE_HANDOFF_READY = true
 MAIN_MERGED = false
 GENERAL_USERS_ENABLED = false
 ADULT_SCENE_AION_PRIMARY_ENABLED = false
+ADULT_SCENE_HANDOFF_GENERAL_ENABLED = false
 ```
+
+Merge ≠ general enable. Railway global enable / pricing / general-user activation remain separate approvals. Aion path retained inactive (not deleted).
