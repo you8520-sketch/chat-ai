@@ -41,9 +41,6 @@ import {
   isInteractiveUserOwnershipLockEnabledForUser,
   isInteractiveUserOwnershipTerminalEchoEnabledForUser,
 } from "@/lib/interactiveUserOwnershipLock";
-import {
-  buildNovelModeUserPersonaRules,
-} from "@/lib/userPersonaNarrationRules";
 import { stripRpMetaPreamble } from "@/lib/narrativeRules";
 import { buildAdvancedProseNsfwGuidelines } from "@/lib/advancedProseNsfwGuidelines";
 import { buildProseStyleXmlBundle } from "@/lib/proseStyleXmlBundle";
@@ -163,11 +160,10 @@ import {
   createDeepSeekXmlBuffers,
   flushDeepSeekXmlBuffers,
   logDeepSeekContextStructure,
-  prependDeepSeekBottomReminder,
+  prependDeepSeekStyleOnlyReminder,
   resolveDeepSeekLoreXmlGroup,
   resolveDeepSeekShortHistoryLengthExtra,
   resolveDeepSeekShortUserTurnExtra,
-  DEEPSEEK_REGEN_LENGTH_BLOCK,
   type DeepSeekXmlGroup,
 } from "@/lib/deepseekPromptStructure";
 import {
@@ -308,17 +304,24 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   };
 
   const personaLabel = input.personaDisplayName?.trim() || input.userNickname;
-  /** Legacy novel / explicit_full — must never be aliased from isContinue at call sites. */
-  const novelModeEnabled = input.novelModeEnabled === true;
-  const autoProgressionEnabled = input.isContinue === true;
+  /**
+   * Legacy novelModeEnabled is compatibility-normalized to auto progression.
+   * Production never injects `[USER CONTROL MODE - NOVEL / EXPLICIT FULL]`.
+   */
+  const legacyNovelModeEnabled = input.novelModeEnabled === true;
+  const novelModeEnabled = false;
+  const autoProgressionEnabled =
+    input.isContinue === true || legacyNovelModeEnabled;
   /** OOC limited co-narration only — auto progression uses its own agency block. */
-  const oocLimitedCoNarration = !!input.userImpersonation && !autoProgressionEnabled && !novelModeEnabled;
-  const coNarrationEnabled = novelModeEnabled || oocLimitedCoNarration || autoProgressionEnabled;
+  const oocLimitedCoNarration =
+    !!input.userImpersonation && !autoProgressionEnabled;
+  const coNarrationEnabled = oocLimitedCoNarration || autoProgressionEnabled;
   // Resolve from turn flags — do not require ContextBuildInput.runtimeMode for typecheck.
   // (Railway/Next build has repeatedly failed when that optional field was missing from the
   // type snapshot even after it was added on main.)
   const runtimeMode: ChatRuntimeMode = resolveChatRuntimeMode({
-    isContinue: autoProgressionEnabled,
+    isContinue: input.isContinue === true,
+    legacyNovelModeEnabled,
     oocUserImpersonationAllowed: oocLimitedCoNarration,
   });
   const museExampleDialogBoundaryEnabled = isMuseExampleDialogBoundaryEnabledForUser(
@@ -571,7 +574,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   };
 
   const godmoddingMode = resolveNoGodmoddingMode({
-    novelModeEnabled,
+    legacyNovelModeEnabled,
     impersonationOn: oocLimitedCoNarration,
     isContinue: autoProgressionEnabled,
   });
@@ -836,6 +839,13 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     if (input.terraPromptCanary?.relocateSceneDirectiveToUserTurn) return;
     if (input.rpDiagnosticCanary?.relocateSceneDirectiveToUserTurn) return;
     if (!sceneDirectiveBlock) return;
+    // Standard interactive: no SceneDirective progression owner (Audit 42 ARM D foundation).
+    // Keep mode-specific owners for auto progression, simulation, and party.
+    const keepModeSpecificProgression =
+      autoProgressionEnabled ||
+      input.contentKind === "simulation" ||
+      !!input.party;
+    if (!keepModeSpecificProgression) return;
     pushSection(
       "scene-directive",
       "[3d] Private scene directive",
@@ -938,15 +948,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       }),
       "dynamic"
     );
-    if (deepSeekXmlMode) {
-      pushSection(
-        "regenerate-length-deepseek",
-        "[1.46b] DeepSeek regen length (diverge ≠ shorten)",
-        "systemRules",
-        DEEPSEEK_REGEN_LENGTH_BLOCK,
-        "dynamic"
-      );
-    }
+    // DeepSeek competing [REGEN LENGTH] owner removed — USER_TAIL remains sole length owner.
   }
 
   const pushRagContextSections = () => {
@@ -1016,16 +1018,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   }
 
-  // Novel mode persona rules only — full secret_description is never injected.
-  if (novelModeEnabled && !autoProgressionEnabled) {
-    pushSection(
-      "novel-mode-persona-rules",
-      "Novel mode user persona rules",
-      "systemRules",
-      buildNovelModeUserPersonaRules(input.charName, personaLabel),
-      isOpenRouter ? "dynamic" : "dynamic"
-    );
-  }
+  // Legacy novel persona rules removed from production — never inject NOVEL / EXPLICIT FULL.
 
   if (isRegisterPatch("D")) {
     const speechTail = buildCharacterSpeechRecencyTail(
@@ -1250,10 +1243,11 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
    */
   let historyForAssembly: ContextBuildInput["shortTermHistory"] = input.shortTermHistory;
   let deepSeekOpeningSceneContext: string | null = null;
-  const deepSeekShortHistoryExtra = deepSeekXmlMode
-    ? resolveDeepSeekShortHistoryLengthExtra(input.shortTermHistory)
-    : null;
-  if (deepSeekXmlMode && deepSeekShortHistoryExtra) {
+  // Thin-history detection still drives opening peel; SHORT HISTORY text is not injected.
+  const deepSeekThinHistory =
+    deepSeekXmlMode &&
+    resolveDeepSeekShortHistoryLengthExtra(input.shortTermHistory) != null;
+  if (deepSeekXmlMode && deepSeekThinHistory) {
     const peeled = peelCreatorOpeningGreetingFromHistory(input.shortTermHistory);
     if (
       shouldRemapDeepSeekOpeningGreeting({
@@ -1271,6 +1265,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
           peeledSyntheticOpeningTurn: peeled.peeledSyntheticOpeningTurn,
           greetingChars: peeled.openingGreeting!.length,
           remainingHistoryMessages: historyForAssembly.length,
+          singleTerminalLengthOwner: true,
         });
       }
     }
@@ -1323,22 +1318,18 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     const userBodyWithOpening = deepSeekOpeningSceneContext
       ? `${deepSeekOpeningSceneContext}\n\n${userTurnContent}`
       : userTurnContent;
-    const deepSeekUserExtras = [
-      deepSeekMomentumExtra,
-      deepSeekShortHistoryExtra,
-      resolveDeepSeekShortUserTurnExtra(input.currentUserMessage),
-      input.regenerate === true ? DEEPSEEK_REGEN_LENGTH_BLOCK : null,
-    ]
-      .filter(Boolean)
-      .join("\n");
-    userTurnContent = prependDeepSeekBottomReminder(
+    // Production DeepSeek: style-only reminder + optional momentum.
+    // Competing length owners (DEEPSEEK LENGTH / SHORT HISTORY / SHORT USER / REGEN) OFF.
+    // Sole numeric length owner remains USER_TAIL_LENGTH_OWNER_SENTENCE.
+    const deepSeekUserExtras = [deepSeekMomentumExtra].filter(Boolean).join("\n");
+    userTurnContent = prependDeepSeekStyleOnlyReminder(
       userBodyWithOpening,
       deepSeekUserExtras || null
     );
   } else if (deepSeekLengthStackOnly) {
+    // Probe / canary length-stack-only mode — keep thin-history nudges only.
     const lengthStack = [
       resolveDeepSeekShortHistoryLengthExtra(input.shortTermHistory),
-      resolveDeepSeekShortUserTurnExtra(input.currentUserMessage),
     ]
       .filter(Boolean)
       .join("\n\n");
@@ -1390,6 +1381,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
         modelId: input.modelId,
         contentKind: input.contentKind,
         party: input.party,
+        runtimeMode,
       }
     );
     if (rpVariant && rpDiagnosticUsesMinimalLengthOwner(rpVariant)) {

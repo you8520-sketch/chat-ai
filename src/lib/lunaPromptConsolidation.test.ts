@@ -186,17 +186,20 @@ describe("luna prompt consolidation ownership", () => {
     assert.ok(!lastUser!.content.includes(USER_TAIL_LENGTH_OWNER_SENTENCE));
   });
 
-  it("single-primary activeSpeakingCast line exactly once", () => {
-    const { systemPrompt } = buildE1Wire(STABLE_CANON);
-    assert.equal((systemPrompt.match(/직접 발화 중심:/g) ?? []).length, 1);
-    assert.match(systemPrompt, /직접 발화 중심: 태형\./);
+  it("standard interactive omits SceneDirective progression owner", () => {
+    const { systemPrompt, built } = buildE1Wire(STABLE_CANON);
+    // Audit 42 ARM D foundation: no BASE_SCENE_ENGINE / SceneDirective on standard chat.
+    assert.equal((systemPrompt.match(/직접 발화 중심:/g) ?? []).length, 0);
+    assert.doesNotMatch(systemPrompt, /\[PRIVATE SCENE ENGINE RULE\]/);
+    assert.ok(!(built.meta.trackedSections ?? []).some((s) => s.id === "scene-directive"));
   });
 
-  it("agency block contains no NPC/world expansion instruction", () => {
+  it("agency block is single collaborative interactive owner", () => {
     const agency = buildCompactNoGodmoddingStandardBlock();
-    assert.doesNotMatch(agency, /NPC, 환경/);
-    assert.doesNotMatch(agency, /자연스럽게 움직일 수 있다/);
-    assert.doesNotMatch(INTERACTIVE_USER_CONTROL_BLOCK, /NPC, 환경, 사건의 여파/);
+    assert.match(agency, /COLLABORATIVE INTERACTIVE/);
+    assert.match(agency, /새로운 직접 대사/);
+    assert.doesNotMatch(agency, /\[INTERACTIVE USER CONTROL\]/);
+    // Deprecated nested block kept for fixture reference only
     assert.match(INTERACTIVE_USER_CONTROL_BLOCK, /유저의 새 대사·선택·동의·주도 행동/);
   });
 

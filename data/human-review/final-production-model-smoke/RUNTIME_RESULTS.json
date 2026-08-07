@@ -1,0 +1,27 @@
+{
+  "status": "FINAL_PRODUCTION_SMOKE_CAPTURED",
+  "DEEPSEEK_FINAL_SMOKE_CAPTURED": true,
+  "TERRA_FINAL_SMOKE_CAPTURED": true,
+  "FINAL_HUMAN_REVIEW_REQUIRED": true,
+  "opus_calls": 0,
+  "deepseek_calls": 4,
+  "terra_calls": 4,
+  "expected": 8,
+  "exclusions": [],
+  "by_model": {
+    "deepseek-v4-pro": {
+      "outputs": 4,
+      "median_total_visible_chars": 904,
+      "avg_api_raw_cost_krw": 5.1,
+      "sum_api_raw_cost_krw": 10.2
+    },
+    "gpt-5.6-terra": {
+      "outputs": 4,
+      "median_total_visible_chars": 2978,
+      "avg_api_raw_cost_krw": 60.65,
+      "sum_api_raw_cost_krw": 242.6
+    }
+  },
+  "merge": "NOT_RUN — waiting for ChatGPT final human review",
+  "production_change": false
+}

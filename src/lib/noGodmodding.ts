@@ -1,6 +1,7 @@
 import { buildAutoProgressionUserControlBlock } from "@/lib/autoProgressionRules";
 
-export type NoGodmoddingMode = "standard" | "coNarration" | "autoContinue" | "novel";
+/** Production modes only — legacy `novel` removed; normalize to autoContinue at request boundary. */
+export type NoGodmoddingMode = "standard" | "coNarration" | "autoContinue";
 
 export type UserAgencyRuleOptions = {
   /** @deprecated auto-continue uses buildAutoProgressionUserControlBlock */
@@ -12,11 +13,17 @@ export const NO_FALSE_SHARED_MEMORY_RULE = `[NO FALSE SHARED MEMORY]
 실제 최근 대화, 장기기억, 에피소드 기억, 캐릭터 정본, 유저 페르소나에 없는 일을 "전에 말했잖아", "네가 약속했잖아", "그때 우리", "예전에 네가"처럼 이미 있었던 공유 기억으로 쓰지 않는다.
 불확실하면 질문, 관찰, 추측, 새 발견으로 처리한다.`;
 
-/** Compact interactive-only reinforcement (no length rules). */
+/**
+ * @deprecated Nested interactive reinforcement — superseded by
+ * `[USER CONTROL — COLLABORATIVE INTERACTIVE]` (single standard owner).
+ */
 export const LUNA_MINIMAL_CORE_V1_AGENCY_A1_SENTENCE =
   "현재까지 확정되지 않은 유저의 이동·대사·동의·선택·주도 행동을 새로 일어난 사실처럼 쓰지 않는다.";
 
-/** Compact interactive-only reinforcement — user agency only (NPC/world initiative → SceneDirective). */
+/**
+ * @deprecated Nested interactive owner — superseded by collaborative interactive block.
+ * Kept for test/fixture references only; not injected on the production standard path.
+ */
 export const INTERACTIVE_USER_CONTROL_BLOCK = `[INTERACTIVE USER CONTROL]
 일반 입력 턴에서는 유저의 대사, 의도적 행동, 생각, 결정, 동의/거절, 감정 결론, 신체 반응, 표정, 기억, 약속을 쓰지 않는다.
 ${LUNA_MINIMAL_CORE_V1_AGENCY_A1_SENTENCE}
@@ -24,6 +31,22 @@ ${LUNA_MINIMAL_CORE_V1_AGENCY_A1_SENTENCE}
 유저의 새 대사·선택·동의·주도 행동은 대신 확정하지 않는다.
 현재 행동에서 직접 발생한 즉각적이고 가역적인 신체 반응만 제한적으로 묘사한다.
 실제 대화·기억·페르소나에 없는 일을 “전에 말했잖아/아까 네가/네가 약속했잖아”로 꾸며 쓰지 말고, 불확실하면 질문·관찰·추측으로 한다.`;
+
+export const COLLABORATIVE_INTERACTIVE_OWNER_TITLE =
+  "[USER CONTROL — COLLABORATIVE INTERACTIVE]";
+
+/** Single standard user-control owner (exactly one occurrence in interactive payload). */
+export const COLLABORATIVE_INTERACTIVE_OWNER_BLOCK = `${COLLABORATIVE_INTERACTIVE_OWNER_TITLE}
+
+USER_PERSONA, creator/scenario canon, 실제 대화와 확정 기억에 적힌 [B]의 외형·등급·능력·직업·소속·성격·과거는 현재 입력에 다시 나오지 않아도 정본으로 사용할 수 있다.
+
+[B]의 새로운 직접 대사, 중요한 선택·동의·거절, 관계·목표·소속·정체성을 바꾸는 결정은 대신 확정하지 않는다.
+
+현재 입력과 정본에 모순되지 않는 짧은 표정·시선·비자발적 반응, 이미 시작한 행동의 자연스러운 마무리, 사소한 이동·접촉·물건 수취·일상 행동은 공동 서술할 수 있다.
+
+확정되지 않은 정보는 [A]의 관찰·추측·오해·소문·가설로 표현할 수 있다. 캐릭터의 추측은 객관적 사실과 구분한다.
+
+[A]는 수동적으로 기다리기만 하지 않고 자신의 성격과 현재 상황에 맞는 대사·행동·접촉·제안을 능동적으로 수행한다.`;
 
 /**
  * V3.1-era candidate ownership string (legacy export).
@@ -41,14 +64,9 @@ export const POSSESSION_MODE_HINT =
 export const CO_NARRATION_ON_LINE =
   `7. 유저 대사: co-narration(사칭 허용) ON — [USER_PERSONA]에 맞춰 유저 페르소나 대사·행동을 사용자 입력 의도 내에서만 최소 공동 서술. 감정·결정 창작 금지.`;
 
+/** Standard interactive — single collaborative owner. */
 export function buildCompactNoGodmoddingStandardBlock(): string {
-  return `[NO GODMODDING]
-[USER CONTROL MODE - INTERACTIVE]
-- [B]의 의도적 행동, 대사, 생각, 결정, 감정 결론, 신체 반응, 표정, 물건 수취·사용, 동행·순응을 입력 없이 확정하지 않는다.
-- [A]의 추측·관찰·대기는 가능하나, 미입력 상태를 서술 사실로 단정하지 않는다.
-- [B]를 장면 밖으로 밀어내지 말고, [A]가 지금 무엇을 느끼고 선택하는지 중심으로 진행한다.
-
-${INTERACTIVE_USER_CONTROL_BLOCK}`;
+  return COLLABORATIVE_INTERACTIVE_OWNER_BLOCK;
 }
 
 /** Near [예시 대화] — style reference only; does not authorize [B] writing in interactive mode. */
@@ -94,29 +112,13 @@ ${POSSESSION_MODE_HINT}
 ${NO_FALSE_SHARED_MEMORY_RULE}`;
 }
 
-/** Dormant explicit_full / legacy novel path — not used by auto progression. */
-function buildNovelModeUserControlBlock(): string {
-  return `[USER CONTROL MODE - NOVEL / EXPLICIT FULL]
-- [USER_PERSONA], 최근 말투, 관계 단계, 이전 선택에 맞춰 [B]의 행동·대사·속마음을 전면 서술할 수 있다.
-- [B]의 정체성, 성격, 트라우마, 목표, 소속, 고백, 배신, 되돌릴 수 없는 결정을 갑자기 확정하지 않는다.
-- [B] 관련 숨은 설정은 확정 전에 단서, 의심, 기록, 반응, 가설로 먼저 드러낸다.
-
-${NO_FALSE_SHARED_MEMORY_RULE}`;
-}
-
 export function buildNoGodmoddingBlock(
   _charName: string,
   _userName: string,
   mode: NoGodmoddingMode = "standard"
 ): string {
   if (mode === "autoContinue") {
-    return `${buildAutoProgressionUserControlBlock()}
-
-${NO_FALSE_SHARED_MEMORY_RULE}`;
-  }
-
-  if (mode === "novel") {
-    return buildNovelModeUserControlBlock();
+    return buildAutoProgressionUserControlBlock();
   }
 
   if (mode === "coNarration") {
@@ -135,14 +137,16 @@ export function buildAutoContinueGodmoddingSupplement(
 }
 
 export function resolveNoGodmoddingMode(opts: {
+  /** @deprecated Prefer legacyNovelModeEnabled — both normalize to autoContinue */
   novelModeEnabled?: boolean;
+  legacyNovelModeEnabled?: boolean;
   impersonationOn?: boolean;
   isContinue?: boolean;
 }): NoGodmoddingMode {
-  // Legacy novel / explicit_full — never derived from isContinue at call sites
-  if (opts.novelModeEnabled) return "novel";
-  // Auto progression wins over OOC limited co-narration flags
-  if (opts.isContinue) return "autoContinue";
+  const legacyNovel =
+    opts.legacyNovelModeEnabled === true || opts.novelModeEnabled === true;
+  // Continue and legacy novel both → AI-focal auto progression (never novel POV)
+  if (opts.isContinue || legacyNovel) return "autoContinue";
   if (opts.impersonationOn) return "coNarration";
   return "standard";
 }

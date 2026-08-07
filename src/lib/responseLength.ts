@@ -28,7 +28,18 @@ import {
 import { buildCompactTerminalLayoutRecencyLine } from "@/lib/webnovelOutputFormat";
 import { TERRA_TERMINAL_LENGTH_OWNER_CONTRACT } from "@/lib/terraTerminalLengthOwner";
 import { resolveLunaTerminalOutputContract } from "@/lib/lunaSinglePrimaryAdapter";
+import {
+  OPUS_ARM_E_TERMINAL,
+  OPUS_ARM_E_TERMINAL_MARKER,
+  resolveOpusArmETerminal,
+} from "@/lib/opusTerminalLengthOwner";
+import {
+  DEEPSEEK_COMPACT_FUTURE_INSTRUCTION_BOUNDARY,
+  DEEPSEEK_COMPACT_FUTURE_INSTRUCTION_BOUNDARY_MARKER,
+  resolveDeepSeekCompactFutureInstructionBoundary,
+} from "@/lib/deepseekFutureInstructionBoundary";
 import type { ContentKind } from "@/lib/simulationMode";
+import type { ChatRuntimeMode } from "@/lib/chatRuntimeMode";
 export * from "./responseLengthConstants";
 /** @deprecated Experiment-1 — not injected; see terraTerminalLengthOwner */
 export { LONGFORM_RP_SCENE_CONTRACT } from "./turnHandoffAndPacing";
@@ -171,6 +182,8 @@ export type UserTailTerminalOpts = {
   modelId?: string | null;
   contentKind?: ContentKind | null;
   party?: boolean | null;
+  /** When "interactive", Opus may use frozen Arm E terminal. */
+  runtimeMode?: ChatRuntimeMode | string | null;
   sharedNovelProseV2?: boolean;
   terraTerminalLengthOwner?: boolean;
 };
@@ -646,6 +659,9 @@ export function appendTerraTerminalLengthOwnerToUserTurn(
  * Current user-turn bottom: layout first, then the terminal owner last.
  * Terra+single_primary → TERRA_TERMINAL_LENGTH_OWNER_CONTRACT.
  * Luna+single_primary → LUNA_TERMINAL_OUTPUT_CONTRACT (length + concentration).
+ * Opus+standard interactive character → OPUS_ARM_E_TERMINAL (frozen Audit 58).
+ * DeepSeek+standard interactive character → compact future-instruction boundary
+ *   then USER_TAIL_LENGTH_OWNER_SENTENCE (length only; style reminder unchanged).
  * Other models → USER_TAIL_LENGTH_OWNER_SENTENCE (length only).
  */
 export function appendCompactTerminalLengthToUserTurn(
@@ -662,14 +678,40 @@ export function appendCompactTerminalLengthToUserTurn(
     opts?.contentKind,
     opts?.party
   );
-  const terminalLine = lunaContract ?? USER_TAIL_LENGTH_OWNER_SENTENCE;
+  const opusContract = resolveOpusArmETerminal({
+    modelId: opts?.modelId,
+    contentKind: opts?.contentKind,
+    party: opts?.party,
+    runtimeMode: opts?.runtimeMode,
+  });
+  const deepSeekBoundary = resolveDeepSeekCompactFutureInstructionBoundary({
+    modelId: opts?.modelId,
+    contentKind: opts?.contentKind,
+    party: opts?.party,
+    runtimeMode: opts?.runtimeMode,
+  });
+  const terminalLine =
+    lunaContract ?? opusContract ?? USER_TAIL_LENGTH_OWNER_SENTENCE;
   const layoutMarker = "지문과 \"…\" 대사 사이 빈 줄";
   const terminalMarkers = [
     "한국어 RP 본문만 3,200~4,200자로 작성한다",
     "3,200~4,200자 범위의 하나의 밀도 있는 장면으로 전개한다",
+    "한국어 총 표시 3,200~4,200자의 하나의 밀도 있는 장면으로 전개한다",
+    OPUS_ARM_E_TERMINAL_MARKER,
+    DEEPSEEK_COMPACT_FUTURE_INSTRUCTION_BOUNDARY_MARKER,
   ];
 
   let body = userContent.trim();
+  // Multi-line Opus Arm E must be stripped as a block before line filtering.
+  if (body.includes(OPUS_ARM_E_TERMINAL)) {
+    body = body.split(OPUS_ARM_E_TERMINAL).join("").trim();
+  }
+  if (body.includes(DEEPSEEK_COMPACT_FUTURE_INSTRUCTION_BOUNDARY)) {
+    body = body.split(DEEPSEEK_COMPACT_FUTURE_INSTRUCTION_BOUNDARY).join("").trim();
+  }
+  if (body.includes(USER_TAIL_LENGTH_OWNER_SENTENCE)) {
+    body = body.split(USER_TAIL_LENGTH_OWNER_SENTENCE).join("").trim();
+  }
   // Strip prior copies so re-append keeps layout → terminal order with terminal last.
   body = body
     .split(/\n+/)
@@ -680,8 +722,14 @@ export function appendCompactTerminalLengthToUserTurn(
     )
     .join("\n")
     .trim();
-  if (!body) return `${layoutLine}\n\n${terminalLine}`;
-  return `${body}\n\n${layoutLine}\n\n${terminalLine}`;
+  // DeepSeek: user → layout → compact future-instruction boundary → USER_TAIL.
+  // Never place Arm E / strong stop sentence on this path.
+  const mid =
+    deepSeekBoundary && !lunaContract && !opusContract
+      ? `${layoutLine}\n\n${deepSeekBoundary}\n\n${terminalLine}`
+      : `${layoutLine}\n\n${terminalLine}`;
+  if (!body) return mid;
+  return `${body}\n\n${mid}`;
 }
 
 /** 유저 메시지 하단 — recency bias로 분량 리마인더 주입 */

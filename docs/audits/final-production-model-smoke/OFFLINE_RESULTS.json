@@ -1,0 +1,39 @@
+{
+  "status": "PASS",
+  "frozen_arm_e_sha256": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca",
+  "expected_arm_e_sha256": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca",
+  "terra_terminal_sha256": "6e5b711ffd3b9bee507cc1e1479d940726de43c0b4e4019b3d7d47c12a60350e",
+  "deepseek_style_sha256": "92c367910f6f9319362e21c04c254478a8ef1e3b6e7ff22535f8c6dae322c9e4",
+  "user_tail_sha256": "122fece4c53d8a71141a279985f42dbdc25cbaceda8bde46bb51596d6ca4b092",
+  "arm_f_absent": true,
+  "counts": {
+    "opus_standard": {
+      "collaborative": 1,
+      "arm_e": 1,
+      "numeric_tail": 0,
+      "scene_directive": 0
+    },
+    "terra": {
+      "terminal": 1,
+      "arm_e": 0
+    },
+    "deepseek": {
+      "style": 1,
+      "compact_future_boundary": 1,
+      "numeric_tail": 1,
+      "arm_e": 0
+    }
+  },
+  "leak_checks": {
+    "opus_auto_arm_e": 0,
+    "opus_conarration_arm_e": 0,
+    "opus_simulation_arm_e": 0,
+    "deepseek_auto_boundary": 0,
+    "deepseek_conarration_boundary": 0,
+    "deepseek_simulation_boundary": 0,
+    "deepseek_party_boundary": 0,
+    "terra_boundary": 0,
+    "opus_boundary": 0
+  },
+  "reasons": []
+}
