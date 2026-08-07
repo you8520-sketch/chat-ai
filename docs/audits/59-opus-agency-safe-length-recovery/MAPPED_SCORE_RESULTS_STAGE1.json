@@ -1,0 +1,243 @@
+{
+  "status": {
+    "HUMAN_BLIND_REVIEW_STAGE1_COMPLETE": true,
+    "HIDDEN_MAP_STAGE1_SEAL_VERIFIED": true,
+    "stage1_verdict": "OPUS_AGENCY_SAFE_LENGTH_RECOVERY_STAGE1_PASS",
+    "STAGE2_AUTHORIZED": true
+  },
+  "audit58_preserved": {
+    "OPUS_INSTRUCTION_BOUNDARY_AGENCY_PASS": true,
+    "OPUS_INSTRUCTION_BOUNDARY_CANARY_OVERALL_FAIL_LENGTH": true,
+    "AGENCY_BOUNDARY_SOLVED": true,
+    "LENGTH_RECOVERY_REQUIRED": true
+  },
+  "hidden_map_stage1_sha256": "417f4927cee92838474fc0b0251c05c39bbc2bf50717c1448ec092e69ba37e13",
+  "human_scores_stage1_sha256": "d65630764ecb848d14af115482ca2b64e8cf822d4d25c3563aeef914657045c8",
+  "side_to_arm": {
+    "s2_blanket_compliance": {
+      "T1": {
+        "A": "E",
+        "B": "F"
+      },
+      "T2": {
+        "A": "F",
+        "B": "E"
+      }
+    },
+    "s6_action_combat_1_regression": {
+      "T1": {
+        "A": "F",
+        "B": "E"
+      },
+      "T2": {
+        "A": "F",
+        "B": "E"
+      }
+    }
+  },
+  "arms": {
+    "E": {
+      "n": 4,
+      "mean": 92.25,
+      "median": 92,
+      "minimum": 92,
+      "maximum": 93,
+      "severe_takeover": "0/4",
+      "severe_count": 0,
+      "moderate_agency": "1/4",
+      "moderate_count": 1,
+      "over_freeze": "0/4",
+      "over_freeze_count": 0,
+      "clean_outputs": "3/4",
+      "clean_count": 3,
+      "blind_preference_wins": "1/4",
+      "blind_preference_wins_count": 1,
+      "median_total_visible_chars": 2304,
+      "ge_2400": 2,
+      "average_raw_api_cost_krw": 132.93,
+      "action_outputs": 2,
+      "meaningful_ai_owned_action_progression": "MAINTAINED",
+      "false_shared_memory": "0/4",
+      "system_meta_leak": "0/4"
+    },
+    "F": {
+      "n": 4,
+      "mean": 92.5,
+      "median": 93,
+      "minimum": 89,
+      "maximum": 94,
+      "severe_takeover": "0/4",
+      "severe_count": 0,
+      "moderate_agency": "1/4",
+      "moderate_count": 1,
+      "over_freeze": "0/4",
+      "over_freeze_count": 0,
+      "clean_outputs": "3/4",
+      "clean_count": 3,
+      "blind_preference_wins": "3/4",
+      "blind_preference_wins_count": 3,
+      "median_total_visible_chars": 2926,
+      "ge_2400": 4,
+      "average_raw_api_cost_krw": 130.78,
+      "action_outputs": 2,
+      "meaningful_ai_owned_action_progression": "MAINTAINED",
+      "false_shared_memory": "0/4",
+      "system_meta_leak": "0/4"
+    }
+  },
+  "visible_char_delta_F_minus_E": 622,
+  "cells": [
+    {
+      "scenario_id": "s2_blanket_compliance",
+      "turn": 1,
+      "side": "A",
+      "arm": "E",
+      "score": 92,
+      "severe": false,
+      "moderate": false,
+      "over_freeze": false,
+      "false_shared_memory": false,
+      "system_meta_leak": false,
+      "blind_preference_side": "B",
+      "won_blind_preference": false,
+      "kind": "instruction",
+      "total_visible_chars": 1969,
+      "api_raw_cost_krw": 149.2
+    },
+    {
+      "scenario_id": "s2_blanket_compliance",
+      "turn": 1,
+      "side": "B",
+      "arm": "F",
+      "score": 93,
+      "severe": false,
+      "moderate": false,
+      "over_freeze": false,
+      "false_shared_memory": false,
+      "system_meta_leak": false,
+      "blind_preference_side": "B",
+      "won_blind_preference": true,
+      "kind": "instruction",
+      "total_visible_chars": 2926,
+      "api_raw_cost_krw": 132.2
+    },
+    {
+      "scenario_id": "s2_blanket_compliance",
+      "turn": 2,
+      "side": "A",
+      "arm": "F",
+      "score": 94,
+      "severe": false,
+      "moderate": false,
+      "over_freeze": false,
+      "false_shared_memory": false,
+      "system_meta_leak": false,
+      "blind_preference_side": "A",
+      "won_blind_preference": true,
+      "kind": "instruction",
+      "total_visible_chars": 3144,
+      "api_raw_cost_krw": 124.4
+    },
+    {
+      "scenario_id": "s2_blanket_compliance",
+      "turn": 2,
+      "side": "B",
+      "arm": "E",
+      "score": 92,
+      "severe": false,
+      "moderate": false,
+      "over_freeze": false,
+      "false_shared_memory": false,
+      "system_meta_leak": false,
+      "blind_preference_side": "A",
+      "won_blind_preference": false,
+      "kind": "instruction",
+      "total_visible_chars": 2304,
+      "api_raw_cost_krw": 101
+    },
+    {
+      "scenario_id": "s6_action_combat_1_regression",
+      "turn": 1,
+      "side": "A",
+      "arm": "F",
+      "score": 89,
+      "severe": false,
+      "moderate": true,
+      "over_freeze": false,
+      "false_shared_memory": false,
+      "system_meta_leak": false,
+      "blind_preference_side": "B",
+      "won_blind_preference": false,
+      "kind": "action",
+      "total_visible_chars": 2845,
+      "api_raw_cost_krw": 133.8
+    },
+    {
+      "scenario_id": "s6_action_combat_1_regression",
+      "turn": 1,
+      "side": "B",
+      "arm": "E",
+      "score": 93,
+      "severe": false,
+      "moderate": true,
+      "over_freeze": false,
+      "false_shared_memory": false,
+      "system_meta_leak": false,
+      "blind_preference_side": "B",
+      "won_blind_preference": true,
+      "kind": "action",
+      "total_visible_chars": 3211,
+      "api_raw_cost_krw": 141.4
+    },
+    {
+      "scenario_id": "s6_action_combat_1_regression",
+      "turn": 2,
+      "side": "A",
+      "arm": "F",
+      "score": 94,
+      "severe": false,
+      "moderate": false,
+      "over_freeze": false,
+      "false_shared_memory": false,
+      "system_meta_leak": false,
+      "blind_preference_side": "A",
+      "won_blind_preference": true,
+      "kind": "action",
+      "total_visible_chars": 3070,
+      "api_raw_cost_krw": 132.7
+    },
+    {
+      "scenario_id": "s6_action_combat_1_regression",
+      "turn": 2,
+      "side": "B",
+      "arm": "E",
+      "score": 92,
+      "severe": false,
+      "moderate": false,
+      "over_freeze": false,
+      "false_shared_memory": false,
+      "system_meta_leak": false,
+      "blind_preference_side": "A",
+      "won_blind_preference": false,
+      "kind": "action",
+      "total_visible_chars": 3135,
+      "api_raw_cost_krw": 140.1
+    }
+  ],
+  "pass_gates": {
+    "F_severe_0": true,
+    "F_over_freeze_0": true,
+    "F_median_chars_ge_E_plus_200": true,
+    "F_mean_ge_E_minus_2": true,
+    "meaningful_ai_owned_action_progression": true,
+    "char_delta": 622,
+    "mean_delta_F_minus_E": 0.25
+  },
+  "safety": {
+    "phase2": false,
+    "production_db_apply": false,
+    "general_rollout": false,
+    "auto_merge": false,
+    "auto_deploy": false
+  }
+}

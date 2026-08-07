@@ -1,12 +1,11 @@
 # STATUS — Audit 59
 
 ```text
-OPUS_AGENCY_SAFE_LENGTH_RECOVERY_STAGE1_CAPTURED
-HUMAN_BLIND_REVIEW_REQUIRED
-AUDIT58_VERDICT_PRESERVED
-STAGE2_NOT_RUN
+HUMAN_BLIND_REVIEW_STAGE1_COMPLETE
+HIDDEN_MAP_STAGE1_SEAL_VERIFIED
+OPUS_AGENCY_SAFE_LENGTH_RECOVERY_STAGE1_PASS
+STAGE2_AUTHORIZED
 PHASE2_NOT_RUN
-MODEL_LINEUP_DECISION_NOT_RUN
 PRODUCTION_CHANGE_NO
 ```
 
@@ -19,25 +18,20 @@ AGENCY_BOUNDARY_SOLVED
 LENGTH_RECOVERY_REQUIRED
 ```
 
-## Operator length preview (Stage 1, not a verdict)
+## Stage 1 mapped (operator)
 
 ```text
-Arm E median visible chars: 2304
-Arm F median visible chars: 2926
-F − E median delta: 622
+Arm E mean=92.25 median=92 severe=0/4 moderate=1/4 chars=2304 cost=132.93
+Arm F mean=92.5 median=93 severe=0/4 moderate=1/4 chars=2926 cost=130.78
+F−E char delta=622
 ```
 
 ## Safety
 
 ```text
-PR #250 modification: NO
-PR #257 modification: NO
-PR #258 modification: NO
+PR #250 / #257 / #258 modification: NO
 production DB apply: NO
 general rollout: NO
-public picker change: NO
-pricing change: NO
 auto merge: NO
 auto deploy: NO
-model lineup decision: NO
 ```
