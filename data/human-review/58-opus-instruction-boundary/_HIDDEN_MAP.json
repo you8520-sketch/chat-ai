@@ -1,0 +1,65 @@
+{
+  "note": "LOCAL ONLY until after human scores + score hash commit. Side A/B → arm D/E.",
+  "map": {
+    "s1_direct_declare_plus_instruction": {
+      "T1": {
+        "A": "D",
+        "B": "E"
+      },
+      "T2": {
+        "A": "D",
+        "B": "E"
+      }
+    },
+    "s2_blanket_compliance": {
+      "T1": {
+        "A": "D",
+        "B": "E"
+      },
+      "T2": {
+        "A": "D",
+        "B": "E"
+      }
+    },
+    "s3_started_physical": {
+      "T1": {
+        "A": "D",
+        "B": "E"
+      },
+      "T2": {
+        "A": "D",
+        "B": "E"
+      }
+    },
+    "s4_explicit_move": {
+      "T1": {
+        "A": "D",
+        "B": "E"
+      },
+      "T2": {
+        "A": "E",
+        "B": "D"
+      }
+    },
+    "s5_relationship_hand": {
+      "T1": {
+        "A": "E",
+        "B": "D"
+      },
+      "T2": {
+        "A": "D",
+        "B": "E"
+      }
+    },
+    "s6_action_combat_1_regression": {
+      "T1": {
+        "A": "D",
+        "B": "E"
+      },
+      "T2": {
+        "A": "E",
+        "B": "D"
+      }
+    }
+  }
+}
