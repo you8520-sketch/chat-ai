@@ -428,6 +428,7 @@ import {
   createInitialStreamBuffer,
   decideAdultModelRoute,
   detectModelRefusal,
+  extractHandoffContinuityFromAssistantText,
   normalizeAdultDialogueProfile,
   parseModelRouteState,
   resolveAdultEligibility,
@@ -983,12 +984,14 @@ export async function POST(req: Request) {
     }),
   };
   const baseAdultModelPolicyConfig = resolveAdultSceneModelPolicyConfig();
+  // Admin canary uses confirmed DeepSeek adult primary + GLM hard-failure.
+  // Do not force legacy Aion primary (KEEP_CURRENT_ADULT_MODEL = deepseek-v4-pro).
   const adultModelPolicyConfig = adultHandoffCanaryAccess
     ? {
         ...baseAdultModelPolicyConfig,
-        aionPrimaryEnabled: true,
+        aionPrimaryEnabled: false,
         glmHardFailureFallbackEnabled: true,
-        adminOnly: true,
+        adminOnly: false,
       }
     : baseAdultModelPolicyConfig;
   const adultModelPolicyActive = isAdultSceneModelPolicyActive({
@@ -1928,6 +1931,17 @@ export async function POST(req: Request) {
       openRouterSystemSplitForTurn = patchOpenRouterSplitForStatusWidget(openRouterSystemSplitForTurn);
     }
   }
+  const priorAssistantForHandoff =
+    [...turnsForRecentHistory]
+      .reverse()
+      .map((turn) => turn.assistant?.trim?.() ?? "")
+      .find((text) => text.length > 0) ?? "";
+  const extractedHandoffContinuity = extractHandoffContinuityFromAssistantText({
+    text: priorAssistantForHandoff,
+    characterName: ch.name,
+    personaName: personaDisplayName,
+    currentUserText: storedUserMessage,
+  });
   const continuityPacket = buildSceneContinuityPacket({
     previousSceneMode: priorModelRouteState.currentSceneMode,
     sexualContextActive:
@@ -1936,6 +1950,7 @@ export async function POST(req: Request) {
     activeConsentMode: requestedConsentMode,
     charactersPresent: [ch.name, personaDisplayName],
     currentPov: contextBuildInput.narrativePov,
+    ...extractedHandoffContinuity,
   });
   if (
     adultRoutingConfig.enabled &&
@@ -2483,14 +2498,14 @@ export async function POST(req: Request) {
             adultRouteDecision.activeRoute === "general" &&
             adultRouteDecision.refusalBufferRecommended &&
             fallbackAdultContext != null;
-          const shouldBufferAionForHardFailure =
-            adultModelPolicyActive &&
+          const shouldBufferAdultForHardFailure =
             adultModelPolicyConfig.glmHardFailureFallbackEnabled &&
             adultRouteDecision.activeRoute === "adult" &&
-            isAion20Model(deliveredModelId);
+            (isDeepSeekV4ProModel(deliveredModelId) ||
+              isAion20Model(deliveredModelId));
           const streamGate = createInitialStreamBuffer(
             send,
-            shouldBufferGeneral || shouldBufferAionForHardFailure
+            shouldBufferGeneral || shouldBufferAdultForHardFailure
               ? adultRoutingConfig.initialStreamBufferChars
               : 0
           );
@@ -2609,9 +2624,12 @@ export async function POST(req: Request) {
             return fallbackResult;
           };
 
-          const canFallbackAionHardFailure = (reason: ReturnType<typeof classifyAdultSceneHardFailure>) =>
+          const canFallbackAdultHardFailure = (
+            reason: ReturnType<typeof classifyAdultSceneHardFailure>
+          ) =>
             deliveredActiveRoute === "adult" &&
-            isAion20Model(deliveredModelId) &&
+            (isDeepSeekV4ProModel(deliveredModelId) ||
+              isAion20Model(deliveredModelId)) &&
             !streamGate.hasVisibleTokens() &&
             shouldFallbackToGlm({
               config: adultModelPolicyConfig,
@@ -2635,7 +2653,7 @@ export async function POST(req: Request) {
               selectedModel: CHEAPER_INFERENCE_GLM_52_MODEL as SelectedAI,
               provider: "cheaperinference",
               adultRoute: true,
-              requestKind: "adult-aion-hard-failure-fallback",
+              requestKind: "adult-hard-failure-fallback",
             });
             aionHardFailureFallbackSucceeded = true;
             deliveredSelectedAI = CHEAPER_INFERENCE_GLM_52_MODEL as SelectedAI;
@@ -2667,7 +2685,7 @@ export async function POST(req: Request) {
                 error: primaryError,
                 refusalDetected: refusal.refused,
               });
-              if (canFallbackAionHardFailure(hardFailure)) {
+              if (canFallbackAdultHardFailure(hardFailure)) {
                 result = await runGlmHardFailureFallback(hardFailure!);
               } else {
                 streamGate.flush();
@@ -2676,7 +2694,11 @@ export async function POST(req: Request) {
             }
           }
 
-          if (!aionHardFailureFallbackSucceeded && isAion20Model(deliveredModelId)) {
+          if (
+            !aionHardFailureFallbackSucceeded &&
+            (isDeepSeekV4ProModel(deliveredModelId) ||
+              isAion20Model(deliveredModelId))
+          ) {
             const refusal = detectModelRefusal({
               text: result.text,
               finishReason: result.stage.finishReason,
@@ -2686,7 +2708,7 @@ export async function POST(req: Request) {
               finishReason: result.stage.finishReason,
               refusalDetected: refusal.refused,
             });
-            if (canFallbackAionHardFailure(hardFailure)) {
+            if (canFallbackAdultHardFailure(hardFailure)) {
               hiddenFallbackOverheadCostUsd = result.stage.upstreamCostUsd ?? 0;
               result = await runGlmHardFailureFallback(hardFailure!);
             }
@@ -3507,6 +3529,29 @@ export async function POST(req: Request) {
             visibleChars: resolveVisibleTierCharCount(savedText),
             htmlFlashOnly: htmlFlashOnlyTurn,
             totalChars: savedText.length,
+          });
+          generationFailure = null;
+        }
+
+        // Adult scene explicit exit (OOC stop / clear transition) may return a short
+        // general-model acknowledgment. Do not fail the handoff return as under_length.
+        const adultExplicitExitThisTurn =
+          priorModelRouteState.activeRoute === "adult" &&
+          deliveredActiveRoute === "general" &&
+          (adultRouteDecision.routeTriggerReason === "user_ooc_stop" ||
+            adultRouteDecision.routeTriggerReason === "clear_scene_transition" ||
+            sceneClassification.oocStop ||
+            sceneClassification.clearSceneTransition);
+        if (
+          generationFailure === "under_length" &&
+          adultExplicitExitThisTurn &&
+          savedText.trim().length > 0 &&
+          (primaryStage?.finishReason ?? "").toLowerCase() === "stop"
+        ) {
+          console.warn("[/api/chat] under_length waived — adult explicit scene exit", {
+            outputChars: savedText.length,
+            routeTriggerReason: adultRouteDecision.routeTriggerReason,
+            deliveredModelId,
           });
           generationFailure = null;
         }

@@ -35,9 +35,10 @@ export function resolveAdultSceneHandoffCanaryConfig(
       env.ADULT_SCENE_HANDOFF_ADMIN_CANARY,
       false
     ),
+    // Default OFF until separate general-user activation approval.
     generalEnabled: envFlag(
       env.ADULT_SCENE_HANDOFF_GENERAL_ENABLED,
-      true
+      false
     ),
     allowedAdminUserIds: parseIdSet(
       env.ADULT_SCENE_HANDOFF_ADMIN_USER_IDS

@@ -7,6 +7,7 @@ import {
   DEFAULT_MODEL_ROUTE_STATE,
   classifySceneMode,
   decideAdultModelRoute,
+  extractHandoffContinuityFromAssistantText,
   resolveAdultEligibility,
   resolveAdultRoutingConfig,
   type ModelRouteState,
@@ -42,7 +43,7 @@ const config = resolveAdultRoutingConfig({
 assert.equal(
   resolveAdultRoutingConfig({}).enabled,
   true,
-  "adult-scene routing must default on for the approved general rollout"
+  "adult-scene routing master switch defaults on; general-user gate stays separate"
 );
 const eligibility = resolveAdultEligibility({
   userAdultVerified: true,
@@ -178,4 +179,29 @@ it("routes general → adult entry → sticky adult → explicit exit back to ge
         classification.oocStop || classification.clearSceneTransition,
     });
   });
+});
+
+it("extracts actor/target contact direction to block handoff inversion", () => {
+  const extracted = extractHandoffContinuityFromAssistantText({
+    text: "호텔 침실에서 라이크가 렌의 허리를 감싸 안았다. 「괜찮아?」",
+    characterName: "라이크",
+    personaName: "렌",
+  });
+  assert.equal(extracted.previousActionActor, "라이크");
+  assert.equal(extracted.previousActionTarget, "렌");
+  assert.match(extracted.contactDirection ?? "", /라이크 → 렌/);
+  assert.ok(extracted.location);
+  assert.equal(extracted.currentSpeechState, "괜찮아?");
+});
+
+it("uses user-stated waist wrap as character→persona contact direction", () => {
+  const extracted = extractHandoffContinuityFromAssistantText({
+    text: "호텔 거실 조명이 낮았다.",
+    characterName: "밤의 비서실장",
+    personaName: "렌",
+    currentUserText: "내 허리를 감싼 손길을 느끼며 더 가까이 간다.",
+  });
+  assert.equal(extracted.previousActionTarget, "렌");
+  assert.ok(extracted.previousActionActor);
+  assert.match(extracted.contactDirection ?? "", /→ 렌 contact/);
 });
