@@ -1,0 +1,816 @@
+{
+  "status": {
+    "HUMAN_BLIND_REVIEW_COMPLETE": true,
+    "HIDDEN_MAP_SEAL_VERIFIED": true,
+    "hidden_map_expected_seal": "ad064b0345e2c50be5043482949764bca22d92986795f8749a41c52e1b520ea7",
+    "hidden_map_actual_sha256": "ad064b0345e2c50be5043482949764bca22d92986795f8749a41c52e1b520ea7",
+    "arm_d_verdict": "OPUS_UNIFIED_TERMINAL_PHASE1_FAIL",
+    "fail_reasons": [
+      "severe_takeover=2/12",
+      "mean=83.42<85",
+      "category_action_mean=71.50<80",
+      "action_meaningful=2/4<3"
+    ],
+    "fail_types": [
+      "D severe takeover in instruction-following scenes",
+      "D action-result failure"
+    ],
+    "phase2": "NOT_RUN",
+    "PHASE2_READY": false
+  },
+  "side_to_arm_mapping": {
+    "rel_start": {
+      "T1": {
+        "A": "D",
+        "B": "B",
+        "C": "A"
+      },
+      "T2": {
+        "A": "A",
+        "B": "D",
+        "C": "B"
+      }
+    },
+    "rel_conflict": {
+      "T1": {
+        "A": "D",
+        "B": "B",
+        "C": "A"
+      },
+      "T2": {
+        "A": "B",
+        "B": "A",
+        "C": "D"
+      }
+    },
+    "quiet_daily": {
+      "T1": {
+        "A": "A",
+        "B": "D",
+        "C": "B"
+      },
+      "T2": {
+        "A": "B",
+        "B": "A",
+        "C": "D"
+      }
+    },
+    "action_combat_1": {
+      "T1": {
+        "A": "D",
+        "B": "A",
+        "C": "B"
+      },
+      "T2": {
+        "A": "A",
+        "B": "D",
+        "C": "B"
+      }
+    },
+    "action_combat_2": {
+      "T1": {
+        "A": "A",
+        "B": "D",
+        "C": "B"
+      },
+      "T2": {
+        "A": "A",
+        "B": "B",
+        "C": "D"
+      }
+    },
+    "memory_continuity": {
+      "T1": {
+        "A": "D",
+        "B": "B",
+        "C": "A"
+      },
+      "T2": {
+        "A": "A",
+        "B": "D",
+        "C": "B"
+      }
+    }
+  },
+  "pairwise_D_over_B": {
+    "wins": 9,
+    "losses": 3,
+    "rate": 0.75,
+    "pairs": [
+      {
+        "scenario": "rel_start",
+        "turn": 1,
+        "winner": "D",
+        "order": [
+          "A",
+          "C",
+          "B"
+        ],
+        "sideD": "A",
+        "sideB": "B",
+        "scoreD": 91,
+        "scoreB": 84
+      },
+      {
+        "scenario": "rel_start",
+        "turn": 2,
+        "winner": "D",
+        "order": [
+          "B",
+          "C",
+          "A"
+        ],
+        "sideD": "B",
+        "sideB": "C",
+        "scoreD": 92,
+        "scoreB": 84
+      },
+      {
+        "scenario": "rel_conflict",
+        "turn": 1,
+        "winner": "D",
+        "order": [
+          "A",
+          "C",
+          "B"
+        ],
+        "sideD": "A",
+        "sideB": "B",
+        "scoreD": 94,
+        "scoreB": 78
+      },
+      {
+        "scenario": "rel_conflict",
+        "turn": 2,
+        "winner": "D",
+        "order": [
+          "B",
+          "C",
+          "A"
+        ],
+        "sideD": "C",
+        "sideB": "A",
+        "scoreD": 92,
+        "scoreB": 84
+      },
+      {
+        "scenario": "quiet_daily",
+        "turn": 1,
+        "winner": "D",
+        "order": [
+          "A",
+          "B",
+          "C"
+        ],
+        "sideD": "B",
+        "sideB": "C",
+        "scoreD": 84,
+        "scoreB": 78
+      },
+      {
+        "scenario": "quiet_daily",
+        "turn": 2,
+        "winner": "D",
+        "order": [
+          "B",
+          "C",
+          "A"
+        ],
+        "sideD": "C",
+        "sideB": "A",
+        "scoreD": 88,
+        "scoreB": 86
+      },
+      {
+        "scenario": "action_combat_1",
+        "turn": 1,
+        "winner": "D",
+        "order": [
+          "B",
+          "A",
+          "C"
+        ],
+        "sideD": "A",
+        "sideB": "C",
+        "scoreD": 89,
+        "scoreB": 80
+      },
+      {
+        "scenario": "action_combat_1",
+        "turn": 2,
+        "winner": "D",
+        "order": [
+          "B",
+          "A",
+          "C"
+        ],
+        "sideD": "B",
+        "sideB": "C",
+        "scoreD": 94,
+        "scoreB": 82
+      },
+      {
+        "scenario": "action_combat_2",
+        "turn": 1,
+        "winner": "B",
+        "order": [
+          "C",
+          "A",
+          "B"
+        ],
+        "sideD": "B",
+        "sideB": "C",
+        "scoreD": 55,
+        "scoreB": 85
+      },
+      {
+        "scenario": "action_combat_2",
+        "turn": 2,
+        "winner": "B",
+        "order": [
+          "B",
+          "A",
+          "C"
+        ],
+        "sideD": "C",
+        "sideB": "B",
+        "scoreD": 48,
+        "scoreB": 87
+      },
+      {
+        "scenario": "memory_continuity",
+        "turn": 1,
+        "winner": "B",
+        "order": [
+          "C",
+          "B",
+          "A"
+        ],
+        "sideD": "A",
+        "sideB": "B",
+        "scoreD": 82,
+        "scoreB": 85
+      },
+      {
+        "scenario": "memory_continuity",
+        "turn": 2,
+        "winner": "D",
+        "order": [
+          "B",
+          "A",
+          "C"
+        ],
+        "sideD": "B",
+        "sideB": "C",
+        "scoreD": 92,
+        "scoreB": 85
+      }
+    ]
+  },
+  "arms": {
+    "A": {
+      "outputs": 12,
+      "scores": [
+        88,
+        56,
+        87,
+        94,
+        86,
+        90,
+        91,
+        91,
+        82,
+        50,
+        88,
+        89
+      ],
+      "mean": 82.66666666666667,
+      "median": 88.0,
+      "min": 50,
+      "max": 94,
+      "p10": 58.6,
+      "severe": 2,
+      "moderate": 5,
+      "clean": 5,
+      "category_mean": {
+        "relationship": 81.25,
+        "quiet": 88,
+        "action": 78.5,
+        "memory": 88.5
+      },
+      "median_total_visible_chars": 2826.0,
+      "ge_2400": 11,
+      "avg_api_raw_cost_krw": 135.99166666666667,
+      "cost_per_85plus_output": 138.97777777777776
+    },
+    "B": {
+      "outputs": 12,
+      "scores": [
+        84,
+        84,
+        78,
+        84,
+        78,
+        86,
+        80,
+        82,
+        85,
+        87,
+        85,
+        85
+      ],
+      "mean": 83.16666666666667,
+      "median": 84.0,
+      "min": 78,
+      "max": 87,
+      "p10": 78.2,
+      "severe": 0,
+      "moderate": 4,
+      "clean": 8,
+      "category_mean": {
+        "relationship": 82.5,
+        "quiet": 82,
+        "action": 83.5,
+        "memory": 85
+      },
+      "median_total_visible_chars": 1041.0,
+      "ge_2400": 0,
+      "avg_api_raw_cost_krw": 51.05,
+      "cost_per_85plus_output": 53.839999999999996
+    },
+    "D": {
+      "outputs": 12,
+      "scores": [
+        91,
+        92,
+        94,
+        92,
+        84,
+        88,
+        89,
+        94,
+        55,
+        48,
+        82,
+        92
+      ],
+      "mean": 83.41666666666667,
+      "median": 90.0,
+      "min": 48,
+      "max": 94,
+      "p10": 57.7,
+      "severe": 2,
+      "moderate": 1,
+      "clean": 9,
+      "category_mean": {
+        "relationship": 92.25,
+        "quiet": 86,
+        "action": 71.5,
+        "memory": 87
+      },
+      "median_total_visible_chars": 3024.5,
+      "ge_2400": 12,
+      "avg_api_raw_cost_krw": 124.71666666666667,
+      "cost_per_85plus_output": 126.6625
+    }
+  },
+  "mapped_cells": [
+    {
+      "scenario_id": "rel_start",
+      "turn": 1,
+      "side": "A",
+      "arm": "D",
+      "score": 91,
+      "severe": false,
+      "moderate": false,
+      "total_visible_chars": 3047,
+      "api_raw_cost_krw": 112.9,
+      "category": "relationship"
+    },
+    {
+      "scenario_id": "rel_start",
+      "turn": 1,
+      "side": "B",
+      "arm": "B",
+      "score": 84,
+      "severe": false,
+      "moderate": false,
+      "total_visible_chars": 1389,
+      "api_raw_cost_krw": 60.3,
+      "category": "relationship"
+    },
+    {
+      "scenario_id": "rel_start",
+      "turn": 1,
+      "side": "C",
+      "arm": "A",
+      "score": 88,
+      "severe": false,
+      "moderate": false,
+      "total_visible_chars": 3340,
+      "api_raw_cost_krw": 197.1,
+      "category": "relationship"
+    },
+    {
+      "scenario_id": "rel_start",
+      "turn": 2,
+      "side": "A",
+      "arm": "A",
+      "score": 56,
+      "severe": true,
+      "moderate": false,
+      "total_visible_chars": 2890,
+      "api_raw_cost_krw": 124.3,
+      "category": "relationship"
+    },
+    {
+      "scenario_id": "rel_start",
+      "turn": 2,
+      "side": "B",
+      "arm": "D",
+      "score": 92,
+      "severe": false,
+      "moderate": false,
+      "total_visible_chars": 3320,
+      "api_raw_cost_krw": 139.2,
+      "category": "relationship"
+    },
+    {
+      "scenario_id": "rel_start",
+      "turn": 2,
+      "side": "C",
+      "arm": "B",
+      "score": 84,
+      "severe": false,
+      "moderate": true,
+      "total_visible_chars": 1573,
+      "api_raw_cost_krw": 79.8,
+      "category": "relationship"
+    },
+    {
+      "scenario_id": "rel_conflict",
+      "turn": 1,
+      "side": "A",
+      "arm": "D",
+      "score": 94,
+      "severe": false,
+      "moderate": false,
+      "total_visible_chars": 2971,
+      "api_raw_cost_krw": 108.9,
+      "category": "relationship"
+    },
+    {
+      "scenario_id": "rel_conflict",
+      "turn": 1,
+      "side": "B",
+      "arm": "B",
+      "score": 78,
+      "severe": false,
+      "moderate": true,
+      "total_visible_chars": 760,
+      "api_raw_cost_krw": 34.7,
+      "category": "relationship"
+    },
+    {
+      "scenario_id": "rel_conflict",
+      "turn": 1,
+      "side": "C",
+      "arm": "A",
+      "score": 87,
+      "severe": false,
+      "moderate": true,
+      "total_visible_chars": 2667,
+      "api_raw_cost_krw": 127.1,
+      "category": "relationship"
+    },
+    {
+      "scenario_id": "rel_conflict",
+      "turn": 2,
+      "side": "A",
+      "arm": "B",
+      "score": 84,
+      "severe": false,
+      "moderate": true,
+      "total_visible_chars": 1024,
+      "api_raw_cost_krw": 39.5,
+      "category": "relationship"
+    },
+    {
+      "scenario_id": "rel_conflict",
+      "turn": 2,
+      "side": "B",
+      "arm": "A",
+      "score": 94,
+      "severe": false,
+      "moderate": false,
+      "total_visible_chars": 2959,
+      "api_raw_cost_krw": 138.8,
+      "category": "relationship"
+    },
+    {
+      "scenario_id": "rel_conflict",
+      "turn": 2,
+      "side": "C",
+      "arm": "D",
+      "score": 92,
+      "severe": false,
+      "moderate": false,
+      "total_visible_chars": 2903,
+      "api_raw_cost_krw": 115,
+      "category": "relationship"
+    },
+    {
+      "scenario_id": "quiet_daily",
+      "turn": 1,
+      "side": "A",
+      "arm": "A",
+      "score": 86,
+      "severe": false,
+      "moderate": true,
+      "total_visible_chars": 2865,
+      "api_raw_cost_krw": 125.6,
+      "category": "quiet"
+    },
+    {
+      "scenario_id": "quiet_daily",
+      "turn": 1,
+      "side": "B",
+      "arm": "D",
+      "score": 84,
+      "severe": false,
+      "moderate": false,
+      "total_visible_chars": 2658,
+      "api_raw_cost_krw": 91.6,
+      "category": "quiet"
+    },
+    {
+      "scenario_id": "quiet_daily",
+      "turn": 1,
+      "side": "C",
+      "arm": "B",
+      "score": 78,
+      "severe": false,
+      "moderate": false,
+      "total_visible_chars": 623,
+      "api_raw_cost_krw": 28.8,
+      "category": "quiet"
+    },
+    {
+      "scenario_id": "quiet_daily",
+      "turn": 2,
+      "side": "A",
+      "arm": "B",
+      "score": 86,
+      "severe": false,
+      "moderate": false,
+      "total_visible_chars": 703,
+      "api_raw_cost_krw": 31.6,
+      "category": "quiet"
+    },
+    {
+      "scenario_id": "quiet_daily",
+      "turn": 2,
+      "side": "B",
+      "arm": "A",
+      "score": 90,
+      "severe": false,
+      "moderate": false,
+      "total_visible_chars": 2630,
+      "api_raw_cost_krw": 109.7,
+      "category": "quiet"
+    },
+    {
+      "scenario_id": "quiet_daily",
+      "turn": 2,
+      "side": "C",
+      "arm": "D",
+      "score": 88,
+      "severe": false,
+      "moderate": false,
+      "total_visible_chars": 3002,
+      "api_raw_cost_krw": 123.7,
+      "category": "quiet"
+    },
+    {
+      "scenario_id": "action_combat_1",
+      "turn": 1,
+      "side": "A",
+      "arm": "D",
+      "score": 89,
+      "severe": false,
+      "moderate": false,
+      "total_visible_chars": 2761,
+      "api_raw_cost_krw": 125.7,
+      "category": "action"
+    },
+    {
+      "scenario_id": "action_combat_1",
+      "turn": 1,
+      "side": "B",
+      "arm": "A",
+      "score": 91,
+      "severe": false,
+      "moderate": true,
+      "total_visible_chars": 2575,
+      "api_raw_cost_krw": 128.3,
+      "category": "action"
+    },
+    {
+      "scenario_id": "action_combat_1",
+      "turn": 1,
+      "side": "C",
+      "arm": "B",
+      "score": 80,
+      "severe": false,
+      "moderate": false,
+      "total_visible_chars": 1024,
+      "api_raw_cost_krw": 47.3,
+      "category": "action"
+    },
+    {
+      "scenario_id": "action_combat_1",
+      "turn": 2,
+      "side": "A",
+      "arm": "A",
+      "score": 91,
+      "severe": false,
+      "moderate": true,
+      "total_visible_chars": 2489,
+      "api_raw_cost_krw": 114,
+      "category": "action"
+    },
+    {
+      "scenario_id": "action_combat_1",
+      "turn": 2,
+      "side": "B",
+      "arm": "D",
+      "score": 94,
+      "severe": false,
+      "moderate": false,
+      "total_visible_chars": 3296,
+      "api_raw_cost_krw": 137.6,
+      "category": "action"
+    },
+    {
+      "scenario_id": "action_combat_1",
+      "turn": 2,
+      "side": "C",
+      "arm": "B",
+      "score": 82,
+      "severe": false,
+      "moderate": true,
+      "total_visible_chars": 1120,
+      "api_raw_cost_krw": 53,
+      "category": "action"
+    },
+    {
+      "scenario_id": "action_combat_2",
+      "turn": 1,
+      "side": "A",
+      "arm": "A",
+      "score": 82,
+      "severe": false,
+      "moderate": true,
+      "total_visible_chars": 2787,
+      "api_raw_cost_krw": 121.6,
+      "category": "action"
+    },
+    {
+      "scenario_id": "action_combat_2",
+      "turn": 1,
+      "side": "B",
+      "arm": "D",
+      "score": 55,
+      "severe": true,
+      "moderate": false,
+      "total_visible_chars": 3345,
+      "api_raw_cost_krw": 129.8,
+      "category": "action"
+    },
+    {
+      "scenario_id": "action_combat_2",
+      "turn": 1,
+      "side": "C",
+      "arm": "B",
+      "score": 85,
+      "severe": false,
+      "moderate": false,
+      "total_visible_chars": 961,
+      "api_raw_cost_krw": 37.7,
+      "category": "action"
+    },
+    {
+      "scenario_id": "action_combat_2",
+      "turn": 2,
+      "side": "A",
+      "arm": "A",
+      "score": 50,
+      "severe": true,
+      "moderate": false,
+      "total_visible_chars": 2999,
+      "api_raw_cost_krw": 135.2,
+      "category": "action"
+    },
+    {
+      "scenario_id": "action_combat_2",
+      "turn": 2,
+      "side": "B",
+      "arm": "B",
+      "score": 87,
+      "severe": false,
+      "moderate": false,
+      "total_visible_chars": 1058,
+      "api_raw_cost_krw": 59.9,
+      "category": "action"
+    },
+    {
+      "scenario_id": "action_combat_2",
+      "turn": 2,
+      "side": "C",
+      "arm": "D",
+      "score": 48,
+      "severe": true,
+      "moderate": false,
+      "total_visible_chars": 3277,
+      "api_raw_cost_krw": 144.7,
+      "category": "action"
+    },
+    {
+      "scenario_id": "memory_continuity",
+      "turn": 1,
+      "side": "A",
+      "arm": "D",
+      "score": 82,
+      "severe": false,
+      "moderate": true,
+      "total_visible_chars": 2479,
+      "api_raw_cost_krw": 117.2,
+      "category": "memory"
+    },
+    {
+      "scenario_id": "memory_continuity",
+      "turn": 1,
+      "side": "B",
+      "arm": "B",
+      "score": 85,
+      "severe": false,
+      "moderate": false,
+      "total_visible_chars": 1344,
+      "api_raw_cost_krw": 72.5,
+      "category": "memory"
+    },
+    {
+      "scenario_id": "memory_continuity",
+      "turn": 1,
+      "side": "C",
+      "arm": "A",
+      "score": 88,
+      "severe": false,
+      "moderate": false,
+      "total_visible_chars": 2220,
+      "api_raw_cost_krw": 178.6,
+      "category": "memory"
+    },
+    {
+      "scenario_id": "memory_continuity",
+      "turn": 2,
+      "side": "A",
+      "arm": "A",
+      "score": 89,
+      "severe": false,
+      "moderate": false,
+      "total_visible_chars": 3200,
+      "api_raw_cost_krw": 131.6,
+      "category": "memory"
+    },
+    {
+      "scenario_id": "memory_continuity",
+      "turn": 2,
+      "side": "B",
+      "arm": "D",
+      "score": 92,
+      "severe": false,
+      "moderate": false,
+      "total_visible_chars": 3388,
+      "api_raw_cost_krw": 150.3,
+      "category": "memory"
+    },
+    {
+      "scenario_id": "memory_continuity",
+      "turn": 2,
+      "side": "C",
+      "arm": "B",
+      "score": 85,
+      "severe": false,
+      "moderate": false,
+      "total_visible_chars": 1397,
+      "api_raw_cost_krw": 67.5,
+      "category": "memory"
+    }
+  ],
+  "action_d_meaningful_proxy": {
+    "count": 2,
+    "total": 4,
+    "note": "non-severe action cells with score>=80"
+  }
+}
