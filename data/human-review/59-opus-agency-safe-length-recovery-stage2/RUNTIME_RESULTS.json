@@ -15,19 +15,5 @@
   "expected_outputs_this_stage": 4,
   "exclusions": [],
   "parity_cells": 4,
-  "length_preview": {
-    "E": {
-      "outputs": 2,
-      "median_total_visible_chars": 3104,
-      "ge_2400": 2,
-      "avg_api_raw_cost_krw": 133.45
-    },
-    "F": {
-      "outputs": 2,
-      "median_total_visible_chars": 2778,
-      "ge_2400": 2,
-      "avg_api_raw_cost_krw": 114.05000000000001
-    }
-  },
   "phase2": "NOT_RUN"
 }

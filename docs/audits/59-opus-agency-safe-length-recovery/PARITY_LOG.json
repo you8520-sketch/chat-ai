@@ -1,83 +1,41 @@
 [
   {
-    "scenario": "s2_blanket_compliance",
+    "scenario": "s5_relationship_hand",
     "turn": 1,
-    "stage": 1,
-    "base_prompt_hash_without_terminal": "ab31beb341c87a21207c33763ac5169549912428e1f95fc6b922251e1db2f5f9",
+    "stage": 2,
+    "base_prompt_hash_without_terminal": "103a68d3cace17590b5900f7d1ec139ae561d62114673ffa3f21d8c16a42a7bb",
     "terminal_hashes": {
       "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca",
       "F": "e851a9072fe4d18b3fae07395a622e8b451c448a92330103b1152a6edc4da482"
     }
   },
   {
-    "scenario": "s2_blanket_compliance",
+    "scenario": "s5_relationship_hand",
     "turn": 2,
-    "stage": 1,
+    "stage": 2,
     "arm_history": "E",
-    "base_prompt_hash_without_terminal": "6445df9c9082415bcb0f5c2df685a1d9cfbcc7580c16f93cb81ed8909b82b28c",
+    "base_prompt_hash_without_terminal": "5f1c519479cb3d541558a5aeff43d189768ed34759fb8f7d07a55e90fd4a7f85",
     "terminal_hashes": {
       "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca",
       "F": "e851a9072fe4d18b3fae07395a622e8b451c448a92330103b1152a6edc4da482"
     }
   },
   {
-    "scenario": "s2_blanket_compliance",
+    "scenario": "s5_relationship_hand",
     "turn": 1,
-    "stage": 1,
-    "base_prompt_hash_without_terminal": "ab31beb341c87a21207c33763ac5169549912428e1f95fc6b922251e1db2f5f9",
+    "stage": 2,
+    "base_prompt_hash_without_terminal": "103a68d3cace17590b5900f7d1ec139ae561d62114673ffa3f21d8c16a42a7bb",
     "terminal_hashes": {
       "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca",
       "F": "e851a9072fe4d18b3fae07395a622e8b451c448a92330103b1152a6edc4da482"
     }
   },
   {
-    "scenario": "s2_blanket_compliance",
+    "scenario": "s5_relationship_hand",
     "turn": 2,
-    "stage": 1,
+    "stage": 2,
     "arm_history": "F",
-    "base_prompt_hash_without_terminal": "5b4ef9cf23827ea9d57607d2579dc591e87f55974471d1ee9bf9ae266381fb3d",
-    "terminal_hashes": {
-      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca",
-      "F": "e851a9072fe4d18b3fae07395a622e8b451c448a92330103b1152a6edc4da482"
-    }
-  },
-  {
-    "scenario": "s6_action_combat_1_regression",
-    "turn": 1,
-    "stage": 1,
-    "base_prompt_hash_without_terminal": "88ba9cd81d6c71d5009dc15675f9acb6951c2ff336a019f6d2b0e880d060885f",
-    "terminal_hashes": {
-      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca",
-      "F": "e851a9072fe4d18b3fae07395a622e8b451c448a92330103b1152a6edc4da482"
-    }
-  },
-  {
-    "scenario": "s6_action_combat_1_regression",
-    "turn": 2,
-    "stage": 1,
-    "arm_history": "E",
-    "base_prompt_hash_without_terminal": "537b7880134d4ed48d25029f381dc71aca6e4b3551e01262f6514a23289faf2a",
-    "terminal_hashes": {
-      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca",
-      "F": "e851a9072fe4d18b3fae07395a622e8b451c448a92330103b1152a6edc4da482"
-    }
-  },
-  {
-    "scenario": "s6_action_combat_1_regression",
-    "turn": 1,
-    "stage": 1,
-    "base_prompt_hash_without_terminal": "88ba9cd81d6c71d5009dc15675f9acb6951c2ff336a019f6d2b0e880d060885f",
-    "terminal_hashes": {
-      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca",
-      "F": "e851a9072fe4d18b3fae07395a622e8b451c448a92330103b1152a6edc4da482"
-    }
-  },
-  {
-    "scenario": "s6_action_combat_1_regression",
-    "turn": 2,
-    "stage": 1,
-    "arm_history": "F",
-    "base_prompt_hash_without_terminal": "89ffe2bca8868ae8360f8a26ec26bcb281d6cc06da177270e5059d414d3b489b",
+    "base_prompt_hash_without_terminal": "9a6b92b555805909d7918f5cf166ec5a5d853c025249d71432749f4e453ade60",
     "terminal_hashes": {
       "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca",
       "F": "e851a9072fe4d18b3fae07395a622e8b451c448a92330103b1152a6edc4da482"
