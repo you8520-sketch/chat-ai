@@ -1,0 +1,19 @@
+{
+  "status": "OPUS_AGENCY_SAFE_LENGTH_RECOVERY_STAGE1_CAPTURED",
+  "stage": 1,
+  "human_review": "NOT_RUN — waiting for ChatGPT",
+  "audit58_preserved": {
+    "OPUS_INSTRUCTION_BOUNDARY_AGENCY_PASS": true,
+    "OPUS_INSTRUCTION_BOUNDARY_CANARY_OVERALL_FAIL_LENGTH": true,
+    "AGENCY_BOUNDARY_SOLVED": true,
+    "LENGTH_RECOVERY_REQUIRED": true
+  },
+  "stage2": "NOT_RUN unless Stage 1 passes after human review",
+  "model_lineup_decision": "NO",
+  "production_change": false,
+  "valid_outputs_this_stage": 8,
+  "expected_outputs_this_stage": 8,
+  "exclusions": [],
+  "parity_cells": 8,
+  "phase2": "NOT_RUN"
+}

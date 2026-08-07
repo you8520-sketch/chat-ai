@@ -1,0 +1,24 @@
+{
+  "stage": 1,
+  "byArm": {
+    "E": {
+      "outputs": 4,
+      "median_total_visible_chars": 2304,
+      "avg_total_visible_chars": 2654.75,
+      "ge_2400": 2,
+      "sum_api_raw_cost_krw": 531.7,
+      "avg_api_raw_cost_krw": 132.925,
+      "natural_stop_below_3200": 3
+    },
+    "F": {
+      "outputs": 4,
+      "median_total_visible_chars": 2926,
+      "avg_total_visible_chars": 2996.25,
+      "ge_2400": 4,
+      "sum_api_raw_cost_krw": 523.1,
+      "avg_api_raw_cost_krw": 130.775,
+      "natural_stop_below_3200": 4
+    }
+  },
+  "rows_count": 8
+}

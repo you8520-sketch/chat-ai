@@ -1,0 +1,15 @@
+{
+  "live_root": "/opt/cursor/artifacts/opus-agency-safe-length-recovery",
+  "stage": 1,
+  "model": "claude-opus-5",
+  "provider": "cheaperinference",
+  "base_branch": "cursor/standard-collaborative-lineup-6a91",
+  "parent_audit58_pr": 258,
+  "hidden_map_sha256": "417f4927cee92838474fc0b0251c05c39bbc2bf50717c1448ec092e69ba37e13",
+  "hidden_map_path_local": "/opt/cursor/artifacts/opus-agency-safe-length-recovery/_HIDDEN_MAP_STAGE1.json",
+  "past_outputs_reused": false,
+  "persona_id": 61,
+  "arm_e_terminal_sha256": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca",
+  "arm_f_terminal_sha256": "e851a9072fe4d18b3fae07395a622e8b451c448a92330103b1152a6edc4da482",
+  "exact_sentence_replacement": true
+}
