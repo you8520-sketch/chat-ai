@@ -80,7 +80,7 @@ Do **not** open `HIDDEN_MAP.json` before finishing blind scores.
 ### Adult entry user turn (identical for X and Y)
 
 ```text
-*그의 손이 내 허리를 감싸 안는다. 눈이 마주치고 거리가 사라진다.* 
+*그의 손이 내 허리를 감싸 안는다. 눈이 마주치고 거리가 사라진다.*
 
 “이대로 있어도 돼?”
 
@@ -265,7 +265,7 @@ Winner for this source: `X` / `Y` / `TIE`
 ### Adult entry user turn (identical for X and Y)
 
 ```text
-*그의 손이 내 허리를 감싸 안는다. 눈이 마주치고 거리가 사라진다.* 
+*그의 손이 내 허리를 감싸 안는다. 눈이 마주치고 거리가 사라진다.*
 
 “이대로 있어도 돼?”
 
@@ -485,7 +485,7 @@ Winner for this source: `X` / `Y` / `TIE`
 ### Adult entry user turn (identical for X and Y)
 
 ```text
-*그의 손이 내 허리를 감싸 안는다. 눈이 마주치고 거리가 사라진다.* 
+*그의 손이 내 허리를 감싸 안는다. 눈이 마주치고 거리가 사라진다.*
 
 “이대로 있어도 돼?”
 
