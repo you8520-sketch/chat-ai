@@ -1167,42 +1167,51 @@ export function extractHandoffContinuityFromAssistantText(input: {
     out.currentSpeechState = speechMatch[1].trim().slice(0, 80);
   }
 
-  const names = [characterName, personaName].filter((n) => n.length >= 1);
-  if (names.length === 2) {
-    const a = escapeRegExp(names[0]!);
-    const b = escapeRegExp(names[1]!);
-    const wrapPatterns: Array<{
-      re: RegExp;
-      actor: string;
-      target: string;
-      direction: string;
-    }> = [
-      {
-        re: new RegExp(
-          `${a}[이가은는]?\\s*${b}(?:의)?\\s*(?:허리|어깨|손목|손|허리춤)[을를]?\\s*(?:감싸|끌어|붙잡|잡)`,
-          "i"
-        ),
-        actor: names[0]!,
-        target: names[1]!,
-        direction: `${names[0]} → ${names[1]} contact`,
-      },
-      {
-        re: new RegExp(
-          `${b}[이가은는]?\\s*${a}(?:의)?\\s*(?:허리|어깨|손목|손|허리춤)[을를]?\\s*(?:감싸|끌어|붙잡|잡)`,
-          "i"
-        ),
-        actor: names[1]!,
-        target: names[0]!,
-        direction: `${names[1]} → ${names[0]} contact`,
-      },
-    ];
-    for (const pattern of wrapPatterns) {
-      if (pattern.re.test(text)) {
-        out.previousActionActor = pattern.actor;
-        out.previousActionTarget = pattern.target;
-        out.contactDirection = pattern.direction;
+  const persona = personaName.trim();
+  const namedActors = Array.from(
+    new Set(
+      [characterName, ...characterName.split(/\s+/)]
+        .map((n) => n.trim())
+        .filter((n) => n.length >= 2 && n !== persona)
+    )
+  );
+  if (persona) {
+    for (const actorName of namedActors) {
+      const a = escapeRegExp(actorName);
+      const b = escapeRegExp(persona);
+      const forward = new RegExp(
+        `${a}[이가은는]?\\s*${b}(?:의)?\\s*(?:허리|어깨|손목|손|허리춤)[을를]?\\s*(?:감싸|끌어|붙잡|잡)`,
+        "i"
+      );
+      const reverse = new RegExp(
+        `${b}[이가은는]?\\s*${a}(?:의)?\\s*(?:허리|어깨|손목|손|허리춤)[을를]?\\s*(?:감싸|끌어|붙잡|잡)`,
+        "i"
+      );
+      if (forward.test(text)) {
+        out.previousActionActor = actorName;
+        out.previousActionTarget = persona;
+        out.contactDirection = `${actorName} → ${persona} contact`;
         break;
       }
+      if (reverse.test(text)) {
+        out.previousActionActor = persona;
+        out.previousActionTarget = actorName;
+        out.contactDirection = `${persona} → ${actorName} contact`;
+        break;
+      }
+    }
+  }
+  // Fallback: any Korean name contacting the persona (e.g. 서이레 vs listing title).
+  if (!out.previousActionActor && persona) {
+    const b = escapeRegExp(persona);
+    const generic = new RegExp(
+      `([가-힣]{2,8})[이가은는]?\\s*${b}(?:의)?\\s*(?:허리|어깨|손목|손|허리춤)[을를]?\\s*(?:감싸|끌어|붙잡|잡)`
+    );
+    const m = text.match(generic);
+    if (m?.[1] && m[1] !== persona) {
+      out.previousActionActor = m[1];
+      out.previousActionTarget = persona;
+      out.contactDirection = `${m[1]} → ${persona} contact`;
     }
   }
 
