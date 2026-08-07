@@ -831,12 +831,32 @@ async function main() {
               `TERMINAL_HASH_IDENTICAL_FAIL ${scenario.id} — D/E must differ`
             );
           }
-          // Only terminal delta allowed in full prompt
-          const dMsgs = JSON.stringify(pre.D.messages);
-          const eMsgs = JSON.stringify(pre.E.messages);
+          // Only terminal delta allowed: strip terminal from last user content, then compare.
+          // (Do not string-replace on JSON.stringify — newlines are escaped.)
+          const stripTerminal = (
+            messages: ChatMsg[],
+            terminal: string
+          ): ChatMsg[] => {
+            const out = messages.map((m) => ({ ...m }));
+            for (let i = out.length - 1; i >= 0; i--) {
+              if (out[i]!.role !== "user") continue;
+              const c = String(out[i]!.content ?? "");
+              if (!c.endsWith(terminal)) {
+                throw new Error(
+                  `TERMINAL_NOT_ABSOLUTE_FINAL ${scenario.id} during strip`
+                );
+              }
+              out[i] = {
+                role: "user",
+                content: c.slice(0, c.length - terminal.length).trimEnd(),
+              };
+              break;
+            }
+            return out;
+          };
           if (
-            dMsgs.replace(pre.D.terminal, "") !==
-            eMsgs.replace(pre.E.terminal, "")
+            JSON.stringify(stripTerminal(pre.D.messages, pre.D.terminal)) !==
+            JSON.stringify(stripTerminal(pre.E.messages, pre.E.terminal))
           ) {
             throw new Error(
               `NON_TERMINAL_DELTA_FAIL ${scenario.id} T1 — messages differ beyond terminal`
