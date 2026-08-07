@@ -1,5 +1,21 @@
 export type StatusWidgetFieldId = "time" | "place" | "inner_thought" | "situation" | string;
 
+/**
+ * Phase B1-A — explicit opt-in server_meter numeric definition.
+ * Absent / invalid → field stays legacy (no numeric activation by name alone).
+ */
+export type ServerMeterNumericStateDefinitionV1 = {
+  version: 1;
+  mode: "server_meter";
+  min: number;
+  max: number;
+  initial: number;
+  integer: boolean;
+  maxIncreasePerTurn?: number;
+  maxDecreasePerTurn?: number;
+  manualEditable?: boolean;
+};
+
 export type StatusWidgetField = {
   id: StatusWidgetFieldId;
   label: string;
@@ -10,6 +26,11 @@ export type StatusWidgetField = {
    * (e.g. date "3월 18일", clock "14:30"). Omitted on legacy widgets.
    */
   initialValue?: string;
+  /**
+   * Explicit opt-in only. Valid server_meter definition required to activate
+   * numeric state. Legacy affection/trust/corruption names alone do nothing.
+   */
+  numericState?: ServerMeterNumericStateDefinitionV1;
 };
 
 export type StatusWidgetPlacement = "bottom" | "top";

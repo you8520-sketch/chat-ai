@@ -15,6 +15,7 @@ import { backfillCharacterEngagementStats } from "@/lib/characterEngagementStats
 import { ensureCharacterClicksTable } from "@/lib/characterClicks";
 import { UNIFIED_TIER_AIM_CHARS } from "@/lib/responseLengthConstants";
 import { inferAdultStatusFromLegacyText } from "@/lib/adultSceneRouting";
+import { ensureRpNumericStateTables } from "@/lib/rpNumericState/persistence";
 
 validateAuthEnvironment();
 
@@ -176,6 +177,10 @@ function init(db: Database.Database) {
     ON status_trigger_events(chat_id, trigger_id);
   CREATE INDEX IF NOT EXISTS idx_status_trigger_events_turn
     ON status_trigger_events(chat_id, trigger_id, source_turn);
+  `);
+  // Phase B1-A — dormant numeric state tables (no runtime wiring / no backfill).
+  ensureRpNumericStateTables(db);
+  db.exec(`
   CREATE TABLE IF NOT EXISTS lorebook_active_entries (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     chat_id INTEGER NOT NULL,
@@ -1431,6 +1436,8 @@ function migrate(db: Database.Database) {
   `);
   addColumn("characters", "total_turns", "INTEGER NOT NULL DEFAULT 0");
   ensureCharacterClicksTable(db);
+  // Phase B1-A — empty numeric tables only; no chat backfill / no route wiring.
+  ensureRpNumericStateTables(db);
   migrateCharacterEngagementStats(db);
   migrateCommentModeration(db);
   migrateUnifiedTargetResponseChars3200(db);
