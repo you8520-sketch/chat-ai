@@ -1,0 +1,73 @@
+{
+  "status": "DEEPSEEK_BOUNDARY_RESMOKE_CAPTURED",
+  "DEEPSEEK_ONLY": true,
+  "DEEPSEEK_FINAL_SMOKE_CAPTURED": true,
+  "TERRA_FINAL_SMOKE_CAPTURED": false,
+  "FINAL_HUMAN_REVIEW_REQUIRED": true,
+  "opus_calls": 0,
+  "terra_calls": 0,
+  "deepseek_calls": 4,
+  "api_calls": 4,
+  "expected": 4,
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "invalid_stream_captures": 0,
+  "invalid_capture_details": [],
+  "exclusions": [],
+  "by_model": {
+    "deepseek-v4-pro": {
+      "all": {
+        "outputs": 4,
+        "median_total_visible_chars": 2607,
+        "avg_api_raw_cost_krw": 4.625,
+        "sum_api_raw_cost_krw": 18.5,
+        "finish_reasons": [
+          "stop",
+          "stop",
+          "stop",
+          "stop"
+        ],
+        "visible_chars": [
+          1791,
+          2860,
+          2607,
+          3329
+        ],
+        "resolved_models": [
+          "deepseek-v4-pro",
+          "deepseek-v4-pro",
+          "deepseek-v4-pro",
+          "deepseek-v4-pro"
+        ]
+      },
+      "acceptance_eligible": {
+        "outputs": 4,
+        "median_total_visible_chars": 2607,
+        "avg_api_raw_cost_krw": 4.625,
+        "sum_api_raw_cost_krw": 18.5,
+        "finish_reasons": [
+          "stop",
+          "stop",
+          "stop",
+          "stop"
+        ],
+        "visible_chars": [
+          1791,
+          2860,
+          2607,
+          3329
+        ],
+        "resolved_models": [
+          "deepseek-v4-pro",
+          "deepseek-v4-pro",
+          "deepseek-v4-pro",
+          "deepseek-v4-pro"
+        ]
+      }
+    }
+  },
+  "historical_note": "Prior 904/884 invalid T2 cells remain under final-production-model-smoke as historical raw; excluded from acceptance.",
+  "merge": "NOT_RUN — waiting for ChatGPT final human review",
+  "production_change": false
+}
