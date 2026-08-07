@@ -1,0 +1,62 @@
+{
+  "status": "ADULT_HANDOFF_FIDELITY_AUDIT_NOT_RUN",
+  "reason": "PRODUCTION_HANDOFF_PROMPT_PARITY_FAIL",
+  "timestamp": "2026-08-07T10:15:17Z",
+  "preflight": {
+    "muse_12_endpoint_available": true,
+    "muse_12_resolved_slug": "meta/muse-spark-1.2",
+    "deepseek_endpoint_available": true,
+    "deepseek_resolved_slug": "deepseek-v4-pro",
+    "openrouter_models_count": 400,
+    "verdict": "BOTH_AVAILABLE"
+  },
+  "prompt_parity": {
+    "verdict": "PRODUCTION_HANDOFF_PROMPT_PARITY_FAIL",
+    "PROMPT_PARITY": "FAIL",
+    "prompt_body_hash_A_deepseek": "de1a3ef335ea8323c524a528ede5b5df30eb1c14bdad4113ed8606ad9a393f39",
+    "prompt_body_hash_B_muse": "636edbbd2ebace324b4d35c0b1e7308ce5f23bb6cf3de6e45dfdfb65301bad02",
+    "system_hash_A_deepseek": "ea999a27a475c08f1dfbff4f6840b8de8eaa4cd754f35151c39031d62611c0a5",
+    "system_hash_B_muse": "250a7b642c0128536597d845aa3fdf91159506002fcf0959500bd4cd003730a3",
+    "adapter_checks": {
+      "deepseek_xml_wrapping": true,
+      "muse_xml_wrapping": false,
+      "deepseek_style_reminder": true,
+      "muse_style_reminder": false,
+      "deepseek_compact_boundary": true,
+      "muse_compact_boundary": false,
+      "muse_m1_style_section": true,
+      "deepseek_m1_style_section": true
+    },
+    "candidate_specific_adapters_detected": [
+      "DeepSeek XML system wrapping (<PERSONA>/<WORLD_LORE>)",
+      "DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY style reminder on user turn",
+      "DeepSeek compact future-instruction boundary",
+      "Muse M1 prose style section (model-gated)"
+    ]
+  },
+  "calls": {
+    "planned": 6,
+    "executed": 0,
+    "opus_to_A": null,
+    "opus_to_B": null,
+    "terra_to_A": null,
+    "terra_to_B": null,
+    "gemini_to_A": null,
+    "gemini_to_B": null,
+    "retry": 0,
+    "continuation": 0,
+    "recovery": 0,
+    "provider_fallback": 0
+  },
+  "source_model_calls": {
+    "opus": 0,
+    "terra": 0,
+    "gemini": 0
+  },
+  "blind_review_packet": "NOT_GENERATED",
+  "hidden_map": "NOT_CREATED",
+  "human_review": "NOT_REQUIRED_CALLS_NOT_RUN",
+  "production_change": false,
+  "merge": "NOT_RUN",
+  "deploy": "NOT_RUN"
+}

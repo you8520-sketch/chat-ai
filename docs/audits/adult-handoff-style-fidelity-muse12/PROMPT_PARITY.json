@@ -1,0 +1,49 @@
+{
+  "timestamp": "2026-08-07T10:15:17.383Z",
+  "fixture_character_id": 18,
+  "fixture_character_name": "라이크",
+  "fixture_nsfw": true,
+  "adult_entry_user_turn_chars": 102,
+  "candidates": {
+    "A": {
+      "label": "A_deepseek",
+      "modelId": "deepseek-v4-pro",
+      "diffFields": [
+        "model=deepseek-v4-pro",
+        "reasoning={\"effort\":\"none\",\"exclude\":true}",
+        "include_reasoning=false"
+      ]
+    },
+    "B": {
+      "label": "B_muse",
+      "modelId": "meta/muse-spark-1.2",
+      "diffFields": [
+        "model=meta/muse-spark-1.2",
+        "reasoning={\"effort\":\"minimal\",\"exclude\":true}",
+        "include_reasoning=false"
+      ]
+    }
+  },
+  "hashes": {
+    "prompt_body_hash_A": "de1a3ef335ea8323c524a528ede5b5df30eb1c14bdad4113ed8606ad9a393f39",
+    "prompt_body_hash_B": "636edbbd2ebace324b4d35c0b1e7308ce5f23bb6cf3de6e45dfdfb65301bad02",
+    "system_hash_A": "ea999a27a475c08f1dfbff4f6840b8de8eaa4cd754f35151c39031d62611c0a5",
+    "system_hash_B": "250a7b642c0128536597d845aa3fdf91159506002fcf0959500bd4cd003730a3"
+  },
+  "adapter_checks": {
+    "deepseek_xml_wrapping": true,
+    "muse_xml_wrapping": false,
+    "deepseek_style_reminder": true,
+    "muse_style_reminder": false,
+    "deepseek_compact_boundary": true,
+    "muse_compact_boundary": false,
+    "deepseek_appearance_variation": false,
+    "muse_appearance_variation": false,
+    "muse_m1_style_section": true,
+    "deepseek_m1_style_section": true
+  },
+  "PROMPT_PARITY": "FAIL",
+  "verdict": "PRODUCTION_HANDOFF_PROMPT_PARITY_FAIL",
+  "live_calls_run": false,
+  "note": "Production adult handoff injects candidate-specific semantic/style adapters (DeepSeek XML wrapping / style reminder / compact future-instruction boundary / appearance variation; Muse M1 style section). These are real production differences, NOT faked. Per audit §7, stop before live API calls."
+}
