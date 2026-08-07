@@ -224,10 +224,28 @@
     }
   ],
   "blind_review_packet": "BLIND_REVIEW_PACKET.md",
-  "hidden_map": "HIDDEN_MAP.json (SEALED — do not open before human review)",
+  "hidden_map": "HIDDEN_MAP.json (REVEALED after human score seal)",
   "winner_declared": false,
   "production_change": false,
   "merge": "NOT_RUN",
   "deploy": "NOT_RUN",
-  "common_prompt_diagnostic": "NOT_RUN"
+  "common_prompt_diagnostic": "NOT_RUN",
+  "human_blind_review": {
+    "status": "COMPLETE",
+    "HUMAN_SCORES_SEALED_BEFORE_MAP_REVEAL": true,
+    "HUMAN_SCORES_SHA256": "2f15d973693824f18c6f91848119b703a97e034abae646c1045dc5f58e3038f0",
+    "HIDDEN_MAP_SEAL_SHA256_BEFORE_REVEAL": "5c35dcb978dfeadcc403b566cd636ad95a47ed871d3d493d5335a0c75099ffd8",
+    "HIDDEN_MAP_SEAL_VERIFIED": true,
+    "provisional_before_reveal": {
+      "result": "MIXED_PRODUCTION_HANDOFF_RESULT",
+      "action": "NO_REPLACEMENT"
+    },
+    "product_verdict": {
+      "result": "MIXED_PRODUCTION_HANDOFF_RESULT",
+      "action": "NO_REPLACEMENT",
+      "keep": "KEEP_CURRENT_ADULT_MODEL"
+    },
+    "common_finding": "COMMON_HANDOFF_SUBJECT_OBJECT_INVERSION_RISK",
+    "api_calls_this_step": 0
+  }
 }

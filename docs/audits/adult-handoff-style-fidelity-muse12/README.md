@@ -4,15 +4,20 @@
 
 ```text
 ADULT_HANDOFF_FIDELITY_CAPTURE_COMPLETE
-HUMAN_BLIND_REVIEW_REQUIRED
+HUMAN_BLIND_REVIEW_COMPLETE
+HIDDEN_MAP_REVEALED
+PRODUCT_VERDICT = MIXED_PRODUCTION_HANDOFF_RESULT / NO_REPLACEMENT / KEEP_CURRENT_ADULT_MODEL
 comparison_unit: PRODUCTION_CONFIG_BUNDLE_COMPARISON
 FINAL_PROMPT_BYTE_PARITY = EXPECTED_DIFFERENCE
 PRODUCTION_ADAPTER_MANIFEST = RECORDED
 REQUIRED_PARITY = PASS (all 3 sources)
 STAGE1_CALLS = 6
 retry / continuation / recovery / fallback = 0
-winner_declared = false
-hidden_map = SEALED
+HUMAN_SCORES_SEALED_BEFORE_MAP_REVEAL = true
+HUMAN_SCORES_SHA256 = 2f15d973693824f18c6f91848119b703a97e034abae646c1045dc5f58e3038f0
+HIDDEN_MAP_SEAL_VERIFIED = true
+API_CALLS_THIS_STEP = 0
+production / Railway / pricing / DB / adult routing change = NO
 ```
 
 ## Product question
@@ -37,36 +42,24 @@ Muse Spark 1.2
 + production OpenRouter route
 ```
 
-## Stage 1 capture
+## Blind + reveal summary
 
-| Source | DeepSeek | Muse | Required parity |
+| Source | Formal PASS | Blind winner | Revealed model |
 |---|---|---|---|
-| Opus 5 (Arm E, human PASS) | 1 call, finish=stop | 1 call, finish=stop | PASS |
-| GPT-5.6 Terra (human PASS) | 1 call, finish=stop | 1 call, finish=stop | PASS |
-| Gemini 3.1 Pro (no formal PASS doc) | 1 call, finish=stop | 1 call, finish=stop | PASS |
-
-Gemini limitation is recorded; it does **not** invalidate Opus/Terra cells.
-
-## Blind review
-
-1. Score `BLIND_REVIEW_PACKET.md` (source visible, candidate identity hidden).
-2. Emphasize MODEL_SWITCH_NOTICEABILITY + SAME_AUTHOR_ILLUSION with totals.
-3. Only then open `HIDDEN_MAP.json`.
-4. Apply product verdict rules in `HUMAN_REVIEW.md`.
-
-Do not declare a winner before human blind review.
-
-## Constraints honored
+| Opus 5 | YES | X | Muse Spark 1.2 |
+| GPT-5.6 Terra | YES | Y | DeepSeek V4 Pro |
+| Gemini 3.1 Pro | NO | X | Muse Spark 1.2 |
 
 ```text
-production prompt change = NO
-DeepSeek / Muse adapter removal or retune = NO
-main common prompt change = NO
-candidate-specific temp/RAW/continuity overrides = NO
-production adult model / Railway / pricing / main merge / deploy = NO
-source model calls = 0
-common-prompt diagnostic = NOT_RUN
+raw wins: Muse 2 / DeepSeek 1
+human-approved-only: Muse 1 / DeepSeek 1
+switch noticeability mean: Muse 1.70 = DeepSeek 1.70
+→ MIXED_PRODUCTION_HANDOFF_RESULT / NO_REPLACEMENT
 ```
+
+## Next step
+
+Final T1→T4 live smoke on **current production adult model (DeepSeek V4 Pro)**. No Muse replacement activation. No additional bakeoff.
 
 ## Files
 
@@ -75,10 +68,11 @@ common-prompt diagnostic = NOT_RUN
 - `SOURCE_ANCHORS.md`
 - `RUNTIME_RESULTS.json` / `STAGE1_CALLS.json`
 - `BLIND_REVIEW_PACKET.md`
-- `HIDDEN_MAP.json` (sealed)
+- `HUMAN_SCORES.md`
+- `HIDDEN_MAP.json` (revealed)
+- `HIDDEN_MAP_REVEAL.md`
+- `FINAL_VERDICT.md`
 - `HUMAN_REVIEW.md`
-- `scripts/adult-handoff-style-fidelity-preflight.ts`
-- `scripts/adult-handoff-style-fidelity-parity.ts`
-- `scripts/adult-handoff-style-fidelity-stage1-live.ts`
+- Private scores (gitignored): `data/human-review/adult-handoff-style-fidelity-muse12/`
 
 Live raw captures also under `/opt/cursor/artifacts/adult-handoff-style-fidelity/`.

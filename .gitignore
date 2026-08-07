@@ -30,3 +30,6 @@ scripts/tmp-*
 # Playwright UI test artifacts
 test-results/
 playwright-report/
+
+# Private adult-handoff blind human scores (do not publish raw review)
+data/human-review/adult-handoff-style-fidelity-muse12/

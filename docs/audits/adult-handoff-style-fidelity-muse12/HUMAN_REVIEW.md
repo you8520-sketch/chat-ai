@@ -1,20 +1,23 @@
 # HUMAN_REVIEW — Adult Handoff Production Bundle Fidelity
 
 ```text
-status: NOT_RUN — waiting for human / ChatGPT blind review
+status: COMPLETE
 ADULT_HANDOFF_FIDELITY_CAPTURE_COMPLETE
-HUMAN_BLIND_REVIEW_REQUIRED
+HUMAN_BLIND_REVIEW_COMPLETE
+HIDDEN_MAP_REVEALED
 comparison_unit: PRODUCTION_CONFIG_BUNDLE_COMPARISON
-winner_declared: false
+winner_declared: MIXED_PRODUCTION_HANDOFF_RESULT / NO_REPLACEMENT / KEEP_CURRENT_ADULT_MODEL
+HUMAN_SCORES_SHA256 = 2f15d973693824f18c6f91848119b703a97e034abae646c1045dc5f58e3038f0
+HIDDEN_MAP_SEAL_VERIFIED = true
 ```
 
-Use `BLIND_REVIEW_PACKET.md`.
+See:
 
-Do **not** open `HIDDEN_MAP.json` before finishing blind scores.
+- `HUMAN_SCORES.md` — blind X/Y aggregates (no identity at scoring time)
+- `HIDDEN_MAP_REVEAL.md` — identity unlock after seal
+- `FINAL_VERDICT.md` — product decision
 
-Do **not** declare a product winner from heuristics in this audit agent run.
-
-## What is being judged
+## What was judged
 
 Actual production handoff **configuration bundle** fidelity:
 
@@ -26,50 +29,43 @@ Muse Spark 1.2 + production Muse adapters + OpenRouter
 
 Not pure raw-model performance on a common prompt.
 
-## Required dimensions
-
-```text
-1. Source Style Continuity
-2. MODEL_SWITCH_NOTICEABILITY
-3. SAME_AUTHOR_ILLUSION
-4. Sentence/Paragraph Rhythm
-5. Character Voice / Honorific Fidelity
-6. Narration/Dialogue Balance
-7. Scene Continuity
-8. User Agency
-```
-
-Compare MODEL_SWITCH_NOTICEABILITY and SAME_AUTHOR_ILLUSION alongside totals.
-
-## Gemini anchor note
-
-Gemini source has no formal human PASS document in-repo. Opus/Terra anchors remain valid; do not void Opus/Terra on that basis alone.
-
-## After blind scores → product verdict
+## Product verdict rules (applied)
 
 ```text
 Muse 3/3, or Muse 2/3 + near-tie + persistently lower switch noticeability
   → MUSE_PRODUCTION_HANDOFF_BUNDLE_WIN / MUSE_ADULT_ROUTE_REPLACEMENT_CANDIDATE
 DeepSeek clearly superior
   → DEEPSEEK_PRODUCTION_HANDOFF_BUNDLE_WIN / KEEP_CURRENT_ADULT_MODEL
-Mixed / small gap
+Mixed / source-dependent / small gap
   → MIXED_PRODUCTION_HANDOFF_RESULT / NO_REPLACEMENT
 ```
 
-## After final adult model is chosen (later, not now)
+Applied outcome: **MIXED / NO_REPLACEMENT / KEEP_CURRENT_ADULT_MODEL**.
 
-One live admin smoke only:
+## Gemini anchor note
+
+Gemini source has no formal human PASS document in-repo. Opus/Terra anchors remain valid; Gemini alone does not authorize replacement.
+
+## Common finding
+
+```text
+COMMON_HANDOFF_SUBJECT_OBJECT_INVERSION_RISK
+```
+
+Recorded; not used for A/B winner. Check in final live smoke.
+
+## Next (later)
+
+One live admin smoke on **current production adult model (DeepSeek)**:
 
 ```text
 T1 general → base model
-T2 adult entry → selected adult model
-T3 adult maintain → selected adult model
+T2 adult entry → DeepSeek V4 Pro
+T3 adult maintain → DeepSeek V4 Pro
 T4 adult exit → return to base model
 ```
 
-If that smoke passes → `ADULT_SCENE_HANDOFF_READY`.
-
-Until then:
+Until that smoke:
 
 ```text
 production change = NO
