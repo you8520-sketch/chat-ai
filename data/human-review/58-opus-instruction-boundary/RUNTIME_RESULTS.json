@@ -1,0 +1,18 @@
+{
+  "status": "OPUS_INSTRUCTION_BOUNDARY_PHASE1_CAPTURED",
+  "human_review": "NOT_RUN — waiting for ChatGPT",
+  "audit57_preserved": {
+    "OPUS_UNIFIED_TERMINAL_PHASE1_FAIL": true,
+    "ARM_D_ARCHITECTURE_PROMISING": true,
+    "ARM_D_SINGLE_AGENCY_BOUNDARY_FAIL": true,
+    "PHASE2_NOT_RUN": true,
+    "PRODUCTION_CHANGE_NO": true
+  },
+  "model_lineup_decision": "NO",
+  "production_change": false,
+  "valid_outputs": 24,
+  "expected_outputs": 24,
+  "exclusions": [],
+  "parity_cells": 24,
+  "phase2": "NOT_RUN"
+}

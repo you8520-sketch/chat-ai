@@ -1,0 +1,422 @@
+[
+  {
+    "scenario": "s1_direct_declare_plus_instruction",
+    "turn": 1,
+    "base_prompt_hash_without_terminal": "57e2d2a17da18fd9dc1d394c77dc21c1e0aac63954f699f1ea65aa8e0f1dca6c",
+    "terminal_hashes": {
+      "D": "1eb39a6fd9fa570a8a9121701d05b94634ffb467eacbd27e80680a26344303e4",
+      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca"
+    },
+    "input_token_approx": {
+      "D": {
+        "system": 2585,
+        "history": 36,
+        "current_user": 584,
+        "terminal": 384,
+        "base_user": 200
+      },
+      "E": {
+        "system": 2585,
+        "history": 36,
+        "current_user": 773,
+        "terminal": 573,
+        "base_user": 200
+      }
+    }
+  },
+  {
+    "scenario": "s1_direct_declare_plus_instruction",
+    "turn": 2,
+    "arm_history": "D",
+    "base_prompt_hash_without_terminal": "c737f407de39d94121595f2bcc8e18433889ddb10d4fcbca0fad01df225a02f3",
+    "terminal_hashes": {
+      "D": "1eb39a6fd9fa570a8a9121701d05b94634ffb467eacbd27e80680a26344303e4",
+      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca"
+    }
+  },
+  {
+    "scenario": "s1_direct_declare_plus_instruction",
+    "turn": 1,
+    "base_prompt_hash_without_terminal": "57e2d2a17da18fd9dc1d394c77dc21c1e0aac63954f699f1ea65aa8e0f1dca6c",
+    "terminal_hashes": {
+      "D": "1eb39a6fd9fa570a8a9121701d05b94634ffb467eacbd27e80680a26344303e4",
+      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca"
+    },
+    "input_token_approx": {
+      "D": {
+        "system": 2585,
+        "history": 36,
+        "current_user": 584,
+        "terminal": 384,
+        "base_user": 200
+      },
+      "E": {
+        "system": 2585,
+        "history": 36,
+        "current_user": 773,
+        "terminal": 573,
+        "base_user": 200
+      }
+    }
+  },
+  {
+    "scenario": "s1_direct_declare_plus_instruction",
+    "turn": 2,
+    "arm_history": "E",
+    "base_prompt_hash_without_terminal": "4cb2b26b6063bbe8e9b1cb480db2f0b0d6ef69f75a864a9bf997ed827ccc583c",
+    "terminal_hashes": {
+      "D": "1eb39a6fd9fa570a8a9121701d05b94634ffb467eacbd27e80680a26344303e4",
+      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca"
+    }
+  },
+  {
+    "scenario": "s2_blanket_compliance",
+    "turn": 1,
+    "base_prompt_hash_without_terminal": "ab31beb341c87a21207c33763ac5169549912428e1f95fc6b922251e1db2f5f9",
+    "terminal_hashes": {
+      "D": "1eb39a6fd9fa570a8a9121701d05b94634ffb467eacbd27e80680a26344303e4",
+      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca"
+    },
+    "input_token_approx": {
+      "D": {
+        "system": 2585,
+        "history": 36,
+        "current_user": 562,
+        "terminal": 384,
+        "base_user": 178
+      },
+      "E": {
+        "system": 2585,
+        "history": 36,
+        "current_user": 751,
+        "terminal": 573,
+        "base_user": 178
+      }
+    }
+  },
+  {
+    "scenario": "s2_blanket_compliance",
+    "turn": 2,
+    "arm_history": "D",
+    "base_prompt_hash_without_terminal": "2c7c5b6bd05a39fee775f91d360226c58f82faa24fb7084598ce0000e1f66d3d",
+    "terminal_hashes": {
+      "D": "1eb39a6fd9fa570a8a9121701d05b94634ffb467eacbd27e80680a26344303e4",
+      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca"
+    }
+  },
+  {
+    "scenario": "s2_blanket_compliance",
+    "turn": 1,
+    "base_prompt_hash_without_terminal": "ab31beb341c87a21207c33763ac5169549912428e1f95fc6b922251e1db2f5f9",
+    "terminal_hashes": {
+      "D": "1eb39a6fd9fa570a8a9121701d05b94634ffb467eacbd27e80680a26344303e4",
+      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca"
+    },
+    "input_token_approx": {
+      "D": {
+        "system": 2585,
+        "history": 36,
+        "current_user": 562,
+        "terminal": 384,
+        "base_user": 178
+      },
+      "E": {
+        "system": 2585,
+        "history": 36,
+        "current_user": 751,
+        "terminal": 573,
+        "base_user": 178
+      }
+    }
+  },
+  {
+    "scenario": "s2_blanket_compliance",
+    "turn": 2,
+    "arm_history": "E",
+    "base_prompt_hash_without_terminal": "020516004599c53d9f45c0298bb924c27289d770a062182229e3ee896d0ae394",
+    "terminal_hashes": {
+      "D": "1eb39a6fd9fa570a8a9121701d05b94634ffb467eacbd27e80680a26344303e4",
+      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca"
+    }
+  },
+  {
+    "scenario": "s3_started_physical",
+    "turn": 1,
+    "base_prompt_hash_without_terminal": "c477cc130a881df153d274eda1178be8fdbaa6c82c305a6473583d59212ea978",
+    "terminal_hashes": {
+      "D": "1eb39a6fd9fa570a8a9121701d05b94634ffb467eacbd27e80680a26344303e4",
+      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca"
+    },
+    "input_token_approx": {
+      "D": {
+        "system": 2585,
+        "history": 36,
+        "current_user": 582,
+        "terminal": 384,
+        "base_user": 198
+      },
+      "E": {
+        "system": 2585,
+        "history": 36,
+        "current_user": 771,
+        "terminal": 573,
+        "base_user": 198
+      }
+    }
+  },
+  {
+    "scenario": "s3_started_physical",
+    "turn": 2,
+    "arm_history": "D",
+    "base_prompt_hash_without_terminal": "c7f8f29304cc469c79e12bf7b5033cd5e0f27caba78886c5b31f0dc411707a36",
+    "terminal_hashes": {
+      "D": "1eb39a6fd9fa570a8a9121701d05b94634ffb467eacbd27e80680a26344303e4",
+      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca"
+    }
+  },
+  {
+    "scenario": "s3_started_physical",
+    "turn": 1,
+    "base_prompt_hash_without_terminal": "c477cc130a881df153d274eda1178be8fdbaa6c82c305a6473583d59212ea978",
+    "terminal_hashes": {
+      "D": "1eb39a6fd9fa570a8a9121701d05b94634ffb467eacbd27e80680a26344303e4",
+      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca"
+    },
+    "input_token_approx": {
+      "D": {
+        "system": 2585,
+        "history": 36,
+        "current_user": 582,
+        "terminal": 384,
+        "base_user": 198
+      },
+      "E": {
+        "system": 2585,
+        "history": 36,
+        "current_user": 771,
+        "terminal": 573,
+        "base_user": 198
+      }
+    }
+  },
+  {
+    "scenario": "s3_started_physical",
+    "turn": 2,
+    "arm_history": "E",
+    "base_prompt_hash_without_terminal": "53726334c3719775e5c8522f26b08bf421ddaede1d548078b7a3c339ad8b5de3",
+    "terminal_hashes": {
+      "D": "1eb39a6fd9fa570a8a9121701d05b94634ffb467eacbd27e80680a26344303e4",
+      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca"
+    }
+  },
+  {
+    "scenario": "s4_explicit_move",
+    "turn": 1,
+    "base_prompt_hash_without_terminal": "d2e9c8ba689dfc454e732e9faf611fb220247e427d13895a9f149739b5d8f3e0",
+    "terminal_hashes": {
+      "D": "1eb39a6fd9fa570a8a9121701d05b94634ffb467eacbd27e80680a26344303e4",
+      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca"
+    },
+    "input_token_approx": {
+      "D": {
+        "system": 2587,
+        "history": 27,
+        "current_user": 584,
+        "terminal": 384,
+        "base_user": 200
+      },
+      "E": {
+        "system": 2587,
+        "history": 27,
+        "current_user": 774,
+        "terminal": 573,
+        "base_user": 200
+      }
+    }
+  },
+  {
+    "scenario": "s4_explicit_move",
+    "turn": 2,
+    "arm_history": "D",
+    "base_prompt_hash_without_terminal": "be2d2d7e5ae591bc3af406b30529bb57a0894259b885fa00ba0655f13780b846",
+    "terminal_hashes": {
+      "D": "1eb39a6fd9fa570a8a9121701d05b94634ffb467eacbd27e80680a26344303e4",
+      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca"
+    }
+  },
+  {
+    "scenario": "s4_explicit_move",
+    "turn": 1,
+    "base_prompt_hash_without_terminal": "d2e9c8ba689dfc454e732e9faf611fb220247e427d13895a9f149739b5d8f3e0",
+    "terminal_hashes": {
+      "D": "1eb39a6fd9fa570a8a9121701d05b94634ffb467eacbd27e80680a26344303e4",
+      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca"
+    },
+    "input_token_approx": {
+      "D": {
+        "system": 2587,
+        "history": 27,
+        "current_user": 584,
+        "terminal": 384,
+        "base_user": 200
+      },
+      "E": {
+        "system": 2587,
+        "history": 27,
+        "current_user": 774,
+        "terminal": 573,
+        "base_user": 200
+      }
+    }
+  },
+  {
+    "scenario": "s4_explicit_move",
+    "turn": 2,
+    "arm_history": "E",
+    "base_prompt_hash_without_terminal": "041afc8a8a49a39dc6665843450b2d339f8384608f2717cfed685facbfd1b76c",
+    "terminal_hashes": {
+      "D": "1eb39a6fd9fa570a8a9121701d05b94634ffb467eacbd27e80680a26344303e4",
+      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca"
+    }
+  },
+  {
+    "scenario": "s5_relationship_hand",
+    "turn": 1,
+    "base_prompt_hash_without_terminal": "103a68d3cace17590b5900f7d1ec139ae561d62114673ffa3f21d8c16a42a7bb",
+    "terminal_hashes": {
+      "D": "1eb39a6fd9fa570a8a9121701d05b94634ffb467eacbd27e80680a26344303e4",
+      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca"
+    },
+    "input_token_approx": {
+      "D": {
+        "system": 2589,
+        "history": 27,
+        "current_user": 580,
+        "terminal": 384,
+        "base_user": 196
+      },
+      "E": {
+        "system": 2589,
+        "history": 27,
+        "current_user": 770,
+        "terminal": 573,
+        "base_user": 196
+      }
+    }
+  },
+  {
+    "scenario": "s5_relationship_hand",
+    "turn": 2,
+    "arm_history": "D",
+    "base_prompt_hash_without_terminal": "560cc6cff4e717ca2615ecc2d687376d02e1280548ee36e353d3034da6569e74",
+    "terminal_hashes": {
+      "D": "1eb39a6fd9fa570a8a9121701d05b94634ffb467eacbd27e80680a26344303e4",
+      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca"
+    }
+  },
+  {
+    "scenario": "s5_relationship_hand",
+    "turn": 1,
+    "base_prompt_hash_without_terminal": "103a68d3cace17590b5900f7d1ec139ae561d62114673ffa3f21d8c16a42a7bb",
+    "terminal_hashes": {
+      "D": "1eb39a6fd9fa570a8a9121701d05b94634ffb467eacbd27e80680a26344303e4",
+      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca"
+    },
+    "input_token_approx": {
+      "D": {
+        "system": 2589,
+        "history": 27,
+        "current_user": 580,
+        "terminal": 384,
+        "base_user": 196
+      },
+      "E": {
+        "system": 2589,
+        "history": 27,
+        "current_user": 770,
+        "terminal": 573,
+        "base_user": 196
+      }
+    }
+  },
+  {
+    "scenario": "s5_relationship_hand",
+    "turn": 2,
+    "arm_history": "E",
+    "base_prompt_hash_without_terminal": "88d308ad147ee593f66579f3ba00c17821c19cb6000efdd110eb9b5a9cd20b36",
+    "terminal_hashes": {
+      "D": "1eb39a6fd9fa570a8a9121701d05b94634ffb467eacbd27e80680a26344303e4",
+      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca"
+    }
+  },
+  {
+    "scenario": "s6_action_combat_1_regression",
+    "turn": 1,
+    "base_prompt_hash_without_terminal": "88ba9cd81d6c71d5009dc15675f9acb6951c2ff336a019f6d2b0e880d060885f",
+    "terminal_hashes": {
+      "D": "1eb39a6fd9fa570a8a9121701d05b94634ffb467eacbd27e80680a26344303e4",
+      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca"
+    },
+    "input_token_approx": {
+      "D": {
+        "system": 2587,
+        "history": 27,
+        "current_user": 590,
+        "terminal": 384,
+        "base_user": 206
+      },
+      "E": {
+        "system": 2587,
+        "history": 27,
+        "current_user": 780,
+        "terminal": 573,
+        "base_user": 206
+      }
+    }
+  },
+  {
+    "scenario": "s6_action_combat_1_regression",
+    "turn": 2,
+    "arm_history": "D",
+    "base_prompt_hash_without_terminal": "362dceda38e42a8ee6fb7c74b90bd02879b95b95cce95f8fd96c7794628b924a",
+    "terminal_hashes": {
+      "D": "1eb39a6fd9fa570a8a9121701d05b94634ffb467eacbd27e80680a26344303e4",
+      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca"
+    }
+  },
+  {
+    "scenario": "s6_action_combat_1_regression",
+    "turn": 1,
+    "base_prompt_hash_without_terminal": "88ba9cd81d6c71d5009dc15675f9acb6951c2ff336a019f6d2b0e880d060885f",
+    "terminal_hashes": {
+      "D": "1eb39a6fd9fa570a8a9121701d05b94634ffb467eacbd27e80680a26344303e4",
+      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca"
+    },
+    "input_token_approx": {
+      "D": {
+        "system": 2587,
+        "history": 27,
+        "current_user": 590,
+        "terminal": 384,
+        "base_user": 206
+      },
+      "E": {
+        "system": 2587,
+        "history": 27,
+        "current_user": 780,
+        "terminal": 573,
+        "base_user": 206
+      }
+    }
+  },
+  {
+    "scenario": "s6_action_combat_1_regression",
+    "turn": 2,
+    "arm_history": "E",
+    "base_prompt_hash_without_terminal": "f866c9fd3bb1c38304fcac31508131dd5c81eb6d2c02ff92fb2a371a3d6ba226",
+    "terminal_hashes": {
+      "D": "1eb39a6fd9fa570a8a9121701d05b94634ffb467eacbd27e80680a26344303e4",
+      "E": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca"
+    }
+  }
+]

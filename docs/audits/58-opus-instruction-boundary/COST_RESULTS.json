@@ -1,0 +1,23 @@
+{
+  "byArm": {
+    "D": {
+      "outputs": 12,
+      "median_total_visible_chars": 3023,
+      "avg_total_visible_chars": 2902.75,
+      "ge_2400": 10,
+      "sum_api_raw_cost_krw": 1521.5,
+      "avg_api_raw_cost_krw": 126.79166666666667,
+      "natural_stop_below_3200": 12
+    },
+    "E": {
+      "outputs": 12,
+      "median_total_visible_chars": 2650,
+      "avg_total_visible_chars": 2596.5833333333335,
+      "ge_2400": 7,
+      "sum_api_raw_cost_krw": 1488.5000000000002,
+      "avg_api_raw_cost_krw": 124.04166666666669,
+      "natural_stop_below_3200": 12
+    }
+  },
+  "rows_count": 24
+}
