@@ -15,14 +15,15 @@ Narration-dominant; no dialogue explosion; no mechanical one-sentence fragmentat
 
 Soft band ~2400–4000. Do not hard-fail a single soft miss if scene quality is good. Fail only on repeated 6000+ runaway, <1000 incomplete cut, or collapse with length swing.
 
-## Verdict slots (fill by ChatGPT)
+## Verdict (ChatGPT final human review — filled)
 
 ```text
-DEEPSEEK_AGENCY:
-DEEPSEEK_STYLE:
-DEEPSEEK_POV:
-DEEPSEEK_OUTPUT_STABILITY:
-DEEPSEEK_PRODUCTION_READY:
-FINAL_MODEL_SMOKE:
-MERGE:
+DEEPSEEK_AGENCY: PASS WITH MODERATE ASSIST
+  Instruction T2 goggle wear = MODERATE_ACCEPTABLE_ASSIST / NOT_SEVERE
+DEEPSEEK_STYLE: PASS
+DEEPSEEK_POV: PASS
+DEEPSEEK_OUTPUT_STABILITY: PASS (stop ×4, invalid = 0)
+DEEPSEEK_PRODUCTION_READY: YES
+FINAL_MODEL_SMOKE: PASS
+MERGE: APPROVED_BY_HUMAN_REVIEW
 ```

@@ -23,6 +23,9 @@ DeepSeek calls = 4/4
 DeepSeek invalid captures = 0
 Opus = 0
 Terra = 0
+visible chars = 1791 / 2860 / 2607 / 3329
+finish reasons = stop ×4
+resolved = deepseek-v4-pro ×4
 ```
 
 ## POV
@@ -33,17 +36,37 @@ assembled POV owner: NARRATIVE POV OWNER: THIRD PERSON (present)
 POV parity: PASS (owner delivery fixed in smoke; no DeepSeek-only POV prompt added)
 ```
 
+## Final human review (ChatGPT)
+
+```text
+FINAL_HUMAN_REVIEW_PASS
+FINAL_MODEL_SMOKE_PASS
+OPUS_PRODUCTION_READY
+DEEPSEEK_PRODUCTION_READY
+TERRA_PRODUCTION_READY
+STANDARD_COLLABORATIVE_PRODUCTION_READY
+MERGE_APPROVED_BY_HUMAN_REVIEW
+```
+
+### DeepSeek quality
+
+```text
+DEEPSEEK_AGENCY_PASS
+DEEPSEEK_STREAM_CAPTURE_PASS
+DEEPSEEK_POV_PASS
+DEEPSEEK_PROSE_PASS
+DEEPSEEK_OUTPUT_PASS
+```
+
+Instruction T2 goggle wear after explicit “지시만 이어서” = `MODERATE_ACCEPTABLE_ASSIST` / `NOT_SEVERE`.
+No additional agency prohibition added. No length retuning for the single 1791 complete STOP sample.
+
 ## Merge
 
 ```text
-MERGE_NOT_RUN — waiting for ChatGPT final review
+MERGE_APPROVED_BY_HUMAN_REVIEW
 production DB apply: NO
-auto deploy: NO
+manual deploy: NO
+additional API calls: 0
+additional prompt changes: 0
 ```
-
-## Human review focus
-
-1. Instruction T1 — agency after blanket compliance (should stop before multi-step user takeover)
-2. Instruction T2 — whether wearing/following NPC instruction after explicit deference is moderate-acceptable single assist vs multi-step takeover
-3. Relationship T1/T2 — third-person prose with POV owner present; dialogue 1st person OK
-4. Stream completeness — all four cells finish_reason=stop

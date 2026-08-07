@@ -80,21 +80,36 @@ Checks: severe 0, over-freeze 0, prose/style hold, no dialogue explosion/fragmen
 Fail → revisit common apply; do not immediately add per-model adapters.
 
 ```text
-DeepSeek regression: NOT_RUN
-Terra regression: NOT_RUN
-production integration: NOT_RUN
+DeepSeek regression: NOT_RUN (at freeze time)
+Terra regression: NOT_RUN (at freeze time)
+production integration: NOT_RUN (at freeze time)
 ```
+
+## Production integration follow-up (PR #260 — do not rewrite Audit 57–59 verdicts above)
+
+```text
+FINAL_HUMAN_REVIEW_PASS
+FINAL_MODEL_SMOKE_PASS
+OPUS_PRODUCTION_READY
+DEEPSEEK_PRODUCTION_READY
+TERRA_PRODUCTION_READY
+STANDARD_COLLABORATIVE_PRODUCTION_READY
+MERGE_APPROVED_BY_HUMAN_REVIEW
+OPUS_ARM_E_HASH = 05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca
+ARM_F = ABSENT
+```
+
+Production implementation lives in PR #260 (contains PR #250 candidate). Diagnostic PRs are not production merges.
 
 ## PR status
 
 ```text
-PR #257: diagnostic failure preserved (Arm D)
-PR #258: Arm E agency solution evidence preserved
-PR #259: Arm F length-recovery failure preserved
-PR #250: not modified / not merged from these audits
+PR #260: final production integration (merge target)
+PR #250: SUPERSEDED_BY_PR_260 (contained in #260; do not merge separately)
+PR #257: ARM_D_REJECTED_AGENCY / HISTORICAL_DIAGNOSTIC_ONLY
+PR #258: ARM_E_ACCEPTED / HISTORICAL_AUDIT_EVIDENCE / PRODUCTION_IMPLEMENTATION_IN_260
+PR #259: ARM_F_REJECTED_AGENCY / HISTORICAL_DIAGNOSTIC_ONLY
 ```
-
-Diagnostic PRs are not production merges.
 
 ## Safety
 
