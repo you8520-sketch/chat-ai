@@ -1,0 +1,26 @@
+{
+  "note": "LOCAL ONLY until after human scores. Stage 1. Side A/B → arm E/F.",
+  "stage": 1,
+  "map": {
+    "s2_blanket_compliance": {
+      "T1": {
+        "A": "E",
+        "B": "F"
+      },
+      "T2": {
+        "A": "F",
+        "B": "E"
+      }
+    },
+    "s6_action_combat_1_regression": {
+      "T1": {
+        "A": "F",
+        "B": "E"
+      },
+      "T2": {
+        "A": "F",
+        "B": "E"
+      }
+    }
+  }
+}
