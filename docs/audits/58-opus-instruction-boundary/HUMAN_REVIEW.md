@@ -1,8 +1,10 @@
 # Human review — Audit 58
 
 ```text
-status: NOT_RUN — waiting for ChatGPT
+status: HUMAN_BLIND_REVIEW_COMPLETE
+HIDDEN_MAP_SEAL_VERIFIED
+OPUS_INSTRUCTION_BOUNDARY_AGENCY_PASS
+OPUS_INSTRUCTION_BOUNDARY_CANARY_OVERALL_FAIL_LENGTH
 ```
 
-Use `BLIND_REVIEW.md` only. Hidden map sealed in `HIDDEN_MAP_SHA256.txt`.
-Do not request map reveal before committing scores + score hash.
+Scores sealed before map reveal. See `HUMAN_BLIND_SCORES.md`, `MAPPED_HUMAN_VERDICT.md`.
