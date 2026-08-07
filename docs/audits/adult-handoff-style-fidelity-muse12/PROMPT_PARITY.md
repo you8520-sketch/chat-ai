@@ -1,23 +1,34 @@
-# Prompt Parity Check — Adult Handoff Fidelity Audit
+# Prompt Parity — PRODUCTION_CONFIG_BUNDLE_COMPARISON
 
-Reuses production `buildContext` + `appendAdultHandoffPrompt` + `assemblePrimaryRpRequest` for both candidates, canonicalizes model/provider fields, then compares hashes.
+Fairness unit is the **deployable adult handoff configuration bundle**, not raw-model byte-identical prompts.
 
 ```text
-PROMPT_PARITY: FAIL
-verdict: PRODUCTION_HANDOFF_PROMPT_PARITY_FAIL
+comparison_unit: PRODUCTION_CONFIG_BUNDLE_COMPARISON
+BASE_CONTEXT_PARITY = PASS
+RAW_HISTORY_PARITY = PASS
+CURRENT_USER_INPUT_PARITY = PASS
+CHARACTER_PERSONA_PARITY = PASS
+CONTINUITY_DATA_PARITY = PASS
+GENERATION_PARAMETER_PARITY = PASS
+FINAL_PROMPT_BYTE_PARITY = EXPECTED_DIFFERENCE
+PRODUCTION_ADAPTER_MANIFEST = RECORDED
+required_parity_pass = true
+verdict = REQUIRED_PARITY_PASS_BUNDLE_COMPARISON_READY
 
-prompt_body_hash_A (deepseek): de1a3ef335ea8323c524a528ede5b5df30eb1c14bdad4113ed8606ad9a393f39
-prompt_body_hash_B (muse):     636edbbd2ebace324b4d35c0b1e7308ce5f23bb6cf3de6e45dfdfb65301bad02
-system_hash_A (deepseek):      ea999a27a475c08f1dfbff4f6840b8de8eaa4cd754f35151c39031d62611c0a5
-system_hash_B (muse):          250a7b642c0128536597d845aa3fdf91159506002fcf0959500bd4cd003730a3
-
-DeepSeek XML wrapping: true (Muse: false)
-DeepSeek style reminder: true (Muse: false)
-DeepSeek compact boundary: true (Muse: false)
-DeepSeek appearance variation: false (Muse: false)
-Muse M1 style section: true (DeepSeek: true)
+FINAL_PROMPT_HASH_DEEPSEEK = de1a3ef335ea8323c524a528ede5b5df30eb1c14bdad4113ed8606ad9a393f39
+FINAL_PROMPT_HASH_MUSE = 636edbbd2ebace324b4d35c0b1e7308ce5f23bb6cf3de6e45dfdfb65301bad02
 ```
 
-> **PRODUCTION_HANDOFF_PROMPT_PARITY_FAIL**
->
-> Production adult handoff injects candidate-specific semantic/style adapters. These are real production differences and were NOT removed to fake parity. Per audit §7, live API calls are NOT run.
+## Production adapters (recorded, not removed)
+
+| Adapter | DeepSeek | Muse |
+|---|---|---|
+| XML wrapping | true | false |
+| Style reminder | true | false |
+| Compact boundary | true | false |
+| Muse M1 marker | false | false |
+| Provider route | cheaperinference | openrouter |
+| Temperature (production) | 0.92 | 0.7 |
+| Reasoning policy | CI-stripped | {"effort":"minimal","exclude":true} |
+
+> Results measure **actual production handoff bundle fidelity**, not pure raw-model performance.

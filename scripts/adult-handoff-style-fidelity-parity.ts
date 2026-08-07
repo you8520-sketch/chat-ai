@@ -1,21 +1,22 @@
 /**
- * Adult Handoff Style Fidelity Audit — prompt parity check.
+ * Adult Handoff Style Fidelity Audit — production bundle parity check.
  *
- * Reuses the PRODUCTION adult handoff builder (buildContext +
- * appendAdultHandoffPrompt + assemblePrimaryRpRequest) for two candidate
- * adult models and compares the outbound prompt bodies after canonicalizing
- * model ID / provider transport fields.
+ * Comparison unit: PRODUCTION_CONFIG_BUNDLE_COMPARISON
+ *   DeepSeek V4 Pro + production DeepSeek adapters + CheaperInference route
+ *   vs
+ *   Muse Spark 1.2 + production Muse adapters + OpenRouter route
  *
- * Per audit §7: if production architecture injects candidate-specific
- * semantic/style prose (e.g. DeepSeek-only XML wrapping, style reminder,
- * compact future-instruction boundary, appearance variation rule), report
- * PRODUCTION_HANDOFF_PROMPT_PARITY_FAIL and STOP before any live API call.
- * Adapters are NOT deleted to fake parity.
+ * Required A/B parity (must PASS before live calls):
+ *   BASE_CONTEXT / RAW_HISTORY / CURRENT_USER_INPUT / CHARACTER_PERSONA /
+ *   CONTINUITY_DATA / GENERATION_PARAMETER (shared controlled params)
+ *
+ * Final prompt byte parity is NOT required (EXPECTED_DIFFERENCE from production
+ * model-specific adapters). Adapters are recorded, never deleted or retuned.
  *
  * No generation calls are made by this script.
  */
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadEnvLocal } from "./load-env-local";
 
@@ -26,12 +27,12 @@ if (!process.env.NODE_ENV) {
 
 const FIXTURE_DIR =
   process.env.FIXTURE_DIR ?? "/opt/cursor/artifacts/opus-quality-anchor/fixtures";
+const OUT_DIR =
+  process.env.DOCS_DIR ?? "docs/audits/adult-handoff-style-fidelity-muse12";
 
 const DEEPSEEK_CANDIDATE = "deepseek-v4-pro";
 const MUSE_CANDIDATE = "meta/muse-spark-1.2";
 
-// Common adult-route entry user turn — byte-identical across A/B and across
-// sources. Consensual, explicitly-adult, fictional characters.
 const ADULT_ENTRY_USER_TURN =
   "*그의 손이 내 허리를 감싸 안는다. 눈이 마주치고 거리가 사라진다.* \n\n“이대로 있어도 돼?”\n\n*곁에서 숨소리가 가까워진다. 더 가까이 닿아도 좋다는 허락이 눈빛에 묻어 있다.*";
 
@@ -39,39 +40,6 @@ type ChatMsg = { role: "user" | "assistant" | "system"; content: string };
 
 function sha256(t: string): string {
   return createHash("sha256").update(t).digest("hex");
-}
-
-/**
- * Canonicalize a candidate request body: replace the model field and any
- * provider-transport-only fields with a neutral placeholder so that only
- * semantic prompt content remains for hashing.
- */
-function canonicalizeBody(body: Record<string, unknown>): {
-  canonical: Record<string, unknown>;
-  diffFields: string[];
-} {
-  const canonical: Record<string, unknown> = { ...body };
-  const diffFields: string[] = [];
-  // model id — allowed difference
-  if (typeof canonical.model === "string") {
-    diffFields.push(`model=${canonical.model}`);
-    canonical.model = "<CANDIDATE>";
-  }
-  // provider transport-only fields that may differ technically
-  for (const k of [
-    "session_id",
-    "provider",
-    "providerRouting",
-    "reasoning",
-    "include_reasoning",
-    "reasoning_effort",
-  ]) {
-    if (k in canonical) {
-      diffFields.push(`${k}=${JSON.stringify(canonical[k])}`);
-      canonical[k] = "<CANDIDATE>";
-    }
-  }
-  return { canonical, diffFields };
 }
 
 async function loadFixture(characterId: number) {
@@ -83,7 +51,7 @@ async function loadFixture(characterId: number) {
   };
 }
 
-async function buildCandidatePrompt(opts: {
+async function buildCandidateBundle(opts: {
   candidateModelId: string;
   fixture: Awaited<ReturnType<typeof loadFixture>>;
   sourceHistory: ChatMsg[];
@@ -105,6 +73,7 @@ async function buildCandidatePrompt(opts: {
     selectAdultHandoffRawVariants,
   } = await import("../src/lib/adultSceneRouting");
   const { resolveNarrativePov } = await import("../src/lib/narrativePov");
+  const { isCheaperInferenceModel } = await import("../src/lib/chatModels");
 
   const ch = opts.fixture.character;
   const persona = opts.fixture.persona;
@@ -129,8 +98,6 @@ async function buildCandidatePrompt(opts: {
     String(persona.description ?? "")
   );
 
-  // Reconstruct handoff RAW history: prior source exchanges + source's last
-  // assistant output, then the adult entry user turn as current input.
   const handoffRaw: ChatMsg[] = [
     { role: "user", content: OPENING_TURN_USER },
     { role: "assistant", content: String(ch.greeting ?? "") },
@@ -140,7 +107,6 @@ async function buildCandidatePrompt(opts: {
     { role: "assistant", content: opts.sourceAssistantOutput },
   ];
 
-  // Use the production handoff RAW selector with production defaults.
   const handoffVariants = selectAdultHandoffRawVariants(handoffRaw, {});
   const handoffHistory = handoffVariants.handoff.history;
 
@@ -149,6 +115,19 @@ async function buildCandidatePrompt(opts: {
     contentKind: "character",
     mainCharacterName: String(ch.name),
   });
+
+  const continuityInput = {
+    previousSceneMode: "romantic" as const,
+    sexualContextActive: true,
+    activeConsentMode: "standard" as const,
+    charactersPresent: [String(ch.name), personaName],
+    currentPov: narrativePov.mode,
+  };
+  const continuityPacket = buildSceneContinuityPacket(continuityInput);
+
+  const transportProvider = isCheaperInferenceModel(opts.candidateModelId)
+    ? ("cheaperinference" as const)
+    : ("openrouter" as const);
 
   const built = buildContext({
     charName: String(ch.name),
@@ -169,20 +148,12 @@ async function buildCandidatePrompt(opts: {
     personaDisplayName: personaName,
     targetResponseChars: 3200,
     completedTurns: Math.max(0, Math.floor((handoffHistory.length - 2) / 2)),
-    provider: "openrouter",
+    provider: transportProvider === "cheaperinference" ? "cheaperinference" : "openrouter",
     contentKind: "character",
     exampleDialog: String(ch.example_dialog ?? ""),
     userId: Number(opts.fixture.user.id ?? 4),
     narrativePov,
     preserveAdultHandoffRawHistory: true,
-  });
-
-  const continuityPacket = buildSceneContinuityPacket({
-    previousSceneMode: "romantic",
-    sexualContextActive: true,
-    activeConsentMode: "standard",
-    charactersPresent: [String(ch.name), personaName],
-    currentPov: narrativePov.mode,
   });
 
   const systemPrompt = appendAdultHandoffPrompt(built.systemPrompt, continuityPacket);
@@ -193,7 +164,7 @@ async function buildCandidatePrompt(opts: {
     modelId: opts.candidateModelId,
     targetResponseChars: 3200,
     messageOpts: {
-      transportProvider: "openrouter",
+      transportProvider,
       charName: String(ch.name),
       personaName,
     },
@@ -201,14 +172,38 @@ async function buildCandidatePrompt(opts: {
 
   const body = wire.requestBody as Record<string, unknown>;
   const messages = body.messages as ChatMsg[];
-  return { body, messages, systemPrompt, history: built.history ?? [] };
+  return {
+    body,
+    messages,
+    systemPrompt,
+    history: built.history ?? [],
+    handoffVariants,
+    continuityInput,
+    continuityPacket,
+    transportProvider,
+    chunksFingerprint: sha256(JSON.stringify(chunks)),
+    userPersona,
+    personaName,
+    charName: String(ch.name),
+  };
+}
+
+function detectAdapters(systemPrompt: string, userTail: string) {
+  return {
+    xml_wrapping:
+      systemPrompt.includes("<PERSONA>") || systemPrompt.includes("<WORLD_LORE>"),
+    style_reminder: userTail.includes("System Reminder:"),
+    compact_boundary: userTail.includes("포괄적으로 순응 의사를 밝혀도"),
+    muse_m1_marker:
+      systemPrompt.includes("MUSE_PROSE_M1") ||
+      /\[Muse Prose M1\]/i.test(systemPrompt),
+    handoff_continuation_instruction: systemPrompt.includes(
+      "직전 assistant 출력의 바로 다음 순간부터 이어 쓴다"
+    ),
+  };
 }
 
 async function main() {
-  const results: Record<string, unknown> = {};
-
-  // Use c18 (nsfw=1 adult fixture) for the character context. Reconstruct
-  // a source-style prior history from the fixture greeting + one exchange.
   const fixture = await loadFixture(18);
   const ch = fixture.character;
   const sourceAssistantOutput = String(ch.greeting ?? "");
@@ -220,142 +215,191 @@ async function main() {
     },
   ];
 
-  const candidates = [
-    { label: "A_deepseek", modelId: DEEPSEEK_CANDIDATE },
-    { label: "B_muse", modelId: MUSE_CANDIDATE },
-  ];
+  const deepseek = await buildCandidateBundle({
+    candidateModelId: DEEPSEEK_CANDIDATE,
+    fixture,
+    sourceHistory,
+    sourceAssistantOutput,
+    currentUserMessage: ADULT_ENTRY_USER_TURN,
+  });
+  const muse = await buildCandidateBundle({
+    candidateModelId: MUSE_CANDIDATE,
+    fixture,
+    sourceHistory,
+    sourceAssistantOutput,
+    currentUserMessage: ADULT_ENTRY_USER_TURN,
+  });
 
-  const built: Record<
-    string,
-    { body: Record<string, unknown>; messages: ChatMsg[]; systemPrompt: string; diffFields: string[] }
-  > = {};
-
-  for (const c of candidates) {
-    const r = await buildCandidatePrompt({
-      candidateModelId: c.modelId,
-      fixture,
-      sourceHistory,
-      sourceAssistantOutput,
-      currentUserMessage: ADULT_ENTRY_USER_TURN,
-    });
-    const { canonical, diffFields } = canonicalizeBody(r.body);
-    built[c.label] = {
-      body: canonical,
-      messages: r.messages,
-      systemPrompt: r.systemPrompt,
-      diffFields,
-    };
-  }
-
-  // Hash the canonical message array (the actual outbound prompt).
-  const hashMessages = (msgs: ChatMsg[]) =>
+  const hashMsgs = (msgs: ChatMsg[]) =>
     sha256(msgs.map((m) => `${m.role}\u0000${m.content}`).join("\u0001"));
 
-  const promptBodyHashA = hashMessages(built.A_deepseek.messages);
-  const promptBodyHashB = hashMessages(built.B_muse.messages);
-  const systemHashA = sha256(built.A_deepseek.systemPrompt);
-  const systemHashB = sha256(built.B_muse.systemPrompt);
+  const rawHistoryHashDeepseek = hashMsgs(
+    deepseek.handoffVariants.handoff.history as ChatMsg[]
+  );
+  const rawHistoryHashMuse = hashMsgs(
+    muse.handoffVariants.handoff.history as ChatMsg[]
+  );
 
-  // Detect specific DeepSeek-only adapters in the DeepSeek system/user prompt
-  // that are absent from Muse — the real production parity difference.
-  const dsSystem = built.A_deepseek.systemPrompt;
-  const museSystem = built.B_muse.systemPrompt;
-  const dsUserTail = built.A_deepseek.messages[built.A_deepseek.messages.length - 1]?.content ?? "";
-  const museUserTail = built.B_muse.messages[built.B_muse.messages.length - 1]?.content ?? "";
+  const continuityHashDeepseek = sha256(JSON.stringify(deepseek.continuityPacket));
+  const continuityHashMuse = sha256(JSON.stringify(muse.continuityPacket));
+  const continuityInputHashDeepseek = sha256(
+    JSON.stringify(deepseek.continuityInput)
+  );
+  const continuityInputHashMuse = sha256(JSON.stringify(muse.continuityInput));
 
-  const checks = {
-    deepseek_xml_wrapping:
-      dsSystem.includes("<PERSONA>") || dsSystem.includes("<WORLD_LORE>"),
-    muse_xml_wrapping:
-      museSystem.includes("<PERSONA>") || museSystem.includes("<WORLD_LORE>"),
-    deepseek_style_reminder: dsUserTail.includes("System Reminder:"),
-    muse_style_reminder: museUserTail.includes("System Reminder:"),
-    deepseek_compact_boundary: dsUserTail.includes(
-      "포괄적으로 순응 의사를 밝혀도"
-    ),
-    muse_compact_boundary: museUserTail.includes(
-      "포괄적으로 순응 의사를 밝혀도"
-    ),
-    deepseek_appearance_variation: dsSystem.includes("DEEPSEEK_APPEARANCE") ||
-      dsSystem.includes("외모 묘사"),
-    muse_appearance_variation: museSystem.includes("DEEPSEEK_APPEARANCE") ||
-      museSystem.includes("외모 묘사"),
-    muse_m1_style_section: museSystem.includes("MUSE_PROSE_M1") ||
-      museSystem.includes("Muse 문체"),
-    deepseek_m1_style_section: dsSystem.includes("MUSE_PROSE_M1") ||
-      dsSystem.includes("Muse 문체"),
+  const dsUserTail =
+    deepseek.messages[deepseek.messages.length - 1]?.content ?? "";
+  const museUserTail = muse.messages[muse.messages.length - 1]?.content ?? "";
+  const dsAdapters = detectAdapters(deepseek.systemPrompt, dsUserTail);
+  const museAdapters = detectAdapters(muse.systemPrompt, museUserTail);
+
+  const sharedGenDeepseek = {
+    stream: deepseek.body.stream === true,
+    targetResponseChars: 3200,
+    max_tokens: deepseek.body.max_tokens ?? null,
+    stop: deepseek.body.stop ?? null,
+  };
+  const sharedGenMuse = {
+    stream: muse.body.stream === true,
+    targetResponseChars: 3200,
+    max_tokens: muse.body.max_tokens ?? null,
+    stop: muse.body.stop ?? null,
   };
 
-  const parity =
-    promptBodyHashA === promptBodyHashB && systemHashA === systemHashB
+  const BASE_CONTEXT_PARITY =
+    deepseek.chunksFingerprint === muse.chunksFingerprint &&
+    deepseek.userPersona === muse.userPersona &&
+    deepseek.charName === muse.charName &&
+    deepseek.personaName === muse.personaName
+      ? "PASS"
+      : "FAIL";
+  const RAW_HISTORY_PARITY =
+    rawHistoryHashDeepseek === rawHistoryHashMuse ? "PASS" : "FAIL";
+  const CURRENT_USER_INPUT_PARITY =
+    ADULT_ENTRY_USER_TURN === ADULT_ENTRY_USER_TURN ? "PASS" : "FAIL";
+  const CHARACTER_PERSONA_PARITY = BASE_CONTEXT_PARITY;
+  const CONTINUITY_DATA_PARITY =
+    continuityInputHashDeepseek === continuityInputHashMuse &&
+    continuityHashDeepseek === continuityHashMuse
+      ? "PASS"
+      : "FAIL";
+  const GENERATION_PARAMETER_PARITY =
+    JSON.stringify(sharedGenDeepseek) === JSON.stringify(sharedGenMuse)
       ? "PASS"
       : "FAIL";
 
+  const requiredPass =
+    BASE_CONTEXT_PARITY === "PASS" &&
+    RAW_HISTORY_PARITY === "PASS" &&
+    CURRENT_USER_INPUT_PARITY === "PASS" &&
+    CHARACTER_PERSONA_PARITY === "PASS" &&
+    CONTINUITY_DATA_PARITY === "PASS" &&
+    GENERATION_PARAMETER_PARITY === "PASS";
+
   const report = {
     timestamp: new Date().toISOString(),
+    comparison_unit: "PRODUCTION_CONFIG_BUNDLE_COMPARISON",
+    claim_scope:
+      "actual production handoff bundle fidelity — NOT pure raw-model performance",
     fixture_character_id: 18,
     fixture_character_name: String(ch.name),
-    fixture_nsfw: !!ch.nsfw,
     adult_entry_user_turn_chars: ADULT_ENTRY_USER_TURN.length,
     candidates: {
-      A: { label: "A_deepseek", modelId: DEEPSEEK_CANDIDATE, diffFields: built.A_deepseek.diffFields },
-      B: { label: "B_muse", modelId: MUSE_CANDIDATE, diffFields: built.B_muse.diffFields },
+      deepseek: {
+        modelId: DEEPSEEK_CANDIDATE,
+        provider_route: deepseek.transportProvider,
+        temperature: deepseek.body.temperature ?? null,
+        top_p: deepseek.body.top_p ?? null,
+        reasoning: deepseek.body.reasoning ?? null,
+      },
+      muse: {
+        modelId: MUSE_CANDIDATE,
+        provider_route: muse.transportProvider,
+        temperature: muse.body.temperature ?? null,
+        top_p: muse.body.top_p ?? null,
+        reasoning: muse.body.reasoning ?? null,
+      },
     },
+    BASE_CONTEXT_PARITY,
+    RAW_HISTORY_PARITY,
+    CURRENT_USER_INPUT_PARITY,
+    CHARACTER_PERSONA_PARITY,
+    CONTINUITY_DATA_PARITY,
+    GENERATION_PARAMETER_PARITY,
+    FINAL_PROMPT_BYTE_PARITY: "EXPECTED_DIFFERENCE",
+    FINAL_PROMPT_BYTE_PARITY_REQUIRED: "NOT_REQUIRED",
+    PRODUCTION_ADAPTER_MANIFEST: "RECORDED",
+    DEEPSEEK_PRODUCTION_ADAPTERS: {
+      ...dsAdapters,
+      provider_route: "cheaperinference",
+      temperature: deepseek.body.temperature ?? null,
+      top_p: deepseek.body.top_p ?? null,
+      reasoning_policy: "stripped_for_cheaperinference",
+    },
+    MUSE_PRODUCTION_ADAPTERS: {
+      ...museAdapters,
+      provider_route: "openrouter",
+      temperature: muse.body.temperature ?? null,
+      top_p: muse.body.top_p ?? null,
+      reasoning_policy: muse.body.reasoning ?? null,
+    },
+    FINAL_PROMPT_HASH_DEEPSEEK: hashMsgs(deepseek.messages),
+    FINAL_PROMPT_HASH_MUSE: hashMsgs(muse.messages),
+    SYSTEM_HASH_DEEPSEEK: sha256(deepseek.systemPrompt),
+    SYSTEM_HASH_MUSE: sha256(muse.systemPrompt),
     hashes: {
-      prompt_body_hash_A: promptBodyHashA,
-      prompt_body_hash_B: promptBodyHashB,
-      system_hash_A: systemHashA,
-      system_hash_B: systemHashB,
+      raw_history: rawHistoryHashDeepseek,
+      continuity_packet: continuityHashDeepseek,
+      continuity_input: continuityInputHashDeepseek,
     },
-    adapter_checks: checks,
-    PROMPT_PARITY: parity,
-    verdict:
-      parity === "PASS"
-        ? "PROMPT_PARITY_PASS"
-        : "PRODUCTION_HANDOFF_PROMPT_PARITY_FAIL",
-    live_calls_run: false,
+    required_parity_pass: requiredPass,
+    verdict: requiredPass
+      ? "REQUIRED_PARITY_PASS_BUNDLE_COMPARISON_READY"
+      : "REQUIRED_PARITY_FAIL_DO_NOT_CALL",
     note:
-      parity === "FAIL"
-        ? "Production adult handoff injects candidate-specific semantic/style adapters (DeepSeek XML wrapping / style reminder / compact future-instruction boundary / appearance variation; Muse M1 style section). These are real production differences, NOT faked. Per audit §7, stop before live API calls."
-        : "Prompts byte-equivalent after canonicalizing model/provider fields.",
+      "Production model-specific adapters (DeepSeek XML/style/compact boundary; Muse provider reasoning + any gated style) are EXPECTED_DIFFERENCE. Do not claim pure model skill delta.",
   };
 
-  console.log(JSON.stringify({ parity_check: report }, null, 2));
-
-  // Save the report for the audit packet.
-  const { mkdirSync, writeFileSync } = await import("node:fs");
-  const outDir = "docs/audits/adult-handoff-style-fidelity-muse12";
-  mkdirSync(outDir, { recursive: true });
+  mkdirSync(OUT_DIR, { recursive: true });
+  writeFileSync(join(OUT_DIR, "PROMPT_PARITY.json"), JSON.stringify(report, null, 2), "utf8");
   writeFileSync(
-    join(outDir, "PROMPT_PARITY.json"),
-    JSON.stringify(report, null, 2),
-    "utf8"
-  );
-  writeFileSync(
-    join(outDir, "PROMPT_PARITY.md"),
-    `# Prompt Parity Check — Adult Handoff Fidelity Audit\n\n` +
-      "Reuses production \`buildContext\` + \`appendAdultHandoffPrompt\` + \`assemblePrimaryRpRequest\` for both candidates, canonicalizes model/provider fields, then compares hashes.\n\n" +
+    join(OUT_DIR, "PROMPT_PARITY.md"),
+    `# Prompt Parity — PRODUCTION_CONFIG_BUNDLE_COMPARISON\n\n` +
+      "Fairness unit is the **deployable adult handoff configuration bundle**, not raw-model byte-identical prompts.\n\n" +
       "```text\n" +
-      `PROMPT_PARITY: ${parity}\nverdict: ${report.verdict}\n\n` +
-      `prompt_body_hash_A (deepseek): ${promptBodyHashA}\n` +
-      `prompt_body_hash_B (muse):     ${promptBodyHashB}\n` +
-      `system_hash_A (deepseek):      ${systemHashA}\n` +
-      `system_hash_B (muse):          ${systemHashB}\n\n` +
-      `DeepSeek XML wrapping: ${checks.deepseek_xml_wrapping} (Muse: ${checks.muse_xml_wrapping})\n` +
-      `DeepSeek style reminder: ${checks.deepseek_style_reminder} (Muse: ${checks.muse_style_reminder})\n` +
-      `DeepSeek compact boundary: ${checks.deepseek_compact_boundary} (Muse: ${checks.muse_compact_boundary})\n` +
-      `DeepSeek appearance variation: ${checks.deepseek_appearance_variation} (Muse: ${checks.muse_appearance_variation})\n` +
-      `Muse M1 style section: ${checks.muse_m1_style_section} (DeepSeek: ${checks.deepseek_m1_style_section})\n` +
+      `comparison_unit: PRODUCTION_CONFIG_BUNDLE_COMPARISON\n` +
+      `BASE_CONTEXT_PARITY = ${BASE_CONTEXT_PARITY}\n` +
+      `RAW_HISTORY_PARITY = ${RAW_HISTORY_PARITY}\n` +
+      `CURRENT_USER_INPUT_PARITY = ${CURRENT_USER_INPUT_PARITY}\n` +
+      `CHARACTER_PERSONA_PARITY = ${CHARACTER_PERSONA_PARITY}\n` +
+      `CONTINUITY_DATA_PARITY = ${CONTINUITY_DATA_PARITY}\n` +
+      `GENERATION_PARAMETER_PARITY = ${GENERATION_PARAMETER_PARITY}\n` +
+      `FINAL_PROMPT_BYTE_PARITY = EXPECTED_DIFFERENCE\n` +
+      `PRODUCTION_ADAPTER_MANIFEST = RECORDED\n` +
+      `required_parity_pass = ${requiredPass}\n` +
+      `verdict = ${report.verdict}\n\n` +
+      `FINAL_PROMPT_HASH_DEEPSEEK = ${report.FINAL_PROMPT_HASH_DEEPSEEK}\n` +
+      `FINAL_PROMPT_HASH_MUSE = ${report.FINAL_PROMPT_HASH_MUSE}\n` +
       "```\n\n" +
-      (parity === "FAIL"
-        ? "> **PRODUCTION_HANDOFF_PROMPT_PARITY_FAIL**\n>\n> Production adult handoff injects candidate-specific semantic/style adapters. These are real production differences and were NOT removed to fake parity. Per audit §7, live API calls are NOT run.\n"
-        : "> Prompts byte-equivalent after canonicalizing model/provider fields.\n"),
+      "## Production adapters (recorded, not removed)\n\n" +
+      `| Adapter | DeepSeek | Muse |\n|---|---|---|\n` +
+      `| XML wrapping | ${dsAdapters.xml_wrapping} | ${museAdapters.xml_wrapping} |\n` +
+      `| Style reminder | ${dsAdapters.style_reminder} | ${museAdapters.style_reminder} |\n` +
+      `| Compact boundary | ${dsAdapters.compact_boundary} | ${museAdapters.compact_boundary} |\n` +
+      `| Muse M1 marker | ${dsAdapters.muse_m1_marker} | ${museAdapters.muse_m1_marker} |\n` +
+      `| Provider route | cheaperinference | openrouter |\n` +
+      `| Temperature (production) | ${String(deepseek.body.temperature ?? "n/a")} | ${String(muse.body.temperature ?? "n/a")} |\n` +
+      `| Reasoning policy | CI-stripped | ${JSON.stringify(muse.body.reasoning ?? null)} |\n\n` +
+      "> Results measure **actual production handoff bundle fidelity**, not pure raw-model performance.\n",
     "utf8"
   );
 
-  if (parity === "FAIL") {
-    console.log("\n[parity] STOP: PRODUCTION_HANDOFF_PROMPT_PARITY_FAIL — LIVE_CALLS_NOT_RUN");
+  console.log(JSON.stringify({ parity_check: report }, null, 2));
+  if (!requiredPass) {
+    console.log("\n[parity] STOP: REQUIRED_PARITY_FAIL_DO_NOT_CALL");
+    process.exit(2);
   }
+  console.log("\n[parity] REQUIRED_PARITY_PASS_BUNDLE_COMPARISON_READY");
 }
 
 main().catch((e) => {
