@@ -55,6 +55,17 @@ Set these before going live (values you provide separately):
 | `HOSTNAME` | `0.0.0.0` (optional; server defaults to this in production) |
 | `EPISODIC_MEMORY_RECALL_ENABLED` | `1` — **required** to inject saved episodic facts into prompts. Without it, facts are still saved but recall is off in production (boot warns). Read by `episodicMemoryRecallEnabled()` in `src/lib/episodicMemoryFacts.ts`. |
 
+CLOSED_ADULT_TEST_MODE (closed adult cohort — not open-public legal verification):
+
+| Variable | Value / notes |
+|----------|----------------|
+| `ADULT_SCENE_ROUTING_ENABLED` | `true` |
+| `ADULT_SCENE_HANDOFF_GENERAL_ENABLED` | `true` — general test accounts; eligibility = 「성인 캐릭터 보기」 (`users.nsfw_on`) |
+| `ADULT_SCENE_AION_PRIMARY_ENABLED` | `false` |
+| `ADULT_MODEL_ID` | `deepseek-v4-pro` |
+| `ADULT_SCENE_GLM_HARD_FAILURE_FALLBACK_ENABLED` | `true` |
+| `SKIP_ADULT_VERIFICATION` | `1` while no separate verification product is running |
+
 **Do NOT set** `DEMO_MODE=1` in production.
 
 Optional for admin:
