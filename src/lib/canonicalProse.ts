@@ -62,6 +62,33 @@ export function normalizeEditedProseForSave(text: string): string {
   return normalizeProseLineEndings(text);
 }
 
+/**
+ * Phase B0 — normalization for material prose-edit detection.
+ * Format-only edits (CRLF/LF, leading/trailing/horizontal whitespace) are
+ * NOT treated as material changes and must not invalidate episodic facts.
+ * Any word / sentence / negation / dialogue / action / punctuation-meaning
+ * change IS material.
+ *
+ * Intentionally lightweight: no semantic NLP. Two prose bodies are materially
+ * equal iff their normalized forms are byte-equal.
+ */
+export function normalizeEditedProseForDerivedStateComparison(
+  text: string
+): string {
+  return normalizeProseLineEndings(text)
+    .split("\n")
+    .map((line) => line.replace(/[\t\u00A0\u200B\u200C\u200D\uFEFF\s]+/g, " ").trim())
+    .join("\n")
+    .trim();
+}
+
+export function isMaterialProseEdit(before: string, after: string): boolean {
+  return (
+    normalizeEditedProseForDerivedStateComparison(before) !==
+    normalizeEditedProseForDerivedStateComparison(after)
+  );
+}
+
 export function firstDifferingIndex(a: string, b: string): number {
   const max = Math.max(a.length, b.length);
   for (let i = 0; i < max; i++) {

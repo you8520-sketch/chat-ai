@@ -525,6 +525,11 @@ function migrate(db: Database.Database) {
   addColumn("status_trigger_events", "source_message_id", "INTEGER");
   addColumn("status_trigger_events", "request_id", "TEXT");
   addColumn("status_trigger_events", "generation_sequence", "INTEGER");
+  // Phase B0: trigger event supersession (regeneration / variant switch /
+  // manual status edit). Backward-compatible columns; default 0 / NULL.
+  addColumn("status_trigger_events", "is_superseded", "INTEGER NOT NULL DEFAULT 0");
+  addColumn("status_trigger_events", "superseded_at", "TEXT");
+  addColumn("status_trigger_events", "superseded_reason", "TEXT");
   db.exec(`
     UPDATE messages
     SET updated_at = COALESCE(NULLIF(updated_at, ''), created_at, datetime('now'))

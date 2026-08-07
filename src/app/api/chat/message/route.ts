@@ -11,7 +11,7 @@ import {
 } from "@/lib/messageAlternates";
 import { stripMuseAcceptanceFromUsage } from "@/lib/museAcceptanceTelemetry";
 import { stripAdultRoutingForClient } from "@/lib/billingReceiptAccess";
-import { normalizeEditedProseForSave } from "@/lib/canonicalProse";
+import { normalizeEditedProseForSave, isMaterialProseEdit } from "@/lib/canonicalProse";
 import {
   parseStoredStatusWidgetValuesJson,
   sanitizeParsedStatusWidgetValues,
@@ -26,6 +26,12 @@ import {
   resolveUserNoteStatusWindowPolicy,
 } from "@/lib/statusWindowNotePolicy";
 import type { Usage } from "@/lib/chatUsage";
+import { evaluateStatusWidgetTriggersBestEffort } from "@/lib/statusWidgetTriggers";
+import {
+  executeAtomicManualEditCore,
+  getAssistantSourceTurn,
+  isLatestCanonicalAssistantMessage,
+} from "@/lib/rpDerivedStateLifecycle";
 
 /** Read-only snapshot for stream EOF reconciliation (generationStatus + final content). */
 export async function GET(req: Request) {
@@ -167,38 +173,108 @@ export async function PATCH(req: Request) {
 
   const db = getDb();
   if (msg.role === "assistant") {
+    // Phase B0: detect material prose change vs format-only edit. A material
+    // prose edit invalidates episodic facts derived from the old prose (wrong
+    // stale memory > missing memory is rejected). Format-only / status-only
+    // edits preserve facts.
+    const materialProseChange = isMaterialProseEdit(msg.content, text);
+
     const variant = editedMessageVariant({
       content: text,
       model: msg.model,
       usage: msg.usage ? JSON.parse(msg.usage) : null,
     });
 
-    let statusWidgetValuesJson: string | undefined;
-    let clientWidgetValues: ParsedStatusWidgetTurnValues | undefined;
-    if (hasWidgetPatch) {
-      const existing = parseStoredStatusWidgetValuesJson(msg.status_widget_values_json);
-      const merged: ParsedStatusWidgetTurnValues = {
-        character: incomingWidgets?.character ?? null,
-        user: incomingWidgets?.user ?? null,
-        ...(existing.extracted_facts?.length
-          ? { extracted_facts: existing.extracted_facts }
-          : {}),
-      };
-      const sanitized = sanitizeParsedStatusWidgetValues(merged);
-      statusWidgetValuesJson = serializeStatusWidgetValuesJson(sanitized);
-      clientWidgetValues = stripExtractedFactsForClient(sanitized);
+    // Phase B0.1 Fix A: a material prose edit must clear embedded
+    // extracted_facts regardless of whether a statusWidgetValues patch was
+    // supplied. The canonical stored payload is reconstructed from the
+    // existing stored payload: character/user are preserved when no widget
+    // patch is supplied; extracted_facts are dropped on material edit.
+    const existing = parseStoredStatusWidgetValuesJson(msg.status_widget_values_json);
+    const nextCharacter =
+      hasWidgetPatch && incomingWidgets?.character
+        ? incomingWidgets.character
+        : existing.character ?? null;
+    const nextUser =
+      hasWidgetPatch && incomingWidgets?.user
+        ? incomingWidgets.user
+        : existing.user ?? null;
+    const preserveFacts =
+      !materialProseChange && existing.extracted_facts?.length
+        ? { extracted_facts: existing.extracted_facts }
+        : {};
+    const merged: ParsedStatusWidgetTurnValues = {
+      character: nextCharacter,
+      user: nextUser,
+      ...preserveFacts,
+    };
+    const sanitized = sanitizeParsedStatusWidgetValues(merged);
+    const statusWidgetValuesJson = serializeStatusWidgetValuesJson(sanitized);
+    const clientWidgetValues = stripExtractedFactsForClient(sanitized);
+
+    const isLatest = isLatestCanonicalAssistantMessage(db, msg.chat_id, id);
+    // Phase B0.2: supersession belongs in the atomic core whenever the
+    // latest message's status snapshot is being patched — including
+    // material prose + widget edits. Material prose without a widget patch
+    // leaves status values unchanged, so triggers stay untouched.
+    const supersedeTriggers = hasWidgetPatch && isLatest;
+
+    // Phase B0.1/B0.2: atomic manual-edit core. Message UPDATE + embedded
+    // facts clearing + episodic invalidation + (when supersedeTriggers)
+    // trigger supersession commit together or roll back together. No
+    // "new prose + old memory" or "new status + old trigger" half-state.
+    try {
+      executeAtomicManualEditCore(db, {
+        chatId: msg.chat_id,
+        messageId: id,
+        content: text,
+        alternatesJson: JSON.stringify([variant]),
+        statusWidgetValuesJson,
+        materialProseChange,
+        sourceTurn: getAssistantSourceTurn(db, msg.chat_id, id),
+        supersedeTriggers,
+        triggerSupersessionReason: supersedeTriggers
+          ? "manual_status_edit"
+          : undefined,
+      });
+    } catch (e) {
+      console.error(
+        "[DerivedState] atomic manual edit core failed:",
+        (e as Error).message
+      );
+      return NextResponse.json(
+        { error: "메시지 수정 중 오류가 발생했습니다." },
+        { status: 500 }
+      );
     }
 
-    if (statusWidgetValuesJson != null) {
-      db.prepare(
-        "UPDATE messages SET content=?, alternates=?, active_variant=?, status_widget_values_json=? WHERE id=?"
-      ).run(text, JSON.stringify([variant]), 0, statusWidgetValuesJson, id);
-    } else {
-      db.prepare("UPDATE messages SET content=?, alternates=?, active_variant=? WHERE id=?").run(
-        text,
-        JSON.stringify([variant]),
-        0,
-        id
+    // Phase B0.2: AFTER the canonical core committed, best-effort trigger
+    // re-evaluation on the saved sanitized payload. materialProseChange is
+    // NOT a gate — material+widget and status-only both re-evaluate.
+    // Supersession already happened once inside the core (no double call).
+    if (hasWidgetPatch && isLatest) {
+      try {
+        const sourceTurn = getAssistantSourceTurn(db, msg.chat_id, id);
+        if (sourceTurn != null) {
+          evaluateStatusWidgetTriggersBestEffort(db, {
+            chatId: msg.chat_id,
+            characterId: msg.character_id,
+            sourceTurn,
+            statusValues: sanitized,
+            sourceMessageId: id,
+            requestId: null,
+            generationSequence: null,
+          });
+        }
+      } catch (e) {
+        console.error("[StatusTrigger] manual status edit reconcile failed:", (e as Error).message);
+      }
+    } else if (hasWidgetPatch && !isLatest) {
+      // Historical manual widget edit: derived trigger reconciliation is out
+      // of scope for B0 (would require downstream replay). Phase B1 numeric
+      // chats will fail-closed historical numeric edits.
+      console.warn(
+        "[DerivedState] HISTORICAL_MANUAL_EDIT_LONG_TERM_SUMMARY_RECONCILIATION_UNVERIFIED — historical status edit; trigger replay not performed"
       );
     }
 
@@ -206,7 +282,7 @@ export async function PATCH(req: Request) {
       ok: true,
       content: text,
       ...serializeVariantsForClient([variant], 0),
-      ...(clientWidgetValues != null ? { statusWidgetValues: clientWidgetValues } : {}),
+      statusWidgetValues: clientWidgetValues,
     });
   }
 

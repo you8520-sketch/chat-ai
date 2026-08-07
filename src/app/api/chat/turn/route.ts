@@ -7,6 +7,7 @@ import {
 } from "@/lib/characterEngagementStats";
 import { getLastTurnMessageIds } from "@/lib/chatAccess";
 import { deleteEpisodicMemoryFactsByAssistantMessageIds } from "@/lib/episodicMemoryFacts";
+import { deleteStatusTriggerEventsForSourceMessage } from "@/lib/rpDerivedStateLifecycle";
 import { getChatMemoryCapacity } from "@/lib/memory/memory-capacity";
 import { reconcileMemoryAfterTurnDelete } from "@/lib/memory/memory-reconcile";
 import { resolveMemoryTier } from "@/lib/memory/memory-manager";
@@ -55,14 +56,21 @@ export async function DELETE(req: Request) {
     }
   }
 
-  // Same transaction: bookmarks → episodic facts (assistant provenance) → messages.
-  // Fact delete failures must roll back message deletes (no orphan prevention gap).
+  // Same transaction: bookmarks → episodic facts → trigger events → messages.
+  // Fact/trigger delete failures must roll back message deletes (no orphan
+  // prevention gap). The deleted assistant's derived trigger queue is removed
+  // in the same transaction so no stale queued / fire_once ghost event remains.
   db.transaction(() => {
     for (const id of idsToDelete) {
       db.prepare("DELETE FROM bookmarks WHERE message_id=?").run(id);
     }
     if (lastTurn.assistantId != null) {
       deleteEpisodicMemoryFactsByAssistantMessageIds(db, cId, [lastTurn.assistantId]);
+      try {
+        deleteStatusTriggerEventsForSourceMessage(db, cId, lastTurn.assistantId);
+      } catch (e) {
+        console.warn("[StatusTrigger] last-turn delete trigger cleanup failed:", (e as Error).message);
+      }
     }
     for (const id of idsToDelete) {
       db.prepare("DELETE FROM messages WHERE id=? AND chat_id=?").run(id, cId);

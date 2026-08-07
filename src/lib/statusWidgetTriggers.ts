@@ -38,6 +38,9 @@ export type StatusTriggerEvent = {
   source_message_id?: number | null;
   request_id?: string | null;
   generation_sequence?: number | null;
+  is_superseded?: number | null;
+  superseded_at?: string | null;
+  superseded_reason?: string | null;
 };
 
 export type StatusWidgetTriggerInput = {
@@ -217,9 +220,14 @@ export function ensureStatusWidgetTriggerTables(db: Database.Database): void {
       db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
     }
   };
-  addColumn("status_trigger_events", "source_message_id", "INTEGER");
+    addColumn("status_trigger_events", "source_message_id", "INTEGER");
   addColumn("status_trigger_events", "request_id", "TEXT");
   addColumn("status_trigger_events", "generation_sequence", "INTEGER");
+    // Phase B0: trigger event supersession (regeneration / variant switch /
+    // manual status edit). Backward-compatible columns; default 0 / NULL.
+    addColumn("status_trigger_events", "is_superseded", "INTEGER NOT NULL DEFAULT 0");
+    addColumn("status_trigger_events", "superseded_at", "TEXT");
+    addColumn("status_trigger_events", "superseded_reason", "TEXT");
 }
 
 function serializeTriggerValue(value: string | number | boolean): string {
@@ -416,8 +424,12 @@ function compareTriggerValues(
 }
 
 function alreadyFired(db: Database.Database, chatId: number, triggerId: string): boolean {
+  // Phase B0: superseded events do not count as "fired" — a rejected variant
+  // must not permanently block a fire_once trigger.
   const row = db
-    .prepare("SELECT id FROM status_trigger_events WHERE chat_id=? AND trigger_id=? LIMIT 1")
+    .prepare(
+      "SELECT id FROM status_trigger_events WHERE chat_id=? AND trigger_id=? AND is_superseded=0 LIMIT 1"
+    )
     .get(chatId, triggerId) as { id: number } | undefined;
   return Boolean(row);
 }
@@ -430,7 +442,7 @@ function alreadyQueuedForTurn(
 ): boolean {
   const row = db
     .prepare(
-      "SELECT id FROM status_trigger_events WHERE chat_id=? AND trigger_id=? AND source_turn=? LIMIT 1"
+      "SELECT id FROM status_trigger_events WHERE chat_id=? AND trigger_id=? AND source_turn=? AND is_superseded=0 LIMIT 1"
     )
     .get(chatId, triggerId, sourceTurn) as { id: number } | undefined;
   return Boolean(row);
@@ -559,7 +571,7 @@ export function loadQueuedStatusTriggerEventsForPrompt(
   return db
     .prepare(
       `SELECT * FROM status_trigger_events
-       WHERE chat_id=? AND is_consumed=0${sourceTurnFilter}
+       WHERE chat_id=? AND is_consumed=0 AND is_superseded=0${sourceTurnFilter}
        ORDER BY fired_at ASC, id ASC
        LIMIT ?`
     )
