@@ -3533,6 +3533,29 @@ export async function POST(req: Request) {
           generationFailure = null;
         }
 
+        // Adult scene explicit exit (OOC stop / clear transition) may return a short
+        // general-model acknowledgment. Do not fail the handoff return as under_length.
+        const adultExplicitExitThisTurn =
+          priorModelRouteState.activeRoute === "adult" &&
+          deliveredActiveRoute === "general" &&
+          (adultRouteDecision.routeTriggerReason === "user_ooc_stop" ||
+            adultRouteDecision.routeTriggerReason === "clear_scene_transition" ||
+            sceneClassification.oocStop ||
+            sceneClassification.clearSceneTransition);
+        if (
+          generationFailure === "under_length" &&
+          adultExplicitExitThisTurn &&
+          savedText.trim().length > 0 &&
+          (primaryStage?.finishReason ?? "").toLowerCase() === "stop"
+        ) {
+          console.warn("[/api/chat] under_length waived — adult explicit scene exit", {
+            outputChars: savedText.length,
+            routeTriggerReason: adultRouteDecision.routeTriggerReason,
+            deliveredModelId,
+          });
+          generationFailure = null;
+        }
+
         if (generationFailure) {
           console.warn("[/api/chat] generation failure — billing skipped", {
             generationFailure,
