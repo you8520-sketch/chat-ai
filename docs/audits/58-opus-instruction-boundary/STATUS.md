@@ -1,0 +1,35 @@
+# STATUS — Audit 58
+
+```text
+OPUS_INSTRUCTION_BOUNDARY_SCRIPTS_READY
+LIVE_CAPTURE_PENDING
+HUMAN_BLIND_REVIEW_REQUIRED
+AUDIT57_VERDICT_PRESERVED
+PHASE2_NOT_RUN
+MODEL_LINEUP_DECISION_NOT_RUN
+PRODUCTION_CHANGE_NO
+```
+
+## Audit 57 (unchanged)
+
+```text
+OPUS_UNIFIED_TERMINAL_PHASE1_FAIL
+ARM_D_ARCHITECTURE_PROMISING
+ARM_D_SINGLE_AGENCY_BOUNDARY_FAIL
+PHASE2_NOT_RUN
+PRODUCTION_CHANGE_NO
+```
+
+## Safety
+
+```text
+PR #250 modification: NO
+PR #257 modification: NO
+production DB apply: NO
+general rollout: NO
+public picker change: NO
+pricing change: NO
+auto merge: NO
+auto deploy: NO
+model lineup decision: NO
+```
