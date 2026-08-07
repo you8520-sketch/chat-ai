@@ -4,31 +4,12 @@ Fairness unit is the **deployable adult handoff configuration bundle**, not raw-
 
 ```text
 comparison_unit: PRODUCTION_CONFIG_BUNDLE_COMPARISON
-BASE_CONTEXT_PARITY = PASS
-RAW_HISTORY_PARITY = PASS
-CURRENT_USER_INPUT_PARITY = PASS
-CHARACTER_PERSONA_PARITY = PASS
-CONTINUITY_DATA_PARITY = PASS
-GENERATION_PARAMETER_PARITY = PASS
+required_parity_all_sources_pass = True
 FINAL_PROMPT_BYTE_PARITY = EXPECTED_DIFFERENCE
 PRODUCTION_ADAPTER_MANIFEST = RECORDED
-required_parity_pass = true
-verdict = REQUIRED_PARITY_PASS_BUNDLE_COMPARISON_READY
-
-FINAL_PROMPT_HASH_DEEPSEEK = de1a3ef335ea8323c524a528ede5b5df30eb1c14bdad4113ed8606ad9a393f39
-FINAL_PROMPT_HASH_MUSE = 636edbbd2ebace324b4d35c0b1e7308ce5f23bb6cf3de6e45dfdfb65301bad02
+verdict = REQUIRED_PARITY_PASS_LIVE_CAPTURE_COMPLETE
 ```
 
-## Production adapters (recorded, not removed)
+Per-source required gates (BASE/RAW/USER/CHARACTER/CONTINUITY/GENERATION) all PASS. Final prompt hashes differ by production adapters and are expected.
 
-| Adapter | DeepSeek | Muse |
-|---|---|---|
-| XML wrapping | true | false |
-| Style reminder | true | false |
-| Compact boundary | true | false |
-| Muse M1 marker | false | false |
-| Provider route | cheaperinference | openrouter |
-| Temperature (production) | 0.92 | 0.7 |
-| Reasoning policy | CI-stripped | {"effort":"minimal","exclude":true} |
-
-> Results measure **actual production handoff bundle fidelity**, not pure raw-model performance.
+See `PROMPT_PARITY.json` → `parity_by_source` for hashes and adapter manifests.

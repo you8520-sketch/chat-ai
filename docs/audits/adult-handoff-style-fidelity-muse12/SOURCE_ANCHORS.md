@@ -1,6 +1,6 @@
-# Source Anchors (identified, not consumed)
+# Source Anchors (consumed in Stage 1)
 
-The audit planned to reuse existing human-approved / production-quality raw RP outputs as style anchors. No new source-model calls (Opus / Terra / Gemini = 0). Because the prompt parity gate failed and live calls were not run, these anchors were **identified but not consumed**.
+Reused existing human-approved / production-quality raw RP outputs as style anchors. No new source-model calls (Opus / Terra / Gemini = 0). Anchors were consumed for the production-bundle Stage 1 6-call capture.
 
 All anchors are fictional, explicitly-adult, consensual adult-route fixtures.
 
@@ -56,11 +56,11 @@ All Gemini 3.1 cells in this audit are `finish=stop` (relationship T1 4659, T2 4
 
 ## Note on Gemini anchor
 
-Unlike Opus and Terra, the Gemini 3.1 Audit 55 outputs do not have a corresponding human PASS / PRODUCTION_READY document in this workspace. If a human-approved Gemini anchor is required for a future re-run, a prior human-reviewed Gemini output should be substituted or Audit 55 should receive a formal review pass first. This does not affect the current audit outcome, which stopped at the prompt parity gate before any anchor was consumed.
+Unlike Opus and Terra, the Gemini 3.1 Audit 55 outputs do not have a corresponding human PASS / PRODUCTION_READY document in this workspace. This limitation is recorded in the blind packet and runtime results. It does **not** invalidate Opus/Terra Stage 1 cells.
 
 ## Adult transition fixture
 
-The planned common adult-route entry user turn (byte-identical across A/B and sources) was prepared:
+Common adult-route entry user turn (byte-identical across candidates and sources):
 
 ```text
 *그의 손이 내 허리를 감싸 안는다. 눈이 마주치고 거리가 사라진다.*
@@ -70,4 +70,4 @@ The planned common adult-route entry user turn (byte-identical across A/B and so
 *곁에서 숨소리가 가까워진다. 더 가까이 닿아도 좋다는 허락이 눈빛에 묻어 있다.*
 ```
 
-Consensual, explicitly-adult, fictional characters, `intimate_transition` / `explicit` scene intent. This turn was used only inside the parity check (c18 nsfw fixture); no generation was performed.
+Consensual, explicitly-adult, fictional characters. Used for Stage 1 live handoff calls.

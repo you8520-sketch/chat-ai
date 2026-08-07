@@ -1,0 +1,25 @@
+{
+  "sealed": true,
+  "do_not_open_before_human_review": true,
+  "comparison_unit": "PRODUCTION_CONFIG_BUNDLE_COMPARISON",
+  "mapping": {
+    "opus": {
+      "X": "muse",
+      "Y": "deepseek",
+      "model_X": "meta/muse-spark-1.2",
+      "model_Y": "deepseek-v4-pro"
+    },
+    "terra": {
+      "X": "muse",
+      "Y": "deepseek",
+      "model_X": "meta/muse-spark-1.2",
+      "model_Y": "deepseek-v4-pro"
+    },
+    "gemini": {
+      "X": "muse",
+      "Y": "deepseek",
+      "model_X": "meta/muse-spark-1.2",
+      "model_Y": "deepseek-v4-pro"
+    }
+  }
+}
