@@ -107,13 +107,29 @@ npm run typecheck:app = PASS
 git diff --check = PASS
 ```
 
+## Aion challenger add-on
+
+Historical note: `b9e7ef7` had selected Aion as adult handoff primary. Muse vs DeepSeek alone does not close the adult-model choice.
+
+```text
+docs = docs/audits/adult-handoff-aion-challenger/AION_CHALLENGER_RESULTS.md
+NEW_API_CALLS = 3 (Aion only; DeepSeek/Muse re-calls = 0)
+Aion Length V2 / two-chunk / recovery / reasoning = NOT_RUN
+AION_ADULT_HANDOFF_BUNDLE_WIN = NO
+AION_ADULT_PRIMARY_CANDIDATE = NO
+recommendation = KEEP_CURRENT_ADULT_MODEL (deepseek-v4-pro)
+```
+
 ## Gate
 
 ```text
-ADULT_SCENE_HANDOFF_READY = true
+ADULT_SCENE_HANDOFF_READY = PENDING_FINAL_MODEL_LOCK
+AION_CHALLENGER_STATUS = COMPLETE
 MAIN_MERGED = false
 GENERAL_USERS_ENABLED = false
+ADULT_SCENE_AION_PRIMARY_ENABLED = false
 ```
 
+DeepSeek-primary code on this PR stays temporary until explicit final model lock + merge approval.
 Do not treat merging audit PR #262 as shipping this implementation.
 Do not enable general-user adult handoff / Railway global flags / pricing without separate approval.
