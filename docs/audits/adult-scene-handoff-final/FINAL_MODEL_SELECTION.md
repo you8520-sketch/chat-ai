@@ -19,18 +19,21 @@ ADULT_SCENE_HANDOFF_READY = true
 
 Adult model selection is **closed**. No further model bakeoffs, Stage 2, Aion/Muse retests, or additional T1→T4 smokes are required for this lock.
 
-## Shipping posture (merge ≠ general enable)
+## Shipping posture
 
 ```text
+PR_265_MAIN_MERGED = true
 ADULT_SCENE_AION_PRIMARY_ENABLED = false
-ADULT_SCENE_HANDOFF_GENERAL_ENABLED = false
-Railway global enable = NOT THIS PR
-pricing change = NOT THIS PR
-Aion code path = retained (inactive legacy / future fallback-compatible)
-MAIN_MERGED = false  (human merge only; no auto-merge)
+ADULT_SCENE_HANDOFF_GENERAL_ENABLED = true   # CLOSED_ADULT_TEST_MODE
+eligibility = users.nsfw_on (「성인 캐릭터 보기」)
+pricing change = NO
+Aion code path = retained (inactive)
 ```
+
+Closed-test activation details: `CLOSED_ADULT_TEST_MODE.md`.
 
 See also:
 
 - `docs/audits/adult-scene-handoff-final/FINAL_LIVE_SMOKE.md`
 - `docs/audits/adult-handoff-aion-challenger/AION_CHALLENGER_RESULTS.md`
+- `docs/audits/adult-scene-handoff-final/CLOSED_ADULT_TEST_MODE.md`

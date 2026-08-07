@@ -455,6 +455,7 @@ import {
   resolveAdultSceneRoutingEnabledForRequest,
 } from "@/lib/adultSceneHandoffCanary";
 import { isAdminUser } from "@/lib/isAdminUser";
+import { effectiveIsAdult } from "@/lib/adultVerification";
 
 const SSE_HEADERS = {
   "Content-Type": "text/event-stream; charset=utf-8",
@@ -1042,8 +1043,14 @@ export async function POST(req: Request) {
   ]
     .filter(Boolean)
     .join("\n");
+  // CLOSED_ADULT_TEST_MODE: 「성인 캐릭터 보기」(nsfw_on) is the operational
+  // adult-handoff gate. Future public service should keep both verified-adult
+  // and visibility checks inside resolveAdultEligibility (no scattered gates).
+  const userAdultVerified = effectiveIsAdult(user.is_adult);
+  const adultContentVisibilityEnabled = !!user.nsfw_on;
   const adultEligibility = resolveAdultEligibility({
-    userAdultVerified: !!user.is_adult,
+    userAdultVerified,
+    adultContentVisibilityEnabled,
     characterAdultContentEnabled: isAdultMode && ch.nsfw === 1,
     participants: [
       {
@@ -1052,7 +1059,7 @@ export async function POST(req: Request) {
       },
       {
         description: personaDescription,
-        isVerifiedAdultUserPersona: !!user.is_adult,
+        isVerifiedAdultUserPersona: userAdultVerified,
       },
     ],
     actualNonConsent: sceneClassification.actualNonConsent,

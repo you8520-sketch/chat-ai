@@ -128,14 +128,13 @@ FINAL_ADULT_MODEL = deepseek-v4-pro
 FINAL_MODEL_LOCKED = true
 ADULT_SCENE_HANDOFF_READY = true
 AION_CHALLENGER_STATUS = COMPLETE
-MAIN_MERGED = false
-GENERAL_USERS_ENABLED = false
+PR_265_MAIN_MERGED = true
+CLOSED_ADULT_TEST_MODE = true
 ADULT_SCENE_AION_PRIMARY_ENABLED = false
-ADULT_SCENE_HANDOFF_GENERAL_ENABLED = false
+ADULT_SCENE_HANDOFF_GENERAL_ENABLED = true
+eligibility = 「성인 캐릭터 보기」(users.nsfw_on)
 ```
 
-Adult model selection is final. Merge ships handoff implementation to main with general users still OFF.
+Adult model selection is final. Closed-test general handoff is ON for accounts with visibility enabled.
 Aion path retained as inactive legacy / future fallback-compatible code (not deleted).
-Do not treat merging audit PR #262 as shipping this implementation.
-Do not enable general-user adult handoff / Railway global flags / pricing without separate approval.
-No auto-merge — human merge only.
+Pricing / open-public legal verification remain separate. See `CLOSED_ADULT_TEST_MODE.md`.

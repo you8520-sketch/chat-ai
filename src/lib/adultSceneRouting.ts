@@ -83,6 +83,7 @@ export interface ParticipantAdultMetadata {
 
 export type AdultEligibilityBlockReason =
   | "user_not_verified"
+  | "adult_visibility_off"
   | "character_adult_disabled"
   | "participant_minor"
   | "participant_conflict"
@@ -440,8 +441,27 @@ export function assessParticipantAdultStatus(
   return "unknown";
 }
 
+/**
+ * Central adult / adult-handoff eligibility.
+ *
+ * CLOSED_ADULT_TEST_MODE (current closed adult test cohort):
+ * - No separate legal age-verification product is running.
+ * - Operational gate = existing 「성인 캐릭터 보기」 (`users.nsfw_on`).
+ * - `SKIP_ADULT_VERIFICATION` may make `userAdultVerified` effective-true;
+ *   visibility OFF must still disable adult model handoff.
+ *
+ * Future public service should require:
+ *   verified adult status AND adult content visibility ON
+ * inside this same function (do not scatter `if (nsfw_on)` checks).
+ */
 export function resolveAdultEligibility(input: {
   userAdultVerified: boolean;
+  /**
+   * 「성인 캐릭터 보기」 / `users.nsfw_on`.
+   * Omit/undefined treated as ON only for legacy unit fixtures;
+   * production chat must pass the real preference.
+   */
+  adultContentVisibilityEnabled?: boolean;
   characterAdultContentEnabled: boolean;
   participants: ParticipantAdultMetadata[];
   actualNonConsent?: boolean;
@@ -451,6 +471,16 @@ export function resolveAdultEligibility(input: {
       eligible: false,
       allowedByAdultContentPolicy: false,
       blockReason: "user_not_verified",
+    };
+  }
+  // CLOSED_ADULT_TEST_MODE gate: visibility OFF disables handoff only.
+  // Do not hard-block the turn (allowedByAdultContentPolicy stays true) so
+  // the user keeps their selected general RP model instead of a 400.
+  if (input.adultContentVisibilityEnabled === false) {
+    return {
+      eligible: false,
+      allowedByAdultContentPolicy: true,
+      blockReason: "adult_visibility_off",
     };
   }
   if (!input.characterAdultContentEnabled) {
@@ -802,7 +832,13 @@ export function decideAdultModelRoute(input: {
       frequentDirtyTalkRoute ||
       providerBoundaryExceeded);
 
-  if (state.activeRoute === "adult" || shouldEnterAdultRoute) {
+  // Sticky adult requires ongoing handoff eligibility (e.g. visibility still ON).
+  const stickyAdult =
+    state.activeRoute === "adult" &&
+    eligibility.eligible &&
+    eligibility.allowedByAdultContentPolicy;
+
+  if (stickyAdult || shouldEnterAdultRoute) {
     return {
       activeRoute: "adult",
       sceneMode: classification.sceneMode,
