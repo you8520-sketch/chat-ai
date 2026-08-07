@@ -1,0 +1,16 @@
+{
+  "note": "LOCAL ONLY until after human scores. Stage 2. Side A/B → arm E/F.",
+  "stage": 2,
+  "map": {
+    "s5_relationship_hand": {
+      "T1": {
+        "A": "E",
+        "B": "F"
+      },
+      "T2": {
+        "A": "E",
+        "B": "F"
+      }
+    }
+  }
+}
