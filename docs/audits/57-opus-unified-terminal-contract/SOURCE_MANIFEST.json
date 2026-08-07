@@ -1,0 +1,10 @@
+{
+  "live_root": "/opt/cursor/artifacts/opus-unified-terminal",
+  "model": "claude-opus-5",
+  "provider": "cheaperinference",
+  "base_branch": "cursor/standard-collaborative-lineup-6a91",
+  "hidden_map_sha256": "ad064b0345e2c50be5043482949764bca22d92986795f8749a41c52e1b520ea7",
+  "hidden_map_path_local": "/opt/cursor/artifacts/opus-unified-terminal/_HIDDEN_MAP.json",
+  "past_outputs_reused": false,
+  "persona_id": 61
+}

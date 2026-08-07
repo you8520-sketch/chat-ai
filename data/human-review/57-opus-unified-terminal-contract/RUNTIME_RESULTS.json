@@ -1,0 +1,11 @@
+{
+  "status": "OPUS_UNIFIED_TERMINAL_PHASE1_CAPTURED",
+  "human_review": "NOT_RUN — waiting for ChatGPT",
+  "model_lineup_decision": "NO",
+  "production_change": false,
+  "valid_outputs": 36,
+  "expected_outputs": 36,
+  "exclusions": [],
+  "parity_t1_cells": 18,
+  "phase2": "NOT_RUN — only if Arm D phase1 pass after human review"
+}
