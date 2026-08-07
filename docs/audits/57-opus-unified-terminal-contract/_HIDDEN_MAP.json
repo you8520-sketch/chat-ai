@@ -1,0 +1,77 @@
+{
+  "note": "LOCAL ONLY until after human scores + score hash commit. Side A/B/C → arm A/B/D.",
+  "map": {
+    "rel_start": {
+      "T1": {
+        "A": "D",
+        "B": "B",
+        "C": "A"
+      },
+      "T2": {
+        "A": "A",
+        "B": "D",
+        "C": "B"
+      }
+    },
+    "rel_conflict": {
+      "T1": {
+        "A": "D",
+        "B": "B",
+        "C": "A"
+      },
+      "T2": {
+        "A": "B",
+        "B": "A",
+        "C": "D"
+      }
+    },
+    "quiet_daily": {
+      "T1": {
+        "A": "A",
+        "B": "D",
+        "C": "B"
+      },
+      "T2": {
+        "A": "B",
+        "B": "A",
+        "C": "D"
+      }
+    },
+    "action_combat_1": {
+      "T1": {
+        "A": "D",
+        "B": "A",
+        "C": "B"
+      },
+      "T2": {
+        "A": "A",
+        "B": "D",
+        "C": "B"
+      }
+    },
+    "action_combat_2": {
+      "T1": {
+        "A": "A",
+        "B": "D",
+        "C": "B"
+      },
+      "T2": {
+        "A": "A",
+        "B": "B",
+        "C": "D"
+      }
+    },
+    "memory_continuity": {
+      "T1": {
+        "A": "D",
+        "B": "B",
+        "C": "A"
+      },
+      "T2": {
+        "A": "A",
+        "B": "D",
+        "C": "B"
+      }
+    }
+  }
+}
