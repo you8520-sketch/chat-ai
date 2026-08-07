@@ -1173,7 +1173,7 @@ export function extractHandoffContinuityFromAssistantText(input: {
   // User already established contact: "내 허리를 감싼 …" → character → persona.
   if (
     personaName &&
-    /(?:내|나의)\s*(?:허리|어깨|손목|손|허리춤)[을를]?\s*(?:감싸|끌어|붙잡|잡)/.test(
+    /(?:내|나의)\s*(?:허리|어깨|손목|손|허리춤)[을를]?\s*(?:감싼|감쌌|감싸|끌어|붙잡|잡)/.test(
       currentUserText
     )
   ) {
@@ -1203,11 +1203,11 @@ export function extractHandoffContinuityFromAssistantText(input: {
       const a = escapeRegExp(actorName);
       const b = escapeRegExp(persona);
       const forward = new RegExp(
-        `${a}[이가은는]?\\s*${b}(?:의)?\\s*(?:허리|어깨|손목|손|허리춤)[을를]?\\s*(?:감싸|끌어|붙잡|잡)`,
+        `${a}[이가은는]?\\s*${b}(?:의)?\\s*(?:허리|어깨|손목|손|허리춤)[을를]?\\s*(?:감싼|감쌌|감싸|끌어|붙잡|잡)`,
         "i"
       );
       const reverse = new RegExp(
-        `${b}[이가은는]?\\s*${a}(?:의)?\\s*(?:허리|어깨|손목|손|허리춤)[을를]?\\s*(?:감싸|끌어|붙잡|잡)`,
+        `${b}[이가은는]?\\s*${a}(?:의)?\\s*(?:허리|어깨|손목|손|허리춤)[을를]?\\s*(?:감싼|감쌌|감싸|끌어|붙잡|잡)`,
         "i"
       );
       if (forward.test(text)) {
@@ -1228,7 +1228,7 @@ export function extractHandoffContinuityFromAssistantText(input: {
   if (!out.previousActionActor && persona) {
     const b = escapeRegExp(persona);
     const generic = new RegExp(
-      `([가-힣]{2,8})[이가은는]?\\s*${b}(?:의)?\\s*(?:허리|어깨|손목|손|허리춤)[을를]?\\s*(?:감싸|끌어|붙잡|잡)`
+      `([가-힣]{2,8})[이가은는]?\\s*${b}(?:의)?\\s*(?:허리|어깨|손목|손|허리춤)[을를]?\\s*(?:감싼|감쌌|감싸|끌어|붙잡|잡)`
     );
     const m = text.match(generic);
     if (m?.[1] && m[1] !== persona) {
