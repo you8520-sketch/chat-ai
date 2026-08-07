@@ -1381,6 +1381,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
         modelId: input.modelId,
         contentKind: input.contentKind,
         party: input.party,
+        runtimeMode,
       }
     );
     if (rpVariant && rpDiagnosticUsesMinimalLengthOwner(rpVariant)) {

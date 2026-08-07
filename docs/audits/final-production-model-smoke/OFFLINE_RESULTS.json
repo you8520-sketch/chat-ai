@@ -1,0 +1,29 @@
+{
+  "status": "PASS",
+  "frozen_arm_e_sha256": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca",
+  "expected_arm_e_sha256": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca",
+  "arm_f_absent": true,
+  "counts": {
+    "opus_standard": {
+      "collaborative": 1,
+      "arm_e": 1,
+      "numeric_tail": 0,
+      "scene_directive": 0
+    },
+    "terra": {
+      "terminal": 1,
+      "arm_e": 0
+    },
+    "deepseek": {
+      "style": 1,
+      "numeric_tail": 1,
+      "arm_e": 0
+    }
+  },
+  "leak_checks": {
+    "opus_auto_arm_e": 0,
+    "opus_conarration_arm_e": 0,
+    "opus_simulation_arm_e": 0
+  },
+  "reasons": []
+}
