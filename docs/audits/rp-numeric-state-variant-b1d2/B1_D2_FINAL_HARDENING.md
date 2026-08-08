@@ -1,7 +1,8 @@
 # B1_D2_FINAL_HARDENING
 
 implementation base: PR #279 (`cursor/rp-numeric-state-variant-switch-b1d2-96c2`)  
-PR head (hardening): `a29e86dd7e0ec2b9bc4d0327f94927792c46632d`
+implementation tip: `a29e86dd7e0ec2b9bc4d0327f94927792c46632d`  
+docs tip: `ca58bbdbf89f07998d3130ceaca57bd627ad9b1d`
 
 ## Design (unchanged)
 
@@ -77,7 +78,8 @@ LLM ON VARIANT SELECT = 0
 B1_D2_FINAL_HARDENING:
 
 implementation base:
-PR head: a29e86dd7e0ec2b9bc4d0327f94927792c46632d
+PR head: ca58bbdbf89f07998d3130ceaca57bd627ad9b1d
+implementation tip: a29e86dd7e0ec2b9bc4d0327f94927792c46632d
 
 P0 LTM atomic canonical suppression: PASS
 forced LTM failure: FULL_WORLDLINE_ROLLBACK_PASS
