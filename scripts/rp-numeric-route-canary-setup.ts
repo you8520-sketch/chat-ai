@@ -198,8 +198,6 @@ async function main() {
     email: EMAIL,
     env: {
       RP_NUMERIC_STATE_ENABLED: "1",
-      RP_NUMERIC_STATE_ALLOWLIST_USERS: String(userId),
-      RP_NUMERIC_STATE_ALLOWLIST_CHARACTERS: String(characterId),
       RP_NUMERIC_STATE_KILL_SWITCH: "0",
     },
   };

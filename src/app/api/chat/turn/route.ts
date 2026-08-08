@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
-import { getDb } from "@/lib/db";
 import {
-  countAssistantGenerationTurns,
-  incrementCharacterTotalTurns,
-} from "@/lib/characterEngagementStats";
+  executeLastTurnDeleteTransaction,
+  NumericTurnDeleteChainNotReadyError,
+} from "@/lib/chatLastTurnDelete";
+import { getDb } from "@/lib/db";
 import { getLastTurnMessageIds } from "@/lib/chatAccess";
-import { deleteEpisodicMemoryFactsByAssistantMessageIds } from "@/lib/episodicMemoryFacts";
-import { deleteStatusTriggerEventsForSourceMessage } from "@/lib/rpDerivedStateLifecycle";
 import {
   listCanonicalEligibleNumericFields,
   resolveNumericCanonicalEligibility,
@@ -23,9 +21,28 @@ export async function DELETE(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
 
-  const { chatId } = await req.json();
-  const cId = Number(chatId);
+  const body = (await req.json()) as {
+    chatId?: unknown;
+    expectedAssistantMessageId?: unknown;
+  };
+  const cId = Number(body.chatId);
   if (!cId) return NextResponse.json({ error: "chatId가 필요합니다." }, { status: 400 });
+
+  const expectedAssistantRaw = body.expectedAssistantMessageId;
+  const expectedAssistantMessageId =
+    expectedAssistantRaw === undefined || expectedAssistantRaw === null
+      ? null
+      : Number(expectedAssistantRaw);
+  if (
+    expectedAssistantRaw != null &&
+    (!Number.isSafeInteger(expectedAssistantMessageId) ||
+      (expectedAssistantMessageId as number) <= 0)
+  ) {
+    return NextResponse.json(
+      { error: "expectedAssistantMessageId가 올바르지 않습니다." },
+      { status: 400 }
+    );
+  }
 
   const db = getDb();
   const chat = db
@@ -42,68 +59,53 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: "삭제할 대화 턴이 없습니다." }, { status: 400 });
   }
 
-  // Phase B1-C V1: numeric-enabled chats fail-closed on canonical turn delete.
-  {
-    const characterWidget = parseStatusWidgetJson(character?.status_widget_json);
-    const numericEligible =
-      resolveNumericCanonicalEligibility({
-        userId: user.id,
-        characterId: chat.character_id,
-      }).eligible &&
-      listCanonicalEligibleNumericFields(characterWidget).length > 0;
-    if (numericEligible && lastTurn.assistantId != null) {
-      return NextResponse.json(
-        {
-          error: "이 대화는 턴 삭제를 지원하지 않습니다.",
-          code: "numeric_state_turn_replay_unsupported",
-        },
-        { status: 409 }
-      );
-    }
+  if (
+    expectedAssistantMessageId != null &&
+    lastTurn.assistantId !== expectedAssistantMessageId
+  ) {
+    return NextResponse.json(
+      {
+        error: "삭제 대상 턴이 변경되었습니다. 새로고침 후 다시 시도해 주세요.",
+        code: "turn_delete_target_changed",
+      },
+      { status: 409 }
+    );
   }
+
+  const characterWidget = parseStatusWidgetJson(character?.status_widget_json);
+  const numericEligible =
+    resolveNumericCanonicalEligibility({
+      userId: user.id,
+      characterId: chat.character_id,
+    }).eligible &&
+    listCanonicalEligibleNumericFields(characterWidget).length > 0;
 
   const deletedPlayableTurn = countChatTurns(cId);
   const deletedUserMessageId = lastTurn.userId;
   const deletedAssistantMessageId = lastTurn.assistantId;
 
-  const idsToDelete = [lastTurn.userId];
-  if (lastTurn.assistantId != null) idsToDelete.push(lastTurn.assistantId);
-
-  let engagementDelta = lastTurn.userId != null ? 1 : 0;
-  if (lastTurn.assistantId != null) {
-    const assistantRow = db
-      .prepare("SELECT content, alternates FROM messages WHERE id=? AND chat_id=?")
-      .get(lastTurn.assistantId, cId) as { content: string; alternates: string | null } | undefined;
-    if (assistantRow) {
-      const gens = countAssistantGenerationTurns(assistantRow.alternates, assistantRow.content);
-      engagementDelta =
-        lastTurn.userId != null ? Math.max(1, gens) : gens;
+  let deletedIds: number[];
+  try {
+    const result = executeLastTurnDeleteTransaction(db, {
+      chatId: cId,
+      characterId: chat.character_id,
+      userMessageId: lastTurn.userId,
+      assistantMessageId: lastTurn.assistantId,
+      revertNumeric: numericEligible,
+    });
+    deletedIds = result.deletedIds;
+  } catch (e) {
+    if (e instanceof NumericTurnDeleteChainNotReadyError) {
+      return NextResponse.json(
+        {
+          error: "숫자 상태 체인이 불완전해 턴을 삭제할 수 없습니다.",
+          code: "numeric_state_turn_delete_chain_not_ready",
+        },
+        { status: 409 }
+      );
     }
+    throw e;
   }
-
-  // Same transaction: bookmarks → episodic facts → trigger events → messages.
-  // Fact/trigger delete failures must roll back message deletes (no orphan
-  // prevention gap). The deleted assistant's derived trigger queue is removed
-  // in the same transaction so no stale queued / fire_once ghost event remains.
-  db.transaction(() => {
-    for (const id of idsToDelete) {
-      db.prepare("DELETE FROM bookmarks WHERE message_id=?").run(id);
-    }
-    if (lastTurn.assistantId != null) {
-      deleteEpisodicMemoryFactsByAssistantMessageIds(db, cId, [lastTurn.assistantId]);
-      try {
-        deleteStatusTriggerEventsForSourceMessage(db, cId, lastTurn.assistantId);
-      } catch (e) {
-        console.warn("[StatusTrigger] last-turn delete trigger cleanup failed:", (e as Error).message);
-      }
-    }
-    for (const id of idsToDelete) {
-      db.prepare("DELETE FROM messages WHERE id=? AND chat_id=?").run(id, cId);
-    }
-    if (engagementDelta > 0) {
-      incrementCharacterTotalTurns(db, chat.character_id, -engagementDelta);
-    }
-  })();
 
   if (isMemoryFeatureEnabled()) {
     try {
@@ -123,5 +125,5 @@ export async function DELETE(req: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, deletedIds: idsToDelete });
+  return NextResponse.json({ ok: true, deletedIds });
 }

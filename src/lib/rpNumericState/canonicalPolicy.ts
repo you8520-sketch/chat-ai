@@ -1,7 +1,11 @@
 /**
- * Phase B1-C — Canonical numeric state eligibility (fail-closed, default OFF).
+ * Phase B1-C/D1 — Canonical numeric state eligibility (fail-closed, default OFF).
  *
- * Independent from RP_NUMERIC_STATE_SHADOW_* flags.
+ * B1-D1: no user/character allowlist. When ENABLED=1 and KILL_SWITCH!=1,
+ * all authenticated users are eligible. Field eligibility (explicit numericState
+ * + pilot keys) is unchanged and independent of user rollout.
+ *
+ * Independent from RP_NUMERIC_STATE_SHADOW_* flags (shadow keep its own allowlists).
  * Pilot state-key allowlist lives HERE (and shadowPolicy) — never in the reducer.
  */
 import {
@@ -13,19 +17,12 @@ import type {
   StatusWidgetField,
 } from "@/lib/statusWidget/types";
 import { fieldPlaceholderKey } from "@/lib/statusWidget/fieldKeys";
-import {
-  parsePositiveIntAllowlist,
-  RP_NUMERIC_SHADOW_PILOT_STATE_KEYS,
-} from "./shadowPolicy";
+import { RP_NUMERIC_SHADOW_PILOT_STATE_KEYS } from "./shadowPolicy";
 
 export const RP_NUMERIC_STATE_ENABLED_ENV = "RP_NUMERIC_STATE_ENABLED";
-export const RP_NUMERIC_STATE_ALLOWLIST_USERS_ENV =
-  "RP_NUMERIC_STATE_ALLOWLIST_USERS";
-export const RP_NUMERIC_STATE_ALLOWLIST_CHARACTERS_ENV =
-  "RP_NUMERIC_STATE_ALLOWLIST_CHARACTERS";
 export const RP_NUMERIC_STATE_KILL_SWITCH_ENV = "RP_NUMERIC_STATE_KILL_SWITCH";
 
-/** B1-C pilot keys (eligibility layer only — not reducer). */
+/** B1-C/D1 pilot keys (eligibility layer only — not reducer). */
 export const RP_NUMERIC_CANONICAL_PILOT_STATE_KEYS =
   RP_NUMERIC_SHADOW_PILOT_STATE_KEYS;
 
@@ -41,18 +38,18 @@ export type NumericCanonicalEligibilityResult = {
   reason:
     | "flag_off"
     | "kill_switch"
-    | "empty_user_allowlist"
-    | "user_not_allowlisted"
-    | "character_not_allowlisted"
+    | "unauthenticated"
     | "eligible";
 };
 
 /**
  * Central canonical gate. Fail-closed:
- * ENABLED must be true AND KILL_SWITCH != 1 AND non-empty valid user allowlist
- * AND user match. Optional character allowlist: when non-empty, characterId must match.
+ * KILL_SWITCH=1 → OFF
+ * ENABLED!=1 → OFF
+ * ENABLED=1 + authenticated userId → ON
  *
- * ENABLED=1 with empty user allowlist → OFF.
+ * User/character allowlists are intentionally not consulted (B1-D1).
+ * characterId remains accepted for call-site compatibility but unused.
  */
 export function resolveNumericCanonicalEligibility(input: {
   userId?: number | null;
@@ -66,34 +63,9 @@ export function resolveNumericCanonicalEligibility(input: {
   if (!isTruthyEnvFlag(env[RP_NUMERIC_STATE_ENABLED_ENV])) {
     return { eligible: false, reason: "flag_off" };
   }
-  const users = parsePositiveIntAllowlist(
-    env[RP_NUMERIC_STATE_ALLOWLIST_USERS_ENV]
-  );
-  if (users.length === 0) {
-    return { eligible: false, reason: "empty_user_allowlist" };
-  }
   const userId = input.userId;
-  if (
-    userId == null ||
-    !Number.isSafeInteger(userId) ||
-    userId <= 0 ||
-    !users.includes(userId)
-  ) {
-    return { eligible: false, reason: "user_not_allowlisted" };
-  }
-  const characters = parsePositiveIntAllowlist(
-    env[RP_NUMERIC_STATE_ALLOWLIST_CHARACTERS_ENV]
-  );
-  if (characters.length > 0) {
-    const characterId = input.characterId;
-    if (
-      characterId == null ||
-      !Number.isSafeInteger(characterId) ||
-      characterId <= 0 ||
-      !characters.includes(characterId)
-    ) {
-      return { eligible: false, reason: "character_not_allowlisted" };
-    }
+  if (userId == null || !Number.isSafeInteger(userId) || userId <= 0) {
+    return { eligible: false, reason: "unauthenticated" };
   }
   return { eligible: true, reason: "eligible" };
 }

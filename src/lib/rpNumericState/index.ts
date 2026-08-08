@@ -1,6 +1,7 @@
 /**
- * Phase B1-A/B/C — Server-authoritative RP numeric state.
- * Canonical writes are fail-closed + allowlist (default OFF).
+ * Phase B1-A/B/C/D1 — Server-authoritative RP numeric state.
+ * Canonical writes are fail-closed (ENABLED + kill switch; default OFF).
+ * B1-D1: no user/character allowlist on canonical path.
  */
 export {
   fingerprintNumericStateDefinition,
@@ -94,8 +95,6 @@ export type {
 
 export {
   RP_NUMERIC_CANONICAL_PILOT_STATE_KEYS,
-  RP_NUMERIC_STATE_ALLOWLIST_CHARACTERS_ENV,
-  RP_NUMERIC_STATE_ALLOWLIST_USERS_ENV,
   RP_NUMERIC_STATE_ENABLED_ENV,
   RP_NUMERIC_STATE_KILL_SWITCH_ENV,
   buildNumericBootstrapMutationId,
@@ -109,6 +108,17 @@ export type {
   CanonicalEligibleNumericField,
   NumericCanonicalEligibilityResult,
 } from "./canonicalPolicy";
+
+export {
+  NumericTurnDeleteChainNotReadyError,
+  revertNumericStateForDeletedAssistant,
+  revertNumericStateForDeletedAssistantCore,
+} from "./turnDeleteRevert";
+
+export type {
+  NumericTurnDeleteRestoreRow,
+  RevertNumericStateForDeletedAssistantResult,
+} from "./turnDeleteRevert";
 
 export {
   formatCanonicalNumericStatusValue,
