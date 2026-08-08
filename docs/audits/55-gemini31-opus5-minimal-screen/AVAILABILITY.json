@@ -1,0 +1,32 @@
+{
+  "status": "GEMINI31_OPUS5_AVAILABILITY_PASS",
+  "checked_at": "2026-08-06T21:30:00Z",
+  "endpoint": "https://api.cheaperinference.com/v1/models",
+  "models": {
+    "gemini-3.1-pro-preview": {
+      "present": true,
+      "provider": "Google",
+      "capabilities_reasoning": true
+    },
+    "claude-opus-5": {
+      "present": true,
+      "provider": "Anthropic",
+      "capabilities_reasoning": true
+    }
+  },
+  "reasoning_probe": {
+    "note": "CI uses reasoning_effort (no OpenRouter-style exclude). Production wire kept for pure baseline.",
+    "gemini-3.1-pro-preview": {
+      "none_accepted": true,
+      "none_eliminates_reasoning_tokens": false,
+      "production_wire": "reasoning_effort=low",
+      "screen_applied": "reasoning_effort=low (production baseline; none accepted but still burns reasoning tokens)"
+    },
+    "claude-opus-5": {
+      "none_accepted": true,
+      "none_reasoning_tokens": 0,
+      "production_wire": "unset (no reasoning_effort forced)",
+      "screen_applied": "unset (production baseline; probe none also 0 reasoning tokens)"
+    }
+  }
+}
