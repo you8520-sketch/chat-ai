@@ -1,0 +1,110 @@
+# 04_TOKEN_COMPOSITION
+
+NORMAL turn only (no REGEN). Fixture: c18 literary short input.
+
+## Why dynamic tokens matter
+
+In `contextBuilder`, `prose-style-xml-bundle` → `cacheCharacter`, while `rule-output-layout-recency` → **dynamic**.  
+C1 therefore targets uncached/dynamic footprint first.
+
+```text
+layout_system_A = 670
+layout_system_B = 281
+ESTIMATED_UNCACHED_TOKEN_REDUCTION = 389 (layout is dynamic)
+ESTIMATED_CACHEABLE_TOKEN_REDUCTION = 0 (C1 does not touch cacheCharacter prose)
+LAYOUT_PRIMARY_OWNER = 1 (system)
+LAYOUT_RECENCY_ECHO = 1 (user-tail, unchanged, ~49 tok)
+```
+
+```json
+{
+  "Opus": {
+    "modelId": "claude-opus-5",
+    "mode": "NORMAL",
+    "system_total": 14810,
+    "cache_rules": 10537,
+    "cache_character": 1709,
+    "dynamic": 2562,
+    "layout_system_A": 670,
+    "layout_system_B": 281,
+    "layout_user_tail_echo": 49,
+    "layout_A_present": true,
+    "layout_B_absent_in_production": true,
+    "compact_swap_ok": true,
+    "current_user_has_layout_echo": true,
+    "opus_arm_e_present_if_opus": true,
+    "protected_hashes_match": {
+      "layout_tail": true,
+      "opus_arm_e": true
+    },
+    "estimated_uncached_layout_reduction": 389,
+    "estimated_cacheable_token_reduction": 0
+  },
+  "Gemini": {
+    "modelId": "gemini-3.1-pro-preview",
+    "mode": "NORMAL",
+    "system_total": 14810,
+    "cache_rules": 10537,
+    "cache_character": 1709,
+    "dynamic": 2562,
+    "layout_system_A": 670,
+    "layout_system_B": 281,
+    "layout_user_tail_echo": 49,
+    "layout_A_present": true,
+    "layout_B_absent_in_production": true,
+    "compact_swap_ok": true,
+    "current_user_has_layout_echo": true,
+    "opus_arm_e_present_if_opus": null,
+    "protected_hashes_match": {
+      "layout_tail": true,
+      "opus_arm_e": true
+    },
+    "estimated_uncached_layout_reduction": 389,
+    "estimated_cacheable_token_reduction": 0
+  },
+  "DeepSeek": {
+    "modelId": "deepseek-v4-pro",
+    "mode": "NORMAL",
+    "system_total": 14892,
+    "cache_rules": 2277,
+    "cache_character": 10850,
+    "dynamic": 1762,
+    "layout_system_A": 670,
+    "layout_system_B": 281,
+    "layout_user_tail_echo": 49,
+    "layout_A_present": true,
+    "layout_B_absent_in_production": true,
+    "compact_swap_ok": true,
+    "current_user_has_layout_echo": true,
+    "opus_arm_e_present_if_opus": null,
+    "protected_hashes_match": {
+      "layout_tail": true,
+      "opus_arm_e": true
+    },
+    "estimated_uncached_layout_reduction": 389,
+    "estimated_cacheable_token_reduction": 0
+  },
+  "Terra": {
+    "modelId": "gpt-5.6-terra",
+    "mode": "NORMAL",
+    "system_total": 14810,
+    "cache_rules": 10537,
+    "cache_character": 1709,
+    "dynamic": 2562,
+    "layout_system_A": 670,
+    "layout_system_B": 281,
+    "layout_user_tail_echo": 49,
+    "layout_A_present": true,
+    "layout_B_absent_in_production": true,
+    "compact_swap_ok": true,
+    "current_user_has_layout_echo": true,
+    "opus_arm_e_present_if_opus": null,
+    "protected_hashes_match": {
+      "layout_tail": true,
+      "opus_arm_e": true
+    },
+    "estimated_uncached_layout_reduction": 389,
+    "estimated_cacheable_token_reduction": 0
+  }
+}
+```
