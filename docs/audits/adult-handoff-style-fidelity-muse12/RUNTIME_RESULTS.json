@@ -1,0 +1,251 @@
+{
+  "status": "ADULT_HANDOFF_FIDELITY_CAPTURE_COMPLETE",
+  "human_review": "HUMAN_BLIND_REVIEW_REQUIRED",
+  "comparison_unit": "PRODUCTION_CONFIG_BUNDLE_COMPARISON",
+  "claim_scope": "actual production handoff bundle fidelity — NOT pure raw-model performance",
+  "timestamp": "2026-08-07T10:45:19.656Z",
+  "api_calls": 6,
+  "max_calls": 6,
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "provider_fallback": 0,
+  "source_model_calls": {
+    "opus": 0,
+    "terra": 0,
+    "gemini": 0
+  },
+  "gemini_anchor_limitation": "Gemini source has no formal human PASS document; Opus/Terra remain valid.",
+  "parity_by_source": {
+    "opus": {
+      "BASE_CONTEXT_PARITY": "PASS",
+      "RAW_HISTORY_PARITY": "PASS",
+      "CURRENT_USER_INPUT_PARITY": "PASS",
+      "CHARACTER_PERSONA_PARITY": "PASS",
+      "CONTINUITY_DATA_PARITY": "PASS",
+      "GENERATION_PARAMETER_PARITY": "PASS",
+      "FINAL_PROMPT_BYTE_PARITY": "EXPECTED_DIFFERENCE",
+      "FINAL_PROMPT_BYTE_PARITY_REQUIRED": "NOT_REQUIRED",
+      "PRODUCTION_ADAPTER_MANIFEST": "RECORDED",
+      "required_parity_pass": true,
+      "FINAL_PROMPT_HASH_DEEPSEEK": "f0e54323fa231f041ffdfc671ae14d9a9456a2f0c632ee15a26cae7590c7b484",
+      "FINAL_PROMPT_HASH_MUSE": "a0a017c85030140ae71a0f6c5f57689dcb65ecb624bfb1fd75a3e880c887ebe0",
+      "SYSTEM_HASH_DEEPSEEK": "96a416d99cf6bc177e28ed15902c152819f7d2f08350e369de3bca3026d67429",
+      "SYSTEM_HASH_MUSE": "8ab377f7728a174d75a94d1ff49e68737ba81a5e6dfc6efcc267f9de272f46b8",
+      "DEEPSEEK_PRODUCTION_ADAPTERS": {
+        "xml_wrapping": true,
+        "style_reminder": true,
+        "compact_boundary": true,
+        "muse_m1_marker": false,
+        "handoff_continuation_instruction": true,
+        "provider_route": "cheaperinference",
+        "temperature": 0.92,
+        "top_p": 0.92,
+        "reasoning": null
+      },
+      "MUSE_PRODUCTION_ADAPTERS": {
+        "xml_wrapping": false,
+        "style_reminder": false,
+        "compact_boundary": false,
+        "muse_m1_marker": false,
+        "handoff_continuation_instruction": true,
+        "provider_route": "openrouter",
+        "temperature": 0.7,
+        "top_p": null,
+        "reasoning": {
+          "effort": "minimal",
+          "exclude": true
+        }
+      }
+    },
+    "terra": {
+      "BASE_CONTEXT_PARITY": "PASS",
+      "RAW_HISTORY_PARITY": "PASS",
+      "CURRENT_USER_INPUT_PARITY": "PASS",
+      "CHARACTER_PERSONA_PARITY": "PASS",
+      "CONTINUITY_DATA_PARITY": "PASS",
+      "GENERATION_PARAMETER_PARITY": "PASS",
+      "FINAL_PROMPT_BYTE_PARITY": "EXPECTED_DIFFERENCE",
+      "FINAL_PROMPT_BYTE_PARITY_REQUIRED": "NOT_REQUIRED",
+      "PRODUCTION_ADAPTER_MANIFEST": "RECORDED",
+      "required_parity_pass": true,
+      "FINAL_PROMPT_HASH_DEEPSEEK": "63ed30136ef2ec2bd540fe4731c60f2c0851595ae6b3e253292aad8df73aa434",
+      "FINAL_PROMPT_HASH_MUSE": "36e7d94ab4a938f2fe76f549e4771fe0549a2f8a6f43311e90ff4aaf6e0619d3",
+      "SYSTEM_HASH_DEEPSEEK": "5655574c683c74a041e1b4914f9779bac9b1a4423c2915ea83ed3e379f86c3c7",
+      "SYSTEM_HASH_MUSE": "eaf63ebe75a1bb91f1fbadf3d18acfbea907e04a55b93a7fd7da63e852931226",
+      "DEEPSEEK_PRODUCTION_ADAPTERS": {
+        "xml_wrapping": true,
+        "style_reminder": true,
+        "compact_boundary": true,
+        "muse_m1_marker": false,
+        "handoff_continuation_instruction": true,
+        "provider_route": "cheaperinference",
+        "temperature": 0.92,
+        "top_p": 0.92,
+        "reasoning": null
+      },
+      "MUSE_PRODUCTION_ADAPTERS": {
+        "xml_wrapping": false,
+        "style_reminder": false,
+        "compact_boundary": false,
+        "muse_m1_marker": false,
+        "handoff_continuation_instruction": true,
+        "provider_route": "openrouter",
+        "temperature": 0.7,
+        "top_p": null,
+        "reasoning": {
+          "effort": "minimal",
+          "exclude": true
+        }
+      }
+    },
+    "gemini": {
+      "BASE_CONTEXT_PARITY": "PASS",
+      "RAW_HISTORY_PARITY": "PASS",
+      "CURRENT_USER_INPUT_PARITY": "PASS",
+      "CHARACTER_PERSONA_PARITY": "PASS",
+      "CONTINUITY_DATA_PARITY": "PASS",
+      "GENERATION_PARAMETER_PARITY": "PASS",
+      "FINAL_PROMPT_BYTE_PARITY": "EXPECTED_DIFFERENCE",
+      "FINAL_PROMPT_BYTE_PARITY_REQUIRED": "NOT_REQUIRED",
+      "PRODUCTION_ADAPTER_MANIFEST": "RECORDED",
+      "required_parity_pass": true,
+      "FINAL_PROMPT_HASH_DEEPSEEK": "1e6f4f34d8e1bd8060b1eaa09a2340e8d4da1ee239c9169e8f4a0230e49faeea",
+      "FINAL_PROMPT_HASH_MUSE": "4cecc04e629276732de491e0a507654e0e891ab08d03b1a3143f0edea29f5d3e",
+      "SYSTEM_HASH_DEEPSEEK": "ea999a27a475c08f1dfbff4f6840b8de8eaa4cd754f35151c39031d62611c0a5",
+      "SYSTEM_HASH_MUSE": "250a7b642c0128536597d845aa3fdf91159506002fcf0959500bd4cd003730a3",
+      "DEEPSEEK_PRODUCTION_ADAPTERS": {
+        "xml_wrapping": true,
+        "style_reminder": true,
+        "compact_boundary": true,
+        "muse_m1_marker": false,
+        "handoff_continuation_instruction": true,
+        "provider_route": "cheaperinference",
+        "temperature": 0.92,
+        "top_p": 0.92,
+        "reasoning": null
+      },
+      "MUSE_PRODUCTION_ADAPTERS": {
+        "xml_wrapping": false,
+        "style_reminder": false,
+        "compact_boundary": false,
+        "muse_m1_marker": false,
+        "handoff_continuation_instruction": true,
+        "provider_route": "openrouter",
+        "temperature": 0.7,
+        "top_p": null,
+        "reasoning": {
+          "effort": "minimal",
+          "exclude": true
+        }
+      }
+    }
+  },
+  "FINAL_PROMPT_BYTE_PARITY": "EXPECTED_DIFFERENCE",
+  "PRODUCTION_ADAPTER_MANIFEST": "RECORDED",
+  "calls": [
+    {
+      "attempt_id": "OPUS_MUSE",
+      "source_id": "opus",
+      "candidate": "muse",
+      "blind_label": "X",
+      "total_visible_chars": 2065,
+      "finish_reason": "stop",
+      "provider_route": "openrouter",
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "provider_fallback": 0
+    },
+    {
+      "attempt_id": "OPUS_DEEPSEEK",
+      "source_id": "opus",
+      "candidate": "deepseek",
+      "blind_label": "Y",
+      "total_visible_chars": 2966,
+      "finish_reason": "stop",
+      "provider_route": "cheaperinference",
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "provider_fallback": 0
+    },
+    {
+      "attempt_id": "TERRA_MUSE",
+      "source_id": "terra",
+      "candidate": "muse",
+      "blind_label": "X",
+      "total_visible_chars": 3162,
+      "finish_reason": "stop",
+      "provider_route": "openrouter",
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "provider_fallback": 0
+    },
+    {
+      "attempt_id": "TERRA_DEEPSEEK",
+      "source_id": "terra",
+      "candidate": "deepseek",
+      "blind_label": "Y",
+      "total_visible_chars": 3685,
+      "finish_reason": "stop",
+      "provider_route": "cheaperinference",
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "provider_fallback": 0
+    },
+    {
+      "attempt_id": "GEMINI_MUSE",
+      "source_id": "gemini",
+      "candidate": "muse",
+      "blind_label": "X",
+      "total_visible_chars": 3032,
+      "finish_reason": "stop",
+      "provider_route": "openrouter",
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "provider_fallback": 0
+    },
+    {
+      "attempt_id": "GEMINI_DEEPSEEK",
+      "source_id": "gemini",
+      "candidate": "deepseek",
+      "blind_label": "Y",
+      "total_visible_chars": 7304,
+      "finish_reason": "stop",
+      "provider_route": "cheaperinference",
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "provider_fallback": 0
+    }
+  ],
+  "blind_review_packet": "BLIND_REVIEW_PACKET.md",
+  "hidden_map": "HIDDEN_MAP.json (REVEALED after human score seal)",
+  "winner_declared": false,
+  "production_change": false,
+  "merge": "NOT_RUN",
+  "deploy": "NOT_RUN",
+  "common_prompt_diagnostic": "NOT_RUN",
+  "human_blind_review": {
+    "status": "COMPLETE",
+    "HUMAN_SCORES_SEALED_BEFORE_MAP_REVEAL": true,
+    "HUMAN_SCORES_SHA256": "2f15d973693824f18c6f91848119b703a97e034abae646c1045dc5f58e3038f0",
+    "HIDDEN_MAP_SEAL_SHA256_BEFORE_REVEAL": "5c35dcb978dfeadcc403b566cd636ad95a47ed871d3d493d5335a0c75099ffd8",
+    "HIDDEN_MAP_SEAL_VERIFIED": true,
+    "provisional_before_reveal": {
+      "result": "MIXED_PRODUCTION_HANDOFF_RESULT",
+      "action": "NO_REPLACEMENT"
+    },
+    "product_verdict": {
+      "result": "MIXED_PRODUCTION_HANDOFF_RESULT",
+      "action": "NO_REPLACEMENT",
+      "keep": "KEEP_CURRENT_ADULT_MODEL"
+    },
+    "common_finding": "COMMON_HANDOFF_SUBJECT_OBJECT_INVERSION_RISK",
+    "api_calls_this_step": 0
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "sealed": false,
+  "revealed": true,
+  "do_not_open_before_human_review": false,
+  "comparison_unit": "PRODUCTION_CONFIG_BUNDLE_COMPARISON",
+  "reveal_gate": {
+    "HUMAN_SCORES_SEALED_BEFORE_MAP_REVEAL": true,
+    "HUMAN_SCORES_SHA256": "2f15d973693824f18c6f91848119b703a97e034abae646c1045dc5f58e3038f0",
+    "HIDDEN_MAP_SEAL_SHA256_BEFORE_REVEAL": "5c35dcb978dfeadcc403b566cd636ad95a47ed871d3d493d5335a0c75099ffd8",
+    "HIDDEN_MAP_SEAL_VERIFIED": true
+  },
+  "mapping": {
+    "opus": {
+      "X": "muse",
+      "Y": "deepseek",
+      "model_X": "meta/muse-spark-1.2",
+      "model_Y": "deepseek-v4-pro"
+    },
+    "terra": {
+      "X": "muse",
+      "Y": "deepseek",
+      "model_X": "meta/muse-spark-1.2",
+      "model_Y": "deepseek-v4-pro"
+    },
+    "gemini": {
+      "X": "muse",
+      "Y": "deepseek",
+      "model_X": "meta/muse-spark-1.2",
+      "model_Y": "deepseek-v4-pro"
+    }
+  }
+}
