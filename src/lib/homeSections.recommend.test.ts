@@ -106,4 +106,13 @@ describe("home recommended taste signals", () => {
     const rec = fetchRecommendedCharacters(db, { id: 1 }, filter, 5);
     assert.equal(rec[0]?.id, 2);
   });
+
+  it("falls back to popular characters when every listable char is already engaged", () => {
+    const db = openDb();
+    db.prepare("INSERT INTO likes (user_id, character_id) VALUES (1, 1), (1, 2), (1, 3)").run();
+    const filter = buildHomeListFilter(null, false);
+    const rec = fetchRecommendedCharacters(db, { id: 1 }, filter, 10);
+    assert.ok(rec.length > 0, "recommended row must not go empty");
+    assert.ok(rec.some((c) => c.id === 3), "allows engaged chars as last-resort fill");
+  });
 });
