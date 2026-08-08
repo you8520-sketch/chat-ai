@@ -1,8 +1,10 @@
 import { statusValueKeyFromLabel } from "./fieldKeys";
 import { DEFAULT_STATUS_WIDGET } from "./defaultTemplate";
+import { normalizeNumericStateDefinition } from "./numericStateDefinition";
 import type {
   StatusWidget,
   StatusWidgetDisplayMode,
+  StatusWidgetField,
   StatusWidgetSourceMode,
   StatusWidgetStackOrder,
 } from "./types";
@@ -30,12 +32,19 @@ export function parseStatusWidgetJson(raw: string | null | undefined): StatusWid
           )
             .trim()
             .slice(0, 80);
-          return {
+          // Explicit opt-in only — invalid numericState is stripped (null).
+          // Do NOT blindly pass through unknown field properties.
+          const numericState = normalizeNumericStateDefinition(
+            (f as { numericState?: unknown }).numericState
+          );
+          const field: StatusWidgetField = {
             id,
             label,
             instruction,
             ...(initialValue ? { initialValue } : {}),
+            ...(numericState ? { numericState } : {}),
           };
+          return field;
         })
         .filter((f) => f.id && f.label),
       placement: parsed.placement === "top" ? "top" : "bottom",
@@ -48,12 +57,18 @@ export function parseStatusWidgetJson(raw: string | null | undefined): StatusWid
 export function serializeStatusWidget(widget: StatusWidget): string {
   return JSON.stringify({
     ...widget,
-    fields: widget.fields.map(({ id, label, instruction, initialValue }) => ({
-      id,
-      label,
-      instruction,
-      ...(initialValue?.trim() ? { initialValue: initialValue.trim().slice(0, 80) } : {}),
-    })),
+    fields: widget.fields.map(({ id, label, instruction, initialValue, numericState }) => {
+      const normalized = numericState
+        ? normalizeNumericStateDefinition(numericState)
+        : null;
+      return {
+        id,
+        label,
+        instruction,
+        ...(initialValue?.trim() ? { initialValue: initialValue.trim().slice(0, 80) } : {}),
+        ...(normalized ? { numericState: normalized } : {}),
+      };
+    }),
   });
 }
 
