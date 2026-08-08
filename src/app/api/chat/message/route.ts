@@ -32,6 +32,12 @@ import {
   getAssistantSourceTurn,
   isLatestCanonicalAssistantMessage,
 } from "@/lib/rpDerivedStateLifecycle";
+import {
+  listCanonicalEligibleNumericFields,
+  numericCanonicalFieldsChanged,
+  resolveNumericCanonicalEligibility,
+} from "@/lib/rpNumericState";
+import { parseStatusWidgetJson } from "@/lib/statusWidget";
 
 /** Read-only snapshot for stream EOF reconciliation (generationStatus + final content). */
 export async function GET(req: Request) {
@@ -211,6 +217,32 @@ export async function PATCH(req: Request) {
     const sanitized = sanitizeParsedStatusWidgetValues(merged);
     const statusWidgetValuesJson = serializeStatusWidgetValuesJson(sanitized);
     const clientWidgetValues = stripExtractedFactsForClient(sanitized);
+
+    // Phase B1-C V1: block manual edits that change canonical numeric field values.
+    if (hasWidgetPatch) {
+      const characterRow = db
+        .prepare("SELECT status_widget_json FROM characters WHERE id=?")
+        .get(msg.character_id) as { status_widget_json?: string } | undefined;
+      const characterWidget = parseStatusWidgetJson(characterRow?.status_widget_json);
+      const numericFields = listCanonicalEligibleNumericFields(characterWidget);
+      const numericEligible =
+        resolveNumericCanonicalEligibility({
+          userId: user.id,
+          characterId: msg.character_id,
+        }).eligible && numericFields.length > 0;
+      if (
+        numericEligible &&
+        numericCanonicalFieldsChanged(existing, sanitized, numericFields)
+      ) {
+        return NextResponse.json(
+          {
+            error: "숫자 상태 직접 수정은 아직 지원되지 않습니다.",
+            code: "numeric_state_manual_edit_not_enabled",
+          },
+          { status: 409 }
+        );
+      }
+    }
 
     const isLatest = isLatestCanonicalAssistantMessage(db, msg.chat_id, id);
     // Phase B0.2: supersession belongs in the atomic core whenever the

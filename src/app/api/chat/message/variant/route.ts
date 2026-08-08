@@ -16,6 +16,11 @@ import {
   getAssistantSourceTurn,
   isLatestCanonicalAssistantMessage,
 } from "@/lib/rpDerivedStateLifecycle";
+import {
+  listCanonicalEligibleNumericFields,
+  resolveNumericCanonicalEligibility,
+} from "@/lib/rpNumericState";
+import { parseStatusWidgetJson } from "@/lib/statusWidget";
 import { PREFERENCE_EVENT } from "@/lib/feedback/events";
 import { recordPreferenceEvent } from "@/lib/feedback/feedback-db";
 import { enqueueScoreRecompute } from "@/lib/feedback/queue";
@@ -66,6 +71,29 @@ export async function PATCH(req: Request) {
         ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(current.usage))
         : null,
     });
+  }
+
+  // Phase B1-C V1: numeric-enabled chats do not support variant replay.
+  {
+    const characterRow = db
+      .prepare("SELECT status_widget_json FROM characters WHERE id=?")
+      .get(msg.character_id) as { status_widget_json?: string } | undefined;
+    const characterWidget = parseStatusWidgetJson(characterRow?.status_widget_json);
+    const numericEligible =
+      resolveNumericCanonicalEligibility({
+        userId: user.id,
+        characterId: msg.character_id,
+      }).eligible &&
+      listCanonicalEligibleNumericFields(characterWidget).length > 0;
+    if (numericEligible) {
+      return NextResponse.json(
+        {
+          error: "이 대화는 버전 전환을 지원하지 않습니다.",
+          code: "numeric_state_variant_replay_unsupported",
+        },
+        { status: 409 }
+      );
+    }
   }
 
   const fromVariant = activeVariant;

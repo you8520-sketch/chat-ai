@@ -1,0 +1,159 @@
+{
+  "TRUE_ROUTE_CANARY": "PASS",
+  "B1_C_ROUTE_CANARY_PASS": true,
+  "model": "anthropic/claude-opus-4.5",
+  "normal_turns": 2,
+  "regen_turns": 1,
+  "parity_failures": 0,
+  "regen_checks": [],
+  "user_id": 903,
+  "character_id": 10,
+  "chat_id": 3,
+  "expected_server_env": {
+    "RP_NUMERIC_STATE_ENABLED": "1",
+    "RP_NUMERIC_STATE_ALLOWLIST_USERS": "903",
+    "RP_NUMERIC_STATE_ALLOWLIST_CHARACTERS": "10",
+    "RP_NUMERIC_STATE_KILL_SWITCH": "0"
+  },
+  "post_canary_restore": {
+    "RP_NUMERIC_STATE_ENABLED": "0",
+    "railway": "UNCHANGED"
+  },
+  "turns": [
+    {
+      "turn": "N1",
+      "kind": "normal",
+      "assistantMessageId": 21,
+      "current": {
+        "affection": 20,
+        "trust": 30,
+        "corruption": 0
+      },
+      "message": {
+        "호감도": "20",
+        "신뢰": "30",
+        "오염도": "0"
+      },
+      "activeVariant": {
+        "호감도": "20",
+        "신뢰": "30",
+        "오염도": "0"
+      },
+      "events": [
+        {
+          "stateKey": "affection",
+          "eventId": 2,
+          "before": 20,
+          "after": 20,
+          "replacesEventId": null
+        },
+        {
+          "stateKey": "trust",
+          "eventId": 4,
+          "before": 30,
+          "after": 30,
+          "replacesEventId": null
+        },
+        {
+          "stateKey": "corruption",
+          "eventId": 6,
+          "before": 0,
+          "after": 0,
+          "replacesEventId": null
+        }
+      ],
+      "parityOk": true,
+      "parityFailures": []
+    },
+    {
+      "turn": "N2",
+      "kind": "normal",
+      "assistantMessageId": 23,
+      "current": {
+        "affection": 20,
+        "trust": 30,
+        "corruption": 0
+      },
+      "message": {
+        "호감도": "20",
+        "신뢰": "30",
+        "오염도": "0"
+      },
+      "activeVariant": {
+        "호감도": "20",
+        "신뢰": "30",
+        "오염도": "0"
+      },
+      "events": [
+        {
+          "stateKey": "affection",
+          "eventId": 7,
+          "before": 20,
+          "after": 20,
+          "replacesEventId": null
+        },
+        {
+          "stateKey": "trust",
+          "eventId": 8,
+          "before": 30,
+          "after": 30,
+          "replacesEventId": null
+        },
+        {
+          "stateKey": "corruption",
+          "eventId": 9,
+          "before": 0,
+          "after": 0,
+          "replacesEventId": null
+        }
+      ],
+      "parityOk": true,
+      "parityFailures": []
+    },
+    {
+      "turn": "R1",
+      "kind": "regen",
+      "assistantMessageId": 23,
+      "current": {
+        "affection": 20,
+        "trust": 30,
+        "corruption": 0
+      },
+      "message": {
+        "호감도": "20",
+        "신뢰": "30",
+        "오염도": "0"
+      },
+      "activeVariant": {
+        "호감도": "20",
+        "신뢰": "30",
+        "오염도": "0"
+      },
+      "events": [
+        {
+          "stateKey": "affection",
+          "eventId": 10,
+          "before": 20,
+          "after": 20,
+          "replacesEventId": 7
+        },
+        {
+          "stateKey": "trust",
+          "eventId": 11,
+          "before": 30,
+          "after": 30,
+          "replacesEventId": 8
+        },
+        {
+          "stateKey": "corruption",
+          "eventId": 12,
+          "before": 0,
+          "after": 0,
+          "replacesEventId": 9
+        }
+      ],
+      "parityOk": true,
+      "parityFailures": []
+    }
+  ]
+}

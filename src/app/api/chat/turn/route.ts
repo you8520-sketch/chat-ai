@@ -8,6 +8,11 @@ import {
 import { getLastTurnMessageIds } from "@/lib/chatAccess";
 import { deleteEpisodicMemoryFactsByAssistantMessageIds } from "@/lib/episodicMemoryFacts";
 import { deleteStatusTriggerEventsForSourceMessage } from "@/lib/rpDerivedStateLifecycle";
+import {
+  listCanonicalEligibleNumericFields,
+  resolveNumericCanonicalEligibility,
+} from "@/lib/rpNumericState";
+import { parseStatusWidgetJson } from "@/lib/statusWidget";
 import { getChatMemoryCapacity } from "@/lib/memory/memory-capacity";
 import { reconcileMemoryAfterTurnDelete } from "@/lib/memory/memory-reconcile";
 import { resolveMemoryTier } from "@/lib/memory/memory-manager";
@@ -29,12 +34,32 @@ export async function DELETE(req: Request) {
   if (!chat) return NextResponse.json({ error: "채팅방을 찾을 수 없습니다." }, { status: 404 });
 
   const character = db
-    .prepare("SELECT name FROM characters WHERE id=?")
-    .get(chat.character_id) as { name: string } | undefined;
+    .prepare("SELECT name, status_widget_json FROM characters WHERE id=?")
+    .get(chat.character_id) as { name: string; status_widget_json?: string } | undefined;
 
   const lastTurn = getLastTurnMessageIds(cId);
   if (!lastTurn) {
     return NextResponse.json({ error: "삭제할 대화 턴이 없습니다." }, { status: 400 });
+  }
+
+  // Phase B1-C V1: numeric-enabled chats fail-closed on canonical turn delete.
+  {
+    const characterWidget = parseStatusWidgetJson(character?.status_widget_json);
+    const numericEligible =
+      resolveNumericCanonicalEligibility({
+        userId: user.id,
+        characterId: chat.character_id,
+      }).eligible &&
+      listCanonicalEligibleNumericFields(characterWidget).length > 0;
+    if (numericEligible && lastTurn.assistantId != null) {
+      return NextResponse.json(
+        {
+          error: "이 대화는 턴 삭제를 지원하지 않습니다.",
+          code: "numeric_state_turn_replay_unsupported",
+        },
+        { status: 409 }
+      );
+    }
   }
 
   const deletedPlayableTurn = countChatTurns(cId);
