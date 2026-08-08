@@ -29,6 +29,7 @@ describe("promptDedupeMetrics", () => {
     const footprint = measureWidgetActiveOpenRouterInjection();
 
     assert.ok(widget.includes('"시간":"<scene value>"'));
+    assert.match(widget, /normal completed turn consumes some in-world time/);
     assert.ok(!footprint.firewallChars.toString().includes("<scene value>"));
     assert.doesNotMatch(widget, /<<<STATUS_VALUES>>>[\s\S]*<<<STATUS_VALUES>>>/);
   });

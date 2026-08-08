@@ -352,7 +352,7 @@ describe("repair field contract + POV", () => {
 });
 
 describe("repair previous canonical anchor", () => {
-  it("A. previous 18:30 kept in repair prompt when RP has no advance", async () => {
+  it("A. stale previous 18:30 is advanced after a completed RP turn", async () => {
     let repairBlock = "";
     const caller: StatusWidgetExtractCaller = async (_s, history, opts) => {
       if (opts.requestKind.includes("repair")) {
@@ -374,7 +374,7 @@ describe("repair previous canonical anchor", () => {
       caller,
     });
     assert.match(repairBlock, /18:30/);
-    assert.equal(result.values.character?.["시간"], "18:30");
+    assert.equal(result.values.character?.["시간"], "18:31");
   });
 
   it("B. previous 18:30 + user says wait two hours → repair can return 20:30", async () => {
@@ -1006,6 +1006,27 @@ describe("dual combined status extract", () => {
     assert.equal(result.meta.billing, null);
     assert.equal(result.values.character?.["시간"], "10:00");
     assert.equal(result.values.user?.["기분"], "평온");
+  });
+
+  it("7b. stale main-model seed clock advances before persistence without another call", async () => {
+    let calls = 0;
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "레온",
+      personaName: "렌",
+      userMessage: "계속 이야기한다.",
+      assistantProse: "레온은 대답을 고르고 천천히 고개를 끄덕였다.",
+      resolved: characterResolved(),
+      previousValues: { character: { 시간: "10:00", 장소: "학교" } },
+      seedValues: { character: { 시간: "10:00", 장소: "학교" } },
+      caller: async () => {
+        calls += 1;
+        return { text: "", usage: usage(1) };
+      },
+    });
+
+    assert.equal(calls, 0);
+    assert.equal(result.values.character?.["시간"], "10:01");
+    assert.equal(result.values.character?.["장소"], "학교");
   });
 
   it("8. temporal unknown dropped; sibling fields kept", async () => {

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  advanceUnchangedClockValuesForTurn,
   classifyStatusWidgetTemporalField,
   counterAllowsUnsetPlaceholder,
   counterRequiresConcreteValue,
@@ -49,6 +50,49 @@ describe("classifyStatusWidgetTemporalField", () => {
     assert.equal(classifyStatusWidgetTemporalField(widget.fields[4]!), "season");
     assert.equal(classifyStatusWidgetTemporalField(widget.fields[0]!), null);
     assert.equal(classifyStatusWidgetTemporalField(widget.fields[3]!), null);
+  });
+});
+
+describe("advanceUnchangedClockValuesForTurn", () => {
+  it("advances an unchanged HH:MM clock by one minute for a completed turn", () => {
+    const values = advanceUnchangedClockValuesForTurn({
+      values: { 현재시각: "18:30", 장소: "복도" },
+      previous: { 현재시각: "18:30", 장소: "복도" },
+      widget,
+      currentNarrative: "계속 이야기를 나눈 뒤 문 쪽으로 걸어간다.",
+    });
+
+    assert.equal(values?.현재시각, "18:31");
+    assert.equal(values?.장소, "복도");
+  });
+
+  it("keeps the clock when the narrative explicitly pins the same instant", () => {
+    const values = advanceUnchangedClockValuesForTurn({
+      values: { 현재시각: "18:30" },
+      previous: { 현재시각: "18:30" },
+      widget,
+      currentNarrative: "같은 시각, 멈춘 화면 속에서 대화가 이어진다.",
+    });
+
+    assert.equal(values?.현재시각, "18:30");
+  });
+
+  it("keeps an explicit current-turn clock and avoids unsafe midnight rollover", () => {
+    const explicit = advanceUnchangedClockValuesForTurn({
+      values: { 현재시각: "18:30" },
+      previous: { 현재시각: "18:30" },
+      widget,
+      currentNarrative: "시계는 여전히 18:30을 가리켰다.",
+    });
+    const midnight = advanceUnchangedClockValuesForTurn({
+      values: { 현재시각: "23:59" },
+      previous: { 현재시각: "23:59" },
+      widget,
+      currentNarrative: "짧은 대화를 이어간다.",
+    });
+
+    assert.equal(explicit?.현재시각, "18:30");
+    assert.equal(midnight?.현재시각, "23:59");
   });
 });
 

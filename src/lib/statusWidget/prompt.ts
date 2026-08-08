@@ -73,6 +73,7 @@ export function buildStatusWidgetPromptBlock(resolved: ResolvedStatusWidgetTurn)
     "Do NOT output status window HTML. Do NOT duplicate status in prose.",
     "Use Korean for values unless scene is otherwise. Unknown → \"—\".",
     "Fill every JSON key with a scene-accurate value — never copy \"<scene value>\", \"…\", or \"...\" from the example.",
+    "For clock/current-time fields, reflect the end of this RP turn. A normal completed turn consumes some in-world time; do not freeze the clock across turns unless the prose explicitly says the scene is at the exact same instant or time is frozen.",
     EXTRACTED_FACTS_STATUS_VALUES_INSTRUCTIONS,
   ];
 
