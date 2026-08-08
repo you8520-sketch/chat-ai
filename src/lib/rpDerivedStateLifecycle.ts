@@ -95,6 +95,39 @@ export function isLatestCanonicalAssistantMessage(
 }
 
 /**
+ * Canonical frontier for variant switch (B1-D2).
+ *
+ * The assistant must be the latest canonical assistant AND there must be no
+ * later message row of any kind (user, generating/submitted assistant, etc.).
+ * Greeting/system rows with lower ids are irrelevant.
+ */
+export function hasLaterMessageAfter(
+  db: Database.Database,
+  chatId: number,
+  messageId: number
+): boolean {
+  const row = db
+    .prepare(
+      `SELECT id FROM messages
+       WHERE chat_id = ? AND id > ?
+       LIMIT 1`
+    )
+    .get(chatId, messageId) as { id: number } | undefined;
+  return Boolean(row);
+}
+
+export function isCanonicalFrontierAssistantMessage(
+  db: Database.Database,
+  chatId: number,
+  assistantMessageId: number
+): boolean {
+  if (!isLatestCanonicalAssistantMessage(db, chatId, assistantMessageId)) {
+    return false;
+  }
+  return !hasLaterMessageAfter(db, chatId, assistantMessageId);
+}
+
+/**
  * Logical source-turn number for an assistant message = count of non-greeting
  * assistant messages with id <= this message. Used to re-evaluate triggers
  * on manual status edit / variant switch with a stable source_turn.
@@ -235,66 +268,91 @@ export type AtomicVariantSwitchInput = {
   selectedFacts: ExtractedStatusFact[] | null | undefined;
   selectedRequestId: string | null;
   selectedGenerationSequence: number | null;
+  /** @internal test-only failure injection */
+  __testThrowAfterMessageUpdate?: boolean;
+  /** @internal test-only failure injection */
+  __testThrowAfterEpisodic?: boolean;
+  /** @internal test-only failure injection */
+  __testThrowAfterTriggerSupersession?: boolean;
 };
 
 /**
- * Execute the atomic canonical variant-switch core. Throws on any DB failure
- * so the caller's HTTP layer can surface a 500; no partial mutation is left
- * behind (SQLite rolls back the whole transaction).
+ * Transaction-free message + episodic + trigger supersession mutation.
+ * Outer transaction owner calls this (nonnumeric wrapper or numeric IMMEDIATE).
+ */
+export function executeVariantSwitchMutationCore(
+  db: Database.Database,
+  input: AtomicVariantSwitchInput
+): void {
+  if (input.statusWidgetValuesJson !== undefined) {
+    db.prepare(
+      "UPDATE messages SET content=?, model=?, usage=?, adult_route_meta_json=?, alternates=?, active_variant=?, status_widget_values_json=?, status_widget_turn_active=? WHERE id=?"
+    ).run(
+      input.content,
+      input.model,
+      input.usageJson,
+      input.adultRouteMetaJson,
+      input.variantsJson,
+      input.variantIndex,
+      input.statusWidgetValuesJson,
+      input.statusWidgetTurnActive ? 1 : 0,
+      input.messageId
+    );
+  } else {
+    db.prepare(
+      "UPDATE messages SET content=?, model=?, usage=?, adult_route_meta_json=?, alternates=?, active_variant=? WHERE id=?"
+    ).run(
+      input.content,
+      input.model,
+      input.usageJson,
+      input.adultRouteMetaJson,
+      input.variantsJson,
+      input.variantIndex,
+      input.messageId
+    );
+  }
+  if (input.__testThrowAfterMessageUpdate) {
+    throw new Error("TEST_THROW_AFTER_MESSAGE_UPDATE");
+  }
+
+  supersedeStatusTriggerEventsForSourceMessage(
+    db,
+    input.chatId,
+    input.messageId,
+    "variant_switch"
+  );
+  if (input.__testThrowAfterTriggerSupersession) {
+    throw new Error("TEST_THROW_AFTER_TRIGGER_SUPERSESSION");
+  }
+
+  replaceEpisodicMemoryFactsForCanonicalMutation(db, {
+    chatId: input.chatId,
+    characterId: input.characterId,
+    userId: input.userId,
+    sourceTurn: input.sourceTurn,
+    facts: input.selectedFacts,
+    metadata: {
+      assistant_message_id: input.messageId,
+      request_id: input.selectedRequestId,
+      variant_switch: true,
+      variant_index: input.variantIndex,
+    },
+  });
+  if (input.__testThrowAfterEpisodic) {
+    throw new Error("TEST_THROW_AFTER_EPISODIC_REPLACE");
+  }
+}
+
+/**
+ * Nonnumeric latest-variant switch wrapper. Owns a deferred transaction.
+ * Behavior equivalent to pre-B1-D2 atomic core.
  */
 export function executeAtomicVariantSwitchCore(
   db: Database.Database,
   input: AtomicVariantSwitchInput
 ): void {
   const tx = db.transaction(() => {
-    if (input.statusWidgetValuesJson !== undefined) {
-      db.prepare(
-        "UPDATE messages SET content=?, model=?, usage=?, adult_route_meta_json=?, alternates=?, active_variant=?, status_widget_values_json=?, status_widget_turn_active=? WHERE id=?"
-      ).run(
-        input.content,
-        input.model,
-        input.usageJson,
-        input.adultRouteMetaJson,
-        input.variantsJson,
-        input.variantIndex,
-        input.statusWidgetValuesJson,
-        input.statusWidgetTurnActive ? 1 : 0,
-        input.messageId
-      );
-    } else {
-      db.prepare(
-        "UPDATE messages SET content=?, model=?, usage=?, adult_route_meta_json=?, alternates=?, active_variant=? WHERE id=?"
-      ).run(
-        input.content,
-        input.model,
-        input.usageJson,
-        input.adultRouteMetaJson,
-        input.variantsJson,
-        input.variantIndex,
-        input.messageId
-      );
-    }
-
-    supersedeStatusTriggerEventsForSourceMessage(
-      db,
-      input.chatId,
-      input.messageId,
-      "variant_switch"
-    );
-
-    replaceEpisodicMemoryFactsForCanonicalMutation(db, {
-      chatId: input.chatId,
-      characterId: input.characterId,
-      userId: input.userId,
-      sourceTurn: input.sourceTurn,
-      facts: input.selectedFacts,
-      metadata: {
-        assistant_message_id: input.messageId,
-        request_id: input.selectedRequestId,
-        variant_switch: true,
-        variant_index: input.variantIndex,
-      },
-    });
+    executeVariantSwitchMutationCore(db, input);
   });
   tx();
 }

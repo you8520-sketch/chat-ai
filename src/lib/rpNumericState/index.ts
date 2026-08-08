@@ -1,7 +1,8 @@
 /**
- * Phase B1-A/B/C/D1 — Server-authoritative RP numeric state.
+ * Phase B1-A/B/C/D1/D2 — Server-authoritative RP numeric state.
  * Canonical writes are fail-closed (ENABLED + kill switch; default OFF).
  * B1-D1: no user/character allowlist on canonical path.
+ * B1-D2: selected active variant = only canonical worldline.
  */
 export {
   fingerprintNumericStateDefinition,
@@ -56,10 +57,14 @@ export type {
 } from "./types";
 
 export {
+  NumericHistoricalVariantReplayUnsupportedError,
   NumericRegenChainInvalidError,
   NumericStateInvalidCurrentError,
   NumericStateNotBootstrappedError,
   NumericStateValidationError,
+  NumericVariantChainNotReadyError,
+  NumericVariantFrontierMovedError,
+  NumericVariantSourceNotReadyError,
 } from "./types";
 
 export {
@@ -142,3 +147,21 @@ export type {
   NumericRegenChainGateCode,
   NumericRegenChainReadiness,
 } from "./regenChainGate";
+
+export {
+  buildNumericVariantSelectionMutationId,
+  projectNumericStateToSelectedVariantCore,
+  resolveSelectedVariantGenerationEvent,
+} from "./variantSelection";
+
+export type {
+  ProjectNumericStateToSelectedVariantInput,
+  ProjectNumericStateToSelectedVariantResult,
+} from "./variantSelection";
+
+export { executeAtomicNumericVariantSwitch } from "./variantSwitchAtomic";
+
+export type {
+  AtomicNumericVariantSwitchInput,
+  AtomicNumericVariantSwitchResult,
+} from "./variantSwitchAtomic";

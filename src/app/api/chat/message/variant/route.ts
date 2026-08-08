@@ -14,18 +14,28 @@ import { evaluateStatusWidgetTriggersBestEffort } from "@/lib/statusWidgetTrigge
 import {
   executeAtomicVariantSwitchCore,
   getAssistantSourceTurn,
+  hasLaterCanonicalTurn,
+  isCanonicalFrontierAssistantMessage,
   isLatestCanonicalAssistantMessage,
 } from "@/lib/rpDerivedStateLifecycle";
 import {
+  executeAtomicNumericVariantSwitch,
   listCanonicalEligibleNumericFields,
+  NumericHistoricalVariantReplayUnsupportedError,
+  NumericVariantChainNotReadyError,
+  NumericVariantFrontierMovedError,
+  NumericVariantSourceNotReadyError,
   resolveNumericCanonicalEligibility,
 } from "@/lib/rpNumericState";
 import { parseStatusWidgetJson } from "@/lib/statusWidget";
 import { PREFERENCE_EVENT } from "@/lib/feedback/events";
 import { recordPreferenceEvent } from "@/lib/feedback/feedback-db";
 import { enqueueScoreRecompute } from "@/lib/feedback/queue";
+import { getChatMemoryCapacity } from "@/lib/memory/memory-capacity";
+import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
+import { resolveMemoryTier } from "@/lib/memory/memory-manager";
 
-/** 재생성 버전 선택 */
+/** 재생성 버전 선택 — ACTIVE SELECTED VARIANT == CANONICAL WORLDLINE */
 export async function PATCH(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
@@ -61,7 +71,23 @@ export async function PATCH(req: Request) {
   if (variantIndex < 0 || variantIndex >= variants.length) {
     return NextResponse.json({ error: "잘못된 버전 번호입니다." }, { status: 400 });
   }
-  if (variantIndex === activeVariant) {
+
+  const characterRow = db
+    .prepare("SELECT name, status_widget_json FROM characters WHERE id=?")
+    .get(msg.character_id) as
+    | { name: string; status_widget_json?: string }
+    | undefined;
+  const characterWidget = parseStatusWidgetJson(characterRow?.status_widget_json);
+  const numericEligible =
+    resolveNumericCanonicalEligibility({
+      userId: user.id,
+      characterId: msg.character_id,
+    }).eligible &&
+    listCanonicalEligibleNumericFields(characterWidget).length > 0;
+
+  // Numeric path MUST enter BEGIN IMMEDIATE — never trust pre-txn same-active.
+  // Nonnumeric keeps the cheap same-active early return.
+  if (variantIndex === activeVariant && !numericEligible) {
     const current = variants[activeVariant];
     return NextResponse.json({
       ok: true,
@@ -71,29 +97,6 @@ export async function PATCH(req: Request) {
         ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(current.usage))
         : null,
     });
-  }
-
-  // Phase B1-C V1: numeric-enabled chats do not support variant replay.
-  {
-    const characterRow = db
-      .prepare("SELECT status_widget_json FROM characters WHERE id=?")
-      .get(msg.character_id) as { status_widget_json?: string } | undefined;
-    const characterWidget = parseStatusWidgetJson(characterRow?.status_widget_json);
-    const numericEligible =
-      resolveNumericCanonicalEligibility({
-        userId: user.id,
-        characterId: msg.character_id,
-      }).eligible &&
-      listCanonicalEligibleNumericFields(characterWidget).length > 0;
-    if (numericEligible) {
-      return NextResponse.json(
-        {
-          error: "이 대화는 버전 전환을 지원하지 않습니다.",
-          code: "numeric_state_variant_replay_unsupported",
-        },
-        { status: 409 }
-      );
-    }
   }
 
   const fromVariant = activeVariant;
@@ -112,13 +115,146 @@ export async function PATCH(req: Request) {
       : ""
     : undefined;
 
+  const sourceTurn = getAssistantSourceTurn(db, msg.chat_id, messageId);
   const isLatest = isLatestCanonicalAssistantMessage(db, msg.chat_id, messageId);
 
+  // ─── Numeric-enabled path (B1-D2) ───
+  if (numericEligible) {
+    if (hasLaterCanonicalTurn(db, msg.chat_id, messageId)) {
+      return NextResponse.json(
+        {
+          error: "이후 대화가 있는 과거 턴의 버전 전환은 지원하지 않습니다.",
+          code: "numeric_state_historical_variant_replay_unsupported",
+        },
+        { status: 409 }
+      );
+    }
+    if (!isCanonicalFrontierAssistantMessage(db, msg.chat_id, messageId)) {
+      return NextResponse.json(
+        {
+          error: "이후 입력이 있어 이 답변의 버전을 바꿀 수 없습니다. 새로고침 후 다시 시도해 주세요.",
+          code: "variant_switch_frontier_moved",
+        },
+        { status: 409 }
+      );
+    }
+
+    let atomicResult: ReturnType<typeof executeAtomicNumericVariantSwitch>;
+    try {
+      atomicResult = executeAtomicNumericVariantSwitch(db, {
+        chatId: msg.chat_id,
+        characterId: msg.character_id,
+        userId: msg.user_id,
+        messageId,
+        variantIndex,
+        characterWidget,
+        memory: {
+          enabled: isMemoryFeatureEnabled(),
+          tier: resolveMemoryTier(user),
+          memoryCapacity: getChatMemoryCapacity(msg.chat_id),
+        },
+      });
+    } catch (e) {
+      if (e instanceof NumericVariantFrontierMovedError) {
+        return NextResponse.json(
+          {
+            error: "이후 입력이 있어 이 답변의 버전을 바꿀 수 없습니다. 새로고침 후 다시 시도해 주세요.",
+            code: e.code,
+          },
+          { status: 409 }
+        );
+      }
+      if (e instanceof NumericHistoricalVariantReplayUnsupportedError) {
+        return NextResponse.json(
+          {
+            error: "이후 대화가 있는 과거 턴의 버전 전환은 지원하지 않습니다.",
+            code: e.code,
+          },
+          { status: 409 }
+        );
+      }
+      if (e instanceof NumericVariantChainNotReadyError) {
+        return NextResponse.json(
+          {
+            error: "숫자 상태 체인이 불완전해 버전을 전환할 수 없습니다.",
+            code: e.code,
+          },
+          { status: 409 }
+        );
+      }
+      if (e instanceof NumericVariantSourceNotReadyError) {
+        return NextResponse.json(
+          {
+            error: "선택한 버전의 숫자 상태 원본을 찾을 수 없습니다.",
+            code: e.code,
+          },
+          { status: 409 }
+        );
+      }
+      console.error(
+        "[DerivedState] atomic numeric variant switch failed:",
+        (e as Error).message
+      );
+      return NextResponse.json(
+        { error: "버전 전환 중 오류가 발생했습니다." },
+        { status: 500 }
+      );
+    }
+
+    // HTTP RESPONSE == COMMITTED DB CANONICAL STATE
+    const responseVariants = atomicResult.canonicalVariants;
+    const responseActive = atomicResult.activeVariant;
+    const responseSelected = responseVariants[responseActive]!;
+
+    if (atomicResult.kind === "APPLIED") {
+      recordPreferenceEvent({
+        userId: user.id,
+        chatId: msg.chat_id,
+        messageId,
+        eventType: PREFERENCE_EVENT.VARIANT_SWITCH,
+        payload: { from: fromVariant, to: responseActive },
+      });
+      enqueueScoreRecompute(messageId);
+
+      const canonicalStatusForTriggers = atomicResult.canonicalStatusForTriggers;
+      if (
+        atomicResult.sourceTurn != null &&
+        canonicalStatusForTriggers &&
+        Object.keys(canonicalStatusForTriggers.character ?? {}).length > 0
+      ) {
+        try {
+          evaluateStatusWidgetTriggersBestEffort(db, {
+            chatId: msg.chat_id,
+            characterId: msg.character_id,
+            sourceTurn: atomicResult.sourceTurn,
+            statusValues: canonicalStatusForTriggers,
+            sourceMessageId: messageId,
+            requestId: atomicResult.selectedRequestId,
+            generationSequence: atomicResult.selectedGenerationSequence,
+          });
+        } catch (e) {
+          console.error(
+            "[StatusTrigger] post-commit numeric variant trigger re-evaluation failed:",
+            (e as Error).message
+          );
+        }
+      }
+    }
+
+    return NextResponse.json({
+      ok: true,
+      ...serializeVariantsForClient(responseVariants, responseActive),
+      content: responseSelected.content,
+      usage: responseSelected.usage
+        ? stripAdultRoutingForClient(
+            stripMuseAcceptanceFromUsage(responseSelected.usage)
+          )
+        : null,
+    });
+  }
+
+  // ─── Nonnumeric path (unchanged behavior) ───
   if (isLatest) {
-    // Phase B0.1: atomic canonical mutation core. Message UPDATE + trigger
-    // supersession + episodic reconciliation commit together or roll back
-    // together. Trigger re-evaluation runs AFTER commit (best-effort).
-    const sourceTurn = getAssistantSourceTurn(db, msg.chat_id, messageId);
     try {
       executeAtomicVariantSwitchCore(db, {
         chatId: msg.chat_id,
@@ -158,9 +294,6 @@ export async function PATCH(req: Request) {
     });
     enqueueScoreRecompute(messageId);
 
-    // Best-effort trigger re-evaluation AFTER the canonical core committed.
-    // A missing new trigger is strictly preferred over a stale rejected
-    // variant's trigger (§12): never roll back the core to restore old events.
     if (
       sourceTurn != null &&
       selectedVariant?.statusWidgetValues &&
@@ -184,11 +317,6 @@ export async function PATCH(req: Request) {
       }
     }
   } else {
-    // Historical variant switch: only the display snapshot is updated. The
-    // atomic core is still used so the message UPDATE + status snapshot are
-    // consistent, but derived-state replay for downstream turns is out of
-    // scope for B0 (would require replay). No trigger supersession / episodic
-    // reconciliation is performed for historical switches.
     try {
       db.transaction(() => {
         if (selectedStatusWidgetValuesJson !== undefined) {
