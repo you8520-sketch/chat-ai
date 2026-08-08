@@ -18,7 +18,7 @@
       "variantIndex": 1,
       "http": 200,
       "revision": 6,
-      "selectionEventId": 38,
+      "selectionEventId": 59,
       "content": "B prose",
       "affection": 38,
       "httpAffection": "38"
@@ -27,7 +27,7 @@
       "variantIndex": 0,
       "http": 200,
       "revision": 7,
-      "selectionEventId": 39,
+      "selectionEventId": 60,
       "content": "A prose",
       "affection": 35,
       "httpAffection": "35"
@@ -36,7 +36,7 @@
       "variantIndex": 2,
       "http": 200,
       "revision": 8,
-      "selectionEventId": 40,
+      "selectionEventId": 61,
       "content": "C prose",
       "affection": 32,
       "httpAffection": "32"
@@ -45,7 +45,7 @@
       "variantIndex": 1,
       "http": 200,
       "revision": 9,
-      "selectionEventId": 41,
+      "selectionEventId": 62,
       "content": "B prose",
       "affection": 38,
       "httpAffection": "38"
@@ -63,5 +63,5 @@
     "leftoverEvents": 0
   },
   "characterId": 910924,
-  "chatId": 910924
+  "chatId": 910927
 }
