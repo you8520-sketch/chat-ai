@@ -368,12 +368,14 @@ async function assembleCell(opts: {
   const { buildWebnovelOutputLayoutRecencyBlock } = await import(
     "../src/lib/webnovelOutputFormat"
   );
-  const { OPUS_ARM_E_TERMINAL } = await import(
-    "../src/lib/opusTerminalLengthOwner"
-  );
-  const { TERRA_TERMINAL_LENGTH_OWNER_CONTRACT } = await import(
-    "../src/lib/terraTerminalLengthOwner"
-  );
+  const {
+    OPUS_ARM_E_TERMINAL,
+    shouldUseOpusArmETerminal,
+  } = await import("../src/lib/opusTerminalLengthOwner");
+  const {
+    TERRA_TERMINAL_LENGTH_OWNER_CONTRACT,
+    shouldUseTerraTerminalLengthOwner,
+  } = await import("../src/lib/terraTerminalLengthOwner");
   const { buildOpenRouterKoreanProseTopBlock } = await import(
     "../src/lib/openRouterProsePolicy"
   );
@@ -457,10 +459,18 @@ async function assembleCell(opts: {
     no_godmodding: system.includes(
       buildNoGodmoddingBlock("캐릭터", "렌", "standard").slice(0, 40)
     ),
-    opus_arm_e: opts.modelId.includes("opus")
+    opus_arm_e: shouldUseOpusArmETerminal({
+      modelId: opts.modelId,
+      contentKind: "character",
+      party: false,
+      runtimeMode: "interactive",
+    })
       ? lastUser.includes(OPUS_ARM_E_TERMINAL)
       : null,
-    terra_terminal: opts.modelId.includes("terra")
+    terra_terminal: shouldUseTerraTerminalLengthOwner({
+      modelId: opts.modelId,
+      contentKind: "character",
+    })
       ? lastUser.includes(TERRA_TERMINAL_LENGTH_OWNER_CONTRACT)
       : null,
   };
@@ -521,7 +531,7 @@ async function main() {
   const {
     OPENROUTER_GEMINI_31_PRO_MODEL,
     OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
-    CLAUDE_OPUS_MODEL,
+    CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
     CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
   } = await import("../src/lib/chatModels");
   const { sanitizeStreamArtifacts } = await import("../src/lib/responseLength");
@@ -548,18 +558,33 @@ async function main() {
     buildAdvancedProseNsfwGuidelinesC2Micro({ nsfwEnabled: true })
   );
 
-  const models =
-    STAGE === "premium"
-      ? {
-          Opus: CLAUDE_OPUS_MODEL,
-          Terra: "openai/gpt-5.6", // fallback OR slug if terra CI unavailable
-        }
-      : {
-          Gemini: OPENROUTER_GEMINI_31_PRO_MODEL,
-          DeepSeek: OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
-        };
+  const models = {
+    Gemini: OPENROUTER_GEMINI_31_PRO_MODEL,
+    DeepSeek: OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
+  };
 
-  // Stage 2: Opus Q+T (or D), Terra hardest Q — per mission
+  // Stage 2 requires CheaperInference (Opus Arm E + Terra terminal). Without CI key → NOT_RUN.
+  if (STAGE === "premium" && !process.env.CHEAPER_INFERENCE_API_KEY?.trim()) {
+    const skip = {
+      stage: "premium",
+      status: "NOT_RUN",
+      reason:
+        "CHEAPER_INFERENCE_API_KEY empty — production Opus Arm E / Terra paths unavailable; OpenRouter Opus 4.5 is not the Arm E owner path",
+      Opus: "NOT_RUN",
+      Terra: "NOT_RUN",
+    };
+    save(OUT_ROOT, "RUNTIME_premium.json", skip);
+    save(DOCS, "05_LIVE_RESULTS_premium.json", skip);
+    save(
+      DOCS,
+      "05_LIVE_RESULTS_premium.md",
+      `# 05_LIVE_RESULTS (premium)\n\n**NOT_RUN** — ${skip.reason}\n`
+    );
+    console.log(JSON.stringify(skip, null, 2));
+    return;
+  }
+
+  // Stage 2: Opus Q+T, Terra hardest Q — CheaperInference model ids
   const cells =
     STAGE === "premium"
       ? ([
@@ -568,7 +593,7 @@ async function main() {
             fixture: "Q" as const,
             arm: "A" as const,
             modelKey: "Opus" as const,
-            modelId: CLAUDE_OPUS_MODEL,
+            modelId: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
             characterId: FIXTURE_PROVENANCE.Q.characterId,
             userInput: FIXTURE_PROVENANCE.Q.userInput,
             provenance: FIXTURE_PROVENANCE.Q.provenance,
@@ -578,7 +603,7 @@ async function main() {
             fixture: "Q" as const,
             arm: "B" as const,
             modelKey: "Opus" as const,
-            modelId: CLAUDE_OPUS_MODEL,
+            modelId: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
             characterId: FIXTURE_PROVENANCE.Q.characterId,
             userInput: FIXTURE_PROVENANCE.Q.userInput,
             provenance: FIXTURE_PROVENANCE.Q.provenance,
@@ -588,7 +613,7 @@ async function main() {
             fixture: "T" as const,
             arm: "A" as const,
             modelKey: "Opus" as const,
-            modelId: CLAUDE_OPUS_MODEL,
+            modelId: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
             characterId: FIXTURE_PROVENANCE.T.characterId,
             userInput: FIXTURE_PROVENANCE.T.userInput,
             provenance: FIXTURE_PROVENANCE.T.provenance,
@@ -598,7 +623,7 @@ async function main() {
             fixture: "T" as const,
             arm: "B" as const,
             modelKey: "Opus" as const,
-            modelId: CLAUDE_OPUS_MODEL,
+            modelId: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
             characterId: FIXTURE_PROVENANCE.T.characterId,
             userInput: FIXTURE_PROVENANCE.T.userInput,
             provenance: FIXTURE_PROVENANCE.T.provenance,
