@@ -3,7 +3,7 @@
 ```text
 STEP_C1_STATUS: COMPLETE
 branch: cursor/rp-common-layout-dedupe-c1-6a91
-commit: pending seal commit on branch tip
+commit: 66cd7391c74139fcb40840afff7069a4d1adcdae
 draft PR: https://github.com/you8520-sketch/chat-ai/pull/271
 baseline main: 7cb23ec3e6837c9290ecca2fab2f51f17bb42ee2
 baseline hashes captured: YES (00_BASELINE_HASHES.md)
