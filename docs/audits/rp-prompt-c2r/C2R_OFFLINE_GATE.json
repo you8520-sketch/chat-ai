@@ -1,0 +1,68 @@
+{
+  "ok": true,
+  "isolation_ok": true,
+  "m1_only_changes_m1_region": true,
+  "m2_only_changes_m2_region": true,
+  "ab_exact_composition": true,
+  "m2_change_kind": {
+    "wording_change": true,
+    "position_change": true,
+    "recency_order_change": "quiet-scene clause moves earlier (SCENE FLOW before IMMERSIVE); OUTPUT-LAYOUT recency line unchanged"
+  },
+  "fingerprints": [
+    {
+      "arm": "A",
+      "sha256": "cb2811fd73a8bbee737cf5b07ffb9d2c2fc2db531c5f4f94cd84656e3acd6b58",
+      "chars": 1637,
+      "estimated_tokens": 1474,
+      "changed_clause_ids": [],
+      "first_changed_offset_vs_A": null,
+      "last_changed_offset_vs_A": null
+    },
+    {
+      "arm": "M1",
+      "sha256": "12c59333981439915a96086094d0b7c28357929b538b3cf116ab02fd862cbf83",
+      "chars": 1630,
+      "estimated_tokens": 1467,
+      "changed_clause_ids": [
+        "P02_NARRATION_TRANSLATIONESE",
+        "P07_RHYTHM_SHORT_SENTENCE"
+      ],
+      "first_changed_offset_vs_A": 102,
+      "last_changed_offset_vs_A": 1636
+    },
+    {
+      "arm": "M2",
+      "sha256": "24f058fdd447cdc4cb4e0b730235196e4d786341b58468044da512775d882ba9",
+      "chars": 1610,
+      "estimated_tokens": 1449,
+      "changed_clause_ids": [
+        "P05_SCENE_FLOW_QUIET",
+        "P18_IMMERSIVE_QUIET"
+      ],
+      "first_changed_offset_vs_A": 264,
+      "last_changed_offset_vs_A": 1636
+    },
+    {
+      "arm": "AB",
+      "sha256": "76d0723b9e4c7d6c35ccb678ff8de961fa6d07d52cd304d73582407f30dafd7b",
+      "chars": 1603,
+      "estimated_tokens": 1443,
+      "changed_clause_ids": [
+        "P02_NARRATION_TRANSLATIONESE",
+        "P07_RHYTHM_SHORT_SENTENCE",
+        "P05_SCENE_FLOW_QUIET",
+        "P18_IMMERSIVE_QUIET"
+      ],
+      "first_changed_offset_vs_A": 102,
+      "last_changed_offset_vs_A": 1636
+    }
+  ],
+  "nsfw_on_estimated_tokens": {
+    "A": 1709,
+    "M1": 1702,
+    "M2": 1684,
+    "AB": 1678
+  },
+  "production_unchanged": true
+}
