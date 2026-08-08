@@ -1,0 +1,100 @@
+{
+  "note": "Full RAW read scores",
+  "wording_sha256": "0646850abc442dd6fb79b805df9eac6ca05c9a53506b675d0b607c4eff18f09e",
+  "scores": {
+    "Gemini_G6T1_A": {
+      "CURRENT_INPUT_REPLAY": 3,
+      "INTRO_REPLAY": 0,
+      "SETTING_RECITAL": 1,
+      "ACTIVE_CANON_USE": 4,
+      "CHARACTER_FIDELITY": 4,
+      "SCENE_ADVANCEMENT": 2,
+      "NEW_SCENE_VALUE": "MEDIUM",
+      "OPENING_REPLAY_PARAGRAPHS": 2,
+      "REPLAY_SAVED_CHARS_REPLACED_BY_NEW_SCENE": "N/A",
+      "SCENE_FULLY_DEVELOPED": "YES",
+      "COMPLETION": "PASS",
+      "notes": "2130: opening restages scream/metal/fog before NPC judgment; later advances (refuse + relocate)"
+    },
+    "Gemini_G6T1_C": {
+      "CURRENT_INPUT_REPLAY": 1,
+      "INTRO_REPLAY": 0,
+      "SETTING_RECITAL": 0,
+      "ACTIVE_CANON_USE": 4,
+      "CHARACTER_FIDELITY": 4,
+      "SCENE_ADVANCEMENT": 1,
+      "NEW_SCENE_VALUE": "LOW",
+      "OPENING_REPLAY_PARAGRAPHS": 1,
+      "REPLAY_SAVED_CHARS_REPLACED_BY_NEW_SCENE": "NO",
+      "SCENE_FULLY_DEVELOPED": "NO",
+      "COMPLETION": "FAIL",
+      "notes": "708 HARD density — less restage than A but starves new scene (≈ D2 T=658). Length recovery FAIL."
+    },
+    "Gemini_G5_A": {
+      "CURRENT_INPUT_REPLAY": 1,
+      "INTRO_REPLAY": 2,
+      "SETTING_RECITAL": 2,
+      "ACTIVE_CANON_USE": 4,
+      "CHARACTER_FIDELITY": 4,
+      "SCENE_ADVANCEMENT": 2,
+      "NEW_SCENE_VALUE": "HIGH",
+      "OPENING_REPLAY_PARAGRAPHS": 2,
+      "REPLAY_SAVED_CHARS_REPLACED_BY_NEW_SCENE": "N/A",
+      "SCENE_FULLY_DEVELOPED": "YES",
+      "COMPLETION": "PASS",
+      "notes": "3384 IDEAL length; heavy ecology/setting plane before physical reaction"
+    },
+    "Gemini_G5_C": {
+      "CURRENT_INPUT_REPLAY": 1,
+      "INTRO_REPLAY": 1,
+      "SETTING_RECITAL": 1,
+      "ACTIVE_CANON_USE": 4,
+      "CHARACTER_FIDELITY": 4,
+      "SCENE_ADVANCEMENT": 2,
+      "NEW_SCENE_VALUE": "MEDIUM",
+      "OPENING_REPLAY_PARAGRAPHS": 1,
+      "REPLAY_SAVED_CHARS_REPLACED_BY_NEW_SCENE": "PARTIAL",
+      "SCENE_FULLY_DEVELOPED": "NO",
+      "COMPLETION": "FAIL",
+      "notes": "1919 STRONG REVIEW; faster physical reaction (hand over mouth) but relative length ≪ A*0.70"
+    },
+    "Gemini_G3_A": {
+      "CURRENT_INPUT_REPLAY": 1,
+      "INTRO_REPLAY": 0,
+      "SETTING_RECITAL": 1,
+      "ACTIVE_CANON_USE": 5,
+      "CHARACTER_FIDELITY": 5,
+      "SCENE_ADVANCEMENT": 2,
+      "NEW_SCENE_VALUE": "HIGH",
+      "OPENING_REPLAY_PARAGRAPHS": 0,
+      "REPLAY_SAVED_CHARS_REPLACED_BY_NEW_SCENE": "N/A",
+      "SCENE_FULLY_DEVELOPED": "YES",
+      "COMPLETION": "PASS",
+      "notes": "2689: 총성=죽음 refuse via action+judgment; canon as consequence"
+    },
+    "Gemini_G3_C": {
+      "CURRENT_INPUT_REPLAY": 1,
+      "INTRO_REPLAY": 0,
+      "SETTING_RECITAL": 1,
+      "ACTIVE_CANON_USE": 5,
+      "CHARACTER_FIDELITY": 5,
+      "SCENE_ADVANCEMENT": 2,
+      "NEW_SCENE_VALUE": "MEDIUM",
+      "OPENING_REPLAY_PARAGRAPHS": 1,
+      "REPLAY_SAVED_CHARS_REPLACED_BY_NEW_SCENE": "PARTIAL",
+      "SCENE_FULLY_DEVELOPED": "NO",
+      "COMPLETION": "FAIL",
+      "notes": "1759 density collapse; canon/fidelity preserved (총성=죽음) but length regress vs A"
+    }
+  },
+  "gates": {
+    "g6ReplayImproved": true,
+    "g6LengthRecovery": false,
+    "g6ReplacementContent": "NO",
+    "g5IntroImproved": true,
+    "g5RelativeLengthOk": false,
+    "g3CanonOk": true,
+    "g3RelativeLengthOk": false
+  },
+  "final": "GEMINI_CONTEXT_BOUNDARY_PLACEMENT_FAIL"
+}

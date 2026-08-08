@@ -1,0 +1,50 @@
+{
+  "fixtures": [
+    {
+      "id": "G6T1",
+      "characterId": 10,
+      "userInput": "*멀리서 비명과 금속 마찰음이 겹친다. 렌은 에녹 쪽으로 몸을 낮춘다.* 저쪽이에요. 같이 가요?",
+      "provenance": "D3 G6-T1 — primary length-recovery signal vs D2 T=658",
+      "measures": [
+        "CURRENT_INPUT_REPLAY",
+        "SCENE_ADVANCEMENT",
+        "NEW_SCENE_VALUE",
+        "REPLAY_SAVED_CHARS_REPLACED_BY_NEW_SCENE",
+        "visible_chars"
+      ]
+    },
+    {
+      "id": "G5",
+      "characterId": 10,
+      "userInput": "누구세요? …방금 그 소리는 뭐였죠?",
+      "provenance": "D3 G5 — keep D2 T intro/recital gains if possible",
+      "measures": [
+        "INTRO_REPLAY",
+        "SETTING_RECITAL",
+        "CURRENT_INPUT_REPLAY",
+        "SCENE_ADVANCEMENT",
+        "NEW_SCENE_VALUE"
+      ]
+    },
+    {
+      "id": "G3",
+      "characterId": 10,
+      "userInput": "*렌이 권총을 꺼내 방아쇠에 손가락을 건다.* 저쪽 소리 나는 데 한 발 쏘면 흩어지지 않을까요?",
+      "provenance": "D3 G3 — canon non-inferior control",
+      "measures": [
+        "ACTIVE_CANON_USE",
+        "CHARACTER_FIDELITY",
+        "SETTING_RECITAL",
+        "SCENE_ADVANCEMENT"
+      ]
+    }
+  ],
+  "modelId": "google/gemini-3.1-pro-preview",
+  "wording_sha256": "0646850abc442dd6fb79b805df9eac6ca05c9a53506b675d0b607c4eff18f09e",
+  "adapter_estimated_tokens": 297,
+  "live_arms": [
+    "A",
+    "C"
+  ],
+  "t_live": "NOT_RUN_HISTORICAL"
+}
