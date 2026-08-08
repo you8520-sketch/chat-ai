@@ -131,6 +131,10 @@ import type { PersonaSecretSettingsCapability } from "@/lib/personaSecretCapabil
 import type { UserNotePresetItem } from "@/lib/userNotePresetTypes";
 import type { StatusWidgetPresetItem } from "@/lib/statusWidgetPresetTypes";
 import {
+  isGreetingMessage,
+  resolveChatMessageEditLimit,
+} from "@/lib/chatMessageEditPolicy";
+import {
   CHAT_LOAD_MORE_TURNS,
   mergeMessagesKeepingOlderPrefix,
   type ChatMessageLike,
@@ -3138,14 +3142,21 @@ export default function ChatClient({
     setEditingRole(role);
     const idx = role === "assistant" ? messages.findIndex((m) => m.id === messageId) : -1;
     const asst = idx >= 0 ? messages[idx] : null;
+    const editingGreeting = asst ? isGreetingMessage(asst) : false;
     const activeVariantSource =
       role === "assistant" ? resolveAssistantCanonicalProseSource(asst ?? { content }) : content;
     const canonical =
-      role === "assistant"
+      role === "assistant" && !editingGreeting
         ? resolveAssistantEditInitialValue(asst ?? { content })
         : content;
     setEditDraft(canonical);
     if (role === "assistant") {
+      if (editingGreeting) {
+        setEditWidgetDraft({});
+        setEditingUserId(null);
+        setEditUserDraft("");
+        return;
+      }
       const storedCanonical = getCanonicalProseBody(activeVariantSource);
       const displayAligned = getDisplayAlignedCanonicalProseBody(activeVariantSource);
       logProseFormattingMismatchDev({
@@ -3217,6 +3228,8 @@ export default function ChatClient({
   }
 
   async function saveEdit(messageId: number) {
+    const editingMessage = messages.find((message) => message.id === messageId);
+    const editingGreeting = editingMessage ? isGreetingMessage(editingMessage) : false;
     const assistantText =
       editingRole === "assistant"
         ? normalizeEditedProseForSave(editDraft)
@@ -3239,7 +3252,10 @@ export default function ChatClient({
       setToastMsg("내용을 입력하세요.");
       return;
     }
-    const maxLen = editingRole === "assistant" ? ASSISTANT_MESSAGE_MAX : CHAT_MESSAGE_MAX;
+    const maxLen = resolveChatMessageEditLimit({
+      role: editingRole ?? editingMessage?.role ?? "user",
+      model: editingMessage?.model,
+    });
     if (assistantText.length > maxLen) {
       setToastMsg(`메시지는 ${maxLen.toLocaleString()}자까지 입력할 수 있습니다.`);
       return;
@@ -3269,7 +3285,7 @@ export default function ChatClient({
         body: JSON.stringify({
           messageId,
           content: assistantText,
-          ...(editingRole === "assistant"
+          ...(editingRole === "assistant" && !editingGreeting
             ? {
                 statusWidgetValues: {
                   character: editWidgetDraft.character ?? null,
@@ -3337,11 +3353,13 @@ export default function ChatClient({
   }
 
   function renderEditActions(messageId: number, role: "user" | "assistant") {
-    const maxLen = role === "assistant" ? ASSISTANT_MESSAGE_MAX : CHAT_MESSAGE_MAX;
+    const editingMessage = messages.find((message) => message.id === messageId);
+    const editingGreeting = editingMessage ? isGreetingMessage(editingMessage) : false;
+    const maxLen = resolveChatMessageEditLimit({ role, model: editingMessage?.model });
     const userOver = editingUserId != null && editUserDraft.length > CHAT_MESSAGE_MAX;
     const overLimit =
       role === "assistant"
-        ? editDraft.length > ASSISTANT_MESSAGE_MAX || userOver
+        ? editDraft.length > maxLen || userOver
         : editDraft.length > maxLen;
     return (
       <>
@@ -3369,7 +3387,9 @@ export default function ChatClient({
           }`}
         >
           {role === "assistant"
-            ? editingUserId != null
+            ? editingGreeting
+              ? `인사말 ${editDraft.length.toLocaleString()} / ${maxLen.toLocaleString()}자`
+              : editingUserId != null
               ? `유저 ${editUserDraft.length.toLocaleString()} / ${CHAT_MESSAGE_MAX.toLocaleString()}자 · AI ${formatAssistantLengthLabel(
                   visibleAssistantMessageLength(editDraft),
                   targetResponseChars
@@ -3988,12 +4008,14 @@ export default function ChatClient({
                 <div className="min-w-0">
                 {isEditing ? (
                   <div className="w-full min-w-0">
-                    <p className="mb-1.5 text-center text-[11px] font-semibold text-zinc-500">본문</p>
+                    <p className="mb-1.5 text-center text-[11px] font-semibold text-zinc-500">
+                      {isGreetingMessage(m) ? "인사말" : "본문"}
+                    </p>
                     <textarea
                       value={editDraft}
-                      maxLength={ASSISTANT_MESSAGE_MAX}
+                      maxLength={resolveChatMessageEditLimit(m)}
                       onChange={(e) =>
-                        setEditDraft(e.target.value.slice(0, ASSISTANT_MESSAGE_MAX))
+                        setEditDraft(e.target.value.slice(0, resolveChatMessageEditLimit(m)))
                       }
                       rows={18}
                       className="min-h-[min(70vh,36rem)] w-full resize-y rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-3 text-zinc-200 outline-none focus:border-orange-500/40"
