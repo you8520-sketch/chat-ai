@@ -1,0 +1,14 @@
+{
+  "D": {
+    "characterId": 18,
+    "label": "Dialogue / multi-speaker lobby (Like)",
+    "userInput": "신입 ...맞아.나 본적있어?(갸웃)나는 렌이라고 부르면 돼.",
+    "provenance": "opus-quality-anchor c18 + STEP A/parser + rp-prompt-compression-audit literary short input; greeting already multi-NPC (태형/직원/윤태건 path)"
+  },
+  "N": {
+    "characterId": 5,
+    "label": "Narration-dense approach (Northern Duke)",
+    "userInput": "*렌은 조심스레 다가가 무릎을 꿇고 눈높이를 맞춘다.* …괜찮아요? 제가 좀 도와드릴게요.",
+    "provenance": "opus-quality-anchor SCENARIO_MANIFEST rel_conflict T1 — hard quiet/inner/sensory beat used in literary/agency audits"
+  }
+}

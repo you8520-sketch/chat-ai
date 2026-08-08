@@ -70,9 +70,40 @@ ${buildSemanticCore(opts)}
 ${buildDialogueNarrationRule(opts)}`;
 }
 
+/**
+ * STEP C1 compact layout candidate — A/B only.
+ * Must NOT be wired into production `buildWebnovelOutputLayoutRecencyBlock`
+ * until human ACCEPT + explicit replace approval.
+ *
+ * Preserves current layout meaning; removes duplicate owners + Wrong/Right example.
+ * User-turn `buildCompactTerminalLayoutRecencyLine()` remains the recency echo.
+ */
+export const OUTPUT_LAYOUT_SEMANTIC_COMPACT_CANDIDATE = `[OUTPUT LAYOUT]
+같은 인물·장소·순간의 하나의 연속 서술 비트는 행동·감각·생각·기억·판단 사이에서 초점이 조금 바뀌더라도 한 문단 안에서 자연스럽게 연결한다. 지문 한 문장이 끝났다는 이유만으로 습관적으로 새 문단을 만들지 않는다.
+새 문단은 화자 변경, 뚜렷한 시간·장소 또는 중심 상황 전환, 혹은 충격·반전·결정적 발견·의도적 정적처럼 실제 강조가 필요할 때 시작한다.
+대사는 화자별 독립 문단으로 두며 지문과 빈 줄(\\n\\n)로 분리한다. 지문 끝에 대사를 붙이지 않고, 대사 중간에 지문을 끼워 같은 발화를 불필요하게 분절하지 않는다.`;
+
+/** Marker — must appear only on compact candidate path. */
+export const OUTPUT_LAYOUT_SEMANTIC_COMPACT_CANDIDATE_MARKER =
+  "하나의 연속 서술 비트는 행동·감각·생각·기억·판단";
+
 /** user-turn bottom — layout recency (paired with length tail in contextBuilder) */
 export function buildCompactTerminalLayoutRecencyLine(): string {
   return `레이아웃: 지문과 "…" 대사 사이 빈 줄(\\n\\n) 필수 — 지문 줄 끝에 대사 붙이지 말 것.`;
+}
+
+/** Swap production layout block for compact candidate (A/B harness only). */
+export function replaceOutputLayoutSystemBlockWithCompactCandidate(
+  systemPrompt: string
+): string {
+  const production = buildWebnovelOutputLayoutRecencyBlock();
+  if (!systemPrompt.includes(production)) {
+    throw new Error("production OUTPUT LAYOUT block missing from system prompt");
+  }
+  if (systemPrompt.includes(OUTPUT_LAYOUT_SEMANTIC_COMPACT_CANDIDATE_MARKER)) {
+    throw new Error("compact layout already present");
+  }
+  return systemPrompt.split(production).join(OUTPUT_LAYOUT_SEMANTIC_COMPACT_CANDIDATE);
 }
 
 /** @deprecated buildWebnovelOutputLayoutRecencyBlock() */
