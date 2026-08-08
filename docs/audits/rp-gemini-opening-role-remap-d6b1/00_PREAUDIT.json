@@ -1,0 +1,35 @@
+{
+  "phase": "D6-B1-PREAUDIT",
+  "system_sha_equal": true,
+  "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+  "greeting_sha256": "03abdca051e6191cec051f07e35bd02eff149685f539a5128e222d594e5a82fa",
+  "greeting_chars": 127,
+  "current_user_body_sha_equal": true,
+  "current_user_body_sha256": "c2829f3e9bad018eb12261750fde550c7f88d15e6b3351994354c302caedc95a",
+  "arm_A": {
+    "greeting_role": "assistant_history",
+    "message_count": 4,
+    "assistant_messages": 1,
+    "total_message_chars": 7232
+  },
+  "arm_B": {
+    "greeting_role": "current_turn_context_prefix",
+    "message_count": 2,
+    "assistant_messages": 0,
+    "header_chars": 42,
+    "header_only_extra": true,
+    "deepseek_length_exemplar_sentence": false,
+    "total_message_chars": 7248
+  },
+  "message_char_delta": 16,
+  "generation_config": {
+    "model": "google/gemini-3.1-pro-preview",
+    "temperature": 0.95,
+    "max_tokens": null,
+    "reasoning": {
+      "effort": "low"
+    },
+    "include_reasoning": false,
+    "provider": null
+  }
+}
