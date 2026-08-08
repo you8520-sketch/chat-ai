@@ -1,0 +1,20 @@
+{
+  "classification": "SCENE_PACING_CONTROLLER_FAIL",
+  "N1S": {
+    "quiet": "A0/2 P1/2",
+    "human": "A49.5 P67.5",
+    "median_P": 2590.5,
+    "auto_threat": "A1/2 P1/2"
+  },
+  "N2": {
+    "world_motion": "A7 P8.5",
+    "beats_P": 1,
+    "anchors_P": "2/1",
+    "dialogue": "P_D2 starvation",
+    "human": "A50 P67"
+  },
+  "I1": "NOT_RUN",
+  "S1": "NOT_RUN",
+  "production_wire": "NOT_RUN",
+  "merge": "NOT_RUN"
+}

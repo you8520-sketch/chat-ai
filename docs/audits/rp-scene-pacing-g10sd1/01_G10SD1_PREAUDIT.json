@@ -1,0 +1,78 @@
+{
+  "phase": "G10-SD1-PREAUDIT",
+  "latest_main": "7f0c54b60e7ace11bc6e4eea9c820caadde24853",
+  "api_calls": 0,
+  "sole_variable": "SERVER_MOTION_BUDGET",
+  "production_wire": "NOT_RUN",
+  "standard_legacy_scene_directive": "OFF",
+  "CURRENT_A": {
+    "system_tokens_est": 3284,
+    "has_scene_pacing": false,
+    "has_legacy_scene_engine": false,
+    "collaborative": true,
+    "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+    "canon_data_sha256": "01518f0e9144e5ae3411867171671b76db812f392ef138458c48029257cdea2e",
+    "history_sha256": "367347643dbbb46879710afb35a78600e8db1a9b5d930dd4717221878250c1d0",
+    "user_tail_sha256": "9e0790c35ee937a7771b5239e75a704eef8276d590e58b40f51dc35a672bbf59"
+  },
+  "CANDIDATE_P": {
+    "system_tokens_est": 3333,
+    "has_scene_pacing": true,
+    "has_legacy_scene_engine": false,
+    "collaborative": true,
+    "decision": {
+      "pacingMode": "DYAD",
+      "motionLevel": "HOLD",
+      "sceneKind": "rest",
+      "castMode": "single_primary",
+      "intimateDyad": false,
+      "recentStagnation": false,
+      "externalCooldownActive": false,
+      "triggerActive": false,
+      "meaningfulBeatBudget": 1,
+      "carrierHints": [
+        "relationship",
+        "daily_life",
+        "environment"
+      ],
+      "primaryProgression": null,
+      "npcActionEligible": false,
+      "externalEligible": false,
+      "reasonCodes": [
+        "kind:rest",
+        "mode:DYAD",
+        "cast:single_primary",
+        "dyad_hold"
+      ]
+    },
+    "insertedCue": true,
+    "system_sha256": "b92b26321573cc3e80b5ba4d6c6abfe7264699271b3fb8552009d86c41784c55",
+    "canon_data_sha256": "01518f0e9144e5ae3411867171671b76db812f392ef138458c48029257cdea2e",
+    "history_sha256": "367347643dbbb46879710afb35a78600e8db1a9b5d930dd4717221878250c1d0",
+    "user_tail_sha256": "9e0790c35ee937a7771b5239e75a704eef8276d590e58b40f51dc35a672bbf59"
+  },
+  "fixture_decisions": {
+    "N1S": {
+      "pacingMode": "DYAD",
+      "motionLevel": "HOLD",
+      "meaningfulBeatBudget": 1,
+      "externalEligible": false
+    },
+    "N2": {
+      "pacingMode": "EXPLORATION",
+      "motionLevel": "LOCAL",
+      "meaningfulBeatBudget": 1,
+      "externalEligible": true
+    }
+  },
+  "invariants": {
+    "canon_equal": true,
+    "history_equal": true,
+    "user_tail_equal": true,
+    "runtime_equal": true,
+    "agency_byte_identical": true,
+    "no_legacy_verbose_renderer": true,
+    "sole_diff_compact_pacing": true
+  },
+  "LIVE_CALL_READY": true
+}
