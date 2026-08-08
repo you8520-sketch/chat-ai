@@ -12,8 +12,6 @@ import {
 } from "@/lib/statusWidgetTriggers";
 import { parseStoredStatusWidgetValuesJson } from "@/lib/statusWidget/parseValues";
 import {
-  RP_NUMERIC_STATE_ALLOWLIST_CHARACTERS_ENV,
-  RP_NUMERIC_STATE_ALLOWLIST_USERS_ENV,
   RP_NUMERIC_STATE_ENABLED_ENV,
   RP_NUMERIC_STATE_KILL_SWITCH_ENV,
   bootstrapNumericStateCurrentCore,
@@ -125,8 +123,8 @@ function activeVariantStatus(
   return variants[row.active_variant]?.statusWidgetValues?.character;
 }
 
-describe("Phase B1-C — flags (F1-F6)", () => {
-  it("F1 ENABLED=0 → not eligible", () => {
+describe("Phase B1-D1 — canonical eligibility (E1-E8)", () => {
+  it("E1 ENABLED=0 → OFF", () => {
     const r = resolveNumericCanonicalEligibility({
       userId: 1,
       characterId: 2,
@@ -136,55 +134,53 @@ describe("Phase B1-C — flags (F1-F6)", () => {
     assert.equal(r.reason, "flag_off");
   });
 
-  it("F2 ENABLED=1 + empty allowlist → OFF", () => {
-    const r = resolveNumericCanonicalEligibility({
-      userId: 1,
-      env: {
-        [RP_NUMERIC_STATE_ENABLED_ENV]: "1",
-        [RP_NUMERIC_STATE_ALLOWLIST_USERS_ENV]: "",
-      },
-    });
-    assert.equal(r.eligible, false);
-    assert.equal(r.reason, "empty_user_allowlist");
-  });
-
-  it("F3 allowlisted admin + character → ON", () => {
+  it("E2 ENABLED=1 → ON for authenticated user", () => {
     const r = resolveNumericCanonicalEligibility({
       userId: 5,
       characterId: 19,
-      env: {
-        [RP_NUMERIC_STATE_ENABLED_ENV]: "1",
-        [RP_NUMERIC_STATE_ALLOWLIST_USERS_ENV]: "5",
-        [RP_NUMERIC_STATE_ALLOWLIST_CHARACTERS_ENV]: "19",
-      },
+      env: { [RP_NUMERIC_STATE_ENABLED_ENV]: "1" },
+    });
+    assert.equal(r.eligible, true);
+    assert.equal(r.reason, "eligible");
+  });
+
+  it("E3 ENABLED=true → ON", () => {
+    const r = resolveNumericCanonicalEligibility({
+      userId: 5,
+      env: { [RP_NUMERIC_STATE_ENABLED_ENV]: "true" },
     });
     assert.equal(r.eligible, true);
   });
 
-  it("F4 user not allowlisted → OFF", () => {
-    const r = resolveNumericCanonicalEligibility({
-      userId: 9,
-      env: {
-        [RP_NUMERIC_STATE_ENABLED_ENV]: "1",
-        [RP_NUMERIC_STATE_ALLOWLIST_USERS_ENV]: "5",
-      },
-    });
-    assert.equal(r.reason, "user_not_allowlisted");
-  });
-
-  it("F5 KILL_SWITCH=1 → OFF", () => {
+  it("E4 ENABLED=1 + KILL_SWITCH=1 → OFF", () => {
     const r = resolveNumericCanonicalEligibility({
       userId: 5,
       env: {
         [RP_NUMERIC_STATE_ENABLED_ENV]: "1",
-        [RP_NUMERIC_STATE_ALLOWLIST_USERS_ENV]: "5",
         [RP_NUMERIC_STATE_KILL_SWITCH_ENV]: "1",
       },
     });
     assert.equal(r.reason, "kill_switch");
+    assert.equal(r.eligible, false);
   });
 
-  it("F6 field without numericState → not listed", () => {
+  it("E5 authenticated user needs no allowlist", () => {
+    const r = resolveNumericCanonicalEligibility({
+      userId: 99,
+      env: { [RP_NUMERIC_STATE_ENABLED_ENV]: "1" },
+    });
+    assert.equal(r.eligible, true);
+  });
+
+  it("E5b missing/invalid user id → OFF", () => {
+    const r = resolveNumericCanonicalEligibility({
+      userId: null,
+      env: { [RP_NUMERIC_STATE_ENABLED_ENV]: "1" },
+    });
+    assert.equal(r.reason, "unauthenticated");
+  });
+
+  it("E6 field without numericState → not listed", () => {
     const widget: StatusWidget = {
       version: 1,
       name: "x",
@@ -193,6 +189,31 @@ describe("Phase B1-C — flags (F1-F6)", () => {
       fields: [{ id: "affection", label: "affection", instruction: "x" }],
     };
     assert.equal(listCanonicalEligibleNumericFields(widget).length, 0);
+  });
+
+  it("E7 pilot numeric field → listed", () => {
+    assert.equal(listCanonicalEligibleNumericFields(meterWidget(["affection"])).length, 1);
+  });
+
+  it("E8 general status field (location) → not canonical numeric", () => {
+    const widget: StatusWidget = {
+      version: 1,
+      name: "x",
+      htmlTemplate: "{{location}} {{affection}}",
+      placement: "bottom",
+      fields: [
+        { id: "location", label: "위치", instruction: "x" },
+        {
+          id: "affection",
+          label: "호감",
+          instruction: "x",
+          numericState: { ...def, initial: 40 },
+        },
+      ],
+    };
+    const listed = listCanonicalEligibleNumericFields(widget);
+    assert.equal(listed.length, 1);
+    assert.equal(listed[0]!.stateKey, "affection");
   });
 });
 

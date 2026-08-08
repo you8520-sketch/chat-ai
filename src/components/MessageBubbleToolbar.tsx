@@ -172,7 +172,13 @@ export default function MessageBubbleToolbar({
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         signal: AbortSignal.timeout(30_000),
-        body: JSON.stringify({ chatId }),
+        body: JSON.stringify({
+          chatId,
+          // Idempotency / target-change guard (B1-D1): only delete this last assistant.
+          ...(typeof messageId === "number" && Number.isFinite(messageId)
+            ? { expectedAssistantMessageId: messageId }
+            : {}),
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
