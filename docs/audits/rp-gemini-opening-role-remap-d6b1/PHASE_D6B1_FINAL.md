@@ -4,7 +4,7 @@
 PHASE_D6B1_FINAL:
 baseline main: 7f0c54b60e7ace11bc6e4eea9c820caadde24853
 branch: cursor/rp-gemini-opening-role-remap-d6b1-96c2
-commit: 6e0e5d13cfe1b5633f1cd14d100abb3af2893813
+commit: 3f26c34380c38b3ed695e3d5caf9a2f0580c84eb (evidence seal; branch tip may include SHA-pin follow-ups)
 draft PR: https://github.com/you8520-sketch/chat-ai/pull/285
 production diff: 0
 system prompt diff: 0
