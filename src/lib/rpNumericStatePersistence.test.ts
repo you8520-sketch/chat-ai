@@ -464,4 +464,43 @@ describe("Phase B1-A — schema presence", () => {
     assert.ok(indexNames.has("idx_rp_numeric_state_events_message"));
     assert.ok(indexNames.has("idx_rp_numeric_state_events_mutation"));
   });
+
+  it("HOT_PATH_SCHEMA_DDL = 0 after explicit test setup", () => {
+    const sql: string[] = [];
+    const db = makeDb(sql);
+    // Setup DDL already ran via makeDb → ensureRpNumericStateTables once.
+    sql.length = 0;
+
+    bootstrapNumericStateCurrent(db, {
+      chatId: 1,
+      characterId: 7,
+      stateKey: "affection",
+      definition: def,
+      baselineValue: 40,
+      mutationId: "bootstrap:hot-path-ddl",
+      sourceKind: "definition_initial",
+    });
+    commitNumericStateProposal(db, {
+      chatId: 1,
+      stateKey: "affection",
+      definition: def,
+      proposal: 43,
+      mutationId: "generation:1:0:r1",
+      sourceKind: "extractor",
+    });
+    const current = getNumericStateCurrent(db, 1, "affection");
+    assert.ok(current);
+    assert.equal(current.numericValue, 43);
+    const event = getNumericStateEventById(db, current.lastEventId!);
+    assert.ok(event);
+
+    const ddl = sql.filter((s) =>
+      /\bCREATE\s+(TABLE|INDEX)\b/i.test(s)
+    );
+    assert.equal(
+      ddl.length,
+      0,
+      `HOT_PATH_SCHEMA_DDL must be 0; saw: ${ddl.join(" | ")}`
+    );
+  });
 });

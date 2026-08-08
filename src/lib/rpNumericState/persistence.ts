@@ -32,6 +32,10 @@ export const RP_NUMERIC_STATE_USES_BEGIN_IMMEDIATE = true;
 
 type Db = Database.Database;
 
+/**
+ * Schema ownership: DB init / migration / explicit test setup only.
+ * Must NOT be called from get/bootstrap/commit hot-path primitives.
+ */
 export function ensureRpNumericStateTables(db: Db): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS rp_numeric_state_current (
@@ -155,7 +159,6 @@ export function getNumericStateCurrent(
   chatId: number,
   stateKey: string
 ): NumericStateCurrentRow | null {
-  ensureRpNumericStateTables(db);
   const row = db
     .prepare(
       `SELECT chat_id, character_id, state_key, numeric_value, revision,
@@ -185,7 +188,6 @@ export function getNumericStateEventById(
   db: Db,
   eventId: number
 ): NumericStateEventRow | null {
-  ensureRpNumericStateTables(db);
   const row = db
     .prepare(
       `SELECT id, chat_id, character_id, state_key, mutation_id,
@@ -281,7 +283,6 @@ export function bootstrapNumericStateCurrent(
   db: Db,
   input: BootstrapNumericStateInput
 ): BootstrapNumericStateResult {
-  ensureRpNumericStateTables(db);
   const definition = normalizeNumericStateDefinition(input.definition);
   if (!definition) {
     throw new NumericStateValidationError("invalid numeric state definition");
@@ -429,7 +430,6 @@ export function commitNumericStateProposal(
   db: Db,
   input: CommitNumericStateProposalInput
 ): CommitNumericStateProposalResult {
-  ensureRpNumericStateTables(db);
   const definition = normalizeNumericStateDefinition(input.definition);
   if (!definition) {
     throw new NumericStateValidationError("invalid numeric state definition");
