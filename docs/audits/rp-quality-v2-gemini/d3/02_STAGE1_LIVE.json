@@ -1,0 +1,350 @@
+{
+  "phase": "D3",
+  "model": "google/gemini-3.1-pro-preview",
+  "api_calls_this_run": 6,
+  "stage1_target": 6,
+  "stage1_cells": 6,
+  "wording_sha256": "0646850abc442dd6fb79b805df9eac6ca05c9a53506b675d0b607c4eff18f09e",
+  "adapter_estimated_tokens": 297,
+  "t_live": "NOT_RUN_HISTORICAL",
+  "raw_outputs_committed_path": "docs/audits/rp-quality-v2-gemini/d3/raw/",
+  "confirmation": "NOT_RUN",
+  "deepseek": "NOT_RUN",
+  "opus": "NOT_RUN",
+  "terra": "NOT_RUN",
+  "production_prompt": "UNCHANGED",
+  "rows": [
+    {
+      "cell_id": "Gemini_G6T1_A",
+      "fixture": "G6T1",
+      "arm": "A",
+      "placement": "absent",
+      "measures": [
+        "CURRENT_INPUT_REPLAY",
+        "SCENE_ADVANCEMENT",
+        "NEW_SCENE_VALUE",
+        "REPLAY_SAVED_CHARS_REPLACED_BY_NEW_SCENE",
+        "visible_chars"
+      ],
+      "visible_chars_no_ws": 2130,
+      "length_band": "STRONG_LENGTH_REGRESSION",
+      "dialogue_char_share": 0.1789,
+      "narration_char_share": 0.8211,
+      "same_speaker_dialogue_fragments": 2,
+      "continuity": {
+        "current_input_lcs_chars": 5,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 4,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [],
+      "review_flags": [
+        "SPEAKER_SPLIT_REVIEW_REQUIRED"
+      ],
+      "agency_severe": 0,
+      "finish_reason": "stop",
+      "incomplete": false,
+      "adapter_injected": false,
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "human": {
+        "CURRENT_INPUT_REPLAY": "PENDING",
+        "INTRO_REPLAY": "PENDING",
+        "SETTING_RECITAL": "PENDING",
+        "ACTIVE_CANON_USE": "PENDING",
+        "CHARACTER_FIDELITY": "PENDING",
+        "SCENE_ADVANCEMENT": "PENDING",
+        "NEW_SCENE_VALUE": "PENDING",
+        "OPENING_REPLAY_PARAGRAPHS": "PENDING",
+        "REPLAY_SAVED_CHARS_REPLACED_BY_NEW_SCENE": "PENDING",
+        "SCENE_FULLY_DEVELOPED": "PENDING",
+        "COMPLETION": "PENDING"
+      }
+    },
+    {
+      "cell_id": "Gemini_G6T1_C",
+      "fixture": "G6T1",
+      "arm": "C",
+      "placement": "context_boundary",
+      "measures": [
+        "CURRENT_INPUT_REPLAY",
+        "SCENE_ADVANCEMENT",
+        "NEW_SCENE_VALUE",
+        "REPLAY_SAVED_CHARS_REPLACED_BY_NEW_SCENE",
+        "visible_chars"
+      ],
+      "visible_chars_no_ws": 708,
+      "length_band": "DENSITY_COLLAPSE",
+      "dialogue_char_share": 0.137,
+      "narration_char_share": 0.863,
+      "same_speaker_dialogue_fragments": 2,
+      "continuity": {
+        "current_input_lcs_chars": 4,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 7,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [
+        "DENSITY_COLLAPSE"
+      ],
+      "review_flags": [
+        "SPEAKER_SPLIT_REVIEW_REQUIRED"
+      ],
+      "agency_severe": 0,
+      "finish_reason": "stop",
+      "incomplete": false,
+      "adapter_injected": true,
+      "system_sha256": "feb9851d8754ad9ddb432d0cd1e20ed85d2a3ec27e53bc5bce364fa4ebcabc30",
+      "human": {
+        "CURRENT_INPUT_REPLAY": "PENDING",
+        "INTRO_REPLAY": "PENDING",
+        "SETTING_RECITAL": "PENDING",
+        "ACTIVE_CANON_USE": "PENDING",
+        "CHARACTER_FIDELITY": "PENDING",
+        "SCENE_ADVANCEMENT": "PENDING",
+        "NEW_SCENE_VALUE": "PENDING",
+        "OPENING_REPLAY_PARAGRAPHS": "PENDING",
+        "REPLAY_SAVED_CHARS_REPLACED_BY_NEW_SCENE": "PENDING",
+        "SCENE_FULLY_DEVELOPED": "PENDING",
+        "COMPLETION": "PENDING"
+      }
+    },
+    {
+      "cell_id": "Gemini_G5_A",
+      "fixture": "G5",
+      "arm": "A",
+      "placement": "absent",
+      "measures": [
+        "INTRO_REPLAY",
+        "SETTING_RECITAL",
+        "CURRENT_INPUT_REPLAY",
+        "SCENE_ADVANCEMENT",
+        "NEW_SCENE_VALUE"
+      ],
+      "visible_chars_no_ws": 3384,
+      "length_band": "IDEAL",
+      "dialogue_char_share": 0.0561,
+      "narration_char_share": 0.9439,
+      "same_speaker_dialogue_fragments": 4,
+      "continuity": {
+        "current_input_lcs_chars": 5,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 10,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [],
+      "review_flags": [
+        "SPEAKER_SPLIT_REVIEW_REQUIRED"
+      ],
+      "agency_severe": 0,
+      "finish_reason": "stop",
+      "incomplete": false,
+      "adapter_injected": false,
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "human": {
+        "CURRENT_INPUT_REPLAY": "PENDING",
+        "INTRO_REPLAY": "PENDING",
+        "SETTING_RECITAL": "PENDING",
+        "ACTIVE_CANON_USE": "PENDING",
+        "CHARACTER_FIDELITY": "PENDING",
+        "SCENE_ADVANCEMENT": "PENDING",
+        "NEW_SCENE_VALUE": "PENDING",
+        "OPENING_REPLAY_PARAGRAPHS": "PENDING",
+        "REPLAY_SAVED_CHARS_REPLACED_BY_NEW_SCENE": "PENDING",
+        "SCENE_FULLY_DEVELOPED": "PENDING",
+        "COMPLETION": "PENDING"
+      }
+    },
+    {
+      "cell_id": "Gemini_G5_C",
+      "fixture": "G5",
+      "arm": "C",
+      "placement": "context_boundary",
+      "measures": [
+        "INTRO_REPLAY",
+        "SETTING_RECITAL",
+        "CURRENT_INPUT_REPLAY",
+        "SCENE_ADVANCEMENT",
+        "NEW_SCENE_VALUE"
+      ],
+      "visible_chars_no_ws": 1919,
+      "length_band": "STRONG_LENGTH_REGRESSION",
+      "dialogue_char_share": 0.1548,
+      "narration_char_share": 0.8452,
+      "same_speaker_dialogue_fragments": 5,
+      "continuity": {
+        "current_input_lcs_chars": 5,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 6,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [],
+      "review_flags": [
+        "SPEAKER_SPLIT_REVIEW_REQUIRED"
+      ],
+      "agency_severe": 0,
+      "finish_reason": "stop",
+      "incomplete": false,
+      "adapter_injected": true,
+      "system_sha256": "feb9851d8754ad9ddb432d0cd1e20ed85d2a3ec27e53bc5bce364fa4ebcabc30",
+      "human": {
+        "CURRENT_INPUT_REPLAY": "PENDING",
+        "INTRO_REPLAY": "PENDING",
+        "SETTING_RECITAL": "PENDING",
+        "ACTIVE_CANON_USE": "PENDING",
+        "CHARACTER_FIDELITY": "PENDING",
+        "SCENE_ADVANCEMENT": "PENDING",
+        "NEW_SCENE_VALUE": "PENDING",
+        "OPENING_REPLAY_PARAGRAPHS": "PENDING",
+        "REPLAY_SAVED_CHARS_REPLACED_BY_NEW_SCENE": "PENDING",
+        "SCENE_FULLY_DEVELOPED": "PENDING",
+        "COMPLETION": "PENDING"
+      }
+    },
+    {
+      "cell_id": "Gemini_G3_A",
+      "fixture": "G3",
+      "arm": "A",
+      "placement": "absent",
+      "measures": [
+        "ACTIVE_CANON_USE",
+        "CHARACTER_FIDELITY",
+        "SETTING_RECITAL",
+        "SCENE_ADVANCEMENT"
+      ],
+      "visible_chars_no_ws": 2689,
+      "length_band": "REVIEW_REQUIRED",
+      "dialogue_char_share": 0.0967,
+      "narration_char_share": 0.9033,
+      "same_speaker_dialogue_fragments": 2,
+      "continuity": {
+        "current_input_lcs_chars": 3,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 7,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [],
+      "review_flags": [
+        "SPEAKER_SPLIT_REVIEW_REQUIRED"
+      ],
+      "agency_severe": 0,
+      "finish_reason": "stop",
+      "incomplete": false,
+      "adapter_injected": false,
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "human": {
+        "CURRENT_INPUT_REPLAY": "PENDING",
+        "INTRO_REPLAY": "PENDING",
+        "SETTING_RECITAL": "PENDING",
+        "ACTIVE_CANON_USE": "PENDING",
+        "CHARACTER_FIDELITY": "PENDING",
+        "SCENE_ADVANCEMENT": "PENDING",
+        "NEW_SCENE_VALUE": "PENDING",
+        "OPENING_REPLAY_PARAGRAPHS": "PENDING",
+        "REPLAY_SAVED_CHARS_REPLACED_BY_NEW_SCENE": "PENDING",
+        "SCENE_FULLY_DEVELOPED": "PENDING",
+        "COMPLETION": "PENDING"
+      }
+    },
+    {
+      "cell_id": "Gemini_G3_C",
+      "fixture": "G3",
+      "arm": "C",
+      "placement": "context_boundary",
+      "measures": [
+        "ACTIVE_CANON_USE",
+        "CHARACTER_FIDELITY",
+        "SETTING_RECITAL",
+        "SCENE_ADVANCEMENT"
+      ],
+      "visible_chars_no_ws": 1759,
+      "length_band": "DENSITY_COLLAPSE",
+      "dialogue_char_share": 0.191,
+      "narration_char_share": 0.809,
+      "same_speaker_dialogue_fragments": 2,
+      "continuity": {
+        "current_input_lcs_chars": 3,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 10,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [
+        "DENSITY_COLLAPSE"
+      ],
+      "review_flags": [
+        "SPEAKER_SPLIT_REVIEW_REQUIRED"
+      ],
+      "agency_severe": 0,
+      "finish_reason": "stop",
+      "incomplete": false,
+      "adapter_injected": true,
+      "system_sha256": "feb9851d8754ad9ddb432d0cd1e20ed85d2a3ec27e53bc5bce364fa4ebcabc30",
+      "human": {
+        "CURRENT_INPUT_REPLAY": "PENDING",
+        "INTRO_REPLAY": "PENDING",
+        "SETTING_RECITAL": "PENDING",
+        "ACTIVE_CANON_USE": "PENDING",
+        "CHARACTER_FIDELITY": "PENDING",
+        "SCENE_ADVANCEMENT": "PENDING",
+        "NEW_SCENE_VALUE": "PENDING",
+        "OPENING_REPLAY_PARAGRAPHS": "PENDING",
+        "REPLAY_SAVED_CHARS_REPLACED_BY_NEW_SCENE": "PENDING",
+        "SCENE_FULLY_DEVELOPED": "PENDING",
+        "COMPLETION": "PENDING"
+      }
+    }
+  ]
+}

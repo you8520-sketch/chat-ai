@@ -1,0 +1,23 @@
+{
+  "note": "Reveal only after human scoring seal",
+  "model": "google/gemini-3.1-pro-preview",
+  "blindMap": {
+    "G6T1": {
+      "P": "C",
+      "Q": "A"
+    },
+    "G5": {
+      "P": "C",
+      "Q": "A"
+    },
+    "G3": {
+      "P": "A",
+      "Q": "C"
+    }
+  },
+  "arm_meanings": {
+    "A": "production — continuity absent",
+    "T": "D2 terminal_system — historical only",
+    "C": "context_boundary before [OUTPUT LAYOUT]"
+  }
+}
