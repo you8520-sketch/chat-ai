@@ -36,7 +36,11 @@ import {
 } from "@/lib/rpNumericState";
 import { parseStatusWidgetJson, serializeStatusWidget } from "@/lib/statusWidget";
 import { parseStoredStatusWidgetValuesJson } from "@/lib/statusWidget/parseValues";
+import { fingerprintNumericStateDefinition } from "@/lib/statusWidget/numericStateDefinition";
 import type { MessageVariant } from "@/lib/messageAlternates";
+import { pickNextSummaryBatch } from "@/lib/memory/memory-rolling-summary";
+import { expectedBatchStartsThrough } from "@/lib/memory/memory-summary-integrity";
+import { ROLLING_SUMMARY_INTERVAL, type DialogueTurn } from "@/lib/hybridMemory";
 
 const def: ServerMeterNumericStateDefinitionV1 = {
   version: 1,
@@ -585,7 +589,13 @@ describe("Phase B1-D2 — numeric variant selection", () => {
   it("V10 missing generationSequence fail-closed", () => {
     const db = makeDb();
     const variants = seedABCD(db);
-    variants[1] = { ...variants[1]!, generationSequence: undefined };
+    // Must corrupt txn-local DB alternates — preload is ignored.
+    const corrupted = variants.map((v, i) =>
+      i === 1 ? { ...v, generationSequence: undefined } : v
+    );
+    db.prepare(`UPDATE messages SET alternates=? WHERE id=4`).run(
+      JSON.stringify(corrupted)
+    );
     assert.throws(
       () =>
         executeAtomicNumericVariantSwitch(db, {
@@ -594,12 +604,6 @@ describe("Phase B1-D2 — numeric variant selection", () => {
           userId: 1,
           messageId: 4,
           variantIndex: 1,
-          variants,
-          content: "B prose",
-          model: "test",
-          usageJson: null,
-          adultRouteMetaJson: "",
-          sourceTurn: 2,
           characterWidget: widget(),
         }),
       (e: unknown) => e instanceof NumericVariantSourceNotReadyError
@@ -1163,5 +1167,549 @@ describe("Phase B1-D2 — numeric variant selection", () => {
     });
     assert.equal(projected.afterByStateKey.affection, 38);
     assert.equal(getNumericStateCurrent(db, 1, "affection")!.numericValue, 38);
+  });
+});
+
+// ─── B1-D2 FINAL HARDENING ───────────────────────────────────────────
+
+function ensureMemoryTables(db: Database.Database): void {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS chats (
+      id INTEGER PRIMARY KEY,
+      current_summary TEXT NOT NULL DEFAULT '',
+      memory TEXT NOT NULL DEFAULT ''
+    );
+    CREATE TABLE IF NOT EXISTS chat_memories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      chat_id INTEGER NOT NULL UNIQUE,
+      user_id INTEGER NOT NULL,
+      character_id INTEGER NOT NULL,
+      pinned_facts TEXT NOT NULL DEFAULT '',
+      recent_summary TEXT NOT NULL DEFAULT '',
+      archive_summary TEXT NOT NULL DEFAULT '',
+      membership_tier TEXT NOT NULL DEFAULT 'free',
+      used_chars INTEGER NOT NULL DEFAULT 0,
+      message_count INTEGER NOT NULL DEFAULT 0,
+      summarized_turn_count INTEGER NOT NULL DEFAULT 0,
+      last_compressed_at TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE TABLE IF NOT EXISTS chat_turn_summaries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      chat_id INTEGER NOT NULL,
+      turn_number INTEGER NOT NULL,
+      assistant_message_id INTEGER,
+      summary TEXT NOT NULL DEFAULT '',
+      summary_kind TEXT NOT NULL DEFAULT 'narrative',
+      scope_payload TEXT,
+      branch_id TEXT,
+      branch_status TEXT,
+      promoted_by TEXT,
+      promoted_at TEXT,
+      inactive INTEGER NOT NULL DEFAULT 0,
+      user_edited INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(chat_id, turn_number)
+    );
+  `);
+}
+
+function seedTwelveTurnChatWithSummaries(db: Database.Database): {
+  variants: MessageVariant[];
+  assistantMessageId: number;
+} {
+  ensureMemoryTables(db);
+  db.prepare(`INSERT OR REPLACE INTO chats (id, current_summary, memory) VALUES (1, '', '')`).run();
+
+  // 12 playable assistant turns; latest (turn 12) holds A/B/C/D with D active.
+  for (let t = 1; t <= 11; t++) {
+    insertMsg(db, t * 2 - 1, 1, "user", `u${t}`);
+    insertMsg(db, t * 2, 1, "assistant", `a${t}-prose`);
+  }
+  bootstrapNumericStateCurrentCore(db, {
+    chatId: 1,
+    characterId: 7,
+    stateKey: "affection",
+    definition: def,
+    baselineValue: 30,
+    mutationId: "bootstrap:1:affection:definition_initial",
+    sourceKind: "definition_initial",
+  });
+  insertMsg(db, 23, 1, "user", "u12");
+  const variants = makeVariants([
+    {
+      content: "A prose",
+      affection: 35,
+      seq: 0,
+      requestId: "req-a",
+    },
+    {
+      content: "B prose",
+      affection: 38,
+      seq: 1,
+      requestId: "req-b",
+    },
+    {
+      content: "C prose",
+      affection: 32,
+      seq: 2,
+      requestId: "req-c",
+    },
+    {
+      content: "D REJECTED WORLDLINE SUMMARY CONTAMINATION",
+      affection: 41,
+      seq: 3,
+      requestId: "req-d",
+    },
+  ]);
+  const assistantMessageId = 24;
+  insertMsg(db, assistantMessageId, 1, "assistant", variants[3]!.content, {
+    statusJson: JSON.stringify(variants[3]!.statusWidgetValues),
+    alternates: JSON.stringify(variants),
+    activeVariant: 3,
+  });
+  for (const [seq, proposal, req] of [
+    [0, 35, "req-a"],
+    [1, 38, "req-b"],
+    [2, 32, "req-c"],
+    [3, 41, "req-d"],
+  ] as const) {
+    commitGen(db, {
+      chatId: 1,
+      stateKey: "affection",
+      proposal,
+      assistantMessageId,
+      generationSequence: seq,
+      requestId: req,
+      sourceTurn: 12,
+    });
+  }
+
+  const summaryA =
+    "VALID BATCH T1-T6 summary — prior worldline without D contamination.";
+  const summaryB =
+    "CONTAMINATED BATCH T7-T12 includes D REJECTED WORLDLINE SUMMARY CONTAMINATION.";
+  db.prepare(
+    `INSERT INTO chat_turn_summaries
+     (chat_id, turn_number, assistant_message_id, summary, summary_kind, inactive, user_edited)
+     VALUES (1, 1, 12, ?, 'narrative', 0, 0)`
+  ).run(summaryA);
+  db.prepare(
+    `INSERT INTO chat_turn_summaries
+     (chat_id, turn_number, assistant_message_id, summary, summary_kind, inactive, user_edited)
+     VALUES (1, 7, ?, ?, 'narrative', 0, 0)`
+  ).run(assistantMessageId, summaryB);
+  db.prepare(
+    `INSERT INTO chat_memories
+     (chat_id, user_id, character_id, pinned_facts, recent_summary, archive_summary,
+      membership_tier, used_chars, summarized_turn_count)
+     VALUES (1, 1, 7, '', ?, '', 'free', ?, 12)`
+  ).run(`${summaryA}\n\n${summaryB}`, summaryA.length + summaryB.length + 2);
+  db.prepare(`UPDATE chats SET current_summary=?, memory=? WHERE id=1`).run(
+    `${summaryA}\n\n${summaryB}`,
+    `${summaryA}\n\n${summaryB}`
+  );
+
+  return { variants, assistantMessageId };
+}
+
+describe("Phase B1-D2 FINAL HARDENING", () => {
+  it("M1/M2/M5: LTM suppresses rejected D; prior batch preserved; LLM=0", () => {
+    const db = makeDb();
+    const { assistantMessageId } = seedTwelveTurnChatWithSummaries(db);
+
+    const result = executeAtomicNumericVariantSwitch(db, {
+      chatId: 1,
+      characterId: 7,
+      userId: 1,
+      messageId: assistantMessageId,
+      variantIndex: 1,
+      characterWidget: widget(),
+      memory: { enabled: true, tier: "free", memoryCapacity: 8000 },
+    });
+    assert.equal(result.kind, "APPLIED");
+    assert.equal(result.memoryReconciled, true);
+
+    const batches = db
+      .prepare(
+        `SELECT turn_number AS t, inactive AS i, summary AS s FROM chat_turn_summaries
+         WHERE chat_id=1 ORDER BY turn_number`
+      )
+      .all() as Array<{ t: number; i: number; s: string }>;
+    assert.equal(batches[0]!.i, 0);
+    assert.equal(batches[1]!.i, 1);
+    assert.match(batches[0]!.s, /VALID BATCH/);
+    assert.match(batches[1]!.s, /CONTAMINATED/);
+
+    const mem = db
+      .prepare(
+        `SELECT recent_summary AS r, summarized_turn_count AS c FROM chat_memories WHERE chat_id=1`
+      )
+      .get() as { r: string; c: number };
+    assert.equal(mem.c, 6);
+    assert.doesNotMatch(mem.r, /REJECTED WORLDLINE/);
+    assert.match(mem.r, /VALID BATCH/);
+
+    const chat = db
+      .prepare(`SELECT current_summary AS c, memory AS m FROM chats WHERE id=1`)
+      .get() as { c: string; m: string };
+    assert.doesNotMatch(chat.c, /REJECTED WORLDLINE/);
+    assert.doesNotMatch(chat.m, /REJECTED WORLDLINE/);
+    assert.equal(getNumericStateCurrent(db, 1, "affection")!.numericValue, 38);
+  });
+
+  it("M3: forced LTM failure rolls back full worldline", () => {
+    for (const flag of [
+      "__testThrowAfterLtmInvalidate",
+      "__testThrowAfterLtmRebuild",
+    ] as const) {
+      const db = makeDb();
+      const { assistantMessageId } = seedTwelveTurnChatWithSummaries(db);
+      assert.throws(() =>
+        executeAtomicNumericVariantSwitch(db, {
+          chatId: 1,
+          characterId: 7,
+          userId: 1,
+          messageId: assistantMessageId,
+          variantIndex: 1,
+          characterWidget: widget(),
+          memory: { enabled: true, tier: "free", memoryCapacity: 8000 },
+          [flag]: true,
+        })
+      );
+      assert.equal(getNumericStateCurrent(db, 1, "affection")!.numericValue, 41);
+      const msg = db
+        .prepare(
+          `SELECT active_variant AS a, content AS c FROM messages WHERE id=?`
+        )
+        .get(assistantMessageId) as { a: number; c: string };
+      assert.equal(msg.a, 3);
+      assert.match(msg.c, /REJECTED WORLDLINE/);
+      const batches = db
+        .prepare(
+          `SELECT inactive AS i FROM chat_turn_summaries WHERE chat_id=1 ORDER BY turn_number`
+        )
+        .all() as Array<{ i: number }>;
+      assert.deepEqual(
+        batches.map((b) => b.i),
+        [0, 0]
+      );
+      const mem = db
+        .prepare(`SELECT summarized_turn_count AS c FROM chat_memories WHERE chat_id=1`)
+        .get() as { c: number };
+      assert.equal(mem.c, 12);
+    }
+  });
+
+  it("M4: memory disabled leaves LTM untouched", () => {
+    const db = makeDb();
+    const { assistantMessageId } = seedTwelveTurnChatWithSummaries(db);
+    executeAtomicNumericVariantSwitch(db, {
+      chatId: 1,
+      characterId: 7,
+      userId: 1,
+      messageId: assistantMessageId,
+      variantIndex: 1,
+      characterWidget: widget(),
+      memory: { enabled: false, tier: "free", memoryCapacity: 8000 },
+    });
+    assert.equal(getNumericStateCurrent(db, 1, "affection")!.numericValue, 38);
+    const batches = db
+      .prepare(
+        `SELECT inactive AS i FROM chat_turn_summaries WHERE chat_id=1 ORDER BY turn_number`
+      )
+      .all() as Array<{ i: number }>;
+    assert.deepEqual(
+      batches.map((b) => b.i),
+      [0, 0]
+    );
+    const mem = db
+      .prepare(`SELECT summarized_turn_count AS c FROM chat_memories WHERE chat_id=1`)
+      .get() as { c: number };
+    assert.equal(mem.c, 12);
+  });
+
+  it("LTM re-summary eligibility after rewind (API=0)", () => {
+    const db = makeDb();
+    const { assistantMessageId } = seedTwelveTurnChatWithSummaries(db);
+    executeAtomicNumericVariantSwitch(db, {
+      chatId: 1,
+      characterId: 7,
+      userId: 1,
+      messageId: assistantMessageId,
+      variantIndex: 1,
+      characterWidget: widget(),
+      memory: { enabled: true, tier: "free", memoryCapacity: 8000 },
+    });
+    const summarized = (
+      db
+        .prepare(`SELECT summarized_turn_count AS c FROM chat_memories WHERE chat_id=1`)
+        .get() as { c: number }
+    ).c;
+    assert.equal(summarized, 6);
+    const playable = 12;
+    const expected = expectedBatchStartsThrough(playable);
+    assert.deepEqual(expected, [1, 7]);
+    const activeStarts = (
+      db
+        .prepare(
+          `SELECT turn_number AS t FROM chat_turn_summaries
+           WHERE chat_id=1 AND inactive=0 ORDER BY turn_number`
+        )
+        .all() as Array<{ t: number }>
+    ).map((r) => r.t);
+    assert.deepEqual(activeStarts, [1]);
+    assert.equal(summarized + 1, 7);
+
+    // Core eligibility: with 12 playable turns and summarized=6, next batch is T7~T12.
+    const turns: DialogueTurn[] = Array.from({ length: playable }, (_, i) => ({
+      user: `u${i + 1}`,
+      assistant: `a${i + 1}`,
+    }));
+    const nextBatch = pickNextSummaryBatch(turns, summarized);
+    assert.equal(nextBatch.length, ROLLING_SUMMARY_INTERVAL);
+    assert.equal(nextBatch[0]!.assistant, "a7");
+    assert.equal(nextBatch[5]!.assistant, "a12");
+  });
+
+  it("R1: stale preload / concurrent regen E preserved on B select", () => {
+    const db = makeDb();
+    const variants = seedABCD(db);
+    // Concurrent regen appends E and makes it active/canonical after a stale A/B/C/D view.
+    const eVariant: MessageVariant = {
+      content: "E prose",
+      model: "test",
+      usage: null,
+      created_at: new Date().toISOString(),
+      statusWidgetValues: {
+        character: { 호감도: "36", location: "정원" },
+        user: null,
+      },
+      statusWidgetTurnActive: true,
+      generationSequence: 4,
+      requestId: "req-e",
+    };
+    const withE = [...variants, eVariant];
+    db.prepare(
+      `UPDATE messages SET content=?, alternates=?, active_variant=?, status_widget_values_json=? WHERE id=4`
+    ).run(
+      eVariant.content,
+      JSON.stringify(withE),
+      4,
+      JSON.stringify(eVariant.statusWidgetValues)
+    );
+    commitGen(db, {
+      chatId: 1,
+      stateKey: "affection",
+      proposal: 36,
+      assistantMessageId: 4,
+      generationSequence: 4,
+      requestId: "req-e",
+      sourceTurn: 2,
+    });
+    assert.equal(getNumericStateCurrent(db, 1, "affection")!.numericValue, 36);
+
+    // Call site still conceptually holds stale A/B/C/D preload — ignored.
+    const result = executeAtomicNumericVariantSwitch(db, {
+      chatId: 1,
+      characterId: 7,
+      userId: 1,
+      messageId: 4,
+      variantIndex: 1,
+      variants, // stale preload intentionally passed
+      content: "B prose",
+      characterWidget: widget(),
+    });
+    assert.equal(result.kind, "APPLIED");
+    assert.equal(result.canonicalVariants.length, 5);
+    assert.equal(result.activeVariant, 1);
+    assert.equal(result.canonicalVariants[4]!.content, "E prose");
+    assert.equal(getNumericStateCurrent(db, 1, "affection")!.numericValue, 38);
+
+    const stored = JSON.parse(
+      (
+        db.prepare(`SELECT alternates AS a FROM messages WHERE id=4`).get() as {
+          a: string;
+        }
+      ).a
+    ) as MessageVariant[];
+    assert.equal(stored.length, 5);
+    assert.equal(stored[4]!.requestId, "req-e");
+
+    const eGen = resolveSelectedVariantGenerationEvent(db, {
+      chatId: 1,
+      stateKey: "affection",
+      assistantMessageId: 4,
+      generationSequence: 4,
+      requestId: "req-e",
+    });
+    assert.equal(eGen.afterValue, 36);
+    assert.equal(eGen.sourceKind, "extractor");
+  });
+
+  it("R2: select B then regen E keeps pre-turn baseline 30", () => {
+    const db = makeDb();
+    seedABCD(db);
+    executeAtomicNumericVariantSwitch(db, {
+      chatId: 1,
+      characterId: 7,
+      userId: 1,
+      messageId: 4,
+      variantIndex: 1,
+      characterWidget: widget(),
+    });
+    const e = commitNumericStateReplacementCore(db, {
+      chatId: 1,
+      characterId: 7,
+      stateKey: "affection",
+      definition: def,
+      proposal: 36,
+      mutationId: "gen:4:4:req-e-r2",
+      sourceKind: "extractor",
+      assistantMessageId: 4,
+      generationSequence: 4,
+      requestId: "req-e-r2",
+      sourceTurn: 2,
+    });
+    assert.equal(e.event?.beforeValue, 30);
+    assert.equal(e.current.numericValue, 36);
+  });
+
+  it("HTTP/DB canonical: raw snapshot 80 mirrors to 38", () => {
+    const db = makeDb();
+    const variants = seedABCD(db);
+    // Poison B's raw status snapshot to 80 while numeric event remains 38.
+    variants[1] = {
+      ...variants[1]!,
+      statusWidgetValues: {
+        character: {
+          ...(variants[1]!.statusWidgetValues?.character ?? {}),
+          호감도: "80",
+        },
+        user: null,
+        extracted_facts: variants[1]!.statusWidgetValues?.extracted_facts,
+      },
+    };
+    db.prepare(`UPDATE messages SET alternates=? WHERE id=4`).run(JSON.stringify(variants));
+
+    const result = executeAtomicNumericVariantSwitch(db, {
+      chatId: 1,
+      characterId: 7,
+      userId: 1,
+      messageId: 4,
+      variantIndex: 1,
+      characterWidget: widget(),
+    });
+    assert.equal(result.kind, "APPLIED");
+    assert.equal(result.canonicalStatusForTriggers?.character?.호감도, "38");
+    assert.equal(
+      result.canonicalVariants[1]!.statusWidgetValues?.character?.호감도,
+      "38"
+    );
+    assert.notEqual(
+      result.canonicalVariants[1]!.statusWidgetValues?.character?.호감도,
+      "80"
+    );
+
+    const msg = db
+      .prepare(`SELECT status_widget_values_json AS v FROM messages WHERE id=4`)
+      .get() as { v: string };
+    assert.equal(parseStoredStatusWidgetValuesJson(msg.v)?.character?.호감도, "38");
+    assert.equal(getNumericStateCurrent(db, 1, "affection")!.numericValue, 38);
+  });
+
+  it("concurrent B/C: last serialized selection wins; no half-state", () => {
+    const db = makeDb();
+    seedABCD(db);
+    // Deterministic serialized equivalent of concurrent B then C.
+    executeAtomicNumericVariantSwitch(db, {
+      chatId: 1,
+      characterId: 7,
+      userId: 1,
+      messageId: 4,
+      variantIndex: 1,
+      characterWidget: widget(),
+    });
+    executeAtomicNumericVariantSwitch(db, {
+      chatId: 1,
+      characterId: 7,
+      userId: 1,
+      messageId: 4,
+      variantIndex: 2,
+      characterWidget: widget(),
+    });
+    const msg = db
+      .prepare(
+        `SELECT active_variant AS a, content AS c, status_widget_values_json AS v, alternates AS al
+         FROM messages WHERE id=4`
+      )
+      .get() as { a: number; c: string; v: string; al: string };
+    assert.equal(msg.a, 2);
+    assert.equal(msg.c, "C prose");
+    assert.equal(parseStoredStatusWidgetValuesJson(msg.v)?.character?.호감도, "32");
+    assert.equal(getNumericStateCurrent(db, 1, "affection")!.numericValue, 32);
+    assert.equal((JSON.parse(msg.al) as MessageVariant[]).length, 4);
+    const tip = getNumericStateEventById(
+      db,
+      getNumericStateCurrent(db, 1, "affection")!.lastEventId!
+    )!;
+    assert.equal(tip.sourceKind, "variant_switch");
+    assert.equal(tip.afterValue, 32);
+  });
+
+  it("selection provenance preserves source definition hash H1 after def→H2", () => {
+    const db = makeDb();
+    seedABCD(db);
+    const sourceB = resolveSelectedVariantGenerationEvent(db, {
+      chatId: 1,
+      stateKey: "affection",
+      assistantMessageId: 4,
+      generationSequence: 1,
+      requestId: "req-b",
+    });
+    const h1 = sourceB.definitionHash;
+    assert.ok(h1);
+
+    // Mutate character numeric definition → H2 (different maxIncreasePerTurn).
+    const mutated = {
+      ...PILOT_WIDGET,
+      fields: PILOT_WIDGET.fields.map((f) =>
+        f.id === "affection"
+          ? {
+              ...f,
+              numericState: { ...def, maxIncreasePerTurn: 49 },
+            }
+          : f
+      ),
+    };
+    db.prepare(`UPDATE characters SET status_widget_json=? WHERE id=7`).run(
+      serializeStatusWidget(mutated)
+    );
+    const h2 = fingerprintNumericStateDefinition({
+      ...def,
+      maxIncreasePerTurn: 49,
+    });
+    assert.notEqual(h1, h2);
+
+    const result = executeAtomicNumericVariantSwitch(db, {
+      chatId: 1,
+      characterId: 7,
+      userId: 1,
+      messageId: 4,
+      variantIndex: 1,
+      characterWidget: parseStatusWidgetJson(serializeStatusWidget(mutated)),
+    });
+    assert.equal(result.kind, "APPLIED");
+    assert.equal(getNumericStateCurrent(db, 1, "affection")!.numericValue, 38);
+    const tip = getNumericStateEventById(
+      db,
+      getNumericStateCurrent(db, 1, "affection")!.lastEventId!
+    )!;
+    assert.equal(tip.sourceKind, "variant_switch");
+    assert.equal(tip.definitionHash, h1);
+    assert.equal(tip.policyVersion, sourceB.policyVersion);
+    assert.notEqual(tip.definitionHash, h2);
   });
 });

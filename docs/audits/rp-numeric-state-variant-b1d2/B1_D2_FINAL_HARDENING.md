@@ -1,0 +1,76 @@
+# B1_D2_FINAL_HARDENING
+
+implementation base: PR #279 (`cursor/rp-numeric-state-variant-switch-b1d2-96c2`)
+
+## Design (unchanged)
+
+```
+LAST_GENERATED != CANONICAL
+ACTIVE_SELECTED == CANONICAL
+NEW_CANONICAL_SELECTION_EVENT = YES
+OLD_EVENT_POINTER_REWIND = NO
+REDUCER_RERUN = NO
+BEGIN IMMEDIATE = YES
+LLM ON VARIANT SELECT = 0
+```
+
+## Changes
+
+### P0 — LTM atomic canonical suppression
+- `reconcileMemoryAfterVariantSwitchCore(db, …)` is transaction-free.
+- Called inside `executeAtomicNumericVariantSwitch` BEGIN IMMEDIATE with message/numeric/status/episodic/trigger mutations.
+- Covering summary batch invalidated; `summarized_turn_count` rewound to contiguous boundary.
+- Nested transactions avoided (no `reconcileSummarizedTurnCountFromTable` from core).
+
+### P0 — Transaction-local variants
+- Atomic core re-reads `messages` row inside BEGIN IMMEDIATE.
+- `normalizeMessageVariants()` on txn-local row; preloaded route variants ignored.
+
+### P0 — Numeric pre-txn same-active shortcut
+- Route early-return only for nonnumeric path.
+- Numeric path always enters atomic; txn-local `IDEMPOTENT_NOOP` when already active.
+
+### P1 — HTTP == DB canonical
+- Atomic result returns `canonicalVariants` / `activeVariant` / selected fields.
+- Route serializes those for the response (raw snapshot `"80"` cannot leak).
+
+### P1 — Concurrent B/C
+- Policy: **last successfully serialized explicit selection wins** (SQLite serialized order).
+- Documented + unit-tested via deterministic B then C.
+
+### P2 — Selection provenance
+- Selection event `policy_version` / `definition_hash` copied from source extractor event.
+
+## Test matrix
+
+| Gate | Result |
+|------|--------|
+| P0 LTM atomic canonical suppression | PASS |
+| forced LTM failure | FULL_WORLDLINE_ROLLBACK_PASS |
+| LTM prior batch preservation | PASS |
+| LTM summarized count rewind | PASS |
+| LTM re-summary eligibility | PASS |
+| transaction-local variants | PASS |
+| regen-vs-select lost update | PASS |
+| numeric pre-txn same-active shortcut | REMOVED/BYPASSED |
+| HTTP canonical response | PASS |
+| raw snapshot 80 / canonical 38 | DB=38 HTTP=38 |
+| concurrent B/C | PASS (last-wins) |
+| selection provenance source policy/hash | PASS |
+| existing D→B / reselection / select→normal/regen/delete | PASS |
+| frontier / historical / forced rollbacks / nonnumeric | PASS |
+
+## Validation
+
+- `git diff --check`: PASS
+- `npm run lint` / `npm run typecheck:app`: PASS
+- `node --conditions=react-server --import tsx --test src/lib/rpNumericStateVariantSwitch.test.ts`: 27/27 PASS
+- prompt / model adapter / billing diff: 0
+- variant-select LLM calls: 0
+- point mutations: 0
+
+## final
+
+`B1_D2_FINAL_HARDENING_PASS` (unit + typecheck sealed; route canary evidence updated when re-run)
+
+merge: **NOT_RUN**

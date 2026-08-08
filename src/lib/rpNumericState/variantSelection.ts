@@ -256,7 +256,13 @@ export function projectNumericStateToSelectedVariantCore(
       generationSequence: source.generationSequence ?? 0,
       tipEventId: tip.id,
     });
-    const definitionHash = fingerprintNumericStateDefinition(field.definition);
+    // Previously-canonicalized source result replay: preserve source
+    // policy/definition provenance. Selection ops already record
+    // source_kind=variant_switch + replaces_event_id.
+    const definitionHash =
+      source.definitionHash ??
+      fingerprintNumericStateDefinition(field.definition);
+    const policyVersion = source.policyVersion || NUMERIC_STATE_POLICY_VERSION;
     const idempotencyKey = buildNumericIdempotencyKey({
       chatId: input.chatId,
       stateKey: field.stateKey,
@@ -317,7 +323,7 @@ export function projectNumericStateToSelectedVariantCore(
       tip.id,
       revisionBefore,
       revisionAfter,
-      NUMERIC_STATE_POLICY_VERSION,
+      policyVersion,
       definitionHash,
       idempotencyKey
     );

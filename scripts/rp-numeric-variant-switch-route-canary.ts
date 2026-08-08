@@ -167,7 +167,7 @@ function ensureCharacter(db: Database.Database, userId: number): number {
   return Number(row.lastInsertRowid);
 }
 
-function makeVariants(): MessageVariant[] {
+function makeVariants(opts?: { rawBAffection?: string }): MessageVariant[] {
   const specs = [
     { content: "A prose", affection: 35, seq: 0, req: "req-a", loc: "골목" },
     { content: "B prose", affection: 38, seq: 1, req: "req-b", loc: "창고" },
@@ -180,7 +180,14 @@ function makeVariants(): MessageVariant[] {
     usage: null,
     created_at: new Date().toISOString(),
     statusWidgetValues: {
-      character: { 호감도: String(s.affection), location: s.loc },
+      character: {
+        // Raw snapshot may intentionally mismatch canonical numeric after.
+        호감도:
+          s.seq === 1 && opts?.rawBAffection != null
+            ? opts.rawBAffection
+            : String(s.affection),
+        location: s.loc,
+      },
       user: null,
     },
     statusWidgetTurnActive: true,
@@ -235,7 +242,8 @@ function seedAbcdChat(
      VALUES (?, 'user', ?, '', 'completed')`
   ).run(chatId, `${opts.label}-u-latest`);
 
-  const variants = makeVariants();
+  // B raw status snapshot intentionally "80" while numeric extractor after=38.
+  const variants = makeVariants({ rawBAffection: "80" });
   const ins = db
     .prepare(
       `INSERT INTO messages
@@ -466,11 +474,39 @@ async function main() {
 
   const patchResults: Array<Record<string, unknown>> = [];
   let revFloor = tipBefore.revision;
+  let routeResponseCanonicalParity = "PASS";
   for (const step of sequence) {
     const res = await patchVariant(token, seeded.assistantMessageId, step.idx);
     if (res.status !== 200) {
       throw new Error(
         `PATCH ${step.idx} expected 200 got ${res.status}: ${JSON.stringify(res.body)}`
+      );
+    }
+    const bodyVariants = res.body.variants as
+      | Array<{
+          statusWidgetValues?: { character?: Record<string, string> };
+          content?: string;
+        }>
+      | undefined;
+    const bodyActive = Number(res.body.activeVariant);
+    const httpAff =
+      bodyVariants?.[step.idx]?.statusWidgetValues?.character?.호감도 ?? null;
+    if (bodyActive !== step.idx) {
+      routeResponseCanonicalParity = "FAIL";
+      throw new Error(
+        `HTTP activeVariant ${bodyActive} != ${step.idx} (ROUTE_RESPONSE_CANONICAL_PARITY)`
+      );
+    }
+    if (httpAff !== String(step.aff)) {
+      routeResponseCanonicalParity = "FAIL";
+      throw new Error(
+        `HTTP variants[${step.idx}].statusWidgetValues.character.호감도=${httpAff} != ${step.aff} (must not leak raw snapshot 80)`
+      );
+    }
+    if (bodyVariants?.[step.idx]?.content !== step.content) {
+      routeResponseCanonicalParity = "FAIL";
+      throw new Error(
+        `HTTP content mismatch for variant ${step.idx}: ${bodyVariants?.[step.idx]?.content}`
       );
     }
     const parity = assertParity(db, {
@@ -491,7 +527,81 @@ async function main() {
       selectionEventId: parity.selectionEventId,
       content: step.content,
       affection: step.aff,
+      httpAffection: httpAff,
     });
+  }
+
+  // Race fixture: A/B/C/D → append E as active → select B; E must survive.
+  const raceSeed = seedAbcdChat(db, {
+    userId,
+    characterId,
+    label: `race-e-${Date.now()}`,
+  });
+  const raceRow = db
+    .prepare(`SELECT alternates AS a FROM messages WHERE id=?`)
+    .get(raceSeed.assistantMessageId) as { a: string };
+  const raceVariants = JSON.parse(raceRow.a) as MessageVariant[];
+  const eVariant: MessageVariant = {
+    content: "E prose",
+    model: "test-no-llm",
+    usage: null,
+    created_at: new Date().toISOString(),
+    statusWidgetValues: {
+      character: { 호감도: "36", location: "정원" },
+      user: null,
+    },
+    statusWidgetTurnActive: true,
+    generationSequence: 4,
+    requestId: "req-e",
+  };
+  const withE = [...raceVariants, eVariant];
+  db.prepare(
+    `UPDATE messages SET content=?, alternates=?, active_variant=?, status_widget_values_json=? WHERE id=?`
+  ).run(
+    eVariant.content,
+    JSON.stringify(withE),
+    4,
+    JSON.stringify(eVariant.statusWidgetValues),
+    raceSeed.assistantMessageId
+  );
+  commitNumericStateReplacementCore(db, {
+    chatId: raceSeed.chatId,
+    characterId,
+    stateKey: "affection",
+    definition: def,
+    proposal: 36,
+    mutationId: `gen:${raceSeed.assistantMessageId}:4:req-e`,
+    sourceKind: "extractor",
+    assistantMessageId: raceSeed.assistantMessageId,
+    generationSequence: 4,
+    requestId: "req-e",
+    sourceTurn: 2,
+  });
+  const racePatch = await patchVariant(token, raceSeed.assistantMessageId, 1);
+  if (racePatch.status !== 200) {
+    throw new Error(
+      `race E→B PATCH expected 200 got ${racePatch.status}: ${JSON.stringify(racePatch.body)}`
+    );
+  }
+  const raceStored = JSON.parse(
+    (
+      db
+        .prepare(`SELECT alternates AS a, active_variant AS av FROM messages WHERE id=?`)
+        .get(raceSeed.assistantMessageId) as { a: string; av: number }
+    ).a
+  ) as MessageVariant[];
+  const raceActive = (
+    db
+      .prepare(`SELECT active_variant AS av FROM messages WHERE id=?`)
+      .get(raceSeed.assistantMessageId) as { av: number }
+  ).av;
+  if (raceStored.length !== 5 || raceActive !== 1) {
+    throw new Error(
+      `race fixture failed: variants=${raceStored.length} active=${raceActive}`
+    );
+  }
+  if (getNumericStateCurrent(db, raceSeed.chatId, "affection")?.numericValue !== 38) {
+    throw new Error("race fixture numeric current != 38 after B select");
   }
 
   // Active D triggers should be superseded; B (38) should not leave active >=40 event.
@@ -575,6 +685,19 @@ async function main() {
 
   const report = {
     route_PATCH_variant_canary: "PASS",
+    ROUTE_RESPONSE_CANONICAL_PARITY: routeResponseCanonicalParity,
+    raw_snapshot_80_canonical_38: {
+      db: 38,
+      http: (patchResults[0] as { httpAffection?: string } | undefined)
+        ?.httpAffection,
+    },
+    race_regen_E_then_select_B: {
+      variantCount: raceStored.length,
+      active: raceActive,
+      ePreserved: raceStored[4]?.content === "E prose",
+      numericCurrent: getNumericStateCurrent(db, raceSeed.chatId, "affection")
+        ?.numericValue,
+    },
     route_LLM_calls: 0,
     point_mutations: pointsAfter - seeded.pointsBefore,
     patchSequence: patchResults,
