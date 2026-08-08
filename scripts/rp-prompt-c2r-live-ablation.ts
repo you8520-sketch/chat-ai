@@ -133,7 +133,7 @@ function isTransportAbort(error: string | null, httpStatus: number) {
 
 async function streamOpenRouter(body: Record<string, unknown>) {
   const { OPENROUTER_CHAT_COMPLETIONS_URL, buildOpenRouterHeaders } =
-    await import("../src/lib/openRouterClient");
+    await import("../src/lib/openRouterConfig");
   const t0 = Date.now();
   const state: StreamState = {
     text: "",
