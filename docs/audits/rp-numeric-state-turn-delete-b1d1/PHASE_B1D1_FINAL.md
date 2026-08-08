@@ -10,6 +10,7 @@ branch:
 cursor/rp-numeric-state-turn-delete-b1d1-6a91
 
 commit:
+5db2a3060100920979a0b0e975666fb039d7d8db
 6b89f736198cf1952061ebf662ff05f371f9a91e
 (implementation tip: 82cc102287ad25065b422d7153eb645bda26d6e1)
 
@@ -101,6 +102,13 @@ forced numeric failure rollback:
 forced message failure rollback:
   PASS (__testThrowAfterMessageDelete)
 
+forced trigger cleanup failure rollback (D12):
+  PASS — SQLite BEFORE DELETE RAISE(ABORT) → full txn rollback
+  numeric/messages/episodic/triggers/engagement all unchanged
+
+trigger cleanup exception propagation:
+  PASS — no try/catch swallow inside executeLastTurnDeleteTransaction
+
 nonnumeric regression:
   PASS (revertNumeric=false)
 
@@ -108,7 +116,8 @@ whole-chat regression:
   PASS (existing deleteNumericStateForChat test retained)
 
 tests:
-  rpNumericState* + turn delete: 108/108 PASS
+  rpNumericState* + turn delete + derived/episodic: 248/248 PASS
+  D12 included
   lint / typecheck:app: PASS
   git diff --check: PASS
 
@@ -124,15 +133,57 @@ model adapter diff:
 billing diff:
 0
 
-delete API calls:
+delete API LLM calls:
 0
 
-private-beta live canary:
-  result: NOT_RUN (core harness PASS; Railway/UI delete canary deferred to human private-beta)
+route DELETE canary:
+  PASS (scripts/rp-numeric-turn-delete-route-canary.ts)
+  HTTP 200; numeric current == predecessor; target events/episodic/triggers == 0
+  remaining latest status == numeric current
+  expectedAssistantMessageId mismatch → 409 turn_delete_target_changed PASS
+  evidence: ROUTE_DELETE_CANARY.json
+
+private-beta Railway/UI canary:
+  result: NOT_RUN (local route canary PASS; Railway deploy still human)
 
 final:
-B1_D1_LAST_TURN_DELETE_PASS
+B1_D1_MERGE_READY
 
 merge:
 NOT_RUN
+```
+
+## B1_D1_FINAL_HARDENING
+
+```text
+B1_D1_FINAL_HARDENING:
+trigger cleanup exception propagation:
+PASS
+forced trigger cleanup failure:
+FULL_ROLLBACK_PASS
+numeric unchanged on failed delete:
+PASS
+messages unchanged on failed delete:
+PASS
+episodic unchanged on failed delete:
+PASS
+trigger unchanged on failed delete:
+PASS
+engagement unchanged on failed delete:
+PASS
+route DELETE canary:
+PASS
+route delete LLM calls:
+0
+expectedAssistantMessageId mismatch:
+409 PASS
+all-user canonical gate:
+PASS
+SHADOW allowlists:
+UNCHANGED
+Railway target:
+RP_NUMERIC_STATE_ENABLED=1
+RP_NUMERIC_STATE_KILL_SWITCH=0
+final verdict:
+B1_D1_MERGE_READY
 ```

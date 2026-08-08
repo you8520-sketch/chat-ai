@@ -1,0 +1,34 @@
+{
+  "route_DELETE_canary": "PASS",
+  "route_delete_LLM_calls": 0,
+  "expectedAssistantMessageId_mismatch": "409 PASS",
+  "happy": {
+    "http": 200,
+    "deletedIds": {
+      "ok": true,
+      "deletedIds": [
+        36,
+        37
+      ]
+    },
+    "remainingMessageIds": [
+      34,
+      35
+    ],
+    "numericCurrent": 35,
+    "predecessorExpected": 35,
+    "targetAssistantEvents": 0,
+    "episodicFacts": 0,
+    "triggerEvents": 0,
+    "remainingLatestStatusAffection": "35",
+    "llmCalls": 0
+  },
+  "mismatch": {
+    "http": 409,
+    "code": "turn_delete_target_changed",
+    "messagesUnchanged": true
+  },
+  "characterId": 11,
+  "userId": 904,
+  "RP_NUMERIC_STATE_ENABLED": "(unset in canary process)"
+}

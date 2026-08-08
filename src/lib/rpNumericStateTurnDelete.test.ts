@@ -638,6 +638,157 @@ describe("Phase B1-D1 — last-turn numeric delete", () => {
     );
   });
 
+  it("D12 trigger cleanup failure rolls back numeric+messages+episodic+triggers+engagement", () => {
+    const db = makeDb();
+    bootstrapNumericStateCurrentCore(db, {
+      chatId: 1,
+      characterId: 7,
+      stateKey: "affection",
+      definition: def,
+      baselineValue: 40,
+      mutationId: "bootstrap:1:affection:definition_initial",
+      sourceKind: "definition_initial",
+    });
+    insertMsg(db, 1, 1, "user", "u1");
+    insertMsg(
+      db,
+      2,
+      1,
+      "assistant",
+      "a1",
+      JSON.stringify({ character: { affection: "40" } })
+    );
+    insertMsg(db, 3, 1, "user", "u2");
+    insertMsg(
+      db,
+      4,
+      1,
+      "assistant",
+      "a2",
+      JSON.stringify({ character: { affection: "44" } })
+    );
+    commitTurn(db, {
+      chatId: 1,
+      stateKey: "affection",
+      proposal: 44,
+      assistantMessageId: 4,
+      requestId: "t2",
+      sourceTurn: 2,
+    });
+
+    db.prepare(
+      `INSERT INTO episodic_memory_facts
+       (chat_id, character_id, user_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+       VALUES (1, 7, 1, 2, 'preference', 'user', 'x', 'y', 'important', 't2 fact', '{"assistant_message_id":4}')`
+    ).run();
+    db.prepare(
+      `INSERT INTO status_trigger_events
+       (chat_id, character_id, trigger_id, source_message_id, source_turn, event_key, effect_text, is_consumed)
+       VALUES (1, 7, 'trig-t2', 4, 2, 'ek', 'fx', 0)`
+    ).run();
+
+    const engagementBefore = (
+      db.prepare(`SELECT total_turns AS t FROM characters WHERE id=7`).get() as {
+        t: number;
+      }
+    ).t;
+    const numericBefore = getNumericStateCurrent(db, 1, "affection")!.numericValue;
+    const eventsBefore = countEvents(db, 1, "affection", 4);
+    const triggerBefore = (
+      db
+        .prepare(
+          `SELECT COUNT(*) AS c FROM status_trigger_events WHERE source_message_id=4`
+        )
+        .get() as { c: number }
+    ).c;
+    const episodicBefore = (
+      db
+        .prepare(
+          `SELECT COUNT(*) AS c FROM episodic_memory_facts
+           WHERE chat_id=1
+             AND json_extract(metadata, '$.assistant_message_id') = 4`
+        )
+        .get() as { c: number }
+    ).c;
+    assert.equal(numericBefore, 44);
+    assert.ok(eventsBefore >= 1);
+    assert.equal(triggerBefore, 1);
+    assert.equal(episodicBefore, 1);
+
+    // Deterministic failure: abort DELETE of the target assistant's trigger row.
+    db.exec(`
+      CREATE TRIGGER fail_status_trigger_cleanup_d12
+      BEFORE DELETE ON status_trigger_events
+      WHEN OLD.source_message_id = 4
+      BEGIN
+        SELECT RAISE(ABORT, 'TEST_TRIGGER_CLEANUP_FORCE_FAIL');
+      END;
+    `);
+
+    assert.throws(
+      () =>
+        executeLastTurnDeleteTransaction(db, {
+          chatId: 1,
+          characterId: 7,
+          userMessageId: 3,
+          assistantMessageId: 4,
+          revertNumeric: true,
+        }),
+      (e: unknown) =>
+        e instanceof Error &&
+        /TEST_TRIGGER_CLEANUP_FORCE_FAIL/i.test(e.message)
+    );
+
+    assert.equal(getNumericStateCurrent(db, 1, "affection")?.numericValue, 44);
+    assert.equal(countEvents(db, 1, "affection", 4), eventsBefore);
+    assert.equal(
+      (
+        db.prepare(`SELECT COUNT(*) AS c FROM messages WHERE chat_id=1`).get() as {
+          c: number;
+        }
+      ).c,
+      4
+    );
+    assert.ok(
+      db.prepare(`SELECT id FROM messages WHERE id=3`).get(),
+      "user message must remain"
+    );
+    assert.ok(
+      db.prepare(`SELECT id FROM messages WHERE id=4`).get(),
+      "assistant message must remain"
+    );
+    assert.equal(
+      (
+        db
+          .prepare(
+            `SELECT COUNT(*) AS c FROM episodic_memory_facts
+             WHERE chat_id=1
+               AND json_extract(metadata, '$.assistant_message_id') = 4`
+          )
+          .get() as { c: number }
+      ).c,
+      1
+    );
+    assert.equal(
+      (
+        db
+          .prepare(
+            `SELECT COUNT(*) AS c FROM status_trigger_events WHERE source_message_id=4`
+          )
+          .get() as { c: number }
+      ).c,
+      1
+    );
+    assert.equal(
+      (
+        db.prepare(`SELECT total_turns AS t FROM characters WHERE id=7`).get() as {
+          t: number;
+        }
+      ).t,
+      engagementBefore
+    );
+  });
+
   it("D11 nonnumeric field location stays on prior message snapshot (not rewritten)", () => {
     const db = makeDb();
     bootstrapNumericStateCurrentCore(db, {

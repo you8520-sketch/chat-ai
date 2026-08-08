@@ -88,18 +88,13 @@ export function executeLastTurnDeleteTransaction(
       deleteEpisodicMemoryFactsByAssistantMessageIds(db, input.chatId, [
         input.assistantMessageId,
       ]);
-      try {
-        deleteStatusTriggerEventsForSourceMessage(
-          db,
-          input.chatId,
-          input.assistantMessageId
-        );
-      } catch (e) {
-        console.warn(
-          "[StatusTrigger] last-turn delete trigger cleanup failed:",
-          (e as Error).message
-        );
-      }
+      // Must not swallow: trigger cleanup failure must abort the whole
+      // last-turn delete transaction (numeric + messages + episodic + engagement).
+      deleteStatusTriggerEventsForSourceMessage(
+        db,
+        input.chatId,
+        input.assistantMessageId
+      );
     }
     for (const id of idsToDelete) {
       db.prepare("DELETE FROM messages WHERE id=? AND chat_id=?").run(
