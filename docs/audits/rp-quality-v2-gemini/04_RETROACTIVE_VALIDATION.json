@@ -1,0 +1,657 @@
+{
+  "summary": {
+    "api_calls": 0,
+    "c2_cells": 12,
+    "c2r_cells": 8,
+    "length_collapse_known_samples_detected": true,
+    "incomplete_known_sample_detected": true,
+    "current_input_replay_signals": [],
+    "band_counts": {
+      "STRONG_LENGTH_REGRESSION": 5,
+      "DENSITY_COLLAPSE": 13,
+      "REVIEW_REQUIRED": 2
+    },
+    "d0_checks": {
+      "VISIBLE_LENGTH_METRICS": "PASS",
+      "DIALOGUE_CHAR_SHARE": "PASS",
+      "NARRATION_CHAR_SHARE": "PASS",
+      "DIALOGUE_PARAGRAPH_SHARE_RENAMED": "PASS",
+      "SAME_SPEAKER_FRAGMENT_METRICS": "PASS",
+      "NARRATION_FRAGMENTATION": "PASS",
+      "SETTING_RECITAL_EXACT_AUDIT": "PASS",
+      "SETTING_RECITAL_HUMAN_SCHEMA": "PASS",
+      "KNOWLEDGE_LEAK_HARD_GATE": "PASS",
+      "CONTINUITY_REPLAY_METRICS": "PASS",
+      "CONTINUITY_HUMAN_SCHEMA": "PASS"
+    }
+  },
+  "c2": {
+    "label": "C2",
+    "root": "/opt/cursor/artifacts/rp-prompt-c2-prose-ab/live",
+    "missing": false,
+    "rows": [
+      {
+        "corpus": "C2",
+        "cell_id": "DeepSeek_D_A",
+        "modelKey": "DeepSeek",
+        "fixture": "D",
+        "arm": "A",
+        "visible_chars_no_ws": 1951,
+        "length_band": "STRONG_LENGTH_REGRESSION",
+        "dialogue_char_share": 0.2501,
+        "narration_char_share": 0.7499,
+        "dialogue_paragraph_share": 0.4667,
+        "same_speaker_dialogue_fragments": 6,
+        "max_consecutive_short_dialogue_run": 1,
+        "one_sentence_narration_ratio": 0,
+        "continuity": {
+          "current_input_lcs_chars": 7,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "recent_assistant_lcs_chars": 0,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        },
+        "hard_alarms": [
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ]
+      },
+      {
+        "corpus": "C2",
+        "cell_id": "DeepSeek_D_B",
+        "modelKey": "DeepSeek",
+        "fixture": "D",
+        "arm": "B",
+        "visible_chars_no_ws": 2187,
+        "length_band": "STRONG_LENGTH_REGRESSION",
+        "dialogue_char_share": 0.0951,
+        "narration_char_share": 0.9049,
+        "dialogue_paragraph_share": 0.3667,
+        "same_speaker_dialogue_fragments": 2,
+        "max_consecutive_short_dialogue_run": 1,
+        "one_sentence_narration_ratio": 0,
+        "continuity": {
+          "current_input_lcs_chars": 4,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "recent_assistant_lcs_chars": 0,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intra_turn_abstract_restatement_hits": 1,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        },
+        "hard_alarms": [
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ]
+      },
+      {
+        "corpus": "C2",
+        "cell_id": "DeepSeek_Q_A",
+        "modelKey": "DeepSeek",
+        "fixture": "Q",
+        "arm": "A",
+        "visible_chars_no_ws": 1305,
+        "length_band": "DENSITY_COLLAPSE",
+        "dialogue_char_share": 0.0927,
+        "narration_char_share": 0.9073,
+        "dialogue_paragraph_share": 0.35,
+        "same_speaker_dialogue_fragments": 2,
+        "max_consecutive_short_dialogue_run": 1,
+        "one_sentence_narration_ratio": 0.0769,
+        "continuity": {
+          "current_input_lcs_chars": 13,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "recent_assistant_lcs_chars": 0,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        },
+        "hard_alarms": [
+          "DENSITY_COLLAPSE",
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ]
+      },
+      {
+        "corpus": "C2",
+        "cell_id": "DeepSeek_Q_B",
+        "modelKey": "DeepSeek",
+        "fixture": "Q",
+        "arm": "B",
+        "visible_chars_no_ws": 1369,
+        "length_band": "DENSITY_COLLAPSE",
+        "dialogue_char_share": 0.0497,
+        "narration_char_share": 0.9503,
+        "dialogue_paragraph_share": 0.3043,
+        "same_speaker_dialogue_fragments": 2,
+        "max_consecutive_short_dialogue_run": 1,
+        "one_sentence_narration_ratio": 0.0625,
+        "continuity": {
+          "current_input_lcs_chars": 7,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "recent_assistant_lcs_chars": 0,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        },
+        "hard_alarms": [
+          "DENSITY_COLLAPSE",
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ]
+      },
+      {
+        "corpus": "C2",
+        "cell_id": "DeepSeek_T_A",
+        "modelKey": "DeepSeek",
+        "fixture": "T",
+        "arm": "A",
+        "visible_chars_no_ws": 1517,
+        "length_band": "DENSITY_COLLAPSE",
+        "dialogue_char_share": 0.1061,
+        "narration_char_share": 0.8939,
+        "dialogue_paragraph_share": 0.3846,
+        "same_speaker_dialogue_fragments": 4,
+        "max_consecutive_short_dialogue_run": 1,
+        "one_sentence_narration_ratio": 0.0625,
+        "continuity": {
+          "current_input_lcs_chars": 3,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "recent_assistant_lcs_chars": 0,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intra_turn_abstract_restatement_hits": 3,
+          "intra_turn_reexplanation_alarm": true,
+          "continuity_review_required": true,
+          "alarms": [
+            "INTRA_TURN_REEXPLANATION_SIGNAL"
+          ]
+        },
+        "hard_alarms": [
+          "DENSITY_COLLAPSE",
+          "SPEAKER_SPLIT_REVIEW_REQUIRED",
+          "CONTINUITY_REVIEW_REQUIRED",
+          "INTRA_TURN_REEXPLANATION_SIGNAL"
+        ]
+      },
+      {
+        "corpus": "C2",
+        "cell_id": "DeepSeek_T_B",
+        "modelKey": "DeepSeek",
+        "fixture": "T",
+        "arm": "B",
+        "visible_chars_no_ws": 1701,
+        "length_band": "DENSITY_COLLAPSE",
+        "dialogue_char_share": 0.0558,
+        "narration_char_share": 0.9442,
+        "dialogue_paragraph_share": 0.2941,
+        "same_speaker_dialogue_fragments": 0,
+        "max_consecutive_short_dialogue_run": 1,
+        "one_sentence_narration_ratio": 0.0833,
+        "continuity": {
+          "current_input_lcs_chars": 5,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "recent_assistant_lcs_chars": 0,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        },
+        "hard_alarms": [
+          "DENSITY_COLLAPSE",
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ]
+      },
+      {
+        "corpus": "C2",
+        "cell_id": "Gemini_D_A",
+        "modelKey": "Gemini",
+        "fixture": "D",
+        "arm": "A",
+        "visible_chars_no_ws": 2203,
+        "length_band": "STRONG_LENGTH_REGRESSION",
+        "dialogue_char_share": 0.1838,
+        "narration_char_share": 0.8162,
+        "dialogue_paragraph_share": 0.3333,
+        "same_speaker_dialogue_fragments": 4,
+        "max_consecutive_short_dialogue_run": 1,
+        "one_sentence_narration_ratio": 0.5,
+        "continuity": {
+          "current_input_lcs_chars": 10,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "recent_assistant_lcs_chars": 0,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        },
+        "hard_alarms": [
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ]
+      },
+      {
+        "corpus": "C2",
+        "cell_id": "Gemini_D_B",
+        "modelKey": "Gemini",
+        "fixture": "D",
+        "arm": "B",
+        "visible_chars_no_ws": 2298,
+        "length_band": "STRONG_LENGTH_REGRESSION",
+        "dialogue_char_share": 0.1641,
+        "narration_char_share": 0.8359,
+        "dialogue_paragraph_share": 0.4,
+        "same_speaker_dialogue_fragments": 2,
+        "max_consecutive_short_dialogue_run": 1,
+        "one_sentence_narration_ratio": 0.1667,
+        "continuity": {
+          "current_input_lcs_chars": 3,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "recent_assistant_lcs_chars": 0,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        },
+        "hard_alarms": [
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ]
+      },
+      {
+        "corpus": "C2",
+        "cell_id": "Gemini_Q_A",
+        "modelKey": "Gemini",
+        "fixture": "Q",
+        "arm": "A",
+        "visible_chars_no_ws": 2705,
+        "length_band": "REVIEW_REQUIRED",
+        "dialogue_char_share": 0.0177,
+        "narration_char_share": 0.9823,
+        "dialogue_paragraph_share": 0.0909,
+        "same_speaker_dialogue_fragments": 0,
+        "max_consecutive_short_dialogue_run": 0,
+        "one_sentence_narration_ratio": 0,
+        "continuity": {
+          "current_input_lcs_chars": 5,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "recent_assistant_lcs_chars": 0,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        },
+        "hard_alarms": []
+      },
+      {
+        "corpus": "C2",
+        "cell_id": "Gemini_Q_B",
+        "modelKey": "Gemini",
+        "fixture": "Q",
+        "arm": "B",
+        "visible_chars_no_ws": 2046,
+        "length_band": "STRONG_LENGTH_REGRESSION",
+        "dialogue_char_share": 0.0503,
+        "narration_char_share": 0.9497,
+        "dialogue_paragraph_share": 0.25,
+        "same_speaker_dialogue_fragments": 0,
+        "max_consecutive_short_dialogue_run": 0,
+        "one_sentence_narration_ratio": 0,
+        "continuity": {
+          "current_input_lcs_chars": 13,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "recent_assistant_lcs_chars": 0,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        },
+        "hard_alarms": [
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ]
+      },
+      {
+        "corpus": "C2",
+        "cell_id": "Gemini_T_A",
+        "modelKey": "Gemini",
+        "fixture": "T",
+        "arm": "A",
+        "visible_chars_no_ws": 1275,
+        "length_band": "DENSITY_COLLAPSE",
+        "dialogue_char_share": 0.1184,
+        "narration_char_share": 0.8816,
+        "dialogue_paragraph_share": 0.3077,
+        "same_speaker_dialogue_fragments": 2,
+        "max_consecutive_short_dialogue_run": 0,
+        "one_sentence_narration_ratio": 0,
+        "continuity": {
+          "current_input_lcs_chars": 9,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "recent_assistant_lcs_chars": 0,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        },
+        "hard_alarms": [
+          "DENSITY_COLLAPSE",
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ]
+      },
+      {
+        "corpus": "C2",
+        "cell_id": "Gemini_T_B",
+        "modelKey": "Gemini",
+        "fixture": "T",
+        "arm": "B",
+        "visible_chars_no_ws": 2554,
+        "length_band": "REVIEW_REQUIRED",
+        "dialogue_char_share": 0.1284,
+        "narration_char_share": 0.8716,
+        "dialogue_paragraph_share": 0.3214,
+        "same_speaker_dialogue_fragments": 6,
+        "max_consecutive_short_dialogue_run": 1,
+        "one_sentence_narration_ratio": 0.1053,
+        "continuity": {
+          "current_input_lcs_chars": 9,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "recent_assistant_lcs_chars": 0,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        },
+        "hard_alarms": [
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ]
+      }
+    ]
+  },
+  "c2r": {
+    "label": "C2R",
+    "root": "/opt/cursor/artifacts/rp-prompt-c2r-ablation/live",
+    "missing": false,
+    "rows": [
+      {
+        "corpus": "C2R",
+        "cell_id": "DeepSeek_T_A",
+        "modelKey": "DeepSeek",
+        "fixture": "T",
+        "arm": "A",
+        "visible_chars_no_ws": 1364,
+        "length_band": "DENSITY_COLLAPSE",
+        "dialogue_char_share": 0.1979,
+        "narration_char_share": 0.8021,
+        "dialogue_paragraph_share": 0.375,
+        "same_speaker_dialogue_fragments": 6,
+        "max_consecutive_short_dialogue_run": 1,
+        "one_sentence_narration_ratio": 0,
+        "continuity": {
+          "current_input_lcs_chars": 6,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "recent_assistant_lcs_chars": 0,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        },
+        "hard_alarms": [
+          "DENSITY_COLLAPSE",
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ]
+      },
+      {
+        "corpus": "C2R",
+        "cell_id": "DeepSeek_T_AB",
+        "modelKey": "DeepSeek",
+        "fixture": "T",
+        "arm": "AB",
+        "visible_chars_no_ws": 1138,
+        "length_band": "DENSITY_COLLAPSE",
+        "dialogue_char_share": 0.1019,
+        "narration_char_share": 0.8981,
+        "dialogue_paragraph_share": 0.375,
+        "same_speaker_dialogue_fragments": 0,
+        "max_consecutive_short_dialogue_run": 1,
+        "one_sentence_narration_ratio": 0,
+        "continuity": {
+          "current_input_lcs_chars": 6,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "recent_assistant_lcs_chars": 0,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intra_turn_abstract_restatement_hits": 1,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        },
+        "hard_alarms": [
+          "DENSITY_COLLAPSE",
+          "INCOMPLETE",
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ]
+      },
+      {
+        "corpus": "C2R",
+        "cell_id": "DeepSeek_T_M1",
+        "modelKey": "DeepSeek",
+        "fixture": "T",
+        "arm": "M1",
+        "visible_chars_no_ws": 769,
+        "length_band": "DENSITY_COLLAPSE",
+        "dialogue_char_share": 0.1222,
+        "narration_char_share": 0.8778,
+        "dialogue_paragraph_share": 0.3333,
+        "same_speaker_dialogue_fragments": 4,
+        "max_consecutive_short_dialogue_run": 2,
+        "one_sentence_narration_ratio": 0.1,
+        "continuity": {
+          "current_input_lcs_chars": 3,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "recent_assistant_lcs_chars": 0,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        },
+        "hard_alarms": [
+          "DENSITY_COLLAPSE",
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ]
+      },
+      {
+        "corpus": "C2R",
+        "cell_id": "DeepSeek_T_M2",
+        "modelKey": "DeepSeek",
+        "fixture": "T",
+        "arm": "M2",
+        "visible_chars_no_ws": 1132,
+        "length_band": "DENSITY_COLLAPSE",
+        "dialogue_char_share": 0.1484,
+        "narration_char_share": 0.8516,
+        "dialogue_paragraph_share": 0.36,
+        "same_speaker_dialogue_fragments": 6,
+        "max_consecutive_short_dialogue_run": 2,
+        "one_sentence_narration_ratio": 0.0625,
+        "continuity": {
+          "current_input_lcs_chars": 2,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "recent_assistant_lcs_chars": 0,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intra_turn_abstract_restatement_hits": 1,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        },
+        "hard_alarms": [
+          "DENSITY_COLLAPSE",
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ]
+      },
+      {
+        "corpus": "C2R",
+        "cell_id": "Gemini_T_A",
+        "modelKey": "Gemini",
+        "fixture": "T",
+        "arm": "A",
+        "visible_chars_no_ws": 380,
+        "length_band": "DENSITY_COLLAPSE",
+        "dialogue_char_share": 0.1763,
+        "narration_char_share": 0.8237,
+        "dialogue_paragraph_share": 0.4,
+        "same_speaker_dialogue_fragments": 2,
+        "max_consecutive_short_dialogue_run": 0,
+        "one_sentence_narration_ratio": 0,
+        "continuity": {
+          "current_input_lcs_chars": 5,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "recent_assistant_lcs_chars": 0,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        },
+        "hard_alarms": [
+          "DENSITY_COLLAPSE"
+        ]
+      },
+      {
+        "corpus": "C2R",
+        "cell_id": "Gemini_T_AB",
+        "modelKey": "Gemini",
+        "fixture": "T",
+        "arm": "AB",
+        "visible_chars_no_ws": 1428,
+        "length_band": "DENSITY_COLLAPSE",
+        "dialogue_char_share": 0.1148,
+        "narration_char_share": 0.8852,
+        "dialogue_paragraph_share": 0.2941,
+        "same_speaker_dialogue_fragments": 2,
+        "max_consecutive_short_dialogue_run": 1,
+        "one_sentence_narration_ratio": 0.1667,
+        "continuity": {
+          "current_input_lcs_chars": 5,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "recent_assistant_lcs_chars": 0,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        },
+        "hard_alarms": [
+          "DENSITY_COLLAPSE",
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ]
+      },
+      {
+        "corpus": "C2R",
+        "cell_id": "Gemini_T_M1",
+        "modelKey": "Gemini",
+        "fixture": "T",
+        "arm": "M1",
+        "visible_chars_no_ws": 1679,
+        "length_band": "DENSITY_COLLAPSE",
+        "dialogue_char_share": 0.0929,
+        "narration_char_share": 0.9071,
+        "dialogue_paragraph_share": 0.2857,
+        "same_speaker_dialogue_fragments": 0,
+        "max_consecutive_short_dialogue_run": 1,
+        "one_sentence_narration_ratio": 0,
+        "continuity": {
+          "current_input_lcs_chars": 4,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "recent_assistant_lcs_chars": 0,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        },
+        "hard_alarms": [
+          "DENSITY_COLLAPSE",
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ]
+      },
+      {
+        "corpus": "C2R",
+        "cell_id": "Gemini_T_M2",
+        "modelKey": "Gemini",
+        "fixture": "T",
+        "arm": "M2",
+        "visible_chars_no_ws": 1615,
+        "length_band": "DENSITY_COLLAPSE",
+        "dialogue_char_share": 0.1449,
+        "narration_char_share": 0.8551,
+        "dialogue_paragraph_share": 0.3182,
+        "same_speaker_dialogue_fragments": 5,
+        "max_consecutive_short_dialogue_run": 1,
+        "one_sentence_narration_ratio": 0.0667,
+        "continuity": {
+          "current_input_lcs_chars": 9,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "recent_assistant_lcs_chars": 0,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        },
+        "hard_alarms": [
+          "DENSITY_COLLAPSE",
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ]
+      }
+    ]
+  }
+}
