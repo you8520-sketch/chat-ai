@@ -4249,6 +4249,8 @@ export async function POST(req: Request) {
             assistantMessageId: persistedAssistantId,
             regenerateMessageId: regenerateMessageId ?? undefined,
             requestId: clientRequestId ?? null,
+            userId: user.id,
+            characterId: ch.id,
           });
           savedText = widgetResolved.prose;
           statusWidgetValuesPayload = widgetResolved.values;

@@ -6,7 +6,13 @@ import {
   isQwenModel,
   isDeepSeekV4ProModel,
 } from "@/lib/chatModels";
-import type { ParsedStatusWidgetTurnValues, ResolvedStatusWidgetTurn } from "./types";
+import type {
+  ParsedStatusWidgetTurnValues,
+  ResolvedStatusWidgetTurn,
+  StatusWidgetValues,
+} from "./types";
+import { resolveNumericShadowEligibility } from "@/lib/rpNumericState/shadowPolicy";
+import { tryObserveNumericShadowForTurn } from "@/lib/rpNumericState/shadowObserver";
 import {
   statusWidgetSourceValuesHaveContent,
   statusWidgetValuesHasContent,
@@ -120,6 +126,9 @@ export type ResolveStatusWidgetTurnValuesInput = {
   assistantMessageId?: number;
   regenerateMessageId?: number;
   requestId?: string | null;
+  /** Phase B1-B shadow eligibility (optional; fail-closed when absent). */
+  userId?: number | null;
+  characterId?: number | null;
 };
 
 export type ResolveStatusWidgetTurnValuesResult = {
@@ -218,6 +227,8 @@ export async function resolveStatusWidgetTurnValues(
   let resolutionSource: StatusWidgetResolutionSource = "none";
   let splitRawHit = false;
   let splitRawParseError: string | null = null;
+  /** Normalized previous creator values for numeric shadow baseline (regen-safe). */
+  let shadowPreviousCharacterValues: StatusWidgetValues | null = null;
   const messageId = input.regenerateMessageId ?? input.assistantMessageId ?? null;
   const traceBase = {
     requestId: input.requestId ?? null,
@@ -332,6 +343,7 @@ export async function resolveStatusWidgetTurnValues(
         characterWidget: input.statusWidgetTurn.characterWidget,
         userWidget: input.statusWidgetTurn.userWidget,
       });
+      shadowPreviousCharacterValues = previousValues.character ?? null;
       const previousAssistantProse = loadPreviousAssistantProse(
         input.chatId,
         messageId ?? undefined
@@ -468,6 +480,52 @@ export async function resolveStatusWidgetTurnValues(
     parseError: splitRawParseError,
   });
   const corruptBeforeExtract = statusWidgetValuesAreCorrupt(valuesPayload);
+
+  // Phase B1-B — numeric shadow observer (diagnostic only; fail-open).
+  // Gate first: when OFF, no previous reload / definition lookup / logs.
+  if (
+    finalHasContent &&
+    valuesPayload?.character &&
+    resolveNumericShadowEligibility({
+      userId: input.userId,
+      characterId: input.characterId,
+    }).eligible
+  ) {
+    try {
+      if (shadowPreviousCharacterValues == null) {
+        const { loadPreviousStatusWidgetValuesDetailed } = await import(
+          "./loadPrevious"
+        );
+        const previousLoaded = loadPreviousStatusWidgetValuesDetailed(
+          input.chatId,
+          {
+            excludeMessageId: messageId ?? undefined,
+            characterWidget: input.statusWidgetTurn.characterWidget,
+            userWidget: input.statusWidgetTurn.userWidget,
+          }
+        );
+        const previousValues = normalizeParsedStatusWidgetValuesForTurn(
+          previousLoaded.values,
+          {
+            characterWidget: input.statusWidgetTurn.characterWidget,
+            userWidget: input.statusWidgetTurn.userWidget,
+          }
+        );
+        shadowPreviousCharacterValues = previousValues.character ?? null;
+      }
+      tryObserveNumericShadowForTurn({
+        userId: input.userId,
+        characterId: input.characterId,
+        chatId: input.chatId,
+        characterWidget: input.statusWidgetTurn.characterWidget,
+        previousCharacterValues: shadowPreviousCharacterValues,
+        currentCharacterValues: valuesPayload.character,
+        regeneration: input.regenerate === true,
+      });
+    } catch {
+      // Shadow must never break status persistence.
+    }
+  }
 
   const telemetry: StatusWidgetTurnTelemetry = {
     event: "status_widget_turn",
