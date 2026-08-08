@@ -14,9 +14,14 @@ const ACTION_CLOSE: Record<string, string> = {
 
 const QUOTED_SEGMENT_RE = /("[^"]*"|「[^」]*」|『[^』]*』)/g;
 
-/** 지문 — 3인칭 서술·행동 묘사 종결 */
+/**
+ * 지문 — 3인칭 서술·행동 묘사 종결.
+ * Mid-sentence connective (고/며/면서 + whitespace) must NOT classify the whole
+ * sentence as narration — only actual sentence-ending narrative endings count.
+ * Quotatives like 라고/다고/냐고/자고 therefore stay dialogue when speech endings remain.
+ */
 const NARRATIVE_CLOSING_RE =
-  /(?:하(?:였|였|았|었|였)?(?:다|며|고|면서|더니|다가|니|자)|(?:였|았|었|렸|였)(?:다|으며|고|면서|더니|다가)|(?:인|한)\s*채(?:로)?|듯(?:이)?|체(?:로)?|겠(?:다|으며|고)|(?:스|시|으)?(?:며|고|면서|더니|다가|자))(?:[.…!?,\s]|$)/;
+  /(?:하(?:였|였|았|었|였)?(?:다|며|고|면서|더니|다가|니|자)|(?:였|았|었|렸|였)(?:다|으며|고|면서|더니|다가)|(?:인|한)\s*채(?:로)?|듯(?:이)?|체(?:로)?|겠(?:다|으며|고)|(?:스|시|으)?(?:며|고|면서|더니|다가|자))(?:[.…!?,]*\s*)?$/;
 
 /** 대사 — 구어·1인칭 말하기 종결 */
 const SPEECH_CLOSING_RE =
