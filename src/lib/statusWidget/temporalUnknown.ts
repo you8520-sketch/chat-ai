@@ -106,6 +106,66 @@ export function isCounterTemporalField(field: StatusWidgetField): boolean {
   return classifyStatusWidgetTemporalField(field) === "counter";
 }
 
+function resolveFieldValue(
+  values: StatusWidgetValues | null | undefined,
+  field: StatusWidgetField
+): string {
+  for (const key of [fieldPlaceholderKey(field), field.id?.trim(), field.label.trim()]) {
+    const value = key ? values?.[key]?.trim() : "";
+    if (value) return value;
+  }
+  return "";
+}
+
+const HH_MM_CLOCK = /(^|[^\d])([01]?\d|2[0-3]):([0-5]\d)(?!\d)/;
+
+/**
+ * A completed RP turn consumes at least one in-world minute unless the prose
+ * explicitly pins the scene to the same instant. This is a final safety net
+ * for main-model status JSON and extractors that copy the previous clock.
+ */
+export function advanceUnchangedClockValuesForTurn(opts: {
+  values: StatusWidgetValues | null | undefined;
+  previous: StatusWidgetValues | null | undefined;
+  widget: StatusWidget | null | undefined;
+  currentNarrative: string;
+}): StatusWidgetValues | null {
+  if (!opts.values || !opts.previous || !opts.widget) return opts.values ?? null;
+
+  const out: StatusWidgetValues = { ...opts.values };
+  const narrative = opts.currentNarrative.trim();
+  const sameInstantExplicit = /(?:같은|동일한)\s*(?:시각|시간)|시간(?:은|이)?\s*(?:멈|정지)|동시에/.test(
+    narrative
+  );
+
+  for (const field of opts.widget.fields) {
+    if (classifyStatusWidgetTemporalField(field) !== "clock") continue;
+    const previous = resolveFieldValue(opts.previous, field);
+    const current = resolveFieldValue(out, field);
+    if (!previous || !current || previous !== current) continue;
+    if (sameInstantExplicit || narrative.includes(current)) continue;
+
+    const match = current.match(HH_MM_CLOCK);
+    if (!match) continue;
+    const hour = Number(match[2]);
+    const minute = Number(match[3]);
+    // Avoid advancing the clock across midnight without also knowing how the
+    // creator formatted the corresponding date field.
+    if (hour === 23 && minute === 59) continue;
+    const total = hour * 60 + minute + 1;
+    const advanced = `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(
+      total % 60
+    ).padStart(2, "0")}`;
+    const next = current.replace(HH_MM_CLOCK, (_whole, prefix: string) => `${prefix}${advanced}`);
+
+    for (const key of [fieldPlaceholderKey(field), field.id?.trim(), field.label.trim()]) {
+      if (key && out[key]?.trim() === current) out[key] = next;
+    }
+  }
+
+  return out;
+}
+
 /** Instruction/initialValue explicitly allows 미정 / undetermined as a normal value. */
 export function counterAllowsUnsetPlaceholder(field: StatusWidgetField): boolean {
   const blob = `${field.instruction} ${field.initialValue ?? ""}`;

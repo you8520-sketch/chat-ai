@@ -41,6 +41,7 @@ import {
   type StatusWidgetReasonCode,
 } from "./diagnostics";
 import { statusWidgetSourceValuesHaveContent } from "./displayPolicy";
+import { advanceUnchangedClockValuesForTurn } from "./temporalUnknown";
 import type {
   ExtractedStatusFact,
   ParsedStatusWidgetTurnValues,
@@ -1366,6 +1367,20 @@ export async function extractStatusWidgetValuesForTurn(opts: {
     mergedFacts = mergeExtractedFacts(mergedFacts, batch);
   }
   if (mergedFacts?.length) out.extracted_facts = mergedFacts;
+
+  const currentNarrative = `${opts.userMessage}\n${opts.assistantProse}`;
+  out.character = advanceUnchangedClockValuesForTurn({
+    values: out.character,
+    previous: opts.previousValues?.character,
+    widget: charWidget,
+    currentNarrative,
+  });
+  out.user = advanceUnchangedClockValuesForTurn({
+    values: out.user,
+    previous: opts.previousValues?.user,
+    widget: userWidget,
+    currentNarrative,
+  });
 
   const usedRepair =
     characterMeta?.stages.includes("repair") === true ||
