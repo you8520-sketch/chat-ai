@@ -1,0 +1,38 @@
+{
+  "scenario_id": "fixture_L_literary",
+  "scenario_label": "Literary / first-turn (parser-fixed short input)",
+  "kind": "literary",
+  "character_id": 18,
+  "arm": "B",
+  "model": "claude-opus-5",
+  "resolved_model": "claude-opus-5",
+  "user_input": "신입 ...맞아.나 본적있어?(갸웃)나는 렌이라고 부르면 돼.",
+  "terminal_estimated_tokens": 424,
+  "total_visible_chars": 2959,
+  "finish_reason": "stop",
+  "saw_done": true,
+  "latency_s": 85.017,
+  "usage": {
+    "prompt_tokens": 17897,
+    "completion_tokens": 3528,
+    "total_tokens": 21425,
+    "prompt_tokens_details": {
+      "cached_tokens": 17170
+    },
+    "cache_read_input_tokens": 17170
+  },
+  "raw_hash": "556513d2c240962ac8c937913e9745cc53d519f1e4f224a72a95acfa58579ad8",
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "metrics": {
+    "VISIBLE_CHARS": 2178,
+    "RAW_CHARS": 2959,
+    "PARAGRAPH_COUNT": 39,
+    "DIALOGUE_SHARE": 0.2703616086515715,
+    "AVG_SENTENCE_LENGTH": 28.1,
+    "FIRST_1000_CHAR_LITERARY_IMPRESSION": "“렌.”\n\n되뇌듯 발음한 태형이 눈썹을 살짝 들어 올렸다. 짧은 이름이었다. 성도, 코드네임도, 소속을 짐작할 만한 뒷말도 없이 딱 두 글자. 에이지스 안에서는 흔한 방식이 아니었다. 여기 사람들은 대부분 자기소개를 할 때 등급이나 부서부터 붙이고 시작한다. 그게 이 조직에서 서로를 파악하는 가장 빠른 방법이니까.\n\n“렌이라. 예쁜 이름이네.”\n\n능청스럽게 던지고는 손가락으로 제 관자놀이 근처를 툭툭 두드렸다.\n\n“근데 내가 본 적 있냐고 물으면… 그건 나도 궁금한데? 방금부터 계속 그 생각 하고 있었거든. 분명 낯이 익은 것 같은데 이름은 하나도 안 떠올라. 이게 진짜 짜증나는 종류의 기분이야. 목구멍까지 올라왔는데 안 나오는 그런 거.”\n\n말하면서도 시선은 렌에게서 떨어지지 않았다. 로비의 소음이 여전히 사방에서 밀려들고 있었다. 무전기 잡음, 구두 굽 소리, 엘리베이터 도착음, 저 끝 카페 구역에서 나는 원두 갈리는 소리까지. 평소라면 이 정도 소리는 그냥 배경으로 흘려보낸다. 흘려보내지 못하면 하루도 못 버티는 게 센티넬의 감각이니까. 그런데 지금은 그 배경들이 한 겹 뒤로 물러나 있었다. 정확히는 렌을 중심으로 반경 몇 걸음 정도가, 마치 두꺼운 커튼을 친 방 안처럼 조용했다.\n\n태형은 무의식적으로 혀 안쪽을 눌렀다. 소리를 내지 않으려는 오래된 버릇이었다. 감각이 예민해질 때 그는 습관처럼 휘파람을 불거나 손가락을 튕겼고, 그건 곧장 능력 발동으로 이어졌다. 로비 한복판에서 그 짓을 했다간 다음 주 내내 경위서를 쓰게 된다.\n\n“…야, 이상한 소리 하나만 물어봐도 돼?”\n\n그가 몸을 살짝 기울였다. 장난기가 걷힌 건 아니었지만 목소리가 반 톤쯤 낮아졌다.\n\n“너 지금 뭐 하고 있어? 아무것도 안 하고 있는 거 맞지?”\n\n그러고는 스스로 던진 질문이 우스웠는지 픽 웃었다. 웃을 때 드러난 송곳니가 조명 아래 뾰족하게 반짝였다.\n\n“아니 뭐, 이상한 뜻은 아니고. 내가 원래 여기 로비 오면 십 분 안에 머리 아파서 나가거든. 사람 많고 소리 많고 냄새 "
+  },
+  "system_prompt_sha256": "8b33e41c25ef02cec6202275359ed8cfd9183cf9e76dd8143b7c767270654ea3",
+  "user_turn_terminal_slice_sha256": "495e3c532dcfaebd15de19b3d1e93e86fabb2295f7a1c2dea9f3ecbcf37c7acc"
+}

@@ -1,0 +1,48 @@
+{
+  "status": "OPUS_ARM_E_COMPACT_AB_LIVE_COMPLETE",
+  "api_calls": 2,
+  "max_calls": 4,
+  "parity": {
+    "arm_a_estimated_tokens": 1134,
+    "arm_b_estimated_tokens": 424,
+    "reduction": 710,
+    "reduction_percent": 62.6,
+    "semantic_parity_a": {
+      "pass": true,
+      "results": {
+        "length_owner": true,
+        "a_npc_expansion_owner": true,
+        "future_unspecified_instruction_boundary": true,
+        "meaningful_scene_change": true,
+        "reaction_choice_stop": true,
+        "new_b_dialogue_prohibition": true,
+        "important_decision_prohibition": true,
+        "consent_refusal_prohibition": true,
+        "relationship_decision_prohibition": true,
+        "risk_action_prohibition": true
+      }
+    },
+    "semantic_parity_b": {
+      "pass": true,
+      "results": {
+        "length_owner": true,
+        "a_npc_expansion_owner": true,
+        "future_unspecified_instruction_boundary": true,
+        "meaningful_scene_change": true,
+        "reaction_choice_stop": true,
+        "new_b_dialogue_prohibition": true,
+        "important_decision_prohibition": true,
+        "consent_refusal_prohibition": true,
+        "relationship_decision_prohibition": true,
+        "risk_action_prohibition": true
+      }
+    },
+    "semantic_parity": "PASS",
+    "production_resolve_unchanged": true,
+    "token_budget_ok": true,
+    "reduction_ok": true
+  },
+  "production_arm_e": "UNCHANGED",
+  "common_prose": "UNCHANGED",
+  "layout": "UNCHANGED"
+}

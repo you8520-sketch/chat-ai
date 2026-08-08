@@ -7,6 +7,9 @@ import {
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
 } from "@/lib/chatModels";
 import {
+  evaluateOpusArmESemanticParity,
+  OPUS_ARM_E_COMPACT_CANDIDATE,
+  OPUS_ARM_E_COMPACT_CANDIDATE_MARKER,
   OPUS_ARM_E_INSTRUCTION_BOUNDARY_MARKER,
   OPUS_ARM_E_TERMINAL,
   OPUS_ARM_E_TERMINAL_MARKER,
@@ -20,6 +23,7 @@ import {
 } from "@/lib/responseLength";
 import { TERRA_TERMINAL_LENGTH_OWNER_CONTRACT } from "@/lib/terraTerminalLengthOwner";
 import { DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY } from "@/lib/deepseekPromptStructure";
+import { estimateTokens } from "@/lib/tokenEstimate";
 
 const FROZEN_ARM_E_SHA256 =
   "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca";
@@ -159,5 +163,39 @@ describe("opusTerminalLengthOwner", () => {
     });
     assert.ok(out.trimEnd().endsWith(USER_TAIL_LENGTH_OWNER_SENTENCE));
     assert.ok(!out.includes(OPUS_ARM_E_TERMINAL_MARKER));
+  });
+
+  it("keeps compact candidate off production resolve path", () => {
+    assert.ok(OPUS_ARM_E_COMPACT_CANDIDATE.includes(OPUS_ARM_E_COMPACT_CANDIDATE_MARKER));
+    assert.ok(!OPUS_ARM_E_TERMINAL.includes(OPUS_ARM_E_COMPACT_CANDIDATE_MARKER));
+    assert.equal(
+      resolveOpusArmETerminal({
+        modelId: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+        contentKind: "character",
+        party: false,
+        runtimeMode: "interactive",
+      }),
+      OPUS_ARM_E_TERMINAL
+    );
+    const productionTail = appendCompactTerminalLengthToUserTurn("안녕.", 3200, {
+      modelId: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+      contentKind: "character",
+      party: false,
+      runtimeMode: "interactive",
+    });
+    assert.ok(!productionTail.includes(OPUS_ARM_E_COMPACT_CANDIDATE_MARKER));
+  });
+
+  it("compact candidate passes semantic parity and token budget", () => {
+    const armA = evaluateOpusArmESemanticParity(OPUS_ARM_E_TERMINAL);
+    const armB = evaluateOpusArmESemanticParity(OPUS_ARM_E_COMPACT_CANDIDATE);
+    assert.equal(armA.pass, true);
+    assert.equal(armB.pass, true);
+    const aTok = estimateTokens(OPUS_ARM_E_TERMINAL);
+    const bTok = estimateTokens(OPUS_ARM_E_COMPACT_CANDIDATE);
+    assert.equal(aTok, 1134);
+    assert.ok(bTok <= 650, `compact tokens ${bTok} > 650`);
+    assert.ok(bTok < 900, `compact tokens ${bTok} too large for compression`);
+    assert.ok((aTok - bTok) / aTok >= 0.35, "expected >=35% reduction");
   });
 });

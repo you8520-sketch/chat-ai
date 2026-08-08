@@ -1,0 +1,17 @@
+{
+  "note": "Reveal only after scoring seal",
+  "blindMap": {
+    "fixture_L_literary": {
+      "X": "A",
+      "Y": "B"
+    },
+    "fixture_A_agency": {
+      "X": "B",
+      "Y": "A"
+    }
+  },
+  "arm_meanings": {
+    "A": "OPUS_ARM_E_TERMINAL (production frozen)",
+    "B": "OPUS_ARM_E_COMPACT_CANDIDATE"
+  }
+}
