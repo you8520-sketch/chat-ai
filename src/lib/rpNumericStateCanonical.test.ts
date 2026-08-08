@@ -72,6 +72,7 @@ function makeDb(): Database.Database {
       status TEXT DEFAULT 'ok',
       is_refunded INTEGER DEFAULT 0,
       status_meta TEXT,
+      deduction_slices TEXT,
       updated_at TEXT
     );
   `);
@@ -859,7 +860,6 @@ describe("Phase B1-C — atomic finalize (NC1-NC47)", () => {
   });
 
   it("cores do not own nested BEGIN when outer transaction wraps them", () => {
-    const db = makeDb();
     const sql: string[] = [];
     const verboseDb = new Database(":memory:", {
       verbose: (s: string) => sql.push(s),
@@ -880,6 +880,7 @@ describe("Phase B1-C — atomic finalize (NC1-NC47)", () => {
         status TEXT DEFAULT 'ok',
         is_refunded INTEGER DEFAULT 0,
         status_meta TEXT,
+        deduction_slices TEXT,
         updated_at TEXT
       );
     `);
@@ -913,6 +914,5 @@ describe("Phase B1-C — atomic finalize (NC1-NC47)", () => {
     });
     const begins = sql.filter((s) => /BEGIN/i.test(s));
     assert.equal(begins.length, 1, "exactly one outer BEGIN for atomic finalize");
-    void db;
   });
 });

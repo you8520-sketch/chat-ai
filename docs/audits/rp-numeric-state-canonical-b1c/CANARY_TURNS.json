@@ -1,0 +1,316 @@
+{
+  "PHASE_B1C_LOCAL_CANARY": "PASS",
+  "normal_turns": 4,
+  "regen_turns": 2,
+  "parity_failures": 0,
+  "canonical_feature_default": "OFF",
+  "railway_general_rollout": "NOT_RUN",
+  "records": [
+    {
+      "turn": 1,
+      "kind": "normal",
+      "proposals": {
+        "affection": "43",
+        "trust": "42",
+        "corruption": "41"
+      },
+      "current": {
+        "affection": 43,
+        "trust": 42,
+        "corruption": 41
+      },
+      "message": {
+        "affection": "43",
+        "trust": "42",
+        "corruption": "41"
+      },
+      "activeVariant": {
+        "affection": "43",
+        "trust": "42",
+        "corruption": "41"
+      },
+      "events": [
+        {
+          "stateKey": "affection",
+          "before": 40,
+          "proposed": 43,
+          "applied": 3,
+          "after": 43,
+          "replaces": null
+        },
+        {
+          "stateKey": "trust",
+          "before": 40,
+          "proposed": 42,
+          "applied": 2,
+          "after": 42,
+          "replaces": null
+        },
+        {
+          "stateKey": "corruption",
+          "before": 40,
+          "proposed": 41,
+          "applied": 1,
+          "after": 41,
+          "replaces": null
+        }
+      ],
+      "parityOk": true
+    },
+    {
+      "turn": 2,
+      "kind": "normal",
+      "proposals": {
+        "affection": "48",
+        "trust": "44",
+        "corruption": "43"
+      },
+      "current": {
+        "affection": 48,
+        "trust": 44,
+        "corruption": 43
+      },
+      "message": {
+        "affection": "48",
+        "trust": "44",
+        "corruption": "43"
+      },
+      "activeVariant": {
+        "affection": "48",
+        "trust": "44",
+        "corruption": "43"
+      },
+      "events": [
+        {
+          "stateKey": "affection",
+          "before": 43,
+          "proposed": 48,
+          "applied": 5,
+          "after": 48,
+          "replaces": null
+        },
+        {
+          "stateKey": "trust",
+          "before": 42,
+          "proposed": 44,
+          "applied": 2,
+          "after": 44,
+          "replaces": null
+        },
+        {
+          "stateKey": "corruption",
+          "before": 41,
+          "proposed": 43,
+          "applied": 2,
+          "after": 43,
+          "replaces": null
+        }
+      ],
+      "parityOk": true
+    },
+    {
+      "turn": 3,
+      "kind": "normal",
+      "proposals": {
+        "affection": "80",
+        "trust": "46",
+        "corruption": "44"
+      },
+      "current": {
+        "affection": 53,
+        "trust": 46,
+        "corruption": 44
+      },
+      "message": {
+        "affection": "53",
+        "trust": "46",
+        "corruption": "44"
+      },
+      "activeVariant": {
+        "affection": "53",
+        "trust": "46",
+        "corruption": "44"
+      },
+      "events": [
+        {
+          "stateKey": "affection",
+          "before": 48,
+          "proposed": 80,
+          "applied": 5,
+          "after": 53,
+          "replaces": null
+        },
+        {
+          "stateKey": "trust",
+          "before": 44,
+          "proposed": 46,
+          "applied": 2,
+          "after": 46,
+          "replaces": null
+        },
+        {
+          "stateKey": "corruption",
+          "before": 43,
+          "proposed": 44,
+          "applied": 1,
+          "after": 44,
+          "replaces": null
+        }
+      ],
+      "parityOk": true
+    },
+    {
+      "turn": 4,
+      "kind": "normal",
+      "proposals": {
+        "affection": "52",
+        "trust": "48",
+        "corruption": "46"
+      },
+      "current": {
+        "affection": 52,
+        "trust": 48,
+        "corruption": 46
+      },
+      "message": {
+        "affection": "52",
+        "trust": "48",
+        "corruption": "46"
+      },
+      "activeVariant": {
+        "affection": "52",
+        "trust": "48",
+        "corruption": "46"
+      },
+      "events": [
+        {
+          "stateKey": "affection",
+          "before": 53,
+          "proposed": 52,
+          "applied": -1,
+          "after": 52,
+          "replaces": null
+        },
+        {
+          "stateKey": "trust",
+          "before": 46,
+          "proposed": 48,
+          "applied": 2,
+          "after": 48,
+          "replaces": null
+        },
+        {
+          "stateKey": "corruption",
+          "before": 44,
+          "proposed": 46,
+          "applied": 2,
+          "after": 46,
+          "replaces": null
+        }
+      ],
+      "parityOk": true
+    },
+    {
+      "turn": 4,
+      "kind": "regen",
+      "proposals": {
+        "affection": "54",
+        "trust": "49",
+        "corruption": "47"
+      },
+      "current": {
+        "affection": 54,
+        "trust": 49,
+        "corruption": 47
+      },
+      "message": {
+        "affection": "54",
+        "trust": "49",
+        "corruption": "47"
+      },
+      "activeVariant": {
+        "affection": "54",
+        "trust": "49",
+        "corruption": "47"
+      },
+      "events": [
+        {
+          "stateKey": "affection",
+          "before": 53,
+          "proposed": 54,
+          "applied": 1,
+          "after": 54,
+          "replaces": 13
+        },
+        {
+          "stateKey": "trust",
+          "before": 46,
+          "proposed": 49,
+          "applied": 3,
+          "after": 49,
+          "replaces": 14
+        },
+        {
+          "stateKey": "corruption",
+          "before": 44,
+          "proposed": 47,
+          "applied": 3,
+          "after": 47,
+          "replaces": 15
+        }
+      ],
+      "parityOk": true
+    },
+    {
+      "turn": 4,
+      "kind": "regen",
+      "proposals": {
+        "affection": "90",
+        "trust": "50",
+        "corruption": "48"
+      },
+      "current": {
+        "affection": 58,
+        "trust": 50,
+        "corruption": 48
+      },
+      "message": {
+        "affection": "58",
+        "trust": "50",
+        "corruption": "48"
+      },
+      "activeVariant": {
+        "affection": "58",
+        "trust": "50",
+        "corruption": "48"
+      },
+      "events": [
+        {
+          "stateKey": "affection",
+          "before": 53,
+          "proposed": 90,
+          "applied": 5,
+          "after": 58,
+          "replaces": 16
+        },
+        {
+          "stateKey": "trust",
+          "before": 46,
+          "proposed": 50,
+          "applied": 4,
+          "after": 50,
+          "replaces": 17
+        },
+        {
+          "stateKey": "corruption",
+          "before": 44,
+          "proposed": 48,
+          "applied": 4,
+          "after": 48,
+          "replaces": 18
+        }
+      ],
+      "parityOk": true
+    }
+  ]
+}
