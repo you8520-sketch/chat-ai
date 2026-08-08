@@ -4,7 +4,8 @@
 B1_D2_MAIN_REFRESH_SEAL:
 
 latest main: 522f4810670bab639fb8800bc5eee4a125895a6b
-rebased/merged head: 94a95c375c326ddae1357548fb8406d66a0d2c87
+rebased/merged head: 6aff2f4eda1db247ebe6ac01edd5712d8a0a2b19
+implementation tip (clock regression): 94a95c375c326ddae1357548fb8406d66a0d2c87
 
 conflicts:
 NONE
