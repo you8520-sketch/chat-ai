@@ -15,7 +15,7 @@ import {
   parseStatusWidgetJson,
   serializeStatusWidget,
 } from "../src/lib/statusWidget";
-import { OPENROUTER_GEMINI_36_FLASH_MODEL } from "../src/lib/chatModels";
+import { CLAUDE_OPUS_MODEL } from "../src/lib/chatModels";
 
 loadEnvLocal();
 
@@ -27,8 +27,8 @@ const EMAIL =
   process.env.B1C_ROUTE_ADMIN_EMAIL ?? "rp.numeric.b1c.route@example.com";
 const PASSWORD =
   process.env.B1C_ROUTE_ADMIN_PASSWORD ?? "rp-numeric-b1c-route-26";
-const MODEL =
-  process.env.B1C_ROUTE_MODEL ?? OPENROUTER_GEMINI_36_FLASH_MODEL;
+/** OpenRouter path (local has OPENROUTER_API_KEY; Gemini 3.6 coerced away; CI key absent). */
+const MODEL = process.env.B1C_ROUTE_MODEL ?? CLAUDE_OPUS_MODEL;
 const CHAR_NAME = "B1C Numeric Route Canary";
 
 type ParitySnapshot = {
@@ -245,9 +245,9 @@ function promoteAdmin(db: Database.Database, userId: number) {
   ).run(userId);
 }
 
-async function selectModel(token: string) {
+async function selectModel(token: string, userId: number) {
   const res = await fetch(`${BASE}/api/user/selected-ai`, {
-    method: "POST",
+    method: "PATCH",
     headers: {
       "Content-Type": "application/json",
       Cookie: `session=${token}`,
@@ -255,7 +255,19 @@ async function selectModel(token: string) {
     body: JSON.stringify({ selectedAI: MODEL }),
   });
   if (!res.ok) {
-    throw new Error(`selected-ai failed ${res.status} ${await res.text()}`);
+    throw new Error(
+      `selected-ai PATCH failed ${res.status} ${await res.text()} (need OPENROUTER_OPUS_USER_SELECTABLE=1 for ${MODEL})`
+    );
+  }
+  const db = new Database(DB_PATH);
+  const row = db
+    .prepare(`SELECT selected_ai FROM users WHERE id=?`)
+    .get(userId) as { selected_ai: string };
+  db.close();
+  if (row.selected_ai !== MODEL) {
+    throw new Error(
+      `selected_ai mismatch after PATCH: got=${row.selected_ai} want=${MODEL}`
+    );
   }
 }
 
@@ -372,17 +384,17 @@ function readParity(
   for (const stateKey of keys) {
     const cur = db
       .prepare(
-        `SELECT value, last_event_id, last_source_message_id
+        `SELECT numeric_value, last_event_id, last_source_message_id
          FROM rp_numeric_state_current WHERE chat_id=? AND state_key=?`
       )
       .get(chatId, stateKey) as
       | {
-          value: number;
+          numeric_value: number;
           last_event_id: number | null;
           last_source_message_id: number | null;
         }
       | undefined;
-    current[stateKey] = cur?.value ?? null;
+    current[stateKey] = cur?.numeric_value ?? null;
     if (!cur) {
       failures.push(`missing_current:${stateKey}`);
       continue;
@@ -420,14 +432,26 @@ function readParity(
       after: ev.after_value,
       replacesEventId: ev.replaces_event_id,
     });
-    const msgVal = message[stateKey];
-    const varVal = activeVariant[stateKey];
-    const curStr = String(Math.trunc(cur.value));
-    if (msgVal !== curStr) {
-      failures.push(`message_parity:${stateKey}:msg=${msgVal}:cur=${curStr}`);
+    // Status widget stores by placeholder key (label) when present — also accept stateKey.
+    const labelByKey: Record<string, string> = {
+      affection: "호감도",
+      trust: "신뢰",
+      corruption: "오염도",
+    };
+    const label = labelByKey[stateKey] ?? stateKey;
+    const msgResolved = message[stateKey] ?? message[label] ?? null;
+    const varResolved =
+      activeVariant[stateKey] ?? activeVariant[label] ?? null;
+    const curStr = String(Math.trunc(cur.numeric_value));
+    if (msgResolved !== curStr) {
+      failures.push(
+        `message_parity:${stateKey}:msg=${msgResolved}:cur=${curStr}`
+      );
     }
-    if (varVal !== curStr) {
-      failures.push(`variant_parity:${stateKey}:var=${varVal}:cur=${curStr}`);
+    if (varResolved !== curStr) {
+      failures.push(
+        `variant_parity:${stateKey}:var=${varResolved}:cur=${curStr}`
+      );
     }
   }
 
@@ -482,7 +506,7 @@ async function main() {
     RP_NUMERIC_STATE_KILL_SWITCH: "0",
   };
 
-  await selectModel(auth.token);
+  await selectModel(auth.token, auth.userId);
 
   // Create chat + greeting in DB (no LLM). Enable status widget before any route turn.
   const dbSetup = new Database(DB_PATH);
@@ -543,6 +567,16 @@ async function main() {
       throw new Error(`${label} failed ${res.httpStatus} ${res.body.slice(0, 500)}`);
     }
     const dbTurn = new Database(DB_PATH);
+    const asst = latestAssistant(dbTurn, chatId);
+    const gen = dbTurn
+      .prepare(`SELECT generation_status, length(content) AS len FROM messages WHERE id=?`)
+      .get(asst.id) as { generation_status: string; len: number };
+    if (gen.generation_status !== "completed" || gen.len <= 0) {
+      dbTurn.close();
+      throw new Error(
+        `${label} assistant not completed status=${gen.generation_status} len=${gen.len}`
+      );
+    }
     const snap = readParity(dbTurn, chatId, keys);
     dbTurn.close();
     const record: ParitySnapshot = { turn: label, kind: "normal", ...snap };
