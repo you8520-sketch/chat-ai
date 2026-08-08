@@ -1,0 +1,63 @@
+{
+  "admin_user_id": 5,
+  "admin_email": "adult.handoff.canary@example.com",
+  "character_id": 19,
+  "character_name": "B1B Numeric Shadow Pilot",
+  "visibility": "private",
+  "production_character_modified": false,
+  "definitions": {
+    "affection": {
+      "exists": true,
+      "definition": {
+        "version": 1,
+        "mode": "server_meter",
+        "min": 0,
+        "max": 100,
+        "initial": 20,
+        "integer": true,
+        "maxIncreasePerTurn": 5,
+        "maxDecreasePerTurn": 5
+      }
+    },
+    "trust": {
+      "exists": true,
+      "definition": {
+        "version": 1,
+        "mode": "server_meter",
+        "min": 0,
+        "max": 100,
+        "initial": 30,
+        "integer": true,
+        "maxIncreasePerTurn": 5,
+        "maxDecreasePerTurn": 5
+      }
+    },
+    "corruption": {
+      "exists": true,
+      "definition": {
+        "version": 1,
+        "mode": "server_meter",
+        "min": 0,
+        "max": 100,
+        "initial": 0,
+        "integer": true,
+        "maxIncreasePerTurn": 10,
+        "maxDecreasePerTurn": 5
+      }
+    }
+  },
+  "eligible_pilot_keys": [
+    "affection",
+    "trust",
+    "corruption"
+  ],
+  "numeric_db_rows_at_setup": {
+    "current": 0,
+    "events": 0
+  },
+  "env_recommended": {
+    "RP_NUMERIC_STATE_SHADOW_ENABLED": "1",
+    "RP_NUMERIC_STATE_SHADOW_USER_IDS": "5",
+    "RP_NUMERIC_STATE_SHADOW_CHARACTER_IDS": "19"
+  }
+}
