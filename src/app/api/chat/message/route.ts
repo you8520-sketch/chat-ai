@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { assertMessageAccess } from "@/lib/chatAccess";
-import { CHAT_MESSAGE_MAX, ASSISTANT_MESSAGE_MAX } from "@/lib/chatModels";
 import {
   editedMessageVariant,
   normalizeMessageVariants,
@@ -38,6 +37,10 @@ import {
   resolveNumericCanonicalEligibility,
 } from "@/lib/rpNumericState";
 import { parseStatusWidgetJson } from "@/lib/statusWidget";
+import {
+  isGreetingMessage,
+  resolveChatMessageEditLimit,
+} from "@/lib/chatMessageEditPolicy";
 
 /** Read-only snapshot for stream EOF reconciliation (generationStatus + final content). */
 export async function GET(req: Request) {
@@ -161,11 +164,8 @@ export async function PATCH(req: Request) {
 
   const msg = assertMessageAccess(user.id, id);
   if (!msg) return NextResponse.json({ error: "메시지를 찾을 수 없습니다." }, { status: 404 });
-  if (msg.model === "greeting") {
-    return NextResponse.json({ error: "인사말은 수정할 수 없습니다." }, { status: 400 });
-  }
 
-  const maxLen = msg.role === "assistant" ? ASSISTANT_MESSAGE_MAX : CHAT_MESSAGE_MAX;
+  const maxLen = resolveChatMessageEditLimit(msg);
   if (text.length > maxLen) {
     return NextResponse.json(
       { error: `메시지는 ${maxLen.toLocaleString()}자까지 입력할 수 있습니다.` },
@@ -173,11 +173,25 @@ export async function PATCH(req: Request) {
     );
   }
 
+  const db = getDb();
+  if (isGreetingMessage(msg)) {
+    const variant = editedMessageVariant({ content: text, model: "greeting", usage: null });
+    db.prepare("UPDATE messages SET content=?, alternates=NULL, active_variant=0 WHERE id=?").run(
+      text,
+      id
+    );
+    return NextResponse.json({
+      ok: true,
+      content: text,
+      ...serializeVariantsForClient([variant], 0),
+      statusWidgetValues: null,
+    });
+  }
+
   const incomingWidgets =
     msg.role === "assistant" ? parseIncomingWidgetValues(body.statusWidgetValues) : null;
   const hasWidgetPatch = msg.role === "assistant" && "statusWidgetValues" in body;
 
-  const db = getDb();
   if (msg.role === "assistant") {
     // Phase B0: detect material prose change vs format-only edit. A material
     // prose edit invalidates episodic facts derived from the old prose (wrong
