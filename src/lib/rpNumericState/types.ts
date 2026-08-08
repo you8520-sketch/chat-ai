@@ -6,12 +6,49 @@ import type { ServerMeterNumericStateDefinitionV1 } from "@/lib/statusWidget/typ
 
 export type { ServerMeterNumericStateDefinitionV1 };
 
-/** Ledger / bootstrap source kinds supported in B1-A. */
+/**
+ * Ledger / bootstrap / selection source kinds.
+ * B1-D2: `variant_switch` = canonical projection of a prior extractor result
+ * (NOT a reducer re-run). LAST GENERATED != CANONICAL; ACTIVE SELECTED == CANONICAL.
+ */
 export type NumericStateSourceKind =
   | "definition_initial"
   | "legacy_bootstrap"
   | "extractor"
-  | "manual_override";
+  | "manual_override"
+  | "variant_switch";
+
+export class NumericVariantSourceNotReadyError extends Error {
+  readonly code = "numeric_state_variant_source_not_ready" as const;
+  constructor(message = "numeric_state_variant_source_not_ready") {
+    super(message);
+    this.name = "NumericVariantSourceNotReadyError";
+  }
+}
+
+export class NumericVariantChainNotReadyError extends Error {
+  readonly code = "numeric_state_variant_chain_not_ready" as const;
+  constructor(message = "numeric_state_variant_chain_not_ready") {
+    super(message);
+    this.name = "NumericVariantChainNotReadyError";
+  }
+}
+
+export class NumericVariantFrontierMovedError extends Error {
+  readonly code = "variant_switch_frontier_moved" as const;
+  constructor(message = "variant_switch_frontier_moved") {
+    super(message);
+    this.name = "NumericVariantFrontierMovedError";
+  }
+}
+
+export class NumericHistoricalVariantReplayUnsupportedError extends Error {
+  readonly code = "numeric_state_historical_variant_replay_unsupported" as const;
+  constructor(message = "numeric_state_historical_variant_replay_unsupported") {
+    super(message);
+    this.name = "NumericHistoricalVariantReplayUnsupportedError";
+  }
+}
 
 /** Reducer mutation sources (proposal path only). */
 export type NumericReducerSourceKind = "extractor" | "manual_override";
