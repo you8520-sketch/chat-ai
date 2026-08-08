@@ -223,6 +223,8 @@ function makeVariants(
     corruption?: number;
     location?: string;
     mood?: string;
+    /** Nonnumeric clock snapshot (must not be advanced on variant select). */
+    time?: string;
     seq: number;
     requestId: string;
     facts?: ReturnType<typeof fact>[];
@@ -240,6 +242,7 @@ function makeVariants(
         ...(s.corruption != null ? { 오염도: String(s.corruption) } : {}),
         ...(s.location ? { location: s.location } : {}),
         ...(s.mood ? { mood: s.mood } : {}),
+        ...(s.time ? { 시간: s.time } : {}),
       },
       user: null,
       ...(s.facts?.length ? { extracted_facts: s.facts } : {}),
@@ -1711,5 +1714,98 @@ describe("Phase B1-D2 FINAL HARDENING", () => {
     assert.equal(tip.definitionHash, h1);
     assert.equal(tip.policyVersion, sourceB.policyVersion);
     assert.notEqual(tip.definitionHash, h2);
+  });
+
+  it("nonnumeric clock snapshot: C 10:30 → B 10:15 restore; no turn clock advance", () => {
+    const db = makeDb();
+    bootstrapNumericStateCurrentCore(db, {
+      chatId: 1,
+      characterId: 7,
+      stateKey: "affection",
+      definition: def,
+      baselineValue: 30,
+      mutationId: "bootstrap:1:affection:definition_initial",
+      sourceKind: "definition_initial",
+    });
+    insertMsg(db, 1, 1, "user", "u");
+    const variants = makeVariants([
+      {
+        content: "A prose",
+        affection: 35,
+        time: "10:00",
+        seq: 0,
+        requestId: "req-a",
+      },
+      {
+        content: "B prose",
+        affection: 38,
+        time: "10:15",
+        seq: 1,
+        requestId: "req-b",
+      },
+      {
+        content: "C prose",
+        affection: 32,
+        time: "10:30",
+        seq: 2,
+        requestId: "req-c",
+      },
+    ]);
+    insertMsg(db, 2, 1, "assistant", "C prose", {
+      statusJson: JSON.stringify(variants[2]!.statusWidgetValues),
+      alternates: JSON.stringify(variants),
+      activeVariant: 2,
+    });
+    for (const [seq, proposal, req] of [
+      [0, 35, "req-a"],
+      [1, 38, "req-b"],
+      [2, 32, "req-c"],
+    ] as const) {
+      commitGen(db, {
+        chatId: 1,
+        stateKey: "affection",
+        proposal,
+        assistantMessageId: 2,
+        generationSequence: seq,
+        requestId: req,
+        sourceTurn: 1,
+      });
+    }
+    assert.equal(getNumericStateCurrent(db, 1, "affection")!.numericValue, 32);
+
+    const result = executeAtomicNumericVariantSwitch(db, {
+      chatId: 1,
+      characterId: 7,
+      userId: 1,
+      messageId: 2,
+      variantIndex: 1,
+      characterWidget: widget(),
+    });
+    assert.equal(result.kind, "APPLIED");
+
+    // Numeric follows B canonical event; clock restores B snapshot (not advanced).
+    assert.equal(getNumericStateCurrent(db, 1, "affection")!.numericValue, 38);
+    assert.equal(
+      result.canonicalStatusForTriggers?.character?.호감도,
+      "38"
+    );
+    assert.equal(result.canonicalStatusForTriggers?.character?.시간, "10:15");
+    assert.notEqual(result.canonicalStatusForTriggers?.character?.시간, "10:16");
+    assert.notEqual(result.canonicalStatusForTriggers?.character?.시간, "10:30");
+
+    const msg = db
+      .prepare(
+        `SELECT active_variant AS a, status_widget_values_json AS v, alternates AS al
+         FROM messages WHERE id=2`
+      )
+      .get() as { a: number; v: string; al: string };
+    assert.equal(msg.a, 1);
+    const status = parseStoredStatusWidgetValuesJson(msg.v)!;
+    assert.equal(status.character?.시간, "10:15");
+    assert.equal(status.character?.호감도, "38");
+
+    const stored = JSON.parse(msg.al) as MessageVariant[];
+    assert.equal(stored[1]!.statusWidgetValues?.character?.시간, "10:15");
+    assert.equal(stored[2]!.statusWidgetValues?.character?.시간, "10:30");
   });
 });
