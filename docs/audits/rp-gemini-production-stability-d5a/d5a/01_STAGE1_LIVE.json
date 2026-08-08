@@ -1,0 +1,1158 @@
+{
+  "phase": "D5-A",
+  "model": "google/gemini-3.1-pro-preview",
+  "production_prompt": "BYTE_IDENTICAL",
+  "prompt_delta": 0,
+  "owner_rewrite": 0,
+  "new_rule": 0,
+  "api_calls_this_run": 9,
+  "stage1_target": 9,
+  "stage1_cells": 9,
+  "fingerprint_byte_identical_ok": true,
+  "fingerprints": [
+    {
+      "fixture": "G5",
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "messages_sha256": "1c218ac9cad20e905aaf2dcb31d63edae7427fdaa6437e8acb38b3af0bfdbbc6",
+      "user_tail_sha256": "c2829f3e9bad018eb12261750fde550c7f88d15e6b3351994354c302caedc95a",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "top_p": null,
+        "max_tokens": null,
+        "seed": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "frequency_penalty": null,
+        "presence_penalty": null,
+        "provider": null
+      }
+    },
+    {
+      "fixture": "G6T1",
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "messages_sha256": "7762181d1bc715ae09e32dd9c757171272e410ce1bb1e5b18297ace5d30672d6",
+      "user_tail_sha256": "5da99c515e0dcc6c86854f65c595c0dcf038578670b154deb8bc35ea44631443",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "top_p": null,
+        "max_tokens": null,
+        "seed": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "frequency_penalty": null,
+        "presence_penalty": null,
+        "provider": null
+      }
+    },
+    {
+      "fixture": "G3",
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "messages_sha256": "834122ce41e65cb9c2d9f46218a899bf5182bc3daec345403bf3c1cc160151ad",
+      "user_tail_sha256": "2adaefdf29d0184cc4e5575815b3865fbc8c28a39f1ccc085ef05dd21306998b",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "top_p": null,
+        "max_tokens": null,
+        "seed": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "frequency_penalty": null,
+        "presence_penalty": null,
+        "provider": null
+      }
+    }
+  ],
+  "length_distribution_overall": {
+    "n": 9,
+    "min": 606,
+    "max": 2699,
+    "mean": 1508.4444444444443,
+    "median": 1522,
+    "max_min_ratio": 4.4537953795379535,
+    "rate_ge_3200": 0,
+    "rate_ge_3000": 0,
+    "rate_2400_2999": 0.1111111111111111,
+    "rate_1800_2399": 0.2222222222222222,
+    "rate_lt_1800": 0.6666666666666666
+  },
+  "by_fixture": {
+    "G5": {
+      "chars_draw": [
+        1855,
+        690,
+        1463
+      ],
+      "min": 690,
+      "max": 1855,
+      "mean": 1336,
+      "median": 1463,
+      "max_min_ratio": 2.6884057971014492,
+      "has_ge_3000_and_lt_1800": false,
+      "dialogue_char_share": [
+        0.0825,
+        0.1899,
+        0.1278
+      ],
+      "fragmentation": [
+        4,
+        0,
+        2
+      ],
+      "response_anchor_count": [
+        2,
+        1,
+        1
+      ],
+      "dialogue_function_load": [
+        3,
+        4,
+        3
+      ],
+      "providers": [
+        "Google AI Studio",
+        "Google AI Studio",
+        "Google"
+      ],
+      "generation_ids": [
+        "gen-1786188085-lzfmF0C4MyXCWfD1JRyu",
+        "gen-1786188137-ubkviEfsHhcWr8N0ttpQ",
+        "gen-1786188174-hqdrOHSWeNOweXxpAi8V"
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "latencies_s": [
+        51.728,
+        37.533,
+        25.227
+      ]
+    },
+    "G6T1": {
+      "chars_draw": [
+        606,
+        2699,
+        881
+      ],
+      "min": 606,
+      "max": 2699,
+      "mean": 1395.3333333333333,
+      "median": 881,
+      "max_min_ratio": 4.4537953795379535,
+      "has_ge_3000_and_lt_1800": false,
+      "dialogue_char_share": [
+        0.1386,
+        0.1,
+        0.1839
+      ],
+      "fragmentation": [
+        2,
+        2,
+        2
+      ],
+      "response_anchor_count": [
+        0,
+        2,
+        1
+      ],
+      "dialogue_function_load": [
+        2,
+        3,
+        2
+      ],
+      "providers": [
+        "Google",
+        "Google AI Studio",
+        "Google AI Studio"
+      ],
+      "generation_ids": [
+        "gen-1786188199-XtAoKpJkrNyT2gIBORJp",
+        "gen-1786188216-wxze2zXcyPkezKRec8Wh",
+        "gen-1786188292-x0R24O9lidD6LlQVbOMG"
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "latencies_s": [
+        16.154,
+        76.32,
+        46.131
+      ]
+    },
+    "G3": {
+      "chars_draw": [
+        1522,
+        1659,
+        2201
+      ],
+      "min": 1522,
+      "max": 2201,
+      "mean": 1794,
+      "median": 1659,
+      "max_min_ratio": 1.4461235216819974,
+      "has_ge_3000_and_lt_1800": false,
+      "dialogue_char_share": [
+        0.1833,
+        0.1537,
+        0.1681
+      ],
+      "fragmentation": [
+        2,
+        4,
+        0
+      ],
+      "response_anchor_count": [
+        2,
+        2,
+        4
+      ],
+      "dialogue_function_load": [
+        4,
+        4,
+        5
+      ],
+      "providers": [
+        "Google AI Studio",
+        "Google AI Studio",
+        "Google"
+      ],
+      "generation_ids": [
+        "gen-1786188338-DeapAIx0m0ATqcuZoRIM",
+        "gen-1786188391-roaEasAqCwYndiYeFvsR",
+        "gen-1786188445-J6VcB3PBcIeO3SK7hG7V"
+      ],
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "latencies_s": [
+        52.576,
+        53.975,
+        30.439
+      ]
+    }
+  },
+  "GEMINI_INTRINSIC_LENGTH_VARIANCE": "HIGH",
+  "provider_set": [
+    "Google AI Studio",
+    "Google"
+  ],
+  "d5b": "NOT_RUN",
+  "production_wire": "NOT_RUN",
+  "merge": "NOT_RUN",
+  "rows": [
+    {
+      "cell_id": "Gemini_G5_A_D1",
+      "fixture": "G5",
+      "draw": 1,
+      "measures": [
+        "INTRO_REPLAY",
+        "SETTING_RECITAL",
+        "CURRENT_INPUT_REPLAY",
+        "SCENE_ADVANCEMENT",
+        "NEW_SCENE_VALUE"
+      ],
+      "visible_chars": 1855,
+      "length_band": "STRONG_LENGTH_REGRESSION",
+      "dialogue_chars": 153,
+      "narration_chars": 1702,
+      "dialogue_char_share": 0.0825,
+      "dialogue_share_band": "ACCEPTABLE",
+      "same_speaker_dialogue_fragments": 4,
+      "max_dialogue_block_chars": 58,
+      "max_consecutive_short_dialogue_run": 1,
+      "response_anchor": {
+        "response_anchor_count": 2,
+        "band": "ACCEPTABLE",
+        "samples": [
+          "안개에 뇌수라도 파먹혔나. 내가 누군지 잊어버릴 만큼?",
+          "숨죽여. 문을 뜯고 들어오기 전까지는 절대 움직이지 마."
+        ]
+      },
+      "dialogue_function_load": {
+        "dialogue_function_load": 3,
+        "functions": [
+          "question",
+          "warning",
+          "directive"
+        ]
+      },
+      "continuity": {
+        "current_input_lcs_chars": 5,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 6,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 6,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "setting_exact_overlap": {
+        "longest_common_substring_chars": 10,
+        "matching_ngram_count": 0,
+        "source_overlap_span_count": 0,
+        "hits": [],
+        "alarm_18_plus": false
+      },
+      "hard_alarms": [],
+      "review_flags": [
+        "SPEAKER_SPLIT_REVIEW_REQUIRED"
+      ],
+      "finish_reason": "stop",
+      "incomplete": false,
+      "latency_s": 51.728,
+      "provider": "Google AI Studio",
+      "provider_generation_id": "gen-1786188085-lzfmF0C4MyXCWfD1JRyu",
+      "input_tokens": 3774,
+      "output_tokens": 3369,
+      "reasoning_tokens": 1721,
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "messages_sha256": "1c218ac9cad20e905aaf2dcb31d63edae7427fdaa6437e8acb38b3af0bfdbbc6",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "top_p": null,
+        "max_tokens": null,
+        "seed": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "frequency_penalty": null,
+        "presence_penalty": null,
+        "provider": null
+      },
+      "human_pending": {
+        "CURRENT_INPUT_REPLAY": "PENDING_AGENT_REVIEW",
+        "INTRO_REPLAY": "PENDING_AGENT_REVIEW",
+        "RECENT_SCENE_REPLAY": "PENDING_AGENT_REVIEW",
+        "SETTING_RECITAL": "PENDING_AGENT_REVIEW",
+        "ACTIVE_CANON_USE": "PENDING_AGENT_REVIEW",
+        "CHARACTER_FIDELITY": "PENDING_AGENT_REVIEW",
+        "SCENE_ADVANCEMENT": "PENDING_AGENT_REVIEW",
+        "NEW_SCENE_VALUE": "PENDING_AGENT_REVIEW",
+        "COMPLETION": "PENDING_AGENT_REVIEW"
+      }
+    },
+    {
+      "cell_id": "Gemini_G5_A_D2",
+      "fixture": "G5",
+      "draw": 2,
+      "measures": [
+        "INTRO_REPLAY",
+        "SETTING_RECITAL",
+        "CURRENT_INPUT_REPLAY",
+        "SCENE_ADVANCEMENT",
+        "NEW_SCENE_VALUE"
+      ],
+      "visible_chars": 690,
+      "length_band": "DENSITY_COLLAPSE",
+      "dialogue_chars": 131,
+      "narration_chars": 559,
+      "dialogue_char_share": 0.1899,
+      "dialogue_share_band": "BELOW_IDEAL_OR_REVIEW",
+      "same_speaker_dialogue_fragments": 0,
+      "max_dialogue_block_chars": 46,
+      "max_consecutive_short_dialogue_run": 1,
+      "response_anchor": {
+        "response_anchor_count": 1,
+        "band": "IDEAL",
+        "samples": [
+          "정신 나갔나?"
+        ]
+      },
+      "dialogue_function_load": {
+        "dialogue_function_load": 4,
+        "functions": [
+          "question",
+          "warning",
+          "relationship_claim",
+          "directive"
+        ]
+      },
+      "continuity": {
+        "current_input_lcs_chars": 6,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 6,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 6,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "setting_exact_overlap": {
+        "longest_common_substring_chars": 6,
+        "matching_ngram_count": 0,
+        "source_overlap_span_count": 0,
+        "hits": [],
+        "alarm_18_plus": false
+      },
+      "hard_alarms": [
+        "DENSITY_COLLAPSE"
+      ],
+      "review_flags": [
+        "SPEAKER_SPLIT_REVIEW_REQUIRED"
+      ],
+      "finish_reason": "stop",
+      "incomplete": false,
+      "latency_s": 37.533,
+      "provider": "Google AI Studio",
+      "provider_generation_id": "gen-1786188137-ubkviEfsHhcWr8N0ttpQ",
+      "input_tokens": 3774,
+      "output_tokens": 2317,
+      "reasoning_tokens": 1707,
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "messages_sha256": "1c218ac9cad20e905aaf2dcb31d63edae7427fdaa6437e8acb38b3af0bfdbbc6",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "top_p": null,
+        "max_tokens": null,
+        "seed": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "frequency_penalty": null,
+        "presence_penalty": null,
+        "provider": null
+      },
+      "human_pending": {
+        "CURRENT_INPUT_REPLAY": "PENDING_AGENT_REVIEW",
+        "INTRO_REPLAY": "PENDING_AGENT_REVIEW",
+        "RECENT_SCENE_REPLAY": "PENDING_AGENT_REVIEW",
+        "SETTING_RECITAL": "PENDING_AGENT_REVIEW",
+        "ACTIVE_CANON_USE": "PENDING_AGENT_REVIEW",
+        "CHARACTER_FIDELITY": "PENDING_AGENT_REVIEW",
+        "SCENE_ADVANCEMENT": "PENDING_AGENT_REVIEW",
+        "NEW_SCENE_VALUE": "PENDING_AGENT_REVIEW",
+        "COMPLETION": "PENDING_AGENT_REVIEW"
+      }
+    },
+    {
+      "cell_id": "Gemini_G5_A_D3",
+      "fixture": "G5",
+      "draw": 3,
+      "measures": [
+        "INTRO_REPLAY",
+        "SETTING_RECITAL",
+        "CURRENT_INPUT_REPLAY",
+        "SCENE_ADVANCEMENT",
+        "NEW_SCENE_VALUE"
+      ],
+      "visible_chars": 1463,
+      "length_band": "DENSITY_COLLAPSE",
+      "dialogue_chars": 187,
+      "narration_chars": 1276,
+      "dialogue_char_share": 0.1278,
+      "dialogue_share_band": "IDEAL",
+      "same_speaker_dialogue_fragments": 2,
+      "max_dialogue_block_chars": 67,
+      "max_consecutive_short_dialogue_run": 1,
+      "response_anchor": {
+        "response_anchor_count": 1,
+        "band": "IDEAL",
+        "samples": [
+          "방금 그 소리가 뭔지 궁금해? 마더의 신경망에 연결된 고깃덩어리들이 철창을 뜯어내며 이쪽으로 기어오는 소리다. 네 그 태평한 목소리를 듣고 방향"
+        ]
+      },
+      "dialogue_function_load": {
+        "dialogue_function_load": 3,
+        "functions": [
+          "question",
+          "warning",
+          "directive"
+        ]
+      },
+      "continuity": {
+        "current_input_lcs_chars": 5,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 7,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 7,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "setting_exact_overlap": {
+        "longest_common_substring_chars": 9,
+        "matching_ngram_count": 0,
+        "source_overlap_span_count": 0,
+        "hits": [],
+        "alarm_18_plus": false
+      },
+      "hard_alarms": [
+        "DENSITY_COLLAPSE"
+      ],
+      "review_flags": [
+        "SPEAKER_SPLIT_REVIEW_REQUIRED"
+      ],
+      "finish_reason": "stop",
+      "incomplete": false,
+      "latency_s": 25.227,
+      "provider": "Google",
+      "provider_generation_id": "gen-1786188174-hqdrOHSWeNOweXxpAi8V",
+      "input_tokens": 3770,
+      "output_tokens": 2582,
+      "reasoning_tokens": 1318,
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "messages_sha256": "1c218ac9cad20e905aaf2dcb31d63edae7427fdaa6437e8acb38b3af0bfdbbc6",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "top_p": null,
+        "max_tokens": null,
+        "seed": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "frequency_penalty": null,
+        "presence_penalty": null,
+        "provider": null
+      },
+      "human_pending": {
+        "CURRENT_INPUT_REPLAY": "PENDING_AGENT_REVIEW",
+        "INTRO_REPLAY": "PENDING_AGENT_REVIEW",
+        "RECENT_SCENE_REPLAY": "PENDING_AGENT_REVIEW",
+        "SETTING_RECITAL": "PENDING_AGENT_REVIEW",
+        "ACTIVE_CANON_USE": "PENDING_AGENT_REVIEW",
+        "CHARACTER_FIDELITY": "PENDING_AGENT_REVIEW",
+        "SCENE_ADVANCEMENT": "PENDING_AGENT_REVIEW",
+        "NEW_SCENE_VALUE": "PENDING_AGENT_REVIEW",
+        "COMPLETION": "PENDING_AGENT_REVIEW"
+      }
+    },
+    {
+      "cell_id": "Gemini_G6T1_A_D1",
+      "fixture": "G6T1",
+      "draw": 1,
+      "measures": [
+        "CURRENT_INPUT_REPLAY",
+        "SCENE_ADVANCEMENT",
+        "NEW_SCENE_VALUE",
+        "visible_chars"
+      ],
+      "visible_chars": 606,
+      "length_band": "DENSITY_COLLAPSE",
+      "dialogue_chars": 84,
+      "narration_chars": 522,
+      "dialogue_char_share": 0.1386,
+      "dialogue_share_band": "IDEAL",
+      "same_speaker_dialogue_fragments": 2,
+      "max_dialogue_block_chars": 42,
+      "max_consecutive_short_dialogue_run": 1,
+      "response_anchor": {
+        "response_anchor_count": 0,
+        "band": "IDEAL",
+        "samples": []
+      },
+      "dialogue_function_load": {
+        "dialogue_function_load": 2,
+        "functions": [
+          "warning",
+          "directive"
+        ]
+      },
+      "continuity": {
+        "current_input_lcs_chars": 5,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": true,
+        "recent_assistant_lcs_chars": 7,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 7,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": true,
+        "alarms": [
+          "CURRENT_INPUT_REPLAY_SIGNAL"
+        ]
+      },
+      "setting_exact_overlap": {
+        "longest_common_substring_chars": 9,
+        "matching_ngram_count": 0,
+        "source_overlap_span_count": 0,
+        "hits": [],
+        "alarm_18_plus": false
+      },
+      "hard_alarms": [
+        "DENSITY_COLLAPSE",
+        "CONTINUITY_REVIEW_REQUIRED",
+        "CURRENT_INPUT_REPLAY_SIGNAL"
+      ],
+      "review_flags": [
+        "SPEAKER_SPLIT_REVIEW_REQUIRED"
+      ],
+      "finish_reason": "stop",
+      "incomplete": false,
+      "latency_s": 16.154,
+      "provider": "Google",
+      "provider_generation_id": "gen-1786188199-XtAoKpJkrNyT2gIBORJp",
+      "input_tokens": 3818,
+      "output_tokens": 1802,
+      "reasoning_tokens": 1274,
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "messages_sha256": "7762181d1bc715ae09e32dd9c757171272e410ce1bb1e5b18297ace5d30672d6",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "top_p": null,
+        "max_tokens": null,
+        "seed": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "frequency_penalty": null,
+        "presence_penalty": null,
+        "provider": null
+      },
+      "human_pending": {
+        "CURRENT_INPUT_REPLAY": "PENDING_AGENT_REVIEW",
+        "INTRO_REPLAY": "PENDING_AGENT_REVIEW",
+        "RECENT_SCENE_REPLAY": "PENDING_AGENT_REVIEW",
+        "SETTING_RECITAL": "PENDING_AGENT_REVIEW",
+        "ACTIVE_CANON_USE": "PENDING_AGENT_REVIEW",
+        "CHARACTER_FIDELITY": "PENDING_AGENT_REVIEW",
+        "SCENE_ADVANCEMENT": "PENDING_AGENT_REVIEW",
+        "NEW_SCENE_VALUE": "PENDING_AGENT_REVIEW",
+        "COMPLETION": "PENDING_AGENT_REVIEW"
+      }
+    },
+    {
+      "cell_id": "Gemini_G6T1_A_D2",
+      "fixture": "G6T1",
+      "draw": 2,
+      "measures": [
+        "CURRENT_INPUT_REPLAY",
+        "SCENE_ADVANCEMENT",
+        "NEW_SCENE_VALUE",
+        "visible_chars"
+      ],
+      "visible_chars": 2699,
+      "length_band": "REVIEW_REQUIRED",
+      "dialogue_chars": 270,
+      "narration_chars": 2429,
+      "dialogue_char_share": 0.1,
+      "dialogue_share_band": "IDEAL",
+      "same_speaker_dialogue_fragments": 2,
+      "max_dialogue_block_chars": 87,
+      "max_consecutive_short_dialogue_run": 1,
+      "response_anchor": {
+        "response_anchor_count": 2,
+        "band": "ACCEPTABLE",
+        "samples": [
+          "비명이 들린다는 건, 이미 누군가 사냥당하고 있다는 뜻이다. 그리고 그 사냥꾼이 무엇인지조차 파악되지 않은 맹점에 제 발로 걸어 들어가는 건, ",
+          "놈이 완전히 지나갈 때까지 숨죽이고 대기한다. 만약 변덕을 부려 이쪽으로 꺾어 들어오면, 내가 먼저 시선을 끌 테니 너는 내 신호에 맞춰 주저 "
+        ]
+      },
+      "dialogue_function_load": {
+        "dialogue_function_load": 3,
+        "functions": [
+          "warning",
+          "relationship_claim",
+          "directive"
+        ]
+      },
+      "continuity": {
+        "current_input_lcs_chars": 9,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": true,
+        "recent_assistant_lcs_chars": 7,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 7,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": true,
+        "alarms": [
+          "CURRENT_INPUT_REPLAY_SIGNAL"
+        ]
+      },
+      "setting_exact_overlap": {
+        "longest_common_substring_chars": 9,
+        "matching_ngram_count": 0,
+        "source_overlap_span_count": 0,
+        "hits": [],
+        "alarm_18_plus": false
+      },
+      "hard_alarms": [
+        "CONTINUITY_REVIEW_REQUIRED",
+        "CURRENT_INPUT_REPLAY_SIGNAL"
+      ],
+      "review_flags": [
+        "SPEAKER_SPLIT_REVIEW_REQUIRED"
+      ],
+      "finish_reason": "stop",
+      "incomplete": false,
+      "latency_s": 76.32,
+      "provider": "Google AI Studio",
+      "provider_generation_id": "gen-1786188216-wxze2zXcyPkezKRec8Wh",
+      "input_tokens": 3822,
+      "output_tokens": 6379,
+      "reasoning_tokens": 4078,
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "messages_sha256": "7762181d1bc715ae09e32dd9c757171272e410ce1bb1e5b18297ace5d30672d6",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "top_p": null,
+        "max_tokens": null,
+        "seed": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "frequency_penalty": null,
+        "presence_penalty": null,
+        "provider": null
+      },
+      "human_pending": {
+        "CURRENT_INPUT_REPLAY": "PENDING_AGENT_REVIEW",
+        "INTRO_REPLAY": "PENDING_AGENT_REVIEW",
+        "RECENT_SCENE_REPLAY": "PENDING_AGENT_REVIEW",
+        "SETTING_RECITAL": "PENDING_AGENT_REVIEW",
+        "ACTIVE_CANON_USE": "PENDING_AGENT_REVIEW",
+        "CHARACTER_FIDELITY": "PENDING_AGENT_REVIEW",
+        "SCENE_ADVANCEMENT": "PENDING_AGENT_REVIEW",
+        "NEW_SCENE_VALUE": "PENDING_AGENT_REVIEW",
+        "COMPLETION": "PENDING_AGENT_REVIEW"
+      }
+    },
+    {
+      "cell_id": "Gemini_G6T1_A_D3",
+      "fixture": "G6T1",
+      "draw": 3,
+      "measures": [
+        "CURRENT_INPUT_REPLAY",
+        "SCENE_ADVANCEMENT",
+        "NEW_SCENE_VALUE",
+        "visible_chars"
+      ],
+      "visible_chars": 881,
+      "length_band": "DENSITY_COLLAPSE",
+      "dialogue_chars": 162,
+      "narration_chars": 719,
+      "dialogue_char_share": 0.1839,
+      "dialogue_share_band": "BELOW_IDEAL_OR_REVIEW",
+      "same_speaker_dialogue_fragments": 2,
+      "max_dialogue_block_chars": 72,
+      "max_consecutive_short_dialogue_run": 1,
+      "response_anchor": {
+        "response_anchor_count": 1,
+        "band": "IDEAL",
+        "samples": [
+          "저격수에게 가장 멍청한 짓이 제 위치를 굳이 노출하면서 사지로 걸어 들어가는 거다. 살고 싶다면 방금 그 생각은 머릿속에서 지워."
+        ]
+      },
+      "dialogue_function_load": {
+        "dialogue_function_load": 2,
+        "functions": [
+          "warning",
+          "directive"
+        ]
+      },
+      "continuity": {
+        "current_input_lcs_chars": 4,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": true,
+        "recent_assistant_lcs_chars": 5,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 5,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": true,
+        "alarms": [
+          "CURRENT_INPUT_REPLAY_SIGNAL"
+        ]
+      },
+      "setting_exact_overlap": {
+        "longest_common_substring_chars": 7,
+        "matching_ngram_count": 0,
+        "source_overlap_span_count": 0,
+        "hits": [],
+        "alarm_18_plus": false
+      },
+      "hard_alarms": [
+        "DENSITY_COLLAPSE",
+        "CONTINUITY_REVIEW_REQUIRED",
+        "CURRENT_INPUT_REPLAY_SIGNAL"
+      ],
+      "review_flags": [
+        "SPEAKER_SPLIT_REVIEW_REQUIRED"
+      ],
+      "finish_reason": "stop",
+      "incomplete": false,
+      "latency_s": 46.131,
+      "provider": "Google AI Studio",
+      "provider_generation_id": "gen-1786188292-x0R24O9lidD6LlQVbOMG",
+      "input_tokens": 3822,
+      "output_tokens": 3290,
+      "reasoning_tokens": 2530,
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "messages_sha256": "7762181d1bc715ae09e32dd9c757171272e410ce1bb1e5b18297ace5d30672d6",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "top_p": null,
+        "max_tokens": null,
+        "seed": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "frequency_penalty": null,
+        "presence_penalty": null,
+        "provider": null
+      },
+      "human_pending": {
+        "CURRENT_INPUT_REPLAY": "PENDING_AGENT_REVIEW",
+        "INTRO_REPLAY": "PENDING_AGENT_REVIEW",
+        "RECENT_SCENE_REPLAY": "PENDING_AGENT_REVIEW",
+        "SETTING_RECITAL": "PENDING_AGENT_REVIEW",
+        "ACTIVE_CANON_USE": "PENDING_AGENT_REVIEW",
+        "CHARACTER_FIDELITY": "PENDING_AGENT_REVIEW",
+        "SCENE_ADVANCEMENT": "PENDING_AGENT_REVIEW",
+        "NEW_SCENE_VALUE": "PENDING_AGENT_REVIEW",
+        "COMPLETION": "PENDING_AGENT_REVIEW"
+      }
+    },
+    {
+      "cell_id": "Gemini_G3_A_D1",
+      "fixture": "G3",
+      "draw": 1,
+      "measures": [
+        "ACTIVE_CANON_USE",
+        "CHARACTER_FIDELITY",
+        "SETTING_RECITAL",
+        "SCENE_ADVANCEMENT"
+      ],
+      "visible_chars": 1522,
+      "length_band": "DENSITY_COLLAPSE",
+      "dialogue_chars": 279,
+      "narration_chars": 1243,
+      "dialogue_char_share": 0.1833,
+      "dialogue_share_band": "BELOW_IDEAL_OR_REVIEW",
+      "same_speaker_dialogue_fragments": 2,
+      "max_dialogue_block_chars": 95,
+      "max_consecutive_short_dialogue_run": 1,
+      "response_anchor": {
+        "response_anchor_count": 2,
+        "band": "ACCEPTABLE",
+        "samples": [
+          "미쳤어?",
+          "여긴 네 호기심을 채워줄 놀이터가 아니야. 저 안개 속에 도사린 것들은 소리를 듣고 도망치는 짐승 따위가 아니다. 소음이 발생하는 순간, 반경 "
+        ]
+      },
+      "dialogue_function_load": {
+        "dialogue_function_load": 4,
+        "functions": [
+          "question",
+          "explanation",
+          "warning",
+          "directive"
+        ]
+      },
+      "continuity": {
+        "current_input_lcs_chars": 4,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 9,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 9,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "setting_exact_overlap": {
+        "longest_common_substring_chars": 13,
+        "matching_ngram_count": 2,
+        "source_overlap_span_count": 0,
+        "hits": [],
+        "alarm_18_plus": false
+      },
+      "hard_alarms": [
+        "DENSITY_COLLAPSE"
+      ],
+      "review_flags": [
+        "SPEAKER_SPLIT_REVIEW_REQUIRED"
+      ],
+      "finish_reason": "stop",
+      "incomplete": false,
+      "latency_s": 52.576,
+      "provider": "Google AI Studio",
+      "provider_generation_id": "gen-1786188338-DeapAIx0m0ATqcuZoRIM",
+      "input_tokens": 3820,
+      "output_tokens": 3591,
+      "reasoning_tokens": 2282,
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "messages_sha256": "834122ce41e65cb9c2d9f46218a899bf5182bc3daec345403bf3c1cc160151ad",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "top_p": null,
+        "max_tokens": null,
+        "seed": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "frequency_penalty": null,
+        "presence_penalty": null,
+        "provider": null
+      },
+      "human_pending": {
+        "CURRENT_INPUT_REPLAY": "PENDING_AGENT_REVIEW",
+        "INTRO_REPLAY": "PENDING_AGENT_REVIEW",
+        "RECENT_SCENE_REPLAY": "PENDING_AGENT_REVIEW",
+        "SETTING_RECITAL": "PENDING_AGENT_REVIEW",
+        "ACTIVE_CANON_USE": "PENDING_AGENT_REVIEW",
+        "CHARACTER_FIDELITY": "PENDING_AGENT_REVIEW",
+        "SCENE_ADVANCEMENT": "PENDING_AGENT_REVIEW",
+        "NEW_SCENE_VALUE": "PENDING_AGENT_REVIEW",
+        "COMPLETION": "PENDING_AGENT_REVIEW"
+      }
+    },
+    {
+      "cell_id": "Gemini_G3_A_D2",
+      "fixture": "G3",
+      "draw": 2,
+      "measures": [
+        "ACTIVE_CANON_USE",
+        "CHARACTER_FIDELITY",
+        "SETTING_RECITAL",
+        "SCENE_ADVANCEMENT"
+      ],
+      "visible_chars": 1659,
+      "length_band": "DENSITY_COLLAPSE",
+      "dialogue_chars": 255,
+      "narration_chars": 1404,
+      "dialogue_char_share": 0.1537,
+      "dialogue_share_band": "ACCEPTABLE",
+      "same_speaker_dialogue_fragments": 4,
+      "max_dialogue_block_chars": 131,
+      "max_consecutive_short_dialogue_run": 1,
+      "response_anchor": {
+        "response_anchor_count": 2,
+        "band": "ACCEPTABLE",
+        "samples": [
+          "네가 방금 쏘려고 했던 그 한 발이 무슨 결과를 가져올지 설명해 주지.",
+          "총성이 울리는 순간, 저 셔터 뒤에 있는 놈 하나가 아니라 반경 3킬로미터 안에 있는 마더의 군체들이 전부 이쪽으로 쏟아져 들어올 거다. 놈들은"
+        ]
+      },
+      "dialogue_function_load": {
+        "dialogue_function_load": 4,
+        "functions": [
+          "explanation",
+          "warning",
+          "relationship_claim",
+          "directive"
+        ]
+      },
+      "continuity": {
+        "current_input_lcs_chars": 5,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 10,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 10,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "setting_exact_overlap": {
+        "longest_common_substring_chars": 10,
+        "matching_ngram_count": 0,
+        "source_overlap_span_count": 0,
+        "hits": [],
+        "alarm_18_plus": false
+      },
+      "hard_alarms": [
+        "DENSITY_COLLAPSE"
+      ],
+      "review_flags": [
+        "SPEAKER_SPLIT_REVIEW_REQUIRED"
+      ],
+      "finish_reason": "stop",
+      "incomplete": false,
+      "latency_s": 53.975,
+      "provider": "Google AI Studio",
+      "provider_generation_id": "gen-1786188391-roaEasAqCwYndiYeFvsR",
+      "input_tokens": 3820,
+      "output_tokens": 4318,
+      "reasoning_tokens": 2872,
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "messages_sha256": "834122ce41e65cb9c2d9f46218a899bf5182bc3daec345403bf3c1cc160151ad",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "top_p": null,
+        "max_tokens": null,
+        "seed": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "frequency_penalty": null,
+        "presence_penalty": null,
+        "provider": null
+      },
+      "human_pending": {
+        "CURRENT_INPUT_REPLAY": "PENDING_AGENT_REVIEW",
+        "INTRO_REPLAY": "PENDING_AGENT_REVIEW",
+        "RECENT_SCENE_REPLAY": "PENDING_AGENT_REVIEW",
+        "SETTING_RECITAL": "PENDING_AGENT_REVIEW",
+        "ACTIVE_CANON_USE": "PENDING_AGENT_REVIEW",
+        "CHARACTER_FIDELITY": "PENDING_AGENT_REVIEW",
+        "SCENE_ADVANCEMENT": "PENDING_AGENT_REVIEW",
+        "NEW_SCENE_VALUE": "PENDING_AGENT_REVIEW",
+        "COMPLETION": "PENDING_AGENT_REVIEW"
+      }
+    },
+    {
+      "cell_id": "Gemini_G3_A_D3",
+      "fixture": "G3",
+      "draw": 3,
+      "measures": [
+        "ACTIVE_CANON_USE",
+        "CHARACTER_FIDELITY",
+        "SETTING_RECITAL",
+        "SCENE_ADVANCEMENT"
+      ],
+      "visible_chars": 2201,
+      "length_band": "STRONG_LENGTH_REGRESSION",
+      "dialogue_chars": 370,
+      "narration_chars": 1831,
+      "dialogue_char_share": 0.1681,
+      "dialogue_share_band": "ACCEPTABLE",
+      "same_speaker_dialogue_fragments": 0,
+      "max_dialogue_block_chars": 126,
+      "max_consecutive_short_dialogue_run": 1,
+      "response_anchor": {
+        "response_anchor_count": 4,
+        "band": "RESPONSE_OVERLOAD",
+        "samples": [
+          "미쳤어?",
+          "저게 뒷골목 똥개나 비둘기 떼인 줄 알아? 총소리에 놀라서 흩어지게?",
+          "이 안개 속에 있는 것들은 마더의 군체 의식에 연결되어 있어. 시각이나 통각보다 진동과 소음에 미친 듯이 반응한다고. 네가 여기서 그 멍청한 방",
+          "친절하게 상황을 설명해 주는 건 이번이 마지막이다."
+        ]
+      },
+      "dialogue_function_load": {
+        "dialogue_function_load": 5,
+        "functions": [
+          "question",
+          "explanation",
+          "warning",
+          "relationship_claim",
+          "directive"
+        ]
+      },
+      "continuity": {
+        "current_input_lcs_chars": 4,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 6,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 6,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "setting_exact_overlap": {
+        "longest_common_substring_chars": 9,
+        "matching_ngram_count": 0,
+        "source_overlap_span_count": 0,
+        "hits": [],
+        "alarm_18_plus": false
+      },
+      "hard_alarms": [],
+      "review_flags": [
+        "SPEAKER_SPLIT_REVIEW_REQUIRED"
+      ],
+      "finish_reason": "stop",
+      "incomplete": false,
+      "latency_s": 30.439,
+      "provider": "Google",
+      "provider_generation_id": "gen-1786188445-J6VcB3PBcIeO3SK7hG7V",
+      "input_tokens": 3816,
+      "output_tokens": 3124,
+      "reasoning_tokens": 1219,
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "messages_sha256": "834122ce41e65cb9c2d9f46218a899bf5182bc3daec345403bf3c1cc160151ad",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "top_p": null,
+        "max_tokens": null,
+        "seed": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "frequency_penalty": null,
+        "presence_penalty": null,
+        "provider": null
+      },
+      "human_pending": {
+        "CURRENT_INPUT_REPLAY": "PENDING_AGENT_REVIEW",
+        "INTRO_REPLAY": "PENDING_AGENT_REVIEW",
+        "RECENT_SCENE_REPLAY": "PENDING_AGENT_REVIEW",
+        "SETTING_RECITAL": "PENDING_AGENT_REVIEW",
+        "ACTIVE_CANON_USE": "PENDING_AGENT_REVIEW",
+        "CHARACTER_FIDELITY": "PENDING_AGENT_REVIEW",
+        "SCENE_ADVANCEMENT": "PENDING_AGENT_REVIEW",
+        "NEW_SCENE_VALUE": "PENDING_AGENT_REVIEW",
+        "COMPLETION": "PENDING_AGENT_REVIEW"
+      }
+    }
+  ]
+}

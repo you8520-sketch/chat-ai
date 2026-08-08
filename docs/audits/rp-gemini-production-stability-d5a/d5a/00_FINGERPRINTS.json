@@ -1,0 +1,65 @@
+{
+  "fingerprint_byte_identical_ok": true,
+  "cells": [
+    {
+      "fixture": "G5",
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "messages_sha256": "1c218ac9cad20e905aaf2dcb31d63edae7427fdaa6437e8acb38b3af0bfdbbc6",
+      "user_tail_sha256": "c2829f3e9bad018eb12261750fde550c7f88d15e6b3351994354c302caedc95a",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "top_p": null,
+        "max_tokens": null,
+        "seed": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "frequency_penalty": null,
+        "presence_penalty": null,
+        "provider": null
+      }
+    },
+    {
+      "fixture": "G6T1",
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "messages_sha256": "7762181d1bc715ae09e32dd9c757171272e410ce1bb1e5b18297ace5d30672d6",
+      "user_tail_sha256": "5da99c515e0dcc6c86854f65c595c0dcf038578670b154deb8bc35ea44631443",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "top_p": null,
+        "max_tokens": null,
+        "seed": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "frequency_penalty": null,
+        "presence_penalty": null,
+        "provider": null
+      }
+    },
+    {
+      "fixture": "G3",
+      "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+      "messages_sha256": "834122ce41e65cb9c2d9f46218a899bf5182bc3daec345403bf3c1cc160151ad",
+      "user_tail_sha256": "2adaefdf29d0184cc4e5575815b3865fbc8c28a39f1ccc085ef05dd21306998b",
+      "generation_config": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "top_p": null,
+        "max_tokens": null,
+        "seed": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "frequency_penalty": null,
+        "presence_penalty": null,
+        "provider": null
+      }
+    }
+  ]
+}
