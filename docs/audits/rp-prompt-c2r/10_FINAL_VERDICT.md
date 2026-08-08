@@ -4,7 +4,7 @@
 STEP_C2R_STATUS:
 baseline main: 8fbecbf
 branch: cursor/rp-prose-micro-ablation-c2r-6a91
-commit: 8f0470c1bf5e07f28f2c9f20b5e519d0793f56cd
+commit: 953a7bcc8eb9901a248cb86da1de9464b855e7b6
 draft PR: https://github.com/you8520-sketch/chat-ai/pull/274
 A tokens: 1474 (prose body) / NSFW-ON guidelines 1709
 M1 tokens: 1467 / 1702
