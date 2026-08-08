@@ -1,0 +1,52 @@
+{
+  "route_PATCH_variant_canary": "PASS",
+  "route_LLM_calls": 0,
+  "point_mutations": 0,
+  "patchSequence": [
+    {
+      "variantIndex": 1,
+      "http": 200,
+      "revision": 6,
+      "selectionEventId": 24,
+      "content": "B prose",
+      "affection": 38
+    },
+    {
+      "variantIndex": 0,
+      "http": 200,
+      "revision": 7,
+      "selectionEventId": 25,
+      "content": "A prose",
+      "affection": 35
+    },
+    {
+      "variantIndex": 2,
+      "http": 200,
+      "revision": 8,
+      "selectionEventId": 26,
+      "content": "C prose",
+      "affection": 32
+    },
+    {
+      "variantIndex": 1,
+      "http": 200,
+      "revision": 9,
+      "selectionEventId": 27,
+      "content": "B prose",
+      "affection": 38
+    }
+  ],
+  "activeTriggersAfterFinalB": 0,
+  "frontierMoved": {
+    "http": 409,
+    "code": "variant_switch_frontier_moved",
+    "numericUnchanged": true
+  },
+  "selectThenDelete": {
+    "http": 200,
+    "numericCurrent": 30,
+    "leftoverEvents": 0
+  },
+  "characterId": 910924,
+  "chatId": 910922
+}
