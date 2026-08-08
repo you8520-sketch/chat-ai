@@ -4,7 +4,7 @@
 PHASE_D7A_FINAL:
 baseline main: 7f0c54b60e7ace11bc6e4eea9c820caadde24853
 branch: cursor/rp-gemini-selective-repair-d7a-96c2
-commit: (evidence seal; see git tip)
+commit: 5389cb629c612949a1d1b4a36735352723cf9469
 draft PR: https://github.com/you8520-sketch/chat-ai/pull/287
 primary production changes: 0
 new primary calls: 0
