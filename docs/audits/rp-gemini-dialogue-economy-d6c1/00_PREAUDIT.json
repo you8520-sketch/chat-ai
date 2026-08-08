@@ -1,0 +1,193 @@
+{
+  "phase": "D6-C1-PREAUDIT",
+  "api_calls": 0,
+  "sole_variable": "IMMERSIVE_PROSE_DIALOGUE_SEMANTIC_OWNER",
+  "new_system_sections": 0,
+  "new_negative_directives": 0,
+  "dialogue_percentage_prompt": "NONE",
+  "production_owner_sha256": "bf655b4ff535e0083f07fb31171f528616e1f7e22f5a65b0e63fce8747b9961a",
+  "candidate_owner_sha256": "23ce147dab994233532871ad89c6252efe86e851d9130b728840856732c940d5",
+  "immersive_contains_production_owner": true,
+  "arm_A": {
+    "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+    "user_tail_sha256": "2adaefdf29d0184cc4e5575815b3865fbc8c28a39f1ccc085ef05dd21306998b",
+    "history_sha256": "884bac15f837b3f02bce989b136a89457b0612993f964eb19114a3557de988c3",
+    "system_chars": 6568,
+    "system_tokens_approx": 3284,
+    "has_production_owner": true,
+    "has_candidate_owner": false,
+    "replaced": false,
+    "section_headers": [
+      "CANON / SCOPE / KNOWLEDGE",
+      "CORE RP",
+      "B",
+      "CHARACTER KNOWLEDGE BOUNDARY",
+      "A",
+      "OUTPUT LANG",
+      "USER CONTROL — COLLABORATIVE INTERACTIVE",
+      "B",
+      "A",
+      "CHARACTER CANON — 에녹 MAY KNOW & ROLEPLAY",
+      "EXAMPLE DIALOG — STYLE ONLY",
+      "이름",
+      "정체성",
+      "예시 대화",
+      "IDENTITY_AND_RULES",
+      "USER_PERSONA",
+      "WEBNOVEL OUTPUT FORMAT",
+      "NARRATION REGISTER",
+      "SCENE FLOW",
+      "RHYTHM",
+      "SENSATION",
+      "IMMERSIVE PROSE",
+      "WEBNOVEL BREATH",
+      "PRIVATE OUTPUT HYGIENE",
+      "NO STAGE DIRECTIONS",
+      "SPEECH METADATA — INVISIBLE INSTRUCTIONS",
+      "OUTPUT LAYOUT",
+      "SEMANTIC PARAGRAPHING",
+      "DIALOGUE & NARRATION",
+      "USER PERSONA REFERENCE OWNER — CURRENT TURN",
+      "B",
+      "NARRATIVE POV OWNER: THIRD PERSON",
+      "CURRENT RESPONSE POV SWITCH — ABSOLUTE"
+    ],
+    "generation_config": {
+      "model": "google/gemini-3.1-pro-preview",
+      "temperature": 0.95,
+      "top_p": null,
+      "max_tokens": null,
+      "seed": null,
+      "reasoning": {
+        "effort": "low"
+      },
+      "include_reasoning": false,
+      "frequency_penalty": null,
+      "presence_penalty": null,
+      "provider": null
+    }
+  },
+  "arm_B": {
+    "system_sha256": "a82d40630b0a24a8e849c8f483d44e4ac42a9b973e7cf9a7a906b5ccde730e84",
+    "user_tail_sha256": "2adaefdf29d0184cc4e5575815b3865fbc8c28a39f1ccc085ef05dd21306998b",
+    "history_sha256": "884bac15f837b3f02bce989b136a89457b0612993f964eb19114a3557de988c3",
+    "system_chars": 6613,
+    "system_tokens_approx": 3307,
+    "has_production_owner": false,
+    "has_candidate_owner": true,
+    "replaced": true,
+    "replace_count": 1,
+    "section_headers": [
+      "CANON / SCOPE / KNOWLEDGE",
+      "CORE RP",
+      "B",
+      "CHARACTER KNOWLEDGE BOUNDARY",
+      "A",
+      "OUTPUT LANG",
+      "USER CONTROL — COLLABORATIVE INTERACTIVE",
+      "B",
+      "A",
+      "CHARACTER CANON — 에녹 MAY KNOW & ROLEPLAY",
+      "EXAMPLE DIALOG — STYLE ONLY",
+      "이름",
+      "정체성",
+      "예시 대화",
+      "IDENTITY_AND_RULES",
+      "USER_PERSONA",
+      "WEBNOVEL OUTPUT FORMAT",
+      "NARRATION REGISTER",
+      "SCENE FLOW",
+      "RHYTHM",
+      "SENSATION",
+      "IMMERSIVE PROSE",
+      "WEBNOVEL BREATH",
+      "PRIVATE OUTPUT HYGIENE",
+      "NO STAGE DIRECTIONS",
+      "SPEECH METADATA — INVISIBLE INSTRUCTIONS",
+      "OUTPUT LAYOUT",
+      "SEMANTIC PARAGRAPHING",
+      "DIALOGUE & NARRATION",
+      "USER PERSONA REFERENCE OWNER — CURRENT TURN",
+      "B",
+      "NARRATIVE POV OWNER: THIRD PERSON",
+      "CURRENT RESPONSE POV SWITCH — ABSOLUTE"
+    ],
+    "generation_config": {
+      "model": "google/gemini-3.1-pro-preview",
+      "temperature": 0.95,
+      "top_p": null,
+      "max_tokens": null,
+      "seed": null,
+      "reasoning": {
+        "effort": "low"
+      },
+      "include_reasoning": false,
+      "frequency_penalty": null,
+      "presence_penalty": null,
+      "provider": null
+    }
+  },
+  "invariants": {
+    "system_sha_A_ne_B": true,
+    "section_order_equal": true,
+    "system_token_delta_approx": 23,
+    "system_token_delta_within_pm30": true,
+    "owner_token_delta_budget": 40,
+    "history_byte_identical": true,
+    "user_tail_byte_identical": true,
+    "runtime_byte_identical": true,
+    "B_replaced_exactly_once": true,
+    "A_unchanged_production": true,
+    "B_candidate_only": true
+  },
+  "guard_preservation": {
+    "character_voice": {
+      "production": "실제로 할 법한 말",
+      "candidate": "하나의 중심 의도를 자연스러운 발화로 표현",
+      "preserved": true
+    },
+    "relationship_consistency": {
+      "production": "성격·관계가 말의 내용·생략·농담·망설임·충돌에 드러남",
+      "candidate": "성격과 관계는 말의 선택·생략·농담·망설임·충돌에 드러남",
+      "preserved": true
+    },
+    "canon_based_affection": {
+      "production": "관심·호감은 정본·성격·누적 상호작용을 따름 (+ 첫 만남 예외)",
+      "candidate": "관심·호감과 관계 변화는 정본·성격·누적 상호작용의 결과",
+      "preserved": true,
+      "note": "Explicit first-meeting/deja-vu exception clause compressed into canon/interaction result; no new affection pressure."
+    },
+    "neutral_distant_allowed": {
+      "production": "관계는 중립·거리·경계도 포함",
+      "candidate": "중립·거리·경계도 자연스러운 관계 상태",
+      "preserved": true
+    },
+    "silence_action_allowed": {
+      "production": "침묵·본업·퇴장도 자연스럽다",
+      "candidate": "침묵·본업·퇴장·행동으로도 존재감을 이어간다",
+      "preserved": true
+    },
+    "setting_briefing_suppression": {
+      "production": "설정 브리핑으로 만들지 않는다",
+      "candidate": "설정 정보와 감정은 … 판단·행동·표정·시선·거리·환경 반응에 흡수",
+      "preserved": true
+    },
+    "new_system_sections": 0,
+    "new_negative_directives": 0,
+    "dialogue_percentage_prompt": "NONE",
+    "paragraph_count": 1
+  },
+  "budget": {
+    "production_owner": "대사는 이 캐릭터가 지금 이 상대에게 실제로 할 법한 말이어야 한다. 성격·관계가 말의 내용·생략·농담·망설임·충돌에 드러나게 하고 설정 브리핑으로 만들지 않는다. 붙잡으려 질문을 발명하지 말고, 이유가 없으면 침묵·본업·퇴장도 자연스럽다. 관심·호감은 정본·성격·누적 상호작용을 따르며 이유 없는 첫 만남 특별취급·기시감을 만들지 않는다(정본·친화 성격·사건 근거·명시 인연 예외). 관계는 중립·거리·경계도 포함한다.",
+    "candidate_owner": "대사는 이 캐릭터가 지금 상대에게 건넬 하나의 중심 의도를 자연스러운 발화로 표현한다. 성격과 관계는 말의 선택·생략·농담·망설임·충돌에 드러나고, 설정 정보와 감정은 현재 판단·행동·표정·시선·거리·환경 반응에 흡수되어 장면 전체에서 드러난다. 질문·제안·경고가 필요하면 그 중심 의도 안에서 하나의 반응 지점을 만든다. 인물은 말뿐 아니라 침묵·본업·퇴장·행동으로도 존재감을 이어간다. 관심·호감과 관계 변화는 정본·성격·누적 상호작용의 결과로 나타나며, 중립·거리·경계도 자연스러운 관계 상태다.",
+    "production_chars": 235,
+    "candidate_chars": 280,
+    "production_tokens": 212,
+    "candidate_tokens": 252,
+    "owner_token_delta": 40,
+    "candidate_new_negative_count": 0,
+    "new_section_count": 0,
+    "dialogue_percentage_prompt": "NONE"
+  },
+  "LIVE_CALL_READY": true
+}
