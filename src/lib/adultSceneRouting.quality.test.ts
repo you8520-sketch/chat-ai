@@ -7,6 +7,7 @@ import {
   DEFAULT_MODEL_ROUTE_STATE,
   classifySceneMode,
   decideAdultModelRoute,
+  extractHandoffContinuityFromAssistantText,
   resolveAdultEligibility,
   resolveAdultRoutingConfig,
   type ModelRouteState,
@@ -42,10 +43,11 @@ const config = resolveAdultRoutingConfig({
 assert.equal(
   resolveAdultRoutingConfig({}).enabled,
   true,
-  "adult-scene routing must default on for the approved general rollout"
+  "adult-scene routing master switch defaults on; general-user gate stays separate"
 );
 const eligibility = resolveAdultEligibility({
   userAdultVerified: true,
+  adultContentVisibilityEnabled: true,
   characterAdultContentEnabled: true,
   participants: [{ age: 28, isAdult: true }],
 });
@@ -178,4 +180,90 @@ it("routes general → adult entry → sticky adult → explicit exit back to ge
         classification.oocStop || classification.clearSceneTransition,
     });
   });
+});
+
+it("extracts actor/target contact direction to block handoff inversion", () => {
+  const extracted = extractHandoffContinuityFromAssistantText({
+    text: "호텔 침실에서 라이크가 렌의 허리를 감싸 안았다. 「괜찮아?」",
+    characterName: "라이크",
+    personaName: "렌",
+  });
+  assert.equal(extracted.previousActionActor, "라이크");
+  assert.equal(extracted.previousActionTarget, "렌");
+  assert.match(extracted.contactDirection ?? "", /라이크 → 렌/);
+  assert.ok(extracted.location);
+  assert.equal(extracted.currentSpeechState, "괜찮아?");
+});
+
+it("uses user-stated waist wrap as character→persona contact direction", () => {
+  const extracted = extractHandoffContinuityFromAssistantText({
+    text: "호텔 거실 조명이 낮았다.",
+    characterName: "밤의 비서실장",
+    personaName: "렌",
+    currentUserText: "내 허리를 감싼 손길을 느끼며 더 가까이 간다.",
+  });
+  assert.equal(extracted.previousActionTarget, "렌");
+  assert.ok(extracted.previousActionActor);
+  assert.match(extracted.contactDirection ?? "", /→ 렌 contact/);
+});
+
+it("CLOSED_ADULT_TEST_MODE: adult visibility OFF disables handoff without hard-blocking", () => {
+  const off = resolveAdultEligibility({
+    userAdultVerified: true,
+    adultContentVisibilityEnabled: false,
+    characterAdultContentEnabled: true,
+    participants: [{ age: 28, isAdult: true }],
+  });
+  assert.equal(off.eligible, false);
+  assert.equal(off.allowedByAdultContentPolicy, true);
+  assert.equal(off.blockReason, "adult_visibility_off");
+
+  const classification = classifySceneMode({
+    currentInput: "합의된 노골적인 성적 대사를 이어간다.",
+    previousSceneMode: "romantic",
+    recentRawText: "모든 등장인물은 25세 이상 가상 성인이며 합의 모드가 확인됐다.",
+    adultDialogueProfile: "auto",
+    activeConsentMode: "standard",
+  });
+  const decision = decideAdultModelRoute({
+    config,
+    state: DEFAULT_MODEL_ROUTE_STATE,
+    classification,
+    eligibility: off,
+    adultDialogueProfile: "auto",
+    selectedModelId: "gpt-5.6-terra",
+  });
+  assert.equal(decision.activeRoute, "general");
+  assert.equal(decision.shouldBlock, false);
+});
+
+it("CLOSED_ADULT_TEST_MODE: visibility OFF breaks sticky adult handoff", () => {
+  const off = resolveAdultEligibility({
+    userAdultVerified: true,
+    adultContentVisibilityEnabled: false,
+    characterAdultContentEnabled: true,
+    participants: [{ age: 28, isAdult: true }],
+  });
+  const classification = classifySceneMode({
+    currentInput: "합의된 현재 성인 장면을 같은 위치에서 계속한다.",
+    previousSceneMode: "explicit",
+    recentRawText: "합의된 성인 장면이 진행 중이다.",
+    adultDialogueProfile: "auto",
+    activeConsentMode: "standard",
+  });
+  const decision = decideAdultModelRoute({
+    config,
+    state: {
+      ...DEFAULT_MODEL_ROUTE_STATE,
+      activeRoute: "adult",
+      currentSceneMode: "explicit",
+      sexualContextActive: true,
+    },
+    classification,
+    eligibility: off,
+    adultDialogueProfile: "auto",
+    selectedModelId: "gpt-5.6-terra",
+  });
+  assert.equal(decision.activeRoute, "general");
+  assert.equal(decision.shouldBlock, false);
 });

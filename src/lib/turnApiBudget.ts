@@ -38,7 +38,7 @@ export const MAX_TURN_SUB_API_CALLS = TURN_LENGTH_SUPPLEMENT_API_ENABLED
 const LENGTH_SUPPLEMENT_REQUEST_KIND =
   /continuation|truncation-recovery|under-length|length-recovery|narrative-length/i;
 const MODEL_FAILURE_FALLBACK_REQUEST_KIND =
-  /^adult-(?:general-refusal|aion-hard-failure)-fallback$/i;
+  /^adult-(?:general-refusal|(?:aion-)?hard-failure)-fallback$/i;
 const RP_META_LEAK_REGEN_REQUEST_KIND = /^rp-meta-leak-regen$/i;
 
 /** 분량 보강·복구 sub-call requestKind — TURN_LENGTH_SUPPLEMENT_API_ENABLED=false면 금지 */

@@ -1,0 +1,77 @@
+{
+  "status": "CLOSED_ADULT_TEST_ELIGIBILITY_SMOKE_PASS",
+  "FINAL_ADULT_MODEL": "deepseek-v4-pro",
+  "ADULT_VISIBILITY_ON_RESULT": "eligible — DeepSeek used on adult entry/sticky",
+  "ADULT_VISIBILITY_OFF_RESULT": "ineligible — DeepSeek adult handoff NOT USED",
+  "ON_ROUTE_SMOKE": [
+    {
+      "stage": "ON_T1_GENERAL",
+      "message": "*호텔 스위트 거실, 소파 앞.* 오늘 일정부터 짧게 정리해 줄래?",
+      "expect": "general",
+      "httpStatus": 200,
+      "chatId": 25,
+      "messageId": 135,
+      "model": "gpt-5.6-terra",
+      "activeRoute": "general",
+      "strictPass": true
+    },
+    {
+      "stage": "ON_T2_ADULT_ENTRY",
+      "message": "*침실로 들어가 성인 장면으로 이어간다.* 합의된 노골적인 성적 대사를 이어간다. 옷을 벗기며 더 가까이 몸을 밀착한다.",
+      "expect": "adult",
+      "httpStatus": 200,
+      "chatId": 25,
+      "messageId": 137,
+      "model": "deepseek-v4-pro",
+      "activeRoute": "adult",
+      "strictPass": true
+    },
+    {
+      "stage": "ON_T3_ADULT_STICKY",
+      "message": "*성인 장면을 유지한다.* 합의된 현재 성인 장면을 같은 위치에서 계속한다.",
+      "expect": "adult",
+      "httpStatus": 200,
+      "chatId": 25,
+      "messageId": 139,
+      "model": "deepseek-v4-pro",
+      "activeRoute": "adult",
+      "strictPass": true
+    },
+    {
+      "stage": "ON_T4_EXIT",
+      "message": "OOC: 성인 장면 종료. 다음 날 아침 일반 장면으로 전환한다.",
+      "expect": "general",
+      "httpStatus": 200,
+      "chatId": 25,
+      "messageId": 141,
+      "model": "gpt-5.6-terra",
+      "activeRoute": "general",
+      "strictPass": true
+    }
+  ],
+  "OFF_ROUTE_SMOKE": [
+    {
+      "stage": "OFF_T1_GENERAL",
+      "message": "*호텔 스위트 거실, 소파 앞.* 오늘 일정부터 짧게 정리해 줄래?",
+      "httpStatus": 200,
+      "chatId": 26,
+      "messageId": 144,
+      "model": "gpt-5.6-terra",
+      "activeRoute": "general",
+      "handoffUsed": false
+    },
+    {
+      "stage": "OFF_T2_ADULT_PROBE",
+      "message": "*침실로 들어가 성인 장면으로 이어간다.* 합의된 노골적인 성적 대사를 이어간다. 옷을 벗기며 더 가까이 몸을 밀착한다.",
+      "httpStatus": 200,
+      "chatId": 26,
+      "messageId": 146,
+      "model": "gpt-5.6-terra",
+      "activeRoute": "general",
+      "handoffUsed": false
+    }
+  ],
+  "userId": 9,
+  "onChatId": 25,
+  "offChatId": 26
+}
