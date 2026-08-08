@@ -125,3 +125,10 @@ export type {
   AtomicNumericAssistantFinalizeResult,
   AtomicNumericFieldCommit,
 } from "./canonicalFinalize";
+
+export { evaluateNumericRegenChainReadiness } from "./regenChainGate";
+
+export type {
+  NumericRegenChainGateCode,
+  NumericRegenChainReadiness,
+} from "./regenChainGate";

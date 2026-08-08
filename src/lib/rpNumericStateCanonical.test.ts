@@ -21,10 +21,12 @@ import {
   commitNumericStateReplacementCore,
   deleteNumericStateForChat,
   ensureRpNumericStateTables,
+  evaluateNumericRegenChainReadiness,
   executeAtomicNumericAssistantFinalize,
   getNumericStateCurrent,
   getNumericStateEventById,
   listCanonicalEligibleNumericFields,
+  numericCanonicalFieldsChanged,
   resolveNumericCanonicalEligibility,
 } from "@/lib/rpNumericState";
 
@@ -914,5 +916,237 @@ describe("Phase B1-C — atomic finalize (NC1-NC47)", () => {
     });
     const begins = sql.filter((s) => /BEGIN/i.test(s));
     assert.equal(begins.length, 1, "exactly one outer BEGIN for atomic finalize");
+  });
+
+  it("B1-C.1 legacy first-regen: not_bootstrapped when numeric current absent", () => {
+    const db = makeDb();
+    // Legacy chat: assistant tip with status only — no numeric tables rows.
+    db.prepare(
+      `INSERT INTO messages (id, chat_id, role, content, model, generation_status, status_widget_values_json)
+       VALUES (10, 1, 'assistant', 'legacy tip', 'test', 'completed', ?)`
+    ).run(JSON.stringify({ character: { affection: "38" } }));
+    const fields = listCanonicalEligibleNumericFields(meterWidget(["affection"]));
+    const gate = evaluateNumericRegenChainReadiness({
+      db,
+      chatId: 1,
+      regenerateMessageId: 10,
+      fields,
+    });
+    assert.equal(gate.ok, false);
+    if (!gate.ok) {
+      assert.equal(gate.code, "numeric_state_regen_not_bootstrapped");
+    }
+    assert.equal(getNumericStateCurrent(db, 1, "affection"), null);
+    assert.equal(countEvents(db), 0);
+  });
+
+  it("B1-C.1 regen chain_not_ready when last_source_message_id mismatches tip", () => {
+    const db = makeDb();
+    insertGeneratingAssistant(db, 50);
+    executeAtomicNumericAssistantFinalize(db, {
+      assistantMessageId: 50,
+      chatId: 1,
+      characterId: 7,
+      content: "A",
+      model: "test",
+      usageJson: "{}",
+      variants: [
+        {
+          content: "A",
+          model: "test",
+          usage: null,
+          created_at: "",
+          statusWidgetValues: { character: { affection: "38" } },
+        },
+      ],
+      activeVariant: 0,
+      statusWidgetValues: { character: { affection: "38" } },
+      characterWidget: meterWidget(["affection"]),
+      previousCanonicalStatus: { character: { affection: "35" } },
+      generationSequence: 0,
+      isRegeneration: false,
+      requestId: "r1",
+      sourceTurn: 1,
+    });
+    assert.equal(getNumericStateCurrent(db, 1, "affection")?.lastSourceMessageId, 50);
+    // Simulate requesting regen of a different tip id while current still points at 50.
+    const gate = evaluateNumericRegenChainReadiness({
+      db,
+      chatId: 1,
+      regenerateMessageId: 99,
+      fields: listCanonicalEligibleNumericFields(meterWidget(["affection"])),
+    });
+    assert.equal(gate.ok, false);
+    if (!gate.ok) {
+      assert.equal(gate.code, "numeric_state_regen_chain_not_ready");
+    }
+  });
+
+  it("B1-C.1 after normal numeric turn, latest regen chain gate allows + replacement baseline", () => {
+    const db = makeDb();
+    insertGeneratingAssistant(db, 50);
+    const widget = meterWidget(["affection"]);
+    executeAtomicNumericAssistantFinalize(db, {
+      assistantMessageId: 50,
+      chatId: 1,
+      characterId: 7,
+      content: "A",
+      model: "test",
+      usageJson: "{}",
+      variants: [
+        {
+          content: "A",
+          model: "test",
+          usage: null,
+          created_at: "",
+          statusWidgetValues: { character: { affection: "38" } },
+        },
+      ],
+      activeVariant: 0,
+      statusWidgetValues: { character: { affection: "38" } },
+      characterWidget: widget,
+      previousCanonicalStatus: { character: { affection: "35" } },
+      generationSequence: 0,
+      isRegeneration: false,
+      requestId: "r1",
+      sourceTurn: 1,
+    });
+    const gate = evaluateNumericRegenChainReadiness({
+      db,
+      chatId: 1,
+      regenerateMessageId: 50,
+      fields: listCanonicalEligibleNumericFields(widget),
+    });
+    assert.equal(gate.ok, true);
+    const aEvent = getNumericStateCurrent(db, 1, "affection")!.lastEventId!;
+    db.prepare(
+      `UPDATE messages SET generation_status='generating', content='', alternates='[]' WHERE id=50`
+    ).run();
+    const regen = executeAtomicNumericAssistantFinalize(db, {
+      assistantMessageId: 50,
+      chatId: 1,
+      characterId: 7,
+      content: "B",
+      model: "test",
+      usageJson: "{}",
+      variants: [
+        {
+          content: "A",
+          model: "test",
+          usage: null,
+          created_at: "",
+          statusWidgetValues: { character: { affection: "38" } },
+        },
+        {
+          content: "B",
+          model: "test",
+          usage: null,
+          created_at: "",
+          statusWidgetValues: { character: { affection: "36" } },
+        },
+      ],
+      activeVariant: 1,
+      statusWidgetValues: { character: { affection: "36" } },
+      characterWidget: widget,
+      previousCanonicalStatus: { character: { affection: "35" } },
+      generationSequence: 1,
+      isRegeneration: true,
+      requestId: "r2",
+      sourceTurn: 1,
+    });
+    assert.equal(regen.statusWidgetValues?.character?.affection, "36");
+    const bEvent = getNumericStateEventById(
+      db,
+      getNumericStateCurrent(db, 1, "affection")!.lastEventId!
+    )!;
+    assert.equal(bEvent.beforeValue, 35);
+    assert.equal(bEvent.replacesEventId, aEvent);
+  });
+
+  it("B1-C.1 INVALID_HOLD does not resurrect stale nonnumeric location from previous snapshot", () => {
+    const db = makeDb();
+    insertGeneratingAssistant(db, 50);
+    const widget: StatusWidget = {
+      version: 1,
+      name: "mixed",
+      htmlTemplate: "{{affection}} {{location}}",
+      placement: "bottom",
+      fields: [
+        {
+          id: "affection",
+          label: "affection",
+          instruction: "affection",
+          numericState: { ...def, initial: 40 },
+        },
+        {
+          id: "location",
+          label: "location",
+          instruction: "location",
+        },
+      ],
+    };
+    // Extractor returns null/missing affection proposal and omits location entirely.
+    const result = executeAtomicNumericAssistantFinalize(db, {
+      assistantMessageId: 50,
+      chatId: 1,
+      characterId: 7,
+      content: "본문",
+      model: "test",
+      usageJson: "{}",
+      variants: [
+        {
+          content: "본문",
+          model: "test",
+          usage: null,
+          created_at: "",
+          statusWidgetValues: { character: {} },
+        },
+      ],
+      activeVariant: 0,
+      statusWidgetValues: { character: {} },
+      characterWidget: widget,
+      previousCanonicalStatus: {
+        character: { affection: "40", location: "옛 장소" },
+      },
+      generationSequence: 0,
+      isRegeneration: false,
+      requestId: "r1",
+      sourceTurn: 1,
+    });
+    assert.equal(getNumericStateCurrent(db, 1, "affection")?.numericValue, 40);
+    assert.equal(result.statusWidgetValues?.character?.affection, "40");
+    assert.equal(
+      result.statusWidgetValues?.character?.location,
+      undefined,
+      "stale nonnumeric location must not be resurrected from previous snapshot"
+    );
+    const stored = JSON.parse(messageStatus(db, 50)) as {
+      character?: Record<string, string>;
+    };
+    assert.equal(stored.character?.location, undefined);
+  });
+
+  it("B1-C.1 manual edit: nonnumeric-only ALLOW; numeric change BLOCK", () => {
+    const fields = listCanonicalEligibleNumericFields(meterWidget(["affection"]));
+    const existing = {
+      character: { affection: "40", location: "A" },
+    };
+    const nonnumericOnly = {
+      character: { affection: "40", location: "B" },
+    };
+    const numericChanged = {
+      character: { affection: "41", location: "A" },
+    };
+    // Mirrors /api/chat/message route decision: block only when numeric fields change.
+    assert.equal(
+      numericCanonicalFieldsChanged(existing, nonnumericOnly, fields),
+      false,
+      "nonnumeric-only edit must be allowed"
+    );
+    assert.equal(
+      numericCanonicalFieldsChanged(existing, numericChanged, fields),
+      true,
+      "numeric edit must be blocked (route → 409 numeric_state_manual_edit_not_enabled)"
+    );
   });
 });

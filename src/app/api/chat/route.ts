@@ -415,6 +415,7 @@ import {
   supersedeStatusTriggerEventsForSourceMessage,
 } from "@/lib/rpDerivedStateLifecycle";
 import {
+  evaluateNumericRegenChainReadiness,
   executeAtomicNumericAssistantFinalize,
   listCanonicalEligibleNumericFields,
   resolveNumericCanonicalEligibility,
@@ -837,28 +838,45 @@ export async function POST(req: Request) {
     userMessageId = regenBoundary.parentUser.id;
     skipUserInsert = true;
 
-    // Phase B1-C: historical regeneration requires numeric replay — fail closed
-    // BEFORE any model API call / billing (points charged = 0, LLM calls = 0).
+    // Phase B1-C / B1-C.1: numeric regen gates — fail closed BEFORE model API,
+    // billing, background extractor, and streaming placeholder mutation.
     {
       const earlyCharacterWidget = parseStatusWidgetJson(
         (ch as { status_widget_json?: string }).status_widget_json
       );
-      const numericHistoricalGate = resolveNumericCanonicalEligibility({
+      const numericRegenEligibility = resolveNumericCanonicalEligibility({
         userId: user.id,
         characterId: ch.id,
       });
-      if (
-        numericHistoricalGate.eligible &&
-        listCanonicalEligibleNumericFields(earlyCharacterWidget).length > 0 &&
-        hasLaterCanonicalTurn(db, chat.id, regenerateMessageId)
-      ) {
-        return Response.json(
-          {
-            error: "이 대화는 과거 턴 재생성을 지원하지 않습니다.",
-            code: "numeric_state_historical_replay_unsupported",
-          },
-          { status: 409 }
-        );
+      const numericEligibleFields =
+        listCanonicalEligibleNumericFields(earlyCharacterWidget);
+      if (numericRegenEligibility.eligible && numericEligibleFields.length > 0) {
+        if (hasLaterCanonicalTurn(db, chat.id, regenerateMessageId)) {
+          return Response.json(
+            {
+              error: "이 대화는 과거 턴 재생성을 지원하지 않습니다.",
+              code: "numeric_state_historical_replay_unsupported",
+            },
+            { status: 409 }
+          );
+        }
+        // Latest regen: require tip-aligned numeric event chain (no legacy
+        // ledger reconstruction). Distinct from historical_replay_unsupported.
+        const chainGate = evaluateNumericRegenChainReadiness({
+          db,
+          chatId: chat.id,
+          regenerateMessageId,
+          fields: numericEligibleFields,
+        });
+        if (!chainGate.ok) {
+          return Response.json(
+            {
+              error: chainGate.error,
+              code: chainGate.code,
+            },
+            { status: 409 }
+          );
+        }
       }
     }
 

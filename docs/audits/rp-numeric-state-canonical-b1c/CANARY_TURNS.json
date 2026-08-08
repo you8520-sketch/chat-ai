@@ -1,10 +1,14 @@
 {
+  "CORE_CANONICAL_HARNESS": "PASS",
+  "B1_C_CORE_INTEGRATION_PASS": true,
   "PHASE_B1C_LOCAL_CANARY": "PASS",
   "normal_turns": 4,
   "regen_turns": 2,
   "parity_failures": 0,
   "canonical_feature_default": "OFF",
   "railway_general_rollout": "NOT_RUN",
+  "method": "executeAtomicNumericAssistantFinalize_in_memory",
+  "not_live_route_canary": true,
   "records": [
     {
       "turn": 1,

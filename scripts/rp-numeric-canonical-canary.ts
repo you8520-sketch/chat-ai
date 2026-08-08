@@ -1,10 +1,13 @@
 /**
- * Phase B1-C local admin canary — state consistency only (no LLM).
+ * Phase B1-C CORE_CANONICAL_HARNESS — deterministic state consistency (no LLM).
  *
  * Runs 4 normal + 2 regen turns through executeAtomicNumericAssistantFinalize
  * against an in-memory fixture DB, verifying:
  *   NUMERIC CURRENT == MESSAGE STATUS == ACTIVE VARIANT STATUS
  * and regen replacement baselines.
+ *
+ * This is NOT TRUE_ROUTE_CANARY / LIVE_ROUTE_CANARY.
+ * True HTTP `/api/chat` canary lives in scripts/rp-numeric-route-canary.ts.
  *
  * Does NOT enable Railway general rollout. Leaves production flags OFF.
  */
@@ -287,22 +290,28 @@ function main(): void {
     "docs/audits/rp-numeric-state-canonical-b1c"
   );
   mkdirSync(outDir, { recursive: true });
+  const corePass = parityFailures === 0;
   const summary = {
-    PHASE_B1C_LOCAL_CANARY: parityFailures === 0 ? "PASS" : "FAIL",
+    CORE_CANONICAL_HARNESS: corePass ? "PASS" : "FAIL",
+    B1_C_CORE_INTEGRATION_PASS: corePass,
+    PHASE_B1C_LOCAL_CANARY: corePass ? "PASS" : "FAIL",
     normal_turns: 4,
     regen_turns: 2,
     parity_failures: parityFailures,
     canonical_feature_default: "OFF",
     railway_general_rollout: "NOT_RUN",
+    method: "executeAtomicNumericAssistantFinalize_in_memory",
+    not_live_route_canary: true,
     records,
   };
   writeFileSync(join(outDir, "CANARY_TURNS.json"), JSON.stringify(summary, null, 2));
   writeFileSync(
     join(outDir, "FINAL_CANARY_VERDICT.md"),
     [
-      "# Phase B1-C Local Admin Canonical Canary",
+      "# Phase B1-C — CORE_CANONICAL_HARNESS",
       "",
-      `- Status: **${summary.PHASE_B1C_LOCAL_CANARY}**`,
+      `- Status: **${summary.CORE_CANONICAL_HARNESS}**`,
+      `- Verdict name: B1_C_CORE_INTEGRATION_PASS`,
       `- Normal turns: ${summary.normal_turns}`,
       `- Regen turns: ${summary.regen_turns}`,
       `- Parity failures: ${summary.parity_failures}`,
@@ -311,6 +320,9 @@ function main(): void {
       "",
       "Method: deterministic in-memory harness via `executeAtomicNumericAssistantFinalize`",
       "(state consistency only; no LLM / no production flag enablement).",
+      "",
+      "**Not** `TRUE_ROUTE_CANARY` / `LIVE_ROUTE_CANARY`.",
+      "See `ROUTE_CANARY_VERDICT.md` for the real `/api/chat` canary.",
       "",
     ].join("\n")
   );
