@@ -5,8 +5,9 @@ PHASE_B1D2_FINAL:
 
 baseline main: 268b8a70556f3392e7eb89283ba2e07689e2e332
 branch: cursor/rp-numeric-state-variant-switch-b1d2-96c2
-commit: af339f40bddc288a56cd540bad26859ff0132c83
+commit: 534114cf6a649f6bcbf7d9f61b51b396f7bb5614
 draft PR: https://github.com/you8520-sketch/chat-ai/pull/279
+note: commit = implementation tip (feat); docs tip may advance after this seal
 
 CANONICAL_WORLDLINE_INVARIANT:
 PASS
