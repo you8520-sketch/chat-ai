@@ -1,5 +1,16 @@
 {
   "route_PATCH_variant_canary": "PASS",
+  "ROUTE_RESPONSE_CANONICAL_PARITY": "PASS",
+  "raw_snapshot_80_canonical_38": {
+    "db": 38,
+    "http": "38"
+  },
+  "race_regen_E_then_select_B": {
+    "variantCount": 5,
+    "active": 1,
+    "ePreserved": true,
+    "numericCurrent": 38
+  },
   "route_LLM_calls": 0,
   "point_mutations": 0,
   "patchSequence": [
@@ -7,33 +18,37 @@
       "variantIndex": 1,
       "http": 200,
       "revision": 6,
-      "selectionEventId": 24,
+      "selectionEventId": 38,
       "content": "B prose",
-      "affection": 38
+      "affection": 38,
+      "httpAffection": "38"
     },
     {
       "variantIndex": 0,
       "http": 200,
       "revision": 7,
-      "selectionEventId": 25,
+      "selectionEventId": 39,
       "content": "A prose",
-      "affection": 35
+      "affection": 35,
+      "httpAffection": "35"
     },
     {
       "variantIndex": 2,
       "http": 200,
       "revision": 8,
-      "selectionEventId": 26,
+      "selectionEventId": 40,
       "content": "C prose",
-      "affection": 32
+      "affection": 32,
+      "httpAffection": "32"
     },
     {
       "variantIndex": 1,
       "http": 200,
       "revision": 9,
-      "selectionEventId": 27,
+      "selectionEventId": 41,
       "content": "B prose",
-      "affection": 38
+      "affection": 38,
+      "httpAffection": "38"
     }
   ],
   "activeTriggersAfterFinalB": 0,
@@ -48,5 +63,5 @@
     "leftoverEvents": 0
   },
   "characterId": 910924,
-  "chatId": 910922
+  "chatId": 910924
 }

@@ -1,6 +1,7 @@
 # B1_D2_FINAL_HARDENING
 
-implementation base: PR #279 (`cursor/rp-numeric-state-variant-switch-b1d2-96c2`)
+implementation base: PR #279 (`cursor/rp-numeric-state-variant-switch-b1d2-96c2`)  
+PR head (hardening): `a29e86dd7e0ec2b9bc4d0327f94927792c46632d`
 
 ## Design (unchanged)
 
@@ -65,12 +66,52 @@ LLM ON VARIANT SELECT = 0
 - `git diff --check`: PASS
 - `npm run lint` / `npm run typecheck:app`: PASS
 - `node --conditions=react-server --import tsx --test src/lib/rpNumericStateVariantSwitch.test.ts`: 27/27 PASS
+- route canary (`scripts/rp-numeric-variant-switch-route-canary.ts`): PASS — see `ROUTE_VARIANT_CANARY.json`
 - prompt / model adapter / billing diff: 0
 - variant-select LLM calls: 0
 - point mutations: 0
 
-## final
+## Final report
 
-`B1_D2_FINAL_HARDENING_PASS` (unit + typecheck sealed; route canary evidence updated when re-run)
+```
+B1_D2_FINAL_HARDENING:
 
-merge: **NOT_RUN**
+implementation base:
+PR head: a29e86dd7e0ec2b9bc4d0327f94927792c46632d
+
+P0 LTM atomic canonical suppression: PASS
+forced LTM failure: FULL_WORLDLINE_ROLLBACK_PASS
+LTM prior batch preservation: PASS
+LTM summarized count rewind: PASS
+LTM re-summary eligibility: PASS
+transaction-local variants: PASS
+regen-vs-select lost update: PASS
+numeric pre-txn same-active shortcut: REMOVED/BYPASSED
+HTTP canonical response: PASS
+raw snapshot 80 / canonical 38:
+  DB=38
+  HTTP=38
+concurrent B/C: PASS (last serialized wins)
+selection provenance:
+  source policy/hash preserved: PASS
+existing D→B: PASS
+reselection: PASS
+select→normal: PASS
+select→regen: PASS
+select→delete: PASS
+frontier: PASS
+historical: PASS
+forced existing rollbacks: PASS
+nonnumeric regression: PASS
+tests: 27/27 PASS
+lint: PASS
+typecheck: PASS
+git diff --check: PASS
+prompt diff: 0
+model adapter diff: 0
+billing diff: 0
+variant-select LLM calls: 0
+point mutations: 0
+final: B1_D2_FINAL_HARDENING_PASS
+merge: NOT_RUN
+```
