@@ -6,8 +6,8 @@
  * Arm B = OPUS_ARM_E_COMPACT_CANDIDATE (not wired into production resolve)
  *
  * Usage:
- *   npx tsx scripts/opus-arm-e-compact-ab-live.ts --parity-only
- *   npx tsx scripts/opus-arm-e-compact-ab-live.ts
+ *   node --conditions=react-server --import tsx scripts/opus-arm-e-compact-ab-live.ts --parity-only
+ *   node --conditions=react-server --import tsx scripts/opus-arm-e-compact-ab-live.ts
  */
 import { createHash } from "node:crypto";
 import {

@@ -6,34 +6,39 @@ Arm E의 agency 의미를 유지하면서 중복 terminal tokens를 제거하면
 Claude Opus 5의 문학성·장면 밀도·출력 분량이 회복되는가?
 ```
 
-## Fixed variables
-
-- common system prompt / prose-style / korean-prose-top / no-godmodding
-- character canon / persona / memory / layout / CURRENT USER wrapper
-- temperature / sampling / provider / model / history / user input
-
-## Unique variable
+## Offline gate
 
 ```text
-OPUS ARM E TERMINAL
-Arm A = OPUS_ARM_E_TERMINAL (production frozen)
-Arm B = OPUS_ARM_E_COMPACT_CANDIDATE (A/B only; not production-wired)
+Arm A estimated tokens = 1134
+Arm B estimated tokens = 424
+reduction = 710 (62.6%)
+semantic_parity = PASS
 ```
 
-## Fixtures (4 calls max)
+## Live (4 successful Opus calls + 1 aborted transport reissued)
 
-| ID | Character | Input |
-|---|---|---|
-| Fixture L | c18 라이크 | `신입 ...맞아.나 본적있어?(갸웃)나는 렌이라고 부르면 돼.` |
-| Fixture A | c9 미지현상관리국 | `시키는 대로 할게요. 뭘 하면 돼요?` (Audit 58 s2 T1) |
+| Fixture | Arm A chars | Arm B chars | Agency severe A | Agency severe B | Blind winner |
+|---|---:|---:|---:|---:|---|
+| L literary (c18) | 3225 | 2959 | 0 | 0 | **A** |
+| A agency (c9 s2 T1) | 2257 | 2746 | 0 | **1** | **A** |
 
-## Status
+Transport note: first agency Arm A stream aborted (`TypeError: terminated`) with empty capture; reissued once (infra). Quality retry/continuation/recovery = 0.
+
+## Scores (see SCORE_SEAL.md / REVEAL.md)
 
 ```text
-semantic_parity: PENDING
-live_calls: PENDING
-production_Arm_E: UNCHANGED
-common_prose: UNCHANGED
-layout: UNCHANGED
-Stage_2: NOT_RUN
+literary L: A 91 > B 86
+premium L: A 5 > B 4
+agency A: Compact severe → REJECT
+```
+
+## Final
+
+```text
+OPUS_ARM_E_COMPACT_AB = CURRENT_ARM_E_KEEP
+production Arm E = UNCHANGED
+common prose = UNCHANGED
+layout = UNCHANGED
+Stage 2 = NOT_RUN
+STEP C common compression = NOT_RUN
 ```
