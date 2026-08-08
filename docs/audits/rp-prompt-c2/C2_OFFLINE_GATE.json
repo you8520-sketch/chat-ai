@@ -1,0 +1,59 @@
+{
+  "semantic_matrix": "PASS",
+  "forbidden_clause_statuses": [],
+  "content_checks": {
+    "m1_owner_present": true,
+    "m1_no_orphan_register_line": true,
+    "m2_primary_in_scene_flow": true,
+    "m2_removed_from_immersive": true,
+    "m3_rep_kept": true,
+    "m3_tell_kept": true,
+    "breath_unchanged": true,
+    "sensation_unchanged": true,
+    "no_new_literary_boosters": true
+  },
+  "swap_helper_ok": true,
+  "fixtures_present": true,
+  "token_under_1400": false,
+  "live_entry_allowed": true,
+  "warning": "Semantic parity PASS is a live-entry condition only — NOT proof of behavioral safety (C1 lesson).",
+  "M1": "APPLIED",
+  "M2": "APPLIED",
+  "M3": "KEEP_SEPARATE",
+  "WEBNOVEL_BREATH": "UNCHANGED",
+  "SENSATION": "UNCHANGED",
+  "DIALOGUE_GUARDS": "UNCHANGED",
+  "C2_S": "NOT_RUN",
+  "C3": "NOT_RUN",
+  "production_prose_default": "UNCHANGED",
+  "frozen_owner_sha256": {
+    "OUTPUT LAYOUT": "bfd0acd498fb01003eaeffea09e462fcd182aaaa780cabcf3d773454e1215621",
+    "CANON/KOREAN TOP": "b8021d1c57ff009a508100e54ed90fd940514532339e0c4884a514250c3d0ec4",
+    "AGENCY": "b8325c8bca9adabac1152928e95f853e5d6157c71fc95ab4f7bfd5ec8bfa77d1",
+    "OPUS_ARM_E_TERMINAL": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca",
+    "DEEPSEEK_COMPACT_FUTURE_INSTRUCTION_BOUNDARY": "19fe862eba239fee85a93ea650c616402bd97986f0875ef8419044d26b2323a5",
+    "TERRA_TERMINAL_LENGTH_OWNER_CONTRACT": "6e5b711ffd3b9bee507cc1e1479d940726de43c0b4e4019b3d7d47c12a60350e",
+    "contamination Gemini": "bf828dd61d01090fd363e4938bac1840c97c7035d0997d9bd534dc4b3478d79e",
+    "contamination DeepSeek": "386ee5ac06fee97e61578d29febae34f9e011c753cf9b6946ce3e24b6cdda670",
+    "contamination Opus": "bf828dd61d01090fd363e4938bac1840c97c7035d0997d9bd534dc4b3478d79e",
+    "contamination Terra": "bf828dd61d01090fd363e4938bac1840c97c7035d0997d9bd534dc4b3478d79e"
+  },
+  "tokenDiff": {
+    "A_nsfw_on": 1709,
+    "B_nsfw_on": 1679,
+    "reduction_on": 30,
+    "percent_on": 1.76,
+    "A_nsfw_off": 1572,
+    "B_nsfw_off": 1542,
+    "reduction_off": 30,
+    "percent_off": 1.91,
+    "token_gate": {
+      "target_band": "1450~1550 NSFW ON preferred",
+      "b_on": 1679,
+      "under_1400_fail_review": false,
+      "live_allowed_if_exact_dupes": true,
+      "note": "Aggressive stretch to hit 8% by deleting non-duplicates is FORBIDDEN. Exact-dupe-only reduction may be <8%."
+    }
+  },
+  "baseline_A_on_sha": "e6bbf83064e5f72ed6fc3d7682102b55ce3776b5d13ad532dae257d58971ca71"
+}
