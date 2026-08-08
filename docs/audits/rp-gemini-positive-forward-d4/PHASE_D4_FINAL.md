@@ -5,8 +5,9 @@ PHASE_D4_FINAL:
 
 baseline main: 268b8a70556f3392e7eb89283ba2e07689e2e332
 branch: cursor/rp-gemini-positive-forward-owner-d4-96c2
-commit: 1b60ca4a224b6b26bdd72b2783e3704d5e8c7719
+commit: a48e7ba8ef92c206910b4fb77b16d14f343df6ae
 draft PR: https://github.com/you8520-sketch/chat-ai/pull/280
+note: commit = harness tip; docs tip may advance after seal
 
 D2/D3 continuity block:
 NOT_USED
