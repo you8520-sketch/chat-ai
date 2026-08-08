@@ -4,7 +4,7 @@
 PHASE_D6C1_FINAL:
 baseline main: 7f0c54b60e7ace11bc6e4eea9c820caadde24853
 branch: cursor/rp-gemini-dialogue-economy-d6c1-96c2
-commit: (evidence seal; see git tip)
+commit: 96ada67e896b433ea30ff552b98f544dc4358dc8
 draft PR: https://github.com/you8520-sketch/chat-ai/pull/286
 sole variable: IMMERSIVE_PROSE_DIALOGUE_SEMANTIC_OWNER
 new system sections: 0
