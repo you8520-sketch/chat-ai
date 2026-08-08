@@ -1,0 +1,678 @@
+{
+  "phase": "D6-A-G5",
+  "fixture": "G5",
+  "api_calls_this_run": 6,
+  "NEW_SYSTEM_SECTION_COUNT": 0,
+  "NEW_INSTRUCTION_TOKENS": 0,
+  "budget_invariant_B_le_A": true,
+  "CANON_SURFACE_REDUCTION_PERCENT": 58,
+  "arm_A": {
+    "n": 3,
+    "chars": [
+      1862,
+      3475,
+      2544
+    ],
+    "chars_median": 2544,
+    "chars_mean": 2627,
+    "collapse_lt_1800": 0,
+    "recital_chars": [
+      0,
+      0,
+      0
+    ],
+    "recital_chars_median": 0,
+    "recital_per_1000": [
+      0,
+      0,
+      0
+    ],
+    "recital_per_1000_median": 0,
+    "system_tokens_approx": 4355,
+    "system_chars": 8709,
+    "canon_surface": {
+      "arm": "A",
+      "legacy_chars": 2327,
+      "core_chars": 783,
+      "active_chars": 202,
+      "layered_total_chars": 985,
+      "active_selected_ids": [
+        "77fd0e5af0c63f78",
+        "f86797a21a9aa505"
+      ],
+      "active_selected_titles": [
+        "[세계관 — 침묵 규약]",
+        "[배경]"
+      ],
+      "canon_block_sha256": "20e2ea5098101c41eb22d529ec521fea30609cc83b524862bdb936c39ece722e",
+      "surface_reduction_pct": 0
+    },
+    "rows": [
+      {
+        "cell_id": "Gemini_G5_A_D1",
+        "fixture": "G5",
+        "arm": "A",
+        "draw": 1,
+        "visible_chars": 1862,
+        "finish_reason": "stop",
+        "provider": "Google AI Studio",
+        "reasoning_tokens": 3644,
+        "input_tokens": 5228,
+        "latency_s": 67.969,
+        "system_chars": 8709,
+        "system_tokens_approx": 4355,
+        "canon_surface": {
+          "arm": "A",
+          "legacy_chars": 2327,
+          "core_chars": 783,
+          "active_chars": 202,
+          "layered_total_chars": 985,
+          "active_selected_ids": [
+            "77fd0e5af0c63f78",
+            "f86797a21a9aa505"
+          ],
+          "active_selected_titles": [
+            "[세계관 — 침묵 규약]",
+            "[배경]"
+          ],
+          "canon_block_sha256": "20e2ea5098101c41eb22d529ec521fea30609cc83b524862bdb936c39ece722e",
+          "surface_reduction_pct": 0
+        },
+        "recital": {
+          "CHARACTER_CANON_RECITAL_CHARS": 0,
+          "WORLD_CANON_RECITAL_CHARS": 0,
+          "CANON_RECITAL_CHARS": 0,
+          "CANON_RECITAL_PER_1000": 0,
+          "visible_chars_no_ws": 1862,
+          "paragraph_hits": []
+        },
+        "dialogue_char_share": 0.0671,
+        "response_anchor": {
+          "response_anchor_count": 0,
+          "band": "IDEAL"
+        },
+        "continuity": {
+          "current_input_lcs_chars": 6,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "current_input_beat_restage": false,
+          "recent_assistant_lcs_chars": 8,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intro_lcs_chars": 8,
+          "intro_overlap_alarm": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        },
+        "setting_exact_overlap": {
+          "longest_common_substring_chars": 8,
+          "matching_ngram_count": 0,
+          "source_overlap_span_count": 0,
+          "hits": [],
+          "alarm_18_plus": false
+        },
+        "hard_alarms": [],
+        "gunshot_canon_use_signal": true,
+        "system_sha256": "d76f12bfd1251924d0b80cb883ca7efdafa8a367672089ac53eda62302c5c767",
+        "messages_sha256": "2e199e87961705cc6c5be2f19d1117a695c970cc6e83800c02ab34668629fd00",
+        "human_pending": {
+          "CHARACTER_FIDELITY": "PENDING_AGENT_REVIEW",
+          "ACTIVE_CANON_USE": "PENDING_AGENT_REVIEW",
+          "SETTING_RECITAL": "PENDING_AGENT_REVIEW",
+          "SCENE_ADVANCEMENT": "PENDING_AGENT_REVIEW",
+          "NEW_SCENE_VALUE": "PENDING_AGENT_REVIEW"
+        }
+      },
+      {
+        "cell_id": "Gemini_G5_A_D2",
+        "fixture": "G5",
+        "arm": "A",
+        "draw": 2,
+        "visible_chars": 3475,
+        "finish_reason": "stop",
+        "provider": "Google AI Studio",
+        "reasoning_tokens": 5150,
+        "input_tokens": 5228,
+        "latency_s": 76.369,
+        "system_chars": 8709,
+        "system_tokens_approx": 4355,
+        "canon_surface": {
+          "arm": "A",
+          "legacy_chars": 2327,
+          "core_chars": 783,
+          "active_chars": 202,
+          "layered_total_chars": 985,
+          "active_selected_ids": [
+            "77fd0e5af0c63f78",
+            "f86797a21a9aa505"
+          ],
+          "active_selected_titles": [
+            "[세계관 — 침묵 규약]",
+            "[배경]"
+          ],
+          "canon_block_sha256": "20e2ea5098101c41eb22d529ec521fea30609cc83b524862bdb936c39ece722e",
+          "surface_reduction_pct": 0
+        },
+        "recital": {
+          "CHARACTER_CANON_RECITAL_CHARS": 0,
+          "WORLD_CANON_RECITAL_CHARS": 0,
+          "CANON_RECITAL_CHARS": 0,
+          "CANON_RECITAL_PER_1000": 0,
+          "visible_chars_no_ws": 3475,
+          "paragraph_hits": []
+        },
+        "dialogue_char_share": 0.0938,
+        "response_anchor": {
+          "response_anchor_count": 2,
+          "band": "ACCEPTABLE"
+        },
+        "continuity": {
+          "current_input_lcs_chars": 5,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "current_input_beat_restage": false,
+          "recent_assistant_lcs_chars": 6,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intro_lcs_chars": 6,
+          "intro_overlap_alarm": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        },
+        "setting_exact_overlap": {
+          "longest_common_substring_chars": 10,
+          "matching_ngram_count": 0,
+          "source_overlap_span_count": 0,
+          "hits": [],
+          "alarm_18_plus": false
+        },
+        "hard_alarms": [],
+        "gunshot_canon_use_signal": true,
+        "system_sha256": "d76f12bfd1251924d0b80cb883ca7efdafa8a367672089ac53eda62302c5c767",
+        "messages_sha256": "2e199e87961705cc6c5be2f19d1117a695c970cc6e83800c02ab34668629fd00",
+        "human_pending": {
+          "CHARACTER_FIDELITY": "PENDING_AGENT_REVIEW",
+          "ACTIVE_CANON_USE": "PENDING_AGENT_REVIEW",
+          "SETTING_RECITAL": "PENDING_AGENT_REVIEW",
+          "SCENE_ADVANCEMENT": "PENDING_AGENT_REVIEW",
+          "NEW_SCENE_VALUE": "PENDING_AGENT_REVIEW"
+        }
+      },
+      {
+        "cell_id": "Gemini_G5_A_D3",
+        "fixture": "G5",
+        "arm": "A",
+        "draw": 3,
+        "visible_chars": 2544,
+        "finish_reason": "stop",
+        "provider": "Google AI Studio",
+        "reasoning_tokens": 2541,
+        "input_tokens": 5228,
+        "latency_s": 74.947,
+        "system_chars": 8709,
+        "system_tokens_approx": 4355,
+        "canon_surface": {
+          "arm": "A",
+          "legacy_chars": 2327,
+          "core_chars": 783,
+          "active_chars": 202,
+          "layered_total_chars": 985,
+          "active_selected_ids": [
+            "77fd0e5af0c63f78",
+            "f86797a21a9aa505"
+          ],
+          "active_selected_titles": [
+            "[세계관 — 침묵 규약]",
+            "[배경]"
+          ],
+          "canon_block_sha256": "20e2ea5098101c41eb22d529ec521fea30609cc83b524862bdb936c39ece722e",
+          "surface_reduction_pct": 0
+        },
+        "recital": {
+          "CHARACTER_CANON_RECITAL_CHARS": 0,
+          "WORLD_CANON_RECITAL_CHARS": 0,
+          "CANON_RECITAL_CHARS": 0,
+          "CANON_RECITAL_PER_1000": 0,
+          "visible_chars_no_ws": 2544,
+          "paragraph_hits": []
+        },
+        "dialogue_char_share": 0.059,
+        "response_anchor": {
+          "response_anchor_count": 0,
+          "band": "IDEAL"
+        },
+        "continuity": {
+          "current_input_lcs_chars": 4,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "current_input_beat_restage": false,
+          "recent_assistant_lcs_chars": 6,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intro_lcs_chars": 6,
+          "intro_overlap_alarm": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        },
+        "setting_exact_overlap": {
+          "longest_common_substring_chars": 9,
+          "matching_ngram_count": 0,
+          "source_overlap_span_count": 0,
+          "hits": [],
+          "alarm_18_plus": false
+        },
+        "hard_alarms": [],
+        "gunshot_canon_use_signal": true,
+        "system_sha256": "d76f12bfd1251924d0b80cb883ca7efdafa8a367672089ac53eda62302c5c767",
+        "messages_sha256": "2e199e87961705cc6c5be2f19d1117a695c970cc6e83800c02ab34668629fd00",
+        "human_pending": {
+          "CHARACTER_FIDELITY": "PENDING_AGENT_REVIEW",
+          "ACTIVE_CANON_USE": "PENDING_AGENT_REVIEW",
+          "SETTING_RECITAL": "PENDING_AGENT_REVIEW",
+          "SCENE_ADVANCEMENT": "PENDING_AGENT_REVIEW",
+          "NEW_SCENE_VALUE": "PENDING_AGENT_REVIEW"
+        }
+      }
+    ]
+  },
+  "arm_B": {
+    "n": 3,
+    "chars": [
+      1556,
+      2029,
+      1774
+    ],
+    "chars_median": 1774,
+    "chars_mean": 1786.3333333333333,
+    "collapse_lt_1800": 2,
+    "recital_chars": [
+      0,
+      228,
+      0
+    ],
+    "recital_chars_median": 0,
+    "recital_per_1000": [
+      0,
+      112.37062592410055,
+      0
+    ],
+    "recital_per_1000_median": 0,
+    "system_tokens_approx": 3662,
+    "system_chars": 7324,
+    "canon_surface": {
+      "arm": "B",
+      "legacy_chars": 2327,
+      "core_chars": 783,
+      "active_chars": 202,
+      "layered_total_chars": 985,
+      "active_selected_ids": [
+        "77fd0e5af0c63f78",
+        "f86797a21a9aa505"
+      ],
+      "active_selected_titles": [
+        "[세계관 — 침묵 규약]",
+        "[배경]"
+      ],
+      "canon_block_sha256": "72788d5627c4e20c0555e758871a4db1c3c624b1fad627c093402aa70a6471ff",
+      "surface_reduction_pct": 58
+    },
+    "rows": [
+      {
+        "cell_id": "Gemini_G5_B_D1",
+        "fixture": "G5",
+        "arm": "B",
+        "draw": 1,
+        "visible_chars": 1556,
+        "finish_reason": "stop",
+        "provider": "Google AI Studio",
+        "reasoning_tokens": 1290,
+        "input_tokens": 4190,
+        "latency_s": 44.76,
+        "system_chars": 7324,
+        "system_tokens_approx": 3662,
+        "canon_surface": {
+          "arm": "B",
+          "legacy_chars": 2327,
+          "core_chars": 783,
+          "active_chars": 202,
+          "layered_total_chars": 985,
+          "active_selected_ids": [
+            "77fd0e5af0c63f78",
+            "f86797a21a9aa505"
+          ],
+          "active_selected_titles": [
+            "[세계관 — 침묵 규약]",
+            "[배경]"
+          ],
+          "canon_block_sha256": "72788d5627c4e20c0555e758871a4db1c3c624b1fad627c093402aa70a6471ff",
+          "surface_reduction_pct": 58
+        },
+        "recital": {
+          "CHARACTER_CANON_RECITAL_CHARS": 0,
+          "WORLD_CANON_RECITAL_CHARS": 0,
+          "CANON_RECITAL_CHARS": 0,
+          "CANON_RECITAL_PER_1000": 0,
+          "visible_chars_no_ws": 1556,
+          "paragraph_hits": []
+        },
+        "dialogue_char_share": 0.1183,
+        "response_anchor": {
+          "response_anchor_count": 0,
+          "band": "IDEAL"
+        },
+        "continuity": {
+          "current_input_lcs_chars": 3,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "current_input_beat_restage": false,
+          "recent_assistant_lcs_chars": 6,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intro_lcs_chars": 6,
+          "intro_overlap_alarm": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        },
+        "setting_exact_overlap": {
+          "longest_common_substring_chars": 12,
+          "matching_ngram_count": 2,
+          "source_overlap_span_count": 0,
+          "hits": [],
+          "alarm_18_plus": false
+        },
+        "hard_alarms": [
+          "DENSITY_COLLAPSE"
+        ],
+        "gunshot_canon_use_signal": true,
+        "system_sha256": "63087c388357ea5b9af7e3cd7da419f8e393a29061a0577b70e177b0134ee93d",
+        "messages_sha256": "0a8324d6fa59034ed89e9280b2573a2abd851bd7f2b9a4925a3071da0aab6a84",
+        "human_pending": {
+          "CHARACTER_FIDELITY": "PENDING_AGENT_REVIEW",
+          "ACTIVE_CANON_USE": "PENDING_AGENT_REVIEW",
+          "SETTING_RECITAL": "PENDING_AGENT_REVIEW",
+          "SCENE_ADVANCEMENT": "PENDING_AGENT_REVIEW",
+          "NEW_SCENE_VALUE": "PENDING_AGENT_REVIEW"
+        }
+      },
+      {
+        "cell_id": "Gemini_G5_B_D2",
+        "fixture": "G5",
+        "arm": "B",
+        "draw": 2,
+        "visible_chars": 2029,
+        "finish_reason": "stop",
+        "provider": "Google AI Studio",
+        "reasoning_tokens": 1651,
+        "input_tokens": 4190,
+        "latency_s": 53.232,
+        "system_chars": 7324,
+        "system_tokens_approx": 3662,
+        "canon_surface": {
+          "arm": "B",
+          "legacy_chars": 2327,
+          "core_chars": 783,
+          "active_chars": 202,
+          "layered_total_chars": 985,
+          "active_selected_ids": [
+            "77fd0e5af0c63f78",
+            "f86797a21a9aa505"
+          ],
+          "active_selected_titles": [
+            "[세계관 — 침묵 규약]",
+            "[배경]"
+          ],
+          "canon_block_sha256": "72788d5627c4e20c0555e758871a4db1c3c624b1fad627c093402aa70a6471ff",
+          "surface_reduction_pct": 58
+        },
+        "recital": {
+          "CHARACTER_CANON_RECITAL_CHARS": 0,
+          "WORLD_CANON_RECITAL_CHARS": 228,
+          "CANON_RECITAL_CHARS": 228,
+          "CANON_RECITAL_PER_1000": 112.37062592410055,
+          "visible_chars_no_ws": 2029,
+          "paragraph_hits": [
+            {
+              "para": "하지만 에녹은 발걸음을 돌리지 않았다. 목 뒤, 옷깃으로 가려진 흉터 부근이 희미하게 저릿해지는 착각이 일었다. 마더의 텔레파시 간섭, 그 끔찍",
+              "bucket": "world",
+              "reason": "source_ngram>=8"
+            }
+          ]
+        },
+        "dialogue_char_share": 0.1104,
+        "response_anchor": {
+          "response_anchor_count": 0,
+          "band": "IDEAL"
+        },
+        "continuity": {
+          "current_input_lcs_chars": 3,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "current_input_beat_restage": false,
+          "recent_assistant_lcs_chars": 5,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intro_lcs_chars": 5,
+          "intro_overlap_alarm": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        },
+        "setting_exact_overlap": {
+          "longest_common_substring_chars": 9,
+          "matching_ngram_count": 0,
+          "source_overlap_span_count": 0,
+          "hits": [],
+          "alarm_18_plus": false
+        },
+        "hard_alarms": [],
+        "gunshot_canon_use_signal": true,
+        "system_sha256": "63087c388357ea5b9af7e3cd7da419f8e393a29061a0577b70e177b0134ee93d",
+        "messages_sha256": "0a8324d6fa59034ed89e9280b2573a2abd851bd7f2b9a4925a3071da0aab6a84",
+        "human_pending": {
+          "CHARACTER_FIDELITY": "PENDING_AGENT_REVIEW",
+          "ACTIVE_CANON_USE": "PENDING_AGENT_REVIEW",
+          "SETTING_RECITAL": "PENDING_AGENT_REVIEW",
+          "SCENE_ADVANCEMENT": "PENDING_AGENT_REVIEW",
+          "NEW_SCENE_VALUE": "PENDING_AGENT_REVIEW"
+        }
+      },
+      {
+        "cell_id": "Gemini_G5_B_D3",
+        "fixture": "G5",
+        "arm": "B",
+        "draw": 3,
+        "visible_chars": 1774,
+        "finish_reason": "stop",
+        "provider": "Google AI Studio",
+        "reasoning_tokens": 3961,
+        "input_tokens": 4190,
+        "latency_s": 58.12,
+        "system_chars": 7324,
+        "system_tokens_approx": 3662,
+        "canon_surface": {
+          "arm": "B",
+          "legacy_chars": 2327,
+          "core_chars": 783,
+          "active_chars": 202,
+          "layered_total_chars": 985,
+          "active_selected_ids": [
+            "77fd0e5af0c63f78",
+            "f86797a21a9aa505"
+          ],
+          "active_selected_titles": [
+            "[세계관 — 침묵 규약]",
+            "[배경]"
+          ],
+          "canon_block_sha256": "72788d5627c4e20c0555e758871a4db1c3c624b1fad627c093402aa70a6471ff",
+          "surface_reduction_pct": 58
+        },
+        "recital": {
+          "CHARACTER_CANON_RECITAL_CHARS": 0,
+          "WORLD_CANON_RECITAL_CHARS": 0,
+          "CANON_RECITAL_CHARS": 0,
+          "CANON_RECITAL_PER_1000": 0,
+          "visible_chars_no_ws": 1774,
+          "paragraph_hits": []
+        },
+        "dialogue_char_share": 0.0975,
+        "response_anchor": {
+          "response_anchor_count": 0,
+          "band": "IDEAL"
+        },
+        "continuity": {
+          "current_input_lcs_chars": 3,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "current_input_beat_restage": false,
+          "recent_assistant_lcs_chars": 6,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intro_lcs_chars": 6,
+          "intro_overlap_alarm": false,
+          "intra_turn_abstract_restatement_hits": 1,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": false,
+          "alarms": []
+        },
+        "setting_exact_overlap": {
+          "longest_common_substring_chars": 11,
+          "matching_ngram_count": 0,
+          "source_overlap_span_count": 0,
+          "hits": [],
+          "alarm_18_plus": false
+        },
+        "hard_alarms": [
+          "DENSITY_COLLAPSE"
+        ],
+        "gunshot_canon_use_signal": true,
+        "system_sha256": "63087c388357ea5b9af7e3cd7da419f8e393a29061a0577b70e177b0134ee93d",
+        "messages_sha256": "0a8324d6fa59034ed89e9280b2573a2abd851bd7f2b9a4925a3071da0aab6a84",
+        "human_pending": {
+          "CHARACTER_FIDELITY": "PENDING_AGENT_REVIEW",
+          "ACTIVE_CANON_USE": "PENDING_AGENT_REVIEW",
+          "SETTING_RECITAL": "PENDING_AGENT_REVIEW",
+          "SCENE_ADVANCEMENT": "PENDING_AGENT_REVIEW",
+          "NEW_SCENE_VALUE": "PENDING_AGENT_REVIEW"
+        }
+      }
+    ]
+  },
+  "recital_reduction_fraction": 0,
+  "recital_reduction_pct": 0,
+  "length_regression_flag": true,
+  "stage1_gate": {
+    "verdict": "FAIL",
+    "notes": [
+      "recital reduction 23.7% < 30%",
+      "B collapse materially increased",
+      "B median chars < 70% of A"
+    ],
+    "source": "agent_paragraph_attribution",
+    "auto_scorer": "UNDERCOUNT_DISCARDED"
+  },
+  "g3": "NOT_RUN",
+  "production_wire": "NOT_RUN",
+  "merge": "NOT_RUN",
+  "human_recital": {
+    "method": "agent_paragraph_attribution",
+    "rows": [
+      {
+        "cell": "Gemini_G5_A_D1",
+        "arm": "A",
+        "visible": 1862,
+        "char_recital": 33,
+        "world_recital": 73,
+        "total_recital": 106,
+        "per_1000": 56.9,
+        "fidelity": "PASS",
+        "active_canon_use": "PASS",
+        "notes": "Strong world ecology dump mid/late; action also present (cover mouth)."
+      },
+      {
+        "cell": "Gemini_G5_A_D2",
+        "arm": "A",
+        "visible": 3475,
+        "char_recital": 28,
+        "world_recital": 116,
+        "total_recital": 144,
+        "per_1000": 41.4,
+        "fidelity": "PASS",
+        "active_canon_use": "PASS",
+        "notes": "Longest A; heavy world-law exposition framed as ecology lecture before action."
+      },
+      {
+        "cell": "Gemini_G5_A_D3",
+        "arm": "A",
+        "visible": 2544,
+        "char_recital": 22,
+        "world_recital": 36,
+        "total_recital": 58,
+        "per_1000": 22.8,
+        "fidelity": "PASS",
+        "active_canon_use": "PASS",
+        "notes": "More action-forward; lighter recital than A_D2."
+      },
+      {
+        "cell": "Gemini_G5_B_D1",
+        "arm": "B",
+        "visible": 1556,
+        "char_recital": 65,
+        "world_recital": 105,
+        "total_recital": 170,
+        "per_1000": 109.3,
+        "fidelity": "PASS",
+        "active_canon_use": "PASS",
+        "notes": "Layered B still lectures gunshot/originals + identity backstory (hair/scar/pod)."
+      },
+      {
+        "cell": "Gemini_G5_B_D2",
+        "arm": "B",
+        "visible": 2029,
+        "char_recital": 0,
+        "world_recital": 48,
+        "total_recital": 48,
+        "per_1000": 23.7,
+        "fidelity": "PASS",
+        "active_canon_use": "PASS",
+        "notes": "Gunshot law used partly as reason not to draw weapon (USE). Still some exposition."
+      },
+      {
+        "cell": "Gemini_G5_B_D3",
+        "arm": "B",
+        "visible": 1774,
+        "char_recital": 29,
+        "world_recital": 27,
+        "total_recital": 56,
+        "per_1000": 31.6,
+        "fidelity": "PASS",
+        "active_canon_use": "PASS",
+        "notes": "Action-forward silence control; residual identity recital."
+      }
+    ],
+    "A_median_recital_per_1000": 41.4,
+    "B_median_recital_per_1000": 31.6,
+    "recital_reduction_pct": 23.7,
+    "A_collapse_lt_1800": 0,
+    "B_collapse_lt_1800": 2,
+    "A_chars_median": 2544,
+    "B_chars_median": 1774,
+    "fidelity_non_inferior": true,
+    "active_canon_non_inferior": true,
+    "stage1_verdict": "FAIL",
+    "fail_reasons": [
+      "recital reduction 23.7% < 30%",
+      "B collapse materially increased",
+      "B median chars < 70% of A"
+    ]
+  },
+  "final": "D6A_LAYERED_CANON_FAIL"
+}
