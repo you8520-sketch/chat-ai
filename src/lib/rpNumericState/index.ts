@@ -1,6 +1,6 @@
 /**
- * Phase B1-A — Server-authoritative RP numeric state foundation.
- * NO runtime wiring. Import from tests / future B1-B/C only.
+ * Phase B1-A/B — Server-authoritative RP numeric state foundation + shadow observer.
+ * Shadow is diagnostic-only (default OFF). Persistence commit is still unused in routes.
  */
 export {
   fingerprintNumericStateDefinition,
@@ -53,3 +53,34 @@ export {
   NumericStateNotBootstrappedError,
   NumericStateValidationError,
 } from "./types";
+
+export {
+  RP_NUMERIC_SHADOW_PILOT_STATE_KEYS,
+  RP_NUMERIC_STATE_SHADOW_CHARACTER_IDS_ENV,
+  RP_NUMERIC_STATE_SHADOW_ENABLED_ENV,
+  RP_NUMERIC_STATE_SHADOW_USER_IDS_ENV,
+  isPilotNumericShadowStateKey,
+  listShadowEligibleNumericFields,
+  parsePositiveIntAllowlist,
+  resolveNumericShadowEligibility,
+} from "./shadowPolicy";
+
+export type {
+  NumericShadowEligibilityResult,
+  ShadowEligibleNumericField,
+} from "./shadowPolicy";
+
+export {
+  aggregateNumericShadowObservations,
+  classifyNumericProposalFormat,
+  logNumericShadowObservation,
+  observeNumericShadow,
+  tryObserveNumericShadowForTurn,
+} from "./shadowObserver";
+
+export type {
+  NumericShadowBaselineSource,
+  NumericShadowObservation,
+  NumericShadowOutcome,
+  NumericShadowProposalFormat,
+} from "./shadowObserver";
