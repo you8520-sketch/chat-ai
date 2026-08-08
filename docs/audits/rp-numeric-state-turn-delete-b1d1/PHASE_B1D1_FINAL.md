@@ -10,10 +10,10 @@ branch:
 cursor/rp-numeric-state-turn-delete-b1d1-6a91
 
 commit:
-(see tip after push)
+82cc102287ad25065b422d7153eb645bda26d6e1
 
 draft PR:
-(see GitHub)
+https://github.com/you8520-sketch/chat-ai/pull/276
 
 CANONICAL_ROLLOUT:
 
