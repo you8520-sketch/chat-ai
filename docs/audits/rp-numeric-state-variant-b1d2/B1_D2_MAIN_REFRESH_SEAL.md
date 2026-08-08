@@ -4,7 +4,7 @@
 B1_D2_MAIN_REFRESH_SEAL:
 
 latest main: 522f4810670bab639fb8800bc5eee4a125895a6b
-rebased/merged head: (see git tip after push)
+rebased/merged head: 94a95c375c326ddae1357548fb8406d66a0d2c87
 
 conflicts:
 NONE
@@ -13,7 +13,7 @@ B1-D2 tests:
 PASS (28/28 — includes nonnumeric clock C→B restore)
 
 status-widget #281 regressions:
-PASS (temporalUnknown + extractRetry)
+PASS (temporalUnknown + extractRetry — 81/81)
 
 variant time snapshot:
 C 10:30 → B 10:15
@@ -24,7 +24,7 @@ NO
 (advanceUnchangedClockValuesForTurn not imported by variant path)
 
 route canary:
-(see ROUTE_VARIANT_CANARY.json after re-run)
+PASS
 
 HTTP canonical parity:
 PASS
