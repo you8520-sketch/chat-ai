@@ -4,7 +4,7 @@
 PHASE_G8_FINAL:
 latest main: 7f0c54b60e7ace11bc6e4eea9c820caadde24853
 branch: cursor/gemini-living-scene-contract-g8-96c2
-commit: 46fe99d2337ff05c9d06cabcefe69008b64732a3
+commit: 4f1c1d7c23e4615a83f580ce492cf9a183a02918
 draft PR: https://github.com/you8520-sketch/chat-ai/pull/288
 
 CURRENT A:
