@@ -5,7 +5,7 @@
   "PHASE_D3_STATUS": true,
   "baseline_main": "268b8a70556f3392e7eb89283ba2e07689e2e332",
   "branch": "cursor/rp-gemini-content-boundary-d3-96c2",
-  "commit": "dec576022c6b5929ca717c7d310417e1ed9e0b8f",
+  "commit": "27e12c6f7c6145a151a72645f55c74cd8a977c1f",
   "draft_PR": "https://github.com/you8520-sketch/chat-ai/pull/278",
   "D2_wording": "BYTE_IDENTICAL",
   "offline_owner_map": "PASS",
