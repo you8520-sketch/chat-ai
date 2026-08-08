@@ -1,7 +1,7 @@
 ```text
 PHASE_B1C1_FINAL:
 PR #272 HEAD before: f59e4c5
-final commit: c7625a87829f7a4825c7ff2bdca4fa2e6f2ff225
+final commit: (branch tip — run git rev-parse HEAD on PR #272)
 legacy-first-regen:
   result: PASS
   HTTP: 409
