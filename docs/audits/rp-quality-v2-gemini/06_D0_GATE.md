@@ -48,6 +48,9 @@ budget: keep total new live calls small (≤14)
 production prompts: UNCHANGED until hard quality gate + human review
 ```
 
+**D1 executed:** G5×2 + G6×4 = 6 API calls. See `07_D1_G5G6_LIVE.md`, `08_GEMINI_SCENE_CONTINUITY_CANDIDATE.md`.  
+Adapter remains **NOT_WIRED**.
+
 ## Absolute stops still in force
 
 - No production merge of Gemini adapter
