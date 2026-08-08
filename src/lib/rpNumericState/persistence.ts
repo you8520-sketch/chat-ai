@@ -1,8 +1,8 @@
 /**
- * Phase B1-A — atomic numeric state persistence primitives.
+ * Phase B1-A/C — atomic numeric state persistence primitives.
  *
- * No route wiring. Tests / future B1-B/C only.
- * Uses BEGIN IMMEDIATE for short synchronous current+event commits.
+ * B1-C: transaction-free *Core functions for outer atomic finalize.
+ * Exported bootstrap/commit wrappers keep BEGIN IMMEDIATE (B1-A API unchanged).
  */
 import { createHash } from "node:crypto";
 import type Database from "better-sqlite3";
@@ -14,6 +14,7 @@ import {
 import type { ServerMeterNumericStateDefinitionV1 } from "@/lib/statusWidget/types";
 import { reduceNumericStateProposal } from "./reducer";
 import {
+  NumericRegenChainInvalidError,
   NumericStateNotBootstrappedError,
   NumericStateValidationError,
   type NumericCommitResultKind,
@@ -27,7 +28,7 @@ import {
 export const RP_NUMERIC_STATE_MAX_STATE_KEY_LEN = 64;
 export const RP_NUMERIC_STATE_MAX_MUTATION_ID_LEN = 256;
 
-/** Documented contract for C10 — commit/bootstrap use BEGIN IMMEDIATE. */
+/** Documented contract for C10 — commit/bootstrap wrappers use BEGIN IMMEDIATE. */
 export const RP_NUMERIC_STATE_USES_BEGIN_IMMEDIATE = true;
 
 type Db = Database.Database;
@@ -275,14 +276,13 @@ export type BootstrapNumericStateResult = {
   event: NumericStateEventRow | null;
 };
 
-/**
- * Create the first current row + INITIALIZED event atomically.
- * Existing current → no overwrite / no new event (unless same idempotency key).
- */
-export function bootstrapNumericStateCurrent(
-  db: Db,
-  input: BootstrapNumericStateInput
-): BootstrapNumericStateResult {
+function validateBootstrapInput(input: BootstrapNumericStateInput): {
+  definition: ServerMeterNumericStateDefinitionV1;
+  stateKey: string;
+  mutationId: string;
+  idempotencyKey: string;
+  definitionHash: string;
+} {
   const definition = normalizeNumericStateDefinition(input.definition);
   if (!definition) {
     throw new NumericStateValidationError("invalid numeric state definition");
@@ -301,101 +301,126 @@ export function bootstrapNumericStateCurrent(
   if (definition.integer && !Number.isSafeInteger(input.baselineValue)) {
     throw new NumericStateValidationError("baselineValue must be integer");
   }
-
-  const idempotencyKey = buildNumericIdempotencyKey({
-    chatId: input.chatId,
+  return {
+    definition,
     stateKey,
     mutationId,
-    sourceKind: input.sourceKind,
-  });
-  const definitionHash = fingerprintNumericStateDefinition(definition);
-
-  return runImmediateTransaction(db, () => {
-    const existingByKey = db
-      .prepare(
-        `SELECT id FROM rp_numeric_state_events WHERE idempotency_key=?`
-      )
-      .get(idempotencyKey) as { id: number } | undefined;
-    if (existingByKey) {
-      const current = getNumericStateCurrent(db, input.chatId, stateKey);
-      if (!current) {
-        throw new NumericStateValidationError(
-          "idempotent bootstrap event without current row"
-        );
-      }
-      return {
-        kind: "IDEMPOTENT_NOOP",
-        current,
-        event: getNumericStateEventById(db, existingByKey.id),
-      };
-    }
-
-    const existingCurrent = getNumericStateCurrent(db, input.chatId, stateKey);
-    if (existingCurrent) {
-      return {
-        kind: "ALREADY_BOOTSTRAPPED",
-        current: existingCurrent,
-        event: null,
-      };
-    }
-
-    const insertEvent = db.prepare(`
-      INSERT INTO rp_numeric_state_events (
-        chat_id, character_id, state_key, mutation_id,
-        before_value, proposed_value, proposed_delta, applied_delta, after_value,
-        outcome, adjustments_json,
-        source_turn, assistant_message_id, request_id, generation_sequence,
-        source_kind, replaces_event_id,
-        revision_before, revision_after,
-        policy_version, definition_hash, idempotency_key
-      ) VALUES (
-        ?, ?, ?, ?,
-        NULL, ?, NULL, NULL, ?,
-        'INITIALIZED', '[]',
-        NULL, NULL, NULL, NULL,
-        ?, NULL,
-        0, 1,
-        ?, ?, ?
-      )
-    `);
-    const eventInfo = insertEvent.run(
-      input.chatId,
-      input.characterId ?? null,
+    idempotencyKey: buildNumericIdempotencyKey({
+      chatId: input.chatId,
       stateKey,
       mutationId,
-      input.baselineValue,
-      input.baselineValue,
-      input.sourceKind,
-      NUMERIC_STATE_POLICY_VERSION,
-      definitionHash,
-      idempotencyKey
-    );
-    const eventId = Number(eventInfo.lastInsertRowid);
+      sourceKind: input.sourceKind,
+    }),
+    definitionHash: fingerprintNumericStateDefinition(definition),
+  };
+}
 
-    db.prepare(`
-      INSERT INTO rp_numeric_state_current (
-        chat_id, character_id, state_key, numeric_value, revision,
-        last_event_id, last_source_turn, last_source_message_id,
-        last_request_id, last_generation_sequence,
-        created_at, updated_at
-      ) VALUES (
-        ?, ?, ?, ?, 1,
-        ?, NULL, NULL,
-        NULL, NULL,
-        datetime('now'), datetime('now')
-      )
-    `).run(
-      input.chatId,
-      input.characterId ?? null,
-      stateKey,
-      input.baselineValue,
-      eventId
-    );
+/**
+ * Transaction-free bootstrap core (B1-C). Caller owns BEGIN/COMMIT.
+ * Does not swallow DB exceptions.
+ */
+export function bootstrapNumericStateCurrentCore(
+  db: Db,
+  input: BootstrapNumericStateInput
+): BootstrapNumericStateResult {
+  const { stateKey, mutationId, idempotencyKey, definitionHash } =
+    validateBootstrapInput(input);
 
-    const current = getNumericStateCurrent(db, input.chatId, stateKey)!;
-    const event = getNumericStateEventById(db, eventId)!;
-    return { kind: "INITIALIZED", current, event };
-  });
+  const existingByKey = db
+    .prepare(`SELECT id FROM rp_numeric_state_events WHERE idempotency_key=?`)
+    .get(idempotencyKey) as { id: number } | undefined;
+  if (existingByKey) {
+    const current = getNumericStateCurrent(db, input.chatId, stateKey);
+    if (!current) {
+      throw new NumericStateValidationError(
+        "idempotent bootstrap event without current row"
+      );
+    }
+    return {
+      kind: "IDEMPOTENT_NOOP",
+      current,
+      event: getNumericStateEventById(db, existingByKey.id),
+    };
+  }
+
+  const existingCurrent = getNumericStateCurrent(db, input.chatId, stateKey);
+  if (existingCurrent) {
+    return {
+      kind: "ALREADY_BOOTSTRAPPED",
+      current: existingCurrent,
+      event: null,
+    };
+  }
+
+  const insertEvent = db.prepare(`
+    INSERT INTO rp_numeric_state_events (
+      chat_id, character_id, state_key, mutation_id,
+      before_value, proposed_value, proposed_delta, applied_delta, after_value,
+      outcome, adjustments_json,
+      source_turn, assistant_message_id, request_id, generation_sequence,
+      source_kind, replaces_event_id,
+      revision_before, revision_after,
+      policy_version, definition_hash, idempotency_key
+    ) VALUES (
+      ?, ?, ?, ?,
+      NULL, ?, NULL, NULL, ?,
+      'INITIALIZED', '[]',
+      NULL, NULL, NULL, NULL,
+      ?, NULL,
+      0, 1,
+      ?, ?, ?
+    )
+  `);
+  const eventInfo = insertEvent.run(
+    input.chatId,
+    input.characterId ?? null,
+    stateKey,
+    mutationId,
+    input.baselineValue,
+    input.baselineValue,
+    input.sourceKind,
+    NUMERIC_STATE_POLICY_VERSION,
+    definitionHash,
+    idempotencyKey
+  );
+  const eventId = Number(eventInfo.lastInsertRowid);
+
+  db.prepare(`
+    INSERT INTO rp_numeric_state_current (
+      chat_id, character_id, state_key, numeric_value, revision,
+      last_event_id, last_source_turn, last_source_message_id,
+      last_request_id, last_generation_sequence,
+      created_at, updated_at
+    ) VALUES (
+      ?, ?, ?, ?, 1,
+      ?, NULL, NULL,
+      NULL, NULL,
+      datetime('now'), datetime('now')
+    )
+  `).run(
+    input.chatId,
+    input.characterId ?? null,
+    stateKey,
+    input.baselineValue,
+    eventId
+  );
+
+  const current = getNumericStateCurrent(db, input.chatId, stateKey)!;
+  const event = getNumericStateEventById(db, eventId)!;
+  return { kind: "INITIALIZED", current, event };
+}
+
+/**
+ * Create the first current row + INITIALIZED event atomically.
+ * Existing current → no overwrite / no new event (unless same idempotency key).
+ */
+export function bootstrapNumericStateCurrent(
+  db: Db,
+  input: BootstrapNumericStateInput
+): BootstrapNumericStateResult {
+  return runImmediateTransaction(db, () =>
+    bootstrapNumericStateCurrentCore(db, input)
+  );
 }
 
 export type CommitNumericStateProposalInput = {
@@ -419,141 +444,343 @@ export type CommitNumericStateProposalResult = {
   event: NumericStateEventRow | null;
 };
 
-/**
- * Atomic proposal commit (BEGIN IMMEDIATE).
- * Requires prior bootstrap. Idempotent on (chat, stateKey, mutationId, sourceKind).
- *
- * Revision increments for every new logical mutation event (APPLIED / NO_CHANGE /
- * INVALID_HOLD). IDEMPOTENT_NOOP does not append an event or bump revision.
- */
-export function commitNumericStateProposal(
-  db: Db,
-  input: CommitNumericStateProposalInput
-): CommitNumericStateProposalResult {
+function validateCommitInput(input: CommitNumericStateProposalInput): {
+  definition: ServerMeterNumericStateDefinitionV1;
+  stateKey: string;
+  mutationId: string;
+  idempotencyKey: string;
+  definitionHash: string;
+} {
   const definition = normalizeNumericStateDefinition(input.definition);
   if (!definition) {
     throw new NumericStateValidationError("invalid numeric state definition");
   }
   const stateKey = sanitizeNumericStateKey(input.stateKey);
   const mutationId = sanitizeMutationId(input.mutationId);
-  const idempotencyKey = buildNumericIdempotencyKey({
-    chatId: input.chatId,
+  return {
+    definition,
     stateKey,
     mutationId,
-    sourceKind: input.sourceKind,
-  });
-  const definitionHash = fingerprintNumericStateDefinition(definition);
+    idempotencyKey: buildNumericIdempotencyKey({
+      chatId: input.chatId,
+      stateKey,
+      mutationId,
+      sourceKind: input.sourceKind,
+    }),
+    definitionHash: fingerprintNumericStateDefinition(definition),
+  };
+}
 
-  return runImmediateTransaction(db, () => {
-    const existingByKey = db
-      .prepare(
-        `SELECT id FROM rp_numeric_state_events WHERE idempotency_key=?`
-      )
-      .get(idempotencyKey) as { id: number } | undefined;
-    if (existingByKey) {
-      const current = getNumericStateCurrent(db, input.chatId, stateKey);
-      if (!current) {
-        throw new NumericStateNotBootstrappedError();
-      }
-      return {
-        kind: "IDEMPOTENT_NOOP",
-        current,
-        event: getNumericStateEventById(db, existingByKey.id),
-      };
-    }
+function insertMutationEventAndUpdateCurrent(
+  db: Db,
+  input: {
+    chatId: number;
+    characterId?: number | null;
+    stateKey: string;
+    mutationId: string;
+    sourceKind: NumericStateSourceKind;
+    sourceTurn?: number | null;
+    assistantMessageId?: number | null;
+    requestId?: string | null;
+    generationSequence?: number | null;
+    replacesEventId?: number | null;
+    definitionHash: string;
+    idempotencyKey: string;
+    beforeValue: number;
+    proposedValue: number | null;
+    proposedDelta: number | null;
+    appliedDelta: number;
+    afterValue: number;
+    outcome: NumericEventOutcome;
+    adjustments: NumericReducerAdjustment[];
+    revisionBefore: number;
+    currentCharacterId: number | null;
+  }
+): { eventId: number; current: NumericStateCurrentRow; event: NumericStateEventRow } {
+  const revisionAfter = input.revisionBefore + 1;
+  const insertEvent = db.prepare(`
+    INSERT INTO rp_numeric_state_events (
+      chat_id, character_id, state_key, mutation_id,
+      before_value, proposed_value, proposed_delta, applied_delta, after_value,
+      outcome, adjustments_json,
+      source_turn, assistant_message_id, request_id, generation_sequence,
+      source_kind, replaces_event_id,
+      revision_before, revision_after,
+      policy_version, definition_hash, idempotency_key
+    ) VALUES (
+      ?, ?, ?, ?,
+      ?, ?, ?, ?, ?,
+      ?, ?,
+      ?, ?, ?, ?,
+      ?, ?,
+      ?, ?,
+      ?, ?, ?
+    )
+  `);
+  const eventInfo = insertEvent.run(
+    input.chatId,
+    input.characterId ?? input.currentCharacterId,
+    input.stateKey,
+    input.mutationId,
+    input.beforeValue,
+    input.proposedValue,
+    input.proposedDelta,
+    input.appliedDelta,
+    input.afterValue,
+    input.outcome,
+    JSON.stringify(input.adjustments),
+    input.sourceTurn ?? null,
+    input.assistantMessageId ?? null,
+    input.requestId ?? null,
+    input.generationSequence ?? null,
+    input.sourceKind,
+    input.replacesEventId ?? null,
+    input.revisionBefore,
+    revisionAfter,
+    NUMERIC_STATE_POLICY_VERSION,
+    input.definitionHash,
+    input.idempotencyKey
+  );
+  const eventId = Number(eventInfo.lastInsertRowid);
 
+  db.prepare(`
+    UPDATE rp_numeric_state_current
+    SET numeric_value = ?,
+        revision = ?,
+        last_event_id = ?,
+        last_source_turn = ?,
+        last_source_message_id = ?,
+        last_request_id = ?,
+        last_generation_sequence = ?,
+        character_id = COALESCE(?, character_id),
+        updated_at = datetime('now')
+    WHERE chat_id = ? AND state_key = ?
+  `).run(
+    input.afterValue,
+    revisionAfter,
+    eventId,
+    input.sourceTurn ?? null,
+    input.assistantMessageId ?? null,
+    input.requestId ?? null,
+    input.generationSequence ?? null,
+    input.characterId ?? null,
+    input.chatId,
+    input.stateKey
+  );
+
+  return {
+    eventId,
+    current: getNumericStateCurrent(db, input.chatId, input.stateKey)!,
+    event: getNumericStateEventById(db, eventId)!,
+  };
+}
+
+/**
+ * Transaction-free normal proposal commit (B1-C). Caller owns BEGIN/COMMIT.
+ * before = current.numeric_value. Does not swallow DB exceptions.
+ */
+export function commitNumericStateProposalCore(
+  db: Db,
+  input: CommitNumericStateProposalInput
+): CommitNumericStateProposalResult {
+  const { definition, stateKey, mutationId, idempotencyKey, definitionHash } =
+    validateCommitInput(input);
+
+  const existingByKey = db
+    .prepare(`SELECT id FROM rp_numeric_state_events WHERE idempotency_key=?`)
+    .get(idempotencyKey) as { id: number } | undefined;
+  if (existingByKey) {
     const current = getNumericStateCurrent(db, input.chatId, stateKey);
     if (!current) {
       throw new NumericStateNotBootstrappedError();
     }
-
-    const reduced = reduceNumericStateProposal({
-      definition,
-      beforeValue: current.numericValue,
-      proposal: input.proposal,
-      sourceKind: input.sourceKind,
-    });
-
-    const revisionBefore = current.revision;
-    const revisionAfter = revisionBefore + 1;
-    const outcome = reduced.outcome as NumericEventOutcome;
-
-    const insertEvent = db.prepare(`
-      INSERT INTO rp_numeric_state_events (
-        chat_id, character_id, state_key, mutation_id,
-        before_value, proposed_value, proposed_delta, applied_delta, after_value,
-        outcome, adjustments_json,
-        source_turn, assistant_message_id, request_id, generation_sequence,
-        source_kind, replaces_event_id,
-        revision_before, revision_after,
-        policy_version, definition_hash, idempotency_key
-      ) VALUES (
-        ?, ?, ?, ?,
-        ?, ?, ?, ?, ?,
-        ?, ?,
-        ?, ?, ?, ?,
-        ?, ?,
-        ?, ?,
-        ?, ?, ?
-      )
-    `);
-    const eventInfo = insertEvent.run(
-      input.chatId,
-      input.characterId ?? current.characterId,
-      stateKey,
-      mutationId,
-      reduced.beforeValue,
-      reduced.proposedValue,
-      reduced.proposedDelta,
-      reduced.appliedDelta,
-      reduced.afterValue,
-      outcome,
-      JSON.stringify(reduced.adjustments),
-      input.sourceTurn ?? null,
-      input.assistantMessageId ?? null,
-      input.requestId ?? null,
-      input.generationSequence ?? null,
-      input.sourceKind,
-      input.replacesEventId ?? null,
-      revisionBefore,
-      revisionAfter,
-      NUMERIC_STATE_POLICY_VERSION,
-      definitionHash,
-      idempotencyKey
-    );
-    const eventId = Number(eventInfo.lastInsertRowid);
-
-    db.prepare(`
-      UPDATE rp_numeric_state_current
-      SET numeric_value = ?,
-          revision = ?,
-          last_event_id = ?,
-          last_source_turn = ?,
-          last_source_message_id = ?,
-          last_request_id = ?,
-          last_generation_sequence = ?,
-          character_id = COALESCE(?, character_id),
-          updated_at = datetime('now')
-      WHERE chat_id = ? AND state_key = ?
-    `).run(
-      reduced.afterValue,
-      revisionAfter,
-      eventId,
-      input.sourceTurn ?? null,
-      input.assistantMessageId ?? null,
-      input.requestId ?? null,
-      input.generationSequence ?? null,
-      input.characterId ?? null,
-      input.chatId,
-      stateKey
-    );
-
-    const nextCurrent = getNumericStateCurrent(db, input.chatId, stateKey)!;
-    const event = getNumericStateEventById(db, eventId)!;
     return {
-      kind: reduced.outcome,
-      current: nextCurrent,
-      event,
+      kind: "IDEMPOTENT_NOOP",
+      current,
+      event: getNumericStateEventById(db, existingByKey.id),
     };
+  }
+
+  const current = getNumericStateCurrent(db, input.chatId, stateKey);
+  if (!current) {
+    throw new NumericStateNotBootstrappedError();
+  }
+
+  const reduced = reduceNumericStateProposal({
+    definition,
+    beforeValue: current.numericValue,
+    proposal: input.proposal,
+    sourceKind: input.sourceKind,
   });
+
+  const written = insertMutationEventAndUpdateCurrent(db, {
+    chatId: input.chatId,
+    characterId: input.characterId,
+    stateKey,
+    mutationId,
+    sourceKind: input.sourceKind,
+    sourceTurn: input.sourceTurn,
+    assistantMessageId: input.assistantMessageId,
+    requestId: input.requestId,
+    generationSequence: input.generationSequence,
+    replacesEventId: input.replacesEventId,
+    definitionHash,
+    idempotencyKey,
+    beforeValue: reduced.beforeValue,
+    proposedValue: reduced.proposedValue,
+    proposedDelta: reduced.proposedDelta,
+    appliedDelta: reduced.appliedDelta,
+    afterValue: reduced.afterValue,
+    outcome: reduced.outcome as NumericEventOutcome,
+    adjustments: reduced.adjustments,
+    revisionBefore: current.revision,
+    currentCharacterId: current.characterId,
+  });
+
+  return {
+    kind: reduced.outcome,
+    current: written.current,
+    event: written.event,
+  };
+}
+
+/**
+ * Atomic proposal commit (BEGIN IMMEDIATE).
+ * Requires prior bootstrap. Idempotent on (chat, stateKey, mutationId, sourceKind).
+ */
+export function commitNumericStateProposal(
+  db: Db,
+  input: CommitNumericStateProposalInput
+): CommitNumericStateProposalResult {
+  return runImmediateTransaction(db, () =>
+    commitNumericStateProposalCore(db, input)
+  );
+}
+
+export type CommitNumericStateReplacementInput = {
+  chatId: number;
+  characterId?: number | null;
+  stateKey: string;
+  definition: ServerMeterNumericStateDefinitionV1;
+  proposal: string | number | null | undefined;
+  mutationId: string;
+  sourceKind: "extractor";
+  sourceTurn?: number | null;
+  assistantMessageId: number;
+  requestId?: string | null;
+  generationSequence?: number | null;
+};
+
+/**
+ * Latest-regeneration replacement core (B1-C). Transaction-free.
+ *
+ * beforeValue = replaced event A.before_value (NOT current.after).
+ * Event A is retained; B.replaces_event_id = A.id.
+ */
+export function commitNumericStateReplacementCore(
+  db: Db,
+  input: CommitNumericStateReplacementInput
+): CommitNumericStateProposalResult {
+  const { definition, stateKey, mutationId, idempotencyKey, definitionHash } =
+    validateCommitInput(input);
+
+  const existingByKey = db
+    .prepare(`SELECT id FROM rp_numeric_state_events WHERE idempotency_key=?`)
+    .get(idempotencyKey) as { id: number } | undefined;
+  if (existingByKey) {
+    const current = getNumericStateCurrent(db, input.chatId, stateKey);
+    if (!current) {
+      throw new NumericStateNotBootstrappedError();
+    }
+    return {
+      kind: "IDEMPOTENT_NOOP",
+      current,
+      event: getNumericStateEventById(db, existingByKey.id),
+    };
+  }
+
+  const current = getNumericStateCurrent(db, input.chatId, stateKey);
+  if (!current) {
+    throw new NumericStateNotBootstrappedError();
+  }
+
+  if (
+    current.lastSourceMessageId !== input.assistantMessageId ||
+    current.lastEventId == null
+  ) {
+    throw new NumericRegenChainInvalidError(
+      "NUMERIC_REGEN_CHAIN_INVALID: current tip does not match assistant message"
+    );
+  }
+
+  const replaced = getNumericStateEventById(db, current.lastEventId);
+  if (
+    !replaced ||
+    replaced.chatId !== input.chatId ||
+    replaced.stateKey !== stateKey ||
+    replaced.assistantMessageId !== input.assistantMessageId
+  ) {
+    throw new NumericRegenChainInvalidError(
+      "NUMERIC_REGEN_CHAIN_INVALID: replaced event mismatch"
+    );
+  }
+
+  if (replaced.beforeValue == null || !Number.isFinite(replaced.beforeValue)) {
+    throw new NumericRegenChainInvalidError(
+      "NUMERIC_REGEN_CHAIN_INVALID: replaced event missing before_value"
+    );
+  }
+
+  const reduced = reduceNumericStateProposal({
+    definition,
+    beforeValue: replaced.beforeValue,
+    proposal: input.proposal,
+    sourceKind: input.sourceKind,
+  });
+
+  const written = insertMutationEventAndUpdateCurrent(db, {
+    chatId: input.chatId,
+    characterId: input.characterId,
+    stateKey,
+    mutationId,
+    sourceKind: input.sourceKind,
+    sourceTurn: input.sourceTurn,
+    assistantMessageId: input.assistantMessageId,
+    requestId: input.requestId,
+    generationSequence: input.generationSequence,
+    replacesEventId: replaced.id,
+    definitionHash,
+    idempotencyKey,
+    beforeValue: reduced.beforeValue,
+    proposedValue: reduced.proposedValue,
+    proposedDelta: reduced.proposedDelta,
+    appliedDelta: reduced.appliedDelta,
+    afterValue: reduced.afterValue,
+    outcome: reduced.outcome as NumericEventOutcome,
+    adjustments: reduced.adjustments,
+    revisionBefore: current.revision,
+    currentCharacterId: current.characterId,
+  });
+
+  return {
+    kind: reduced.outcome,
+    current: written.current,
+    event: written.event,
+  };
+}
+
+/** BEGIN IMMEDIATE wrapper for replacement (tests / standalone callers). */
+export function commitNumericStateReplacement(
+  db: Db,
+  input: CommitNumericStateReplacementInput
+): CommitNumericStateProposalResult {
+  return runImmediateTransaction(db, () =>
+    commitNumericStateReplacementCore(db, input)
+  );
+}
+
+/** Delete all numeric ledger rows for a chat (whole-chat delete cleanup). */
+export function deleteNumericStateForChat(db: Db, chatId: number): void {
+  db.prepare(`DELETE FROM rp_numeric_state_events WHERE chat_id=?`).run(chatId);
+  db.prepare(`DELETE FROM rp_numeric_state_current WHERE chat_id=?`).run(chatId);
 }

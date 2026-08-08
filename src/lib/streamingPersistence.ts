@@ -426,22 +426,34 @@ export function recoverStaleInFlightAssistantMessages(
   return recovered;
 }
 
-export function finalizeAssistantMessage(
+export type FinalizeAssistantMessageOpts = {
+  assistantMessageId: number;
+  chatId: number;
+  content: string;
+  model: string;
+  usageJson: string;
+  alternatesJson: string;
+  activeVariant: number;
+  statusWidgetValuesJson?: string;
+  statusWidgetTurnActive?: number;
+  generationStatus?: GenerationStatus;
+  alreadyFinalized?: boolean;
+};
+
+export type FinalizeAssistantMessageResult = {
+  wrote: boolean;
+  preservedExistingStatusValues?: boolean;
+  statusWidgetValuesJson?: string;
+};
+
+/**
+ * Transaction-free finalize core (B1-C). Caller may wrap in an outer
+ * BEGIN IMMEDIATE with numeric mutations. Does not begin/commit itself.
+ */
+export function finalizeAssistantMessageCore(
   db: Database.Database,
-  opts: {
-    assistantMessageId: number;
-    chatId: number;
-    content: string;
-    model: string;
-    usageJson: string;
-    alternatesJson: string;
-    activeVariant: number;
-    statusWidgetValuesJson?: string;
-    statusWidgetTurnActive?: number;
-    generationStatus?: GenerationStatus;
-    alreadyFinalized?: boolean;
-  }
-): { wrote: boolean; preservedExistingStatusValues?: boolean; statusWidgetValuesJson?: string } {
+  opts: FinalizeAssistantMessageOpts
+): FinalizeAssistantMessageResult {
   const row = db
     .prepare(
       `SELECT generation_status, deduction_slices, status_widget_values_json
@@ -490,6 +502,13 @@ export function finalizeAssistantMessage(
     preservedExistingStatusValues: false,
     statusWidgetValuesJson: finalStatusWidgetValuesJson,
   };
+}
+
+export function finalizeAssistantMessage(
+  db: Database.Database,
+  opts: FinalizeAssistantMessageOpts
+): FinalizeAssistantMessageResult {
+  return finalizeAssistantMessageCore(db, opts);
 }
 
 /** Safe send wrapper: catch enqueue failures so disconnect never aborts generation/DB work. */

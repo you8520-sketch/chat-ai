@@ -119,3 +119,11 @@ export class NumericStateValidationError extends Error {
     this.name = "NumericStateValidationError";
   }
 }
+
+export class NumericRegenChainInvalidError extends Error {
+  readonly code = "NUMERIC_REGEN_CHAIN_INVALID" as const;
+  constructor(message = "NUMERIC_REGEN_CHAIN_INVALID") {
+    super(message);
+    this.name = "NumericRegenChainInvalidError";
+  }
+}

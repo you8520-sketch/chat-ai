@@ -1,6 +1,6 @@
 /**
- * Phase B1-A/B — Server-authoritative RP numeric state foundation + shadow observer.
- * Shadow is diagnostic-only (default OFF). Persistence commit is still unused in routes.
+ * Phase B1-A/B/C — Server-authoritative RP numeric state.
+ * Canonical writes are fail-closed + allowlist (default OFF).
  */
 export {
   fingerprintNumericStateDefinition,
@@ -18,8 +18,13 @@ export {
   RP_NUMERIC_STATE_MAX_STATE_KEY_LEN,
   RP_NUMERIC_STATE_USES_BEGIN_IMMEDIATE,
   bootstrapNumericStateCurrent,
+  bootstrapNumericStateCurrentCore,
   buildNumericIdempotencyKey,
   commitNumericStateProposal,
+  commitNumericStateProposalCore,
+  commitNumericStateReplacement,
+  commitNumericStateReplacementCore,
+  deleteNumericStateForChat,
   ensureRpNumericStateTables,
   getNumericStateCurrent,
   getNumericStateEventById,
@@ -32,6 +37,7 @@ export type {
   BootstrapNumericStateResult,
   CommitNumericStateProposalInput,
   CommitNumericStateProposalResult,
+  CommitNumericStateReplacementInput,
 } from "./persistence";
 
 export type {
@@ -49,6 +55,7 @@ export type {
 } from "./types";
 
 export {
+  NumericRegenChainInvalidError,
   NumericStateInvalidCurrentError,
   NumericStateNotBootstrappedError,
   NumericStateValidationError,
@@ -84,3 +91,37 @@ export type {
   NumericShadowOutcome,
   NumericShadowProposalFormat,
 } from "./shadowObserver";
+
+export {
+  RP_NUMERIC_CANONICAL_PILOT_STATE_KEYS,
+  RP_NUMERIC_STATE_ALLOWLIST_CHARACTERS_ENV,
+  RP_NUMERIC_STATE_ALLOWLIST_USERS_ENV,
+  RP_NUMERIC_STATE_ENABLED_ENV,
+  RP_NUMERIC_STATE_KILL_SWITCH_ENV,
+  buildNumericBootstrapMutationId,
+  buildNumericGenerationMutationId,
+  isPilotNumericCanonicalStateKey,
+  listCanonicalEligibleNumericFields,
+  resolveNumericCanonicalEligibility,
+} from "./canonicalPolicy";
+
+export type {
+  CanonicalEligibleNumericField,
+  NumericCanonicalEligibilityResult,
+} from "./canonicalPolicy";
+
+export {
+  formatCanonicalNumericStatusValue,
+  mirrorCanonicalNumericValuesIntoStatusPayload,
+  numericCanonicalFieldsChanged,
+  readLegacyNumericBaselineFromStatusPayload,
+  readNumericProposalFromStatusPayload,
+} from "./statusMirror";
+
+export { executeAtomicNumericAssistantFinalize } from "./canonicalFinalize";
+
+export type {
+  AtomicNumericAssistantFinalizeInput,
+  AtomicNumericAssistantFinalizeResult,
+  AtomicNumericFieldCommit,
+} from "./canonicalFinalize";

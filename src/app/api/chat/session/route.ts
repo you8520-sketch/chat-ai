@@ -89,6 +89,9 @@ export async function DELETE(req: Request) {
       db.prepare("DELETE FROM episodic_memory_facts WHERE chat_id=?").run(chat.id);
       db.prepare("DELETE FROM status_widget_triggers WHERE chat_id=?").run(chat.id);
       db.prepare("DELETE FROM status_trigger_events WHERE chat_id=?").run(chat.id);
+      // Phase B1-C: whole-chat delete cleans numeric ledger inside the same tx.
+      db.prepare("DELETE FROM rp_numeric_state_events WHERE chat_id=?").run(chat.id);
+      db.prepare("DELETE FROM rp_numeric_state_current WHERE chat_id=?").run(chat.id);
       db.prepare("DELETE FROM lorebook_active_entries WHERE chat_id=?").run(chat.id);
       db.prepare("DELETE FROM message_feedback WHERE chat_id=?").run(chat.id);
       db.prepare("DELETE FROM message_generations WHERE chat_id=?").run(chat.id);

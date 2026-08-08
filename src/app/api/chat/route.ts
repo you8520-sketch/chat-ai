@@ -347,6 +347,7 @@ import { scheduleStatusMetaExtraction, markMessageStatusMetaPending } from "@/li
 import { resolveStatusMetaExtractionEnabled } from "@/lib/statusMeta/displayPolicy";
 import {
   applyStatusWidgetSystemPromptOverrides,
+  parseStatusWidgetJson,
   patchOpenRouterSplitForStatusWidget,
   resolveStatusWidgetTurn,
   serializeStatusWidgetValuesJson,
@@ -409,9 +410,16 @@ import {
   markStatusTriggerEventsConsumed,
 } from "@/lib/statusWidgetTriggers";
 import {
+  hasLaterCanonicalTurn,
   isCanonicalDerivedStateGenerationStatus,
   supersedeStatusTriggerEventsForSourceMessage,
 } from "@/lib/rpDerivedStateLifecycle";
+import {
+  executeAtomicNumericAssistantFinalize,
+  listCanonicalEligibleNumericFields,
+  resolveNumericCanonicalEligibility,
+} from "@/lib/rpNumericState";
+import { loadPreviousStatusWidgetValues } from "@/lib/statusWidget/loadPrevious";
 import {
   buildPrivateSpeechControlBlock,
   parseCreatorDescriptionCompiled,
@@ -828,6 +836,32 @@ export async function POST(req: Request) {
     messageText = regenBoundary.parentUser.content;
     userMessageId = regenBoundary.parentUser.id;
     skipUserInsert = true;
+
+    // Phase B1-C: historical regeneration requires numeric replay — fail closed
+    // BEFORE any model API call / billing (points charged = 0, LLM calls = 0).
+    {
+      const earlyCharacterWidget = parseStatusWidgetJson(
+        (ch as { status_widget_json?: string }).status_widget_json
+      );
+      const numericHistoricalGate = resolveNumericCanonicalEligibility({
+        userId: user.id,
+        characterId: ch.id,
+      });
+      if (
+        numericHistoricalGate.eligible &&
+        listCanonicalEligibleNumericFields(earlyCharacterWidget).length > 0 &&
+        hasLaterCanonicalTurn(db, chat.id, regenerateMessageId)
+      ) {
+        return Response.json(
+          {
+            error: "이 대화는 과거 턴 재생성을 지원하지 않습니다.",
+            code: "numeric_state_historical_replay_unsupported",
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     logRegenerationContextTrace(
       buildRegenerationContextTrace({
         requestId: clientRequestId,
@@ -4429,6 +4463,24 @@ export async function POST(req: Request) {
         // advance derived state.
         let assistantFinalizedThisRequest = false;
 
+        const numericCanonicalEligible =
+          resolveNumericCanonicalEligibility({
+            userId: user.id,
+            characterId: ch.id,
+          }).eligible &&
+          listCanonicalEligibleNumericFields(statusWidgetTurn.characterWidget)
+            .length > 0;
+        const previousCanonicalStatusForNumeric = numericCanonicalEligible
+          ? loadPreviousStatusWidgetValues(
+              chatRef.id,
+              regenerateMessageId ?? persistedAssistantId,
+              {
+                characterWidget: statusWidgetTurn.characterWidget,
+                userWidget: statusWidgetTurn.userWidget,
+              }
+            )
+          : null;
+
         if (regenerateMessageId) {
           const existing = db
             .prepare(
@@ -4452,18 +4504,70 @@ export async function POST(req: Request) {
           snapshotVariantIndex = appended.activeVariant;
           snapshotVariantCount = appended.variants.length;
 
-          const finalizeResult = finalizeAssistantMessage(db, {
-            assistantMessageId: regenerateMessageId,
-            chatId: chatRef.id,
-            content: savedText,
-            model: dbUsageRecord.model,
-            usageJson: JSON.stringify(dbUsageRecord),
-            alternatesJson: JSON.stringify(appended.variants),
-            activeVariant: appended.activeVariant,
-            statusWidgetValuesJson,
-            statusWidgetTurnActive: statusWidgetTurnActiveFlag,
-            generationStatus: persistedGenerationStatus,
-          });
+          let finalizeWrote = false;
+          let finalizedStatusJson = statusWidgetValuesJson;
+          let finalizePreservedExisting = false;
+
+          if (numericCanonicalEligible) {
+            // Phase B1-C: message + numeric + status mirror in ONE transaction.
+            // Do NOT call finalizeAssistantMessage + commitNumericStateProposal separately.
+            try {
+              const atomic = executeAtomicNumericAssistantFinalize(db, {
+                assistantMessageId: regenerateMessageId,
+                chatId: chatRef.id,
+                characterId: ch.id,
+                content: savedText,
+                model: dbUsageRecord.model,
+                usageJson: JSON.stringify(dbUsageRecord),
+                variants: appended.variants,
+                activeVariant: appended.activeVariant,
+                statusWidgetValues: statusWidgetValuesPayload,
+                statusWidgetTurnActive: statusWidgetTurnActiveFlag,
+                generationStatus: persistedGenerationStatus,
+                characterWidget: statusWidgetTurn.characterWidget,
+                previousCanonicalStatus: previousCanonicalStatusForNumeric,
+                sourceTurn: playableTurnCount + 1,
+                requestId: clientRequestId ?? null,
+                generationSequence: newVariant.generationSequence ?? appended.activeVariant,
+                isRegeneration: true,
+              });
+              finalizeWrote = atomic.wrote;
+              finalizedStatusJson = atomic.statusWidgetValuesJson;
+              statusWidgetValuesPayload = atomic.statusWidgetValues;
+              variantPayload = serializeVariantsForClient(
+                atomic.variants,
+                atomic.activeVariant
+              );
+              newVariant = {
+                ...newVariant,
+                statusWidgetValues: atomic.statusWidgetValues,
+              };
+            } catch (numericFinalizeErr) {
+              console.error(
+                "[RpNumericState] atomic regen finalize failed:",
+                (numericFinalizeErr as Error).message
+              );
+              throw numericFinalizeErr;
+            }
+          } else {
+            const finalizeResult = finalizeAssistantMessage(db, {
+              assistantMessageId: regenerateMessageId,
+              chatId: chatRef.id,
+              content: savedText,
+              model: dbUsageRecord.model,
+              usageJson: JSON.stringify(dbUsageRecord),
+              alternatesJson: JSON.stringify(appended.variants),
+              activeVariant: appended.activeVariant,
+              statusWidgetValuesJson,
+              statusWidgetTurnActive: statusWidgetTurnActiveFlag,
+              generationStatus: persistedGenerationStatus,
+            });
+            finalizeWrote = finalizeResult.wrote;
+            finalizedStatusJson =
+              finalizeResult.statusWidgetValuesJson ?? statusWidgetValuesJson;
+            finalizePreservedExisting =
+              finalizeResult.preservedExistingStatusValues === true;
+          }
           logStatusWidgetLiveTrace({
             requestId: clientRequestId ?? null,
             chatId: chatRef.id,
@@ -4477,10 +4581,10 @@ export async function POST(req: Request) {
             missingKeys: statusWidgetSaveDiag.missingKeys,
             hasUsableValues: statusWidgetSaveDiag.hasUsableValues,
             dbValueShape: statusWidgetSaveDiag.dbValueShape,
-            savedToDb: finalizeResult.wrote,
-            overwrittenByEmpty: finalizeResult.preservedExistingStatusValues === true,
-            statusValuesHash: statusWidgetDiagnosticHash(finalizeResult.statusWidgetValuesJson ?? statusWidgetValuesJson),
-            reasonCode: finalizeResult.preservedExistingStatusValues
+            savedToDb: finalizeWrote,
+            overwrittenByEmpty: finalizePreservedExisting,
+            statusValuesHash: statusWidgetDiagnosticHash(finalizedStatusJson),
+            reasonCode: finalizePreservedExisting
               ? "FINALIZE_OVERWROTE_VALUES_PREVENTED"
               : statusWidgetSaveReason,
           });
@@ -4497,33 +4601,83 @@ export async function POST(req: Request) {
             missingKeys: statusWidgetSaveDiag.missingKeys,
             hasUsableValues: statusWidgetSaveDiag.hasUsableValues,
             dbValueShape: statusWidgetSaveDiag.dbValueShape,
-            savedToDb: finalizeResult.wrote,
-            overwrittenByEmpty: finalizeResult.preservedExistingStatusValues === true,
-            statusValuesHash: statusWidgetDiagnosticHash(finalizeResult.statusWidgetValuesJson ?? statusWidgetValuesJson),
-            reasonCode: finalizeResult.preservedExistingStatusValues
+            savedToDb: finalizeWrote,
+            overwrittenByEmpty: finalizePreservedExisting,
+            statusValuesHash: statusWidgetDiagnosticHash(finalizedStatusJson),
+            reasonCode: finalizePreservedExisting
               ? "FINALIZE_OVERWROTE_VALUES_PREVENTED"
               : statusWidgetSaveReason,
           });
           // Successful regenerate counts as an engagement turn (same counter as new user sends).
-          if (finalizeResult.wrote) {
+          if (finalizeWrote) {
             incrementCharacterTotalTurns(db, ch.id, 1);
           }
-          assistantFinalizedThisRequest = finalizeResult.wrote;
+          assistantFinalizedThisRequest = finalizeWrote;
           aiMessageId = regenerateMessageId;
         } else {
-          const alternatesJson = JSON.stringify([newVariant]);
-          const finalizeResult = finalizeAssistantMessage(db, {
-            assistantMessageId: persistedAssistantId,
-            chatId: chatRef.id,
-            content: savedText,
-            model: usageRecord.model,
-            usageJson: JSON.stringify(usageRecord),
-            alternatesJson,
-            activeVariant: 0,
-            statusWidgetValuesJson,
-            statusWidgetTurnActive: statusWidgetTurnActiveFlag,
-            generationStatus: persistedGenerationStatus,
-          });
+          let finalizeWrote = false;
+          let finalizedStatusJson = statusWidgetValuesJson;
+          let finalizePreservedExisting = false;
+          const alternatesForFinalize = [newVariant];
+
+          if (numericCanonicalEligible) {
+            try {
+              const atomic = executeAtomicNumericAssistantFinalize(db, {
+                assistantMessageId: persistedAssistantId,
+                chatId: chatRef.id,
+                characterId: ch.id,
+                content: savedText,
+                model: usageRecord.model,
+                usageJson: JSON.stringify(usageRecord),
+                variants: alternatesForFinalize,
+                activeVariant: 0,
+                statusWidgetValues: statusWidgetValuesPayload,
+                statusWidgetTurnActive: statusWidgetTurnActiveFlag,
+                generationStatus: persistedGenerationStatus,
+                characterWidget: statusWidgetTurn.characterWidget,
+                previousCanonicalStatus: previousCanonicalStatusForNumeric,
+                sourceTurn: playableTurnCount + 1,
+                requestId: clientRequestId ?? null,
+                generationSequence: 0,
+                isRegeneration: false,
+              });
+              finalizeWrote = atomic.wrote;
+              finalizedStatusJson = atomic.statusWidgetValuesJson;
+              statusWidgetValuesPayload = atomic.statusWidgetValues;
+              variantPayload = serializeVariantsForClient(
+                atomic.variants,
+                atomic.activeVariant
+              );
+              newVariant = {
+                ...newVariant,
+                statusWidgetValues: atomic.statusWidgetValues,
+              };
+            } catch (numericFinalizeErr) {
+              console.error(
+                "[RpNumericState] atomic finalize failed:",
+                (numericFinalizeErr as Error).message
+              );
+              throw numericFinalizeErr;
+            }
+          } else {
+            const finalizeResult = finalizeAssistantMessage(db, {
+              assistantMessageId: persistedAssistantId,
+              chatId: chatRef.id,
+              content: savedText,
+              model: usageRecord.model,
+              usageJson: JSON.stringify(usageRecord),
+              alternatesJson: JSON.stringify(alternatesForFinalize),
+              activeVariant: 0,
+              statusWidgetValuesJson,
+              statusWidgetTurnActive: statusWidgetTurnActiveFlag,
+              generationStatus: persistedGenerationStatus,
+            });
+            finalizeWrote = finalizeResult.wrote;
+            finalizedStatusJson =
+              finalizeResult.statusWidgetValuesJson ?? statusWidgetValuesJson;
+            finalizePreservedExisting =
+              finalizeResult.preservedExistingStatusValues === true;
+          }
           logStatusWidgetLiveTrace({
             requestId: clientRequestId ?? null,
             chatId: chatRef.id,
@@ -4537,10 +4691,10 @@ export async function POST(req: Request) {
             missingKeys: statusWidgetSaveDiag.missingKeys,
             hasUsableValues: statusWidgetSaveDiag.hasUsableValues,
             dbValueShape: statusWidgetSaveDiag.dbValueShape,
-            savedToDb: finalizeResult.wrote,
-            overwrittenByEmpty: finalizeResult.preservedExistingStatusValues === true,
-            statusValuesHash: statusWidgetDiagnosticHash(finalizeResult.statusWidgetValuesJson ?? statusWidgetValuesJson),
-            reasonCode: finalizeResult.preservedExistingStatusValues
+            savedToDb: finalizeWrote,
+            overwrittenByEmpty: finalizePreservedExisting,
+            statusValuesHash: statusWidgetDiagnosticHash(finalizedStatusJson),
+            reasonCode: finalizePreservedExisting
               ? "FINALIZE_OVERWROTE_VALUES_PREVENTED"
               : statusWidgetSaveReason,
           });
@@ -4557,14 +4711,14 @@ export async function POST(req: Request) {
             missingKeys: statusWidgetSaveDiag.missingKeys,
             hasUsableValues: statusWidgetSaveDiag.hasUsableValues,
             dbValueShape: statusWidgetSaveDiag.dbValueShape,
-            savedToDb: finalizeResult.wrote,
-            overwrittenByEmpty: finalizeResult.preservedExistingStatusValues === true,
-            statusValuesHash: statusWidgetDiagnosticHash(finalizeResult.statusWidgetValuesJson ?? statusWidgetValuesJson),
-            reasonCode: finalizeResult.preservedExistingStatusValues
+            savedToDb: finalizeWrote,
+            overwrittenByEmpty: finalizePreservedExisting,
+            statusValuesHash: statusWidgetDiagnosticHash(finalizedStatusJson),
+            reasonCode: finalizePreservedExisting
               ? "FINALIZE_OVERWROTE_VALUES_PREVENTED"
               : statusWidgetSaveReason,
           });
-          assistantFinalizedThisRequest = finalizeResult.wrote;
+          assistantFinalizedThisRequest = finalizeWrote;
           aiMessageId = persistedAssistantId;
           if (userMessageId != null) {
             db.prepare(
