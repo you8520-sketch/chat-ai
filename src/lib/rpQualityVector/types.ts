@@ -92,9 +92,12 @@ export type ContinuityAutoAuditRef = {
   current_input_lcs_chars: number;
   current_input_overlap_alarm: boolean;
   current_input_dialogue_echo: boolean;
+  current_input_beat_restage: boolean;
   recent_assistant_lcs_chars: number;
   recent_assistant_overlap_alarm: boolean;
   opening_paragraph_mirrors_prior: boolean;
+  intro_lcs_chars: number;
+  intro_overlap_alarm: boolean;
   intra_turn_abstract_restatement_hits: number;
   intra_turn_reexplanation_alarm: boolean;
   continuity_review_required: boolean;

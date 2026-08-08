@@ -55,9 +55,13 @@ export type ContinuityAutoAudit = {
   current_input_lcs_chars: number;
   current_input_overlap_alarm: boolean;
   current_input_dialogue_echo: boolean;
+  /** Soft: ≥2 distinctive user beat tokens restaged in opening paras (paraphrase-friendly). */
+  current_input_beat_restage: boolean;
   recent_assistant_lcs_chars: number;
   recent_assistant_overlap_alarm: boolean;
   opening_paragraph_mirrors_prior: boolean;
+  intro_lcs_chars: number;
+  intro_overlap_alarm: boolean;
   intra_turn_abstract_restatement_hits: number;
   intra_turn_reexplanation_alarm: boolean;
   continuity_review_required: boolean;
@@ -94,6 +98,43 @@ function extractUserActionSnippets(userInput: string): string[] {
     out.push(m[1]!.trim());
   }
   return out;
+}
+
+/** Distinctive KR content tokens (≥2 chars) from user input for paraphrase beat restage. */
+function extractBeatTokens(userInput: string): string[] {
+  const stop = new Set([
+    "렌은",
+    "렌이",
+    "렌",
+    "에녹",
+    "쪽으로",
+    "몸을",
+    "낮춘다",
+    "같이",
+    "가요",
+    "저쪽이에요",
+    "제가",
+    "좀",
+    "도와드릴게요",
+    "괜찮아요",
+    "나는",
+    "라고",
+    "부르면",
+    "맞아",
+    "본적있어",
+    "신입",
+  ]);
+  const raw = userInput
+    .replace(/[*_~`"'“”‘’()]/g, " ")
+    .split(/[\s,.!?…·/\\]+/)
+    .map((t) => t.trim())
+    .filter((t) => t.length >= 2 && !stop.has(t));
+  // Prefer longer distinctive stems
+  const scored = raw.filter((t) =>
+    /(비명|마찰|금속|무릎|눈높이|다가가|조심|감옥|지하|쇠사슬|안개|방독)/.test(t) ||
+    t.length >= 3
+  );
+  return [...new Set(scored)].slice(0, 24);
 }
 
 /**
@@ -136,25 +177,53 @@ export function computeContinuityAutoAudit(input: {
       }
     }
   }
-  if (current_input_overlap_alarm || current_input_dialogue_echo) {
+  const openingParas = splitParagraphs(output).slice(0, 2).join("\n");
+  const openingNorm = normalizeLoose(openingParas);
+  let beatHits = 0;
+  for (const tok of extractBeatTokens(user)) {
+    const n = normalizeLoose(tok);
+    if (n.length >= 2 && openingNorm.includes(n)) beatHits += 1;
+  }
+  const current_input_beat_restage = beatHits >= 2 && openingParas.replace(/\s+/g, "").length >= 40;
+  if (
+    current_input_overlap_alarm ||
+    current_input_dialogue_echo ||
+    current_input_beat_restage
+  ) {
     alarms.push("CURRENT_INPUT_REPLAY_SIGNAL");
   }
 
-  const priorSrc = prior.trim() || intro.trim();
+  const priorSrc = prior.trim();
+  const introSrc = intro.trim();
   const priorLcs = priorSrc
     ? longestCommonSubstring(output, priorSrc, 10_000)
     : { len: 0, snippet: "" };
   const recent_assistant_lcs_chars = priorLcs.len;
   const recent_assistant_overlap_alarm = recent_assistant_lcs_chars >= 28;
 
+  const introLcs = introSrc
+    ? longestCommonSubstring(output, introSrc, 8_000)
+    : { len: 0, snippet: "" };
+  const intro_lcs_chars = introLcs.len;
+  const intro_overlap_alarm = intro_lcs_chars >= 28;
+
   const firstPara = splitParagraphs(output)[0] ?? "";
   let opening_paragraph_mirrors_prior = false;
-  if (priorSrc && firstPara.replace(/\s+/g, "").length >= 40) {
-    const openLcs = longestCommonSubstring(firstPara, priorSrc, 4_000);
+  const mirrorSrc = priorSrc || introSrc;
+  if (mirrorSrc && firstPara.replace(/\s+/g, "").length >= 40) {
+    const openLcs = longestCommonSubstring(firstPara, mirrorSrc, 4_000);
     opening_paragraph_mirrors_prior = openLcs.len >= 24;
   }
-  if (recent_assistant_overlap_alarm || opening_paragraph_mirrors_prior) {
-    alarms.push("RECENT_SCENE_REPLAY_SIGNAL");
+  if (
+    recent_assistant_overlap_alarm ||
+    opening_paragraph_mirrors_prior ||
+    intro_overlap_alarm
+  ) {
+    alarms.push(
+      intro_overlap_alarm && !recent_assistant_overlap_alarm
+        ? "INTRO_REPLAY_SIGNAL"
+        : "RECENT_SCENE_REPLAY_SIGNAL"
+    );
   }
 
   const paras = splitParagraphs(output);
@@ -171,17 +240,22 @@ export function computeContinuityAutoAudit(input: {
   const continuity_review_required =
     current_input_overlap_alarm ||
     current_input_dialogue_echo ||
+    current_input_beat_restage ||
     recent_assistant_overlap_alarm ||
     opening_paragraph_mirrors_prior ||
+    intro_overlap_alarm ||
     intra_turn_reexplanation_alarm;
 
   return {
     current_input_lcs_chars,
     current_input_overlap_alarm,
     current_input_dialogue_echo,
+    current_input_beat_restage,
     recent_assistant_lcs_chars,
     recent_assistant_overlap_alarm,
     opening_paragraph_mirrors_prior,
+    intro_lcs_chars,
+    intro_overlap_alarm,
     intra_turn_abstract_restatement_hits,
     intra_turn_reexplanation_alarm,
     continuity_review_required,

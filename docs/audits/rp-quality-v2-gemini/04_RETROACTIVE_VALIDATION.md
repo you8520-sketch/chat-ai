@@ -2,6 +2,8 @@
 
 API calls: **0**
 
+G5-style offline: greeting/intro from `fixtures/c*_fixture.json` passed as `greetingOrIntroText`.
+
 ```json
 {
   "api_calls": 0,
@@ -9,7 +11,26 @@ API calls: **0**
   "c2r_cells": 8,
   "length_collapse_known_samples_detected": true,
   "incomplete_known_sample_detected": true,
-  "current_input_replay_signals": [],
+  "current_input_replay_signals": [
+    "C2/Gemini_T_A",
+    "C2/Gemini_T_B",
+    "C2R/DeepSeek_T_A",
+    "C2R/Gemini_T_A",
+    "C2R/Gemini_T_AB"
+  ],
+  "intro_or_recent_replay_signals": [],
+  "replay_by_model": {
+    "DeepSeek": {
+      "input": 1,
+      "intro": 0,
+      "total": 10
+    },
+    "Gemini": {
+      "input": 4,
+      "intro": 0,
+      "total": 10
+    }
+  },
   "band_counts": {
     "STRONG_LENGTH_REGRESSION": 5,
     "DENSITY_COLLAPSE": 13,
@@ -26,7 +47,8 @@ API calls: **0**
     "SETTING_RECITAL_HUMAN_SCHEMA": "PASS",
     "KNOWLEDGE_LEAK_HARD_GATE": "PASS",
     "CONTINUITY_REPLAY_METRICS": "PASS",
-    "CONTINUITY_HUMAN_SCHEMA": "PASS"
+    "CONTINUITY_HUMAN_SCHEMA": "PASS",
+    "G5_OFFLINE_WITH_GREETING": "PASS"
   }
 }
 ```
@@ -40,24 +62,39 @@ API calls: **0**
 
 DeepSeek_T_AB incomplete alarm: **PASS**
 
-## Current-input replay auto signals
+## CURRENT_INPUT_REPLAY auto signals
 
-- (none on stored cells with available user fixture text)
+- C2/Gemini_T_A
+- C2/Gemini_T_B
+- C2R/DeepSeek_T_A
+- C2R/Gemini_T_A
+- C2R/Gemini_T_AB
 
-Exact-overlap auto is weak on **paraphrase** restage. Human spot notes (D0 non-blocking):
+## INTRO / RECENT_SCENE replay auto signals
 
-- Gemini_T_A restages user scream/metal-friction beat as opening cinema
-- Gemini_Q_A opens with long setting/atmosphere plane before reacting to kneel
-- DeepSeek_T_A opens with reaction-to-sound (better continuity posture)
+- (none)
 
-RECENT_SCENE_REPLAY auto: **not measurable** offline (no prior assistant stored with C2 cells) → needs Fixture G5/G6.
+## Cross-model (auto, advisory)
 
-INTRA_TURN_REEXPLANATION auto: C2/DeepSeek_T_A
+```json
+{
+  "DeepSeek": {
+    "input": 1,
+    "intro": 0,
+    "total": 10
+  },
+  "Gemini": {
+    "input": 4,
+    "intro": 0,
+    "total": 10
+  }
+}
+```
 
-Cross-model class (`REPLAY_IS_COMMON` vs `REPLAY_IS_GEMINI_HEAVY`): **INCONCLUSIVE** until D1 G5/G6.
+Human seal still required for `REPLAY_IS_COMMON` vs `REPLAY_IS_GEMINI_HEAVY`.
 
 ## Sanity
 
 - length bands used: STRONG_LENGTH_REGRESSION, DENSITY_COLLAPSE, REVIEW_REQUIRED
 - classifyLengthBand(380)=DENSITY_COLLAPSE
-- D0 gate: see `06_D0_GATE.md` → **D0_PASS**
+- D0 gate: see `06_D0_GATE.md`

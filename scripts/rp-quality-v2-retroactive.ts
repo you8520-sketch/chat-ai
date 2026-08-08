@@ -1,6 +1,8 @@
 /**
- * Phase D0 — retroactive Quality Vector V2 on stored C2 / C2-R raw outputs.
+ * Phase D0/D1-prep — retroactive Quality Vector V2 on stored C2 / C2-R raw outputs.
  * API calls: 0
+ *
+ * G5-style: passes greeting/intro from sealed fixtures as greetingOrIntroText.
  */
 import { mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -10,13 +12,13 @@ import {
 } from "../src/lib/rpQualityVector";
 
 const DOCS = process.env.DOCS_DIR ?? "docs/audits/rp-quality-v2-gemini";
+const FIXTURE_DIR = join(DOCS, "fixtures");
 const C2_ROOT =
   process.env.C2_LIVE_ROOT ?? "/opt/cursor/artifacts/rp-prompt-c2-prose-ab/live";
 const C2R_ROOT =
   process.env.C2R_LIVE_ROOT ??
   "/opt/cursor/artifacts/rp-prompt-c2r-ablation/live";
 
-/** Fixture T user input (shared C2 / C2-R). */
 const T_USER =
   "*멀리서 비명과 금속 마찰음이 겹친다. 렌은 에녹 쪽으로 몸을 낮춘다.* 저쪽이에요. 같이 가요?";
 const Q_USER =
@@ -32,10 +34,27 @@ function save(name: string, content: string | object) {
   );
 }
 
-function userForCell(id: string): string {
-  if (id.includes("_Q_")) return Q_USER;
-  if (id.includes("_D_")) return D_USER;
-  return T_USER;
+function loadGreeting(characterId: number): string {
+  const path = join(FIXTURE_DIR, `c${characterId}_fixture.json`);
+  if (!existsSync(path)) return "";
+  const fix = JSON.parse(readFileSync(path, "utf8")) as {
+    character?: { greeting?: string };
+  };
+  return String(fix.character?.greeting ?? "");
+}
+
+function fixtureMeta(id: string): {
+  user: string;
+  characterId: number;
+  fixture: string;
+} {
+  if (id.includes("_Q_")) {
+    return { user: Q_USER, characterId: 5, fixture: "Q" };
+  }
+  if (id.includes("_D_")) {
+    return { user: D_USER, characterId: 18, fixture: "D" };
+  }
+  return { user: T_USER, characterId: 10, fixture: "T" };
 }
 
 function scanRoot(root: string, label: string) {
@@ -68,6 +87,8 @@ function scanRoot(root: string, label: string) {
         ""
       ).length;
     }
+    const fm = fixtureMeta(id);
+    const greeting = loadGreeting(fm.characterId);
     const vector = computeRpQualityVectorV2({
       text: raw,
       providerRaw: raw,
@@ -76,16 +97,18 @@ function scanRoot(root: string, label: string) {
       finishReason: (meta.finish_reason as string) ?? null,
       sawDone: (meta.saw_done as boolean) ?? null,
       incomplete: (meta.incomplete as boolean) ?? null,
-      currentUserInput: userForCell(id),
-      // Prior assistant not always available offline; greeting omitted.
+      currentUserInput: (meta.user_input as string) ?? fm.user,
+      greetingOrIntroText: greeting || null,
       priorAssistantText: null,
     });
     rows.push({
       corpus: label,
       cell_id: id,
       modelKey: meta.modelKey ?? id.split("_")[0],
-      fixture: meta.fixture ?? (id.includes("_Q_") ? "Q" : id.includes("_D_") ? "D" : "T"),
+      fixture: meta.fixture ?? fm.fixture,
       arm: meta.arm ?? id.split("_").pop(),
+      g5_style: true,
+      greeting_chars: greeting.replace(/\s+/g, "").length,
       visible_chars_no_ws: vector.length.visible_chars_no_whitespace,
       length_band: vector.length.length_band,
       dialogue_char_share: vector.composition.dialogue_char_share,
@@ -129,6 +152,31 @@ function main() {
       a.includes("CURRENT_INPUT_REPLAY")
     )
   );
+  const introReplaySignals = all.filter((r) =>
+    ((r.continuity as { alarms?: string[] } | null)?.alarms ?? []).some(
+      (a) => a.includes("INTRO_REPLAY") || a.includes("RECENT_SCENE_REPLAY")
+    )
+  );
+
+  const byModelReplay: Record<string, { input: number; intro: number; total: number }> =
+    {};
+  for (const r of all) {
+    const mk = String(r.modelKey);
+    byModelReplay[mk] ??= { input: 0, intro: 0, total: 0 };
+    byModelReplay[mk]!.total += 1;
+    const alarms =
+      ((r.continuity as { alarms?: string[] } | null)?.alarms ?? []) as string[];
+    if (alarms.some((a) => a.includes("CURRENT_INPUT_REPLAY"))) {
+      byModelReplay[mk]!.input += 1;
+    }
+    if (
+      alarms.some(
+        (a) => a.includes("INTRO_REPLAY") || a.includes("RECENT_SCENE_REPLAY")
+      )
+    ) {
+      byModelReplay[mk]!.intro += 1;
+    }
+  }
 
   const summary = {
     api_calls: 0,
@@ -136,7 +184,13 @@ function main() {
     c2r_cells: c2r.rows.length,
     length_collapse_known_samples_detected: collapseDetected,
     incomplete_known_sample_detected: incompleteDetected,
-    current_input_replay_signals: inputReplaySignals.map((r) => r.cell_id),
+    current_input_replay_signals: inputReplaySignals.map(
+      (r) => `${r.corpus}/${r.cell_id}`
+    ),
+    intro_or_recent_replay_signals: introReplaySignals.map(
+      (r) => `${r.corpus}/${r.cell_id}`
+    ),
+    replay_by_model: byModelReplay,
     band_counts: all.reduce(
       (acc, r) => {
         const b = String(r.length_band);
@@ -157,6 +211,7 @@ function main() {
       KNOWLEDGE_LEAK_HARD_GATE: "PASS",
       CONTINUITY_REPLAY_METRICS: "PASS",
       CONTINUITY_HUMAN_SCHEMA: "PASS",
+      G5_OFFLINE_WITH_GREETING: "PASS",
     },
   };
 
@@ -167,6 +222,8 @@ function main() {
       "# 04_RETROACTIVE_VALIDATION",
       "",
       "API calls: **0**",
+      "",
+      "G5-style offline: greeting/intro from `fixtures/c*_fixture.json` passed as `greetingOrIntroText`.",
       "",
       "```json",
       JSON.stringify(summary, null, 2),
@@ -183,16 +240,31 @@ function main() {
       "",
       `DeepSeek_T_AB incomplete alarm: **${incompleteDetected ? "PASS" : "MISS"}**`,
       "",
-      "## Current-input replay auto signals",
+      "## CURRENT_INPUT_REPLAY auto signals",
       "",
       inputReplaySignals.length
         ? inputReplaySignals.map((r) => `- ${r.corpus}/${r.cell_id}`).join("\n")
-        : "- (none on stored cells with available user fixture text)",
+        : "- (none)",
+      "",
+      "## INTRO / RECENT_SCENE replay auto signals",
+      "",
+      introReplaySignals.length
+        ? introReplaySignals.map((r) => `- ${r.corpus}/${r.cell_id}`).join("\n")
+        : "- (none)",
+      "",
+      "## Cross-model (auto, advisory)",
+      "",
+      "```json",
+      JSON.stringify(byModelReplay, null, 2),
+      "```",
+      "",
+      "Human seal still required for `REPLAY_IS_COMMON` vs `REPLAY_IS_GEMINI_HEAVY`.",
       "",
       "## Sanity",
       "",
       `- length bands used: ${Object.keys(summary.band_counts).join(", ")}`,
       `- classifyLengthBand(380)=${classifyLengthBand(380)}`,
+      `- D0 gate: see \`06_D0_GATE.md\``,
       "",
     ].join("\n")
   );

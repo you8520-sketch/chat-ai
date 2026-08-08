@@ -56,8 +56,28 @@ describe("RP Quality Vector V2", () => {
       currentUserInput: user,
       priorAssistantText: "에녹은 벽에 기대어 서 있었다.",
     });
-    assert.equal(audit.current_input_dialogue_echo || audit.current_input_overlap_alarm, true);
+    assert.equal(
+      audit.current_input_dialogue_echo ||
+        audit.current_input_overlap_alarm ||
+        audit.current_input_beat_restage,
+      true
+    );
     assert.equal(audit.continuity_review_required, true);
+  });
+
+  it("flags paraphrase CURRENT_INPUT beat restage in opening", () => {
+    const user =
+      "*멀리서 비명과 금속 마찰음이 겹친다. 렌은 에녹 쪽으로 몸을 낮춘다.* 저쪽이에요. 같이 가요?";
+    const restage = [
+      "기괴하게 뒤틀린 금속 마찰음이 먼저 거리를 훑고 지나갔다. 뒤이어 찢어지는 듯한 비명이 회색 안개를 뚫고 귓가를 때렸다.",
+      "",
+      "에녹은 그늘 안으로 몸을 숨겼다.",
+    ].join("\n");
+    const audit = computeContinuityAutoAudit({
+      output: restage,
+      currentUserInput: user,
+    });
+    assert.equal(audit.current_input_beat_restage, true);
   });
 
   it("flags RECENT_SCENE_REPLAY when opening mirrors prior assistant", () => {
