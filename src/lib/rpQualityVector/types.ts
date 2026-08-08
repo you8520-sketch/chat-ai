@@ -116,7 +116,10 @@ export type RpQualityVectorV2 = {
   narration_fragmentation: NarrationFragmentationMetrics;
   setting_exact_overlap: SettingExactOverlapAudit | null;
   continuity: ContinuityAutoAuditRef | null;
+  /** Auto hard alarms (completion / density / continuity). */
   hard_alarms: string[];
+  /** Human-review flags only — never auto hard-fail gates (D2). */
+  review_flags: string[];
 };
 
 export const LENGTH_BANDS = {

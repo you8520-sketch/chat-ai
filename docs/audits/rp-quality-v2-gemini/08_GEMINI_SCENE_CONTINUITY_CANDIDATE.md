@@ -1,53 +1,43 @@
-# 08 — Gemini Scene Continuity candidate (NOT WIRED)
+# 08 — Gemini Scene Continuity candidate (D2 experiment)
 
-**Status:** `CANDIDATE_TEXT_ONLY_NOT_WIRED`
+**Status:** `EXPERIMENT_ARM_B` — harness-only via `applyGeminiSceneContinuityArmToSystem`  
+**Production wire:** NOT_RUN / default OFF  
+**Module:** `src/lib/geminiSceneContinuityAdapter.ts` (not imported by chat routes)
 
-Trigger evidence (this phase):
-
-- Offline CURRENT_INPUT beat restage: Gemini-heavier on fixture T
-- Live G5: Gemini INTRO_REPLAY=2 + SETTING_RECITAL=2 vs DeepSeek INTRO=1 / SETTING=0
-- Live G6 T2: turn1 rewind **not** severe on either model
-
-## Proposed block (Gemini 3.1 Pro only, if A/B passes hard gate)
+## Candidate B wording
 
 ```text
 [GEMINI SCENE CONTINUITY]
+캐릭터·유저·세계관·메모리와 최근 장면은 현재 반응과 다음 변화를 결정하는 근거다. 설정이나 이미 완료된 장면을 독자에게 다시 소개·요약하는 데 분량을 쓰지 않는다.
 
-캐릭터·유저·세계관·메모리와 최근 장면은 현재 반응을 결정하는 내부 근거다. 이를 프로필·요약·회상문처럼 다시 출력하지 않는다.
+직전 장면과 현재 유저 입력에서 이미 발생한 행동·대사·환경 변화는 완료된 사건으로 취급한다. 이를 다시 수행하거나 장면 처음부터 재연하지 말고, 그 결과에 대한 NPC·환경의 새로운 반응·판단·행동과 다음 변화에서 이어간다.
 
-직전 assistant 장면과 현재 유저 입력에서 이미 발생한 행동·대사·환경 변화는 완료된 사건으로 취급한다. 다음 문장은 그 결과에 대한 NPC·환경의 새로운 반응과 다음 변화에서 시작한다.
-
-이미 알려진 사실은 현재 장면을 실제로 바꿀 때만 필요한 만큼 짧게 참조하고, 설정이나 이전 장면을 독자에게 다시 소개하지 않는다.
+과거 사실은 현재의 새로운 판단·감정·선택·위험·결과를 실제로 바꿀 때 필요한 만큼 자연스럽게 사용할 수 있다. 설정 활용 자체를 줄이지 않는다.
 ```
 
 ```text
 REMEMBER IT
-DO NOT REPLAY IT
+DON'T RESTAGE IT
 ACT FROM IT
 ```
 
-## Must not become
+Must **not** become: 회상 금지 / 과거 언급 금지 / 설정 언급 금지.
 
-- 회상 금지 / 과거 언급 금지 / 설정 언급 금지
+## Scope
 
-```text
-NEW INTERPRETATION OF OLD EVENT = GOOD
-OLD EVENT RETOLD WITHOUT NEW VALUE = BAD
-```
+- Gemini 3.1 Pro MAIN RP generation only (experiment)
+- Not Flash / Flash Lite / vision / memory / status extractors / other models
 
-## Hard quality gate before any production wire
+## Hard quality gate
 
 ```text
-SETTING RECITAL ↓
-SCENE REPLAY ↓
-CURRENT INPUT REPLAY ↓
-
-while
-
-ACTIVE CANON USE >= baseline
-CHARACTER FIDELITY >= baseline
-SCENE PROGRESSION >= baseline
-LENGTH/COMPOSITION >= baseline
+FIRST-REACTION REPLAY ↓
+SETTING RECITAL same or ↓
+ACTIVE CANON USE same or ↑
+CHARACTER FIDELITY same or ↑
+SCENE ADVANCEMENT / NEW_SCENE_VALUE same or ↑
+LENGTH / COMPOSITION no material regression
+HARD FAIL = 0
 ```
 
 `RECITAL ↓` with `ACTIVE_CANON_USE ↓` = **FAIL**.

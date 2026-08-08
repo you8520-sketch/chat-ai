@@ -142,6 +142,7 @@ export function computeRpQualityVectorV2(input: {
     : null;
 
   const hard_alarms: string[] = [];
+  const review_flags: string[] = [];
   if (length.length_band === "DENSITY_COLLAPSE") {
     hard_alarms.push("DENSITY_COLLAPSE");
   }
@@ -150,10 +151,11 @@ export function computeRpQualityVectorV2(input: {
     hard_alarms.push("STRONG_DIALOGUE_DOMINANCE");
   }
   if (composition.dialogue_heavy_review) {
-    hard_alarms.push("DIALOGUE_HEAVY_REVIEW");
+    review_flags.push("DIALOGUE_HEAVY_REVIEW");
   }
   if (dialogue_fragmentation.speaker_split_review_required) {
-    hard_alarms.push("SPEAKER_SPLIT_REVIEW_REQUIRED");
+    // D2: human-review flag only — never auto hard-fail.
+    review_flags.push("SPEAKER_SPLIT_REVIEW_REQUIRED");
   }
   if (setting_exact_overlap?.alarm_18_plus) {
     hard_alarms.push("SETTING_EXACT_OVERLAP_18PLUS");
@@ -176,5 +178,6 @@ export function computeRpQualityVectorV2(input: {
     setting_exact_overlap,
     continuity,
     hard_alarms,
+    review_flags,
   };
 }
