@@ -1,0 +1,455 @@
+{
+  "phase": "D5-B-TEMP",
+  "sole_variable": "temperature",
+  "provider_pin": "google-vertex",
+  "reasoning": {
+    "effort": "low"
+  },
+  "max_tokens": null,
+  "T0_095": {
+    "n": 3,
+    "chars": [
+      3096,
+      1715,
+      1106
+    ],
+    "min": 1106,
+    "max": 3096,
+    "mean": 1972.3333333333333,
+    "median": 1715,
+    "max_min_ratio": 2.7992766726943943,
+    "reasoning_tokens": [
+      4559,
+      2731,
+      1347
+    ],
+    "reasoning_min": 1347,
+    "reasoning_max": 4559,
+    "reasoning_median": 2731,
+    "ge_3000": 1,
+    "ge_2400": 1,
+    "lt_1800": 2,
+    "early_stop": 0,
+    "providers_actual": [
+      "Google",
+      "Google",
+      "Google"
+    ],
+    "pin_ok": true,
+    "rows": [
+      {
+        "cell_id": "Gemini_G6T1_P1_D1",
+        "arm": "T0_095",
+        "reused_from_b1": true,
+        "draw": 1,
+        "provider_actual": "Google",
+        "provider_pin_ok": true,
+        "visible_chars": 3096,
+        "finish_reason": "stop",
+        "reasoning_tokens": 4559,
+        "latency_s": 57.322,
+        "incomplete": false
+      },
+      {
+        "cell_id": "Gemini_G6T1_P1_D2",
+        "arm": "T0_095",
+        "reused_from_b1": true,
+        "draw": 2,
+        "provider_actual": "Google",
+        "provider_pin_ok": true,
+        "visible_chars": 1715,
+        "finish_reason": "stop",
+        "reasoning_tokens": 2731,
+        "latency_s": 36.434,
+        "incomplete": false
+      },
+      {
+        "cell_id": "Gemini_G6T1_P1_D3",
+        "arm": "T0_095",
+        "reused_from_b1": true,
+        "draw": 3,
+        "provider_actual": "Google",
+        "provider_pin_ok": true,
+        "visible_chars": 1106,
+        "finish_reason": "stop",
+        "reasoning_tokens": 1347,
+        "latency_s": 24.078,
+        "incomplete": false
+      }
+    ],
+    "source": "reused_B1_P1"
+  },
+  "T1_070": {
+    "n": 3,
+    "chars": [
+      1702,
+      4070,
+      2704
+    ],
+    "min": 1702,
+    "max": 4070,
+    "mean": 2825.3333333333335,
+    "median": 2704,
+    "max_min_ratio": 2.391304347826087,
+    "reasoning_tokens": [
+      2922,
+      4658,
+      4353
+    ],
+    "reasoning_min": 2922,
+    "reasoning_max": 4658,
+    "reasoning_median": 4353,
+    "ge_3000": 1,
+    "ge_2400": 2,
+    "lt_1800": 1,
+    "early_stop": 0,
+    "providers_actual": [
+      "Google",
+      "Google",
+      "Google"
+    ],
+    "pin_ok": true,
+    "rows": [
+      {
+        "cell_id": "Gemini_G6T1_T07_D1",
+        "fixture": "G6T1",
+        "arm": "T1_070",
+        "draw": 1,
+        "provider_requested": "google-vertex",
+        "provider_actual": "Google",
+        "provider_pin_ok": true,
+        "provider_generation_id": "gen-1786191002-AS5KCkKT9uJTS5aSYipo",
+        "visible_chars": 1702,
+        "length_band": "DENSITY_COLLAPSE",
+        "dialogue_chars": 253,
+        "narration_chars": 1449,
+        "dialogue_char_share": 0.1486,
+        "dialogue_share_band": "IDEAL",
+        "same_speaker_dialogue_fragments": 4,
+        "max_dialogue_block_chars": 80,
+        "max_consecutive_short_dialogue_run": 1,
+        "response_anchor": {
+          "response_anchor_count": 2,
+          "band": "ACCEPTABLE",
+          "samples": [
+            "저쪽이에요. 같이 가요?",
+            "비명 소리가 났다는 건 누군가 사냥당하고 있다는 뜻이다. 그리고 사냥꾼은 아직 그 자리에 있겠지. 굳이 그 아가리로 기어들어가겠다는 거라면 혼자"
+          ]
+        },
+        "dialogue_function_load": {
+          "dialogue_function_load": 6,
+          "functions": [
+            "question",
+            "explanation",
+            "warning",
+            "proposal",
+            "relationship_claim",
+            "directive"
+          ]
+        },
+        "continuity": {
+          "current_input_lcs_chars": 9,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "current_input_beat_restage": true,
+          "recent_assistant_lcs_chars": 7,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intro_lcs_chars": 7,
+          "intro_overlap_alarm": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": true,
+          "alarms": [
+            "CURRENT_INPUT_REPLAY_SIGNAL"
+          ]
+        },
+        "setting_exact_overlap": {
+          "longest_common_substring_chars": 10,
+          "matching_ngram_count": 0,
+          "source_overlap_span_count": 0,
+          "hits": [],
+          "alarm_18_plus": false
+        },
+        "hard_alarms": [
+          "DENSITY_COLLAPSE",
+          "CONTINUITY_REVIEW_REQUIRED",
+          "CURRENT_INPUT_REPLAY_SIGNAL"
+        ],
+        "review_flags": [
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ],
+        "finish_reason": "stop",
+        "incomplete": false,
+        "latency_s": 36.71,
+        "input_tokens": 3818,
+        "output_tokens": 4344,
+        "reasoning_tokens": 2922,
+        "visible_budget_tokens": 1422,
+        "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+        "messages_sha256": "7762181d1bc715ae09e32dd9c757171272e410ce1bb1e5b18297ace5d30672d6",
+        "user_tail_sha256": "5da99c515e0dcc6c86854f65c595c0dcf038578670b154deb8bc35ea44631443",
+        "production_generation_config": {
+          "model": "google/gemini-3.1-pro-preview",
+          "temperature": 0.95,
+          "top_p": null,
+          "max_tokens": null,
+          "seed": null,
+          "reasoning": {
+            "effort": "low"
+          },
+          "include_reasoning": false,
+          "frequency_penalty": null,
+          "presence_penalty": null,
+          "provider": null
+        },
+        "experiment_generation_config": {
+          "model": "google/gemini-3.1-pro-preview",
+          "temperature": 0.7,
+          "top_p": null,
+          "max_tokens": null,
+          "seed": null,
+          "reasoning": {
+            "effort": "low"
+          },
+          "include_reasoning": false,
+          "frequency_penalty": null,
+          "presence_penalty": null,
+          "provider": {
+            "only": [
+              "google-vertex"
+            ],
+            "allow_fallbacks": false,
+            "require_parameters": true
+          }
+        },
+        "reused_from_b1": false
+      },
+      {
+        "cell_id": "Gemini_G6T1_T07_D2",
+        "fixture": "G6T1",
+        "arm": "T1_070",
+        "draw": 2,
+        "provider_requested": "google-vertex",
+        "provider_actual": "Google",
+        "provider_pin_ok": true,
+        "provider_generation_id": "gen-1786191039-JJ3LG01nsqMbMynZcvB1",
+        "visible_chars": 4070,
+        "length_band": "IDEAL",
+        "dialogue_chars": 431,
+        "narration_chars": 3639,
+        "dialogue_char_share": 0.1059,
+        "dialogue_share_band": "IDEAL",
+        "same_speaker_dialogue_fragments": 5,
+        "max_dialogue_block_chars": 70,
+        "max_consecutive_short_dialogue_run": 1,
+        "response_anchor": {
+          "response_anchor_count": 0,
+          "band": "IDEAL",
+          "samples": []
+        },
+        "dialogue_function_load": {
+          "dialogue_function_load": 3,
+          "functions": [
+            "explanation",
+            "relationship_claim",
+            "directive"
+          ]
+        },
+        "continuity": {
+          "current_input_lcs_chars": 8,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "current_input_beat_restage": true,
+          "recent_assistant_lcs_chars": 6,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intro_lcs_chars": 6,
+          "intro_overlap_alarm": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": true,
+          "alarms": [
+            "CURRENT_INPUT_REPLAY_SIGNAL"
+          ]
+        },
+        "setting_exact_overlap": {
+          "longest_common_substring_chars": 9,
+          "matching_ngram_count": 0,
+          "source_overlap_span_count": 0,
+          "hits": [],
+          "alarm_18_plus": false
+        },
+        "hard_alarms": [
+          "CONTINUITY_REVIEW_REQUIRED",
+          "CURRENT_INPUT_REPLAY_SIGNAL"
+        ],
+        "review_flags": [
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ],
+        "finish_reason": "stop",
+        "incomplete": false,
+        "latency_s": 63.189,
+        "input_tokens": 3818,
+        "output_tokens": 8122,
+        "reasoning_tokens": 4658,
+        "visible_budget_tokens": 3464,
+        "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+        "messages_sha256": "7762181d1bc715ae09e32dd9c757171272e410ce1bb1e5b18297ace5d30672d6",
+        "user_tail_sha256": "5da99c515e0dcc6c86854f65c595c0dcf038578670b154deb8bc35ea44631443",
+        "production_generation_config": {
+          "model": "google/gemini-3.1-pro-preview",
+          "temperature": 0.95,
+          "top_p": null,
+          "max_tokens": null,
+          "seed": null,
+          "reasoning": {
+            "effort": "low"
+          },
+          "include_reasoning": false,
+          "frequency_penalty": null,
+          "presence_penalty": null,
+          "provider": null
+        },
+        "experiment_generation_config": {
+          "model": "google/gemini-3.1-pro-preview",
+          "temperature": 0.7,
+          "top_p": null,
+          "max_tokens": null,
+          "seed": null,
+          "reasoning": {
+            "effort": "low"
+          },
+          "include_reasoning": false,
+          "frequency_penalty": null,
+          "presence_penalty": null,
+          "provider": {
+            "only": [
+              "google-vertex"
+            ],
+            "allow_fallbacks": false,
+            "require_parameters": true
+          }
+        },
+        "reused_from_b1": false
+      },
+      {
+        "cell_id": "Gemini_G6T1_T07_D3",
+        "fixture": "G6T1",
+        "arm": "T1_070",
+        "draw": 3,
+        "provider_requested": "google-vertex",
+        "provider_actual": "Google",
+        "provider_pin_ok": true,
+        "provider_generation_id": "gen-1786191102-LEMYCg1wwpcoColpqhJX",
+        "visible_chars": 2704,
+        "length_band": "REVIEW_REQUIRED",
+        "dialogue_chars": 448,
+        "narration_chars": 2256,
+        "dialogue_char_share": 0.1657,
+        "dialogue_share_band": "ACCEPTABLE",
+        "same_speaker_dialogue_fragments": 8,
+        "max_dialogue_block_chars": 122,
+        "max_consecutive_short_dialogue_run": 1,
+        "response_anchor": {
+          "response_anchor_count": 2,
+          "band": "ACCEPTABLE",
+          "samples": [
+            "비명 소리가 들리면 반대편으로 뛰는 게 이 바닥의 유일한 생존 법칙이야. 그런데 저길 기어들어가자고? 네 목숨이 몇 개쯤 되는 줄 아나 본데, ",
+            "네가 저길 가자고 했지. 저게 뭔지 알고나 하는 소리야? 마더의 포자 안개에 오염되어 살점과 쇳덩어리가 엉겨 붙은 폐기물이다. 저런 놈들은 시각"
+          ]
+        },
+        "dialogue_function_load": {
+          "dialogue_function_load": 5,
+          "functions": [
+            "question",
+            "warning",
+            "proposal",
+            "relationship_claim",
+            "directive"
+          ]
+        },
+        "continuity": {
+          "current_input_lcs_chars": 5,
+          "current_input_overlap_alarm": false,
+          "current_input_dialogue_echo": false,
+          "current_input_beat_restage": true,
+          "recent_assistant_lcs_chars": 6,
+          "recent_assistant_overlap_alarm": false,
+          "opening_paragraph_mirrors_prior": false,
+          "intro_lcs_chars": 6,
+          "intro_overlap_alarm": false,
+          "intra_turn_abstract_restatement_hits": 0,
+          "intra_turn_reexplanation_alarm": false,
+          "continuity_review_required": true,
+          "alarms": [
+            "CURRENT_INPUT_REPLAY_SIGNAL"
+          ]
+        },
+        "setting_exact_overlap": {
+          "longest_common_substring_chars": 9,
+          "matching_ngram_count": 0,
+          "source_overlap_span_count": 0,
+          "hits": [],
+          "alarm_18_plus": false
+        },
+        "hard_alarms": [
+          "CONTINUITY_REVIEW_REQUIRED",
+          "CURRENT_INPUT_REPLAY_SIGNAL"
+        ],
+        "review_flags": [
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ],
+        "finish_reason": "stop",
+        "incomplete": false,
+        "latency_s": 55.705,
+        "input_tokens": 3818,
+        "output_tokens": 6661,
+        "reasoning_tokens": 4353,
+        "visible_budget_tokens": 2308,
+        "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+        "messages_sha256": "7762181d1bc715ae09e32dd9c757171272e410ce1bb1e5b18297ace5d30672d6",
+        "user_tail_sha256": "5da99c515e0dcc6c86854f65c595c0dcf038578670b154deb8bc35ea44631443",
+        "production_generation_config": {
+          "model": "google/gemini-3.1-pro-preview",
+          "temperature": 0.95,
+          "top_p": null,
+          "max_tokens": null,
+          "seed": null,
+          "reasoning": {
+            "effort": "low"
+          },
+          "include_reasoning": false,
+          "frequency_penalty": null,
+          "presence_penalty": null,
+          "provider": null
+        },
+        "experiment_generation_config": {
+          "model": "google/gemini-3.1-pro-preview",
+          "temperature": 0.7,
+          "top_p": null,
+          "max_tokens": null,
+          "seed": null,
+          "reasoning": {
+            "effort": "low"
+          },
+          "include_reasoning": false,
+          "frequency_penalty": null,
+          "presence_penalty": null,
+          "provider": {
+            "only": [
+              "google-vertex"
+            ],
+            "allow_fallbacks": false,
+            "require_parameters": true
+          }
+        },
+        "reused_from_b1": false
+      }
+    ]
+  },
+  "api_calls_this_run": 3,
+  "TEMPERATURE_STABILITY": "FAIL",
+  "production_wire": "NOT_RUN",
+  "merge": "NOT_RUN"
+}

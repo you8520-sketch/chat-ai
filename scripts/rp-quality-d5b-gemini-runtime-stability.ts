@@ -1032,12 +1032,362 @@ async function runB1(modelId: string) {
   return summary;
 }
 
+function sealB2NotApplicable() {
+  const supported = {
+    fetched_from: "GET /api/v1/models → google/gemini-3.1-pro-preview.reasoning",
+    mandatory: true,
+    supported_efforts: ["high", "medium", "low"],
+    default_effort: "medium",
+    production_effort: "low",
+    lower_supported_than_production: null,
+    supports_reasoning_max_tokens: false,
+    note:
+      "minimal/none not in supported_efforts; mandatory=true forbids none. Model reasoning object omits supports_max_tokens → no official bounded reasoning cap.",
+  };
+  const summary = {
+    phase: "D5-B2",
+    status: "NOT_APPLICABLE",
+    reason:
+      "Production already uses the lowest officially supported effort (low). No lower supported effort; no official reasoning.max_tokens control.",
+    supported_reasoning_controls: supported,
+    REASONING_STABILITY: "NOT_APPLICABLE",
+    api_calls_this_run: 0,
+    production_wire: "NOT_RUN",
+    merge: "NOT_RUN",
+  };
+  save(join(DOCS, "b2"), "02_REASONING_BUDGET.json", summary);
+  save(
+    join(DOCS, "b2"),
+    "02_REASONING_BUDGET.md",
+    [
+      "# D5-B2 — Reasoning Budget Audit",
+      "",
+      "**Status: NOT_APPLICABLE** (0 API calls)",
+      "",
+      "```json",
+      JSON.stringify(summary, null, 2),
+      "```",
+      "",
+    ].join("\n")
+  );
+  return summary;
+}
+
+/**
+ * D5-B3 — sole variable: explicit max_tokens vs production absent.
+ * Provider pinned to B1 diagnostic owner (lower variance): google-vertex.
+ * Arm A reuses B1 P1 cells (identical pin + absent max_tokens) to avoid duplicate spend.
+ */
+async function runB3(modelId: string) {
+  const { OPENROUTER_GEMINI_31_PRO_MAX_OUTPUT_TOKENS } = await import(
+    "../src/lib/responseLength"
+  );
+  const explicitMax = OPENROUTER_GEMINI_31_PRO_MAX_OUTPUT_TOKENS;
+  if (explicitMax !== 8192) {
+    throw new Error(
+      `Unexpected OPENROUTER_GEMINI_31_PRO_MAX_OUTPUT_TOKENS=${explicitMax}; expected repo constant 8192`
+    );
+  }
+
+  const diagnosticSlug = "google-vertex";
+  const expectedDisplay = "Google";
+  const spec = FIXTURES.G6T1;
+  const fixture = loadFixture(spec.characterId);
+  const assembled = await assembleProductionA({ modelId, fixture, spec });
+
+  // Arm A: reuse B1 P1 metas (provider pin + max_tokens absent)
+  const armARows: Array<Record<string, unknown>> = [];
+  for (let draw = 1; draw <= DRAWS; draw++) {
+    const cellId = `Gemini_${spec.id}_P1_D${draw}`;
+    const metaPath = join(OUT_ROOT, "live", cellId, "meta.json");
+    const rawPath = join(OUT_ROOT, "live", cellId, "provider_raw.txt");
+    if (!existsSync(metaPath) || !existsSync(rawPath)) {
+      throw new Error(
+        `B3 Arm A requires B1 P1 cell ${cellId} — run B1 first`
+      );
+    }
+    const meta = JSON.parse(readFileSync(metaPath, "utf8")) as Record<
+      string,
+      unknown
+    >;
+    const providerRaw = readFileSync(rawPath, "utf8");
+    const vector = computeRpQualityVectorV2({
+      text: providerRaw,
+      providerRaw,
+      finishReason: (meta.finish_reason as string) ?? null,
+      sawDone: (meta.saw_done as boolean) ?? null,
+      incomplete: (meta.incomplete as boolean) ?? null,
+      currentUserInput: spec.userInput,
+      priorAssistantText: assembled.greeting,
+      greetingOrIntroText: assembled.greeting,
+      settingSources: assembled.settingSources,
+    });
+    armARows.push({
+      cell_id: cellId,
+      arm: "A_ABSENT",
+      reused_from_b1: true,
+      draw,
+      provider_requested: diagnosticSlug,
+      provider_actual: meta.provider_actual,
+      provider_pin_ok: meta.provider_pin_ok,
+      max_tokens: null,
+      visible_chars: vector.length.visible_chars_no_whitespace,
+      finish_reason: meta.finish_reason,
+      reasoning_tokens: meta.reasoning_tokens,
+      output_tokens: meta.output_tokens,
+      visible_budget_tokens: meta.visible_budget_tokens,
+      latency_s: meta.latency_s,
+      incomplete: meta.incomplete,
+    });
+  }
+
+  let apiCalls = 0;
+  const armBRows: Array<Record<string, unknown>> = [];
+  const pinned = withProviderPin(assembled.requestBody, diagnosticSlug);
+  const bodyB: Record<string, unknown> = {
+    ...pinned,
+    max_tokens: explicitMax,
+  };
+  const experimentGenerationConfig = {
+    ...assembled.productionGenerationConfig,
+    provider: pinned.provider,
+    max_tokens: explicitMax,
+  };
+
+  for (let draw = 1; draw <= DRAWS; draw++) {
+    const cellId = `Gemini_${spec.id}_B3B_D${draw}`;
+    const result = await runCell({
+      cellId,
+      fixtureId: spec.id,
+      arm: "B_EXPLICIT_8192",
+      draw,
+      modelId,
+      body: bodyB,
+      assembled,
+      providerRequested: diagnosticSlug,
+      expectedDisplay,
+      experimentGenerationConfig,
+    });
+    apiCalls += result.apiCalls;
+    armBRows.push({
+      ...result.row,
+      arm: "B_EXPLICIT_8192",
+      max_tokens: explicitMax,
+      reused_from_b1: false,
+    });
+  }
+
+  const sumA = summarizeArm(armARows);
+  const sumB = summarizeArm(armBRows);
+
+  // Causal test: if finish stays stop and length distribution unchanged → not causal
+  const aStop = armARows.every(
+    (r) => r.finish_reason === "stop" || r.finish_reason === "end_turn"
+  );
+  const bStop = armBRows.every(
+    (r) => r.finish_reason === "stop" || r.finish_reason === "end_turn"
+  );
+  const bStillCollapses = sumB.lt_1800 > 0 || sumB.median < 2400;
+  const varianceStillHigh = (sumB.max_min_ratio ?? 99) > 1.8;
+  const causal =
+    !bStillCollapses &&
+    sumB.median >= sumA.median + 400 &&
+    (sumB.max_min_ratio ?? 99) < (sumA.max_min_ratio ?? 99);
+  const explicitNotCausal =
+    aStop && bStop && (bStillCollapses || varianceStillHigh) && !causal;
+
+  const summary = {
+    phase: "D5-B3",
+    sole_variable: "max_tokens",
+    provider_pin: diagnosticSlug,
+    reasoning: { effort: "low" },
+    temperature: 0.95,
+    production_prompt: "BYTE_IDENTICAL",
+    explicit_max_tokens_value: explicitMax,
+    explicit_max_tokens_source:
+      "OPENROUTER_GEMINI_31_PRO_MAX_OUTPUT_TOKENS (historical pre-eb30d787 resolver + current coerce fallback constant)",
+    arm_A_absent: { ...sumA, rows: armARows, source: "reused_B1_P1" },
+    arm_B_explicit: { ...sumB, rows: armBRows },
+    api_calls_this_run: apiCalls,
+    EXPLICIT_MAX_TOKENS_CAUSAL: causal ? "YES" : "NO",
+    EXPLICIT_MAX_TOKENS_NOT_CAUSAL: explicitNotCausal,
+    production_wire: "NOT_RUN",
+    merge: "NOT_RUN",
+  };
+
+  save(join(DOCS, "b3"), "03_EXPLICIT_MAX_TOKENS.json", summary);
+  save(
+    join(DOCS, "b3"),
+    "03_EXPLICIT_MAX_TOKENS.md",
+    [
+      "# D5-B3 — Explicit Output Budget",
+      "",
+      "Sole variable: `max_tokens` absent vs explicit repo constant 8192.",
+      "Provider pinned: `google-vertex` (B1 diagnostic owner).",
+      "Arm A reused from B1 P1 (0 new calls).",
+      "",
+      "```json",
+      JSON.stringify(
+        {
+          EXPLICIT_MAX_TOKENS_CAUSAL: summary.EXPLICIT_MAX_TOKENS_CAUSAL,
+          EXPLICIT_MAX_TOKENS_NOT_CAUSAL: summary.EXPLICIT_MAX_TOKENS_NOT_CAUSAL,
+          arm_A_absent: {
+            chars: sumA.chars,
+            median: sumA.median,
+            max_min_ratio: sumA.max_min_ratio,
+            lt_1800: sumA.lt_1800,
+          },
+          arm_B_explicit: {
+            chars: sumB.chars,
+            median: sumB.median,
+            max_min_ratio: sumB.max_min_ratio,
+            lt_1800: sumB.lt_1800,
+          },
+          api_calls_this_run: apiCalls,
+        },
+        null,
+        2
+      ),
+      "```",
+      "",
+    ].join("\n")
+  );
+  return summary;
+}
+
+/**
+ * D5-B temperature — last resort; sole lower candidate vs production 0.95.
+ * Candidate 0.7 — single step only. Provider + reasoning + max_tokens fixed to production-like.
+ */
+async function runTemperature(modelId: string) {
+  const diagnosticSlug = "google-vertex";
+  const expectedDisplay = "Google";
+  const lowerTemp = 0.7;
+  const spec = FIXTURES.G6T1;
+  const fixture = loadFixture(spec.characterId);
+  const assembled = await assembleProductionA({ modelId, fixture, spec });
+
+  // T0: reuse B1 P1 (temp 0.95)
+  const t0Rows: Array<Record<string, unknown>> = [];
+  for (let draw = 1; draw <= DRAWS; draw++) {
+    const cellId = `Gemini_${spec.id}_P1_D${draw}`;
+    const meta = JSON.parse(
+      readFileSync(join(OUT_ROOT, "live", cellId, "meta.json"), "utf8")
+    ) as Record<string, unknown>;
+    const providerRaw = readFileSync(
+      join(OUT_ROOT, "live", cellId, "provider_raw.txt"),
+      "utf8"
+    );
+    t0Rows.push({
+      cell_id: cellId,
+      arm: "T0_095",
+      reused_from_b1: true,
+      draw,
+      provider_actual: meta.provider_actual,
+      provider_pin_ok: meta.provider_pin_ok,
+      visible_chars: String(providerRaw).replace(/\s+/g, "").length,
+      finish_reason: meta.finish_reason,
+      reasoning_tokens: meta.reasoning_tokens,
+      latency_s: meta.latency_s,
+      incomplete: meta.incomplete,
+    });
+  }
+
+  let apiCalls = 0;
+  const t1Rows: Array<Record<string, unknown>> = [];
+  const pinned = withProviderPin(assembled.requestBody, diagnosticSlug);
+  const bodyT1: Record<string, unknown> = {
+    ...pinned,
+    temperature: lowerTemp,
+  };
+  const experimentGenerationConfig = {
+    ...assembled.productionGenerationConfig,
+    provider: pinned.provider,
+    temperature: lowerTemp,
+  };
+
+  for (let draw = 1; draw <= DRAWS; draw++) {
+    const cellId = `Gemini_${spec.id}_T07_D${draw}`;
+    const result = await runCell({
+      cellId,
+      fixtureId: spec.id,
+      arm: "T1_070",
+      draw,
+      modelId,
+      body: bodyT1,
+      assembled,
+      providerRequested: diagnosticSlug,
+      expectedDisplay,
+      experimentGenerationConfig,
+    });
+    apiCalls += result.apiCalls;
+    t1Rows.push({ ...result.row, arm: "T1_070", reused_from_b1: false });
+  }
+
+  const sum0 = summarizeArm(t0Rows);
+  const sum1 = summarizeArm(t1Rows);
+  const pass =
+    sum1.lt_1800 === 0 &&
+    sum1.median >= 2800 &&
+    (sum1.max_min_ratio ?? 99) <= 1.5;
+
+  const summary = {
+    phase: "D5-B-TEMP",
+    sole_variable: "temperature",
+    provider_pin: diagnosticSlug,
+    reasoning: { effort: "low" },
+    max_tokens: null,
+    T0_095: { ...sum0, rows: t0Rows, source: "reused_B1_P1" },
+    T1_070: { ...sum1, rows: t1Rows },
+    api_calls_this_run: apiCalls,
+    TEMPERATURE_STABILITY: pass ? "PASS" : "FAIL",
+    production_wire: "NOT_RUN",
+    merge: "NOT_RUN",
+  };
+  save(join(DOCS, "temp"), "04_TEMPERATURE.json", summary);
+  save(
+    join(DOCS, "temp"),
+    "04_TEMPERATURE.md",
+    [
+      "# D5-B — Temperature Audit (last resort)",
+      "",
+      "```json",
+      JSON.stringify(
+        {
+          TEMPERATURE_STABILITY: summary.TEMPERATURE_STABILITY,
+          T0_095: {
+            chars: sum0.chars,
+            median: sum0.median,
+            max_min_ratio: sum0.max_min_ratio,
+            lt_1800: sum0.lt_1800,
+          },
+          T1_070: {
+            chars: sum1.chars,
+            median: sum1.median,
+            max_min_ratio: sum1.max_min_ratio,
+            lt_1800: sum1.lt_1800,
+          },
+          api_calls_this_run: apiCalls,
+        },
+        null,
+        2
+      ),
+      "```",
+      "",
+    ].join("\n")
+  );
+  return summary;
+}
+
 async function main() {
   mkdirSync(OUT_ROOT, { recursive: true });
   mkdirSync(join(DOCS, "b1"), { recursive: true });
+  mkdirSync(join(DOCS, "b2"), { recursive: true });
+  mkdirSync(join(DOCS, "b3"), { recursive: true });
+  mkdirSync(join(DOCS, "temp"), { recursive: true });
   mkdirSync(RAW_DOCS, { recursive: true });
 
-  if (!process.env.OPENROUTER_API_KEY?.trim()) {
+  if (!process.env.OPENROUTER_API_KEY?.trim() && PHASE !== "B2") {
     throw new Error("OPENROUTER_API_KEY required for D5-B live experiments");
   }
 
@@ -1051,10 +1401,23 @@ async function main() {
     console.log(JSON.stringify(summary, null, 2));
     return;
   }
+  if (PHASE === "B2") {
+    const summary = sealB2NotApplicable();
+    console.log(JSON.stringify(summary, null, 2));
+    return;
+  }
+  if (PHASE === "B3") {
+    const summary = await runB3(modelId);
+    console.log(JSON.stringify(summary, null, 2));
+    return;
+  }
+  if (PHASE === "TEMP" || PHASE === "TEMPERATURE") {
+    const summary = await runTemperature(modelId);
+    console.log(JSON.stringify(summary, null, 2));
+    return;
+  }
 
-  throw new Error(
-    `Unsupported D5B_PHASE=${PHASE}. Implement B2/B3 only after B1 classification.`
-  );
+  throw new Error(`Unsupported D5B_PHASE=${PHASE}`);
 }
 
 main().catch((e) => {
