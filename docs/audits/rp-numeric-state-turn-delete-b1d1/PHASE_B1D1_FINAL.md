@@ -10,9 +10,7 @@ branch:
 cursor/rp-numeric-state-turn-delete-b1d1-6a91
 
 commit:
-5db2a3060100920979a0b0e975666fb039d7d8db
-6b89f736198cf1952061ebf662ff05f371f9a91e
-(implementation tip: 82cc102287ad25065b422d7153eb645bda26d6e1)
+5dd7d1b9a2b16e949984f21c87403e60b6ff3229
 
 draft PR:
 https://github.com/you8520-sketch/chat-ai/pull/276
