@@ -1,0 +1,94 @@
+[
+  {
+    "field": "provider_route",
+    "historical": "cheaperinference /api/chat → api.cheaperinference.com",
+    "current": "openrouter assemblePrimaryRpRequest → openrouter.ai",
+    "status": "DIFFERENT",
+    "possible_length_impact": "HIGH — different gateway/provider routing; not prompt-only"
+  },
+  {
+    "field": "model_id",
+    "historical": "gemini-3.1-pro-preview",
+    "current": "google/gemini-3.1-pro-preview",
+    "status": "DIFFERENT",
+    "possible_length_impact": "HIGH — CI bare slug vs OpenRouter google/ slug; may map to different backends"
+  },
+  {
+    "field": "reasoning",
+    "historical": "reasoning_effort=low (CI)",
+    "current": {
+      "effort": "low"
+    },
+    "status": "DIFFERENT",
+    "possible_length_impact": "MEDIUM — same effort label 'low' but different wire shape; budget sharing UNKNOWN"
+  },
+  {
+    "field": "temperature",
+    "historical": 0.95,
+    "current": 0.95,
+    "status": "SAME",
+    "possible_length_impact": "LOW if same; sampling affects style more than hard length"
+  },
+  {
+    "field": "top_p",
+    "historical": null,
+    "current": null,
+    "status": "SAME",
+    "possible_length_impact": "LOW — both omitted"
+  },
+  {
+    "field": "max_output_tokens",
+    "historical": null,
+    "current": null,
+    "status": "SAME",
+    "possible_length_impact": "LOW as cause — both omitted; historical still reached ~4k output tokens"
+  },
+  {
+    "field": "stop_sequences",
+    "historical": null,
+    "current": null,
+    "status": "SAME",
+    "possible_length_impact": "LOW — both omitted by forbidden-key policy; NOT a new stop config"
+  },
+  {
+    "field": "message_structure",
+    "historical": "system + history + wrapped current user (via /api/chat buildContext)",
+    "current": "messages_count=8",
+    "status": "UNKNOWN",
+    "possible_length_impact": "MEDIUM — structure class same; exact history/fixture content differs"
+  },
+  {
+    "field": "system_length",
+    "historical": "UNKNOWN (usage input_tokens T1≈17514 includes all)",
+    "current": 6561,
+    "status": "UNKNOWN",
+    "possible_length_impact": "UNKNOWN — cannot compare absolute system size without historical prompt dump"
+  },
+  {
+    "field": "history_length",
+    "historical": "UNKNOWN exact; T2 input_tokens≈21.7k",
+    "current": 550,
+    "status": "UNKNOWN",
+    "possible_length_impact": "HIGH confound via fixture/history domain difference"
+  },
+  {
+    "field": "user_tail_structure",
+    "historical": "CURRENT USER wrapper + body + layout + USER_TAIL_LENGTH (code path)",
+    "current": {
+      "sentence": "이번 응답은 한국어 3,200~4,200자 범위의 하나의 밀도 있는 장면으로 전개한다. 현재 상호작용을 요약하거나 성급히 닫지 말고, 관찰·행동·대사·감각·심리가 서로 다음 변화를 일으키도록 충분히 전개한다.",
+      "sha256": "122fece4c53d8a71141a279985f42dbdc25cbaceda8bde46bb51596d6ca4b092",
+      "chars": 116,
+      "absolute_terminal": true,
+      "dialogue_budget_present": false
+    },
+    "status": "SAME",
+    "possible_length_impact": "LOW as delta — USER_TAIL BYTE_IDENTICAL; placement absolute terminal on Arm A"
+  },
+  {
+    "field": "stream",
+    "historical": true,
+    "current": true,
+    "status": "SAME",
+    "possible_length_impact": "NONE"
+  }
+]
