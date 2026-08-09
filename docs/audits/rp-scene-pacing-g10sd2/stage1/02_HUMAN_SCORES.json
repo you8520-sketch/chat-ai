@@ -1,0 +1,22 @@
+{
+  "classification": "SCENE_PACING_SINGLE_OWNER_FAIL",
+  "failure_class": "PACING_OWNER_CONFLICT_NOT_SUFFICIENT",
+  "N1S": {
+    "chars": [
+      1961,
+      1565,
+      3131
+    ],
+    "median": 1961,
+    "quiet": "2/3",
+    "auto_threat": "1/3",
+    "anchors": "7/6/8",
+    "severe": 0
+  },
+  "N2": "NOT_RUN",
+  "llm_calls": 3,
+  "pacing_sot_Q": 1,
+  "delta_chars_vs_P": -124,
+  "production_wire": "NOT_RUN",
+  "merge": "NOT_RUN"
+}
