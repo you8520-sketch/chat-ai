@@ -1,0 +1,181 @@
+{
+  "phase": "G10-SD2-STAGE1-LIVE",
+  "api_calls": 3,
+  "target_calls": 3,
+  "fixtures": [
+    "N1S"
+  ],
+  "sole_variable": "REMOVE_COMPETING_SCENE_FLOW_OWNER",
+  "reference": "G10-SD1 stored P",
+  "cells": [
+    {
+      "cell_id": "Gemini_N1S_Q_D1",
+      "fixture": "N1S",
+      "arm": "Q",
+      "draw": 1,
+      "visible_chars": 1961,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "latency_s": 47.555,
+      "dialogue_char_share": 0.1342,
+      "narration_char_share": 0.8658,
+      "response_anchor": {
+        "response_anchor_count": 7,
+        "band": "OVERLOAD"
+      },
+      "continuity": {
+        "current_input_lcs_chars": 6,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": true,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 0,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": true,
+        "alarms": [
+          "CURRENT_INPUT_REPLAY_SIGNAL"
+        ]
+      },
+      "hard_alarms": [
+        "CONTINUITY_REVIEW_REQUIRED",
+        "CURRENT_INPUT_REPLAY_SIGNAL"
+      ],
+      "pacing": {
+        "mode": "DYAD",
+        "motion": "HOLD",
+        "sot": 1
+      },
+      "owners": {
+        "scene_pacing": 1,
+        "scene_flow": 0,
+        "genre_scene_mode": 0,
+        "pacing_sot_count": 1
+      },
+      "human_pending": true
+    },
+    {
+      "cell_id": "Gemini_N1S_Q_D2",
+      "fixture": "N1S",
+      "arm": "Q",
+      "draw": 2,
+      "visible_chars": 1565,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "latency_s": 45.162,
+      "dialogue_char_share": 0.1687,
+      "narration_char_share": 0.8313,
+      "response_anchor": {
+        "response_anchor_count": 6,
+        "band": "OVERLOAD"
+      },
+      "continuity": {
+        "current_input_lcs_chars": 4,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 0,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [
+        "DENSITY_COLLAPSE"
+      ],
+      "pacing": {
+        "mode": "DYAD",
+        "motion": "HOLD",
+        "sot": 1
+      },
+      "owners": {
+        "scene_pacing": 1,
+        "scene_flow": 0,
+        "genre_scene_mode": 0,
+        "pacing_sot_count": 1
+      },
+      "human_pending": true
+    },
+    {
+      "cell_id": "Gemini_N1S_Q_D3",
+      "fixture": "N1S",
+      "arm": "Q",
+      "draw": 3,
+      "visible_chars": 3131,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "latency_s": 93.596,
+      "dialogue_char_share": 0.1568,
+      "narration_char_share": 0.8432,
+      "response_anchor": {
+        "response_anchor_count": 8,
+        "band": "OVERLOAD"
+      },
+      "continuity": {
+        "current_input_lcs_chars": 8,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": true,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 0,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": true,
+        "alarms": [
+          "CURRENT_INPUT_REPLAY_SIGNAL"
+        ]
+      },
+      "hard_alarms": [
+        "CONTINUITY_REVIEW_REQUIRED",
+        "CURRENT_INPUT_REPLAY_SIGNAL"
+      ],
+      "pacing": {
+        "mode": "DYAD",
+        "motion": "HOLD",
+        "sot": 1
+      },
+      "owners": {
+        "scene_pacing": 1,
+        "scene_flow": 0,
+        "genre_scene_mode": 0,
+        "pacing_sot_count": 1
+      },
+      "human_pending": true
+    }
+  ],
+  "human_review": {
+    "classification": "SCENE_PACING_SINGLE_OWNER_FAIL",
+    "failure_class": "PACING_OWNER_CONFLICT_NOT_SUFFICIENT",
+    "N1S": {
+      "chars": [
+        1961,
+        1565,
+        3131
+      ],
+      "median": 1961,
+      "quiet": "2/3",
+      "auto_threat": "1/3",
+      "anchors": "7/6/8",
+      "severe": 0
+    },
+    "N2": "NOT_RUN",
+    "llm_calls": 3,
+    "pacing_sot_Q": 1,
+    "delta_chars_vs_P": -124,
+    "production_wire": "NOT_RUN",
+    "merge": "NOT_RUN"
+  },
+  "n2": "NOT_RUN",
+  "production_wire": "NOT_RUN",
+  "merge": "NOT_RUN"
+}
