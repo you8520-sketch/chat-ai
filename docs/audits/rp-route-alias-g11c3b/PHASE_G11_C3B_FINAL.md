@@ -20,9 +20,9 @@ model: gemini-3.1-pro-preview
 providers: NOT_RUN
 new calls: 0
 message hash parity: PASS
-  (B/D/F system+history+last-user+per-message sha256 identical to C3A Arm A freeze)
+  (sealed freeze; resume did not rebuild messages; no API without key)
 parameter parity:
-temperature: 0.95 both
+temperature: 0.95 both (prepared)
 top_p: omitted both
 stop: omitted both
 max_tokens: omitted both
@@ -75,8 +75,12 @@ CI: NOT_RUN
 cost/latency observation: NOT_RUN
 classification: LIVE_BLOCKED_MISSING_CHEAPER_INFERENCE_API_KEY
 next: INJECT_CI_KEY_THEN_RERUN_LIVE (then apply §13–§16 thresholds)
+  → STRONG/CONFIRMED → G11-C4 CI_PLUS_FROZEN_SERVER_CONTROLS
+  → NOT_SUPPORTED → G11-C5 FIXTURE_MATCHED_HISTORICAL_REPRODUCTION
+  → MIXED → DOMAIN_DISCRIMINATING_TEST
 production wire: NOT_RUN
 merge: NOT_RUN
 new LLM calls: 0
 ONE TURN = ONE PRIMARY LLM CALL
+ci_key_recheck: present=NO len=0 injected_secrets=OPENROUTER_API_KEY_only
 STOP.
