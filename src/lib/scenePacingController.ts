@@ -1,13 +1,16 @@
 /**
- * Phase G10-SD* / G10-D1 / G10-D2 / G10-D3 — Scene Pacing + Dialogue Budget.
+ * Phase G10-SD* / G10-D1 / G10-D2 / G10-D3 / G11-L1 — Scene Pacing + Dialogue Budget.
  *
  * Experiment / harness-first. Does NOT wire into chat route by default.
  * Production standard interactive SceneDirective injection remains OFF (ARM D).
  *
  * G10-SD1/SD2 controller decision path is FROZEN (BYTE_IDENTICAL).
  * G10-D2 Arm U: fixed terminal max-4 (PASS sealed — do not rejudge).
- * G10-D3 Arm V sole architecture: SERVER-RESOLVED DIALOGUE CEILING
- * (same terminal location; number dynamic; no prompt mapping table).
+ * G10-D3 Arm V: SERVER-RESOLVED DIALOGUE CEILING (PASS sealed — do not rejudge).
+ * G11-L1 Arm W: SINGLE TERMINAL LONGFORM RESPONSE CONTRACT
+ * (REPLACE length owner + dialogue terminal with one [이번 응답] owner).
+ * Resolvers resolveScenePacingDecision / resolveCommunicationDemand /
+ * resolveTerminalDialogueBudget remain BYTE_IDENTICAL (do not retune).
  */
 
 import type { ChatMsg } from "@/lib/ai";
@@ -24,8 +27,9 @@ import {
   type SceneProgressionType,
 } from "@/lib/sceneDirective";
 import { SCENE_FLOW_BLOCK } from "@/lib/generationProcessBeatFlow";
+import { USER_TAIL_LENGTH_OWNER_SENTENCE } from "@/lib/responseLength";
 
-export type ScenePacingArm = "A" | "P" | "Q" | "R" | "T" | "U" | "V";
+export type ScenePacingArm = "A" | "P" | "Q" | "R" | "T" | "U" | "V" | "W";
 
 /** G10-D3 — server-resolved direct-speech ceiling (null = no global cap). */
 export type DialogueBudget = 4 | 5 | 6 | null;
@@ -900,6 +904,93 @@ export function renderTerminalDialogueBudgetOwner(
 }
 
 /**
+ * G11-L1 — single terminal LONGFORM RESPONSE CONTRACT.
+ * Replaces standalone length owner + [이번 응답 대화] (does not add a third owner).
+ */
+export const TERMINAL_LONGFORM_RESPONSE_MARKER = "[이번 응답]";
+
+const LONGFORM_BASE_LENGTH_LINE =
+  "기본 분량은 한국어 3,200자 이상으로 충분히 전개하고, 장면에 필요한 내용이 있으면 더 길게 이어간다.";
+const LONGFORM_SCENE_VALUE_LINE =
+  "같은 내용을 반복해 늘이지 말고, 현재 상호작용에서 행동·내면·감각·관계·환경·인과적 결과가 계속 새 장면 가치를 만들도록 전개한다.";
+
+/** Render combined length+dialogue contract; null budget omits dialogue ceiling. */
+export function renderTerminalLongformResponseContract(
+  maxBlocks: DialogueBudget
+): string {
+  if (maxBlocks == null) {
+    return (
+      `${TERMINAL_LONGFORM_RESPONSE_MARKER}\n` +
+      `${LONGFORM_BASE_LENGTH_LINE}\n` +
+      `${LONGFORM_SCENE_VALUE_LINE}`
+    );
+  }
+  return (
+    `${TERMINAL_LONGFORM_RESPONSE_MARKER}\n` +
+    `${LONGFORM_BASE_LENGTH_LINE}\n` +
+    `직접 발화는 필요한 만큼 사용하되 최대 ${maxBlocks}개 블록으로 구성하며, 이 대사 상한은 전체 응답 분량의 상한이 아니다.\n` +
+    `${LONGFORM_SCENE_VALUE_LINE}`
+  );
+}
+
+export function countTerminalLongformResponseOwners(text: string): {
+  terminal_longform_response_owner: number;
+  standalone_length_owner: number;
+  standalone_dialogue_terminal: number;
+} {
+  return {
+    terminal_longform_response_owner: (
+      text.match(/\[이번 응답\]/g) ?? []
+    ).length,
+    standalone_length_owner: text.includes(USER_TAIL_LENGTH_OWNER_SENTENCE)
+      ? 1
+      : 0,
+    standalone_dialogue_terminal: (
+      text.match(/\[이번 응답 대화\]/g) ?? []
+    ).length,
+  };
+}
+
+/**
+ * Strip prior length / dialogue terminals, then append one LONGFORM contract
+ * at CURRENT USER TURN absolute end. Ensemble (null budget) keeps length+value
+ * lines only — no new global dialogue cap.
+ */
+export function appendTerminalLongformResponseContractToUserTurn(input: {
+  userContent: string;
+  budget: TerminalDialogueBudgetResolution;
+}): {
+  userContent: string;
+  appended: boolean;
+  maxBlocks: DialogueBudget;
+} {
+  let body = input.userContent;
+  if (body.includes(USER_TAIL_LENGTH_OWNER_SENTENCE)) {
+    body = body.split(USER_TAIL_LENGTH_OWNER_SENTENCE).join("");
+  }
+  // Remove trailing / embedded D2/D3 dialogue-only terminal blocks.
+  body = body.replace(
+    /\n*\s*\[이번 응답 대화\]\n[^\n]*(?:\n[^\n]*)?/g,
+    ""
+  );
+  // Idempotent: drop a prior longform contract block (marker → end).
+  const prior = body.lastIndexOf(TERMINAL_LONGFORM_RESPONSE_MARKER);
+  if (prior >= 0) {
+    body = body.slice(0, prior);
+  }
+  body = body
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trimEnd();
+  const owner = renderTerminalLongformResponseContract(input.budget.maxBlocks);
+  return {
+    userContent: `${body}\n\n${owner}`,
+    appended: true,
+    maxBlocks: input.budget.maxBlocks,
+  };
+}
+
+/**
  * REPLACE closest dialogue owner ([DIALOGUE & NARRATION]) with one integrated
  * [대화 운용] section — formatting lines kept; no duplicate dialogue owners.
  */
@@ -1082,12 +1173,14 @@ export function integrateDialogueBlockCap(input: {
  * - T: G10-D1 — Q + single_primary system [대화 운용]
  * - U: G10-D2 — Q + fixed terminal max-4 [이번 응답 대화]
  * - V: G10-D3 — Q + server-resolved terminal ceiling (4|5|6|absent)
+ * - W: G11-L1 — Q + single terminal LONGFORM RESPONSE CONTRACT
+ *      (REPLACE length owner + dialogue terminal; budget via same D3 resolver)
  */
 export function applyScenePacingArmToMessages(input: {
   messages: Array<{ role: string; content: string }>;
   arm: ScenePacingArm;
   decision: ScenePacingDecision;
-  /** Optional signals for Arm V dynamic budget (ignored by other arms). */
+  /** Optional signals for Arm V/W dynamic budget (ignored by other arms). */
   dialogueBudgetInput?: {
     currentUserMessage?: string | null;
     recentMessages?: ChatMsg[] | null;
@@ -1104,6 +1197,7 @@ export function applyScenePacingArmToMessages(input: {
   strippedGenreSceneMode: boolean;
   dialogueBlockCapIntegrated: boolean;
   terminalDialogueBudgetAppended: boolean;
+  terminalLongformContractAppended: boolean;
   dialogueBudget: TerminalDialogueBudgetResolution | null;
 } {
   const messages = input.messages.map((m) => ({ ...m, content: m.content }));
@@ -1120,6 +1214,7 @@ export function applyScenePacingArmToMessages(input: {
       strippedGenreSceneMode: false,
       dialogueBlockCapIntegrated: false,
       terminalDialogueBudgetAppended: false,
+      terminalLongformContractAppended: false,
       dialogueBudget: null,
     };
   }
@@ -1129,10 +1224,14 @@ export function applyScenePacingArmToMessages(input: {
   let replacedSceneFlow = false;
   let dialogueBlockCapIntegrated = false;
   let terminalDialogueBudgetAppended = false;
+  let terminalLongformContractAppended = false;
   let dialogueBudget: TerminalDialogueBudgetResolution | null = null;
-  // T/U/V share Q pacing path; R keeps state envelope.
+  // T/U/V/W share Q pacing path; R keeps state envelope.
   const pacingArm: ScenePacingArm =
-    input.arm === "T" || input.arm === "U" || input.arm === "V"
+    input.arm === "T" ||
+    input.arm === "U" ||
+    input.arm === "V" ||
+    input.arm === "W"
       ? "Q"
       : input.arm;
   const cue =
@@ -1197,9 +1296,10 @@ export function applyScenePacingArmToMessages(input: {
   }
 
   // G10-D2/D3: append private budget after production terminal length/layout lines.
-  if (input.arm === "U" || input.arm === "V") {
+  // G11-L1 Arm W: REPLACE length+dialogue terminals with one LONGFORM contract.
+  if (input.arm === "U" || input.arm === "V" || input.arm === "W") {
     const budgetInput = input.dialogueBudgetInput;
-    if (input.arm === "V") {
+    if (input.arm === "V" || input.arm === "W") {
       const demand = resolveCommunicationDemand({
         currentUserMessage: budgetInput?.currentUserMessage,
         recentMessages: budgetInput?.recentMessages,
@@ -1223,13 +1323,22 @@ export function applyScenePacingArmToMessages(input: {
     for (let i = messages.length - 1; i >= 0; i--) {
       const m = messages[i]!;
       if (m.role !== "user") continue;
-      const appended = appendTerminalDialogueBudgetToUserTurn({
-        userContent: m.content,
-        decision: input.decision,
-        budget: input.arm === "V" ? dialogueBudget : undefined,
-      });
-      m.content = appended.userContent;
-      terminalDialogueBudgetAppended = appended.appended;
+      if (input.arm === "W" && dialogueBudget) {
+        const appended = appendTerminalLongformResponseContractToUserTurn({
+          userContent: m.content,
+          budget: dialogueBudget,
+        });
+        m.content = appended.userContent;
+        terminalLongformContractAppended = appended.appended;
+      } else {
+        const appended = appendTerminalDialogueBudgetToUserTurn({
+          userContent: m.content,
+          decision: input.decision,
+          budget: input.arm === "V" ? dialogueBudget : undefined,
+        });
+        m.content = appended.userContent;
+        terminalDialogueBudgetAppended = appended.appended;
+      }
       break;
     }
   }
@@ -1246,6 +1355,7 @@ export function applyScenePacingArmToMessages(input: {
     strippedGenreSceneMode,
     dialogueBlockCapIntegrated,
     terminalDialogueBudgetAppended,
+    terminalLongformContractAppended,
     dialogueBudget,
   };
 }

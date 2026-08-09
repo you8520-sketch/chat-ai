@@ -6,10 +6,12 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   appendTerminalDialogueBudgetToUserTurn,
+  appendTerminalLongformResponseContractToUserTurn,
   applyScenePacingArmToMessages,
   countDialogueBlockOwners,
   countPacingOwners,
   countTerminalDialogueBudgetOwners,
+  countTerminalLongformResponseOwners,
   DIALOGUE_BLOCK_CAP_PARAGRAPH,
   isExternalCooldownActive,
   progressionTypesForCommit,
@@ -17,12 +19,14 @@ import {
   renderCompactSceneStateEnvelope,
   renderDialogueBlockCapOwner,
   renderTerminalDialogueBudgetOwner,
+  renderTerminalLongformResponseContract,
   resolveCommunicationDemand,
   resolveScenePacingDecision,
   resolveSceneStateAuthority,
   resolveTerminalDialogueBudget,
   stripGenreSceneModePacingHint,
   TERMINAL_DIALOGUE_BUDGET_OWNER,
+  TERMINAL_LONGFORM_RESPONSE_MARKER,
   type ScenePacingDecision,
 } from "@/lib/scenePacingController";
 import { SCENE_FLOW_BLOCK } from "@/lib/generationProcessBeatFlow";
@@ -978,4 +982,136 @@ ok`;
       0
     );
   });
+
+  it("G11-L1 Arm W — single terminal longform contract replaces length+dialogue", () => {
+    const quiet = decide({
+      contentKind: "character",
+      primaryCharacterName: "에녹",
+      currentUserMessage: "잠깐 이대로 있어도 돼?",
+      recentMessages: [
+        { role: "assistant", content: "문은 잠겼다. 소파에 앉아." },
+      ],
+      currentTurn: 4,
+    });
+    const explore = decide({
+      contentKind: "character",
+      primaryCharacterName: "에녹",
+      currentUserMessage: "이쪽 골목 괜찮아? 탐색해볼까?",
+      recentMessages: [
+        { role: "assistant", content: "저쪽 바람결이 바뀌었다. 멈춰." },
+      ],
+      currentTurn: 3,
+    });
+    const party = decide({
+      contentKind: "character",
+      party: true,
+      primaryCharacterName: "리아",
+      establishedActiveCastNames: ["리아", "카엘", "노아", "미르"],
+      currentUserMessage: "다들 의견 있어?",
+      currentTurn: 2,
+    });
+
+    assert.equal(
+      renderTerminalLongformResponseContract(4),
+      `${TERMINAL_LONGFORM_RESPONSE_MARKER}\n` +
+        `기본 분량은 한국어 3,200자 이상으로 충분히 전개하고, 장면에 필요한 내용이 있으면 더 길게 이어간다.\n` +
+        `직접 발화는 필요한 만큼 사용하되 최대 4개 블록으로 구성하며, 이 대사 상한은 전체 응답 분량의 상한이 아니다.\n` +
+        `같은 내용을 반복해 늘이지 말고, 현재 상호작용에서 행동·내면·감각·관계·환경·인과적 결과가 계속 새 장면 가치를 만들도록 전개한다.`
+    );
+    assert.doesNotMatch(
+      renderTerminalLongformResponseContract(null),
+      /최대 \d+개 블록/
+    );
+    assert.match(
+      renderTerminalLongformResponseContract(null),
+      /3,200자 이상/
+    );
+    assert.doesNotMatch(
+      renderTerminalLongformResponseContract(5),
+      /3,200~4,200|이번 응답 대화/
+    );
+
+    const userBody =
+      `${CURRENT_USER_INPUT_HEADER}\n\n` +
+      `테스트\n\n레이아웃: x\n\n${USER_TAIL_LENGTH_OWNER_SENTENCE}`;
+    const base = [
+      {
+        role: "system",
+        content: `[CORE RP]\nok\n${SCENE_FLOW_BLOCK}\n${DIALOGUE_NARRATION_STRUCTURE_RULE}\n`,
+      },
+      { role: "user", content: userBody },
+    ];
+
+    const W = applyScenePacingArmToMessages({
+      messages: base,
+      arm: "W",
+      decision: quiet,
+      dialogueBudgetInput: {
+        currentUserMessage: "잠깐 이대로 있어도 돼?",
+        recentMessages: [
+          { role: "assistant", content: "문은 잠겼다. 소파에 앉아." },
+        ],
+        contentKind: "character",
+      },
+    });
+    const owners = countTerminalLongformResponseOwners(W.lastUserContent);
+    assert.equal(W.dialogueBudget?.maxBlocks, 4);
+    assert.equal(W.terminalLongformContractAppended, true);
+    assert.equal(W.terminalDialogueBudgetAppended, false);
+    assert.equal(owners.terminal_longform_response_owner, 1);
+    assert.equal(owners.standalone_length_owner, 0);
+    assert.equal(owners.standalone_dialogue_terminal, 0);
+    assert.match(W.lastUserContent, /최대 4개 블록으로 구성하며/);
+    assert.match(W.lastUserContent, /상한이 아니다/);
+    assert.ok(W.lastUserContent.trimEnd().endsWith(LONGFORM_TAIL_HINT));
+    assert.equal(countPacingOwners(W.systemText).scene_pacing, 1);
+    assert.equal(countPacingOwners(W.systemText).scene_flow, 0);
+
+    const We = applyScenePacingArmToMessages({
+      messages: base,
+      arm: "W",
+      decision: explore,
+      dialogueBudgetInput: {
+        currentUserMessage: "이쪽 골목 괜찮아? 탐색해볼까?",
+        contentKind: "character",
+      },
+    });
+    assert.equal(We.dialogueBudget?.maxBlocks, 5);
+    assert.match(We.lastUserContent, /최대 5개 블록으로 구성하며/);
+
+    const Wparty = applyScenePacingArmToMessages({
+      messages: base,
+      arm: "W",
+      decision: party,
+      dialogueBudgetInput: { party: true, contentKind: "character" },
+    });
+    assert.equal(Wparty.dialogueBudget?.maxBlocks, null);
+    assert.equal(Wparty.terminalLongformContractAppended, true);
+    const partyOwners = countTerminalLongformResponseOwners(
+      Wparty.lastUserContent
+    );
+    assert.equal(partyOwners.terminal_longform_response_owner, 1);
+    assert.equal(partyOwners.standalone_dialogue_terminal, 0);
+    assert.doesNotMatch(Wparty.lastUserContent, /최대 \d+개 블록/);
+
+    const stripped = appendTerminalLongformResponseContractToUserTurn({
+      userContent:
+        `hi\n\n${USER_TAIL_LENGTH_OWNER_SENTENCE}\n\n` +
+        `[이번 응답 대화]\n직접 발화는 필요한 만큼 사용하되 최대 4개 블록으로 구성한다.`,
+      budget: {
+        maxBlocks: 4,
+        reason: "quiet_dyad",
+        communicationDemand: "LOW",
+      },
+    });
+    const strippedOwners = countTerminalLongformResponseOwners(
+      stripped.userContent
+    );
+    assert.equal(strippedOwners.standalone_length_owner, 0);
+    assert.equal(strippedOwners.standalone_dialogue_terminal, 0);
+    assert.equal(strippedOwners.terminal_longform_response_owner, 1);
+  });
 });
+
+const LONGFORM_TAIL_HINT =
+  "같은 내용을 반복해 늘이지 말고, 현재 상호작용에서 행동·내면·감각·관계·환경·인과적 결과가 계속 새 장면 가치를 만들도록 전개한다.";
