@@ -593,13 +593,20 @@ function classify(opts: {
     | "SERVER_CONTROL_LENGTH_TAX_CONFIRMED"
     | "POSSIBLE_SERVER_CONTROL_LENGTH_TAX"
     | "BASELINE_GEMINI_LENGTH_INSTABILITY";
-  let next_branch: "C2 COMPONENT ABLATION" | "R1 SELECTIVE UNDER-LENGTH RECOVERY";
+  /**
+   * Fixed project principle: ONE TURN = ONE PRIMARY LLM CALL.
+   * No retry / continuation / recovery / supplement / repair second-call
+   * as a length fix. Baseline-short → C3 one-call root-cause audit.
+   */
+  let next_branch:
+    | "C2 COMPONENT ABLATION"
+    | "C3 ONE-CALL LENGTH ROOT CAUSE AUDIT";
   if (strongTax) {
     classification = "SERVER_CONTROL_LENGTH_TAX_CONFIRMED";
     next_branch = "C2 COMPONENT ABLATION";
   } else if (noTax) {
     classification = "BASELINE_GEMINI_LENGTH_INSTABILITY";
-    next_branch = "R1 SELECTIVE UNDER-LENGTH RECOVERY";
+    next_branch = "C3 ONE-CALL LENGTH ROOT CAUSE AUDIT";
   } else {
     classification = "POSSIBLE_SERVER_CONTROL_LENGTH_TAX";
     next_branch = "C2 COMPONENT ABLATION";
