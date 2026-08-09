@@ -1,0 +1,53 @@
+{
+  "phase": "G10-D1",
+  "reference": "G10-SD2 stored Q anchors 7/6/8",
+  "sole_variable": "SINGLE_PRIMARY_DIALOGUE_BLOCK_CAP",
+  "classification": "SIMPLE_DIALOGUE_BLOCK_CAP_FAIL",
+  "N1S": {
+    "draws": [
+      {
+        "id": "T_D1",
+        "chars": 3339,
+        "speech_blocks": 7,
+        "dialogue_share": 0.1043,
+        "narration_share": 0.8957,
+        "function_load": "HIGH",
+        "scene_value": "PRESERVED_HIGH_NARRATION",
+        "state_issue": "YES — exterior vibration + predator hypothetical escalation framed as near-fact"
+      },
+      {
+        "id": "T_D2",
+        "chars": 1323,
+        "speech_blocks": 4,
+        "dialogue_share": 0.1111,
+        "narration_share": 0.8889,
+        "function_load": "MODERATE",
+        "scene_value": "THIN_BUT_PRESENT",
+        "state_issue": "BORDERLINE — past scrape ceased; shadows beyond fog unspecified"
+      },
+      {
+        "id": "T_D3",
+        "chars": 2016,
+        "speech_blocks": 4,
+        "dialogue_share": 0.0412,
+        "narration_share": 0.9588,
+        "function_load": "MODERATE",
+        "scene_value": "PRESERVED",
+        "state_issue": "YES — present-tense exterior scrape/friction + hive motion beyond drains"
+      }
+    ],
+    "chars": [3339, 1323, 2016],
+    "median": 2016,
+    "speech_blocks": [7, 4, 4],
+    "blocks_le_4": "2/3",
+    "preferred_1_to_3": "0/3",
+    "length_collapse": "NO_MASSIVE_VS_Q_MEDIAN (Q med 1961 → T med 2016); <1600: 1/3",
+    "scene_value": "NON_INFERIOR_OVERALL",
+    "state_issue": "REMAINS (observational; not primary gate)"
+  },
+  "N2": "NOT_RUN",
+  "llm_calls": 3,
+  "production_wire": "NOT_RUN",
+  "merge": "NOT_RUN",
+  "note": "Primary gate failed (T_D1=7>4). No wording v2/v3. STOP."
+}
