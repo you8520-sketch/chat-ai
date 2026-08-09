@@ -13,6 +13,7 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 import assert from "node:assert/strict";
 import { describe, it, before, after } from "node:test";
 import { getDb } from "@/lib/db";
+import { getOrCreateChatMemory } from "./memory-db";
 import { syncMemoryFromChat } from "./memory-backfill";
 import {
   buildOocOnlyBatchPlaceholder,
@@ -31,6 +32,11 @@ import {
 } from "./memory-turn-summary";
 import { buildRecentNarrativeContextBlock, buildStoredHistoryStaticBlock } from "./memory-narrative-context";
 import { stripOocFromMemorySummary } from "./memory-ooc-filter";
+import { getMemorySourceBoundary } from "./memory-source-boundary";
+import {
+  loadChatRelationshipMeta,
+  mergeRelationshipMetaFromTurn,
+} from "./memory-relationship-meta";
 
 const FIXTURE =
   "레온은 연회장 테라스에서 렌을 만나 정원을 안내했다 → 렌의 청혼에 흔들리며 감정을 드러냈다 → " +
@@ -359,6 +365,61 @@ describe("persistValidatedSummaryBatch integrity", () => {
       .prepare("SELECT summarized_turn_count FROM chat_memories WHERE chat_id=?")
       .get(CHAT_ID) as { summarized_turn_count: number } | undefined;
     assert.ok(!mem || mem.summarized_turn_count === 0);
+  });
+
+  it("rejects a summary commit from a stale memory epoch", () => {
+    cleanup();
+    seed();
+    getOrCreateChatMemory(CHAT_ID, USER_ID, CHAR_ID, "free");
+    const boundarySnapshot = getMemorySourceBoundary(CHAT_ID);
+    getDb()
+      .prepare(`UPDATE chat_memories SET memory_epoch=memory_epoch+1 WHERE chat_id=?`)
+      .run(CHAT_ID);
+
+    const result = persistValidatedSummaryBatch({
+      chatId: CHAT_ID,
+      userId: USER_ID,
+      characterId: CHAR_ID,
+      tier: "free",
+      turnStart: 1,
+      assistantMessageId: null,
+      summary: FIXTURE,
+      playableTurnCount: 6,
+      boundarySnapshot,
+      sourceUserMessageIds: [123],
+      sourceStartUserMessageId: 123,
+      sourceEndUserMessageId: 123,
+    });
+
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.equal(result.reason, "STALE_MEMORY_EPOCH");
+    assert.equal(listMemoryRecordsForChat(CHAT_ID).length, 0);
+    assert.equal(memCount(), 0);
+  });
+
+  it("rejects a stale relationship delta after reset epoch changes", async () => {
+    cleanup();
+    seed();
+    getOrCreateChatMemory(CHAT_ID, USER_ID, CHAR_ID, "free");
+    const boundarySnapshot = getMemorySourceBoundary(CHAT_ID);
+    getDb()
+      .prepare(`UPDATE chat_memories SET memory_epoch=memory_epoch+1 WHERE chat_id=?`)
+      .run(CHAT_ID);
+
+    await mergeRelationshipMetaFromTurn({
+      chatId: CHAT_ID,
+      names: { charName: "TestChar", userName: "Tester" },
+      userMessage: "unused",
+      assistantMessage: "unused",
+      route: "safe",
+      mainModelTailParsed: true,
+      mainModelDelta: { items: ["stale ring"] },
+      sourceUserMessageId: 123,
+      boundarySnapshot,
+    });
+
+    assert.deepEqual(loadChatRelationshipMeta(CHAT_ID).items, []);
+    assert.deepEqual(loadChatRelationshipMeta(CHAT_ID).promises, []);
   });
 
   it("reconcile twice is idempotent", () => {

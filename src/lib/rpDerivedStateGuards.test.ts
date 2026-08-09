@@ -48,6 +48,7 @@ function makeDb(): Database.Database {
       character_id INTEGER,
       user_id INTEGER,
       source_turn INTEGER NOT NULL,
+      source_user_message_id INTEGER,
       category TEXT NOT NULL,
       subject TEXT NOT NULL,
       attribute TEXT NOT NULL,

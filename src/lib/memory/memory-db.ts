@@ -7,7 +7,9 @@ export function calcUsedChars(row: Pick<ChatMemoryRow, "pinned_facts" | "recent_
 }
 
 const CHAT_MEMORY_SELECT = `SELECT id, chat_id, user_id, character_id, pinned_facts, recent_summary, archive_summary,
-              membership_tier, used_chars, message_count, summarized_turn_count, last_compressed_at, created_at, updated_at
+              membership_tier, used_chars, message_count, summarized_turn_count,
+              memory_reset_after_message_id, memory_epoch,
+              last_compressed_at, created_at, updated_at
        FROM chat_memories WHERE chat_id=?`;
 
 export function getOrCreateChatMemory(

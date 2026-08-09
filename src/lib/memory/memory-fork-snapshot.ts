@@ -13,6 +13,28 @@ import {
 } from "./memory-fork-turn-count";
 
 export { countCompletedTurnsUpToMessageId, forkSummarizedTurnCount } from "./memory-fork-turn-count";
+export { countMemoryEligibleCompletedTurnsUpToMessageId } from "./memory-fork-turn-count";
+
+export function remapForkResetBoundary(opts: {
+  parentResetAfterMessageId: number | null;
+  forkMessageId: number;
+  copiedParentMessageIds: readonly number[];
+  messageIdMap: ReadonlyMap<number, number>;
+}): number | null {
+  if (opts.parentResetAfterMessageId == null) return null;
+  const parentBoundaryAtFork = Math.min(
+    opts.parentResetAfterMessageId,
+    opts.forkMessageId
+  );
+  let lastBlockedParentMessageId: number | null = null;
+  for (const parentMessageId of opts.copiedParentMessageIds) {
+    if (parentMessageId > parentBoundaryAtFork) break;
+    lastBlockedParentMessageId = parentMessageId;
+  }
+  return lastBlockedParentMessageId == null
+    ? null
+    : (opts.messageIdMap.get(lastBlockedParentMessageId) ?? null);
+}
 
 /** 부모 채팅의 6턴 히스토리 페이지를 분기 시점까지 새 채팅에 복사 */
 export function copyForkTurnSummaries(
@@ -28,7 +50,9 @@ export function copyForkTurnSummaries(
 
   const rows = db
     .prepare(
-      `SELECT turn_number, assistant_message_id, summary, user_edited,
+      `SELECT turn_number, assistant_message_id,
+              source_start_user_message_id, source_end_user_message_id,
+              summary, user_edited,
               COALESCE(summary_kind, 'narrative') AS summary_kind,
               scope_payload, branch_id, branch_status, promoted_by, promoted_at,
               COALESCE(inactive, 0) AS inactive
@@ -37,6 +61,8 @@ export function copyForkTurnSummaries(
     .all(opts.sourceChatId) as {
     turn_number: number;
     assistant_message_id: number | null;
+    source_start_user_message_id: number | null;
+    source_end_user_message_id: number | null;
     summary: string;
     user_edited: number;
     summary_kind: string;
@@ -51,8 +77,9 @@ export function copyForkTurnSummaries(
   const ins = db.prepare(
     `INSERT INTO chat_turn_summaries
       (chat_id, turn_number, assistant_message_id, summary, user_edited,
-       summary_kind, scope_payload, branch_id, branch_status, promoted_by, promoted_at, inactive)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
+       summary_kind, scope_payload, branch_id, branch_status, promoted_by, promoted_at, inactive,
+       source_start_user_message_id, source_end_user_message_id)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
   );
 
   let copied = 0;
@@ -63,6 +90,14 @@ export function copyForkTurnSummaries(
     const newAssistantId =
       row.assistant_message_id != null
         ? (opts.messageIdMap.get(row.assistant_message_id) ?? null)
+        : null;
+    const newSourceStartId =
+      row.source_start_user_message_id != null
+        ? (opts.messageIdMap.get(row.source_start_user_message_id) ?? null)
+        : null;
+    const newSourceEndId =
+      row.source_end_user_message_id != null
+        ? (opts.messageIdMap.get(row.source_end_user_message_id) ?? null)
         : null;
 
     ins.run(
@@ -77,7 +112,9 @@ export function copyForkTurnSummaries(
       row.branch_status,
       row.promoted_by,
       row.promoted_at,
-      row.inactive ?? 0
+      row.inactive ?? 0,
+      newSourceStartId,
+      newSourceEndId
     );
     copied += 1;
   }

@@ -1,4 +1,5 @@
 import { ROLLING_SUMMARY_INTERVAL, countPlayableTurns } from "@/lib/hybridMemory";
+import { getDb } from "@/lib/db";
 import {
   catchUpRollingSummaries,
   loadTurnsForChat,
@@ -17,6 +18,10 @@ import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
 import { isMemoryFeatureEnabled } from "./memory-feature";
 import { reconcileSummarizedTurnCountFromTable } from "./memory-summary-persist";
 import type { MemoryTier } from "./memory-types";
+import {
+  getMemorySourceBoundary,
+  isMemoryWriteGuardCurrentCore,
+} from "./memory-source-boundary";
 
 /**
  * 장기기억 도입 전 대화를 message_count / summarized_turn_count에 1회 동기화.
@@ -141,29 +146,51 @@ export async function syncAndCompressMemoryFromChat(opts: MemoryBackfillOpts): P
     maxRounds: MEMORY_PANEL_BACKFILL_MAX_BATCHES_PER_REQUEST,
   });
 
+  const boundarySnapshot = getMemorySourceBoundary(opts.chatId);
   const memory = getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
   const budget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity).lorebook;
   const resolved = await resolveLorebookFromRecords(opts.chatId, budget);
   const stored = memory.recent_summary?.trim() ?? "";
-  let lorebookUpdated = false;
+  let update:
+    | { recent_summary: string; last_compressed_at?: string; membership_tier: MemoryTier }
+    | null = null;
 
   if (resolved.text && resolved.text !== stored) {
-    updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
+    update = {
       recent_summary: resolved.text,
       last_compressed_at: resolved.compressed ? new Date().toISOString() : undefined,
       membership_tier: opts.tier,
-    });
-    lorebookUpdated = true;
+    };
   } else if (!resolved.text && stored.length > budget) {
     const { text: fitted, compressed } = await ensureLorebookWithinBudget(stored, budget);
     if (compressed && fitted !== stored) {
-      updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
+      update = {
         recent_summary: fitted,
         last_compressed_at: new Date().toISOString(),
         membership_tier: opts.tier,
-      });
-      lorebookUpdated = true;
+      };
     }
+  }
+
+  let lorebookUpdated = false;
+  if (update) {
+    const db = getDb();
+    db.transaction(() => {
+      if (
+        !isMemoryWriteGuardCurrentCore(db, {
+          chatId: opts.chatId,
+          snapshot: boundarySnapshot,
+        })
+      ) {
+        console.info("MEMORY_STALE_EPOCH_REJECTED", {
+          chat_id: opts.chatId,
+          epoch: boundarySnapshot.epoch,
+        });
+        return;
+      }
+      updateChatMemory(opts.chatId, opts.userId, opts.characterId, update!);
+      lorebookUpdated = true;
+    }).immediate();
   }
 
   return backfilled || processed > 0 || lorebookUpdated;

@@ -26,6 +26,10 @@ import {
   type ScopePayloadV1,
   type SummaryKind,
 } from "./memory-summary-scope";
+import {
+  isMemoryWriteGuardCurrentCore,
+  type MemorySourceBoundary,
+} from "./memory-source-boundary";
 
 function syncChatLongTermMemory(chatId: number, summary: string): void {
   getDb().prepare("UPDATE chats SET current_summary=? WHERE id=?").run(summary.trim(), chatId);
@@ -47,6 +51,8 @@ function upsertRowInTx(opts: {
   promotedBy?: string | null;
   promotedAt?: string | null;
   inactive?: boolean;
+  sourceStartUserMessageId?: number | null;
+  sourceEndUserMessageId?: number | null;
 }): void {
   const db = getDb();
   const existing = db
@@ -70,7 +76,10 @@ function upsertRowInTx(opts: {
       `UPDATE chat_turn_summaries SET
         summary=?, summary_kind=?, assistant_message_id=COALESCE(?, assistant_message_id),
         scope_payload=?, branch_id=?, branch_status=?, promoted_by=?, promoted_at=?,
-        inactive=?, user_edited=?, updated_at=datetime('now')
+          inactive=?, user_edited=?,
+          source_start_user_message_id=COALESCE(?, source_start_user_message_id),
+          source_end_user_message_id=COALESCE(?, source_end_user_message_id),
+          updated_at=datetime('now')
        WHERE id=?`
     ).run(
       opts.summary,
@@ -83,14 +92,17 @@ function upsertRowInTx(opts: {
       opts.promotedAt ?? null,
       opts.inactive ? 1 : 0,
       opts.userEdited ? 1 : 0,
+      opts.sourceStartUserMessageId ?? null,
+      opts.sourceEndUserMessageId ?? null,
       existing.id
     );
   } else {
     db.prepare(
       `INSERT INTO chat_turn_summaries
         (chat_id, turn_number, assistant_message_id, summary, summary_kind, user_edited,
-         scope_payload, branch_id, branch_status, promoted_by, promoted_at, inactive)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
+         scope_payload, branch_id, branch_status, promoted_by, promoted_at, inactive,
+         source_start_user_message_id, source_end_user_message_id)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     ).run(
       opts.chatId,
       opts.turnStart,
@@ -103,7 +115,9 @@ function upsertRowInTx(opts: {
       opts.branchStatus ?? null,
       opts.promotedBy ?? null,
       opts.promotedAt ?? null,
-      opts.inactive ? 1 : 0
+      opts.inactive ? 1 : 0,
+      opts.sourceStartUserMessageId ?? null,
+      opts.sourceEndUserMessageId ?? null
     );
   }
 }
@@ -131,6 +145,10 @@ export function persistValidatedSummaryBatch(opts: {
   /** When set, used as recent_summary instead of rebuild (e.g. after compact). */
   recentSummaryOverride?: string;
   playableTurnCount: number;
+  boundarySnapshot?: MemorySourceBoundary;
+  sourceUserMessageIds?: readonly number[];
+  sourceStartUserMessageId?: number | null;
+  sourceEndUserMessageId?: number | null;
   /** @internal test-only — throw after upsert to verify full txn rollback */
   __testThrowAfterUpsert?: boolean;
 }): PersistSummaryBatchResult {
@@ -150,6 +168,18 @@ export function persistValidatedSummaryBatch(opts: {
 
   try {
     const run = db.transaction(() => {
+      if (
+        opts.boundarySnapshot &&
+        !isMemoryWriteGuardCurrentCore(db, {
+          chatId: opts.chatId,
+          snapshot: opts.boundarySnapshot,
+          sourceUserMessageIds: opts.sourceUserMessageIds,
+        })
+      ) {
+        throw Object.assign(new Error("STALE_MEMORY_EPOCH"), {
+          code: "STALE_MEMORY_EPOCH" as const,
+        });
+      }
       const before = listMemoryRecordsForChat(opts.chatId);
       const contiguousBefore = highestContiguousCompletedTurn(before, opts.playableTurnCount);
       const expectedNextStart = contiguousBefore === 0 ? 1 : contiguousBefore + 1;
@@ -172,6 +202,8 @@ export function persistValidatedSummaryBatch(opts: {
         promotedBy: opts.promotedBy,
         promotedAt: opts.promotedAt,
         inactive: opts.inactive,
+        sourceStartUserMessageId: opts.sourceStartUserMessageId,
+        sourceEndUserMessageId: opts.sourceEndUserMessageId,
       });
 
       if (opts.__testThrowAfterUpsert) {
@@ -233,7 +265,7 @@ export function persistValidatedSummaryBatch(opts: {
       };
     });
 
-    const out = run();
+    const out = run.immediate();
     return {
       ok: true,
       reason: "SUMMARY_SUCCESS",
@@ -247,6 +279,9 @@ export function persistValidatedSummaryBatch(opts: {
     }
     if (code === "SUMMARY_SAVE_FAILED") {
       return { ok: false, reason: "SUMMARY_SAVE_FAILED", error: (e as Error).message };
+    }
+    if (code === "STALE_MEMORY_EPOCH") {
+      return { ok: false, reason: "STALE_MEMORY_EPOCH", error: (e as Error).message };
     }
     return {
       ok: false,
@@ -263,6 +298,7 @@ export function reconcileSummarizedTurnCountFromTable(opts: {
   characterId: number;
   tier: MemoryTier;
   playableTurnCount: number;
+  boundarySnapshot?: MemorySourceBoundary;
 }): number {
   const db = getDb();
   getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
@@ -276,7 +312,16 @@ export function reconcileSummarizedTurnCountFromTable(opts: {
     archive_summary: current.archive_summary,
   });
 
-  db.transaction(() => {
+  const applied = db.transaction(() => {
+    if (
+      opts.boundarySnapshot &&
+      !isMemoryWriteGuardCurrentCore(db, {
+        chatId: opts.chatId,
+        snapshot: opts.boundarySnapshot,
+      })
+    ) {
+      return false;
+    }
     db.prepare(
       `UPDATE chat_memories SET
         recent_summary=?,
@@ -286,7 +331,21 @@ export function reconcileSummarizedTurnCountFromTable(opts: {
        WHERE chat_id=?`
     ).run(recent, used, contiguous, opts.chatId);
     syncChatLongTermMemory(opts.chatId, recent);
-  })();
+    return true;
+  }).immediate();
+
+  if (!applied) {
+    console.info("MEMORY_STALE_EPOCH_REJECTED", {
+      chat_id: opts.chatId,
+      epoch: opts.boundarySnapshot?.epoch ?? null,
+    });
+    return getOrCreateChatMemory(
+      opts.chatId,
+      opts.userId,
+      opts.characterId,
+      opts.tier
+    ).summarized_turn_count;
+  }
 
   return contiguous;
 }

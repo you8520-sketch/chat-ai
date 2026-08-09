@@ -1467,15 +1467,18 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     }
   }
 
-  const completedTurnsForCoverage = Number.isFinite(input.completedTurns)
-    ? Math.max(0, Math.floor(input.completedTurns!))
+  const completedTurnsForCoverage = Number.isFinite(input.completedTurnsForMemoryCoverage)
+    ? Math.max(0, Math.floor(input.completedTurnsForMemoryCoverage!))
+    : Number.isFinite(input.completedTurns)
+      ? Math.max(0, Math.floor(input.completedTurns!))
     : 0;
   const summarizedTurnsForCoverage = Number.isFinite(input.summarizedTurnCount)
     ? Math.max(0, Math.floor(input.summarizedTurnCount!))
     : 0;
   const keptPlayableTurns = countPlayableHistoryTurns(historySource);
-  const firstRawPlayableTurn = keptPlayableTurns > 0
-    ? Math.max(1, completedTurnsForCoverage - keptPlayableTurns + 1)
+  const keptEligibleRawTurns = Math.min(keptPlayableTurns, completedTurnsForCoverage);
+  const firstRawPlayableTurn = keptEligibleRawTurns > 0
+    ? Math.max(1, completedTurnsForCoverage - keptEligibleRawTurns + 1)
     : completedTurnsForCoverage > 0
       ? completedTurnsForCoverage + 1
       : null;

@@ -2,6 +2,12 @@ import type Database from "better-sqlite3";
 import { sanitizeExtractedFacts } from "@/lib/statusWidget/extractedFacts";
 import type { ExtractedStatusFact, ExtractedStatusFactImportance } from "@/lib/statusWidget/types";
 import {
+  getMemorySourceBoundaryCore,
+  isMemorySourceEligible,
+  isMemoryWriteGuardCurrentCore,
+  type MemorySourceBoundary,
+} from "@/lib/memory/memory-source-boundary";
+import {
   classifyEpisodicFactTemporalNature,
   isClearlyTemporaryEpisodicFact,
 } from "@/lib/episodicMemoryTemporal";
@@ -19,6 +25,8 @@ export type PersistEpisodicMemoryFactsInput = {
   characterId?: number | null;
   userId?: number | null;
   sourceTurn: number;
+  sourceUserMessageId?: number | null;
+  boundarySnapshot?: MemorySourceBoundary;
   facts?: ExtractedStatusFact[] | null;
   metadata?: Record<string, unknown>;
   /**
@@ -34,6 +42,7 @@ export type EpisodicMemoryFactRecord = ExtractedStatusFact & {
   character_id: number | null;
   user_id: number | null;
   source_turn: number;
+  source_user_message_id: number | null;
   created_at: string;
   metadata: string;
 };
@@ -379,6 +388,7 @@ export function ensureEpisodicMemoryFactsTable(db: Database.Database): void {
       character_id INTEGER,
       user_id INTEGER,
       source_turn INTEGER NOT NULL,
+      source_user_message_id INTEGER,
       category TEXT NOT NULL,
       subject TEXT NOT NULL,
       attribute TEXT NOT NULL,
@@ -393,6 +403,12 @@ export function ensureEpisodicMemoryFactsTable(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_episodic_memory_facts_lookup
       ON episodic_memory_facts(chat_id, category, subject, attribute);
   `);
+  const columns = db
+    .prepare(`PRAGMA table_info(episodic_memory_facts)`)
+    .all() as { name: string }[];
+  if (!columns.some((column) => column.name === "source_user_message_id")) {
+    db.exec(`ALTER TABLE episodic_memory_facts ADD COLUMN source_user_message_id INTEGER`);
+  }
 }
 
 function dedupeFactsWithinResponse(facts: ExtractedStatusFact[]): ExtractedStatusFact[] {
@@ -408,8 +424,8 @@ function dedupeFactsWithinResponse(facts: ExtractedStatusFact[]): ExtractedStatu
   return out;
 }
 
-function finitePositiveInt(value: number): number | null {
-  if (!Number.isFinite(value)) return null;
+function finitePositiveInt(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
   const n = Math.trunc(value);
   return n > 0 ? n : null;
 }
@@ -461,6 +477,7 @@ export function persistEpisodicMemoryFactsCore(
     input.userId != null && Number.isFinite(input.userId)
       ? Math.trunc(input.userId)
       : null;
+  const sourceUserMessageId = finitePositiveInt(input.sourceUserMessageId);
 
   const assistantMessageId = metadataAssistantMessageId(input.metadata);
   const requestId = metadataRequestId(input.metadata);
@@ -499,9 +516,10 @@ export function persistEpisodicMemoryFactsCore(
 
   const insert = db.prepare(`
     INSERT INTO episodic_memory_facts
-      (chat_id, character_id, user_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata)
+      (chat_id, character_id, user_id, source_turn, source_user_message_id,
+       category, subject, attribute, value, importance, fact_text, metadata)
     VALUES
-      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   for (const fact of facts) {
@@ -510,6 +528,7 @@ export function persistEpisodicMemoryFactsCore(
       characterId,
       userId,
       sourceTurn,
+      sourceUserMessageId,
       fact.category,
       fact.subject,
       fact.attribute,
@@ -569,6 +588,15 @@ export function replaceEpisodicMemoryFactsForCanonicalMutation(
   db: Database.Database,
   input: PersistEpisodicMemoryFactsInput
 ): number {
+  const boundary = getMemorySourceBoundaryCore(db, input.chatId);
+  if (
+    !isMemorySourceEligible({
+      sourceUserMessageId: input.sourceUserMessageId,
+      boundary,
+    })
+  ) {
+    return 0;
+  }
   return persistEpisodicMemoryFactsCore(db, {
     ...input,
     replaceSourceTurn: true,
@@ -596,6 +624,8 @@ export type ReconcileEpisodicMemoryFactsInput = {
   characterId?: number | null;
   userId?: number | null;
   sourceTurn: number;
+  sourceUserMessageId?: number | null;
+  boundarySnapshot?: MemorySourceBoundary;
   facts?: ExtractedStatusFact[] | null;
   isRegeneration: boolean;
   metadata?: Record<string, unknown>;
@@ -613,16 +643,40 @@ export function reconcileEpisodicMemoryFactsForGeneration(
   // Regeneration: always invoke persist with replaceSourceTurn so the prior
   // variant's facts are deleted even when the new variant produces no facts.
   // Normal generation with facts: insert without replacing.
-  const inserted = persistEpisodicMemoryFactsBestEffort(db, {
-    chatId: input.chatId,
-    characterId: input.characterId,
-    userId: input.userId,
-    sourceTurn: input.sourceTurn,
-    facts,
-    replaceSourceTurn: input.isRegeneration,
-    metadata: input.metadata,
-  });
-  return { replaced: input.isRegeneration, inserted };
+  try {
+    const run = () => {
+      const snapshot = input.boundarySnapshot ?? getMemorySourceBoundaryCore(db, input.chatId);
+      if (
+        !isMemoryWriteGuardCurrentCore(db, {
+          chatId: input.chatId,
+          snapshot,
+          sourceUserMessageIds: [input.sourceUserMessageId],
+        })
+      ) {
+        console.info("MEMORY_STALE_EPOCH_REJECTED", {
+          chat_id: input.chatId,
+          epoch: snapshot.epoch,
+          source_message_id: input.sourceUserMessageId ?? null,
+        });
+        return { replaced: false, inserted: 0 };
+      }
+      const inserted = persistEpisodicMemoryFactsCore(db, {
+        chatId: input.chatId,
+        characterId: input.characterId,
+        userId: input.userId,
+        sourceTurn: input.sourceTurn,
+        sourceUserMessageId: input.sourceUserMessageId,
+        facts,
+        replaceSourceTurn: input.isRegeneration,
+        metadata: input.metadata,
+      });
+      return { replaced: input.isRegeneration, inserted };
+    };
+    return db.inTransaction ? run() : db.transaction(run).immediate();
+  } catch (e) {
+    console.error("[EpisodicMemory] failed to reconcile facts:", (e as Error).message);
+    return { replaced: false, inserted: 0 };
+  }
 }
 
 /**
@@ -885,6 +939,11 @@ export function getEpisodicMemoryForPrompt(
       where.push("(user_id IS NULL OR user_id = ?)");
       params.push(Math.trunc(input.userId));
     }
+    const boundary = getMemorySourceBoundaryCore(db, chatId);
+    if (boundary.resetAfterMessageId != null) {
+      where.push("source_user_message_id IS NOT NULL AND source_user_message_id > ?");
+      params.push(boundary.resetAfterMessageId);
+    }
     if (currentTurn != null) {
       where.push("source_turn < ?");
       params.push(currentTurn);
@@ -896,7 +955,8 @@ export function getEpisodicMemoryForPrompt(
 
     const rows = db
       .prepare(
-        `SELECT id, chat_id, character_id, user_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata, created_at
+        `SELECT id, chat_id, character_id, user_id, source_turn, source_user_message_id,
+                category, subject, attribute, value, importance, fact_text, metadata, created_at
          FROM episodic_memory_facts
          WHERE ${where.join(" AND ")}
          ORDER BY source_turn DESC, id DESC

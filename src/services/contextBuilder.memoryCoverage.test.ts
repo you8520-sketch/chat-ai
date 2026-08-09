@@ -34,6 +34,7 @@ function buildCoverageContext(opts: {
   modelId: string;
   history: ChatMsg[];
   completedTurns: number;
+  completedTurnsForMemoryCoverage?: number;
   summarizedTurnCount: number;
   floor: number;
   preserveAdultHandoffRawHistory?: boolean;
@@ -50,6 +51,7 @@ function buildCoverageContext(opts: {
     provider: opts.provider,
     modelId: opts.modelId,
     completedTurns: opts.completedTurns,
+    completedTurnsForMemoryCoverage: opts.completedTurnsForMemoryCoverage,
     summarizedTurnCount: opts.summarizedTurnCount,
     historyMinTurnFloor: opts.floor,
     preserveAdultHandoffRawHistory: opts.preserveAdultHandoffRawHistory,
@@ -118,6 +120,23 @@ describe("contextBuilder memory coverage", () => {
     const builtPriorHistory = built.history.slice(0, -1);
     assert.ok(builtPriorHistory.length <= mainHistory.length);
     assert.equal(selectLongerHistorySuffix(builtPriorHistory, mainHistory), mainHistory);
+  });
+
+  it("uses one eligible turn instead of 101 global turns immediately after reset", () => {
+    const built = buildCoverageContext({
+      provider: "openrouter",
+      modelId: OPENROUTER_QWEN_37_MAX_MODEL,
+      history: rawRecentTurnsToHistory(makeTurns(4, 200)),
+      completedTurns: 101,
+      completedTurnsForMemoryCoverage: 1,
+      summarizedTurnCount: 0,
+      floor: 4,
+    });
+
+    assert.equal(built.meta.memoryCoverage?.requestedFloor, 4);
+    assert.equal(built.meta.memoryCoverage?.firstRawPlayableTurn, 1);
+    assert.equal(built.meta.memoryCoverage?.gapTurns, 0);
+    assert.equal(built.meta.memoryCoverage?.degraded, false);
   });
 
   it("preserves the larger adult handoff/coverage suffix without a second trim", () => {
