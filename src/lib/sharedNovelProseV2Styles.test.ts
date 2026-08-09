@@ -138,7 +138,8 @@ describe("sharedNovelProseV2 styles + resolver", () => {
         "내면만으로 분량을 채우지 말고 선택적 환경·다른 인물·업무·주변 활동·결과로 장면을 움직인다."
       )
     );
-    assert.ok(IMMERSIVE_PROSE_BLOCK.includes("내면만으로 분량을 채우지 말고"));
+    assert.ok(IMMERSIVE_PROSE_BLOCK.includes("[IMMERSIVE LONGFORM PROSE]"));
+    assert.ok(IMMERSIVE_PROSE_BLOCK.includes("충분히 펼쳐진 소설 장면"));
     assert.ok(PROSE_STYLE_SECTION.includes(IMMERSIVE_PROSE_BLOCK));
   });
 

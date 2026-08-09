@@ -155,7 +155,8 @@ describe("DeepSeek narration fragment guard (prompt snapshot)", () => {
     assert.doesNotMatch(rhythm, /대사는 캐릭터 말투에 따라 짧을 수 있다/);
     assert.doesNotMatch(rhythm, /짧은 문장마다 새 문단/);
     assert.match(rhythm, /강조·긴장·충격/);
-    assert.match(IMMERSIVE_PROSE_BLOCK, /모든 움직임을 순서대로 기록하지 않는다/);
+    assert.match(IMMERSIVE_PROSE_BLOCK, /\[IMMERSIVE LONGFORM PROSE\]/);
+    assert.doesNotMatch(IMMERSIVE_PROSE_BLOCK, /모든 움직임을 순서대로 기록하지 않는다/);
     assert.doesNotMatch(IMMERSIVE_PROSE_BLOCK, /한두 단어짜리 파편문/);
   });
 

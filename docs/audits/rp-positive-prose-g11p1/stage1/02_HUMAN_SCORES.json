@@ -1,0 +1,28 @@
+{
+  "phase": "G11-P1-STAGE1",
+  "draft_PR": "https://github.com/you8520-sketch/chat-ai/pull/298",
+  "api_calls": 6,
+  "fixtures": ["B", "D", "F"],
+  "i1_bdf_baseline_mean": 2148,
+  "candidate": {
+    "chars": [1076, 1633, 1595, 1809, 2365, 2610],
+    "mean": 1848,
+    "median": 1721,
+    "lt_2000": 4
+  },
+  "delta_vs_i1_mean": -300,
+  "delta_pct": -14.0,
+  "dialogue_binding": {
+    "B": "PASS (4/4, 3/4)",
+    "D": "FAIL (7>6 on D1; 5/6 on D2)",
+    "F": "PASS (4/4, 4/4)"
+  },
+  "fail_axes": [
+    "NO_LENGTH_IMPROVEMENT",
+    "PROSE_REPLACEMENT_DIALOGUE_REGRESSION"
+  ],
+  "stage2": "NOT_RUN",
+  "classification": "POSITIVE_PROSE_SPACE_FAIL",
+  "production_wire": "NOT_RUN",
+  "merge": "NOT_RUN"
+}

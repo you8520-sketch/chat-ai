@@ -12,13 +12,13 @@ import { buildNovelModeUserPersonaRules } from "@/lib/userPersonaNarrationRules"
 import { IMMERSIVE_PROSE_BLOCK } from "@/lib/advancedProseNsfwGuidelines";
 
 describe("scene continuity vs paragraph layout — disambiguated prose rules", () => {
-  it("NARRATIVE DENSITY is a short length pointer; style lives in IMMERSIVE PROSE", () => {
+  it("NARRATIVE DENSITY is a short length pointer; style lives in IMMERSIVE LONGFORM PROSE", () => {
     assert.match(NARRATIVE_DENSITY_BLOCK, /\[NARRATIVE DENSITY\]/);
     assert.match(NARRATIVE_DENSITY_BLOCK, /모든 중간 동작을 기록하지 않는다/);
     assert.match(NARRATIVE_DENSITY_BLOCK, /생략은 짧게 쓰라는 뜻이 아니다/);
     assert.doesNotMatch(NARRATIVE_DENSITY_BLOCK, /중간 단계를 건너뛰지/);
     assert.doesNotMatch(NARRATIVE_DENSITY_BLOCK, /신체 접촉/);
-    assert.match(IMMERSIVE_PROSE_BLOCK, /\[IMMERSIVE PROSE\]/);
+    assert.match(IMMERSIVE_PROSE_BLOCK, /\[IMMERSIVE LONGFORM PROSE\]/);
   });
 
   it("REACTION VARIETY absorbed into IMMERSIVE PROSE (not re-injected)", () => {

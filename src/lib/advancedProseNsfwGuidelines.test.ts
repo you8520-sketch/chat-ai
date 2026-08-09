@@ -6,6 +6,9 @@ import {
   buildAdvancedProseNsfwGuidelines,
   DENSE_NARRATION_LIGHTWEIGHT_RULE,
   DIALOGUE_NARRATION_P2_WITH_DENSE,
+  IMMERSIVE_LONGFORM_PROSE_BLOCK,
+  IMMERSIVE_PROSE_BLOCK,
+  LEGACY_IMMERSIVE_PROSE_BLOCK,
   NSFW_EXPLICIT_SENSORY_WRITING_BLOCK,
   PROSE_STYLE_SECTION,
   stripDenseNarrationRule,
@@ -25,10 +28,11 @@ describe("buildAdvancedProseNsfwGuidelines", () => {
     assert.match(block, /\[NARRATION REGISTER\]/);
     assert.match(block, /\[SCENE FLOW\]/);
     assert.match(block, /\[RHYTHM\]/);
-    assert.match(block, /\[IMMERSIVE PROSE\]/);
-    assert.match(block, /생각·연상·기억·오해·감정·판단/);
-    assert.match(block, /뜻이었다/);
-    assert.match(block, /브리핑으로 만들지 않는다/);
+    assert.match(block, /\[IMMERSIVE LONGFORM PROSE\]/);
+    assert.doesNotMatch(block, /\[IMMERSIVE PROSE\]/);
+    assert.match(block, /충분히 펼쳐진 소설 장면/);
+    assert.doesNotMatch(block, /평범한 이동·생활 동작은 압축/);
+    assert.doesNotMatch(block, /미세 행동·반복 해설로 분량을 채우지/);
     assert.match(block, /\[WEBNOVEL BREATH\]/);
     assert.doesNotMatch(block, /\[EMOTION & INNER EXPERIENCE\]/);
     assert.doesNotMatch(block, /\[NO POST-HOC VERDICT\]/);
@@ -45,6 +49,15 @@ describe("buildAdvancedProseNsfwGuidelines", () => {
     assert.doesNotMatch(block, /모드 A/);
     assert.doesNotMatch(block, /2~8문장/);
     assert.doesNotMatch(block, /최소 3문장/);
+  });
+
+  it("G11-P1 REPLACE — positive longform owner; legacy suppressed owner not injected", () => {
+    assert.equal(IMMERSIVE_PROSE_BLOCK, IMMERSIVE_LONGFORM_PROSE_BLOCK);
+    assert.match(IMMERSIVE_LONGFORM_PROSE_BLOCK, /\[IMMERSIVE LONGFORM PROSE\]/);
+    assert.match(PROSE_STYLE_SECTION, /\[IMMERSIVE LONGFORM PROSE\]/);
+    assert.doesNotMatch(PROSE_STYLE_SECTION, /\[IMMERSIVE PROSE\]/);
+    assert.match(LEGACY_IMMERSIVE_PROSE_BLOCK, /\[IMMERSIVE PROSE\]/);
+    assert.ok(LEGACY_IMMERSIVE_PROSE_BLOCK.length > IMMERSIVE_LONGFORM_PROSE_BLOCK.length);
   });
 
   it("NSFW mode appends intimacy section only", () => {
