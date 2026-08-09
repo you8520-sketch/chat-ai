@@ -524,9 +524,9 @@ export function renderCompactScenePacingCue(
   const body = (() => {
     switch (decision.motionLevel) {
       case "HOLD":
-        return "현재 두 인물의 상호작용을 중심으로, 관계·내면·행동·감각에서 장면을 이어간다.";
+        return "현재 두 인물의 상호작용을 중심으로 관계·내면·행동·감각을 전개한다. 주변 인물·환경의 짧은 반응이나 작은 마찰은 이 중심축에 자연스럽게 흡수한다.";
       case "AMBIENT":
-        return "현재 중심 상호작용을 유지하며, 주변 세계의 변화는 배경 수준에서 자연스럽게 반영한다.";
+        return "현재 중심 상호작용을 유지하면서 주변 인물·환경의 짧은 변화로 장면을 살아 있게 만든다. 그 변화는 현재 상호작용으로 되돌아온다.";
       case "LOCAL":
         return "현재 인과에서 직접 이어지는 새 정보나 결과 하나를 장면 안에서 진행한다.";
       case "EXTERNAL":
@@ -538,13 +538,8 @@ export function renderCompactScenePacingCue(
     }
   })();
 
-  // ONE PRIMARY RESPONSE POINT — not a dialogue % quota.
-  const anchor =
-    decision.castMode === "single_primary"
-      ? " 이번 전개는 유저에게 동시에 여러 독립 결정을 요구하지 않는다."
-      : "";
-
-  return `[SCENE PACING]\n${body}${anchor}`;
+  // Response-axis ownership lives on the terminal dialogue owner — motion only here.
+  return `[SCENE PACING]\n${body}`;
 }
 
 /**
@@ -676,19 +671,15 @@ export function renderCompactSceneStateEnvelope(
   const focus = focusLineForDecision(decision);
   const scope = transitionScopeLine(authority);
   const external = externalContinuityLine(authority);
-  const anchor =
-    decision.castMode === "single_primary"
-      ? " 이번 전개는 유저에게 동시에 여러 독립 결정을 요구하지 않는다."
-      : "";
 
+  // Response-axis ownership is terminal-dialogue-only — do not duplicate here.
   return (
     `[SCENE STATE]\n` +
     `현재 장면의 사실은 현재 입력·최근 장면·발동된 사건이 기준이며, ` +
     `정본은 가능한 세계 규칙과 인물의 판단 기준이다. ` +
     `현재 초점: ${focus}. ` +
     `이번 턴의 변화 범위: ${scope}. ` +
-    `외부 상태: ${external}.` +
-    `${anchor}`
+    `외부 상태: ${external}.`
   );
 }
 
@@ -895,7 +886,8 @@ export function renderTerminalDialogueBudgetOwner(
 ): string {
   return (
     `${TERMINAL_DIALOGUE_BUDGET_MARKER}\n` +
-    `직접 발화는 필요한 만큼 사용하되 최대 ${maxBlocks}개 블록으로 구성한다.`
+    `AI 측 직접 발화는 필요한 만큼 사용하되 최대 ${maxBlocks}개 블록으로 구성한다.\n` +
+    `유저가 반응할 질문·제안·요구는 하나의 중심축으로 모으고, [B]의 새 직접 발화·중대한 선택은 유저에게 남긴다.`
   );
 }
 

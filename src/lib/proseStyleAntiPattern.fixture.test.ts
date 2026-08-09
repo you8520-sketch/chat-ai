@@ -35,7 +35,12 @@ describe("prose style anti-pattern fixtures (static)", () => {
     assert.match(IMMERSIVE_PROSE_BLOCK, /표시였다/);
     assert.match(IMMERSIVE_PROSE_BLOCK, /이것은 ~가 아니었다/);
     assert.match(IMMERSIVE_PROSE_BLOCK, /추상 판정·정답 해설/);
-    assert.match(IMMERSIVE_PROSE_BLOCK, /다른 비유·정의·대비로 반복 증명하지 말고/);
+    assert.match(
+      IMMERSIVE_PROSE_BLOCK,
+      /이미 충분히 드러난 생각·관계 해석·외형·능력·감각 효과·과거는 새 변화에 필요한 만큼만 짧게 참조하고/
+    );
+    assert.match(IMMERSIVE_PROSE_BLOCK, /새 반응·판단·행동·환경 변화로 이어간다/);
+    assert.doesNotMatch(IMMERSIVE_PROSE_BLOCK, /\[CANON RECITAL/);
     assert.doesNotMatch(PROSE_STYLE_SECTION, /\[NO POST-HOC VERDICT\]/);
     assert.doesNotMatch(PROSE_STYLE_SECTION, /감정 이름·해석·결론 없이/);
   });

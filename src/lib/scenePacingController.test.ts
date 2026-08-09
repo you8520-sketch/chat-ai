@@ -384,11 +384,12 @@ ok`;
     assert.equal(ownQ.pacing_sot_count, 1);
     assert.equal(ownP.pacing_sot_count, 2);
     assert.ok(Q.systemText.length <= P.systemText.length);
-    // Cue wording identical (HOLD)
+    // Cue wording identical (HOLD) — motion only; response-axis is terminal-owned
     assert.equal(
       renderCompactScenePacingCue(d),
-      `[SCENE PACING]\n현재 두 인물의 상호작용을 중심으로, 관계·내면·행동·감각에서 장면을 이어간다. 이번 전개는 유저에게 동시에 여러 독립 결정을 요구하지 않는다.`
+      `[SCENE PACING]\n현재 두 인물의 상호작용을 중심으로 관계·내면·행동·감각을 전개한다. 주변 인물·환경의 짧은 반응이나 작은 마찰은 이 중심축에 자연스럽게 흡수한다.`
     );
+    assert.doesNotMatch(renderCompactScenePacingCue(d), /여러 독립 결정/);
   });
 
   it("single_primary meaningful beat budget is max 1", () => {
@@ -928,12 +929,24 @@ ok`;
     });
     assert.equal(fpBudget.maxBlocks, 4);
 
-    // Terminal wording: ceiling only, no 1–3 preferred, no mapping table
+    // Terminal: dynamic ceiling + single response axis + [B] dialogue ownership
     assert.equal(
       renderTerminalDialogueBudgetOwner(5),
-      "[이번 응답 대화]\n직접 발화는 필요한 만큼 사용하되 최대 5개 블록으로 구성한다."
+      "[이번 응답 대화]\nAI 측 직접 발화는 필요한 만큼 사용하되 최대 5개 블록으로 구성한다.\n유저가 반응할 질문·제안·요구는 하나의 중심축으로 모으고, [B]의 새 직접 발화·중대한 선택은 유저에게 남긴다."
     );
-    assert.doesNotMatch(renderTerminalDialogueBudgetOwner(6), /1~3|DYAD|OPERATION|표/);
+    assert.doesNotMatch(renderTerminalDialogueBudgetOwner(6), /1~3|DYAD|OPERATION|표|%|퍼센트/);
+    assert.match(renderTerminalDialogueBudgetOwner(4), /하나의 중심축/);
+    assert.doesNotMatch(
+      renderCompactScenePacingCue(
+        decide({
+          contentKind: "character",
+          primaryCharacterName: "에녹",
+          currentUserMessage: "잠깐 이대로 있어도 돼?",
+          currentTurn: 1,
+        })
+      ),
+      /여러 독립 결정|중심축으로 모으/
+    );
 
     // Arm V applies dynamic owner; system cap remains 0
     const userBody =
@@ -962,7 +975,14 @@ ok`;
     assert.equal(V.terminalDialogueBudgetAppended, true);
     assert.equal(countDialogueBlockOwners(V.systemText).dialogue_block_owner, 0);
     assert.match(V.lastUserContent, /최대 4개 블록/);
+    assert.match(V.lastUserContent, /하나의 중심축/);
+    assert.match(V.lastUserContent, /\[B\]의 새 직접 발화·중대한 선택은 유저에게 남긴다/);
     assert.doesNotMatch(V.lastUserContent, /보통 1~3개면 충분/);
+    assert.doesNotMatch(V.systemText, /여러 독립 결정/);
+    assert.match(
+      renderCompactScenePacingCue(quiet),
+      /주변 인물·환경의 짧은 반응이나 작은 마찰/
+    );
 
     const Vparty = applyScenePacingArmToMessages({
       messages: base,

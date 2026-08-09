@@ -45,13 +45,16 @@ function sanitizePersonaName(raw: string | undefined | null): string | null {
  * COLLABORATIVE_INTERACTIVE_OWNER_BLOCK (no godmodding of major [B] moves,
  * but minor reversible co-narration allowed). Strict ownership-lock canary
  * path is unchanged when ownershipLockEnabled is true.
+ *
+ * Owns completed-input semantics + continue-from-consequence (no separate
+ * input-echo owner). REPLACE-in-place only — do not append a second block.
  */
 function buildCollaborativeInteractiveWrapper(): string {
   return `${CURRENT_USER_INPUT_HEADER}
-The following is the user's latest completed input.
-Do not invent new [B] dialogue, major choices, consent/refusal, or decisions that change relationship, goal, affiliation, or identity.
-Minor reversible expressions, gaze, involuntary reactions, natural completion of an already-started action, and small movement/contact/object-handling/daily actions may be co-narrated when consistent with [USER CONTROL — COLLABORATIVE INTERACTIVE].
-If the input contains parentheses or action text, treat it as completed user input — not permission to invent major [B] dialogue or irreversible decisions.`;
+The following is the user's completed input and the newest state of the scene.
+Continue from what it changes now rather than restating or explaining the input.
+[B]'s new dialogue, consequential choices, consent/refusal, and decisions that change relationship, goal, affiliation, or identity remain user-authored.
+Minor reversible expression, gaze, involuntary reaction, natural completion of an already-started action, and small movement/contact/object-handling/daily continuity may be co-narrated when consistent with [USER CONTROL — COLLABORATIVE INTERACTIVE].`;
 }
 
 /**
