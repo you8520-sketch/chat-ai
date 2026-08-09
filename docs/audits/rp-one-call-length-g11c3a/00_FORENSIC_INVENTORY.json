@@ -1,0 +1,520 @@
+{
+  "phase": "G11-C3A",
+  "llm_calls": 0,
+  "production_wire": "NOT_RUN",
+  "merge": "NOT_RUN",
+  "historical": {
+    "pr": 255,
+    "pr_url": "https://github.com/you8520-sketch/chat-ai/pull/255",
+    "branch": "cursor/gemini31-opus5-minimal-screen-6a91",
+    "tip_commit": "3af5ec5b36ae35648f08cb235c4afab73770a35a",
+    "base_noted": "cursor/standard-collaborative-lineup-6a91 (PR #250)",
+    "route": {
+      "app_path": "/api/chat",
+      "provider_endpoint_class": "cheaperinference_chat_completions",
+      "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+      "evidence": "live script posts /api/chat; AVAILABILITY.json endpoint CI; COST rows provider=cheaperinference"
+    },
+    "model": {
+      "requested": "gemini-3.1-pro-preview",
+      "resolved": "gemini-3.1-pro-preview",
+      "provider_label_in_usage": "cheaperinference",
+      "upstream_provider_capability_note": "Google (AVAILABILITY.json)"
+    },
+    "reasoning": {
+      "wire": "reasoning_effort=low",
+      "openrouter_style_reasoning_object": "STRIPPED by adaptCheaperInferenceChatBody",
+      "include_reasoning": "STRIPPED / not sent on CI",
+      "evidence": "AVAILABILITY.json + cheaperInferenceConfig.ts @ 3af5ec5"
+    },
+    "temperature": {
+      "value": 0.95,
+      "evidence": "GEMINI_PRO_GENERATION_PARAMS.temperature in openRouterClient.ts (SAME @ 3af5ec5 and HEAD); applied before CI adapt",
+      "confidence": "HIGH_from_code_path"
+    },
+    "top_p": {
+      "value": null,
+      "note": "OPENROUTER_FORBIDDEN_KEYS deletes top_p for non-DeepSeek; not in persisted meta",
+      "status": "OMITTED_BY_CODE"
+    },
+    "max_tokens": {
+      "value": null,
+      "note": "resolveMaxOutputTokensForTarget returns undefined — RP omits max_tokens @ 3af5ec5",
+      "status": "OMITTED_BY_CODE",
+      "observed_visible_output_tokens_max": 4283
+    },
+    "stop_sequences": {
+      "value": null,
+      "status": "OMITTED_BY_CODE",
+      "evidence": "OPENROUTER_FORBIDDEN_KEYS includes stop/stop_sequences; assertPureOpenRouterPayload rejects them"
+    },
+    "stream": {
+      "value": true,
+      "stream_options_include_usage": "UNKNOWN_PERSISTED"
+    },
+    "response_format": {
+      "value": null,
+      "status": "UNKNOWN_NOT_PERSISTED"
+    },
+    "fixtures": {
+      "character_id": 18,
+      "persona_id": 61,
+      "sets": [
+        "relationship T1-T2",
+        "action T1-T2"
+      ],
+      "note": "Different from G11 B/D/F — FIXTURE_CONFOUND=YES"
+    },
+    "prompt_owners_declared": {
+      "SceneDirective": 0,
+      "collaborative_owner": 1,
+      "legacy_novel_owner": 0,
+      "terminal_length_owner": 1
+    },
+    "owner_text_recoverable": {
+      "USER_TAIL_LENGTH_OWNER_SENTENCE": {
+        "text": "이번 응답은 한국어 3,200~4,200자 범위의 하나의 밀도 있는 장면으로 전개한다. 현재 상호작용을 요약하거나 성급히 닫지 말고, 관찰·행동·대사·감각·심리가 서로 다음 변화를 일으키도록 충분히 전개한다.",
+        "sha256": "122fece4c53d8a71141a279985f42dbdc25cbaceda8bde46bb51596d6ca4b092",
+        "vs_current": "BYTE_IDENTICAL",
+        "evidence": "constant identical at 3af5ec5 and HEAD"
+      },
+      "COLLABORATIVE_INTERACTIVE_OWNER_BLOCK": {
+        "sha256": "b8325c8bca9adabac1152928e95f853e5d6157c71fc95ab4f7bfd5ec8bfa77d1",
+        "vs_current": "BYTE_IDENTICAL",
+        "evidence": "noGodmodding.ts identical @ 3af5ec5 vs HEAD"
+      },
+      "IMMERSIVE_PROSE_BLOCK": {
+        "sha256": "79e9a385a5687282cb50fdb68a5489f1c30feaaf73ae65ed96c563a779a13a68",
+        "vs_current": "BYTE_IDENTICAL",
+        "evidence": "advancedProseNsfwGuidelines.ts identical @ 3af5ec5 vs HEAD"
+      },
+      "currentUserInputLabel_module": {
+        "vs_current": "BYTE_IDENTICAL",
+        "evidence": "currentUserInputLabel.ts identical @ 3af5ec5 vs HEAD"
+      },
+      "full_assembled_prompt_chars": "UNKNOWN",
+      "full_assembled_prompt_tokens": "UNKNOWN",
+      "note": "Full prompt body was not persisted in Audit 55 packets; only input_tokens from usage (~17514 T1, ~21726–21862 T2)"
+    },
+    "outputs": {
+      "avg_visible_chars": 4495.75,
+      "finish_reasons": [
+        "stop",
+        "stop",
+        "stop",
+        "stop"
+      ],
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0
+    },
+    "input_tokens_observed": [
+      {
+        "id": "GEMINI31-REL-R1T1",
+        "input_tokens": 17514,
+        "visible_output_tokens": 4205,
+        "visible_chars": 4659,
+        "finish_reason": "stop"
+      },
+      {
+        "id": "GEMINI31-REL-R1T2",
+        "input_tokens": 21726,
+        "visible_output_tokens": 3842,
+        "visible_chars": 4254,
+        "finish_reason": "stop"
+      },
+      {
+        "id": "GEMINI31-ACT-R1T1",
+        "input_tokens": 17536,
+        "visible_output_tokens": 4283,
+        "visible_chars": 4743,
+        "finish_reason": "stop"
+      },
+      {
+        "id": "GEMINI31-ACT-R1T2",
+        "input_tokens": 21862,
+        "visible_output_tokens": 3914,
+        "visible_chars": 4327,
+        "finish_reason": "stop"
+      }
+    ]
+  },
+  "current": {
+    "pr": 300,
+    "pr_url": "https://github.com/you8520-sketch/chat-ai/pull/300",
+    "branch_reference": "cursor/server-control-length-tax-baseline-g11c1-96c2",
+    "tip_commit": "1ecdf8f",
+    "base": "7f0c54b60e7ace11bc6e4eea9c820caadde24853",
+    "route": "OpenRouter assemblePrimaryRpRequest (G11 harness; not /api/chat)",
+    "model": "google/gemini-3.1-pro-preview",
+    "provider_endpoint": "https://openrouter.ai/api/v1/chat/completions",
+    "fixtures": [
+      "B",
+      "D",
+      "F"
+    ],
+    "arm": "A",
+    "mean_visible_chars_from_C1": 2178,
+    "assemblies": [
+      {
+        "fixture": "B",
+        "domain": "relationship_romance_dyad",
+        "sizes": {
+          "messages_count": 8,
+          "system_chars": 6561,
+          "system_est_tokens": 4374,
+          "history_chars": 550,
+          "history_est_tokens": 367,
+          "last_user_chars": 583,
+          "last_user_est_tokens": 389,
+          "full_input_chars": 7694,
+          "full_input_est_tokens": 5129
+        },
+        "generation": {
+          "temperature": 0.95,
+          "top_p": null,
+          "top_k": null,
+          "reasoning": {
+            "effort": "low"
+          },
+          "reasoning_effort": null,
+          "include_reasoning": false,
+          "max_tokens": null,
+          "max_completion_tokens": null,
+          "stop": null,
+          "stop_sequences": null,
+          "response_format": null,
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "provider_routing": null
+        },
+        "system_sha256": "4a45db63256d8a573029b163fdd162031062b2dd5e331e5dac033ef8a4f7f2a4",
+        "user_tail_sha256": "8263a48a749a4ff28d0f4814eebf5267a9770465d1e2c17e101dc2a7140899cc",
+        "pacing_owners": {
+          "scene_pacing": 0,
+          "scene_state": 0,
+          "scene_flow": 1,
+          "genre_scene_mode": 0,
+          "pacing_sot_count": 1
+        },
+        "terminal_owners": {
+          "terminal_dialogue_budget_owner": 0,
+          "numeric_dialogue_percentage": 0
+        },
+        "pressure_counts": {
+          "USER_HANDOFF_PRESSURE": 2,
+          "SCENE_CLOSURE_PRESSURE": 3,
+          "COMPRESSION_PRESSURE": 4,
+          "EXPANSION_SPACE": 5
+        },
+        "pressure_weights": {
+          "USER_HANDOFF_PRESSURE": "MODERATE",
+          "SCENE_CLOSURE_PRESSURE": "HIGH",
+          "COMPRESSION_PRESSURE": "MODERATE",
+          "EXPANSION_SPACE": "HIGH"
+        },
+        "length_owner_terminal": true,
+        "dialogue_budget": false,
+        "wrapper_mode": "LEGACY_OR_HEADER",
+        "OUTPUT_TOKEN_CAP_NOT_CAUSE": true
+      },
+      {
+        "fixture": "D",
+        "domain": "operation_radio",
+        "sizes": {
+          "messages_count": 8,
+          "system_chars": 6568,
+          "system_est_tokens": 4379,
+          "history_chars": 577,
+          "history_est_tokens": 385,
+          "last_user_chars": 575,
+          "last_user_est_tokens": 383,
+          "full_input_chars": 7720,
+          "full_input_est_tokens": 5147
+        },
+        "generation": {
+          "temperature": 0.95,
+          "top_p": null,
+          "top_k": null,
+          "reasoning": {
+            "effort": "low"
+          },
+          "reasoning_effort": null,
+          "include_reasoning": false,
+          "max_tokens": null,
+          "max_completion_tokens": null,
+          "stop": null,
+          "stop_sequences": null,
+          "response_format": null,
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "provider_routing": null
+        },
+        "system_sha256": "4cd7b89abca4598b622ec4c6bd425f4e60d7401d0905987c722f229e1af45359",
+        "user_tail_sha256": "d5ba583b0cc05b05381fe98e018c4ac3bcbd81b50db04b3f74e5eae12c7cea71",
+        "pacing_owners": {
+          "scene_pacing": 0,
+          "scene_state": 0,
+          "scene_flow": 1,
+          "genre_scene_mode": 0,
+          "pacing_sot_count": 1
+        },
+        "terminal_owners": {
+          "terminal_dialogue_budget_owner": 0,
+          "numeric_dialogue_percentage": 0
+        },
+        "pressure_counts": {
+          "USER_HANDOFF_PRESSURE": 2,
+          "SCENE_CLOSURE_PRESSURE": 3,
+          "COMPRESSION_PRESSURE": 4,
+          "EXPANSION_SPACE": 5
+        },
+        "pressure_weights": {
+          "USER_HANDOFF_PRESSURE": "MODERATE",
+          "SCENE_CLOSURE_PRESSURE": "HIGH",
+          "COMPRESSION_PRESSURE": "MODERATE",
+          "EXPANSION_SPACE": "HIGH"
+        },
+        "length_owner_terminal": true,
+        "dialogue_budget": false,
+        "wrapper_mode": "LEGACY_OR_HEADER",
+        "OUTPUT_TOKEN_CAP_NOT_CAUSE": true
+      },
+      {
+        "fixture": "F",
+        "domain": "private_intimate_dyad",
+        "sizes": {
+          "messages_count": 8,
+          "system_chars": 6713,
+          "system_est_tokens": 4475,
+          "history_chars": 525,
+          "history_est_tokens": 350,
+          "last_user_chars": 575,
+          "last_user_est_tokens": 383,
+          "full_input_chars": 7813,
+          "full_input_est_tokens": 5209
+        },
+        "generation": {
+          "temperature": 0.95,
+          "top_p": null,
+          "top_k": null,
+          "reasoning": {
+            "effort": "low"
+          },
+          "reasoning_effort": null,
+          "include_reasoning": false,
+          "max_tokens": null,
+          "max_completion_tokens": null,
+          "stop": null,
+          "stop_sequences": null,
+          "response_format": null,
+          "stream": true,
+          "stream_options": {
+            "include_usage": true
+          },
+          "provider_routing": null
+        },
+        "system_sha256": "2e3155dc22e99009c309a00517d072330e5e2d2134a0d4952b6b62bd90203eb6",
+        "user_tail_sha256": "e8ddf0bf104803ef2f03c649eb22d34105d0ffb7bc3825e9dcacc3ef5529bc4f",
+        "pacing_owners": {
+          "scene_pacing": 0,
+          "scene_state": 0,
+          "scene_flow": 1,
+          "genre_scene_mode": 0,
+          "pacing_sot_count": 1
+        },
+        "terminal_owners": {
+          "terminal_dialogue_budget_owner": 0,
+          "numeric_dialogue_percentage": 0
+        },
+        "pressure_counts": {
+          "USER_HANDOFF_PRESSURE": 2,
+          "SCENE_CLOSURE_PRESSURE": 3,
+          "COMPRESSION_PRESSURE": 4,
+          "EXPANSION_SPACE": 5
+        },
+        "pressure_weights": {
+          "USER_HANDOFF_PRESSURE": "MODERATE",
+          "SCENE_CLOSURE_PRESSURE": "HIGH",
+          "COMPRESSION_PRESSURE": "MODERATE",
+          "EXPANSION_SPACE": "HIGH"
+        },
+        "length_owner_terminal": true,
+        "dialogue_budget": false,
+        "wrapper_mode": "LEGACY_OR_HEADER",
+        "OUTPUT_TOKEN_CAP_NOT_CAUSE": true
+      }
+    ]
+  },
+  "request_diff": [
+    {
+      "field": "provider_route",
+      "historical": "cheaperinference /api/chat → api.cheaperinference.com",
+      "current": "openrouter assemblePrimaryRpRequest → openrouter.ai",
+      "status": "DIFFERENT",
+      "possible_length_impact": "HIGH — different gateway/provider routing; not prompt-only"
+    },
+    {
+      "field": "model_id",
+      "historical": "gemini-3.1-pro-preview",
+      "current": "google/gemini-3.1-pro-preview",
+      "status": "DIFFERENT",
+      "possible_length_impact": "HIGH — CI bare slug vs OpenRouter google/ slug; may map to different backends"
+    },
+    {
+      "field": "reasoning",
+      "historical": "reasoning_effort=low (CI)",
+      "current": {
+        "effort": "low"
+      },
+      "status": "DIFFERENT",
+      "possible_length_impact": "MEDIUM — same effort label 'low' but different wire shape; budget sharing UNKNOWN"
+    },
+    {
+      "field": "temperature",
+      "historical": 0.95,
+      "current": 0.95,
+      "status": "SAME",
+      "possible_length_impact": "LOW if same; sampling affects style more than hard length"
+    },
+    {
+      "field": "top_p",
+      "historical": null,
+      "current": null,
+      "status": "SAME",
+      "possible_length_impact": "LOW — both omitted"
+    },
+    {
+      "field": "max_output_tokens",
+      "historical": null,
+      "current": null,
+      "status": "SAME",
+      "possible_length_impact": "LOW as cause — both omitted; historical still reached ~4k output tokens"
+    },
+    {
+      "field": "stop_sequences",
+      "historical": null,
+      "current": null,
+      "status": "SAME",
+      "possible_length_impact": "LOW — both omitted by forbidden-key policy; NOT a new stop config"
+    },
+    {
+      "field": "message_structure",
+      "historical": "system + history + wrapped current user (via /api/chat buildContext)",
+      "current": "messages_count=8",
+      "status": "UNKNOWN",
+      "possible_length_impact": "MEDIUM — structure class same; exact history/fixture content differs"
+    },
+    {
+      "field": "system_length",
+      "historical": "UNKNOWN (usage input_tokens T1≈17514 includes all)",
+      "current": 6561,
+      "status": "UNKNOWN",
+      "possible_length_impact": "UNKNOWN — cannot compare absolute system size without historical prompt dump"
+    },
+    {
+      "field": "history_length",
+      "historical": "UNKNOWN exact; T2 input_tokens≈21.7k",
+      "current": 550,
+      "status": "UNKNOWN",
+      "possible_length_impact": "HIGH confound via fixture/history domain difference"
+    },
+    {
+      "field": "user_tail_structure",
+      "historical": "CURRENT USER wrapper + body + layout + USER_TAIL_LENGTH (code path)",
+      "current": {
+        "sentence": "이번 응답은 한국어 3,200~4,200자 범위의 하나의 밀도 있는 장면으로 전개한다. 현재 상호작용을 요약하거나 성급히 닫지 말고, 관찰·행동·대사·감각·심리가 서로 다음 변화를 일으키도록 충분히 전개한다.",
+        "sha256": "122fece4c53d8a71141a279985f42dbdc25cbaceda8bde46bb51596d6ca4b092",
+        "chars": 116,
+        "absolute_terminal": true,
+        "dialogue_budget_present": false
+      },
+      "status": "SAME",
+      "possible_length_impact": "LOW as delta — USER_TAIL BYTE_IDENTICAL; placement absolute terminal on Arm A"
+    },
+    {
+      "field": "stream",
+      "historical": true,
+      "current": true,
+      "status": "SAME",
+      "possible_length_impact": "NONE"
+    }
+  ],
+  "stop_audit": {
+    "historical_stop": null,
+    "current_stop": null,
+    "current_stop_sequences": null,
+    "current_has_stop_key": false,
+    "finding": "NO new stop configuration on current vs historical code path. Both forbid stop/stop_sequences.",
+    "priority": "NOT_HIGH — stop delta absent"
+  },
+  "output_budget_audit": {
+    "OUTPUT_TOKEN_CAP_NOT_CAUSE": true,
+    "evidence": "Both omit max_tokens; historical finish_reason=stop with visible_output_tokens≈3842–4283; current C1 short stops also finish_reason=stop (not length).",
+    "reasoning_budget_sharing": "UNKNOWN — not persisted; no live probe in C3A"
+  },
+  "owner_parity": {
+    "USER_TAIL_LENGTH_OWNER_SENTENCE": "BYTE_IDENTICAL",
+    "COLLABORATIVE_INTERACTIVE_OWNER_BLOCK": "BYTE_IDENTICAL",
+    "IMMERSIVE_PROSE_BLOCK": "BYTE_IDENTICAL",
+    "currentUserInputLabel_module": "BYTE_IDENTICAL",
+    "SCENE_PACING_module": "HIST_ABSENT / CUR_PRESENT_but_ArmA_injects_0",
+    "D3_dialogue_budget_on_ArmA": 0
+  },
+  "pressure_summary": {
+    "per_fixture": [
+      {
+        "fixture": "B",
+        "counts": {
+          "USER_HANDOFF_PRESSURE": 2,
+          "SCENE_CLOSURE_PRESSURE": 3,
+          "COMPRESSION_PRESSURE": 4,
+          "EXPANSION_SPACE": 5
+        },
+        "weights": {
+          "USER_HANDOFF_PRESSURE": "MODERATE",
+          "SCENE_CLOSURE_PRESSURE": "HIGH",
+          "COMPRESSION_PRESSURE": "MODERATE",
+          "EXPANSION_SPACE": "HIGH"
+        }
+      },
+      {
+        "fixture": "D",
+        "counts": {
+          "USER_HANDOFF_PRESSURE": 2,
+          "SCENE_CLOSURE_PRESSURE": 3,
+          "COMPRESSION_PRESSURE": 4,
+          "EXPANSION_SPACE": 5
+        },
+        "weights": {
+          "USER_HANDOFF_PRESSURE": "MODERATE",
+          "SCENE_CLOSURE_PRESSURE": "HIGH",
+          "COMPRESSION_PRESSURE": "MODERATE",
+          "EXPANSION_SPACE": "HIGH"
+        }
+      },
+      {
+        "fixture": "F",
+        "counts": {
+          "USER_HANDOFF_PRESSURE": 2,
+          "SCENE_CLOSURE_PRESSURE": 3,
+          "COMPRESSION_PRESSURE": 4,
+          "EXPANSION_SPACE": 5
+        },
+        "weights": {
+          "USER_HANDOFF_PRESSURE": "MODERATE",
+          "SCENE_CLOSURE_PRESSURE": "HIGH",
+          "COMPRESSION_PRESSURE": "MODERATE",
+          "EXPANSION_SPACE": "HIGH"
+        }
+      }
+    ],
+    "note": "Pressure exists on CURRENT; key compression/handoff clauses are in BYTE_IDENTICAL owners also present historically — not a new injection delta."
+  },
+  "fixture_confound": "YES",
+  "provider_route_confound": "YES"
+}

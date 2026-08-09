@@ -1,0 +1,65 @@
+{
+  "hashes": {
+    "system_sha256": "655bccc0bd793669ceed40a0064fc109ff8aef092bd17f9811c9bb81987ba910",
+    "history_sha256": "144147477d2658398e5d5c7d73018212ef4bc9123ed3ff452872809fb3b707ac",
+    "last_user_sha256": "6a5d10a088218947b82cb5efd9bc9994bfb44966f101aceb48ecb28df9ecd6df",
+    "full_messages_sha256": "5b6331f9f11ea8295db9ef8cb9a4b9711f41fae402442b376bd6ec22ef8e548f",
+    "system_chars": 6906,
+    "history_chars": 1182,
+    "last_user_chars": 593,
+    "per_message": [
+      {
+        "role": "system",
+        "content_sha256": "655bccc0bd793669ceed40a0064fc109ff8aef092bd17f9811c9bb81987ba910",
+        "chars": 6906
+      },
+      {
+        "role": "user",
+        "content_sha256": "c0ddf10d5ebdb309e042b7e49f02c40da7e6a43919d2ba1efe5480b647c56659",
+        "chars": 29
+      },
+      {
+        "role": "assistant",
+        "content_sha256": "8bb52213a5983369d8915603c881d03069716b0631266cf0009d1e3fa15efa45",
+        "chars": 1153
+      },
+      {
+        "role": "user",
+        "content_sha256": "6a5d10a088218947b82cb5efd9bc9994bfb44966f101aceb48ecb28df9ecd6df",
+        "chars": 593
+      }
+    ]
+  },
+  "historical": {
+    "attempt_id": "GEMINI31-ACT-R1T1",
+    "chars": 4743,
+    "input_tokens": 17536
+  },
+  "schema_differences": {
+    "model_id": {
+      "or": "google/gemini-3.1-pro-preview",
+      "ci": "gemini-3.1-pro-preview"
+    },
+    "reasoning_wire": {
+      "or": "reasoning:{effort:low} + include_reasoning:false",
+      "ci": "reasoning_effort=low (reasoning object stripped)",
+      "note": "SCHEMA_DIFFERENCE — semantic effort both low"
+    },
+    "endpoint": {
+      "or": "https://openrouter.ai/api/v1/chat/completions",
+      "ci": "https://api.cheaperinference.com/v1/chat/completions"
+    }
+  },
+  "owners": {
+    "scene_pacing": 0,
+    "scene_state": 0,
+    "scene_flow": 1,
+    "genre_scene_mode": 0,
+    "pacing_sot_count": 1
+  },
+  "terminalOwners": {
+    "terminal_dialogue_budget_owner": 0,
+    "numeric_dialogue_percentage": 0
+  },
+  "length_owner_terminal": true
+}

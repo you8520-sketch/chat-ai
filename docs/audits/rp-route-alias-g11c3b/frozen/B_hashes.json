@@ -1,0 +1,129 @@
+{
+  "hashes": {
+    "per_message": [
+      {
+        "role": "system",
+        "content_sha256": "4a45db63256d8a573029b163fdd162031062b2dd5e331e5dac033ef8a4f7f2a4",
+        "chars": 6561
+      },
+      {
+        "role": "user",
+        "content_sha256": "c0ddf10d5ebdb309e042b7e49f02c40da7e6a43919d2ba1efe5480b647c56659",
+        "chars": 29
+      },
+      {
+        "role": "assistant",
+        "content_sha256": "3a716941a3f881d909755a001561e21b959407fdc015709d5a7fcbea364e3723",
+        "chars": 118
+      },
+      {
+        "role": "user",
+        "content_sha256": "74768729c6124c5e001704f38cf8d74843247d5ff3c209938cf0fce8837f92db",
+        "chars": 67
+      },
+      {
+        "role": "assistant",
+        "content_sha256": "9f329db231cb57b3845bb89899a97f5e04469caa5e070be2184ba9df96f6c7c0",
+        "chars": 118
+      },
+      {
+        "role": "user",
+        "content_sha256": "1a7f715926b3e756a21b1db9405c6f1413177293ded0f0e21607b321931ef419",
+        "chars": 89
+      },
+      {
+        "role": "assistant",
+        "content_sha256": "846cc492f8b951fcc9e05abe5bb80bee53c463056d38f5e374a01dfa323cfb32",
+        "chars": 129
+      },
+      {
+        "role": "user",
+        "content_sha256": "8263a48a749a4ff28d0f4814eebf5267a9770465d1e2c17e101dc2a7140899cc",
+        "chars": 583
+      }
+    ],
+    "system_sha256": "4a45db63256d8a573029b163fdd162031062b2dd5e331e5dac033ef8a4f7f2a4",
+    "history_sha256": "5b091f31a62dd5967dad71094e28d06190c168f76fb48277b32d28ea3de08c8a",
+    "last_user_sha256": "8263a48a749a4ff28d0f4814eebf5267a9770465d1e2c17e101dc2a7140899cc",
+    "full_messages_sha256": "a9ca490f29b9de93f2db3dfe04a65755c3820af048e2f8df57e51024e91e9ff1"
+  },
+  "c3a_compare": {
+    "ok": true,
+    "systemOk": true,
+    "userOk": true,
+    "perOk": true,
+    "ref_system": "4a45db63256d8a573029b163fdd162031062b2dd5e331e5dac033ef8a4f7f2a4",
+    "cur_system": "4a45db63256d8a573029b163fdd162031062b2dd5e331e5dac033ef8a4f7f2a4",
+    "ref_user": "8263a48a749a4ff28d0f4814eebf5267a9770465d1e2c17e101dc2a7140899cc",
+    "cur_user": "8263a48a749a4ff28d0f4814eebf5267a9770465d1e2c17e101dc2a7140899cc",
+    "ref_msgs": [
+      "4a45db63256d8a573029b163fdd162031062b2dd5e331e5dac033ef8a4f7f2a4",
+      "c0ddf10d5ebdb309e042b7e49f02c40da7e6a43919d2ba1efe5480b647c56659",
+      "3a716941a3f881d909755a001561e21b959407fdc015709d5a7fcbea364e3723",
+      "74768729c6124c5e001704f38cf8d74843247d5ff3c209938cf0fce8837f92db",
+      "9f329db231cb57b3845bb89899a97f5e04469caa5e070be2184ba9df96f6c7c0",
+      "1a7f715926b3e756a21b1db9405c6f1413177293ded0f0e21607b321931ef419",
+      "846cc492f8b951fcc9e05abe5bb80bee53c463056d38f5e374a01dfa323cfb32",
+      "8263a48a749a4ff28d0f4814eebf5267a9770465d1e2c17e101dc2a7140899cc"
+    ],
+    "cur_msgs": [
+      "4a45db63256d8a573029b163fdd162031062b2dd5e331e5dac033ef8a4f7f2a4",
+      "c0ddf10d5ebdb309e042b7e49f02c40da7e6a43919d2ba1efe5480b647c56659",
+      "3a716941a3f881d909755a001561e21b959407fdc015709d5a7fcbea364e3723",
+      "74768729c6124c5e001704f38cf8d74843247d5ff3c209938cf0fce8837f92db",
+      "9f329db231cb57b3845bb89899a97f5e04469caa5e070be2184ba9df96f6c7c0",
+      "1a7f715926b3e756a21b1db9405c6f1413177293ded0f0e21607b321931ef419",
+      "846cc492f8b951fcc9e05abe5bb80bee53c463056d38f5e374a01dfa323cfb32",
+      "8263a48a749a4ff28d0f4814eebf5267a9770465d1e2c17e101dc2a7140899cc"
+    ]
+  },
+  "or_generation": {
+    "model": "google/gemini-3.1-pro-preview",
+    "temperature": 0.95,
+    "top_p": null,
+    "max_tokens": null,
+    "stop": null,
+    "reasoning": {
+      "effort": "low"
+    },
+    "include_reasoning": false,
+    "reasoning_effort": null
+  },
+  "ci_generation": {
+    "model": "gemini-3.1-pro-preview",
+    "temperature": 0.95,
+    "top_p": null,
+    "max_tokens": null,
+    "stop": null,
+    "reasoning": null,
+    "include_reasoning": null,
+    "reasoning_effort": "low"
+  },
+  "schema_differences": {
+    "model_id": {
+      "or": "google/gemini-3.1-pro-preview",
+      "ci": "gemini-3.1-pro-preview"
+    },
+    "reasoning_wire": {
+      "or": "reasoning:{effort:low} + include_reasoning:false",
+      "ci": "reasoning_effort=low (reasoning object stripped)",
+      "note": "SCHEMA_DIFFERENCE — semantic effort both low"
+    },
+    "endpoint": {
+      "or": "https://openrouter.ai/api/v1/chat/completions",
+      "ci": "https://api.cheaperinference.com/v1/chat/completions"
+    }
+  },
+  "owners": {
+    "scene_pacing": 0,
+    "scene_state": 0,
+    "scene_flow": 1,
+    "genre_scene_mode": 0,
+    "pacing_sot_count": 1
+  },
+  "terminalOwners": {
+    "terminal_dialogue_budget_owner": 0,
+    "numeric_dialogue_percentage": 0
+  },
+  "length_owner_terminal": true
+}

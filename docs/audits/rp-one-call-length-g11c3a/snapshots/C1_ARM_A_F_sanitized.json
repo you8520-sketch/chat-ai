@@ -1,0 +1,390 @@
+{
+  "fixture": "F",
+  "generation": {
+    "temperature": 0.95,
+    "top_p": null,
+    "top_k": null,
+    "reasoning": {
+      "effort": "low"
+    },
+    "reasoning_effort": null,
+    "include_reasoning": false,
+    "max_tokens": null,
+    "max_completion_tokens": null,
+    "stop": null,
+    "stop_sequences": null,
+    "response_format": null,
+    "stream": true,
+    "stream_options": {
+      "include_usage": true
+    },
+    "provider_routing": null
+  },
+  "sizes": {
+    "messages_count": 8,
+    "system_chars": 6713,
+    "system_est_tokens": 4475,
+    "history_chars": 525,
+    "history_est_tokens": 350,
+    "last_user_chars": 575,
+    "last_user_est_tokens": 383,
+    "full_input_chars": 7813,
+    "full_input_est_tokens": 5209
+  },
+  "owners_present": [
+    {
+      "owner": "COLLABORATIVE_INTERACTIVE_OWNER",
+      "present": true,
+      "exact_constant_present": true,
+      "position_index": 821,
+      "absolute_terminal_user": null,
+      "text_sha256": "b8325c8bca9adabac1152928e95f853e5d6157c71fc95ab4f7bfd5ec8bfa77d1",
+      "text_chars": 454,
+      "marker": "[USER CONTROL — COLLABORATIVE INTERACTIVE]"
+    },
+    {
+      "owner": "IMMERSIVE_PROSE",
+      "present": true,
+      "exact_constant_present": true,
+      "position_index": 2840,
+      "absolute_terminal_user": null,
+      "text_sha256": "79e9a385a5687282cb50fdb68a5489f1c30feaaf73ae65ed96c563a779a13a68",
+      "text_chars": 918,
+      "marker": "[IMMERSIVE PROSE]"
+    },
+    {
+      "owner": "IMMERSIVE_LONGFORM_PROSE",
+      "present": false,
+      "exact_constant_present": false,
+      "position_index": -1,
+      "absolute_terminal_user": null,
+      "text_sha256": null,
+      "text_chars": null,
+      "marker": "[IMMERSIVE LONGFORM PROSE]"
+    },
+    {
+      "owner": "SCENE_PACING",
+      "present": false,
+      "exact_constant_present": false,
+      "position_index": -1,
+      "absolute_terminal_user": null,
+      "text_sha256": null,
+      "text_chars": null,
+      "marker": "[SCENE PACING]"
+    },
+    {
+      "owner": "SCENE_FLOW",
+      "present": true,
+      "exact_constant_present": true,
+      "position_index": 2403,
+      "absolute_terminal_user": null,
+      "text_sha256": null,
+      "text_chars": null,
+      "marker": "[SCENE FLOW]"
+    },
+    {
+      "owner": "CURRENT_USER_INPUT_WRAPPER",
+      "present": true,
+      "exact_constant_present": true,
+      "position_index": 0,
+      "absolute_terminal_user": false,
+      "text_sha256": null,
+      "text_chars": null,
+      "marker": "[CURRENT USER INPUT]"
+    },
+    {
+      "owner": "INTERACTIVE_OWNERSHIP_LOCK",
+      "present": false,
+      "exact_constant_present": false,
+      "position_index": -1,
+      "absolute_terminal_user": null,
+      "text_sha256": null,
+      "text_chars": null,
+      "marker": "[INTERACTIVE USER OWNERSHIP — ABSOLUTE]"
+    },
+    {
+      "owner": "USER_TAIL_LENGTH_OWNER",
+      "present": true,
+      "exact_constant_present": true,
+      "position_index": 459,
+      "absolute_terminal_user": true,
+      "text_sha256": "122fece4c53d8a71141a279985f42dbdc25cbaceda8bde46bb51596d6ca4b092",
+      "text_chars": 116,
+      "marker": "이번 응답은 한국어 3,200~4,200자 범위의 하나의 밀도 있는 장면으로 전개한다. 현재 상호작용을 요약하거나 성급히 닫지 말고, 관찰·행동"
+    },
+    {
+      "owner": "DIALOGUE_BUDGET_TERMINAL",
+      "present": false,
+      "exact_constant_present": false,
+      "position_index": -1,
+      "absolute_terminal_user": null,
+      "text_sha256": null,
+      "text_chars": null,
+      "marker": "[이번 응답 대화]"
+    },
+    {
+      "owner": "COMBINED_L1_TERMINAL",
+      "present": false,
+      "exact_constant_present": false,
+      "position_index": -1,
+      "absolute_terminal_user": null,
+      "text_sha256": null,
+      "text_chars": null,
+      "marker": "[이번 응답]"
+    },
+    {
+      "owner": "EXAMPLE_DIALOG_STYLE_ONLY",
+      "present": true,
+      "exact_constant_present": true,
+      "position_index": 1320,
+      "absolute_terminal_user": null,
+      "text_sha256": null,
+      "text_chars": null,
+      "marker": "[EXAMPLE DIALOG — STYLE ONLY]"
+    },
+    {
+      "owner": "NO_FALSE_SHARED_MEMORY",
+      "present": false,
+      "exact_constant_present": false,
+      "position_index": -1,
+      "absolute_terminal_user": null,
+      "text_sha256": null,
+      "text_chars": null,
+      "marker": "[NO FALSE SHARED MEMORY]"
+    }
+  ],
+  "pressure": {
+    "counts": {
+      "USER_HANDOFF_PRESSURE": 2,
+      "SCENE_CLOSURE_PRESSURE": 3,
+      "COMPRESSION_PRESSURE": 4,
+      "EXPANSION_SPACE": 5
+    },
+    "weights": {
+      "USER_HANDOFF_PRESSURE": "MODERATE",
+      "SCENE_CLOSURE_PRESSURE": "HIGH",
+      "COMPRESSION_PRESSURE": "MODERATE",
+      "EXPANSION_SPACE": "HIGH"
+    },
+    "hits": [
+      {
+        "family": "USER_HANDOFF_PRESSURE",
+        "clause": "future_actions_dialogue_thoughts_decisions",
+        "evidence": "Do not continue writing the user's future actions, dialogue, thoughts, or decisions"
+      },
+      {
+        "family": "USER_HANDOFF_PRESSURE",
+        "clause": "wait_passive_negated",
+        "evidence": "수동적으로 기다리기만 하지 않고"
+      },
+      {
+        "family": "SCENE_CLOSURE_PRESSURE",
+        "clause": "do_not_summarize_or_close_early",
+        "evidence": "요약하거나 성급히 닫지 말고"
+      },
+      {
+        "family": "SCENE_CLOSURE_PRESSURE",
+        "clause": "natural_finish_started_action",
+        "evidence": "이미 시작한 행동의 자연스러운 마무리"
+      },
+      {
+        "family": "SCENE_CLOSURE_PRESSURE",
+        "clause": "input_completed_not_permission",
+        "evidence": "treat it as completed user input"
+      },
+      {
+        "family": "COMPRESSION_PRESSURE",
+        "clause": "do_not_record_every_motion",
+        "evidence": "모든 움직임을 순서대로 기록하지 않는다"
+      },
+      {
+        "family": "COMPRESSION_PRESSURE",
+        "clause": "compress_ordinary_movement",
+        "evidence": "평범한 이동·생활 동작은 압축한다"
+      },
+      {
+        "family": "COMPRESSION_PRESSURE",
+        "clause": "no_action_body_prop_lists",
+        "evidence": "행동 목록, 신체 부위 목록, 소품 조작 목록"
+      },
+      {
+        "family": "COMPRESSION_PRESSURE",
+        "clause": "no_repeat_prove_metaphor",
+        "evidence": "다른 비유·정의·대비로 반복 증명하지 말고"
+      },
+      {
+        "family": "EXPANSION_SPACE",
+        "clause": "length_owner_dense_scene",
+        "evidence": "하나의 밀도 있는 장면으로 전개한다"
+      },
+      {
+        "family": "EXPANSION_SPACE",
+        "clause": "obs_action_speech_sense_psych",
+        "evidence": "관찰·행동·대사·감각·심리"
+      },
+      {
+        "family": "EXPANSION_SPACE",
+        "clause": "interior_action_env_relation_causal",
+        "evidence": "내면·행동·환경·관계의 변화가 서로 인과적으로 이어지게 쓴다"
+      },
+      {
+        "family": "EXPANSION_SPACE",
+        "clause": "thought_assoc_memory",
+        "evidence": "생각·연상·기억·오해·감정·판단"
+      },
+      {
+        "family": "EXPANSION_SPACE",
+        "clause": "active_character_moves",
+        "evidence": "대사·행동·접촉·제안을 능동적으로 수행한다"
+      }
+    ]
+  },
+  "length_owner": {
+    "sentence": "이번 응답은 한국어 3,200~4,200자 범위의 하나의 밀도 있는 장면으로 전개한다. 현재 상호작용을 요약하거나 성급히 닫지 말고, 관찰·행동·대사·감각·심리가 서로 다음 변화를 일으키도록 충분히 전개한다.",
+    "sha256": "122fece4c53d8a71141a279985f42dbdc25cbaceda8bde46bb51596d6ca4b092",
+    "chars": 116,
+    "absolute_terminal": true,
+    "dialogue_budget_present": false
+  },
+  "user_wrapper": {
+    "legacy_interactive_sha256": "c6b9cd474ce40da920af9ab331a53821d88baf5d9749d0236659d6404613e55e",
+    "legacy_interactive_chars": 313,
+    "lock_enabled_sha256": "7852e48a1f4b5fce29e54c3bcadaf39d5c49c9f057f7eee7da239cec45918f81",
+    "lock_enabled_chars": 1355,
+    "lock_marker_in_assembled": false,
+    "assembled_uses_legacy_or_lock": "LEGACY_OR_HEADER",
+    "agency_vs_early_stop_note": "Wording preserves agency ('Do not continue writing the user's future…') and also tells model to leave response opportunity; does not literally say 'stop once answered', but handoff semantics are present."
+  },
+  "theoretical_visible_capacity": {
+    "max_tokens_in_request": null,
+    "max_tokens_omitted": true,
+    "openrouter_coerce_fallback_constant": 8192,
+    "approx_korean_chars_at_8192_tokens": 12288,
+    "desired_korean_range": [
+      3000,
+      6000
+    ],
+    "OUTPUT_TOKEN_CAP_NOT_CAUSE": true,
+    "note": "RP chat resolveMaxOutputTokensForTarget returns undefined (omit). Historical #255 also omitted max_tokens and produced ~4200 visible output tokens with finish_reason=stop — hard cap not binding then either."
+  },
+  "request_sanitized": {
+    "model": "google/gemini-3.1-pro-preview",
+    "stream": true,
+    "stream_options": {
+      "include_usage": true
+    },
+    "temperature": 0.95,
+    "top_p": null,
+    "top_k": null,
+    "max_tokens": null,
+    "max_completion_tokens": null,
+    "stop": null,
+    "stop_sequences": null,
+    "response_format": null,
+    "reasoning": {
+      "effort": "low"
+    },
+    "reasoning_effort": null,
+    "include_reasoning": false,
+    "provider": null,
+    "session_id_present": false,
+    "frequency_penalty": null,
+    "presence_penalty": null,
+    "repetition_penalty": null,
+    "message_count": 8,
+    "messages_sanitized": [
+      {
+        "role": "system",
+        "content_chars": 6713,
+        "content_sha256": "2e3155dc22e99009c309a00517d072330e5e2d2134a0d4952b6b62bd90203eb6",
+        "content_preview_head": "[CANON / SCOPE / KNOWLEDGE]\n=== 설정 적용 우선순위 ===\n\n1. CHARACTER CANON · WORLD CANON · [CHARACTER KNOWLEDGE BOUNDARY] (절대 유지 — PLAYER/SCENARIO META는 [A] 기억·대사로 노출 금지)\n2. 장기기억(LTM)\n3. 최근 대화를 해석하는 데 필요한 RAG\n4. 최근 대화\n\n=== 서술 시점 (필수) ===\n- 현재 장면 안에",
+        "content_preview_tail": "까지 1인칭 자기지칭이 0개인지 확인하고, 남아 있으면 캐릭터 이름이나 자연스러운 3인칭 문장으로 고친 뒤 출력한다. 예: \"나도 모르게 웃음이 나왔다\"가 아니라 \"시우도 모르게 웃음이 흘렀다\".\n여러 AI 캐릭터·NPC·환경 사이의 초점 전환은 기존 시뮬레이션 규칙을 그대로 따른다. 이 시점 규칙은 co-narration, Novel Mode, No Godmodding, Speech Lock의 권한과 규칙을 변경하지 않는다."
+      },
+      {
+        "role": "user",
+        "content_chars": 29,
+        "content_sha256": "c0ddf10d5ebdb309e042b7e49f02c40da7e6a43919d2ba1efe5480b647c56659",
+        "content_preview_head": "[유저 지문/행동 — 캐릭터가 관찰 가능]\n채팅 시작",
+        "content_preview_tail": "[유저 지문/행동 — 캐릭터가 관찰 가능]\n채팅 시작"
+      },
+      {
+        "role": "assistant",
+        "content_chars": 118,
+        "content_sha256": "3a716941a3f881d909755a001561e21b959407fdc015709d5a7fcbea364e3723",
+        "content_preview_head": "시우는 젖은 우산을 현관 옆에 세워 두고, 머그잔에 따뜻한 차를 따랐다. 창밖 빗소리가 창문 너머로 작게 울렸다. 그는 소파 한쪽을 비워 둔 채 미소 지으며 말했다.\n\n\"들어오면 신발부터. 차는 금방 식으니까.\"",
+        "content_preview_tail": "시우는 젖은 우산을 현관 옆에 세워 두고, 머그잔에 따뜻한 차를 따랐다. 창밖 빗소리가 창문 너머로 작게 울렸다. 그는 소파 한쪽을 비워 둔 채 미소 지으며 말했다.\n\n\"들어오면 신발부터. 차는 금방 식으니까.\""
+      },
+      {
+        "role": "user",
+        "content_chars": 71,
+        "content_sha256": "153bb0d3b0209e65a1b2a415aa5c3e7048a81051b2d9baded9c7f1fd47008a82",
+        "content_preview_head": "[유저 지문/행동 — 캐릭터가 관찰 가능]\n유나가 소파에서 시우 쪽으로 몸을 기울인다.\n\n[유저 대사]\n불 좀 더 낮춰도 될까?",
+        "content_preview_tail": "[유저 지문/행동 — 캐릭터가 관찰 가능]\n유나가 소파에서 시우 쪽으로 몸을 기울인다.\n\n[유저 대사]\n불 좀 더 낮춰도 될까?"
+      },
+      {
+        "role": "assistant",
+        "content_chars": 124,
+        "content_sha256": "3da413fb7c6acd53ac985d34ae35b234e559cc4cb46d591e28bcae3b3d9e4dea",
+        "content_preview_head": "시우는 스탠드 스위치를 돌려 방 안을 더 부드럽게 만들었다. 빗소리는 커튼 너머로 멀어졌고, 두 사람 사이의 거리는 손바닥 하나만큼 남았다. 그는 유나의 손목을 짧게 감싸 안았다.\n\n\"낮춰. …원하면 더 가까이 와도 돼.\"",
+        "content_preview_tail": "시우는 스탠드 스위치를 돌려 방 안을 더 부드럽게 만들었다. 빗소리는 커튼 너머로 멀어졌고, 두 사람 사이의 거리는 손바닥 하나만큼 남았다. 그는 유나의 손목을 짧게 감싸 안았다.\n\n\"낮춰. …원하면 더 가까이 와도 돼.\""
+      },
+      {
+        "role": "user",
+        "content_chars": 78,
+        "content_sha256": "c31076abd0b46c5f89c28735353c046147ed1fb4fd365e8f423e7da52b5f521c",
+        "content_preview_head": "[유저 지문/행동 — 캐릭터가 관찰 가능]\n유나가 시우의 어깨에 이마를 기대며 속삭인다.\n\n[유저 대사]\n네 숨소리가…지금 제일 크게 들려.",
+        "content_preview_tail": "[유저 지문/행동 — 캐릭터가 관찰 가능]\n유나가 시우의 어깨에 이마를 기대며 속삭인다.\n\n[유저 대사]\n네 숨소리가…지금 제일 크게 들려."
+      },
+      {
+        "role": "assistant",
+        "content_chars": 105,
+        "content_sha256": "07eb422d008e0bf6cb7ca5c5e57209740d77c1f699477a3eb0b3fe535d8dfcb2",
+        "content_preview_head": "시우의 손이 유나의 등 쪽으로 천천히 미끄러졌다. 밀착된 온기가 옷감 사이로 전해졌고, 그는 유나의 머리카락 냄새를 짧게 들이마신 뒤 낮게 받았다.\n\n\"나도. 말은… 나중에 해도 괜찮아.\"",
+        "content_preview_tail": "시우의 손이 유나의 등 쪽으로 천천히 미끄러졌다. 밀착된 온기가 옷감 사이로 전해졌고, 그는 유나의 머리카락 냄새를 짧게 들이마신 뒤 낮게 받았다.\n\n\"나도. 말은… 나중에 해도 괜찮아.\""
+      },
+      {
+        "role": "user",
+        "content_chars": 575,
+        "content_sha256": "e8ddf0bf104803ef2f03c649eb22d34105d0ffb7bc3825e9dcacc3ef5529bc4f",
+        "content_preview_head": "[CURRENT USER INPUT]\nThe following is the user's latest input.\nIt is what the user already said/did.\nDo not continue writing the user's future actions, dialogue, thoughts, or decisions.\nIf the input contains parentheses or action text, trea",
+        "content_preview_tail": "능]\n유나가 시우의 옷깃을 가볍게 잡아당기고, 입술에 가볍게 키스한다.\n[유저 대사]\n…이대로, 조금만 더 있어도 돼?\n\n레이아웃: 지문과 \"…\" 대사 사이 빈 줄(\\n\\n) 필수 — 지문 줄 끝에 대사 붙이지 말 것.\n\n이번 응답은 한국어 3,200~4,200자 범위의 하나의 밀도 있는 장면으로 전개한다. 현재 상호작용을 요약하거나 성급히 닫지 말고, 관찰·행동·대사·감각·심리가 서로 다음 변화를 일으키도록 충분히 전개한다."
+      }
+    ],
+    "body_keys": [
+      "include_reasoning",
+      "messages",
+      "model",
+      "reasoning",
+      "stream",
+      "stream_options",
+      "temperature"
+    ],
+    "has_stop": false,
+    "has_stop_sequences": false,
+    "has_max_tokens": false
+  },
+  "system_sha256": "2e3155dc22e99009c309a00517d072330e5e2d2134a0d4952b6b62bd90203eb6",
+  "user_tail_sha256": "e8ddf0bf104803ef2f03c649eb22d34105d0ffb7bc3825e9dcacc3ef5529bc4f",
+  "constants": {
+    "OPENROUTER_RP_REASONING_GEMINI_3_PRO": {
+      "effort": "low"
+    },
+    "GEMINI_PRO_GENERATION_PARAMS": {
+      "temperature": 0.95
+    },
+    "COLLAB_sha256": "b8325c8bca9adabac1152928e95f853e5d6157c71fc95ab4f7bfd5ec8bfa77d1",
+    "IMMERSIVE_sha256": "79e9a385a5687282cb50fdb68a5489f1c30feaaf73ae65ed96c563a779a13a68",
+    "USER_TAIL_sha256": "122fece4c53d8a71141a279985f42dbdc25cbaceda8bde46bb51596d6ca4b092"
+  },
+  "pacing_owners": {
+    "scene_pacing": 0,
+    "scene_state": 0,
+    "scene_flow": 1,
+    "genre_scene_mode": 0,
+    "pacing_sot_count": 1
+  },
+  "terminal_owners": {
+    "terminal_dialogue_budget_owner": 0,
+    "numeric_dialogue_percentage": 0
+  }
+}

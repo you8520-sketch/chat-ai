@@ -1,0 +1,304 @@
+{
+  "phase": "G11-C1-LIVE",
+  "api_calls": 6,
+  "target_calls": 6,
+  "new_V_calls": 0,
+  "fixtures": [
+    "B",
+    "D",
+    "F"
+  ],
+  "provider_parity": "CONFOUNDED",
+  "provider_confounds": [
+    "Gemini_B_A_D2: A=Google V=Google AI Studio",
+    "Gemini_F_A_D1: A=Google V=Google AI Studio"
+  ],
+  "A_summary": {
+    "mean": 2178,
+    "median": 1995,
+    "lt_2000": 3,
+    "gt_4000": 0,
+    "max": 2798,
+    "chars": [
+      2789,
+      1933,
+      2057,
+      2798,
+      1631,
+      1862
+    ]
+  },
+  "V_summary": {
+    "mean": 2148,
+    "median": 1832,
+    "lt_2000": 5,
+    "gt_4000": 1,
+    "max": 4068,
+    "chars": [
+      4068,
+      1924,
+      1518,
+      1983,
+      1739,
+      1657
+    ]
+  },
+  "by_domain": {
+    "B": {
+      "A_chars": [
+        2789,
+        1933
+      ],
+      "V_chars": [
+        4068,
+        1924
+      ],
+      "A_blocks": [
+        5,
+        8
+      ],
+      "V_blocks": [
+        3,
+        4
+      ],
+      "A_mean": 2361,
+      "V_mean": 2996
+    },
+    "D": {
+      "A_chars": [
+        2057,
+        2798
+      ],
+      "V_chars": [
+        1518,
+        1983
+      ],
+      "A_blocks": [
+        7,
+        4
+      ],
+      "V_blocks": [
+        6,
+        5
+      ],
+      "A_mean": 2428,
+      "V_mean": 1751
+    },
+    "F": {
+      "A_chars": [
+        1631,
+        1862
+      ],
+      "V_chars": [
+        1739,
+        1657
+      ],
+      "A_blocks": [
+        3,
+        2
+      ],
+      "V_blocks": [
+        3,
+        4
+      ],
+      "A_mean": 1747,
+      "V_mean": 1698
+    }
+  },
+  "gate": {
+    "classification": "BASELINE_GEMINI_LENGTH_INSTABILITY",
+    "next_branch": "C3 ONE-CALL LENGTH ROOT CAUSE AUDIT",
+    "length_delta_absolute": 30,
+    "length_delta_percent": 1.4
+  },
+  "cells": [
+    {
+      "cell_id": "Gemini_B_A_D1",
+      "fixture": "B",
+      "domain": "relationship_romance_dyad",
+      "arm": "A",
+      "draw": 1,
+      "visible_chars": 2789,
+      "speech_blocks": 5,
+      "paragraphs": 18,
+      "dialogue_char_share": 0.0868,
+      "narration_char_share": 0.9132,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "v_ref": {
+        "cell_id": "Gemini_B_V_D1",
+        "visible_chars": 4068,
+        "speech_blocks": 3,
+        "provider": "Google AI Studio"
+      },
+      "latency_s": 60.145,
+      "generationConfig": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "max_tokens": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "provider": null
+      }
+    },
+    {
+      "cell_id": "Gemini_B_A_D2",
+      "fixture": "B",
+      "domain": "relationship_romance_dyad",
+      "arm": "A",
+      "draw": 2,
+      "visible_chars": 1933,
+      "speech_blocks": 8,
+      "paragraphs": 22,
+      "dialogue_char_share": 0.133,
+      "narration_char_share": 0.867,
+      "finish_reason": "stop",
+      "provider": "Google",
+      "v_ref": {
+        "cell_id": "Gemini_B_V_D2",
+        "visible_chars": 1924,
+        "speech_blocks": 4,
+        "provider": "Google AI Studio"
+      },
+      "latency_s": 29.111,
+      "generationConfig": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "max_tokens": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "provider": null
+      }
+    },
+    {
+      "cell_id": "Gemini_D_A_D1",
+      "fixture": "D",
+      "domain": "operation_radio",
+      "arm": "A",
+      "draw": 1,
+      "visible_chars": 2057,
+      "speech_blocks": 7,
+      "paragraphs": 20,
+      "dialogue_char_share": 0.1162,
+      "narration_char_share": 0.8838,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "v_ref": {
+        "cell_id": "Gemini_D_V_D1",
+        "visible_chars": 1518,
+        "speech_blocks": 6,
+        "provider": "Google AI Studio"
+      },
+      "latency_s": 58.659,
+      "generationConfig": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "max_tokens": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "provider": null
+      }
+    },
+    {
+      "cell_id": "Gemini_D_A_D2",
+      "fixture": "D",
+      "domain": "operation_radio",
+      "arm": "A",
+      "draw": 2,
+      "visible_chars": 2798,
+      "speech_blocks": 4,
+      "paragraphs": 19,
+      "dialogue_char_share": 0.0597,
+      "narration_char_share": 0.9403,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "v_ref": {
+        "cell_id": "Gemini_D_V_D2",
+        "visible_chars": 1983,
+        "speech_blocks": 5,
+        "provider": "Google AI Studio"
+      },
+      "latency_s": 71.68,
+      "generationConfig": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "max_tokens": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "provider": null
+      }
+    },
+    {
+      "cell_id": "Gemini_F_A_D1",
+      "fixture": "F",
+      "domain": "private_intimate_dyad",
+      "arm": "A",
+      "draw": 1,
+      "visible_chars": 1631,
+      "speech_blocks": 3,
+      "paragraphs": 11,
+      "dialogue_char_share": 0.038,
+      "narration_char_share": 0.962,
+      "finish_reason": "stop",
+      "provider": "Google",
+      "v_ref": {
+        "cell_id": "Gemini_F_V_D1",
+        "visible_chars": 1739,
+        "speech_blocks": 3,
+        "provider": "Google AI Studio"
+      },
+      "latency_s": 27.399,
+      "generationConfig": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "max_tokens": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "provider": null
+      }
+    },
+    {
+      "cell_id": "Gemini_F_A_D2",
+      "fixture": "F",
+      "domain": "private_intimate_dyad",
+      "arm": "A",
+      "draw": 2,
+      "visible_chars": 1862,
+      "speech_blocks": 2,
+      "paragraphs": 10,
+      "dialogue_char_share": 0.0166,
+      "narration_char_share": 0.9834,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "v_ref": {
+        "cell_id": "Gemini_F_V_D2",
+        "visible_chars": 1657,
+        "speech_blocks": 4,
+        "provider": "Google AI Studio"
+      },
+      "latency_s": 74.809,
+      "generationConfig": {
+        "model": "google/gemini-3.1-pro-preview",
+        "temperature": 0.95,
+        "max_tokens": null,
+        "reasoning": {
+          "effort": "low"
+        },
+        "include_reasoning": false,
+        "provider": null
+      }
+    }
+  ],
+  "production_wire": "NOT_RUN",
+  "merge": "NOT_RUN"
+}

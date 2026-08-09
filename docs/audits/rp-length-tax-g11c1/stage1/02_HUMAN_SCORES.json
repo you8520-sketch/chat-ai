@@ -1,0 +1,48 @@
+{
+  "phase": "G11-C1",
+  "draft_PR": "https://github.com/you8520-sketch/chat-ai/pull/300",
+  "new_calls": 6,
+  "stored_V_calls": 6,
+  "provider_parity": "CONFOUNDED",
+  "provider_note": "2/6 draws report provider string 'Google' vs stored V 'Google AI Studio' — same Google Gemini family; soft confound, not a different vendor route.",
+  "A_BDF": {
+    "chars": [2789, 1933, 2057, 2798, 1631, 1862],
+    "mean": 2178,
+    "median": 1995,
+    "lt_2000": 3,
+    "speech_blocks": [5, 8, 7, 4, 3, 2]
+  },
+  "V_BDF": {
+    "chars": [4068, 1924, 1518, 1983, 1739, 1657],
+    "mean": 2148,
+    "median": 1832,
+    "lt_2000": 5,
+    "speech_blocks": [3, 4, 6, 5, 3, 4]
+  },
+  "length_delta_absolute": 30,
+  "length_delta_percent": 1.4,
+  "domain": {
+    "B": { "A_mean": 2361, "V_mean": 2996, "note": "A shorter; A speech higher (5/8 vs 3/4)" },
+    "D": { "A_mean": 2428, "V_mean": 1751, "note": "A longer on radio domain" },
+    "F": { "A_mean": 1747, "V_mean": 1698, "note": "near-parity short intimate" }
+  },
+  "quality": {
+    "A_repetition": "low",
+    "A_canon_padding": "low",
+    "A_agency_severe": 0,
+    "A_dialogue_overload": "mild (B D2=8, D D1=7 uncapped)",
+    "V_quality_reference": "I1 seal — binding PASS, agency 0"
+  },
+  "classification": "BASELINE_GEMINI_LENGTH_INSTABILITY",
+  "next_branch": "C3 ONE-CALL LENGTH ROOT CAUSE AUDIT",
+  "forbidden_next": [
+    "continuation",
+    "recovery",
+    "supplement",
+    "retry",
+    "repair second-call"
+  ],
+  "one_turn_one_primary_llm_call": true,
+  "production_wire": "NOT_RUN",
+  "merge": "NOT_RUN"
+}
