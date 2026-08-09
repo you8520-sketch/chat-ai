@@ -1,0 +1,282 @@
+{
+  "phase": "G11-P1-STAGE1-LIVE",
+  "api_calls": 6,
+  "target_calls": 6,
+  "fixtures": [
+    "B",
+    "D",
+    "F"
+  ],
+  "sole_variable": "GENERIC_PROSE_OWNER → POSITIVE_PROSE_OWNER",
+  "arm": "V",
+  "i1_bdf_baseline_mean": 2148,
+  "length_summary": {
+    "mean": 1848,
+    "median": 1721,
+    "lt_2000": 4,
+    "gt_4000": 0,
+    "gt_5000": 0,
+    "max": 2610
+  },
+  "cells": [
+    {
+      "cell_id": "Gemini_B_V_D1",
+      "fixture": "B",
+      "domain": "relationship_romance_dyad",
+      "arm": "V",
+      "draw": 1,
+      "visible_chars": 1076,
+      "speech_blocks": 4,
+      "budget": {
+        "maxBlocks": 4,
+        "reason": "quiet_dyad",
+        "communicationDemand": "LOW"
+      },
+      "expected_budget": 4,
+      "dialogue_char_share": 0.1217,
+      "narration_char_share": 0.8783,
+      "pacing": {
+        "mode": "DYAD",
+        "motion": "HOLD",
+        "intimate": false
+      },
+      "heuristics": {
+        "budget_binding_ok": true,
+        "canon_padding": false,
+        "repetition": false,
+        "new_npc_injection": false,
+        "unrelated_event_injection": false,
+        "world_motion_present": null,
+        "multi_cast_usable": null,
+        "dialogue_only_suppression_risk": null,
+        "dialogue_char_share": 0.1217,
+        "narration_char_share": 0.8783,
+        "setting_lcs_chars": 6,
+        "continuity_review": true,
+        "hard_alarms": [
+          "DENSITY_COLLAPSE",
+          "CONTINUITY_REVIEW_REQUIRED",
+          "CURRENT_INPUT_REPLAY_SIGNAL"
+        ]
+      },
+      "provider": "Google AI Studio",
+      "latency_s": 42.12,
+      "human_pending": true
+    },
+    {
+      "cell_id": "Gemini_B_V_D2",
+      "fixture": "B",
+      "domain": "relationship_romance_dyad",
+      "arm": "V",
+      "draw": 2,
+      "visible_chars": 1633,
+      "speech_blocks": 3,
+      "budget": {
+        "maxBlocks": 4,
+        "reason": "quiet_dyad",
+        "communicationDemand": "LOW"
+      },
+      "expected_budget": 4,
+      "dialogue_char_share": 0.0822,
+      "narration_char_share": 0.9178,
+      "pacing": {
+        "mode": "DYAD",
+        "motion": "HOLD",
+        "intimate": false
+      },
+      "heuristics": {
+        "budget_binding_ok": true,
+        "canon_padding": false,
+        "repetition": false,
+        "new_npc_injection": false,
+        "unrelated_event_injection": false,
+        "world_motion_present": null,
+        "multi_cast_usable": null,
+        "dialogue_only_suppression_risk": null,
+        "dialogue_char_share": 0.0822,
+        "narration_char_share": 0.9178,
+        "setting_lcs_chars": 13,
+        "continuity_review": true,
+        "hard_alarms": [
+          "DENSITY_COLLAPSE",
+          "CONTINUITY_REVIEW_REQUIRED",
+          "CURRENT_INPUT_REPLAY_SIGNAL"
+        ]
+      },
+      "provider": "Google AI Studio",
+      "latency_s": 58.695,
+      "human_pending": true
+    },
+    {
+      "cell_id": "Gemini_D_V_D1",
+      "fixture": "D",
+      "domain": "operation_radio",
+      "arm": "V",
+      "draw": 1,
+      "visible_chars": 1595,
+      "speech_blocks": 7,
+      "budget": {
+        "maxBlocks": 6,
+        "reason": "communication_heavy",
+        "communicationDemand": "HIGH"
+      },
+      "expected_budget": 6,
+      "dialogue_char_share": 0.1561,
+      "narration_char_share": 0.8439,
+      "pacing": {
+        "mode": "EXPLORATION",
+        "motion": "LOCAL",
+        "intimate": false
+      },
+      "heuristics": {
+        "budget_binding_ok": false,
+        "canon_padding": false,
+        "repetition": false,
+        "new_npc_injection": false,
+        "unrelated_event_injection": false,
+        "world_motion_present": true,
+        "multi_cast_usable": null,
+        "dialogue_only_suppression_risk": null,
+        "dialogue_char_share": 0.1561,
+        "narration_char_share": 0.8439,
+        "setting_lcs_chars": 5,
+        "continuity_review": false,
+        "hard_alarms": [
+          "DENSITY_COLLAPSE"
+        ]
+      },
+      "provider": "Google AI Studio",
+      "latency_s": 44.859,
+      "human_pending": true
+    },
+    {
+      "cell_id": "Gemini_D_V_D2",
+      "fixture": "D",
+      "domain": "operation_radio",
+      "arm": "V",
+      "draw": 2,
+      "visible_chars": 1809,
+      "speech_blocks": 5,
+      "budget": {
+        "maxBlocks": 6,
+        "reason": "communication_heavy",
+        "communicationDemand": "HIGH"
+      },
+      "expected_budget": 6,
+      "dialogue_char_share": 0.1023,
+      "narration_char_share": 0.8977,
+      "pacing": {
+        "mode": "EXPLORATION",
+        "motion": "LOCAL",
+        "intimate": false
+      },
+      "heuristics": {
+        "budget_binding_ok": true,
+        "canon_padding": false,
+        "repetition": false,
+        "new_npc_injection": false,
+        "unrelated_event_injection": false,
+        "world_motion_present": true,
+        "multi_cast_usable": null,
+        "dialogue_only_suppression_risk": null,
+        "dialogue_char_share": 0.1023,
+        "narration_char_share": 0.8977,
+        "setting_lcs_chars": 9,
+        "continuity_review": false,
+        "hard_alarms": []
+      },
+      "provider": "Google AI Studio",
+      "latency_s": 70.844,
+      "human_pending": true
+    },
+    {
+      "cell_id": "Gemini_F_V_D1",
+      "fixture": "F",
+      "domain": "private_intimate_dyad",
+      "arm": "V",
+      "draw": 1,
+      "visible_chars": 2365,
+      "speech_blocks": 4,
+      "budget": {
+        "maxBlocks": 4,
+        "reason": "intimate_dyad",
+        "communicationDemand": "LOW"
+      },
+      "expected_budget": 4,
+      "dialogue_char_share": 0.0309,
+      "narration_char_share": 0.9691,
+      "pacing": {
+        "mode": "DYAD",
+        "motion": "HOLD",
+        "intimate": true
+      },
+      "heuristics": {
+        "budget_binding_ok": true,
+        "canon_padding": false,
+        "repetition": false,
+        "new_npc_injection": false,
+        "unrelated_event_injection": false,
+        "world_motion_present": null,
+        "multi_cast_usable": null,
+        "dialogue_only_suppression_risk": null,
+        "dialogue_char_share": 0.0309,
+        "narration_char_share": 0.9691,
+        "setting_lcs_chars": 10,
+        "continuity_review": true,
+        "hard_alarms": [
+          "CONTINUITY_REVIEW_REQUIRED",
+          "CURRENT_INPUT_REPLAY_SIGNAL"
+        ]
+      },
+      "provider": "Google AI Studio",
+      "latency_s": 58.63,
+      "human_pending": true
+    },
+    {
+      "cell_id": "Gemini_F_V_D2",
+      "fixture": "F",
+      "domain": "private_intimate_dyad",
+      "arm": "V",
+      "draw": 2,
+      "visible_chars": 2610,
+      "speech_blocks": 4,
+      "budget": {
+        "maxBlocks": 4,
+        "reason": "intimate_dyad",
+        "communicationDemand": "LOW"
+      },
+      "expected_budget": 4,
+      "dialogue_char_share": 0.0218,
+      "narration_char_share": 0.9782,
+      "pacing": {
+        "mode": "DYAD",
+        "motion": "HOLD",
+        "intimate": true
+      },
+      "heuristics": {
+        "budget_binding_ok": true,
+        "canon_padding": false,
+        "repetition": false,
+        "new_npc_injection": false,
+        "unrelated_event_injection": false,
+        "world_motion_present": null,
+        "multi_cast_usable": null,
+        "dialogue_only_suppression_risk": null,
+        "dialogue_char_share": 0.0218,
+        "narration_char_share": 0.9782,
+        "setting_lcs_chars": 10,
+        "continuity_review": true,
+        "hard_alarms": [
+          "CONTINUITY_REVIEW_REQUIRED",
+          "CURRENT_INPUT_REPLAY_SIGNAL"
+        ]
+      },
+      "provider": "Google AI Studio",
+      "latency_s": 96.252,
+      "human_pending": true
+    }
+  ],
+  "human_review": "PENDING",
+  "production_wire": "NOT_RUN",
+  "merge": "NOT_RUN"
+}
