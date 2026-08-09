@@ -1,7 +1,7 @@
 PHASE_G11_C3B_FINAL:
 base: 7f0c54b60e7ace11bc6e4eea9c820caadde24853 (via C3A tip 87fd7cd)
 branch: cursor/route-model-alias-bundle-g11c3b-96c2
-draft PR: (pending)
+draft PR: https://github.com/you8520-sketch/chat-ai/pull/302
 sole variable: ROUTE_MODEL_ALIAS_BUNDLE
 reference OR:
 route: OpenRouter (stored G11-C1 Arm A — no new OR calls)
