@@ -173,7 +173,7 @@ export type LengthInstructionOpts = {
  * No TARGET_LENGTH / MINIMUM_FLOOR / anti-early-stop / early-completion cue.
  */
 export const USER_TAIL_LENGTH_OWNER_SENTENCE =
-  "이번 응답은 한국어 3,200~4,200자 범위의 하나의 밀도 있는 장면으로 전개한다. 현재 상호작용을 요약하거나 성급히 닫지 말고, 관찰·행동·대사·감각·심리가 서로 다음 변화를 일으키도록 충분히 전개한다.";
+  "이번 응답은 한국어 3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다. 장면에 필요한 내용이 있으면 더 길게 이어간다. 현재 상호작용을 요약하거나 성급히 닫지 말고, 관찰·행동·대사·감각·심리가 서로 다음 변화를 일으키도록 충분히 전개한다.";
 
 /** @deprecated System length owner removed — Luna uses terminal contract; others use user-tail length. */
 export const BOUNDED_LENGTH_OWNER_SENTENCE = "";
@@ -697,6 +697,9 @@ export function appendCompactTerminalLengthToUserTurn(
     "한국어 RP 본문만 3,200~4,200자로 작성한다",
     "3,200~4,200자 범위의 하나의 밀도 있는 장면으로 전개한다",
     "한국어 총 표시 3,200~4,200자의 하나의 밀도 있는 장면으로 전개한다",
+    "한국어 3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다",
+    "한국어 RP 본문만 3,200자 이상을 기본 목표로 작성한다",
+    "한국어 총 표시 3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다",
     OPUS_ARM_E_TERMINAL_MARKER,
     DEEPSEEK_COMPACT_FUTURE_INSTRUCTION_BOUNDARY_MARKER,
   ];

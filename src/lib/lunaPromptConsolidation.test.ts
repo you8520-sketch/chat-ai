@@ -158,7 +158,7 @@ describe("luna prompt consolidation ownership", () => {
       resolveLunaSinglePrimaryLine(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL, "character", false),
       null
     );
-    assert.match(LUNA_TERMINAL_OUTPUT_CONTRACT, /한국어 RP 본문만 3,200~4,200자/);
+    assert.match(LUNA_TERMINAL_OUTPUT_CONTRACT, /한국어 RP 본문만 3,200자 이상을 기본 목표로/);
     assert.match(LUNA_TERMINAL_OUTPUT_CONTRACT, /하나의 충분한 발화로 묶고/);
     assert.doesNotMatch(LUNA_TERMINAL_OUTPUT_CONTRACT, /반드시 3~6/);
     assert.doesNotMatch(LUNA_TERMINAL_OUTPUT_CONTRACT, /최초로 확인 가능한 결과/);
@@ -175,7 +175,7 @@ describe("luna prompt consolidation ownership", () => {
     assert.doesNotMatch(userTail, /TARGET_LENGTH|MINIMUM_FLOOR|미달 조기 종료/);
 
     const { systemPrompt, built } = buildE1Wire(STABLE_CANON);
-    assert.doesNotMatch(systemPrompt, /3,200~4,200/);
+    assert.doesNotMatch(systemPrompt, /4,200|4200/);
     assert.doesNotMatch(systemPrompt, /충분한 발화로 묶어/);
     assert.doesNotMatch(systemPrompt, /luna-single-primary|LUNA_TERMINAL/);
     assert.ok(!(built.meta.trackedSections ?? []).some((s) => s.id === "luna-single-primary-adapter"));
@@ -216,10 +216,11 @@ describe("luna prompt consolidation ownership", () => {
 
     const { systemPrompt, built } = buildE1Wire(STABLE_CANON);
     assert.equal((systemPrompt.match(/하나의 충분한 발화로 묶고/g) ?? []).length, 0);
-    assert.equal((systemPrompt.match(/3,200~4,200/g) ?? []).length, 0);
+    assert.equal((systemPrompt.match(/4,200|4200/g) ?? []).length, 0);
     const lastUser = built.history[built.history.length - 1]!;
     assert.equal((lastUser.content.match(/하나의 충분한 발화로 묶고/g) ?? []).length, 1);
-    assert.equal((lastUser.content.match(/3,200~4,200/g) ?? []).length, 1);
+    assert.equal((lastUser.content.match(/3,200자 이상/g) ?? []).length, 1);
+    assert.equal((lastUser.content.match(/4,200|4200/g) ?? []).length, 0);
 
     // Non-Luna / simulation: no terminal contract.
     assert.equal(

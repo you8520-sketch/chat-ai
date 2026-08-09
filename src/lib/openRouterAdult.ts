@@ -51,6 +51,9 @@ import {
   resolveCheaperInferenceApiKey,
 } from "@/lib/cheaperInferenceConfig";
 import { estimateTokens, type ChatMsg, type StageUsage, type TokenUsage } from "@/lib/ai";
+import type { ContentKind } from "@/lib/simulationMode";
+import type { SceneProgressionHistoryEntry } from "@/lib/sceneProgressionState";
+import { applyProductionServerControlsToMessages } from "@/lib/scenePacingController";
 import { billableOutputTokens } from "@/lib/points";
 import { dumpOpenRouterRequest } from "@/services/promptDebugDump";
 import type { PromptDebugMeta } from "@/services/promptDebugDump";
@@ -515,6 +518,23 @@ export type OpenRouterMessageOpts = {
   novelMode?: boolean;
   charName?: string;
   personaName?: string;
+  /**
+   * Production G10-D3 server controls (Scene Pacing + dynamic dialogue budget).
+   * Applied after OpenRouter messages are assembled, before transport.
+   */
+  sceneServerControls?: {
+    contentKind?: ContentKind | null;
+    party?: boolean | null;
+    primaryCharacterName?: string | null;
+    currentUserMessage?: string | null;
+    recentMessages?: ChatMsg[] | null;
+    knownSupportingCastNames?: string[] | null;
+    establishedActiveCastNames?: string[] | null;
+    adultModeEnabled?: boolean;
+    chatId?: string | number | null;
+    currentTurn?: number | null;
+    progressionHistory?: SceneProgressionHistoryEntry[] | null;
+  } | null;
   /** Anthropic prompt caching — rules + character 블록 분리 */
   systemSplit?: OpenRouterSystemSplit;
   /** OpenRouter sticky routing + cache warm (chat id 등) */
@@ -1127,9 +1147,24 @@ export function assemblePrimaryRpRequest(opts: {
         : OPENROUTER_CHAT_COMPLETIONS_URL,
     headers: {},
   };
-  const messages =
+  let messages =
     opts.messagesOverride ??
     buildOpenRouterMessages(opts.system, opts.history, opts.messageOpts);
+  const controls = opts.messageOpts?.sceneServerControls;
+  if (controls) {
+    const flat = messages.map((m) => ({
+      role: m.role,
+      content: flattenOpenRouterMessageContent(m.content),
+    }));
+    const applied = applyProductionServerControlsToMessages({
+      messages: flat,
+      ...controls,
+    });
+    messages = applied.messages.map((m) => ({
+      role: m.role as "system" | "user" | "assistant",
+      content: m.content,
+    }));
+  }
   const requestBodyBeforeAdapt = buildOpenRouterRequestBody(
     modelId,
     messages,

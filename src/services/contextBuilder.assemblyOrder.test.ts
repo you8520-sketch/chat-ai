@@ -128,11 +128,12 @@ describe("buildContext — persona-before-prose assembly order", () => {
     assert.doesNotMatch(split!.systemRulesBlock, /<PROSE_STYLE_POLICY>/);
 
     assert.equal((built.systemPrompt.match(/\[OUTPUT LAYOUT\]\n\[SEMANTIC/g) ?? []).length, 1);
-    assert.doesNotMatch(built.systemPrompt, /3,200~4,200자/);
+    assert.doesNotMatch(built.systemPrompt, /3,200~4,200자|4200/);
     assert.doesNotMatch(built.systemPrompt, /TARGET_LENGTH/);
     const lastUser = built.history[built.history.length - 1];
     assert.equal(lastUser?.role, "user");
-    assert.match(lastUser!.content, /3,200~4,200자/);
+    assert.match(lastUser!.content, /3,200자 이상을 기본 목표로/);
+    assert.doesNotMatch(lastUser!.content, /3,200~4,200자|4200/);
     assert.doesNotMatch(split!.characterSettingsBlock, /NEVER append spoken dialogue/i);
     assert.doesNotMatch(split!.characterSettingsBlock, /ALWAYS starts a new paragraph/i);
   });
@@ -178,14 +179,18 @@ describe("buildContext — persona-before-prose assembly order", () => {
     assert.ok(ids.includes("rule-output-layout-recency"));
     assert.ok(!ids.includes("rule-terminal-length-override"));
     assert.ok(!ids.includes("rule-length-control"));
-    assert.equal((built.systemPrompt.match(/3,200~4,200자/g) ?? []).length, 0);
+    assert.equal((built.systemPrompt.match(/3,200~4,200자|4200/g) ?? []).length, 0);
     assert.equal((built.systemPrompt.match(/TARGET_LENGTH:/g) ?? []).length, 0);
     assert.equal((built.systemPrompt.match(/MINIMUM_FLOOR:/g) ?? []).length, 0);
     assert.equal((built.systemPrompt.match(/\[OUTPUT LAYOUT\]\n\[SEMANTIC/g) ?? []).length, 1);
     const lastUser = built.history[built.history.length - 1];
     assert.equal(lastUser?.role, "user");
-    assert.equal((lastUser!.content.match(/3,200~4,200자/g) ?? []).length, 1);
-    assert.ok(lastUser!.content.indexOf("지문과") < lastUser!.content.indexOf("3,200~4,200자"));
+    assert.equal((lastUser!.content.match(/3,200자 이상을 기본 목표로/g) ?? []).length, 1);
+    assert.equal((lastUser!.content.match(/3,200~4,200자|4200/g) ?? []).length, 0);
+    assert.ok(
+      lastUser!.content.indexOf("지문과") <
+        lastUser!.content.indexOf("3,200자 이상을 기본 목표로")
+    );
   });
 
   it("omits episodic memory section when block is empty", () => {

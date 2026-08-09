@@ -179,9 +179,13 @@ describe("buildContext — Muse unknown-information truth guard assembly", () =>
   it("bounded length owner remains exactly once when Truth Guard ON", () => {
     enableTruthGuard("1");
     const built = buildMuse(1);
-    assert.equal((built.systemPrompt.match(/3,200~4,200자/g) ?? []).length, 1);
+    assert.equal((built.systemPrompt.match(/3,200~4,200자|4200/g) ?? []).length, 0);
     assert.equal((built.systemPrompt.match(/TARGET_LENGTH:/g) ?? []).length, 0);
     assert.equal((built.systemPrompt.match(/MINIMUM_FLOOR:/g) ?? []).length, 0);
+    const lastUser = built.history[built.history.length - 1];
+    assert.equal(lastUser?.role, "user");
+    assert.equal((lastUser!.content.match(/3,200자 이상을 기본 목표로/g) ?? []).length, 1);
+    assert.equal((lastUser!.content.match(/3,200~4,200자|4200/g) ?? []).length, 0);
     assert.equal(
       (built.meta?.trackedSections ?? []).filter(
         (s) => s.id === "rule-terminal-length-override"
@@ -238,7 +242,9 @@ describe("buildContext — Muse unknown-information truth guard assembly", () =>
       order("user-persona-reference-owner") <
         order(UNKNOWN_INFORMATION_TRUTH_GUARD_SECTION_ID)
     );
-    assert.match(built.systemPrompt, /3,200~4,200자/);
+    assert.doesNotMatch(built.systemPrompt, /3,200~4,200자|4200/);
+    const lastUser = built.history[built.history.length - 1];
+    assert.match(lastUser!.content, /3,200자 이상을 기본 목표로/);
   });
 
   it("token budget: gate OFF delta 0; gate ON adds dynamic-only tokens", () => {

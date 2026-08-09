@@ -1991,7 +1991,7 @@ export async function POST(req: Request) {
     const userTurnTail =
       typeof assembledUserTurn === "string" ? assembledUserTurn.slice(-1500) : "";
     const terraLengthCount = (
-      assembledUserTurn.match(/한국어 RP 본문만 3,200~4,200자/g) ?? []
+      assembledUserTurn.match(/한국어 RP 본문만 3,200자 이상을 기본 목표로/g) ?? []
     ).length;
     const relationshipAxisCount = (
       assembledUserTurn.match(
@@ -2034,7 +2034,7 @@ export async function POST(req: Request) {
           relationshipAxisCount > 0 &&
           terraLengthCount > 0 &&
           assembledUserTurn.indexOf("이번 턴의 진행축은 주요 캐릭터와 사용자의 관계·상태 변화다") <
-            assembledUserTurn.indexOf("한국어 RP 본문만 3,200~4,200자"),
+            assembledUserTurn.indexOf("한국어 RP 본문만 3,200자 이상을 기본 목표로"),
       },
     });
   }
@@ -2760,6 +2760,23 @@ export async function POST(req: Request) {
                 oocHtmlMode: oocHtmlMode || undefined,
                 statusArtifactsOpts: statusArtifactOpts,
                 requestKind: input.requestKind,
+                sceneServerControls: {
+                  contentKind:
+                    ch.content_kind === "simulation" ? "simulation" : "character",
+                  party: false,
+                  primaryCharacterName: ch.name,
+                  currentUserMessage: policyUserMessage,
+                  recentMessages: promptHistory,
+                  knownSupportingCastNames: undefined,
+                  establishedActiveCastNames:
+                    ch.content_kind === "simulation"
+                      ? extractSimulationCastNames(ch.simulation_cast ?? "")
+                      : undefined,
+                  adultModeEnabled: isAdultMode,
+                  chatId: chat.id,
+                  currentTurn: sceneProgressionTurn,
+                  progressionHistory: sceneProgressionState.recent,
+                },
                 generationOverrides: (() => {
                   const regen = regenerateMessageId
                     ? resolveRegenerateGenerationOverrides(
