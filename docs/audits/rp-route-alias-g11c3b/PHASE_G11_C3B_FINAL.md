@@ -1,5 +1,7 @@
 PHASE_G11_C3B_FINAL:
-base: 7f0c54b60e7ace11bc6e4eea9c820caadde24853 (via C3A tip 87fd7cd)
+pr_base_sha: 7f0c54b60e7ace11bc6e4eea9c820caadde24853
+experiment_reference_base_sha: 1ecdf8f37a783b373c24f8cfdf9010ee4eff15b1
+frozen_payload_hash_parity: PASS
 branch: cursor/route-model-alias-bundle-g11c3b-96c2
 draft PR: https://github.com/you8520-sketch/chat-ai/pull/302
 sole variable: ROUTE_MODEL_ALIAS_BUNDLE
@@ -20,7 +22,7 @@ model: gemini-3.1-pro-preview
 providers: NOT_RUN
 new calls: 0
 message hash parity: PASS
-  (sealed freeze; resume did not rebuild messages; no API without key)
+  B/D/F frozen messages vs C3A Arm A snapshots: PASS (rechecked; no rebuild)
 parameter parity:
 temperature: 0.95 both (prepared)
 top_p: omitted both
@@ -74,10 +76,7 @@ OR: stop (C1)
 CI: NOT_RUN
 cost/latency observation: NOT_RUN
 classification: LIVE_BLOCKED_MISSING_CHEAPER_INFERENCE_API_KEY
-next: INJECT_CI_KEY_THEN_RERUN_LIVE (then apply §13–§16 thresholds)
-  → STRONG/CONFIRMED → G11-C4 CI_PLUS_FROZEN_SERVER_CONTROLS
-  → NOT_SUPPORTED → G11-C5 FIXTURE_MATCHED_HISTORICAL_REPRODUCTION
-  → MIXED → DOMAIN_DISCRIMINATING_TEST
+next: INJECT_CI_KEY_THEN_RERUN_LIVE
 production wire: NOT_RUN
 merge: NOT_RUN
 new LLM calls: 0
