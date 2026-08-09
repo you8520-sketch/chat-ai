@@ -1,0 +1,53 @@
+{
+  "phase": "G10-D3",
+  "reference": "G10-D2 PASS preserved (#294)",
+  "sole_variable": "SERVER_RESOLVED_DIALOGUE_CEILING",
+  "classification": "DYNAMIC_DIALOGUE_BUDGET_PASS",
+  "API0": {
+    "Q4": "max4",
+    "E5": "max5",
+    "C6": "max6 communication_heavy",
+    "party": "null",
+    "simulation": "null",
+    "false_positive": "max4"
+  },
+  "LIVE": {
+    "Q4": {
+      "budget": 4,
+      "chars": [4369, 1862],
+      "speech_blocks": [3, 3],
+      "binding": "2/2",
+      "scene_value": "PRESERVED",
+      "agency_severe": 0
+    },
+    "E5": {
+      "budget": 5,
+      "chars": [3572, 3053],
+      "speech_blocks": [5, 3],
+      "binding": "2/2",
+      "world_motion": "PRESERVED",
+      "primary_interaction": "PRESENT",
+      "meaningful_beats": "D1 multi-cue borderline; D2 single caution beat",
+      "forced_fill_to_max": "NO (D1 at ceiling with narration; D2 under)"
+    },
+    "C6": {
+      "budget": 6,
+      "chars": [1391, 4391],
+      "speech_blocks": [5, 4],
+      "binding": "2/2",
+      "communication_completeness": "PASS — radio receive/respond + user coordination both draws",
+      "under_dialogued": "NO",
+      "dialogue_filler": "LOW",
+      "agency_severe": 0
+    },
+    "overall_chars": {
+      "values": [4369, 1862, 3572, 3053, 1391, 4391],
+      "mean": 3106,
+      "median": 3312,
+      "lt_2000": "2/6"
+    }
+  },
+  "llm_calls": 6,
+  "production_wire": "NOT_RUN",
+  "merge": "NOT_RUN"
+}
