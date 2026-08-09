@@ -1404,7 +1404,14 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   const requestedHistoryTurnFloor = Number.isFinite(input.historyMinTurnFloor)
     ? Math.max(0, Math.floor(input.historyMinTurnFloor!))
     : MIN_HISTORY_TURN_FLOOR;
-  let effectiveHistoryTurnFloor = requestedHistoryTurnFloor;
+  const adultRequiredTurnFloor = Number.isFinite(input.adultHandoffRequiredTurnFloor)
+    ? Math.max(0, Math.floor(input.adultHandoffRequiredTurnFloor!))
+    : 0;
+  const requestedSafetyTurnFloor = Math.max(
+    requestedHistoryTurnFloor,
+    input.preserveAdultHandoffRawHistory ? adultRequiredTurnFloor : 0
+  );
+  let effectiveHistoryTurnFloor = requestedSafetyTurnFloor;
   let memoryCoverageDegraded = false;
 
   let effectiveHistoryBudget = historyBudget;
@@ -1416,8 +1423,12 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
         effectiveHistoryTurnFloor
       );
 
-  if (!input.geminiStaticDynamicMode && !input.preserveAdultHandoffRawHistory) {
-    while (estimatePayloadTokens(historySource) > maxPayload && effectiveHistoryBudget > 400) {
+  if (!input.geminiStaticDynamicMode) {
+    while (
+      !input.preserveAdultHandoffRawHistory &&
+      estimatePayloadTokens(historySource) > maxPayload &&
+      effectiveHistoryBudget > 400
+    ) {
       effectiveHistoryBudget = Math.max(400, effectiveHistoryBudget - 1500);
       historySource = trimHistoryToBudget(
         historyForAssembly,
@@ -1429,7 +1440,7 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     if (estimatePayloadTokens(historySource) > maxPayload) {
       memoryCoverageDegraded = true;
       let low = 0;
-      let high = Math.max(0, requestedHistoryTurnFloor - 1);
+      let high = requestedSafetyTurnFloor;
       let bestFloor = 0;
       let bestHistory: ContextBuildInput["shortTermHistory"] = [];
 
@@ -1479,6 +1490,9 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       summarized_turn_count: summarizedTurnsForCoverage,
       requested_floor: requestedHistoryTurnFloor,
       effective_floor: effectiveHistoryTurnFloor,
+      adult_required_floor: adultRequiredTurnFloor,
+      adult_baseline_degraded:
+        effectiveHistoryTurnFloor < adultRequiredTurnFloor ? 1 : 0,
       first_raw_turn: firstRawPlayableTurn,
       gap_turns: memoryCoverageGap,
       reason: "absolute_payload_limit",
@@ -1609,9 +1623,12 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       memoryCoverage: {
         requestedFloor: requestedHistoryTurnFloor,
         effectiveFloor: effectiveHistoryTurnFloor,
+        adultRequiredFloor: adultRequiredTurnFloor,
         firstRawPlayableTurn,
         gapTurns: memoryCoverageGap,
         degraded: memoryCoverageDegraded,
+        adultBaselineDegraded:
+          effectiveHistoryTurnFloor < adultRequiredTurnFloor,
         ...(memoryCoverageDegraded
           ? { reason: "absolute_payload_limit" as const }
           : {}),

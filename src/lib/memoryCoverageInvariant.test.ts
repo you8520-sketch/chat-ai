@@ -3,11 +3,14 @@ import { describe, it } from "node:test";
 import { OPENING_TURN_USER } from "@/lib/chatGreetingContext";
 import { HISTORY_TOKEN_BUDGET, MIN_HISTORY_TURN_FLOOR } from "@/lib/contextTrack";
 import {
+  areCompatibleHistorySuffixes,
   countPlayableHistoryTurns,
   rawRecentTurnsToHistory,
+  resolveHistoryMinTurnFloor,
   resolveLorebookExcludeFromTrimmedHistory,
   resolveMemoryCoverageGap,
   resolveMemoryCoverageTurnFloor,
+  selectLongerHistorySuffix,
   trimHistoryToBudget,
   type DialogueTurn,
 } from "@/lib/hybridMemory";
@@ -70,6 +73,31 @@ describe("resolveMemoryCoverageTurnFloor", () => {
     assert.equal(resolveMemoryCoverageTurnFloor({ completedTurns: Number.NaN, summarizedTurnCount: 0 }), 4);
     assert.equal(resolveMemoryCoverageTurnFloor({ completedTurns: Number.POSITIVE_INFINITY, summarizedTurnCount: 0 }), 4);
     assert.equal(resolveMemoryCoverageTurnFloor({ completedTurns: 7, summarizedTurnCount: Number.NaN, baseFloor: 0 }), 7);
+  });
+});
+
+describe("memory feature OFF parity", () => {
+  it("keeps the fixed four-turn main policy with zero coverage token increase", () => {
+    const completedTurns = 20;
+    const full = rawRecentTurnsToHistory(makePlayableTurns(completedTurns));
+    const mainHistory = trimHistoryToBudget(
+      full,
+      HISTORY_TOKEN_BUDGET,
+      MIN_HISTORY_TURN_FLOOR
+    );
+    const floor = resolveHistoryMinTurnFloor({
+      memoryFeatureEnabled: false,
+      completedTurns,
+      summarizedTurnCount: 0,
+    });
+    const memoryOffHistory = trimHistoryToBudget(full, HISTORY_TOKEN_BUDGET, floor);
+
+    assert.equal(floor, 4);
+    assert.deepEqual(memoryOffHistory, mainHistory);
+    assert.equal(
+      memoryOffHistory.reduce((sum, message) => sum + estimateTokens(message.content), 0),
+      mainHistory.reduce((sum, message) => sum + estimateTokens(message.content), 0)
+    );
   });
 });
 
@@ -168,4 +196,36 @@ describe("lifecycle and opening fixtures", () => {
       assert.equal(result.gap, 0);
     });
   }
+});
+
+describe("adult suffix compatibility", () => {
+  it("selects only compatible complete-pair suffixes from one canonical history", () => {
+    const full = rawRecentTurnsToHistory(makePlayableTurns(20));
+    const handoff = full.slice(-12);
+    const coverage = full.slice(-28);
+    assert.equal(areCompatibleHistorySuffixes(handoff, coverage), true);
+    assert.equal(selectLongerHistorySuffix(handoff, coverage), coverage);
+  });
+
+  it("rejects same-length candidates from different worldlines in dev/test", () => {
+    const left = rawRecentTurnsToHistory(makePlayableTurns(2));
+    const right = left.map((message, index) =>
+      index === 0 ? { ...message, content: "different worldline" } : message
+    );
+    assert.equal(areCompatibleHistorySuffixes(left, right), false);
+    assert.throws(
+      () => selectLongerHistorySuffix(left, right),
+      /canonical latest suffix/
+    );
+  });
+
+  it("trimmed history keeps complete user/assistant pairs", () => {
+    const full = rawRecentTurnsToHistory(makePlayableTurns(5));
+    const trimmed = trimHistoryToBudget(full, 7_500, 4);
+    assert.equal(trimmed.length % 2, 0);
+    for (let index = 0; index < trimmed.length; index += 2) {
+      assert.equal(trimmed[index]?.role, "user");
+      assert.equal(trimmed[index + 1]?.role, "assistant");
+    }
+  });
 });

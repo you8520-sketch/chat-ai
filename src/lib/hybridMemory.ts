@@ -103,6 +103,24 @@ export function resolveMemoryCoverageTurnFloor(opts: {
   return Math.max(baseFloor, unsummarizedTurns);
 }
 
+/** Memory OFF는 main의 고정 4-turn RAW 정책을 그대로 유지한다. */
+export function resolveHistoryMinTurnFloor(opts: {
+  memoryFeatureEnabled: boolean;
+  completedTurns: number;
+  summarizedTurnCount?: number | null;
+  baseFloor?: number;
+}): number {
+  const baseFloor = normalizeNonNegativeInteger(
+    opts.baseFloor ?? MIN_HISTORY_TURN_FLOOR
+  );
+  if (!opts.memoryFeatureEnabled) return baseFloor;
+  return resolveMemoryCoverageTurnFloor({
+    completedTurns: opts.completedTurns,
+    summarizedTurnCount: opts.summarizedTurnCount,
+    baseFloor,
+  });
+}
+
 /** first RAW playable turn과 sealed summary 사이의 미보존 구간. */
 export function resolveMemoryCoverageGap(opts: {
   firstRawPlayableTurn: number | null | undefined;
@@ -137,7 +155,32 @@ export function selectLongerHistorySuffix(
   preferred: ChatMsg[],
   coverageRequired: ChatMsg[]
 ): ChatMsg[] {
+  if (
+    process.env.NODE_ENV !== "production" &&
+    !areCompatibleHistorySuffixes(preferred, coverageRequired)
+  ) {
+    throw new Error("History suffix candidates must share one canonical latest suffix");
+  }
   return coverageRequired.length > preferred.length ? coverageRequired : preferred;
+}
+
+/** 두 후보가 동일 canonical history의 complete latest suffix인지 확인한다. */
+export function areCompatibleHistorySuffixes(a: ChatMsg[], b: ChatMsg[]): boolean {
+  const hasCompletePairs = (history: ChatMsg[]) =>
+    history.length % 2 === 0 &&
+    history.every((message, index) =>
+      index % 2 === 0 ? message.role === "user" : message.role === "assistant"
+    );
+  if (!hasCompletePairs(a) || !hasCompletePairs(b)) return false;
+  const shorter = a.length <= b.length ? a : b;
+  const longer = a.length <= b.length ? b : a;
+  const offset = longer.length - shorter.length;
+  for (let index = 0; index < shorter.length; index++) {
+    const left = shorter[index]!;
+    const right = longer[offset + index]!;
+    if (left.role !== right.role || left.content !== right.content) return false;
+  }
+  return true;
 }
 
 /** 채팅 히스토리 — 토큰 예산 + 최소 턴 floor (예산 초과해도 최근 minTurnFloor턴 유지) */
@@ -163,6 +206,7 @@ export function trimHistoryToBudget(
     kept.unshift(msg);
     tokens += t;
   }
+  if ((history.length - kept.length) % 2 !== 0) kept.shift();
   return alignHistoryPrefixDrop(history, kept, floorMessages);
 }
 

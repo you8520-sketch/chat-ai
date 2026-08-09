@@ -240,6 +240,8 @@ export type ContextBuildInput = {
    * second time.
    */
   preserveAdultHandoffRawHistory?: boolean;
+  /** Existing bounded adult selector가 실제 보장한 complete exchange floor. */
+  adultHandoffRequiredTurnFloor?: number;
   /** Canon injection policy — D1/D2 actual branches gated by this (DeepSeek canary only). */
   canonInjectionPolicy?: import("@/lib/canonInjectionPolicy").CanonInjectionPolicy;
   /** Compiled CanonPlanV1 — required for LAYERED canon / selective archive actual branches. */
@@ -278,9 +280,11 @@ export type BuiltContext = {
     memoryCoverage?: {
       requestedFloor: number;
       effectiveFloor: number;
+      adultRequiredFloor: number;
       firstRawPlayableTurn: number | null;
       gapTurns: number;
       degraded: boolean;
+      adultBaselineDegraded: boolean;
       reason?: "absolute_payload_limit";
     };
     tokenBudget: number;

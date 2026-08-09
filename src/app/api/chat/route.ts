@@ -101,8 +101,8 @@ import {
   messagesToTurns,
   countPlayableTurns,
   rawRecentTurnsToHistory,
+  resolveHistoryMinTurnFloor,
   resolveLorebookExcludeFromTrimmedHistory,
-  resolveMemoryCoverageTurnFloor,
   selectLongerHistorySuffix,
   trimHistoryToBudget,
 } from "@/lib/hybridMemory";
@@ -123,6 +123,7 @@ import {
   scheduleMemoryUpdate,
 } from "@/lib/memory/memory-manager";
 import { syncMemoryFromChat } from "@/lib/memory/memory-backfill";
+import { reconcileMemoryCoverageFixedPoint } from "@/lib/memoryCoverageReconcile";
 import { getChatMemoryCapacity } from "@/lib/memory/memory-capacity";
 import { getOrCreateChatMemory } from "@/lib/memory/memory-db";
 import {
@@ -1226,7 +1227,8 @@ export async function POST(req: Request) {
     })
   );
   const summarizedTurnCount = chatMemory?.summarized_turn_count ?? 0;
-  const historyMinTurnFloor = resolveMemoryCoverageTurnFloor({
+  const historyMinTurnFloor = resolveHistoryMinTurnFloor({
+    memoryFeatureEnabled: memoryFeatureOn,
     completedTurns: playableTurnCount,
     summarizedTurnCount,
   });
@@ -1298,6 +1300,7 @@ export async function POST(req: Request) {
   }
   let handoffRawTurnsIncluded = 0;
   let handoffRawTokensIncluded = 0;
+  let adultHandoffRequiredTurnFloor = 0;
   if (
     adultRoutingConfig.enabled &&
     adultRouteDecision.activeRoute === "adult" &&
@@ -1312,6 +1315,7 @@ export async function POST(req: Request) {
       }
     );
     const handoffHistory = handoffVariants.handoff;
+    adultHandoffRequiredTurnFloor = handoffHistory.rawTurnsIncluded;
     providerRecentHistoryFull = selectLongerHistorySuffix(
       handoffHistory.history,
       coverageProtectedCanonicalHistory
@@ -1337,7 +1341,7 @@ export async function POST(req: Request) {
     turnsForRecentHistory,
     trimmedHistoryForLorebook
   );
-  let memoryInjection = await buildMemoryContextForChat({
+  const initialMemoryInjection = await buildMemoryContextForChat({
     chatId: chat.id,
     userId: user.id,
     characterId: ch.id,
@@ -1349,6 +1353,7 @@ export async function POST(req: Request) {
     turnTrace: undefined,
     excludeSummaryTurnStartGte: initialLorebookExcludeTurnStart,
   });
+  let memoryInjection = initialMemoryInjection;
   const characterGenres = sanitizeCharacterGenres(
     (() => {
       try {
@@ -1866,6 +1871,7 @@ export async function POST(req: Request) {
     completedTurns: playableTurnCount,
     summarizedTurnCount,
     historyMinTurnFloor,
+    adultHandoffRequiredTurnFloor,
     userPersonaGender: selectedPersona?.gender ?? "other",
     provider: "openrouter" as const,
     genres: characterGenres,
@@ -1926,35 +1932,56 @@ export async function POST(req: Request) {
       promptDumpDetail: `chat=${chat.id} user=${user.id} character=${ch.id}`,
     })
   );
-  const degradedFirstRawTurn = built.meta.memoryCoverage?.degraded
-    ? built.meta.memoryCoverage.firstRawPlayableTurn
-    : null;
-  if (
-    memoryFeatureOn &&
-    degradedFirstRawTurn != null &&
-    degradedFirstRawTurn !== initialLorebookExcludeTurnStart
-  ) {
-    memoryInjection = await buildMemoryContextForPreview({
-      chatId: chat.id,
-      tier: memoryTier,
-      memoryCapacity,
-      userMessage: autoContinueContext ? CONTINUE_USER_DISPLAY : displayUserMessage,
-      modelId: contextModelId,
-      provider: contextProvider,
-      excludeSummaryTurnStartGte: degradedFirstRawTurn,
+  if (memoryFeatureOn) {
+    const reconciliation = await reconcileMemoryCoverageFixedPoint({
+      initialBuild: built,
+      initialMemory: initialMemoryInjection,
+      initialLtmCutoff: initialLorebookExcludeTurnStart,
+      failSafeLtmCutoff: playableTurnCount + 1,
+      readCoverage: (context) => ({
+        degraded: context.meta.memoryCoverage?.degraded === true,
+        firstRawPlayableTurn:
+          context.meta.memoryCoverage?.firstRawPlayableTurn ?? null,
+        gapTurns: context.meta.memoryCoverage?.gapTurns ?? 0,
+        estimatedInputTokens: context.meta.estimatedInputTokens ?? 0,
+      }),
+      rebuildMemory: (excludeSummaryTurnStartGte) =>
+        buildMemoryContextForPreview({
+          chatId: chat.id,
+          tier: memoryTier,
+          memoryCapacity,
+          userMessage: autoContinueContext ? CONTINUE_USER_DISPLAY : displayUserMessage,
+          modelId: contextModelId,
+          provider: contextProvider,
+          excludeSummaryTurnStartGte,
+        }),
+      rebuildContext: (reconciledMemory) =>
+        assembleContext(() =>
+          buildContext({
+            ...contextBuildInput,
+            longTermMemory: reconciledMemory.text,
+            archiveMemory: reconciledMemory.archiveText,
+            statusWidgetActive: statusWidgetActive,
+            mainModelOwnsRelationshipExtract,
+            promptDumpSource: "db",
+            promptDumpDetail: `chat=${chat.id} user=${user.id} character=${ch.id}`,
+            suppressMemoryCoverageDegradedLog: true,
+          })
+        ),
     });
-    built = assembleContext(() =>
-      buildContext({
-        ...contextBuildInput,
-        longTermMemory: memoryInjection.text,
-        archiveMemory: memoryInjection.archiveText,
-        statusWidgetActive: statusWidgetActive,
-        mainModelOwnsRelationshipExtract,
-        promptDumpSource: "db",
-        promptDumpDetail: `chat=${chat.id} user=${user.id} character=${ch.id}`,
-        suppressMemoryCoverageDegradedLog: true,
-      })
-    );
+    memoryInjection = reconciliation.memory;
+    built = reconciliation.build;
+    if (reconciliation.nonconvergent) {
+      console.warn("MEMORY_COVERAGE_RECONCILE_NONCONVERGENT", {
+        passes: reconciliation.passes,
+        initial_first_raw_turn: reconciliation.initialFirstRawTurn,
+        final_first_raw_turn: reconciliation.finalFirstRawTurn,
+        final_ltm_cutoff: reconciliation.finalLtmCutoff ?? null,
+        gap_turns: built.meta.memoryCoverage?.gapTurns ?? 0,
+        middle_hole_turns: reconciliation.middleHoleTurns,
+        estimated_input_tokens: built.meta.estimatedInputTokens ?? 0,
+      });
+    }
   }
   if (terraPromptCanary) {
     const assembledUserTurn =
@@ -2120,16 +2147,72 @@ export async function POST(req: Request) {
       activeAdultModelId,
       { userId: user.id, chatId: chat.id }
     );
-    const fallbackBuilt = assembleContext(() =>
+    const fallbackMemoryInjection = initialMemoryInjection;
+    let fallbackBuilt = assembleContext(() =>
       buildContext({
         ...contextBuildInput,
         modelId: activeAdultModelId,
         provider: "openrouter" as const,
         shortTermHistory: fallbackHistory,
+        longTermMemory: fallbackMemoryInjection.text,
+        archiveMemory: fallbackMemoryInjection.archiveText,
         preserveAdultHandoffRawHistory: true,
+        adultHandoffRequiredTurnFloor: fallbackRaw.rawTurnsIncluded,
         canonInjectionPolicy: fallbackCanonPolicy,
       })
     );
+    if (memoryFeatureOn) {
+      const fallbackReconciliation = await reconcileMemoryCoverageFixedPoint({
+        initialBuild: fallbackBuilt,
+        initialMemory: fallbackMemoryInjection,
+        initialLtmCutoff: initialLorebookExcludeTurnStart,
+        failSafeLtmCutoff: playableTurnCount + 1,
+        readCoverage: (context) => ({
+          degraded: context.meta.memoryCoverage?.degraded === true,
+          firstRawPlayableTurn:
+            context.meta.memoryCoverage?.firstRawPlayableTurn ?? null,
+          gapTurns: context.meta.memoryCoverage?.gapTurns ?? 0,
+          estimatedInputTokens: context.meta.estimatedInputTokens ?? 0,
+        }),
+        rebuildMemory: (excludeSummaryTurnStartGte) =>
+          buildMemoryContextForPreview({
+            chatId: chat.id,
+            tier: memoryTier,
+            memoryCapacity,
+            userMessage: autoContinueContext ? CONTINUE_USER_DISPLAY : displayUserMessage,
+            modelId: activeAdultModelId,
+            provider: "openrouter",
+            excludeSummaryTurnStartGte,
+          }),
+        rebuildContext: (reconciledMemory) =>
+          assembleContext(() =>
+            buildContext({
+              ...contextBuildInput,
+              modelId: activeAdultModelId,
+              provider: "openrouter" as const,
+              shortTermHistory: fallbackHistory,
+              longTermMemory: reconciledMemory.text,
+              archiveMemory: reconciledMemory.archiveText,
+              preserveAdultHandoffRawHistory: true,
+              adultHandoffRequiredTurnFloor: fallbackRaw.rawTurnsIncluded,
+              canonInjectionPolicy: fallbackCanonPolicy,
+              suppressMemoryCoverageDegradedLog: true,
+            })
+          ),
+      });
+      fallbackBuilt = fallbackReconciliation.build;
+      if (fallbackReconciliation.nonconvergent) {
+        console.warn("MEMORY_COVERAGE_RECONCILE_NONCONVERGENT", {
+          passes: fallbackReconciliation.passes,
+          initial_first_raw_turn: fallbackReconciliation.initialFirstRawTurn,
+          final_first_raw_turn: fallbackReconciliation.finalFirstRawTurn,
+          final_ltm_cutoff: fallbackReconciliation.finalLtmCutoff ?? null,
+          gap_turns: fallbackBuilt.meta.memoryCoverage?.gapTurns ?? 0,
+          middle_hole_turns: fallbackReconciliation.middleHoleTurns,
+          estimated_input_tokens: fallbackBuilt.meta.estimatedInputTokens ?? 0,
+        });
+      }
+    }
     let fallbackSystemPrompt = fallbackBuilt.systemPrompt;
     let fallbackSystemSplit = fallbackBuilt.openRouterSystemSplit;
     if (statusWidgetActive) {

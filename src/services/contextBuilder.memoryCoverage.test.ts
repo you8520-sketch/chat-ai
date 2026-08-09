@@ -6,7 +6,10 @@ import {
   OPENROUTER_QWEN_37_MAX_MODEL,
 } from "@/lib/chatModels";
 import { OPENING_TURN_USER } from "@/lib/chatGreetingContext";
-import { HISTORY_TOKEN_BUDGET } from "@/lib/contextTrack";
+import {
+  DEEPSEEK_MAX_PAYLOAD_INPUT_TOKENS,
+  HISTORY_TOKEN_BUDGET,
+} from "@/lib/contextTrack";
 import {
   countPlayableHistoryTurns,
   rawRecentTurnsToHistory,
@@ -34,6 +37,8 @@ function buildCoverageContext(opts: {
   summarizedTurnCount: number;
   floor: number;
   preserveAdultHandoffRawHistory?: boolean;
+  adultHandoffRequiredTurnFloor?: number;
+  suppressMemoryCoverageDegradedLog?: boolean;
 }) {
   return buildContext({
     charName: "테스트",
@@ -48,6 +53,8 @@ function buildCoverageContext(opts: {
     summarizedTurnCount: opts.summarizedTurnCount,
     historyMinTurnFloor: opts.floor,
     preserveAdultHandoffRawHistory: opts.preserveAdultHandoffRawHistory,
+    adultHandoffRequiredTurnFloor: opts.adultHandoffRequiredTurnFloor,
+    suppressMemoryCoverageDegradedLog: opts.suppressMemoryCoverageDegradedLog,
   });
 }
 
@@ -92,6 +99,27 @@ describe("contextBuilder memory coverage", () => {
     });
   }
 
+  it("keeps requested/effective floor at four when memory is disabled upstream", () => {
+    const completedTurns = 20;
+    const full = rawRecentTurnsToHistory(makeTurns(completedTurns));
+    const mainHistory = trimHistoryToBudget(full, HISTORY_TOKEN_BUDGET, 4);
+    const built = buildCoverageContext({
+      provider: "openrouter",
+      modelId: OPENROUTER_QWEN_37_MAX_MODEL,
+      history: mainHistory,
+      completedTurns,
+      summarizedTurnCount: 0,
+      floor: 4,
+    });
+
+    assert.equal(built.meta.memoryCoverage?.requestedFloor, 4);
+    assert.equal(built.meta.memoryCoverage?.effectiveFloor, 4);
+    assert.equal(built.meta.memoryCoverage?.degraded, false);
+    const builtPriorHistory = built.history.slice(0, -1);
+    assert.ok(builtPriorHistory.length <= mainHistory.length);
+    assert.equal(selectLongerHistorySuffix(builtPriorHistory, mainHistory), mainHistory);
+  });
+
   it("preserves the larger adult handoff/coverage suffix without a second trim", () => {
     const completedTurns = 20;
     const summarizedTurnCount = 6;
@@ -108,12 +136,14 @@ describe("contextBuilder memory coverage", () => {
       summarizedTurnCount,
       floor,
       preserveAdultHandoffRawHistory: true,
+      adultHandoffRequiredTurnFloor: 6,
     });
     const priorHistory = built.history.slice(0, -1);
 
     assert.equal(selected, coverageRequired);
     assert.equal(priorHistory.length, selected.length);
     assert.equal(built.meta.memoryCoverage?.degraded, false);
+    assert.equal(built.meta.memoryCoverage?.adultRequiredFloor, 6);
     assert.equal(built.meta.memoryCoverage?.gapTurns, 0);
     assert.equal(priorHistory.length % 2, 0);
   });
@@ -154,6 +184,93 @@ describe("contextBuilder memory coverage", () => {
     assert.equal(selectLongerHistorySuffix(existingHandoff, coverageRequired), existingHandoff);
   });
 
+  it("keeps normal caught-up adult handoff byte-identical before assembly", () => {
+    const full = rawRecentTurnsToHistory(makeTurns(6, 200));
+    const handoff = full.slice(-12);
+    const coverage = trimHistoryToBudget(full, HISTORY_TOKEN_BUDGET, 4);
+    const selected = selectLongerHistorySuffix(handoff, coverage);
+    assert.equal(selected, handoff);
+    assert.deepEqual(selected, handoff);
+
+    const built = buildCoverageContext({
+      provider: "cheaperinference",
+      modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      history: selected,
+      completedTurns: 6,
+      summarizedTurnCount: 6,
+      floor: 4,
+      preserveAdultHandoffRawHistory: true,
+      adultHandoffRequiredTurnFloor: 6,
+    });
+    assert.equal(built.meta.memoryCoverage?.effectiveFloor, 6);
+    assert.equal(built.meta.memoryCoverage?.degraded, false);
+    assert.equal(built.history.slice(0, -1).length, handoff.length);
+  });
+
+  for (const path of ["first adult handoff", "silent fallback"] as const) {
+    it(`${path} degrades coverage extras before the adult baseline`, () => {
+      const completedTurns = 20;
+      const summarizedTurnCount = 6;
+      const floor = resolveMemoryCoverageTurnFloor({ completedTurns, summarizedTurnCount });
+      const full = rawRecentTurnsToHistory(makeTurns(completedTurns, 15_000));
+      const handoff = full.slice(-12);
+      const coverage = trimHistoryToBudget(full, HISTORY_TOKEN_BUDGET, floor);
+      const selected = selectLongerHistorySuffix(handoff, coverage);
+      const built = buildCoverageContext({
+        provider: "cheaperinference",
+        modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+        history: selected,
+        completedTurns,
+        summarizedTurnCount,
+        floor,
+        preserveAdultHandoffRawHistory: true,
+        adultHandoffRequiredTurnFloor: 6,
+        suppressMemoryCoverageDegradedLog: true,
+      });
+      const coverageMeta = built.meta.memoryCoverage!;
+
+      assert.equal(coverageMeta.degraded, true);
+      assert.equal(coverageMeta.requestedFloor, 14);
+      assert.equal(coverageMeta.adultRequiredFloor, 6);
+      assert.ok(coverageMeta.effectiveFloor >= coverageMeta.adultRequiredFloor);
+      assert.ok(coverageMeta.effectiveFloor < coverageMeta.requestedFloor);
+      assert.equal(coverageMeta.adultBaselineDegraded, false);
+      assert.ok(
+        (built.meta.estimatedInputTokens ?? Infinity) <=
+          DEEPSEEK_MAX_PAYLOAD_INPUT_TOKENS
+      );
+      assert.equal(built.history.slice(0, -1).length % 2, 0);
+    });
+  }
+
+  it("lets absolute safety win when the adult baseline itself cannot fit", () => {
+    const completedTurns = 6;
+    const floor = 4;
+    const handoff = rawRecentTurnsToHistory(makeTurns(completedTurns, 40_000));
+    const built = buildCoverageContext({
+      provider: "cheaperinference",
+      modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      history: handoff,
+      completedTurns,
+      summarizedTurnCount: completedTurns,
+      floor,
+      preserveAdultHandoffRawHistory: true,
+      adultHandoffRequiredTurnFloor: 6,
+      suppressMemoryCoverageDegradedLog: true,
+    });
+    const coverageMeta = built.meta.memoryCoverage!;
+
+    assert.equal(coverageMeta.degraded, true);
+    assert.equal(coverageMeta.adultRequiredFloor, 6);
+    assert.ok(coverageMeta.effectiveFloor < coverageMeta.adultRequiredFloor);
+    assert.equal(coverageMeta.adultBaselineDegraded, true);
+    assert.ok(
+      (built.meta.estimatedInputTokens ?? Infinity) <=
+        DEEPSEEK_MAX_PAYLOAD_INPUT_TOKENS
+    );
+    assert.equal(built.history.slice(0, -1).length % 2, 0);
+  });
+
   it("degrades only at the absolute payload limit and emits numeric metadata", () => {
     const completedTurns = 20;
     const summarizedTurnCount = 0;
@@ -172,6 +289,15 @@ describe("contextBuilder memory coverage", () => {
         summarizedTurnCount,
         floor,
       });
+      buildCoverageContext({
+        provider: "openrouter",
+        modelId: OPENROUTER_QWEN_37_MAX_MODEL,
+        history: oversized,
+        completedTurns,
+        summarizedTurnCount,
+        floor,
+        suppressMemoryCoverageDegradedLog: true,
+      });
     } finally {
       console.warn = originalWarn;
     }
@@ -188,6 +314,8 @@ describe("contextBuilder memory coverage", () => {
     assert.ok(event, "degradation event must be logged");
     const metadata = event![1] as Record<string, unknown>;
     assert.deepEqual(Object.keys(metadata).sort(), [
+      "adult_baseline_degraded",
+      "adult_required_floor",
       "completed_turns",
       "effective_floor",
       "first_raw_turn",
