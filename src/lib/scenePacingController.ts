@@ -1056,6 +1056,16 @@ export function integrateDialogueBlockCap(input: {
       skippedReason: null,
     };
   }
+  if (input.systemText.includes("[IMMERSIVE LONGFORM PROSE]")) {
+    return {
+      systemText: input.systemText.replace(
+        "[IMMERSIVE LONGFORM PROSE]",
+        `${owner}\n\n[IMMERSIVE LONGFORM PROSE]`
+      ),
+      integrated: true,
+      skippedReason: null,
+    };
+  }
   if (input.systemText.includes("[IMMERSIVE PROSE]")) {
     return {
       systemText: input.systemText.replace(
@@ -1174,6 +1184,11 @@ export function applyScenePacingArmToMessages(input: {
         m.content = m.content.replace(
           "[SCENE FLOW]",
           `${cue}\n\n[SCENE FLOW]`
+        );
+      } else if (m.content.includes("[IMMERSIVE LONGFORM PROSE]")) {
+        m.content = m.content.replace(
+          "[IMMERSIVE LONGFORM PROSE]",
+          `${cue}\n\n[IMMERSIVE LONGFORM PROSE]`
         );
       } else if (m.content.includes("[IMMERSIVE PROSE]")) {
         m.content = m.content.replace(

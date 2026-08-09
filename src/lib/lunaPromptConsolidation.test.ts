@@ -206,7 +206,8 @@ describe("luna prompt consolidation ownership", () => {
   it("style block does not designate other characters as filler", () => {
     assert.doesNotMatch(IMMERSIVE_PROSE_BLOCK, /선택적 환경·다른 인물/);
     assert.doesNotMatch(IMMERSIVE_PROSE_BLOCK, /다른 인물·업무·주변 활동/);
-    assert.match(IMMERSIVE_PROSE_BLOCK, /내면·행동·환경·관계의 변화가 서로 인과적으로 이어지게 쓴다/);
+    assert.match(IMMERSIVE_PROSE_BLOCK, /\[IMMERSIVE LONGFORM PROSE\]/);
+    assert.match(IMMERSIVE_PROSE_BLOCK, /판단·행동·내면·감각·관계·환경/);
   });
 
   it("dialogue concentration + length once via Luna terminal contract only", () => {

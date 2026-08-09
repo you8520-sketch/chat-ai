@@ -20,34 +20,32 @@ import { buildNoGodmoddingBlock } from "@/lib/noGodmodding";
  * No live API.
  */
 describe("prose style anti-pattern fixtures (static)", () => {
-  it("A: IMMERSIVE PROSE owns micro-action / selective detail (common)", () => {
-    assert.match(IMMERSIVE_PROSE_BLOCK, /\[IMMERSIVE PROSE\]/);
-    assert.match(IMMERSIVE_PROSE_BLOCK, /모든 움직임을 순서대로 기록하지 않는다/);
-    assert.match(IMMERSIVE_PROSE_BLOCK, /행동 목록, 신체 부위 목록, 소품 조작 목록/);
-    assert.match(PROSE_STYLE_SECTION, /\[IMMERSIVE PROSE\]/);
+  it("A: G11-P1 positive longform prose owns scene expansion (common)", () => {
+    assert.match(IMMERSIVE_PROSE_BLOCK, /\[IMMERSIVE LONGFORM PROSE\]/);
+    assert.match(IMMERSIVE_PROSE_BLOCK, /충분히 펼쳐진 소설 장면/);
+    assert.doesNotMatch(IMMERSIVE_PROSE_BLOCK, /모든 움직임을 순서대로 기록하지 않는다/);
+    assert.match(PROSE_STYLE_SECTION, /\[IMMERSIVE LONGFORM PROSE\]/);
+    assert.doesNotMatch(PROSE_STYLE_SECTION, /\[IMMERSIVE PROSE\]/);
     assert.doesNotMatch(PROSE_STYLE_SECTION, /\[MOVEMENT & DETAIL\]/);
     assert.doesNotMatch(PROSE_STYLE_SECTION, /\[BODY AND PROP INVENTORY\]/);
     assert.match(NARRATIVE_DENSITY_BLOCK, /생략은 짧게 쓰라는 뜻이 아니다/);
   });
 
-  it("B: rejects post-hoc narrator gloss via IMMERSIVE PROSE", () => {
-    assert.match(IMMERSIVE_PROSE_BLOCK, /뜻이었다/);
-    assert.match(IMMERSIVE_PROSE_BLOCK, /표시였다/);
-    assert.match(IMMERSIVE_PROSE_BLOCK, /이것은 ~가 아니었다/);
-    assert.match(IMMERSIVE_PROSE_BLOCK, /추상 판정·정답 해설/);
-    assert.match(IMMERSIVE_PROSE_BLOCK, /다른 비유·정의·대비로 반복 증명하지 말고/);
+  it("B: positive prose does not reintroduce post-hoc gloss bans as negatives", () => {
+    assert.doesNotMatch(IMMERSIVE_PROSE_BLOCK, /추상 판정·정답 해설/);
     assert.doesNotMatch(PROSE_STYLE_SECTION, /\[NO POST-HOC VERDICT\]/);
     assert.doesNotMatch(PROSE_STYLE_SECTION, /감정 이름·해석·결론 없이/);
+    assert.match(IMMERSIVE_PROSE_BLOCK, /새로운 장면 가치/);
   });
 
-  it("C: rejects world-briefing dialogue packing", () => {
-    assert.match(IMMERSIVE_PROSE_BLOCK, /브리핑으로 만들지 않는다/);
+  it("C: positive prose does not pack world-briefing bans", () => {
+    assert.doesNotMatch(IMMERSIVE_PROSE_BLOCK, /브리핑으로 만들지 않는다/);
     assert.doesNotMatch(PROSE_STYLE_SECTION, /\[DIALOGUE NATURALNESS\]/);
+    assert.match(IMMERSIVE_PROSE_BLOCK, /정본과 세계관은 인물의 경험/);
   });
 
-  it("D: allows direct emotion / inner experience", () => {
-    assert.match(IMMERSIVE_PROSE_BLOCK, /생각·연상·기억·오해·감정·판단/);
-    assert.match(IMMERSIVE_PROSE_BLOCK, /관찰만 나열하지 말고/);
+  it("D: positive prose centers judgment/action/interior/sensation", () => {
+    assert.match(IMMERSIVE_PROSE_BLOCK, /판단·행동·내면·감각·관계·환경/);
     assert.doesNotMatch(PROSE_STYLE_SECTION, /\[EMOTION & INNER EXPERIENCE\]/);
   });
 

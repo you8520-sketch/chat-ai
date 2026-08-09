@@ -16,8 +16,20 @@ export type AdvancedProseNsfwOpts = {
   includeAbsoluteProhibition?: boolean;
 };
 
-/** Common RP prose Owner — all models share this (not DeepSeek-specific). */
-export const IMMERSIVE_PROSE_BLOCK = `[IMMERSIVE PROSE]
+/**
+ * G11-P1 — positive longform prose owner (REPLACE prior generic immersive prose).
+ * No new negative lists. NSFW intimacy section remains separate / BYTE_IDENTICAL.
+ */
+export const IMMERSIVE_LONGFORM_PROSE_MARKER = "[IMMERSIVE LONGFORM PROSE]";
+
+/** @deprecated Pre-G11-P1 marker — must be absent after positive prose REPLACE. */
+export const LEGACY_IMMERSIVE_PROSE_MARKER = "[IMMERSIVE PROSE]";
+
+/**
+ * Pre-G11-P1 generic immersive prose (suppressive) — audit / size baseline only.
+ * Not injected into production prompts after P1.
+ */
+export const LEGACY_IMMERSIVE_PROSE_BLOCK = `[IMMERSIVE PROSE]
 한국 웹소설·캐릭터 중심 소설처럼 현재 초점 인물의 체험에 밀착한다. 관찰만 나열하지 말고 생각·연상·기억·오해·감정·판단이 행동과 자연스럽게 이어지게 한다. 이미 잡힌 생각·해석·관계 결론은 새 근거·사건 없이 다른 비유·정의·대비로 반복 증명하지 말고 대화·행동·환경·다음 변화로 옮긴다.
 
 모든 움직임을 순서대로 기록하지 않는다. 분위기·관계·이해·긴장·결과를 바꾸는 디테일만 선택하고 평범한 이동·생활 동작은 압축한다. 내면·행동·환경·관계의 변화가 서로 인과적으로 이어지게 쓴다.
@@ -31,6 +43,16 @@ export const IMMERSIVE_PROSE_BLOCK = `[IMMERSIVE PROSE]
 평온한 장면도 대화·내면·관계·분위기·결과로 전개하되 미세 행동·반복 해설로 분량을 채우지 않는다.
 
 최근 서술의 좋은 문체와 리듬은 이어받되, 이전 답변의 길이는 모방하지 않는다. 현재 길이 지시가 항상 우선한다.`;
+
+/** Common RP prose Owner — positive longform space (G11-P1). */
+export const IMMERSIVE_LONGFORM_PROSE_BLOCK = `${IMMERSIVE_LONGFORM_PROSE_MARKER}
+한 응답을 하나의 충분히 펼쳐진 소설 장면으로 쓴다.
+현재 상호작용에서 인물의 판단·행동·내면·감각·관계·환경·인과적 결과가 서로 다음 변화를 낳게 하며, 각 문단은 앞선 변화 위에 새로운 장면 가치를 더한다.
+조용한 장면은 관계의 미세한 변화, 내면, 감각, 작은 행동과 공간의 분위기를 깊게 펼치고, 움직이는 장면은 현재 인과에서 이어지는 행동·관찰·판단·결과를 구체적으로 진행한다.
+정본과 세계관은 인물의 경험·판단·행동과 장면의 구체적 결과 속에서 자연스럽게 드러낸다.`;
+
+/** Production alias — points at positive longform owner after G11-P1 REPLACE. */
+export const IMMERSIVE_PROSE_BLOCK = IMMERSIVE_LONGFORM_PROSE_BLOCK;
 
 export const PROSE_STYLE_SECTION = `[NARRATION REGISTER]
 지문·서술은 해체(-다/-했다/-이었다)만. (대사 register·존댓말은 [SPEECH METADATA]·예시 대사 — 지문에서 해설 금지)
