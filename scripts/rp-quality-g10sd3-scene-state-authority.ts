@@ -1,0 +1,737 @@
+/**
+ * Phase G10-SD3 — Scene State Authority Envelope.
+ *
+ * PRODUCTION WIRE = 0 · MERGE = 0
+ * Sole variable vs G10-SD2 Q: REPLACE SCENE_FLOW with compact [SCENE STATE]
+ * (fact authority + transition scope). Controller decision path BYTE_IDENTICAL.
+ *
+ *   PHASE=preaudit|live FIXTURES=N1S DRAWS=3 node --conditions=react-server --import tsx \
+ *     scripts/rp-quality-g10sd3-scene-state-authority.ts
+ */
+import { createHash } from "node:crypto";
+import {
+  mkdirSync,
+  writeFileSync,
+  readFileSync,
+  existsSync,
+} from "node:fs";
+import { join } from "node:path";
+import { loadEnvLocal } from "./load-env-local";
+import {
+  computeRpQualityVectorV2,
+  type SettingSource,
+} from "../src/lib/rpQualityVector";
+import {
+  applyScenePacingArmToMessages,
+  countPacingOwners,
+  renderCompactSceneStateEnvelope,
+  resolveScenePacingDecision,
+  resolveSceneStateAuthority,
+  type ScenePacingArm,
+  type ScenePacingDecision,
+} from "../src/lib/scenePacingController";
+import { USER_TAIL_LENGTH_OWNER_SENTENCE } from "../src/lib/responseLength";
+import { OPENING_TURN_USER } from "../src/lib/chatGreetingContext";
+
+loadEnvLocal();
+if (!process.env.NODE_ENV) {
+  (process.env as Record<string, string>).NODE_ENV = "development";
+}
+if (!process.env.OPENROUTER_API_KEY?.trim() && existsSync("/tmp/d6b1_or_key")) {
+  process.env.OPENROUTER_API_KEY = readFileSync("/tmp/d6b1_or_key", "utf8").trim();
+}
+
+const OUT_ROOT =
+  process.env.OUT_ROOT ??
+  "/opt/cursor/artifacts/rp-quality-g10sd3-scene-state-authority";
+const DOCS =
+  process.env.DOCS_DIR ?? "docs/audits/rp-scene-pacing-g10sd3";
+const C10 =
+  "docs/audits/rp-quality-v2-gemini/fixtures/c10_fixture.json";
+const FIX_PATH =
+  "docs/audits/rp-gemini-contextual-scene-g9a/fixtures/G9A_FIXTURES.json";
+const DRAWS = Number(process.env.DRAWS ?? "3");
+const PHASE =
+  (process.env.PHASE as "preaudit" | "live" | undefined) ??
+  (process.argv.includes("--live") ? "live" : "preaudit");
+const FIXTURE_FILTER = (process.env.FIXTURES ?? "N1S")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+function sha256(t: string) {
+  return createHash("sha256").update(t).digest("hex");
+}
+function save(dir: string, name: string, content: string | object) {
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(
+    join(dir, name),
+    typeof content === "string" ? content : JSON.stringify(content, null, 2),
+    "utf8"
+  );
+}
+function visibleChars(text: string) {
+  return text.replace(/\s+/g, "").length;
+}
+function estimateTokensFromChars(chars: number) {
+  return Math.max(1, Math.round(chars / 2));
+}
+
+type NFixture = {
+  id: string;
+  title: string;
+  role: string;
+  userInput: string;
+  historyAfterGreeting: Array<{ role: string; content: string }>;
+};
+
+function loadC10() {
+  return JSON.parse(readFileSync(C10, "utf8")) as {
+    character: Record<string, unknown>;
+    persona: Record<string, unknown>;
+    user: Record<string, unknown>;
+  };
+}
+function loadFixtures(): NFixture[] {
+  const raw = JSON.parse(readFileSync(FIX_PATH, "utf8")) as {
+    fixtures: NFixture[];
+  };
+  return raw.fixtures.filter((f) => FIXTURE_FILTER.includes(f.id));
+}
+
+type StreamState = {
+  text: string;
+  finish: string | null;
+  usage: Record<string, unknown> | null;
+  provider: string | null;
+  sawDone: boolean;
+};
+
+function processSseLine(line: string, state: StreamState): void {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith("data:")) return;
+  const data = trimmed.slice(5).trim();
+  if (!data) return;
+  if (data === "[DONE]") {
+    state.sawDone = true;
+    return;
+  }
+  let ev: Record<string, unknown>;
+  try {
+    ev = JSON.parse(data) as Record<string, unknown>;
+  } catch {
+    return;
+  }
+  if (ev.provider && typeof ev.provider === "object") {
+    const p = ev.provider as Record<string, unknown>;
+    if (typeof p.name === "string") state.provider = p.name;
+  }
+  if (typeof ev.provider === "string") state.provider = ev.provider;
+  if (ev.usage && typeof ev.usage === "object") {
+    state.usage = ev.usage as Record<string, unknown>;
+  }
+  const choices = ev.choices as Array<Record<string, unknown>> | undefined;
+  const choice0 = choices?.[0];
+  if (choice0 && typeof choice0.finish_reason === "string") {
+    state.finish = choice0.finish_reason;
+  }
+  const delta = choice0?.delta as Record<string, unknown> | undefined;
+  if (typeof delta?.content === "string") state.text += delta.content;
+  if (typeof choice0?.text === "string") state.text += choice0.text;
+}
+
+function processSseChunk(chunk: string, buf: string, state: StreamState) {
+  const combined = buf + chunk;
+  const lines = combined.split(/\r?\n/);
+  const rest = lines.pop() ?? "";
+  for (const line of lines) processSseLine(line, state);
+  return rest;
+}
+function flushRemainingSseBuffer(buf: string, state: StreamState) {
+  if (buf.trim()) processSseLine(buf, state);
+}
+function isTransportAbort(error: string | null, httpStatus: number) {
+  if (httpStatus === 0 || httpStatus >= 500) return true;
+  if (!error) return false;
+  return /abort|ECONNRESET|socket|fetch failed|network/i.test(error);
+}
+
+async function streamOpenRouter(body: Record<string, unknown>) {
+  const { OPENROUTER_CHAT_COMPLETIONS_URL, buildOpenRouterHeaders } =
+    await import("../src/lib/openRouterConfig");
+  const t0 = Date.now();
+  const state: StreamState = {
+    text: "",
+    finish: null,
+    usage: null,
+    provider: null,
+    sawDone: false,
+  };
+  try {
+    const res = await fetch(OPENROUTER_CHAT_COMPLETIONS_URL, {
+      method: "POST",
+      headers: buildOpenRouterHeaders(),
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      return {
+        http_status: res.status,
+        error: (await res.text()).slice(0, 800),
+        text: "",
+        finish_reason: null as string | null,
+        usage: null as Record<string, unknown> | null,
+        provider: null as string | null,
+        latency_s: (Date.now() - t0) / 1000,
+      };
+    }
+    if (!res.body) {
+      return {
+        http_status: res.status,
+        error: "empty body",
+        text: "",
+        finish_reason: null,
+        usage: null,
+        provider: null,
+        latency_s: (Date.now() - t0) / 1000,
+      };
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf = processSseChunk(decoder.decode(value, { stream: true }), buf, state);
+    }
+    flushRemainingSseBuffer(buf, state);
+    return {
+      http_status: res.status,
+      error: null as string | null,
+      text: state.text,
+      finish_reason: state.finish,
+      usage: state.usage,
+      provider: state.provider,
+      latency_s: (Date.now() - t0) / 1000,
+    };
+  } catch (e) {
+    return {
+      http_status: 0,
+      error: e instanceof Error ? e.message : String(e),
+      text: "",
+      finish_reason: null,
+      usage: null,
+      provider: null,
+      latency_s: (Date.now() - t0) / 1000,
+    };
+  }
+}
+
+function scoreResponseAnchorCount(text: string) {
+  const paras = text
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  let count = 0;
+  for (const p of paras) {
+    if (/^["“「『]/.test(p) || /["”」』]\s*$/.test(p)) count += 1;
+  }
+  const band =
+    count <= 1 ? "IDEAL" : count === 2 ? "ACCEPTABLE" : "OVERLOAD";
+  return { response_anchor_count: count, band };
+}
+
+function extractCanonSurface(systemText: string) {
+  const canonStart = systemText.indexOf("[CHARACTER CANON");
+  let canon = "";
+  if (canonStart >= 0) {
+    const from = systemText.slice(canonStart);
+    const cut = from.search(
+      /\n\[(?:IDENTITY_AND_RULES|USER_PERSONA|WEBNOVEL|NARRATION REGISTER|PRIVATE OUTPUT|SCENE |GEMINI )/
+    );
+    canon = cut > 0 ? from.slice(0, cut) : from.slice(0, 1200);
+  }
+  const i = systemText.indexOf("[USER_PERSONA]");
+  let persona = "";
+  if (i >= 0) {
+    const rest = systemText.slice(i);
+    const next = rest.search(/\n\[[A-Z0-9_ /—-]{3,}\]/);
+    persona = next > 0 ? rest.slice(0, next) : rest.slice(0, 600);
+  }
+  return `${canon}\n---\n${persona}`;
+}
+
+async function assembleArm(opts: {
+  modelId: string;
+  arm: ScenePacingArm;
+  fixture: NFixture;
+}) {
+  const { loadCharacterChunksForPromptReadOnly } = await import(
+    "../src/lib/characterChunks"
+  );
+  const { formatSelectedPersonaForPrompt } = await import(
+    "../src/lib/userPersonas"
+  );
+  const { buildContext } = await import("../src/services/contextBuilder");
+  const { assemblePrimaryRpRequest } = await import("../src/lib/openRouterAdult");
+  const { resolveNarrativePov } = await import("../src/lib/narrativePov");
+
+  const c10 = loadC10();
+  const ch = { ...c10.character };
+  const persona = { ...c10.persona };
+  const personaName = String(persona.name ?? "렌");
+  const { chunks } = loadCharacterChunksForPromptReadOnly(
+    {
+      id: Number(ch.id),
+      name: String(ch.name),
+      gender: String(ch.gender ?? ""),
+      system_prompt: String(ch.system_prompt ?? ""),
+      world: String(ch.world ?? ""),
+      example_dialog: String(ch.example_dialog ?? ""),
+      setting_chunks: String(ch.setting_chunks ?? ""),
+      speech_profile: String(ch.speech_profile ?? ""),
+    },
+    personaName,
+    String(c10.user.nickname ?? personaName)
+  );
+  const userPersona = formatSelectedPersonaForPrompt(
+    personaName,
+    (persona.gender as "male" | "female" | "other") ?? "other",
+    String(persona.description ?? "")
+  );
+  const narrativePov = resolveNarrativePov({
+    mode: "third_person",
+    contentKind: "character",
+    mainCharacterName: String(ch.name),
+  });
+  const greeting = String(ch.greeting ?? "");
+  const shortTermHistory = [
+    { role: "user" as const, content: OPENING_TURN_USER },
+    { role: "assistant" as const, content: greeting },
+    ...opts.fixture.historyAfterGreeting.map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    })),
+  ];
+
+  const built = buildContext({
+    charName: String(ch.name),
+    chunks,
+    userNickname: String(c10.user.nickname ?? personaName),
+    userPersona,
+    userNote: "",
+    longTermMemory: "",
+    shortTermHistory,
+    currentUserMessage: opts.fixture.userInput,
+    nsfw: !!ch.nsfw,
+    gender: (ch.gender as "male" | "female" | "other") ?? "other",
+    memoryMeta: "",
+    modelId: opts.modelId,
+    userImpersonation: false,
+    novelModeEnabled: false,
+    isContinue: false,
+    personaDisplayName: personaName,
+    targetResponseChars: 3200,
+    completedTurns: Math.max(0, shortTermHistory.length / 2 - 1),
+    provider: "openrouter",
+    contentKind: "character",
+    exampleDialog: String(ch.example_dialog ?? ""),
+    userId: Number(c10.user.id ?? 4),
+    narrativePov,
+  });
+
+  const decision: ScenePacingDecision = resolveScenePacingDecision({
+    contentKind: "character",
+    primaryCharacterName: String(ch.name),
+    currentUserMessage: opts.fixture.userInput,
+    recentMessages: shortTermHistory,
+    currentTurn: Math.max(1, Math.floor(shortTermHistory.length / 2) + 1),
+    progressionHistory: [],
+    chatId: `g10sd3-${opts.fixture.id}`,
+  });
+  const authority = resolveSceneStateAuthority(decision);
+
+  const wire = assemblePrimaryRpRequest({
+    system: built.systemPrompt,
+    history: built.history ?? [],
+    modelId: opts.modelId,
+    targetResponseChars: 3200,
+    messageOpts: {
+      transportProvider: "openrouter",
+      charName: String(ch.name),
+      personaName,
+    },
+  });
+
+  const bodyBase = {
+    ...(wire.requestBody as Record<string, unknown>),
+    stream: true,
+    stream_options: { include_usage: true },
+  };
+  const messagesBase =
+    (bodyBase.messages as Array<{ role: string; content: string }>) ?? [];
+
+  const applied = applyScenePacingArmToMessages({
+    messages: messagesBase,
+    arm: opts.arm,
+    decision,
+  });
+
+  const body = { ...bodyBase, messages: applied.messages };
+  const messages = applied.messages;
+  const lastUser = [...messages].reverse().find((m) => m.role === "user");
+  const systemText = applied.systemText;
+  const historyWithoutCurrent = messages.filter(
+    (m, idx) =>
+      m.role !== "system" && !(m.role === "user" && idx === messages.length - 1)
+  );
+  const owners = countPacingOwners(systemText);
+
+  const settingSources: SettingSource[] = [
+    {
+      bucket: "CHARACTER_CANON",
+      text: [String(ch.system_prompt ?? ""), String(ch.example_dialog ?? "")].join(
+        "\n"
+      ),
+    },
+    { bucket: "WORLD_CANON", text: String(ch.world ?? "") },
+    { bucket: "USER_PERSONA", text: String(persona.description ?? "") },
+    { bucket: "CURRENT_USER_INPUT", text: opts.fixture.userInput },
+    { bucket: "MEMORY", text: "" },
+  ];
+
+  return {
+    requestBody: body,
+    systemSha: sha256(systemText),
+    historySha: sha256(JSON.stringify(historyWithoutCurrent)),
+    userTailSha: sha256(String(lastUser?.content ?? "")),
+    canonDataSha: sha256(extractCanonSurface(systemText)),
+    systemText,
+    systemChars: systemText.length,
+    systemTokensApprox: estimateTokensFromChars(systemText.length),
+    lastUserContent: String(lastUser?.content ?? ""),
+    decision,
+    authority,
+    envelope: renderCompactSceneStateEnvelope(decision),
+    applied,
+    owners,
+    settingSources,
+    generationConfig: {
+      model: body.model ?? opts.modelId,
+      temperature: body.temperature ?? null,
+      max_tokens: body.max_tokens ?? null,
+      reasoning: body.reasoning ?? null,
+      include_reasoning: body.include_reasoning ?? null,
+      provider: body.provider ?? null,
+    },
+  };
+}
+
+async function runPreaudit(modelId: string) {
+  const fixtures = loadFixtures();
+  const n1s = fixtures.find((f) => f.id === "N1S") ?? fixtures[0]!;
+  const A = await assembleArm({ modelId, arm: "A", fixture: n1s });
+  const Q = await assembleArm({ modelId, arm: "Q", fixture: n1s });
+  const R = await assembleArm({ modelId, arm: "R", fixture: n1s });
+
+  const soleOk =
+    A.canonDataSha === R.canonDataSha &&
+    Q.canonDataSha === R.canonDataSha &&
+    A.historySha === R.historySha &&
+    A.userTailSha === R.userTailSha &&
+    JSON.stringify(A.generationConfig) === JSON.stringify(R.generationConfig) &&
+    JSON.stringify(Q.decision) === JSON.stringify(R.decision) &&
+    R.owners.scene_state === 1 &&
+    R.owners.scene_pacing === 0 &&
+    R.owners.scene_flow === 0 &&
+    R.owners.genre_scene_mode === 0 &&
+    R.owners.pacing_sot_count === 1 &&
+    Q.owners.scene_pacing === 1 &&
+    Q.owners.scene_state === 0 &&
+    Q.owners.pacing_sot_count === 1 &&
+    R.applied.replacedSceneFlow &&
+    R.decision.pacingMode === "DYAD" &&
+    R.decision.motionLevel === "HOLD" &&
+    R.authority.externalContinuity === "PRESERVE" &&
+    R.lastUserContent.includes(USER_TAIL_LENGTH_OWNER_SENTENCE) &&
+    !/괴물 만들지|위협 추가|NPC 등장 금지/.test(R.envelope);
+
+  const envelopeChars = R.envelope.length;
+  const envelopeTokensApprox = estimateTokensFromChars(envelopeChars);
+
+  const preaudit = {
+    phase: "G10-SD3-PREAUDIT",
+    latest_main: "7f0c54b60e7ace11bc6e4eea9c820caadde24853",
+    api_calls: 0,
+    sole_variable: "SCENE_FACT_AUTHORITY_AND_TRANSITION_SCOPE",
+    production_wire: "NOT_RUN",
+    reference: "G10-SD2 stored Q outputs (no redraw)",
+    CURRENT_A: {
+      system_tokens_est: A.systemTokensApprox,
+      owners: A.owners,
+    },
+    REFERENCE_Q: {
+      system_tokens_est: Q.systemTokensApprox,
+      system_chars: Q.systemChars,
+      owners: Q.owners,
+      decision: Q.decision,
+    },
+    CANDIDATE_R: {
+      system_tokens_est: R.systemTokensApprox,
+      system_chars: R.systemChars,
+      owners: R.owners,
+      decision: R.decision,
+      authority: R.authority,
+      envelope: R.envelope,
+      envelope_chars: envelopeChars,
+      envelope_tokens_approx: envelopeTokensApprox,
+      replacedSceneFlow: R.applied.replacedSceneFlow,
+      token_delta_vs_Q: R.systemTokensApprox - Q.systemTokensApprox,
+      char_delta_vs_Q: R.systemChars - Q.systemChars,
+    },
+    invariants: {
+      canon_equal: A.canonDataSha === R.canonDataSha,
+      history_equal: A.historySha === R.historySha,
+      user_tail_equal: A.userTailSha === R.userTailSha,
+      runtime_equal:
+        JSON.stringify(A.generationConfig) ===
+        JSON.stringify(R.generationConfig),
+      decision_q_r_identical:
+        JSON.stringify(Q.decision) === JSON.stringify(R.decision),
+      pacing_sot_Q: Q.owners.pacing_sot_count,
+      pacing_sot_R: R.owners.pacing_sot_count,
+      no_negative_list: !/괴물 만들지|위협 추가|NPC 등장 금지/.test(R.envelope),
+    },
+    LIVE_CALL_READY: soleOk,
+  };
+
+  save(DOCS, "00_API0.md", [
+    "# G10-SD3 API=0 — Scene State Authority Envelope",
+    "",
+    `- sole variable: SCENE_FACT_AUTHORITY_AND_TRANSITION_SCOPE`,
+    `- Q: SCENE PACING=${Q.owners.scene_pacing} SCENE FLOW=${Q.owners.scene_flow} SoT=${Q.owners.pacing_sot_count}`,
+    `- R: SCENE STATE=${R.owners.scene_state} SCENE PACING=${R.owners.scene_pacing} SCENE FLOW=${R.owners.scene_flow} SoT=${R.owners.pacing_sot_count}`,
+    `- system char delta R−Q: ${R.systemChars - Q.systemChars}`,
+    `- envelope chars/tokens≈: ${envelopeChars} / ${envelopeTokensApprox}`,
+    `- authority: ${R.authority.canonRole} / ${R.authority.externalContinuity}`,
+    `- LIVE_CALL_READY: ${soleOk ? "YES" : "NO"}`,
+    "",
+  ].join("\n"));
+  save(DOCS, "01_G10SD3_PREAUDIT.json", preaudit);
+  save(
+    DOCS,
+    "01_G10SD3_PREAUDIT.md",
+    [
+      "# G10-SD3 Preaudit — Scene State Authority",
+      "",
+      `**LIVE_CALL_READY:** ${preaudit.LIVE_CALL_READY ? "YES" : "NO"}`,
+      `**sole variable:** SCENE_FACT_AUTHORITY_AND_TRANSITION_SCOPE`,
+      "",
+      `| | Q (SD2 pacing) | R (SD3 state) |`,
+      `|---|---:|---:|`,
+      `| SCENE PACING | ${Q.owners.scene_pacing} | ${R.owners.scene_pacing} |`,
+      `| SCENE STATE | ${Q.owners.scene_state} | ${R.owners.scene_state} |`,
+      `| SCENE FLOW | ${Q.owners.scene_flow} | ${R.owners.scene_flow} |`,
+      `| SoT | ${Q.owners.pacing_sot_count} | ${R.owners.pacing_sot_count} |`,
+      `| system chars | ${Q.systemChars} | ${R.systemChars} (Δ ${R.systemChars - Q.systemChars}) |`,
+      `| decision | ${Q.decision.pacingMode}/${Q.decision.motionLevel} | ${R.decision.pacingMode}/${R.decision.motionLevel} |`,
+      `| externalContinuity | — | ${R.authority.externalContinuity} |`,
+      "",
+      "```text",
+      R.envelope,
+      "```",
+      "",
+    ].join("\n")
+  );
+  console.log(
+    JSON.stringify(
+      {
+        LIVE_CALL_READY: preaudit.LIVE_CALL_READY,
+        ownersQ: Q.owners,
+        ownersR: R.owners,
+        deltaChars: R.systemChars - Q.systemChars,
+        envelopeTokensApprox,
+        authority: R.authority,
+      },
+      null,
+      2
+    )
+  );
+  return preaudit;
+}
+
+async function runLive(modelId: string) {
+  const preaudit = await runPreaudit(modelId);
+  if (!preaudit.LIVE_CALL_READY) {
+    throw new Error("Preaudit not LIVE_CALL_READY");
+  }
+  if (!process.env.OPENROUTER_API_KEY?.trim()) {
+    throw new Error("OPENROUTER_API_KEY missing");
+  }
+
+  const {
+    normalizeAiNovelProsePreDisplay,
+    applyDisplayParagraphGrouping,
+  } = await import("../src/lib/novelParagraphs");
+  const { sanitizeStreamArtifacts } = await import("../src/lib/responseLength");
+  const { visibleAssistantDisplayText } = await import(
+    "../src/lib/chatDisplayLength"
+  );
+
+  const fixtures = loadFixtures();
+  const cells: Array<Record<string, unknown>> = [];
+  let apiCalls = 0;
+
+  for (const fixture of fixtures) {
+    const assembled = await assembleArm({ modelId, arm: "R", fixture });
+    for (let draw = 1; draw <= DRAWS; draw++) {
+      const cellId = `Gemini_${fixture.id}_R_D${draw}`;
+      console.log(
+        `\n=== ${cellId} mode=${assembled.decision.pacingMode}/${assembled.decision.motionLevel} continuity=${assembled.authority.externalContinuity} sot=${assembled.owners.pacing_sot_count} ===`
+      );
+      let resp = await streamOpenRouter(assembled.requestBody);
+      apiCalls += 1;
+      if (
+        (!resp.text || resp.error) &&
+        isTransportAbort(resp.error, resp.http_status)
+      ) {
+        console.log(`transport retry ${cellId}`);
+        resp = await streamOpenRouter(assembled.requestBody);
+        apiCalls += 1;
+      }
+      if (!resp.text || resp.error) {
+        throw new Error(
+          `${cellId} failed status=${resp.http_status} err=${resp.error}`
+        );
+      }
+
+      const preDisplay = normalizeAiNovelProsePreDisplay(
+        sanitizeStreamArtifacts(resp.text)
+      );
+      const display = applyDisplayParagraphGrouping(preDisplay);
+      const visible = visibleAssistantDisplayText(display);
+      const chars = visibleChars(visible);
+      const anchors = scoreResponseAnchorCount(resp.text);
+      const vector = computeRpQualityVectorV2({
+        text: resp.text,
+        settingSources: assembled.settingSources,
+        currentUserInput: fixture.userInput,
+      });
+
+      const row = {
+        cell_id: cellId,
+        fixture: fixture.id,
+        arm: "R",
+        draw,
+        visible_chars: chars,
+        finish_reason: resp.finish_reason,
+        provider: resp.provider,
+        latency_s: resp.latency_s,
+        dialogue_char_share: vector.composition.dialogue_char_share,
+        narration_char_share: vector.composition.narration_char_share,
+        response_anchor: anchors,
+        continuity: vector.continuity,
+        hard_alarms: vector.hard_alarms,
+        pacing: {
+          mode: assembled.decision.pacingMode,
+          motion: assembled.decision.motionLevel,
+          sot: assembled.owners.pacing_sot_count,
+        },
+        authority: assembled.authority,
+        owners: assembled.owners,
+        human_pending: true,
+      };
+      cells.push(row);
+
+      save(
+        join(DOCS, "raw"),
+        `${cellId}.md`,
+        [
+          `# ${cellId}`,
+          "",
+          `- fixture: ${fixture.id} (${fixture.title})`,
+          `- arm: R (scene state authority envelope)`,
+          `- pacing: ${assembled.decision.pacingMode} / ${assembled.decision.motionLevel}`,
+          `- externalContinuity: ${assembled.authority.externalContinuity}`,
+          `- pacing_sot: ${assembled.owners.pacing_sot_count}`,
+          `- visible_chars: ${chars}`,
+          `- dialogue_share: ${vector.composition.dialogue_char_share}`,
+          `- narration_share: ${vector.composition.narration_char_share}`,
+          `- anchors: ${anchors.response_anchor_count} (${anchors.band})`,
+          `- provider: ${resp.provider}`,
+          "",
+          "## envelope",
+          "",
+          "```text",
+          assembled.envelope,
+          "```",
+          "",
+          "## user_input",
+          "",
+          "```text",
+          fixture.userInput,
+          "```",
+          "",
+          "## visible_output",
+          "",
+          "```text",
+          visible,
+          "```",
+          "",
+        ].join("\n")
+      );
+      console.log(
+        `${cellId}: chars=${chars} dial=${vector.composition.dialogue_char_share} anchors=${anchors.response_anchor_count}`
+      );
+    }
+  }
+
+  const live = {
+    phase: "G10-SD3-STAGE1-LIVE",
+    api_calls: apiCalls,
+    target_calls: fixtures.length * DRAWS,
+    fixtures: fixtures.map((f) => f.id),
+    sole_variable: "SCENE_FACT_AUTHORITY_AND_TRANSITION_SCOPE",
+    reference: "G10-SD2 stored Q",
+    cells,
+    human_review: "PENDING",
+    n2: fixtures.some((f) => f.id === "N2") ? "INCLUDED" : "NOT_RUN",
+    production_wire: "NOT_RUN",
+    merge: "NOT_RUN",
+  };
+  save(join(DOCS, "stage1"), "01_STAGE1_LIVE.json", live);
+  console.log(
+    JSON.stringify(
+      {
+        apiCalls,
+        byFixture: fixtures.map((f) => ({
+          id: f.id,
+          R: cells
+            .filter((c) => c.fixture === f.id)
+            .map((c) => c.visible_chars),
+        })),
+      },
+      null,
+      2
+    )
+  );
+  return live;
+}
+
+async function main() {
+  mkdirSync(OUT_ROOT, { recursive: true });
+  mkdirSync(DOCS, { recursive: true });
+  const { OPENROUTER_GEMINI_31_PRO_MODEL } = await import(
+    "../src/lib/chatModels"
+  );
+  const modelId = OPENROUTER_GEMINI_31_PRO_MODEL;
+  console.log(
+    `G10SD3 phase=${PHASE} model=${modelId} fixtures=${FIXTURE_FILTER.join(",")} draws=${DRAWS}`
+  );
+  if (PHASE === "live") await runLive(modelId);
+  else await runPreaudit(modelId);
+}
+
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});
