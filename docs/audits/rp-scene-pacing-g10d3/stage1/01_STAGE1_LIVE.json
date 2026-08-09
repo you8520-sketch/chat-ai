@@ -1,0 +1,154 @@
+{
+  "phase": "G10-D3-STAGE1-LIVE",
+  "api_calls": 6,
+  "target_calls": 6,
+  "fixtures": [
+    "N1S",
+    "N2",
+    "C6"
+  ],
+  "sole_variable": "SERVER_RESOLVED_DIALOGUE_CEILING",
+  "cells": [
+    {
+      "cell_id": "Gemini_Q4_V_D1",
+      "fixture": "N1S",
+      "alias": "Q4",
+      "arm": "V",
+      "draw": 1,
+      "visible_chars": 4369,
+      "speech_blocks": 3,
+      "budget": {
+        "maxBlocks": 4,
+        "reason": "quiet_dyad",
+        "communicationDemand": "LOW"
+      },
+      "dialogue_char_share": 0.0275,
+      "narration_char_share": 0.9725,
+      "pacing": {
+        "mode": "DYAD",
+        "motion": "HOLD"
+      },
+      "provider": "Google AI Studio",
+      "latency_s": 98.838,
+      "human_pending": true
+    },
+    {
+      "cell_id": "Gemini_Q4_V_D2",
+      "fixture": "N1S",
+      "alias": "Q4",
+      "arm": "V",
+      "draw": 2,
+      "visible_chars": 1862,
+      "speech_blocks": 3,
+      "budget": {
+        "maxBlocks": 4,
+        "reason": "quiet_dyad",
+        "communicationDemand": "LOW"
+      },
+      "dialogue_char_share": 0.0424,
+      "narration_char_share": 0.9576,
+      "pacing": {
+        "mode": "DYAD",
+        "motion": "HOLD"
+      },
+      "provider": "Google AI Studio",
+      "latency_s": 56.229,
+      "human_pending": true
+    },
+    {
+      "cell_id": "Gemini_E5_V_D1",
+      "fixture": "N2",
+      "alias": "E5",
+      "arm": "V",
+      "draw": 1,
+      "visible_chars": 3572,
+      "speech_blocks": 5,
+      "budget": {
+        "maxBlocks": 5,
+        "reason": "exploration",
+        "communicationDemand": "LOW"
+      },
+      "dialogue_char_share": 0.1515,
+      "narration_char_share": 0.8485,
+      "pacing": {
+        "mode": "EXPLORATION",
+        "motion": "LOCAL"
+      },
+      "provider": "Google AI Studio",
+      "latency_s": 101.83,
+      "human_pending": true
+    },
+    {
+      "cell_id": "Gemini_E5_V_D2",
+      "fixture": "N2",
+      "alias": "E5",
+      "arm": "V",
+      "draw": 2,
+      "visible_chars": 3053,
+      "speech_blocks": 3,
+      "budget": {
+        "maxBlocks": 5,
+        "reason": "exploration",
+        "communicationDemand": "LOW"
+      },
+      "dialogue_char_share": 0.0586,
+      "narration_char_share": 0.9414,
+      "pacing": {
+        "mode": "EXPLORATION",
+        "motion": "LOCAL"
+      },
+      "provider": "Google AI Studio",
+      "latency_s": 67.776,
+      "human_pending": true
+    },
+    {
+      "cell_id": "Gemini_C6_V_D1",
+      "fixture": "C6",
+      "alias": "C6",
+      "arm": "V",
+      "draw": 1,
+      "visible_chars": 1391,
+      "speech_blocks": 5,
+      "budget": {
+        "maxBlocks": 6,
+        "reason": "communication_heavy",
+        "communicationDemand": "HIGH"
+      },
+      "dialogue_char_share": 0.1546,
+      "narration_char_share": 0.8454,
+      "pacing": {
+        "mode": "EXPLORATION",
+        "motion": "LOCAL"
+      },
+      "provider": "Google AI Studio",
+      "latency_s": 41.917,
+      "human_pending": true
+    },
+    {
+      "cell_id": "Gemini_C6_V_D2",
+      "fixture": "C6",
+      "alias": "C6",
+      "arm": "V",
+      "draw": 2,
+      "visible_chars": 4391,
+      "speech_blocks": 4,
+      "budget": {
+        "maxBlocks": 6,
+        "reason": "communication_heavy",
+        "communicationDemand": "HIGH"
+      },
+      "dialogue_char_share": 0.0574,
+      "narration_char_share": 0.9426,
+      "pacing": {
+        "mode": "EXPLORATION",
+        "motion": "LOCAL"
+      },
+      "provider": "Google AI Studio",
+      "latency_s": 116.232,
+      "human_pending": true
+    }
+  ],
+  "human_review": "PENDING",
+  "production_wire": "NOT_RUN",
+  "merge": "NOT_RUN"
+}
