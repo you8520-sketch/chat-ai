@@ -1,0 +1,101 @@
+{
+  "phase": "G10-SD2-PREAUDIT",
+  "latest_main": "7f0c54b60e7ace11bc6e4eea9c820caadde24853",
+  "api_calls": 0,
+  "sole_variable": "REMOVE_COMPETING_SCENE_FLOW_OWNER",
+  "production_wire": "NOT_RUN",
+  "reference": "G10-SD1 stored P outputs (no redraw)",
+  "CURRENT_A": {
+    "system_tokens_est": 3284,
+    "owners": {
+      "scene_pacing": 0,
+      "scene_flow": 1,
+      "genre_scene_mode": 0,
+      "pacing_sot_count": 1
+    }
+  },
+  "REFERENCE_P": {
+    "system_tokens_est": 3333,
+    "system_chars": 6665,
+    "owners": {
+      "scene_pacing": 1,
+      "scene_flow": 1,
+      "genre_scene_mode": 0,
+      "pacing_sot_count": 2
+    },
+    "decision": {
+      "pacingMode": "DYAD",
+      "motionLevel": "HOLD",
+      "sceneKind": "rest",
+      "castMode": "single_primary",
+      "intimateDyad": false,
+      "recentStagnation": false,
+      "externalCooldownActive": false,
+      "triggerActive": false,
+      "meaningfulBeatBudget": 1,
+      "carrierHints": [
+        "relationship",
+        "daily_life",
+        "environment"
+      ],
+      "primaryProgression": null,
+      "npcActionEligible": false,
+      "externalEligible": false,
+      "reasonCodes": [
+        "kind:rest",
+        "mode:DYAD",
+        "cast:single_primary",
+        "dyad_hold"
+      ]
+    }
+  },
+  "CANDIDATE_Q": {
+    "system_tokens_est": 3271,
+    "system_chars": 6541,
+    "owners": {
+      "scene_pacing": 1,
+      "scene_flow": 0,
+      "genre_scene_mode": 0,
+      "pacing_sot_count": 1
+    },
+    "decision": {
+      "pacingMode": "DYAD",
+      "motionLevel": "HOLD",
+      "sceneKind": "rest",
+      "castMode": "single_primary",
+      "intimateDyad": false,
+      "recentStagnation": false,
+      "externalCooldownActive": false,
+      "triggerActive": false,
+      "meaningfulBeatBudget": 1,
+      "carrierHints": [
+        "relationship",
+        "daily_life",
+        "environment"
+      ],
+      "primaryProgression": null,
+      "npcActionEligible": false,
+      "externalEligible": false,
+      "reasonCodes": [
+        "kind:rest",
+        "mode:DYAD",
+        "cast:single_primary",
+        "dyad_hold"
+      ]
+    },
+    "replacedSceneFlow": true,
+    "token_delta_vs_P": -62,
+    "char_delta_vs_P": -124
+  },
+  "invariants": {
+    "canon_equal": true,
+    "history_equal": true,
+    "user_tail_equal": true,
+    "runtime_equal": true,
+    "decision_p_q_identical": true,
+    "pacing_sot_P": 2,
+    "pacing_sot_Q": 1,
+    "q_le_p_chars": true
+  },
+  "LIVE_CALL_READY": true
+}
