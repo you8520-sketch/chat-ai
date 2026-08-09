@@ -1,0 +1,39 @@
+{
+  "scenario_id": "fixture_L_literary",
+  "scenario_label": "Literary / first-turn (parser-fixed short input)",
+  "kind": "literary",
+  "character_id": 18,
+  "arm": "A",
+  "model": "claude-opus-5",
+  "resolved_model": "claude-opus-5",
+  "user_input": "신입 ...맞아.나 본적있어?(갸웃)나는 렌이라고 부르면 돼.",
+  "terminal_estimated_tokens": 1134,
+  "total_visible_chars": 3225,
+  "finish_reason": "stop",
+  "saw_done": true,
+  "latency_s": 99.469,
+  "usage": {
+    "prompt_tokens": 18697,
+    "completion_tokens": 4395,
+    "total_tokens": 23092,
+    "prompt_tokens_details": {
+      "cached_tokens": 0,
+      "cache_creation_input_tokens": 17170
+    },
+    "cache_creation_input_tokens": 17170
+  },
+  "raw_hash": "1ff0420774b4c2ef68f94ce07c5456533dd6c9001f4638a3f97565bb030c0f9c",
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "metrics": {
+    "VISIBLE_CHARS": 2377,
+    "RAW_CHARS": 3225,
+    "PARAGRAPH_COUNT": 52,
+    "DIALOGUE_SHARE": 0.28217054263565894,
+    "AVG_SENTENCE_LENGTH": 27.8,
+    "FIRST_1000_CHAR_LITERARY_IMPRESSION": "“렌.”\n\n혀끝에서 한 번 굴려본 이름이 마음에 든 모양이었다. 태형은 눈을 가늘게 접으며 웃었고, 그 사이로 뾰족한 송곳니가 살짝 드러났다.\n\n“짧고 좋네. 부르기 편해. 근데 그거 코드네임이야, 아니면 그냥 이름이야?”\n\n되묻는 목소리는 심문이라기엔 지나치게 가벼웠다. 데스크 쪽에서 서류를 정리하던 직원이 흘끗 이쪽을 보다가 다시 고개를 숙였다. 익숙한 광경이라는 듯한 반응이었다. 조태형이 로비에서 처음 보는 사람을 붙잡고 노닥거리는 건 하루 이틀 있는 일이 아니었으니까.\n\n“봤냐고 물었지. 음—”\n\n태형은 팔짱을 끼고 상체를 살짝 뒤로 젖혔다. 진지하게 고민하는 척했지만 눈동자에는 여전히 장난기가 흘러넘쳤다.\n\n“솔직히 말하면 모르겠어. 근데 아까 문 열고 들어올 때 내가 왜 봤겠냐. 여기 로비 하루에 몇백 명 지나다니는데 그중에 딱 한 명한테 눈이 갔거든.”\n\n말끝을 늘이며 한 발짝 다가섰다. 향수 냄새가 옅게 스쳤다. 은은하고 달큰한, 남자가 쓰기엔 조금 의외인 종류의 향이었다.\n\n가까이 서고 나서야 태형은 자신이 왜 여기까지 걸어왔는지 이해했다. 그건 흥미 같은 것도, 얼굴이 낯설어서도 아니었다. 로비의 소음이 이상하게 뭉툭했다. 무전기 잡음, 구두 굽이 대리석을 때리는 소리, 엘리베이터 도착음, 저 끝에서 웃는 누군가의 목소리. 평소라면 전부 따로따로 귀에 박혀서 머릿속을 긁어대는 것들이었다. 그런데 지금은 한 겹 천을 덧댄 것처럼 부드러웠다. 관자놀이 안쪽에서 종일 웅웅거리던 이명도 어느새 잦아들어 있었다.\n\n십일 년 차다. 이런 감각을 모를 리 없었다.\n\n“…아하.”\n\n낮게 새어 나온 감탄에 태형이 혼자 고개를 끄덕였다. 그리고는 대뜸 손을 들어 렌의 어깨 근처, 닿지는 않을 만큼의 거리에서 허공을 툭툭 두드리는 시늉을 했다.\n\n“가이드지? 그것도 꽤 높은 급수. 아니, 이건 뭐 확인할 필요도 없나. 나 지금 귀가 되게 편해.”\n\n능글맞게 말해놓고는 정작 자기 말에 즐거워져서 웃었다. 웃을 때 귀에 박힌 검은 피어싱이 조명을 받아 작게 반짝였다"
+  },
+  "system_prompt_sha256": "8b33e41c25ef02cec6202275359ed8cfd9183cf9e76dd8143b7c767270654ea3",
+  "user_turn_terminal_slice_sha256": "05225756dc2b19abebcf7ae2d5bc01717a6a98fed4494b25108901cca90e28ca"
+}

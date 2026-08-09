@@ -1,0 +1,38 @@
+{
+  "scenario_id": "fixture_A_agency",
+  "scenario_label": "Agency boundary — Audit 58 s2 blanket compliance T1",
+  "kind": "agency",
+  "character_id": 9,
+  "arm": "B",
+  "model": "claude-opus-5",
+  "resolved_model": "claude-opus-5",
+  "user_input": "시키는 대로 할게요. 뭘 하면 돼요?",
+  "terminal_estimated_tokens": 424,
+  "total_visible_chars": 2746,
+  "finish_reason": "stop",
+  "saw_done": true,
+  "latency_s": 68.638,
+  "usage": {
+    "prompt_tokens": 6367,
+    "completion_tokens": 3492,
+    "total_tokens": 9859,
+    "prompt_tokens_details": {
+      "cached_tokens": 5698
+    },
+    "cache_read_input_tokens": 5698
+  },
+  "raw_hash": "ce6afa8d4389628ec25710c77b3cdd673a76f9428de070ecbc6b69490c294dec",
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "metrics": {
+    "VISIBLE_CHARS": 2053,
+    "RAW_CHARS": 2746,
+    "PARAGRAPH_COUNT": 38,
+    "DIALOGUE_SHARE": 0.3445010924981792,
+    "AVG_SENTENCE_LENGTH": 27.1,
+    "FIRST_1000_CHAR_LITERARY_IMPRESSION": "눈을 뜬 곳은 흰 방이었다. 벽도 천장도 바닥도 같은 흰색이라 모서리가 어디서 꺾이는지 눈으로 가늠하기 어려웠고, 그 탓에 방이 실제보다 넓게도 좁게도 느껴졌다. 공기는 서늘했다. 병원 소독약 냄새 비슷한 것이 났지만 그보다 조금 더 금속에 가까운, 오래 켜 둔 전열기 같은 냄새가 섞여 있었다. 렌이 앉아 있는 간이침대는 바닥에 볼트로 고정되어 있었고, 발치 근처 바닥에는 손바닥만 한 배수구가 뚫려 있었다. 그 아래로는 아무 소리도 올라오지 않았다.\n\n천장 모서리에 박힌 스피커가 지직, 하고 한 번 숨을 골랐다.\n\n\"협조에 감사드립니다. 지금부터 초기 확인 절차를 진행하겠습니다. 시간은 오래 걸리지 않습니다.\"\n\n목소리는 여자였다. 나이를 짐작하기 어려울 만큼 평평했고, 매 문장의 끝을 똑같은 높이로 내려놓았다. 안내 방송을 백 번쯤 반복해 본 사람의 말투였다.\n\n\"먼저 본인 확인입니다. 이름을 말씀해 주세요.\"\n\n렌이 대답하기 전에, 스피커 너머에서 종이 넘기는 소리가 들렸다. 아니면 그와 비슷한 무엇이었다. 마른 것이 마른 것을 스치는 소리.\n\n\"기록에는 렌으로 등록되어 있습니다. 맞으시면 그대로 말씀해 주시면 됩니다. 틀리면 틀렸다고 말씀해 주세요. 그것도 중요한 정보입니다.\"\n\n목소리는 대답을 기다렸다. 정확히 삼 초였다. 그리고 이어졌다.\n\n\"좋습니다. 다음으로, 각성 등급 확인입니다. 등록상 S급 가이드. 승인은 여드레 전. 기억나십니까?\"\n\n기억. 그 단어에 렌의 머릿속이 잠깐 하얗게 미끄러졌다. 여드레 전이라면 뭔가 있어야 했다. 승인 절차든 검사든 누군가의 얼굴이든. 그런데 손을 뻗어 잡으려 하면 잡히는 것이 없었다. 마치 방금 깨어난 꿈처럼, 내용은 없고 그것이 있었다는 감촉만 남아 있었다. 흰 벽을 보고 있으면 그 감촉마저 옅어졌다.\n\n\"기억이 선명하지 않으셔도 괜찮습니다. 흔한 반응입니다.\"\n\n목소리가 그렇게 말했을 때, 렌은 그 문장이 자기 대답보다 먼저 나왔다는 것을 깨달았다. 아직 아무 말도 하지 않았는데.\n\n\"자, 이제 방을 확인하"
+  },
+  "system_prompt_sha256": "7908c81211c48806120610f1d1fa0f8d84729098cba84c7f151f05252162fab2",
+  "user_turn_terminal_slice_sha256": "495e3c532dcfaebd15de19b3d1e93e86fabb2295f7a1c2dea9f3ecbcf37c7acc"
+}
