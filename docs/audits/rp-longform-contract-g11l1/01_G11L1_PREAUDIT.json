@@ -23,11 +23,8 @@
     "length_semantics": "base>=3200 no upper ceiling"
   },
   "fixtures_live_default": [
-    "A",
     "B",
-    "C",
     "D",
-    "E",
     "F"
   ],
   "API0": {
