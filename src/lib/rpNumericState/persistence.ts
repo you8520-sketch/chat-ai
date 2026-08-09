@@ -7,10 +7,10 @@
 import { createHash } from "node:crypto";
 import type Database from "better-sqlite3";
 import {
-  fingerprintNumericStateDefinition,
   NUMERIC_STATE_POLICY_VERSION,
   normalizeNumericStateDefinition,
 } from "@/lib/statusWidget/numericStateDefinition";
+import { fingerprintNumericStateDefinition } from "@/lib/statusWidget/numericStateFingerprint";
 import type { ServerMeterNumericStateDefinitionV1 } from "@/lib/statusWidget/types";
 import { reduceNumericStateProposal } from "./reducer";
 import {

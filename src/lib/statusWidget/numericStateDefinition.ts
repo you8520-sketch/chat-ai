@@ -4,7 +4,6 @@
  * Invalid definitions normalize to null so legacy characters stay unchanged.
  * No runtime RP wiring in B1-A.
  */
-import { createHash } from "node:crypto";
 import type { ServerMeterNumericStateDefinitionV1 } from "./types";
 
 export const NUMERIC_STATE_POLICY_VERSION = 1 as const;
@@ -83,22 +82,4 @@ export function normalizeNumericStateDefinition(
   if (maxDecreasePerTurn != null) out.maxDecreasePerTurn = maxDecreasePerTurn;
   if (manualEditable != null) out.manualEditable = manualEditable;
   return out;
-}
-
-/** Stable fingerprint for event audit (compact — not full definition JSON). */
-export function fingerprintNumericStateDefinition(
-  definition: ServerMeterNumericStateDefinitionV1
-): string {
-  const stable = {
-    version: definition.version,
-    mode: definition.mode,
-    min: definition.min,
-    max: definition.max,
-    initial: definition.initial,
-    integer: definition.integer,
-    maxIncreasePerTurn: definition.maxIncreasePerTurn ?? null,
-    maxDecreasePerTurn: definition.maxDecreasePerTurn ?? null,
-    manualEditable: definition.manualEditable ?? null,
-  };
-  return createHash("sha256").update(JSON.stringify(stable)).digest("hex");
 }

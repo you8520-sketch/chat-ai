@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import type { ServerMeterNumericStateDefinitionV1 } from "@/lib/statusWidget/types";
-import { fingerprintNumericStateDefinition } from "@/lib/statusWidget/numericStateDefinition";
+import { fingerprintNumericStateDefinition } from "@/lib/statusWidget/numericStateFingerprint";
 import {
   RP_NUMERIC_STATE_USES_BEGIN_IMMEDIATE,
   bootstrapNumericStateCurrent,
