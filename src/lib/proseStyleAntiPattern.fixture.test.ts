@@ -72,9 +72,12 @@ describe("prose style anti-pattern fixtures (static)", () => {
     assert.doesNotMatch(DEEPSEEK_BOTTOM_REMINDER, /중간 단계를 건너뛰지/);
   });
 
-  it("keeps speech metadata invisible + no-godmodding; reaction variety absorbed", () => {
+  it("keeps speech metadata invisible + collaborative user control; reaction variety absorbed", () => {
     assert.match(SPEECH_METADATA_INVISIBLE_RULE, /서사·지문에서 언급·설명하지 않는다/);
-    assert.match(buildNoGodmoddingBlock("A", "B", "standard"), /NO GODMODDING/);
+    const userControl = buildNoGodmoddingBlock("A", "B", "standard");
+    assert.match(userControl, /USER CONTROL — COLLABORATIVE INTERACTIVE/);
+    assert.match(userControl, /새로운 직접 대사, 중요한 선택·동의·거절/);
+    assert.doesNotMatch(userControl, /NO GODMODDING/);
     assert.equal(REACTION_VARIETY_BLOCK, "");
   });
 });

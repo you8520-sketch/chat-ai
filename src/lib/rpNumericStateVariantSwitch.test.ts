@@ -108,9 +108,28 @@ function makeDb(): Database.Database {
       is_refunded INTEGER DEFAULT 0,
       status_meta TEXT,
       deduction_slices TEXT,
+      user_message_id INTEGER,
       updated_at TEXT
     );
     CREATE TABLE bookmarks (message_id INTEGER PRIMARY KEY);
+    CREATE TABLE chat_memories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      chat_id INTEGER NOT NULL UNIQUE,
+      user_id INTEGER NOT NULL,
+      character_id INTEGER NOT NULL,
+      pinned_facts TEXT NOT NULL DEFAULT '',
+      recent_summary TEXT NOT NULL DEFAULT '',
+      archive_summary TEXT NOT NULL DEFAULT '',
+      membership_tier TEXT NOT NULL DEFAULT 'free',
+      used_chars INTEGER NOT NULL DEFAULT 0,
+      message_count INTEGER NOT NULL DEFAULT 0,
+      summarized_turn_count INTEGER NOT NULL DEFAULT 0,
+      last_compressed_at TEXT,
+      memory_reset_after_message_id INTEGER,
+      memory_epoch INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
   `);
   db.prepare(
     `INSERT INTO characters (id, total_turns, status_widget_json) VALUES (7, 10, ?)`

@@ -105,14 +105,50 @@ export function loadMemoryEligibleChatTurnsWithMessageIds(
 }
 
 export function countMemoryEligibleCompletedTurns(chatId: number): number {
-  return loadMemoryEligibleChatTurnsWithMessageIds(chatId).length;
+  return countMemoryEligibleCompletedTurnsCore(getDb(), chatId);
 }
 
 export function countMemoryEligibleCompletedTurnsCore(
   db: Database.Database,
   chatId: number
 ): number {
-  return loadMemoryEligibleChatTurnsWithMessageIdsCore(db, chatId).length;
+  const boundary = getMemorySourceBoundaryCore(db, chatId);
+  const rows = db
+    .prepare(
+      `SELECT id, role, model, user_message_id
+       FROM messages WHERE chat_id=? ORDER BY id ASC`
+    )
+    .all(chatId) as {
+    id: number;
+    role: string;
+    model: string;
+    user_message_id: number | null;
+  }[];
+  const userIds = new Set(
+    rows.filter((row) => row.role === "user").map((row) => row.id)
+  );
+  let pendingUserId: number | null = null;
+  let count = 0;
+
+  for (const row of rows) {
+    if (row.role === "user") {
+      pendingUserId = row.id;
+      continue;
+    }
+    if (row.role !== "assistant" || row.model === "greeting") continue;
+    const linkedId =
+      Number.isSafeInteger(row.user_message_id) && Number(row.user_message_id) > 0
+        ? Number(row.user_message_id)
+        : null;
+    const sourceUserId = linkedId != null && userIds.has(linkedId) ? linkedId : pendingUserId;
+    if (sourceUserId == null) continue;
+    if (isMemorySourceEligible({ sourceUserMessageId: sourceUserId, boundary })) {
+      count += 1;
+    }
+    if (pendingUserId === sourceUserId) pendingUserId = null;
+  }
+
+  return count;
 }
 
 export function resolveMemoryEligibleTurnNumberCore(

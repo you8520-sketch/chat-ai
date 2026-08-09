@@ -78,6 +78,11 @@ function makeMessagesDb(): Database.Database {
       metadata TEXT NOT NULL DEFAULT '{}',
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
+    CREATE TABLE chat_memories (
+      chat_id INTEGER PRIMARY KEY,
+      memory_reset_after_message_id INTEGER,
+      memory_epoch INTEGER NOT NULL DEFAULT 0
+    );
   `);
   ensureStatusWidgetTriggerTables(db);
   return db;

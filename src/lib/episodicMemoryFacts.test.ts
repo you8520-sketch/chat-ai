@@ -22,6 +22,13 @@ import type { ExtractedStatusFact } from "@/lib/statusWidget/types";
 function createDb(): Database.Database {
   const db = new Database(":memory:");
   ensureEpisodicMemoryFactsTable(db);
+  db.exec(`
+    CREATE TABLE chat_memories (
+      chat_id INTEGER PRIMARY KEY,
+      memory_reset_after_message_id INTEGER,
+      memory_epoch INTEGER NOT NULL DEFAULT 0
+    );
+  `);
   return db;
 }
 
@@ -366,6 +373,59 @@ describe("episodicMemoryRecallEnabled production warning", () => {
 });
 
 describe("getEpisodicMemoryForPrompt", () => {
+  it("uses reset-epoch age even when rolling memory is disabled", () => {
+    const db = createDb();
+    db.prepare(
+      `INSERT INTO chat_memories
+        (chat_id, memory_reset_after_message_id, memory_epoch) VALUES (1,100,1)`
+    ).run();
+    assert.equal(
+      persistEpisodicMemoryFactsBestEffort(db, {
+        chatId: 1,
+        characterId: 2,
+        userId: 3,
+        sourceTurn: 1,
+        sourceUserMessageId: 101,
+        facts: [validFact],
+      }),
+      1
+    );
+    const env = {
+      ...process.env,
+      NODE_ENV: "development",
+      MEMORY_FEATURE_ENABLED: "0",
+      EPISODIC_MEMORY_RECALL_ENABLED: "1",
+      EPISODIC_MEMORY_MIN_AGE_TURNS: "3",
+    } as NodeJS.ProcessEnv;
+
+    const tooYoung = getEpisodicMemoryForPrompt(
+      db,
+      {
+        chatId: 1,
+        characterId: 2,
+        userId: 3,
+        currentTurn: 2,
+        currentUserMessage: "different current message",
+      },
+      env
+    );
+    assert.equal(tooYoung.facts.length, 0);
+
+    const oldEnough = getEpisodicMemoryForPrompt(
+      db,
+      {
+        chatId: 1,
+        characterId: 2,
+        userId: 3,
+        currentTurn: 4,
+        currentUserMessage: "different current message",
+      },
+      env
+    );
+    assert.equal(oldEnough.facts.length, 1);
+    assert.equal(oldEnough.facts[0]?.source_turn, 1);
+  });
+
   it("latest fact wins for the same category subject attribute", () => {
     const db = createDb();
     persistEpisodicMemoryFactsBestEffort(db, {

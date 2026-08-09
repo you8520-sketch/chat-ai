@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 
 import { EMPTY_MEMORY_META } from "@/lib/chatMemory";
+import { ensureMemoryResetBoundaryColumns } from "@/lib/db";
 import { reconcileEpisodicMemoryFactsForGeneration } from "@/lib/episodicMemoryFacts";
 import {
   countMemoryEligibleCompletedTurnsUpToMessageId,
@@ -122,6 +123,164 @@ function addMessage(
       .run(role, content, model, userMessageId, `status:${content}`).lastInsertRowid
   );
 }
+
+describe("memory boundary lookup is fail-closed", () => {
+  it("returns the default only when the row is absent", () => {
+    const db = makeDb();
+    assert.deepEqual(getMemorySourceBoundaryCore(db, 1), {
+      resetAfterMessageId: null,
+      epoch: 0,
+    });
+  });
+
+  it("returns the persisted boundary and epoch", () => {
+    const db = makeDb();
+    db.prepare(
+      `INSERT INTO chat_memories
+        (chat_id, user_id, character_id, memory_reset_after_message_id, memory_epoch)
+       VALUES (1,10,20,500,3)`
+    ).run();
+    assert.deepEqual(getMemorySourceBoundaryCore(db, 1), {
+      resetAfterMessageId: 500,
+      epoch: 3,
+    });
+  });
+
+  it("throws when the boundary table or columns cannot be queried", () => {
+    const missingTableDb = new Database(":memory:");
+    assert.throws(
+      () => getMemorySourceBoundaryCore(missingTableDb, 1),
+      /no such table: chat_memories/
+    );
+
+    const missingColumnsDb = new Database(":memory:");
+    missingColumnsDb.exec(`CREATE TABLE chat_memories (chat_id INTEGER PRIMARY KEY)`);
+    assert.throws(
+      () => getMemorySourceBoundaryCore(missingColumnsDb, 1),
+      /no such column/
+    );
+  });
+
+  it("never lets a write guard return true when boundary lookup fails", () => {
+    const db = new Database(":memory:");
+    let returned = false;
+    assert.throws(() => {
+      returned = isMemoryWriteGuardCurrentCore(db, {
+        chatId: 1,
+        snapshot: { resetAfterMessageId: null, epoch: 0 },
+      });
+    }, /no such table: chat_memories/);
+    assert.equal(returned, false);
+  });
+});
+
+describe("A2 migration compatibility", () => {
+  it("adds nullable provenance and default epoch without changing existing rows", () => {
+    const db = new Database(":memory:");
+    db.exec(`
+      CREATE TABLE chat_memories (
+        chat_id INTEGER PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        character_id INTEGER NOT NULL
+      );
+      CREATE TABLE chat_turn_summaries (
+        id INTEGER PRIMARY KEY,
+        chat_id INTEGER NOT NULL,
+        turn_number INTEGER NOT NULL,
+        summary TEXT NOT NULL
+      );
+      CREATE TABLE episodic_memory_facts (
+        id INTEGER PRIMARY KEY,
+        chat_id INTEGER NOT NULL,
+        source_turn INTEGER NOT NULL,
+        fact_text TEXT NOT NULL
+      );
+      INSERT INTO chat_memories (chat_id, user_id, character_id) VALUES (1,10,20);
+      INSERT INTO chat_turn_summaries (id, chat_id, turn_number, summary)
+        VALUES (1,1,1,'existing summary');
+      INSERT INTO episodic_memory_facts (id, chat_id, source_turn, fact_text)
+        VALUES (1,1,1,'existing fact');
+    `);
+
+    ensureMemoryResetBoundaryColumns(db);
+    ensureMemoryResetBoundaryColumns(db);
+
+    assert.deepEqual(getMemorySourceBoundaryCore(db, 1), {
+      resetAfterMessageId: null,
+      epoch: 0,
+    });
+    assert.equal(
+      db.prepare(`SELECT COUNT(*) AS n FROM chat_turn_summaries`).get().n,
+      1
+    );
+    assert.equal(
+      db.prepare(`SELECT COUNT(*) AS n FROM episodic_memory_facts`).get().n,
+      1
+    );
+    const summary = db.prepare(`SELECT * FROM chat_turn_summaries WHERE id=1`).get();
+    const episodic = db.prepare(`SELECT * FROM episodic_memory_facts WHERE id=1`).get();
+    assert.equal(summary.source_start_user_message_id, null);
+    assert.equal(summary.source_end_user_message_id, null);
+    assert.equal(episodic.source_user_message_id, null);
+  });
+});
+
+describe("memory eligible count hot path", () => {
+  for (const turnCount of [100, 500, 1000]) {
+    it(`uses two metadata-only queries for ${turnCount} completed turns`, () => {
+      const measuredSql: string[] = [];
+      let measuring = false;
+      const db = new Database(":memory:", {
+        verbose: (sql: string) => {
+          if (measuring) measuredSql.push(sql);
+        },
+      });
+      db.exec(`
+        CREATE TABLE chat_memories (
+          chat_id INTEGER PRIMARY KEY,
+          memory_reset_after_message_id INTEGER,
+          memory_epoch INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE messages (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          chat_id INTEGER NOT NULL,
+          role TEXT NOT NULL,
+          content TEXT NOT NULL,
+          model TEXT NOT NULL DEFAULT '',
+          user_message_id INTEGER
+        );
+        INSERT INTO chat_memories
+          (chat_id, memory_reset_after_message_id, memory_epoch) VALUES (1,NULL,0);
+      `);
+      const insert = db.prepare(
+        `INSERT INTO messages
+          (chat_id, role, content, model, user_message_id) VALUES (1,?,?,?,?)`
+      );
+      db.transaction(() => {
+        for (let turn = 1; turn <= turnCount; turn += 1) {
+          const userId = Number(insert.run("user", `user ${turn}`, "", null).lastInsertRowid);
+          insert.run("assistant", `assistant ${turn}`, "model", userId);
+        }
+      })();
+
+      measuring = true;
+      const startedAt = performance.now();
+      const actual = countMemoryEligibleCompletedTurnsCore(db, 1);
+      const elapsedMs = performance.now() - startedAt;
+      measuring = false;
+
+      assert.equal(actual, turnCount);
+      assert.equal(measuredSql.length, 2);
+      assert.equal(measuredSql.some((sql) => /SELECT[^;]*content/is.test(sql)), false);
+      console.info("MEMORY_ELIGIBLE_COUNT_BENCHMARK", {
+        completed_turns: turnCount,
+        additional_query_count: measuredSql.length,
+        rows_scanned: turnCount * 2,
+        elapsed_ms: Number(elapsedMs.toFixed(3)),
+      });
+    });
+  }
+});
 
 describe("persistent memory reset boundary", () => {
   it("atomically clears persistent projections while preserving transcript and game state", () => {

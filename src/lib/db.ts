@@ -255,6 +255,22 @@ export function ensureCharacterAppearanceColumns(db: Pick<Database.Database, "pr
   addColumn("characters", "appearance_compiled_version", "INTEGER NOT NULL DEFAULT 0");
 }
 
+export function ensureMemoryResetBoundaryColumns(
+  db: Pick<Database.Database, "prepare" | "exec">
+): void {
+  const addColumn = (table: string, col: string, def: string) => {
+    const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+    if (!cols.some((c) => c.name === col)) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
+    }
+  };
+  addColumn("chat_memories", "memory_reset_after_message_id", "INTEGER");
+  addColumn("chat_memories", "memory_epoch", "INTEGER NOT NULL DEFAULT 0");
+  addColumn("chat_turn_summaries", "source_start_user_message_id", "INTEGER");
+  addColumn("chat_turn_summaries", "source_end_user_message_id", "INTEGER");
+  addColumn("episodic_memory_facts", "source_user_message_id", "INTEGER");
+}
+
 function backfillExistingUserOnboarding(db: Database.Database) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS app_meta (
@@ -435,8 +451,6 @@ function migrate(db: Database.Database) {
   addColumn("chat_turn_summaries", "promoted_by", "TEXT");
   addColumn("chat_turn_summaries", "promoted_at", "TEXT");
   addColumn("chat_turn_summaries", "inactive", "INTEGER NOT NULL DEFAULT 0");
-  addColumn("chat_turn_summaries", "source_start_user_message_id", "INTEGER");
-  addColumn("chat_turn_summaries", "source_end_user_message_id", "INTEGER");
   db.exec(`UPDATE characters SET visibility='public', moderation_status='approved' WHERE official=1 OR creator_id IS NULL`);
   db.exec(`
     CREATE TABLE IF NOT EXISTS worlds (
@@ -540,7 +554,6 @@ function migrate(db: Database.Database) {
   addColumn("status_trigger_events", "is_superseded", "INTEGER NOT NULL DEFAULT 0");
   addColumn("status_trigger_events", "superseded_at", "TEXT");
   addColumn("status_trigger_events", "superseded_reason", "TEXT");
-  addColumn("episodic_memory_facts", "source_user_message_id", "INTEGER");
   db.exec(`
     UPDATE messages
     SET updated_at = COALESCE(NULLIF(updated_at, ''), created_at, datetime('now'))
@@ -1215,8 +1228,7 @@ function migrate(db: Database.Database) {
       ON chat_memories(character_id);
   `);
   addColumn("memory_buffer", "chat_id", "INTEGER");
-  addColumn("chat_memories", "memory_reset_after_message_id", "INTEGER");
-  addColumn("chat_memories", "memory_epoch", "INTEGER NOT NULL DEFAULT 0");
+  ensureMemoryResetBoundaryColumns(db);
   addColumn("messages", "user_message_id", "INTEGER");
   addColumn("messages", "status_meta", "TEXT");
   addColumn("users", "training_consent", "INTEGER NOT NULL DEFAULT 0");

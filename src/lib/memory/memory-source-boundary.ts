@@ -29,24 +29,19 @@ export function getMemorySourceBoundaryCore(
   db: Database.Database,
   chatId: number
 ): MemorySourceBoundary {
-  try {
-    const row = db
-      .prepare(
-        `SELECT memory_reset_after_message_id, memory_epoch
-         FROM chat_memories WHERE chat_id=?`
-      )
-      .get(chatId) as
-      | { memory_reset_after_message_id: number | null; memory_epoch: number | null }
-      | undefined;
-    if (!row) return DEFAULT_BOUNDARY;
-    return {
-      resetAfterMessageId: positiveInt(row.memory_reset_after_message_id),
-      epoch: Math.max(0, Math.floor(Number(row.memory_epoch) || 0)),
-    };
-  } catch {
-    // Isolated legacy tests may intentionally create only a subset of tables.
-    return DEFAULT_BOUNDARY;
-  }
+  const row = db
+    .prepare(
+      `SELECT memory_reset_after_message_id, memory_epoch
+       FROM chat_memories WHERE chat_id=?`
+    )
+    .get(chatId) as
+    | { memory_reset_after_message_id: number | null; memory_epoch: number | null }
+    | undefined;
+  if (!row) return DEFAULT_BOUNDARY;
+  return {
+    resetAfterMessageId: positiveInt(row.memory_reset_after_message_id),
+    epoch: Math.max(0, Math.floor(Number(row.memory_epoch) || 0)),
+  };
 }
 
 export function getMemorySourceBoundary(chatId: number): MemorySourceBoundary {

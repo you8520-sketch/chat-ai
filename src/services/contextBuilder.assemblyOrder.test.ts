@@ -103,11 +103,12 @@ describe("buildContext — persona-before-prose assembly order", () => {
         sectionOrder(ids, "user-note-reference")
     );
     assert.ok(
-      sectionOrder(ids, "user-note-reference") < sectionOrder(ids, "scene-directive")
+      sectionOrder(ids, "user-note-reference") <
+        sectionOrder(ids, "rule-output-layout-recency")
     );
     assert.ok(
-      sectionOrder(ids, "scene-directive") <
-        sectionOrder(ids, "rule-output-layout-recency")
+      !ids.includes("scene-directive"),
+      "standard interactive omits the legacy SceneDirective progression owner"
     );
     assert.ok(
       sectionOrder(ids, "current-memory") <
@@ -123,7 +124,7 @@ describe("buildContext — persona-before-prose assembly order", () => {
     assert.match(split!.systemRulesBlock, /\[CHARACTER KNOWLEDGE BOUNDARY\]/);
     assert.match(built.systemPrompt, /\[CHARACTER CANON — Hero MAY KNOW/);
     assert.match(built.systemPrompt, /\[EPISODIC MEMORY - RETRIEVED FACTS\]/);
-    assert.match(built.systemPrompt, /\[이번 턴 장면 지시 - 비공개\]/);
+    assert.doesNotMatch(built.systemPrompt, /\[이번 턴 장면 지시 - 비공개\]/);
     assert.doesNotMatch(split!.characterSettingsBlock, /\[CORE IDENTITY\]/);
     assert.doesNotMatch(split!.systemRulesBlock, /<PROSE_STYLE_POLICY>/);
 

@@ -1232,12 +1232,13 @@ export async function POST(req: Request) {
     })
   );
   const summarizedTurnCount = chatMemory?.summarized_turn_count ?? 0;
-  const memoryEligibleCompletedTurns = memoryFeatureOn
-    ? countMemoryEligibleCompletedTurns(chat.id)
+  const memorySourceEligibleCompletedTurns = countMemoryEligibleCompletedTurns(chat.id);
+  const completedTurnsForMemoryCoverage = memoryFeatureOn
+    ? memorySourceEligibleCompletedTurns
     : playableTurnCount;
   const historyMinTurnFloor = resolveHistoryMinTurnFloor({
     memoryFeatureEnabled: memoryFeatureOn,
-    completedTurns: memoryEligibleCompletedTurns,
+    completedTurns: completedTurnsForMemoryCoverage,
     summarizedTurnCount,
   });
   const coverageProtectedCanonicalHistory = trimHistoryToBudget(
@@ -1347,12 +1348,12 @@ export async function POST(req: Request) {
 
   const keptEligibleRawTurnsForLorebook = Math.min(
     countPlayableHistoryTurns(trimmedHistoryForLorebook),
-    memoryEligibleCompletedTurns
+    completedTurnsForMemoryCoverage
   );
   const initialLorebookExcludeTurnStart =
     keptEligibleRawTurnsForLorebook > 0
-      ? memoryEligibleCompletedTurns - keptEligibleRawTurnsForLorebook + 1
-      : memoryEligibleCompletedTurns + 1;
+      ? completedTurnsForMemoryCoverage - keptEligibleRawTurnsForLorebook + 1
+      : completedTurnsForMemoryCoverage + 1;
   const initialMemoryInjection = await buildMemoryContextForChat({
     chatId: chat.id,
     userId: user.id,
@@ -1520,7 +1521,7 @@ export async function POST(req: Request) {
     chatId: chat.id,
     characterId: ch.id,
     userId: user.id,
-    currentTurn: playableTurnCount + 1,
+    currentTurn: memorySourceEligibleCompletedTurns + 1,
     currentUserMessage: policyUserMessage,
     recentChatText: recentChatTextForEpisodicMemory,
     longTermMemoryText: memoryFeatureOn
@@ -1881,7 +1882,7 @@ export async function POST(req: Request) {
     chatId: chat.id,
     targetResponseChars,
     completedTurns: playableTurnCount,
-    completedTurnsForMemoryCoverage: memoryEligibleCompletedTurns,
+    completedTurnsForMemoryCoverage,
     summarizedTurnCount,
     historyMinTurnFloor,
     adultHandoffRequiredTurnFloor,
@@ -1950,7 +1951,7 @@ export async function POST(req: Request) {
       initialBuild: built,
       initialMemory: initialMemoryInjection,
       initialLtmCutoff: initialLorebookExcludeTurnStart,
-      failSafeLtmCutoff: memoryEligibleCompletedTurns + 1,
+      failSafeLtmCutoff: completedTurnsForMemoryCoverage + 1,
       readCoverage: (context) => ({
         degraded: context.meta.memoryCoverage?.degraded === true,
         firstRawPlayableTurn:
@@ -2179,7 +2180,7 @@ export async function POST(req: Request) {
         initialBuild: fallbackBuilt,
         initialMemory: fallbackMemoryInjection,
         initialLtmCutoff: initialLorebookExcludeTurnStart,
-        failSafeLtmCutoff: memoryEligibleCompletedTurns + 1,
+        failSafeLtmCutoff: completedTurnsForMemoryCoverage + 1,
         readCoverage: (context) => ({
           degraded: context.meta.memoryCoverage?.degraded === true,
           firstRawPlayableTurn:
@@ -5033,7 +5034,7 @@ export async function POST(req: Request) {
               sourceTurn:
                 (userMessageId != null
                   ? resolveMemoryEligibleTurnNumberCore(db, chatRef.id, userMessageId)
-                  : null) ?? memoryEligibleCompletedTurns + 1,
+                  : null) ?? memorySourceEligibleCompletedTurns + 1,
               sourceUserMessageId: userMessageId,
               boundarySnapshot: episodicBoundarySnapshot,
               facts: extractedFactsForPersistence,
