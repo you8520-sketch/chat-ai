@@ -13,10 +13,12 @@ Sole variable: OpenRouter `google/gemini-3.1-pro-preview` (stored C1 Arm A) vs C
 
 ## Status
 
-See `00_PREAUDIT.json`:
+See `PHASE_G11_C3B_FINAL.md` and `01_LIVE.json`:
 
-- `message_hash_parity`: must be **PASS** before any paid call
-- Live requires non-empty `CHEAPER_INFERENCE_API_KEY` (cloud currently injects `OPENROUTER_API_KEY` only)
+- `message_hash_parity`: **PASS**
+- Live: **6** CI calls completed
+- classification: `ROUTE_ALIAS_LENGTH_EFFECT_NOT_SUPPORTED`
+- next: `G11-C5 FIXTURE_MATCHED_HISTORICAL_REPRODUCTION`
 
 ## Run
 

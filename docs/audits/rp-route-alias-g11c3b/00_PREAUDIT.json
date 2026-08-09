@@ -2,9 +2,9 @@
   "phase": "G11-C3B-PREAUDIT",
   "sole_variable": "ROUTE_MODEL_ALIAS_BUNDLE",
   "message_hash_parity": "PASS",
-  "LIVE_CALL_READY": false,
-  "ci_key_present": false,
-  "ci_key_blocker": "CHEAPER_INFERENCE_API_KEY missing (cloud injects OPENROUTER_API_KEY only)",
+  "LIVE_CALL_READY": true,
+  "ci_key_present": true,
+  "ci_key_blocker": null,
   "arm_A_controls": {
     "scene_pacing": 0,
     "d3_dialogue_terminal": 0,
