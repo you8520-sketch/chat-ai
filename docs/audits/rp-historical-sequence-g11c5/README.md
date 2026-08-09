@@ -21,6 +21,15 @@ Do not reopen: Scene Pacing / dialogue budget / L1 / P1 / provider / temperature
 - ONE TURN = ONE PRIMARY LLM CALL
 - production wire / merge = NOT_RUN
 
+## Status
+
+See `PHASE_G11_C5_FINAL.md` / `01_LIVE.json`:
+
+- classification: `MIXED_INCONCLUSIVE`
+- OR mean 2716 / CI mean 2958 vs historical mean 4496
+- `CONTEXT_COMPOSITION_DELTA_HIGH` on all cells (current input ≈26–36% of historical)
+- next: `G11-C6 CONTEXT_COMPOSITION_DELTA_AUDIT`
+
 ## Run
 
 ```bash

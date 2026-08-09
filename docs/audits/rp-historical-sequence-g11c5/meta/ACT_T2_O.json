@@ -1,0 +1,118 @@
+{
+  "cell_id": "ACT_T2_O",
+  "cell": "ACT_T2",
+  "domain": "action",
+  "arm": "O",
+  "route": "openrouter",
+  "requested_model": "google/gemini-3.1-pro-preview",
+  "resolved_model": "google/gemini-3.1-pro-preview",
+  "resolved_provider": "Google AI Studio",
+  "visible_chars": 2655,
+  "speech_blocks": 7,
+  "paragraphs": 26,
+  "dialogue_char_share": 0.0994,
+  "narration_char_share": 0.9006,
+  "repetition": "low",
+  "canon_padding": "low",
+  "semantic_filler": "low",
+  "agency_severe": 0,
+  "finish_reason": "stop",
+  "latency_s": 91.786,
+  "ttft_s": 77.095,
+  "usage": {
+    "input_tokens": 7771,
+    "visible_output_tokens": 7730,
+    "reasoning_tokens": 5441,
+    "total_billed_output_tokens": 13171,
+    "cost": 0.108302
+  },
+  "input_tokens": 7771,
+  "system_chars": 6906,
+  "history_chars": 6031,
+  "last_user_chars": 551,
+  "historical_input_tokens": 21862,
+  "historical_chars": 4327,
+  "input_token_ratio_vs_historical": 0.35545695727746773,
+  "CONTEXT_COMPOSITION_DELTA_HIGH": true,
+  "messages_sha256": "431650235313ee537a21046843ba0a84b1b2ef5b5cfcfd84c3aeb3e330074272",
+  "schema_differences": {
+    "model_id": {
+      "or": "google/gemini-3.1-pro-preview",
+      "ci": "gemini-3.1-pro-preview"
+    },
+    "reasoning_wire": {
+      "or": "reasoning:{effort:low} + include_reasoning:false",
+      "ci": "reasoning_effort=low (reasoning object stripped)",
+      "note": "SCHEMA_DIFFERENCE — semantic effort both low"
+    },
+    "endpoint": {
+      "or": "https://openrouter.ai/api/v1/chat/completions",
+      "ci": "https://api.cheaperinference.com/v1/chat/completions"
+    }
+  },
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "supplement": 0,
+  "repair": 0,
+  "quality_vector": {
+    "completion": {
+      "finish_reason": "stop",
+      "saw_done": null,
+      "incomplete": null
+    },
+    "length": {
+      "visible_chars_with_spaces": 3519,
+      "visible_chars_no_whitespace": 2655,
+      "provider_raw_chars": null,
+      "final_display_chars": null,
+      "length_band": "REVIEW_REQUIRED",
+      "length_ratio_vs_pair": null,
+      "finish_reason": "stop",
+      "saw_done": null,
+      "incomplete": null
+    },
+    "composition": {
+      "dialogue_chars": 264,
+      "narration_chars": 2391,
+      "dialogue_char_share": 0.0994,
+      "narration_char_share": 0.9006,
+      "dialogue_paragraph_count": 7,
+      "narration_paragraph_count": 19,
+      "dialogue_paragraph_share": 0.2692,
+      "composition_parse_uncertain": false,
+      "dialogue_heavy_review": false,
+      "strong_dialogue_dominance": false
+    },
+    "dialogue_fragmentation": {
+      "dialogue_paragraph_count": 7,
+      "speaker_run_count": 7,
+      "same_speaker_dialogue_fragments": 0,
+      "same_speaker_fragment_ratio": 0,
+      "narration_insertions_between_same_speaker_dialogue": 0,
+      "single_sentence_dialogue_paragraphs": 1,
+      "max_consecutive_short_dialogue_run": 1,
+      "speaker_split_review_required": true
+    },
+    "narration_fragmentation": {
+      "one_sentence_narration_ratio": 0.0526,
+      "consecutive_one_sentence_narration_runs": 0,
+      "max_short_narration_run": 1,
+      "avg_narration_paragraph_chars": 125.8,
+      "median_narration_paragraph_chars": 136
+    },
+    "setting_exact_overlap": {
+      "longest_common_substring_chars": 9,
+      "matching_ngram_count": 0,
+      "source_overlap_span_count": 0,
+      "hits": [],
+      "alarm_18_plus": false
+    },
+    "continuity": null,
+    "hard_alarms": [],
+    "review_flags": [
+      "SPEAKER_SPLIT_REVIEW_REQUIRED"
+    ]
+  },
+  "transport_failure": false
+}

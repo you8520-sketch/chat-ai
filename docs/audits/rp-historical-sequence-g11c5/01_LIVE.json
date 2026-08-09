@@ -1,0 +1,1121 @@
+{
+  "phase": "G11-C5-LIVE",
+  "tested_object": "HISTORICAL_SEQUENCE_BUNDLE",
+  "FULL_HISTORICAL_PAYLOAD_PARITY": "UNKNOWN",
+  "new_llm_calls": 8,
+  "historical_reference_calls": 4,
+  "length_table": {
+    "CELL": [
+      "REL_T1",
+      "REL_T2",
+      "ACT_T1",
+      "ACT_T2"
+    ],
+    "HISTORICAL_CI": [
+      4659,
+      4254,
+      4743,
+      4327
+    ],
+    "CURRENT_OR": [
+      3084,
+      2261,
+      2864,
+      2655
+    ],
+    "CURRENT_CI": [
+      1956,
+      2820,
+      2917,
+      4140
+    ]
+  },
+  "OR": {
+    "mean": 2716,
+    "median": 2760,
+    "lt_2000": 0,
+    "gte_3000": 1,
+    "gte_4000": 0,
+    "max": 3084,
+    "chars": [
+      3084,
+      2261,
+      2864,
+      2655
+    ]
+  },
+  "CI": {
+    "mean": 2958,
+    "median": 2869,
+    "lt_2000": 1,
+    "gte_3000": 1,
+    "gte_4000": 1,
+    "max": 4140,
+    "chars": [
+      1956,
+      2820,
+      2917,
+      4140
+    ]
+  },
+  "HISTORICAL": {
+    "mean": 4496,
+    "median": 4493,
+    "lt_2000": 0,
+    "gte_3000": 4,
+    "gte_4000": 4,
+    "max": 4743,
+    "chars": [
+      4659,
+      4254,
+      4743,
+      4327
+    ]
+  },
+  "input_token_comparison": {
+    "REL_T1": {
+      "historical": 17514,
+      "current_OR": 4613,
+      "current_CI": 4609,
+      "OR_ratio": 0.2633892885691447,
+      "CI_ratio": 0.26316089985154734,
+      "OR_CONTEXT_COMPOSITION_DELTA_HIGH": true,
+      "CI_CONTEXT_COMPOSITION_DELTA_HIGH": true
+    },
+    "REL_T2": {
+      "historical": 21726,
+      "current_OR": 7528,
+      "current_CI": 7528,
+      "OR_ratio": 0.3464972843597533,
+      "CI_ratio": 0.3464972843597533,
+      "OR_CONTEXT_COMPOSITION_DELTA_HIGH": true,
+      "CI_CONTEXT_COMPOSITION_DELTA_HIGH": true
+    },
+    "ACT_T1": {
+      "historical": 17536,
+      "current_OR": 4627,
+      "current_CI": 4623,
+      "OR_ratio": 0.2638572080291971,
+      "CI_ratio": 0.26362910583941607,
+      "OR_CONTEXT_COMPOSITION_DELTA_HIGH": true,
+      "CI_CONTEXT_COMPOSITION_DELTA_HIGH": true
+    },
+    "ACT_T2": {
+      "historical": 21862,
+      "current_OR": 7771,
+      "current_CI": 7765,
+      "OR_ratio": 0.35545695727746773,
+      "CI_ratio": 0.3551825084621718,
+      "OR_CONTEXT_COMPOSITION_DELTA_HIGH": true,
+      "CI_CONTEXT_COMPOSITION_DELTA_HIGH": true
+    }
+  },
+  "scene_affordance_audit": {
+    "historical_REL": {
+      "character_specific_unresolved_state": "HIGH",
+      "relationship_novelty": "HIGH",
+      "physical_interaction": "MEDIUM",
+      "spatial_movement": "MEDIUM",
+      "world_mechanics": "MEDIUM",
+      "immediate_causal_consequence": "LOW",
+      "decision_action_opportunities": "MEDIUM",
+      "environmental_response": "MEDIUM",
+      "information_discovery": "HIGH"
+    },
+    "historical_ACT": {
+      "character_specific_unresolved_state": "MEDIUM",
+      "relationship_novelty": "MEDIUM",
+      "physical_interaction": "HIGH",
+      "spatial_movement": "HIGH",
+      "world_mechanics": "HIGH",
+      "immediate_causal_consequence": "HIGH",
+      "decision_action_opportunities": "HIGH",
+      "environmental_response": "HIGH",
+      "information_discovery": "MEDIUM"
+    },
+    "B": {
+      "character_specific_unresolved_state": "MEDIUM",
+      "relationship_novelty": "MEDIUM",
+      "physical_interaction": "LOW",
+      "spatial_movement": "LOW",
+      "world_mechanics": "LOW",
+      "immediate_causal_consequence": "LOW",
+      "decision_action_opportunities": "LOW",
+      "environmental_response": "LOW",
+      "information_discovery": "MEDIUM"
+    },
+    "D": {
+      "character_specific_unresolved_state": "MEDIUM",
+      "relationship_novelty": "LOW",
+      "physical_interaction": "HIGH",
+      "spatial_movement": "HIGH",
+      "world_mechanics": "HIGH",
+      "immediate_causal_consequence": "HIGH",
+      "decision_action_opportunities": "HIGH",
+      "environmental_response": "HIGH",
+      "information_discovery": "MEDIUM"
+    },
+    "F": {
+      "character_specific_unresolved_state": "MEDIUM",
+      "relationship_novelty": "HIGH",
+      "physical_interaction": "MEDIUM",
+      "spatial_movement": "LOW",
+      "world_mechanics": "LOW",
+      "immediate_causal_consequence": "LOW",
+      "decision_action_opportunities": "LOW",
+      "environmental_response": "LOW",
+      "information_discovery": "LOW"
+    }
+  },
+  "cells": [
+    {
+      "cell_id": "REL_T1_O",
+      "cell": "REL_T1",
+      "domain": "relationship",
+      "arm": "O",
+      "route": "openrouter",
+      "requested_model": "google/gemini-3.1-pro-preview",
+      "resolved_model": "google/gemini-3.1-pro-preview",
+      "resolved_provider": "Google AI Studio",
+      "visible_chars": 3084,
+      "speech_blocks": 9,
+      "paragraphs": 27,
+      "dialogue_char_share": 0.1725,
+      "narration_char_share": 0.8275,
+      "repetition": "low",
+      "canon_padding": "low",
+      "semantic_filler": "low",
+      "agency_severe": 0,
+      "finish_reason": "stop",
+      "latency_s": 84.894,
+      "ttft_s": 57.019,
+      "usage": {
+        "input_tokens": 4613,
+        "visible_output_tokens": 6075,
+        "reasoning_tokens": 3532,
+        "total_billed_output_tokens": 9607,
+        "cost": 0.082126
+      },
+      "input_tokens": 4613,
+      "system_chars": 6906,
+      "history_chars": 1182,
+      "last_user_chars": 567,
+      "historical_input_tokens": 17514,
+      "historical_chars": 4659,
+      "input_token_ratio_vs_historical": 0.2633892885691447,
+      "CONTEXT_COMPOSITION_DELTA_HIGH": true,
+      "messages_sha256": "f3dfb336e8cdf97fdd4d6436e3650aa451801e4e36fe8565dbf7fd70796905b2",
+      "schema_differences": {
+        "model_id": {
+          "or": "google/gemini-3.1-pro-preview",
+          "ci": "gemini-3.1-pro-preview"
+        },
+        "reasoning_wire": {
+          "or": "reasoning:{effort:low} + include_reasoning:false",
+          "ci": "reasoning_effort=low (reasoning object stripped)",
+          "note": "SCHEMA_DIFFERENCE — semantic effort both low"
+        },
+        "endpoint": {
+          "or": "https://openrouter.ai/api/v1/chat/completions",
+          "ci": "https://api.cheaperinference.com/v1/chat/completions"
+        }
+      },
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "supplement": 0,
+      "repair": 0,
+      "quality_vector": {
+        "completion": {
+          "finish_reason": "stop",
+          "saw_done": null,
+          "incomplete": null
+        },
+        "length": {
+          "visible_chars_with_spaces": 4107,
+          "visible_chars_no_whitespace": 3084,
+          "provider_raw_chars": null,
+          "final_display_chars": null,
+          "length_band": "SOFT_ACCEPT",
+          "length_ratio_vs_pair": null,
+          "finish_reason": "stop",
+          "saw_done": null,
+          "incomplete": null
+        },
+        "composition": {
+          "dialogue_chars": 532,
+          "narration_chars": 2552,
+          "dialogue_char_share": 0.1725,
+          "narration_char_share": 0.8275,
+          "dialogue_paragraph_count": 9,
+          "narration_paragraph_count": 18,
+          "dialogue_paragraph_share": 0.3333,
+          "composition_parse_uncertain": false,
+          "dialogue_heavy_review": false,
+          "strong_dialogue_dominance": false
+        },
+        "dialogue_fragmentation": {
+          "dialogue_paragraph_count": 9,
+          "speaker_run_count": 8,
+          "same_speaker_dialogue_fragments": 2,
+          "same_speaker_fragment_ratio": 0.2222,
+          "narration_insertions_between_same_speaker_dialogue": 1,
+          "single_sentence_dialogue_paragraphs": 1,
+          "max_consecutive_short_dialogue_run": 1,
+          "speaker_split_review_required": true
+        },
+        "narration_fragmentation": {
+          "one_sentence_narration_ratio": 0.0556,
+          "consecutive_one_sentence_narration_runs": 0,
+          "max_short_narration_run": 1,
+          "avg_narration_paragraph_chars": 141.8,
+          "median_narration_paragraph_chars": 133.5
+        },
+        "setting_exact_overlap": {
+          "longest_common_substring_chars": 9,
+          "matching_ngram_count": 0,
+          "source_overlap_span_count": 0,
+          "hits": [],
+          "alarm_18_plus": false
+        },
+        "continuity": null,
+        "hard_alarms": [],
+        "review_flags": [
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ]
+      },
+      "transport_failure": false
+    },
+    {
+      "cell_id": "REL_T1_C",
+      "cell": "REL_T1",
+      "domain": "relationship",
+      "arm": "C",
+      "route": "cheaperinference",
+      "requested_model": "gemini-3.1-pro-preview",
+      "resolved_model": "gemini-3.1-pro-preview",
+      "resolved_provider": "cheaperinference",
+      "visible_chars": 1956,
+      "speech_blocks": 7,
+      "paragraphs": 19,
+      "dialogue_char_share": 0.2076,
+      "narration_char_share": 0.7924,
+      "repetition": "low",
+      "canon_padding": "low",
+      "semantic_filler": "low",
+      "agency_severe": 0,
+      "finish_reason": "stop",
+      "latency_s": 42.612,
+      "ttft_s": 26.947,
+      "usage": {
+        "input_tokens": 4609,
+        "visible_output_tokens": 3976,
+        "reasoning_tokens": null,
+        "total_billed_output_tokens": 3976,
+        "cost": 0.035012
+      },
+      "input_tokens": 4609,
+      "system_chars": 6906,
+      "history_chars": 1182,
+      "last_user_chars": 567,
+      "historical_input_tokens": 17514,
+      "historical_chars": 4659,
+      "input_token_ratio_vs_historical": 0.26316089985154734,
+      "CONTEXT_COMPOSITION_DELTA_HIGH": true,
+      "messages_sha256": "f3dfb336e8cdf97fdd4d6436e3650aa451801e4e36fe8565dbf7fd70796905b2",
+      "schema_differences": {
+        "model_id": {
+          "or": "google/gemini-3.1-pro-preview",
+          "ci": "gemini-3.1-pro-preview"
+        },
+        "reasoning_wire": {
+          "or": "reasoning:{effort:low} + include_reasoning:false",
+          "ci": "reasoning_effort=low (reasoning object stripped)",
+          "note": "SCHEMA_DIFFERENCE — semantic effort both low"
+        },
+        "endpoint": {
+          "or": "https://openrouter.ai/api/v1/chat/completions",
+          "ci": "https://api.cheaperinference.com/v1/chat/completions"
+        }
+      },
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "supplement": 0,
+      "repair": 0,
+      "quality_vector": {
+        "completion": {
+          "finish_reason": "stop",
+          "saw_done": null,
+          "incomplete": null
+        },
+        "length": {
+          "visible_chars_with_spaces": 2615,
+          "visible_chars_no_whitespace": 1956,
+          "provider_raw_chars": null,
+          "final_display_chars": null,
+          "length_band": "STRONG_LENGTH_REGRESSION",
+          "length_ratio_vs_pair": null,
+          "finish_reason": "stop",
+          "saw_done": null,
+          "incomplete": null
+        },
+        "composition": {
+          "dialogue_chars": 406,
+          "narration_chars": 1550,
+          "dialogue_char_share": 0.2076,
+          "narration_char_share": 0.7924,
+          "dialogue_paragraph_count": 7,
+          "narration_paragraph_count": 12,
+          "dialogue_paragraph_share": 0.3684,
+          "composition_parse_uncertain": false,
+          "dialogue_heavy_review": false,
+          "strong_dialogue_dominance": false
+        },
+        "dialogue_fragmentation": {
+          "dialogue_paragraph_count": 7,
+          "speaker_run_count": 5,
+          "same_speaker_dialogue_fragments": 4,
+          "same_speaker_fragment_ratio": 0.5714,
+          "narration_insertions_between_same_speaker_dialogue": 2,
+          "single_sentence_dialogue_paragraphs": 0,
+          "max_consecutive_short_dialogue_run": 0,
+          "speaker_split_review_required": true
+        },
+        "narration_fragmentation": {
+          "one_sentence_narration_ratio": 0.0833,
+          "consecutive_one_sentence_narration_runs": 0,
+          "max_short_narration_run": 1,
+          "avg_narration_paragraph_chars": 129.2,
+          "median_narration_paragraph_chars": 138.5
+        },
+        "setting_exact_overlap": {
+          "longest_common_substring_chars": 9,
+          "matching_ngram_count": 0,
+          "source_overlap_span_count": 0,
+          "hits": [],
+          "alarm_18_plus": false
+        },
+        "continuity": null,
+        "hard_alarms": [],
+        "review_flags": [
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ]
+      },
+      "transport_failure": false
+    },
+    {
+      "cell_id": "REL_T2_O",
+      "cell": "REL_T2",
+      "domain": "relationship",
+      "arm": "O",
+      "route": "openrouter",
+      "requested_model": "google/gemini-3.1-pro-preview",
+      "resolved_model": "google/gemini-3.1-pro-preview",
+      "resolved_provider": "Google",
+      "visible_chars": 2261,
+      "speech_blocks": 7,
+      "paragraphs": 19,
+      "dialogue_char_share": 0.1973,
+      "narration_char_share": 0.8027,
+      "repetition": "low",
+      "canon_padding": "low",
+      "semantic_filler": "low",
+      "agency_severe": 0,
+      "finish_reason": "stop",
+      "latency_s": 34.833,
+      "ttft_s": 16.06,
+      "usage": {
+        "input_tokens": 7528,
+        "visible_output_tokens": 3456,
+        "reasoning_tokens": 1572,
+        "total_billed_output_tokens": 5028,
+        "cost": 0.056528
+      },
+      "input_tokens": 7528,
+      "system_chars": 6906,
+      "history_chars": 5922,
+      "last_user_chars": 507,
+      "historical_input_tokens": 21726,
+      "historical_chars": 4254,
+      "input_token_ratio_vs_historical": 0.3464972843597533,
+      "CONTEXT_COMPOSITION_DELTA_HIGH": true,
+      "messages_sha256": "14b0d804ad22a1d5c49a98024fc769c8ad7bf01eff84e842e4c989711727f0bd",
+      "schema_differences": {
+        "model_id": {
+          "or": "google/gemini-3.1-pro-preview",
+          "ci": "gemini-3.1-pro-preview"
+        },
+        "reasoning_wire": {
+          "or": "reasoning:{effort:low} + include_reasoning:false",
+          "ci": "reasoning_effort=low (reasoning object stripped)",
+          "note": "SCHEMA_DIFFERENCE — semantic effort both low"
+        },
+        "endpoint": {
+          "or": "https://openrouter.ai/api/v1/chat/completions",
+          "ci": "https://api.cheaperinference.com/v1/chat/completions"
+        }
+      },
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "supplement": 0,
+      "repair": 0,
+      "quality_vector": {
+        "completion": {
+          "finish_reason": "stop",
+          "saw_done": null,
+          "incomplete": null
+        },
+        "length": {
+          "visible_chars_with_spaces": 3030,
+          "visible_chars_no_whitespace": 2261,
+          "provider_raw_chars": null,
+          "final_display_chars": null,
+          "length_band": "STRONG_LENGTH_REGRESSION",
+          "length_ratio_vs_pair": null,
+          "finish_reason": "stop",
+          "saw_done": null,
+          "incomplete": null
+        },
+        "composition": {
+          "dialogue_chars": 446,
+          "narration_chars": 1815,
+          "dialogue_char_share": 0.1973,
+          "narration_char_share": 0.8027,
+          "dialogue_paragraph_count": 7,
+          "narration_paragraph_count": 12,
+          "dialogue_paragraph_share": 0.3684,
+          "composition_parse_uncertain": false,
+          "dialogue_heavy_review": false,
+          "strong_dialogue_dominance": false
+        },
+        "dialogue_fragmentation": {
+          "dialogue_paragraph_count": 7,
+          "speaker_run_count": 7,
+          "same_speaker_dialogue_fragments": 0,
+          "same_speaker_fragment_ratio": 0,
+          "narration_insertions_between_same_speaker_dialogue": 0,
+          "single_sentence_dialogue_paragraphs": 1,
+          "max_consecutive_short_dialogue_run": 1,
+          "speaker_split_review_required": true
+        },
+        "narration_fragmentation": {
+          "one_sentence_narration_ratio": 0,
+          "consecutive_one_sentence_narration_runs": 0,
+          "max_short_narration_run": 0,
+          "avg_narration_paragraph_chars": 151.3,
+          "median_narration_paragraph_chars": 158.5
+        },
+        "setting_exact_overlap": {
+          "longest_common_substring_chars": 14,
+          "matching_ngram_count": 3,
+          "source_overlap_span_count": 0,
+          "hits": [],
+          "alarm_18_plus": false
+        },
+        "continuity": null,
+        "hard_alarms": [],
+        "review_flags": [
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ]
+      },
+      "transport_failure": false
+    },
+    {
+      "cell_id": "REL_T2_C",
+      "cell": "REL_T2",
+      "domain": "relationship",
+      "arm": "C",
+      "route": "cheaperinference",
+      "requested_model": "gemini-3.1-pro-preview",
+      "resolved_model": "gemini-3.1-pro-preview",
+      "resolved_provider": "cheaperinference",
+      "visible_chars": 2820,
+      "speech_blocks": 10,
+      "paragraphs": 28,
+      "dialogue_char_share": 0.2301,
+      "narration_char_share": 0.7699,
+      "repetition": "low",
+      "canon_padding": "low",
+      "semantic_filler": "low",
+      "agency_severe": 0,
+      "finish_reason": "stop",
+      "latency_s": 60.255,
+      "ttft_s": 37.613,
+      "usage": {
+        "input_tokens": 7528,
+        "visible_output_tokens": 5712,
+        "reasoning_tokens": null,
+        "total_billed_output_tokens": 5712,
+        "cost": 0.050616
+      },
+      "input_tokens": 7528,
+      "system_chars": 6906,
+      "history_chars": 5922,
+      "last_user_chars": 507,
+      "historical_input_tokens": 21726,
+      "historical_chars": 4254,
+      "input_token_ratio_vs_historical": 0.3464972843597533,
+      "CONTEXT_COMPOSITION_DELTA_HIGH": true,
+      "messages_sha256": "14b0d804ad22a1d5c49a98024fc769c8ad7bf01eff84e842e4c989711727f0bd",
+      "schema_differences": {
+        "model_id": {
+          "or": "google/gemini-3.1-pro-preview",
+          "ci": "gemini-3.1-pro-preview"
+        },
+        "reasoning_wire": {
+          "or": "reasoning:{effort:low} + include_reasoning:false",
+          "ci": "reasoning_effort=low (reasoning object stripped)",
+          "note": "SCHEMA_DIFFERENCE — semantic effort both low"
+        },
+        "endpoint": {
+          "or": "https://openrouter.ai/api/v1/chat/completions",
+          "ci": "https://api.cheaperinference.com/v1/chat/completions"
+        }
+      },
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "supplement": 0,
+      "repair": 0,
+      "quality_vector": {
+        "completion": {
+          "finish_reason": "stop",
+          "saw_done": null,
+          "incomplete": null
+        },
+        "length": {
+          "visible_chars_with_spaces": 3790,
+          "visible_chars_no_whitespace": 2820,
+          "provider_raw_chars": null,
+          "final_display_chars": null,
+          "length_band": "SOFT_ACCEPT",
+          "length_ratio_vs_pair": null,
+          "finish_reason": "stop",
+          "saw_done": null,
+          "incomplete": null
+        },
+        "composition": {
+          "dialogue_chars": 649,
+          "narration_chars": 2171,
+          "dialogue_char_share": 0.2301,
+          "narration_char_share": 0.7699,
+          "dialogue_paragraph_count": 10,
+          "narration_paragraph_count": 18,
+          "dialogue_paragraph_share": 0.3571,
+          "composition_parse_uncertain": false,
+          "dialogue_heavy_review": false,
+          "strong_dialogue_dominance": false
+        },
+        "dialogue_fragmentation": {
+          "dialogue_paragraph_count": 10,
+          "speaker_run_count": 7,
+          "same_speaker_dialogue_fragments": 6,
+          "same_speaker_fragment_ratio": 0.6,
+          "narration_insertions_between_same_speaker_dialogue": 3,
+          "single_sentence_dialogue_paragraphs": 4,
+          "max_consecutive_short_dialogue_run": 1,
+          "speaker_split_review_required": true
+        },
+        "narration_fragmentation": {
+          "one_sentence_narration_ratio": 0.1667,
+          "consecutive_one_sentence_narration_runs": 0,
+          "max_short_narration_run": 1,
+          "avg_narration_paragraph_chars": 120.6,
+          "median_narration_paragraph_chars": 120.5
+        },
+        "setting_exact_overlap": {
+          "longest_common_substring_chars": 9,
+          "matching_ngram_count": 0,
+          "source_overlap_span_count": 0,
+          "hits": [],
+          "alarm_18_plus": false
+        },
+        "continuity": null,
+        "hard_alarms": [],
+        "review_flags": [
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ]
+      },
+      "transport_failure": false
+    },
+    {
+      "cell_id": "ACT_T1_O",
+      "cell": "ACT_T1",
+      "domain": "action",
+      "arm": "O",
+      "route": "openrouter",
+      "requested_model": "google/gemini-3.1-pro-preview",
+      "resolved_model": "google/gemini-3.1-pro-preview",
+      "resolved_provider": "Google AI Studio",
+      "visible_chars": 2864,
+      "speech_blocks": 5,
+      "paragraphs": 30,
+      "dialogue_char_share": 0.0793,
+      "narration_char_share": 0.9207,
+      "repetition": "low",
+      "canon_padding": "low",
+      "semantic_filler": "low",
+      "agency_severe": 0,
+      "finish_reason": "stop",
+      "latency_s": 56.37,
+      "ttft_s": 36.595,
+      "usage": {
+        "input_tokens": 4627,
+        "visible_output_tokens": 4917,
+        "reasoning_tokens": 2476,
+        "total_billed_output_tokens": 7393,
+        "cost": 0.068258
+      },
+      "input_tokens": 4627,
+      "system_chars": 6906,
+      "history_chars": 1182,
+      "last_user_chars": 593,
+      "historical_input_tokens": 17536,
+      "historical_chars": 4743,
+      "input_token_ratio_vs_historical": 0.2638572080291971,
+      "CONTEXT_COMPOSITION_DELTA_HIGH": true,
+      "messages_sha256": "5b6331f9f11ea8295db9ef8cb9a4b9711f41fae402442b376bd6ec22ef8e548f",
+      "schema_differences": {
+        "model_id": {
+          "or": "google/gemini-3.1-pro-preview",
+          "ci": "gemini-3.1-pro-preview"
+        },
+        "reasoning_wire": {
+          "or": "reasoning:{effort:low} + include_reasoning:false",
+          "ci": "reasoning_effort=low (reasoning object stripped)",
+          "note": "SCHEMA_DIFFERENCE — semantic effort both low"
+        },
+        "endpoint": {
+          "or": "https://openrouter.ai/api/v1/chat/completions",
+          "ci": "https://api.cheaperinference.com/v1/chat/completions"
+        }
+      },
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "supplement": 0,
+      "repair": 0,
+      "quality_vector": {
+        "completion": {
+          "finish_reason": "stop",
+          "saw_done": null,
+          "incomplete": null
+        },
+        "length": {
+          "visible_chars_with_spaces": 3833,
+          "visible_chars_no_whitespace": 2864,
+          "provider_raw_chars": null,
+          "final_display_chars": null,
+          "length_band": "SOFT_ACCEPT",
+          "length_ratio_vs_pair": null,
+          "finish_reason": "stop",
+          "saw_done": null,
+          "incomplete": null
+        },
+        "composition": {
+          "dialogue_chars": 227,
+          "narration_chars": 2637,
+          "dialogue_char_share": 0.0793,
+          "narration_char_share": 0.9207,
+          "dialogue_paragraph_count": 5,
+          "narration_paragraph_count": 25,
+          "dialogue_paragraph_share": 0.1667,
+          "composition_parse_uncertain": false,
+          "dialogue_heavy_review": false,
+          "strong_dialogue_dominance": false
+        },
+        "dialogue_fragmentation": {
+          "dialogue_paragraph_count": 5,
+          "speaker_run_count": 5,
+          "same_speaker_dialogue_fragments": 0,
+          "same_speaker_fragment_ratio": 0,
+          "narration_insertions_between_same_speaker_dialogue": 0,
+          "single_sentence_dialogue_paragraphs": 1,
+          "max_consecutive_short_dialogue_run": 1,
+          "speaker_split_review_required": true
+        },
+        "narration_fragmentation": {
+          "one_sentence_narration_ratio": 0.32,
+          "consecutive_one_sentence_narration_runs": 1,
+          "max_short_narration_run": 2,
+          "avg_narration_paragraph_chars": 105.5,
+          "median_narration_paragraph_chars": 108
+        },
+        "setting_exact_overlap": {
+          "longest_common_substring_chars": 9,
+          "matching_ngram_count": 0,
+          "source_overlap_span_count": 0,
+          "hits": [],
+          "alarm_18_plus": false
+        },
+        "continuity": null,
+        "hard_alarms": [],
+        "review_flags": [
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ]
+      },
+      "transport_failure": false
+    },
+    {
+      "cell_id": "ACT_T1_C",
+      "cell": "ACT_T1",
+      "domain": "action",
+      "arm": "C",
+      "route": "cheaperinference",
+      "requested_model": "gemini-3.1-pro-preview",
+      "resolved_model": "gemini-3.1-pro-preview",
+      "resolved_provider": "cheaperinference",
+      "visible_chars": 2917,
+      "speech_blocks": 4,
+      "paragraphs": 14,
+      "dialogue_char_share": 0.0494,
+      "narration_char_share": 0.9506,
+      "repetition": "low",
+      "canon_padding": "low",
+      "semantic_filler": "low",
+      "agency_severe": 0,
+      "finish_reason": "stop",
+      "latency_s": 108.329,
+      "ttft_s": 94.591,
+      "usage": {
+        "input_tokens": 4623,
+        "visible_output_tokens": 14258,
+        "reasoning_tokens": null,
+        "total_billed_output_tokens": 14258,
+        "cost": 0.121651
+      },
+      "input_tokens": 4623,
+      "system_chars": 6906,
+      "history_chars": 1182,
+      "last_user_chars": 593,
+      "historical_input_tokens": 17536,
+      "historical_chars": 4743,
+      "input_token_ratio_vs_historical": 0.26362910583941607,
+      "CONTEXT_COMPOSITION_DELTA_HIGH": true,
+      "messages_sha256": "5b6331f9f11ea8295db9ef8cb9a4b9711f41fae402442b376bd6ec22ef8e548f",
+      "schema_differences": {
+        "model_id": {
+          "or": "google/gemini-3.1-pro-preview",
+          "ci": "gemini-3.1-pro-preview"
+        },
+        "reasoning_wire": {
+          "or": "reasoning:{effort:low} + include_reasoning:false",
+          "ci": "reasoning_effort=low (reasoning object stripped)",
+          "note": "SCHEMA_DIFFERENCE — semantic effort both low"
+        },
+        "endpoint": {
+          "or": "https://openrouter.ai/api/v1/chat/completions",
+          "ci": "https://api.cheaperinference.com/v1/chat/completions"
+        }
+      },
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "supplement": 0,
+      "repair": 0,
+      "quality_vector": {
+        "completion": {
+          "finish_reason": "stop",
+          "saw_done": null,
+          "incomplete": null
+        },
+        "length": {
+          "visible_chars_with_spaces": 3855,
+          "visible_chars_no_whitespace": 2917,
+          "provider_raw_chars": null,
+          "final_display_chars": null,
+          "length_band": "SOFT_ACCEPT",
+          "length_ratio_vs_pair": null,
+          "finish_reason": "stop",
+          "saw_done": null,
+          "incomplete": null
+        },
+        "composition": {
+          "dialogue_chars": 144,
+          "narration_chars": 2773,
+          "dialogue_char_share": 0.0494,
+          "narration_char_share": 0.9506,
+          "dialogue_paragraph_count": 4,
+          "narration_paragraph_count": 10,
+          "dialogue_paragraph_share": 0.2857,
+          "composition_parse_uncertain": false,
+          "dialogue_heavy_review": false,
+          "strong_dialogue_dominance": false
+        },
+        "dialogue_fragmentation": {
+          "dialogue_paragraph_count": 4,
+          "speaker_run_count": 2,
+          "same_speaker_dialogue_fragments": 4,
+          "same_speaker_fragment_ratio": 1,
+          "narration_insertions_between_same_speaker_dialogue": 1,
+          "single_sentence_dialogue_paragraphs": 1,
+          "max_consecutive_short_dialogue_run": 1,
+          "speaker_split_review_required": true
+        },
+        "narration_fragmentation": {
+          "one_sentence_narration_ratio": 0,
+          "consecutive_one_sentence_narration_runs": 0,
+          "max_short_narration_run": 0,
+          "avg_narration_paragraph_chars": 277.3,
+          "median_narration_paragraph_chars": 318.5
+        },
+        "setting_exact_overlap": {
+          "longest_common_substring_chars": 9,
+          "matching_ngram_count": 0,
+          "source_overlap_span_count": 0,
+          "hits": [],
+          "alarm_18_plus": false
+        },
+        "continuity": null,
+        "hard_alarms": [],
+        "review_flags": [
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ]
+      },
+      "transport_failure": false
+    },
+    {
+      "cell_id": "ACT_T2_O",
+      "cell": "ACT_T2",
+      "domain": "action",
+      "arm": "O",
+      "route": "openrouter",
+      "requested_model": "google/gemini-3.1-pro-preview",
+      "resolved_model": "google/gemini-3.1-pro-preview",
+      "resolved_provider": "Google AI Studio",
+      "visible_chars": 2655,
+      "speech_blocks": 7,
+      "paragraphs": 26,
+      "dialogue_char_share": 0.0994,
+      "narration_char_share": 0.9006,
+      "repetition": "low",
+      "canon_padding": "low",
+      "semantic_filler": "low",
+      "agency_severe": 0,
+      "finish_reason": "stop",
+      "latency_s": 91.786,
+      "ttft_s": 77.095,
+      "usage": {
+        "input_tokens": 7771,
+        "visible_output_tokens": 7730,
+        "reasoning_tokens": 5441,
+        "total_billed_output_tokens": 13171,
+        "cost": 0.108302
+      },
+      "input_tokens": 7771,
+      "system_chars": 6906,
+      "history_chars": 6031,
+      "last_user_chars": 551,
+      "historical_input_tokens": 21862,
+      "historical_chars": 4327,
+      "input_token_ratio_vs_historical": 0.35545695727746773,
+      "CONTEXT_COMPOSITION_DELTA_HIGH": true,
+      "messages_sha256": "431650235313ee537a21046843ba0a84b1b2ef5b5cfcfd84c3aeb3e330074272",
+      "schema_differences": {
+        "model_id": {
+          "or": "google/gemini-3.1-pro-preview",
+          "ci": "gemini-3.1-pro-preview"
+        },
+        "reasoning_wire": {
+          "or": "reasoning:{effort:low} + include_reasoning:false",
+          "ci": "reasoning_effort=low (reasoning object stripped)",
+          "note": "SCHEMA_DIFFERENCE — semantic effort both low"
+        },
+        "endpoint": {
+          "or": "https://openrouter.ai/api/v1/chat/completions",
+          "ci": "https://api.cheaperinference.com/v1/chat/completions"
+        }
+      },
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "supplement": 0,
+      "repair": 0,
+      "quality_vector": {
+        "completion": {
+          "finish_reason": "stop",
+          "saw_done": null,
+          "incomplete": null
+        },
+        "length": {
+          "visible_chars_with_spaces": 3519,
+          "visible_chars_no_whitespace": 2655,
+          "provider_raw_chars": null,
+          "final_display_chars": null,
+          "length_band": "REVIEW_REQUIRED",
+          "length_ratio_vs_pair": null,
+          "finish_reason": "stop",
+          "saw_done": null,
+          "incomplete": null
+        },
+        "composition": {
+          "dialogue_chars": 264,
+          "narration_chars": 2391,
+          "dialogue_char_share": 0.0994,
+          "narration_char_share": 0.9006,
+          "dialogue_paragraph_count": 7,
+          "narration_paragraph_count": 19,
+          "dialogue_paragraph_share": 0.2692,
+          "composition_parse_uncertain": false,
+          "dialogue_heavy_review": false,
+          "strong_dialogue_dominance": false
+        },
+        "dialogue_fragmentation": {
+          "dialogue_paragraph_count": 7,
+          "speaker_run_count": 7,
+          "same_speaker_dialogue_fragments": 0,
+          "same_speaker_fragment_ratio": 0,
+          "narration_insertions_between_same_speaker_dialogue": 0,
+          "single_sentence_dialogue_paragraphs": 1,
+          "max_consecutive_short_dialogue_run": 1,
+          "speaker_split_review_required": true
+        },
+        "narration_fragmentation": {
+          "one_sentence_narration_ratio": 0.0526,
+          "consecutive_one_sentence_narration_runs": 0,
+          "max_short_narration_run": 1,
+          "avg_narration_paragraph_chars": 125.8,
+          "median_narration_paragraph_chars": 136
+        },
+        "setting_exact_overlap": {
+          "longest_common_substring_chars": 9,
+          "matching_ngram_count": 0,
+          "source_overlap_span_count": 0,
+          "hits": [],
+          "alarm_18_plus": false
+        },
+        "continuity": null,
+        "hard_alarms": [],
+        "review_flags": [
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ]
+      },
+      "transport_failure": false
+    },
+    {
+      "cell_id": "ACT_T2_C",
+      "cell": "ACT_T2",
+      "domain": "action",
+      "arm": "C",
+      "route": "cheaperinference",
+      "requested_model": "gemini-3.1-pro-preview",
+      "resolved_model": "gemini-3.1-pro-preview",
+      "resolved_provider": "cheaperinference",
+      "visible_chars": 4140,
+      "speech_blocks": 14,
+      "paragraphs": 44,
+      "dialogue_char_share": 0.1355,
+      "narration_char_share": 0.8645,
+      "repetition": "low",
+      "canon_padding": "low",
+      "semantic_filler": "low",
+      "agency_severe": 0,
+      "finish_reason": "stop",
+      "latency_s": 79.378,
+      "ttft_s": 59.789,
+      "usage": {
+        "input_tokens": 7765,
+        "visible_output_tokens": 9150,
+        "reasoning_tokens": null,
+        "total_billed_output_tokens": 9150,
+        "cost": 0.079579
+      },
+      "input_tokens": 7765,
+      "system_chars": 6906,
+      "history_chars": 6031,
+      "last_user_chars": 551,
+      "historical_input_tokens": 21862,
+      "historical_chars": 4327,
+      "input_token_ratio_vs_historical": 0.3551825084621718,
+      "CONTEXT_COMPOSITION_DELTA_HIGH": true,
+      "messages_sha256": "431650235313ee537a21046843ba0a84b1b2ef5b5cfcfd84c3aeb3e330074272",
+      "schema_differences": {
+        "model_id": {
+          "or": "google/gemini-3.1-pro-preview",
+          "ci": "gemini-3.1-pro-preview"
+        },
+        "reasoning_wire": {
+          "or": "reasoning:{effort:low} + include_reasoning:false",
+          "ci": "reasoning_effort=low (reasoning object stripped)",
+          "note": "SCHEMA_DIFFERENCE — semantic effort both low"
+        },
+        "endpoint": {
+          "or": "https://openrouter.ai/api/v1/chat/completions",
+          "ci": "https://api.cheaperinference.com/v1/chat/completions"
+        }
+      },
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "supplement": 0,
+      "repair": 0,
+      "quality_vector": {
+        "completion": {
+          "finish_reason": "stop",
+          "saw_done": null,
+          "incomplete": null
+        },
+        "length": {
+          "visible_chars_with_spaces": 5507,
+          "visible_chars_no_whitespace": 4140,
+          "provider_raw_chars": null,
+          "final_display_chars": null,
+          "length_band": "IDEAL",
+          "length_ratio_vs_pair": null,
+          "finish_reason": "stop",
+          "saw_done": null,
+          "incomplete": null
+        },
+        "composition": {
+          "dialogue_chars": 561,
+          "narration_chars": 3579,
+          "dialogue_char_share": 0.1355,
+          "narration_char_share": 0.8645,
+          "dialogue_paragraph_count": 14,
+          "narration_paragraph_count": 30,
+          "dialogue_paragraph_share": 0.3182,
+          "composition_parse_uncertain": false,
+          "dialogue_heavy_review": false,
+          "strong_dialogue_dominance": false
+        },
+        "dialogue_fragmentation": {
+          "dialogue_paragraph_count": 14,
+          "speaker_run_count": 12,
+          "same_speaker_dialogue_fragments": 4,
+          "same_speaker_fragment_ratio": 0.2857,
+          "narration_insertions_between_same_speaker_dialogue": 2,
+          "single_sentence_dialogue_paragraphs": 7,
+          "max_consecutive_short_dialogue_run": 1,
+          "speaker_split_review_required": true
+        },
+        "narration_fragmentation": {
+          "one_sentence_narration_ratio": 0.2333,
+          "consecutive_one_sentence_narration_runs": 2,
+          "max_short_narration_run": 2,
+          "avg_narration_paragraph_chars": 119.3,
+          "median_narration_paragraph_chars": 134.5
+        },
+        "setting_exact_overlap": {
+          "longest_common_substring_chars": 9,
+          "matching_ngram_count": 0,
+          "source_overlap_span_count": 0,
+          "hits": [],
+          "alarm_18_plus": false
+        },
+        "continuity": null,
+        "hard_alarms": [],
+        "review_flags": [
+          "SPEAKER_SPLIT_REVIEW_REQUIRED"
+        ]
+      },
+      "transport_failure": false
+    }
+  ],
+  "classification": "MIXED_INCONCLUSIVE",
+  "next": "G11-C5B AFFORDANCE_DECOMPOSITION",
+  "production_wire": "NOT_RUN",
+  "merge": "NOT_RUN",
+  "one_turn_one_primary_llm_call": true
+}
