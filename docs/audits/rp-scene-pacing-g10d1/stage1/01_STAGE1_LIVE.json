@@ -1,0 +1,147 @@
+{
+  "phase": "G10-D1-STAGE1-LIVE",
+  "api_calls": 3,
+  "target_calls": 3,
+  "fixtures": [
+    "N1S"
+  ],
+  "sole_variable": "SINGLE_PRIMARY_DIALOGUE_BLOCK_CAP",
+  "reference": "G10-SD2 stored Q anchors 7/6/8",
+  "cells": [
+    {
+      "cell_id": "Gemini_N1S_T_D1",
+      "fixture": "N1S",
+      "arm": "T",
+      "draw": 1,
+      "visible_chars": 3339,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "latency_s": 90.593,
+      "dialogue_char_share": 0.1043,
+      "narration_char_share": 0.8957,
+      "speech_blocks": {
+        "speech_blocks": 7,
+        "band": "OVER_CAP"
+      },
+      "continuity": {
+        "current_input_lcs_chars": 8,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 0,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [],
+      "pacing": {
+        "mode": "DYAD",
+        "motion": "HOLD",
+        "sot": 1
+      },
+      "dialogueOwners": {
+        "dialogue_block_owner": 1,
+        "dialogue_narration_owner": 0,
+        "numeric_dialogue_percentage": 0
+      },
+      "human_pending": true
+    },
+    {
+      "cell_id": "Gemini_N1S_T_D2",
+      "fixture": "N1S",
+      "arm": "T",
+      "draw": 2,
+      "visible_chars": 1323,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "latency_s": 45.203,
+      "dialogue_char_share": 0.1111,
+      "narration_char_share": 0.8889,
+      "speech_blocks": {
+        "speech_blocks": 4,
+        "band": "MAX"
+      },
+      "continuity": {
+        "current_input_lcs_chars": 5,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 0,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [
+        "DENSITY_COLLAPSE"
+      ],
+      "pacing": {
+        "mode": "DYAD",
+        "motion": "HOLD",
+        "sot": 1
+      },
+      "dialogueOwners": {
+        "dialogue_block_owner": 1,
+        "dialogue_narration_owner": 0,
+        "numeric_dialogue_percentage": 0
+      },
+      "human_pending": true
+    },
+    {
+      "cell_id": "Gemini_N1S_T_D3",
+      "fixture": "N1S",
+      "arm": "T",
+      "draw": 3,
+      "visible_chars": 2016,
+      "finish_reason": "stop",
+      "provider": "Google AI Studio",
+      "latency_s": 47.669,
+      "dialogue_char_share": 0.0412,
+      "narration_char_share": 0.9588,
+      "speech_blocks": {
+        "speech_blocks": 4,
+        "band": "MAX"
+      },
+      "continuity": {
+        "current_input_lcs_chars": 8,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 0,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [],
+      "pacing": {
+        "mode": "DYAD",
+        "motion": "HOLD",
+        "sot": 1
+      },
+      "dialogueOwners": {
+        "dialogue_block_owner": 1,
+        "dialogue_narration_owner": 0,
+        "numeric_dialogue_percentage": 0
+      },
+      "human_pending": true
+    }
+  ],
+  "human_review": "PENDING",
+  "n2": "NOT_RUN",
+  "production_wire": "NOT_RUN",
+  "merge": "NOT_RUN"
+}
