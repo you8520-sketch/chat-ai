@@ -1,0 +1,115 @@
+{
+  "phase": "G10-D2-PREAUDIT",
+  "latest_main": "7f0c54b60e7ace11bc6e4eea9c820caadde24853",
+  "api_calls": 0,
+  "sole_variable": "TERMINAL_DIALOGUE_BUDGET_OWNER",
+  "production_wire": "NOT_RUN",
+  "reference": "G10-SD2 Q + G10-D1 T stored (no redraw)",
+  "REFERENCE_Q": {
+    "system_chars": 6541,
+    "owners": {
+      "scene_pacing": 1,
+      "scene_state": 0,
+      "scene_flow": 0,
+      "genre_scene_mode": 0,
+      "pacing_sot_count": 1
+    },
+    "systemDialogueOwners": {
+      "dialogue_block_owner": 0,
+      "dialogue_narration_owner": 1,
+      "numeric_dialogue_percentage": 0
+    },
+    "terminalOwners": {
+      "terminal_dialogue_budget_owner": 0,
+      "numeric_dialogue_percentage": 0
+    },
+    "decision": {
+      "pacingMode": "DYAD",
+      "motionLevel": "HOLD",
+      "sceneKind": "rest",
+      "castMode": "single_primary",
+      "intimateDyad": false,
+      "recentStagnation": false,
+      "externalCooldownActive": false,
+      "triggerActive": false,
+      "meaningfulBeatBudget": 1,
+      "carrierHints": [
+        "relationship",
+        "daily_life",
+        "environment"
+      ],
+      "primaryProgression": null,
+      "npcActionEligible": false,
+      "externalEligible": false,
+      "reasonCodes": [
+        "kind:rest",
+        "mode:DYAD",
+        "cast:single_primary",
+        "dyad_hold"
+      ]
+    }
+  },
+  "CANDIDATE_U": {
+    "system_chars": 6541,
+    "owners": {
+      "scene_pacing": 1,
+      "scene_state": 0,
+      "scene_flow": 0,
+      "genre_scene_mode": 0,
+      "pacing_sot_count": 1
+    },
+    "systemDialogueOwners": {
+      "dialogue_block_owner": 0,
+      "dialogue_narration_owner": 1,
+      "numeric_dialogue_percentage": 0
+    },
+    "terminalOwners": {
+      "terminal_dialogue_budget_owner": 1,
+      "numeric_dialogue_percentage": 0
+    },
+    "decision": {
+      "pacingMode": "DYAD",
+      "motionLevel": "HOLD",
+      "sceneKind": "rest",
+      "castMode": "single_primary",
+      "intimateDyad": false,
+      "recentStagnation": false,
+      "externalCooldownActive": false,
+      "triggerActive": false,
+      "meaningfulBeatBudget": 1,
+      "carrierHints": [
+        "relationship",
+        "daily_life",
+        "environment"
+      ],
+      "primaryProgression": null,
+      "npcActionEligible": false,
+      "externalEligible": false,
+      "reasonCodes": [
+        "kind:rest",
+        "mode:DYAD",
+        "cast:single_primary",
+        "dyad_hold"
+      ]
+    },
+    "terminalDialogueBudgetAppended": true,
+    "user_tail_delta_vs_Q": 51
+  },
+  "SCOPE": {
+    "single_primary_terminal_cap": 1,
+    "simulation_terminal_cap": 0,
+    "party_terminal_cap": 0,
+    "system_dialogue_cap_U": 0
+  },
+  "invariants": {
+    "canon_equal": true,
+    "history_equal": true,
+    "user_tail_changed": true,
+    "runtime_equal": true,
+    "decision_q_u_identical": true,
+    "no_numeric_pct": true,
+    "no_system_dialogue_cap": true,
+    "no_scene_state": true
+  },
+  "LIVE_CALL_READY": true
+}
