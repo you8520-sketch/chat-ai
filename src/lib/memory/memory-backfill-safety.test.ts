@@ -80,8 +80,8 @@ describe("memory backfill cost safety (static)", () => {
     const fn = src.slice(fnStart, fnEnd);
     assert.match(fn, /persisted row already present/);
     const lockIdx = fn.indexOf("running.add(opts.chatId);");
-    const summarizeIdx = fn.indexOf("await summarizeTurnBatch(");
-    assert.ok(lockIdx >= 0 && summarizeIdx > lockIdx);
+    const composeIdx = fn.indexOf("await composeBatchScopePayload(");
+    assert.ok(lockIdx >= 0 && composeIdx > lockIdx);
   });
 
   it("prepareMemoryPanelView is exported for read-only reconcile path", () => {

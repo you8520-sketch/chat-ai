@@ -31,6 +31,14 @@ import {
   type MemorySummaryScope,
 } from "./memory-summary-scope";
 import type { MemoryTier } from "./memory-types";
+import {
+  getMemorySourceBoundaryCore,
+  isMemorySourceEligible,
+} from "./memory-source-boundary";
+import {
+  countMemoryEligibleCompletedTurnsCore,
+  resolveMemoryEligibleTurnNumberCore,
+} from "./memory-turn-loader";
 
 type Db = Database.Database;
 
@@ -48,6 +56,7 @@ export type VariantSwitchMemoryReconcileInput = {
   tier: MemoryTier;
   memoryCapacity: number;
   sourceTurn: number;
+  sourceUserMessageId?: number | null;
   /** When false, skip entirely (memory feature off). Default: isMemoryFeatureEnabled(). */
   enabled?: boolean;
   /** @internal test-only */
@@ -139,16 +148,6 @@ function rebuildLorebookFromRecordsDb(db: Db, chatId: number): string {
     .join("\n\n");
 }
 
-function countPlayableTurnsDb(db: Db, chatId: number): number {
-  const row = db
-    .prepare(
-      `SELECT COUNT(*) AS c FROM messages
-       WHERE chat_id=? AND role='assistant' AND model != 'greeting'`
-    )
-    .get(chatId) as { c: number };
-  return Number(row?.c) || 0;
-}
-
 function ensureChatMemoryRowDb(
   db: Db,
   chatId: number,
@@ -199,6 +198,26 @@ export function reconcileMemoryAfterVariantSwitchCore(
       summarizedTurnCount: null,
     };
   }
+  const boundary = getMemorySourceBoundaryCore(db, opts.chatId);
+  if (!isMemorySourceEligible({ sourceUserMessageId: opts.sourceUserMessageId, boundary })) {
+    return {
+      attempted: false,
+      inactivatedRecordIds: [],
+      lorebookRebuilt: false,
+      summarizedTurnCount: null,
+    };
+  }
+  const memorySourceTurn = opts.sourceUserMessageId
+    ? resolveMemoryEligibleTurnNumberCore(db, opts.chatId, opts.sourceUserMessageId)
+    : opts.sourceTurn;
+  if (memorySourceTurn == null) {
+    return {
+      attempted: false,
+      inactivatedRecordIds: [],
+      lorebookRebuilt: false,
+      summarizedTurnCount: null,
+    };
+  }
 
   ensureChatMemoryRowDb(
     db,
@@ -213,7 +232,7 @@ export function reconcileMemoryAfterVariantSwitchCore(
   for (const r of records) {
     if (r.inactive) continue;
     if (r.userEdited) continue;
-    if (r.turnStart <= opts.sourceTurn && r.turnEnd >= opts.sourceTurn) {
+    if (r.turnStart <= memorySourceTurn && r.turnEnd >= memorySourceTurn) {
       const info = db
         .prepare(
           `UPDATE chat_turn_summaries SET inactive=1, updated_at=datetime('now')
@@ -230,7 +249,7 @@ export function reconcileMemoryAfterVariantSwitchCore(
     throw new Error("TEST_THROW_AFTER_LTM_INVALIDATE");
   }
 
-  const playableTurnCount = countPlayableTurnsDb(db, opts.chatId);
+  const playableTurnCount = countMemoryEligibleCompletedTurnsCore(db, opts.chatId);
   const activeAfter = listMemoryRecordsForChatDb(db, opts.chatId).filter(
     (r) => !r.inactive
   );
@@ -280,7 +299,7 @@ export function reconcileMemoryAfterVariantSwitchCore(
   );
 
   console.info(
-    `[memory] reconcile after variant switch chat=${opts.chatId} sourceTurn=${opts.sourceTurn} inactivated=${inactivatedRecordIds.length} summarized=${contiguous}`
+    `[memory] reconcile after variant switch chat=${opts.chatId} sourceTurn=${memorySourceTurn} inactivated=${inactivatedRecordIds.length} summarized=${contiguous}`
   );
 
   return {

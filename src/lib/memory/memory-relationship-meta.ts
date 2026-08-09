@@ -13,6 +13,11 @@ import {
   type RelationshipMetaDelta,
 } from "@/lib/chatMemory";
 import { isMemoryFeatureEnabled } from "./memory-feature";
+import {
+  getMemorySourceBoundary,
+  isMemoryWriteGuardCurrentCore,
+  type MemorySourceBoundary,
+} from "./memory-source-boundary";
 
 export type { RelationshipMetaCategory };
 
@@ -66,20 +71,43 @@ function applyRelationshipDeltaToChat(opts: {
   chatId: number;
   names: HonorificNames;
   delta: RelationshipMetaDelta;
+  sourceUserMessageId?: number | null;
+  boundarySnapshot?: MemorySourceBoundary;
 }): MemoryMeta {
-  const prev = loadChatRelationshipMeta(opts.chatId);
-  const prevNormalized = normalizeMemoryMeta(prev, opts.names);
-  const durableDelta = restrictRelationshipMetaDeltaToDurableAutoFacts(opts.delta);
-  if (!hasRelationshipDelta(durableDelta)) {
-    if (JSON.stringify(prev) !== JSON.stringify(prevNormalized)) {
-      saveChatRelationshipMeta(opts.chatId, prevNormalized);
+  const db = getDb();
+  const snapshot = opts.boundarySnapshot ?? getMemorySourceBoundary(opts.chatId);
+  return db.transaction(() => {
+    if (
+      !isMemoryWriteGuardCurrentCore(db, {
+        chatId: opts.chatId,
+        snapshot,
+        sourceUserMessageIds: [opts.sourceUserMessageId],
+      })
+    ) {
+      console.info("MEMORY_STALE_EPOCH_REJECTED", {
+        chat_id: opts.chatId,
+        epoch: snapshot.epoch,
+        source_message_id: opts.sourceUserMessageId ?? null,
+      });
+      return loadChatRelationshipMeta(opts.chatId, opts.names);
     }
-    return prevNormalized;
-  }
 
-  const merged = mergeMemoryMeta(prevNormalized, durableDelta, opts.names);
-  saveChatRelationshipMeta(opts.chatId, merged);
-  return merged;
+    // Merge the delta into the projection as it exists at commit time. Never
+    // overwrite a reset with a stale pre-extraction JSON snapshot.
+    const prev = loadChatRelationshipMeta(opts.chatId);
+    const prevNormalized = normalizeMemoryMeta(prev, opts.names);
+    const durableDelta = restrictRelationshipMetaDeltaToDurableAutoFacts(opts.delta);
+    if (!hasRelationshipDelta(durableDelta)) {
+      if (JSON.stringify(prev) !== JSON.stringify(prevNormalized)) {
+        saveChatRelationshipMeta(opts.chatId, prevNormalized);
+      }
+      return prevNormalized;
+    }
+
+    const merged = mergeMemoryMeta(prevNormalized, durableDelta, opts.names);
+    saveChatRelationshipMeta(opts.chatId, merged);
+    return merged;
+  }).immediate();
 }
 
 /** 턴 종료 후 호칭·물건·속마음·약속 추출 → chats.memory_meta 병합 */
@@ -93,6 +121,8 @@ export async function mergeRelationshipMetaFromTurn(opts: {
   /** DeepSeek/Qwen — 메인 모델 JSON tail 파싱 성공 시 Flash 생략 */
   mainModelTailParsed?: boolean;
   mainModelDelta?: RelationshipMetaDelta | null;
+  sourceUserMessageId?: number | null;
+  boundarySnapshot?: MemorySourceBoundary;
 }): Promise<MemoryMeta> {
   if (!isMemoryFeatureEnabled()) return loadChatRelationshipMeta(opts.chatId);
   const names = opts.names;
@@ -102,6 +132,8 @@ export async function mergeRelationshipMetaFromTurn(opts: {
       chatId: opts.chatId,
       names,
       delta: opts.mainModelDelta ?? {},
+      sourceUserMessageId: opts.sourceUserMessageId,
+      boundarySnapshot: opts.boundarySnapshot,
     });
   }
 
@@ -116,16 +148,13 @@ export async function mergeRelationshipMetaFromTurn(opts: {
     prevNormalized,
     opts.turnTrace
   );
-  if (!hasRelationshipDelta(delta)) {
-    if (JSON.stringify(prev) !== JSON.stringify(prevNormalized)) {
-      saveChatRelationshipMeta(opts.chatId, prevNormalized);
-    }
-    return prevNormalized;
-  }
-
-  const merged = mergeMemoryMeta(prevNormalized, delta, names);
-  saveChatRelationshipMeta(opts.chatId, merged);
-  return merged;
+  return applyRelationshipDeltaToChat({
+    chatId: opts.chatId,
+    names,
+    delta,
+    sourceUserMessageId: opts.sourceUserMessageId,
+    boundarySnapshot: opts.boundarySnapshot,
+  });
 }
 
 /** 재생성 — 거부본 대비 소지품·속마음 제거 후 새 정본 반영 */
@@ -137,6 +166,8 @@ export async function mergeRelationshipMetaAfterRegenerate(opts: {
   previousAssistantMessage: string;
   route: Route;
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
+  sourceUserMessageId?: number | null;
+  boundarySnapshot?: MemorySourceBoundary;
 }): Promise<MemoryMeta> {
   if (!isMemoryFeatureEnabled()) return loadChatRelationshipMeta(opts.chatId);
   const names = opts.names;
@@ -152,14 +183,11 @@ export async function mergeRelationshipMetaAfterRegenerate(opts: {
     prevNormalized,
     opts.turnTrace
   );
-  if (!hasRelationshipDelta(delta)) {
-    if (JSON.stringify(prev) !== JSON.stringify(prevNormalized)) {
-      saveChatRelationshipMeta(opts.chatId, prevNormalized);
-    }
-    return prevNormalized;
-  }
-
-  const merged = mergeMemoryMeta(prevNormalized, delta, names);
-  saveChatRelationshipMeta(opts.chatId, merged);
-  return merged;
+  return applyRelationshipDeltaToChat({
+    chatId: opts.chatId,
+    names,
+    delta,
+    sourceUserMessageId: opts.sourceUserMessageId,
+    boundarySnapshot: opts.boundarySnapshot,
+  });
 }

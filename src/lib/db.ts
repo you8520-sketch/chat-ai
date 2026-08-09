@@ -121,6 +121,7 @@ function init(db: Database.Database) {
     character_id INTEGER,
     user_id INTEGER,
     source_turn INTEGER NOT NULL,
+    source_user_message_id INTEGER,
     category TEXT NOT NULL,
     subject TEXT NOT NULL,
     attribute TEXT NOT NULL,
@@ -252,6 +253,22 @@ export function ensureCharacterAppearanceColumns(db: Pick<Database.Database, "pr
   addColumn("characters", "appearance_compiled", "TEXT NOT NULL DEFAULT ''");
   addColumn("characters", "appearance_compiled_source_hash", "TEXT NOT NULL DEFAULT ''");
   addColumn("characters", "appearance_compiled_version", "INTEGER NOT NULL DEFAULT 0");
+}
+
+export function ensureMemoryResetBoundaryColumns(
+  db: Pick<Database.Database, "prepare" | "exec">
+): void {
+  const addColumn = (table: string, col: string, def: string) => {
+    const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+    if (!cols.some((c) => c.name === col)) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
+    }
+  };
+  addColumn("chat_memories", "memory_reset_after_message_id", "INTEGER");
+  addColumn("chat_memories", "memory_epoch", "INTEGER NOT NULL DEFAULT 0");
+  addColumn("chat_turn_summaries", "source_start_user_message_id", "INTEGER");
+  addColumn("chat_turn_summaries", "source_end_user_message_id", "INTEGER");
+  addColumn("episodic_memory_facts", "source_user_message_id", "INTEGER");
 }
 
 function backfillExistingUserOnboarding(db: Database.Database) {
@@ -413,6 +430,8 @@ function migrate(db: Database.Database) {
       chat_id INTEGER NOT NULL,
       turn_number INTEGER NOT NULL,
       assistant_message_id INTEGER,
+      source_start_user_message_id INTEGER,
+      source_end_user_message_id INTEGER,
       summary TEXT NOT NULL DEFAULT '',
       summary_kind TEXT NOT NULL DEFAULT 'narrative',
       user_edited INTEGER NOT NULL DEFAULT 0,
@@ -1191,6 +1210,8 @@ function migrate(db: Database.Database) {
       used_chars INTEGER NOT NULL DEFAULT 0,
       message_count INTEGER NOT NULL DEFAULT 0,
       summarized_turn_count INTEGER NOT NULL DEFAULT 0,
+      memory_reset_after_message_id INTEGER,
+      memory_epoch INTEGER NOT NULL DEFAULT 0,
       last_compressed_at TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -1207,6 +1228,7 @@ function migrate(db: Database.Database) {
       ON chat_memories(character_id);
   `);
   addColumn("memory_buffer", "chat_id", "INTEGER");
+  ensureMemoryResetBoundaryColumns(db);
   addColumn("messages", "user_message_id", "INTEGER");
   addColumn("messages", "status_meta", "TEXT");
   addColumn("users", "training_consent", "INTEGER NOT NULL DEFAULT 0");

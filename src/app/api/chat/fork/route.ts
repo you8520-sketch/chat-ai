@@ -7,11 +7,17 @@ import { DEFAULT_TARGET_RESPONSE_CHARS, normalizeTargetResponseChars } from "@/l
 import { MEMORY_CAPACITY_DEFAULT, normalizeMemoryCapacity } from "@/lib/memory/memory-capacity-shared";
 import {
   countCompletedTurnsUpToMessageId,
+  countMemoryEligibleCompletedTurnsUpToMessageId,
   copyForkTurnSummaries,
   initializeForkChatMemory,
+  remapForkResetBoundary,
 } from "@/lib/memory/memory-fork-snapshot";
 import { resolveMemoryTier } from "@/lib/memory/memory-manager";
 import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
+import {
+  getMemorySourceBoundaryCore,
+  initializeForkMemoryBoundaryCore,
+} from "@/lib/memory/memory-source-boundary";
 
 export async function POST(req: Request) {
   const user = await getSessionUser();
@@ -60,6 +66,13 @@ export async function POST(req: Request) {
   const characterId = Number(source.character_id);
   const memoryCapacity = normalizeMemoryCapacity(source.memory_capacity ?? MEMORY_CAPACITY_DEFAULT);
   const forkTurnCount = countCompletedTurnsUpToMessageId(toCopy, mId);
+  const tier = resolveMemoryTier(user);
+  const parentBoundary = getMemorySourceBoundaryCore(db, cId);
+  const memoryEligibleForkTurnCount = countMemoryEligibleCompletedTurnsUpToMessageId(
+    toCopy,
+    mId,
+    parentBoundary.resetAfterMessageId
+  );
 
   const forkResult = db.transaction(() => {
     const info = db
@@ -114,24 +127,47 @@ export async function POST(req: Request) {
       messageIdMap.set(m.id, Number(result.lastInsertRowid));
     }
 
-    const copiedSummaryPages = copyForkTurnSummaries(db, {
-      sourceChatId: cId,
-      newChatId,
-      forkTurnCount,
+    const childResetAfterMessageId = remapForkResetBoundary({
+      parentResetAfterMessageId: parentBoundary.resetAfterMessageId,
+      forkMessageId: mId,
+      copiedParentMessageIds: toCopy.map((message) => message.id),
       messageIdMap,
     });
 
-    return { newChatId, forkTurnCount, copiedSummaryPages };
+    initializeForkMemoryBoundaryCore(db, {
+      chatId: newChatId,
+      userId: user.id,
+      characterId,
+      tier,
+      resetAfterMessageId: childResetAfterMessageId,
+    });
+
+    const copiedSummaryPages = copyForkTurnSummaries(db, {
+      sourceChatId: cId,
+      newChatId,
+      forkTurnCount: memoryEligibleForkTurnCount,
+      messageIdMap,
+    });
+
+    console.info("MEMORY_FORK_BOUNDARY_REMAPPED", {
+      source_chat_id: cId,
+      child_chat_id: newChatId,
+      parent_epoch: parentBoundary.epoch,
+      parent_boundary: parentBoundary.resetAfterMessageId,
+      child_boundary: childResetAfterMessageId,
+      eligible_turn_count: memoryEligibleForkTurnCount,
+    });
+
+    return { newChatId, forkTurnCount, memoryEligibleForkTurnCount, copiedSummaryPages };
   })();
 
   if (isMemoryFeatureEnabled()) {
-    const tier = resolveMemoryTier(user);
     try {
       await initializeForkChatMemory({
         newChatId: forkResult.newChatId,
         userId: user.id,
         characterId,
-        forkTurnCount: forkResult.forkTurnCount,
+        forkTurnCount: forkResult.memoryEligibleForkTurnCount,
         tier,
         memoryCapacity,
       });

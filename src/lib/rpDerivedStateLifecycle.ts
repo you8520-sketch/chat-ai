@@ -16,6 +16,7 @@ import {
   deleteEpisodicMemoryFactsByAssistantMessageIds,
   replaceEpisodicMemoryFactsForCanonicalMutation,
 } from "@/lib/episodicMemoryFacts";
+import { resolveCanonicalSourceUserMessageIdCore } from "@/lib/memory/memory-source-boundary";
 
 /** Generation statuses that may anchor canonical derived state. */
 export const CANONICAL_DERIVED_STATE_GENERATION_STATUSES = [
@@ -263,6 +264,7 @@ export type AtomicVariantSwitchInput = {
   statusWidgetTurnActive: boolean | undefined;
   /** Selected variant source-turn facts (may be empty — valid success). */
   sourceTurn: number;
+  sourceUserMessageId?: number | null;
   characterId?: number | null;
   userId?: number | null;
   selectedFacts: ExtractedStatusFact[] | null | undefined;
@@ -284,6 +286,12 @@ export function executeVariantSwitchMutationCore(
   db: Database.Database,
   input: AtomicVariantSwitchInput
 ): void {
+  const sourceUserMessageId =
+    input.sourceUserMessageId ??
+    resolveCanonicalSourceUserMessageIdCore(db, {
+      chatId: input.chatId,
+      assistantMessageId: input.messageId,
+    });
   if (input.statusWidgetValuesJson !== undefined) {
     db.prepare(
       "UPDATE messages SET content=?, model=?, usage=?, adult_route_meta_json=?, alternates=?, active_variant=?, status_widget_values_json=?, status_widget_turn_active=? WHERE id=?"
@@ -330,6 +338,7 @@ export function executeVariantSwitchMutationCore(
     characterId: input.characterId,
     userId: input.userId,
     sourceTurn: input.sourceTurn,
+    sourceUserMessageId,
     facts: input.selectedFacts,
     metadata: {
       assistant_message_id: input.messageId,

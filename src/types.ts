@@ -94,6 +94,8 @@ export type ContextBuildInput = {
   targetResponseChars?: number;
   /** 현재 턴 직전까지 완료된 대화 턴 수 */
   completedTurns?: number;
+  /** Reset-boundary eligible completed turns; used only by memory coverage math. */
+  completedTurnsForMemoryCoverage?: number;
   /** LTM에 연속 반영 완료된 playable turns (opening greeting 제외). */
   summarizedTurnCount?: number;
   /** route에서 한 번 계산한 RAW ↔ sealed summary coverage floor. */

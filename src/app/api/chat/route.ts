@@ -100,9 +100,9 @@ import { resolveRelationshipMetaNames } from "@/lib/relationshipMetaCharacterNam
 import {
   messagesToTurns,
   countPlayableTurns,
+  countPlayableHistoryTurns,
   rawRecentTurnsToHistory,
   resolveHistoryMinTurnFloor,
-  resolveLorebookExcludeFromTrimmedHistory,
   selectLongerHistorySuffix,
   trimHistoryToBudget,
 } from "@/lib/hybridMemory";
@@ -126,6 +126,11 @@ import { syncMemoryFromChat } from "@/lib/memory/memory-backfill";
 import { reconcileMemoryCoverageFixedPoint } from "@/lib/memoryCoverageReconcile";
 import { getChatMemoryCapacity } from "@/lib/memory/memory-capacity";
 import { getOrCreateChatMemory } from "@/lib/memory/memory-db";
+import {
+  countMemoryEligibleCompletedTurns,
+  resolveMemoryEligibleTurnNumberCore,
+} from "@/lib/memory/memory-turn-loader";
+import { getMemorySourceBoundaryCore } from "@/lib/memory/memory-source-boundary";
 import {
   CHAT_MESSAGE_MAX,
   selectedAILabel,
@@ -1227,9 +1232,13 @@ export async function POST(req: Request) {
     })
   );
   const summarizedTurnCount = chatMemory?.summarized_turn_count ?? 0;
+  const memorySourceEligibleCompletedTurns = countMemoryEligibleCompletedTurns(chat.id);
+  const completedTurnsForMemoryCoverage = memoryFeatureOn
+    ? memorySourceEligibleCompletedTurns
+    : playableTurnCount;
   const historyMinTurnFloor = resolveHistoryMinTurnFloor({
     memoryFeatureEnabled: memoryFeatureOn,
-    completedTurns: playableTurnCount,
+    completedTurns: completedTurnsForMemoryCoverage,
     summarizedTurnCount,
   });
   const coverageProtectedCanonicalHistory = trimHistoryToBudget(
@@ -1337,10 +1346,14 @@ export async function POST(req: Request) {
   const recentHistory: ChatMsg[] = canonicalRecentHistoryFull;
   const shortTermHistory = providerRecentHistoryFull;
 
-  const initialLorebookExcludeTurnStart = resolveLorebookExcludeFromTrimmedHistory(
-    turnsForRecentHistory,
-    trimmedHistoryForLorebook
+  const keptEligibleRawTurnsForLorebook = Math.min(
+    countPlayableHistoryTurns(trimmedHistoryForLorebook),
+    completedTurnsForMemoryCoverage
   );
+  const initialLorebookExcludeTurnStart =
+    keptEligibleRawTurnsForLorebook > 0
+      ? completedTurnsForMemoryCoverage - keptEligibleRawTurnsForLorebook + 1
+      : completedTurnsForMemoryCoverage + 1;
   const initialMemoryInjection = await buildMemoryContextForChat({
     chatId: chat.id,
     userId: user.id,
@@ -1508,7 +1521,7 @@ export async function POST(req: Request) {
     chatId: chat.id,
     characterId: ch.id,
     userId: user.id,
-    currentTurn: playableTurnCount + 1,
+    currentTurn: memorySourceEligibleCompletedTurns + 1,
     currentUserMessage: policyUserMessage,
     recentChatText: recentChatTextForEpisodicMemory,
     longTermMemoryText: memoryFeatureOn
@@ -1869,6 +1882,7 @@ export async function POST(req: Request) {
     chatId: chat.id,
     targetResponseChars,
     completedTurns: playableTurnCount,
+    completedTurnsForMemoryCoverage,
     summarizedTurnCount,
     historyMinTurnFloor,
     adultHandoffRequiredTurnFloor,
@@ -1937,7 +1951,7 @@ export async function POST(req: Request) {
       initialBuild: built,
       initialMemory: initialMemoryInjection,
       initialLtmCutoff: initialLorebookExcludeTurnStart,
-      failSafeLtmCutoff: playableTurnCount + 1,
+      failSafeLtmCutoff: completedTurnsForMemoryCoverage + 1,
       readCoverage: (context) => ({
         degraded: context.meta.memoryCoverage?.degraded === true,
         firstRawPlayableTurn:
@@ -2166,7 +2180,7 @@ export async function POST(req: Request) {
         initialBuild: fallbackBuilt,
         initialMemory: fallbackMemoryInjection,
         initialLtmCutoff: initialLorebookExcludeTurnStart,
-        failSafeLtmCutoff: playableTurnCount + 1,
+        failSafeLtmCutoff: completedTurnsForMemoryCoverage + 1,
         readCoverage: (context) => ({
           degraded: context.meta.memoryCoverage?.degraded === true,
           firstRawPlayableTurn:
@@ -5011,12 +5025,18 @@ export async function POST(req: Request) {
           isCanonicalDerivedStateGenerationStatus(persistedGenerationStatus);
 
         if (derivedStateAllowed) {
+          const episodicBoundarySnapshot = getMemorySourceBoundaryCore(db, chatRef.id);
           const persistFacts = () => {
             reconcileEpisodicMemoryFactsForGeneration(db, {
               chatId: chatRef.id,
               characterId: ch.id,
               userId: user.id,
-              sourceTurn: playableTurnCount + 1,
+              sourceTurn:
+                (userMessageId != null
+                  ? resolveMemoryEligibleTurnNumberCore(db, chatRef.id, userMessageId)
+                  : null) ?? memorySourceEligibleCompletedTurns + 1,
+              sourceUserMessageId: userMessageId,
+              boundarySnapshot: episodicBoundarySnapshot,
               facts: extractedFactsForPersistence,
               isRegeneration: !!regenerateMessageId,
               metadata: {
@@ -5397,6 +5417,7 @@ export async function POST(req: Request) {
               userMessage: messageText,
               assistantMessage: savedText,
               assistantMessageId: aiMessageId,
+              sourceUserMessageId: userMessageId,
               userPersona: backgroundPersonaIdentity,
               isRegenerate: !!regenerateMessageId,
               previousAssistantMessage: rejectedAssistantDraft ?? undefined,

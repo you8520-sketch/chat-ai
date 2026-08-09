@@ -24,6 +24,7 @@ import {
   type AtomicVariantSwitchInput,
 } from "@/lib/rpDerivedStateLifecycle";
 import { reconcileMemoryAfterVariantSwitchCore } from "@/lib/memory/memory-variant-switch-reconcile";
+import { resolveCanonicalSourceUserMessageIdCore } from "@/lib/memory/memory-source-boundary";
 import type { MemoryTier } from "@/lib/memory/memory-types";
 import { serializeStatusWidgetValuesJson } from "@/lib/statusWidget/parseValues";
 import type {
@@ -281,6 +282,10 @@ export function executeAtomicNumericVariantSwitch(
       return { ...v, statusWidgetValues: canonicalStatus };
     });
 
+    const sourceUserMessageId = resolveCanonicalSourceUserMessageIdCore(db, {
+      chatId: input.chatId,
+      assistantMessageId: input.messageId,
+    });
     const mutationInput: AtomicVariantSwitchInput = {
       chatId: input.chatId,
       messageId: input.messageId,
@@ -293,6 +298,7 @@ export function executeAtomicNumericVariantSwitch(
       statusWidgetValuesJson,
       statusWidgetTurnActive: selected.statusWidgetTurnActive,
       sourceTurn: sourceTurn ?? 0,
+      sourceUserMessageId,
       characterId: input.characterId,
       userId: input.userId,
       selectedFacts: selected.statusWidgetValues?.extracted_facts ?? [],
@@ -315,6 +321,7 @@ export function executeAtomicNumericVariantSwitch(
         tier: input.memory.tier,
         memoryCapacity: input.memory.memoryCapacity,
         sourceTurn,
+        sourceUserMessageId,
         enabled: true,
         __testThrowAfterInvalidate: input.__testThrowAfterLtmInvalidate,
         __testThrowAfterRebuild: input.__testThrowAfterLtmRebuild,

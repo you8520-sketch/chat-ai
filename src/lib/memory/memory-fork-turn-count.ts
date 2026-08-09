@@ -25,6 +25,30 @@ export function countCompletedTurnsUpToMessageId(
   return count;
 }
 
+export function countMemoryEligibleCompletedTurnsUpToMessageId(
+  messages: MessageRow[],
+  upToMessageId: number,
+  resetAfterMessageId: number | null
+): number {
+  if (resetAfterMessageId == null) {
+    return countCompletedTurnsUpToMessageId(messages, upToMessageId);
+  }
+  let count = 0;
+  let pendingUserId: number | null = null;
+  for (const row of messages) {
+    if (row.id > upToMessageId) break;
+    if (row.role === "user") {
+      pendingUserId = row.id;
+    } else if (row.role === "assistant" && row.model !== "greeting") {
+      if (pendingUserId != null) {
+        if (pendingUserId > resetAfterMessageId) count += 1;
+        pendingUserId = null;
+      }
+    }
+  }
+  return count;
+}
+
 export function forkSummarizedTurnCount(forkTurnCount: number): number {
   if (forkTurnCount <= 0) return 0;
   return Math.floor(forkTurnCount / FORK_MEMORY_BATCH_TURNS) * FORK_MEMORY_BATCH_TURNS;

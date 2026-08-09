@@ -81,6 +81,13 @@ describe("status widget → episodic memory pipeline smoke", () => {
   it("stores status JSON snapshot and inserts only the valid story fact", () => {
     const db = new Database(":memory:");
     ensureEpisodicMemoryFactsTable(db);
+    db.exec(`
+      CREATE TABLE chat_memories (
+        chat_id INTEGER PRIMARY KEY,
+        memory_reset_after_message_id INTEGER,
+        memory_epoch INTEGER NOT NULL DEFAULT 0
+      );
+    `);
 
     const { prose, values } = splitProseAndStatusWidgetValues(assistantWithStatus);
     const statusJson = serializeStatusWidgetValuesJson(values);

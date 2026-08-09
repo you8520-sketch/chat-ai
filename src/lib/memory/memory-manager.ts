@@ -15,17 +15,22 @@ import {
 import {
   mergeRelationshipMetaFromTurn,
   mergeRelationshipMetaAfterRegenerate,
-  clearChatRelationshipMeta,
 } from "./memory-relationship-meta";
-import { clearMemoryRecordsForChat } from "./memory-turn-summary";
 import {
   getChatMemoryRow,
   getOrCreateChatMemory,
-  clearChatMemory,
-  incrementMessageCount,
   updateChatMemory,
   upgradeTierForUser,
 } from "./memory-db";
+import { getDb } from "@/lib/db";
+import {
+  executeAtomicMemoryReset,
+  getMemorySourceBoundary,
+  isMemorySourceEligible,
+  isMemoryWriteGuardCurrentCore,
+  resolveCanonicalSourceUserMessageId,
+} from "./memory-source-boundary";
+import { countMemoryEligibleCompletedTurnsCore } from "./memory-turn-loader";
 import { buildMemoryContext } from "./memory-injector";
 import { ensureLorebookWithinBudget, trimLorebookToBudgetSync } from "./memory-lorebook-fit";
 import {
@@ -274,6 +279,8 @@ export async function scheduleMemoryUpdate(opts: {
   userMessage: string;
   assistantMessage: string;
   assistantMessageId?: number;
+  /** Stable canonical source identity. Assistant regeneration keeps this user id. */
+  sourceUserMessageId?: number | null;
   userPersona?: string | null;
   /** 재생성 — message_count 증가·배치 재요약·관계메모 reconcile */
   isRegenerate?: boolean;
@@ -292,6 +299,25 @@ export async function scheduleMemoryUpdate(opts: {
 
   getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
 
+  const sourceUserMessageId =
+    opts.sourceUserMessageId ??
+    (opts.assistantMessageId
+      ? resolveCanonicalSourceUserMessageId({
+          chatId: opts.chatId,
+          assistantMessageId: opts.assistantMessageId,
+        })
+      : null);
+  const boundarySnapshot = getMemorySourceBoundary(opts.chatId);
+  if (!isMemorySourceEligible({ sourceUserMessageId, boundary: boundarySnapshot })) {
+    console.info("MEMORY_SOURCE_PRE_RESET_REJECTED", {
+      chat_id: opts.chatId,
+      epoch: boundarySnapshot.epoch,
+      boundary: boundarySnapshot.resetAfterMessageId,
+      source_message_id: sourceUserMessageId,
+    });
+    return;
+  }
+
   const isRegenerate =
     opts.isRegenerate === true &&
     !!opts.previousAssistantMessage?.trim() &&
@@ -307,6 +333,8 @@ export async function scheduleMemoryUpdate(opts: {
         previousAssistantMessage: opts.previousAssistantMessage!,
         route: opts.route ?? "safe",
         turnTrace: opts.turnTrace,
+        sourceUserMessageId,
+        boundarySnapshot,
       });
     } else {
       await mergeRelationshipMetaFromTurn({
@@ -318,6 +346,8 @@ export async function scheduleMemoryUpdate(opts: {
         turnTrace: opts.turnTrace,
         mainModelTailParsed: opts.relationshipTailParsed,
         mainModelDelta: opts.relationshipDeltaFromMain,
+        sourceUserMessageId,
+        boundarySnapshot,
       });
     }
   } catch (e) {
@@ -342,7 +372,31 @@ export async function scheduleMemoryUpdate(opts: {
     return;
   }
 
-  const count = incrementMessageCount(opts.chatId);
+  const db = getDb();
+  const count = db.transaction(() => {
+    if (
+      !isMemoryWriteGuardCurrentCore(db, {
+        chatId: opts.chatId,
+        snapshot: boundarySnapshot,
+        sourceUserMessageIds: [sourceUserMessageId],
+      })
+    ) {
+      return null;
+    }
+    const eligibleCount = countMemoryEligibleCompletedTurnsCore(db, opts.chatId);
+    db.prepare(
+      `UPDATE chat_memories SET message_count=?, updated_at=datetime('now') WHERE chat_id=?`
+    ).run(eligibleCount, opts.chatId);
+    return eligibleCount;
+  }).immediate();
+  if (count == null) {
+    console.info("MEMORY_STALE_EPOCH_REJECTED", {
+      chat_id: opts.chatId,
+      epoch: boundarySnapshot.epoch,
+      source_message_id: sourceUserMessageId,
+    });
+    return;
+  }
   const memory = getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
   const summarized = memory.summarized_turn_count ?? 0;
 
@@ -419,9 +473,7 @@ export function clearMemoryForChat(
   characterId: number,
   tier: MemoryTier
 ): void {
-  clearChatMemory(chatId, userId, characterId, tier);
-  clearMemoryRecordsForChat(chatId);
-  clearChatRelationshipMeta(chatId);
+  executeAtomicMemoryReset({ chatId, userId, characterId, tier });
 }
 
 export function upgradeTier(userId: number, tier: MemoryTier): void {

@@ -5,11 +5,11 @@ import { getOrCreateChatMemory, updateChatMemory } from "./memory-db";
 import { trimLorebookToBudgetSync } from "./memory-lorebook-fit";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
 import {
-  countChatTurns,
   listMemoryRecordsForChat,
   rebuildLorebookFromRecords,
   type MemoryRecordView,
 } from "./memory-turn-summary";
+import { countMemoryEligibleCompletedTurns } from "./memory-turn-loader";
 import {
   scheduleCharacterRollingSummary,
   shouldTriggerRollingSummary,
@@ -55,7 +55,7 @@ export function reconcileMemoryAfterTurnDelete(opts: {
 }): boolean {
   if (!isMemoryFeatureEnabled()) return false;
 
-  const actualTurnCount = countChatTurns(opts.chatId);
+  const actualTurnCount = countMemoryEligibleCompletedTurns(opts.chatId);
   getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
 
   // 1) Roll back cross-row branch side effects caused by the deleted user turn only.

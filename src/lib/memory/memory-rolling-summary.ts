@@ -1,11 +1,9 @@
 import { getDb } from "@/lib/db";
 import { callGeminiBackground } from "@/lib/ai";
 import {
-  messagesToTurns,
   splitOpeningPlayableTurns,
   ROLLING_SUMMARY_INTERVAL,
   type DialogueTurn,
-  type ChatMessageRow,
 } from "@/lib/hybridMemory";
 import { ROLLING_SUMMARY_MAX_CHARS, ROLLING_SUMMARY_MIN_CHARS, LOREBOOK_COMPACT_FILL_RATIO } from "./memory-constants";
 import { clampMemoryRecordSummary } from "./memory-summary-clamp";
@@ -16,7 +14,6 @@ import {
   type BranchControlSource,
 } from "./memory-branch-control";
 import {
-  loadChatTurnsWithMessageIds,
   rebuildLorebookFromRecords,
   listMemoryRecordsForChat,
   listDistinctClosedBranchIds,
@@ -28,6 +25,12 @@ import {
   selectLatestContiguousNoncanonRecordIds,
   type MemoryRecordView,
 } from "./memory-turn-summary";
+import { loadMemoryEligibleChatTurnsWithMessageIds } from "./memory-turn-loader";
+import {
+  getMemorySourceBoundary,
+  isMemoryWriteGuardCurrentCore,
+  type MemorySourceBoundary,
+} from "./memory-source-boundary";
 
 /** Post-persist branch control ops, ordered by source turn (compose must not apply these). */
 type PendingBranchControlOp =
@@ -124,10 +127,10 @@ function normalizeSummaryText(text: string): string {
 
 /** 해당 채팅방 메시지만 턴으로 변환 */
 export function loadTurnsForChat(chatId: number): DialogueTurn[] {
-  const rows = getDb()
-    .prepare(`SELECT role, content, model FROM messages WHERE chat_id=? ORDER BY id ASC`)
-    .all(chatId) as ChatMessageRow[];
-  return messagesToTurns(rows);
+  return loadMemoryEligibleChatTurnsWithMessageIds(chatId).map((turn) => ({
+    user: turn.user,
+    assistant: turn.assistant,
+  }));
 }
 
 /** @deprecated loadTurnsForChat(chatId) 사용 */
@@ -836,6 +839,8 @@ async function persistComposedBatchScopes(opts: {
   composed: Extract<ComposedBatchScope, { ok: true }>;
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
   logLabel: string;
+  boundarySnapshot: MemorySourceBoundary;
+  sourceUserMessageIds: number[];
 }): Promise<boolean> {
   const scopePayload: ScopePayloadV1 = {
     v: 1,
@@ -862,10 +867,24 @@ async function persistComposedBatchScopes(opts: {
     promotedAt: opts.composed.promotedAt,
     userEdited: false,
     playableTurnCount: opts.playableCount,
+    boundarySnapshot: opts.boundarySnapshot,
+    sourceUserMessageIds: opts.sourceUserMessageIds,
+    sourceStartUserMessageId: opts.sourceUserMessageIds[0] ?? null,
+    sourceEndUserMessageId:
+      opts.sourceUserMessageIds[opts.sourceUserMessageIds.length - 1] ?? null,
     __testThrowAfterUpsert: persistForceFailAfterUpsertForTests || undefined,
   });
 
   if (!persisted.ok) {
+    if (persisted.reason === "STALE_MEMORY_EPOCH") {
+      console.info("MEMORY_STALE_EPOCH_REJECTED", {
+        chat_id: opts.chatId,
+        epoch: opts.boundarySnapshot.epoch,
+        source_message_id:
+          opts.sourceUserMessageIds[opts.sourceUserMessageIds.length - 1] ?? null,
+      });
+      return false;
+    }
     console.error(
       `[memory] ${persisted.reason} chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn}`,
       persisted.error
@@ -873,30 +892,43 @@ async function persistComposedBatchScopes(opts: {
     return false;
   }
 
-  // Apply pending branch control in source-turn order after successful persist.
   const pendingOps = opts.composed.pendingBranchControlOps ?? [];
-  for (const pending of pendingOps) {
-    if (pending.op === "reopen_branch") {
-      reopenClosedBranchCanon({
-        chatId: opts.chatId,
-        branchId: pending.branchId,
-        source: "seal_sole_closed_continue",
-        control: pending.control,
-      });
-    } else if (pending.op === "close_active_branches") {
-      closeActiveBranchCanon(opts.chatId, pending.control);
-    }
-  }
-
   const lorebookBudget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity).lorebook;
-  let currentMemory = rebuildLorebookFromRecords(opts.chatId);
-  if (pendingOps.length > 0) {
-    updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
-      recent_summary: currentMemory,
-      membership_tier: opts.tier,
-    });
-    syncChatLongTermMemory(opts.chatId, currentMemory);
-  }
+  const db = getDb();
+  const postPersistMemory = db.transaction(() => {
+    if (
+      !isMemoryWriteGuardCurrentCore(db, {
+        chatId: opts.chatId,
+        snapshot: opts.boundarySnapshot,
+        sourceUserMessageIds: opts.sourceUserMessageIds,
+      })
+    ) {
+      return null;
+    }
+    for (const pending of pendingOps) {
+      if (pending.op === "reopen_branch") {
+        reopenClosedBranchCanon({
+          chatId: opts.chatId,
+          branchId: pending.branchId,
+          source: "seal_sole_closed_continue",
+          control: pending.control,
+        });
+      } else if (pending.op === "close_active_branches") {
+        closeActiveBranchCanon(opts.chatId, pending.control);
+      }
+    }
+    const rebuilt = rebuildLorebookFromRecords(opts.chatId);
+    if (pendingOps.length > 0) {
+      updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
+        recent_summary: rebuilt,
+        membership_tier: opts.tier,
+      });
+      syncChatLongTermMemory(opts.chatId, rebuilt);
+    }
+    return rebuilt;
+  }).immediate();
+  if (postPersistMemory == null) return true;
+  let currentMemory = postPersistMemory;
   if (currentMemory.length > lorebookBudget) {
     try {
       const compacted = await compactCurrentMemory(
@@ -905,13 +937,26 @@ async function persistComposedBatchScopes(opts: {
         opts.turnTrace
       );
       if (compacted.trim()) {
-        currentMemory = compacted;
-        updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
-          recent_summary: currentMemory,
-          membership_tier: opts.tier,
-          last_compressed_at: new Date().toISOString(),
-        });
-        syncChatLongTermMemory(opts.chatId, currentMemory);
+        const compactedText = compacted;
+        const compactCommitted = db.transaction(() => {
+          if (
+            !isMemoryWriteGuardCurrentCore(db, {
+              chatId: opts.chatId,
+              snapshot: opts.boundarySnapshot,
+              sourceUserMessageIds: opts.sourceUserMessageIds,
+            })
+          ) {
+            return false;
+          }
+          updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
+            recent_summary: compactedText,
+            membership_tier: opts.tier,
+            last_compressed_at: new Date().toISOString(),
+          });
+          syncChatLongTermMemory(opts.chatId, compactedText);
+          return true;
+        }).immediate();
+        if (compactCommitted) currentMemory = compactedText;
       }
     } catch (e) {
       console.warn(
@@ -942,7 +987,8 @@ async function rebuildExistingBatchScopePayload(opts: {
   existingRecord: MemoryRecordView;
   logLabel: string;
 }): Promise<boolean> {
-  const allTurns = loadChatTurnsWithMessageIds(opts.chatId);
+  const boundarySnapshot = getMemorySourceBoundary(opts.chatId);
+  const allTurns = loadMemoryEligibleChatTurnsWithMessageIds(opts.chatId, boundarySnapshot);
   const batchMeta = allTurns.filter(
     (t) =>
       t.turnNumber >= opts.batchStart &&
@@ -997,6 +1043,10 @@ async function rebuildExistingBatchScopePayload(opts: {
     composed,
     turnTrace: opts.turnTrace,
     logLabel: opts.logLabel,
+    boundarySnapshot,
+    sourceUserMessageIds: batchMeta
+      .map((turn) => turn.userMessageId)
+      .filter((id): id is number => id != null),
   });
 }
 
@@ -1016,7 +1066,7 @@ export async function refreshRollingSummaryForRegeneratedAssistant(opts: {
   if (!isMemoryFeatureEnabled()) return false;
   if (running.has(opts.chatId)) return false;
 
-  const allTurns = loadChatTurnsWithMessageIds(opts.chatId);
+  const allTurns = loadMemoryEligibleChatTurnsWithMessageIds(opts.chatId);
   const target = allTurns.find((t) => t.assistantMessageId === opts.assistantMessageId);
   if (!target) return false;
 
@@ -1089,8 +1139,11 @@ export async function processRollingSummaryBatch(opts: {
 
   try {
     const memory = getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
-    const allTurns = loadChatTurnsWithMessageIds(opts.chatId);
-    const playableMeta = allTurns.filter((t) => t.turnNumber > 0);
+    const boundarySnapshot = getMemorySourceBoundary(opts.chatId);
+    const playableMeta = loadMemoryEligibleChatTurnsWithMessageIds(
+      opts.chatId,
+      boundarySnapshot
+    );
     const playableCount = playableMeta.length;
 
     // Counter must follow contiguous persisted batches — never trust stale summarized_turn_count alone
@@ -1103,6 +1156,7 @@ export async function processRollingSummaryBatch(opts: {
         characterId: opts.characterId,
         tier: opts.tier,
         playableTurnCount: playableCount,
+        boundarySnapshot,
       });
       console.warn("[memory] SUMMARY_COUNTER_DRIFT reconciled", {
         chatId: opts.chatId,
@@ -1184,6 +1238,10 @@ export async function processRollingSummaryBatch(opts: {
       composed,
       turnTrace: opts.turnTrace,
       logLabel: `${ROLLING_SUMMARY_INTERVAL}턴 기억 기록`,
+      boundarySnapshot,
+      sourceUserMessageIds: batchMeta
+        .map((turn) => turn.userMessageId)
+        .filter((id): id is number => id != null),
     });
   } catch (e) {
     console.error(
