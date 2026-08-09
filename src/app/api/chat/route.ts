@@ -102,6 +102,8 @@ import {
   countPlayableTurns,
   rawRecentTurnsToHistory,
   resolveLorebookExcludeFromTrimmedHistory,
+  resolveMemoryCoverageTurnFloor,
+  selectLongerHistorySuffix,
   trimHistoryToBudget,
 } from "@/lib/hybridMemory";
 import { resolveHistoryTokenBudget } from "@/lib/contextTrack";
@@ -116,6 +118,7 @@ import {
 } from "@/lib/regenerationContext";
 import {
   buildMemoryContextForChat,
+  buildMemoryContextForPreview,
   resolveMemoryTier,
   scheduleMemoryUpdate,
 } from "@/lib/memory/memory-manager";
@@ -1222,6 +1225,16 @@ export async function POST(req: Request) {
       content: replaceUserPlaceholder(m.content, personaDisplayName, user.nickname),
     })
   );
+  const summarizedTurnCount = chatMemory?.summarized_turn_count ?? 0;
+  const historyMinTurnFloor = resolveMemoryCoverageTurnFloor({
+    completedTurns: playableTurnCount,
+    summarizedTurnCount,
+  });
+  const coverageProtectedCanonicalHistory = trimHistoryToBudget(
+    canonicalRecentHistoryFull,
+    historyTokenBudget,
+    historyMinTurnFloor
+  );
   const canonicalRouteHistory: CanonicalRouteHistoryMessage[] = msgRowsSource
     .filter((row) => row.role === "user" || row.role === "assistant")
     .map((row) => {
@@ -1268,15 +1281,19 @@ export async function POST(req: Request) {
         ...(activeRoute ? { activeRoute } : {}),
       };
     });
-  let providerRecentHistoryFull: ChatMsg[] = canonicalRecentHistoryFull;
+  let providerRecentHistoryFull: ChatMsg[] = coverageProtectedCanonicalHistory;
   if (
     adultRoutingConfig.enabled &&
     adultRouteDecision.activeRoute === "general" &&
     priorModelRouteState.generalRouteBridge
   ) {
-    providerRecentHistoryFull = buildGeneralProviderContext(
-      canonicalRouteHistory,
-      priorModelRouteState.generalRouteBridge
+    providerRecentHistoryFull = trimHistoryToBudget(
+      buildGeneralProviderContext(
+        canonicalRouteHistory,
+        priorModelRouteState.generalRouteBridge
+      ),
+      historyTokenBudget,
+      historyMinTurnFloor
     );
   }
   let handoffRawTurnsIncluded = 0;
@@ -1295,18 +1312,32 @@ export async function POST(req: Request) {
       }
     );
     const handoffHistory = handoffVariants.handoff;
-    providerRecentHistoryFull = handoffHistory.history;
-    handoffRawTurnsIncluded = handoffHistory.rawTurnsIncluded;
-    handoffRawTokensIncluded = handoffHistory.rawTokensIncluded;
+    providerRecentHistoryFull = selectLongerHistorySuffix(
+      handoffHistory.history,
+      coverageProtectedCanonicalHistory
+    );
+    handoffRawTurnsIncluded = providerRecentHistoryFull.filter(
+      (message) => message.role === "assistant"
+    ).length;
+    handoffRawTokensIncluded = providerRecentHistoryFull.reduce(
+      (total, message) => total + estimateTokens(message.content),
+      0
+    );
   }
-  const trimmedHistoryForLorebook = trimHistoryToBudget(
-    canonicalRecentHistoryFull,
-    historyTokenBudget
-  );
+  const trimmedHistoryForLorebook =
+    adultRoutingConfig.enabled &&
+    adultRouteDecision.activeRoute === "adult" &&
+    adultRouteDecision.firstAdultHandoff
+      ? providerRecentHistoryFull
+      : coverageProtectedCanonicalHistory;
   const recentHistory: ChatMsg[] = canonicalRecentHistoryFull;
   const shortTermHistory = providerRecentHistoryFull;
 
-  const memoryInjection = await buildMemoryContextForChat({
+  const initialLorebookExcludeTurnStart = resolveLorebookExcludeFromTrimmedHistory(
+    turnsForRecentHistory,
+    trimmedHistoryForLorebook
+  );
+  let memoryInjection = await buildMemoryContextForChat({
     chatId: chat.id,
     userId: user.id,
     characterId: ch.id,
@@ -1316,10 +1347,7 @@ export async function POST(req: Request) {
     modelId: contextModelId,
     provider: contextProvider,
     turnTrace: undefined,
-    excludeSummaryTurnStartGte: resolveLorebookExcludeFromTrimmedHistory(
-      turnsForRecentHistory,
-      trimmedHistoryForLorebook
-    ),
+    excludeSummaryTurnStartGte: initialLorebookExcludeTurnStart,
   });
   const characterGenres = sanitizeCharacterGenres(
     (() => {
@@ -1836,6 +1864,8 @@ export async function POST(req: Request) {
     chatId: chat.id,
     targetResponseChars,
     completedTurns: playableTurnCount,
+    summarizedTurnCount,
+    historyMinTurnFloor,
     userPersonaGender: selectedPersona?.gender ?? "other",
     provider: "openrouter" as const,
     genres: characterGenres,
@@ -1887,7 +1917,7 @@ export async function POST(req: Request) {
       ? withEnsembleRedactedPromptAssembly(fn)
       : fn();
 
-  const built = assembleContext(() =>
+  let built = assembleContext(() =>
     buildContext({
       ...contextBuildInput,
       statusWidgetActive: statusWidgetActive,
@@ -1896,6 +1926,36 @@ export async function POST(req: Request) {
       promptDumpDetail: `chat=${chat.id} user=${user.id} character=${ch.id}`,
     })
   );
+  const degradedFirstRawTurn = built.meta.memoryCoverage?.degraded
+    ? built.meta.memoryCoverage.firstRawPlayableTurn
+    : null;
+  if (
+    memoryFeatureOn &&
+    degradedFirstRawTurn != null &&
+    degradedFirstRawTurn !== initialLorebookExcludeTurnStart
+  ) {
+    memoryInjection = await buildMemoryContextForPreview({
+      chatId: chat.id,
+      tier: memoryTier,
+      memoryCapacity,
+      userMessage: autoContinueContext ? CONTINUE_USER_DISPLAY : displayUserMessage,
+      modelId: contextModelId,
+      provider: contextProvider,
+      excludeSummaryTurnStartGte: degradedFirstRawTurn,
+    });
+    built = assembleContext(() =>
+      buildContext({
+        ...contextBuildInput,
+        longTermMemory: memoryInjection.text,
+        archiveMemory: memoryInjection.archiveText,
+        statusWidgetActive: statusWidgetActive,
+        mainModelOwnsRelationshipExtract,
+        promptDumpSource: "db",
+        promptDumpDetail: `chat=${chat.id} user=${user.id} character=${ch.id}`,
+        suppressMemoryCoverageDegradedLog: true,
+      })
+    );
+  }
   if (terraPromptCanary) {
     const assembledUserTurn =
       [...(built.history ?? [])].reverse().find((m) => m.role === "user")?.content ??
@@ -2052,6 +2112,10 @@ export async function POST(req: Request) {
       }
     );
     const fallbackRaw = fallbackVariants.handoff;
+    const fallbackHistory = selectLongerHistorySuffix(
+      fallbackRaw.history,
+      coverageProtectedCanonicalHistory
+    );
     const fallbackCanonPolicy = resolveCanonInjectionPolicy(
       activeAdultModelId,
       { userId: user.id, chatId: chat.id }
@@ -2061,7 +2125,7 @@ export async function POST(req: Request) {
         ...contextBuildInput,
         modelId: activeAdultModelId,
         provider: "openrouter" as const,
-        shortTermHistory: fallbackRaw.history,
+        shortTermHistory: fallbackHistory,
         preserveAdultHandoffRawHistory: true,
         canonInjectionPolicy: fallbackCanonPolicy,
       })
@@ -2091,8 +2155,13 @@ export async function POST(req: Request) {
       openRouterSystemSplit: fallbackSystemSplit,
       promptAudit: fallbackBuilt.meta.promptAudit,
       trackedSections: fallbackBuilt.meta.trackedSections,
-      rawTurnsIncluded: fallbackRaw.rawTurnsIncluded,
-      rawTokensIncluded: fallbackRaw.rawTokensIncluded,
+      rawTurnsIncluded: fallbackHistory.filter(
+        (message) => message.role === "assistant"
+      ).length,
+      rawTokensIncluded: fallbackHistory.reduce(
+        (total, message) => total + estimateTokens(message.content),
+        0
+      ),
     };
   }
   let system = systemPromptForTurn;
@@ -3963,7 +4032,7 @@ export async function POST(req: Request) {
           charPromptEst = Math.max(0, charPromptEst - keywordLoreEst);
         }
 
-        // raw = 전체 대화 → trimHistoryToBudget(전 모델 10K + 최소 4턴 floor)
+        // raw = 전체 대화 → trimHistoryToBudget(전 모델 10K + coverage-aware floor)
         const historyEst =
           audit?.breakdown.recentConversation ??
           historyRef.reduce((s, m) => s + estimateTokens(m.content ?? ""), 0);

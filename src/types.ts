@@ -94,6 +94,12 @@ export type ContextBuildInput = {
   targetResponseChars?: number;
   /** 현재 턴 직전까지 완료된 대화 턴 수 */
   completedTurns?: number;
+  /** LTM에 연속 반영 완료된 playable turns (opening greeting 제외). */
+  summarizedTurnCount?: number;
+  /** route에서 한 번 계산한 RAW ↔ sealed summary coverage floor. */
+  historyMinTurnFloor?: number;
+  /** hard-limit second pass에서 동일 degradation 로그의 중복 출력을 막는다. */
+  suppressMemoryCoverageDegradedLog?: boolean;
   /** Selected User Persona 성별 (호칭·관계 규칙용) */
   userPersonaGender?: CharacterGender;
   /** 모델 공급자 — 히스토리 예산·소설 타임라인 조립 분기 */
@@ -268,6 +274,15 @@ export type BuiltContext = {
     estimatedHistoryTokens: number;
     /** system + history 합산 추정 (gemini-bulk cache threshold 판단) */
     estimatedInputTokens?: number;
+    /** RAW ↔ sealed summary coverage 및 absolute payload degrade 관찰값. */
+    memoryCoverage?: {
+      requestedFloor: number;
+      effectiveFloor: number;
+      firstRawPlayableTurn: number | null;
+      gapTurns: number;
+      degraded: boolean;
+      reason?: "absolute_payload_limit";
+    };
     tokenBudget: number;
     /** 캐릭터 설정에서 이중언어 대사(EN/zh/ja+KO 등) 감지 */
     bilingualDialogue?: boolean;

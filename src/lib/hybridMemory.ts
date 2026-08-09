@@ -79,7 +79,68 @@ export function recentTurnsToHistory(
   return out;
 }
 
-/** 채팅 히스토리 — 토큰 예산 + 최소 턴 floor (예산 초과해도 최근 MIN_HISTORY_TURN_FLOOR턴 유지) */
+function normalizeNonNegativeInteger(value: unknown): number {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return 0;
+  return Math.max(0, Math.floor(numeric));
+}
+
+/**
+ * RAW ↔ sealed summary coverage를 지키기 위한 최소 playable turn 수.
+ * opening greeting은 completedTurns에 포함하지 않는다.
+ */
+export function resolveMemoryCoverageTurnFloor(opts: {
+  completedTurns: number;
+  summarizedTurnCount?: number | null;
+  baseFloor?: number;
+}): number {
+  const completedTurns = normalizeNonNegativeInteger(opts.completedTurns);
+  const summarizedTurnCount = normalizeNonNegativeInteger(opts.summarizedTurnCount);
+  const baseFloor = normalizeNonNegativeInteger(
+    opts.baseFloor ?? MIN_HISTORY_TURN_FLOOR
+  );
+  const unsummarizedTurns = Math.max(0, completedTurns - summarizedTurnCount);
+  return Math.max(baseFloor, unsummarizedTurns);
+}
+
+/** first RAW playable turn과 sealed summary 사이의 미보존 구간. */
+export function resolveMemoryCoverageGap(opts: {
+  firstRawPlayableTurn: number | null | undefined;
+  summarizedTurnCount: number;
+}): number {
+  const firstRaw = Number(opts.firstRawPlayableTurn);
+  if (!Number.isFinite(firstRaw) || firstRaw < 1) return 0;
+  const summarizedTurnCount = normalizeNonNegativeInteger(opts.summarizedTurnCount);
+  return Math.max(0, Math.floor(firstRaw) - (summarizedTurnCount + 1));
+}
+
+/** history에 남은 complete playable turns 수 (opening greeting 제외). */
+export function countPlayableHistoryTurns(history: ChatMsg[]): number {
+  let pendingUser: ChatMsg | null = null;
+  let playableTurns = 0;
+
+  for (const message of history) {
+    if (message.role === "user") {
+      pendingUser = message;
+      continue;
+    }
+    if (message.role !== "assistant" || !pendingUser) continue;
+    if (pendingUser.content !== OPENING_TURN_USER) playableTurns += 1;
+    pendingUser = null;
+  }
+
+  return playableTurns;
+}
+
+/** 두 suffix 후보 중 더 긴 쪽을 선택해 기존 provider/history 보존량을 줄이지 않는다. */
+export function selectLongerHistorySuffix(
+  preferred: ChatMsg[],
+  coverageRequired: ChatMsg[]
+): ChatMsg[] {
+  return coverageRequired.length > preferred.length ? coverageRequired : preferred;
+}
+
+/** 채팅 히스토리 — 토큰 예산 + 최소 턴 floor (예산 초과해도 최근 minTurnFloor턴 유지) */
 export function trimHistoryToBudget(
   history: ChatMsg[],
   budget: number,
@@ -88,7 +149,10 @@ export function trimHistoryToBudget(
   if (history.length === 0) return [];
 
   // 1턴 = user+assistant 2메시지
-  const floorMessages = Math.min(history.length, Math.max(0, minTurnFloor) * 2);
+  const floorMessages = Math.min(
+    history.length,
+    normalizeNonNegativeInteger(minTurnFloor) * 2
+  );
 
   let tokens = 0;
   const kept: ChatMsg[] = [];
@@ -125,7 +189,7 @@ function alignHistoryPrefixDrop(
 
 /**
  * 전체 대화 턴 풀 — opening + playable 전부.
- * 주입량은 trimHistoryToBudget(전 모델 10K + 최소 4턴 floor)만 결정.
+ * 주입량은 trimHistoryToBudget(전 모델 10K + coverage-aware floor)만 결정.
  */
 export function resolveRawRecentTurnPool(
   turns: DialogueTurn[],
