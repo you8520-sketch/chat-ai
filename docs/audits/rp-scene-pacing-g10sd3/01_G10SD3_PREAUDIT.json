@@ -1,0 +1,119 @@
+{
+  "phase": "G10-SD3-PREAUDIT",
+  "latest_main": "7f0c54b60e7ace11bc6e4eea9c820caadde24853",
+  "api_calls": 0,
+  "sole_variable": "SCENE_FACT_AUTHORITY_AND_TRANSITION_SCOPE",
+  "production_wire": "NOT_RUN",
+  "reference": "G10-SD2 stored Q outputs (no redraw)",
+  "CURRENT_A": {
+    "system_tokens_est": 3284,
+    "owners": {
+      "scene_pacing": 0,
+      "scene_state": 0,
+      "scene_flow": 1,
+      "genre_scene_mode": 0,
+      "pacing_sot_count": 1
+    }
+  },
+  "REFERENCE_Q": {
+    "system_tokens_est": 3271,
+    "system_chars": 6541,
+    "owners": {
+      "scene_pacing": 1,
+      "scene_state": 0,
+      "scene_flow": 0,
+      "genre_scene_mode": 0,
+      "pacing_sot_count": 1
+    },
+    "decision": {
+      "pacingMode": "DYAD",
+      "motionLevel": "HOLD",
+      "sceneKind": "rest",
+      "castMode": "single_primary",
+      "intimateDyad": false,
+      "recentStagnation": false,
+      "externalCooldownActive": false,
+      "triggerActive": false,
+      "meaningfulBeatBudget": 1,
+      "carrierHints": [
+        "relationship",
+        "daily_life",
+        "environment"
+      ],
+      "primaryProgression": null,
+      "npcActionEligible": false,
+      "externalEligible": false,
+      "reasonCodes": [
+        "kind:rest",
+        "mode:DYAD",
+        "cast:single_primary",
+        "dyad_hold"
+      ]
+    }
+  },
+  "CANDIDATE_R": {
+    "system_tokens_est": 3318,
+    "system_chars": 6635,
+    "owners": {
+      "scene_pacing": 0,
+      "scene_state": 1,
+      "scene_flow": 0,
+      "genre_scene_mode": 0,
+      "pacing_sot_count": 1
+    },
+    "decision": {
+      "pacingMode": "DYAD",
+      "motionLevel": "HOLD",
+      "sceneKind": "rest",
+      "castMode": "single_primary",
+      "intimateDyad": false,
+      "recentStagnation": false,
+      "externalCooldownActive": false,
+      "triggerActive": false,
+      "meaningfulBeatBudget": 1,
+      "carrierHints": [
+        "relationship",
+        "daily_life",
+        "environment"
+      ],
+      "primaryProgression": null,
+      "npcActionEligible": false,
+      "externalEligible": false,
+      "reasonCodes": [
+        "kind:rest",
+        "mode:DYAD",
+        "cast:single_primary",
+        "dyad_hold"
+      ]
+    },
+    "authority": {
+      "stateAuthority": "RECENT_SCENE_CURRENT_USER_TRIGGER",
+      "canonRole": "POSSIBILITY_AND_CONSTRAINT",
+      "externalContinuity": "PRESERVE",
+      "transitionDomains": [
+        "relationship",
+        "ai_interior",
+        "ai_action",
+        "sensory",
+        "ambient_environment"
+      ]
+    },
+    "envelope": "[SCENE STATE]\n현재 장면의 사실은 현재 입력·최근 장면·발동된 사건이 기준이며, 정본은 가능한 세계 규칙과 인물의 판단 기준이다. 현재 초점: 두 인물의 현재 상호작용. 이번 턴의 변화 범위: 관계·내면·AI 행동·감각. 외부 상태: 현재 성립한 상태를 이어간다. 이번 전개는 유저에게 동시에 여러 독립 결정을 요구하지 않는다.",
+    "envelope_chars": 189,
+    "envelope_tokens_approx": 95,
+    "replacedSceneFlow": true,
+    "token_delta_vs_Q": 47,
+    "char_delta_vs_Q": 94
+  },
+  "invariants": {
+    "canon_equal": true,
+    "history_equal": true,
+    "user_tail_equal": true,
+    "runtime_equal": true,
+    "decision_q_r_identical": true,
+    "pacing_sot_Q": 1,
+    "pacing_sot_R": 1,
+    "no_negative_list": true
+  },
+  "LIVE_CALL_READY": true
+}
