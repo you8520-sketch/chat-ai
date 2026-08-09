@@ -1,0 +1,62 @@
+{
+  "phase": "G10-D3-PREAUDIT",
+  "latest_main": "7f0c54b60e7ace11bc6e4eea9c820caadde24853",
+  "api_calls": 0,
+  "sole_variable": "SERVER_RESOLVED_DIALOGUE_CEILING",
+  "production_wire": "NOT_RUN",
+  "API0": {
+    "Q4": {
+      "mode": "DYAD/HOLD",
+      "budget": {
+        "maxBlocks": 4,
+        "reason": "quiet_dyad",
+        "communicationDemand": "LOW"
+      },
+      "terminal": 1
+    },
+    "E5": {
+      "mode": "EXPLORATION/LOCAL",
+      "budget": {
+        "maxBlocks": 5,
+        "reason": "exploration",
+        "communicationDemand": "LOW"
+      },
+      "terminal": 1
+    },
+    "C6": {
+      "mode": "EXPLORATION/LOCAL",
+      "budget": {
+        "maxBlocks": 6,
+        "reason": "communication_heavy",
+        "communicationDemand": "HIGH"
+      },
+      "terminal": 1
+    },
+    "party": {
+      "budget": {
+        "maxBlocks": null,
+        "reason": "ensemble_uncapped",
+        "communicationDemand": "LOW"
+      },
+      "terminal": 0
+    },
+    "simulation": {
+      "budget": {
+        "maxBlocks": null,
+        "reason": "ensemble_uncapped",
+        "communicationDemand": "LOW"
+      },
+      "terminal": 0
+    },
+    "false_positive": {
+      "mode": "DYAD/HOLD",
+      "budget": {
+        "maxBlocks": 4,
+        "reason": "quiet_dyad",
+        "communicationDemand": "NORMAL"
+      },
+      "terminal": 1
+    }
+  },
+  "LIVE_CALL_READY": true
+}
