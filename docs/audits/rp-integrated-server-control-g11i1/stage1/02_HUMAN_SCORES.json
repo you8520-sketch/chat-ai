@@ -1,0 +1,84 @@
+{
+  "phase": "G11-I1",
+  "seal_ref": "DYNAMIC_DIALOGUE_BUDGET_PASS (#295) FROZEN",
+  "draft_PR": "https://github.com/you8520-sketch/chat-ai/pull/296",
+  "api_calls": 12,
+  "draws_per_fixture": 2,
+  "retry": 0,
+  "continuation": 0,
+  "repair": 0,
+  "cells": [
+    {
+      "id": "A",
+      "draws": [
+        { "chars": 2424, "blocks": 4, "budget": 4 },
+        { "chars": 2200, "blocks": 4, "budget": 4 }
+      ],
+      "quiet_interaction_central": true,
+      "unrelated_event_injection": false,
+      "note": "Character vigilance/worldview lecture present; no new attack beat injected. Budget bound."
+    },
+    {
+      "id": "B",
+      "draws": [
+        { "chars": 4068, "blocks": 3, "budget": 4 },
+        { "chars": 1924, "blocks": 4, "budget": 4 }
+      ],
+      "relationship_value": "HIGH",
+      "forced_npc": false
+    },
+    {
+      "id": "C",
+      "draws": [
+        { "chars": 3650, "blocks": 5, "budget": 5 },
+        { "chars": 2430, "blocks": 5, "budget": 5 }
+      ],
+      "world_motion": true,
+      "primary_interaction": true,
+      "canon_padding_systematic": false
+    },
+    {
+      "id": "D",
+      "draws": [
+        { "chars": 1518, "blocks": 6, "budget": 6 },
+        { "chars": 1983, "blocks": 5, "budget": 6 }
+      ],
+      "communication_completeness": "PASS",
+      "note": "Radio→judgment→response→user coordination present; short length on both draws."
+    },
+    {
+      "id": "E",
+      "draws": [
+        { "chars": 2961, "blocks": 24, "budget": null },
+        { "chars": 2936, "blocks": 10, "budget": null }
+      ],
+      "terminal_cap_absent": true,
+      "multi_character_usability": true,
+      "ensemble_suppression": false
+    },
+    {
+      "id": "F",
+      "draws": [
+        { "chars": 1739, "blocks": 3, "budget": 4 },
+        { "chars": 1657, "blocks": 4, "budget": 4 }
+      ],
+      "dyad_continuity": true,
+      "unrelated_event_injection": false
+    }
+  ],
+  "dialogue_binding": "ALL_CAPPED_OK",
+  "agency_severe": 0,
+  "repetition_systematic": false,
+  "canon_padding_systematic": false,
+  "length": {
+    "mean": 2458,
+    "median": 2312,
+    "lt_2000": 5,
+    "gt_4000": 1,
+    "gt_5000": 0
+  },
+  "classification": "SERVER_CONTROL_PASS_LENGTH_STABILITY_REMAINS",
+  "next_phase_hint": "LENGTH / PROSE OWNER CONSOLIDATION — do not reopen Scene Pacing or dialogue budget",
+  "production_wire": "NOT_RUN",
+  "merge": "NOT_RUN"
+}
