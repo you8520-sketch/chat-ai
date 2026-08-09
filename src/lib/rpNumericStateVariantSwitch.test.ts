@@ -36,7 +36,7 @@ import {
 } from "@/lib/rpNumericState";
 import { parseStatusWidgetJson, serializeStatusWidget } from "@/lib/statusWidget";
 import { parseStoredStatusWidgetValuesJson } from "@/lib/statusWidget/parseValues";
-import { fingerprintNumericStateDefinition } from "@/lib/statusWidget/numericStateDefinition";
+import { fingerprintNumericStateDefinition } from "@/lib/statusWidget/numericStateFingerprint";
 import type { MessageVariant } from "@/lib/messageAlternates";
 import { pickNextSummaryBatch } from "@/lib/memory/memory-rolling-summary";
 import { expectedBatchStartsThrough } from "@/lib/memory/memory-summary-integrity";

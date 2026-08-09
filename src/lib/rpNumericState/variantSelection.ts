@@ -12,9 +12,9 @@
  */
 import type Database from "better-sqlite3";
 import {
-  fingerprintNumericStateDefinition,
   NUMERIC_STATE_POLICY_VERSION,
 } from "@/lib/statusWidget/numericStateDefinition";
+import { fingerprintNumericStateDefinition } from "@/lib/statusWidget/numericStateFingerprint";
 import type { CanonicalEligibleNumericField } from "./canonicalPolicy";
 import {
   buildNumericIdempotencyKey,

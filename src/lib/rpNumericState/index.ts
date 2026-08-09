@@ -5,10 +5,10 @@
  * B1-D2: selected active variant = only canonical worldline.
  */
 export {
-  fingerprintNumericStateDefinition,
   normalizeNumericStateDefinition,
   NUMERIC_STATE_POLICY_VERSION,
 } from "@/lib/statusWidget/numericStateDefinition";
+export { fingerprintNumericStateDefinition } from "@/lib/statusWidget/numericStateFingerprint";
 
 export {
   parseStrictNumericProposal,
