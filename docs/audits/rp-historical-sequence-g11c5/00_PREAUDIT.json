@@ -1,0 +1,133 @@
+{
+  "phase": "G11-C5-PREAUDIT",
+  "tested_object": "HISTORICAL_SEQUENCE_BUNDLE",
+  "FULL_HISTORICAL_PAYLOAD_PARITY": "UNKNOWN",
+  "sole_variable": "ROUTE_MODEL_ALIAS on frozen historical sequence",
+  "arm_A_controls": {
+    "scene_pacing": 0,
+    "d3_dialogue_terminal": 0,
+    "l1": 0,
+    "p1": 0
+  },
+  "cells": [
+    {
+      "cell": "REL_T1",
+      "domain": "relationship",
+      "hashes": {
+        "system_sha256": "655bccc0bd793669ceed40a0064fc109ff8aef092bd17f9811c9bb81987ba910",
+        "history_sha256": "144147477d2658398e5d5c7d73018212ef4bc9123ed3ff452872809fb3b707ac",
+        "last_user_sha256": "930de1fbf5907d419b93d6f605123cd41f3c7d406e501e4e4051ef92bdf804c0",
+        "full_messages_sha256": "f3dfb336e8cdf97fdd4d6436e3650aa451801e4e36fe8565dbf7fd70796905b2"
+      },
+      "size": {
+        "system_chars": 6906,
+        "history_chars": 1182,
+        "last_user_chars": 567
+      },
+      "historical_input_tokens": 17514,
+      "owners": {
+        "scene_pacing": 0,
+        "scene_state": 0,
+        "scene_flow": 1,
+        "genre_scene_mode": 0,
+        "pacing_sot_count": 1
+      },
+      "terminalOwners": {
+        "terminal_dialogue_budget_owner": 0,
+        "numeric_dialogue_percentage": 0
+      },
+      "length_owner_terminal": true
+    },
+    {
+      "cell": "REL_T2",
+      "domain": "relationship",
+      "hashes": {
+        "system_sha256": "655bccc0bd793669ceed40a0064fc109ff8aef092bd17f9811c9bb81987ba910",
+        "history_sha256": "ce13f0ac27bcdf58412bcc6e1793d8462dbc0ff8cf481a5d79e767c3fd799539",
+        "last_user_sha256": "63308918cad1e863c70d63953766ed0f7fb2bfbf347c8048a6ceccfde83f724f",
+        "full_messages_sha256": "14b0d804ad22a1d5c49a98024fc769c8ad7bf01eff84e842e4c989711727f0bd"
+      },
+      "size": {
+        "system_chars": 6906,
+        "history_chars": 5922,
+        "last_user_chars": 507
+      },
+      "historical_input_tokens": 21726,
+      "owners": {
+        "scene_pacing": 0,
+        "scene_state": 0,
+        "scene_flow": 1,
+        "genre_scene_mode": 0,
+        "pacing_sot_count": 1
+      },
+      "terminalOwners": {
+        "terminal_dialogue_budget_owner": 0,
+        "numeric_dialogue_percentage": 0
+      },
+      "length_owner_terminal": true
+    },
+    {
+      "cell": "ACT_T1",
+      "domain": "action",
+      "hashes": {
+        "system_sha256": "655bccc0bd793669ceed40a0064fc109ff8aef092bd17f9811c9bb81987ba910",
+        "history_sha256": "144147477d2658398e5d5c7d73018212ef4bc9123ed3ff452872809fb3b707ac",
+        "last_user_sha256": "6a5d10a088218947b82cb5efd9bc9994bfb44966f101aceb48ecb28df9ecd6df",
+        "full_messages_sha256": "5b6331f9f11ea8295db9ef8cb9a4b9711f41fae402442b376bd6ec22ef8e548f"
+      },
+      "size": {
+        "system_chars": 6906,
+        "history_chars": 1182,
+        "last_user_chars": 593
+      },
+      "historical_input_tokens": 17536,
+      "owners": {
+        "scene_pacing": 0,
+        "scene_state": 0,
+        "scene_flow": 1,
+        "genre_scene_mode": 0,
+        "pacing_sot_count": 1
+      },
+      "terminalOwners": {
+        "terminal_dialogue_budget_owner": 0,
+        "numeric_dialogue_percentage": 0
+      },
+      "length_owner_terminal": true
+    },
+    {
+      "cell": "ACT_T2",
+      "domain": "action",
+      "hashes": {
+        "system_sha256": "655bccc0bd793669ceed40a0064fc109ff8aef092bd17f9811c9bb81987ba910",
+        "history_sha256": "f4e71a2a1f78d67816d8fc4e9e3f48939373f0500b47917716ba9953ba6152e6",
+        "last_user_sha256": "156e86da9657df5c8b8a501d9b65bd2ae1a51d781bb147cfdf6d85bea0d98d56",
+        "full_messages_sha256": "431650235313ee537a21046843ba0a84b1b2ef5b5cfcfd84c3aeb3e330074272"
+      },
+      "size": {
+        "system_chars": 6906,
+        "history_chars": 6031,
+        "last_user_chars": 551
+      },
+      "historical_input_tokens": 21862,
+      "owners": {
+        "scene_pacing": 0,
+        "scene_state": 0,
+        "scene_flow": 1,
+        "genre_scene_mode": 0,
+        "pacing_sot_count": 1
+      },
+      "terminalOwners": {
+        "terminal_dialogue_budget_owner": 0,
+        "numeric_dialogue_percentage": 0
+      },
+      "length_owner_terminal": true
+    }
+  ],
+  "LIVE_CALL_READY": true,
+  "ci_key_present": true,
+  "or_key_present": true,
+  "planned_new_calls": 8,
+  "production_wire": "NOT_RUN",
+  "merge": "NOT_RUN",
+  "llm_calls": 0
+}

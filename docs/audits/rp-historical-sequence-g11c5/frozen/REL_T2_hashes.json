@@ -1,0 +1,75 @@
+{
+  "hashes": {
+    "system_sha256": "655bccc0bd793669ceed40a0064fc109ff8aef092bd17f9811c9bb81987ba910",
+    "history_sha256": "ce13f0ac27bcdf58412bcc6e1793d8462dbc0ff8cf481a5d79e767c3fd799539",
+    "last_user_sha256": "63308918cad1e863c70d63953766ed0f7fb2bfbf347c8048a6ceccfde83f724f",
+    "full_messages_sha256": "14b0d804ad22a1d5c49a98024fc769c8ad7bf01eff84e842e4c989711727f0bd",
+    "system_chars": 6906,
+    "history_chars": 5922,
+    "last_user_chars": 507,
+    "per_message": [
+      {
+        "role": "system",
+        "content_sha256": "655bccc0bd793669ceed40a0064fc109ff8aef092bd17f9811c9bb81987ba910",
+        "chars": 6906
+      },
+      {
+        "role": "user",
+        "content_sha256": "c0ddf10d5ebdb309e042b7e49f02c40da7e6a43919d2ba1efe5480b647c56659",
+        "chars": 29
+      },
+      {
+        "role": "assistant",
+        "content_sha256": "8bb52213a5983369d8915603c881d03069716b0631266cf0009d1e3fa15efa45",
+        "chars": 1153
+      },
+      {
+        "role": "user",
+        "content_sha256": "2ac3186b07c73804efa808d1e882e8d0cebeeac68cdd54b321307f1a594aeff4",
+        "chars": 81
+      },
+      {
+        "role": "assistant",
+        "content_sha256": "7a70fb1ee256166f37d856561f5dba768c279c7601ccd7d26341b550ffa48ea1",
+        "chars": 4659
+      },
+      {
+        "role": "user",
+        "content_sha256": "63308918cad1e863c70d63953766ed0f7fb2bfbf347c8048a6ceccfde83f724f",
+        "chars": 507
+      }
+    ]
+  },
+  "historical": {
+    "attempt_id": "GEMINI31-REL-R1T2",
+    "chars": 4254,
+    "input_tokens": 21726
+  },
+  "schema_differences": {
+    "model_id": {
+      "or": "google/gemini-3.1-pro-preview",
+      "ci": "gemini-3.1-pro-preview"
+    },
+    "reasoning_wire": {
+      "or": "reasoning:{effort:low} + include_reasoning:false",
+      "ci": "reasoning_effort=low (reasoning object stripped)",
+      "note": "SCHEMA_DIFFERENCE — semantic effort both low"
+    },
+    "endpoint": {
+      "or": "https://openrouter.ai/api/v1/chat/completions",
+      "ci": "https://api.cheaperinference.com/v1/chat/completions"
+    }
+  },
+  "owners": {
+    "scene_pacing": 0,
+    "scene_state": 0,
+    "scene_flow": 1,
+    "genre_scene_mode": 0,
+    "pacing_sot_count": 1
+  },
+  "terminalOwners": {
+    "terminal_dialogue_budget_owner": 0,
+    "numeric_dialogue_percentage": 0
+  },
+  "length_owner_terminal": true
+}

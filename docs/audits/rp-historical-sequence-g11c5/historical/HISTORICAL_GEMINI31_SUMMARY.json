@@ -1,0 +1,134 @@
+{
+  "GEMINI31-REL-R1T1": {
+    "attempt_id": "GEMINI31-REL-R1T1",
+    "test_set": "relationship",
+    "turn": 1,
+    "user_input": "난 본기억없는데.... 나는 렌이라고 부르면 돼. *고개끄덕임* 신입 맞아.",
+    "visible_chars": 4659,
+    "input_tokens": 17514,
+    "finish_reason": "stop",
+    "provider": "cheaperinference",
+    "model": "gemini-3.1-pro-preview",
+    "reasoning_effort": "low",
+    "retry": 0,
+    "continuation": 0,
+    "recovery": 0,
+    "raw_hash": "7a70fb1ee256166f37d856561f5dba768c279c7601ccd7d26341b550ffa48ea1",
+    "usage_breakdown": [
+      {
+        "label": "최근 raw 턴",
+        "tokens": 2367,
+        "pct": 14
+      },
+      {
+        "label": "캐릭터 프롬프트",
+        "tokens": 9121,
+        "pct": 52
+      },
+      {
+        "label": "선택 페르소나",
+        "tokens": 270,
+        "pct": 2
+      }
+    ]
+  },
+  "GEMINI31-REL-R1T2": {
+    "attempt_id": "GEMINI31-REL-R1T2",
+    "test_set": "relationship",
+    "turn": 2,
+    "user_input": "너는 이름이뭐야? 뭐하는 중이었어?",
+    "visible_chars": 4254,
+    "input_tokens": 21726,
+    "finish_reason": "stop",
+    "provider": "cheaperinference",
+    "model": "gemini-3.1-pro-preview",
+    "reasoning_effort": "low",
+    "retry": 0,
+    "continuation": 0,
+    "recovery": 0,
+    "raw_hash": "558150d1eb88b20ab77e7874b7bbcef2d7ddda698be7d1d2b21fd454686fe256",
+    "usage_breakdown": [
+      {
+        "label": "최근 raw 턴",
+        "tokens": 6582,
+        "pct": 30
+      },
+      {
+        "label": "캐릭터 프롬프트",
+        "tokens": 9120,
+        "pct": 42
+      },
+      {
+        "label": "선택 페르소나",
+        "tokens": 270,
+        "pct": 1
+      }
+    ]
+  },
+  "GEMINI31-ACT-R1T1": {
+    "attempt_id": "GEMINI31-ACT-R1T1",
+    "test_set": "action",
+    "turn": 1,
+    "user_input": "*로비 천장에서 갑자기 비상 경보가 울리고 출입문 쪽에서 둔탁한 폭발음이 터진다. 렌은 소리가 난 쪽으로 고개를 돌린다.* 저거 뭐야?",
+    "visible_chars": 4743,
+    "input_tokens": 17536,
+    "finish_reason": "stop",
+    "provider": "cheaperinference",
+    "model": "gemini-3.1-pro-preview",
+    "reasoning_effort": "low",
+    "retry": 0,
+    "continuation": 0,
+    "recovery": 0,
+    "raw_hash": "53971d3105b3fc786592a962a95ef987905e37e3f56d43fec98204abc0fc9732",
+    "usage_breakdown": [
+      {
+        "label": "최근 raw 턴",
+        "tokens": 2388,
+        "pct": 14
+      },
+      {
+        "label": "캐릭터 프롬프트",
+        "tokens": 9122,
+        "pct": 52
+      },
+      {
+        "label": "선택 페르소나",
+        "tokens": 270,
+        "pct": 2
+      }
+    ]
+  },
+  "GEMINI31-ACT-R1T2": {
+    "attempt_id": "GEMINI31-ACT-R1T2",
+    "test_set": "action",
+    "turn": 2,
+    "user_input": "*렌은 태형의 소매를 잡고 곁에 붙는다.* 나도 같이 갈게.",
+    "visible_chars": 4327,
+    "input_tokens": 21862,
+    "finish_reason": "stop",
+    "provider": "cheaperinference",
+    "model": "gemini-3.1-pro-preview",
+    "reasoning_effort": "low",
+    "retry": 0,
+    "continuation": 0,
+    "recovery": 0,
+    "raw_hash": "b2e28adbc6b249fed55c3081fea16089cf18e7e82938cf9146e33997cdad1200",
+    "usage_breakdown": [
+      {
+        "label": "최근 raw 턴",
+        "tokens": 6717,
+        "pct": 31
+      },
+      {
+        "label": "캐릭터 프롬프트",
+        "tokens": 9120,
+        "pct": 42
+      },
+      {
+        "label": "선택 페르소나",
+        "tokens": 270,
+        "pct": 1
+      }
+    ]
+  }
+}

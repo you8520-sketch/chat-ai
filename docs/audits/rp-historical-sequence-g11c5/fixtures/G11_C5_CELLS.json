@@ -1,0 +1,55 @@
+{
+  "note": "G11-C5 HISTORICAL_SEQUENCE_BUNDLE — not EXACT_HISTORICAL_PROMPT. FULL_HISTORICAL_PAYLOAD_PARITY=UNKNOWN.",
+  "character_id": 18,
+  "persona_id": 61,
+  "characterFixture": "docs/audits/rp-historical-sequence-g11c5/fixtures/c18_persona61_fixture.json",
+  "historical_pr": 255,
+  "cells": [
+    {
+      "id": "REL_T1",
+      "domain": "relationship",
+      "turn": 1,
+      "userInput": "난 본기억없는데.... 나는 렌이라고 부르면 돼. *고개끄덕임* 신입 맞아.",
+      "historyAfterGreeting": [],
+      "historical_attempt_id": "GEMINI31-REL-R1T1",
+      "historical_chars": 4659,
+      "historical_input_tokens": 17514
+    },
+    {
+      "id": "REL_T2",
+      "domain": "relationship",
+      "turn": 2,
+      "userInput": "너는 이름이뭐야? 뭐하는 중이었어?",
+      "freeze_prior": {
+        "user_t1": "난 본기억없는데.... 나는 렌이라고 부르면 돼. *고개끄덕임* 신입 맞아.",
+        "assistant_t1_raw_path": "docs/audits/rp-historical-sequence-g11c5/historical/GEMINI31-REL-R1T1_raw.md"
+      },
+      "historical_attempt_id": "GEMINI31-REL-R1T2",
+      "historical_chars": 4254,
+      "historical_input_tokens": 21726
+    },
+    {
+      "id": "ACT_T1",
+      "domain": "action",
+      "turn": 1,
+      "userInput": "*로비 천장에서 갑자기 비상 경보가 울리고 출입문 쪽에서 둔탁한 폭발음이 터진다. 렌은 소리가 난 쪽으로 고개를 돌린다.* 저거 뭐야?",
+      "historyAfterGreeting": [],
+      "historical_attempt_id": "GEMINI31-ACT-R1T1",
+      "historical_chars": 4743,
+      "historical_input_tokens": 17536
+    },
+    {
+      "id": "ACT_T2",
+      "domain": "action",
+      "turn": 2,
+      "userInput": "*렌은 태형의 소매를 잡고 곁에 붙는다.* 나도 같이 갈게.",
+      "freeze_prior": {
+        "user_t1": "*로비 천장에서 갑자기 비상 경보가 울리고 출입문 쪽에서 둔탁한 폭발음이 터진다. 렌은 소리가 난 쪽으로 고개를 돌린다.* 저거 뭐야?",
+        "assistant_t1_raw_path": "docs/audits/rp-historical-sequence-g11c5/historical/GEMINI31-ACT-R1T1_raw.md"
+      },
+      "historical_attempt_id": "GEMINI31-ACT-R1T2",
+      "historical_chars": 4327,
+      "historical_input_tokens": 21862
+    }
+  ]
+}
