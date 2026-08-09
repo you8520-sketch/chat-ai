@@ -24,19 +24,22 @@ describe("CURRENT USER INPUT — interactive ownership recency lock (admin canar
     assert.match(w, /Continue the scene through AI-controlled characters, NPCs/);
   });
 
-  it("A2. interactive + gate OFF → legacy compact behavior, NO lock marker (no global change)", () => {
+  it("A2. interactive + gate OFF → collaborative wrapper aligned with COLLABORATIVE owner", () => {
     const w = buildCurrentUserInputWrapper({ mode: "interactive", ownershipLockEnabled: false });
     assert.ok(w.startsWith(CURRENT_USER_INPUT_HEADER));
     assert.ok(!w.includes(INTERACTIVE_OWNERSHIP_LOCK_MARKER));
     assert.ok(!w.includes("[B] ="));
-    // Legacy compact phrases retained.
-    assert.match(w, /Do not continue writing the user's future/);
-    assert.match(w, /completed user input/);
+    assert.match(w, /latest completed input/);
+    assert.match(w, /Do not invent new \[B\] dialogue/);
+    assert.match(w, /Minor reversible expressions/);
+    assert.match(w, /USER CONTROL — COLLABORATIVE INTERACTIVE/);
+    assert.doesNotMatch(w, /Do not continue writing the user's future actions, dialogue, thoughts, or decisions/);
   });
 
-  it("A3. interactive + no gate opt → defaults to legacy behavior (no lock)", () => {
+  it("A3. interactive + no gate opt → collaborative wrapper (no lock)", () => {
     const w = buildCurrentUserInputWrapper({ mode: "interactive" });
     assert.ok(!w.includes(INTERACTIVE_OWNERSHIP_LOCK_MARKER));
+    assert.match(w, /Minor reversible expressions/);
   });
 
   it("B. personaName provided + gate ON → named actor included (two distinct names)", () => {
@@ -106,7 +109,7 @@ describe("CURRENT USER INPUT — interactive ownership recency lock (admin canar
     // Body appended verbatim.
     assert.match(once, /고개를 든다/);
     // Legacy backward-compat phrases retained when gate off.
-    assert.match(onceLegacy, /Do not continue writing the user's future/);
+    assert.match(onceLegacy, /Do not invent new \[B\] dialogue/);
     assert.match(onceLegacy, /completed user input/);
     // Empty input passthrough.
     assert.equal(wrapCurrentUserInput("   ", { mode: "interactive", ownershipLockEnabled: true }), "");
@@ -139,17 +142,18 @@ describe("CURRENT USER INPUT — interactive ownership recency lock (admin canar
     );
     assert.ok(!realAuto.includes(INTERACTIVE_OWNERSHIP_LOCK_MARKER));
 
-    // Interactive gate-on: pre-change lines still present, plus the lock.
+    // Interactive gate-on: strict lock path unchanged.
     const inter = buildCurrentUserInputWrapper({ mode: "interactive", ownershipLockEnabled: true });
     assert.match(inter, /The following is the user's latest input/);
     assert.match(inter, /Do not continue writing the user's future/);
     assert.match(inter, /completed user input/);
     assert.ok(inter.includes(INTERACTIVE_OWNERSHIP_LOCK_MARKER));
 
-    // Interactive gate-off: byte-identical to pre-patch legacy wrapper.
+    // Interactive gate-off: collaborative wrapper (aligned with COLLABORATIVE owner).
     const interOff = buildCurrentUserInputWrapper({ mode: "interactive", ownershipLockEnabled: false });
     assert.ok(!interOff.includes(INTERACTIVE_OWNERSHIP_LOCK_MARKER));
-    assert.match(interOff, /It is what the user already said\/did\.\nDo not continue writing/);
+    assert.match(interOff, /latest completed input/);
+    assert.match(interOff, /Minor reversible expressions/);
   });
 });
 
@@ -269,7 +273,7 @@ describe("R1 — COMPACT TERMINAL OWNERSHIP ECHO (Muse-targeted admin canary)", 
     assert.ok(w.trim().endsWith("world events."));
   });
 
-  it("R1-B. echo OFF (lock ON) → NO terminal echo marker (legacy lock-only shape preserved)", () => {
+  it("R1-B. echo OFF (lock ON) → NO terminal echo marker (collaborative lock-only shape preserved)", () => {
     const body = "…이대로 가만히 있자.";
     const w = wrapCurrentUserInput(body, {
       mode: "interactive",
@@ -279,7 +283,7 @@ describe("R1 — COMPACT TERMINAL OWNERSHIP ECHO (Muse-targeted admin canary)", 
     });
     assert.ok(w.includes(INTERACTIVE_OWNERSHIP_LOCK_MARKER));
     assert.ok(!w.includes(INTERACTIVE_OWNERSHIP_TERMINAL_ECHO_MARKER));
-    // Ends with the body (legacy shape).
+    // Ends with the body (collaborative shape).
     assert.ok(w.trim().endsWith(body));
   });
 

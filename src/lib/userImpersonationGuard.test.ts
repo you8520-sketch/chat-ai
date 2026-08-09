@@ -99,7 +99,7 @@ describe("CURRENT USER INPUT labeling", () => {
   it("wraps interactive user input", () => {
     const wrapped = wrapCurrentUserInput('고개를 든다\n"안녕"', { mode: "interactive" });
     assert.ok(wrapped.startsWith(CURRENT_USER_INPUT_HEADER));
-    assert.match(wrapped, /Do not continue writing the user's future/);
+    assert.match(wrapped, /Do not invent new \[B\] dialogue/);
     assert.match(wrapped, /completed user input/);
     assert.match(wrapped, /고개를 든다/);
   });

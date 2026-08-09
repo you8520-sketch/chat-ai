@@ -49,10 +49,11 @@ describe("buildContext — turn handoff shell removed Step 7", () => {
     assert.equal(countFullHandoffBlocks(built.systemPrompt), 0);
     assert.ok(!built.systemPrompt.includes("<TURN_HANDOFF_AND_PACING>"));
     assert.ok(!built.systemPrompt.includes("[SCENE CONTINUATION PRIORITY]"));
-    assert.doesNotMatch(built.systemPrompt, /3,200~4,200자/);
+    assert.doesNotMatch(built.systemPrompt, /3,200~4,200자|4200/);
     const lastUser = built.history[built.history.length - 1];
     assert.equal(lastUser?.role, "user");
-    assert.match(lastUser!.content, /3,200~4,200자/);
+    assert.match(lastUser!.content, /3,200자 이상을 기본 목표로/);
+    assert.doesNotMatch(lastUser!.content, /3,200~4,200자|4200/);
     assert.ok(!built.systemPrompt.includes("SCENE_PROGRESSION_&_NARRATION_PARAGRAPH_FLOOR"));
     assert.ok(!built.systemPrompt.includes("[ANTI-RESOLUTION RULE]\nDo NOT resolve"));
   });

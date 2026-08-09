@@ -40,7 +40,7 @@ describe("buildLengthInstruction", () => {
     const block = buildLengthInstruction();
     assert.equal(block, "");
     assert.equal(BOUNDED_LENGTH_OWNER_SENTENCE, "");
-    assert.match(USER_TAIL_LENGTH_OWNER_SENTENCE, /3,200~4,200자 범위의 하나의 밀도 있는 장면으로 전개한다/);
+    assert.match(USER_TAIL_LENGTH_OWNER_SENTENCE, /3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다/);
     assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /최초로 확인 가능한 결과/);
     assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /TARGET_LENGTH/);
     assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /MINIMUM_FLOOR/);
@@ -63,7 +63,7 @@ describe("buildLengthInstruction", () => {
     const out = appendCompactTerminalLengthToUserTurn("밤이 깊었어.", 3200);
     assert.match(out, /^밤이 깊었어\./);
     assert.match(out, /지문과 "…" 대사 사이 빈 줄/);
-    assert.match(out, /3,200~4,200자 범위의 하나의 밀도 있는 장면으로 전개한다/);
+    assert.match(out, /3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다/);
     assert.ok(out.endsWith(USER_TAIL_LENGTH_OWNER_SENTENCE));
     const layoutIdx = out.indexOf("지문과");
     const lengthIdx = out.indexOf(USER_TAIL_LENGTH_OWNER_SENTENCE);
@@ -122,7 +122,7 @@ describe("buildLengthInstruction", () => {
       const sys = built.systemPrompt ?? "";
       assert.equal(countOccurrences(sys, LUNA_TERMINAL_OUTPUT_CONTRACT), 0);
       assert.equal(countOccurrences(sys, USER_TAIL_LENGTH_OWNER_SENTENCE), 0);
-      assert.doesNotMatch(sys, /3,200~4,200/);
+      assert.doesNotMatch(sys, /4,200|4200/);
       assert.ok(!(built.meta.trackedSections ?? []).some((s) => s.id === "luna-single-primary-adapter"));
       assert.ok(!(built.meta.trackedSections ?? []).some((s) => s.id === "rule-length-control"));
 

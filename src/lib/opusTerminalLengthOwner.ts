@@ -20,7 +20,7 @@ import type { ContentKind } from "@/lib/simulationMode";
 import type { ChatRuntimeMode } from "@/lib/chatRuntimeMode";
 
 /** Frozen Audit 58 Arm E — do not edit wording/order/whitespace. */
-export const OPUS_ARM_E_TERMINAL = `이번 응답은 한국어 총 표시 3,200~4,200자의 하나의 밀도 있는 장면으로 전개한다.
+export const OPUS_ARM_E_TERMINAL = `이번 응답은 한국어 총 표시 3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다. 장면에 필요한 내용이 있으면 더 길게 이어간다.
 
 분량은 [A]와 AI가 담당하는 NPC·환경의 판단, 대사, 행동, 감각, 반응 및 그 결과를 중심으로 확장한다.
 

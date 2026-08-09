@@ -41,15 +41,17 @@ function sanitizePersonaName(raw: string | undefined | null): string | null {
 }
 
 /**
- * The pre-patch compact interactive policy (kept byte-identical so that when
- * the ownership lock gate is OFF, production behavior is unchanged).
+ * Standard interactive CURRENT USER INPUT wrapper — aligned with
+ * COLLABORATIVE_INTERACTIVE_OWNER_BLOCK (no godmodding of major [B] moves,
+ * but minor reversible co-narration allowed). Strict ownership-lock canary
+ * path is unchanged when ownershipLockEnabled is true.
  */
-function buildLegacyInteractiveWrapper(): string {
+function buildCollaborativeInteractiveWrapper(): string {
   return `${CURRENT_USER_INPUT_HEADER}
-The following is the user's latest input.
-It is what the user already said/did.
-Do not continue writing the user's future actions, dialogue, thoughts, or decisions.
-If the input contains parentheses or action text, treat it as completed user input — not permission to keep narrating the user.`;
+The following is the user's latest completed input.
+Do not invent new [B] dialogue, major choices, consent/refusal, or decisions that change relationship, goal, affiliation, or identity.
+Minor reversible expressions, gaze, involuntary reactions, natural completion of an already-started action, and small movement/contact/object-handling/daily actions may be co-narrated when consistent with [USER CONTROL — COLLABORATIVE INTERACTIVE].
+If the input contains parentheses or action text, treat it as completed user input — not permission to invent major [B] dialogue or irreversible decisions.`;
 }
 
 /**
@@ -61,8 +63,8 @@ If the input contains parentheses or action text, treat it as completed user inp
  *    user impersonation issue). Global / provider-agnostic — no character or
  *    persona name is hard-coded; the current request's resolved persona
  *    display name is used as the [B] actor, with a generic fallback.
- *  - interactive + !ownershipLockEnabled: legacy compact behavior
- *    (pre-patch). Default gate is OFF → no global behavior change.
+ *  - interactive + !ownershipLockEnabled: collaborative wrapper
+ *    aligned with COLLABORATIVE_INTERACTIVE_OWNER_BLOCK. Default gate is OFF.
  *  - auto_progression / ooc_user_impersonation_allowed: existing limited /
  *    full co-narration semantics preserved unchanged.
  */
@@ -84,7 +86,7 @@ If the input contains parentheses or action text, treat it as completed user inp
 
   // interactive
   if (!opts?.ownershipLockEnabled) {
-    return buildLegacyInteractiveWrapper();
+    return buildCollaborativeInteractiveWrapper();
   }
 
   // interactive + ownership lock enabled — strict user ownership recency lock.

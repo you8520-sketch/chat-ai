@@ -62,7 +62,7 @@ describe("prose style anti-pattern fixtures (static)", () => {
   it("length consolidation: system empty; user-tail owner; DeepSeek length-only reminder", () => {
     assert.equal(buildLengthInstruction(), "");
     assert.equal(buildTerminalLengthOverrideBlock(), "");
-    assert.match(USER_TAIL_LENGTH_OWNER_SENTENCE, /3,200~4,200자/);
+    assert.match(USER_TAIL_LENGTH_OWNER_SENTENCE, /3,200자 이상/);
     assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /TARGET_LENGTH/);
     assert.doesNotMatch(USER_TAIL_LENGTH_OWNER_SENTENCE, /MINIMUM_FLOOR/);
     assert.match(DEEPSEEK_BOTTOM_REMINDER, /\[DEEPSEEK LENGTH — SINGLE CALL\]/);
