@@ -1,0 +1,31 @@
+{
+  "model": "gemini-3.1-pro-preview",
+  "temperature": 0.95,
+  "top_p": null,
+  "max_tokens": null,
+  "stop": null,
+  "reasoning": null,
+  "include_reasoning": null,
+  "reasoning_effort": "low",
+  "stream": true,
+  "stream_options": {
+    "include_usage": true
+  },
+  "messages_count": 8,
+  "messages_sha256": "a9ca490f29b9de93f2db3dfe04a65755c3820af048e2f8df57e51024e91e9ff1",
+  "schema_differences": {
+    "model_id": {
+      "or": "google/gemini-3.1-pro-preview",
+      "ci": "gemini-3.1-pro-preview"
+    },
+    "reasoning_wire": {
+      "or": "reasoning:{effort:low} + include_reasoning:false",
+      "ci": "reasoning_effort=low (reasoning object stripped)",
+      "note": "SCHEMA_DIFFERENCE — semantic effort both low"
+    },
+    "endpoint": {
+      "or": "https://openrouter.ai/api/v1/chat/completions",
+      "ci": "https://api.cheaperinference.com/v1/chat/completions"
+    }
+  }
+}

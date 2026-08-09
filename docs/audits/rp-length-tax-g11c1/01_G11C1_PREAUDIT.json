@@ -1,0 +1,47 @@
+{
+  "phase": "G11-C1-PREAUDIT",
+  "sole_question": "Is short Gemini length baseline, or do Scene Pacing + dialogue budget impose LENGTH TAX?",
+  "no_prompt_changes": true,
+  "arm_W_forbidden": true,
+  "p1_positive_prose_forbidden": true,
+  "api_calls": 0,
+  "ArmA": {
+    "scene_pacing": 0,
+    "scene_flow": 1,
+    "dialogue_terminal": 0,
+    "l1_combined": 0,
+    "p1_positive_prose": 0,
+    "production_immersive_prose": 1,
+    "production_length_owner": 1,
+    "generationConfig": {
+      "model": "google/gemini-3.1-pro-preview",
+      "temperature": 0.95,
+      "max_tokens": null,
+      "reasoning": {
+        "effort": "low"
+      },
+      "include_reasoning": false,
+      "provider": null
+    },
+    "ok": true
+  },
+  "ArmV_assemble_check": {
+    "scene_pacing": 1,
+    "scene_flow": 0,
+    "dialogue_terminal": 1,
+    "length_owner": 1,
+    "note": "assemble-only; live V forbidden — use stored I1"
+  },
+  "stored_V_reference": {
+    "path": "docs/audits/rp-integrated-server-control-g11i1/stage1/01_STAGE1_LIVE.json",
+    "cells": 6,
+    "mean": 2148,
+    "providers": [
+      "Google AI Studio"
+    ],
+    "ok": true
+  },
+  "LIVE_CALL_READY": true,
+  "production_wire": "NOT_RUN",
+  "merge": "NOT_RUN"
+}
