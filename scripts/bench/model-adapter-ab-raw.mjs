@@ -449,14 +449,14 @@ async function runPhase(phase) {
           out.assistant || "",
           ``,
           `USAGE:`,
-          `- input_tokens: ${out.usage?.inputTokens ?? out.usage?.prompt_tokens ?? ""}`,
-          `- cached_input_tokens: ${out.usage?.cachedContentTokens ?? out.usage?.cacheReadTokens ?? ""}`,
-          `- output_tokens: ${out.usage?.outputTokens ?? out.usage?.completion_tokens ?? ""}`,
-          `- reasoning_tokens: ${out.usage?.reasoningOutputTokens ?? out.usage?.thoughtsTokens ?? ""}`,
+          `- input_tokens: ${out.usage?.apiInputTokens ?? out.usage?.inputTokens ?? out.usage?.input ?? ""}`,
+          `- cached_input_tokens: ${out.usage?.cachedContentTokens ?? out.usage?.cacheReadTokens ?? out.usage?.apiCachedInputTokens ?? ""}`,
+          `- output_tokens: ${out.usage?.apiOutputTokens ?? out.usage?.outputTokens ?? out.usage?.output ?? ""}`,
+          `- reasoning_tokens: ${out.usage?.apiReasoningOutputTokens ?? out.usage?.reasoningOutputTokens ?? out.usage?.thoughtsTokens ?? ""}`,
           `- total_tokens: ${out.usage?.totalTokens ?? ""}`,
           `- provider_cost: ${out.usage?.upstreamCostUsd ?? out.usage?.cost ?? ""}`,
           `- latency_ms: ${out.latency_ms}`,
-          `- finish_reason: ${out.finish_reason ?? ""}`,
+          `- finish_reason: ${out.finish_reason ?? out.usage?.finishReason ?? ""}`,
           `- HTTP/status: ${out.httpStatus}`,
           ``,
           `PROMPT_VARIANT:`,
@@ -483,18 +483,21 @@ async function runPhase(phase) {
       }
     }
 
-    // Summary wait + capture
+    // Production deferred seal: [1~6] summary triggers after turn 7 completes
+    // (shouldTriggerRollingSummary: messageCount > summarized + 6).
+    // Record post-turn-6 state, then run turn 7, then wait for seal + capture.
+    let summaryRowsAfterT6 = [];
     let summaryRows = [];
     let pre = null;
     let post = null;
     if (chatId && turns.length === 6) {
-      console.log(`[${phase}] ${modelKey} waiting summary chat=${chatId}`);
-      summaryRows = await waitForSummary(chatId);
-      pre = latestCaptureForChat(chatId, "pre_llm");
-      post = latestCaptureForChat(chatId, "post_llm");
+      summaryRowsAfterT6 = await waitForSummary(chatId, { timeoutMs: 15_000, pollMs: 2000 });
+      console.log(
+        `[${phase}] ${modelKey} after_turn6 summary_rows=${summaryRowsAfterT6.length} chat=${chatId}`
+      );
     }
 
-    // Turn 7 injection check
+    // Turn 7 — seals 1~6 summary; also used for injection evidence after seal.
     let turn7 = null;
     let injection = null;
     if (chatId && turns.length === 6) {
@@ -526,7 +529,7 @@ async function runPhase(phase) {
           `MODEL: ${model.id}`,
           `VARIANT: ${phase}`,
           `CHAT_ID: ${chatId}`,
-          `TURN: 7 (summary injection check)`,
+          `TURN: 7 (summary seal + injection check)`,
           ``,
           `USER_INPUT:`,
           TURN7,
@@ -535,8 +538,8 @@ async function runPhase(phase) {
           out7.assistant || "",
           ``,
           `USAGE:`,
-          `- input_tokens: ${out7.usage?.inputTokens ?? ""}`,
-          `- output_tokens: ${out7.usage?.outputTokens ?? ""}`,
+          `- input_tokens: ${out7.usage?.apiInputTokens ?? out7.usage?.inputTokens ?? ""}`,
+          `- output_tokens: ${out7.usage?.apiOutputTokens ?? out7.usage?.outputTokens ?? ""}`,
           `- latency_ms: ${out7.latency_ms}`,
           `- finish_reason: ${out7.finish_reason ?? ""}`,
           `- HTTP/status: ${out7.httpStatus}`,
@@ -545,6 +548,15 @@ async function runPhase(phase) {
           ``,
         ].join("\n")
       );
+
+      console.log(`[${phase}] ${modelKey} waiting summary after turn7 chat=${chatId}`);
+      summaryRows = await waitForSummary(chatId, { timeoutMs: 240_000, pollMs: 2000 });
+      pre = latestCaptureForChat(chatId, "pre_llm");
+      post = latestCaptureForChat(chatId, "post_llm");
+
+      // Optional 8th request only if we need injection proof after seal exists.
+      // Prefer turn7 prompt dump first; if summary was sealed during turn7 post-process,
+      // injection may only appear on a subsequent request — send a tiny follow-up once.
       const dumpPath = join(ROOT, "debug", "prompt_dump.txt");
       if (existsSync(dumpPath)) {
         const dumpCopy = join(BENCH_DIR, `${modelKey}_${phase}_turn7_prompt_dump.txt`);
@@ -555,7 +567,30 @@ async function runPhase(phase) {
         injection.prompt_dump_path = dumpCopy;
         injection.summary_id = summaryRows[0]?.id ?? null;
         injection.chat_id = chatId;
-        // Do not store full dump in json result — path only + counts
+        injection.note =
+          "Turn7 dump may predate seal (deferred seal). If injection_count=0, follow-up probe runs.";
+      }
+      if (summaryRows[0]?.summary && (!injection || !injection.found)) {
+        console.log(`[${phase}] ${modelKey} turn7b injection probe`);
+        const out7b = await postChatTurn({
+          cookie,
+          characterId: meta.characterId,
+          chatId,
+          personaId: meta.personaId,
+          message: "…응.",
+        });
+        if (existsSync(dumpPath)) {
+          const dumpCopy = join(BENCH_DIR, `${modelKey}_${phase}_turn7b_prompt_dump.txt`);
+          copyFileSync(dumpPath, dumpCopy);
+          const dumpText = readFileSync(dumpCopy, "utf8");
+          const summaryText = summaryRows[0]?.summary || post?.summaryText || "";
+          injection = extractInjectionEvidence(dumpText, summaryText);
+          injection.prompt_dump_path = dumpCopy;
+          injection.summary_id = summaryRows[0]?.id ?? null;
+          injection.chat_id = chatId;
+          injection.probe_turn = "7b";
+          injection.probe_http_status = out7b.httpStatus;
+        }
       }
     }
 
@@ -574,6 +609,7 @@ async function runPhase(phase) {
         input_tokens: t.usage?.inputTokens ?? null,
       })),
       summary: {
+        rows_after_turn6: summaryRowsAfterT6.length,
         rows: summaryRows.map((r) => ({
           id: r.id,
           turn_number: r.turn_number,
