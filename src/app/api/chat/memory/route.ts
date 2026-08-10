@@ -18,6 +18,7 @@ import {
 import {
   prepareMemoryPanelView,
   scheduleMemoryPanelBackfill,
+  syncAndCompressMemoryFromChat,
 } from "@/lib/memory/memory-backfill";
 import { resolveLorebookFromRecordsSync } from "@/lib/memory/memory-lorebook-resolve";
 import { resolveMemoryBudgetFromCapacity } from "@/lib/memory/memory-capacity-shared";
@@ -37,9 +38,13 @@ import {
   updateMemoryRecordById,
 } from "@/lib/memory/memory-turn-summary";
 import { updateChatMemory, getOrCreateChatMemory } from "@/lib/memory/memory-db";
-import { syncChatLongTermMemory, shouldTriggerRollingSummary } from "@/lib/memory/memory-rolling-summary";
+import { syncChatLongTermMemory } from "@/lib/memory/memory-rolling-summary";
 import { reconcileMemoryAfterRecordDelete } from "@/lib/memory/memory-reconcile";
 import { countMemoryEligibleCompletedTurns } from "@/lib/memory/memory-turn-loader";
+import {
+  expectedSealedTurnCount,
+  highestContiguousCompletedTurn,
+} from "@/lib/memory/memory-summary-integrity";
 import {
   loadChatRelationshipMeta,
   removeRelationshipMetaItem,
@@ -103,22 +108,56 @@ export async function GET(req: Request) {
     memoryCapacity,
   };
   prepareMemoryPanelView(backfillOpts);
-  const memoryRecords = listVisibleMemoryRecordsForChat(chatId);
   const eligibleTurnCount = countMemoryEligibleCompletedTurns(chatId);
-  const memRow = getOrCreateChatMemory(chatId, user.id, chat.character_id, tier);
-  const summarizedTurnCount = memRow.summarized_turn_count ?? 0;
-  const needsSealCatchUp =
-    shouldTriggerRollingSummary(eligibleTurnCount, summarizedTurnCount) &&
-    memoryRecords.length === 0;
+  const allRecords = listMemoryRecordsForChat(chatId);
+  const activeContiguous = highestContiguousCompletedTurn(allRecords, eligibleTurnCount);
+  const expectedSealed = expectedSealedTurnCount(eligibleTurnCount);
+  // Missing sealed batch(es) for current playable turns — e.g. 8 turns but no [1~6].
+  // Do NOT require visible UI rows empty; empty_ooc / soft-delete drift also counts.
+  const needsSealCatchUp = activeContiguous < expectedSealed;
 
   const explicitBackfill = new URL(req.url).searchParams.get("backfill") === "1";
-  if (explicitBackfill || needsSealCatchUp) {
+  const awaitCatchUp = new URL(req.url).searchParams.get("awaitCatchUp") === "1";
+  let sealCatchUp: {
+    attempted: boolean;
+    ok: boolean;
+    error: string | null;
+  } = { attempted: false, ok: false, error: null };
+
+  if (needsSealCatchUp && awaitCatchUp) {
+    // Explicit await path (UI "지금 생성하기") — do not rely on fire-and-forget.
+    sealCatchUp.attempted = true;
+    try {
+      const ok = await syncAndCompressMemoryFromChat(backfillOpts);
+      const afterEligible = countMemoryEligibleCompletedTurns(chatId);
+      const after = highestContiguousCompletedTurn(
+        listMemoryRecordsForChat(chatId),
+        afterEligible
+      );
+      sealCatchUp.ok = after >= expectedSealedTurnCount(afterEligible);
+      if (!sealCatchUp.ok) {
+        sealCatchUp.error = ok
+          ? "요약 배치가 아직 비어 있습니다. 잠시 후 다시 시도해 주세요."
+          : "요약 생성에 실패했습니다. 다시 시도해 주세요.";
+      }
+    } catch (e) {
+      sealCatchUp.error = (e as Error).message || "요약 생성 중 오류";
+    }
+  } else if (needsSealCatchUp || explicitBackfill) {
     scheduleMemoryPanelBackfill(backfillOpts);
   }
 
-  const msgRows = db
-    .prepare("SELECT role, content, model FROM messages WHERE chat_id=? ORDER BY id ASC")
-    .all(chatId) as { role: "user" | "assistant"; content: string; model: string }[];
+  const eligibleAfter = countMemoryEligibleCompletedTurns(chatId);
+  const activeContiguousAfter = highestContiguousCompletedTurn(
+    listMemoryRecordsForChat(chatId),
+    eligibleAfter
+  );
+  const expectedSealedAfter = expectedSealedTurnCount(eligibleAfter);
+  const stillDue = activeContiguousAfter < expectedSealedAfter;
+  const memoryRecords = listVisibleMemoryRecordsForChat(chatId);
+  const memRow = getOrCreateChatMemory(chatId, user.id, chat.character_id, tier);
+  const summarizedTurnCount = memRow.summarized_turn_count ?? 0;
+
   const rawMeta = parseMemoryMeta(chat.memory_meta);
   const meta = normalizeMemoryMeta(rawMeta, names);
   if (JSON.stringify(rawMeta) !== JSON.stringify(meta)) {
@@ -144,10 +183,13 @@ export async function GET(req: Request) {
     memoryCapacity: snapshot.memoryCapacity,
     tier: snapshot.tier,
     longTermChars: displayText.length,
-    totalTurns: eligibleTurnCount,
-    eligibleTurnCount,
+    totalTurns: eligibleAfter,
+    eligibleTurnCount: eligibleAfter,
     summarizedTurnCount,
-    summarySealDue: needsSealCatchUp,
+    expectedSealedTurnCount: expectedSealedAfter,
+    activeContiguousTurnCount: activeContiguousAfter,
+    summarySealDue: stillDue,
+    sealCatchUp,
     bufferCount: snapshot.bufferCount,
     messagesUntilCompression: snapshot.messagesUntilCompression,
     budget: snapshot.budget,
@@ -182,6 +224,7 @@ export async function PATCH(req: Request) {
     | "updateMemoryRecord"
     | "updateTurnSummary"
     | "regenerateMemoryRecord"
+    | "catchUpSummary"
     | "deleteRelationshipMetaItem"
     | "continueBranch"
     | "reopenBranch"
@@ -202,6 +245,60 @@ export async function PATCH(req: Request) {
     clearMemoryForChat(chatId, user.id, chat.character_id, tier);
     const snapshot = getMemorySnapshot(chatId, user.id, chat.character_id, tier, memoryCapacity);
     return Response.json({ ok: true, ...snapshot });
+  }
+
+  if (action === "catchUpSummary") {
+    const charRow = getDb()
+      .prepare("SELECT name FROM characters WHERE id=?")
+      .get(chat.character_id) as { name: string } | undefined;
+    const opts = {
+      userId: user.id,
+      characterId: chat.character_id,
+      chatId,
+      charName: charRow?.name ?? "캐릭터",
+      tier,
+      memoryCapacity,
+    };
+    prepareMemoryPanelView(opts);
+    try {
+      await syncAndCompressMemoryFromChat(opts);
+    } catch (e) {
+      return Response.json(
+        { error: (e as Error).message || "요약 생성에 실패했습니다." },
+        { status: 500 }
+      );
+    }
+    const eligible = countMemoryEligibleCompletedTurns(chatId);
+    const contiguous = highestContiguousCompletedTurn(
+      listMemoryRecordsForChat(chatId),
+      eligible
+    );
+    const expected = expectedSealedTurnCount(eligible);
+    const lorebook = rebuildLorebookFromRecords(chatId);
+    const records = listVisibleMemoryRecordsForChat(chatId);
+    if (contiguous < expected) {
+      return Response.json(
+        {
+          ok: false,
+          error:
+            "요약이 아직 생성되지 않았습니다. 잠시 후 다시 시도하거나 대화를 한 턴 더 진행해 주세요.",
+          lorebook,
+          memoryRecords: records,
+          eligibleTurnCount: eligible,
+          summarizedTurnCount: contiguous,
+          expectedSealedTurnCount: expected,
+        },
+        { status: 409 }
+      );
+    }
+    return Response.json({
+      ok: true,
+      lorebook,
+      memoryRecords: records,
+      eligibleTurnCount: eligible,
+      summarizedTurnCount: contiguous,
+      expectedSealedTurnCount: expected,
+    });
   }
 
   if (action === "updateLorebook") {
@@ -392,7 +489,7 @@ export async function PATCH(req: Request) {
   return Response.json(
     {
       error:
-        "action이 필요합니다. (updateLorebook | updateMemoryRecord | regenerateMemoryRecord | continueBranch | reopenBranch | adoptMainCanon | keepNoncanon | deleteMemoryRecord | deleteRelationshipMetaItem | clear)",
+        "action이 필요합니다. (updateLorebook | updateMemoryRecord | regenerateMemoryRecord | catchUpSummary | continueBranch | reopenBranch | adoptMainCanon | keepNoncanon | deleteMemoryRecord | deleteRelationshipMetaItem | clear)",
     },
     { status: 400 }
   );

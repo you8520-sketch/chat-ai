@@ -6,6 +6,7 @@ import {
   buildSummaryBatchDiagnostics,
   earliestMissingBatchStart,
   expectedBatchStartsThrough,
+  expectedSealedTurnCount,
   highestContiguousCompletedTurn,
   isLikelySummaryInstructionEcho,
   isOocOnlyPlaceholderText,
@@ -57,6 +58,13 @@ describe("highestContiguousCompletedTurn", () => {
 });
 
 describe("missing / expected batches", () => {
+  it("expected sealed turn count at batch ends", () => {
+    assert.equal(expectedSealedTurnCount(5), 0);
+    assert.equal(expectedSealedTurnCount(6), 6);
+    assert.equal(expectedSealedTurnCount(8), 6);
+    assert.equal(expectedSealedTurnCount(12), 12);
+  });
+
   it("expected starts for 13 playable turns", () => {
     assert.deepEqual(expectedBatchStartsThrough(13), [1, 7]);
   });
