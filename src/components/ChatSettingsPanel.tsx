@@ -1414,7 +1414,7 @@ function MemorySection({
 
   const savedLorebook = data.lorebook ?? data.recentSummary ?? "";
   const lorebookDirty = lorebookDraft !== savedLorebook;
-  const firstSealAtTurn = ROLLING_SUMMARY_INTERVAL + 1;
+  const firstSealAtTurn = ROLLING_SUMMARY_INTERVAL;
   const historyEmpty = (data.memoryRecords?.length ?? 0) === 0;
   const sealPending =
     historyEmpty &&
@@ -1445,8 +1445,7 @@ function MemorySection({
         </div>
         {data.messagesUntilCompression > 0 && (
           <p className="mb-1 text-[10px] text-violet-400/80">
-            다음 기억 기록({ROLLING_SUMMARY_INTERVAL}턴 묶음)까지 {data.messagesUntilCompression}턴 남음 ·{" "}
-            {firstSealAtTurn}턴 완료 후 첫 기록 생성
+            다음 기억 기록({ROLLING_SUMMARY_INTERVAL}턴 묶음)까지 {data.messagesUntilCompression}턴 남음
           </p>
         )}
         {sealPending && (
@@ -1523,7 +1522,7 @@ function MemorySection({
       <div className="rounded-lg border border-violet-500/20 bg-violet-950/10 p-2.5">
         <div className="mb-1.5 flex items-baseline justify-between gap-2">
           <span className="text-[11px] font-bold text-violet-200/90">
-            히스토리 ({ROLLING_SUMMARY_INTERVAL}턴 묶음 · {firstSealAtTurn}턴 후 생성)
+            히스토리 ({ROLLING_SUMMARY_INTERVAL}턴마다)
           </span>
           <span className="text-[9px] text-zinc-500">
             {reversedMemoryRecords.length > 0
@@ -1538,8 +1537,8 @@ function MemorySection({
               : data.totalTurns >= firstSealAtTurn
                 ? "봉인 조건은 충족됐지만 기록이 없습니다. 패널을 닫았다 다시 열거나 잠시 후 새로고침해 주세요."
                 : data.totalTurns > 0
-                  ? `다음 기록까지 ${data.messagesUntilCompression}턴 (${firstSealAtTurn}턴 완료 후 [1~${ROLLING_SUMMARY_INTERVAL}] 기록 생성)`
-                  : `대화를 시작하면 ${firstSealAtTurn}턴 완료 후 첫 기록이 쌓입니다.`}
+                  ? `다음 기록까지 ${data.messagesUntilCompression}턴 (${firstSealAtTurn}턴 완료 시 [1~${ROLLING_SUMMARY_INTERVAL}] 기록 생성)`
+                  : `대화를 시작하면 ${firstSealAtTurn}턴 완료 시 첫 기록이 쌓입니다.`}
           </p>
         ) : (
           <>
@@ -1789,7 +1788,7 @@ function MemorySection({
       {!data.recentSummary.trim() && !data.archiveSummary.trim() && (
         <p className="whitespace-pre-wrap leading-relaxed text-zinc-500">
           {data.totalTurns > 0
-            ? `${ROLLING_SUMMARY_INTERVAL}턴 묶음 히스토리가 ${firstSealAtTurn}턴 완료 후 생성되어 장기기억에 누적됩니다.`
+            ? `${ROLLING_SUMMARY_INTERVAL}턴 완료마다 히스토리가 생성되어 장기기억에 누적됩니다.`
             : "대화를 시작하면 히스토리가 장기기억에 자동으로 쌓입니다."}
         </p>
       )}
