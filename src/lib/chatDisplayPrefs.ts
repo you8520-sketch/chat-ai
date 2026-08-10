@@ -6,6 +6,8 @@ export const STREAM_INTERVAL_STEP = 20;
 
 export type ChatFontSizePreset = "small" | "medium" | "large" | "xlarge";
 
+export type SiteTheme = "dark" | "light";
+
 export const CHAT_FONT_SIZE_PRESETS: {
   id: ChatFontSizePreset;
   label: string;
@@ -75,6 +77,31 @@ export const CHAT_FONT_OPTIONS = [
 ] as const;
 
 const STORAGE_KEY = "playai-chat-display-prefs";
+const THEME_STORAGE_KEY = "playai-site-theme";
+
+export function loadSiteTheme(): SiteTheme {
+  if (typeof window === "undefined") return "dark";
+  try {
+    const v = localStorage.getItem(THEME_STORAGE_KEY);
+    return v === "light" ? "light" : "dark";
+  } catch {
+    return "dark";
+  }
+}
+
+export function saveSiteTheme(theme: SiteTheme) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function applySiteTheme(theme: SiteTheme) {
+  if (typeof document === "undefined") return;
+  document.documentElement.dataset.theme = theme;
+}
 
 export function formatStreamIntervalLabel(ms: number): string {
   return ms <= STREAM_INTERVAL_MIN ? "즉시" : `${ms}ms`;
