@@ -165,7 +165,7 @@ export function isLikelySummaryInstructionEcho(text: string): boolean {
 const STRONG_GLOBAL_MEMORY_LOSS =
   /(?:기억상실|기억을\s*(?:완전히\s*)?(?:잃(?:었|은|고|어)?|상실)|모든\s*기억(?:이|을)\s*(?:없|잃))/i;
 const EPISTEMIC_MARKER =
-  /(?:추측|의심|가능성|확정되지|불확실|모른|알\s*수\s*없|듯|것\s*같|보인|여긴|판단|주장|말했|생각|진단)/i;
+  /(?:추측|의심|가능성|확정되지|불확실|모른|알\s*수\s*없|듯|것\s*같|보인|여긴|판단|주장|말했|생각|진단|추정|감지|느꼈|경험했|여기게|실감)/i;
 const SOURCE_UNCERTAINTY_MARKER =
   /(?:추측|의심|가능성|확실하지|모른|아마|일지도|일\s*수|듯|것\s*같|보인|여긴|판단|진단)/i;
 const CLAIM_TOKEN_STOPWORDS = new Set([
@@ -225,6 +225,9 @@ export function isRollingSummaryGroundedInDialogue(
     const assistantOnlyTerms = significantClaimTokens(part).filter(
       (token) => !source.user.includes(token)
     );
+    // Only reject when the summary REUSES the same specific claim terms
+    // without any epistemic marker. A summary that paraphrases the scene
+    // (different tokens) is grounded in the dialogue and must pass.
     const matchingSummaryParts = summaryParts.filter((summaryPart) =>
       assistantOnlyTerms.some((token) => summaryPart.includes(token))
     );

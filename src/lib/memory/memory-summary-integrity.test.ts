@@ -172,6 +172,18 @@ describe("rolling summary source grounding", () => {
       false
     );
   });
+
+  it("accepts a normal RP scene summary that paraphrases character perception", () => {
+    const dialogue =
+      "[1턴]\n유저: 나 본 적 있어?\n라이크: 라이크는 렌의 체향에서 최소 S급 이상으로 추정되는 가이딩 파장을 감지했다. 곁에 있으면 감각 과부하가 사라지는 것을 느꼈다.\n\n[2턴]\n유저: 맛있는 거 먹으러 가자\n라이크: 라이크는 렌을 번화가로 데려갔다.";
+    assert.equal(
+      isRollingSummaryGroundedInDialogue(
+        "라이크는 렌의 체향에서 강력한 가이딩 파장을 감지했고, 곁에 있으면 감각 과부하가 사라지는 것을 경험했다. 렌을 번화가로 데려가 음식을 사주었다.",
+        dialogue
+      ),
+      true
+    );
+  });
 });
 
 describe("diagnostics", () => {
