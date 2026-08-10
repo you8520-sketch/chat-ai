@@ -16,7 +16,7 @@ export const LTM_ABSOLUTE_FACTS_RULE = `이 항목에 기록된 내용은 과거
 
 /** DeepSeek style-only reminder (production default — length lives in USER_TAIL only). */
 export const DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY =
-  "[System Reminder: 지문은 -다/-했다체(경어 금지), 실제 발화만 큰따옴표, 속마음·감정은 따옴표 없이 지문으로. 대사는 캐릭터 말투에 따라 짧을 수 있다. 지문은 이어지는 행동·감각·의도를 같은 의미 단락 안에서 자연스럽게 연결하며, 짧은 문장마다 새 문단을 만들거나 한두 단어짜리 파편문을 습관적으로 반복하지 않는다.]";
+  "[System Reminder: 지문은 -다/-했다체(경어 금지), 실제 발화만 큰따옴표, 속마음·감정은 따옴표 없이 지문으로. 대사는 캐릭터 말투에 따라 짧을 수 있다. 지문은 이어지는 행동·감각·의도를 같은 의미 단락 안에서 자연스럽게 연결하며, 짧은 문장마다 새 문단을 만들거나 한두 단어짜리 파편문을 습관적으로 반복하지 않는다. 하나의 행동이나 대사가 가진 핵심 의미는 가장 선명한 해석 한 번으로 충분히 살리고, 이어지는 문장에서는 새로운 반응·행동·감각·환경 변화로 장면을 전진시킨다.]";
 
 /**
  * @deprecated Competing length owner — not injected on production DeepSeek path.

@@ -33,24 +33,24 @@ const FROZEN_CONTRACT =
   "이번 응답은 한국어 RP 본문만 3,200자 이상을 기본 목표로 작성한다. 장면에 필요한 내용이 있으면 더 길게 이어간다. 현재 상호작용을 관찰·행동·대사·감각·심리의 인과적 연쇄로 전개하여, 조용한 장면에서는 관계나 상황의 확인 가능한 변화 하나에 도달하고, 행동 장면에서는 이번 턴에 시작된 주요 행동의 최초로 확인 가능한 결과에 도달한 뒤 마무리한다.";
 
 describe("Terra terminal length owner — production candidate gates", () => {
-  it("keeps frozen contract text byte-identical", () => {
+  it("keeps frozen contract text byte-identical but gate retired", () => {
     assert.equal(TERRA_TERMINAL_LENGTH_OWNER_CONTRACT, FROZEN_CONTRACT);
     assert.equal(
       resolveTerraTerminalLengthOwnerContract({
         modelId: CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
         contentKind: "character",
       }),
-      FROZEN_CONTRACT
+      null
     );
   });
 
-  it("Terra single_primary → contract; Terra simulation → null", () => {
+  it("Terra single_primary and simulation both resolve null (retired)", () => {
     assert.equal(
       resolveTerraTerminalLengthOwnerContract({
         modelId: CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
         contentKind: "character",
       }),
-      FROZEN_CONTRACT
+      null
     );
     assert.equal(
       resolveTerraTerminalLengthOwnerContract({
@@ -125,7 +125,7 @@ describe("Terra terminal length owner — production candidate gates", () => {
     db.close();
   });
 
-  it("buildContext: Terra single_primary ends with Terra contract; Luna keeps Luna owner", async () => {
+  it("buildContext: Terra single_primary ends with USER_TAIL; Luna keeps Luna owner", async () => {
     await withServerOnlyMock(async () => {
       const { buildContext } = await import("@/services/contextBuilder");
       const terra = buildContext({
@@ -141,7 +141,8 @@ describe("Terra terminal length owner — production candidate gates", () => {
         targetResponseChars: 3200,
       });
       const terraUser = terra.history.at(-1)?.content ?? "";
-      assert.ok(terraUser.trimEnd().endsWith(FROZEN_CONTRACT));
+      assert.ok(terraUser.trimEnd().endsWith(USER_TAIL_LENGTH_OWNER_SENTENCE));
+      assert.equal(terraUser.includes(FROZEN_CONTRACT), false);
       assert.equal((terra.systemPrompt.match(/TARGET_LENGTH/g) ?? []).length, 0);
       assert.equal((terraUser.match(/TARGET_LENGTH/g) ?? []).length, 0);
       assert.equal(terraUser.includes(LUNA_TERMINAL_OUTPUT_CONTRACT), false);

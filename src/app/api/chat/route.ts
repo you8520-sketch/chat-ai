@@ -186,7 +186,6 @@ import {
   normalizeAiNovelProsePreDisplay,
   applyDisplayParagraphGrouping,
 } from "@/lib/novelParagraphs";
-import { TERRA_TERMINAL_LENGTH_OWNER_CONTRACT } from "@/lib/terraTerminalLengthOwner";
 import {
   buildSceneDirectiveV2,
   buildSceneDirectiveV2Telemetry,
