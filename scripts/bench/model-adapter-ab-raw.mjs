@@ -75,7 +75,7 @@ async function seed() {
     const info = db
       .prepare(
         `INSERT INTO users (email, nickname, pw_hash, pref, is_adult, nsfw_on, points, is_admin, real_name)
-         VALUES (?,?,?,?,1,1,?,?,1,?)`
+         VALUES (?,?,?,?,1,1,?,1,?)`
       )
       .run(email, "벤치관리자", hashPasswordCompat(password), "male", 50_000_000, "벤치관리자");
     user = { id: Number(info.lastInsertRowid) };
@@ -274,8 +274,10 @@ async function postChatTurn({ cookie, characterId, chatId, personaId, message, u
     if (payload === "[DONE]") continue;
     try {
       const obj = JSON.parse(payload);
-      if (obj.type === "token" || obj.type === "delta") {
+      if (obj.type === "token" || obj.type === "delta" || obj.type === "append") {
         assistant += obj.text || obj.delta || obj.content || "";
+      } else if (obj.type === "replace") {
+        assistant = obj.text || obj.content || assistant;
       } else if (obj.type === "done") {
         done = obj;
         if (obj.finalContent) assistant = obj.finalContent;
