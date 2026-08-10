@@ -131,6 +131,98 @@ export function isOocOnlyPlaceholderText(text: string): boolean {
   return text.trim() === EMPTY_OOC_SUMMARY_MARKER;
 }
 
+const SUMMARY_INSTRUCTION_ECHO_PATTERNS = [
+  /(?:6|여섯)\s*턴\s*배치의?\s*사건을?\s*발생\s*순서대로\s*요약/i,
+  /사건\s*시기와?\s*인과관계를?\s*누락하지\s*않/i,
+  /요약\s*(?:대상|작성|규칙|지침|형식|본문만\s*출력)/i,
+  /(?:source|소스)\s*(?:턴|내용).*(?:검토|요약)/i,
+  /최종\s*출력.*(?:턴\s*번호|점검표|노출)/i,
+] as const;
+
+export function isLikelySummaryInstructionEcho(text: string): boolean {
+  const normalized = text.replace(/\s+/g, " ").trim();
+  if (!normalized) return false;
+  return SUMMARY_INSTRUCTION_ECHO_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+const STRONG_GLOBAL_MEMORY_LOSS =
+  /(?:기억상실|기억을\s*(?:완전히\s*)?(?:잃(?:었|은|고|어)?|상실)|모든\s*기억(?:이|을)\s*(?:없|잃))/i;
+const EPISTEMIC_MARKER =
+  /(?:추측|의심|가능성|확정되지|불확실|모른|알\s*수\s*없|듯|것\s*같|보인|여긴|판단|주장|말했|생각|진단)/i;
+const SOURCE_UNCERTAINTY_MARKER =
+  /(?:추측|의심|가능성|확실하지|모른|아마|일지도|일\s*수|듯|것\s*같|보인|여긴|판단|진단)/i;
+const CLAIM_TOKEN_STOPWORDS = new Set([
+  "현재", "상태", "사건", "상황", "진행", "미해결", "그는", "그녀", "자신",
+  "유저", "사용자", "캐릭터", "말했다", "생각했다", "판단했다", "추측했다",
+]);
+
+function normalizeClaimToken(token: string): string {
+  return token
+    .toLowerCase()
+    .replace(/(?:이라고|라고|에게서|에서는|으로|에서|에게|까지|부터|처럼|이며|이고|은|는|이|가|을|를|의|에|와|과|도|만)$/u, "");
+}
+
+function significantClaimTokens(text: string): string[] {
+  const matches = text.match(/[가-힣A-Za-z0-9_]{2,}/g) ?? [];
+  return [
+    ...new Set(
+      matches
+        .map(normalizeClaimToken)
+        .filter((token) => token.length >= 2 && !CLAIM_TOKEN_STOPWORDS.has(token))
+    ),
+  ];
+}
+
+function splitDialogueSources(dialogue: string): { user: string; assistant: string } {
+  const users: string[] = [];
+  const assistants: string[] = [];
+  const batchPattern = /\[\d+턴\]\s*\n유저:\s*([\s\S]*?)\n[^:\n]+:\s*([\s\S]*?)(?=\n\n\[\d+턴\]|$)/g;
+  let match: RegExpExecArray | null;
+  while ((match = batchPattern.exec(dialogue))) {
+    users.push(match[1] ?? "");
+    assistants.push(match[2] ?? "");
+  }
+  return { user: users.join("\n"), assistant: assistants.join("\n") };
+}
+
+/** Conservative source check for known certainty inflation before DB persistence. */
+export function isRollingSummaryGroundedInDialogue(
+  summary: string,
+  dialogue: string
+): boolean {
+  if (isLikelySummaryInstructionEcho(summary)) return false;
+
+  const source = splitDialogueSources(dialogue);
+  if (STRONG_GLOBAL_MEMORY_LOSS.test(summary) && !STRONG_GLOBAL_MEMORY_LOSS.test(dialogue)) {
+    return false;
+  }
+
+  const uncertainAssistantParts = source.assistant
+    .split(/(?<=[.!?。！？]|다\.)\s+|\n+/)
+    .filter((part) => SOURCE_UNCERTAINTY_MARKER.test(part));
+  const summaryParts = summary
+    .split(/(?<=[.!?。！？]|다\.)\s+|\n+/)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  for (const part of uncertainAssistantParts) {
+    const assistantOnlyTerms = significantClaimTokens(part).filter(
+      (token) => !source.user.includes(token)
+    );
+    const matchingSummaryParts = summaryParts.filter((summaryPart) =>
+      assistantOnlyTerms.some((token) => summaryPart.includes(token))
+    );
+    if (
+      matchingSummaryParts.some(
+        (summaryPart) => !EPISTEMIC_MARKER.test(summaryPart)
+      )
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 /** Validate LLM / fixture summary before persist. */
 export function validateSummaryNarrative(
   text: string,
@@ -148,6 +240,7 @@ export function validateSummaryNarrative(
   if (!t) return { ok: false, reason: "SUMMARY_EMPTY" };
   if (isOocOnlyPlaceholderText(t)) return { ok: false, reason: "SUMMARY_INVALID" };
   if (isFallbackMemoryRecordSummary(t)) return { ok: false, reason: "SUMMARY_INVALID" };
+  if (isLikelySummaryInstructionEcho(t)) return { ok: false, reason: "SUMMARY_INVALID" };
 
   // Preference / noncanon / branch may be shorter than main_canon floor
   const minChars =

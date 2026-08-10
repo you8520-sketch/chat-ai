@@ -34,7 +34,7 @@ function formatBufferDialogue(messages: MemoryBufferRow[], charName: string): st
   return messages
     .map((m) => {
       const label = m.role === "user" ? "유저" : charName;
-      return `${label}: ${m.content.slice(0, 2000)}`;
+      return `${label}: ${m.content}`;
     })
     .join("\n");
 }

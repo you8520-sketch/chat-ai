@@ -10,6 +10,7 @@ import { callOpenRouterCompletion } from "@/lib/openRouterCompletion";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   OPENROUTER_DEEPSEEK_V3_MODEL,
+  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
   OPENROUTER_GEMINI_20_FLASH_MODEL,
   isCheaperInferenceModel,
 } from "@/lib/chatModels";
@@ -86,7 +87,7 @@ export const BACKGROUND_OPENROUTER_MODEL =
 
 /**
  * Optional cross-model fallback after primary background calls fail.
- * - unset / empty / whitespace → OFF
+ * - unset / empty / legacy V3 → OpenRouter DeepSeek V4 Flash
  * - same as primary → skipped
  */
 export function resolveBackgroundMemoryFallbackModel(
@@ -94,11 +95,16 @@ export function resolveBackgroundMemoryFallbackModel(
   primaryModelId: string = BACKGROUND_OPENROUTER_MODEL
 ): string | null {
   const raw = env.BACKGROUND_MEMORY_FALLBACK_MODEL;
-  if (raw == null) return null;
+  if (raw == null) return OPENROUTER_DEEPSEEK_V4_FLASH_MODEL;
   const rawTrimmed = String(raw).trim();
-  if (!rawTrimmed) return null;
+  if (!rawTrimmed) return OPENROUTER_DEEPSEEK_V4_FLASH_MODEL;
+  if (rawTrimmed.toLowerCase() === OPENROUTER_DEEPSEEK_V3_MODEL.toLowerCase()) {
+    return OPENROUTER_DEEPSEEK_V4_FLASH_MODEL;
+  }
   const trimmed = resolveBackgroundTextModelId(rawTrimmed);
-  if (trimmed.toLowerCase() === primaryModelId.trim().toLowerCase()) return null;
+  if (trimmed.toLowerCase() === primaryModelId.trim().toLowerCase()) {
+    return OPENROUTER_DEEPSEEK_V4_FLASH_MODEL;
+  }
   return trimmed;
 }
 
@@ -276,11 +282,15 @@ async function callGeminiOnce(
     );
   }
   const requestKind = opts?.requestKind ?? "generateContent";
+  const unboundedNoReasoningRequest =
+    /background-memory|background-lorebook-compact|background-status-meta-extract|background-status-widget-extract/i.test(
+      requestKind
+    );
   let effectiveSystem = system;
   let effectiveHistory = history;
   if (
-    modelId === BACKGROUND_OPENROUTER_MODEL ||
-    /^background-/i.test(requestKind)
+    !unboundedNoReasoningRequest &&
+    (modelId === BACKGROUND_OPENROUTER_MODEL || /^background-/i.test(requestKind))
   ) {
     const trimmed = trimBackgroundPayload(
       system,
@@ -312,7 +322,10 @@ async function callGeminiOnce(
     history: effectiveHistory,
     model: modelId,
     temperature: opts?.temperature ?? 0.3,
-    maxTokens: opts?.maxTokens ?? resolveBackgroundMaxOutputTokens(requestKind),
+    maxTokens: unboundedNoReasoningRequest
+      ? null
+      : opts?.maxTokens ?? resolveBackgroundMaxOutputTokens(requestKind),
+    disableReasoning: unboundedNoReasoningRequest,
     requestKind,
     timeoutMs: /background-html-visual-card/i.test(requestKind) ? 240_000 : undefined,
   });
@@ -344,11 +357,34 @@ export async function callBackgroundMemory(
   const modelId = resolveBackgroundTextModelId(
     opts?.modelId?.trim() || BACKGROUND_OPENROUTER_MODEL
   );
-  return callGeminiOnce(system, history, modelId, {
-    requestKind,
-    maxTokens: opts?.maxTokens ?? resolveBackgroundMaxOutputTokens(requestKind),
-    temperature: opts?.temperature,
-  });
+  const call = (targetModelId: string) =>
+    callGeminiOnce(system, history, targetModelId, {
+      requestKind,
+      maxTokens: opts?.maxTokens ?? resolveBackgroundMaxOutputTokens(requestKind),
+      temperature: opts?.temperature,
+    });
+  try {
+    return await call(modelId);
+  } catch (primaryError) {
+    const canUseMemoryFallback =
+      /background-memory|background-lorebook-compact/i.test(requestKind) &&
+      modelId.toLowerCase() ===
+        CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL.toLowerCase();
+    if (!canUseMemoryFallback) throw primaryError;
+    const fallbackModelId = resolveBackgroundMemoryFallbackModel(
+      process.env,
+      modelId
+    );
+    if (!fallbackModelId) throw primaryError;
+    console.warn("[background-memory] primary failed; trying OpenRouter fallback", {
+      primaryModelId: modelId,
+      fallbackModelId,
+      requestKind,
+      errorName:
+        primaryError instanceof Error ? primaryError.name : "UnknownError",
+    });
+    return call(fallbackModelId);
+  }
 }
 
 /** @deprecated callBackgroundMemory */
@@ -475,7 +511,7 @@ turnSummary 형식: 서술형 문장 금지. 음슴체(-음/-ㅁ) 키워드 나�
   const history: ChatMsg[] = [
     {
       role: "user",
-      content: `캐릭터: ${charName}\n유저: ${userMessage.slice(0, 2000)}\n캐릭터: ${assistantMessage.slice(0, 3000)}`,
+      content: `캐릭터: ${charName}\n유저: ${userMessage}\n캐릭터: ${assistantMessage}`,
     },
   ];
   try {
@@ -554,7 +590,7 @@ ${activePromises}
   const history: ChatMsg[] = [
     {
       role: "user",
-      content: `유저(${userName}): ${userMessage.slice(0, 2000)}\n캐릭터(${charName}): ${assistantMessage.slice(0, 3000)}`,
+      content: `유저(${userName}): ${userMessage}\n캐릭터(${charName}): ${assistantMessage}`,
     },
   ];
   try {
@@ -660,13 +696,13 @@ items 규칙은 평소와 동일. "캐릭터","유저" 라벨 금지. items는 *
   const history: ChatMsg[] = [
     {
       role: "user",
-      content: `유저(${userName}): ${userMessage.slice(0, 2000)}
+      content: `유저(${userName}): ${userMessage}
 
 [거부된 assistant — 폐기]
-${previousAssistantMessage.slice(0, 3500)}
+${previousAssistantMessage}
 
 [새 assistant — 정본]
-${newAssistantMessage.slice(0, 3500)}`,
+${newAssistantMessage}`,
     },
   ];
 
@@ -797,10 +833,11 @@ ${opts.recentDialogue}
 
 위 ${ROLLING_SUMMARY_INTERVAL}턴을 150자 내외 3인칭 관찰자 요약 1문단으로 출력하세요. 기존 요약과 중복되지 않는 새 사건만 서술하세요.`;
 
-  const { text } = await callGemini(
+  const { text } = await callGeminiBackground(
     system,
     [{ role: "user", content: userContent }],
-    BACKGROUND_OPENROUTER_MODEL
+    undefined,
+    "background-memory-rolling-summary"
   );
   return text.replace(/\s+/g, " ").trim();
 }
@@ -815,12 +852,17 @@ export async function summarizeTurnBatch(
   const dialogue = turns
     .map(
       (t, i) =>
-        `[${fromTurn + i}턴]\n유저: ${t.user.slice(0, 2500)}\n${charName}: ${t.assistant.slice(0, 3500)}`
+        `[${fromTurn + i}턴]\n유저: ${t.user}\n${charName}: ${t.assistant}`
     )
     .join("\n\n");
   const system = `너는 롤플레잉 대화 기록관이다. 아래 ${turns.length}턴(${fromTurn}~${toTurn}턴) 대화에서 핵심 사건·감정 변화·관계·약속만 300자 이내 한국어로 요약하라. 불릿(-) 또는 짧은 문단.`;
   try {
-    const { text } = await callGemini(system, [{ role: "user", content: dialogue }], DRAFT_FLASH_MODEL);
+    const { text } = await callGeminiBackground(
+      system,
+      [{ role: "user", content: dialogue }],
+      undefined,
+      "background-memory-rolling-summary"
+    );
     return text.replace(/\s+/g, " ").trim().slice(0, 300);
   } catch {
     const fallback = turns

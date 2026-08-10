@@ -84,11 +84,9 @@ import {
 } from "@/lib/apiErrors";
 import {
   assertLengthSupplementApiAllowed,
-  assertPayloadWithinTokenLimit,
   SERVER_UNDER_LENGTH_RECOVERY_ENABLED,
   type TurnApiBudget,
 } from "@/lib/turnApiBudget";
-import { resolveMaxPayloadInputTokens } from "@/lib/contextTrack";
 import {
   stripLiveStreamForClient,
   pushLiveStreamDelta,
@@ -1204,7 +1202,6 @@ export async function* streamOpenRouterAdult(
     novelMode: messageOpts?.novelMode === true,
   });
 
-  assertPayloadWithinTokenLimit(system, history, 0, resolveMaxPayloadInputTokens(billingModelId));
   const oocHtmlMode = messageOpts?.oocHtmlMode === true;
   const effectiveSystem = oocHtmlMode
     ? `${system.trim()}

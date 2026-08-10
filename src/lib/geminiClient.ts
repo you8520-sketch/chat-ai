@@ -1,6 +1,4 @@
-import { resolveMaxOutputTokensForTarget } from "@/lib/responseLength";
 import type { ChatMsg } from "@/lib/ai";
-import { assertPayloadWithinTokenLimit } from "@/lib/turnApiBudget";
 
 /** Gemini generationConfig에 허용되는 키만 (Llama/OpenRouter 파라미터 금지) */
 const GEMINI_ALLOWED_GENERATION_KEYS = new Set([
@@ -38,10 +36,6 @@ export { isSecondaryGeminiRequest, requestKindSkipsExplicitCache };
 
 function isBackgroundGeminiRequest(requestKind?: string): boolean {
   return /background-memory|background-lorebook-compact/i.test(requestKind ?? "");
-}
-
-function isLorebookCompactRequest(requestKind?: string): boolean {
-  return requestKind === "background-lorebook-compact";
 }
 
 export type GeminiThinkingDiagnostics = {
@@ -115,15 +109,8 @@ export function buildGeminiGenerationConfig(
 ): Record<string, unknown> {
   const thinking = buildGeminiThinkingConfig(modelId, requestKind);
   const isBackground = isBackgroundGeminiRequest(requestKind);
-
-  let resolvedMaxOutputTokens: number | undefined;
-  if (maxOutputTokensOverride != null) {
-    resolvedMaxOutputTokens = maxOutputTokensOverride;
-  } else if (isBackground) {
-    resolvedMaxOutputTokens = isLorebookCompactRequest(requestKind) ? 3500 : 2048;
-  } else {
-    resolvedMaxOutputTokens = resolveMaxOutputTokensForTarget(targetResponseChars, modelId);
-  }
+  void targetResponseChars;
+  void maxOutputTokensOverride;
 
   const config: Record<string, unknown> = {};
   if (!/gemini-3\.6-flash/i.test(modelId)) {
@@ -131,10 +118,6 @@ export function buildGeminiGenerationConfig(
     config.topK = 40;
     config.topP = 0.95;
   }
-  if (resolvedMaxOutputTokens != null) {
-    config.maxOutputTokens = resolvedMaxOutputTokens;
-  }
-
   if (thinking) {
     config.thinkingConfig = thinking;
   }
@@ -219,11 +202,7 @@ export function buildGeminiRequestBody(
     ? injectDynamicContextIntoContents(system, history, promptTail)
     : history;
 
-  assertPayloadWithinTokenLimit(
-    system,
-    effectiveHistory,
-    injectDynamicTail ? cachedContentTokens : 0
-  );
+  void cachedContentTokens;
 
   const body: Record<string, unknown> = {
     contents: effectiveHistory.map((m) => ({

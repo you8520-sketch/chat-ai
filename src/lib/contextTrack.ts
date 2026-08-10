@@ -1,11 +1,9 @@
 /** Google Gemini explicit CachedContent — 최소 토큰 (gemini-3.1-pro 등) */
-import { MAX_PAYLOAD_INPUT_TOKENS } from "@/lib/turnApiBudget";
 
 export const GEMINI_IMPLICIT_CACHE_INPUT_THRESHOLD = 32_768;
 
 /** Static CachedContent — 최소/최대 토큰 (32K 할인 트리거) */
 export const GEMINI_STATIC_CACHE_MIN_TOKENS = 32_768;
-export const GEMINI_STATIC_CACHE_MAX_TOKENS = 60_000;
 
 /** Dynamic — Gemini static/dynamic cache split용 최근 raw 턴 */
 export const GEMINI_DYNAMIC_RECENT_TURNS = 3;
@@ -99,7 +97,7 @@ export function resolveHistoryTokenBudget(
 ): number {
   void modelId;
   void provider;
-  return HISTORY_TOKEN_BUDGET;
+  return Number.MAX_SAFE_INTEGER;
 }
 
 export function resolveRawRecentTurnWindow(
@@ -152,8 +150,8 @@ export function resolveStaticStoredSummaryLimit(
 }
 
 export function resolveMaxPayloadInputTokens(modelId?: string | null): number {
-  if (isDeepSeekModelId(modelId ?? "")) return DEEPSEEK_MAX_PAYLOAD_INPUT_TOKENS;
-  return MAX_PAYLOAD_INPUT_TOKENS;
+  void modelId;
+  return Number.MAX_SAFE_INTEGER;
 }
 
 export function resolveRecentNarrativeContextLimit(

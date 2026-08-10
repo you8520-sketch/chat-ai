@@ -38,18 +38,21 @@ export class CompatibleCompletionError extends Error {
   readonly provider: "OpenRouter" | "CheaperInference";
   readonly httpStatus: number | null;
   readonly finishReason: string | null;
+  readonly usage: OpenRouterCompletionUsage | null;
 
   constructor(opts: {
     message: string;
     provider: "OpenRouter" | "CheaperInference";
     httpStatus?: number | null;
     finishReason?: string | null;
+    usage?: OpenRouterCompletionUsage | null;
   }) {
     super(opts.message);
     this.name = "CompatibleCompletionError";
     this.provider = opts.provider;
     this.httpStatus = opts.httpStatus ?? null;
     this.finishReason = opts.finishReason ?? null;
+    this.usage = opts.usage ?? null;
   }
 }
 
@@ -72,7 +75,8 @@ export async function callOpenRouterCompletion(opts: {
   history: { role: "user" | "assistant"; content: string }[];
   model: string;
   temperature?: number;
-  maxTokens?: number;
+  maxTokens?: number | null;
+  disableReasoning?: boolean;
   requestKind?: string;
   timeoutMs?: number;
 }): Promise<{ text: string; usage: OpenRouterCompletionUsage }> {
@@ -112,21 +116,21 @@ export async function callOpenRouterCompletion(opts: {
   const headers = useCheaperInference
     ? buildCheaperInferenceHeaders(key)
     : buildOpenRouterHeaders(key);
+  const configuredMaxTokens =
+    opts.maxTokens === null ? null : opts.maxTokens ?? 2048;
+  const baseRequestBody = {
+    model,
+    messages,
+    stream: false,
+    temperature: opts.temperature ?? 0.3,
+    ...(configuredMaxTokens != null ? { max_tokens: configuredMaxTokens } : {}),
+    ...(opts.disableReasoning
+      ? { reasoning: { effort: "none" as const }, include_reasoning: false }
+      : {}),
+  };
   const requestBody = useCheaperInference
-    ? adaptCheaperInferenceChatBody({
-        model,
-        messages,
-        stream: false,
-        temperature: opts.temperature ?? 0.3,
-        max_tokens: opts.maxTokens ?? 2048,
-      })
-    : {
-        model,
-        messages,
-        stream: false,
-        temperature: opts.temperature ?? 0.3,
-        max_tokens: opts.maxTokens ?? 2048,
-      };
+    ? adaptCheaperInferenceChatBody(baseRequestBody)
+    : baseRequestBody;
   const res = await fetch(endpoint, {
     method: "POST",
     headers,
@@ -150,16 +154,6 @@ export async function callOpenRouterCompletion(opts: {
     usage?: { prompt_tokens?: number; completion_tokens?: number };
   };
   const text = data.choices?.[0]?.message?.content?.trim() ?? "";
-  if (!text) {
-    const finishReason = data.choices?.[0]?.finish_reason ?? null;
-    throw new CompatibleCompletionError({
-      message: `[${providerLabel}] empty completion (finish=${finishReason ?? "unknown"})`,
-      provider: providerLabel,
-      httpStatus: res.status,
-      finishReason,
-    });
-  }
-
   const parsedUsage = parseOpenRouterUsage(data.usage, res.headers);
   const promptTokens = parsedUsage.promptTokens || undefined;
   const completionTokens = parsedUsage.completionTokens || undefined;
@@ -167,6 +161,17 @@ export async function callOpenRouterCompletion(opts: {
     promptTokens ??
     estimateTokens(opts.system + opts.history.map((m) => m.content).join("\n"));
   const resolvedOutputTokens = completionTokens ?? estimateTokens(text);
+  const usage: OpenRouterCompletionUsage = {
+    inputTokens: resolvedInputTokens,
+    outputTokens: resolvedOutputTokens,
+    estimated: promptTokens == null || completionTokens == null,
+    finishReason: data.choices?.[0]?.finish_reason,
+    cacheReadTokens: parsedUsage.cacheReadTokens || undefined,
+    cacheWriteTokens: parsedUsage.cacheWriteTokens || undefined,
+    standardInputTokens: parsedUsage.standardInputTokens || undefined,
+    reasoningOutputTokens: parsedUsage.reasoningTokens || undefined,
+    debugRawUsage: data.usage,
+  };
   try {
     recordApiCost({
       provider: useCheaperInference ? "cheaperinference" : "openrouter",
@@ -181,18 +186,18 @@ export async function callOpenRouterCompletion(opts: {
   } catch (error) {
     console.warn("[api-cost-ledger] usage record skipped:", (error as Error).message);
   }
+  if (!text) {
+    const finishReason = data.choices?.[0]?.finish_reason ?? null;
+    throw new CompatibleCompletionError({
+      message: `[${providerLabel}] empty completion (finish=${finishReason ?? "unknown"})`,
+      provider: providerLabel,
+      httpStatus: res.status,
+      finishReason,
+      usage,
+    });
+  }
   return {
     text,
-    usage: {
-      inputTokens: resolvedInputTokens,
-      outputTokens: resolvedOutputTokens,
-      estimated: promptTokens == null || completionTokens == null,
-      finishReason: data.choices?.[0]?.finish_reason,
-      cacheReadTokens: parsedUsage.cacheReadTokens || undefined,
-      cacheWriteTokens: parsedUsage.cacheWriteTokens || undefined,
-      standardInputTokens: parsedUsage.standardInputTokens || undefined,
-      reasoningOutputTokens: parsedUsage.reasoningTokens || undefined,
-      debugRawUsage: data.usage,
-    },
+    usage,
   };
 }

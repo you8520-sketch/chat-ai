@@ -649,12 +649,18 @@ export function resolveCombinedDualWidgetExtractMaxTokens(
 export function isCombinedExtractLikelyTruncated(opts: {
   finishReason?: string | null;
   outputTokens?: number | null;
-  maxTokens: number;
+  maxTokens?: number | null;
   jsonParseOk: boolean;
 }): boolean {
   const fr = String(opts.finishReason ?? "").toLowerCase();
   if (/length|max[_-]?tokens/.test(fr)) return true;
-  if (!opts.jsonParseOk && (opts.outputTokens ?? 0) >= opts.maxTokens) return true;
+  if (
+    !opts.jsonParseOk &&
+    opts.maxTokens != null &&
+    (opts.outputTokens ?? 0) >= opts.maxTokens
+  ) {
+    return true;
+  }
   return false;
 }
 

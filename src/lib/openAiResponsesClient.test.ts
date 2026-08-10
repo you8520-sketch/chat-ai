@@ -5,7 +5,6 @@ import {
   buildOpenAiTerraResponseRequest,
   isRetryableOpenAiTerraFinishReason,
   resolveOpenAiResponsesFinishReason,
-  TERRA_MAX_OUTPUT_TOKENS,
   TERRA_FALLBACK_PROSE_DIRECTIVE,
 } from "@/lib/openAiResponsesClient";
 
@@ -20,14 +19,14 @@ describe("GPT-5.6 Terra Responses request", () => {
     assert.deepEqual(request.reasoning, { effort: "none" });
     assert.deepEqual(request.text, { verbosity: "high" });
     assert.equal(request.stream, true);
-    assert.equal(request.max_output_tokens, TERRA_MAX_OUTPUT_TOKENS);
+    assert.equal(request.max_output_tokens, undefined);
     assert.equal("temperature" in request, false);
     assert.equal("top_p" in request, false);
   });
 
-  it("honors a smaller explicit max token override used by smoke tests", () => {
+  it("ignores explicit output caps so the provider can use its full context", () => {
     const request = buildOpenAiTerraResponseRequest("system rules", [], 3200, 128);
-    assert.equal(request.max_output_tokens, 128);
+    assert.equal(request.max_output_tokens, undefined);
   });
 
   it("adds the prose directive once, without duplicating an equivalent fixed prompt", () => {

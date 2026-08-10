@@ -7,8 +7,10 @@ import {
   earliestMissingBatchStart,
   expectedBatchStartsThrough,
   highestContiguousCompletedTurn,
+  isLikelySummaryInstructionEcho,
   isOocOnlyPlaceholderText,
   isOocOnlySummaryKind,
+  isRollingSummaryGroundedInDialogue,
   missingContiguousBatchStarts,
   OOC_ONLY_SUMMARY_MARKER,
   parseRecentSummaryBatchStarts,
@@ -85,6 +87,65 @@ describe("validateSummaryNarrative", () => {
 
   it("rejects using OOC marker as narrative summary", () => {
     assert.equal(validateSummaryNarrative(OOC_ONLY_SUMMARY_MARKER, "narrative").ok, false);
+  });
+
+  it("rejects a summary-writing instruction echoed as the summary body", () => {
+    const echo =
+      "6턴 배치의 사건을 발생 순서대로 요약한다. 사건 시기와 인과관계를 누락하지 않는다. 최종 출력에는 핵심 사건을 기록한다.";
+    assert.equal(isLikelySummaryInstructionEcho(echo), true);
+    assert.equal(validateSummaryNarrative(echo).ok, false);
+  });
+});
+
+describe("rolling summary source grounding", () => {
+  it("rejects expanding a limited recognition statement into global amnesia", () => {
+    const dialogue =
+      "[1턴]\n유저: 나는 렌이라고 해. 널 본 기억이 안 나는데, 나 알아?\n에녹: 그는 렌을 본부 안으로 안내했다.";
+    assert.equal(
+      isRollingSummaryGroundedInDialogue(
+        "렌이 기억을 잃은 채 본부에 도착했고 에녹의 안내를 받았다.",
+        dialogue
+      ),
+      false
+    );
+    assert.equal(
+      isRollingSummaryGroundedInDialogue(
+        "렌은 에녹을 본 기억이 없다고 말했고, 에녹은 렌을 본부 안으로 안내했다.",
+        dialogue
+      ),
+      true
+    );
+  });
+
+  it("requires attribution when an uncertain assistant claim enters the summary", () => {
+    const dialogue =
+      "[1턴]\n유저: 몸이 왜 이러지?\n에녹: 에녹은 렌이 가이드 각성 중일 가능성이 높다고 추측했다.";
+    assert.equal(
+      isRollingSummaryGroundedInDialogue(
+        "렌의 가이드 각성은 현재 진행 중이며 미해결 상태다.",
+        dialogue
+      ),
+      false
+    );
+    assert.equal(
+      isRollingSummaryGroundedInDialogue(
+        "에녹은 렌이 가이드 각성 중일 가능성이 있다고 추측했으나 확정되지 않았다.",
+        dialogue
+      ),
+      true
+    );
+  });
+
+  it("does not let attribution in one sentence canonize another sentence", () => {
+    const dialogue =
+      "[1턴]\n유저: 몸이 왜 이러지?\n에녹: 에녹은 렌이 가이드 각성 중일 가능성이 높다고 추측했다.";
+    assert.equal(
+      isRollingSummaryGroundedInDialogue(
+        "에녹은 원인을 추측했다. 렌의 가이드 각성은 현재 진행 중이다.",
+        dialogue
+      ),
+      false
+    );
   });
 });
 

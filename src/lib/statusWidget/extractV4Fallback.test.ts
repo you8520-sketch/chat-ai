@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-  OPENROUTER_DEEPSEEK_V3_MODEL,
+  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
 } from "@/lib/chatModels";
 import { CompatibleCompletionError } from "@/lib/openRouterCompletion";
 import { extractStatusWidgetValuesForTurn } from "./extract";
@@ -30,7 +30,7 @@ const resolved: ResolvedStatusWidgetTurn = {
   needsUserValues: false,
 };
 
-test("V4 Flash uses 3072 and falls back to V3 once with diagnostics", async () => {
+test("V4 Flash is unbounded and falls back to OpenRouter V4 once with diagnostics", async () => {
   const calls: Array<{ modelId: string; maxTokens?: number }> = [];
   const result = await extractStatusWidgetValuesForTurn({
     charName: "라이크",
@@ -65,12 +65,12 @@ test("V4 Flash uses 3072 and falls back to V3 once with diagnostics", async () =
     [
       CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
       CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-      OPENROUTER_DEEPSEEK_V3_MODEL,
+      OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
     ]
   );
-  assert.equal(calls[0]?.maxTokens, 3072);
-  assert.equal(calls[1]?.maxTokens, 3072);
-  assert.ok((calls[2]?.maxTokens ?? 0) <= 512);
+  assert.equal(calls[0]?.maxTokens, undefined);
+  assert.equal(calls[1]?.maxTokens, undefined);
+  assert.equal(calls[2]?.maxTokens, undefined);
   assert.equal(result.meta.usedFallback, true);
   assert.equal(result.meta.attemptDiagnostics[0]?.httpStatus, 503);
   assert.equal(result.meta.attemptDiagnostics[1]?.httpStatus, 503);
@@ -78,7 +78,7 @@ test("V4 Flash uses 3072 and falls back to V3 once with diagnostics", async () =
   assert.equal(result.values.character?.["장소"], "본부 로비");
 });
 
-test("dual-source extraction never calls the V3 fallback more than once per turn", async () => {
+test("dual-source extraction never calls the OpenRouter V4 fallback more than once per turn", async () => {
   const userWidget: StatusWidget = {
     ...widget,
     name: "유저 상태",
@@ -109,7 +109,7 @@ test("dual-source extraction never calls the V3 fallback more than once per turn
   });
 
   assert.equal(
-    models.filter((model) => model === OPENROUTER_DEEPSEEK_V3_MODEL).length,
+    models.filter((model) => model === OPENROUTER_DEEPSEEK_V4_FLASH_MODEL).length,
     1
   );
   assert.equal(result.meta.usedFallback, true);

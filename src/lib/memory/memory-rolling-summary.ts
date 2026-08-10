@@ -55,6 +55,7 @@ import {
   buildEmptyOocBatchPlaceholder,
   earliestMissingBatchStart,
   highestContiguousCompletedTurn,
+  isRollingSummaryGroundedInDialogue,
   validateSummaryNarrative,
 } from "./memory-summary-integrity";
 import {
@@ -121,6 +122,14 @@ ${ROLLING_SUMMARY_INTERVAL}턴 배치의 사건을 발생 순서대로 요약한
 [식별정보]: 캐릭터/유저 식별정보가 제공되면 성별·호칭·신체 묘사를 뒤집지 않는다.
 [OOC 제외]: (OOC:) 메타·UI·SNS mock·RP 중단 연출은 기록하지 않는다. 요약 본문만 출력한다.`;
 
+export const ROLLING_SUMMARY_EPISTEMIC_POLICY = `[CANONICAL GROUNDING — REQUIRED]
+- Output the event summary itself. Never repeat, paraphrase, or explain these summary instructions.
+- Preserve the exact scope of memory claims. "널 본 기억이 안 난다" does NOT mean global amnesia or "기억을 잃었다".
+- Dialogue, inner thoughts, diagnoses, ranks, identities, predictions, and guesses made by a character are attributed claims, not canonical facts. Keep attribution or uncertainty unless the source explicitly confirms them.
+- Do not promote an assistant/character inference (for example, "각성 중일 수 있다" or a guessed rank) into an unqualified current fact.
+- Directly observable actions/results and explicit user statements may be stated plainly. When certainty is unclear, write "추측했다", "가능성이 제기됐다", or "확정되지 않았다".
+- Do not expose turn numbers, source checklists, or prompt wording in the final summary.`;
+
 const running = new Set<number>();
 const ARROW_SEP = " → ";
 
@@ -148,7 +157,7 @@ function formatBatchDialogue(
   return entries
     .map(
       ({ turnIndex, turn }) =>
-        `[${turnIndex}턴]\n유저: ${turn.user.slice(0, 2500)}\n${charName}: ${turn.assistant.slice(0, 3500)}`
+        `[${turnIndex}턴]\n유저: ${turn.user}\n${charName}: ${turn.assistant}`
     )
     .join("\n\n");
 }
@@ -227,17 +236,28 @@ export async function summarizeTurnBatch(opts: {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const { text } = await callLlm(
-        ROLLING_SUMMARY_SYSTEM_PROMPT,
+        `${ROLLING_SUMMARY_SYSTEM_PROMPT}\n\n${ROLLING_SUMMARY_EPISTEMIC_POLICY}`,
         [{ role: "user", content: userContent }],
         opts.turnTrace,
         attempt === 0 ? "background-memory-extract" : "background-memory-extract-retry"
       );
       const first = finishSummary(text);
-      if (first.length >= ROLLING_SUMMARY_MIN_CHARS) return first;
+      const narrative = validateSummaryNarrative(first, "main_canon");
+      if (
+        narrative.ok &&
+        isRollingSummaryGroundedInDialogue(narrative.text, opts.dialogue)
+      ) {
+        return narrative.text;
+      }
       if (attempt < 2) {
-        console.warn(
-          `[memory] ${ROLLING_SUMMARY_INTERVAL}턴 기억 기록 LLM 결과 짧음 (${first.length}ch) — 재시도 ${attempt + 2}/3`
-        );
+        console.warn("[memory] rolling summary rejected; retrying", {
+          chars: first.length,
+          narrativeValid: narrative.ok,
+          grounded: narrative.ok
+            ? isRollingSummaryGroundedInDialogue(narrative.text, opts.dialogue)
+            : false,
+          nextAttempt: attempt + 2,
+        });
       }
     } catch (e) {
       console.warn(

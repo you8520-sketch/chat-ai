@@ -377,10 +377,6 @@ import {
   statusWidgetApiCostChargePoints,
 } from "@/lib/statusWidget/receiptUsage";
 import type { Usage } from "@/lib/chatUsage";
-import {
-  isVNextSmokeMaxTokensEnvEnabled,
-  resolveVNextSmokeMaxTokensOverride,
-} from "@/lib/smoke/vnextCleanSmokeFixtures";
 import { userMessageRequestsStatusWindowOoc } from "@/lib/statusMeta/ooc";
 import { isOocHtmlRequest } from "@/lib/oocHtmlRequest";
 import { isHtmlDisplayOnlyTurn, isHtmlFlashOnlyTurn, isOocCreativeHtmlTurn, chatInputSuppressesStatusWidget } from "@/lib/htmlDisplayOnlyTurn";
@@ -396,7 +392,6 @@ import {
 import {
   buildTerraInstructions,
   isRetryableTerraFinishReason,
-  TERRA_MAX_OUTPUT_TOKENS,
 } from "@/lib/openAiResponsesClient";
 import { formatClientApiError } from "@/lib/apiErrors";
 import { refreshCheaperInferenceCatalogPricing } from "@/lib/cheaperInferenceCatalogPricing.server";
@@ -544,14 +539,6 @@ export async function POST(req: Request) {
     email: user.email,
     is_admin: userAdminRow?.is_admin ?? 0,
   });
-  /** TEST PATH ONLY — admin + env + body.smokeMaxTokens; default unset → no prod change. */
-  const smokeMaxTokensOverride =
-    showFullBillingReceipt && isVNextSmokeMaxTokensEnvEnabled()
-      ? resolveVNextSmokeMaxTokensOverride({
-          envEnabled: true,
-          smokeMaxTokens: body.smokeMaxTokens,
-        })
-      : undefined;
   const userNoteRow = db
     .prepare("SELECT user_note, chat_prefs FROM users WHERE id=?")
     .get(user.id) as { user_note: string; chat_prefs: string };
@@ -2814,12 +2801,6 @@ export async function POST(req: Request) {
                         buildAdultProviderRoutingRequest(adultRoutingConfig),
                     }
                   : {}),
-                ...(smokeMaxTokensOverride != null || terraChat
-                  ? {
-                      maxTokensOverride:
-                        smokeMaxTokensOverride ?? TERRA_MAX_OUTPUT_TOKENS,
-                    }
-                  : {}),
               },
               turnApiBudget
             );
@@ -4306,13 +4287,6 @@ export async function POST(req: Request) {
             : {}),
           ...(primaryStage?.finishReason
             ? { finishReason: primaryStage.finishReason }
-            : {}),
-          ...(smokeMaxTokensOverride != null
-            ? {
-                requestedMaxTokens: smokeMaxTokensOverride,
-                effectiveMaxTokens: smokeMaxTokensOverride,
-                targetResponseChars: targetResponseCharsRef,
-              }
             : {}),
           savedOutputChars: billableChars,
           model: usageModel,

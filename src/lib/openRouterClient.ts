@@ -1,4 +1,3 @@
-import { resolveMaxOutputTokensForTarget } from "@/lib/responseLength";
 import { normalizeOpenRouterModelId } from "@/lib/openRouterConfig";
 import {
   isAnthropicModel,
@@ -160,13 +159,13 @@ export const OPENROUTER_RP_REASONING_MUSE_SPARK = {
   exclude: true,
 } as const;
 
-/** Gemini Flash RP — thinking minimal + exclude */
+/** Gemini Flash RP — lowest supported thinking + exclude */
 export const OPENROUTER_RP_REASONING_GEMINI_FLASH = {
   effort: "minimal",
   exclude: true,
 } as const;
 
-/** Gemini 3.x Pro RP — thinkingLevel via reasoning.effort (geminiClient.ts native와 동일) */
+/** Gemini 3.x Pro RP — lowest supported thinking (full disable unsupported) */
 export const OPENROUTER_RP_REASONING_GEMINI_3_PRO = {
   effort: "low",
 } as const;
@@ -247,8 +246,10 @@ export function resolveOpenRouterMaxTokens(
   maxTokensOverride?: number,
   modelId?: string | null
 ): number | undefined {
-  if (maxTokensOverride != null) return maxTokensOverride;
-  return resolveMaxOutputTokensForTarget(targetResponseChars, modelId);
+  void targetResponseChars;
+  void maxTokensOverride;
+  void modelId;
+  return undefined;
 }
 
 /** DeepSeek V4 Pro — 통합 tier temperature */
