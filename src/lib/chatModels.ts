@@ -32,8 +32,11 @@ export const CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL = "deepseek-v4-pro";
 export const CHEAPER_INFERENCE_AION_20_MODEL = "aion-labs.aion-2-0";
 export const CHEAPER_INFERENCE_GLM_52_MODEL = "glm-5.2";
 
-/** OpenRouter — DeepSeek V3 (백그라운드 기억·상태창·번역 등) */
+/** @deprecated legacy background fallback slug — normalized to V4 Flash */
 export const OPENROUTER_DEEPSEEK_V3_MODEL = "deepseek/deepseek-chat-v3-0324";
+
+/** OpenRouter — DeepSeek V4 Flash (Cheaper Inference background fallback) */
+export const OPENROUTER_DEEPSEEK_V4_FLASH_MODEL = "deepseek/deepseek-v4-flash";
 
 /** @deprecated UI 선택 제거 — legacy slug·과금 경로 호환용 */
 export const OPENROUTER_QWEN_37_MAX_MODEL = "qwen/qwen3.7-max";

@@ -4,10 +4,7 @@ import {
   type ChatMsg,
   type TokenUsage,
 } from "@/lib/ai";
-import {
-  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-  OPENROUTER_DEEPSEEK_V3_MODEL,
-} from "@/lib/chatModels";
+import { OPENROUTER_DEEPSEEK_V4_FLASH_MODEL } from "@/lib/chatModels";
 import { CompatibleCompletionError } from "@/lib/openRouterCompletion";
 import { collectWidgetJsonKeys } from "./prompt";
 import {
@@ -26,9 +23,6 @@ import {
   normalizeWidgetExtraction,
   isCombinedExtractLikelyTruncated,
   parseCombinedDualWidgetExtractResponse,
-  resolveCombinedDualWidgetExtractMaxTokens,
-  resolveRepairMaxTokens,
-  STATUS_WIDGET_V4_FLASH_MAX_OUTPUT_TOKENS,
 } from "./extractNormalize";
 import {
   mergeStatusWidgetExtractUsages,
@@ -171,13 +165,14 @@ type AttemptOutcome = {
 
 function extractAttemptFailure(error: unknown): Pick<
   AttemptOutcome,
-  "httpStatus" | "finishReason" | "errorCode"
+  "httpStatus" | "finishReason" | "errorCode" | "usage"
 > {
   if (error instanceof CompatibleCompletionError) {
     return {
       httpStatus: error.httpStatus,
       finishReason: error.finishReason,
       errorCode: error.name,
+      usage: error.usage,
     };
   }
   const message = error instanceof Error ? error.message : String(error);
@@ -186,6 +181,7 @@ function extractAttemptFailure(error: unknown): Pick<
     httpStatus: statusMatch ? Number(statusMatch[1]) : null,
     finishReason: null,
     errorCode: error instanceof Error ? error.name || "Error" : "Error",
+    usage: null,
   };
 }
 
@@ -199,14 +195,8 @@ function toAttemptDiagnostic(outcome: AttemptOutcome): StatusWidgetExtractAttemp
   };
 }
 
-function primaryAttemptMaxTokens(modelId: string, requested?: number): number | undefined {
-  if (
-    modelId.trim().toLowerCase() ===
-    CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
-  ) {
-    return Math.max(requested ?? 0, STATUS_WIDGET_V4_FLASH_MAX_OUTPUT_TOKENS);
-  }
-  return requested;
+function isLengthFinishReason(finishReason?: string | null): boolean {
+  return /length|max[_-]?(?:tokens|output_tokens)/i.test(finishReason ?? "");
 }
 
 function usableNormalizedKeys(values: StatusWidgetValues | null): string[] {
@@ -349,7 +339,7 @@ async function runExtractAttempt(opts: {
       [{ role: "user", content: opts.userBlock }],
       {
         requestKind: opts.requestKind,
-        maxTokens: primaryAttemptMaxTokens(opts.modelId, opts.maxTokens),
+        maxTokens: undefined,
         temperature: opts.temperature,
         modelId: opts.modelId,
       }
@@ -363,6 +353,35 @@ async function runExtractAttempt(opts: {
         facts: [],
         usage,
         reasonCode: reasonCodeForExtractStage(opts.stage, "empty"),
+        textLength,
+        jsonFound: false,
+        normalizedKeys: [],
+        modelId: opts.modelId,
+        stage: opts.stage,
+        attemptIndex: opts.attemptIndex,
+        latencyMs,
+        echoDroppedKeys: [],
+        httpStatus: 200,
+        finishReason: usage.finishReason ?? null,
+        errorCode: null,
+      };
+      logExtractAttempt({
+        ...outcome,
+        trace: opts.trace,
+        source: opts.source,
+        succeeded: false,
+        env: opts.env,
+      });
+      return outcome;
+    }
+
+    if (isLengthFinishReason(usage.finishReason)) {
+      const outcome: AttemptOutcome = {
+        ok: false,
+        values: null,
+        facts: [],
+        usage,
+        reasonCode: reasonCodeForExtractStage(opts.stage, "parse"),
         textLength,
         jsonFound: false,
         normalizedKeys: [],
@@ -464,7 +483,6 @@ async function runExtractAttempt(opts: {
       ok: false,
       values: null,
       facts: [],
-      usage: null,
       reasonCode,
       textLength: 0,
       jsonFound: false,
@@ -514,7 +532,7 @@ async function maybeRepairVolatileExactEcho(opts: {
   attemptUsages: StatusWidgetSourceExtractMeta["attemptUsages"];
   attemptDiagnostics: StatusWidgetExtractAttemptDiagnostic[];
   apiCalls: number;
-  repairMaxTokens: number;
+  repairMaxTokens: number | null;
 }): Promise<{
   values: StatusWidgetValues;
   facts: ExtractedStatusFact[];
@@ -541,10 +559,6 @@ async function maybeRepairVolatileExactEcho(opts: {
     };
   }
 
-  const echoMaxTokens = Math.min(
-    opts.repairMaxTokens,
-    resolveRepairMaxTokens(opts.widget, echoKeys)
-  );
   const repairSystem = buildVolatileEchoRepairSystem(echoKeys, opts.source);
   const repairUser = buildVolatileEchoRepairUserBlock({
     keys: echoKeys,
@@ -567,7 +581,6 @@ async function maybeRepairVolatileExactEcho(opts: {
     attemptIndex: opts.attemptIndex,
     modelId: opts.primaryModelId,
     requestKind: "background-status-widget-extract-volatile-echo-fix",
-    maxTokens: echoMaxTokens,
     temperature: 0,
     applyEchoFilter: false,
     caller: opts.caller,
@@ -678,12 +691,10 @@ async function extractStatusWidgetValuesForWidget(opts: {
     effectiveFallback =
       trimmed && trimmed.toLowerCase() !== primaryModelId.toLowerCase() ? trimmed : null;
   } else {
-    const configured =
-      (opts.env ?? process.env).BACKGROUND_MEMORY_FALLBACK_MODEL?.trim() ||
-      OPENROUTER_DEEPSEEK_V3_MODEL;
     effectiveFallback =
-      configured.toLowerCase() !== primaryModelId.toLowerCase()
-        ? configured
+      OPENROUTER_DEEPSEEK_V4_FLASH_MODEL.toLowerCase() !==
+      primaryModelId.toLowerCase()
+        ? OPENROUTER_DEEPSEEK_V4_FLASH_MODEL
         : null;
   }
   const usages: TokenUsage[] = [];
@@ -692,7 +703,7 @@ async function extractStatusWidgetValuesForWidget(opts: {
   const attemptUsages: StatusWidgetSourceExtractMeta["attemptUsages"] = [];
   const attemptDiagnostics: StatusWidgetExtractAttemptDiagnostic[] = [];
   let echoDroppedKeys: string[] = [];
-  const repairMaxTokens = resolveRepairMaxTokens(opts.widget, keys);
+  const repairMaxTokens: number | null = null;
   let apiCalls = 0;
 
   if (!opts.repairOnly) {
@@ -791,7 +802,6 @@ async function extractStatusWidgetValuesForWidget(opts: {
     attemptIndex: 2,
     modelId: primaryModelId,
     requestKind: "background-status-widget-extract-repair",
-    maxTokens: repairMaxTokens,
     temperature: 0,
     applyEchoFilter: true,
     caller,
@@ -875,7 +885,6 @@ async function extractStatusWidgetValuesForWidget(opts: {
       attemptIndex: opts.repairOnly ? 3 : 3,
       modelId: effectiveFallback,
       requestKind: "background-status-widget-extract-fallback",
-      maxTokens: repairMaxTokens,
       temperature: 0,
       applyEchoFilter: true,
       caller,
@@ -1049,7 +1058,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       previousUserValues: opts.previousValues?.user ?? null,
     });
 
-    const combinedMaxTokens = resolveCombinedDualWidgetExtractMaxTokens(charWidget, userWidget);
+    const combinedMaxTokens: number | null = null;
     let combinedText = "";
     let combinedUsage: TokenUsage | null = null;
     let combinedFailure: ReturnType<typeof extractAttemptFailure> | null = null;
@@ -1057,13 +1066,14 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       const res = await caller(system, [{ role: "user", content: userBlock }], {
         requestKind: "background-status-widget-extract-combined",
         modelId: primaryModelId,
-        maxTokens: combinedMaxTokens,
+        maxTokens: undefined,
       });
       combinedText = res.text ?? "";
       combinedUsage = res.usage ?? null;
     } catch (e) {
       console.error("[STATUS-WIDGET-ERROR] combined extract call failed", (e as Error).message);
       combinedFailure = extractAttemptFailure(e);
+      combinedUsage = combinedFailure.usage;
     }
     actualCallCount += 1;
     if (combinedUsage) turnUsages.push(combinedUsage);
@@ -1076,11 +1086,14 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       errorCode: combinedFailure?.errorCode ?? null,
     });
 
-    const parsed = parseCombinedDualWidgetExtractResponse(combinedText, {
+    const parsed = parseCombinedDualWidgetExtractResponse(
+      isLengthFinishReason(combinedUsage?.finishReason) ? "" : combinedText,
+      {
       characterWidget: charWidget,
       userWidget,
       applyEchoFilter: true,
-    });
+      }
+    );
     const latencyMs = Date.now() - started;
     const combinedLikelyTruncated = isCombinedExtractLikelyTruncated({
       finishReason: combinedUsage?.finishReason ?? null,
@@ -1148,10 +1161,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       const charModels: string[] = [primaryModelId];
       const charAttemptUsages: StatusWidgetSourceExtractMeta["attemptUsages"] = [];
       const charAttemptDiagnostics: StatusWidgetExtractAttemptDiagnostic[] = [];
-      const charRepairMax = resolveRepairMaxTokens(
-        charWidget,
-        collectWidgetJsonKeys(charWidget)
-      );
+      const charRepairMax: number | null = null;
       const echoFixed = await maybeRepairVolatileExactEcho({
         values: parsed.character,
         facts: [],
@@ -1230,10 +1240,7 @@ export async function extractStatusWidgetValuesForTurn(opts: {
       const userModels: string[] = [primaryModelId];
       const userAttemptUsages: StatusWidgetSourceExtractMeta["attemptUsages"] = [];
       const userAttemptDiagnostics: StatusWidgetExtractAttemptDiagnostic[] = [];
-      const userRepairMax = resolveRepairMaxTokens(
-        userWidget,
-        collectWidgetJsonKeys(userWidget)
-      );
+      const userRepairMax: number | null = null;
       const echoFixed = await maybeRepairVolatileExactEcho({
         values: parsed.user,
         facts: [],

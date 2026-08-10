@@ -2,13 +2,6 @@ import OpenAI from "openai";
 import { estimateTokens, type ChatMsg, type TokenUsage } from "@/lib/ai";
 import { OPENAI_GPT_56_TERRA_MODEL } from "@/lib/chatModels";
 
-/**
- * The RP target is 3,200 visible characters. Give Terra enough headroom for
- * Korean text plus hidden reasoning/accounting tokens instead of relying on
- * the provider default, which can end a response mid-sentence.
- */
-export const TERRA_MAX_OUTPUT_TOKENS = 8_192;
-
 export const TERRA_FALLBACK_PROSE_DIRECTIVE = [
   "장면을 요약하거나 설명하지 말고, 인물의 구체적인 행동·반응·대사로 진행한다.",
   "감정은 직접 이름 붙이기보다 표정, 몸짓, 말의 간격과 선택을 통해 드러낸다.",
@@ -42,8 +35,8 @@ export function buildOpenAiTerraResponseRequest(
       message.role === "user" || message.role === "assistant"
     )
     .map((message) => ({ role: message.role, content: message.content }));
-  const maxOutputTokens =
-    maxTokensOverride ?? TERRA_MAX_OUTPUT_TOKENS;
+  void targetResponseChars;
+  void maxTokensOverride;
   return {
     model: OPENAI_GPT_56_TERRA_MODEL,
     instructions: buildTerraInstructions(system),
@@ -51,7 +44,6 @@ export function buildOpenAiTerraResponseRequest(
     reasoning: { effort: "none" as const },
     text: { verbosity: "high" as const },
     stream: true as const,
-    ...(maxOutputTokens != null ? { max_output_tokens: maxOutputTokens } : {}),
   };
 }
 

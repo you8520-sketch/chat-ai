@@ -105,4 +105,29 @@ describe("rolling summary full-batch source coverage", () => {
     );
     assert.equal(entries.every((entry) => isTurnEligibleForMemoryRecord(entry.turn.user)), true);
   });
+
+  it("retries prompt-echo output and returns only the grounded event summary", async () => {
+    const dialogue = [1, 2, 3, 4, 5, 6]
+      .map((turn) => `[${turn}턴]\n유저: 사건 ${turn}\n에녹: 결과 ${turn}`)
+      .join("\n\n");
+    const echo =
+      "6턴 배치의 사건을 발생 순서대로 요약한다. 사건 시기와 인과관계를 누락하지 않는다. 최종 출력에는 핵심 사건을 기록한다.";
+    const safe =
+      "렌은 에녹과 처음 만난 뒤 본부로 이동했고, 자신의 이름과 상대를 본 기억이 없다는 점을 밝혔다. 두 사람은 다시 확인하기로 약속했으며 갈등 뒤 북쪽 구역으로 이동했다.";
+    let calls = 0;
+    __setSummarizeTurnBatchCallerForTests(async () => ({
+      text: ++calls === 1 ? echo : safe,
+    }));
+
+    const summary = await summarizeTurnBatch({
+      dialogue,
+      charName: "에녹",
+      startTurn: 1,
+      endTurn: 6,
+    });
+
+    assert.equal(calls, 2);
+    assert.equal(summary, safe);
+    assert.doesNotMatch(summary, /6턴 배치|요약한다|누락하지 않는다/);
+  });
 });

@@ -269,7 +269,7 @@ describe("buildOpenRouterRequestBody — RP reasoning policy", () => {
     assert.equal(body.max_tokens, undefined);
   });
 
-  it("honors maxTokensOverride when set", () => {
+  it("ignores maxTokensOverride and leaves output unbounded", () => {
     const body = buildOpenRouterRequestBody(
       OPENROUTER_QWEN_37_MAX_MODEL,
       [{ role: "user", content: "test" }],
@@ -278,8 +278,8 @@ describe("buildOpenRouterRequestBody — RP reasoning policy", () => {
       "chat-1",
       512
     ) as Record<string, unknown>;
-    assert.equal(body.max_tokens, 512);
-    assert.equal(resolveOpenRouterMaxTokens(3500, 512, OPENROUTER_QWEN_37_MAX_MODEL), 512);
+    assert.equal(body.max_tokens, undefined);
+    assert.equal(resolveOpenRouterMaxTokens(3500, 512, OPENROUTER_QWEN_37_MAX_MODEL), undefined);
   });
 });
 

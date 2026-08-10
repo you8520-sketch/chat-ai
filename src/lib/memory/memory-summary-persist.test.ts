@@ -178,6 +178,31 @@ describe("persistValidatedSummaryBatch integrity", () => {
     assert.equal(listMemoryRecordsForChat(CHAT_ID).length, before.length);
   });
 
+  it("instruction echo is rejected before DB storage or memory reinjection", () => {
+    cleanup();
+    seed();
+    const echo =
+      "6턴 배치의 사건을 발생 순서대로 요약한다. 사건 시기와 인과관계를 누락하지 않는다. 최종 출력에는 핵심 사건을 기록한다.";
+    const result = persistValidatedSummaryBatch({
+      chatId: CHAT_ID,
+      userId: USER_ID,
+      characterId: CHAR_ID,
+      tier: "free",
+      turnStart: 1,
+      assistantMessageId: null,
+      summary: echo,
+      playableTurnCount: 6,
+    });
+
+    assert.equal(result.ok, false);
+    assert.equal(listMemoryRecordsForChat(CHAT_ID).length, 0);
+    assert.equal(rebuildLorebookFromRecords(CHAT_ID), "");
+    const chat = getDb()
+      .prepare("SELECT current_summary FROM chats WHERE id=?")
+      .get(CHAT_ID) as { current_summary: string | null };
+    assert.ok(!chat.current_summary?.includes("6턴 배치"));
+  });
+
   it("OOC strip empty result does not create a narrative summary row", () => {
     cleanup();
     seed();

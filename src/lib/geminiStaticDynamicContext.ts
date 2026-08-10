@@ -4,7 +4,6 @@ import { ROLLING_SUMMARY_INTERVAL } from "@/lib/hybridMemory";
 import { estimateTokens } from "@/lib/tokenEstimate";
 import type { ChatMsg } from "@/lib/ai";
 import {
-  GEMINI_STATIC_CACHE_MAX_TOKENS,
   GEMINI_STATIC_CACHE_MIN_TOKENS,
 } from "@/lib/contextTrack";
 import { buildStableSessionPadding } from "@/lib/geminiCacheBulk";
@@ -30,10 +29,6 @@ const VOLATILE_SECTION_IDS = new Set([
 export function isVolatilePromptSectionId(id: string): boolean {
   return VOLATILE_SECTION_IDS.has(id);
 }
-
-const STATIC_TRIM_PRIORITY = [
-  "user-note-reference",
-] as const;
 
 export function isGeminiStaticCacheSectionId(id: string): boolean {
   if (VOLATILE_SECTION_IDS.has(id)) return false;
@@ -96,29 +91,7 @@ export function assembleGeminiStaticDynamicSplit(opts: {
   };
 }
 
-function truncateStaticPrompt(staticPrompt: string, maxTokens: number): string {
-  let text = staticPrompt;
-  let tokens = estimateTokens(text);
-  if (tokens <= maxTokens) return text;
-
-  for (const sectionId of STATIC_TRIM_PRIORITY) {
-    const marker =
-      sectionId === "user-note-reference"
-        ? "[5] User Note"
-        : "[1.5] Contextual Lore";
-    const idx = text.indexOf(marker);
-    if (idx >= 0) {
-      text = text.slice(0, idx).trimEnd();
-      tokens = estimateTokens(text);
-      if (tokens <= maxTokens) return text;
-    }
-  }
-
-  const maxChars = Math.floor(maxTokens * 3.5);
-  return text.length > maxChars ? text.slice(0, maxChars) : text;
-}
-
-/** Static 32K~60K 맞춤 + fingerprint — explicit cache 전용 padding */
+/** Static cache minimum padding + fingerprint; no application-level maximum. */
 export function finalizeGeminiStaticCache(
   geminiSplit: GeminiContextSplit,
   options?: { chatId?: number }
@@ -145,11 +118,6 @@ export function finalizeGeminiStaticCache(
           targetTokens,
         });
       }
-    }
-
-    if (tokens > GEMINI_STATIC_CACHE_MAX_TOKENS) {
-      staticPrompt = truncateStaticPrompt(staticPrompt, GEMINI_STATIC_CACHE_MAX_TOKENS);
-      tokens = estimateTokens(staticPrompt);
     }
 
     return {

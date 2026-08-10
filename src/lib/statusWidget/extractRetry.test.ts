@@ -31,6 +31,7 @@ import type { TokenUsage } from "@/lib/ai";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   OPENROUTER_DEEPSEEK_V3_MODEL,
+  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
   OPENROUTER_GEMINI_25_FLASH_LITE_MODEL,
   OPENROUTER_GEMINI_25_FLASH_MODEL,
 } from "@/lib/chatModels";
@@ -98,6 +99,35 @@ describe("status widget empty-extract retry (V3 repair only)", () => {
     assert.deepEqual(kinds, ["background-status-widget-extract"]);
     assert.equal(result.meta.totalCallCount, 1);
     assert.equal(result.meta.usedRepair, false);
+  });
+
+  it("rejects valid-looking initial JSON when finish=length and persists only repair output", async () => {
+    const caller: StatusWidgetExtractCaller = async (_system, _history, opts) => {
+      if (opts.requestKind.includes("repair")) {
+        return {
+          text: jsonForWidget(DEFAULT_STATUS_WIDGET, { 시간: "15:00", 장소: "도서관" }),
+          usage: { ...usage(2), finishReason: "stop" },
+        };
+      }
+      return {
+        text: jsonForWidget(DEFAULT_STATUS_WIDGET, { 시간: "잘린 값", 장소: "잘린 장소" }),
+        usage: { ...usage(1), finishReason: "length" },
+      };
+    };
+
+    const result = await extractStatusWidgetValuesForTurn({
+      charName: "에녹",
+      personaName: "나",
+      userMessage: "이동한다",
+      assistantProse: "도서관에 도착했다.",
+      resolved: characterResolved(),
+      caller,
+    });
+
+    assert.equal(result.meta.usedRepair, true);
+    assert.equal(result.meta.attemptDiagnostics[0]?.finishReason, "length");
+    assert.equal(result.values.character?.시간, "15:00");
+    assert.equal(result.values.character?.장소, "도서관");
   });
 
   it("initial empty → repair success", async () => {
@@ -582,7 +612,7 @@ describe("repair maxTokens", () => {
     assert.ok(heavy >= twelve);
   });
 
-  it("V4 Flash repair call receives reasoning-safe maxTokens", async () => {
+  it("V4 Flash repair call leaves output unbounded", async () => {
     let seenMax: number | undefined;
     const caller: StatusWidgetExtractCaller = async (_s, _h, opts) => {
       if (opts.requestKind.includes("repair")) {
@@ -599,8 +629,7 @@ describe("repair maxTokens", () => {
       resolved: characterResolved(),
       caller,
     });
-    assert.equal(typeof seenMax, "number");
-    assert.equal(seenMax, 3072);
+    assert.equal(seenMax, undefined);
   });
 });
 
@@ -1247,7 +1276,7 @@ describe("dual combined status extract", () => {
       resolved: characterResolved(),
       caller: async (_s, _h, opts) => {
         kinds.push(opts.requestKind);
-        assert.equal(opts.maxTokens, 3072);
+        assert.equal(opts.maxTokens, undefined);
         return { text: jsonForWidget(DEFAULT_STATUS_WIDGET), usage: usage(1) };
       },
     });
@@ -1299,7 +1328,7 @@ function oversizedCombinedJson(character: StatusWidget, user: StatusWidget): str
 }
 
 describe("combined dual output budget", () => {
-  it("1. small dual → combined maxTokens=2048 and caller receives 2048", async () => {
+  it("1. small dual keeps legacy estimate but caller output is unbounded", async () => {
     const smallChar: StatusWidget = {
       version: 1,
       name: "소형 캐릭터",
@@ -1342,7 +1371,7 @@ describe("combined dual output budget", () => {
         };
       },
     });
-    assert.equal(seenMax, 2048);
+    assert.equal(seenMax, undefined);
   });
 
   it("2–3. large dual → reasoning-safe 2048–3072 budget", () => {
@@ -1397,7 +1426,7 @@ describe("combined dual output budget", () => {
       },
     });
     assert.deepEqual(kinds, ["background-status-widget-extract-combined"]);
-    assert.ok((seenMax ?? 0) > 512);
+    assert.equal(seenMax, undefined);
     assert.equal(result.meta.actualCallCount, 1);
     assert.ok(result.values.character);
     assert.ok(result.values.user);
@@ -1497,14 +1526,14 @@ describe("combined dual output budget", () => {
       resolved: userOnly,
       caller: async (_s, _h, opts) => {
         kinds.push(opts.requestKind);
-        assert.equal(opts.maxTokens, 3072);
+        assert.equal(opts.maxTokens, undefined);
         return { text: JSON.stringify({ 기분: "평온", extracted_facts: [] }), usage: usage(1) };
       },
     });
     assert.ok(!kinds.some((k) => k.includes("combined")));
   });
 
-  it("8. V4 Flash repair maxTokens is raised to 3072", async () => {
+  it("8. V4 Flash repair output remains unbounded", async () => {
     let seenRepair: number | undefined;
     await extractStatusWidgetValuesForTurn({
       charName: "레온",
@@ -1520,7 +1549,7 @@ describe("combined dual output budget", () => {
         return { text: "", usage: usage(1) };
       },
     });
-    assert.equal(seenRepair, 3072);
+    assert.equal(seenRepair, undefined);
   });
 });
 
@@ -1749,7 +1778,7 @@ describe("background cross-model fallback (DeepSeek primary → Gemini Flash Lit
     assert.equal(result.meta.actualCallCount, 2);
   });
 
-  it("8. fallback env unset → DeepSeek V3 once", async () => {
+  it("8. fallback env unset → OpenRouter DeepSeek V4 once", async () => {
     const models: string[] = [];
     const caller: StatusWidgetExtractCaller = async (_s, _h, opts) => {
       models.push(opts.modelId);
@@ -1768,7 +1797,7 @@ describe("background cross-model fallback (DeepSeek primary → Gemini Flash Lit
     assert.deepEqual(models, [
       CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
       CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-      OPENROUTER_DEEPSEEK_V3_MODEL,
+      OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
     ]);
     assert.equal(result.meta.usedFallback, true);
   });

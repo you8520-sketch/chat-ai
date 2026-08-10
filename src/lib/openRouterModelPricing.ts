@@ -109,6 +109,16 @@ const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_RATES: OpenRouterModelRates = {
   explicitCacheInjection: false,
 };
 
+/** OpenRouter DeepSeek V4 Flash — public model price (2026-08). */
+const OPENROUTER_DEEPSEEK_V4_FLASH_RATES: OpenRouterModelRates = {
+  family: "deepseek",
+  label: "OpenRouter · DeepSeek V4 Flash",
+  inputUsdPerM: 0.09,
+  outputUsdPerM: 0.18,
+  cacheWriteMultiplier: 1,
+  explicitCacheInjection: false,
+};
+
 /** DeepSeek V4 Pro — OpenRouter / DeepSeek official (2026) */
 const DEEPSEEK_V4_PRO_RATES: OpenRouterModelRates = {
   family: "deepseek",
@@ -297,6 +307,9 @@ export function resolveOpenRouterModelRates(modelId?: string | null): OpenRouter
       id,
       CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_RATES
     );
+  }
+  if (id === "deepseek/deepseek-v4-flash") {
+    return OPENROUTER_DEEPSEEK_V4_FLASH_RATES;
   }
   if (id.includes("gemini-2.5-flash")) return GEMINI_25_FLASH_RATES;
   if (id.includes("gemini-3.6-flash")) return GEMINI_36_FLASH_RATES;

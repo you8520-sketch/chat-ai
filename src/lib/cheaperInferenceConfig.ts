@@ -1,8 +1,7 @@
 import {
   isCheaperInferenceDeepSeekV4FlashModel,
+  isCheaperInferenceDeepSeekV4ProModel,
   isCheaperInferenceGemini31ProModel,
-  isGpt56LunaModel,
-  isGpt56TerraModel,
 } from "@/lib/chatModels";
 
 /** Cheaper Inference OpenAI-compatible API root. */
@@ -49,17 +48,20 @@ export function adaptCheaperInferenceChatBody(
   delete adapted.include_reasoning;
 
   if (typeof adapted.model === "string") {
-    if (isCheaperInferenceGemini31ProModel(adapted.model)) {
-      adapted.reasoning_effort = "low";
-    } else if (
-      isGpt56LunaModel(adapted.model) ||
-      isGpt56TerraModel(adapted.model) ||
-      isCheaperInferenceDeepSeekV4FlashModel(adapted.model)
+    if (
+      isCheaperInferenceDeepSeekV4FlashModel(adapted.model) ||
+      isCheaperInferenceDeepSeekV4ProModel(adapted.model)
     ) {
-      // Cheaper Inference defaults to hidden reasoning unless explicitly off.
-      // Background JSON extract (widget/meta/memory) must not burn max_tokens on thinking alone.
-      adapted.reasoning_effort = "none";
+      delete adapted.reasoning_effort;
+      adapted.thinking = { type: "disabled" };
+      return adapted;
     }
+    // Cheaper Inference may default to hidden reasoning. All app calls use
+    // visible output only. Gemini 3.1 Pro cannot disable thinking, so use its
+    // lowest supported effort; every other compatible model is explicitly off.
+    adapted.reasoning_effort = isCheaperInferenceGemini31ProModel(adapted.model)
+      ? "low"
+      : "none";
   }
   return adapted;
 }

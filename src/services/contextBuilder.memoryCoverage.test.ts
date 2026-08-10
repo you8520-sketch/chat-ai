@@ -6,10 +6,7 @@ import {
   OPENROUTER_QWEN_37_MAX_MODEL,
 } from "@/lib/chatModels";
 import { OPENING_TURN_USER } from "@/lib/chatGreetingContext";
-import {
-  DEEPSEEK_MAX_PAYLOAD_INPUT_TOKENS,
-  HISTORY_TOKEN_BUDGET,
-} from "@/lib/contextTrack";
+import { HISTORY_TOKEN_BUDGET } from "@/lib/contextTrack";
 import {
   countPlayableHistoryTurns,
   rawRecentTurnsToHistory,
@@ -18,7 +15,6 @@ import {
   trimHistoryToBudget,
   type DialogueTurn,
 } from "@/lib/hybridMemory";
-import { MAX_PAYLOAD_INPUT_TOKENS } from "@/lib/turnApiBudget";
 import { buildContext } from "@/services/contextBuilder";
 import type { ChatMsg } from "@/lib/ai";
 
@@ -96,7 +92,7 @@ describe("contextBuilder memory coverage", () => {
       assert.equal(built.meta.memoryCoverage?.degraded, false);
       assert.ok(countPlayableHistoryTurns(priorHistory) >= 14);
       assert.equal(priorHistory.length % 2, 0, "history must keep complete pairs");
-      assert.match(priorHistory[0]?.content ?? "", /user-7/);
+      assert.deepEqual(priorHistory, initialHistory);
       assert.match(priorHistory.at(-1)?.content ?? "", /assistant-20/);
     });
   }
@@ -119,7 +115,7 @@ describe("contextBuilder memory coverage", () => {
     assert.equal(built.meta.memoryCoverage?.degraded, false);
     const builtPriorHistory = built.history.slice(0, -1);
     assert.ok(builtPriorHistory.length <= mainHistory.length);
-    assert.equal(selectLongerHistorySuffix(builtPriorHistory, mainHistory), mainHistory);
+    assert.deepEqual(selectLongerHistorySuffix(builtPriorHistory, mainHistory), mainHistory);
   });
 
   it("uses one eligible turn instead of 101 global turns immediately after reset", () => {
@@ -227,7 +223,7 @@ describe("contextBuilder memory coverage", () => {
   });
 
   for (const path of ["first adult handoff", "silent fallback"] as const) {
-    it(`${path} degrades coverage extras before the adult baseline`, () => {
+    it(`${path} keeps all selected coverage when app-level input caps are disabled`, () => {
       const completedTurns = 20;
       const summarizedTurnCount = 6;
       const floor = resolveMemoryCoverageTurnFloor({ completedTurns, summarizedTurnCount });
@@ -248,21 +244,17 @@ describe("contextBuilder memory coverage", () => {
       });
       const coverageMeta = built.meta.memoryCoverage!;
 
-      assert.equal(coverageMeta.degraded, true);
+      assert.equal(coverageMeta.degraded, false);
       assert.equal(coverageMeta.requestedFloor, 14);
       assert.equal(coverageMeta.adultRequiredFloor, 6);
-      assert.ok(coverageMeta.effectiveFloor >= coverageMeta.adultRequiredFloor);
-      assert.ok(coverageMeta.effectiveFloor < coverageMeta.requestedFloor);
+      assert.equal(coverageMeta.effectiveFloor, coverageMeta.requestedFloor);
       assert.equal(coverageMeta.adultBaselineDegraded, false);
-      assert.ok(
-        (built.meta.estimatedInputTokens ?? Infinity) <=
-          DEEPSEEK_MAX_PAYLOAD_INPUT_TOKENS
-      );
+      assert.equal(coverageMeta.gapTurns, 0);
       assert.equal(built.history.slice(0, -1).length % 2, 0);
     });
   }
 
-  it("lets absolute safety win when the adult baseline itself cannot fit", () => {
+  it("keeps the adult baseline even when it exceeds the former app cap", () => {
     const completedTurns = 6;
     const floor = 4;
     const handoff = rawRecentTurnsToHistory(makeTurns(completedTurns, 40_000));
@@ -279,18 +271,15 @@ describe("contextBuilder memory coverage", () => {
     });
     const coverageMeta = built.meta.memoryCoverage!;
 
-    assert.equal(coverageMeta.degraded, true);
+    assert.equal(coverageMeta.degraded, false);
     assert.equal(coverageMeta.adultRequiredFloor, 6);
-    assert.ok(coverageMeta.effectiveFloor < coverageMeta.adultRequiredFloor);
-    assert.equal(coverageMeta.adultBaselineDegraded, true);
-    assert.ok(
-      (built.meta.estimatedInputTokens ?? Infinity) <=
-        DEEPSEEK_MAX_PAYLOAD_INPUT_TOKENS
-    );
+    assert.equal(coverageMeta.effectiveFloor, coverageMeta.adultRequiredFloor);
+    assert.equal(coverageMeta.adultBaselineDegraded, false);
+    assert.equal(coverageMeta.gapTurns, 0);
     assert.equal(built.history.slice(0, -1).length % 2, 0);
   });
 
-  it("degrades only at the absolute payload limit and emits numeric metadata", () => {
+  it("does not degrade or warn at the former absolute payload limit", () => {
     const completedTurns = 20;
     const summarizedTurnCount = 0;
     const floor = resolveMemoryCoverageTurnFloor({ completedTurns, summarizedTurnCount });
@@ -322,30 +311,13 @@ describe("contextBuilder memory coverage", () => {
     }
 
     const coverage = built!.meta.memoryCoverage!;
-    assert.equal(coverage.degraded, true);
-    assert.equal(coverage.reason, "absolute_payload_limit");
-    assert.ok(coverage.effectiveFloor < coverage.requestedFloor);
-    assert.ok(coverage.gapTurns > 0);
-    assert.ok((built!.meta.estimatedInputTokens ?? Infinity) <= MAX_PAYLOAD_INPUT_TOKENS);
+    assert.equal(coverage.degraded, false);
+    assert.equal(coverage.reason, undefined);
+    assert.equal(coverage.effectiveFloor, coverage.requestedFloor);
+    assert.equal(coverage.gapTurns, 0);
     assert.equal(built!.history.slice(0, -1).length % 2, 0);
 
     const event = warnings.find(([name]) => name === "MEMORY_COVERAGE_DEGRADED");
-    assert.ok(event, "degradation event must be logged");
-    const metadata = event![1] as Record<string, unknown>;
-    assert.deepEqual(Object.keys(metadata).sort(), [
-      "adult_baseline_degraded",
-      "adult_required_floor",
-      "completed_turns",
-      "effective_floor",
-      "first_raw_turn",
-      "gap_turns",
-      "reason",
-      "requested_floor",
-      "summarized_turn_count",
-    ]);
-    assert.equal(metadata.reason, "absolute_payload_limit");
-    for (const [key, value] of Object.entries(metadata)) {
-      if (key !== "reason" && value !== null) assert.equal(typeof value, "number");
-    }
+    assert.equal(event, undefined);
   });
 });
