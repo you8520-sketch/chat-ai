@@ -27,6 +27,17 @@ tmp-*
 scripts/tmp-*
 *.log
 
+# Local RAW bench outputs / credentials (never commit secrets)
+bench/.local_bench_creds.json
+bench/summary_capture/
+bench/*_raw.md
+bench/*_bundle.json
+bench/*_turn*.json
+bench/*_prompt_dump.txt
+bench/phase_*_results.json
+bench/bench_raw.json
+bench/summaries_raw.md
+
 # Playwright UI test artifacts
 test-results/
 playwright-report/

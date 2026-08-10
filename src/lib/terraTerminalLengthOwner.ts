@@ -11,6 +11,7 @@
 
 import { isGpt56TerraModel } from "@/lib/chatModels";
 import type { ContentKind } from "@/lib/simulationMode";
+import { benchAbTerraDropContract } from "@/lib/benchAbFlags";
 
 /** Existing cast classification used by production contentKind. */
 export type RpSceneCastMode = "single_primary" | "simulation";
@@ -50,6 +51,8 @@ export function shouldUseTerraTerminalLengthOwner(opts: {
   modelId?: string | null;
   contentKind?: ContentKind | string | null;
 }): boolean {
+  // Bench B: drop Terra completion contract only — use generic USER_TAIL.
+  if (benchAbTerraDropContract()) return false;
   if (!isGpt56TerraModel(opts.modelId ?? "")) return false;
   return resolveRpSceneCastMode(opts.contentKind) === "single_primary";
 }
