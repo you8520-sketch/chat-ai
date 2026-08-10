@@ -25,7 +25,6 @@ import ChatRoomDisplayQuickRail from "@/components/ChatRoomDisplayQuickRail";
 import ChatImageGeneratorPanel from "@/components/ChatImageGeneratorPanel";
 import ChatRoomMobileMenu from "@/components/ChatRoomMobileMenu";
 import ChatAssetAlbumModal, { IconAlbum } from "@/components/ChatAssetAlbumModal";
-import RelationshipMetaDock from "@/components/RelationshipMetaDock";
 import {
   CHAT_BACK_FALLBACK_DELAY_MS,
   chatBackFallbackHref,
@@ -3563,7 +3562,6 @@ export default function ChatClient({
       <ChatSettingsPanel
         chatId={chatId}
         memoryRefreshKey={memoryRefreshKey}
-        relationshipMetaDock={<RelationshipMetaDock chatId={chatId} refreshKey={memoryRefreshKey} />}
         userNote={userNote}
         onUserNoteChange={setUserNote}
         onSaveUserNote={saveUserNote}
