@@ -290,25 +290,24 @@ export async function summarizeTurnBatch(opts: {
       );
       const first = finishSummary(text);
       const narrative = validateSummaryNarrative(first, "main_canon");
-      if (
-        narrative.ok &&
-        isRollingSummaryGroundedInDialogue(narrative.text, opts.dialogue)
-      ) {
+      const grounded = narrative.ok
+        ? isRollingSummaryGroundedInDialogue(narrative.text, opts.dialogue)
+        : false;
+      if (narrative.ok && grounded) {
         return narrative.text;
       }
       lastSummarizeTurnBatchError = narrative.ok
         ? "SUMMARY_NOT_GROUNDED"
         : `SUMMARY_INVALID:${narrative.reason}`;
-      if (attempt < 2) {
-        console.warn("[memory] rolling summary rejected; retrying", {
-          chars: first.length,
-          narrativeValid: narrative.ok,
-          grounded: narrative.ok
-            ? isRollingSummaryGroundedInDialogue(narrative.text, opts.dialogue)
-            : false,
-          nextAttempt: attempt + 2,
-        });
-      }
+      // Log the rejected candidate so we can see WHY grounding failed
+      // (which sentence tripped the certainty-inflation guard).
+      console.warn("[memory] rolling summary rejected; retrying", {
+        chars: first.length,
+        narrativeValid: narrative.ok,
+        grounded,
+        nextAttempt: attempt + 2,
+        rejectedSummaryPreview: first.slice(0, 400),
+      });
     } catch (e) {
       const msg = (e as Error).message ?? String(e);
       lastSummarizeTurnBatchError = msg.slice(0, 300);
