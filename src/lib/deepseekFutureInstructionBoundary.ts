@@ -15,6 +15,7 @@
 import { isDeepSeekV4ProModel } from "@/lib/chatModels";
 import type { ContentKind } from "@/lib/simulationMode";
 import type { ChatRuntimeMode } from "@/lib/chatRuntimeMode";
+import { benchAbDeepSeekDropFutureBoundary } from "@/lib/benchAbFlags";
 
 /** Exact production wording — do not expand into Arm E or add stop-hard sentences. */
 export const DEEPSEEK_COMPACT_FUTURE_INSTRUCTION_BOUNDARY =
@@ -34,6 +35,9 @@ export function shouldUseDeepSeekCompactFutureInstructionBoundary(opts: {
   party?: boolean | null;
   runtimeMode?: ChatRuntimeMode | string | null;
 }): boolean {
+  // Bench B: drop future boundary only (#307 ownership overlap experiment).
+  // Style-only reminder + USER_TAIL length remain unchanged.
+  if (benchAbDeepSeekDropFutureBoundary()) return false;
   if (!isDeepSeekV4ProModel(opts.modelId ?? "")) return false;
   if (opts.contentKind !== "character") return false;
   if (opts.party === true) return false;

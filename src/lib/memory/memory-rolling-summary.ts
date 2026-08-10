@@ -5,6 +5,7 @@ import {
   ROLLING_SUMMARY_INTERVAL,
   type DialogueTurn,
 } from "@/lib/hybridMemory";
+import { captureBenchSummaryEvidence } from "@/lib/benchSummaryCapture";
 import { ROLLING_SUMMARY_MAX_CHARS, ROLLING_SUMMARY_MIN_CHARS, LOREBOOK_COMPACT_FILL_RATIO } from "./memory-constants";
 import { clampMemoryRecordSummary } from "./memory-summary-clamp";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
@@ -182,6 +183,8 @@ export async function summarizeTurnBatch(opts: {
   endTurn: number;
   userPersona?: string | null;
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
+  /** Bench capture only — does not affect summary text. */
+  benchChatId?: number;
 }): Promise<string> {
   const personaBlock = opts.userPersona?.trim()
     ? `\n\n[유저 페르소나 — 성별·호칭·신체 묘사 절대 준수]\n${opts.userPersona.trim()}`
@@ -202,13 +205,50 @@ export async function summarizeTurnBatch(opts: {
 
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const { text } = await callLlm(
+      const startedAt = Date.now();
+      const { text, usage } = await callLlm(
         ROLLING_SUMMARY_SYSTEM_PROMPT,
         [{ role: "user", content: userContent }],
         opts.turnTrace,
         attempt === 0 ? "background-memory-extract" : "background-memory-extract-retry"
       );
       const first = finishSummary(text);
+      const inTok = usage?.inputTokens ?? null;
+      const outTok = usage?.outputTokens ?? null;
+      captureBenchSummaryEvidence({
+        phase: first.length >= ROLLING_SUMMARY_MIN_CHARS ? "post_llm" : "error",
+        capturedAt: new Date().toISOString(),
+        chatId: opts.benchChatId ?? -1,
+        batchStart: opts.startTurn,
+        endTurn: opts.endTurn,
+        summaryStartTurn: opts.startTurn,
+        summaryEndTurn: opts.endTurn,
+        observedSourceTurnCount: -1,
+        observedSourceTurnIndexes: [],
+        sourceTurns: [],
+        dialoguePreviewChars: opts.dialogue.length,
+        dialogue: opts.dialogue,
+        summaryText: first,
+        summaryChars: first.length,
+        latencyMs: Date.now() - startedAt,
+        usage: usage
+          ? {
+              input_tokens: inTok,
+              output_tokens: outTok,
+              total_tokens:
+                inTok != null && outTok != null ? inTok + outTok : null,
+              cached_input_tokens:
+                usage.cachedContentTokens ?? usage.cacheReadTokens ?? null,
+              reasoning_tokens:
+                usage.reasoningOutputTokens ?? usage.thoughtsTokens ?? null,
+              cost: usage.upstreamCostUsd ?? null,
+            }
+          : null,
+        error:
+          first.length >= ROLLING_SUMMARY_MIN_CHARS
+            ? undefined
+            : `SUMMARY_SHORT_${first.length}ch`,
+      });
       if (first.length >= ROLLING_SUMMARY_MIN_CHARS) return first;
       if (attempt < 2) {
         console.warn(
@@ -726,6 +766,25 @@ async function composeBatchScopePayload(opts: {
     const dialogue = formatBatchDialogue(mainEntries, opts.charName);
     const summaryStartTurn = mainEntries[0]!.turnIndex;
     const summaryEndTurn = mainEntries[mainEntries.length - 1]!.turnIndex;
+    const sourceTurns = mainEntries.map((e) => ({
+      turnIndex: e.turnIndex,
+      user: e.turn.user,
+      assistant: e.turn.assistant,
+    }));
+    captureBenchSummaryEvidence({
+      phase: "pre_llm",
+      capturedAt: new Date().toISOString(),
+      chatId: opts.chatId,
+      batchStart: opts.batchStart,
+      endTurn: opts.endTurn,
+      summaryStartTurn,
+      summaryEndTurn,
+      observedSourceTurnCount: sourceTurns.length,
+      observedSourceTurnIndexes: sourceTurns.map((t) => t.turnIndex),
+      sourceTurns,
+      dialoguePreviewChars: dialogue.length,
+      dialogue,
+    });
     let narrative = "";
     try {
       mainModelCalls = 1;
@@ -737,12 +796,28 @@ async function composeBatchScopePayload(opts: {
         endTurn: summaryEndTurn,
         userPersona: opts.userPersona,
         turnTrace: opts.turnTrace,
+        benchChatId: opts.chatId,
       });
     } catch (e) {
       const msg = (e as Error).message ?? "";
       const reason = /timeout|aborted|ETIMEDOUT/i.test(msg)
         ? "SUMMARY_TIMEOUT"
         : "SUMMARY_EMPTY";
+      captureBenchSummaryEvidence({
+        phase: "error",
+        capturedAt: new Date().toISOString(),
+        chatId: opts.chatId,
+        batchStart: opts.batchStart,
+        endTurn: opts.endTurn,
+        summaryStartTurn,
+        summaryEndTurn,
+        observedSourceTurnCount: sourceTurns.length,
+        observedSourceTurnIndexes: sourceTurns.map((t) => t.turnIndex),
+        sourceTurns,
+        dialoguePreviewChars: dialogue.length,
+        dialogue,
+        error: msg,
+      });
       console.error(
         `[memory] ${reason} chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn}`,
         msg
