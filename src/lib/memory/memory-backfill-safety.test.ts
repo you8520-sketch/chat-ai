@@ -34,14 +34,16 @@ describe("memory backfill cost safety (static)", () => {
     assert.equal(dbTs.includes("syncAndCompressMemoryFromChat"), false);
   });
 
-  it("GET memory route schedules V3 catch-up when backfill=1 or seal is due with no records", () => {
+  it("GET memory route schedules or awaits catch-up when sealed batches are missing", () => {
     const route = fs.readFileSync(
       path.join(process.cwd(), "src/app/api/chat/memory/route.ts"),
       "utf8"
     );
     assert.match(route, /prepareMemoryPanelView\(backfillOpts\)/);
     assert.match(route, /needsSealCatchUp/);
-    assert.match(route, /explicitBackfill \|\| needsSealCatchUp/);
+    assert.match(route, /expectedSealedTurnCount/);
+    assert.match(route, /catchUpSummary/);
+    assert.match(route, /syncAndCompressMemoryFromChat/);
     assert.match(route, /scheduleMemoryPanelBackfill\(backfillOpts\)/);
   });
 

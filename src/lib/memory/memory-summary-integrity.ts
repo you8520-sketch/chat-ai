@@ -49,11 +49,17 @@ export type SummaryBatchDiag = {
   reasonCode: SummaryReasonCode | "SUMMARY_OK" | "SUMMARY_COUNTER_DRIFT";
 };
 
+/** Highest turn that should already be sealed given playable count (0, 6, 12, …). */
+export function expectedSealedTurnCount(playableTurnCount: number): number {
+  return (
+    Math.floor(Math.max(0, playableTurnCount) / ROLLING_SUMMARY_INTERVAL) *
+    ROLLING_SUMMARY_INTERVAL
+  );
+}
+
 /** Expected batch starts: 1, 7, 13, … up to floor(playable/INTERVAL)*INTERVAL window. */
 export function expectedBatchStartsThrough(playableTurnCount: number): number[] {
-  const completeEnds =
-    Math.floor(Math.max(0, playableTurnCount) / ROLLING_SUMMARY_INTERVAL) *
-    ROLLING_SUMMARY_INTERVAL;
+  const completeEnds = expectedSealedTurnCount(playableTurnCount);
   const starts: number[] = [];
   for (let s = 1; s <= completeEnds; s += ROLLING_SUMMARY_INTERVAL) {
     starts.push(s);
