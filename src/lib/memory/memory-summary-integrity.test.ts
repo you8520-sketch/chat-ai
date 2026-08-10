@@ -37,6 +37,23 @@ describe("highestContiguousCompletedTurn", () => {
   it("stops at gap even if later batch exists (1 and 13 only → 6)", () => {
     assert.equal(highestContiguousCompletedTurn([rec(1), rec(13)], 20), 6);
   });
+
+  it("ignores inactive soft-deleted batches", () => {
+    assert.equal(
+      highestContiguousCompletedTurn([{ ...rec(1), inactive: true }], 7),
+      0
+    );
+    assert.equal(
+      highestContiguousCompletedTurn(
+        [
+          { ...rec(1), inactive: true },
+          { ...rec(7), inactive: false },
+        ],
+        13
+      ),
+      0
+    );
+  });
 });
 
 describe("missing / expected batches", () => {

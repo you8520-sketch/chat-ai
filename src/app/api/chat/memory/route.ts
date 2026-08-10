@@ -39,6 +39,7 @@ import {
 } from "@/lib/memory/memory-turn-summary";
 import { updateChatMemory } from "@/lib/memory/memory-db";
 import { syncChatLongTermMemory } from "@/lib/memory/memory-rolling-summary";
+import { reconcileMemoryAfterRecordDelete } from "@/lib/memory/memory-reconcile";
 import {
   loadChatRelationshipMeta,
   removeRelationshipMetaItem,
@@ -365,8 +366,19 @@ export async function PATCH(req: Request) {
     if (!markMemoryRecordInactive(chatId, recordId)) {
       return Response.json({ error: "기록을 찾을 수 없습니다." }, { status: 404 });
     }
+    const db = getDb();
+    const charRow = db
+      .prepare("SELECT name FROM characters WHERE id=?")
+      .get(chat.character_id) as { name: string } | undefined;
+    reconcileMemoryAfterRecordDelete({
+      chatId,
+      userId: user.id,
+      characterId: chat.character_id,
+      charName: charRow?.name ?? "캐릭터",
+      tier,
+      memoryCapacity,
+    });
     const lorebook = rebuildLorebookFromRecords(chatId);
-    updateChatMemory(chatId, user.id, chat.character_id, { recent_summary: lorebook, membership_tier: tier });
     return Response.json({ ok: true, lorebook });
   }
 
