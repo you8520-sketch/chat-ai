@@ -33,7 +33,7 @@ function parseValuesJson(raw: string): ParsedValuesJson | null {
     }
     return {
       values: Object.keys(out).length > 0 ? out : null,
-      facts: sanitizeExtractedFacts(parsed.extracted_facts),
+      facts: sanitizeExtractedFacts(parsed.extracted_facts, { requireEvidence: true }),
     };
   } catch {
     return null;

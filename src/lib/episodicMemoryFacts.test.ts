@@ -15,6 +15,7 @@ import {
   inspectEpisodicMemoryFactsForDebug,
   listEpisodicMemoryFactsForDebug,
   persistEpisodicMemoryFactsBestEffort,
+  summarizeEpisodicFactPersistCandidates,
   warnEpisodicMemoryRecallDisabledInProduction,
 } from "@/lib/episodicMemoryFacts";
 import type { ExtractedStatusFact } from "@/lib/statusWidget/types";
@@ -340,6 +341,177 @@ describe("persistEpisodicMemoryFactsBestEffort", () => {
   });
 });
 
+describe("status episodic source-of-truth and evidence boundaries", () => {
+  it("keeps Promise/Item Ledger data out of episodic storage", () => {
+    const db = createDb();
+    const facts: ExtractedStatusFact[] = [
+      {
+        category: "relationship",
+        subject: "taehyun_user",
+        attribute: "promise_return",
+        value: "active",
+        importance: "important",
+        fact_text: "태현은 유저에게 반드시 돌아오겠다고 약속했다.",
+        evidence_type: "explicit_scene_event",
+      },
+      {
+        category: "item",
+        subject: "user",
+        attribute: "acquired_item",
+        value: "silver_dagger",
+        importance: "important",
+        fact_text: "사용자는 태현에게 은색 단검을 받았다.",
+        evidence_type: "explicit_scene_event",
+      },
+      {
+        category: "setting",
+        subject: "department_store",
+        attribute: "structural_change",
+        value: "organic_transformation",
+        importance: "important",
+        fact_text: "무너진 백화점 내부는 거대한 유기체로 변해 가고 있다.",
+        evidence_type: "explicit_scene_event",
+      },
+    ];
+
+    const summary = summarizeEpisodicFactPersistCandidates(facts);
+    assert.equal(summary.insertableCount, 1);
+    assert.ok(summary.skippedReasons.includes("relationship_ledger_owned:2"));
+    assert.equal(
+      persistEpisodicMemoryFactsBestEffort(db, { chatId: 1, sourceTurn: 1, facts }),
+      1
+    );
+    const rows = db
+      .prepare("SELECT category, attribute FROM episodic_memory_facts WHERE chat_id=1")
+      .all() as Array<{ category: string; attribute: string }>;
+    assert.deepEqual(rows, [{ category: "setting", attribute: "structural_change" }]);
+  });
+
+  it("allows durable item lore while rejecting inventory ownership", () => {
+    const db = createDb();
+    const inserted = persistEpisodicMemoryFactsBestEffort(db, {
+      chatId: 1,
+      sourceTurn: 1,
+      facts: [
+        {
+          category: "item",
+          subject: "moon_sword",
+          attribute: "material",
+          value: "meteor_iron",
+          importance: "important",
+          fact_text: "월광검은 운석에서 채취한 철로 만들어진 검이다.",
+          evidence_type: "explicit_scene_event",
+        },
+      ],
+    });
+    assert.equal(inserted, 1);
+  });
+
+  it("blocks inferred awakening/rank state but preserves an attributed claim", () => {
+    const db = createDb();
+    const inferred: ExtractedStatusFact = {
+      category: "character",
+      subject: "ren",
+      attribute: "awakening_status",
+      value: "in_progress",
+      importance: "important",
+      fact_text: "렌의 각성은 현재 진행 중이다.",
+      evidence_type: "explicit_scene_event",
+    };
+    assert.equal(
+      persistEpisodicMemoryFactsBestEffort(db, {
+        chatId: 1,
+        sourceTurn: 1,
+        facts: [inferred],
+      }),
+      0
+    );
+
+    const attributed: ExtractedStatusFact = {
+      ...inferred,
+      value: "self_reported",
+      fact_text: "렌은 자신의 각성이 진행 중이라고 밝혔다.",
+      evidence_type: "explicit_character_claim",
+    };
+    assert.equal(
+      persistEpisodicMemoryFactsBestEffort(db, {
+        chatId: 1,
+        sourceTurn: 2,
+        facts: [attributed],
+      }),
+      1
+    );
+    const metadata = db
+      .prepare("SELECT metadata FROM episodic_memory_facts WHERE chat_id=1")
+      .get() as { metadata: string };
+    assert.equal(JSON.parse(metadata.metadata).memory_evidence_type, "explicit_character_claim");
+  });
+
+  it("blocks legacy unverified canonical state rows at recall", () => {
+    const db = createDb();
+    db.prepare(
+      `INSERT INTO episodic_memory_facts
+        (chat_id, source_turn, category, subject, attribute, value, importance, fact_text)
+       VALUES (1,1,'character','ren','awakening_status','in_progress','important',
+               '렌의 각성은 현재 진행 중이다.')`
+    ).run();
+    const recall = getEpisodicMemoryForPrompt(
+      db,
+      { chatId: 1, currentTurn: 10 },
+      recallOnNoMinAge
+    );
+    assert.equal(recall.facts.length, 0);
+    assert.equal(recall.promptBlock, "");
+    const debug = inspectEpisodicMemoryFactsForDebug(db, { chatId: 1, currentTurn: 10 });
+    assert.equal(debug[0]?.blocked_reason, "unverified_canonicalization");
+  });
+
+  it("verifies explicit-user provenance against the actual RAW user message", () => {
+    const db = createDb();
+    const fabricated: ExtractedStatusFact = {
+      category: "character",
+      subject: "ren",
+      attribute: "awakening_status",
+      value: "in_progress",
+      importance: "important",
+      fact_text: "렌은 자신의 각성이 진행 중이라고 명시했다.",
+      evidence_type: "explicit_user_statement",
+    };
+    const sourceUserText = "나는 렌이라고 해. 널 본 기억은 없는데, 나 알아?";
+    const summary = summarizeEpisodicFactPersistCandidates([fabricated], { sourceUserText });
+    assert.equal(summary.insertableCount, 0);
+    assert.ok(summary.skippedReasons.includes("unsupported_evidence:1"));
+    assert.equal(
+      persistEpisodicMemoryFactsBestEffort(db, {
+        chatId: 1,
+        sourceTurn: 1,
+        sourceUserText,
+        facts: [fabricated],
+      }),
+      0
+    );
+
+    const supported: ExtractedStatusFact = {
+      category: "preference",
+      subject: "user",
+      attribute: "favorite_drink",
+      value: "syrup_coffee",
+      importance: "important",
+      fact_text: "사용자는 커피에 시럽을 넣어 마신다고 밝혔다.",
+      evidence_type: "explicit_user_statement",
+    };
+    assert.equal(
+      persistEpisodicMemoryFactsBestEffort(db, {
+        chatId: 1,
+        sourceTurn: 2,
+        sourceUserText: "나는 커피에 시럽을 넣어 마시는 걸 좋아해.",
+        facts: [supported],
+      }),
+      1
+    );
+  });
+});
+
 describe("episodicMemoryRecallEnabled production warning", () => {
   it("detects production without EPISODIC_MEMORY_RECALL_ENABLED", () => {
     assert.equal(
@@ -522,6 +694,26 @@ describe("getEpisodicMemoryForPrompt", () => {
 
     assert.equal(result.promptBlock, "");
     assert.equal(result.debug[0]?.duplicate_reason, "duplicate_recent_chat");
+  });
+
+  it("current explicit user statement outranks duplicated episodic memory", () => {
+    const db = createDb();
+    persistEpisodicMemoryFactsBestEffort(db, {
+      chatId: 1,
+      sourceTurn: 1,
+      facts: [validFact],
+    });
+    const result = getEpisodicMemoryForPrompt(
+      db,
+      {
+        chatId: 1,
+        currentTurn: 10,
+        currentUserMessage: "사용자는 커피에 시럽을 두 번 넣어 마신다.",
+      },
+      recallOnNoMinAge
+    );
+    assert.equal(result.promptBlock, "");
+    assert.equal(result.debug[0]?.duplicate_reason, "duplicate_current_user");
   });
 
   it("episodic fact duplicated in long-term memory is not injected", () => {
@@ -1733,7 +1925,7 @@ describe("episodic abstract psychological inference recall guard", () => {
     assert.equal(debug[0]!.blocked_reason, "abstract_psychological_inference");
   });
 
-  it("still allows concrete event, promise, secret, and explicit preference facts", () => {
+  it("allows concrete events, disclosures, and preferences while excluding promises", () => {
     const db = createDb();
     const eventFacts: ExtractedStatusFact[] = [
       {
@@ -1784,11 +1976,11 @@ describe("episodic abstract psychological inference recall guard", () => {
     persistEpisodicMemoryFactsBestEffort(db, { chatId: 1, sourceTurn: 2, facts: moreFacts });
 
     const result = getEpisodicMemoryForPrompt(db, { chatId: 1, currentTurn: 10 }, recallOnNoMinAge);
-    assert.equal(result.facts.length, 5);
+    assert.equal(result.facts.length, 4);
     const texts = result.facts.map((f) => f.fact_text);
     assert.ok(texts.includes("에녹은 유저가 떠나지 못하도록 문을 잠갔다."));
     assert.ok(texts.includes("유저는 에녹의 요구를 거절했다."));
-    assert.ok(texts.includes("태현은 유저에게 반드시 돌아오겠다고 약속했다."));
+    assert.ok(!texts.includes("태현은 유저에게 반드시 돌아오겠다고 약속했다."));
     assert.ok(texts.includes("사용자는 합의된 통제 플레이를 선호한다고 명시했다."));
     assert.ok(texts.includes("캐릭터의 비밀 정체가 상대에게 밝혀졌다."));
   });
@@ -1898,7 +2090,7 @@ describe("episodic abstract psychological inference recall guard", () => {
     assert.ok(debug.every((f) => f.blocked_reason === "abstract_psychological_inference"));
   });
 
-  it("preserves explicit agreements, preferences, events, promise, secret, and injury", () => {
+  it("preserves explicit agreements, preferences, events, disclosure, and injury", () => {
     const db = createDb();
     const durable: ExtractedStatusFact[] = [
       {
@@ -1992,7 +2184,7 @@ describe("episodic abstract psychological inference recall guard", () => {
         facts: durable.slice(i, i + 3),
       });
     }
-    assert.equal(inserted, durable.length);
+    assert.equal(inserted, durable.length - 1, "promise is owned by Relationship Durable Ledger");
 
     const recallEnv = {
       ...recallOnNoMinAge,
@@ -2001,7 +2193,7 @@ describe("episodic abstract psychological inference recall guard", () => {
     } as NodeJS.ProcessEnv;
     const recall = getEpisodicMemoryForPrompt(db, { chatId: 1, currentTurn: 20 }, recallEnv);
     const texts = recall.facts.map((f) => f.fact_text);
-    for (const fact of durable) {
+    for (const fact of durable.filter((candidate) => candidate.attribute !== "promise")) {
       assert.ok(texts.includes(fact.fact_text), `expected recall of: ${fact.fact_text}`);
     }
 

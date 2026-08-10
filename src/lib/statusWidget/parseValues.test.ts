@@ -66,7 +66,7 @@ ${STATUS_VALUES_END}`;
     const text = `본문 RP입니다.
 
 ${STATUS_VALUES_BLOCK}
-{"시간":"14:30","장소":"카페","extracted_facts":[{"category":"preference","subject":"user","attribute":"favorite_drink","value":"syrup_coffee","importance":"important","fact_text":"사용자는 커피에 시럽을 두 번 넣어 마신다."},{"category":"bad","subject":"user","attribute":"mood","value":"happy","importance":"normal","fact_text":"사용자는 기쁘다."},{"category":"item","subject":"User Name","attribute":"weapon","value":"mithril dagger","importance":"normal","fact_text":"사용자는 미스릴 단검을 얻었다."}]}
+{"시간":"14:30","장소":"카페","extracted_facts":[{"category":"preference","subject":"user","attribute":"favorite_drink","value":"syrup_coffee","importance":"important","fact_text":"사용자는 커피에 시럽을 두 번 넣어 마신다.","evidence_type":"explicit_user_statement"},{"category":"bad","subject":"user","attribute":"mood","value":"happy","importance":"normal","fact_text":"사용자는 기쁘다.","evidence_type":"explicit_scene_event"},{"category":"item","subject":"User Name","attribute":"weapon","value":"mithril dagger","importance":"normal","fact_text":"사용자는 미스릴 단검을 얻었다.","evidence_type":"explicit_scene_event"}]}
 ${STATUS_VALUES_END}`;
     const { values } = splitProseAndStatusWidgetValues(text);
 
@@ -79,8 +79,19 @@ ${STATUS_VALUES_END}`;
         value: "syrup_coffee",
         importance: "important",
         fact_text: "사용자는 커피에 시럽을 두 번 넣어 마신다.",
+        evidence_type: "explicit_user_statement",
       },
     ]);
+  });
+
+  it("rejects model facts without explicit evidence provenance", () => {
+    const raw = `본문.
+${STATUS_VALUES_BLOCK}
+{"시간":"14:30","extracted_facts":[{"category":"character","subject":"ren","attribute":"awakening_status","value":"in_progress","importance":"important","fact_text":"렌의 각성은 현재 진행 중이다."}]}
+${STATUS_VALUES_END}`;
+    const { values } = splitProseAndStatusWidgetValues(raw);
+    assert.equal(values.character?.["시간"], "14:30");
+    assert.equal(values.extracted_facts, undefined);
   });
 
   it("falls back to trailing ```json fence when STATUS_VALUES markers missing", () => {

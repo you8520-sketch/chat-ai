@@ -829,6 +829,7 @@ describe("dual combined status extract", () => {
     value: "cafe",
     importance: "normal",
     fact_text: "레온과 렌은 카페에서 처음 만났다.",
+    evidence_type: "explicit_scene_event",
   };
 
   function combinedOk(): string {
