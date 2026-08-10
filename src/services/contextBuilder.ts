@@ -58,6 +58,7 @@ import {
   injectExampleDialogStyleOnlyNote,
   resolveNoGodmoddingMode,
 } from "@/lib/noGodmodding";
+import { appendGemini31UserAgencySupplement } from "@/lib/gemini31UserAgencyAdapter";
 import {
   buildCoreMasterPrompt,
   buildCoreMasterEarlyTurnHint,
@@ -584,11 +585,21 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     impersonationOn: oocLimitedCoNarration,
     isContinue: autoProgressionEnabled,
   });
+  // Gemini 3.1 only: append body/intent boundary after shared collaborative
+  // interactive owner. Does not mutate COLLABORATIVE_INTERACTIVE_OWNER_BLOCK
+  // (other models keep the shared text unchanged).
   pushSection(
     "no-godmodding",
     "[0a] No godmodding (user agency)",
     "systemRules",
-    buildNoGodmoddingBlock(input.charName, personaLabel, godmoddingMode),
+    appendGemini31UserAgencySupplement(
+      buildNoGodmoddingBlock(input.charName, personaLabel, godmoddingMode),
+      {
+        modelId: input.modelId,
+        godmoddingMode,
+        contentKind: input.contentKind,
+      }
+    ),
     isOpenRouter ? "cacheRules" : "dynamic"
   );
 
