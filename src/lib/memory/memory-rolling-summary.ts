@@ -226,6 +226,13 @@ export function __setSummarizeTurnBatchCallerForTests(
   summarizeTurnBatchCallerOverride = fn;
 }
 
+/** @internal last summarizeTurnBatch failure reason (diagnostics for stuck seals) */
+let lastSummarizeTurnBatchError: string | null = null;
+
+export function __getLastSummarizeTurnBatchErrorForTests(): string | null {
+  return lastSummarizeTurnBatchError;
+}
+
 /** @internal test seam — force persistValidatedSummaryBatch txn rollback after upsert */
 let persistForceFailAfterUpsertForTests = false;
 
@@ -289,6 +296,9 @@ export async function summarizeTurnBatch(opts: {
       ) {
         return narrative.text;
       }
+      lastSummarizeTurnBatchError = narrative.ok
+        ? "SUMMARY_NOT_GROUNDED"
+        : `SUMMARY_INVALID:${narrative.reason}`;
       if (attempt < 2) {
         console.warn("[memory] rolling summary rejected; retrying", {
           chars: first.length,
@@ -300,9 +310,11 @@ export async function summarizeTurnBatch(opts: {
         });
       }
     } catch (e) {
+      const msg = (e as Error).message ?? String(e);
+      lastSummarizeTurnBatchError = msg.slice(0, 300);
       console.warn(
         `[memory] ${ROLLING_SUMMARY_INTERVAL}턴 기억 기록 background LLM 실패${attempt >= 1 ? ` (재시도 ${attempt + 1}/3)` : ""}:`,
-        (e as Error).message
+        msg
       );
       if (attempt >= 2) break;
     }
@@ -483,7 +495,7 @@ type ComposedBatchScope =
        */
       pendingBranchControlOps: PendingBranchControlOp[];
     }
-  | { ok: false; reason: string };
+  | { ok: false; reason: string; detail?: string | null };
 
 /**
  * Rebuild every scope for a 6-turn batch from current surviving messages.
@@ -832,21 +844,26 @@ async function composeBatchScopePayload(opts: {
         `[memory] ${reason} chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn}`,
         msg
       );
-      return { ok: false, reason };
+      return { ok: false, reason, detail: msg.slice(0, 300) };
     }
 
     if (!narrative.trim()) {
       console.error(
-        `[memory] SUMMARY_EMPTY chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn} — batch pending retry`
+        `[memory] SUMMARY_EMPTY chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn} — batch pending retry`,
+        { summarizeError: lastSummarizeTurnBatchError }
       );
-      return { ok: false, reason: "SUMMARY_EMPTY" };
+      return {
+        ok: false,
+        reason: "SUMMARY_EMPTY",
+        detail: lastSummarizeTurnBatchError,
+      };
     }
     narrative = stripOocFromMemorySummary(narrative);
     if (!narrative.trim()) {
       console.error(
         `[memory] SUMMARY_EMPTY after OOC strip chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn}`
       );
-      return { ok: false, reason: "SUMMARY_EMPTY" };
+      return { ok: false, reason: "SUMMARY_EMPTY", detail: "OOC_STRIP" };
     }
     scopes.main_canon = [scopes.main_canon, narrative].filter(Boolean).join("\n");
     summaryKind = "main_canon";
@@ -892,7 +909,7 @@ async function composeBatchScopePayload(opts: {
     console.error(
       `[memory] ${validated.reason} chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn}`
     );
-    return { ok: false, reason: validated.reason };
+    return { ok: false, reason: validated.reason, detail: "VALIDATE" };
   }
 
   return {
@@ -971,7 +988,7 @@ async function persistComposedBatchScopes(opts: {
       return false;
     }
     console.error(
-      `[memory] ${persisted.reason} chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn}`,
+      `[memory] SUMMARY_PERSIST_FAILED reason=${persisted.reason} chat=${opts.chatId} turns=${opts.batchStart}-${opts.endTurn}`,
       persisted.error
     );
     return false;
@@ -1329,6 +1346,9 @@ export async function processRollingSummaryBatch(opts: {
           chatId: opts.chatId,
           batchStart,
           endTurn,
+          reason: composed.reason,
+          detail: composed.detail ?? null,
+          summarizeError: lastSummarizeTurnBatchError,
         });
         return false;
       }
@@ -1360,6 +1380,11 @@ export async function processRollingSummaryBatch(opts: {
       return false;
     }
   });
+}
+
+/** @internal test seam — last summarizeTurnBatch failure (diagnostics) */
+export function __getLastSummarizeTurnBatchError(): string | null {
+  return lastSummarizeTurnBatchError;
 }
 
 
