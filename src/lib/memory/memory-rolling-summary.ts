@@ -1389,13 +1389,13 @@ export async function catchUpRollingSummaries(opts: {
 }
 
 export function shouldTriggerRollingSummary(messageCount: number, summarizedTurnCount: number): boolean {
-  /** 배치 봉인 지연 — [1~6]은 7턴 완료 후, [7~12]는 13턴 완료 후 생성 */
-  return messageCount > summarizedTurnCount + ROLLING_SUMMARY_INTERVAL;
+  /** [1~6]은 6턴 완료 시, [7~12]는 12턴 완료 시 … 배치 단위로 봉인 */
+  return messageCount >= summarizedTurnCount + ROLLING_SUMMARY_INTERVAL;
 }
 
-/** 첫 [1~6] 봉인은 7턴, 이후 배치는 summarized+7턴 (deferred seal). */
+/** 다음 배치 봉인이 일어나는 완료 턴 (첫 배치=6, 두 번째=12, …). */
 export function summarySealAtTurn(summarizedTurnCount = 0): number {
-  return summarizedTurnCount + ROLLING_SUMMARY_INTERVAL + 1;
+  return summarizedTurnCount + ROLLING_SUMMARY_INTERVAL;
 }
 
 export function turnsUntilNextSummary(

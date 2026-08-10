@@ -35,32 +35,32 @@ function record(
   };
 }
 
-describe("shouldTriggerRollingSummary deferred seal", () => {
-  it("does not seal [1~6] at turn 6 completion", () => {
-    assert.equal(shouldTriggerRollingSummary(6, 0), false);
+describe("shouldTriggerRollingSummary seal at batch end", () => {
+  it("seals [1~6] when turn 6 completes", () => {
+    assert.equal(shouldTriggerRollingSummary(6, 0), true);
   });
 
-  it("seals [1~6] after turn 7 completion", () => {
-    assert.equal(shouldTriggerRollingSummary(7, 0), true);
+  it("does not seal before turn 6", () => {
+    assert.equal(shouldTriggerRollingSummary(5, 0), false);
   });
 
-  it("seals [7~12] after turn 13 when first batch done", () => {
-    assert.equal(shouldTriggerRollingSummary(12, 6), false);
-    assert.equal(shouldTriggerRollingSummary(13, 6), true);
+  it("seals [7~12] when turn 12 completes (first batch done)", () => {
+    assert.equal(shouldTriggerRollingSummary(11, 6), false);
+    assert.equal(shouldTriggerRollingSummary(12, 6), true);
   });
 });
 
-describe("turnsUntilNextSummary deferred seal", () => {
-  it("counts turns until seal at 7 for first batch", () => {
-    assert.equal(turnsUntilNextSummary(0, 0), 7);
-    assert.equal(turnsUntilNextSummary(6, 0), 1);
-    assert.equal(turnsUntilNextSummary(7, 0), 0);
+describe("turnsUntilNextSummary seal at batch end", () => {
+  it("counts turns until seal at 6 for first batch", () => {
+    assert.equal(turnsUntilNextSummary(0, 0), 6);
+    assert.equal(turnsUntilNextSummary(5, 0), 1);
+    assert.equal(turnsUntilNextSummary(6, 0), 0);
   });
 
   it("counts turns until next batch seal", () => {
-    assert.equal(turnsUntilNextSummary(6, 6), 7);
-    assert.equal(turnsUntilNextSummary(12, 6), 1);
-    assert.equal(turnsUntilNextSummary(13, 6), 0);
+    assert.equal(turnsUntilNextSummary(6, 6), 6);
+    assert.equal(turnsUntilNextSummary(11, 6), 1);
+    assert.equal(turnsUntilNextSummary(12, 6), 0);
   });
 });
 

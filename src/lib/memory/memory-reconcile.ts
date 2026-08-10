@@ -57,7 +57,7 @@ export function pruneStaleMemoryRecords(chatId: number, actualTurnCount: number)
 
 /**
  * Soft-delete (`deleteMemoryRecord`) 후 counter·로어북·LTM을 active 행만으로 재정렬하고,
- * deferred seal 조건이 충족되면 [1~6] 등 누락 배치를 다시 봉인한다.
+ * 누락 배치가 있고 봉인 조건이 충족되면 [1~6] 등을 다시 봉인한다.
  *
  * 이전에는 inactive 행이 contiguous coverage / idempotent skip에 남아
  * summarized_turn_count가 내려가지 않고 새 6턴 요약이 영구히 막혔다.
