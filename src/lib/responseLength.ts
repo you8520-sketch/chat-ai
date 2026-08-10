@@ -31,12 +31,10 @@ import { resolveLunaTerminalOutputContract } from "@/lib/lunaSinglePrimaryAdapte
 import {
   OPUS_ARM_E_TERMINAL,
   OPUS_ARM_E_TERMINAL_MARKER,
-  resolveOpusArmETerminal,
 } from "@/lib/opusTerminalLengthOwner";
 import {
   DEEPSEEK_COMPACT_FUTURE_INSTRUCTION_BOUNDARY,
   DEEPSEEK_COMPACT_FUTURE_INSTRUCTION_BOUNDARY_MARKER,
-  resolveDeepSeekCompactFutureInstructionBoundary,
 } from "@/lib/deepseekFutureInstructionBoundary";
 import type { ContentKind } from "@/lib/simulationMode";
 import type { ChatRuntimeMode } from "@/lib/chatRuntimeMode";
@@ -657,12 +655,10 @@ export function appendTerraTerminalLengthOwnerToUserTurn(
 
 /**
  * Current user-turn bottom: layout first, then the terminal owner last.
- * Terra+single_primary → TERRA_TERMINAL_LENGTH_OWNER_CONTRACT.
  * Luna+single_primary → LUNA_TERMINAL_OUTPUT_CONTRACT (length + concentration).
- * Opus+standard interactive character → OPUS_ARM_E_TERMINAL (frozen Audit 58).
- * DeepSeek+standard interactive character → compact future-instruction boundary
- *   then USER_TAIL_LENGTH_OWNER_SENTENCE (length only; style reminder unchanged).
- * Other models → USER_TAIL_LENGTH_OWNER_SENTENCE (length only).
+ * Opus / Terra / DeepSeek / others → USER_TAIL_LENGTH_OWNER_SENTENCE
+ *   (Arm E, Terra completion contract, DeepSeek future boundary retired).
+ * Explicit opts.terraTerminalLengthOwner remains a test/canary seam only.
  */
 export function appendCompactTerminalLengthToUserTurn(
   userContent: string,
@@ -678,20 +674,7 @@ export function appendCompactTerminalLengthToUserTurn(
     opts?.contentKind,
     opts?.party
   );
-  const opusContract = resolveOpusArmETerminal({
-    modelId: opts?.modelId,
-    contentKind: opts?.contentKind,
-    party: opts?.party,
-    runtimeMode: opts?.runtimeMode,
-  });
-  const deepSeekBoundary = resolveDeepSeekCompactFutureInstructionBoundary({
-    modelId: opts?.modelId,
-    contentKind: opts?.contentKind,
-    party: opts?.party,
-    runtimeMode: opts?.runtimeMode,
-  });
-  const terminalLine =
-    lunaContract ?? opusContract ?? USER_TAIL_LENGTH_OWNER_SENTENCE;
+  const terminalLine = lunaContract ?? USER_TAIL_LENGTH_OWNER_SENTENCE;
   const layoutMarker = "지문과 \"…\" 대사 사이 빈 줄";
   const terminalMarkers = [
     "한국어 RP 본문만 3,200~4,200자로 작성한다",
@@ -705,7 +688,7 @@ export function appendCompactTerminalLengthToUserTurn(
   ];
 
   let body = userContent.trim();
-  // Multi-line Opus Arm E must be stripped as a block before line filtering.
+  // Strip retired Opus Arm E / DeepSeek future-boundary if stale copies remain.
   if (body.includes(OPUS_ARM_E_TERMINAL)) {
     body = body.split(OPUS_ARM_E_TERMINAL).join("").trim();
   }
@@ -725,12 +708,7 @@ export function appendCompactTerminalLengthToUserTurn(
     )
     .join("\n")
     .trim();
-  // DeepSeek: user → layout → compact future-instruction boundary → USER_TAIL.
-  // Never place Arm E / strong stop sentence on this path.
-  const mid =
-    deepSeekBoundary && !lunaContract && !opusContract
-      ? `${layoutLine}\n\n${deepSeekBoundary}\n\n${terminalLine}`
-      : `${layoutLine}\n\n${terminalLine}`;
+  const mid = `${layoutLine}\n\n${terminalLine}`;
   if (!body) return mid;
   return `${body}\n\n${mid}`;
 }
