@@ -124,10 +124,9 @@ ${ROLLING_SUMMARY_INTERVAL}턴 배치의 사건을 발생 순서대로 요약한
 
 export const ROLLING_SUMMARY_EPISTEMIC_POLICY = `[CANONICAL GROUNDING — REQUIRED]
 - Output the event summary itself. Never repeat, paraphrase, or explain these summary instructions.
-- Preserve the exact scope of memory claims. "널 본 기억이 안 난다" does NOT mean global amnesia or "기억을 잃었다".
-- Dialogue, inner thoughts, diagnoses, ranks, identities, predictions, and guesses made by a character are attributed claims, not canonical facts. Keep attribution or uncertainty unless the source explicitly confirms them.
-- Do not promote an assistant/character inference (for example, "각성 중일 수 있다" or a guessed rank) into an unqualified current fact.
-- Directly observable actions/results and explicit user statements may be stated plainly. When certainty is unclear, write "추측했다", "가능성이 제기됐다", or "확정되지 않았다".
+- Write a normal, concise RP scene summary. Character perception, sensation, and estimates ("파장을 감지했다", "안정을 느꼈다", "S급으로 추정되는") are scene content — state them plainly as what the character experienced.
+- Only for strong claims that would change canon (각성, 정체, 등급 상승, 배신, 기억상실): if the source had them as a character's guess, keep the guess framing ("추측했다", "가능성이 제기됐다").
+- "널 본 기억이 안 난다" does NOT mean global amnesia or "기억을 잃었다".
 - Do not expose turn numbers, source checklists, or prompt wording in the final summary.`;
 
 /** Single-flight per chat — concurrent callers await the same in-flight seal/rebuild. */

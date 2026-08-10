@@ -168,6 +168,14 @@ const EPISTEMIC_MARKER =
   /(?:추측|의심|가능성|확정되지|불확실|모른|알\s*수\s*없|듯|것\s*같|보인|여긴|판단|주장|말했|생각|진단|추정|감지|느꼈|경험했|여기게|실감)/i;
 const SOURCE_UNCERTAINTY_MARKER =
   /(?:추측|의심|가능성|확실하지|모른|아마|일지도|일\s*수|듯|것\s*같|보인|여긴|판단|진단)/i;
+
+/**
+ * Strong certainty-inflation patterns — a summary stating these as settled fact
+ * when the source only had them as a character's guess is the real failure mode
+ * this guard exists for. Normal RP perception/estimate wording must not trip it.
+ */
+const STRONG_UNCERTAIN_CLAIM =
+  /(?:각성|폭주|등급\s*상승|정체|정체성|임신|중독|저주|기억상실|조종|세뇌|배신)/i;
 const CLAIM_TOKEN_STOPWORDS = new Set([
   "현재", "상태", "사건", "상황", "진행", "미해결", "그는", "그녀", "자신",
   "유저", "사용자", "캐릭터", "말했다", "생각했다", "판단했다", "추측했다",
@@ -214,9 +222,15 @@ export function isRollingSummaryGroundedInDialogue(
     return false;
   }
 
+  // Only enforce attribution for STRONG claims (awakening, identity, rank-up,
+  // betrayal, etc.). Normal RP perception ("파장을 감지했다", "안정을 느꼈다")
+  // is scene content, not certainty inflation — do not reject it.
   const uncertainAssistantParts = source.assistant
     .split(/(?<=[.!?。！？]|다\.)\s+|\n+/)
-    .filter((part) => SOURCE_UNCERTAINTY_MARKER.test(part));
+    .filter(
+      (part) =>
+        SOURCE_UNCERTAINTY_MARKER.test(part) && STRONG_UNCERTAIN_CLAIM.test(part)
+    );
   const summaryParts = summary
     .split(/(?<=[.!?。！？]|다\.)\s+|\n+/)
     .map((part) => part.trim())
@@ -225,15 +239,14 @@ export function isRollingSummaryGroundedInDialogue(
     const assistantOnlyTerms = significantClaimTokens(part).filter(
       (token) => !source.user.includes(token)
     );
-    // Only reject when the summary REUSES the same specific claim terms
-    // without any epistemic marker. A summary that paraphrases the scene
-    // (different tokens) is grounded in the dialogue and must pass.
     const matchingSummaryParts = summaryParts.filter((summaryPart) =>
       assistantOnlyTerms.some((token) => summaryPart.includes(token))
     );
     if (
       matchingSummaryParts.some(
-        (summaryPart) => !EPISTEMIC_MARKER.test(summaryPart)
+        (summaryPart) =>
+          STRONG_UNCERTAIN_CLAIM.test(summaryPart) &&
+          !EPISTEMIC_MARKER.test(summaryPart)
       )
     ) {
       return false;
