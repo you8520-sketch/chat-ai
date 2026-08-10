@@ -1,25 +1,17 @@
 /**
- * Opus (claude-opus-5) frozen Arm E terminal owner — production candidate.
+ * Opus (claude-opus-5) Arm E terminal owner — RETIRED from production runtime.
  *
- * Source: Audit 58 AUDIT58_ARM_E_TERMINAL (byte-identical).
- * Freeze: docs/audits/OPUS_AUDIT_57_59_FINAL_FREEZE.md
+ * A/B verified: Arm E removed; Opus uses generic USER_TAIL_LENGTH_OWNER_SENTENCE.
+ * Constant retained only so stale copies can still be stripped from user-turn tails.
+ * Do not re-enable shouldUseOpusArmETerminal / resolveOpusArmETerminal.
  *
- * Applies ONLY when:
- * - model = claude-opus-5
- * - standard interactive ordinary RP (runtimeMode === "interactive")
- * - contentKind = character (single_primary)
- * - party !== true
- *
- * Does NOT apply to auto progression, co-narration (OOC impersonation),
- * simulation, party, Terra, or DeepSeek.
- * Audit 59 Arm F stop-relaxation is intentionally absent.
+ * Historical freeze: docs/audits/OPUS_AUDIT_57_59_FINAL_FREEZE.md
  */
 
-import { isCheaperInferenceClaudeOpus5Model } from "@/lib/chatModels";
 import type { ContentKind } from "@/lib/simulationMode";
 import type { ChatRuntimeMode } from "@/lib/chatRuntimeMode";
 
-/** Frozen Audit 58 Arm E — do not edit wording/order/whitespace. */
+/** Frozen Audit 58 Arm E text — not injected on production path. */
 export const OPUS_ARM_E_TERMINAL = `이번 응답은 한국어 총 표시 3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다. 장면에 필요한 내용이 있으면 더 길게 이어간다.
 
 분량은 [A]와 AI가 담당하는 NPC·환경의 판단, 대사, 행동, 감각, 반응 및 그 결과를 중심으로 확장한다.
@@ -51,7 +43,7 @@ export const OPUS_ARM_E_TERMINAL = `이번 응답은 한국어 총 표시 3,200�
 export const OPUS_ARM_E_TERMINAL_MARKER =
   "유저 페르소나와 최근 행동 양식은 [B]의 즉각적인 반응";
 
-/** Instruction-boundary marker — must be present; Arm F must be absent. */
+/** Instruction-boundary marker — historical; Arm F must remain absent. */
 export const OPUS_ARM_E_INSTRUCTION_BOUNDARY_MARKER =
   "미래 행동 전체에 대한 포괄적 위임이 아니다";
 
@@ -59,23 +51,17 @@ export const OPUS_ARM_E_INSTRUCTION_BOUNDARY_MARKER =
 export const OPUS_ARM_F_REJECTED_STOP_MARKER =
   "더 이상 의미 있는 진행이 불가능한 지점에서 멈춘다";
 
-export function shouldUseOpusArmETerminal(opts: {
+/** Always false — Arm E retired; Opus falls through to USER_TAIL. */
+export function shouldUseOpusArmETerminal(_opts: {
   modelId?: string | null;
   contentKind?: ContentKind | string | null;
   party?: boolean | null;
   runtimeMode?: ChatRuntimeMode | string | null;
 }): boolean {
-  if (!isCheaperInferenceClaudeOpus5Model(opts.modelId ?? "")) return false;
-  // Require explicit character (single_primary); never simulation/party/auto.
-  if (opts.contentKind !== "character") return false;
-  if (opts.party === true) return false;
-  if (opts.runtimeMode !== "interactive") return false;
-  return true;
+  return false;
 }
 
-/**
- * Returns frozen Arm E terminal, or null when not applicable.
- */
+/** Always null — Arm E retired from production assembly. */
 export function resolveOpusArmETerminal(opts: {
   modelId?: string | null;
   contentKind?: ContentKind | string | null;

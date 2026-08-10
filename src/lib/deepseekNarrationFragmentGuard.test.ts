@@ -162,8 +162,9 @@ describe("DeepSeek narration fragment guard (prompt snapshot)", () => {
   it("reports DeepSeek-only reminder token delta", () => {
     const delta = estimateTokens(DEEPSEEK_BOTTOM_REMINDER) - estimateTokens(LEGACY_DEEPSEEK_BOTTOM_REMINDER);
     assert.ok(delta > 0);
-    // Anti-fragment fencing + compact SINGLE CALL length stabilization.
-    assert.ok(delta <= 400, `expected bounded delta, got ${delta}`);
+    // Anti-fragment fencing + compact SINGLE CALL length stabilization
+    // + one progression sentence (semantic-repeat soft hint).
+    assert.ok(delta <= 480, `expected bounded delta, got ${delta}`);
   });
 });
 
