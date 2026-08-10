@@ -34,17 +34,15 @@ describe("memory backfill cost safety (static)", () => {
     assert.equal(dbTs.includes("syncAndCompressMemoryFromChat"), false);
   });
 
-  it("GET memory route schedules V3 catch-up only when backfill=1", () => {
+  it("GET memory route schedules V3 catch-up when backfill=1 or seal is due with no records", () => {
     const route = fs.readFileSync(
       path.join(process.cwd(), "src/app/api/chat/memory/route.ts"),
       "utf8"
     );
     assert.match(route, /prepareMemoryPanelView\(backfillOpts\)/);
-    assert.match(
-      route,
-      /shouldBackfill = new URL\(req\.url\)\.searchParams\.get\("backfill"\) === "1"/
-    );
-    assert.match(route, /if \(shouldBackfill\) \{\s*scheduleMemoryPanelBackfill/);
+    assert.match(route, /needsSealCatchUp/);
+    assert.match(route, /explicitBackfill \|\| needsSealCatchUp/);
+    assert.match(route, /scheduleMemoryPanelBackfill\(backfillOpts\)/);
   });
 
   it("ChatSettingsPanel does not attach backfill=1 on every memoryRefreshKey", () => {
@@ -78,7 +76,7 @@ describe("memory backfill cost safety (static)", () => {
     const fnEnd = src.indexOf("export async function regenerateMemoryRecordBatch");
     assert.ok(fnStart >= 0 && fnEnd > fnStart);
     const fn = src.slice(fnStart, fnEnd);
-    assert.match(fn, /persisted row already present/);
+    assert.match(fn, /active row already present/);
     const lockIdx = fn.indexOf("running.add(opts.chatId);");
     const composeIdx = fn.indexOf("await composeBatchScopePayload(");
     assert.ok(lockIdx >= 0 && composeIdx > lockIdx);

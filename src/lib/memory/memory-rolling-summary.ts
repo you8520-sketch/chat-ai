@@ -1121,10 +1121,17 @@ export async function refreshRollingSummaryForRegeneratedAssistant(opts: {
   if (record?.userEdited && !record.inactive) return false;
 
   const memory = getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
+  const eligibleCount = allTurns.filter((t) => t.turnNumber > 0).length;
+  if ((memory.message_count ?? 0) !== eligibleCount) {
+    getDb()
+      .prepare(
+        `UPDATE chat_memories SET message_count=?, updated_at=datetime('now') WHERE chat_id=?`
+      )
+      .run(eligibleCount, opts.chatId);
+  }
+  const summarized = memory.summarized_turn_count ?? 0;
   if (!record || record.inactive) {
-    if (
-      shouldTriggerRollingSummary(memory.message_count ?? 0, memory.summarized_turn_count ?? 0)
-    ) {
+    if (shouldTriggerRollingSummary(eligibleCount, summarized)) {
       void processRollingSummaryBatch(opts).catch((e) => {
         console.warn("[memory] regen seal pending batch failed:", (e as Error).message);
       });
@@ -1386,11 +1393,16 @@ export function shouldTriggerRollingSummary(messageCount: number, summarizedTurn
   return messageCount > summarizedTurnCount + ROLLING_SUMMARY_INTERVAL;
 }
 
+/** 첫 [1~6] 봉인은 7턴, 이후 배치는 summarized+7턴 (deferred seal). */
+export function summarySealAtTurn(summarizedTurnCount = 0): number {
+  return summarizedTurnCount + ROLLING_SUMMARY_INTERVAL + 1;
+}
+
 export function turnsUntilNextSummary(
   messageCount: number,
   summarizedTurnCount = 0
 ): number {
-  const sealAt = summarizedTurnCount + ROLLING_SUMMARY_INTERVAL + 1;
+  const sealAt = summarySealAtTurn(summarizedTurnCount);
   if (messageCount >= sealAt) return 0;
   return sealAt - messageCount;
 }

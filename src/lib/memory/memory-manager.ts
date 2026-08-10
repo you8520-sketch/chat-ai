@@ -31,6 +31,7 @@ import {
   resolveCanonicalSourceUserMessageId,
 } from "./memory-source-boundary";
 import { countMemoryEligibleCompletedTurnsCore } from "./memory-turn-loader";
+import { syncMemoryEligibleTurnCount } from "./memory-reconcile";
 import { buildMemoryContext } from "./memory-injector";
 import { ensureLorebookWithinBudget, trimLorebookToBudgetSync } from "./memory-lorebook-fit";
 import {
@@ -355,6 +356,12 @@ export async function scheduleMemoryUpdate(opts: {
   }
 
   if (isRegenerate && opts.assistantMessageId) {
+    const eligibleCount = syncMemoryEligibleTurnCount({
+      chatId: opts.chatId,
+      userId: opts.userId,
+      characterId: opts.characterId,
+      tier: opts.tier,
+    });
     void refreshRollingSummaryForRegeneratedAssistant({
       chatId: opts.chatId,
       userId: opts.userId,
@@ -369,6 +376,23 @@ export async function scheduleMemoryUpdate(opts: {
     }).catch((e) => {
       console.warn("[memory] regen rolling summary refresh failed:", (e as Error).message);
     });
+    const memory = getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
+    const summarized = memory.summarized_turn_count ?? 0;
+    if (shouldTriggerRollingSummary(eligibleCount, summarized)) {
+      void processRollingSummaryBatch({
+        chatId: opts.chatId,
+        userId: opts.userId,
+        characterId: opts.characterId,
+        charName: opts.relationshipNames.charName,
+        tier: opts.tier,
+        memoryCapacity: opts.memoryCapacity,
+        characterIdentity: opts.characterIdentity,
+        userPersona: opts.userPersona,
+        turnTrace: opts.turnTrace,
+      }).catch((e) => {
+        console.warn("[memory] regen rolling summary seal failed:", (e as Error).message);
+      });
+    }
     return;
   }
 

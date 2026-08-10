@@ -2,7 +2,6 @@ import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { normalizeMemoryMeta, parseMemoryMeta } from "@/lib/chatMemory";
 import { resolveRelationshipMetaNamesForCharacter } from "@/lib/relationshipMetaCharacterName";
-import { messagesToTurns } from "@/lib/hybridMemory";
 import {
   getSubscriptionTier,
   listPublicUserPersonas,
@@ -37,9 +36,10 @@ import {
   reopenClosedBranchCanon,
   updateMemoryRecordById,
 } from "@/lib/memory/memory-turn-summary";
-import { updateChatMemory } from "@/lib/memory/memory-db";
-import { syncChatLongTermMemory } from "@/lib/memory/memory-rolling-summary";
+import { updateChatMemory, getOrCreateChatMemory } from "@/lib/memory/memory-db";
+import { syncChatLongTermMemory, shouldTriggerRollingSummary } from "@/lib/memory/memory-rolling-summary";
 import { reconcileMemoryAfterRecordDelete } from "@/lib/memory/memory-reconcile";
+import { countMemoryEligibleCompletedTurns } from "@/lib/memory/memory-turn-loader";
 import {
   loadChatRelationshipMeta,
   removeRelationshipMetaItem,
@@ -103,18 +103,22 @@ export async function GET(req: Request) {
     memoryCapacity,
   };
   prepareMemoryPanelView(backfillOpts);
-  const shouldBackfill = new URL(req.url).searchParams.get("backfill") === "1";
-  if (shouldBackfill) {
+  const memoryRecords = listVisibleMemoryRecordsForChat(chatId);
+  const eligibleTurnCount = countMemoryEligibleCompletedTurns(chatId);
+  const memRow = getOrCreateChatMemory(chatId, user.id, chat.character_id, tier);
+  const summarizedTurnCount = memRow.summarized_turn_count ?? 0;
+  const needsSealCatchUp =
+    shouldTriggerRollingSummary(eligibleTurnCount, summarizedTurnCount) &&
+    memoryRecords.length === 0;
+
+  const explicitBackfill = new URL(req.url).searchParams.get("backfill") === "1";
+  if (explicitBackfill || needsSealCatchUp) {
     scheduleMemoryPanelBackfill(backfillOpts);
   }
-
-  // ooc_only placeholders are contiguous progress only — never shown as history UI
-  const memoryRecords = listVisibleMemoryRecordsForChat(chatId);
 
   const msgRows = db
     .prepare("SELECT role, content, model FROM messages WHERE chat_id=? ORDER BY id ASC")
     .all(chatId) as { role: "user" | "assistant"; content: string; model: string }[];
-  const turns = messagesToTurns(msgRows);
   const rawMeta = parseMemoryMeta(chat.memory_meta);
   const meta = normalizeMemoryMeta(rawMeta, names);
   if (JSON.stringify(rawMeta) !== JSON.stringify(meta)) {
@@ -140,7 +144,10 @@ export async function GET(req: Request) {
     memoryCapacity: snapshot.memoryCapacity,
     tier: snapshot.tier,
     longTermChars: displayText.length,
-    totalTurns: turns.length,
+    totalTurns: eligibleTurnCount,
+    eligibleTurnCount,
+    summarizedTurnCount,
+    summarySealDue: needsSealCatchUp,
     bufferCount: snapshot.bufferCount,
     messagesUntilCompression: snapshot.messagesUntilCompression,
     budget: snapshot.budget,

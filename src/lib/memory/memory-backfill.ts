@@ -17,6 +17,7 @@ import { resolveLorebookFromRecords } from "./memory-lorebook-resolve";
 import { resolveMemoryBudgetFromCapacity } from "./memory-capacity-shared";
 import { isMemoryFeatureEnabled } from "./memory-feature";
 import { reconcileSummarizedTurnCountFromTable } from "./memory-summary-persist";
+import { syncMemoryEligibleTurnCount } from "./memory-reconcile";
 import type { MemoryTier } from "./memory-types";
 import {
   getMemorySourceBoundary,
@@ -106,16 +107,14 @@ export const MEMORY_PANEL_BACKFILL_MAX_BATCHES_PER_REQUEST = 1;
 export function prepareMemoryPanelView(opts: MemoryBackfillOpts): void {
   if (!isMemoryFeatureEnabled()) return;
   syncMemoryFromChat(opts);
+  syncMemoryEligibleTurnCount(opts);
   const memory = getOrCreateChatMemory(
     opts.chatId,
     opts.userId,
     opts.characterId,
     opts.tier
   );
-  const playable =
-    (memory.message_count ?? 0) > 0
-      ? memory.message_count
-      : countPlayableTurns(loadTurnsForChat(opts.chatId));
+  const playable = memory.message_count ?? 0;
   // Drift repair only — never schedules V3 from a plain read
   reconcileSummarizedTurnCountFromTable({
     chatId: opts.chatId,

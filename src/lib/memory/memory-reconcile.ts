@@ -19,6 +19,24 @@ import { highestContiguousCompletedTurn } from "./memory-summary-integrity";
 import { reconcileSummarizedTurnCountFromTable } from "./memory-summary-persist";
 import type { MemoryTier } from "./memory-types";
 
+/** memory-eligible 완료 턴 수로 message_count를 맞춘다 (재생성·패널 조회·드리프트 복구). */
+export function syncMemoryEligibleTurnCount(opts: {
+  chatId: number;
+  userId: number;
+  characterId: number;
+  tier: MemoryTier;
+}): number {
+  const count = countMemoryEligibleCompletedTurns(opts.chatId);
+  const memory = getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
+  if ((memory.message_count ?? 0) !== count) {
+    updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
+      message_count: count,
+      membership_tier: opts.tier,
+    });
+  }
+  return count;
+}
+
 /** 완료된 배치 중 1부터 연속인 구간만 반영 — 구멍(예: 7만 있고 1 없음)이면 0 */
 export function computeSummarizedTurnCountFromRecords(
   records: MemoryRecordView[],
