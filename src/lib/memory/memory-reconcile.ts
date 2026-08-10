@@ -38,6 +38,67 @@ export function pruneStaleMemoryRecords(chatId: number, actualTurnCount: number)
 }
 
 /**
+ * Soft-delete (`deleteMemoryRecord`) 후 counter·로어북·LTM을 active 행만으로 재정렬하고,
+ * deferred seal 조건이 충족되면 [1~6] 등 누락 배치를 다시 봉인한다.
+ *
+ * 이전에는 inactive 행이 contiguous coverage / idempotent skip에 남아
+ * summarized_turn_count가 내려가지 않고 새 6턴 요약이 영구히 막혔다.
+ */
+export function reconcileMemoryAfterRecordDelete(opts: {
+  chatId: number;
+  userId: number;
+  characterId: number;
+  charName: string;
+  tier: MemoryTier;
+  memoryCapacity: number;
+}): boolean {
+  if (!isMemoryFeatureEnabled()) return false;
+
+  const actualTurnCount = countMemoryEligibleCompletedTurns(opts.chatId);
+  getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
+
+  updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
+    message_count: actualTurnCount,
+    membership_tier: opts.tier,
+  });
+
+  const newSummarized = reconcileSummarizedTurnCountFromTable({
+    chatId: opts.chatId,
+    userId: opts.userId,
+    characterId: opts.characterId,
+    tier: opts.tier,
+    playableTurnCount: actualTurnCount,
+  });
+
+  const budget = resolveMemoryBudgetFromCapacity(opts.memoryCapacity).lorebook;
+  let lorebook = rebuildLorebookFromRecords(opts.chatId);
+  if (lorebook.length > budget) {
+    lorebook = trimLorebookToBudgetSync(lorebook, budget);
+  }
+  updateChatMemory(opts.chatId, opts.userId, opts.characterId, {
+    recent_summary: lorebook,
+    membership_tier: opts.tier,
+  });
+  syncChatLongTermMemory(opts.chatId, lorebook);
+
+  if (shouldTriggerRollingSummary(actualTurnCount, newSummarized)) {
+    scheduleCharacterRollingSummary({
+      chatId: opts.chatId,
+      userId: opts.userId,
+      characterId: opts.characterId,
+      charName: opts.charName,
+      tier: opts.tier,
+      memoryCapacity: opts.memoryCapacity,
+    });
+  }
+
+  console.info(
+    `[memory] reconcile after record delete chat=${opts.chatId} turns=${actualTurnCount} summarized=${newSummarized}`
+  );
+  return true;
+}
+
+/**
  * 마지막 턴 삭제 후 message_count·요약 기록·로어북을 DB 대화와 맞춤.
  * (재생성·삭제·고르기로 6턴 경계가 어긋난 경우 복구)
  */

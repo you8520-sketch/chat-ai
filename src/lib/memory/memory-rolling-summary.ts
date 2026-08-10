@@ -1117,10 +1117,11 @@ export async function refreshRollingSummaryForRegeneratedAssistant(opts: {
 
   const batchStart = resolveBatchStartTurnForTurnNumber(target.turnNumber);
   const record = listMemoryRecordsForChat(opts.chatId).find((r) => r.turnStart === batchStart);
-  if (record?.userEdited) return false;
+  // Soft-deleted rows are absent for rebuild — reseal when the deferred trigger allows.
+  if (record?.userEdited && !record.inactive) return false;
 
   const memory = getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
-  if (!record) {
+  if (!record || record.inactive) {
     if (
       shouldTriggerRollingSummary(memory.message_count ?? 0, memory.summarized_turn_count ?? 0)
     ) {
@@ -1191,7 +1192,8 @@ export async function processRollingSummaryBatch(opts: {
     );
     const playableCount = playableMeta.length;
 
-    // Counter must follow contiguous persisted batches — never trust stale summarized_turn_count alone
+    // Counter must follow contiguous *active* batches — never trust stale summarized_turn_count alone.
+    // Soft-deleted (inactive) rows do not count as sealed and do not block reseal.
     const records = listMemoryRecordsForChat(opts.chatId);
     let summarized = highestContiguousCompletedTurn(records, playableCount);
     if ((memory.summarized_turn_count ?? 0) !== summarized) {
@@ -1224,8 +1226,9 @@ export async function processRollingSummaryBatch(opts: {
       return false;
     }
 
-    // Idempotent: persisted row already present → never call V3 again for this batch
-    if (records.some((r) => r.turnStart === batchStart)) {
+    // Idempotent: active row already present → never call V3 again for this batch.
+    // Inactive (soft-deleted) rows are ignored so a fresh seal can revive them.
+    if (records.some((r) => !r.inactive && r.turnStart === batchStart)) {
       return false;
     }
 
@@ -1234,7 +1237,7 @@ export async function processRollingSummaryBatch(opts: {
 
     // Re-check after lock + load (another worker may have just persisted)
     const latest = listMemoryRecordsForChat(opts.chatId);
-    if (latest.some((r) => r.turnStart === batchStart)) {
+    if (latest.some((r) => !r.inactive && r.turnStart === batchStart)) {
       return false;
     }
 

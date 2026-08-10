@@ -181,6 +181,7 @@ export function persistValidatedSummaryBatch(opts: {
         });
       }
       const before = listMemoryRecordsForChat(opts.chatId);
+      // Contiguity ignores soft-deleted rows; upsert may still revive the same turnStart.
       const contiguousBefore = highestContiguousCompletedTurn(before, opts.playableTurnCount);
       const expectedNextStart = contiguousBefore === 0 ? 1 : contiguousBefore + 1;
       const existingSame = before.find((r) => r.turnStart === opts.turnStart);
@@ -201,7 +202,8 @@ export function persistValidatedSummaryBatch(opts: {
         branchStatus: opts.branchStatus,
         promotedBy: opts.promotedBy,
         promotedAt: opts.promotedAt,
-        inactive: opts.inactive,
+        // Reseal / rebuild always writes an active row unless caller opts out.
+        inactive: opts.inactive ?? false,
         sourceStartUserMessageId: opts.sourceStartUserMessageId,
         sourceEndUserMessageId: opts.sourceEndUserMessageId,
       });

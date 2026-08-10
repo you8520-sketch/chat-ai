@@ -15,7 +15,18 @@ import {
 
 export type { SummaryKind, MemorySummaryScope };
 
-type BatchSpan = { turnStart: number; turnEnd: number };
+type BatchSpan = { turnStart: number; turnEnd: number; inactive?: boolean };
+
+/**
+ * Active (non soft-deleted) summary rows only.
+ * Soft-deleted (`inactive`) batches must not count as sealed coverage or
+ * block reseal after the user deletes a wrong history/LTM entry.
+ */
+export function activeMemoryRecords<T extends { inactive?: boolean }>(
+  records: readonly T[]
+): T[] {
+  return records.filter((r) => !r.inactive);
+}
 
 export type SummaryReasonCode =
   | "SUMMARY_TIMEOUT"
@@ -63,7 +74,7 @@ export function highestContiguousCompletedTurn(
   actualTurnCount: number
 ): number {
   const byStart = new Map<number, { turnStart: number; turnEnd: number }>();
-  for (const r of records) {
+  for (const r of activeMemoryRecords(records)) {
     const span = r.turnEnd - r.turnStart + 1;
     if (span !== ROLLING_SUMMARY_INTERVAL) continue;
     if (r.turnEnd > actualTurnCount) continue;
@@ -88,7 +99,7 @@ export function missingContiguousBatchStarts(
 ): number[] {
   const expected = expectedBatchStartsThrough(playableTurnCount);
   const have = new Set(
-    records
+    activeMemoryRecords(records)
       .filter((r) => r.turnEnd - r.turnStart + 1 === ROLLING_SUMMARY_INTERVAL)
       .map((r) => r.turnStart)
   );
@@ -282,7 +293,7 @@ export function buildSummaryBatchDiagnostics(opts: {
 }): SummaryBatchDiag {
   const persistedBatchStarts = [
     ...new Set(
-      opts.records
+      activeMemoryRecords(opts.records)
         .filter((r) => r.turnEnd - r.turnStart + 1 === ROLLING_SUMMARY_INTERVAL)
         .map((r) => r.turnStart)
     ),

@@ -11,7 +11,11 @@ import {
 } from "@/lib/memory/memory-rolling-summary";
 import type { MemoryRecordView } from "@/lib/memory/memory-turn-summary";
 
-function record(turnStart: number, turnEnd: number): MemoryRecordView {
+function record(
+  turnStart: number,
+  turnEnd: number,
+  inactive = false
+): MemoryRecordView {
   return {
     id: turnStart,
     turnStart,
@@ -19,6 +23,12 @@ function record(turnStart: number, turnEnd: number): MemoryRecordView {
     turnRangeLabel: `${turnStart}~${turnEnd}턴`,
     summary: "요약",
     summaryKind: "main_canon",
+    scopes: { main_canon: "요약" },
+    branchId: null,
+    branchStatus: null,
+    promotedBy: null,
+    promotedAt: null,
+    inactive,
     userEdited: false,
     charCount: 2,
     assistantMessageId: null,
@@ -69,6 +79,20 @@ describe("computeSummarizedTurnCountFromRecords", () => {
 
   it("returns 0 when no complete batch fits", () => {
     assert.equal(computeSummarizedTurnCountFromRecords([record(1, 6)], 5), 0);
+  });
+
+  it("ignores soft-deleted (inactive) batches for contiguous coverage", () => {
+    assert.equal(
+      computeSummarizedTurnCountFromRecords([record(1, 6, true)], 7),
+      0
+    );
+    assert.equal(
+      computeSummarizedTurnCountFromRecords(
+        [record(1, 6, true), record(7, 12, false)],
+        13
+      ),
+      0
+    );
   });
 });
 
