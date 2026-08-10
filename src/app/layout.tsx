@@ -18,6 +18,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Script id="chat-room-active-boot" strategy="beforeInteractive">
           {`(function(){try{var p=location.pathname;if(/^\\/chat\\/\\d+/.test(p))document.documentElement.classList.add("chat-room-active");if(/^\\/character\\/\\d+/.test(p)&&/(?:^|[?&])embed=chat-intro(?:&|$)/.test(location.search))document.documentElement.classList.add("character-intro-embed-active");}catch(e){}})();`}
         </Script>
+        {/* Restore saved site theme before first paint (no flash). */}
+        <Script id="site-theme-boot" strategy="beforeInteractive">
+          {`(function(){try{var t=localStorage.getItem("playai-site-theme");document.documentElement.dataset.theme=(t==="light"?"light":"dark");}catch(e){document.documentElement.dataset.theme="dark";}})();`}
+        </Script>
         <ChatRoomDocumentClass />
         <Header />
         <div className="app-shell mx-auto flex w-full max-w-7xl flex-1 items-start gap-6 px-4 pb-24 pt-4 md:pb-6">

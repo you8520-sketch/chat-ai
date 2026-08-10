@@ -16,6 +16,23 @@
   --studio-danger: #fb7185;
 }
 
+/* Light theme — toggled via [data-theme="light"] on <html> */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --studio-bg: #f5f6fa;
+  --studio-surface: #ffffff;
+  --studio-input: #f0f1f5;
+  --studio-border: rgba(15, 18, 35, 0.1);
+  --studio-primary: #7c3aed;
+  --studio-primary-hover: #6d28d9;
+  --studio-text: #18181b;
+  --studio-text-secondary: #52525b;
+  --studio-placeholder: #a1a1aa;
+  --studio-success: #059669;
+  --studio-warning: #d97706;
+  --studio-danger: #e11d48;
+}
+
 html {
   scrollbar-gutter: stable;
 }
@@ -24,11 +41,19 @@ body {
   background:
     radial-gradient(circle at 82% -8%, rgba(124, 58, 237, 0.12), transparent 24rem),
     radial-gradient(circle at -8% 28%, rgba(37, 99, 235, 0.06), transparent 26rem),
-    #070910;
-  color: #e6e8f0;
+    var(--studio-bg);
+  color: var(--studio-text);
   font-family:
     "Pretendard Variable", Pretendard, "Noto Sans KR", ui-sans-serif, system-ui,
     -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+:root[data-theme="light"] body {
+  background:
+    radial-gradient(circle at 82% -8%, rgba(124, 58, 237, 0.08), transparent 24rem),
+    radial-gradient(circle at -8% 28%, rgba(37, 99, 235, 0.04), transparent 26rem),
+    var(--studio-bg);
+  color: var(--studio-text);
 }
 
 @keyframes home-hero-copy-in {
@@ -174,6 +199,27 @@ body {
 
 .chat-novel-prose {
   color: var(--chat-narration-color, #fafafa);
+}
+
+/* 대사 문단 왼쪽 강조선 — dialogue paragraph accent bar */
+.chat-novel-prose p:has(> .chat-dialogue-accent) {
+  position: relative;
+  padding-left: 0.75rem;
+}
+.chat-novel-prose p:has(> .chat-dialogue-accent)::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.15em;
+  bottom: 0.15em;
+  width: 3px;
+  border-radius: 2px;
+  background: linear-gradient(
+    180deg,
+    var(--studio-primary, #7c3aed),
+    var(--studio-primary-hover, #8b5cf6)
+  );
+  opacity: 0.85;
 }
 
 /* OOC 요청 상태창 — 마크다운 pipe table */

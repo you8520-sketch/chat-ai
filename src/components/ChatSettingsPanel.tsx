@@ -11,6 +11,7 @@ import { resolveStatusWidgetReservedChars } from "@/lib/statusWidget";
 import type { PublicPersonaListItem } from "@/lib/userPersonasClient";
 import type { PersonaSecretSettingsCapability } from "@/lib/personaSecretCapabilities";
 import {
+  applySiteTheme,
   CHAT_FONT_OPTIONS,
   CHAT_FONT_SIZE_PRESETS,
   DEFAULT_CHAT_DISPLAY_PREFS,
@@ -18,11 +19,14 @@ import {
   fontSizePresetIndex,
   fontSizePresetLabel,
   formatStreamIntervalLabel,
+  loadSiteTheme,
+  saveSiteTheme,
   STREAM_INTERVAL_MAX,
   STREAM_INTERVAL_MIN,
   STREAM_INTERVAL_STEP,
   withStreamSpeed,
   type ChatDisplayPrefs,
+  type SiteTheme,
 } from "@/lib/chatDisplayPrefs";
 import { findResponseLengthTier } from "@/lib/responseLengthConstants";
 import { MEMORY_CAPACITY_DEFAULT } from "@/lib/memory/memory-capacity-shared";
@@ -144,7 +148,6 @@ type Props = {
   }) => void;
   layout?: "rail" | "drawer" | "inline";
   onClose?: () => void;
-  relationshipMetaDock?: ReactNode;
   personaSecretSettings?: PersonaSecretSettingsCapability;
 };
 
@@ -190,7 +193,6 @@ export default function ChatSettingsPanel({
   onStatusWidgetChange,
   layout = "rail",
   onClose,
-  relationshipMetaDock,
   personaSecretSettings = { canEdit: false, discoveryActive: false },
 }: Props) {
   const [active, setActive] = useState<SettingsTab | null>(null);
@@ -352,7 +354,6 @@ export default function ChatSettingsPanel({
           refreshing={memoryRefreshing}
           error={memoryError}
           onDataChange={setMemoryData}
-          relationshipMetaDock={relationshipMetaDock}
         />
       );
     }
@@ -1026,9 +1027,51 @@ function DisplaySettingsSection({
 }) {
   const inputCls =
     "w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/40";
+  const [siteTheme, setSiteTheme] = useState<SiteTheme>("dark");
+
+  useEffect(() => {
+    const t = loadSiteTheme();
+    setSiteTheme(t);
+    applySiteTheme(t);
+  }, []);
+
+  function changeTheme(next: SiteTheme) {
+    setSiteTheme(next);
+    saveSiteTheme(next);
+    applySiteTheme(next);
+  }
 
   return (
     <div className="space-y-5 text-xs">
+      <section>
+        <p className="mb-2 font-bold text-violet-300">화면 테마</p>
+        <p className="mb-2 text-[10px] text-zinc-600">
+          사이트 전체 밝기 · 변경 즉시 반영 (이 기기)
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          {(
+            [
+              { id: "dark", label: "다크", desc: "기본 어두운 화면" },
+              { id: "light", label: "화이트", desc: "밝은 화면" },
+            ] as const
+          ).map((t) => (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => changeTheme(t.id)}
+              className={`rounded-lg border p-3 text-left transition ${
+                siteTheme === t.id
+                  ? "border-violet-400/60 bg-violet-500/10"
+                  : "border-white/10 bg-[#1a1a1a] hover:border-white/20"
+              }`}
+            >
+              <span className="block font-semibold text-zinc-200">{t.label}</span>
+              <span className="mt-0.5 block text-[10px] text-zinc-500">{t.desc}</span>
+            </button>
+          ))}
+        </div>
+      </section>
+
       <ChatPortraitPrefs
         displayPrefs={displayPrefs}
         onDisplayPrefsChange={onDisplayPrefsChange}
@@ -1224,7 +1267,6 @@ function MemorySection({
   refreshing = false,
   error,
   onDataChange,
-  relationshipMetaDock,
 }: {
   chatId: number | null;
   data: MemoryData | null;
@@ -1232,7 +1274,6 @@ function MemorySection({
   refreshing?: boolean;
   error: string;
   onDataChange: React.Dispatch<React.SetStateAction<MemoryData | null>>;
-  relationshipMetaDock?: ReactNode;
 }) {
   const [lorebookDraft, setLorebookDraft] = useState("");
   const [recordDrafts, setRecordDrafts] = useState<Record<number, string>>({});
@@ -1451,9 +1492,6 @@ function MemorySection({
       <div>
         <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
           <span className="font-bold text-violet-300">장기기억</span>
-          {relationshipMetaDock ? (
-            <div className="shrink-0">{relationshipMetaDock}</div>
-          ) : null}
         </div>
         {data.messagesUntilCompression > 0 && (
           <p className="mb-1 text-[10px] text-violet-400/80">
