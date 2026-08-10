@@ -1,6 +1,7 @@
 import type {
   ExtractedStatusFact,
   ExtractedStatusFactCategory,
+  ExtractedStatusFactEvidenceType,
   ExtractedStatusFactImportance,
 } from "./types";
 
@@ -20,6 +21,12 @@ const FACT_IMPORTANCE = new Set<ExtractedStatusFactImportance>([
   "critical",
   "important",
   "normal",
+]);
+
+const FACT_EVIDENCE_TYPES = new Set<ExtractedStatusFactEvidenceType>([
+  "explicit_user_statement",
+  "explicit_scene_event",
+  "explicit_character_claim",
 ]);
 
 const SNAKE_CASE_RE = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/;
@@ -64,7 +71,10 @@ function isConciseFactValue(value: string): boolean {
   return true;
 }
 
-export function sanitizeExtractedFacts(raw: unknown): ExtractedStatusFact[] {
+export function sanitizeExtractedFacts(
+  raw: unknown,
+  opts: { requireEvidence?: boolean } = {}
+): ExtractedStatusFact[] {
   if (!Array.isArray(raw)) return [];
 
   const out: ExtractedStatusFact[] = [];
@@ -80,6 +90,8 @@ export function sanitizeExtractedFacts(raw: unknown): ExtractedStatusFact[] {
     const value = cleanString(obj.value);
     const importance = cleanString(obj.importance) as ExtractedStatusFactImportance;
     const factText = cleanString(obj.fact_text);
+    const evidenceRaw = cleanString(obj.evidence_type);
+    const evidenceType = evidenceRaw as ExtractedStatusFactEvidenceType;
 
     if (!FACT_CATEGORIES.has(category)) continue;
     if (!FACT_IMPORTANCE.has(importance)) continue;
@@ -87,6 +99,8 @@ export function sanitizeExtractedFacts(raw: unknown): ExtractedStatusFact[] {
     if (!SNAKE_CASE_RE.test(subject) || !SNAKE_CASE_RE.test(attribute)) continue;
     if (!isConciseFactValue(value)) continue;
     if (!isCompleteKoreanSentence(factText)) continue;
+    if (evidenceRaw && !FACT_EVIDENCE_TYPES.has(evidenceType)) continue;
+    if (opts.requireEvidence && !FACT_EVIDENCE_TYPES.has(evidenceType)) continue;
 
     const dedupeKey = `${category}:${subject}:${attribute}:${value}:${factText}`;
     if (seen.has(dedupeKey)) continue;
@@ -98,6 +112,7 @@ export function sanitizeExtractedFacts(raw: unknown): ExtractedStatusFact[] {
       value,
       importance,
       fact_text: factText,
+      ...(FACT_EVIDENCE_TYPES.has(evidenceType) ? { evidence_type: evidenceType } : {}),
     });
     if (out.length >= 3) break;
   }

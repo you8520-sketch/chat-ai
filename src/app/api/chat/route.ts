@@ -1,4 +1,3 @@
-import { after } from "next/server";
 import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
 import {
@@ -4957,7 +4956,8 @@ export async function POST(req: Request) {
 
         const extractedFactsForPersistence = statusWidgetValuesPayload?.extracted_facts ?? [];
         const factPersistSummary = summarizeEpisodicFactPersistCandidates(
-          extractedFactsForPersistence
+          extractedFactsForPersistence,
+          { sourceUserText: messageText }
         );
         const parsedStatusKeys = [
           ...Object.keys(statusWidgetValuesPayload?.character ?? {}),
@@ -4975,7 +4975,7 @@ export async function POST(req: Request) {
           missingRequiredStatusKeys: expectedStatusKeys.filter((k) => !parsedStatusKeys.includes(k)),
           extractedFactsRawCount: factPersistSummary.rawCount,
           extractedFactsValidCount: factPersistSummary.validCount,
-          extractedFactsInsertedCount: factPersistSummary.insertableCount,
+          extractedFactsInsertableCount: factPersistSummary.insertableCount,
           extractedFactsSkippedCount: factPersistSummary.skippedCount,
           skippedReasons: factPersistSummary.skippedReasons,
           recallCandidateCount: episodicMemory.debug.length,
@@ -5000,7 +5000,7 @@ export async function POST(req: Request) {
         if (derivedStateAllowed) {
           const episodicBoundarySnapshot = getMemorySourceBoundaryCore(db, chatRef.id);
           const persistFacts = () => {
-            reconcileEpisodicMemoryFactsForGeneration(db, {
+            const persistence = reconcileEpisodicMemoryFactsForGeneration(db, {
               chatId: chatRef.id,
               characterId: ch.id,
               userId: user.id,
@@ -5009,6 +5009,7 @@ export async function POST(req: Request) {
                   ? resolveMemoryEligibleTurnNumberCore(db, chatRef.id, userMessageId)
                   : null) ?? memorySourceEligibleCompletedTurns + 1,
               sourceUserMessageId: userMessageId,
+              sourceUserText: messageText,
               boundarySnapshot: episodicBoundarySnapshot,
               facts: extractedFactsForPersistence,
               isRegeneration: !!regenerateMessageId,
@@ -5020,12 +5021,28 @@ export async function POST(req: Request) {
                 status_widget_turn_active: statusWidgetActive,
               },
             });
+            console.info(
+              "[StatusMemoryPersistence]",
+              JSON.stringify({
+                request_id: clientRequestId ?? null,
+                message_id: aiMessageId,
+                source_user_message_id: userMessageId,
+                insertable_count: factPersistSummary.insertableCount,
+                actual_inserted_count: persistence.inserted,
+                replaced_source_turn: persistence.replaced,
+              })
+            );
+            return persistence;
           };
           try {
-            after(persistFacts);
-          } catch (e) {
-            console.error("[EpisodicMemory] after() scheduling failed:", (e as Error).message);
+            // At most three small SQLite inserts. Complete the derived-memory
+            // attempt before completing this request so widget success cannot race
+            // a deferred callback or a reset epoch change.
             persistFacts();
+          } catch (e) {
+            // Chat prose/status remain canonical even if best-effort derived
+            // memory fails; the persistence helper logs the underlying error.
+            console.error("[EpisodicMemory] synchronous persistence failed:", (e as Error).message);
           }
         }
 

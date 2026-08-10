@@ -1,6 +1,10 @@
 import type Database from "better-sqlite3";
 import { sanitizeExtractedFacts } from "@/lib/statusWidget/extractedFacts";
-import type { ExtractedStatusFact, ExtractedStatusFactImportance } from "@/lib/statusWidget/types";
+import type {
+  ExtractedStatusFact,
+  ExtractedStatusFactEvidenceType,
+  ExtractedStatusFactImportance,
+} from "@/lib/statusWidget/types";
 import {
   getMemorySourceBoundaryCore,
   isMemorySourceEligible,
@@ -26,6 +30,8 @@ export type PersistEpisodicMemoryFactsInput = {
   userId?: number | null;
   sourceTurn: number;
   sourceUserMessageId?: number | null;
+  /** Actual RAW user message used to verify explicit_user_statement provenance. */
+  sourceUserText?: string | null;
   boundarySnapshot?: MemorySourceBoundary;
   facts?: ExtractedStatusFact[] | null;
   metadata?: Record<string, unknown>;
@@ -85,6 +91,7 @@ const IMPORTANCE_RANK: Record<ExtractedStatusFactImportance, number> = {
 };
 
 export type EpisodicMemoryDuplicateReason =
+  | "duplicate_current_user"
   | "duplicate_recent_chat"
   | "duplicate_long_term_memory"
   | "duplicate_lorebook"
@@ -121,6 +128,132 @@ const EPISODIC_MEMORY_CONTAMINATION_PATTERNS: Array<{ reason: string; pattern: R
   { reason: "private_visibility_marker", pattern: /user_only|engine_only/i },
 ];
 
+const RELATIONSHIP_LEDGER_PROMISE_ATTRIBUTE =
+  /(?:^|_)(?:promise|pledge|vow|commitment)(?:_|$)/i;
+const RELATIONSHIP_LEDGER_PROMISE_TEXT =
+  /(?:약속(?:했|하였다|하기로|을\s*(?:맺|지켰|어겼|이행|취소|철회|파기)|이\s*(?:유효|완료|해결))|돌아오겠다고\s*약속)/;
+const RELATIONSHIP_LEDGER_ITEM_ATTRIBUTE =
+  /(?:^|_)(?:owner|ownership|possession|possessed|inventory|acquired|received|gift|gifted|transfer|transferred|lost|held_item|hidden_weapon)(?:_|$)/i;
+const RELATIONSHIP_LEDGER_ITEM_TEXT =
+  /(?:소지|소유|획득|얻었|받았|건넸|넘겼|양도|선물|잃었|분실|빼앗|가지고\s*다|지니고\s*다|숨기고\s*다닌)/;
+
+const UNVERIFIED_CANONICAL_STATE_ATTRIBUTE =
+  /(?:^|_)(?:awakening|awakening_status|awakened_rank|rank|grade|class|level|hidden_state|true_nature)(?:_|$)/i;
+const UNVERIFIED_CANONICAL_STATE_TEXT =
+  /(?:각성.{0,16}(?:진행|완료|상태|등급)|(?:높은|낮은|최상|상위).{0,8}등급|정체(?:는|가)\s|실은.{0,20}(?:종족|정체))/;
+const ATTRIBUTED_CLAIM_TEXT =
+  /(?:말했|말하였다|밝혔|밝혔다|주장했|주장하였다|고백했|고백하였다|알렸|알렸다|설명했|설명하였다|언급했|언급하였다|공개했|공개하였다|전했|전하였다)/;
+const EXPLICIT_DISCLOSURE_EVENT_TEXT =
+  /(?:비밀|정체|정보|사실).{0,20}(?:밝혀진|밝혀졌|밝혀졌다|공개된|공개되었|공개됐다|드러난|드러났|드러났다)/;
+
+export type EpisodicMemoryOwnershipBlockReason =
+  | "relationship_ledger_promise"
+  | "relationship_ledger_item";
+
+/** Relationship Durable Ledger is the sole owner of promises and inventory/ownership. */
+export function detectRelationshipLedgerOwnedFact(
+  fact: Pick<ExtractedStatusFact, "category" | "attribute" | "value" | "fact_text">
+): EpisodicMemoryOwnershipBlockReason | null {
+  const attribute = String(fact.attribute ?? "");
+  const text = `${fact.value ?? ""}\n${fact.fact_text ?? ""}`;
+  if (
+    RELATIONSHIP_LEDGER_PROMISE_ATTRIBUTE.test(attribute) ||
+    RELATIONSHIP_LEDGER_PROMISE_TEXT.test(text)
+  ) {
+    return "relationship_ledger_promise";
+  }
+  if (
+    RELATIONSHIP_LEDGER_ITEM_ATTRIBUTE.test(attribute) ||
+    ((fact.category === "item" || fact.category === "relationship") &&
+      RELATIONSHIP_LEDGER_ITEM_TEXT.test(text))
+  ) {
+    return "relationship_ledger_item";
+  }
+  return null;
+}
+
+export function detectUnverifiedCanonicalization(
+  fact: Pick<
+    ExtractedStatusFact,
+    "category" | "attribute" | "value" | "fact_text" | "evidence_type"
+  >
+): "unverified_canonicalization" | "unattributed_character_claim" | null {
+  if (
+    fact.evidence_type === "explicit_character_claim" &&
+    !ATTRIBUTED_CLAIM_TEXT.test(String(fact.fact_text ?? ""))
+  ) {
+    return "unattributed_character_claim";
+  }
+  const riskyState =
+    UNVERIFIED_CANONICAL_STATE_ATTRIBUTE.test(String(fact.attribute ?? "")) ||
+    UNVERIFIED_CANONICAL_STATE_TEXT.test(`${fact.value ?? ""}\n${fact.fact_text ?? ""}`);
+  if (!riskyState) return null;
+  if (EXPLICIT_DISCLOSURE_EVENT_TEXT.test(String(fact.fact_text ?? ""))) return null;
+  if (
+    fact.evidence_type === "explicit_user_statement" ||
+    (fact.evidence_type === "explicit_character_claim" &&
+      ATTRIBUTED_CLAIM_TEXT.test(String(fact.fact_text ?? "")))
+  ) {
+    return null;
+  }
+  return "unverified_canonicalization";
+}
+
+const USER_EVIDENCE_STOP_WORDS = new Set([
+  "사용자",
+  "유저",
+  "자신",
+  "현재",
+  "사실",
+  "명시",
+  "말했",
+  "말했다",
+  "밝혔",
+  "밝혔다",
+]);
+
+function normalizeEvidenceToken(token: string): string {
+  return token
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "")
+    .replace(/(?:에게서|으로서|으로|에서|에게|께서|부터|까지|처럼|보다|은|는|이|가|을|를|의|에|와|과|도|만|로)$/u, "");
+}
+
+function explicitUserStatementHasRawSupport(
+  fact: Pick<ExtractedStatusFact, "value" | "fact_text">,
+  sourceUserText: string
+): boolean {
+  const source = normalizeForMemoryDedupe(sourceUserText);
+  if (!source) return false;
+  const value = normalizeForMemoryDedupe(String(fact.value ?? ""));
+  if (value.length >= 3 && source.includes(value)) return true;
+
+  const candidates = [...new Set(
+    `${fact.value ?? ""} ${fact.fact_text ?? ""}`
+      .split(/\s+/u)
+      .map(normalizeEvidenceToken)
+      .filter((token) => token.length >= 2 && !USER_EVIDENCE_STOP_WORDS.has(token))
+  )];
+  if (candidates.length === 0) return false;
+  const matches = candidates.filter((token) => source.includes(token)).length;
+  return matches >= Math.min(2, candidates.length);
+}
+
+export function detectUnsupportedEvidenceFact(
+  fact: Pick<ExtractedStatusFact, "value" | "fact_text" | "evidence_type">,
+  sourceUserText?: string | null
+): "higher_authority_canon_source" | "unsupported_explicit_user_statement" | null {
+  if (fact.evidence_type === "canon") return "higher_authority_canon_source";
+  if (
+    fact.evidence_type === "explicit_user_statement" &&
+    sourceUserText !== undefined &&
+    !explicitUserStatementHasRawSupport(fact, sourceUserText ?? "")
+  ) {
+    return "unsupported_explicit_user_statement";
+  }
+  return null;
+}
+
 const ABSTRACT_PSYCHOLOGICAL_EPISODIC_ATTRIBUTES = new Set<string>([
   "personality_change",
   "relationship_stage",
@@ -151,9 +284,8 @@ const ABSTRACT_PSYCHOLOGICAL_EPISODIC_PATTERNS: Array<{ reason: string; pattern:
 ];
 
 /**
- * Light durable-evidence exemption (no evidence_type column).
- * Preserves explicit agreements, declarations, promises, and canon statements
- * even when a high-risk attribute name is reused.
+ * Legacy durable-evidence fallback for rows that predate provenance metadata.
+ * Promise/item ownership is filtered by its ledger boundary before this guard.
  */
 export function hasExplicitDurableEvidence(factText: string): boolean {
   const t = factText.replace(/\s+/g, " ").trim();
@@ -308,6 +440,25 @@ function filterContaminatedFactsForSave(facts: ExtractedStatusFact[]): Extracted
   return facts.filter((fact) => !detectEpisodicMemoryContamination(fact));
 }
 
+function filterRelationshipLedgerOwnedFactsForSave(
+  facts: ExtractedStatusFact[]
+): ExtractedStatusFact[] {
+  return facts.filter((fact) => !detectRelationshipLedgerOwnedFact(fact));
+}
+
+function filterUnverifiedCanonicalizationFactsForSave(
+  facts: ExtractedStatusFact[]
+): ExtractedStatusFact[] {
+  return facts.filter((fact) => !detectUnverifiedCanonicalization(fact));
+}
+
+function filterUnsupportedEvidenceFactsForSave(
+  facts: ExtractedStatusFact[],
+  sourceUserText?: string | null
+): ExtractedStatusFact[] {
+  return facts.filter((fact) => !detectUnsupportedEvidenceFact(fact, sourceUserText));
+}
+
 function filterAbstractPsychologicalInferenceFactsForSave(
   facts: ExtractedStatusFact[]
 ): ExtractedStatusFact[] {
@@ -317,9 +468,23 @@ function filterAbstractPsychologicalInferenceFactsForSave(
   });
 }
 
-function filterUnsafeEpisodicFactsForSave(facts: ExtractedStatusFact[]): ExtractedStatusFact[] {
-  return filterAbstractPsychologicalInferenceFactsForSave(filterContaminatedFactsForSave(facts));
+function filterUnsafeEpisodicFactsForSave(
+  facts: ExtractedStatusFact[],
+  sourceUserText?: string | null
+): ExtractedStatusFact[] {
+  return filterUnsupportedEvidenceFactsForSave(
+    filterUnverifiedCanonicalizationFactsForSave(
+      filterAbstractPsychologicalInferenceFactsForSave(
+        filterRelationshipLedgerOwnedFactsForSave(filterContaminatedFactsForSave(facts))
+      )
+    ),
+    sourceUserText
+  );
 }
+
+export type SummarizeEpisodicFactPersistCandidatesOptions = {
+  sourceUserText?: string | null;
+};
 
 /** Dev/audit — counts for [StatusMemoryPipeline] without inserting. */
 export type EpisodicFactPersistSummary = {
@@ -332,21 +497,34 @@ export type EpisodicFactPersistSummary = {
 };
 
 export function summarizeEpisodicFactPersistCandidates(
-  raw: unknown
+  raw: unknown,
+  opts: SummarizeEpisodicFactPersistCandidatesOptions = {}
 ): EpisodicFactPersistSummary {
   const rawArr = Array.isArray(raw) ? raw : [];
   const valid = sanitizeExtractedFacts(raw);
   const afterContamination = filterContaminatedFactsForSave(valid);
-  const afterPsychological = filterAbstractPsychologicalInferenceFactsForSave(afterContamination);
-  const insertable = dedupeFactsWithinResponse(afterPsychological);
+  const afterLedgerOwnership = filterRelationshipLedgerOwnedFactsForSave(afterContamination);
+  const afterPsychological = filterAbstractPsychologicalInferenceFactsForSave(afterLedgerOwnership);
+  const afterCanonicalization = filterUnverifiedCanonicalizationFactsForSave(afterPsychological);
+  const afterEvidence = filterUnsupportedEvidenceFactsForSave(
+    afterCanonicalization,
+    opts.sourceUserText
+  );
+  const insertable = dedupeFactsWithinResponse(afterEvidence);
   const skippedReasons: string[] = [];
   const schemaRejected = rawArr.length - valid.length;
   if (schemaRejected > 0) skippedReasons.push(`schema_rejected:${schemaRejected}`);
   const contaminated = valid.length - afterContamination.length;
   if (contaminated > 0) skippedReasons.push(`contamination:${contaminated}`);
-  const psychological = afterContamination.length - afterPsychological.length;
+  const ledgerOwned = afterContamination.length - afterLedgerOwnership.length;
+  if (ledgerOwned > 0) skippedReasons.push(`relationship_ledger_owned:${ledgerOwned}`);
+  const psychological = afterLedgerOwnership.length - afterPsychological.length;
   if (psychological > 0) skippedReasons.push(`abstract_psychological_inference:${psychological}`);
-  const deduped = afterPsychological.length - insertable.length;
+  const unverified = afterPsychological.length - afterCanonicalization.length;
+  if (unverified > 0) skippedReasons.push(`unverified_canonicalization:${unverified}`);
+  const unsupportedEvidence = afterCanonicalization.length - afterEvidence.length;
+  if (unsupportedEvidence > 0) skippedReasons.push(`unsupported_evidence:${unsupportedEvidence}`);
+  const deduped = afterEvidence.length - insertable.length;
   if (deduped > 0) skippedReasons.push(`within_response_dedupe:${deduped}`);
   return {
     rawCount: rawArr.length,
@@ -366,7 +544,7 @@ export type StatusMemoryPipelineTrace = {
   missingRequiredStatusKeys: string[];
   extractedFactsRawCount: number;
   extractedFactsValidCount: number;
-  extractedFactsInsertedCount: number;
+  extractedFactsInsertableCount: number;
   extractedFactsSkippedCount: number;
   skippedReasons: string[];
   recallCandidateCount?: number;
@@ -444,9 +622,54 @@ function metadataRequestId(metadata?: Record<string, unknown>): string | null {
   return t || null;
 }
 
+const STORED_FACT_EVIDENCE_TYPES = new Set<ExtractedStatusFactEvidenceType>([
+  "explicit_user_statement",
+  "explicit_scene_event",
+  "explicit_character_claim",
+  "canon",
+]);
+
+function evidenceTypeFromMetadata(metadata: unknown): ExtractedStatusFactEvidenceType | undefined {
+  if (typeof metadata !== "string" || !metadata.trim()) return undefined;
+  try {
+    const parsed = JSON.parse(metadata) as { memory_evidence_type?: unknown };
+    const raw = parsed.memory_evidence_type;
+    return typeof raw === "string" &&
+      STORED_FACT_EVIDENCE_TYPES.has(raw as ExtractedStatusFactEvidenceType)
+      ? (raw as ExtractedStatusFactEvidenceType)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function attachStoredEvidenceType<T extends EpisodicMemoryFactRecord>(fact: T): T {
+  const evidenceType = evidenceTypeFromMetadata(fact.metadata);
+  return evidenceType ? { ...fact, evidence_type: evidenceType } : fact;
+}
+
 function shouldReplaceSourceTurn(input: PersistEpisodicMemoryFactsInput): boolean {
   if (input.replaceSourceTurn === true) return true;
   return input.metadata?.regenerated === true;
+}
+
+function resolveSourceUserTextForEvidence(
+  db: Database.Database,
+  input: PersistEpisodicMemoryFactsInput,
+  chatId: number,
+  sourceUserMessageId: number | null
+): string | null | undefined {
+  if (input.sourceUserText !== undefined) return input.sourceUserText;
+  if (sourceUserMessageId == null) return undefined;
+  try {
+    const row = db
+      .prepare("SELECT content FROM messages WHERE id=? AND chat_id=? AND role='user'")
+      .get(sourceUserMessageId, chatId) as { content?: unknown } | undefined;
+    return typeof row?.content === "string" ? row.content : undefined;
+  } catch {
+    // Unit fixtures and migration callers may not own a messages table.
+    return undefined;
+  }
 }
 
 /**
@@ -478,6 +701,12 @@ export function persistEpisodicMemoryFactsCore(
       ? Math.trunc(input.userId)
       : null;
   const sourceUserMessageId = finitePositiveInt(input.sourceUserMessageId);
+  const sourceUserText = resolveSourceUserTextForEvidence(
+    db,
+    input,
+    chatId,
+    sourceUserMessageId
+  );
 
   const assistantMessageId = metadataAssistantMessageId(input.metadata);
   const requestId = metadataRequestId(input.metadata);
@@ -508,11 +737,9 @@ export function persistEpisodicMemoryFactsCore(
   }
 
   const facts = dedupeFactsWithinResponse(
-    filterUnsafeEpisodicFactsForSave(sanitizeExtractedFacts(input.facts))
+    filterUnsafeEpisodicFactsForSave(sanitizeExtractedFacts(input.facts), sourceUserText)
   );
   if (facts.length === 0) return 0;
-
-  const metadataJson = JSON.stringify(input.metadata ?? {});
 
   const insert = db.prepare(`
     INSERT INTO episodic_memory_facts
@@ -523,6 +750,10 @@ export function persistEpisodicMemoryFactsCore(
   `);
 
   for (const fact of facts) {
+    const metadataJson = JSON.stringify({
+      ...(input.metadata ?? {}),
+      memory_evidence_type: fact.evidence_type ?? "legacy_unknown",
+    });
     insert.run(
       chatId,
       characterId,
@@ -625,6 +856,7 @@ export type ReconcileEpisodicMemoryFactsInput = {
   userId?: number | null;
   sourceTurn: number;
   sourceUserMessageId?: number | null;
+  sourceUserText?: string | null;
   boundarySnapshot?: MemorySourceBoundary;
   facts?: ExtractedStatusFact[] | null;
   isRegeneration: boolean;
@@ -666,6 +898,7 @@ export function reconcileEpisodicMemoryFactsForGeneration(
         userId: input.userId,
         sourceTurn: input.sourceTurn,
         sourceUserMessageId: input.sourceUserMessageId,
+        sourceUserText: input.sourceUserText,
         facts,
         replaceSourceTurn: input.isRegeneration,
         metadata: input.metadata,
@@ -796,6 +1029,7 @@ function findDuplicateReason(
   fact: EpisodicMemoryFactRecord,
   input: GetEpisodicMemoryForPromptInput
 ): EpisodicMemoryDuplicateReason | null {
+  if (textLooksDuplicated(fact, input.currentUserMessage)) return "duplicate_current_user";
   if (textLooksDuplicated(fact, input.recentChatText)) return "duplicate_recent_chat";
   if (textLooksDuplicated(fact, input.longTermMemoryText)) return "duplicate_long_term_memory";
   if (textLooksDuplicated(fact, input.relationshipMemoryText)) return "duplicate_relationship_memory";
@@ -878,6 +1112,7 @@ export function formatEpisodicMemoryPromptSection(
     "These are retrieved episodic memories from earlier turns.",
     "These are historical or durable facts from earlier turns.",
     "Do not treat time-sensitive facts as the current state.",
+    "The current user's explicit statement and the recent raw conversation always override these memories.",
     "For current location, condition, emotion, action, and scene state, prefer the recent raw conversation.",
     "Use them only when relevant to the current scene.",
     "If retrieved memories conflict with each other, the higher turn number is more recent and must be preferred.",
@@ -953,7 +1188,7 @@ export function getEpisodicMemoryForPrompt(
       }
     }
 
-    const rows = db
+    const rows = (db
       .prepare(
         `SELECT id, chat_id, character_id, user_id, source_turn, source_user_message_id,
                 category, subject, attribute, value, importance, fact_text, metadata, created_at
@@ -962,7 +1197,7 @@ export function getEpisodicMemoryForPrompt(
          ORDER BY source_turn DESC, id DESC
          LIMIT ?`
       )
-      .all(...params, candidateLimit) as EpisodicMemoryFactRecord[];
+      .all(...params, candidateLimit) as EpisodicMemoryFactRecord[]).map(attachStoredEvidenceType);
 
     const validRows = rows.filter((row) => sanitizeExtractedFacts([{
       category: row.category,
@@ -974,6 +1209,9 @@ export function getEpisodicMemoryForPrompt(
     }]).length === 1);
     const uncontaminatedRows: EpisodicMemoryFactRecord[] = [];
     let blockedContaminatedCount = 0;
+    let blockedLedgerOwnedCount = 0;
+    let blockedUnverifiedCount = 0;
+    let blockedUnsupportedEvidenceCount = 0;
     let blockedPsychologicalCount = 0;
     let temporarySkippedCount = 0;
     for (const row of validRows) {
@@ -994,6 +1232,11 @@ export function getEpisodicMemoryForPrompt(
             blocked_reason: blockedReason,
           });
         }
+        continue;
+      }
+      const ledgerOwnedReason = detectRelationshipLedgerOwnedFact(row);
+      if (ledgerOwnedReason) {
+        blockedLedgerOwnedCount += 1;
         continue;
       }
       // Exclude clearly momentary states before latest-wins / ranking / budget.
@@ -1019,6 +1262,16 @@ export function getEpisodicMemoryForPrompt(
             blocked_reason: psychologicalReason,
           });
         }
+        continue;
+      }
+      const unverifiedReason = detectUnverifiedCanonicalization(row);
+      if (unverifiedReason) {
+        blockedUnverifiedCount += 1;
+        continue;
+      }
+      const unsupportedEvidenceReason = detectUnsupportedEvidenceFact(row);
+      if (unsupportedEvidenceReason) {
+        blockedUnsupportedEvidenceCount += 1;
         continue;
       }
       uncontaminatedRows.push(row);
@@ -1128,6 +1381,9 @@ export function getEpisodicMemoryForPrompt(
         })),
         skipped_conflict_facts_count: skippedConflictFactsCount,
         blocked_contaminated_facts_count: blockedContaminatedCount,
+        blocked_relationship_ledger_owned_facts_count: blockedLedgerOwnedCount,
+        blocked_unverified_canonicalization_facts_count: blockedUnverifiedCount,
+        blocked_unsupported_evidence_facts_count: blockedUnsupportedEvidenceCount,
         blocked_abstract_psychological_facts_count: blockedPsychologicalCount,
         temporary_skipped_count: temporarySkippedCount,
         omitted_due_to_budget_count: omittedDueToBudgetCount,
@@ -1149,7 +1405,7 @@ export function listEpisodicMemoryFactsForDebug(
   if (!chatId) return [];
   const limit = Math.max(1, Math.min(500, Math.trunc(opts.limit ?? 100)));
   try {
-    return db
+    return (db
       .prepare(
         `SELECT id, chat_id, character_id, user_id, source_turn, category, subject, attribute, value, importance, fact_text, metadata, created_at
          FROM episodic_memory_facts
@@ -1157,7 +1413,7 @@ export function listEpisodicMemoryFactsForDebug(
          ORDER BY source_turn DESC, id DESC
          LIMIT ?`
       )
-      .all(chatId, limit) as EpisodicMemoryFactRecord[];
+      .all(chatId, limit) as EpisodicMemoryFactRecord[]).map(attachStoredEvidenceType);
   } catch (e) {
     console.error("[EpisodicMemory] failed to list debug facts:", (e as Error).message);
     return [];
@@ -1220,10 +1476,13 @@ export function inspectEpisodicMemoryFactsForDebug(
     let blockedReason: string | null = null;
     if (!structurallyValid) blockedReason = "invalid_fact_schema";
     if (!blockedReason) blockedReason = detectEpisodicMemoryContamination(fact);
+    if (!blockedReason) blockedReason = detectRelationshipLedgerOwnedFact(fact);
     if (!blockedReason && isClearlyTemporaryEpisodicFact(fact)) {
       blockedReason = "clearly_temporary";
     }
     if (!blockedReason) blockedReason = detectAbstractPsychologicalInference(fact);
+    if (!blockedReason) blockedReason = detectUnverifiedCanonicalization(fact);
+    if (!blockedReason) blockedReason = detectUnsupportedEvidenceFact(fact);
     if (
       !blockedReason &&
       currentTurn != null &&

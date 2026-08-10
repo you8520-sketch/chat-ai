@@ -84,6 +84,17 @@ export type ExtractedStatusFactCategory =
 
 export type ExtractedStatusFactImportance = "critical" | "important" | "normal";
 
+/**
+ * Why a status extractor is allowed to promote a scene detail into durable
+ * episodic memory. `assistant_inference` is intentionally not a valid value.
+ */
+export type ExtractedStatusFactEvidenceType =
+  | "explicit_user_statement"
+  | "explicit_scene_event"
+  | "explicit_character_claim"
+  /** Legacy metadata only; new model output must never duplicate canon into episodic memory. */
+  | "canon";
+
 export type ExtractedStatusFact = {
   category: ExtractedStatusFactCategory;
   subject: string;
@@ -91,6 +102,8 @@ export type ExtractedStatusFact = {
   value: string;
   importance: ExtractedStatusFactImportance;
   fact_text: string;
+  /** Optional only for legacy stored facts and internal fixtures. New model output requires it. */
+  evidence_type?: ExtractedStatusFactEvidenceType;
 };
 
 export type ParsedStatusWidgetTurnValues = {

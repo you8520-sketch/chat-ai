@@ -451,7 +451,9 @@ async function runExtractAttempt(opts: {
     const outcome: AttemptOutcome = {
       ok,
       values,
-      facts: ok ? sanitizeExtractedFacts(parsed.extracted_facts) : [],
+      facts: ok
+        ? sanitizeExtractedFacts(parsed.extracted_facts, { requireEvidence: true })
+        : [],
       usage,
       reasonCode,
       textLength,

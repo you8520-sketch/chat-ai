@@ -956,7 +956,7 @@ export function parseCombinedDualWidgetExtractResponse(
   const out: CombinedDualWidgetExtractParseResult = {
     ...empty,
     jsonParseOk: true,
-    extracted_facts: sanitizeExtractedFacts(root.extracted_facts),
+    extracted_facts: sanitizeExtractedFacts(root.extracted_facts, { requireEvidence: true }),
   };
 
   const charRaw = asJsonRecord(root.character_values);
