@@ -75,6 +75,9 @@ import {
 export const ROLLING_SUMMARY_SYSTEM_PROMPT = `[${ROLLING_SUMMARY_INTERVAL}턴 히스토리 요약]
 
 ${ROLLING_SUMMARY_INTERVAL}턴 배치의 사건을 발생 순서대로 요약한다. 사건 시기와 인과관계를 누락하지 않는다.
+마지막 턴만 보고 요약하지 않는다. 응답 전에 요약 대상 source 턴의 앞·중간·뒤를 모두 검토하고,
+서로 다른 중요한 사건이 있으면 각 구간의 원인·전환·결과가 최종 요약에 남았는지 자체 점검한다.
+단, 변화가 없는 짧은 반응이나 반복은 생략할 수 있다.
 작중 시간은 본문·상태창·정본에 명시된 경우에만 기록하며, 불명확하면 추측하지 않는다.
 현실 날짜·요약 생성일·턴 범위는 본문에 쓰지 않고 서버 metadata로 관리한다.
 
@@ -150,6 +153,14 @@ function formatBatchDialogue(
     .join("\n\n");
 }
 
+/** @internal test seam — production formatter used before the rolling-summary LLM call */
+export function __formatBatchDialogueForTests(
+  entries: Array<{ turnIndex: number; turn: DialogueTurn }>,
+  charName: string
+): string {
+  return formatBatchDialogue(entries, charName);
+}
+
 export type RollingSummaryLlmCaller = (
   system: string,
   history: { role: "user" | "assistant"; content: string }[],
@@ -180,6 +191,7 @@ export async function summarizeTurnBatch(opts: {
   characterIdentity?: string | null;
   startTurn: number;
   endTurn: number;
+  sourceTurnIndexes?: number[];
   userPersona?: string | null;
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
 }): Promise<string> {
@@ -189,7 +201,19 @@ export async function summarizeTurnBatch(opts: {
   const characterBlock = opts.characterIdentity?.trim()
     ? `\n\n[캐릭터 식별정보 — 성별·호칭·신체 묘사 절대 준수]\n${opts.characterIdentity.trim()}`
     : "";
-  const userContent = `[${opts.startTurn}~${opts.endTurn}턴 원본 대화]\n${opts.dialogue}\n\n캐릭터: ${opts.charName}${characterBlock}${personaBlock}\n\n[${ROLLING_SUMMARY_INTERVAL}턴 히스토리 요약] 최대 ${ROLLING_SUMMARY_MAX_CHARS}자. OOC·UI·SNS mock·RP 중단 연출은 제외하고 RP 사건만 요약:`;
+  const sourceTurnIndexes = Array.from(
+    new Set(
+      (opts.sourceTurnIndexes?.length
+        ? opts.sourceTurnIndexes
+        : Array.from(
+            { length: Math.max(0, opts.endTurn - opts.startTurn + 1) },
+            (_, i) => opts.startTurn + i
+          )
+      ).filter((turn) => Number.isInteger(turn) && turn > 0)
+    )
+  ).sort((a, b) => a - b);
+  const sourceCoverage = sourceTurnIndexes.map((turn) => `[${turn}턴]`).join(" ");
+  const userContent = `[${opts.startTurn}~${opts.endTurn}턴 원본 대화]\n${opts.dialogue}\n\n[요약 대상 RP source 턴]\n${sourceCoverage}\n위 source 턴의 앞·중간·뒤를 모두 검토한다. 서로 다른 중요한 사건이 있으면 마지막 턴 하나로 축소하지 말고 인과 순서로 보존한다. 최종 출력에는 점검표나 턴 번호를 쓰지 않는다.\n\n캐릭터: ${opts.charName}${characterBlock}${personaBlock}\n\n[${ROLLING_SUMMARY_INTERVAL}턴 히스토리 요약] 최대 ${ROLLING_SUMMARY_MAX_CHARS}자. OOC·UI·SNS mock·RP 중단 연출은 제외하고 RP 사건만 요약:`;
   const finishSummary = (raw: string): string => {
     const cleaned = normalizeSummaryText(raw);
     if (!cleaned) return "";
@@ -735,6 +759,7 @@ async function composeBatchScopePayload(opts: {
         characterIdentity: opts.characterIdentity,
         startTurn: summaryStartTurn,
         endTurn: summaryEndTurn,
+        sourceTurnIndexes: mainEntries.map((entry) => entry.turnIndex),
         userPersona: opts.userPersona,
         turnTrace: opts.turnTrace,
       });
