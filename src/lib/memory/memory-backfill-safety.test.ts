@@ -34,7 +34,7 @@ describe("memory backfill cost safety (static)", () => {
     assert.equal(dbTs.includes("syncAndCompressMemoryFromChat"), false);
   });
 
-  it("GET memory route schedules or awaits catch-up when sealed batches are missing", () => {
+  it("GET memory route awaits catch-up when sealed batches are missing", () => {
     const route = fs.readFileSync(
       path.join(process.cwd(), "src/app/api/chat/memory/route.ts"),
       "utf8"
@@ -42,9 +42,9 @@ describe("memory backfill cost safety (static)", () => {
     assert.match(route, /prepareMemoryPanelView\(backfillOpts\)/);
     assert.match(route, /needsSealCatchUp/);
     assert.match(route, /expectedSealedTurnCount/);
+    assert.match(route, /if \(needsSealCatchUp\)/);
+    assert.match(route, /await syncAndCompressMemoryFromChat\(backfillOpts\)/);
     assert.match(route, /catchUpSummary/);
-    assert.match(route, /syncAndCompressMemoryFromChat/);
-    assert.match(route, /scheduleMemoryPanelBackfill\(backfillOpts\)/);
   });
 
   it("ChatSettingsPanel does not attach backfill=1 on every memoryRefreshKey", () => {
@@ -69,7 +69,7 @@ describe("memory backfill cost safety (static)", () => {
     assert.equal(src.includes("maxRounds: 5"), false);
   });
 
-  it("processRollingSummaryBatch skips model call when row already exists", () => {
+  it("processRollingSummaryBatch coalesces in-flight seal and skips when active row exists", () => {
     const src = fs.readFileSync(
       path.join(process.cwd(), "src/lib/memory/memory-rolling-summary.ts"),
       "utf8"
@@ -78,8 +78,9 @@ describe("memory backfill cost safety (static)", () => {
     const fnEnd = src.indexOf("export async function regenerateMemoryRecordBatch");
     assert.ok(fnStart >= 0 && fnEnd > fnStart);
     const fn = src.slice(fnStart, fnEnd);
+    assert.match(fn, /withRollingSummaryLock/);
     assert.match(fn, /active row already present/);
-    const lockIdx = fn.indexOf("running.add(opts.chatId);");
+    const lockIdx = fn.indexOf("withRollingSummaryLock(");
     const composeIdx = fn.indexOf("await composeBatchScopePayload(");
     assert.ok(lockIdx >= 0 && composeIdx > lockIdx);
   });

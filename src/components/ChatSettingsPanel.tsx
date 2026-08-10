@@ -265,8 +265,9 @@ export default function ChatSettingsPanel({
 
     const backfill = memoryBackfillOnceRef.current ? "&backfill=1" : "";
     memoryBackfillOnceRef.current = false;
+    // GET may await missing [1~6] seal automatically — allow summary LLM time.
     fetch(`/api/chat/memory?chatId=${chatId}${backfill}`, {
-      signal: AbortSignal.timeout(MEMORY_FETCH_TIMEOUT_MS),
+      signal: AbortSignal.timeout(MEMORY_CATCHUP_TIMEOUT_MS),
     })
       .then((r) => r.json())
       .then((j) => {
@@ -1239,7 +1240,6 @@ function MemorySection({
   const [regeneratingRecordId, setRegeneratingRecordId] = useState<number | null>(null);
   const [savingLorebook, setSavingLorebook] = useState(false);
   const [actionMsg, setActionMsg] = useState("");
-  const [catchingUp, setCatchingUp] = useState(false);
   const [lorebookEditing, setLorebookEditing] = useState(false);
   const lorebookTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [editingRecordId, setEditingRecordId] = useState<number | null>(null);
@@ -1297,43 +1297,19 @@ function MemorySection({
   const pct = data ? Math.min(100, Math.round((data.longTermChars / data.limit) * 100)) : 0;
   const lorebookMax = data?.memoryCapacity ?? data?.limit ?? MEMORY_CAPACITY_DEFAULT;
 
-  async function refreshMemoryPanel(opts?: { awaitCatchUp?: boolean }) {
+  async function refreshMemoryPanel() {
     if (chatId == null) return;
-    const awaitCatchUp = opts?.awaitCatchUp === true;
     const qs = new URLSearchParams({ chatId: String(chatId), backfill: "1" });
-    if (awaitCatchUp) qs.set("awaitCatchUp", "1");
     const res = await fetch(`/api/chat/memory?${qs}`, {
-      signal: AbortSignal.timeout(
-        awaitCatchUp ? MEMORY_CATCHUP_TIMEOUT_MS : MEMORY_FETCH_TIMEOUT_MS
-      ),
+      signal: AbortSignal.timeout(MEMORY_CATCHUP_TIMEOUT_MS),
     });
     const j = await res.json();
     if (!res.ok) throw new Error(j.error ?? "새로고침 실패");
     onDataChange(j as MemoryData);
     if (j.sealCatchUp?.error) {
       setActionMsg(j.sealCatchUp.error);
-    }
-  }
-
-  async function forceCatchUpSummary() {
-    if (chatId == null || catchingUp) return;
-    setCatchingUp(true);
-    setActionMsg("기억 기록 생성 중… (최대 1분 정도 걸릴 수 있습니다)");
-    try {
-      const res = await fetch("/api/chat/memory", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        signal: AbortSignal.timeout(MEMORY_CATCHUP_TIMEOUT_MS),
-        body: JSON.stringify({ chatId, action: "catchUpSummary" }),
-      });
-      const j = await res.json();
-      if (!res.ok) throw new Error(j.error ?? "요약 생성 실패");
-      await refreshMemoryPanel();
-      setActionMsg("기억 기록을 생성했습니다.");
-    } catch (e) {
-      setActionMsg((e as Error).message);
-    } finally {
-      setCatchingUp(false);
+    } else if (j.sealCatchUp?.ok) {
+      setActionMsg("비어 있던 기억 기록을 자동으로 채웠습니다.");
     }
   }
 
@@ -1485,19 +1461,9 @@ function MemorySection({
           </p>
         )}
         {sealPending && (
-          <div className="mb-1 flex flex-wrap items-center gap-2">
-            <p className="text-[10px] text-violet-400/80">
-              {ROLLING_SUMMARY_INTERVAL}턴 기억 기록이 비어 있습니다. 지금 생성할 수 있습니다.
-            </p>
-            <button
-              type="button"
-              disabled={catchingUp}
-              onClick={() => void forceCatchUpSummary()}
-              className="rounded border border-violet-500/40 px-2 py-0.5 text-[10px] text-violet-200 hover:bg-violet-500/10 disabled:opacity-40"
-            >
-              {catchingUp ? "생성 중…" : "지금 생성하기"}
-            </button>
-          </div>
+          <p className="mb-1 text-[10px] text-violet-400/80">
+            {data.totalTurns}턴까지 진행됨 — 비어 있는 [{ROLLING_SUMMARY_INTERVAL}턴] 기록을 자동 생성합니다…
+          </p>
         )}
         <div className="mb-2 h-1 overflow-hidden rounded bg-white/5">
           <div className="h-full bg-violet-500/70" style={{ width: `${pct}%` }} />
@@ -1580,23 +1546,14 @@ function MemorySection({
           <div className="space-y-2">
             <p className="text-[10px] text-zinc-600">
               {sealPending
-                ? `${data.totalTurns}턴까지 진행됐지만 [1~${ROLLING_SUMMARY_INTERVAL}] 기록이 없습니다. 턴을 다시 지울 필요 없이 아래에서 생성하세요.`
+                ? `${data.totalTurns}턴인데 [1~${ROLLING_SUMMARY_INTERVAL}] 기록이 비어 있어 자동으로 채우는 중입니다. 패널을 잠시 열어 두세요.`
                 : data.totalTurns > 0
                   ? `다음 기록까지 ${data.messagesUntilCompression}턴 (${firstSealAtTurn}턴 완료 시 [1~${ROLLING_SUMMARY_INTERVAL}] 기록 생성)`
                   : `대화를 시작하면 ${firstSealAtTurn}턴 완료 시 첫 기록이 쌓입니다.`}
             </p>
-            {sealPending && (
-              <button
-                type="button"
-                disabled={catchingUp}
-                onClick={() => void forceCatchUpSummary()}
-                className="rounded-lg border border-violet-500/40 px-3 py-1 text-[11px] text-violet-200 hover:bg-violet-500/10 disabled:opacity-40"
-              >
-                {catchingUp
-                  ? "생성 중…"
-                  : `[1~${ROLLING_SUMMARY_INTERVAL}] 기록 지금 생성하기`}
-              </button>
-            )}
+            {sealPending && data.sealCatchUp?.error ? (
+              <p className="text-[10px] text-amber-300/90">{data.sealCatchUp.error}</p>
+            ) : null}
           </div>
         ) : (
           <>

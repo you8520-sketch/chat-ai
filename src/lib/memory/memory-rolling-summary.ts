@@ -130,7 +130,47 @@ export const ROLLING_SUMMARY_EPISTEMIC_POLICY = `[CANONICAL GROUNDING — REQUIR
 - Directly observable actions/results and explicit user statements may be stated plainly. When certainty is unclear, write "추측했다", "가능성이 제기됐다", or "확정되지 않았다".
 - Do not expose turn numbers, source checklists, or prompt wording in the final summary.`;
 
-const running = new Set<number>();
+/** Single-flight per chat — concurrent callers await the same in-flight seal/rebuild. */
+const inflight = new Map<number, Promise<boolean>>();
+
+export function isRollingSummaryInFlight(chatId: number): boolean {
+  return inflight.has(chatId);
+}
+
+/**
+ * Run exclusive rolling-summary work for a chat.
+ * If another job is already running:
+ *  - coalesce=true (default): await and return that job's result
+ *  - coalesce=false: await it, then run `fn` (regen/rebuild)
+ */
+async function withRollingSummaryLock(
+  chatId: number,
+  fn: () => Promise<boolean>,
+  opts?: { coalesce?: boolean }
+): Promise<boolean> {
+  const coalesce = opts?.coalesce !== false;
+  const existing = inflight.get(chatId);
+  if (existing) {
+    if (coalesce) return existing;
+    await existing.catch(() => false);
+  }
+  let jobResolve!: (v: boolean) => void;
+  const job = new Promise<boolean>((resolve) => {
+    jobResolve = resolve;
+  });
+  inflight.set(chatId, job);
+  try {
+    const result = await fn();
+    jobResolve(result);
+    return result;
+  } catch (e) {
+    jobResolve(false);
+    throw e;
+  } finally {
+    if (inflight.get(chatId) === job) inflight.delete(chatId);
+  }
+}
+
 const ARROW_SEP = " → ";
 
 function normalizeSummaryText(text: string): string {
@@ -1109,7 +1149,6 @@ export async function refreshRollingSummaryForRegeneratedAssistant(opts: {
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
 }): Promise<boolean> {
   if (!isMemoryFeatureEnabled()) return false;
-  if (running.has(opts.chatId)) return false;
 
   const allTurns = loadMemoryEligibleChatTurnsWithMessageIds(opts.chatId);
   const target = allTurns.find((t) => t.assistantMessageId === opts.assistantMessageId);
@@ -1139,28 +1178,28 @@ export async function refreshRollingSummaryForRegeneratedAssistant(opts: {
     return false;
   }
 
-  running.add(opts.chatId);
-  try {
-    return await rebuildExistingBatchScopePayload({
-      chatId: opts.chatId,
-      userId: opts.userId,
-      characterId: opts.characterId,
-      charName: opts.charName,
-      characterIdentity: opts.characterIdentity,
-      tier: opts.tier,
-      memoryCapacity: opts.memoryCapacity,
-      userPersona: opts.userPersona,
-      turnTrace: opts.turnTrace,
-      batchStart,
-      existingRecord: record,
-      logLabel: `regen batch refresh assistant=${opts.assistantMessageId}`,
-    });
-  } catch (e) {
+  return withRollingSummaryLock(
+    opts.chatId,
+    () =>
+      rebuildExistingBatchScopePayload({
+        chatId: opts.chatId,
+        userId: opts.userId,
+        characterId: opts.characterId,
+        charName: opts.charName,
+        characterIdentity: opts.characterIdentity,
+        tier: opts.tier,
+        memoryCapacity: opts.memoryCapacity,
+        userPersona: opts.userPersona,
+        turnTrace: opts.turnTrace,
+        batchStart,
+        existingRecord: record,
+        logLabel: `regen batch refresh assistant=${opts.assistantMessageId}`,
+      }),
+    { coalesce: false }
+  ).catch((e) => {
     console.warn("[memory] regen batch refresh failed:", (e as Error).message);
     return false;
-  } finally {
-    running.delete(opts.chatId);
-  }
+  });
 }
 
 export function pickNextSummaryBatch(
@@ -1186,127 +1225,141 @@ export async function processRollingSummaryBatch(opts: {
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
 }): Promise<boolean> {
   if (!isMemoryFeatureEnabled()) return false;
-  // In-flight lock first — shrink race before any await/LLM
-  if (running.has(opts.chatId)) return false;
-  running.add(opts.chatId);
+  // Coalesce: panel backfill + "지금 생성하기" share one in-flight seal instead of
+  // the second call returning false immediately (busy lock).
+  return withRollingSummaryLock(opts.chatId, async () => {
+    try {
+      const memory = getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
+      const boundarySnapshot = getMemorySourceBoundary(opts.chatId);
+      const playableMeta = loadMemoryEligibleChatTurnsWithMessageIds(
+        opts.chatId,
+        boundarySnapshot
+      );
+      const playableCount = playableMeta.length;
 
-  try {
-    const memory = getOrCreateChatMemory(opts.chatId, opts.userId, opts.characterId, opts.tier);
-    const boundarySnapshot = getMemorySourceBoundary(opts.chatId);
-    const playableMeta = loadMemoryEligibleChatTurnsWithMessageIds(
-      opts.chatId,
-      boundarySnapshot
-    );
-    const playableCount = playableMeta.length;
+      // Counter must follow contiguous *active* batches — never trust stale summarized_turn_count alone.
+      // Soft-deleted (inactive) rows do not count as sealed and do not block reseal.
+      const records = listMemoryRecordsForChat(opts.chatId);
+      let summarized = highestContiguousCompletedTurn(records, playableCount);
+      if ((memory.summarized_turn_count ?? 0) !== summarized) {
+        summarized = reconcileSummarizedTurnCountFromTable({
+          chatId: opts.chatId,
+          userId: opts.userId,
+          characterId: opts.characterId,
+          tier: opts.tier,
+          playableTurnCount: playableCount,
+          boundarySnapshot,
+        });
+        console.warn("[memory] SUMMARY_COUNTER_DRIFT reconciled", {
+          chatId: opts.chatId,
+          was: memory.summarized_turn_count,
+          now: summarized,
+        });
+      }
 
-    // Counter must follow contiguous *active* batches — never trust stale summarized_turn_count alone.
-    // Soft-deleted (inactive) rows do not count as sealed and do not block reseal.
-    const records = listMemoryRecordsForChat(opts.chatId);
-    let summarized = highestContiguousCompletedTurn(records, playableCount);
-    if ((memory.summarized_turn_count ?? 0) !== summarized) {
-      summarized = reconcileSummarizedTurnCountFromTable({
+      const missingEarliest = earliestMissingBatchStart(records, playableCount);
+      const nextStart = summarized + 1;
+      // Always fill earliest gap first (usually equals nextStart when contiguous)
+      const batchStart = missingEarliest ?? nextStart;
+      if (batchStart !== nextStart) {
+        console.warn("[memory] SUMMARY_BATCH_GAP refuse non-contiguous batch", {
+          chatId: opts.chatId,
+          batchStart,
+          nextStart,
+          missingEarliest,
+        });
+        return false;
+      }
+
+      // Idempotent: active row already present → never call V3 again for this batch.
+      // Inactive (soft-deleted) rows are ignored so a fresh seal can revive them.
+      if (records.some((r) => !r.inactive && r.turnStart === batchStart)) {
+        return true;
+      }
+
+      const batchMeta = playableMeta.slice(batchStart - 1, batchStart - 1 + ROLLING_SUMMARY_INTERVAL);
+      if (batchMeta.length < ROLLING_SUMMARY_INTERVAL) {
+        console.warn("[memory] SUMMARY_BATCH_INCOMPLETE", {
+          chatId: opts.chatId,
+          batchStart,
+          have: batchMeta.length,
+          need: ROLLING_SUMMARY_INTERVAL,
+          playableCount,
+        });
+        return false;
+      }
+
+      // Re-check after lock + load (another worker may have just persisted)
+      const latest = listMemoryRecordsForChat(opts.chatId);
+      if (latest.some((r) => !r.inactive && r.turnStart === batchStart)) {
+        return true;
+      }
+
+      const endTurn = batchStart + ROLLING_SUMMARY_INTERVAL - 1;
+      const allEntries = batchMeta.map((meta, i) => ({
+        turnIndex: batchStart + i,
+        turn: { user: meta.user, assistant: meta.assistant } satisfies DialogueTurn,
+        userMessageId: meta.userMessageId,
+      }));
+
+      const priorRecords = listMemoryRecordsForChat(opts.chatId);
+      const previousWasNoncanonOrBranch = priorRecords.some(
+        (r) =>
+          !r.inactive &&
+          (r.summaryKind === "noncanon" ||
+            (r.summaryKind === "branch_canon" && r.branchStatus === "active"))
+      );
+
+      const composed = await composeBatchScopePayload({
+        chatId: opts.chatId,
+        batchStart,
+        endTurn,
+        allEntries,
+        charName: opts.charName,
+        characterIdentity: opts.characterIdentity,
+        userPersona: opts.userPersona,
+        turnTrace: opts.turnTrace,
+        mode: "seal",
+        existingRecord: null,
+        previousWasNoncanonOrBranch,
+        priorRecords,
+      });
+      if (!composed.ok) {
+        console.warn("[memory] SUMMARY_COMPOSE_FAILED", {
+          chatId: opts.chatId,
+          batchStart,
+          endTurn,
+        });
+        return false;
+      }
+
+      const lastAssistantId = batchMeta[batchMeta.length - 1]?.assistantMessageId ?? null;
+      return persistComposedBatchScopes({
         chatId: opts.chatId,
         userId: opts.userId,
         characterId: opts.characterId,
         tier: opts.tier,
-        playableTurnCount: playableCount,
-        boundarySnapshot,
-      });
-      console.warn("[memory] SUMMARY_COUNTER_DRIFT reconciled", {
-        chatId: opts.chatId,
-        was: memory.summarized_turn_count,
-        now: summarized,
-      });
-    }
-
-    const missingEarliest = earliestMissingBatchStart(records, playableCount);
-    const nextStart = summarized + 1;
-    // Always fill earliest gap first (usually equals nextStart when contiguous)
-    const batchStart = missingEarliest ?? nextStart;
-    if (batchStart !== nextStart) {
-      console.warn("[memory] SUMMARY_BATCH_GAP refuse non-contiguous batch", {
-        chatId: opts.chatId,
+        memoryCapacity: opts.memoryCapacity,
         batchStart,
-        nextStart,
-        missingEarliest,
+        endTurn,
+        lastAssistantId,
+        playableCount,
+        composed,
+        turnTrace: opts.turnTrace,
+        logLabel: `${ROLLING_SUMMARY_INTERVAL}턴 기억 기록`,
+        boundarySnapshot,
+        sourceUserMessageIds: batchMeta
+          .map((turn) => turn.userMessageId)
+          .filter((id): id is number => id != null),
       });
+    } catch (e) {
+      console.error(
+        `[memory] rolling summary failed chat=${opts.chatId}:`,
+        (e as Error).message
+      );
       return false;
     }
-
-    // Idempotent: active row already present → never call V3 again for this batch.
-    // Inactive (soft-deleted) rows are ignored so a fresh seal can revive them.
-    if (records.some((r) => !r.inactive && r.turnStart === batchStart)) {
-      return false;
-    }
-
-    const batchMeta = playableMeta.slice(batchStart - 1, batchStart - 1 + ROLLING_SUMMARY_INTERVAL);
-    if (batchMeta.length < ROLLING_SUMMARY_INTERVAL) return false;
-
-    // Re-check after lock + load (another worker may have just persisted)
-    const latest = listMemoryRecordsForChat(opts.chatId);
-    if (latest.some((r) => !r.inactive && r.turnStart === batchStart)) {
-      return false;
-    }
-
-    const endTurn = batchStart + ROLLING_SUMMARY_INTERVAL - 1;
-    const allEntries = batchMeta.map((meta, i) => ({
-      turnIndex: batchStart + i,
-      turn: { user: meta.user, assistant: meta.assistant } satisfies DialogueTurn,
-      userMessageId: meta.userMessageId,
-    }));
-
-    const priorRecords = listMemoryRecordsForChat(opts.chatId);
-    const previousWasNoncanonOrBranch = priorRecords.some(
-      (r) =>
-        !r.inactive &&
-        (r.summaryKind === "noncanon" ||
-          (r.summaryKind === "branch_canon" && r.branchStatus === "active"))
-    );
-
-    const composed = await composeBatchScopePayload({
-      chatId: opts.chatId,
-      batchStart,
-      endTurn,
-      allEntries,
-      charName: opts.charName,
-      characterIdentity: opts.characterIdentity,
-      userPersona: opts.userPersona,
-      turnTrace: opts.turnTrace,
-      mode: "seal",
-      existingRecord: null,
-      previousWasNoncanonOrBranch,
-      priorRecords,
-    });
-    if (!composed.ok) return false;
-
-    const lastAssistantId = batchMeta[batchMeta.length - 1]?.assistantMessageId ?? null;
-    return persistComposedBatchScopes({
-      chatId: opts.chatId,
-      userId: opts.userId,
-      characterId: opts.characterId,
-      tier: opts.tier,
-      memoryCapacity: opts.memoryCapacity,
-      batchStart,
-      endTurn,
-      lastAssistantId,
-      playableCount,
-      composed,
-      turnTrace: opts.turnTrace,
-      logLabel: `${ROLLING_SUMMARY_INTERVAL}턴 기억 기록`,
-      boundarySnapshot,
-      sourceUserMessageIds: batchMeta
-        .map((turn) => turn.userMessageId)
-        .filter((id): id is number => id != null),
-    });
-  } catch (e) {
-    console.error(
-      `[memory] rolling summary failed chat=${opts.chatId}:`,
-      (e as Error).message
-    );
-    return false;
-  } finally {
-    running.delete(opts.chatId);
-  }
+  });
 }
 
 
@@ -1324,35 +1377,34 @@ export async function regenerateMemoryRecordBatch(opts: {
   turnTrace?: import("@/lib/geminiRequestTrace").GeminiTurnTrace;
 }): Promise<boolean> {
   if (!isMemoryFeatureEnabled()) return false;
-  if (running.has(opts.chatId)) return false;
 
   const batchStart = resolveBatchStartTurnForTurnNumber(opts.turnStart);
   const record = listMemoryRecordsForChat(opts.chatId).find((r) => r.turnStart === batchStart);
   if (record?.userEdited) return false;
   if (!record) return false;
 
-  running.add(opts.chatId);
-  try {
-    return await rebuildExistingBatchScopePayload({
-      chatId: opts.chatId,
-      userId: opts.userId,
-      characterId: opts.characterId,
-      charName: opts.charName,
-      characterIdentity: opts.characterIdentity,
-      tier: opts.tier,
-      memoryCapacity: opts.memoryCapacity,
-      userPersona: opts.userPersona,
-      turnTrace: opts.turnTrace,
-      batchStart,
-      existingRecord: record,
-      logLabel: "regenerateMemoryRecordBatch",
-    });
-  } catch (e) {
+  return withRollingSummaryLock(
+    opts.chatId,
+    () =>
+      rebuildExistingBatchScopePayload({
+        chatId: opts.chatId,
+        userId: opts.userId,
+        characterId: opts.characterId,
+        charName: opts.charName,
+        characterIdentity: opts.characterIdentity,
+        tier: opts.tier,
+        memoryCapacity: opts.memoryCapacity,
+        userPersona: opts.userPersona,
+        turnTrace: opts.turnTrace,
+        batchStart,
+        existingRecord: record,
+        logLabel: "regenerateMemoryRecordBatch",
+      }),
+    { coalesce: false }
+  ).catch((e) => {
     console.error("[memory] regenerateMemoryRecordBatch failed:", (e as Error).message);
     return false;
-  } finally {
-    running.delete(opts.chatId);
-  }
+  });
 }
 
 export function scheduleCharacterRollingSummary(opts: {

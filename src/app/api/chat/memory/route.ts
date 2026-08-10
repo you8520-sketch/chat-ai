@@ -124,8 +124,10 @@ export async function GET(req: Request) {
     error: string | null;
   } = { attempted: false, ok: false, error: null };
 
-  if (needsSealCatchUp && awaitCatchUp) {
-    // Explicit await path (UI "지금 생성하기") — do not rely on fire-and-forget.
+  // Auto-fill: if playable turns already cover a sealed window but history is
+  // missing (e.g. 8 turns, no [1~6]), await seal here — do not ask the user to
+  // click, and do not fire-and-forget (that raced with a busy lock and failed instantly).
+  if (needsSealCatchUp) {
     sealCatchUp.attempted = true;
     try {
       const ok = await syncAndCompressMemoryFromChat(backfillOpts);
@@ -137,13 +139,13 @@ export async function GET(req: Request) {
       sealCatchUp.ok = after >= expectedSealedTurnCount(afterEligible);
       if (!sealCatchUp.ok) {
         sealCatchUp.error = ok
-          ? "요약 배치가 아직 비어 있습니다. 잠시 후 다시 시도해 주세요."
-          : "요약 생성에 실패했습니다. 다시 시도해 주세요.";
+          ? "요약 배치가 아직 비어 있습니다. 패널을 다시 열면 자동으로 재시도합니다."
+          : "요약 생성에 실패했습니다. 패널을 다시 열면 자동으로 재시도합니다.";
       }
     } catch (e) {
       sealCatchUp.error = (e as Error).message || "요약 생성 중 오류";
     }
-  } else if (needsSealCatchUp || explicitBackfill) {
+  } else if (explicitBackfill || awaitCatchUp) {
     scheduleMemoryPanelBackfill(backfillOpts);
   }
 
