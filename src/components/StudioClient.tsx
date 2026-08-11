@@ -26,9 +26,9 @@ const TABS: {
 }[] = [
   {
     id: "creations",
-    label: "캐릭터·시뮬레이션",
+    label: "캐릭터",
     createHref: "/create",
-    createLabel: "새 캐릭터·시뮬레이션 만들기",
+    createLabel: "새 캐릭터 만들기",
     Icon: IconSidebarStudio,
   },
   {
@@ -96,9 +96,6 @@ export default function StudioClient({ characters, simulations, worlds, lorebook
             <IconSidebarStudio className="h-6 w-6 shrink-0 text-zinc-400" />
             제작
           </h1>
-          <p className={cn(studioType.helper, "mt-2")}>
-            탭을 바꿔 내가 만든 목록을 보고, 아래에서 바로 새로 만들 수 있습니다.
-          </p>
         </div>
         <StudioButton href={activeMeta.createHref} size="lg" className="w-full justify-center sm:w-auto">
           <span className="text-base leading-none" aria-hidden>
