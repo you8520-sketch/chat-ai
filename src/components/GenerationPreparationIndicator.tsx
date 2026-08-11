@@ -13,6 +13,7 @@ type Props = {
   phase?: GenerationPreparationPhase;
   badges?: readonly GenerationSceneBadge[];
   className?: string;
+  elapsedSec?: number;
 };
 
 /**
@@ -22,6 +23,7 @@ export default function GenerationPreparationIndicator({
   phase = "preparing",
   badges = [],
   className,
+  elapsedSec,
 }: Props) {
   const title = generationPreparationTitle(phase);
   const subtitle = generationPreparationSubtitle(phase);
@@ -45,7 +47,14 @@ export default function GenerationPreparationIndicator({
           ✦
         </span>
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-zinc-200">{title}</p>
+          <p className="text-sm font-medium text-zinc-200">
+            {title}
+            {typeof elapsedSec === "number" ? (
+              <span className="ml-1.5 text-xs font-normal text-zinc-500">
+                {elapsedSec}초 경과
+              </span>
+            ) : null}
+          </p>
           {safeBadges.length > 0 ? (
             <ul className="mt-2 flex flex-wrap gap-1.5" aria-label="장면 초점">
               {safeBadges.map((b) => (

@@ -734,10 +734,25 @@ export default function ChatClient({
   const draftScopeRef = useRef(`${character.id}:${initialChatId ?? "pending"}`);
   const [loading, setLoading] = useState(false);
   const [streamPhase, setStreamPhase] = useState<string | null>(null);
+  const [generationStartedAt, setGenerationStartedAt] = useState<number | null>(null);
+  const [generationElapsedSec, setGenerationElapsedSec] = useState(0);
   /** Pre-first-token preparation panel; cleared when visible text arrives. Not persisted. */
   const [generationPrepUi, setGenerationPrepUi] =
     useState<GenerationPreparationUiPayload | null>(null);
   const [error, setError] = useState("");
+  useEffect(() => {
+    if (!loading || generationStartedAt == null) {
+      setGenerationElapsedSec(0);
+      return;
+    }
+    const update = () =>
+      setGenerationElapsedSec(
+        Math.max(0, Math.floor((Date.now() - generationStartedAt) / 1000))
+      );
+    update();
+    const timer = window.setInterval(update, 1000);
+    return () => window.clearInterval(timer);
+  }, [loading, generationStartedAt]);
   const defaultChatAsset = useMemo(() => getDefaultChatAsset(assets), [assets]);
   const initialPortrait = useMemo(
     () => scanMessagesForPortrait(initialMessages, assets, isCharacterCreator),
@@ -2675,6 +2690,7 @@ export default function ChatClient({
     setError("");
     setStreamPhase(null);
     setGenerationPrepUi({ phase: "preparing", badges: [] });
+    setGenerationStartedAt(Date.now());
     followStreamRef.current = true;
     userScrollLockRef.current = false;
     let aiIndex = 0;
@@ -2790,6 +2806,7 @@ export default function ChatClient({
     setError("");
     setStreamPhase(null);
     setGenerationPrepUi({ phase: "preparing", badges: [] });
+    setGenerationStartedAt(Date.now());
     followStreamRef.current = true;
     userScrollLockRef.current = false;
     let aiIndex = 0;
@@ -2931,6 +2948,7 @@ export default function ChatClient({
     setError("");
     setStreamPhase("재생성 준비 중…");
     setGenerationPrepUi({ phase: "preparing", badges: [] });
+    setGenerationStartedAt(Date.now());
     inFlightRef.current = true;
     loadingRef.current = true;
     setLoading(true);
@@ -4005,6 +4023,7 @@ export default function ChatClient({
                   <GenerationPreparationIndicator
                     phase={prep.phase}
                     badges={prep.badges}
+                    elapsedSec={generationElapsedSec}
                   />
                 </div>
               );
@@ -4203,6 +4222,9 @@ export default function ChatClient({
                           {isStreamingThisMessage && (streamPhase || genStatus === "generating") && (
                             <p className="mt-2 animate-pulse text-sm font-medium text-orange-400/90">
                               {streamPhase ?? "생성 중…"}
+                              {generationStartedAt != null
+                                ? ` · ${generationElapsedSec}초 경과`
+                                : ""}
                             </p>
                           )}
                           {i === lastAssistantIdx &&
