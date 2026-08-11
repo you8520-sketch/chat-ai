@@ -109,6 +109,25 @@ describe("chatImageSceneBrief", () => {
     assert.equal(brief.keyDialogue[1]?.text, "정말 여기서 자려고?");
   });
 
+  it("backfills up to four verbatim lines when the model returns few", () => {
+    const source =
+      '태형은 "야."라고 했다. 렌은 "왜."라고 받았다. 태형은 "거기 보지 마."라고 했다. 렌은 "알겠어."라고 했다.';
+    const brief = sanitizeChatImageSceneBrief(
+      {
+        setting: "식당",
+        atmosphere: "긴장",
+        actions: "태현이 앞을 막는다",
+        keyDialogue: [{ speaker: "character", text: "야." }],
+      },
+      source
+    );
+    assert.equal(brief.keyDialogue.length, 4);
+    assert.deepEqual(
+      brief.keyDialogue.map((line) => line.text),
+      ["야.", "왜.", "거기 보지 마.", "알겠어."]
+    );
+  });
+
   it("keeps long dialogue intact without an artificial cap", () => {
     const longLine = `자, 식후땡으로는 역시 낮잠이 최고지. ${"정말로 ".repeat(40)}우리 렌 아까부터 졸린 눈치던데, 여기 형 전용 자리야.`;
     const source = `태형은 "${longLine}"라고 말했다.`;
@@ -188,12 +207,14 @@ describe("chatImageSceneBrief", () => {
           { speaker: "character", text: "대장님, 내 깻잎도 떼어줘!" },
           { speaker: "persona", text: "진정하고 깻잎이나 먹어." },
         ],
+        keyNarration: ["식당 안의 공기가 순간 얼어붙었다."],
       },
       { characterName: "태형", personaName: "렌" }
     );
     assert.match(source, /식당/);
     assert.match(source, /태형: "대장님, 내 깻잎도 떼어줘!"/);
     assert.match(source, /렌: "진정하고 깻잎이나 먹어\."/);
+    assert.match(source, /지문: 식당 안의 공기가 순간 얼어붙었다\./);
   });
 
   it("formats illustration turns around setting and verbatim key lines", () => {
@@ -203,6 +224,7 @@ describe("chatImageSceneBrief", () => {
         atmosphere: "달달",
         actions: "둘이 나란히 선다",
         keyDialogue: [{ speaker: "character", text: "나 봐." }],
+        keyNarration: [],
       },
       { characterName: "태현", personaName: "렌" }
     );
@@ -211,7 +233,7 @@ describe("chatImageSceneBrief", () => {
     assert.match(turn, /acting\/emotion only/);
   });
 
-  it("formats an editable Korean summary with verbatim dialogue", () => {
+  it("formats an editable Korean summary with verbatim dialogue and narration", () => {
     const summary = formatSceneBriefAsEditableSummary(
       {
         setting: "식당",
@@ -221,6 +243,7 @@ describe("chatImageSceneBrief", () => {
           { speaker: "character", text: "대장님, 내 깻잎도 떼어줘!" },
           { speaker: "persona", text: "진정하고 깻잎이나 먹어." },
         ],
+        keyNarration: ["식당 안의 공기가 순간 얼어붙었다."],
       },
       { characterName: "태형", personaName: "렌" }
     );
@@ -228,5 +251,24 @@ describe("chatImageSceneBrief", () => {
     assert.match(summary, /상황: 태형이 조르고 렌이 먹여준다/);
     assert.match(summary, /태형의 대사: "대장님, 내 깻잎도 떼어줘!"/);
     assert.match(summary, /렌의 대사: "진정하고 깻잎이나 먹어\."/);
+    assert.match(summary, /지문: 식당 안의 공기가 순간 얼어붙었다\./);
+  });
+
+  it("backfills verbatim narration when dialogue is scarce", () => {
+    const source =
+      '태형은 "자."라고 말했다. 식당 안의 공기가 순간 얼어붙었다. 렌은 어쩔 줄 몰랐다.';
+    const brief = sanitizeChatImageSceneBrief(
+      {
+        setting: "식당",
+        atmosphere: "긴장",
+        actions: "태형이 앞을 막는다",
+        keyDialogue: [{ speaker: "character", text: "자." }],
+      },
+      source
+    );
+    assert.ok(brief.keyNarration.length >= 1);
+    assert.ok(
+      brief.keyNarration.some((line) => line.includes("식당 안의 공기가 순간 얼어붙었다"))
+    );
   });
 });
