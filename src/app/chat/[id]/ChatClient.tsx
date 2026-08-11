@@ -183,6 +183,8 @@ import {
 } from "@/lib/chatDisplayPrefs";
 
 const CHAT_FETCH_TIMEOUT_MS = 240_000;
+/** Slow reasoning models (e.g. OpenRouter Opus) need a longer client window. */
+const CHAT_FETCH_TIMEOUT_SLOW_MODEL_MS = 600_000;
 
 function chatStreamAbortMessage(e: unknown): string | null {
   if (e instanceof DOMException && e.name === "TimeoutError") {
@@ -1202,9 +1204,12 @@ export default function ChatClient({
     chatFetchAbortRef.current?.abort();
     const controller = new AbortController();
     chatFetchAbortRef.current = controller;
+    const timeoutMs = isClaudeSelectedAI(selectedAIRef.current)
+      ? CHAT_FETCH_TIMEOUT_SLOW_MODEL_MS
+      : CHAT_FETCH_TIMEOUT_MS;
     const timer = window.setTimeout(() => {
       controller.abort(new DOMException("Chat fetch timed out", "TimeoutError"));
-    }, CHAT_FETCH_TIMEOUT_MS);
+    }, timeoutMs);
     controller.signal.addEventListener(
       "abort",
       () => {
