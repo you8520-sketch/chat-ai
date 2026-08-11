@@ -5,10 +5,12 @@ import {
   CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL,
   CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL,
   buildChatImageSceneBriefPrompt,
+  findVerbatimSceneDialogue,
   findVerbatimSceneExcerpt,
   formatSceneBriefAsComicSource,
   formatSceneBriefAsEditableSummary,
   formatSceneBriefAsIllustrationTurn,
+  isSceneActionText,
   resolveChatImageSceneBriefFallbackModel,
   resolveChatImageSceneBriefModel,
   sanitizeChatImageSceneBrief,
@@ -294,5 +296,27 @@ describe("chatImageSceneBrief", () => {
       ["왜.", "야.", "거기 보지 마."]
     );
     assert.deepEqual(brief.keyNarration, ["식당 안이 조용해졌다."]);
+  });
+
+  it("does not treat asterisk action lines as dialogue", () => {
+    assert.ok(isSceneActionText("*피어싱을 귀에 끼워준다*"));
+    assert.ok(isSceneActionText("(작게 웃는다)"));
+    assert.ok(!isSceneActionText("이거 예쁘잖아."));
+    const source =
+      '렌은 "*피어싱을 태형이의 곰돌이 후드의 귀에 끼워준다* 이거 태형이 눈이랑도 잘어울리잖아. 이뻐"라고 했다.';
+    assert.equal(
+      findVerbatimSceneDialogue(
+        "*피어싱을 태형이의 곰돌이 후드의 귀에 끼워준다*",
+        source
+      ),
+      null
+    );
+    assert.equal(
+      findVerbatimSceneDialogue(
+        "이거 태형이 눈이랑도 잘어울리잖아. 이뻐",
+        source
+      ),
+      "이거 태형이 눈이랑도 잘어울리잖아. 이뻐"
+    );
   });
 });
