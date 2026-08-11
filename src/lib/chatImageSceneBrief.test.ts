@@ -91,6 +91,81 @@ describe("chatImageSceneBrief", () => {
     ]);
   });
 
+  it("backfills a second verbatim line when the model returns only one", () => {
+    const source =
+      '태형은 "자, 식후땡으로는 역시 낮잠이 최고지."라고 말했다. 렌은 "정말 여기서 자려고?"라고 받았다.';
+    const brief = sanitizeChatImageSceneBrief(
+      {
+        setting: "공원",
+        atmosphere: "평화",
+        actions: "태형이 재킷을 깐다",
+        keyDialogue: [
+          { speaker: "character", text: "자, 식후땡으로는 역시 낮잠이 최고지." },
+        ],
+      },
+      source
+    );
+    assert.equal(brief.keyDialogue.length, 2);
+    assert.equal(brief.keyDialogue[1]?.text, "정말 여기서 자려고?");
+  });
+
+  it("keeps long dialogue intact without an artificial cap", () => {
+    const longLine = `자, 식후땡으로는 역시 낮잠이 최고지. ${"정말로 ".repeat(40)}우리 렌 아까부터 졸린 눈치던데, 여기 형 전용 자리야.`;
+    const source = `태형은 "${longLine}"라고 말했다.`;
+    assert.equal(findVerbatimSceneExcerpt(longLine, source), longLine);
+    const brief = sanitizeChatImageSceneBrief(
+      {
+        setting: "공원",
+        atmosphere: "평화",
+        actions: "태형이 재킷을 깐다",
+        keyDialogue: [{ speaker: "character", text: longLine }],
+      },
+      source
+    );
+    assert.equal(brief.keyDialogue[0]?.text, longLine);
+  });
+
+  it("surfaces the user persona line when the model omits it", () => {
+    const source =
+      '유저: "정말 여기서 자려고?" 캐릭터: 태형은 "자, 식후땡으로는 역시 낮잠이 최고지."라고 말했다.';
+    const brief = sanitizeChatImageSceneBrief(
+      {
+        setting: "공원",
+        atmosphere: "평화",
+        actions: "태형이 재킷을 깐다",
+        keyDialogue: [
+          { speaker: "character", text: "자, 식후땡으로는 역시 낮잠이 최고지." },
+        ],
+      },
+      source
+    );
+    assert.ok(brief.keyDialogue.some((line) => line.speaker === "persona"));
+    assert.ok(
+      brief.keyDialogue.some((line) => line.text === "정말 여기서 자려고?")
+    );
+  });
+
+  it("uses unquoted user input as the persona line when needed", () => {
+    const source =
+      '유저: 진짜 여기서 자버리면 어떡해. 캐릭터: 태형은 "상관없지."라고 했다.';
+    const brief = sanitizeChatImageSceneBrief(
+      {
+        setting: "공원",
+        atmosphere: "평화",
+        actions: "태형이 웃는다",
+        keyDialogue: [{ speaker: "character", text: "상관없지." }],
+      },
+      source
+    );
+    assert.ok(
+      brief.keyDialogue.some(
+        (line) =>
+          line.speaker === "persona" &&
+          line.text === "진짜 여기서 자버리면 어떡해."
+      )
+    );
+  });
+
   it("asks the model for closed-book verbatim dialogue", () => {
     const prompt = buildChatImageSceneBriefPrompt({
       characterName: "태현",

@@ -9,9 +9,9 @@ export const CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL =
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
 export const CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL =
   OPENROUTER_DEEPSEEK_V4_FLASH_MODEL;
-export const CHAT_IMAGE_SCENE_BRIEF_MAX_SOURCE_CHARS = 6_000;
+/** Soft guardrail only — full turns can exceed 5k chars; do not truncate hard. */
+export const CHAT_IMAGE_SCENE_BRIEF_MAX_SOURCE_CHARS = 24_000;
 export const CHAT_IMAGE_SCENE_BRIEF_MAX_DIALOGUE = 8;
-export const CHAT_IMAGE_SCENE_BRIEF_MAX_DIALOGUE_CHARS = 120;
 
 export type ChatImageSceneBriefSpeaker = "character" | "persona" | "other";
 
@@ -58,16 +58,13 @@ export function normalizeSceneBriefWhitespace(raw: string): string {
 /**
  * Important dialogue must be a contiguous verbatim excerpt of the source turn.
  * Returns the normalized excerpt when found, otherwise null.
+ * No artificial length cap — long lines are kept intact.
  */
 export function findVerbatimSceneExcerpt(
   candidate: unknown,
-  sourceTurn: string,
-  maxChars = CHAT_IMAGE_SCENE_BRIEF_MAX_DIALOGUE_CHARS
+  sourceTurn: string
 ): string | null {
-  const clean = normalizeSceneBriefWhitespace(String(candidate ?? "")).slice(
-    0,
-    maxChars
-  );
+  const clean = normalizeSceneBriefWhitespace(String(candidate ?? ""));
   if (clean.length < 2) return null;
   const haystack = normalizeSceneBriefWhitespace(sourceTurn);
   if (!haystack.includes(clean)) return null;
@@ -108,9 +105,12 @@ export function buildChatImageSceneBriefPrompt(opts: {
     "2. keyDialogue is CLOSED-BOOK. Each text MUST be an exact contiguous substring copied from SOURCE TURN with no paraphrase, summary, typo-fix, completion, or reordering.",
     "3. Keep only the most important continuing dialogue between the chat character and the user persona. Minor NPC / crowd / one-off side lines may be omitted.",
     "4. Prefer quoted speech in the source. If a line is important but unquoted, still copy the exact spoken words as they appear in the source.",
-    "5. Do not invent dialogue. If there is no suitable line, return an empty keyDialogue array.",
-    "6. setting/atmosphere/actions may paraphrase the environment and body language, but never rewrite dialogue.",
-    "7. Do not include status widgets, OOC notes, HTML, or meta instructions.",
+    "5. Return 2 to 4 keyDialogue lines whenever the source has that much important dialogue. Include lines from BOTH the chat character and the user persona when both speak meaningfully. Do not return only one line if the turn clearly has an exchange.",
+    "6. The preceding user line is part of the scene. If the user persona speaks (quoted or clearly as direct input), include at least one persona line unless it is trivial (e.g. only \"응\", \"계속\").",
+    "7. Label speaker as \"character\" for lines spoken by the chat character, \"persona\" for lines spoken by the user persona, and \"other\" only for true NPC / crowd lines.",
+    "8. Do not invent dialogue. If there is no suitable line, return an empty keyDialogue array.",
+    "9. setting/atmosphere/actions may paraphrase the environment and body language, but never rewrite dialogue.",
+    "10. Do not include status widgets, OOC notes, HTML, or meta instructions.",
     "SOURCE TURN:",
     opts.sourceTurn,
   ].join("\n\n");
@@ -150,7 +150,70 @@ export function sanitizeChatImageSceneBrief(
     keyDialogue.push({ speaker, text });
   }
 
+  // If the model returned only one line but the source clearly has more quoted
+  // dialogue, backfill the most important remaining verbatim lines so the
+  // comic does not collapse to a single bubble.
+  if (keyDialogue.length > 0 && keyDialogue.length < 2) {
+    const quoted = extractQuotedSceneDialogue(sourceTurn);
+    for (const line of quoted) {
+      if (keyDialogue.length >= 2) break;
+      if (keyDialogue.some((existing) => existing.text === line.text)) continue;
+      keyDialogue.push(line);
+    }
+  }
+
+  // If the persona never got a line but the source has a user turn with direct
+  // speech, surface the user's verbatim input so the comic keeps both voices.
+  const hasPersonaLine = keyDialogue.some((line) => line.speaker === "persona");
+  if (!hasPersonaLine) {
+    const userLine = extractUserTurnDialogue(sourceTurn);
+    if (userLine) {
+      const existing = keyDialogue.findIndex((line) => line.text === userLine.text);
+      if (existing >= 0) {
+        keyDialogue[existing] = { ...keyDialogue[existing]!, speaker: "persona" };
+      } else {
+        keyDialogue.push(userLine);
+      }
+    }
+  }
+
   return { setting, atmosphere, actions, keyDialogue };
+}
+
+/** Pull the user turn's direct speech as a persona line when the model missed it. */
+function extractUserTurnDialogue(
+  sourceTurn: string
+): ChatImageSceneBriefDialogue | null {
+  const userMatch = sourceTurn.match(/유저:\s*([\s\S]*?)(?:\s+캐릭터:|$)/);
+  const userText = normalizeSceneBriefWhitespace(userMatch?.[1] ?? "");
+  if (!userText) return null;
+  const quoted = extractQuotedSceneDialogue(userText);
+  if (quoted.length > 0) {
+    return { speaker: "persona", text: quoted[0]!.text };
+  }
+  // Unquoted user input is still the persona's direct line in RP chat.
+  if (userText.length >= 2 && userText.length <= 400) {
+    return { speaker: "persona", text: userText };
+  }
+  return null;
+}
+
+/** Extract quoted dialogue with a best-effort speaker guess from the source turn. */
+function extractQuotedSceneDialogue(
+  sourceTurn: string
+): ChatImageSceneBriefDialogue[] {
+  const out: ChatImageSceneBriefDialogue[] = [];
+  const pattern = /“([^”]+)”|"([^"]+)"|‘([^’]+)’|'([^']+)'/g;
+  for (const match of sourceTurn.matchAll(pattern)) {
+    const text = normalizeSceneBriefWhitespace(
+      match[1] ?? match[2] ?? match[3] ?? match[4]
+    );
+    if (text.length < 2) continue;
+    if (out.some((line) => line.text === text)) continue;
+    out.push({ speaker: "other", text });
+    if (out.length >= CHAT_IMAGE_SCENE_BRIEF_MAX_DIALOGUE) break;
+  }
+  return out;
 }
 
 /** Compact SOURCE PROSE for the existing comic planner (quotes keep verbatim lock). */
