@@ -1414,17 +1414,10 @@ export default function ChatImageGeneratorPanel({
                         {ldProduct === "illustration" || ldProduct === "comic" ? (
                           <div className="space-y-2 rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-3 text-[11px] leading-relaxed text-zinc-300">
                             {sourceMessageId ? (
-                              <>
-                                <p>
-                                  <strong className="text-violet-200">선택 턴 자동 인식</strong>
-                                  {" · "}유저 입력과 캐릭터 출력이 그대로 표시됩니다. 유저 대사는 따옴표로 감싸져 있습니다.
-                                </p>
-                                {sourceTurnPreview ? (
-                                  <p className="line-clamp-4 whitespace-pre-wrap text-zinc-400">
-                                    {sourceTurnPreview}
-                                  </p>
-                                ) : null}
-                              </>
+                              <p>
+                                <strong className="text-violet-200">선택 턴 자동 인식</strong>
+                                {" · "}유저 입력과 캐릭터 출력이 그대로 표시됩니다. 유저 대사는 따옴표로 감싸져 있습니다.
+                              </p>
                             ) : (
                               <p>
                                 채팅 메시지 아래 이미지 버튼을 누르면 그 턴 기준으로 장면이 잡힙니다.
