@@ -29,7 +29,9 @@ describe("chatCoupleStampGeneration", () => {
   it("reproduces the fixed 2x2 sheet with all four template motifs", () => {
     const prompt = buildChatCoupleStampPrompt({
       characterName: "태현",
+      characterGender: "male",
       personaName: "렌",
+      personaGender: "male",
       options: {
         height: "persona_taller",
         background: "blush_ribbon",
@@ -45,16 +47,22 @@ describe("chatCoupleStampGeneration", () => {
     assert.match(prompt, /user persona visibly taller/i);
     assert.match(prompt, /태현/);
     assert.match(prompt, /렌/);
+    assert.match(prompt, /GENDER LOCK/);
+    assert.match(prompt, /confirmed MALE/);
   });
 
   it("applies the chosen expression to each person in every badge", () => {
     const prompt = buildChatCoupleStampPrompt({
       characterName: "태현",
+      characterGender: "male",
       personaName: "렌",
+      personaGender: "female",
       options: { characterExpression: "sleepy", personaExpression: "shy" },
     });
     assert.match(prompt, /태현 expression in every badge: cute sleepy expression/);
     assert.match(prompt, /렌 expression in every badge: shy smile with a gentle blush/);
+    assert.match(prompt, /confirmed MALE/);
+    assert.match(prompt, /confirmed FEMALE/);
   });
 
   it("sanitizes unknown option ids to defaults", () => {

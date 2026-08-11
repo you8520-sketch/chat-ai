@@ -37,7 +37,7 @@ import {
   resolveChatImageGenerationModel,
   type ImagePromptGender,
 } from "@/lib/chatImageGeneration";
-import { resolveCharacterGender } from "@/lib/characterGender";
+import { resolveChatImageGenderPair } from "@/lib/chatImageGender";
 import {
   finishChatImageGenerationJob,
   hasRunningChatImageGenerationJob,
@@ -226,12 +226,18 @@ function resolveGenerationContext(opts: {
   if (!characterImageUrl) throw new RequestError("캐릭터 대표 이미지가 필요합니다.");
   if (!personaImageUrl) throw new RequestError("페르소나 대표 이미지가 필요합니다.");
 
+  const genders = resolveChatImageGenderPair({
+    characterName: character.name,
+    characterGender: character.gender,
+    personaName: persona.name,
+    personaGender: persona.gender,
+  });
   return {
     chatId,
     character,
     persona,
-    characterGender: resolveCharacterGender(character.gender),
-    personaGender: resolveCharacterGender(persona.gender),
+    characterGender: genders.characterGender,
+    personaGender: genders.personaGender,
     characterImageUrl,
     personaImageUrl,
   };

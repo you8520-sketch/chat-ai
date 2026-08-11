@@ -46,7 +46,9 @@ describe("chatEmoticonGeneration", () => {
     const scenes = selectRandomChatEmoticonScenes(() => 0.25);
     const prompt = buildChatEmoticonPrompt({
       characterName: "권태현",
+      characterGender: "male",
       personaName: "렌",
+      personaGender: "male",
       scenes,
     });
     for (const scene of scenes) {
@@ -55,6 +57,8 @@ describe("chatEmoticonGeneration", () => {
     }
     assert.match(prompt, /exactly nine equal panels/i);
     assert.match(prompt, /Never blend or swap/);
+    assert.match(prompt, /GENDER LOCK/);
+    assert.match(prompt, /confirmed MALE/);
     assert.equal(resolveChatEmoticonPrice(), 230);
   });
 });

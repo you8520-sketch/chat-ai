@@ -1,7 +1,8 @@
+import { type ImagePromptGender } from "@/lib/chatImageGeneration";
 import {
-  buildImageGenderLockPrompt,
-  type ImagePromptGender,
-} from "@/lib/chatImageGeneration";
+  buildChatImagePairGenderLock,
+  genderWordForImagePrompt,
+} from "@/lib/chatImageGender";
 
 export const CHAT_COMIC_TEMPLATE_ID = "comic_horizontal_2_4" as const;
 export const CHAT_COMIC_TEMPLATE_NAME = "2~4컷 가로 만화";
@@ -106,27 +107,19 @@ export function resolveChatComicPlannerModel(
   return env.OPENAI_COMIC_PLANNER_MODEL?.trim() || CHAT_COMIC_DEFAULT_PLANNER_MODEL;
 }
 
-function genderWord(gender: ImagePromptGender | undefined): string {
-  if (gender === "male") return "male";
-  if (gender === "female") return "female";
-  return "gender-unspecified";
-}
-
 export function buildChatComicPlannerPrompt(opts: {
   characterName: string;
-  characterGender?: ImagePromptGender;
+  characterGender: ImagePromptGender;
   personaName: string;
-  personaGender?: ImagePromptGender;
+  personaGender: ImagePromptGender;
   mood: ChatComicMood;
   sourceText: string;
 }): string {
-  const characterGender = opts.characterGender ?? "other";
-  const personaGender = opts.personaGender ?? "other";
   return [
     "You are a Korean comic storyboard editor.",
     "Choose the smallest natural panel count from 2, 3, or 4, then convert the supplied Korean prose into that many horizontal comic panels stacked vertically on one page.",
     "Use 2 panels for one setup and one payoff in the same beat. Use 3 panels when a transition or reaction beat is needed. Use 4 panels only when multiple distinct actions, dialogue beats, or scene changes are necessary. Never stretch a short scene to fill extra panels.",
-    `The chat character is ${opts.characterName} (${genderWord(characterGender)}); the user persona is ${opts.personaName} (${genderWord(personaGender)}).`,
+    `The chat character is ${opts.characterName} (${genderWordForImagePrompt(opts.characterGender)}); the user persona is ${opts.personaName} (${genderWordForImagePrompt(opts.personaGender)}).`,
     "Never change either person's gender. Long pink/soft hair, cute expressions, blush, or romantic mood must not feminize a male subject or masculinize a female subject.",
     "Infer who is speaking from the prose and preserve their identities throughout.",
     "Dialogue is closed-book extraction. Use only verbatim contiguous excerpts from text enclosed in quotation marks in SOURCE PROSE.",
@@ -265,15 +258,13 @@ export function sanitizeChatComicPlan(
 
 export function buildChatComicImagePrompt(opts: {
   characterName: string;
-  characterGender?: ImagePromptGender;
+  characterGender: ImagePromptGender;
   personaName: string;
-  personaGender?: ImagePromptGender;
+  personaGender: ImagePromptGender;
   mood: ChatComicMood;
   sourceText: string;
   plan: ChatComicPlan;
 }): string {
-  const characterGender = opts.characterGender ?? "other";
-  const personaGender = opts.personaGender ?? "other";
   const approvedText = Array.from(
     new Set(
       opts.plan.panels.flatMap((panel) => [
@@ -315,20 +306,14 @@ export function buildChatComicImagePrompt(opts: {
     `Create one polished Korean manhwa-style page with exactly ${opts.plan.panelCount} wide horizontal panels stacked vertically.`,
     "Reference image 1 is LAYOUT AND FINISH ONLY. Follow its clean gutters, readable Korean bubbles, expressive acting, polished full-color rendering, and romantic-comedy timing, but do not copy its exact poses.",
     "Ignore the sample people drawn on reference image 1. Do not copy their gender presentation, body type, face shape, age, or hair color. Especially do not treat any pink-haired feminine sample figure as either subject.",
-    `Reference image 2 is the identity reference for the chat character ${opts.characterName} (${genderWord(characterGender)}).`,
-    `Reference image 3 is the identity reference for the user persona ${opts.personaName} (${genderWord(personaGender)}).`,
-    buildImageGenderLockPrompt([
-      {
-        label: "chat character",
-        name: opts.characterName,
-        gender: characterGender,
-      },
-      {
-        label: "user persona",
-        name: opts.personaName,
-        gender: personaGender,
-      },
-    ]),
+    `Reference image 2 is the identity reference for the chat character ${opts.characterName} (${genderWordForImagePrompt(opts.characterGender)}).`,
+    `Reference image 3 is the identity reference for the user persona ${opts.personaName} (${genderWordForImagePrompt(opts.personaGender)}).`,
+    buildChatImagePairGenderLock({
+      characterName: opts.characterName,
+      characterGender: opts.characterGender,
+      personaName: opts.personaName,
+      personaGender: opts.personaGender,
+    }),
     "Identity separation is critical. Preserve each person's hair color, eye color, hairstyle, facial details, accessories, body build, and signature outfit impression. Never swap or blend them.",
     `Overall tone: ${CHAT_COMIC_MOODS.find((item) => item.id === opts.mood)?.prompt ?? "comic"}.`,
     "STRICT CLOSED TEXT WHITELIST: the only text allowed anywhere in the image is listed below. Copy each used string exactly, character for character.",

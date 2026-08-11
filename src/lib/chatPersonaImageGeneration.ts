@@ -3,6 +3,7 @@ import {
   parseCharacterGender,
   resolveCharacterGender,
 } from "@/lib/characterGender";
+import { buildChatImageSubjectGenderLock } from "@/lib/chatImageGender";
 
 export const CHAT_PERSONA_IMAGE_TEMPLATE_ID = "persona_portrait_ld" as const;
 export const CHAT_PERSONA_IMAGE_TEMPLATE_NAME = "페르소나 3:5 LD 이미지";
@@ -64,6 +65,11 @@ export function buildChatPersonaImagePrompt(opts: {
     `Reference image 1 is ONLY the art-style reference from the chat character ${opts.characterName}. Match its line quality, rendering, coloring, lighting, facial design language, texture, and overall finish. Do not copy that character's identity, face, hair, outfit, body, accessories, or pose.`,
     `The depicted subject is ${opts.personaName}, not ${opts.characterName}. Exactly one person.`,
     `Saved gender setting: ${GENDER_LABELS[gender]}. Respect this setting exactly; when it is 기타, follow the appearance description without forcing a binary presentation.`,
+    buildChatImageSubjectGenderLock({
+      label: "user persona",
+      name: opts.personaName,
+      gender,
+    }),
     "Saved appearance features (authoritative identity description):",
     opts.appearance,
     "Preserve every concrete appearance feature above. Do not invent conflicting hair, eye, body, clothing, accessory, species, or gender traits.",

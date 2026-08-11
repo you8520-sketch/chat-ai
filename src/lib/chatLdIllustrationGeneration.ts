@@ -1,4 +1,5 @@
-import { buildImageGenderLockPrompt, type ImagePromptGender } from "@/lib/chatImageGeneration";
+import { type ImagePromptGender } from "@/lib/chatImageGeneration";
+import { buildChatImagePairGenderLock } from "@/lib/chatImageGender";
 
 export const CHAT_LD_ILLUSTRATION_TEMPLATE_ID = "current_turn_ld_illustration" as const;
 export const CHAT_LD_ILLUSTRATION_TEMPLATE_NAME = "현재 턴 2:3 LD 일러스트";
@@ -73,9 +74,9 @@ export function formatOpenAiImageUserError(message: string): string {
 
 export function buildChatLdIllustrationPrompt(opts: {
   characterName: string;
-  characterGender?: ImagePromptGender;
+  characterGender: ImagePromptGender;
   personaName: string;
-  personaGender?: ImagePromptGender;
+  personaGender: ImagePromptGender;
   currentTurn: string;
 }) {
   const turn = sanitizeChatTurnForIllustrationPrompt(opts.currentTurn);
@@ -83,18 +84,12 @@ export function buildChatLdIllustrationPrompt(opts: {
     "Create one polished vertical 2:3 Korean character illustration, not a comic page.",
     `Reference image 1 is the identity and art-style reference for ${opts.characterName}, the chat character.`,
     `Reference image 2 is the identity and art-style reference for ${opts.personaName}, the user persona.`,
-    buildImageGenderLockPrompt([
-      {
-        label: "chat character",
-        name: opts.characterName,
-        gender: opts.characterGender ?? "other",
-      },
-      {
-        label: "user persona",
-        name: opts.personaName,
-        gender: opts.personaGender ?? "other",
-      },
-    ]),
+    buildChatImagePairGenderLock({
+      characterName: opts.characterName,
+      characterGender: opts.characterGender,
+      personaName: opts.personaName,
+      personaGender: opts.personaGender,
+    }),
     "SAFETY — depict a wholesome conversation / meeting scene only. Do not depict injury, blood, wounds, scars, weapons, self-harm, suicide, hanging, cutting, or medical trauma even if metaphorical language appears in the turn text.",
     "Depict the current chat turn below as one cinematic, emotionally accurate scene.",
     "Keep both identities clearly separate and highly recognizable. Preserve each person's face, hairstyle, hair color, eye color, body impression, outfit details, accessories, and distinguishing traits.",

@@ -6,9 +6,9 @@
 
 import {
   CHAT_IMAGE_EXPRESSIONS,
-  buildImageGenderLockPrompt,
   type ImagePromptGender,
 } from "@/lib/chatImageGeneration";
+import { buildChatImagePairGenderLock } from "@/lib/chatImageGender";
 
 export const CHAT_COUPLE_STAMP_TEMPLATE_ID = "couple_stamps_4" as const;
 export const CHAT_COUPLE_STAMP_TEMPLATE_NAME = "커플 인장";
@@ -206,9 +206,9 @@ function findPrompt<T extends readonly { id: string; prompt: string }[]>(
 
 export function buildChatCoupleStampPrompt(opts: {
   characterName: string;
-  characterGender?: ImagePromptGender;
+  characterGender: ImagePromptGender;
   personaName: string;
-  personaGender?: ImagePromptGender;
+  personaGender: ImagePromptGender;
   options?: Partial<ChatCoupleStampOptions> | null;
 }): string {
   const options = sanitizeChatCoupleStampOptions(opts.options);
@@ -217,18 +217,12 @@ export function buildChatCoupleStampPrompt(opts: {
     "Create ONE square couple profile stamp sheet: exactly four circular badges arranged in a 2-by-2 grid on a clean white background, with even gaps and equal badge sizes.",
     "Reference image 1 is the fixed template. Reproduce its layout, its four motifs, its bold thick outlines and its soft chibi / SD illustration finish. Replace only the two people.",
     `Reference image 2 is the identity reference for chat character ${opts.characterName}. Reference image 3 is the identity reference for user persona ${opts.personaName}.`,
-    buildImageGenderLockPrompt([
-      {
-        label: "chat character",
-        name: opts.characterName,
-        gender: opts.characterGender ?? "other",
-      },
-      {
-        label: "user persona",
-        name: opts.personaName,
-        gender: opts.personaGender ?? "other",
-      },
-    ]),
+    buildChatImagePairGenderLock({
+      characterName: opts.characterName,
+      characterGender: opts.characterGender,
+      personaName: opts.personaName,
+      personaGender: opts.personaGender,
+    }),
     "The same two people appear in all four badges. Identity separation is critical: preserve each person's hair color, eye color, hairstyle, facial details, accessories and signature outfit impression. Never blend, swap or duplicate the two identities.",
     CHAT_COUPLE_STAMP_PANELS.map((panel) => panel.prompt).join("\n"),
     `Chat character ${opts.characterName} expression in every badge: ${findPrompt(CHAT_COUPLE_STAMP_EXPRESSIONS, options.characterExpression)}.`,
