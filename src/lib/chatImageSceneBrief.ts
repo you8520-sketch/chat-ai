@@ -157,6 +157,29 @@ export function formatSceneBriefAsComicSource(
     .slice(0, 1_600);
 }
 
+/** User-editable Korean summary: setting / atmosphere / actions / verbatim dialogue. */
+export function formatSceneBriefAsEditableSummary(
+  brief: ChatImageSceneBrief,
+  opts: { characterName: string; personaName: string }
+): string {
+  const speakerLabel = (speaker: ChatImageSceneBriefSpeaker) => {
+    if (speaker === "character") return opts.characterName;
+    if (speaker === "persona") return opts.personaName;
+    return "기타";
+  };
+  const dialogue = brief.keyDialogue.length
+    ? brief.keyDialogue
+        .map((line) => `${speakerLabel(line.speaker)}의 대사: "${line.text}"`)
+        .join("\n")
+    : "(중요 대사 없음 — 컷만화에는 최소 1개의 대사가 필요합니다)";
+  return [
+    `배경: ${brief.setting}`,
+    `분위기: ${brief.atmosphere}`,
+    `상황: ${brief.actions}`,
+    dialogue,
+  ].join("\n");
+}
+
 /** Illustration prompt payload: environment/action first; dialogue only as spoken cues. */
 export function formatSceneBriefAsIllustrationTurn(
   brief: ChatImageSceneBrief,

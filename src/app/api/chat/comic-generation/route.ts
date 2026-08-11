@@ -36,6 +36,7 @@ import {
 import {
   extractChatImageSceneBrief,
   formatSceneBriefAsComicSource,
+  formatSceneBriefAsEditableSummary,
   formatSceneBriefAsIllustrationTurn,
   stripChatTurnMarkup,
 } from "@/lib/chatImageSceneBrief";
@@ -630,12 +631,6 @@ export async function POST(req: Request) {
   let savedPath: string | null = null;
   let jobId: number | null = null;
   try {
-    if (hasRunningChatImageGenerationJob(user.id)) {
-      return NextResponse.json(
-        { error: "이미 생성 중인 이미지가 있습니다. 완료된 뒤에 다시 시도해 주세요." },
-        { status: 409 }
-      );
-    }
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     const context = resolveGenerationContext({
       userId: user.id,
@@ -644,6 +639,42 @@ export async function POST(req: Request) {
       personaId: positiveInt(body.personaId),
       requestedCharacterImageUrl: body.characterImageUrl,
     });
+
+    if (body.mode === "scene_brief") {
+      const source = resolveSourceTurn({
+        chatId: context.chatId,
+        messageId: positiveInt(body.messageId),
+      });
+      try {
+        const extracted = await extractChatImageSceneBrief({
+          characterName: context.character.name,
+          personaName: context.persona.name,
+          sourceTurn: source.turnText,
+        });
+        return NextResponse.json({
+          ok: true,
+          mode: "scene_brief",
+          messageId: source.messageId,
+          model: extracted.model,
+          brief: extracted.brief,
+          summary: formatSceneBriefAsEditableSummary(extracted.brief, {
+            characterName: context.character.name,
+            personaName: context.persona.name,
+          }),
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "턴 요약을 만들지 못했습니다.";
+        return NextResponse.json({ error: message }, { status: 502 });
+      }
+    }
+
+    if (hasRunningChatImageGenerationJob(user.id)) {
+      return NextResponse.json(
+        { error: "이미 생성 중인 이미지가 있습니다. 완료된 뒤에 다시 시도해 주세요." },
+        { status: 409 }
+      );
+    }
     const startJob = (templateId: string, mode: string) => {
       jobId = startChatImageGenerationJob({
         userId: user.id,
@@ -865,23 +896,28 @@ export async function POST(req: Request) {
     startJob(CHAT_COMIC_TEMPLATE_ID, "comic");
     let sceneBriefModel: string | null = null;
     let comicSourceText = source.turnText.slice(0, CHAT_COMIC_MAX_INPUT_CHARS);
-    try {
-      const extracted = await extractChatImageSceneBrief({
-        characterName: context.character.name,
-        personaName: context.persona.name,
-        sourceTurn: source.turnText,
-      });
-      sceneBriefModel = extracted.model;
-      comicSourceText = formatSceneBriefAsComicSource(extracted.brief, {
-        characterName: context.character.name,
-        personaName: context.persona.name,
-      });
-      if (!comicSourceText.trim()) {
+    if (source.fromManualText) {
+      // User-edited summary / pasted prose is authoritative — no re-extraction.
+      comicSourceText = source.turnText.slice(0, CHAT_COMIC_MAX_INPUT_CHARS);
+    } else {
+      try {
+        const extracted = await extractChatImageSceneBrief({
+          characterName: context.character.name,
+          personaName: context.persona.name,
+          sourceTurn: source.turnText,
+        });
+        sceneBriefModel = extracted.model;
+        comicSourceText = formatSceneBriefAsComicSource(extracted.brief, {
+          characterName: context.character.name,
+          personaName: context.persona.name,
+        });
+        if (!comicSourceText.trim()) {
+          comicSourceText = source.turnText.slice(0, CHAT_COMIC_MAX_INPUT_CHARS);
+        }
+      } catch (error) {
+        console.warn("[chat-comic] scene brief failed; using source turn", error);
         comicSourceText = source.turnText.slice(0, CHAT_COMIC_MAX_INPUT_CHARS);
       }
-    } catch (error) {
-      console.warn("[chat-comic] scene brief failed; using source turn", error);
-      comicSourceText = source.turnText.slice(0, CHAT_COMIC_MAX_INPUT_CHARS);
     }
 
     const options = {

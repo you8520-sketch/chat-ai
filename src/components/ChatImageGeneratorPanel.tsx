@@ -354,6 +354,8 @@ export default function ChatImageGeneratorPanel({
   const [comicMood, setComicMood] = useState<ChatComicMood>("comic");
   const [sourceMessageId, setSourceMessageId] = useState<number | null>(null);
   const [sourceTurnPreview, setSourceTurnPreview] = useState("");
+  const [comicSummary, setComicSummary] = useState("");
+  const [summarizing, setSummarizing] = useState(false);
 
   useEffect(() => {
     const openGenerator = (event: Event) => {
@@ -373,6 +375,7 @@ export default function ChatImageGeneratorPanel({
         setTab("comic");
         setLdProduct("illustration");
         setComicText("");
+        setComicSummary("");
       }
       setOpen(true);
     };
@@ -751,20 +754,57 @@ export default function ChatImageGeneratorPanel({
     }
   }
 
+  async function summarizeSelectedTurn() {
+    if (!sourceMessageId || summarizing) return;
+    setSummarizing(true);
+    setError("");
+    setNotice("");
+    try {
+      const ids = currentRouteIds();
+      const response = await fetch("/api/chat/comic-generation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...ids,
+          mode: "scene_brief",
+          messageId: sourceMessageId,
+        }),
+      });
+      const data = (await response.json().catch(() => null)) as
+        | { ok?: boolean; summary?: string; error?: string }
+        | null;
+      if (!response.ok || !data?.summary) {
+        throw new Error(data?.error || "턴 요약을 만들지 못했습니다.");
+      }
+      setComicSummary(data.summary);
+      setNotice("선택 턴 요약이 준비되었습니다. 대사를 확인·수정한 뒤 생성해 주세요.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "턴 요약에 실패했습니다.");
+    } finally {
+      setSummarizing(false);
+    }
+  }
+
   async function generateComic() {
     if (!info?.ready || generating) return;
     const isIllustration = ldProduct === "illustration";
     const sourceText = comicText.trim();
+    const summaryText = comicSummary.trim();
     if (!isIllustration && !sourceMessageId && !sourceText) {
       setError("만화로 만들 턴을 선택하거나 내용을 입력해 주세요.");
       return;
     }
-    if (
-      !isIllustration &&
-      !sourceMessageId &&
-      sourceText.length > CHAT_COMIC_MAX_INPUT_CHARS
-    ) {
+    if (!isIllustration && sourceMessageId && !summaryText) {
+      setError("먼저 ‘현재 턴 요약’을 눌러 대사가 포함된 요약을 확인해 주세요.");
+      return;
+    }
+    const comicInput = sourceMessageId ? summaryText : sourceText;
+    if (!isIllustration && comicInput.length > CHAT_COMIC_MAX_INPUT_CHARS) {
       setError(`내용은 최대 ${CHAT_COMIC_MAX_INPUT_CHARS}자까지 입력할 수 있습니다.`);
+      return;
+    }
+    if (!isIllustration && !/["“”]/.test(comicInput)) {
+      setError("컷만화에는 최소 1개의 대사가 필요합니다. 요약에 대사를 넣어 주세요.");
       return;
     }
 
@@ -786,8 +826,8 @@ export default function ChatImageGeneratorPanel({
         body: JSON.stringify({
           ...ids,
           mode: isIllustration ? "illustration" : "comic",
-          messageId: sourceMessageId ?? undefined,
-          sourceText: sourceMessageId ? undefined : sourceText || undefined,
+          messageId: isIllustration ? sourceMessageId ?? undefined : undefined,
+          sourceText: isIllustration ? undefined : comicInput || undefined,
           mood: comicMood,
           characterImageUrl: selectedCharacterImageUrl || info.character.imageUrl,
         }),
@@ -862,6 +902,7 @@ export default function ChatImageGeneratorPanel({
           onClick={() => {
             setSourceMessageId(null);
             setSourceTurnPreview("");
+            setComicSummary("");
             setOpen(true);
           }}
           className="flex w-full flex-col items-center gap-0.5 rounded-md px-0 py-1.5 text-zinc-400 transition hover:bg-white/[0.06] hover:text-violet-200"
@@ -1406,7 +1447,40 @@ export default function ChatImageGeneratorPanel({
                         ) : null}
                         {ldProduct === "comic" ? (
                           <>
-                            {!sourceMessageId ? (
+                            {sourceMessageId ? (
+                              <div className="space-y-2">
+                                <button
+                                  type="button"
+                                  onClick={() => void summarizeSelectedTurn()}
+                                  disabled={summarizing || generating}
+                                  className="w-full rounded-lg border border-violet-400/40 bg-violet-500/15 px-3 py-2 text-xs font-semibold text-violet-100 transition hover:bg-violet-500/25 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                  {summarizing ? "선택 턴 요약 중…" : "현재 턴 요약 (DeepSeek)"}
+                                </button>
+                                {comicSummary ? (
+                                  <label className="block space-y-1">
+                                    <span className="flex items-center justify-between text-[11px] font-semibold text-zinc-400">
+                                      <span>요약 수정 (대사 원문 유지)</span>
+                                      <span className={comicSummary.length >= CHAT_COMIC_MAX_INPUT_CHARS ? "text-amber-300" : "text-zinc-500"}>
+                                        {comicSummary.length}/{CHAT_COMIC_MAX_INPUT_CHARS}
+                                      </span>
+                                    </span>
+                                    <textarea
+                                      value={comicSummary}
+                                      onChange={(event) =>
+                                        setComicSummary(event.target.value.slice(0, CHAT_COMIC_MAX_INPUT_CHARS))
+                                      }
+                                      disabled={generating}
+                                      rows={8}
+                                      className="w-full resize-y rounded-xl border border-white/10 bg-[#1a1a1a] px-3 py-2.5 text-xs leading-relaxed text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-violet-500/50"
+                                    />
+                                    <p className="text-[10px] text-zinc-500">
+                                      컷만화에는 최소 1개의 대사가 필요합니다. 대사를 지우면 생성할 수 없습니다.
+                                    </p>
+                                  </label>
+                                ) : null}
+                              </div>
+                            ) : (
                               <label className="block space-y-1">
                                 <span className="flex items-center justify-between text-[11px] font-semibold text-zinc-400">
                                   <span>만화로 만들 내용</span>
@@ -1425,7 +1499,7 @@ export default function ChatImageGeneratorPanel({
                                   className="w-full resize-y rounded-xl border border-white/10 bg-[#1a1a1a] px-3 py-2.5 text-xs leading-relaxed text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-violet-500/50"
                                 />
                               </label>
-                            ) : null}
+                            )}
                             <div className="grid grid-cols-2 gap-2">
                               <div className="block space-y-1">
                                 <span className="text-[11px] font-semibold text-zinc-400">컷 수</span>
@@ -1484,7 +1558,8 @@ export default function ChatImageGeneratorPanel({
                             generating ||
                             loadingInfo ||
                             (ldProduct === "persona" ? !info?.personaReady : !info?.ready) ||
-                            (ldProduct === "comic" && !sourceMessageId && !comicText.trim()) ||
+                            (ldProduct === "comic" &&
+                              (sourceMessageId ? !comicSummary.trim() : !comicText.trim())) ||
                             (info?.balance != null &&
                               info.balance.total < activePrice)
                           }
