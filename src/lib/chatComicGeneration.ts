@@ -10,7 +10,8 @@ export const CHAT_COMIC_TEMPLATE_PREVIEW_URL =
   "/image-templates/comic-vertical-sample-hq.webp";
 
 export const CHAT_COMIC_DEFAULT_PLANNER_MODEL = "gpt-4o-mini";
-export const CHAT_COMIC_MAX_INPUT_CHARS = 800;
+/** Soft guardrail for pasted prose — selected-turn summaries are not truncated. */
+export const CHAT_COMIC_MAX_INPUT_CHARS = 4_000;
 export const CHAT_COMIC_IMAGE_OUTPUT_SIZE = "1008x1408" as const;
 export const CHAT_COMIC_FOUR_PANEL_OUTPUT_SIZE = "864x1824" as const;
 export const CHAT_COMIC_GENERATION_DEFAULT_POINTS = 230;
@@ -87,7 +88,7 @@ export function sanitizeChatComicOptions(raw: {
   const sourceText = String(raw.sourceText ?? "").trim();
   return {
     mood: toMood(raw.mood),
-    sourceText: sourceText.slice(0, CHAT_COMIC_MAX_INPUT_CHARS),
+    sourceText,
   };
 }
 
@@ -176,11 +177,11 @@ export function extractUnquotedComicNarration(sourceText: string): string[] {
   let cursor = 0;
   for (const match of sourceText.matchAll(quotedPattern)) {
     const index = match.index ?? cursor;
-    const segment = cleanText(sourceText.slice(cursor, index), 800);
+    const segment = cleanText(sourceText.slice(cursor, index), 1_200);
     if (segment) segments.push(segment);
     cursor = index + match[0].length;
   }
-  const tail = cleanText(sourceText.slice(cursor), 800);
+  const tail = cleanText(sourceText.slice(cursor), 1_200);
   if (tail) segments.push(tail);
   return segments;
 }

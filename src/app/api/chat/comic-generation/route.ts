@@ -862,7 +862,7 @@ export async function POST(req: Request) {
     }
     if (!messageId && manualSourceText.length > CHAT_COMIC_MAX_INPUT_CHARS) {
       throw new RequestError(
-        `내용은 최대 ${CHAT_COMIC_MAX_INPUT_CHARS}자까지 입력할 수 있습니다.`
+        `내용은 최대 ${CHAT_COMIC_MAX_INPUT_CHARS.toLocaleString()}자까지 입력할 수 있습니다.`
       );
     }
 
@@ -892,10 +892,10 @@ export async function POST(req: Request) {
 
     startJob(CHAT_COMIC_TEMPLATE_ID, "comic");
     let sceneBriefModel: string | null = null;
-    let comicSourceText = source.turnText.slice(0, CHAT_COMIC_MAX_INPUT_CHARS);
+    let comicSourceText = source.turnText;
     if (source.fromManualText) {
       // User-edited summary / pasted prose is authoritative — no re-extraction.
-      comicSourceText = source.turnText.slice(0, CHAT_COMIC_MAX_INPUT_CHARS);
+      comicSourceText = source.turnText;
     } else {
       try {
         const extracted = await extractChatImageSceneBrief({
@@ -909,11 +909,11 @@ export async function POST(req: Request) {
           personaName: context.persona.name,
         });
         if (!comicSourceText.trim()) {
-          comicSourceText = source.turnText.slice(0, CHAT_COMIC_MAX_INPUT_CHARS);
+          comicSourceText = source.turnText;
         }
       } catch (error) {
         console.warn("[chat-comic] scene brief failed; using source turn", error);
-        comicSourceText = source.turnText.slice(0, CHAT_COMIC_MAX_INPUT_CHARS);
+        comicSourceText = source.turnText;
       }
     }
 

@@ -797,7 +797,7 @@ export default function ChatImageGeneratorPanel({
     }
     const comicInput = sourceMessageId ? summaryText : sourceText;
     if (!isIllustration && comicInput.length > CHAT_COMIC_MAX_INPUT_CHARS) {
-      setError(`내용은 최대 ${CHAT_COMIC_MAX_INPUT_CHARS}자까지 입력할 수 있습니다.`);
+      setError(`내용은 최대 ${CHAT_COMIC_MAX_INPUT_CHARS.toLocaleString()}자까지 입력할 수 있습니다.`);
       return;
     }
     if (!isIllustration && !/["“”]/.test(comicInput)) {
@@ -1457,15 +1457,13 @@ export default function ChatImageGeneratorPanel({
                                   <label className="block space-y-1">
                                     <span className="flex items-center justify-between text-[11px] font-semibold text-zinc-400">
                                       <span>요약 수정 (대사 원문 유지)</span>
-                                      <span className={comicSummary.length >= CHAT_COMIC_MAX_INPUT_CHARS ? "text-amber-300" : "text-zinc-500"}>
-                                        {comicSummary.length}/{CHAT_COMIC_MAX_INPUT_CHARS}
+                                      <span className="text-zinc-500">
+                                        {comicSummary.length.toLocaleString()}자
                                       </span>
                                     </span>
                                     <textarea
                                       value={comicSummary}
-                                      onChange={(event) =>
-                                        setComicSummary(event.target.value.slice(0, CHAT_COMIC_MAX_INPUT_CHARS))
-                                      }
+                                      onChange={(event) => setComicSummary(event.target.value)}
                                       disabled={generating}
                                       rows={8}
                                       className="w-full resize-y rounded-xl border border-white/10 bg-[#1a1a1a] px-3 py-2.5 text-xs leading-relaxed text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-violet-500/50"
@@ -1480,15 +1478,13 @@ export default function ChatImageGeneratorPanel({
                               <label className="block space-y-1">
                                 <span className="flex items-center justify-between text-[11px] font-semibold text-zinc-400">
                                   <span>만화로 만들 내용</span>
-                                  <span className={comicText.length >= CHAT_COMIC_MAX_INPUT_CHARS ? "text-amber-300" : "text-zinc-500"}>
-                                    {comicText.length}/{CHAT_COMIC_MAX_INPUT_CHARS}
+                                  <span className="text-zinc-500">
+                                    {comicText.length.toLocaleString()}자
                                   </span>
                                 </span>
                                 <textarea
                                   value={comicText}
-                                  onChange={(event) =>
-                                    setComicText(event.target.value.slice(0, CHAT_COMIC_MAX_INPUT_CHARS))
-                                  }
+                                  onChange={(event) => setComicText(event.target.value)}
                                   disabled={generating}
                                   rows={9}
                                   placeholder="장면이나 RP 본문을 붙여넣으세요. 중요 대사는 원문 그대로 살리고 말풍선·표정·컷을 자동 구성합니다."

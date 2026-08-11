@@ -17,11 +17,11 @@ import {
 } from "./chatComicGeneration";
 
 describe("chatComicGeneration", () => {
-  it("caps source text at 800 characters and leaves panel selection to the planner", () => {
+  it("keeps long source text intact and leaves panel selection to the planner", () => {
     const source = "가".repeat(CHAT_COMIC_MAX_INPUT_CHARS + 30);
     assert.deepEqual(sanitizeChatComicOptions({ mood: "wrong", sourceText: source }), {
       mood: "comic",
-      sourceText: "가".repeat(CHAT_COMIC_MAX_INPUT_CHARS),
+      sourceText: source,
     });
   });
 
