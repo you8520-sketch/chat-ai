@@ -16,6 +16,9 @@ type Props = {
   branches: UserChatSession[];
   personas: PublicPersonaListItem[];
   initialPersonaId: number | null;
+  /** Chat-intro iframe: always start a fresh chat and navigate the top window. */
+  embedMode?: boolean;
+  startLabel?: string;
 };
 
 export default function CharacterStartRow({
@@ -25,6 +28,8 @@ export default function CharacterStartRow({
   branches,
   personas: initialPersonas,
   initialPersonaId,
+  embedMode = false,
+  startLabel,
 }: Props) {
   const [personas, setPersonas] = useState(initialPersonas);
   const [selectedPersonaId, setSelectedPersonaId] = useState<number | null>(initialPersonaId);
@@ -102,6 +107,9 @@ export default function CharacterStartRow({
         branches={branches}
         selectedPersonaId={selectedPersonaId}
         className={actionBtn}
+        startLabel={startLabel}
+        alwaysNewChat={embedMode}
+        openInTop={embedMode}
       />
       {loggedIn && personas.length > 0 && (
         <PersonaSelector
@@ -111,6 +119,7 @@ export default function CharacterStartRow({
           onSelectedChange={handlePersonaChange}
           triggerClassName={`${actionBtn} max-w-[14rem]`}
           addPersonaHref="/persona#personas"
+          linkTarget={embedMode ? "_top" : undefined}
         />
       )}
     </div>
