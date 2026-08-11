@@ -84,10 +84,10 @@ describe("chatImageSceneBrief", () => {
     );
 
     assert.deepEqual(brief.keyDialogue, [
-      { speaker: "character", text: "야." },
       { speaker: "persona", text: "잠깐만." },
-      { speaker: "other", text: "불고기 셋이요" },
+      { speaker: "character", text: "야." },
       { speaker: "character", text: "거기 보지 마. 나 봐." },
+      { speaker: "other", text: "불고기 셋이요" },
     ]);
   });
 
@@ -270,5 +270,29 @@ describe("chatImageSceneBrief", () => {
     assert.ok(
       brief.keyNarration.some((line) => line.includes("식당 안의 공기가 순간 얼어붙었다"))
     );
+  });
+
+  it("keeps dialogue and narration in source order", () => {
+    const source =
+      '렌은 "왜."라고 먼저 물었다. 태형은 "야."라고 나중에 답했다. 식당 안이 조용해졌다. 태형은 "거기 보지 마."라고 덧붙였다.';
+    const brief = sanitizeChatImageSceneBrief(
+      {
+        setting: "식당",
+        atmosphere: "긴장",
+        actions: "둘이 마주본다",
+        keyDialogue: [
+          { speaker: "character", text: "야." },
+          { speaker: "persona", text: "왜." },
+          { speaker: "character", text: "거기 보지 마." },
+        ],
+        keyNarration: ["식당 안이 조용해졌다."],
+      },
+      source
+    );
+    assert.deepEqual(
+      brief.keyDialogue.map((line) => line.text),
+      ["왜.", "야.", "거기 보지 마."]
+    );
+    assert.deepEqual(brief.keyNarration, ["식당 안이 조용해졌다."]);
   });
 });

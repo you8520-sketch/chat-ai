@@ -211,7 +211,23 @@ export function sanitizeChatImageSceneBrief(
     }
   }
 
-  return { setting, atmosphere, actions, expressions, keyDialogue, keyNarration };
+  // Keep dialogue and narration in the order they appear in the source turn so
+  // the comic follows the actual beat sequence.
+  const orderedDialogue = [...keyDialogue].sort(
+    (a, b) => sourceTurn.indexOf(a.text) - sourceTurn.indexOf(b.text)
+  );
+  const orderedNarration = [...keyNarration].sort(
+    (a, b) => sourceTurn.indexOf(a) - sourceTurn.indexOf(b)
+  );
+
+  return {
+    setting,
+    atmosphere,
+    actions,
+    expressions,
+    keyDialogue: orderedDialogue,
+    keyNarration: orderedNarration,
+  };
 }
 
 /** Extract short verbatim unquoted narration / inner-thought lines. */
