@@ -78,6 +78,7 @@ export default function ChatAssetAlbumModal({
   const [generatedLoading, setGeneratedLoading] = useState(false);
   const [generatedError, setGeneratedError] = useState("");
   const [selectedAsset, setSelectedAsset] = useState<AlbumAsset | null>(null);
+  const [deletingUrl, setDeletingUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -147,6 +148,38 @@ export default function ChatAssetAlbumModal({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
+
+  async function deleteGeneratedImage(imageUrl: string) {
+    if (deletingUrl) return;
+    setDeletingUrl(imageUrl);
+    setGeneratedError("");
+    try {
+      const response = await fetch("/api/chat/image-album", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          characterId: currentCharacterId,
+          imageUrl,
+        }),
+      });
+      const data = (await response.json().catch(() => null)) as
+        | { ok?: boolean; album?: GeneratedAlbumEntry[]; error?: string }
+        | null;
+      if (!response.ok || !data?.ok) {
+        throw new Error(data?.error || "이미지를 삭제하지 못했습니다.");
+      }
+      setGeneratedAssets((previous) =>
+        previous.filter((asset) => asset.url !== imageUrl)
+      );
+      if (selectedAsset?.url === imageUrl) setSelectedAsset(null);
+    } catch (error) {
+      setGeneratedError(
+        error instanceof Error ? error.message : "이미지를 삭제하지 못했습니다."
+      );
+    } finally {
+      setDeletingUrl(null);
+    }
+  }
 
   const currentAlbum = useMemo<Album>(() => {
     const storedCurrent = albums.find((album) => album.characterId === currentCharacterId);
@@ -284,8 +317,23 @@ export default function ChatAssetAlbumModal({
                     <figcaption className="flex items-center justify-between gap-2 px-2 py-1.5 text-[11px] text-zinc-400">
                       <span className="truncate">{asset.tag || "이미지"}</span>
                       {asset.generated ? (
-                        <span className="shrink-0 rounded bg-violet-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-violet-200">
-                          생성
+                        <span className="flex shrink-0 items-center gap-1">
+                          <span className="rounded bg-violet-500/15 px-1.5 py-0.5 text-[9px] font-semibold text-violet-200">
+                            생성
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void deleteGeneratedImage(asset.url);
+                            }}
+                            disabled={deletingUrl === asset.url}
+                            className="rounded px-1 py-0.5 text-[10px] text-zinc-500 transition hover:bg-rose-500/15 hover:text-rose-300 disabled:opacity-40"
+                            aria-label="생성 이미지 삭제"
+                            title="삭제"
+                          >
+                            {deletingUrl === asset.url ? "…" : "삭제"}
+                          </button>
                         </span>
                       ) : null}
                     </figcaption>
