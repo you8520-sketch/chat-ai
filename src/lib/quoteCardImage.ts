@@ -77,6 +77,11 @@ export type QuoteCardStyle = {
   paragraphGapScale?: number;
   bubbleGap?: number;
   avatarImage?: CanvasImageSource | null;
+  /**
+   * Focal point inside the avatar source image (0–1).
+   * Used so the face can be centered in the circular crop.
+   */
+  avatarFocus?: QuoteCardAvatarFocus;
   backgroundImage?: CanvasImageSource | null;
   characterInitial?: string;
   /** Default speaker when dialogue has no label (usually character name). */
@@ -88,7 +93,34 @@ export type QuoteCardStyle = {
   speakerOverrides?: Record<number, string>;
 };
 
-const CARD_SHORT_SIDE = 600;
+/** Cover-crop focus for circular avatar (and optional zoom ≥ 1). */
+export type QuoteCardAvatarFocus = {
+  x: number;
+  y: number;
+  zoom?: number;
+};
+
+/** Base export edge length (~1.25× the original 600). */
+const CARD_SHORT_SIDE = 750;
+
+export const QUOTE_CARD_AVATAR_FOCUS_DEFAULT: QuoteCardAvatarFocus = {
+  x: 0.5,
+  y: 0.5,
+  zoom: 1,
+};
+
+export function clampQuoteCardAvatarFocus(
+  focus?: Partial<QuoteCardAvatarFocus> | null
+): QuoteCardAvatarFocus {
+  const x = Number.isFinite(focus?.x) ? Number(focus?.x) : 0.5;
+  const y = Number.isFinite(focus?.y) ? Number(focus?.y) : 0.5;
+  const zoom = Number.isFinite(focus?.zoom) ? Number(focus?.zoom) : 1;
+  return {
+    x: Math.min(1, Math.max(0, x)),
+    y: Math.min(1, Math.max(0, y)),
+    zoom: Math.min(2.5, Math.max(1, zoom)),
+  };
+}
 
 export const QUOTE_CARD_BODY_FONT_DEFAULT = 22;
 export const QUOTE_CARD_BODY_FONT_MIN = 15;
@@ -247,6 +279,7 @@ const DEFAULT_STYLE: Required<
   Omit<
     QuoteCardStyle,
     | "avatarImage"
+    | "avatarFocus"
     | "backgroundImage"
     | "characterInitial"
     | "defaultSpeakerName"
@@ -255,6 +288,7 @@ const DEFAULT_STYLE: Required<
   >
 > & {
   avatarImage: CanvasImageSource | null;
+  avatarFocus: QuoteCardAvatarFocus;
   backgroundImage: CanvasImageSource | null;
   characterInitial: string;
   defaultSpeakerName: string;
@@ -280,6 +314,7 @@ const DEFAULT_STYLE: Required<
   paragraphGapScale: 1.35,
   bubbleGap: 18,
   avatarImage: null,
+  avatarFocus: { ...QUOTE_CARD_AVATAR_FOCUS_DEFAULT },
   backgroundImage: null,
   characterInitial: "",
   defaultSpeakerName: "",
@@ -396,8 +431,8 @@ export function parseQuoteCardBlocks(text: string): QuoteCardBlock[] {
 }
 
 /**
- * Fill missing dialogue speakers: parsed labels win, then overrides,
- * then default character name / distinct 화자N for multi-speaker clips.
+ * Fill dialogue speakers: overrides win, then parsed `이름:` prefixes,
+ * otherwise every line defaults to the character name (edit non-character lines in UI).
  */
 export function resolveQuoteCardSpeakers(
   blocks: QuoteCardBlock[],
@@ -408,23 +443,8 @@ export function resolveQuoteCardSpeakers(
 ): QuoteCardBlock[] {
   const defaultSpeaker = (opts.defaultSpeaker ?? "").trim() || "캐릭터";
   const overrides = opts.overrides ?? {};
-  const dialogueCount = blocks.reduce(
-    (n, b) => (b.type === "dialogue" ? n + 1 : n),
-    0
-  );
 
   let dialogueIndex = 0;
-  let autoUnlabeled = 0;
-  let probe = 0;
-  let unlabeledTotal = 0;
-  for (const b of blocks) {
-    if (b.type !== "dialogue") continue;
-    const ov = overrides[probe]?.trim();
-    probe += 1;
-    if (ov || b.speaker?.trim()) continue;
-    unlabeledTotal += 1;
-  }
-
   return blocks.map((block) => {
     if (block.type !== "dialogue") return block;
     const idx = dialogueIndex;
@@ -432,15 +452,7 @@ export function resolveQuoteCardSpeakers(
     const override = overrides[idx]?.trim();
     if (override) return { ...block, speaker: override };
     if (block.speaker?.trim()) return { ...block, speaker: block.speaker.trim() };
-
-    if (dialogueCount <= 1 || unlabeledTotal <= 1) {
-      return { ...block, speaker: defaultSpeaker };
-    }
-    autoUnlabeled += 1;
-    if (autoUnlabeled === 1) {
-      return { ...block, speaker: defaultSpeaker };
-    }
-    return { ...block, speaker: `화자${autoUnlabeled}` };
+    return { ...block, speaker: defaultSpeaker };
   });
 }
 
@@ -771,6 +783,7 @@ function resolveStyle(style?: QuoteCardStyle) {
     ...DEFAULT_STYLE,
     ...style,
     avatarImage: style?.avatarImage ?? null,
+    avatarFocus: clampQuoteCardAvatarFocus(style?.avatarFocus),
     backgroundImage: style?.backgroundImage ?? null,
     characterInitial: style?.characterInitial ?? "",
     defaultSpeakerName: style?.defaultSpeakerName ?? "",
@@ -934,11 +947,13 @@ function drawCircularAvatar(
   size: number,
   image: CanvasImageSource | null,
   initial: string,
-  tone: { bg: string; fg: string } = SPEAKER_AVATAR_TONES[0]!
+  tone: { bg: string; fg: string } = SPEAKER_AVATAR_TONES[0]!,
+  focus: QuoteCardAvatarFocus = QUOTE_CARD_AVATAR_FOCUS_DEFAULT
 ): void {
   const r = size / 2;
   const cx = x + r;
   const cy = y + r;
+  const resolvedFocus = clampQuoteCardAvatarFocus(focus);
 
   ctx.save();
   ctx.beginPath();
@@ -961,10 +976,14 @@ function drawCircularAvatar(
         : "height" in image && typeof image.height === "number"
           ? image.height
           : size;
-    const scale = Math.max(size / Math.max(1, iw), size / Math.max(1, ih));
+    const cover = Math.max(size / Math.max(1, iw), size / Math.max(1, ih));
+    const scale = cover * (resolvedFocus.zoom ?? 1);
     const dw = iw * scale;
     const dh = ih * scale;
-    ctx.drawImage(image, x + (size - dw) / 2, y + (size - dh) / 2, dw, dh);
+    // Map focal point in source → circle center.
+    const dx = cx - resolvedFocus.x * dw;
+    const dy = cy - resolvedFocus.y * dh;
+    ctx.drawImage(image, dx, dy, dw, dh);
   } else {
     ctx.fillStyle = tone.bg;
     ctx.fillRect(x, y, size, size);
@@ -1120,7 +1139,8 @@ export async function renderQuoteCardPngBlob(
           AVATAR_SIZE,
           useAvatarImage ? resolved.avatarImage : null,
           initial,
-          tone
+          tone,
+          useAvatarImage ? resolved.avatarFocus : QUOTE_CARD_AVATAR_FOCUS_DEFAULT
         );
         const bubbleX = pad + AVATAR_SIZE + AVATAR_GAP;
         const bubbleY = y + (rowH - block.contentH) / 2;
