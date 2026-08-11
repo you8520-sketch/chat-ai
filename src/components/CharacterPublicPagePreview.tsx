@@ -186,6 +186,34 @@ export default function CharacterPublicPagePreview({
     setLightboxIndex(idx);
   };
 
+  const metricsOverlay =
+    turnCount > 0 || imageCount > 0 ? (
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[3] bg-gradient-to-t from-black/85 via-black/40 to-transparent px-3 pb-2.5 pt-12">
+        <div className="flex items-center justify-start gap-3 text-[11px] font-semibold tabular-nums text-white/95">
+          {turnCount > 0 ? (
+            <span
+              className="flex items-center gap-1"
+              title="누적 대화 턴"
+              aria-label={`누적 대화 ${turnCount.toLocaleString()}턴`}
+            >
+              <ChatBubbleIcon className="h-3.5 w-3.5" />
+              {turnCount.toLocaleString()}
+            </span>
+          ) : null}
+          {imageCount > 0 ? (
+            <span
+              className="flex items-center gap-1"
+              title="갤러리 이미지 수"
+              aria-label={`이미지 ${imageCount.toLocaleString()}장`}
+            >
+              <ImageStackIcon className="h-3.5 w-3.5" />
+              {imageCount.toLocaleString()}
+            </span>
+          ) : null}
+        </div>
+      </div>
+    ) : null;
+
   const cardVisual = primary ? (
     primaryBlur ? (
       <div className="relative mx-auto w-fit max-w-full overflow-hidden rounded-xl">
@@ -196,18 +224,23 @@ export default function CharacterPublicPagePreview({
           className="w-fit max-w-full"
           imgClassName="block h-auto max-h-[70vh] w-auto max-w-full object-contain"
         />
+        {metricsOverlay}
       </div>
     ) : (
-      <CharacterImageViewer src={primary} alt={displayName} hue={hue} />
+      <div className="relative mx-auto w-fit max-w-full">
+        <CharacterImageViewer src={primary} alt={displayName} hue={hue} />
+        {metricsOverlay}
+      </div>
     )
   ) : (
     <div
-      className={`flex ${CHARACTER_THUMB_ASPECT} w-full items-center justify-center overflow-hidden rounded-xl text-7xl sm:text-8xl`}
+      className={`relative flex ${CHARACTER_THUMB_ASPECT} w-full items-center justify-center overflow-hidden rounded-xl text-7xl sm:text-8xl`}
       style={{
         background: `linear-gradient(135deg, hsl(${hue} 60% 24%), hsl(${(hue + 60) % 360} 60% 12%))`,
       }}
     >
       {emoji}
+      {metricsOverlay}
     </div>
   );
 
@@ -254,20 +287,6 @@ export default function CharacterPublicPagePreview({
               </span>
             )}
             {creatorIsPartner && <OfficialCreatorBadge />}
-            <span className="flex items-center gap-2">
-              {turnCount > 0 ? (
-                <span className="flex items-center gap-1" title="누적 대화 턴" aria-label={`누적 대화 ${turnCount.toLocaleString()}턴`}>
-                  <ChatBubbleIcon className="h-3.5 w-3.5" />
-                  {turnCount.toLocaleString()}턴
-                </span>
-              ) : null}
-              {imageCount > 0 ? (
-                <span className="flex items-center gap-1" title="갤러리 이미지 수" aria-label={`이미지 ${imageCount.toLocaleString()}장`}>
-                  <ImageStackIcon className="h-3.5 w-3.5" />
-                  {imageCount.toLocaleString()}장
-                </span>
-              ) : null}
-            </span>
           </p>
 
           <AssetGalleryStrip
