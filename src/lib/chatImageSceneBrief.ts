@@ -70,6 +70,40 @@ export function isSceneActionText(text: string): boolean {
 }
 
 /**
+ * Keep only spoken words from a user RP turn.
+ * Strips *지문*, (지문), （지문） — those are stage directions, not dialogue.
+ */
+export function extractUserSpokenDialogue(content: string): string {
+  let text = normalizeSceneBriefWhitespace(content);
+  if (!text) return "";
+
+  const unwrap = text.match(/^[“"]([\s\S]*)[”"]$/);
+  if (unwrap) {
+    text = normalizeSceneBriefWhitespace(unwrap[1] ?? "");
+  }
+
+  text = text
+    .replace(/\*[^*]+\*/g, " ")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/（[^）]*）/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!text || isSceneActionText(text)) return "";
+  return text;
+}
+
+/**
+ * Format user turn for comic SOURCE PROSE: quote spoken dialogue only.
+ * Returns "" when the user turn has no dialogue (caller should omit the line).
+ */
+export function formatUserTurnForComicSource(content: string): string {
+  const spoken = extractUserSpokenDialogue(content);
+  if (!spoken) return "";
+  return `"${spoken.replace(/"/g, '\\"')}"`;
+}
+
+/**
  * Important dialogue must be a contiguous verbatim excerpt of the source turn.
  * Returns the normalized excerpt when found, otherwise null.
  * No artificial length cap — long lines are kept intact.

@@ -5,11 +5,13 @@ import {
   CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL,
   CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL,
   buildChatImageSceneBriefPrompt,
+  extractUserSpokenDialogue,
   findVerbatimSceneDialogue,
   findVerbatimSceneExcerpt,
   formatSceneBriefAsComicSource,
   formatSceneBriefAsEditableSummary,
   formatSceneBriefAsIllustrationTurn,
+  formatUserTurnForComicSource,
   isSceneActionText,
   resolveChatImageSceneBriefFallbackModel,
   resolveChatImageSceneBriefModel,
@@ -318,5 +320,24 @@ describe("chatImageSceneBrief", () => {
       ),
       "이거 태형이 눈이랑도 잘어울리잖아. 이뻐"
     );
+  });
+
+  it("keeps only spoken dialogue from user turns for comic source", () => {
+    assert.equal(
+      extractUserSpokenDialogue(
+        "*피어싱을 태형이의 곰돌이 후드의 귀에 끼워준다* 이거 태형이 눈이랑도 잘어울리잖아. 이뻐"
+      ),
+      "이거 태형이 눈이랑도 잘어울리잖아. 이뻐"
+    );
+    assert.equal(
+      formatUserTurnForComicSource(
+        "*피어싱을 태형이의 곰돌이 후드의 귀에 끼워준다* 이거 태형이 눈이랑도 잘어울리잖아. 이뻐"
+      ),
+      '"이거 태형이 눈이랑도 잘어울리잖아. 이뻐"'
+    );
+    assert.equal(extractUserSpokenDialogue("*후드 귀를 만진다*"), "");
+    assert.equal(formatUserTurnForComicSource("*후드 귀를 만진다*"), "");
+    assert.equal(formatUserTurnForComicSource("(작게 웃는다)"), "");
+    assert.equal(formatUserTurnForComicSource("후드 내려볼래?"), '"후드 내려볼래?"');
   });
 });
