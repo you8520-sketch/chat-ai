@@ -9,7 +9,8 @@ export const CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL =
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
 export const CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL =
   OPENROUTER_DEEPSEEK_V4_FLASH_MODEL;
-export const CHAT_IMAGE_SCENE_BRIEF_MAX_SOURCE_CHARS = 6_000;
+/** Soft guardrail only — full turns can exceed 5k chars; do not truncate hard. */
+export const CHAT_IMAGE_SCENE_BRIEF_MAX_SOURCE_CHARS = 24_000;
 export const CHAT_IMAGE_SCENE_BRIEF_MAX_DIALOGUE = 8;
 
 export type ChatImageSceneBriefSpeaker = "character" | "persona" | "other";

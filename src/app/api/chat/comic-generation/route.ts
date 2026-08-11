@@ -254,11 +254,11 @@ function formatTurnRows(
 ): string {
   const cleaned = rows
     .map((row) => {
-      const content = stripChatTurnMarkup(row.content).slice(0, 3_000);
+      const content = stripChatTurnMarkup(row.content);
       return content ? `${row.role === "assistant" ? "캐릭터" : "유저"}: ${content}` : "";
     })
     .filter(Boolean);
-  return cleaned.join("\n").slice(0, 6_000);
+  return cleaned.join("\n");
 }
 
 /** Selected assistant message (+ immediately preceding user line when present). */
@@ -327,7 +327,7 @@ function resolveSourceTurn(opts: {
   }
   if (manual) {
     return {
-      turnText: stripChatTurnMarkup(manual).slice(0, 6_000),
+      turnText: stripChatTurnMarkup(manual),
       messageId: null,
       fromManualText: true,
     };

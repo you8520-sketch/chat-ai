@@ -203,6 +203,8 @@ function resolveBackgroundMaxInputTokens(requestKind: string): number {
   if (/background-memory-extract/i.test(requestKind)) {
     return resolveBackgroundMemoryExtractMaxInputTokens();
   }
+  // Scene briefs must read the full selected turn, which can exceed 5k chars.
+  if (/background-chat-image-scene-brief/i.test(requestKind)) return 48_000;
   return BACKGROUND_MAX_INPUT_TOKENS;
 }
 
