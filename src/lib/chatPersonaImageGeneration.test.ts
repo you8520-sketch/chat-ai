@@ -48,6 +48,8 @@ describe("chat persona image generation", () => {
     assert.match(prompt, /ONLY the art-style reference/);
     assert.match(prompt, /Do not copy.*identity/);
     assert.match(prompt, /Saved gender setting: 남성/);
+    assert.match(prompt, /GENDER LOCK/);
+    assert.match(prompt, /confirmed MALE/);
     assert.match(prompt, /짧은 흑발/);
   });
 

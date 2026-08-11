@@ -1,4 +1,5 @@
-import { buildImageGenderLockPrompt, type ImagePromptGender } from "@/lib/chatImageGeneration";
+import { type ImagePromptGender } from "@/lib/chatImageGeneration";
+import { buildChatImagePairGenderLock } from "@/lib/chatImageGender";
 
 export const CHAT_EMOTICON_TEMPLATE_ID = "emoticon_grid_9" as const;
 export const CHAT_EMOTICON_TEMPLATE_NAME = "랜덤 9종 이모티콘";
@@ -102,9 +103,9 @@ export function selectRandomChatEmoticonScenes(
 
 export function buildChatEmoticonPrompt(opts: {
   characterName: string;
-  characterGender?: ImagePromptGender;
+  characterGender: ImagePromptGender;
   personaName: string;
-  personaGender?: ImagePromptGender;
+  personaGender: ImagePromptGender;
   scenes: readonly ChatEmoticonScene[];
 }): string {
   const panels = opts.scenes
@@ -123,18 +124,12 @@ export function buildChatEmoticonPrompt(opts: {
     "Create one polished square 3-by-3 Korean SD/chibi emoticon sheet with exactly nine equal panels.",
     "Reference image 1 is the layout and finish reference. Keep only its clean 3x3 grid, rounded panel borders, safe text margins, pastel sticker finish and expressive merchandise quality. Do not copy its people.",
     `Reference image 2 is the identity reference for chat character ${opts.characterName}. Reference image 3 is the identity reference for user persona ${opts.personaName}.`,
-    buildImageGenderLockPrompt([
-      {
-        label: "chat character",
-        name: opts.characterName,
-        gender: opts.characterGender ?? "other",
-      },
-      {
-        label: "user persona",
-        name: opts.personaName,
-        gender: opts.personaGender ?? "other",
-      },
-    ]),
+    buildChatImagePairGenderLock({
+      characterName: opts.characterName,
+      characterGender: opts.characterGender,
+      personaName: opts.personaName,
+      personaGender: opts.personaGender,
+    }),
     "Identity separation is critical. Preserve each person's hair color, eye color, hairstyle, facial details, accessories and signature outfit impression. Never blend or swap the two identities.",
     "Use the following exact nine panels in this exact order:",
     panels,

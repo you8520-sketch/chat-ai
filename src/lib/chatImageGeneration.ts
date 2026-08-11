@@ -173,9 +173,9 @@ export function resolveChatImageReferenceOrder(opts: {
 
 export function buildChatImageGenerationPrompt(opts: {
   characterName: string;
-  characterGender?: ImagePromptGender;
+  characterGender: ImagePromptGender;
   personaName: string;
-  personaGender?: ImagePromptGender;
+  personaGender: ImagePromptGender;
   placement: ChatImagePlacement;
   topExpression: ChatImageExpression;
   bottomExpression: ChatImageExpression;
@@ -183,12 +183,10 @@ export function buildChatImageGenerationPrompt(opts: {
 }): string {
   const topName = opts.placement === "persona_top" ? opts.personaName : opts.characterName;
   const bottomName = opts.placement === "persona_top" ? opts.characterName : opts.personaName;
-  const topGender = opts.placement === "persona_top"
-    ? (opts.personaGender ?? "other")
-    : (opts.characterGender ?? "other");
-  const bottomGender = opts.placement === "persona_top"
-    ? (opts.characterGender ?? "other")
-    : (opts.personaGender ?? "other");
+  const topGender =
+    opts.placement === "persona_top" ? opts.personaGender : opts.characterGender;
+  const bottomGender =
+    opts.placement === "persona_top" ? opts.characterGender : opts.personaGender;
 
   return [
     "Create one polished 4:3 two-person SD/chibi fixed-template commission illustration.",

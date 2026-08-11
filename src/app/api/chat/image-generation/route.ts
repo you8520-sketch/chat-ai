@@ -73,7 +73,7 @@ import {
   resolveChatPersonaImagePrice,
 } from "@/lib/chatPersonaImageGeneration";
 import { getDb } from "@/lib/db";
-import { resolveCharacterGender } from "@/lib/characterGender";
+import { resolveChatImageGenderPair } from "@/lib/chatImageGender";
 import { getEffectiveKrwPerUsd } from "@/lib/exchangeRate";
 import { saveGeneratedImageToCharacterAlbum } from "@/lib/chatImageAlbum";
 import {
@@ -264,12 +264,18 @@ function resolveGenerationContext(opts: {
     ? personaImageBaseUrl(sanitizePersonaImageUrl(persona.image_url))
     : "";
 
+  const genders = resolveChatImageGenderPair({
+    characterName: character.name,
+    characterGender: character.gender,
+    personaName: persona?.name ?? "",
+    personaGender: persona?.gender,
+  });
   return {
     chatId,
     character,
     persona: persona ?? null,
-    characterGender: resolveCharacterGender(character.gender),
-    personaGender: resolveCharacterGender(persona?.gender),
+    characterGender: genders.characterGender,
+    personaGender: genders.personaGender,
     characterImageUrl,
     characterImages,
     personaImageUrl,

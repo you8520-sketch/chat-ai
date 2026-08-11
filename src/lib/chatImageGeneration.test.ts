@@ -57,7 +57,9 @@ describe("chatImageGeneration", () => {
   it("keeps identity order and fixed-template constraints explicit", () => {
     const prompt = buildChatImageGenerationPrompt({
       characterName: "태형",
+      characterGender: "male",
       personaName: "렌",
+      personaGender: "male",
       placement: "character_top",
       topExpression: "playful",
       bottomExpression: "shy",
@@ -69,6 +71,8 @@ describe("chatImageGeneration", () => {
     assert.match(prompt, /Exactly two human characters/);
     assert.match(prompt, /Do not crop to faces only/);
     assert.match(prompt, /Do not blend the two identities/);
+    assert.match(prompt, /GENDER LOCK/);
+    assert.match(prompt, /confirmed MALE/);
   });
 
   it("locks male subjects against long-hair or cute-style female body drift", () => {
