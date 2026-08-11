@@ -109,7 +109,7 @@ describe("chatImageSceneBrief", () => {
     assert.equal(brief.keyDialogue[1]?.text, "정말 여기서 자려고?");
   });
 
-  it("backfills up to four verbatim lines when the model returns few", () => {
+  it("backfills up to three verbatim lines when the model returns few", () => {
     const source =
       '태형은 "야."라고 했다. 렌은 "왜."라고 받았다. 태형은 "거기 보지 마."라고 했다. 렌은 "알겠어."라고 했다.';
     const brief = sanitizeChatImageSceneBrief(
@@ -121,10 +121,10 @@ describe("chatImageSceneBrief", () => {
       },
       source
     );
-    assert.equal(brief.keyDialogue.length, 4);
+    assert.equal(brief.keyDialogue.length, 3);
     assert.deepEqual(
       brief.keyDialogue.map((line) => line.text),
-      ["야.", "왜.", "거기 보지 마.", "알겠어."]
+      ["야.", "왜.", "거기 보지 마."]
     );
   });
 
@@ -254,9 +254,9 @@ describe("chatImageSceneBrief", () => {
     assert.match(summary, /지문: 식당 안의 공기가 순간 얼어붙었다\./);
   });
 
-  it("backfills verbatim narration when dialogue is scarce", () => {
+  it("backfills at least two verbatim narration lines", () => {
     const source =
-      '태형은 "자."라고 말했다. 식당 안의 공기가 순간 얼어붙었다. 렌은 어쩔 줄 몰랐다.';
+      '태형은 "자."라고 말했다. 식당 안의 공기가 순간 얼어붙었다. 렌은 어쩔 줄 몰랐다. 태형의 눈빛이 흔들렸다.';
     const brief = sanitizeChatImageSceneBrief(
       {
         setting: "식당",
@@ -266,7 +266,7 @@ describe("chatImageSceneBrief", () => {
       },
       source
     );
-    assert.ok(brief.keyNarration.length >= 1);
+    assert.ok(brief.keyNarration.length >= 2);
     assert.ok(
       brief.keyNarration.some((line) => line.includes("식당 안의 공기가 순간 얼어붙었다"))
     );
