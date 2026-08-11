@@ -91,6 +91,24 @@ describe("chatImageSceneBrief", () => {
     ]);
   });
 
+  it("backfills a second verbatim line when the model returns only one", () => {
+    const source =
+      '태형은 "자, 식후땡으로는 역시 낮잠이 최고지."라고 말했다. 렌은 "정말 여기서 자려고?"라고 받았다.';
+    const brief = sanitizeChatImageSceneBrief(
+      {
+        setting: "공원",
+        atmosphere: "평화",
+        actions: "태형이 재킷을 깐다",
+        keyDialogue: [
+          { speaker: "character", text: "자, 식후땡으로는 역시 낮잠이 최고지." },
+        ],
+      },
+      source
+    );
+    assert.equal(brief.keyDialogue.length, 2);
+    assert.equal(brief.keyDialogue[1]?.text, "정말 여기서 자려고?");
+  });
+
   it("asks the model for closed-book verbatim dialogue", () => {
     const prompt = buildChatImageSceneBriefPrompt({
       characterName: "태현",

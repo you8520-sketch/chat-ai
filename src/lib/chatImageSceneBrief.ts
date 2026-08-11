@@ -11,7 +11,7 @@ export const CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL =
   OPENROUTER_DEEPSEEK_V4_FLASH_MODEL;
 export const CHAT_IMAGE_SCENE_BRIEF_MAX_SOURCE_CHARS = 6_000;
 export const CHAT_IMAGE_SCENE_BRIEF_MAX_DIALOGUE = 8;
-export const CHAT_IMAGE_SCENE_BRIEF_MAX_DIALOGUE_CHARS = 120;
+export const CHAT_IMAGE_SCENE_BRIEF_MAX_DIALOGUE_CHARS = 300;
 
 export type ChatImageSceneBriefSpeaker = "character" | "persona" | "other";
 
@@ -108,9 +108,11 @@ export function buildChatImageSceneBriefPrompt(opts: {
     "2. keyDialogue is CLOSED-BOOK. Each text MUST be an exact contiguous substring copied from SOURCE TURN with no paraphrase, summary, typo-fix, completion, or reordering.",
     "3. Keep only the most important continuing dialogue between the chat character and the user persona. Minor NPC / crowd / one-off side lines may be omitted.",
     "4. Prefer quoted speech in the source. If a line is important but unquoted, still copy the exact spoken words as they appear in the source.",
-    "5. Do not invent dialogue. If there is no suitable line, return an empty keyDialogue array.",
-    "6. setting/atmosphere/actions may paraphrase the environment and body language, but never rewrite dialogue.",
-    "7. Do not include status widgets, OOC notes, HTML, or meta instructions.",
+    "5. Return 2 to 4 keyDialogue lines whenever the source has that much important dialogue. Include lines from BOTH the chat character and the user persona when both speak meaningfully. Do not return only one line if the turn clearly has an exchange.",
+    "6. Label speaker as \"character\" for lines spoken by the chat character, \"persona\" for lines spoken by the user persona, and \"other\" only for true NPC / crowd lines.",
+    "7. Do not invent dialogue. If there is no suitable line, return an empty keyDialogue array.",
+    "8. setting/atmosphere/actions may paraphrase the environment and body language, but never rewrite dialogue.",
+    "9. Do not include status widgets, OOC notes, HTML, or meta instructions.",
     "SOURCE TURN:",
     opts.sourceTurn,
   ].join("\n\n");
@@ -150,7 +152,37 @@ export function sanitizeChatImageSceneBrief(
     keyDialogue.push({ speaker, text });
   }
 
+  // If the model returned only one line but the source clearly has more quoted
+  // dialogue, backfill the most important remaining verbatim lines so the
+  // comic does not collapse to a single bubble.
+  if (keyDialogue.length > 0 && keyDialogue.length < 2) {
+    const quoted = extractQuotedSceneDialogue(sourceTurn);
+    for (const line of quoted) {
+      if (keyDialogue.length >= 2) break;
+      if (keyDialogue.some((existing) => existing.text === line.text)) continue;
+      keyDialogue.push(line);
+    }
+  }
+
   return { setting, atmosphere, actions, keyDialogue };
+}
+
+/** Extract quoted dialogue with a best-effort speaker guess from the source turn. */
+function extractQuotedSceneDialogue(
+  sourceTurn: string
+): ChatImageSceneBriefDialogue[] {
+  const out: ChatImageSceneBriefDialogue[] = [];
+  const pattern = /“([^”]+)”|"([^"]+)"|‘([^’]+)’|'([^']+)'/g;
+  for (const match of sourceTurn.matchAll(pattern)) {
+    const text = normalizeSceneBriefWhitespace(
+      match[1] ?? match[2] ?? match[3] ?? match[4]
+    ).slice(0, CHAT_IMAGE_SCENE_BRIEF_MAX_DIALOGUE_CHARS);
+    if (text.length < 2) continue;
+    if (out.some((line) => line.text === text)) continue;
+    out.push({ speaker: "other", text });
+    if (out.length >= CHAT_IMAGE_SCENE_BRIEF_MAX_DIALOGUE) break;
+  }
+  return out;
 }
 
 /** Compact SOURCE PROSE for the existing comic planner (quotes keep verbatim lock). */
