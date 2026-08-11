@@ -370,6 +370,7 @@ export default function ChatImageGeneratorPanel({
         setLdProduct("illustration");
         setComicText("");
         setComicSummary("");
+        void loadSelectedTurnContent(messageId);
       }
       setOpen(true);
     };
@@ -751,8 +752,8 @@ export default function ChatImageGeneratorPanel({
     }
   }
 
-  async function summarizeSelectedTurn() {
-    if (!sourceMessageId || summarizing) return;
+  async function loadSelectedTurnContent(messageId: number) {
+    if (summarizing) return;
     setSummarizing(true);
     setError("");
     setNotice("");
@@ -764,7 +765,7 @@ export default function ChatImageGeneratorPanel({
         body: JSON.stringify({
           ...ids,
           mode: "scene_brief",
-          messageId: sourceMessageId,
+          messageId,
         }),
       });
       const data = (await response.json().catch(() => null)) as
@@ -774,7 +775,6 @@ export default function ChatImageGeneratorPanel({
         throw new Error(data?.error || "턴 내용을 불러오지 못했습니다.");
       }
       setComicSummary(data.summary);
-      setNotice("선택 턴 내용을 불러왔습니다. 필요 없는 부분을 삭제·수정한 뒤 생성해 주세요.");
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "턴 내용을 불러오지 못했습니다.");
     } finally {
@@ -792,7 +792,7 @@ export default function ChatImageGeneratorPanel({
       return;
     }
     if (!isIllustration && sourceMessageId && !summaryText) {
-      setError("먼저 ‘현재 턴 내용 불러오기’를 눌러 주세요.");
+      setError("선택 턴 내용을 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
       return;
     }
     const comicInput = sourceMessageId ? summaryText : sourceText;
@@ -1414,17 +1414,10 @@ export default function ChatImageGeneratorPanel({
                         {ldProduct === "illustration" || ldProduct === "comic" ? (
                           <div className="space-y-2 rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-3 text-[11px] leading-relaxed text-zinc-300">
                             {sourceMessageId ? (
-                              <>
-                                <p>
-                                  <strong className="text-violet-200">선택 턴 자동 인식</strong>
-                                  {" · "}유저 입력과 캐릭터 출력이 그대로 표시됩니다. 유저 대사는 따옴표로 감싸져 있습니다.
-                                </p>
-                                {sourceTurnPreview ? (
-                                  <p className="line-clamp-4 whitespace-pre-wrap text-zinc-400">
-                                    {sourceTurnPreview}
-                                  </p>
-                                ) : null}
-                              </>
+                              <p>
+                                <strong className="text-violet-200">선택 턴 자동 인식</strong>
+                                {" · "}유저 입력과 캐릭터 출력이 그대로 표시됩니다. 유저 대사는 따옴표로 감싸져 있습니다.
+                              </p>
                             ) : (
                               <p>
                                 채팅 메시지 아래 이미지 버튼을 누르면 그 턴 기준으로 장면이 잡힙니다.
@@ -1439,14 +1432,11 @@ export default function ChatImageGeneratorPanel({
                           <>
                             {sourceMessageId ? (
                               <div className="space-y-2">
-                                <button
-                                  type="button"
-                                  onClick={() => void summarizeSelectedTurn()}
-                                  disabled={summarizing || generating}
-                                  className="w-full rounded-lg border border-violet-400/40 bg-violet-500/15 px-3 py-2 text-xs font-semibold text-violet-100 transition hover:bg-violet-500/25 disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                  {summarizing ? "턴 내용 불러오는 중…" : "현재 턴 내용 불러오기"}
-                                </button>
+                                {summarizing ? (
+                                  <p className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-zinc-400">
+                                    선택 턴 내용을 불러오는 중…
+                                  </p>
+                                ) : null}
                                 {comicSummary ? (
                                   <label className="block space-y-1">
                                     <span className="flex items-center justify-between text-[11px] font-semibold text-zinc-400">
