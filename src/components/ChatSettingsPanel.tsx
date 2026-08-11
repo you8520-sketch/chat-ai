@@ -160,7 +160,6 @@ type Props = {
   }) => void;
   layout?: "rail" | "drawer" | "inline";
   onClose?: () => void;
-  relationshipMetaDock?: ReactNode;
   personaSecretSettings?: PersonaSecretSettingsCapability;
 };
 
@@ -206,7 +205,6 @@ export default function ChatSettingsPanel({
   onStatusWidgetChange,
   layout = "rail",
   onClose,
-  relationshipMetaDock,
   personaSecretSettings = { canEdit: false, discoveryActive: false },
 }: Props) {
   const [active, setActive] = useState<SettingsTab | null>(null);
@@ -368,7 +366,6 @@ export default function ChatSettingsPanel({
           refreshing={memoryRefreshing}
           error={memoryError}
           onDataChange={setMemoryData}
-          relationshipMetaDock={relationshipMetaDock}
         />
       );
     }
@@ -1278,7 +1275,6 @@ function MemorySection({
   refreshing = false,
   error,
   onDataChange,
-  relationshipMetaDock,
 }: {
   chatId: number | null;
   data: MemoryData | null;
@@ -1286,7 +1282,6 @@ function MemorySection({
   refreshing?: boolean;
   error: string;
   onDataChange: React.Dispatch<React.SetStateAction<MemoryData | null>>;
-  relationshipMetaDock?: ReactNode;
 }) {
   const [lorebookDraft, setLorebookDraft] = useState("");
   const [recordDrafts, setRecordDrafts] = useState<Record<number, string>>({});
@@ -1520,9 +1515,6 @@ function MemorySection({
       <div>
         <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
           <span className="font-bold text-violet-300">장기기억</span>
-          {relationshipMetaDock ? (
-            <div className="shrink-0">{relationshipMetaDock}</div>
-          ) : null}
         </div>
         {data.messagesUntilCompression > 0 && (
           <p className="mb-1 text-[10px] text-violet-400/80">
