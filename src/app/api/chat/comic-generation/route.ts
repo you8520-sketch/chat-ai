@@ -32,7 +32,10 @@ import {
   formatOpenAiImageUserError,
   resolveChatLdIllustrationPrice,
 } from "@/lib/chatLdIllustrationGeneration";
-import { stripChatTurnMarkup } from "@/lib/chatImageSceneBrief";
+import {
+  formatUserTurnForComicSource,
+  stripChatTurnMarkup,
+} from "@/lib/chatImageSceneBrief";
 import {
   resolveChatImageGenerationModel,
   type ImagePromptGender,
@@ -243,14 +246,6 @@ function resolveGenerationContext(opts: {
   };
 }
 
-/** Wrap user input in quotes so the planner treats it as spoken dialogue, not narration. */
-function quoteUserTurnContent(content: string): string {
-  const trimmed = content.trim();
-  if (!trimmed) return trimmed;
-  if (/^["“]/.test(trimmed) && /["”]$/.test(trimmed)) return trimmed;
-  return `"${trimmed.replace(/"/g, "\\\"")}"`;
-}
-
 function formatTurnRows(
   rows: Array<{ role: "user" | "assistant"; content: string }>
 ): string {
@@ -258,8 +253,13 @@ function formatTurnRows(
     .map((row) => {
       const content = stripChatTurnMarkup(row.content);
       if (!content) return "";
-      const body = row.role === "user" ? quoteUserTurnContent(content) : content;
-      return `${row.role === "assistant" ? "캐릭터" : "유저"}: ${body}`;
+      if (row.role === "user") {
+        // Dialogue only — omit *지문*/(지문). No spoken line ⇒ drop the user row.
+        const body = formatUserTurnForComicSource(content);
+        if (!body) return "";
+        return `유저: ${body}`;
+      }
+      return `캐릭터: ${content}`;
     })
     .filter(Boolean);
   return cleaned.join("\n");

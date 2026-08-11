@@ -1430,7 +1430,7 @@ export default function ChatImageGeneratorPanel({
                             {sourceMessageId ? (
                               <p>
                                 <strong className="text-violet-200">선택 턴 자동 인식</strong>
-                                {" · "}유저 입력과 캐릭터 출력이 그대로 표시됩니다. 유저 대사는 따옴표로 감싸져 있습니다.
+                                {" · "}유저 대사만 가져오고(*지문*·(지문) 제외), 대사가 없으면 유저 입력은 생략합니다.
                               </p>
                             ) : (
                               <p>
