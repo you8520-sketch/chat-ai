@@ -25,6 +25,8 @@ export type ChatImageSceneBrief = {
   atmosphere: string;
   actions: string;
   keyDialogue: ChatImageSceneBriefDialogue[];
+  /** Verbatim unquoted narration / inner-thought lines for caption boxes. */
+  keyNarration: string[];
 };
 
 export function resolveChatImageSceneBriefModel(
@@ -99,6 +101,7 @@ export function buildChatImageSceneBriefPrompt(opts: {
         { speaker: "character", text: "verbatim line" },
         { speaker: "persona", text: "verbatim line" },
       ],
+      keyNarration: ["verbatim unquoted narration or inner-thought line"],
     }),
     "Rules:",
     "1. Focus on ONE visual moment from the SOURCE TURN (the selected assistant reply, optionally with the preceding user line).",
@@ -109,8 +112,9 @@ export function buildChatImageSceneBriefPrompt(opts: {
     "6. The preceding user line is part of the scene. If the user persona speaks (quoted or clearly as direct input), include at least one persona line unless it is trivial (e.g. only \"응\", \"계속\").",
     "7. Label speaker as \"character\" for lines spoken by the chat character, \"persona\" for lines spoken by the user persona, and \"other\" only for true NPC / crowd lines.",
     "8. Do not invent dialogue. If there is no suitable line, return an empty keyDialogue array.",
-    "9. setting/atmosphere/actions may paraphrase the environment and body language, but never rewrite dialogue.",
-    "10. Do not include status widgets, OOC notes, HTML, or meta instructions.",
+    "9. keyNarration is also CLOSED-BOOK. Copy 1-3 short verbatim unquoted descriptive or inner-thought lines from SOURCE TURN (no quotation marks). These become rectangular caption boxes when dialogue is scarce.",
+    "10. setting/atmosphere/actions may paraphrase the environment and body language, but never rewrite dialogue or narration.",
+    "11. Do not include status widgets, OOC notes, HTML, or meta instructions.",
     "SOURCE TURN:",
     opts.sourceTurn,
   ].join("\n\n");
@@ -177,7 +181,52 @@ export function sanitizeChatImageSceneBrief(
     }
   }
 
-  return { setting, atmosphere, actions, keyDialogue };
+  const narrationRows = Array.isArray(source.keyNarration) ? source.keyNarration : [];
+  const keyNarration: string[] = [];
+  for (const row of narrationRows) {
+    if (keyNarration.length >= 3) break;
+    const text = findVerbatimSceneExcerpt(row, sourceTurn);
+    if (!text) continue;
+    if (keyNarration.includes(text)) continue;
+    if (keyDialogue.some((line) => line.text === text)) continue;
+    keyNarration.push(text);
+  }
+
+  // When dialogue is scarce, backfill verbatim unquoted narration / inner
+  // thought so the comic still has caption material.
+  if (keyDialogue.length + keyNarration.length < 2) {
+    const narration = extractUnquotedSceneNarration(sourceTurn);
+    for (const text of narration) {
+      if (keyDialogue.length + keyNarration.length >= 2) break;
+      if (keyNarration.includes(text)) continue;
+      if (keyDialogue.some((line) => line.text === text)) continue;
+      keyNarration.push(text);
+    }
+  }
+
+  return { setting, atmosphere, actions, keyDialogue, keyNarration };
+}
+
+/** Extract short verbatim unquoted narration / inner-thought lines. */
+function extractUnquotedSceneNarration(sourceTurn: string): string[] {
+  const stripped = sourceTurn
+    .replace(/“[^”]*”|"[^"]*"|‘[^’]*’|'[^']*'/g, " ")
+    .replace(/\s+/g, " ");
+  const segments = stripped
+    .split(/(?<=[.!?。…])\s+|\n+/)
+    .map((segment) => normalizeSceneBriefWhitespace(segment))
+    .filter((segment) => segment.length >= 8 && segment.length <= 220);
+  const out: string[] = [];
+  for (const segment of segments) {
+    if (out.includes(segment)) continue;
+    if (/^(유저|캐릭터):/.test(segment)) continue;
+    // Skip speech-attribution fragments left after removing quoted lines.
+    if (/라고\s*(말했|했|외치|물었|대답|속삭)/.test(segment)) continue;
+    if (/^[가-힣a-zA-Z]{1,6}은\s/.test(segment) && segment.length < 20) continue;
+    out.push(segment);
+    if (out.length >= 3) break;
+  }
+  return out;
 }
 
 /** Pull the user turn's direct speech as a persona line when the model missed it. */
@@ -229,11 +278,15 @@ export function formatSceneBriefAsComicSource(
   const dialogue = brief.keyDialogue
     .map((line) => `${speakerLabel(line.speaker)}: "${line.text}"`)
     .join("\n");
+  const narration = brief.keyNarration.length
+    ? brief.keyNarration.map((line) => `지문: ${line}`).join("\n")
+    : "";
   return [
     brief.setting,
     brief.atmosphere,
     brief.actions,
     dialogue,
+    narration,
   ]
     .filter(Boolean)
     .join("\n")
@@ -254,13 +307,19 @@ export function formatSceneBriefAsEditableSummary(
     ? brief.keyDialogue
         .map((line) => `${speakerLabel(line.speaker)}의 대사: "${line.text}"`)
         .join("\n")
-    : "(중요 대사 없음 — 컷만화에는 최소 1개의 대사가 필요합니다)";
+    : "(중요 대사 없음)";
+  const narration = brief.keyNarration.length
+    ? brief.keyNarration.map((line) => `지문: ${line}`).join("\n")
+    : "";
   return [
     `배경: ${brief.setting}`,
     `분위기: ${brief.atmosphere}`,
     `상황: ${brief.actions}`,
     dialogue,
-  ].join("\n");
+    narration,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 /** Illustration prompt payload: environment/action first; dialogue only as spoken cues. */
