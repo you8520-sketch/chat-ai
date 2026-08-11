@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { IconBookmark } from "@/components/ChatToolbarIcons";
 
 /** 공개 페이지 배지 행 — 캐릭터 북마크(좋아요 테이블 재사용) 토글 */
 export default function CharacterBookmarkBadge({
@@ -40,15 +41,21 @@ export default function CharacterBookmarkBadge({
       type="button"
       onClick={() => void toggle()}
       disabled={busy}
-      className={`rounded-md border px-2 py-0.5 text-xs font-semibold transition disabled:opacity-50 ${
+      className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-xs font-semibold transition disabled:opacity-50 ${
         bookmarked
           ? "border-amber-500/20 bg-amber-500/15 text-amber-200"
           : "border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10"
       }`}
       aria-pressed={bookmarked}
+      aria-label={bookmarked ? "북마크 해제" : "북마크"}
       title={bookmarked ? "북마크 해제" : "북마크"}
     >
-      {bookmarked ? "🔖 북마크됨" : "🔖 북마크"}
+      <IconBookmark
+        className={
+          bookmarked ? "h-3.5 w-3.5 fill-current" : "h-3.5 w-3.5"
+        }
+      />
+      {bookmarked ? "북마크됨" : "북마크"}
     </button>
   );
 }
