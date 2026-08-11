@@ -574,6 +574,11 @@ export default function ChatImageGeneratorPanel({
           return;
         }
         setNotice("이미지 생성이 완료되었습니다.");
+        window.dispatchEvent(
+          new CustomEvent("chat:image-generator:completed", {
+            detail: { jobId: trackedJobId },
+          })
+        );
         await loadInfoRef.current();
       } catch {
         // Transient network failure — keep polling.
