@@ -111,11 +111,11 @@ export function buildChatImageSceneBriefPrompt(opts: {
     "2. keyDialogue is CLOSED-BOOK. Each text MUST be an exact contiguous substring copied from SOURCE TURN with no paraphrase, summary, typo-fix, completion, or reordering.",
     "3. Keep only the most important continuing dialogue between the chat character and the user persona. Minor NPC / crowd / one-off side lines may be omitted.",
     "4. Prefer quoted speech in the source. If a line is important but unquoted, still copy the exact spoken words as they appear in the source.",
-    "5. Return 4 keyDialogue lines whenever the source has that much important dialogue. Include lines from BOTH the chat character and the user persona when both speak meaningfully. Do not return only one line if the turn clearly has an exchange.",
+    "5. Return at least 3 keyDialogue lines whenever the source has that much important dialogue, and up to 4. Include lines from BOTH the chat character and the user persona when both speak meaningfully. Do not return only one line if the turn clearly has an exchange.",
     "6. The preceding user line is part of the scene. If the user persona speaks (quoted or clearly as direct input), include at least one persona line unless it is trivial (e.g. only \"응\", \"계속\").",
     "7. Label speaker as \"character\" for lines spoken by the chat character, \"persona\" for lines spoken by the user persona, and \"other\" only for true NPC / crowd lines.",
     "8. Do not invent dialogue. If there is no suitable line, return an empty keyDialogue array.",
-    "9. keyNarration is also CLOSED-BOOK. Copy 1-3 short verbatim unquoted descriptive or inner-thought lines from SOURCE TURN (no quotation marks). These become rectangular caption boxes when dialogue is scarce.",
+    "9. keyNarration is also CLOSED-BOOK. Copy at least 2 short verbatim unquoted descriptive or inner-thought lines from SOURCE TURN (no quotation marks), and up to 3. These become rectangular caption boxes.",
     "10. setting/atmosphere/actions/expressions may paraphrase the environment, body language, and facial acting, but never rewrite dialogue or narration.",
     "11. Make the brief RICH — aim for roughly 500 Korean characters total across setting, atmosphere, actions, expressions, dialogue, and narration so the comic planner has enough material.",
     "12. Do not include status widgets, OOC notes, HTML, or meta instructions.",
@@ -161,13 +161,13 @@ export function sanitizeChatImageSceneBrief(
     keyDialogue.push({ speaker, text });
   }
 
-  // If the model returned fewer than four lines but the source clearly has more
+  // If the model returned fewer than three lines but the source clearly has more
   // quoted dialogue, backfill the most important remaining verbatim lines so
   // the comic has enough material for 3-4 panels.
-  if (keyDialogue.length > 0 && keyDialogue.length < 4) {
+  if (keyDialogue.length > 0 && keyDialogue.length < 3) {
     const quoted = extractQuotedSceneDialogue(sourceTurn);
     for (const line of quoted) {
-      if (keyDialogue.length >= 4) break;
+      if (keyDialogue.length >= 3) break;
       if (keyDialogue.some((existing) => existing.text === line.text)) continue;
       keyDialogue.push(line);
     }
@@ -199,12 +199,12 @@ export function sanitizeChatImageSceneBrief(
     keyNarration.push(text);
   }
 
-  // When dialogue is scarce, backfill verbatim unquoted narration / inner
-  // thought so the comic still has caption material.
-  if (keyDialogue.length + keyNarration.length < 4) {
+  // Ensure at least two verbatim narration / inner-thought lines for caption
+  // boxes, even when dialogue is plentiful.
+  if (keyNarration.length < 2) {
     const narration = extractUnquotedSceneNarration(sourceTurn);
     for (const text of narration) {
-      if (keyDialogue.length + keyNarration.length >= 4) break;
+      if (keyNarration.length >= 2) break;
       if (keyNarration.includes(text)) continue;
       if (keyDialogue.some((line) => line.text === text)) continue;
       keyNarration.push(text);
