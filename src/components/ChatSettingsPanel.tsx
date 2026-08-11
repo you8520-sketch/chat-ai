@@ -52,6 +52,17 @@ import {
 } from "@/components/ChatSettingsRailIcons";
 
 const MEMORY_FETCH_TIMEOUT_MS = 20_000;
+/** Grow a textarea to its content height (no cramped inner scrollbar by default). */
+function fitTextareaToContent(
+  el: HTMLTextAreaElement | null,
+  opts?: { minPx?: number }
+): void {
+  if (!el) return;
+  const minPx = opts?.minPx ?? 0;
+  el.style.height = "0px";
+  el.style.height = `${Math.max(el.scrollHeight, minPx)}px`;
+}
+
 /** Awaited seal catch-up may call the summary LLM once. */
 const MEMORY_CATCHUP_TIMEOUT_MS = 90_000;
 /** 장기기억 히스토리 — 한 페이지당 기록 수 */
@@ -1273,6 +1284,18 @@ function MemorySection({
   }, [historyPageCount]);
 
   useEffect(() => {
+    if (!lorebookEditing) return;
+    fitTextareaToContent(lorebookTextareaRef.current, { minPx: 192 });
+  }, [lorebookEditing, lorebookDraft]);
+
+  const editingRecordDraft =
+    editingRecordId != null ? (recordDrafts[editingRecordId] ?? "") : "";
+  useEffect(() => {
+    if (editingRecordId == null) return;
+    fitTextareaToContent(recordTextareaRef.current, { minPx: 96 });
+  }, [editingRecordId, editingRecordDraft]);
+
+  useEffect(() => {
     if (!data) return;
     setLorebookDraft(data.lorebook ?? data.recentSummary ?? "");
     setLorebookEditing(false);
@@ -1435,7 +1458,10 @@ function MemorySection({
 
   function startLorebookEdit() {
     setLorebookEditing(true);
-    window.requestAnimationFrame(() => lorebookTextareaRef.current?.focus());
+    window.requestAnimationFrame(() => {
+      fitTextareaToContent(lorebookTextareaRef.current, { minPx: 192 });
+      lorebookTextareaRef.current?.focus();
+    });
   }
 
   function cancelLorebookEdit() {
@@ -1485,10 +1511,10 @@ function MemorySection({
             ref={lorebookTextareaRef}
             value={lorebookDraft}
             onChange={(e) => setLorebookDraft(e.target.value)}
-            rows={6}
+            rows={8}
             maxLength={lorebookMax}
             placeholder="대화가 진행되면 히스토리가 자동으로 쌓입니다."
-            className="max-h-48 w-full resize-none overflow-y-auto rounded-md border border-white/10 bg-[#1a1a1a] p-2 text-[11px] leading-relaxed text-zinc-200 placeholder:text-zinc-600 focus:border-violet-500/40 focus:outline-none"
+            className="min-h-[12rem] w-full resize-y overflow-y-auto rounded-md border border-white/10 bg-[#1a1a1a] p-2 text-[11px] leading-relaxed text-zinc-200 placeholder:text-zinc-600 focus:border-violet-500/40 focus:outline-none"
           />
         ) : (
           <div
@@ -1602,11 +1628,11 @@ function MemorySection({
                       value={draft}
                       minLength={minChars}
                       maxLength={maxChars}
-                      rows={4}
+                      rows={6}
                       onChange={(e) =>
                         setRecordDrafts((prev) => ({ ...prev, [r.id]: e.target.value }))
                       }
-                      className="max-h-36 w-full resize-none overflow-y-auto rounded border border-white/10 bg-[#121212] p-2 text-[11px] leading-relaxed text-zinc-200 focus:border-violet-500/40 focus:outline-none"
+                      className="min-h-[6rem] w-full resize-y overflow-y-auto rounded border border-white/10 bg-[#121212] p-2 text-[11px] leading-relaxed text-zinc-200 focus:border-violet-500/40 focus:outline-none"
                     />
                   ) : (
                     <div className="line-clamp-4 max-h-20 overflow-hidden whitespace-pre-wrap text-[11px] leading-relaxed text-zinc-300">
@@ -1766,7 +1792,10 @@ function MemorySection({
                           type="button"
                           onClick={() => {
                             setEditingRecordId(r.id);
-                            window.requestAnimationFrame(() => recordTextareaRef.current?.focus());
+                            window.requestAnimationFrame(() => {
+                              fitTextareaToContent(recordTextareaRef.current, { minPx: 96 });
+                              recordTextareaRef.current?.focus();
+                            });
                           }}
                           disabled={regeneratingRecordId === r.id}
                           className="rounded border border-violet-500/30 px-2 py-0.5 text-[10px] text-violet-200/90 hover:bg-violet-500/10 disabled:opacity-40"
