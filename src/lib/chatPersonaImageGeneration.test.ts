@@ -54,9 +54,15 @@ describe("chat persona image generation", () => {
   });
 
   it("requests and delivers exact 3:5 dimensions", () => {
-    assert.equal(CHAT_PERSONA_IMAGE_API_OUTPUT_SIZE, "840x1400");
-    assert.equal(CHAT_PERSONA_IMAGE_OUTPUT_WIDTH, 840);
-    assert.equal(CHAT_PERSONA_IMAGE_OUTPUT_HEIGHT, 1400);
+    assert.equal(CHAT_PERSONA_IMAGE_API_OUTPUT_SIZE, "864x1440");
+    assert.equal(CHAT_PERSONA_IMAGE_OUTPUT_WIDTH, 864);
+    assert.equal(CHAT_PERSONA_IMAGE_OUTPUT_HEIGHT, 1440);
+    assert.equal(CHAT_PERSONA_IMAGE_OUTPUT_WIDTH % 16, 0);
+    assert.equal(CHAT_PERSONA_IMAGE_OUTPUT_HEIGHT % 16, 0);
+    assert.equal(
+      CHAT_PERSONA_IMAGE_OUTPUT_WIDTH * 5,
+      CHAT_PERSONA_IMAGE_OUTPUT_HEIGHT * 3
+    );
     assert.equal(CHAT_PERSONA_IMAGE_OUTPUT_WIDTH / CHAT_PERSONA_IMAGE_OUTPUT_HEIGHT, 3 / 5);
   });
 });
