@@ -15,6 +15,8 @@ type Props = {
   addPersonaHref?: string;
   /** 트리거 버튼 추가 클래스 (캐릭터 페이지 액션 행 등) */
   triggerClassName?: string;
+  /** 페르소나 추가 링크 target (iframe embed에서는 `_top`) */
+  linkTarget?: "_self" | "_top";
 };
 
 const DEFAULT_ADD_PERSONA_HREF = "/persona#personas";
@@ -28,10 +30,17 @@ function rememberPersonaSelection(personaId: number) {
   }
 }
 
-function PersonaAddButton({ href }: { href: string }) {
+function PersonaAddButton({
+  href,
+  target,
+}: {
+  href: string;
+  target?: "_self" | "_top";
+}) {
   return (
     <Link
       href={href}
+      target={target}
       className="flex w-full items-center justify-center gap-1 rounded-md border border-dashed border-violet-500/30 px-2.5 py-2 text-[11px] font-semibold text-violet-300/90 transition hover:border-violet-500/50 hover:bg-violet-500/10"
     >
       + 페르소나 추가하기
@@ -48,6 +57,7 @@ export default function PersonaSelector({
   variant = "dropdown",
   addPersonaHref = DEFAULT_ADD_PERSONA_HREF,
   triggerClassName = "",
+  linkTarget,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -116,7 +126,7 @@ export default function PersonaSelector({
     return (
       <div className="space-y-2">
         <p className="text-xs font-medium text-zinc-300">등록된 페르소나가 없습니다.</p>
-        <PersonaAddButton href={addPersonaHref} />
+        <PersonaAddButton href={addPersonaHref} target={linkTarget} />
       </div>
     );
   }
@@ -180,7 +190,7 @@ export default function PersonaSelector({
                 )}
               </button>
             ))}
-            <PersonaAddButton href={addPersonaHref} />
+            <PersonaAddButton href={addPersonaHref} target={linkTarget} />
           </div>
         )}
         {notice && (
@@ -252,7 +262,7 @@ export default function PersonaSelector({
               </button>
             ))}
             <div className="border-t border-white/5 p-1">
-              <PersonaAddButton href={addPersonaHref} />
+              <PersonaAddButton href={addPersonaHref} target={linkTarget} />
             </div>
           </div>
         )}

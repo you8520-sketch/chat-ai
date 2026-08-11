@@ -166,9 +166,15 @@ export default async function CharacterPage({
 
   const isOwner = c.creator_id === user?.id;
 
+  const characterBranches =
+    user != null ? fetchCharacterChatSessions(getDb(), user.id, c.id) : [];
+
+  const personaList = user ? ensureDefaultPersona(user.id, user.nickname) : [];
+  const defaultPersonaId = personaList[0]?.id ?? null;
+
   if (introEmbed) {
     return (
-      <div className="w-full bg-[#0b0d14] p-4">
+      <div className="w-full space-y-5 bg-[#0b0d14] p-4">
         <CharacterPublicPagePreview
           characterId={c.id}
           name={c.name}
@@ -192,15 +198,21 @@ export default async function CharacterPage({
           viewerDisplayName={user ? personaDisplayName : null}
           pagePath={`/character/${c.id}`}
         />
+        <div className="border-t border-white/10 pt-4">
+          <CharacterStartRow
+            characterId={c.id}
+            characterName={c.name}
+            loggedIn={!!user}
+            branches={characterBranches}
+            personas={personaList}
+            initialPersonaId={defaultPersonaId}
+            embedMode
+            startLabel="새 대화 시작"
+          />
+        </div>
       </div>
     );
   }
-
-  const characterBranches =
-    user != null ? fetchCharacterChatSessions(getDb(), user.id, c.id) : [];
-
-  const personaList = user ? ensureDefaultPersona(user.id, user.nickname) : [];
-  const defaultPersonaId = personaList[0]?.id ?? null;
 
   const balance = user ? getPointBalance(user.id) : null;
   const paidPoints = balance?.paid ?? 0;

@@ -19,6 +19,12 @@ type Props = {
   branches: UserChatSession[];
   selectedPersonaId?: number | null;
   className?: string;
+  /** Button label when starting a chat (default: 대화 시작하기). */
+  startLabel?: string;
+  /** Skip continue-history dialog and always open a fresh chat. */
+  alwaysNewChat?: boolean;
+  /** Navigate the top window (for iframe embeds like chat-intro). */
+  openInTop?: boolean;
 };
 
 export function chatEntryHref(
@@ -40,6 +46,9 @@ export default function StartChatButton({
   branches,
   selectedPersonaId = null,
   className,
+  startLabel = "대화 시작하기",
+  alwaysNewChat = false,
+  openInTop = false,
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -48,6 +57,18 @@ export default function StartChatButton({
   const multi = branches.length > 1;
 
   const close = useCallback(() => setOpen(false), []);
+
+  const go = useCallback(
+    (href: string) => {
+      if (openInTop && typeof window !== "undefined") {
+        const topWin = window.top ?? window;
+        topWin.location.assign(href);
+        return;
+      }
+      router.push(href);
+    },
+    [openInTop, router]
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -61,23 +82,26 @@ export default function StartChatButton({
   const baseClass =
     className ??
     "rounded-full bg-violet-600 px-8 py-3 font-bold text-white hover:bg-violet-500";
+  const linkTarget = openInTop ? "_top" : undefined;
 
   if (!loggedIn) {
     const loginHref = `/login?redirect=${encodeURIComponent(`/character/${characterId}`)}`;
     return (
-      <Link href={loginHref} className={baseClass}>
-        대화 시작하기
+      <Link href={loginHref} target={linkTarget} className={baseClass}>
+        {startLabel}
       </Link>
     );
   }
 
-  if (!hasHistory) {
+  const freshHref = chatEntryHref(characterId, {
+    fresh: true,
+    personaId: selectedPersonaId,
+  });
+
+  if (alwaysNewChat || !hasHistory) {
     return (
-      <Link
-        href={chatEntryHref(characterId, { fresh: true, personaId: selectedPersonaId })}
-        className={baseClass}
-      >
-        대화 시작하기
+      <Link href={freshHref} target={linkTarget} className={baseClass}>
+        {startLabel}
       </Link>
     );
   }
@@ -119,9 +143,7 @@ export default function StartChatButton({
                       type="button"
                       onClick={() => {
                         close();
-                        router.push(
-                          chatEntryHref(characterId, { chatId: b.chat_id })
-                        );
+                        go(chatEntryHref(characterId, { chatId: b.chat_id }));
                       }}
                       className="w-full rounded-xl px-3 py-2.5 text-left transition hover:bg-white/5"
                     >
@@ -155,9 +177,7 @@ export default function StartChatButton({
                   type="button"
                   onClick={() => {
                     close();
-                    router.push(
-                      chatEntryHref(characterId, { chatId: latest.chat_id })
-                    );
+                    go(chatEntryHref(characterId, { chatId: latest.chat_id }));
                   }}
                   className="rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white hover:bg-violet-500"
                 >
@@ -168,7 +188,7 @@ export default function StartChatButton({
                 type="button"
                 onClick={() => {
                   close();
-                  router.push(chatEntryHref(characterId, { fresh: true, personaId: selectedPersonaId }));
+                  go(freshHref);
                 }}
                 className={`rounded-xl px-4 py-3 text-sm font-bold ${
                   multi
