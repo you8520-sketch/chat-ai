@@ -1138,5 +1138,8 @@ export function novelParagraphSpacingClass(
     // 수정 textarea와 동일: Enter 한 번 = 한 줄 간격 (큰 문단 마진 없음)
     return "mt-0";
   }
-  return crossesDialogue ? "mt-[1.5em]" : "mt-[1em]";
+  // Scale via --chat-paragraph-gap-scale from chat display prefs.
+  return crossesDialogue
+    ? "mt-[calc(1.5em*var(--chat-paragraph-gap-scale,1))]"
+    : "mt-[calc(1em*var(--chat-paragraph-gap-scale,1))]";
 }

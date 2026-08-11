@@ -176,6 +176,7 @@ import {
   CHAT_ROOM_HEADER_OFFSET_CLASS,
   CHAT_DESKTOP_MEDIA_QUERY,
   DEFAULT_CHAT_DISPLAY_PREFS,
+  ensureChatDisplayWebFontsLoaded,
   resolveClientDisplayPrefs,
   saveChatDisplayPrefs,
   type ChatDisplayPrefs,
@@ -1566,6 +1567,10 @@ export default function ChatClient({
     displayPrefsRef.current = displayPrefs;
     activeStreamRevealRef.current?.syncOptions();
   }, [displayPrefs]);
+
+  useEffect(() => {
+    void ensureChatDisplayWebFontsLoaded();
+  }, []);
 
   function handlePersonaUpdated(updated: PublicPersonaListItem) {
     setPersonas((prev) => prev.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)));
