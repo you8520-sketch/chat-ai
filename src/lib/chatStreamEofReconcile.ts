@@ -22,6 +22,14 @@ export type StreamTerminalFlags = {
 export const EOF_RECONCILE_MAX_ATTEMPTS = 6;
 export const EOF_RECONCILE_RETRY_MS = 350;
 
+/**
+ * Longer poll after the SSE transport drops during post-process
+ * (status-widget extract LLM + episodic fact persist + finalize).
+ * attempts=40 · retry=1000ms → 39s sleep budget (plus fetch latency).
+ */
+export const EOF_RECONCILE_POSTPROCESS_MAX_ATTEMPTS = 40;
+export const EOF_RECONCILE_POSTPROCESS_RETRY_MS = 1000;
+
 /** Max cumulative sleep between polls (excludes fetch latency). */
 export function eofReconcileMaxSleepMs(
   maxAttempts: number = EOF_RECONCILE_MAX_ATTEMPTS,
@@ -32,6 +40,24 @@ export function eofReconcileMaxSleepMs(
 
 export function needsEofReconcile(flags: StreamTerminalFlags): boolean {
   return !flags.sawDone && !flags.sawError;
+}
+
+/**
+ * Whether to poll `/api/chat/message` for finalize after the SSE ends.
+ * Transport drops during post-process must still recover widget values even when
+ * the client catch set a streamError (otherwise soft-rollback hides widgets).
+ */
+export function shouldRecoverStreamFinalize(flags: {
+  sawDone: boolean;
+  sawError: boolean;
+  /** Client reader/decode threw (not SSE `type:error`). */
+  streamTransportFailed?: boolean;
+  hasPersistedMessageId: boolean;
+}): boolean {
+  if (flags.sawDone) return false;
+  if (!flags.hasPersistedMessageId) return false;
+  if (flags.streamTransportFailed) return true;
+  return needsEofReconcile({ sawDone: flags.sawDone, sawError: flags.sawError });
 }
 
 export type EofReconcileSnapshot = {

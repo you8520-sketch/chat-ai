@@ -2,12 +2,15 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   EOF_RECONCILE_MAX_ATTEMPTS,
+  EOF_RECONCILE_POSTPROCESS_MAX_ATTEMPTS,
+  EOF_RECONCILE_POSTPROCESS_RETRY_MS,
   EOF_RECONCILE_RETRY_MS,
   classifyReconcileStatus,
   eofReconcileMaxSleepMs,
   generationStatusFromEofResult,
   needsEofReconcile,
   reconcileStreamEof,
+  shouldRecoverStreamFinalize,
   type EofReconcileSnapshot,
 } from "@/lib/chatStreamEofReconcile";
 
@@ -43,6 +46,69 @@ describe("needsEofReconcile", () => {
 
   it("runs only when neither terminal event arrived", () => {
     assert.equal(needsEofReconcile({ sawDone: false, sawError: false }), true);
+  });
+});
+
+describe("shouldRecoverStreamFinalize", () => {
+  it("skips when done already arrived", () => {
+    assert.equal(
+      shouldRecoverStreamFinalize({
+        sawDone: true,
+        sawError: false,
+        streamTransportFailed: true,
+        hasPersistedMessageId: true,
+      }),
+      false
+    );
+  });
+
+  it("recovers after transport drop even when streamError would have blocked old path", () => {
+    assert.equal(
+      shouldRecoverStreamFinalize({
+        sawDone: false,
+        sawError: false,
+        streamTransportFailed: true,
+        hasPersistedMessageId: true,
+      }),
+      true
+    );
+  });
+
+  it("requires a persisted assistant message id", () => {
+    assert.equal(
+      shouldRecoverStreamFinalize({
+        sawDone: false,
+        sawError: false,
+        streamTransportFailed: true,
+        hasPersistedMessageId: false,
+      }),
+      false
+    );
+  });
+
+  it("keeps quiet-EOF reconcile when neither done nor error arrived", () => {
+    assert.equal(
+      shouldRecoverStreamFinalize({
+        sawDone: false,
+        sawError: false,
+        hasPersistedMessageId: true,
+      }),
+      true
+    );
+  });
+});
+
+describe("EOF postprocess recover budget", () => {
+  it("waits long enough for widget extract LLM after stream drop", () => {
+    assert.equal(EOF_RECONCILE_POSTPROCESS_MAX_ATTEMPTS, 40);
+    assert.equal(EOF_RECONCILE_POSTPROCESS_RETRY_MS, 1000);
+    assert.equal(
+      eofReconcileMaxSleepMs(
+        EOF_RECONCILE_POSTPROCESS_MAX_ATTEMPTS,
+        EOF_RECONCILE_POSTPROCESS_RETRY_MS
+      ),
+      39_000
+    );
   });
 });
 
