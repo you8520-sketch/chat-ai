@@ -106,10 +106,11 @@ export function buildChatImageSceneBriefPrompt(opts: {
     "3. Keep only the most important continuing dialogue between the chat character and the user persona. Minor NPC / crowd / one-off side lines may be omitted.",
     "4. Prefer quoted speech in the source. If a line is important but unquoted, still copy the exact spoken words as they appear in the source.",
     "5. Return 2 to 4 keyDialogue lines whenever the source has that much important dialogue. Include lines from BOTH the chat character and the user persona when both speak meaningfully. Do not return only one line if the turn clearly has an exchange.",
-    "6. Label speaker as \"character\" for lines spoken by the chat character, \"persona\" for lines spoken by the user persona, and \"other\" only for true NPC / crowd lines.",
-    "7. Do not invent dialogue. If there is no suitable line, return an empty keyDialogue array.",
-    "8. setting/atmosphere/actions may paraphrase the environment and body language, but never rewrite dialogue.",
-    "9. Do not include status widgets, OOC notes, HTML, or meta instructions.",
+    "6. The preceding user line is part of the scene. If the user persona speaks (quoted or clearly as direct input), include at least one persona line unless it is trivial (e.g. only \"응\", \"계속\").",
+    "7. Label speaker as \"character\" for lines spoken by the chat character, \"persona\" for lines spoken by the user persona, and \"other\" only for true NPC / crowd lines.",
+    "8. Do not invent dialogue. If there is no suitable line, return an empty keyDialogue array.",
+    "9. setting/atmosphere/actions may paraphrase the environment and body language, but never rewrite dialogue.",
+    "10. Do not include status widgets, OOC notes, HTML, or meta instructions.",
     "SOURCE TURN:",
     opts.sourceTurn,
   ].join("\n\n");
@@ -161,7 +162,40 @@ export function sanitizeChatImageSceneBrief(
     }
   }
 
+  // If the persona never got a line but the source has a user turn with direct
+  // speech, surface the user's verbatim input so the comic keeps both voices.
+  const hasPersonaLine = keyDialogue.some((line) => line.speaker === "persona");
+  if (!hasPersonaLine) {
+    const userLine = extractUserTurnDialogue(sourceTurn);
+    if (userLine) {
+      const existing = keyDialogue.findIndex((line) => line.text === userLine.text);
+      if (existing >= 0) {
+        keyDialogue[existing] = { ...keyDialogue[existing]!, speaker: "persona" };
+      } else {
+        keyDialogue.push(userLine);
+      }
+    }
+  }
+
   return { setting, atmosphere, actions, keyDialogue };
+}
+
+/** Pull the user turn's direct speech as a persona line when the model missed it. */
+function extractUserTurnDialogue(
+  sourceTurn: string
+): ChatImageSceneBriefDialogue | null {
+  const userMatch = sourceTurn.match(/유저:\s*([\s\S]*?)(?:\s+캐릭터:|$)/);
+  const userText = normalizeSceneBriefWhitespace(userMatch?.[1] ?? "");
+  if (!userText) return null;
+  const quoted = extractQuotedSceneDialogue(userText);
+  if (quoted.length > 0) {
+    return { speaker: "persona", text: quoted[0]!.text };
+  }
+  // Unquoted user input is still the persona's direct line in RP chat.
+  if (userText.length >= 2 && userText.length <= 400) {
+    return { speaker: "persona", text: userText };
+  }
+  return null;
 }
 
 /** Extract quoted dialogue with a best-effort speaker guess from the source turn. */
