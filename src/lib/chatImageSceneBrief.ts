@@ -212,6 +212,37 @@ function stripJsonFence(raw: string): string {
     .trim();
 }
 
+async function callSceneBriefModel(opts: {
+  characterName: string;
+  personaName: string;
+  sourceTurn: string;
+  model: string;
+  maxTokens: number;
+  timeoutMs: number;
+}): Promise<string> {
+  const { text } = await callOpenRouterCompletion({
+    system:
+      "You are a precise closed-book dialogue extractor for comic/illustration prompts. Never invent or rewrite spoken lines.",
+    history: [
+      {
+        role: "user",
+        content: buildChatImageSceneBriefPrompt({
+          characterName: opts.characterName,
+          personaName: opts.personaName,
+          sourceTurn: opts.sourceTurn,
+        }),
+      },
+    ],
+    model: opts.model,
+    temperature: 0.1,
+    maxTokens: opts.maxTokens,
+    disableReasoning: true,
+    requestKind: "background-chat-image-scene-brief",
+    timeoutMs: opts.timeoutMs,
+  });
+  return text;
+}
+
 export async function extractChatImageSceneBrief(opts: {
   characterName: string;
   personaName: string;
@@ -230,28 +261,34 @@ export async function extractChatImageSceneBrief(opts: {
   }
 
   const model = resolveChatImageSceneBriefModel();
-  const { text } = await callOpenRouterCompletion({
-    system:
-      "You are a precise closed-book dialogue extractor for comic/illustration prompts. Never invent or rewrite spoken lines.",
-    history: [
-      {
-        role: "user",
-        content: buildChatImageSceneBriefPrompt({
-          characterName: opts.characterName,
-          personaName: opts.personaName,
-          sourceTurn,
-        }),
-      },
-    ],
-    model,
-    temperature: 0.1,
-    // Leave headroom for hidden reasoning / JSON so finish=length does not
-    // truncate the brief. CheaperInference DeepSeek V4 gets thinking disabled.
-    maxTokens: 3072,
-    disableReasoning: true,
-    requestKind: "background-chat-image-scene-brief",
-    timeoutMs: 60_000,
-  });
+  let text = "";
+  try {
+    text = await callSceneBriefModel({
+      characterName: opts.characterName,
+      personaName: opts.personaName,
+      sourceTurn,
+      model,
+      maxTokens: 2048,
+      timeoutMs: 120_000,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const retriable =
+      /timeout|aborted|empty completion|finish=length|5\d\d/i.test(message);
+    if (!retriable) throw error;
+    console.warn("[chat-image-scene-brief] primary call failed; retrying once", {
+      model,
+      message,
+    });
+    text = await callSceneBriefModel({
+      characterName: opts.characterName,
+      personaName: opts.personaName,
+      sourceTurn,
+      model,
+      maxTokens: 3072,
+      timeoutMs: 180_000,
+    });
+  }
 
   if (!text.trim()) {
     throw new Error("장면 브리프 응답이 비어 있습니다.");

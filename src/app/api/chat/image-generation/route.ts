@@ -643,7 +643,6 @@ export async function GET(req: Request) {
             persona: averageCost(CHAT_PERSONA_IMAGE_TEMPLATE_ID),
             illustration: averageCost(CHAT_LD_ILLUSTRATION_TEMPLATE_ID),
             comic: {
-              2: averageCost(CHAT_COMIC_TEMPLATE_ID, 2),
               3: averageCost(CHAT_COMIC_TEMPLATE_ID, 3),
               4: averageCost(CHAT_COMIC_TEMPLATE_ID, 4),
             },

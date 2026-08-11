@@ -876,7 +876,7 @@ export async function POST(req: Request) {
     const mood = "comic" as const;
 
     const balanceBefore = getPointBalance(user.id);
-    const pricePoints = resolveChatComicPrice(2);
+    const pricePoints = resolveChatComicPrice(3);
     if (balanceBefore.total < pricePoints) {
       return NextResponse.json(
         {

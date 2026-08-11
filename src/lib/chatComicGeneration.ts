@@ -5,7 +5,7 @@ import {
 } from "@/lib/chatImageGender";
 
 export const CHAT_COMIC_TEMPLATE_ID = "comic_horizontal_2_4" as const;
-export const CHAT_COMIC_TEMPLATE_NAME = "2~4컷 가로 만화";
+export const CHAT_COMIC_TEMPLATE_NAME = "3~4컷 가로 만화";
 export const CHAT_COMIC_TEMPLATE_PREVIEW_URL =
   "/image-templates/comic-vertical-sample-hq.webp";
 
@@ -16,7 +16,6 @@ export const CHAT_COMIC_FOUR_PANEL_OUTPUT_SIZE = "864x1824" as const;
 export const CHAT_COMIC_GENERATION_DEFAULT_POINTS = 230;
 
 export const CHAT_COMIC_PANEL_OPTIONS = [
-  { id: 2, label: "2컷" },
   { id: 3, label: "3컷" },
   { id: 4, label: "4컷" },
 ] as const;
@@ -117,8 +116,8 @@ export function buildChatComicPlannerPrompt(opts: {
 }): string {
   return [
     "You are a Korean comic storyboard editor.",
-    "Choose the smallest natural panel count from 2, 3, or 4, then convert the supplied Korean prose into that many horizontal comic panels stacked vertically on one page.",
-    "Use 2 panels for one setup and one payoff in the same beat. Use 3 panels when a transition or reaction beat is needed. Use 4 panels only when multiple distinct actions, dialogue beats, or scene changes are necessary. Never stretch a short scene to fill extra panels.",
+    "Choose the smallest natural panel count from 3 or 4, then convert the supplied Korean prose into that many horizontal comic panels stacked vertically on one page.",
+    "Use 3 panels for one setup, one transition or reaction beat, and one payoff. Use 4 panels only when multiple distinct actions, dialogue beats, or scene changes are necessary. Never stretch a short scene to fill extra panels.",
     `The chat character is ${opts.characterName} (${genderWordForImagePrompt(opts.characterGender)}); the user persona is ${opts.personaName} (${genderWordForImagePrompt(opts.personaGender)}).`,
     "Never change either person's gender. Long pink/soft hair, cute expressions, blush, or romantic mood must not feminize a male subject or masculinize a female subject.",
     "Infer who is speaking from the prose and preserve their identities throughout.",
@@ -132,7 +131,7 @@ export function buildChatComicPlannerPrompt(opts: {
     "Return JSON only, without markdown fences, using this exact schema:",
     JSON.stringify({
       title: "short Korean title",
-      panelCount: 2,
+      panelCount: 3,
       panels: [
         {
           panel: 1,
@@ -194,8 +193,8 @@ export function resolveAutoComicPanelCount(raw: unknown): ChatComicPanelCount {
   const source = raw as { panelCount?: unknown; panels?: unknown };
   if (!Array.isArray(source.panels)) throw new Error("컷 구성 목록이 없습니다.");
   const count = source.panels.length;
-  if (count !== 2 && count !== 3 && count !== 4) {
-    throw new Error("AI가 선택한 컷 수가 2~4컷 범위를 벗어났습니다.");
+  if (count !== 3 && count !== 4) {
+    throw new Error("AI가 선택한 컷 수가 3~4컷 범위를 벗어났습니다.");
   }
   const declared = Number(source.panelCount);
   if (Number.isFinite(declared) && declared !== count) {
