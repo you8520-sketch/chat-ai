@@ -77,20 +77,30 @@ export default function ChatPersonaEditor({
 
   useEffect(() => {
     const personaChanged = lastPersonaIdRef.current !== persona.id;
+    // Only hard-reset secret draft when switching personas. Toggling edit↔read-only
+    // must keep the loaded secret so the chat panel read-only view can show it.
     if (!personaChanged && editing) return;
     lastPersonaIdRef.current = persona.id;
     setName(persona.name);
     setMemo(persona.memo ?? "");
     setGender(persona.gender ?? "other");
     setDescription(persona.description);
-    setSecretDescription("");
-    setSecretDescriptionLoaded(false);
-    setSecretDescriptionDirty(false);
-    setSecretDescriptionSaving(false);
-    setSecretLoadError("");
-    setSecretSaveError("");
-    setCompileSummary(null);
-    setCompilePreservedPrior(false);
+    if (personaChanged) {
+      setSecretDescription("");
+      setSecretDescriptionLoaded(false);
+      setSecretDescriptionDirty(false);
+      setSecretDescriptionSaving(false);
+      setSecretLoadError("");
+      setSecretSaveError("");
+      setCompileSummary(null);
+      setCompilePreservedPrior(false);
+    } else {
+      // Leaving edit mode: drop unsaved secret draft dirtiness; keep loaded text.
+      setSecretDescriptionDirty(false);
+      setSecretSaveError("");
+      setCompileSummary(null);
+      setCompilePreservedPrior(false);
+    }
     setImageUrl(persona.image_url ?? "");
     setImageFocusX(persona.image_focus_x ?? PERSONA_IMAGE_FOCUS_DEFAULT.x);
     setImageFocusY(persona.image_focus_y ?? PERSONA_IMAGE_FOCUS_DEFAULT.y);
@@ -107,7 +117,8 @@ export default function ChatPersonaEditor({
   }, [persona, editing]);
 
   useEffect(() => {
-    if (!editing || !personaSecretSettings.canEdit) return;
+    // Load in read-only and edit. Re-fetch when leaving edit so discarded drafts revert.
+    if (!personaSecretSettings.canEdit) return;
     let cancelled = false;
     setSecretDescriptionLoaded(false);
     setSecretLoadError("");
@@ -123,6 +134,7 @@ export default function ChatPersonaEditor({
         const editor = data.persona as OwnerPersonaEditorItem;
         setSecretDescription(editor.secret_description);
         setSecretDescriptionLoaded(true);
+        setSecretDescriptionDirty(false);
       })
       .catch(() => {
         if (!cancelled) setSecretLoadError("비밀 설정을 불러오지 못했습니다.");
@@ -320,8 +332,37 @@ export default function ChatPersonaEditor({
             {description.trim() || "설정 없음"}
           </div>
         </div>
+        {personaSecretSettings.canEdit ? (
+          <div className="space-y-1 rounded-lg border border-violet-500/20 bg-violet-500/5 p-3">
+            <p className="font-bold text-zinc-300">비밀 설정</p>
+            <p className="text-[10px] leading-relaxed text-zinc-500">
+              캐릭터가 대화 시작 시점에는 모르는 설정입니다.
+            </p>
+            {!secretDescriptionLoaded && !secretLoadError ? (
+              <p className="text-[10px] text-zinc-500">비밀 설정을 불러오는 중…</p>
+            ) : secretLoadError ? (
+              <p className="text-[10px] text-rose-400">{secretLoadError}</p>
+            ) : (
+              <div
+                className={`${readOnlyFieldClass} ${
+                  secretDescription.trim() ? "text-zinc-200" : "text-zinc-600"
+                }`}
+              >
+                {secretDescription.trim() || "설정 없음"}
+              </div>
+            )}
+          </div>
+        ) : (
+          <p className="rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-[10px] leading-relaxed text-zinc-500">
+            비밀 설정은 현재 일부 사용자에게 순차 공개 중입니다.
+          </p>
+        )}
         <p className="text-[10px] text-zinc-600">
-          {personaContentLength(description).toLocaleString()} / {PERSONA_CONTENT_MAX.toLocaleString()}자
+          기본 {personaContentLength(description).toLocaleString()}
+          {personaSecretSettings.canEdit && secretDescriptionLoaded
+            ? ` · 비밀 ${personaContentLength(secretDescription).toLocaleString()} · 합계 ${personaCombinedContentLength(description, secretDescription).toLocaleString()}`
+            : ""}{" "}
+          / {PERSONA_CONTENT_MAX.toLocaleString()}자
         </p>
       </div>
     );
