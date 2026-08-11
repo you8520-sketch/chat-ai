@@ -327,8 +327,6 @@ export default function ChatImageGeneratorPanel({
   const [comicResultUrl, setComicResultUrl] = useState("");
   const [illustrationResultUrl, setIllustrationResultUrl] = useState("");
   const [personaResultUrl, setPersonaResultUrl] = useState("");
-  const [comicTitle, setComicTitle] = useState("");
-  const [comicPanelCount, setComicPanelCount] = useState<ChatComicPanelCount | null>(null);
   const [actualCosts, setActualCosts] = useState<
     Partial<Record<ResultMode, { usd: number; krw: number }>>
   >({});
@@ -507,8 +505,6 @@ export default function ChatImageGeneratorPanel({
           if (!illustrationResultUrl) setIllustrationResultUrl(data.latestResult.imageUrl);
         } else if (data.latestResult.mode === "comic") {
           if (!comicResultUrl) setComicResultUrl(data.latestResult.imageUrl);
-          setComicTitle(data.latestResult.title || "");
-          setComicPanelCount(data.latestResult.panelCount ?? null);
         } else if (data.latestResult.mode === "emoticon") {
           if (!emoticonResultUrl) setEmoticonResultUrl(data.latestResult.imageUrl);
         } else if (data.latestResult.mode === "couple_stamp") {
@@ -810,8 +806,6 @@ export default function ChatImageGeneratorPanel({
     setNotice("");
     if (isIllustration) setIllustrationResultUrl("");
     else setComicResultUrl("");
-    setComicTitle("");
-    setComicPanelCount(null);
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), 300_000);
     try {
@@ -837,10 +831,6 @@ export default function ChatImageGeneratorPanel({
       else setComicResultUrl(data.imageUrl);
       if (data.savedToCharacterAlbum) {
         setSavedUrls((previous) => new Set(previous).add(data.imageUrl!));
-      }
-      if (!isIllustration) {
-        setComicTitle(data.title || "");
-        setComicPanelCount(data.panelCount ?? null);
       }
       if (data.upstreamCostUsd != null && data.upstreamCostKrw != null) {
         setActualCosts((previous) => ({
@@ -1496,19 +1486,7 @@ export default function ChatImageGeneratorPanel({
                                 />
                               </label>
                             )}
-                            <div className="block space-y-1">
-                              <span className="text-[11px] font-semibold text-zinc-400">컷 수</span>
-                              <div className="rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-300">
-                                AI 자동 · 3~4컷 · 분위기는 요약 내용을 따릅니다
-                              </div>
-                            </div>
                           </>
-                        ) : null}
-                        {ldProduct === "comic" && comicTitle ? (
-                          <p className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-zinc-300">
-                            생성 제목: <strong>{comicTitle}</strong>
-                            {comicPanelCount ? ` · AI가 ${comicPanelCount}컷으로 구성` : ""}
-                          </p>
                         ) : null}
                         <PriceBox
                           balance={info?.balance}
