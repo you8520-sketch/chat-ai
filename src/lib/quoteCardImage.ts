@@ -13,7 +13,12 @@ export type QuoteCardMeta = {
 export type QuoteCardBlock = {
   type: "narration" | "dialogue";
   text: string;
+  /** Speaker label for dialogue (parsed prefix, auto-assigned, or user override). */
+  speaker?: string;
 };
+
+/** Dialogue chrome on quote cards: off, speech bubble, or chat-room accent bar. */
+export type QuoteCardDialogueStyle = "off" | "bubble" | "accent";
 
 export type QuoteCardThemeId = "white" | "black" | "blue";
 export type QuoteCardFontId =
@@ -33,6 +38,8 @@ export type QuoteCardTheme = {
   bubbleFill: string;
   bubbleTextColor: string;
   imageScrim: string;
+  accentColor: string;
+  accentColorEnd: string;
 };
 
 export type QuoteCardFontOption = {
@@ -54,15 +61,31 @@ export type QuoteCardStyle = {
   borderColor?: string;
   imageScrim?: string;
   bodyFontFamily?: string;
-  /** Auto speech bubbles for quoted dialogue (default true). */
+  /**
+   * Dialogue chrome. Default `"bubble"`.
+   * Prefer this over deprecated `speechBubbles`.
+   */
+  dialogueStyle?: QuoteCardDialogueStyle;
+  /**
+   * @deprecated Use `dialogueStyle`. `true` → bubble, `false` → off.
+   */
   speechBubbles?: boolean;
   bubbleFill?: string;
   bubbleTextColor?: string;
+  accentColor?: string;
+  accentColorEnd?: string;
   paragraphGapScale?: number;
   bubbleGap?: number;
   avatarImage?: CanvasImageSource | null;
   backgroundImage?: CanvasImageSource | null;
   characterInitial?: string;
+  /** Default speaker when dialogue has no label (usually character name). */
+  defaultSpeakerName?: string;
+  /**
+   * Per-dialogue speaker overrides keyed by dialogue index
+   * (0-based among dialogue blocks only).
+   */
+  speakerOverrides?: Record<number, string>;
 };
 
 const CARD_SHORT_SIDE = 600;
@@ -82,6 +105,8 @@ export const QUOTE_CARD_THEMES: QuoteCardTheme[] = [
     bubbleFill: "#f4f4f5",
     bubbleTextColor: "#18181b",
     imageScrim: "rgba(255,255,255,0.72)",
+    accentColor: "#7c3aed",
+    accentColorEnd: "#8b5cf6",
   },
   {
     id: "black",
@@ -93,6 +118,8 @@ export const QUOTE_CARD_THEMES: QuoteCardTheme[] = [
     bubbleFill: "#27272a",
     bubbleTextColor: "#fafafa",
     imageScrim: "rgba(0,0,0,0.58)",
+    accentColor: "#a78bfa",
+    accentColorEnd: "#c4b5fd",
   },
   {
     id: "blue",
@@ -104,6 +131,8 @@ export const QUOTE_CARD_THEMES: QuoteCardTheme[] = [
     bubbleFill: "#1e3a5f",
     bubbleTextColor: "#f0f7ff",
     imageScrim: "rgba(12,25,41,0.62)",
+    accentColor: "#60a5fa",
+    accentColorEnd: "#93c5fd",
   },
 ];
 
@@ -163,6 +192,8 @@ export function styleFromQuoteCardTheme(themeId: QuoteCardThemeId): Pick<
   | "bubbleFill"
   | "bubbleTextColor"
   | "imageScrim"
+  | "accentColor"
+  | "accentColorEnd"
 > {
   const t = quoteCardThemeById(themeId);
   return {
@@ -173,6 +204,8 @@ export function styleFromQuoteCardTheme(themeId: QuoteCardThemeId): Pick<
     bubbleFill: t.bubbleFill,
     bubbleTextColor: t.bubbleTextColor,
     imageScrim: t.imageScrim,
+    accentColor: t.accentColor,
+    accentColorEnd: t.accentColorEnd,
   };
 }
 
@@ -211,11 +244,22 @@ export function ensureQuoteCardWebFontsLoaded(): Promise<void> {
 }
 
 const DEFAULT_STYLE: Required<
-  Omit<QuoteCardStyle, "avatarImage" | "backgroundImage" | "characterInitial">
+  Omit<
+    QuoteCardStyle,
+    | "avatarImage"
+    | "backgroundImage"
+    | "characterInitial"
+    | "defaultSpeakerName"
+    | "speakerOverrides"
+    | "speechBubbles"
+  >
 > & {
   avatarImage: CanvasImageSource | null;
   backgroundImage: CanvasImageSource | null;
   characterInitial: string;
+  defaultSpeakerName: string;
+  speakerOverrides: Record<number, string>;
+  speechBubbles: boolean;
 } = {
   padding: 36,
   bodyFontSize: QUOTE_CARD_BODY_FONT_DEFAULT,
@@ -227,14 +271,19 @@ const DEFAULT_STYLE: Required<
   borderColor: QUOTE_CARD_THEMES[0]!.borderColor,
   imageScrim: QUOTE_CARD_THEMES[0]!.imageScrim,
   bodyFontFamily: QUOTE_CARD_FONTS[0]!.css,
+  dialogueStyle: "bubble",
   speechBubbles: true,
   bubbleFill: QUOTE_CARD_THEMES[0]!.bubbleFill,
   bubbleTextColor: QUOTE_CARD_THEMES[0]!.bubbleTextColor,
+  accentColor: QUOTE_CARD_THEMES[0]!.accentColor,
+  accentColorEnd: QUOTE_CARD_THEMES[0]!.accentColorEnd,
   paragraphGapScale: 1.35,
   bubbleGap: 18,
   avatarImage: null,
   backgroundImage: null,
   characterInitial: "",
+  defaultSpeakerName: "",
+  speakerOverrides: {},
 };
 
 const AVATAR_SIZE = 40;
@@ -242,21 +291,53 @@ const BUBBLE_PAD_X = 14;
 const BUBBLE_PAD_Y = 12;
 const BUBBLE_RADIUS = 16;
 const AVATAR_GAP = 10;
+const ACCENT_BAR_W = 3;
+const ACCENT_PAD_X = 12;
+const SPEAKER_LABEL_GAP = 4;
 
-export function quoteCardDimensions(orientation: QuoteCardOrientation = "portrait"): {
-  width: number;
-  height: number;
-} {
-  if (orientation === "landscape") {
-    return { width: CARD_SHORT_SIDE * 1.5, height: CARD_SHORT_SIDE };
-  }
-  if (orientation === "square") {
-    return { width: CARD_SHORT_SIDE, height: CARD_SHORT_SIDE };
-  }
-  return { width: CARD_SHORT_SIDE, height: CARD_SHORT_SIDE * 1.5 };
+const SPEAKER_AVATAR_TONES: ReadonlyArray<{ bg: string; fg: string }> = [
+  { bg: "#e4e4e7", fg: "#52525b" },
+  { bg: "#ddd6fe", fg: "#5b21b6" },
+  { bg: "#fde68a", fg: "#92400e" },
+  { bg: "#bbf7d0", fg: "#166534" },
+  { bg: "#fecaca", fg: "#991b1b" },
+  { bg: "#bae6fd", fg: "#075985" },
+  { bg: "#fbcfe8", fg: "#9d174d" },
+  { bg: "#c7d2fe", fg: "#3730a3" },
+];
+
+export function resolveQuoteCardDialogueStyle(
+  style?: Pick<QuoteCardStyle, "dialogueStyle" | "speechBubbles">
+): QuoteCardDialogueStyle {
+  if (style?.dialogueStyle) return style.dialogueStyle;
+  if (style?.speechBubbles === false) return "off";
+  if (style?.speechBubbles === true) return "bubble";
+  return "bubble";
 }
 
-/** Detect quoted dialogue lines for speech-bubble layout. */
+function hashSpeakerToneIndex(speaker: string): number {
+  let h = 0;
+  for (let i = 0; i < speaker.length; i++) {
+    h = (h * 31 + speaker.charCodeAt(i)) >>> 0;
+  }
+  return h % SPEAKER_AVATAR_TONES.length;
+}
+
+export function speakerAvatarTone(speaker: string): { bg: string; fg: string } {
+  return SPEAKER_AVATAR_TONES[hashSpeakerToneIndex(speaker.trim() || "?")]!;
+}
+
+function splitTrailingSpeaker(before: string): { narration: string; speaker?: string } {
+  const trimmed = before.trim();
+  if (!trimmed) return { narration: "" };
+  const m = trimmed.match(/^(.*?)([^\s"'「『“”：:.,!?。…]{1,16})\s*[:：]\s*$/u);
+  if (!m) return { narration: trimmed };
+  const speaker = (m[2] ?? "").trim();
+  if (!speaker || /^[-–—*…·.]+$/u.test(speaker)) return { narration: trimmed };
+  return { narration: (m[1] ?? "").trim(), speaker };
+}
+
+/** Detect quoted dialogue lines; optional `이름: "대사"` speaker prefixes. */
 export function parseQuoteCardBlocks(text: string): QuoteCardBlock[] {
   const normalized = text.replace(/\r\n/g, "\n").trim();
   if (!normalized) return [];
@@ -268,11 +349,17 @@ export function parseQuoteCardBlocks(text: string): QuoteCardBlock[] {
     const paragraph = raw.trim();
     if (!paragraph) continue;
 
+    // Speaker token: short name without spaces/punctuation (avoids "지문. 이름:" false positives).
     const dialogueMatch = paragraph.match(
-      /^(?:["“”]|「|『)([\s\S]+?)(?:["“”]|」|』)\s*$/u
+      /^(?:([^\s"'「『“”：:.,!?。…]{1,16})\s*[:：]\s*)?(?:["“”]|「|『)([\s\S]+?)(?:["“”]|」|』)\s*$/u
     );
-    if (dialogueMatch?.[1]?.trim()) {
-      blocks.push({ type: "dialogue", text: dialogueMatch[1].trim() });
+    if (dialogueMatch?.[2]?.trim()) {
+      const speaker = dialogueMatch[1]?.trim();
+      blocks.push({
+        type: "dialogue",
+        text: dialogueMatch[2].trim(),
+        ...(speaker ? { speaker } : {}),
+      });
       continue;
     }
 
@@ -283,10 +370,17 @@ export function parseQuoteCardBlocks(text: string): QuoteCardBlock[] {
     let m: RegExpExecArray | null;
     while ((m = inlineRe.exec(paragraph)) !== null) {
       matched = true;
-      const before = paragraph.slice(last, m.index).trim();
-      if (before) blocks.push({ type: "narration", text: before });
+      const beforeRaw = paragraph.slice(last, m.index);
+      const { narration, speaker } = splitTrailingSpeaker(beforeRaw);
+      if (narration) blocks.push({ type: "narration", text: narration });
       const spoken = (m[2] ?? "").trim();
-      if (spoken) blocks.push({ type: "dialogue", text: spoken });
+      if (spoken) {
+        blocks.push({
+          type: "dialogue",
+          text: spoken,
+          ...(speaker ? { speaker } : {}),
+        });
+      }
       last = m.index + m[0].length;
     }
     if (matched) {
@@ -299,6 +393,93 @@ export function parseQuoteCardBlocks(text: string): QuoteCardBlock[] {
   }
 
   return blocks.length > 0 ? blocks : [{ type: "narration", text: normalized }];
+}
+
+/**
+ * Fill missing dialogue speakers: parsed labels win, then overrides,
+ * then default character name / distinct 화자N for multi-speaker clips.
+ */
+export function resolveQuoteCardSpeakers(
+  blocks: QuoteCardBlock[],
+  opts: {
+    defaultSpeaker?: string;
+    overrides?: Record<number, string>;
+  } = {}
+): QuoteCardBlock[] {
+  const defaultSpeaker = (opts.defaultSpeaker ?? "").trim() || "캐릭터";
+  const overrides = opts.overrides ?? {};
+  const dialogueCount = blocks.reduce(
+    (n, b) => (b.type === "dialogue" ? n + 1 : n),
+    0
+  );
+
+  let dialogueIndex = 0;
+  let autoUnlabeled = 0;
+  let probe = 0;
+  let unlabeledTotal = 0;
+  for (const b of blocks) {
+    if (b.type !== "dialogue") continue;
+    const ov = overrides[probe]?.trim();
+    probe += 1;
+    if (ov || b.speaker?.trim()) continue;
+    unlabeledTotal += 1;
+  }
+
+  return blocks.map((block) => {
+    if (block.type !== "dialogue") return block;
+    const idx = dialogueIndex;
+    dialogueIndex += 1;
+    const override = overrides[idx]?.trim();
+    if (override) return { ...block, speaker: override };
+    if (block.speaker?.trim()) return { ...block, speaker: block.speaker.trim() };
+
+    if (dialogueCount <= 1 || unlabeledTotal <= 1) {
+      return { ...block, speaker: defaultSpeaker };
+    }
+    autoUnlabeled += 1;
+    if (autoUnlabeled === 1) {
+      return { ...block, speaker: defaultSpeaker };
+    }
+    return { ...block, speaker: `화자${autoUnlabeled}` };
+  });
+}
+
+/** Dialogue rows for the quote modal editor (index + preview snippet). */
+export function listQuoteCardDialogueEntries(
+  text: string,
+  opts: {
+    defaultSpeaker?: string;
+    overrides?: Record<number, string>;
+  } = {}
+): Array<{ index: number; speaker: string; preview: string }> {
+  const resolved = resolveQuoteCardSpeakers(parseQuoteCardBlocks(text), opts);
+  const out: Array<{ index: number; speaker: string; preview: string }> = [];
+  let i = 0;
+  for (const block of resolved) {
+    if (block.type !== "dialogue") continue;
+    const preview =
+      block.text.length > 28 ? `${block.text.slice(0, 28)}…` : block.text;
+    out.push({
+      index: i,
+      speaker: block.speaker?.trim() || opts.defaultSpeaker?.trim() || "캐릭터",
+      preview,
+    });
+    i += 1;
+  }
+  return out;
+}
+
+export function quoteCardDimensions(orientation: QuoteCardOrientation = "portrait"): {
+  width: number;
+  height: number;
+} {
+  if (orientation === "landscape") {
+    return { width: CARD_SHORT_SIDE * 1.5, height: CARD_SHORT_SIDE };
+  }
+  if (orientation === "square") {
+    return { width: CARD_SHORT_SIDE, height: CARD_SHORT_SIDE };
+  }
+  return { width: CARD_SHORT_SIDE, height: CARD_SHORT_SIDE * 1.5 };
 }
 
 function wrapCanvasLines(
@@ -395,33 +576,50 @@ function layoutBodyText(
 
 type LaidBlock =
   | { type: "narration"; lines: string[] }
-  | { type: "dialogue"; lines: string[]; bubbleW: number; bubbleH: number };
+  | {
+      type: "dialogue";
+      lines: string[];
+      contentW: number;
+      contentH: number;
+      speaker: string;
+      showSpeakerLabel: boolean;
+      labelH: number;
+    };
+
+function speakerLabelHeight(fontSize: number, show: boolean): number {
+  if (!show) return 0;
+  return Math.round(fontSize * 0.72) + SPEAKER_LABEL_GAP;
+}
 
 function measureBlocksHeight(
   blocks: LaidBlock[],
   fontSize: number,
   lineHeight: number,
   paragraphGapScale: number,
-  bubbleGap: number
+  bubbleGap: number,
+  dialogueStyle: Exclude<QuoteCardDialogueStyle, "off">
 ): number {
   let h = 0;
   for (let i = 0; i < blocks.length; i++) {
     const b = blocks[i]!;
     if (i > 0) {
-      h += b.type === "dialogue" || blocks[i - 1]!.type === "dialogue"
-        ? bubbleGap
-        : fontSize * lineHeight * (paragraphGapScale - 1);
+      h +=
+        b.type === "dialogue" || blocks[i - 1]!.type === "dialogue"
+          ? bubbleGap
+          : fontSize * lineHeight * (paragraphGapScale - 1);
     }
     if (b.type === "narration") {
       h += b.lines.length * fontSize * lineHeight;
+    } else if (dialogueStyle === "bubble") {
+      h += b.labelH + Math.max(AVATAR_SIZE, b.contentH);
     } else {
-      h += Math.max(AVATAR_SIZE, b.bubbleH);
+      h += b.labelH + b.contentH;
     }
   }
   return h;
 }
 
-function layoutBubbleBlocks(
+function layoutDialogueBlocks(
   ctx: CanvasRenderingContext2D,
   blocks: QuoteCardBlock[],
   innerWidth: number,
@@ -430,27 +628,38 @@ function layoutBubbleBlocks(
   lineHeight: number,
   paragraphGapScale: number,
   bubbleGap: number,
-  fontFamily: string
+  fontFamily: string,
+  dialogueStyle: Exclude<QuoteCardDialogueStyle, "off">
 ): { laid: LaidBlock[]; fontSize: number } {
   const floor = Math.max(6, Math.min(QUOTE_CARD_BODY_FONT_MIN, baseFontSize));
   let fontSize = Math.round(baseFontSize);
+  const uniqueSpeakers = new Set(
+    blocks
+      .filter((b): b is QuoteCardBlock & { type: "dialogue" } => b.type === "dialogue")
+      .map((b) => (b.speaker ?? "").trim() || "?")
+  );
+  const showSpeakerLabels = uniqueSpeakers.size > 1;
 
-  while (fontSize >= floor) {
-    ctx.font = `${fontSize}px ${fontFamily}`;
-    const dialogueTextWidth = Math.max(
-      80,
-      innerWidth - AVATAR_SIZE - AVATAR_GAP - BUBBLE_PAD_X * 2
-    );
-    const laid: LaidBlock[] = blocks.map((block) => {
-      if (block.type === "narration") {
-        return {
-          type: "narration",
-          lines: wrapCanvasLines(ctx, block.text, innerWidth),
-        };
-      }
-      const lines = wrapCanvasLines(ctx, block.text, dialogueTextWidth);
-      const textH = Math.max(fontSize * lineHeight, lines.length * fontSize * lineHeight);
-      const bubbleW = Math.min(
+  const dialogueTextWidthFor = (size: number) => {
+    if (dialogueStyle === "bubble") {
+      return Math.max(80, innerWidth - AVATAR_SIZE - AVATAR_GAP - BUBBLE_PAD_X * 2);
+    }
+    return Math.max(80, innerWidth - ACCENT_BAR_W - ACCENT_PAD_X);
+  };
+
+  const layDialogue = (
+    speakerRaw: string | undefined,
+    text: string,
+    size: number
+  ): Extract<LaidBlock, { type: "dialogue" }> => {
+    const speaker = speakerRaw?.trim() || "캐릭터";
+    const showSpeakerLabel = showSpeakerLabels;
+    const labelH = speakerLabelHeight(size, showSpeakerLabel);
+    const dialogueTextWidth = dialogueTextWidthFor(size);
+    const lines = wrapCanvasLines(ctx, text, dialogueTextWidth);
+    const textH = Math.max(size * lineHeight, lines.length * size * lineHeight);
+    if (dialogueStyle === "bubble") {
+      const contentW = Math.min(
         innerWidth - AVATAR_SIZE - AVATAR_GAP,
         Math.ceil(
           Math.max(...lines.map((l) => ctx.measureText(l).width), 24) + BUBBLE_PAD_X * 2
@@ -459,21 +668,51 @@ function layoutBubbleBlocks(
       return {
         type: "dialogue",
         lines,
-        bubbleW,
-        bubbleH: textH + BUBBLE_PAD_Y * 2,
+        contentW,
+        contentH: textH + BUBBLE_PAD_Y * 2,
+        speaker,
+        showSpeakerLabel,
+        labelH,
       };
+    }
+    return {
+      type: "dialogue",
+      lines,
+      contentW: innerWidth,
+      contentH: textH,
+      speaker,
+      showSpeakerLabel,
+      labelH,
+    };
+  };
+
+  while (fontSize >= floor) {
+    ctx.font = `${fontSize}px ${fontFamily}`;
+    const laid: LaidBlock[] = blocks.map((block) => {
+      if (block.type === "narration") {
+        return {
+          type: "narration",
+          lines: wrapCanvasLines(ctx, block.text, innerWidth),
+        };
+      }
+      return layDialogue(block.speaker, block.text, fontSize);
     });
-    if (measureBlocksHeight(laid, fontSize, lineHeight, paragraphGapScale, bubbleGap) <= innerHeight) {
+    if (
+      measureBlocksHeight(
+        laid,
+        fontSize,
+        lineHeight,
+        paragraphGapScale,
+        bubbleGap,
+        dialogueStyle
+      ) <= innerHeight
+    ) {
       return { laid, fontSize };
     }
     fontSize -= 1;
   }
 
   ctx.font = `${floor}px ${fontFamily}`;
-  const dialogueTextWidth = Math.max(
-    80,
-    innerWidth - AVATAR_SIZE - AVATAR_GAP - BUBBLE_PAD_X * 2
-  );
   const laid: LaidBlock[] = [];
   let used = 0;
   for (const block of blocks) {
@@ -486,19 +725,15 @@ function layoutBubbleBlocks(
       laid.push({ type: "narration", lines });
       used += need;
     } else {
-      const lines = wrapCanvasLines(ctx, block.text, dialogueTextWidth);
-      const textH = Math.max(floor * lineHeight, lines.length * floor * lineHeight);
-      const bubbleH = textH + BUBBLE_PAD_Y * 2;
-      const bubbleW = Math.min(
-        innerWidth - AVATAR_SIZE - AVATAR_GAP,
-        Math.ceil(
-          Math.max(...lines.map((l) => ctx.measureText(l).width), 24) + BUBBLE_PAD_X * 2
-        )
-      );
+      const dialogue = layDialogue(block.speaker, block.text, floor);
+      const bodyH =
+        dialogueStyle === "bubble"
+          ? Math.max(AVATAR_SIZE, dialogue.contentH)
+          : dialogue.contentH;
       const need =
-        (laid.length > 0 ? bubbleGap : 0) + Math.max(AVATAR_SIZE, bubbleH);
+        (laid.length > 0 ? bubbleGap : 0) + dialogue.labelH + bodyH;
       if (used + need > innerHeight && laid.length > 0) break;
-      laid.push({ type: "dialogue", lines, bubbleW, bubbleH });
+      laid.push(dialogue);
       used += need;
     }
   }
@@ -531,13 +766,17 @@ export function scaleQuoteCardForViewport(
 }
 
 function resolveStyle(style?: QuoteCardStyle) {
+  const dialogueStyle = resolveQuoteCardDialogueStyle(style);
   return {
     ...DEFAULT_STYLE,
     ...style,
     avatarImage: style?.avatarImage ?? null,
     backgroundImage: style?.backgroundImage ?? null,
     characterInitial: style?.characterInitial ?? "",
-    speechBubbles: style?.speechBubbles ?? DEFAULT_STYLE.speechBubbles,
+    defaultSpeakerName: style?.defaultSpeakerName ?? "",
+    speakerOverrides: style?.speakerOverrides ?? {},
+    dialogueStyle,
+    speechBubbles: dialogueStyle !== "off",
   };
 }
 
@@ -554,7 +793,7 @@ function measureQuoteCardLayout(
   siteName: string;
   resolved: ReturnType<typeof resolveStyle>;
   orientation: QuoteCardOrientation;
-  useBubbles: boolean;
+  dialogueStyle: QuoteCardDialogueStyle;
 } {
   const resolved = resolveStyle(style);
   const orientation = meta.orientation ?? "portrait";
@@ -575,11 +814,17 @@ function measureQuoteCardLayout(
   const innerWidth = width - resolved.padding * 2;
   const innerHeight = height - chromeHeight;
 
-  const blocks = parseQuoteCardBlocks(text);
-  const useBubbles =
-    resolved.speechBubbles && blocks.some((b) => b.type === "dialogue");
+  const parsed = parseQuoteCardBlocks(text);
+  const defaultSpeaker =
+    resolved.defaultSpeakerName.trim() || meta.characterName.trim() || "캐릭터";
+  const blocks = resolveQuoteCardSpeakers(parsed, {
+    defaultSpeaker,
+    overrides: resolved.speakerOverrides,
+  });
+  const dialogueStyle = resolved.dialogueStyle;
+  const hasDialogue = blocks.some((b) => b.type === "dialogue");
 
-  if (!useBubbles) {
+  if (dialogueStyle === "off" || !hasDialogue) {
     const laid = layoutBodyText(
       ctx,
       text,
@@ -599,11 +844,11 @@ function measureQuoteCardLayout(
       siteName,
       resolved,
       orientation,
-      useBubbles: false,
+      dialogueStyle: "off",
     };
   }
 
-  const { laid, fontSize } = layoutBubbleBlocks(
+  const { laid, fontSize } = layoutDialogueBlocks(
     ctx,
     blocks,
     innerWidth,
@@ -612,7 +857,8 @@ function measureQuoteCardLayout(
     resolved.bodyLineHeight,
     resolved.paragraphGapScale,
     resolved.bubbleGap,
-    resolved.bodyFontFamily
+    resolved.bodyFontFamily,
+    dialogueStyle
   );
 
   return {
@@ -625,7 +871,7 @@ function measureQuoteCardLayout(
     siteName,
     resolved,
     orientation,
-    useBubbles: true,
+    dialogueStyle,
   };
 }
 
@@ -687,7 +933,8 @@ function drawCircularAvatar(
   y: number,
   size: number,
   image: CanvasImageSource | null,
-  initial: string
+  initial: string,
+  tone: { bg: string; fg: string } = SPEAKER_AVATAR_TONES[0]!
 ): void {
   const r = size / 2;
   const cx = x + r;
@@ -719,10 +966,10 @@ function drawCircularAvatar(
     const dh = ih * scale;
     ctx.drawImage(image, x + (size - dw) / 2, y + (size - dh) / 2, dw, dh);
   } else {
-    ctx.fillStyle = "#e4e4e7";
+    ctx.fillStyle = tone.bg;
     ctx.fillRect(x, y, size, size);
     const letter = (initial.trim()[0] || "?").toUpperCase();
-    ctx.fillStyle = "#52525b";
+    ctx.fillStyle = tone.fg;
     ctx.font = `600 ${Math.round(size * 0.42)}px ${DEFAULT_STYLE.bodyFontFamily}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
@@ -735,6 +982,22 @@ function drawCircularAvatar(
   ctx.strokeStyle = "rgba(0,0,0,0.08)";
   ctx.lineWidth = 1;
   ctx.stroke();
+}
+
+function drawAccentBar(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  height: number,
+  colorStart: string,
+  colorEnd: string
+): void {
+  const grad = ctx.createLinearGradient(x, y, x, y + height);
+  grad.addColorStop(0, colorStart);
+  grad.addColorStop(1, colorEnd);
+  ctx.fillStyle = grad;
+  roundRectPath(ctx, x, y, ACCENT_BAR_W, height, 2);
+  ctx.fill();
 }
 
 export async function renderQuoteCardPngBlob(
@@ -752,7 +1015,7 @@ export async function renderQuoteCardPngBlob(
     footerLeft,
     siteName,
     resolved,
-    useBubbles,
+    dialogueStyle,
   } = measured;
 
   const canvas = document.createElement("canvas");
@@ -786,9 +1049,11 @@ export async function renderQuoteCardPngBlob(
   const pad = resolved.padding;
   const lineStep = bodyFontSize * resolved.bodyLineHeight;
   const fontFamily = resolved.bodyFontFamily;
+  const defaultSpeaker =
+    resolved.defaultSpeakerName.trim() || meta.characterName.trim() || "캐릭터";
   let y = pad;
 
-  if (!useBubbles || !laidBlocks) {
+  if (dialogueStyle === "off" || !laidBlocks) {
     ctx.fillStyle = resolved.bodyColor;
     ctx.font = `${bodyFontSize}px ${fontFamily}`;
     ctx.textBaseline = "top";
@@ -803,10 +1068,6 @@ export async function renderQuoteCardPngBlob(
       y += lineStep;
     }
   } else {
-    const initial =
-      resolved.characterInitial.trim() ||
-      meta.characterName.trim()[0] ||
-      "?";
     for (let i = 0; i < laidBlocks.length; i++) {
       const block = laidBlocks[i]!;
       if (i > 0) {
@@ -824,20 +1085,53 @@ export async function renderQuoteCardPngBlob(
           ctx.fillText(line, pad, y);
           y += lineStep;
         }
-      } else {
-        const rowH = Math.max(AVATAR_SIZE, block.bubbleH);
+        continue;
+      }
+
+      const speaker = block.speaker.trim() || defaultSpeaker;
+      const initial =
+        speaker === defaultSpeaker && resolved.characterInitial.trim()
+          ? resolved.characterInitial.trim()
+          : speaker[0] || "?";
+      const useAvatarImage =
+        Boolean(resolved.avatarImage) &&
+        speaker === defaultSpeaker;
+      const tone = speakerAvatarTone(speaker);
+
+      if (block.showSpeakerLabel) {
+        const labelSize = Math.round(bodyFontSize * 0.72);
+        ctx.fillStyle = resolved.footerColor;
+        ctx.font = `600 ${labelSize}px ${fontFamily}`;
+        ctx.textBaseline = "top";
+        ctx.textAlign = "left";
+        const labelX =
+          dialogueStyle === "bubble" ? pad + AVATAR_SIZE + AVATAR_GAP : pad + ACCENT_BAR_W + ACCENT_PAD_X;
+        ctx.fillText(speaker, labelX, y);
+        y += block.labelH;
+      }
+
+      if (dialogueStyle === "bubble") {
+        const rowH = Math.max(AVATAR_SIZE, block.contentH);
         const avatarY = y + (rowH - AVATAR_SIZE) / 2;
         drawCircularAvatar(
           ctx,
           pad,
           avatarY,
           AVATAR_SIZE,
-          resolved.avatarImage,
-          initial
+          useAvatarImage ? resolved.avatarImage : null,
+          initial,
+          tone
         );
         const bubbleX = pad + AVATAR_SIZE + AVATAR_GAP;
-        const bubbleY = y + (rowH - block.bubbleH) / 2;
-        roundRectPath(ctx, bubbleX, bubbleY, block.bubbleW, block.bubbleH, BUBBLE_RADIUS);
+        const bubbleY = y + (rowH - block.contentH) / 2;
+        roundRectPath(
+          ctx,
+          bubbleX,
+          bubbleY,
+          block.contentW,
+          block.contentH,
+          BUBBLE_RADIUS
+        );
         ctx.fillStyle = resolved.bubbleFill;
         ctx.fill();
         ctx.fillStyle = resolved.bubbleTextColor;
@@ -850,6 +1144,28 @@ export async function renderQuoteCardPngBlob(
           ty += lineStep;
         }
         y += rowH;
+      } else {
+        const barH = Math.max(bodyFontSize * 0.9, block.contentH - bodyFontSize * 0.2);
+        const barY = y + Math.max(0, (block.contentH - barH) / 2);
+        drawAccentBar(
+          ctx,
+          pad,
+          barY,
+          barH,
+          resolved.accentColor,
+          resolved.accentColorEnd
+        );
+        ctx.fillStyle = resolved.bodyColor;
+        ctx.font = `600 ${bodyFontSize}px ${fontFamily}`;
+        ctx.textBaseline = "top";
+        ctx.textAlign = "left";
+        let ty = y;
+        const textX = pad + ACCENT_BAR_W + ACCENT_PAD_X;
+        for (const line of block.lines) {
+          ctx.fillText(line, textX, ty);
+          ty += lineStep;
+        }
+        y += block.contentH;
       }
     }
   }

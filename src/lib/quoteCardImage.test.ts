@@ -4,10 +4,13 @@ import {
   buildQuoteCardFooterLeft,
   canShareQuoteCardPng,
   copyQuoteCardPng,
+  listQuoteCardDialogueEntries,
   parseQuoteCardBlocks,
   prepareQuoteCardSaveFallbackWindow,
   quoteCardFontById,
   quoteCardThemeById,
+  resolveQuoteCardDialogueStyle,
+  resolveQuoteCardSpeakers,
   QUOTE_CARD_DEFAULT_BACKGROUND,
   QUOTE_CARD_DEFAULT_FOOTER_FONT_SIZE,
   QUOTE_CARD_FONTS,
@@ -159,6 +162,83 @@ describe("parseQuoteCardBlocks", () => {
   it("keeps plain text as narration", () => {
     const blocks = parseQuoteCardBlocks("그냥 지문만 있다.");
     assert.deepEqual(blocks, [{ type: "narration", text: "그냥 지문만 있다." }]);
+  });
+
+  it("parses speaker prefixes before quotes", () => {
+    const blocks = parseQuoteCardBlocks('카이: "잠깐."\n라이크：「그래.」');
+    assert.equal(blocks.length, 2);
+    assert.equal(blocks[0]!.type, "dialogue");
+    assert.equal(blocks[0]!.speaker, "카이");
+    assert.equal(blocks[0]!.text, "잠깐.");
+    assert.equal(blocks[1]!.speaker, "라이크");
+    assert.equal(blocks[1]!.text, "그래.");
+  });
+
+  it("parses inline speaker before a quote", () => {
+    const blocks = parseQuoteCardBlocks('그가 말했다. 에녹: "따라와."');
+    assert.deepEqual(
+      blocks.map((b) => b.type),
+      ["narration", "dialogue"]
+    );
+    assert.equal(blocks[0]!.text, "그가 말했다.");
+    assert.equal(blocks[1]!.speaker, "에녹");
+    assert.equal(blocks[1]!.text, "따라와.");
+  });
+});
+
+describe("resolveQuoteCardSpeakers", () => {
+  it("defaults a single unlabeled dialogue to the character name", () => {
+    const resolved = resolveQuoteCardSpeakers(
+      [{ type: "dialogue", text: "안녕" }],
+      { defaultSpeaker: "라이크" }
+    );
+    assert.equal(resolved[0]!.speaker, "라이크");
+  });
+
+  it("assigns distinct labels for multiple unlabeled dialogues", () => {
+    const resolved = resolveQuoteCardSpeakers(
+      [
+        { type: "dialogue", text: "첫 대사" },
+        { type: "narration", text: "사이" },
+        { type: "dialogue", text: "둘째 대사" },
+        { type: "dialogue", text: "셋째 대사" },
+      ],
+      { defaultSpeaker: "라이크" }
+    );
+    assert.equal(resolved[0]!.speaker, "라이크");
+    assert.equal(resolved[2]!.speaker, "화자2");
+    assert.equal(resolved[3]!.speaker, "화자3");
+  });
+
+  it("keeps parsed speakers and applies overrides", () => {
+    const resolved = resolveQuoteCardSpeakers(
+      [
+        { type: "dialogue", text: "a", speaker: "카이" },
+        { type: "dialogue", text: "b" },
+      ],
+      { defaultSpeaker: "라이크", overrides: { 1: "유저" } }
+    );
+    assert.equal(resolved[0]!.speaker, "카이");
+    assert.equal(resolved[1]!.speaker, "유저");
+  });
+
+  it("lists dialogue entries for the editor", () => {
+    const entries = listQuoteCardDialogueEntries(
+      '"하나"\n"둘"',
+      { defaultSpeaker: "라이크" }
+    );
+    assert.equal(entries.length, 2);
+    assert.equal(entries[0]!.speaker, "라이크");
+    assert.equal(entries[1]!.speaker, "화자2");
+  });
+});
+
+describe("resolveQuoteCardDialogueStyle", () => {
+  it("prefers dialogueStyle over deprecated speechBubbles", () => {
+    assert.equal(resolveQuoteCardDialogueStyle({ dialogueStyle: "accent" }), "accent");
+    assert.equal(resolveQuoteCardDialogueStyle({ speechBubbles: false }), "off");
+    assert.equal(resolveQuoteCardDialogueStyle({ speechBubbles: true }), "bubble");
+    assert.equal(resolveQuoteCardDialogueStyle({}), "bubble");
   });
 });
 
