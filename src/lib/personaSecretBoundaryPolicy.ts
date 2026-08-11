@@ -1,33 +1,23 @@
 /**
- * Persona Secret Boundary rollout — fail-closed by default in every environment.
- * Affects secret exclusion + chat-scoped reveal only; does not alter Canon rollout.
+ * Persona Secret Boundary — ON for all accounts by default.
+ * Affects secret exclusion + chat-scoped reveal + secret settings UI; does not alter Canon rollout.
  *
  * Priority:
- * 1) PERSONA_SECRET_BOUNDARY_ENABLED=0 → force OFF for all users
- * 2) PERSONA_SECRET_BOUNDARY_ENABLED=1 → force ON for all users
- * 3) unset + user allowlist / percent canary → ON for matching users only
- * 4) otherwise → OFF
+ * 1) PERSONA_SECRET_BOUNDARY_ENABLED=0 → force OFF for all users (kill switch)
+ * 2) otherwise (unset or =1 / true / on / enabled) → ON for all users
  *
  * Discovery kill switch (`PERSONA_SECRET_DISCOVERY_ENABLED`) gates observer/scene/
  * evidence/visual/investigation/transfer/knowledge-prompt writes. When Discovery is
  * OFF, Boundary still allows legacy marker strip, public-only persona projection,
  * and UNKNOWN secret zero-byte isolation.
  *
- * Discovery is also fail-closed: unset/OFF → OFF; explicit ON only when Boundary is
+ * Discovery remains fail-closed: unset/OFF → OFF; explicit ON only when Boundary is
  * enabled for that user.
  */
 
 export type PersonaSecretBoundaryContext = {
   userId?: number | null;
 };
-
-function parseAllowlistUserIds(raw: string | undefined): number[] {
-  if (!raw?.trim()) return [];
-  return raw
-    .split(/[,;\s]+/)
-    .map((s) => Number(s.trim()))
-    .filter((n) => Number.isFinite(n) && n > 0);
-}
 
 function parseTriStateFlag(raw: string | undefined): boolean | null {
   if (!raw) return null;
@@ -41,25 +31,10 @@ export function isPersonaSecretBoundaryEnabled(
   opts?: PersonaSecretBoundaryContext,
   env: NodeJS.ProcessEnv = process.env
 ): boolean {
+  void opts;
   const explicit = parseTriStateFlag(env.PERSONA_SECRET_BOUNDARY_ENABLED);
-  if (explicit != null) return explicit;
-
-  const userId = opts?.userId;
-  if (userId != null && Number.isFinite(userId)) {
-    const allowlist = parseAllowlistUserIds(env.PERSONA_SECRET_BOUNDARY_USER_IDS);
-    if (allowlist.includes(userId)) return true;
-
-    const pctRaw = env.PERSONA_SECRET_BOUNDARY_CANARY_PERCENT?.trim();
-    if (pctRaw) {
-      const pct = Number(pctRaw);
-      if (Number.isFinite(pct) && pct > 0) {
-        const bucket = Math.abs(Math.trunc(userId)) % 100;
-        if (bucket < Math.min(100, Math.trunc(pct))) return true;
-      }
-    }
-  }
-
-  return false;
+  if (explicit === false) return false;
+  return true;
 }
 
 /**
