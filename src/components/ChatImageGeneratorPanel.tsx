@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 
 import {
   CHAT_COMIC_GENERATION_DEFAULT_POINTS,
+  CHAT_COMIC_MAX_INPUT_CHARS,
   CHAT_COMIC_PANEL_OPTIONS,
   CHAT_COMIC_TEMPLATE_PREVIEW_URL,
   type ChatComicPanelCount,
@@ -350,6 +351,8 @@ export default function ChatImageGeneratorPanel({
   const [sourceMessageId, setSourceMessageId] = useState<number | null>(null);
   const [sourceTurnPreview, setSourceTurnPreview] = useState("");
   const [comicSummary, setComicSummary] = useState("");
+  /** Cap edits at the originally loaded turn length (no fixed 1,000 cap). */
+  const [comicLoadedMaxChars, setComicLoadedMaxChars] = useState(0);
   const [summarizing, setSummarizing] = useState(false);
 
   useEffect(() => {
@@ -371,6 +374,7 @@ export default function ChatImageGeneratorPanel({
         setLdProduct("illustration");
         setComicText("");
         setComicSummary("");
+        setComicLoadedMaxChars(0);
         void loadSelectedTurnContent(messageId);
       }
       setOpen(true);
@@ -776,6 +780,7 @@ export default function ChatImageGeneratorPanel({
         throw new Error(data?.error || "턴 내용을 불러오지 못했습니다.");
       }
       setComicSummary(data.summary);
+      setComicLoadedMaxChars(data.summary.length);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "턴 내용을 불러오지 못했습니다.");
     } finally {
@@ -797,8 +802,15 @@ export default function ChatImageGeneratorPanel({
       return;
     }
     const comicInput = sourceMessageId ? summaryText : sourceText;
-    if (!isIllustration && comicInput.length > 1_000) {
-      setError("컷만화로 만들 내용은 최대 1,000자까지 선택해 주세요.");
+    const comicMaxChars = sourceMessageId
+      ? comicLoadedMaxChars || comicInput.length
+      : CHAT_COMIC_MAX_INPUT_CHARS;
+    if (!isIllustration && comicInput.length > comicMaxChars) {
+      setError(
+        sourceMessageId
+          ? `컷만화로 만들 내용은 불러온 턴 길이(${comicMaxChars.toLocaleString()}자)를 넘길 수 없습니다.`
+          : `내용은 최대 ${CHAT_COMIC_MAX_INPUT_CHARS.toLocaleString()}자까지 입력할 수 있습니다.`
+      );
       return;
     }
     if (!isIllustration && !/["“”]/.test(comicInput)) {
@@ -894,6 +906,7 @@ export default function ChatImageGeneratorPanel({
             setSourceMessageId(null);
             setSourceTurnPreview("");
             setComicSummary("");
+            setComicLoadedMaxChars(0);
             setOpen(true);
           }}
           className="flex w-full flex-col items-center gap-0.5 rounded-md px-0 py-1.5 text-zinc-400 transition hover:bg-white/[0.06] hover:text-violet-200"
@@ -1438,18 +1451,46 @@ export default function ChatImageGeneratorPanel({
                                     선택 턴 내용을 불러오는 중…
                                   </p>
                                 ) : null}
-                                {comicSummary ? (
+                                {comicSummary || comicLoadedMaxChars > 0 ? (
                                   <label className="block space-y-1">
                                     <span className="flex items-center justify-between text-[11px] font-semibold text-zinc-400">
-                                      <span>컷만화로 만들 내용 (최대 1,000자)</span>
-                                      <span className={comicSummary.length > 1_000 ? "text-amber-300" : "text-zinc-500"}>
-                                        {comicSummary.length.toLocaleString()}/1,000자
+                                      <span>
+                                        컷만화로 만들 내용
+                                        {comicLoadedMaxChars > 0
+                                          ? ` (불러온 턴 ${comicLoadedMaxChars.toLocaleString()}자까지)`
+                                          : ""}
+                                      </span>
+                                      <span
+                                        className={
+                                          comicLoadedMaxChars > 0 &&
+                                          comicSummary.length > comicLoadedMaxChars
+                                            ? "text-amber-300"
+                                            : "text-zinc-500"
+                                        }
+                                      >
+                                        {comicSummary.length.toLocaleString()}
+                                        {comicLoadedMaxChars > 0
+                                          ? `/${comicLoadedMaxChars.toLocaleString()}자`
+                                          : "자"}
                                       </span>
                                     </span>
                                     <textarea
                                       value={comicSummary}
-                                      onChange={(event) => setComicSummary(event.target.value)}
+                                      onChange={(event) => {
+                                        const next = event.target.value;
+                                        setComicSummary(
+                                          comicLoadedMaxChars > 0 &&
+                                            next.length > comicLoadedMaxChars
+                                            ? next.slice(0, comicLoadedMaxChars)
+                                            : next
+                                        );
+                                      }}
                                       disabled={generating}
+                                      maxLength={
+                                        comicLoadedMaxChars > 0
+                                          ? comicLoadedMaxChars
+                                          : undefined
+                                      }
                                       rows={8}
                                       className="w-full resize-y rounded-xl border border-white/10 bg-[#1a1a1a] px-3 py-2.5 text-xs leading-relaxed text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-violet-500/50"
                                     />
