@@ -5,8 +5,11 @@ import {
   CHAT_COMIC_FOUR_PANEL_OUTPUT_SIZE,
   CHAT_COMIC_IMAGE_OUTPUT_SIZE,
   CHAT_COMIC_MAX_INPUT_CHARS,
+  CHAT_COMIC_MIN_TEXT_BOXES,
   buildChatComicImagePrompt,
   buildChatComicPlannerPrompt,
+  countComicTextBoxes,
+  extractComicCaptionCandidates,
   extractQuotedComicDialogue,
   extractUnquotedComicNarration,
   resolveChatComicPlannerModel,
@@ -25,11 +28,11 @@ describe("chatComicGeneration", () => {
     });
   });
 
-  it("uses a taller output only when the planner selects four panels", () => {
+  it("uses the standard comic output size for both 2 and 3 panels", () => {
     assert.equal(CHAT_COMIC_IMAGE_OUTPUT_SIZE, "1008x1408");
     assert.equal(CHAT_COMIC_FOUR_PANEL_OUTPUT_SIZE, "864x1824");
+    assert.equal(resolveChatComicOutputSize(2), "1008x1408");
     assert.equal(resolveChatComicOutputSize(3), "1008x1408");
-    assert.equal(resolveChatComicOutputSize(4), "864x1824");
   });
 
   it("uses an OpenAI-direct planner and ignores the old OpenRouter setting", () => {
@@ -50,17 +53,17 @@ describe("chatComicGeneration", () => {
   });
 
   it("charges 230P regardless of the automatically selected panel count", () => {
+    assert.equal(resolveChatComicPrice(2, {} as NodeJS.ProcessEnv), 230);
     assert.equal(resolveChatComicPrice(3, {} as NodeJS.ProcessEnv), 230);
-    assert.equal(resolveChatComicPrice(4, {} as NodeJS.ProcessEnv), 230);
     assert.equal(
-      resolveChatComicPrice(4, { CHAT_COMIC_GENERATION_POINTS: "229.1" } as NodeJS.ProcessEnv),
+      resolveChatComicPrice(3, { CHAT_COMIC_GENERATION_POINTS: "229.1" } as NodeJS.ProcessEnv),
       230
     );
   });
 
-  it("uses the planner-selected 3-4 panel count", () => {
+  it("uses the planner-selected 2-3 panel count", () => {
     const sourceText =
-      '태형이 "대장님, 내 깻잎도 떼어줘!"라고 말했다. 렌은 "진정하고 깻잎이나 먹어."라고 답했다.';
+      '태형이 "대장님, 내 깻잎도 떼어줘!"라고 말했다. 렌은 "진정하고 깻잎이나 먹어."라고 답했다. 식당 안의 공기가 순간 얼어붙었다. 태형이 살짝 웃었다.';
     const plan = sanitizeChatComicPlan(
       {
         title: "깻잎 한입",
@@ -92,10 +95,11 @@ describe("chatComicGeneration", () => {
     assert.equal(plan.panels.length, 3);
     assert.equal(plan.panels[0]?.dialogue[0]?.text, "대장님, 내 깻잎도 떼어줘!");
     assert.equal(plan.panels[2]?.dialogue[0]?.speaker, "persona");
+    assert.ok(countComicTextBoxes(plan.panels) >= CHAT_COMIC_MIN_TEXT_BOXES);
     assert.throws(() => sanitizeChatComicPlan({ title: "x", panels: [{}] }, sourceText));
     assert.throws(() =>
       sanitizeChatComicPlan(
-        { title: "x", panelCount: 4, panels: [{}, {}] },
+        { title: "x", panelCount: 3, panels: [{}, {}] },
         sourceText
       )
     );
@@ -103,8 +107,13 @@ describe("chatComicGeneration", () => {
       sanitizeChatComicPlan(
         {
           title: "x",
-          panelCount: 2,
-          panels: [{ scene: "a", dialogue: [] }, { scene: "b", dialogue: [] }],
+          panelCount: 4,
+          panels: [
+            { scene: "a", dialogue: [] },
+            { scene: "b", dialogue: [] },
+            { scene: "c", dialogue: [] },
+            { scene: "d", dialogue: [] },
+          ],
         },
         sourceText
       )
@@ -162,7 +171,58 @@ describe("chatComicGeneration", () => {
     assert.deepEqual(plan.panels[0]?.dialogue, [{ speaker: "character", text: "야." }]);
     assert.deepEqual(plan.panels[1]?.dialogue, [{ speaker: "character", text: "나 봐." }]);
     assert.equal(plan.panels[0]?.caption, "식당 안의 공기가 순간 얼어붙었다.");
-    assert.equal(plan.panels[1]?.caption, undefined);
+    assert.notEqual(plan.panels[1]?.caption, "긴장감 속에서 유머가 터진다.");
+  });
+
+  it("backfills captions so sparse dialogue still reaches four text boxes", () => {
+    const sourceText = [
+      '유저: "후드 내려볼래?"',
+      "캐릭터: 렌이 손을 뻗어 후드를 고쳐 준다. *판다 귀가 살짝 기울어진다.*",
+      '그는 "이거 태형이 눈이랑도 잘어울리잖아. 이뻐."라고 말했다.',
+      "태형이 살짝 붉어진다. (오늘도 또 져버리네.)",
+      '태형은 "하하, 와... 나 진짜 오늘 여러 번 항복하게 만드네."라고 웃었다.',
+    ].join("\n");
+
+    assert.ok(
+      extractComicCaptionCandidates(sourceText).some((line) =>
+        line.includes("판다 귀가 살짝 기울어진다")
+      )
+    );
+
+    const plan = sanitizeChatComicPlan(
+      {
+        title: "후드",
+        panelCount: 3,
+        panels: [
+          {
+            scene: "렌이 후드를 고쳐준다.",
+            dialogue: [
+              { speaker: "persona", text: "이거 태형이 눈이랑도 잘어울리잖아. 이뻐." },
+            ],
+          },
+          {
+            scene: "태형이 웃는다.",
+            dialogue: [],
+          },
+          {
+            scene: "태형이 항복한다.",
+            dialogue: [
+              {
+                speaker: "character",
+                text: "하하, 와... 나 진짜 오늘 여러 번 항복하게 만드네.",
+              },
+            ],
+          },
+        ],
+      },
+      sourceText
+    );
+
+    assert.ok(countComicTextBoxes(plan.panels) >= CHAT_COMIC_MIN_TEXT_BOXES);
+    assert.ok(plan.panels.filter((panel) => panel.caption).length >= 2);
+    assert.ok(
+      plan.panels.some((panel) => panel.dialogue.some((line) => line.text.includes("후드")))
+    );
   });
 
   it("asks the cheap planner to choose the smallest natural panel count", () => {
@@ -174,8 +234,10 @@ describe("chatComicGeneration", () => {
       mood: "comic",
       sourceText: "태형이 깻잎을 떼어달라고 징징거렸다.",
     });
-    assert.match(prompt, /smallest natural panel count from 3 or 4/);
+    assert.match(prompt, /smallest natural panel count from 2 or 3/);
     assert.match(prompt, /Never stretch a short scene/);
+    assert.match(prompt, /TEXT QUOTA \(mandatory\)/);
+    assert.match(prompt, /MUST total at least 4/);
     assert.match(prompt, /Use only verbatim contiguous excerpts/);
     assert.match(prompt, /MUST use at least one of those quoted lines as a speech bubble/);
     assert.match(prompt, /Never invent, paraphrase, combine, complete, or add reaction dialogue/);
@@ -184,24 +246,20 @@ describe("chatComicGeneration", () => {
     assert.match(prompt, /SOURCE PROSE/);
   });
 
-  it("rejects a comic plan with no dialogue at all", () => {
-    const sourceText = '태현은 "야."라고 말했다.';
-    assert.throws(
-      () =>
-        sanitizeChatComicPlan(
-          {
-            title: "무음",
-            panelCount: 3,
-            panels: [
-              { scene: "태현이 앞을 막는다.", dialogue: [] },
-              { scene: "렌이 뒤돌아본다.", dialogue: [] },
-              { scene: "태현이 다가선다.", dialogue: [] },
-            ],
-          },
-          sourceText
-        ),
-      /대사가 비어/
+  it("backfills missing planner dialogue from quoted source lines", () => {
+    const sourceText = '태현은 "야."라고 말했다. 공기가 싸늘하게 가라앉았다.';
+    const plan = sanitizeChatComicPlan(
+      {
+        title: "무음",
+        panelCount: 2,
+        panels: [
+          { scene: "태현이 앞을 막는다.", dialogue: [] },
+          { scene: "렌이 뒤돌아본다.", dialogue: [] },
+        ],
+      },
+      sourceText
     );
+    assert.equal(plan.panels[0]?.dialogue[0]?.text, "야.");
     assert.throws(
       () =>
         sanitizeChatComicPlan(

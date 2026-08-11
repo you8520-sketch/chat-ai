@@ -5,7 +5,7 @@ import {
 } from "@/lib/chatImageGender";
 
 export const CHAT_COMIC_TEMPLATE_ID = "comic_horizontal_2_4" as const;
-export const CHAT_COMIC_TEMPLATE_NAME = "3~4컷 가로 만화";
+export const CHAT_COMIC_TEMPLATE_NAME = "2~3컷 가로 만화";
 export const CHAT_COMIC_TEMPLATE_PREVIEW_URL =
   "/image-templates/comic-vertical-sample-hq.webp";
 
@@ -13,12 +13,20 @@ export const CHAT_COMIC_DEFAULT_PLANNER_MODEL = "gpt-4o-mini";
 /** Soft guardrail for pasted prose — selected-turn summaries are not truncated. */
 export const CHAT_COMIC_MAX_INPUT_CHARS = 4_000;
 export const CHAT_COMIC_IMAGE_OUTPUT_SIZE = "1008x1408" as const;
+/** Kept for older four-panel artifacts; auto planner now only emits 2~3 panels. */
 export const CHAT_COMIC_FOUR_PANEL_OUTPUT_SIZE = "864x1824" as const;
 export const CHAT_COMIC_GENERATION_DEFAULT_POINTS = 230;
 
+/** Hard floor: speech bubbles + rectangular caption boxes across the page. */
+export const CHAT_COMIC_MIN_TEXT_BOXES = 4;
+/** Soft target when the source has enough quoted lines. */
+export const CHAT_COMIC_TARGET_DIALOGUE = 3;
+/** Soft target when the source has enough unquoted narration / inner thought. */
+export const CHAT_COMIC_TARGET_CAPTIONS = 2;
+
 export const CHAT_COMIC_PANEL_OPTIONS = [
+  { id: 2, label: "2컷" },
   { id: 3, label: "3컷" },
-  { id: 4, label: "4컷" },
 ] as const;
 
 export const CHAT_COMIC_MOODS = [
@@ -68,10 +76,8 @@ export type ChatComicPlan = {
   panels: ChatComicPanel[];
 };
 
-export function resolveChatComicOutputSize(panelCount: ChatComicPanelCount) {
-  return panelCount === 4
-    ? CHAT_COMIC_FOUR_PANEL_OUTPUT_SIZE
-    : CHAT_COMIC_IMAGE_OUTPUT_SIZE;
+export function resolveChatComicOutputSize(_panelCount: ChatComicPanelCount) {
+  return CHAT_COMIC_IMAGE_OUTPUT_SIZE;
 }
 
 function toMood(raw: unknown): ChatComicMood {
@@ -117,16 +123,17 @@ export function buildChatComicPlannerPrompt(opts: {
 }): string {
   return [
     "You are a Korean comic storyboard editor.",
-    "Choose the smallest natural panel count from 3 or 4, then convert the supplied Korean prose into that many horizontal comic panels stacked vertically on one page.",
-    "Use 3 panels for one setup, one transition or reaction beat, and one payoff. Use 4 panels only when multiple distinct actions, dialogue beats, or scene changes are necessary. Never stretch a short scene to fill extra panels.",
+    "Choose the smallest natural panel count from 2 or 3, then convert the supplied Korean prose into that many horizontal comic panels stacked vertically on one page.",
+    "Use 2 panels for a tight setup/payoff. Use 3 panels when a transition or reaction beat is needed. Never stretch a short scene to fill extra panels.",
     `The chat character is ${opts.characterName} (${genderWordForImagePrompt(opts.characterGender)}); the user persona is ${opts.personaName} (${genderWordForImagePrompt(opts.personaGender)}).`,
     "Never change either person's gender. Long pink/soft hair, cute expressions, blush, or romantic mood must not feminize a male subject or masculinize a female subject.",
     "Infer who is speaking from the prose and preserve their identities throughout.",
     "Dialogue is closed-book extraction. Use only verbatim contiguous excerpts from text enclosed in quotation marks in SOURCE PROSE.",
     "The SOURCE PROSE contains at least one quoted dialogue line, and the finished comic MUST use at least one of those quoted lines as a speech bubble. Never return a plan where every panel has an empty dialogue array.",
     "Never invent, paraphrase, combine, complete, or add reaction dialogue. If a panel has no suitable quoted line, return an empty dialogue array for that panel and communicate the reaction visually.",
-    "Narration is also closed-book extraction. A caption may contain only one short verbatim contiguous excerpt from the unquoted descriptive prose in SOURCE PROSE (including lines prefixed with 지문:). Never paraphrase or invent narration. Return an empty caption when no suitable excerpt exists.",
-    "When quoted dialogue is scarce, use a verbatim narration / inner-thought line as a rectangular caption box so the page still reads like a comic.",
+    "Narration is also closed-book extraction. A caption may contain only one short verbatim contiguous excerpt from the unquoted descriptive prose in SOURCE PROSE (including lines prefixed with 지문:, *action*, or parenthetical inner thoughts). Never paraphrase or invent narration.",
+    "TEXT QUOTA (mandatory): Across the whole page, speech bubbles + rectangular caption boxes MUST total at least 4. Prefer at least 3 speech bubbles AND at least 2 caption boxes when the source has that much material.",
+    "When quoted dialogue is scarce, fill the remaining quota with verbatim narration / inner-thought rectangular caption boxes so silent panels still carry readable comic text. Do not leave a page with only one or two speech bubbles and empty captions if unquoted prose exists.",
     "Use at most two speech bubbles and at most one rectangular narration box per panel. Never create labels or sound-effect text.",
     "Each panel needs a clear action, camera framing, and natural facial expressions. The final panel should land the emotional payoff or comedic punchline.",
     `Mood: ${CHAT_COMIC_MOODS.find((item) => item.id === opts.mood)?.prompt ?? "comic"}.`,
@@ -144,7 +151,7 @@ export function buildChatComicPlannerPrompt(opts: {
             { speaker: "character", text: "Korean bubble text" },
             { speaker: "persona", text: "Korean bubble text" },
           ],
-          caption: "",
+          caption: "verbatim narration or inner thought",
         },
       ],
     }),
@@ -190,13 +197,159 @@ function isVerbatimNarrationExcerpt(text: string, unquotedNarration: string[]): 
   return text.length >= 2 && unquotedNarration.some((segment) => segment.includes(text));
 }
 
+/** Short verbatim caption candidates: 지문 / *action* / (속마음) / descriptive sentences. */
+export function extractComicCaptionCandidates(sourceText: string): string[] {
+  const out: string[] = [];
+  const push = (raw: string) => {
+    const text = cleanText(raw, 100);
+    if (text.length < 4) return;
+    if (out.includes(text)) return;
+    if (/^(유저|캐릭터)\s*:/.test(text)) return;
+    if (/라고\s*(말했|했|외치|물었|대답|속삭)/.test(text)) return;
+    out.push(text);
+  };
+
+  for (const match of sourceText.matchAll(/지문\s*:\s*([^\n]{4,120})/g)) {
+    push(match[1] ?? "");
+  }
+  for (const match of sourceText.matchAll(/\*([^*]{4,100})\*/g)) {
+    push(match[1] ?? "");
+  }
+  for (const match of sourceText.matchAll(/[（(]([^）)]{4,100})[）)]/g)) {
+    push(match[1] ?? "");
+  }
+
+  const stripped = sourceText
+    .replace(/“[^”]*”|"[^"]*"|‘[^’]*’|'[^']*'/g, " ")
+    .replace(/\*[^*]+\*/g, " ")
+    .replace(/[（(][^）)]+[）)]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  for (const segment of stripped.split(/(?<=[.!?。…])\s+|\n+/)) {
+    let text = cleanText(segment, 100);
+    text = cleanText(text.replace(/^(유저|캐릭터|지문)\s*:/, ""), 100);
+    if (text.length < 8 || text.length > 100) continue;
+    if (/라고\s*(말했|했|외치|물었|대답|속삭)/.test(text)) continue;
+    if (/^[가-힣a-zA-Z]{1,6}은\s/.test(text) && text.length < 20) continue;
+    push(text);
+    if (out.length >= 6) break;
+  }
+  return out.slice(0, 6);
+}
+
+export function countComicTextBoxes(panels: ChatComicPanel[]): number {
+  return panels.reduce(
+    (sum, panel) => sum + panel.dialogue.length + (panel.caption ? 1 : 0),
+    0
+  );
+}
+
+function guessComicSpeaker(sourceText: string, quote: string): ChatComicSpeaker {
+  const idx = sourceText.indexOf(quote);
+  if (idx < 0) return "character";
+  const lastUser = sourceText.lastIndexOf("유저:", idx);
+  const lastCharacter = sourceText.lastIndexOf("캐릭터:", idx);
+  return lastUser > lastCharacter ? "persona" : "character";
+}
+
+function backfillComicPlanText(
+  panels: ChatComicPanel[],
+  sourceText: string,
+  quotedDialogue: string[],
+  unquotedNarration: string[]
+): ChatComicPanel[] {
+  const next = panels.map((panel) => ({
+    ...panel,
+    dialogue: [...panel.dialogue],
+  }));
+
+  const usedDialogue = () =>
+    new Set(next.flatMap((panel) => panel.dialogue.map((line) => line.text)));
+  const dialogueCount = () =>
+    next.reduce((sum, panel) => sum + panel.dialogue.length, 0);
+  const captionCount = () => next.filter((panel) => panel.caption).length;
+
+  // Prefer spreading unused quotes toward the soft dialogue target.
+  for (const quote of quotedDialogue) {
+    if (dialogueCount() >= CHAT_COMIC_TARGET_DIALOGUE) break;
+    const used = usedDialogue();
+    if ([...used].some((text) => quote.includes(text) || text.includes(quote))) {
+      continue;
+    }
+    const excerpt = cleanText(quote, 40);
+    if (!excerpt || !isVerbatimQuotedExcerpt(excerpt, quotedDialogue)) continue;
+    const panel =
+      next.find((item) => item.dialogue.length === 0) ??
+      next.find((item) => item.dialogue.length < 2);
+    if (!panel) break;
+    panel.dialogue.push({
+      speaker: guessComicSpeaker(sourceText, quote),
+      text: excerpt,
+    });
+  }
+
+  const candidates = extractComicCaptionCandidates(sourceText).filter((text) =>
+    isVerbatimNarrationExcerpt(text, unquotedNarration)
+  );
+  const usedCaptions = () =>
+    new Set(next.flatMap((panel) => (panel.caption ? [panel.caption] : [])));
+  const usedAnyText = () =>
+    new Set([
+      ...next.flatMap((panel) => panel.dialogue.map((line) => line.text)),
+      ...usedCaptions(),
+    ]);
+
+  const assignCaption = (text: string): boolean => {
+    if (usedAnyText().has(text)) return false;
+    const panel =
+      next.find((item) => !item.caption && item.dialogue.length === 0) ??
+      next.find((item) => !item.caption);
+    if (!panel) return false;
+    panel.caption = text;
+    return true;
+  };
+
+  // Soft target: at least two caption boxes when narration exists.
+  for (const text of candidates) {
+    if (captionCount() >= CHAT_COMIC_TARGET_CAPTIONS) break;
+    assignCaption(text);
+  }
+
+  // Hard floor: speech + caption boxes >= 4 when source material allows.
+  for (const text of candidates) {
+    if (countComicTextBoxes(next) >= CHAT_COMIC_MIN_TEXT_BOXES) break;
+    assignCaption(text);
+  }
+
+  // If still short and unused quotes remain, keep filling dialogue slots.
+  for (const quote of quotedDialogue) {
+    if (countComicTextBoxes(next) >= CHAT_COMIC_MIN_TEXT_BOXES) break;
+    const used = usedDialogue();
+    if ([...used].some((text) => quote.includes(text) || text.includes(quote))) {
+      continue;
+    }
+    const excerpt = cleanText(quote, 40);
+    if (!excerpt || !isVerbatimQuotedExcerpt(excerpt, quotedDialogue)) continue;
+    const panel =
+      next.find((item) => item.dialogue.length === 0) ??
+      next.find((item) => item.dialogue.length < 2);
+    if (!panel) break;
+    panel.dialogue.push({
+      speaker: guessComicSpeaker(sourceText, quote),
+      text: excerpt,
+    });
+  }
+
+  return next;
+}
+
 export function resolveAutoComicPanelCount(raw: unknown): ChatComicPanelCount {
   if (!raw || typeof raw !== "object") throw new Error("컷 구성 응답이 올바르지 않습니다.");
   const source = raw as { panelCount?: unknown; panels?: unknown };
   if (!Array.isArray(source.panels)) throw new Error("컷 구성 목록이 없습니다.");
   const count = source.panels.length;
-  if (count !== 3 && count !== 4) {
-    throw new Error("AI가 선택한 컷 수가 3~4컷 범위를 벗어났습니다.");
+  if (count !== 2 && count !== 3) {
+    throw new Error("AI가 선택한 컷 수가 2~3컷 범위를 벗어났습니다.");
   }
   const declared = Number(source.panelCount);
   if (Number.isFinite(declared) && declared !== count) {
@@ -254,7 +407,14 @@ export function sanitizeChatComicPlan(
     };
   });
 
-  if (!panels.some((panel) => panel.dialogue.length > 0)) {
+  const filled = backfillComicPlanText(
+    panels,
+    sourceText,
+    quotedDialogue,
+    unquotedNarration
+  );
+
+  if (!filled.some((panel) => panel.dialogue.length > 0)) {
     throw new Error(
       "컷만화 대사가 비어 있습니다. 중요 대사를 최소 1개 넣어 주세요."
     );
@@ -263,7 +423,7 @@ export function sanitizeChatComicPlan(
   return {
     title: cleanText(source.title, 40) || "우리 둘의 한 장면",
     panelCount,
-    panels,
+    panels: filled,
   };
 }
 

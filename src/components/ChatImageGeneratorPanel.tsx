@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 
 import {
   CHAT_COMIC_GENERATION_DEFAULT_POINTS,
+  CHAT_COMIC_PANEL_OPTIONS,
   CHAT_COMIC_TEMPLATE_PREVIEW_URL,
   type ChatComicPanelCount,
 } from "@/lib/chatComicGeneration";
@@ -1034,7 +1035,7 @@ export default function ChatImageGeneratorPanel({
                                 ? "캐릭터 그림체 참조 이미지"
                                 : ldProduct === "illustration"
                                 ? "선택 턴 LD 일러스트 참조 이미지"
-                                : "3~4컷 만화 예시"
+                                : "2~3컷 만화 예시"
                               : sdProduct === "emoticon"
                                 ? "랜덤 9종 이모티콘 고정틀"
                                 : sdProduct === "coupleStamp"
@@ -1088,7 +1089,7 @@ export default function ChatImageGeneratorPanel({
                             ? "선택 페르소나의 성별·외관 설정을 반영하고, 캐릭터 이미지는 그림체만 직접 참조합니다."
                             : ldProduct === "illustration"
                             ? "현재 채팅의 최신 턴을 자동으로 읽어 두 사람의 외형과 그림체를 최대한 닮게 반영합니다."
-                            : "본문만 붙여넣으면 핵심 대사·말풍선·표정과 3~4컷 구성을 자동으로 만듭니다."
+                            : "본문만 붙여넣으면 핵심 대사·말풍선·지문과 2~3컷 구성을 자동으로 만듭니다."
                           : sdProduct === "emoticon"
                             ? "매번 다른 문구 9개를 뽑아 캐릭터 단독·페르소나 단독·두 사람 장면을 섞어 만듭니다."
                             : sdProduct === "coupleStamp"
@@ -1492,7 +1493,7 @@ export default function ChatImageGeneratorPanel({
                                     label: "선택 턴 LD 일러스트",
                                     cost: info.averageCosts.illustration,
                                   }]
-                                : ([3, 4] as const).map((panelCount) => ({
+                                : CHAT_COMIC_PANEL_OPTIONS.map(({ id: panelCount }) => ({
                                     label: `${panelCount}컷 만화`,
                                     cost: info.averageCosts!.comic[panelCount],
                                   }))
