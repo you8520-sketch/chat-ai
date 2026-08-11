@@ -6,9 +6,7 @@ import { createPortal } from "react-dom";
 import {
   CHAT_COMIC_GENERATION_DEFAULT_POINTS,
   CHAT_COMIC_MAX_INPUT_CHARS,
-  CHAT_COMIC_MOODS,
   CHAT_COMIC_TEMPLATE_PREVIEW_URL,
-  type ChatComicMood,
   type ChatComicPanelCount,
 } from "@/lib/chatComicGeneration";
 import {
@@ -351,7 +349,6 @@ export default function ChatImageGeneratorPanel({
     CHAT_IMAGE_GENERATION_DEFAULT_OPTIONS.mood
   );
   const [comicText, setComicText] = useState("");
-  const [comicMood, setComicMood] = useState<ChatComicMood>("comic");
   const [sourceMessageId, setSourceMessageId] = useState<number | null>(null);
   const [sourceTurnPreview, setSourceTurnPreview] = useState("");
   const [comicSummary, setComicSummary] = useState("");
@@ -828,7 +825,6 @@ export default function ChatImageGeneratorPanel({
           mode: isIllustration ? "illustration" : "comic",
           messageId: isIllustration ? sourceMessageId ?? undefined : undefined,
           sourceText: isIllustration ? undefined : comicInput || undefined,
-          mood: comicMood,
           characterImageUrl: selectedCharacterImageUrl || info.character.imageUrl,
         }),
       });
@@ -1500,26 +1496,11 @@ export default function ChatImageGeneratorPanel({
                                 />
                               </label>
                             )}
-                            <div className="grid grid-cols-2 gap-2">
-                              <div className="block space-y-1">
-                                <span className="text-[11px] font-semibold text-zinc-400">컷 수</span>
-                                <div className="rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-300">
-                                  AI 자동 · 2~4컷
-                                </div>
+                            <div className="block space-y-1">
+                              <span className="text-[11px] font-semibold text-zinc-400">컷 수</span>
+                              <div className="rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-300">
+                                AI 자동 · 2~4컷 · 분위기는 요약 내용을 따릅니다
                               </div>
-                              <label className="block space-y-1">
-                                <span className="text-[11px] font-semibold text-zinc-400">분위기</span>
-                                <select
-                                  value={comicMood}
-                                  onChange={(event) => setComicMood(event.target.value as ChatComicMood)}
-                                  disabled={generating}
-                                  className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-3 py-2 text-xs text-zinc-200 outline-none focus:border-violet-500/50"
-                                >
-                                  {CHAT_COMIC_MOODS.map((item) => (
-                                    <option key={item.id} value={item.id}>{item.label}</option>
-                                  ))}
-                                </select>
-                              </label>
                             </div>
                           </>
                         ) : null}

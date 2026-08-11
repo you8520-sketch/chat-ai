@@ -245,7 +245,9 @@ export async function extractChatImageSceneBrief(opts: {
     ],
     model,
     temperature: 0.1,
-    maxTokens: 900,
+    // Leave headroom for hidden reasoning / JSON so finish=length does not
+    // truncate the brief. CheaperInference DeepSeek V4 gets thinking disabled.
+    maxTokens: 3072,
     disableReasoning: true,
     requestKind: "background-chat-image-scene-brief",
     timeoutMs: 60_000,
