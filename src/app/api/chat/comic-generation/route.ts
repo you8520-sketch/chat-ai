@@ -30,9 +30,14 @@ import {
   CHAT_LD_ILLUSTRATION_QUALITY,
   CHAT_LD_ILLUSTRATION_TEMPLATE_ID,
   buildChatLdIllustrationPrompt,
+  formatOpenAiImageUserError,
   resolveChatLdIllustrationPrice,
 } from "@/lib/chatLdIllustrationGeneration";
-import { resolveChatImageGenerationModel } from "@/lib/chatImageGeneration";
+import {
+  resolveChatImageGenerationModel,
+  type ImagePromptGender,
+} from "@/lib/chatImageGeneration";
+import { resolveCharacterGender } from "@/lib/characterGender";
 import {
   finishChatImageGenerationJob,
   hasRunningChatImageGenerationJob,
@@ -70,6 +75,7 @@ const MAX_REFERENCE_BYTES = 12 * 1024 * 1024;
 type CharacterRow = {
   id: number;
   name: string;
+  gender: string | null;
   assets: string;
   images: string;
   creator_id: number | null;
@@ -79,6 +85,7 @@ type CharacterRow = {
 type PersonaRow = {
   id: number;
   name: string;
+  gender: string | null;
   image_url: string;
 };
 
@@ -92,6 +99,8 @@ type GenerationContext = {
   chatId: number | null;
   character: CharacterRow;
   persona: PersonaRow;
+  characterGender: ImagePromptGender;
+  personaGender: ImagePromptGender;
   characterImageUrl: string;
   personaImageUrl: string;
 };
@@ -176,7 +185,7 @@ function resolveGenerationContext(opts: {
   if (!characterId) throw new RequestError("캐릭터 정보가 없습니다.");
   const character = db
     .prepare(
-      "SELECT id, name, assets, images, creator_id, visibility FROM characters WHERE id=?"
+      "SELECT id, name, gender, assets, images, creator_id, visibility FROM characters WHERE id=?"
     )
     .get(characterId) as CharacterRow | undefined;
   if (!character) throw new RequestError("캐릭터를 찾을 수 없습니다.", 404);
@@ -187,13 +196,15 @@ function resolveGenerationContext(opts: {
   let persona: PersonaRow | undefined;
   if (selectedPersonaId) {
     persona = db
-      .prepare("SELECT id, name, image_url FROM user_personas WHERE id=? AND user_id=?")
+      .prepare(
+        "SELECT id, name, gender, image_url FROM user_personas WHERE id=? AND user_id=?"
+      )
       .get(selectedPersonaId, opts.userId) as PersonaRow | undefined;
   }
   if (!persona) {
     persona = db
       .prepare(
-        "SELECT id, name, image_url FROM user_personas WHERE user_id=? ORDER BY created_at ASC, id ASC LIMIT 1"
+        "SELECT id, name, gender, image_url FROM user_personas WHERE user_id=? ORDER BY created_at ASC, id ASC LIMIT 1"
       )
       .get(opts.userId) as PersonaRow | undefined;
   }
@@ -219,6 +230,8 @@ function resolveGenerationContext(opts: {
     chatId,
     character,
     persona,
+    characterGender: resolveCharacterGender(character.gender),
+    personaGender: resolveCharacterGender(persona.gender),
     characterImageUrl,
     personaImageUrl,
   };
@@ -367,7 +380,9 @@ function plannerCostUsd(
 
 async function planComic(opts: {
   characterName: string;
+  characterGender: ImagePromptGender;
   personaName: string;
+  personaGender: ImagePromptGender;
   mood: "comic" | "lovely" | "daily" | "serious";
   sourceText: string;
 }): Promise<{ plan: ChatComicPlan; costUsd: number | null; model: string }> {
@@ -471,7 +486,7 @@ async function generateComicImage(opts: {
   } catch (error) {
     if (error instanceof RequestError) throw error;
     if (error instanceof OpenAiImageError) {
-      throw new RequestError(error.message, error.status);
+      throw new RequestError(formatOpenAiImageUserError(error.message), error.status);
     }
     if (error instanceof Error && error.name === "AbortError") {
       throw new RequestError("컷만화 생성 시간이 초과되었습니다. 다시 시도해 주세요.", 504);
@@ -519,7 +534,7 @@ async function generateLdIllustrationImage(opts: {
   } catch (error) {
     if (error instanceof RequestError) throw error;
     if (error instanceof OpenAiImageError) {
-      throw new RequestError(error.message, error.status);
+      throw new RequestError(formatOpenAiImageUserError(error.message), error.status);
     }
     if (error instanceof Error && error.name === "AbortError") {
       throw new RequestError("LD 일러스트 생성 시간이 초과되었습니다. 다시 시도해 주세요.", 504);
@@ -581,7 +596,9 @@ export async function POST(req: Request) {
       const turnText = currentChatTurn(context.chatId);
       const prompt = buildChatLdIllustrationPrompt({
         characterName: context.character.name,
+        characterGender: context.characterGender,
         personaName: context.persona.name,
+        personaGender: context.personaGender,
         currentTurn: turnText,
       });
       const [characterReference, personaReference] = await Promise.all([
@@ -729,13 +746,17 @@ export async function POST(req: Request) {
     startJob(CHAT_COMIC_TEMPLATE_ID, "comic");
     const planned = await planComic({
       characterName: context.character.name,
+      characterGender: context.characterGender,
       personaName: context.persona.name,
+      personaGender: context.personaGender,
       ...options,
     });
     const panelCount = planned.plan.panelCount;
     const prompt = buildChatComicImagePrompt({
       characterName: context.character.name,
+      characterGender: context.characterGender,
       personaName: context.persona.name,
+      personaGender: context.personaGender,
       plan: planned.plan,
       ...options,
     });

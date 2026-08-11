@@ -150,7 +150,9 @@ describe("chatComicGeneration", () => {
   it("asks the cheap planner to choose the smallest natural panel count", () => {
     const prompt = buildChatComicPlannerPrompt({
       characterName: "태형",
+      characterGender: "male",
       personaName: "렌",
+      personaGender: "male",
       mood: "comic",
       sourceText: "태형이 깻잎을 떼어달라고 징징거렸다.",
     });
@@ -158,14 +160,17 @@ describe("chatComicGeneration", () => {
     assert.match(prompt, /Never stretch a short scene/);
     assert.match(prompt, /Use only verbatim contiguous excerpts/);
     assert.match(prompt, /Never invent, paraphrase, combine, complete, or add reaction dialogue/);
-    assert.match(prompt, /The chat character is 태형; the user persona is 렌/);
+    assert.match(prompt, /The chat character is 태형 \(male\); the user persona is 렌 \(male\)/);
+    assert.match(prompt, /Never change either person's gender/);
     assert.match(prompt, /SOURCE PROSE/);
   });
 
   it("keeps exact dialogue, correct speakers, and visible page boundaries in the image prompt", () => {
     const prompt = buildChatComicImagePrompt({
       characterName: "태형",
+      characterGender: "male",
       personaName: "렌",
+      personaGender: "male",
       mood: "lovely",
       sourceText: "태형이 조르고 렌이 한입 먹여준다.",
       plan: {
@@ -198,5 +203,9 @@ describe("chatComicGeneration", () => {
     assert.match(prompt, /Never swap or blend them/);
     assert.match(prompt, /Render approved narration only in a tail-less rectangular narration box/);
     assert.match(prompt, /Do not crop off speech bubbles or the last panel/);
+    assert.match(prompt, /GENDER LOCK/);
+    assert.match(prompt, /confirmed MALE/);
+    assert.match(prompt, /LAYOUT AND FINISH ONLY/);
+    assert.match(prompt, /pink-haired feminine sample figure/);
   });
 });
