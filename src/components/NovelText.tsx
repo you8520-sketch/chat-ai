@@ -55,7 +55,7 @@ function InlineSegments({
   if (paragraphKind === "dialogue") {
     return (
       <span
-        className={`font-semibold${preserveRawLineBreaks ? " whitespace-pre-wrap" : ""}`}
+        className={`chat-dialogue-accent font-semibold${preserveRawLineBreaks ? " whitespace-pre-wrap" : ""}`}
         style={{ color: dialogueColor }}
       >
         {dialogueText}

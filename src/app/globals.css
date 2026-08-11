@@ -24,8 +24,8 @@ body {
   background:
     radial-gradient(circle at 82% -8%, rgba(124, 58, 237, 0.12), transparent 24rem),
     radial-gradient(circle at -8% 28%, rgba(37, 99, 235, 0.06), transparent 26rem),
-    #070910;
-  color: #e6e8f0;
+    var(--studio-bg, #070910);
+  color: var(--studio-text, #e6e8f0);
   font-family:
     "Pretendard Variable", Pretendard, "Noto Sans KR", ui-sans-serif, system-ui,
     -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -174,6 +174,27 @@ body {
 
 .chat-novel-prose {
   color: var(--chat-narration-color, #fafafa);
+}
+
+/* 대사 문단 왼쪽 강조선 — dialogue paragraph accent bar */
+.chat-novel-prose p:has(> .chat-dialogue-accent) {
+  position: relative;
+  padding-left: 0.75rem;
+}
+.chat-novel-prose p:has(> .chat-dialogue-accent)::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.15em;
+  bottom: 0.15em;
+  width: 3px;
+  border-radius: 2px;
+  background: linear-gradient(
+    180deg,
+    var(--studio-primary, #7c3aed),
+    var(--studio-primary-hover, #8b5cf6)
+  );
+  opacity: 0.85;
 }
 
 /* OOC 요청 상태창 — 마크다운 pipe table */
