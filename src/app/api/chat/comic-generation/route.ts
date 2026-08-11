@@ -20,7 +20,6 @@ import {
   resolveChatComicPlannerModel,
   resolveChatComicOutputSize,
   resolveChatComicPrice,
-  sanitizeChatComicOptions,
   sanitizeChatComicPlan,
   type ChatComicPanelCount,
   type ChatComicPlan,
@@ -873,10 +872,8 @@ export async function POST(req: Request) {
       sourceText: messageId ? undefined : manualSourceText,
       requireChat: false,
     });
-    const mood = sanitizeChatComicOptions({
-      mood: body.mood,
-      sourceText: "",
-    }).mood;
+    // Mood is inferred from the selected-turn summary; the UI no longer asks.
+    const mood = "comic" as const;
 
     const balanceBefore = getPointBalance(user.id);
     const pricePoints = resolveChatComicPrice(2);
