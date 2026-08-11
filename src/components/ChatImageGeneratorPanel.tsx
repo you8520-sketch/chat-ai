@@ -5,7 +5,6 @@ import { createPortal } from "react-dom";
 
 import {
   CHAT_COMIC_GENERATION_DEFAULT_POINTS,
-  CHAT_COMIC_MAX_INPUT_CHARS,
   CHAT_COMIC_TEMPLATE_PREVIEW_URL,
   type ChatComicPanelCount,
 } from "@/lib/chatComicGeneration";
@@ -772,12 +771,12 @@ export default function ChatImageGeneratorPanel({
         | { ok?: boolean; summary?: string; error?: string }
         | null;
       if (!response.ok || !data?.summary) {
-        throw new Error(data?.error || "턴 요약을 만들지 못했습니다.");
+        throw new Error(data?.error || "턴 내용을 불러오지 못했습니다.");
       }
       setComicSummary(data.summary);
-      setNotice("선택 턴 요약이 준비되었습니다. 대사를 확인·수정한 뒤 생성해 주세요.");
+      setNotice("선택 턴 내용을 불러왔습니다. 필요 없는 부분을 삭제·수정한 뒤 생성해 주세요.");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "턴 요약에 실패했습니다.");
+      setError(caught instanceof Error ? caught.message : "턴 내용을 불러오지 못했습니다.");
     } finally {
       setSummarizing(false);
     }
@@ -793,16 +792,16 @@ export default function ChatImageGeneratorPanel({
       return;
     }
     if (!isIllustration && sourceMessageId && !summaryText) {
-      setError("먼저 ‘현재 턴 요약’을 눌러 대사가 포함된 요약을 확인해 주세요.");
+      setError("먼저 ‘현재 턴 내용 불러오기’를 눌러 주세요.");
       return;
     }
     const comicInput = sourceMessageId ? summaryText : sourceText;
-    if (!isIllustration && comicInput.length > CHAT_COMIC_MAX_INPUT_CHARS) {
-      setError(`내용은 최대 ${CHAT_COMIC_MAX_INPUT_CHARS.toLocaleString()}자까지 입력할 수 있습니다.`);
+    if (!isIllustration && comicInput.length > 1_000) {
+      setError("컷만화로 만들 내용은 최대 1,000자까지 선택해 주세요.");
       return;
     }
     if (!isIllustration && !/["“”]/.test(comicInput)) {
-      setError("컷만화에는 최소 1개의 대사가 필요합니다. 요약에 대사를 넣어 주세요.");
+      setError("컷만화에는 최소 1개의 대사가 필요합니다. 대사를 넣어 주세요.");
       return;
     }
 
@@ -1418,7 +1417,7 @@ export default function ChatImageGeneratorPanel({
                               <>
                                 <p>
                                   <strong className="text-violet-200">선택 턴 자동 인식</strong>
-                                  {" · "}DeepSeek V4 Flash가 배경·행동을 정리하고, 중요 대사는 원문 그대로 유지합니다.
+                                  {" · "}유저 입력과 캐릭터 출력이 그대로 표시됩니다. 유저 대사는 따옴표로 감싸져 있습니다.
                                 </p>
                                 {sourceTurnPreview ? (
                                   <p className="line-clamp-4 whitespace-pre-wrap text-zinc-400">
@@ -1446,14 +1445,14 @@ export default function ChatImageGeneratorPanel({
                                   disabled={summarizing || generating}
                                   className="w-full rounded-lg border border-violet-400/40 bg-violet-500/15 px-3 py-2 text-xs font-semibold text-violet-100 transition hover:bg-violet-500/25 disabled:cursor-not-allowed disabled:opacity-40"
                                 >
-                                  {summarizing ? "선택 턴 요약 중…" : "현재 턴 요약 (DeepSeek)"}
+                                  {summarizing ? "턴 내용 불러오는 중…" : "현재 턴 내용 불러오기"}
                                 </button>
                                 {comicSummary ? (
                                   <label className="block space-y-1">
                                     <span className="flex items-center justify-between text-[11px] font-semibold text-zinc-400">
-                                      <span>요약 수정 (대사 원문 유지)</span>
-                                      <span className="text-zinc-500">
-                                        {comicSummary.length.toLocaleString()}자
+                                      <span>컷만화로 만들 내용 (최대 1,000자)</span>
+                                      <span className={comicSummary.length > 1_000 ? "text-amber-300" : "text-zinc-500"}>
+                                        {comicSummary.length.toLocaleString()}/1,000자
                                       </span>
                                     </span>
                                     <textarea

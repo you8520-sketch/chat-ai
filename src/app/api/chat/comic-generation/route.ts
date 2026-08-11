@@ -32,13 +32,7 @@ import {
   formatOpenAiImageUserError,
   resolveChatLdIllustrationPrice,
 } from "@/lib/chatLdIllustrationGeneration";
-import {
-  extractChatImageSceneBrief,
-  formatSceneBriefAsComicSource,
-  formatSceneBriefAsEditableSummary,
-  formatSceneBriefAsIllustrationTurn,
-  stripChatTurnMarkup,
-} from "@/lib/chatImageSceneBrief";
+import { stripChatTurnMarkup } from "@/lib/chatImageSceneBrief";
 import {
   resolveChatImageGenerationModel,
   type ImagePromptGender,
@@ -249,13 +243,23 @@ function resolveGenerationContext(opts: {
   };
 }
 
+/** Wrap user input in quotes so the planner treats it as spoken dialogue, not narration. */
+function quoteUserTurnContent(content: string): string {
+  const trimmed = content.trim();
+  if (!trimmed) return trimmed;
+  if (/^["“]/.test(trimmed) && /["”]$/.test(trimmed)) return trimmed;
+  return `"${trimmed.replace(/"/g, "\\\"")}"`;
+}
+
 function formatTurnRows(
   rows: Array<{ role: "user" | "assistant"; content: string }>
 ): string {
   const cleaned = rows
     .map((row) => {
       const content = stripChatTurnMarkup(row.content);
-      return content ? `${row.role === "assistant" ? "캐릭터" : "유저"}: ${content}` : "";
+      if (!content) return "";
+      const body = row.role === "user" ? quoteUserTurnContent(content) : content;
+      return `${row.role === "assistant" ? "캐릭터" : "유저"}: ${body}`;
     })
     .filter(Boolean);
   return cleaned.join("\n");
@@ -644,28 +648,12 @@ export async function POST(req: Request) {
         chatId: context.chatId,
         messageId: positiveInt(body.messageId),
       });
-      try {
-        const extracted = await extractChatImageSceneBrief({
-          characterName: context.character.name,
-          personaName: context.persona.name,
-          sourceTurn: source.turnText,
-        });
-        return NextResponse.json({
-          ok: true,
-          mode: "scene_brief",
-          messageId: source.messageId,
-          model: extracted.model,
-          brief: extracted.brief,
-          summary: formatSceneBriefAsEditableSummary(extracted.brief, {
-            characterName: context.character.name,
-            personaName: context.persona.name,
-          }),
-        });
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "턴 요약을 만들지 못했습니다.";
-        return NextResponse.json({ error: message }, { status: 502 });
-      }
+      return NextResponse.json({
+        ok: true,
+        mode: "scene_brief",
+        messageId: source.messageId,
+        summary: source.turnText,
+      });
     }
 
     if (hasRunningChatImageGenerationJob(user.id)) {
@@ -705,28 +693,12 @@ export async function POST(req: Request) {
         chatId: context.chatId,
         messageId: positiveInt(body.messageId),
       });
-      let illustrationTurn = source.turnText;
-      let sceneBriefModel: string | null = null;
-      try {
-        const extracted = await extractChatImageSceneBrief({
-          characterName: context.character.name,
-          personaName: context.persona.name,
-          sourceTurn: source.turnText,
-        });
-        sceneBriefModel = extracted.model;
-        illustrationTurn = formatSceneBriefAsIllustrationTurn(extracted.brief, {
-          characterName: context.character.name,
-          personaName: context.persona.name,
-        });
-      } catch (error) {
-        console.warn("[chat-ld-illustration] scene brief failed; using raw turn", error);
-      }
       const prompt = buildChatLdIllustrationPrompt({
         characterName: context.character.name,
         characterGender: context.characterGender,
         personaName: context.persona.name,
         personaGender: context.personaGender,
-        currentTurn: illustrationTurn,
+        currentTurn: source.turnText,
       });
       const [characterReference, personaReference] = await Promise.all([
         imageSourceToDataUrl(context.characterImageUrl),
@@ -801,7 +773,6 @@ export async function POST(req: Request) {
                 ? "selected_chat_turn"
                 : "latest_chat_turn",
               messageId: source.messageId,
-              sceneBriefModel,
               quality: CHAT_LD_ILLUSTRATION_QUALITY,
               outputSize: CHAT_LD_ILLUSTRATION_OUTPUT_SIZE,
             }),
@@ -842,7 +813,6 @@ export async function POST(req: Request) {
         savedToCharacterAlbum,
         title: "선택 턴 LD 일러스트",
         modelLabel: "GPT Image 2",
-        sceneBriefModel: sceneBriefModel ?? undefined,
         messageId: source.messageId ?? undefined,
         upstreamCostUsd: canSeeCost ? generated.costUsd : undefined,
         upstreamCostKrw: canSeeCost ? totalCostKrw : undefined,
@@ -891,31 +861,9 @@ export async function POST(req: Request) {
     }
 
     startJob(CHAT_COMIC_TEMPLATE_ID, "comic");
-    let sceneBriefModel: string | null = null;
-    let comicSourceText = source.turnText;
-    if (source.fromManualText) {
-      // User-edited summary / pasted prose is authoritative — no re-extraction.
-      comicSourceText = source.turnText;
-    } else {
-      try {
-        const extracted = await extractChatImageSceneBrief({
-          characterName: context.character.name,
-          personaName: context.persona.name,
-          sourceTurn: source.turnText,
-        });
-        sceneBriefModel = extracted.model;
-        comicSourceText = formatSceneBriefAsComicSource(extracted.brief, {
-          characterName: context.character.name,
-          personaName: context.persona.name,
-        });
-        if (!comicSourceText.trim()) {
-          comicSourceText = source.turnText;
-        }
-      } catch (error) {
-        console.warn("[chat-comic] scene brief failed; using source turn", error);
-        comicSourceText = source.turnText;
-      }
-    }
+    // User-edited text (or the raw selected turn) is authoritative — no
+    // DeepSeek re-extraction.
+    const comicSourceText = source.turnText;
 
     const options = {
       mood,
@@ -1016,7 +964,6 @@ export async function POST(req: Request) {
             mood: options.mood,
             sourceText: options.sourceText,
             messageId: source.messageId,
-            sceneBriefModel,
             title: planned.plan.title,
             plan: planned.plan,
             plannerModel: planned.model,
@@ -1074,7 +1021,6 @@ export async function POST(req: Request) {
       title: planned.plan.title,
       panelCount,
       modelLabel: "GPT Image 2",
-      sceneBriefModel: sceneBriefModel ?? undefined,
       messageId: source.messageId ?? undefined,
       upstreamCostUsd: canSeeCost ? totalCostUsd : undefined,
       upstreamCostKrw: canSeeCost ? totalCostKrw : undefined,
