@@ -123,6 +123,36 @@ export async function DELETE(req: Request) {
     } catch (e) {
       console.warn("[memory] reconcile after turn delete failed:", (e as Error).message);
     }
+
+    // Roll back relationship-meta entries that only existed in the deleted turn.
+    try {
+      const deletedUserRow = db
+        .prepare("SELECT content FROM messages WHERE id=?")
+        .get(deletedUserMessageId) as { content: string } | undefined;
+      const deletedAssistantRow = deletedAssistantMessageId
+        ? (db
+            .prepare("SELECT content FROM messages WHERE id=?")
+            .get(deletedAssistantMessageId) as { content: string } | undefined)
+        : undefined;
+      const { rollbackRelationshipMetaForDeletedTurn } = await import(
+        "@/lib/memory/memory-relationship-meta"
+      );
+      const { resolveRelationshipMetaNamesForCharacter } = await import(
+        "@/lib/relationshipMetaCharacterName"
+      );
+      const names = resolveRelationshipMetaNamesForCharacter(
+        chat.character_id,
+        user.nickname
+      );
+      rollbackRelationshipMetaForDeletedTurn({
+        chatId: cId,
+        names,
+        deletedUserText: deletedUserRow?.content ?? "",
+        deletedAssistantText: deletedAssistantRow?.content ?? "",
+      });
+    } catch (e) {
+      console.warn("[memory] relationship meta rollback failed:", (e as Error).message);
+    }
   }
 
   return NextResponse.json({ ok: true, deletedIds });

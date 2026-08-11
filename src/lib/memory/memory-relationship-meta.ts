@@ -58,6 +58,57 @@ export function clearChatRelationshipMeta(chatId: number): void {
   saveChatRelationshipMeta(chatId, { ...EMPTY_MEMORY_META });
 }
 
+/**
+ * Roll back relationship-meta entries added by a deleted turn.
+ *
+ * The deleted turn's user+assistant text is no longer in the transcript, so any
+ * promise/item/thought/honorific that was extracted *from that turn* should not
+ * survive. We cannot perfectly reconstruct "which turn added X" from the merged
+ * projection, so we re-derive from remaining messages: load all surviving turns,
+ * re-run extraction is too expensive — instead we remove entries whose text no
+ * longer appears in any surviving message.
+ *
+ * Conservative: only removes entries that are exact substring matches of the
+ * deleted turn's text and are absent from all other turns.
+ */
+export function rollbackRelationshipMetaForDeletedTurn(opts: {
+  chatId: number;
+  names: HonorificNames;
+  deletedUserText: string;
+  deletedAssistantText: string;
+}): MemoryMeta {
+  const db = getDb();
+  const rows = db
+    .prepare(
+      "SELECT role, content FROM messages WHERE chat_id=? ORDER BY id ASC"
+    )
+    .all(opts.chatId) as { role: string; content: string }[];
+  const survivingText = rows.map((r) => r.content).join("\n");
+
+  const deletedText = `${opts.deletedUserText}\n${opts.deletedAssistantText}`;
+  const meta = loadChatRelationshipMeta(opts.chatId, opts.names);
+
+  const filterOut = (text: string): boolean => {
+    const t = text.trim();
+    if (!t) return false;
+    // Keep if still present in surviving messages.
+    if (survivingText.includes(t)) return true;
+    // Remove only if it was present in the deleted turn.
+    return !deletedText.includes(t);
+  };
+
+  const next: MemoryMeta = {
+    honorifics: meta.honorifics.filter(filterOut),
+    items: meta.items.filter(filterOut),
+    thoughts: meta.thoughts.filter(filterOut),
+    promises: meta.promises.filter((p) => filterOut(p.text)),
+    currentLocation: meta.currentLocation,
+  };
+
+  saveChatRelationshipMeta(opts.chatId, next);
+  return next;
+}
+
 function hasRelationshipDelta(delta: RelationshipMetaDelta): boolean {
   return (
     (delta.items?.length ?? 0) > 0 ||
