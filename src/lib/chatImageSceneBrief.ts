@@ -1,8 +1,14 @@
 import { callOpenRouterCompletion } from "@/lib/openRouterCompletion";
-import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL } from "@/lib/chatModels";
+import {
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
+  isCheaperInferenceModel,
+} from "@/lib/chatModels";
 
 export const CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL =
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
+export const CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL =
+  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL;
 export const CHAT_IMAGE_SCENE_BRIEF_MAX_SOURCE_CHARS = 6_000;
 export const CHAT_IMAGE_SCENE_BRIEF_MAX_DIALOGUE = 8;
 export const CHAT_IMAGE_SCENE_BRIEF_MAX_DIALOGUE_CHARS = 120;
@@ -28,6 +34,20 @@ export function resolveChatImageSceneBriefModel(
     env.CHAT_IMAGE_SCENE_BRIEF_MODEL?.trim() ||
     CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL
   );
+}
+
+/** OpenRouter fallback used when the CheaperInference primary is slow/failing. */
+export function resolveChatImageSceneBriefFallbackModel(
+  env: NodeJS.ProcessEnv = process.env,
+  primaryModelId: string = resolveChatImageSceneBriefModel(env)
+): string | null {
+  if (!isCheaperInferenceModel(primaryModelId)) return null;
+  const raw = env.CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL;
+  if (raw == null) return CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL;
+  const trimmed = String(raw).trim();
+  if (!trimmed) return CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL;
+  if (trimmed.toLowerCase() === primaryModelId.toLowerCase()) return null;
+  return trimmed;
 }
 
 /** Collapse whitespace so contiguous RP excerpts still match. */
@@ -262,6 +282,7 @@ export async function extractChatImageSceneBrief(opts: {
 
   const model = resolveChatImageSceneBriefModel();
   let text = "";
+  let usedModel = model;
   try {
     text = await callSceneBriefModel({
       characterName: opts.characterName,
@@ -276,18 +297,35 @@ export async function extractChatImageSceneBrief(opts: {
     const retriable =
       /timeout|aborted|empty completion|finish=length|5\d\d/i.test(message);
     if (!retriable) throw error;
-    console.warn("[chat-image-scene-brief] primary call failed; retrying once", {
-      model,
-      message,
-    });
-    text = await callSceneBriefModel({
-      characterName: opts.characterName,
-      personaName: opts.personaName,
-      sourceTurn,
-      model,
-      maxTokens: 3072,
-      timeoutMs: 180_000,
-    });
+    const fallbackModel = resolveChatImageSceneBriefFallbackModel(process.env, model);
+    if (fallbackModel) {
+      console.warn(
+        "[chat-image-scene-brief] CheaperInference primary failed; retrying via OpenRouter",
+        { model, fallbackModel, message }
+      );
+      usedModel = fallbackModel;
+      text = await callSceneBriefModel({
+        characterName: opts.characterName,
+        personaName: opts.personaName,
+        sourceTurn,
+        model: fallbackModel,
+        maxTokens: 3072,
+        timeoutMs: 180_000,
+      });
+    } else {
+      console.warn("[chat-image-scene-brief] primary call failed; retrying once", {
+        model,
+        message,
+      });
+      text = await callSceneBriefModel({
+        characterName: opts.characterName,
+        personaName: opts.personaName,
+        sourceTurn,
+        model,
+        maxTokens: 3072,
+        timeoutMs: 180_000,
+      });
+    }
   }
 
   if (!text.trim()) {
@@ -303,7 +341,7 @@ export async function extractChatImageSceneBrief(opts: {
 
   return {
     brief: sanitizeChatImageSceneBrief(parsed, sourceTurn),
-    model,
+    model: usedModel,
     sourceTurn,
   };
 }

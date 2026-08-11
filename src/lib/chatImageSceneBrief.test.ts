@@ -3,11 +3,13 @@ import { describe, it } from "node:test";
 
 import {
   CHAT_IMAGE_SCENE_BRIEF_DEFAULT_MODEL,
+  CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL,
   buildChatImageSceneBriefPrompt,
   findVerbatimSceneExcerpt,
   formatSceneBriefAsComicSource,
   formatSceneBriefAsEditableSummary,
   formatSceneBriefAsIllustrationTurn,
+  resolveChatImageSceneBriefFallbackModel,
   resolveChatImageSceneBriefModel,
   sanitizeChatImageSceneBrief,
 } from "./chatImageSceneBrief";
@@ -24,6 +26,34 @@ describe("chatImageSceneBrief", () => {
         CHAT_IMAGE_SCENE_BRIEF_MODEL: "deepseek/deepseek-v4-flash",
       } as NodeJS.ProcessEnv),
       "deepseek/deepseek-v4-flash"
+    );
+  });
+
+  it("falls back to OpenRouter DeepSeek V4 Flash when cheaper inference fails", () => {
+    assert.equal(
+      CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL,
+      "deepseek/deepseek-v4-flash"
+    );
+    assert.equal(
+      resolveChatImageSceneBriefFallbackModel(
+        {} as NodeJS.ProcessEnv,
+        "deepseek-v4-flash"
+      ),
+      "deepseek/deepseek-v4-flash"
+    );
+    assert.equal(
+      resolveChatImageSceneBriefFallbackModel(
+        { CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL: "openai/gpt-4o-mini" } as NodeJS.ProcessEnv,
+        "deepseek-v4-flash"
+      ),
+      "openai/gpt-4o-mini"
+    );
+    assert.equal(
+      resolveChatImageSceneBriefFallbackModel(
+        {} as NodeJS.ProcessEnv,
+        "deepseek/deepseek-v4-flash"
+      ),
+      null
     );
   });
 
