@@ -657,81 +657,34 @@ describe("PR #174 final pre-review fixes", () => {
     assert.equal(mainFallback, "room-a");
   });
 
-  it("F4. production allowlist canary — allowlisted writes; others write 0", () => {
-    const allowlistedUserId = 424242;
-    const blockedUserId = 111111;
+  it("F4. Boundary default ON for all; kill switch blocks Discovery writes", () => {
+    const userA = 424242;
+    const userB = 111111;
     process.env.NODE_ENV = "production";
     process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "1";
     delete process.env.PERSONA_SECRET_BOUNDARY_ENABLED;
-    process.env.PERSONA_SECRET_BOUNDARY_USER_IDS = String(allowlistedUserId);
+    delete process.env.PERSONA_SECRET_BOUNDARY_USER_IDS;
 
-    assert.equal(
-      isPersonaSecretBoundaryEnabled({ userId: allowlistedUserId }),
-      true
-    );
-    assert.equal(
-      isPersonaSecretDiscoveryEnabled({ userId: allowlistedUserId }),
-      true
-    );
-    assert.equal(
-      isPersonaSecretDiscoveryEnabled({ userId: blockedUserId }),
-      false
-    );
+    assert.equal(isPersonaSecretBoundaryEnabled({ userId: userA }), true);
+    assert.equal(isPersonaSecretBoundaryEnabled({ userId: userB }), true);
+    assert.equal(isPersonaSecretDiscoveryEnabled({ userId: userA }), true);
+    assert.equal(isPersonaSecretDiscoveryEnabled({ userId: userB }), true);
 
     const allowed = ids();
-    const blocked = ids();
-
     const bootAllowed = bootstrapChatObservers({
       chatId: allowed.chatId,
       characterId: allowed.locoId,
       displayName: "로코",
-      userId: allowlistedUserId,
+      userId: userB,
     });
     assert.equal(bootAllowed.observerInserted || bootAllowed.presenceInserted, true);
-
-    const evidenceAllowed = extractAndPersistSceneEvidence({
-      chatId: allowed.chatId,
-      characterId: allowed.locoId,
-      turnNumber: 1,
-      sourceMessageId: 1,
-      userMessage: "등에 숫자가 보인다",
-      explicitActions: [],
-      publicPersonaId: allowed.personaId,
-      userId: allowlistedUserId,
-    });
-    const visualAllowed = runVisualDiscoveryForTurn({
-      chatId: allowed.chatId,
-      personaId: allowed.personaId,
-      characterId: allowed.locoId,
-      turnNumber: 1,
-      sourceMessageId: 1,
-      userId: allowlistedUserId,
-    });
-    const invAllowed = runInvestigationDiscoveryForTurn({
-      chatId: allowed.chatId,
-      personaId: allowed.personaId,
-      characterId: allowed.locoId,
-      turnNumber: 1,
-      sourceMessageId: 1,
-      userMessage: "문서를 읽는다",
-      explicitActions: [],
-      authoritativeOutcomes: [],
-      userId: allowlistedUserId,
-    });
-    const transferAllowed = runKnowledgeTransfersForTurn({
-      chatId: allowed.chatId,
-      personaId: allowed.personaId,
-      characterId: allowed.locoId,
-      turnNumber: 1,
-      userActions: [],
-      userId: allowlistedUserId,
-    });
-    assert.ok(evidenceAllowed);
-    assert.ok(visualAllowed);
-    assert.ok(invAllowed);
-    assert.ok(transferAllowed);
     assert.ok(countRows("chat_observers", allowed.chatId) > 0);
 
+    process.env.PERSONA_SECRET_BOUNDARY_ENABLED = "0";
+    assert.equal(isPersonaSecretBoundaryEnabled({ userId: userA }), false);
+    assert.equal(isPersonaSecretDiscoveryEnabled({ userId: userA }), false);
+
+    const blocked = ids();
     const beforeObs = countRows("chat_observers", blocked.chatId);
     const beforePresence = countRows("scene_observer_presence", blocked.chatId);
     const beforeEvidence = countRows(
@@ -751,12 +704,12 @@ describe("PR #174 final pre-review fixes", () => {
       chatId: blocked.chatId,
       characterId: blocked.locoId,
       displayName: "로코",
-      userId: blockedUserId,
+      userId: userA,
     });
     applyScenePresenceActions({
       chatId: blocked.chatId,
       turnNumber: 1,
-      userId: blockedUserId,
+      userId: userA,
       actions: [
         {
           action: "ENTER_SCENE",
@@ -775,7 +728,7 @@ describe("PR #174 final pre-review fixes", () => {
       userMessage: "등에 숫자가 보인다",
       explicitActions: [],
       publicPersonaId: blocked.personaId,
-      userId: blockedUserId,
+      userId: userA,
     });
     runVisualDiscoveryForTurn({
       chatId: blocked.chatId,
@@ -783,7 +736,7 @@ describe("PR #174 final pre-review fixes", () => {
       characterId: blocked.locoId,
       turnNumber: 1,
       sourceMessageId: 1,
-      userId: blockedUserId,
+      userId: userA,
     });
     runInvestigationDiscoveryForTurn({
       chatId: blocked.chatId,
@@ -794,14 +747,14 @@ describe("PR #174 final pre-review fixes", () => {
       userMessage: "문서를 읽는다",
       explicitActions: [],
       authoritativeOutcomes: [],
-      userId: blockedUserId,
+      userId: userA,
     });
     runKnowledgeTransfersForTurn({
       chatId: blocked.chatId,
       personaId: blocked.personaId,
       characterId: blocked.locoId,
       turnNumber: 1,
-      userId: blockedUserId,
+      userId: userA,
       userActions: [
         {
           secretId: "x",

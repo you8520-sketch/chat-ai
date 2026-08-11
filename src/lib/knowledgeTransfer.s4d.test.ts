@@ -305,7 +305,7 @@ describe("PR-S4D controlled knowledge transfer", () => {
   });
   afterEach(() => restoreEnv(envSnap));
 
-  it("0. fail-closed: Boundary=1 + Discovery unset → 0 transfers/evidence/knowledge writes", () => {
+  it("0. kill switch: Boundary=1 + Discovery=0 → 0 transfers/evidence/knowledge writes", () => {
     // Build the same valid fixture while Discovery=1 (bootstrap is Discovery-gated).
     process.env.PERSONA_SECRET_BOUNDARY_ENABLED = "1";
     process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "1";
@@ -314,7 +314,7 @@ describe("PR-S4D controlled knowledge transfer", () => {
 
     // Flip Discovery OFF immediately before the transfer call.
     process.env.PERSONA_SECRET_BOUNDARY_ENABLED = "1";
-    delete process.env.PERSONA_SECRET_DISCOVERY_ENABLED;
+    process.env.PERSONA_SECRET_DISCOVERY_ENABLED = "0";
 
     const beforeTransfers = countTransfers(fx.chatId);
     const beforeEvidence = countEvidence(fx.chatId);
