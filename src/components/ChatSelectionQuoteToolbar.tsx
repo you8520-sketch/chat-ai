@@ -3,16 +3,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   canShareQuoteCardPng,
+  clampQuoteCardAvatarFocus,
   copyQuoteCardPng,
   listQuoteCardDialogueEntries,
   prepareQuoteCardSaveFallbackWindow,
   saveQuoteCardPngWithFallback,
+  type QuoteCardAvatarFocus,
   type QuoteCardDialogueStyle,
   type QuoteCardFontId,
   type QuoteCardOrientation,
   type QuoteCardThemeId,
   quoteCardDimensions,
   quoteCardFontById,
+  QUOTE_CARD_AVATAR_FOCUS_DEFAULT,
   QUOTE_CARD_BODY_FONT_DEFAULT,
   QUOTE_CARD_BODY_FONT_MAX,
   QUOTE_CARD_BODY_FONT_MIN,
@@ -85,6 +88,25 @@ function loadImageFromFile(file: File): Promise<{ img: HTMLImageElement; url: st
   });
 }
 
+const AVATAR_PREVIEW_SIZE = 80;
+
+function avatarPreviewDrawRect(
+  natural: { w: number; h: number },
+  focus: QuoteCardAvatarFocus,
+  previewSize: number
+): { width: number; height: number; left: number; top: number } {
+  const cover = Math.max(previewSize / natural.w, previewSize / natural.h);
+  const scale = cover * (focus.zoom ?? 1);
+  const width = natural.w * scale;
+  const height = natural.h * scale;
+  return {
+    width,
+    height,
+    left: previewSize / 2 - focus.x * width,
+    top: previewSize / 2 - focus.y * height,
+  };
+}
+
 export default function ChatSelectionQuoteToolbar({
   containerRef,
   characterName,
@@ -117,10 +139,23 @@ export default function ChatSelectionQuoteToolbar({
   const backgroundImageRef = useRef<HTMLImageElement | null>(null);
   const [hasAvatar, setHasAvatar] = useState(false);
   const [hasBackground, setHasBackground] = useState(false);
+  const [avatarFocus, setAvatarFocus] = useState<QuoteCardAvatarFocus>({
+    ...QUOTE_CARD_AVATAR_FOCUS_DEFAULT,
+  });
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [avatarNatural, setAvatarNatural] = useState<{ w: number; h: number } | null>(
+    null
+  );
 
   const toolbarRef = useRef<HTMLButtonElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const backgroundInputRef = useRef<HTMLInputElement>(null);
+  const avatarFocusRef = useRef<QuoteCardAvatarFocus>({ ...QUOTE_CARD_AVATAR_FOCUS_DEFAULT });
+  const avatarPanRef = useRef<{
+    pointerId: number;
+    lastX: number;
+    lastY: number;
+  } | null>(null);
   const selectionSchedulerRef = useRef<ReturnType<typeof createCoalescedSelectionScheduler> | null>(null);
   const lastSelectionSignatureRef = useRef<string>("");
   /** Sticky toolbar coords so iOS selectionchange / getClientRects jitter does not chase the button. */
@@ -158,6 +193,12 @@ export default function ChatSelectionQuoteToolbar({
     }
   }, []);
 
+  const resetAvatarFocus = useCallback(() => {
+    const next = { ...QUOTE_CARD_AVATAR_FOCUS_DEFAULT };
+    avatarFocusRef.current = next;
+    setAvatarFocus(next);
+  }, []);
+
   const revokeSessionImages = useCallback(() => {
     if (avatarUrlRef.current) {
       URL.revokeObjectURL(avatarUrlRef.current);
@@ -169,11 +210,14 @@ export default function ChatSelectionQuoteToolbar({
     }
     avatarImageRef.current = null;
     backgroundImageRef.current = null;
+    setAvatarUrl(null);
+    setAvatarNatural(null);
     setHasAvatar(false);
     setHasBackground(false);
+    resetAvatarFocus();
     if (avatarInputRef.current) avatarInputRef.current.value = "";
     if (backgroundInputRef.current) backgroundInputRef.current.value = "";
-  }, []);
+  }, [resetAvatarFocus]);
 
   const syncSpeakerDrafts = useCallback(
     (text: string, overrides?: Record<number, string>) => {
@@ -270,6 +314,7 @@ export default function ChatSelectionQuoteToolbar({
             bodyFontFamily: font.css,
             dialogueStyle: nextDialogueStyle,
             avatarImage: avatarImageRef.current,
+            avatarFocus: avatarFocusRef.current,
             backgroundImage: backgroundImageRef.current,
             characterInitial: characterName.trim()[0] || "?",
             defaultSpeakerName: characterName,
@@ -518,6 +563,81 @@ export default function ChatSelectionQuoteToolbar({
     ]
   );
 
+  const applyAvatarFocus = useCallback(
+    (partial: Partial<QuoteCardAvatarFocus>, delayMs = 80) => {
+      const next = clampQuoteCardAvatarFocus({
+        ...avatarFocusRef.current,
+        ...partial,
+      });
+      avatarFocusRef.current = next;
+      setAvatarFocus(next);
+      if (!pending || !modalOpen) return;
+      schedulePreviewRender(
+        pending.text,
+        orientation,
+        bodyFontSize,
+        dialogueStyle,
+        fontId,
+        themeId,
+        speakerDrafts,
+        delayMs
+      );
+    },
+    [
+      pending,
+      modalOpen,
+      orientation,
+      bodyFontSize,
+      dialogueStyle,
+      fontId,
+      themeId,
+      speakerDrafts,
+      schedulePreviewRender,
+    ]
+  );
+
+  const onAvatarPanPointerDown = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!hasAvatar || preview?.loading) return;
+      e.currentTarget.setPointerCapture(e.pointerId);
+      avatarPanRef.current = {
+        pointerId: e.pointerId,
+        lastX: e.clientX,
+        lastY: e.clientY,
+      };
+    },
+    [hasAvatar, preview?.loading]
+  );
+
+  const onAvatarPanPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const pan = avatarPanRef.current;
+      if (!pan || pan.pointerId !== e.pointerId) return;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const size = Math.max(1, Math.min(rect.width, rect.height));
+      const dx = e.clientX - pan.lastX;
+      const dy = e.clientY - pan.lastY;
+      pan.lastX = e.clientX;
+      pan.lastY = e.clientY;
+      const zoom = avatarFocusRef.current.zoom ?? 1;
+      // Drag image with finger: focus moves opposite to the drag.
+      applyAvatarFocus(
+        {
+          x: avatarFocusRef.current.x - dx / (size * zoom),
+          y: avatarFocusRef.current.y - dy / (size * zoom),
+        },
+        40
+      );
+    },
+    [applyAvatarFocus]
+  );
+
+  const onAvatarPanPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (avatarPanRef.current?.pointerId === e.pointerId) {
+      avatarPanRef.current = null;
+    }
+  }, []);
+
   const onAvatarFile = useCallback(
     async (file: File | null) => {
       if (!file || !pending) return;
@@ -526,7 +646,13 @@ export default function ChatSelectionQuoteToolbar({
         const { img, url } = await loadImageFromFile(file);
         avatarUrlRef.current = url;
         avatarImageRef.current = img;
+        setAvatarUrl(url);
+        setAvatarNatural({
+          w: Math.max(1, img.naturalWidth || img.width || 1),
+          h: Math.max(1, img.naturalHeight || img.height || 1),
+        });
         setHasAvatar(true);
+        resetAvatarFocus();
         void renderPreview(
           pending.text,
           orientation,
@@ -550,6 +676,7 @@ export default function ChatSelectionQuoteToolbar({
       speakerDrafts,
       renderPreview,
       onToast,
+      resetAvatarFocus,
     ]
   );
 
@@ -1006,7 +1133,7 @@ export default function ChatSelectionQuoteToolbar({
                   <div>
                     <p className="mb-1.5 text-xs font-bold text-zinc-900">화자 이름</p>
                     <p className="mb-2 text-[11px] leading-snug text-zinc-500">
-                      여러 대사가 있으면 자동으로 구분합니다. 이름을 직접 고칠 수 있어요.
+                      기본은 모두 캐릭터 이름입니다. 다른 인물 대사만 이름을 바꿔 주세요.
                     </p>
                     <div className="flex flex-col gap-2">
                       {speakerDrafts.map((speaker, index) => (
@@ -1113,6 +1240,72 @@ export default function ChatSelectionQuoteToolbar({
                     </button>
                   ) : null}
                 </div>
+
+                {hasAvatar && avatarUrl && avatarNatural && dialogueStyle === "bubble" ? (
+                  <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2.5">
+                    <p className="mb-1.5 text-xs font-bold text-zinc-900">캐릭터 사진 위치</p>
+                    <p className="mb-2 text-[11px] leading-snug text-zinc-500">
+                      원을 드래그해 얼굴을 가운데에 맞추고, 확대로 크기를 조절하세요.
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <div
+                        role="presentation"
+                        className="relative shrink-0 touch-none overflow-hidden rounded-full border border-zinc-300 bg-zinc-200"
+                        style={{
+                          width: AVATAR_PREVIEW_SIZE,
+                          height: AVATAR_PREVIEW_SIZE,
+                          touchAction: "none",
+                          cursor: preview?.loading ? "default" : "grab",
+                        }}
+                        onPointerDown={onAvatarPanPointerDown}
+                        onPointerMove={onAvatarPanPointerMove}
+                        onPointerUp={onAvatarPanPointerUp}
+                        onPointerCancel={onAvatarPanPointerUp}
+                        aria-label="캐릭터 사진 위치 조절"
+                      >
+                        <img
+                          src={avatarUrl}
+                          alt=""
+                          draggable={false}
+                          className="pointer-events-none absolute max-w-none select-none"
+                          style={avatarPreviewDrawRect(
+                            avatarNatural,
+                            avatarFocus,
+                            AVATAR_PREVIEW_SIZE
+                          )}
+                        />
+                      </div>
+                      <div className="flex min-w-0 flex-1 flex-col gap-2">
+                        <label className="flex items-center gap-2 text-sm text-zinc-700">
+                          <span className="shrink-0 font-semibold text-zinc-900">확대</span>
+                          <input
+                            type="range"
+                            min={1}
+                            max={2.5}
+                            step={0.05}
+                            value={avatarFocus.zoom ?? 1}
+                            disabled={preview?.loading}
+                            onChange={(e) =>
+                              applyAvatarFocus({ zoom: Number(e.target.value) }, 60)
+                            }
+                            className="h-2 w-full accent-violet-600"
+                            aria-label="캐릭터 사진 확대"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          disabled={preview?.loading}
+                          onClick={() =>
+                            applyAvatarFocus({ ...QUOTE_CARD_AVATAR_FOCUS_DEFAULT }, 0)
+                          }
+                          className={`${chipBtn} ${chipIdle} self-start`}
+                        >
+                          위치 초기화
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
               </div>
 
               <div className="flex justify-center bg-zinc-100 px-3 py-3">

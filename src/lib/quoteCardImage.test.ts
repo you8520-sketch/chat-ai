@@ -4,9 +4,11 @@ import {
   buildQuoteCardFooterLeft,
   canShareQuoteCardPng,
   copyQuoteCardPng,
+  clampQuoteCardAvatarFocus,
   listQuoteCardDialogueEntries,
   parseQuoteCardBlocks,
   prepareQuoteCardSaveFallbackWindow,
+  quoteCardDimensions,
   quoteCardFontById,
   quoteCardThemeById,
   resolveQuoteCardDialogueStyle,
@@ -195,7 +197,7 @@ describe("resolveQuoteCardSpeakers", () => {
     assert.equal(resolved[0]!.speaker, "라이크");
   });
 
-  it("assigns distinct labels for multiple unlabeled dialogues", () => {
+  it("defaults every unlabeled dialogue to the character name", () => {
     const resolved = resolveQuoteCardSpeakers(
       [
         { type: "dialogue", text: "첫 대사" },
@@ -206,8 +208,8 @@ describe("resolveQuoteCardSpeakers", () => {
       { defaultSpeaker: "라이크" }
     );
     assert.equal(resolved[0]!.speaker, "라이크");
-    assert.equal(resolved[2]!.speaker, "화자2");
-    assert.equal(resolved[3]!.speaker, "화자3");
+    assert.equal(resolved[2]!.speaker, "라이크");
+    assert.equal(resolved[3]!.speaker, "라이크");
   });
 
   it("keeps parsed speakers and applies overrides", () => {
@@ -229,7 +231,30 @@ describe("resolveQuoteCardSpeakers", () => {
     );
     assert.equal(entries.length, 2);
     assert.equal(entries[0]!.speaker, "라이크");
-    assert.equal(entries[1]!.speaker, "화자2");
+    assert.equal(entries[1]!.speaker, "라이크");
+  });
+});
+
+describe("clampQuoteCardAvatarFocus", () => {
+  it("clamps focus into 0–1 and zoom into 1–2.5", () => {
+    assert.deepEqual(clampQuoteCardAvatarFocus({ x: -1, y: 2, zoom: 9 }), {
+      x: 0,
+      y: 1,
+      zoom: 2.5,
+    });
+    assert.deepEqual(clampQuoteCardAvatarFocus(null), {
+      x: 0.5,
+      y: 0.5,
+      zoom: 1,
+    });
+  });
+});
+
+describe("quoteCardDimensions export size", () => {
+  it("uses ~1.25× the original 600 short side", () => {
+    const portrait = quoteCardDimensions("portrait");
+    assert.equal(portrait.width, 750);
+    assert.equal(portrait.height, 1125);
   });
 });
 
