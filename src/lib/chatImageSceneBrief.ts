@@ -59,6 +59,16 @@ export function normalizeSceneBriefWhitespace(raw: string): string {
   return String(raw ?? "").replace(/\s+/g, " ").trim();
 }
 
+/** RP action / narration markers that must not be treated as spoken dialogue. */
+export function isSceneActionText(text: string): boolean {
+  const trimmed = normalizeSceneBriefWhitespace(text);
+  return (
+    /^\*[^*]+\*$/.test(trimmed) ||
+    /^\([^)]+\)$/.test(trimmed) ||
+    /^（[^）]+）$/.test(trimmed)
+  );
+}
+
 /**
  * Important dialogue must be a contiguous verbatim excerpt of the source turn.
  * Returns the normalized excerpt when found, otherwise null.
@@ -72,6 +82,17 @@ export function findVerbatimSceneExcerpt(
   if (clean.length < 2) return null;
   const haystack = normalizeSceneBriefWhitespace(sourceTurn);
   if (!haystack.includes(clean)) return null;
+  return clean;
+}
+
+/** Dialogue-specific verbatim check — rejects action / parenthetical lines. */
+export function findVerbatimSceneDialogue(
+  candidate: unknown,
+  sourceTurn: string
+): string | null {
+  const clean = findVerbatimSceneExcerpt(candidate, sourceTurn);
+  if (!clean) return null;
+  if (isSceneActionText(clean)) return null;
   return clean;
 }
 
@@ -110,7 +131,7 @@ export function buildChatImageSceneBriefPrompt(opts: {
     "1. Focus on ONE visual moment from the SOURCE TURN (the selected assistant reply, optionally with the preceding user line).",
     "2. keyDialogue is CLOSED-BOOK. Each text MUST be an exact contiguous substring copied from SOURCE TURN with no paraphrase, summary, typo-fix, completion, or reordering.",
     "3. Keep only the most important continuing dialogue between the chat character and the user persona. Minor NPC / crowd / one-off side lines may be omitted.",
-    "4. Prefer quoted speech in the source. If a line is important but unquoted, still copy the exact spoken words as they appear in the source.",
+    "4. Prefer quoted speech in the source. If a line is important but unquoted, still copy the exact spoken words as they appear in the source. Never treat RP action markers like *...* or parenthetical stage directions as spoken dialogue; those belong in keyNarration.",
     "5. Return at least 3 keyDialogue lines whenever the source has that much important dialogue, and up to 4. Include lines from BOTH the chat character and the user persona when both speak meaningfully. Do not return only one line if the turn clearly has an exchange.",
     "6. The preceding user line is part of the scene. If the user persona speaks (quoted or clearly as direct input), include at least one persona line unless it is trivial (e.g. only \"응\", \"계속\").",
     "7. Label speaker as \"character\" for lines spoken by the chat character, \"persona\" for lines spoken by the user persona, and \"other\" only for true NPC / crowd lines.",
@@ -153,7 +174,7 @@ export function sanitizeChatImageSceneBrief(
       speakerRaw === "character" || speakerRaw === "persona" || speakerRaw === "other"
         ? speakerRaw
         : "other";
-    const text = findVerbatimSceneExcerpt(item.text, sourceTurn);
+    const text = findVerbatimSceneDialogue(item.text, sourceTurn);
     if (!text) continue;
     if (keyDialogue.some((line) => line.text === text && line.speaker === speaker)) {
       continue;
@@ -281,6 +302,7 @@ function extractQuotedSceneDialogue(
       match[1] ?? match[2] ?? match[3] ?? match[4]
     );
     if (text.length < 2) continue;
+    if (isSceneActionText(text)) continue;
     if (out.some((line) => line.text === text)) continue;
     out.push({ speaker: "other", text });
     if (out.length >= CHAT_IMAGE_SCENE_BRIEF_MAX_DIALOGUE) break;
