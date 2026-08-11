@@ -28,7 +28,6 @@ describe("chatComicGeneration", () => {
   it("uses a taller output only when the planner selects four panels", () => {
     assert.equal(CHAT_COMIC_IMAGE_OUTPUT_SIZE, "1008x1408");
     assert.equal(CHAT_COMIC_FOUR_PANEL_OUTPUT_SIZE, "864x1824");
-    assert.equal(resolveChatComicOutputSize(2), "1008x1408");
     assert.equal(resolveChatComicOutputSize(3), "1008x1408");
     assert.equal(resolveChatComicOutputSize(4), "864x1824");
   });
@@ -51,7 +50,6 @@ describe("chatComicGeneration", () => {
   });
 
   it("charges 230P regardless of the automatically selected panel count", () => {
-    assert.equal(resolveChatComicPrice(2, {} as NodeJS.ProcessEnv), 230);
     assert.equal(resolveChatComicPrice(3, {} as NodeJS.ProcessEnv), 230);
     assert.equal(resolveChatComicPrice(4, {} as NodeJS.ProcessEnv), 230);
     assert.equal(
@@ -60,19 +58,25 @@ describe("chatComicGeneration", () => {
     );
   });
 
-  it("uses the planner-selected 2-4 panel count", () => {
+  it("uses the planner-selected 3-4 panel count", () => {
     const sourceText =
       '태형이 "대장님, 내 깻잎도 떼어줘!"라고 말했다. 렌은 "진정하고 깻잎이나 먹어."라고 답했다.';
     const plan = sanitizeChatComicPlan(
       {
         title: "깻잎 한입",
-        panelCount: 2,
+        panelCount: 3,
         panels: [
           {
             scene: "태형이 렌의 어깨에 기대 징징거린다.",
             characterExpression: "억울하고 삐친 표정",
             personaExpression: "차분한 표정",
             dialogue: [{ speaker: "character", text: "대장님, 내 깻잎도 떼어줘!" }],
+          },
+          {
+            scene: "렌이 한숨을 쉬며 젓가락을 든다.",
+            characterExpression: "기대하는 표정",
+            personaExpression: "어이없는 표정",
+            dialogue: [],
           },
           {
             scene: "렌이 깻잎과 밥을 떠서 먹여준다.",
@@ -84,14 +88,24 @@ describe("chatComicGeneration", () => {
       },
       sourceText
     );
-    assert.equal(plan.panelCount, 2);
-    assert.equal(plan.panels.length, 2);
+    assert.equal(plan.panelCount, 3);
+    assert.equal(plan.panels.length, 3);
     assert.equal(plan.panels[0]?.dialogue[0]?.text, "대장님, 내 깻잎도 떼어줘!");
-    assert.equal(plan.panels[1]?.dialogue[0]?.speaker, "persona");
+    assert.equal(plan.panels[2]?.dialogue[0]?.speaker, "persona");
     assert.throws(() => sanitizeChatComicPlan({ title: "x", panels: [{}] }, sourceText));
     assert.throws(() =>
       sanitizeChatComicPlan(
         { title: "x", panelCount: 4, panels: [{}, {}] },
+        sourceText
+      )
+    );
+    assert.throws(() =>
+      sanitizeChatComicPlan(
+        {
+          title: "x",
+          panelCount: 2,
+          panels: [{ scene: "a", dialogue: [] }, { scene: "b", dialogue: [] }],
+        },
         sourceText
       )
     );
@@ -118,7 +132,7 @@ describe("chatComicGeneration", () => {
     const plan = sanitizeChatComicPlan(
       {
         title: "경계",
-        panelCount: 2,
+        panelCount: 3,
         panels: [
           {
             scene: "태현이 앞을 막는다.",
@@ -135,6 +149,10 @@ describe("chatComicGeneration", () => {
               { speaker: "persona", text: "이게 무슨 상황이야!" },
             ],
             caption: "긴장감 속에서 유머가 터진다.",
+          },
+          {
+            scene: "태현이 한 걸음 다가선다.",
+            dialogue: [{ speaker: "character", text: "딱 한 걸음만 와." }],
           },
         ],
       },
@@ -156,7 +174,7 @@ describe("chatComicGeneration", () => {
       mood: "comic",
       sourceText: "태형이 깻잎을 떼어달라고 징징거렸다.",
     });
-    assert.match(prompt, /smallest natural panel count from 2, 3, or 4/);
+    assert.match(prompt, /smallest natural panel count from 3 or 4/);
     assert.match(prompt, /Never stretch a short scene/);
     assert.match(prompt, /Use only verbatim contiguous excerpts/);
     assert.match(prompt, /MUST use at least one of those quoted lines as a speech bubble/);
@@ -173,10 +191,11 @@ describe("chatComicGeneration", () => {
         sanitizeChatComicPlan(
           {
             title: "무음",
-            panelCount: 2,
+            panelCount: 3,
             panels: [
               { scene: "태현이 앞을 막는다.", dialogue: [] },
               { scene: "렌이 뒤돌아본다.", dialogue: [] },
+              { scene: "태현이 다가선다.", dialogue: [] },
             ],
           },
           sourceText
@@ -188,8 +207,12 @@ describe("chatComicGeneration", () => {
         sanitizeChatComicPlan(
           {
             title: "무음",
-            panelCount: 2,
-            panels: [{ scene: "a", dialogue: [] }, { scene: "b", dialogue: [] }],
+            panelCount: 3,
+            panels: [
+              { scene: "a", dialogue: [] },
+              { scene: "b", dialogue: [] },
+              { scene: "c", dialogue: [] },
+            ],
           },
           "대사가 없는 지문만 있다."
         ),
@@ -207,7 +230,7 @@ describe("chatComicGeneration", () => {
       sourceText: "태형이 조르고 렌이 한입 먹여준다.",
       plan: {
         title: "깻잎 한입",
-        panelCount: 2,
+        panelCount: 3,
         panels: [
           {
             panel: 1,
@@ -219,6 +242,13 @@ describe("chatComicGeneration", () => {
           },
           {
             panel: 2,
+            scene: "렌이 젓가락을 들어 깻잎을 집는다.",
+            characterExpression: "기대하는 표정",
+            personaExpression: "어이없는 표정",
+            dialogue: [],
+          },
+          {
+            panel: 3,
             scene: "렌이 태형에게 한입 먹여준다.",
             characterExpression: "행복한 표정",
             personaExpression: "부끄러운 표정",
