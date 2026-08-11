@@ -1641,11 +1641,8 @@ export default function ChatClient({
       const dockH = getInputDockHeight();
       const dockBottom = getInputDockBottomOffset();
       const isMobile = !window.matchMedia(CHAT_DESKTOP_MEDIA_QUERY).matches;
-      const toolbars = document.querySelectorAll<HTMLElement>('[data-chat-message-toolbar="true"]');
-      const targetElement =
-        toolbars && toolbars.length > 0 ? toolbars[toolbars.length - 1] : anchor;
       const pad = isMobile ? 2 : displayPrefs.showCharacterPortrait ? 4 : 2;
-      const rect = targetElement.getBoundingClientRect();
+      const rect = anchor.getBoundingClientRect();
       const targetBottom = window.innerHeight - dockH - dockBottom - pad;
       const delta = rect.bottom - targetBottom;
       if (Math.abs(delta) < 2) return;
@@ -2680,7 +2677,6 @@ export default function ChatClient({
     setGenerationPrepUi({ phase: "preparing", badges: [] });
     followStreamRef.current = true;
     userScrollLockRef.current = false;
-    scrollToBottom("smooth");
     let aiIndex = 0;
     const clientRequestId = createClientRequestId();
     const statusSeed = resolveAssistantTurnStatusMetaSeed(
@@ -2708,6 +2704,10 @@ export default function ChatClient({
           ...statusSeed,
         },
       ];
+    });
+    requestAnimationFrame(() => {
+      scrollToBottom("smooth");
+      window.setTimeout(() => scrollToBottom("smooth"), 120);
     });
     setLoading(true);
 
@@ -2792,7 +2792,6 @@ export default function ChatClient({
     setGenerationPrepUi({ phase: "preparing", badges: [] });
     followStreamRef.current = true;
     userScrollLockRef.current = false;
-    scrollToBottom("smooth");
     let aiIndex = 0;
     const clientRequestId = createClientRequestId();
     const userPersonaText = selectedPersona?.description ?? null;
@@ -2821,6 +2820,10 @@ export default function ChatClient({
           ...statusSeed,
         },
       ];
+    });
+    requestAnimationFrame(() => {
+      scrollToBottom("smooth");
+      window.setTimeout(() => scrollToBottom("smooth"), 120);
     });
     writeChatStreamDraft(character.id, chatId, {
       requestId: clientRequestId,
@@ -2933,7 +2936,10 @@ export default function ChatClient({
     setLoading(true);
     followStreamRef.current = true;
     userScrollLockRef.current = false;
-    scrollToBottom("smooth");
+    requestAnimationFrame(() => {
+      scrollToBottom("smooth");
+      window.setTimeout(() => scrollToBottom("smooth"), 120);
+    });
 
     const statusWindowPolicy = resolveUserNoteStatusWindowPolicy(userNote);
     let regenUserMessage = "";
