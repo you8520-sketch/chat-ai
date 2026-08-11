@@ -1183,6 +1183,14 @@ export default function ChatClient({
   const [floatDeductionAmount, setFloatDeductionAmount] = useState(0);
   const [floatDeductionTrigger, setFloatDeductionTrigger] = useState(0);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  useEffect(() => {
+    const onImageCompleted = () => {
+      setToastMsg("이미지 생성이 완료되었습니다. 캐릭터 앨범에서 확인할 수 있습니다.");
+    };
+    window.addEventListener("chat:image-generator:completed", onImageCompleted);
+    return () =>
+      window.removeEventListener("chat:image-generator:completed", onImageCompleted);
+  }, []);
   const bottomRef = useRef<HTMLDivElement>(null);
   const quoteSelectContainerRef = useRef<HTMLDivElement>(null);
   const inputDockRef = useRef<HTMLDivElement>(null);

@@ -574,6 +574,11 @@ export default function ChatImageGeneratorPanel({
           return;
         }
         setNotice("이미지 생성이 완료되었습니다.");
+        window.dispatchEvent(
+          new CustomEvent("chat:image-generator:completed", {
+            detail: { jobId: trackedJobId },
+          })
+        );
         await loadInfoRef.current();
       } catch {
         // Transient network failure — keep polling.
@@ -600,7 +605,7 @@ export default function ChatImageGeneratorPanel({
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !generating && !saving) setOpen(false);
+      if (event.key === "Escape" && !saving) setOpen(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -909,7 +914,7 @@ export default function ChatImageGeneratorPanel({
           aria-modal="true"
           aria-label="이미지 생성"
           onClick={() => {
-            if (!generating && !saving) setOpen(false);
+            if (!saving) setOpen(false);
           }}
         >
           <section
@@ -924,7 +929,7 @@ export default function ChatImageGeneratorPanel({
                 <button
                   type="button"
                   onClick={() => setOpen(false)}
-                  disabled={generating || saving}
+                  disabled={saving}
                   className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-lg text-zinc-300 hover:bg-white/10 disabled:opacity-40"
                   aria-label="닫기"
                 >
@@ -1551,7 +1556,7 @@ export default function ChatImageGeneratorPanel({
                     ) : null}
                     {generating ? (
                       <p className="rounded-lg border border-violet-500/25 bg-violet-500/10 px-3 py-2 text-xs leading-relaxed text-violet-200">
-                        이미지를 생성하고 있습니다. 새로고침하거나 창을 닫아도 생성은 계속되고,
+                        이미지를 생성하고 있습니다. 이 창을 닫고 채팅을 계속해도 생성은 계속되고,
                         {activeMode === "persona"
                           ? "완료되면 이 창에서 결과를 저장할 수 있습니다."
                           : "완료되면 캐릭터 이미지 앨범에 저장됩니다."}
