@@ -1,18 +1,17 @@
 /**
- * Persona Secret Boundary — ON for all accounts by default.
- * Affects secret exclusion + chat-scoped reveal + secret settings UI; does not alter Canon rollout.
+ * Persona Secret Boundary + Discovery — ON for all accounts by default.
+ * Affects secret settings UI, secret exclusion/reveal, and S1–S4 discovery engine writes.
  *
- * Priority:
+ * Boundary priority:
  * 1) PERSONA_SECRET_BOUNDARY_ENABLED=0 → force OFF for all users (kill switch)
  * 2) otherwise (unset or =1 / true / on / enabled) → ON for all users
  *
- * Discovery kill switch (`PERSONA_SECRET_DISCOVERY_ENABLED`) gates observer/scene/
- * evidence/visual/investigation/transfer/knowledge-prompt writes. When Discovery is
- * OFF, Boundary still allows legacy marker strip, public-only persona projection,
- * and UNKNOWN secret zero-byte isolation.
+ * Discovery priority:
+ * 1) PERSONA_SECRET_DISCOVERY_ENABLED=0 → force OFF for all users (kill switch)
+ * 2) otherwise (unset or =1) → ON only when Boundary is also ON for that user
  *
- * Discovery remains fail-closed: unset/OFF → OFF; explicit ON only when Boundary is
- * enabled for that user.
+ * When Discovery is OFF but Boundary is ON, legacy marker strip, public-only persona
+ * projection, and UNKNOWN secret zero-byte isolation still apply.
  */
 
 export type PersonaSecretBoundaryContext = {
@@ -38,8 +37,8 @@ export function isPersonaSecretBoundaryEnabled(
 }
 
 /**
- * Runtime kill switch for Persona Secret Discovery (S0–S4D engine writes).
- * Fail-closed: unset/OFF → OFF. Explicit ON only when Boundary is enabled for the user.
+ * Persona Secret Discovery (S0–S4D engine writes).
+ * Default ON for all accounts when unset; never outruns Boundary; =0 is kill switch.
  */
 export function isPersonaSecretDiscoveryEnabled(
   opts?: PersonaSecretBoundaryContext,
@@ -47,10 +46,6 @@ export function isPersonaSecretDiscoveryEnabled(
 ): boolean {
   const explicit = parseTriStateFlag(env.PERSONA_SECRET_DISCOVERY_ENABLED);
   if (explicit === false) return false;
-  if (explicit === true) {
-    // Discovery never outruns Boundary isolation.
-    return isPersonaSecretBoundaryEnabled(opts, env);
-  }
-  // Unset: always OFF (no development auto-enable fallback).
-  return false;
+  // unset or explicit ON — still requires Boundary.
+  return isPersonaSecretBoundaryEnabled(opts, env);
 }
