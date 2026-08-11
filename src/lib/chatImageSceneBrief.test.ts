@@ -109,6 +109,22 @@ describe("chatImageSceneBrief", () => {
     assert.equal(brief.keyDialogue[1]?.text, "정말 여기서 자려고?");
   });
 
+  it("keeps long dialogue intact without an artificial cap", () => {
+    const longLine = `자, 식후땡으로는 역시 낮잠이 최고지. ${"정말로 ".repeat(40)}우리 렌 아까부터 졸린 눈치던데, 여기 형 전용 자리야.`;
+    const source = `태형은 "${longLine}"라고 말했다.`;
+    assert.equal(findVerbatimSceneExcerpt(longLine, source), longLine);
+    const brief = sanitizeChatImageSceneBrief(
+      {
+        setting: "공원",
+        atmosphere: "평화",
+        actions: "태형이 재킷을 깐다",
+        keyDialogue: [{ speaker: "character", text: longLine }],
+      },
+      source
+    );
+    assert.equal(brief.keyDialogue[0]?.text, longLine);
+  });
+
   it("asks the model for closed-book verbatim dialogue", () => {
     const prompt = buildChatImageSceneBriefPrompt({
       characterName: "태현",

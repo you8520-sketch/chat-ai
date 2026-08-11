@@ -11,7 +11,6 @@ export const CHAT_IMAGE_SCENE_BRIEF_FALLBACK_MODEL =
   OPENROUTER_DEEPSEEK_V4_FLASH_MODEL;
 export const CHAT_IMAGE_SCENE_BRIEF_MAX_SOURCE_CHARS = 6_000;
 export const CHAT_IMAGE_SCENE_BRIEF_MAX_DIALOGUE = 8;
-export const CHAT_IMAGE_SCENE_BRIEF_MAX_DIALOGUE_CHARS = 300;
 
 export type ChatImageSceneBriefSpeaker = "character" | "persona" | "other";
 
@@ -58,16 +57,13 @@ export function normalizeSceneBriefWhitespace(raw: string): string {
 /**
  * Important dialogue must be a contiguous verbatim excerpt of the source turn.
  * Returns the normalized excerpt when found, otherwise null.
+ * No artificial length cap — long lines are kept intact.
  */
 export function findVerbatimSceneExcerpt(
   candidate: unknown,
-  sourceTurn: string,
-  maxChars = CHAT_IMAGE_SCENE_BRIEF_MAX_DIALOGUE_CHARS
+  sourceTurn: string
 ): string | null {
-  const clean = normalizeSceneBriefWhitespace(String(candidate ?? "")).slice(
-    0,
-    maxChars
-  );
+  const clean = normalizeSceneBriefWhitespace(String(candidate ?? ""));
   if (clean.length < 2) return null;
   const haystack = normalizeSceneBriefWhitespace(sourceTurn);
   if (!haystack.includes(clean)) return null;
@@ -176,7 +172,7 @@ function extractQuotedSceneDialogue(
   for (const match of sourceTurn.matchAll(pattern)) {
     const text = normalizeSceneBriefWhitespace(
       match[1] ?? match[2] ?? match[3] ?? match[4]
-    ).slice(0, CHAT_IMAGE_SCENE_BRIEF_MAX_DIALOGUE_CHARS);
+    );
     if (text.length < 2) continue;
     if (out.some((line) => line.text === text)) continue;
     out.push({ speaker: "other", text });
