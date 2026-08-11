@@ -272,9 +272,18 @@ export default function MessageBubbleToolbar({
                 type="button"
                 aria-label="이미지 생성"
                 disabled={busy || disabled}
-                onClick={() => window.dispatchEvent(new Event("chat:image-generator:open"))}
+                onClick={() =>
+                  window.dispatchEvent(
+                    new CustomEvent("chat:image-generator:open", {
+                      detail: {
+                        messageId,
+                        content,
+                      },
+                    })
+                  )
+                }
                 className={toolbarBtn}
-                title="이미지 생성"
+                title="이 턴으로 이미지 생성"
               >
                 <IconImageSpark />
               </button>

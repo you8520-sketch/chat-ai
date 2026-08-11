@@ -352,9 +352,30 @@ export default function ChatImageGeneratorPanel({
   );
   const [comicText, setComicText] = useState("");
   const [comicMood, setComicMood] = useState<ChatComicMood>("comic");
+  const [sourceMessageId, setSourceMessageId] = useState<number | null>(null);
+  const [sourceTurnPreview, setSourceTurnPreview] = useState("");
 
   useEffect(() => {
-    const openGenerator = () => setOpen(true);
+    const openGenerator = (event: Event) => {
+      const detail = (event as CustomEvent<{ messageId?: unknown; content?: unknown }>)
+        .detail;
+      const messageId = Number(detail?.messageId);
+      if (Number.isFinite(messageId) && messageId > 0) {
+        setSourceMessageId(messageId);
+        const preview = String(detail?.content ?? "")
+          .replace(/<<<STATUS_VALUES[\s\S]*?>>>/gi, " ")
+          .replace(/<<<STATUS[\s\S]*?>>>/gi, " ")
+          .replace(/<!--[\s\S]*?-->/g, " ")
+          .replace(/<[^>]+>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim();
+        setSourceTurnPreview(preview.slice(0, 280));
+        setTab("comic");
+        setLdProduct("illustration");
+        setComicText("");
+      }
+      setOpen(true);
+    };
     window.addEventListener("chat:image-generator:open", openGenerator);
     return () => window.removeEventListener("chat:image-generator:open", openGenerator);
   }, []);
@@ -734,11 +755,15 @@ export default function ChatImageGeneratorPanel({
     if (!info?.ready || generating) return;
     const isIllustration = ldProduct === "illustration";
     const sourceText = comicText.trim();
-    if (!isIllustration && !sourceText) {
-      setError("만화로 만들 내용을 입력해 주세요.");
+    if (!isIllustration && !sourceMessageId && !sourceText) {
+      setError("만화로 만들 턴을 선택하거나 내용을 입력해 주세요.");
       return;
     }
-    if (!isIllustration && sourceText.length > CHAT_COMIC_MAX_INPUT_CHARS) {
+    if (
+      !isIllustration &&
+      !sourceMessageId &&
+      sourceText.length > CHAT_COMIC_MAX_INPUT_CHARS
+    ) {
       setError(`내용은 최대 ${CHAT_COMIC_MAX_INPUT_CHARS}자까지 입력할 수 있습니다.`);
       return;
     }
@@ -761,7 +786,8 @@ export default function ChatImageGeneratorPanel({
         body: JSON.stringify({
           ...ids,
           mode: isIllustration ? "illustration" : "comic",
-          sourceText,
+          messageId: sourceMessageId ?? undefined,
+          sourceText: sourceMessageId ? undefined : sourceText || undefined,
           mood: comicMood,
           characterImageUrl: selectedCharacterImageUrl || info.character.imageUrl,
         }),
@@ -792,8 +818,8 @@ export default function ChatImageGeneratorPanel({
       updateBalance(data);
       setNotice(
         isIllustration
-          ? "현재 턴을 반영한 2:3 LD 일러스트를 기존 캐릭터 이미지 앨범에 추가했습니다."
-          : "대사·말풍선·표정 연출을 자동 구성해 기존 캐릭터 이미지 앨범에 추가했습니다."
+          ? "선택 턴의 핵심 장면으로 2:3 LD 일러스트를 만들어 캐릭터 앨범에 추가했습니다."
+          : "선택 턴의 중요 대사(원문)와 배경을 추출해 컷만화를 만들고 앨범에 추가했습니다."
       );
       void loadInfo();
     } catch (caught) {
@@ -833,7 +859,11 @@ export default function ChatImageGeneratorPanel({
       {showRailTrigger ? (
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={() => {
+            setSourceMessageId(null);
+            setSourceTurnPreview("");
+            setOpen(true);
+          }}
           className="flex w-full flex-col items-center gap-0.5 rounded-md px-0 py-1.5 text-zinc-400 transition hover:bg-white/[0.06] hover:text-violet-200"
           title="SD 이미지와 LD 이미지 생성"
           aria-label="이미지 생성"
@@ -912,7 +942,7 @@ export default function ChatImageGeneratorPanel({
                       <div className="grid grid-cols-3 gap-1 rounded-xl bg-black/25 p-1">
                         {(
                           [
-                            ["illustration", "현재 턴 일러스트"],
+                            ["illustration", "선택 턴 일러스트"],
                             ["persona", "페르소나"],
                             ["comic", "자동 컷만화"],
                           ] as const
@@ -961,7 +991,7 @@ export default function ChatImageGeneratorPanel({
                               ? ldProduct === "persona"
                                 ? "생성된 페르소나 이미지"
                                 : ldProduct === "illustration"
-                                ? "생성된 현재 턴 LD 일러스트"
+                                ? "생성된 선택 턴 LD 일러스트"
                                 : "생성된 컷만화"
                               : sdProduct === "emoticon"
                                 ? "생성된 랜덤 9종 이모티콘"
@@ -972,7 +1002,7 @@ export default function ChatImageGeneratorPanel({
                               ? ldProduct === "persona"
                                 ? "캐릭터 그림체 참조 이미지"
                                 : ldProduct === "illustration"
-                                ? "현재 턴 LD 일러스트 참조 이미지"
+                                ? "선택 턴 LD 일러스트 참조 이미지"
                                 : "2~4컷 만화 예시"
                               : sdProduct === "emoticon"
                                 ? "랜덤 9종 이모티콘 고정틀"
@@ -1350,26 +1380,52 @@ export default function ChatImageGeneratorPanel({
                             </p>
                           </div>
                         ) : null}
+                        {ldProduct === "illustration" || ldProduct === "comic" ? (
+                          <div className="space-y-2 rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-3 text-[11px] leading-relaxed text-zinc-300">
+                            {sourceMessageId ? (
+                              <>
+                                <p>
+                                  <strong className="text-violet-200">선택 턴 자동 인식</strong>
+                                  {" · "}DeepSeek V4 Flash가 배경·행동을 정리하고, 중요 대사는 원문 그대로 유지합니다.
+                                </p>
+                                {sourceTurnPreview ? (
+                                  <p className="line-clamp-4 whitespace-pre-wrap text-zinc-400">
+                                    {sourceTurnPreview}
+                                  </p>
+                                ) : null}
+                              </>
+                            ) : (
+                              <p>
+                                채팅 메시지 아래 이미지 버튼을 누르면 그 턴 기준으로 장면이 잡힙니다.
+                                {ldProduct === "comic"
+                                  ? " 또는 아래에 내용을 직접 붙여넣을 수 있습니다."
+                                  : " 버튼 없이 생성하면 가장 최근 턴을 사용합니다."}
+                              </p>
+                            )}
+                          </div>
+                        ) : null}
                         {ldProduct === "comic" ? (
                           <>
-                            <label className="block space-y-1">
-                              <span className="flex items-center justify-between text-[11px] font-semibold text-zinc-400">
-                                <span>만화로 만들 내용</span>
-                                <span className={comicText.length >= CHAT_COMIC_MAX_INPUT_CHARS ? "text-amber-300" : "text-zinc-500"}>
-                                  {comicText.length}/{CHAT_COMIC_MAX_INPUT_CHARS}
+                            {!sourceMessageId ? (
+                              <label className="block space-y-1">
+                                <span className="flex items-center justify-between text-[11px] font-semibold text-zinc-400">
+                                  <span>만화로 만들 내용</span>
+                                  <span className={comicText.length >= CHAT_COMIC_MAX_INPUT_CHARS ? "text-amber-300" : "text-zinc-500"}>
+                                    {comicText.length}/{CHAT_COMIC_MAX_INPUT_CHARS}
+                                  </span>
                                 </span>
-                              </span>
-                              <textarea
-                                value={comicText}
-                                onChange={(event) =>
-                                  setComicText(event.target.value.slice(0, CHAT_COMIC_MAX_INPUT_CHARS))
-                                }
-                                disabled={generating}
-                                rows={9}
-                                placeholder="장면이나 RP 본문을 붙여넣으세요. AI가 핵심 대사를 추출하고 말풍선·표정·컷 구성을 자동으로 처리합니다."
-                                className="w-full resize-y rounded-xl border border-white/10 bg-[#1a1a1a] px-3 py-2.5 text-xs leading-relaxed text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-violet-500/50"
-                              />
-                            </label>
+                                <textarea
+                                  value={comicText}
+                                  onChange={(event) =>
+                                    setComicText(event.target.value.slice(0, CHAT_COMIC_MAX_INPUT_CHARS))
+                                  }
+                                  disabled={generating}
+                                  rows={9}
+                                  placeholder="장면이나 RP 본문을 붙여넣으세요. 중요 대사는 원문 그대로 살리고 말풍선·표정·컷을 자동 구성합니다."
+                                  className="w-full resize-y rounded-xl border border-white/10 bg-[#1a1a1a] px-3 py-2.5 text-xs leading-relaxed text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-violet-500/50"
+                                />
+                              </label>
+                            ) : null}
                             <div className="grid grid-cols-2 gap-2">
                               <div className="block space-y-1">
                                 <span className="text-[11px] font-semibold text-zinc-400">컷 수</span>
@@ -1410,7 +1466,7 @@ export default function ChatImageGeneratorPanel({
                                   }]
                                 : ldProduct === "illustration"
                                 ? [{
-                                    label: "현재 턴 LD 일러스트",
+                                    label: "선택 턴 LD 일러스트",
                                     cost: info.averageCosts.illustration,
                                   }]
                                 : ([2, 3, 4] as const).map((panelCount) => ({
@@ -1428,7 +1484,7 @@ export default function ChatImageGeneratorPanel({
                             generating ||
                             loadingInfo ||
                             (ldProduct === "persona" ? !info?.personaReady : !info?.ready) ||
-                            (ldProduct === "comic" && !comicText.trim()) ||
+                            (ldProduct === "comic" && !sourceMessageId && !comicText.trim()) ||
                             (info?.balance != null &&
                               info.balance.total < activePrice)
                           }
@@ -1438,15 +1494,15 @@ export default function ChatImageGeneratorPanel({
                             ? ldProduct === "persona"
                               ? "페르소나 이미지 생성 중…"
                               : ldProduct === "illustration"
-                                ? "현재 턴 LD 일러스트 생성 중…"
-                                : "대사와 컷을 구성해 만화 생성 중…"
+                                ? "선택 턴 장면 추출·일러스트 생성 중…"
+                                : "중요 대사 추출·컷 구성 중…"
                             : activeResultUrl
                               ? `다시 생성 · ${activePrice.toLocaleString()}P`
                               : `${
                                   ldProduct === "persona"
                                     ? "페르소나 이미지 생성"
                                     : ldProduct === "illustration"
-                                    ? "현재 턴 일러스트 생성"
+                                    ? "선택 턴 일러스트 생성"
                                     : "자동 컷만화 생성"
                                 } · ${activePrice.toLocaleString()}P`}
                         </button>
