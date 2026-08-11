@@ -6,6 +6,7 @@ import {
   buildChatImageSceneBriefPrompt,
   findVerbatimSceneExcerpt,
   formatSceneBriefAsComicSource,
+  formatSceneBriefAsEditableSummary,
   formatSceneBriefAsIllustrationTurn,
   resolveChatImageSceneBriefModel,
   sanitizeChatImageSceneBrief,
@@ -103,5 +104,24 @@ describe("chatImageSceneBrief", () => {
     assert.match(turn, /Setting: 옥상/);
     assert.match(turn, /태현: “나 봐\.”/);
     assert.match(turn, /acting\/emotion only/);
+  });
+
+  it("formats an editable Korean summary with verbatim dialogue", () => {
+    const summary = formatSceneBriefAsEditableSummary(
+      {
+        setting: "식당",
+        atmosphere: "장난스러운",
+        actions: "태형이 조르고 렌이 먹여준다",
+        keyDialogue: [
+          { speaker: "character", text: "대장님, 내 깻잎도 떼어줘!" },
+          { speaker: "persona", text: "진정하고 깻잎이나 먹어." },
+        ],
+      },
+      { characterName: "태형", personaName: "렌" }
+    );
+    assert.match(summary, /배경: 식당/);
+    assert.match(summary, /상황: 태형이 조르고 렌이 먹여준다/);
+    assert.match(summary, /태형의 대사: "대장님, 내 깻잎도 떼어줘!"/);
+    assert.match(summary, /렌의 대사: "진정하고 깻잎이나 먹어\."/);
   });
 });

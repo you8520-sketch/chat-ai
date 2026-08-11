@@ -123,7 +123,8 @@ export function buildChatComicPlannerPrompt(opts: {
     "Never change either person's gender. Long pink/soft hair, cute expressions, blush, or romantic mood must not feminize a male subject or masculinize a female subject.",
     "Infer who is speaking from the prose and preserve their identities throughout.",
     "Dialogue is closed-book extraction. Use only verbatim contiguous excerpts from text enclosed in quotation marks in SOURCE PROSE.",
-    "Never invent, paraphrase, combine, complete, or add reaction dialogue. If a panel has no suitable quoted line, return an empty dialogue array and communicate the reaction visually.",
+    "The SOURCE PROSE contains at least one quoted dialogue line, and the finished comic MUST use at least one of those quoted lines as a speech bubble. Never return a plan where every panel has an empty dialogue array.",
+    "Never invent, paraphrase, combine, complete, or add reaction dialogue. If a panel has no suitable quoted line, return an empty dialogue array for that panel and communicate the reaction visually.",
     "Narration is also closed-book extraction. A caption may contain only one short verbatim contiguous excerpt from the unquoted descriptive prose in SOURCE PROSE. Never paraphrase or invent narration. Return an empty caption when no suitable excerpt exists.",
     "Use at most two speech bubbles and at most one rectangular narration box per panel. Never create labels or sound-effect text.",
     "Each panel needs a clear action, camera framing, and natural facial expressions. The final panel should land the emotional payoff or comedic punchline.",
@@ -215,6 +216,9 @@ export function sanitizeChatComicPlan(
   }
   const quotedDialogue = extractQuotedComicDialogue(sourceText);
   const unquotedNarration = extractUnquotedComicNarration(sourceText);
+  if (!quotedDialogue.length) {
+    throw new Error("컷만화에는 최소 1개의 대사가 필요합니다. 중요 대사를 입력해 주세요.");
+  }
 
   const panels = source.panels.map((entry, index): ChatComicPanel => {
     if (!entry || typeof entry !== "object") {
@@ -248,6 +252,12 @@ export function sanitizeChatComicPlan(
           : undefined,
     };
   });
+
+  if (!panels.some((panel) => panel.dialogue.length > 0)) {
+    throw new Error(
+      "컷만화 대사가 비어 있습니다. 중요 대사를 최소 1개 넣어 주세요."
+    );
+  }
 
   return {
     title: cleanText(source.title, 40) || "우리 둘의 한 장면",

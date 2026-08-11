@@ -159,10 +159,42 @@ describe("chatComicGeneration", () => {
     assert.match(prompt, /smallest natural panel count from 2, 3, or 4/);
     assert.match(prompt, /Never stretch a short scene/);
     assert.match(prompt, /Use only verbatim contiguous excerpts/);
+    assert.match(prompt, /MUST use at least one of those quoted lines as a speech bubble/);
     assert.match(prompt, /Never invent, paraphrase, combine, complete, or add reaction dialogue/);
     assert.match(prompt, /The chat character is 태형 \(male\); the user persona is 렌 \(male\)/);
     assert.match(prompt, /Never change either person's gender/);
     assert.match(prompt, /SOURCE PROSE/);
+  });
+
+  it("rejects a comic plan with no dialogue at all", () => {
+    const sourceText = '태현은 "야."라고 말했다.';
+    assert.throws(
+      () =>
+        sanitizeChatComicPlan(
+          {
+            title: "무음",
+            panelCount: 2,
+            panels: [
+              { scene: "태현이 앞을 막는다.", dialogue: [] },
+              { scene: "렌이 뒤돌아본다.", dialogue: [] },
+            ],
+          },
+          sourceText
+        ),
+      /대사가 비어/
+    );
+    assert.throws(
+      () =>
+        sanitizeChatComicPlan(
+          {
+            title: "무음",
+            panelCount: 2,
+            panels: [{ scene: "a", dialogue: [] }, { scene: "b", dialogue: [] }],
+          },
+          "대사가 없는 지문만 있다."
+        ),
+      /최소 1개의 대사/
+    );
   });
 
   it("keeps exact dialogue, correct speakers, and visible page boundaries in the image prompt", () => {
