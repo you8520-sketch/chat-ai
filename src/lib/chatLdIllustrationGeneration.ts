@@ -91,14 +91,15 @@ export function buildChatLdIllustrationPrompt(opts: {
       personaGender: opts.personaGender,
     }),
     "SAFETY — depict a wholesome conversation / meeting scene only. Do not depict injury, blood, wounds, scars, weapons, self-harm, suicide, hanging, cutting, or medical trauma even if metaphorical language appears in the turn text.",
-    "Depict the current chat turn below as one cinematic, emotionally accurate scene.",
+    "Depict the selected chat-turn scene brief below as one cinematic, emotionally accurate scene.",
     "Keep both identities clearly separate and highly recognizable. Preserve each person's face, hairstyle, hair color, eye color, body impression, outfit details, accessories, and distinguishing traits.",
     "Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the two references differ, harmonize them into one coherent polished style without changing either identity.",
-    "Use natural body language, facial expressions, camera framing, props, lighting, and background that accurately express the current situation.",
+    "Use natural body language, facial expressions, camera framing, props, lighting, and background that accurately express the setting, atmosphere, and actions.",
+    "Key dialogue lines are for emotion and acting only. Do not render speech bubbles, captions, subtitles, or readable dialogue text in the illustration.",
     "Show exactly these two people. Do not add extra people, duplicates, split panels, borders, speech bubbles, captions, sound effects, signatures, logos, or watermarks.",
     "Compose for a vertical 2:3 profile-friendly illustration around 800 by 1200 pixels. Keep important faces and gestures away from the outer crop edges.",
     "",
-    "CURRENT CHAT TURN:",
+    "SELECTED TURN SCENE BRIEF:",
     turn,
   ].join("\n");
 }

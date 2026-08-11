@@ -20,18 +20,19 @@ describe("chatLdIllustrationGeneration", () => {
     assert.equal(resolveChatLdIllustrationPrice({} as NodeJS.ProcessEnv), 200);
   });
 
-  it("uses the current turn and forbids comic text or identity mixing", () => {
+  it("uses the selected-turn scene brief and forbids comic text or identity mixing", () => {
     const prompt = buildChatLdIllustrationPrompt({
       characterName: "태형",
       characterGender: "male",
       personaName: "렌",
       personaGender: "male",
-      currentTurn: "렌이 태형에게 깻잎을 먹여준다.",
+      currentTurn: "Setting: 식당\nActions: 렌이 태형에게 깻잎을 먹여준다.",
     });
     assert.match(prompt, /렌이 태형에게 깻잎을 먹여준다/);
+    assert.match(prompt, /SELECTED TURN SCENE BRIEF/);
     assert.match(prompt, /identity and art-style reference/);
     assert.match(prompt, /Do not add extra people/);
-    assert.match(prompt, /speech bubbles/);
+    assert.match(prompt, /Do not render speech bubbles/);
     assert.match(prompt, /vertical 2:3/);
     assert.match(prompt, /GENDER LOCK/);
     assert.match(prompt, /confirmed MALE/);

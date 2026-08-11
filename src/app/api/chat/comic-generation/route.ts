@@ -34,6 +34,12 @@ import {
   resolveChatLdIllustrationPrice,
 } from "@/lib/chatLdIllustrationGeneration";
 import {
+  extractChatImageSceneBrief,
+  formatSceneBriefAsComicSource,
+  formatSceneBriefAsIllustrationTurn,
+  stripChatTurnMarkup,
+} from "@/lib/chatImageSceneBrief";
+import {
   resolveChatImageGenerationModel,
   type ImagePromptGender,
 } from "@/lib/chatImageGeneration";
@@ -243,8 +249,54 @@ function resolveGenerationContext(opts: {
   };
 }
 
-function currentChatTurn(chatId: number | null): string {
-  if (!chatId) throw new RequestError("현재 턴 일러스트는 채팅방에서 만들 수 있습니다.");
+function formatTurnRows(
+  rows: Array<{ role: "user" | "assistant"; content: string }>
+): string {
+  const cleaned = rows
+    .map((row) => {
+      const content = stripChatTurnMarkup(row.content).slice(0, 3_000);
+      return content ? `${row.role === "assistant" ? "캐릭터" : "유저"}: ${content}` : "";
+    })
+    .filter(Boolean);
+  return cleaned.join("\n").slice(0, 6_000);
+}
+
+/** Selected assistant message (+ immediately preceding user line when present). */
+function chatTurnByMessageId(chatId: number, messageId: number): string {
+  const assistant = getDb()
+    .prepare(
+      `SELECT id, role, content
+       FROM messages
+       WHERE chat_id=? AND id=? AND role='assistant'
+       LIMIT 1`
+    )
+    .get(chatId, messageId) as
+    | { id: number; role: "assistant"; content: string }
+    | undefined;
+  if (!assistant) {
+    throw new RequestError("선택한 턴을 찾을 수 없습니다.", 404);
+  }
+  const previous = getDb()
+    .prepare(
+      `SELECT role, content
+       FROM messages
+       WHERE chat_id=? AND id<? AND role IN ('user', 'assistant')
+       ORDER BY id DESC
+       LIMIT 1`
+    )
+    .get(chatId, assistant.id) as
+    | { role: "user" | "assistant"; content: string }
+    | undefined;
+  const rows: Array<{ role: "user" | "assistant"; content: string }> = [];
+  if (previous?.role === "user") rows.push(previous);
+  rows.push(assistant);
+  const formatted = formatTurnRows(rows);
+  if (!formatted) throw new RequestError("선택한 턴에 그림으로 만들 내용이 없습니다.");
+  return formatted;
+}
+
+function latestChatTurn(chatId: number | null): string {
+  if (!chatId) throw new RequestError("선택 턴 일러스트는 채팅방에서 만들 수 있습니다.");
   const rows = getDb()
     .prepare(
       `SELECT role, content
@@ -254,20 +306,40 @@ function currentChatTurn(chatId: number | null): string {
        LIMIT 2`
     )
     .all(chatId) as Array<{ role: "user" | "assistant"; content: string }>;
-  const cleaned = rows
-    .reverse()
-    .map((row) => {
-      const content = String(row.content ?? "")
-        .replace(/<!--[\s\S]*?-->/g, " ")
-        .replace(/<[^>]+>/g, " ")
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 3_000);
-      return content ? `${row.role === "assistant" ? "캐릭터" : "유저"}: ${content}` : "";
-    })
-    .filter(Boolean);
-  if (!cleaned.length) throw new RequestError("그림으로 만들 현재 대화가 없습니다.");
-  return cleaned.join("\n").slice(0, 6_000);
+  const formatted = formatTurnRows(rows.reverse());
+  if (!formatted) throw new RequestError("그림으로 만들 대화가 없습니다.");
+  return formatted;
+}
+
+function resolveSourceTurn(opts: {
+  chatId: number | null;
+  messageId: number | null;
+  sourceText?: string;
+  requireChat?: boolean;
+}): { turnText: string; messageId: number | null; fromManualText: boolean } {
+  const manual = String(opts.sourceText ?? "").trim();
+  if (opts.messageId && opts.chatId) {
+    return {
+      turnText: chatTurnByMessageId(opts.chatId, opts.messageId),
+      messageId: opts.messageId,
+      fromManualText: false,
+    };
+  }
+  if (manual) {
+    return {
+      turnText: stripChatTurnMarkup(manual).slice(0, 6_000),
+      messageId: null,
+      fromManualText: true,
+    };
+  }
+  if (opts.requireChat !== false) {
+    return {
+      turnText: latestChatTurn(opts.chatId),
+      messageId: null,
+      fromManualText: false,
+    };
+  }
+  throw new RequestError("만화로 만들 내용을 입력해 주세요.");
 }
 
 function safePublicFilePath(url: string): string | null {
@@ -588,7 +660,7 @@ export async function POST(req: Request) {
       if (balanceBefore.total < pricePoints) {
         return NextResponse.json(
           {
-            error: `포인트가 부족합니다. 현재 턴 LD 일러스트에는 ${pricePoints.toLocaleString()}P가 필요합니다.`,
+            error: `포인트가 부족합니다. 선택 턴 LD 일러스트에는 ${pricePoints.toLocaleString()}P가 필요합니다.`,
             pricePoints,
             remainingPoints: balanceBefore.total,
             paidPoints: balanceBefore.paid,
@@ -599,13 +671,32 @@ export async function POST(req: Request) {
       }
 
       startJob(CHAT_LD_ILLUSTRATION_TEMPLATE_ID, "illustration");
-      const turnText = currentChatTurn(context.chatId);
+      const source = resolveSourceTurn({
+        chatId: context.chatId,
+        messageId: positiveInt(body.messageId),
+      });
+      let illustrationTurn = source.turnText;
+      let sceneBriefModel: string | null = null;
+      try {
+        const extracted = await extractChatImageSceneBrief({
+          characterName: context.character.name,
+          personaName: context.persona.name,
+          sourceTurn: source.turnText,
+        });
+        sceneBriefModel = extracted.model;
+        illustrationTurn = formatSceneBriefAsIllustrationTurn(extracted.brief, {
+          characterName: context.character.name,
+          personaName: context.persona.name,
+        });
+      } catch (error) {
+        console.warn("[chat-ld-illustration] scene brief failed; using raw turn", error);
+      }
       const prompt = buildChatLdIllustrationPrompt({
         characterName: context.character.name,
         characterGender: context.characterGender,
         personaName: context.persona.name,
         personaGender: context.personaGender,
-        currentTurn: turnText,
+        currentTurn: illustrationTurn,
       });
       const [characterReference, personaReference] = await Promise.all([
         imageSourceToDataUrl(context.characterImageUrl),
@@ -629,7 +720,7 @@ export async function POST(req: Request) {
         deduction = deductPoints(
           user.id,
           pricePoints,
-          "GPT Image 2 · 현재 턴 LD 일러스트",
+          "GPT Image 2 · 선택 턴 LD 일러스트",
           context.chatId ? { chatId: context.chatId } : undefined
         );
       } catch (error) {
@@ -676,7 +767,11 @@ export async function POST(req: Request) {
             model,
             JSON.stringify({
               mode: "illustration",
-              source: "latest_chat_turn",
+              source: source.messageId
+                ? "selected_chat_turn"
+                : "latest_chat_turn",
+              messageId: source.messageId,
+              sceneBriefModel,
               quality: CHAT_LD_ILLUSTRATION_QUALITY,
               outputSize: CHAT_LD_ILLUSTRATION_OUTPUT_SIZE,
             }),
@@ -715,8 +810,10 @@ export async function POST(req: Request) {
         generationId,
         imageUrl: resultUrl,
         savedToCharacterAlbum,
-        title: "현재 턴 LD 일러스트",
+        title: "선택 턴 LD 일러스트",
         modelLabel: "GPT Image 2",
+        sceneBriefModel: sceneBriefModel ?? undefined,
+        messageId: source.messageId ?? undefined,
         upstreamCostUsd: canSeeCost ? generated.costUsd : undefined,
         upstreamCostKrw: canSeeCost ? totalCostKrw : undefined,
         totalPointsCost: deduction.total,
@@ -725,14 +822,30 @@ export async function POST(req: Request) {
         freePoints: deduction.balance.free,
       });
     }
-    const options = sanitizeChatComicOptions({
-      mood: body.mood,
-      sourceText: body.sourceText,
-    });
-    if (!options.sourceText) throw new RequestError("만화로 만들 내용을 입력해 주세요.");
-    if (String(body.sourceText ?? "").trim().length > CHAT_COMIC_MAX_INPUT_CHARS) {
-      throw new RequestError(`내용은 최대 ${CHAT_COMIC_MAX_INPUT_CHARS}자까지 입력할 수 있습니다.`);
+
+    const messageId = positiveInt(body.messageId);
+    const manualSourceText = String(body.sourceText ?? "").trim();
+    if (!messageId && !manualSourceText) {
+      throw new RequestError(
+        "만화로 만들 턴을 선택하거나 내용을 입력해 주세요."
+      );
     }
+    if (!messageId && manualSourceText.length > CHAT_COMIC_MAX_INPUT_CHARS) {
+      throw new RequestError(
+        `내용은 최대 ${CHAT_COMIC_MAX_INPUT_CHARS}자까지 입력할 수 있습니다.`
+      );
+    }
+
+    const source = resolveSourceTurn({
+      chatId: context.chatId,
+      messageId,
+      sourceText: messageId ? undefined : manualSourceText,
+      requireChat: false,
+    });
+    const mood = sanitizeChatComicOptions({
+      mood: body.mood,
+      sourceText: "",
+    }).mood;
 
     const balanceBefore = getPointBalance(user.id);
     const pricePoints = resolveChatComicPrice(2);
@@ -750,6 +863,31 @@ export async function POST(req: Request) {
     }
 
     startJob(CHAT_COMIC_TEMPLATE_ID, "comic");
+    let sceneBriefModel: string | null = null;
+    let comicSourceText = source.turnText.slice(0, CHAT_COMIC_MAX_INPUT_CHARS);
+    try {
+      const extracted = await extractChatImageSceneBrief({
+        characterName: context.character.name,
+        personaName: context.persona.name,
+        sourceTurn: source.turnText,
+      });
+      sceneBriefModel = extracted.model;
+      comicSourceText = formatSceneBriefAsComicSource(extracted.brief, {
+        characterName: context.character.name,
+        personaName: context.persona.name,
+      });
+      if (!comicSourceText.trim()) {
+        comicSourceText = source.turnText.slice(0, CHAT_COMIC_MAX_INPUT_CHARS);
+      }
+    } catch (error) {
+      console.warn("[chat-comic] scene brief failed; using source turn", error);
+      comicSourceText = source.turnText.slice(0, CHAT_COMIC_MAX_INPUT_CHARS);
+    }
+
+    const options = {
+      mood,
+      sourceText: comicSourceText,
+    };
     const planned = await planComic({
       characterName: context.character.name,
       characterGender: context.characterGender,
@@ -844,6 +982,8 @@ export async function POST(req: Request) {
             panelCount,
             mood: options.mood,
             sourceText: options.sourceText,
+            messageId: source.messageId,
+            sceneBriefModel,
             title: planned.plan.title,
             plan: planned.plan,
             plannerModel: planned.model,
@@ -901,6 +1041,8 @@ export async function POST(req: Request) {
       title: planned.plan.title,
       panelCount,
       modelLabel: "GPT Image 2",
+      sceneBriefModel: sceneBriefModel ?? undefined,
+      messageId: source.messageId ?? undefined,
       upstreamCostUsd: canSeeCost ? totalCostUsd : undefined,
       upstreamCostKrw: canSeeCost ? totalCostKrw : undefined,
       totalPointsCost: deduction.total,
