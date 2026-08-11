@@ -115,6 +115,43 @@ export async function GET(req: Request) {
   }
 }
 
+export async function DELETE(req: Request) {
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+
+  try {
+    const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+    const characterId = positiveInt(body.characterId);
+    const imageUrl = String(body.imageUrl ?? "").trim();
+    if (!characterId) throw new RequestError("캐릭터 정보가 없습니다.");
+    if (!imageUrl.startsWith("/uploads/") || imageUrl.includes("..")) {
+      throw new RequestError("삭제할 이미지 경로가 올바르지 않습니다.");
+    }
+    assertCharacterVisible(user.id, characterId);
+    ensureAlbumTables();
+
+    const result = getDb()
+      .prepare(
+        `DELETE FROM character_image_album
+         WHERE user_id=? AND character_id=? AND image_url=?`
+      )
+      .run(user.id, characterId, imageUrl);
+    if (result.changes === 0) {
+      throw new RequestError("앨범에서 해당 이미지를 찾을 수 없습니다.", 404);
+    }
+
+    return NextResponse.json({
+      ok: true,
+      deleted: true,
+      album: listAlbum(user.id, characterId),
+    });
+  } catch (error) {
+    const status = error instanceof RequestError ? error.status : 500;
+    const message = error instanceof Error ? error.message : "앨범 삭제에 실패했습니다.";
+    return NextResponse.json({ error: message }, { status });
+  }
+}
+
 export async function POST(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
