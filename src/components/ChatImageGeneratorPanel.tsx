@@ -1425,19 +1425,21 @@ export default function ChatImageGeneratorPanel({
                             </p>
                           </div>
                         ) : null}
-                        {ldProduct === "illustration" || ldProduct === "comic" ? (
+                        {ldProduct === "comic" ? (
+                          <div className="space-y-2 rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-3 text-[11px] leading-relaxed text-zinc-300">
+                            <p>컷만화로 만들고 싶은 내용만 남기고 생성 버튼을 눌러 주세요.</p>
+                          </div>
+                        ) : ldProduct === "illustration" ? (
                           <div className="space-y-2 rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-3 text-[11px] leading-relaxed text-zinc-300">
                             {sourceMessageId ? (
                               <p>
                                 <strong className="text-violet-200">선택 턴 자동 인식</strong>
-                                {" · "}유저 대사만 가져오고(*지문*·(지문) 제외), 대사가 없으면 유저 입력은 생략합니다.
+                                {" · "}현재 채팅의 선택 턴을 기준으로 장면을 잡습니다.
                               </p>
                             ) : (
                               <p>
                                 채팅 메시지 아래 이미지 버튼을 누르면 그 턴 기준으로 장면이 잡힙니다.
-                                {ldProduct === "comic"
-                                  ? " 또는 아래에 내용을 직접 붙여넣을 수 있습니다."
-                                  : " 버튼 없이 생성하면 가장 최근 턴을 사용합니다."}
+                                {" "}버튼 없이 생성하면 가장 최근 턴을 사용합니다.
                               </p>
                             )}
                           </div>
@@ -1495,7 +1497,7 @@ export default function ChatImageGeneratorPanel({
                                       className="w-full resize-y rounded-xl border border-white/10 bg-[#1a1a1a] px-3 py-2.5 text-xs leading-relaxed text-zinc-200 outline-none placeholder:text-zinc-600 focus:border-violet-500/50"
                                     />
                                     <p className="text-[10px] text-zinc-500">
-                                      컷만화에는 최소 1개의 대사가 필요합니다. 대사를 지우면 생성할 수 없습니다.
+                                      필요 없는 문장은 지운 뒤 생성해 주세요. 대사가 하나도 없으면 생성할 수 없습니다.
                                     </p>
                                   </label>
                                 ) : null}
