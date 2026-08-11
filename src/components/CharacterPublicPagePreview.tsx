@@ -251,8 +251,29 @@ export default function CharacterPublicPagePreview({
 
         <div className="min-w-0 flex-1 overflow-visible">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight text-zinc-50 sm:text-[1.65rem]">{displayName}</h1>
             {pagePath ? <CopyPageLinkButton path={pagePath} /> : null}
+            <h1 className="text-2xl font-semibold tracking-tight text-zinc-50 sm:text-[1.65rem]">
+              {displayName}
+            </h1>
+            {creatorName.trim() ? (
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-500">
+                {creatorHref ? (
+                  <Link
+                    href={creatorHref}
+                    className={`hover:underline ${
+                      creatorIsPartner ? "text-zinc-50" : "text-violet-400"
+                    }`}
+                  >
+                    @{creatorName}
+                  </Link>
+                ) : (
+                  <span className={creatorIsPartner ? "text-zinc-50" : "text-violet-400/90"}>
+                    @{creatorName}
+                  </span>
+                )}
+                {creatorIsPartner ? <OfficialCreatorBadge /> : null}
+              </span>
+            ) : null}
           </div>
 
           {resolvedTagline.trim() ? (
@@ -270,24 +291,6 @@ export default function CharacterPublicPagePreview({
               ))}
             </div>
           ) : null}
-
-          <p className="mt-3 flex flex-wrap items-center gap-1.5 text-sm text-zinc-500">
-            {creatorHref ? (
-              <Link
-                href={creatorHref}
-                className={`hover:underline ${
-                  creatorIsPartner ? "font-semibold text-zinc-50" : "text-violet-400"
-                }`}
-              >
-                @{creatorName}
-              </Link>
-            ) : (
-              <span className={creatorIsPartner ? "font-semibold text-zinc-50" : "text-violet-400/90"}>
-                @{creatorName}
-              </span>
-            )}
-            {creatorIsPartner && <OfficialCreatorBadge />}
-          </p>
 
           <AssetGalleryStrip
             assets={resolvedGallery}
