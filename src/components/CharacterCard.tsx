@@ -78,18 +78,6 @@ function creatorNameBadgeStyle(tier: CreatorTierLevel | null | undefined): Creat
   }
 }
 
-function fmt(n: number) {
-  return n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, "")}K` : String(n);
-}
-
-function ChatMetricIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h8M8 14h5m7-2a8 8 0 0 1-8 8 8.7 8.7 0 0 1-3.5-.74L4 20l.9-3.62A8 8 0 1 1 20 12Z" />
-    </svg>
-  );
-}
-
 function parseCardTags(raw: string): string[] {
   try {
     const parsed = JSON.parse(raw || "[]") as unknown;
@@ -193,15 +181,6 @@ export default function CharacterCard({ c, blurNsfw, loggedIn = false }: Props) 
               {overlayLabel}
             </div>
           )}
-
-          <div className="absolute inset-x-0 bottom-0 z-[3] bg-gradient-to-t from-black/90 via-black/45 to-transparent px-3 pb-2.5 pt-10">
-            <div className="flex items-center justify-end gap-3 text-[10px] font-semibold tabular-nums text-white/90">
-              <span className="flex items-center gap-1" title="누적 대화 턴" aria-label={`누적 대화 ${fmt(c.total_turns ?? 0)}`}>
-                <ChatMetricIcon />
-                {fmt(c.total_turns ?? 0)}
-              </span>
-            </div>
-          </div>
         </div>
       </Link>
 
