@@ -251,7 +251,6 @@ export default function CharacterPublicPagePreview({
 
         <div className="min-w-0 flex-1 overflow-visible">
           <div className="flex flex-wrap items-center gap-2">
-            {pagePath ? <CopyPageLinkButton path={pagePath} /> : null}
             <h1 className="text-2xl font-semibold tracking-tight text-zinc-50 sm:text-[1.65rem]">
               {displayName}
             </h1>
@@ -274,6 +273,7 @@ export default function CharacterPublicPagePreview({
                 {creatorIsPartner ? <OfficialCreatorBadge /> : null}
               </span>
             ) : null}
+            {pagePath ? <CopyPageLinkButton path={pagePath} /> : null}
           </div>
 
           {resolvedTagline.trim() ? (
