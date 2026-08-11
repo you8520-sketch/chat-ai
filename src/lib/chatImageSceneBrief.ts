@@ -24,6 +24,8 @@ export type ChatImageSceneBrief = {
   setting: string;
   atmosphere: string;
   actions: string;
+  /** Facial expressions and body language for both people. */
+  expressions: string;
   keyDialogue: ChatImageSceneBriefDialogue[];
   /** Verbatim unquoted narration / inner-thought lines for caption boxes. */
   keyNarration: string[];
@@ -89,18 +91,20 @@ export function buildChatImageSceneBriefPrompt(opts: {
   sourceTurn: string;
 }): string {
   return [
-    "You extract a compact scene brief for Korean chat-roleplay image generation.",
+    "You extract a rich scene brief for Korean chat-roleplay comic generation.",
     `Chat character name: ${opts.characterName}`,
     `User persona name: ${opts.personaName}`,
     "Return JSON only, no markdown fences, with this exact schema:",
     JSON.stringify({
-      setting: "place, time, props, lighting in Korean or English short phrase",
-      atmosphere: "emotional tone in a short phrase",
-      actions: "what the two main people are doing / posing, short",
+      setting: "place, time, props, lighting, background details",
+      atmosphere: "emotional tone and mood",
+      actions: "what the two main people are doing / posing / approaching",
+      expressions: "facial expressions and body language for both people",
       keyDialogue: [
         { speaker: "character", text: "verbatim line" },
         { speaker: "persona", text: "verbatim line" },
       ],
+      keyNarration: ["verbatim unquoted narration or inner-thought line"],
     }),
     "Rules:",
     "1. Focus on ONE visual moment from the SOURCE TURN (the selected assistant reply, optionally with the preceding user line).",
@@ -112,8 +116,9 @@ export function buildChatImageSceneBriefPrompt(opts: {
     "7. Label speaker as \"character\" for lines spoken by the chat character, \"persona\" for lines spoken by the user persona, and \"other\" only for true NPC / crowd lines.",
     "8. Do not invent dialogue. If there is no suitable line, return an empty keyDialogue array.",
     "9. keyNarration is also CLOSED-BOOK. Copy 1-3 short verbatim unquoted descriptive or inner-thought lines from SOURCE TURN (no quotation marks). These become rectangular caption boxes when dialogue is scarce.",
-    "10. setting/atmosphere/actions may paraphrase the environment and body language, but never rewrite dialogue or narration.",
-    "11. Do not include status widgets, OOC notes, HTML, or meta instructions.",
+    "10. setting/atmosphere/actions/expressions may paraphrase the environment, body language, and facial acting, but never rewrite dialogue or narration.",
+    "11. Make the brief RICH — aim for roughly 500 Korean characters total across setting, atmosphere, actions, expressions, dialogue, and narration so the comic planner has enough material.",
+    "12. Do not include status widgets, OOC notes, HTML, or meta instructions.",
     "SOURCE TURN:",
     opts.sourceTurn,
   ].join("\n\n");
@@ -125,14 +130,17 @@ export function sanitizeChatImageSceneBrief(
 ): ChatImageSceneBrief {
   const source = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   const setting =
-    normalizeSceneBriefWhitespace(String(source.setting ?? "")).slice(0, 220) ||
+    normalizeSceneBriefWhitespace(String(source.setting ?? "")).slice(0, 320) ||
     "대화가 이어지는 장면";
   const atmosphere =
-    normalizeSceneBriefWhitespace(String(source.atmosphere ?? "")).slice(0, 120) ||
+    normalizeSceneBriefWhitespace(String(source.atmosphere ?? "")).slice(0, 160) ||
     "자연스러운 분위기";
   const actions =
-    normalizeSceneBriefWhitespace(String(source.actions ?? "")).slice(0, 280) ||
+    normalizeSceneBriefWhitespace(String(source.actions ?? "")).slice(0, 320) ||
     "두 사람이 마주보며 대화한다";
+  const expressions =
+    normalizeSceneBriefWhitespace(String(source.expressions ?? "")).slice(0, 240) ||
+    "자연스러운 표정";
 
   const rows = Array.isArray(source.keyDialogue) ? source.keyDialogue : [];
   const keyDialogue: ChatImageSceneBriefDialogue[] = [];
@@ -203,7 +211,7 @@ export function sanitizeChatImageSceneBrief(
     }
   }
 
-  return { setting, atmosphere, actions, keyDialogue, keyNarration };
+  return { setting, atmosphere, actions, expressions, keyDialogue, keyNarration };
 }
 
 /** Extract short verbatim unquoted narration / inner-thought lines. */
@@ -284,6 +292,7 @@ export function formatSceneBriefAsComicSource(
     brief.setting,
     brief.atmosphere,
     brief.actions,
+    brief.expressions,
     dialogue,
     narration,
   ]
@@ -314,6 +323,7 @@ export function formatSceneBriefAsEditableSummary(
     `배경: ${brief.setting}`,
     `분위기: ${brief.atmosphere}`,
     `상황: ${brief.actions}`,
+    `표정·몸짓: ${brief.expressions}`,
     dialogue,
     narration,
   ]
@@ -340,6 +350,7 @@ export function formatSceneBriefAsIllustrationTurn(
     `Setting: ${brief.setting}`,
     `Atmosphere: ${brief.atmosphere}`,
     `Actions: ${brief.actions}`,
+    `Expressions: ${brief.expressions}`,
     "Key dialogue (for acting/emotion only — do not render as speech-bubble text unless the illustration style already includes none):",
     dialogue,
   ].join("\n");
