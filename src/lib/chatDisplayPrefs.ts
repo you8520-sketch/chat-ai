@@ -5,6 +5,7 @@ export const STREAM_INTERVAL_MAX = 100;
 export const STREAM_INTERVAL_STEP = 20;
 
 export type ChatFontSizePreset = "small" | "medium" | "large" | "xlarge";
+export type ChatParagraphSpacingPreset = "tight" | "normal" | "relaxed" | "loose";
 
 export const CHAT_FONT_SIZE_PRESETS: {
   id: ChatFontSizePreset;
@@ -17,6 +18,17 @@ export const CHAT_FONT_SIZE_PRESETS: {
   { id: "xlarge", label: "아주 크게", scale: 1.25 },
 ];
 
+export const CHAT_PARAGRAPH_SPACING_PRESETS: {
+  id: ChatParagraphSpacingPreset;
+  label: string;
+  scale: number;
+}[] = [
+  { id: "tight", label: "좁게", scale: 0.7 },
+  { id: "normal", label: "보통", scale: 1 },
+  { id: "relaxed", label: "넓게", scale: 1.35 },
+  { id: "loose", label: "아주 넓게", scale: 1.7 },
+];
+
 export type ChatDisplayPrefs = {
   streamIntervalMs: number;
   streamCharsPerTick: number;
@@ -24,6 +36,8 @@ export type ChatDisplayPrefs = {
   /** @deprecated fontSizePreset 사용 */
   fontSizePx?: number;
   fontSizePreset: ChatFontSizePreset;
+  /** NovelText 문단 간격 배율 */
+  paragraphSpacingPreset: ChatParagraphSpacingPreset;
   narrationColor: string;
   dialogueColor: string;
   userNarrationColor: string;
@@ -38,6 +52,7 @@ export const DEFAULT_CHAT_DISPLAY_PREFS: ChatDisplayPrefs = {
   streamCharsPerTick: 1,
   fontFamily: "system",
   fontSizePreset: "medium",
+  paragraphSpacingPreset: "normal",
   narrationColor: "#fafafa",
   dialogueColor: "#fb923c",
   userNarrationColor: "#d4d4d8",
@@ -67,11 +82,64 @@ export function normalizeReadableTextColor(color: unknown, fallback: string): st
   return trimmed;
 }
 
+/** Includes quote-card (텍스트 이미지 저장) faces so chat settings stay aligned. */
 export const CHAT_FONT_OPTIONS = [
-  { id: "system", label: "시스템 기본", css: "system-ui, -apple-system, 'Segoe UI', sans-serif" },
-  { id: "sans", label: "고딕", css: "'Pretendard', 'Noto Sans KR', sans-serif" },
-  { id: "serif", label: "명조", css: "'Noto Serif KR', 'Nanum Myeongjo', serif" },
-  { id: "mono", label: "고정폭", css: "'Pretendard', ui-monospace, monospace" },
+  {
+    id: "system",
+    label: "시스템 기본",
+    css: 'system-ui, -apple-system, "Segoe UI", sans-serif',
+    loadName: "system-ui",
+    google: null as string | null,
+  },
+  {
+    id: "sans",
+    label: "고딕",
+    css: "'Pretendard', 'Noto Sans KR', sans-serif",
+    loadName: "Pretendard",
+    google: null as string | null,
+  },
+  {
+    id: "noto-serif",
+    label: "노토 명조",
+    css: '"Noto Serif KR", "Apple SD Gothic Neo", serif',
+    loadName: "Noto Serif KR",
+    google: "Noto+Serif+KR:wght@400;500;600",
+  },
+  {
+    id: "nanum-myeongjo",
+    label: "나눔명조",
+    css: '"Nanum Myeongjo", "Apple SD Gothic Neo", serif',
+    loadName: "Nanum Myeongjo",
+    google: "Nanum+Myeongjo:wght@400;700",
+  },
+  {
+    id: "gowun-batang",
+    label: "고운바탕",
+    css: '"Gowun Batang", "Apple SD Gothic Neo", serif',
+    loadName: "Gowun Batang",
+    google: "Gowun+Batang:wght@400;700",
+  },
+  {
+    id: "song-myung",
+    label: "송명",
+    css: '"Song Myung", "Apple SD Gothic Neo", serif',
+    loadName: "Song Myung",
+    google: "Song+Myung",
+  },
+  {
+    id: "serif",
+    label: "명조",
+    css: "'Noto Serif KR', 'Nanum Myeongjo', serif",
+    loadName: "Noto Serif KR",
+    google: "Noto+Serif+KR:wght@400;500;600",
+  },
+  {
+    id: "mono",
+    label: "고정폭",
+    css: "'Pretendard', ui-monospace, monospace",
+    loadName: "ui-monospace",
+    google: null as string | null,
+  },
 ] as const;
 
 const STORAGE_KEY = "playai-chat-display-prefs";
@@ -109,11 +177,72 @@ export function fontFamilyCss(id: string): string {
   return CHAT_FONT_OPTIONS.find((f) => f.id === id)?.css ?? CHAT_FONT_OPTIONS[0].css;
 }
 
+export function normalizeChatFontFamily(value: unknown): string {
+  if (typeof value === "string" && CHAT_FONT_OPTIONS.some((f) => f.id === value)) {
+    return value;
+  }
+  return DEFAULT_CHAT_DISPLAY_PREFS.fontFamily;
+}
+
 export function normalizeFontSizePreset(value: unknown): ChatFontSizePreset {
   if (value === "small" || value === "medium" || value === "large" || value === "xlarge") {
     return value;
   }
   return "medium";
+}
+
+export function normalizeParagraphSpacingPreset(value: unknown): ChatParagraphSpacingPreset {
+  if (value === "tight" || value === "normal" || value === "relaxed" || value === "loose") {
+    return value;
+  }
+  return "normal";
+}
+
+export function paragraphSpacingPresetScale(preset: ChatParagraphSpacingPreset): number {
+  return CHAT_PARAGRAPH_SPACING_PRESETS.find((p) => p.id === preset)?.scale ?? 1;
+}
+
+export function paragraphSpacingPresetLabel(preset: ChatParagraphSpacingPreset): string {
+  return CHAT_PARAGRAPH_SPACING_PRESETS.find((p) => p.id === preset)?.label ?? "보통";
+}
+
+export function paragraphSpacingPresetIndex(preset: ChatParagraphSpacingPreset): number {
+  const idx = CHAT_PARAGRAPH_SPACING_PRESETS.findIndex((p) => p.id === preset);
+  return idx >= 0 ? idx : 1;
+}
+
+export function paragraphSpacingPresetFromIndex(index: number): ChatParagraphSpacingPreset {
+  return (
+    CHAT_PARAGRAPH_SPACING_PRESETS[
+      Math.min(CHAT_PARAGRAPH_SPACING_PRESETS.length - 1, Math.max(0, index))
+    ]?.id ?? "normal"
+  );
+}
+
+let chatDisplayFontsPromise: Promise<void> | null = null;
+
+/** Load Google faces used by chat font options (same set as quote-card image save). */
+export function ensureChatDisplayWebFontsLoaded(): Promise<void> {
+  if (typeof document === "undefined") return Promise.resolve();
+  if (chatDisplayFontsPromise) return chatDisplayFontsPromise;
+  chatDisplayFontsPromise = (async () => {
+    const google = CHAT_FONT_OPTIONS.map((f) => f.google).filter(Boolean) as string[];
+    const unique = [...new Set(google)];
+    if (unique.length > 0) {
+      const id = "chat-display-google-fonts";
+      if (!document.getElementById(id)) {
+        const link = document.createElement("link");
+        link.id = id;
+        link.rel = "stylesheet";
+        link.href = `https://fonts.googleapis.com/css2?${unique
+          .map((f) => `family=${f}`)
+          .join("&")}&display=swap`;
+        document.head.appendChild(link);
+      }
+    }
+    if (document.fonts?.ready) await document.fonts.ready;
+  })();
+  return chatDisplayFontsPromise;
 }
 
 export function fontSizePresetFromLegacyPx(px: number): ChatFontSizePreset {
@@ -140,22 +269,27 @@ export function fontSizePresetFromIndex(index: number): ChatFontSizePreset {
   return CHAT_FONT_SIZE_PRESETS[Math.min(CHAT_FONT_SIZE_PRESETS.length - 1, Math.max(0, index))]?.id ?? "medium";
 }
 
-/** --font-size-chat-base(반응형) × 프리셋 배율 + 비례 line-height */
+/** --font-size-chat-base(반응형) × 프리셋 배율 + 비례 line-height + 문단 간격 */
 export function chatReadabilityStyle(
-  prefs: Pick<ChatDisplayPrefs, "fontSizePreset" | "fontFamily">
+  prefs: Pick<ChatDisplayPrefs, "fontSizePreset" | "fontFamily" | "paragraphSpacingPreset">
 ): CSSProperties {
   const scale = fontSizePresetScale(prefs.fontSizePreset);
   const lineBoost = (scale - 1) * 0.35;
+  const paragraphGapScale = paragraphSpacingPresetScale(prefs.paragraphSpacingPreset);
   return {
     fontFamily: fontFamilyCss(prefs.fontFamily),
     ["--font-size-chat-scale" as string]: String(scale),
     ["--font-size-chat" as string]: `calc(var(--font-size-chat-base) * ${scale})`,
     ["--line-height-chat" as string]: `calc(var(--line-height-chat-base) + ${lineBoost})`,
+    ["--chat-paragraph-gap-scale" as string]: String(paragraphGapScale),
   };
 }
 
 export function chatReadabilityRootStyle(
-  prefs: Pick<ChatDisplayPrefs, "fontSizePreset" | "fontFamily" | "narrationColor">
+  prefs: Pick<
+    ChatDisplayPrefs,
+    "fontSizePreset" | "fontFamily" | "paragraphSpacingPreset" | "narrationColor"
+  >
 ): CSSProperties {
   return {
     ...chatReadabilityStyle(prefs),
@@ -192,7 +326,9 @@ export function loadChatDisplayPrefs(): ChatDisplayPrefs {
       ...parsed,
       streamIntervalMs,
       streamCharsPerTick: streamCharsPerTickForInterval(streamIntervalMs),
+      fontFamily: normalizeChatFontFamily(parsed.fontFamily),
       fontSizePreset,
+      paragraphSpacingPreset: normalizeParagraphSpacingPreset(parsed.paragraphSpacingPreset),
       narrationColor: normalizeReadableTextColor(
         parsed.narrationColor,
         DEFAULT_CHAT_DISPLAY_PREFS.narrationColor

@@ -157,6 +157,7 @@ body {
 :root {
   --font-size-chat-base: 0.9375rem; /* ~15px @ 16px root — 모바일 */
   --line-height-chat-base: 1.65;
+  --chat-paragraph-gap-scale: 1;
   --chat-narration-color: #fafafa;
 }
 

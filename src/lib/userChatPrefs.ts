@@ -2,7 +2,9 @@ import { DEFAULT_TARGET_RESPONSE_CHARS, normalizeTargetResponseChars } from "@/l
 import {
   DEFAULT_CHAT_DISPLAY_PREFS,
   loadChatDisplayPrefs,
+  normalizeChatFontFamily,
   normalizeFontSizePreset,
+  normalizeParagraphSpacingPreset,
   normalizePortraitBackgroundOpacity,
   normalizeReadableTextColor,
   normalizeShowCharacterPortrait,
@@ -38,7 +40,9 @@ function normalizeDisplayPrefs(raw: Partial<ChatDisplayPrefs> | undefined): Chat
     ...raw,
     streamIntervalMs,
     streamCharsPerTick: streamCharsPerTickForInterval(streamIntervalMs),
+    fontFamily: normalizeChatFontFamily(raw.fontFamily),
     fontSizePreset: normalizeFontSizePreset(raw.fontSizePreset ?? raw.fontSizePx),
+    paragraphSpacingPreset: normalizeParagraphSpacingPreset(raw.paragraphSpacingPreset),
     narrationColor: normalizeReadableTextColor(
       raw.narrationColor,
       DEFAULT_CHAT_DISPLAY_PREFS.narrationColor

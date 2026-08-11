@@ -488,9 +488,18 @@ describe("fixCommonJapaneseLeaksInKoreanProse", () => {
 
 describe("novelParagraphSpacingClass", () => {
   it("adds larger gap when crossing narration and dialogue", () => {
-    assert.equal(novelParagraphSpacingClass("dialogue", "narration", "ai"), "mt-[1.5em]");
-    assert.equal(novelParagraphSpacingClass("narration", "dialogue", "ai"), "mt-[1.5em]");
-    assert.equal(novelParagraphSpacingClass("narration", "narration", "ai"), "mt-[1em]");
+    assert.equal(
+      novelParagraphSpacingClass("dialogue", "narration", "ai"),
+      "mt-[calc(1.5em*var(--chat-paragraph-gap-scale,1))]"
+    );
+    assert.equal(
+      novelParagraphSpacingClass("narration", "dialogue", "ai"),
+      "mt-[calc(1.5em*var(--chat-paragraph-gap-scale,1))]"
+    );
+    assert.equal(
+      novelParagraphSpacingClass("narration", "narration", "ai"),
+      "mt-[calc(1em*var(--chat-paragraph-gap-scale,1))]"
+    );
   });
 
   it("uses tight Enter-based gaps in author mode (match edit textarea)", () => {

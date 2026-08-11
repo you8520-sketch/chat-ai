@@ -13,11 +13,16 @@ import type { PersonaSecretSettingsCapability } from "@/lib/personaSecretCapabil
 import {
   CHAT_FONT_OPTIONS,
   CHAT_FONT_SIZE_PRESETS,
+  CHAT_PARAGRAPH_SPACING_PRESETS,
   DEFAULT_CHAT_DISPLAY_PREFS,
+  ensureChatDisplayWebFontsLoaded,
   fontSizePresetFromIndex,
   fontSizePresetIndex,
   fontSizePresetLabel,
   formatStreamIntervalLabel,
+  paragraphSpacingPresetFromIndex,
+  paragraphSpacingPresetIndex,
+  paragraphSpacingPresetLabel,
   STREAM_INTERVAL_MAX,
   STREAM_INTERVAL_MIN,
   STREAM_INTERVAL_STEP,
@@ -1108,9 +1113,15 @@ function DisplaySettingsSection({
 
       <section>
         <p className="mb-2 font-bold text-violet-300">글꼴</p>
+        <p className="mb-2 text-[10px] text-zinc-600">
+          텍스트 이미지 저장에 쓰는 명조체(노토·나눔·고운바탕·송명) 포함
+        </p>
         <select
           value={displayPrefs.fontFamily}
-          onChange={(e) => onDisplayPrefsChange({ ...displayPrefs, fontFamily: e.target.value })}
+          onChange={(e) => {
+            void ensureChatDisplayWebFontsLoaded();
+            onDisplayPrefsChange({ ...displayPrefs, fontFamily: e.target.value });
+          }}
           className="w-full rounded-lg border border-white/10 bg-[#1a1a1a] px-2 py-2 text-zinc-200 outline-none focus:border-violet-500/50"
         >
           {CHAT_FONT_OPTIONS.map((f) => (
@@ -1119,6 +1130,38 @@ function DisplaySettingsSection({
             </option>
           ))}
         </select>
+      </section>
+
+      <section>
+        <p className="mb-2 font-bold text-violet-300">문단 간격</p>
+        <p className="mb-2 text-[10px] text-zinc-600">
+          AI 답변 문단 사이 여백 · 변경 즉시 반영 (이 기기)
+        </p>
+        <label className="block">
+          <span className="mb-1 flex justify-between text-[10px] text-zinc-500">
+            <span>간격</span>
+            <span>{paragraphSpacingPresetLabel(displayPrefs.paragraphSpacingPreset)}</span>
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={CHAT_PARAGRAPH_SPACING_PRESETS.length - 1}
+            step={1}
+            value={paragraphSpacingPresetIndex(displayPrefs.paragraphSpacingPreset)}
+            onChange={(e) =>
+              onDisplayPrefsChange({
+                ...displayPrefs,
+                paragraphSpacingPreset: paragraphSpacingPresetFromIndex(Number(e.target.value)),
+              })
+            }
+            className="w-full accent-violet-500"
+          />
+          <span className="mt-1 flex justify-between text-[10px] text-zinc-600">
+            {CHAT_PARAGRAPH_SPACING_PRESETS.map((p) => (
+              <span key={p.id}>{p.label}</span>
+            ))}
+          </span>
+        </label>
       </section>
 
       <section>
