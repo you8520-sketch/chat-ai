@@ -4,8 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   canShareQuoteCardPng,
   copyQuoteCardPng,
+  listQuoteCardDialogueEntries,
   prepareQuoteCardSaveFallbackWindow,
   saveQuoteCardPngWithFallback,
+  type QuoteCardDialogueStyle,
   type QuoteCardFontId,
   type QuoteCardOrientation,
   type QuoteCardThemeId,
@@ -102,7 +104,9 @@ export default function ChatSelectionQuoteToolbar({
   const [bodyFontSize, setBodyFontSize] = useState(QUOTE_CARD_BODY_FONT_DEFAULT);
   const [fontId, setFontId] = useState<QuoteCardFontId>("noto-serif");
   const [themeId, setThemeId] = useState<QuoteCardThemeId>("white");
-  const [speechBubbles, setSpeechBubbles] = useState(true);
+  const [dialogueStyle, setDialogueStyle] = useState<QuoteCardDialogueStyle>("bubble");
+  const [speakerDrafts, setSpeakerDrafts] = useState<string[]>([]);
+  const [dialoguePreviews, setDialoguePreviews] = useState<string[]>([]);
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -171,6 +175,19 @@ export default function ChatSelectionQuoteToolbar({
     if (backgroundInputRef.current) backgroundInputRef.current.value = "";
   }, []);
 
+  const syncSpeakerDrafts = useCallback(
+    (text: string, overrides?: Record<number, string>) => {
+      const entries = listQuoteCardDialogueEntries(text, {
+        defaultSpeaker: characterName,
+        overrides,
+      });
+      setSpeakerDrafts(entries.map((e) => e.speaker));
+      setDialoguePreviews(entries.map((e) => e.preview));
+      return entries.map((e) => e.speaker);
+    },
+    [characterName]
+  );
+
   const clearAll = useCallback(() => {
     setPending(null);
     setModalOpen(false);
@@ -178,7 +195,9 @@ export default function ChatSelectionQuoteToolbar({
     setBodyFontSize(QUOTE_CARD_BODY_FONT_DEFAULT);
     setFontId("noto-serif");
     setThemeId("white");
-    setSpeechBubbles(true);
+    setDialogueStyle("bubble");
+    setSpeakerDrafts([]);
+    setDialoguePreviews([]);
     revokePreviewUrl();
     revokeSessionImages();
     setPreview(null);
@@ -194,7 +213,9 @@ export default function ChatSelectionQuoteToolbar({
     revokePreviewUrl();
     revokeSessionImages();
     setPreview(null);
-    setSpeechBubbles(true);
+    setDialogueStyle("bubble");
+    setSpeakerDrafts([]);
+    setDialoguePreviews([]);
     setOrientation("portrait");
     setBodyFontSize(QUOTE_CARD_BODY_FONT_DEFAULT);
     setFontId("noto-serif");
@@ -206,9 +227,10 @@ export default function ChatSelectionQuoteToolbar({
       text: string,
       nextOrientation: QuoteCardOrientation,
       nextBodyFontSize: number,
-      nextSpeechBubbles: boolean,
+      nextDialogueStyle: QuoteCardDialogueStyle,
       nextFontId: QuoteCardFontId,
-      nextThemeId: QuoteCardThemeId
+      nextThemeId: QuoteCardThemeId,
+      nextSpeakers: string[]
     ) => {
       const viewportW = typeof window !== "undefined" ? window.innerWidth : 800;
       const viewportH = typeof window !== "undefined" ? window.innerHeight : 600;
@@ -232,6 +254,9 @@ export default function ChatSelectionQuoteToolbar({
       try {
         const themeStyle = styleFromQuoteCardTheme(nextThemeId);
         const font = quoteCardFontById(nextFontId);
+        const speakerOverrides = Object.fromEntries(
+          nextSpeakers.map((name, index) => [index, name])
+        );
         const { blob, width, height } = await renderQuoteCardPngBlob(
           {
             bodyText: text,
@@ -243,10 +268,12 @@ export default function ChatSelectionQuoteToolbar({
             ...themeStyle,
             bodyFontSize: nextBodyFontSize,
             bodyFontFamily: font.css,
-            speechBubbles: nextSpeechBubbles,
+            dialogueStyle: nextDialogueStyle,
             avatarImage: avatarImageRef.current,
             backgroundImage: backgroundImageRef.current,
             characterInitial: characterName.trim()[0] || "?",
+            defaultSpeakerName: characterName,
+            speakerOverrides,
           }
         );
         revokePreviewUrl();
@@ -276,9 +303,10 @@ export default function ChatSelectionQuoteToolbar({
       text: string,
       nextOrientation: QuoteCardOrientation,
       nextBodyFontSize: number,
-      nextSpeechBubbles: boolean,
+      nextDialogueStyle: QuoteCardDialogueStyle,
       nextFontId: QuoteCardFontId,
       nextThemeId: QuoteCardThemeId,
+      nextSpeakers: string[],
       delayMs = 0
     ) => {
       if (fontRenderTimerRef.current) {
@@ -290,9 +318,10 @@ export default function ChatSelectionQuoteToolbar({
           text,
           nextOrientation,
           nextBodyFontSize,
-          nextSpeechBubbles,
+          nextDialogueStyle,
           nextFontId,
-          nextThemeId
+          nextThemeId,
+          nextSpeakers
         );
       }, delayMs);
     },
@@ -301,24 +330,52 @@ export default function ChatSelectionQuoteToolbar({
 
   const openPreviewModal = useCallback(() => {
     if (!pending) return;
+    const speakers = syncSpeakerDrafts(pending.text);
     setModalOpen(true);
     void renderPreview(
       pending.text,
       orientation,
       bodyFontSize,
-      speechBubbles,
+      dialogueStyle,
       fontId,
-      themeId
+      themeId,
+      speakers
     );
-  }, [pending, orientation, bodyFontSize, speechBubbles, fontId, themeId, renderPreview]);
+  }, [
+    pending,
+    orientation,
+    bodyFontSize,
+    dialogueStyle,
+    fontId,
+    themeId,
+    renderPreview,
+    syncSpeakerDrafts,
+  ]);
 
   const changeOrientation = useCallback(
     (next: QuoteCardOrientation) => {
       if (!pending || next === orientation) return;
       setOrientation(next);
-      void renderPreview(pending.text, next, bodyFontSize, speechBubbles, fontId, themeId);
+      void renderPreview(
+        pending.text,
+        next,
+        bodyFontSize,
+        dialogueStyle,
+        fontId,
+        themeId,
+        speakerDrafts
+      );
     },
-    [pending, orientation, bodyFontSize, speechBubbles, fontId, themeId, renderPreview]
+    [
+      pending,
+      orientation,
+      bodyFontSize,
+      dialogueStyle,
+      fontId,
+      themeId,
+      speakerDrafts,
+      renderPreview,
+    ]
   );
 
   const changeBodyFontSize = useCallback(
@@ -333,13 +390,23 @@ export default function ChatSelectionQuoteToolbar({
         pending.text,
         orientation,
         clamped,
-        speechBubbles,
+        dialogueStyle,
         fontId,
         themeId,
+        speakerDrafts,
         120
       );
     },
-    [pending, modalOpen, orientation, speechBubbles, fontId, themeId, schedulePreviewRender]
+    [
+      pending,
+      modalOpen,
+      orientation,
+      dialogueStyle,
+      fontId,
+      themeId,
+      speakerDrafts,
+      schedulePreviewRender,
+    ]
   );
 
   const changeFontId = useCallback(
@@ -350,12 +417,22 @@ export default function ChatSelectionQuoteToolbar({
         pending.text,
         orientation,
         bodyFontSize,
-        speechBubbles,
+        dialogueStyle,
         next,
-        themeId
+        themeId,
+        speakerDrafts
       );
     },
-    [pending, fontId, orientation, bodyFontSize, speechBubbles, themeId, renderPreview]
+    [
+      pending,
+      fontId,
+      orientation,
+      bodyFontSize,
+      dialogueStyle,
+      themeId,
+      speakerDrafts,
+      renderPreview,
+    ]
   );
 
   const changeThemeId = useCallback(
@@ -366,21 +443,79 @@ export default function ChatSelectionQuoteToolbar({
         pending.text,
         orientation,
         bodyFontSize,
-        speechBubbles,
+        dialogueStyle,
         fontId,
-        next
+        next,
+        speakerDrafts
       );
     },
-    [pending, themeId, orientation, bodyFontSize, speechBubbles, fontId, renderPreview]
+    [
+      pending,
+      themeId,
+      orientation,
+      bodyFontSize,
+      dialogueStyle,
+      fontId,
+      speakerDrafts,
+      renderPreview,
+    ]
   );
 
-  const changeSpeechBubbles = useCallback(
-    (next: boolean) => {
-      setSpeechBubbles(next);
+  const changeDialogueStyle = useCallback(
+    (next: QuoteCardDialogueStyle) => {
+      setDialogueStyle(next);
       if (!pending || !modalOpen) return;
-      void renderPreview(pending.text, orientation, bodyFontSize, next, fontId, themeId);
+      void renderPreview(
+        pending.text,
+        orientation,
+        bodyFontSize,
+        next,
+        fontId,
+        themeId,
+        speakerDrafts
+      );
     },
-    [pending, modalOpen, orientation, bodyFontSize, fontId, themeId, renderPreview]
+    [
+      pending,
+      modalOpen,
+      orientation,
+      bodyFontSize,
+      fontId,
+      themeId,
+      speakerDrafts,
+      renderPreview,
+    ]
+  );
+
+  const changeSpeakerDraft = useCallback(
+    (index: number, value: string) => {
+      setSpeakerDrafts((prev) => {
+        const next = prev.map((s, i) => (i === index ? value : s));
+        if (pending && modalOpen) {
+          schedulePreviewRender(
+            pending.text,
+            orientation,
+            bodyFontSize,
+            dialogueStyle,
+            fontId,
+            themeId,
+            next,
+            160
+          );
+        }
+        return next;
+      });
+    },
+    [
+      pending,
+      modalOpen,
+      orientation,
+      bodyFontSize,
+      dialogueStyle,
+      fontId,
+      themeId,
+      schedulePreviewRender,
+    ]
   );
 
   const onAvatarFile = useCallback(
@@ -396,15 +531,26 @@ export default function ChatSelectionQuoteToolbar({
           pending.text,
           orientation,
           bodyFontSize,
-          speechBubbles,
+          dialogueStyle,
           fontId,
-          themeId
+          themeId,
+          speakerDrafts
         );
       } catch {
         onToast("캐릭터 사진을 불러오지 못했습니다.");
       }
     },
-    [pending, orientation, bodyFontSize, speechBubbles, fontId, themeId, renderPreview, onToast]
+    [
+      pending,
+      orientation,
+      bodyFontSize,
+      dialogueStyle,
+      fontId,
+      themeId,
+      speakerDrafts,
+      renderPreview,
+      onToast,
+    ]
   );
 
   const onBackgroundFile = useCallback(
@@ -420,15 +566,26 @@ export default function ChatSelectionQuoteToolbar({
           pending.text,
           orientation,
           bodyFontSize,
-          speechBubbles,
+          dialogueStyle,
           fontId,
-          themeId
+          themeId,
+          speakerDrafts
         );
       } catch {
         onToast("배경 이미지를 불러오지 못했습니다.");
       }
     },
-    [pending, orientation, bodyFontSize, speechBubbles, fontId, themeId, renderPreview, onToast]
+    [
+      pending,
+      orientation,
+      bodyFontSize,
+      dialogueStyle,
+      fontId,
+      themeId,
+      speakerDrafts,
+      renderPreview,
+      onToast,
+    ]
   );
 
   const clearBackground = useCallback(() => {
@@ -444,11 +601,21 @@ export default function ChatSelectionQuoteToolbar({
       pending.text,
       orientation,
       bodyFontSize,
-      speechBubbles,
+      dialogueStyle,
       fontId,
-      themeId
+      themeId,
+      speakerDrafts
     );
-  }, [pending, orientation, bodyFontSize, speechBubbles, fontId, themeId, renderPreview]);
+  }, [
+    pending,
+    orientation,
+    bodyFontSize,
+    dialogueStyle,
+    fontId,
+    themeId,
+    speakerDrafts,
+    renderPreview,
+  ]);
 
   useEffect(() => {
     return () => {
@@ -792,33 +959,78 @@ export default function ChatSelectionQuoteToolbar({
                   </button>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    disabled={preview?.loading}
-                    onClick={() => changeSpeechBubbles(!speechBubbles)}
-                    className={`${chipBtn} ${speechBubbles ? chipActive : chipIdle}`}
-                  >
-                    말풍선 {speechBubbles ? "ON" : "OFF"}
-                  </button>
-                  <label className="flex min-w-[10rem] flex-1 items-center gap-2 text-sm text-zinc-700">
-                    <span className="shrink-0 font-semibold text-zinc-900">크기</span>
-                    <input
-                      type="range"
-                      min={QUOTE_CARD_BODY_FONT_MIN}
-                      max={QUOTE_CARD_BODY_FONT_MAX}
-                      step={1}
-                      value={bodyFontSize}
-                      disabled={preview?.loading}
-                      onChange={(e) => changeBodyFontSize(Number(e.target.value))}
-                      className="h-2 w-full accent-violet-600"
-                      aria-label="글자 크기"
-                    />
-                    <span className="shrink-0 tabular-nums font-semibold text-zinc-900">
-                      {bodyFontSize}
-                    </span>
-                  </label>
+                <div>
+                  <p className="mb-1.5 text-xs font-bold text-zinc-900">대사 스타일</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(
+                      [
+                        { id: "off", label: "끄기" },
+                        { id: "bubble", label: "말풍선" },
+                        { id: "accent", label: "강조선" },
+                      ] as const
+                    ).map((opt) => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        disabled={preview?.loading}
+                        onClick={() => changeDialogueStyle(opt.id)}
+                        className={`${chipBtn} ${
+                          dialogueStyle === opt.id ? chipActive : chipIdle
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
+                <label className="flex min-w-[10rem] items-center gap-2 text-sm text-zinc-700">
+                  <span className="shrink-0 font-semibold text-zinc-900">크기</span>
+                  <input
+                    type="range"
+                    min={QUOTE_CARD_BODY_FONT_MIN}
+                    max={QUOTE_CARD_BODY_FONT_MAX}
+                    step={1}
+                    value={bodyFontSize}
+                    disabled={preview?.loading}
+                    onChange={(e) => changeBodyFontSize(Number(e.target.value))}
+                    className="h-2 w-full accent-violet-600"
+                    aria-label="글자 크기"
+                  />
+                  <span className="shrink-0 tabular-nums font-semibold text-zinc-900">
+                    {bodyFontSize}
+                  </span>
+                </label>
+
+                {dialogueStyle !== "off" && speakerDrafts.length > 1 ? (
+                  <div>
+                    <p className="mb-1.5 text-xs font-bold text-zinc-900">화자 이름</p>
+                    <p className="mb-2 text-[11px] leading-snug text-zinc-500">
+                      여러 대사가 있으면 자동으로 구분합니다. 이름을 직접 고칠 수 있어요.
+                    </p>
+                    <div className="flex flex-col gap-2">
+                      {speakerDrafts.map((speaker, index) => (
+                        <label
+                          key={`speaker-${index}`}
+                          className="flex flex-col gap-1 rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-2"
+                        >
+                          <span className="truncate text-[11px] text-zinc-500">
+                            {dialoguePreviews[index] || `대사 ${index + 1}`}
+                          </span>
+                          <input
+                            type="text"
+                            value={speaker}
+                            disabled={preview?.loading}
+                            onChange={(e) => changeSpeakerDraft(index, e.target.value)}
+                            className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 outline-none focus:border-violet-400"
+                            aria-label={`화자 ${index + 1} 이름`}
+                            maxLength={32}
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
 
                 <div>
                   <p className="mb-1.5 text-xs font-bold text-zinc-900">글씨체</p>
