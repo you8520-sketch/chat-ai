@@ -740,7 +740,7 @@ export default function ChatImageGeneratorPanel({
         }));
       }
       updateBalance(data);
-      setNotice("840×1400 페르소나 이미지를 완성했습니다. 저장하기로 내려받을 수 있습니다.");
+      setNotice("864×1440 페르소나 이미지를 완성했습니다. 저장하기로 내려받을 수 있습니다.");
       void loadInfo();
     } catch (caught) {
       const timedOut = caught instanceof DOMException && caught.name === "AbortError";
@@ -1093,7 +1093,7 @@ export default function ChatImageGeneratorPanel({
                     <p className="text-center text-[10px] leading-relaxed text-zinc-500">
                       {activeResultUrl
                         ? activeMode === "persona"
-                          ? "생성 결과는 840×1400 WebP로 저장되며 아래 버튼으로 내려받을 수 있습니다."
+                          ? "생성 결과는 864×1440 WebP로 저장되며 아래 버튼으로 내려받을 수 있습니다."
                           : activeSaved
                           ? "캐릭터 앨범에 저장된 이미지입니다."
                           : "생성 결과는 기존 캐릭터 이미지 앨범에 자동으로 추가됩니다."
@@ -1421,7 +1421,7 @@ export default function ChatImageGeneratorPanel({
                               {info?.persona?.appearancePreview || "인식 가능한 외관 설정이 없습니다."}
                             </p>
                             <p className="text-zinc-500">
-                              캐릭터 이미지는 외형이 아니라 그림체 참조로만 전달됩니다. 840×1400(3:5)로 직접 생성하고, 공급자 응답 크기가 다를 때만 중앙 기준으로 안전하게 보정합니다.
+                              캐릭터 이미지는 외형이 아니라 그림체 참조로만 전달됩니다. 864×1440(3:5)로 직접 생성하고, 공급자 응답 크기가 다를 때만 중앙 기준으로 안전하게 보정합니다.
                             </p>
                           </div>
                         ) : null}

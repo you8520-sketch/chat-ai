@@ -8,10 +8,11 @@ import { buildChatImageSubjectGenderLock } from "@/lib/chatImageGender";
 export const CHAT_PERSONA_IMAGE_TEMPLATE_ID = "persona_portrait_ld" as const;
 export const CHAT_PERSONA_IMAGE_TEMPLATE_NAME = "페르소나 3:5 LD 이미지";
 
-export const CHAT_PERSONA_IMAGE_OUTPUT_WIDTH = 840;
-export const CHAT_PERSONA_IMAGE_OUTPUT_HEIGHT = 1400;
-// GPT Image 2 accepts flexible dimensions. Keep a post-response size check in
-// the route as a defensive fallback for configured provider/model overrides.
+// OpenAI Images requires both sides divisible by 16; keep exact 3:5.
+export const CHAT_PERSONA_IMAGE_OUTPUT_WIDTH = 864;
+export const CHAT_PERSONA_IMAGE_OUTPUT_HEIGHT = 1440;
+// Keep a post-response size check in the route as a defensive fallback for
+// configured provider/model overrides.
 export const CHAT_PERSONA_IMAGE_API_OUTPUT_SIZE =
   `${CHAT_PERSONA_IMAGE_OUTPUT_WIDTH}x${CHAT_PERSONA_IMAGE_OUTPUT_HEIGHT}` as const;
 export const CHAT_PERSONA_IMAGE_QUALITY = "medium" as const;
@@ -75,7 +76,7 @@ export function buildChatPersonaImagePrompt(opts: {
     "Preserve every concrete appearance feature above. Do not invent conflicting hair, eye, body, clothing, accessory, species, or gender traits.",
     "Use a clean, cohesive, profile-friendly composition with the face and important details away from crop edges. Neutral simple background that complements the reference artwork.",
     "No other people, duplicate body, text, caption, signature, logo, watermark, frame, comic panel, or speech bubble.",
-    "Compose natively for an exact 840x1400 pixel canvas (3:5). Keep safe space in case a provider override requires a centered fallback crop.",
+    "Compose natively for an exact 864x1440 pixel canvas (3:5). Keep safe space in case a provider override requires a centered fallback crop.",
   ].join("\n\n");
 }
 
