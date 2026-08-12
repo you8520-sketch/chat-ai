@@ -34,12 +34,14 @@ describe("computeAspectCaptureRect", () => {
 });
 
 describe("quoteCardDimensions", () => {
-  it("exports fixed 2:3, 1:1, and 3:2 cards", () => {
+  it("exports fixed 900px width regardless of legacy orientation", () => {
     const portrait = quoteCardDimensions("portrait");
     const square = quoteCardDimensions("square");
     const landscape = quoteCardDimensions("landscape");
-    assert.equal(portrait.width / portrait.height, 2 / 3);
-    assert.equal(square.width / square.height, 1);
-    assert.equal(landscape.width / landscape.height, 3 / 2);
+    assert.equal(portrait.width, 900);
+    assert.equal(square.width, 900);
+    assert.equal(landscape.width, 900);
+    assert.equal(portrait.height, square.height);
+    assert.equal(square.height, landscape.height);
   });
 });
