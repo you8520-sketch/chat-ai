@@ -11,9 +11,8 @@ import {
   type QuoteCardAvatarFocus,
   type QuoteCardDialogueStyle,
   type QuoteCardFontId,
-  type QuoteCardOrientation,
   type QuoteCardThemeId,
-  quoteCardDimensions,
+  QUOTE_CARD_WIDTH,
   quoteCardFontById,
   QUOTE_CARD_AVATAR_FOCUS_DEFAULT,
   QUOTE_CARD_BODY_FONT_DEFAULT,
@@ -37,7 +36,6 @@ type PendingCapture = {
 type PreviewState = {
   blob: Blob;
   blobUrl: string;
-  orientation: QuoteCardOrientation;
   loading: boolean;
   cardWidth: number;
   cardHeight: number;
@@ -122,7 +120,6 @@ export default function ChatSelectionQuoteToolbar({
 }) {
   const [pending, setPending] = useState<PendingCapture | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
-  const [orientation, setOrientation] = useState<QuoteCardOrientation>("portrait");
   const [bodyFontSize, setBodyFontSize] = useState(QUOTE_CARD_BODY_FONT_DEFAULT);
   const [fontId, setFontId] = useState<QuoteCardFontId>("noto-serif");
   const [themeId, setThemeId] = useState<QuoteCardThemeId>("white");
@@ -235,7 +232,6 @@ export default function ChatSelectionQuoteToolbar({
   const clearAll = useCallback(() => {
     setPending(null);
     setModalOpen(false);
-    setOrientation("portrait");
     setBodyFontSize(QUOTE_CARD_BODY_FONT_DEFAULT);
     setFontId("noto-serif");
     setThemeId("white");
@@ -260,7 +256,6 @@ export default function ChatSelectionQuoteToolbar({
     setDialogueStyle("bubble");
     setSpeakerDrafts([]);
     setDialoguePreviews([]);
-    setOrientation("portrait");
     setBodyFontSize(QUOTE_CARD_BODY_FONT_DEFAULT);
     setFontId("noto-serif");
     setThemeId("white");
@@ -269,7 +264,6 @@ export default function ChatSelectionQuoteToolbar({
   const renderPreview = useCallback(
     async (
       text: string,
-      nextOrientation: QuoteCardOrientation,
       nextBodyFontSize: number,
       nextDialogueStyle: QuoteCardDialogueStyle,
       nextFontId: QuoteCardFontId,
@@ -278,20 +272,18 @@ export default function ChatSelectionQuoteToolbar({
     ) => {
       const viewportW = typeof window !== "undefined" ? window.innerWidth : 800;
       const viewportH = typeof window !== "undefined" ? window.innerHeight : 600;
-      const cardDims = quoteCardDimensions(nextOrientation);
       const baseDims = scaleQuoteCardForViewport(
-        cardDims.width,
-        cardDims.height,
+        QUOTE_CARD_WIDTH,
+        900,
         viewportW,
         viewportH
       );
       setPreview({
         blob: new Blob(),
         blobUrl: "",
-        orientation: nextOrientation,
         loading: true,
-        cardWidth: cardDims.width,
-        cardHeight: cardDims.height,
+        cardWidth: QUOTE_CARD_WIDTH,
+        cardHeight: 900,
         displayWidth: baseDims.width,
         displayHeight: baseDims.height,
       });
@@ -306,7 +298,6 @@ export default function ChatSelectionQuoteToolbar({
             bodyText: text,
             characterName,
             creatorName,
-            orientation: nextOrientation,
           },
           {
             ...themeStyle,
@@ -328,7 +319,6 @@ export default function ChatSelectionQuoteToolbar({
         setPreview({
           blob,
           blobUrl,
-          orientation: nextOrientation,
           loading: false,
           cardWidth: width,
           cardHeight: height,
@@ -346,7 +336,6 @@ export default function ChatSelectionQuoteToolbar({
   const schedulePreviewRender = useCallback(
     (
       text: string,
-      nextOrientation: QuoteCardOrientation,
       nextBodyFontSize: number,
       nextDialogueStyle: QuoteCardDialogueStyle,
       nextFontId: QuoteCardFontId,
@@ -361,7 +350,6 @@ export default function ChatSelectionQuoteToolbar({
         fontRenderTimerRef.current = null;
         void renderPreview(
           text,
-          nextOrientation,
           nextBodyFontSize,
           nextDialogueStyle,
           nextFontId,
@@ -379,7 +367,6 @@ export default function ChatSelectionQuoteToolbar({
     setModalOpen(true);
     void renderPreview(
       pending.text,
-      orientation,
       bodyFontSize,
       dialogueStyle,
       fontId,
@@ -388,7 +375,6 @@ export default function ChatSelectionQuoteToolbar({
     );
   }, [
     pending,
-    orientation,
     bodyFontSize,
     dialogueStyle,
     fontId,
@@ -396,32 +382,6 @@ export default function ChatSelectionQuoteToolbar({
     renderPreview,
     syncSpeakerDrafts,
   ]);
-
-  const changeOrientation = useCallback(
-    (next: QuoteCardOrientation) => {
-      if (!pending || next === orientation) return;
-      setOrientation(next);
-      void renderPreview(
-        pending.text,
-        next,
-        bodyFontSize,
-        dialogueStyle,
-        fontId,
-        themeId,
-        speakerDrafts
-      );
-    },
-    [
-      pending,
-      orientation,
-      bodyFontSize,
-      dialogueStyle,
-      fontId,
-      themeId,
-      speakerDrafts,
-      renderPreview,
-    ]
-  );
 
   const changeBodyFontSize = useCallback(
     (next: number) => {
@@ -433,7 +393,6 @@ export default function ChatSelectionQuoteToolbar({
       if (!pending || !modalOpen) return;
       schedulePreviewRender(
         pending.text,
-        orientation,
         clamped,
         dialogueStyle,
         fontId,
@@ -445,7 +404,6 @@ export default function ChatSelectionQuoteToolbar({
     [
       pending,
       modalOpen,
-      orientation,
       dialogueStyle,
       fontId,
       themeId,
@@ -460,7 +418,6 @@ export default function ChatSelectionQuoteToolbar({
       setFontId(next);
       void renderPreview(
         pending.text,
-        orientation,
         bodyFontSize,
         dialogueStyle,
         next,
@@ -471,7 +428,6 @@ export default function ChatSelectionQuoteToolbar({
     [
       pending,
       fontId,
-      orientation,
       bodyFontSize,
       dialogueStyle,
       themeId,
@@ -486,7 +442,6 @@ export default function ChatSelectionQuoteToolbar({
       setThemeId(next);
       void renderPreview(
         pending.text,
-        orientation,
         bodyFontSize,
         dialogueStyle,
         fontId,
@@ -497,7 +452,6 @@ export default function ChatSelectionQuoteToolbar({
     [
       pending,
       themeId,
-      orientation,
       bodyFontSize,
       dialogueStyle,
       fontId,
@@ -512,7 +466,6 @@ export default function ChatSelectionQuoteToolbar({
       if (!pending || !modalOpen) return;
       void renderPreview(
         pending.text,
-        orientation,
         bodyFontSize,
         next,
         fontId,
@@ -523,7 +476,6 @@ export default function ChatSelectionQuoteToolbar({
     [
       pending,
       modalOpen,
-      orientation,
       bodyFontSize,
       fontId,
       themeId,
@@ -539,7 +491,6 @@ export default function ChatSelectionQuoteToolbar({
         if (pending && modalOpen) {
           schedulePreviewRender(
             pending.text,
-            orientation,
             bodyFontSize,
             dialogueStyle,
             fontId,
@@ -554,7 +505,6 @@ export default function ChatSelectionQuoteToolbar({
     [
       pending,
       modalOpen,
-      orientation,
       bodyFontSize,
       dialogueStyle,
       fontId,
@@ -574,7 +524,6 @@ export default function ChatSelectionQuoteToolbar({
       if (!pending || !modalOpen) return;
       schedulePreviewRender(
         pending.text,
-        orientation,
         bodyFontSize,
         dialogueStyle,
         fontId,
@@ -586,7 +535,6 @@ export default function ChatSelectionQuoteToolbar({
     [
       pending,
       modalOpen,
-      orientation,
       bodyFontSize,
       dialogueStyle,
       fontId,
@@ -655,7 +603,6 @@ export default function ChatSelectionQuoteToolbar({
         resetAvatarFocus();
         void renderPreview(
           pending.text,
-          orientation,
           bodyFontSize,
           dialogueStyle,
           fontId,
@@ -668,7 +615,6 @@ export default function ChatSelectionQuoteToolbar({
     },
     [
       pending,
-      orientation,
       bodyFontSize,
       dialogueStyle,
       fontId,
@@ -691,7 +637,6 @@ export default function ChatSelectionQuoteToolbar({
         setHasBackground(true);
         void renderPreview(
           pending.text,
-          orientation,
           bodyFontSize,
           dialogueStyle,
           fontId,
@@ -704,7 +649,6 @@ export default function ChatSelectionQuoteToolbar({
     },
     [
       pending,
-      orientation,
       bodyFontSize,
       dialogueStyle,
       fontId,
@@ -726,7 +670,6 @@ export default function ChatSelectionQuoteToolbar({
     if (!pending) return;
     void renderPreview(
       pending.text,
-      orientation,
       bodyFontSize,
       dialogueStyle,
       fontId,
@@ -735,7 +678,6 @@ export default function ChatSelectionQuoteToolbar({
     );
   }, [
     pending,
-    orientation,
     bodyFontSize,
     dialogueStyle,
     fontId,
@@ -1053,38 +995,6 @@ export default function ChatSelectionQuoteToolbar({
 
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
               <div className="flex flex-col gap-3 px-4 py-3">
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    disabled={preview?.loading}
-                    onClick={() => changeOrientation("portrait")}
-                    className={`${chipBtn} ${
-                      orientation === "portrait" ? chipActive : chipIdle
-                    }`}
-                  >
-                    세로
-                  </button>
-                  <button
-                    type="button"
-                    disabled={preview?.loading}
-                    onClick={() => changeOrientation("square")}
-                    className={`${chipBtn} ${
-                      orientation === "square" ? chipActive : chipIdle
-                    }`}
-                  >
-                    정사각
-                  </button>
-                  <button
-                    type="button"
-                    disabled={preview?.loading}
-                    onClick={() => changeOrientation("landscape")}
-                    className={`${chipBtn} ${
-                      orientation === "landscape" ? chipActive : chipIdle
-                    }`}
-                  >
-                    가로
-                  </button>
-                </div>
 
                 <div>
                   <p className="mb-1.5 text-xs font-bold text-zinc-900">대사 스타일</p>
@@ -1111,23 +1021,28 @@ export default function ChatSelectionQuoteToolbar({
                   </div>
                 </div>
 
-                <label className="flex min-w-[10rem] items-center gap-2 text-sm text-zinc-700">
-                  <span className="shrink-0 font-semibold text-zinc-900">크기</span>
-                  <input
-                    type="range"
-                    min={QUOTE_CARD_BODY_FONT_MIN}
-                    max={QUOTE_CARD_BODY_FONT_MAX}
-                    step={1}
-                    value={bodyFontSize}
-                    disabled={preview?.loading}
-                    onChange={(e) => changeBodyFontSize(Number(e.target.value))}
-                    className="h-2 w-full accent-violet-600"
-                    aria-label="글자 크기"
-                  />
-                  <span className="shrink-0 tabular-nums font-semibold text-zinc-900">
-                    {bodyFontSize}
-                  </span>
-                </label>
+                <div className="space-y-1">
+                  <label className="flex min-w-[10rem] items-center gap-2 text-sm text-zinc-700">
+                    <span className="shrink-0 font-semibold text-zinc-900">크기</span>
+                    <input
+                      type="range"
+                      min={QUOTE_CARD_BODY_FONT_MIN}
+                      max={QUOTE_CARD_BODY_FONT_MAX}
+                      step={1}
+                      value={bodyFontSize}
+                      disabled={preview?.loading}
+                      onChange={(e) => changeBodyFontSize(Number(e.target.value))}
+                      className="h-2 w-full accent-violet-600"
+                      aria-label="글자 크기"
+                    />
+                    <span className="shrink-0 tabular-nums font-semibold text-zinc-900">
+                      {bodyFontSize}
+                    </span>
+                  </label>
+                  <p className="text-[11px] leading-snug text-zinc-500">
+                    가로는 900px 고정, 세로는 글자 수·크기에 맞게 400~2000px로 자동 조절됩니다.
+                  </p>
+                </div>
 
                 {dialogueStyle !== "off" && speakerDrafts.length > 1 ? (
                   <div>

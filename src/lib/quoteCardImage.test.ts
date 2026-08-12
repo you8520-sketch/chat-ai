@@ -3,6 +3,7 @@ import { afterEach, describe, it } from "node:test";
 import {
   buildQuoteCardFooterLeft,
   canShareQuoteCardPng,
+  clampQuoteCardBodyFontSize,
   copyQuoteCardPng,
   clampQuoteCardAvatarFocus,
   listQuoteCardDialogueEntries,
@@ -12,11 +13,17 @@ import {
   quoteCardFontById,
   quoteCardThemeById,
   resolveQuoteCardDialogueStyle,
+  resolveQuoteCardHeight,
   resolveQuoteCardSpeakers,
+  QUOTE_CARD_BODY_FONT_MAX,
+  QUOTE_CARD_BODY_FONT_MIN,
   QUOTE_CARD_DEFAULT_BACKGROUND,
   QUOTE_CARD_DEFAULT_FOOTER_FONT_SIZE,
   QUOTE_CARD_FONTS,
+  QUOTE_CARD_HEIGHT_MAX,
+  QUOTE_CARD_HEIGHT_MIN,
   QUOTE_CARD_THEMES,
+  QUOTE_CARD_WIDTH,
   saveQuoteCardPngWithFallback,
   shareQuoteCardPng,
   styleFromQuoteCardTheme,
@@ -251,10 +258,18 @@ describe("clampQuoteCardAvatarFocus", () => {
 });
 
 describe("quoteCardDimensions export size", () => {
-  it("uses ~1.25× the original 600 short side", () => {
-    const portrait = quoteCardDimensions("portrait");
-    assert.equal(portrait.width, 750);
-    assert.equal(portrait.height, 1125);
+  it("uses fixed 900px width with auto-height bounds", () => {
+    assert.equal(QUOTE_CARD_WIDTH, 900);
+    assert.equal(QUOTE_CARD_HEIGHT_MIN, 400);
+    assert.equal(QUOTE_CARD_HEIGHT_MAX, 2000);
+    assert.equal(QUOTE_CARD_BODY_FONT_MIN, 18);
+    assert.equal(QUOTE_CARD_BODY_FONT_MAX, 50);
+    assert.equal(quoteCardDimensions().width, 900);
+    assert.equal(resolveQuoteCardHeight(100), 400);
+    assert.equal(resolveQuoteCardHeight(900), 900);
+    assert.equal(resolveQuoteCardHeight(3000), 2000);
+    assert.equal(clampQuoteCardBodyFontSize(10), 18);
+    assert.equal(clampQuoteCardBodyFontSize(60), 50);
   });
 });
 

@@ -1,5 +1,6 @@
 import { SITE_DISPLAY_NAME } from "@/lib/siteBrand";
 
+/** @deprecated Fixed-ratio export removed; kept for capture-rect helpers. */
 export type QuoteCardOrientation = "portrait" | "landscape" | "square";
 
 export type QuoteCardMeta = {
@@ -7,6 +8,7 @@ export type QuoteCardMeta = {
   characterName: string;
   creatorName?: string;
   siteName?: string;
+  /** @deprecated Ignored — export size is width 900 with auto height. */
   orientation?: QuoteCardOrientation;
 };
 
@@ -100,8 +102,10 @@ export type QuoteCardAvatarFocus = {
   zoom?: number;
 };
 
-/** Base export edge length (~1.25× the original 600). */
-const CARD_SHORT_SIDE = 750;
+/** Fixed export width; height grows with text (see HEIGHT_MIN/MAX). */
+export const QUOTE_CARD_WIDTH = 900;
+export const QUOTE_CARD_HEIGHT_MIN = 400;
+export const QUOTE_CARD_HEIGHT_MAX = 2000;
 
 export const QUOTE_CARD_AVATAR_FOCUS_DEFAULT: QuoteCardAvatarFocus = {
   x: 0.5,
@@ -122,9 +126,23 @@ export function clampQuoteCardAvatarFocus(
   };
 }
 
-export const QUOTE_CARD_BODY_FONT_DEFAULT = 22;
-export const QUOTE_CARD_BODY_FONT_MIN = 15;
-export const QUOTE_CARD_BODY_FONT_MAX = 35;
+export const QUOTE_CARD_BODY_FONT_DEFAULT = 28;
+export const QUOTE_CARD_BODY_FONT_MIN = 18;
+export const QUOTE_CARD_BODY_FONT_MAX = 50;
+
+export function clampQuoteCardBodyFontSize(size: number): number {
+  return Math.min(
+    QUOTE_CARD_BODY_FONT_MAX,
+    Math.max(QUOTE_CARD_BODY_FONT_MIN, Math.round(size))
+  );
+}
+
+export function resolveQuoteCardHeight(contentPlusChrome: number): number {
+  return Math.min(
+    QUOTE_CARD_HEIGHT_MAX,
+    Math.max(QUOTE_CARD_HEIGHT_MIN, Math.ceil(contentPlusChrome))
+  );
+}
 
 export const QUOTE_CARD_THEMES: QuoteCardTheme[] = [
   {
@@ -481,17 +499,12 @@ export function listQuoteCardDialogueEntries(
   return out;
 }
 
-export function quoteCardDimensions(orientation: QuoteCardOrientation = "portrait"): {
+/** @deprecated Orientation no longer changes size — always 900×auto (min height). */
+export function quoteCardDimensions(_orientation?: QuoteCardOrientation): {
   width: number;
   height: number;
 } {
-  if (orientation === "landscape") {
-    return { width: CARD_SHORT_SIDE * 1.5, height: CARD_SHORT_SIDE };
-  }
-  if (orientation === "square") {
-    return { width: CARD_SHORT_SIDE, height: CARD_SHORT_SIDE };
-  }
-  return { width: CARD_SHORT_SIDE, height: CARD_SHORT_SIDE * 1.5 };
+  return { width: QUOTE_CARD_WIDTH, height: QUOTE_CARD_HEIGHT_MIN };
 }
 
 function wrapCanvasLines(
@@ -631,20 +644,15 @@ function measureBlocksHeight(
   return h;
 }
 
-function layoutDialogueBlocks(
+function layoutDialogueBlocksExact(
   ctx: CanvasRenderingContext2D,
   blocks: QuoteCardBlock[],
   innerWidth: number,
-  innerHeight: number,
-  baseFontSize: number,
+  fontSize: number,
   lineHeight: number,
-  paragraphGapScale: number,
-  bubbleGap: number,
   fontFamily: string,
   dialogueStyle: Exclude<QuoteCardDialogueStyle, "off">
-): { laid: LaidBlock[]; fontSize: number } {
-  const floor = Math.max(6, Math.min(QUOTE_CARD_BODY_FONT_MIN, baseFontSize));
-  let fontSize = Math.round(baseFontSize);
+): LaidBlock[] {
   const uniqueSpeakers = new Set(
     blocks
       .filter((b): b is QuoteCardBlock & { type: "dialogue" } => b.type === "dialogue")
@@ -652,29 +660,37 @@ function layoutDialogueBlocks(
   );
   const showSpeakerLabels = uniqueSpeakers.size > 1;
 
-  const dialogueTextWidthFor = (size: number) => {
+  const dialogueTextWidthFor = () => {
     if (dialogueStyle === "bubble") {
       return Math.max(80, innerWidth - AVATAR_SIZE - AVATAR_GAP - BUBBLE_PAD_X * 2);
     }
     return Math.max(80, innerWidth - ACCENT_BAR_W - ACCENT_PAD_X);
   };
 
-  const layDialogue = (
-    speakerRaw: string | undefined,
-    text: string,
-    size: number
-  ): Extract<LaidBlock, { type: "dialogue" }> => {
-    const speaker = speakerRaw?.trim() || "캐릭터";
+  ctx.font = `${fontSize}px ${fontFamily}`;
+  const dialogueTextWidth = dialogueTextWidthFor();
+
+  return blocks.map((block): LaidBlock => {
+    if (block.type === "narration") {
+      return {
+        type: "narration",
+        lines: wrapCanvasLines(ctx, block.text, innerWidth),
+      };
+    }
+    const speaker = block.speaker?.trim() || "캐릭터";
     const showSpeakerLabel = showSpeakerLabels;
-    const labelH = speakerLabelHeight(size, showSpeakerLabel);
-    const dialogueTextWidth = dialogueTextWidthFor(size);
-    const lines = wrapCanvasLines(ctx, text, dialogueTextWidth);
-    const textH = Math.max(size * lineHeight, lines.length * size * lineHeight);
+    const labelH = speakerLabelHeight(fontSize, showSpeakerLabel);
+    const lines = wrapCanvasLines(ctx, block.text, dialogueTextWidth);
+    const textH = Math.max(
+      fontSize * lineHeight,
+      lines.length * fontSize * lineHeight
+    );
     if (dialogueStyle === "bubble") {
       const contentW = Math.min(
         innerWidth - AVATAR_SIZE - AVATAR_GAP,
         Math.ceil(
-          Math.max(...lines.map((l) => ctx.measureText(l).width), 24) + BUBBLE_PAD_X * 2
+          Math.max(...lines.map((l) => ctx.measureText(l).width), 24) +
+            BUBBLE_PAD_X * 2
         )
       );
       return {
@@ -696,63 +712,55 @@ function layoutDialogueBlocks(
       showSpeakerLabel,
       labelH,
     };
-  };
+  });
+}
 
-  while (fontSize >= floor) {
-    ctx.font = `${fontSize}px ${fontFamily}`;
-    const laid: LaidBlock[] = blocks.map((block) => {
-      if (block.type === "narration") {
-        return {
-          type: "narration",
-          lines: wrapCanvasLines(ctx, block.text, innerWidth),
-        };
-      }
-      return layDialogue(block.speaker, block.text, fontSize);
-    });
-    if (
-      measureBlocksHeight(
-        laid,
-        fontSize,
-        lineHeight,
-        paragraphGapScale,
-        bubbleGap,
-        dialogueStyle
-      ) <= innerHeight
-    ) {
-      return { laid, fontSize };
-    }
-    fontSize -= 1;
-  }
-
-  ctx.font = `${floor}px ${fontFamily}`;
+function layoutDialogueBlocksClipped(
+  ctx: CanvasRenderingContext2D,
+  blocks: QuoteCardBlock[],
+  innerWidth: number,
+  innerHeight: number,
+  fontSize: number,
+  lineHeight: number,
+  paragraphGapScale: number,
+  bubbleGap: number,
+  fontFamily: string,
+  dialogueStyle: Exclude<QuoteCardDialogueStyle, "off">
+): LaidBlock[] {
+  const exact = layoutDialogueBlocksExact(
+    ctx,
+    blocks,
+    innerWidth,
+    fontSize,
+    lineHeight,
+    fontFamily,
+    dialogueStyle
+  );
   const laid: LaidBlock[] = [];
   let used = 0;
-  for (const block of blocks) {
+  for (const block of exact) {
     if (block.type === "narration") {
-      const lines = wrapCanvasLines(ctx, block.text, innerWidth);
       const need =
-        (laid.length > 0 ? floor * lineHeight * (paragraphGapScale - 1) : 0) +
-        lines.length * floor * lineHeight;
+        (laid.length > 0 ? fontSize * lineHeight * (paragraphGapScale - 1) : 0) +
+        block.lines.length * fontSize * lineHeight;
       if (used + need > innerHeight && laid.length > 0) break;
-      laid.push({ type: "narration", lines });
+      laid.push(block);
       used += need;
     } else {
-      const dialogue = layDialogue(block.speaker, block.text, floor);
       const bodyH =
         dialogueStyle === "bubble"
-          ? Math.max(AVATAR_SIZE, dialogue.contentH)
-          : dialogue.contentH;
-      const need =
-        (laid.length > 0 ? bubbleGap : 0) + dialogue.labelH + bodyH;
+          ? Math.max(AVATAR_SIZE, block.contentH)
+          : block.contentH;
+      const need = (laid.length > 0 ? bubbleGap : 0) + block.labelH + bodyH;
       if (used + need > innerHeight && laid.length > 0) break;
-      laid.push(dialogue);
+      laid.push(block);
       used += need;
     }
   }
   if (laid.length === 0) {
     laid.push({ type: "narration", lines: ["…"] });
   }
-  return { laid, fontSize: floor };
+  return laid;
 }
 
 export function buildQuoteCardFooterLeft(meta: QuoteCardMeta): string {
@@ -809,7 +817,6 @@ function measureQuoteCardLayout(
   dialogueStyle: QuoteCardDialogueStyle;
 } {
   const resolved = resolveStyle(style);
-  const orientation = meta.orientation ?? "portrait";
   const footerLeft = buildQuoteCardFooterLeft(meta);
   const siteName = meta.siteName?.trim() || SITE_DISPLAY_NAME;
   const canvas = document.createElement("canvas");
@@ -822,10 +829,10 @@ function measureQuoteCardLayout(
   const footerGap = 32;
   const footerBand = resolved.footerFontSize * 2.2 + resolved.padding * 0.45;
   const chromeHeight = resolved.padding * 2 + footerGap + footerBand;
-
-  const { width, height } = quoteCardDimensions(orientation);
+  const width = QUOTE_CARD_WIDTH;
   const innerWidth = width - resolved.padding * 2;
-  const innerHeight = height - chromeHeight;
+  const maxInnerHeight = QUOTE_CARD_HEIGHT_MAX - chromeHeight;
+  const preferredFont = clampQuoteCardBodyFontSize(resolved.bodyFontSize);
 
   const parsed = parseQuoteCardBlocks(text);
   const defaultSpeaker =
@@ -838,52 +845,136 @@ function measureQuoteCardLayout(
   const hasDialogue = blocks.some((b) => b.type === "dialogue");
 
   if (dialogueStyle === "off" || !hasDialogue) {
-    const laid = layoutBodyText(
-      ctx,
-      text,
-      innerWidth,
-      innerHeight,
-      resolved.bodyFontSize,
-      resolved.bodyLineHeight,
-      resolved.bodyFontFamily
-    );
+    let fontSize = preferredFont;
+    let lines: string[] = [];
+    let contentHeight = 0;
+    while (fontSize >= QUOTE_CARD_BODY_FONT_MIN) {
+      ctx.font = `${fontSize}px ${resolved.bodyFontFamily}`;
+      lines = wrapCanvasLines(ctx, text, innerWidth);
+      contentHeight = lines.length * fontSize * resolved.bodyLineHeight;
+      if (contentHeight <= maxInnerHeight || fontSize === QUOTE_CARD_BODY_FONT_MIN) {
+        break;
+      }
+      fontSize -= 1;
+    }
+    if (contentHeight > maxInnerHeight) {
+      const laid = layoutBodyText(
+        ctx,
+        text,
+        innerWidth,
+        maxInnerHeight,
+        QUOTE_CARD_BODY_FONT_MIN,
+        resolved.bodyLineHeight,
+        resolved.bodyFontFamily,
+        QUOTE_CARD_BODY_FONT_MIN
+      );
+      return {
+        width,
+        height: QUOTE_CARD_HEIGHT_MAX,
+        lines: laid.lines,
+        laidBlocks: null,
+        bodyFontSize: laid.fontSize,
+        footerLeft,
+        siteName,
+        resolved,
+        orientation: "portrait",
+        dialogueStyle: "off",
+      };
+    }
     return {
       width,
-      height,
-      lines: laid.lines,
+      height: resolveQuoteCardHeight(chromeHeight + contentHeight),
+      lines,
       laidBlocks: null,
-      bodyFontSize: laid.fontSize,
+      bodyFontSize: fontSize,
       footerLeft,
       siteName,
       resolved,
-      orientation,
+      orientation: "portrait",
       dialogueStyle: "off",
     };
   }
 
-  const { laid, fontSize } = layoutDialogueBlocks(
+  let fontSize = preferredFont;
+  let laid = layoutDialogueBlocksExact(
     ctx,
     blocks,
     innerWidth,
-    innerHeight,
-    resolved.bodyFontSize,
+    fontSize,
     resolved.bodyLineHeight,
-    resolved.paragraphGapScale,
-    resolved.bubbleGap,
     resolved.bodyFontFamily,
     dialogueStyle
   );
+  let contentHeight = measureBlocksHeight(
+    laid,
+    fontSize,
+    resolved.bodyLineHeight,
+    resolved.paragraphGapScale,
+    resolved.bubbleGap,
+    dialogueStyle
+  );
+
+  while (
+    contentHeight > maxInnerHeight &&
+    fontSize > QUOTE_CARD_BODY_FONT_MIN
+  ) {
+    fontSize -= 1;
+    laid = layoutDialogueBlocksExact(
+      ctx,
+      blocks,
+      innerWidth,
+      fontSize,
+      resolved.bodyLineHeight,
+      resolved.bodyFontFamily,
+      dialogueStyle
+    );
+    contentHeight = measureBlocksHeight(
+      laid,
+      fontSize,
+      resolved.bodyLineHeight,
+      resolved.paragraphGapScale,
+      resolved.bubbleGap,
+      dialogueStyle
+    );
+  }
+
+  if (contentHeight > maxInnerHeight) {
+    laid = layoutDialogueBlocksClipped(
+      ctx,
+      blocks,
+      innerWidth,
+      maxInnerHeight,
+      QUOTE_CARD_BODY_FONT_MIN,
+      resolved.bodyLineHeight,
+      resolved.paragraphGapScale,
+      resolved.bubbleGap,
+      resolved.bodyFontFamily,
+      dialogueStyle
+    );
+    return {
+      width,
+      height: QUOTE_CARD_HEIGHT_MAX,
+      lines: [],
+      laidBlocks: laid,
+      bodyFontSize: QUOTE_CARD_BODY_FONT_MIN,
+      footerLeft,
+      siteName,
+      resolved,
+      orientation: "portrait",
+      dialogueStyle,
+    };
+  }
 
   return {
     width,
-    height,
+    height: resolveQuoteCardHeight(chromeHeight + contentHeight),
     lines: [],
     laidBlocks: laid,
     bodyFontSize: fontSize,
     footerLeft,
     siteName,
     resolved,
-    orientation,
+    orientation: "portrait",
     dialogueStyle,
   };
 }
