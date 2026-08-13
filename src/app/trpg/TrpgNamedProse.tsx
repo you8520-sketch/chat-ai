@@ -1,18 +1,20 @@
 "use client";
 
 import NovelText from "@/components/NovelText";
-import { DEFAULT_CHAT_DISPLAY_PREFS } from "@/lib/chatDisplayPrefs";
+import type { ChatDisplayPrefs } from "@/lib/chatDisplayPrefs";
 
 export default function TrpgNamedProse({
   name,
   hint,
   text,
   variant,
+  display,
 }: {
   name: string;
   hint?: string;
   text: string;
   variant: "character" | "user";
+  display: ChatDisplayPrefs;
 }) {
   if (!text.trim()) return null;
   return (
@@ -27,10 +29,14 @@ export default function TrpgNamedProse({
         </p>
         {hint ? <p className="mt-0.5 text-[10px] font-medium text-zinc-500">{hint}</p> : null}
       </div>
-      <div className="min-w-0 flex-1 border-l border-white/10 pl-3">
+      <div
+        className="min-w-0 flex-1 border-l border-white/10 pl-3 select-text [touch-action:pan-y] [-webkit-user-select:text]"
+        data-quote-assistant
+        style={{ userSelect: "text", WebkitUserSelect: "text", touchAction: "pan-y", WebkitTouchCallout: "default" }}
+      >
         <NovelText
           content={text}
-          display={DEFAULT_CHAT_DISPLAY_PREFS}
+          display={display}
           variant={variant}
           paragraphMode="author"
         />
