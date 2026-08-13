@@ -40,20 +40,24 @@ export default function TrpgNamedProse({
   text,
   variant,
   display,
+  accent,
 }: {
   name?: string | null;
   hint?: string;
   text: string;
   variant: "character" | "user";
   display: ChatDisplayPrefs;
+  /** Left rail. Defaults to on when a speaker name is shown — never on plain narration. */
+  accent?: boolean;
 }) {
   if (!text.trim()) return null;
   const labeled = Boolean(name?.trim());
-  const rail = labeled
+  const showRail = accent ?? labeled;
+  const rail = showRail
     ? variant === "user"
       ? "border-l-[3px] border-violet-400"
       : "border-l-[3px] border-orange-400"
-    : "border-l-[3px] border-zinc-500/70";
+    : "";
   const nameColor = variant === "user" ? "text-violet-200" : "text-orange-200";
 
   return (

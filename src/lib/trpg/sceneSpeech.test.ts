@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { describe, it } from "node:test";
 import { isTrpgSpeakerPrefix, parseTrpgSceneSpeech } from "./sceneSpeech";
 
@@ -96,5 +97,34 @@ describe("parseTrpgSceneSpeech", () => {
     const asNote = prefixed.find((b) => b.text.includes("엄마가 깨어나지"));
     assert.ok(asNote);
     assert.equal(asNote?.speaker, null);
+  });
+
+  it("pulls inline spoken quotes out of narration and labels the speaker", () => {
+    const beats = parseTrpgSceneSpeech(
+      `권태현은 렌의 말에 입꼬리를 비틀며 마체테를 어깨에서 내렸다. "그래, 약국에 쓸만한 거 있을지도 모르는데, 들어가자마자 다 같이 시체 될 판이잖아." 그는 낮게 웃었다.`,
+      ["권태현", "렌", "강이현"]
+    );
+    assert.equal(beats.find((b) => b.text.includes("입꼬리"))?.speaker, null);
+    assert.equal(beats.find((b) => b.text.includes("약국에"))?.speaker, "권태현");
+    assert.equal(beats.find((b) => b.text.includes("낮게 웃었다"))?.speaker, null);
+    assert.notEqual(beats.find((b) => b.text.includes("약국에"))?.speaker, "렌");
+  });
+
+  it("labels a quote that comes before the speaker subject in the same paragraph", () => {
+    const beats = parseTrpgSceneSpeech(
+      `"오, 그래? 드디어 약국 말고 사람 사는 쪽 고른 거야?" 이현은 쪼그린 자세에서 몸을 일으키며 말을 이었다. "다만 안전가옥 가는 길이 저 형광이랑 겹치면 위험해."`,
+      ["권태현", "렌", "강이현"]
+    );
+    assert.equal(beats.find((b) => b.text.includes("사람 사는 쪽"))?.speaker, "강이현");
+    assert.equal(beats.find((b) => b.text.includes("안전가옥 가는 길"))?.speaker, "강이현");
+    assert.equal(beats.find((b) => b.text.includes("쪼그린"))?.speaker, null);
+  });
+
+  it("keeps the scene accent rail off unlabeled narration", () => {
+    const prose = fs.readFileSync("src/app/trpg/TrpgNamedProse.tsx", "utf8");
+    assert.doesNotMatch(prose, /border-zinc-500\/70/);
+    assert.match(prose, /showRail/);
+    const room = fs.readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    assert.match(room, /accent=\{Boolean\(beat\.speaker\)/);
   });
 });

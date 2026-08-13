@@ -109,8 +109,78 @@ function prefixedParts(line: string, knownNames: readonly string[], aliases: rea
   return { speaker: canonicalSpeaker(speaker, aliases), text };
 }
 
+export function isTrpgQuotedSpeech(text: string): boolean {
+  const t = text.trim();
+  if (!QUOTE_ONLY.test(t)) return false;
+  const inner = t.replace(/^["“”「『]+/, "").replace(/["“”」』]+\s*$/, "");
+  return !/["“「『]/.test(inner);
+}
+
 function isQuoteOnly(text: string): boolean {
-  return QUOTE_ONLY.test(text.trim());
+  return isTrpgQuotedSpeech(text);
+}
+
+const DIALOGUE_QUOTE = /(["“「『])([^"“”「『」』]+)(["”」』])/gu;
+
+function graphemeCount(text: string): number {
+  return Array.from(text).length;
+}
+
+function subjectSpeaker(lead: string, aliases: readonly NameAlias[]): string | null {
+  let best: { canonical: string; index: number } | null = null;
+  for (const { alias, canonical } of aliases) {
+    if (alias.toLowerCase() === "gm") continue;
+    const re = new RegExp(`${escapeRe(alias)}[은는이가]`, "gu");
+    let match: RegExpExecArray | null;
+    while ((match = re.exec(lead)) !== null) {
+      if (!best || match.index >= best.index) best = { canonical, index: match.index };
+    }
+  }
+  return best?.canonical ?? null;
+}
+
+function speakerAroundQuote(
+  lead: string,
+  trail: string,
+  aliases: readonly NameAlias[]
+): string | null {
+  return (
+    inferSpeaker(lead, aliases) ||
+    subjectSpeaker(lead, aliases) ||
+    inferSpeaker(trail, aliases) ||
+    subjectSpeaker(trail, aliases)
+  );
+}
+
+/** Pull spoken quotes out of a narration paragraph and label the speaker. */
+function splitMixedQuotes(
+  text: string,
+  aliases: readonly NameAlias[],
+  carriedSpeaker: string | null
+): TrpgSpeechBeat[] {
+  const matches = [...text.matchAll(DIALOGUE_QUOTE)];
+  if (matches.length === 0) return [{ speaker: null, text }];
+  const beats: TrpgSpeechBeat[] = [];
+  let cursor = 0;
+  let anySpeech = false;
+  for (const match of matches) {
+    const index = match.index ?? 0;
+    const quoted = match[0];
+    const inner = match[2] ?? "";
+    const lead = text.slice(cursor, index);
+    const trail = text.slice(index + quoted.length, index + quoted.length + 80);
+    const local = speakerAroundQuote(lead, trail, aliases);
+    const split = Boolean(local) || graphemeCount(inner.trim()) >= 12;
+    if (!split) continue;
+    if (lead.trim()) pushBeat(beats, null, [lead.trim()]);
+    beats.push({ speaker: local || carriedSpeaker, text: quoted.trim() });
+    anySpeech = true;
+    cursor = index + quoted.length;
+  }
+  if (!anySpeech) return [{ speaker: null, text }];
+  const tail = text.slice(cursor).trim();
+  if (tail) pushBeat(beats, null, [tail]);
+  return beats;
 }
 
 export function isTrpgWrittenTextCue(text: string): boolean {
@@ -202,11 +272,13 @@ export function parseTrpgSceneSpeech(narration: string, knownNames: readonly str
       if (isTrpgWrittenTextCue(leftover)) {
         writtenPending = true;
         lastSpeaker = null;
-      } else {
-        writtenPending = false;
-        lastSpeaker = inferSpeaker(leftover, aliases);
+        pushBeat(out, null, buf);
+        continue;
       }
-      pushBeat(out, null, buf);
+      writtenPending = false;
+      const mixed = splitMixedQuotes(leftover, aliases, lastSpeaker);
+      for (const beat of mixed) out.push(beat);
+      lastSpeaker = inferSpeaker(leftover, aliases);
     }
   }
   if (gmTalk) out.push({ speaker: "GM", text: gmTalk });
