@@ -1,6 +1,52 @@
+import {
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+} from "@/lib/chatModels";
+import { computeOpenRouterTurnBilling } from "@/lib/points";
 import { DEFAULT_TRPG_BILLING_MODE, type TrpgBillingMode } from "./types";
 
 export type TrpgShare = { userId: number; points: number };
+
+export type TrpgModelUsage = {
+  modelId: string;
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+};
+
+/** Typical GM scene when the provider omits usage — Pro 65% still applies. */
+export const TRPG_GM_USAGE_FALLBACK: TrpgModelUsage = {
+  modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  inputTokens: 8_000,
+  outputTokens: 1_200,
+};
+
+/** Typical bot-seat Pro action when usage is missing. */
+export const TRPG_BOT_USAGE_FALLBACK: TrpgModelUsage = {
+  modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  inputTokens: 2_500,
+  outputTokens: 400,
+};
+
+/**
+ * Round charge = sum of actual model calls at RP Pro 65% (GM thinking-on +
+ * bot-seat thinking-off). Flash is not used for bot lines.
+ */
+export function computeTrpgRoundPoints(calls: TrpgModelUsage[]): number {
+  let total = 0;
+  for (const call of calls) {
+    if (call.inputTokens <= 0 && call.outputTokens <= 0) continue;
+    const billed = computeOpenRouterTurnBilling({
+      modelId: call.modelId,
+      inputTokens: call.inputTokens,
+      outputTokens: call.outputTokens,
+      cacheReadTokens: call.cacheReadTokens,
+      cacheWriteTokens: call.cacheWriteTokens,
+    });
+    total += Math.max(0, billed.total);
+  }
+  return total;
+}
 
 /**
  * Human participants only. AI character bots never pay.

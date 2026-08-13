@@ -129,20 +129,55 @@ describe("TRPG campaign loop", () => {
     db.close();
   });
 
-  it("generates the bot only after the human locks, and host-fill works when the bot model fails", async () => {
+  it("refuses to start until the host confirms the bot sheet", async () => {
     const db = memoryDb();
-    let gmCalls = 0;
-    let botCalls = 0;
     const deps: TrpgEngineDeps = {
       skipBilling: true,
-      rollD20: () => 10,
-      gmCall: async () => {
-        gmCalls += 1;
-        return { text: gmText({ narration: `장면 ${gmCalls}` }) };
+      gmCall: async () => ({ text: gmText({ narration: "시작." }) }),
+    };
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1 });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
+    const botId = insertParticipant(db, {
+      campaignId,
+      slotIndex: 1,
+      kind: "ai_character",
+      userId: null,
+      characterId: null,
+      displayName: "유나",
+    });
+    writeSheet(db, campaignId, botId, "유나", EVEN_STATS, "");
+    await assert.rejects(() => startTrpgCampaign(db, { campaignId, userId: 1, deps }), /AI 동료 능력치/);
+    saveTrpgSheet(db, {
+      campaignId,
+      userId: 1,
+      name: "유나",
+      stats: EVEN_STATS,
+      participantId: botId,
+    });
+    const snap = await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(snap.round.phase, "ACTION_INPUT");
+    db.close();
+  });
+
+  it("calls the bot seat before the GM and keeps them as two Pro turns", async () => {
+    const db = memoryDb();
+    const order: string[] = [];
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 11,
+      gmCall: async ({ user }) => {
+        order.push("gm");
+        if (order.filter((step) => step === "gm").length > 1) {
+          assert.match(user, /내가 볼게/);
+        }
+        return { text: gmText({ narration: `장면 ${order.length}` }) };
       },
-      botCall: async () => {
-        botCalls += 1;
-        throw new Error("flash down");
+      botCall: async (system, user) => {
+        order.push("bot");
+        assert.match(system, /You ARE this character/);
+        assert.match(user, /CHARACTER CARD|HUMAN ACTIONS THIS ROUND/);
+        assert.match(user, /창문을 연다/);
+        return { text: '*창가에 붙어 낮게* "…먼저 나가지 마. 내가 볼게."' };
       },
     };
     const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1 });
@@ -156,6 +191,55 @@ describe("TRPG campaign loop", () => {
       displayName: "유나",
     });
     writeSheet(db, campaignId, botId, "유나", EVEN_STATS, "");
+    saveTrpgSheet(db, {
+      campaignId,
+      userId: 1,
+      name: "유나",
+      stats: EVEN_STATS,
+      participantId: botId,
+    });
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    submitTrpgAction(db, { campaignId, userId: 1, body: "창문을 연다." });
+    const after = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.deepEqual(order, ["gm", "bot", "gm"]);
+    assert.equal(after.round.phase, "ACTION_INPUT");
+    db.close();
+  });
+
+  it("generates the bot only after the human locks, and host-fill works when the bot model fails", async () => {
+    const db = memoryDb();
+    let gmCalls = 0;
+    let botCalls = 0;
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 10,
+      gmCall: async () => {
+        gmCalls += 1;
+        return { text: gmText({ narration: `장면 ${gmCalls}` }) };
+      },
+      botCall: async () => {
+        botCalls += 1;
+        throw new Error("bot-seat down");
+      },
+    };
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1 });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
+    const botId = insertParticipant(db, {
+      campaignId,
+      slotIndex: 1,
+      kind: "ai_character",
+      userId: null,
+      characterId: null,
+      displayName: "유나",
+    });
+    writeSheet(db, campaignId, botId, "유나", EVEN_STATS, "");
+    saveTrpgSheet(db, {
+      campaignId,
+      userId: 1,
+      name: "유나",
+      stats: EVEN_STATS,
+      participantId: botId,
+    });
     await startTrpgCampaign(db, { campaignId, userId: 1, deps });
     submitTrpgAction(db, { campaignId, userId: 1, body: "창문을 연다." });
     const waiting = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });

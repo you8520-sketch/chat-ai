@@ -1,13 +1,18 @@
 import { randomBytes } from "node:crypto";
 import type Database from "better-sqlite3";
-import { callBackgroundMemory } from "@/lib/ai";
 import { deductPoints, getPointBalance } from "@/lib/points";
 import { isTrpgActionType, resolveAdjudicationStat } from "./actionTypes";
-import { splitTrpgRoundCost } from "./billing";
-import { buildTrpgBotActionUserBlock, sanitizeBotActionText } from "./botActions";
+import {
+  computeTrpgRoundPoints,
+  splitTrpgRoundCost,
+  TRPG_BOT_USAGE_FALLBACK,
+  TRPG_GM_USAGE_FALLBACK,
+  type TrpgModelUsage,
+} from "./billing";
+import { buildTrpgBotActionUserBlock, sanitizeBotActionText, TRPG_BOT_SYSTEM } from "./botActions";
 import { resolveTrpgRoll, rollServerD20 } from "./dice";
 import { assertCanStart } from "./engineCreate";
-import { callTrpgGm } from "./gmCall";
+import { callTrpgBot, callTrpgGm } from "./gmCall";
 import { buildTrpgGmUserBlock, parseTrpgGmOutput, TRPG_GM_SYSTEM } from "./gmPrompt";
 import { loadTrpgSnapshot } from "./engineSnapshot";
 import { buildTrpgMemoryPromptBlock, selectRawRecentRounds, shouldSealTrpgMemory } from "./memory";
@@ -26,13 +31,13 @@ import {
   type TrpgParticipantRow,
   type TrpgRoundRow,
 } from "./store";
-import { TRPG_ACTION_MAX_CHARS, TRPG_ROUND_POINT_COST, type TrpgActionSource, type TrpgBillingMode, type TrpgRoundPhase } from "./types";
+import { TRPG_ACTION_MAX_CHARS, type TrpgActionSource, type TrpgBillingMode, type TrpgRoundPhase } from "./types";
 import { isTrpgRoundPhase } from "./types";
 import type { TrpgCampaignSnapshot } from "./snapshot";
 
 export type TrpgEngineDeps = {
-  gmCall?: (opts: { system: string; user: string }) => Promise<{ text: string }>;
-  botCall?: (system: string, user: string) => Promise<{ text: string }>;
+  gmCall?: (opts: { system: string; user: string }) => Promise<{ text: string; usage?: TrpgModelUsage }>;
+  botCall?: (system: string, user: string) => Promise<{ text: string; usage?: TrpgModelUsage }>;
   rollD20?: () => number;
   skipBilling?: boolean;
 };
@@ -312,38 +317,38 @@ async function generateBotActions(
     .all(opts.roundId) as { body: string; name: string }[];
   const botCall =
     opts.deps?.botCall ??
-    (async (system: string, user: string) => {
-      const res = await callBackgroundMemory(
-        system,
-        [{ role: "user", content: user }],
-        undefined,
-        "background-trpg-bot-action",
-        { temperature: 0.8, maxTokens: 512 }
-      );
-      return { text: res.text };
-    });
+    (async (system: string, user: string) => callTrpgBot({ system, user }));
 
   for (const botId of opts.botIds) {
     const bot = loadParticipants(db, opts.campaign.id).find((p) => p.id === botId);
     if (!bot) continue;
-    let persona = "";
+    let description = "";
+    let greeting = "";
+    let systemPrompt = "";
     if (bot.character_id) {
-      const ch = db.prepare(`SELECT system_prompt, description FROM characters WHERE id=?`).get(bot.character_id) as
-        | { system_prompt: string | null; description: string | null }
+      const ch = db
+        .prepare(`SELECT system_prompt, description, greeting FROM characters WHERE id=?`)
+        .get(bot.character_id) as
+        | { system_prompt: string | null; description: string | null; greeting: string | null }
         | undefined;
-      persona = ch?.system_prompt?.trim() || ch?.description?.trim() || "";
+      description = ch?.description?.trim() || "";
+      greeting = ch?.greeting?.trim() || "";
+      systemPrompt = ch?.system_prompt?.trim() || "";
     }
     const user = buildTrpgBotActionUserBlock({
       characterName: bot.display_name,
-      personaPrompt: persona,
+      description,
+      greeting,
+      systemPrompt,
       previousGmNarration: prev,
       humanActions: humans.map((h) => ({ playerName: h.name, text: h.body })),
     });
-    const { text } = await botCall("Write one in-character TRPG action in Korean. No dice. No JSON.", user);
+    const { text, usage } = await botCall(TRPG_BOT_SYSTEM, user);
     const body =
       sanitizeBotActionText(text, TRPG_ACTION_MAX_CHARS) ||
       `${bot.display_name}은 상황을 살피며 한 발 다가선다.`;
     upsertLockedAction(db, opts.roundId, bot.id, body, "free", null, "bot_model");
+    appendRoundUsage(db, opts.roundId, usage ?? TRPG_BOT_USAGE_FALLBACK);
   }
 }
 
@@ -446,7 +451,8 @@ async function runGmForRound(
     actions,
   });
   const gmCall = opts.deps?.gmCall ?? callTrpgGm;
-  const { text } = await gmCall({ system: TRPG_GM_SYSTEM, user });
+  const { text, usage } = await gmCall({ system: TRPG_GM_SYSTEM, user });
+  appendRoundUsage(db, opts.roundId, usage ?? TRPG_GM_USAGE_FALLBACK);
   const parsed = parseTrpgGmOutput(text);
   const sheets = loadSheetSnapshots(db, opts.campaignId);
   const applied = applyValidatedStateDelta(sheets, parsed.delta);
@@ -489,6 +495,18 @@ function beginNextActionRound(db: Database.Database, campaign: TrpgCampaignRow, 
   })();
 }
 
+function loadRoundUsage(db: Database.Database, roundId: number): TrpgModelUsage[] {
+  const row = db.prepare(`SELECT usage_json FROM trpg_rounds WHERE id=?`).get(roundId) as
+    | { usage_json: string | null }
+    | undefined;
+  return parseJson(row?.usage_json, [] as TrpgModelUsage[]);
+}
+
+function appendRoundUsage(db: Database.Database, roundId: number, usage: TrpgModelUsage): void {
+  const next = [...loadRoundUsage(db, roundId), usage];
+  db.prepare(`UPDATE trpg_rounds SET usage_json=? WHERE id=?`).run(JSON.stringify(next), roundId);
+}
+
 function maybeBillRound(
   db: Database.Database,
   campaign: TrpgCampaignRow,
@@ -500,14 +518,16 @@ function maybeBillRound(
   };
   if (row.billed === 1) return;
   if (skip) {
-    db.prepare(`UPDATE trpg_rounds SET billed=1 WHERE id=?`).run(roundId);
+    db.prepare(`UPDATE trpg_rounds SET billed=1, billed_points=0 WHERE id=?`).run(roundId);
     return;
   }
+  const calls = loadRoundUsage(db, roundId);
+  const totalPoints = computeTrpgRoundPoints(calls.length ? calls : [TRPG_GM_USAGE_FALLBACK]);
   const humans = loadParticipants(db, campaign.id)
     .filter((p) => p.kind === "human" && p.user_id)
     .map((p) => p.user_id!);
   const shares = splitTrpgRoundCost({
-    totalPoints: TRPG_ROUND_POINT_COST,
+    totalPoints,
     humanUserIds: humans,
     hostUserId: campaign.host_user_id,
     mode: campaign.billing_mode as TrpgBillingMode,
@@ -522,7 +542,7 @@ function maybeBillRound(
     if (share.points <= 0) continue;
     deductPoints(share.userId, share.points, `trpg-round:${roundId}`);
   }
-  db.prepare(`UPDATE trpg_rounds SET billed=1 WHERE id=?`).run(roundId);
+  db.prepare(`UPDATE trpg_rounds SET billed=1, billed_points=? WHERE id=?`).run(totalPoints, roundId);
 }
 
 function maybeSealMemory(db: Database.Database, campaignId: number): void {

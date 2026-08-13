@@ -20,6 +20,9 @@ import type {
   TrpgReadyState,
 } from "./snapshot";
 import {
+  DEFAULT_TRPG_BILLING_MODE,
+  TRPG_BOT_GROSS_MARGIN,
+  TRPG_GM_GROSS_MARGIN,
   isTrpgRoundPhase,
   type TrpgBillingMode,
   type TrpgParticipantKind,
@@ -27,7 +30,11 @@ import {
   type TrpgRoundPhase,
   type TrpgSuccessTier,
 } from "./types";
-import { DEFAULT_TRPG_BILLING_MODE } from "./types";
+
+function sheetConfirmed(revision: number | undefined, isBot: boolean): boolean {
+  if (revision == null) return false;
+  return isBot ? revision >= 1 : true;
+}
 
 function asPhase(value: string): TrpgRoundPhase {
   return isTrpgRoundPhase(value) ? value : "ERROR_RECOVERY";
@@ -236,6 +243,21 @@ export function loadTrpgSnapshot(
         | undefined)
     : undefined;
 
+  const revisions = new Map(
+    (
+      db
+        .prepare(`SELECT participant_id, revision FROM trpg_character_sheets WHERE campaign_id=?`)
+        .all(campaignId) as Array<{ participant_id: number; revision: number }>
+    ).map((row) => [row.participant_id, row.revision])
+  );
+  const lastBilled = db
+    .prepare(
+      `SELECT billed_points FROM trpg_rounds
+       WHERE campaign_id=? AND COALESCE(billed,0)=1 AND COALESCE(billed_points,0)>0
+       ORDER BY round_number DESC LIMIT 1`
+    )
+    .get(campaignId) as { billed_points: number } | undefined;
+
   const participants: TrpgPublicParticipant[] = parts.map((p) => ({
     id: p.id,
     slotIndex: p.slot_index,
@@ -247,6 +269,7 @@ export function loadTrpgSnapshot(
     status: asStatus(p.status),
     ready: readyOf(p, locked.has(p.id), work),
     hasSheet: sheets.some((s) => s.participantId === p.id),
+    sheetConfirmed: sheetConfirmed(revisions.get(p.id), p.kind === "ai_character"),
   }));
 
   const log = loadLog(db, campaignId, viewer?.id ?? null);
@@ -289,6 +312,9 @@ export function loadTrpgSnapshot(
     currentNarration,
     log,
     workType: work.type,
+    lastBilledPoints: lastBilled?.billed_points ?? null,
+    gmGrossMargin: TRPG_GM_GROSS_MARGIN,
+    botGrossMargin: TRPG_BOT_GROSS_MARGIN,
   };
 }
 

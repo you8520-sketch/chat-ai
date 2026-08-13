@@ -5,7 +5,11 @@ export const TRPG_MAX_SLOTS = 4;
 export const TRPG_MIN_SLOTS = 1;
 export const TRPG_MEMORY_SEAL_ROUNDS = 4;
 export const TRPG_RECENT_ROUND_RAW = 3;
-export const TRPG_ROUND_POINT_COST = 80;
+/** Same target as Cheaper Inference DeepSeek V4 Pro RP (`CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_GROSS_MARGIN`). */
+export const TRPG_GM_GROSS_MARGIN = 0.65;
+/** Bot-seat Pro call — same 65% as RP Pro. Not Flash. */
+export const TRPG_BOT_GROSS_MARGIN = 0.65;
+export const TRPG_BOT_MODEL = "deepseek-v4-pro";
 export const TRPG_ACTION_MAX_CHARS = 800;
 
 export const TRPG_ROUND_PHASES = [
