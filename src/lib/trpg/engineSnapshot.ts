@@ -182,6 +182,9 @@ export function loadTrpgSnapshot(
 ): TrpgCampaignSnapshot | null {
   const campaign = loadCampaign(db, campaignId);
   if (!campaign) return null;
+  if (campaign.host_user_id === viewerUserId) {
+    purgeUnstartedSoloDrafts(db, viewerUserId, campaignId);
+  }
   const parts = loadParticipants(db, campaignId);
   const viewer = parts.find((p) => p.kind === "human" && p.user_id === viewerUserId);
   if (!viewer && campaign.host_user_id !== viewerUserId) return null;

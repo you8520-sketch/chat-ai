@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import TrpgInviteLink from "../TrpgInviteLink";
 import TrpgCampaignTitle from "../TrpgCampaignTitle";
@@ -209,8 +210,16 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
           <h1 className="text-2xl font-semibold tracking-tight text-zinc-50">{snap.title}</h1>
         )}
         <p className="text-sm text-zinc-500">
-          라운드 {snap.round.number} · {phase === "NONE" ? snap.campaignStatus : phase}
+          <Link href="/trpg" className="text-violet-300 hover:text-violet-200">
+            로비
+          </Link>
+          {" · "}라운드 {snap.round.number} · {phase === "NONE" ? snap.campaignStatus : phase}
         </p>
+        {setup && snap.viewerIsHost && snap.participants.filter((p) => p.kind === "human").length <= 1 ? (
+          <p className="text-xs text-zinc-500">
+            「캠페인 시작」을 누르지 않고 로비로 나가면 이 초안은 삭제됩니다. 다른 사람이 들어오면 유지됩니다.
+          </p>
+        ) : null}
         <p className="text-xs leading-relaxed text-zinc-500">
           봇이 있으면 호출이 두 번입니다. 봇 자리는 DeepSeek V4 Pro(thinking 끔, 1:1 채팅과 같음)가
           캐릭터 카드로 행동을 쓰고, GM은 같은 Pro(thinking 켬)가 장면을 씁니다. Flash는 쓰지 않습니다.

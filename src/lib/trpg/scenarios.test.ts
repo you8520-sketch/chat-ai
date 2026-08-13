@@ -364,6 +364,32 @@ describe("TRPG scenarios and catalog", () => {
     assert.equal(lobby.length, 1);
     assert.equal(lobby[0]?.id, keptId);
     assert.equal(loadCampaign(db, third), null);
+
+    const current = createTrpgCampaign(db, {
+      hostUserId: 1,
+      hostNickname: "렌",
+      viewerUserId: 1,
+    });
+    const leftoverId = Number(
+      db
+        .prepare(
+          `INSERT INTO trpg_campaigns (host_user_id, title, status, invite_code, world_brief, gm_secret)
+           VALUES (1, '유령 초안', 'CHARACTER_SETUP', 'deadbeef', '', '')`
+        )
+        .run().lastInsertRowid
+    );
+    db.prepare(
+      `INSERT INTO trpg_participants (campaign_id, slot_index, kind, user_id, display_name)
+       VALUES (?, 0, 'human', 1, '렌')`
+    ).run(leftoverId);
+    loadTrpgSnapshot(db, current, 1);
+    assert.equal(loadCampaign(db, leftoverId), null);
+    assert.ok(loadCampaign(db, current));
+    const afterRoom = listTrpgCampaigns(db, 1);
+    assert.equal(afterRoom.length, 1);
+    assert.equal(afterRoom[0]?.id, keptId);
+    assert.equal(loadCampaign(db, current), null);
+
     assert.equal(renameTrpgCampaign(db, { campaignId: keptId, userId: 1, title: " 회색 생태권  " }), "회색 생태권");
     assert.equal(loadCampaign(db, keptId)?.title, "회색 생태권");
     assert.throws(

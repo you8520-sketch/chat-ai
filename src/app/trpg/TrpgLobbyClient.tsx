@@ -293,7 +293,10 @@ export default function TrpgLobbyClient({
 
       <AppSectionCard title="내 캠페인">
         {campaigns.length === 0 ? (
-          <p className="text-sm text-zinc-500">시작한 캠페인이 없습니다. 시작하지 않은 초안은 삭제됩니다.</p>
+          <p className="text-sm text-zinc-500">
+            시작한 캠페인이 없습니다. 「캠페인 시작」을 누르지 않은 혼자 초안은 로비에 들어오면 DB에서
+            삭제됩니다. 숨겨 두지 않습니다.
+          </p>
         ) : (
           <ul className="space-y-3">
             {campaigns.map((c) => (

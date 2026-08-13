@@ -50,7 +50,10 @@ export function deleteTrpgCampaign(
   db.transaction(() => deleteTrpgCampaignRows(db, opts.campaignId))();
 }
 
-/** Solo CHARACTER_SETUP with no rounds and no other humans. Keep invite-in-progress and started campaigns. */
+/**
+ * Delete unstarted solo drafts from the DB (not a hide filter).
+ * Kept: another human already joined, or host clicked 「캠페인 시작」(a round exists).
+ */
 export function purgeUnstartedSoloDrafts(
   db: Database.Database,
   hostUserId: number,
@@ -61,7 +64,7 @@ export function purgeUnstartedSoloDrafts(
       `SELECT c.id
        FROM trpg_campaigns c
        WHERE c.host_user_id=?
-         AND c.status IN ('CHARACTER_SETUP', 'WAITING_FOR_PLAYERS')
+         AND c.status = 'CHARACTER_SETUP'
          AND NOT EXISTS (SELECT 1 FROM trpg_rounds r WHERE r.campaign_id = c.id)
          AND (
            SELECT COUNT(*) FROM trpg_participants p
