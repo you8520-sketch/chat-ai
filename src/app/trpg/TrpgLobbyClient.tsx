@@ -189,7 +189,7 @@ export default function TrpgLobbyClient({
 
       <AppSectionCard title="새 캠페인">
         <p className="text-sm leading-relaxed text-zinc-400">
-          카드를 고르거나 아래만으로도 만들 수 있습니다. 내 페르소나가 PC이고, AI 동료는 최대{" "}
+          카드를 누르면 세계관·시나리오 본문을 읽고 이걸로 TR할지 고를 수 있습니다. 내 페르소나가 PC이고, AI 동료는 최대{" "}
           {TRPG_SCENARIO_MAX_BOTS}명입니다. 사람+AI 합쳐 4자리이며 GM은 슬롯을 쓰지 않습니다.
         </p>
         {pickedLabel ? (
@@ -253,7 +253,7 @@ export default function TrpgLobbyClient({
               : "캠페인 만들기"}
           </button>
           <Link
-            href="/trpg/scenarios/new"
+            href="/world/create?tab=scenario"
             className="inline-flex min-h-10 items-center rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-semibold text-zinc-200 hover:bg-white/10"
           >
             TRPG 시나리오 만들기

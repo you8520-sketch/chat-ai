@@ -43,7 +43,7 @@ export default async function TrpgLobbyPage({
   return (
     <AppPageShell
       title="TRPG"
-      description="1~4인 라운드제 캠페인. 공개 세계관·시나리오를 카드로 고르거나 전용 시나리오를 만들 수 있습니다. 관리자 전용 미리보기이며 일반 채팅과는 분리됩니다."
+      description="1~4인 라운드제 캠페인. 세계관·시나리오 카드를 눌러 본문을 읽은 뒤 캠페인을 시작할 수 있습니다. 관리자 전용 미리보기이며 일반 채팅과는 분리됩니다."
     >
       <TrpgLobbyClient
         initialCampaigns={campaigns}

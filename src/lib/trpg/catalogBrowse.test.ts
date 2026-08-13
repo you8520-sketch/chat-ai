@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { catalogItemMatches, genresInCatalog } from "./catalogBrowse";
+import {
+  catalogItemMatches,
+  catalogScenarioById,
+  catalogWorldById,
+  genresInCatalog,
+  visibleScenarioSecret,
+} from "./catalogBrowse";
 import { parseWorldTrpgFlags } from "@/lib/worlds";
+import type { TrpgCatalog, TrpgCatalogWorld } from "./catalog";
+import type { TrpgScenarioTemplate } from "./scenarioTypes";
 
 describe("TRPG catalog browse", () => {
   it("filters by query and genre hashtags", () => {
@@ -30,5 +38,55 @@ describe("TRPG catalog browse", () => {
       trpgEnabled: 0,
       trpgVisibility: "private",
     });
+  });
+
+  it("prefers the owner's catalog copy and hides GM secrets from everyone else", () => {
+    const world: TrpgCatalogWorld = {
+      id: 9,
+      name: "북부",
+      summary: "눈",
+      content: "왕국의 겨울은 길다.",
+      creatorId: 2,
+      creatorName: "렌",
+      visibility: "public",
+      trpgEnabled: true,
+      mine: false,
+      genres: ["판타지"],
+      coverUrl: "",
+    };
+    const leaked: TrpgScenarioTemplate = {
+      id: 4,
+      creatorId: 2,
+      worldId: null,
+      title: "폐역",
+      summary: "유령 기차",
+      content: "표를 사라.",
+      secretContent: "진범은역무원SECRET",
+      visibility: "public",
+      startLocation: "대합실",
+      startInventory: [],
+      defaultPcStats: null,
+      npcs: [],
+      characterIds: [],
+      genres: ["공포/추리"],
+      createdAt: "",
+      updatedAt: "",
+    };
+    const catalog: TrpgCatalog = {
+      publicWorlds: [world],
+      myWorlds: [],
+      myCharacters: [],
+      publicScenarios: [leaked],
+      myScenarios: [],
+    };
+    assert.equal(catalogWorldById(catalog, 9)?.content, "왕국의 겨울은 길다.");
+    assert.equal(catalogScenarioById(catalog, 4)?.viewerIsCreator, false);
+    assert.equal(visibleScenarioSecret(leaked.secretContent, false), "");
+    assert.equal(visibleScenarioSecret(leaked.secretContent, true), "진범은역무원SECRET");
+    const ownerCatalog: TrpgCatalog = {
+      ...catalog,
+      myScenarios: [{ ...leaked, secretContent: "진범은역무원SECRET" }],
+    };
+    assert.equal(catalogScenarioById(ownerCatalog, 4)?.viewerIsCreator, true);
   });
 });

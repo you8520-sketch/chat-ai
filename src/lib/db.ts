@@ -481,6 +481,7 @@ function migrate(db: Database.Database) {
   addColumn("worlds", "trpg_enabled", "INTEGER NOT NULL DEFAULT 0");
   addColumn("worlds", "trpg_visibility", "TEXT NOT NULL DEFAULT 'private'");
   addColumn("worlds", "genres", "TEXT NOT NULL DEFAULT '[]'");
+  addColumn("worlds", "cover_url", "TEXT NOT NULL DEFAULT ''");
   db.exec(`
     CREATE TABLE IF NOT EXISTS keyword_lorebooks (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

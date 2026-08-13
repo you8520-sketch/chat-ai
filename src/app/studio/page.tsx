@@ -10,6 +10,8 @@ import {
   type KeywordLorebookRow,
 } from "@/lib/keywordLorebooks";
 import { rowToWorldListItem, WORLD_SELECT_COLUMNS, type WorldRow } from "@/lib/worlds";
+import { canAccessTrpg } from "@/lib/trpg/access";
+import { listMyScenarioTemplates } from "@/lib/trpg/scenarioTemplates";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +54,12 @@ export default async function StudioPage() {
       .all(user.id) as KeywordLorebookRow[]
   ).map(rowToLorebookListItem);
 
+  const adminRow = db
+    .prepare("SELECT is_admin FROM users WHERE id = ?")
+    .get(user.id) as { is_admin: number } | undefined;
+  const showTrpg = canAccessTrpg({ email: user.email, is_admin: adminRow?.is_admin ?? 0 });
+  const scenarios = showTrpg ? listMyScenarioTemplates(db, user.id) : [];
+
   return (
     <Suspense
       fallback={
@@ -63,6 +71,8 @@ export default async function StudioPage() {
         simulations={simulations}
         worlds={worlds}
         lorebooks={lorebooks}
+        scenarios={scenarios}
+        showTrpg={showTrpg}
         blurNsfw={blurNsfw}
       />
     </Suspense>

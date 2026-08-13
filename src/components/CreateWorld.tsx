@@ -1,27 +1,168 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import StudioButton from "@/components/studio/StudioButton";
 import { StudioBackLink } from "@/components/studio/StudioEmptyState";
 import { StudioInput, StudioTextarea } from "@/components/studio/StudioInput";
 import StudioSaveBar from "@/components/studio/StudioSaveBar";
-import GenrePicker from "@/components/GenrePicker";
-import { studioType } from "@/lib/studioDesign";
-import type { CharacterGenre } from "@/lib/characterGenres";
-import { WORLD_CONTENT_LIMIT, WORLD_NAME_LIMIT, WORLD_SUMMARY_LIMIT } from "@/lib/worlds";
+import TrpgScenarioEditor from "@/app/trpg/TrpgScenarioEditor";
+import type { TrpgCatalog } from "@/lib/trpg/catalog";
+import { cn, studioSurface, studioType } from "@/lib/studioDesign";
+import { cropImageFileToSquare } from "@/lib/worldCoverCrop";
+import {
+  WORLD_CONTENT_LIMIT,
+  WORLD_NAME_LIMIT,
+  WORLD_SUMMARY_LIMIT,
+  parseWorldStudioKind,
+  type WorldListItem,
+} from "@/lib/worlds";
 
 const FORM_ID = "studio-world-form";
 
-export default function CreateWorld() {
+type Props = {
+  worldId?: number;
+  showTrpg?: boolean;
+  catalog?: TrpgCatalog | null;
+};
+
+export default function CreateWorld({ worldId, showTrpg = false, catalog = null }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isEdit = worldId != null;
+  const kind = !isEdit && showTrpg ? parseWorldStudioKind(searchParams.get("tab")) : "world";
+
+  function setKind(next: "world" | "scenario") {
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === "world") params.delete("tab");
+    else params.set("tab", "scenario");
+    const qs = params.toString();
+    router.replace(qs ? `/world/create?${qs}` : "/world/create", { scroll: false });
+  }
+
+  return (
+    <div className={cn("mx-auto max-w-2xl px-4 py-6 sm:py-8", kind === "world" ? "pb-32" : "pb-8")}>
+      <StudioBackLink href="/studio?tab=worlds">← 제작 · 세계관</StudioBackLink>
+
+      <h1 className={`${studioType.heading} mt-4`}>
+        {isEdit ? "세계관 수정" : "세계관 제작"}
+      </h1>
+      <p className={`${studioType.helper} mt-2`}>
+        {isEdit
+          ? "캐릭터·시뮬레이션에서 불러올 세계관 본문과 대표 이미지를 수정합니다."
+          : showTrpg
+            ? "캐릭터·시뮬레이션용 세계관과 TRPG 시나리오를 탭으로 나눠 만듭니다."
+            : "배경·시대·장소·세력·규칙 등을 저장해 두면, 캐릭터 제작 시 불러올 수 있습니다."}
+      </p>
+
+      {!isEdit && showTrpg ? (
+        <div
+          role="tablist"
+          aria-label="세계관 종류"
+          className="mt-5 grid grid-cols-2 gap-1 rounded-xl border border-white/10 bg-[#0e1120] p-1.5"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={kind === "world"}
+            onClick={() => setKind("world")}
+            className={cn(
+              "min-h-11 rounded-xl px-3 text-sm font-semibold transition",
+              kind === "world" ? studioSurface.tabActive : studioSurface.tabIdle,
+            )}
+          >
+            캐릭터·시뮬레이션 세계관
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={kind === "scenario"}
+            onClick={() => setKind("scenario")}
+            className={cn(
+              "min-h-11 rounded-xl px-3 text-sm font-semibold transition",
+              kind === "scenario" ? studioSurface.tabActive : studioSurface.tabIdle,
+            )}
+          >
+            TRPG 시나리오
+          </button>
+        </div>
+      ) : null}
+
+      {kind === "scenario" && catalog ? (
+        <div className="mt-6">
+          <TrpgScenarioEditor
+            catalog={catalog}
+            embedded
+            returnHref="/studio?tab=worlds&kind=scenario"
+          />
+        </div>
+      ) : (
+        <WorldForm worldId={worldId} />
+      )}
+    </div>
+  );
+}
+
+function WorldForm({ worldId }: { worldId?: number }) {
+  const router = useRouter();
+  const isEdit = worldId != null;
+  const fileRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
   const [summary, setSummary] = useState("");
   const [content, setContent] = useState("");
-  const [trpgEnabled, setTrpgEnabled] = useState(false);
-  const [genres, setGenres] = useState<CharacterGenre[]>([]);
+  const [coverUrl, setCoverUrl] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [bootLoading, setBootLoading] = useState(isEdit);
+
+  useEffect(() => {
+    if (!isEdit || worldId == null) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/worlds/${worldId}`);
+        const data = (await res.json()) as { world?: WorldListItem; error?: string };
+        if (!res.ok || !data.world) {
+          if (!cancelled) setError(data.error || "불러오기에 실패했습니다.");
+          return;
+        }
+        if (cancelled) return;
+        setName(data.world.name);
+        setSummary(data.world.summary);
+        setContent(data.world.content);
+        setCoverUrl(data.world.coverUrl ?? "");
+      } catch {
+        if (!cancelled) setError("불러오는 중 오류가 발생했습니다.");
+      } finally {
+        if (!cancelled) setBootLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isEdit, worldId]);
+
+  async function uploadCover(file: File) {
+    setUploading(true);
+    setError("");
+    try {
+      const square = await cropImageFileToSquare(file);
+      const fd = new FormData();
+      fd.append("files", square);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = (await res.json()) as { urls?: string[]; error?: string };
+      if (!res.ok || !data.urls?.[0]) {
+        setError(data.error || "이미지 업로드에 실패했습니다.");
+        return;
+      }
+      setCoverUrl(data.urls[0]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "이미지 업로드 중 오류가 발생했습니다.");
+    } finally {
+      setUploading(false);
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -41,10 +182,10 @@ export default function CreateWorld() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/worlds", {
-        method: "POST",
+      const res = await fetch(isEdit ? `/api/worlds/${worldId}` : "/api/worlds", {
+        method: isEdit ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, summary, content, trpgEnabled, genres: trpgEnabled ? genres : [] }),
+        body: JSON.stringify({ name, summary, content, coverUrl }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -60,17 +201,13 @@ export default function CreateWorld() {
     }
   }
 
+  if (bootLoading) {
+    return <p className={`mt-8 ${studioType.helper}`}>불러오는 중...</p>;
+  }
+
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6 pb-32 sm:py-8">
-      <StudioBackLink href="/studio?tab=worlds">← 제작 · 세계관</StudioBackLink>
-
-      <h1 className={`${studioType.heading} mt-4`}>세계관 제작</h1>
-      <p className={`${studioType.helper} mt-2`}>
-        배경·시대·장소·세력·규칙 등을 저장해 두면, 캐릭터 제작 시 불러올 수 있습니다.
-        TRPG에서 쓰려면 아래에서 공개 여부를 고르면 됩니다.
-      </p>
-
-      <form id={FORM_ID} onSubmit={submit} className="mt-8 space-y-6">
+    <>
+      <form id={FORM_ID} onSubmit={(e) => void submit(e)} className="mt-8 space-y-6">
         <StudioInput
           label="세계관 이름 *"
           placeholder="예: 북부 대공국 · 현대 서울 판타지"
@@ -88,6 +225,54 @@ export default function CreateWorld() {
           onChange={(e) => setSummary(e.target.value.slice(0, WORLD_SUMMARY_LIMIT))}
         />
 
+        <div>
+          <p className={studioType.label}>대표 이미지</p>
+          <p className={cn(studioType.helper, "mb-2")}>
+            선택입니다. 정사각으로 가운데를 잘라 저장합니다. 없으면 TRPG 카드에 검은 화면이 나옵니다.
+          </p>
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="aspect-square w-28 overflow-hidden rounded-xl bg-black sm:w-32">
+              {coverUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={coverUrl} alt="" className="h-full w-full object-cover" />
+              ) : null}
+            </div>
+            <div className="space-y-2">
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                hidden
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (file) void uploadCover(file);
+                }}
+              />
+              <StudioButton
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={uploading || loading}
+                onClick={() => fileRef.current?.click()}
+              >
+                {uploading ? "업로드 중…" : coverUrl ? "이미지 바꾸기" : "이미지 올리기"}
+              </StudioButton>
+              {coverUrl ? (
+                <StudioButton
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={uploading || loading}
+                  onClick={() => setCoverUrl("")}
+                >
+                  이미지 제거
+                </StudioButton>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
         <StudioTextarea
           label="세계관 본문 *"
           rows={14}
@@ -99,28 +284,6 @@ export default function CreateWorld() {
           onChange={(e) => setContent(e.target.value.slice(0, WORLD_CONTENT_LIMIT))}
         />
 
-        <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
-          <label className="flex items-start gap-3 text-sm text-zinc-200">
-            <input
-              type="checkbox"
-              checked={trpgEnabled}
-              onChange={(e) => setTrpgEnabled(e.target.checked)}
-              className="mt-1 h-4 w-4 accent-violet-500"
-            />
-            <span>
-              <span className="font-semibold">TRPG에서 사용</span>
-              <span className="mt-1 block text-xs text-zinc-500">
-                켜면 TRPG 탭 공개 목록에 올라갑니다. 끄면 목록에서 빠지고, 내가 캠페인을 만들 때만 쓸 수 있습니다.
-              </span>
-            </span>
-          </label>
-          {trpgEnabled ? (
-            <div className="mt-4">
-              <GenrePicker value={genres} onChange={setGenres} />
-            </div>
-          ) : null}
-        </div>
-
         <div className="flex flex-wrap gap-3">
           <StudioButton href="/create" variant="secondary">
             캐릭터 제작으로
@@ -131,10 +294,10 @@ export default function CreateWorld() {
       <StudioSaveBar
         formId={FORM_ID}
         saveType="submit"
-        saveLabel={loading ? "저장 중…" : "세계관 저장"}
-        saveDisabled={loading}
+        saveLabel={loading ? "저장 중…" : isEdit ? "세계관 저장" : "세계관 저장"}
+        saveDisabled={loading || uploading}
         error={error || null}
       />
-    </div>
+    </>
   );
 }

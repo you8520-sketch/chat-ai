@@ -8,7 +8,8 @@ export const WORLD_SELECT_COLUMNS = `id, creator_id, name, summary, content, cre
               COALESCE(shared_from_nickname, '') AS shared_from_nickname,
               COALESCE(trpg_enabled, 0) AS trpg_enabled,
               COALESCE(trpg_visibility, 'private') AS trpg_visibility,
-              COALESCE(genres, '[]') AS genres`;
+              COALESCE(genres, '[]') AS genres,
+              COALESCE(cover_url, '') AS cover_url`;
 
 export type WorldRow = {
   id: number;
@@ -22,6 +23,7 @@ export type WorldRow = {
   trpg_enabled?: number;
   trpg_visibility?: string;
   genres?: string;
+  cover_url?: string;
 };
 
 export type WorldListItem = {
@@ -36,7 +38,14 @@ export type WorldListItem = {
   trpgEnabled: boolean;
   trpgVisibility: "public" | "private";
   genres: CharacterGenre[];
+  coverUrl: string;
 };
+
+export type WorldStudioKind = "world" | "scenario";
+
+export function parseWorldStudioKind(raw: unknown): WorldStudioKind {
+  return raw === "scenario" || raw === "trpg" ? "scenario" : "world";
+}
 
 export function parseWorldTrpgVisibility(value: unknown): "public" | "private" {
   return value === "public" ? "public" : "private";
@@ -53,6 +62,14 @@ export function parseWorldTrpgFlags(body: { trpgEnabled?: unknown; trpgVisibilit
   };
 }
 
+const WORLD_COVER_URL_RE = /^\/uploads\/[A-Za-z0-9._-]+$/;
+
+/** Accepts only app-hosted upload paths. Empty when unset or unsafe. */
+export function sanitizeWorldCoverUrl(raw: unknown): string {
+  const value = String(raw ?? "").trim();
+  return WORLD_COVER_URL_RE.test(value) ? value : "";
+}
+
 export function rowToWorldListItem(row: WorldRow): WorldListItem {
   const sharedFrom = (row.shared_from_nickname ?? "").trim();
   return {
@@ -66,5 +83,6 @@ export function rowToWorldListItem(row: WorldRow): WorldListItem {
     trpgEnabled: Number(row.trpg_enabled ?? 0) === 1,
     trpgVisibility: parseWorldTrpgVisibility(row.trpg_visibility),
     genres: parseGenresJson(row.genres),
+    coverUrl: sanitizeWorldCoverUrl(row.cover_url),
   };
 }
