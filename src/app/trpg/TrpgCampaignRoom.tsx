@@ -38,13 +38,31 @@ function imageCharacterId(snap: TrpgCampaignSnapshot): number | null {
   return snap.sourceCharacterId;
 }
 
-function openSceneImage(opts: { characterId: number | null; content: string }) {
+function partyDisplayNames(snap: TrpgCampaignSnapshot): string[] {
+  return snap.participants
+    .map((p) => {
+      const sheet = snap.sheets.find((card) => card.participantId === p.id);
+      return (sheet?.sheet.name.trim() || p.displayName.trim());
+    })
+    .filter(Boolean);
+}
+
+function openSceneImage(opts: {
+  characterId: number | null;
+  campaignId: number;
+  roundNumber: number;
+  content: string;
+  partyNames: string[];
+}) {
   if (!opts.characterId) return;
   window.dispatchEvent(
     new CustomEvent("chat:image-generator:open", {
       detail: {
         characterId: opts.characterId,
+        campaignId: opts.campaignId,
+        roundNumber: opts.roundNumber,
         content: opts.content,
+        partyNames: opts.partyNames,
       },
     })
   );
@@ -103,6 +121,7 @@ export default function TrpgCampaignRoom({
     "GM",
   ].filter((name, i, all) => name.trim() && all.indexOf(name) === i);
   const imageId = imageCharacterId(snap);
+  const partyNames = partyDisplayNames(snap);
   const sceneRows = snap.log.filter((row) => row.narration || row.actions.some((a) => a.revealed && a.body));
   const waitingOpening =
     sceneRows.length === 0 &&
@@ -236,7 +255,15 @@ export default function TrpgCampaignRoom({
               canImage={Boolean(imageId) && Boolean(row.narration)}
               busy={busy || generating}
               onReroll={() => onReroll(row.roundNumber)}
-              onImage={() => openSceneImage({ characterId: imageId, content: row.narration ?? "" })}
+              onImage={() =>
+                openSceneImage({
+                  characterId: imageId,
+                  campaignId: snap.id,
+                  roundNumber: row.roundNumber,
+                  content: row.narration ?? "",
+                  partyNames,
+                })
+              }
             />
           ))}
 
