@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AppSectionCard } from "@/components/AppPageShell";
 import ChatSelectionQuoteToolbar from "@/components/ChatSelectionQuoteToolbar";
-import NovelText from "@/components/NovelText";
 import { TRPG_ACTION_TYPES, actionTypeLabelKo, type TrpgActionType } from "@/lib/trpg/actionTypes";
 import { parseTrpgBotAction } from "@/lib/trpg/botActions";
 import {
@@ -45,6 +44,7 @@ function partyDisplayNames(snap: TrpgCampaignSnapshot): string[] {
 function openSceneImage(opts: {
   characterId: number | null;
   campaignId: number;
+  campaignTitle: string;
   roundNumber: number;
   content: string;
   partyNames: string[];
@@ -55,6 +55,7 @@ function openSceneImage(opts: {
       detail: {
         characterId: opts.characterId,
         campaignId: opts.campaignId,
+        campaignTitle: opts.campaignTitle,
         roundNumber: opts.roundNumber,
         content: opts.content,
         partyNames: opts.partyNames,
@@ -244,6 +245,10 @@ export default function TrpgCampaignRoom({
               <Link href="/trpg" className="text-violet-300 hover:text-violet-200">
                 로비
               </Link>
+              {" · "}
+              <Link href={`/albums?campaignId=${snap.id}`} className="text-violet-300 hover:text-violet-200">
+                앨범
+              </Link>
               {" · "}라운드 {snap.round.number}
             </p>
           </div>
@@ -309,6 +314,7 @@ export default function TrpgCampaignRoom({
                 openSceneImage({
                   characterId: imageId,
                   campaignId: snap.id,
+                  campaignTitle: snap.title,
                   roundNumber: row.roundNumber,
                   content: row.narration ?? "",
                   partyNames,
@@ -483,7 +489,7 @@ function SceneTurn({
       <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
         {row.roundNumber === 0 ? "시작" : `장면 ${row.roundNumber}`}
       </p>
-      <div className="space-y-4">
+      <div className="space-y-3">
         {visibleActions.map((action) => {
           const parsed = parseTrpgBotAction(action.body);
           return (
@@ -510,36 +516,15 @@ function SceneTurn({
           );
         })}
         {row.rolls.length > 0 ? <DiceStrip rolls={row.rolls} statDefs={statDefs} /> : null}
-        {beats.map((beat, i) =>
-          beat.speaker ? (
-            <TrpgNamedProse
-              key={`${row.roundNumber}-gm-${i}`}
-              name={beat.speaker}
-              text={beat.text}
-              variant="character"
-              display={display}
-            />
-          ) : (
-            <div
-              key={`${row.roundNumber}-gm-${i}`}
-              data-quote-assistant
-              className="select-text [touch-action:pan-y] [-webkit-user-select:text]"
-              style={{
-                userSelect: "text",
-                WebkitUserSelect: "text",
-                touchAction: "pan-y",
-                WebkitTouchCallout: "default",
-              }}
-            >
-              <NovelText
-                content={beat.text}
-                display={display}
-                variant="character"
-                paragraphMode="author"
-              />
-            </div>
-          )
-        )}
+        {beats.map((beat, i) => (
+          <TrpgNamedProse
+            key={`${row.roundNumber}-gm-${i}`}
+            name={beat.speaker}
+            text={beat.text}
+            variant="character"
+            display={display}
+          />
+        ))}
       </div>
       {showToolbar ? (
         <TrpgSceneToolbar

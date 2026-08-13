@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 
 import {
   CHAT_COMIC_GENERATION_DEFAULT_POINTS,
@@ -140,6 +141,14 @@ type GenerateResult = {
 
 type SavedAlbumEntry = {
   imageUrl: string;
+};
+
+type PartyCastMember = {
+  participantId: number;
+  name: string;
+  kind: "human" | "ai_character";
+  imageUrl: string | null;
+  images: Array<{ url: string; tag: string }>;
 };
 
 function currentRouteIds() {
@@ -373,7 +382,11 @@ export default function ChatImageGeneratorPanel({
   const [summarizing, setSummarizing] = useState(false);
   const [campaignId, setCampaignId] = useState<number | null>(null);
   const [campaignRoundNumber, setCampaignRoundNumber] = useState<number | null>(null);
+  const [campaignTitle, setCampaignTitle] = useState("");
   const [partyNames, setPartyNames] = useState<string[]>([]);
+  const [partyCast, setPartyCast] = useState<PartyCastMember[]>([]);
+  const [partyPicks, setPartyPicks] = useState<Record<number, string>>({});
+  const [partyPickerId, setPartyPickerId] = useState<number | null>(null);
   const trpgCampaignMode = campaignId != null;
 
   useEffect(() => {
@@ -383,6 +396,7 @@ export default function ChatImageGeneratorPanel({
         content?: unknown;
         characterId?: unknown;
         campaignId?: unknown;
+        campaignTitle?: unknown;
         roundNumber?: unknown;
         partyNames?: unknown;
       }>).detail;
@@ -397,6 +411,12 @@ export default function ChatImageGeneratorPanel({
       setCampaignRoundNumber(
         Number.isInteger(parsedRound) && parsedRound >= 0 ? parsedRound : null
       );
+      setCampaignTitle(
+        typeof detail?.campaignTitle === "string" ? detail.campaignTitle.trim() : ""
+      );
+      setPartyCast([]);
+      setPartyPicks({});
+      setPartyPickerId(null);
       setPartyNames(
         Array.isArray(detail?.partyNames)
           ? detail.partyNames.filter((name): name is string => typeof name === "string" && name.trim().length > 0)
@@ -433,6 +453,51 @@ export default function ChatImageGeneratorPanel({
     setTab("comic");
     setLdProduct("illustration");
   }, [trpgCampaignMode]);
+
+  useEffect(() => {
+    if (!open || !campaignId) {
+      if (!campaignId) {
+        setPartyCast([]);
+        setPartyPicks({});
+        setPartyPickerId(null);
+      }
+      return;
+    }
+    let cancelled = false;
+    void fetch(`/api/trpg/campaigns/${campaignId}/illustration-cast`, { cache: "no-store" })
+      .then(async (response) => {
+        const data = (await response.json().catch(() => null)) as
+          | {
+              ok?: boolean;
+              campaignTitle?: string;
+              members?: PartyCastMember[];
+              error?: string;
+            }
+          | null;
+        if (!response.ok || !data?.ok) {
+          throw new Error(data?.error || "파티 이미지를 불러오지 못했습니다.");
+        }
+        if (cancelled) return;
+        const members = Array.isArray(data.members) ? data.members : [];
+        setPartyCast(members);
+        setPartyPicks(
+          Object.fromEntries(
+            members.map((member) => [member.participantId, member.imageUrl || ""])
+          )
+        );
+        if (members.length > 0) {
+          setPartyNames(members.map((member) => member.name));
+        }
+        if (data.campaignTitle?.trim()) setCampaignTitle(data.campaignTitle.trim());
+      })
+      .catch((caught: unknown) => {
+        if (cancelled) return;
+        setError(caught instanceof Error ? caught.message : "파티 이미지를 불러오지 못했습니다.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, campaignId]);
 
   const activeResultUrl =
     tab === "comic"
@@ -478,6 +543,10 @@ export default function ChatImageGeneratorPanel({
       imageUrl: selectedCharacterImageUrl || info.character.imageUrl,
     };
   }, [info?.character, selectedCharacterImageUrl]);
+  const partyPickerMember = useMemo(
+    () => partyCast.find((row) => row.participantId === partyPickerId) ?? null,
+    [partyCast, partyPickerId]
+  );
 
   const updateBalance = useCallback((data: GenerateResult) => {
     if (
@@ -509,6 +578,24 @@ export default function ChatImageGeneratorPanel({
 
   const loadSavedImages = useCallback(async () => {
     const ids = currentRouteIds();
+    if (campaignId) {
+      try {
+        const response = await fetch(
+          `/api/chat/image-album?campaignId=${encodeURIComponent(String(campaignId))}`,
+          { cache: "no-store" }
+        );
+        const data = (await response.json().catch(() => null)) as
+          | { album?: SavedAlbumEntry[]; title?: string; error?: string }
+          | null;
+        if (!response.ok || !data) throw new Error(data?.error || "앨범을 불러오지 못했습니다.");
+        const rows = Array.isArray(data.album) ? data.album : [];
+        setSavedUrls(new Set(rows.map((item) => item.imageUrl)));
+        if (data.title?.trim()) setCampaignTitle(data.title.trim());
+      } catch (caught) {
+        setError(caught instanceof Error ? caught.message : "앨범을 불러오지 못했습니다.");
+      }
+      return;
+    }
     if (!ids.characterId) return;
     try {
       const response = await fetch(
@@ -524,7 +611,7 @@ export default function ChatImageGeneratorPanel({
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "앨범을 불러오지 못했습니다.");
     }
-  }, []);
+  }, [campaignId]);
 
   const loadInfo = useCallback(async () => {
     setLoadingInfo(true);
@@ -898,6 +985,15 @@ export default function ChatImageGeneratorPanel({
               ? campaignRoundNumber
               : undefined,
           characterImageUrl: selectedCharacterImageUrl || info.character.imageUrl,
+          castImagePicks:
+            isIllustration && campaignId
+              ? partyCast
+                  .map((member) => ({
+                    participantId: member.participantId,
+                    imageUrl: partyPicks[member.participantId] || member.imageUrl || "",
+                  }))
+                  .filter((pick) => pick.imageUrl)
+              : undefined,
         }),
       });
       const data = (await response.json().catch(() => null)) as GenerateResult | null;
@@ -922,7 +1018,9 @@ export default function ChatImageGeneratorPanel({
       updateBalance(data);
       setNotice(
         isIllustration
-          ? "선택 턴의 핵심 장면으로 2:3 LD 일러스트를 만들어 캐릭터 앨범에 추가했습니다."
+          ? campaignId
+            ? `선택 턴 일러스트를 만들어 「${campaignTitle || "TRPG"}」 캠페인 앨범에 추가했습니다.`
+            : "선택 턴의 핵심 장면으로 2:3 LD 일러스트를 만들어 캐릭터 앨범에 추가했습니다."
           : "선택 턴의 중요 대사(원문)와 배경을 추출해 컷만화를 만들고 앨범에 추가했습니다."
       );
       void loadInfo();
@@ -964,6 +1062,14 @@ export default function ChatImageGeneratorPanel({
         <button
           type="button"
           onClick={() => {
+            characterIdOverride = null;
+            setCampaignId(null);
+            setCampaignRoundNumber(null);
+            setCampaignTitle("");
+            setPartyNames([]);
+            setPartyCast([]);
+            setPartyPicks({});
+            setPartyPickerId(null);
             setSourceMessageId(null);
             setSourceTurnPreview("");
             setComicSummary("");
@@ -1162,14 +1268,18 @@ export default function ChatImageGeneratorPanel({
                         ? activeMode === "persona"
                           ? "생성 결과는 864×1440 WebP로 저장되며 아래 버튼으로 내려받을 수 있습니다."
                           : activeSaved
-                          ? "캐릭터 앨범에 저장된 이미지입니다."
+                          ? campaignId
+                            ? `「${campaignTitle || "TRPG"}」 캠페인 앨범에 저장된 이미지입니다.`
+                            : "캐릭터 앨범에 저장된 이미지입니다."
+                          : campaignId
+                            ? `생성 결과는 「${campaignTitle || "TRPG"}」 캠페인 앨범에 저장됩니다.`
                           : "생성 결과는 기존 캐릭터 이미지 앨범에 자동으로 추가됩니다."
                         : tab === "comic"
                           ? ldProduct === "persona"
                             ? "선택 페르소나의 성별·외관 설정을 반영하고, 캐릭터 이미지는 그림체만 직접 참조합니다."
                             : ldProduct === "illustration"
                             ? campaignId
-                              ? `캠페인 파티${partyNames.length ? `(${partyNames.join(", ")})` : ""}가 한 장면에 모두 나옵니다. 포인트는 1:1 일러스트와 같습니다.`
+                              ? `파티 전원${partyNames.length ? `(${partyNames.join(", ")})` : ""}이 한 장면에 함께 나옵니다. 아래에서 멤버마다 참조 이미지를 고르세요. 포인트는 1:1 일러스트와 같습니다.`
                               : "현재 채팅의 최신 턴을 자동으로 읽어 두 사람의 외형과 그림체를 최대한 닮게 반영합니다."
                             : "본문만 붙여넣으면 핵심 대사·말풍선·지문과 2~3컷 구성을 자동으로 만듭니다."
                           : sdProduct === "emoticon"
@@ -1213,6 +1323,84 @@ export default function ChatImageGeneratorPanel({
                   </div>
 
                   <div className="space-y-3">
+                    {trpgCampaignMode ? (
+                      <>
+                        <div className="grid grid-cols-2 gap-2">
+                          {partyCast.map((member) => {
+                            const picked = partyPicks[member.participantId] || member.imageUrl || "";
+                            return (
+                              <ReferenceCard
+                                key={member.participantId}
+                                label={member.kind === "human" ? "플레이어" : "캐릭터"}
+                                info={{
+                                  id: member.participantId,
+                                  name: member.name,
+                                  imageUrl: picked,
+                                }}
+                                onClick={
+                                  member.images.length > 1
+                                    ? () =>
+                                        setPartyPickerId((previous) =>
+                                          previous === member.participantId
+                                            ? null
+                                            : member.participantId
+                                        )
+                                    : undefined
+                                }
+                              />
+                            );
+                          })}
+                        </div>
+                        {partyCast.length === 0 ? (
+                          <p className="text-[10px] text-zinc-500">파티 이미지를 불러오는 중…</p>
+                        ) : null}
+                        {partyPickerMember && partyPickerMember.images.length > 1 ? (
+                          <div className="rounded-xl border border-violet-400/20 bg-black/25 p-2">
+                            <p className="mb-2 text-[10px] font-semibold text-violet-200">
+                              {partyPickerMember.name} 참조 이미지
+                            </p>
+                            <div className="grid max-h-52 grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4">
+                              {partyPickerMember.images.map((image) => {
+                                const selected =
+                                  image.url ===
+                                  (partyPicks[partyPickerMember.participantId] ||
+                                    partyPickerMember.imageUrl ||
+                                    "");
+                                return (
+                                  <button
+                                    key={image.url}
+                                    type="button"
+                                    onClick={() => {
+                                      setPartyPicks((previous) => ({
+                                        ...previous,
+                                        [partyPickerMember.participantId]: image.url,
+                                      }));
+                                      setPartyPickerId(null);
+                                    }}
+                                    className={`overflow-hidden rounded-lg border text-left transition ${
+                                      selected
+                                        ? "border-violet-400 bg-violet-500/15"
+                                        : "border-white/10 bg-white/[0.03] hover:border-white/25"
+                                    }`}
+                                    aria-label={`${partyPickerMember.name} 이미지 선택: ${image.tag || "이미지"}`}
+                                  >
+                                    <img
+                                      src={image.url}
+                                      alt=""
+                                      className="aspect-square w-full object-cover object-top"
+                                    />
+                                    <span className="block truncate px-1.5 py-1 text-[9px] text-zinc-300">
+                                      {image.tag || "이미지"}
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ) : null}
+                      </>
+                    ) : (
+                      <>
                     <div className="grid grid-cols-2 gap-2">
                       <ReferenceCard
                         label="채팅 캐릭터"
@@ -1262,6 +1450,8 @@ export default function ChatImageGeneratorPanel({
                         </div>
                       </div>
                     ) : null}
+                      </>
+                    )}
                     {actualCosts[activeMode] ? (
                       <p className="rounded-lg border border-amber-400/20 bg-amber-400/[0.06] px-3 py-2 text-[11px] text-amber-100">
                         관리자 방금 생성 실제 API 원가: $
@@ -1502,12 +1692,21 @@ export default function ChatImageGeneratorPanel({
                           <div className="space-y-2 rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-3 text-[11px] leading-relaxed text-zinc-300">
                             {campaignId ? (
                               <p>
-                                <strong className="text-violet-200">캠페인 파티 전원</strong>
+                                <strong className="text-violet-200">
+                                  「{campaignTitle || "TRPG"}」 캠페인 앨범
+                                </strong>
                                 {" · "}
                                 {partyNames.length
                                   ? `${partyNames.join(", ")}이(가) 한 장면에 함께 나옵니다.`
                                   : "유저 포함 파티 전원(최대 4명)이 한 장면에 함께 나옵니다."}
-                                {" "}포인트는 1:1 선택 턴 일러스트와 같습니다.
+                                {" "}멤버마다 참조 이미지를 고를 수 있고, 포인트는 1:1 선택 턴 일러스트와 같습니다.
+                                {" "}
+                                <Link
+                                  href={`/albums?campaignId=${campaignId}`}
+                                  className="font-semibold text-violet-200 underline decoration-violet-400/40 underline-offset-2 hover:text-white"
+                                >
+                                  캠페인 앨범 보기
+                                </Link>
                               </p>
                             ) : sourceMessageId ? (
                               <p>

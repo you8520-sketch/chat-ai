@@ -128,6 +128,8 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(TRPG_GM_SYSTEM, /Never paste/);
     assert.match(TRPG_GM_SYSTEM, /talk-ask only/);
     assert.match(TRPG_GM_SYSTEM, /Do not stop at echoing/);
+    assert.match(TRPG_GM_SYSTEM, /Written documents/);
+    assert.match(TRPG_GM_SYSTEM, /AI companion/);
     const talk = buildTrpgGmUserBlock({
       worldBrief: "폐여관",
       memoryBlock: "[TRPG STRUCTURED STATE]",

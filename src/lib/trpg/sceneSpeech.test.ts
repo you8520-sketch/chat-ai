@@ -52,4 +52,25 @@ describe("parseTrpgSceneSpeech", () => {
     assert.equal(beats[2]?.speaker, null);
     assert.equal(beats[3]?.speaker, "강이현");
   });
+
+  it("does not label a handwritten note as the previous speaker", () => {
+    const note =
+      "엄마가 깨어나지 않아요. 아빠는 문 밖에서 계속 내 이름을 불러요. 하지만 그건 아빠 목소리가 아니에요.";
+    const afterSpeech = parseTrpgSceneSpeech(
+      `렌: "지도 줘."\n\n종이를 펼치자, 손으로 그린 지도가 나타났다. 지도 아래쪽에는 떨리는 손글씨로 한 줄이 더 적혀 있었다.\n\n"${note}"\n\n렌은 고개를 갸웃거리며 종이를 뒤집어 보았다.`,
+      ["렌", "권태현", "강이현"]
+    );
+    const quoted = afterSpeech.find((b) => b.text.includes("엄마가 깨어나지"));
+    assert.ok(quoted);
+    assert.equal(quoted?.speaker, null);
+    assert.equal(afterSpeech.find((b) => b.text.includes("지도 줘"))?.speaker, "렌");
+
+    const prefixed = parseTrpgSceneSpeech(
+      `종이를 펼치자 떨리는 손글씨로 한 줄이 더 적혀 있었다.\n렌: "${note}"\n렌은 고개를 갸웃거렸다.`,
+      ["렌"]
+    );
+    const asNote = prefixed.find((b) => b.text.includes("엄마가 깨어나지"));
+    assert.ok(asNote);
+    assert.equal(asNote?.speaker, null);
+  });
 });

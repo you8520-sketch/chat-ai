@@ -2,16 +2,20 @@ import { NextResponse } from "next/server";
 
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
-import type { ChatImageAlbumMode } from "@/lib/chatImageAlbum";
+import {
+  campaignAlbumTitle,
+  characterAlbumTitle,
+  deleteCampaignAlbumImage,
+  deleteCharacterAlbumImage,
+  ensureCharacterImageAlbumTable,
+  listCampaignAlbum,
+  listCharacterAlbum,
+  listImageAlbumCatalog,
+  saveGeneratedImageToCharacterAlbum,
+  type ChatImageAlbumMode,
+} from "@/lib/chatImageAlbum";
 
 export const runtime = "nodejs";
-
-type AlbumRow = {
-  id: number;
-  image_url: string;
-  mode: string;
-  created_at: string;
-};
 
 class RequestError extends Error {
   constructor(
@@ -28,41 +32,6 @@ function positiveInt(raw: unknown): number | null {
   return Number.isInteger(value) && value > 0 ? value : null;
 }
 
-function ensureAlbumTables() {
-  getDb().exec(`
-    CREATE TABLE IF NOT EXISTS chat_image_generations (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      chat_id INTEGER,
-      character_id INTEGER NOT NULL,
-      persona_id INTEGER NOT NULL,
-      template_id TEXT NOT NULL,
-      model TEXT NOT NULL,
-      options_json TEXT NOT NULL DEFAULT '{}',
-      result_url TEXT NOT NULL,
-      upstream_cost_usd REAL,
-      charged_points INTEGER NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS character_image_album (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user_id INTEGER NOT NULL,
-      character_id INTEGER NOT NULL,
-      persona_id INTEGER,
-      chat_id INTEGER,
-      generation_id INTEGER,
-      image_url TEXT NOT NULL,
-      mode TEXT NOT NULL DEFAULT 'sd',
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      UNIQUE(user_id, character_id, image_url)
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_character_image_album_recent
-      ON character_image_album(user_id, character_id, created_at DESC, id DESC);
-  `);
-}
-
 function assertCharacterVisible(userId: number, characterId: number) {
   const character = getDb()
     .prepare("SELECT id, creator_id, visibility FROM characters WHERE id=?")
@@ -75,38 +44,36 @@ function assertCharacterVisible(userId: number, characterId: number) {
   }
 }
 
-function listAlbum(userId: number, characterId: number) {
-  return (getDb()
-    .prepare(
-      `SELECT id, image_url, mode, created_at
-       FROM character_image_album
-       WHERE user_id=? AND character_id=?
-       ORDER BY id DESC
-       LIMIT 60`
-    )
-    .all(userId, characterId) as AlbumRow[]).map((row) => ({
-    id: row.id,
-    imageUrl: row.image_url,
-    mode: (["sd", "emoticon", "couple_stamp", "comic", "illustration"].includes(row.mode)
-      ? row.mode
-      : "sd") as ChatImageAlbumMode,
-    createdAt: row.created_at,
-  }));
-}
-
 export async function GET(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
 
   try {
     const url = new URL(req.url);
+    if (url.searchParams.get("catalog") === "1") {
+      ensureCharacterImageAlbumTable();
+      return NextResponse.json({
+        ok: true,
+        catalog: listImageAlbumCatalog(user.id),
+      });
+    }
+    const campaignId = positiveInt(url.searchParams.get("campaignId"));
+    if (campaignId) {
+      return NextResponse.json({
+        ok: true,
+        kind: "campaign",
+        title: campaignAlbumTitle(user.id, campaignId),
+        album: listCampaignAlbum(user.id, campaignId),
+      });
+    }
     const characterId = positiveInt(url.searchParams.get("characterId"));
     if (!characterId) throw new RequestError("캐릭터 정보가 없습니다.");
     assertCharacterVisible(user.id, characterId);
-    ensureAlbumTables();
     return NextResponse.json({
       ok: true,
-      album: listAlbum(user.id, characterId),
+      kind: "character",
+      title: characterAlbumTitle(characterId),
+      album: listCharacterAlbum(user.id, characterId),
     });
   } catch (error) {
     const status = error instanceof RequestError ? error.status : 500;
@@ -121,29 +88,37 @@ export async function DELETE(req: Request) {
 
   try {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-    const characterId = positiveInt(body.characterId);
     const imageUrl = String(body.imageUrl ?? "").trim();
-    if (!characterId) throw new RequestError("캐릭터 정보가 없습니다.");
     if (!imageUrl.startsWith("/uploads/") || imageUrl.includes("..")) {
       throw new RequestError("삭제할 이미지 경로가 올바르지 않습니다.");
     }
-    assertCharacterVisible(user.id, characterId);
-    ensureAlbumTables();
-
-    const result = getDb()
-      .prepare(
-        `DELETE FROM character_image_album
-         WHERE user_id=? AND character_id=? AND image_url=?`
-      )
-      .run(user.id, characterId, imageUrl);
-    if (result.changes === 0) {
-      throw new RequestError("앨범에서 해당 이미지를 찾을 수 없습니다.", 404);
+    const campaignId = positiveInt(body.campaignId);
+    if (campaignId) {
+      const changes = deleteCampaignAlbumImage({
+        userId: user.id,
+        campaignId,
+        imageUrl,
+      });
+      if (changes === 0) throw new RequestError("앨범에서 해당 이미지를 찾을 수 없습니다.", 404);
+      return NextResponse.json({
+        ok: true,
+        deleted: true,
+        album: listCampaignAlbum(user.id, campaignId),
+      });
     }
-
+    const characterId = positiveInt(body.characterId);
+    if (!characterId) throw new RequestError("캐릭터 정보가 없습니다.");
+    assertCharacterVisible(user.id, characterId);
+    const changes = deleteCharacterAlbumImage({
+      userId: user.id,
+      characterId,
+      imageUrl,
+    });
+    if (changes === 0) throw new RequestError("앨범에서 해당 이미지를 찾을 수 없습니다.", 404);
     return NextResponse.json({
       ok: true,
       deleted: true,
-      album: listAlbum(user.id, characterId),
+      album: listCharacterAlbum(user.id, characterId),
     });
   } catch (error) {
     const status = error instanceof RequestError ? error.status : 500;
@@ -165,7 +140,7 @@ export async function POST(req: Request) {
       throw new RequestError("저장할 이미지 경로가 올바르지 않습니다.");
     }
     assertCharacterVisible(user.id, characterId);
-    ensureAlbumTables();
+    ensureCharacterImageAlbumTable();
 
     const generation = getDb()
       .prepare(
@@ -205,29 +180,28 @@ export async function POST(req: Request) {
           : requestedMode === "couple_stamp"
             ? "couple_stamp"
             : "sd";
+    const campaignId = positiveInt(options.campaignId);
+    const campaignTitle =
+      typeof options.campaignTitle === "string" ? options.campaignTitle.trim() : "";
 
-    getDb()
-      .prepare(
-        `INSERT INTO character_image_album (
-           user_id, character_id, persona_id, chat_id, generation_id, image_url, mode
-         ) VALUES (?,?,?,?,?,?,?)
-         ON CONFLICT(user_id, character_id, image_url)
-         DO UPDATE SET mode=excluded.mode`
-      )
-      .run(
-        user.id,
-        characterId,
-        generation.persona_id,
-        generation.chat_id,
-        generation.id,
-        imageUrl,
-        mode
-      );
+    saveGeneratedImageToCharacterAlbum({
+      userId: user.id,
+      characterId,
+      personaId: generation.persona_id,
+      chatId: generation.chat_id,
+      generationId: generation.id,
+      imageUrl,
+      mode,
+      campaignId,
+      campaignTitle: campaignTitle || null,
+    });
 
     return NextResponse.json({
       ok: true,
       saved: true,
-      album: listAlbum(user.id, characterId),
+      album: campaignId
+        ? listCampaignAlbum(user.id, campaignId)
+        : listCharacterAlbum(user.id, characterId),
     });
   } catch (error) {
     const status = error instanceof RequestError ? error.status : 500;
