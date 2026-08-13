@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   catalogItemMatches,
+  catalogNewReleases,
   catalogScenarioById,
   catalogWorldById,
   genresInCatalog,
@@ -53,6 +54,7 @@ describe("TRPG catalog browse", () => {
       mine: false,
       genres: ["판타지"],
       coverUrl: "",
+      updatedAt: "2026-08-01 12:00:00",
     };
     const leaked: TrpgScenarioTemplate = {
       id: 4,
@@ -88,5 +90,61 @@ describe("TRPG catalog browse", () => {
       myScenarios: [{ ...leaked, secretContent: "진범은역무원SECRET" }],
     };
     assert.equal(catalogScenarioById(ownerCatalog, 4)?.viewerIsCreator, true);
+  });
+
+  it("mixes public worlds and scenarios by recency for the 신작 row", () => {
+    const olderWorld: TrpgCatalogWorld = {
+      id: 1,
+      name: "옛 왕국",
+      summary: "",
+      content: "",
+      creatorId: 2,
+      creatorName: "렌",
+      visibility: "public",
+      trpgEnabled: true,
+      mine: false,
+      genres: [],
+      coverUrl: "",
+      updatedAt: "2026-08-01 10:00:00",
+    };
+    const newerWorld: TrpgCatalogWorld = {
+      ...olderWorld,
+      id: 2,
+      name: "새 왕국",
+      updatedAt: "2026-08-10 10:00:00",
+    };
+    const midScenario: TrpgScenarioTemplate = {
+      id: 9,
+      creatorId: 3,
+      worldId: null,
+      title: "중간 시나리오",
+      summary: "",
+      content: "본문",
+      secretContent: "",
+      visibility: "public",
+      startLocation: "",
+      startInventory: [],
+      defaultPcStats: null,
+      npcs: [],
+      characterIds: [],
+      genres: [],
+      createdAt: "2026-08-05 00:00:00",
+      updatedAt: "2026-08-05 12:00:00",
+    };
+    const catalog: TrpgCatalog = {
+      publicWorlds: [olderWorld, newerWorld],
+      myWorlds: [],
+      myCharacters: [],
+      publicScenarios: [midScenario],
+      myScenarios: [],
+    };
+    assert.deepEqual(
+      catalogNewReleases(catalog, 3).map((item) => `${item.kind}:${item.id}`),
+      ["world:2", "scenario:9", "world:1"]
+    );
+    assert.deepEqual(
+      catalogNewReleases(catalog, 1).map((item) => `${item.kind}:${item.id}`),
+      ["world:2"]
+    );
   });
 });

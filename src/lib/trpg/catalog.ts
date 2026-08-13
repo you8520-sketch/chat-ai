@@ -18,6 +18,7 @@ export type TrpgCatalogWorld = {
   mine: boolean;
   genres: CharacterGenre[];
   coverUrl: string;
+  updatedAt: string;
 };
 
 export type TrpgCatalogCharacter = {
@@ -54,6 +55,7 @@ function mapWorld(row: {
   mine: number;
   genres: string | null;
   cover_url?: string | null;
+  updated_at?: string | null;
 }): TrpgCatalogWorld {
   return {
     id: row.id,
@@ -67,6 +69,7 @@ function mapWorld(row: {
     mine: row.mine === 1,
     genres: parseGenresJson(row.genres),
     coverUrl: sanitizeWorldCoverUrl(row.cover_url),
+    updatedAt: String(row.updated_at ?? ""),
   };
 }
 
@@ -124,6 +127,7 @@ export function loadTrpgCatalog(db: Database.Database, userId: number): TrpgCata
               COALESCE(w.trpg_visibility, 'private') AS trpg_visibility,
               COALESCE(w.genres, '[]') AS genres,
               COALESCE(w.cover_url, '') AS cover_url,
+              COALESCE(w.updated_at, '') AS updated_at,
               ${creatorNameSql} AS creator_name,
               CASE WHEN w.creator_id=? THEN 1 ELSE 0 END AS mine
        FROM worlds w
@@ -143,6 +147,7 @@ export function loadTrpgCatalog(db: Database.Database, userId: number): TrpgCata
     mine: number;
     genres: string | null;
     cover_url: string | null;
+    updated_at: string | null;
   }>;
 
   const myWorlds = db
@@ -152,6 +157,7 @@ export function loadTrpgCatalog(db: Database.Database, userId: number): TrpgCata
               COALESCE(w.trpg_visibility, 'private') AS trpg_visibility,
               COALESCE(w.genres, '[]') AS genres,
               COALESCE(w.cover_url, '') AS cover_url,
+              COALESCE(w.updated_at, '') AS updated_at,
               ${creatorNameSql} AS creator_name,
               1 AS mine
        FROM worlds w
@@ -171,6 +177,7 @@ export function loadTrpgCatalog(db: Database.Database, userId: number): TrpgCata
     mine: number;
     genres: string | null;
     cover_url: string | null;
+    updated_at: string | null;
   }>;
 
   let myCharacters: TrpgCatalogCharacter[] = [];

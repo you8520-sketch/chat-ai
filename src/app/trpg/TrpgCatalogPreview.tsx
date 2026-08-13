@@ -190,21 +190,14 @@ export default function TrpgCatalogPreview({
           ) : null}
           {body}
         </div>
-        <div className="flex flex-wrap gap-2 border-t border-white/10 px-4 py-3 sm:px-5">
+        <div className="border-t border-white/10 px-4 py-3 sm:px-5">
           <button
             type="button"
             disabled={busy}
             onClick={onStart}
-            className="inline-flex min-h-10 flex-1 items-center justify-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
+            className="inline-flex min-h-10 w-full items-center justify-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
           >
             {startLabel}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex min-h-10 items-center justify-center rounded-xl border border-white/10 px-4 text-sm font-semibold text-zinc-300 hover:bg-white/5"
-          >
-            다른 것 보기
           </button>
         </div>
       </div>
