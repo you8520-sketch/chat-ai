@@ -5,7 +5,7 @@ import {
   serializeSuggestedRepliesRecord,
   suggestedRepliesHaveContent,
 } from "./parse";
-import type { SuggestedRepliesRecord } from "./types";
+import type { SuggestedRepliesRecord, SuggestedReplyItem } from "./types";
 
 const running = new Set<number>();
 const STALE_PENDING_MS = 90_000;
@@ -42,7 +42,7 @@ function writePending(messageId: number): void {
   );
 }
 
-function writeReplies(messageId: number, replies: string[], failed = false): void {
+function writeReplies(messageId: number, replies: SuggestedReplyItem[], failed = false): void {
   const db = getDb();
   const record: SuggestedRepliesRecord = {
     replies,
@@ -71,8 +71,8 @@ async function runSuggestedRepliesExtraction(opts: {
   userPersona?: string | null;
   userMessage: string;
   assistantProse: string;
-}): Promise<string[]> {
-  let last: string[] = [];
+}): Promise<SuggestedReplyItem[]> {
+  let last: SuggestedReplyItem[] = [];
   for (let attempt = 1; attempt <= EXTRACT_MAX_ATTEMPTS; attempt++) {
     try {
       const replies = await extractSuggestedRepliesFromTurn(opts);

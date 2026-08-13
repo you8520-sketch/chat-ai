@@ -7,11 +7,13 @@ import {
 import { SUGGESTED_REPLY_MAX_CHARS, SUGGESTED_REPLY_MIN_CHARS } from "./types";
 
 describe("suggested replies extract prompt", () => {
-  it("asks Flash for three persona-matched conflict replies", () => {
+  it("asks Flash for three distinct scene directions", () => {
     const system = suggestedRepliesExtractSystemForTest();
-    assert.match(system, /Exactly 3 strings/);
+    assert.match(system, /Exactly 3 objects/);
     assert.match(system, new RegExp(`${SUGGESTED_REPLY_MIN_CHARS}–${SUGGESTED_REPLY_MAX_CHARS}`));
-    assert.match(system, /escalate conflict/i);
+    assert.match(system, /kind": "escalate"/);
+    assert.match(system, /kind": "soften"/);
+    assert.match(system, /kind": "pivot"/);
     assert.match(system, /USER persona/);
   });
 

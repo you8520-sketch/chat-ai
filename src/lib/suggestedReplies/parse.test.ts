@@ -8,12 +8,23 @@ import {
   resolveClientSuggestedReplies,
   suggestedReplyCharCount,
 } from "./parse";
-import { SUGGESTED_REPLY_MAX_CHARS, SUGGESTED_REPLY_MIN_CHARS } from "./types";
+import { SUGGESTED_REPLY_MAX_CHARS, SUGGESTED_REPLY_MIN_CHARS, suggestedReplyKindMeta } from "./types";
 
 function padReply(seed: string, length: number): string {
   const filler = "가".repeat(Math.max(0, length - seed.length));
   return `${seed}${filler}`.slice(0, length);
 }
+
+describe("suggested reply kinds", () => {
+  it("labels escalate, soften, and pivot with short Korean hints", () => {
+    assert.equal(suggestedReplyKindMeta("escalate").label, "갈등 고조");
+    assert.equal(suggestedReplyKindMeta("soften").label, "달래기");
+    assert.equal(suggestedReplyKindMeta("pivot").label, "국면 전환");
+    assert.match(suggestedReplyKindMeta("escalate").hint, /긴장/);
+    assert.match(suggestedReplyKindMeta("soften").hint, /물러서/);
+    assert.match(suggestedReplyKindMeta("pivot").hint, /다른 길/);
+  });
+});
 
 describe("suggested reply length", () => {
   it("rejects shorter than 50 characters", () => {
@@ -35,13 +46,17 @@ describe("suggested reply length", () => {
 });
 
 describe("normalizeSuggestedReplies", () => {
-  it("keeps exactly three distinct valid replies", () => {
+  it("keeps exactly three kinds even from a plain string list", () => {
     const replies = [
       padReply("*한 걸음 다가서며* \"지금 그 말, 진심이야?\" ", 80),
       padReply("(목소리를 낮추고) \"그럼 여기서 끝내지 마.\" ", 80),
       padReply("*손목을 붙잡으며* \"도망칠 생각이면 말해.\" ", 80),
     ];
-    assert.deepEqual(normalizeSuggestedReplies({ replies }), replies);
+    assert.deepEqual(normalizeSuggestedReplies({ replies }), [
+      { kind: "escalate", text: replies[0] },
+      { kind: "soften", text: replies[1] },
+      { kind: "pivot", text: replies[2] },
+    ]);
   });
 
   it("returns empty when fewer than three survive", () => {
@@ -52,15 +67,45 @@ describe("normalizeSuggestedReplies", () => {
       []
     );
   });
+
+  it("reorders typed items onto escalate / soften / pivot", () => {
+    const escalate = padReply("*소매를 잡으며* \"그걸 지금 말이라고 해?\" ", 72);
+    const soften = padReply("(한숨을 삼키고) \"잠깐만, 나도 좀 쉬자.\" ", 72);
+    const pivot = padReply("*창가 쪽으로 몸을 돌리며* \"일단 밖으로 나가.\" ", 72);
+    assert.deepEqual(
+      normalizeSuggestedReplies({
+        items: [
+          { kind: "pivot", text: pivot },
+          { kind: "escalate", text: escalate },
+          { kind: "soften", text: soften },
+        ],
+      }),
+      [
+        { kind: "escalate", text: escalate },
+        { kind: "soften", text: soften },
+        { kind: "pivot", text: pivot },
+      ]
+    );
+  });
 });
 
 describe("parseSuggestedRepliesFromModelText", () => {
-  it("reads fenced JSON", () => {
-    const a = padReply("*소매를 잡으며* \"그걸 지금 말이라고 해?\" ", 72);
-    const b = padReply("(한숨을 삼키고) \"좋아, 그럼 진짜로 해보자.\" ", 72);
-    const c = padReply("*눈을 피하지 않고* \"네가 먼저 선을 넘었어.\" ", 72);
-    const text = `\`\`\`json\n${JSON.stringify({ replies: [a, b, c] })}\n\`\`\``;
-    assert.deepEqual(parseSuggestedRepliesFromModelText(text), [a, b, c]);
+  it("reads fenced JSON items", () => {
+    const escalate = padReply("*소매를 잡으며* \"그걸 지금 말이라고 해?\" ", 72);
+    const soften = padReply("(한숨을 삼키고) \"좋아, 일단 앉아.\" ", 72);
+    const pivot = padReply("*문을 가리키며* \"여기서 말 말고 나가서 하자.\" ", 72);
+    const text = `\`\`\`json\n${JSON.stringify({
+      items: [
+        { kind: "escalate", text: escalate },
+        { kind: "soften", text: soften },
+        { kind: "pivot", text: pivot },
+      ],
+    })}\n\`\`\``;
+    assert.deepEqual(parseSuggestedRepliesFromModelText(text), [
+      { kind: "escalate", text: escalate },
+      { kind: "soften", text: soften },
+      { kind: "pivot", text: pivot },
+    ]);
   });
 });
 

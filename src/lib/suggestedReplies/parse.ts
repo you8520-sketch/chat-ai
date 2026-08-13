@@ -1,10 +1,13 @@
 import {
   EMPTY_SUGGESTED_REPLIES_CLIENT,
   SUGGESTED_REPLY_COUNT,
+  SUGGESTED_REPLY_KINDS,
   SUGGESTED_REPLY_MAX_CHARS,
   SUGGESTED_REPLY_MIN_CHARS,
   type SuggestedRepliesClientFields,
   type SuggestedRepliesRecord,
+  type SuggestedReplyItem,
+  type SuggestedReplyKind,
 } from "./types";
 
 export function suggestedReplyCharCount(text: string): number {
@@ -36,22 +39,67 @@ function dedupeKey(text: string): string {
   return text.replace(/\s+/g, "").toLowerCase();
 }
 
-export function normalizeSuggestedReplies(raw: unknown): string[] {
-  const list = Array.isArray(raw)
-    ? raw
-    : raw && typeof raw === "object" && Array.isArray((raw as { replies?: unknown }).replies)
-      ? (raw as { replies: unknown[] }).replies
-      : [];
-  const out: string[] = [];
+function isSuggestedReplyKind(value: unknown): value is SuggestedReplyKind {
+  return (
+    value === "escalate" ||
+    value === "soften" ||
+    value === "pivot"
+  );
+}
+
+function parseRawItem(raw: unknown): { kind: SuggestedReplyKind | null; text: unknown } | null {
+  if (typeof raw === "string") {
+    return { kind: null, text: raw };
+  }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const obj = raw as { kind?: unknown; text?: unknown; reply?: unknown };
+  const text = typeof obj.text === "string" ? obj.text : obj.reply;
+  if (typeof text !== "string") return null;
+  return {
+    kind: isSuggestedReplyKind(obj.kind) ? obj.kind : null,
+    text,
+  };
+}
+
+function collectRawItems(raw: unknown): Array<{ kind: SuggestedReplyKind | null; text: unknown }> {
+  if (Array.isArray(raw)) {
+    return raw.map(parseRawItem).filter((item): item is NonNullable<typeof item> => item != null);
+  }
+  if (!raw || typeof raw !== "object") return [];
+  const obj = raw as { items?: unknown; replies?: unknown };
+  if (Array.isArray(obj.items)) {
+    return obj.items.map(parseRawItem).filter((item): item is NonNullable<typeof item> => item != null);
+  }
+  if (Array.isArray(obj.replies)) {
+    return obj.replies.map(parseRawItem).filter((item): item is NonNullable<typeof item> => item != null);
+  }
+  return [];
+}
+
+export function normalizeSuggestedReplies(raw: unknown): SuggestedReplyItem[] {
+  const collected = collectRawItems(raw);
+  const byKind = new Map<SuggestedReplyKind, string>();
+  const leftovers: string[] = [];
   const seen = new Set<string>();
-  for (const item of list) {
-    const normalized = normalizeSuggestedReply(item);
-    if (!normalized) continue;
-    const key = dedupeKey(normalized);
+
+  for (const item of collected) {
+    const text = normalizeSuggestedReply(item.text);
+    if (!text) continue;
+    const key = dedupeKey(text);
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push(normalized);
-    if (out.length >= SUGGESTED_REPLY_COUNT) break;
+    if (item.kind && !byKind.has(item.kind)) {
+      byKind.set(item.kind, text);
+    } else {
+      leftovers.push(text);
+    }
+  }
+
+  const out: SuggestedReplyItem[] = [];
+  for (const kind of SUGGESTED_REPLY_KINDS) {
+    const text = byKind.get(kind) ?? leftovers.shift();
+    if (!text) return [];
+    out.push({ kind, text });
   }
   return out.length === SUGGESTED_REPLY_COUNT ? out : [];
 }
@@ -70,10 +118,29 @@ export function extractJsonObject(text: string): Record<string, unknown> | null 
   }
 }
 
-export function parseSuggestedRepliesFromModelText(text: string): string[] {
+export function parseSuggestedRepliesFromModelText(text: string): SuggestedReplyItem[] {
   const parsed = extractJsonObject(text);
   if (!parsed) return [];
   return normalizeSuggestedReplies(parsed);
+}
+
+function coerceStoredReplies(raw: unknown): SuggestedReplyItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((item, index) => {
+      if (typeof item === "string") {
+        const kind = SUGGESTED_REPLY_KINDS[index];
+        return kind ? { kind, text: item } : null;
+      }
+      if (!item || typeof item !== "object") return null;
+      const obj = item as { kind?: unknown; text?: unknown };
+      if (typeof obj.text !== "string") return null;
+      const kind = isSuggestedReplyKind(obj.kind)
+        ? obj.kind
+        : SUGGESTED_REPLY_KINDS[index];
+      return kind ? { kind, text: obj.text } : null;
+    })
+    .filter((item): item is SuggestedReplyItem => item != null);
 }
 
 export function parseSuggestedRepliesRecord(
@@ -83,11 +150,10 @@ export function parseSuggestedRepliesRecord(
   try {
     const parsed = JSON.parse(raw) as Partial<SuggestedRepliesRecord> & {
       replies?: unknown;
+      items?: unknown;
     };
     if (!parsed || typeof parsed !== "object") return null;
-    const replies = Array.isArray(parsed.replies)
-      ? parsed.replies.filter((item): item is string => typeof item === "string")
-      : [];
+    const replies = coerceStoredReplies(parsed.items ?? parsed.replies);
     return {
       replies,
       extractedAt: typeof parsed.extractedAt === "string" ? parsed.extractedAt : "",
@@ -104,7 +170,9 @@ export function serializeSuggestedRepliesRecord(record: SuggestedRepliesRecord):
   return JSON.stringify(record);
 }
 
-export function suggestedRepliesHaveContent(replies: string[] | null | undefined): boolean {
+export function suggestedRepliesHaveContent(
+  replies: SuggestedReplyItem[] | null | undefined
+): boolean {
   return (replies?.length ?? 0) === SUGGESTED_REPLY_COUNT;
 }
 

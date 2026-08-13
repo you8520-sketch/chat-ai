@@ -72,7 +72,8 @@ import { stripInternalTagLeakage, stripRpMetaPreamble } from "@/lib/narrativeRul
 import { stripRepeatedTrailingQuoteMarks } from "@/lib/trailingQuoteSanitizer";
 import type { NarrativePov } from "@/lib/narrativePov";
 import type { StatusMeta } from "@/lib/statusMeta/types";
-import { suggestedRepliesHaveContent } from "@/lib/suggestedReplies/parse";
+import { normalizeSuggestedReplies, suggestedRepliesHaveContent } from "@/lib/suggestedReplies/parse";
+import type { SuggestedReplyItem } from "@/lib/suggestedReplies/types";
 import { userMessageRequestsStatusWindowOoc } from "@/lib/statusMeta/ooc";
 import { statusMetaDisplayMarkdown, statusMetaHasDisplayContent } from "@/lib/statusMeta/render";
 import { resolveUserNoteStatusWindowPolicy, markdownPipeTableStatusWindowActive } from "@/lib/statusWindowNotePolicy";
@@ -240,7 +241,7 @@ type Msg = {
   /** UI — status meta slot reserved for this assistant turn */
   statusMetaRequested?: boolean;
   statusMetaFailed?: boolean;
-  suggestedReplies?: string[];
+  suggestedReplies?: SuggestedReplyItem[];
   suggestedRepliesPending?: boolean;
   suggestedRepliesRequested?: boolean;
   suggestedRepliesFailed?: boolean;
@@ -381,7 +382,7 @@ function mergeSuggestedRepliesFieldsById<T extends Msg>(prev: T[], server: T[]):
 }
 
 type SuggestedRepliesPollResult = {
-  replies: string[];
+  replies: SuggestedReplyItem[];
   failed: boolean;
 };
 
@@ -399,12 +400,10 @@ async function pollSuggestedRepliesForMessage(
       const data = (await res.json()) as {
         pending?: boolean;
         failed?: boolean;
-        replies?: string[];
+        replies?: unknown;
       };
       if (data.pending) continue;
-      const replies = Array.isArray(data.replies)
-        ? data.replies.filter((item): item is string => typeof item === "string")
-        : [];
+      const replies = normalizeSuggestedReplies(data);
       if (suggestedRepliesHaveContent(replies)) {
         return { replies, failed: false };
       }

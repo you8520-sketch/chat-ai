@@ -1,21 +1,33 @@
 import { callBackgroundMemory } from "@/lib/ai";
 import { parseSuggestedRepliesFromModelText } from "./parse";
-import { SUGGESTED_REPLIES_REQUEST_KIND } from "./types";
+import {
+  SUGGESTED_REPLIES_REQUEST_KIND,
+  type SuggestedReplyItem,
+} from "./types";
 
-const EXTRACT_SYSTEM = `You write the USER's next roleplay turn as JSON only. No prose, no markdown fences, no labels.
+const EXTRACT_SYSTEM = `You write the USER's next roleplay turn as JSON only. No prose, no markdown fences.
 
 Return exactly:
-{ "replies": ["...", "...", "..."] }
+{
+  "items": [
+    { "kind": "escalate", "text": "..." },
+    { "kind": "soften", "text": "..." },
+    { "kind": "pivot", "text": "..." }
+  ]
+}
 
 Rules:
-- Exactly 3 strings in "replies".
-- Korean only.
-- Each reply MUST be 50–200 characters including spaces and punctuation.
-- Mix spoken dialogue AND stage direction in every reply. Stage direction uses *...* or (...). Dialogue is the user's spoken lines without a name prefix.
+- Exactly 3 objects in "items", one for each kind. Do not repeat a kind.
+- Korean only in "text".
+- Each "text" MUST be 50–200 characters including spaces and punctuation.
+- Mix spoken dialogue AND stage direction in every text. Stage direction uses *...* or (...). Dialogue is the user's spoken lines without a name prefix.
 - Write as the USER persona. Match their personality, gender, and speech style (반말 vs 존댓말, quirks, rhythm). If speech examples are given, imitate them.
-- The three replies must be DISTINCT directions that escalate conflict, raise stakes, or push the scene forward. Do not resolve the fight; heighten it.
+- Kinds — three DIFFERENT scene directions, not three flavors of the same fight:
+  - escalate: confront, refuse, or raise tension.
+  - soften: soothe, concede a step, or close distance so the relationship can continue.
+  - pivot: change topic, place, or action so the scene can go somewhere else.
 - Do not write as the character/NPC. Do not continue the assistant's last line in the NPC's voice.
-- No OOC, no meta commentary, no numbering, no titles like "방향 1".
+- No OOC, no meta commentary, no numbering, no titles inside "text".
 - Do not invent lore that contradicts the provided scene.`;
 
 function buildExtractUserBlock(opts: {
@@ -52,7 +64,7 @@ export async function extractSuggestedRepliesFromTurn(opts: {
   userPersona?: string | null;
   userMessage: string;
   assistantProse: string;
-}): Promise<string[]> {
+}): Promise<SuggestedReplyItem[]> {
   const userBlock = buildExtractUserBlock(opts);
   try {
     const { text } = await callBackgroundMemory(

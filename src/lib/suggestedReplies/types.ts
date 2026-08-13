@@ -6,12 +6,40 @@ export const SUGGESTED_REPLY_COUNT = 3;
 
 export const SUGGESTED_REPLIES_REQUEST_KIND = "background-suggested-replies-extract";
 
-/** Static UI caption — never copied into the composer. */
+export const SUGGESTED_REPLY_KINDS = ["escalate", "soften", "pivot"] as const;
+export type SuggestedReplyKind = (typeof SUGGESTED_REPLY_KINDS)[number];
+
+export type SuggestedReplyItem = {
+  kind: SuggestedReplyKind;
+  text: string;
+};
+
+/** Static header — never copied into the composer. */
 export const SUGGESTED_REPLIES_CAPTION =
-  "페르소나 성격·말투에 맞춰, 갈등을 고조시키는 세 갈래 진행입니다.";
+  "페르소나 말투로 세 갈래입니다. 설명을 뺀 대사만 입력창에 들어갑니다.";
+
+export type SuggestedReplyKindMeta = {
+  label: string;
+  hint: string;
+};
+
+export function suggestedReplyKindMeta(kind: SuggestedReplyKind): SuggestedReplyKindMeta {
+  switch (kind) {
+    case "escalate":
+      return { label: "갈등 고조", hint: "맞서거나 날을 세워 긴장을 올립니다." };
+    case "soften":
+      return { label: "달래기", hint: "한 발 물러서거나 사이를 풀어 갑니다." };
+    case "pivot":
+      return { label: "국면 전환", hint: "화제·장소·행동을 바꿔 다른 길로 밉니다." };
+    default: {
+      const _exhaustive: never = kind;
+      return _exhaustive;
+    }
+  }
+}
 
 export type SuggestedRepliesRecord = {
-  replies: string[];
+  replies: SuggestedReplyItem[];
   extractedAt: string;
   source: "background-deepseek";
   pending?: boolean;
@@ -19,7 +47,7 @@ export type SuggestedRepliesRecord = {
 };
 
 export type SuggestedRepliesClientFields = {
-  suggestedReplies: string[];
+  suggestedReplies: SuggestedReplyItem[];
   suggestedRepliesPending: boolean;
   suggestedRepliesRequested: boolean;
   suggestedRepliesFailed: boolean;

@@ -47,7 +47,7 @@ export async function GET(req: Request) {
     record = loadMessageSuggestedReplies(messageId);
   }
 
-  const replies = normalizeSuggestedReplies(record?.replies ?? []);
+  const replies = normalizeSuggestedReplies(record);
   const hasContent = suggestedRepliesHaveContent(replies);
   const pending = record?.pending === true && !hasContent;
   const failed = record?.failed === true && !hasContent && !pending;
