@@ -20,16 +20,17 @@ function isTabActive(pathname: string, href: string): boolean {
 }
 
 /** 데스크톱 상단 탭 — 모바일은 하단 탭 사용. 채팅방에서는 숨김 */
-export default function HeaderMainNavRow() {
+export default function HeaderMainNavRow({ showTrpg = false }: { showTrpg?: boolean }) {
   const pathname = usePathname();
   if (isChatRoomPathname(pathname)) return null;
+  const tabs = showTrpg ? [...baseTabs, { href: "/trpg", label: "TRPG" }] : baseTabs;
 
   return (
     <nav
       className="scrollbar-hide hidden max-w-[48vw] shrink items-stretch gap-0.5 overflow-x-auto overscroll-x-contain md:inline-flex xl:max-w-none"
       aria-label="주요 메뉴"
     >
-      {baseTabs.map((t) => {
+      {tabs.map((t) => {
         const active = isTabActive(pathname, t.href);
         return (
           <Link
