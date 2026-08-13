@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AppSectionCard } from "@/components/AppPageShell";
 import ChatSelectionQuoteToolbar from "@/components/ChatSelectionQuoteToolbar";
-import NovelText from "@/components/NovelText";
 import { TRPG_ACTION_TYPES, actionTypeLabelKo, type TrpgActionType } from "@/lib/trpg/actionTypes";
 import {
   CHAT_ROOM_HEADER_OFFSET_CLASS,
@@ -482,7 +481,7 @@ function SceneTurn({
       <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
         {row.roundNumber === 0 ? "시작" : `장면 ${row.roundNumber}`}
       </p>
-      <div className="space-y-4">
+      <div className="space-y-3">
         {visibleActions.map((action) => (
           <TrpgNamedProse
             key={`${row.roundNumber}-${action.participantId}`}
@@ -502,36 +501,15 @@ function SceneTurn({
           />
         ))}
         {row.rolls.length > 0 ? <DiceStrip rolls={row.rolls} statDefs={statDefs} /> : null}
-        {beats.map((beat, i) =>
-          beat.speaker ? (
-            <TrpgNamedProse
-              key={`${row.roundNumber}-gm-${i}`}
-              name={beat.speaker}
-              text={beat.text}
-              variant="character"
-              display={display}
-            />
-          ) : (
-            <div
-              key={`${row.roundNumber}-gm-${i}`}
-              data-quote-assistant
-              className="select-text [touch-action:pan-y] [-webkit-user-select:text]"
-              style={{
-                userSelect: "text",
-                WebkitUserSelect: "text",
-                touchAction: "pan-y",
-                WebkitTouchCallout: "default",
-              }}
-            >
-              <NovelText
-                content={beat.text}
-                display={display}
-                variant="character"
-                paragraphMode="author"
-              />
-            </div>
-          )
-        )}
+        {beats.map((beat, i) => (
+          <TrpgNamedProse
+            key={`${row.roundNumber}-gm-${i}`}
+            name={beat.speaker}
+            text={beat.text}
+            variant="character"
+            display={display}
+          />
+        ))}
       </div>
       {showToolbar ? (
         <TrpgSceneToolbar
