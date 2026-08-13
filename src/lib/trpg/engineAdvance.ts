@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type Database from "better-sqlite3";
+import { parseGenresJson } from "@/lib/characterGenres";
 import { deductPoints, getPointBalance } from "@/lib/points";
 import { paidCreatorRewardSpend, resolveCreatorRewardRate } from "@/lib/creatorPoints";
 import { creditTrpgRoundCreatorRewards, loadTrpgCharacterRoyaltyTargets } from "./creatorRewards";
@@ -17,6 +18,7 @@ import { resolveTrpgRoll, rollServerD20 } from "./dice";
 import { assertCanStart } from "./engineCreate";
 import { callTrpgBot, callTrpgGm } from "./gmCall";
 import { formatTrpgPlayerPersonaBlock, parseHumanPersona } from "./hostPersona";
+import { loadScenarioTemplate } from "./scenarioTemplates";
 import { buildTrpgGmUserBlock, formatTrpgSheetCanon, parseTrpgGmOutput, TRPG_GM_SYSTEM } from "./gmPrompt";
 import { loadTrpgSnapshot } from "./engineSnapshot";
 import { buildCampaignMemoryPrompt, buildTrpgBotMemoryBlock } from "./memory";
@@ -538,6 +540,31 @@ function persistRolls(
   })();
 }
 
+function loadCampaignGenres(db: Database.Database, campaign: TrpgCampaignRow): string[] {
+  const seen: string[] = [];
+  const add = (raw: unknown) => {
+    for (const genre of parseGenresJson(raw)) {
+      if (!seen.includes(genre)) seen.push(genre);
+    }
+  };
+  if (campaign.template_id) {
+    const row = loadScenarioTemplate(db, campaign.template_id);
+    if (row) add(row.genres);
+  }
+  if (campaign.source_world_id) {
+    const hasWorlds = db
+      .prepare(`SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name='worlds'`)
+      .get() as { ok: number } | undefined;
+    if (hasWorlds) {
+      const world = db
+        .prepare(`SELECT genres FROM worlds WHERE id=?`)
+        .get(campaign.source_world_id) as { genres?: string } | undefined;
+      if (world) add(world.genres);
+    }
+  }
+  return seen;
+}
+
 async function runGmForRound(
   db: Database.Database,
   opts: {
@@ -574,6 +601,7 @@ async function runGmForRound(
     regenerate: opts.regenerate === true,
     playerPersonas,
     sheetCanon,
+    genres: loadCampaignGenres(db, campaign),
     actions,
   });
   const gmCall = opts.deps?.gmCall ?? callTrpgGm;
