@@ -50,3 +50,33 @@ export function genresInCatalog(items: Array<{ genres: readonly string[] }>): Ch
   const seen = new Set(items.flatMap((item) => item.genres));
   return CHARACTER_GENRES.filter((genre) => seen.has(genre));
 }
+
+export type TrpgCatalogNewItem =
+  | { kind: "world"; id: number; updatedAt: string }
+  | { kind: "scenario"; id: number; updatedAt: string };
+
+/** Public worlds and scenarios mixed by recency for the TRPG “신작” row. */
+export function catalogNewReleases(
+  catalog: Pick<TrpgCatalog, "publicWorlds" | "publicScenarios">,
+  limit = 16
+): TrpgCatalogNewItem[] {
+  const items: TrpgCatalogNewItem[] = [
+    ...catalog.publicWorlds.map((world) => ({
+      kind: "world" as const,
+      id: world.id,
+      updatedAt: world.updatedAt,
+    })),
+    ...catalog.publicScenarios.map((scenario) => ({
+      kind: "scenario" as const,
+      id: scenario.id,
+      updatedAt: scenario.updatedAt,
+    })),
+  ];
+  items.sort((a, b) => {
+    const byDate = b.updatedAt.localeCompare(a.updatedAt);
+    if (byDate !== 0) return byDate;
+    if (a.kind !== b.kind) return a.kind === "world" ? -1 : 1;
+    return b.id - a.id;
+  });
+  return items.slice(0, limit);
+}

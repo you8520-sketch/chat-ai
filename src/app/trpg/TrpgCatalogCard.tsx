@@ -15,9 +15,7 @@ export default function TrpgCatalogCard({
   emoji,
   coverUrl,
   selected,
-  busy,
   onSelect,
-  onStart,
   editHref,
 }: {
   kind: "world" | "scenario";
@@ -30,9 +28,7 @@ export default function TrpgCatalogCard({
   emoji: string;
   coverUrl?: string | null;
   selected?: boolean;
-  busy?: boolean;
   onSelect: () => void;
-  onStart: () => void;
   editHref?: string;
 }) {
   const hue = hueFromId(id);
@@ -118,24 +114,16 @@ export default function TrpgCatalogCard({
         ) : (
           <div className="mt-auto" />
         )}
-        <div className="flex flex-wrap gap-2 pt-1">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={onStart}
-            className="inline-flex min-h-8 flex-1 items-center justify-center rounded-lg bg-violet-600 px-2.5 text-[11px] font-semibold text-white disabled:opacity-50"
-          >
-            시작
-          </button>
-          {editHref ? (
+        {editHref ? (
+          <div className="flex flex-wrap gap-2 pt-1">
             <Link
               href={editHref}
               className="inline-flex min-h-8 items-center justify-center rounded-lg border border-white/10 px-2.5 text-[11px] font-semibold text-zinc-300 hover:bg-white/5"
             >
               수정
             </Link>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
       </div>
     </article>
   );
