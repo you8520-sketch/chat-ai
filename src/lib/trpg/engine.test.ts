@@ -395,4 +395,30 @@ describe("TRPG campaign loop", () => {
     assert.match(nextUser, /밤사이 여관 문이 열림/);
     db.close();
   });
+
+  it("uses situational DC 16 for an obviously hard action when the host opted in", async () => {
+    const db = memoryDb();
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 15,
+      gmCall: async () => ({ text: gmText({ narration: "절벽 바람이 분다." }) }),
+    };
+    const campaignId = createTrpgCampaign(db, {
+      hostUserId: 1,
+      hostNickname: "렌",
+      viewerUserId: 1,
+    });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
+    await startTrpgCampaign(db, { campaignId, userId: 1, dcMode: "situational", deps });
+    submitTrpgAction(db, {
+      campaignId,
+      userId: 1,
+      body: "절벽에서 맨손으로 뛰어내린다.",
+      actionType: "free",
+    });
+    const after = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(after.currentRolls[0]?.dc, 16);
+    assert.equal(after.diceRules.dcMode, "situational");
+    db.close();
+  });
 });

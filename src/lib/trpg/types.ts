@@ -105,6 +105,10 @@ export type TrpgStatDefinition = {
 export type TrpgDiceRules = {
   die: 20;
   dc: number;
+  easyDc: number;
+  normalDc: number;
+  hardDc: number;
+  dcMode: TrpgDcMode;
   severeFailureMargin: number;
   greatSuccessMargin: number;
   partialWindow: number;
@@ -112,15 +116,72 @@ export type TrpgDiceRules = {
   nat20: TrpgNatRule;
 };
 
+export const TRPG_DC_MODES = ["fixed", "situational"] as const;
+export type TrpgDcMode = (typeof TRPG_DC_MODES)[number];
+
+export const TRPG_DC_BANDS = ["easy", "normal", "hard"] as const;
+export type TrpgDcBand = (typeof TRPG_DC_BANDS)[number];
+
+export const TRPG_DC_EASY = 8;
+export const TRPG_DC_NORMAL = 12;
+export const TRPG_DC_HARD = 16;
+
 export const DEFAULT_TRPG_DICE_RULES: TrpgDiceRules = {
   die: 20,
-  dc: 12,
+  dc: TRPG_DC_NORMAL,
+  easyDc: TRPG_DC_EASY,
+  normalDc: TRPG_DC_NORMAL,
+  hardDc: TRPG_DC_HARD,
+  dcMode: "fixed",
   severeFailureMargin: 10,
   greatSuccessMargin: 10,
   partialWindow: 1,
   nat1: "critical",
   nat20: "critical",
 };
+
+export function parseTrpgDcMode(raw: unknown): TrpgDcMode {
+  return raw === "situational" ? "situational" : "fixed";
+}
+
+function intOr(raw: unknown, fallback: number): number {
+  const n = Number(raw);
+  return Number.isInteger(n) ? n : fallback;
+}
+
+function parseNatRule(raw: unknown, fallback: TrpgNatRule): TrpgNatRule {
+  if (raw === "critical" || raw === "shift_one" || raw === "numeric") return raw;
+  return fallback;
+}
+
+export function parseTrpgDiceRules(raw: unknown): TrpgDiceRules {
+  let src: Record<string, unknown> = {};
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        src = parsed as Record<string, unknown>;
+      }
+    } catch {
+      src = {};
+    }
+  } else if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    src = raw as Record<string, unknown>;
+  }
+  return {
+    die: 20,
+    dc: intOr(src.dc, TRPG_DC_NORMAL),
+    easyDc: intOr(src.easyDc, TRPG_DC_EASY),
+    normalDc: intOr(src.normalDc, TRPG_DC_NORMAL),
+    hardDc: intOr(src.hardDc, TRPG_DC_HARD),
+    dcMode: parseTrpgDcMode(src.dcMode),
+    severeFailureMargin: intOr(src.severeFailureMargin, 10),
+    greatSuccessMargin: intOr(src.greatSuccessMargin, 10),
+    partialWindow: intOr(src.partialWindow, 1),
+    nat1: parseNatRule(src.nat1, "critical"),
+    nat20: parseNatRule(src.nat20, "critical"),
+  };
+}
 
 export type TrpgSheetSnapshot = {
   participantId: number;
