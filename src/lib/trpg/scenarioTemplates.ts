@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { canAccessCharacter, type CharacterAccessRow } from "@/lib/characterVisibility";
+import { canUseCharacterInTrpg, type CharacterAccessRow } from "@/lib/characterVisibility";
 import { parseGenresJson } from "@/lib/characterGenres";
 import { parseJson } from "./store";
 import {
@@ -100,13 +100,14 @@ export function assertImportedCharactersAccessible(
   for (const id of characterIds) {
     const ch = db
       .prepare(
-        `SELECT id, creator_id, visibility, moderation_status, share_slug, official
+        `SELECT id, creator_id, visibility, moderation_status, share_slug, official, trpg_reuse_allowed
          FROM characters WHERE id=?`
       )
       .get(id) as CharacterAccessRow | undefined;
     if (!ch) throw new Error("데려올 캐릭터를 찾을 수 없습니다.");
-    const access = canAccessCharacter(ch, viewerUserId);
-    if (!access.ok) throw new Error("이 캐릭터를 시나리오에 데려올 수 없습니다.");
+    if (!canUseCharacterInTrpg(ch, viewerUserId)) {
+      throw new Error("이 캐릭터를 시나리오에 데려올 수 없습니다.");
+    }
   }
 }
 

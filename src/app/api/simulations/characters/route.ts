@@ -24,25 +24,16 @@ export async function GET(req: Request) {
       `SELECT id, name, tagline, creator_id, creator_name, images, nsfw,
               length(system_prompt) AS system_prompt_chars,
               length(world) AS world_chars,
-              length(example_dialog) AS example_dialog_chars,
-              simulation_reuse_allowed, simulation_nsfw_allowed
+              length(example_dialog) AS example_dialog_chars
        FROM characters
        WHERE COALESCE(content_kind, 'character') = 'character'
+         AND creator_id = ?
          AND nsfw <= ?
-         AND (
-           creator_id = ?
-           OR (
-             visibility = 'public'
-             AND moderation_status = 'approved'
-             AND simulation_reuse_allowed = 1
-             AND (? = 0 OR simulation_nsfw_allowed = 1)
-           )
-         )
          AND (? = '' OR name LIKE ? OR creator_name LIKE ? OR tagline LIKE ?)
-       ORDER BY CASE WHEN creator_id = ? THEN 0 ELSE 1 END, likes DESC, id DESC
+       ORDER BY likes DESC, id DESC
        LIMIT 60`,
     )
-    .all(nsfw ? 1 : 0, user.id, nsfw ? 1 : 0, query, like, like, like, user.id) as Array<{
+    .all(user.id, nsfw ? 1 : 0, query, like, like, like) as Array<{
       id: number;
       name: string;
       tagline: string;
@@ -53,8 +44,6 @@ export async function GET(req: Request) {
       system_prompt_chars: number;
       world_chars: number;
       example_dialog_chars: number;
-      simulation_reuse_allowed: number;
-      simulation_nsfw_allowed: number;
     }>;
 
   return NextResponse.json({
@@ -63,7 +52,7 @@ export async function GET(req: Request) {
       name: row.name,
       tagline: row.tagline,
       creatorName: row.creator_name,
-      owned: row.creator_id === user.id,
+      owned: true,
       nsfw: row.nsfw === 1,
       promptChars: row.system_prompt_chars + row.world_chars + row.example_dialog_chars,
       thumbnail: representativeImage(row.images),

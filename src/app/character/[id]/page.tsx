@@ -26,6 +26,7 @@ import { resolveViewerDisplayNameForUser } from "@/lib/viewerDisplayName";
 import { replaceProfilePlaceholders } from "@/lib/userPlaceholder";
 import {
   canAccessCharacter,
+  canUseCharacterInTrpg,
   sharePath,
   visibilityLabel,
   type CharacterVisibility,
@@ -309,7 +310,23 @@ export default async function CharacterPage({
           branches={characterBranches}
           personas={personaList}
           initialPersonaId={defaultPersonaId}
-          trpgHref={canAccessTrpg(user) ? `/trpg?characterId=${c.id}` : null}
+          trpgHref={
+            canAccessTrpg(user) &&
+            canUseCharacterInTrpg(
+              {
+                id: c.id,
+                creator_id: c.creator_id,
+                visibility: c.visibility ?? "public",
+                moderation_status: c.moderation_status ?? "approved",
+                share_slug: c.share_slug,
+                official: c.official,
+                trpg_reuse_allowed: (c as { trpg_reuse_allowed?: number | null }).trpg_reuse_allowed,
+              },
+              user.id
+            )
+              ? `/trpg?characterId=${c.id}`
+              : null
+          }
         />
 
         <LikeFollowButtons characterId={c.id} liked={liked} followed={followed} loggedIn={!!user} />

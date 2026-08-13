@@ -9,6 +9,7 @@ import {
   sanitizeCharacterGenres,
 } from "@/lib/characterGenres";
 import {
+  canImportCharacterIntoSimulation,
   generateShareSlug,
   parseVisibility,
   sharePath,
@@ -121,6 +122,7 @@ export type ParsedCharacterForm = {
   creatorComment: string;
   simulationReuseAllowed: number;
   simulationNsfwAllowed: number;
+  trpgReuseAllowed: number;
   emoji: string;
   hue: number;
   tagsJson: string;
@@ -183,8 +185,7 @@ function resolveSimulationImports(
   const rows = db
     .prepare(
       `SELECT id, name, creator_id, creator_name, system_prompt, world, example_dialog,
-              visibility, moderation_status, nsfw, content_kind,
-              simulation_reuse_allowed, simulation_nsfw_allowed
+              visibility, moderation_status, nsfw, content_kind
        FROM characters WHERE id IN (${placeholders})`,
     )
     .all(...input.ids) as Array<{
@@ -199,8 +200,6 @@ function resolveSimulationImports(
       moderation_status: string;
       nsfw: number;
       content_kind: string;
-      simulation_reuse_allowed: number;
-      simulation_nsfw_allowed: number;
     }>;
   const byId = new Map(rows.map((row) => [row.id, row]));
   const snapshots: SimulationImportSnapshot[] = [];
@@ -209,15 +208,12 @@ function resolveSimulationImports(
     if (!row || row.content_kind === "simulation") {
       return { ok: false, error: "불러올 캐릭터를 찾을 수 없습니다.", status: 404 };
     }
-    const owned = row.creator_id === input.creatorId;
-    if (!owned && (row.visibility !== "public" || row.moderation_status !== "approved" || row.simulation_reuse_allowed !== 1)) {
-      return { ok: false, error: `${row.name}: 원작자가 시뮬레이션 사용을 허용하지 않았습니다.`, status: 403 };
+    const owned = canImportCharacterIntoSimulation(row.creator_id, input.creatorId);
+    if (!owned) {
+      return { ok: false, error: `${row.name}: 다른 제작자의 캐릭터는 시뮬레이션에 불러올 수 없습니다.`, status: 403 };
     }
     if (row.nsfw === 1 && !input.simulationNsfw) {
       return { ok: false, error: `${row.name}: 성인용 캐릭터를 사용하려면 시뮬레이션도 성인용으로 설정해 주세요.`, status: 400 };
-    }
-    if (!owned && input.simulationNsfw && row.simulation_nsfw_allowed !== 1) {
-      return { ok: false, error: `${row.name}: 원작자가 성인용 시뮬레이션 사용을 허용하지 않았습니다.`, status: 403 };
     }
     snapshots.push({
       characterId: row.id,
@@ -442,9 +438,9 @@ export function parseCharacterFormBody(
       creatorComment: String(b.creator_comment ?? b.creatorComment ?? "")
         .trim()
         .slice(0, CREATOR_COMMENT_LIMIT),
-      simulationReuseAllowed: b.simulation_reuse_allowed === true ? 1 : 0,
-      simulationNsfwAllowed:
-        b.simulation_reuse_allowed === true && b.simulation_nsfw_allowed === true ? 1 : 0,
+      simulationReuseAllowed: 0,
+      simulationNsfwAllowed: 0,
+      trpgReuseAllowed: b.trpg_reuse_allowed === true ? 1 : 0,
       emoji: String(b.emoji || "✨"),
       hue: Number(b.hue) || 260,
       tagsJson: JSON.stringify(parseCharacterTagsInput(b.tags)),
@@ -671,8 +667,8 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
         (name, tagline, description, greeting, system_prompt, world, world_id, lorebook_id, example_dialog, status_window_prompt, status_widget_json, genre, genres, tags, nsfw, emoji, hue,
          creator_id, creator_name, audience, gender, images, assets, setting_chunks, visibility, moderation_status, moderation_note, share_slug,
          recommended_writing_style, comments_enabled, creator_comment, creator_raw_description, creator_compiled_description_json, creator_canon_plan_json, appearance_raw, appearance_compiled, appearance_compiled_source_hash, appearance_compiled_version,
-         content_kind, simulation_cast, simulation_rules, simulation_imports_json, simulation_reuse_allowed, simulation_nsfw_allowed)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
+         content_kind, simulation_cast, simulation_rules, simulation_imports_json, simulation_reuse_allowed, simulation_nsfw_allowed, trpg_reuse_allowed)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`
     )
     .run(
       data.name,
@@ -718,7 +714,8 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
       data.simulationRules,
       data.simulationImportsJson,
       data.simulationReuseAllowed,
-      data.simulationNsfwAllowed
+      data.simulationNsfwAllowed,
+      data.trpgReuseAllowed
     );
 
   const characterId = Number(info.lastInsertRowid);
@@ -875,7 +872,7 @@ export async function updateCharacterFromForm(
       audience=?, gender=?, images=?, assets=?, visibility=?, moderation_status=?, moderation_note=?,
       share_slug=?, recommended_writing_style=?, comments_enabled=?, creator_comment=?, creator_name=?,
       creator_raw_description=?, creator_compiled_description_json=?, creator_canon_plan_json=?, appearance_raw=?, appearance_compiled=?, appearance_compiled_source_hash=?, appearance_compiled_version=?,
-      content_kind=?, simulation_cast=?, simulation_rules=?, simulation_imports_json=?, simulation_reuse_allowed=?, simulation_nsfw_allowed=?
+      content_kind=?, simulation_cast=?, simulation_rules=?, simulation_imports_json=?, simulation_reuse_allowed=?, simulation_nsfw_allowed=?, trpg_reuse_allowed=?
      WHERE id=?`
   ).run(
     data.name,
@@ -920,6 +917,7 @@ export async function updateCharacterFromForm(
     data.simulationImportsJson,
     data.simulationReuseAllowed,
     data.simulationNsfwAllowed,
+    data.trpgReuseAllowed,
     characterId
   );
   const adultProfileWasProvided =
@@ -1086,7 +1084,8 @@ export async function updateCharacterPublicProfileFromForm(
     `UPDATE characters SET
       tagline=?, description=?, genre=?, genres=?, tags=?, nsfw=?, emoji=?, hue=?,
       audience=?, images=?, assets=?, visibility=?, moderation_status=?, moderation_note=?,
-      share_slug=?, comments_enabled=?, creator_comment=?, creator_name=?, status_widget_json=?
+      share_slug=?, comments_enabled=?, creator_comment=?, creator_name=?, status_widget_json=?,
+      simulation_reuse_allowed=?, simulation_nsfw_allowed=?, trpg_reuse_allowed=?
      WHERE id=?`
   ).run(
     tagline,
@@ -1108,6 +1107,9 @@ export async function updateCharacterPublicProfileFromForm(
     String(b.creator_comment ?? b.creatorComment ?? "").trim().slice(0, CREATOR_COMMENT_LIMIT),
     user.nickname,
     statusWidgetJson,
+    0,
+    0,
+    b.trpg_reuse_allowed === true ? 1 : 0,
     characterId
   );
   saveCharacterStatusWidgetTriggers(db, characterId, parsedTriggers.triggers);

@@ -34,9 +34,8 @@ export type CharacterCreateDraft = {
     recommended_writing_style: string;
     comments_enabled: boolean;
     creator_comment: string;
-    /** Optional for drafts created before simulation reuse permissions. */
-    simulation_reuse_allowed?: boolean;
-    simulation_nsfw_allowed?: boolean;
+    /** Optional for drafts created before TRPG reuse permissions. */
+    trpg_reuse_allowed?: boolean;
     simulation_cast?: string;
     simulation_rules?: string;
   };

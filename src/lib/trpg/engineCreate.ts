@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { canAccessCharacter, type CharacterAccessRow } from "@/lib/characterVisibility";
+import { canUseCharacterInTrpg, type CharacterAccessRow } from "@/lib/characterVisibility";
 import { canUseWorldForTrpg, loadWorldForTrpg } from "./catalog";
 import {
   assertImportedCharactersAccessible,
@@ -94,13 +94,14 @@ type SpawnBot = {
 function loadCharacterForTrpg(db: Database.Database, id: number, viewerUserId: number): CharacterStartRow {
   const ch = db
     .prepare(
-      `SELECT id, name, world, description, greeting, system_prompt, world_id, creator_id, visibility, moderation_status, share_slug, official
+      `SELECT id, name, world, description, greeting, system_prompt, world_id, creator_id, visibility, moderation_status, share_slug, official, trpg_reuse_allowed
        FROM characters WHERE id=?`
     )
     .get(id) as CharacterStartRow | undefined;
   if (!ch) throw new Error("캐릭터를 찾을 수 없습니다.");
-  const access = canAccessCharacter(ch, viewerUserId);
-  if (!access.ok) throw new Error("이 캐릭터로 TRPG를 시작할 수 없습니다.");
+  if (!canUseCharacterInTrpg(ch, viewerUserId)) {
+    throw new Error("이 캐릭터로 TRPG를 시작할 수 없습니다.");
+  }
   return ch;
 }
 

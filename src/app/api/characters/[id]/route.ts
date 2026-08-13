@@ -47,7 +47,7 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     .prepare(
       `SELECT id, name, tagline, description, greeting, system_prompt, world, world_id, lorebook_id, example_dialog, status_window_prompt, status_widget_json,
               genres, tags, nsfw, emoji, hue, audience, gender, visibility, assets, recommended_writing_style, comments_enabled, creator_comment, appearance_raw, appearance_compiled,
-              content_kind, simulation_cast, simulation_rules, simulation_imports_json, simulation_reuse_allowed, simulation_nsfw_allowed
+              content_kind, simulation_cast, simulation_rules, simulation_imports_json, simulation_reuse_allowed, simulation_nsfw_allowed, trpg_reuse_allowed
        FROM characters WHERE id=?`
     )
     .get(characterId) as {
@@ -83,6 +83,7 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     simulation_imports_json: string;
     simulation_reuse_allowed: number;
     simulation_nsfw_allowed: number;
+    trpg_reuse_allowed: number;
   };
 
   let genres: ReturnType<typeof sanitizeCharacterGenres> = [];
@@ -164,8 +165,9 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     simulation_cast: c.simulation_cast ?? "",
     simulation_rules: c.simulation_rules ?? "",
     simulation_imports: simulationImports,
-    simulation_reuse_allowed: c.simulation_reuse_allowed === 1,
-    simulation_nsfw_allowed: c.simulation_nsfw_allowed === 1,
+    simulation_reuse_allowed: false,
+    simulation_nsfw_allowed: false,
+    trpg_reuse_allowed: c.trpg_reuse_allowed === 1,
     assets,
   });
 }
