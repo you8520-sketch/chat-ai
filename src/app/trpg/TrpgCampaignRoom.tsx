@@ -50,6 +50,7 @@ function partyDisplayNames(snap: TrpgCampaignSnapshot): string[] {
 function openSceneImage(opts: {
   characterId: number | null;
   campaignId: number;
+  roundNumber: number;
   content: string;
   partyNames: string[];
 }) {
@@ -59,6 +60,7 @@ function openSceneImage(opts: {
       detail: {
         characterId: opts.characterId,
         campaignId: opts.campaignId,
+        roundNumber: opts.roundNumber,
         content: opts.content,
         partyNames: opts.partyNames,
       },
@@ -257,6 +259,7 @@ export default function TrpgCampaignRoom({
                 openSceneImage({
                   characterId: imageId,
                   campaignId: snap.id,
+                  roundNumber: row.roundNumber,
                   content: row.narration ?? "",
                   partyNames,
                 })

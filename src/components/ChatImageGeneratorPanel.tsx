@@ -372,7 +372,9 @@ export default function ChatImageGeneratorPanel({
   const [comicLoadedMaxChars, setComicLoadedMaxChars] = useState(0);
   const [summarizing, setSummarizing] = useState(false);
   const [campaignId, setCampaignId] = useState<number | null>(null);
+  const [campaignRoundNumber, setCampaignRoundNumber] = useState<number | null>(null);
   const [partyNames, setPartyNames] = useState<string[]>([]);
+  const trpgCampaignMode = campaignId != null;
 
   useEffect(() => {
     const openGenerator = (event: Event) => {
@@ -381,6 +383,7 @@ export default function ChatImageGeneratorPanel({
         content?: unknown;
         characterId?: unknown;
         campaignId?: unknown;
+        roundNumber?: unknown;
         partyNames?: unknown;
       }>).detail;
       const overrideId = Number(detail?.characterId);
@@ -389,6 +392,10 @@ export default function ChatImageGeneratorPanel({
       const parsedCampaignId = Number(detail?.campaignId);
       setCampaignId(
         Number.isInteger(parsedCampaignId) && parsedCampaignId > 0 ? parsedCampaignId : null
+      );
+      const parsedRound = Number(detail?.roundNumber);
+      setCampaignRoundNumber(
+        Number.isInteger(parsedRound) && parsedRound >= 0 ? parsedRound : null
       );
       setPartyNames(
         Array.isArray(detail?.partyNames)
@@ -420,6 +427,12 @@ export default function ChatImageGeneratorPanel({
     window.addEventListener("chat:image-generator:open", openGenerator);
     return () => window.removeEventListener("chat:image-generator:open", openGenerator);
   }, []);
+
+  useEffect(() => {
+    if (!trpgCampaignMode) return;
+    setTab("comic");
+    setLdProduct("illustration");
+  }, [trpgCampaignMode]);
 
   const activeResultUrl =
     tab === "comic"
@@ -655,7 +668,7 @@ export default function ChatImageGeneratorPanel({
   }, [open, generating, saving]);
 
   async function generateSd() {
-    if (!info?.ready || generating) return;
+    if (campaignId || !info?.ready || generating) return;
     setGenerating(true);
     setError("");
     setNotice("");
@@ -745,7 +758,7 @@ export default function ChatImageGeneratorPanel({
   }
 
   async function generatePersona() {
-    if (!info?.personaReady || generating) return;
+    if (campaignId || !info?.personaReady || generating) return;
     setGenerating(true);
     setError("");
     setNotice("");
@@ -829,6 +842,7 @@ export default function ChatImageGeneratorPanel({
   async function generateComic() {
     if (!info?.ready || generating) return;
     const isIllustration = ldProduct === "illustration";
+    if (campaignId && !isIllustration) return;
     const sourceText = comicText.trim();
     const summaryText = comicSummary.trim();
     if (!isIllustration && !sourceMessageId && !sourceText) {
@@ -879,6 +893,10 @@ export default function ChatImageGeneratorPanel({
               : undefined
             : comicInput || undefined,
           campaignId: isIllustration && campaignId ? campaignId : undefined,
+          roundNumber:
+            isIllustration && campaignId && campaignRoundNumber != null
+              ? campaignRoundNumber
+              : undefined,
           characterImageUrl: selectedCharacterImageUrl || info.character.imageUrl,
         }),
       });
@@ -938,7 +956,7 @@ export default function ChatImageGeneratorPanel({
     }
   }
 
-  const modalTitle = "이미지 생성";
+  const modalTitle = trpgCampaignMode ? "선택 턴 일러스트" : "이미지 생성";
 
   return (
     <>
@@ -992,6 +1010,7 @@ export default function ChatImageGeneratorPanel({
                   ×
                 </button>
               </div>
+              {!trpgCampaignMode ? (
               <div className="mt-3 grid grid-cols-2 gap-1 rounded-xl bg-black/25 p-1">
                 {(
                   [
@@ -1018,6 +1037,11 @@ export default function ChatImageGeneratorPanel({
                   </button>
                 ))}
               </div>
+              ) : (
+                <p className="mt-2 pb-3 text-[11px] text-zinc-500">
+                  캠페인에서는 선택 턴 일러스트만 만들 수 있습니다.
+                </p>
+              )}
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto p-4">
@@ -1026,7 +1050,7 @@ export default function ChatImageGeneratorPanel({
               ) : (
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(19rem,0.95fr)]">
                   <div className="space-y-3">
-                    {tab === "comic" ? (
+                    {tab === "comic" && !trpgCampaignMode ? (
                       <div className="grid grid-cols-3 gap-1 rounded-xl bg-black/25 p-1">
                         {(
                           [

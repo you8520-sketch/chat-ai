@@ -2,7 +2,10 @@ import {
   buildImageGenderLockPrompt,
   type ImagePromptGender,
 } from "@/lib/chatImageGeneration";
-import { buildChatImagePairGenderLock } from "@/lib/chatImageGender";
+import {
+  buildChatImagePairGenderLock,
+  genderWordForImagePrompt,
+} from "@/lib/chatImageGender";
 
 export const CHAT_LD_ILLUSTRATION_TEMPLATE_ID = "current_turn_ld_illustration" as const;
 export const CHAT_LD_ILLUSTRATION_TEMPLATE_NAME = "현재 턴 2:3 LD 일러스트";
@@ -87,7 +90,32 @@ export type ChatLdIllustrationCastMember = {
   /** 1-based reference image index, or null when this person has no photo. */
   referenceIndex: number | null;
   appearanceNote?: string;
+  aliases?: string[];
 };
+
+export function uniqueIllustrationAliases(
+  primary: string,
+  ...extras: Array<string | null | undefined>
+): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const push = (value: string | null | undefined) => {
+    const name = String(value ?? "").trim();
+    if (!name || seen.has(name)) return;
+    seen.add(name);
+    out.push(name);
+    if (/^[가-힣]{3,4}$/.test(name)) {
+      const short = name.slice(1);
+      if (short && !seen.has(short)) {
+        seen.add(short);
+        out.push(short);
+      }
+    }
+  };
+  push(primary);
+  for (const extra of extras) push(extra);
+  return out.filter((name) => name !== primary);
+}
 
 export function withIllustrationReferenceIndices<T extends { imageUrl: string | null | undefined }>(
   members: readonly T[]
@@ -109,28 +137,56 @@ function peopleWord(count: number): string {
   return count === 1 ? "person" : "people";
 }
 
+function formatCastLine(member: ChatLdIllustrationCastMember, index: number): string {
+  const name = member.name.trim() || `person ${index + 1}`;
+  const gender = genderWordForImagePrompt(member.gender);
+  const aliases = (member.aliases ?? [])
+    .map((alias) => alias.trim())
+    .filter((alias) => alias && alias !== name);
+  const aliasText = aliases.length ? ` Also known as: ${aliases.join(", ")}.` : "";
+  const ref =
+    member.referenceIndex != null
+      ? ` Reference image ${member.referenceIndex} is the identity photo for ${name} only — copy this person's face, hairstyle, hair color, eyes, body, and outfit. Do not apply this photo to anyone else.`
+      : ` No photo for ${name}. Still draw this person using the name, confirmed ${gender} gender lock, and appearance notes. Do not substitute another referenced face.`;
+  const note = member.appearanceNote?.trim()
+    ? ` Appearance: ${member.appearanceNote.trim()}`
+    : "";
+  return `${index + 1}. ${name} (${member.role}). Gender: confirmed ${gender}.${aliasText}${ref}${note}`;
+}
+
+export function buildTrpgIllustrationSituation(opts: {
+  location?: string;
+  actions?: ReadonlyArray<{ name: string; body: string }>;
+  narration: string;
+}): string {
+  const lines: string[] = [];
+  const location = String(opts.location ?? "").trim();
+  if (location) lines.push(`LOCATION: ${location}`);
+  const actions = (opts.actions ?? []).filter((action) => action.body.trim());
+  if (actions.length > 0) {
+    lines.push("THIS ROUND'S ACTIONS (what each listed person just did — depict these poses/actions):");
+    for (const action of actions) {
+      const name = action.name.trim() || "player";
+      const body = sanitizeChatTurnForIllustrationPrompt(action.body).slice(0, 400);
+      if (!body) continue;
+      lines.push(`- ${name}: ${body}`);
+    }
+  }
+  lines.push("GM SCENE:");
+  lines.push(sanitizeChatTurnForIllustrationPrompt(opts.narration).slice(0, 1_800));
+  return lines.join("\n");
+}
+
 function buildPartyIllustrationPrompt(opts: {
   cast: readonly ChatLdIllustrationCastMember[];
-  currentTurn: string;
+  situation: string;
 }): string {
-  const turn = sanitizeChatTurnForIllustrationPrompt(opts.currentTurn);
   const count = opts.cast.length;
-  const castLines = opts.cast.map((member, index) => {
-    const name = member.name.trim() || `person ${index + 1}`;
-    const ref =
-      member.referenceIndex != null
-        ? `Reference image ${member.referenceIndex} is the identity and art-style reference for ${name}.`
-        : `No photo for ${name}. Still draw this person using the name, gender lock, and appearance notes. Do not substitute another referenced face.`;
-    const note = member.appearanceNote?.trim()
-      ? ` Appearance: ${member.appearanceNote.trim()}`
-      : "";
-    return `${index + 1}. ${name} (${member.role}). ${ref}${note}`;
-  });
   return [
     "Create one polished vertical 2:3 Korean character illustration, not a comic page.",
     `This is a TRPG party group illustration. Show ALL ${count} listed ${peopleWord(count)} together in a single scene. Count the people: ${count}. Do not omit anyone.`,
-    "CAST (mandatory — every person below must be clearly visible):",
-    ...castLines,
+    "CAST (mandatory identity — match each person exactly; do not swap faces, hair, outfits, or genders):",
+    ...opts.cast.map((member, index) => formatCastLine(member, index)),
     buildImageGenderLockPrompt(
       opts.cast.map((member) => ({
         label: member.role,
@@ -139,8 +195,8 @@ function buildPartyIllustrationPrompt(opts: {
       }))
     ),
     ILLUSTRATION_SAFETY,
-    "Depict the selected scene brief below as one cinematic, emotionally accurate group scene.",
-    "Keep every identity clearly separate and highly recognizable. Preserve each person's face, hairstyle, hair color, eye color, body impression, outfit details, accessories, and distinguishing traits.",
+    "Depict the selected scene brief below as one cinematic, emotionally accurate group scene. If ROUND ACTIONS are listed, pose each named person according to their own action. Use LOCATION as the background.",
+    "Keep every identity clearly separate and highly recognizable. Preserve each person's face, hairstyle, hair color, eye color, body impression, outfit details, accessories, and distinguishing traits from their own reference/appearance.",
     "Match the drawing style, line quality, coloring, facial design, and overall finish of the supplied character references as closely as possible. If the references differ, harmonize them into one coherent polished style without changing any identity.",
     "Use natural body language, facial expressions, camera framing, props, lighting, and background that accurately express the setting, atmosphere, and actions.",
     "Key dialogue lines are for emotion and acting only. Do not render speech bubbles, captions, subtitles, or readable dialogue text in the illustration.",
@@ -149,7 +205,7 @@ function buildPartyIllustrationPrompt(opts: {
     "Compose for a vertical 2:3 profile-friendly illustration around 800 by 1200 pixels. Keep important faces and gestures away from the outer crop edges.",
     "",
     "SELECTED TURN SCENE BRIEF:",
-    turn,
+    opts.situation,
   ].join("\n");
 }
 
@@ -161,11 +217,15 @@ export function buildChatLdIllustrationPrompt(opts: {
   currentTurn: string;
   /** When set (TRPG party), every listed person must appear — not just the 1:1 duo. */
   cast?: readonly ChatLdIllustrationCastMember[];
+  /** Pre-formatted TRPG situation (location, round actions, GM scene). */
+  situation?: string;
 }) {
   if (opts.cast && opts.cast.length > 0) {
     return buildPartyIllustrationPrompt({
       cast: opts.cast,
-      currentTurn: opts.currentTurn,
+      situation:
+        opts.situation?.trim() ||
+        sanitizeChatTurnForIllustrationPrompt(opts.currentTurn),
     });
   }
   const turn = sanitizeChatTurnForIllustrationPrompt(opts.currentTurn);

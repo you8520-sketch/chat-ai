@@ -29,13 +29,14 @@ import {
   CHAT_LD_ILLUSTRATION_QUALITY,
   CHAT_LD_ILLUSTRATION_TEMPLATE_ID,
   buildChatLdIllustrationPrompt,
+  buildTrpgIllustrationSituation,
   formatOpenAiImageUserError,
   resolveChatLdIllustrationPrice,
   type ChatLdIllustrationCastMember,
   withIllustrationReferenceIndices,
 } from "@/lib/chatLdIllustrationGeneration";
 import {
-  loadTrpgIllustrationCast,
+  loadTrpgIllustrationScene,
 } from "@/lib/trpg/illustrationCast";
 import {
   formatUserTurnForComicSource,
@@ -126,6 +127,11 @@ class RequestError extends Error {
 function positiveInt(raw: unknown): number | null {
   const value = Number(raw);
   return Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function nonNegativeInt(raw: unknown): number | null {
+  const value = Number(raw);
+  return Number.isInteger(value) && value >= 0 ? value : null;
 }
 
 function ensureGenerationTable() {
@@ -648,6 +654,10 @@ export async function POST(req: Request) {
       requestedCharacterImageUrl: body.characterImageUrl,
     });
 
+    if (positiveInt(body.campaignId) && body.mode !== "illustration") {
+      throw new RequestError("캠페인에서는 선택 턴 일러스트만 만들 수 있습니다.");
+    }
+
     if (body.mode === "scene_brief") {
       const source = resolveSourceTurn({
         chatId: context.chatId,
@@ -695,27 +705,35 @@ export async function POST(req: Request) {
 
       startJob(CHAT_LD_ILLUSTRATION_TEMPLATE_ID, "illustration");
       const campaignId = positiveInt(body.campaignId);
+      const roundNumber = nonNegativeInt(body.roundNumber);
       let cast: ChatLdIllustrationCastMember[] | undefined;
       let referenceUrls = [context.characterImageUrl, context.personaImageUrl];
+      let situation: string | undefined;
+      let sceneLocation = "";
+      let sceneActions: Array<{ name: string; body: string }> = [];
       if (campaignId) {
-        const party = loadTrpgIllustrationCast(getDb(), {
+        const scene = loadTrpgIllustrationScene(getDb(), {
           campaignId,
           viewerUserId: user.id,
+          roundNumber,
         });
-        if (!party) throw new RequestError("캠페인을 찾을 수 없습니다.", 404);
-        const indexed = withIllustrationReferenceIndices(party);
+        if (!scene) throw new RequestError("캠페인을 찾을 수 없습니다.", 404);
+        const indexed = withIllustrationReferenceIndices(scene.members);
         cast = indexed.map((member) => ({
           name: member.name,
           gender: member.gender,
           role: member.role,
           referenceIndex: member.referenceIndex,
           appearanceNote: member.appearanceNote,
+          aliases: member.aliases,
         }));
         const partyUrls = indexed
           .filter((member) => member.referenceIndex != null && member.imageUrl)
           .sort((a, b) => (a.referenceIndex ?? 0) - (b.referenceIndex ?? 0))
           .map((member) => member.imageUrl as string);
         if (partyUrls.length > 0) referenceUrls = partyUrls;
+        sceneLocation = scene.location;
+        sceneActions = scene.actions;
       }
       const source = resolveSourceTurn({
         chatId: context.chatId,
@@ -723,6 +741,13 @@ export async function POST(req: Request) {
         sourceText: campaignId ? String(body.sourceText ?? "") : undefined,
         requireChat: !campaignId,
       });
+      if (campaignId) {
+        situation = buildTrpgIllustrationSituation({
+          location: sceneLocation,
+          actions: sceneActions,
+          narration: source.turnText,
+        });
+      }
       const prompt = buildChatLdIllustrationPrompt({
         characterName: context.character.name,
         characterGender: context.characterGender,
@@ -730,6 +755,7 @@ export async function POST(req: Request) {
         personaGender: context.personaGender,
         currentTurn: source.turnText,
         cast,
+        situation,
       });
       const references = await Promise.all(
         referenceUrls.map((sourceUrl) => imageSourceToDataUrl(sourceUrl))
@@ -806,6 +832,7 @@ export async function POST(req: Request) {
                   : "latest_chat_turn",
               messageId: source.messageId,
               campaignId: campaignId ?? undefined,
+              roundNumber: roundNumber ?? undefined,
               castNames: cast?.map((member) => member.name),
               quality: CHAT_LD_ILLUSTRATION_QUALITY,
               outputSize: CHAT_LD_ILLUSTRATION_OUTPUT_SIZE,
