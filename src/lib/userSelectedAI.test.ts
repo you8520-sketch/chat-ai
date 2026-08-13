@@ -119,4 +119,13 @@ describe("userSelectedAI helpers", () => {
     assert.equal(notice2.notice, null);
     db.close();
   });
+
+  it("does not toast intro or all-chats-apply copy on first visit", () => {
+    const db = memoryDb();
+    db.prepare("INSERT INTO users (id) VALUES (1)").run();
+    const notice = consumeSelectedAiEntryNotice(db, 1, { isFirstChatVisitEver: true });
+    assert.equal(notice.notice, null);
+    assert.equal(notice.kind, null);
+    db.close();
+  });
 });

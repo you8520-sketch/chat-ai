@@ -92,7 +92,6 @@ import {
   selectedAIOptionMeta,
   type SelectedAI,
 } from "@/lib/chatModels";
-import { globalModelStatusLabel } from "@/lib/userSelectedAI";
 import { formatAssistantLengthLabel } from "@/lib/responseLengthConstants";
 import {
   collapseStreamCompareText,
@@ -1041,7 +1040,6 @@ export default function ChatClient({
         const data = (await res.json()) as {
           error?: string;
           selectedAI?: SelectedAI;
-          changeNotice?: string | null;
         };
         if (!res.ok) {
           setSelectedAI(prev);
@@ -1049,7 +1047,6 @@ export default function ChatClient({
           return;
         }
         if (data.selectedAI) setSelectedAI(data.selectedAI);
-        if (data.changeNotice) setToastMsg(data.changeNotice);
       } catch {
         setSelectedAI(prev);
         setToastMsg("모델 변경 중 오류가 발생했습니다.");
@@ -4501,25 +4498,20 @@ export default function ChatClient({
       >
         <FloatingPointsDeduction amount={floatDeductionAmount} trigger={floatDeductionTrigger} />
         <div className={`flex flex-wrap items-center gap-2 overflow-visible ${showCharacterPortrait ? "mb-1" : "mb-1"}`}>
-          <label className="flex min-w-0 flex-1 flex-col gap-0.5 text-[11px] text-zinc-400 sm:flex-none">
-            <span className="flex items-center gap-1.5">
-              <span className="shrink-0 font-semibold text-zinc-500">AI</span>
-              <select
-                value={selectedAI}
-                onChange={(e) => void handleSelectedAIChange(e.target.value as SelectedAI)}
-                disabled={inputLocked}
-                className="max-w-full rounded-md border border-white/10 bg-[#1a1a1a] px-1.5 py-1 text-[11px] text-zinc-200 outline-none focus:border-violet-500/50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {USER_SELECTABLE_AI_OPTIONS.map((o) => (
-                  <option key={o.id} value={o.id}>
-                    {selectedAIOptionLabel(o.id as SelectedAI)}
-                  </option>
-                ))}
-              </select>
-            </span>
-            <span className="truncate text-[10px] text-zinc-500">
-              {globalModelStatusLabel(selectedAI)}
-            </span>
+          <label className="flex min-w-0 flex-1 items-center gap-1.5 text-[11px] text-zinc-400 sm:flex-none">
+            <span className="shrink-0 font-semibold text-zinc-500">AI</span>
+            <select
+              value={selectedAI}
+              onChange={(e) => void handleSelectedAIChange(e.target.value as SelectedAI)}
+              disabled={inputLocked}
+              className="max-w-full rounded-md border border-white/10 bg-[#1a1a1a] px-1.5 py-1 text-[11px] text-zinc-200 outline-none focus:border-violet-500/50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {USER_SELECTABLE_AI_OPTIONS.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {selectedAIOptionLabel(o.id as SelectedAI)}
+                </option>
+              ))}
+            </select>
           </label>
         </div>
 

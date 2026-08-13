@@ -9,8 +9,6 @@ import {
 import {
   consumeSelectedAiEntryNotice,
   ensureUserSelectedAI,
-  globalModelChangedNotice,
-  globalModelStatusLabel,
   setUserSelectedAI,
 } from "@/lib/userSelectedAI";
 
@@ -34,7 +32,6 @@ export async function GET(req: Request) {
     return Response.json({
       selectedAI,
       label: selectedAILabel(selectedAI),
-      statusLabel: globalModelStatusLabel(selectedAI),
       notice,
       noticeKind: kind,
     });
@@ -44,7 +41,6 @@ export async function GET(req: Request) {
   return Response.json({
     selectedAI,
     label: selectedAILabel(selectedAI),
-    statusLabel: globalModelStatusLabel(selectedAI),
   });
 }
 
@@ -67,8 +63,5 @@ export async function PATCH(req: Request) {
     selectedAI,
     changed,
     label: selectedAILabel(selectedAI),
-    statusLabel: globalModelStatusLabel(selectedAI),
-    /** 변경 직후 즉시 보여줄 확인 문구 (방 진입 대기와 별개) */
-    changeNotice: changed ? globalModelChangedNotice(selectedAI) : null,
   });
 }
