@@ -113,7 +113,7 @@ export async function callTrpgBot(opts: {
     ],
     stream: false,
     temperature: 0.85,
-    max_tokens: 768,
+    max_tokens: 1536,
   });
   return postTrpgChat({ model, body, timeoutMs: opts.timeoutMs ?? 45_000 });
 }

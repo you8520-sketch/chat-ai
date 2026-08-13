@@ -84,6 +84,15 @@ describe("TRPG GM prompt/parse", () => {
     });
     assert.match(withPersona, /PLAYER PERSONAS/);
     assert.match(withPersona, /조용한 탐정/);
+    const withBonds = buildTrpgGmUserBlock({
+      worldBrief: "폐여관",
+      memoryBlock: "[TRPG STRUCTURED STATE]",
+      opening: true,
+      relationshipBrief: "렌과 유나는 소꿉친구",
+      actions: [],
+    });
+    assert.match(withBonds, /PARTY RELATIONSHIPS/);
+    assert.match(withBonds, /소꿉친구/);
     const sheets = formatTrpgSheetCanon({
       defs: DEFAULT_TRPG_STAT_DEFS,
       sheets: [{ name: "렌", stats: { str: 9, dex: 3, int: 5, wis: 5, cha: 5, con: 5 } }],
@@ -115,5 +124,6 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(TRPG_GM_SYSTEM, /CHARACTER SHEETS/);
     assert.match(TRPG_GM_SYSTEM, /이름: "대사"/);
     assert.match(TRPG_GM_SYSTEM, /AI companion/);
+    assert.match(TRPG_GM_SYSTEM, /PARTY RELATIONSHIPS/);
   });
 });

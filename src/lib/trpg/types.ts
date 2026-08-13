@@ -18,6 +18,9 @@ export const TRPG_NEXT_ROUND_CONTEXT_MAX_CHARS = 400;
 export const TRPG_SEAL_SUMMARY_MAX_CHARS = 500;
 export const TRPG_SEALED_PROMPT_MAX_CHARS = 2500;
 export const TRPG_BOT_SCENE_MAX_CHARS = 1400;
+/** Bot-seat PC action — speech + physical beat, not GM narration. */
+export const TRPG_BOT_MIN_CHARS = 250;
+export const TRPG_BOT_AIM_CHARS = 700;
 /** Character card fields on a bot-seat call — personality lives here. */
 export const TRPG_BOT_CARD_PROMPT_MAX_CHARS = 3500;
 export const TRPG_BOT_CARD_FIELD_MAX_CHARS = 800;
@@ -31,6 +34,8 @@ export const TRPG_GM_GROSS_MARGIN = 0.65;
 export const TRPG_BOT_GROSS_MARGIN = 0.65;
 export const TRPG_BOT_MODEL = "deepseek-v4-pro";
 export const TRPG_ACTION_MAX_CHARS = 800;
+/** Host-written party bonds, applied before campaign start. */
+export const TRPG_RELATIONSHIP_MAX_CHARS = 800;
 /** Out-of-world party talk. Never sent to GM or bot-seat prompts. */
 export const TRPG_PARTY_CHAT_MAX_CHARS = 400;
 export const TRPG_PARTY_CHAT_LIMIT = 80;
