@@ -34,6 +34,7 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(TRPG_GM_SYSTEM, /GM:/);
     assert.match(TRPG_GM_SYSTEM, /table-talk/);
     assert.match(TRPG_GM_SYSTEM, /never the person they address/);
+    assert.match(TRPG_GM_SYSTEM, /Never bury a spoken line/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /800–1800|800-1800/);
     assert.equal(TRPG_GM_MIN_CHARS, 3000);
     assert.ok(TRPG_GM_AIM_CHARS > TRPG_GM_MIN_CHARS);

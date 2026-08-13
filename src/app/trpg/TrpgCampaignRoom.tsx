@@ -17,7 +17,7 @@ import {
 import { cacheUserChatPrefsClient, loadUserChatPrefsClient, type UserChatPrefs } from "@/lib/userChatPrefs";
 import { loadTrpgDisplayPrefs } from "@/lib/trpg/displayPrefs";
 import { successLabelKo } from "@/lib/trpg/labels";
-import { parseTrpgSceneSpeech } from "@/lib/trpg/sceneSpeech";
+import { isTrpgQuotedSpeech, parseTrpgSceneSpeech } from "@/lib/trpg/sceneSpeech";
 import type { TrpgCampaignSnapshot, TrpgPublicLog, TrpgPublicRoll } from "@/lib/trpg/snapshot";
 import type { TrpgStatDefinition } from "@/lib/trpg/types";
 import { TRPG_ACTION_MAX_CHARS } from "@/lib/trpg/types";
@@ -40,6 +40,30 @@ function partyDisplayNames(snap: TrpgCampaignSnapshot): string[] {
       return (sheet?.sheet.name.trim() || p.displayName.trim());
     })
     .filter(Boolean);
+}
+
+function viewerSpeechNames(snap: TrpgCampaignSnapshot): string[] {
+  const names: string[] = [];
+  const sheet = snap.sheets.find((card) => card.isSelf)?.sheet.name.trim();
+  if (sheet) names.push(sheet);
+  const mine = snap.participants.find((p) => p.id === snap.viewerParticipantId);
+  if (mine?.displayName.trim()) names.push(mine.displayName.trim());
+  return names;
+}
+
+function speechVariant(speaker: string | null, selfNames: readonly string[]): "user" | "character" {
+  const n = speaker?.trim();
+  if (!n) return "character";
+  const aliases = new Set<string>();
+  for (const name of selfNames) {
+    const trimmed = name.trim();
+    if (!trimmed) continue;
+    aliases.add(trimmed);
+    if (/^[가-힣]{3,4}$/.test(trimmed)) aliases.add(trimmed.slice(1));
+  }
+  if (aliases.has(n)) return "user";
+  if (/^[가-힣]{3,4}$/.test(n) && aliases.has(n.slice(1))) return "user";
+  return "character";
 }
 
 function openSceneImage(opts: {
@@ -306,6 +330,7 @@ export default function TrpgCampaignRoom({
               key={row.roundNumber}
               row={row}
               knownNames={knownNames}
+              selfNames={viewerSpeechNames(snap)}
               statDefs={snap.statDefs}
               display={displayPrefs}
               canReroll={snap.canRerollRoundNumber === row.roundNumber && !generating}
@@ -463,6 +488,7 @@ export default function TrpgCampaignRoom({
 function SceneTurn({
   row,
   knownNames,
+  selfNames,
   statDefs,
   display,
   canReroll,
@@ -473,6 +499,7 @@ function SceneTurn({
 }: {
   row: TrpgPublicLog;
   knownNames: string[];
+  selfNames: string[];
   statDefs: TrpgStatDefinition[];
   display: ChatDisplayPrefs;
   canReroll: boolean;
@@ -527,7 +554,8 @@ function SceneTurn({
               key={`${row.roundNumber}-gm-${i}`}
               name={beat.speaker}
               text={beat.text}
-              variant="character"
+              variant={speechVariant(beat.speaker, selfNames)}
+              accent={Boolean(beat.speaker) || isTrpgQuotedSpeech(beat.text)}
               display={display}
             />
           )
