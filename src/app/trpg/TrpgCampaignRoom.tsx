@@ -25,6 +25,7 @@ import TrpgCampaignTitle from "./TrpgCampaignTitle";
 import TrpgCampaignRail from "./TrpgCampaignRail";
 import TrpgNamedProse, { TrpgGmTalk } from "./TrpgNamedProse";
 import TrpgSceneToolbar from "./TrpgSceneToolbar";
+import TrpgSelfSheetHud from "./TrpgSelfSheetHud";
 
 function imageCharacterId(snap: TrpgCampaignSnapshot): number | null {
   const companion = snap.participants.find((p) => p.kind === "ai_character" && p.characterId);
@@ -124,6 +125,7 @@ export default function TrpgCampaignRoom({
   ].filter((name, i, all) => name.trim() && all.indexOf(name) === i);
   const imageId = imageCharacterId(snap);
   const partyNames = partyDisplayNames(snap);
+  const selfSheet = snap.sheets.find((card) => card.isSelf);
   const sceneRows = snap.log.filter((row) => row.narration || row.actions.some((a) => a.revealed && a.body));
   const waitingOpening =
     sceneRows.length === 0 &&
@@ -416,6 +418,7 @@ export default function TrpgCampaignRoom({
             </button>
           ) : null}
         </div>
+        {selfSheet ? <TrpgSelfSheetHud card={selfSheet} statDefs={snap.statDefs} /> : null}
       </div>
 
       <aside
