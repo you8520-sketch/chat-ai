@@ -122,7 +122,7 @@ describe("TRPG scenarios and catalog", () => {
       visibility: "public",
       startLocation: "대합실",
       startInventory: ["손전등"],
-      defaultPcStats: { str: 4, dex: 7, int: 5, wis: 5, cha: 4, con: 5 },
+      defaultPcStats: { str: 5, dex: 7, int: 5, wis: 5, cha: 5, con: 5 },
       npcs: [
         {
           name: "역무원",
@@ -163,7 +163,7 @@ describe("TRPG scenarios and catalog", () => {
       title: "마법 결투",
       content: "탑 꼭대기에서 주문을 겨룬다.",
       statKeys: ["str", "mag", "wil"],
-      defaultPcStats: { str: 4, mag: 8, wil: 3 },
+      defaultPcStats: { str: 5, mag: 8, wil: 5 },
     });
     const campaignId = createTrpgCampaign(db, {
       hostUserId: 1,
@@ -176,7 +176,7 @@ describe("TRPG scenarios and catalog", () => {
       scenario.statDefs.map((d) => d.key),
       ["str", "wil", "mag"]
     );
-    assert.equal(scenario.pointPool, 15);
+    assert.equal(scenario.pointPool, 30);
     assert.equal(scenario.defaultPcStats?.mag, 8);
     assert.equal(scenario.statDefs.some((d) => d.key === "dex"), false);
     db.close();

@@ -262,8 +262,8 @@ export default function TrpgScenarioEditor({
 
         <AppSectionCard title="시작 위치 · 상태값">
           <p className="mb-3 text-sm text-zinc-400">
-            이 시나리오 시트에 넣을 상태값만 고르세요. 숫자는 참가자가 페르소나에 맞춰 로비에서 배분하고, AI 캐릭터는
-            본문으로 자동 배분하거나 방장이 로비에서 맞춥니다. 일반 세계관만으로 시작하는 캠페인은 힘·민첩·지능·지혜·매력·체력
+            이 시나리오 시트에 넣을 상태값만 고르세요. 숫자는 참가자가 로비에서 5–15로 배분합니다. AI 캐릭터는 본문으로
+            자동 배분하거나 방장이 로비에서 맞춥니다. 일반 세계관만으로 시작하는 캠페인은 힘·민첩·지능·지혜·매력·체력
             6종만 씁니다.
           </p>
           <div className="mb-3 flex flex-wrap gap-1.5">

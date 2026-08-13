@@ -2,7 +2,7 @@ import { parseGenresJson, type CharacterGenre } from "@/lib/characterGenres";
 import {
   DEFAULT_TRPG_STAT_DEFS,
   defsFromKeys,
-  evenStats,
+  floorStats,
   parseStatKeys,
   pointPoolFor,
   validateStatAllocation,
@@ -78,14 +78,14 @@ export function parseStatRecord(
   pool = pointPoolFor(defs)
 ): Record<string, number> | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-  const stats = evenStats(defs, pool);
+  const stats = floorStats(defs);
   for (const def of defs) {
     const value = (raw as Record<string, unknown>)[def.key];
     const n = typeof value === "number" ? value : Number(value);
     if (Number.isInteger(n)) stats[def.key] = n;
   }
   const check = validateStatAllocation(defs, stats, pool);
-  return check.ok ? stats : evenStats(defs, pool);
+  return check.ok ? stats : floorStats(defs);
 }
 
 export function parseScenarioNpcs(raw: unknown, defs: TrpgStatDefinition[] = DEFAULT_TRPG_STAT_DEFS): TrpgScenarioNpc[] {
@@ -170,7 +170,7 @@ export function normalizeScenarioTemplateInput(input: TrpgScenarioTemplateInput)
     visibility: parseTrpgVisibility(input.visibility),
     startLocation: clip(String(input.startLocation ?? ""), TRPG_SCENARIO_LOCATION_LIMIT),
     startInventory: parseInventory(input.startInventory),
-    defaultPcStats: parseStatRecord(input.defaultPcStats, statDefs, pool) ?? evenStats(statDefs, pool),
+    defaultPcStats: parseStatRecord(input.defaultPcStats, statDefs, pool) ?? floorStats(statDefs),
     statKeys,
     npcs,
     characterIds,

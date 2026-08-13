@@ -5,42 +5,49 @@ export type TrpgStatCatalogEntry = TrpgStatDefinition & {
   hpSource?: boolean;
 };
 
+/** Floor for a sheet stat. 5 → +0 modifier on the d20. */
+export const TRPG_STAT_MIN = 5;
+/** Cap for a sheet stat. 15 → +5 modifier. Not the d20 face. */
+export const TRPG_STAT_MAX = 15;
+/** Extra points above (stat count × min) so a player can raise some stats without dumping others. */
+export const TRPG_STAT_POOL_BONUS = 15;
+
 /**
  * Shared pool of common TRPG abilities (D&D 6 + CoC/WoD/SW-style extras).
  * Scenario authors pick a subset for the PC sheet. World-only campaigns use the default 6.
  * Max 30.
  */
 export const TRPG_STAT_CATALOG: TrpgStatCatalogEntry[] = [
-  { key: "str", label: "힘", description: "근접·완력·파괴", min: 1, max: 10, hints: ["힘", "검", "전사", "기사", "무사", "격투", "완력", "근육", "도끼", "창", "무력", "용병", "때리", "부수"] },
-  { key: "dex", label: "민첩", description: "은신·선공·잔기술", min: 1, max: 10, hints: ["민첩", "도적", "암살", "궁", "닌자", "은신", "도둑", "날렵", "암기", "도주", "숨"] },
-  { key: "con", label: "체력", description: "지구력·HP", min: 1, max: 10, hpSource: true, hints: ["체력", "탱커", "맷집", "거인", "지구력", "수호", "방패", "튼튼", "버티"] },
-  { key: "int", label: "지능", description: "조사·지식·추론", min: 1, max: 10, hints: ["지능", "마법", "학자", "천재", "연구", "마법사", "지식", "책", "연금", "분석"] },
-  { key: "wis", label: "지혜", description: "통찰·감지·판단", min: 1, max: 10, hints: ["지혜", "사제", "신관", "승려", "통찰", "점술", "성직", "기도", "감지"] },
-  { key: "cha", label: "매력", description: "설득·사교·위압", min: 1, max: 10, hints: ["매력", "유혹", "아이돌", "공주", "왕자", "화술", "카리스마", "연예", "가수", "배우", "설득"] },
-  { key: "per", label: "지각", description: "관찰·눈치·단서", min: 1, max: 10, hints: ["지각", "관찰", "눈치", "단서", "살펴", "주시", "찾아"] },
-  { key: "wil", label: "의지", description: "정신력·공포 저항", min: 1, max: 10, hints: ["의지", "정신력", "공포", "광기", "버티", "굴복", "저항"] },
-  { key: "lck", label: "운", description: "우연·기적·요행", min: 1, max: 10, hints: ["운", "행운", "우연", "도박", "요행", "뽑기"] },
-  { key: "mag", label: "마력", description: "주문·초능력", min: 1, max: 10, hints: ["마력", "주문", "마법", "주술", "염력", "화염", "빙결", "번개", "소환"] },
-  { key: "fth", label: "신앙", description: "기적·신성·축복", min: 1, max: 10, hints: ["신앙", "신성", "기적", "축복", "신", "기도", "성수"] },
-  { key: "tec", label: "기술", description: "제작·장치·손재주", min: 1, max: 10, hints: ["기술", "제작", "장치", "기계", "수리", "도구", "자물쇠", "해킹"] },
-  { key: "app", label: "외모", description: "첫인상·미모", min: 1, max: 10, hints: ["외모", "미모", "첫인상", "예쁘", "잘생", "미인"] },
-  { key: "edu", label: "학식", description: "교육·전공 지식", min: 1, max: 10, hints: ["학식", "교육", "전공", "역사", "문헌", "학위", "공부"] },
-  { key: "siz", label: "체격", description: "크기·무게·위압감", min: 1, max: 10, hpSource: true, hints: ["체격", "거구", "덩치", "몸집", "거인", "무게"] },
-  { key: "ins", label: "직감", description: "감·재치·번뜩임", min: 1, max: 10, hints: ["직감", "감", "재치", "번뜩", "육감", "예감"] },
-  { key: "spd", label: "속도", description: "이동·선제·추격", min: 1, max: 10, hints: ["속도", "달리", "추격", "선제", "빠르", "질주", "도망"] },
-  { key: "res", label: "저항", description: "독·저주·상태이상", min: 1, max: 10, hints: ["저항", "독", "저주", "면역", "해독", "상태이상"] },
-  { key: "com", label: "침착", description: "냉정·패닉 억제", min: 1, max: 10, hints: ["침착", "냉정", "패닉", "진정", "평정", "동요"] },
-  { key: "pre", label: "존재감", description: "위압·좌중 장악", min: 1, max: 10, hints: ["존재감", "위압", "기세", "카리스마", "장악", "압도"] },
-  { key: "san", label: "이성", description: "광기·이성 붕괴", min: 1, max: 10, hints: ["이성", "광기", "정신붕괴", "환각", "미침", "제정신"] },
-  { key: "hon", label: "명예", description: "체면·의리·맹세", min: 1, max: 10, hints: ["명예", "체면", "의리", "맹세", "자존", "체통"] },
-  { key: "emp", label: "공감", description: "감정·유대·위로", min: 1, max: 10, hints: ["공감", "유대", "위로", "감정", "이해", "다독"] },
-  { key: "foc", label: "집중", description: "조준·유지·몰입", min: 1, max: 10, hints: ["집중", "조준", "몰입", "유지", "한눈"] },
-  { key: "surv", label: "생존", description: "야생·야영·추적", min: 1, max: 10, hints: ["생존", "야생", "야영", "추적", "사냥", "숲"] },
-  { key: "inf", label: "인맥", description: "연줄·뒷거래", min: 1, max: 10, hints: ["인맥", "연줄", "뒷거래", "정계", "조직"] },
-  { key: "occ", label: "오컬트", description: "금서·이능 지식", min: 1, max: 10, hints: ["오컬트", "금서", "이능", "주술서", "비의", "금기"] },
-  { key: "acc", label: "명중", description: "원거리·조준 명중", min: 1, max: 10, hints: ["명중", "사격", "활", "총", "조준", "원거리"] },
-  { key: "grd", label: "가드", description: "막기·받아치기", min: 1, max: 10, hints: ["가드", "막기", "받아치", "방어기", "패링"] },
-  { key: "rec", label: "회복", description: "치료·피로 회복", min: 1, max: 10, hints: ["회복", "치료", "치유", "피로", "응급"] },
+  { key: "str", label: "힘", description: "근접·완력·파괴", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["힘", "검", "전사", "기사", "무사", "격투", "완력", "근육", "도끼", "창", "무력", "용병", "때리", "부수"] },
+  { key: "dex", label: "민첩", description: "은신·선공·잔기술", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["민첩", "도적", "암살", "궁", "닌자", "은신", "도둑", "날렵", "암기", "도주", "숨"] },
+  { key: "con", label: "체력", description: "지구력·HP", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hpSource: true, hints: ["체력", "탱커", "맷집", "거인", "지구력", "수호", "방패", "튼튼", "버티"] },
+  { key: "int", label: "지능", description: "조사·지식·추론", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["지능", "마법", "학자", "천재", "연구", "마법사", "지식", "책", "연금", "분석"] },
+  { key: "wis", label: "지혜", description: "통찰·감지·판단", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["지혜", "사제", "신관", "승려", "통찰", "점술", "성직", "기도", "감지"] },
+  { key: "cha", label: "매력", description: "설득·사교·위압", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["매력", "유혹", "아이돌", "공주", "왕자", "화술", "카리스마", "연예", "가수", "배우", "설득"] },
+  { key: "per", label: "지각", description: "관찰·눈치·단서", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["지각", "관찰", "눈치", "단서", "살펴", "주시", "찾아"] },
+  { key: "wil", label: "의지", description: "정신력·공포 저항", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["의지", "정신력", "공포", "광기", "버티", "굴복", "저항"] },
+  { key: "lck", label: "운", description: "우연·기적·요행", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["운", "행운", "우연", "도박", "요행", "뽑기"] },
+  { key: "mag", label: "마력", description: "주문·초능력", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["마력", "주문", "마법", "주술", "염력", "화염", "빙결", "번개", "소환"] },
+  { key: "fth", label: "신앙", description: "기적·신성·축복", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["신앙", "신성", "기적", "축복", "신", "기도", "성수"] },
+  { key: "tec", label: "기술", description: "제작·장치·손재주", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["기술", "제작", "장치", "기계", "수리", "도구", "자물쇠", "해킹"] },
+  { key: "app", label: "외모", description: "첫인상·미모", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["외모", "미모", "첫인상", "예쁘", "잘생", "미인"] },
+  { key: "edu", label: "학식", description: "교육·전공 지식", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["학식", "교육", "전공", "역사", "문헌", "학위", "공부"] },
+  { key: "siz", label: "체격", description: "크기·무게·위압감", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hpSource: true, hints: ["체격", "거구", "덩치", "몸집", "거인", "무게"] },
+  { key: "ins", label: "직감", description: "감·재치·번뜩임", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["직감", "감", "재치", "번뜩", "육감", "예감"] },
+  { key: "spd", label: "속도", description: "이동·선제·추격", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["속도", "달리", "추격", "선제", "빠르", "질주", "도망"] },
+  { key: "res", label: "저항", description: "독·저주·상태이상", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["저항", "독", "저주", "면역", "해독", "상태이상"] },
+  { key: "com", label: "침착", description: "냉정·패닉 억제", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["침착", "냉정", "패닉", "진정", "평정", "동요"] },
+  { key: "pre", label: "존재감", description: "위압·좌중 장악", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["존재감", "위압", "기세", "카리스마", "장악", "압도"] },
+  { key: "san", label: "이성", description: "광기·이성 붕괴", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["이성", "광기", "정신붕괴", "환각", "미침", "제정신"] },
+  { key: "hon", label: "명예", description: "체면·의리·맹세", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["명예", "체면", "의리", "맹세", "자존", "체통"] },
+  { key: "emp", label: "공감", description: "감정·유대·위로", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["공감", "유대", "위로", "감정", "이해", "다독"] },
+  { key: "foc", label: "집중", description: "조준·유지·몰입", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["집중", "조준", "몰입", "유지", "한눈"] },
+  { key: "surv", label: "생존", description: "야생·야영·추적", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["생존", "야생", "야영", "추적", "사냥", "숲"] },
+  { key: "inf", label: "인맥", description: "연줄·뒷거래", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["인맥", "연줄", "뒷거래", "정계", "조직"] },
+  { key: "occ", label: "오컬트", description: "금서·이능 지식", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["오컬트", "금서", "이능", "주술서", "비의", "금기"] },
+  { key: "acc", label: "명중", description: "원거리·조준 명중", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["명중", "사격", "활", "총", "조준", "원거리"] },
+  { key: "grd", label: "가드", description: "막기·받아치기", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["가드", "막기", "받아치", "방어기", "패링"] },
+  { key: "rec", label: "회복", description: "치료·피로 회복", min: TRPG_STAT_MIN, max: TRPG_STAT_MAX, hints: ["회복", "치료", "치유", "피로", "응급"] },
 ];
 
 export const DEFAULT_TRPG_STAT_KEYS = ["str", "dex", "int", "wis", "cha", "con"] as const;
@@ -67,7 +74,29 @@ export function defsFromKeys(keys: readonly string[]): TrpgStatDefinition[] {
 export const DEFAULT_TRPG_STAT_DEFS: TrpgStatDefinition[] = defsFromKeys(DEFAULT_TRPG_STAT_KEYS);
 
 export function pointPoolFor(defs: readonly TrpgStatDefinition[]): number {
-  return Math.max(defs.length, 1) * 5;
+  return Math.max(defs.length, 1) * TRPG_STAT_MIN + TRPG_STAT_POOL_BONUS;
+}
+
+/** All stats at the floor. Lobby leftover = the pool bonus. */
+export function floorStats(
+  defs: readonly TrpgStatDefinition[] = DEFAULT_TRPG_STAT_DEFS
+): Record<string, number> {
+  const values: Record<string, number> = {};
+  for (const def of defs) values[def.key] = def.min;
+  return values;
+}
+
+/** Re-read min/max from the live catalog so older campaigns pick up 5–15. */
+export function resolveCampaignStatDefs(stored: unknown): TrpgStatDefinition[] {
+  if (!Array.isArray(stored) || stored.length === 0) return DEFAULT_TRPG_STAT_DEFS;
+  const keys: string[] = [];
+  for (const row of stored) {
+    if (!row || typeof row !== "object" || Array.isArray(row)) continue;
+    const key = String((row as { key?: unknown }).key ?? "").trim();
+    if (key) keys.push(key);
+  }
+  const defs = defsFromKeys(keys);
+  return defs.length > 0 ? defs : DEFAULT_TRPG_STAT_DEFS;
 }
 
 export const DEFAULT_TRPG_POINT_POOL = pointPoolFor(DEFAULT_TRPG_STAT_DEFS);

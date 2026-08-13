@@ -9,7 +9,7 @@ import TrpgPartySlots from "../TrpgPartySlots";
 import { AppSectionCard } from "@/components/AppPageShell";
 import { TRPG_ACTION_TYPES, actionTypeLabelKo, type TrpgActionType } from "@/lib/trpg/actionTypes";
 import { successLabelKo } from "@/lib/trpg/labels";
-import { suggestBotStats } from "@/lib/trpg/stats";
+import { statModifier, suggestBotStats } from "@/lib/trpg/stats";
 import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
 import { TRPG_ACTION_MAX_CHARS, TRPG_GM_GROSS_MARGIN, TRPG_PARTY_CHAT_MAX_CHARS } from "@/lib/trpg/types";
 import type { PublicPersonaListItem } from "@/lib/userPersonasClient";
@@ -164,14 +164,9 @@ export default function TrpgRoomClient({
     } catch {
       /* ignore */
     }
-    const mine = snap.sheets.find((s) => s.isSelf);
-    const nextStats: Record<string, number> = {};
-    for (const def of snap.statDefs) {
-      nextStats[def.key] = mine?.sheet.stats[def.key] ?? snap.suggestedPcStats?.[def.key] ?? 5;
-    }
     await run(`/api/trpg/campaigns/${snap.id}/sheet`, {
       personaId,
-      stats: nextStats,
+      stats,
       participantId: snap.viewerParticipantId,
     });
   }
@@ -206,20 +201,23 @@ export default function TrpgRoomClient({
     .every((p) => p.sheetConfirmed);
   const partyReady = humansReady && botsReady;
   const editing = snap.participants.find((p) => p.id === editingId) ?? null;
-  const editingSheet = snap.sheets.find((s) => s.participantId === editingId);
 
   useEffect(() => {
-    if (!editing) return;
+    const target = snap.participants.find((p) => p.id === editingId);
+    if (!target) return;
+    const sheet = snap.sheets.find((s) => s.participantId === editingId);
     const next: Record<string, number> = {};
     for (const def of snap.statDefs) {
       next[def.key] =
-        editingSheet?.sheet.stats[def.key] ??
-        (editing.kind === "human" ? snap.suggestedPcStats?.[def.key] : undefined) ??
-        5;
+        sheet?.sheet.stats[def.key] ??
+        (target.kind === "human" ? snap.suggestedPcStats?.[def.key] : undefined) ??
+        def.min;
     }
     setStats(next);
-    if (editing.kind === "human") setName(editingSheet?.sheet.name || editing.displayName);
-  }, [editing, editingSheet, snap.statDefs, snap.suggestedPcStats]);
+    if (target.kind === "human") setName(sheet?.sheet.name || target.displayName);
+    // Lobby poll refreshes `snap` every 1.5s. Resyncing on sheet identity was wiping unsaved numbers back to 5.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when switching whose sheet we edit
+  }, [editingId]);
   const showDice = snap.currentRolls.length > 0 && (generating || Boolean(snap.currentNarration));
   const showNarration = Boolean(snap.currentNarration) && phase !== "ROLLING" && phase !== "GENERATING_NARRATION";
 
@@ -375,10 +373,17 @@ export default function TrpgRoomClient({
       {setup ? (
         <AppSectionCard title="능력치 배분">
           <p className="mb-3 text-sm text-zinc-400">
-            {snap.pointPool}포인트 안에서 배분합니다. HP는 체력(없으면 체격) ×5입니다. 남은 포인트 {remaining}.
-            {snap.viewerIsHost
-              ? " 참가자는 고른 페르소나에 맞게 직접 배분합니다. AI 캐릭터는 본문 키워드로 자동 배분하거나 방장이 로비에서 맞춥니다."
-              : " 고른 페르소나에 맞게 직접 배분하세요. 시나리오 제작자가 숫자를 정해 두지 않습니다."}
+            각 능력치는 5–15입니다. 주사위는 d20 하나고, 능력치는 눈에 더하는 보정입니다 (5=+0, 9=+2, 15=+5).{" "}
+            {snap.pointPool}포인트 안에서 배분합니다. HP는 체력(없으면 체격) ×5입니다. 남은 포인트{" "}
+            <span className={remaining < 0 ? "font-semibold text-rose-300" : "font-semibold text-zinc-200"}>
+              {remaining}
+            </span>
+            .
+            {remaining < 0
+              ? " 합계가 넘었습니다. 다른 능력치를 낮추면 저장할 수 있습니다."
+              : snap.viewerIsHost
+                ? " 참가자는 고른 페르소나에 맞게 직접 배분합니다. AI 캐릭터는 본문 키워드로 자동 배분하거나 방장이 로비에서 맞춥니다."
+                : " 고른 페르소나에 맞게 직접 배분하세요. 시나리오 제작자가 숫자를 정해 두지 않습니다."}
           </p>
           {snap.viewerIsHost && snap.participants.length > 1 ? (
             <div className="mb-3 flex flex-wrap gap-1.5">
@@ -415,21 +420,26 @@ export default function TrpgRoomClient({
             <p className="mb-3 text-sm text-zinc-300">{editing.displayName} 시트</p>
           )}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {snap.statDefs.map((def) => (
+            {snap.statDefs.map((def) => {
+              const value = stats[def.key] ?? def.min;
+              const mod = statModifier(value);
+              return (
               <label key={def.key} className="text-sm text-zinc-300">
-                {def.label}
+                {def.label}{" "}
+                <span className="text-xs text-zinc-500">({mod >= 0 ? `+${mod}` : String(mod)})</span>
                 <input
                   type="number"
                   min={def.min}
                   max={def.max}
-                  value={stats[def.key] ?? def.min}
+                  value={value}
                   onChange={(e) =>
                     setStats((prev) => ({ ...prev, [def.key]: Number(e.target.value) }))
                   }
                   className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100 outline-none focus:border-violet-400/40"
                 />
               </label>
-            ))}
+              );
+            })}
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <button

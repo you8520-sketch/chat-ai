@@ -14,7 +14,7 @@ import { parseCompanionIds } from "./requestIds";
 import { TRPG_SCENARIO_MAX_BOTS } from "./scenarioTypes";
 import { purgeUnstartedSoloDrafts } from "./engineDelete";
 import { TRPG_MAX_SLOTS } from "./types";
-import { deriveMaxHpFromValues, evenStats, suggestBotStats, validateStatAllocation, DEFAULT_TRPG_STAT_DEFS, defsFromKeys, pointPoolFor } from "./stats";
+import { deriveMaxHpFromValues, evenStats, floorStats, suggestBotStats, validateStatAllocation, DEFAULT_TRPG_STAT_DEFS, defsFromKeys, pointPoolFor } from "./stats";
 import { rejectTrpgFork } from "./timeline";
 import type { TrpgHumanPersona } from "./hostPersona";
 import {
@@ -240,7 +240,7 @@ export function createTrpgCampaign(
   const customTitle = opts.title?.trim().slice(0, 80);
   if (customTitle) title = customTitle;
   const pointPool = pointPoolFor(statDefs);
-  if (!defaultPcStats) defaultPcStats = evenStats(statDefs, pointPool);
+  if (!defaultPcStats) defaultPcStats = floorStats(statDefs);
   const spawnBots = bots.slice(0, TRPG_SCENARIO_MAX_BOTS);
   const hostName = opts.hostPersona?.name.trim().slice(0, 40) || opts.hostNickname.trim().slice(0, 40) || "플레이어";
 
