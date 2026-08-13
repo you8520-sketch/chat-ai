@@ -3,6 +3,7 @@ import { extractSuggestedRepliesFromTurn } from "./extract";
 import {
   parseSuggestedRepliesRecord,
   serializeSuggestedRepliesRecord,
+  shouldEnsureSuggestedRepliesExtraction,
   suggestedRepliesHaveContent,
 } from "./parse";
 import type { SuggestedRepliesRecord, SuggestedReplyItem } from "./types";
@@ -20,10 +21,11 @@ export function loadMessageSuggestedReplies(messageId: number): SuggestedReplies
 }
 
 export function isSuggestedRepliesRecordStalePending(
-  record: SuggestedRepliesRecord | null
+  record: SuggestedRepliesRecord | null,
+  nowMs = Date.now()
 ): boolean {
   if (!record?.pending || !record.extractedAt) return false;
-  const age = Date.now() - new Date(record.extractedAt).getTime();
+  const age = nowMs - new Date(record.extractedAt).getTime();
   return age >= STALE_PENDING_MS;
 }
 
@@ -154,15 +156,7 @@ export function scheduleSuggestedRepliesExtraction(opts: {
 
 export function requeueSuggestedRepliesExtractionIfNeeded(messageId: number): boolean {
   const record = loadMessageSuggestedReplies(messageId);
-  if (!record) return false;
-
-  const stalePending = record.pending === true && isSuggestedRepliesRecordStalePending(record);
-  let staleFailed = false;
-  if (record.failed === true && !record.pending) {
-    const age = Date.now() - new Date(record.extractedAt || 0).getTime();
-    staleFailed = age >= 15_000;
-  }
-  if (!stalePending && !staleFailed) return false;
+  if (!shouldEnsureSuggestedRepliesExtraction(record)) return false;
   if (running.has(messageId)) return true;
 
   const db = getDb();
@@ -225,8 +219,9 @@ export function requeueSuggestedRepliesExtractionIfNeeded(messageId: number): bo
   console.info("[SUGGESTED-REPLIES] requeue extraction", {
     messageId,
     chatId: row.chat_id,
-    wasFailed: record.failed === true,
-    wasStalePending: record.pending === true,
+    reason: record ? "stale" : "missing",
+    wasFailed: record?.failed === true,
+    wasStalePending: record?.pending === true,
   });
 
   scheduleSuggestedRepliesExtraction({

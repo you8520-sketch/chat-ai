@@ -191,3 +191,45 @@ export function resolveClientSuggestedReplies(
     suggestedRepliesFailed: failed,
   };
 }
+
+/** Last assistant with no stored replies still needs a GET (starts Flash extraction). */
+export function clientNeedsSuggestedRepliesPoll(
+  fields: SuggestedRepliesClientFields
+): boolean {
+  if (suggestedRepliesHaveContent(fields.suggestedReplies)) return false;
+  if (fields.suggestedRepliesFailed === true && fields.suggestedRepliesPending !== true) {
+    return false;
+  }
+  return true;
+}
+
+/** Show the bar for ready replies, in-flight jobs, or missing records (about to poll). */
+export function clientShouldShowSuggestedRepliesBar(
+  fields: SuggestedRepliesClientFields
+): boolean {
+  if (suggestedRepliesHaveContent(fields.suggestedReplies)) return true;
+  if (fields.suggestedRepliesFailed === true && fields.suggestedRepliesPending !== true) {
+    return false;
+  }
+  return true;
+}
+
+const STALE_PENDING_MS = 90_000;
+const STALE_FAILED_MS = 15_000;
+
+/** Missing JSON, stale pending, or stale failed — start/retry Flash extraction. */
+export function shouldEnsureSuggestedRepliesExtraction(
+  record: SuggestedRepliesRecord | null,
+  nowMs = Date.now()
+): boolean {
+  if (!record) return true;
+  if (suggestedRepliesHaveContent(record.replies)) return false;
+  if (record.pending === true) {
+    if (!record.extractedAt) return false;
+    return nowMs - new Date(record.extractedAt).getTime() >= STALE_PENDING_MS;
+  }
+  if (record.failed === true) {
+    return nowMs - new Date(record.extractedAt || 0).getTime() >= STALE_FAILED_MS;
+  }
+  return false;
+}

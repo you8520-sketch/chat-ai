@@ -72,7 +72,12 @@ import { stripInternalTagLeakage, stripRpMetaPreamble } from "@/lib/narrativeRul
 import { stripRepeatedTrailingQuoteMarks } from "@/lib/trailingQuoteSanitizer";
 import type { NarrativePov } from "@/lib/narrativePov";
 import type { StatusMeta } from "@/lib/statusMeta/types";
-import { normalizeSuggestedReplies, suggestedRepliesHaveContent } from "@/lib/suggestedReplies/parse";
+import {
+  clientNeedsSuggestedRepliesPoll,
+  clientShouldShowSuggestedRepliesBar,
+  normalizeSuggestedReplies,
+  suggestedRepliesHaveContent,
+} from "@/lib/suggestedReplies/parse";
 import type { SuggestedReplyItem } from "@/lib/suggestedReplies/types";
 import { userMessageRequestsStatusWindowOoc } from "@/lib/statusMeta/ooc";
 import { statusMetaDisplayMarkdown, statusMetaHasDisplayContent } from "@/lib/statusMeta/render";
@@ -446,6 +451,18 @@ function startSuggestedRepliesPoll(
 ) {
   if (pollStartedRef.current.has(messageId)) return;
   pollStartedRef.current.add(messageId);
+  setMessages((prev) =>
+    prev.map((m) =>
+      m.id === messageId && !suggestedRepliesHaveContent(m.suggestedReplies)
+        ? {
+            ...m,
+            suggestedRepliesPending: true,
+            suggestedRepliesRequested: true,
+            suggestedRepliesFailed: false,
+          }
+        : m
+    )
+  );
   void pollSuggestedRepliesForMessage(messageId).then((result) => {
     applySuggestedRepliesPollResult(setMessages, messageId, result);
     if (result.failed || !suggestedRepliesHaveContent(result.replies)) {
@@ -1471,12 +1488,28 @@ export default function ChatClient({
   const suggestedRepliesTurn = useMemo(() => {
     if (!displayPrefs.showSuggestedReplies) return null;
     if (lastAssistantIdx < 0) return null;
+    const last = messages[messages.length - 1];
+    if (last?.role !== "assistant") return null;
     const m = messages[lastAssistantIdx];
     if (!m || m.role !== "assistant" || m.id == null || m.model === "greeting") return null;
     if (isPendingGenerationStatus(m.generationStatus) || inputLocked) return null;
-    if (m.suggestedRepliesFailed) return null;
-    const replies = m.suggestedReplies ?? [];
-    if (!m.suggestedRepliesPending && !suggestedRepliesHaveContent(replies)) return null;
+    if (
+      !clientShouldShowSuggestedRepliesBar({
+        suggestedReplies: m.suggestedReplies ?? [],
+        suggestedRepliesPending: m.suggestedRepliesPending === true,
+        suggestedRepliesRequested: m.suggestedRepliesRequested === true,
+        suggestedRepliesFailed: m.suggestedRepliesFailed === true,
+      })
+    ) {
+      return null;
+    }
+    if (
+      !m.suggestedRepliesPending &&
+      !suggestedRepliesHaveContent(m.suggestedReplies) &&
+      m.suggestedRepliesFailed !== true
+    ) {
+      return { ...m, suggestedRepliesPending: true };
+    }
     return m;
   }, [displayPrefs.showSuggestedReplies, lastAssistantIdx, messages, inputLocked]);
 
@@ -1980,15 +2013,18 @@ export default function ChatClient({
   useEffect(() => {
     if (!displayPrefs.showSuggestedReplies) return;
     if (loadingRef.current || inFlightRef.current) return;
+    const last = messages[messages.length - 1];
+    if (last?.role !== "assistant") return;
     for (let i = messages.length - 1; i >= 0; i--) {
       const m = messages[i]!;
       if (m.role !== "assistant" || m.id == null || m.model === "greeting") continue;
       if (isPendingGenerationStatus(m.generationStatus)) break;
-      const needsPoll =
-        m.suggestedRepliesPending === true ||
-        (m.suggestedRepliesRequested === true &&
-          m.suggestedRepliesFailed !== true &&
-          !suggestedRepliesHaveContent(m.suggestedReplies));
+      const needsPoll = clientNeedsSuggestedRepliesPoll({
+        suggestedReplies: m.suggestedReplies ?? [],
+        suggestedRepliesPending: m.suggestedRepliesPending === true,
+        suggestedRepliesRequested: m.suggestedRepliesRequested === true,
+        suggestedRepliesFailed: m.suggestedRepliesFailed === true,
+      });
       if (!needsPoll) break;
       startSuggestedRepliesPoll(
         m.id,
@@ -3809,6 +3845,34 @@ export default function ChatClient({
     });
   }, [handleDisplayPrefsChange]);
 
+  const handleSuggestedRepliesToggle = useCallback(() => {
+    const nextOn = !displayPrefsRef.current.showSuggestedReplies;
+    handleDisplayPrefsChange({
+      ...displayPrefsRef.current,
+      showSuggestedReplies: nextOn,
+    });
+    if (!nextOn) return;
+    setMessages((prev) => {
+      for (let i = prev.length - 1; i >= 0; i--) {
+        const m = prev[i]!;
+        if (m.role !== "assistant" || m.id == null || m.model === "greeting") continue;
+        if (suggestedRepliesHaveContent(m.suggestedReplies)) return prev;
+        suggestedRepliesPollStartedRef.current.delete(m.id);
+        return prev.map((row) =>
+          row.id === m.id
+            ? {
+                ...row,
+                suggestedRepliesPending: true,
+                suggestedRepliesRequested: true,
+                suggestedRepliesFailed: false,
+              }
+            : row
+        );
+      }
+      return prev;
+    });
+  }, [handleDisplayPrefsChange]);
+
   function renderSettingsPanel(layout: "rail" | "drawer", onClose?: () => void) {
     return (
       <ChatSettingsPanel
@@ -4513,6 +4577,20 @@ export default function ChatClient({
               ))}
             </select>
           </label>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={displayPrefs.showSuggestedReplies}
+            aria-label="추천 메시지"
+            onClick={handleSuggestedRepliesToggle}
+            className={`shrink-0 rounded-md border px-1.5 py-1 text-[11px] font-semibold transition ${
+              displayPrefs.showSuggestedReplies
+                ? "border-violet-400/50 bg-violet-500/15 text-violet-200"
+                : "border-white/10 bg-[#1a1a1a] text-zinc-500 hover:border-white/20 hover:text-zinc-300"
+            }`}
+          >
+            {displayPrefs.showSuggestedReplies ? "추천 켜짐" : "추천 꺼짐"}
+          </button>
         </div>
 
         <div className="flex flex-col gap-0.5">

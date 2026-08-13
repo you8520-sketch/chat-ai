@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import {
-  isSuggestedRepliesRecordStalePending,
   loadMessageSuggestedReplies,
   requeueSuggestedRepliesExtractionIfNeeded,
 } from "@/lib/suggestedReplies/job";
 import {
   normalizeSuggestedReplies,
+  shouldEnsureSuggestedRepliesExtraction,
   suggestedRepliesHaveContent,
 } from "@/lib/suggestedReplies/parse";
 
@@ -38,11 +38,7 @@ export async function GET(req: Request) {
 
   let record = loadMessageSuggestedReplies(messageId);
 
-  if (
-    record &&
-    (record.failed === true ||
-      (record.pending === true && isSuggestedRepliesRecordStalePending(record)))
-  ) {
+  if (shouldEnsureSuggestedRepliesExtraction(record)) {
     requeueSuggestedRepliesExtractionIfNeeded(messageId);
     record = loadMessageSuggestedReplies(messageId);
   }
