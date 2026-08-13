@@ -123,6 +123,7 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(withSheets, /stat=힘\(str\) value=9 modifier=2/);
     assert.match(TRPG_GM_SYSTEM, /CHARACTER SHEETS/);
     assert.match(TRPG_GM_SYSTEM, /이름: "대사"/);
+    assert.match(TRPG_GM_SYSTEM, /Written documents/);
     assert.match(TRPG_GM_SYSTEM, /AI companion/);
     assert.match(TRPG_GM_SYSTEM, /PARTY RELATIONSHIPS/);
   });

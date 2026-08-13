@@ -21,6 +21,9 @@ const BLOCKED_SPEAKERS = new Set([
 ]);
 const SPEECH_ATTR =
   /(?:의\s*목소리|[이가은는]\s*(?:말(?:했|하)|외쳤|물었|대꾸|대답|속삭|중얼|소리쳤|입을))/u;
+/** Signs, notes, maps, letters — quoted lines here are writing, not speech. */
+const WRITTEN_TEXT_CUE =
+  /손글씨|손으로\s*그린|적혀\s*있|적혀\s*있었|씌어\s*있|쓰여\s*있|메모|쪽지|편지|낙서|약도|글씨|한\s*줄이\s*(?:더\s*)?적|기록되어|노트에|간판|표지판|문구가|각인|새겨\s*있|지도.{0,32}(?:적힌|적혀)/u;
 
 function knownSet(names: readonly string[]): Set<string> {
   const out = new Set<string>();
@@ -120,6 +123,10 @@ function isQuoteOnly(text: string): boolean {
   return QUOTE_ONLY.test(text.trim());
 }
 
+export function isTrpgWrittenTextCue(text: string): boolean {
+  return WRITTEN_TEXT_CUE.test(text);
+}
+
 function pushBeat(out: TrpgSpeechBeat[], speaker: string | null, lines: string[]) {
   const text = lines.join("\n").trim();
   if (!text) return;
@@ -129,6 +136,7 @@ function pushBeat(out: TrpgSpeechBeat[], speaker: string | null, lines: string[]
 /**
  * Split GM narration into named dialogue beats.
  * `이름: "대사"` and standalone quoted paragraphs become labeled speech.
+ * Quoted writing (notes, maps, letters) stays unlabeled narration.
  * Narration has no speaker — the UI must not invent a 「장면」 label.
  */
 export function parseTrpgSceneSpeech(narration: string, knownNames: readonly string[] = []): TrpgSpeechBeat[] {
@@ -137,17 +145,24 @@ export function parseTrpgSceneSpeech(narration: string, knownNames: readonly str
   const aliases = expandKnownNames(knownNames);
   const out: TrpgSpeechBeat[] = [];
   let lastSpeaker: string | null = null;
+  let writtenPending = false;
   for (const para of text.split(/\n{2,}/)) {
     const buf: string[] = [];
-    let speaker: string | null = null;
     for (const rawLine of para.split("\n")) {
       const prefixed = prefixedParts(rawLine, knownNames, aliases);
       if (prefixed) {
-        pushBeat(out, speaker, buf);
+        const pending = buf.join("\n");
+        const asWriting = writtenPending || isTrpgWrittenTextCue(pending);
+        pushBeat(out, null, buf);
         buf.length = 0;
-        out.push({ speaker: prefixed.speaker, text: prefixed.text });
-        lastSpeaker = prefixed.speaker;
-        speaker = null;
+        if (asWriting) {
+          out.push({ speaker: null, text: prefixed.text });
+          lastSpeaker = null;
+          writtenPending = false;
+        } else {
+          out.push({ speaker: prefixed.speaker, text: prefixed.text });
+          lastSpeaker = prefixed.speaker;
+        }
         continue;
       }
       buf.push(rawLine);
@@ -155,11 +170,22 @@ export function parseTrpgSceneSpeech(narration: string, knownNames: readonly str
     const leftover = buf.join("\n").trim();
     if (!leftover) continue;
     if (isQuoteOnly(leftover)) {
-      out.push({ speaker: lastSpeaker, text: leftover });
+      out.push({
+        speaker: writtenPending ? null : lastSpeaker,
+        text: leftover,
+      });
+      if (writtenPending) lastSpeaker = null;
+      writtenPending = false;
       continue;
     }
-    const inferred = inferSpeaker(leftover, aliases);
-    if (inferred) lastSpeaker = inferred;
+    if (isTrpgWrittenTextCue(leftover)) {
+      writtenPending = true;
+      lastSpeaker = null;
+    } else {
+      writtenPending = false;
+      const inferred = inferSpeaker(leftover, aliases);
+      if (inferred) lastSpeaker = inferred;
+    }
     pushBeat(out, null, buf);
   }
   return out;
