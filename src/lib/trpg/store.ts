@@ -33,6 +33,7 @@ export type TrpgCampaignRow = {
   template_id: number | null;
   author_user_id: number | null;
   gm_secret: string | null;
+  relationship_brief: string | null;
 };
 
 export type TrpgBotPersona = {

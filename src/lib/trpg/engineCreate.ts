@@ -13,7 +13,8 @@ import {
 import { parseCompanionIds } from "./requestIds";
 import { TRPG_SCENARIO_MAX_BOTS } from "./scenarioTypes";
 import { purgeUnstartedSoloDrafts } from "./engineDelete";
-import { TRPG_MAX_SLOTS } from "./types";
+import { clipTrpgChars } from "./campaignLedger";
+import { TRPG_MAX_SLOTS, TRPG_RELATIONSHIP_MAX_CHARS } from "./types";
 import { deriveMaxHpFromValues, evenStats, floorStats, suggestBotStats, validateStatAllocation, DEFAULT_TRPG_STAT_DEFS, defsFromKeys, pointPoolFor } from "./stats";
 import { rejectTrpgFork } from "./timeline";
 import type { TrpgHumanPersona } from "./hostPersona";
@@ -347,6 +348,24 @@ export function saveTrpgSheet(
   if (participant.kind === "human") {
     db.prepare(`UPDATE trpg_participants SET display_name=? WHERE id=?`).run(name, participant.id);
   }
+}
+
+export function saveTrpgRelationshipBrief(
+  db: Database.Database,
+  opts: { campaignId: number; userId: number; brief: string }
+): void {
+  const campaign = loadCampaign(db, opts.campaignId);
+  if (!campaign) throw new Error("캠페인을 찾을 수 없습니다.");
+  if (campaign.status !== "CHARACTER_SETUP" && campaign.status !== "WAITING_FOR_PLAYERS") {
+    throw new Error("관계 설정은 시작 전에만 정할 수 있습니다.");
+  }
+  if (campaign.host_user_id !== opts.userId) {
+    throw new Error("방장만 관계 설정을 적을 수 있습니다.");
+  }
+  db.prepare(`UPDATE trpg_campaigns SET relationship_brief=?, updated_at=datetime('now') WHERE id=?`).run(
+    clipTrpgChars(opts.brief.trim(), TRPG_RELATIONSHIP_MAX_CHARS),
+    opts.campaignId
+  );
 }
 
 export function joinTrpgCampaign(

@@ -173,6 +173,7 @@ export function ensureTrpgTables(db: Database.Database): void {
   addColumn("trpg_campaigns", "template_id", "INTEGER");
   addColumn("trpg_campaigns", "author_user_id", "INTEGER");
   addColumn("trpg_campaigns", "gm_secret", "TEXT NOT NULL DEFAULT ''");
+  addColumn("trpg_campaigns", "relationship_brief", "TEXT NOT NULL DEFAULT ''");
   addColumn("trpg_rounds", "billed", "INTEGER NOT NULL DEFAULT 0");
   addColumn("trpg_rounds", "error_json", "TEXT");
   addColumn("trpg_rounds", "billed_points", "INTEGER NOT NULL DEFAULT 0");

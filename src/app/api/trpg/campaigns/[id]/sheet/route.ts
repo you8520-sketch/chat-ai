@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { loadTrpgSnapshot, saveTrpgSheet } from "@/lib/trpg/engine";
+import { loadTrpgSnapshot, saveTrpgRelationshipBrief, saveTrpgSheet } from "@/lib/trpg/engine";
 import { resolveTrpgHumanPersona } from "@/lib/trpg/hostPersona";
 import { parseOptionalId } from "@/lib/trpg/requestIds";
 import { campaignIdFromParams, requireTrpgApi, trpgFail } from "@/lib/trpg/requireApi";
@@ -16,6 +16,7 @@ export async function POST(req: Request, ctx: RouteCtx) {
       stats?: unknown;
       participantId?: unknown;
       personaId?: unknown;
+      relationshipBrief?: unknown;
     };
     const statsRaw = body.stats && typeof body.stats === "object" && !Array.isArray(body.stats) ? body.stats : {};
     const stats: Record<string, number> = {};
@@ -35,6 +36,13 @@ export async function POST(req: Request, ctx: RouteCtx) {
       participantId: Number.isInteger(participantIdRaw) && participantIdRaw > 0 ? participantIdRaw : null,
       persona,
     });
+    if (typeof body.relationshipBrief === "string") {
+      saveTrpgRelationshipBrief(gate.db, {
+        campaignId: id,
+        userId: gate.user.id,
+        brief: body.relationshipBrief,
+      });
+    }
     const campaign = loadTrpgSnapshot(gate.db, id, gate.user.id);
     return NextResponse.json({ ok: true, campaign });
   } catch (e) {
