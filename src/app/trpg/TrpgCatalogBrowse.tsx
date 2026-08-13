@@ -11,6 +11,7 @@ import {
 import { CHARACTER_GENRES, type CharacterGenre } from "@/lib/characterGenres";
 import type { TrpgScenarioTemplate } from "@/lib/trpg/scenarioTypes";
 import TrpgCatalogCard from "./TrpgCatalogCard";
+import TrpgCatalogPreview from "./TrpgCatalogPreview";
 
 const SCROLL_CARD_WIDTH = "w-[168px] sm:w-[196px] xl:w-[216px]";
 const RECOMMEND_COUNT = 16;
@@ -42,6 +43,7 @@ function WorldCardRow({
       genres={world.genres}
       badge={world.mine ? (world.trpgEnabled ? "내 것" : "내 것 · 목록 숨김") : undefined}
       emoji="🌍"
+      coverUrl={world.coverUrl}
       selected={selected}
       busy={busy}
       onSelect={onSelect}
@@ -114,7 +116,17 @@ export default function TrpgCatalogBrowse({
 }) {
   const [query, setQuery] = useState("");
   const [genre, setGenre] = useState<CharacterGenre | null>(null);
+  const [preview, setPreview] = useState<TrpgCatalogPick | null>(null);
   const filtering = Boolean(query.trim() || genre);
+
+  function openWorld(id: number) {
+    onPickWorld(id);
+    setPreview({ kind: "world", id });
+  }
+  function openScenario(id: number) {
+    onPickScenario(id);
+    setPreview({ kind: "scenario", id });
+  }
 
   const publicScenarios = catalog.publicScenarios.filter(
     (s) => !catalog.myScenarios.some((mine) => mine.id === s.id)
@@ -212,7 +224,7 @@ export default function TrpgCatalogBrowse({
                   world={world}
                   selected={isPicked(pick, "world", world.id)}
                   busy={busy}
-                  onSelect={() => onPickWorld(world.id)}
+                  onSelect={() => openWorld(world.id)}
                   onStart={() => onStartWorld(world.id)}
                 />
               ))}
@@ -224,7 +236,7 @@ export default function TrpgCatalogBrowse({
                     world={world}
                     selected={isPicked(pick, "world", world.id)}
                     busy={busy}
-                    onSelect={() => onPickWorld(world.id)}
+                    onSelect={() => openWorld(world.id)}
                     onStart={() => onStartWorld(world.id)}
                   />
                 ))}
@@ -234,7 +246,7 @@ export default function TrpgCatalogBrowse({
                   scenario={scenario}
                   selected={isPicked(pick, "scenario", scenario.id)}
                   busy={busy}
-                  onSelect={() => onPickScenario(scenario.id)}
+                  onSelect={() => openScenario(scenario.id)}
                   onStart={() => onStartScenario(scenario.id)}
                 />
               ))}
@@ -245,7 +257,7 @@ export default function TrpgCatalogBrowse({
                   mine
                   selected={isPicked(pick, "scenario", scenario.id)}
                   busy={busy}
-                  onSelect={() => onPickScenario(scenario.id)}
+                  onSelect={() => openScenario(scenario.id)}
                   onStart={() => onStartScenario(scenario.id)}
                 />
               ))}
@@ -262,7 +274,7 @@ export default function TrpgCatalogBrowse({
                     world={world}
                     selected={isPicked(pick, "world", world.id)}
                     busy={busy}
-                    onSelect={() => onPickWorld(world.id)}
+                    onSelect={() => openWorld(world.id)}
                     onStart={() => onStartWorld(world.id)}
                   />
                 </div>
@@ -277,7 +289,7 @@ export default function TrpgCatalogBrowse({
                     scenario={scenario}
                     selected={isPicked(pick, "scenario", scenario.id)}
                     busy={busy}
-                    onSelect={() => onPickScenario(scenario.id)}
+                    onSelect={() => openScenario(scenario.id)}
                     onStart={() => onStartScenario(scenario.id)}
                   />
                 </div>
@@ -292,7 +304,7 @@ export default function TrpgCatalogBrowse({
                     world={world}
                     selected={isPicked(pick, "world", world.id)}
                     busy={busy}
-                    onSelect={() => onPickWorld(world.id)}
+                    onSelect={() => openWorld(world.id)}
                     onStart={() => onStartWorld(world.id)}
                   />
                 </div>
@@ -308,7 +320,7 @@ export default function TrpgCatalogBrowse({
                     mine
                     selected={isPicked(pick, "scenario", scenario.id)}
                     busy={busy}
-                    onSelect={() => onPickScenario(scenario.id)}
+                    onSelect={() => openScenario(scenario.id)}
                     onStart={() => onStartScenario(scenario.id)}
                   />
                 </div>
@@ -317,6 +329,27 @@ export default function TrpgCatalogBrowse({
           ) : null}
         </>
       )}
+      <TrpgCatalogPreview
+        catalog={catalog}
+        pick={preview}
+        busy={busy}
+        onClose={() => setPreview(null)}
+        onStart={() => {
+          if (!preview) return;
+          switch (preview.kind) {
+            case "world":
+              onStartWorld(preview.id);
+              return;
+            case "scenario":
+              onStartScenario(preview.id);
+              return;
+            default: {
+              const _exhaustive: never = preview;
+              return _exhaustive;
+            }
+          }
+        }}
+      />
     </div>
   );
 }

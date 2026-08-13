@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AppPageShell, AppSectionCard } from "@/components/AppPageShell";
 import GenrePicker from "@/components/GenrePicker";
+import StudioSaveBar from "@/components/studio/StudioSaveBar";
 import type { TrpgCatalog } from "@/lib/trpg/catalog";
 import type { CharacterGenre } from "@/lib/characterGenres";
 import {
@@ -25,9 +26,13 @@ function emptyNpc(): TrpgScenarioNpc {
 export default function TrpgScenarioEditor({
   catalog,
   initial,
+  embedded = false,
+  returnHref = "/trpg",
 }: {
   catalog: TrpgCatalog;
   initial?: TrpgScenarioTemplate | null;
+  embedded?: boolean;
+  returnHref?: string;
 }) {
   const router = useRouter();
   const [title, setTitle] = useState(initial?.title ?? "");
@@ -79,7 +84,7 @@ export default function TrpgScenarioEditor({
       });
       const data = (await res.json()) as { error?: string; scenario?: TrpgScenarioTemplate };
       if (!res.ok) throw new Error(data.error || "저장에 실패했습니다.");
-      router.push("/trpg");
+      router.push(returnHref);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "실패했습니다.");
@@ -87,13 +92,8 @@ export default function TrpgScenarioEditor({
     }
   }
 
-  return (
-    <AppPageShell
-      title={initial ? "TRPG 시나리오 수정" : "TRPG 시나리오 만들기"}
-      description="세계관·기본 PC 시트·NPC를 한 묶음으로 저장합니다. 공개/비공개는 목록 노출이고, 숨겨진 설정은 플레이어에게 보이지 않고 GM만 봅니다."
-      narrow
-    >
-      <form onSubmit={(e) => void save(e)} className="space-y-4">
+  const form = (
+      <form id={embedded ? "studio-trpg-scenario-form" : undefined} onSubmit={(e) => void save(e)} className="space-y-4">
         <AppSectionCard title="기본">
           <label className="block text-sm text-zinc-300">
             제목 *
@@ -330,14 +330,40 @@ export default function TrpgScenarioEditor({
           <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">{error}</p>
         ) : null}
 
-        <button
-          type="submit"
-          disabled={busy}
-          className="inline-flex min-h-10 items-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
-        >
-          {busy ? "저장 중…" : "시나리오 저장"}
-        </button>
+        {embedded ? null : (
+          <button
+            type="submit"
+            disabled={busy}
+            className="inline-flex min-h-10 items-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {busy ? "저장 중…" : "시나리오 저장"}
+          </button>
+        )}
       </form>
+  );
+
+  if (embedded) {
+    return (
+      <div className="pb-24">
+        {form}
+        <StudioSaveBar
+          formId="studio-trpg-scenario-form"
+          saveType="submit"
+          saveLabel={busy ? "저장 중…" : "시나리오 저장"}
+          saveDisabled={busy}
+          error={error || null}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <AppPageShell
+      title={initial ? "TRPG 시나리오 수정" : "TRPG 시나리오 만들기"}
+      description="세계관·기본 PC 시트·NPC를 한 묶음으로 저장합니다. 공개/비공개는 목록 노출이고, 숨겨진 설정은 플레이어에게 보이지 않고 GM만 봅니다."
+      narrow
+    >
+      {form}
     </AppPageShell>
   );
 }

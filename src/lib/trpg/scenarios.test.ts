@@ -23,6 +23,7 @@ function memoryDb(): Database.Database {
       content TEXT NOT NULL DEFAULT '',
       trpg_enabled INTEGER NOT NULL DEFAULT 0,
       trpg_visibility TEXT NOT NULL DEFAULT 'private',
+      cover_url TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -149,8 +150,8 @@ describe("TRPG scenarios and catalog", () => {
   it("lists public opted-in worlds and own scenarios in the catalog", () => {
     const db = memoryDb();
     db.prepare(
-      `INSERT INTO worlds (creator_id, name, summary, content, trpg_enabled, trpg_visibility, genres)
-       VALUES (2, '공개세계', '보임', '본문', 1, 'public', ?)`
+      `INSERT INTO worlds (creator_id, name, summary, content, trpg_enabled, trpg_visibility, genres, cover_url)
+       VALUES (2, '공개세계', '보임', '본문', 1, 'public', ?, '/uploads/north.webp')`
     ).run(JSON.stringify(["판타지"]));
     db.prepare(
       `INSERT INTO worlds (creator_id, name, content, trpg_enabled, trpg_visibility)
@@ -175,12 +176,16 @@ describe("TRPG scenarios and catalog", () => {
     const catalog = loadTrpgCatalog(db, 1);
     assert.equal(catalog.publicWorlds.some((w) => w.name === "공개세계"), true);
     assert.deepEqual(catalog.publicWorlds.find((w) => w.name === "공개세계")?.genres, ["판타지"]);
+    assert.equal(catalog.publicWorlds.find((w) => w.name === "공개세계")?.coverUrl, "/uploads/north.webp");
+    assert.equal(catalog.publicWorlds.find((w) => w.name === "공개세계")?.content, "본문");
     assert.equal(catalog.publicWorlds.some((w) => w.name === "숨김"), false);
     assert.equal(catalog.myWorlds.some((w) => w.name === "내것"), true);
     assert.equal(catalog.myScenarios.some((s) => s.title === "내 시나리오"), true);
     const pub = catalog.publicScenarios.find((s) => s.title === "공개 시나리오");
     assert.ok(pub);
     assert.equal(pub?.secretContent, "");
+    assert.equal(JSON.stringify(catalog.publicScenarios).includes("SECRETTOKEN"), false);
+    assert.equal(JSON.stringify(catalog).includes("SECRETTOKEN"), false);
     assert.deepEqual(pub?.genres, ["공포/추리"]);
     const ownerCatalog = loadTrpgCatalog(db, 2);
     assert.equal(ownerCatalog.myScenarios.find((s) => s.title === "공개 시나리오")?.secretContent, "진범은 역무원SECRETTOKEN");

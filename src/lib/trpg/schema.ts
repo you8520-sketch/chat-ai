@@ -189,6 +189,7 @@ export function ensureTrpgTables(db: Database.Database): void {
     addColumn("worlds", "trpg_enabled", "INTEGER NOT NULL DEFAULT 0");
     addColumn("worlds", "trpg_visibility", "TEXT NOT NULL DEFAULT 'private'");
     addColumn("worlds", "genres", "TEXT NOT NULL DEFAULT '[]'");
+    addColumn("worlds", "cover_url", "TEXT NOT NULL DEFAULT ''");
     db.exec(
       `CREATE INDEX IF NOT EXISTS idx_worlds_trpg_public
        ON worlds(trpg_enabled, trpg_visibility, updated_at)`

@@ -4,8 +4,6 @@ import Link from "next/link";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 import { hueFromId } from "@/lib/trpg/catalogBrowse";
 
-const CARD_ASPECT = "aspect-[2/3]";
-
 export default function TrpgCatalogCard({
   kind,
   id,
@@ -15,6 +13,7 @@ export default function TrpgCatalogCard({
   genres,
   badge,
   emoji,
+  coverUrl,
   selected,
   busy,
   onSelect,
@@ -29,6 +28,7 @@ export default function TrpgCatalogCard({
   genres: readonly string[];
   badge?: string;
   emoji: string;
+  coverUrl?: string | null;
   selected?: boolean;
   busy?: boolean;
   onSelect: () => void;
@@ -46,14 +46,30 @@ export default function TrpgCatalogCard({
         selected ? "border-violet-400/70 ring-1 ring-violet-400/40" : "",
       )}
     >
-      <button type="button" onClick={onSelect} className="relative block w-full text-left">
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-label={`${kindLabel} 읽기: ${title}`}
+        className="relative block w-full text-left"
+      >
         <div
-          className={`relative ${CARD_ASPECT} w-full overflow-hidden`}
-          style={{
-            background: `linear-gradient(135deg, hsl(${hue} 50% 18%), hsl(${(hue + 40) % 360} 45% 10%))`,
-          }}
+          className={`relative ${kind === "world" ? "aspect-square" : "aspect-[2/3]"} w-full overflow-hidden bg-black`}
+          style={
+            kind === "world"
+              ? undefined
+              : {
+                  background: `linear-gradient(135deg, hsl(${hue} 50% 18%), hsl(${(hue + 40) % 360} 45% 10%))`,
+                }
+          }
         >
-          <span className="flex h-full w-full items-center justify-center text-5xl sm:text-6xl">{emoji}</span>
+          {kind === "world" ? (
+            coverUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={coverUrl} alt="" className="h-full w-full object-cover" />
+            ) : null
+          ) : (
+            <span className="flex h-full w-full items-center justify-center text-5xl sm:text-6xl">{emoji}</span>
+          )}
           <span className="pointer-events-none absolute inset-2.5 z-[2] rounded-[0.55rem] border border-white/15 transition duration-300 group-hover/card:border-violet-200/30" />
           <div className="absolute left-2.5 top-2.5 z-[4] flex flex-wrap gap-1">
             <span className="rounded-md border border-white/10 bg-violet-600/90 px-1.5 py-1 text-[9px] font-bold leading-none text-white shadow-sm backdrop-blur">

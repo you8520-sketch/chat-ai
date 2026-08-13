@@ -11,11 +11,10 @@ import {
 } from "@/components/SidebarNavIcons";
 import StudioButton from "@/components/studio/StudioButton";
 import StudioEmptyState from "@/components/studio/StudioEmptyState";
-import GenrePicker from "@/components/GenrePicker";
-import type { CharacterGenre } from "@/lib/characterGenres";
 import type { KeywordLorebookListItem } from "@/lib/keywordLorebooks";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
-import type { WorldListItem } from "@/lib/worlds";
+import type { TrpgScenarioTemplate } from "@/lib/trpg/scenarioTypes";
+import { parseWorldStudioKind, type WorldListItem } from "@/lib/worlds";
 
 export type StudioTab = "creations" | "worlds" | "lorebooks";
 
@@ -70,14 +69,33 @@ type Props = {
   simulations: MyCharacterRow[];
   worlds: WorldListItem[];
   lorebooks: KeywordLorebookListItem[];
+  scenarios?: TrpgScenarioTemplate[];
+  showTrpg?: boolean;
   blurNsfw: boolean;
 };
 
-export default function StudioClient({ characters, simulations, worlds, lorebooks, blurNsfw }: Props) {
+export default function StudioClient({
+  characters,
+  simulations,
+  worlds,
+  lorebooks,
+  scenarios = [],
+  showTrpg = false,
+  blurNsfw,
+}: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const activeTab = useMemo(() => parseTab(searchParams.get("tab")), [searchParams]);
+  const worldsKind = useMemo(() => parseWorldStudioKind(searchParams.get("kind")), [searchParams]);
   const activeMeta = TABS.find((t) => t.id === activeTab) ?? TABS[0]!;
+  const createHref =
+    activeTab === "worlds" && showTrpg && worldsKind === "scenario"
+      ? "/world/create?tab=scenario"
+      : activeMeta.createHref;
+  const createLabel =
+    activeTab === "worlds" && showTrpg && worldsKind === "scenario"
+      ? "새 TRPG 시나리오 만들기"
+      : activeMeta.createLabel;
 
   const setTab = useCallback(
     (tab: StudioTab) => {
@@ -99,11 +117,11 @@ export default function StudioClient({ characters, simulations, worlds, lorebook
             제작
           </h1>
         </div>
-        <StudioButton href={activeMeta.createHref} size="lg" className="w-full justify-center sm:w-auto">
+        <StudioButton href={createHref} size="lg" className="w-full justify-center sm:w-auto">
           <span className="text-base leading-none" aria-hidden>
             +
           </span>
-          {activeMeta.createLabel}
+          {createLabel}
         </StudioButton>
       </div>
 
@@ -159,7 +177,21 @@ export default function StudioClient({ characters, simulations, worlds, lorebook
             blurNsfw={blurNsfw}
           />
         )}
-        {activeTab === "worlds" && <WorldsPanel worlds={worlds} />}
+        {activeTab === "worlds" && (
+          <WorldsPanel
+            worlds={worlds}
+            scenarios={scenarios}
+            showTrpg={showTrpg}
+            kind={worldsKind}
+            onKindChange={(next) => {
+              const nextParams = new URLSearchParams(searchParams.toString());
+              nextParams.set("tab", "worlds");
+              if (next === "scenario") nextParams.set("kind", "scenario");
+              else nextParams.delete("kind");
+              router.replace(`/studio?${nextParams.toString()}`, { scroll: false });
+            }}
+          />
+        )}
         {activeTab === "lorebooks" && <LorebooksPanel lorebooks={lorebooks} />}
       </div>
     </div>
@@ -213,15 +245,94 @@ function CreationsPanel({
   );
 }
 
-function WorldsPanel({ worlds }: { worlds: WorldListItem[] }) {
+function WorldsPanel({
+  worlds,
+  scenarios,
+  showTrpg,
+  kind,
+  onKindChange,
+}: {
+  worlds: WorldListItem[];
+  scenarios: TrpgScenarioTemplate[];
+  showTrpg: boolean;
+  kind: "world" | "scenario";
+  onKindChange: (next: "world" | "scenario") => void;
+}) {
+  const showingScenarios = showTrpg && kind === "scenario";
   return (
     <section>
       <h2 className="sr-only">내 제작 세계관</h2>
+      {showTrpg ? (
+        <div
+          role="tablist"
+          aria-label="세계관 종류"
+          className="mb-4 grid grid-cols-2 gap-1 rounded-xl border border-white/10 bg-[#0e1120] p-1.5"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={!showingScenarios}
+            onClick={() => onKindChange("world")}
+            className={cn(
+              "min-h-11 rounded-xl px-3 text-sm font-semibold transition",
+              !showingScenarios ? studioSurface.tabActive : studioSurface.tabIdle,
+            )}
+          >
+            캐릭터·시뮬레이션 세계관
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={showingScenarios}
+            onClick={() => onKindChange("scenario")}
+            className={cn(
+              "min-h-11 rounded-xl px-3 text-sm font-semibold transition",
+              showingScenarios ? studioSurface.tabActive : studioSurface.tabIdle,
+            )}
+          >
+            TRPG 시나리오
+          </button>
+        </div>
+      ) : null}
       <p className={studioType.helper}>
-        저장한 세계관입니다. 캐릭터 제작의 「세계관 / 배경」에서 불러올 수 있습니다. 공유하기
-        링크로 다른 유저가 공유받은 세계관으로 추가할 수 있습니다.
+        {showingScenarios
+          ? "TRPG 캠페인에서 쓰는 시나리오입니다. 공개하면 TRPG 탭 목록에 올라갑니다."
+          : "저장한 세계관입니다. 캐릭터 제작의 「세계관 / 배경」에서 불러올 수 있습니다. 공유하기 링크로 다른 유저가 공유받은 세계관으로 추가할 수 있습니다."}
       </p>
-      {worlds.length === 0 ? (
+      {showingScenarios ? (
+        scenarios.length === 0 ? (
+          <StudioEmptyState
+            icon={<IconStudioWorld className="h-5 w-5" />}
+            message="아직 만든 TRPG 시나리오가 없습니다."
+            href="/world/create?tab=scenario"
+            cta="TRPG 시나리오 만들기"
+          />
+        ) : (
+          <ul className="mt-5 space-y-2">
+            {scenarios.map((scenario) => (
+              <li key={scenario.id}>
+                <Link
+                  href={`/trpg/scenarios/${scenario.id}`}
+                  className={cn(
+                    studioSurface.card,
+                    "flex min-h-14 items-center justify-between gap-3 px-4 py-3.5 transition hover:border-white/20",
+                  )}
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-zinc-50">{scenario.title}</p>
+                    {scenario.summary ? (
+                      <p className={cn(studioType.caption, "mt-0.5 truncate")}>{scenario.summary}</p>
+                    ) : null}
+                  </div>
+                  <span className="shrink-0 text-xs font-semibold text-zinc-400">
+                    {scenario.visibility === "public" ? "공개" : "비공개"} · 수정하기
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )
+      ) : worlds.length === 0 ? (
         <StudioEmptyState
           icon={<IconStudioWorld className="h-5 w-5" />}
           message="아직 제작한 세계관이 없습니다."
@@ -244,9 +355,6 @@ function WorldCard({ world }: { world: WorldListItem }) {
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [shareError, setShareError] = useState("");
   const [copied, setCopied] = useState(false);
-  const [trpgEnabled, setTrpgEnabled] = useState(world.trpgEnabled);
-  const [genres, setGenres] = useState<CharacterGenre[]>(world.genres);
-  const [trpgBusy, setTrpgBusy] = useState(false);
 
   async function shareWorld() {
     setShareBusy(true);
@@ -285,46 +393,18 @@ function WorldCard({ world }: { world: WorldListItem }) {
     }
   }
 
-  async function saveTrpg(nextEnabled: boolean, nextGenres = genres) {
-    setTrpgBusy(true);
-    setShareError("");
-    try {
-      const res = await fetch(`/api/worlds/${world.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          trpgEnabled: nextEnabled,
-          genres: nextEnabled ? nextGenres : [],
-        }),
-      });
-      const data = (await res.json()) as { error?: string };
-      if (!res.ok) {
-        setShareError(data.error || "TRPG 설정을 저장하지 못했습니다.");
-        return;
-      }
-      setTrpgEnabled(nextEnabled);
-      setGenres(nextEnabled ? nextGenres : []);
-    } catch {
-      setShareError("네트워크 오류가 발생했습니다.");
-    } finally {
-      setTrpgBusy(false);
-    }
-  }
-
   return (
     <article className={cn(studioSurface.card, "p-4")}>
       <div className="flex items-start gap-3">
-        <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-white/[0.04] text-zinc-300">
-          <IconStudioWorld className="h-5 w-5" />
+        <div className="aspect-square w-14 shrink-0 overflow-hidden rounded-lg bg-black">
+          {world.coverUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={world.coverUrl} alt="" className="h-full w-full object-cover" />
+          ) : null}
         </div>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="truncate text-sm font-semibold text-zinc-50">{world.name}</h3>
-            {trpgEnabled ? (
-              <span className="shrink-0 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-300">
-                TRPG
-              </span>
-            ) : null}
             {world.sharedFromNickname ? (
               <span className="shrink-0 rounded-md border border-violet-500/30 bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-violet-300">
                 공유받은 세계관
@@ -340,7 +420,10 @@ function WorldCard({ world }: { world: WorldListItem }) {
         </div>
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
-        <StudioButton href="/create" size="sm" className="w-full sm:w-auto">
+        <StudioButton href={`/world/${world.id}/edit`} size="sm" className="w-full sm:w-auto">
+          수정하기
+        </StudioButton>
+        <StudioButton href="/create" size="sm" variant="secondary" className="w-full sm:w-auto">
           캐릭터에 사용
         </StudioButton>
         <StudioButton
@@ -353,29 +436,7 @@ function WorldCard({ world }: { world: WorldListItem }) {
         >
           {shareBusy ? "생성 중…" : copied ? "링크 복사됨" : "공유하기"}
         </StudioButton>
-        <StudioButton
-          type="button"
-          variant="secondary"
-          size="sm"
-          className="w-full sm:w-auto"
-          disabled={trpgBusy}
-          onClick={() => void saveTrpg(!trpgEnabled)}
-        >
-          {trpgBusy ? "저장 중…" : trpgEnabled ? "TRPG 사용 끄기" : "TRPG에서 사용"}
-        </StudioButton>
       </div>
-      {trpgEnabled ? (
-        <div className="mt-4">
-          <GenrePicker
-            value={genres}
-            disabled={trpgBusy}
-            onChange={(next) => {
-              setGenres(next);
-              void saveTrpg(true, next);
-            }}
-          />
-        </div>
-      ) : null}
       {shareError ? <p className="mt-2 text-xs text-rose-400">{shareError}</p> : null}
       {shareUrl ? (
         <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">

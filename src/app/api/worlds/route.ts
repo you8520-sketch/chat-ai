@@ -9,6 +9,7 @@ import {
   WORLD_SUMMARY_LIMIT,
   parseWorldTrpgFlags,
   rowToWorldListItem,
+  sanitizeWorldCoverUrl,
   type WorldRow,
 } from "@/lib/worlds";
 
@@ -49,15 +50,16 @@ export async function POST(req: Request) {
   }
 
   const { trpgEnabled, trpgVisibility } = parseWorldTrpgFlags(b);
-  const genresJson = JSON.stringify(parseGenresJson(trpgEnabled ? b.genres : []));
+  const genresJson = JSON.stringify(parseGenresJson(b.genres));
+  const coverUrl = sanitizeWorldCoverUrl(b.coverUrl ?? b.cover_url);
 
   const db = getDb();
   const info = db
     .prepare(
-      `INSERT INTO worlds (creator_id, name, summary, content, trpg_enabled, trpg_visibility, genres, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`
+      `INSERT INTO worlds (creator_id, name, summary, content, trpg_enabled, trpg_visibility, genres, cover_url, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`
     )
-    .run(user.id, name, summary, content, trpgEnabled, trpgVisibility, genresJson);
+    .run(user.id, name, summary, content, trpgEnabled, trpgVisibility, genresJson, coverUrl);
 
   const id = Number(info.lastInsertRowid);
   const row = db
