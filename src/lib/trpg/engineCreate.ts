@@ -246,7 +246,7 @@ export function createTrpgCampaign(
   const customTitle = opts.title?.trim().slice(0, 80);
   if (customTitle) title = customTitle;
   if (!defaultPcStats) defaultPcStats = parseStatRecord(suggestBotStats(worldBrief || title));
-  const spawnBots = bots.slice(0, TRPG_MAX_SLOTS - 1);
+  const spawnBots = bots.slice(0, TRPG_SCENARIO_MAX_BOTS);
   const hostName = opts.hostPersona?.name.trim().slice(0, 40) || opts.hostNickname.trim().slice(0, 40) || "플레이어";
 
   const campaignId = db.transaction(() => {
@@ -381,6 +381,33 @@ export function joinTrpgCampaign(
   return campaign.id;
 }
 
+export type TrpgInvitePeek = {
+  campaignId: number;
+  title: string;
+  alreadyJoined: boolean;
+  remainingSlots: number;
+  canJoin: boolean;
+};
+
+export function peekTrpgInvite(
+  db: Database.Database,
+  opts: { code: string; userId: number }
+): TrpgInvitePeek | null {
+  const campaign = loadCampaignByInvite(db, opts.code);
+  if (!campaign) return null;
+  const parts = loadParticipants(db, campaign.id);
+  const alreadyJoined = parts.some((p) => p.user_id === opts.userId);
+  const remainingSlots = Math.max(0, campaign.max_slots - parts.length);
+  const setup = campaign.status === "CHARACTER_SETUP" || campaign.status === "WAITING_FOR_PLAYERS";
+  return {
+    campaignId: campaign.id,
+    title: campaign.title,
+    alreadyJoined,
+    remainingSlots,
+    canJoin: alreadyJoined || (setup && remainingSlots > 0),
+  };
+}
+
 export function addTrpgCompanions(
   db: Database.Database,
   opts: { campaignId: number; userId: number; characterIds: number[] }
@@ -394,8 +421,18 @@ export function addTrpgCompanions(
   const ids = parseCompanionIds(opts.characterIds);
   if (ids.length === 0) throw new Error("데려갈 캐릭터를 고르세요.");
   const parts = loadParticipants(db, opts.campaignId);
-  const remaining = campaign.max_slots - parts.length;
-  if (remaining <= 0) throw new Error("정원이 가득 찼습니다.");
+  const botCount = parts.filter((p) => p.kind === "ai_character").length;
+  const remaining = Math.min(
+    campaign.max_slots - parts.length,
+    TRPG_SCENARIO_MAX_BOTS - botCount
+  );
+  if (remaining <= 0) {
+    throw new Error(
+      botCount >= TRPG_SCENARIO_MAX_BOTS
+        ? `AI 동료는 최대 ${TRPG_SCENARIO_MAX_BOTS}명입니다. 캐릭터마다 모델이 돌아갑니다.`
+        : "정원이 가득 찼습니다."
+    );
+  }
   const seen = new Set(parts.map((p) => p.character_id).filter((id): id is number => id != null && id > 0));
   const toAdd: SpawnBot[] = [];
   for (const characterId of ids) {

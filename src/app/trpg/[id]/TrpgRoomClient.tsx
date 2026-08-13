@@ -5,12 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import TrpgInviteLink from "../TrpgInviteLink";
 import TrpgCampaignTitle from "../TrpgCampaignTitle";
+import TrpgPartySlots from "../TrpgPartySlots";
 import { AppSectionCard } from "@/components/AppPageShell";
 import { TRPG_ACTION_TYPES, actionTypeLabelKo, type TrpgActionType } from "@/lib/trpg/actionTypes";
 import { successLabelKo } from "@/lib/trpg/labels";
 import { suggestBotStats } from "@/lib/trpg/stats";
 import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
 import { TRPG_ACTION_MAX_CHARS, TRPG_GM_GROSS_MARGIN, TRPG_PARTY_CHAT_MAX_CHARS } from "@/lib/trpg/types";
+import type { PublicPersonaListItem } from "@/lib/userPersonasClient";
 
 const POLL_MS = 1500;
 const ACTIVE_PHASES = new Set([
@@ -45,9 +47,18 @@ function readyLabel(ready: TrpgCampaignSnapshot["participants"][number]["ready"]
   }
 }
 
-export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnapshot }) {
+export default function TrpgRoomClient({
+  initial,
+  personas: initialPersonas,
+}: {
+  initial: TrpgCampaignSnapshot;
+  personas: PublicPersonaListItem[];
+}) {
   const router = useRouter();
   const [snap, setSnap] = useState(initial);
+  const [selectedPersonaId, setSelectedPersonaId] = useState<number | null>(
+    initial.viewerPersonaId ?? initialPersonas[0]?.id ?? null
+  );
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState(
@@ -142,6 +153,29 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
     }
   }
 
+  async function addCharacter(characterId: number) {
+    await run(`/api/trpg/campaigns/${snap.id}/companions`, { characterIds: [characterId] });
+  }
+
+  async function applyPersona(personaId: number) {
+    setSelectedPersonaId(personaId);
+    try {
+      localStorage.setItem("habi:lastPersonaId", String(personaId));
+    } catch {
+      /* ignore */
+    }
+    const mine = snap.sheets.find((s) => s.isSelf);
+    const nextStats: Record<string, number> = {};
+    for (const def of snap.statDefs) {
+      nextStats[def.key] = mine?.sheet.stats[def.key] ?? snap.suggestedPcStats?.[def.key] ?? 5;
+    }
+    await run(`/api/trpg/campaigns/${snap.id}/sheet`, {
+      personaId,
+      stats: nextStats,
+      participantId: snap.viewerParticipantId,
+    });
+  }
+
   async function sendParty() {
     const text = partyBody.trim();
     if (!text) return;
@@ -232,7 +266,18 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
         </p>
       </header>
 
-      {snap.inviteCode ? (
+      {setup && snap.viewerIsHost ? (
+        <TrpgPartySlots
+          snap={snap}
+          busy={busy}
+          personas={initialPersonas}
+          selectedPersonaId={selectedPersonaId}
+          onPersonaChange={(id) => void applyPersona(id)}
+          onAddCharacter={(id) => void addCharacter(id)}
+        />
+      ) : null}
+
+      {snap.inviteCode && !(setup && snap.viewerIsHost) ? (
         <TrpgInviteLink
           code={snap.inviteCode}
           canJoin={setup && snap.participants.length < snap.maxSlots}

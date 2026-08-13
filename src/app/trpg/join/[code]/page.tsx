@@ -4,9 +4,10 @@ import { AppPageShell } from "@/components/AppPageShell";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { canAccessTrpg } from "@/lib/trpg/access";
-import { joinTrpgCampaign } from "@/lib/trpg/engine";
-import { resolveTrpgHumanPersona } from "@/lib/trpg/hostPersona";
+import { peekTrpgInvite } from "@/lib/trpg/engine";
 import { parseTrpgInviteInput } from "@/lib/trpg/invite";
+import { ensureDefaultPublicPersona } from "@/lib/userPersonas";
+import TrpgJoinClient from "./TrpgJoinClient";
 
 export const dynamic = "force-dynamic";
 
@@ -31,26 +32,34 @@ export default async function TrpgJoinPage({
     );
   }
 
-  let campaignId: number | null = null;
-  let error = "";
-  try {
-    const persona = resolveTrpgHumanPersona(user.id, user.nickname, null);
-    campaignId = joinTrpgCampaign(getDb(), {
-      code,
-      userId: user.id,
-      nickname: user.nickname,
-      persona,
-    });
-  } catch (e) {
-    error = e instanceof Error && e.message.trim() ? e.message : "참가하지 못했습니다.";
+  const peek = peekTrpgInvite(getDb(), { code, userId: user.id });
+  if (!peek) {
+    return (
+      <AppPageShell title="TRPG 입장" description="초대 코드를 찾을 수 없습니다." narrow>
+        <Link href="/trpg" className="text-sm font-semibold text-violet-300">
+          TRPG 로비로
+        </Link>
+      </AppPageShell>
+    );
   }
-  if (campaignId) redirect(`/trpg/${campaignId}`);
+  if (peek.alreadyJoined) redirect(`/trpg/${peek.campaignId}`);
+  if (!peek.canJoin) {
+    return (
+      <AppPageShell title="TRPG 입장" description="이미 시작됐거나 정원이 가득합니다." narrow>
+        <Link href="/trpg" className="text-sm font-semibold text-violet-300">
+          TRPG 로비로
+        </Link>
+      </AppPageShell>
+    );
+  }
 
+  const personas = ensureDefaultPublicPersona(user.id, user.nickname);
   return (
-    <AppPageShell title="TRPG 입장" description={error} narrow>
-      <Link href="/trpg" className="text-sm font-semibold text-violet-300">
-        TRPG 로비로
-      </Link>
-    </AppPageShell>
+    <TrpgJoinClient
+      code={code}
+      title={peek.title}
+      remainingSlots={peek.remainingSlots}
+      personas={personas}
+    />
   );
 }

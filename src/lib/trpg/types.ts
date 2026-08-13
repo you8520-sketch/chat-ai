@@ -2,6 +2,8 @@
 
 export const TRPG_GM_MODEL = "deepseek-v4-pro";
 export const TRPG_MAX_SLOTS = 4;
+/** Each AI companion is its own model call, so bots stay at two. */
+export const TRPG_MAX_BOTS = 2;
 export const TRPG_MIN_SLOTS = 1;
 export const TRPG_MEMORY_SEAL_ROUNDS = 4;
 export const TRPG_RECENT_ROUND_RAW = 3;

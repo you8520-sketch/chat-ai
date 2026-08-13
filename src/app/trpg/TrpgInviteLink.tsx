@@ -57,7 +57,7 @@ export default function TrpgInviteLink({
       <p className="mt-1 break-all text-sm text-zinc-200">{full}</p>
       <p className="mt-1 text-xs text-zinc-500">
         {canJoin
-          ? "시작 전에 이 링크를 보내면 바로 입장합니다. 사람+AI 합쳐 4자리입니다."
+          ? "시작 전에 이 링크를 보내면 바로 입장합니다. 사람+AI 합쳐 4자리이며, AI 캐릭터는 최대 2명입니다."
           : "이미 시작됐거나 정원이 가득해서 새 참가는 안 됩니다."}
       </p>
       <button
