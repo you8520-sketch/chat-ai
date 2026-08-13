@@ -7,17 +7,22 @@ describe("TRPG GM prompt/parse", () => {
     const parsed = parseTrpgGmOutput(`<<<NARRATION>>>
 등불이 흔들린다.
 <<<DELTA>>>
-{"players":[{"participantId":4,"hp":18,"conditions":["먼지"],"inventoryAdd":["열쇠"],"inventoryRemove":[],"location":"복도"}],"location":"복도","campaign_finished":false}`);
+{"players":[{"participantId":4,"hp":18,"conditions":["먼지"],"inventoryAdd":["열쇠"],"inventoryRemove":[],"location":"복도"}],"location":"복도","next_round_context":"창을 볼지 문을 밀지","questsAdd":["밀서 찾기"],"flagsAdd":["문_열림"],"campaign_finished":false}`);
     assert.match(parsed.narration, /등불이 흔들린다/);
     assert.equal(parsed.delta.players[0]?.participantId, 4);
     assert.equal(parsed.delta.players[0]?.hp, 18);
     assert.deepEqual(parsed.delta.players[0]?.inventoryAdd, ["열쇠"]);
     assert.equal(parsed.location, "복도");
     assert.equal(parsed.campaignFinished, false);
+    assert.equal(parsed.nextRoundContext, "창을 볼지 문을 밀지");
+    assert.deepEqual(parsed.delta.questsAdd, ["밀서 찾기"]);
+    assert.deepEqual(parsed.delta.flagsAdd, ["문_열림"]);
   });
 
   it("does not mention OOC or party chat", () => {
     assert.doesNotMatch(TRPG_GM_SYSTEM, /OOC|party chat|잡담/i);
+    assert.match(TRPG_GM_SYSTEM, /3000/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /800–1800|800-1800/);
     const block = buildTrpgGmUserBlock({
       worldBrief: "폐여관",
       memoryBlock: "[TRPG STRUCTURED STATE]",

@@ -90,9 +90,8 @@ export async function callTrpgGm(opts: {
     ],
     stream: false,
     temperature: 0.7,
-    max_tokens: 4096,
   });
-  return postTrpgChat({ model, body, timeoutMs: opts.timeoutMs ?? 90_000 });
+  return postTrpgChat({ model, body, timeoutMs: opts.timeoutMs ?? 180_000 });
 }
 
 /** Bot-seat Pro call (thinking off). Separate from GM narration. */

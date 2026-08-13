@@ -1,4 +1,11 @@
-import { TRPG_MEMORY_SEAL_ROUNDS, TRPG_RECENT_ROUND_RAW } from "./types";
+import type Database from "better-sqlite3";
+import { clipTrpgChars, loadCampaignLedger, type TrpgCampaignLedger } from "./campaignLedger";
+import { parseJson } from "./store";
+import {
+  TRPG_RECENT_ROUND_RAW,
+  TRPG_SEAL_SUMMARY_MAX_CHARS,
+  TRPG_SEALED_PROMPT_MAX_CHARS,
+} from "./types";
 
 export type TrpgMemoryRound = {
   roundNumber: number;
@@ -9,25 +16,32 @@ export type TrpgMemoryRound = {
 export type TrpgStructuredCampaignMemory = {
   roundNumber: number;
   location: string;
-  sheets: Array<{ name: string; hp: number; maxHp: number; conditions: string[] }>;
+  nextRoundContext: string;
+  sheets: Array<{
+    name: string;
+    hp: number;
+    maxHp: number;
+    conditions: string[];
+    inventory: string[];
+  }>;
   quests: string[];
   npcs: string[];
   worldFlags: string[];
 };
 
 /**
- * TRPG memory is campaign-scoped, keyed by completed rounds — never chat_memories.
- * Structured campaign state is the source of truth; summaries only add prose.
- * There is no OOC channel; only locked actions + GM narration enter memory.
+ * Rounds that have fallen out of the raw window and are not sealed yet.
+ * Facts live in the campaign ledger; this is only episodic recap.
  */
-export function shouldSealTrpgMemory(
-  completedRounds: number,
-  sealedRoundCount: number,
-  interval = TRPG_MEMORY_SEAL_ROUNDS
-): boolean {
-  if (completedRounds < interval) return false;
-  const due = Math.floor(completedRounds / interval) * interval;
-  return due > sealedRoundCount;
+export function roundsDueForSeal(
+  completedRoundNumbers: number[],
+  sealedThrough: number,
+  keepRaw = TRPG_RECENT_ROUND_RAW
+): number[] {
+  const completed = [...new Set(completedRoundNumbers)].sort((a, b) => a - b);
+  if (completed.length <= keepRaw) return [];
+  const keep = new Set(completed.slice(-keepRaw));
+  return completed.filter((n) => n > sealedThrough && !keep.has(n));
 }
 
 export function selectRawRecentRounds(
@@ -37,31 +51,204 @@ export function selectRawRecentRounds(
   return rounds.slice(-keep);
 }
 
+export function fallbackSealSummary(rounds: TrpgMemoryRound[], maxChars = TRPG_SEAL_SUMMARY_MAX_CHARS): string {
+  const parts = rounds.map((r) => {
+    const acts = r.actions.map((a) => `${a.actorName}:${a.text}`).join(" · ") || "(행동 없음)";
+    return `R${r.roundNumber} ${acts} → ${clipTrpgChars(r.gmNarration, 160)}`;
+  });
+  return clipTrpgChars(parts.join(" / "), maxChars);
+}
+
+export const TRPG_SEAL_SYSTEM = `You compress completed Korean TRPG rounds into durable campaign memory.
+
+Write ONLY a fact recap in 음슴체. Keep cause → action → result.
+Must preserve: promises, quests, NPC standing, items gained/lost and who holds them, injuries, location, unresolved goal, turning-point lines (quote at most one).
+Delete sensory padding, repetition, and dice numbers.
+Korean. ${TRPG_SEAL_SUMMARY_MAX_CHARS} characters max. No JSON. No instructions.`;
+
+export function buildTrpgSealUserBlock(rounds: TrpgMemoryRound[]): string {
+  const body = rounds
+    .map((r) => {
+      const acts = r.actions.map((a) => `- ${a.actorName}: ${a.text}`).join("\n") || "(없음)";
+      return `[ROUND ${r.roundNumber}]\n[ACTIONS]\n${acts}\n[GM]\n${r.gmNarration}`;
+    })
+    .join("\n\n");
+  return `[SEAL THESE ROUNDS — facts only, ≤${TRPG_SEAL_SUMMARY_MAX_CHARS} chars]\n\n${body}`;
+}
+
 export function buildTrpgMemoryPromptBlock(opts: {
   structured: TrpgStructuredCampaignMemory;
   sealedSummary: string;
   recentRounds: TrpgMemoryRound[];
 }): string {
   const sheets = opts.structured.sheets
-    .map((s) => `- ${s.name}: HP ${s.hp}/${s.maxHp}` + (s.conditions.length ? ` (${s.conditions.join(", ")})` : ""))
+    .map((s) => {
+      const cond = s.conditions.length ? ` (${s.conditions.join(", ")})` : "";
+      const inv = s.inventory.length ? ` items=${s.inventory.join(", ")}` : "";
+      return `- ${s.name}: HP ${s.hp}/${s.maxHp}${cond}${inv}`;
+    })
     .join("\n");
   const recent = opts.recentRounds
     .map((r) => {
-      const acts = r.actions.map((a) => `  ${a.actorName}: ${a.text}`).join("\n");
+      const acts = r.actions.map((a) => `  ${a.actorName}: ${a.text}`).join("\n") || "  (행동 없음)";
       return `[ROUND ${r.roundNumber}]\n${acts}\n  GM: ${r.gmNarration}`;
     })
     .join("\n\n");
+  const sealed = clipTrpgChars(opts.sealedSummary.trim(), TRPG_SEALED_PROMPT_MAX_CHARS);
   return [
-    "[TRPG STRUCTURED STATE — authoritative; do not contradict]",
+    "[TRPG STRUCTURED STATE — authoritative; do not contradict HP/items/location/flags]",
     `round=${opts.structured.roundNumber}`,
     `location=${opts.structured.location || "—"}`,
+    opts.structured.nextRoundContext.trim()
+      ? `[NEXT DECISION]\n${opts.structured.nextRoundContext.trim()}`
+      : "",
     sheets,
     opts.structured.quests.length ? `quests: ${opts.structured.quests.join("; ")}` : "",
     opts.structured.npcs.length ? `npcs: ${opts.structured.npcs.join("; ")}` : "",
     opts.structured.worldFlags.length ? `flags: ${opts.structured.worldFlags.join("; ")}` : "",
-    opts.sealedSummary.trim() ? `[SEALED CAMPAIGN SUMMARY]\n${opts.sealedSummary.trim()}` : "",
+    sealed ? `[SEALED CAMPAIGN SUMMARY]\n${sealed}` : "",
     recent ? `[RECENT ROUNDS — RAW]\n${recent}` : "",
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+export function buildTrpgBotMemoryBlock(opts: {
+  ledger: TrpgCampaignLedger;
+  sheets: Array<{ name: string; hp: number; maxHp: number; conditions: string[] }>;
+}): string {
+  const sheets = opts.sheets
+    .map((s) => {
+      const cond = s.conditions.length ? ` (${s.conditions.join(", ")})` : "";
+      return `- ${s.name}: HP ${s.hp}/${s.maxHp}${cond}`;
+    })
+    .join("\n");
+  return [
+    "[CAMPAIGN STATE — do not contradict; you are a PC, not the GM]",
+    `location=${opts.ledger.location || "—"}`,
+    opts.ledger.nextRoundContext.trim() ? `[NEXT DECISION]\n${opts.ledger.nextRoundContext.trim()}` : "",
+    sheets,
+    opts.ledger.quests.length ? `quests: ${opts.ledger.quests.join("; ")}` : "",
+    opts.ledger.npcs.length ? `npcs: ${opts.ledger.npcs.join("; ")}` : "",
+    opts.ledger.worldFlags.length ? `flags: ${opts.ledger.worldFlags.join("; ")}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+export function loadCompletedMemoryRounds(db: Database.Database, campaignId: number): TrpgMemoryRound[] {
+  const roundRows = db
+    .prepare(
+      `SELECT r.id, r.round_number, g.narration
+       FROM trpg_rounds r
+       JOIN trpg_gm_messages g ON g.round_id = r.id
+       WHERE r.campaign_id=? AND r.phase='ROUND_COMPLETE'
+       ORDER BY r.round_number ASC`
+    )
+    .all(campaignId) as Array<{ id: number; round_number: number; narration: string }>;
+  return roundRows.map((row) => {
+    const actions = db
+      .prepare(
+        `SELECT p.display_name AS name, s.body
+         FROM trpg_action_submissions s
+         JOIN trpg_participants p ON p.id = s.participant_id
+         WHERE s.round_id=? AND s.locked=1
+         ORDER BY s.id ASC`
+      )
+      .all(row.id) as Array<{ name: string; body: string }>;
+    return {
+      roundNumber: row.round_number,
+      actions: actions.map((a) => ({ actorName: a.name, text: a.body })),
+      gmNarration: row.narration,
+    };
+  });
+}
+
+export function loadSealedSummaries(db: Database.Database, campaignId: number): string {
+  const rows = db
+    .prepare(
+      `SELECT summary FROM trpg_round_summaries WHERE campaign_id=? ORDER BY round_start ASC`
+    )
+    .all(campaignId) as Array<{ summary: string }>;
+  if (rows.length > 0) {
+    return rows.map((r) => r.summary.trim()).filter(Boolean).join("\n");
+  }
+  const mem = db
+    .prepare(`SELECT recent_summary FROM trpg_campaign_memories WHERE campaign_id=?`)
+    .get(campaignId) as { recent_summary: string } | undefined;
+  return mem?.recent_summary ?? "";
+}
+
+export function loadSealedThrough(db: Database.Database, campaignId: number): number {
+  const row = db
+    .prepare(`SELECT COALESCE(MAX(round_end), -1) AS n FROM trpg_round_summaries WHERE campaign_id=?`)
+    .get(campaignId) as { n: number };
+  if (row.n >= 0) return row.n;
+  const mem = db
+    .prepare(`SELECT sealed_round_count FROM trpg_campaign_memories WHERE campaign_id=?`)
+    .get(campaignId) as { sealed_round_count: number } | undefined;
+  return (mem?.sealed_round_count ?? 0) - 1;
+}
+
+export function persistRoundSummary(
+  db: Database.Database,
+  campaignId: number,
+  roundStart: number,
+  roundEnd: number,
+  summary: string
+): void {
+  const text = clipTrpgChars(summary, TRPG_SEAL_SUMMARY_MAX_CHARS);
+  if (!text) return;
+  db.prepare(
+    `INSERT INTO trpg_round_summaries (campaign_id, round_start, round_end, summary)
+     VALUES (?,?,?,?)
+     ON CONFLICT(campaign_id, round_start) DO UPDATE SET round_end=excluded.round_end, summary=excluded.summary`
+  ).run(campaignId, roundStart, roundEnd, text);
+  const sealed = loadSealedSummaries(db, campaignId);
+  db.prepare(
+    `UPDATE trpg_campaign_memories
+     SET recent_summary=?, sealed_round_count=?, updated_at=datetime('now')
+     WHERE campaign_id=?`
+  ).run(clipTrpgChars(sealed, TRPG_SEALED_PROMPT_MAX_CHARS), roundEnd + 1, campaignId);
+}
+
+export function buildCampaignMemoryPrompt(db: Database.Database, campaignId: number): string {
+  const ledger = loadCampaignLedger(db, campaignId);
+  const state = db
+    .prepare(`SELECT round_number FROM trpg_campaign_state WHERE campaign_id=?`)
+    .get(campaignId) as { round_number: number } | undefined;
+  const sheets = (
+    db
+      .prepare(
+        `SELECT s.name, s.hp, s.max_hp, s.conditions_json, s.inventory_json
+         FROM trpg_character_sheets s WHERE s.campaign_id=?`
+      )
+      .all(campaignId) as Array<{
+      name: string;
+      hp: number;
+      max_hp: number;
+      conditions_json: string;
+      inventory_json: string;
+    }>
+  ).map((s) => ({
+    name: s.name,
+    hp: s.hp,
+    maxHp: s.max_hp,
+    conditions: parseJson(s.conditions_json, [] as string[]),
+    inventory: parseJson(s.inventory_json, [] as string[]),
+  }));
+  const completed = loadCompletedMemoryRounds(db, campaignId);
+  return buildTrpgMemoryPromptBlock({
+    structured: {
+      roundNumber: state?.round_number ?? 0,
+      location: ledger.location,
+      nextRoundContext: ledger.nextRoundContext,
+      sheets,
+      quests: ledger.quests,
+      npcs: ledger.npcs,
+      worldFlags: ledger.worldFlags,
+    },
+    sealedSummary: loadSealedSummaries(db, campaignId),
+    recentRounds: selectRawRecentRounds(completed),
+  });
 }
