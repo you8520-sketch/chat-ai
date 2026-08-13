@@ -1,4 +1,5 @@
 import {
+  isCheaperInferenceClaudeOpus5Model,
   isCheaperInferenceDeepSeekV4FlashModel,
   isCheaperInferenceDeepSeekV4ProModel,
   isCheaperInferenceGemini31ProModel,
@@ -54,6 +55,14 @@ export function adaptCheaperInferenceChatBody(
     ) {
       delete adapted.reasoning_effort;
       adapted.thinking = { type: "disabled" };
+      return adapted;
+    }
+    if (isCheaperInferenceClaudeOpus5Model(adapted.model)) {
+      // Anthropic Opus 5: adaptive thinking is ON unless thinking is disabled.
+      // Disabled is allowed only at effort high or below; low is the speed/cost floor.
+      adapted.thinking = { type: "disabled" };
+      adapted.output_config = { effort: "low" };
+      adapted.reasoning_effort = "low";
       return adapted;
     }
     // Cheaper Inference may default to hidden reasoning. All app calls use
