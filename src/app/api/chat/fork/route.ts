@@ -47,7 +47,7 @@ export async function POST(req: Request) {
     .prepare(
       `SELECT id, role, content, model, usage, adult_route_meta_json, status, is_refunded,
               deduction_slices, user_message_id, status_meta, status_widget_values_json,
-              status_widget_turn_active
+              status_widget_turn_active, suggested_replies_json
        FROM messages WHERE chat_id=? AND id <= ? ORDER BY id ASC`
     )
     .all(cId, mId) as {
@@ -64,6 +64,7 @@ export async function POST(req: Request) {
     status_meta: string | null;
     status_widget_values_json: string | null;
     status_widget_turn_active: number | null;
+    suggested_replies_json: string | null;
   }[];
 
   if (toCopy.length === 0) {
@@ -132,9 +133,9 @@ export async function POST(req: Request) {
       `INSERT INTO messages (
          chat_id, role, content, model, usage, adult_route_meta_json,
          status, is_refunded, deduction_slices, status_meta, status_widget_values_json,
-         status_widget_turn_active
+         status_widget_turn_active, suggested_replies_json
        )
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`
     );
     for (const m of toCopy) {
       const result = ins.run(
@@ -149,7 +150,8 @@ export async function POST(req: Request) {
         m.deduction_slices,
         m.status_meta ?? null,
         m.status_widget_values_json ?? "",
-        m.status_widget_turn_active ?? 0
+        m.status_widget_turn_active ?? 0,
+        m.suggested_replies_json ?? null
       );
       messageIdMap.set(m.id, Number(result.lastInsertRowid));
     }

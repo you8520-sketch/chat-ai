@@ -213,6 +213,7 @@ function resolveBackgroundMaxOutputTokens(requestKind: string): number {
   // V4 Flash reports internal reasoning inside completion_tokens, so leave
   // enough room for the requested structured result after thinking.
   if (/background-status-meta-extract/i.test(requestKind)) return 1536;
+  if (/background-suggested-replies-extract/i.test(requestKind)) return 1024;
   if (/background-status-widget-extract/i.test(requestKind)) return 3072;
   if (/background-html-visual-card/i.test(requestKind)) return HTML_FLASH_MAX_OUTPUT_TOKENS;
   return 3072;
@@ -285,7 +286,7 @@ async function callGeminiOnce(
   }
   const requestKind = opts?.requestKind ?? "generateContent";
   const unboundedNoReasoningRequest =
-    /background-memory|background-lorebook-compact|background-status-meta-extract|background-status-widget-extract/i.test(
+    /background-memory|background-lorebook-compact|background-status-meta-extract|background-suggested-replies-extract|background-status-widget-extract/i.test(
       requestKind
     );
   let effectiveSystem = system;
@@ -306,7 +307,7 @@ async function callGeminiOnce(
     effectiveSystem = trimmed.system;
     effectiveHistory = trimmed.history;
   }
-  if (process.env.NODE_ENV !== "production" && /background-memory|background-lorebook-compact|background-status-meta-extract|background-status-widget-extract/i.test(requestKind)) {
+  if (process.env.NODE_ENV !== "production" && /background-memory|background-lorebook-compact|background-status-meta-extract|background-suggested-replies-extract|background-status-widget-extract/i.test(requestKind)) {
     console.log("[background-memory] compatible API request", {
       model: modelId,
       provider: isCheaperInferenceModel(modelId)

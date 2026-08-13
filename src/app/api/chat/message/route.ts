@@ -21,6 +21,10 @@ import type { ParsedStatusWidgetTurnValues } from "@/lib/statusWidget/types";
 import { resolveClientStatusMetaFlags } from "@/lib/statusMeta/displayPolicy";
 import { parseStatusMetaRecord } from "@/lib/statusMeta/types";
 import {
+  parseSuggestedRepliesRecord,
+  resolveClientSuggestedReplies,
+} from "@/lib/suggestedReplies/parse";
+import {
   markdownPipeTableStatusWindowActive,
   resolveUserNoteStatusWindowPolicy,
 } from "@/lib/statusWindowNotePolicy";
@@ -58,6 +62,7 @@ export async function GET(req: Request) {
     .prepare(
       `SELECT m.id, m.chat_id, m.role, m.content, m.model, m.usage, m.alternates, m.active_variant,
               m.status_meta, m.status_widget_values_json, m.status_widget_turn_active,
+              m.suggested_replies_json,
               m.generation_status, m.request_id, m.user_message_id, c.user_note
        FROM messages m
        JOIN chats c ON c.id = m.chat_id
@@ -76,6 +81,7 @@ export async function GET(req: Request) {
         status_meta: string | null;
         status_widget_values_json: string | null;
         status_widget_turn_active: number | null;
+        suggested_replies_json: string | null;
         generation_status: string | null;
         request_id: string | null;
         user_message_id: number | null;
@@ -117,6 +123,9 @@ export async function GET(req: Request) {
   const messageStatusWidgetValues = hasVariantStatusSnapshot
     ? (activeVariantSnapshot?.statusWidgetValues ?? null)
     : parseStoredStatusWidgetValuesJson(row.status_widget_values_json);
+  const suggestedRepliesFields = resolveClientSuggestedReplies(
+    parseSuggestedRepliesRecord(row.suggested_replies_json)
+  );
 
   return NextResponse.json({
     messageId: row.id,
@@ -132,6 +141,8 @@ export async function GET(req: Request) {
     statusWidgetTurnActive: row.status_widget_turn_active === 1,
     statusMetaPending: statusFlags.statusMetaPending,
     statusMetaRequested: statusFlags.statusMetaRequested,
+    suggestedRepliesPending: suggestedRepliesFields.suggestedRepliesPending,
+    suggestedReplies: suggestedRepliesFields.suggestedReplies,
     userMessageId: row.user_message_id,
     requestId: row.request_id ?? undefined,
   });

@@ -1231,6 +1231,7 @@ function migrate(db: Database.Database) {
   ensureMemoryResetBoundaryColumns(db);
   addColumn("messages", "user_message_id", "INTEGER");
   addColumn("messages", "status_meta", "TEXT");
+  addColumn("messages", "suggested_replies_json", "TEXT");
   addColumn("users", "training_consent", "INTEGER NOT NULL DEFAULT 0");
   db.exec(`
     CREATE TABLE IF NOT EXISTS message_feedback (

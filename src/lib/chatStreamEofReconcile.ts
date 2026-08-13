@@ -8,6 +8,7 @@ import {
   isTerminalGenerationStatus,
   type GenerationStatus,
 } from "@/lib/streamingPersistence";
+import type { SuggestedReplyItem } from "@/lib/suggestedReplies/types";
 
 export type StreamTerminalFlags = {
   sawDone: boolean;
@@ -47,6 +48,8 @@ export type EofReconcileSnapshot = {
   statusWidgetTurnActive?: boolean;
   statusMetaPending?: boolean;
   statusMetaRequested?: boolean;
+  suggestedRepliesPending?: boolean;
+  suggestedReplies?: SuggestedReplyItem[];
   userMessageId?: number | null;
   model?: string;
 };
