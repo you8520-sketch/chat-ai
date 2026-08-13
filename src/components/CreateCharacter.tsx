@@ -8,6 +8,11 @@ import { GENDER_LABELS } from "@/lib/characterGender";
 import {
   defaultAssetFlags,
 } from "@/lib/characterAssets";
+import {
+  allAgesAssetChangeRequest,
+  isAssetBlockedForAllAges,
+  partitionAllAgesTaggingBatch,
+} from "@/lib/characterListingModeration";
 import AssetManagerGrid, {
   type ManagedAsset,
 } from "@/components/AssetManagerGrid";
@@ -105,6 +110,11 @@ function normalizeManagedAssets(list: TaggedAsset[]): TaggedAsset[] {
     public: true,
     chat: true,
     viewerBlur: typeof a.viewerBlur === "boolean" ? a.viewerBlur : i !== 0,
+    ...(typeof a.adultFlagged === "boolean" ? { adultFlagged: a.adultFlagged } : {}),
+    ...(typeof a.moderationReject === "boolean" ? { moderationReject: a.moderationReject } : {}),
+    ...(typeof a.moderationReason === "string" && a.moderationReason.trim()
+      ? { moderationReason: a.moderationReason.trim().slice(0, 200) }
+      : {}),
   }));
 }
 
@@ -355,7 +365,13 @@ export default function CreateCharacter({
       }
 
       setProgress("이미지 표정·자세 태그 분석 중…");
-      let taggedAssets: { url: string; tag: string }[] = [];
+      let taggedAssets: Array<{
+        url: string;
+        tag: string;
+        adultFlagged?: boolean;
+        moderationReject?: boolean;
+        moderationReason?: string;
+      }> = [];
       try {
         const tagRes = await fetch("/api/assets/tag", {
           method: "POST",
@@ -368,7 +384,13 @@ export default function CreateCharacter({
         };
         if (tagRes.ok && Array.isArray(tagData.assets)) {
           taggedAssets = tagData.assets
-            .filter((a: unknown): a is { url: string; tag: string } => {
+            .filter((a: unknown): a is {
+              url: string;
+              tag: string;
+              adultFlagged?: boolean;
+              moderationReject?: boolean;
+              moderationReason?: string;
+            } => {
               return (
                 !!a &&
                 typeof a === "object" &&
@@ -376,9 +398,14 @@ export default function CreateCharacter({
                 typeof (a as { tag?: unknown }).tag === "string"
               );
             })
-            .map((a: { url: string; tag: string }, i: number) => ({
+            .map((a, i) => ({
               url: a.url,
               tag: a.tag.trim() || fallbackAssetTag(assets.length + i),
+              ...(typeof a.adultFlagged === "boolean" ? { adultFlagged: a.adultFlagged } : {}),
+              ...(typeof a.moderationReject === "boolean" ? { moderationReject: a.moderationReject } : {}),
+              ...(typeof a.moderationReason === "string" && a.moderationReason.trim()
+                ? { moderationReason: a.moderationReason.trim() }
+                : {}),
             }));
         } else if (!tagRes.ok) {
           setError(tagData.error || "자동 태깅에 실패했습니다. 기본 태그로 추가했으니 직접 수정해 주세요.");
@@ -387,14 +414,28 @@ export default function CreateCharacter({
         setError("자동 태깅에 실패했습니다. 기본 태그로 추가했으니 직접 수정해 주세요.");
       }
 
-      const byUrl = new Map(taggedAssets.map((asset) => [asset.url, asset.tag]));
-      const batch = uploadedUrls.map((url: string, i: number) => ({
-        url,
-        tag: byUrl.get(url) || fallbackAssetTag(assets.length + i),
-        ...defaultAssetFlags(assets, i),
-      }));
-      setAssets((prev) => normalizeManagedAssets([...prev, ...batch]));
+      const byUrl = new Map(taggedAssets.map((asset) => [asset.url, asset]));
+      const batch = uploadedUrls.map((url: string, i: number) => {
+        const tagged = byUrl.get(url);
+        return {
+          url,
+          tag: tagged?.tag || fallbackAssetTag(assets.length + i),
+          ...defaultAssetFlags(assets, i),
+          ...(typeof tagged?.adultFlagged === "boolean" ? { adultFlagged: tagged.adultFlagged } : {}),
+          ...(typeof tagged?.moderationReject === "boolean"
+            ? { moderationReject: tagged.moderationReject }
+            : {}),
+          ...(tagged?.moderationReason ? { moderationReason: tagged.moderationReason } : {}),
+        };
+      });
+      const { accepted, rejected } = partitionAllAgesTaggingBatch(batch, form.nsfw);
+      if (accepted.length > 0) {
+        setAssets((prev) => normalizeManagedAssets([...prev, ...accepted]));
+      }
       setFiles([]);
+      if (rejected.length > 0) {
+        setError(allAgesAssetChangeRequest(rejected.length));
+      }
     } catch {
       setError("에셋 업로드 중 오류가 발생했습니다.");
     } finally {
@@ -792,6 +833,12 @@ export default function CreateCharacter({
         `노출 이미지 검수 반려: ${data.moderationNote || "규정 위반"}. 캐릭터는 비공개로 저장되었습니다. 아래에서 수정 후 다시 저장하세요. (새로 만들면 중복됩니다)`,
       );
       router.replace(`/create?edit=${data.id}`);
+      return;
+    }
+    if (data.moderationStatus === "pending") {
+      setError("");
+      clearCharacterCreateDraft(userId, editCharacterId ?? null);
+      router.push(`/character/${data.id}`);
       return;
     }
     if (data.visibility === "link" && data.sharePath) {
@@ -1548,6 +1595,7 @@ export default function CreateCharacter({
               {assets.length > 0 && (
                 <AssetManagerGrid
                   assets={assets}
+                  allAges={!form.nsfw}
                   onChange={(next) => setAssets(normalizeManagedAssets(next))}
                   onRemove={removeAsset}
                 />
@@ -1767,7 +1815,13 @@ export default function CreateCharacter({
                 <input
                   type="checkbox"
                   checked={form.nsfw}
-                  onChange={(e) => setForm({ ...form, nsfw: e.target.checked })}
+                  onChange={(e) => {
+                    const next = e.target.checked;
+                    setForm({ ...form, nsfw: next });
+                    if (!next && assets.some(isAssetBlockedForAllAges)) {
+                      setError(allAgesAssetChangeRequest(assets.filter(isAssetBlockedForAllAges).length));
+                    }
+                  }}
                   className="h-5 w-5 accent-violet-500"
                 />
                 <div>
@@ -1775,7 +1829,9 @@ export default function CreateCharacter({
                     성인용 {form.content_kind === "simulation" ? "시뮬레이션" : "캐릭터"}
                   </p>
                   <p className="text-xs text-zinc-400">
-                    성인인증을 완료하고 ‘성인 캐릭터 표시’를 켠 사용자에게만 목록에 노출됩니다.
+                    {form.nsfw
+                      ? "성인 캐릭터는 본문 단어 검사를 하지 않습니다. 에셋 태깅에서 성인용으로 걸리면 관리자 승인 후 홈에 올라갑니다."
+                      : "일반 캐릭터는 공개 글의 성인물 단어만 확인하고 바로 홈에 올라갑니다. 에셋이 성인용으로 검열되면 그 이미지를 바꿔 주세요."}
                   </p>
                 </div>
               </label>

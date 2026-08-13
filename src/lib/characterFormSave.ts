@@ -3,14 +3,20 @@ import type { CharacterAsset } from "@/lib/characterAssets";
 import { assetUrls } from "@/lib/characterAssets";
 import { parseCharacterGender } from "@/lib/characterGender";
 import { buildSaveAndTranslateCharacterChunks } from "@/lib/characterChunks";
-import { moderatePublicAssets } from "@/lib/assetModeration";
+import {
+  characterAdultTextBlob,
+  findAdultTermsInText,
+} from "@/lib/characterAdultText";
+import {
+  allAgesListingBlockReason,
+  decideCharacterListing,
+} from "@/lib/characterListingModeration";
 import {
   primaryCharacterGenre,
   sanitizeCharacterGenres,
 } from "@/lib/characterGenres";
 import {
   canImportCharacterIntoSimulation,
-  generateShareSlug,
   parseVisibility,
   sharePath,
   type CharacterVisibility,
@@ -132,13 +138,27 @@ function parseAssetsFromFormBody(rawAssets: unknown): CharacterAsset[] {
   const parsed = Array.isArray(rawAssets)
     ? rawAssets
         .filter((a: unknown) => a && typeof a === "object" && "url" in (a as object) && "tag" in (a as object))
-        .map((a: { url: string; tag: string; public?: boolean; chat?: boolean; viewerBlur?: boolean }, index: number) => ({
+        .map((a: {
+          url: string;
+          tag: string;
+          public?: boolean;
+          chat?: boolean;
+          viewerBlur?: boolean;
+          adultFlagged?: boolean;
+          moderationReject?: boolean;
+          moderationReason?: string;
+        }, index: number) => ({
           url: String(a.url),
           tag: String(a.tag).slice(0, 32),
           public: true,
           chat: true,
           // 1번 대표 이미지는 항상 공개
           viewerBlur: index === 0 ? false : a.viewerBlur === true,
+          ...(typeof a.adultFlagged === "boolean" ? { adultFlagged: a.adultFlagged } : {}),
+          ...(typeof a.moderationReject === "boolean" ? { moderationReject: a.moderationReject } : {}),
+          ...(typeof a.moderationReason === "string" && a.moderationReason.trim()
+            ? { moderationReason: a.moderationReason.trim().slice(0, 200) }
+            : {}),
         }))
         .filter((a: CharacterAsset) => a.url.startsWith("/uploads/") || a.url.startsWith("http"))
         .slice(0, 100)
@@ -571,8 +591,22 @@ export function characterPromptRowStillCurrent(
   );
 }
 
-async function resolveVisibilityModeration(
-  data: Pick<ParsedCharacterForm, "requestedVisibility" | "images" | "nsfw">,
+function parseStoredImageUrls(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
+function resolveVisibilityModeration(
+  data: {
+    requestedVisibility: CharacterVisibility;
+    nsfw: boolean;
+    assets: CharacterAsset[];
+  },
   existing?: {
     share_slug: string | null;
     visibility?: CharacterVisibility;
@@ -581,65 +615,51 @@ async function resolveVisibilityModeration(
     images?: string | null;
     nsfw?: number | null;
   }
-): Promise<{
+): {
   finalVisibility: CharacterVisibility;
   moderationStatus: ModerationStatus;
   moderationNote: string;
   shareSlug: string | null;
-  moderationPerformed: boolean;
-}> {
-  let finalVisibility = data.requestedVisibility;
-  let moderationStatus: ModerationStatus = "approved";
-  let moderationNote = "";
-  let shareSlug: string | null = existing?.share_slug ?? null;
-  let moderationPerformed = false;
-
-  if (finalVisibility === "private") {
-    moderationNote = "비공개 — 검수 생략";
-    shareSlug = null;
-  } else {
-    const existingPublicImages =
-      existing?.images && existing.visibility !== "private"
-        ? (() => {
-            try {
-              const parsed = JSON.parse(existing.images || "[]");
-              return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string") : [];
-            } catch {
-              return [];
-            }
-          })()
-        : null;
-    const canReuseModeration =
-      existing?.moderation_status === "approved" &&
-      existingPublicImages !== null &&
-      existingPublicImages.length === data.images.length &&
-      existingPublicImages.every((url, i) => url === data.images[i]) &&
-      Boolean(existing.nsfw) === data.nsfw;
-
-    const mod = canReuseModeration
+  awaitingAdmin: boolean;
+} {
+  return decideCharacterListing({
+    requestedVisibility: data.requestedVisibility,
+    nsfw: data.nsfw,
+    assets: data.assets,
+    existing: existing
       ? {
-          approved: true,
-          reason: existing?.moderation_note || "기존 공개 이미지 검수 결과 재사용",
-          details: [],
-          estimated: true,
+          shareSlug: existing.share_slug,
+          visibility: existing.visibility,
+          moderationStatus: existing.moderation_status,
+          moderationNote: existing.moderation_note,
+          imageUrls: parseStoredImageUrls(existing.images),
+          nsfw: Boolean(existing.nsfw),
         }
-      : await moderatePublicAssets(data.images, data.nsfw);
-    moderationPerformed = !canReuseModeration;
-    if (mod.approved) {
-      moderationStatus = "approved";
-      moderationNote = mod.reason;
-      if (finalVisibility === "link" && !shareSlug) {
-        shareSlug = generateShareSlug();
-      }
-    } else {
-      finalVisibility = "private";
-      moderationStatus = "rejected";
-      moderationNote = mod.reason;
-      shareSlug = null;
-    }
-  }
+      : undefined,
+  });
+}
 
-  return { finalVisibility, moderationStatus, moderationNote, shareSlug, moderationPerformed };
+function listingBlockForForm(input: {
+  nsfw: boolean;
+  visibility: CharacterVisibility;
+  assets: CharacterAsset[];
+  name?: string;
+  tagline?: string;
+  description?: string;
+  greeting?: string;
+  creatorComment?: string;
+  tags?: string[] | string;
+}): { ok: false; error: string; status: 400 } | { ok: true } {
+  if (input.nsfw || input.visibility === "private") return { ok: true };
+  const adultTextHits = findAdultTermsInText(characterAdultTextBlob(input));
+  const error = allAgesListingBlockReason({
+    nsfw: false,
+    visibility: input.visibility,
+    adultTextHits,
+    assets: input.assets,
+  });
+  if (error) return { ok: false, error, status: 400 };
+  return { ok: true };
 }
 
 export async function createCharacterFromForm(user: SessionUser, b: Record<string, unknown>) {
@@ -647,8 +667,20 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
   if (!parsed.ok) return parsed;
 
   const data = parsed.data;
-  const { finalVisibility, moderationStatus, moderationNote, shareSlug, moderationPerformed } =
-    await resolveVisibilityModeration(data);
+  const listingBlock = listingBlockForForm({
+    nsfw: data.nsfw,
+    visibility: data.requestedVisibility,
+    assets: data.assets,
+    name: data.name,
+    tagline: data.tagline,
+    description: data.description,
+    greeting: data.greeting,
+    creatorComment: data.creatorComment,
+    tags: data.tagsJson,
+  });
+  if (!listingBlock.ok) return listingBlock;
+  const { finalVisibility, moderationStatus, moderationNote, shareSlug } =
+    resolveVisibilityModeration(data);
   const {
     creatorRawDescription,
     compiledDescription,
@@ -749,12 +781,12 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
   if (listed) {
     notifyFollowersOfNewCharacter(db, user.id, user.nickname, characterId, data.name);
   }
-  if (data.requestedVisibility !== "private" && moderationPerformed) {
+  if (moderationStatus === "rejected") {
     notifyCharacterReviewResult(db, {
       userId: user.id,
       characterId,
       characterName: data.name,
-      approved: moderationStatus === "approved",
+      approved: false,
       note: moderationNote,
     });
   }
@@ -833,8 +865,20 @@ export async function updateCharacterFromForm(
       status: 400,
     };
   }
-  const { finalVisibility, moderationStatus, moderationNote, shareSlug, moderationPerformed } =
-    await resolveVisibilityModeration(data, {
+  const listingBlock = listingBlockForForm({
+    nsfw: data.nsfw,
+    visibility: data.requestedVisibility,
+    assets: data.assets,
+    name: data.name,
+    tagline: data.tagline,
+    description: data.description,
+    greeting: data.greeting,
+    creatorComment: data.creatorComment,
+    tags: data.tagsJson,
+  });
+  if (!listingBlock.ok) return listingBlock;
+  const { finalVisibility, moderationStatus, moderationNote, shareSlug } =
+    resolveVisibilityModeration(data, {
       share_slug: row.share_slug,
       visibility: row.visibility,
       moderation_status: row.moderation_status,
@@ -970,12 +1014,12 @@ export async function updateCharacterFromForm(
   if (listed && !wasListed) {
     notifyFollowersOfNewCharacter(db, user.id, user.nickname, characterId, data.name);
   }
-  if (data.requestedVisibility !== "private" && moderationPerformed) {
+  if (moderationStatus === "rejected") {
     notifyCharacterReviewResult(db, {
       userId: user.id,
       characterId,
       characterName: data.name,
-      approved: moderationStatus === "approved",
+      approved: false,
       note: moderationNote,
     });
   }
@@ -1005,7 +1049,7 @@ export async function updateCharacterPublicProfileFromForm(
   const row = db
     .prepare(
       `SELECT id, creator_id, official, share_slug, visibility, moderation_status, moderation_note,
-              images, nsfw
+              images, nsfw, name, greeting, creator_comment, tags
        FROM characters WHERE id=?`
     )
     .get(characterId) as
@@ -1019,6 +1063,10 @@ export async function updateCharacterPublicProfileFromForm(
         moderation_note: string | null;
         images: string | null;
         nsfw: number | null;
+        name: string;
+        greeting: string;
+        creator_comment: string | null;
+        tags: string | null;
       }
     | undefined;
 
@@ -1055,6 +1103,19 @@ export async function updateCharacterPublicProfileFromForm(
   const nsfw = !!b.nsfw;
   const images = assetUrls(assets);
   const requestedVisibility = parseVisibility(b.visibility);
+  const creatorComment = String(b.creator_comment ?? b.creatorComment ?? "").trim().slice(0, CREATOR_COMMENT_LIMIT);
+  const listingBlock = listingBlockForForm({
+    nsfw,
+    visibility: requestedVisibility,
+    assets,
+    name: row.name,
+    tagline,
+    description,
+    greeting: row.greeting,
+    creatorComment,
+    tags: Array.isArray(b.tags) ? b.tags.map(String) : row.tags ?? "",
+  });
+  if (!listingBlock.ok) return listingBlock;
   const rawWidget = b.status_widget_json ?? b.status_widget;
   const parsedWidget =
     typeof rawWidget === "string"
@@ -1067,9 +1128,9 @@ export async function updateCharacterPublicProfileFromForm(
   if (!parsedTriggers.ok) {
     return { ok: false as const, error: parsedTriggers.error, status: 400 };
   }
-  const { finalVisibility, moderationStatus, moderationNote, shareSlug, moderationPerformed } =
-    await resolveVisibilityModeration(
-      { requestedVisibility, images, nsfw },
+  const { finalVisibility, moderationStatus, moderationNote, shareSlug } =
+    resolveVisibilityModeration(
+      { requestedVisibility, nsfw, assets },
       {
         share_slug: row.share_slug,
         visibility: row.visibility,
@@ -1114,15 +1175,12 @@ export async function updateCharacterPublicProfileFromForm(
   );
   saveCharacterStatusWidgetTriggers(db, characterId, parsedTriggers.triggers);
 
-  if (requestedVisibility !== "private" && moderationPerformed) {
-    const characterName = db
-      .prepare("SELECT name FROM characters WHERE id=?")
-      .get(characterId) as { name: string } | undefined;
+  if (moderationStatus === "rejected") {
     notifyCharacterReviewResult(db, {
       userId: user.id,
       characterId,
-      characterName: characterName?.name ?? "제작 캐릭터",
-      approved: moderationStatus === "approved",
+      characterName: row.name,
+      approved: false,
       note: moderationNote,
     });
   }

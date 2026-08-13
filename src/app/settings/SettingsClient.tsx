@@ -184,6 +184,12 @@ export default function SettingsClient({ user, unreadNotice = false }: Props) {
               오류 신고 환불
             </Link>
             <Link
+              href="/admin/character-moderation"
+              className={SETTINGS_ACTION_LINK_CLASS}
+            >
+              성인 캐릭터 홈 노출 검수
+            </Link>
+            <Link
               href="/admin/comment-banned-words"
               className={SETTINGS_ACTION_LINK_CLASS}
             >

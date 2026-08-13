@@ -265,6 +265,11 @@ export default async function CharacterPage({
             {visibilityLabel(c.visibility ?? "private")}
           </span>
         )}
+        {c.moderation_status === "pending" && (
+          <span className="rounded-md border border-amber-500/20 bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-amber-200">
+            검수 대기
+          </span>
+        )}
         {c.moderation_status === "rejected" && (
           <span className="rounded-md border border-rose-500/20 bg-rose-500/15 px-2 py-0.5 text-xs font-semibold text-rose-300">
             검수 반려
@@ -272,6 +277,13 @@ export default async function CharacterPage({
         )}
         <CharacterBookmarkBadge characterId={c.id} bookmarked={liked} loggedIn={!!user} />
       </div>
+
+      {isOwner && c.moderation_status === "pending" ? (
+        <p className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">
+          관리자 승인 후 홈에 올라갑니다.
+          {c.moderation_note ? ` ${c.moderation_note}` : ""}
+        </p>
+      ) : null}
 
       {(c.visibility === "link" || (c.creator_id === user?.id && c.share_slug)) &&
         c.moderation_status === "approved" && (
