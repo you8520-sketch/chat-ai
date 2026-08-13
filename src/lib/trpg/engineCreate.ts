@@ -11,6 +11,7 @@ import {
 } from "./scenarioTemplates";
 import { parseCompanionIds } from "./requestIds";
 import { TRPG_SCENARIO_MAX_BOTS } from "./scenarioTypes";
+import { purgeUnstartedSoloDrafts } from "./engineDelete";
 import { TRPG_MAX_SLOTS } from "./types";
 import { deriveMaxHp, suggestBotStats, validateStatAllocation } from "./stats";
 import { rejectTrpgFork } from "./timeline";
@@ -247,7 +248,7 @@ export function createTrpgCampaign(
   const spawnBots = bots.slice(0, TRPG_MAX_SLOTS - 1);
   const hostName = opts.hostPersona?.name.trim().slice(0, 40) || opts.hostNickname.trim().slice(0, 40) || "플레이어";
 
-  return db.transaction(() => {
+  const campaignId = db.transaction(() => {
     const campaignId = insertCampaign(db, {
       hostUserId: opts.hostUserId,
       title,
@@ -291,6 +292,8 @@ export function createTrpgCampaign(
     }
     return campaignId;
   })();
+  purgeUnstartedSoloDrafts(db, opts.hostUserId, campaignId);
+  return campaignId;
 }
 
 export function saveTrpgSheet(

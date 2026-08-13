@@ -15,6 +15,7 @@ import {
   parseJson,
   type TrpgParticipantRow,
 } from "./store";
+import { purgeUnstartedSoloDrafts } from "./engineDelete";
 import {
   isListedTrpgCampaign,
   type TrpgCampaignSnapshot,
@@ -157,6 +158,7 @@ function loadActions(
 }
 
 export function listTrpgCampaigns(db: Database.Database, userId: number): TrpgCampaignSnapshot[] {
+  purgeUnstartedSoloDrafts(db, userId);
   const rows = db
     .prepare(
       `SELECT DISTINCT c.id

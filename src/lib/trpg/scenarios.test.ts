@@ -328,38 +328,53 @@ describe("TRPG scenarios and catalog", () => {
     db.close();
   });
 
-  it("hides unstarted solo drafts from the lobby list and lets the host rename or delete", () => {
+  it("deletes unstarted solo drafts instead of leaving them hidden", () => {
     const db = memoryDb();
-    const draftId = createTrpgCampaign(db, {
+    const first = createTrpgCampaign(db, {
       hostUserId: 1,
       hostNickname: "렌",
       viewerUserId: 1,
     });
+    const second = createTrpgCampaign(db, {
+      hostUserId: 1,
+      hostNickname: "렌",
+      viewerUserId: 1,
+    });
+    assert.equal(loadCampaign(db, first), null);
+    assert.ok(loadCampaign(db, second));
     assert.equal(listTrpgCampaigns(db, 1).length, 0);
-    const listedId = createTrpgCampaign(db, {
+    assert.equal(loadCampaign(db, second), null);
+
+    const keptId = createTrpgCampaign(db, {
       hostUserId: 1,
       hostNickname: "렌",
       viewerUserId: 1,
       title: "초안 제목",
     });
-    const listed = loadCampaign(db, listedId)!;
-    joinTrpgCampaign(db, { code: listed.invite_code!, userId: 2, nickname: "게스트" });
+    const kept = loadCampaign(db, keptId)!;
+    joinTrpgCampaign(db, { code: kept.invite_code!, userId: 2, nickname: "게스트" });
+    const third = createTrpgCampaign(db, {
+      hostUserId: 1,
+      hostNickname: "렌",
+      viewerUserId: 1,
+    });
+    assert.ok(loadCampaign(db, keptId));
+    assert.ok(loadCampaign(db, third));
     const lobby = listTrpgCampaigns(db, 1);
     assert.equal(lobby.length, 1);
-    assert.equal(lobby[0]?.id, listedId);
-    assert.equal(renameTrpgCampaign(db, { campaignId: listedId, userId: 1, title: " 회색 생태권  " }), "회색 생태권");
-    assert.equal(loadCampaign(db, listedId)?.title, "회색 생태권");
+    assert.equal(lobby[0]?.id, keptId);
+    assert.equal(loadCampaign(db, third), null);
+    assert.equal(renameTrpgCampaign(db, { campaignId: keptId, userId: 1, title: " 회색 생태권  " }), "회색 생태권");
+    assert.equal(loadCampaign(db, keptId)?.title, "회색 생태권");
     assert.throws(
-      () => renameTrpgCampaign(db, { campaignId: listedId, userId: 2, title: "해킹" }),
+      () => renameTrpgCampaign(db, { campaignId: keptId, userId: 2, title: "해킹" }),
       /방장만 제목/
     );
-    deleteTrpgCampaign(db, { campaignId: draftId, userId: 1 });
-    assert.equal(loadCampaign(db, draftId), null);
     assert.throws(
-      () => deleteTrpgCampaign(db, { campaignId: listedId, userId: 2 }),
+      () => deleteTrpgCampaign(db, { campaignId: keptId, userId: 2 }),
       /방장만 캠페인/
     );
-    deleteTrpgCampaign(db, { campaignId: listedId, userId: 1 });
+    deleteTrpgCampaign(db, { campaignId: keptId, userId: 1 });
     assert.equal(listTrpgCampaigns(db, 1).length, 0);
     db.close();
   });
