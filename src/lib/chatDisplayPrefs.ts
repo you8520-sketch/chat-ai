@@ -50,6 +50,8 @@ export type ChatDisplayPrefs = {
   userDialogueColor: string;
   /** 캐릭터 답변 왼쪽 초상 표시 */
   showCharacterPortrait: boolean;
+  /** AI 답변 후 유저 추천 메시지 3갈래 */
+  showSuggestedReplies: boolean;
   portraitBackgroundOpacity: number;
 };
 
@@ -64,6 +66,7 @@ export const DEFAULT_CHAT_DISPLAY_PREFS: ChatDisplayPrefs = {
   userNarrationColor: "#d4d4d8",
   userDialogueColor: "#e4e4e7",
   showCharacterPortrait: true,
+  showSuggestedReplies: true,
   portraitBackgroundOpacity: 0.22,
 };
 
@@ -314,6 +317,10 @@ export function normalizeShowCharacterPortrait(value: unknown): boolean {
   return value !== false;
 }
 
+export function normalizeShowSuggestedReplies(value: unknown): boolean {
+  return value !== false;
+}
+
 export function normalizePortraitBackgroundOpacity(value: unknown): number {
   const n =
     typeof value === "number" && Number.isFinite(value)
@@ -351,6 +358,7 @@ export function loadChatDisplayPrefs(): ChatDisplayPrefs {
         DEFAULT_CHAT_DISPLAY_PREFS.userNarrationColor
       ),
       showCharacterPortrait: normalizeShowCharacterPortrait(parsed.showCharacterPortrait),
+      showSuggestedReplies: normalizeShowSuggestedReplies(parsed.showSuggestedReplies),
       portraitBackgroundOpacity: normalizePortraitBackgroundOpacity(
         parsed.portraitBackgroundOpacity
       ),

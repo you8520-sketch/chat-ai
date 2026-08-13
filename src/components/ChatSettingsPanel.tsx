@@ -1045,6 +1045,31 @@ function DisplaySettingsSection({
       />
 
       <section>
+        <p className="mb-2 font-bold text-violet-300">추천 메시지</p>
+        <p className="mb-2 text-[10px] text-zinc-600">
+          AI 답변 후 페르소나 말투로 다음 대사 3갈래를 제안합니다. 누르면 전송되지 않고 입력창에만 복사됩니다.
+        </p>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={displayPrefs.showSuggestedReplies}
+          onClick={() =>
+            onDisplayPrefsChange({
+              ...displayPrefs,
+              showSuggestedReplies: !displayPrefs.showSuggestedReplies,
+            })
+          }
+          className={`w-full rounded-lg border px-3 py-2.5 text-left font-semibold transition ${
+            displayPrefs.showSuggestedReplies
+              ? "border-violet-400/60 bg-violet-500/15 text-violet-200"
+              : "border-white/10 bg-[#1a1a1a] text-zinc-400 hover:border-white/20 hover:text-zinc-200"
+          }`}
+        >
+          {displayPrefs.showSuggestedReplies ? "켜짐" : "꺼짐"}
+        </button>
+      </section>
+
+      <section>
         <p className="mb-2 font-bold text-violet-300">스트리밍 속도</p>
         <p className="mb-2 text-[10px] text-zinc-600">
           AI 답변이 화면에 나타나는 속도를 선택하세요. 기본 설정은 빠름입니다.

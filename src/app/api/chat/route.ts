@@ -351,6 +351,10 @@ import {
   stripAdultRoutingForClient,
 } from "@/lib/billingReceiptAccess";
 import { scheduleStatusMetaExtraction, markMessageStatusMetaPending } from "@/lib/statusMeta/job";
+import {
+  scheduleSuggestedRepliesExtraction,
+  markMessageSuggestedRepliesPending,
+} from "@/lib/suggestedReplies/job";
 import { resolveStatusMetaExtractionEnabled } from "@/lib/statusMeta/displayPolicy";
 import {
   applyStatusWidgetSystemPromptOverrides,
@@ -900,6 +904,7 @@ export async function POST(req: Request) {
     if (regenStatusPolicy.everyTurn && regenStatusPolicy.formatSpec) {
       markMessageStatusMetaPending(regenerateMessageId, regenStatusPolicy.formatSpec);
     }
+    markMessageSuggestedRepliesPending(regenerateMessageId);
   }
 
   const msgRowsWithId = db
@@ -5207,6 +5212,24 @@ export async function POST(req: Request) {
           });
         }
 
+        const suggestedRepliesEnabled =
+          body.suggestedRepliesEnabled !== false &&
+          !htmlFlashOnlyTurn &&
+          Boolean(savedText.trim());
+        if (suggestedRepliesEnabled) {
+          scheduleSuggestedRepliesExtraction({
+            messageId: aiMessageId,
+            chatId: chatRef.id,
+            charName: ch.name,
+            personaName: personaDisplayName,
+            personaDescription,
+            personaSpeechExamples: selectedPersona?.speech_examples ?? null,
+            userPersona: backgroundPersonaIdentity,
+            userMessage: messageText,
+            assistantProse: savedText,
+          });
+        }
+
         if (terraPromptCanary) {
           logTerraPromptCanaryDebug({
             requestId: clientRequestId,
@@ -5321,6 +5344,7 @@ export async function POST(req: Request) {
             : {}),
           memoryUpdated: true,
           statusMetaPending: statusMetaEnabled,
+          suggestedRepliesPending: suggestedRepliesEnabled,
           statusWidgetActive,
           statusWidgetTurnActive: statusWidgetActive,
           statusWidgetValues: statusWidgetValuesPayload

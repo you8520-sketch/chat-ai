@@ -21,6 +21,7 @@ import {
 } from "@/lib/canonicalProse";
 import ChatEmotionPortraitPanel from "@/components/ChatEmotionPortraitPanel";
 import ChatSettingsPanel from "@/components/ChatSettingsPanel";
+import { SuggestedRepliesBar } from "@/components/SuggestedRepliesBar";
 import ChatRoomDisplayQuickRail from "@/components/ChatRoomDisplayQuickRail";
 import ChatImageGeneratorPanel from "@/components/ChatImageGeneratorPanel";
 import ChatRoomMobileMenu from "@/components/ChatRoomMobileMenu";
@@ -71,6 +72,7 @@ import { stripInternalTagLeakage, stripRpMetaPreamble } from "@/lib/narrativeRul
 import { stripRepeatedTrailingQuoteMarks } from "@/lib/trailingQuoteSanitizer";
 import type { NarrativePov } from "@/lib/narrativePov";
 import type { StatusMeta } from "@/lib/statusMeta/types";
+import { suggestedRepliesHaveContent } from "@/lib/suggestedReplies/parse";
 import { userMessageRequestsStatusWindowOoc } from "@/lib/statusMeta/ooc";
 import { statusMetaDisplayMarkdown, statusMetaHasDisplayContent } from "@/lib/statusMeta/render";
 import { resolveUserNoteStatusWindowPolicy, markdownPipeTableStatusWindowActive } from "@/lib/statusWindowNotePolicy";
@@ -238,6 +240,10 @@ type Msg = {
   /** UI — status meta slot reserved for this assistant turn */
   statusMetaRequested?: boolean;
   statusMetaFailed?: boolean;
+  suggestedReplies?: string[];
+  suggestedRepliesPending?: boolean;
+  suggestedRepliesRequested?: boolean;
+  suggestedRepliesFailed?: boolean;
   statusWidgetValues?: ParsedStatusWidgetTurnValues | null;
   /** That assistant turn was generated with widget ON */
   statusWidgetTurnActive?: boolean;
@@ -324,6 +330,130 @@ function mergeStatusMetaFieldsById<T extends Msg>(prev: T[], server: T[]): T[] {
               ? false
               : m.statusMetaFailed,
     };
+  });
+}
+
+function mergeSuggestedRepliesFieldsById<T extends Msg>(prev: T[], server: T[]): T[] {
+  const serverById = new Map(server.filter((m) => m.id != null).map((m) => [m.id!, m]));
+  if (serverById.size === 0) return prev;
+
+  return prev.map((m) => {
+    if (m.id == null) return m;
+    const s = serverById.get(m.id);
+    if (!s) return m;
+
+    const serverHas = suggestedRepliesHaveContent(s.suggestedReplies);
+    const clientAwaiting =
+      m.suggestedRepliesPending === true && !suggestedRepliesHaveContent(m.suggestedReplies);
+
+    if (clientAwaiting && (s.suggestedRepliesPending || !serverHas)) return m;
+
+    if (
+      !s.suggestedRepliesRequested &&
+      !s.suggestedRepliesPending &&
+      !serverHas &&
+      !m.suggestedRepliesRequested
+    ) {
+      return m;
+    }
+
+    return {
+      ...m,
+      suggestedReplies: s.suggestedRepliesPending
+        ? m.suggestedReplies
+        : (s.suggestedReplies ?? m.suggestedReplies),
+      suggestedRepliesPending: s.suggestedRepliesPending ?? false,
+      suggestedRepliesRequested: !!(
+        s.suggestedRepliesRequested ||
+        m.suggestedRepliesRequested ||
+        s.suggestedRepliesPending
+      ),
+      suggestedRepliesFailed:
+        s.suggestedRepliesPending === true
+          ? false
+          : s.suggestedRepliesFailed === true
+            ? true
+            : serverHas
+              ? false
+              : m.suggestedRepliesFailed,
+    };
+  });
+}
+
+type SuggestedRepliesPollResult = {
+  replies: string[];
+  failed: boolean;
+};
+
+async function pollSuggestedRepliesForMessage(
+  messageId: number
+): Promise<SuggestedRepliesPollResult> {
+  const maxAttempts = 50;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (attempt > 0) {
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+    try {
+      const res = await fetch(`/api/chat/suggested-replies?messageId=${messageId}`);
+      if (!res.ok) continue;
+      const data = (await res.json()) as {
+        pending?: boolean;
+        failed?: boolean;
+        replies?: string[];
+      };
+      if (data.pending) continue;
+      const replies = Array.isArray(data.replies)
+        ? data.replies.filter((item): item is string => typeof item === "string")
+        : [];
+      if (suggestedRepliesHaveContent(replies)) {
+        return { replies, failed: false };
+      }
+      if (data.failed) {
+        return { replies: [], failed: true };
+      }
+      if (attempt >= maxAttempts - 4) {
+        return { replies: [], failed: true };
+      }
+    } catch {
+      // retry
+    }
+  }
+  return { replies: [], failed: true };
+}
+
+function applySuggestedRepliesPollResult(
+  setMessages: Dispatch<SetStateAction<Msg[]>>,
+  messageId: number,
+  result: SuggestedRepliesPollResult
+) {
+  setMessages((prev) =>
+    prev.map((m) => {
+      if (m.id !== messageId) return m;
+      return {
+        ...m,
+        suggestedReplies: result.failed ? [] : result.replies,
+        suggestedRepliesPending: false,
+        suggestedRepliesRequested: true,
+        suggestedRepliesFailed: result.failed,
+      };
+    })
+  );
+}
+
+function startSuggestedRepliesPoll(
+  messageId: number,
+  pollStartedRef: { current: Set<number> },
+  setMessages: Dispatch<SetStateAction<Msg[]>>,
+  onDone: () => void
+) {
+  if (pollStartedRef.current.has(messageId)) return;
+  pollStartedRef.current.add(messageId);
+  void pollSuggestedRepliesForMessage(messageId).then((result) => {
+    applySuggestedRepliesPollResult(setMessages, messageId, result);
+    if (result.failed || !suggestedRepliesHaveContent(result.replies)) {
+      window.setTimeout(() => pollStartedRef.current.delete(messageId), 45_000);
+    }
+    onDone();
   });
 }
 
@@ -712,6 +842,8 @@ export default function ChatClient({
   }`;
   const [messages, setMessages] = useState<Msg[]>(initialMessages);
   const statusMetaPollStartedRef = useRef<Set<number>>(new Set());
+  const suggestedRepliesPollStartedRef = useRef<Set<number>>(new Set());
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const [hasMoreOlder, setHasMoreOlder] = useState(initialHasMoreOlder);
   const [hiddenTurnCount, setHiddenTurnCount] = useState(initialHiddenTurnCount);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -1340,6 +1472,25 @@ export default function ChatClient({
 
   const inputLocked = loading || lastTurnInFlight;
 
+  const suggestedRepliesTurn = useMemo(() => {
+    if (!displayPrefs.showSuggestedReplies) return null;
+    if (lastAssistantIdx < 0) return null;
+    const m = messages[lastAssistantIdx];
+    if (!m || m.role !== "assistant" || m.id == null || m.model === "greeting") return null;
+    if (isPendingGenerationStatus(m.generationStatus) || inputLocked) return null;
+    if (m.suggestedRepliesFailed) return null;
+    const replies = m.suggestedReplies ?? [];
+    if (!m.suggestedRepliesPending && !suggestedRepliesHaveContent(replies)) return null;
+    return m;
+  }, [displayPrefs.showSuggestedReplies, lastAssistantIdx, messages, inputLocked]);
+
+  const handleSuggestedReplyPick = useCallback((text: string) => {
+    setInput(text.slice(0, CHAT_MESSAGE_MAX));
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+    });
+  }, []);
+
   /** Multi-tab: refresh global selected_ai on focus (server remains SoT for generation).
    * Read latest via ref so a focus/visibility sync never overwrites an optimistic
    * in-flight model change with a stale value (Safari fires focus on select open). */
@@ -1569,7 +1720,10 @@ export default function ChatClient({
   useEffect(() => {
     if (loadingRef.current || inFlightRef.current) return;
     setMessages((prev) =>
-      mergeStatusMetaFieldsById(mergeBillingUsageFromServer(prev, initialMessages), initialMessages)
+      mergeSuggestedRepliesFieldsById(
+        mergeStatusMetaFieldsById(mergeBillingUsageFromServer(prev, initialMessages), initialMessages),
+        initialMessages
+      )
     );
   }, [initialMessages]);
 
@@ -1827,6 +1981,29 @@ export default function ChatClient({
     }
   }, [messages, userNote, markdownStatusWindowActive, router, selectedPersona?.description, statusWidgetActive]);
 
+  useEffect(() => {
+    if (!displayPrefs.showSuggestedReplies) return;
+    if (loadingRef.current || inFlightRef.current) return;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i]!;
+      if (m.role !== "assistant" || m.id == null || m.model === "greeting") continue;
+      if (isPendingGenerationStatus(m.generationStatus)) break;
+      const needsPoll =
+        m.suggestedRepliesPending === true ||
+        (m.suggestedRepliesRequested === true &&
+          m.suggestedRepliesFailed !== true &&
+          !suggestedRepliesHaveContent(m.suggestedReplies));
+      if (!needsPoll) break;
+      startSuggestedRepliesPoll(
+        m.id,
+        suggestedRepliesPollStartedRef,
+        setMessages,
+        () => router.refresh()
+      );
+      break;
+    }
+  }, [messages, displayPrefs.showSuggestedReplies, router]);
+
   const loadOlderMessages = useCallback(async () => {
     if (!chatId || loadingOlder || !hasMoreOlder || loading || inFlightRef.current) return;
 
@@ -1943,6 +2120,7 @@ export default function ChatClient({
       trafficOverload?: boolean;
       skipPersistence?: boolean;
       statusMetaPending?: boolean;
+      suggestedRepliesPending?: boolean;
       htmlFlashTurn?: boolean;
       showStatusMarkdown?: boolean;
       statusWidgetActive?: boolean;
@@ -2243,6 +2421,10 @@ export default function ChatClient({
               ? false
               : (data.statusWidgetTurnActive ??
                 (data.statusWidgetActive === true ? true : cur.statusWidgetTurnActive)),
+            suggestedRepliesPending: data.suggestedRepliesPending === true,
+            suggestedRepliesRequested: data.suggestedRepliesPending === true,
+            suggestedReplies: data.suggestedRepliesPending === true ? [] : (cur.suggestedReplies ?? []),
+            suggestedRepliesFailed: false,
             createdAt: new Date().toISOString(),
             reportStatus: "none",
           };
@@ -2281,6 +2463,18 @@ export default function ChatClient({
         }
       } else {
         router.refresh();
+      }
+      if (
+        data.suggestedRepliesPending &&
+        data.messageId &&
+        displayPrefsRef.current.showSuggestedReplies
+      ) {
+        startSuggestedRepliesPoll(
+          data.messageId,
+          suggestedRepliesPollStartedRef,
+          setMessages,
+          () => router.refresh()
+        );
       }
     };
 
@@ -2327,6 +2521,7 @@ export default function ChatClient({
             usage?: Usage;
             memoryUpdated?: boolean;
             statusMetaPending?: boolean;
+            suggestedRepliesPending?: boolean;
             showStatusMarkdown?: boolean;
             variants?: MessageVariant[];
             activeVariant?: number;
@@ -2544,6 +2739,7 @@ export default function ChatClient({
             statusWidgetActive: s.statusWidgetTurnActive === true,
             statusWidgetValues:
               (s.statusWidgetValues as ParsedStatusWidgetTurnValues | null) ?? null,
+            suggestedRepliesPending: s.suggestedRepliesPending === true,
           });
         } else {
           eofUnresolved = true;
@@ -2764,6 +2960,7 @@ export default function ChatClient({
           userNote,
           selectedPersonaId,
           targetResponseChars,
+          suggestedRepliesEnabled: displayPrefsRef.current.showSuggestedReplies,
         }),
       });
 
@@ -2888,6 +3085,7 @@ export default function ChatClient({
           userNote,
           selectedPersonaId,
           targetResponseChars,
+          suggestedRepliesEnabled: displayPrefsRef.current.showSuggestedReplies,
         }),
       });
 
@@ -2993,6 +3191,7 @@ export default function ChatClient({
 
     if (prevAssistant.id != null) {
       statusMetaPollStartedRef.current.delete(prevAssistant.id);
+      suggestedRepliesPollStartedRef.current.delete(prevAssistant.id);
     }
 
     setMessages((m) => {
@@ -3020,6 +3219,10 @@ export default function ChatClient({
           statusWindowPolicy.formatSpec ?? cur.statusMetaFormatSpec ?? null,
         statusWidgetValues: null,
         statusWidgetTurnActive: statusWidgetActive,
+        suggestedReplies: [],
+        suggestedRepliesPending: displayPrefsRef.current.showSuggestedReplies,
+        suggestedRepliesRequested: displayPrefsRef.current.showSuggestedReplies,
+        suggestedRepliesFailed: false,
       };
       const userIdx = regenIndex - 1;
       if (userIdx >= 0 && copy[userIdx]?.role === "user") {
@@ -3083,6 +3286,7 @@ export default function ChatClient({
           userNote,
           selectedPersonaId,
           targetResponseChars,
+          suggestedRepliesEnabled: displayPrefsRef.current.showSuggestedReplies,
         }),
       });
 
@@ -3598,6 +3802,13 @@ export default function ChatClient({
     },
     [chatId]
   );
+
+  const handleSuggestedRepliesDisable = useCallback(() => {
+    handleDisplayPrefsChange({
+      ...displayPrefsRef.current,
+      showSuggestedReplies: false,
+    });
+  }, [handleDisplayPrefsChange]);
 
   function renderSettingsPanel(layout: "rail" | "drawer", onClose?: () => void) {
     return (
@@ -4311,8 +4522,18 @@ export default function ChatClient({
         </div>
 
         <div className="flex flex-col gap-0.5">
+          {suggestedRepliesTurn && (
+            <SuggestedRepliesBar
+              replies={suggestedRepliesTurn.suggestedReplies ?? []}
+              pending={suggestedRepliesTurn.suggestedRepliesPending === true}
+              disabled={inputLocked}
+              onPick={handleSuggestedReplyPick}
+              onDisable={handleSuggestedRepliesDisable}
+            />
+          )}
           <div className="flex gap-1.5">
             <textarea
+              ref={inputRef}
               value={input}
               maxLength={CHAT_MESSAGE_MAX}
               onChange={(e) => setInput(e.target.value.slice(0, CHAT_MESSAGE_MAX))}

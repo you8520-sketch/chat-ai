@@ -47,6 +47,8 @@ export type EofReconcileSnapshot = {
   statusWidgetTurnActive?: boolean;
   statusMetaPending?: boolean;
   statusMetaRequested?: boolean;
+  suggestedRepliesPending?: boolean;
+  suggestedReplies?: string[];
   userMessageId?: number | null;
   model?: string;
 };

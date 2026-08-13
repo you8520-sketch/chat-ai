@@ -8,6 +8,7 @@ import {
   normalizePortraitBackgroundOpacity,
   normalizeReadableTextColor,
   normalizeShowCharacterPortrait,
+  normalizeShowSuggestedReplies,
   normalizeStreamIntervalMs,
   streamCharsPerTickForInterval,
   type ChatDisplayPrefs,
@@ -52,6 +53,7 @@ function normalizeDisplayPrefs(raw: Partial<ChatDisplayPrefs> | undefined): Chat
       DEFAULT_CHAT_DISPLAY_PREFS.userNarrationColor
     ),
     showCharacterPortrait: normalizeShowCharacterPortrait(raw.showCharacterPortrait),
+    showSuggestedReplies: normalizeShowSuggestedReplies(raw.showSuggestedReplies),
     portraitBackgroundOpacity: normalizePortraitBackgroundOpacity(raw.portraitBackgroundOpacity),
   };
 }

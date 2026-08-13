@@ -10,6 +10,10 @@ import { findAssetsByTag, parseAssets, chatAssets, type CharacterAsset } from "@
 import { resolveEmotionTag, stripEmotionTag } from "@/lib/emotionTag";
 
 import { parseStatusMetaRecord } from "@/lib/statusMeta/types";
+import {
+  parseSuggestedRepliesRecord,
+  resolveClientSuggestedReplies,
+} from "@/lib/suggestedReplies/parse";
 import { normalizeMessageVariants, serializeVariantsForClient, resolveActiveVariantContent } from "@/lib/messageAlternates";
 import { stripMuseAcceptanceFromUsage } from "@/lib/museAcceptanceTelemetry";
 import { resolveClientStatusMetaFlags } from "@/lib/statusMeta/displayPolicy";
@@ -292,7 +296,7 @@ export default async function ChatPage({
 
   let rawMessages = db
     .prepare(
-      "SELECT id, role, content, model, usage, is_refunded, alternates, active_variant, status_meta, status_widget_values_json, status_widget_turn_active, created_at, request_id, generation_status FROM messages WHERE chat_id=? ORDER BY id ASC"
+      "SELECT id, role, content, model, usage, is_refunded, alternates, active_variant, status_meta, status_widget_values_json, status_widget_turn_active, suggested_replies_json, created_at, request_id, generation_status FROM messages WHERE chat_id=? ORDER BY id ASC"
     )
     .all(chat.id) as {
     id: number;
@@ -306,6 +310,7 @@ export default async function ChatPage({
     status_meta: string | null;
     status_widget_values_json: string | null;
     status_widget_turn_active: number | null;
+    suggested_replies_json: string | null;
     created_at: string;
     request_id: string | null;
     generation_status: string | null;
@@ -321,7 +326,7 @@ export default async function ChatPage({
   if (recoverStaleInFlightAssistantMessages(db, chat.id, rawMessages) > 0) {
     rawMessages = db
       .prepare(
-        "SELECT id, role, content, model, usage, is_refunded, alternates, active_variant, status_meta, status_widget_values_json, status_widget_turn_active, created_at, request_id, generation_status FROM messages WHERE chat_id=? ORDER BY id ASC"
+        "SELECT id, role, content, model, usage, is_refunded, alternates, active_variant, status_meta, status_widget_values_json, status_widget_turn_active, suggested_replies_json, created_at, request_id, generation_status FROM messages WHERE chat_id=? ORDER BY id ASC"
       )
       .all(chat.id) as typeof rawMessages;
   }
@@ -368,6 +373,9 @@ export default async function ChatPage({
     const messageStatusWidgetValues = hasVariantStatusSnapshot
       ? (activeVariantSnapshot?.statusWidgetValues ?? null)
       : parseStoredStatusWidgetValuesJson(m.status_widget_values_json);
+    const suggestedRepliesFields = resolveClientSuggestedReplies(
+      parseSuggestedRepliesRecord(m.suggested_replies_json)
+    );
     return {
       id: m.id,
       role: m.role,
@@ -385,6 +393,7 @@ export default async function ChatPage({
       statusMetaFailed: statusFlags.statusMetaFailed,
       statusWidgetValues: stripExtractedFactsForClient(messageStatusWidgetValues),
       statusWidgetTurnActive: m.status_widget_turn_active === 1,
+      ...suggestedRepliesFields,
       createdAt: m.created_at,
       requestId: m.request_id ?? undefined,
       generationStatus: m.generation_status ?? undefined,

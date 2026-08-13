@@ -17,6 +17,7 @@ import {
   normalizeStreamIntervalMs,
   normalizePortraitBackgroundOpacity,
   normalizeShowCharacterPortrait,
+  normalizeShowSuggestedReplies,
   resolveClientDisplayPrefs,
 } from "@/lib/chatDisplayPrefs";
 
@@ -35,6 +36,15 @@ describe("chat streaming speed presets", () => {
     assert.equal(formatStreamIntervalLabel(0), "즉시");
     assert.equal(formatStreamIntervalLabel(60), "보통");
     assert.equal(formatStreamIntervalLabel(100), "느림");
+  });
+});
+
+describe("showSuggestedReplies persistence", () => {
+  it("defaults on and keeps explicit false", () => {
+    assert.equal(DEFAULT_CHAT_DISPLAY_PREFS.showSuggestedReplies, true);
+    assert.equal(normalizeShowSuggestedReplies(false), false);
+    assert.equal(normalizeShowSuggestedReplies(true), true);
+    assert.equal(normalizeShowSuggestedReplies(undefined), true);
   });
 });
 
