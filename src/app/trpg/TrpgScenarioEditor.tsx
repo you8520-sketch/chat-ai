@@ -304,72 +304,91 @@ export default function TrpgScenarioEditor({
 
         <AppSectionCard title="시나리오 NPC (모브)">
           <p className="mb-3 text-sm text-zinc-400">
-            이야기 진행을 돕는 모브입니다. 플레이어 캐릭터가 아니며 모델 자리를 쓰지 않습니다. 최대{" "}
-            {TRPG_SCENARIO_MAX_NPCS}명. 이름·소개는 장면에 나가고, 말투·진행 메모는 GM만 봅니다.
+            조연 설정입니다. 이름과 설정만 적어도 됩니다. GM이 참고해서 등장시키며, 적은 글이 채팅에 그대로 붙지는
+            않습니다. 플레이어 자리도 아닙니다. 최대 {TRPG_SCENARIO_MAX_NPCS}명.
           </p>
           {npcs.map((npc, index) => (
             <div key={index} className="mb-3 rounded-xl border border-white/10 p-3">
-              <input
-                value={npc.name}
-                placeholder="이름"
-                maxLength={remainingScenarioFieldMax(
-                  bundleUsed,
-                  npc.name.trim().length,
-                  TRPG_SCENARIO_NPC_NAME_LIMIT
-                )}
-                onChange={(e) =>
-                  setNpcs((prev) => prev.map((row, i) => (i === index ? { ...row, name: e.target.value } : row)))
-                }
-                className="min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
-              />
-              <textarea
-                value={npc.description}
-                placeholder="소개 (장면에 나감)"
-                rows={2}
-                maxLength={remainingScenarioFieldMax(
-                  bundleUsed,
-                  npc.description.trim().length,
-                  TRPG_SCENARIO_NPC_DESCRIPTION_LIMIT
-                )}
-                onChange={(e) =>
-                  setNpcs((prev) =>
-                    prev.map((row, i) => (i === index ? { ...row, description: e.target.value } : row))
-                  )
-                }
-                className="mt-2 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
-              />
-              <textarea
-                value={npc.greeting}
-                placeholder="말투 힌트 (GM만)"
-                rows={2}
-                maxLength={remainingScenarioFieldMax(
-                  bundleUsed,
-                  npc.greeting.trim().length,
-                  TRPG_SCENARIO_NPC_GREETING_LIMIT
-                )}
-                onChange={(e) =>
-                  setNpcs((prev) =>
-                    prev.map((row, i) => (i === index ? { ...row, greeting: e.target.value } : row))
-                  )
-                }
-                className="mt-2 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
-              />
-              <textarea
-                value={npc.systemPrompt}
-                placeholder="진행 메모 (GM만, 플레이어·모델 자리에 안 나감)"
-                rows={3}
-                maxLength={remainingScenarioFieldMax(
-                  bundleUsed,
-                  npc.systemPrompt.trim().length,
-                  TRPG_SCENARIO_NPC_PROMPT_LIMIT
-                )}
-                onChange={(e) =>
-                  setNpcs((prev) =>
-                    prev.map((row, i) => (i === index ? { ...row, systemPrompt: e.target.value } : row))
-                  )
-                }
-                className="mt-2 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
-              />
+              <label className="block text-sm text-zinc-300">
+                이름
+                <input
+                  value={npc.name}
+                  placeholder="예: 역무원"
+                  maxLength={remainingScenarioFieldMax(
+                    bundleUsed,
+                    npc.name.trim().length,
+                    TRPG_SCENARIO_NPC_NAME_LIMIT
+                  )}
+                  onChange={(e) =>
+                    setNpcs((prev) => prev.map((row, i) => (i === index ? { ...row, name: e.target.value } : row)))
+                  }
+                  className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
+                />
+              </label>
+              <label className="mt-3 block text-sm text-zinc-300">
+                설정
+                <span className="mt-1 block text-xs font-normal text-zinc-500">
+                  겉모습, 하는 일, 성격. GM 참고용이며 채팅에 그대로 출력되지 않습니다.
+                </span>
+                <textarea
+                  value={npc.description}
+                  placeholder="예: 낡은 제복의 역무원. 표를 확인하고 기차를 안내한다."
+                  rows={2}
+                  maxLength={remainingScenarioFieldMax(
+                    bundleUsed,
+                    npc.description.trim().length,
+                    TRPG_SCENARIO_NPC_DESCRIPTION_LIMIT
+                  )}
+                  onChange={(e) =>
+                    setNpcs((prev) =>
+                      prev.map((row, i) => (i === index ? { ...row, description: e.target.value } : row))
+                    )
+                  }
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
+                />
+              </label>
+              <label className="mt-3 block text-sm text-zinc-300">
+                말투 (선택)
+                <span className="mt-1 block text-xs font-normal text-zinc-500">GM만 봅니다.</span>
+                <textarea
+                  value={npc.greeting}
+                  placeholder="예: 짧고 공손하게 말한다."
+                  rows={2}
+                  maxLength={remainingScenarioFieldMax(
+                    bundleUsed,
+                    npc.greeting.trim().length,
+                    TRPG_SCENARIO_NPC_GREETING_LIMIT
+                  )}
+                  onChange={(e) =>
+                    setNpcs((prev) =>
+                      prev.map((row, i) => (i === index ? { ...row, greeting: e.target.value } : row))
+                    )
+                  }
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
+                />
+              </label>
+              <label className="mt-3 block text-sm text-zinc-300">
+                진행 메모 (선택)
+                <span className="mt-1 block text-xs font-normal text-zinc-500">
+                  GM만 봅니다. 반전이나 등장 타이밍처럼 플레이어에게 숨길 내용.
+                </span>
+                <textarea
+                  value={npc.systemPrompt}
+                  placeholder="예: 이미 죽은 사람이다."
+                  rows={3}
+                  maxLength={remainingScenarioFieldMax(
+                    bundleUsed,
+                    npc.systemPrompt.trim().length,
+                    TRPG_SCENARIO_NPC_PROMPT_LIMIT
+                  )}
+                  onChange={(e) =>
+                    setNpcs((prev) =>
+                      prev.map((row, i) => (i === index ? { ...row, systemPrompt: e.target.value } : row))
+                    )
+                  }
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
+                />
+              </label>
               <div className="mt-2 flex flex-wrap gap-2">
                 <button
                   type="button"
