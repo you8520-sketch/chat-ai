@@ -377,7 +377,7 @@ export default function TrpgRoomClient({
           <p className="mb-3 text-sm text-zinc-400">
             {snap.pointPool}포인트 안에서 배분합니다. HP는 체력×5입니다. 남은 포인트 {remaining}.
             {snap.viewerIsHost
-              ? " AI 동료는 방장이 캐릭터성에 맞게 정합니다. 제안값은 이름/소개 키워드일 뿐, 저장해야 시작됩니다."
+              ? " 플레이어 캐릭터는 방장이 캐릭터성에 맞게 정합니다. 제안값은 이름/소개 키워드일 뿐, 저장해야 시작됩니다."
               : " 시나리오에 기본 시트가 있으면 그 값으로 채워집니다."}
           </p>
           {snap.viewerIsHost && snap.participants.length > 1 ? (
@@ -557,7 +557,7 @@ export default function TrpgRoomClient({
 
       {snap.needsHostFill && snap.viewerIsHost ? (
         <AppSectionCard title="봇 행동 대신 입력">
-          <p className="mb-3 text-sm text-zinc-400">AI 동료 행동 생성에 실패했습니다. 방장이 이 라운드 행동을 넣습니다.</p>
+          <p className="mb-3 text-sm text-zinc-400">플레이어 캐릭터 행동 생성에 실패했습니다. 방장이 이 라운드 행동을 넣습니다.</p>
           {botFillTargets.map((bot) => (
             <p key={bot.id} className="mb-2 text-sm text-zinc-300">
               {bot.displayName}

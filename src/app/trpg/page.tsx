@@ -40,7 +40,7 @@ export default async function TrpgLobbyPage({
   return (
     <AppPageShell
       title="TRPG"
-      description="세계관·시나리오 카드를 눌러 본문을 읽은 뒤 캠페인을 시작합니다. AI 캐릭터는 최대 2명입니다."
+      description="세계관·시나리오 카드를 눌러 본문을 읽은 뒤 캠페인을 시작합니다. 플레이어 캐릭터는 최대 2명입니다."
     >
       <TrpgLobbyClient
         initialCampaigns={campaigns}
