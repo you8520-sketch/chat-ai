@@ -65,6 +65,7 @@ export type TrpgCampaignSnapshot = {
   pointPool: number;
   statDefs: TrpgStatDefinition[];
   diceRules: TrpgDiceRules;
+  suggestedPcStats: Record<string, number> | null;
   viewerParticipantId: number | null;
   viewerIsHost: boolean;
   needsHostFill: boolean;

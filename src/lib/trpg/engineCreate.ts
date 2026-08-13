@@ -1,5 +1,14 @@
 import type Database from "better-sqlite3";
 import { canAccessCharacter, type CharacterAccessRow } from "@/lib/characterVisibility";
+import { canUseWorldForTrpg, loadWorldForTrpg } from "./catalog";
+import {
+  assertImportedCharactersAccessible,
+  canAccessTrpgScenarioTemplate,
+  loadScenarioTemplate,
+  parseStatRecord,
+  rowToScenarioTemplate,
+  type TrpgScenarioNpc,
+} from "./scenarioTemplates";
 import { TRPG_MAX_SLOTS } from "./types";
 import { deriveMaxHp, suggestBotStats, validateStatAllocation } from "./stats";
 import { rejectTrpgFork } from "./timeline";
@@ -11,6 +20,7 @@ import {
   loadLatestRound,
   loadParticipants,
   loadScenario,
+  type TrpgBotPersona,
 } from "./store";
 
 const EVEN_STATS: Record<string, number> = {
@@ -61,49 +71,144 @@ export function writeSheet(
   }
 }
 
+type CharacterStartRow = CharacterAccessRow & {
+  name: string;
+  world: string | null;
+  description: string | null;
+  greeting: string | null;
+  system_prompt: string | null;
+  world_id: number | null;
+};
+
+type SpawnBot = {
+  characterId: number | null;
+  displayName: string;
+  persona: TrpgBotPersona | null;
+  stats: Record<string, number>;
+};
+
+function loadCharacterForTrpg(db: Database.Database, id: number, viewerUserId: number): CharacterStartRow {
+  const ch = db
+    .prepare(
+      `SELECT id, name, world, description, greeting, system_prompt, world_id, creator_id, visibility, moderation_status, share_slug, official
+       FROM characters WHERE id=?`
+    )
+    .get(id) as CharacterStartRow | undefined;
+  if (!ch) throw new Error("캐릭터를 찾을 수 없습니다.");
+  const access = canAccessCharacter(ch, viewerUserId);
+  if (!access.ok) throw new Error("이 캐릭터로 TRPG를 시작할 수 없습니다.");
+  return ch;
+}
+
+function botFromCharacter(ch: CharacterStartRow): SpawnBot {
+  const personaText = [ch.name, ch.world, ch.description, ch.system_prompt].filter((x) => x?.trim()).join("\n");
+  return {
+    characterId: ch.id,
+    displayName: ch.name,
+    persona: null,
+    stats: suggestBotStats(personaText || ch.name),
+  };
+}
+
+function botFromNpc(npc: TrpgScenarioNpc): SpawnBot {
+  const personaText = [npc.name, npc.description, npc.systemPrompt].filter((x) => x.trim()).join("\n");
+  return {
+    characterId: null,
+    displayName: npc.name,
+    persona: {
+      description: npc.description,
+      greeting: npc.greeting,
+      systemPrompt: npc.systemPrompt,
+    },
+    stats: npc.stats ?? suggestBotStats(personaText || npc.name),
+  };
+}
+
 export function createTrpgCampaign(
   db: Database.Database,
   opts: {
     hostUserId: number;
     hostNickname: string;
     characterId?: number | null;
+    worldId?: number | null;
+    templateId?: number | null;
+    title?: string | null;
     viewerUserId: number;
     parentCampaignId?: number | null;
     forkFromRound?: number | null;
   }
 ): number {
   if (opts.parentCampaignId || opts.forkFromRound) rejectTrpgFork();
+
   let title = "TRPG 캠페인";
   let worldBrief = "";
   let sourceCharacterId: number | null = null;
   let sourceWorldId: number | null = null;
-  let botName: string | null = null;
+  let templateId: number | null = null;
+  let authorUserId: number | null = null;
+  let startLocation = "";
+  let startInventory: string[] = [];
+  let defaultPcStats: Record<string, number> | null = null;
+  const bots: SpawnBot[] = [];
+  const seenCharacterIds = new Set<number>();
 
-  if (opts.characterId) {
-    const ch = db
-      .prepare(
-        `SELECT id, name, world, description, greeting, system_prompt, world_id, creator_id, visibility, moderation_status, share_slug, official
-         FROM characters WHERE id=?`
-      )
-      .get(opts.characterId) as
-      | (CharacterAccessRow & {
-          name: string;
-          world: string | null;
-          description: string | null;
-          greeting: string | null;
-          system_prompt: string | null;
-          world_id: number | null;
-        })
-      | undefined;
-    if (!ch) throw new Error("캐릭터를 찾을 수 없습니다.");
-    const access = canAccessCharacter(ch, opts.viewerUserId);
-    if (!access.ok) throw new Error("이 캐릭터로 TRPG를 시작할 수 없습니다.");
-    sourceCharacterId = ch.id;
-    sourceWorldId = ch.world_id;
-    title = `${ch.name} TRPG`;
-    worldBrief = [ch.world, ch.description, ch.greeting].filter((x) => x?.trim()).join("\n\n");
-    botName = ch.name;
+  if (opts.templateId) {
+    const row = loadScenarioTemplate(db, opts.templateId);
+    if (!row) throw new Error("시나리오를 찾을 수 없습니다.");
+    if (!canAccessTrpgScenarioTemplate(row, opts.viewerUserId)) {
+      throw new Error("이 시나리오는 비공개입니다.");
+    }
+    const template = rowToScenarioTemplate(row);
+    templateId = template.id;
+    authorUserId = template.creatorId;
+    title = template.title;
+    startLocation = template.startLocation;
+    startInventory = template.startInventory;
+    defaultPcStats = template.defaultPcStats;
+    worldBrief = [template.summary, template.content].filter((x) => x.trim()).join("\n\n");
+    if (template.worldId) {
+      const world = loadWorldForTrpg(db, template.worldId);
+      if (world && (canUseWorldForTrpg(world, opts.viewerUserId) || world.creator_id === template.creatorId)) {
+        sourceWorldId = world.id;
+        worldBrief = [world.name, world.summary, world.content, worldBrief].filter((x) => x?.trim()).join("\n\n");
+      }
+    }
+    assertImportedCharactersAccessible(db, template.characterIds, opts.viewerUserId);
+    for (const characterId of template.characterIds) {
+      const ch = loadCharacterForTrpg(db, characterId, opts.viewerUserId);
+      seenCharacterIds.add(ch.id);
+      if (!sourceCharacterId) sourceCharacterId = ch.id;
+      bots.push(botFromCharacter(ch));
+    }
+    for (const npc of template.npcs) bots.push(botFromNpc(npc));
+  } else if (opts.worldId) {
+    const world = loadWorldForTrpg(db, opts.worldId);
+    if (!world) throw new Error("세계관을 찾을 수 없습니다.");
+    if (!canUseWorldForTrpg(world, opts.viewerUserId)) {
+      throw new Error("이 세계관은 TRPG에 공개되어 있지 않습니다.");
+    }
+    sourceWorldId = world.id;
+    authorUserId = world.creator_id;
+    title = `${world.name} TRPG`;
+    worldBrief = [world.summary, world.content].filter((x) => x.trim()).join("\n\n");
   }
+
+  if (opts.characterId && !seenCharacterIds.has(opts.characterId)) {
+    const ch = loadCharacterForTrpg(db, opts.characterId, opts.viewerUserId);
+    sourceCharacterId = ch.id;
+    if (!sourceWorldId && ch.world_id) sourceWorldId = ch.world_id;
+    if (!authorUserId && ch.official !== 1) authorUserId = ch.creator_id;
+    if (!worldBrief.trim()) {
+      worldBrief = [ch.world, ch.description, ch.greeting].filter((x) => x?.trim()).join("\n\n");
+    }
+    if (!opts.templateId && !opts.worldId) title = `${ch.name} TRPG`;
+    bots.push(botFromCharacter(ch));
+  }
+
+  const customTitle = opts.title?.trim().slice(0, 80);
+  if (customTitle) title = customTitle;
+  if (!defaultPcStats) defaultPcStats = parseStatRecord(suggestBotStats(worldBrief || title));
+  const spawnBots = bots.slice(0, TRPG_MAX_SLOTS - 1);
 
   return db.transaction(() => {
     const campaignId = insertCampaign(db, {
@@ -113,6 +218,11 @@ export function createTrpgCampaign(
       sourceWorldId,
       worldBrief,
       maxSlots: TRPG_MAX_SLOTS,
+      templateId,
+      authorUserId,
+      startLocation,
+      startInventory,
+      defaultPcStats,
     });
     insertParticipant(db, {
       campaignId,
@@ -122,16 +232,23 @@ export function createTrpgCampaign(
       characterId: null,
       displayName: opts.hostNickname || "플레이어",
     });
-    if (botName && sourceCharacterId) {
+    spawnBots.forEach((bot, index) => {
       const botPid = insertParticipant(db, {
         campaignId,
-        slotIndex: 1,
+        slotIndex: index + 1,
         kind: "ai_character",
         userId: null,
-        characterId: sourceCharacterId,
-        displayName: botName,
+        characterId: bot.characterId,
+        displayName: bot.displayName,
+        persona: bot.persona,
       });
-      writeSheet(db, campaignId, botPid, botName, suggestBotStats(worldBrief || botName), "");
+      writeSheet(db, campaignId, botPid, bot.displayName, bot.stats, startLocation, startInventory);
+    });
+    if (spawnBots.length > 0) {
+      db.prepare(`UPDATE trpg_campaign_state SET npcs_json=? WHERE campaign_id=?`).run(
+        JSON.stringify(spawnBots.map((bot) => bot.displayName)),
+        campaignId
+      );
     }
     return campaignId;
   })();

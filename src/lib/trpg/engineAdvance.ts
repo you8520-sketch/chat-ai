@@ -1,6 +1,8 @@
 import { randomBytes } from "node:crypto";
 import type Database from "better-sqlite3";
 import { deductPoints, getPointBalance } from "@/lib/points";
+import { paidCreatorRewardSpend, resolveCreatorRewardRate } from "@/lib/creatorPoints";
+import { creditTrpgRoundCreatorRewards, loadTrpgCharacterRoyaltyTargets } from "./creatorRewards";
 import { isTrpgActionType, resolveAdjudicationStat } from "./actionTypes";
 import {
   computeTrpgRoundPoints,
@@ -27,6 +29,7 @@ import {
   loadLatestRound,
   loadParticipants,
   loadScenario,
+  parseBotPersona,
   parseJson,
   setRoundPhase,
   type TrpgCampaignRow,
@@ -331,6 +334,11 @@ async function generateBotActions(
       description = ch?.description?.trim() || "";
       greeting = ch?.greeting?.trim() || "";
       systemPrompt = ch?.system_prompt?.trim() || "";
+    } else {
+      const persona = parseBotPersona(bot.persona_json);
+      description = persona?.description.trim() || "";
+      greeting = persona?.greeting.trim() || "";
+      systemPrompt = persona?.systemPrompt.trim() || "";
     }
     const user = buildTrpgBotActionUserBlock({
       characterName: bot.display_name,
@@ -570,7 +578,19 @@ function maybeBillRound(
   }
   for (const share of shares) {
     if (share.points <= 0) continue;
-    deductPoints(share.userId, share.points, `trpg-round:${roundId}`);
+    const result = deductPoints(share.userId, share.points, `trpg-round:${roundId}`);
+    const paidSpend = paidCreatorRewardSpend(result.slices);
+    if (paidSpend <= 0) continue;
+    const authorUserId = campaign.author_user_id ?? null;
+    creditTrpgRoundCreatorRewards(db, {
+      campaignId: campaign.id,
+      roundId,
+      consumerUserId: share.userId,
+      paidSpend,
+      authorUserId,
+      authorRate: authorUserId ? resolveCreatorRewardRate(authorUserId) : 0,
+      characterCreators: loadTrpgCharacterRoyaltyTargets(db, campaign.id),
+    });
   }
   db.prepare(`UPDATE trpg_rounds SET billed=1, billed_points=? WHERE id=?`).run(totalPoints, roundId);
 }

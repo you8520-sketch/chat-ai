@@ -170,13 +170,72 @@ export function ensureTrpgTables(db: Database.Database): void {
   };
   addColumn("trpg_campaigns", "invite_code", "TEXT");
   addColumn("trpg_campaigns", "world_brief", "TEXT NOT NULL DEFAULT ''");
+  addColumn("trpg_campaigns", "template_id", "INTEGER");
+  addColumn("trpg_campaigns", "author_user_id", "INTEGER");
   addColumn("trpg_rounds", "billed", "INTEGER NOT NULL DEFAULT 0");
   addColumn("trpg_rounds", "error_json", "TEXT");
   addColumn("trpg_rounds", "billed_points", "INTEGER NOT NULL DEFAULT 0");
   addColumn("trpg_rounds", "usage_json", "TEXT");
   addColumn("trpg_campaign_state", "next_round_context", "TEXT NOT NULL DEFAULT ''");
+  addColumn("trpg_participants", "persona_json", "TEXT NOT NULL DEFAULT ''");
+  addColumn("trpg_scenarios", "default_pc_stats_json", "TEXT NOT NULL DEFAULT ''");
   db.exec(
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_trpg_campaigns_invite
      ON trpg_campaigns(invite_code) WHERE invite_code IS NOT NULL AND invite_code != ''`
   );
+
+  if (tableExists(db, "worlds")) {
+    addColumn("worlds", "trpg_enabled", "INTEGER NOT NULL DEFAULT 0");
+    addColumn("worlds", "trpg_visibility", "TEXT NOT NULL DEFAULT 'private'");
+    db.exec(
+      `CREATE INDEX IF NOT EXISTS idx_worlds_trpg_public
+       ON worlds(trpg_enabled, trpg_visibility, updated_at)`
+    );
+  }
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS trpg_scenario_templates (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      creator_id INTEGER NOT NULL,
+      world_id INTEGER,
+      title TEXT NOT NULL,
+      summary TEXT NOT NULL DEFAULT '',
+      content TEXT NOT NULL DEFAULT '',
+      visibility TEXT NOT NULL DEFAULT 'private',
+      start_location TEXT NOT NULL DEFAULT '',
+      start_inventory_json TEXT NOT NULL DEFAULT '[]',
+      default_pc_stats_json TEXT NOT NULL DEFAULT '',
+      npcs_json TEXT NOT NULL DEFAULT '[]',
+      character_ids_json TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_trpg_scenario_templates_creator
+      ON trpg_scenario_templates(creator_id, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_trpg_scenario_templates_public
+      ON trpg_scenario_templates(visibility, updated_at DESC);
+
+    CREATE TABLE IF NOT EXISTS trpg_creator_earnings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      round_id INTEGER NOT NULL,
+      campaign_id INTEGER NOT NULL,
+      consumer_user_id INTEGER NOT NULL,
+      creator_id INTEGER NOT NULL,
+      role TEXT NOT NULL,
+      character_id INTEGER,
+      points_spent INTEGER NOT NULL,
+      reward_amount REAL NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(round_id, consumer_user_id, creator_id, role)
+    );
+    CREATE INDEX IF NOT EXISTS idx_trpg_creator_earnings_round
+      ON trpg_creator_earnings(round_id, consumer_user_id);
+  `);
+}
+
+function tableExists(db: Database.Database, name: string): boolean {
+  const row = db
+    .prepare(`SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name=?`)
+    .get(name) as { ok: number } | undefined;
+  return Boolean(row);
 }

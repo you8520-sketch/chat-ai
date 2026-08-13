@@ -23,11 +23,19 @@ export async function POST(req: Request) {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     assertNoTrpgForkRequest(body);
     const characterIdRaw = Number(body.characterId);
+    const worldIdRaw = Number(body.worldId);
+    const templateIdRaw = Number(body.templateId);
     const characterId = Number.isInteger(characterIdRaw) && characterIdRaw > 0 ? characterIdRaw : null;
+    const worldId = Number.isInteger(worldIdRaw) && worldIdRaw > 0 ? worldIdRaw : null;
+    const templateId = Number.isInteger(templateIdRaw) && templateIdRaw > 0 ? templateIdRaw : null;
+    const title = typeof body.title === "string" ? body.title : null;
     const campaignId = createTrpgCampaign(gate.db, {
       hostUserId: gate.user.id,
       hostNickname: gate.user.nickname,
       characterId,
+      worldId,
+      templateId,
+      title,
       viewerUserId: gate.user.id,
     });
     return NextResponse.json({ ok: true, campaignId });

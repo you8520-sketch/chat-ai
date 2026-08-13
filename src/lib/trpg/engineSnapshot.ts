@@ -289,6 +289,7 @@ export function loadTrpgSnapshot(
     pointPool: scenario.pointPool,
     statDefs: scenario.statDefs,
     diceRules: scenario.diceRules,
+    suggestedPcStats: scenario.defaultPcStats,
     viewerParticipantId: viewer?.id ?? null,
     viewerIsHost: campaign.host_user_id === viewerUserId,
     needsHostFill: work.type === "wait_host_fill",

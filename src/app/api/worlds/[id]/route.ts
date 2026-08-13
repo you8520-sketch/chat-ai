@@ -4,7 +4,9 @@ import { getDb } from "@/lib/db";
 import {
   WORLD_CONTENT_LIMIT,
   WORLD_NAME_LIMIT,
+  WORLD_SELECT_COLUMNS,
   WORLD_SUMMARY_LIMIT,
+  parseWorldTrpgFlags,
   rowToWorldListItem,
   type WorldRow,
 } from "@/lib/worlds";
@@ -14,8 +16,7 @@ type RouteCtx = { params: Promise<{ id: string }> };
 function loadOwnedWorld(db: ReturnType<typeof getDb>, userId: number, id: number): WorldRow | undefined {
   return db
     .prepare(
-      `SELECT id, creator_id, name, summary, content, created_at, updated_at,
-              COALESCE(shared_from_nickname, '') AS shared_from_nickname
+      `SELECT ${WORLD_SELECT_COLUMNS}
        FROM worlds WHERE id = ? AND creator_id = ?`
     )
     .get(id, userId) as WorldRow | undefined;
@@ -52,6 +53,16 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
   const name = b.name != null ? String(b.name).trim().slice(0, WORLD_NAME_LIMIT) : existing.name;
   const summary = b.summary != null ? String(b.summary).trim().slice(0, WORLD_SUMMARY_LIMIT) : existing.summary;
   const content = b.content != null ? String(b.content).trim() : existing.content;
+  const trpgFlags =
+    b.trpgEnabled != null || b.trpgVisibility != null
+      ? parseWorldTrpgFlags({
+          trpgEnabled: b.trpgEnabled ?? existing.trpg_enabled,
+          trpgVisibility: b.trpgVisibility ?? existing.trpg_visibility,
+        })
+      : {
+          trpgEnabled: Number(existing.trpg_enabled ?? 0) === 1 ? 1 : 0,
+          trpgVisibility: existing.trpg_visibility === "public" ? "public" : "private",
+        };
 
   if (!name) return NextResponse.json({ error: "세계관 이름을 입력해 주세요." }, { status: 400 });
   if (!content) return NextResponse.json({ error: "세계관 본문을 입력해 주세요." }, { status: 400 });
@@ -63,8 +74,8 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
   }
 
   db.prepare(
-    `UPDATE worlds SET name = ?, summary = ?, content = ?, updated_at = datetime('now') WHERE id = ? AND creator_id = ?`
-  ).run(name, summary, content, id, user.id);
+    `UPDATE worlds SET name = ?, summary = ?, content = ?, trpg_enabled = ?, trpg_visibility = ?, updated_at = datetime('now') WHERE id = ? AND creator_id = ?`
+  ).run(name, summary, content, trpgFlags.trpgEnabled, trpgFlags.trpgVisibility, id, user.id);
 
   const row = loadOwnedWorld(db, user.id, id)!;
   return NextResponse.json({ ok: true, world: rowToWorldListItem(row) });

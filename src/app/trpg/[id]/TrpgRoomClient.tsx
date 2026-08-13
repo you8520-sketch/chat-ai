@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppSectionCard } from "@/components/AppPageShell";
 import { TRPG_ACTION_TYPES, actionTypeLabelKo, type TrpgActionType } from "@/lib/trpg/actionTypes";
 import { successLabelKo } from "@/lib/trpg/labels";
+import { suggestBotStats } from "@/lib/trpg/stats";
 import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
 import { TRPG_ACTION_MAX_CHARS, TRPG_GM_GROSS_MARGIN } from "@/lib/trpg/types";
 
@@ -50,7 +51,9 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
   const [stats, setStats] = useState<Record<string, number>>(() => {
     const mine = snap.sheets.find((s) => s.isSelf)?.sheet.stats;
     const next: Record<string, number> = {};
-    for (const def of snap.statDefs) next[def.key] = mine?.[def.key] ?? 5;
+    for (const def of snap.statDefs) {
+      next[def.key] = mine?.[def.key] ?? snap.suggestedPcStats?.[def.key] ?? 5;
+    }
     return next;
   });
   const [actionType, setActionType] = useState<TrpgActionType>("free");
@@ -132,11 +135,14 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
     if (!editing) return;
     const next: Record<string, number> = {};
     for (const def of snap.statDefs) {
-      next[def.key] = editingSheet?.sheet.stats[def.key] ?? 5;
+      next[def.key] =
+        editingSheet?.sheet.stats[def.key] ??
+        (editing.kind === "human" ? snap.suggestedPcStats?.[def.key] : undefined) ??
+        5;
     }
     setStats(next);
     if (editing.kind === "human") setName(editingSheet?.sheet.name || editing.displayName);
-  }, [editing, editingSheet, snap.statDefs]);
+  }, [editing, editingSheet, snap.statDefs, snap.suggestedPcStats]);
   const showDice = snap.currentRolls.length > 0 && (generating || Boolean(snap.currentNarration));
   const showNarration = Boolean(snap.currentNarration) && phase !== "ROLLING" && phase !== "GENERATING_NARRATION";
 
@@ -206,7 +212,7 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
             {snap.pointPool}포인트 안에서 배분합니다. HP는 체력×5입니다. 남은 포인트 {remaining}.
             {snap.viewerIsHost
               ? " AI 동료는 방장이 캐릭터성에 맞게 정합니다. 제안값은 이름/소개 키워드일 뿐, 저장해야 시작됩니다."
-              : ""}
+              : " 시나리오에 기본 시트가 있으면 그 값으로 채워집니다."}
           </p>
           {snap.viewerIsHost && snap.participants.length > 1 ? (
             <div className="mb-3 flex flex-wrap gap-1.5">
@@ -273,6 +279,20 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
               className="inline-flex min-h-10 items-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
             >
               시트 저장
+            </button>
+            <button
+              type="button"
+              disabled={busy || !editing}
+              onClick={() =>
+                setStats(
+                  editing?.kind === "ai_character"
+                    ? suggestBotStats(editing.displayName + "\n" + snap.worldBrief)
+                    : snap.suggestedPcStats ?? suggestBotStats(snap.worldBrief)
+                )
+              }
+              className="inline-flex min-h-10 items-center rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-semibold text-zinc-100 hover:bg-white/10 disabled:opacity-50"
+            >
+              자동 배분
             </button>
             {snap.viewerIsHost ? (
               <button

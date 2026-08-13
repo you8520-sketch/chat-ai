@@ -27,6 +27,18 @@ export const TRPG_ALLOW_FORK = false;
 export const TRPG_FORK_FORBIDDEN_MESSAGE =
   "TRPG 캠페인은 분기할 수 없습니다. 한 타임라인만 진행됩니다.";
 
+/** Imported character creators — percent of PAID round spend, after the scenario author tier. */
+export const TRPG_CHARACTER_ROYALTY_RATE = 0.05;
+/** Author tier + character royalties never exceed this share of PAID spend. Character royalties shrink first. */
+export const TRPG_CREATOR_REWARD_CAP_RATE = 0.25;
+
+export const TRPG_VISIBILITIES = ["public", "private"] as const;
+export type TrpgVisibility = (typeof TRPG_VISIBILITIES)[number];
+
+export function parseTrpgVisibility(value: unknown): TrpgVisibility {
+  return value === "public" ? "public" : "private";
+}
+
 export const TRPG_ROUND_PHASES = [
   "CHARACTER_SETUP",
   "WAITING_FOR_PLAYERS",
