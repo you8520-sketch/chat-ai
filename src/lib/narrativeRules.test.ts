@@ -85,7 +85,12 @@ describe("detectRpMetaLeakage", () => {
 
   it("FAILURE — Need length count tail", () => {
     const input = `${koRp}\n\nNeed length count. Need final response.`;
-    assert.equal(detectRpMetaLeakage(input).status, "FAILURE");
+    const result = detectRpMetaLeakage(input);
+    assert.equal(result.status, "FAILURE");
+    assert.ok(
+      (result.leakStartIndex ?? -1) >= 0 &&
+        input.slice(result.leakStartIndex ?? 0).startsWith("Need length")
+    );
   });
 
   it("FAILURE — developer says tail", () => {

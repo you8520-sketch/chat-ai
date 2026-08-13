@@ -2623,6 +2623,9 @@ export default function ChatClient({
 
           if (data.type === "reset") {
             reveal.reset();
+            setStreamPhase(null);
+            setGenerationPrepUi(null);
+            setAssistantContentInstant("");
             softResetPending = true;
             continue;
           }
