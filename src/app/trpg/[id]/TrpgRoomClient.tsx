@@ -160,6 +160,7 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
           마진은 둘 다 {Math.round(TRPG_GM_GROSS_MARGIN * 100)}%이며 실제 토큰을 사람만 균등 분담합니다.
           GM 서술은 1:1 채팅과 같이 3,000자 이상을 목표로 하며 상한은 없습니다.
           캠페인 사실(HP·아이템·퀘스트·플래그)은 DB가 원본이고, 최근 3라운드만 원문으로 넣습니다.
+          채팅처럼 분기할 수 없습니다. 한 타임라인만 앞으로 갑니다.
           방장이 봇 행동을 대신 넣으면 그 라운드 봇 호출은 없습니다.
           {snap.lastBilledPoints != null ? ` 최근 라운드 ${snap.lastBilledPoints}P.` : ""}
         </p>

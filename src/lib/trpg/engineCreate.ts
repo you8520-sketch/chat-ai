@@ -2,6 +2,7 @@ import type Database from "better-sqlite3";
 import { canAccessCharacter, type CharacterAccessRow } from "@/lib/characterVisibility";
 import { TRPG_MAX_SLOTS } from "./types";
 import { deriveMaxHp, suggestBotStats, validateStatAllocation } from "./stats";
+import { rejectTrpgFork } from "./timeline";
 import {
   insertCampaign,
   insertParticipant,
@@ -67,8 +68,11 @@ export function createTrpgCampaign(
     hostNickname: string;
     characterId?: number | null;
     viewerUserId: number;
+    parentCampaignId?: number | null;
+    forkFromRound?: number | null;
   }
 ): number {
+  if (opts.parentCampaignId || opts.forkFromRound) rejectTrpgFork();
   let title = "TRPG 캠페인";
   let worldBrief = "";
   let sourceCharacterId: number | null = null;
