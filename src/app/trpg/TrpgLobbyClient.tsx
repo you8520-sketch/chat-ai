@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { AppSectionCard } from "@/components/AppPageShell";
 import PersonaSelector from "@/components/PersonaSelector";
 import TrpgInviteLink from "./TrpgInviteLink";
+import TrpgCampaignTitle from "./TrpgCampaignTitle";
 import type { TrpgCatalog, TrpgCatalogWorld } from "@/lib/trpg/catalog";
 import { parseTrpgInviteInput } from "@/lib/trpg/invite";
 import { TRPG_SCENARIO_MAX_BOTS, type TrpgScenarioTemplate } from "@/lib/trpg/scenarioTypes";
@@ -28,7 +29,7 @@ export default function TrpgLobbyClient({
   initialPersonaId: number | null;
 }) {
   const router = useRouter();
-  const [campaigns] = useState(initialCampaigns);
+  const [campaigns, setCampaigns] = useState(initialCampaigns);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -96,6 +97,22 @@ export default function TrpgLobbyClient({
       router.push(`/trpg/${data.campaignId}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "실패했습니다.");
+      setBusy(false);
+    }
+  }
+
+  async function deleteCampaign(id: number) {
+    if (!window.confirm("이 캠페인을 삭제할까요? 초안이든 진행 중이든 복구할 수 없습니다.")) return;
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/trpg/campaigns/${id}`, { method: "DELETE" });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(data.error || "삭제하지 못했습니다.");
+      setCampaigns((prev) => prev.filter((c) => c.id !== id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "삭제하지 못했습니다.");
+    } finally {
       setBusy(false);
     }
   }
@@ -276,17 +293,42 @@ export default function TrpgLobbyClient({
 
       <AppSectionCard title="내 캠페인">
         {campaigns.length === 0 ? (
-          <p className="text-sm text-zinc-500">아직 없습니다.</p>
+          <p className="text-sm text-zinc-500">시작한 캠페인이 없습니다. 초안은 여기에 올리지 않습니다.</p>
         ) : (
           <ul className="space-y-3">
             {campaigns.map((c) => (
               <li key={c.id} className="space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                <Link href={`/trpg/${c.id}`} className="flex items-center justify-between text-sm transition hover:text-violet-200">
-                  <span className="font-medium text-zinc-100">{c.title}</span>
-                  <span className="text-xs text-zinc-500">
-                    {c.round.number}라운드 · {c.round.phase === "NONE" ? c.campaignStatus : c.round.phase}
-                  </span>
-                </Link>
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1 space-y-1">
+                    {c.viewerIsHost ? (
+                      <TrpgCampaignTitle
+                        campaignId={c.id}
+                        title={c.title}
+                        canEdit
+                        onSaved={(title) =>
+                          setCampaigns((prev) => prev.map((row) => (row.id === c.id ? { ...row, title } : row)))
+                        }
+                      />
+                    ) : (
+                      <Link href={`/trpg/${c.id}`} className="block truncate text-sm font-medium text-zinc-100 hover:text-violet-200">
+                        {c.title}
+                      </Link>
+                    )}
+                    <Link href={`/trpg/${c.id}`} className="text-xs text-zinc-500 hover:text-violet-200">
+                      {c.round.number}라운드 · {c.round.phase === "NONE" ? c.campaignStatus : c.round.phase} · 열기
+                    </Link>
+                  </div>
+                  {c.viewerIsHost ? (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => void deleteCampaign(c.id)}
+                      className="shrink-0 rounded-lg border border-rose-500/30 px-3 py-1.5 text-xs font-semibold text-rose-200 hover:bg-rose-500/10 disabled:opacity-50"
+                    >
+                      삭제
+                    </button>
+                  ) : null}
+                </div>
                 {c.inviteCode ? (
                   <TrpgInviteLink code={c.inviteCode} canJoin={canJoinStatus(c.campaignStatus)} />
                 ) : null}

@@ -104,3 +104,9 @@ export type TrpgCampaignSnapshot = {
   botGrossMargin: number;
   partyChat: TrpgPartyChatMessage[];
 };
+
+export function isListedTrpgCampaign(snap: TrpgCampaignSnapshot): boolean {
+  if (snap.round.number > 0) return true;
+  if (snap.round.phase !== "NONE") return true;
+  return snap.participants.filter((p) => p.kind === "human").length > 1;
+}

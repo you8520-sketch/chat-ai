@@ -15,12 +15,13 @@ import {
   parseJson,
   type TrpgParticipantRow,
 } from "./store";
-import type {
-  TrpgCampaignSnapshot,
-  TrpgPublicLog,
-  TrpgPublicParticipant,
-  TrpgPublicRoll,
-  TrpgReadyState,
+import {
+  isListedTrpgCampaign,
+  type TrpgCampaignSnapshot,
+  type TrpgPublicLog,
+  type TrpgPublicParticipant,
+  type TrpgPublicRoll,
+  type TrpgReadyState,
 } from "./snapshot";
 import {
   DEFAULT_TRPG_BILLING_MODE,
@@ -168,7 +169,7 @@ export function listTrpgCampaigns(db: Database.Database, userId: number): TrpgCa
     .all(userId) as Array<{ id: number }>;
   return rows
     .map((row) => loadTrpgSnapshot(db, row.id, userId, { includePartyChat: false }))
-    .filter((s): s is TrpgCampaignSnapshot => Boolean(s));
+    .filter((s): s is TrpgCampaignSnapshot => s != null && isListedTrpgCampaign(s));
 }
 
 export function loadTrpgSnapshot(

@@ -3,8 +3,9 @@ import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { canUseWorldForTrpg, loadTrpgCatalog } from "./catalog";
 import { EVEN_STATS, addTrpgCompanions, createTrpgCampaign, joinTrpgCampaign, saveTrpgSheet } from "./engineCreate";
+import { deleteTrpgCampaign, renameTrpgCampaign } from "./engineDelete";
 import { advanceTrpgCampaign, startTrpgCampaign, submitTrpgAction, type TrpgEngineDeps } from "./engineAdvance";
-import { loadTrpgSnapshot } from "./engineSnapshot";
+import { listTrpgCampaigns, loadTrpgSnapshot } from "./engineSnapshot";
 import { parseHumanPersona } from "./hostPersona";
 import { trpgInvitePath } from "./invite";
 import { insertScenarioTemplate } from "./scenarioTemplates";
@@ -324,6 +325,42 @@ describe("TRPG scenarios and catalog", () => {
     });
     addTrpgCompanions(db, { campaignId: extraId, userId: 1, characterIds: [2, 3] });
     assert.equal(loadParticipants(db, extraId).filter((p) => p.kind === "ai_character").length, 3);
+    db.close();
+  });
+
+  it("hides unstarted solo drafts from the lobby list and lets the host rename or delete", () => {
+    const db = memoryDb();
+    const draftId = createTrpgCampaign(db, {
+      hostUserId: 1,
+      hostNickname: "렌",
+      viewerUserId: 1,
+    });
+    assert.equal(listTrpgCampaigns(db, 1).length, 0);
+    const listedId = createTrpgCampaign(db, {
+      hostUserId: 1,
+      hostNickname: "렌",
+      viewerUserId: 1,
+      title: "초안 제목",
+    });
+    const listed = loadCampaign(db, listedId)!;
+    joinTrpgCampaign(db, { code: listed.invite_code!, userId: 2, nickname: "게스트" });
+    const lobby = listTrpgCampaigns(db, 1);
+    assert.equal(lobby.length, 1);
+    assert.equal(lobby[0]?.id, listedId);
+    assert.equal(renameTrpgCampaign(db, { campaignId: listedId, userId: 1, title: " 회색 생태권  " }), "회색 생태권");
+    assert.equal(loadCampaign(db, listedId)?.title, "회색 생태권");
+    assert.throws(
+      () => renameTrpgCampaign(db, { campaignId: listedId, userId: 2, title: "해킹" }),
+      /방장만 제목/
+    );
+    deleteTrpgCampaign(db, { campaignId: draftId, userId: 1 });
+    assert.equal(loadCampaign(db, draftId), null);
+    assert.throws(
+      () => deleteTrpgCampaign(db, { campaignId: listedId, userId: 2 }),
+      /방장만 캠페인/
+    );
+    deleteTrpgCampaign(db, { campaignId: listedId, userId: 1 });
+    assert.equal(listTrpgCampaigns(db, 1).length, 0);
     db.close();
   });
 });
