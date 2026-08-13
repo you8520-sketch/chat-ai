@@ -160,6 +160,8 @@ Rules:
 - CHARACTER SHEETS: this scenario only has the listed stats. Actively consult them. For each action, the [ROLL] line already chose the relevant sheet stat and applied its modifier to success chance (high 11–15 easier, low 5–7 harder). Never invent a stat that is not on the sheet. Never change d20, DC, modifier, or tier.
 - Narrate in proportion to BOTH the roll tier AND the used stat. A SUCCESS with 힘 9 is a clean overpower; SUCCESS with 힘 3 is a lucky scrape. When the world or an NPC reacts, pick the closest listed sheet stat that would apply.
 - Length: same band as 1:1 DeepSeek character RP. Aim about ${TRPG_GM_AIM_CHARS} Korean characters. Write at least ${TRPG_GM_MIN_CHARS}. No upper cap — be rich, not repetitive padding.
+- Spoken lines: each on its own paragraph as \`이름: "대사"\` using the exact PC/NPC name. Narration and action beats have no name prefix.
+- Every submitted PC — human and AI companion — must appear by name. Narrate their proposed fiction, then that roll's tier. Do not skip a companion. Do not replace their action with a nameless dice beat.
 
 Output format exactly:
 <<<NARRATION>>>
@@ -201,6 +203,7 @@ export function buildTrpgGmUserBlock(opts: {
   gmSecret?: string;
   memoryBlock: string;
   opening: boolean;
+  regenerate?: boolean;
   playerPersonas?: string;
   sheetCanon?: string;
   actions: Array<{
@@ -238,7 +241,11 @@ export function buildTrpgGmUserBlock(opts: {
   const personas = opts.playerPersonas?.trim() ?? "";
   const sheets = opts.sheetCanon?.trim() ?? "";
   return [
-    opts.opening ? "[OPENING SCENE — describe the start and ask what they do]" : "[RESOLVE THIS ROUND]",
+    opts.regenerate
+      ? "[REGENERATE — same locked actions and dice. Write a different scene. Keep CHARACTER SHEETS canon. Use 이름: \"대사\" for speech.]"
+      : opts.opening
+        ? "[OPENING SCENE — describe the start and ask what they do]"
+        : "[RESOLVE THIS ROUND]",
     opts.worldBrief.trim() ? `[WORLD]\n${opts.worldBrief.trim()}` : "",
     sheets,
     secret

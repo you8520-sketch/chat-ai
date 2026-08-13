@@ -6,6 +6,8 @@ export type TrpgBotActionContext = {
   description: string;
   greeting: string;
   systemPrompt: string;
+  exampleDialog?: string;
+  world?: string;
   previousGmNarration: string;
   campaignMemory: string;
   humanActions: Array<{ playerName: string; text: string }>;
@@ -33,6 +35,8 @@ export function buildTrpgBotActionUserBlock(ctx: TrpgBotActionContext): string {
     `[NAME]\n${ctx.characterName}`,
     ctx.description.trim() ? `[DESCRIPTION]\n${ctx.description.trim()}` : "",
     ctx.greeting.trim() ? `[GREETING / VOICE SAMPLE]\n${ctx.greeting.trim()}` : "",
+    ctx.exampleDialog?.trim() ? `[EXAMPLE DIALOG]\n${ctx.exampleDialog.trim()}` : "",
+    ctx.world?.trim() ? `[WORLD / SETTING]\n${ctx.world.trim()}` : "",
     ctx.systemPrompt.trim() ? `[CHARACTER CARD]\n${ctx.systemPrompt.trim()}` : "",
   ]
     .filter(Boolean)

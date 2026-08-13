@@ -21,7 +21,7 @@ import { buildTrpgGmUserBlock, formatTrpgSheetCanon, parseTrpgGmOutput, TRPG_GM_
 import { loadTrpgSnapshot } from "./engineSnapshot";
 import { buildCampaignMemoryPrompt, buildTrpgBotMemoryBlock } from "./memory";
 import { sealDroppedTrpgRounds, type TrpgMemoryCall } from "./memorySeal";
-import { nextTrpgRoundWork, tryAcquireGmLock, tryBeginGmGeneration, type TrpgActorReady } from "./roundLock";
+import { nextTrpgRoundWork, tryAcquireGmLock, tryBeginGmGeneration, tryBeginNarrationReroll, type TrpgActorReady } from "./roundLock";
 import { applyValidatedStateDelta } from "./sheetView";
 import { loadSheetSnapshots, persistSheets } from "./engineSheets";
 import { statModifier } from "./stats";
@@ -37,7 +37,7 @@ import {
   type TrpgParticipantRow,
   type TrpgRoundRow,
 } from "./store";
-import { TRPG_ACTION_MAX_CHARS, TRPG_BOT_SCENE_MAX_CHARS, type TrpgActionSource, type TrpgBillingMode, type TrpgRoundPhase } from "./types";
+import { TRPG_ACTION_MAX_CHARS, TRPG_BOT_CARD_FIELD_MAX_CHARS, TRPG_BOT_CARD_PROMPT_MAX_CHARS, TRPG_BOT_SCENE_MAX_CHARS, type TrpgActionSource, type TrpgBillingMode, type TrpgRoundPhase } from "./types";
 import { isTrpgRoundPhase } from "./types";
 import type { TrpgCampaignSnapshot } from "./snapshot";
 
@@ -104,6 +104,77 @@ export async function startTrpgCampaign(
       JSON.stringify({ error: (e as Error).message }),
       roundId
     );
+    throw e;
+  }
+  return mustSnapshot(db, opts.campaignId, opts.userId);
+}
+
+export async function regenerateTrpgNarration(
+  db: Database.Database,
+  opts: { campaignId: number; userId: number; roundNumber?: number; deps?: TrpgEngineDeps }
+): Promise<TrpgCampaignSnapshot> {
+  const campaign = loadCampaign(db, opts.campaignId);
+  if (!campaign) throw new Error("캠페인을 찾을 수 없습니다.");
+  if (campaign.host_user_id !== opts.userId) {
+    throw new Error("방장만 장면을 리롤할 수 있습니다.");
+  }
+  if (campaign.status === "CAMPAIGN_COMPLETE") {
+    throw new Error("끝난 캠페인은 리롤할 수 없습니다.");
+  }
+  const target = db
+    .prepare(
+      `SELECT r.id, r.round_number, r.phase
+       FROM trpg_rounds r
+       JOIN trpg_gm_messages g ON g.round_id = r.id
+       WHERE r.campaign_id=? AND (? IS NULL OR r.round_number=?)
+       ORDER BY r.round_number DESC
+       LIMIT 1`
+    )
+    .get(opts.campaignId, opts.roundNumber ?? null, opts.roundNumber ?? null) as
+    | { id: number; round_number: number; phase: string }
+    | undefined;
+  if (!target) throw new Error("리롤할 장면이 없습니다.");
+  const laterLocked = db
+    .prepare(
+      `SELECT 1
+       FROM trpg_action_submissions s
+       JOIN trpg_rounds r ON r.id = s.round_id
+       WHERE r.campaign_id=? AND r.round_number > ? AND s.locked=1
+       LIMIT 1`
+    )
+    .get(opts.campaignId, target.round_number) as { 1: number } | undefined;
+  if (laterLocked) {
+    throw new Error("다음 행동이 이미 제출되어 장면을 리롤할 수 없습니다.");
+  }
+  const rid = newRequestId();
+  if (!tryBeginNarrationReroll(db, target.id, rid)) {
+    throw new Error("이미 장면을 다시 쓰고 있습니다.");
+  }
+  const usageBefore = loadRoundUsage(db, target.id).length;
+  try {
+    await runGmForRound(db, {
+      campaignId: campaign.id,
+      roundId: target.id,
+      opening: target.round_number === 0,
+      regenerate: true,
+      deps: opts.deps,
+    });
+    const extra = loadRoundUsage(db, target.id).slice(usageBefore);
+    chargeTrpgCalls(db, campaign, target.id, extra, {
+      addToBilled: true,
+      skip: opts.deps?.skipBilling === true,
+    });
+    db.prepare(
+      `UPDATE trpg_rounds
+       SET phase='ROUND_COMPLETE', lock_holder_request_id=NULL, gm_generation_id=NULL, updated_at=datetime('now')
+       WHERE id=?`
+    ).run(target.id);
+  } catch (e) {
+    db.prepare(
+      `UPDATE trpg_rounds
+       SET phase='ROUND_COMPLETE', lock_holder_request_id=NULL, gm_generation_id=NULL, error_json=?, updated_at=datetime('now')
+       WHERE id=?`
+    ).run(JSON.stringify({ error: (e as Error).message }), target.id);
     throw e;
   }
   return mustSnapshot(db, opts.campaignId, opts.userId);
@@ -326,26 +397,47 @@ async function generateBotActions(
     let description = "";
     let greeting = "";
     let systemPrompt = "";
+    let exampleDialog = "";
+    let world = "";
     if (bot.character_id) {
-      const ch = db
-        .prepare(`SELECT system_prompt, description, greeting FROM characters WHERE id=?`)
-        .get(bot.character_id) as
-        | { system_prompt: string | null; description: string | null; greeting: string | null }
-        | undefined;
-      description = ch?.description?.trim() || "";
-      greeting = ch?.greeting?.trim() || "";
-      systemPrompt = ch?.system_prompt?.trim() || "";
+      try {
+        const ch = db
+          .prepare(
+            `SELECT system_prompt, description, greeting, example_dialog, world FROM characters WHERE id=?`
+          )
+          .get(bot.character_id) as
+          | {
+              system_prompt: string | null;
+              description: string | null;
+              greeting: string | null;
+              example_dialog: string | null;
+              world: string | null;
+            }
+          | undefined;
+        description = clipTrpgChars(ch?.description ?? "", TRPG_BOT_CARD_FIELD_MAX_CHARS);
+        greeting = clipTrpgChars(ch?.greeting ?? "", TRPG_BOT_CARD_FIELD_MAX_CHARS);
+        exampleDialog = clipTrpgChars(ch?.example_dialog ?? "", TRPG_BOT_CARD_FIELD_MAX_CHARS);
+        world = clipTrpgChars(ch?.world ?? "", TRPG_BOT_CARD_FIELD_MAX_CHARS);
+        systemPrompt = clipTrpgChars(ch?.system_prompt ?? "", TRPG_BOT_CARD_PROMPT_MAX_CHARS);
+      } catch {
+        const persona = parseBotPersona(bot.persona_json);
+        description = clipTrpgChars(persona?.description ?? "", TRPG_BOT_CARD_FIELD_MAX_CHARS);
+        greeting = clipTrpgChars(persona?.greeting ?? "", TRPG_BOT_CARD_FIELD_MAX_CHARS);
+        systemPrompt = clipTrpgChars(persona?.systemPrompt ?? "", TRPG_BOT_CARD_PROMPT_MAX_CHARS);
+      }
     } else {
       const persona = parseBotPersona(bot.persona_json);
-      description = persona?.description.trim() || "";
-      greeting = persona?.greeting.trim() || "";
-      systemPrompt = persona?.systemPrompt.trim() || "";
+      description = clipTrpgChars(persona?.description ?? "", TRPG_BOT_CARD_FIELD_MAX_CHARS);
+      greeting = clipTrpgChars(persona?.greeting ?? "", TRPG_BOT_CARD_FIELD_MAX_CHARS);
+      systemPrompt = clipTrpgChars(persona?.systemPrompt ?? "", TRPG_BOT_CARD_PROMPT_MAX_CHARS);
     }
     const user = buildTrpgBotActionUserBlock({
       characterName: bot.display_name,
       description,
       greeting,
       systemPrompt,
+      exampleDialog,
+      world,
       previousGmNarration: clipTrpgChars(prev, TRPG_BOT_SCENE_MAX_CHARS),
       campaignMemory: buildTrpgBotMemoryBlock({
         ledger: loadCampaignLedger(db, opts.campaign.id),
@@ -452,6 +544,7 @@ async function runGmForRound(
     campaignId: number;
     roundId: number;
     opening: boolean;
+    regenerate?: boolean;
     deps?: TrpgEngineDeps;
   }
 ): Promise<{ campaignFinished: boolean }> {
@@ -478,6 +571,7 @@ async function runGmForRound(
     gmSecret: campaign.gm_secret ?? "",
     memoryBlock: memory,
     opening: opts.opening,
+    regenerate: opts.regenerate === true,
     playerPersonas,
     sheetCanon,
     actions,
@@ -503,6 +597,7 @@ async function runGmForRound(
       `INSERT INTO trpg_gm_messages (round_id, narration, structured_json) VALUES (?,?,?)
        ON CONFLICT(round_id) DO UPDATE SET narration=excluded.narration, structured_json=excluded.structured_json`
     ).run(opts.roundId, parsed.narration, JSON.stringify(parsed));
+    if (opts.regenerate) return;
     if (applied.ok) {
       persistSheets(db, nextSheets);
       db.prepare(
@@ -572,17 +667,38 @@ function maybeBillRound(
     billed: number;
   };
   if (row.billed === 1) return;
-  if (skip) {
-    db.prepare(`UPDATE trpg_rounds SET billed=1, billed_points=0 WHERE id=?`).run(roundId);
+  const calls = loadRoundUsage(db, roundId);
+  chargeTrpgCalls(db, campaign, roundId, calls.length ? calls : [TRPG_GM_USAGE_FALLBACK], {
+    addToBilled: false,
+    skip,
+  });
+}
+
+function chargeTrpgCalls(
+  db: Database.Database,
+  campaign: TrpgCampaignRow,
+  roundId: number,
+  calls: TrpgModelUsage[],
+  opts: { addToBilled: boolean; skip: boolean }
+): void {
+  if (opts.skip) {
+    if (!opts.addToBilled) {
+      db.prepare(`UPDATE trpg_rounds SET billed=1, billed_points=0 WHERE id=?`).run(roundId);
+    }
     return;
   }
-  const calls = loadRoundUsage(db, roundId);
-  const totalPoints = computeTrpgRoundPoints(calls.length ? calls : [TRPG_GM_USAGE_FALLBACK]);
+  const addPoints = computeTrpgRoundPoints(calls);
+  if (addPoints <= 0) {
+    if (!opts.addToBilled) {
+      db.prepare(`UPDATE trpg_rounds SET billed=1, billed_points=0 WHERE id=?`).run(roundId);
+    }
+    return;
+  }
   const humans = loadParticipants(db, campaign.id)
     .filter((p) => p.kind === "human" && p.user_id)
     .map((p) => p.user_id!);
   const shares = splitTrpgRoundCost({
-    totalPoints,
+    totalPoints: addPoints,
     humanUserIds: humans,
     hostUserId: campaign.host_user_id,
     mode: campaign.billing_mode as TrpgBillingMode,
@@ -609,7 +725,15 @@ function maybeBillRound(
       characterCreators: loadTrpgCharacterRoyaltyTargets(db, campaign.id),
     });
   }
-  db.prepare(`UPDATE trpg_rounds SET billed=1, billed_points=? WHERE id=?`).run(totalPoints, roundId);
+  if (opts.addToBilled) {
+    db.prepare(
+      `UPDATE trpg_rounds
+       SET billed=1, billed_points=COALESCE(billed_points,0)+?
+       WHERE id=?`
+    ).run(addPoints, roundId);
+    return;
+  }
+  db.prepare(`UPDATE trpg_rounds SET billed=1, billed_points=? WHERE id=?`).run(addPoints, roundId);
 }
 
 function loadActionsForGm(

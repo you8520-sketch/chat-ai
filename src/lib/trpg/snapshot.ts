@@ -43,13 +43,27 @@ export type TrpgPublicRoll = {
   dc: number;
   tier: TrpgSuccessTier;
   success: boolean;
+  actionBody: string;
+  actionType: TrpgActionType | null;
+  kind: TrpgParticipantKind;
+};
+
+export type TrpgPublicAction = {
+  participantId: number;
+  name: string;
+  body: string;
+  revealed: boolean;
+  kind: TrpgParticipantKind;
+  actionType: TrpgActionType | null;
 };
 
 export type TrpgPublicLog = {
   roundNumber: number;
   rolls: TrpgPublicRoll[];
   narration: string | null;
-  actions: Array<{ participantId: number; name: string; body: string; revealed: boolean }>;
+  actions: TrpgPublicAction[];
+  billedPoints: number | null;
+  viewerSharePoints: number | null;
 };
 
 export type TrpgPartyChatMessage = {
@@ -103,6 +117,9 @@ export type TrpgCampaignSnapshot = {
   gmGrossMargin: number;
   botGrossMargin: number;
   partyChat: TrpgPartyChatMessage[];
+  /** Latest GM scene the host may reroll, or null. */
+  canRerollRoundNumber: number | null;
+  narrationRerolling: boolean;
 };
 
 export function isListedTrpgCampaign(snap: TrpgCampaignSnapshot): boolean {

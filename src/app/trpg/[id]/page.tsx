@@ -19,7 +19,7 @@ export default async function TrpgRoomPage({ params }: { params: Promise<{ id: s
   const personas = ensureDefaultPublicPersona(user.id, user.nickname);
 
   return (
-    <div className="mx-auto max-w-3xl pb-16">
+    <div className="w-full min-w-0 flex-1">
       <TrpgRoomClient initial={campaign} personas={personas} />
     </div>
   );
