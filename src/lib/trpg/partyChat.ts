@@ -53,6 +53,9 @@ export function postTrpgPartyChat(
   if (!participant) throw new Error("이 캠페인의 참가자가 아닙니다.");
   const body = opts.body.replace(/\s+/g, " ").trim().slice(0, TRPG_PARTY_CHAT_MAX_CHARS);
   if (!body) throw new Error("메시지를 입력해 주세요.");
+  if (campaign.status === "CHARACTER_SETUP" || campaign.status === "WAITING_FOR_PLAYERS") {
+    throw new Error("캠페인이 시작된 뒤에 파티 대화를 쓸 수 있습니다.");
+  }
   db.prepare(
     `INSERT INTO trpg_party_messages (campaign_id, participant_id, user_id, body)
      VALUES (?,?,?,?)`
