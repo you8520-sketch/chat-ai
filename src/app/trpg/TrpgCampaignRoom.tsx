@@ -23,7 +23,7 @@ import type { TrpgStatDefinition } from "@/lib/trpg/types";
 import { TRPG_ACTION_MAX_CHARS } from "@/lib/trpg/types";
 import TrpgCampaignTitle from "./TrpgCampaignTitle";
 import TrpgCampaignRail from "./TrpgCampaignRail";
-import TrpgNamedProse from "./TrpgNamedProse";
+import TrpgNamedProse, { TrpgGmTalk } from "./TrpgNamedProse";
 import TrpgSceneToolbar from "./TrpgSceneToolbar";
 
 function imageCharacterId(snap: TrpgCampaignSnapshot): number | null {
@@ -516,15 +516,19 @@ function SceneTurn({
           );
         })}
         {row.rolls.length > 0 ? <DiceStrip rolls={row.rolls} statDefs={statDefs} /> : null}
-        {beats.map((beat, i) => (
-          <TrpgNamedProse
-            key={`${row.roundNumber}-gm-${i}`}
-            name={beat.speaker}
-            text={beat.text}
-            variant="character"
-            display={display}
-          />
-        ))}
+        {beats.map((beat, i) =>
+          beat.speaker === "GM" ? (
+            <TrpgGmTalk key={`${row.roundNumber}-gm-${i}`} text={beat.text} />
+          ) : (
+            <TrpgNamedProse
+              key={`${row.roundNumber}-gm-${i}`}
+              name={beat.speaker}
+              text={beat.text}
+              variant="character"
+              display={display}
+            />
+          )
+        )}
       </div>
       {showToolbar ? (
         <TrpgSceneToolbar

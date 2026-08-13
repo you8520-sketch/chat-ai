@@ -10,6 +10,30 @@ const quoteSelectStyle = {
   WebkitTouchCallout: "default" as const,
 };
 
+export function TrpgGmTalk({ text }: { text: string }) {
+  const body = text.trim();
+  if (!body) return null;
+  return (
+    <div
+      className="select-text [touch-action:pan-y] [-webkit-user-select:text]"
+      data-quote-assistant
+      style={quoteSelectStyle}
+    >
+      <p
+        className="whitespace-pre-wrap leading-relaxed"
+        style={{
+          fontSize: "var(--font-size-chat)",
+          lineHeight: "var(--line-height-chat)",
+          letterSpacing: "0.01em",
+        }}
+      >
+        <span className="not-italic font-bold text-sky-300">GM:</span>{" "}
+        <span className="italic font-semibold text-sky-100/85">{body}</span>
+      </p>
+    </div>
+  );
+}
+
 export default function TrpgNamedProse({
   name,
   hint,
