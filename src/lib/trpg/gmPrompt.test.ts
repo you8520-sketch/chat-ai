@@ -1,0 +1,42 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import { buildTrpgGmUserBlock, parseTrpgGmOutput, TRPG_GM_SYSTEM } from "./gmPrompt";
+
+describe("TRPG GM prompt/parse", () => {
+  it("parses narration and a player delta", () => {
+    const parsed = parseTrpgGmOutput(`<<<NARRATION>>>
+등불이 흔들린다.
+<<<DELTA>>>
+{"players":[{"participantId":4,"hp":18,"conditions":["먼지"],"inventoryAdd":["열쇠"],"inventoryRemove":[],"location":"복도"}],"location":"복도","campaign_finished":false}`);
+    assert.match(parsed.narration, /등불이 흔들린다/);
+    assert.equal(parsed.delta.players[0]?.participantId, 4);
+    assert.equal(parsed.delta.players[0]?.hp, 18);
+    assert.deepEqual(parsed.delta.players[0]?.inventoryAdd, ["열쇠"]);
+    assert.equal(parsed.location, "복도");
+    assert.equal(parsed.campaignFinished, false);
+  });
+
+  it("does not mention OOC or party chat", () => {
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /OOC|party chat|잡담/i);
+    const block = buildTrpgGmUserBlock({
+      worldBrief: "폐여관",
+      memoryBlock: "[TRPG STRUCTURED STATE]",
+      opening: false,
+      actions: [
+        {
+          participantId: 1,
+          name: "렌",
+          body: "문을 민다.",
+          statKey: "str",
+          d20: 14,
+          finalScore: 14,
+          dc: 12,
+          tier: "SUCCESS",
+        },
+      ],
+    });
+    assert.doesNotMatch(block, /OOC|PARTY CHAT/i);
+    assert.match(block, /PROPOSED FICTION/);
+    assert.match(block, /d20=14/);
+  });
+});

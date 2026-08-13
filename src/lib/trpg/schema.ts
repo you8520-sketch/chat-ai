@@ -160,4 +160,19 @@ export function ensureTrpgTables(db: Database.Database): void {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
   `);
+
+  const addColumn = (table: string, col: string, def: string) => {
+    const cols = db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[];
+    if (!cols.some((c) => c.name === col)) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
+    }
+  };
+  addColumn("trpg_campaigns", "invite_code", "TEXT");
+  addColumn("trpg_campaigns", "world_brief", "TEXT NOT NULL DEFAULT ''");
+  addColumn("trpg_rounds", "billed", "INTEGER NOT NULL DEFAULT 0");
+  addColumn("trpg_rounds", "error_json", "TEXT");
+  db.exec(
+    `CREATE UNIQUE INDEX IF NOT EXISTS idx_trpg_campaigns_invite
+     ON trpg_campaigns(invite_code) WHERE invite_code IS NOT NULL AND invite_code != ''`
+  );
 }

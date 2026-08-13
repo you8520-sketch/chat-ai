@@ -43,6 +43,7 @@ import { userHasReportedComment } from "@/lib/commentReports";
 import { ensureDefaultPersona } from "@/lib/userPersonas";
 import { isActivePartnerCreator } from "@/lib/partnerTier";
 import { recordCharacterClick } from "@/lib/characterClicks";
+import { canAccessTrpg } from "@/lib/trpg/access";
 
 export const dynamic = "force-dynamic";
 
@@ -308,6 +309,7 @@ export default async function CharacterPage({
           branches={characterBranches}
           personas={personaList}
           initialPersonaId={defaultPersonaId}
+          trpgHref={canAccessTrpg(user) ? `/trpg?characterId=${c.id}` : null}
         />
 
         <LikeFollowButtons characterId={c.id} liked={liked} followed={followed} loggedIn={!!user} />

@@ -5,6 +5,8 @@ export const TRPG_MAX_SLOTS = 4;
 export const TRPG_MIN_SLOTS = 1;
 export const TRPG_MEMORY_SEAL_ROUNDS = 4;
 export const TRPG_RECENT_ROUND_RAW = 3;
+export const TRPG_ROUND_POINT_COST = 80;
+export const TRPG_ACTION_MAX_CHARS = 800;
 
 export const TRPG_ROUND_PHASES = [
   "CHARACTER_SETUP",

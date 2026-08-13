@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import PersonaSelector from "@/components/PersonaSelector";
@@ -19,6 +20,7 @@ type Props = {
   /** Chat-intro iframe: always start a fresh chat and navigate the top window. */
   embedMode?: boolean;
   startLabel?: string;
+  trpgHref?: string | null;
 };
 
 export default function CharacterStartRow({
@@ -30,6 +32,7 @@ export default function CharacterStartRow({
   initialPersonaId,
   embedMode = false,
   startLabel,
+  trpgHref = null,
 }: Props) {
   const [personas, setPersonas] = useState(initialPersonas);
   const [selectedPersonaId, setSelectedPersonaId] = useState<number | null>(initialPersonaId);
@@ -111,6 +114,11 @@ export default function CharacterStartRow({
         alwaysNewChat={embedMode}
         openInTop={embedMode}
       />
+      {trpgHref ? (
+        <Link href={trpgHref} className={actionBtn}>
+          TRPG로 시작
+        </Link>
+      ) : null}
       {loggedIn && personas.length > 0 && (
         <PersonaSelector
           chatId={null}
