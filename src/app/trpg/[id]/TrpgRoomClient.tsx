@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import TrpgInviteLink from "../TrpgInviteLink";
+import TrpgCampaignTitle from "../TrpgCampaignTitle";
 import { AppSectionCard } from "@/components/AppPageShell";
 import { TRPG_ACTION_TYPES, actionTypeLabelKo, type TrpgActionType } from "@/lib/trpg/actionTypes";
 import { successLabelKo } from "@/lib/trpg/labels";
@@ -43,6 +46,7 @@ function readyLabel(ready: TrpgCampaignSnapshot["participants"][number]["ready"]
 }
 
 export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnapshot }) {
+  const router = useRouter();
   const [snap, setSnap] = useState(initial);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -123,6 +127,21 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
     }
   }
 
+  async function deleteCampaign() {
+    if (!window.confirm("이 캠페인을 삭제할까요? 복구할 수 없습니다.")) return;
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/trpg/campaigns/${snap.id}`, { method: "DELETE" });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) throw new Error(data.error || "삭제하지 못했습니다.");
+      router.push("/trpg");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "삭제하지 못했습니다.");
+      setBusy(false);
+    }
+  }
+
   async function sendParty() {
     const text = partyBody.trim();
     if (!text) return;
@@ -179,10 +198,28 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
     <div className="space-y-4 pt-6">
       <header className="space-y-1">
         <p className="text-xs font-medium uppercase tracking-wide text-violet-300/80">TRPG</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-50">{snap.title}</h1>
+        {snap.viewerIsHost ? (
+          <TrpgCampaignTitle
+            campaignId={snap.id}
+            title={snap.title}
+            canEdit
+            onSaved={(title) => setSnap((prev) => ({ ...prev, title }))}
+            inputClassName="min-h-12 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-2xl font-semibold tracking-tight text-zinc-50 outline-none focus:border-violet-400/40"
+          />
+        ) : (
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-50">{snap.title}</h1>
+        )}
         <p className="text-sm text-zinc-500">
-          라운드 {snap.round.number} · {phase === "NONE" ? snap.campaignStatus : phase}
+          <Link href="/trpg" className="text-violet-300 hover:text-violet-200">
+            로비
+          </Link>
+          {" · "}라운드 {snap.round.number} · {phase === "NONE" ? snap.campaignStatus : phase}
         </p>
+        {setup && snap.viewerIsHost && snap.participants.filter((p) => p.kind === "human").length <= 1 ? (
+          <p className="text-xs text-zinc-500">
+            「캠페인 시작」을 누르지 않고 로비로 나가면 이 초안은 삭제됩니다. 다른 사람이 들어오면 유지됩니다.
+          </p>
+        ) : null}
         <p className="text-xs leading-relaxed text-zinc-500">
           봇이 있으면 호출이 두 번입니다. 봇 자리는 DeepSeek V4 Pro(thinking 끔, 1:1 채팅과 같음)가
           캐릭터 카드로 행동을 쓰고, GM은 같은 Pro(thinking 켬)가 장면을 씁니다. Flash는 쓰지 않습니다.
@@ -200,6 +237,16 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
           code={snap.inviteCode}
           canJoin={setup && snap.participants.length < snap.maxSlots}
         />
+      ) : null}
+      {snap.viewerIsHost ? (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => void deleteCampaign()}
+          className="rounded-lg border border-rose-500/30 px-3 py-1.5 text-xs font-semibold text-rose-200 hover:bg-rose-500/10 disabled:opacity-50"
+        >
+          캠페인 삭제
+        </button>
       ) : null}
 
       <AppSectionCard title="파티">

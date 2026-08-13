@@ -15,12 +15,14 @@ import {
   parseJson,
   type TrpgParticipantRow,
 } from "./store";
-import type {
-  TrpgCampaignSnapshot,
-  TrpgPublicLog,
-  TrpgPublicParticipant,
-  TrpgPublicRoll,
-  TrpgReadyState,
+import { purgeUnstartedSoloDrafts } from "./engineDelete";
+import {
+  isListedTrpgCampaign,
+  type TrpgCampaignSnapshot,
+  type TrpgPublicLog,
+  type TrpgPublicParticipant,
+  type TrpgPublicRoll,
+  type TrpgReadyState,
 } from "./snapshot";
 import {
   DEFAULT_TRPG_BILLING_MODE,
@@ -156,6 +158,7 @@ function loadActions(
 }
 
 export function listTrpgCampaigns(db: Database.Database, userId: number): TrpgCampaignSnapshot[] {
+  purgeUnstartedSoloDrafts(db, userId);
   const rows = db
     .prepare(
       `SELECT DISTINCT c.id
@@ -168,7 +171,7 @@ export function listTrpgCampaigns(db: Database.Database, userId: number): TrpgCa
     .all(userId) as Array<{ id: number }>;
   return rows
     .map((row) => loadTrpgSnapshot(db, row.id, userId, { includePartyChat: false }))
-    .filter((s): s is TrpgCampaignSnapshot => Boolean(s));
+    .filter((s): s is TrpgCampaignSnapshot => s != null && isListedTrpgCampaign(s));
 }
 
 export function loadTrpgSnapshot(
@@ -179,6 +182,9 @@ export function loadTrpgSnapshot(
 ): TrpgCampaignSnapshot | null {
   const campaign = loadCampaign(db, campaignId);
   if (!campaign) return null;
+  if (campaign.host_user_id === viewerUserId) {
+    purgeUnstartedSoloDrafts(db, viewerUserId, campaignId);
+  }
   const parts = loadParticipants(db, campaignId);
   const viewer = parts.find((p) => p.kind === "human" && p.user_id === viewerUserId);
   if (!viewer && campaign.host_user_id !== viewerUserId) return null;

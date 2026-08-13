@@ -6,9 +6,11 @@ import { trpgInvitePath } from "@/lib/trpg/invite";
 export default function TrpgInviteLink({
   code,
   canJoin,
+  compact = false,
 }: {
   code: string;
   canJoin: boolean;
+  compact?: boolean;
 }) {
   const path = trpgInvitePath(code);
   const [full, setFull] = useState(path);
@@ -17,8 +19,6 @@ export default function TrpgInviteLink({
   useEffect(() => {
     setFull(typeof window !== "undefined" ? `${window.location.origin}${path}` : path);
   }, [path]);
-
-  if (!path) return null;
 
   async function copy() {
     try {
@@ -35,6 +35,20 @@ export default function TrpgInviteLink({
     }
     setCopied(true);
     window.setTimeout(() => setCopied(false), 2000);
+  }
+
+  if (!path) return null;
+
+  if (compact) {
+    return (
+      <button
+        type="button"
+        onClick={() => void copy()}
+        className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-300 hover:bg-white/10"
+      >
+        {copied ? "복사됨" : "입장 링크 복사"}
+      </button>
+    );
   }
 
   return (
