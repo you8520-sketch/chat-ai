@@ -31,8 +31,8 @@ describe("TRPG bot actions", () => {
     assert.match(block, /렌/);
     assert.match(block, /여관 문이 열린다/);
     assert.match(block, /EARLIER COMPANION ACTIONS THIS ROUND/);
-    assert.match(block, /250/);
     assert.match(block, /700/);
+    assert.match(block, /1600/);
     assert.doesNotMatch(block, /Flash/i);
     const second = buildTrpgBotActionUserBlock({
       characterName: "카이",
@@ -85,7 +85,11 @@ describe("TRPG bot actions", () => {
 
   it("clips empty bot drafts", () => {
     assert.equal(sanitizeBotActionText("   "), "");
-    assert.ok(sanitizeBotActionText("가".repeat(900)).length <= 700);
+    assert.ok(sanitizeBotActionText("가".repeat(3000)).length <= 2400);
+    const withBreaks = sanitizeBotActionText(`첫째 문장.\n\n둘째 문장.\n\n<<<INTENT>>>\n문을 민다.`);
+    assert.match(withBreaks, /첫째 문장\.\n\n둘째 문장/);
+    assert.match(withBreaks, /<<<INTENT>>>/);
+    assert.match(withBreaks, /문을 민다/);
   });
 });
 

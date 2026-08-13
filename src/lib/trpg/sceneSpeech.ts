@@ -169,6 +169,11 @@ export function parseTrpgSceneSpeech(narration: string, knownNames: readonly str
     }
     const leftover = buf.join("\n").trim();
     if (!leftover) continue;
+    const nameOnly = aliases.find((row) => row.alias === leftover);
+    if (nameOnly) {
+      lastSpeaker = nameOnly.canonical;
+      continue;
+    }
     if (isQuoteOnly(leftover)) {
       out.push({
         speaker: writtenPending ? null : lastSpeaker,

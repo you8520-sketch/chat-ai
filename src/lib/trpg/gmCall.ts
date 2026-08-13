@@ -7,7 +7,7 @@ import {
 import { isMockApiMode } from "@/lib/mockApiMode";
 import { adaptTrpgBotChatBody, adaptTrpgGmChatBody } from "./gmClient";
 import type { TrpgModelUsage } from "./billing";
-import { TRPG_BOT_MODEL, TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL } from "./types";
+import { TRPG_BOT_MAX_TOKENS, TRPG_BOT_MODEL, TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL } from "./types";
 
 export type TrpgGmCallResult = { text: string; usage?: TrpgModelUsage };
 
@@ -113,7 +113,7 @@ export async function callTrpgBot(opts: {
     ],
     stream: false,
     temperature: 0.85,
-    max_tokens: 1536,
+    max_tokens: TRPG_BOT_MAX_TOKENS,
   });
-  return postTrpgChat({ model, body, timeoutMs: opts.timeoutMs ?? 45_000 });
+  return postTrpgChat({ model, body, timeoutMs: opts.timeoutMs ?? 90_000 });
 }

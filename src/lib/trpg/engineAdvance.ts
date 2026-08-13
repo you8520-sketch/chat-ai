@@ -5,6 +5,7 @@ import { deductPoints, getPointBalance } from "@/lib/points";
 import { paidCreatorRewardSpend, resolveCreatorRewardRate } from "@/lib/creatorPoints";
 import { creditTrpgRoundCreatorRewards, loadTrpgCharacterRoyaltyTargets } from "./creatorRewards";
 import { isTrpgActionType, pickStatForAction } from "./actionTypes";
+import { actionNeedsCheck } from "./actionCheck";
 import {
   computeTrpgRoundPoints,
   splitTrpgRoundCost,
@@ -12,7 +13,7 @@ import {
   TRPG_GM_USAGE_FALLBACK,
   type TrpgModelUsage,
 } from "./billing";
-import { buildTrpgBotActionUserBlock, orderTrpgBotsForRound, sanitizeBotActionText, TRPG_BOT_SYSTEM } from "./botActions";
+import { buildTrpgBotActionUserBlock, orderTrpgBotsForRound, parseTrpgBotAction, sanitizeBotActionText, TRPG_BOT_SYSTEM } from "./botActions";
 import { applyCampaignLedger, clipTrpgChars, loadCampaignLedger, persistCampaignLedger } from "./campaignLedger";
 import { resolveTrpgRoll, rollServerD20 } from "./dice";
 import { assertCanStart } from "./engineCreate";
@@ -39,7 +40,7 @@ import {
   type TrpgParticipantRow,
   type TrpgRoundRow,
 } from "./store";
-import { TRPG_ACTION_MAX_CHARS, TRPG_BOT_AIM_CHARS, TRPG_BOT_CARD_FIELD_MAX_CHARS, TRPG_BOT_CARD_PROMPT_MAX_CHARS, TRPG_BOT_SCENE_MAX_CHARS, type TrpgActionSource, type TrpgBillingMode, type TrpgRoundPhase } from "./types";
+import { TRPG_ACTION_MAX_CHARS, TRPG_BOT_ACTION_MAX_CHARS, TRPG_BOT_CARD_FIELD_MAX_CHARS, TRPG_BOT_CARD_PROMPT_MAX_CHARS, TRPG_BOT_SCENE_MAX_CHARS, type TrpgActionSource, type TrpgBillingMode, type TrpgRoundPhase } from "./types";
 import { isTrpgRoundPhase } from "./types";
 import type { TrpgCampaignSnapshot } from "./snapshot";
 
@@ -468,7 +469,7 @@ async function generateBotActions(
     });
     const { text, usage } = await botCall(TRPG_BOT_SYSTEM, user);
     const body =
-      sanitizeBotActionText(text, TRPG_BOT_AIM_CHARS) ||
+      sanitizeBotActionText(text, TRPG_BOT_ACTION_MAX_CHARS) ||
       `${bot.display_name}은 상황을 살피며 한 발 다가선다.`;
     upsertLockedAction(db, opts.roundId, bot.id, body, "free", null, "bot_model");
     appendRoundUsage(db, opts.roundId, usage ?? TRPG_BOT_USAGE_FALLBACK);
@@ -516,10 +517,13 @@ function persistRolls(
   db.transaction(() => {
     for (const sub of subs) {
       const actionType = sub.action_type && isTrpgActionType(sub.action_type) ? sub.action_type : "free";
+      const parsed = parseTrpgBotAction(sub.body);
+      const checkBody = parsed.intent || parsed.prose || sub.body;
+      if (!actionNeedsCheck({ body: checkBody, actionType })) continue;
       const statKey = pickStatForAction({
         actionType,
         selectedStat: sub.selected_stat,
-        body: sub.body,
+        body: checkBody,
         defs: scenario.statDefs,
       });
       const statRow = db
@@ -788,7 +792,7 @@ function loadActionsForGm(
   return (
     db
       .prepare(
-        `SELECT s.participant_id, p.display_name AS name, s.body, r.stat_key, r.d20, r.final_score, r.dc, r.tier,
+        `SELECT s.participant_id, p.display_name AS name, s.body, s.action_type, r.stat_key, r.d20, r.final_score, r.dc, r.tier,
                 (
                   SELECT st.value FROM trpg_character_stats st
                   JOIN trpg_character_sheets sh ON sh.id = st.sheet_id
@@ -804,6 +808,7 @@ function loadActionsForGm(
       participant_id: number;
       name: string;
       body: string;
+      action_type: string | null;
       stat_key: string | null;
       stat_value: number | null;
       d20: number | null;
@@ -812,12 +817,17 @@ function loadActionsForGm(
       tier: string | null;
     }>
   ).map((a) => {
+    const actionType = a.action_type && isTrpgActionType(a.action_type) ? a.action_type : "free";
+    const parsed = parseTrpgBotAction(a.body);
+    const needsCheck = actionNeedsCheck({ body: parsed.intent || parsed.prose || a.body, actionType });
     const statKey = a.stat_key ?? "dex";
     const def = defs.find((d) => d.key === statKey);
     return {
       participantId: a.participant_id,
       name: a.name,
-      body: a.body,
+      body: parsed.prose || a.body,
+      intent: parsed.intent,
+      needsCheck,
       statKey,
       statLabel: def?.label,
       statValue: a.stat_value,

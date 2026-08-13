@@ -1,5 +1,13 @@
 import { clipTrpgChars } from "./campaignLedger";
-import { TRPG_BOT_AIM_CHARS, TRPG_BOT_MIN_CHARS, TRPG_BOT_SCENE_MAX_CHARS } from "./types";
+import {
+  TRPG_BOT_ACTION_MAX_CHARS,
+  TRPG_BOT_AIM_CHARS,
+  TRPG_BOT_INTENT_MAX_CHARS,
+  TRPG_BOT_MIN_CHARS,
+  TRPG_BOT_SCENE_MAX_CHARS,
+} from "./types";
+
+export const TRPG_BOT_INTENT_OPEN = "<<<INTENT>>>";
 
 export type TrpgBotActionContext = {
   characterName: string;
@@ -21,16 +29,18 @@ export type TrpgBotSpeakOrder = { id: number; name: string };
 
 export const TRPG_BOT_SYSTEM = `You ARE this character sitting in a Korean TRPG as a player, not the GM.
 
-Write ONLY this character's next in-world action (speech + physical beat).
+Write a long in-character beat: what you notice, how you move, what you say.
 Stay in their diction, attitude, and relationship habits from the character card and PARTY RELATIONSHIPS.
-Honor campaign state (HP, location, quests, flags, next decision) without narrating the world for others.
-Do not roll dice or declare success/failure.
-Do not narrate the world, NPCs, or other PCs as if you were the GM.
-Do not break character. Korean. No JSON.
+Honor campaign state (HP, location, quests, flags, next decision).
+You may describe the world only as THIS character perceives it. Do not speak for other PCs. Do not resolve the round. Do not write a GM recap. Do not roll dice or declare success/failure. Korean. No JSON.
 
-Length: write at least ${TRPG_BOT_MIN_CHARS} Korean characters, aim about ${TRPG_BOT_AIM_CHARS}. Include spoken lines and a physical beat — not a one-liner.
+Length: at least ${TRPG_BOT_MIN_CHARS} Korean characters, aim about ${TRPG_BOT_AIM_CHARS}, never cut a sentence short. Finish every sentence. Use paragraphs.
 
-Turn order: the human already acted this round. If EARLIER COMPANION ACTIONS exist, those PCs already spoke. Do not shout the same warning at the human. Do not answer in chorus. React to what already happened, then take the next beat.`;
+Turn order: the human already acted this round. If EARLIER COMPANION ACTIONS exist, those PCs already spoke. Do not shout the same warning at the human. Do not answer in chorus. React to what already happened, then take the next beat.
+
+After the finished prose, end with exactly this marker and one concrete attempt the GM should resolve (not a question to allies):
+${TRPG_BOT_INTENT_OPEN}
+(한 줄: 이 캐릭터가 이번 라운드에 실제로 시도하는 행동)`;
 
 function nameAliases(name: string): string[] {
   const n = name.trim();
@@ -101,8 +111,8 @@ export function buildTrpgBotActionUserBlock(ctx: TrpgBotActionContext): string {
     .join("\n\n");
   const scene = clipTrpgChars(ctx.previousGmNarration, TRPG_BOT_SCENE_MAX_CHARS) || "(캠페인 시작)";
   return [
-    "[TRPG BOT ACTION — you are this PC. One action only.]",
-    `[LENGTH] At least ${TRPG_BOT_MIN_CHARS} Korean characters, aim ~${TRPG_BOT_AIM_CHARS}.`,
+    "[TRPG BOT ACTION — you are this PC. Long beat, then INTENT.]",
+    `[LENGTH] At least ${TRPG_BOT_MIN_CHARS} Korean characters, aim ~${TRPG_BOT_AIM_CHARS}, cap ${TRPG_BOT_ACTION_MAX_CHARS}. Finish the last sentence. Then ${TRPG_BOT_INTENT_OPEN} and one concrete action line.`,
     `[SPEAK ORDER] Human already acted. You are companion ${speakIndex} of ${speakCount} this round. Do not talk over earlier companions.`,
     card,
     ctx.relationshipBrief?.trim()
@@ -117,6 +127,31 @@ export function buildTrpgBotActionUserBlock(ctx: TrpgBotActionContext): string {
     .join("\n\n");
 }
 
-export function sanitizeBotActionText(raw: string, maxChars = TRPG_BOT_AIM_CHARS): string {
-  return clipTrpgChars(raw, maxChars);
+function clipMultiline(text: string, max: number): string {
+  const normalized = text.replace(/\r\n/g, "\n").replace(/[ \t]+\n/g, "\n").trim();
+  const chars = Array.from(normalized);
+  if (chars.length <= max) return chars.join("");
+  return chars.slice(0, max).join("").trimEnd();
+}
+
+export function parseTrpgBotAction(raw: string): { prose: string; intent: string } {
+  const text = raw.replace(/\r\n/g, "\n").trim();
+  const at = text.indexOf(TRPG_BOT_INTENT_OPEN);
+  if (at < 0) {
+    return { prose: clipMultiline(text, TRPG_BOT_ACTION_MAX_CHARS), intent: "" };
+  }
+  return {
+    prose: clipMultiline(text.slice(0, at).trim(), TRPG_BOT_ACTION_MAX_CHARS),
+    intent: clipTrpgChars(text.slice(at + TRPG_BOT_INTENT_OPEN.length), TRPG_BOT_INTENT_MAX_CHARS),
+  };
+}
+
+export function sanitizeBotActionText(
+  raw: string,
+  maxChars = TRPG_BOT_ACTION_MAX_CHARS
+): string {
+  const parsed = parseTrpgBotAction(raw);
+  const prose = clipMultiline(parsed.prose, maxChars);
+  if (!parsed.intent) return prose;
+  return `${prose}\n\n${TRPG_BOT_INTENT_OPEN}\n${parsed.intent}`;
 }
