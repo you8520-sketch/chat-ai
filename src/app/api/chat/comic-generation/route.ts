@@ -31,7 +31,12 @@ import {
   buildChatLdIllustrationPrompt,
   formatOpenAiImageUserError,
   resolveChatLdIllustrationPrice,
+  type ChatLdIllustrationCastMember,
+  withIllustrationReferenceIndices,
 } from "@/lib/chatLdIllustrationGeneration";
+import {
+  loadTrpgIllustrationCast,
+} from "@/lib/trpg/illustrationCast";
 import {
   formatUserTurnForComicSource,
   stripChatTurnMarkup,
@@ -689,9 +694,34 @@ export async function POST(req: Request) {
       }
 
       startJob(CHAT_LD_ILLUSTRATION_TEMPLATE_ID, "illustration");
+      const campaignId = positiveInt(body.campaignId);
+      let cast: ChatLdIllustrationCastMember[] | undefined;
+      let referenceUrls = [context.characterImageUrl, context.personaImageUrl];
+      if (campaignId) {
+        const party = loadTrpgIllustrationCast(getDb(), {
+          campaignId,
+          viewerUserId: user.id,
+        });
+        if (!party) throw new RequestError("캠페인을 찾을 수 없습니다.", 404);
+        const indexed = withIllustrationReferenceIndices(party);
+        cast = indexed.map((member) => ({
+          name: member.name,
+          gender: member.gender,
+          role: member.role,
+          referenceIndex: member.referenceIndex,
+          appearanceNote: member.appearanceNote,
+        }));
+        const partyUrls = indexed
+          .filter((member) => member.referenceIndex != null && member.imageUrl)
+          .sort((a, b) => (a.referenceIndex ?? 0) - (b.referenceIndex ?? 0))
+          .map((member) => member.imageUrl as string);
+        if (partyUrls.length > 0) referenceUrls = partyUrls;
+      }
       const source = resolveSourceTurn({
         chatId: context.chatId,
         messageId: positiveInt(body.messageId),
+        sourceText: campaignId ? String(body.sourceText ?? "") : undefined,
+        requireChat: !campaignId,
       });
       const prompt = buildChatLdIllustrationPrompt({
         characterName: context.character.name,
@@ -699,16 +729,16 @@ export async function POST(req: Request) {
         personaName: context.persona.name,
         personaGender: context.personaGender,
         currentTurn: source.turnText,
+        cast,
       });
-      const [characterReference, personaReference] = await Promise.all([
-        imageSourceToDataUrl(context.characterImageUrl),
-        imageSourceToDataUrl(context.personaImageUrl),
-      ]);
+      const references = await Promise.all(
+        referenceUrls.map((sourceUrl) => imageSourceToDataUrl(sourceUrl))
+      );
       const model = resolveChatImageGenerationModel();
       const generated = await generateLdIllustrationImage({
         model,
         prompt,
-        references: [characterReference, personaReference],
+        references,
       });
 
       await fs.mkdir(uploadsDataDir(), { recursive: true });
@@ -771,8 +801,12 @@ export async function POST(req: Request) {
               mode: "illustration",
               source: source.messageId
                 ? "selected_chat_turn"
-                : "latest_chat_turn",
+                : campaignId
+                  ? "trpg_scene"
+                  : "latest_chat_turn",
               messageId: source.messageId,
+              campaignId: campaignId ?? undefined,
+              castNames: cast?.map((member) => member.name),
               quality: CHAT_LD_ILLUSTRATION_QUALITY,
               outputSize: CHAT_LD_ILLUSTRATION_OUTPUT_SIZE,
             }),

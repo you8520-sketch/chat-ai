@@ -371,6 +371,8 @@ export default function ChatImageGeneratorPanel({
   /** Cap edits at the originally loaded turn length (no fixed 1,000 cap). */
   const [comicLoadedMaxChars, setComicLoadedMaxChars] = useState(0);
   const [summarizing, setSummarizing] = useState(false);
+  const [campaignId, setCampaignId] = useState<number | null>(null);
+  const [partyNames, setPartyNames] = useState<string[]>([]);
 
   useEffect(() => {
     const openGenerator = (event: Event) => {
@@ -378,10 +380,21 @@ export default function ChatImageGeneratorPanel({
         messageId?: unknown;
         content?: unknown;
         characterId?: unknown;
+        campaignId?: unknown;
+        partyNames?: unknown;
       }>).detail;
       const overrideId = Number(detail?.characterId);
       characterIdOverride =
         Number.isInteger(overrideId) && overrideId > 0 ? overrideId : null;
+      const parsedCampaignId = Number(detail?.campaignId);
+      setCampaignId(
+        Number.isInteger(parsedCampaignId) && parsedCampaignId > 0 ? parsedCampaignId : null
+      );
+      setPartyNames(
+        Array.isArray(detail?.partyNames)
+          ? detail.partyNames.filter((name): name is string => typeof name === "string" && name.trim().length > 0)
+          : []
+      );
       const messageId = Number(detail?.messageId);
       const preview = turnPreviewFromContent(String(detail?.content ?? ""));
       if (Number.isFinite(messageId) && messageId > 0) {
@@ -860,7 +873,12 @@ export default function ChatImageGeneratorPanel({
           ...ids,
           mode: isIllustration ? "illustration" : "comic",
           messageId: isIllustration ? sourceMessageId ?? undefined : undefined,
-          sourceText: isIllustration ? undefined : comicInput || undefined,
+          sourceText: isIllustration
+            ? campaignId
+              ? comicSummary.trim() || sourceTurnPreview || undefined
+              : undefined
+            : comicInput || undefined,
+          campaignId: isIllustration && campaignId ? campaignId : undefined,
           characterImageUrl: selectedCharacterImageUrl || info.character.imageUrl,
         }),
       });
@@ -1126,7 +1144,9 @@ export default function ChatImageGeneratorPanel({
                           ? ldProduct === "persona"
                             ? "선택 페르소나의 성별·외관 설정을 반영하고, 캐릭터 이미지는 그림체만 직접 참조합니다."
                             : ldProduct === "illustration"
-                            ? "현재 채팅의 최신 턴을 자동으로 읽어 두 사람의 외형과 그림체를 최대한 닮게 반영합니다."
+                            ? campaignId
+                              ? `캠페인 파티${partyNames.length ? `(${partyNames.join(", ")})` : ""}가 한 장면에 모두 나옵니다. 포인트는 1:1 일러스트와 같습니다.`
+                              : "현재 채팅의 최신 턴을 자동으로 읽어 두 사람의 외형과 그림체를 최대한 닮게 반영합니다."
                             : "본문만 붙여넣으면 핵심 대사·말풍선·지문과 2~3컷 구성을 자동으로 만듭니다."
                           : sdProduct === "emoticon"
                             ? "매번 다른 문구 9개를 뽑아 캐릭터 단독·페르소나 단독·두 사람 장면을 섞어 만듭니다."
@@ -1456,7 +1476,16 @@ export default function ChatImageGeneratorPanel({
                           </div>
                         ) : ldProduct === "illustration" ? (
                           <div className="space-y-2 rounded-xl border border-violet-400/20 bg-violet-500/[0.06] p-3 text-[11px] leading-relaxed text-zinc-300">
-                            {sourceMessageId ? (
+                            {campaignId ? (
+                              <p>
+                                <strong className="text-violet-200">캠페인 파티 전원</strong>
+                                {" · "}
+                                {partyNames.length
+                                  ? `${partyNames.join(", ")}이(가) 한 장면에 함께 나옵니다.`
+                                  : "유저 포함 파티 전원(최대 4명)이 한 장면에 함께 나옵니다."}
+                                {" "}포인트는 1:1 선택 턴 일러스트와 같습니다.
+                              </p>
+                            ) : sourceMessageId ? (
                               <p>
                                 <strong className="text-violet-200">선택 턴 자동 인식</strong>
                                 {" · "}현재 채팅의 선택 턴을 기준으로 장면을 잡습니다.
