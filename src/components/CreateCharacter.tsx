@@ -153,6 +153,7 @@ export default function CreateCharacter({
     creator_comment: "",
     simulation_reuse_allowed: false,
     simulation_nsfw_allowed: false,
+    trpg_reuse_allowed: false,
     simulation_cast: "",
     simulation_rules: "",
   });
@@ -233,8 +234,9 @@ export default function CreateCharacter({
       speech_contextual_registers: Array.isArray(draft.form.speech_contextual_registers)
         ? draft.form.speech_contextual_registers
         : [],
-      simulation_reuse_allowed: draft.form.simulation_reuse_allowed ?? false,
-      simulation_nsfw_allowed: draft.form.simulation_nsfw_allowed ?? false,
+      simulation_reuse_allowed: false,
+      simulation_nsfw_allowed: false,
+      trpg_reuse_allowed: draft.form.trpg_reuse_allowed ?? false,
       content_kind: draft.form.content_kind ?? initialContentKind,
       simulation_cast: draft.form.simulation_cast ?? "",
       simulation_rules: draft.form.simulation_rules ?? "",
@@ -475,8 +477,9 @@ export default function CreateCharacter({
             data.recommended_writing_style ?? "balanced",
           comments_enabled: data.comments_enabled !== false,
           creator_comment: data.creator_comment ?? "",
-          simulation_reuse_allowed: data.simulation_reuse_allowed === true,
-          simulation_nsfw_allowed: data.simulation_nsfw_allowed === true,
+          simulation_reuse_allowed: false,
+          simulation_nsfw_allowed: false,
+          trpg_reuse_allowed: data.trpg_reuse_allowed === true,
           simulation_cast: data.simulation_cast ?? "",
           simulation_rules: data.simulation_rules ?? "",
         });
@@ -1330,7 +1333,7 @@ export default function CreateCharacter({
                   <div>
                     <h3 className="text-sm font-semibold text-zinc-100">추가 캐릭터 불러오기 <span className="font-normal text-zinc-500">· 선택</span></h3>
                     <p className="mt-1 text-xs leading-relaxed text-zinc-400">
-                      직접 작성만으로도 완성됩니다. 필요할 때 내 캐릭터나 원작자가 재사용을 허용한 캐릭터를 추가하세요.
+                      직접 작성만으로도 완성됩니다. 필요할 때 내가 만든 캐릭터를 추가하세요. TRPG 사용 허용과 관계없이 내 캐릭터는 내 시뮬레이션에서 쓸 수 있습니다.
                     </p>
                   </div>
                   {simulationImports.length > 0 && (
@@ -1352,7 +1355,7 @@ export default function CreateCharacter({
                     className={cls}
                     value={simulationImportSearch}
                     onChange={(e) => setSimulationImportSearch(e.target.value)}
-                    placeholder="캐릭터 또는 제작자 검색"
+                    placeholder="내 캐릭터 검색"
                   />
                   <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
                     {simulationImportOptions.map((character) => {
@@ -1379,7 +1382,7 @@ export default function CreateCharacter({
                           <span className="min-w-0 flex-1">
                             <span className="block truncate text-sm font-bold text-white">{character.name}</span>
                             <span className="block truncate text-[10px] text-zinc-500">
-                              {character.owned ? "내 캐릭터" : `${character.creatorName} · 재사용 허용`}
+                              내 캐릭터
                             </span>
                           </span>
                           <span className="text-cyan-300">＋</span>
@@ -1794,28 +1797,12 @@ export default function CreateCharacter({
               {form.content_kind === "character" && (
               <div className="space-y-3 rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4">
                 <ToggleSwitch
-                  checked={form.simulation_reuse_allowed}
-                  onChange={(next) =>
-                    setForm({
-                      ...form,
-                      simulation_reuse_allowed: next,
-                      simulation_nsfw_allowed: next ? form.simulation_nsfw_allowed : false,
-                    })
-                  }
+                  checked={form.trpg_reuse_allowed}
+                  onChange={(next) => setForm({ ...form, trpg_reuse_allowed: next })}
                   disabled={loading}
-                  label="다른 제작자의 시뮬레이션에서 사용 허용"
-                  description="허용하면 공개·검수 승인된 이 캐릭터를 다른 제작자가 선택적으로 불러올 수 있습니다. 기본값은 OFF입니다."
+                  label="TRPG에서 사용 허용"
+                  description="허용하면 공개·검수 승인된 이 캐릭터를 다른 유저가 TRPG에 데려갈 수 있습니다. 그때 유료 라운드 사용액의 최대 5%가 CP로 지급됩니다. 기본값은 OFF입니다. 내가 만든 시뮬레이션에는 이 설정과 관계없이 내 캐릭터를 쓸 수 있습니다."
                 />
-                {form.simulation_reuse_allowed ? (
-                  <div className="space-y-3 border-l border-cyan-500/25 pl-4">
-                    <ToggleSwitch
-                      checked={form.simulation_nsfw_allowed}
-                      onChange={(next) => setForm({ ...form, simulation_nsfw_allowed: next })}
-                      disabled={loading}
-                    label="성인용 시뮬레이션에서도 사용 허용"
-                    />
-                  </div>
-                ) : null}
               </div>
               )}
             </section>

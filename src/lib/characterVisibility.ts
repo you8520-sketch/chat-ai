@@ -27,6 +27,7 @@ export type CharacterAccessRow = {
   moderation_status: ModerationStatus;
   share_slug: string | null;
   official?: number;
+  trpg_reuse_allowed?: number | null;
 };
 
 /** 캐릭터 상세·채팅 접근 가능 여부 */
@@ -45,6 +46,28 @@ export function canAccessCharacter(
     return { ok: false, reason: "검수에 반려되어 비공개 처리된 캐릭터입니다." };
   }
   return { ok: false, reason: "아직 공개되지 않은 캐릭터입니다." };
+}
+
+/** Owner and official characters are always usable. Others need public+approved+TRPG opt-in. */
+export function canUseCharacterInTrpg(
+  c: CharacterAccessRow,
+  viewerUserId: number
+): boolean {
+  if (c.creator_id === viewerUserId) return true;
+  if (c.official === 1) return true;
+  return (
+    c.visibility === "public" &&
+    c.moderation_status === "approved" &&
+    Number(c.trpg_reuse_allowed) === 1
+  );
+}
+
+/** Other creators cannot import this character into their simulations. Own characters always can. */
+export function canImportCharacterIntoSimulation(
+  characterCreatorId: number | null,
+  simulationCreatorId: number
+): boolean {
+  return characterCreatorId === simulationCreatorId;
 }
 
 export function sharePath(c: { id: number; share_slug?: string | null }): string {

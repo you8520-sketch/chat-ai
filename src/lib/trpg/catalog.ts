@@ -1,5 +1,5 @@
 import type Database from "better-sqlite3";
-import { canAccessCharacter, type CharacterAccessRow } from "@/lib/characterVisibility";
+import { canUseCharacterInTrpg, type CharacterAccessRow } from "@/lib/characterVisibility";
 import { parseGenresJson, type CharacterGenre } from "@/lib/characterGenres";
 import { listMyScenarioTemplates, listPublicScenarioTemplates } from "./scenarioTemplates";
 import type { TrpgScenarioTemplate } from "./scenarioTypes";
@@ -202,14 +202,14 @@ export function loadAccessibleTrpgCharacter(
   const row = db
     .prepare(
       `SELECT id, name, tagline, COALESCE(emoji, '✨') AS emoji,
-              creator_id, visibility, moderation_status, share_slug, official
+              creator_id, visibility, moderation_status, share_slug, official, trpg_reuse_allowed
        FROM characters WHERE id=?`
     )
     .get(id) as
     | (CharacterAccessRow & { name: string; tagline: string; emoji: string })
     | undefined;
   if (!row) return null;
-  if (!canAccessCharacter(row, viewerUserId).ok) return null;
+  if (!canUseCharacterInTrpg(row, viewerUserId)) return null;
   return {
     id: row.id,
     name: row.name,

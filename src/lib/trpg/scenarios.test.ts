@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
-import { canUseWorldForTrpg, loadTrpgCatalog } from "./catalog";
+import { canUseWorldForTrpg, loadAccessibleTrpgCharacter, loadTrpgCatalog } from "./catalog";
 import { EVEN_STATS, addTrpgCompanions, createTrpgCampaign, joinTrpgCampaign, saveTrpgSheet } from "./engineCreate";
 import { deleteTrpgCampaign, renameTrpgCampaign } from "./engineDelete";
 import { advanceTrpgCampaign, startTrpgCampaign, submitTrpgAction, type TrpgEngineDeps } from "./engineAdvance";
@@ -40,6 +40,7 @@ function memoryDb(): Database.Database {
       moderation_status TEXT NOT NULL DEFAULT 'approved',
       share_slug TEXT,
       official INTEGER NOT NULL DEFAULT 0,
+      trpg_reuse_allowed INTEGER NOT NULL DEFAULT 0,
       emoji TEXT NOT NULL DEFAULT '✨',
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
@@ -405,6 +406,80 @@ describe("TRPG scenarios and catalog", () => {
     );
     deleteTrpgCampaign(db, { campaignId: keptId, userId: 1 });
     assert.equal(listTrpgCampaigns(db, 1).length, 0);
+    db.close();
+  });
+
+  it("lets the owner use their own character in TRPG even when reuse is off", () => {
+    const db = memoryDb();
+    db.prepare(
+      `INSERT INTO characters (name, creator_id, visibility, moderation_status, official, trpg_reuse_allowed)
+       VALUES ('내 검사', 1, 'private', 'pending', 0, 0)`
+    ).run();
+    const campaignId = createTrpgCampaign(db, {
+      hostUserId: 1,
+      hostNickname: "렌",
+      viewerUserId: 1,
+      characterIds: [1],
+    });
+    const bots = loadParticipants(db, campaignId).filter((p) => p.kind === "ai_character");
+    assert.equal(bots.length, 1);
+    assert.equal(bots[0]?.display_name, "내 검사");
+    assert.ok(loadAccessibleTrpgCharacter(db, 1, 1));
+    db.close();
+  });
+
+  it("refuses another user's public character unless TRPG reuse is allowed", () => {
+    const db = memoryDb();
+    db.prepare(
+      `INSERT INTO characters (name, creator_id, visibility, moderation_status, official, trpg_reuse_allowed)
+       VALUES ('남의 검사', 2, 'public', 'approved', 0, 0)`
+    ).run();
+    assert.equal(loadAccessibleTrpgCharacter(db, 1, 1), null);
+    assert.throws(
+      () =>
+        createTrpgCampaign(db, {
+          hostUserId: 1,
+          hostNickname: "렌",
+          viewerUserId: 1,
+          characterIds: [1],
+        }),
+      /이 캐릭터로 TRPG/
+    );
+    assert.throws(
+      () =>
+        insertScenarioTemplate(db, 1, {
+          title: "데려가기",
+          content: "남의 캐릭터를 시나리오에 넣는다.",
+          characterIds: [1],
+        }),
+      /시나리오에 데려올/
+    );
+    db.close();
+  });
+
+  it("lets another user bring a public opted-in character into TRPG", () => {
+    const db = memoryDb();
+    db.prepare(
+      `INSERT INTO characters (name, creator_id, visibility, moderation_status, official, trpg_reuse_allowed)
+       VALUES ('공유 검사', 2, 'public', 'approved', 0, 1)`
+    ).run();
+    assert.ok(loadAccessibleTrpgCharacter(db, 1, 1));
+    const campaignId = createTrpgCampaign(db, {
+      hostUserId: 1,
+      hostNickname: "렌",
+      viewerUserId: 1,
+      characterIds: [1],
+    });
+    assert.equal(
+      loadParticipants(db, campaignId).find((p) => p.kind === "ai_character")?.display_name,
+      "공유 검사"
+    );
+    const templateId = insertScenarioTemplate(db, 1, {
+      title: "공유 시나리오",
+      content: "허용된 캐릭터를 데려온다.",
+      characterIds: [1],
+    });
+    assert.ok(templateId > 0);
     db.close();
   });
 });
