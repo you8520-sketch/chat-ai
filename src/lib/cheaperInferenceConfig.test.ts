@@ -17,7 +17,7 @@ test("Cheaper Inference endpoint is fixed to chat completions", () => {
 
 test("OpenRouter-only request extensions are removed", () => {
   const body = {
-    model: "claude-opus-5",
+    model: "gpt-5.6-luna",
     messages: [{ role: "user", content: "hello" }],
     stream: true,
     stream_options: { include_usage: true },
@@ -31,15 +31,45 @@ test("OpenRouter-only request extensions are removed", () => {
   };
 
   assert.deepEqual(adaptCheaperInferenceChatBody(body), {
+    model: "gpt-5.6-luna",
+    messages: [{ role: "user", content: "hello" }],
+    stream: true,
+    stream_options: { include_usage: true },
+    temperature: 0.82,
+    max_tokens: 4096,
+    reasoning: { effort: "none" },
+    reasoning_effort: "none",
+  });
+  assert.equal(body.session_id, "chat-1", "input must not be mutated");
+});
+
+test("Claude Opus 5 disables thinking at Anthropic effort low", () => {
+  const body = {
     model: "claude-opus-5",
     messages: [{ role: "user", content: "hello" }],
     stream: true,
     stream_options: { include_usage: true },
     temperature: 0.82,
     max_tokens: 4096,
+    reasoning: { effort: "none" },
+    include_reasoning: false,
     reasoning_effort: "none",
+    session_id: "chat-1",
+    frequency_penalty: 0.1,
+  };
+
+  assert.deepEqual(adaptCheaperInferenceChatBody(body), {
+    model: "claude-opus-5",
+    messages: [{ role: "user", content: "hello" }],
+    stream: true,
+    stream_options: { include_usage: true },
+    temperature: 0.82,
+    max_tokens: 4096,
+    thinking: { type: "disabled" },
+    output_config: { effort: "low" },
+    reasoning_effort: "low",
   });
-  assert.equal(body.session_id, "chat-1", "input must not be mutated");
+  assert.equal(body.reasoning_effort, "none", "input must not be mutated");
 });
 
 test("Gemini 3.1 Pro always uses low thinking on CheaperInference", () => {
@@ -57,7 +87,7 @@ test("Gemini 3.1 Pro always uses low thinking on CheaperInference", () => {
   assert.equal(body.reasoning_effort, "high", "input must not be mutated");
 });
 
-test("GPT-5.6 Luna disables hidden reasoning on CheaperInference", () => {
+test("GPT-5.6 Luna disables reasoning with official effort none", () => {
   const body = {
     model: "gpt-5.6-luna",
     messages: [{ role: "user", content: "hello" }],
@@ -68,11 +98,12 @@ test("GPT-5.6 Luna disables hidden reasoning on CheaperInference", () => {
   assert.deepEqual(adaptCheaperInferenceChatBody(body), {
     model: "gpt-5.6-luna",
     messages: [{ role: "user", content: "hello" }],
+    reasoning: { effort: "none" },
     reasoning_effort: "none",
   });
 });
 
-test("GPT-5.6 Terra disables hidden reasoning on CheaperInference", () => {
+test("GPT-5.6 Terra disables reasoning with official effort none", () => {
   const body = {
     model: "gpt-5.6-terra",
     messages: [{ role: "user", content: "hello" }],
@@ -81,6 +112,7 @@ test("GPT-5.6 Terra disables hidden reasoning on CheaperInference", () => {
   assert.deepEqual(adaptCheaperInferenceChatBody(body), {
     model: "gpt-5.6-terra",
     messages: [{ role: "user", content: "hello" }],
+    reasoning: { effort: "none" },
     reasoning_effort: "none",
   });
 });
