@@ -6,8 +6,10 @@ import StudioButton from "@/components/studio/StudioButton";
 import { StudioBackLink } from "@/components/studio/StudioEmptyState";
 import { StudioInput, StudioTextarea } from "@/components/studio/StudioInput";
 import StudioSaveBar from "@/components/studio/StudioSaveBar";
+import GenrePicker from "@/components/GenrePicker";
 import TrpgScenarioEditor from "@/app/trpg/TrpgScenarioEditor";
 import type { TrpgCatalog } from "@/lib/trpg/catalog";
+import type { CharacterGenre } from "@/lib/characterGenres";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 import { cropImageFileToSquare } from "@/lib/worldCoverCrop";
 import {
@@ -111,6 +113,7 @@ function WorldForm({ worldId }: { worldId?: number }) {
   const [summary, setSummary] = useState("");
   const [content, setContent] = useState("");
   const [coverUrl, setCoverUrl] = useState("");
+  const [genres, setGenres] = useState<CharacterGenre[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -132,6 +135,7 @@ function WorldForm({ worldId }: { worldId?: number }) {
         setSummary(data.world.summary);
         setContent(data.world.content);
         setCoverUrl(data.world.coverUrl ?? "");
+        setGenres(data.world.genres ?? []);
       } catch {
         if (!cancelled) setError("불러오는 중 오류가 발생했습니다.");
       } finally {
@@ -185,7 +189,7 @@ function WorldForm({ worldId }: { worldId?: number }) {
       const res = await fetch(isEdit ? `/api/worlds/${worldId}` : "/api/worlds", {
         method: isEdit ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, summary, content, coverUrl }),
+        body: JSON.stringify({ name, summary, content, coverUrl, genres }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -224,6 +228,13 @@ function WorldForm({ worldId }: { worldId?: number }) {
           maxLength={WORLD_SUMMARY_LIMIT}
           onChange={(e) => setSummary(e.target.value.slice(0, WORLD_SUMMARY_LIMIT))}
         />
+
+        <div>
+          <GenrePicker value={genres} onChange={setGenres} disabled={loading} />
+          <p className={cn(studioType.helper, "mt-2")}>
+            장르는 TRPG 탭 세계관 카드에만 보입니다. 제작 메뉴 세계관 목록에는 나오지 않습니다.
+          </p>
+        </div>
 
         <div>
           <p className={studioType.label}>대표 이미지</p>

@@ -48,6 +48,7 @@ function WorldCardRow({
       busy={busy}
       onSelect={onSelect}
       onStart={onStart}
+      editHref={world.mine ? `/world/${world.id}/edit` : undefined}
     />
   );
 }
