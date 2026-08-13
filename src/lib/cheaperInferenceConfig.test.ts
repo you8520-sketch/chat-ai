@@ -37,6 +37,7 @@ test("OpenRouter-only request extensions are removed", () => {
     stream_options: { include_usage: true },
     temperature: 0.82,
     max_tokens: 4096,
+    reasoning: { effort: "none" },
     reasoning_effort: "none",
   });
   assert.equal(body.session_id, "chat-1", "input must not be mutated");
@@ -86,7 +87,7 @@ test("Gemini 3.1 Pro always uses low thinking on CheaperInference", () => {
   assert.equal(body.reasoning_effort, "high", "input must not be mutated");
 });
 
-test("GPT-5.6 Luna disables hidden reasoning on CheaperInference", () => {
+test("GPT-5.6 Luna disables reasoning with official effort none", () => {
   const body = {
     model: "gpt-5.6-luna",
     messages: [{ role: "user", content: "hello" }],
@@ -97,11 +98,12 @@ test("GPT-5.6 Luna disables hidden reasoning on CheaperInference", () => {
   assert.deepEqual(adaptCheaperInferenceChatBody(body), {
     model: "gpt-5.6-luna",
     messages: [{ role: "user", content: "hello" }],
+    reasoning: { effort: "none" },
     reasoning_effort: "none",
   });
 });
 
-test("GPT-5.6 Terra disables hidden reasoning on CheaperInference", () => {
+test("GPT-5.6 Terra disables reasoning with official effort none", () => {
   const body = {
     model: "gpt-5.6-terra",
     messages: [{ role: "user", content: "hello" }],
@@ -110,6 +112,7 @@ test("GPT-5.6 Terra disables hidden reasoning on CheaperInference", () => {
   assert.deepEqual(adaptCheaperInferenceChatBody(body), {
     model: "gpt-5.6-terra",
     messages: [{ role: "user", content: "hello" }],
+    reasoning: { effort: "none" },
     reasoning_effort: "none",
   });
 });

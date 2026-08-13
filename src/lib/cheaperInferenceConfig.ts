@@ -3,6 +3,8 @@ import {
   isCheaperInferenceDeepSeekV4FlashModel,
   isCheaperInferenceDeepSeekV4ProModel,
   isCheaperInferenceGemini31ProModel,
+  isGpt56LunaModel,
+  isGpt56TerraModel,
 } from "@/lib/chatModels";
 
 /** Cheaper Inference OpenAI-compatible API root. */
@@ -63,6 +65,15 @@ export function adaptCheaperInferenceChatBody(
       adapted.thinking = { type: "disabled" };
       adapted.output_config = { effort: "low" };
       adapted.reasoning_effort = "low";
+      return adapted;
+    }
+    if (isGpt56LunaModel(adapted.model) || isGpt56TerraModel(adapted.model)) {
+      // OpenAI GPT-5.6: default effort is medium. Official off is
+      // reasoning.effort "none" (Luna/Terra support it). Cheaper Inference
+      // chat completions forwards `reasoning`; keep reasoning_effort as the
+      // Chat Completions alias some serving routes still read.
+      adapted.reasoning = { effort: "none" };
+      adapted.reasoning_effort = "none";
       return adapted;
     }
     // Cheaper Inference may default to hidden reasoning. All app calls use
