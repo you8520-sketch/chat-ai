@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  clientNeedsSuggestedRepliesPoll,
+  clientShouldShowSuggestedRepliesBar,
   normalizeSuggestedReply,
   normalizeSuggestedReplies,
   parseSuggestedRepliesFromModelText,
   parseSuggestedRepliesRecord,
   resolveClientSuggestedReplies,
+  shouldEnsureSuggestedRepliesExtraction,
   suggestedReplyCharCount,
 } from "./parse";
 import { SUGGESTED_REPLY_MAX_CHARS, SUGGESTED_REPLY_MIN_CHARS, suggestedReplyKindMeta } from "./types";
@@ -128,5 +131,135 @@ describe("resolveClientSuggestedReplies", () => {
     const fields = resolveClientSuggestedReplies(null);
     assert.equal(fields.suggestedRepliesRequested, false);
     assert.deepEqual(fields.suggestedReplies, []);
+  });
+});
+
+describe("client suggested-replies poll / bar", () => {
+  const empty = {
+    suggestedReplies: [] as const,
+    suggestedRepliesPending: false,
+    suggestedRepliesRequested: false,
+    suggestedRepliesFailed: false,
+  };
+
+  it("polls and shows the bar for missing records on existing chats", () => {
+    assert.equal(clientNeedsSuggestedRepliesPoll(empty), true);
+    assert.equal(clientShouldShowSuggestedRepliesBar(empty), true);
+  });
+
+  it("polls while pending and hides after a hard failure", () => {
+    assert.equal(
+      clientNeedsSuggestedRepliesPoll({
+        ...empty,
+        suggestedRepliesRequested: true,
+        suggestedRepliesPending: true,
+      }),
+      true
+    );
+    assert.equal(
+      clientNeedsSuggestedRepliesPoll({
+        ...empty,
+        suggestedRepliesRequested: true,
+        suggestedRepliesFailed: true,
+      }),
+      false
+    );
+    assert.equal(
+      clientShouldShowSuggestedRepliesBar({
+        ...empty,
+        suggestedRepliesRequested: true,
+        suggestedRepliesFailed: true,
+      }),
+      false
+    );
+  });
+
+  it("does not poll when three replies are already present", () => {
+    const replies = [
+      { kind: "escalate" as const, text: "a".repeat(60) },
+      { kind: "soften" as const, text: "b".repeat(60) },
+      { kind: "pivot" as const, text: "c".repeat(60) },
+    ];
+    const fields = {
+      suggestedReplies: replies,
+      suggestedRepliesPending: false,
+      suggestedRepliesRequested: true,
+      suggestedRepliesFailed: false,
+    };
+    assert.equal(clientNeedsSuggestedRepliesPoll(fields), false);
+    assert.equal(clientShouldShowSuggestedRepliesBar(fields), true);
+  });
+});
+
+describe("shouldEnsureSuggestedRepliesExtraction", () => {
+  const extractedAt = "2026-01-01T00:00:00.000Z";
+
+  it("starts extraction when the last assistant has no stored JSON", () => {
+    assert.equal(shouldEnsureSuggestedRepliesExtraction(null), true);
+  });
+
+  it("does not restart a fresh pending job", () => {
+    assert.equal(
+      shouldEnsureSuggestedRepliesExtraction(
+        {
+          replies: [],
+          extractedAt: "2026-01-01T00:00:30.000Z",
+          source: "background-deepseek",
+          pending: true,
+        },
+        Date.parse("2026-01-01T00:01:00.000Z")
+      ),
+      false
+    );
+  });
+
+  it("restarts a pending job after 90s", () => {
+    assert.equal(
+      shouldEnsureSuggestedRepliesExtraction(
+        {
+          replies: [],
+          extractedAt,
+          source: "background-deepseek",
+          pending: true,
+        },
+        Date.parse("2026-01-01T00:02:00.000Z")
+      ),
+      true
+    );
+  });
+
+  it("retries a failed job after 15s, not immediately", () => {
+    const failed = {
+      replies: [] as [],
+      extractedAt,
+      source: "background-deepseek" as const,
+      failed: true,
+    };
+    assert.equal(
+      shouldEnsureSuggestedRepliesExtraction(failed, Date.parse("2026-01-01T00:00:10.000Z")),
+      false
+    );
+    assert.equal(
+      shouldEnsureSuggestedRepliesExtraction(failed, Date.parse("2026-01-01T00:00:16.000Z")),
+      true
+    );
+  });
+
+  it("leaves a completed three-reply record alone", () => {
+    const replies = [
+      { kind: "escalate" as const, text: "a".repeat(60) },
+      { kind: "soften" as const, text: "b".repeat(60) },
+      { kind: "pivot" as const, text: "c".repeat(60) },
+    ];
+    assert.equal(
+      shouldEnsureSuggestedRepliesExtraction({
+        replies,
+        extractedAt,
+        source: "background-deepseek",
+        pending: false,
+        failed: false,
+      }),
+      false
+    );
   });
 });

@@ -27,6 +27,7 @@ Rules:
   - soften: soothe, concede a step, or close distance so the relationship can continue.
   - pivot: change topic, place, or action so the scene can go somewhere else.
 - Do not write as the character/NPC. Do not continue the assistant's last line in the NPC's voice.
+- If there is no prior user message, the assistant text is the opening greeting. Write the USER's first roleplay turn into that scene.
 - No OOC, no meta commentary, no numbering, no titles inside "text".
 - Do not invent lore that contradicts the provided scene.`;
 
@@ -49,7 +50,9 @@ function buildExtractUserBlock(opts: {
     opts.personaSpeechExamples?.trim()
       ? `[USER SPEECH EXAMPLES — imitate this voice]\n${opts.personaSpeechExamples.trim()}`
       : "",
-    `[USER MESSAGE]\n${opts.userMessage}`,
+    opts.userMessage.trim()
+      ? `[USER MESSAGE]\n${opts.userMessage}`
+      : "[OPENING GREETING — no user turn yet. Write the user's first roleplay move into this scene.]",
     `[ASSISTANT REPLY — read this turn's prose, then write the user's next move]\n${opts.assistantProse.slice(0, 6000)}`,
   ]
     .filter(Boolean)
