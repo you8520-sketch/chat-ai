@@ -3,23 +3,28 @@ import { canUseCharacterInTrpg, type CharacterAccessRow } from "@/lib/characterV
 import { parseGenresJson } from "@/lib/characterGenres";
 import { parseJson } from "./store";
 import {
+  assertScenarioBundleLimit,
+  countScenarioBundleChars,
   normalizeScenarioTemplateInput,
   parseCharacterIds,
   parseInventory,
   parseScenarioNpcs,
   parseStatRecord,
+  type TrpgScenarioNpc,
   type TrpgScenarioTemplate,
   type TrpgScenarioTemplateInput,
 } from "./scenarioTypes";
 import { parseTrpgVisibility } from "./types";
 
 export {
+  TRPG_SCENARIO_BUNDLE_LIMIT,
   TRPG_SCENARIO_CONTENT_LIMIT,
   TRPG_SCENARIO_LOCATION_LIMIT,
   TRPG_SCENARIO_MAX_BOTS,
   TRPG_SCENARIO_SECRET_LIMIT,
   TRPG_SCENARIO_SUMMARY_LIMIT,
   TRPG_SCENARIO_TITLE_LIMIT,
+  countScenarioBundleChars,
   normalizeScenarioTemplateInput,
   parseCharacterIds,
   parseInventory,
@@ -111,6 +116,45 @@ export function assertImportedCharactersAccessible(
   }
 }
 
+function linkedWorldBundleText(
+  db: Database.Database,
+  worldId: number | null
+): { worldSummary: string; worldContent: string } {
+  if (!worldId) return { worldSummary: "", worldContent: "" };
+  try {
+    const row = db.prepare(`SELECT summary, content FROM worlds WHERE id=?`).get(worldId) as
+      | { summary: string | null; content: string | null }
+      | undefined;
+    if (!row) return { worldSummary: "", worldContent: "" };
+    return { worldSummary: String(row.summary ?? ""), worldContent: String(row.content ?? "") };
+  } catch {
+    return { worldSummary: "", worldContent: "" };
+  }
+}
+
+function assertScenarioBundleFits(
+  db: Database.Database,
+  n: {
+    summary: string;
+    content: string;
+    secretContent: string;
+    npcs: TrpgScenarioNpc[];
+    worldId: number | null;
+  }
+): void {
+  const world = linkedWorldBundleText(db, n.worldId);
+  assertScenarioBundleLimit(
+    countScenarioBundleChars({
+      worldSummary: world.worldSummary,
+      worldContent: world.worldContent,
+      summary: n.summary,
+      content: n.content,
+      secretContent: n.secretContent,
+      npcs: n.npcs,
+    })
+  );
+}
+
 export function insertScenarioTemplate(
   db: Database.Database,
   creatorId: number,
@@ -118,6 +162,7 @@ export function insertScenarioTemplate(
 ): number {
   const n = normalizeScenarioTemplateInput(input);
   assertImportedCharactersAccessible(db, n.characterIds, creatorId);
+  assertScenarioBundleFits(db, n);
   const info = db
     .prepare(
       `INSERT INTO trpg_scenario_templates
@@ -155,6 +200,7 @@ export function updateScenarioTemplate(
   }
   const n = normalizeScenarioTemplateInput(input);
   assertImportedCharactersAccessible(db, n.characterIds, creatorId);
+  assertScenarioBundleFits(db, n);
   db.prepare(
     `UPDATE trpg_scenario_templates
      SET world_id=?, title=?, summary=?, content=?, secret_content=?, visibility=?, start_location=?,

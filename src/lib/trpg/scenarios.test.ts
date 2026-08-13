@@ -8,7 +8,11 @@ import { advanceTrpgCampaign, startTrpgCampaign, submitTrpgAction, type TrpgEngi
 import { listTrpgCampaigns, loadTrpgSnapshot } from "./engineSnapshot";
 import { parseHumanPersona } from "./hostPersona";
 import { trpgInvitePath } from "./invite";
-import { insertScenarioTemplate } from "./scenarioTemplates";
+import { insertScenarioTemplate, updateScenarioTemplate } from "./scenarioTemplates";
+import {
+  TRPG_SCENARIO_BUNDLE_LIMIT,
+  countScenarioBundleChars,
+} from "./scenarioTypes";
 import { ensureTrpgTables } from "./schema";
 import { loadCampaign, loadParticipants, loadScenario, parseBotPersona } from "./store";
 
@@ -488,6 +492,50 @@ describe("TRPG scenarios and catalog", () => {
       characterIds: [1],
     });
     assert.ok(templateId > 0);
+    db.close();
+  });
+
+  it("rejects a scenario whose world, prose, secrets, and NPCs exceed 10,000 characters", () => {
+    const db = memoryDb();
+    const worldBody = "한".repeat(7000);
+    db.prepare(
+      `INSERT INTO worlds (creator_id, name, summary, content, trpg_enabled, trpg_visibility)
+       VALUES (1, '북부', '요약', ?, 0, 'private')`
+    ).run(worldBody);
+    assert.throws(
+      () =>
+        insertScenarioTemplate(db, 1, {
+          title: "너무 김",
+          content: "가".repeat(2500),
+          secretContent: "나".repeat(600),
+          worldId: 1,
+          npcs: [{ name: "역무원", description: "다".repeat(200), systemPrompt: "라".repeat(200) }],
+        }),
+      /이하여야/
+    );
+    const okId = insertScenarioTemplate(db, 1, {
+      title: "여유",
+      content: "한밤의 역에서 유령 기차를 기다린다.",
+      worldId: 1,
+    });
+    assert.ok(okId > 0);
+    assert.equal(
+      countScenarioBundleChars({
+        worldSummary: "요약",
+        worldContent: worldBody,
+        content: "한밤의 역에서 유령 기차를 기다린다.",
+      }) <= TRPG_SCENARIO_BUNDLE_LIMIT,
+      true
+    );
+    assert.throws(
+      () =>
+        updateScenarioTemplate(db, okId, 1, {
+          title: "여유",
+          content: "마".repeat(3500),
+          worldId: 1,
+        }),
+      /이하여야/
+    );
     db.close();
   });
 });
