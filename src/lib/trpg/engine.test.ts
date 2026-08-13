@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
-import { EVEN_STATS, createTrpgCampaign, joinTrpgCampaign, saveTrpgSheet, writeSheet } from "./engineCreate";
+import { EVEN_STATS, createTrpgCampaign, joinTrpgCampaign, saveTrpgSheet, saveTrpgRelationshipBrief, writeSheet } from "./engineCreate";
 import {
   advanceTrpgCampaign,
   hostFillBotAction,
@@ -242,6 +242,92 @@ describe("TRPG campaign loop", () => {
     assert.equal(botLine?.revealed, true);
     const botRoll = resolved?.rolls.find((r) => r.kind === "ai_character");
     assert.match(botRoll?.actionBody ?? "", /내가 볼게/);
+    db.close();
+  });
+
+  it("stores party relationships before start and feeds them to GM and bots", async () => {
+    const db = memoryDb();
+    const seen: string[] = [];
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 11,
+      gmCall: async ({ user }) => {
+        seen.push(user);
+        return { text: gmText({ narration: "관계가 반영된 장면" }) };
+      },
+      botCall: async (_system, user) => {
+        seen.push(user);
+        return { text: "유나가 렌 쪽을 흘끗 본다. 소꿉친구라 반말이 먼저 나온다." };
+      },
+    };
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1 });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
+    saveTrpgRelationshipBrief(db, { campaignId, userId: 1, brief: "렌과 유나는 소꿉친구" });
+    const botId = insertParticipant(db, {
+      campaignId,
+      slotIndex: 1,
+      kind: "ai_character",
+      userId: null,
+      characterId: null,
+      displayName: "유나",
+    });
+    writeSheet(db, campaignId, botId, "유나", EVEN_STATS, "");
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.match(seen[0] ?? "", /PARTY RELATIONSHIPS/);
+    assert.match(seen[0] ?? "", /소꿉친구/);
+    submitTrpgAction(db, { campaignId, userId: 1, body: "창문을 연다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.ok(seen.some((block) => block.includes("소꿉친구") && block.includes("HUMAN ACTIONS")));
+    db.close();
+  });
+
+  it("lets the second companion see the first companion's action", async () => {
+    const db = memoryDb();
+    const botUsers: string[] = [];
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 11,
+      gmCall: async ({ user }) => {
+        if (user.includes("화물칸을 연다")) {
+          assert.match(user, /유나-먼저/);
+          assert.match(user, /카이-다음/);
+        }
+        return { text: gmText({ narration: "순서대로 말한다" }) };
+      },
+      botCall: async (_system, user) => {
+        botUsers.push(user);
+        if (user.includes("[NAME]\n유나")) return { text: "유나-먼저" };
+        return { text: "카이-다음" };
+      },
+    };
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1 });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
+    const yuna = insertParticipant(db, {
+      campaignId,
+      slotIndex: 1,
+      kind: "ai_character",
+      userId: null,
+      characterId: null,
+      displayName: "유나",
+    });
+    const kai = insertParticipant(db, {
+      campaignId,
+      slotIndex: 2,
+      kind: "ai_character",
+      userId: null,
+      characterId: null,
+      displayName: "카이",
+    });
+    writeSheet(db, campaignId, yuna, "유나", EVEN_STATS, "");
+    writeSheet(db, campaignId, kai, "카이", EVEN_STATS, "");
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    submitTrpgAction(db, { campaignId, userId: 1, body: "화물칸을 연다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(botUsers.length, 2);
+    assert.match(botUsers[0] ?? "", /\[NAME\]\n유나/);
+    assert.doesNotMatch(botUsers[0] ?? "", /유나-먼저/);
+    assert.match(botUsers[1] ?? "", /\[NAME\]\n카이/);
+    assert.match(botUsers[1] ?? "", /유나-먼저/);
     db.close();
   });
 

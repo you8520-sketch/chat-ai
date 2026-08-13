@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { buildTrpgGmUserBlock, formatTrpgSheetCanon, parseTrpgGmOutput, TRPG_GM_SYSTEM } from "./gmPrompt";
+import { buildTrpgGmUserBlock, formatTrpgGenreToneLine, formatTrpgSheetCanon, parseTrpgGmOutput, TRPG_GM_SYSTEM } from "./gmPrompt";
+import { TRPG_GM_AIM_CHARS, TRPG_GM_CLOSING_MIN_CHARS, TRPG_GM_MIN_CHARS } from "./types";
 import { DEFAULT_TRPG_STAT_DEFS } from "./stats";
 
 describe("TRPG GM prompt/parse", () => {
@@ -23,8 +24,17 @@ describe("TRPG GM prompt/parse", () => {
   it("does not mention OOC or party chat", () => {
     assert.doesNotMatch(TRPG_GM_SYSTEM, /OOC|party chat|잡담/i);
     assert.match(TRPG_GM_SYSTEM, /3000/);
+    assert.match(TRPG_GM_SYSTEM, new RegExp(`Aim about ${TRPG_GM_AIM_CHARS}`));
+    assert.match(TRPG_GM_SYSTEM, new RegExp(`At least ${TRPG_GM_CLOSING_MIN_CHARS}`));
     assert.match(TRPG_GM_SYSTEM, /single linear timeline/i);
+    assert.match(TRPG_GM_SYSTEM, /comic and serious/i);
+    assert.match(TRPG_GM_SYSTEM, /Page time/);
+    assert.match(TRPG_GM_SYSTEM, /Extra NPCs/);
+    assert.match(TRPG_GM_SYSTEM, /Closing GM beat/);
+    assert.match(TRPG_GM_SYSTEM, /GM: "\.\.\."/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /800–1800|800-1800/);
+    assert.equal(TRPG_GM_MIN_CHARS, 3000);
+    assert.ok(TRPG_GM_AIM_CHARS > TRPG_GM_MIN_CHARS);
     const block = buildTrpgGmUserBlock({
       worldBrief: "폐여관",
       memoryBlock: "[TRPG STRUCTURED STATE]",
@@ -45,6 +55,17 @@ describe("TRPG GM prompt/parse", () => {
     assert.doesNotMatch(block, /OOC|PARTY CHAT/i);
     assert.match(block, /PROPOSED FICTION/);
     assert.match(block, /d20=14/);
+    assert.match(block, /SCENE CRAFT/);
+    assert.match(block, /Infer comic vs serious/);
+    assert.match(formatTrpgGenreToneLine(["공포/추리", "판타지"]), /WORLD GENRES: 공포\/추리, 판타지/);
+    const withGenres = buildTrpgGmUserBlock({
+      worldBrief: "폐여관",
+      memoryBlock: "[TRPG STRUCTURED STATE]",
+      opening: true,
+      genres: ["공포/추리"],
+      actions: [],
+    });
+    assert.match(withGenres, /WORLD GENRES: 공포\/추리/);
     const withSecret = buildTrpgGmUserBlock({
       worldBrief: "폐여관",
       gmSecret: "진범은 여관주인이다",
@@ -63,6 +84,15 @@ describe("TRPG GM prompt/parse", () => {
     });
     assert.match(withPersona, /PLAYER PERSONAS/);
     assert.match(withPersona, /조용한 탐정/);
+    const withBonds = buildTrpgGmUserBlock({
+      worldBrief: "폐여관",
+      memoryBlock: "[TRPG STRUCTURED STATE]",
+      opening: true,
+      relationshipBrief: "렌과 유나는 소꿉친구",
+      actions: [],
+    });
+    assert.match(withBonds, /PARTY RELATIONSHIPS/);
+    assert.match(withBonds, /소꿉친구/);
     const sheets = formatTrpgSheetCanon({
       defs: DEFAULT_TRPG_STAT_DEFS,
       sheets: [{ name: "렌", stats: { str: 9, dex: 3, int: 5, wis: 5, cha: 5, con: 5 } }],
@@ -94,5 +124,6 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(TRPG_GM_SYSTEM, /CHARACTER SHEETS/);
     assert.match(TRPG_GM_SYSTEM, /이름: "대사"/);
     assert.match(TRPG_GM_SYSTEM, /AI companion/);
+    assert.match(TRPG_GM_SYSTEM, /PARTY RELATIONSHIPS/);
   });
 });

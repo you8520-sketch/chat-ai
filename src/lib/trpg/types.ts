@@ -7,13 +7,20 @@ export const TRPG_MAX_BOTS = 2;
 export const TRPG_MIN_SLOTS = 1;
 export const TRPG_MEMORY_SEAL_ROUNDS = 4;
 export const TRPG_RECENT_ROUND_RAW = 3;
-/** GM prose — same aim band as 1:1 DeepSeek RP, floor at 3000 characters, no upper cap. */
+/** GM prose — floor 3000 Korean characters; aim well above so scenes actually exceed it. */
 export const TRPG_GM_MIN_CHARS = 3000;
-export const TRPG_GM_AIM_CHARS = 3200;
+export const TRPG_GM_AIM_CHARS = 4800;
+/** Closing `GM: "..."` table-talk inside the narration — situation recap, not a one-liner. */
+export const TRPG_GM_CLOSING_MIN_CHARS = 400;
+/** Thinking-on + long Hangul; omit would risk provider-default truncation. */
+export const TRPG_GM_MAX_TOKENS = 12288;
 export const TRPG_NEXT_ROUND_CONTEXT_MAX_CHARS = 400;
 export const TRPG_SEAL_SUMMARY_MAX_CHARS = 500;
 export const TRPG_SEALED_PROMPT_MAX_CHARS = 2500;
 export const TRPG_BOT_SCENE_MAX_CHARS = 1400;
+/** Bot-seat PC action — speech + physical beat, not GM narration. */
+export const TRPG_BOT_MIN_CHARS = 250;
+export const TRPG_BOT_AIM_CHARS = 700;
 /** Character card fields on a bot-seat call — personality lives here. */
 export const TRPG_BOT_CARD_PROMPT_MAX_CHARS = 3500;
 export const TRPG_BOT_CARD_FIELD_MAX_CHARS = 800;
@@ -27,6 +34,8 @@ export const TRPG_GM_GROSS_MARGIN = 0.65;
 export const TRPG_BOT_GROSS_MARGIN = 0.65;
 export const TRPG_BOT_MODEL = "deepseek-v4-pro";
 export const TRPG_ACTION_MAX_CHARS = 800;
+/** Host-written party bonds, applied before campaign start. */
+export const TRPG_RELATIONSHIP_MAX_CHARS = 800;
 /** Out-of-world party talk. Never sent to GM or bot-seat prompts. */
 export const TRPG_PARTY_CHAT_MAX_CHARS = 400;
 export const TRPG_PARTY_CHAT_LIMIT = 80;

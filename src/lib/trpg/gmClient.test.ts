@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { adaptCheaperInferenceChatBody } from "../cheaperInferenceConfig";
 import { adaptTrpgBotChatBody, adaptTrpgGmChatBody } from "./gmClient";
+import { TRPG_GM_MAX_TOKENS } from "./types";
 
 describe("TRPG GM call path vs regular chat", () => {
   it("enables DeepSeek V4 Pro thinking only on the GM adapter", () => {
@@ -26,5 +27,14 @@ describe("TRPG GM call path vs regular chat", () => {
       thinking: { type: "disabled" },
     });
     assert.equal(body.reasoning_effort, "high", "input must not be mutated");
+  });
+
+  it("keeps a high max_tokens cap on the GM adapter", () => {
+    const withCap = adaptTrpgGmChatBody({
+      model: "deepseek-v4-pro",
+      max_tokens: TRPG_GM_MAX_TOKENS,
+    });
+    assert.equal(withCap.max_tokens, TRPG_GM_MAX_TOKENS);
+    assert.deepEqual(withCap.thinking, { type: "enabled" });
   });
 });

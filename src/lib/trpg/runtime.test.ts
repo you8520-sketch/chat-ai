@@ -6,7 +6,7 @@ import {
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
 } from "@/lib/chatModels";
-import { buildTrpgBotActionUserBlock, sanitizeBotActionText } from "./botActions";
+import { buildTrpgBotActionUserBlock, orderTrpgBotsForRound, sanitizeBotActionText } from "./botActions";
 import { computeTrpgRoundPoints, splitTrpgRoundCost } from "./billing";
 import { buildTrpgMemoryPromptBlock, roundsDueForSeal } from "./memory";
 import { TRPG_BOT_GROSS_MARGIN, TRPG_GM_GROSS_MARGIN } from "./types";
@@ -30,12 +30,62 @@ describe("TRPG bot actions", () => {
     assert.match(block, /질투 많은 반말/);
     assert.match(block, /렌/);
     assert.match(block, /여관 문이 열린다/);
+    assert.match(block, /EARLIER COMPANION ACTIONS THIS ROUND/);
+    assert.match(block, /250/);
+    assert.match(block, /700/);
     assert.doesNotMatch(block, /Flash/i);
+    const second = buildTrpgBotActionUserBlock({
+      characterName: "카이",
+      description: "쿨한 동료",
+      greeting: "가자.",
+      systemPrompt: "짧게 끊는다.",
+      previousGmNarration: "여관 문이 열린다.",
+      campaignMemory: "[CAMPAIGN STATE]",
+      humanActions: [{ playerName: "렌", text: "문을 민다." }],
+      companionActions: [{ name: "유나", text: "유나가 먼저 말린다." }],
+      speakIndex: 2,
+      speakCount: 2,
+    });
+    assert.match(second, /유나가 먼저 말린다/);
+    assert.match(second, /companion 2 of 2/);
+    const withBonds = buildTrpgBotActionUserBlock({
+      characterName: "유나",
+      description: "질투",
+      greeting: "뭐야",
+      systemPrompt: "반말",
+      previousGmNarration: "여관",
+      campaignMemory: "",
+      humanActions: [{ playerName: "렌", text: "문을 민다." }],
+      relationshipBrief: "렌과 유나는 소꿉친구",
+    });
+    assert.match(withBonds, /PARTY RELATIONSHIPS/);
+    assert.match(withBonds, /소꿉친구/);
+  });
+
+  it("orders companions by who the human addressed, then scene recency", () => {
+    const tae = { id: 1, name: "권태현" };
+    const hyun = { id: 2, name: "강이현" };
+    assert.deepEqual(
+      orderTrpgBotsForRound({
+        bots: [tae, hyun],
+        humanActions: [{ playerName: "렌", text: "이현한테 물어본다." }],
+        previousGmNarration: "태현이 먼저 나섰다.",
+      }).map((b) => b.name),
+      ["강이현", "권태현"]
+    );
+    assert.deepEqual(
+      orderTrpgBotsForRound({
+        bots: [tae, hyun],
+        humanActions: [{ playerName: "렌", text: "화물칸을 연다." }],
+        previousGmNarration: "태현이 어깨를 잡았다. 이현은 약 쪽을 본다.",
+      }).map((b) => b.name),
+      ["강이현", "권태현"]
+    );
   });
 
   it("clips empty bot drafts", () => {
     assert.equal(sanitizeBotActionText("   "), "");
-    assert.ok(sanitizeBotActionText("가".repeat(500)).length <= 400);
+    assert.ok(sanitizeBotActionText("가".repeat(900)).length <= 700);
   });
 });
 

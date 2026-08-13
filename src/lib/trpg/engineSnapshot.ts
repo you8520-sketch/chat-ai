@@ -107,7 +107,8 @@ function loadRolls(db: Database.Database, roundId: number): TrpgPublicRoll[] {
          FROM trpg_dice_rolls r
          JOIN trpg_action_submissions s ON s.id = r.submission_id
          JOIN trpg_participants p ON p.id = s.participant_id
-         WHERE r.round_id=?`
+         WHERE r.round_id=?
+         ORDER BY s.id ASC`
       )
       .all(roundId) as Array<{
       d20: number;
@@ -322,6 +323,7 @@ export function loadTrpgSnapshot(
     hostUserId: campaign.host_user_id,
     sourceCharacterId: campaign.source_character_id,
     worldBrief: campaign.world_brief,
+    relationshipBrief: campaign.relationship_brief ?? "",
     billingMode: (campaign.billing_mode as TrpgBillingMode) || DEFAULT_TRPG_BILLING_MODE,
     campaignStatus: campaign.status,
     maxSlots: campaign.max_slots,

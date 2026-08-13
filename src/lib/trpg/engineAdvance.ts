@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import type Database from "better-sqlite3";
+import { parseGenresJson } from "@/lib/characterGenres";
 import { deductPoints, getPointBalance } from "@/lib/points";
 import { paidCreatorRewardSpend, resolveCreatorRewardRate } from "@/lib/creatorPoints";
 import { creditTrpgRoundCreatorRewards, loadTrpgCharacterRoyaltyTargets } from "./creatorRewards";
@@ -11,12 +12,13 @@ import {
   TRPG_GM_USAGE_FALLBACK,
   type TrpgModelUsage,
 } from "./billing";
-import { buildTrpgBotActionUserBlock, sanitizeBotActionText, TRPG_BOT_SYSTEM } from "./botActions";
+import { buildTrpgBotActionUserBlock, orderTrpgBotsForRound, sanitizeBotActionText, TRPG_BOT_SYSTEM } from "./botActions";
 import { applyCampaignLedger, clipTrpgChars, loadCampaignLedger, persistCampaignLedger } from "./campaignLedger";
 import { resolveTrpgRoll, rollServerD20 } from "./dice";
 import { assertCanStart } from "./engineCreate";
 import { callTrpgBot, callTrpgGm } from "./gmCall";
 import { formatTrpgPlayerPersonaBlock, parseHumanPersona } from "./hostPersona";
+import { loadScenarioTemplate } from "./scenarioTemplates";
 import { buildTrpgGmUserBlock, formatTrpgSheetCanon, parseTrpgGmOutput, TRPG_GM_SYSTEM } from "./gmPrompt";
 import { loadTrpgSnapshot } from "./engineSnapshot";
 import { buildCampaignMemoryPrompt, buildTrpgBotMemoryBlock } from "./memory";
@@ -37,7 +39,7 @@ import {
   type TrpgParticipantRow,
   type TrpgRoundRow,
 } from "./store";
-import { TRPG_ACTION_MAX_CHARS, TRPG_BOT_CARD_FIELD_MAX_CHARS, TRPG_BOT_CARD_PROMPT_MAX_CHARS, TRPG_BOT_SCENE_MAX_CHARS, type TrpgActionSource, type TrpgBillingMode, type TrpgRoundPhase } from "./types";
+import { TRPG_ACTION_MAX_CHARS, TRPG_BOT_AIM_CHARS, TRPG_BOT_CARD_FIELD_MAX_CHARS, TRPG_BOT_CARD_PROMPT_MAX_CHARS, TRPG_BOT_SCENE_MAX_CHARS, type TrpgActionSource, type TrpgBillingMode, type TrpgRoundPhase } from "./types";
 import { isTrpgRoundPhase } from "./types";
 import type { TrpgCampaignSnapshot } from "./snapshot";
 
@@ -390,9 +392,19 @@ async function generateBotActions(
   const botCall =
     opts.deps?.botCall ??
     (async (system: string, user: string) => callTrpgBot({ system, user }));
+  const parts = loadParticipants(db, opts.campaign.id);
+  const pending = opts.botIds
+    .map((id) => parts.find((p) => p.id === id))
+    .filter((p): p is NonNullable<typeof p> => Boolean(p));
+  const ordered = orderTrpgBotsForRound({
+    bots: pending.map((p) => ({ id: p.id, name: p.display_name })),
+    humanActions: humans.map((h) => ({ playerName: h.name, text: h.body })),
+    previousGmNarration: prev,
+  });
+  const earlier: Array<{ name: string; text: string }> = [];
 
-  for (const botId of opts.botIds) {
-    const bot = loadParticipants(db, opts.campaign.id).find((p) => p.id === botId);
+  for (const turn of ordered) {
+    const bot = parts.find((p) => p.id === turn.id);
     if (!bot) continue;
     let description = "";
     let greeting = "";
@@ -449,13 +461,18 @@ async function generateBotActions(
         })),
       }),
       humanActions: humans.map((h) => ({ playerName: h.name, text: h.body })),
+      companionActions: earlier,
+      speakIndex: earlier.length + 1,
+      speakCount: ordered.length,
+      relationshipBrief: opts.campaign.relationship_brief ?? "",
     });
     const { text, usage } = await botCall(TRPG_BOT_SYSTEM, user);
     const body =
-      sanitizeBotActionText(text, TRPG_ACTION_MAX_CHARS) ||
+      sanitizeBotActionText(text, TRPG_BOT_AIM_CHARS) ||
       `${bot.display_name}은 상황을 살피며 한 발 다가선다.`;
     upsertLockedAction(db, opts.roundId, bot.id, body, "free", null, "bot_model");
     appendRoundUsage(db, opts.roundId, usage ?? TRPG_BOT_USAGE_FALLBACK);
+    earlier.push({ name: bot.display_name, text: body });
   }
 }
 
@@ -482,7 +499,7 @@ function persistRolls(
   const subs = db
     .prepare(
       `SELECT s.id, s.participant_id, s.action_type, s.selected_stat, s.body
-       FROM trpg_action_submissions s WHERE s.round_id=? AND s.locked=1`
+       FROM trpg_action_submissions s WHERE s.round_id=? AND s.locked=1 ORDER BY s.id ASC`
     )
     .all(roundId) as {
     id: number;
@@ -538,6 +555,31 @@ function persistRolls(
   })();
 }
 
+function loadCampaignGenres(db: Database.Database, campaign: TrpgCampaignRow): string[] {
+  const seen: string[] = [];
+  const add = (raw: unknown) => {
+    for (const genre of parseGenresJson(raw)) {
+      if (!seen.includes(genre)) seen.push(genre);
+    }
+  };
+  if (campaign.template_id) {
+    const row = loadScenarioTemplate(db, campaign.template_id);
+    if (row) add(row.genres);
+  }
+  if (campaign.source_world_id) {
+    const hasWorlds = db
+      .prepare(`SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name='worlds'`)
+      .get() as { ok: number } | undefined;
+    if (hasWorlds) {
+      const world = db
+        .prepare(`SELECT genres FROM worlds WHERE id=?`)
+        .get(campaign.source_world_id) as { genres?: string } | undefined;
+      if (world) add(world.genres);
+    }
+  }
+  return seen;
+}
+
 async function runGmForRound(
   db: Database.Database,
   opts: {
@@ -574,6 +616,8 @@ async function runGmForRound(
     regenerate: opts.regenerate === true,
     playerPersonas,
     sheetCanon,
+    genres: loadCampaignGenres(db, campaign),
+    relationshipBrief: campaign.relationship_brief ?? "",
     actions,
   });
   const gmCall = opts.deps?.gmCall ?? callTrpgGm;
@@ -753,7 +797,8 @@ function loadActionsForGm(
          FROM trpg_action_submissions s
          JOIN trpg_participants p ON p.id = s.participant_id
          LEFT JOIN trpg_dice_rolls r ON r.submission_id = s.id
-         WHERE s.round_id=? AND s.locked=1`
+         WHERE s.round_id=? AND s.locked=1
+         ORDER BY s.id ASC`
       )
       .all(roundId) as Array<{
       participant_id: number;

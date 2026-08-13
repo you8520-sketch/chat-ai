@@ -14,7 +14,7 @@ import { statModifier, suggestBotStats } from "@/lib/trpg/stats";
 import { trpgStartBlockedReason } from "@/lib/trpg/lobbyReady";
 import { trpgReadyLabel } from "@/lib/trpg/readyLabel";
 import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
-import { TRPG_GM_GROSS_MARGIN } from "@/lib/trpg/types";
+import { TRPG_GM_GROSS_MARGIN, TRPG_RELATIONSHIP_MAX_CHARS } from "@/lib/trpg/types";
 import type { PublicPersonaListItem } from "@/lib/userPersonasClient";
 
 const POLL_MS = 1500;
@@ -56,6 +56,7 @@ export default function TrpgRoomClient({
   const [actionBody, setActionBody] = useState(snap.myDraft?.body ?? "");
   const [hostFill, setHostFill] = useState("");
   const [partyBody, setPartyBody] = useState("");
+  const [relationshipBrief, setRelationshipBrief] = useState(initial.relationshipBrief ?? "");
   const [starting, setStarting] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(
     () => snap.viewerParticipantId ?? snap.participants.find((p) => p.kind === "human")?.id ?? null
@@ -136,6 +137,29 @@ export default function TrpgRoomClient({
     }
   }
 
+  async function saveRelationship() {
+    await runPatch({ relationshipBrief });
+  }
+
+  async function runPatch(body: unknown) {
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/trpg/campaigns/${snap.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = (await res.json()) as { campaign?: TrpgCampaignSnapshot; error?: string };
+      if (!res.ok || !data.campaign) throw new Error(data.error || "실패했습니다.");
+      apply(data.campaign);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "실패했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function addCharacter(characterId: number) {
     await run(`/api/trpg/campaigns/${snap.id}/companions`, { characterIds: [characterId] });
   }
@@ -192,6 +216,18 @@ export default function TrpgRoomClient({
     setStarting(true);
     window.scrollTo(0, 0);
     try {
+      if (snap.viewerIsHost) {
+        const relRes = await fetch(`/api/trpg/campaigns/${snap.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ relationshipBrief }),
+        });
+        const relData = (await relRes.json()) as { campaign?: TrpgCampaignSnapshot; error?: string };
+        if (!relRes.ok || !relData.campaign) {
+          throw new Error(relData.error || "관계 설정을 저장하지 못했습니다.");
+        }
+        apply(relData.campaign);
+      }
       if (editing && remaining >= 0) {
         const sheetRes = await fetch(`/api/trpg/campaigns/${snap.id}/sheet`, {
           method: "POST",
@@ -203,6 +239,7 @@ export default function TrpgRoomClient({
             ...(editing.kind !== "ai_character" && selectedPersonaId != null
               ? { personaId: selectedPersonaId }
               : {}),
+            ...(snap.viewerIsHost ? { relationshipBrief } : {}),
           }),
         });
         const sheetData = (await sheetRes.json()) as { campaign?: TrpgCampaignSnapshot; error?: string };
@@ -314,7 +351,7 @@ export default function TrpgRoomClient({
           봇이 있으면 호출이 두 번입니다. 봇 자리는 DeepSeek V4 Pro(thinking 끔, 1:1 채팅과 같음)가
           캐릭터 카드로 행동을 쓰고, GM은 같은 Pro(thinking 켬)가 장면을 씁니다. Flash는 쓰지 않습니다.
           마진은 둘 다 {Math.round(TRPG_GM_GROSS_MARGIN * 100)}%이며 실제 토큰을 사람만 균등 분담합니다.
-          GM 서술은 1:1 채팅과 같이 3,000자 이상을 목표로 하며 상한은 없습니다.
+          GM 서술은 3,000자를 넘기며, 캐릭터마다 분량을 주고 마지막에 GM 상황 설명을 넣습니다. 상한은 없습니다.
           캠페인 사실(HP·아이템·퀘스트·플래그)은 DB가 원본이고, 최근 3라운드만 원문으로 넣습니다.
           채팅처럼 분기할 수 없습니다. 한 타임라인만 앞으로 갑니다.
           방장이 봇 행동을 대신 넣으면 그 라운드 봇 호출은 없습니다.
@@ -335,6 +372,44 @@ export default function TrpgRoomClient({
           onPersonaChange={(id) => void applyPersona(id)}
           onAddCharacter={(id) => void addCharacter(id)}
         />
+      ) : null}
+
+      {setup ? (
+        <AppSectionCard title="관계 설정">
+          <p className="mb-3 text-sm text-zinc-400">
+            유저와 플레이어 캐릭터가 서로 어떤 사이인지 짧게 적으세요. 캠페인 시작 전에 적용되며, GM과
+            캐릭터가 이 관계를 보고 말합니다.
+          </p>
+          {snap.viewerIsHost ? (
+            <>
+              <textarea
+                value={relationshipBrief}
+                onChange={(e) => setRelationshipBrief(e.target.value.slice(0, TRPG_RELATIONSHIP_MAX_CHARS))}
+                rows={4}
+                maxLength={TRPG_RELATIONSHIP_MAX_CHARS}
+                placeholder={relationshipPlaceholder(snap.participants.map((p) => p.displayName))}
+                className="w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100 outline-none focus:border-violet-400/40"
+              />
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void saveRelationship()}
+                  className="inline-flex min-h-10 items-center rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-semibold text-zinc-100 hover:bg-white/10 disabled:opacity-50"
+                >
+                  관계 적용
+                </button>
+                <p className="text-xs text-zinc-500">
+                  {relationshipBrief.trim().length}/{TRPG_RELATIONSHIP_MAX_CHARS}자 · 시작을 눌러도 저장됩니다.
+                </p>
+              </div>
+            </>
+          ) : (
+            <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-300">
+              {snap.relationshipBrief?.trim() || "방장이 시작 전에 관계를 적습니다."}
+            </p>
+          )}
+        </AppSectionCard>
       ) : null}
 
       {snap.inviteCode && !(setup && snap.viewerIsHost) ? (
@@ -467,6 +542,7 @@ export default function TrpgRoomClient({
                   name,
                   stats,
                   participantId: editing?.id,
+                  ...(snap.viewerIsHost ? { relationshipBrief } : {}),
                 })
               }
               className="inline-flex min-h-10 items-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
@@ -507,4 +583,15 @@ export default function TrpgRoomClient({
       ) : null}
     </div>
   );
+}
+
+function relationshipPlaceholder(names: string[]): string {
+  const party = names.map((n) => n.trim()).filter(Boolean);
+  if (party.length >= 3) {
+    return `예: ${party[0]}과 ${party[1]}은 소꿉친구. ${party[2]}는 ${party[0]}의 후배.`;
+  }
+  if (party.length === 2) {
+    return `예: ${party[0]}과 ${party[1]}은 소꿉친구. 서로를 잘 알고 반말한다.`;
+  }
+  return "예: 렌과 권태현은 소꿉친구. 강이현은 렌을 선배로 따른다.";
 }

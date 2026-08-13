@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AppSectionCard } from "@/components/AppPageShell";
+import NovelText from "@/components/NovelText";
 import { TRPG_ACTION_TYPES, actionTypeLabelKo, type TrpgActionType } from "@/lib/trpg/actionTypes";
 import {
   CHAT_ROOM_HEADER_OFFSET_CLASS,
+  DEFAULT_CHAT_DISPLAY_PREFS,
   chatReadabilityStyle,
   normalizeFontSizePreset,
   type ChatFontSizePreset,
@@ -95,7 +97,11 @@ export default function TrpgCampaignRoom({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const phase = snap.round.phase;
   const waitingOthers = snap.workType === "wait_humans";
-  const knownNames = snap.participants.map((p) => p.displayName);
+  const knownNames = [
+    ...snap.participants.map((p) => p.displayName),
+    ...snap.sheets.map((s) => s.sheet.name),
+    "GM",
+  ].filter((name, i, all) => name.trim() && all.indexOf(name) === i);
   const imageId = imageCharacterId(snap);
   const sceneRows = snap.log.filter((row) => row.narration || row.actions.some((a) => a.revealed && a.body));
   const waitingOpening =
@@ -404,14 +410,24 @@ function SceneTurn({
           />
         ))}
         {row.rolls.length > 0 ? <DiceStrip rolls={row.rolls} statDefs={statDefs} /> : null}
-        {beats.map((beat, i) => (
-          <TrpgNamedProse
-            key={`${row.roundNumber}-gm-${i}`}
-            name={beat.speaker ?? "장면"}
-            text={beat.text}
-            variant="character"
-          />
-        ))}
+        {beats.map((beat, i) =>
+          beat.speaker ? (
+            <TrpgNamedProse
+              key={`${row.roundNumber}-gm-${i}`}
+              name={beat.speaker}
+              text={beat.text}
+              variant="character"
+            />
+          ) : (
+            <NovelText
+              key={`${row.roundNumber}-gm-${i}`}
+              content={beat.text}
+              display={DEFAULT_CHAT_DISPLAY_PREFS}
+              variant="character"
+              paragraphMode="author"
+            />
+          )
+        )}
       </div>
       {showToolbar ? (
         <TrpgSceneToolbar

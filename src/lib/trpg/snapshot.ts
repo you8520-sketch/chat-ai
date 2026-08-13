@@ -84,6 +84,7 @@ export type TrpgCampaignSnapshot = {
   hostUserId: number;
   sourceCharacterId: number | null;
   worldBrief: string;
+  relationshipBrief: string;
   billingMode: TrpgBillingMode;
   campaignStatus: string;
   maxSlots: number;
