@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
+import { parseGenresJson } from "@/lib/characterGenres";
 import {
   WORLD_CONTENT_LIMIT,
   WORLD_NAME_LIMIT,
@@ -61,8 +62,11 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
         })
       : {
           trpgEnabled: Number(existing.trpg_enabled ?? 0) === 1 ? 1 : 0,
-          trpgVisibility: existing.trpg_visibility === "public" ? "public" : "private",
+          trpgVisibility: Number(existing.trpg_enabled ?? 0) === 1 ? "public" : "private",
         };
+  const genresJson = JSON.stringify(
+    parseGenresJson(trpgFlags.trpgEnabled ? (b.genres ?? existing.genres) : [])
+  );
 
   if (!name) return NextResponse.json({ error: "세계관 이름을 입력해 주세요." }, { status: 400 });
   if (!content) return NextResponse.json({ error: "세계관 본문을 입력해 주세요." }, { status: 400 });
@@ -74,8 +78,8 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
   }
 
   db.prepare(
-    `UPDATE worlds SET name = ?, summary = ?, content = ?, trpg_enabled = ?, trpg_visibility = ?, updated_at = datetime('now') WHERE id = ? AND creator_id = ?`
-  ).run(name, summary, content, trpgFlags.trpgEnabled, trpgFlags.trpgVisibility, id, user.id);
+    `UPDATE worlds SET name = ?, summary = ?, content = ?, trpg_enabled = ?, trpg_visibility = ?, genres = ?, updated_at = datetime('now') WHERE id = ? AND creator_id = ?`
+  ).run(name, summary, content, trpgFlags.trpgEnabled, trpgFlags.trpgVisibility, genresJson, id, user.id);
 
   const row = loadOwnedWorld(db, user.id, id)!;
   return NextResponse.json({ ok: true, world: rowToWorldListItem(row) });

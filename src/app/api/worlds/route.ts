@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
+import { parseGenresJson } from "@/lib/characterGenres";
 import {
   WORLD_CONTENT_LIMIT,
   WORLD_NAME_LIMIT,
@@ -48,14 +49,15 @@ export async function POST(req: Request) {
   }
 
   const { trpgEnabled, trpgVisibility } = parseWorldTrpgFlags(b);
+  const genresJson = JSON.stringify(parseGenresJson(trpgEnabled ? b.genres : []));
 
   const db = getDb();
   const info = db
     .prepare(
-      `INSERT INTO worlds (creator_id, name, summary, content, trpg_enabled, trpg_visibility, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, datetime('now'))`
+      `INSERT INTO worlds (creator_id, name, summary, content, trpg_enabled, trpg_visibility, genres, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))`
     )
-    .run(user.id, name, summary, content, trpgEnabled, trpgVisibility);
+    .run(user.id, name, summary, content, trpgEnabled, trpgVisibility, genresJson);
 
   const id = Number(info.lastInsertRowid);
   const row = db

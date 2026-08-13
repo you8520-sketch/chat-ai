@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   CHARACTER_GENRES,
   genreFilterSql,
+  parseGenresJson,
   sanitizeCharacterGenres,
 } from "@/lib/characterGenres";
 
@@ -25,5 +26,11 @@ describe("characterGenres", () => {
     assert.match(sql, /genre = \?/);
     assert.ok(params.includes("판타지"));
     assert.ok(params.includes("판타지/SF"));
+  });
+
+  it("parseGenresJson reads JSON arrays and ignores junk", () => {
+    assert.deepEqual(parseGenresJson('["판타지","공포/추리"]'), ["판타지", "공포/추리"]);
+    assert.deepEqual(parseGenresJson(["SF", "없는장르"]), ["SF"]);
+    assert.deepEqual(parseGenresJson(""), []);
   });
 });

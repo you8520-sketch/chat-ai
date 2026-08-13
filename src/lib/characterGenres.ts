@@ -55,6 +55,19 @@ function expandLegacyGenreToken(raw: string): CharacterGenre[] {
 }
 
 /** API·폼 입력 → 유효 장르 배열 (중복 제거, 목록 순서 유지) */
+export function parseGenresJson(raw: unknown): CharacterGenre[] {
+  if (typeof raw === "string") {
+    const text = raw.trim();
+    if (!text) return [];
+    try {
+      return sanitizeCharacterGenres(JSON.parse(text) as unknown);
+    } catch {
+      return sanitizeCharacterGenres(text);
+    }
+  }
+  return sanitizeCharacterGenres(raw);
+}
+
 export function sanitizeCharacterGenres(value: unknown): CharacterGenre[] {
   const raw: string[] = [];
   if (Array.isArray(value)) {

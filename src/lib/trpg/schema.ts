@@ -188,6 +188,7 @@ export function ensureTrpgTables(db: Database.Database): void {
   if (tableExists(db, "worlds")) {
     addColumn("worlds", "trpg_enabled", "INTEGER NOT NULL DEFAULT 0");
     addColumn("worlds", "trpg_visibility", "TEXT NOT NULL DEFAULT 'private'");
+    addColumn("worlds", "genres", "TEXT NOT NULL DEFAULT '[]'");
     db.exec(
       `CREATE INDEX IF NOT EXISTS idx_worlds_trpg_public
        ON worlds(trpg_enabled, trpg_visibility, updated_at)`
@@ -217,6 +218,7 @@ export function ensureTrpgTables(db: Database.Database): void {
       ON trpg_scenario_templates(visibility, updated_at DESC);
   `);
   addColumn("trpg_scenario_templates", "secret_content", "TEXT NOT NULL DEFAULT ''");
+  addColumn("trpg_scenario_templates", "genres", "TEXT NOT NULL DEFAULT '[]'");
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS trpg_creator_earnings (
