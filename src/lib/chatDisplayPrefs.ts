@@ -2,7 +2,13 @@ import type { CSSProperties } from "react";
 
 export const STREAM_INTERVAL_MIN = 0;
 export const STREAM_INTERVAL_MAX = 100;
-export const STREAM_INTERVAL_STEP = 20;
+
+export const CHAT_STREAM_SPEED_PRESETS = [
+  { intervalMs: 0, label: "즉시" },
+  { intervalMs: 20, label: "빠름" },
+  { intervalMs: 60, label: "보통" },
+  { intervalMs: 100, label: "느림" },
+] as const;
 
 export type ChatFontSizePreset = "small" | "medium" | "large" | "xlarge";
 export type ChatParagraphSpacingPreset = "tight" | "normal" | "relaxed" | "loose";
@@ -48,7 +54,7 @@ export type ChatDisplayPrefs = {
 };
 
 export const DEFAULT_CHAT_DISPLAY_PREFS: ChatDisplayPrefs = {
-  streamIntervalMs: 0,
+  streamIntervalMs: 20,
   streamCharsPerTick: 1,
   fontFamily: "system",
   fontSizePreset: "medium",
@@ -145,16 +151,23 @@ export const CHAT_FONT_OPTIONS = [
 const STORAGE_KEY = "playai-chat-display-prefs";
 
 export function formatStreamIntervalLabel(ms: number): string {
-  return ms <= STREAM_INTERVAL_MIN ? "즉시" : `${ms}ms`;
+  const normalized = normalizeStreamIntervalMs(ms);
+  return (
+    CHAT_STREAM_SPEED_PRESETS.find((preset) => preset.intervalMs === normalized)?.label ??
+    "빠름"
+  );
 }
 
 export function normalizeStreamIntervalMs(value: unknown): number {
   const n = typeof value === "number" && !Number.isNaN(value) ? value : DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs;
   const clamped = Math.min(STREAM_INTERVAL_MAX, Math.max(STREAM_INTERVAL_MIN, n));
-  const stepped =
-    Math.round((clamped - STREAM_INTERVAL_MIN) / STREAM_INTERVAL_STEP) * STREAM_INTERVAL_STEP +
-    STREAM_INTERVAL_MIN;
-  return Math.min(STREAM_INTERVAL_MAX, stepped);
+  return CHAT_STREAM_SPEED_PRESETS.reduce<number>(
+    (closest, preset) =>
+      Math.abs(preset.intervalMs - clamped) < Math.abs(closest - clamped)
+        ? preset.intervalMs
+        : closest,
+    CHAT_STREAM_SPEED_PRESETS[0].intervalMs
+  );
 }
 
 export function streamCharsPerTickForInterval(intervalMs: number): number {

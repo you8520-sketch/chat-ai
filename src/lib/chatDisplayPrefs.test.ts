@@ -13,10 +13,30 @@ import {
   CHAT_PORTRAIT_STICKY_CLASS,
   CHAT_ROOM_HEADER_OFFSET_CLASS,
   DEFAULT_CHAT_DISPLAY_PREFS,
+  formatStreamIntervalLabel,
+  normalizeStreamIntervalMs,
   normalizePortraitBackgroundOpacity,
   normalizeShowCharacterPortrait,
   resolveClientDisplayPrefs,
 } from "@/lib/chatDisplayPrefs";
+
+describe("chat streaming speed presets", () => {
+  it("defaults new users to fast streaming", () => {
+    assert.equal(DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs, 20);
+    assert.equal(formatStreamIntervalLabel(DEFAULT_CHAT_DISPLAY_PREFS.streamIntervalMs), "빠름");
+  });
+
+  it("maps legacy millisecond values to one of the four named presets", () => {
+    assert.equal(normalizeStreamIntervalMs(0), 0);
+    assert.equal(normalizeStreamIntervalMs(40), 20);
+    assert.equal(normalizeStreamIntervalMs(60), 60);
+    assert.equal(normalizeStreamIntervalMs(80), 60);
+    assert.equal(normalizeStreamIntervalMs(100), 100);
+    assert.equal(formatStreamIntervalLabel(0), "즉시");
+    assert.equal(formatStreamIntervalLabel(60), "보통");
+    assert.equal(formatStreamIntervalLabel(100), "느림");
+  });
+});
 
 describe("showCharacterPortrait persistence", () => {
   it("keeps explicit false (OFF) instead of coercing to default ON", () => {

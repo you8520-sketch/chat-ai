@@ -14,18 +14,15 @@ import {
   CHAT_FONT_OPTIONS,
   CHAT_FONT_SIZE_PRESETS,
   CHAT_PARAGRAPH_SPACING_PRESETS,
+  CHAT_STREAM_SPEED_PRESETS,
   DEFAULT_CHAT_DISPLAY_PREFS,
   ensureChatDisplayWebFontsLoaded,
   fontSizePresetFromIndex,
   fontSizePresetIndex,
   fontSizePresetLabel,
-  formatStreamIntervalLabel,
   paragraphSpacingPresetFromIndex,
   paragraphSpacingPresetIndex,
   paragraphSpacingPresetLabel,
-  STREAM_INTERVAL_MAX,
-  STREAM_INTERVAL_MIN,
-  STREAM_INTERVAL_STEP,
   withStreamSpeed,
   type ChatDisplayPrefs,
 } from "@/lib/chatDisplayPrefs";
@@ -1050,30 +1047,31 @@ function DisplaySettingsSection({
       <section>
         <p className="mb-2 font-bold text-violet-300">스트리밍 속도</p>
         <p className="mb-2 text-[10px] text-zinc-600">
-          AI 답변이 화면에 나타나는 속도 · 즉시(0ms) ~ {STREAM_INTERVAL_MAX}ms · 20ms 단위 · 설정한
-          간격으로 일정하게 표시 (읽기 따라가기용)
+          AI 답변이 화면에 나타나는 속도를 선택하세요. 기본 설정은 빠름입니다.
         </p>
-        <label className="block">
-          <span className="mb-1 flex justify-between text-[10px] text-zinc-500">
-            <span>글자 간격</span>
-            <span>{formatStreamIntervalLabel(displayPrefs.streamIntervalMs)}</span>
-          </span>
-          <input
-            type="range"
-            min={STREAM_INTERVAL_MIN}
-            max={STREAM_INTERVAL_MAX}
-            step={STREAM_INTERVAL_STEP}
-            value={displayPrefs.streamIntervalMs}
-            onChange={(e) =>
-              onDisplayPrefsChange(withStreamSpeed(displayPrefs, Number(e.target.value)))
-            }
-            className="w-full accent-violet-500"
-          />
-          <span className="mt-1 flex justify-between text-[10px] text-zinc-600">
-            <span>즉시</span>
-            <span>느리게 ({STREAM_INTERVAL_MAX}ms)</span>
-          </span>
-        </label>
+        <div className="grid grid-cols-4 gap-1.5" role="radiogroup" aria-label="스트리밍 속도">
+          {CHAT_STREAM_SPEED_PRESETS.map((preset) => {
+            const selected = displayPrefs.streamIntervalMs === preset.intervalMs;
+            return (
+              <button
+                key={preset.intervalMs}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={() =>
+                  onDisplayPrefsChange(withStreamSpeed(displayPrefs, preset.intervalMs))
+                }
+                className={`rounded-lg border px-2 py-2.5 font-semibold transition ${
+                  selected
+                    ? "border-violet-400/60 bg-violet-500/15 text-violet-200"
+                    : "border-white/10 bg-[#1a1a1a] text-zinc-400 hover:border-white/20 hover:text-zinc-200"
+                }`}
+              >
+                {preset.label}
+              </button>
+            );
+          })}
+        </div>
       </section>
 
       <section>
