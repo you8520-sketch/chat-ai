@@ -1,17 +1,21 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { AppSectionCard } from "@/components/AppPageShell";
+import ChatSelectionQuoteToolbar from "@/components/ChatSelectionQuoteToolbar";
 import NovelText from "@/components/NovelText";
 import { TRPG_ACTION_TYPES, actionTypeLabelKo, type TrpgActionType } from "@/lib/trpg/actionTypes";
 import {
   CHAT_ROOM_HEADER_OFFSET_CLASS,
   DEFAULT_CHAT_DISPLAY_PREFS,
-  chatReadabilityStyle,
-  normalizeFontSizePreset,
-  type ChatFontSizePreset,
+  chatReadabilityRootStyle,
+  ensureChatDisplayWebFontsLoaded,
+  saveChatDisplayPrefs,
+  type ChatDisplayPrefs,
 } from "@/lib/chatDisplayPrefs";
+import { cacheUserChatPrefsClient, loadUserChatPrefsClient, type UserChatPrefs } from "@/lib/userChatPrefs";
+import { loadTrpgDisplayPrefs } from "@/lib/trpg/displayPrefs";
 import { successLabelKo } from "@/lib/trpg/labels";
 import { parseTrpgSceneSpeech } from "@/lib/trpg/sceneSpeech";
 import type { TrpgCampaignSnapshot, TrpgPublicLog, TrpgPublicRoll } from "@/lib/trpg/snapshot";
@@ -21,16 +25,6 @@ import TrpgCampaignTitle from "./TrpgCampaignTitle";
 import TrpgCampaignRail from "./TrpgCampaignRail";
 import TrpgNamedProse from "./TrpgNamedProse";
 import TrpgSceneToolbar from "./TrpgSceneToolbar";
-
-const FONT_STORAGE_KEY = "habi:trpg-fontSizePreset";
-
-function loadFontPreset(): ChatFontSizePreset {
-  try {
-    return normalizeFontSizePreset(localStorage.getItem(FONT_STORAGE_KEY));
-  } catch {
-    return "medium";
-  }
-}
 
 function imageCharacterId(snap: TrpgCampaignSnapshot): number | null {
   const companion = snap.participants.find((p) => p.kind === "ai_character" && p.characterId);
@@ -111,8 +105,14 @@ export default function TrpgCampaignRoom({
   onDelete: () => void;
   onTitleSaved: (title: string) => void;
 }) {
-  const [fontSizePreset, setFontSizePreset] = useState<ChatFontSizePreset>("medium");
+  const [displayPrefs, setDisplayPrefs] = useState<ChatDisplayPrefs>(DEFAULT_CHAT_DISPLAY_PREFS);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [toast, setToast] = useState("");
+  const quoteSelectContainerRef = useRef<HTMLDivElement>(null);
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const accountPrefsRef = useRef<Pick<UserChatPrefs, "targetResponseChars" | "novelModeEnabled"> | null>(
+    null
+  );
   const phase = snap.round.phase;
   const waitingOthers = snap.workType === "wait_humans";
   const knownNames = [
@@ -132,8 +132,36 @@ export default function TrpgCampaignRoom({
   );
 
   useEffect(() => {
-    setFontSizePreset(loadFontPreset());
+    void ensureChatDisplayWebFontsLoaded();
+    setDisplayPrefs(loadTrpgDisplayPrefs());
+    const cached = loadUserChatPrefsClient();
+    accountPrefsRef.current = {
+      targetResponseChars: cached.targetResponseChars,
+      novelModeEnabled: cached.novelModeEnabled,
+    };
+    void (async () => {
+      try {
+        const res = await fetch("/api/user/chat-prefs", { cache: "no-store" });
+        const data = (await res.json()) as { prefs?: UserChatPrefs };
+        if (!res.ok || !data.prefs) return;
+        accountPrefsRef.current = {
+          targetResponseChars: data.prefs.targetResponseChars,
+          novelModeEnabled: data.prefs.novelModeEnabled,
+        };
+      } catch {
+        /* local prefs already applied */
+      }
+    })();
+    return () => {
+      if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+    };
   }, []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const id = window.setTimeout(() => setToast(""), 2400);
+    return () => window.clearTimeout(id);
+  }, [toast]);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -148,34 +176,54 @@ export default function TrpgCampaignRoom({
     return () => window.removeEventListener("keydown", onKey);
   }, [mobileMenuOpen]);
 
-  function changeFont(preset: ChatFontSizePreset) {
-    setFontSizePreset(preset);
-    try {
-      localStorage.setItem(FONT_STORAGE_KEY, preset);
-    } catch {
-      /* ignore */
-    }
-  }
+  const changeDisplayPrefs = useCallback((next: ChatDisplayPrefs) => {
+    setDisplayPrefs(next);
+    saveChatDisplayPrefs(next);
+    if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+    persistTimerRef.current = setTimeout(() => {
+      const account = accountPrefsRef.current;
+      if (!account) return;
+      void (async () => {
+        try {
+          const res = await fetch("/api/user/chat-prefs", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              targetResponseChars: account.targetResponseChars,
+              novelModeEnabled: account.novelModeEnabled,
+              displayPrefs: next,
+            }),
+          });
+          const data = (await res.json().catch(() => null)) as { prefs?: UserChatPrefs } | null;
+          if (res.ok && data?.prefs) {
+            cacheUserChatPrefsClient(data.prefs);
+            saveChatDisplayPrefs(data.prefs.displayPrefs ?? next);
+          }
+        } catch {
+          /* local toggle already applied */
+        }
+      })();
+    }, 400);
+  }, []);
 
   const railProps = {
     snap,
-    fontSizePreset,
-    onFontSizePresetChange: changeFont,
+    displayPrefs,
+    onDisplayPrefsChange: changeDisplayPrefs,
     partyBody,
     onPartyBodyChange,
     onSendParty,
     busy,
   };
 
+  const quoteCharacterName =
+    snap.participants.find((p) => p.kind === "ai_character")?.displayName || snap.title || "TRPG";
+
   return (
     <div className="flex min-h-[calc(100dvh-6rem)] min-w-0 flex-1 items-stretch gap-0">
       <div
         className="flex min-w-0 flex-1 flex-col"
-        style={chatReadabilityStyle({
-          fontSizePreset,
-          fontFamily: "system",
-          paragraphSpacingPreset: "normal",
-        })}
+        style={chatReadabilityRootStyle(displayPrefs)}
       >
         <header className="flex items-start justify-between gap-3 border-b border-white/5 pb-3">
           <div className="min-w-0 flex-1">
@@ -221,7 +269,7 @@ export default function TrpgCampaignRoom({
           </p>
         ) : null}
 
-        <div className="mt-4 flex-1 space-y-4">
+        <div ref={quoteSelectContainerRef} className="mt-4 flex-1 space-y-4">
           {waitingOpening ? (
             <AppSectionCard title="장면">
               <p className="text-sm leading-relaxed text-zinc-300">
@@ -251,6 +299,7 @@ export default function TrpgCampaignRoom({
               row={row}
               knownNames={knownNames}
               statDefs={snap.statDefs}
+              display={displayPrefs}
               canReroll={snap.canRerollRoundNumber === row.roundNumber && !generating}
               canImage={Boolean(imageId) && Boolean(row.narration)}
               busy={busy || generating}
@@ -368,6 +417,19 @@ export default function TrpgCampaignRoom({
         <TrpgCampaignRail {...railProps} />
       </aside>
 
+      <ChatSelectionQuoteToolbar
+        containerRef={quoteSelectContainerRef}
+        characterName={quoteCharacterName}
+        disabled={busy || generating}
+        onToast={setToast}
+      />
+
+      {toast ? (
+        <p className="fixed bottom-6 left-1/2 z-[70] -translate-x-1/2 rounded-full border border-white/10 bg-[#161616]/95 px-4 py-2 text-xs text-zinc-100 shadow-lg">
+          {toast}
+        </p>
+      ) : null}
+
       {mobileMenuOpen ? (
         <div className="fixed inset-0 z-[60] min-[576px]:hidden" role="presentation">
           <button
@@ -392,6 +454,7 @@ function SceneTurn({
   row,
   knownNames,
   statDefs,
+  display,
   canReroll,
   canImage,
   busy,
@@ -401,6 +464,7 @@ function SceneTurn({
   row: TrpgPublicLog;
   knownNames: string[];
   statDefs: TrpgStatDefinition[];
+  display: ChatDisplayPrefs;
   canReroll: boolean;
   canImage: boolean;
   busy: boolean;
@@ -434,6 +498,7 @@ function SceneTurn({
             }
             text={action.body}
             variant={action.kind === "human" ? "user" : "character"}
+            display={display}
           />
         ))}
         {row.rolls.length > 0 ? <DiceStrip rolls={row.rolls} statDefs={statDefs} /> : null}
@@ -444,15 +509,27 @@ function SceneTurn({
               name={beat.speaker}
               text={beat.text}
               variant="character"
+              display={display}
             />
           ) : (
-            <NovelText
+            <div
               key={`${row.roundNumber}-gm-${i}`}
-              content={beat.text}
-              display={DEFAULT_CHAT_DISPLAY_PREFS}
-              variant="character"
-              paragraphMode="author"
-            />
+              data-quote-assistant
+              className="select-text [touch-action:pan-y] [-webkit-user-select:text]"
+              style={{
+                userSelect: "text",
+                WebkitUserSelect: "text",
+                touchAction: "pan-y",
+                WebkitTouchCallout: "default",
+              }}
+            >
+              <NovelText
+                content={beat.text}
+                display={display}
+                variant="character"
+                paragraphMode="author"
+              />
+            </div>
           )
         )}
       </div>

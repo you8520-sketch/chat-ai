@@ -1,14 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import {
-  CHAT_FONT_SIZE_PRESETS,
-  fontSizePresetFromIndex,
-  fontSizePresetIndex,
-  fontSizePresetLabel,
-  type ChatFontSizePreset,
-} from "@/lib/chatDisplayPrefs";
+import ChatDisplayReadabilitySettings from "@/components/ChatDisplayReadabilitySettings";
 import { ChatSettingsRailIcon, type ChatSettingsRailIconId } from "@/components/ChatSettingsRailIcons";
+import type { ChatDisplayPrefs } from "@/lib/chatDisplayPrefs";
 import { trpgReadyLabel } from "@/lib/trpg/readyLabel";
 import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
 import { TRPG_PARTY_CHAT_MAX_CHARS } from "@/lib/trpg/types";
@@ -19,7 +14,7 @@ export type TrpgCampaignRailTab = "display" | "sheets" | "ooc";
 function tabLabel(tab: TrpgCampaignRailTab): string {
   switch (tab) {
     case "display":
-      return "글자";
+      return "표시";
     case "sheets":
       return "시트";
     case "ooc":
@@ -49,7 +44,7 @@ function tabIcon(tab: TrpgCampaignRailTab): ChatSettingsRailIconId {
 function tabHint(tab: TrpgCampaignRailTab): string {
   switch (tab) {
     case "display":
-      return "장면 글자 크기";
+      return "글꼴 · 크기 · 문단 · 색";
     case "sheets":
       return "파티 캐릭터 시트";
     case "ooc":
@@ -63,8 +58,8 @@ function tabHint(tab: TrpgCampaignRailTab): string {
 
 export default function TrpgCampaignRail({
   snap,
-  fontSizePreset,
-  onFontSizePresetChange,
+  displayPrefs,
+  onDisplayPrefsChange,
   partyBody,
   onPartyBodyChange,
   onSendParty,
@@ -72,8 +67,8 @@ export default function TrpgCampaignRail({
   compact,
 }: {
   snap: TrpgCampaignSnapshot;
-  fontSizePreset: ChatFontSizePreset;
-  onFontSizePresetChange: (preset: ChatFontSizePreset) => void;
+  displayPrefs: ChatDisplayPrefs;
+  onDisplayPrefsChange: (prefs: ChatDisplayPrefs) => void;
   partyBody: string;
   onPartyBodyChange: (value: string) => void;
   onSendParty: () => void;
@@ -114,26 +109,10 @@ export default function TrpgCampaignRail({
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
             {active === "display" ? (
-              <label className="block">
-                <span className="mb-1 flex justify-between text-[10px] text-zinc-500">
-                  <span>크기</span>
-                  <span>{fontSizePresetLabel(fontSizePreset)}</span>
-                </span>
-                <input
-                  type="range"
-                  min={0}
-                  max={CHAT_FONT_SIZE_PRESETS.length - 1}
-                  step={1}
-                  value={fontSizePresetIndex(fontSizePreset)}
-                  onChange={(e) => onFontSizePresetChange(fontSizePresetFromIndex(Number(e.target.value)))}
-                  className="w-full accent-violet-500"
-                />
-                <span className="mt-1 flex justify-between text-[10px] text-zinc-600">
-                  {CHAT_FONT_SIZE_PRESETS.map((p) => (
-                    <span key={p.id}>{p.label}</span>
-                  ))}
-                </span>
-              </label>
+              <ChatDisplayReadabilitySettings
+                displayPrefs={displayPrefs}
+                onDisplayPrefsChange={onDisplayPrefsChange}
+              />
             ) : null}
             {active === "sheets" ? (
               <div className="space-y-3">
