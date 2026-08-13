@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import { canAccessCharacter, type CharacterAccessRow } from "@/lib/characterVisibility";
+import { parseGenresJson } from "@/lib/characterGenres";
 import { parseJson } from "./store";
 import {
   normalizeScenarioTemplateInput,
@@ -43,6 +44,7 @@ export type TrpgScenarioTemplateRow = {
   default_pc_stats_json: string;
   npcs_json: string;
   character_ids_json: string;
+  genres: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -65,6 +67,7 @@ export function rowToScenarioTemplate(
     defaultPcStats: parseStatRecord(parseJson(row.default_pc_stats_json, null)),
     npcs: parseScenarioNpcs(parseJson(row.npcs_json, [] as unknown[])),
     characterIds: parseCharacterIds(parseJson(row.character_ids_json, [] as unknown[])),
+    genres: parseGenresJson(row.genres),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -118,8 +121,8 @@ export function insertScenarioTemplate(
     .prepare(
       `INSERT INTO trpg_scenario_templates
         (creator_id, world_id, title, summary, content, secret_content, visibility, start_location,
-         start_inventory_json, default_pc_stats_json, npcs_json, character_ids_json, updated_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))`
+         start_inventory_json, default_pc_stats_json, npcs_json, character_ids_json, genres, updated_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))`
     )
     .run(
       creatorId,
@@ -133,7 +136,8 @@ export function insertScenarioTemplate(
       JSON.stringify(n.startInventory),
       n.defaultPcStats ? JSON.stringify(n.defaultPcStats) : "",
       JSON.stringify(n.npcs),
-      JSON.stringify(n.characterIds)
+      JSON.stringify(n.characterIds),
+      JSON.stringify(n.genres)
     );
   return Number(info.lastInsertRowid);
 }
@@ -153,7 +157,7 @@ export function updateScenarioTemplate(
   db.prepare(
     `UPDATE trpg_scenario_templates
      SET world_id=?, title=?, summary=?, content=?, secret_content=?, visibility=?, start_location=?,
-         start_inventory_json=?, default_pc_stats_json=?, npcs_json=?, character_ids_json=?,
+         start_inventory_json=?, default_pc_stats_json=?, npcs_json=?, character_ids_json=?, genres=?,
          updated_at=datetime('now')
      WHERE id=? AND creator_id=?`
   ).run(
@@ -168,6 +172,7 @@ export function updateScenarioTemplate(
     n.defaultPcStats ? JSON.stringify(n.defaultPcStats) : "",
     JSON.stringify(n.npcs),
     JSON.stringify(n.characterIds),
+    JSON.stringify(n.genres),
     id,
     creatorId
   );
@@ -180,7 +185,7 @@ export function deleteScenarioTemplate(db: Database.Database, id: number, creato
   if (info.changes === 0) throw new Error("시나리오를 찾을 수 없습니다.");
 }
 
-export function listPublicScenarioTemplates(db: Database.Database, limit = 40): TrpgScenarioTemplate[] {
+export function listPublicScenarioTemplates(db: Database.Database, limit = 80): TrpgScenarioTemplate[] {
   const rows = db
     .prepare(
       `SELECT * FROM trpg_scenario_templates

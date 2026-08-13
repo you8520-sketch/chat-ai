@@ -11,6 +11,8 @@ import {
 } from "@/components/SidebarNavIcons";
 import StudioButton from "@/components/studio/StudioButton";
 import StudioEmptyState from "@/components/studio/StudioEmptyState";
+import GenrePicker from "@/components/GenrePicker";
+import type { CharacterGenre } from "@/lib/characterGenres";
 import type { KeywordLorebookListItem } from "@/lib/keywordLorebooks";
 import { cn, studioSurface, studioType } from "@/lib/studioDesign";
 import type { WorldListItem } from "@/lib/worlds";
@@ -243,7 +245,7 @@ function WorldCard({ world }: { world: WorldListItem }) {
   const [shareError, setShareError] = useState("");
   const [copied, setCopied] = useState(false);
   const [trpgEnabled, setTrpgEnabled] = useState(world.trpgEnabled);
-  const [trpgVisibility, setTrpgVisibility] = useState(world.trpgVisibility);
+  const [genres, setGenres] = useState<CharacterGenre[]>(world.genres);
   const [trpgBusy, setTrpgBusy] = useState(false);
 
   async function shareWorld() {
@@ -283,14 +285,17 @@ function WorldCard({ world }: { world: WorldListItem }) {
     }
   }
 
-  async function saveTrpg(nextEnabled: boolean, nextVisibility: "public" | "private") {
+  async function saveTrpg(nextEnabled: boolean, nextGenres = genres) {
     setTrpgBusy(true);
     setShareError("");
     try {
       const res = await fetch(`/api/worlds/${world.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trpgEnabled: nextEnabled, trpgVisibility: nextVisibility }),
+        body: JSON.stringify({
+          trpgEnabled: nextEnabled,
+          genres: nextEnabled ? nextGenres : [],
+        }),
       });
       const data = (await res.json()) as { error?: string };
       if (!res.ok) {
@@ -298,7 +303,7 @@ function WorldCard({ world }: { world: WorldListItem }) {
         return;
       }
       setTrpgEnabled(nextEnabled);
-      setTrpgVisibility(nextVisibility);
+      setGenres(nextEnabled ? nextGenres : []);
     } catch {
       setShareError("네트워크 오류가 발생했습니다.");
     } finally {
@@ -317,7 +322,7 @@ function WorldCard({ world }: { world: WorldListItem }) {
             <h3 className="truncate text-sm font-semibold text-zinc-50">{world.name}</h3>
             {trpgEnabled ? (
               <span className="shrink-0 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-300">
-                TRPG {trpgVisibility === "public" ? "공개" : "비공개"}
+                TRPG
               </span>
             ) : null}
             {world.sharedFromNickname ? (
@@ -354,25 +359,23 @@ function WorldCard({ world }: { world: WorldListItem }) {
           size="sm"
           className="w-full sm:w-auto"
           disabled={trpgBusy}
-          onClick={() => void saveTrpg(!trpgEnabled, trpgEnabled ? trpgVisibility : "private")}
+          onClick={() => void saveTrpg(!trpgEnabled)}
         >
           {trpgBusy ? "저장 중…" : trpgEnabled ? "TRPG 사용 끄기" : "TRPG에서 사용"}
         </StudioButton>
-        {trpgEnabled ? (
-          <StudioButton
-            type="button"
-            variant="secondary"
-            size="sm"
-            className="w-full sm:w-auto"
-            disabled={trpgBusy}
-            onClick={() =>
-              void saveTrpg(true, trpgVisibility === "public" ? "private" : "public")
-            }
-          >
-            {trpgVisibility === "public" ? "TRPG 비공개로" : "TRPG 탭에 공개"}
-          </StudioButton>
-        ) : null}
       </div>
+      {trpgEnabled ? (
+        <div className="mt-4">
+          <GenrePicker
+            value={genres}
+            disabled={trpgBusy}
+            onChange={(next) => {
+              setGenres(next);
+              void saveTrpg(true, next);
+            }}
+          />
+        </div>
+      ) : null}
       {shareError ? <p className="mt-2 text-xs text-rose-400">{shareError}</p> : null}
       {shareUrl ? (
         <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">

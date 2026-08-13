@@ -51,6 +51,7 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
       defaultPcStats: (body.defaultPcStats as Record<string, number> | null) ?? null,
       npcs: body.npcs,
       characterIds: body.characterIds,
+      genres: body.genres,
     });
     const row = loadScenarioTemplate(gate.db, id);
     return NextResponse.json({

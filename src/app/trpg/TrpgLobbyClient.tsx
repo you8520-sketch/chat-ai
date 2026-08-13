@@ -7,13 +7,29 @@ import { AppSectionCard } from "@/components/AppPageShell";
 import PersonaSelector from "@/components/PersonaSelector";
 import TrpgInviteLink from "./TrpgInviteLink";
 import TrpgCampaignTitle from "./TrpgCampaignTitle";
-import type { TrpgCatalog, TrpgCatalogWorld } from "@/lib/trpg/catalog";
+import TrpgCatalogBrowse from "./TrpgCatalogBrowse";
+import type { TrpgCatalog } from "@/lib/trpg/catalog";
 import { parseTrpgInviteInput } from "@/lib/trpg/invite";
-import { TRPG_SCENARIO_MAX_BOTS, type TrpgScenarioTemplate } from "@/lib/trpg/scenarioTypes";
+import { TRPG_SCENARIO_MAX_BOTS } from "@/lib/trpg/scenarioTypes";
+import type { TrpgCatalogPick } from "@/lib/trpg/catalogBrowse";
 import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
 import type { PublicPersonaListItem } from "@/lib/userPersonasClient";
 
 const PERSONA_STORAGE_KEY = "habi:lastPersonaId";
+
+function campaignBodyFromPick(pick: TrpgCatalogPick | null): Record<string, unknown> {
+  if (!pick) return {};
+  switch (pick.kind) {
+    case "world":
+      return { worldId: pick.id };
+    case "scenario":
+      return { templateId: pick.id };
+    default: {
+      const _exhaustive: never = pick;
+      return _exhaustive;
+    }
+  }
+}
 
 export default function TrpgLobbyClient({
   initialCampaigns,
@@ -33,7 +49,7 @@ export default function TrpgLobbyClient({
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [worldId, setWorldId] = useState<number | "">("");
+  const [pick, setPick] = useState<TrpgCatalogPick | null>(null);
   const [pickCharacterIds, setPickCharacterIds] = useState<number[]>(characterIds);
   const [personas, setPersonas] = useState(initialPersonas);
   const [selectedPersonaId, setSelectedPersonaId] = useState<number | null>(
@@ -147,14 +163,45 @@ export default function TrpgLobbyClient({
   const selected = catalog.myCharacters.filter((c) => pickCharacterIds.includes(c.id));
   const canJoinStatus = (status: string) =>
     status === "CHARACTER_SETUP" || status === "WAITING_FOR_PLAYERS";
+  const pickedLabel = (() => {
+    if (pick?.kind === "world") {
+      const world = [...catalog.publicWorlds, ...catalog.myWorlds].find((w) => w.id === pick.id);
+      return world ? `세계관 · ${world.name}` : null;
+    }
+    if (pick?.kind === "scenario") {
+      const scenario = [...catalog.publicScenarios, ...catalog.myScenarios].find((s) => s.id === pick.id);
+      return scenario ? `시나리오 · ${scenario.title}` : null;
+    }
+    return null;
+  })();
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
+      <TrpgCatalogBrowse
+        catalog={catalog}
+        busy={busy}
+        pick={pick}
+        onPickWorld={(id) => setPick({ kind: "world", id })}
+        onPickScenario={(id) => setPick({ kind: "scenario", id })}
+        onStartWorld={(id) => void postCampaign({ worldId: id })}
+        onStartScenario={(id) => void postCampaign({ templateId: id })}
+      />
+
       <AppSectionCard title="새 캠페인">
         <p className="text-sm leading-relaxed text-zinc-400">
-          내 페르소나가 PC입니다. AI 동료는 최대 {TRPG_SCENARIO_MAX_BOTS}명까지 고른 뒤 캠페인을 만듭니다.
-          한 명을 골라도 바로 시작되지 않습니다. 사람+AI 합쳐 4자리이며 GM은 슬롯을 쓰지 않습니다.
+          카드를 고르거나 아래만으로도 만들 수 있습니다. 내 페르소나가 PC이고, AI 동료는 최대{" "}
+          {TRPG_SCENARIO_MAX_BOTS}명입니다. 사람+AI 합쳐 4자리이며 GM은 슬롯을 쓰지 않습니다.
         </p>
+        {pickedLabel ? (
+          <p className="mt-3 text-sm text-violet-200">
+            선택됨: {pickedLabel}{" "}
+            <button type="button" onClick={() => setPick(null)} className="ml-2 text-xs text-zinc-400 hover:text-zinc-200">
+              해제
+            </button>
+          </p>
+        ) : (
+          <p className="mt-3 text-xs text-zinc-500">세계관·시나리오를 고르지 않으면 빈 캠페인으로 시작합니다.</p>
+        )}
         {personas.length > 0 ? (
           <div className="mt-4">
             <p className="mb-2 text-sm text-zinc-300">내 페르소나</p>
@@ -167,30 +214,6 @@ export default function TrpgLobbyClient({
             />
           </div>
         ) : null}
-        <div className="mt-4">
-          <label className="text-sm text-zinc-300">
-            세계관
-            <select
-              value={worldId}
-              onChange={(e) => setWorldId(e.target.value ? Number(e.target.value) : "")}
-              className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
-            >
-              <option value="">선택 안 함</option>
-              {catalog.myWorlds.map((w) => (
-                <option key={`mine-${w.id}`} value={w.id}>
-                  내 세계관 · {w.name}
-                </option>
-              ))}
-              {catalog.publicWorlds
-                .filter((w) => !w.mine)
-                .map((w) => (
-                  <option key={`pub-${w.id}`} value={w.id}>
-                    공개 · {w.name} (@{w.creatorName})
-                  </option>
-                ))}
-            </select>
-          </label>
-        </div>
         <div className="mt-4">
           <p className="text-sm text-zinc-300">
             데려갈 캐릭터 ({pickCharacterIds.length}/{TRPG_SCENARIO_MAX_BOTS})
@@ -222,11 +245,7 @@ export default function TrpgLobbyClient({
           <button
             type="button"
             disabled={busy}
-            onClick={() =>
-              void postCampaign({
-                ...(typeof worldId === "number" ? { worldId } : {}),
-              })
-            }
+            onClick={() => void postCampaign(campaignBodyFromPick(pick))}
             className="inline-flex min-h-10 items-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50"
           >
             {selected.length
@@ -241,32 +260,6 @@ export default function TrpgLobbyClient({
           </Link>
         </div>
       </AppSectionCard>
-
-      <WorldList
-        title="TRPG 공개 세계관"
-        worlds={catalog.publicWorlds}
-        busy={busy}
-        onStart={(id) => void postCampaign({ worldId: id })}
-      />
-      <WorldList
-        title="내 세계관"
-        worlds={catalog.myWorlds}
-        busy={busy}
-        onStart={(id) => void postCampaign({ worldId: id })}
-      />
-      <ScenarioList
-        title="내 TRPG 시나리오"
-        scenarios={catalog.myScenarios}
-        mine
-        busy={busy}
-        onStart={(id) => void postCampaign({ templateId: id })}
-      />
-      <ScenarioList
-        title="공개 TRPG 시나리오"
-        scenarios={catalog.publicScenarios.filter((s) => !catalog.myScenarios.some((mine) => mine.id === s.id))}
-        busy={busy}
-        onStart={(id) => void postCampaign({ templateId: id })}
-      />
 
       <AppSectionCard title="초대 링크·코드로 참가">
         <p className="mb-3 text-sm text-zinc-400">입장 링크를 붙여넣거나 8자리 코드를 넣으면 됩니다.</p>
@@ -341,94 +334,5 @@ export default function TrpgLobbyClient({
         )}
       </AppSectionCard>
     </div>
-  );
-}
-
-function WorldList({
-  title,
-  worlds,
-  busy,
-  onStart,
-}: {
-  title: string;
-  worlds: TrpgCatalogWorld[];
-  busy: boolean;
-  onStart: (id: number) => void;
-}) {
-  if (worlds.length === 0) return null;
-  return (
-    <AppSectionCard title={title}>
-      <ul className="space-y-2">
-        {worlds.map((w) => (
-          <li key={w.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-zinc-100">{w.name}</p>
-              <p className="truncate text-xs text-zinc-500">{w.summary || (w.mine ? "내 세계관" : `@${w.creatorName}`)}</p>
-            </div>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => onStart(w.id)}
-              className="shrink-0 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-            >
-              시작
-            </button>
-          </li>
-        ))}
-      </ul>
-    </AppSectionCard>
-  );
-}
-
-function ScenarioList({
-  title,
-  scenarios,
-  mine,
-  busy,
-  onStart,
-}: {
-  title: string;
-  scenarios: TrpgScenarioTemplate[];
-  mine?: boolean;
-  busy: boolean;
-  onStart: (id: number) => void;
-}) {
-  if (scenarios.length === 0) return null;
-  return (
-    <AppSectionCard title={title}>
-      <ul className="space-y-2">
-        {scenarios.map((s) => (
-          <li key={s.id} className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium text-zinc-100">{s.title}</p>
-              <p className="truncate text-xs text-zinc-500">
-                {s.visibility === "private" ? "비공개" : "공개"}
-                {s.npcs.length ? ` · NPC ${s.npcs.length}` : ""}
-                {s.characterIds.length ? ` · 캐릭터 ${s.characterIds.length}` : ""}
-                {s.summary ? ` · ${s.summary}` : ""}
-              </p>
-            </div>
-            <div className="flex shrink-0 gap-2">
-              {mine ? (
-                <Link
-                  href={`/trpg/scenarios/${s.id}`}
-                  className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-300"
-                >
-                  수정
-                </Link>
-              ) : null}
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => onStart(s.id)}
-                className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-              >
-                시작
-              </button>
-            </div>
-          </li>
-        ))}
-      </ul>
-    </AppSectionCard>
   );
 }

@@ -148,9 +148,9 @@ describe("TRPG scenarios and catalog", () => {
   it("lists public opted-in worlds and own scenarios in the catalog", () => {
     const db = memoryDb();
     db.prepare(
-      `INSERT INTO worlds (creator_id, name, summary, content, trpg_enabled, trpg_visibility)
-       VALUES (2, '공개세계', '보임', '본문', 1, 'public')`
-    ).run();
+      `INSERT INTO worlds (creator_id, name, summary, content, trpg_enabled, trpg_visibility, genres)
+       VALUES (2, '공개세계', '보임', '본문', 1, 'public', ?)`
+    ).run(JSON.stringify(["판타지"]));
     db.prepare(
       `INSERT INTO worlds (creator_id, name, content, trpg_enabled, trpg_visibility)
        VALUES (2, '숨김', '안 보임', 0, 'private')`
@@ -169,15 +169,18 @@ describe("TRPG scenarios and catalog", () => {
       content: "누구나 캠페인으로 쓸 수 있다.",
       secretContent: "진범은 역무원SECRETTOKEN",
       visibility: "public",
+      genres: ["공포/추리"],
     });
     const catalog = loadTrpgCatalog(db, 1);
     assert.equal(catalog.publicWorlds.some((w) => w.name === "공개세계"), true);
+    assert.deepEqual(catalog.publicWorlds.find((w) => w.name === "공개세계")?.genres, ["판타지"]);
     assert.equal(catalog.publicWorlds.some((w) => w.name === "숨김"), false);
     assert.equal(catalog.myWorlds.some((w) => w.name === "내것"), true);
     assert.equal(catalog.myScenarios.some((s) => s.title === "내 시나리오"), true);
     const pub = catalog.publicScenarios.find((s) => s.title === "공개 시나리오");
     assert.ok(pub);
     assert.equal(pub?.secretContent, "");
+    assert.deepEqual(pub?.genres, ["공포/추리"]);
     const ownerCatalog = loadTrpgCatalog(db, 2);
     assert.equal(ownerCatalog.myScenarios.find((s) => s.title === "공개 시나리오")?.secretContent, "진범은 역무원SECRETTOKEN");
     db.close();

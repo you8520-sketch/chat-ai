@@ -1,5 +1,6 @@
 import { DEFAULT_TRPG_STAT_DEFS, validateStatAllocation } from "./stats";
 import { parseTrpgVisibility, TRPG_MAX_SLOTS, type TrpgVisibility } from "./types";
+import { parseGenresJson, type CharacterGenre } from "@/lib/characterGenres";
 
 export const TRPG_SCENARIO_TITLE_LIMIT = 80;
 export const TRPG_SCENARIO_SUMMARY_LIMIT = 200;
@@ -30,6 +31,7 @@ export type TrpgScenarioTemplate = {
   defaultPcStats: Record<string, number> | null;
   npcs: TrpgScenarioNpc[];
   characterIds: number[];
+  genres: CharacterGenre[];
   createdAt: string;
   updatedAt: string;
 };
@@ -46,6 +48,7 @@ export type TrpgScenarioTemplateInput = {
   defaultPcStats?: Record<string, number> | null;
   npcs?: unknown;
   characterIds?: unknown;
+  genres?: unknown;
 };
 
 function clip(text: string, max: number): string {
@@ -118,6 +121,7 @@ export function normalizeScenarioTemplateInput(input: TrpgScenarioTemplateInput)
   defaultPcStats: Record<string, number> | null;
   npcs: TrpgScenarioNpc[];
   characterIds: number[];
+  genres: CharacterGenre[];
 } {
   const title = clip(String(input.title ?? ""), TRPG_SCENARIO_TITLE_LIMIT);
   const content = clip(String(input.content ?? ""), TRPG_SCENARIO_CONTENT_LIMIT);
@@ -141,5 +145,6 @@ export function normalizeScenarioTemplateInput(input: TrpgScenarioTemplateInput)
     defaultPcStats: parseStatRecord(input.defaultPcStats),
     npcs,
     characterIds,
+    genres: parseGenresJson(input.genres),
   };
 }

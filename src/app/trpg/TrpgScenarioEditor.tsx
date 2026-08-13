@@ -3,7 +3,9 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { AppPageShell, AppSectionCard } from "@/components/AppPageShell";
+import GenrePicker from "@/components/GenrePicker";
 import type { TrpgCatalog } from "@/lib/trpg/catalog";
+import type { CharacterGenre } from "@/lib/characterGenres";
 import {
   TRPG_SCENARIO_CONTENT_LIMIT,
   TRPG_SCENARIO_MAX_BOTS,
@@ -41,6 +43,7 @@ export default function TrpgScenarioEditor({
   );
   const [npcs, setNpcs] = useState<TrpgScenarioNpc[]>(initial?.npcs?.length ? initial.npcs : []);
   const [characterIds, setCharacterIds] = useState<number[]>(initial?.characterIds ?? []);
+  const [genres, setGenres] = useState<CharacterGenre[]>(initial?.genres ?? []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -66,6 +69,7 @@ export default function TrpgScenarioEditor({
       defaultPcStats: stats,
       npcs: npcs.filter((n) => n.name.trim()),
       characterIds,
+      genres,
     };
     try {
       const res = await fetch(initial ? `/api/trpg/scenarios/${initial.id}` : "/api/trpg/scenarios", {
@@ -167,6 +171,9 @@ export default function TrpgScenarioEditor({
             >
               공개 (TRPG 탭)
             </button>
+          </div>
+          <div className="mt-4">
+            <GenrePicker value={genres} onChange={setGenres} />
           </div>
         </AppSectionCard>
 

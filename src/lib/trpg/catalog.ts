@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import { canAccessCharacter, type CharacterAccessRow } from "@/lib/characterVisibility";
+import { parseGenresJson, type CharacterGenre } from "@/lib/characterGenres";
 import { listMyScenarioTemplates, listPublicScenarioTemplates } from "./scenarioTemplates";
 import type { TrpgScenarioTemplate } from "./scenarioTypes";
 import { parseTrpgVisibility, type TrpgVisibility } from "./types";
@@ -13,6 +14,7 @@ export type TrpgCatalogWorld = {
   visibility: TrpgVisibility;
   trpgEnabled: boolean;
   mine: boolean;
+  genres: CharacterGenre[];
 };
 
 export type TrpgCatalogCharacter = {
@@ -46,6 +48,7 @@ function mapWorld(row: {
   trpg_visibility: string;
   creator_name: string | null;
   mine: number;
+  genres: string | null;
 }): TrpgCatalogWorld {
   return {
     id: row.id,
@@ -56,6 +59,7 @@ function mapWorld(row: {
     visibility: parseTrpgVisibility(row.trpg_visibility),
     trpgEnabled: row.trpg_enabled === 1,
     mine: row.mine === 1,
+    genres: parseGenresJson(row.genres),
   };
 }
 
@@ -96,7 +100,7 @@ export function loadTrpgCatalog(db: Database.Database, userId: number): TrpgCata
     publicWorlds: [],
     myWorlds: [],
     myCharacters: [],
-    publicScenarios: listPublicScenarioTemplates(db, 40),
+    publicScenarios: listPublicScenarioTemplates(db, 80),
     myScenarios: listMyScenarioTemplates(db, userId),
   };
   if (!tableExists(db, "worlds")) return empty;
@@ -111,12 +115,13 @@ export function loadTrpgCatalog(db: Database.Database, userId: number): TrpgCata
       `SELECT w.id, w.creator_id, w.name, w.summary,
               COALESCE(w.trpg_enabled, 0) AS trpg_enabled,
               COALESCE(w.trpg_visibility, 'private') AS trpg_visibility,
+              COALESCE(w.genres, '[]') AS genres,
               ${creatorNameSql} AS creator_name,
               CASE WHEN w.creator_id=? THEN 1 ELSE 0 END AS mine
        FROM worlds w
        WHERE COALESCE(w.trpg_enabled, 0)=1 AND COALESCE(w.trpg_visibility, 'private')='public'
        ORDER BY w.updated_at DESC, w.id DESC
-       LIMIT 60`
+       LIMIT 80`
     )
     .all(userId) as Array<{
     id: number;
@@ -127,6 +132,7 @@ export function loadTrpgCatalog(db: Database.Database, userId: number): TrpgCata
     trpg_visibility: string;
     creator_name: string | null;
     mine: number;
+    genres: string | null;
   }>;
 
   const myWorlds = db
@@ -134,12 +140,13 @@ export function loadTrpgCatalog(db: Database.Database, userId: number): TrpgCata
       `SELECT w.id, w.creator_id, w.name, w.summary,
               COALESCE(w.trpg_enabled, 0) AS trpg_enabled,
               COALESCE(w.trpg_visibility, 'private') AS trpg_visibility,
+              COALESCE(w.genres, '[]') AS genres,
               ${creatorNameSql} AS creator_name,
               1 AS mine
        FROM worlds w
        WHERE w.creator_id=?
        ORDER BY w.updated_at DESC, w.id DESC
-       LIMIT 60`
+       LIMIT 80`
     )
     .all(userId) as Array<{
     id: number;
@@ -150,6 +157,7 @@ export function loadTrpgCatalog(db: Database.Database, userId: number): TrpgCata
     trpg_visibility: string;
     creator_name: string | null;
     mine: number;
+    genres: string | null;
   }>;
 
   let myCharacters: TrpgCatalogCharacter[] = [];

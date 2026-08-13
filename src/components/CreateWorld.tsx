@@ -6,7 +6,9 @@ import StudioButton from "@/components/studio/StudioButton";
 import { StudioBackLink } from "@/components/studio/StudioEmptyState";
 import { StudioInput, StudioTextarea } from "@/components/studio/StudioInput";
 import StudioSaveBar from "@/components/studio/StudioSaveBar";
+import GenrePicker from "@/components/GenrePicker";
 import { studioType } from "@/lib/studioDesign";
+import type { CharacterGenre } from "@/lib/characterGenres";
 import { WORLD_CONTENT_LIMIT, WORLD_NAME_LIMIT, WORLD_SUMMARY_LIMIT } from "@/lib/worlds";
 
 const FORM_ID = "studio-world-form";
@@ -17,7 +19,7 @@ export default function CreateWorld() {
   const [summary, setSummary] = useState("");
   const [content, setContent] = useState("");
   const [trpgEnabled, setTrpgEnabled] = useState(false);
-  const [trpgVisibility, setTrpgVisibility] = useState<"public" | "private">("private");
+  const [genres, setGenres] = useState<CharacterGenre[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -42,7 +44,7 @@ export default function CreateWorld() {
       const res = await fetch("/api/worlds", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, summary, content, trpgEnabled, trpgVisibility }),
+        body: JSON.stringify({ name, summary, content, trpgEnabled, genres: trpgEnabled ? genres : [] }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -108,34 +110,13 @@ export default function CreateWorld() {
             <span>
               <span className="font-semibold">TRPG에서 사용</span>
               <span className="mt-1 block text-xs text-zinc-500">
-                캠페인 만들 때 이 세계관을 고를 수 있습니다. 공개하면 TRPG 탭 목록에도 올라갑니다.
+                켜면 TRPG 탭 공개 목록에 올라갑니다. 끄면 목록에서 빠지고, 내가 캠페인을 만들 때만 쓸 수 있습니다.
               </span>
             </span>
           </label>
           {trpgEnabled ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setTrpgVisibility("private")}
-                className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                  trpgVisibility === "private"
-                    ? "bg-violet-600 text-white"
-                    : "border border-white/10 bg-white/5 text-zinc-300"
-                }`}
-              >
-                비공개 (나만)
-              </button>
-              <button
-                type="button"
-                onClick={() => setTrpgVisibility("public")}
-                className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                  trpgVisibility === "public"
-                    ? "bg-violet-600 text-white"
-                    : "border border-white/10 bg-white/5 text-zinc-300"
-                }`}
-              >
-                공개 (TRPG 탭)
-              </button>
+            <div className="mt-4">
+              <GenrePicker value={genres} onChange={setGenres} />
             </div>
           ) : null}
         </div>

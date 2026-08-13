@@ -1,3 +1,5 @@
+import { parseGenresJson, type CharacterGenre } from "@/lib/characterGenres";
+
 export const WORLD_NAME_LIMIT = 40;
 export const WORLD_SUMMARY_LIMIT = 100;
 export const WORLD_CONTENT_LIMIT = 10000;
@@ -5,7 +7,8 @@ export const WORLD_CONTENT_LIMIT = 10000;
 export const WORLD_SELECT_COLUMNS = `id, creator_id, name, summary, content, created_at, updated_at,
               COALESCE(shared_from_nickname, '') AS shared_from_nickname,
               COALESCE(trpg_enabled, 0) AS trpg_enabled,
-              COALESCE(trpg_visibility, 'private') AS trpg_visibility`;
+              COALESCE(trpg_visibility, 'private') AS trpg_visibility,
+              COALESCE(genres, '[]') AS genres`;
 
 export type WorldRow = {
   id: number;
@@ -18,6 +21,7 @@ export type WorldRow = {
   shared_from_nickname?: string;
   trpg_enabled?: number;
   trpg_visibility?: string;
+  genres?: string;
 };
 
 export type WorldListItem = {
@@ -31,6 +35,7 @@ export type WorldListItem = {
   sharedFromNickname?: string;
   trpgEnabled: boolean;
   trpgVisibility: "public" | "private";
+  genres: CharacterGenre[];
 };
 
 export function parseWorldTrpgVisibility(value: unknown): "public" | "private" {
@@ -44,7 +49,7 @@ export function parseWorldTrpgFlags(body: { trpgEnabled?: unknown; trpgVisibilit
   const trpgEnabled = body.trpgEnabled === true || body.trpgEnabled === 1 || body.trpgEnabled === "1" ? 1 : 0;
   return {
     trpgEnabled,
-    trpgVisibility: trpgEnabled ? parseWorldTrpgVisibility(body.trpgVisibility) : "private",
+    trpgVisibility: trpgEnabled ? "public" : "private",
   };
 }
 
@@ -60,5 +65,6 @@ export function rowToWorldListItem(row: WorldRow): WorldListItem {
     ...(sharedFrom ? { sharedFromNickname: sharedFrom } : {}),
     trpgEnabled: Number(row.trpg_enabled ?? 0) === 1,
     trpgVisibility: parseWorldTrpgVisibility(row.trpg_visibility),
+    genres: parseGenresJson(row.genres),
   };
 }
