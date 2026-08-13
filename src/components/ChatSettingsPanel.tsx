@@ -1047,7 +1047,7 @@ function DisplaySettingsSection({
       <section>
         <p className="mb-2 font-bold text-violet-300">추천 메시지</p>
         <p className="mb-2 text-[10px] text-zinc-600">
-          AI 답변 후 페르소나 말투로 갈등 고조·달래기·국면 전환 세 갈래를 제안합니다. 누르면 전송되지 않고 입력창에만 복사됩니다.
+          AI 답변과 첫 인사말 뒤에 페르소나 말투로 갈등 고조·달래기·국면 전환 세 갈래를 제안합니다. 누르면 전송되지 않고 입력창에만 복사됩니다.
         </p>
         <button
           type="button"

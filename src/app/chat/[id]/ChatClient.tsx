@@ -1487,31 +1487,28 @@ export default function ChatClient({
 
   const suggestedRepliesTurn = useMemo(() => {
     if (!displayPrefs.showSuggestedReplies) return null;
-    if (lastAssistantIdx < 0) return null;
     const last = messages[messages.length - 1];
-    if (last?.role !== "assistant") return null;
-    const m = messages[lastAssistantIdx];
-    if (!m || m.role !== "assistant" || m.id == null || m.model === "greeting") return null;
-    if (isPendingGenerationStatus(m.generationStatus) || inputLocked) return null;
+    if (!last || last.role !== "assistant" || last.id == null) return null;
+    if (isPendingGenerationStatus(last.generationStatus) || inputLocked) return null;
     if (
       !clientShouldShowSuggestedRepliesBar({
-        suggestedReplies: m.suggestedReplies ?? [],
-        suggestedRepliesPending: m.suggestedRepliesPending === true,
-        suggestedRepliesRequested: m.suggestedRepliesRequested === true,
-        suggestedRepliesFailed: m.suggestedRepliesFailed === true,
+        suggestedReplies: last.suggestedReplies ?? [],
+        suggestedRepliesPending: last.suggestedRepliesPending === true,
+        suggestedRepliesRequested: last.suggestedRepliesRequested === true,
+        suggestedRepliesFailed: last.suggestedRepliesFailed === true,
       })
     ) {
       return null;
     }
     if (
-      !m.suggestedRepliesPending &&
-      !suggestedRepliesHaveContent(m.suggestedReplies) &&
-      m.suggestedRepliesFailed !== true
+      !last.suggestedRepliesPending &&
+      !suggestedRepliesHaveContent(last.suggestedReplies) &&
+      last.suggestedRepliesFailed !== true
     ) {
-      return { ...m, suggestedRepliesPending: true };
+      return { ...last, suggestedRepliesPending: true };
     }
-    return m;
-  }, [displayPrefs.showSuggestedReplies, lastAssistantIdx, messages, inputLocked]);
+    return last;
+  }, [displayPrefs.showSuggestedReplies, messages, inputLocked]);
 
   const handleSuggestedReplyPick = useCallback((text: string) => {
     setInput(text.slice(0, CHAT_MESSAGE_MAX));
@@ -2017,7 +2014,7 @@ export default function ChatClient({
     if (last?.role !== "assistant") return;
     for (let i = messages.length - 1; i >= 0; i--) {
       const m = messages[i]!;
-      if (m.role !== "assistant" || m.id == null || m.model === "greeting") continue;
+      if (m.role !== "assistant" || m.id == null) continue;
       if (isPendingGenerationStatus(m.generationStatus)) break;
       const needsPoll = clientNeedsSuggestedRepliesPoll({
         suggestedReplies: m.suggestedReplies ?? [],
@@ -3855,7 +3852,7 @@ export default function ChatClient({
     setMessages((prev) => {
       for (let i = prev.length - 1; i >= 0; i--) {
         const m = prev[i]!;
-        if (m.role !== "assistant" || m.id == null || m.model === "greeting") continue;
+        if (m.role !== "assistant" || m.id == null) continue;
         if (suggestedRepliesHaveContent(m.suggestedReplies)) return prev;
         suggestedRepliesPollStartedRef.current.delete(m.id);
         return prev.map((row) =>

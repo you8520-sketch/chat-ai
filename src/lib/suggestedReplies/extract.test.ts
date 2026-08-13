@@ -31,4 +31,18 @@ describe("suggested replies extract prompt", () => {
     assert.match(block, /흥, 내가 왜/);
     assert.match(block, /유나가 문을 닫으려 한다/);
   });
+
+  it("treats an empty user message as the opening greeting turn", () => {
+    const system = suggestedRepliesExtractSystemForTest();
+    assert.match(system, /opening greeting/i);
+    const block = buildSuggestedRepliesExtractUserBlockForTest({
+      charName: "유나",
+      personaName: "렌",
+      userMessage: "",
+      assistantProse: "…오빠, 어디 갔다 왔어?",
+    });
+    assert.match(block, /OPENING GREETING/);
+    assert.match(block, /오빠, 어디 갔다 왔어/);
+    assert.doesNotMatch(block, /\[USER MESSAGE\]/);
+  });
 });

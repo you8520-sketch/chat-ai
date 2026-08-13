@@ -14,6 +14,7 @@ import {
   resolveRpDiagnosticCanary,
   resolveRpDiagnosticGreeting,
 } from "@/lib/rpDiagnosticCanary";
+import { requeueSuggestedRepliesExtractionIfNeeded } from "@/lib/suggestedReplies/job";
 
 export type CreateChatSessionInput = {
   userId: number;
@@ -80,12 +81,13 @@ export function createChatSession(input: CreateChatSessionInput): number {
   const chatId = Number(info.lastInsertRowid);
 
   if (greetingForInsert.trim()) {
-    db.prepare("INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)").run(
-      chatId,
-      "assistant",
-      greetingForInsert,
-      "greeting"
-    );
+    const greetingInfo = db
+      .prepare("INSERT INTO messages (chat_id, role, content, model) VALUES (?,?,?,?)")
+      .run(chatId, "assistant", greetingForInsert, "greeting");
+    const greetingMessageId = Number(greetingInfo.lastInsertRowid);
+    if (Number.isFinite(greetingMessageId) && greetingMessageId > 0) {
+      requeueSuggestedRepliesExtractionIfNeeded(greetingMessageId);
+    }
   }
 
   return chatId;
