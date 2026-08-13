@@ -18,12 +18,12 @@ export const TRPG_NEXT_ROUND_CONTEXT_MAX_CHARS = 400;
 export const TRPG_SEAL_SUMMARY_MAX_CHARS = 500;
 export const TRPG_SEALED_PROMPT_MAX_CHARS = 2500;
 export const TRPG_BOT_SCENE_MAX_CHARS = 2200;
-/** Bot-seat PC action — long in-character beat, then a one-line INTENT. */
-export const TRPG_BOT_MIN_CHARS = 700;
-export const TRPG_BOT_AIM_CHARS = 1600;
-export const TRPG_BOT_ACTION_MAX_CHARS = 2400;
+/** Bot-seat PC action — finish a beat in this band; never cut mid-sentence. */
+export const TRPG_BOT_MIN_CHARS = 300;
+export const TRPG_BOT_AIM_CHARS = 550;
+export const TRPG_BOT_ACTION_MAX_CHARS = 800;
 export const TRPG_BOT_INTENT_MAX_CHARS = 120;
-export const TRPG_BOT_MAX_TOKENS = 4096;
+export const TRPG_BOT_MAX_TOKENS = 2048;
 /** Character card fields on a bot-seat call — personality lives here. */
 export const TRPG_BOT_CARD_PROMPT_MAX_CHARS = 3500;
 export const TRPG_BOT_CARD_FIELD_MAX_CHARS = 800;
