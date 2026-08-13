@@ -20,7 +20,7 @@ const BLOCKED_SPEAKERS = new Set([
   "https",
 ]);
 const SPEECH_ATTR =
-  /(?:의\s*목소리|[이가은는]\s*(?:말(?:했|하)|외쳤|물었|대꾸|대답|속삭|중얼|소리쳤|입을))/u;
+  /(?:의\s*목소리|[이가은는](?:\s+[^\s]{1,12}){0,4}\s*(?:말(?:했|하)|외쳤|물었|대꾸|대답|속삭|중얼|소리쳤|입을))/u;
 /** Signs, notes, maps, letters — quoted lines here are writing, not speech. */
 const WRITTEN_TEXT_CUE =
   /손글씨|손으로\s*그린|적혀\s*있|적혀\s*있었|씌어\s*있|쓰여\s*있|메모|쪽지|편지|낙서|약도|글씨|한\s*줄이\s*(?:더\s*)?적|기록되어|노트에|간판|표지판|문구가|각인|새겨\s*있|지도.{0,32}(?:적힌|적혀)/u;
@@ -88,7 +88,7 @@ function canonicalSpeaker(name: string, aliases: readonly NameAlias[]): string {
 function inferSpeaker(text: string, aliases: readonly NameAlias[]): string | null {
   let attributed: { canonical: string; index: number } | null = null;
   for (const { alias, canonical } of aliases) {
-    if (alias === "GM") continue;
+    if (alias.toLowerCase() === "gm") continue;
     const re = new RegExp(`${escapeRe(alias)}${SPEECH_ATTR.source}`, "gu");
     let match: RegExpExecArray | null;
     while ((match = re.exec(text)) !== null) {
@@ -97,17 +97,7 @@ function inferSpeaker(text: string, aliases: readonly NameAlias[]): string | nul
       }
     }
   }
-  if (attributed) return attributed.canonical;
-  let first: { canonical: string; index: number; len: number } | null = null;
-  for (const { alias, canonical } of aliases) {
-    if (alias === "GM") continue;
-    const idx = text.indexOf(alias);
-    if (idx < 0) continue;
-    if (!first || idx < first.index || (idx === first.index && alias.length > first.len)) {
-      first = { canonical, index: idx, len: alias.length };
-    }
-  }
-  return first?.canonical ?? null;
+  return attributed?.canonical ?? null;
 }
 
 function prefixedParts(line: string, knownNames: readonly string[], aliases: readonly NameAlias[]): { speaker: string; text: string } | null {
@@ -127,6 +117,30 @@ export function isTrpgWrittenTextCue(text: string): boolean {
   return WRITTEN_TEXT_CUE.test(text);
 }
 
+export function unwrapTrpgOuterQuotes(text: string): string {
+  const t = text.replace(/\r\n/g, "\n").trim();
+  if (!t) return "";
+  const wrapped = t.match(/^["“”「『]+([\s\S]*?)["“”」』]+$/);
+  if (wrapped) return wrapped[1]!.trim();
+  return t.replace(/^["“”「『]+\s*/, "").replace(/\s*["“”」』]+$/, "").trim();
+}
+
+const GM_OPEN = /(^|\n)(GM(?:\s*[:：][ \t]*|\s*\n+))/gi;
+
+/** Last `GM:` / `GM` aside — table-talk, kept as one block even with blank lines. */
+export function splitTrailingGmTalk(narration: string): { scene: string; gmTalk: string } {
+  const text = narration.replace(/\r\n/g, "\n");
+  const matches = [...text.matchAll(GM_OPEN)];
+  const last = matches.at(-1);
+  if (!last || last.index == null) return { scene: text.trim(), gmTalk: "" };
+  const at = last.index + last[1]!.length;
+  const afterOpen = at + last[2]!.length;
+  return {
+    scene: text.slice(0, at).trim(),
+    gmTalk: unwrapTrpgOuterQuotes(text.slice(afterOpen)),
+  };
+}
+
 function pushBeat(out: TrpgSpeechBeat[], speaker: string | null, lines: string[]) {
   const text = lines.join("\n").trim();
   if (!text) return;
@@ -137,61 +151,64 @@ function pushBeat(out: TrpgSpeechBeat[], speaker: string | null, lines: string[]
  * Split GM narration into named dialogue beats.
  * `이름: "대사"` and standalone quoted paragraphs become labeled speech.
  * Quoted writing (notes, maps, letters) stays unlabeled narration.
+ * A trailing `GM:` aside is one table-talk beat, not character quotes.
  * Narration has no speaker — the UI must not invent a 「장면」 label.
  */
 export function parseTrpgSceneSpeech(narration: string, knownNames: readonly string[] = []): TrpgSpeechBeat[] {
-  const text = narration.replace(/\r\n/g, "\n").trim();
-  if (!text) return [];
+  const { scene, gmTalk } = splitTrailingGmTalk(narration);
   const aliases = expandKnownNames(knownNames);
   const out: TrpgSpeechBeat[] = [];
   let lastSpeaker: string | null = null;
   let writtenPending = false;
-  for (const para of text.split(/\n{2,}/)) {
-    const buf: string[] = [];
-    for (const rawLine of para.split("\n")) {
-      const prefixed = prefixedParts(rawLine, knownNames, aliases);
-      if (prefixed) {
-        const pending = buf.join("\n");
-        const asWriting = writtenPending || isTrpgWrittenTextCue(pending);
-        pushBeat(out, null, buf);
-        buf.length = 0;
-        if (asWriting) {
-          out.push({ speaker: null, text: prefixed.text });
-          lastSpeaker = null;
-          writtenPending = false;
-        } else {
-          out.push({ speaker: prefixed.speaker, text: prefixed.text });
-          lastSpeaker = prefixed.speaker;
+  const text = scene.trim();
+  if (text) {
+    for (const para of text.split(/\n{2,}/)) {
+      const buf: string[] = [];
+      for (const rawLine of para.split("\n")) {
+        const prefixed = prefixedParts(rawLine, knownNames, aliases);
+        if (prefixed) {
+          const pending = buf.join("\n");
+          const asWriting = writtenPending || isTrpgWrittenTextCue(pending);
+          pushBeat(out, null, buf);
+          buf.length = 0;
+          if (asWriting) {
+            out.push({ speaker: null, text: prefixed.text });
+            lastSpeaker = null;
+            writtenPending = false;
+          } else {
+            out.push({ speaker: prefixed.speaker, text: prefixed.text });
+            lastSpeaker = prefixed.speaker;
+          }
+          continue;
         }
+        buf.push(rawLine);
+      }
+      const leftover = buf.join("\n").trim();
+      if (!leftover) continue;
+      const nameOnly = aliases.find((row) => row.alias === leftover && row.alias.toLowerCase() !== "gm");
+      if (nameOnly) {
+        lastSpeaker = nameOnly.canonical;
         continue;
       }
-      buf.push(rawLine);
+      if (isQuoteOnly(leftover)) {
+        out.push({
+          speaker: writtenPending ? null : lastSpeaker,
+          text: leftover,
+        });
+        if (writtenPending) lastSpeaker = null;
+        writtenPending = false;
+        continue;
+      }
+      if (isTrpgWrittenTextCue(leftover)) {
+        writtenPending = true;
+        lastSpeaker = null;
+      } else {
+        writtenPending = false;
+        lastSpeaker = inferSpeaker(leftover, aliases);
+      }
+      pushBeat(out, null, buf);
     }
-    const leftover = buf.join("\n").trim();
-    if (!leftover) continue;
-    const nameOnly = aliases.find((row) => row.alias === leftover);
-    if (nameOnly) {
-      lastSpeaker = nameOnly.canonical;
-      continue;
-    }
-    if (isQuoteOnly(leftover)) {
-      out.push({
-        speaker: writtenPending ? null : lastSpeaker,
-        text: leftover,
-      });
-      if (writtenPending) lastSpeaker = null;
-      writtenPending = false;
-      continue;
-    }
-    if (isTrpgWrittenTextCue(leftover)) {
-      writtenPending = true;
-      lastSpeaker = null;
-    } else {
-      writtenPending = false;
-      const inferred = inferSpeaker(leftover, aliases);
-      if (inferred) lastSpeaker = inferred;
-    }
-    pushBeat(out, null, buf);
   }
+  if (gmTalk) out.push({ speaker: "GM", text: gmTalk });
   return out;
 }

@@ -31,7 +31,9 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(TRPG_GM_SYSTEM, /Page time/);
     assert.match(TRPG_GM_SYSTEM, /Extra NPCs/);
     assert.match(TRPG_GM_SYSTEM, /Closing GM beat/);
-    assert.match(TRPG_GM_SYSTEM, /GM: "\.\.\."/);
+    assert.match(TRPG_GM_SYSTEM, /GM:/);
+    assert.match(TRPG_GM_SYSTEM, /table-talk/);
+    assert.match(TRPG_GM_SYSTEM, /never the person they address/);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /800–1800|800-1800/);
     assert.equal(TRPG_GM_MIN_CHARS, 3000);
     assert.ok(TRPG_GM_AIM_CHARS > TRPG_GM_MIN_CHARS);
@@ -58,6 +60,7 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(block, /d20=14/);
     assert.match(block, /SCENE CRAFT/);
     assert.match(block, /Rewrite every ACTION/);
+    assert.match(block, /table-talk/);
     assert.match(block, /Infer comic vs serious/);
     assert.match(formatTrpgGenreToneLine(["공포/추리", "판타지"]), /WORLD GENRES: 공포\/추리, 판타지/);
     const withGenres = buildTrpgGmUserBlock({

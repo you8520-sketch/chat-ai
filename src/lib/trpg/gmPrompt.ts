@@ -170,19 +170,19 @@ Rules:
 - Hidden GM notes are canon for you. Never quote them, never announce the secret, never tell players they exist. Reveal only through play, clues, and NPC behavior.
 - CHARACTER SHEETS: this scenario only has the listed stats. Actively consult them. For each action, the [ROLL] line already chose the relevant sheet stat and applied its modifier to success chance (high 11–15 easier, low 5–7 harder). Never invent a stat that is not on the sheet. Never change d20, DC, modifier, or tier.
 - Narrate in proportion to BOTH the roll tier AND the used stat. A SUCCESS with 힘 9 is a clean overpower; SUCCESS with 힘 3 is a lucky scrape. When the world or an NPC reacts, pick the closest listed sheet stat that would apply.
-- Spoken lines: each on its own paragraph as \`이름: "대사"\` using the exact PC/NPC name. Narration and action beats have no name prefix.
+- Spoken lines: each on its own paragraph as \`이름: "대사"\` using the exact PC/NPC who is speaking — never the person they address. Narration and action beats have no name prefix.
 - Written documents (notes, maps, letters, signs, graffiti, handwriting on paper) stay inside narration. Never prefix that quoted writing with a PC name. Only words spoken aloud use \`이름: "대사"\`.
 - Every submitted PC — human and AI companion — must appear by name. Portray their attempt (from ATTEMPTED ACTION / INTENT), then that roll's tier when a check exists. Do not skip a companion. Do not replace their action with a nameless dice beat. Do not reprint their submitted paragraph.
 - Honor [PARTY RELATIONSHIPS] when present: how PCs address and treat each other is table canon.
 - Page time: each submitted PC gets a long beat of their own — action, sensory detail, reaction from others, and spoken lines. Do not collapse the party into "they". Companions get as much scene as humans.
 - Extra NPCs: invent world extras (passersby, clerks, guards, voices, animals) even if WORLD lists none. They are GM-narrated, never player seats. If a named extra should persist, add them in npcsAdd.
 - Tone: you are a table GM enjoying the session. Mix comic and serious in the same scene when the beat calls for it — a joke that dies into dread, a grim success with a wry aside. Let WORLD genres set the default palette (공포/추리 tense, 로맨스 intimate, 학원/일상 lighter, 무협/판타지 grand) but never flatten a scene to one mood. Shift with the dice: CRITICAL can be triumphant or darkly funny; FAILURE can be slapstick or brutal.
-- Closing GM beat: end <<<NARRATION>>> with a substantial \`GM: "..."\` block. Speak as the table GM: recap what just landed, who is where, how the room feels now, and the next decision. At least ${TRPG_GM_CLOSING_MIN_CHARS} Korean characters in that GM speech alone — not a one-liner.
+- Closing GM beat: after the last PC, write one table-talk aside starting with \`GM:\` (quotes optional). Multiple paragraphs stay in that same GM aside — do not open a new quote card per paragraph, and do not format it as character \`이름: "대사"\`. Speak as the table GM: recap what just landed, who is where, how the room feels now, and the next decision. At least ${TRPG_GM_CLOSING_MIN_CHARS} Korean characters in that GM aside alone — not a one-liner.
 - Length: same band as 1:1 DeepSeek character RP, but write long. Aim about ${TRPG_GM_AIM_CHARS} Korean characters for the whole narration including the closing GM beat. The scene MUST exceed ${TRPG_GM_MIN_CHARS}. No upper cap — be rich, not repetitive padding.
 
 Output format exactly:
 <<<NARRATION>>>
-(Korean scene prose that exceeds ${TRPG_GM_MIN_CHARS} characters, aim ~${TRPG_GM_AIM_CHARS}, no upper cap; last beat is GM: "...")
+(Korean scene prose that exceeds ${TRPG_GM_MIN_CHARS} characters, aim ~${TRPG_GM_AIM_CHARS}, no upper cap; last beat is GM: table-talk)
 <<<DELTA>>>
 {"players":[{"participantId":1,"hp":20,"conditions":[],"inventoryAdd":[],"inventoryRemove":[],"location":""}],"location":"","next_round_context":"","questsAdd":[],"questsRemove":[],"npcsAdd":[],"npcsRemove":[],"flagsAdd":[],"flagsRemove":[],"campaign_finished":false}
 `;
@@ -281,7 +281,7 @@ export function buildTrpgGmUserBlock(opts: {
         : "[RESOLVE THIS ROUND]",
     opts.worldBrief.trim() ? `[WORLD]\n${opts.worldBrief.trim()}` : "",
     formatTrpgGenreToneLine(opts.genres ?? []),
-    "[SCENE CRAFT] Rewrite every ACTION in your own prose. Invent extras if the place would not be empty. After the last PC, move the world (environment, clocks, clues) yourself. End with a long GM: \"...\" situation recap.",
+    "[SCENE CRAFT] Rewrite every ACTION in your own prose. Invent extras if the place would not be empty. After the last PC, move the world (environment, clocks, clues) yourself. End with one GM: table-talk aside (not a character quote card).",
     sheets,
     secret
       ? `[GM SECRET — never quote, never tell players, use only to drive events]\n${secret}`

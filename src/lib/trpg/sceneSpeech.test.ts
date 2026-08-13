@@ -40,17 +40,41 @@ describe("parseTrpgSceneSpeech", () => {
     assert.match(beats[1]?.text ?? "", /석궁/);
   });
 
-  it("labels a standalone quote from the previous narration, not 장면", () => {
+  it("labels a standalone quote after a speech verb, not a name that was only mentioned", () => {
     const beats = parseTrpgSceneSpeech(
-      `태현의 손이 렌의 어깨를 스쳤다.\n\n"야, 렌. 잠깐..."\n\n이현의 목소리가 들렸다.\n\n"저 안에서 딱딱거리던 게 멈췄어."`,
+      `태현이 낮게 말했다.\n\n"야, 렌. 잠깐..."\n\n이현의 목소리가 들렸다.\n\n"저 안에서 딱딱거리던 게 멈췄어."`,
       ["권태현", "렌", "강이현"]
     );
     assert.equal(beats[0]?.speaker, null);
-    assert.match(beats[0]?.text ?? "", /어깨/);
+    assert.match(beats[0]?.text ?? "", /낮게 말했다/);
     assert.equal(beats[1]?.speaker, "권태현");
     assert.match(beats[1]?.text ?? "", /야, 렌/);
     assert.equal(beats[2]?.speaker, null);
     assert.equal(beats[3]?.speaker, "강이현");
+  });
+
+  it("does not give the next quote to a name only mentioned in narration", () => {
+    const beats = parseTrpgSceneSpeech(
+      `렌: "어디로 갈까?"\n\n태현이 렌을 향해 고개를 까딱였다.\n\n"네가 찾은 지도, 잘 챙겨."\n\n태현이 낮게 말했다.\n\n"안전 가옥 먼저."`,
+      ["권태현", "렌", "강이현"]
+    );
+    assert.equal(beats.find((b) => b.text.includes("어디로"))?.speaker, "렌");
+    assert.equal(beats.find((b) => b.text.includes("지도"))?.speaker, null);
+    assert.equal(beats.find((b) => b.text.includes("안전 가옥"))?.speaker, "권태현");
+  });
+
+  it("keeps a multi-paragraph GM aside as one italic table-talk beat", () => {
+    const beats = parseTrpgSceneSpeech(
+      `렌: "가자."\n\n문이 열린다.\n\nGM: "자, 이제 상황이 정리됐다.\n\n약국은 함정이야.\n\n안전 가옥으로 가자."`,
+      ["렌"]
+    );
+    assert.equal(beats.find((b) => b.text.includes("가자") && b.speaker === "렌")?.speaker, "렌");
+    const gm = beats.filter((b) => b.speaker === "GM");
+    assert.equal(gm.length, 1);
+    assert.match(gm[0]?.text ?? "", /정리됐다/);
+    assert.match(gm[0]?.text ?? "", /안전 가옥/);
+    assert.doesNotMatch(gm[0]?.text ?? "", /^"/);
+    assert.equal(beats.filter((b) => /함정이야/.test(b.text)).length, 1);
   });
 
   it("does not label a handwritten note as the previous speaker", () => {
