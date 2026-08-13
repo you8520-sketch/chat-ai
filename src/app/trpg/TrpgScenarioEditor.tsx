@@ -7,6 +7,7 @@ import type { TrpgCatalog } from "@/lib/trpg/catalog";
 import {
   TRPG_SCENARIO_CONTENT_LIMIT,
   TRPG_SCENARIO_MAX_BOTS,
+  TRPG_SCENARIO_SECRET_LIMIT,
   TRPG_SCENARIO_SUMMARY_LIMIT,
   TRPG_SCENARIO_TITLE_LIMIT,
   type TrpgScenarioNpc,
@@ -30,6 +31,7 @@ export default function TrpgScenarioEditor({
   const [title, setTitle] = useState(initial?.title ?? "");
   const [summary, setSummary] = useState(initial?.summary ?? "");
   const [content, setContent] = useState(initial?.content ?? "");
+  const [secretContent, setSecretContent] = useState(initial?.secretContent ?? "");
   const [worldId, setWorldId] = useState<number | "">(initial?.worldId ?? "");
   const [visibility, setVisibility] = useState<TrpgVisibility>(initial?.visibility ?? "private");
   const [startLocation, setStartLocation] = useState(initial?.startLocation ?? "");
@@ -53,6 +55,7 @@ export default function TrpgScenarioEditor({
       title,
       summary,
       content,
+      secretContent,
       worldId: worldId === "" ? null : worldId,
       visibility,
       startLocation,
@@ -83,7 +86,7 @@ export default function TrpgScenarioEditor({
   return (
     <AppPageShell
       title={initial ? "TRPG 시나리오 수정" : "TRPG 시나리오 만들기"}
-      description="세계관·기본 PC 시트·NPC를 한 묶음으로 저장합니다. 비공개로 두면 나만 캠페인에 쓸 수 있습니다."
+      description="세계관·기본 PC 시트·NPC를 한 묶음으로 저장합니다. 공개/비공개는 목록 노출이고, 숨겨진 설정은 플레이어에게 보이지 않고 GM만 봅니다."
       narrow
     >
       <form onSubmit={(e) => void save(e)} className="space-y-4">
@@ -114,6 +117,20 @@ export default function TrpgScenarioEditor({
               rows={10}
               onChange={(e) => setContent(e.target.value)}
               className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
+            />
+          </label>
+          <label className="mt-3 block text-sm text-zinc-300">
+            숨겨진 설정 (비밀)
+            <span className="mt-1 block text-xs font-normal text-zinc-500">
+              진범, 반전, GM만 알아야 할 설정. 플레이어 화면·봇 자리에는 안 나갑니다. 공개 시나리오여도 이 칸은 숨깁니다.
+            </span>
+            <textarea
+              value={secretContent}
+              maxLength={TRPG_SCENARIO_SECRET_LIMIT}
+              rows={6}
+              onChange={(e) => setSecretContent(e.target.value)}
+              placeholder="예: 역무원은 이미 죽은 사람이다. 유령 기차의 목적지는 산 자들의 마을이 아니다."
+              className="mt-1 w-full rounded-xl border border-amber-500/20 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
             />
           </label>
           <label className="mt-3 block text-sm text-zinc-300">

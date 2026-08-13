@@ -149,6 +149,7 @@ export function createTrpgCampaign(
   let startLocation = "";
   let startInventory: string[] = [];
   let defaultPcStats: Record<string, number> | null = null;
+  let gmSecret = "";
   const bots: SpawnBot[] = [];
   const seenCharacterIds = new Set<number>();
 
@@ -158,13 +159,14 @@ export function createTrpgCampaign(
     if (!canAccessTrpgScenarioTemplate(row, opts.viewerUserId)) {
       throw new Error("이 시나리오는 비공개입니다.");
     }
-    const template = rowToScenarioTemplate(row);
+    const template = rowToScenarioTemplate(row, { includeSecret: true });
     templateId = template.id;
     authorUserId = template.creatorId;
     title = template.title;
     startLocation = template.startLocation;
     startInventory = template.startInventory;
     defaultPcStats = template.defaultPcStats;
+    gmSecret = template.secretContent;
     worldBrief = [template.summary, template.content].filter((x) => x.trim()).join("\n\n");
     if (template.worldId) {
       const world = loadWorldForTrpg(db, template.worldId);
@@ -223,6 +225,7 @@ export function createTrpgCampaign(
       startLocation,
       startInventory,
       defaultPcStats,
+      gmSecret,
     });
     insertParticipant(db, {
       campaignId,

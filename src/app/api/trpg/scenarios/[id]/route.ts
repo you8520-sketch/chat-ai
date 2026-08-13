@@ -25,7 +25,9 @@ export async function GET(_req: Request, ctx: RouteCtx) {
     if (!row || !canAccessTrpgScenarioTemplate(row, gate.user.id)) {
       return NextResponse.json({ error: "시나리오를 찾을 수 없습니다." }, { status: 404 });
     }
-    return NextResponse.json({ scenario: rowToScenarioTemplate(row) });
+    return NextResponse.json({
+      scenario: rowToScenarioTemplate(row, { includeSecret: row.creator_id === gate.user.id }),
+    });
   } catch (e) {
     return trpgFail(e);
   }
@@ -41,6 +43,7 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
       title: String(body.title ?? ""),
       summary: String(body.summary ?? ""),
       content: String(body.content ?? ""),
+      secretContent: String(body.secretContent ?? ""),
       worldId: body.worldId as number | null,
       visibility: body.visibility,
       startLocation: String(body.startLocation ?? ""),
@@ -50,7 +53,10 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
       characterIds: body.characterIds,
     });
     const row = loadScenarioTemplate(gate.db, id);
-    return NextResponse.json({ ok: true, scenario: row ? rowToScenarioTemplate(row) : null });
+    return NextResponse.json({
+      ok: true,
+      scenario: row ? rowToScenarioTemplate(row, { includeSecret: true }) : null,
+    });
   } catch (e) {
     return trpgFail(e);
   }

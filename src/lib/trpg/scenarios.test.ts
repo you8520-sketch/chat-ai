@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { canUseWorldForTrpg, loadTrpgCatalog } from "./catalog";
-import { createTrpgCampaign } from "./engineCreate";
+import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet } from "./engineCreate";
+import { advanceTrpgCampaign, startTrpgCampaign, submitTrpgAction, type TrpgEngineDeps } from "./engineAdvance";
+import { loadTrpgSnapshot } from "./engineSnapshot";
 import { insertScenarioTemplate } from "./scenarioTemplates";
 import { ensureTrpgTables } from "./schema";
 import { loadCampaign, loadParticipants, loadScenario, parseBotPersona } from "./store";
@@ -162,6 +164,7 @@ describe("TRPG scenarios and catalog", () => {
     insertScenarioTemplate(db, 2, {
       title: "공개 시나리오",
       content: "누구나 캠페인으로 쓸 수 있다.",
+      secretContent: "진범은 역무원SECRETTOKEN",
       visibility: "public",
     });
     const catalog = loadTrpgCatalog(db, 1);
@@ -169,7 +172,71 @@ describe("TRPG scenarios and catalog", () => {
     assert.equal(catalog.publicWorlds.some((w) => w.name === "숨김"), false);
     assert.equal(catalog.myWorlds.some((w) => w.name === "내것"), true);
     assert.equal(catalog.myScenarios.some((s) => s.title === "내 시나리오"), true);
-    assert.equal(catalog.publicScenarios.some((s) => s.title === "공개 시나리오"), true);
+    const pub = catalog.publicScenarios.find((s) => s.title === "공개 시나리오");
+    assert.ok(pub);
+    assert.equal(pub?.secretContent, "");
+    const ownerCatalog = loadTrpgCatalog(db, 2);
+    assert.equal(ownerCatalog.myScenarios.find((s) => s.title === "공개 시나리오")?.secretContent, "진범은 역무원SECRETTOKEN");
+    db.close();
+  });
+
+  it("keeps hidden GM notes off player snapshots and bot prompts", async () => {
+    const db = memoryDb();
+    const seen: string[] = [];
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 12,
+      gmCall: async ({ user }) => {
+        seen.push(`gm:${user}`);
+        return {
+          text: `<<<NARRATION>>>
+낡은 역이 흔들린다. 당신은 다음 한 수를 고른다.
+<<<DELTA>>>
+{"players":[],"location":"대합실","next_round_context":"표를 살지","campaign_finished":false}`,
+        };
+      },
+      botCall: async (_system, user) => {
+        seen.push(`bot:${user}`);
+        return { text: "모자를 고쳐 쓴다." };
+      },
+    };
+    const templateId = insertScenarioTemplate(db, 7, {
+      title: "폐역 탐험",
+      content: "한밤의 역에서 유령 기차를 기다린다.",
+      secretContent: "역무원은이미죽었다SECRETGM",
+      visibility: "public",
+      npcs: [{ name: "역무원", description: "안내원", greeting: "표", systemPrompt: "공손" }],
+    });
+    const campaignId = createTrpgCampaign(db, {
+      hostUserId: 1,
+      hostNickname: "렌",
+      viewerUserId: 1,
+      templateId,
+    });
+    const campaign = loadCampaign(db, campaignId);
+    assert.equal(campaign?.gm_secret, "역무원은이미죽었다SECRETGM");
+    assert.doesNotMatch(campaign?.world_brief ?? "", /SECRETGM/);
+    const snap = loadTrpgSnapshot(db, campaignId, 1);
+    assert.doesNotMatch(snap?.worldBrief ?? "", /SECRETGM/);
+    assert.equal(JSON.stringify(snap).includes("SECRETGM"), false);
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
+    const bot = loadParticipants(db, campaignId).find((p) => p.kind === "ai_character");
+    assert.ok(bot);
+    saveTrpgSheet(db, {
+      campaignId,
+      userId: 1,
+      name: "역무원",
+      stats: EVEN_STATS,
+      participantId: bot!.id,
+    });
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    submitTrpgAction(db, { campaignId, userId: 1, body: "역무원에게 말을 건다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const gmBlocks = seen.filter((s) => s.startsWith("gm:"));
+    const botBlocks = seen.filter((s) => s.startsWith("bot:"));
+    assert.ok(gmBlocks.some((s) => s.includes("SECRETGM")));
+    assert.ok(botBlocks.length > 0);
+    assert.ok(botBlocks.every((s) => !s.includes("SECRETGM")));
     db.close();
   });
 });

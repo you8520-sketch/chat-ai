@@ -31,6 +31,7 @@ export type TrpgCampaignRow = {
   world_brief: string;
   template_id: number | null;
   author_user_id: number | null;
+  gm_secret: string | null;
 };
 
 export type TrpgBotPersona = {
@@ -154,13 +155,14 @@ export function insertCampaign(db: Database.Database, opts: {
   startLocation?: string;
   startInventory?: string[];
   defaultPcStats?: Record<string, number> | null;
+  gmSecret?: string | null;
 }): number {
   const invite = newTrpgInviteCode();
   const info = db
     .prepare(
       `INSERT INTO trpg_campaigns
-        (host_user_id, source_character_id, source_world_id, title, max_slots, billing_mode, gm_model, status, invite_code, world_brief, template_id, author_user_id)
-       VALUES (?,?,?,?,?,'split_even','deepseek-v4-pro','CHARACTER_SETUP',?,?,?,?)`
+        (host_user_id, source_character_id, source_world_id, title, max_slots, billing_mode, gm_model, status, invite_code, world_brief, template_id, author_user_id, gm_secret)
+       VALUES (?,?,?,?,?,'split_even','deepseek-v4-pro','CHARACTER_SETUP',?,?,?,?,?)`
     )
     .run(
       opts.hostUserId,
@@ -171,7 +173,8 @@ export function insertCampaign(db: Database.Database, opts: {
       invite,
       opts.worldBrief,
       opts.templateId ?? null,
-      opts.authorUserId ?? null
+      opts.authorUserId ?? null,
+      opts.gmSecret ?? ""
     );
   const campaignId = Number(info.lastInsertRowid);
   db.prepare(

@@ -172,6 +172,7 @@ export function ensureTrpgTables(db: Database.Database): void {
   addColumn("trpg_campaigns", "world_brief", "TEXT NOT NULL DEFAULT ''");
   addColumn("trpg_campaigns", "template_id", "INTEGER");
   addColumn("trpg_campaigns", "author_user_id", "INTEGER");
+  addColumn("trpg_campaigns", "gm_secret", "TEXT NOT NULL DEFAULT ''");
   addColumn("trpg_rounds", "billed", "INTEGER NOT NULL DEFAULT 0");
   addColumn("trpg_rounds", "error_json", "TEXT");
   addColumn("trpg_rounds", "billed_points", "INTEGER NOT NULL DEFAULT 0");
@@ -214,7 +215,10 @@ export function ensureTrpgTables(db: Database.Database): void {
       ON trpg_scenario_templates(creator_id, updated_at DESC);
     CREATE INDEX IF NOT EXISTS idx_trpg_scenario_templates_public
       ON trpg_scenario_templates(visibility, updated_at DESC);
+  `);
+  addColumn("trpg_scenario_templates", "secret_content", "TEXT NOT NULL DEFAULT ''");
 
+  db.exec(`
     CREATE TABLE IF NOT EXISTS trpg_creator_earnings (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       round_id INTEGER NOT NULL,

@@ -460,6 +460,7 @@ async function runGmForRound(
   const actions = loadActionsForGm(db, opts.roundId);
   const user = buildTrpgGmUserBlock({
     worldBrief: campaign.world_brief,
+    gmSecret: campaign.gm_secret ?? "",
     memoryBlock: memory,
     opening: opts.opening,
     actions,

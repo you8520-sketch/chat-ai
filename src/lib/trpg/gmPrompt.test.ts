@@ -44,5 +44,15 @@ describe("TRPG GM prompt/parse", () => {
     assert.doesNotMatch(block, /OOC|PARTY CHAT/i);
     assert.match(block, /PROPOSED FICTION/);
     assert.match(block, /d20=14/);
+    const withSecret = buildTrpgGmUserBlock({
+      worldBrief: "폐여관",
+      gmSecret: "진범은 여관주인이다",
+      memoryBlock: "[TRPG STRUCTURED STATE]",
+      opening: true,
+      actions: [],
+    });
+    assert.match(withSecret, /GM SECRET/);
+    assert.match(withSecret, /진범은 여관주인이다/);
+    assert.doesNotMatch(TRPG_GM_SYSTEM, /진범은 여관주인/);
   });
 });

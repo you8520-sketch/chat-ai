@@ -30,6 +30,7 @@ export async function POST(req: Request) {
       title: String(body.title ?? ""),
       summary: String(body.summary ?? ""),
       content: String(body.content ?? ""),
+      secretContent: String(body.secretContent ?? ""),
       worldId: body.worldId as number | null,
       visibility: body.visibility,
       startLocation: String(body.startLocation ?? ""),
@@ -39,7 +40,10 @@ export async function POST(req: Request) {
       characterIds: body.characterIds,
     });
     const row = loadScenarioTemplate(gate.db, id);
-    return NextResponse.json({ ok: true, scenario: row ? rowToScenarioTemplate(row) : null });
+    return NextResponse.json({
+      ok: true,
+      scenario: row ? rowToScenarioTemplate(row, { includeSecret: true }) : null,
+    });
   } catch (e) {
     return trpgFail(e);
   }
