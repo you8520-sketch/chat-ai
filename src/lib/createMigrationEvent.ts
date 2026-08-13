@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
-import { creditPoints } from "@/lib/points";
+import { creditPointsWithIds } from "@/lib/points";
 import { CREATE_MIGRATION_EVENT_REWARD } from "@/lib/plans";
+import { notifyCharacterReviewResult } from "@/lib/userNotifications";
 import {
   applicationStatusLabel,
   type CreateMigrationApplicationStatus,
@@ -194,6 +195,13 @@ export function reviewCreateMigrationApplication(
        SET status='rejected', admin_note=?, reviewed_by=?, reviewed_at=datetime('now')
        WHERE id=?`
     ).run(adminNote.trim(), adminId, applicationId);
+    notifyCharacterReviewResult(db, {
+      userId: app.user_id,
+      characterId: app.character_id,
+      characterName: app.character_name,
+      approved: false,
+      note: adminNote,
+    });
     return { ok: true };
   }
 
@@ -203,14 +211,23 @@ export function reviewCreateMigrationApplication(
        SET status='approved', admin_note=?, reviewed_by=?, reviewed_at=datetime('now')
        WHERE id=?`
     ).run(adminNote.trim(), adminId, applicationId);
-    creditPoints(
+    const credit = creditPointsWithIds(
+      db,
       app.user_id,
       CREATE_MIGRATION_EVENT_REWARD,
       "FREE",
       `캐릭터 제작·이식 이벤트 — ${app.character_name}`
     );
+    if (!credit) throw new Error("INVALID_REWARD_AMOUNT");
+    notifyCharacterReviewResult(db, {
+      userId: app.user_id,
+      characterId: app.character_id,
+      characterName: app.character_name,
+      approved: true,
+      note: adminNote,
+      rewardAmount: CREATE_MIGRATION_EVENT_REWARD,
+    });
   })();
 
   return { ok: true };
 }
-

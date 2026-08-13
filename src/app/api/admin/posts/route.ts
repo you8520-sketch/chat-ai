@@ -3,6 +3,7 @@ import { requireAdminRequest, requireAdminUser } from "@/lib/adminAuth";
 import { isAdminManagedBoard } from "@/lib/boardConfig";
 import { createAdminBoardPost, deleteAdminBoardPost, listPostsByBoard } from "@/lib/boardPosts";
 import { getDb } from "@/lib/db";
+import { queueBroadcastWebPush } from "@/lib/webPush";
 
 export async function GET(req: Request) {
   if (!(await requireAdminRequest(req))) {
@@ -42,7 +43,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "내용은 10,000자 이내로 입력하세요." }, { status: 400 });
   }
 
-  const id = createAdminBoardPost(getDb(), board, title, content, admin.id);
+  const db = getDb();
+  const id = createAdminBoardPost(db, board, title, content, admin.id);
+  if (board === "notice") {
+    const preview = content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160);
+    queueBroadcastWebPush(db, `notice:${id}`, {
+      title: `새 공지: ${title}`,
+      body: preview,
+      url: "/board/notice",
+      tag: `notice:${id}`,
+      kind: "notice",
+    });
+  }
   return NextResponse.json({ ok: true, id });
 }
 

@@ -1,5 +1,6 @@
 import type Database from "better-sqlite3";
 import { getUnreadNoticeCount } from "./notices";
+import { queueUserWebPush, type WebPushPayload } from "./webPush";
 
 export type UserNotificationType =
   | "creator_character"
@@ -10,6 +11,9 @@ export type UserNotificationType =
   | "follow_received"
   | "admin_point_grant"
   | "inquiry_reply"
+  | "point_expiring"
+  | "character_review"
+  | "report_result"
   | "character_like"
   | "profile_comment"
   | "post_comment";
@@ -49,9 +53,10 @@ function insertNotification(
     actorId?: number | null;
     title: string;
     body: string;
+    push?: Omit<WebPushPayload, "title" | "body">;
   }
 ) {
-  db.prepare(
+  const result = db.prepare(
     `INSERT INTO user_notifications (user_id, type, ref_id, actor_id, title, body)
      VALUES (?, ?, ?, ?, ?, ?)`
   ).run(
@@ -62,6 +67,15 @@ function insertNotification(
     input.title,
     input.body
   );
+  const notificationId = Number(result.lastInsertRowid);
+  if (input.push) {
+    queueUserWebPush(db, input.userId, `notification:${notificationId}`, {
+      title: input.title,
+      body: input.body,
+      ...input.push,
+    });
+  }
+  return notificationId;
 }
 
 export function getUnreadUserNotificationCount(db: Database.Database, userId: number): number {
@@ -211,9 +225,14 @@ export function notificationHref(n: UserNotificationRow): string {
     case "payment_success":
     case "payment_cancel":
     case "admin_point_grant":
+    case "point_expiring":
       return "/points";
     case "inquiry_reply":
       return "/board/inquiry";
+    case "character_review":
+      return `/character/${n.ref_id}`;
+    case "report_result":
+      return "/notifications";
     default:
       return "/notifications";
   }
@@ -235,6 +254,12 @@ export function notificationIcon(type: UserNotificationType): string {
       return "🎉";
     case "inquiry_reply":
       return "💬";
+    case "point_expiring":
+      return "⏳";
+    case "character_review":
+      return "✅";
+    case "report_result":
+      return "📋";
     case "follow_received":
       return "👤";
     case "character_like":
@@ -481,6 +506,11 @@ export function notifyAdminPointGrant(
     actorId: adminId,
     title: "무료 포인트 지급",
     body,
+    push: {
+      url: "/points",
+      tag: `point-grant:${logId}`,
+      kind: "points",
+    },
   });
 }
 
@@ -499,5 +529,66 @@ export function notifyInquiryReply(
     actorId: null,
     title: "문의 답변",
     body: `「${inquiryTitle}」에 운영팀 답변이 등록되었습니다. ${preview}${replyPreview.length > 120 ? "…" : ""}`,
+    push: {
+      url: "/board/inquiry",
+      tag: `inquiry-reply:${postId}`,
+      kind: "support_result",
+    },
+  });
+}
+
+export function notifyCharacterReviewResult(
+  db: Database.Database,
+  input: {
+    userId: number;
+    characterId: number;
+    characterName: string;
+    approved: boolean;
+    note?: string;
+    rewardAmount?: number;
+  }
+) {
+  const reward = input.rewardAmount
+    ? ` ${input.rewardAmount.toLocaleString()}P가 함께 지급되었습니다.`
+    : "";
+  const note = input.note?.trim();
+  const body = input.approved
+    ? `「${input.characterName}」 제작 캐릭터가 승인되었습니다.${reward}`
+    : `「${input.characterName}」 제작 캐릭터가 반려되었습니다.${note ? ` 사유: ${note}` : ""}`;
+  insertNotification(db, {
+    userId: input.userId,
+    type: "character_review",
+    refId: input.characterId,
+    title: input.approved ? "제작 캐릭터 승인 완료" : "제작 캐릭터 검수 결과",
+    body,
+    push: {
+      url: `/character/${input.characterId}`,
+      tag: `character-review:${input.characterId}:${input.approved ? "approved" : "rejected"}`,
+      kind: "character_review",
+    },
+  });
+}
+
+export function notifyReportResult(
+  db: Database.Database,
+  input: {
+    userId: number;
+    reportId: number;
+    approved: boolean;
+    body: string;
+    url?: string;
+  }
+) {
+  insertNotification(db, {
+    userId: input.userId,
+    type: "report_result",
+    refId: input.reportId,
+    title: input.approved ? "신고 처리 완료" : "신고 검토 결과",
+    body: input.body,
+    push: {
+      url: input.url ?? "/notifications",
+      tag: `report-result:${input.reportId}`,
+      kind: "support_result",
+    },
   });
 }

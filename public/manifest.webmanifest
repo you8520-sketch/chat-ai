@@ -1,6 +1,7 @@
 {
   "name": "하비 AI - AI 캐릭터 채팅",
   "short_name": "하비 AI",
+  "id": "/",
   "description": "AI 캐릭터와 대화하는 채팅 플랫폼",
   "lang": "ko-KR",
   "start_url": "/",

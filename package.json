@@ -34,7 +34,8 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "server-only": "^0.0.1",
-    "sharp": "^0.35.3"
+    "sharp": "^0.35.3",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "@playwright/test": "^1.51.1",
@@ -46,6 +47,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/sharp": "^0.31.1",
+    "@types/web-push": "^3.6.4",
     "tailwindcss": "^4.1.7",
     "tsx": "^4.22.4",
     "typescript": "^5"
