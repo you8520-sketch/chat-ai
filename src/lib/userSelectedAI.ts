@@ -177,7 +177,9 @@ export type SelectedAiNoticeKind = "intro" | "changed" | "retired" | null;
 
 /**
  * Consume at most one pending notice for chat entry.
- * Ack is written only when a notice is actually returned (shown).
+ * Global "applies to all chats" intro/change toasts are no longer shown;
+ * those flags are still cleared so they do not keep pending.
+ * Retired-model remap still surfaces a notice.
  */
 export function consumeSelectedAiEntryNotice(
   db: Database.Database,
@@ -200,26 +202,13 @@ export function consumeSelectedAiEntryNotice(
     ux.globalMigrationNoticeSeen = true;
     ux.firstChatNoticeSeen = true;
     dirty = true;
-  } else if (ux.changeNoticePending && ux.lastChangedModelId) {
-    const changedTo = resolveSelectedAI(ux.lastChangedModelId);
-    notice = globalModelChangedNotice(changedTo);
-    kind = "changed";
+  } else if (ux.changeNoticePending) {
     ux.changeNoticePending = false;
-    dirty = true;
-  } else if (!ux.globalMigrationNoticeSeen) {
-    notice = globalModelIntroNotice(selectedAI);
-    kind = "intro";
     ux.globalMigrationNoticeSeen = true;
     ux.firstChatNoticeSeen = true;
     dirty = true;
-  } else if (!ux.firstChatNoticeSeen) {
-    notice = globalModelIntroNotice(selectedAI);
-    kind = "intro";
-    ux.firstChatNoticeSeen = true;
-    dirty = true;
-  } else if (opts?.isFirstChatVisitEver && !ux.firstChatNoticeSeen) {
-    notice = globalModelIntroNotice(selectedAI);
-    kind = "intro";
+  } else if (!ux.globalMigrationNoticeSeen || !ux.firstChatNoticeSeen) {
+    ux.globalMigrationNoticeSeen = true;
     ux.firstChatNoticeSeen = true;
     dirty = true;
   }
