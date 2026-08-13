@@ -184,7 +184,7 @@ describe("TRPG campaign loop", () => {
       displayName: "유나",
     });
     writeSheet(db, campaignId, botId, "유나", EVEN_STATS, "");
-    await assert.rejects(() => startTrpgCampaign(db, { campaignId, userId: 1, deps }), /AI 동료 능력치/);
+    await assert.rejects(() => startTrpgCampaign(db, { campaignId, userId: 1, deps }), /플레이어 캐릭터 능력치/);
     saveTrpgSheet(db, {
       campaignId,
       userId: 1,

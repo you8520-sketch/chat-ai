@@ -19,7 +19,7 @@ function part(
 }
 
 describe("TRPG party slots", () => {
-  it("keeps three companion seats but only two AI character seats", () => {
+  it("keeps three companion seats but only two player-character seats", () => {
     const host = part({ id: 1, slotIndex: 0, kind: "human", displayName: "렌" });
     assert.equal(remainingAiCompanionSlots([host]), 2);
     assert.equal(companionSlotViews([host]).filter((s) => s.kind === "empty").length, 3);

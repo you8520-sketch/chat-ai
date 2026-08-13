@@ -7,7 +7,9 @@ import {
   loadScenarioTemplate,
   parseStatRecord,
   rowToScenarioTemplate,
-  type TrpgScenarioNpc,
+  scenarioMobNpcGmNotes,
+  scenarioMobNpcNames,
+  scenarioMobNpcWorldBrief,
 } from "./scenarioTemplates";
 import { parseCompanionIds } from "./requestIds";
 import { TRPG_SCENARIO_MAX_BOTS } from "./scenarioTypes";
@@ -115,20 +117,6 @@ function botFromCharacter(ch: CharacterStartRow): SpawnBot {
   };
 }
 
-function botFromNpc(npc: TrpgScenarioNpc): SpawnBot {
-  const personaText = [npc.name, npc.description, npc.systemPrompt].filter((x) => x.trim()).join("\n");
-  return {
-    characterId: null,
-    displayName: npc.name,
-    persona: {
-      description: npc.description,
-      greeting: npc.greeting,
-      systemPrompt: npc.systemPrompt,
-    },
-    stats: npc.stats ?? suggestBotStats(personaText || npc.name),
-  };
-}
-
 function applyHumanPersona(
   db: Database.Database,
   participantId: number,
@@ -181,6 +169,7 @@ export function createTrpgCampaign(
   let gmSecret = "";
   const bots: SpawnBot[] = [];
   const seenCharacterIds = new Set<number>();
+  let mobNpcNames: string[] = [];
 
   if (opts.templateId) {
     const row = loadScenarioTemplate(db, opts.templateId);
@@ -204,14 +193,21 @@ export function createTrpgCampaign(
         worldBrief = [world.name, world.summary, world.content, worldBrief].filter((x) => x?.trim()).join("\n\n");
       }
     }
+    const mobBrief = scenarioMobNpcWorldBrief(template.npcs);
+    if (mobBrief) worldBrief = [worldBrief, mobBrief].filter((x) => x.trim()).join("\n\n");
+    const mobNotes = scenarioMobNpcGmNotes(template.npcs);
+    if (mobNotes) gmSecret = [gmSecret, mobNotes].filter((x) => x.trim()).join("\n\n");
+    mobNpcNames = scenarioMobNpcNames(template.npcs);
     assertImportedCharactersAccessible(db, template.characterIds, opts.viewerUserId);
     for (const characterId of template.characterIds) {
+      if (bots.length >= TRPG_SCENARIO_MAX_BOTS) {
+        throw new Error(`플레이어 캐릭터는 최대 ${TRPG_SCENARIO_MAX_BOTS}명입니다. 캐릭터마다 모델이 돌아갑니다.`);
+      }
       const ch = loadCharacterForTrpg(db, characterId, opts.viewerUserId);
       seenCharacterIds.add(ch.id);
       if (!sourceCharacterId) sourceCharacterId = ch.id;
       bots.push(botFromCharacter(ch));
     }
-    for (const npc of template.npcs) bots.push(botFromNpc(npc));
   } else if (opts.worldId) {
     const world = loadWorldForTrpg(db, opts.worldId);
     if (!world) throw new Error("세계관을 찾을 수 없습니다.");
@@ -228,7 +224,7 @@ export function createTrpgCampaign(
     if (seenCharacterIds.has(characterId)) continue;
     if (bots.length >= TRPG_SCENARIO_MAX_BOTS) {
       throw new Error(
-        `AI 동료는 최대 ${TRPG_SCENARIO_MAX_BOTS}명입니다. 시나리오 NPC/캐릭터와 합쳐 자리가 없습니다.`
+        `플레이어 캐릭터는 최대 ${TRPG_SCENARIO_MAX_BOTS}명입니다. 캐릭터마다 모델이 돌아갑니다.`
       );
     }
     const ch = loadCharacterForTrpg(db, characterId, opts.viewerUserId);
@@ -285,9 +281,9 @@ export function createTrpgCampaign(
       });
       writeSheet(db, campaignId, botPid, bot.displayName, bot.stats, startLocation, startInventory);
     });
-    if (spawnBots.length > 0) {
+    if (mobNpcNames.length > 0) {
       db.prepare(`UPDATE trpg_campaign_state SET npcs_json=? WHERE campaign_id=?`).run(
-        JSON.stringify(spawnBots.map((bot) => bot.displayName)),
+        JSON.stringify(mobNpcNames),
         campaignId
       );
     }
@@ -317,7 +313,7 @@ export function saveTrpgSheet(
   let participant = parts.find((p) => p.kind === "human" && p.user_id === opts.userId);
   if (opts.participantId) {
     if (campaign.host_user_id !== opts.userId) {
-      throw new Error("방장만 AI 동료 시트를 정할 수 있습니다.");
+      throw new Error("방장만 플레이어 캐릭터 시트를 정할 수 있습니다.");
     }
     const target = parts.find((p) => p.id === opts.participantId);
     if (!target) throw new Error("참가자를 찾을 수 없습니다.");
@@ -414,9 +410,9 @@ export function addTrpgCompanions(
 ): void {
   const campaign = loadCampaign(db, opts.campaignId);
   if (!campaign) throw new Error("캠페인을 찾을 수 없습니다.");
-  if (campaign.host_user_id !== opts.userId) throw new Error("방장만 AI 동료를 넣을 수 있습니다.");
+  if (campaign.host_user_id !== opts.userId) throw new Error("방장만 플레이어 캐릭터를 넣을 수 있습니다.");
   if (campaign.status !== "CHARACTER_SETUP" && campaign.status !== "WAITING_FOR_PLAYERS") {
-    throw new Error("시작 전에만 동료를 넣을 수 있습니다.");
+    throw new Error("시작 전에만 플레이어 캐릭터를 넣을 수 있습니다.");
   }
   const ids = parseCompanionIds(opts.characterIds);
   if (ids.length === 0) throw new Error("데려갈 캐릭터를 고르세요.");
@@ -429,7 +425,7 @@ export function addTrpgCompanions(
   if (remaining <= 0) {
     throw new Error(
       botCount >= TRPG_SCENARIO_MAX_BOTS
-        ? `AI 동료는 최대 ${TRPG_SCENARIO_MAX_BOTS}명입니다. 캐릭터마다 모델이 돌아갑니다.`
+        ? `플레이어 캐릭터는 최대 ${TRPG_SCENARIO_MAX_BOTS}명입니다. 캐릭터마다 모델이 돌아갑니다.`
         : "정원이 가득 찼습니다."
     );
   }
@@ -438,7 +434,7 @@ export function addTrpgCompanions(
   for (const characterId of ids) {
     if (seen.has(characterId)) continue;
     if (toAdd.length >= remaining) {
-      throw new Error(`AI 동료는 ${remaining}명까지 더 넣을 수 있습니다.`);
+      throw new Error(`플레이어 캐릭터는 ${remaining}명까지 더 넣을 수 있습니다.`);
     }
     const ch = loadCharacterForTrpg(db, characterId, opts.userId);
     seen.add(ch.id);
@@ -469,14 +465,6 @@ export function addTrpgCompanions(
         scenario.startInventory
       );
     }
-    const names = [
-      ...parts.filter((p) => p.kind === "ai_character").map((p) => p.display_name),
-      ...toAdd.map((bot) => bot.displayName),
-    ];
-    db.prepare(`UPDATE trpg_campaign_state SET npcs_json=? WHERE campaign_id=?`).run(
-      JSON.stringify(names),
-      opts.campaignId
-    );
   })();
 }
 
@@ -494,7 +482,7 @@ export function assertCanStart(db: Database.Database, campaignId: number, userId
       .get(p.id) as { id: number; revision: number } | undefined;
     if (!sheet) throw new Error("모든 참가자의 시트를 만들어야 합니다.");
     if (p.kind === "ai_character" && sheet.revision < 1) {
-      throw new Error("방장이 AI 동료 능력치를 확인·저장해야 합니다.");
+      throw new Error("방장이 플레이어 캐릭터 능력치를 확인·저장해야 합니다.");
     }
   }
 }
