@@ -5,7 +5,7 @@ import { AppSectionCard } from "@/components/AppPageShell";
 import { TRPG_ACTION_TYPES, actionTypeLabelKo, type TrpgActionType } from "@/lib/trpg/actionTypes";
 import { successLabelKo } from "@/lib/trpg/labels";
 import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
-import { TRPG_ACTION_MAX_CHARS, TRPG_ROUND_POINT_COST } from "@/lib/trpg/types";
+import { TRPG_ACTION_MAX_CHARS, TRPG_GM_GROSS_MARGIN } from "@/lib/trpg/types";
 
 const POLL_MS = 1500;
 const ACTIVE_PHASES = new Set([
@@ -56,6 +56,9 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
   const [actionType, setActionType] = useState<TrpgActionType>("free");
   const [actionBody, setActionBody] = useState(snap.myDraft?.body ?? "");
   const [hostFill, setHostFill] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(
+    () => snap.viewerParticipantId ?? snap.participants.find((p) => p.kind === "human")?.id ?? null
+  );
 
   const setup = snap.campaignStatus === "CHARACTER_SETUP" || snap.campaignStatus === "WAITING_FOR_PLAYERS";
   const spent = Object.values(stats).reduce((a, b) => a + b, 0);
@@ -115,7 +118,25 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
     }
   }
 
-  const humansReady = snap.participants.filter((p) => p.kind === "human").every((p) => p.hasSheet);
+  const humansReady = snap.participants
+    .filter((p) => p.kind === "human")
+    .every((p) => p.hasSheet);
+  const botsReady = snap.participants
+    .filter((p) => p.kind === "ai_character")
+    .every((p) => p.sheetConfirmed);
+  const partyReady = humansReady && botsReady;
+  const editing = snap.participants.find((p) => p.id === editingId) ?? null;
+  const editingSheet = snap.sheets.find((s) => s.participantId === editingId);
+
+  useEffect(() => {
+    if (!editing) return;
+    const next: Record<string, number> = {};
+    for (const def of snap.statDefs) {
+      next[def.key] = editingSheet?.sheet.stats[def.key] ?? 5;
+    }
+    setStats(next);
+    if (editing.kind === "human") setName(editingSheet?.sheet.name || editing.displayName);
+  }, [editing, editingSheet, snap.statDefs]);
   const showDice = snap.currentRolls.length > 0 && (generating || Boolean(snap.currentNarration));
   const showNarration = Boolean(snap.currentNarration) && phase !== "ROLLING" && phase !== "GENERATING_NARRATION";
 
@@ -131,7 +152,14 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-50">{snap.title}</h1>
         <p className="text-sm text-zinc-500">
           라운드 {snap.round.number} · {phase === "NONE" ? snap.campaignStatus : phase}
-          {snap.inviteCode ? ` · 초대 ${snap.inviteCode}` : ""} · 라운드당 {TRPG_ROUND_POINT_COST}P 인원 분할
+          {snap.inviteCode ? ` · 초대 ${snap.inviteCode}` : ""}
+        </p>
+        <p className="text-xs leading-relaxed text-zinc-500">
+          봇이 있으면 호출이 두 번입니다. 봇 자리는 DeepSeek V4 Pro(thinking 끔, 1:1 채팅과 같음)가
+          캐릭터 카드로 행동을 쓰고, GM은 같은 Pro(thinking 켬)가 장면을 씁니다. Flash는 쓰지 않습니다.
+          마진은 둘 다 {Math.round(TRPG_GM_GROSS_MARGIN * 100)}%이며 실제 토큰을 사람만 균등 분담합니다.
+          방장이 봇 행동을 대신 넣으면 그 라운드 봇 호출은 없습니다.
+          {snap.lastBilledPoints != null ? ` 최근 라운드 ${snap.lastBilledPoints}P.` : ""}
         </p>
       </header>
 
@@ -173,15 +201,44 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
         <AppSectionCard title="능력치 배분">
           <p className="mb-3 text-sm text-zinc-400">
             {snap.pointPool}포인트 안에서 배분합니다. HP는 체력×5입니다. 남은 포인트 {remaining}.
+            {snap.viewerIsHost
+              ? " AI 동료는 방장이 캐릭터성에 맞게 정합니다. 제안값은 이름/소개 키워드일 뿐, 저장해야 시작됩니다."
+              : ""}
           </p>
-          <label className="mb-3 block text-sm text-zinc-300">
-            이름
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100 outline-none focus:border-violet-400/40"
-            />
-          </label>
+          {snap.viewerIsHost && snap.participants.length > 1 ? (
+            <div className="mb-3 flex flex-wrap gap-1.5">
+              {snap.participants
+                .filter((p) => p.kind === "human" ? p.id === snap.viewerParticipantId : true)
+                .map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => setEditingId(p.id)}
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      editingId === p.id
+                        ? "bg-violet-600 text-white"
+                        : "border border-white/10 bg-white/5 text-zinc-300"
+                    }`}
+                  >
+                    {p.displayName}
+                    {p.kind === "ai_character" ? " · AI" : " · 나"}
+                    {p.kind === "ai_character" && !p.sheetConfirmed ? " · 미확인" : ""}
+                  </button>
+                ))}
+            </div>
+          ) : null}
+          {editing?.kind !== "ai_character" ? (
+            <label className="mb-3 block text-sm text-zinc-300">
+              이름
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100 outline-none focus:border-violet-400/40"
+              />
+            </label>
+          ) : (
+            <p className="mb-3 text-sm text-zinc-300">{editing.displayName} 시트</p>
+          )}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
             {snap.statDefs.map((def) => (
               <label key={def.key} className="text-sm text-zinc-300">
@@ -202,8 +259,14 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
           <div className="mt-4 flex flex-wrap gap-2">
             <button
               type="button"
-              disabled={busy || remaining < 0}
-              onClick={() => void run(`/api/trpg/campaigns/${snap.id}/sheet`, { name, stats })}
+              disabled={busy || remaining < 0 || !editing}
+              onClick={() =>
+                void run(`/api/trpg/campaigns/${snap.id}/sheet`, {
+                  name,
+                  stats,
+                  participantId: editing?.id,
+                })
+              }
               className="inline-flex min-h-10 items-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
             >
               시트 저장
@@ -211,7 +274,7 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
             {snap.viewerIsHost ? (
               <button
                 type="button"
-                disabled={busy || !humansReady}
+                disabled={busy || !partyReady}
                 onClick={() => void run(`/api/trpg/campaigns/${snap.id}/start`)}
                 className="inline-flex min-h-10 items-center rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-semibold text-zinc-100 hover:bg-white/10 disabled:opacity-50"
               >

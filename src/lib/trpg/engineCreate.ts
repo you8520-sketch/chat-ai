@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import { canAccessCharacter, type CharacterAccessRow } from "@/lib/characterVisibility";
 import { TRPG_MAX_SLOTS } from "./types";
-import { deriveMaxHp, validateStatAllocation } from "./stats";
+import { deriveMaxHp, suggestBotStats, validateStatAllocation } from "./stats";
 import {
   insertCampaign,
   insertParticipant,
@@ -127,7 +127,7 @@ export function createTrpgCampaign(
         characterId: sourceCharacterId,
         displayName: botName,
       });
-      writeSheet(db, campaignId, botPid, botName, EVEN_STATS, "");
+      writeSheet(db, campaignId, botPid, botName, suggestBotStats(worldBrief || botName), "");
     }
     return campaignId;
   })();
@@ -140,6 +140,7 @@ export function saveTrpgSheet(
     userId: number;
     name: string;
     stats: Record<string, number>;
+    participantId?: number | null;
   }
 ): void {
   const campaign = loadCampaign(db, opts.campaignId);
@@ -147,14 +148,27 @@ export function saveTrpgSheet(
   if (campaign.status !== "CHARACTER_SETUP" && campaign.status !== "WAITING_FOR_PLAYERS") {
     throw new Error("능력치는 시작 전에만 정할 수 있습니다.");
   }
-  const participant = loadParticipants(db, opts.campaignId).find(
-    (p) => p.kind === "human" && p.user_id === opts.userId
-  );
+  const parts = loadParticipants(db, opts.campaignId);
+  let participant = parts.find((p) => p.kind === "human" && p.user_id === opts.userId);
+  if (opts.participantId) {
+    if (campaign.host_user_id !== opts.userId) {
+      throw new Error("방장만 AI 동료 시트를 정할 수 있습니다.");
+    }
+    const target = parts.find((p) => p.id === opts.participantId);
+    if (!target) throw new Error("참가자를 찾을 수 없습니다.");
+    if (target.kind !== "ai_character" && target.user_id !== opts.userId) {
+      throw new Error("다른 플레이어의 시트는 고칠 수 없습니다.");
+    }
+    participant = target;
+  }
   if (!participant) throw new Error("이 캠페인의 참가자가 아닙니다.");
   const scenario = loadScenario(db, opts.campaignId);
   const check = validateStatAllocation(scenario.statDefs, opts.stats, scenario.pointPool);
   if (!check.ok) throw new Error(`능력치 배분이 올바르지 않습니다 (${check.error}).`);
-  const name = opts.name.trim().slice(0, 40) || participant.display_name;
+  const name =
+    participant.kind === "ai_character"
+      ? participant.display_name
+      : opts.name.trim().slice(0, 40) || participant.display_name;
   writeSheet(
     db,
     opts.campaignId,
@@ -164,7 +178,9 @@ export function saveTrpgSheet(
     scenario.startLocation,
     scenario.startInventory
   );
-  db.prepare(`UPDATE trpg_participants SET display_name=? WHERE id=?`).run(name, participant.id);
+  if (participant.kind === "human") {
+    db.prepare(`UPDATE trpg_participants SET display_name=? WHERE id=?`).run(name, participant.id);
+  }
 }
 
 export function joinTrpgCampaign(
@@ -203,8 +219,12 @@ export function assertCanStart(db: Database.Database, campaignId: number, userId
     throw new Error("이미 시작된 캠페인입니다.");
   }
   for (const p of loadParticipants(db, campaignId)) {
-    if (p.kind !== "human") continue;
-    const sheet = db.prepare(`SELECT id FROM trpg_character_sheets WHERE participant_id=?`).get(p.id);
-    if (!sheet) throw new Error("모든 플레이어가 시트를 만들어야 합니다.");
+    const sheet = db
+      .prepare(`SELECT id, revision FROM trpg_character_sheets WHERE participant_id=?`)
+      .get(p.id) as { id: number; revision: number } | undefined;
+    if (!sheet) throw new Error("모든 참가자의 시트를 만들어야 합니다.");
+    if (p.kind === "ai_character" && sheet.revision < 1) {
+      throw new Error("방장이 AI 동료 능력치를 확인·저장해야 합니다.");
+    }
   }
 }

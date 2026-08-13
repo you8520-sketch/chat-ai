@@ -1,21 +1,31 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import {
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_GROSS_MARGIN,
+} from "@/lib/points";
+import {
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+} from "@/lib/chatModels";
 import { buildTrpgBotActionUserBlock, sanitizeBotActionText } from "./botActions";
-import { splitTrpgRoundCost } from "./billing";
+import { computeTrpgRoundPoints, splitTrpgRoundCost } from "./billing";
 import { buildTrpgMemoryPromptBlock, shouldSealTrpgMemory } from "./memory";
+import { TRPG_BOT_GROSS_MARGIN, TRPG_GM_GROSS_MARGIN } from "./types";
 
 describe("TRPG bot actions", () => {
   it("includes locked human actions so the bot acts after the users", () => {
     const block = buildTrpgBotActionUserBlock({
       characterName: "유나",
-      personaPrompt: "질투 많은 반말",
+      description: "질투 많은 반말",
+      greeting: "…뭐야, 또 왔어?",
+      systemPrompt: "질투 많은 반말. 상대를 놓치지 않으려 한다.",
       previousGmNarration: "여관 문이 열린다.",
       humanActions: [{ playerName: "렌", text: "*문을 밀며* \"누구냐.\"" }],
     });
     assert.match(block, /HUMAN ACTIONS THIS ROUND/);
+    assert.match(block, /CHARACTER CARD/);
     assert.match(block, /렌/);
     assert.match(block, /여관 문이 열린다/);
-    assert.match(block, /Do not roll dice/);
+    assert.doesNotMatch(block, /Flash/i);
   });
 
   it("clips empty bot drafts", () => {
@@ -44,6 +54,35 @@ describe("TRPG billing split", () => {
       splitTrpgRoundCost({ totalPoints: 80, humanUserIds: [9], hostUserId: 9 }),
       [{ userId: 9, points: 80 }]
     );
+  });
+});
+
+describe("TRPG round token billing", () => {
+  it("bills GM and bot seats at the same Pro 65% margin", () => {
+    assert.equal(TRPG_GM_GROSS_MARGIN, 0.65);
+    assert.equal(TRPG_BOT_GROSS_MARGIN, 0.65);
+    assert.equal(TRPG_GM_GROSS_MARGIN, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_GROSS_MARGIN);
+    assert.equal(TRPG_BOT_GROSS_MARGIN, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_GROSS_MARGIN);
+  });
+
+  it("adds the bot-seat Pro call on top of the GM Pro call", () => {
+    const gm = {
+      modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      inputTokens: 8_000,
+      outputTokens: 1_200,
+    };
+    const bot = {
+      modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      inputTokens: 2_500,
+      outputTokens: 400,
+    };
+    const gmOnly = computeTrpgRoundPoints([gm]);
+    const botOnly = computeTrpgRoundPoints([bot]);
+    const both = computeTrpgRoundPoints([gm, bot]);
+    assert.ok(gmOnly > 0);
+    assert.ok(botOnly > 0);
+    assert.equal(both, gmOnly + botOnly);
+    assert.ok(both > gmOnly);
   });
 });
 
