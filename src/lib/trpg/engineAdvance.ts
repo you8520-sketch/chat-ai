@@ -10,12 +10,14 @@ import {
   type TrpgModelUsage,
 } from "./billing";
 import { buildTrpgBotActionUserBlock, sanitizeBotActionText, TRPG_BOT_SYSTEM } from "./botActions";
+import { applyCampaignLedger, clipTrpgChars, loadCampaignLedger, persistCampaignLedger } from "./campaignLedger";
 import { resolveTrpgRoll, rollServerD20 } from "./dice";
 import { assertCanStart } from "./engineCreate";
 import { callTrpgBot, callTrpgGm } from "./gmCall";
 import { buildTrpgGmUserBlock, parseTrpgGmOutput, TRPG_GM_SYSTEM } from "./gmPrompt";
 import { loadTrpgSnapshot } from "./engineSnapshot";
-import { buildTrpgMemoryPromptBlock, selectRawRecentRounds, shouldSealTrpgMemory } from "./memory";
+import { buildCampaignMemoryPrompt, buildTrpgBotMemoryBlock } from "./memory";
+import { sealDroppedTrpgRounds, type TrpgMemoryCall } from "./memorySeal";
 import { nextTrpgRoundWork, tryAcquireGmLock, tryBeginGmGeneration, type TrpgActorReady } from "./roundLock";
 import { applyValidatedStateDelta } from "./sheetView";
 import { loadSheetSnapshots, persistSheets } from "./engineSheets";
@@ -31,13 +33,14 @@ import {
   type TrpgParticipantRow,
   type TrpgRoundRow,
 } from "./store";
-import { TRPG_ACTION_MAX_CHARS, type TrpgActionSource, type TrpgBillingMode, type TrpgRoundPhase } from "./types";
+import { TRPG_ACTION_MAX_CHARS, TRPG_BOT_SCENE_MAX_CHARS, type TrpgActionSource, type TrpgBillingMode, type TrpgRoundPhase } from "./types";
 import { isTrpgRoundPhase } from "./types";
 import type { TrpgCampaignSnapshot } from "./snapshot";
 
 export type TrpgEngineDeps = {
   gmCall?: (opts: { system: string; user: string }) => Promise<{ text: string; usage?: TrpgModelUsage }>;
   botCall?: (system: string, user: string) => Promise<{ text: string; usage?: TrpgModelUsage }>;
+  memoryCall?: TrpgMemoryCall;
   rollD20?: () => number;
   skipBilling?: boolean;
 };
@@ -83,21 +86,15 @@ export async function startTrpgCampaign(
   }
 
   try {
-    await runGmForRound(db, {
+    const gm = await runGmForRound(db, {
       campaignId: opts.campaignId,
       roundId,
       opening: true,
       deps: { ...opts.deps, skipBilling: true },
     });
-    db.transaction(() => {
-      db.prepare(
-        `INSERT INTO trpg_rounds (campaign_id, round_number, phase) VALUES (?, 1, 'ACTION_INPUT')`
-      ).run(opts.campaignId);
-      setRoundPhase(db, roundId, "ROUND_COMPLETE");
-      db.prepare(`UPDATE trpg_campaigns SET status='ACTION_INPUT', updated_at=datetime('now') WHERE id=?`).run(
-        opts.campaignId
-      );
-    })();
+    const campaign = loadCampaign(db, opts.campaignId)!;
+    const round = loadLatestRound(db, opts.campaignId)!;
+    await completeGmRound(db, campaign, round, gm.campaignFinished, opts.deps);
   } catch (e) {
     db.prepare(`UPDATE trpg_rounds SET phase='ERROR_RECOVERY', error_json=? WHERE id=?`).run(
       JSON.stringify({ error: (e as Error).message }),
@@ -210,13 +207,13 @@ export async function advanceTrpgCampaign(
       return mustSnapshot(db, opts.campaignId, opts.userId);
     }
     try {
-      await runGmForRound(db, {
+      const gm = await runGmForRound(db, {
         campaignId: campaign.id,
         roundId: round.id,
         opening: false,
         deps: opts.deps,
       });
-      beginNextActionRound(db, campaign, round);
+      await completeGmRound(db, campaign, round, gm.campaignFinished, opts.deps);
     } catch (e) {
       db.prepare(`UPDATE trpg_rounds SET phase='ERROR_RECOVERY', error_json=? WHERE id=?`).run(
         JSON.stringify({ error: (e as Error).message }),
@@ -259,13 +256,13 @@ export async function advanceTrpgCampaign(
       return mustSnapshot(db, opts.campaignId, opts.userId);
     }
     try {
-      await runGmForRound(db, {
+      const gm = await runGmForRound(db, {
         campaignId: campaign.id,
         roundId: round.id,
         opening: false,
         deps: opts.deps,
       });
-      beginNextActionRound(db, campaign, round);
+      await completeGmRound(db, campaign, round, gm.campaignFinished, opts.deps);
     } catch (e) {
       db.prepare(`UPDATE trpg_rounds SET phase='ERROR_RECOVERY', error_json=? WHERE id=?`).run(
         JSON.stringify({ error: (e as Error).message }),
@@ -340,7 +337,16 @@ async function generateBotActions(
       description,
       greeting,
       systemPrompt,
-      previousGmNarration: prev,
+      previousGmNarration: clipTrpgChars(prev, TRPG_BOT_SCENE_MAX_CHARS),
+      campaignMemory: buildTrpgBotMemoryBlock({
+        ledger: loadCampaignLedger(db, opts.campaign.id),
+        sheets: loadSheetSnapshots(db, opts.campaign.id).map((s) => ({
+          name: s.name,
+          hp: s.hp,
+          maxHp: s.maxHp,
+          conditions: s.conditions,
+        })),
+      }),
       humanActions: humans.map((h) => ({ playerName: h.name, text: h.body })),
     });
     const { text, usage } = await botCall(TRPG_BOT_SYSTEM, user);
@@ -438,11 +444,11 @@ async function runGmForRound(
     opening: boolean;
     deps?: TrpgEngineDeps;
   }
-): Promise<void> {
+): Promise<{ campaignFinished: boolean }> {
   const campaign = loadCampaign(db, opts.campaignId);
   if (!campaign) throw new Error("캠페인을 찾을 수 없습니다.");
   const scenario = loadScenario(db, opts.campaignId);
-  const memory = buildMemoryBlock(db, opts.campaignId);
+  const memory = buildCampaignMemoryPrompt(db, opts.campaignId);
   const actions = loadActionsForGm(db, opts.roundId);
   const user = buildTrpgGmUserBlock({
     worldBrief: campaign.world_brief,
@@ -457,6 +463,15 @@ async function runGmForRound(
   const sheets = loadSheetSnapshots(db, opts.campaignId);
   const applied = applyValidatedStateDelta(sheets, parsed.delta);
   const nextSheets = applied.ok ? applied.next : sheets;
+  const roundNumber = (
+    db.prepare(`SELECT round_number FROM trpg_rounds WHERE id=?`).get(opts.roundId) as { round_number: number }
+  ).round_number;
+  const ledger = applyCampaignLedger(loadCampaignLedger(db, opts.campaignId), {
+    ...parsed.delta,
+    location: parsed.location || parsed.delta.location || nextSheets[0]?.location || scenario.startLocation,
+    nextRoundContext: parsed.nextRoundContext || parsed.delta.nextRoundContext,
+    campaignFinished: parsed.campaignFinished,
+  });
 
   db.transaction(() => {
     db.prepare(
@@ -470,16 +485,31 @@ async function runGmForRound(
          VALUES (?,?,?,?)`
       ).run(opts.campaignId, opts.roundId, `delta:${opts.roundId}`, JSON.stringify(parsed.delta));
     }
-    const loc = parsed.location || nextSheets[0]?.location || scenario.startLocation;
-    db.prepare(
-      `UPDATE trpg_campaign_state
-       SET location=?, round_number=(SELECT round_number FROM trpg_rounds WHERE id=?), updated_at=datetime('now')
-       WHERE campaign_id=?`
-    ).run(loc, opts.roundId, opts.campaignId);
+    persistCampaignLedger(db, opts.campaignId, roundNumber, ledger);
     setRoundPhase(db, opts.roundId, "APPLYING_STATE");
     if (!opts.opening) maybeBillRound(db, campaign, opts.roundId, opts.deps?.skipBilling === true);
-    maybeSealMemory(db, opts.campaignId);
   })();
+  return { campaignFinished: parsed.campaignFinished === true };
+}
+
+async function completeGmRound(
+  db: Database.Database,
+  campaign: TrpgCampaignRow,
+  round: TrpgRoundRow,
+  campaignFinished: boolean,
+  deps?: TrpgEngineDeps
+): Promise<void> {
+  if (campaignFinished) {
+    db.transaction(() => {
+      setRoundPhase(db, round.id, "ROUND_COMPLETE");
+      db.prepare(`UPDATE trpg_campaigns SET status='CAMPAIGN_COMPLETE', updated_at=datetime('now') WHERE id=?`).run(
+        campaign.id
+      );
+    })();
+  } else {
+    beginNextActionRound(db, campaign, round);
+  }
+  await sealDroppedTrpgRounds(db, campaign.id, deps?.memoryCall);
 }
 
 function beginNextActionRound(db: Database.Database, campaign: TrpgCampaignRow, round: TrpgRoundRow): void {
@@ -545,23 +575,6 @@ function maybeBillRound(
   db.prepare(`UPDATE trpg_rounds SET billed=1, billed_points=? WHERE id=?`).run(totalPoints, roundId);
 }
 
-function maybeSealMemory(db: Database.Database, campaignId: number): void {
-  const mem = db
-    .prepare(`SELECT sealed_round_count, recent_summary FROM trpg_campaign_memories WHERE campaign_id=?`)
-    .get(campaignId) as { sealed_round_count: number; recent_summary: string } | undefined;
-  const completed = (
-    db
-      .prepare(`SELECT COUNT(*) AS n FROM trpg_rounds WHERE campaign_id=? AND phase='ROUND_COMPLETE'`)
-      .get(campaignId) as { n: number }
-  ).n;
-  if (!mem || !shouldSealTrpgMemory(completed, mem.sealed_round_count)) return;
-  const latest = previousNarration(db, campaignId);
-  const nextSummary = [mem.recent_summary, latest].filter((x) => x.trim()).join("\n").slice(0, 4000);
-  db.prepare(
-    `UPDATE trpg_campaign_memories SET recent_summary=?, sealed_round_count=?, updated_at=datetime('now') WHERE campaign_id=?`
-  ).run(nextSummary, Math.floor(completed / 4) * 4, campaignId);
-}
-
 function loadActionsForGm(db: Database.Database, roundId: number) {
   return (
     db
@@ -592,47 +605,4 @@ function loadActionsForGm(db: Database.Database, roundId: number) {
     dc: a.dc,
     tier: a.tier,
   }));
-}
-
-function buildMemoryBlock(db: Database.Database, campaignId: number): string {
-  const state = db
-    .prepare(
-      `SELECT round_number, location, quests_json, npcs_json, world_flags_json FROM trpg_campaign_state WHERE campaign_id=?`
-    )
-    .get(campaignId) as
-    | {
-        round_number: number;
-        location: string;
-        quests_json: string;
-        npcs_json: string;
-        world_flags_json: string;
-      }
-    | undefined;
-  const mem = db
-    .prepare(`SELECT recent_summary FROM trpg_campaign_memories WHERE campaign_id=?`)
-    .get(campaignId) as { recent_summary: string } | undefined;
-  const sheets = loadSheetSnapshots(db, campaignId);
-  const roundRows = db
-    .prepare(
-      `SELECT r.round_number, g.narration
-       FROM trpg_rounds r
-       JOIN trpg_gm_messages g ON g.round_id = r.id
-       WHERE r.campaign_id=? AND r.phase='ROUND_COMPLETE'
-       ORDER BY r.round_number ASC`
-    )
-    .all(campaignId) as { round_number: number; narration: string }[];
-  return buildTrpgMemoryPromptBlock({
-    structured: {
-      roundNumber: state?.round_number ?? 0,
-      location: state?.location ?? "",
-      sheets: sheets.map((s) => ({ name: s.name, hp: s.hp, maxHp: s.maxHp, conditions: s.conditions })),
-      quests: parseJson(state?.quests_json, [] as string[]),
-      npcs: parseJson(state?.npcs_json, [] as string[]),
-      worldFlags: parseJson(state?.world_flags_json, [] as string[]),
-    },
-    sealedSummary: mem?.recent_summary ?? "",
-    recentRounds: selectRawRecentRounds(
-      roundRows.map((r) => ({ roundNumber: r.round_number, actions: [], gmNarration: r.narration }))
-    ),
-  });
 }

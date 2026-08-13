@@ -158,6 +158,8 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
           봇이 있으면 호출이 두 번입니다. 봇 자리는 DeepSeek V4 Pro(thinking 끔, 1:1 채팅과 같음)가
           캐릭터 카드로 행동을 쓰고, GM은 같은 Pro(thinking 켬)가 장면을 씁니다. Flash는 쓰지 않습니다.
           마진은 둘 다 {Math.round(TRPG_GM_GROSS_MARGIN * 100)}%이며 실제 토큰을 사람만 균등 분담합니다.
+          GM 서술은 1:1 채팅과 같이 3,000자 이상을 목표로 하며 상한은 없습니다.
+          캠페인 사실(HP·아이템·퀘스트·플래그)은 DB가 원본이고, 최근 3라운드만 원문으로 넣습니다.
           방장이 봇 행동을 대신 넣으면 그 라운드 봇 호출은 없습니다.
           {snap.lastBilledPoints != null ? ` 최근 라운드 ${snap.lastBilledPoints}P.` : ""}
         </p>
