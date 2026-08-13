@@ -31,6 +31,7 @@ export type TrpgPublicParticipant = {
   status: TrpgParticipantStatus;
   ready: TrpgReadyState;
   hasSheet: boolean;
+  sheetConfirmed: boolean;
 };
 
 export type TrpgPublicRoll = {
@@ -85,4 +86,7 @@ export type TrpgCampaignSnapshot = {
   currentNarration: string | null;
   log: TrpgPublicLog[];
   workType: string;
+  lastBilledPoints: number | null;
+  gmGrossMargin: number;
+  botGrossMargin: number;
 };

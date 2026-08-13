@@ -21,3 +21,19 @@ export function adaptTrpgGmChatBody(body: Record<string, unknown>): Record<strin
   adapted.thinking = { type: "enabled" };
   return adapted;
 }
+
+/**
+ * Bot-seat Pro call — thinking OFF like regular RP.
+ * Isolated from both GM (thinking on) and `adaptCheaperInferenceChatBody`.
+ */
+export function adaptTrpgBotChatBody(body: Record<string, unknown>): Record<string, unknown> {
+  const adapted = { ...body };
+  delete adapted.session_id;
+  delete adapted.frequency_penalty;
+  delete adapted.presence_penalty;
+  delete adapted.repetition_penalty;
+  delete adapted.include_reasoning;
+  delete adapted.reasoning_effort;
+  adapted.thinking = { type: "disabled" };
+  return adapted;
+}
