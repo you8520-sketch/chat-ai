@@ -8,12 +8,20 @@ import StudioSaveBar from "@/components/studio/StudioSaveBar";
 import type { TrpgCatalog } from "@/lib/trpg/catalog";
 import type { CharacterGenre } from "@/lib/characterGenres";
 import {
+  TRPG_SCENARIO_BUNDLE_LIMIT,
   TRPG_SCENARIO_CONTENT_LIMIT,
   TRPG_SCENARIO_MAX_BOTS,
   TRPG_SCENARIO_MAX_NPCS,
+  TRPG_SCENARIO_NPC_DESCRIPTION_LIMIT,
+  TRPG_SCENARIO_NPC_GREETING_LIMIT,
+  TRPG_SCENARIO_NPC_NAME_LIMIT,
+  TRPG_SCENARIO_NPC_PROMPT_LIMIT,
   TRPG_SCENARIO_SECRET_LIMIT,
   TRPG_SCENARIO_SUMMARY_LIMIT,
   TRPG_SCENARIO_TITLE_LIMIT,
+  countScenarioBundleChars,
+  remainingScenarioFieldMax,
+  scenarioBundleLimitError,
   type TrpgScenarioNpc,
   type TrpgScenarioTemplate,
 } from "@/lib/trpg/scenarioTypes";
@@ -67,7 +75,39 @@ export default function TrpgScenarioEditor({
   const selectedDefs = defsFromKeys(statKeys);
   const pointPool = pointPoolFor(selectedDefs);
   const spent = selectedDefs.reduce((a, def) => a + (stats[def.key] ?? 0), 0);
+  const namedNpcs = npcs.filter((n) => n.name.trim());
   const linkedWorld = typeof worldId === "number" ? catalog.myWorlds.find((w) => w.id === worldId) : undefined;
+  const bundleUsed = countScenarioBundleChars({
+    worldSummary: linkedWorld?.summary,
+    worldContent: linkedWorld?.content,
+    summary,
+    content,
+    secretContent,
+    npcs: namedNpcs,
+  });
+  const bundleOver = bundleUsed > TRPG_SCENARIO_BUNDLE_LIMIT;
+  const worldChars = countScenarioBundleChars({
+    worldSummary: linkedWorld?.summary,
+    worldContent: linkedWorld?.content,
+  });
+  const scenarioChars = countScenarioBundleChars({ summary, content });
+  const secretChars = countScenarioBundleChars({ secretContent });
+  const npcChars = countScenarioBundleChars({ npcs: namedNpcs });
+  const contentMax = remainingScenarioFieldMax(
+    bundleUsed,
+    countScenarioBundleChars({ content }),
+    TRPG_SCENARIO_CONTENT_LIMIT
+  );
+  const secretMax = remainingScenarioFieldMax(
+    bundleUsed,
+    countScenarioBundleChars({ secretContent }),
+    TRPG_SCENARIO_SECRET_LIMIT
+  );
+  const summaryMax = remainingScenarioFieldMax(
+    bundleUsed,
+    countScenarioBundleChars({ summary }),
+    TRPG_SCENARIO_SUMMARY_LIMIT
+  );
 
   function toggleStatKey(key: string) {
     setStatKeys((prev) => {
@@ -88,6 +128,10 @@ export default function TrpgScenarioEditor({
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
+    if (bundleOver) {
+      setError(scenarioBundleLimitError(bundleUsed));
+      return;
+    }
     setBusy(true);
     setError("");
     const body = {
@@ -140,7 +184,7 @@ export default function TrpgScenarioEditor({
             한 줄 요약
             <input
               value={summary}
-              maxLength={TRPG_SCENARIO_SUMMARY_LIMIT}
+              maxLength={summaryMax}
               onChange={(e) => setSummary(e.target.value)}
               className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
             />
@@ -153,7 +197,7 @@ export default function TrpgScenarioEditor({
             </span>
             <textarea
               value={content}
-              maxLength={TRPG_SCENARIO_CONTENT_LIMIT}
+              maxLength={contentMax}
               rows={10}
               onChange={(e) => setContent(e.target.value)}
               placeholder="예: 눈 덮인 북부 공국. 얼음 마법이 흔하다. 한밤의 폐역에서 유령 기차를 기다린다."
@@ -196,13 +240,21 @@ export default function TrpgScenarioEditor({
             </span>
             <textarea
               value={secretContent}
-              maxLength={TRPG_SCENARIO_SECRET_LIMIT}
+              maxLength={secretMax}
               rows={6}
               onChange={(e) => setSecretContent(e.target.value)}
               placeholder="예: 역무원은 이미 죽은 사람이다. 유령 기차의 목적지는 산 자들의 마을이 아니다."
               className="mt-1 w-full rounded-xl border border-amber-500/20 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
             />
           </label>
+          <p className={`mt-3 text-sm ${bundleOver ? "text-rose-300" : "text-zinc-400"}`}>
+            세계관+시나리오+비밀+NPC {bundleUsed.toLocaleString()} / {TRPG_SCENARIO_BUNDLE_LIMIT.toLocaleString()}자
+          </p>
+          <p className="mt-1 text-xs text-zinc-500">
+            불러온 세계관과 이 시나리오에 추가로 쓰는 본문·숨겨진 설정·NPC를 합쳐{" "}
+            {TRPG_SCENARIO_BUNDLE_LIMIT.toLocaleString()}자입니다. 세계관 {worldChars.toLocaleString()} · 시나리오{" "}
+            {scenarioChars.toLocaleString()} · 비밀 {secretChars.toLocaleString()} · NPC {npcChars.toLocaleString()}
+          </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
@@ -305,6 +357,11 @@ export default function TrpgScenarioEditor({
               <input
                 value={npc.name}
                 placeholder="이름"
+                maxLength={remainingScenarioFieldMax(
+                  bundleUsed,
+                  npc.name.trim().length,
+                  TRPG_SCENARIO_NPC_NAME_LIMIT
+                )}
                 onChange={(e) =>
                   setNpcs((prev) => prev.map((row, i) => (i === index ? { ...row, name: e.target.value } : row)))
                 }
@@ -314,6 +371,11 @@ export default function TrpgScenarioEditor({
                 value={npc.description}
                 placeholder="소개 (장면에 나감)"
                 rows={2}
+                maxLength={remainingScenarioFieldMax(
+                  bundleUsed,
+                  npc.description.trim().length,
+                  TRPG_SCENARIO_NPC_DESCRIPTION_LIMIT
+                )}
                 onChange={(e) =>
                   setNpcs((prev) =>
                     prev.map((row, i) => (i === index ? { ...row, description: e.target.value } : row))
@@ -325,6 +387,11 @@ export default function TrpgScenarioEditor({
                 value={npc.greeting}
                 placeholder="말투 힌트 (GM만)"
                 rows={2}
+                maxLength={remainingScenarioFieldMax(
+                  bundleUsed,
+                  npc.greeting.trim().length,
+                  TRPG_SCENARIO_NPC_GREETING_LIMIT
+                )}
                 onChange={(e) =>
                   setNpcs((prev) =>
                     prev.map((row, i) => (i === index ? { ...row, greeting: e.target.value } : row))
@@ -336,6 +403,11 @@ export default function TrpgScenarioEditor({
                 value={npc.systemPrompt}
                 placeholder="진행 메모 (GM만, 플레이어·모델 자리에 안 나감)"
                 rows={3}
+                maxLength={remainingScenarioFieldMax(
+                  bundleUsed,
+                  npc.systemPrompt.trim().length,
+                  TRPG_SCENARIO_NPC_PROMPT_LIMIT
+                )}
                 onChange={(e) =>
                   setNpcs((prev) =>
                     prev.map((row, i) => (i === index ? { ...row, systemPrompt: e.target.value } : row))
@@ -395,14 +467,16 @@ export default function TrpgScenarioEditor({
           </div>
         </AppSectionCard>
 
-        {error ? (
-          <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">{error}</p>
+        {error || bundleOver ? (
+          <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+            {error || scenarioBundleLimitError(bundleUsed)}
+          </p>
         ) : null}
 
         {embedded ? null : (
           <button
             type="submit"
-            disabled={busy}
+            disabled={busy || bundleOver}
             className="inline-flex min-h-10 items-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
           >
             {busy ? "저장 중…" : "시나리오 저장"}
@@ -419,8 +493,8 @@ export default function TrpgScenarioEditor({
           formId="studio-trpg-scenario-form"
           saveType="submit"
           saveLabel={busy ? "저장 중…" : "시나리오 저장"}
-          saveDisabled={busy}
-          error={error || null}
+          saveDisabled={busy || bundleOver}
+          error={error || (bundleOver ? scenarioBundleLimitError(bundleUsed) : null)}
         />
       </div>
     );
@@ -429,7 +503,7 @@ export default function TrpgScenarioEditor({
   return (
     <AppPageShell
       title={initial ? "TRPG 시나리오 수정" : "TRPG 시나리오 만들기"}
-      description="시나리오 본문이 GM이 참고하는 이번 이야기입니다. 세계관도 본문에 적어도 되고, 이미 만든 세계관 문서는 선택으로 붙일 수 있습니다. 모브 NPC와 플레이어 캐릭터는 따로 둡니다. 숨겨진 설정만 GM 전용입니다."
+      description="시나리오 본문이 GM이 참고하는 이번 이야기입니다. 세계관도 본문에 적어도 되고, 이미 만든 세계관 문서는 선택으로 붙일 수 있습니다. 불러온 세계관과 시나리오 본문·숨겨진 설정·NPC는 합쳐 10,000자입니다. 모브 NPC와 플레이어 캐릭터는 따로 둡니다. 숨겨진 설정만 GM 전용입니다."
       narrow
     >
       {form}

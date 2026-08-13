@@ -11,10 +11,16 @@ import { parseTrpgVisibility, TRPG_MAX_BOTS, type TrpgStatDefinition, type TrpgV
 
 export const TRPG_SCENARIO_TITLE_LIMIT = 80;
 export const TRPG_SCENARIO_SUMMARY_LIMIT = 200;
-export const TRPG_SCENARIO_CONTENT_LIMIT = 20000;
-export const TRPG_SCENARIO_SECRET_LIMIT = 20000;
+export const TRPG_SCENARIO_CONTENT_LIMIT = 10000;
+export const TRPG_SCENARIO_SECRET_LIMIT = 10000;
 export const TRPG_SCENARIO_LOCATION_LIMIT = 80;
 export const TRPG_SCENARIO_MAX_BOTS = TRPG_MAX_BOTS;
+/** Linked world + scenario prose + hidden notes + NPC cards, combined. */
+export const TRPG_SCENARIO_BUNDLE_LIMIT = 10000;
+export const TRPG_SCENARIO_NPC_NAME_LIMIT = 40;
+export const TRPG_SCENARIO_NPC_DESCRIPTION_LIMIT = 2000;
+export const TRPG_SCENARIO_NPC_GREETING_LIMIT = 800;
+export const TRPG_SCENARIO_NPC_PROMPT_LIMIT = 8000;
 /** Story-only mob NPCs. They do not take player-character model seats. */
 export const TRPG_SCENARIO_MAX_NPCS = 8;
 
@@ -88,13 +94,13 @@ export function parseScenarioNpcs(raw: unknown, defs: TrpgStatDefinition[] = DEF
   for (const item of raw) {
     if (!item || typeof item !== "object") continue;
     const row = item as Record<string, unknown>;
-    const name = clip(String(row.name ?? ""), 40);
+    const name = clip(String(row.name ?? ""), TRPG_SCENARIO_NPC_NAME_LIMIT);
     if (!name) continue;
     out.push({
       name,
-      description: clip(String(row.description ?? ""), 2000),
-      greeting: clip(String(row.greeting ?? ""), 800),
-      systemPrompt: clip(String(row.systemPrompt ?? ""), 8000),
+      description: clip(String(row.description ?? ""), TRPG_SCENARIO_NPC_DESCRIPTION_LIMIT),
+      greeting: clip(String(row.greeting ?? ""), TRPG_SCENARIO_NPC_GREETING_LIMIT),
+      systemPrompt: clip(String(row.systemPrompt ?? ""), TRPG_SCENARIO_NPC_PROMPT_LIMIT),
       stats: parseStatRecord(row.stats, defs),
     });
     if (out.length >= TRPG_SCENARIO_MAX_NPCS) break;
@@ -170,6 +176,55 @@ export function normalizeScenarioTemplateInput(input: TrpgScenarioTemplateInput)
     characterIds,
     genres: parseGenresJson(input.genres),
   };
+}
+
+export type TrpgScenarioBundleParts = {
+  worldSummary?: string;
+  worldContent?: string;
+  summary?: string;
+  content?: string;
+  secretContent?: string;
+  npcs?: unknown;
+};
+
+function bundleCharLen(text: string | undefined): number {
+  return String(text ?? "").trim().length;
+}
+
+export function countScenarioBundleChars(parts: TrpgScenarioBundleParts): number {
+  const npcs = parseScenarioNpcs(parts.npcs);
+  const npcChars = npcs.reduce(
+    (n, npc) =>
+      n +
+      bundleCharLen(npc.name) +
+      bundleCharLen(npc.description) +
+      bundleCharLen(npc.greeting) +
+      bundleCharLen(npc.systemPrompt),
+    0
+  );
+  return (
+    bundleCharLen(parts.worldSummary) +
+    bundleCharLen(parts.worldContent) +
+    bundleCharLen(parts.summary) +
+    bundleCharLen(parts.content) +
+    bundleCharLen(parts.secretContent) +
+    npcChars
+  );
+}
+
+export function remainingScenarioFieldMax(usedTotal: number, thisFieldChars: number, fieldCap: number): number {
+  const others = Math.max(0, usedTotal - thisFieldChars);
+  return Math.max(0, Math.min(fieldCap, TRPG_SCENARIO_BUNDLE_LIMIT - others));
+}
+
+export function scenarioBundleLimitError(count: number): string {
+  return `연결 세계관·시나리오 본문·숨겨진 설정·NPC를 합쳐 ${TRPG_SCENARIO_BUNDLE_LIMIT.toLocaleString()}자 이하여야 합니다. 지금 ${count.toLocaleString()}자입니다.`;
+}
+
+export function assertScenarioBundleLimit(count: number): void {
+  if (count > TRPG_SCENARIO_BUNDLE_LIMIT) {
+    throw new Error(scenarioBundleLimitError(count));
+  }
 }
 
 /** Player-visible names/blurbs. Not a PC seat. */
