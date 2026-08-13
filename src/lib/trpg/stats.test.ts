@@ -34,13 +34,15 @@ describe("TRPG stat allocation", () => {
     assert.equal(check.ok, true);
   });
 
-  it("keeps a 20-stat catalog and lets a scenario pick a subset", () => {
-    assert.equal(TRPG_STAT_CATALOG.length, 20);
+  it("keeps a 30-stat catalog and lets a scenario pick a subset", () => {
+    assert.equal(TRPG_STAT_CATALOG.length, 30);
     assert.deepEqual(parseStatKeys(["mag", "str", "nope", "mag"]), ["str", "mag"]);
     const defs = defsFromKeys(["str", "mag"]);
     assert.equal(pointPoolFor(defs), 10);
     const even = evenStats(defs);
     assert.equal(even.str, 5);
     assert.equal(even.mag, 5);
+    assert.ok(TRPG_STAT_CATALOG.some((row) => row.key === "san"));
+    assert.ok(TRPG_STAT_CATALOG.some((row) => row.key === "rec"));
   });
 });

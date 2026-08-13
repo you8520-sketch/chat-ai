@@ -10,7 +10,6 @@ import type { CharacterGenre } from "@/lib/characterGenres";
 import {
   TRPG_SCENARIO_BUNDLE_LIMIT,
   TRPG_SCENARIO_CONTENT_LIMIT,
-  TRPG_SCENARIO_MAX_BOTS,
   TRPG_SCENARIO_MAX_NPCS,
   TRPG_SCENARIO_NPC_DESCRIPTION_LIMIT,
   TRPG_SCENARIO_NPC_GREETING_LIMIT,
@@ -25,15 +24,7 @@ import {
   type TrpgScenarioNpc,
   type TrpgScenarioTemplate,
 } from "@/lib/trpg/scenarioTypes";
-import {
-  DEFAULT_TRPG_STAT_DEFS,
-  DEFAULT_TRPG_STAT_KEYS,
-  TRPG_STAT_CATALOG,
-  defsFromKeys,
-  evenStats,
-  pointPoolFor,
-  suggestBotStats,
-} from "@/lib/trpg/stats";
+import { DEFAULT_TRPG_STAT_KEYS, TRPG_STAT_CATALOG, defsFromKeys } from "@/lib/trpg/stats";
 import type { TrpgVisibility } from "@/lib/trpg/types";
 
 function emptyNpc(): TrpgScenarioNpc {
@@ -60,21 +51,14 @@ export default function TrpgScenarioEditor({
   const [visibility, setVisibility] = useState<TrpgVisibility>(initial?.visibility ?? "private");
   const [startLocation, setStartLocation] = useState(initial?.startLocation ?? "");
   const [inventoryText, setInventoryText] = useState((initial?.startInventory ?? []).join(", "));
-  const [stats, setStats] = useState<Record<string, number>>(
-    () => initial?.defaultPcStats ?? evenStats(DEFAULT_TRPG_STAT_DEFS)
-  );
   const [statKeys, setStatKeys] = useState<string[]>(() =>
     initial?.statKeys?.length ? initial.statKeys : [...DEFAULT_TRPG_STAT_KEYS]
   );
   const [npcs, setNpcs] = useState<TrpgScenarioNpc[]>(initial?.npcs?.length ? initial.npcs : []);
-  const [characterIds, setCharacterIds] = useState<number[]>(initial?.characterIds ?? []);
   const [genres, setGenres] = useState<CharacterGenre[]>(initial?.genres ?? []);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  const selectedDefs = defsFromKeys(statKeys);
-  const pointPool = pointPoolFor(selectedDefs);
-  const spent = selectedDefs.reduce((a, def) => a + (stats[def.key] ?? 0), 0);
   const namedNpcs = npcs.filter((n) => n.name.trim());
   const linkedWorld = typeof worldId === "number" ? catalog.myWorlds.find((w) => w.id === worldId) : undefined;
   const bundleUsed = countScenarioBundleChars({
@@ -114,15 +98,7 @@ export default function TrpgScenarioEditor({
       const on = prev.includes(key);
       const next = on ? prev.filter((k) => k !== key) : [...prev, key];
       if (next.length === 0) return prev;
-      const defs = defsFromKeys(next);
-      setStats((cur) => {
-        const filled = evenStats(defs);
-        for (const def of defs) {
-          if (typeof cur[def.key] === "number") filled[def.key] = cur[def.key]!;
-        }
-        return filled;
-      });
-      return defs.map((d) => d.key);
+      return defsFromKeys(next).map((d) => d.key);
     });
   }
 
@@ -146,10 +122,10 @@ export default function TrpgScenarioEditor({
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean),
-      defaultPcStats: stats,
+      defaultPcStats: null,
       statKeys,
       npcs: npcs.filter((n) => n.name.trim()),
-      characterIds,
+      characterIds: [],
       genres,
     };
     try {
@@ -280,10 +256,11 @@ export default function TrpgScenarioEditor({
           </div>
         </AppSectionCard>
 
-        <AppSectionCard title="시작 위치 · 기본 PC 시트">
+        <AppSectionCard title="시작 위치 · 상태값">
           <p className="mb-3 text-sm text-zinc-400">
-            D&amp;D·크툴루·WoD 등에서 자주 쓰는 상태값 20종입니다. 이 시나리오 시트에 넣을 값을 고르세요. GM이 상황에
-            맞는 값을 골라 성공률에 반영합니다. 포인트 풀은 고른 수×5입니다.
+            이 시나리오 시트에 넣을 상태값만 고르세요. 숫자는 참가자가 페르소나에 맞춰 로비에서 배분하고, AI 캐릭터는
+            본문으로 자동 배분하거나 방장이 로비에서 맞춥니다. 일반 세계관만으로 시작하는 캠페인은 힘·민첩·지능·지혜·매력·체력
+            6종만 씁니다.
           </p>
           <div className="mb-3 flex flex-wrap gap-1.5">
             {TRPG_STAT_CATALOG.map((entry) => {
@@ -319,32 +296,6 @@ export default function TrpgScenarioEditor({
               className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
             />
           </label>
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {selectedDefs.map((def) => (
-              <label key={def.key} className="text-sm text-zinc-300">
-                {def.label}
-                <span className="ml-1 text-[10px] font-normal text-zinc-500">{def.description}</span>
-                <input
-                  type="number"
-                  min={def.min}
-                  max={def.max}
-                  value={stats[def.key] ?? def.min}
-                  onChange={(e) => setStats((prev) => ({ ...prev, [def.key]: Number(e.target.value) }))}
-                  className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
-                />
-              </label>
-            ))}
-          </div>
-          <p className="mt-2 text-xs text-zinc-500">
-            합계 {spent} / {pointPool}
-          </p>
-          <button
-            type="button"
-            onClick={() => setStats(suggestBotStats([title, summary, content].join("\n"), pointPool, selectedDefs))}
-            className="mt-2 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-200"
-          >
-            본문으로 자동 배분
-          </button>
         </AppSectionCard>
 
         <AppSectionCard title="시나리오 NPC (모브)">
@@ -436,37 +387,6 @@ export default function TrpgScenarioEditor({
           </button>
         </AppSectionCard>
 
-        <AppSectionCard title="플레이어 캐릭터">
-          <p className="mb-3 text-sm text-zinc-400">
-            유저와 함께 TR하는 캐릭터입니다. 최대 {TRPG_SCENARIO_MAX_BOTS}명이고, 각자 모델이 돌아갑니다. 시나리오
-            NPC(모브)와는 별개입니다. 다른 제작자 캐릭터를 데려오면 유료 포인트 사용 시 그 제작자에게 최대 5% CP가
-            갑니다. 공식 캐릭터는 CP가 없습니다.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {catalog.myCharacters.map((c) => {
-              const on = characterIds.includes(c.id);
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() =>
-                    setCharacterIds((prev) => {
-                      if (on) return prev.filter((id) => id !== c.id);
-                      if (prev.length >= TRPG_SCENARIO_MAX_BOTS) return prev;
-                      return [...prev, c.id];
-                    })
-                  }
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                    on ? "bg-violet-600 text-white" : "border border-white/10 text-zinc-300"
-                  }`}
-                >
-                  {c.emoji} {c.name}
-                </button>
-              );
-            })}
-          </div>
-        </AppSectionCard>
-
         {error || bundleOver ? (
           <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
             {error || scenarioBundleLimitError(bundleUsed)}
@@ -503,7 +423,7 @@ export default function TrpgScenarioEditor({
   return (
     <AppPageShell
       title={initial ? "TRPG 시나리오 수정" : "TRPG 시나리오 만들기"}
-      description="시나리오 본문이 GM이 참고하는 이번 이야기입니다. 세계관도 본문에 적어도 되고, 이미 만든 세계관 문서는 선택으로 붙일 수 있습니다. 불러온 세계관과 시나리오 본문·숨겨진 설정·NPC는 합쳐 10,000자입니다. 모브 NPC와 플레이어 캐릭터는 따로 둡니다. 숨겨진 설정만 GM 전용입니다."
+      description="시나리오 본문이 GM이 참고하는 이번 이야기입니다. 세계관도 본문에 적어도 되고, 이미 만든 세계관 문서는 선택으로 붙일 수 있습니다. 불러온 세계관과 시나리오 본문·숨겨진 설정·NPC는 합쳐 10,000자입니다. 숨겨진 설정만 GM 전용입니다."
       narrow
     >
       {form}
