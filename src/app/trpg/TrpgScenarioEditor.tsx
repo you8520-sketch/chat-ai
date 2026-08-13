@@ -223,7 +223,11 @@ export default function TrpgScenarioEditor({
               className="mt-1 w-full rounded-xl border border-amber-500/20 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
             />
           </label>
-          <p className={`mt-3 text-sm ${bundleOver ? "text-rose-300" : "text-zinc-400"}`}>
+          <p
+            className={`mt-3 text-base font-semibold tabular-nums tracking-tight ${
+              bundleOver ? "text-rose-400" : "text-amber-300"
+            }`}
+          >
             세계관+시나리오+비밀+NPC {bundleUsed.toLocaleString()} / {TRPG_SCENARIO_BUNDLE_LIMIT.toLocaleString()}자
           </p>
           <p className="mt-1 text-xs text-zinc-500">
