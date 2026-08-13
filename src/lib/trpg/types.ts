@@ -14,6 +14,9 @@ export const TRPG_NEXT_ROUND_CONTEXT_MAX_CHARS = 400;
 export const TRPG_SEAL_SUMMARY_MAX_CHARS = 500;
 export const TRPG_SEALED_PROMPT_MAX_CHARS = 2500;
 export const TRPG_BOT_SCENE_MAX_CHARS = 1400;
+/** Character card fields on a bot-seat call — personality lives here. */
+export const TRPG_BOT_CARD_PROMPT_MAX_CHARS = 3500;
+export const TRPG_BOT_CARD_FIELD_MAX_CHARS = 800;
 export const TRPG_LEDGER_QUEST_MAX = 12;
 export const TRPG_LEDGER_NPC_MAX = 16;
 export const TRPG_LEDGER_FLAG_MAX = 24;

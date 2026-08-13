@@ -111,6 +111,27 @@ export function tryBeginGmGeneration(
   return info.changes === 1;
 }
 
+/** Host reroll of an already-written GM scene. Dice and locked actions stay. */
+export function tryBeginNarrationReroll(
+  db: Database.Database,
+  roundId: number,
+  requestId: string
+): boolean {
+  const info = db
+    .prepare(
+      `UPDATE trpg_rounds
+       SET phase = 'GENERATING_NARRATION',
+           lock_holder_request_id = ?,
+           gm_generation_id = ?,
+           error_json = NULL,
+           updated_at = datetime('now')
+       WHERE id = ?
+         AND phase = 'ROUND_COMPLETE'`
+    )
+    .run(requestId, requestId, roundId);
+  return info.changes === 1;
+}
+
 export type TrpgLlmBoundary =
   | { kind: "snapshot_saved"; mayCallLlm: true }
   | { kind: "llm_in_flight"; mayCallLlm: true }

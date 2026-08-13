@@ -49,6 +49,7 @@ import {
 import { dispatchPointsDeducted } from "@/lib/pointsEvents";
 
 const PERSONA_STORAGE_KEY = "habi:lastPersonaId";
+let characterIdOverride: number | null = null;
 
 type Tab = "sd" | "comic";
 type ResultMode = "sd" | "emoticon" | "couple_stamp" | "comic" | "illustration" | "persona";
@@ -146,12 +147,28 @@ function currentRouteIds() {
   const params = new URLSearchParams(window.location.search);
   const storedPersona = Number(localStorage.getItem(PERSONA_STORAGE_KEY));
   const chatId = Number(params.get("chat"));
+  const parsedRouteCharacterId = match ? Number(match[1]) : Number.NaN;
+  const routeCharacterId =
+    Number.isInteger(parsedRouteCharacterId) && parsedRouteCharacterId > 0
+      ? parsedRouteCharacterId
+      : null;
   return {
-    characterId: match ? Number(match[1]) : null,
+    characterId:
+      characterIdOverride && characterIdOverride > 0 ? characterIdOverride : routeCharacterId,
     chatId: Number.isInteger(chatId) && chatId > 0 ? chatId : null,
     personaId:
       Number.isInteger(storedPersona) && storedPersona > 0 ? storedPersona : null,
   };
+}
+
+function turnPreviewFromContent(content: string): string {
+  return content
+    .replace(/<<<STATUS_VALUES[\s\S]*?>>>/gi, " ")
+    .replace(/<<<STATUS[\s\S]*?>>>/gi, " ")
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function queryString(ids: ReturnType<typeof currentRouteIds>) {
@@ -357,18 +374,18 @@ export default function ChatImageGeneratorPanel({
 
   useEffect(() => {
     const openGenerator = (event: Event) => {
-      const detail = (event as CustomEvent<{ messageId?: unknown; content?: unknown }>)
-        .detail;
+      const detail = (event as CustomEvent<{
+        messageId?: unknown;
+        content?: unknown;
+        characterId?: unknown;
+      }>).detail;
+      const overrideId = Number(detail?.characterId);
+      characterIdOverride =
+        Number.isInteger(overrideId) && overrideId > 0 ? overrideId : null;
       const messageId = Number(detail?.messageId);
+      const preview = turnPreviewFromContent(String(detail?.content ?? ""));
       if (Number.isFinite(messageId) && messageId > 0) {
         setSourceMessageId(messageId);
-        const preview = String(detail?.content ?? "")
-          .replace(/<<<STATUS_VALUES[\s\S]*?>>>/gi, " ")
-          .replace(/<<<STATUS[\s\S]*?>>>/gi, " ")
-          .replace(/<!--[\s\S]*?-->/g, " ")
-          .replace(/<[^>]+>/g, " ")
-          .replace(/\s+/g, " ")
-          .trim();
         setSourceTurnPreview(preview.slice(0, 280));
         setTab("comic");
         setLdProduct("illustration");
@@ -376,6 +393,14 @@ export default function ChatImageGeneratorPanel({
         setComicSummary("");
         setComicLoadedMaxChars(0);
         void loadSelectedTurnContent(messageId);
+      } else if (preview) {
+        setSourceMessageId(null);
+        setSourceTurnPreview(preview.slice(0, 280));
+        setTab("comic");
+        setLdProduct("illustration");
+        setComicText("");
+        setComicSummary(preview.slice(0, CHAT_COMIC_MAX_INPUT_CHARS));
+        setComicLoadedMaxChars(Math.min(preview.length, CHAT_COMIC_MAX_INPUT_CHARS));
       }
       setOpen(true);
     };

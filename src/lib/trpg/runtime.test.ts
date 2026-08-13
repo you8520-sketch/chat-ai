@@ -18,12 +18,16 @@ describe("TRPG bot actions", () => {
       description: "질투 많은 반말",
       greeting: "…뭐야, 또 왔어?",
       systemPrompt: "질투 많은 반말. 상대를 놓치지 않으려 한다.",
+      exampleDialog: '"그 사람이랑 왜 얘기해."',
+      world: "폐여관",
       previousGmNarration: "여관 문이 열린다.",
       campaignMemory: "[CAMPAIGN STATE]\nlocation=여관",
       humanActions: [{ playerName: "렌", text: "*문을 밀며* \"누구냐.\"" }],
     });
     assert.match(block, /HUMAN ACTIONS THIS ROUND/);
     assert.match(block, /CHARACTER CARD/);
+    assert.match(block, /EXAMPLE DIALOG/);
+    assert.match(block, /질투 많은 반말/);
     assert.match(block, /렌/);
     assert.match(block, /여관 문이 열린다/);
     assert.doesNotMatch(block, /Flash/i);

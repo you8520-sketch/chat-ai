@@ -11,10 +11,14 @@ import {
   type ChatFontSizePreset,
 } from "@/lib/chatDisplayPrefs";
 import { successLabelKo } from "@/lib/trpg/labels";
-import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
+import { parseTrpgSceneSpeech } from "@/lib/trpg/sceneSpeech";
+import type { TrpgCampaignSnapshot, TrpgPublicLog, TrpgPublicRoll } from "@/lib/trpg/snapshot";
+import type { TrpgStatDefinition } from "@/lib/trpg/types";
 import { TRPG_ACTION_MAX_CHARS } from "@/lib/trpg/types";
 import TrpgCampaignTitle from "./TrpgCampaignTitle";
 import TrpgCampaignRail from "./TrpgCampaignRail";
+import TrpgNamedProse from "./TrpgNamedProse";
+import TrpgSceneToolbar from "./TrpgSceneToolbar";
 
 const FONT_STORAGE_KEY = "habi:trpg-fontSizePreset";
 
@@ -24,6 +28,24 @@ function loadFontPreset(): ChatFontSizePreset {
   } catch {
     return "medium";
   }
+}
+
+function imageCharacterId(snap: TrpgCampaignSnapshot): number | null {
+  const companion = snap.participants.find((p) => p.kind === "ai_character" && p.characterId);
+  if (companion?.characterId) return companion.characterId;
+  return snap.sourceCharacterId;
+}
+
+function openSceneImage(opts: { characterId: number | null; content: string }) {
+  if (!opts.characterId) return;
+  window.dispatchEvent(
+    new CustomEvent("chat:image-generator:open", {
+      detail: {
+        characterId: opts.characterId,
+        content: opts.content,
+      },
+    })
+  );
 }
 
 export default function TrpgCampaignRoom({
@@ -44,6 +66,7 @@ export default function TrpgCampaignRoom({
   onSendParty,
   onHostFill,
   onRetryGm,
+  onReroll,
   onDelete,
   onTitleSaved,
 }: {
@@ -64,6 +87,7 @@ export default function TrpgCampaignRoom({
   onSendParty: () => void;
   onHostFill: () => void;
   onRetryGm: () => void;
+  onReroll: (roundNumber: number) => void;
   onDelete: () => void;
   onTitleSaved: (title: string) => void;
 }) {
@@ -71,9 +95,11 @@ export default function TrpgCampaignRoom({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const phase = snap.round.phase;
   const waitingOthers = snap.workType === "wait_humans";
-  const scenes = snap.log.filter((row) => row.narration);
+  const knownNames = snap.participants.map((p) => p.displayName);
+  const imageId = imageCharacterId(snap);
+  const sceneRows = snap.log.filter((row) => row.narration || row.actions.some((a) => a.revealed && a.body));
   const waitingOpening =
-    scenes.length === 0 &&
+    sceneRows.length === 0 &&
     (starting || generating || phase === "ROLLING" || phase === "GENERATING_NARRATION" || phase === "NONE");
   const botFillTargets = useMemo(
     () => snap.participants.filter((p) => snap.hostFillBotIds.includes(p.id)),
@@ -179,46 +205,33 @@ export default function TrpgCampaignRoom({
             </AppSectionCard>
           ) : null}
 
-          {snap.currentRolls.length > 0 ? (
+          {generating && !waitingOpening ? (
+            <p className="text-sm text-zinc-400">
+              {snap.narrationRerolling ? "장면을 리롤하고 있습니다…" : "GM이 장면을 쓰고 있습니다…"}
+            </p>
+          ) : null}
+
+          {snap.currentRolls.length > 0 && !sceneRows.some((row) => row.rolls.length > 0) ? (
             <AppSectionCard title="주사위">
-              <ul className="flex flex-wrap gap-3">
-                {snap.currentRolls.map((roll) => (
-                  <li
-                    key={`${roll.participantId}-${roll.d20}-${roll.finalScore}`}
-                    className="min-w-[7rem] rounded-2xl border border-white/10 bg-[#161922] px-4 py-3 text-center"
-                  >
-                    <p className="text-3xl font-black tabular-nums text-zinc-50">{roll.d20}</p>
-                    <p className={`mt-1 text-sm font-semibold ${roll.success ? "text-emerald-300" : "text-rose-300"}`}>
-                      {successLabelKo(roll.tier)}
-                    </p>
-                    <p className="mt-1 text-xs text-zinc-500">
-                      {roll.name} · {snap.statDefs.find((d) => d.key === roll.statKey)?.label ?? roll.statKey} ·{" "}
-                      {roll.finalScore} vs DC {roll.dc}
-                    </p>
-                  </li>
-                ))}
-              </ul>
+              <DiceStrip rolls={snap.currentRolls} statDefs={snap.statDefs} />
               {phase === "GENERATING_NARRATION" || phase === "ROLLING" ? (
-                <p className="mt-3 text-sm text-zinc-400">판정이 끝났습니다. GM이 장면을 쓰고 있습니다…</p>
+                <p className="mt-3 text-sm text-zinc-400">판정이 끝났습니다. GM이 각 행동을 보고 장면을 쓰고 있습니다…</p>
               ) : null}
             </AppSectionCard>
           ) : null}
 
-          {scenes.map((row) => (
-            <article
+          {sceneRows.map((row) => (
+            <SceneTurn
               key={row.roundNumber}
-              className="rounded-xl border border-white/10 bg-[#131626] p-4 sm:p-5"
-            >
-              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                {row.roundNumber === 0 ? "시작" : `장면 ${row.roundNumber}`}
-              </p>
-              <p
-                className="whitespace-pre-wrap leading-relaxed text-zinc-100"
-                style={{ fontSize: "var(--font-size-chat)", lineHeight: "var(--line-height-chat)" }}
-              >
-                {row.narration}
-              </p>
-            </article>
+              row={row}
+              knownNames={knownNames}
+              statDefs={snap.statDefs}
+              canReroll={snap.canRerollRoundNumber === row.roundNumber && !generating}
+              canImage={Boolean(imageId) && Boolean(row.narration)}
+              busy={busy || generating}
+              onReroll={() => onReroll(row.roundNumber)}
+              onImage={() => openSceneImage({ characterId: imageId, content: row.narration ?? "" })}
+            />
           ))}
 
           {phase === "ACTION_INPUT" && snap.myDraft && !snap.myDraft.locked ? (
@@ -339,5 +352,126 @@ export default function TrpgCampaignRoom({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function SceneTurn({
+  row,
+  knownNames,
+  statDefs,
+  canReroll,
+  canImage,
+  busy,
+  onReroll,
+  onImage,
+}: {
+  row: TrpgPublicLog;
+  knownNames: string[];
+  statDefs: TrpgStatDefinition[];
+  canReroll: boolean;
+  canImage: boolean;
+  busy: boolean;
+  onReroll: () => void;
+  onImage: () => void;
+}) {
+  const beats = row.narration ? parseTrpgSceneSpeech(row.narration, knownNames) : [];
+  const rolledIds = new Set(row.rolls.map((roll) => roll.participantId));
+  const visibleActions = row.actions.filter(
+    (a) => a.revealed && a.body.trim() && !rolledIds.has(a.participantId)
+  );
+  const showToolbar = canReroll || canImage || row.billedPoints != null;
+  return (
+    <article className="rounded-xl border border-white/10 bg-[#131626] p-4 sm:p-5">
+      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+        {row.roundNumber === 0 ? "시작" : `장면 ${row.roundNumber}`}
+      </p>
+      <div className="space-y-4">
+        {visibleActions.map((action) => (
+          <TrpgNamedProse
+            key={`${row.roundNumber}-${action.participantId}`}
+            name={action.name}
+            hint={
+              action.kind === "ai_character"
+                ? action.actionType
+                  ? `AI · ${actionTypeLabelKo(action.actionType)}`
+                  : "AI 캐릭터"
+                : action.actionType
+                  ? actionTypeLabelKo(action.actionType)
+                  : undefined
+            }
+            text={action.body}
+            variant={action.kind === "human" ? "user" : "character"}
+          />
+        ))}
+        {row.rolls.length > 0 ? <DiceStrip rolls={row.rolls} statDefs={statDefs} /> : null}
+        {beats.map((beat, i) => (
+          <TrpgNamedProse
+            key={`${row.roundNumber}-gm-${i}`}
+            name={beat.speaker ?? "장면"}
+            text={beat.text}
+            variant="character"
+          />
+        ))}
+      </div>
+      {showToolbar ? (
+        <TrpgSceneToolbar
+          billedPoints={row.billedPoints}
+          viewerSharePoints={row.viewerSharePoints}
+          canReroll={canReroll}
+          canImage={canImage}
+          busy={busy}
+          onReroll={onReroll}
+          onImage={onImage}
+        />
+      ) : null}
+    </article>
+  );
+}
+
+function DiceStrip({
+  rolls,
+  statDefs,
+}: {
+  rolls: TrpgPublicRoll[];
+  statDefs: TrpgStatDefinition[];
+}) {
+  return (
+    <ul className="space-y-3">
+      {rolls.map((roll) => {
+        const statLabel = statDefs.find((d) => d.key === roll.statKey)?.label ?? roll.statKey;
+        const typeLabel = roll.actionType ? actionTypeLabelKo(roll.actionType) : "행동";
+        return (
+          <li
+            key={`${roll.participantId}-${roll.d20}-${roll.finalScore}`}
+            className="rounded-2xl border border-white/10 bg-[#161922] px-4 py-3"
+          >
+            <div className="flex items-start gap-3">
+              <div className="min-w-[4.5rem] text-center">
+                <p className="text-3xl font-black tabular-nums text-zinc-50">{roll.d20}</p>
+                <p className={`text-sm font-semibold ${roll.success ? "text-emerald-300" : "text-rose-300"}`}>
+                  {successLabelKo(roll.tier)}
+                </p>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-zinc-100">
+                  {roll.name}
+                  {roll.kind === "ai_character" ? (
+                    <span className="ml-1.5 text-[10px] font-medium text-orange-300/80">AI</span>
+                  ) : null}
+                </p>
+                {roll.actionBody.trim() ? (
+                  <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-zinc-300">{roll.actionBody}</p>
+                ) : (
+                  <p className="mt-1 text-sm text-zinc-500">제출한 행동이 아직 없습니다.</p>
+                )}
+                <p className="mt-1.5 text-xs text-zinc-500">
+                  {typeLabel}이라 {statLabel} 판정 · {roll.finalScore} vs DC {roll.dc}
+                </p>
+              </div>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

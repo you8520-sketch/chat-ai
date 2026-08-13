@@ -7,6 +7,7 @@ import TrpgInviteLink from "../TrpgInviteLink";
 import TrpgCampaignTitle from "../TrpgCampaignTitle";
 import TrpgPartySlots from "../TrpgPartySlots";
 import TrpgCampaignRoom from "../TrpgCampaignRoom";
+import ChatImageGeneratorPanel from "@/components/ChatImageGeneratorPanel";
 import { AppSectionCard } from "@/components/AppPageShell";
 import type { TrpgActionType } from "@/lib/trpg/actionTypes";
 import { statModifier, suggestBotStats } from "@/lib/trpg/stats";
@@ -64,7 +65,11 @@ export default function TrpgRoomClient({
   const spent = Object.values(stats).reduce((a, b) => a + b, 0);
   const remaining = snap.pointPool - spent;
   const phase = snap.round.phase;
-  const generating = ACTIVE_PHASES.has(String(phase)) || snap.workType === "generate_bots" || snap.workType === "acquire_gm_lock";
+  const generating =
+    ACTIVE_PHASES.has(String(phase)) ||
+    snap.workType === "generate_bots" ||
+    snap.workType === "acquire_gm_lock" ||
+    snap.narrationRerolling;
 
   const apply = useCallback((next: TrpgCampaignSnapshot) => {
     setSnap(next);
@@ -239,37 +244,43 @@ export default function TrpgRoomClient({
   }, [editingId]);
   if (!setup || starting) {
     return (
-      <TrpgCampaignRoom
-        snap={snap}
-        starting={starting}
-        generating={generating}
-        busy={busy}
-        error={error}
-        actionType={actionType}
-        actionBody={actionBody}
-        partyBody={partyBody}
-        hostFill={hostFill}
-        onActionTypeChange={setActionType}
-        onActionBodyChange={setActionBody}
-        onPartyBodyChange={setPartyBody}
-        onHostFillChange={setHostFill}
-        onSendAction={() =>
-          void run(`/api/trpg/campaigns/${snap.id}/action`, {
-            body: actionBody,
-            actionType,
-          })
-        }
-        onSendParty={() => void sendParty()}
-        onHostFill={() =>
-          void run(`/api/trpg/campaigns/${snap.id}/host-fill`, {
-            participantId: snap.hostFillBotIds[0],
-            body: hostFill,
-          })
-        }
-        onRetryGm={() => void run(`/api/trpg/campaigns/${snap.id}/advance`)}
-        onDelete={() => void deleteCampaign()}
-        onTitleSaved={(title) => setSnap((prev) => ({ ...prev, title }))}
-      />
+      <>
+        <TrpgCampaignRoom
+          snap={snap}
+          starting={starting}
+          generating={generating}
+          busy={busy}
+          error={error}
+          actionType={actionType}
+          actionBody={actionBody}
+          partyBody={partyBody}
+          hostFill={hostFill}
+          onActionTypeChange={setActionType}
+          onActionBodyChange={setActionBody}
+          onPartyBodyChange={setPartyBody}
+          onHostFillChange={setHostFill}
+          onSendAction={() =>
+            void run(`/api/trpg/campaigns/${snap.id}/action`, {
+              body: actionBody,
+              actionType,
+            })
+          }
+          onSendParty={() => void sendParty()}
+          onHostFill={() =>
+            void run(`/api/trpg/campaigns/${snap.id}/host-fill`, {
+              participantId: snap.hostFillBotIds[0],
+              body: hostFill,
+            })
+          }
+          onRetryGm={() => void run(`/api/trpg/campaigns/${snap.id}/advance`)}
+          onReroll={(roundNumber) =>
+            void run(`/api/trpg/campaigns/${snap.id}/reroll`, { roundNumber })
+          }
+          onDelete={() => void deleteCampaign()}
+          onTitleSaved={(title) => setSnap((prev) => ({ ...prev, title }))}
+        />
+        <ChatImageGeneratorPanel showRailTrigger={false} />
+      </>
     );
   }
 

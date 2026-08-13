@@ -7,6 +7,7 @@ import { DEFAULT_TRPG_SHEET_WIDGET } from "./defaultSheet";
 import { loadTrpgPartyChat } from "./partyChat";
 import { trpgInvitePath } from "./invite";
 import { parseHumanPersona } from "./hostPersona";
+import { splitTrpgRoundCost } from "./billing";
 import {
   loadCampaign,
   loadLatestRound,
@@ -93,15 +94,16 @@ function readyOf(
   return submitted ? "submitted" : "writing";
 }
 
-function revealOthers(phase: TrpgRoundPhase | "NONE"): boolean {
-  return phase !== "ACTION_INPUT" && phase !== "BOT_ACTION" && phase !== "NONE";
+function asKind(value: string): TrpgParticipantKind {
+  return value === "ai_character" ? "ai_character" : "human";
 }
 
 function loadRolls(db: Database.Database, roundId: number): TrpgPublicRoll[] {
   return (
     db
       .prepare(
-        `SELECT r.d20, r.stat_key, r.final_score, r.dc, r.tier, s.participant_id, p.display_name AS name
+        `SELECT r.d20, r.stat_key, r.final_score, r.dc, r.tier, s.participant_id, s.body, s.action_type,
+                p.display_name AS name, p.kind
          FROM trpg_dice_rolls r
          JOIN trpg_action_submissions s ON s.id = r.submission_id
          JOIN trpg_participants p ON p.id = s.participant_id
@@ -114,7 +116,10 @@ function loadRolls(db: Database.Database, roundId: number): TrpgPublicRoll[] {
       dc: number;
       tier: string;
       participant_id: number;
+      body: string;
+      action_type: string | null;
       name: string;
+      kind: string;
     }>
   ).map((row) => {
     const tier = row.tier as TrpgSuccessTier;
@@ -127,6 +132,9 @@ function loadRolls(db: Database.Database, roundId: number): TrpgPublicRoll[] {
       dc: row.dc,
       tier,
       success: isSuccessTier(tier),
+      actionBody: row.body,
+      actionType: row.action_type && isTrpgActionType(row.action_type) ? row.action_type : null,
+      kind: asKind(row.kind),
     };
   });
 }
@@ -134,25 +142,40 @@ function loadRolls(db: Database.Database, roundId: number): TrpgPublicRoll[] {
 function loadActions(
   db: Database.Database,
   roundId: number,
-  viewerParticipantId: number | null,
-  revealed: boolean
-): Array<{ participantId: number; name: string; body: string; revealed: boolean }> {
+  viewerParticipantId: number | null
+): Array<{
+  participantId: number;
+  name: string;
+  body: string;
+  revealed: boolean;
+  kind: TrpgParticipantKind;
+  actionType: TrpgActionType | null;
+}> {
   return (
     db
       .prepare(
-        `SELECT s.participant_id, p.display_name AS name, s.body, s.locked
+        `SELECT s.participant_id, p.display_name AS name, p.kind, s.body, s.locked, s.action_type
          FROM trpg_action_submissions s
          JOIN trpg_participants p ON p.id = s.participant_id
          WHERE s.round_id=?`
       )
-      .all(roundId) as Array<{ participant_id: number; name: string; body: string; locked: number }>
+      .all(roundId) as Array<{
+      participant_id: number;
+      name: string;
+      kind: string;
+      body: string;
+      locked: number;
+      action_type: string | null;
+    }>
   ).map((row) => {
-    const show = revealed || row.participant_id === viewerParticipantId;
+    const show = row.locked === 1 || row.participant_id === viewerParticipantId;
     return {
       participantId: row.participant_id,
       name: row.name,
       body: show ? row.body : "",
       revealed: show,
+      kind: asKind(row.kind),
+      actionType: row.action_type && isTrpgActionType(row.action_type) ? row.action_type : null,
     };
   });
 }
@@ -282,7 +305,12 @@ export function loadTrpgSnapshot(
     sheetConfirmed: sheetConfirmed(revisions.get(p.id)),
   }));
 
-  const log = loadLog(db, campaignId, viewer?.id ?? null);
+  const log = loadLog(db, campaignId, viewer?.id ?? null, {
+    viewerUserId,
+    hostUserId: campaign.host_user_id,
+    mode: (campaign.billing_mode as TrpgBillingMode) || DEFAULT_TRPG_BILLING_MODE,
+    humanUserIds: parts.filter((p) => p.kind === "human" && p.user_id).map((p) => p.user_id!),
+  });
   const myActionType =
     mySub?.action_type && isTrpgActionType(mySub.action_type) ? mySub.action_type : null;
 
@@ -329,30 +357,103 @@ export function loadTrpgSnapshot(
     gmGrossMargin: TRPG_GM_GROSS_MARGIN,
     botGrossMargin: TRPG_BOT_GROSS_MARGIN,
     partyChat: opts?.includePartyChat === false ? [] : loadTrpgPartyChat(db, campaignId, viewerUserId),
+    canRerollRoundNumber: resolveCanRerollRoundNumber(db, {
+      campaignId,
+      hostUserId: campaign.host_user_id,
+      viewerUserId,
+      campaignStatus: campaign.status,
+    }),
+    narrationRerolling: Boolean(
+      db
+        .prepare(
+          `SELECT 1 FROM trpg_rounds
+           WHERE campaign_id=? AND phase='GENERATING_NARRATION' AND round_number < ?`
+        )
+        .get(campaignId, round?.round_number ?? 0)
+    ),
   };
 }
 
+function resolveCanRerollRoundNumber(
+  db: Database.Database,
+  opts: {
+    campaignId: number;
+    hostUserId: number;
+    viewerUserId: number;
+    campaignStatus: string;
+  }
+): number | null {
+  if (opts.hostUserId !== opts.viewerUserId) return null;
+  if (opts.campaignStatus === "CAMPAIGN_COMPLETE") return null;
+  const latestGm = db
+    .prepare(
+      `SELECT r.id, r.round_number, r.phase
+       FROM trpg_rounds r
+       JOIN trpg_gm_messages g ON g.round_id = r.id
+       WHERE r.campaign_id=?
+       ORDER BY r.round_number DESC
+       LIMIT 1`
+    )
+    .get(opts.campaignId) as { id: number; round_number: number; phase: string } | undefined;
+  if (!latestGm) return null;
+  if (asPhase(latestGm.phase) === "GENERATING_NARRATION") return null;
+  const laterLocked = db
+    .prepare(
+      `SELECT 1
+       FROM trpg_action_submissions s
+       JOIN trpg_rounds r ON r.id = s.round_id
+       WHERE r.campaign_id=? AND r.round_number > ? AND s.locked=1
+       LIMIT 1`
+    )
+    .get(opts.campaignId, latestGm.round_number) as { 1: number } | undefined;
+  if (laterLocked) return null;
+  return latestGm.round_number;
+}
 
 function loadLog(
   db: Database.Database,
   campaignId: number,
-  viewerParticipantId: number | null
+  viewerParticipantId: number | null,
+  billing: {
+    viewerUserId: number;
+    hostUserId: number;
+    mode: TrpgBillingMode;
+    humanUserIds: number[];
+  }
 ): TrpgPublicLog[] {
   const rounds = db
     .prepare(
-      `SELECT id, round_number, phase FROM trpg_rounds WHERE campaign_id=? ORDER BY round_number ASC`
+      `SELECT id, round_number, phase, COALESCE(billed,0) AS billed, COALESCE(billed_points,0) AS billed_points
+       FROM trpg_rounds WHERE campaign_id=? ORDER BY round_number ASC`
     )
-    .all(campaignId) as Array<{ id: number; round_number: number; phase: string }>;
+    .all(campaignId) as Array<{
+    id: number;
+    round_number: number;
+    phase: string;
+    billed: number;
+    billed_points: number;
+  }>;
   return rounds.map((row) => {
-    const phase = asPhase(row.phase);
     const gm = db
       .prepare(`SELECT narration FROM trpg_gm_messages WHERE round_id=?`)
       .get(row.id) as { narration: string } | undefined;
+    const billedPoints = gm?.narration || row.billed === 1 ? row.billed_points : null;
+    const viewerSharePoints =
+      billedPoints == null
+        ? null
+        : splitTrpgRoundCost({
+            totalPoints: billedPoints,
+            humanUserIds: billing.humanUserIds,
+            hostUserId: billing.hostUserId,
+            mode: billing.mode,
+          }).find((share) => share.userId === billing.viewerUserId)?.points ?? 0;
     return {
       roundNumber: row.round_number,
       rolls: loadRolls(db, row.id),
       narration: gm?.narration ?? null,
-      actions: loadActions(db, row.id, viewerParticipantId, revealOthers(phase) || phase === "ROUND_COMPLETE"),
+      actions: loadActions(db, row.id, viewerParticipantId),
+      billedPoints,
+      viewerSharePoints,
     };
   });
 }

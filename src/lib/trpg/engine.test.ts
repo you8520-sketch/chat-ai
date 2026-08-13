@@ -5,6 +5,7 @@ import { EVEN_STATS, createTrpgCampaign, joinTrpgCampaign, saveTrpgSheet, writeS
 import {
   advanceTrpgCampaign,
   hostFillBotAction,
+  regenerateTrpgNarration,
   startTrpgCampaign,
   submitTrpgAction,
   type TrpgEngineDeps,
@@ -134,9 +135,10 @@ describe("TRPG campaign loop", () => {
     assert.equal(after.workType, "wait_humans");
     assert.equal(after.round.phase, "ACTION_INPUT");
     const forC = loadTrpgSnapshot(db, campaignId, 3)!;
-    const hidden = forC.log.find((row) => row.roundNumber === forC.round.number)?.actions ?? [];
-    const others = hidden.filter((a) => a.participantId !== forC.viewerParticipantId);
-    assert.ok(others.every((a) => a.body === "" && a.revealed === false));
+    const current = forC.log.find((row) => row.roundNumber === forC.round.number)?.actions ?? [];
+    const others = current.filter((a) => a.participantId !== forC.viewerParticipantId);
+    assert.equal(others.length, 2);
+    assert.ok(others.every((a) => a.revealed && a.body.length > 0));
     db.close();
   });
 
@@ -234,6 +236,12 @@ describe("TRPG campaign loop", () => {
     const after = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
     assert.deepEqual(order, ["gm", "bot", "gm"]);
     assert.equal(after.round.phase, "ACTION_INPUT");
+    const resolved = after.log.find((row) => row.roundNumber === 1);
+    const botLine = resolved?.actions.find((a) => a.kind === "ai_character");
+    assert.match(botLine?.body ?? "", /내가 볼게/);
+    assert.equal(botLine?.revealed, true);
+    const botRoll = resolved?.rolls.find((r) => r.kind === "ai_character");
+    assert.match(botRoll?.actionBody ?? "", /내가 볼게/);
     db.close();
   });
 
@@ -385,6 +393,43 @@ describe("TRPG campaign loop", () => {
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps: follow });
     assert.match(nextUser, /SEALED CAMPAIGN SUMMARY/);
     assert.match(nextUser, /밤사이 여관 문이 열림/);
+    db.close();
+  });
+
+  it("exposes billed points on each GM scene and lets the host reroll it", async () => {
+    const db = memoryDb();
+    let gmCalls = 0;
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 11,
+      gmCall: async () => {
+        gmCalls += 1;
+        return { text: gmText({ narration: gmCalls === 1 ? "첫 장면." : `리롤 ${gmCalls}.` }) };
+      },
+    };
+    const { campaignId, snap } = await setupSolo(db, deps);
+    const opening = snap.log.find((row) => row.roundNumber === 0);
+    assert.equal(opening?.billedPoints, 0);
+    assert.equal(opening?.viewerSharePoints, 0);
+    assert.equal(snap.canRerollRoundNumber, 0);
+
+    const rerolled = await regenerateTrpgNarration(db, { campaignId, userId: 1, deps });
+    assert.equal(gmCalls, 2);
+    assert.match(rerolled.currentNarration ?? "", /리롤 2/);
+    assert.equal(rerolled.round.number, 1);
+    assert.equal(rerolled.round.phase, "ACTION_INPUT");
+    assert.equal(rerolled.canRerollRoundNumber, 0);
+
+    submitTrpgAction(db, { campaignId, userId: 1, body: "문을 민다." });
+    const after = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(after.canRerollRoundNumber, 1);
+    assert.match(after.log.find((row) => row.roundNumber === 1)?.narration ?? "", /리롤 3/);
+
+    submitTrpgAction(db, { campaignId, userId: 1, body: "안으로 든다." });
+    await assert.rejects(
+      () => regenerateTrpgNarration(db, { campaignId, userId: 1, roundNumber: 1, deps }),
+      /다음 행동/
+    );
     db.close();
   });
 });
