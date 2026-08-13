@@ -5,7 +5,7 @@ import Link from "next/link";
 import { AppSectionCard } from "@/components/AppPageShell";
 import ChatSelectionQuoteToolbar from "@/components/ChatSelectionQuoteToolbar";
 import { TRPG_ACTION_TYPES, actionTypeLabelKo, type TrpgActionType } from "@/lib/trpg/actionTypes";
-import { parseTrpgBotAction } from "@/lib/trpg/botActions";
+import { parseTrpgBotAction } from "@/lib/trpg/botActionParse";
 import {
   CHAT_ROOM_HEADER_OFFSET_CLASS,
   DEFAULT_CHAT_DISPLAY_PREFS,
