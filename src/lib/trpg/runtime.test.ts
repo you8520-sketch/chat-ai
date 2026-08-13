@@ -6,7 +6,7 @@ import {
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
 } from "@/lib/chatModels";
-import { buildTrpgBotActionUserBlock, orderTrpgBotsForRound, sanitizeBotActionText } from "./botActions";
+import { buildTrpgBotActionUserBlock, finishAtSentenceBoundary, orderTrpgBotsForRound, sanitizeBotActionText } from "./botActions";
 import { computeTrpgRoundPoints, splitTrpgRoundCost } from "./billing";
 import { buildTrpgMemoryPromptBlock, roundsDueForSeal } from "./memory";
 import { TRPG_BOT_GROSS_MARGIN, TRPG_GM_GROSS_MARGIN } from "./types";
@@ -31,8 +31,9 @@ describe("TRPG bot actions", () => {
     assert.match(block, /렌/);
     assert.match(block, /여관 문이 열린다/);
     assert.match(block, /EARLIER COMPANION ACTIONS THIS ROUND/);
-    assert.match(block, /700/);
-    assert.match(block, /1600/);
+    assert.match(block, /300/);
+    assert.match(block, /550/);
+    assert.match(block, /800/);
     assert.doesNotMatch(block, /Flash/i);
     const second = buildTrpgBotActionUserBlock({
       characterName: "카이",
@@ -85,11 +86,17 @@ describe("TRPG bot actions", () => {
 
   it("clips empty bot drafts", () => {
     assert.equal(sanitizeBotActionText("   "), "");
-    assert.ok(sanitizeBotActionText("가".repeat(3000)).length <= 2400);
+    assert.ok(sanitizeBotActionText("가".repeat(3000)).length <= 800);
     const withBreaks = sanitizeBotActionText(`첫째 문장.\n\n둘째 문장.\n\n<<<INTENT>>>\n문을 민다.`);
     assert.match(withBreaks, /첫째 문장\.\n\n둘째 문장/);
     assert.match(withBreaks, /<<<INTENT>>>/);
     assert.match(withBreaks, /문을 민다/);
+    const cut = finishAtSentenceBoundary(
+      "그는 낮게 웃었다. 순서는 내가 맨 앞이다. 등 뒤에서 벗어나지 마. 무너진 차량 사이를 향해",
+      800
+    );
+    assert.match(cut, /벗어나지 마\./);
+    assert.doesNotMatch(cut, /향해/);
   });
 });
 

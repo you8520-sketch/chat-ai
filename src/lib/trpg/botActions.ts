@@ -29,12 +29,12 @@ export type TrpgBotSpeakOrder = { id: number; name: string };
 
 export const TRPG_BOT_SYSTEM = `You ARE this character sitting in a Korean TRPG as a player, not the GM.
 
-Write a long in-character beat: what you notice, how you move, what you say.
+Write one in-character beat: what you notice, how you move, what you say.
 Stay in their diction, attitude, and relationship habits from the character card and PARTY RELATIONSHIPS.
 Honor campaign state (HP, location, quests, flags, next decision).
 You may describe the world only as THIS character perceives it. Do not speak for other PCs. Do not resolve the round. Do not write a GM recap. Do not roll dice or declare success/failure. Korean. No JSON.
 
-Length: at least ${TRPG_BOT_MIN_CHARS} Korean characters, aim about ${TRPG_BOT_AIM_CHARS}, never cut a sentence short. Finish every sentence. Use paragraphs.
+Length: ${TRPG_BOT_MIN_CHARS}–${TRPG_BOT_ACTION_MAX_CHARS} Korean characters (aim about ${TRPG_BOT_AIM_CHARS}). Stop on a finished sentence. Never cut a clause short. If you are near the cap, end the current sentence instead of starting a new one.
 
 Turn order: the human already acted this round. If EARLIER COMPANION ACTIONS exist, those PCs already spoke. Do not shout the same warning at the human. Do not answer in chorus. React to what already happened, then take the next beat.
 
@@ -111,8 +111,8 @@ export function buildTrpgBotActionUserBlock(ctx: TrpgBotActionContext): string {
     .join("\n\n");
   const scene = clipTrpgChars(ctx.previousGmNarration, TRPG_BOT_SCENE_MAX_CHARS) || "(캠페인 시작)";
   return [
-    "[TRPG BOT ACTION — you are this PC. Long beat, then INTENT.]",
-    `[LENGTH] At least ${TRPG_BOT_MIN_CHARS} Korean characters, aim ~${TRPG_BOT_AIM_CHARS}, cap ${TRPG_BOT_ACTION_MAX_CHARS}. Finish the last sentence. Then ${TRPG_BOT_INTENT_OPEN} and one concrete action line.`,
+    "[TRPG BOT ACTION — you are this PC. Finished beat, then INTENT.]",
+    `[LENGTH] ${TRPG_BOT_MIN_CHARS}–${TRPG_BOT_ACTION_MAX_CHARS} Korean characters, aim ~${TRPG_BOT_AIM_CHARS}. Finish the last sentence. Do not exceed ${TRPG_BOT_ACTION_MAX_CHARS}. Then ${TRPG_BOT_INTENT_OPEN} and one concrete action line.`,
     `[SPEAK ORDER] Human already acted. You are companion ${speakIndex} of ${speakCount} this round. Do not talk over earlier companions.`,
     card,
     ctx.relationshipBrief?.trim()
@@ -134,14 +134,37 @@ function clipMultiline(text: string, max: number): string {
   return chars.slice(0, max).join("").trimEnd();
 }
 
+function endsCompleteSentence(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  if (/[.!?。…？]["”」』]?\s*$/.test(t)) return true;
+  if (/["”」』]\s*$/.test(t)) return true;
+  return false;
+}
+
+/** Prefer a finished sentence over a mid-clause clip. */
+export function finishAtSentenceBoundary(text: string, max: number): string {
+  const clipped = clipMultiline(text, max);
+  if (!clipped) return "";
+  if (endsCompleteSentence(clipped)) return clipped;
+  const matches = [...clipped.matchAll(/[.!?。…？]+["”」』]?(?:\s+|$)/g)];
+  const last = matches.at(-1);
+  if (!last || last.index == null) return clipped;
+  const end = last.index + last[0].length;
+  const tail = clipped.slice(end).trim();
+  if (!tail) return clipped;
+  if (end < 8 || end < clipped.length * 0.45) return clipped;
+  return clipped.slice(0, end).trimEnd();
+}
+
 export function parseTrpgBotAction(raw: string): { prose: string; intent: string } {
   const text = raw.replace(/\r\n/g, "\n").trim();
   const at = text.indexOf(TRPG_BOT_INTENT_OPEN);
   if (at < 0) {
-    return { prose: clipMultiline(text, TRPG_BOT_ACTION_MAX_CHARS), intent: "" };
+    return { prose: finishAtSentenceBoundary(text, TRPG_BOT_ACTION_MAX_CHARS), intent: "" };
   }
   return {
-    prose: clipMultiline(text.slice(0, at).trim(), TRPG_BOT_ACTION_MAX_CHARS),
+    prose: finishAtSentenceBoundary(text.slice(0, at).trim(), TRPG_BOT_ACTION_MAX_CHARS),
     intent: clipTrpgChars(text.slice(at + TRPG_BOT_INTENT_OPEN.length), TRPG_BOT_INTENT_MAX_CHARS),
   };
 }
@@ -151,7 +174,7 @@ export function sanitizeBotActionText(
   maxChars = TRPG_BOT_ACTION_MAX_CHARS
 ): string {
   const parsed = parseTrpgBotAction(raw);
-  const prose = clipMultiline(parsed.prose, maxChars);
+  const prose = finishAtSentenceBoundary(parsed.prose, maxChars);
   if (!parsed.intent) return prose;
   return `${prose}\n\n${TRPG_BOT_INTENT_OPEN}\n${parsed.intent}`;
 }
