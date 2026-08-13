@@ -137,11 +137,7 @@ export default async function Home() {
     <div className="pb-6">
       <HomePopupNotice notice={popupNotice} />
       <HomeCreateEventBanner />
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.07] pb-6">
-        <div>
-          <p className="text-sm font-semibold text-zinc-100">어떤 이야기를 찾고 있나요?</p>
-          <p className="mt-1 text-xs text-zinc-500">취향을 고르면 추천 목록이 더 정확해집니다.</p>
-        </div>
+      <div className="mt-6 border-b border-white/[0.07] pb-6">
         <UserPreferenceControls
           isAdult={!!user?.is_adult}
           nsfwOn={!!user?.nsfw_on}
