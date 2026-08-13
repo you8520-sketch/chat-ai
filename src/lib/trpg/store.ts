@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import type Database from "better-sqlite3";
 import { DEFAULT_TRPG_SHEET_WIDGET } from "./defaultSheet";
+import { parseTrpgInviteInput } from "./invite";
 import { DEFAULT_TRPG_DICE_RULES, type TrpgDiceRules, type TrpgRoundPhase, type TrpgStatDefinition } from "./types";
 import { DEFAULT_TRPG_POINT_POOL, DEFAULT_TRPG_STAT_DEFS } from "./stats";
 
@@ -72,10 +73,12 @@ export function loadCampaign(db: Database.Database, id: number): TrpgCampaignRow
 }
 
 export function loadCampaignByInvite(db: Database.Database, code: string): TrpgCampaignRow | null {
+  const normalized = parseTrpgInviteInput(code);
+  if (!normalized) return null;
   return (
     (db
-      .prepare(`SELECT * FROM trpg_campaigns WHERE invite_code=?`)
-      .get(code) as TrpgCampaignRow | undefined) ?? null
+      .prepare(`SELECT * FROM trpg_campaigns WHERE lower(invite_code)=?`)
+      .get(normalized) as TrpgCampaignRow | undefined) ?? null
   );
 }
 
@@ -205,7 +208,7 @@ export function insertParticipant(db: Database.Database, opts: {
   userId: number | null;
   characterId: number | null;
   displayName: string;
-  persona?: TrpgBotPersona | null;
+  persona?: object | null;
 }): number {
   const info = db
     .prepare(

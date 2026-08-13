@@ -101,6 +101,18 @@ export default function CharacterStartRow({
   const actionBtn =
     "inline-flex items-center justify-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-semibold text-zinc-200 transition hover:bg-white/10";
 
+  const resolvedTrpgHref = (() => {
+    if (!trpgHref) return null;
+    if (selectedPersonaId == null) return trpgHref;
+    try {
+      const url = new URL(trpgHref, "https://local.invalid");
+      url.searchParams.set("personaId", String(selectedPersonaId));
+      return `${url.pathname}${url.search}`;
+    } catch {
+      return trpgHref;
+    }
+  })();
+
   return (
     <div className="flex flex-wrap items-center gap-2">
       <StartChatButton
@@ -114,8 +126,8 @@ export default function CharacterStartRow({
         alwaysNewChat={embedMode}
         openInTop={embedMode}
       />
-      {trpgHref ? (
-        <Link href={trpgHref} className={actionBtn}>
+      {resolvedTrpgHref ? (
+        <Link href={resolvedTrpgHref} className={actionBtn}>
           TRPG로 시작
         </Link>
       ) : null}

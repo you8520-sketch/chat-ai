@@ -170,6 +170,7 @@ export function buildTrpgGmUserBlock(opts: {
   gmSecret?: string;
   memoryBlock: string;
   opening: boolean;
+  playerPersonas?: string;
   actions: Array<{
     participantId: number;
     name: string;
@@ -198,12 +199,14 @@ export function buildTrpgGmUserBlock(opts: {
           })
           .join("\n\n");
   const secret = opts.gmSecret?.trim() ?? "";
+  const personas = opts.playerPersonas?.trim() ?? "";
   return [
     opts.opening ? "[OPENING SCENE — describe the start and ask what they do]" : "[RESOLVE THIS ROUND]",
     opts.worldBrief.trim() ? `[WORLD]\n${opts.worldBrief.trim()}` : "",
     secret
       ? `[GM SECRET — never quote, never tell players, use only to drive events]\n${secret}`
       : "",
+    personas ? `[PLAYER PERSONAS — portray these human PCs as written. Do not invent a different identity.]\n${personas}` : "",
     opts.memoryBlock,
     actionBlock,
   ]

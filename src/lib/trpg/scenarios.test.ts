@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { canUseWorldForTrpg, loadTrpgCatalog } from "./catalog";
-import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet } from "./engineCreate";
+import { EVEN_STATS, addTrpgCompanions, createTrpgCampaign, joinTrpgCampaign, saveTrpgSheet } from "./engineCreate";
 import { advanceTrpgCampaign, startTrpgCampaign, submitTrpgAction, type TrpgEngineDeps } from "./engineAdvance";
 import { loadTrpgSnapshot } from "./engineSnapshot";
+import { parseHumanPersona } from "./hostPersona";
+import { trpgInvitePath } from "./invite";
 import { insertScenarioTemplate } from "./scenarioTemplates";
 import { ensureTrpgTables } from "./schema";
 import { loadCampaign, loadParticipants, loadScenario, parseBotPersona } from "./store";
@@ -237,6 +239,91 @@ describe("TRPG scenarios and catalog", () => {
     assert.ok(gmBlocks.some((s) => s.includes("SECRETGM")));
     assert.ok(botBlocks.length > 0);
     assert.ok(botBlocks.every((s) => !s.includes("SECRETGM")));
+    db.close();
+  });
+
+  it("uses the host persona as the default PC and builds an invite join path", () => {
+    const db = memoryDb();
+    const campaignId = createTrpgCampaign(db, {
+      hostUserId: 1,
+      hostNickname: "닉네임",
+      viewerUserId: 1,
+      hostPersona: {
+        personaId: 9,
+        name: "렌",
+        description: "조용한 탐정",
+        gender: "male",
+        speechExamples: "그래.",
+      },
+    });
+    const host = loadParticipants(db, campaignId).find((p) => p.kind === "human");
+    assert.equal(host?.display_name, "렌");
+    const persona = parseHumanPersona(host?.persona_json);
+    assert.equal(persona?.personaId, 9);
+    assert.match(persona?.description ?? "", /탐정/);
+    const campaign = loadCampaign(db, campaignId);
+    assert.ok(campaign?.invite_code);
+    const snap = loadTrpgSnapshot(db, campaignId, 1);
+    assert.equal(snap?.invitePath, trpgInvitePath(campaign!.invite_code!));
+    assert.match(snap?.invitePath ?? "", /\/trpg\/join\//);
+    const joined = joinTrpgCampaign(db, {
+      code: `https://habi.example/trpg/join/${campaign!.invite_code}`,
+      userId: 2,
+      nickname: "게스트",
+      persona: {
+        personaId: 3,
+        name: "유나",
+        description: "",
+        gender: "female",
+        speechExamples: "",
+      },
+    });
+    assert.equal(joined, campaignId);
+    const guest = loadParticipants(db, campaignId).find((p) => p.user_id === 2);
+    assert.equal(guest?.display_name, "유나");
+    db.close();
+  });
+
+  it("lets the host bring up to three characters without ending after the first pick", () => {
+    const db = memoryDb();
+    db.prepare(
+      `INSERT INTO characters (name, description, visibility, moderation_status, official)
+       VALUES ('하나', '검사', 'public', 'approved', 1),
+              ('두리', '도적', 'public', 'approved', 1),
+              ('세찌', '마법사', 'public', 'approved', 1),
+              ('네찌', '사제', 'public', 'approved', 1)`
+    ).run();
+    const campaignId = createTrpgCampaign(db, {
+      hostUserId: 1,
+      hostNickname: "렌",
+      viewerUserId: 1,
+      characterIds: [1, 2, 3],
+    });
+    const parts = loadParticipants(db, campaignId);
+    assert.equal(parts.filter((p) => p.kind === "human").length, 1);
+    assert.equal(parts.filter((p) => p.kind === "ai_character").length, 3);
+    assert.deepEqual(
+      parts.filter((p) => p.kind === "ai_character").map((p) => p.display_name),
+      ["하나", "두리", "세찌"]
+    );
+    assert.throws(
+      () =>
+        createTrpgCampaign(db, {
+          hostUserId: 1,
+          hostNickname: "렌",
+          viewerUserId: 1,
+          characterIds: [1, 2, 3, 4],
+        }),
+      /최대 3명/
+    );
+    const extraId = createTrpgCampaign(db, {
+      hostUserId: 1,
+      hostNickname: "렌",
+      viewerUserId: 1,
+      characterIds: [1],
+    });
+    addTrpgCompanions(db, { campaignId: extraId, userId: 1, characterIds: [2, 3] });
+    assert.equal(loadParticipants(db, extraId).filter((p) => p.kind === "ai_character").length, 3);
     db.close();
   });
 });

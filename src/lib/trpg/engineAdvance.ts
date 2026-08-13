@@ -16,6 +16,7 @@ import { applyCampaignLedger, clipTrpgChars, loadCampaignLedger, persistCampaign
 import { resolveTrpgRoll, rollServerD20 } from "./dice";
 import { assertCanStart } from "./engineCreate";
 import { callTrpgBot, callTrpgGm } from "./gmCall";
+import { formatTrpgPlayerPersonaBlock, parseHumanPersona } from "./hostPersona";
 import { buildTrpgGmUserBlock, parseTrpgGmOutput, TRPG_GM_SYSTEM } from "./gmPrompt";
 import { loadTrpgSnapshot } from "./engineSnapshot";
 import { buildCampaignMemoryPrompt, buildTrpgBotMemoryBlock } from "./memory";
@@ -458,11 +459,20 @@ async function runGmForRound(
   const scenario = loadScenario(db, opts.campaignId);
   const memory = buildCampaignMemoryPrompt(db, opts.campaignId);
   const actions = loadActionsForGm(db, opts.roundId);
+  const playerPersonas = loadParticipants(db, opts.campaignId)
+    .filter((p) => p.kind === "human")
+    .map((p) => {
+      const persona = parseHumanPersona(p.persona_json);
+      if (persona) return formatTrpgPlayerPersonaBlock(persona, p.id);
+      return `[PLAYER PERSONA participantId=${p.id} name=${p.display_name}]\n이름/호칭: ${p.display_name}`;
+    })
+    .join("\n\n");
   const user = buildTrpgGmUserBlock({
     worldBrief: campaign.world_brief,
     gmSecret: campaign.gm_secret ?? "",
     memoryBlock: memory,
     opening: opts.opening,
+    playerPersonas,
     actions,
   });
   const gmCall = opts.deps?.gmCall ?? callTrpgGm;

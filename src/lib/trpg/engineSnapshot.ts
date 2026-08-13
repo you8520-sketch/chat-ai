@@ -5,6 +5,8 @@ import { nextTrpgRoundWork, type TrpgRoundWork } from "./roundLock";
 import { buildPartySheetHud } from "./sheetView";
 import { DEFAULT_TRPG_SHEET_WIDGET } from "./defaultSheet";
 import { loadTrpgPartyChat } from "./partyChat";
+import { trpgInvitePath } from "./invite";
+import { parseHumanPersona } from "./hostPersona";
 import {
   loadCampaign,
   loadLatestRound,
@@ -282,6 +284,7 @@ export function loadTrpgSnapshot(
     id: campaign.id,
     title: campaign.title,
     inviteCode: campaign.invite_code ?? "",
+    invitePath: campaign.invite_code ? trpgInvitePath(campaign.invite_code) : "",
     hostUserId: campaign.host_user_id,
     sourceCharacterId: campaign.source_character_id,
     worldBrief: campaign.world_brief,
@@ -293,6 +296,7 @@ export function loadTrpgSnapshot(
     diceRules: scenario.diceRules,
     suggestedPcStats: scenario.defaultPcStats,
     viewerParticipantId: viewer?.id ?? null,
+    viewerPersonaId: parseHumanPersona(viewer?.persona_json)?.personaId ?? null,
     viewerIsHost: campaign.host_user_id === viewerUserId,
     needsHostFill: work.type === "wait_host_fill",
     hostFillBotIds: work.type === "wait_host_fill" ? work.botIds : [],
