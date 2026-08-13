@@ -59,3 +59,47 @@ self.addEventListener("fetch", (event) => {
     }),
   );
 });
+
+self.addEventListener("push", (event) => {
+  let payload = {
+    title: "하비 AI",
+    body: "새 알림이 도착했습니다.",
+    url: "/notifications",
+    tag: "hobby-ai-notification",
+    kind: "notice",
+  };
+  try {
+    if (event.data) payload = { ...payload, ...event.data.json() };
+  } catch {
+    // Keep the safe fallback payload when a malformed message is received.
+  }
+
+  event.waitUntil(
+    Promise.all([
+      self.registration.showNotification(payload.title, {
+        body: payload.body,
+        icon: "/icons/icon-192.png",
+        badge: "/icons/icon-192.png",
+        tag: payload.tag,
+        renotify: true,
+        data: { url: payload.url, kind: payload.kind },
+      }),
+      "setAppBadge" in self.navigator ? self.navigator.setAppBadge(1) : Promise.resolve(),
+    ]),
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl = new URL(event.notification.data?.url || "/notifications", self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      for (const client of clients) {
+        if ("navigate" in client) {
+          return client.navigate(targetUrl).then(() => client.focus());
+        }
+      }
+      return self.clients.openWindow(targetUrl);
+    }),
+  );
+});

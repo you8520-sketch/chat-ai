@@ -25,7 +25,10 @@ import {
   validateSpeechCreatorInput,
 } from "@/lib/speechCreatorFields";
 import { parseCharacterTagsInput } from "@/lib/characterTags";
-import { notifyFollowersOfNewCharacter } from "@/lib/userNotifications";
+import {
+  notifyCharacterReviewResult,
+  notifyFollowersOfNewCharacter,
+} from "@/lib/userNotifications";
 import {
   parseStatusWidgetJson,
   serializeStatusWidget,
@@ -587,11 +590,13 @@ async function resolveVisibilityModeration(
   moderationStatus: ModerationStatus;
   moderationNote: string;
   shareSlug: string | null;
+  moderationPerformed: boolean;
 }> {
   let finalVisibility = data.requestedVisibility;
   let moderationStatus: ModerationStatus = "approved";
   let moderationNote = "";
   let shareSlug: string | null = existing?.share_slug ?? null;
+  let moderationPerformed = false;
 
   if (finalVisibility === "private") {
     moderationNote = "비공개 — 검수 생략";
@@ -623,6 +628,7 @@ async function resolveVisibilityModeration(
           estimated: true,
         }
       : await moderatePublicAssets(data.images, data.nsfw);
+    moderationPerformed = !canReuseModeration;
     if (mod.approved) {
       moderationStatus = "approved";
       moderationNote = mod.reason;
@@ -637,7 +643,7 @@ async function resolveVisibilityModeration(
     }
   }
 
-  return { finalVisibility, moderationStatus, moderationNote, shareSlug };
+  return { finalVisibility, moderationStatus, moderationNote, shareSlug, moderationPerformed };
 }
 
 export async function createCharacterFromForm(user: SessionUser, b: Record<string, unknown>) {
@@ -645,7 +651,7 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
   if (!parsed.ok) return parsed;
 
   const data = parsed.data;
-  const { finalVisibility, moderationStatus, moderationNote, shareSlug } =
+  const { finalVisibility, moderationStatus, moderationNote, shareSlug, moderationPerformed } =
     await resolveVisibilityModeration(data);
   const {
     creatorRawDescription,
@@ -746,6 +752,15 @@ export async function createCharacterFromForm(user: SessionUser, b: Record<strin
   if (listed) {
     notifyFollowersOfNewCharacter(db, user.id, user.nickname, characterId, data.name);
   }
+  if (data.requestedVisibility !== "private" && moderationPerformed) {
+    notifyCharacterReviewResult(db, {
+      userId: user.id,
+      characterId,
+      characterName: data.name,
+      approved: moderationStatus === "approved",
+      note: moderationNote,
+    });
+  }
 
   return {
     ok: true as const,
@@ -821,7 +836,7 @@ export async function updateCharacterFromForm(
       status: 400,
     };
   }
-  const { finalVisibility, moderationStatus, moderationNote, shareSlug } =
+  const { finalVisibility, moderationStatus, moderationNote, shareSlug, moderationPerformed } =
     await resolveVisibilityModeration(data, {
       share_slug: row.share_slug,
       visibility: row.visibility,
@@ -957,6 +972,15 @@ export async function updateCharacterFromForm(
   if (listed && !wasListed) {
     notifyFollowersOfNewCharacter(db, user.id, user.nickname, characterId, data.name);
   }
+  if (data.requestedVisibility !== "private" && moderationPerformed) {
+    notifyCharacterReviewResult(db, {
+      userId: user.id,
+      characterId,
+      characterName: data.name,
+      approved: moderationStatus === "approved",
+      note: moderationNote,
+    });
+  }
 
   return {
     ok: true as const,
@@ -1045,7 +1069,7 @@ export async function updateCharacterPublicProfileFromForm(
   if (!parsedTriggers.ok) {
     return { ok: false as const, error: parsedTriggers.error, status: 400 };
   }
-  const { finalVisibility, moderationStatus, moderationNote, shareSlug } =
+  const { finalVisibility, moderationStatus, moderationNote, shareSlug, moderationPerformed } =
     await resolveVisibilityModeration(
       { requestedVisibility, images, nsfw },
       {
@@ -1087,6 +1111,19 @@ export async function updateCharacterPublicProfileFromForm(
     characterId
   );
   saveCharacterStatusWidgetTriggers(db, characterId, parsedTriggers.triggers);
+
+  if (requestedVisibility !== "private" && moderationPerformed) {
+    const characterName = db
+      .prepare("SELECT name FROM characters WHERE id=?")
+      .get(characterId) as { name: string } | undefined;
+    notifyCharacterReviewResult(db, {
+      userId: user.id,
+      characterId,
+      characterName: characterName?.name ?? "제작 캐릭터",
+      approved: moderationStatus === "approved",
+      note: moderationNote,
+    });
+  }
 
   const listed = finalVisibility === "public" && moderationStatus === "approved";
   return {
