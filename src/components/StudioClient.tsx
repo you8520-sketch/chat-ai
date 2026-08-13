@@ -297,7 +297,7 @@ function WorldsPanel({
       <p className={studioType.helper}>
         {showingScenarios
           ? "TRPG 캠페인에서 쓰는 시나리오입니다. 공개하면 TRPG 탭 목록에 올라갑니다."
-          : "저장한 세계관입니다. 캐릭터 제작의 「세계관 / 배경」에서 불러올 수 있습니다. 공유하기 링크로 다른 유저가 공유받은 세계관으로 추가할 수 있습니다."}
+          : "저장한 세계관입니다. 카드를 누르거나 「수정하기」로 고칠 수 있습니다. 장르는 만들기·수정 화면에서만 고르고, TRPG 탭 카드에만 표시됩니다."}
       </p>
       {showingScenarios ? (
         scenarios.length === 0 ? (
@@ -394,15 +394,18 @@ function WorldCard({ world }: { world: WorldListItem }) {
   }
 
   return (
-    <article className={cn(studioSurface.card, "p-4")}>
-      <div className="flex items-start gap-3">
+    <article className={cn(studioSurface.card, "overflow-hidden")}>
+      <Link
+        href={`/world/${world.id}/edit`}
+        className="flex items-start gap-3 p-4 transition hover:bg-white/[0.03]"
+      >
         <div className="aspect-square w-14 shrink-0 overflow-hidden rounded-lg bg-black">
           {world.coverUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={world.coverUrl} alt="" className="h-full w-full object-cover" />
           ) : null}
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="truncate text-sm font-semibold text-zinc-50">{world.name}</h3>
             {world.sharedFromNickname ? (
@@ -417,9 +420,10 @@ function WorldCard({ world }: { world: WorldListItem }) {
           <p className={cn(studioType.caption, "mt-1 line-clamp-2")}>
             {world.summary || world.content}
           </p>
+          <p className="mt-2 text-xs font-semibold text-violet-300">수정하기 →</p>
         </div>
-      </div>
-      <div className="mt-4 flex flex-wrap gap-2">
+      </Link>
+      <div className="flex flex-wrap gap-2 border-t border-white/10 px-4 py-3">
         <StudioButton href={`/world/${world.id}/edit`} size="sm" className="w-full sm:w-auto">
           수정하기
         </StudioButton>
@@ -437,9 +441,9 @@ function WorldCard({ world }: { world: WorldListItem }) {
           {shareBusy ? "생성 중…" : copied ? "링크 복사됨" : "공유하기"}
         </StudioButton>
       </div>
-      {shareError ? <p className="mt-2 text-xs text-rose-400">{shareError}</p> : null}
+      {shareError ? <p className="px-4 pb-3 text-xs text-rose-400">{shareError}</p> : null}
       {shareUrl ? (
-        <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+        <div className="mx-4 mb-4 rounded-xl border border-white/10 bg-white/[0.03] p-3">
           <p className="text-[11px] font-semibold text-zinc-400">공유 링크</p>
           <p className="mt-1 break-all text-xs text-zinc-300">{shareUrl}</p>
           <button
