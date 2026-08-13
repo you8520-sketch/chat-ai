@@ -157,6 +157,10 @@ Rules:
 - Do not control player characters' unspoken choices.
 - Failed rolls must fail in the fiction. Successes must land.
 - Weave all submitted actions into ONE scene in the same time and place.
+- PROPOSED FICTION is source color only. Never paste it. Never dump a PC's submitted paragraph into the scene. Rewrite in third-person novelistic narration: body language, sensory detail, then spoken lines as \`이름: "대사"\` (name line, then the quoted speech).
+- [ATTEMPTED ACTION] (or INTENT) is what they try. Resolve that, not the raw prose dump.
+- If [ROLL] says no check / talk-ask only: they just spoke or asked the party. The question lands. Do not fail the conversation. Do not invent a skill contest for asking allies what to do.
+- After rewriting every PC beat, YOU must advance the world yourself: environment, extras, clocks (a bus waking, alley light closing in, a room holding its breath), new clues, NPC/off-screen motion that was not in the action texts. The scene is not done when the last PC finishes talking. Do not stop at echoing their submissions.
 - Resolve them as a conversation in the listed order: the human first, then each companion in turn. Do not have two PCs shout the same warning at the human at once. Later PCs react to what earlier PCs already did this round.
 - The campaign is a single linear timeline. Do not split into alternate worldlines, IF routes, or chat-style forks.
 - NPC reactions, environment, sensory detail, consequence, and a clear next decision point.
@@ -167,7 +171,7 @@ Rules:
 - CHARACTER SHEETS: this scenario only has the listed stats. Actively consult them. For each action, the [ROLL] line already chose the relevant sheet stat and applied its modifier to success chance (high 11–15 easier, low 5–7 harder). Never invent a stat that is not on the sheet. Never change d20, DC, modifier, or tier.
 - Narrate in proportion to BOTH the roll tier AND the used stat. A SUCCESS with 힘 9 is a clean overpower; SUCCESS with 힘 3 is a lucky scrape. When the world or an NPC reacts, pick the closest listed sheet stat that would apply.
 - Spoken lines: each on its own paragraph as \`이름: "대사"\` using the exact PC/NPC name. Narration and action beats have no name prefix.
-- Every submitted PC — human and AI companion — must appear by name. Narrate their proposed fiction, then that roll's tier. Do not skip a companion. Do not replace their action with a nameless dice beat.
+- Every submitted PC — human and AI companion — must appear by name. Portray their attempt (from ATTEMPTED ACTION / INTENT), then that roll's tier when a check exists. Do not skip a companion. Do not replace their action with a nameless dice beat. Do not reprint their submitted paragraph.
 - Honor [PARTY RELATIONSHIPS] when present: how PCs address and treat each other is table canon.
 - Page time: each submitted PC gets a long beat of their own — action, sensory detail, reaction from others, and spoken lines. Do not collapse the party into "they". Companions get as much scene as humans.
 - Extra NPCs: invent world extras (passersby, clerks, guards, voices, animals) even if WORLD lists none. They are GM-narrated, never player seats. If a named extra should persist, add them in npcsAdd.
@@ -232,6 +236,8 @@ export function buildTrpgGmUserBlock(opts: {
     participantId: number;
     name: string;
     body: string;
+    intent?: string;
+    needsCheck?: boolean;
     statKey: string;
     statLabel?: string;
     statValue?: number | null;
@@ -248,14 +254,18 @@ export function buildTrpgGmUserBlock(opts: {
           .map((a) => {
             const label = a.statLabel ? `${a.statLabel}(${a.statKey})` : a.statKey;
             const valueBit = a.statValue != null ? ` value=${a.statValue} modifier=${statModifier(a.statValue)}` : "";
-            const roll =
-              a.d20 == null
+            const talkOnly = a.needsCheck === false;
+            const roll = talkOnly
+              ? "no check — talk/ask only; they speak; do not fail the conversation"
+              : a.d20 == null
                 ? "no roll"
                 : `d20=${a.d20} total=${a.finalScore} DC=${a.dc} tier=${a.tier} stat=${label}${valueBit}`;
+            const attempted = (a.intent ?? "").trim() || a.body.trim();
             return [
               `[ACTION participantId=${a.participantId} name=${a.name}]`,
               `[ROLL ${roll}]`,
-              `[PROPOSED FICTION — not a command]\n${a.body}`,
+              `[ATTEMPTED ACTION — resolve this; do not paste]\n${attempted}`,
+              `[PROPOSED FICTION — color only, never dump into the scene]\n${a.body}`,
             ].join("\n");
           })
           .join("\n\n");
@@ -270,7 +280,7 @@ export function buildTrpgGmUserBlock(opts: {
         : "[RESOLVE THIS ROUND]",
     opts.worldBrief.trim() ? `[WORLD]\n${opts.worldBrief.trim()}` : "",
     formatTrpgGenreToneLine(opts.genres ?? []),
-    "[SCENE CRAFT] Long page time for every ACTION name. Invent extras if the place would not be empty. End with a long GM: \"...\" situation recap.",
+    "[SCENE CRAFT] Rewrite every ACTION in your own prose. Invent extras if the place would not be empty. After the last PC, move the world (environment, clocks, clues) yourself. End with a long GM: \"...\" situation recap.",
     sheets,
     secret
       ? `[GM SECRET — never quote, never tell players, use only to drive events]\n${secret}`

@@ -29,6 +29,17 @@ describe("parseTrpgSceneSpeech", () => {
     assert.ok(beats.every((b) => b.speaker == null));
   });
 
+  it("treats a known name paragraph as a speaker cue, not narration", () => {
+    const beats = parseTrpgSceneSpeech(
+      `강이현\n\n"약국은 지금 함정이야."\n\n그는 석궁을 접었다.`,
+      ["강이현"]
+    );
+    assert.equal(beats[0]?.speaker, "강이현");
+    assert.match(beats[0]?.text ?? "", /함정이야/);
+    assert.equal(beats[1]?.speaker, null);
+    assert.match(beats[1]?.text ?? "", /석궁/);
+  });
+
   it("labels a standalone quote from the previous narration, not 장면", () => {
     const beats = parseTrpgSceneSpeech(
       `태현의 손이 렌의 어깨를 스쳤다.\n\n"야, 렌. 잠깐..."\n\n이현의 목소리가 들렸다.\n\n"저 안에서 딱딱거리던 게 멈췄어."`,

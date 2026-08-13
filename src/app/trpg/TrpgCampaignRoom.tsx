@@ -6,6 +6,7 @@ import { AppSectionCard } from "@/components/AppPageShell";
 import ChatSelectionQuoteToolbar from "@/components/ChatSelectionQuoteToolbar";
 import NovelText from "@/components/NovelText";
 import { TRPG_ACTION_TYPES, actionTypeLabelKo, type TrpgActionType } from "@/lib/trpg/actionTypes";
+import { parseTrpgBotAction } from "@/lib/trpg/botActions";
 import {
   CHAT_ROOM_HEADER_OFFSET_CLASS,
   DEFAULT_CHAT_DISPLAY_PREFS,
@@ -483,24 +484,31 @@ function SceneTurn({
         {row.roundNumber === 0 ? "시작" : `장면 ${row.roundNumber}`}
       </p>
       <div className="space-y-4">
-        {visibleActions.map((action) => (
-          <TrpgNamedProse
-            key={`${row.roundNumber}-${action.participantId}`}
-            name={action.name}
-            hint={
-              action.kind === "ai_character"
-                ? action.actionType
-                  ? `AI · ${actionTypeLabelKo(action.actionType)}`
-                  : "AI 캐릭터"
-                : action.actionType
-                  ? actionTypeLabelKo(action.actionType)
-                  : undefined
-            }
-            text={action.body}
-            variant={action.kind === "human" ? "user" : "character"}
-            display={display}
-          />
-        ))}
+        {visibleActions.map((action) => {
+          const parsed = parseTrpgBotAction(action.body);
+          return (
+            <div key={`${row.roundNumber}-${action.participantId}`}>
+              <TrpgNamedProse
+                name={action.name}
+                hint={
+                  action.kind === "ai_character"
+                    ? action.actionType
+                      ? `AI · ${actionTypeLabelKo(action.actionType)}`
+                      : "AI 캐릭터"
+                    : action.actionType
+                      ? actionTypeLabelKo(action.actionType)
+                      : undefined
+                }
+                text={parsed.prose || action.body}
+                variant={action.kind === "human" ? "user" : "character"}
+                display={display}
+              />
+              {parsed.intent ? (
+                <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">{parsed.intent}</p>
+              ) : null}
+            </div>
+          );
+        })}
         {row.rolls.length > 0 ? <DiceStrip rolls={row.rolls} statDefs={statDefs} /> : null}
         {beats.map((beat, i) =>
           beat.speaker ? (
@@ -548,6 +556,19 @@ function SceneTurn({
   );
 }
 
+function DiceActionBody({ body }: { body: string }) {
+  const parsed = parseTrpgBotAction(body);
+  const prose = parsed.prose || body;
+  return (
+    <>
+      <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-zinc-300">{prose}</p>
+      {parsed.intent ? (
+        <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">{parsed.intent}</p>
+      ) : null}
+    </>
+  );
+}
+
 function DiceStrip({
   rolls,
   statDefs,
@@ -580,7 +601,7 @@ function DiceStrip({
                   ) : null}
                 </p>
                 {roll.actionBody.trim() ? (
-                  <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-zinc-300">{roll.actionBody}</p>
+                  <DiceActionBody body={roll.actionBody} />
                 ) : (
                   <p className="mt-1 text-sm text-zinc-500">제출한 행동이 아직 없습니다.</p>
                 )}

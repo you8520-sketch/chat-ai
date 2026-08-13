@@ -54,8 +54,10 @@ describe("TRPG GM prompt/parse", () => {
     });
     assert.doesNotMatch(block, /OOC|PARTY CHAT/i);
     assert.match(block, /PROPOSED FICTION/);
+    assert.match(block, /ATTEMPTED ACTION/);
     assert.match(block, /d20=14/);
     assert.match(block, /SCENE CRAFT/);
+    assert.match(block, /Rewrite every ACTION/);
     assert.match(block, /Infer comic vs serious/);
     assert.match(formatTrpgGenreToneLine(["공포/추리", "판타지"]), /WORLD GENRES: 공포\/추리, 판타지/);
     const withGenres = buildTrpgGmUserBlock({
@@ -123,7 +125,29 @@ describe("TRPG GM prompt/parse", () => {
     assert.match(withSheets, /stat=힘\(str\) value=9 modifier=2/);
     assert.match(TRPG_GM_SYSTEM, /CHARACTER SHEETS/);
     assert.match(TRPG_GM_SYSTEM, /이름: "대사"/);
-    assert.match(TRPG_GM_SYSTEM, /AI companion/);
+    assert.match(TRPG_GM_SYSTEM, /Never paste/);
+    assert.match(TRPG_GM_SYSTEM, /talk-ask only/);
+    assert.match(TRPG_GM_SYSTEM, /Do not stop at echoing/);
+    const talk = buildTrpgGmUserBlock({
+      worldBrief: "폐여관",
+      memoryBlock: "[TRPG STRUCTURED STATE]",
+      opening: false,
+      actions: [
+        {
+          participantId: 1,
+          name: "렌",
+          body: "어디로 갈까?",
+          needsCheck: false,
+          statKey: "cha",
+          d20: null,
+          finalScore: null,
+          dc: null,
+          tier: null,
+        },
+      ],
+    });
+    assert.match(talk, /talk\/ask only/);
+    assert.doesNotMatch(talk, /d20=/);
     assert.match(TRPG_GM_SYSTEM, /PARTY RELATIONSHIPS/);
   });
 });

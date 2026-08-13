@@ -109,6 +109,26 @@ describe("TRPG campaign loop", () => {
     db.close();
   });
 
+  it("does not roll when the human only asks the party", async () => {
+    const db = memoryDb();
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 3,
+      gmCall: async () => ({ text: gmText({ narration: "렌이 묻자 동료들이 대답한다." }) }),
+    };
+    const { campaignId } = await setupSolo(db, deps);
+    submitTrpgAction(db, {
+      campaignId,
+      userId: 1,
+      body: "안전가옥을 찾아볼까?? 아니면 약국에 쓸만한게 있나볼까??? *모두를 향해 물어본다*",
+      actionType: "persuade",
+    });
+    const after = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.equal(after.currentRolls.length, 0);
+    assert.match(after.log.at(-1)?.narration ?? after.currentNarration ?? "", /렌이 묻자/);
+    db.close();
+  });
+
   it("does not call the GM when two of three humans are still writing", async () => {
     const db = memoryDb();
     let gmCalls = 0;
@@ -210,7 +230,15 @@ describe("TRPG campaign loop", () => {
         assert.match(user, /CHARACTER CARD|HUMAN ACTIONS THIS ROUND/);
         assert.match(user, /창문을 연다/);
         assert.match(user, /CAMPAIGN STATE|location=/);
-        return { text: '*창가에 붙어 낮게* "…먼저 나가지 마. 내가 볼게."' };
+        return {
+          text: [
+            "유나는 창틀에 어깨를 붙인 채 골목 쪽을 먼저 눈으로 훑는다.",
+            '렌 쪽으로 고개만 돌려 낮게 말한다. "먼저 나가지 마. 내가 볼게."',
+            "",
+            "<<<INTENT>>>",
+            "창가에 붙어 골목을 먼저 살핀다.",
+          ].join("\n"),
+        };
       },
     };
     const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1 });
