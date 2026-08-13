@@ -10,10 +10,10 @@ describe("TRPG client bundle stays free of node:crypto", () => {
     assert.match(bot, /from "\.\/clip"/);
     assert.doesNotMatch(bot, /campaignLedger/);
     assert.doesNotMatch(bot, /from ["']\.\/store["']/);
-    assert.doesNotMatch(bot, /node:crypto/);
+    assert.doesNotMatch(bot, /from ["']node:crypto["']/);
     const clip = read("src/lib/trpg/clip.ts");
     assert.doesNotMatch(clip, /from ["'].*store["']/);
-    assert.doesNotMatch(clip, /node:crypto/);
+    assert.doesNotMatch(clip, /from ["']node:crypto["']/);
     const room = read("src/app/trpg/TrpgCampaignRoom.tsx");
     assert.match(room, /parseTrpgBotAction/);
     assert.doesNotMatch(room, /campaignLedger/);

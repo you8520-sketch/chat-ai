@@ -1,4 +1,4 @@
-/** Client-safe string clip. Do not import store / node:crypto from this file. */
+/** Client-safe string clip. Keep this file free of store and Node builtins. */
 export function clipTrpgChars(text: string, max: number): string {
   const chars = Array.from(text.replace(/\s+/g, " ").trim());
   if (chars.length <= max) return chars.join("");
