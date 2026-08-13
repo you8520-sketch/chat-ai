@@ -242,6 +242,9 @@ function WorldCard({ world }: { world: WorldListItem }) {
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [shareError, setShareError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [trpgEnabled, setTrpgEnabled] = useState(world.trpgEnabled);
+  const [trpgVisibility, setTrpgVisibility] = useState(world.trpgVisibility);
+  const [trpgBusy, setTrpgBusy] = useState(false);
 
   async function shareWorld() {
     setShareBusy(true);
@@ -280,6 +283,29 @@ function WorldCard({ world }: { world: WorldListItem }) {
     }
   }
 
+  async function saveTrpg(nextEnabled: boolean, nextVisibility: "public" | "private") {
+    setTrpgBusy(true);
+    setShareError("");
+    try {
+      const res = await fetch(`/api/worlds/${world.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trpgEnabled: nextEnabled, trpgVisibility: nextVisibility }),
+      });
+      const data = (await res.json()) as { error?: string };
+      if (!res.ok) {
+        setShareError(data.error || "TRPG 설정을 저장하지 못했습니다.");
+        return;
+      }
+      setTrpgEnabled(nextEnabled);
+      setTrpgVisibility(nextVisibility);
+    } catch {
+      setShareError("네트워크 오류가 발생했습니다.");
+    } finally {
+      setTrpgBusy(false);
+    }
+  }
+
   return (
     <article className={cn(studioSurface.card, "p-4")}>
       <div className="flex items-start gap-3">
@@ -289,6 +315,11 @@ function WorldCard({ world }: { world: WorldListItem }) {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="truncate text-sm font-semibold text-zinc-50">{world.name}</h3>
+            {trpgEnabled ? (
+              <span className="shrink-0 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-300">
+                TRPG {trpgVisibility === "public" ? "공개" : "비공개"}
+              </span>
+            ) : null}
             {world.sharedFromNickname ? (
               <span className="shrink-0 rounded-md border border-violet-500/30 bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-violet-300">
                 공유받은 세계관
@@ -317,6 +348,30 @@ function WorldCard({ world }: { world: WorldListItem }) {
         >
           {shareBusy ? "생성 중…" : copied ? "링크 복사됨" : "공유하기"}
         </StudioButton>
+        <StudioButton
+          type="button"
+          variant="secondary"
+          size="sm"
+          className="w-full sm:w-auto"
+          disabled={trpgBusy}
+          onClick={() => void saveTrpg(!trpgEnabled, trpgEnabled ? trpgVisibility : "private")}
+        >
+          {trpgBusy ? "저장 중…" : trpgEnabled ? "TRPG 사용 끄기" : "TRPG에서 사용"}
+        </StudioButton>
+        {trpgEnabled ? (
+          <StudioButton
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="w-full sm:w-auto"
+            disabled={trpgBusy}
+            onClick={() =>
+              void saveTrpg(true, trpgVisibility === "public" ? "private" : "public")
+            }
+          >
+            {trpgVisibility === "public" ? "TRPG 비공개로" : "TRPG 탭에 공개"}
+          </StudioButton>
+        ) : null}
       </div>
       {shareError ? <p className="mt-2 text-xs text-rose-400">{shareError}</p> : null}
       {shareUrl ? (

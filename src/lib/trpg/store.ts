@@ -29,6 +29,14 @@ export type TrpgCampaignRow = {
   status: string;
   invite_code: string | null;
   world_brief: string;
+  template_id: number | null;
+  author_user_id: number | null;
+};
+
+export type TrpgBotPersona = {
+  description: string;
+  greeting: string;
+  systemPrompt: string;
 };
 
 export type TrpgParticipantRow = {
@@ -41,6 +49,7 @@ export type TrpgParticipantRow = {
   display_name: string;
   can_act: number;
   status: string;
+  persona_json: string | null;
 };
 
 export type TrpgRoundRow = {
@@ -93,10 +102,12 @@ export function loadScenario(db: Database.Database, campaignId: number): {
   diceRules: TrpgDiceRules;
   startLocation: string;
   startInventory: string[];
+  defaultPcStats: Record<string, number> | null;
 } {
   const row = db
     .prepare(
-      `SELECT stat_definitions_json, point_pool, dice_rules_json, start_location, start_inventory_json
+      `SELECT stat_definitions_json, point_pool, dice_rules_json, start_location, start_inventory_json,
+              COALESCE(default_pc_stats_json, '') AS default_pc_stats_json
        FROM trpg_scenarios WHERE campaign_id=?`
     )
     .get(campaignId) as
@@ -106,6 +117,7 @@ export function loadScenario(db: Database.Database, campaignId: number): {
         dice_rules_json: string;
         start_location: string;
         start_inventory_json: string;
+        default_pc_stats_json: string;
       }
     | undefined;
   if (!row) {
@@ -115,14 +127,18 @@ export function loadScenario(db: Database.Database, campaignId: number): {
       diceRules: DEFAULT_TRPG_DICE_RULES,
       startLocation: "",
       startInventory: [],
+      defaultPcStats: null,
     };
   }
+  const parsedStats = parseJson(row.default_pc_stats_json, null as Record<string, number> | null);
   return {
     statDefs: parseJson(row.stat_definitions_json, DEFAULT_TRPG_STAT_DEFS),
     pointPool: row.point_pool,
     diceRules: parseJson(row.dice_rules_json, DEFAULT_TRPG_DICE_RULES),
     startLocation: row.start_location,
     startInventory: parseJson(row.start_inventory_json, [] as string[]),
+    defaultPcStats:
+      parsedStats && typeof parsedStats === "object" && !Array.isArray(parsedStats) ? parsedStats : null,
   };
 }
 
@@ -133,13 +149,18 @@ export function insertCampaign(db: Database.Database, opts: {
   sourceWorldId: number | null;
   worldBrief: string;
   maxSlots: number;
+  templateId?: number | null;
+  authorUserId?: number | null;
+  startLocation?: string;
+  startInventory?: string[];
+  defaultPcStats?: Record<string, number> | null;
 }): number {
   const invite = newTrpgInviteCode();
   const info = db
     .prepare(
       `INSERT INTO trpg_campaigns
-        (host_user_id, source_character_id, source_world_id, title, max_slots, billing_mode, gm_model, status, invite_code, world_brief)
-       VALUES (?,?,?,?,?,'split_even','deepseek-v4-pro','CHARACTER_SETUP',?,?)`
+        (host_user_id, source_character_id, source_world_id, title, max_slots, billing_mode, gm_model, status, invite_code, world_brief, template_id, author_user_id)
+       VALUES (?,?,?,?,?,'split_even','deepseek-v4-pro','CHARACTER_SETUP',?,?,?,?)`
     )
     .run(
       opts.hostUserId,
@@ -148,25 +169,28 @@ export function insertCampaign(db: Database.Database, opts: {
       opts.title,
       opts.maxSlots,
       invite,
-      opts.worldBrief
+      opts.worldBrief,
+      opts.templateId ?? null,
+      opts.authorUserId ?? null
     );
   const campaignId = Number(info.lastInsertRowid);
   db.prepare(
     `INSERT INTO trpg_scenarios
-      (campaign_id, stat_definitions_json, point_pool, dice_rules_json, widget_template_json, start_location, start_inventory_json)
-     VALUES (?,?,?,?,?,?,?)`
+      (campaign_id, stat_definitions_json, point_pool, dice_rules_json, widget_template_json, start_location, start_inventory_json, default_pc_stats_json)
+     VALUES (?,?,?,?,?,?,?,?)`
   ).run(
     campaignId,
     JSON.stringify(DEFAULT_TRPG_STAT_DEFS),
     DEFAULT_TRPG_POINT_POOL,
     JSON.stringify(DEFAULT_TRPG_DICE_RULES),
     JSON.stringify(DEFAULT_TRPG_SHEET_WIDGET),
-    "",
-    JSON.stringify([])
+    opts.startLocation ?? "",
+    JSON.stringify(opts.startInventory ?? []),
+    opts.defaultPcStats ? JSON.stringify(opts.defaultPcStats) : ""
   );
   db.prepare(
-    `INSERT INTO trpg_campaign_state (campaign_id, round_number, location) VALUES (?,0,?)`
-  ).run(campaignId, "");
+    `INSERT INTO trpg_campaign_state (campaign_id, round_number, location, npcs_json) VALUES (?,0,?,?)`
+  ).run(campaignId, opts.startLocation ?? "", JSON.stringify([]));
   db.prepare(`INSERT INTO trpg_campaign_memories (campaign_id) VALUES (?)`).run(campaignId);
   return campaignId;
 }
@@ -178,14 +202,33 @@ export function insertParticipant(db: Database.Database, opts: {
   userId: number | null;
   characterId: number | null;
   displayName: string;
+  persona?: TrpgBotPersona | null;
 }): number {
   const info = db
     .prepare(
-      `INSERT INTO trpg_participants (campaign_id, slot_index, kind, user_id, character_id, display_name)
-       VALUES (?,?,?,?,?,?)`
+      `INSERT INTO trpg_participants (campaign_id, slot_index, kind, user_id, character_id, display_name, persona_json)
+       VALUES (?,?,?,?,?,?,?)`
     )
-    .run(opts.campaignId, opts.slotIndex, opts.kind, opts.userId, opts.characterId, opts.displayName);
+    .run(
+      opts.campaignId,
+      opts.slotIndex,
+      opts.kind,
+      opts.userId,
+      opts.characterId,
+      opts.displayName,
+      opts.persona ? JSON.stringify(opts.persona) : ""
+    );
   return Number(info.lastInsertRowid);
+}
+
+export function parseBotPersona(raw: string | null | undefined): TrpgBotPersona | null {
+  const parsed = parseJson(raw, null as TrpgBotPersona | null);
+  if (!parsed || typeof parsed !== "object") return null;
+  return {
+    description: String(parsed.description ?? ""),
+    greeting: String(parsed.greeting ?? ""),
+    systemPrompt: String(parsed.systemPrompt ?? ""),
+  };
 }
 
 export function setRoundPhase(db: Database.Database, roundId: number, phase: TrpgRoundPhase): void {

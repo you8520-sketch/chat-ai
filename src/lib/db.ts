@@ -478,6 +478,8 @@ function migrate(db: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_world_shares_slug ON world_shares(share_slug);
   `);
   addColumn("worlds", "shared_from_nickname", "TEXT NOT NULL DEFAULT ''");
+  addColumn("worlds", "trpg_enabled", "INTEGER NOT NULL DEFAULT 0");
+  addColumn("worlds", "trpg_visibility", "TEXT NOT NULL DEFAULT 'private'");
   db.exec(`
     CREATE TABLE IF NOT EXISTS keyword_lorebooks (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -9,7 +9,7 @@ import {
   rowToLorebookListItem,
   type KeywordLorebookRow,
 } from "@/lib/keywordLorebooks";
-import { rowToWorldListItem, type WorldRow } from "@/lib/worlds";
+import { rowToWorldListItem, WORLD_SELECT_COLUMNS, type WorldRow } from "@/lib/worlds";
 
 export const dynamic = "force-dynamic";
 
@@ -38,8 +38,7 @@ export default async function StudioPage() {
   const worlds = (
     db
       .prepare(
-        `SELECT id, creator_id, name, summary, content, created_at, updated_at,
-                COALESCE(shared_from_nickname, '') AS shared_from_nickname
+        `SELECT ${WORLD_SELECT_COLUMNS}
          FROM worlds WHERE creator_id = ? ORDER BY updated_at DESC, id DESC`
       )
       .all(user.id) as WorldRow[]

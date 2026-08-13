@@ -22,10 +22,25 @@ export const TRPG_GM_GROSS_MARGIN = 0.65;
 export const TRPG_BOT_GROSS_MARGIN = 0.65;
 export const TRPG_BOT_MODEL = "deepseek-v4-pro";
 export const TRPG_ACTION_MAX_CHARS = 800;
+/** Out-of-world party talk. Never sent to GM or bot-seat prompts. */
+export const TRPG_PARTY_CHAT_MAX_CHARS = 400;
+export const TRPG_PARTY_CHAT_LIMIT = 80;
 /** Chat-style forks are forbidden. One campaign is one linear timeline. */
 export const TRPG_ALLOW_FORK = false;
 export const TRPG_FORK_FORBIDDEN_MESSAGE =
   "TRPG 캠페인은 분기할 수 없습니다. 한 타임라인만 진행됩니다.";
+
+/** Imported character creators — percent of PAID round spend, after the scenario author tier. */
+export const TRPG_CHARACTER_ROYALTY_RATE = 0.05;
+/** Author tier + character royalties never exceed this share of PAID spend. Character royalties shrink first. */
+export const TRPG_CREATOR_REWARD_CAP_RATE = 0.25;
+
+export const TRPG_VISIBILITIES = ["public", "private"] as const;
+export type TrpgVisibility = (typeof TRPG_VISIBILITIES)[number];
+
+export function parseTrpgVisibility(value: unknown): TrpgVisibility {
+  return value === "public" ? "public" : "private";
+}
 
 export const TRPG_ROUND_PHASES = [
   "CHARACTER_SETUP",

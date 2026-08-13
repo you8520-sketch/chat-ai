@@ -2,6 +2,11 @@ export const WORLD_NAME_LIMIT = 40;
 export const WORLD_SUMMARY_LIMIT = 100;
 export const WORLD_CONTENT_LIMIT = 10000;
 
+export const WORLD_SELECT_COLUMNS = `id, creator_id, name, summary, content, created_at, updated_at,
+              COALESCE(shared_from_nickname, '') AS shared_from_nickname,
+              COALESCE(trpg_enabled, 0) AS trpg_enabled,
+              COALESCE(trpg_visibility, 'private') AS trpg_visibility`;
+
 export type WorldRow = {
   id: number;
   creator_id: number;
@@ -11,6 +16,8 @@ export type WorldRow = {
   created_at: string;
   updated_at: string;
   shared_from_nickname?: string;
+  trpg_enabled?: number;
+  trpg_visibility?: string;
 };
 
 export type WorldListItem = {
@@ -22,7 +29,24 @@ export type WorldListItem = {
   updatedAt: string;
   /** 공유받아 추가된 경우 원 작성자 닉네임 */
   sharedFromNickname?: string;
+  trpgEnabled: boolean;
+  trpgVisibility: "public" | "private";
 };
+
+export function parseWorldTrpgVisibility(value: unknown): "public" | "private" {
+  return value === "public" ? "public" : "private";
+}
+
+export function parseWorldTrpgFlags(body: { trpgEnabled?: unknown; trpgVisibility?: unknown }): {
+  trpgEnabled: number;
+  trpgVisibility: "public" | "private";
+} {
+  const trpgEnabled = body.trpgEnabled === true || body.trpgEnabled === 1 || body.trpgEnabled === "1" ? 1 : 0;
+  return {
+    trpgEnabled,
+    trpgVisibility: trpgEnabled ? parseWorldTrpgVisibility(body.trpgVisibility) : "private",
+  };
+}
 
 export function rowToWorldListItem(row: WorldRow): WorldListItem {
   const sharedFrom = (row.shared_from_nickname ?? "").trim();
@@ -34,5 +58,7 @@ export function rowToWorldListItem(row: WorldRow): WorldListItem {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     ...(sharedFrom ? { sharedFromNickname: sharedFrom } : {}),
+    trpgEnabled: Number(row.trpg_enabled ?? 0) === 1,
+    trpgVisibility: parseWorldTrpgVisibility(row.trpg_visibility),
   };
 }

@@ -52,6 +52,16 @@ export type TrpgPublicLog = {
   actions: Array<{ participantId: number; name: string; body: string; revealed: boolean }>;
 };
 
+export type TrpgPartyChatMessage = {
+  id: number;
+  participantId: number;
+  userId: number;
+  name: string;
+  body: string;
+  createdAt: string;
+  isSelf: boolean;
+};
+
 export type TrpgCampaignSnapshot = {
   id: number;
   title: string;
@@ -65,6 +75,7 @@ export type TrpgCampaignSnapshot = {
   pointPool: number;
   statDefs: TrpgStatDefinition[];
   diceRules: TrpgDiceRules;
+  suggestedPcStats: Record<string, number> | null;
   viewerParticipantId: number | null;
   viewerIsHost: boolean;
   needsHostFill: boolean;
@@ -89,4 +100,5 @@ export type TrpgCampaignSnapshot = {
   lastBilledPoints: number | null;
   gmGrossMargin: number;
   botGrossMargin: number;
+  partyChat: TrpgPartyChatMessage[];
 };

@@ -4,8 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AppSectionCard } from "@/components/AppPageShell";
 import { TRPG_ACTION_TYPES, actionTypeLabelKo, type TrpgActionType } from "@/lib/trpg/actionTypes";
 import { successLabelKo } from "@/lib/trpg/labels";
+import { suggestBotStats } from "@/lib/trpg/stats";
 import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
-import { TRPG_ACTION_MAX_CHARS, TRPG_GM_GROSS_MARGIN } from "@/lib/trpg/types";
+import { TRPG_ACTION_MAX_CHARS, TRPG_GM_GROSS_MARGIN, TRPG_PARTY_CHAT_MAX_CHARS } from "@/lib/trpg/types";
 
 const POLL_MS = 1500;
 const ACTIVE_PHASES = new Set([
@@ -50,12 +51,15 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
   const [stats, setStats] = useState<Record<string, number>>(() => {
     const mine = snap.sheets.find((s) => s.isSelf)?.sheet.stats;
     const next: Record<string, number> = {};
-    for (const def of snap.statDefs) next[def.key] = mine?.[def.key] ?? 5;
+    for (const def of snap.statDefs) {
+      next[def.key] = mine?.[def.key] ?? snap.suggestedPcStats?.[def.key] ?? 5;
+    }
     return next;
   });
   const [actionType, setActionType] = useState<TrpgActionType>("free");
   const [actionBody, setActionBody] = useState(snap.myDraft?.body ?? "");
   const [hostFill, setHostFill] = useState("");
+  const [partyBody, setPartyBody] = useState("");
   const [editingId, setEditingId] = useState<number | null>(
     () => snap.viewerParticipantId ?? snap.participants.find((p) => p.kind === "human")?.id ?? null
   );
@@ -82,11 +86,11 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
   }, [apply, snap.id]);
 
   useEffect(() => {
-    if (setup && !generating) return;
     const id = window.setInterval(() => {
       void (async () => {
         try {
           const next = await refresh();
+          if (setup) return;
           if (next.workType === "generate_bots" || next.workType === "acquire_gm_lock") {
             await fetch(`/api/trpg/campaigns/${next.id}/advance`, { method: "POST" });
             await refresh();
@@ -97,7 +101,7 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
       })();
     }, POLL_MS);
     return () => window.clearInterval(id);
-  }, [generating, refresh, setup, snap.workType]);
+  }, [refresh, setup, snap.workType]);
 
   async function run(path: string, body?: unknown) {
     setBusy(true);
@@ -110,6 +114,28 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
       });
       const data = (await res.json()) as { campaign?: TrpgCampaignSnapshot; error?: string };
       if (!res.ok || !data.campaign) throw new Error(data.error || "실패했습니다.");
+      apply(data.campaign);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "실패했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendParty() {
+    const text = partyBody.trim();
+    if (!text) return;
+    setBusy(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/trpg/campaigns/${snap.id}/party-chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body: text }),
+      });
+      const data = (await res.json()) as { campaign?: TrpgCampaignSnapshot; error?: string };
+      if (!res.ok || !data.campaign) throw new Error(data.error || "보내지 못했습니다.");
+      setPartyBody("");
       apply(data.campaign);
     } catch (e) {
       setError(e instanceof Error ? e.message : "실패했습니다.");
@@ -132,11 +158,14 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
     if (!editing) return;
     const next: Record<string, number> = {};
     for (const def of snap.statDefs) {
-      next[def.key] = editingSheet?.sheet.stats[def.key] ?? 5;
+      next[def.key] =
+        editingSheet?.sheet.stats[def.key] ??
+        (editing.kind === "human" ? snap.suggestedPcStats?.[def.key] : undefined) ??
+        5;
     }
     setStats(next);
     if (editing.kind === "human") setName(editingSheet?.sheet.name || editing.displayName);
-  }, [editing, editingSheet, snap.statDefs]);
+  }, [editing, editingSheet, snap.statDefs, snap.suggestedPcStats]);
   const showDice = snap.currentRolls.length > 0 && (generating || Boolean(snap.currentNarration));
   const showNarration = Boolean(snap.currentNarration) && phase !== "ROLLING" && phase !== "GENERATING_NARRATION";
 
@@ -183,6 +212,50 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
         </ul>
       </AppSectionCard>
 
+      {snap.viewerParticipantId ? (
+        <AppSectionCard title="파티 대화">
+          <p className="mb-3 text-sm text-zinc-400">
+            유저끼리만 보는 잡담입니다. GM·봇·주사위·시나리오 진행에는 들어가지 않습니다.
+          </p>
+          <ul className="mb-3 max-h-56 space-y-2 overflow-y-auto rounded-xl border border-white/10 bg-[#161922] p-3">
+            {(snap.partyChat ?? []).length === 0 ? (
+              <li className="text-sm text-zinc-500">아직 대화가 없습니다.</li>
+            ) : (
+              (snap.partyChat ?? []).map((msg) => (
+                <li key={msg.id} className="text-sm leading-relaxed">
+                  <span className={msg.isSelf ? "font-semibold text-violet-300" : "font-semibold text-zinc-400"}>
+                    {msg.name}
+                  </span>
+                  <span className="ml-2 text-zinc-200">{msg.body}</span>
+                </li>
+              ))
+            )}
+          </ul>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void sendParty();
+            }}
+            className="flex flex-wrap gap-2"
+          >
+            <input
+              value={partyBody}
+              onChange={(e) => setPartyBody(e.target.value)}
+              maxLength={TRPG_PARTY_CHAT_MAX_CHARS}
+              placeholder="파티원에게 말하기"
+              className="min-h-10 min-w-[10rem] flex-1 rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100 outline-none focus:border-violet-400/40"
+            />
+            <button
+              type="submit"
+              disabled={busy || !partyBody.trim()}
+              className="inline-flex min-h-10 items-center rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-semibold text-zinc-200 hover:bg-white/10 disabled:opacity-50"
+            >
+              보내기
+            </button>
+          </form>
+        </AppSectionCard>
+      ) : null}
+
       {snap.sheets.length > 0 ? (
         <AppSectionCard title="상태창">
           <div className="grid gap-3 sm:grid-cols-2">
@@ -206,7 +279,7 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
             {snap.pointPool}포인트 안에서 배분합니다. HP는 체력×5입니다. 남은 포인트 {remaining}.
             {snap.viewerIsHost
               ? " AI 동료는 방장이 캐릭터성에 맞게 정합니다. 제안값은 이름/소개 키워드일 뿐, 저장해야 시작됩니다."
-              : ""}
+              : " 시나리오에 기본 시트가 있으면 그 값으로 채워집니다."}
           </p>
           {snap.viewerIsHost && snap.participants.length > 1 ? (
             <div className="mb-3 flex flex-wrap gap-1.5">
@@ -274,6 +347,20 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
             >
               시트 저장
             </button>
+            <button
+              type="button"
+              disabled={busy || !editing}
+              onClick={() =>
+                setStats(
+                  editing?.kind === "ai_character"
+                    ? suggestBotStats(editing.displayName + "\n" + snap.worldBrief)
+                    : snap.suggestedPcStats ?? suggestBotStats(snap.worldBrief)
+                )
+              }
+              className="inline-flex min-h-10 items-center rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-semibold text-zinc-100 hover:bg-white/10 disabled:opacity-50"
+            >
+              자동 배분
+            </button>
             {snap.viewerIsHost ? (
               <button
                 type="button"
@@ -323,7 +410,7 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
       {!setup && phase === "ACTION_INPUT" && snap.myDraft && !snap.myDraft.locked ? (
         <AppSectionCard title="시나리오 행동">
           <p className="mb-3 text-sm text-zinc-400">
-            이 칸은 세계 안 행동만 받습니다. 잡담·OOC 채널은 없습니다.
+            이 칸은 세계 안 행동만 받습니다. 유저끼리 잡담은 아래 파티 대화칸을 쓰세요.
           </p>
           <div className="mb-3 flex flex-wrap gap-1.5">
             {TRPG_ACTION_TYPES.map((kind) => (
