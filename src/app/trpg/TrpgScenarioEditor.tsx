@@ -54,6 +54,7 @@ export default function TrpgScenarioEditor({
   const [error, setError] = useState("");
 
   const spent = Object.values(stats).reduce((a, b) => a + b, 0);
+  const linkedWorld = typeof worldId === "number" ? catalog.myWorlds.find((w) => w.id === worldId) : undefined;
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -115,14 +116,48 @@ export default function TrpgScenarioEditor({
           </label>
           <label className="mt-3 block text-sm text-zinc-300">
             시나리오 본문 *
+            <span className="mt-1 block text-xs font-normal text-zinc-500">
+              GM이 이번 캠페인에서 참고하는 공개 설정입니다. 배경·장소·이번 이야기 흐름을 적습니다. 세계관도 여기에
+              적어도 됩니다. 비워 두면 시나리오가 성립하지 않습니다.
+            </span>
             <textarea
               value={content}
               maxLength={TRPG_SCENARIO_CONTENT_LIMIT}
               rows={10}
               onChange={(e) => setContent(e.target.value)}
+              placeholder="예: 눈 덮인 북부 공국. 얼음 마법이 흔하다. 한밤의 폐역에서 유령 기차를 기다린다."
               className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
             />
           </label>
+          <div className="mt-3">
+            <p className="text-sm text-zinc-300">이미 만든 세계관 재사용 (선택)</p>
+            <p className="mt-1 text-xs font-normal text-zinc-500">
+              GM 전용 비밀이 아닙니다. 「캐릭터·시뮬레이션 세계관」에 이미 써 둔 문서를 여러 시나리오에서 다시 쓸 때만
+              고르세요. 고르면 그 본문이 시나리오 본문 앞에 붙어 GM 세계 설정에 들어갑니다. 안 골라도 됩니다. 세계관은
+              위 본문에 적어도 충분합니다.
+            </p>
+            {catalog.myWorlds.length === 0 ? (
+              <p className="mt-2 text-xs text-zinc-500">아직 저장한 세계관 문서가 없습니다.</p>
+            ) : (
+              <select
+                value={worldId}
+                onChange={(e) => setWorldId(e.target.value ? Number(e.target.value) : "")}
+                className="mt-2 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
+              >
+                <option value="">없음 — 시나리오 본문만 사용</option>
+                {catalog.myWorlds.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            {linkedWorld && (linkedWorld.summary.trim() || linkedWorld.content.trim()) ? (
+              <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-xs text-zinc-500">
+                붙을 내용: {linkedWorld.summary.trim() || linkedWorld.content.trim()}
+              </p>
+            ) : null}
+          </div>
           <label className="mt-3 block text-sm text-zinc-300">
             숨겨진 설정 (비밀)
             <span className="mt-1 block text-xs font-normal text-zinc-500">
@@ -136,21 +171,6 @@ export default function TrpgScenarioEditor({
               placeholder="예: 역무원은 이미 죽은 사람이다. 유령 기차의 목적지는 산 자들의 마을이 아니다."
               className="mt-1 w-full rounded-xl border border-amber-500/20 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
             />
-          </label>
-          <label className="mt-3 block text-sm text-zinc-300">
-            연결 세계관
-            <select
-              value={worldId}
-              onChange={(e) => setWorldId(e.target.value ? Number(e.target.value) : "")}
-              className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
-            >
-              <option value="">없음</option>
-              {catalog.myWorlds.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                </option>
-              ))}
-            </select>
           </label>
           <div className="mt-3 flex flex-wrap gap-2">
             <button
@@ -356,7 +376,7 @@ export default function TrpgScenarioEditor({
   return (
     <AppPageShell
       title={initial ? "TRPG 시나리오 수정" : "TRPG 시나리오 만들기"}
-      description="세계관·기본 PC 시트·모브 NPC·플레이어 캐릭터를 한 묶음으로 저장합니다. 공개/비공개는 목록 노출이고, 숨겨진 설정은 플레이어에게 보이지 않고 GM만 봅니다."
+      description="시나리오 본문이 GM이 참고하는 이번 이야기입니다. 세계관도 본문에 적어도 되고, 이미 만든 세계관 문서는 선택으로 붙일 수 있습니다. 모브 NPC와 플레이어 캐릭터는 따로 둡니다. 숨겨진 설정만 GM 전용입니다."
       narrow
     >
       {form}
