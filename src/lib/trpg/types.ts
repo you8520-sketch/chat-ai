@@ -22,6 +22,9 @@ export const TRPG_GM_GROSS_MARGIN = 0.65;
 export const TRPG_BOT_GROSS_MARGIN = 0.65;
 export const TRPG_BOT_MODEL = "deepseek-v4-pro";
 export const TRPG_ACTION_MAX_CHARS = 800;
+/** Out-of-world party talk. Never sent to GM or bot-seat prompts. */
+export const TRPG_PARTY_CHAT_MAX_CHARS = 400;
+export const TRPG_PARTY_CHAT_LIMIT = 80;
 /** Chat-style forks are forbidden. One campaign is one linear timeline. */
 export const TRPG_ALLOW_FORK = false;
 export const TRPG_FORK_FORBIDDEN_MESSAGE =

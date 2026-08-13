@@ -4,6 +4,7 @@ import { loadSheetSnapshots } from "./engineSheets";
 import { nextTrpgRoundWork, type TrpgRoundWork } from "./roundLock";
 import { buildPartySheetHud } from "./sheetView";
 import { DEFAULT_TRPG_SHEET_WIDGET } from "./defaultSheet";
+import { loadTrpgPartyChat } from "./partyChat";
 import {
   loadCampaign,
   loadLatestRound,
@@ -164,14 +165,15 @@ export function listTrpgCampaigns(db: Database.Database, userId: number): TrpgCa
     )
     .all(userId) as Array<{ id: number }>;
   return rows
-    .map((row) => loadTrpgSnapshot(db, row.id, userId))
+    .map((row) => loadTrpgSnapshot(db, row.id, userId, { includePartyChat: false }))
     .filter((s): s is TrpgCampaignSnapshot => Boolean(s));
 }
 
 export function loadTrpgSnapshot(
   db: Database.Database,
   campaignId: number,
-  viewerUserId: number
+  viewerUserId: number,
+  opts?: { includePartyChat?: boolean }
 ): TrpgCampaignSnapshot | null {
   const campaign = loadCampaign(db, campaignId);
   if (!campaign) return null;
@@ -316,6 +318,7 @@ export function loadTrpgSnapshot(
     lastBilledPoints: lastBilled?.billed_points ?? null,
     gmGrossMargin: TRPG_GM_GROSS_MARGIN,
     botGrossMargin: TRPG_BOT_GROSS_MARGIN,
+    partyChat: opts?.includePartyChat === false ? [] : loadTrpgPartyChat(db, campaignId, viewerUserId),
   };
 }
 

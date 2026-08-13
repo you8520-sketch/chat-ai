@@ -230,6 +230,17 @@ export function ensureTrpgTables(db: Database.Database): void {
     );
     CREATE INDEX IF NOT EXISTS idx_trpg_creator_earnings_round
       ON trpg_creator_earnings(round_id, consumer_user_id);
+
+    CREATE TABLE IF NOT EXISTS trpg_party_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      campaign_id INTEGER NOT NULL,
+      participant_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      body TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_trpg_party_messages_campaign
+      ON trpg_party_messages(campaign_id, id DESC);
   `);
 }
 
