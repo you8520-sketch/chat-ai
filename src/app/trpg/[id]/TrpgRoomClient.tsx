@@ -377,8 +377,8 @@ export default function TrpgRoomClient({
           <p className="mb-3 text-sm text-zinc-400">
             {snap.pointPool}포인트 안에서 배분합니다. HP는 체력(없으면 체격) ×5입니다. 남은 포인트 {remaining}.
             {snap.viewerIsHost
-              ? " 플레이어 캐릭터는 방장이 캐릭터성에 맞게 정합니다. 제안값은 이름/소개 키워드일 뿐, 저장해야 시작됩니다."
-              : " 시나리오에 기본 시트가 있으면 그 값으로 채워집니다."}
+              ? " 참가자는 고른 페르소나에 맞게 직접 배분합니다. AI 캐릭터는 본문 키워드로 자동 배분하거나 방장이 로비에서 맞춥니다."
+              : " 고른 페르소나에 맞게 직접 배분하세요. 시나리오 제작자가 숫자를 정해 두지 않습니다."}
           </p>
           {snap.viewerIsHost && snap.participants.length > 1 ? (
             <div className="mb-3 flex flex-wrap gap-1.5">
@@ -453,7 +453,7 @@ export default function TrpgRoomClient({
                 setStats(
                   editing?.kind === "ai_character"
                     ? suggestBotStats(editing.displayName + "\n" + snap.worldBrief, snap.pointPool, snap.statDefs)
-                    : snap.suggestedPcStats ?? suggestBotStats(snap.worldBrief, snap.pointPool, snap.statDefs)
+                    : suggestBotStats(name + "\n" + snap.worldBrief, snap.pointPool, snap.statDefs)
                 )
               }
               className="inline-flex min-h-10 items-center rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-semibold text-zinc-100 hover:bg-white/10 disabled:opacity-50"

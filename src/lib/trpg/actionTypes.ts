@@ -20,14 +20,14 @@ export function isTrpgActionType(value: string): value is TrpgActionType {
 
 /** Preferred sheet keys for each action, first match on the scenario sheet wins. */
 export const ACTION_STAT_PREFS: Record<TrpgActionType, readonly string[]> = {
-  attack: ["str", "mag", "spd", "dex"],
-  defend: ["con", "res", "siz", "wil"],
-  investigate: ["int", "per", "edu", "ins"],
-  persuade: ["cha", "app", "pre", "com"],
-  stealth: ["dex", "spd", "tec", "lck"],
-  support: ["wis", "fth", "wil", "cha"],
-  use_item: ["int", "tec", "mag", "dex"],
-  free: ["dex", "ins", "int", "str"],
+  attack: ["str", "mag", "acc", "spd", "dex"],
+  defend: ["con", "grd", "res", "siz", "wil"],
+  investigate: ["int", "per", "occ", "edu", "ins"],
+  persuade: ["cha", "emp", "app", "pre", "inf", "hon"],
+  stealth: ["dex", "spd", "surv", "tec", "lck"],
+  support: ["wis", "rec", "fth", "emp", "wil", "san"],
+  use_item: ["int", "tec", "foc", "mag", "dex"],
+  free: ["dex", "foc", "ins", "int", "str"],
 };
 
 export function defaultStatForAction(actionType: TrpgActionType | null): string {

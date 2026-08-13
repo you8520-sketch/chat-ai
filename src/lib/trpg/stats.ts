@@ -7,7 +7,8 @@ export type TrpgStatCatalogEntry = TrpgStatDefinition & {
 
 /**
  * Shared pool of common TRPG abilities (D&D 6 + CoC/WoD/SW-style extras).
- * Scenario authors pick a subset for the PC sheet. Max 20.
+ * Scenario authors pick a subset for the PC sheet. World-only campaigns use the default 6.
+ * Max 30.
  */
 export const TRPG_STAT_CATALOG: TrpgStatCatalogEntry[] = [
   { key: "str", label: "힘", description: "근접·완력·파괴", min: 1, max: 10, hints: ["힘", "검", "전사", "기사", "무사", "격투", "완력", "근육", "도끼", "창", "무력", "용병", "때리", "부수"] },
@@ -30,6 +31,16 @@ export const TRPG_STAT_CATALOG: TrpgStatCatalogEntry[] = [
   { key: "res", label: "저항", description: "독·저주·상태이상", min: 1, max: 10, hints: ["저항", "독", "저주", "면역", "해독", "상태이상"] },
   { key: "com", label: "침착", description: "냉정·패닉 억제", min: 1, max: 10, hints: ["침착", "냉정", "패닉", "진정", "평정", "동요"] },
   { key: "pre", label: "존재감", description: "위압·좌중 장악", min: 1, max: 10, hints: ["존재감", "위압", "기세", "카리스마", "장악", "압도"] },
+  { key: "san", label: "이성", description: "광기·이성 붕괴", min: 1, max: 10, hints: ["이성", "광기", "정신붕괴", "환각", "미침", "제정신"] },
+  { key: "hon", label: "명예", description: "체면·의리·맹세", min: 1, max: 10, hints: ["명예", "체면", "의리", "맹세", "자존", "체통"] },
+  { key: "emp", label: "공감", description: "감정·유대·위로", min: 1, max: 10, hints: ["공감", "유대", "위로", "감정", "이해", "다독"] },
+  { key: "foc", label: "집중", description: "조준·유지·몰입", min: 1, max: 10, hints: ["집중", "조준", "몰입", "유지", "한눈"] },
+  { key: "surv", label: "생존", description: "야생·야영·추적", min: 1, max: 10, hints: ["생존", "야생", "야영", "추적", "사냥", "숲"] },
+  { key: "inf", label: "인맥", description: "연줄·뒷거래", min: 1, max: 10, hints: ["인맥", "연줄", "뒷거래", "정계", "조직"] },
+  { key: "occ", label: "오컬트", description: "금서·이능 지식", min: 1, max: 10, hints: ["오컬트", "금서", "이능", "주술서", "비의", "금기"] },
+  { key: "acc", label: "명중", description: "원거리·조준 명중", min: 1, max: 10, hints: ["명중", "사격", "활", "총", "조준", "원거리"] },
+  { key: "grd", label: "가드", description: "막기·받아치기", min: 1, max: 10, hints: ["가드", "막기", "받아치", "방어기", "패링"] },
+  { key: "rec", label: "회복", description: "치료·피로 회복", min: 1, max: 10, hints: ["회복", "치료", "치유", "피로", "응급"] },
 ];
 
 export const DEFAULT_TRPG_STAT_KEYS = ["str", "dex", "int", "wis", "cha", "con"] as const;
