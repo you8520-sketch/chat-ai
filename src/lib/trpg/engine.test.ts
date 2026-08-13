@@ -167,7 +167,7 @@ describe("TRPG campaign loop", () => {
     db.close();
   });
 
-  it("refuses to start until the host confirms the bot sheet", async () => {
+  it("starts once the host sheet and companion sheets exist", async () => {
     const db = memoryDb();
     const deps: TrpgEngineDeps = {
       skipBilling: true,
@@ -184,14 +184,6 @@ describe("TRPG campaign loop", () => {
       displayName: "유나",
     });
     writeSheet(db, campaignId, botId, "유나", EVEN_STATS, "");
-    await assert.rejects(() => startTrpgCampaign(db, { campaignId, userId: 1, deps }), /플레이어 캐릭터 능력치/);
-    saveTrpgSheet(db, {
-      campaignId,
-      userId: 1,
-      name: "유나",
-      stats: EVEN_STATS,
-      participantId: botId,
-    });
     const snap = await startTrpgCampaign(db, { campaignId, userId: 1, deps });
     assert.equal(snap.round.phase, "ACTION_INPUT");
     db.close();

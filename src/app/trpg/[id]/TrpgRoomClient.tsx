@@ -10,6 +10,7 @@ import { AppSectionCard } from "@/components/AppPageShell";
 import { TRPG_ACTION_TYPES, actionTypeLabelKo, type TrpgActionType } from "@/lib/trpg/actionTypes";
 import { successLabelKo } from "@/lib/trpg/labels";
 import { statModifier, suggestBotStats } from "@/lib/trpg/stats";
+import { trpgStartBlockedReason } from "@/lib/trpg/lobbyReady";
 import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
 import { TRPG_ACTION_MAX_CHARS, TRPG_GM_GROSS_MARGIN, TRPG_PARTY_CHAT_MAX_CHARS } from "@/lib/trpg/types";
 import type { PublicPersonaListItem } from "@/lib/userPersonasClient";
@@ -193,14 +194,51 @@ export default function TrpgRoomClient({
     }
   }
 
-  const humansReady = snap.participants
-    .filter((p) => p.kind === "human")
-    .every((p) => p.hasSheet);
-  const botsReady = snap.participants
-    .filter((p) => p.kind === "ai_character")
-    .every((p) => p.sheetConfirmed);
-  const partyReady = humansReady && botsReady;
   const editing = snap.participants.find((p) => p.id === editingId) ?? null;
+  const startBlocked = trpgStartBlockedReason({
+    participants: snap.participants,
+    viewerParticipantId: snap.viewerParticipantId,
+    editingId,
+    remaining,
+  });
+  const partyReady = startBlocked == null;
+
+  async function startCampaign() {
+    if (!partyReady || busy) return;
+    setBusy(true);
+    setError("");
+    try {
+      if (editing && remaining >= 0) {
+        const sheetRes = await fetch(`/api/trpg/campaigns/${snap.id}/sheet`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name,
+            stats,
+            participantId: editing.id,
+            ...(editing.kind !== "ai_character" && selectedPersonaId != null
+              ? { personaId: selectedPersonaId }
+              : {}),
+          }),
+        });
+        const sheetData = (await sheetRes.json()) as { campaign?: TrpgCampaignSnapshot; error?: string };
+        if (!sheetRes.ok || !sheetData.campaign) {
+          throw new Error(sheetData.error || "시트를 저장하지 못했습니다.");
+        }
+        apply(sheetData.campaign);
+      }
+      const startRes = await fetch(`/api/trpg/campaigns/${snap.id}/start`, { method: "POST" });
+      const startData = (await startRes.json()) as { campaign?: TrpgCampaignSnapshot; error?: string };
+      if (!startRes.ok || !startData.campaign) {
+        throw new Error(startData.error || "시작하지 못했습니다.");
+      }
+      apply(startData.campaign);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "실패했습니다.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   useEffect(() => {
     const target = snap.participants.find((p) => p.id === editingId);
@@ -402,7 +440,6 @@ export default function TrpgRoomClient({
                   >
                     {p.displayName}
                     {p.kind === "ai_character" ? " · AI" : " · 나"}
-                    {p.kind === "ai_character" && !p.sheetConfirmed ? " · 미확인" : ""}
                   </button>
                 ))}
             </div>
@@ -471,14 +508,17 @@ export default function TrpgRoomClient({
               자동 배분
             </button>
             {snap.viewerIsHost ? (
-              <button
-                type="button"
-                disabled={busy || !partyReady}
-                onClick={() => void run(`/api/trpg/campaigns/${snap.id}/start`)}
-                className="inline-flex min-h-10 items-center rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-semibold text-zinc-100 hover:bg-white/10 disabled:opacity-50"
-              >
-                캠페인 시작
-              </button>
+              <span className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  disabled={busy || !partyReady}
+                  onClick={() => void startCampaign()}
+                  className="inline-flex min-h-10 items-center rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-semibold text-zinc-100 hover:bg-white/10 disabled:opacity-50"
+                >
+                  캠페인 시작
+                </button>
+                {startBlocked ? <p className="text-xs text-zinc-500">{startBlocked}</p> : null}
+              </span>
             ) : (
               <p className="self-center text-xs text-zinc-500">방장이 시작하면 첫 장면이 나옵니다.</p>
             )}
