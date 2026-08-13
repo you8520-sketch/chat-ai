@@ -11,6 +11,7 @@ import { reverseCreatorRewardForMessage } from "./creatorPoints";
 import { assessMessageForAutoRefund } from "./refundAutoValidation";
 import { buildMessageReceiptSnapshot } from "./refundMessageReceipt";
 import { AUTO_REFUND_DAILY_LIMIT } from "./reportRefundPolicy";
+import { notifyReportResult } from "./userNotifications";
 
 export type RefundProcessResult =
   | {
@@ -460,6 +461,13 @@ export function reviewReportRefund(
     db.prepare(
       "UPDATE report_refunds SET status = 'rejected', validation_note = ? WHERE id = ?"
     ).run(adminNote.trim() || "관리자 반려", reportRefundId);
+    notifyReportResult(db, {
+      userId: row.user_id,
+      reportId: reportRefundId,
+      approved: false,
+      body: `신고하신 AI 응답은 환불 대상에서 제외되었습니다.${adminNote.trim() ? ` 사유: ${adminNote.trim()}` : ""}`,
+      url: `/chat/${row.chat_id}`,
+    });
     return { ok: true };
   }
 
@@ -489,6 +497,14 @@ export function reviewReportRefund(
   db.prepare(
     "UPDATE report_refunds SET status = 'approved', validation_note = ? WHERE id = ?"
   ).run(adminNote.trim() || "관리자 승인 환불", reportRefundId);
+
+  notifyReportResult(db, {
+    userId: row.user_id,
+    reportId: reportRefundId,
+    approved: true,
+    body: `신고하신 AI 응답이 승인되어 ${amount.toLocaleString()}P가 환불되었습니다.`,
+    url: `/chat/${row.chat_id}`,
+  });
 
   return { ok: true, balance };
 }

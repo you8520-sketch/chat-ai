@@ -1389,6 +1389,39 @@ function migrate(db: Database.Database) {
     );
     CREATE INDEX IF NOT EXISTS idx_user_notifications_user
       ON user_notifications(user_id, read_at, created_at DESC);
+    CREATE TABLE IF NOT EXISTS web_push_subscriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      endpoint TEXT NOT NULL UNIQUE,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_web_push_subscriptions_user
+      ON web_push_subscriptions(user_id, updated_at DESC);
+    CREATE TABLE IF NOT EXISTS web_push_user_events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      event_key TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(user_id, event_key)
+    );
+    CREATE TABLE IF NOT EXISTS web_push_outbox (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      subscription_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      event_key TEXT NOT NULL,
+      payload_json TEXT NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      available_at TEXT NOT NULL DEFAULT (datetime('now')),
+      sent_at TEXT,
+      last_error TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(subscription_id, event_key)
+    );
+    CREATE INDEX IF NOT EXISTS idx_web_push_outbox_pending
+      ON web_push_outbox(sent_at, available_at, id);
   `);
   migrateUserNotificationsExpand(db);
   migrateCharacterAudienceSeed(db);

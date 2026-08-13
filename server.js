@@ -91,6 +91,15 @@ async function runBackgroundInitialization() {
   }
 
   try {
+    const webPushMod = await import("./src/lib/webPush.ts");
+    const startWebPushSchedulers =
+      webPushMod.startWebPushSchedulers ?? webPushMod.default?.startWebPushSchedulers;
+    if (typeof startWebPushSchedulers === "function") startWebPushSchedulers();
+  } catch (err) {
+    console.error("[server] web push scheduler 시작 실패:", err);
+  }
+
+  try {
     const exchangeRateMod = await import("./src/lib/exchangeRate.ts");
     const warm =
       exchangeRateMod.warmExchangeRateCache ??

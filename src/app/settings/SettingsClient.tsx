@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import LogoutButton from "@/components/LogoutButton";
 import PointsBalanceTooltip from "@/components/PointsBalanceTooltip";
+import PushNotificationManager from "@/components/PushNotificationManager";
 import { AppPageShell } from "@/components/AppPageShell";
 import { cn, studioInputClass, studioSurface, studioType } from "@/lib/studioDesign";
 
@@ -97,6 +98,8 @@ export default function SettingsClient({ user, unreadNotice = false }: Props) {
           <LogoutButton className="text-sm font-medium text-zinc-400 transition hover:text-zinc-50" />
         </div>
       </section>
+
+      <PushNotificationManager />
 
       <section className="mt-4">
         <h2 className={cn(studioType.caption, "mb-2 px-0.5 font-semibold uppercase tracking-wide")}>

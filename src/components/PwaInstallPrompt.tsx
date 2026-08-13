@@ -31,6 +31,9 @@ export default function PwaInstallPrompt() {
         // The site remains usable if service-worker registration is unavailable.
       });
     }
+    if ("clearAppBadge" in navigator) {
+      (navigator as Navigator & { clearAppBadge: () => Promise<void> }).clearAppBadge().catch(() => {});
+    }
 
     if (isStandalone() || wasRecentlyDismissed()) return;
 
