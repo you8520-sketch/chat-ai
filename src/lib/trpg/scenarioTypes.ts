@@ -227,7 +227,7 @@ export function assertScenarioBundleLimit(count: number): void {
   }
 }
 
-/** Player-visible names/blurbs. Not a PC seat. */
+/** GM world context: name and setting. Not pasted into player chat. */
 export function scenarioMobNpcWorldBrief(npcs: readonly TrpgScenarioNpc[]): string {
   const rows = npcs
     .map((npc) => {
