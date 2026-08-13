@@ -314,7 +314,6 @@ function WorldCard({ world }: { world: WorldListItem }) {
           <p className={cn(studioType.caption, "mt-1 line-clamp-2")}>
             {world.summary || world.content}
           </p>
-          <p className="mt-2 text-xs font-semibold text-violet-300">수정하기 →</p>
         </div>
       </Link>
       <div className="flex flex-wrap gap-2 border-t border-white/10 px-4 py-3">
