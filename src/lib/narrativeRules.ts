@@ -664,7 +664,8 @@ export function detectRpMetaLeakage(text: string): RpMetaLeakageResult {
     for (const hit of hits) {
       if (hit.strong && isRpMetaOutOfSceneSelfReviewLine(hit.line)) {
         failure = true;
-        leakStartIndex = hit.charIndex;
+        leakStartIndex =
+          leakStartIndex == null ? hit.charIndex : Math.min(leakStartIndex, hit.charIndex);
         break;
       }
     }

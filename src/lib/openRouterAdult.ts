@@ -567,6 +567,19 @@ export type OpenRouterMessageOpts = {
 };
 
 export type PrimaryTextStream = AsyncGenerator<string, TokenUsage>;
+/** Harness: a live generator, or a factory so leak-retry can start a second stream. */
+export type PrimaryTextStreamSource =
+  | PrimaryTextStream
+  | (() => PrimaryTextStream);
+
+function resolvePrimaryTextStream(
+  override: PrimaryTextStreamSource | undefined,
+  create: () => PrimaryTextStream
+): PrimaryTextStream {
+  if (typeof override === "function") return override();
+  if (override) return override;
+  return create();
+}
 
 /** user role에 붙은 API 전용 지시문 제거 (프롬프트 누출·에코 방지) */
 export function stripOpenRouterUserInstructionBleed(content: string): string {
@@ -1686,7 +1699,7 @@ export async function streamOpenRouterAdultToClient(
   targetResponseChars?: number | null,
   messageOpts?: OpenRouterMessageOpts,
   turnApiBudget?: TurnApiBudget,
-  streamOverride?: PrimaryTextStream
+  streamOverride?: PrimaryTextStreamSource
 ): Promise<{
   text: string;
   streamVisibleText: string;
@@ -1710,14 +1723,18 @@ export async function streamOpenRouterAdultToClient(
 
   leakGate:
   for (let leakAttempt = 0; leakAttempt < 2; leakAttempt++) {
-    const bufferStream = leakAttempt === 0;
-    const streamSend: (obj: object) => void = bufferStream ? () => {} : send;
+    if (leakAttempt > 0) {
+      send({ type: "reset" });
+      send({ type: "replace", text: "", instant: true });
+      send({ type: "status", message: "다시 생성 중…" });
+      streamHistory = appendRpMetaLeakRecoveryTail(history);
+    }
+
     fullText = "";
     lastCleanSent = "";
     lastSentToClient = "";
 
-    const gen =
-      streamOverride ??
+    const gen = resolvePrimaryTextStream(streamOverride, () =>
       streamOpenRouterAdult(
         system,
         streamHistory,
@@ -1731,7 +1748,8 @@ export async function streamOpenRouterAdultToClient(
           stage: stageLabel,
           turnApiBudget,
         }
-      );
+      )
+    );
     while (true) {
       const { value, done } = await gen.next();
       if (done) {
@@ -1744,7 +1762,7 @@ export async function streamOpenRouterAdultToClient(
         prepared,
         lastCleanSent
       );
-      const streamDelta = pushLiveStreamDelta(streamSend, clean, lastCleanSent, replace, {
+      const streamDelta = pushLiveStreamDelta(send, clean, lastCleanSent, replace, {
         ...liveDeltaOpts,
         replaceInstant,
         explicitDelta: replace == null ? delta : undefined,
@@ -1763,7 +1781,7 @@ export async function streamOpenRouterAdultToClient(
       liveStreamProse(fullText, statusArtifactsOpts, oocHtmlMode),
       lastCleanSent
     );
-    const tailStreamDelta = pushLiveStreamDelta(streamSend, tailClean, lastCleanSent, tailReplace, {
+    const tailStreamDelta = pushLiveStreamDelta(send, tailClean, lastCleanSent, tailReplace, {
       ...liveDeltaOpts,
       replaceInstant: tailReplaceInstant,
       explicitDelta: tailReplace == null ? tailDelta : undefined,
@@ -1795,22 +1813,42 @@ export async function streamOpenRouterAdultToClient(
         trimmedVisibleChars: trailingTrim.trimmedVisibleChars,
         matchedMarkers: trailingTrim.matchedMarkers,
       });
-      // Keep stream buffer aligned with trimmed visible prose (no extra provider call).
+      // Live stream already showed this text; rewind only if the trim dropped a suffix.
       fullText = visibleAfterTrim;
-      lastCleanSent = visibleAfterTrim.trimEnd();
-      lastSentToClient = visibleAfterTrim.trimEnd();
-      if (bufferStream) {
-        send({ type: "replace", text: visibleAfterTrim, instant: true });
+      const trimmed = visibleAfterTrim.trimEnd();
+      if (trimmed !== lastSentToClient) {
+        send({ type: "replace", text: trimmed, instant: true });
       }
+      lastCleanSent = trimmed;
+      lastSentToClient = trimmed;
     }
 
-    const leakResult = detectRpMetaLeakage(visibleAfterTrim);
+    const visibleClean = streamDeltaAfterRpMetaStrip(visibleAfterTrim, "").clean.trimEnd();
+    const leakResult = detectRpMetaLeakage(visibleClean);
     if (leakResult.status === "PASS") {
-      if (bufferStream && visibleAfterTrim.trim()) {
-        send({ type: "replace", text: visibleAfterTrim, instant: true });
-        lastCleanSent = visibleAfterTrim.trimEnd();
-        lastSentToClient = visibleAfterTrim.trimEnd();
+      if (visibleClean && visibleClean !== lastSentToClient) {
+        send({ type: "replace", text: visibleClean, instant: true });
+        lastCleanSent = visibleClean;
+        lastSentToClient = visibleClean;
       }
+      break leakGate;
+    }
+
+    const safePrefix =
+      leakResult.leakStartIndex != null
+        ? visibleClean.slice(0, leakResult.leakStartIndex).trimEnd()
+        : "";
+    if (leakResult.tailOnly && safePrefix.length >= 80) {
+      console.warn("[OpenRouter] RP meta leak — clipped trailing notes, keeping streamed RP", {
+        matchedMarkers: leakResult.matchedMarkers,
+        leakStartIndex: leakResult.leakStartIndex,
+      });
+      if (safePrefix !== lastSentToClient) {
+        send({ type: "replace", text: safePrefix, instant: true });
+      }
+      fullText = safePrefix;
+      lastCleanSent = safePrefix;
+      lastSentToClient = safePrefix;
       break leakGate;
     }
 
@@ -1827,7 +1865,6 @@ export async function streamOpenRouterAdultToClient(
       matchedMarkers: leakResult.matchedMarkers,
       leakStartIndex: leakResult.leakStartIndex,
     });
-    streamHistory = appendRpMetaLeakRecoveryTail(history);
   }
 
   /** stream-first — dedupe/loop tail 금지, 유저가 본 텍스트 기준 */
