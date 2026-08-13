@@ -36,9 +36,9 @@ import {
   type TrpgSuccessTier,
 } from "./types";
 
-function sheetConfirmed(revision: number | undefined, isBot: boolean): boolean {
-  if (revision == null) return false;
-  return isBot ? revision >= 1 : true;
+function sheetConfirmed(revision: number | undefined): boolean {
+  // Picking a companion writes a sheet (revision may still be 0). That is enough to start.
+  return revision != null;
 }
 
 function asPhase(value: string): TrpgRoundPhase {
@@ -279,7 +279,7 @@ export function loadTrpgSnapshot(
     status: asStatus(p.status),
     ready: readyOf(p, locked.has(p.id), work),
     hasSheet: sheets.some((s) => s.participantId === p.id),
-    sheetConfirmed: sheetConfirmed(revisions.get(p.id), p.kind === "ai_character"),
+    sheetConfirmed: sheetConfirmed(revisions.get(p.id)),
   }));
 
   const log = loadLog(db, campaignId, viewer?.id ?? null);

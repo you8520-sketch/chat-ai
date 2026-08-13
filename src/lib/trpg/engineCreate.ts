@@ -57,8 +57,8 @@ export function writeSheet(
     const info = db
       .prepare(
         `INSERT INTO trpg_character_sheets
-          (campaign_id, participant_id, name, hp, max_hp, location, inventory_json)
-         VALUES (?,?,?,?,?,?,?)`
+          (campaign_id, participant_id, name, hp, max_hp, location, inventory_json, revision)
+         VALUES (?,?,?,?,?,?,?,1)`
       )
       .run(campaignId, participantId, name, maxHp, maxHp, location, JSON.stringify(inventory));
     sheetId = Number(info.lastInsertRowid);
@@ -479,11 +479,8 @@ export function assertCanStart(db: Database.Database, campaignId: number, userId
   }
   for (const p of loadParticipants(db, campaignId)) {
     const sheet = db
-      .prepare(`SELECT id, revision FROM trpg_character_sheets WHERE participant_id=?`)
-      .get(p.id) as { id: number; revision: number } | undefined;
+      .prepare(`SELECT id FROM trpg_character_sheets WHERE participant_id=?`)
+      .get(p.id) as { id: number } | undefined;
     if (!sheet) throw new Error("모든 참가자의 시트를 만들어야 합니다.");
-    if (p.kind === "ai_character" && sheet.revision < 1) {
-      throw new Error("방장이 플레이어 캐릭터 능력치를 확인·저장해야 합니다.");
-    }
   }
 }
