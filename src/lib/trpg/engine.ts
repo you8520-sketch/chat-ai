@@ -1,5 +1,5 @@
 export { canAccessTrpg } from "./access";
-export { createTrpgCampaign, joinTrpgCampaign, saveTrpgSheet } from "./engineCreate";
+export { createTrpgCampaign, joinTrpgCampaign, saveTrpgSheet, addTrpgCompanions } from "./engineCreate";
 export {
   startTrpgCampaign,
   submitTrpgAction,

@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { canAccessCharacter, type CharacterAccessRow } from "@/lib/characterVisibility";
 import { listMyScenarioTemplates, listPublicScenarioTemplates } from "./scenarioTemplates";
 import type { TrpgScenarioTemplate } from "./scenarioTypes";
 import { parseTrpgVisibility, type TrpgVisibility } from "./types";
@@ -182,4 +183,43 @@ export function loadTrpgCatalog(db: Database.Database, userId: number): TrpgCata
     publicScenarios: empty.publicScenarios,
     myScenarios: empty.myScenarios,
   };
+}
+
+export function loadAccessibleTrpgCharacter(
+  db: Database.Database,
+  id: number,
+  viewerUserId: number
+): TrpgCatalogCharacter | null {
+  if (!tableExists(db, "characters")) return null;
+  const row = db
+    .prepare(
+      `SELECT id, name, tagline, COALESCE(emoji, '✨') AS emoji,
+              creator_id, visibility, moderation_status, share_slug, official
+       FROM characters WHERE id=?`
+    )
+    .get(id) as
+    | (CharacterAccessRow & { name: string; tagline: string; emoji: string })
+    | undefined;
+  if (!row) return null;
+  if (!canAccessCharacter(row, viewerUserId).ok) return null;
+  return {
+    id: row.id,
+    name: row.name,
+    tagline: row.tagline ?? "",
+    emoji: row.emoji || "✨",
+  };
+}
+
+export function mergeCatalogCharacters(
+  catalog: TrpgCatalog,
+  extras: Array<TrpgCatalogCharacter | null | undefined>
+): TrpgCatalog {
+  const seen = new Set(catalog.myCharacters.map((c) => c.id));
+  const myCharacters = [...catalog.myCharacters];
+  for (const extra of extras) {
+    if (!extra || seen.has(extra.id)) continue;
+    seen.add(extra.id);
+    myCharacters.unshift(extra);
+  }
+  return { ...catalog, myCharacters };
 }

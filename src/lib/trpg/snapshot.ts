@@ -66,6 +66,7 @@ export type TrpgCampaignSnapshot = {
   id: number;
   title: string;
   inviteCode: string;
+  invitePath: string;
   hostUserId: number;
   sourceCharacterId: number | null;
   worldBrief: string;
@@ -77,6 +78,7 @@ export type TrpgCampaignSnapshot = {
   diceRules: TrpgDiceRules;
   suggestedPcStats: Record<string, number> | null;
   viewerParticipantId: number | null;
+  viewerPersonaId: number | null;
   viewerIsHost: boolean;
   needsHostFill: boolean;
   hostFillBotIds: number[];

@@ -3,6 +3,8 @@ import {
   createTrpgCampaign,
   listTrpgCampaigns,
 } from "@/lib/trpg/engine";
+import { resolveTrpgHumanPersona } from "@/lib/trpg/hostPersona";
+import { parseCompanionIds, parseOptionalId } from "@/lib/trpg/requestIds";
 import { requireTrpgApi, trpgFail } from "@/lib/trpg/requireApi";
 import { assertNoTrpgForkRequest } from "@/lib/trpg/timeline";
 
@@ -22,17 +24,17 @@ export async function POST(req: Request) {
   try {
     const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
     assertNoTrpgForkRequest(body);
-    const characterIdRaw = Number(body.characterId);
-    const worldIdRaw = Number(body.worldId);
-    const templateIdRaw = Number(body.templateId);
-    const characterId = Number.isInteger(characterIdRaw) && characterIdRaw > 0 ? characterIdRaw : null;
-    const worldId = Number.isInteger(worldIdRaw) && worldIdRaw > 0 ? worldIdRaw : null;
-    const templateId = Number.isInteger(templateIdRaw) && templateIdRaw > 0 ? templateIdRaw : null;
+    const characterIds = parseCompanionIds(body.characterIds, body.characterId);
+    const worldId = parseOptionalId(body.worldId);
+    const templateId = parseOptionalId(body.templateId);
+    const personaId = parseOptionalId(body.personaId);
     const title = typeof body.title === "string" ? body.title : null;
+    const hostPersona = resolveTrpgHumanPersona(gate.user.id, gate.user.nickname, personaId);
     const campaignId = createTrpgCampaign(gate.db, {
       hostUserId: gate.user.id,
       hostNickname: gate.user.nickname,
-      characterId,
+      hostPersona,
+      characterIds,
       worldId,
       templateId,
       title,

@@ -16,6 +16,7 @@ export {
   TRPG_SCENARIO_CONTENT_LIMIT,
   TRPG_SCENARIO_LOCATION_LIMIT,
   TRPG_SCENARIO_MAX_BOTS,
+  TRPG_SCENARIO_SECRET_LIMIT,
   TRPG_SCENARIO_SUMMARY_LIMIT,
   TRPG_SCENARIO_TITLE_LIMIT,
   normalizeScenarioTemplateInput,
@@ -36,6 +37,7 @@ export type TrpgScenarioTemplateRow = {
   summary: string;
   content: string;
   visibility: string;
+  secret_content: string | null;
   start_location: string;
   start_inventory_json: string;
   default_pc_stats_json: string;
@@ -45,7 +47,10 @@ export type TrpgScenarioTemplateRow = {
   updated_at: string;
 };
 
-export function rowToScenarioTemplate(row: TrpgScenarioTemplateRow): TrpgScenarioTemplate {
+export function rowToScenarioTemplate(
+  row: TrpgScenarioTemplateRow,
+  opts?: { includeSecret?: boolean }
+): TrpgScenarioTemplate {
   return {
     id: row.id,
     creatorId: row.creator_id,
@@ -53,6 +58,7 @@ export function rowToScenarioTemplate(row: TrpgScenarioTemplateRow): TrpgScenari
     title: row.title,
     summary: row.summary,
     content: row.content,
+    secretContent: opts?.includeSecret === false ? "" : row.secret_content ?? "",
     visibility: parseTrpgVisibility(row.visibility),
     startLocation: row.start_location,
     startInventory: parseInventory(parseJson(row.start_inventory_json, [] as string[])),
@@ -111,9 +117,9 @@ export function insertScenarioTemplate(
   const info = db
     .prepare(
       `INSERT INTO trpg_scenario_templates
-        (creator_id, world_id, title, summary, content, visibility, start_location,
+        (creator_id, world_id, title, summary, content, secret_content, visibility, start_location,
          start_inventory_json, default_pc_stats_json, npcs_json, character_ids_json, updated_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,datetime('now'))`
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))`
     )
     .run(
       creatorId,
@@ -121,6 +127,7 @@ export function insertScenarioTemplate(
       n.title,
       n.summary,
       n.content,
+      n.secretContent,
       n.visibility,
       n.startLocation,
       JSON.stringify(n.startInventory),
@@ -145,7 +152,7 @@ export function updateScenarioTemplate(
   assertImportedCharactersAccessible(db, n.characterIds, creatorId);
   db.prepare(
     `UPDATE trpg_scenario_templates
-     SET world_id=?, title=?, summary=?, content=?, visibility=?, start_location=?,
+     SET world_id=?, title=?, summary=?, content=?, secret_content=?, visibility=?, start_location=?,
          start_inventory_json=?, default_pc_stats_json=?, npcs_json=?, character_ids_json=?,
          updated_at=datetime('now')
      WHERE id=? AND creator_id=?`
@@ -154,6 +161,7 @@ export function updateScenarioTemplate(
     n.title,
     n.summary,
     n.content,
+    n.secretContent,
     n.visibility,
     n.startLocation,
     JSON.stringify(n.startInventory),
@@ -181,7 +189,7 @@ export function listPublicScenarioTemplates(db: Database.Database, limit = 40): 
        LIMIT ?`
     )
     .all(limit) as TrpgScenarioTemplateRow[];
-  return rows.map(rowToScenarioTemplate);
+  return rows.map((row) => rowToScenarioTemplate(row, { includeSecret: false }));
 }
 
 export function listMyScenarioTemplates(db: Database.Database, creatorId: number): TrpgScenarioTemplate[] {
@@ -192,5 +200,5 @@ export function listMyScenarioTemplates(db: Database.Database, creatorId: number
        ORDER BY updated_at DESC, id DESC`
     )
     .all(creatorId) as TrpgScenarioTemplateRow[];
-  return rows.map(rowToScenarioTemplate);
+  return rows.map((row) => rowToScenarioTemplate(row, { includeSecret: true }));
 }

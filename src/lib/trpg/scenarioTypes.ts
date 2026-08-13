@@ -4,6 +4,7 @@ import { parseTrpgVisibility, TRPG_MAX_SLOTS, type TrpgVisibility } from "./type
 export const TRPG_SCENARIO_TITLE_LIMIT = 80;
 export const TRPG_SCENARIO_SUMMARY_LIMIT = 200;
 export const TRPG_SCENARIO_CONTENT_LIMIT = 20000;
+export const TRPG_SCENARIO_SECRET_LIMIT = 20000;
 export const TRPG_SCENARIO_LOCATION_LIMIT = 80;
 export const TRPG_SCENARIO_MAX_BOTS = TRPG_MAX_SLOTS - 1;
 
@@ -22,6 +23,7 @@ export type TrpgScenarioTemplate = {
   title: string;
   summary: string;
   content: string;
+  secretContent: string;
   visibility: TrpgVisibility;
   startLocation: string;
   startInventory: string[];
@@ -36,6 +38,7 @@ export type TrpgScenarioTemplateInput = {
   title: string;
   summary?: string;
   content: string;
+  secretContent?: string;
   worldId?: number | null;
   visibility?: unknown;
   startLocation?: string;
@@ -107,6 +110,7 @@ export function normalizeScenarioTemplateInput(input: TrpgScenarioTemplateInput)
   title: string;
   summary: string;
   content: string;
+  secretContent: string;
   worldId: number | null;
   visibility: TrpgVisibility;
   startLocation: string;
@@ -129,6 +133,7 @@ export function normalizeScenarioTemplateInput(input: TrpgScenarioTemplateInput)
     title,
     summary: clip(String(input.summary ?? ""), TRPG_SCENARIO_SUMMARY_LIMIT),
     content,
+    secretContent: clip(String(input.secretContent ?? ""), TRPG_SCENARIO_SECRET_LIMIT),
     worldId: Number.isInteger(worldIdRaw) && worldIdRaw > 0 ? worldIdRaw : null,
     visibility: parseTrpgVisibility(input.visibility),
     startLocation: clip(String(input.startLocation ?? ""), TRPG_SCENARIO_LOCATION_LIMIT),

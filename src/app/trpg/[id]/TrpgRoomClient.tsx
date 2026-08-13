@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import TrpgInviteLink from "../TrpgInviteLink";
 import { AppSectionCard } from "@/components/AppPageShell";
 import { TRPG_ACTION_TYPES, actionTypeLabelKo, type TrpgActionType } from "@/lib/trpg/actionTypes";
 import { successLabelKo } from "@/lib/trpg/labels";
@@ -181,7 +182,6 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-50">{snap.title}</h1>
         <p className="text-sm text-zinc-500">
           라운드 {snap.round.number} · {phase === "NONE" ? snap.campaignStatus : phase}
-          {snap.inviteCode ? ` · 초대 ${snap.inviteCode}` : ""}
         </p>
         <p className="text-xs leading-relaxed text-zinc-500">
           봇이 있으면 호출이 두 번입니다. 봇 자리는 DeepSeek V4 Pro(thinking 끔, 1:1 채팅과 같음)가
@@ -194,6 +194,13 @@ export default function TrpgRoomClient({ initial }: { initial: TrpgCampaignSnaps
           {snap.lastBilledPoints != null ? ` 최근 라운드 ${snap.lastBilledPoints}P.` : ""}
         </p>
       </header>
+
+      {snap.inviteCode ? (
+        <TrpgInviteLink
+          code={snap.inviteCode}
+          canJoin={setup && snap.participants.length < snap.maxSlots}
+        />
+      ) : null}
 
       <AppSectionCard title="파티">
         <ul className="flex flex-wrap gap-2">
