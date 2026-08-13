@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import { clipTrpgChars, loadCampaignLedger, type TrpgCampaignLedger } from "./campaignLedger";
 import { parseJson } from "./store";
+import { loadSheetSnapshots } from "./engineSheets";
 import {
   TRPG_RECENT_ROUND_RAW,
   TRPG_SEAL_SUMMARY_MAX_CHARS,
@@ -23,6 +24,7 @@ export type TrpgStructuredCampaignMemory = {
     maxHp: number;
     conditions: string[];
     inventory: string[];
+    stats?: Record<string, number>;
   }>;
   quests: string[];
   npcs: string[];
@@ -85,7 +87,12 @@ export function buildTrpgMemoryPromptBlock(opts: {
     .map((s) => {
       const cond = s.conditions.length ? ` (${s.conditions.join(", ")})` : "";
       const inv = s.inventory.length ? ` items=${s.inventory.join(", ")}` : "";
-      return `- ${s.name}: HP ${s.hp}/${s.maxHp}${cond}${inv}`;
+      const stats = s.stats
+        ? ` stats=${Object.entries(s.stats)
+            .map(([k, v]) => `${k}:${v}`)
+            .join(",")}`
+        : "";
+      return `- ${s.name}: HP ${s.hp}/${s.maxHp}${cond}${inv}${stats}`;
     })
     .join("\n");
   const recent = opts.recentRounds
@@ -217,25 +224,13 @@ export function buildCampaignMemoryPrompt(db: Database.Database, campaignId: num
   const state = db
     .prepare(`SELECT round_number FROM trpg_campaign_state WHERE campaign_id=?`)
     .get(campaignId) as { round_number: number } | undefined;
-  const sheets = (
-    db
-      .prepare(
-        `SELECT s.name, s.hp, s.max_hp, s.conditions_json, s.inventory_json
-         FROM trpg_character_sheets s WHERE s.campaign_id=?`
-      )
-      .all(campaignId) as Array<{
-      name: string;
-      hp: number;
-      max_hp: number;
-      conditions_json: string;
-      inventory_json: string;
-    }>
-  ).map((s) => ({
+  const sheets = loadSheetSnapshots(db, campaignId).map((s) => ({
     name: s.name,
     hp: s.hp,
-    maxHp: s.max_hp,
-    conditions: parseJson(s.conditions_json, [] as string[]),
-    inventory: parseJson(s.inventory_json, [] as string[]),
+    maxHp: s.maxHp,
+    conditions: s.conditions,
+    inventory: s.inventory,
+    stats: s.stats,
   }));
   const completed = loadCompletedMemoryRounds(db, campaignId);
   return buildTrpgMemoryPromptBlock({

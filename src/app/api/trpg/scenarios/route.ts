@@ -36,6 +36,7 @@ export async function POST(req: Request) {
       startLocation: String(body.startLocation ?? ""),
       startInventory: Array.isArray(body.startInventory) ? body.startInventory.map(String) : [],
       defaultPcStats: (body.defaultPcStats as Record<string, number> | null) ?? null,
+      statKeys: body.statKeys,
       npcs: body.npcs,
       characterIds: body.characterIds,
       genres: body.genres,

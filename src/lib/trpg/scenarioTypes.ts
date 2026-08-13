@@ -1,6 +1,13 @@
-import { DEFAULT_TRPG_STAT_DEFS, validateStatAllocation } from "./stats";
-import { parseTrpgVisibility, TRPG_MAX_BOTS, type TrpgVisibility } from "./types";
 import { parseGenresJson, type CharacterGenre } from "@/lib/characterGenres";
+import {
+  DEFAULT_TRPG_STAT_DEFS,
+  defsFromKeys,
+  evenStats,
+  parseStatKeys,
+  pointPoolFor,
+  validateStatAllocation,
+} from "./stats";
+import { parseTrpgVisibility, TRPG_MAX_BOTS, type TrpgStatDefinition, type TrpgVisibility } from "./types";
 
 export const TRPG_SCENARIO_TITLE_LIMIT = 80;
 export const TRPG_SCENARIO_SUMMARY_LIMIT = 200;
@@ -31,6 +38,7 @@ export type TrpgScenarioTemplate = {
   startLocation: string;
   startInventory: string[];
   defaultPcStats: Record<string, number> | null;
+  statKeys: string[];
   npcs: TrpgScenarioNpc[];
   characterIds: number[];
   genres: CharacterGenre[];
@@ -48,6 +56,7 @@ export type TrpgScenarioTemplateInput = {
   startLocation?: string;
   startInventory?: string[];
   defaultPcStats?: Record<string, number> | null;
+  statKeys?: unknown;
   npcs?: unknown;
   characterIds?: unknown;
   genres?: unknown;
@@ -57,19 +66,23 @@ function clip(text: string, max: number): string {
   return text.trim().slice(0, max);
 }
 
-export function parseStatRecord(raw: unknown): Record<string, number> | null {
+export function parseStatRecord(
+  raw: unknown,
+  defs: TrpgStatDefinition[] = DEFAULT_TRPG_STAT_DEFS,
+  pool = pointPoolFor(defs)
+): Record<string, number> | null {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
-  const stats: Record<string, number> = {};
-  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+  const stats = evenStats(defs, pool);
+  for (const def of defs) {
+    const value = (raw as Record<string, unknown>)[def.key];
     const n = typeof value === "number" ? value : Number(value);
-    if (!Number.isInteger(n)) return null;
-    stats[key] = n;
+    if (Number.isInteger(n)) stats[def.key] = n;
   }
-  const check = validateStatAllocation(DEFAULT_TRPG_STAT_DEFS, stats);
-  return check.ok ? stats : null;
+  const check = validateStatAllocation(defs, stats, pool);
+  return check.ok ? stats : evenStats(defs, pool);
 }
 
-export function parseScenarioNpcs(raw: unknown): TrpgScenarioNpc[] {
+export function parseScenarioNpcs(raw: unknown, defs: TrpgStatDefinition[] = DEFAULT_TRPG_STAT_DEFS): TrpgScenarioNpc[] {
   if (!Array.isArray(raw)) return [];
   const out: TrpgScenarioNpc[] = [];
   for (const item of raw) {
@@ -82,7 +95,7 @@ export function parseScenarioNpcs(raw: unknown): TrpgScenarioNpc[] {
       description: clip(String(row.description ?? ""), 2000),
       greeting: clip(String(row.greeting ?? ""), 800),
       systemPrompt: clip(String(row.systemPrompt ?? ""), 8000),
-      stats: parseStatRecord(row.stats),
+      stats: parseStatRecord(row.stats, defs),
     });
     if (out.length >= TRPG_SCENARIO_MAX_NPCS) break;
   }
@@ -121,6 +134,7 @@ export function normalizeScenarioTemplateInput(input: TrpgScenarioTemplateInput)
   startLocation: string;
   startInventory: string[];
   defaultPcStats: Record<string, number> | null;
+  statKeys: string[];
   npcs: TrpgScenarioNpc[];
   characterIds: number[];
   genres: CharacterGenre[];
@@ -129,7 +143,10 @@ export function normalizeScenarioTemplateInput(input: TrpgScenarioTemplateInput)
   const content = clip(String(input.content ?? ""), TRPG_SCENARIO_CONTENT_LIMIT);
   if (!title) throw new Error("시나리오 제목을 입력해 주세요.");
   if (!content) throw new Error("시나리오 본문을 입력해 주세요.");
-  const npcs = parseScenarioNpcs(input.npcs);
+  const statKeys = parseStatKeys(input.statKeys);
+  const statDefs = defsFromKeys(statKeys);
+  const pool = pointPoolFor(statDefs);
+  const npcs = parseScenarioNpcs(input.npcs, statDefs);
   const characterIds = parseCharacterIds(input.characterIds);
   if (characterIds.length > TRPG_SCENARIO_MAX_BOTS) {
     throw new Error(`플레이어 캐릭터는 최대 ${TRPG_SCENARIO_MAX_BOTS}명입니다.`);
@@ -147,7 +164,8 @@ export function normalizeScenarioTemplateInput(input: TrpgScenarioTemplateInput)
     visibility: parseTrpgVisibility(input.visibility),
     startLocation: clip(String(input.startLocation ?? ""), TRPG_SCENARIO_LOCATION_LIMIT),
     startInventory: parseInventory(input.startInventory),
-    defaultPcStats: parseStatRecord(input.defaultPcStats),
+    defaultPcStats: parseStatRecord(input.defaultPcStats, statDefs, pool) ?? evenStats(statDefs, pool),
+    statKeys,
     npcs,
     characterIds,
     genres: parseGenresJson(input.genres),

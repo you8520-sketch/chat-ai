@@ -1,9 +1,9 @@
 import { randomBytes } from "node:crypto";
 import type Database from "better-sqlite3";
-import { DEFAULT_TRPG_SHEET_WIDGET } from "./defaultSheet";
+import { buildTrpgSheetWidget } from "./defaultSheet";
 import { parseTrpgInviteInput } from "./invite";
 import { DEFAULT_TRPG_DICE_RULES, type TrpgDiceRules, type TrpgRoundPhase, type TrpgStatDefinition } from "./types";
-import { DEFAULT_TRPG_POINT_POOL, DEFAULT_TRPG_STAT_DEFS } from "./stats";
+import { DEFAULT_TRPG_STAT_DEFS, pointPoolFor } from "./stats";
 
 export function newTrpgInviteCode(): string {
   return randomBytes(4).toString("hex");
@@ -127,7 +127,7 @@ export function loadScenario(db: Database.Database, campaignId: number): {
   if (!row) {
     return {
       statDefs: DEFAULT_TRPG_STAT_DEFS,
-      pointPool: DEFAULT_TRPG_POINT_POOL,
+      pointPool: pointPoolFor(DEFAULT_TRPG_STAT_DEFS),
       diceRules: DEFAULT_TRPG_DICE_RULES,
       startLocation: "",
       startInventory: [],
@@ -159,8 +159,12 @@ export function insertCampaign(db: Database.Database, opts: {
   startInventory?: string[];
   defaultPcStats?: Record<string, number> | null;
   gmSecret?: string | null;
+  statDefs?: TrpgStatDefinition[];
+  pointPool?: number;
 }): number {
   const invite = newTrpgInviteCode();
+  const statDefs = opts.statDefs && opts.statDefs.length > 0 ? opts.statDefs : DEFAULT_TRPG_STAT_DEFS;
+  const pointPool = opts.pointPool ?? pointPoolFor(statDefs);
   const info = db
     .prepare(
       `INSERT INTO trpg_campaigns
@@ -186,10 +190,10 @@ export function insertCampaign(db: Database.Database, opts: {
      VALUES (?,?,?,?,?,?,?,?)`
   ).run(
     campaignId,
-    JSON.stringify(DEFAULT_TRPG_STAT_DEFS),
-    DEFAULT_TRPG_POINT_POOL,
+    JSON.stringify(statDefs),
+    pointPool,
     JSON.stringify(DEFAULT_TRPG_DICE_RULES),
-    JSON.stringify(DEFAULT_TRPG_SHEET_WIDGET),
+    JSON.stringify(buildTrpgSheetWidget(statDefs)),
     opts.startLocation ?? "",
     JSON.stringify(opts.startInventory ?? []),
     opts.defaultPcStats ? JSON.stringify(opts.defaultPcStats) : ""

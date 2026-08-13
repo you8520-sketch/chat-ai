@@ -1,4 +1,5 @@
 import type { TrpgStatDefinition } from "./types";
+import { scoreStatHints } from "./stats";
 
 export const TRPG_ACTION_TYPES = [
   "attack",
@@ -16,6 +17,18 @@ export type TrpgActionType = (typeof TRPG_ACTION_TYPES)[number];
 export function isTrpgActionType(value: string): value is TrpgActionType {
   return (TRPG_ACTION_TYPES as readonly string[]).includes(value);
 }
+
+/** Preferred sheet keys for each action, first match on the scenario sheet wins. */
+export const ACTION_STAT_PREFS: Record<TrpgActionType, readonly string[]> = {
+  attack: ["str", "mag", "spd", "dex"],
+  defend: ["con", "res", "siz", "wil"],
+  investigate: ["int", "per", "edu", "ins"],
+  persuade: ["cha", "app", "pre", "com"],
+  stealth: ["dex", "spd", "tec", "lck"],
+  support: ["wis", "fth", "wil", "cha"],
+  use_item: ["int", "tec", "mag", "dex"],
+  free: ["dex", "ins", "int", "str"],
+};
 
 export function defaultStatForAction(actionType: TrpgActionType | null): string {
   switch (actionType) {
@@ -43,17 +56,50 @@ export function defaultStatForAction(actionType: TrpgActionType | null): string 
   }
 }
 
-export function resolveAdjudicationStat(opts: {
+function firstPrefOnSheet(prefs: readonly string[], defs: TrpgStatDefinition[]): string | null {
+  for (const key of prefs) {
+    if (defs.some((d) => d.key === key)) return key;
+  }
+  return null;
+}
+
+/**
+ * Pick which scenario-sheet stat this action uses.
+ * Player override → body keywords on this sheet → action-type prefs → first sheet stat.
+ */
+export function pickStatForAction(opts: {
   actionType: TrpgActionType | null;
   selectedStat: string | null;
+  body?: string;
   defs: TrpgStatDefinition[];
 }): string {
   if (opts.selectedStat && opts.defs.some((d) => d.key === opts.selectedStat)) {
     return opts.selectedStat;
   }
-  const fallback = defaultStatForAction(opts.actionType);
-  if (opts.defs.some((d) => d.key === fallback)) return fallback;
-  return opts.defs[0]?.key ?? "str";
+  const text = opts.body?.trim() ?? "";
+  if (text && opts.defs.length > 0) {
+    let bestKey = "";
+    let bestScore = 0;
+    for (const def of opts.defs) {
+      const score = scoreStatHints(text, def.key);
+      if (score > bestScore) {
+        bestScore = score;
+        bestKey = def.key;
+      }
+    }
+    if (bestScore > 0 && bestKey) return bestKey;
+  }
+  const prefs = opts.actionType ? ACTION_STAT_PREFS[opts.actionType] : ACTION_STAT_PREFS.free;
+  return firstPrefOnSheet(prefs, opts.defs) ?? opts.defs[0]?.key ?? defaultStatForAction(opts.actionType);
+}
+
+export function resolveAdjudicationStat(opts: {
+  actionType: TrpgActionType | null;
+  selectedStat: string | null;
+  defs: TrpgStatDefinition[];
+  body?: string;
+}): string {
+  return pickStatForAction(opts);
 }
 
 export function actionTypeLabelKo(actionType: TrpgActionType): string {
