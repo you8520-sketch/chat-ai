@@ -13,7 +13,14 @@ import { loadTrpgSnapshot } from "./engineSnapshot";
 import { insertParticipant, loadCampaign } from "./store";
 import { ensureTrpgTables } from "./schema";
 
-function gmText(opts?: { hp?: number; participantId?: number; narration?: string }): string {
+function gmText(opts?: {
+  hp?: number;
+  participantId?: number;
+  narration?: string;
+  nextRoundContext?: string;
+  questsAdd?: string[];
+  flagsAdd?: string[];
+}): string {
   const players =
     opts?.participantId && opts.hp != null
       ? [{ participantId: opts.participantId, hp: opts.hp }]
@@ -21,7 +28,14 @@ function gmText(opts?: { hp?: number; participantId?: number; narration?: string
   return `<<<NARRATION>>>
 ${opts?.narration ?? "낡은 등불이 흔들린다. 당신은 문턱에서 다음 한 수를 고른다."}
 <<<DELTA>>>
-${JSON.stringify({ players, location: "문턱", campaign_finished: false })}`;
+${JSON.stringify({
+  players,
+  location: "문턱",
+  next_round_context: opts?.nextRoundContext ?? "문 너머를 조사할지 말을 걸지",
+  questsAdd: opts?.questsAdd ?? ["밀서 찾기"],
+  flagsAdd: opts?.flagsAdd ?? ["문_열림"],
+  campaign_finished: false,
+})}`;
 }
 
 function memoryDb(): Database.Database {
@@ -177,6 +191,7 @@ describe("TRPG campaign loop", () => {
         assert.match(system, /You ARE this character/);
         assert.match(user, /CHARACTER CARD|HUMAN ACTIONS THIS ROUND/);
         assert.match(user, /창문을 연다/);
+        assert.match(user, /CAMPAIGN STATE|location=/);
         return { text: '*창가에 붙어 낮게* "…먼저 나가지 마. 내가 볼게."' };
       },
     };
@@ -292,6 +307,68 @@ describe("TRPG campaign loop", () => {
     const after = await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
     const hp = after.sheets.find((s) => s.isSelf)?.sheet.hp;
     assert.equal(hp, 20);
+    db.close();
+  });
+
+  it("stores quests/flags/next-decision in the DB and feeds them to the next GM call", async () => {
+    const db = memoryDb();
+    const users: string[] = [];
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 12,
+      memoryCall: async () => ({ text: "" }),
+      gmCall: async ({ user }) => {
+        users.push(user);
+        return {
+          text: gmText({
+            narration: `장면 ${users.length}`,
+            nextRoundContext: "창문을 볼지 문을 밀지",
+            questsAdd: ["밀서 찾기"],
+            flagsAdd: ["문_열림"],
+          }),
+        };
+      },
+    };
+    const { campaignId } = await setupSolo(db, deps);
+    submitTrpgAction(db, { campaignId, userId: 1, body: "문을 민다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    assert.ok(users.length >= 2);
+    assert.match(users[1] ?? "", /창문을 볼지/);
+    assert.match(users[1] ?? "", /밀서 찾기/);
+    assert.match(users[1] ?? "", /문_열림/);
+    db.close();
+  });
+
+  it("seals the opening round with a fact recap once it leaves the raw window", async () => {
+    const db = memoryDb();
+    let seals = 0;
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      rollD20: () => 11,
+      memoryCall: async () => {
+        seals += 1;
+        return { text: "밤사이 여관 문이 열림. 밀서 단서." };
+      },
+      gmCall: async () => ({ text: gmText({ narration: "이어지는 밤." }) }),
+    };
+    const { campaignId } = await setupSolo(db, deps);
+    for (let i = 0; i < 3; i += 1) {
+      submitTrpgAction(db, { campaignId, userId: 1, body: `행동 ${i}.` });
+      await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
+    }
+    assert.equal(seals, 1);
+    let nextUser = "";
+    const follow: TrpgEngineDeps = {
+      ...deps,
+      gmCall: async ({ user }) => {
+        nextUser = user;
+        return { text: gmText({ narration: "다음." }) };
+      },
+    };
+    submitTrpgAction(db, { campaignId, userId: 1, body: "다시 본다." });
+    await advanceTrpgCampaign(db, { campaignId, userId: 1, deps: follow });
+    assert.match(nextUser, /SEALED CAMPAIGN SUMMARY/);
+    assert.match(nextUser, /밤사이 여관 문이 열림/);
     db.close();
   });
 });

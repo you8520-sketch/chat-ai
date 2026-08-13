@@ -5,6 +5,17 @@ export const TRPG_MAX_SLOTS = 4;
 export const TRPG_MIN_SLOTS = 1;
 export const TRPG_MEMORY_SEAL_ROUNDS = 4;
 export const TRPG_RECENT_ROUND_RAW = 3;
+/** GM prose — same aim band as 1:1 DeepSeek RP, floor at 3000 characters, no upper cap. */
+export const TRPG_GM_MIN_CHARS = 3000;
+export const TRPG_GM_AIM_CHARS = 3200;
+export const TRPG_NEXT_ROUND_CONTEXT_MAX_CHARS = 400;
+export const TRPG_SEAL_SUMMARY_MAX_CHARS = 500;
+export const TRPG_SEALED_PROMPT_MAX_CHARS = 2500;
+export const TRPG_BOT_SCENE_MAX_CHARS = 1400;
+export const TRPG_LEDGER_QUEST_MAX = 12;
+export const TRPG_LEDGER_NPC_MAX = 16;
+export const TRPG_LEDGER_FLAG_MAX = 24;
+export const TRPG_LEDGER_ITEM_MAX_CHARS = 80;
 /** Same target as Cheaper Inference DeepSeek V4 Pro RP (`CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_GROSS_MARGIN`). */
 export const TRPG_GM_GROSS_MARGIN = 0.65;
 /** Bot-seat Pro call — same 65% as RP Pro. Not Flash. */
@@ -113,6 +124,15 @@ export type TrpgStateDelta = {
     inventoryRemove?: string[];
     location?: string;
   }>;
+  location?: string;
+  nextRoundContext?: string;
+  campaignFinished?: boolean;
+  questsAdd?: string[];
+  questsRemove?: string[];
+  npcsAdd?: string[];
+  npcsRemove?: string[];
+  flagsAdd?: string[];
+  flagsRemove?: string[];
 };
 
 export function assertNeverTrpg(x: never, label: string): never {

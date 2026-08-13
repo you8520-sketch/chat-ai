@@ -173,6 +173,7 @@ export function ensureTrpgTables(db: Database.Database): void {
   addColumn("trpg_rounds", "error_json", "TEXT");
   addColumn("trpg_rounds", "billed_points", "INTEGER NOT NULL DEFAULT 0");
   addColumn("trpg_rounds", "usage_json", "TEXT");
+  addColumn("trpg_campaign_state", "next_round_context", "TEXT NOT NULL DEFAULT ''");
   db.exec(
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_trpg_campaigns_invite
      ON trpg_campaigns(invite_code) WHERE invite_code IS NOT NULL AND invite_code != ''`

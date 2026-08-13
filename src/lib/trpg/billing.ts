@@ -17,8 +17,8 @@ export type TrpgModelUsage = {
 /** Typical GM scene when the provider omits usage — Pro 65% still applies. */
 export const TRPG_GM_USAGE_FALLBACK: TrpgModelUsage = {
   modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
-  inputTokens: 8_000,
-  outputTokens: 1_200,
+  inputTokens: 10_000,
+  outputTokens: 3_500,
 };
 
 /** Typical bot-seat Pro action when usage is missing. */

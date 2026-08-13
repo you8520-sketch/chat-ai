@@ -8,7 +8,7 @@ import {
 } from "@/lib/chatModels";
 import { buildTrpgBotActionUserBlock, sanitizeBotActionText } from "./botActions";
 import { computeTrpgRoundPoints, splitTrpgRoundCost } from "./billing";
-import { buildTrpgMemoryPromptBlock, shouldSealTrpgMemory } from "./memory";
+import { buildTrpgMemoryPromptBlock, roundsDueForSeal } from "./memory";
 import { TRPG_BOT_GROSS_MARGIN, TRPG_GM_GROSS_MARGIN } from "./types";
 
 describe("TRPG bot actions", () => {
@@ -19,6 +19,7 @@ describe("TRPG bot actions", () => {
       greeting: "…뭐야, 또 왔어?",
       systemPrompt: "질투 많은 반말. 상대를 놓치지 않으려 한다.",
       previousGmNarration: "여관 문이 열린다.",
+      campaignMemory: "[CAMPAIGN STATE]\nlocation=여관",
       humanActions: [{ playerName: "렌", text: "*문을 밀며* \"누구냐.\"" }],
     });
     assert.match(block, /HUMAN ACTIONS THIS ROUND/);
@@ -87,19 +88,20 @@ describe("TRPG round token billing", () => {
 });
 
 describe("TRPG campaign memory", () => {
-  it("seals on completed rounds, not chat message counts", () => {
-    assert.equal(shouldSealTrpgMemory(3, 0), false);
-    assert.equal(shouldSealTrpgMemory(4, 0), true);
-    assert.equal(shouldSealTrpgMemory(4, 4), false);
-    assert.equal(shouldSealTrpgMemory(8, 4), true);
+  it("seals rounds that have fallen out of the raw window", () => {
+    assert.deepEqual(roundsDueForSeal([0, 1, 2], -1), []);
+    assert.deepEqual(roundsDueForSeal([0, 1, 2, 3], -1), [0]);
+    assert.deepEqual(roundsDueForSeal([0, 1, 2, 3], 0), []);
+    assert.deepEqual(roundsDueForSeal([0, 1, 2, 3, 4], 0), [1]);
   });
 
-  it("injects structured HP/location as authority over summaries", () => {
+  it("injects structured HP/items/next-decision as authority over summaries", () => {
     const block = buildTrpgMemoryPromptBlock({
       structured: {
         roundNumber: 2,
         location: "여관",
-        sheets: [{ name: "렌", hp: 10, maxHp: 25, conditions: ["부상"] }],
+        nextRoundContext: "문을 밀지 창을 볼지",
+        sheets: [{ name: "렌", hp: 10, maxHp: 25, conditions: ["부상"], inventory: ["열쇠"] }],
         quests: ["밀서 찾기"],
         npcs: ["여관주인"],
         worldFlags: ["문_열림"],
@@ -115,6 +117,8 @@ describe("TRPG campaign memory", () => {
     });
     assert.match(block, /STRUCTURED STATE/);
     assert.match(block, /HP 10\/25/);
+    assert.match(block, /열쇠/);
+    assert.match(block, /문을 밀지/);
     assert.match(block, /문을 밀어 연다/);
     assert.doesNotMatch(block, /OOC|PARTY/);
   });
