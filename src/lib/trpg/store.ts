@@ -3,7 +3,7 @@ import type Database from "better-sqlite3";
 import { buildTrpgSheetWidget } from "./defaultSheet";
 import { parseTrpgInviteInput } from "./invite";
 import { DEFAULT_TRPG_DICE_RULES, type TrpgDiceRules, type TrpgRoundPhase, type TrpgStatDefinition } from "./types";
-import { DEFAULT_TRPG_STAT_DEFS, pointPoolFor } from "./stats";
+import { DEFAULT_TRPG_STAT_DEFS, pointPoolFor, resolveCampaignStatDefs } from "./stats";
 
 export function newTrpgInviteCode(): string {
   return randomBytes(4).toString("hex");
@@ -135,9 +135,10 @@ export function loadScenario(db: Database.Database, campaignId: number): {
     };
   }
   const parsedStats = parseJson(row.default_pc_stats_json, null as Record<string, number> | null);
+  const statDefs = resolveCampaignStatDefs(parseJson(row.stat_definitions_json, DEFAULT_TRPG_STAT_DEFS));
   return {
-    statDefs: parseJson(row.stat_definitions_json, DEFAULT_TRPG_STAT_DEFS),
-    pointPool: row.point_pool,
+    statDefs,
+    pointPool: pointPoolFor(statDefs),
     diceRules: parseJson(row.dice_rules_json, DEFAULT_TRPG_DICE_RULES),
     startLocation: row.start_location,
     startInventory: parseJson(row.start_inventory_json, [] as string[]),
