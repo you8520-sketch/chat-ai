@@ -36,6 +36,7 @@ import {
   withIllustrationReferenceIndices,
 } from "@/lib/chatLdIllustrationGeneration";
 import {
+  applyTrpgCastImagePicks,
   loadTrpgIllustrationScene,
 } from "@/lib/trpg/illustrationCast";
 import {
@@ -711,6 +712,7 @@ export async function POST(req: Request) {
       let situation: string | undefined;
       let sceneLocation = "";
       let sceneActions: Array<{ name: string; body: string }> = [];
+      let campaignTitle = "";
       if (campaignId) {
         const scene = loadTrpgIllustrationScene(getDb(), {
           campaignId,
@@ -718,7 +720,9 @@ export async function POST(req: Request) {
           roundNumber,
         });
         if (!scene) throw new RequestError("캠페인을 찾을 수 없습니다.", 404);
-        const indexed = withIllustrationReferenceIndices(scene.members);
+        campaignTitle = scene.campaignTitle;
+        const pickedMembers = applyTrpgCastImagePicks(scene.members, body.castImagePicks);
+        const indexed = withIllustrationReferenceIndices(pickedMembers);
         cast = indexed.map((member) => ({
           name: member.name,
           gender: member.gender,
@@ -832,6 +836,7 @@ export async function POST(req: Request) {
                   : "latest_chat_turn",
               messageId: source.messageId,
               campaignId: campaignId ?? undefined,
+              campaignTitle: campaignTitle || undefined,
               roundNumber: roundNumber ?? undefined,
               castNames: cast?.map((member) => member.name),
               quality: CHAT_LD_ILLUSTRATION_QUALITY,
@@ -852,6 +857,8 @@ export async function POST(req: Request) {
           generationId,
           imageUrl: resultUrl,
           mode: "illustration",
+          campaignId,
+          campaignTitle: campaignTitle || null,
         });
         savedToCharacterAlbum = true;
       } catch (error) {

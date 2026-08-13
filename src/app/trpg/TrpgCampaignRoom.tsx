@@ -44,6 +44,7 @@ function partyDisplayNames(snap: TrpgCampaignSnapshot): string[] {
 function openSceneImage(opts: {
   characterId: number | null;
   campaignId: number;
+  campaignTitle: string;
   roundNumber: number;
   content: string;
   partyNames: string[];
@@ -54,6 +55,7 @@ function openSceneImage(opts: {
       detail: {
         characterId: opts.characterId,
         campaignId: opts.campaignId,
+        campaignTitle: opts.campaignTitle,
         roundNumber: opts.roundNumber,
         content: opts.content,
         partyNames: opts.partyNames,
@@ -243,6 +245,10 @@ export default function TrpgCampaignRoom({
               <Link href="/trpg" className="text-violet-300 hover:text-violet-200">
                 로비
               </Link>
+              {" · "}
+              <Link href={`/albums?campaignId=${snap.id}`} className="text-violet-300 hover:text-violet-200">
+                앨범
+              </Link>
               {" · "}라운드 {snap.round.number}
             </p>
           </div>
@@ -308,6 +314,7 @@ export default function TrpgCampaignRoom({
                 openSceneImage({
                   characterId: imageId,
                   campaignId: snap.id,
+                  campaignTitle: snap.title,
                   roundNumber: row.roundNumber,
                   content: row.narration ?? "",
                   partyNames,

@@ -74,6 +74,14 @@ export default function HeaderProfileMenu({ nickname }: Props) {
           >
             설정
           </Link>
+          <Link
+            href="/albums"
+            role="menuitem"
+            onClick={() => setOpen(false)}
+            className="block px-3.5 py-2.5 text-sm font-medium text-zinc-200 transition hover:bg-white/[0.06] hover:text-white"
+          >
+            앨범
+          </Link>
           <div className="border-t border-white/[0.06] px-3.5 py-2">
             <LogoutButton className="w-full text-left text-sm font-medium text-zinc-400 transition hover:text-white" />
           </div>
