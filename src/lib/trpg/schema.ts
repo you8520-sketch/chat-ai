@@ -68,6 +68,7 @@ export function ensureTrpgTables(db: Database.Database): void {
       PRIMARY KEY (sheet_id, stat_key)
     );
 
+    -- One linear timeline per campaign. Duplicate round_number = fork, which is forbidden.
     CREATE TABLE IF NOT EXISTS trpg_rounds (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       campaign_id INTEGER NOT NULL,

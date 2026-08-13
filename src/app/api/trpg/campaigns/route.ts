@@ -4,6 +4,7 @@ import {
   listTrpgCampaigns,
 } from "@/lib/trpg/engine";
 import { requireTrpgApi, trpgFail } from "@/lib/trpg/requireApi";
+import { assertNoTrpgForkRequest } from "@/lib/trpg/timeline";
 
 export async function GET() {
   const gate = await requireTrpgApi();
@@ -19,7 +20,8 @@ export async function POST(req: Request) {
   const gate = await requireTrpgApi();
   if ("error" in gate) return gate.error;
   try {
-    const body = (await req.json().catch(() => ({}))) as { characterId?: unknown };
+    const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+    assertNoTrpgForkRequest(body);
     const characterIdRaw = Number(body.characterId);
     const characterId = Number.isInteger(characterIdRaw) && characterIdRaw > 0 ? characterIdRaw : null;
     const campaignId = createTrpgCampaign(gate.db, {

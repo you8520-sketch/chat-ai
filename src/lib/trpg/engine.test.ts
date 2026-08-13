@@ -56,6 +56,30 @@ async function setupSolo(db: Database.Database, deps: TrpgEngineDeps) {
 }
 
 describe("TRPG campaign loop", () => {
+  it("refuses campaign forks and keeps one round number per timeline", () => {
+    const db = memoryDb();
+    assert.throws(
+      () =>
+        createTrpgCampaign(db, {
+          hostUserId: 1,
+          hostNickname: "렌",
+          viewerUserId: 1,
+          parentCampaignId: 99,
+        }),
+      /분기할 수 없습니다/
+    );
+    const campaignId = createTrpgCampaign(db, { hostUserId: 1, hostNickname: "렌", viewerUserId: 1 });
+    db.prepare(`INSERT INTO trpg_rounds (campaign_id, round_number, phase) VALUES (?, 1, 'ACTION_INPUT')`).run(
+      campaignId
+    );
+    assert.throws(() => {
+      db.prepare(`INSERT INTO trpg_rounds (campaign_id, round_number, phase) VALUES (?, 1, 'BOT_ACTION')`).run(
+        campaignId
+      );
+    });
+    db.close();
+  });
+
   it("runs solo submit → one resolve GM after the opening", async () => {
     const db = memoryDb();
     let gmCalls = 0;

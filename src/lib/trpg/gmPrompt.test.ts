@@ -22,6 +22,7 @@ describe("TRPG GM prompt/parse", () => {
   it("does not mention OOC or party chat", () => {
     assert.doesNotMatch(TRPG_GM_SYSTEM, /OOC|party chat|잡담/i);
     assert.match(TRPG_GM_SYSTEM, /3000/);
+    assert.match(TRPG_GM_SYSTEM, /single linear timeline/i);
     assert.doesNotMatch(TRPG_GM_SYSTEM, /800–1800|800-1800/);
     const block = buildTrpgGmUserBlock({
       worldBrief: "폐여관",
