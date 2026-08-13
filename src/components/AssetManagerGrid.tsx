@@ -5,6 +5,7 @@ import CharacterAssetImage from "@/components/CharacterAssetImage";
 import type { CharacterAsset } from "@/lib/characterAssets";
 import { withRepresentativeAssetPublic } from "@/lib/characterAssets";
 import { cn, studioType } from "@/lib/studioDesign";
+import { isAssetBlockedForAllAges } from "@/lib/characterListingModeration";
 
 export type ManagedAsset = CharacterAsset;
 
@@ -12,11 +13,12 @@ const TAG_MAX_LEN = 30;
 
 type Props = {
   assets: ManagedAsset[];
+  allAges?: boolean;
   onChange: (assets: ManagedAsset[]) => void;
   onRemove: (index: number) => void;
 };
 
-export default function AssetManagerGrid({ assets, onChange, onRemove }: Props) {
+export default function AssetManagerGrid({ assets, allAges = false, onChange, onRemove }: Props) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [draftTag, setDraftTag] = useState("");
@@ -90,10 +92,23 @@ export default function AssetManagerGrid({ assets, onChange, onRemove }: Props) 
             }}
             className={cn(
               "group relative cursor-grab overflow-hidden rounded-xl border bg-[#161922] active:cursor-grabbing",
-              dragIndex === i ? "border-violet-500/60 opacity-60" : "border-white/10",
+              allAges && isAssetBlockedForAllAges(a)
+                ? "border-rose-500/70 ring-1 ring-rose-500/40"
+                : dragIndex === i
+                  ? "border-violet-500/60 opacity-60"
+                  : "border-white/10",
             )}
           >
             <CharacterAssetImage src={a.url} showHiddenBadge={a.viewerBlur === true} />
+            {allAges && isAssetBlockedForAllAges(a) ? (
+              <div className="pointer-events-none absolute inset-x-0 top-10 z-[3] px-2">
+                <p className="rounded-md bg-rose-600/95 px-2 py-1.5 text-center text-[11px] font-semibold leading-snug text-white">
+                  성인용으로 검열됨
+                  <br />
+                  이 에셋을 바꿔 주세요
+                </p>
+              </div>
+            ) : null}
             <div className="absolute left-2 top-2 flex flex-col gap-1">
               <span className="rounded bg-black/70 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-300">
                 {i + 1}

@@ -7,6 +7,11 @@ export type CharacterAsset = {
   chat?: boolean;
   /** true면 제작자 외 유저에게 블러·가림 처리 */
   viewerBlur?: boolean;
+  /** 에셋 태깅 검열: 성인 콘텐츠로 분류됨 */
+  adultFlagged?: boolean;
+  /** 에셋 태깅 검열: 공개 불가(미성년·성기 노출 등) */
+  moderationReject?: boolean;
+  moderationReason?: string;
 };
 
 export const EMOTION_TAGS = [
@@ -36,6 +41,11 @@ function normalizeAsset(raw: Partial<CharacterAsset>, index: number): CharacterA
     chat: true,
     // 1번(대표) 에셋은 항상 공개 — 저장값이 true여도 강제 해제
     viewerBlur: index === 0 ? false : storedBlur,
+    ...(typeof raw.adultFlagged === "boolean" ? { adultFlagged: raw.adultFlagged } : {}),
+    ...(typeof raw.moderationReject === "boolean" ? { moderationReject: raw.moderationReject } : {}),
+    ...(typeof raw.moderationReason === "string" && raw.moderationReason.trim()
+      ? { moderationReason: raw.moderationReason.trim().slice(0, 200) }
+      : {}),
   };
 }
 
