@@ -101,6 +101,18 @@ export default function SettingsClient({ user, unreadNotice = false }: Props) {
 
       <PushNotificationManager />
 
+      <section className={cn(studioSurface.card, "mt-4 p-5")}>
+        <h2 className={studioType.sectionTitle}>생성 이미지 앨범</h2>
+        <p className={cn(studioType.helper, "mt-1")}>
+          일반 캐릭터 채팅에서 만든 이미지와 TRPG 캠페인 일러스트를 나눠 볼 수 있습니다.
+        </p>
+        <div className="mt-3">
+          <Link href="/albums" className={SETTINGS_ACTION_LINK_CLASS}>
+            앨범 전체 보기
+          </Link>
+        </div>
+      </section>
+
       <section className="mt-4">
         <h2 className={cn(studioType.caption, "mb-2 px-0.5 font-semibold uppercase tracking-wide")}>
           고객지원

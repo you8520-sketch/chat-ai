@@ -3,6 +3,7 @@ import { appearancePromptText } from "@/lib/appearanceCompiler";
 import { getCharacterRepresentativeImageUrl } from "@/lib/characterAssets";
 import { selectCharacterImageUrl } from "@/lib/chatCharacterImageSelection";
 import { listSelectableCharacterImages } from "@/lib/chatCharacterImageSelection.server";
+import type { SelectableCharacterImage } from "@/lib/chatCharacterImageSelection";
 import { uniqueIllustrationAliases } from "@/lib/chatLdIllustrationGeneration";
 import { resolveImagePromptGender } from "@/lib/chatImageGender";
 import type { ImagePromptGender } from "@/lib/chatImageGeneration";
@@ -17,11 +18,15 @@ import { loadCampaign, loadParticipants } from "./store";
 import { TRPG_MAX_SLOTS } from "./types";
 
 export type TrpgIllustrationCastMember = {
+  participantId: number;
+  characterId: number | null;
+  kind: "human" | "ai_character";
   name: string;
   aliases: string[];
   gender: ImagePromptGender;
   role: "player" | "companion character";
   imageUrl: string | null;
+  images: SelectableCharacterImage[];
   appearanceNote?: string;
 };
 
@@ -31,6 +36,7 @@ export type TrpgIllustrationRoundAction = {
 };
 
 export type TrpgIllustrationScene = {
+  campaignTitle: string;
   members: TrpgIllustrationCastMember[];
   location: string;
   actions: TrpgIllustrationRoundAction[];
@@ -66,13 +72,17 @@ function clipAppearance(raw: string | null | undefined): string | undefined {
   return text || undefined;
 }
 
-function partyCharacterImageUrl(
+function partyCharacterGallery(
   viewerUserId: number,
   row: CharacterImageRow
-): string | null {
-  const representative = getCharacterRepresentativeImageUrl(row.assets, row.images);
-  if (representative) return representative;
-  if (row.visibility === "private" && row.creator_id !== viewerUserId) return null;
+): { imageUrl: string | null; images: SelectableCharacterImage[] } {
+  if (row.visibility === "private" && row.creator_id !== viewerUserId) {
+    const representative = getCharacterRepresentativeImageUrl(row.assets, row.images);
+    return {
+      imageUrl: representative,
+      images: representative ? [{ url: representative, tag: "대표" }] : [],
+    };
+  }
   const images = listSelectableCharacterImages({
     userId: viewerUserId,
     characterId: row.id,
@@ -80,7 +90,40 @@ function partyCharacterImageUrl(
     assetsRaw: row.assets,
     imagesRaw: row.images,
   });
-  return selectCharacterImageUrl(images, undefined);
+  const representative = getCharacterRepresentativeImageUrl(row.assets, row.images);
+  const imageUrl = selectCharacterImageUrl(images, undefined) || representative;
+  const gallery =
+    images.length > 0
+      ? images
+      : representative
+        ? [{ url: representative, tag: "대표" }]
+        : [];
+  return { imageUrl, images: gallery };
+}
+
+export function applyTrpgCastImagePicks(
+  members: TrpgIllustrationCastMember[],
+  picks: unknown
+): TrpgIllustrationCastMember[] {
+  if (!Array.isArray(picks)) return members;
+  const byId = new Map<number, string>();
+  for (const raw of picks) {
+    if (!raw || typeof raw !== "object") continue;
+    const row = raw as { participantId?: unknown; imageUrl?: unknown };
+    const id = Number(row.participantId);
+    const url = String(row.imageUrl ?? "").trim();
+    if (!Number.isInteger(id) || id <= 0 || !url) continue;
+    byId.set(id, url);
+  }
+  if (byId.size === 0) return members;
+  return members.map((member) => {
+    const picked = byId.get(member.participantId);
+    if (!picked) return member;
+    const allowed = new Set(member.images.map((image) => image.url));
+    if (member.imageUrl) allowed.add(member.imageUrl);
+    if (!allowed.has(picked)) return member;
+    return { ...member, imageUrl: picked };
+  });
 }
 
 /**
@@ -110,6 +153,7 @@ export function loadTrpgIllustrationScene(
     if (part.kind === "ai_character") {
       let gender: ImagePromptGender = "other";
       let imageUrl: string | null = null;
+      let images: SelectableCharacterImage[] = [];
       let appearanceNote: string | undefined;
       let cardName = "";
       if (part.character_id) {
@@ -124,7 +168,9 @@ export function loadTrpgIllustrationScene(
         if (row) {
           cardName = row.name.trim();
           gender = resolveImagePromptGender(row.gender);
-          imageUrl = partyCharacterImageUrl(opts.viewerUserId, row);
+          const gallery = partyCharacterGallery(opts.viewerUserId, row);
+          imageUrl = gallery.imageUrl;
+          images = gallery.images;
           appearanceNote = clipAppearance(
             appearancePromptText({
               raw: row.appearance_raw ?? "",
@@ -134,11 +180,15 @@ export function loadTrpgIllustrationScene(
         }
       }
       members.push({
+        participantId: part.id,
+        characterId: part.character_id,
+        kind: "ai_character",
         name,
         aliases: uniqueIllustrationAliases(name, fallbackName, cardName),
         gender,
         role: "companion character",
         imageUrl,
+        images,
         appearanceNote,
       });
       continue;
@@ -147,6 +197,7 @@ export function loadTrpgIllustrationScene(
     const human = parseHumanPersona(part.persona_json);
     let gender: ImagePromptGender = human?.gender ?? "other";
     let imageUrl: string | null = null;
+    let images: SelectableCharacterImage[] = [];
     let appearanceNote: string | undefined;
     let personaName = human?.name?.trim() || "";
     if (human?.personaId) {
@@ -160,17 +211,22 @@ export function loadTrpgIllustrationScene(
         gender = resolveImagePromptGender(persona.gender);
         imageUrl =
           personaImageBaseUrl(sanitizePersonaImageUrl(persona.image_url)) || null;
+        if (imageUrl) images = [{ url: imageUrl, tag: "페르소나" }];
         appearanceNote =
           clipAppearance(extractPersonaAppearance(persona.description)) ||
           clipAppearance(persona.description);
       }
     }
     members.push({
+      participantId: part.id,
+      characterId: part.character_id,
+      kind: "human",
       name,
       aliases: uniqueIllustrationAliases(name, fallbackName, personaName),
       gender,
       role: "player",
       imageUrl,
+      images,
       appearanceNote,
     });
   }
@@ -204,7 +260,12 @@ export function loadTrpgIllustrationScene(
     }
   }
 
-  return { members, location, actions };
+  return {
+    campaignTitle: campaign.title.trim() || "TRPG 캠페인",
+    members,
+    location,
+    actions,
+  };
 }
 
 /** @deprecated Use loadTrpgIllustrationScene — kept for call sites that only need the cast. */
