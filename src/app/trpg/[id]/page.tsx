@@ -3,6 +3,7 @@ import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
 import { canAccessTrpg } from "@/lib/trpg/access";
 import { loadTrpgSnapshot } from "@/lib/trpg/engine";
+import { ensureDefaultPublicPersona } from "@/lib/userPersonas";
 import TrpgRoomClient from "./TrpgRoomClient";
 
 export const dynamic = "force-dynamic";
@@ -15,10 +16,11 @@ export default async function TrpgRoomPage({ params }: { params: Promise<{ id: s
   if (!Number.isInteger(id) || id <= 0) notFound();
   const campaign = loadTrpgSnapshot(getDb(), id, user.id);
   if (!campaign) notFound();
+  const personas = ensureDefaultPublicPersona(user.id, user.nickname);
 
   return (
     <div className="mx-auto max-w-3xl pb-16">
-      <TrpgRoomClient initial={campaign} />
+      <TrpgRoomClient initial={campaign} personas={personas} />
     </div>
   );
 }

@@ -294,27 +294,26 @@ describe("TRPG scenarios and catalog", () => {
     db.close();
   });
 
-  it("lets the host bring up to three characters without ending after the first pick", () => {
+  it("lets the host bring up to two AI characters because each runs its own model", () => {
     const db = memoryDb();
     db.prepare(
       `INSERT INTO characters (name, description, visibility, moderation_status, official)
        VALUES ('하나', '검사', 'public', 'approved', 1),
               ('두리', '도적', 'public', 'approved', 1),
-              ('세찌', '마법사', 'public', 'approved', 1),
-              ('네찌', '사제', 'public', 'approved', 1)`
+              ('세찌', '마법사', 'public', 'approved', 1)`
     ).run();
     const campaignId = createTrpgCampaign(db, {
       hostUserId: 1,
       hostNickname: "렌",
       viewerUserId: 1,
-      characterIds: [1, 2, 3],
+      characterIds: [1, 2],
     });
     const parts = loadParticipants(db, campaignId);
     assert.equal(parts.filter((p) => p.kind === "human").length, 1);
-    assert.equal(parts.filter((p) => p.kind === "ai_character").length, 3);
+    assert.equal(parts.filter((p) => p.kind === "ai_character").length, 2);
     assert.deepEqual(
       parts.filter((p) => p.kind === "ai_character").map((p) => p.display_name),
-      ["하나", "두리", "세찌"]
+      ["하나", "두리"]
     );
     assert.throws(
       () =>
@@ -322,9 +321,9 @@ describe("TRPG scenarios and catalog", () => {
           hostUserId: 1,
           hostNickname: "렌",
           viewerUserId: 1,
-          characterIds: [1, 2, 3, 4],
+          characterIds: [1, 2, 3],
         }),
-      /최대 3명/
+      /최대 2명/
     );
     const extraId = createTrpgCampaign(db, {
       hostUserId: 1,
@@ -332,8 +331,12 @@ describe("TRPG scenarios and catalog", () => {
       viewerUserId: 1,
       characterIds: [1],
     });
-    addTrpgCompanions(db, { campaignId: extraId, userId: 1, characterIds: [2, 3] });
-    assert.equal(loadParticipants(db, extraId).filter((p) => p.kind === "ai_character").length, 3);
+    addTrpgCompanions(db, { campaignId: extraId, userId: 1, characterIds: [2] });
+    assert.equal(loadParticipants(db, extraId).filter((p) => p.kind === "ai_character").length, 2);
+    assert.throws(
+      () => addTrpgCompanions(db, { campaignId: extraId, userId: 1, characterIds: [3] }),
+      /최대 2명/
+    );
     db.close();
   });
 

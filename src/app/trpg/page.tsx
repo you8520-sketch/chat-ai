@@ -10,8 +10,7 @@ import {
 import { listTrpgCampaigns } from "@/lib/trpg/engine";
 import { getDb } from "@/lib/db";
 import { parseTrpgInviteInput } from "@/lib/trpg/invite";
-import { parseCompanionIds, parseOptionalId } from "@/lib/trpg/requestIds";
-import { ensureDefaultPublicPersona } from "@/lib/userPersonas";
+import { parseCompanionIds } from "@/lib/trpg/requestIds";
 import TrpgLobbyClient from "./TrpgLobbyClient";
 
 export const dynamic = "force-dynamic";
@@ -33,24 +32,20 @@ export default async function TrpgLobbyPage({
       : [],
     params.characterId
   );
-  const personaId = parseOptionalId(params.personaId);
   const db = getDb();
   const campaigns = listTrpgCampaigns(db, user.id);
   const extras = seededIds.map((id) => loadAccessibleTrpgCharacter(db, id, user.id));
   const catalog = mergeCatalogCharacters(loadTrpgCatalog(db, user.id), extras);
-  const personas = ensureDefaultPublicPersona(user.id, user.nickname);
 
   return (
     <AppPageShell
       title="TRPG"
-      description="1~4인 라운드제 캠페인. 세계관·시나리오 카드를 눌러 본문을 읽은 뒤 캠페인을 시작할 수 있습니다. 관리자 전용 미리보기이며 일반 채팅과는 분리됩니다."
+      description="세계관·시나리오 카드를 눌러 본문을 읽은 뒤 캠페인을 시작합니다. AI 캐릭터는 최대 2명입니다."
     >
       <TrpgLobbyClient
         initialCampaigns={campaigns}
         catalog={catalog}
         characterIds={seededIds}
-        personas={personas}
-        initialPersonaId={personaId}
       />
     </AppPageShell>
   );

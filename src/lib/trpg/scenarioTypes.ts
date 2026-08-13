@@ -1,5 +1,5 @@
 import { DEFAULT_TRPG_STAT_DEFS, validateStatAllocation } from "./stats";
-import { parseTrpgVisibility, TRPG_MAX_SLOTS, type TrpgVisibility } from "./types";
+import { parseTrpgVisibility, TRPG_MAX_BOTS, type TrpgVisibility } from "./types";
 import { parseGenresJson, type CharacterGenre } from "@/lib/characterGenres";
 
 export const TRPG_SCENARIO_TITLE_LIMIT = 80;
@@ -7,7 +7,7 @@ export const TRPG_SCENARIO_SUMMARY_LIMIT = 200;
 export const TRPG_SCENARIO_CONTENT_LIMIT = 20000;
 export const TRPG_SCENARIO_SECRET_LIMIT = 20000;
 export const TRPG_SCENARIO_LOCATION_LIMIT = 80;
-export const TRPG_SCENARIO_MAX_BOTS = TRPG_MAX_SLOTS - 1;
+export const TRPG_SCENARIO_MAX_BOTS = TRPG_MAX_BOTS;
 
 export type TrpgScenarioNpc = {
   name: string;
