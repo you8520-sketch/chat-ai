@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { buildTrpgGmUserBlock, parseTrpgGmOutput, TRPG_GM_SYSTEM } from "./gmPrompt";
+import { buildTrpgGmUserBlock, formatTrpgSheetCanon, parseTrpgGmOutput, TRPG_GM_SYSTEM } from "./gmPrompt";
+import { DEFAULT_TRPG_STAT_DEFS } from "./stats";
 
 describe("TRPG GM prompt/parse", () => {
   it("parses narration and a player delta", () => {
@@ -62,5 +63,34 @@ describe("TRPG GM prompt/parse", () => {
     });
     assert.match(withPersona, /PLAYER PERSONAS/);
     assert.match(withPersona, /조용한 탐정/);
+    const sheets = formatTrpgSheetCanon({
+      defs: DEFAULT_TRPG_STAT_DEFS,
+      sheets: [{ name: "렌", stats: { str: 9, dex: 3, int: 5, wis: 5, cha: 5, con: 5 } }],
+    });
+    assert.match(sheets, /SCENARIO SHEET STATS/);
+    assert.match(sheets, /힘 \(str\)/);
+    const withSheets = buildTrpgGmUserBlock({
+      worldBrief: "폐여관",
+      memoryBlock: "[TRPG STRUCTURED STATE]",
+      opening: false,
+      sheetCanon: sheets,
+      actions: [
+        {
+          participantId: 1,
+          name: "렌",
+          body: "문을 민다.",
+          statKey: "str",
+          statLabel: "힘",
+          statValue: 9,
+          d20: 10,
+          finalScore: 12,
+          dc: 12,
+          tier: "SUCCESS",
+        },
+      ],
+    });
+    assert.match(withSheets, /PARTY SHEETS/);
+    assert.match(withSheets, /stat=힘\(str\) value=9 modifier=2/);
+    assert.match(TRPG_GM_SYSTEM, /CHARACTER SHEETS/);
   });
 });

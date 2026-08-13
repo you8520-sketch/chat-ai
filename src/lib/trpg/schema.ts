@@ -220,6 +220,7 @@ export function ensureTrpgTables(db: Database.Database): void {
   `);
   addColumn("trpg_scenario_templates", "secret_content", "TEXT NOT NULL DEFAULT ''");
   addColumn("trpg_scenario_templates", "genres", "TEXT NOT NULL DEFAULT '[]'");
+  addColumn("trpg_scenario_templates", "stat_keys_json", "TEXT NOT NULL DEFAULT '[]'");
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS trpg_creator_earnings (

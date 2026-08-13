@@ -375,7 +375,7 @@ export default function TrpgRoomClient({
       {setup ? (
         <AppSectionCard title="능력치 배분">
           <p className="mb-3 text-sm text-zinc-400">
-            {snap.pointPool}포인트 안에서 배분합니다. HP는 체력×5입니다. 남은 포인트 {remaining}.
+            {snap.pointPool}포인트 안에서 배분합니다. HP는 체력(없으면 체격) ×5입니다. 남은 포인트 {remaining}.
             {snap.viewerIsHost
               ? " AI 동료는 방장이 캐릭터성에 맞게 정합니다. 제안값은 이름/소개 키워드일 뿐, 저장해야 시작됩니다."
               : " 시나리오에 기본 시트가 있으면 그 값으로 채워집니다."}
@@ -452,8 +452,8 @@ export default function TrpgRoomClient({
               onClick={() =>
                 setStats(
                   editing?.kind === "ai_character"
-                    ? suggestBotStats(editing.displayName + "\n" + snap.worldBrief)
-                    : snap.suggestedPcStats ?? suggestBotStats(snap.worldBrief)
+                    ? suggestBotStats(editing.displayName + "\n" + snap.worldBrief, snap.pointPool, snap.statDefs)
+                    : snap.suggestedPcStats ?? suggestBotStats(snap.worldBrief, snap.pointPool, snap.statDefs)
                 )
               }
               className="inline-flex min-h-10 items-center rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-semibold text-zinc-100 hover:bg-white/10 disabled:opacity-50"
@@ -489,7 +489,8 @@ export default function TrpgRoomClient({
                   {successLabelKo(roll.tier)}
                 </p>
                 <p className="mt-1 text-xs text-zinc-500">
-                  {roll.name} · {roll.finalScore} vs DC {roll.dc}
+                  {roll.name} · {snap.statDefs.find((d) => d.key === roll.statKey)?.label ?? roll.statKey} ·{" "}
+                  {roll.finalScore} vs DC {roll.dc}
                 </p>
               </li>
             ))}

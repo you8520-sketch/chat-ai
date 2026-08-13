@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import { canUseCharacterInTrpg, type CharacterAccessRow } from "@/lib/characterVisibility";
 import { parseGenresJson } from "@/lib/characterGenres";
+import { defsFromKeys, parseStatKeys } from "./stats";
 import { parseJson } from "./store";
 import {
   normalizeScenarioTemplateInput,
@@ -42,6 +43,7 @@ export type TrpgScenarioTemplateRow = {
   start_location: string;
   start_inventory_json: string;
   default_pc_stats_json: string;
+  stat_keys_json?: string | null;
   npcs_json: string;
   character_ids_json: string;
   genres: string | null;
@@ -53,6 +55,8 @@ export function rowToScenarioTemplate(
   row: TrpgScenarioTemplateRow,
   opts?: { includeSecret?: boolean }
 ): TrpgScenarioTemplate {
+  const statKeys = parseStatKeys(parseJson(row.stat_keys_json, [] as unknown[]));
+  const statDefs = defsFromKeys(statKeys);
   return {
     id: row.id,
     creatorId: row.creator_id,
@@ -64,8 +68,9 @@ export function rowToScenarioTemplate(
     visibility: parseTrpgVisibility(row.visibility),
     startLocation: row.start_location,
     startInventory: parseInventory(parseJson(row.start_inventory_json, [] as string[])),
-    defaultPcStats: parseStatRecord(parseJson(row.default_pc_stats_json, null)),
-    npcs: parseScenarioNpcs(parseJson(row.npcs_json, [] as unknown[])),
+    defaultPcStats: parseStatRecord(parseJson(row.default_pc_stats_json, null), statDefs),
+    statKeys,
+    npcs: parseScenarioNpcs(parseJson(row.npcs_json, [] as unknown[]), statDefs),
     characterIds: parseCharacterIds(parseJson(row.character_ids_json, [] as unknown[])),
     genres: parseGenresJson(row.genres),
     createdAt: row.created_at,
@@ -122,8 +127,8 @@ export function insertScenarioTemplate(
     .prepare(
       `INSERT INTO trpg_scenario_templates
         (creator_id, world_id, title, summary, content, secret_content, visibility, start_location,
-         start_inventory_json, default_pc_stats_json, npcs_json, character_ids_json, genres, updated_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))`
+         start_inventory_json, default_pc_stats_json, stat_keys_json, npcs_json, character_ids_json, genres, updated_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))`
     )
     .run(
       creatorId,
@@ -136,6 +141,7 @@ export function insertScenarioTemplate(
       n.startLocation,
       JSON.stringify(n.startInventory),
       n.defaultPcStats ? JSON.stringify(n.defaultPcStats) : "",
+      JSON.stringify(n.statKeys),
       JSON.stringify(n.npcs),
       JSON.stringify(n.characterIds),
       JSON.stringify(n.genres)
@@ -158,7 +164,7 @@ export function updateScenarioTemplate(
   db.prepare(
     `UPDATE trpg_scenario_templates
      SET world_id=?, title=?, summary=?, content=?, secret_content=?, visibility=?, start_location=?,
-         start_inventory_json=?, default_pc_stats_json=?, npcs_json=?, character_ids_json=?, genres=?,
+         start_inventory_json=?, default_pc_stats_json=?, stat_keys_json=?, npcs_json=?, character_ids_json=?, genres=?,
          updated_at=datetime('now')
      WHERE id=? AND creator_id=?`
   ).run(
@@ -171,6 +177,7 @@ export function updateScenarioTemplate(
     n.startLocation,
     JSON.stringify(n.startInventory),
     n.defaultPcStats ? JSON.stringify(n.defaultPcStats) : "",
+    JSON.stringify(n.statKeys),
     JSON.stringify(n.npcs),
     JSON.stringify(n.characterIds),
     JSON.stringify(n.genres),

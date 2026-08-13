@@ -13,7 +13,7 @@ import { parseCompanionIds } from "./requestIds";
 import { TRPG_SCENARIO_MAX_BOTS } from "./scenarioTypes";
 import { purgeUnstartedSoloDrafts } from "./engineDelete";
 import { TRPG_MAX_SLOTS } from "./types";
-import { deriveMaxHp, suggestBotStats, validateStatAllocation } from "./stats";
+import { deriveMaxHpFromValues, evenStats, suggestBotStats, validateStatAllocation, DEFAULT_TRPG_STAT_DEFS, defsFromKeys, pointPoolFor } from "./stats";
 import { rejectTrpgFork } from "./timeline";
 import type { TrpgHumanPersona } from "./hostPersona";
 import {
@@ -27,14 +27,7 @@ import {
   type TrpgBotPersona,
 } from "./store";
 
-const EVEN_STATS: Record<string, number> = {
-  str: 5,
-  dex: 5,
-  int: 5,
-  wis: 5,
-  cha: 5,
-  con: 5,
-};
+const EVEN_STATS: Record<string, number> = evenStats(DEFAULT_TRPG_STAT_DEFS);
 
 export { EVEN_STATS };
 
@@ -47,7 +40,7 @@ export function writeSheet(
   location: string,
   inventory: string[] = []
 ): void {
-  const maxHp = deriveMaxHp(stats.con ?? 5);
+  const maxHp = deriveMaxHpFromValues(stats);
   const existing = db
     .prepare(`SELECT id FROM trpg_character_sheets WHERE participant_id=?`)
     .get(participantId) as { id: number } | undefined;
@@ -105,17 +98,25 @@ function loadCharacterForTrpg(db: Database.Database, id: number, viewerUserId: n
   return ch;
 }
 
-function botFromCharacter(ch: CharacterStartRow): SpawnBot {
+function botFromCharacter(
+  ch: CharacterStartRow,
+  defs = DEFAULT_TRPG_STAT_DEFS,
+  pool = pointPoolFor(defs)
+): SpawnBot {
   const personaText = [ch.name, ch.world, ch.description, ch.system_prompt].filter((x) => x?.trim()).join("\n");
   return {
     characterId: ch.id,
     displayName: ch.name,
     persona: null,
-    stats: suggestBotStats(personaText || ch.name),
+    stats: suggestBotStats(personaText || ch.name, pool, defs),
   };
 }
 
-function botFromNpc(npc: TrpgScenarioNpc): SpawnBot {
+function botFromNpc(
+  npc: TrpgScenarioNpc,
+  defs = DEFAULT_TRPG_STAT_DEFS,
+  pool = pointPoolFor(defs)
+): SpawnBot {
   const personaText = [npc.name, npc.description, npc.systemPrompt].filter((x) => x.trim()).join("\n");
   return {
     characterId: null,
@@ -125,7 +126,7 @@ function botFromNpc(npc: TrpgScenarioNpc): SpawnBot {
       greeting: npc.greeting,
       systemPrompt: npc.systemPrompt,
     },
-    stats: npc.stats ?? suggestBotStats(personaText || npc.name),
+    stats: npc.stats ?? suggestBotStats(personaText || npc.name, pool, defs),
   };
 }
 
@@ -181,6 +182,7 @@ export function createTrpgCampaign(
   let gmSecret = "";
   const bots: SpawnBot[] = [];
   const seenCharacterIds = new Set<number>();
+  let statDefs = DEFAULT_TRPG_STAT_DEFS;
 
   if (opts.templateId) {
     const row = loadScenarioTemplate(db, opts.templateId);
@@ -197,6 +199,7 @@ export function createTrpgCampaign(
     defaultPcStats = template.defaultPcStats;
     gmSecret = template.secretContent;
     worldBrief = [template.summary, template.content].filter((x) => x.trim()).join("\n\n");
+    statDefs = defsFromKeys(template.statKeys);
     if (template.worldId) {
       const world = loadWorldForTrpg(db, template.worldId);
       if (world && (canUseWorldForTrpg(world, opts.viewerUserId) || world.creator_id === template.creatorId)) {
@@ -209,9 +212,9 @@ export function createTrpgCampaign(
       const ch = loadCharacterForTrpg(db, characterId, opts.viewerUserId);
       seenCharacterIds.add(ch.id);
       if (!sourceCharacterId) sourceCharacterId = ch.id;
-      bots.push(botFromCharacter(ch));
+      bots.push(botFromCharacter(ch, statDefs));
     }
-    for (const npc of template.npcs) bots.push(botFromNpc(npc));
+    for (const npc of template.npcs) bots.push(botFromNpc(npc, statDefs));
   } else if (opts.worldId) {
     const world = loadWorldForTrpg(db, opts.worldId);
     if (!world) throw new Error("세계관을 찾을 수 없습니다.");
@@ -240,12 +243,13 @@ export function createTrpgCampaign(
       worldBrief = [ch.world, ch.description, ch.greeting].filter((x) => x?.trim()).join("\n\n");
     }
     if (!opts.templateId && !opts.worldId && bots.length === 0) title = `${ch.name} TRPG`;
-    bots.push(botFromCharacter(ch));
+    bots.push(botFromCharacter(ch, statDefs));
   }
 
   const customTitle = opts.title?.trim().slice(0, 80);
   if (customTitle) title = customTitle;
-  if (!defaultPcStats) defaultPcStats = parseStatRecord(suggestBotStats(worldBrief || title));
+  const pointPool = pointPoolFor(statDefs);
+  if (!defaultPcStats) defaultPcStats = parseStatRecord(suggestBotStats(worldBrief || title, pointPool, statDefs), statDefs, pointPool);
   const spawnBots = bots.slice(0, TRPG_SCENARIO_MAX_BOTS);
   const hostName = opts.hostPersona?.name.trim().slice(0, 40) || opts.hostNickname.trim().slice(0, 40) || "플레이어";
 
@@ -263,6 +267,8 @@ export function createTrpgCampaign(
       startInventory,
       defaultPcStats,
       gmSecret,
+      statDefs,
+      pointPool,
     });
     insertParticipant(db, {
       campaignId,
@@ -421,6 +427,7 @@ export function addTrpgCompanions(
   const ids = parseCompanionIds(opts.characterIds);
   if (ids.length === 0) throw new Error("데려갈 캐릭터를 고르세요.");
   const parts = loadParticipants(db, opts.campaignId);
+  const scenario = loadScenario(db, opts.campaignId);
   const botCount = parts.filter((p) => p.kind === "ai_character").length;
   const remaining = Math.min(
     campaign.max_slots - parts.length,
@@ -442,10 +449,9 @@ export function addTrpgCompanions(
     }
     const ch = loadCharacterForTrpg(db, characterId, opts.userId);
     seen.add(ch.id);
-    toAdd.push(botFromCharacter(ch));
+    toAdd.push(botFromCharacter(ch, scenario.statDefs, scenario.pointPool));
   }
   if (toAdd.length === 0) return;
-  const scenario = loadScenario(db, opts.campaignId);
   let nextSlot = Math.max(...parts.map((p) => p.slot_index)) + 1;
   db.transaction(() => {
     for (const bot of toAdd) {

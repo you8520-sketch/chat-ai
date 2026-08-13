@@ -147,6 +147,31 @@ describe("TRPG scenarios and catalog", () => {
     db.close();
   });
 
+  it("stores the scenario author's chosen sheet stats on the campaign", () => {
+    const db = memoryDb();
+    const templateId = insertScenarioTemplate(db, 1, {
+      title: "마법 결투",
+      content: "탑 꼭대기에서 주문을 겨룬다.",
+      statKeys: ["str", "mag", "wil"],
+      defaultPcStats: { str: 4, mag: 8, wil: 3 },
+    });
+    const campaignId = createTrpgCampaign(db, {
+      hostUserId: 1,
+      hostNickname: "렌",
+      viewerUserId: 1,
+      templateId,
+    });
+    const scenario = loadScenario(db, campaignId);
+    assert.deepEqual(
+      scenario.statDefs.map((d) => d.key),
+      ["str", "wil", "mag"]
+    );
+    assert.equal(scenario.pointPool, 15);
+    assert.equal(scenario.defaultPcStats?.mag, 8);
+    assert.equal(scenario.statDefs.some((d) => d.key === "dex"), false);
+    db.close();
+  });
+
   it("lists public opted-in worlds and own scenarios in the catalog", () => {
     const db = memoryDb();
     db.prepare(
