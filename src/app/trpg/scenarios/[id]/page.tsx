@@ -20,7 +20,7 @@ export default async function EditTrpgScenarioPage({ params }: { params: Promise
     <TrpgScenarioEditor
       catalog={loadTrpgCatalog(getDb(), user.id)}
       initial={rowToScenarioTemplate(row)}
-      returnHref="/studio?tab=worlds&kind=scenario"
+      returnHref="/studio?tab=worlds"
     />
   );
 }

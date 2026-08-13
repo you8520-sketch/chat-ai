@@ -95,7 +95,7 @@ export default function CreateWorld({ worldId, showTrpg = false, catalog = null 
           <TrpgScenarioEditor
             catalog={catalog}
             embedded
-            returnHref="/studio?tab=worlds&kind=scenario"
+            returnHref="/studio?tab=worlds"
           />
         </div>
       ) : (
