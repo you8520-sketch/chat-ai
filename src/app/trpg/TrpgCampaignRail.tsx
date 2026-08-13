@@ -46,7 +46,7 @@ function tabHint(tab: TrpgCampaignRailTab): string {
     case "display":
       return "글꼴 · 크기 · 문단 · 색";
     case "sheets":
-      return "파티 캐릭터 시트";
+      return "파티 시트 · 내 시트는 화면 아래 고정";
     case "ooc":
       return "유저끼리만 보는 잡담";
     default: {
