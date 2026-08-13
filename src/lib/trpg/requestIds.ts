@@ -12,7 +12,7 @@ export function parseCompanionIds(characterIds: unknown, characterId?: unknown):
     merged.map((item) => Number(item)).filter((id) => Number.isInteger(id) && id > 0)
   );
   if (unique.size > TRPG_SCENARIO_MAX_BOTS) {
-    throw new Error(`데려갈 캐릭터는 최대 ${TRPG_SCENARIO_MAX_BOTS}명입니다.`);
+    throw new Error(`플레이어 캐릭터는 최대 ${TRPG_SCENARIO_MAX_BOTS}명입니다.`);
   }
   return parseCharacterIds(merged);
 }

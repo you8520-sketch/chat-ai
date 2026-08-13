@@ -9,8 +9,14 @@ import { listTrpgCampaigns, loadTrpgSnapshot } from "./engineSnapshot";
 import { parseHumanPersona } from "./hostPersona";
 import { trpgInvitePath } from "./invite";
 import { insertScenarioTemplate } from "./scenarioTemplates";
+import {
+  normalizeScenarioTemplateInput,
+  scenarioMobNpcGmNotes,
+  scenarioMobNpcWorldBrief,
+} from "./scenarioTypes";
+import { loadCampaignLedger } from "./campaignLedger";
 import { ensureTrpgTables } from "./schema";
-import { loadCampaign, loadParticipants, loadScenario, parseBotPersona } from "./store";
+import { loadCampaign, loadParticipants, loadScenario } from "./store";
 
 function memoryDb(): Database.Database {
   const db = new Database(":memory:");
@@ -106,7 +112,7 @@ describe("TRPG scenarios and catalog", () => {
     db.close();
   });
 
-  it("spawns scenario NPCs with persona cards and suggested sheets", () => {
+  it("keeps scenario NPCs as story mobs, not player-character seats", () => {
     const db = memoryDb();
     const templateId = insertScenarioTemplate(db, 7, {
       title: "폐역 탐험",
@@ -134,12 +140,14 @@ describe("TRPG scenarios and catalog", () => {
     assert.equal(campaign?.template_id, templateId);
     assert.equal(campaign?.author_user_id, 7);
     const parts = loadParticipants(db, campaignId);
-    assert.equal(parts.length, 2);
-    const npc = parts.find((p) => p.kind === "ai_character");
-    assert.equal(npc?.display_name, "역무원");
-    assert.equal(npc?.character_id, null);
-    const persona = parseBotPersona(npc?.persona_json);
-    assert.match(persona?.systemPrompt ?? "", /공손/);
+    assert.equal(parts.length, 1);
+    assert.equal(parts[0]?.kind, "human");
+    assert.equal(parts.some((p) => p.kind === "ai_character"), false);
+    assert.match(campaign?.world_brief ?? "", /역무원/);
+    assert.match(campaign?.world_brief ?? "", /낡은 제복의 안내원/);
+    assert.doesNotMatch(campaign?.world_brief ?? "", /공손하고 비밀을 안다/);
+    assert.match(campaign?.gm_secret ?? "", /공손하고 비밀을 안다/);
+    assert.deepEqual(loadCampaignLedger(db, campaignId).npcs, ["역무원"]);
     const scenario = loadScenario(db, campaignId);
     assert.equal(scenario.startLocation, "대합실");
     assert.deepEqual(scenario.startInventory, ["손전등"]);
@@ -251,29 +259,22 @@ describe("TRPG scenarios and catalog", () => {
       templateId,
     });
     const campaign = loadCampaign(db, campaignId);
-    assert.equal(campaign?.gm_secret, "역무원은이미죽었다SECRETGM");
+    assert.match(campaign?.gm_secret ?? "", /SECRETGM/);
+    assert.match(campaign?.gm_secret ?? "", /공손/);
     assert.doesNotMatch(campaign?.world_brief ?? "", /SECRETGM/);
+    assert.match(campaign?.world_brief ?? "", /역무원/);
     const snap = loadTrpgSnapshot(db, campaignId, 1);
     assert.doesNotMatch(snap?.worldBrief ?? "", /SECRETGM/);
     assert.equal(JSON.stringify(snap).includes("SECRETGM"), false);
     saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
-    const bot = loadParticipants(db, campaignId).find((p) => p.kind === "ai_character");
-    assert.ok(bot);
-    saveTrpgSheet(db, {
-      campaignId,
-      userId: 1,
-      name: "역무원",
-      stats: EVEN_STATS,
-      participantId: bot!.id,
-    });
+    assert.equal(loadParticipants(db, campaignId).some((p) => p.kind === "ai_character"), false);
     await startTrpgCampaign(db, { campaignId, userId: 1, deps });
     submitTrpgAction(db, { campaignId, userId: 1, body: "역무원에게 말을 건다." });
     await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
     const gmBlocks = seen.filter((s) => s.startsWith("gm:"));
     const botBlocks = seen.filter((s) => s.startsWith("bot:"));
     assert.ok(gmBlocks.some((s) => s.includes("SECRETGM")));
-    assert.ok(botBlocks.length > 0);
-    assert.ok(botBlocks.every((s) => !s.includes("SECRETGM")));
+    assert.equal(botBlocks.length, 0);
     db.close();
   });
 
@@ -319,7 +320,59 @@ describe("TRPG scenarios and catalog", () => {
     db.close();
   });
 
-  it("lets the host bring up to two AI characters because each runs its own model", () => {
+  it("does not count scenario NPCs against the two player-character seats", () => {
+    const db = memoryDb();
+    db.prepare(
+      `INSERT INTO characters (name, description, visibility, moderation_status, official)
+       VALUES ('하나', '검사', 'public', 'approved', 1),
+              ('두리', '도적', 'public', 'approved', 1)`
+    ).run();
+    const parsed = normalizeScenarioTemplateInput({
+      title: "모브와 PC",
+      content: "역에서 만난다.",
+      npcs: [
+        { name: "역무원", description: "안내원", greeting: "표", systemPrompt: "공손SECRETNPC" },
+        { name: "행상인", description: "차 파는 사람", greeting: "", systemPrompt: "" },
+        { name: "청소부", description: "빗자루", greeting: "", systemPrompt: "" },
+      ],
+      characterIds: [1],
+    });
+    assert.equal(parsed.npcs.length, 3);
+    assert.deepEqual(parsed.characterIds, [1]);
+    assert.match(scenarioMobNpcWorldBrief(parsed.npcs), /역무원 — 안내원/);
+    assert.doesNotMatch(scenarioMobNpcWorldBrief(parsed.npcs), /SECRETNPC/);
+    assert.match(scenarioMobNpcGmNotes(parsed.npcs), /SECRETNPC/);
+    const templateId = insertScenarioTemplate(db, 1, {
+      title: parsed.title,
+      content: parsed.content,
+      npcs: parsed.npcs,
+      characterIds: parsed.characterIds,
+    });
+    const campaignId = createTrpgCampaign(db, {
+      hostUserId: 1,
+      hostNickname: "렌",
+      viewerUserId: 1,
+      templateId,
+    });
+    assert.deepEqual(
+      loadParticipants(db, campaignId)
+        .filter((p) => p.kind === "ai_character")
+        .map((p) => p.display_name),
+      ["하나"]
+    );
+    assert.deepEqual(loadCampaignLedger(db, campaignId).npcs, ["역무원", "행상인", "청소부"]);
+    addTrpgCompanions(db, { campaignId, userId: 1, characterIds: [2] });
+    assert.deepEqual(
+      loadParticipants(db, campaignId)
+        .filter((p) => p.kind === "ai_character")
+        .map((p) => p.display_name),
+      ["하나", "두리"]
+    );
+    assert.deepEqual(loadCampaignLedger(db, campaignId).npcs, ["역무원", "행상인", "청소부"]);
+    db.close();
+  });
+
+  it("lets the host bring up to two player characters because each runs its own model", () => {
     const db = memoryDb();
     db.prepare(
       `INSERT INTO characters (name, description, visibility, moderation_status, official)

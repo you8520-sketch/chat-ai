@@ -84,8 +84,8 @@ export default function TrpgPartySlots({
   return (
     <AppSectionCard title="파티 자리">
       <p className="text-sm leading-relaxed text-zinc-400">
-        빈 자리에 캐릭터를 넣거나 유저를 부를 수 있습니다. AI 캐릭터는 최대 {TRPG_MAX_BOTS}명입니다. 캐릭터마다
-        모델이 돌아갑니다.
+        빈 자리에 플레이어 캐릭터를 넣거나 유저를 부를 수 있습니다. 플레이어 캐릭터는 최대 {TRPG_MAX_BOTS}명이고,
+        각자 모델이 돌아갑니다. 시나리오 NPC(모브)는 여기 자리가 아닙니다.
       </p>
       {personas.length > 0 ? (
         <div className="mt-4">
@@ -143,7 +143,7 @@ export default function TrpgPartySlots({
                   key={`ai-${slot.participant.id}`}
                   className="flex min-h-[11rem] flex-col justify-center rounded-xl border border-violet-400/25 bg-violet-500/5 p-3"
                 >
-                  <p className="text-xs font-semibold text-violet-200">AI 캐릭터</p>
+                  <p className="text-xs font-semibold text-violet-200">플레이어 캐릭터</p>
                   <p className="mt-2 text-sm font-semibold text-zinc-50">{slot.participant.displayName}</p>
                 </li>
               );

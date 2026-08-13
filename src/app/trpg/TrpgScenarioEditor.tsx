@@ -10,6 +10,7 @@ import type { CharacterGenre } from "@/lib/characterGenres";
 import {
   TRPG_SCENARIO_CONTENT_LIMIT,
   TRPG_SCENARIO_MAX_BOTS,
+  TRPG_SCENARIO_MAX_NPCS,
   TRPG_SCENARIO_SECRET_LIMIT,
   TRPG_SCENARIO_SUMMARY_LIMIT,
   TRPG_SCENARIO_TITLE_LIMIT,
@@ -66,7 +67,7 @@ export default function TrpgScenarioEditor({
   const selectedDefs = defsFromKeys(statKeys);
   const pointPool = pointPoolFor(selectedDefs);
   const spent = selectedDefs.reduce((a, def) => a + (stats[def.key] ?? 0), 0);
-  const botCount = npcs.length + characterIds.length;
+  const linkedWorld = typeof worldId === "number" ? catalog.myWorlds.find((w) => w.id === worldId) : undefined;
 
   function toggleStatKey(key: string) {
     setStatKeys((prev) => {
@@ -146,14 +147,48 @@ export default function TrpgScenarioEditor({
           </label>
           <label className="mt-3 block text-sm text-zinc-300">
             시나리오 본문 *
+            <span className="mt-1 block text-xs font-normal text-zinc-500">
+              GM이 이번 캠페인에서 참고하는 공개 설정입니다. 배경·장소·이번 이야기 흐름을 적습니다. 세계관도 여기에
+              적어도 됩니다. 비워 두면 시나리오가 성립하지 않습니다.
+            </span>
             <textarea
               value={content}
               maxLength={TRPG_SCENARIO_CONTENT_LIMIT}
               rows={10}
               onChange={(e) => setContent(e.target.value)}
+              placeholder="예: 눈 덮인 북부 공국. 얼음 마법이 흔하다. 한밤의 폐역에서 유령 기차를 기다린다."
               className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
             />
           </label>
+          <div className="mt-3">
+            <p className="text-sm text-zinc-300">이미 만든 세계관 재사용 (선택)</p>
+            <p className="mt-1 text-xs font-normal text-zinc-500">
+              GM 전용 비밀이 아닙니다. 「캐릭터·시뮬레이션 세계관」에 이미 써 둔 문서를 여러 시나리오에서 다시 쓸 때만
+              고르세요. 고르면 그 본문이 시나리오 본문 앞에 붙어 GM 세계 설정에 들어갑니다. 안 골라도 됩니다. 세계관은
+              위 본문에 적어도 충분합니다.
+            </p>
+            {catalog.myWorlds.length === 0 ? (
+              <p className="mt-2 text-xs text-zinc-500">아직 저장한 세계관 문서가 없습니다.</p>
+            ) : (
+              <select
+                value={worldId}
+                onChange={(e) => setWorldId(e.target.value ? Number(e.target.value) : "")}
+                className="mt-2 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
+              >
+                <option value="">없음 — 시나리오 본문만 사용</option>
+                {catalog.myWorlds.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            {linkedWorld && (linkedWorld.summary.trim() || linkedWorld.content.trim()) ? (
+              <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-xs text-zinc-500">
+                붙을 내용: {linkedWorld.summary.trim() || linkedWorld.content.trim()}
+              </p>
+            ) : null}
+          </div>
           <label className="mt-3 block text-sm text-zinc-300">
             숨겨진 설정 (비밀)
             <span className="mt-1 block text-xs font-normal text-zinc-500">
@@ -167,21 +202,6 @@ export default function TrpgScenarioEditor({
               placeholder="예: 역무원은 이미 죽은 사람이다. 유령 기차의 목적지는 산 자들의 마을이 아니다."
               className="mt-1 w-full rounded-xl border border-amber-500/20 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
             />
-          </label>
-          <label className="mt-3 block text-sm text-zinc-300">
-            연결 세계관
-            <select
-              value={worldId}
-              onChange={(e) => setWorldId(e.target.value ? Number(e.target.value) : "")}
-              className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
-            >
-              <option value="">없음</option>
-              {catalog.myWorlds.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                </option>
-              ))}
-            </select>
           </label>
           <div className="mt-3 flex flex-wrap gap-2">
             <button
@@ -275,9 +295,10 @@ export default function TrpgScenarioEditor({
           </button>
         </AppSectionCard>
 
-        <AppSectionCard title="시나리오 NPC">
+        <AppSectionCard title="시나리오 NPC (모브)">
           <p className="mb-3 text-sm text-zinc-400">
-            카드만 있는 NPC입니다. 캠페인에 AI 동료로 들어갑니다. NPC와 데려온 캐릭터 합쳐 최대 {TRPG_SCENARIO_MAX_BOTS}명.
+            이야기 진행을 돕는 모브입니다. 플레이어 캐릭터가 아니며 모델 자리를 쓰지 않습니다. 최대{" "}
+            {TRPG_SCENARIO_MAX_NPCS}명. 이름·소개는 장면에 나가고, 말투·진행 메모는 GM만 봅니다.
           </p>
           {npcs.map((npc, index) => (
             <div key={index} className="mb-3 rounded-xl border border-white/10 p-3">
@@ -291,7 +312,7 @@ export default function TrpgScenarioEditor({
               />
               <textarea
                 value={npc.description}
-                placeholder="소개"
+                placeholder="소개 (장면에 나감)"
                 rows={2}
                 onChange={(e) =>
                   setNpcs((prev) =>
@@ -301,8 +322,19 @@ export default function TrpgScenarioEditor({
                 className="mt-2 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
               />
               <textarea
+                value={npc.greeting}
+                placeholder="말투 힌트 (GM만)"
+                rows={2}
+                onChange={(e) =>
+                  setNpcs((prev) =>
+                    prev.map((row, i) => (i === index ? { ...row, greeting: e.target.value } : row))
+                  )
+                }
+                className="mt-2 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
+              />
+              <textarea
                 value={npc.systemPrompt}
-                placeholder="캐릭터 카드 / 말투"
+                placeholder="진행 메모 (GM만, 플레이어·모델 자리에 안 나감)"
                 rows={3}
                 onChange={(e) =>
                   setNpcs((prev) =>
@@ -312,28 +344,6 @@ export default function TrpgScenarioEditor({
                 className="mt-2 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
               />
               <div className="mt-2 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setNpcs((prev) =>
-                      prev.map((row, i) =>
-                        i === index
-                          ? {
-                              ...row,
-                              stats: suggestBotStats(
-                                [row.name, row.description, row.systemPrompt].join("\n"),
-                                pointPool,
-                                selectedDefs
-                              ),
-                            }
-                          : row
-                      )
-                    )
-                  }
-                  className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-200"
-                >
-                  시트 자동
-                </button>
                 <button
                   type="button"
                   onClick={() => setNpcs((prev) => prev.filter((_, i) => i !== index))}
@@ -346,17 +356,19 @@ export default function TrpgScenarioEditor({
           ))}
           <button
             type="button"
-            disabled={botCount >= TRPG_SCENARIO_MAX_BOTS}
+            disabled={npcs.length >= TRPG_SCENARIO_MAX_NPCS}
             onClick={() => setNpcs((prev) => [...prev, emptyNpc()])}
             className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-200 disabled:opacity-50"
           >
-            NPC 추가
+            모브 NPC 추가
           </button>
         </AppSectionCard>
 
-        <AppSectionCard title="기존 캐릭터 데려오기">
+        <AppSectionCard title="플레이어 캐릭터">
           <p className="mb-3 text-sm text-zinc-400">
-            다른 제작자 캐릭터를 데려오면, 유료 포인트 사용 시 그 제작자에게 최대 5% CP가 갑니다. 공식 캐릭터는 CP가 없습니다.
+            유저와 함께 TR하는 캐릭터입니다. 최대 {TRPG_SCENARIO_MAX_BOTS}명이고, 각자 모델이 돌아갑니다. 시나리오
+            NPC(모브)와는 별개입니다. 다른 제작자 캐릭터를 데려오면 유료 포인트 사용 시 그 제작자에게 최대 5% CP가
+            갑니다. 공식 캐릭터는 CP가 없습니다.
           </p>
           <div className="flex flex-wrap gap-2">
             {catalog.myCharacters.map((c) => {
@@ -368,7 +380,7 @@ export default function TrpgScenarioEditor({
                   onClick={() =>
                     setCharacterIds((prev) => {
                       if (on) return prev.filter((id) => id !== c.id);
-                      if (npcs.length + prev.length >= TRPG_SCENARIO_MAX_BOTS) return prev;
+                      if (prev.length >= TRPG_SCENARIO_MAX_BOTS) return prev;
                       return [...prev, c.id];
                     })
                   }
@@ -417,7 +429,7 @@ export default function TrpgScenarioEditor({
   return (
     <AppPageShell
       title={initial ? "TRPG 시나리오 수정" : "TRPG 시나리오 만들기"}
-      description="세계관·기본 PC 시트·NPC를 한 묶음으로 저장합니다. 공개/비공개는 목록 노출이고, 숨겨진 설정은 플레이어에게 보이지 않고 GM만 봅니다."
+      description="시나리오 본문이 GM이 참고하는 이번 이야기입니다. 세계관도 본문에 적어도 되고, 이미 만든 세계관 문서는 선택으로 붙일 수 있습니다. 모브 NPC와 플레이어 캐릭터는 따로 둡니다. 숨겨진 설정만 GM 전용입니다."
       narrow
     >
       {form}

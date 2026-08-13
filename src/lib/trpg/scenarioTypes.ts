@@ -15,6 +15,8 @@ export const TRPG_SCENARIO_CONTENT_LIMIT = 20000;
 export const TRPG_SCENARIO_SECRET_LIMIT = 20000;
 export const TRPG_SCENARIO_LOCATION_LIMIT = 80;
 export const TRPG_SCENARIO_MAX_BOTS = TRPG_MAX_BOTS;
+/** Story-only mob NPCs. They do not take player-character model seats. */
+export const TRPG_SCENARIO_MAX_NPCS = 8;
 
 export type TrpgScenarioNpc = {
   name: string;
@@ -95,7 +97,7 @@ export function parseScenarioNpcs(raw: unknown, defs: TrpgStatDefinition[] = DEF
       systemPrompt: clip(String(row.systemPrompt ?? ""), 8000),
       stats: parseStatRecord(row.stats, defs),
     });
-    if (out.length >= TRPG_SCENARIO_MAX_BOTS) break;
+    if (out.length >= TRPG_SCENARIO_MAX_NPCS) break;
   }
   return out;
 }
@@ -146,8 +148,11 @@ export function normalizeScenarioTemplateInput(input: TrpgScenarioTemplateInput)
   const pool = pointPoolFor(statDefs);
   const npcs = parseScenarioNpcs(input.npcs, statDefs);
   const characterIds = parseCharacterIds(input.characterIds);
-  if (npcs.length + characterIds.length > TRPG_SCENARIO_MAX_BOTS) {
-    throw new Error(`NPC와 데려온 캐릭터는 합쳐 최대 ${TRPG_SCENARIO_MAX_BOTS}명입니다. 방장 슬롯을 남겨야 합니다.`);
+  if (characterIds.length > TRPG_SCENARIO_MAX_BOTS) {
+    throw new Error(`플레이어 캐릭터는 최대 ${TRPG_SCENARIO_MAX_BOTS}명입니다.`);
+  }
+  if (npcs.length > TRPG_SCENARIO_MAX_NPCS) {
+    throw new Error(`모브 NPC는 최대 ${TRPG_SCENARIO_MAX_NPCS}명입니다.`);
   }
   const worldIdRaw = Number(input.worldId);
   return {
@@ -165,4 +170,36 @@ export function normalizeScenarioTemplateInput(input: TrpgScenarioTemplateInput)
     characterIds,
     genres: parseGenresJson(input.genres),
   };
+}
+
+/** Player-visible names/blurbs. Not a PC seat. */
+export function scenarioMobNpcWorldBrief(npcs: readonly TrpgScenarioNpc[]): string {
+  const rows = npcs
+    .map((npc) => {
+      const name = npc.name.trim();
+      if (!name) return "";
+      const summary = npc.description.trim();
+      return summary ? `${name} — ${summary}` : name;
+    })
+    .filter(Boolean);
+  if (rows.length === 0) return "";
+  return `시나리오 NPC (모브, 플레이어 캐릭터 아님)\n${rows.join("\n")}`;
+}
+
+/** GM-only voice/notes. Never shown to players. */
+export function scenarioMobNpcGmNotes(npcs: readonly TrpgScenarioNpc[]): string {
+  const rows = npcs
+    .map((npc) => {
+      const name = npc.name.trim();
+      if (!name) return "";
+      const bits = [npc.greeting.trim() && `말투: ${npc.greeting.trim()}`, npc.systemPrompt.trim()].filter(Boolean);
+      return bits.length ? `${name}\n${bits.join("\n")}` : "";
+    })
+    .filter(Boolean);
+  if (rows.length === 0) return "";
+  return `모브 NPC 진행 메모\n${rows.join("\n\n")}`;
+}
+
+export function scenarioMobNpcNames(npcs: readonly TrpgScenarioNpc[]): string[] {
+  return npcs.map((npc) => npc.name.trim()).filter(Boolean);
 }
