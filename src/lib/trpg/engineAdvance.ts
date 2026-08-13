@@ -13,6 +13,7 @@ import {
 } from "./billing";
 import { buildTrpgBotActionUserBlock, sanitizeBotActionText, TRPG_BOT_SYSTEM } from "./botActions";
 import { applyCampaignLedger, clipTrpgChars, loadCampaignLedger, persistCampaignLedger } from "./campaignLedger";
+import { resolveActionDc } from "./dcAssess";
 import { resolveTrpgRoll, rollServerD20 } from "./dice";
 import { assertCanStart } from "./engineCreate";
 import { callTrpgBot, callTrpgGm } from "./gmCall";
@@ -33,11 +34,12 @@ import {
   parseBotPersona,
   parseJson,
   setRoundPhase,
+  updateScenarioDiceMode,
   type TrpgCampaignRow,
   type TrpgParticipantRow,
   type TrpgRoundRow,
 } from "./store";
-import { TRPG_ACTION_MAX_CHARS, TRPG_BOT_SCENE_MAX_CHARS, type TrpgActionSource, type TrpgBillingMode, type TrpgRoundPhase } from "./types";
+import { TRPG_ACTION_MAX_CHARS, TRPG_BOT_SCENE_MAX_CHARS, parseTrpgDcMode, type TrpgActionSource, type TrpgBillingMode, type TrpgDcMode, type TrpgRoundPhase } from "./types";
 import { isTrpgRoundPhase } from "./types";
 import type { TrpgCampaignSnapshot } from "./snapshot";
 
@@ -65,9 +67,10 @@ function mustSnapshot(db: Database.Database, campaignId: number, userId: number)
 
 export async function startTrpgCampaign(
   db: Database.Database,
-  opts: { campaignId: number; userId: number; deps?: TrpgEngineDeps }
+  opts: { campaignId: number; userId: number; dcMode?: TrpgDcMode; deps?: TrpgEngineDeps }
 ): Promise<TrpgCampaignSnapshot> {
   assertCanStart(db, opts.campaignId, opts.userId);
+  if (opts.dcMode != null) updateScenarioDiceMode(db, opts.campaignId, parseTrpgDcMode(opts.dcMode));
   const latest = loadLatestRound(db, opts.campaignId);
   const rid = newRequestId();
   let roundId: number;
@@ -404,6 +407,7 @@ function persistRolls(
       (round_id, submission_id, d20, stat_key, stat_modifier, final_score, dc, tier)
      VALUES (?,?,?,?,?,?,?,?)`
   );
+  const ledger = loadCampaignLedger(db, campaignId);
   db.transaction(() => {
     for (const sub of subs) {
       const actionType = sub.action_type && isTrpgActionType(sub.action_type) ? sub.action_type : "free";
@@ -420,11 +424,19 @@ function persistRolls(
            WHERE sh.participant_id=? AND st.stat_key=?`
         )
         .get(sub.participant_id, statKey) as { value: number } | undefined;
+      const dc = resolveActionDc({
+        rules: scenario.diceRules,
+        actionType,
+        body: sub.body,
+        location: ledger.location,
+        nextRoundContext: ledger.nextRoundContext,
+        worldFlags: ledger.worldFlags,
+      });
       const d20 = deps?.rollD20?.() ?? rollServerD20();
       const result = resolveTrpgRoll({
         d20,
         statModifier: statModifier(statRow?.value ?? 5),
-        dc: scenario.diceRules.dc,
+        dc,
         rules: scenario.diceRules,
       });
       ins.run(

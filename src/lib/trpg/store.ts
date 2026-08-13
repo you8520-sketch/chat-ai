@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import type Database from "better-sqlite3";
 import { buildTrpgSheetWidget } from "./defaultSheet";
 import { parseTrpgInviteInput } from "./invite";
-import { DEFAULT_TRPG_DICE_RULES, type TrpgDiceRules, type TrpgRoundPhase, type TrpgStatDefinition } from "./types";
+import { DEFAULT_TRPG_DICE_RULES, parseTrpgDiceRules, type TrpgDcMode, type TrpgDiceRules, type TrpgRoundPhase, type TrpgStatDefinition } from "./types";
 import { DEFAULT_TRPG_STAT_DEFS, pointPoolFor, resolveCampaignStatDefs } from "./stats";
 
 export function newTrpgInviteCode(): string {
@@ -139,7 +139,7 @@ export function loadScenario(db: Database.Database, campaignId: number): {
   return {
     statDefs,
     pointPool: pointPoolFor(statDefs),
-    diceRules: parseJson(row.dice_rules_json, DEFAULT_TRPG_DICE_RULES),
+    diceRules: parseTrpgDiceRules(row.dice_rules_json),
     startLocation: row.start_location,
     startInventory: parseJson(row.start_inventory_json, [] as string[]),
     defaultPcStats:
@@ -244,4 +244,19 @@ export function parseBotPersona(raw: string | null | undefined): TrpgBotPersona 
 
 export function setRoundPhase(db: Database.Database, roundId: number, phase: TrpgRoundPhase): void {
   db.prepare(`UPDATE trpg_rounds SET phase=?, updated_at=datetime('now') WHERE id=?`).run(phase, roundId);
+}
+
+export function updateScenarioDiceMode(
+  db: Database.Database,
+  campaignId: number,
+  dcMode: TrpgDcMode
+): void {
+  const row = db
+    .prepare(`SELECT dice_rules_json FROM trpg_scenarios WHERE campaign_id=?`)
+    .get(campaignId) as { dice_rules_json: string } | undefined;
+  const current = parseTrpgDiceRules(row?.dice_rules_json);
+  db.prepare(`UPDATE trpg_scenarios SET dice_rules_json=? WHERE campaign_id=?`).run(
+    JSON.stringify({ ...current, dcMode, dc: current.normalDc }),
+    campaignId
+  );
 }

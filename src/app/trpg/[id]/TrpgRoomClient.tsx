@@ -8,10 +8,11 @@ import TrpgCampaignTitle from "../TrpgCampaignTitle";
 import TrpgPartySlots from "../TrpgPartySlots";
 import { AppSectionCard } from "@/components/AppPageShell";
 import { TRPG_ACTION_TYPES, actionTypeLabelKo, type TrpgActionType } from "@/lib/trpg/actionTypes";
-import { successLabelKo } from "@/lib/trpg/labels";
+import { successLabelKo, dcBandLabelKo } from "@/lib/trpg/labels";
+import { bandFromDc } from "@/lib/trpg/dcAssess";
 import { statModifier, suggestBotStats } from "@/lib/trpg/stats";
 import type { TrpgCampaignSnapshot } from "@/lib/trpg/snapshot";
-import { TRPG_ACTION_MAX_CHARS, TRPG_GM_GROSS_MARGIN, TRPG_PARTY_CHAT_MAX_CHARS } from "@/lib/trpg/types";
+import { TRPG_ACTION_MAX_CHARS, TRPG_GM_GROSS_MARGIN, TRPG_PARTY_CHAT_MAX_CHARS, type TrpgDcMode } from "@/lib/trpg/types";
 import type { PublicPersonaListItem } from "@/lib/userPersonasClient";
 
 const POLL_MS = 1500;
@@ -79,6 +80,7 @@ export default function TrpgRoomClient({
   const [editingId, setEditingId] = useState<number | null>(
     () => snap.viewerParticipantId ?? snap.participants.find((p) => p.kind === "human")?.id ?? null
   );
+  const [dcMode, setDcMode] = useState<TrpgDcMode>(() => snap.diceRules.dcMode ?? "fixed");
 
   const setup = snap.campaignStatus === "CHARACTER_SETUP" || snap.campaignStatus === "WAITING_FOR_PLAYERS";
   const spent = Object.values(stats).reduce((a, b) => a + b, 0);
@@ -471,14 +473,49 @@ export default function TrpgRoomClient({
               자동 배분
             </button>
             {snap.viewerIsHost ? (
-              <button
-                type="button"
-                disabled={busy || !partyReady}
-                onClick={() => void run(`/api/trpg/campaigns/${snap.id}/start`)}
-                className="inline-flex min-h-10 items-center rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-semibold text-zinc-100 hover:bg-white/10 disabled:opacity-50"
-              >
-                캠페인 시작
-              </button>
+              <div className="mt-4 space-y-2">
+                <p className="text-sm font-semibold text-zinc-200">판정 난이도</p>
+                <p className="text-xs text-zinc-500">
+                  캠페인 시작 전에만 고릅니다. 기억·봉인에는 주사위 숫자가 안 들어갑니다.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDcMode("fixed")}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                      dcMode === "fixed"
+                        ? "bg-violet-600 text-white"
+                        : "border border-white/10 bg-white/5 text-zinc-300"
+                    }`}
+                  >
+                    성공 확률 고정 (DC 12)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDcMode("situational")}
+                    className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                      dcMode === "situational"
+                        ? "bg-violet-600 text-white"
+                        : "border border-white/10 bg-white/5 text-zinc-300"
+                    }`}
+                  >
+                    상황에 따라 (8 / 12 / 16)
+                  </button>
+                </div>
+                <p className="text-xs text-zinc-500">
+                  {dcMode === "fixed"
+                    ? "모든 행동이 DC 12입니다. 능력치 보정만 달라집니다."
+                    : "쉬운 일은 DC 8, 보통 12, 누가 봐도 어려운 일은 16입니다. 굴리기 전에 행동·장소 문구로 고르고, GM이 눈을 바꾸지는 않습니다."}
+                </p>
+                <button
+                  type="button"
+                  disabled={busy || !partyReady}
+                  onClick={() => void run(`/api/trpg/campaigns/${snap.id}/start`, { dcMode })}
+                  className="inline-flex min-h-10 items-center rounded-xl border border-white/10 bg-white/5 px-4 text-sm font-semibold text-zinc-100 hover:bg-white/10 disabled:opacity-50"
+                >
+                  캠페인 시작
+                </button>
+              </div>
             ) : (
               <p className="self-center text-xs text-zinc-500">방장이 시작하면 첫 장면이 나옵니다.</p>
             )}
@@ -501,6 +538,9 @@ export default function TrpgRoomClient({
                 <p className="mt-1 text-xs text-zinc-500">
                   {roll.name} · {snap.statDefs.find((d) => d.key === roll.statKey)?.label ?? roll.statKey} ·{" "}
                   {roll.finalScore} vs DC {roll.dc}
+                  {snap.diceRules.dcMode === "situational"
+                    ? ` · ${dcBandLabelKo(bandFromDc(roll.dc, snap.diceRules))}`
+                    : ""}
                 </p>
               </li>
             ))}

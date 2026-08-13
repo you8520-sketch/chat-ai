@@ -1,4 +1,4 @@
-import type { TrpgSuccessTier } from "./types";
+import type { TrpgDcBand, TrpgSuccessTier } from "./types";
 
 export function successLabelKo(tier: TrpgSuccessTier): string {
   switch (tier) {
@@ -18,6 +18,21 @@ export function successLabelKo(tier: TrpgSuccessTier): string {
       return "치명적 성공";
     default: {
       const _exhaustive: never = tier;
+      return _exhaustive;
+    }
+  }
+}
+
+export function dcBandLabelKo(band: TrpgDcBand): string {
+  switch (band) {
+    case "easy":
+      return "쉬움";
+    case "normal":
+      return "보통";
+    case "hard":
+      return "어려움";
+    default: {
+      const _exhaustive: never = band;
       return _exhaustive;
     }
   }
