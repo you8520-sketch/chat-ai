@@ -8,9 +8,11 @@ import { MEMORY_CAPACITY_DEFAULT, normalizeMemoryCapacity } from "@/lib/memory/m
 import {
   countCompletedTurnsUpToMessageId,
   countMemoryEligibleCompletedTurnsUpToMessageId,
-  copyForkTurnSummaries,
+  copyForkMemoryArtifacts,
+  FORK_MEMORY_TURN_INTERVAL,
   initializeForkChatMemory,
   remapForkResetBoundary,
+  snapshotForkRelationshipMeta,
 } from "@/lib/memory/memory-fork-snapshot";
 import { resolveMemoryTier } from "@/lib/memory/memory-manager";
 import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
@@ -43,7 +45,9 @@ export async function POST(req: Request) {
 
   const toCopy = db
     .prepare(
-      `SELECT id, role, content, model, usage, adult_route_meta_json, status, is_refunded, deduction_slices
+      `SELECT id, role, content, model, usage, adult_route_meta_json, status, is_refunded,
+              deduction_slices, user_message_id, status_meta, status_widget_values_json,
+              status_widget_turn_active
        FROM messages WHERE chat_id=? AND id <= ? ORDER BY id ASC`
     )
     .all(cId, mId) as {
@@ -56,6 +60,10 @@ export async function POST(req: Request) {
     status: string | null;
     is_refunded: number;
     deduction_slices: string | null;
+    user_message_id: number | null;
+    status_meta: string | null;
+    status_widget_values_json: string | null;
+    status_widget_turn_active: number | null;
   }[];
 
   if (toCopy.length === 0) {
@@ -74,6 +82,21 @@ export async function POST(req: Request) {
     parentBoundary.resetAfterMessageId
   );
 
+  const eligibleSummaryTexts = db
+    .prepare(
+      `SELECT summary FROM chat_turn_summaries
+       WHERE chat_id=? AND (turn_number + ?) <= ?
+       ORDER BY turn_number ASC`
+    )
+    .all(cId, FORK_MEMORY_TURN_INTERVAL - 1, memoryEligibleForkTurnCount) as { summary: string }[];
+  const forkMemoryMeta = snapshotForkRelationshipMeta({
+    parentMemoryMeta: typeof source.memory_meta === "string" ? source.memory_meta : "{}",
+    copiedContents: [
+      ...toCopy.map((message) => message.content),
+      ...eligibleSummaryTexts.map((row) => row.summary),
+    ],
+  });
+
   const forkResult = db.transaction(() => {
     const info = db
       .prepare(
@@ -88,7 +111,7 @@ export async function POST(req: Request) {
         source.mode ?? "safe",
         "",
         "[]",
-        source.memory_meta ?? "{}",
+        forkMemoryMeta,
         0,
         "",
         "",
@@ -108,9 +131,10 @@ export async function POST(req: Request) {
     const ins = db.prepare(
       `INSERT INTO messages (
          chat_id, role, content, model, usage, adult_route_meta_json,
-         status, is_refunded, deduction_slices
+         status, is_refunded, deduction_slices, status_meta, status_widget_values_json,
+         status_widget_turn_active
        )
-       VALUES (?,?,?,?,?,?,?,?,?)`
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`
     );
     for (const m of toCopy) {
       const result = ins.run(
@@ -122,7 +146,10 @@ export async function POST(req: Request) {
         m.adult_route_meta_json ?? "",
         m.status ?? "ok",
         m.is_refunded ?? 0,
-        m.deduction_slices
+        m.deduction_slices,
+        m.status_meta ?? null,
+        m.status_widget_values_json ?? "",
+        m.status_widget_turn_active ?? 0
       );
       messageIdMap.set(m.id, Number(result.lastInsertRowid));
     }
@@ -142,10 +169,12 @@ export async function POST(req: Request) {
       resetAfterMessageId: childResetAfterMessageId,
     });
 
-    const copiedSummaryPages = copyForkTurnSummaries(db, {
+    const { copiedSummaryPages } = copyForkMemoryArtifacts(db, {
       sourceChatId: cId,
       newChatId,
       forkTurnCount: memoryEligibleForkTurnCount,
+      forkMessageId: mId,
+      parentResetAfterMessageId: parentBoundary.resetAfterMessageId,
       messageIdMap,
     });
 
