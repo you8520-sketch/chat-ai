@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { clipTrpgChars } from "./clip";
 import { parseJson } from "./store";
 import {
   TRPG_LEDGER_FLAG_MAX,
@@ -9,6 +10,8 @@ import {
   type TrpgStateDelta,
 } from "./types";
 
+export { clipTrpgChars };
+
 export type TrpgCampaignLedger = {
   location: string;
   nextRoundContext: string;
@@ -16,12 +19,6 @@ export type TrpgCampaignLedger = {
   npcs: string[];
   worldFlags: string[];
 };
-
-export function clipTrpgChars(text: string, max: number): string {
-  const chars = Array.from(text.replace(/\s+/g, " ").trim());
-  if (chars.length <= max) return chars.join("");
-  return chars.slice(0, max).join("").trimEnd();
-}
 
 function clipItem(raw: string): string {
   return clipTrpgChars(raw, TRPG_LEDGER_ITEM_MAX_CHARS);

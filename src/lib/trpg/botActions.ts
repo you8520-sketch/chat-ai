@@ -1,4 +1,4 @@
-import { clipTrpgChars } from "./campaignLedger";
+import { clipTrpgChars } from "./clip";
 import {
   TRPG_BOT_ACTION_MAX_CHARS,
   TRPG_BOT_AIM_CHARS,
