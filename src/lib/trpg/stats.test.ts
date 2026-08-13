@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { DEFAULT_TRPG_POINT_POOL, DEFAULT_TRPG_STAT_DEFS, deriveMaxHp, suggestBotStats, validateStatAllocation } from "./stats";
+import { DEFAULT_TRPG_POINT_POOL, DEFAULT_TRPG_STAT_DEFS, TRPG_STAT_CATALOG, defsFromKeys, deriveMaxHp, evenStats, parseStatKeys, pointPoolFor, suggestBotStats, validateStatAllocation } from "./stats";
 
 describe("TRPG stat allocation", () => {
   it("rejects a pool overflow", () => {
@@ -26,11 +26,21 @@ describe("TRPG stat allocation", () => {
 
   it("tilts a suggested bot sheet toward the character instead of even 5s", () => {
     const even = suggestBotStats("");
-    assert.deepEqual(even, { str: 5, dex: 5, int: 5, wis: 5, cha: 5, con: 5 });
+    assert.deepEqual(even, evenStats(DEFAULT_TRPG_STAT_DEFS));
     const fighter = suggestBotStats("냉정한 용병 기사. 검과 방패로 싸운다.");
     assert.ok(fighter.str > even.str);
     assert.equal(Object.values(fighter).reduce((a, b) => a + b, 0), 30);
     const check = validateStatAllocation(DEFAULT_TRPG_STAT_DEFS, fighter);
     assert.equal(check.ok, true);
+  });
+
+  it("keeps a 20-stat catalog and lets a scenario pick a subset", () => {
+    assert.equal(TRPG_STAT_CATALOG.length, 20);
+    assert.deepEqual(parseStatKeys(["mag", "str", "nope", "mag"]), ["str", "mag"]);
+    const defs = defsFromKeys(["str", "mag"]);
+    assert.equal(pointPoolFor(defs), 10);
+    const even = evenStats(defs);
+    assert.equal(even.str, 5);
+    assert.equal(even.mag, 5);
   });
 });

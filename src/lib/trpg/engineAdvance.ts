@@ -3,7 +3,7 @@ import type Database from "better-sqlite3";
 import { deductPoints, getPointBalance } from "@/lib/points";
 import { paidCreatorRewardSpend, resolveCreatorRewardRate } from "@/lib/creatorPoints";
 import { creditTrpgRoundCreatorRewards, loadTrpgCharacterRoyaltyTargets } from "./creatorRewards";
-import { isTrpgActionType, resolveAdjudicationStat } from "./actionTypes";
+import { isTrpgActionType, pickStatForAction } from "./actionTypes";
 import {
   computeTrpgRoundPoints,
   splitTrpgRoundCost,
@@ -17,7 +17,7 @@ import { resolveTrpgRoll, rollServerD20 } from "./dice";
 import { assertCanStart } from "./engineCreate";
 import { callTrpgBot, callTrpgGm } from "./gmCall";
 import { formatTrpgPlayerPersonaBlock, parseHumanPersona } from "./hostPersona";
-import { buildTrpgGmUserBlock, parseTrpgGmOutput, TRPG_GM_SYSTEM } from "./gmPrompt";
+import { buildTrpgGmUserBlock, formatTrpgSheetCanon, parseTrpgGmOutput, TRPG_GM_SYSTEM } from "./gmPrompt";
 import { loadTrpgSnapshot } from "./engineSnapshot";
 import { buildCampaignMemoryPrompt, buildTrpgBotMemoryBlock } from "./memory";
 import { sealDroppedTrpgRounds, type TrpgMemoryCall } from "./memorySeal";
@@ -407,9 +407,10 @@ function persistRolls(
   db.transaction(() => {
     for (const sub of subs) {
       const actionType = sub.action_type && isTrpgActionType(sub.action_type) ? sub.action_type : "free";
-      const statKey = resolveAdjudicationStat({
+      const statKey = pickStatForAction({
         actionType,
         selectedStat: sub.selected_stat,
+        body: sub.body,
         defs: scenario.statDefs,
       });
       const statRow = db
@@ -458,7 +459,7 @@ async function runGmForRound(
   if (!campaign) throw new Error("캠페인을 찾을 수 없습니다.");
   const scenario = loadScenario(db, opts.campaignId);
   const memory = buildCampaignMemoryPrompt(db, opts.campaignId);
-  const actions = loadActionsForGm(db, opts.roundId);
+  const actions = loadActionsForGm(db, opts.roundId, scenario.statDefs);
   const playerPersonas = loadParticipants(db, opts.campaignId)
     .filter((p) => p.kind === "human")
     .map((p) => {
@@ -467,19 +468,24 @@ async function runGmForRound(
       return `[PLAYER PERSONA participantId=${p.id} name=${p.display_name}]\n이름/호칭: ${p.display_name}`;
     })
     .join("\n\n");
+  const sheets = loadSheetSnapshots(db, opts.campaignId);
+  const sheetCanon = formatTrpgSheetCanon({
+    defs: scenario.statDefs,
+    sheets: sheets.map((s) => ({ name: s.name, stats: s.stats })),
+  });
   const user = buildTrpgGmUserBlock({
     worldBrief: campaign.world_brief,
     gmSecret: campaign.gm_secret ?? "",
     memoryBlock: memory,
     opening: opts.opening,
     playerPersonas,
+    sheetCanon,
     actions,
   });
   const gmCall = opts.deps?.gmCall ?? callTrpgGm;
   const { text, usage } = await gmCall({ system: TRPG_GM_SYSTEM, user });
   appendRoundUsage(db, opts.roundId, usage ?? TRPG_GM_USAGE_FALLBACK);
   const parsed = parseTrpgGmOutput(text);
-  const sheets = loadSheetSnapshots(db, opts.campaignId);
   const applied = applyValidatedStateDelta(sheets, parsed.delta);
   const nextSheets = applied.ok ? applied.next : sheets;
   const roundNumber = (
@@ -606,11 +612,20 @@ function maybeBillRound(
   db.prepare(`UPDATE trpg_rounds SET billed=1, billed_points=? WHERE id=?`).run(totalPoints, roundId);
 }
 
-function loadActionsForGm(db: Database.Database, roundId: number) {
+function loadActionsForGm(
+  db: Database.Database,
+  roundId: number,
+  defs: { key: string; label: string }[]
+) {
   return (
     db
       .prepare(
-        `SELECT s.participant_id, p.display_name AS name, s.body, r.stat_key, r.d20, r.final_score, r.dc, r.tier
+        `SELECT s.participant_id, p.display_name AS name, s.body, r.stat_key, r.d20, r.final_score, r.dc, r.tier,
+                (
+                  SELECT st.value FROM trpg_character_stats st
+                  JOIN trpg_character_sheets sh ON sh.id = st.sheet_id
+                  WHERE sh.participant_id = s.participant_id AND st.stat_key = r.stat_key
+                ) AS stat_value
          FROM trpg_action_submissions s
          JOIN trpg_participants p ON p.id = s.participant_id
          LEFT JOIN trpg_dice_rolls r ON r.submission_id = s.id
@@ -621,19 +636,26 @@ function loadActionsForGm(db: Database.Database, roundId: number) {
       name: string;
       body: string;
       stat_key: string | null;
+      stat_value: number | null;
       d20: number | null;
       final_score: number | null;
       dc: number | null;
       tier: string | null;
     }>
-  ).map((a) => ({
-    participantId: a.participant_id,
-    name: a.name,
-    body: a.body,
-    statKey: a.stat_key ?? "dex",
-    d20: a.d20,
-    finalScore: a.final_score,
-    dc: a.dc,
-    tier: a.tier,
-  }));
+  ).map((a) => {
+    const statKey = a.stat_key ?? "dex";
+    const def = defs.find((d) => d.key === statKey);
+    return {
+      participantId: a.participant_id,
+      name: a.name,
+      body: a.body,
+      statKey,
+      statLabel: def?.label,
+      statValue: a.stat_value,
+      d20: a.d20,
+      finalScore: a.final_score,
+      dc: a.dc,
+      tier: a.tier,
+    };
+  });
 }

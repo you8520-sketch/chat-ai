@@ -25,7 +25,15 @@ import {
   type TrpgScenarioNpc,
   type TrpgScenarioTemplate,
 } from "@/lib/trpg/scenarioTypes";
-import { DEFAULT_TRPG_STAT_DEFS, suggestBotStats } from "@/lib/trpg/stats";
+import {
+  DEFAULT_TRPG_STAT_DEFS,
+  DEFAULT_TRPG_STAT_KEYS,
+  TRPG_STAT_CATALOG,
+  defsFromKeys,
+  evenStats,
+  pointPoolFor,
+  suggestBotStats,
+} from "@/lib/trpg/stats";
 import type { TrpgVisibility } from "@/lib/trpg/types";
 
 function emptyNpc(): TrpgScenarioNpc {
@@ -53,7 +61,10 @@ export default function TrpgScenarioEditor({
   const [startLocation, setStartLocation] = useState(initial?.startLocation ?? "");
   const [inventoryText, setInventoryText] = useState((initial?.startInventory ?? []).join(", "));
   const [stats, setStats] = useState<Record<string, number>>(
-    () => initial?.defaultPcStats ?? { str: 5, dex: 5, int: 5, wis: 5, cha: 5, con: 5 }
+    () => initial?.defaultPcStats ?? evenStats(DEFAULT_TRPG_STAT_DEFS)
+  );
+  const [statKeys, setStatKeys] = useState<string[]>(() =>
+    initial?.statKeys?.length ? initial.statKeys : [...DEFAULT_TRPG_STAT_KEYS]
   );
   const [npcs, setNpcs] = useState<TrpgScenarioNpc[]>(initial?.npcs?.length ? initial.npcs : []);
   const [characterIds, setCharacterIds] = useState<number[]>(initial?.characterIds ?? []);
@@ -61,7 +72,9 @@ export default function TrpgScenarioEditor({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  const spent = Object.values(stats).reduce((a, b) => a + b, 0);
+  const selectedDefs = defsFromKeys(statKeys);
+  const pointPool = pointPoolFor(selectedDefs);
+  const spent = selectedDefs.reduce((a, def) => a + (stats[def.key] ?? 0), 0);
   const namedNpcs = npcs.filter((n) => n.name.trim());
   const linkedWorld = typeof worldId === "number" ? catalog.myWorlds.find((w) => w.id === worldId) : undefined;
   const bundleUsed = countScenarioBundleChars({
@@ -96,6 +109,23 @@ export default function TrpgScenarioEditor({
     TRPG_SCENARIO_SUMMARY_LIMIT
   );
 
+  function toggleStatKey(key: string) {
+    setStatKeys((prev) => {
+      const on = prev.includes(key);
+      const next = on ? prev.filter((k) => k !== key) : [...prev, key];
+      if (next.length === 0) return prev;
+      const defs = defsFromKeys(next);
+      setStats((cur) => {
+        const filled = evenStats(defs);
+        for (const def of defs) {
+          if (typeof cur[def.key] === "number") filled[def.key] = cur[def.key]!;
+        }
+        return filled;
+      });
+      return defs.map((d) => d.key);
+    });
+  }
+
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (bundleOver) {
@@ -117,6 +147,7 @@ export default function TrpgScenarioEditor({
         .map((s) => s.trim())
         .filter(Boolean),
       defaultPcStats: stats,
+      statKeys,
       npcs: npcs.filter((n) => n.name.trim()),
       characterIds,
       genres,
@@ -251,8 +282,27 @@ export default function TrpgScenarioEditor({
 
         <AppSectionCard title="시작 위치 · 기본 PC 시트">
           <p className="mb-3 text-sm text-zinc-400">
-            플레이어 시트 초안입니다. 자동 배분은 시나리오 본문 키워드로 30포인트를 나눕니다. 캠페인 시작 전에 다시 고칠 수 있습니다.
+            D&amp;D·크툴루·WoD 등에서 자주 쓰는 상태값 20종입니다. 이 시나리오 시트에 넣을 값을 고르세요. GM이 상황에
+            맞는 값을 골라 성공률에 반영합니다. 포인트 풀은 고른 수×5입니다.
           </p>
+          <div className="mb-3 flex flex-wrap gap-1.5">
+            {TRPG_STAT_CATALOG.map((entry) => {
+              const on = statKeys.includes(entry.key);
+              return (
+                <button
+                  key={entry.key}
+                  type="button"
+                  onClick={() => toggleStatKey(entry.key)}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    on ? "bg-violet-600 text-white" : "border border-white/10 text-zinc-300"
+                  }`}
+                  title={entry.description}
+                >
+                  {entry.label}
+                </button>
+              );
+            })}
+          </div>
           <label className="block text-sm text-zinc-300">
             시작 장소
             <input
@@ -270,9 +320,10 @@ export default function TrpgScenarioEditor({
             />
           </label>
           <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {DEFAULT_TRPG_STAT_DEFS.map((def) => (
+            {selectedDefs.map((def) => (
               <label key={def.key} className="text-sm text-zinc-300">
                 {def.label}
+                <span className="ml-1 text-[10px] font-normal text-zinc-500">{def.description}</span>
                 <input
                   type="number"
                   min={def.min}
@@ -284,10 +335,12 @@ export default function TrpgScenarioEditor({
               </label>
             ))}
           </div>
-          <p className="mt-2 text-xs text-zinc-500">합계 {spent} / 30</p>
+          <p className="mt-2 text-xs text-zinc-500">
+            합계 {spent} / {pointPool}
+          </p>
           <button
             type="button"
-            onClick={() => setStats(suggestBotStats([title, summary, content].join("\n")))}
+            onClick={() => setStats(suggestBotStats([title, summary, content].join("\n"), pointPool, selectedDefs))}
             className="mt-2 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-zinc-200"
           >
             본문으로 자동 배분
