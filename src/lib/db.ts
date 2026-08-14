@@ -24,6 +24,7 @@ import { UNIFIED_TIER_AIM_CHARS } from "@/lib/responseLengthConstants";
 import { inferAdultStatusFromLegacyText } from "@/lib/adultSceneRouting";
 import { ensureRpNumericStateTables } from "@/lib/rpNumericState/persistence";
 import { ensureTrpgTables } from "@/lib/trpg/schema";
+import { isRetryableRemoteSchemaError } from "@/lib/libsqlErrors";
 
 validateAuthEnvironment();
 
@@ -79,23 +80,21 @@ function normalizeLibsqlRows(db: Database.Database): void {
   }) as typeof db.prepare;
 }
 
-function isConcurrentSchemaError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error);
-  return /duplicate column name|database is locked|schema (?:has )?changed|SQLITE_(?:BUSY|LOCKED)/i.test(
-    message
-  );
-}
-
 function initializeDatabase(db: Database.Database): void {
-  const attempts = remoteDatabase ? 5 : 1;
+  const attempts = remoteDatabase ? 30 : 1;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
       init(db);
       return;
     } catch (error) {
-      if (attempt === attempts || !isConcurrentSchemaError(error)) throw error;
+      if (attempt === attempts || !isRetryableRemoteSchemaError(error)) throw error;
       // Cold Vercel instances can reach the same idempotent migration simultaneously.
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, attempt * 75);
+      Atomics.wait(
+        new Int32Array(new SharedArrayBuffer(4)),
+        0,
+        0,
+        Math.min(1_000, 100 + attempt * 100)
+      );
     }
   }
 }
@@ -2097,10 +2096,16 @@ export function getDb(): Database.Database {
     const options = remoteDatabase
       ? ({ authToken: remoteDatabase.authToken } as Database.Options & { authToken: string })
       : undefined;
-    global.__db = new Database(remoteDatabase?.url ?? getDatabasePath(), options);
-    normalizeLibsqlRows(global.__db);
-    initializeDatabase(global.__db);
-  } else {
+    const candidate = new Database(remoteDatabase?.url ?? getDatabasePath(), options);
+    normalizeLibsqlRows(candidate);
+    try {
+      initializeDatabase(candidate);
+      global.__db = candidate;
+    } catch (error) {
+      candidate.close();
+      throw error;
+    }
+  } else if (process.env.NODE_ENV === "development") {
     // HMR 시 연결은 유지되지만 migrate 코드는 갱신될 수 있음
     migrate(global.__db);
   }
