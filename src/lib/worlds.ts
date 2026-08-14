@@ -1,4 +1,5 @@
 import { parseGenresJson, type CharacterGenre } from "@/lib/characterGenres";
+import { isVercelPublicBlobUrl } from "@/lib/uploadUrls";
 
 export const WORLD_NAME_LIMIT = 40;
 export const WORLD_SUMMARY_LIMIT = 100;
@@ -64,10 +65,12 @@ export function parseWorldTrpgFlags(body: { trpgEnabled?: unknown; trpgVisibilit
 
 const WORLD_COVER_URL_RE = /^\/uploads\/[A-Za-z0-9._-]+$/;
 
-/** Accepts only app-hosted upload paths. Empty when unset or unsafe. */
+/** Accepts app-hosted paths and public Vercel Blob uploads. */
 export function sanitizeWorldCoverUrl(raw: unknown): string {
   const value = String(raw ?? "").trim();
-  return WORLD_COVER_URL_RE.test(value) ? value : "";
+  return WORLD_COVER_URL_RE.test(value) || isVercelPublicBlobUrl(value)
+    ? value
+    : "";
 }
 
 export function rowToWorldListItem(row: WorldRow): WorldListItem {

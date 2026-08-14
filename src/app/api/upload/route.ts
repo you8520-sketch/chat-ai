@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
-import path from "path";
-import fs from "fs/promises";
 import crypto from "crypto";
 import { getSessionUser } from "@/lib/auth";
-import { uploadPublicUrl, uploadsDataDir } from "@/lib/uploadStorage";
+import { storeUpload } from "@/lib/uploadStorage";
 import { optimizeUploadImage } from "@/lib/uploadImageOptimize";
 
 const MAX_FILES = 100;
@@ -23,9 +21,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `이미지는 최대 ${MAX_FILES}장까지 업로드할 수 있습니다.` }, { status: 400 });
   }
 
-  const dir = uploadsDataDir();
-  await fs.mkdir(dir, { recursive: true });
-
   const urls: string[] = [];
   for (const file of files) {
     if (!ALLOWED.has(file.type)) {
@@ -37,8 +32,8 @@ export async function POST(req: Request) {
     const input = Buffer.from(await file.arrayBuffer());
     const optimized = await optimizeUploadImage(input, file.type);
     const name = `${crypto.randomUUID()}.${optimized.ext}`;
-    await fs.writeFile(path.join(dir, name), optimized.buffer);
-    urls.push(uploadPublicUrl(name));
+    const stored = await storeUpload(name, optimized.buffer, optimized.mime);
+    urls.push(stored.url);
   }
   return NextResponse.json({ ok: true, urls });
 }

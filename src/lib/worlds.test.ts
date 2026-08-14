@@ -4,8 +4,14 @@ import { squareCropRect } from "./worldCoverCrop";
 import { parseWorldStudioKind, sanitizeWorldCoverUrl } from "./worlds";
 
 describe("world cover helpers", () => {
-  it("accepts only /uploads/ filenames", () => {
+  it("accepts app uploads and public Vercel Blob uploads", () => {
     assert.equal(sanitizeWorldCoverUrl("/uploads/abc-123.webp"), "/uploads/abc-123.webp");
+    assert.equal(
+      sanitizeWorldCoverUrl(
+        "https://example.public.blob.vercel-storage.com/uploads/abc-123.webp",
+      ),
+      "https://example.public.blob.vercel-storage.com/uploads/abc-123.webp",
+    );
     assert.equal(sanitizeWorldCoverUrl(""), "");
     assert.equal(sanitizeWorldCoverUrl("https://evil.example/x.png"), "");
     assert.equal(sanitizeWorldCoverUrl("/uploads/../secret.png"), "");
