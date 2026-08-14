@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-const DISMISS_KEY = "hobby-ai-pwa-install-dismissed-at";
-const DISMISS_FOR_MS = 7 * 24 * 60 * 60 * 1000;
+const DISMISS_KEY = "hobby-ai-pwa-install-dismissed-at-v2";
+const DISMISS_FOR_MS = 24 * 60 * 60 * 1000;
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -23,6 +23,7 @@ function wasRecentlyDismissed(): boolean {
 export default function PwaInstallPrompt() {
   const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [showIosGuide, setShowIosGuide] = useState(false);
+  const [showAndroidGuide, setShowAndroidGuide] = useState(false);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -46,10 +47,20 @@ export default function PwaInstallPrompt() {
       setVisible(true);
     }
 
+    // Chrome only emits beforeinstallprompt after its own installability checks.
+    // Keep a visible manual path on Android even when that event is delayed or withheld.
+    const androidFallback = !isIos
+      ? window.setTimeout(() => {
+          setShowAndroidGuide(true);
+          setVisible(true);
+        }, 1_200)
+      : null;
+
     const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
       setInstallEvent(event as BeforeInstallPromptEvent);
       setShowIosGuide(false);
+      setShowAndroidGuide(false);
       setVisible(true);
     };
 
@@ -65,6 +76,7 @@ export default function PwaInstallPrompt() {
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
       window.removeEventListener("appinstalled", handleInstalled);
+      if (androidFallback !== null) window.clearTimeout(androidFallback);
     };
   }, []);
 
@@ -107,6 +119,14 @@ export default function PwaInstallPrompt() {
       {showIosGuide ? (
         <div className="mt-3 rounded-xl bg-white/[0.06] px-3 py-2.5 text-xs leading-relaxed text-zinc-300">
           아래의 <strong className="text-white">공유</strong> 버튼을 누른 다음
+          <strong className="text-violet-300"> 홈 화면에 추가</strong>를 선택하세요.
+        </div>
+      ) : null}
+
+      {showAndroidGuide ? (
+        <div className="mt-3 rounded-xl bg-white/[0.06] px-3 py-2.5 text-xs leading-relaxed text-zinc-300">
+          브라우저 오른쪽 위 <strong className="text-white">메뉴(⋮)</strong>에서
+          <strong className="text-violet-300"> 앱 설치</strong> 또는
           <strong className="text-violet-300"> 홈 화면에 추가</strong>를 선택하세요.
         </div>
       ) : null}

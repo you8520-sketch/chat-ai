@@ -1,6 +1,7 @@
 import "server-only";
 
 import type Database from "better-sqlite3";
+import { after } from "next/server";
 import webpush from "web-push";
 import { getDb } from "@/lib/db";
 
@@ -215,6 +216,14 @@ export async function flushWebPushOutbox(): Promise<void> {
 
 export function scheduleWebPushDelivery(): void {
   if (process.env.DISABLE_WEB_PUSH_DELIVERY === "1") return;
+  try {
+    // Vercel may freeze a serverless invocation as soon as its response ends.
+    // `after` keeps this delivery work attached to the active request lifecycle.
+    after(() => flushWebPushOutbox());
+    return;
+  } catch {
+    // Custom Node server and tests do not always have a Next request scope.
+  }
   if (deliveryTimer) return;
   deliveryTimer = setTimeout(() => {
     deliveryTimer = null;
