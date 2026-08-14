@@ -21,6 +21,7 @@ const EXPECTED_NAMES = [
 ] as const;
 const SAFE_FILENAME_RE = /^[A-Za-z0-9._-]+$/;
 const SAFE_COLUMN_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+const EXPECTED_USER_COUNT = 41;
 
 type ExportRow = Record<string, string | number | null>;
 type RailwayExport = {
@@ -170,6 +171,36 @@ async function migrateDatabase(assetUrls: Record<string, string>) {
   };
 }
 
+function migrateUsers(rows: ExportRow[]) {
+  if (rows.length !== EXPECTED_USER_COUNT) {
+    throw new Error(`Expected ${EXPECTED_USER_COUNT} users, received ${rows.length}`);
+  }
+
+  const ids = rows.map((row) => Number(row.id));
+  if (ids.some((id) => !Number.isSafeInteger(id) || id <= 0)) {
+    throw new Error("Every user must have a valid positive integer id");
+  }
+  if (new Set(ids).size !== EXPECTED_USER_COUNT) {
+    throw new Error("User ids must be unique");
+  }
+
+  const usersInserted = insertRows("users", rows);
+  const db = getDb();
+  const verified = db
+    .prepare(
+      `SELECT COUNT(*) AS count FROM users WHERE id IN (${ids.map(() => "?").join(",")})`,
+    )
+    .get(...ids) as { count: number };
+  const usersVerified = Number(verified.count);
+  if (usersVerified !== EXPECTED_USER_COUNT) {
+    throw new Error(
+      `User verification failed: expected ${EXPECTED_USER_COUNT}, found ${usersVerified}`,
+    );
+  }
+
+  return { usersInserted, usersVerified };
+}
+
 export async function POST(request: Request) {
   if (!authorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -179,6 +210,7 @@ export async function POST(request: Request) {
       action?: unknown;
       filename?: unknown;
       assetUrls?: unknown;
+      users?: unknown;
     };
     if (body.action === "asset") {
       const result = await migrateAsset(String(body.filename ?? ""));
@@ -190,6 +222,13 @@ export async function POST(request: Request) {
           ? (body.assetUrls as Record<string, string>)
           : {};
       const result = await migrateDatabase(assetUrls);
+      return NextResponse.json({ ok: true, ...result });
+    }
+    if (body.action === "users") {
+      if (!Array.isArray(body.users)) {
+        return NextResponse.json({ error: "Invalid users payload" }, { status: 400 });
+      }
+      const result = migrateUsers(body.users as ExportRow[]);
       return NextResponse.json({ ok: true, ...result });
     }
     return NextResponse.json({ error: "Invalid action" }, { status: 400 });
