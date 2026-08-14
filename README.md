@@ -53,7 +53,10 @@ Production authentication uses an opaque `session` cookie whose token is looked 
 
 ### Required production environment variables
 
-- `DATA_DIR=/data` (or another mounted persistent volume path)
+- Choose one persistent database backend:
+  - `DATA_DIR=/data` (or another mounted persistent volume path) for Railway or a VM.
+  - `TURSO_DATABASE_URL=libsql://...` and `TURSO_AUTH_TOKEN=...` for Vercel/serverless.
+- When using `DATA_DIR=/data`:
   - This directory contains `app.db`, including the `sessions` table.
   - `DATA_DIR` must point to a persistent volume. Do not use an ephemeral filesystem for production auth storage.
   - If production starts without `DATA_DIR` and without a mounted `/data` volume, startup failure is intentional. It prevents the app from silently creating a fresh SQLite database and logging users out after the next deploy/restart.

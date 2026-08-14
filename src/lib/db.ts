@@ -3,7 +3,14 @@ import "server-only";
 import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
-import { databaseDiagnostics, getDataDir, getDatabasePath, validateProductionDataDirRuntime } from "@/lib/dataDir";
+import {
+  databaseDiagnostics,
+  getDataDir,
+  getDatabasePath,
+  getRemoteDatabaseConfig,
+  remoteDatabaseDiagnostics,
+  validateProductionDataDirRuntime,
+} from "@/lib/dataDir";
 import { validateAuthEnvironment } from "@/lib/authEnv";
 import {
   DEFAULT_BOARD_POSTS,
@@ -20,15 +27,23 @@ import { ensureTrpgTables } from "@/lib/trpg/schema";
 
 validateAuthEnvironment();
 
-const dataDir = getDataDir();
-validateProductionDataDirRuntime(dataDir);
-if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+const remoteDatabase = getRemoteDatabaseConfig();
+const dataDir = remoteDatabase ? null : getDataDir();
+if (dataDir) {
+  validateProductionDataDirRuntime(dataDir);
+  if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+}
 
 let loggedDatabaseDiagnostics = false;
 function logDatabaseDiagnosticsOnce() {
   if (loggedDatabaseDiagnostics) return;
   loggedDatabaseDiagnostics = true;
-  console.info("[database] runtime diagnostics", databaseDiagnostics(dataDir));
+  console.info(
+    "[database] runtime diagnostics",
+    remoteDatabase
+      ? remoteDatabaseDiagnostics(remoteDatabase)
+      : databaseDiagnostics(dataDir ?? getDataDir())
+  );
 }
 
 declare global {
@@ -36,8 +51,58 @@ declare global {
   var __db: Database.Database | undefined;
 }
 
+function withoutDriverMetadata<T>(row: T): T {
+  if (!row || typeof row !== "object" || !("_metadata" in row)) return row;
+  const { _metadata: _ignored, ...clean } = row as Record<string, unknown>;
+  return clean as T;
+}
+
+/** libsql adds transport timing metadata to rows; keep the existing app row contract stable. */
+function normalizeLibsqlRows(db: Database.Database): void {
+  const originalPrepare = db.prepare.bind(db);
+  db.prepare = ((source: string) => {
+    const statement = originalPrepare(source);
+    const originalGet = statement.get.bind(statement);
+    const originalAll = statement.all.bind(statement);
+    const originalIterate = statement.iterate.bind(statement);
+    statement.get = ((...params: unknown[]) =>
+      withoutDriverMetadata(originalGet(...params))) as typeof statement.get;
+    statement.all = ((...params: unknown[]) =>
+      originalAll(...params).map(withoutDriverMetadata)) as typeof statement.all;
+    statement.iterate = ((...params: unknown[]) => {
+      const rows = originalIterate(...params);
+      return (function* () {
+        for (const row of rows) yield withoutDriverMetadata(row);
+      })();
+    }) as typeof statement.iterate;
+    return statement;
+  }) as typeof db.prepare;
+}
+
+function isConcurrentSchemaError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /duplicate column name|database is locked|schema (?:has )?changed|SQLITE_(?:BUSY|LOCKED)/i.test(
+    message
+  );
+}
+
+function initializeDatabase(db: Database.Database): void {
+  const attempts = remoteDatabase ? 5 : 1;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      init(db);
+      return;
+    } catch (error) {
+      if (attempt === attempts || !isConcurrentSchemaError(error)) throw error;
+      // Cold Vercel instances can reach the same idempotent migration simultaneously.
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, attempt * 75);
+    }
+  }
+}
+
 function init(db: Database.Database) {
-  db.pragma("journal_mode = WAL");
+  // Turso manages the remote database journal. WAL is only meaningful for local files.
+  if (!remoteDatabase) db.pragma("journal_mode = WAL");
   db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2029,8 +2094,12 @@ function seed(db: Database.Database) {
 export function getDb(): Database.Database {
   logDatabaseDiagnosticsOnce();
   if (!global.__db) {
-    global.__db = new Database(getDatabasePath());
-    init(global.__db);
+    const options = remoteDatabase
+      ? ({ authToken: remoteDatabase.authToken } as Database.Options & { authToken: string })
+      : undefined;
+    global.__db = new Database(remoteDatabase?.url ?? getDatabasePath(), options);
+    normalizeLibsqlRows(global.__db);
+    initializeDatabase(global.__db);
   } else {
     // HMR 시 연결은 유지되지만 migrate 코드는 갱신될 수 있음
     migrate(global.__db);

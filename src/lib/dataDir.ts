@@ -15,6 +15,25 @@ export function isProductionRuntime(): boolean {
   return process.env.NODE_ENV === "production" && !isProductionBuildPhase();
 }
 
+export type RemoteDatabaseConfig = {
+  url: string;
+  authToken: string;
+};
+
+/** Turso/libSQL is the persistent database backend used on serverless hosts such as Vercel. */
+export function getRemoteDatabaseConfig(): RemoteDatabaseConfig | null {
+  const url = process.env.TURSO_DATABASE_URL?.trim() ?? "";
+  const authToken = process.env.TURSO_AUTH_TOKEN?.trim() ?? "";
+  if (!url && !authToken) return null;
+  if (!url || !authToken) {
+    throw new Error("TURSO_DATABASE_URL and TURSO_AUTH_TOKEN must be configured together.");
+  }
+  if (!/^(?:libsql|https|http):\/\//i.test(url)) {
+    throw new Error("TURSO_DATABASE_URL must be a libsql:// or https:// URL.");
+  }
+  return { url, authToken };
+}
+
 function mountedPaths(): Set<string> {
   try {
     const mountInfo = fs.readFileSync("/proc/self/mountinfo", "utf8");
@@ -108,6 +127,22 @@ export function databaseDiagnostics(dataDir = getDataDir()) {
     databasePath,
     dataDirExists: fs.existsSync(resolvedDataDir),
     dataDirIsMounted: hasMountedPersistentVolume(resolvedDataDir),
+    productionRuntime: isProductionRuntime(),
+  };
+}
+
+export function remoteDatabaseDiagnostics(config: RemoteDatabaseConfig) {
+  let host = "configured";
+  try {
+    host = new URL(config.url.replace(/^libsql:/i, "https:")).host;
+  } catch {
+    // Never log the URL or auth token when parsing fails.
+  }
+  return {
+    nodeEnv: process.env.NODE_ENV ?? "",
+    nextPhase: process.env.NEXT_PHASE ?? "",
+    backend: "turso",
+    host,
     productionRuntime: isProductionRuntime(),
   };
 }
