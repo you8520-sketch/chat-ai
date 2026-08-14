@@ -25,6 +25,7 @@ import { inferAdultStatusFromLegacyText } from "@/lib/adultSceneRouting";
 import { ensureRpNumericStateTables } from "@/lib/rpNumericState/persistence";
 import { ensureTrpgTables } from "@/lib/trpg/schema";
 import { isRetryableRemoteSchemaError } from "@/lib/libsqlErrors";
+import { initializeRemoteSchema } from "@/lib/remoteSchemaBootstrap";
 
 validateAuthEnvironment();
 
@@ -81,7 +82,15 @@ function normalizeLibsqlRows(db: Database.Database): void {
 }
 
 function initializeDatabase(db: Database.Database): void {
-  const attempts = remoteDatabase ? 30 : 1;
+  if (remoteDatabase) {
+    initializeRemoteSchema(db, () => initializeDatabaseWithRetries(db));
+    return;
+  }
+  init(db);
+}
+
+function initializeDatabaseWithRetries(db: Database.Database): void {
+  const attempts = 10;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     try {
       init(db);
