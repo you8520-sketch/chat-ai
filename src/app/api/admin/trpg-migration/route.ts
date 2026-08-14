@@ -36,7 +36,7 @@ type MigrationPayload = {
 const SAFE_COLUMN_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 function authorized(request: Request): boolean {
-  const expected = process.env.SESSION_SECRET?.trim() ?? "";
+  const expected = process.env.CONTENT_MIGRATION_TOKEN?.trim() ?? "";
   const provided = request.headers.get("x-trpg-migration-secret") ?? "";
   if (expected.length < 32 || expected.length !== provided.length) return false;
   return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(provided));
