@@ -23,10 +23,16 @@ export type RemoteDatabaseConfig = {
 /** Turso/libSQL is the persistent database backend used on serverless hosts such as Vercel. */
 export function getRemoteDatabaseConfig(): RemoteDatabaseConfig | null {
   const url = process.env.TURSO_DATABASE_URL?.trim() ?? "";
-  const authToken = process.env.TURSO_AUTH_TOKEN?.trim() ?? "";
+  const authToken =
+    process.env.TURSO_AUTH_TOKEN?.trim() ||
+    process.env.TURSO_DATABASE_TURSO_AUTH_TOKEN?.trim() ||
+    "";
   if (!url && !authToken) return null;
   if (!url || !authToken) {
-    throw new Error("TURSO_DATABASE_URL and TURSO_AUTH_TOKEN must be configured together.");
+    throw new Error(
+      "TURSO_DATABASE_URL and a Turso auth token must be configured together. " +
+        "Set TURSO_AUTH_TOKEN or the Vercel integration variable TURSO_DATABASE_TURSO_AUTH_TOKEN."
+    );
   }
   if (!/^(?:libsql|https|http):\/\//i.test(url)) {
     throw new Error("TURSO_DATABASE_URL must be a libsql:// or https:// URL.");

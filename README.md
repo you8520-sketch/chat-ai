@@ -55,7 +55,7 @@ Production authentication uses an opaque `session` cookie whose token is looked 
 
 - Choose one persistent database backend:
   - `DATA_DIR=/data` (or another mounted persistent volume path) for Railway or a VM.
-  - `TURSO_DATABASE_URL=libsql://...` and `TURSO_AUTH_TOKEN=...` for Vercel/serverless.
+  - `TURSO_DATABASE_URL=libsql://...` and either `TURSO_AUTH_TOKEN=...` or Vercel Marketplace's `TURSO_DATABASE_TURSO_AUTH_TOKEN=...` for Vercel/serverless.
 - When using `DATA_DIR=/data`:
   - This directory contains `app.db`, including the `sessions` table.
   - `DATA_DIR` must point to a persistent volume. Do not use an ephemeral filesystem for production auth storage.
