@@ -39,7 +39,7 @@ import {
 import {
   parseStatusWidgetJson,
   serializeStatusWidget,
-} from "@/lib/statusWidget";
+} from "@/lib/statusWidget/serialize";
 import {
   compiledPublicCanonText,
   compileCreatorDescriptionTriggers,
