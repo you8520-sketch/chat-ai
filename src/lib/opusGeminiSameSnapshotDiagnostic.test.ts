@@ -12,7 +12,15 @@ import {
   allocateEstimatedSectionTokens,
   buildLikeScaleSnapshot,
   diagnoseSameSnapshot,
+  DIAGNOSTIC_OPUS_5_MODEL,
 } from "./opusGeminiSameSnapshotDiagnostic";
+import {
+  applyCacheAndPrefillForTransport,
+  assemblePrimaryRpRequest,
+} from "./openRouterAdult";
+import { buildContext } from "@/services/contextBuilder";
+import { DEFAULT_TARGET_RESPONSE_CHARS } from "@/lib/responseLengthConstants";
+import type { OpenRouterChatMessage, OpenRouterContentBlock } from "./openRouterClient";
 
 describe("same-snapshot Opus vs Gemini diagnostic", () => {
   it("receipt section tokens are proportional allocations of draftInput", () => {
@@ -63,6 +71,61 @@ describe("same-snapshot Opus vs Gemini diagnostic", () => {
       `opus cache blocks ${report.opus.payload.cacheControlBlocks}`
     );
     assert.ok(report.gemini.payload.cacheControlBlocks >= 2);
+    assert.equal(report.opus.payload.cacheControlBlocks, 3);
     assert.ok(report.opus.payload.cacheControlBlocks > report.gemini.payload.cacheControlBlocks);
+  });
+
+  it("CI Opus history cache_control is a single block and survives a second overlay", () => {
+    const snapshot = buildLikeScaleSnapshot();
+    const built = buildContext({
+      ...snapshot,
+      modelId: DIAGNOSTIC_OPUS_5_MODEL,
+      provider: "cheaperinference",
+    });
+    const assembled = assemblePrimaryRpRequest({
+      system: built.systemPrompt,
+      history: built.history ?? [],
+      modelId: DIAGNOSTIC_OPUS_5_MODEL,
+      targetResponseChars: DEFAULT_TARGET_RESPONSE_CHARS,
+      stream: false,
+      messageOpts: {
+        transportProvider: "cheaperinference",
+        systemSplit: built.openRouterSystemSplit,
+        charName: snapshot.charName,
+      },
+    });
+    const first = assembled.messages as OpenRouterChatMessage[];
+    const second = applyCacheAndPrefillForTransport(
+      { provider: "cheaperinference" },
+      first,
+      DIAGNOSTIC_OPUS_5_MODEL,
+      snapshot.charName,
+      { skipAssistantPrefill: true }
+    ).messages;
+
+    const inspect = (messages: OpenRouterChatMessage[]) => {
+      const perMessage = messages.map((m) =>
+        Array.isArray(m.content)
+          ? (m.content as OpenRouterContentBlock[]).filter(
+              (b) => b.cache_control?.type === "ephemeral"
+            ).length
+          : 0
+      );
+      return {
+        total: perMessage.reduce((n, x) => n + x, 0),
+        system: perMessage[0] ?? 0,
+        historyCachedMessages: perMessage
+          .map((n, i) => ({ i, n, role: messages[i]?.role }))
+          .filter((row) => row.i > 0 && row.n > 0),
+      };
+    };
+
+    const a = inspect(first);
+    const b = inspect(second);
+    assert.equal(a.total, 3);
+    assert.equal(a.system, 2);
+    assert.equal(a.historyCachedMessages.length, 1);
+    assert.equal(a.historyCachedMessages[0]?.n, 1);
+    assert.deepEqual(b, a);
   });
 });
