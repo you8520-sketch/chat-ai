@@ -208,6 +208,10 @@ function resolveBackgroundMaxInputTokens(requestKind: string): number {
   return BACKGROUND_MAX_INPUT_TOKENS;
 }
 
+/** Translation-only output cap. Never used for RP main max_tokens. */
+export const PROMPT_TRANSLATION_REQUEST_KIND = "background-prompt-translation";
+export const TRANSLATION_MAX_OUTPUT_TOKENS = 8192;
+
 function resolveBackgroundMaxOutputTokens(requestKind: string): number {
   if (/background-lorebook-compact/i.test(requestKind)) return 3500;
   // V4 Flash reports internal reasoning inside completion_tokens, so leave
@@ -216,6 +220,7 @@ function resolveBackgroundMaxOutputTokens(requestKind: string): number {
   if (/background-suggested-replies-extract/i.test(requestKind)) return 1024;
   if (/background-status-widget-extract/i.test(requestKind)) return 3072;
   if (/background-html-visual-card/i.test(requestKind)) return HTML_FLASH_MAX_OUTPUT_TOKENS;
+  if (/background-prompt-translation/i.test(requestKind)) return TRANSLATION_MAX_OUTPUT_TOKENS;
   return 3072;
 }
 
@@ -340,6 +345,18 @@ export async function callGemini(
   modelId = BACKGROUND_OPENROUTER_MODEL
 ): Promise<{ text: string; usage: TokenUsage }> {
   return callGeminiOnce(system, history, modelId, { requestKind: "generateContent" });
+}
+
+/** KO→EN character-layer translation — bounded output, not RP max_tokens. */
+export async function callPromptTranslation(
+  system: string,
+  history: ChatMsg[],
+  modelId: string
+): Promise<{ text: string; usage: TokenUsage }> {
+  return callGeminiOnce(system, history, modelId, {
+    requestKind: PROMPT_TRANSLATION_REQUEST_KIND,
+    maxTokens: TRANSLATION_MAX_OUTPUT_TOKENS,
+  });
 }
 
 /** 긴 텍스트를 타이핑 효과용으로 잘라 스트리밍 */

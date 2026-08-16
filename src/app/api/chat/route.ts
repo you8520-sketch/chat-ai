@@ -4439,6 +4439,10 @@ export async function POST(req: Request) {
           breakdown,
           breakdownAllocation: "estimated_section_allocation",
           assembledPromptChars,
+          usedEnglishCharacterPrompt,
+          characterPromptLanguage: usedEnglishCharacterPrompt
+            ? "english"
+            : "korean_fallback",
           stages: stageCosts,
           ...( {
                 apiInputTokens,

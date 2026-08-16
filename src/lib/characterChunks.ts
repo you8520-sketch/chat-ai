@@ -86,7 +86,7 @@ function parseFreshCharacterChunks(row: CharacterSettingRow): CharacterChunk[] {
 }
 
 /** English layer omits speech chunks — merge them back from Korean source. */
-function mergeEnglishLayerWithKoreanSpeech(
+export function mergeEnglishLayerWithKoreanSpeech(
   english: CharacterChunk[],
   korean: CharacterChunk[]
 ): CharacterChunk[] {

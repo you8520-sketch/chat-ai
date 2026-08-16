@@ -45,6 +45,8 @@ export function sanitizeUsageForPublicReceipt(usage: Usage): Usage {
     adultRouting: _adultRouting,
     assembledPromptChars: _assembledPromptChars,
     breakdownAllocation: _breakdownAllocation,
+    usedEnglishCharacterPrompt: _usedEnglishCharacterPrompt,
+    characterPromptLanguage: _characterPromptLanguage,
     ...rest
   } = usage;
   const publicUsage: Usage = {
