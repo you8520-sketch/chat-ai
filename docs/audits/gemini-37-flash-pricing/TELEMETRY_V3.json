@@ -1,0 +1,232 @@
+{
+  "krwPerUsd": 1443.158,
+  "production": {
+    "extractedAt": "2026-08-16T09:45:00.000Z",
+    "source": "railway enchanting-ambition /data/app.db SELECT-only",
+    "totalMessages": 3467,
+    "usageMessages": 1345,
+    "gemini37Messages": 0,
+    "paidGemini37Messages": 0,
+    "receipts": []
+  },
+  "productionTelemetry": {
+    "verdict": "INSUFFICIENT_SAMPLES",
+    "bands": [
+      {
+        "band": "<=75K",
+        "validSampleCount": 0,
+        "revenueP": 0,
+        "rawApiCostKrw": 0,
+        "realizedGrossMarginPct": null,
+        "avgUserP": null,
+        "avgApiInputTokens": null,
+        "avgBilledOutputTokens": null,
+        "cheapUpstreamCount": 0,
+        "expensiveUpstreamCount": 0
+      },
+      {
+        "band": "75K-85K",
+        "validSampleCount": 0,
+        "revenueP": 0,
+        "rawApiCostKrw": 0,
+        "realizedGrossMarginPct": null,
+        "avgUserP": null,
+        "avgApiInputTokens": null,
+        "avgBilledOutputTokens": null,
+        "cheapUpstreamCount": 0,
+        "expensiveUpstreamCount": 0
+      },
+      {
+        "band": "85K-95K",
+        "validSampleCount": 0,
+        "revenueP": 0,
+        "rawApiCostKrw": 0,
+        "realizedGrossMarginPct": null,
+        "avgUserP": null,
+        "avgApiInputTokens": null,
+        "avgBilledOutputTokens": null,
+        "cheapUpstreamCount": 0,
+        "expensiveUpstreamCount": 0
+      },
+      {
+        "band": "95K-105K",
+        "validSampleCount": 0,
+        "revenueP": 0,
+        "rawApiCostKrw": 0,
+        "realizedGrossMarginPct": null,
+        "avgUserP": null,
+        "avgApiInputTokens": null,
+        "avgBilledOutputTokens": null,
+        "cheapUpstreamCount": 0,
+        "expensiveUpstreamCount": 0
+      },
+      {
+        "band": ">105K",
+        "validSampleCount": 0,
+        "revenueP": 0,
+        "rawApiCostKrw": 0,
+        "realizedGrossMarginPct": null,
+        "avgUserP": null,
+        "avgApiInputTokens": null,
+        "avgBilledOutputTokens": null,
+        "cheapUpstreamCount": 0,
+        "expensiveUpstreamCount": 0
+      }
+    ],
+    "rolling": [
+      {
+        "window": "last20",
+        "validSampleCount": 0,
+        "revenueP": 0,
+        "rawApiCostKrw": 0,
+        "realizedGrossMarginPct": null
+      },
+      {
+        "window": "last50",
+        "validSampleCount": 0,
+        "revenueP": 0,
+        "rawApiCostKrw": 0,
+        "realizedGrossMarginPct": null
+      },
+      {
+        "window": "last100",
+        "validSampleCount": 0,
+        "revenueP": 0,
+        "rawApiCostKrw": 0,
+        "realizedGrossMarginPct": null
+      },
+      {
+        "window": "all",
+        "validSampleCount": 0,
+        "revenueP": 0,
+        "rawApiCostKrw": 0,
+        "realizedGrossMarginPct": null
+      }
+    ],
+    "longContext": {
+      "turnCount": 0,
+      "turnSharePct": null,
+      "revenueP": 0,
+      "revenueSharePct": null,
+      "rawApiCostKrw": 0,
+      "realizedGrossMarginPct": null
+    },
+    "overall": {
+      "window": "all",
+      "validSampleCount": 0,
+      "revenueP": 0,
+      "rawApiCostKrw": 0,
+      "realizedGrossMarginPct": null
+    }
+  },
+  "liveShadowTelemetry": {
+    "verdict": "V3_PRODUCTION_CANDIDATE",
+    "bands": [
+      {
+        "band": "<=75K",
+        "validSampleCount": 19,
+        "revenueP": 1142,
+        "rawApiCostKrw": 433.654,
+        "realizedGrossMarginPct": 62,
+        "avgUserP": 60.1,
+        "avgApiInputTokens": 33841.5,
+        "avgBilledOutputTokens": 3691.4,
+        "cheapUpstreamCount": 9,
+        "expensiveUpstreamCount": 10
+      },
+      {
+        "band": "75K-85K",
+        "validSampleCount": 3,
+        "revenueP": 248,
+        "rawApiCostKrw": 173.166,
+        "realizedGrossMarginPct": 30.2,
+        "avgUserP": 82.7,
+        "avgApiInputTokens": 79854,
+        "avgBilledOutputTokens": 3923,
+        "cheapUpstreamCount": 1,
+        "expensiveUpstreamCount": 2
+      },
+      {
+        "band": "85K-95K",
+        "validSampleCount": 2,
+        "revenueP": 204,
+        "rawApiCostKrw": 167.694,
+        "realizedGrossMarginPct": 17.8,
+        "avgUserP": 102,
+        "avgApiInputTokens": 89450.5,
+        "avgBilledOutputTokens": 4243,
+        "cheapUpstreamCount": 0,
+        "expensiveUpstreamCount": 2
+      },
+      {
+        "band": "95K-105K",
+        "validSampleCount": 3,
+        "revenueP": 344,
+        "rawApiCostKrw": 141.811,
+        "realizedGrossMarginPct": 58.8,
+        "avgUserP": 114.7,
+        "avgApiInputTokens": 99563.3,
+        "avgBilledOutputTokens": 4206,
+        "cheapUpstreamCount": 2,
+        "expensiveUpstreamCount": 1
+      },
+      {
+        "band": ">105K",
+        "validSampleCount": 2,
+        "revenueP": 263,
+        "rawApiCostKrw": 48.699,
+        "realizedGrossMarginPct": 81.5,
+        "avgUserP": 131.5,
+        "avgApiInputTokens": 110337,
+        "avgBilledOutputTokens": 4156,
+        "cheapUpstreamCount": 2,
+        "expensiveUpstreamCount": 0
+      }
+    ],
+    "rolling": [
+      {
+        "window": "last20",
+        "validSampleCount": 20,
+        "revenueP": 1735,
+        "rawApiCostKrw": 793.665,
+        "realizedGrossMarginPct": 54.3
+      },
+      {
+        "window": "last50",
+        "validSampleCount": 29,
+        "revenueP": 2201,
+        "rawApiCostKrw": 965.024,
+        "realizedGrossMarginPct": 56.2
+      },
+      {
+        "window": "last100",
+        "validSampleCount": 29,
+        "revenueP": 2201,
+        "rawApiCostKrw": 965.024,
+        "realizedGrossMarginPct": 56.2
+      },
+      {
+        "window": "all",
+        "validSampleCount": 29,
+        "revenueP": 2201,
+        "rawApiCostKrw": 965.024,
+        "realizedGrossMarginPct": 56.2
+      }
+    ],
+    "longContext": {
+      "turnCount": 10,
+      "turnSharePct": 34.5,
+      "revenueP": 1059,
+      "revenueSharePct": 48.1,
+      "rawApiCostKrw": 531.37,
+      "realizedGrossMarginPct": 49.8
+    },
+    "overall": {
+      "window": "all",
+      "validSampleCount": 29,
+      "revenueP": 2201,
+      "rawApiCostKrw": 965.024,
+      "realizedGrossMarginPct": 56.2
+    }
+  }
+}
