@@ -97,8 +97,12 @@ export const CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL =
 /** Cheaper Inference OpenAI-compatible API — Gemini 3.7 Flash */
 export const CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL = "gemini-3.7-flash";
 
-/** Cheaper Inference — chat selectable + background memory/status/HTML/translation */
+/** Cheaper Inference — chat selectable + background memory/status/HTML */
 export const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL = "deepseek-v4-flash";
+
+/** Cheaper Inference — character-save KO→EN translation primary */
+export const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL =
+  "deepseek-v4-flash-0731";
 
 /** OpenRouter models that use the simple per-token point formula (no USD margin). */
 export const OPENROUTER_SIMPLE_POINT_MODELS: readonly string[] = [
@@ -303,7 +307,11 @@ export function isCheaperInferenceDeepSeekV4ProModel(
 }
 
 export function isCheaperInferenceDeepSeekV4FlashModel(modelId: string): boolean {
-  return modelId.trim().toLowerCase() === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
+  const id = modelId.trim().toLowerCase();
+  return (
+    id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL ||
+    id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL
+  );
 }
 
 export function isCheaperInferenceQwen38MaxModel(modelId: string): boolean {
@@ -322,6 +330,7 @@ export function isCheaperInferenceModel(modelId: string): boolean {
     id === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL ||
     id === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL ||
     id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL ||
+    id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL ||
     id === CHEAPER_INFERENCE_QWEN_38_MAX_MODEL
   );
 }

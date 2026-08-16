@@ -143,6 +143,17 @@ test("DeepSeek V4 Flash disables hidden reasoning on CheaperInference", () => {
     messages: [{ role: "user", content: "hello" }],
     thinking: { type: "disabled" },
   });
+  assert.deepEqual(
+    adaptCheaperInferenceChatBody({
+      model: "deepseek-v4-flash-0731",
+      messages: [{ role: "user", content: "hello" }],
+    }),
+    {
+      model: "deepseek-v4-flash-0731",
+      messages: [{ role: "user", content: "hello" }],
+      thinking: { type: "disabled" },
+    }
+  );
 });
 
 test("DeepSeek V4 Pro uses the native non-thinking switch on CheaperInference", () => {

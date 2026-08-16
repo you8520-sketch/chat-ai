@@ -2,11 +2,11 @@ import crypto from "crypto";
 import { getDb } from "@/lib/db";
 import {
   callPromptTranslation,
-  BACKGROUND_OPENROUTER_MODEL,
   resolveBackgroundTextModelId,
 } from "@/lib/ai";
 import {
-  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   isCheaperInferenceModel,
 } from "@/lib/chatModels";
 import { toOpenRouterModelId } from "@/lib/openRouterCompletion";
@@ -79,8 +79,13 @@ Output protocol:
 - The input contains numbered segments delimited by ⟦SEG n⟧ ... ⟦/SEG n⟧. Output EVERY segment in the same order with the SAME delimiters, containing only the English translation.
 - Output nothing outside the segment delimiters.`;
 
-/** Default fallback is a different provider than CI Flash primary. */
-export const DEFAULT_TRANSLATION_FALLBACK_MODEL = OPENROUTER_DEEPSEEK_V4_FLASH_MODEL;
+/** Character-save translation primary — CI Flash dated slug, not background memory. */
+export const DEFAULT_TRANSLATION_PRIMARY_MODEL =
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL;
+
+/** Distinct CI Pro fallback — same resolved model is not a fallback. */
+export const DEFAULT_TRANSLATION_FALLBACK_MODEL =
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
 
 export const TRANSLATION_BATCH_MAX_CHUNKS = 3;
 export const TRANSLATION_BATCH_MAX_SOURCE_CHARS = 1800;
@@ -106,9 +111,7 @@ export function resolveTranslationModels(
   env: NodeJS.ProcessEnv = process.env
 ): string[] {
   const primary = resolveBackgroundTextModelId(
-    env.PROMPT_TRANSLATION_MODEL?.trim() ||
-      env.BACKGROUND_MEMORY_MODEL?.trim() ||
-      BACKGROUND_OPENROUTER_MODEL
+    env.PROMPT_TRANSLATION_MODEL?.trim() || DEFAULT_TRANSLATION_PRIMARY_MODEL
   );
   const fallbacksRaw = env.PROMPT_TRANSLATION_FALLBACK_MODELS?.trim();
   const fallbacks = fallbacksRaw
@@ -126,12 +129,14 @@ export function resolveTranslationModels(
   return out;
 }
 
-/** True when save-time / background KO→EN translation has a usable transport key. */
+/** True when at least one resolved translation model has a usable transport key. */
 export function hasPromptTranslationTransport(
   env: NodeJS.ProcessEnv = process.env
 ): boolean {
-  return Boolean(
-    env.CHEAPER_INFERENCE_API_KEY?.trim() || env.OPENROUTER_API_KEY?.trim()
+  return resolveTranslationModels(env).some((model) =>
+    isCheaperInferenceModel(model)
+      ? Boolean(env.CHEAPER_INFERENCE_API_KEY?.trim())
+      : Boolean(env.OPENROUTER_API_KEY?.trim())
   );
 }
 

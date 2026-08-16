@@ -1,14 +1,16 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 import {
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-  OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
 } from "@/lib/chatModels";
 import type { CharacterChunk } from "@/types";
 import { TRANSLATION_MAX_OUTPUT_TOKENS } from "@/lib/ai";
 import {
   classifyEnglishLayer,
   DEFAULT_TRANSLATION_FALLBACK_MODEL,
+  DEFAULT_TRANSLATION_PRIMARY_MODEL,
   ENGLISH_BACKFILL_FAILURE_COOLDOWN_MS,
   hashKoreanChunks,
   hasPromptTranslationTransport,
@@ -50,7 +52,7 @@ describe("translation model chain", () => {
     assert.equal(TRANSLATION_MAX_OUTPUT_TOKENS, 8192);
   });
 
-  it("defaults to distinct CI Flash primary and OpenRouter Flash fallback", () => {
+  it("defaults to distinct CI Flash 0731 primary and CI Pro 0813 fallback", () => {
     const prevPrimary = process.env.PROMPT_TRANSLATION_MODEL;
     const prevFallback = process.env.PROMPT_TRANSLATION_FALLBACK_MODELS;
     const prevBg = process.env.BACKGROUND_MEMORY_MODEL;
@@ -60,10 +62,17 @@ describe("translation model chain", () => {
     try {
       const models = resolveTranslationModels();
       assert.deepEqual(models, [
-        CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-        OPENROUTER_DEEPSEEK_V4_FLASH_MODEL,
+        CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL,
+        CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
       ]);
-      assert.equal(DEFAULT_TRANSLATION_FALLBACK_MODEL, OPENROUTER_DEEPSEEK_V4_FLASH_MODEL);
+      assert.equal(
+        DEFAULT_TRANSLATION_PRIMARY_MODEL,
+        CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL
+      );
+      assert.equal(
+        DEFAULT_TRANSLATION_FALLBACK_MODEL,
+        CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+      );
       assert.notEqual(
         translationModelIdentity(models[0]!),
         translationModelIdentity(models[1]!)
@@ -86,7 +95,7 @@ describe("translation model chain", () => {
     assert.deepEqual(models, [CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL]);
   });
 
-  it("accepts either CI or OpenRouter key as translation transport", () => {
+  it("requires a CI key for the default CI-only translation chain", () => {
     assert.equal(hasPromptTranslationTransport({} as NodeJS.ProcessEnv), false);
     assert.equal(
       hasPromptTranslationTransport({
@@ -97,6 +106,13 @@ describe("translation model chain", () => {
     assert.equal(
       hasPromptTranslationTransport({
         OPENROUTER_API_KEY: "or",
+      } as NodeJS.ProcessEnv),
+      false
+    );
+    assert.equal(
+      hasPromptTranslationTransport({
+        OPENROUTER_API_KEY: "or",
+        PROMPT_TRANSLATION_MODEL: "deepseek/deepseek-v4-flash",
       } as NodeJS.ProcessEnv),
       true
     );

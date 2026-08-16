@@ -14,7 +14,7 @@ const CHAT_ROUTE = fs.readFileSync(
 );
 
 describe("English layer backfill gate + admin metadata", () => {
-  it("schedules backfill when either CI or OpenRouter key exists", () => {
+  it("schedules backfill when the default CI translation chain has a CI key", () => {
     assert.match(SOURCE, /hasPromptTranslationTransport/);
     assert.match(SOURCE, /CHEAPER_INFERENCE_API_KEY/);
     assert.match(SOURCE, /OPENROUTER_API_KEY/);
@@ -23,6 +23,12 @@ describe("English layer backfill gate + admin metadata", () => {
         CHEAPER_INFERENCE_API_KEY: "x",
       } as NodeJS.ProcessEnv),
       true
+    );
+    assert.equal(
+      hasPromptTranslationTransport({
+        OPENROUTER_API_KEY: "or",
+      } as NodeJS.ProcessEnv),
+      false
     );
   });
 
