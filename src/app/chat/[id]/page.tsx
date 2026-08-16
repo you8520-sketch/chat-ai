@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getDb } from "@/lib/db";
 
 import { getSessionUser } from "@/lib/auth";
-import { canShowFullBillingReceipt } from "@/lib/billingReceiptAccess";
+import { canShowFullBillingReceipt, stripAdultRoutingForClient } from "@/lib/billingReceiptAccess";
 import { getReportStatusesForMessages } from "@/lib/refund";
 
 import { findAssetsByTag, parseAssets, chatAssets, type CharacterAsset } from "@/lib/characterAssets";
@@ -338,10 +338,16 @@ export default async function ChatPage({
 
   const allMessages = rawMessages.map((m, idx) => {
     const { variants, activeVariant } = normalizeMessageVariants(m);
-    const variantMeta = serializeVariantsForClient(variants, activeVariant);
+    const variantMeta = serializeVariantsForClient(variants, activeVariant, {
+      keepInternalAdultRouting: showFullBillingReceipt,
+    });
     const rowUsage = m.usage ? (JSON.parse(m.usage) as Usage) : null;
     const activeUsage = variants[activeVariant]?.usage ?? rowUsage;
-    const clientUsage = activeUsage ? stripMuseAcceptanceFromUsage(activeUsage) : null;
+    const clientUsage = activeUsage
+      ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(activeUsage), {
+          keepInternal: showFullBillingReceipt,
+        })
+      : null;
     const statusRecord = parseStatusMetaRecord(m.status_meta);
     const activeContent = resolveActiveVariantContent({
       content: m.content,

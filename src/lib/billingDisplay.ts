@@ -1,3 +1,4 @@
+import { type AdultHandoffReceiptLines } from "@/lib/adultHandoffDisplay";
 import {
   billingModelId,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
@@ -369,14 +370,23 @@ export function formatBillingReceiptText(
     mainRpCostParts?: MainRpApiCostPartsKrw | null;
     gemini37FlashPricing?: Gemini37FlashPricingBreakdown;
     catalogApiRawCostKrw?: number | null;
+    adultHandoff?: AdultHandoffReceiptLines | null;
   }
 ): string {
   const lines: string[] = [];
   if (extra?.route) {
     lines.push(`모드: ${extra.route === "nsfw" ? "성인" : "일반"}`);
   }
+  if (extra?.adultHandoff) {
+    lines.push(
+      `선택 모델: ${extra.adultHandoff.selectedModelLabel}`,
+      `실제 처리: ${extra.adultHandoff.actualModelLabel}`,
+      `사유: ${extra.adultHandoff.reason}`
+    );
+  } else {
+    lines.push(`모델: ${receipt.modelLabel}`);
+  }
   lines.push(
-    `모델: ${receipt.modelLabel}`,
     `입력/출력 토큰: ${receipt.inputTokens.toLocaleString()} / ${receipt.outputTokens.toLocaleString()}${receipt.estimated ? " (추정)" : ""}`
   );
   if (extra?.gemini37FlashPricing) {

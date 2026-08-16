@@ -6,6 +6,7 @@ import {
   canShowFullBillingReceipt,
   filterUsageBreakdownForReceipt,
   sanitizeUsageForPublicReceipt,
+  stripAdultRoutingForClient,
 } from "@/lib/billingReceiptAccess";
 import type { Usage } from "@/lib/chatUsage";
 
@@ -146,5 +147,44 @@ describe("canShowFullBillingReceipt", () => {
     } satisfies Usage;
     const sanitized = sanitizeUsageForPublicReceipt(usage);
     assert.equal(sanitized.museAcceptance, undefined);
+  });
+
+  it("keeps a public adult handoff subset and selected-model identity", () => {
+    const usage = {
+      input: 10,
+      output: 20,
+      model: "qwen-3-8-max",
+      modelLabel: "Qwen 3.8 Max",
+      selectedAI: "qwen-3-8-max",
+      provider: "cheaperinference" as const,
+      route: "nsfw" as const,
+      cost: 12,
+      breakdown: [],
+      stages: [
+        { stage: "adult", model: "qwen-3-8-max", input: 10, output: 20, cost: 12 },
+      ],
+      adultRouting: {
+        activeRoute: "adult" as const,
+        actualModel: "qwen-3-8-max",
+        actualProvider: "cheaperinference",
+        userSelectedModel: "claude-opus-5",
+        userSelectedModelLabel: "Claude Opus 5",
+        userSelectedProvider: "cheaperinference" as const,
+        glmHardFailureReason: "hidden",
+        hiddenFallbackOverheadCostUsd: 0.2,
+      },
+    } satisfies Usage;
+    const sanitized = sanitizeUsageForPublicReceipt(usage);
+    assert.equal(sanitized.model, "claude-opus-5");
+    assert.equal(sanitized.modelLabel, "Claude Opus 5");
+    assert.equal(sanitized.selectedAI, "claude-opus-5");
+    assert.equal(sanitized.adultRouting?.actualModel, "qwen-3-8-max");
+    assert.equal(sanitized.adultRouting?.userSelectedModel, "claude-opus-5");
+    assert.equal(sanitized.adultRouting?.glmHardFailureReason, undefined);
+    assert.equal(sanitized.cost, 12);
+    const client = stripAdultRoutingForClient(usage);
+    assert.equal(client.selectedAI, "claude-opus-5");
+    assert.equal(client.adultRouting?.actualModel, "qwen-3-8-max");
+    assert.equal(client.adultRouting?.glmHardFailureReason, undefined);
   });
 });

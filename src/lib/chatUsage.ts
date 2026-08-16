@@ -130,31 +130,31 @@ export type Usage = {
    */
   museAcceptance?: Record<string, unknown>;
   /**
-   * Server-only adult scene routing telemetry. Public receipt sanitization
-   * removes this object and restores the user's selected model identity.
+   * Adult scene routing telemetry. Public receipts keep a display subset
+   * (selected vs actual) on handoff turns. Fallback internals stay admin-only.
    */
   adultRouting?: {
     activeRoute: "general" | "adult";
-    sceneModeBefore: string;
-    sceneModeAfter: string;
+    sceneModeBefore?: string;
+    sceneModeAfter?: string;
     routeTriggerReason?: string;
-    requestedModel: string;
+    requestedModel?: string;
     actualModel: string;
     actualProvider: string;
     userSelectedModel: string;
     userSelectedModelLabel: string;
-    userSelectedProvider: "gemini" | "openrouter" | "openai" | "cheaperinference";
+    userSelectedProvider?: "gemini" | "openrouter" | "openai" | "cheaperinference";
     rawTurnsIncluded?: number;
     rawTokensIncluded?: number;
-    fallbackAttempted: boolean;
-    fallbackSucceeded: boolean;
+    fallbackAttempted?: boolean;
+    fallbackSucceeded?: boolean;
     glmHardFailureFallbackAttempted?: boolean;
     glmHardFailureFallbackSucceeded?: boolean;
     glmHardFailureReason?: string;
     hiddenFallbackOverheadCostUsd?: number;
     finalDeliveredModelCostUsd?: number;
     totalUpstreamCostUsd?: number;
-    userChargedPoints: number;
+    userChargedPoints?: number;
     latencyMs?: number;
   };
 };

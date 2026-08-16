@@ -9,7 +9,10 @@ import {
   serializeVariantsForClient,
 } from "@/lib/messageAlternates";
 import { stripMuseAcceptanceFromUsage } from "@/lib/museAcceptanceTelemetry";
-import { stripAdultRoutingForClient } from "@/lib/billingReceiptAccess";
+import {
+  keepInternalAdultRoutingForUser,
+  stripAdultRoutingForClient,
+} from "@/lib/billingReceiptAccess";
 import { normalizeEditedProseForSave, isMaterialProseEdit } from "@/lib/canonicalProse";
 import {
   parseStoredStatusWidgetValuesJson,
@@ -93,12 +96,17 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "메시지를 찾을 수 없습니다." }, { status: 404 });
   }
 
+  const keepInternalAdultRouting = keepInternalAdultRoutingForUser(user);
   const { variants, activeVariant } = normalizeMessageVariants(row);
-  const variantMeta = serializeVariantsForClient(variants, activeVariant);
+  const variantMeta = serializeVariantsForClient(variants, activeVariant, {
+    keepInternalAdultRouting,
+  });
   const rowUsage = row.usage ? (JSON.parse(row.usage) as Usage) : null;
   const activeUsage = variants[activeVariant]?.usage ?? rowUsage;
   const clientUsage = activeUsage
-    ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(activeUsage))
+    ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(activeUsage), {
+        keepInternal: keepInternalAdultRouting,
+      })
     : null;
   const activeContent = resolveActiveVariantContent({
     content: row.content,
@@ -185,6 +193,7 @@ export async function PATCH(req: Request) {
   }
 
   const db = getDb();
+  const keepInternalAdultRouting = keepInternalAdultRoutingForUser(user);
   if (isGreetingMessage(msg)) {
     const variant = editedMessageVariant({ content: text, model: "greeting", usage: null });
     db.prepare("UPDATE messages SET content=?, alternates=NULL, active_variant=0 WHERE id=?").run(
@@ -194,7 +203,7 @@ export async function PATCH(req: Request) {
     return NextResponse.json({
       ok: true,
       content: text,
-      ...serializeVariantsForClient([variant], 0),
+      ...serializeVariantsForClient([variant], 0, { keepInternalAdultRouting }),
       statusWidgetValues: null,
     });
   }
@@ -338,7 +347,7 @@ export async function PATCH(req: Request) {
     return NextResponse.json({
       ok: true,
       content: text,
-      ...serializeVariantsForClient([variant], 0),
+      ...serializeVariantsForClient([variant], 0, { keepInternalAdultRouting }),
       statusWidgetValues: clientWidgetValues,
     });
   }
