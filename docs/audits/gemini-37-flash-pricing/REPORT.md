@@ -165,4 +165,7 @@ Required cases locked: 22947/3897=60P, 20K/2K=45P, 30K/3K=65P, 40K/3K=70P, 50K/3
 
 ## L. PR / SHA
 
-Filled after push.
+- Draft PR: https://github.com/you8520-sketch/chat-ai/pull/429
+- Head SHA: `2b4405dfa5cb4ffafb4c01fa2a479f0d24f5b2f6`
+
+No merge/deploy.
