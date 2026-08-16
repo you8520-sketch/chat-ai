@@ -35,6 +35,7 @@ import {
   HTML_ONLY_TURN_MAX_INPUT_TOKENS,
   HTML_ONLY_TURN_MAX_OUTPUT_TOKENS,
 } from "./htmlVisualCardRecovery";
+import { isOpusTierPricedModel, resolveOpusUserTurnCharge } from "./opusTierPricing";
 
 export type BillingWaiverReason =
   | "over_reasoning"
@@ -185,27 +186,32 @@ type OpusTurnChargeResult = {
   marginChargePoints: number;
   costBlendApplied: boolean;
   costBlendPoints?: number;
-  applied: "char_floor" | "cost_plus_margin" | "min_turn" | "cost_blend" | "cold_start_shield";
+  applied:
+    | "char_floor"
+    | "cost_plus_margin"
+    | "min_turn"
+    | "cost_blend"
+    | "cold_start_shield"
+    | "output_tier";
 };
 
-/** Opus — min(45% 마진, 0.142P/자); 원가>0.142P/자 상한이면 (원가+글자수×0.135P)/2 */
+/** Opus user charge — output-length tier + coarse input surcharge. Ignores API cost. */
 export function resolveOpenRouterOpusTurnCharge(
-  actualApiCostKrw: number,
-  outputChars: number
+  _actualApiCostKrw: number,
+  outputChars: number,
+  apiInputTokens = 0
 ): OpusTurnChargeResult {
-  const charCapPoints = openRouterOpusCharFloorKrw(outputChars);
-  const total = Math.max(OPENROUTER_MIN_TURN_COST, charCapPoints);
-  let applied: OpusTurnChargeResult["applied"] = "char_floor";
-  if (total === OPENROUTER_MIN_TURN_COST && charCapPoints < OPENROUTER_MIN_TURN_COST) {
-    applied = "min_turn";
-  }
+  const charge = resolveOpusUserTurnCharge({
+    outputChars,
+    apiInputTokens,
+  });
   return {
-    total,
-    uncappedChargePoints: total,
-    charCapPoints,
+    total: charge.finalChargePoints,
+    uncappedChargePoints: charge.uncappedPoints,
+    charCapPoints: charge.outputTierPoints,
     marginChargePoints: 0,
     costBlendApplied: false,
-    applied,
+    applied: "output_tier",
   };
 }
 
@@ -274,7 +280,7 @@ function logBillingCostDefense(fields: {
 /** @deprecated OPENROUTER_OPUS_POINTS_PER_CHAR × 1000 */
 export const OPENROUTER_OPUS_KRW_PER_1000_CHARS = OPENROUTER_OPUS_POINTS_PER_CHAR * 1000;
 
-/** Claude Opus — API 원가 대비 최저 매출총이익률 (45% → 원가÷0.55) */
+/** Claude Opus — rolling realized gross-margin target (admin telemetry only; not per-turn pricing). */
 export const OPENROUTER_OPUS_GROSS_MARGIN =
   Number(process.env.OPENROUTER_OPUS_GROSS_MARGIN) || 0.45;
 
@@ -679,7 +685,7 @@ export function openRouterUsdCost(
 }
 
 function isOpenRouterOpusModel(modelId?: string): boolean {
-  return /opus/i.test(modelId ?? "");
+  return isOpusTierPricedModel(modelId);
 }
 
 function openRouterCharFloorKrw(outputChars: number, unitChars: number, krwPerUnit: number): number {
@@ -841,7 +847,7 @@ function openRouterOpusPreferredTurnCost(charFloorKrw: number, costPlusMarginKrw
   );
 }
 
-/** OpenRouter — Opus: min(1자×0.142P, 실제원가÷0.55); 원가>0.142P/자이면 (원가+1자×0.135P)/2 */
+/** OpenRouter — Opus uses output-length tiers + coarse input surcharge; other models unchanged. */
 export function computeOpenRouterTurnCost(
   inputTokens: number,
   outputTokens: number,
@@ -863,11 +869,10 @@ export function computeOpenRouterTurnCost(
   }
 
   if (isOpenRouterOpusModel(modelId)) {
-    return openRouterTokenOnlyTurnCost(
-      openRouterOpusCharFloorKrw(opts?.outputChars ?? 0),
-      inputTokens,
-      modelId
-    );
+    return resolveOpusUserTurnCharge({
+      outputChars: opts?.outputChars ?? 0,
+      apiInputTokens: inputTokens,
+    }).finalChargePoints;
   }
 
   if (isDeepSeekV4ProModel(modelId ?? "")) {
@@ -948,7 +953,13 @@ export type OpenRouterTurnCostBreakdown = {
   /** 입력 10k 초과 할증 (V4 Pro is 0 because all input is already billed) */
   inputSurchargeKrw?: number;
   costPlusMarginKrw: number;
-  applied: "char_floor" | "cost_plus_margin" | "min_turn" | "cost_blend" | "cold_start_shield";
+  applied:
+    | "char_floor"
+    | "cost_plus_margin"
+    | "min_turn"
+    | "cost_blend"
+    | "cold_start_shield"
+    | "output_tier";
   /** min(마진, 글자상한) 적용 전 청구 (P) */
   uncappedChargePoints?: number;
   coldStartShieldApplied?: boolean;
@@ -1085,6 +1096,8 @@ function mapPricingSelectedRule(
     case "cold_start_shield":
     case "cost_blend":
       return "costBlend";
+    case "output_tier":
+      return "outputTier";
     default:
       return String(applied);
   }
@@ -1238,7 +1251,7 @@ function logOpusTurnPricingTrace(opts: {
   });
 }
 
-/** Opus 과금 상세 — 출력 1자당 0.142P */
+/** Opus 과금 상세 — output-length tier + coarse input surcharge */
 export function explainOpenRouterOpusTurnCost(
   inputTokens: number,
   outputTokens: number,
@@ -1263,23 +1276,19 @@ export function explainOpenRouterOpusTurnCost(
     modelId,
   });
   const normalizedRawCostKrw = roundCostIntermediate(normalized.usdCost * getEffectiveKrwPerUsd());
-  const charFloorKrw = openRouterOpusCharFloorKrw(outputChars);
-  const inputSurchargeKrw = openRouterInputTokenSurchargeKrw(inputTokens, modelId);
-  const resolved = resolveOpenRouterOpusTurnCharge(rawCostKrw, outputChars);
-  const total = openRouterTokenOnlyTurnCost(charFloorKrw, inputTokens, modelId);
-  let applied = resolved.applied;
-  if (total === OPENROUTER_MIN_TURN_COST && charFloorKrw + inputSurchargeKrw < OPENROUTER_MIN_TURN_COST) {
-    applied = "min_turn";
-  }
+  const charge = resolveOpusUserTurnCharge({
+    outputChars,
+    apiInputTokens: inputTokens,
+  });
   return {
     rawCostKrw,
     normalizedRawCostKrw,
-    charFloorKrw,
-    inputSurchargeKrw,
+    charFloorKrw: charge.outputTierPoints,
+    inputSurchargeKrw: charge.contextSurchargePoints,
     costPlusMarginKrw: 0,
-    applied,
-    total,
-    uncappedChargePoints: total,
+    applied: "output_tier",
+    total: charge.finalChargePoints,
+    uncappedChargePoints: charge.uncappedPoints,
     coldStartShieldApplied: false,
     coldStartCostFloorPoints: undefined,
   };

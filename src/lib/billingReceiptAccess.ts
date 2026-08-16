@@ -45,6 +45,7 @@ export function sanitizeUsageForPublicReceipt(usage: Usage): Usage {
     adultRouting: _adultRouting,
     assembledPromptChars: _assembledPromptChars,
     breakdownAllocation: _breakdownAllocation,
+    opusPricing: _opusPricing,
     ...rest
   } = usage;
   const publicUsage: Usage = {

@@ -527,6 +527,17 @@ export default function BillingReceiptTooltip({
                 ))}
             </div>
           )}
+          {showFullReceipt && usage.opusPricing && (
+            <div className="mt-2 space-y-0.5 border-t border-white/10 pt-2 text-[10px] text-zinc-500">
+              <p className="mb-1 font-semibold text-zinc-400">Opus pricing</p>
+              <p>output chars: {usage.opusPricing.outputChars.toLocaleString()}</p>
+              <p>output tier: {usage.opusPricing.outputTierPoints.toLocaleString()}P</p>
+              <p>input tokens: {usage.opusPricing.inputTokens.toLocaleString()}</p>
+              <p>context surcharge: {usage.opusPricing.contextSurchargePoints.toLocaleString()}P</p>
+              <p>final charge: {usage.opusPricing.finalChargePoints.toLocaleString()}P</p>
+              {usage.opusPricing.widgetBundled ? <p>widget: bundled</p> : null}
+            </div>
+          )}
           {showFullReceipt && usage.assembledPromptChars && (
             <div className="mt-2 space-y-0.5 border-t border-white/10 pt-2 text-[10px] text-zinc-500">
               <p className="mb-1 font-semibold text-zinc-400">ASSEMBLED TEXT (chars)</p>
