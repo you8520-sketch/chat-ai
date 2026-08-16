@@ -1,13 +1,22 @@
 /**
- * Read-only shadow replay of stored paid Claude Opus receipts.
+ * Read-only shadow replay of stored paid Claude Opus 5 receipts.
  * Never writes DB, never deducts points, never calls an LLM.
+ * Does not mix Opus 4.5 receipts into the Opus 5 45% margin sample.
  *
+ * Local / this VM:
  *   node --conditions=react-server --import tsx scripts/opus-tier-shadow-replay.ts
+ *
+ * Railway production SSH (self-contained, no src import):
+ *   railway ssh
+ *   node scripts/opus5-tier-shadow-railway.cjs
+ *   # or paste that .cjs via `node <<'ENDSCRIPT'` if the file is not in the image
  */
 import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 import {
+  analyzeOpus5LowMarginTiers,
+  judgeOpus5TierShadow,
   measureOpusShadowVolatility,
   recommendOpusTierAction,
   summarizeOpusShadowWindow,
@@ -44,6 +53,7 @@ function openReadOnlyDb(): OpenedDb | null {
   ].filter(Boolean);
   for (const file of candidates) {
     if (!fs.existsSync(file)) continue;
+    if (fs.statSync(file).size <= 0) continue;
     return {
       db: new Database(file, { readonly: true, fileMustExist: true }),
       source: file,
@@ -89,7 +99,8 @@ function loadShadowTurns(db: Database.Database): {
 function windowBlock(label: string, turns: OpusShadowTurn[]) {
   const stats = summarizeOpusShadowWindow(turns);
   const rec = recommendOpusTierAction(stats.newRealizedGrossMarginPct, stats.sampleTurns);
-  return { label, ...stats, recommendation: rec };
+  const verdict = judgeOpus5TierShadow(stats.newRealizedGrossMarginPct, stats.sampleTurns);
+  return { label, ...stats, recommendation: rec, verdict };
 }
 
 function main() {
@@ -107,6 +118,8 @@ function main() {
     payload.sampleTurns = 0;
     payload.availableSampleOnly = true;
     payload.recommendation = recommendOpusTierAction(null, 0);
+    payload.verdict = judgeOpus5TierShadow(null, 0);
+    payload.modelFilter = "claude-opus-5";
     payload.windows = {
       all: windowBlock("all", []),
       last20: windowBlock("last20", []),
@@ -115,7 +128,30 @@ function main() {
     };
     payload.volatility = measureOpusShadowVolatility([]);
   } else {
-    const { scanned, turns } = loadShadowTurns(opened.db);
+    let scanned = 0;
+    let turns: OpusShadowTurn[] = [];
+    try {
+      ({ scanned, turns } = loadShadowTurns(opened.db));
+    } catch (error) {
+      opened.db.close();
+      payload.dbStatus = "DB_UNAVAILABLE";
+      payload.dbSource = opened.source;
+      payload.dbError = error instanceof Error ? error.message : String(error);
+      payload.sampleTurns = 0;
+      payload.availableSampleOnly = true;
+      payload.recommendation = recommendOpusTierAction(null, 0);
+      payload.verdict = judgeOpus5TierShadow(null, 0);
+      payload.modelFilter = "claude-opus-5";
+      payload.windows = {
+        all: windowBlock("all", []),
+        last20: windowBlock("last20", []),
+        last50: windowBlock("last50", []),
+        last100: windowBlock("last100", []),
+      };
+      payload.volatility = measureOpusShadowVolatility([]);
+      writeOutputs(payload);
+      return;
+    }
     opened.db.close();
     payload.dbStatus = "READ_ONLY";
     payload.dbSource = opened.source;
@@ -134,6 +170,15 @@ function main() {
         .newRealizedGrossMarginPct,
       turns.length
     );
+    payload.verdict = judgeOpus5TierShadow(
+      (payload.windows as { all: { newRealizedGrossMarginPct: number | null } }).all
+        .newRealizedGrossMarginPct,
+      turns.length
+    );
+    if ((payload.verdict as { verdict: string }).verdict === "FAIL_MARGIN_LOW") {
+      payload.lowMarginOutputTiers = analyzeOpus5LowMarginTiers(turns);
+    }
+    payload.modelFilter = "claude-opus-5";
     payload.turns = turns;
   }
 
@@ -143,16 +188,20 @@ function main() {
   const windows = payload.windows as Record<string, ReturnType<typeof windowBlock>>;
   const vol = payload.volatility as ReturnType<typeof measureOpusShadowVolatility>;
   const rec = payload.recommendation as ReturnType<typeof recommendOpusTierAction>;
-  const md = `# Opus tier shadow replay
+  const verdict = payload.verdict as ReturnType<typeof judgeOpus5TierShadow>;
+  const md = `# Opus 5 tier shadow replay
 
 \`\`\`text
 dbWrite = false
 recharge = false
 llmCalls = 0
 priceAutoChanged = false
+modelFilter = claude-opus-5
 dbStatus = ${payload.dbStatus}
 sampleTurns = ${payload.sampleTurns}
 AVAILABLE_SAMPLE_ONLY = ${payload.availableSampleOnly}
+verdict = ${verdict.verdict}
+${verdict.note}
 recommendation = ${rec.action}
 ${rec.note}
 \`\`\`
@@ -171,6 +220,7 @@ ${Object.values(windows)
 - total new revenue: ${w.totalNewRevenue}
 - new realized gross margin %: ${w.newRealizedGrossMarginPct}
 - cold-write turn count: ${w.coldWriteTurnCount}
+- p10 new charge: ${w.p10NewCharge}
 - p50 new charge: ${w.p50NewCharge}
 - p90 new charge: ${w.p90NewCharge}
 - max new charge: ${w.maxNewCharge}
@@ -190,6 +240,26 @@ ${Object.values(windows)
 - 620P hard-cap applied count: ${vol.hardCap620AppliedCount}
 
 FINAL_WINNER / PRICE_CHANGE = NOT_APPLIED
+
+## Railway SSH (production, SELECT-only)
+
+This VM has no production \`/data/app.db\`. Run inside the live Railway service:
+
+\`\`\`bash
+railway ssh
+node scripts/opus5-tier-shadow-railway.cjs
+\`\`\`
+
+If that file is not in the running image, paste the same script:
+
+\`\`\`bash
+railway ssh
+node <<'ENDSCRIPT'
+# contents of scripts/opus5-tier-shadow-railway.cjs
+ENDSCRIPT
+\`\`\`
+
+Opens \`/data/app.db\` readonly. Prints aggregates only. No user text. No writes.
 `;
   fs.writeFileSync(OUT_MD, md);
   console.log(JSON.stringify({ out: OUT_MD, dbStatus: payload.dbStatus, sampleTurns: payload.sampleTurns }, null, 2));

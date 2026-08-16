@@ -1,17 +1,16 @@
-# Opus tier shadow replay
-
-This VM has no production Railway `DATA_DIR` / Turso credentials.
-The script is SELECT-only and did not create a local DB, write rows,
-recharge users, call an LLM, or change tier numbers.
+# Opus 5 tier shadow replay
 
 ```text
 dbWrite = false
 recharge = false
 llmCalls = 0
 priceAutoChanged = false
+modelFilter = claude-opus-5
 dbStatus = DB_UNAVAILABLE
 sampleTurns = 0
 AVAILABLE_SAMPLE_ONLY = true
+verdict = AVAILABLE_SAMPLE_ONLY
+sample < 20 — 가격 확정 금지.
 recommendation = AVAILABLE_SAMPLE_ONLY
 표본이 20턴 미만이므로 45% 달성 여부를 확정하지 않는다.
 ```
@@ -28,6 +27,7 @@ recommendation = AVAILABLE_SAMPLE_ONLY
 - total new revenue: 0
 - new realized gross margin %: null
 - cold-write turn count: 0
+- p10 new charge: null
 - p50 new charge: null
 - p90 new charge: null
 - max new charge: null
@@ -43,6 +43,7 @@ recommendation = AVAILABLE_SAMPLE_ONLY
 - total new revenue: 0
 - new realized gross margin %: null
 - cold-write turn count: 0
+- p10 new charge: null
 - p50 new charge: null
 - p90 new charge: null
 - max new charge: null
@@ -58,6 +59,7 @@ recommendation = AVAILABLE_SAMPLE_ONLY
 - total new revenue: 0
 - new realized gross margin %: null
 - cold-write turn count: 0
+- p10 new charge: null
 - p50 new charge: null
 - p90 new charge: null
 - max new charge: null
@@ -73,6 +75,7 @@ recommendation = AVAILABLE_SAMPLE_ONLY
 - total new revenue: 0
 - new realized gross margin %: null
 - cold-write turn count: 0
+- p10 new charge: null
 - p50 new charge: null
 - p90 new charge: null
 - max new charge: null
@@ -90,3 +93,23 @@ recommendation = AVAILABLE_SAMPLE_ONLY
 - 620P hard-cap applied count: 0
 
 FINAL_WINNER / PRICE_CHANGE = NOT_APPLIED
+
+## Railway SSH (production, SELECT-only)
+
+This VM has no production `/data/app.db`. Run inside the live Railway service:
+
+```bash
+railway ssh
+node scripts/opus5-tier-shadow-railway.cjs
+```
+
+If that file is not in the running image, paste the same script:
+
+```bash
+railway ssh
+node <<'ENDSCRIPT'
+# contents of scripts/opus5-tier-shadow-railway.cjs
+ENDSCRIPT
+```
+
+Opens `/data/app.db` readonly. Prints aggregates only. No user text. No writes.
