@@ -84,6 +84,20 @@ describe("trimHistoryToBudget", () => {
     assert.ok(trimmed.some((m) => /user turn 7/.test(m.content)));
   });
 
+  it("hardCap keeps the budget even when the coverage floor would overflow", () => {
+    const turns = Array.from({ length: 16 }, (_, i) => ({
+      user: `user turn ${i + 1} ` + "가".repeat(1200),
+      assistant: `assistant turn ${i + 1} ` + "나".repeat(4000),
+    }));
+    const full = rawRecentTurnsToHistory(turns);
+    const soft = trimHistoryToBudget(full, 2_000, 14);
+    const hard = trimHistoryToBudget(full, 2_000, 14, { hardCap: true });
+    assert.ok(soft.length >= 8);
+    assert.ok(hard.length >= 2);
+    assert.ok(hard.length < soft.length);
+    assert.match(hard.at(-1)!.content, /assistant turn 16/);
+  });
+
   it("returns everything when history is shorter than the floor", () => {
     const turns = Array.from({ length: 2 }, (_, i) => ({
       user: `user turn ${i + 1} ` + "가".repeat(8000),

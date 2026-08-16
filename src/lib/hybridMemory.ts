@@ -183,18 +183,29 @@ export function areCompatibleHistorySuffixes(a: ChatMsg[], b: ChatMsg[]): boolea
   return true;
 }
 
+export type TrimHistoryToBudgetOptions = {
+  /**
+   * When true, the token budget wins over the turn floor (keep at least one
+   * complete turn). Used for expensive Claude calls so coverage-aware floors
+   * cannot re-inflate a 10K diet into 30K+ raw history.
+   */
+  hardCap?: boolean;
+};
+
 /** 채팅 히스토리 — 토큰 예산 + 최소 턴 floor (예산 초과해도 최근 minTurnFloor턴 유지) */
 export function trimHistoryToBudget(
   history: ChatMsg[],
   budget: number,
-  minTurnFloor = MIN_HISTORY_TURN_FLOOR
+  minTurnFloor = MIN_HISTORY_TURN_FLOOR,
+  opts?: TrimHistoryToBudgetOptions
 ): ChatMsg[] {
   if (history.length === 0) return [];
 
+  const hardCap = opts?.hardCap === true;
   // 1턴 = user+assistant 2메시지
   const floorMessages = Math.min(
     history.length,
-    normalizeNonNegativeInteger(minTurnFloor) * 2
+    hardCap ? 2 : normalizeNonNegativeInteger(minTurnFloor) * 2
   );
 
   let tokens = 0;
@@ -207,6 +218,9 @@ export function trimHistoryToBudget(
     tokens += t;
   }
   if ((history.length - kept.length) % 2 !== 0) kept.shift();
+  if (hardCap) {
+    return kept.length > 0 ? kept : history.slice(-Math.min(2, history.length));
+  }
   return alignHistoryPrefixDrop(history, kept, floorMessages);
 }
 

@@ -91,12 +91,21 @@ export function resolveContextTrack(
   return "gemini-bulk";
 }
 
+/**
+ * Claude Opus 5 list price is ~10× DeepSeek. Unlimited raw history is what
+ * turned a 4k-char RP turn into a 60k-input bill. Cheap models keep the
+ * full-history coverage path; Claude is hard-capped at HISTORY_TOKEN_BUDGET.
+ */
+export function usesPaidHistoryDiet(modelId?: string | null): boolean {
+  return isClaudeModelId(modelId ?? "");
+}
+
 export function resolveHistoryTokenBudget(
   modelId?: string | null,
   provider?: "gemini" | "openrouter" | "openai"
 ): number {
-  void modelId;
   void provider;
+  if (usesPaidHistoryDiet(modelId)) return HISTORY_TOKEN_BUDGET;
   return Number.MAX_SAFE_INTEGER;
 }
 
@@ -149,8 +158,11 @@ export function resolveStaticStoredSummaryLimit(
     : CLAUDE_RECENT_NARRATIVE_CONTEXT_LIMIT;
 }
 
+/** Claude — system + character + history + user 합산 안전 상한 */
+export const CLAUDE_MAX_PAYLOAD_INPUT_TOKENS = 48_000;
+
 export function resolveMaxPayloadInputTokens(modelId?: string | null): number {
-  void modelId;
+  if (usesPaidHistoryDiet(modelId)) return CLAUDE_MAX_PAYLOAD_INPUT_TOKENS;
   return Number.MAX_SAFE_INTEGER;
 }
 
