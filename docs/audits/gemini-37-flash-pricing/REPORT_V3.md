@@ -88,4 +88,4 @@ npm run typecheck:app
 
 ## H. Head SHA
 
-Recorded after commit on `cursor/gemini-37-flash-pricing-v3`.
+`37ea46d81781d0a2f0940081006f8bf856649521`
