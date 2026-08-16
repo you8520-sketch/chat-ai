@@ -75,7 +75,7 @@ async function main() {
   await fetch(`${BASE}/api/user/selected-ai`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json", Cookie: `session=${token}` },
-    body: JSON.stringify({ selectedAI: "deepseek-v4-pro" }),
+    body: JSON.stringify({ selectedAI: "deepseek-v4-pro-0813" }),
   });
 
   const charRes = await fetch(`${BASE}/api/characters/18`, {

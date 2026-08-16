@@ -77,7 +77,7 @@ const SOURCES: SourceDef[] = [
       "/opt/cursor/artifacts/final-production-model-smoke/live/terra_action/run1/turn1-provider-raw.txt",
     priorTurns: [],
     existingWinner: "deepseek",
-    existingWinnerModel: "deepseek-v4-pro",
+    existingWinnerModel: "deepseek-v4-pro-0813",
     humanApproved: true,
     humanApprovalNote:
       "docs/audits/final-production-model-smoke/STATUS.md — TERRA_PROSE_PASS / FINAL_HUMAN_REVIEW_PASS",

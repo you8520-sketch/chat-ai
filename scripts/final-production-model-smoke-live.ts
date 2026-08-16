@@ -53,7 +53,7 @@ type Scenario = {
 const ALL_SCENARIOS: Scenario[] = [
   {
     id: "deepseek_instruction",
-    modelId: "deepseek-v4-pro",
+    modelId: "deepseek-v4-pro-0813",
     label: "DeepSeek instruction boundary",
     characterId: 9,
     kind: "instruction",
@@ -64,7 +64,7 @@ const ALL_SCENARIOS: Scenario[] = [
   },
   {
     id: "deepseek_relationship",
-    modelId: "deepseek-v4-pro",
+    modelId: "deepseek-v4-pro-0813",
     label: "DeepSeek relationship",
     characterId: 5,
     kind: "relationship",
@@ -98,7 +98,7 @@ const ALL_SCENARIOS: Scenario[] = [
 ];
 
 const SCENARIOS = DEEPSEEK_ONLY
-  ? ALL_SCENARIOS.filter((s) => s.modelId === "deepseek-v4-pro")
+  ? ALL_SCENARIOS.filter((s) => s.modelId === "deepseek-v4-pro-0813")
   : ALL_SCENARIOS;
 
 function sha256(t: string) {
@@ -685,7 +685,7 @@ async function main() {
     };
   }
 
-  const deepseekAll = all.filter((r) => r.model === "deepseek-v4-pro");
+  const deepseekAll = all.filter((r) => r.model === "deepseek-v4-pro-0813");
   const deepseekInvalid = deepseekAll.filter((r) => r.invalid_stream_capture);
   const runtime = {
     status: DEEPSEEK_ONLY
@@ -714,9 +714,9 @@ async function main() {
     })),
     exclusions,
     by_model: {
-      "deepseek-v4-pro": {
-        all: modelStats("deepseek-v4-pro", false),
-        acceptance_eligible: modelStats("deepseek-v4-pro", true),
+      "deepseek-v4-pro-0813": {
+        all: modelStats("deepseek-v4-pro-0813", false),
+        acceptance_eligible: modelStats("deepseek-v4-pro-0813", true),
       },
       ...(DEEPSEEK_ONLY
         ? {}

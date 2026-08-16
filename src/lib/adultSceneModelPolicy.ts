@@ -6,7 +6,7 @@ import {
 
 /**
  * Final locked production adult primary (Muse audit + Aion challenger):
- * FINAL_ADULT_MODEL / KEEP_CURRENT_ADULT_MODEL = deepseek-v4-pro
+ * FINAL_ADULT_MODEL / KEEP_CURRENT_ADULT_MODEL = deepseek-v4-pro-0813
  * (no Muse replacement; Aion primary candidate = NO).
  * GLM remains hard-failure fallback only (max 1).
  * Legacy Aion path may remain in tree but must stay primary-disabled.

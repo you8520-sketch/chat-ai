@@ -171,7 +171,7 @@ export function insertCampaign(db: Database.Database, opts: {
     .prepare(
       `INSERT INTO trpg_campaigns
         (host_user_id, source_character_id, source_world_id, title, max_slots, billing_mode, gm_model, status, invite_code, world_brief, template_id, author_user_id, gm_secret)
-       VALUES (?,?,?,?,?,'split_even','deepseek-v4-pro','CHARACTER_SETUP',?,?,?,?,?)`
+       VALUES (?,?,?,?,?,'split_even','deepseek-v4-pro-0813','CHARACTER_SETUP',?,?,?,?,?)`
     )
     .run(
       opts.hostUserId,

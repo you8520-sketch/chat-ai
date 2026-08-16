@@ -28,11 +28,13 @@ test("Claude Opus 5 uses the Cheaper Inference catalog rates", () => {
 });
 
 test("DeepSeek V4 Flash uses the Cheaper Inference catalog rates", () => {
-  const rates = resolveOpenRouterModelRates("deepseek-v4-flash");
-  assert.equal(rates.inputUsdPerM, 0.098);
-  assert.equal(rates.cacheReadUsdPerM, 0.0196);
-  assert.equal(rates.cacheWriteUsdPerM, 0.098);
-  assert.equal(rates.outputUsdPerM, 0.196);
+  for (const modelId of ["deepseek-v4-flash", "deepseek-v4-flash-0731"] as const) {
+    const rates = resolveOpenRouterModelRates(modelId);
+    assert.equal(rates.inputUsdPerM, 0.098, modelId);
+    assert.equal(rates.cacheReadUsdPerM, 0.0196, modelId);
+    assert.equal(rates.cacheWriteUsdPerM, 0.098, modelId);
+    assert.equal(rates.outputUsdPerM, 0.196, modelId);
+  }
 });
 
 test("GPT-5.6 Luna uses the Cheaper Inference catalog rates", () => {
@@ -52,11 +54,13 @@ test("GPT-5.6 Terra uses the Cheaper Inference catalog rates", () => {
 });
 
 test("DeepSeek V4 Pro uses the Cheaper Inference catalog rates", () => {
-  const rates = resolveOpenRouterModelRates("deepseek-v4-pro");
-  assert.equal(rates.inputUsdPerM, 0.3045);
-  assert.equal(rates.cacheReadUsdPerM, 0.231);
-  assert.equal(rates.cacheWriteUsdPerM, 0.3045);
-  assert.equal(rates.outputUsdPerM, 0.609);
+  for (const modelId of ["deepseek-v4-pro", "deepseek-v4-pro-0813"] as const) {
+    const rates = resolveOpenRouterModelRates(modelId);
+    assert.equal(rates.inputUsdPerM, 0.3045, modelId);
+    assert.equal(rates.cacheReadUsdPerM, 0.231, modelId);
+    assert.equal(rates.cacheWriteUsdPerM, 0.3045, modelId);
+    assert.equal(rates.outputUsdPerM, 0.609, modelId);
+  }
 });
 
 test("Gemini 3.1 Pro uses fallback rates and accepts live refreshes", () => {

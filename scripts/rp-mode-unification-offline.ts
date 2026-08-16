@@ -14,7 +14,7 @@ if (!process.env.NODE_ENV) {
 
 const OUT = process.env.OUT_DIR ?? "docs/audits/43-rp-mode-unification";
 const FIXTURE = process.env.FIXTURE_PATH ?? "/tmp/c18_fixture.json";
-const MODEL = "deepseek-v4-pro";
+const MODEL = "deepseek-v4-pro-0813";
 const TURN1 =
   "난 본기억없는데.... 나는 렌이라고 부르면 돼. *고개끄덕임* 신입 맞아.";
 
