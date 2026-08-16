@@ -85,8 +85,20 @@ describe("canShowFullBillingReceipt", () => {
       widgetCostPoints: 3,
       exchangeRateKrwPerUsd: 1400,
       exchangeRateDateKey: "2026-01-01",
+      breakdownAllocation: "estimated_section_allocation",
+      assembledPromptChars: {
+        system: 100,
+        systemRules: 40,
+        characterSettings: 30,
+        dynamic: 20,
+        history: 50,
+        currentUser: 10,
+        total: 160,
+      },
     } satisfies Usage;
     const sanitized = sanitizeUsageForPublicReceipt(usage);
+    assert.equal(sanitized.assembledPromptChars, undefined);
+    assert.equal(sanitized.breakdownAllocation, undefined);
     assert.equal(sanitized.statusWidgetExtract, undefined);
     assert.equal(sanitized.statusWidgetExtractDiagnostics, undefined);
     assert.equal(sanitized.widgetCostPoints, undefined);

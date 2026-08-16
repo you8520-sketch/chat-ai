@@ -41,6 +41,21 @@ export type Usage = {
   apiCallCount?: number;
   /** Next-turn picker — promptAudit.totalAssembledTokens at generation time */
   assembledInputTokens?: number;
+  /**
+   * Admin/debug — receipt breakdown tokens are a proportional allocation of
+   * provider draftInput, not per-section tokenizer counts.
+   */
+  breakdownAllocation?: "estimated_section_allocation";
+  /** Admin/debug — assembled prompt character counts (not provider tokens). */
+  assembledPromptChars?: {
+    system: number;
+    systemRules: number;
+    characterSettings: number;
+    dynamic: number;
+    history: number;
+    currentUser: number;
+    total: number;
+  };
   /** OpenRouter API 원가 (KRW, 마진 전) */
   apiRawCostKrw?: number;
   /** 공급자 실비 또는 해당 턴의 카탈로그 요율 추정 구분 */
