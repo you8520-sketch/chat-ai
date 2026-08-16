@@ -1,7 +1,8 @@
 /**
  * Gemini 3.7 Flash user price — Cheaper Inference `gemini-3.7-flash` only.
  *
- * USER PRICE = base + input surcharge + output surcharge.
+ * USER PRICE = V2 base + V2 input surcharge + V2 output surcharge
+ *   + V3 long-context surcharge (apiInputTokens > 75,000 only).
  * cacheRead / cacheWrite / standardInput / upstreamCostUsd / actualApiCostKrw
  * are never inputs to the user price.
  */
@@ -19,6 +20,10 @@ export const GEMINI37_FLASH_DEFAULT_OUTPUT_TIER_9000 = 50;
 export const GEMINI37_FLASH_DEFAULT_OUTPUT_OVER_9000_STEP_TOKENS = 1_500;
 export const GEMINI37_FLASH_DEFAULT_OUTPUT_OVER_9000_STEP_POINTS = 10;
 
+export const GEMINI37_FLASH_DEFAULT_LONG_CONTEXT_THRESHOLD_TOKENS = 75_000;
+export const GEMINI37_FLASH_DEFAULT_LONG_CONTEXT_STEP_TOKENS = 10_000;
+export const GEMINI37_FLASH_DEFAULT_LONG_CONTEXT_STEP_POINTS = 15;
+
 export type Gemini37FlashPricingConfig = {
   basePoints: number;
   includedInputTokens: number;
@@ -31,6 +36,9 @@ export type Gemini37FlashPricingConfig = {
   outputTier9000: number;
   outputOver9000StepTokens: number;
   outputOver9000StepPoints: number;
+  longContextThresholdTokens: number;
+  longContextStepTokens: number;
+  longContextStepPoints: number;
 };
 
 export type Gemini37FlashPricingBreakdown = {
@@ -39,6 +47,7 @@ export type Gemini37FlashPricingBreakdown = {
   inputSurchargePoints: number;
   billedOutputTokens: number;
   outputSurchargePoints: number;
+  longContextSurchargePoints: number;
   totalPoints: number;
 };
 
@@ -102,6 +111,18 @@ export function resolveGemini37FlashPricingConfig(): Gemini37FlashPricingConfig 
       "GEMINI37_OUTPUT_OVER_9000_STEP_POINTS",
       GEMINI37_FLASH_DEFAULT_OUTPUT_OVER_9000_STEP_POINTS
     ),
+    longContextThresholdTokens: envPositiveNumber(
+      "GEMINI37_LONG_CONTEXT_THRESHOLD_TOKENS",
+      GEMINI37_FLASH_DEFAULT_LONG_CONTEXT_THRESHOLD_TOKENS
+    ),
+    longContextStepTokens: envPositiveNumber(
+      "GEMINI37_LONG_CONTEXT_STEP_TOKENS",
+      GEMINI37_FLASH_DEFAULT_LONG_CONTEXT_STEP_TOKENS
+    ),
+    longContextStepPoints: envNonNegativeNumber(
+      "GEMINI37_LONG_CONTEXT_STEP_POINTS",
+      GEMINI37_FLASH_DEFAULT_LONG_CONTEXT_STEP_POINTS
+    ),
   };
 }
 
@@ -164,6 +185,23 @@ export function computeGemini37FlashOutputSurchargePoints(
   return config.outputTier9000 + steps * config.outputOver9000StepPoints;
 }
 
+/**
+ * V3 only. Uses provider apiInputTokens. Never cache/standard/upstream cost.
+ * <= 75,000 → 0; else ceil((input - 75,000) / 10,000) * 15.
+ */
+export function computeGemini37FlashLongContextSurchargePoints(
+  inputTokens: number,
+  config: Pick<
+    Gemini37FlashPricingConfig,
+    "longContextThresholdTokens" | "longContextStepTokens" | "longContextStepPoints"
+  > = resolveGemini37FlashPricingConfig()
+): number {
+  const tokens = Math.max(0, Math.round(inputTokens) || 0);
+  if (tokens <= config.longContextThresholdTokens) return 0;
+  const extra = tokens - config.longContextThresholdTokens;
+  return Math.ceil(extra / config.longContextStepTokens) * config.longContextStepPoints;
+}
+
 export function computeGemini37FlashUserChargeBreakdown(opts: {
   inputTokens: number;
   billedOutputTokens: number;
@@ -180,13 +218,22 @@ export function computeGemini37FlashUserChargeBreakdown(opts: {
     billedOutputTokens,
     config
   );
+  const longContextSurchargePoints = computeGemini37FlashLongContextSurchargePoints(
+    inputTokens,
+    config
+  );
   return {
     basePoints: config.basePoints,
     inputTokens,
     inputSurchargePoints,
     billedOutputTokens,
     outputSurchargePoints,
-    totalPoints: config.basePoints + inputSurchargePoints + outputSurchargePoints,
+    longContextSurchargePoints,
+    totalPoints:
+      config.basePoints +
+      inputSurchargePoints +
+      outputSurchargePoints +
+      longContextSurchargePoints,
   };
 }
 
@@ -222,6 +269,7 @@ export function formatGemini37FlashAdminPricingLines(
     `- input surcharge: ${breakdown.inputSurchargePoints}P`,
     `- billed output: ${breakdown.billedOutputTokens.toLocaleString()}`,
     `- output surcharge: ${breakdown.outputSurchargePoints}P`,
+    `- long-context surcharge: ${breakdown.longContextSurchargePoints}P`,
     `- main charge: ${breakdown.totalPoints}P`,
   ];
 }

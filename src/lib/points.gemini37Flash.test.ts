@@ -47,7 +47,47 @@ describe("Gemini 3.7 Flash billing hook", () => {
     assert.equal(computeOpenRouterTurnCost(50_000, 3_000, modelId), 63);
     assert.equal(computeOpenRouterTurnCost(53_823, 4_444, modelId), 68);
     assert.equal(computeOpenRouterTurnCost(70_000, 4_000, modelId), 65);
-    assert.equal(computeOpenRouterTurnCost(100_000, 6_000, modelId), 83);
+    assert.equal(computeOpenRouterTurnCost(100_000, 6_000, modelId), 128);
+  });
+
+  it("locks the V3 long-context fixtures and 75K boundary", () => {
+    assert.equal(computeOpenRouterTurnCost(80_000, 4_000, modelId), 81);
+    assert.equal(computeOpenRouterTurnCost(90_000, 4_000, modelId), 97);
+    assert.equal(computeOpenRouterTurnCost(100_000, 4_000, modelId), 113);
+    assert.equal(computeOpenRouterTurnCost(110_000, 4_000, modelId), 129);
+    assert.equal(computeOpenRouterTurnCost(75_000, 4_000, modelId), 65);
+    assert.equal(computeOpenRouterTurnCost(75_001, 4_000, modelId), 81);
+  });
+
+  it("same 80K/4K cheap vs expensive upstream => same 81P", () => {
+    const inputTokens = 80_000;
+    const outputTokens = 4_000;
+    const cheap = computeTurnBilling({
+      provider: "cheaperinference",
+      openRouterModelId: modelId,
+      inputTokens,
+      outputTokens,
+      cacheReadTokens: 70_000,
+      cacheWriteTokens: 0,
+      upstreamCostUsd: 0.02,
+      apiPromptTokens: inputTokens,
+      apiCompletionTokens: outputTokens,
+    });
+    const expensive = computeTurnBilling({
+      provider: "cheaperinference",
+      openRouterModelId: modelId,
+      inputTokens,
+      outputTokens,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      upstreamCostUsd: 0.18,
+      apiPromptTokens: inputTokens,
+      apiCompletionTokens: outputTokens,
+    });
+    assert.equal(cheap.total, 81);
+    assert.equal(expensive.total, 81);
+    assert.equal(cheap.gemini37FlashPricing?.longContextSurchargePoints, 15);
+    assert.equal(expensive.gemini37FlashPricing?.longContextSurchargePoints, 15);
   });
 
   it("same input/output cold vs warm => same 63P user price", () => {
@@ -202,6 +242,7 @@ describe("Gemini 3.7 Flash billing hook", () => {
         inputSurchargePoints: 3,
         billedOutputTokens: 4_444,
         outputSurchargePoints: 30,
+        longContextSurchargePoints: 0,
         totalPoints: 68,
       },
     };

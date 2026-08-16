@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   computeGemini37FlashInputSurchargePoints,
+  computeGemini37FlashLongContextSurchargePoints,
   computeGemini37FlashOutputSurchargePoints,
   computeGemini37FlashUserChargeBreakdown,
   computeGemini37FlashUserChargePoints,
@@ -10,7 +11,7 @@ import {
   resolveGemini37FlashBilledOutputTokens,
 } from "@/lib/gemini37FlashPricing";
 
-describe("Gemini 3.7 Flash user price formula V2", () => {
+describe("Gemini 3.7 Flash user price formula V3", () => {
   it("competitor fixture 22947 / 3897 => 60P", () => {
     assert.equal(
       computeGemini37FlashUserChargePoints({
@@ -82,14 +83,97 @@ describe("Gemini 3.7 Flash user price formula V2", () => {
     );
   });
 
-  it("100K / 6K grows continuously without a hard cap", () => {
+  it("100K / 6K keeps V2 components and adds long-context 45P", () => {
     const breakdown = computeGemini37FlashUserChargeBreakdown({
       inputTokens: 100_000,
       billedOutputTokens: 6_000,
     });
     assert.equal(breakdown.inputSurchargePoints, 8);
     assert.equal(breakdown.outputSurchargePoints, 40);
-    assert.equal(breakdown.totalPoints, 83);
+    assert.equal(breakdown.longContextSurchargePoints, 45);
+    assert.equal(breakdown.totalPoints, 128);
+  });
+
+  it("V3 long-context fixtures lock 80K/90K/100K/110K at 4K output", () => {
+    assert.equal(
+      computeGemini37FlashUserChargePoints({
+        inputTokens: 80_000,
+        billedOutputTokens: 4_000,
+      }),
+      81
+    );
+    assert.equal(
+      computeGemini37FlashUserChargePoints({
+        inputTokens: 90_000,
+        billedOutputTokens: 4_000,
+      }),
+      97
+    );
+    assert.equal(
+      computeGemini37FlashUserChargePoints({
+        inputTokens: 100_000,
+        billedOutputTokens: 4_000,
+      }),
+      113
+    );
+    assert.equal(
+      computeGemini37FlashUserChargePoints({
+        inputTokens: 110_000,
+        billedOutputTokens: 4_000,
+      }),
+      129
+    );
+  });
+
+  it("long-context surcharge boundary is 75,000 exclusive", () => {
+    assert.equal(computeGemini37FlashLongContextSurchargePoints(75_000), 0);
+    assert.equal(computeGemini37FlashLongContextSurchargePoints(75_001), 15);
+    assert.equal(computeGemini37FlashLongContextSurchargePoints(85_000), 15);
+    assert.equal(computeGemini37FlashLongContextSurchargePoints(85_001), 30);
+    assert.equal(computeGemini37FlashLongContextSurchargePoints(95_000), 30);
+    assert.equal(computeGemini37FlashLongContextSurchargePoints(95_001), 45);
+  });
+
+  it("T21-T30 recorded inputs lock the expected V3 prices", () => {
+    const rows = [
+      [75_503, 4_593, 86],
+      [80_133, 3_776, 81],
+      [83_926, 3_400, 81],
+      [87_338, 4_210, 102],
+      [91_563, 4_276, 102],
+      [95_850, 3_685, 113],
+      [99_628, 3_572, 113],
+      [103_212, 5_361, 118],
+      [108_583, 3_490, 129],
+      [112_091, 4_822, 134],
+    ] as const;
+    for (const [input, output, expected] of rows) {
+      assert.equal(
+        computeGemini37FlashUserChargePoints({
+          inputTokens: input,
+          billedOutputTokens: output,
+        }),
+        expected
+      );
+    }
+  });
+
+  it("<=75K prices stay identical to V2", () => {
+    for (const [input, output, expected] of [
+      [22_947, 3_897, 60],
+      [30_000, 3_000, 61],
+      [40_000, 3_000, 62],
+      [50_000, 3_000, 63],
+      [70_000, 4_000, 65],
+      [75_000, 4_000, 65],
+    ] as const) {
+      const breakdown = computeGemini37FlashUserChargeBreakdown({
+        inputTokens: input,
+        billedOutputTokens: output,
+      });
+      assert.equal(breakdown.longContextSurchargePoints, 0);
+      assert.equal(breakdown.totalPoints, expected);
+    }
   });
 
   it("input surcharge is a continuous 10k / 1P function", () => {
@@ -153,6 +237,7 @@ describe("Gemini 3.7 Flash user price formula V2", () => {
       "- input surcharge: 3P",
       "- billed output: 4,444",
       "- output surcharge: 30P",
+      "- long-context surcharge: 0P",
       "- main charge: 68P",
     ]);
   });
