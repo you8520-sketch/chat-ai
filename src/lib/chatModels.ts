@@ -324,13 +324,12 @@ export type SelectedAITier = (typeof SELECTED_AI_OPTIONS)[number]["tier"];
 export const DEFAULT_SELECTED_AI: SelectedAI =
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
 
-/** 채팅 모델 선택 UI에만 노출 (Opus·Gemini 3.6 Flash·Luna·DeepSeek V4 Flash·Gemini 3.7 Flash는 기본 숨김) */
+/** 채팅 모델 선택 UI에만 노출 (Opus·Gemini 3.6 Flash·Luna·DeepSeek V4 Flash는 기본 숨김) */
 export const USER_SELECTABLE_AI_OPTIONS = SELECTED_AI_OPTIONS.filter(
   (o) =>
     o.id !== OPENROUTER_GEMINI_36_FLASH_MODEL &&
     o.id !== CHEAPER_INFERENCE_GPT_56_LUNA_MODEL &&
     o.id !== CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL &&
-    o.id !== CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL &&
     (o.id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL ||
       isOpusUserSelectable() ||
       !isClaudeSelectedAI(o.id))

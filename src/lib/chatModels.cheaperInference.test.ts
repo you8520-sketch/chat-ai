@@ -96,12 +96,12 @@ test("Gemini 3.1 Pro Preview is a selectable Cheaper Inference model", () => {
   );
 });
 
-test("Gemini 3.7 Flash is a Cheaper Inference model hidden from the public picker", () => {
+test("Gemini 3.7 Flash is a selectable Cheaper Inference chat model", () => {
   assert.equal(
     USER_SELECTABLE_AI_OPTIONS.some(
       (option) => option.id === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL
     ),
-    false
+    true
   );
   assert.equal(
     selectedAIProvider(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL),
