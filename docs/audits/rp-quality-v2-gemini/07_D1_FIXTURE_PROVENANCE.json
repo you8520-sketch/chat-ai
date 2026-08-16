@@ -1,0 +1,17 @@
+{
+  "G5": {
+    "id": "G5",
+    "characterId": 10,
+    "userInput": "누구세요? …방금 그 소리는 뭐였죠?",
+    "provenance": "D1 G5 — short Turn-1 reaction after greeting event (Enoch)"
+  },
+  "G6": {
+    "id": "G6",
+    "characterId": 10,
+    "turn1User": "*멀리서 비명과 금속 마찰음이 겹친다. 렌은 에녹 쪽으로 몸을 낮춘다.* 저쪽이에요. 같이 가요?",
+    "turn2User": "알겠어요. …그럼 어디로요?",
+    "provenance": "D1 G6 — Turn1 event then short Turn2 reaction (Enoch / terra_action T1)"
+  },
+  "RUN_G5": true,
+  "RUN_G6": false
+}

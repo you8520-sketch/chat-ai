@@ -1,0 +1,245 @@
+{
+  "api_calls_total_d1": 6,
+  "cells": 6,
+  "classification": {
+    "CURRENT_INPUT_REPLAY_ON_FIRST_REACTION": "REPLAY_IS_GEMINI_HEAVY (offline T: Gemini 4/10 vs DeepSeek 1/10 auto; live G6_T1 Gemini=2 human)",
+    "INTRO_REPLAY_G5": "REPLAY_IS_GEMINI_HEAVY_THIS_SEED (Gemini_G5 INTRO=2+SETTING=2; DeepSeek_G5 INTRO=1)",
+    "TURN1_REPLAY_ON_TURN2_G6": "NOT_SEVERE_EITHER_MODEL_THIS_SEED (Gemini=1, DeepSeek=0)",
+    "overall": "MIXED — first-turn intro/input restage Gemini-heavier; multi-turn scene rewind not reproduced"
+  },
+  "adapter": {
+    "status": "CANDIDATE_TEXT_ONLY_NOT_WIRED",
+    "reason": "Gemini repeatedly elevated on SETTING_RECITAL + CURRENT_INPUT_REPLAY / INTRO_REPLAY on first reaction; TURN1→T2 rewind not severe enough alone. Do not ship without A/B hard gate.",
+    "block_id": "GEMINI_SCENE_CONTINUITY",
+    "mnemonic": "REMEMBER IT · DO NOT REPLAY IT · ACT FROM IT",
+    "must_not_become": [
+      "회상 금지",
+      "과거 언급 금지",
+      "설정 언급 금지"
+    ],
+    "hard_gate": "RECITAL/REPLAY ↓ while ACTIVE_CANON_USE / CHARACTER_FIDELITY / SCENE_PROGRESSION / LENGTH ≥ baseline"
+  },
+  "offline_replay_by_model": {
+    "DeepSeek": {
+      "input": 1,
+      "intro": 0,
+      "total": 10
+    },
+    "Gemini": {
+      "input": 4,
+      "intro": 0,
+      "total": 10
+    }
+  },
+  "rows": [
+    {
+      "cell_id": "DeepSeek_G5",
+      "modelKey": "DeepSeek",
+      "length_band": "DENSITY_COLLAPSE",
+      "visible_chars_no_ws": 1220,
+      "dialogue_char_share": 0.041,
+      "continuity_auto": {
+        "current_input_lcs_chars": 3,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 6,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 1,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [
+        "DENSITY_COLLAPSE",
+        "SPEAKER_SPLIT_REVIEW_REQUIRED"
+      ],
+      "human": {
+        "INTRO_REPLAY": 1,
+        "CURRENT_INPUT_REPLAY": 0,
+        "SETTING_RECITAL": 0,
+        "FIRST_TURN_SPECIAL_TREATMENT": 0,
+        "SCENE_ADVANCEMENT": 2,
+        "ACTIVE_CANON_USE": 2,
+        "CHARACTER_FIDELITY": 4,
+        "notes": "Short silence→gun→pull; good continuity but DENSITY_COLLAPSE length"
+      }
+    },
+    {
+      "cell_id": "DeepSeek_G6_T1",
+      "modelKey": "DeepSeek",
+      "length_band": "IDEAL",
+      "visible_chars_no_ws": 3333,
+      "dialogue_char_share": 0.0408,
+      "continuity_auto": {
+        "current_input_lcs_chars": 4,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 9,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [
+        "SPEAKER_SPLIT_REVIEW_REQUIRED"
+      ],
+      "human": {
+        "CURRENT_INPUT_REPLAY": 1,
+        "SETTING_RECITAL": 0,
+        "SCENE_ADVANCEMENT": 2,
+        "ACTIVE_CANON_USE": 2,
+        "CHARACTER_FIDELITY": 4,
+        "notes": "Opens on reaction/listen; lighter input restage"
+      }
+    },
+    {
+      "cell_id": "DeepSeek_G6_T2",
+      "modelKey": "DeepSeek",
+      "length_band": "IDEAL",
+      "visible_chars_no_ws": 3399,
+      "dialogue_char_share": 0.2368,
+      "continuity_auto": {
+        "current_input_lcs_chars": 3,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 14,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 6,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [
+        "SPEAKER_SPLIT_REVIEW_REQUIRED"
+      ],
+      "human": {
+        "TURN1_REPLAY_ON_TURN2": 0,
+        "CURRENT_INPUT_REPLAY": 1,
+        "SETTING_RECITAL": 0,
+        "SCENE_ADVANCEMENT": 2,
+        "ACTIVE_CANON_USE": 2,
+        "CHARACTER_FIDELITY": 4,
+        "notes": "Answers where-to without retelling turn1"
+      }
+    },
+    {
+      "cell_id": "Gemini_G5",
+      "modelKey": "Gemini",
+      "length_band": "SOFT_ACCEPT",
+      "visible_chars_no_ws": 3105,
+      "dialogue_char_share": 0.0496,
+      "continuity_auto": {
+        "current_input_lcs_chars": 3,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 10,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 1,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [
+        "SPEAKER_SPLIT_REVIEW_REQUIRED"
+      ],
+      "human": {
+        "INTRO_REPLAY": 2,
+        "CURRENT_INPUT_REPLAY": 1,
+        "SETTING_RECITAL": 2,
+        "FIRST_TURN_SPECIAL_TREATMENT": 1,
+        "SCENE_ADVANCEMENT": 1,
+        "ACTIVE_CANON_USE": 2,
+        "CHARACTER_FIDELITY": 4,
+        "notes": "Restages greeting shutter/ruins; persona dump (“호기심…직설적”); delayed advance"
+      }
+    },
+    {
+      "cell_id": "Gemini_G6_T1",
+      "modelKey": "Gemini",
+      "length_band": "STRONG_LENGTH_REGRESSION",
+      "visible_chars_no_ws": 2272,
+      "dialogue_char_share": 0.1413,
+      "continuity_auto": {
+        "current_input_lcs_chars": 9,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": true,
+        "recent_assistant_lcs_chars": 0,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 5,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": true,
+        "alarms": [
+          "CURRENT_INPUT_REPLAY_SIGNAL"
+        ]
+      },
+      "hard_alarms": [
+        "SPEAKER_SPLIT_REVIEW_REQUIRED",
+        "CONTINUITY_REVIEW_REQUIRED",
+        "CURRENT_INPUT_REPLAY_SIGNAL"
+      ],
+      "human": {
+        "CURRENT_INPUT_REPLAY": 2,
+        "SETTING_RECITAL": 1,
+        "SCENE_ADVANCEMENT": 2,
+        "ACTIVE_CANON_USE": 2,
+        "CHARACTER_FIDELITY": 4,
+        "notes": "Opening restages user scream/metal-friction beat (cinema)"
+      }
+    },
+    {
+      "cell_id": "Gemini_G6_T2",
+      "modelKey": "Gemini",
+      "length_band": "SOFT_ACCEPT",
+      "visible_chars_no_ws": 3054,
+      "dialogue_char_share": 0.1225,
+      "continuity_auto": {
+        "current_input_lcs_chars": 3,
+        "current_input_overlap_alarm": false,
+        "current_input_dialogue_echo": false,
+        "current_input_beat_restage": false,
+        "recent_assistant_lcs_chars": 10,
+        "recent_assistant_overlap_alarm": false,
+        "opening_paragraph_mirrors_prior": false,
+        "intro_lcs_chars": 6,
+        "intro_overlap_alarm": false,
+        "intra_turn_abstract_restatement_hits": 0,
+        "intra_turn_reexplanation_alarm": false,
+        "continuity_review_required": false,
+        "alarms": []
+      },
+      "hard_alarms": [
+        "SPEAKER_SPLIT_REVIEW_REQUIRED"
+      ],
+      "human": {
+        "TURN1_REPLAY_ON_TURN2": 1,
+        "CURRENT_INPUT_REPLAY": 1,
+        "SETTING_RECITAL": 1,
+        "SCENE_ADVANCEMENT": 2,
+        "ACTIVE_CANON_USE": 2,
+        "CHARACTER_FIDELITY": 4,
+        "notes": "Continues scope/horror as ongoing STATE; no full turn1 rewind"
+      }
+    }
+  ]
+}
