@@ -75,6 +75,21 @@ describe("buildLengthInstruction", () => {
     assert.doesNotMatch(out, /최초로 확인 가능한 결과/);
   });
 
+  it("Gemini 3.7 Flash: layout remains, generic user-tail length owner is suppressed", async () => {
+    const { CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL } = await import(
+      "@/lib/chatModels"
+    );
+    const out = appendCompactTerminalLengthToUserTurn("같이 갈래? *두리번*", 3200, {
+      modelId: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+    });
+    assert.match(out, /^같이 갈래\? \*두리번\*/);
+    assert.match(out, /지문과 "…" 대사 사이 빈 줄/);
+    assert.equal(countOccurrences(out, USER_TAIL_LENGTH_OWNER_SENTENCE), 0);
+    assert.doesNotMatch(out, /4,000~5,500/);
+    assert.doesNotMatch(out, /RESPONSE LENGTH — GEMINI 3\.7 FLASH/);
+    assert.doesNotMatch(out, /약 3,200~4,000자 분량으로 완성한다/);
+  });
+
   it("terminal length override is empty after consolidation", () => {
     assert.equal(buildCompactTerminalLengthAbsoluteTail(undefined), "");
     assert.equal(buildTerminalLengthOverrideBlock(3200), "");
