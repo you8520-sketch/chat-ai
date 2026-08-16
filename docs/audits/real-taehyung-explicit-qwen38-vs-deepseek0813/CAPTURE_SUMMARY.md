@@ -1,0 +1,30 @@
+# CAPTURE SUMMARY
+
+```text
+{
+  "CAPTURE_COMPLETE": false,
+  "reason": "PRODUCTION_DB_UNAVAILABLE_OR_MISSING_EXPLICIT_SOURCE_CHATS",
+  "CHARACTER": "production 조태형",
+  "OPUS_FIXTURE_SOURCE": "MISSING",
+  "GEMINI_FIXTURE_SOURCE": "MISSING",
+  "OPUS_DEEPSEEK_STATUS": "NOT_RUN",
+  "OPUS_QWEN_STATUS": "NOT_RUN",
+  "GEMINI_DEEPSEEK_STATUS": "NOT_RUN",
+  "GEMINI_QWEN_STATUS": "NOT_RUN",
+  "API_CALLS": 0,
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "fallback": 0,
+  "CASPEN_FIXTURE": "INVALID",
+  "SYNTHETIC_NON_PRODUCTION_CHARACTER": "DO_NOT_USE",
+  "TERRA": "NOT_RUN",
+  "railway_status": "UNAUTHORIZED",
+  "production_url": "https://chat-ai-production-3e84.up.railway.app/",
+  "production_character_18": "EXISTS_LOGIN_GATED",
+  "railway_extract": "railway ssh && node scripts/real-taehyung-explicit-extract-railway.cjs",
+  "OPUS_WINNER": "HUMAN_REVIEW_REQUIRED",
+  "GEMINI_WINNER": "HUMAN_REVIEW_REQUIRED",
+  "FINAL_ADULT_MODEL_WINNER": "HUMAN_REVIEW_REQUIRED"
+}
+```
