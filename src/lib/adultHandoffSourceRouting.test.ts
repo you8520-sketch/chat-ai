@@ -16,6 +16,8 @@ import {
 import {
   GEMINI31_QWEN_STYLE_CONTINUITY_BLOCK,
   OPUS_QWEN_FRAGMENT_SENTENCE,
+  rebuildAdultHandoffPromptForDeepSeekFallback,
+  rebuildAdultHandoffSystemSplitForDeepSeekFallback,
   resolveAdultHandoffModelForSource,
   resolveAdultHandoffTargetModelId,
   resolvePersistedAdultHandoffSourceModelId,
@@ -27,6 +29,7 @@ import {
   classifySceneMode,
   decideAdultModelRoute,
   DEFAULT_MODEL_ROUTE_STATE,
+  DEEPSEEK_HANDOFF_CONTINUATION_INSTRUCTION,
   hasNewlyEstablishedSexualContext,
   resolveAdultEligibility,
   resolveAdultRoutingConfig,
@@ -331,6 +334,45 @@ describe("source-specific adult handoff routing", () => {
     });
     assert.equal(second.decision.activeRoute, "general");
     assert.equal(second.sourceModelId, "gemini-3.7-flash");
+  });
+
+  it("Opus→Qwen hard fail→DeepSeek rebuilds prompt without the Opus Qwen adapter", () => {
+    const qwen = decideForSource({
+      selectedModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+      currentInput: ADULT_TRIGGER,
+    });
+    assert.equal(qwen.handoff.includes(OPUS_QWEN_FRAGMENT_SENTENCE), true);
+    const deepSeek = rebuildAdultHandoffPromptForDeepSeekFallback(
+      qwen.handoff,
+      qwen.sourceModelId
+    );
+    const split = rebuildAdultHandoffSystemSplitForDeepSeekFallback(
+      { dynamicBlock: qwen.handoff },
+      qwen.sourceModelId
+    );
+    assert.equal(deepSeek.includes(OPUS_QWEN_FRAGMENT_SENTENCE), false);
+    assert.equal(deepSeek.includes(GEMINI31_QWEN_STYLE_CONTINUITY_BLOCK), false);
+    assert.equal(deepSeek.includes(DEEPSEEK_HANDOFF_CONTINUATION_INSTRUCTION), true);
+    assert.equal(split?.dynamicBlock.includes(OPUS_QWEN_FRAGMENT_SENTENCE), false);
+    assert.equal(
+      split?.dynamicBlock.includes(DEEPSEEK_HANDOFF_CONTINUATION_INSTRUCTION),
+      true
+    );
+  });
+
+  it("Gemini3.1→Qwen hard fail→DeepSeek rebuilds prompt without the Gemini Qwen adapter", () => {
+    const qwen = decideForSource({
+      selectedModelId: CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+      currentInput: ADULT_TRIGGER,
+    });
+    assert.equal(qwen.handoff.includes(GEMINI31_QWEN_STYLE_CONTINUITY_BLOCK), true);
+    const deepSeek = rebuildAdultHandoffPromptForDeepSeekFallback(
+      qwen.handoff,
+      qwen.sourceModelId
+    );
+    assert.equal(deepSeek.includes(GEMINI31_QWEN_STYLE_CONTINUITY_BLOCK), false);
+    assert.equal(deepSeek.includes(OPUS_QWEN_FRAGMENT_SENTENCE), false);
+    assert.equal(deepSeek.includes(DEEPSEEK_HANDOFF_CONTINUATION_INSTRUCTION), true);
   });
 
   it("Qwen hard-failure fallback to DeepSeek is max 1 and blocked after visible tokens", () => {

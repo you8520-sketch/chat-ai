@@ -99,6 +99,18 @@ const CHEAPER_INFERENCE_GEMINI_37_FLASH_RATES: OpenRouterModelRates = {
   explicitCacheInjection: false,
 };
 
+/** Cheaper Inference Qwen 3.8 Max — live catalog snapshot (2026-08-16). */
+const CHEAPER_INFERENCE_QWEN_38_MAX_RATES: OpenRouterModelRates = {
+  family: "unknown",
+  label: "Cheaper Inference · Qwen 3.8 Max",
+  inputUsdPerM: 1.4,
+  outputUsdPerM: 4.2,
+  cacheReadUsdPerM: 0.21875,
+  cacheWriteUsdPerM: 2.1875,
+  cacheWriteMultiplier: 1.5625,
+  explicitCacheInjection: false,
+};
+
 /**
  * DeepSeek V3 0324 — OpenRouter headline estimate (fallback only).
  * Checked 2026-07-17: ~$0.24/M in, ~$0.90/M out; provider prices vary.
@@ -323,6 +335,9 @@ export function resolveOpenRouterModelRates(modelId?: string | null): OpenRouter
       id,
       CHEAPER_INFERENCE_GEMINI_37_FLASH_RATES
     );
+  }
+  if (id === "qwen-3-8-max") {
+    return withLiveCheaperInferenceRates(id, CHEAPER_INFERENCE_QWEN_38_MAX_RATES);
   }
   if (id === "deepseek-v4-flash") {
     return withLiveCheaperInferenceRates(

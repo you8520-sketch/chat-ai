@@ -466,6 +466,8 @@ import {
 } from "@/lib/adultSceneModelPolicy";
 import {
   isAllowedAdultHandoffTargetModel,
+  rebuildAdultHandoffPromptForDeepSeekFallback,
+  rebuildAdultHandoffSystemSplitForDeepSeekFallback,
   resolveAdultHandoffTargetModelId,
   resolvePersistedAdultHandoffSourceModelId,
   shouldFallbackQwenHandoffToDeepSeek,
@@ -2932,11 +2934,19 @@ export async function POST(req: Request) {
           const runQwenHardFailureFallback = async () => {
             qwenHardFailureFallbackAttempted = true;
             streamGate.discard();
+            const deepSeekSystem = rebuildAdultHandoffPromptForDeepSeekFallback(
+              systemRef,
+              adultHandoffSourceModelId
+            );
+            const deepSeekSplit = rebuildAdultHandoffSystemSplitForDeepSeekFallback(
+              openRouterSystemSplitRef,
+              adultHandoffSourceModelId
+            );
             const fallbackResult = await runStream({
               send,
-              system: systemRef,
+              system: deepSeekSystem,
               history: historyRef,
-              systemSplit: openRouterSystemSplitRef,
+              systemSplit: deepSeekSplit,
               modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
               selectedModel: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL as SelectedAI,
               provider: "cheaperinference",
@@ -2947,6 +2957,8 @@ export async function POST(req: Request) {
             deliveredSelectedAI = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL as SelectedAI;
             deliveredModelId = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
             deliveredProvider = "cheaperinference";
+            systemRef = deepSeekSystem;
+            openRouterSystemSplitRef = deepSeekSplit;
             return fallbackResult;
           };
 

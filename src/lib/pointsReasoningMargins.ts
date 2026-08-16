@@ -20,6 +20,8 @@ import {
   OPENROUTER_GEMINI_36_FLASH_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
+  CHEAPER_INFERENCE_QWEN_38_MAX_MODEL,
+  isCheaperInferenceQwen38MaxModel,
   resolveSelectedAI,
 } from "./chatModels";
 import { getEffectiveKrwPerUsd } from "./exchangeRate";
@@ -71,6 +73,11 @@ export const CHEAPER_INFERENCE_GPT_56_TERRA_GROSS_MARGIN = 0.5;
 export const CHEAPER_INFERENCE_CLAUDE_OPUS_5_GROSS_MARGIN = 0.45;
 export const CHEAPER_INFERENCE_GPT_56_LUNA_GROSS_MARGIN = 0.55;
 export const CHEAPER_INFERENCE_GEMINI_31_PRO_GROSS_MARGIN = 0.5;
+export const CHEAPER_INFERENCE_QWEN_38_MAX_GROSS_MARGIN = 0.55;
+export const CHEAPER_INFERENCE_QWEN_38_MAX_INPUT_USD_PER_MILLION = 1.4;
+export const CHEAPER_INFERENCE_QWEN_38_MAX_CACHED_INPUT_USD_PER_MILLION = 0.21875;
+export const CHEAPER_INFERENCE_QWEN_38_MAX_CACHE_WRITE_USD_PER_MILLION = 2.1875;
+export const CHEAPER_INFERENCE_QWEN_38_MAX_OUTPUT_USD_PER_MILLION = 4.2;
 
 type ReasoningTokenPricing = {
   modelId: string;
@@ -185,6 +192,17 @@ const CHEAPER_INFERENCE_GEMINI_31_PRO_PRICING: ReasoningTokenPricing = {
   grossMargin: CHEAPER_INFERENCE_GEMINI_31_PRO_GROSS_MARGIN,
 };
 
+const CHEAPER_INFERENCE_QWEN_38_MAX_PRICING: ReasoningTokenPricing = {
+  modelId: CHEAPER_INFERENCE_QWEN_38_MAX_MODEL,
+  inputUsdPerMillion: CHEAPER_INFERENCE_QWEN_38_MAX_INPUT_USD_PER_MILLION,
+  cacheReadUsdPerMillion:
+    CHEAPER_INFERENCE_QWEN_38_MAX_CACHED_INPUT_USD_PER_MILLION,
+  cacheWriteUsdPerMillion:
+    CHEAPER_INFERENCE_QWEN_38_MAX_CACHE_WRITE_USD_PER_MILLION,
+  outputUsdPerMillion: CHEAPER_INFERENCE_QWEN_38_MAX_OUTPUT_USD_PER_MILLION,
+  grossMargin: CHEAPER_INFERENCE_QWEN_38_MAX_GROSS_MARGIN,
+};
+
 function withLiveCheaperInferenceCatalogPricing(
   fallback: ReasoningTokenPricing
 ): ReasoningTokenPricing {
@@ -225,6 +243,11 @@ function resolveReasoningTokenPricing(modelId: string): ReasoningTokenPricing | 
   if (isCheaperInferenceGemini31ProModel(modelId)) {
     return withLiveCheaperInferenceCatalogPricing(
       CHEAPER_INFERENCE_GEMINI_31_PRO_PRICING
+    );
+  }
+  if (isCheaperInferenceQwen38MaxModel(modelId)) {
+    return withLiveCheaperInferenceCatalogPricing(
+      CHEAPER_INFERENCE_QWEN_38_MAX_PRICING
     );
   }
   return null;

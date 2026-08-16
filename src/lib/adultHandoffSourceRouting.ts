@@ -121,6 +121,40 @@ export function appendSourceSpecificQwenAdapter(
   return `${systemPrompt.trim()}\n\n${adapter}`;
 }
 
+export function stripSourceSpecificQwenAdapters(text: string): string {
+  return text
+    .split(GEMINI31_QWEN_STYLE_CONTINUITY_BLOCK)
+    .join("")
+    .split(OPUS_QWEN_FRAGMENT_SENTENCE)
+    .join("")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+export function rebuildAdultHandoffPromptForDeepSeekFallback(
+  systemPrompt: string,
+  sourceModelId?: string
+): string {
+  return appendSourceSpecificQwenAdapter(
+    stripSourceSpecificQwenAdapters(systemPrompt),
+    sourceModelId,
+    CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+  );
+}
+
+export function rebuildAdultHandoffSystemSplitForDeepSeekFallback<
+  T extends { dynamicBlock: string },
+>(split: T | undefined, sourceModelId?: string): T | undefined {
+  if (!split) return undefined;
+  return {
+    ...split,
+    dynamicBlock: rebuildAdultHandoffPromptForDeepSeekFallback(
+      split.dynamicBlock,
+      sourceModelId
+    ),
+  };
+}
+
 export function shouldFallbackQwenHandoffToDeepSeek(input: {
   reason: AdultSceneHardFailureReason | null;
   fallbackAttemptCount: number;

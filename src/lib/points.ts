@@ -14,6 +14,7 @@ import {
   isKimiModel,
   isMuseModel,
   isOpenRouterSimplePointModel,
+  isCheaperInferenceQwen38MaxModel,
   isQwenModel,
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   OPENROUTER_DEEPSEEK_V3_MODEL,
@@ -885,7 +886,7 @@ export function computeOpenRouterTurnCost(
     ).total;
   }
 
-  if (isQwenModel(modelId ?? "")) {
+  if (isQwenModel(modelId ?? "") && !isCheaperInferenceQwen38MaxModel(modelId ?? "")) {
     return openRouterTokenOnlyTurnCost(
       openRouterQwenTokenFloorKrw(outputTokens),
       inputTokens,
