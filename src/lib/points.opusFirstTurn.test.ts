@@ -10,7 +10,7 @@ import {
   opusCostCharCapBlendPoints,
   resolveOpenRouterOpusTurnCharge,
   sumOpenRouterStageOutputTokens,
-} from "@/lib/points";
+} from "./points";
 import { openRouterNormalizedUsdCostFromRates } from "@/lib/openRouterModelPricing";
 
 describe("Opus billing defaults", () => {
@@ -21,7 +21,7 @@ describe("Opus billing defaults", () => {
 });
 
 describe("Opus billing — no first-turn flat", () => {
-  const modelId = "anthropic/claude-opus-4.5";
+  const modelId = "claude-opus-5";
 
   it("first and later turns use the same output-tier price", () => {
     const first = computeTurnBilling({
@@ -49,7 +49,7 @@ describe("Opus billing — no first-turn flat", () => {
 });
 
 describe("Opus billing admin cost vs user tier", () => {
-  const modelId = "anthropic/claude-opus-4.5";
+  const modelId = "claude-opus-5";
 
   it("normalized USD treats all prompt tokens at cache-read rate", () => {
     const inputTokens = 8000;
@@ -57,7 +57,7 @@ describe("Opus billing admin cost vs user tier", () => {
     const normalized = openRouterNormalizedUsdCostFromRates({
       promptTokens: inputTokens,
       outputTokens,
-      modelId,
+      modelId: "anthropic/claude-opus-4.5",
     });
     assert.equal(normalized.virtualInputTokens, inputTokens);
     assert.equal(normalized.cacheHitRateUsdPerM, 0.5);
@@ -145,7 +145,7 @@ describe("sumOpenRouterStageOutputTokens — recovery turns", () => {
   });
 
   it("recovery turn final charge is unchanged by inflated token count", () => {
-    const modelId = "anthropic/claude-opus-4.5";
+    const modelId = "claude-opus-5";
     const inputTokens = 12000;
     const savedTextChars = 2413;
     const correct = computeTurnBilling({

@@ -4,7 +4,7 @@ import {
   OPUS_COLD_CACHE_WRITE_THRESHOLD,
   TARGET_OPUS_GROSS_MARGIN,
   computeOpusRollingWindows,
-  isOpusTierPricedModel,
+  isOpus5MarginTelemetryModel,
   type OpusPaidTurnTelemetry,
 } from "@/lib/opusTierPricing";
 
@@ -37,7 +37,8 @@ function resolveOpusTurnApiCosts(usage: Usage): {
 }
 
 export function usageToOpusPaidTurn(usage: Usage): OpusPaidTurnTelemetry | null {
-  if (!isOpusTierPricedModel(usage.model) && !isOpusTierPricedModel(usage.selectedAI)) {
+  const delivered = usage.model?.trim() ? usage.model : usage.selectedAI;
+  if (!isOpus5MarginTelemetryModel(delivered)) {
     return null;
   }
   if (usage.billingWaived || !(usage.cost > 0)) return null;

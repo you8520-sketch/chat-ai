@@ -42,11 +42,18 @@ export const TARGET_OPUS_GROSS_MARGIN = envFloat(
 );
 
 /**
- * Explicit Opus tier-pricing allowlist.
- * Unknown / future ids that merely contain "opus" must not inherit this table.
- * Legacy slugs are only the ones chatModels already remaps for billing compatibility.
+ * LIVE user pricing — Claude Opus 5 only.
+ * The 380–620P output-tier table is not inherited by Opus 4.5 or remapped legacy slugs.
  */
 export const OPUS_TIER_PRICED_MODEL_IDS = new Set(
+  [CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL].map((id) => id.trim().toLowerCase())
+);
+
+/**
+ * Historical receipt / telemetry ids. Do not use this set for live user pricing.
+ * Rolling Opus 5 margin must still filter to claude-opus-5 via isOpus5MarginTelemetryModel().
+ */
+export const OPUS_HISTORICAL_TELEMETRY_MODEL_IDS = new Set(
   [
     CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
     CLAUDE_OPUS_MODEL,
@@ -59,6 +66,16 @@ export const OPUS_TIER_PRICED_MODEL_IDS = new Set(
 export function isOpusTierPricedModel(modelId?: string | null): boolean {
   const id = (modelId ?? "").trim().toLowerCase();
   return id.length > 0 && OPUS_TIER_PRICED_MODEL_IDS.has(id);
+}
+
+export function isOpusHistoricalTelemetryModel(modelId?: string | null): boolean {
+  const id = (modelId ?? "").trim().toLowerCase();
+  return id.length > 0 && OPUS_HISTORICAL_TELEMETRY_MODEL_IDS.has(id);
+}
+
+/** Rolling Opus 5 45% margin — never mix Opus 4.5 API cost into this filter. */
+export function isOpus5MarginTelemetryModel(modelId?: string | null): boolean {
+  return isOpusTierPricedModel(modelId);
 }
 
 export function resolveOpusOutputTierPoints(outputChars: number): number {

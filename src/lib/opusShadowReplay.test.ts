@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { Usage } from "@/lib/chatUsage";
 import {
+  judgeOpus5TierShadow,
   measureOpusShadowVolatility,
   recommendOpusTierAction,
   summarizeOpusShadowWindow,
@@ -49,6 +50,8 @@ describe("Opus historical shadow replay", () => {
 
   it("rejects unknown opus-like models and incomplete receipts", () => {
     assert.equal(usageToOpusShadowTurn(paidOpusUsage({ model: "my-opus-test" })), null);
+    assert.equal(usageToOpusShadowTurn(paidOpusUsage({ model: "anthropic/claude-opus-4.5" })), null);
+    assert.equal(usageToOpusShadowTurn(paidOpusUsage({ model: "claude-opus" })), null);
     assert.equal(usageToOpusShadowTurn(paidOpusUsage({ savedOutputChars: undefined })), null);
     assert.equal(usageToOpusShadowTurn(paidOpusUsage({ mainApiRawCostKrw: undefined })), null);
     assert.equal(
@@ -67,6 +70,10 @@ describe("Opus historical shadow replay", () => {
     assert.equal(keep.action, "KEEP");
     assert.equal(recommendOpusTierAction(49, 20).action, "PROPOSE_DECREASE");
     assert.equal(recommendOpusTierAction(41, 20).action, "PROPOSE_INCREASE");
+    assert.equal(judgeOpus5TierShadow(null, 0).verdict, "AVAILABLE_SAMPLE_ONLY");
+    assert.equal(judgeOpus5TierShadow(45, 20).verdict, "PASS");
+    assert.equal(judgeOpus5TierShadow(49, 20).verdict, "PASS_MARGIN_HIGH");
+    assert.equal(judgeOpus5TierShadow(41, 20).verdict, "FAIL_MARGIN_LOW");
   });
 
   it("measures volatility and 620 hard cap", () => {

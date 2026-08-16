@@ -1,6 +1,6 @@
 import {
   OPUS_COLD_CACHE_WRITE_THRESHOLD,
-  isOpusTierPricedModel,
+  isOpus5MarginTelemetryModel,
   resolveOpusUserTurnCharge,
 } from "@/lib/opusTierPricing";
 import type { Usage } from "@/lib/chatUsage";
@@ -31,6 +31,7 @@ export type OpusShadowWindow = {
   totalNewRevenue: number;
   newRealizedGrossMarginPct: number | null;
   coldWriteTurnCount: number;
+  p10NewCharge: number | null;
   p50NewCharge: number | null;
   p90NewCharge: number | null;
   maxNewCharge: number | null;
@@ -72,7 +73,8 @@ function avg(values: number[]): number | null {
 }
 
 export function usageToOpusShadowTurn(usage: Usage): OpusShadowTurn | null {
-  if (!isOpusTierPricedModel(usage.model) && !isOpusTierPricedModel(usage.selectedAI)) {
+  const delivered = usage.model?.trim() ? usage.model : usage.selectedAI;
+  if (!isOpus5MarginTelemetryModel(delivered)) {
     return null;
   }
   if (usage.billingWaived || !(usage.cost > 0)) return null;
@@ -116,6 +118,7 @@ export function usageToOpusShadowTurn(usage: Usage): OpusShadowTurn | null {
 
 export function summarizeOpusShadowWindow(turns: OpusShadowTurn[]): OpusShadowWindow {
   const newCharges = turns.map((t) => t.newShadowPoints);
+  const sortedNew = [...newCharges].sort((a, b) => a - b);
   const totalApiCost = turns.reduce((n, t) => n + t.actualApiCostKrw, 0);
   const totalNewRevenue = turns.reduce((n, t) => n + t.newShadowPoints, 0);
   return {
@@ -128,11 +131,85 @@ export function summarizeOpusShadowWindow(turns: OpusShadowTurn[]): OpusShadowWi
     totalNewRevenue,
     newRealizedGrossMarginPct: marginPct(totalNewRevenue, totalApiCost),
     coldWriteTurnCount: turns.filter((t) => t.coldWarm === "cold").length,
-    p50NewCharge: percentile([...newCharges].sort((a, b) => a - b), 0.5),
-    p90NewCharge: percentile([...newCharges].sort((a, b) => a - b), 0.9),
+    p10NewCharge: percentile(sortedNew, 0.1),
+    p50NewCharge: percentile(sortedNew, 0.5),
+    p90NewCharge: percentile(sortedNew, 0.9),
     maxNewCharge: newCharges.length ? Math.max(...newCharges) : null,
     availableSampleOnly: turns.length < 20,
   };
+}
+
+export type Opus5ShadowVerdict =
+  | "AVAILABLE_SAMPLE_ONLY"
+  | "PASS"
+  | "PASS_MARGIN_HIGH"
+  | "FAIL_MARGIN_LOW";
+
+export function judgeOpus5TierShadow(
+  marginPctValue: number | null,
+  sampleTurns: number
+): { verdict: Opus5ShadowVerdict; note: string } {
+  if (sampleTurns < 20 || marginPctValue == null) {
+    return {
+      verdict: "AVAILABLE_SAMPLE_ONLY",
+      note: "sample < 20 — 가격 확정 금지.",
+    };
+  }
+  if (marginPctValue > 48) {
+    return {
+      verdict: "PASS_MARGIN_HIGH",
+      note: ">48% — 현재 tier 유지, 가격 인하 후보만 보고, 자동 변경 금지.",
+    };
+  }
+  if (marginPctValue < 42) {
+    return {
+      verdict: "FAIL_MARGIN_LOW",
+      note: "<42% — 부족한 output tier와 +10/+20P 후보만 보고, 자동 변경 금지.",
+    };
+  }
+  return {
+    verdict: "PASS",
+    note: "42~48% — 현재 tier 유지.",
+  };
+}
+
+export type Opus5TierShortage = {
+  outputTierPoints: number;
+  turns: number;
+  totalApiCostKrw: number;
+  totalNewRevenueP: number;
+  realizedMarginPct: number | null;
+  plus10Candidate: number;
+  plus20Candidate: number;
+};
+
+export function analyzeOpus5LowMarginTiers(turns: OpusShadowTurn[]): Opus5TierShortage[] {
+  const groups = new Map<number, OpusShadowTurn[]>();
+  for (const turn of turns) {
+    const tier = resolveOpusUserTurnCharge({
+      outputChars: turn.outputChars,
+      apiInputTokens: 0,
+    }).outputTierPoints;
+    const list = groups.get(tier) ?? [];
+    list.push(turn);
+    groups.set(tier, list);
+  }
+  return [...groups.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([outputTierPoints, group]) => {
+      const totalApiCostKrw = group.reduce((n, t) => n + t.actualApiCostKrw, 0);
+      const totalNewRevenueP = group.reduce((n, t) => n + t.newShadowPoints, 0);
+      return {
+        outputTierPoints,
+        turns: group.length,
+        totalApiCostKrw,
+        totalNewRevenueP,
+        realizedMarginPct: marginPct(totalNewRevenueP, totalApiCostKrw),
+        plus10Candidate: Math.min(620, outputTierPoints + 10),
+        plus20Candidate: Math.min(620, outputTierPoints + 20),
+      };
+    })
+    .filter((row) => row.realizedMarginPct == null || row.realizedMarginPct < 42);
 }
 
 export function measureOpusShadowVolatility(turns: OpusShadowTurn[]): OpusShadowVolatility {

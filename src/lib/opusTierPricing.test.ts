@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   computeOpusRollingGrossMargin,
+  isOpus5MarginTelemetryModel,
+  isOpusHistoricalTelemetryModel,
   isOpusTierPricedModel,
   resolveOpusUserTurnCharge,
 } from "./opusTierPricing";
@@ -23,26 +25,37 @@ import type { Usage } from "./chatUsage";
 
 const OPUS = "claude-opus-5";
 
-describe("Opus tier-priced model allowlist", () => {
-  it("accepts production Claude Opus 5", () => {
+describe("Opus live vs historical model detectors", () => {
+  it("LIVE user pricing is Claude Opus 5 only", () => {
     assert.equal(isOpusTierPricedModel(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL), true);
     assert.equal(isOpusTierPricedModel("Claude-Opus-5"), true);
-  });
-
-  it("accepts known legacy OpenRouter Opus slugs", () => {
-    assert.equal(isOpusTierPricedModel(CLAUDE_OPUS_MODEL), true);
-    assert.equal(isOpusTierPricedModel(CLAUDE_OPUS_MODEL_LEGACY), true);
-    assert.equal(isOpusTierPricedModel("claude-opus"), true);
-    assert.equal(isOpusTierPricedModel("anthropic/claude-opus-latest"), true);
-  });
-
-  it("rejects unknown or future ids that only contain opus", () => {
-    assert.equal(isOpusTierPricedModel("my-opus-test"), false);
+    assert.equal(isOpusTierPricedModel("anthropic/claude-opus-4.5"), false);
+    assert.equal(isOpusTierPricedModel(CLAUDE_OPUS_MODEL), false);
+    assert.equal(isOpusTierPricedModel(CLAUDE_OPUS_MODEL_LEGACY), false);
+    assert.equal(isOpusTierPricedModel("anthropic/claude-3-opus"), false);
+    assert.equal(isOpusTierPricedModel("claude-opus"), false);
+    assert.equal(isOpusTierPricedModel("anthropic/claude-opus-latest"), false);
     assert.equal(isOpusTierPricedModel("future-opus-experimental"), false);
-    assert.equal(isOpusTierPricedModel("not-opus"), false);
-    assert.equal(isOpusTierPricedModel("anthropic/claude-opus-4.6"), false);
+    assert.equal(isOpusTierPricedModel("my-opus-test"), false);
     assert.equal(isOpusTierPricedModel(""), false);
     assert.equal(isOpusTierPricedModel(null), false);
+  });
+
+  it("HISTORICAL telemetry accepts known legacy Opus ids only", () => {
+    assert.equal(isOpusHistoricalTelemetryModel("claude-opus-5"), true);
+    assert.equal(isOpusHistoricalTelemetryModel("anthropic/claude-opus-4.5"), true);
+    assert.equal(isOpusHistoricalTelemetryModel("anthropic/claude-3-opus"), true);
+    assert.equal(isOpusHistoricalTelemetryModel("claude-opus"), true);
+    assert.equal(isOpusHistoricalTelemetryModel("anthropic/claude-opus-latest"), true);
+    assert.equal(isOpusHistoricalTelemetryModel("future-opus-experimental"), false);
+    assert.equal(isOpusHistoricalTelemetryModel("my-opus-test"), false);
+    assert.equal(isOpusHistoricalTelemetryModel("anthropic/claude-opus-4.6"), false);
+  });
+
+  it("Opus 5 margin telemetry does not mix Opus 4.5", () => {
+    assert.equal(isOpus5MarginTelemetryModel("claude-opus-5"), true);
+    assert.equal(isOpus5MarginTelemetryModel("anthropic/claude-opus-4.5"), false);
+    assert.equal(isOpus5MarginTelemetryModel("claude-opus"), false);
   });
 });
 
@@ -147,23 +160,23 @@ describe("Opus output-length tier user pricing", () => {
     assert.notEqual(future.total, 620);
   });
 
-  it("computeTurnBilling cheaperinference Opus matches openrouter Opus", () => {
-    const a = computeTurnBilling({
+  it("computeTurnBilling applies the new tier to Claude Opus 5 only", () => {
+    const opus5 = computeTurnBilling({
       provider: "cheaperinference",
       openRouterModelId: OPUS,
       inputTokens: 50_000,
       outputTokens: 2000,
       savedTextChars: 4000,
     });
-    const b = computeTurnBilling({
+    const opus45 = computeTurnBilling({
       provider: "openrouter",
       openRouterModelId: "anthropic/claude-opus-4.5",
       inputTokens: 50_000,
       outputTokens: 2000,
       savedTextChars: 4000,
     });
-    assert.equal(a.total, 490);
-    assert.equal(b.total, 490);
+    assert.equal(opus5.total, 490);
+    assert.notEqual(opus45.total, 490);
   });
 });
 
@@ -271,6 +284,28 @@ describe("Opus rolling margin telemetry does not change price", () => {
       breakdown: [],
     } as Usage);
     assert.equal(waived, null);
+
+    assert.equal(
+      usageToOpusPaidTurn({
+        model: "anthropic/claude-opus-4.5",
+        cost: 430,
+        input: 1,
+        output: 1,
+        route: "nsfw",
+        breakdown: [],
+        mainApiRawCostKrw: 200,
+        statusWidgetExtract: {
+          model: "flash",
+          modelLabel: "flash",
+          input: 10,
+          output: 10,
+          apiRawCostKrw: 12,
+          callCount: 1,
+        },
+        savedOutputChars: 3000,
+      } as Usage),
+      null
+    );
 
     const paid = usageToOpusPaidTurn({
       model: OPUS,
