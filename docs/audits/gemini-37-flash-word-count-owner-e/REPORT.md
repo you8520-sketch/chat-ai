@@ -14,7 +14,7 @@ F. WORD_COUNT_SIGNAL = false
 G. growing-history = NOT RUN
 H. KEEP_VANILLA = true / WORD_COUNT_CANDIDATE = false
 I. tests/typecheck = pass
-J. HEAD SHA = (set at commit)
+J. HEAD SHA = 332d6ae6fd2a60eb2625e8d914c74c81e22fd726
 ```
 
 ```text
