@@ -8,7 +8,10 @@ import {
   variantToRowFields,
 } from "@/lib/messageAlternates";
 import { stripMuseAcceptanceFromUsage } from "@/lib/museAcceptanceTelemetry";
-import { stripAdultRoutingForClient } from "@/lib/billingReceiptAccess";
+import {
+  keepInternalAdultRoutingForUser,
+  stripAdultRoutingForClient,
+} from "@/lib/billingReceiptAccess";
 import { serializeStatusWidgetValuesJson } from "@/lib/statusWidget";
 import { evaluateStatusWidgetTriggersBestEffort } from "@/lib/statusWidgetTriggers";
 import {
@@ -87,14 +90,19 @@ export async function PATCH(req: Request) {
 
   // Numeric path MUST enter BEGIN IMMEDIATE — never trust pre-txn same-active.
   // Nonnumeric keeps the cheap same-active early return.
+  const keepInternalAdultRouting = keepInternalAdultRoutingForUser(user);
   if (variantIndex === activeVariant && !numericEligible) {
     const current = variants[activeVariant];
     return NextResponse.json({
       ok: true,
-      ...serializeVariantsForClient(variants, activeVariant),
+      ...serializeVariantsForClient(variants, activeVariant, {
+        keepInternalAdultRouting,
+      }),
       content: current.content,
       usage: current.usage
-        ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(current.usage))
+        ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(current.usage), {
+            keepInternal: keepInternalAdultRouting,
+          })
         : null,
     });
   }
@@ -243,11 +251,14 @@ export async function PATCH(req: Request) {
 
     return NextResponse.json({
       ok: true,
-      ...serializeVariantsForClient(responseVariants, responseActive),
+      ...serializeVariantsForClient(responseVariants, responseActive, {
+        keepInternalAdultRouting,
+      }),
       content: responseSelected.content,
       usage: responseSelected.usage
         ? stripAdultRoutingForClient(
-            stripMuseAcceptanceFromUsage(responseSelected.usage)
+            stripMuseAcceptanceFromUsage(responseSelected.usage),
+            { keepInternal: keepInternalAdultRouting }
           )
         : null,
     });
@@ -375,10 +386,14 @@ export async function PATCH(req: Request) {
   const selected = variants[variantIndex];
   return NextResponse.json({
     ok: true,
-    ...serializeVariantsForClient(variants, variantIndex),
+    ...serializeVariantsForClient(variants, variantIndex, {
+      keepInternalAdultRouting,
+    }),
     content: selected.content,
     usage: selected.usage
-      ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(selected.usage))
+      ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(selected.usage), {
+          keepInternal: keepInternalAdultRouting,
+        })
       : null,
   });
 }

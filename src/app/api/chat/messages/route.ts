@@ -14,7 +14,10 @@ import {
   resolveClientSuggestedReplies,
 } from "@/lib/suggestedReplies/parse";
 import type { Usage } from "@/lib/chatUsage";
-import { stripAdultRoutingForClient } from "@/lib/billingReceiptAccess";
+import {
+  keepInternalAdultRoutingForUser,
+  stripAdultRoutingForClient,
+} from "@/lib/billingReceiptAccess";
 import { stripMuseAcceptanceFromUsage } from "@/lib/museAcceptanceTelemetry";
 import {
   parseStoredStatusWidgetValuesJson,
@@ -48,14 +51,19 @@ type DbMessageRow = {
 function mapDbMessageForClient(
   m: DbMessageRow,
   userNote?: string,
-  reportStatus: "none" | "pending" | "approved" | "rejected" = "none"
+  reportStatus: "none" | "pending" | "approved" | "rejected" = "none",
+  keepInternalAdultRouting = false
 ) {
   const { variants, activeVariant } = normalizeMessageVariants(m);
-  const variantMeta = serializeVariantsForClient(variants, activeVariant);
+  const variantMeta = serializeVariantsForClient(variants, activeVariant, {
+    keepInternalAdultRouting,
+  });
   const rowUsage = m.usage ? (JSON.parse(m.usage) as Usage) : null;
   const activeUsage = variants[activeVariant]?.usage ?? rowUsage;
   const clientUsage = activeUsage
-    ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(activeUsage))
+    ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(activeUsage), {
+        keepInternal: keepInternalAdultRouting,
+      })
     : null;
   const statusRecord = parseStatusMetaRecord(m.status_meta);
   const activeContent = resolveActiveVariantContent({
@@ -145,12 +153,14 @@ export async function GET(req: Request) {
     user.id,
     rawMessages.filter((m) => m.role === "assistant").map((m) => m.id)
   );
+  const keepInternalAdultRouting = keepInternalAdultRoutingForUser(user);
 
   const mapped = rawMessages.map((m) =>
     mapDbMessageForClient(
       m,
       chat.user_note ?? undefined,
-      reportStatusByMessageId.get(m.id) ?? "none"
+      reportStatusByMessageId.get(m.id) ?? "none",
+      keepInternalAdultRouting
     )
   ) as ChatMessageLike[];
   const safeTurnLimit =
@@ -171,7 +181,8 @@ export async function GET(req: Request) {
       mapDbMessageForClient(
         r,
         chat.user_note ?? undefined,
-        reportStatusByMessageId.get(r.id) ?? "none"
+        reportStatusByMessageId.get(r.id) ?? "none",
+        keepInternalAdultRouting
       )
     );
 

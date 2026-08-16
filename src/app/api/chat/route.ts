@@ -553,6 +553,9 @@ export async function POST(req: Request) {
     email: user.email,
     is_admin: userAdminRow?.is_admin ?? 0,
   });
+  const variantClientOpts = {
+    keepInternalAdultRouting: showFullBillingReceipt,
+  };
   const userNoteRow = db
     .prepare("SELECT user_note, chat_prefs FROM users WHERE id=?")
     .get(user.id) as { user_note: string; chat_prefs: string };
@@ -2662,7 +2665,8 @@ export async function POST(req: Request) {
             ? stripAdultRoutingForClient(
                 stripMuseAcceptanceFromUsage(
                   JSON.parse(row.usage) as Usage
-                )
+                ),
+                { keepInternal: showFullBillingReceipt }
               )
             : null;
           send({ type: "replace", text: content, instant: true });
@@ -4712,7 +4716,8 @@ export async function POST(req: Request) {
         }
         // Even for full billing receipt admins — never send museAcceptance to clients.
         const clientUsageRecord = stripAdultRoutingForClient(
-          stripMuseAcceptanceFromUsage(dbUsageRecord)
+          stripMuseAcceptanceFromUsage(dbUsageRecord),
+          { keepInternal: showFullBillingReceipt }
         );
         usageRecord = dbUsageRecord;
         const variantUsageRecord: Usage = internalAdultRouteMeta
@@ -4733,7 +4738,11 @@ export async function POST(req: Request) {
         };
 
         let aiMessageId: number;
-        let variantPayload = serializeVariantsForClient([newVariant], 0);
+        let variantPayload = serializeVariantsForClient(
+          [newVariant],
+          0,
+          variantClientOpts
+        );
         let snapshotVariantIndex = 0;
         let snapshotVariantCount = 1;
 
@@ -4815,7 +4824,11 @@ export async function POST(req: Request) {
             sourceMessageId: regenerateMessageId,
           };
           const appended = appendMessageVariant(prevVariants, newVariant);
-          variantPayload = serializeVariantsForClient(appended.variants, appended.activeVariant);
+          variantPayload = serializeVariantsForClient(
+            appended.variants,
+            appended.activeVariant,
+            variantClientOpts
+          );
           snapshotVariantIndex = appended.activeVariant;
           snapshotVariantCount = appended.variants.length;
 
@@ -4851,7 +4864,8 @@ export async function POST(req: Request) {
               statusWidgetValuesPayload = atomic.statusWidgetValues;
               variantPayload = serializeVariantsForClient(
                 atomic.variants,
-                atomic.activeVariant
+                atomic.activeVariant,
+                variantClientOpts
               );
               newVariant = {
                 ...newVariant,
@@ -4961,7 +4975,8 @@ export async function POST(req: Request) {
               statusWidgetValuesPayload = atomic.statusWidgetValues;
               variantPayload = serializeVariantsForClient(
                 atomic.variants,
-                atomic.activeVariant
+                atomic.activeVariant,
+                variantClientOpts
               );
               newVariant = {
                 ...newVariant,

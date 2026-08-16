@@ -35,6 +35,7 @@ import {
 import { CONTINUE_USER_DISPLAY, isContinueUserMessage } from "@/lib/continueNarrative";
 import { GEMINI_TRAFFIC_OVERLOAD_MESSAGE } from "@/lib/geminiTrafficError";
 import { isPaymentsEnabledClient } from "@/lib/paymentsEnabledClient";
+import AdultHandoffModelNotice from "@/components/AdultHandoffModelNotice";
 import FloatingPointsDeduction from "@/components/FloatingPointsDeduction";
 import BookmarksPanel from "@/components/BookmarksPanel";
 import MessageBubbleToolbar from "@/components/MessageBubbleToolbar";
@@ -4573,6 +4574,7 @@ export default function ChatClient({
                 </option>
               ))}
             </select>
+            <AdultHandoffModelNotice selectedAI={selectedAI} />
           </label>
           <button
             type="button"
