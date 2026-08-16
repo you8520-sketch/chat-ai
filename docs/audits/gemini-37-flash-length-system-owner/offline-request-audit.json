@@ -1,0 +1,15 @@
+{
+  "maxTokens": null,
+  "reasoningEffort": "low",
+  "owner": {
+    "GEMINI37_LENGTH_OWNER_COUNT": 1,
+    "systemOwnerCount": 1,
+    "userOwnerCount": 0,
+    "genericUserTailCount": 0,
+    "rejectedBCount": 0,
+    "location": "system"
+  },
+  "genericInUser": false,
+  "ownerInUserTail": false,
+  "rejectedBPresent": false
+}
