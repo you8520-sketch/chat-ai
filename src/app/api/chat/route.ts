@@ -57,7 +57,7 @@ import {
   restoreAssistantFromAlternatesOnFailedRegen,
   type StreamingPersistenceDiag,
 } from "@/lib/streamingPersistence";
-import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, CHEAPER_INFERENCE_GLM_52_MODEL, isCheaperInferenceModel, isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isGpt56TerraModel, isKimiModel, isMuseModel, isQwenModel, selectedAIProvider, type SelectedAI } from "@/lib/chatModels";
+import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, CHEAPER_INFERENCE_GLM_52_MODEL, isCheaperInferenceModel, isCheaperInferenceQwen38MaxModel, isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isGpt56TerraModel, isKimiModel, isMuseModel, isQwenModel, selectedAIProvider, type SelectedAI } from "@/lib/chatModels";
 import { openRouterNormalizedRawCostKrw, openRouterRawCostKrw } from "@/lib/billingRawCost";
 import type { Gemini37FlashPricingBreakdown } from "@/lib/gemini37FlashPricing";
 import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
@@ -464,6 +464,14 @@ import {
   resolveAdultSceneModelPolicyConfig,
   shouldFallbackToGlm,
 } from "@/lib/adultSceneModelPolicy";
+import {
+  isAllowedAdultHandoffTargetModel,
+  rebuildAdultHandoffPromptForDeepSeekFallback,
+  rebuildAdultHandoffSystemSplitForDeepSeekFallback,
+  resolveAdultHandoffTargetModelId,
+  resolvePersistedAdultHandoffSourceModelId,
+  shouldFallbackQwenHandoffToDeepSeek,
+} from "@/lib/adultHandoffSourceRouting";
 import {
   canUseAdultSceneHandoffAdminCanary,
   detectAdultSceneHandoffPromptLeak,
@@ -1048,8 +1056,16 @@ export async function POST(req: Request) {
         adminOnly: false,
       }
     : baseAdultModelPolicyConfig;
-  const activeAdultModelId = adultRoutingConfig.adultModelId;
   const priorModelRouteState = parseModelRouteState(chat.model_route_state_json);
+  const adultHandoffSourceModelId = resolvePersistedAdultHandoffSourceModelId({
+    selectedModelId: selectedAI,
+    state: priorModelRouteState,
+  });
+  const activeAdultModelId = resolveAdultHandoffTargetModelId({
+    sourceModelId: adultHandoffSourceModelId,
+    existingAdultModelId: adultRoutingConfig.adultModelId,
+    state: priorModelRouteState,
+  });
   let requestedConsentMode = resolveRequestedConsentMode(
     body.adultConsentMode ?? body.adult_consent_mode,
     priorModelRouteState.activeConsentMode,
@@ -1131,7 +1147,7 @@ export async function POST(req: Request) {
   }
   if (
     adultRoutingConfig.enabled &&
-    !isDeepSeekV4ProModel(activeAdultModelId)
+    !isAllowedAdultHandoffTargetModel(activeAdultModelId)
   ) {
     return Response.json(
       { error: "성인 장면 라우팅 모델 설정을 확인해 주세요." },
@@ -2108,11 +2124,19 @@ export async function POST(req: Request) {
   ) {
     systemPromptForTurn = appendAdultHandoffPrompt(
       systemPromptForTurn,
-      continuityPacket
+      continuityPacket,
+      {
+        sourceModelId: adultHandoffSourceModelId,
+        adultTargetModelId: activeAdultModelId,
+      }
     );
     openRouterSystemSplitForTurn = appendAdultHandoffToSystemSplit(
       openRouterSystemSplitForTurn,
-      continuityPacket
+      continuityPacket,
+      {
+        sourceModelId: adultHandoffSourceModelId,
+        adultTargetModelId: activeAdultModelId,
+      }
     );
   }
 
@@ -2229,11 +2253,19 @@ export async function POST(req: Request) {
     }
     fallbackSystemPrompt = appendAdultHandoffPrompt(
       fallbackSystemPrompt,
-      continuityPacket
+      continuityPacket,
+      {
+        sourceModelId: adultHandoffSourceModelId,
+        adultTargetModelId: activeAdultModelId,
+      }
     );
     fallbackSystemSplit = appendAdultHandoffToSystemSplit(
       fallbackSystemSplit,
-      continuityPacket
+      continuityPacket,
+      {
+        sourceModelId: adultHandoffSourceModelId,
+        adultTargetModelId: activeAdultModelId,
+      }
     );
     fallbackAdultContext = {
       systemPrompt: fallbackSystemPrompt,
@@ -2301,6 +2333,8 @@ export async function POST(req: Request) {
   let glmHardFailureFallbackAttempted = false;
   let glmHardFailureFallbackSucceeded = false;
   let glmHardFailureReason: string | null = null;
+  let qwenHardFailureFallbackAttempted = false;
+  let qwenHardFailureFallbackSucceeded = false;
   let hiddenFallbackOverheadCostUsd = 0;
   let adultRouteStartedAt = requestStartedAt;
   const targetResponseCharsRef = targetResponseChars;
@@ -2885,6 +2919,49 @@ export async function POST(req: Request) {
             return fallbackResult;
           };
 
+          const canFallbackQwenHardFailure = (
+            reason: ReturnType<typeof classifyAdultSceneHardFailure>
+          ) =>
+            deliveredActiveRoute === "adult" &&
+            isCheaperInferenceQwen38MaxModel(deliveredModelId) &&
+            !streamGate.hasVisibleTokens() &&
+            shouldFallbackQwenHandoffToDeepSeek({
+              reason,
+              fallbackAttemptCount: qwenHardFailureFallbackAttempted ? 1 : 0,
+              hasVisibleTokens: streamGate.hasVisibleTokens(),
+            });
+
+          const runQwenHardFailureFallback = async () => {
+            qwenHardFailureFallbackAttempted = true;
+            streamGate.discard();
+            const deepSeekSystem = rebuildAdultHandoffPromptForDeepSeekFallback(
+              systemRef,
+              adultHandoffSourceModelId
+            );
+            const deepSeekSplit = rebuildAdultHandoffSystemSplitForDeepSeekFallback(
+              openRouterSystemSplitRef,
+              adultHandoffSourceModelId
+            );
+            const fallbackResult = await runStream({
+              send,
+              system: deepSeekSystem,
+              history: historyRef,
+              systemSplit: deepSeekSplit,
+              modelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+              selectedModel: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL as SelectedAI,
+              provider: "cheaperinference",
+              adultRoute: true,
+              requestKind: "adult-hard-failure-fallback",
+            });
+            qwenHardFailureFallbackSucceeded = true;
+            deliveredSelectedAI = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL as SelectedAI;
+            deliveredModelId = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
+            deliveredProvider = "cheaperinference";
+            systemRef = deepSeekSystem;
+            openRouterSystemSplitRef = deepSeekSplit;
+            return fallbackResult;
+          };
+
           let result: Awaited<
             ReturnType<typeof streamOpenRouterAdultToClient>
           >;
@@ -2908,7 +2985,9 @@ export async function POST(req: Request) {
                 error: primaryError,
                 refusalDetected: refusal.refused,
               });
-              if (canFallbackAdultHardFailure(hardFailure)) {
+              if (canFallbackQwenHardFailure(hardFailure)) {
+                result = await runQwenHardFailureFallback();
+              } else if (canFallbackAdultHardFailure(hardFailure)) {
                 result = await runGlmHardFailureFallback(hardFailure!);
               } else {
                 streamGate.flush();
@@ -2918,7 +2997,27 @@ export async function POST(req: Request) {
           }
 
           if (
+            !qwenHardFailureFallbackSucceeded &&
+            isCheaperInferenceQwen38MaxModel(deliveredModelId)
+          ) {
+            const refusal = detectModelRefusal({
+              text: result.text,
+              finishReason: result.stage.finishReason,
+            });
+            const hardFailure = classifyAdultSceneHardFailure({
+              text: result.text,
+              finishReason: result.stage.finishReason,
+              refusalDetected: refusal.refused,
+            });
+            if (canFallbackQwenHardFailure(hardFailure)) {
+              hiddenFallbackOverheadCostUsd = result.stage.upstreamCostUsd ?? 0;
+              result = await runQwenHardFailureFallback();
+            }
+          }
+
+          if (
             !glmHardFailureFallbackSucceeded &&
+            !qwenHardFailureFallbackSucceeded &&
             isDeepSeekV4ProModel(deliveredModelId)
           ) {
             const refusal = detectModelRefusal({
@@ -4284,6 +4383,8 @@ export async function POST(req: Request) {
           generalRouteBridge: nextGeneralBridge,
           transientAdultCapableRoute,
           establishedOngoingSexualContext,
+          adultHandoffSourceModelId,
+          adultHandoffTargetModelId: activeAdultModelId,
         });
 
         const usageModel = htmlFlashOnlyTurn ? billing.modelId : receiptFields.model;

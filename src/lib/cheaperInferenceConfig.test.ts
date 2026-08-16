@@ -160,6 +160,19 @@ test("DeepSeek V4 Pro uses the native non-thinking switch on CheaperInference", 
   );
 });
 
+test("Qwen 3.8 Max adult handoff keeps reasoning_effort none and adds no thinking", () => {
+  const adapted = adaptCheaperInferenceChatBody({
+    model: "qwen-3-8-max",
+    messages: [{ role: "user", content: "hello" }],
+    reasoning_effort: "high",
+    thinking: { type: "enabled" },
+  });
+  assert.equal(adapted.model, "qwen-3-8-max");
+  assert.equal(adapted.reasoning_effort, "none");
+  assert.equal(adapted.thinking, undefined);
+  assert.equal(adapted.reasoning, undefined);
+});
+
 test("DeepSeek V4 Pro 0813 keeps thinking disabled and never sends the legacy id", () => {
   const adapted = adaptCheaperInferenceChatBody({
     model: "deepseek-v4-pro-0813",

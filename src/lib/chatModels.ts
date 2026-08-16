@@ -34,6 +34,9 @@ export const CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_LEGACY_MODEL = "deepseek-v4-pro";
 /** Cheaper Inference adult-route hard-failure fallback (not user-selectable). */
 export const CHEAPER_INFERENCE_GLM_52_MODEL = "glm-5.2";
 
+/** Cheaper Inference adult-handoff internal model — not user-selectable. */
+export const CHEAPER_INFERENCE_QWEN_38_MAX_MODEL = "qwen-3-8-max";
+
 /** Map stored/env DeepSeek V4 Pro aliases to the canonical outbound id. */
 export function normalizeDeepSeekV4ProModelId(modelId: string): string {
   const id = modelId.trim();
@@ -130,6 +133,8 @@ export const DEEPSEEK_DISPLAY_NAME = "DeepSeek V4 Pro";
 export const DEEPSEEK_V4_FLASH_DISPLAY_NAME = "DeepSeek V4 Flash";
 
 export const QWEN_DISPLAY_NAME = "Qwen 3.7 Max";
+
+export const QWEN_38_MAX_DISPLAY_NAME = "Qwen 3.8 Max";
 
 export const GLM_52_DISPLAY_NAME = "GLM 5.2";
 
@@ -292,6 +297,10 @@ export function isCheaperInferenceDeepSeekV4FlashModel(modelId: string): boolean
   return modelId.trim().toLowerCase() === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
 }
 
+export function isCheaperInferenceQwen38MaxModel(modelId: string): boolean {
+  return modelId.trim().toLowerCase() === CHEAPER_INFERENCE_QWEN_38_MAX_MODEL;
+}
+
 export function isCheaperInferenceModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
   return (
@@ -303,7 +312,8 @@ export function isCheaperInferenceModel(modelId: string): boolean {
     id === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL ||
     id === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL ||
     id === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL ||
-    id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+    id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL ||
+    id === CHEAPER_INFERENCE_QWEN_38_MAX_MODEL
   );
 }
 
@@ -577,6 +587,9 @@ export function selectedAILabel(id: string): string {
   }
   if (id === OPENROUTER_QWEN_37_MAX_MODEL || id.toLowerCase().includes("qwen3.7-max")) {
     return QWEN_DISPLAY_NAME;
+  }
+  if (id === CHEAPER_INFERENCE_QWEN_38_MAX_MODEL) {
+    return QWEN_38_MAX_DISPLAY_NAME;
   }
   if (id === OPENROUTER_GEMINI_31_PRO_MODEL || id.toLowerCase().includes("gemini-3.1-pro")) {
     return GEMINI_31_PRO_DISPLAY_NAME;
