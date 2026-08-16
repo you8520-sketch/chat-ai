@@ -1,5 +1,6 @@
 import {
   billingModelId,
+  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   resolveSelectedAI,
   selectedAILabel,
   type SelectedAI,
@@ -17,6 +18,11 @@ import {
   resolveBillingExchangeRateSnapshot,
 } from "@/lib/exchangeRate";
 import type { Usage } from "@/lib/chatUsage";
+import {
+  formatGemini37FlashAdminMarginLines,
+  formatGemini37FlashAdminPricingLines,
+  type Gemini37FlashPricingBreakdown,
+} from "@/lib/gemini37FlashPricing";
 
 function roundReceiptKrw(n: number): number {
   return Math.round(n * 10) / 10;
@@ -361,6 +367,8 @@ export function formatBillingReceiptText(
     mainApiRawCostKrw?: number;
     apiRawCostSource?: Usage["apiRawCostSource"];
     mainRpCostParts?: MainRpApiCostPartsKrw | null;
+    gemini37FlashPricing?: Gemini37FlashPricingBreakdown;
+    catalogApiRawCostKrw?: number | null;
   }
 ): string {
   const lines: string[] = [];
@@ -371,6 +379,22 @@ export function formatBillingReceiptText(
     `모델: ${receipt.modelLabel}`,
     `입력/출력 토큰: ${receipt.inputTokens.toLocaleString()} / ${receipt.outputTokens.toLocaleString()}${receipt.estimated ? " (추정)" : ""}`
   );
+  if (extra?.gemini37FlashPricing) {
+    lines.push(...formatGemini37FlashAdminPricingLines(extra.gemini37FlashPricing));
+    const catalogUsd = openRouterUsdCostFromRates({
+      modelId: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+      promptTokens: extra.gemini37FlashPricing.inputTokens,
+      outputTokens: extra.gemini37FlashPricing.billedOutputTokens,
+    }).usdCost;
+    const catalogKrw = extra.catalogApiRawCostKrw ?? convertUsdToKrw(catalogUsd);
+    lines.push(
+      ...formatGemini37FlashAdminMarginLines({
+        userPoints: extra.gemini37FlashPricing.totalPoints,
+        actualApiRawCostKrw: extra.mainApiRawCostKrw ?? extra.apiRawCostKrw ?? null,
+        catalogApiRawCostKrw: catalogKrw,
+      })
+    );
+  }
   if (extra?.apiReasoningOutputTokens != null && extra.apiReasoningOutputTokens > 0) {
     lines.push(`thinking: ${extra.apiReasoningOutputTokens.toLocaleString()} tokens`);
     lines.push(

@@ -40,7 +40,7 @@ import { resolveNarrativePov } from "@/lib/narrativePov";
 import { auditAssembledPrompt, formatPromptAuditLog } from "@/services/promptAudit";
 import { invalidateModelPickerInputSnapshot } from "@/services/modelPickerInputSnapshot";
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
-import { deductPoints, getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
+import { deductPoints, getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, isIncompleteStreamUsageUnavailable, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
 import { createChatSession } from "@/lib/chatSessionCreate";
 import { incrementCharacterTotalTurns } from "@/lib/characterEngagementStats";
 import {
@@ -59,6 +59,7 @@ import {
 } from "@/lib/streamingPersistence";
 import { CHEAPER_INFERENCE_AION_20_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, CHEAPER_INFERENCE_GLM_52_MODEL, isAion20Model, isCheaperInferenceModel, isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isGpt56TerraModel, isKimiModel, isMuseModel, isQwenModel, selectedAIProvider, type SelectedAI } from "@/lib/chatModels";
 import { openRouterNormalizedRawCostKrw, openRouterRawCostKrw } from "@/lib/billingRawCost";
+import type { Gemini37FlashPricingBreakdown } from "@/lib/gemini37FlashPricing";
 import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
 import { maybeCreditCreatorReward, paidCreatorRewardSpend } from "@/lib/creatorPoints";
 import { TurnApiBudget, NARRATIVE_LENGTH_CONTINUATION_ENABLED } from "@/lib/turnApiBudget";
@@ -3862,6 +3863,7 @@ export async function POST(req: Request) {
           coldStartShieldApplied?: boolean;
           uncappedChargePoints?: number;
           coldStartCostFloorPoints?: number;
+          gemini37FlashPricing?: Gemini37FlashPricingBreakdown;
         };
 
         if (htmlFlashOnlyTurn) {
@@ -4012,10 +4014,16 @@ export async function POST(req: Request) {
 
         const forcedAbort = billableStages.some((s) => s.loopAborted);
         const degenerationAborted = billableStages.some((s) => s.degenerationAborted);
+        const usageUnavailable = isIncompleteStreamUsageUnavailable({
+          finishReason: primaryStage?.finishReason,
+          promptTokens: primaryStage?.apiReportedInputTokens ?? 0,
+          completionTokens: primaryStage?.apiOutputTokens ?? 0,
+        });
         const billingWaiverReason = shouldWaiveTurnBilling(savedText, {
             forcedAbort,
             degenerationAborted,
             generationFailure,
+            usageUnavailable,
             adultMode: true,
             targetResponseChars: targetResponseCharsRef,
           });
@@ -4363,6 +4371,9 @@ export async function POST(req: Request) {
                     }
                   : {}),
               } ),
+          ...(billing.gemini37FlashPricing
+            ? { gemini37FlashPricing: billing.gemini37FlashPricing }
+            : {}),
           ...(billing.coldStartShieldApplied
             ? {
                 coldStartShieldApplied: true,

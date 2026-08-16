@@ -1,0 +1,35 @@
+{
+  "source": "GET https://api.cheaperinference.com/v1/models",
+  "exact_model_id": "gemini-3.7-flash",
+  "entry": {
+    "id": "gemini-3.7-flash",
+    "aliases": ["google/gemini-3.7-flash"],
+    "object": "model",
+    "owned_by": "Google",
+    "provider": "Google",
+    "type": "text",
+    "endpoint": "/v1/chat/completions",
+    "capabilities": {
+      "vision": true,
+      "video": true,
+      "reasoning": true,
+      "streaming": true,
+      "image_generation": false
+    },
+    "pricing_catalog_note": "Catalog numbers differ slightly from the site-stated list. Admin fallback uses the site-stated rates and does not retune them.",
+    "pricing_catalog": {
+      "currency": "USD",
+      "input_per_million": "0.525000",
+      "cache_read_input_per_million": "0.131250",
+      "cache_write_input_per_million": "0.017708",
+      "output_per_million": "2.625000",
+      "discount_percent": "15.00"
+    },
+    "pricing_site_stated_fallback": {
+      "inputUsdPerM": 0.53,
+      "cacheReadUsdPerM": 0.02625,
+      "cacheWriteUsdPerM": 0.017708,
+      "outputUsdPerM": 2.63
+    }
+  }
+}

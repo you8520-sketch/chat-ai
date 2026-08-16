@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   OPENROUTER_GEMINI_31_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
 } from "@/lib/chatModels";
 import {
   appendGemini31UserAgencySupplement,
@@ -66,6 +67,13 @@ describe("gemini31UserAgencyAdapter", () => {
     assert.equal(
       shouldInjectGemini31UserAgencySupplement({
         modelId: "anthropic/claude-opus-4.6",
+        godmoddingMode: "standard",
+      }),
+      false
+    );
+    assert.equal(
+      shouldInjectGemini31UserAgencySupplement({
+        modelId: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
         godmoddingMode: "standard",
       }),
       false

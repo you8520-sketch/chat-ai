@@ -143,6 +143,34 @@ function ReceiptBody({
           </p>
         </>
       )}
+      {usage.gemini37FlashPricing && (
+        <div className="mt-1 border-t border-zinc-800 pt-1">
+          <p className="text-zinc-500">Gemini 3.7 pricing:</p>
+          <p>
+            <span className="text-zinc-500">base:</span> {usage.gemini37FlashPricing.basePoints}P
+          </p>
+          <p>
+            <span className="text-zinc-500">api input:</span>{" "}
+            {usage.gemini37FlashPricing.inputTokens.toLocaleString()}
+          </p>
+          <p>
+            <span className="text-zinc-500">input surcharge:</span>{" "}
+            {usage.gemini37FlashPricing.inputSurchargePoints}P
+          </p>
+          <p>
+            <span className="text-zinc-500">billed output:</span>{" "}
+            {usage.gemini37FlashPricing.billedOutputTokens.toLocaleString()}
+          </p>
+          <p>
+            <span className="text-zinc-500">output surcharge:</span>{" "}
+            {usage.gemini37FlashPricing.outputSurchargePoints}P
+          </p>
+          <p>
+            <span className="text-zinc-500">main charge:</span>{" "}
+            {usage.gemini37FlashPricing.totalPoints}P
+          </p>
+        </div>
+      )}
       {usage.savedOutputChars != null && usage.savedOutputChars > 0 && (
         <p>
           <span className="text-zinc-500">저장 RP:</span>{" "}
@@ -472,6 +500,7 @@ export default function BillingReceiptTooltip({
       mainApiRawCostKrw: usage.mainApiRawCostKrw,
       apiRawCostSource: usage.apiRawCostSource,
       mainRpCostParts,
+      gemini37FlashPricing: usage.gemini37FlashPricing,
     });
     try {
       await navigator.clipboard.writeText(text);

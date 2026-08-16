@@ -84,6 +84,16 @@ test("Gemini 3.1 Pro uses fallback rates and accepts live refreshes", () => {
   clearCheaperInferenceCatalogPricingForTest();
 });
 
+test("Gemini 3.7 Flash uses the site-stated Cheaper Inference rates", () => {
+  clearCheaperInferenceCatalogPricingForTest();
+  const rates = resolveOpenRouterModelRates("gemini-3.7-flash");
+  assert.equal(rates.inputUsdPerM, 0.53);
+  assert.equal(rates.cacheReadUsdPerM, 0.02625);
+  assert.equal(rates.cacheWriteUsdPerM, 0.017708);
+  assert.equal(rates.outputUsdPerM, 2.63);
+  clearCheaperInferenceCatalogPricingForTest();
+});
+
 test("Luna / Opus / Flash accept live Cheaper Inference catalog overlays", () => {
   clearCheaperInferenceCatalogPricingForTest();
   for (const modelId of ["gpt-5.6-luna", "claude-opus-5", "deepseek-v4-flash"] as const) {

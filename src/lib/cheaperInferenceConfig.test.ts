@@ -87,6 +87,19 @@ test("Gemini 3.1 Pro always uses low thinking on CheaperInference", () => {
   assert.equal(body.reasoning_effort, "high", "input must not be mutated");
 });
 
+test("Gemini 3.7 Flash uses probed reasoning_effort low, not none", () => {
+  const body = {
+    model: "gemini-3.7-flash",
+    messages: [{ role: "user", content: "hello" }],
+  };
+
+  assert.deepEqual(adaptCheaperInferenceChatBody(body), {
+    model: "gemini-3.7-flash",
+    messages: [{ role: "user", content: "hello" }],
+    reasoning_effort: "low",
+  });
+});
+
 test("GPT-5.6 Luna disables reasoning with official effort none", () => {
   const body = {
     model: "gpt-5.6-luna",

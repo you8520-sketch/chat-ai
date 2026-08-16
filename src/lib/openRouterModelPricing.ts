@@ -84,6 +84,22 @@ const CHEAPER_INFERENCE_GEMINI_31_PRO_RATES: OpenRouterModelRates = {
 };
 
 /**
+ * Cheaper Inference Gemini 3.7 Flash — site-stated list (do not retune).
+ * Input $0.53 / cached input $0.02625 / output $2.63 per 1M.
+ * Cache write was not listed on-site; catalog snapshot write is recorded separately.
+ */
+const CHEAPER_INFERENCE_GEMINI_37_FLASH_RATES: OpenRouterModelRates = {
+  family: "google",
+  label: "Cheaper Inference · Google automatic cache",
+  inputUsdPerM: 0.53,
+  outputUsdPerM: 2.63,
+  cacheReadUsdPerM: 0.02625,
+  cacheWriteUsdPerM: 0.017708,
+  cacheWriteMultiplier: 1,
+  explicitCacheInjection: false,
+};
+
+/**
  * DeepSeek V3 0324 — OpenRouter headline estimate (fallback only).
  * Checked 2026-07-17: ~$0.24/M in, ~$0.90/M out; provider prices vary.
  * Prefer usage.upstreamCostUsd / OpenRouter reported cost when present.
@@ -300,6 +316,12 @@ export function resolveOpenRouterModelRates(modelId?: string | null): OpenRouter
     return withLiveCheaperInferenceRates(
       id,
       CHEAPER_INFERENCE_GEMINI_31_PRO_RATES
+    );
+  }
+  if (id === "gemini-3.7-flash") {
+    return withLiveCheaperInferenceRates(
+      id,
+      CHEAPER_INFERENCE_GEMINI_37_FLASH_RATES
     );
   }
   if (id === "deepseek-v4-flash") {
