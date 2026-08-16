@@ -1,5 +1,14 @@
 # Gemini 3.7 Flash experiment E — word-count USER_TAIL
 
+E is closed. Production keeps vanilla `USER_TAIL` (`3,200자 이상`). Runtime helper and rerun script were removed so main has no dead experiment machinery.
+
+```text
+KEEP_VANILLA=true
+WORD_COUNT_CANDIDATE=false
+WORD_COUNT_SIGNAL=false
+NEW_LENGTH_WORDING_EXPERIMENT=false
+```
+
 ## Verdict
 
 ```text
