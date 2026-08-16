@@ -616,6 +616,11 @@ export interface SceneClassification {
   sexualContextActive: boolean;
   currentInputExplicitIntent: boolean;
   requiresAdultCapableModel: boolean;
+  /**
+   * One-turn adult-capable model for OOC explicit-anatomy reaction.
+   * Not the same as requiresAdultCapableModel — real sexual scenes stay sticky.
+   */
+  transientAdultCapableRoute: boolean;
   actualNonConsent: boolean;
   oocIntent: ChatOocIntent;
   sceneReset: boolean;
@@ -626,15 +631,49 @@ export interface SceneClassification {
   reason: string;
 }
 
+export function isTransientAdultCapableRoute(input: {
+  oocIntent: ChatOocIntent;
+  reason: string;
+  sexualContextActive: boolean;
+}): boolean {
+  return (
+    (input.oocIntent === "rp_scene_reset" ||
+      input.oocIntent === "rp_continuing") &&
+    input.reason === "ooc_explicit_anatomy_reaction" &&
+    input.sexualContextActive === false
+  );
+}
+
+export function hasNewlyEstablishedSexualContext(
+  classification: SceneClassification
+): boolean {
+  if (classification.transientAdultCapableRoute) return false;
+  return (
+    classification.sexualContextActive === true &&
+    (classification.sceneMode === "explicit" ||
+      classification.sceneMode === "explicit_dialogue" ||
+      classification.sceneMode === "intimate_transition")
+  );
+}
+
 function withOocFields(
   base: Omit<
     SceneClassification,
-    "oocIntent" | "sceneReset" | "hardStop" | "oocStop" | "requiresAdultCapableModel"
+    | "oocIntent"
+    | "sceneReset"
+    | "hardStop"
+    | "oocStop"
+    | "requiresAdultCapableModel"
+    | "transientAdultCapableRoute"
   > &
     Partial<
       Pick<
         SceneClassification,
-        "oocIntent" | "sceneReset" | "hardStop" | "requiresAdultCapableModel"
+        | "oocIntent"
+        | "sceneReset"
+        | "hardStop"
+        | "requiresAdultCapableModel"
+        | "transientAdultCapableRoute"
       >
     >
 ): SceneClassification {
@@ -644,10 +683,17 @@ function withOocFields(
     base.requiresAdultCapableModel === true ||
     base.currentInputExplicitIntent ||
     EXPLICIT_SCENE_MODES.has(base.sceneMode);
+  const oocIntent = base.oocIntent ?? "none";
+  const transientAdultCapableRoute = isTransientAdultCapableRoute({
+    oocIntent,
+    reason: base.reason,
+    sexualContextActive: base.sexualContextActive,
+  });
   return {
     ...base,
     requiresAdultCapableModel,
-    oocIntent: base.oocIntent ?? "none",
+    transientAdultCapableRoute,
+    oocIntent,
     sceneReset,
     hardStop,
     oocStop: hardStop,
@@ -873,6 +919,7 @@ export interface AdultRouteDecision {
   blockReason?: AdultEligibilityBlockReason;
   firstAdultHandoff: boolean;
   refusalBufferRecommended: boolean;
+  transientAdultCapableRoute: boolean;
 }
 
 export function decideAdultModelRoute(input: {
@@ -892,6 +939,7 @@ export function decideAdultModelRoute(input: {
       shouldBlock: false,
       firstAdultHandoff: false,
       refusalBufferRecommended: false,
+      transientAdultCapableRoute: false,
     };
   }
 
@@ -908,6 +956,7 @@ export function decideAdultModelRoute(input: {
       blockReason: eligibility.blockReason,
       firstAdultHandoff: false,
       refusalBufferRecommended: false,
+      transientAdultCapableRoute: false,
     };
   }
   if (classification.hardStop) {
@@ -919,6 +968,7 @@ export function decideAdultModelRoute(input: {
       shouldBlock: false,
       firstAdultHandoff: false,
       refusalBufferRecommended: false,
+      transientAdultCapableRoute: false,
     };
   }
   if (
@@ -935,6 +985,7 @@ export function decideAdultModelRoute(input: {
       shouldBlock: false,
       firstAdultHandoff: false,
       refusalBufferRecommended: false,
+      transientAdultCapableRoute: false,
     };
   }
 
@@ -980,6 +1031,7 @@ export function decideAdultModelRoute(input: {
       firstAdultHandoff:
         classification.sceneReset || state.activeRoute !== "adult",
       refusalBufferRecommended: false,
+      transientAdultCapableRoute: classification.transientAdultCapableRoute,
     };
   }
 
@@ -994,6 +1046,7 @@ export function decideAdultModelRoute(input: {
       config.silentRefusalFallback &&
       (classification.sexualContextActive ||
         classification.sceneMode === "tension"),
+    transientAdultCapableRoute: false,
   };
 }
 
@@ -1008,6 +1061,8 @@ export function advanceModelRouteState(input: {
   explicitSceneEnd?: boolean;
   activeConsentMode?: AdultConsentMode;
   generalRouteBridge?: GeneralRouteBridge;
+  transientAdultCapableRoute?: boolean;
+  establishedOngoingSexualContext?: boolean;
 }): ModelRouteState {
   if (!input.config.enabled) return input.previous;
   if (input.explicitSceneEnd) {
@@ -1015,6 +1070,24 @@ export function advanceModelRouteState(input: {
       ...DEFAULT_MODEL_ROUTE_STATE,
       activeConsentMode: "standard",
       routeTriggerReason: "explicit_scene_end",
+    };
+  }
+
+  if (
+    input.transientAdultCapableRoute &&
+    input.deliveredRoute === "adult" &&
+    !input.establishedOngoingSexualContext
+  ) {
+    return {
+      activeRoute: "general",
+      currentSceneMode: "normal",
+      adultRouteMinimumTurnsRemaining: 0,
+      safeSceneStreak: 0,
+      routeTriggerReason: "transient_adult_capable_route",
+      activeConsentMode:
+        input.activeConsentMode ?? input.previous.activeConsentMode,
+      sexualContextActive: false,
+      generalRouteBridge: input.previous.generalRouteBridge,
     };
   }
 

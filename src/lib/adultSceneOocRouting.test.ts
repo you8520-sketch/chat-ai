@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  advanceModelRouteState,
   appendAdultHandoffPrompt,
   buildSceneContinuityPacket,
   classifySceneMode,
   decideAdultModelRoute,
   DEFAULT_MODEL_ROUTE_STATE,
+  hasNewlyEstablishedSexualContext,
   resolveAdultEligibility,
   resolveAdultRoutingConfig,
   type ModelRouteState,
@@ -63,7 +65,11 @@ describe("OOC scene routing cases", () => {
     assert.equal(classification.hardStop, false);
     assert.equal(classification.oocStop, false);
     assert.equal(classification.requiresAdultCapableModel, true);
+    assert.equal(classification.sexualContextActive, false);
+    assert.equal(classification.reason, "ooc_explicit_anatomy_reaction");
+    assert.equal(classification.transientAdultCapableRoute, true);
     assert.equal(decision.activeRoute, "adult");
+    assert.equal(decision.transientAdultCapableRoute, true);
     assert.equal(decision.firstAdultHandoff, true);
     assert.equal(config.adultModelId, "deepseek-v4-pro-0813");
     assert.equal(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, "deepseek-v4-pro-0813");
@@ -205,5 +211,90 @@ describe("OOC scene routing cases", () => {
 describe("OOC intent helpers", () => {
   it("classifies the case 1 input as scene reset, not hard stop", () => {
     assert.equal(classifyChatOocIntent(CASE1), "rp_scene_reset");
+  });
+});
+
+function finalize(input: {
+  currentInput: string;
+  state?: ModelRouteState;
+  assistantText?: string;
+}) {
+  const { classification, decision } = decide(input);
+  const standalone = classifySceneMode({
+    currentInput: input.assistantText ?? "그는 코트 안에서 당황한 표정을 지었다.",
+    previousSceneMode: "normal",
+  });
+  const next = advanceModelRouteState({
+    previous: input.state ?? { ...DEFAULT_MODEL_ROUTE_STATE },
+    deliveredRoute: decision.activeRoute,
+    sceneModeAfter: decision.sceneMode,
+    sexualContextActive: decision.sexualContextActive,
+    routeTriggerReason: decision.routeTriggerReason,
+    config,
+    enteredAdultThisTurn:
+      decision.firstAdultHandoff &&
+      !(
+        decision.transientAdultCapableRoute &&
+        !hasNewlyEstablishedSexualContext(standalone)
+      ),
+    explicitSceneEnd: classification.hardStop,
+    transientAdultCapableRoute: decision.transientAdultCapableRoute,
+    establishedOngoingSexualContext: hasNewlyEstablishedSexualContext(standalone),
+  });
+  return { classification, decision, next };
+}
+
+describe("transient adult-capable OOC anatomy route", () => {
+  it("1 — OOC explicit-anatomy reaction delivers 0813 then finalizes to general", () => {
+    const { classification, decision, next } = finalize({ currentInput: CASE1 });
+    assert.equal(classification.transientAdultCapableRoute, true);
+    assert.equal(classification.sexualContextActive, false);
+    assert.equal(decision.activeRoute, "adult");
+    assert.equal(config.adultModelId, "deepseek-v4-pro-0813");
+    assert.equal(next.activeRoute, "general");
+    assert.equal(next.adultRouteMinimumTurnsRemaining, 0);
+    assert.equal(next.sexualContextActive, false);
+  });
+
+  it("2 — the following ordinary user turn stays on the general/source model", () => {
+    const first = finalize({ currentInput: CASE1 });
+    const { decision } = decide({
+      state: first.next,
+      currentInput: "당황해서 코트에서 손을 뺀다.",
+    });
+    assert.equal(first.next.activeRoute, "general");
+    assert.equal(decision.activeRoute, "general");
+    assert.equal(decision.transientAdultCapableRoute, false);
+  });
+
+  it("3 — OOC explicit sexual transition starts sticky adult 0813", () => {
+    const { classification, decision, next } = finalize({
+      currentInput: "OOC: 현재 장면 계속. 이제 둘의 관계를 성인 장면까지 진행해.",
+    });
+    assert.equal(classification.transientAdultCapableRoute, false);
+    assert.equal(classification.sexualContextActive, true);
+    assert.equal(decision.activeRoute, "adult");
+    assert.equal(config.adultModelId, "deepseek-v4-pro-0813");
+    assert.equal(next.activeRoute, "adult");
+    assert.ok(next.adultRouteMinimumTurnsRemaining > 0);
+  });
+
+  it("4 — existing explicit adult action keeps sticky adult", () => {
+    const state: ModelRouteState = {
+      ...DEFAULT_MODEL_ROUTE_STATE,
+      activeRoute: "adult",
+      currentSceneMode: "explicit",
+      sexualContextActive: true,
+      adultRouteMinimumTurnsRemaining: 2,
+    };
+    const { classification, decision, next } = finalize({
+      state,
+      currentInput: "합의된 현재 성인 장면을 같은 위치에서 계속한다.",
+      assistantText: "둘은 삽입한 채 숨을 고르며 같은 자세를 유지했다.",
+    });
+    assert.equal(classification.transientAdultCapableRoute, false);
+    assert.equal(decision.activeRoute, "adult");
+    assert.equal(next.activeRoute, "adult");
+    assert.ok(next.adultRouteMinimumTurnsRemaining >= 1);
   });
 });

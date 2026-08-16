@@ -447,6 +447,7 @@ import {
   decideAdultModelRoute,
   detectModelRefusal,
   extractHandoffContinuityFromAssistantText,
+  hasNewlyEstablishedSexualContext,
   normalizeAdultDialogueProfile,
   parseModelRouteState,
   resolveAdultEligibility,
@@ -4248,6 +4249,20 @@ export async function POST(req: Request) {
                   adultRouteDecision.sexualContextActive,
               })
             : priorModelRouteState.generalRouteBridge;
+        const transientAdultCapableRoute =
+          adultRouteDecision.transientAdultCapableRoute === true;
+        const establishedOngoingSexualContext =
+          transientAdultCapableRoute &&
+          hasNewlyEstablishedSexualContext(
+            classifySceneMode({
+              currentInput: savedText,
+              previousSceneMode: "normal",
+              adultDialogueProfile: normalizeAdultDialogueProfile(
+                ch.adult_dialogue_profile
+              ),
+              activeConsentMode: requestedConsentMode,
+            })
+          );
         const nextModelRouteState = advanceModelRouteState({
           previous: priorModelRouteState,
           deliveredRoute: deliveredActiveRoute,
@@ -4262,10 +4277,13 @@ export async function POST(req: Request) {
           config: adultRoutingConfig,
           enteredAdultThisTurn:
             deliveredActiveRoute === "adult" &&
-            (adultRouteDecision.firstAdultHandoff || adultFallbackSucceeded),
+            (adultRouteDecision.firstAdultHandoff || adultFallbackSucceeded) &&
+            !(transientAdultCapableRoute && !establishedOngoingSexualContext),
           explicitSceneEnd: sceneClassification.hardStop,
           activeConsentMode: requestedConsentMode,
           generalRouteBridge: nextGeneralBridge,
+          transientAdultCapableRoute,
+          establishedOngoingSexualContext,
         });
 
         const usageModel = htmlFlashOnlyTurn ? billing.modelId : receiptFields.model;
