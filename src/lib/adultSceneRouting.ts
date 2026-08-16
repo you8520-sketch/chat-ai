@@ -1,5 +1,13 @@
 import type { ChatMsg } from "@/lib/ai";
-import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
+import {
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  normalizeDeepSeekV4ProModelId,
+} from "@/lib/chatModels";
+import {
+  classifyChatOocIntent,
+  extractOocRoutingText,
+  type ChatOocIntent,
+} from "@/lib/chatOocPriority";
 import { estimateTokens } from "@/lib/tokenEstimate";
 
 export type SceneMode =
@@ -67,6 +75,8 @@ export interface SceneContinuityPacket {
   previousSceneMode: SceneMode;
   sexualContextActive?: boolean;
   activeConsentMode?: AdultConsentMode;
+  /** True when OOC starts a new episode; previous physical continuity must not carry. */
+  sceneReset?: boolean;
 }
 
 export interface ParticipantAdultMetadata {
@@ -246,8 +256,9 @@ export function resolveAdultRoutingConfig(
   );
   return {
     enabled: envBool(env.ADULT_SCENE_ROUTING_ENABLED, true),
-    adultModelId:
-      env.ADULT_MODEL_ID?.trim() || CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+    adultModelId: normalizeDeepSeekV4ProModelId(
+      env.ADULT_MODEL_ID?.trim() || CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+    ),
     providerOrder: envList(env.ADULT_MODEL_PROVIDER_ORDER),
     providerOnly: envList(env.ADULT_MODEL_PROVIDER_ONLY),
     allowProviderFallbacks: envBool(
@@ -531,8 +542,8 @@ export function resolveAdultEligibility(input: {
   return { eligible: true, allowedByAdultContentPolicy: true };
 }
 
-const OOC_STOP =
-  /(?:\bOOC\b|괄호\s*밖|롤플레(?:이|잉)\s*(?:중단|종료)|장면\s*(?:중단|종료)|그만\s*하자|여기서\s*멈춰|stop\s+(?:the\s+)?scene|end\s+(?:the\s+)?scene)/i;
+const EXPLICIT_RP_STOP =
+  /(?:괄호\s*밖|롤플레(?:이|잉)\s*(?:중단|종료)|장면\s*(?:중단|종료)|그만\s*하자|여기서\s*멈춰|stop\s+(?:the\s+)?scene|end\s+(?:the\s+)?scene)/i;
 const EXPLICIT_NONCONSENT =
   /(?:실제\s*(?:비동의|강간|성폭력)|동의\s*없이|싫다고\s*(?:했는데|하는데).{0,16}(?:강제로|억지로)|의식\s*없는.{0,12}(?:성행위|관계)|actual\s+(?:rape|non[- ]?consensual)|without\s+consent)/i;
 const CNC_OPT_IN =
@@ -546,7 +557,7 @@ const ROMANTIC_CONTEXT =
 const TENSION_CONTEXT =
   /(?:키스|입맞춤|유혹|숨결|귓가|목덜미|허리.{0,8}(?:감싸|끌어)|벽으로\s*몰|가까이\s*다가|밀착|kiss|seduc)/i;
 const INTIMATE_TRANSITION =
-  /(?:(?:침실|침대|호텔|방으로).{0,24}(?:가|데려|이동|들어)|옷을\s*(?:벗|내리)|계속해|더\s*해|다음으로\s*넘어|끝까지|명시적(?:인)?\s*장면|성인\s*장면|have\s+sex|make\s+love)/i;
+  /(?:(?:침실|침대|호텔|방으로).{0,24}(?:가|데려|이동|들어)|옷을\s*(?:벗|내리)|계속해|더\s*해|다음으로\s*넘어|끝까지|명시적(?:인)?\s*장면|성인\s*(?:장면|에피소드)|adult\s+episode|have\s+sex|make\s+love)/i;
 const EXPLICIT_ANATOMY =
   /(?:성기|음경|질\b|클리토리스|유두|정액|삽입|penetrat|genital|penis|vagina|clitoris)/i;
 const EXPLICIT_ACTION =
@@ -557,9 +568,22 @@ const AFTERCARE =
   /(?:애프터케어|aftercare|끝난\s*뒤|관계\s*후|숨을\s*고르|담요|물을\s*건네|씻고\s*나서|품에\s*안아\s*달래)/i;
 const TIME_OR_PLACE_JUMP =
   /(?:며칠\s*후|몇\s*시간\s*후|다음\s*날|그날\s*아침|장소를\s*옮|밖으로\s*나가|새로운\s*사건|한편,|time\s*skip|later\s+that|next\s+day)/i;
+const OOC_RP_DIRECTIVE =
+  /(?:반응|출력|연출|묘사|진행|장면|에피소드|상황|어떻게\s*하는지|행동|대사|portray|react|output|describe|continue)/i;
+const MEDICAL_NO_SEXUAL =
+  /성적\s*묘사(?:는|를)?\s*(?:하지\s*마|금지|없|말아)/i;
 
+export function detectExplicitRpStop(text: string): boolean {
+  return EXPLICIT_RP_STOP.test(text);
+}
+
+/** @deprecated use detectOocHardStop — OOC marker itself is not a stop. */
 export function detectOocSceneStop(text: string): boolean {
-  return OOC_STOP.test(text);
+  return classifyChatOocIntent(text) === "rp_hard_stop";
+}
+
+export function detectOocHardStop(text: string): boolean {
+  return classifyChatOocIntent(text) === "rp_hard_stop";
 }
 
 export function detectActualNonConsent(text: string): boolean {
@@ -575,7 +599,7 @@ export function resolveRequestedConsentMode(
   previous: AdultConsentMode,
   currentInput: string
 ): AdultConsentMode {
-  if (detectOocSceneStop(currentInput)) return "standard";
+  if (detectOocHardStop(currentInput)) return "standard";
   if (requested === "power_play") return "power_play";
   if (
     requested === "cnc_opt_in" &&
@@ -591,10 +615,43 @@ export interface SceneClassification {
   sceneMode: SceneMode;
   sexualContextActive: boolean;
   currentInputExplicitIntent: boolean;
+  requiresAdultCapableModel: boolean;
   actualNonConsent: boolean;
+  oocIntent: ChatOocIntent;
+  sceneReset: boolean;
+  hardStop: boolean;
+  /** @deprecated use hardStop — OOC marker itself is not a stop. */
   oocStop: boolean;
   clearSceneTransition: boolean;
   reason: string;
+}
+
+function withOocFields(
+  base: Omit<
+    SceneClassification,
+    "oocIntent" | "sceneReset" | "hardStop" | "oocStop" | "requiresAdultCapableModel"
+  > &
+    Partial<
+      Pick<
+        SceneClassification,
+        "oocIntent" | "sceneReset" | "hardStop" | "requiresAdultCapableModel"
+      >
+    >
+): SceneClassification {
+  const hardStop = base.hardStop === true;
+  const sceneReset = base.sceneReset === true;
+  const requiresAdultCapableModel =
+    base.requiresAdultCapableModel === true ||
+    base.currentInputExplicitIntent ||
+    EXPLICIT_SCENE_MODES.has(base.sceneMode);
+  return {
+    ...base,
+    requiresAdultCapableModel,
+    oocIntent: base.oocIntent ?? "none",
+    sceneReset,
+    hardStop,
+    oocStop: hardStop,
+  };
 }
 
 export function classifySceneMode(input: {
@@ -605,132 +662,187 @@ export function classifySceneMode(input: {
   activeConsentMode?: AdultConsentMode;
 }): SceneClassification {
   const current = input.currentInput.trim();
-  const previous = input.previousSceneMode ?? "normal";
-  const recent = input.recentRawText?.slice(-6_000) ?? "";
-  const combined = `${recent}\n${current}`;
-  const oocStop = detectOocSceneStop(current);
-  const actualNonConsent = detectActualNonConsent(current);
-  const clearSceneTransition = TIME_OR_PLACE_JUMP.test(current);
-  if (oocStop || clearSceneTransition) {
-    return {
+  const oocIntent = classifyChatOocIntent(current);
+  const sceneReset = oocIntent === "rp_scene_reset";
+  const hardStop = oocIntent === "rp_hard_stop";
+  const routingText = oocIntent === "none" ? current : extractOocRoutingText(current);
+  const previous = sceneReset ? "normal" : (input.previousSceneMode ?? "normal");
+  const recent = sceneReset ? "" : (input.recentRawText?.slice(-6_000) ?? "");
+  const combined = `${recent}\n${routingText}`;
+  const actualNonConsent = detectActualNonConsent(routingText);
+  const clearSceneTransition = TIME_OR_PLACE_JUMP.test(routingText);
+
+  if (hardStop) {
+    return withOocFields({
       sceneMode: "normal",
       sexualContextActive: false,
       currentInputExplicitIntent: false,
+      requiresAdultCapableModel: false,
       actualNonConsent,
-      oocStop,
+      oocIntent,
+      sceneReset: false,
+      hardStop: true,
       clearSceneTransition,
-      reason: oocStop ? "ooc_stop" : "clear_scene_transition",
-    };
+      reason: "ooc_hard_stop",
+    });
+  }
+
+  if (oocIntent === "none" && clearSceneTransition) {
+    return withOocFields({
+      sceneMode: "normal",
+      sexualContextActive: false,
+      currentInputExplicitIntent: false,
+      requiresAdultCapableModel: false,
+      actualNonConsent,
+      oocIntent,
+      sceneReset: false,
+      hardStop: false,
+      clearSceneTransition,
+      reason: "clear_scene_transition",
+    });
   }
 
   const contextualSexualSignal =
-    SEXUAL_CONTEXT.test(current) ||
-    SEXUAL_CONTEXT.test(recent) ||
-    EXPLICIT_SCENE_MODES.has(previous) ||
-    previous === "tension" ||
-    previous === "aftercare";
-  const medicalOrCombat = MEDICAL_OR_COMBAT.test(current);
+    !sceneReset &&
+    (SEXUAL_CONTEXT.test(routingText) ||
+      SEXUAL_CONTEXT.test(recent) ||
+      EXPLICIT_SCENE_MODES.has(previous) ||
+      previous === "tension" ||
+      previous === "aftercare");
+  const medicalOrCombat = MEDICAL_OR_COMBAT.test(routingText);
+  const medicalFalsePositive =
+    medicalOrCombat &&
+    (MEDICAL_NO_SEXUAL.test(routingText) || !EXPLICIT_ANATOMY.test(routingText)) &&
+    !EXPLICIT_ACTION.test(routingText) &&
+    !EXPLICIT_DIALOGUE.test(routingText);
+  const oocExplicitAnatomyReaction =
+    oocIntent !== "none" &&
+    oocIntent !== "rp_unrelated" &&
+    EXPLICIT_ANATOMY.test(routingText) &&
+    OOC_RP_DIRECTIVE.test(routingText) &&
+    !medicalFalsePositive;
   const explicitAction =
-    EXPLICIT_ACTION.test(current) ||
-    (EXPLICIT_ANATOMY.test(current) &&
+    EXPLICIT_ACTION.test(routingText) ||
+    oocExplicitAnatomyReaction ||
+    (EXPLICIT_ANATOMY.test(routingText) &&
       (EXPLICIT_ACTION.test(combined) || contextualSexualSignal));
   const explicitDialogue =
-    EXPLICIT_DIALOGUE.test(current) ||
-    (EXPLICIT_ANATOMY.test(current) &&
-      /(?:말해|대사|명령|속삭|외쳐|describe|say|tell)/i.test(current) &&
-      contextualSexualSignal);
+    EXPLICIT_DIALOGUE.test(routingText) ||
+    (EXPLICIT_ANATOMY.test(routingText) &&
+      /(?:말해|대사|명령|속삭|외쳐|describe|say|tell)/i.test(routingText) &&
+      (contextualSexualSignal || oocIntent !== "none"));
 
-  if (!contextualSexualSignal && medicalOrCombat && !explicitAction && !explicitDialogue) {
-    return {
+  if (medicalFalsePositive && !explicitAction && !explicitDialogue && !oocExplicitAnatomyReaction) {
+    return withOocFields({
       sceneMode: "normal",
       sexualContextActive: false,
       currentInputExplicitIntent: false,
+      requiresAdultCapableModel: false,
       actualNonConsent,
-      oocStop: false,
+      oocIntent,
+      sceneReset,
+      hardStop: false,
       clearSceneTransition,
       reason: "medical_or_combat_context",
-    };
+    });
   }
 
   if (explicitDialogue) {
-    return {
+    return withOocFields({
       sceneMode: "explicit_dialogue",
       sexualContextActive: true,
       currentInputExplicitIntent: true,
+      requiresAdultCapableModel: true,
       actualNonConsent,
-      oocStop: false,
+      oocIntent,
+      sceneReset,
+      hardStop: false,
       clearSceneTransition,
-      reason: "explicit_dialogue",
-    };
+      reason: oocExplicitAnatomyReaction ? "ooc_explicit_anatomy_reaction" : "explicit_dialogue",
+    });
   }
   if (explicitAction) {
-    return {
+    return withOocFields({
       sceneMode: "explicit",
-      sexualContextActive: true,
+      sexualContextActive: oocExplicitAnatomyReaction ? false : true,
       currentInputExplicitIntent: true,
+      requiresAdultCapableModel: true,
       actualNonConsent,
-      oocStop: false,
+      oocIntent,
+      sceneReset,
+      hardStop: false,
       clearSceneTransition,
-      reason: "explicit_action",
-    };
+      reason: oocExplicitAnatomyReaction ? "ooc_explicit_anatomy_reaction" : "explicit_action",
+    });
   }
-  if (AFTERCARE.test(current) && EXPLICIT_SCENE_MODES.has(previous)) {
-    return {
+  if (AFTERCARE.test(routingText) && EXPLICIT_SCENE_MODES.has(previous) && !sceneReset) {
+    return withOocFields({
       sceneMode: "aftercare",
       sexualContextActive: true,
       currentInputExplicitIntent: false,
       actualNonConsent,
-      oocStop: false,
+      oocIntent,
+      sceneReset,
+      hardStop: false,
       clearSceneTransition,
       reason: "aftercare",
-    };
+    });
   }
   if (
-    INTIMATE_TRANSITION.test(current) &&
-    (contextualSexualSignal || TENSION_CONTEXT.test(recent))
+    INTIMATE_TRANSITION.test(routingText) &&
+    (contextualSexualSignal || TENSION_CONTEXT.test(recent) || sceneReset || oocIntent === "rp_continuing")
   ) {
-    return {
+    return withOocFields({
       sceneMode: "intimate_transition",
       sexualContextActive: true,
       currentInputExplicitIntent: true,
+      requiresAdultCapableModel: true,
       actualNonConsent,
-      oocStop: false,
+      oocIntent,
+      sceneReset,
+      hardStop: false,
       clearSceneTransition,
       reason: "intimate_transition",
-    };
+    });
   }
-  if (TENSION_CONTEXT.test(current)) {
-    return {
+  if (TENSION_CONTEXT.test(routingText)) {
+    return withOocFields({
       sceneMode: "tension",
       sexualContextActive: true,
       currentInputExplicitIntent: false,
       actualNonConsent,
-      oocStop: false,
+      oocIntent,
+      sceneReset,
+      hardStop: false,
       clearSceneTransition,
       reason: "tension",
-    };
+    });
   }
-  if (ROMANTIC_CONTEXT.test(current)) {
-    return {
+  if (ROMANTIC_CONTEXT.test(routingText)) {
+    return withOocFields({
       sceneMode: "romantic",
       sexualContextActive: false,
       currentInputExplicitIntent: false,
       actualNonConsent,
-      oocStop: false,
+      oocIntent,
+      sceneReset,
+      hardStop: false,
       clearSceneTransition,
       reason: "romantic",
-    };
+    });
   }
-  return {
+  return withOocFields({
     sceneMode: contextualSexualSignal && previous === "aftercare" ? "aftercare" : "normal",
-    sexualContextActive:
-      contextualSexualSignal && previous === "aftercare",
+    sexualContextActive: contextualSexualSignal && previous === "aftercare",
     currentInputExplicitIntent: false,
+    requiresAdultCapableModel: false,
     actualNonConsent,
-    oocStop: false,
+    oocIntent,
+    sceneReset,
+    hardStop: false,
     clearSceneTransition,
-    reason: "normal",
-  };
+    reason: sceneReset ? "ooc_scene_reset" : "normal",
+  });
 }
 
 export function modelFamily(modelId: string): string {
@@ -785,6 +897,7 @@ export function decideAdultModelRoute(input: {
 
   const explicitIntent =
     classification.currentInputExplicitIntent ||
+    classification.requiresAdultCapableModel ||
     EXPLICIT_SCENE_MODES.has(classification.sceneMode);
   if (explicitIntent && !eligibility.allowedByAdultContentPolicy) {
     return {
@@ -797,14 +910,28 @@ export function decideAdultModelRoute(input: {
       refusalBufferRecommended: false,
     };
   }
-  if (classification.oocStop || classification.clearSceneTransition) {
+  if (classification.hardStop) {
     return {
       activeRoute: "general",
       sceneMode: "normal",
       sexualContextActive: false,
-      routeTriggerReason: classification.oocStop
-        ? "user_ooc_stop"
-        : "clear_scene_transition",
+      routeTriggerReason: "user_ooc_hard_stop",
+      shouldBlock: false,
+      firstAdultHandoff: false,
+      refusalBufferRecommended: false,
+    };
+  }
+  if (
+    classification.clearSceneTransition &&
+    classification.oocIntent === "none" &&
+    !classification.currentInputExplicitIntent &&
+    !classification.requiresAdultCapableModel
+  ) {
+    return {
+      activeRoute: "general",
+      sceneMode: "normal",
+      sexualContextActive: false,
+      routeTriggerReason: "clear_scene_transition",
       shouldBlock: false,
       firstAdultHandoff: false,
       refusalBufferRecommended: false,
@@ -816,9 +943,10 @@ export function decideAdultModelRoute(input: {
     input.adultDialogueProfile === "explicit_frequent" &&
     classification.sexualContextActive;
   const previousRequiresAdult =
-    state.currentSceneMode === "explicit_dialogue" ||
-    state.currentSceneMode === "intimate_transition" ||
-    state.currentSceneMode === "explicit";
+    !classification.sceneReset &&
+    (state.currentSceneMode === "explicit_dialogue" ||
+      state.currentSceneMode === "intimate_transition" ||
+      state.currentSceneMode === "explicit");
   const providerBoundaryExceeded = !providerCanHandleScene(
     config,
     modelFamily(input.selectedModelId),
@@ -827,13 +955,15 @@ export function decideAdultModelRoute(input: {
   const shouldEnterAdultRoute =
     eligibility.eligible &&
     eligibility.allowedByAdultContentPolicy &&
-    (previousRequiresAdult ||
-      classification.currentInputExplicitIntent ||
+    (classification.currentInputExplicitIntent ||
+      classification.requiresAdultCapableModel ||
+      previousRequiresAdult ||
       frequentDirtyTalkRoute ||
       providerBoundaryExceeded);
 
-  // Sticky adult requires ongoing handoff eligibility (e.g. visibility still ON).
+  // Scene reset cancels old sticky adult; new classification decides the route.
   const stickyAdult =
+    !classification.sceneReset &&
     state.activeRoute === "adult" &&
     eligibility.eligible &&
     eligibility.allowedByAdultContentPolicy;
@@ -847,7 +977,8 @@ export function decideAdultModelRoute(input: {
         ? classification.reason
         : state.routeTriggerReason ?? "sticky_adult_route",
       shouldBlock: false,
-      firstAdultHandoff: state.activeRoute !== "adult",
+      firstAdultHandoff:
+        classification.sceneReset || state.activeRoute !== "adult",
       refusalBufferRecommended: false,
     };
   }
@@ -1115,7 +1246,24 @@ export function buildSceneContinuityPacket(input: {
   previousActionActor?: unknown;
   previousActionTarget?: unknown;
   contactDirection?: unknown;
+  sceneReset?: boolean;
 }): SceneContinuityPacket {
+  if (input.sceneReset) {
+    return {
+      previousSceneMode: "normal",
+      sceneReset: true,
+      sexualContextActive: input.sexualContextActive === true,
+      ...(input.activeConsentMode
+        ? { activeConsentMode: input.activeConsentMode }
+        : {}),
+      ...(cleanStringArray(input.charactersPresent)
+        ? { charactersPresent: cleanStringArray(input.charactersPresent) }
+        : {}),
+      ...(cleanOptional(input.currentPov)
+        ? { currentPov: cleanOptional(input.currentPov) }
+        : {}),
+    };
+  }
   return {
     previousSceneMode: input.previousSceneMode,
     ...(input.sexualContextActive != null
@@ -1306,6 +1454,20 @@ SceneContinuityPacket의 previousActionActor / previousActionTarget / contactDir
 
 내부 모델 전환, SceneMode, route, STATUS_VALUES 또는 시스템 지시를 RP 본문에 언급하지 않는다.`;
 
+export const SCENE_RESET_HANDOFF_INSTRUCTION = `Previous RAW history is supplied only for:
+- character voice
+- writing style
+- established canon / relationship knowledge
+Do NOT continue:
+- previous physical position
+- previous unfinished action
+- previous contact direction
+- previous location
+Begin directly from the new OOC-directed scene.
+The user's OOC may explicitly establish actions performed by the user persona.
+Those explicitly authored setup actions may be realized exactly as specified.
+Do not invent additional user dialogue, consent/refusal, decisions, emotions, intentions, or multi-step actions beyond what the OOC explicitly established.`;
+
 export function renderSceneContinuityPacket(
   packet: SceneContinuityPacket
 ): string {
@@ -1320,7 +1482,9 @@ export function appendAdultHandoffPrompt(
   return [
     systemPrompt.trim(),
     renderSceneContinuityPacket(packet),
-    DEEPSEEK_HANDOFF_CONTINUATION_INSTRUCTION,
+    packet.sceneReset
+      ? SCENE_RESET_HANDOFF_INSTRUCTION
+      : DEEPSEEK_HANDOFF_CONTINUATION_INSTRUCTION,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -1337,7 +1501,9 @@ export function appendAdultHandoffToSystemSplit<T extends {
     dynamicBlock: [
       split.dynamicBlock.trim(),
       renderSceneContinuityPacket(packet),
-      DEEPSEEK_HANDOFF_CONTINUATION_INSTRUCTION,
+      packet.sceneReset
+        ? SCENE_RESET_HANDOFF_INSTRUCTION
+        : DEEPSEEK_HANDOFF_CONTINUATION_INSTRUCTION,
     ]
       .filter(Boolean)
       .join("\n\n"),

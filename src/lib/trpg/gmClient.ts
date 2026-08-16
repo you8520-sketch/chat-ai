@@ -1,4 +1,8 @@
-import { isCheaperInferenceDeepSeekV4ProModel } from "@/lib/chatModels";
+import {
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  isCheaperInferenceDeepSeekV4ProModel,
+  normalizeDeepSeekV4ProModelId,
+} from "@/lib/chatModels";
 
 /**
  * TRPG GM body adapter — isolated from RP `adaptCheaperInferenceChatBody`.
@@ -12,10 +16,16 @@ export function adaptTrpgGmChatBody(body: Record<string, unknown>): Record<strin
   delete adapted.repetition_penalty;
   delete adapted.include_reasoning;
 
-  if (typeof adapted.model === "string" && isCheaperInferenceDeepSeekV4ProModel(adapted.model)) {
-    delete adapted.reasoning_effort;
-    adapted.thinking = { type: "enabled" };
-    return adapted;
+  if (typeof adapted.model === "string") {
+    const model = normalizeDeepSeekV4ProModelId(adapted.model);
+    adapted.model = isCheaperInferenceDeepSeekV4ProModel(model)
+      ? CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+      : model;
+    if (isCheaperInferenceDeepSeekV4ProModel(model)) {
+      delete adapted.reasoning_effort;
+      adapted.thinking = { type: "enabled" };
+      return adapted;
+    }
   }
 
   adapted.thinking = { type: "enabled" };
@@ -34,6 +44,12 @@ export function adaptTrpgBotChatBody(body: Record<string, unknown>): Record<stri
   delete adapted.repetition_penalty;
   delete adapted.include_reasoning;
   delete adapted.reasoning_effort;
+  if (typeof adapted.model === "string") {
+    const model = normalizeDeepSeekV4ProModelId(adapted.model);
+    adapted.model = isCheaperInferenceDeepSeekV4ProModel(model)
+      ? CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+      : model;
+  }
   adapted.thinking = { type: "disabled" };
   return adapted;
 }

@@ -5,11 +5,8 @@ import {
 } from "@/lib/chatModels";
 
 /**
- * Final locked production adult primary (Muse audit + Aion challenger):
- * FINAL_ADULT_MODEL / KEEP_CURRENT_ADULT_MODEL = deepseek-v4-pro
- * (no Muse replacement; Aion primary candidate = NO).
+ * Production adult primary is DeepSeek V4 Pro 0813.
  * GLM remains hard-failure fallback only (max 1).
- * Legacy Aion path may remain in tree but must stay primary-disabled.
  */
 export const ADULT_SCENE_MODEL_POLICY = {
   primaryModelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
@@ -28,8 +25,6 @@ export type AdultSceneHardFailureReason =
   | "stream_parse_failure";
 
 export type AdultSceneModelPolicyConfig = {
-  /** Legacy Aion primary switch — must stay false unless explicitly re-approved. */
-  aionPrimaryEnabled: boolean;
   glmHardFailureFallbackEnabled: boolean;
   adminOnly: boolean;
 };
@@ -48,8 +43,6 @@ export function resolveAdultSceneModelPolicyConfig(
   env: NodeJS.ProcessEnv = process.env
 ): AdultSceneModelPolicyConfig {
   return {
-    // Default OFF: confirmed adult model is DeepSeek V4 Pro.
-    aionPrimaryEnabled: envFlag(env, "ADULT_SCENE_AION_PRIMARY_ENABLED", false),
     glmHardFailureFallbackEnabled: envFlag(
       env,
       "ADULT_SCENE_GLM_HARD_FAILURE_FALLBACK_ENABLED",
@@ -59,18 +52,7 @@ export function resolveAdultSceneModelPolicyConfig(
   };
 }
 
-/** True only when the legacy Aion primary path is explicitly enabled. */
-export function isAdultSceneModelPolicyActive(input: {
-  config: AdultSceneModelPolicyConfig;
-  isAdmin: boolean;
-}): boolean {
-  return (
-    input.config.aionPrimaryEnabled &&
-    (!input.config.adminOnly || input.isAdmin)
-  );
-}
-
-/** GLM hard-failure fallback — independent of Aion primary. */
+/** GLM hard-failure fallback — DeepSeek 0813 primary only. */
 export function shouldFallbackToGlm(input: {
   config: AdultSceneModelPolicyConfig;
   isAdmin: boolean;

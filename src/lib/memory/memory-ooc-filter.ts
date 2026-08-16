@@ -3,7 +3,8 @@ import { classifyChatOocIntent } from "@/lib/chatOocPriority";
 
 /** RP와 무관한 OOC 턴(HTML/SNS mock·RP 중단 등) — 장기기억 히스토리에서 제외 */
 export function isTurnEligibleForMemoryRecord(userMessage: string): boolean {
-  return classifyChatOocIntent(userMessage) !== "rp_unrelated";
+  const intent = classifyChatOocIntent(userMessage);
+  return intent !== "rp_unrelated" && intent !== "rp_hard_stop";
 }
 
 export function filterTurnsForMemorySummary(

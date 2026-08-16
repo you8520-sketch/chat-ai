@@ -153,9 +153,21 @@ test("DeepSeek V4 Pro uses the native non-thinking switch on CheaperInference", 
       reasoning_effort: "high",
     }),
     {
-      model: "deepseek-v4-pro",
+      model: "deepseek-v4-pro-0813",
       messages: [{ role: "user", content: "hello" }],
       thinking: { type: "disabled" },
     }
   );
+});
+
+test("DeepSeek V4 Pro 0813 keeps thinking disabled and never sends the legacy id", () => {
+  const adapted = adaptCheaperInferenceChatBody({
+    model: "deepseek-v4-pro-0813",
+    messages: [{ role: "user", content: "hello" }],
+    reasoning_effort: "high",
+  });
+  assert.equal(adapted.model, "deepseek-v4-pro-0813");
+  assert.deepEqual(adapted.thinking, { type: "disabled" });
+  assert.equal(adapted.reasoning_effort, undefined);
+  assert.notEqual(adapted.model, "deepseek-v4-pro");
 });

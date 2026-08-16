@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import type Database from "better-sqlite3";
 import { buildTrpgSheetWidget } from "./defaultSheet";
 import { parseTrpgInviteInput } from "./invite";
-import { DEFAULT_TRPG_DICE_RULES, type TrpgDiceRules, type TrpgRoundPhase, type TrpgStatDefinition } from "./types";
+import { TRPG_GM_MODEL, DEFAULT_TRPG_DICE_RULES, type TrpgDiceRules, type TrpgRoundPhase, type TrpgStatDefinition } from "./types";
 import { DEFAULT_TRPG_STAT_DEFS, pointPoolFor, resolveCampaignStatDefs } from "./stats";
 
 export function newTrpgInviteCode(): string {
@@ -171,7 +171,7 @@ export function insertCampaign(db: Database.Database, opts: {
     .prepare(
       `INSERT INTO trpg_campaigns
         (host_user_id, source_character_id, source_world_id, title, max_slots, billing_mode, gm_model, status, invite_code, world_brief, template_id, author_user_id, gm_secret)
-       VALUES (?,?,?,?,?,'split_even','deepseek-v4-pro','CHARACTER_SETUP',?,?,?,?,?)`
+       VALUES (?,?,?,?,?,'split_even',?,'CHARACTER_SETUP',?,?,?,?,?)`
     )
     .run(
       opts.hostUserId,
@@ -179,6 +179,7 @@ export function insertCampaign(db: Database.Database, opts: {
       opts.sourceWorldId,
       opts.title,
       opts.maxSlots,
+      TRPG_GM_MODEL,
       invite,
       opts.worldBrief,
       opts.templateId ?? null,

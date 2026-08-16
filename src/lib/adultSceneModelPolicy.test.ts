@@ -3,45 +3,45 @@ import test from "node:test";
 import {
   ADULT_SCENE_MODEL_POLICY,
   classifyAdultSceneHardFailure,
-  isAdultSceneModelPolicyActive,
   resolveAdultSceneModelPolicyConfig,
   shouldFallbackToGlm,
   type AdultSceneModelPolicyConfig,
 } from "./adultSceneModelPolicy.ts";
+import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "./chatModels.ts";
 
 const glmEnabled: AdultSceneModelPolicyConfig = {
-  aionPrimaryEnabled: false,
   glmHardFailureFallbackEnabled: true,
   adminOnly: false,
 };
 
-const legacyAionAdminOnly: AdultSceneModelPolicyConfig = {
-  aionPrimaryEnabled: true,
-  glmHardFailureFallbackEnabled: true,
-  adminOnly: true,
-};
-
-test("defaults keep DeepSeek adult primary and Aion primary OFF", () => {
+test("defaults keep DeepSeek 0813 adult primary and no Aion policy", () => {
   const config = resolveAdultSceneModelPolicyConfig({});
-  assert.equal(config.aionPrimaryEnabled, false);
   assert.equal(config.glmHardFailureFallbackEnabled, true);
   assert.equal(config.adminOnly, false);
-  assert.equal(ADULT_SCENE_MODEL_POLICY.primaryModelId, "deepseek-v4-pro");
-  assert.equal(ADULT_SCENE_MODEL_POLICY.hardFailureFallbackModelId, "glm-5.2");
-});
-
-test("legacy Aion primary remains admin-gated when explicitly enabled", () => {
   assert.equal(
-    isAdultSceneModelPolicyActive({
-      config: legacyAionAdminOnly,
-      isAdmin: false,
-    }),
+    ADULT_SCENE_MODEL_POLICY.primaryModelId,
+    CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+  );
+  assert.equal(ADULT_SCENE_MODEL_POLICY.primaryModelId, "deepseek-v4-pro-0813");
+  assert.equal(ADULT_SCENE_MODEL_POLICY.hardFailureFallbackModelId, "glm-5.2");
+  assert.equal(ADULT_SCENE_MODEL_POLICY.maximumFallbackAttempts, 1);
+  assert.equal(
+    "aionPrimaryEnabled" in (config as Record<string, unknown>),
     false
   );
+});
+
+test("Aion primary and Aion fallback are impossible", () => {
+  const policy = ADULT_SCENE_MODEL_POLICY as Record<string, unknown>;
+  assert.notEqual(String(policy.primaryModelId), "aion-2.0");
+  assert.notEqual(String(policy.hardFailureFallbackModelId), "aion-2.0");
+  assert.equal(policy.aionPrimaryEnabled, undefined);
   assert.equal(
-    isAdultSceneModelPolicyActive({
-      config: legacyAionAdminOnly,
+    shouldFallbackToGlm({
+      config: glmEnabled,
       isAdmin: true,
+      reason: "provider_5xx",
+      fallbackAttemptCount: 0,
     }),
     true
   );

@@ -60,6 +60,17 @@ describe("RP diagnostic canary fail-closed scope", () => {
     assert.equal(res?.sceneMode, "single_primary");
   });
 
+  it("legacy allowlist still matches canonical deepseek-v4-pro-0813", () => {
+    enableCanary();
+    const res = resolveRpDiagnosticCanary({
+      userId: 34,
+      modelId: "deepseek-v4-pro-0813",
+      contentKind: "character",
+    });
+    assert.ok(res?.active);
+    assert.equal(res?.modelId, "deepseek-v4-pro-0813");
+  });
+
   it("user 34 + other model → not applied", () => {
     enableCanary();
     const res = resolveRpDiagnosticCanary({

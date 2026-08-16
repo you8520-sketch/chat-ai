@@ -8,6 +8,7 @@
 import {
   isCheaperInferenceDeepSeekV4FlashModel,
   isCheaperInferenceDeepSeekV4ProModel,
+  normalizeDeepSeekV4ProModelId,
 } from "@/lib/chatModels";
 import { resolveRpSceneCastMode } from "@/lib/terraTerminalLengthOwner";
 import type { ContentKind } from "@/lib/simulationMode";
@@ -105,7 +106,7 @@ function parseModelAllowlist(raw: string | undefined): string[] {
   if (!raw) return [];
   return raw
     .split(",")
-    .map((s) => s.trim().toLowerCase())
+    .map((s) => normalizeDeepSeekV4ProModelId(s.trim().toLowerCase()))
     .filter(Boolean);
 }
 
@@ -142,7 +143,7 @@ export function resolveRpDiagnosticCanary(opts: {
   if (!users.includes(userId)) return null;
 
   const models = parseModelAllowlist(process.env[ENV_MODEL_IDS]);
-  const modelId = (opts.modelId ?? "").trim().toLowerCase();
+  const modelId = normalizeDeepSeekV4ProModelId((opts.modelId ?? "").trim().toLowerCase());
   if (!modelId) return null;
   if (models.length > 0 && !models.includes(modelId)) return null;
   if (models.length === 0 && !isCheaperInferenceDeepSeekV4ProModel(modelId)) return null;

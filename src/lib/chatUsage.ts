@@ -148,9 +148,9 @@ export type Usage = {
     rawTokensIncluded?: number;
     fallbackAttempted: boolean;
     fallbackSucceeded: boolean;
-    aionHardFailureFallbackAttempted?: boolean;
-    aionHardFailureFallbackSucceeded?: boolean;
-    aionHardFailureReason?: string;
+    glmHardFailureFallbackAttempted?: boolean;
+    glmHardFailureFallbackSucceeded?: boolean;
+    glmHardFailureReason?: string;
     hiddenFallbackOverheadCostUsd?: number;
     finalDeliveredModelCostUsd?: number;
     totalUpstreamCostUsd?: number;

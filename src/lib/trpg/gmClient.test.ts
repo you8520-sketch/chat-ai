@@ -12,17 +12,17 @@ describe("TRPG GM call path vs regular chat", () => {
       reasoning_effort: "high",
     };
     assert.deepEqual(adaptTrpgGmChatBody(body), {
-      model: "deepseek-v4-pro",
+      model: "deepseek-v4-pro-0813",
       messages: [{ role: "user", content: "장면" }],
       thinking: { type: "enabled" },
     });
     assert.deepEqual(adaptTrpgBotChatBody(body), {
-      model: "deepseek-v4-pro",
+      model: "deepseek-v4-pro-0813",
       messages: [{ role: "user", content: "장면" }],
       thinking: { type: "disabled" },
     });
     assert.deepEqual(adaptCheaperInferenceChatBody(body), {
-      model: "deepseek-v4-pro",
+      model: "deepseek-v4-pro-0813",
       messages: [{ role: "user", content: "장면" }],
       thinking: { type: "disabled" },
     });
@@ -31,7 +31,7 @@ describe("TRPG GM call path vs regular chat", () => {
 
   it("keeps a high max_tokens cap on the GM adapter", () => {
     const withCap = adaptTrpgGmChatBody({
-      model: "deepseek-v4-pro",
+      model: "deepseek-v4-pro-0813",
       max_tokens: TRPG_GM_MAX_TOKENS,
     });
     assert.equal(withCap.max_tokens, TRPG_GM_MAX_TOKENS);

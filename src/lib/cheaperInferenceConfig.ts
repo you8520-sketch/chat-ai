@@ -1,4 +1,5 @@
 import {
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   isCheaperInferenceClaudeOpus5Model,
   isCheaperInferenceDeepSeekV4FlashModel,
   isCheaperInferenceDeepSeekV4ProModel,
@@ -6,6 +7,7 @@ import {
   isCheaperInferenceGemini37FlashModel,
   isGpt56LunaModel,
   isGpt56TerraModel,
+  normalizeDeepSeekV4ProModelId,
 } from "@/lib/chatModels";
 
 /** Cheaper Inference OpenAI-compatible API root. */
@@ -52,15 +54,20 @@ export function adaptCheaperInferenceChatBody(
   delete adapted.include_reasoning;
 
   if (typeof adapted.model === "string") {
+    const model = normalizeDeepSeekV4ProModelId(adapted.model);
+    adapted.model = model;
     if (
-      isCheaperInferenceDeepSeekV4FlashModel(adapted.model) ||
-      isCheaperInferenceDeepSeekV4ProModel(adapted.model)
+      isCheaperInferenceDeepSeekV4FlashModel(model) ||
+      isCheaperInferenceDeepSeekV4ProModel(model)
     ) {
+      if (isCheaperInferenceDeepSeekV4ProModel(model)) {
+        adapted.model = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
+      }
       delete adapted.reasoning_effort;
       adapted.thinking = { type: "disabled" };
       return adapted;
     }
-    if (isCheaperInferenceClaudeOpus5Model(adapted.model)) {
+    if (isCheaperInferenceClaudeOpus5Model(model)) {
       // Anthropic Opus 5: adaptive thinking is ON unless thinking is disabled.
       // Disabled is allowed only at effort high or below; low is the speed/cost floor.
       adapted.thinking = { type: "disabled" };
@@ -68,7 +75,7 @@ export function adaptCheaperInferenceChatBody(
       adapted.reasoning_effort = "low";
       return adapted;
     }
-    if (isGpt56LunaModel(adapted.model) || isGpt56TerraModel(adapted.model)) {
+    if (isGpt56LunaModel(model) || isGpt56TerraModel(model)) {
       // OpenAI GPT-5.6: default effort is medium. Official off is
       // reasoning.effort "none" (Luna/Terra support it). Cheaper Inference
       // chat completions forwards `reasoning`; keep reasoning_effort as the
@@ -82,11 +89,11 @@ export function adaptCheaperInferenceChatBody(
     // lowest supported effort; every other compatible model is explicitly off.
     // Gemini 3.7 Flash: compatibility probe confirmed reasoning_effort=low.
     // Do not inherit the generic "none" fallback or Gemini 3.1-only extras.
-    if (isCheaperInferenceGemini37FlashModel(adapted.model)) {
+    if (isCheaperInferenceGemini37FlashModel(model)) {
       adapted.reasoning_effort = "low";
       return adapted;
     }
-    adapted.reasoning_effort = isCheaperInferenceGemini31ProModel(adapted.model)
+    adapted.reasoning_effort = isCheaperInferenceGemini31ProModel(model)
       ? "low"
       : "none";
   }

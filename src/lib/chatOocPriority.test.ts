@@ -31,4 +31,30 @@ describe("chatOocPriority", () => {
   it("returns none for normal RP without OOC", () => {
     assert.equal(classifyChatOocIntent("앞으로 가자"), "none");
   });
+
+  it("does not treat the OOC marker itself as a hard stop", () => {
+    assert.equal(
+      classifyChatOocIntent("OOC: 지금 대사를 조금 더 장난스럽게 해."),
+      "rp_continuing"
+    );
+    assert.equal(
+      classifyChatOocIntent("OOC: 여기서 RP 끝. 더 이상 장면 진행하지 마."),
+      "rp_hard_stop"
+    );
+  });
+
+  it("prefers scene reset over hard stop when a new episode starts", () => {
+    assert.equal(
+      classifyChatOocIntent(
+        "OOC: 기존RP종료 새로운 에피소드시작\nNPC의 코트에 손을 넣었다가 실수로 성기를 소세지로 착각하였을때\nNPC의 반응을 출력"
+      ),
+      "rp_scene_reset"
+    );
+    assert.equal(
+      classifyChatOocIntent(
+        "OOC: 기존 RP 종료. 새로운 에피소드 시작.\n둘이 카페에서 우연히 다시 만나는 장면을 출력."
+      ),
+      "rp_scene_reset"
+    );
+  });
 });

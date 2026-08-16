@@ -297,7 +297,7 @@ export function resolveOpenRouterModelRates(modelId?: string | null): OpenRouter
   if (id === "claude-opus-5") {
     return withLiveCheaperInferenceRates(id, CHEAPER_INFERENCE_CLAUDE_OPUS_5_RATES);
   }
-  if (id === "deepseek-v4-pro") {
+  if (id === "deepseek-v4-pro" || id === "deepseek-v4-pro-0813") {
     return withLiveCheaperInferenceRates(
       id,
       CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_RATES

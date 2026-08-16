@@ -73,7 +73,6 @@ async function runMockProviderFallback(input: {
 describe("adult handoff provider-mock integration", () => {
   it("uses GLM once for a DeepSeek hard failure, then saves and charges only the delivered result", () => {
     const config: AdultSceneModelPolicyConfig = {
-      aionPrimaryEnabled: false,
       glmHardFailureFallbackEnabled: true,
       adminOnly: false,
     };
@@ -105,7 +104,6 @@ describe("adult handoff provider-mock integration", () => {
 
   it("keeps a short usable DeepSeek response without invoking GLM", () => {
     const config: AdultSceneModelPolicyConfig = {
-      aionPrimaryEnabled: false,
       glmHardFailureFallbackEnabled: true,
       adminOnly: false,
     };

@@ -28,6 +28,19 @@ describe("isTurnEligibleForMemoryRecord", () => {
   it("includes normal RP user messages", () => {
     assert.equal(isTurnEligibleForMemoryRecord("카페에 앉아 커피를 마신다."), true);
   });
+
+  it("excludes hard-stop OOC and keeps scene-reset OOC", () => {
+    assert.equal(
+      isTurnEligibleForMemoryRecord("OOC: 여기서 RP 끝. 더 이상 장면 진행하지 마."),
+      false
+    );
+    assert.equal(
+      isTurnEligibleForMemoryRecord(
+        "OOC: 기존 RP 종료. 새로운 에피소드 시작. 카페에서 다시 만난다."
+      ),
+      true
+    );
+  });
 });
 
 describe("filterTurnsForMemorySummary", () => {
