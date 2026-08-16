@@ -92,9 +92,9 @@ export function resolveContextTrack(
 }
 
 /**
- * Claude Opus 5 list price is ~10× DeepSeek. Unlimited raw history is what
- * turned a 4k-char RP turn into a 60k-input bill. Cheap models keep the
- * full-history coverage path; Claude is hard-capped at HISTORY_TOKEN_BUDGET.
+ * Claude Opus 5 — do not drop unsummarized turns (6-turn seal gap).
+ * Cost control is compress-older-turns, not a token cap that recreates
+ * the 4-turn-vs-6-turn hole that forced unlimited raw history.
  */
 export function usesPaidHistoryDiet(modelId?: string | null): boolean {
   return isClaudeModelId(modelId ?? "");
@@ -104,8 +104,8 @@ export function resolveHistoryTokenBudget(
   modelId?: string | null,
   provider?: "gemini" | "openrouter" | "openai"
 ): number {
+  void modelId;
   void provider;
-  if (usesPaidHistoryDiet(modelId)) return HISTORY_TOKEN_BUDGET;
   return Number.MAX_SAFE_INTEGER;
 }
 

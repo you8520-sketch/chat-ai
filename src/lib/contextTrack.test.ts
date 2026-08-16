@@ -7,18 +7,17 @@ import {
 } from "@/lib/chatModels";
 import {
   CLAUDE_MAX_PAYLOAD_INPUT_TOKENS,
-  HISTORY_TOKEN_BUDGET,
   resolveHistoryTokenBudget,
   resolveMaxPayloadInputTokens,
   usesPaidHistoryDiet,
 } from "@/lib/contextTrack";
 
 describe("paid history diet", () => {
-  it("caps Claude Opus 5 history at the shared 10K budget", () => {
+  it("marks Claude Opus 5 for coverage-preserving compression, not a 10K drop cap", () => {
     assert.equal(usesPaidHistoryDiet(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL), true);
     assert.equal(
       resolveHistoryTokenBudget(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL, "openrouter"),
-      HISTORY_TOKEN_BUDGET
+      Number.MAX_SAFE_INTEGER
     );
     assert.equal(
       resolveMaxPayloadInputTokens(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL),

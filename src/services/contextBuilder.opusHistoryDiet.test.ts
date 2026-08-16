@@ -4,9 +4,13 @@ import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
 } from "@/lib/chatModels";
-import { HISTORY_TOKEN_BUDGET } from "@/lib/contextTrack";
 import { estimateTokens } from "@/lib/tokenEstimate";
-import { rawRecentTurnsToHistory, type DialogueTurn } from "@/lib/hybridMemory";
+import {
+  PAID_DIET_COMPRESSED_ASSISTANT_CHARS,
+  rawRecentTurnsToHistory,
+  resolvePaidDietCoverageTurns,
+  type DialogueTurn,
+} from "@/lib/hybridMemory";
 import { buildContext } from "@/services/contextBuilder";
 
 function makeTurns(count: number, assistantChars = 2500): DialogueTurn[] {
@@ -17,8 +21,8 @@ function makeTurns(count: number, assistantChars = 2500): DialogueTurn[] {
 }
 
 describe("contextBuilder Opus history diet", () => {
-  it("hard-caps Claude Opus 5 raw history near 10K even with a high coverage floor", () => {
-    const history = rawRecentTurnsToHistory(makeTurns(16, 3_000));
+  it("keeps the 6-turn coverage window and compresses older assistants", () => {
+    const history = rawRecentTurnsToHistory(makeTurns(6, 4_000));
     const built = buildContext({
       charName: "라이크",
       chunks: [],
@@ -28,23 +32,32 @@ describe("contextBuilder Opus history diet", () => {
       nsfw: false,
       provider: "cheaperinference",
       modelId: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
-      completedTurns: 16,
+      completedTurns: 6,
       summarizedTurnCount: 0,
-      historyMinTurnFloor: 16,
+      historyMinTurnFloor: 6,
     });
 
     const assembledHistory = built.history.slice(0, -1);
+    assert.equal(assembledHistory.length, 12, "6 coverage turns must stay");
+    assert.equal(resolvePaidDietCoverageTurns(6), 6);
+    assert.ok(assembledHistory.every((message) => !/```html/.test(message.content)));
+
+    const firstAssistant = assembledHistory[1]!;
+    const lastAssistant = assembledHistory[11]!;
+    assert.ok(firstAssistant.content.length <= PAID_DIET_COMPRESSED_ASSISTANT_CHARS + 40);
+    assert.match(firstAssistant.content, /이전 턴 중반 생략/);
+    assert.ok(lastAssistant.content.length > 3_000);
+    assert.match(lastAssistant.content, /assistant-6/);
+
     const historyTokens = assembledHistory.reduce(
       (sum, message) => sum + estimateTokens(message.content ?? ""),
       0
     );
-    assert.ok(
-      historyTokens <= HISTORY_TOKEN_BUDGET + 1_500,
-      `Opus history ${historyTokens} exceeded diet`
+    const uncompressed = history.reduce(
+      (sum, message) => sum + estimateTokens(message.content ?? ""),
+      0
     );
-    assert.ok(assembledHistory.length < history.length);
-    assert.ok(assembledHistory.every((message) => !/```html/.test(message.content)));
-    assert.match(assembledHistory.at(-1)?.content ?? "", /assistant-16/);
+    assert.ok(historyTokens < uncompressed * 0.6, `compressed ${historyTokens} vs raw ${uncompressed}`);
   });
 
   it("does not apply the Claude diet to DeepSeek V4 Pro", () => {

@@ -25,8 +25,10 @@ import {
   promoteAppearanceChunkImportance,
 } from "@/lib/visualAnchor";
 import {
+  compressOlderTurnsForPaidDiet,
   countPlayableHistoryTurns,
   resolveMemoryCoverageGap,
+  resolvePaidDietCoverageTurns,
   SHORT_TERM_TURNS,
   trimHistoryToBudget,
 } from "@/lib/hybridMemory";
@@ -232,7 +234,7 @@ function needsUserInputParsingGuide(input: ContextBuildInput): boolean {
  *
  * History: 전체 대화 raw → trimHistoryToBudget.
  *   Cheap models: unlimited + coverage-aware floor.
- *   Claude (paid history diet): 10K hard cap, HTML stripped before trim.
+ *   Claude: keep the 6-turn unsummarized window, compress older assistants.
  *   [4] OOC · [7] Style · Tail — operational
  *
  * Truncation order (when over payload budget): oldest chat history first;
@@ -1427,11 +1429,12 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
   );
   const paidHistoryDiet = usesPaidHistoryDiet(input.modelId);
   if (paidHistoryDiet) {
-    // Count prose-only tokens so HTML status cards cannot inflate the 10K diet.
+    // Flash HTML is not Opus output, but it is stored on assistant rows.
+    // Strip it before counting/compressing so 6 coverage turns stay RP prose.
     historyForAssembly = sanitizePrimaryModelHistoryMessages(historyForAssembly);
   }
   let effectiveHistoryTurnFloor = paidHistoryDiet
-    ? MIN_HISTORY_TURN_FLOOR
+    ? resolvePaidDietCoverageTurns(requestedSafetyTurnFloor)
     : requestedSafetyTurnFloor;
   let memoryCoverageDegraded = false;
 
@@ -1443,9 +1446,11 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     : trimHistoryToBudget(
         historyForAssembly,
         effectiveHistoryBudget,
-        effectiveHistoryTurnFloor,
-        paidHistoryDiet ? { hardCap: true } : undefined
+        effectiveHistoryTurnFloor
       );
+  if (paidHistoryDiet) {
+    historySource = compressOlderTurnsForPaidDiet(historySource);
+  }
 
   if (!input.geminiStaticDynamicMode) {
     while (
@@ -1463,16 +1468,19 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     }
 
     if (paidHistoryDiet) {
+      let compressedChars = 900;
       while (
         estimatePayloadTokens(historySource) > maxPayload &&
-        effectiveHistoryBudget > 400
+        compressedChars > 200
       ) {
-        effectiveHistoryBudget = Math.max(400, effectiveHistoryBudget - 1500);
-        historySource = trimHistoryToBudget(
-          historyForAssembly,
-          effectiveHistoryBudget,
-          effectiveHistoryTurnFloor,
-          { hardCap: true }
+        compressedChars = Math.max(200, compressedChars - 200);
+        historySource = compressOlderTurnsForPaidDiet(
+          trimHistoryToBudget(
+            historyForAssembly,
+            effectiveHistoryBudget,
+            effectiveHistoryTurnFloor
+          ),
+          { maxAssistantChars: compressedChars }
         );
       }
     } else if (estimatePayloadTokens(historySource) > maxPayload) {

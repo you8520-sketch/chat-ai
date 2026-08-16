@@ -183,6 +183,48 @@ export function areCompatibleHistorySuffixes(a: ChatMsg[], b: ChatMsg[]): boolea
   return true;
 }
 
+/** Opus — newest N turns stay verbatim; older unsummarized turns stay present but truncated. */
+export const PAID_DIET_FULL_RAW_TURNS = 2;
+/** Older assistant turns in the 6-turn coverage window. */
+export const PAID_DIET_COMPRESSED_ASSISTANT_CHARS = 900;
+/** Never send more than one unsealed 6-turn batch as raw/compressed history. */
+export const PAID_DIET_MAX_COVERAGE_TURNS = ROLLING_SUMMARY_INTERVAL;
+
+export function resolvePaidDietCoverageTurns(requestedFloor: number): number {
+  const floor = normalizeNonNegativeInteger(requestedFloor);
+  if (floor <= 0) return MIN_HISTORY_TURN_FLOOR;
+  return Math.min(Math.max(floor, MIN_HISTORY_TURN_FLOOR), PAID_DIET_MAX_COVERAGE_TURNS);
+}
+
+function truncateAssistantTail(text: string, maxChars: number): string {
+  const trimmed = text.trim();
+  if (trimmed.length <= maxChars) return trimmed;
+  const budget = Math.max(40, maxChars - 18);
+  const tail = trimmed.slice(-budget).replace(/^\S{0,20}\s/, "");
+  return `…(이전 턴 중반 생략)\n${tail}`;
+}
+
+/**
+ * Keep every coverage turn (no 4-vs-6 hole) but shrink older assistant
+ * turns so 6 × 4k-char Korean RP does not become 30k+ Claude tokens.
+ */
+export function compressOlderTurnsForPaidDiet(
+  history: ChatMsg[],
+  opts?: { fullRawTurns?: number; maxAssistantChars?: number }
+): ChatMsg[] {
+  const fullRawTurns = Math.max(1, opts?.fullRawTurns ?? PAID_DIET_FULL_RAW_TURNS);
+  const maxChars = Math.max(80, opts?.maxAssistantChars ?? PAID_DIET_COMPRESSED_ASSISTANT_CHARS);
+  const fullRawMessages = fullRawTurns * 2;
+  if (history.length <= fullRawMessages) return history;
+
+  return history.map((msg, index) => {
+    if (history.length - index <= fullRawMessages) return msg;
+    if (msg.role !== "assistant") return msg;
+    if (msg.content.length <= maxChars) return msg;
+    return { ...msg, content: truncateAssistantTail(msg.content, maxChars) };
+  });
+}
+
 export type TrimHistoryToBudgetOptions = {
   /**
    * When true, the token budget wins over the turn floor (keep at least one
