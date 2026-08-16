@@ -58,7 +58,7 @@ describe("/api/user/selected-ai Gemini 3.7 Flash allow-list", () => {
     assert.equal(isPatchAllowed(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL), true);
     assert.equal(isPatchAllowed(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL), true);
     assert.equal(isPatchAllowed(CHEAPER_INFERENCE_GPT_56_TERRA_MODEL), true);
-    assert.equal(isPatchAllowed(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL), true);
+    assert.equal(isPatchAllowed(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL), false);
 
     const db = memoryDb();
     const saved = setUserSelectedAI(
@@ -78,5 +78,6 @@ describe("/api/user/selected-ai Gemini 3.7 Flash allow-list", () => {
     assert.equal(isPatchAllowed(CHEAPER_INFERENCE_GPT_56_LUNA_MODEL), false);
     assert.equal(isPatchAllowed(CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL), false);
     assert.equal(isPatchAllowed(OPENROUTER_GEMINI_36_FLASH_MODEL), false);
+    assert.equal(isPatchAllowed(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL), false);
   });
 });

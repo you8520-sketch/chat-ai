@@ -8,7 +8,7 @@ import {
 } from "@/lib/chatModels";
 import {
   consumeSelectedAiEntryNotice,
-  ensureUserSelectedAI,
+  getUserChatSelectedAI,
   setUserSelectedAI,
 } from "@/lib/userSelectedAI";
 
@@ -37,7 +37,7 @@ export async function GET(req: Request) {
     });
   }
 
-  const { selectedAI } = ensureUserSelectedAI(db, user.id);
+  const selectedAI = getUserChatSelectedAI(db, user.id);
   return Response.json({
     selectedAI,
     label: selectedAILabel(selectedAI),

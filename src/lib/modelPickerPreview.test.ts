@@ -61,6 +61,26 @@ function assistantUsage(
 }
 
 describe("modelPickerPreview V2", () => {
+  it("hides Claude Opus 5 from the default user picker preview", () => {
+    const preview = buildModelPickerPreview({ messages: [] });
+    assert.equal(
+      preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL),
+      false
+    );
+    assert.ok(
+      preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL)
+    );
+    assert.ok(
+      preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL)
+    );
+    assert.ok(
+      preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL)
+    );
+    assert.ok(
+      preview.models.some((m) => m.modelId === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL)
+    );
+  });
+
   it("covers all active models", () => {
     const preview = buildModelPickerPreview({ messages: [], modelIds: [...ACTIVE] });
     assert.equal(preview.models.length, 5);

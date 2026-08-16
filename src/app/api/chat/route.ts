@@ -135,7 +135,7 @@ import {
   CHAT_MESSAGE_MAX,
   selectedAILabel,
 } from "@/lib/chatModels";
-import { getUserSelectedAI } from "@/lib/userSelectedAI";
+import { getUserChatSelectedAI } from "@/lib/userSelectedAI";
 import { stripRuntimePromptContaminationFromVisibleOutput } from "@/lib/runtimePromptContaminationGuard";
 import {
   buildSceneDirective,
@@ -621,7 +621,7 @@ export async function POST(req: Request) {
     : undefined;
 
   /** 전역 선택이 소스 오브 트루스 — body/chat.gemini_model은 라우팅에 사용하지 않음 */
-  const selectedAI = getUserSelectedAI(db, user.id);
+  const selectedAI = getUserChatSelectedAI(db, user.id);
 
   let initialPersonaId: number | null = null;
   if (requestedPersonaId) {
