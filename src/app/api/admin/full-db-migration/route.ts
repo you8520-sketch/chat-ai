@@ -77,7 +77,8 @@ function tableCount(table: string): number {
 
 function encodeValue(value: unknown): Scalar {
   if (Buffer.isBuffer(value)) return { $blob: value.toString("base64") };
-  if (value == null || typeof value === "string" || typeof value === "number") return value;
+  if (value === null) return null;
+  if (typeof value === "string" || typeof value === "number") return value;
   throw new Error(`Unsupported database value: ${typeof value}`);
 }
 
