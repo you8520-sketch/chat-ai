@@ -138,7 +138,7 @@ function loadCharacter(db) {
   throw new Error("production character 라이크 (real name 조태형) not found");
 }
 
-function loadPersona(db, chatPersonaId) {
+function loadPersona(db, chatPersonaId, characterId) {
   const tables = db
     .prepare("SELECT name FROM sqlite_master WHERE type='table'")
     .all()
@@ -161,6 +161,35 @@ function loadPersona(db, chatPersonaId) {
     .all("렌");
   if (named.length === 1) return { persona: named[0], lookup: "name=렌 unique" };
   if (named.length > 1) {
+    const chatCols = db.prepare("PRAGMA table_info(chats)").all().map((c) => c.name);
+    if (chatCols.includes("selected_persona_id") && characterId) {
+      const counts = db
+        .prepare(
+          `SELECT selected_persona_id AS id, COUNT(*) AS n
+           FROM chats
+           WHERE character_id = ?
+             AND selected_persona_id IS NOT NULL
+           GROUP BY selected_persona_id
+           ORDER BY n DESC`
+        )
+        .all(characterId);
+      const namedIds = new Set(named.map((r) => Number(r.id)));
+      const likeRen = counts.filter((r) => namedIds.has(Number(r.id)));
+      const total = likeRen.reduce((s, r) => s + Number(r.n), 0);
+      if (likeRen.length === 1) {
+        const row = named.find((r) => Number(r.id) === Number(likeRen[0].id));
+        if (row) return { persona: row, lookup: "name=렌 unique for 라이크 chats" };
+      }
+      if (likeRen.length > 1 && total > 0 && Number(likeRen[0].n) / total >= 0.7) {
+        const row = named.find((r) => Number(r.id) === Number(likeRen[0].id));
+        if (row) {
+          return {
+            persona: row,
+            lookup: `name=렌 + 라이크-chat majority ${likeRen[0].n}/${total}`,
+          };
+        }
+      }
+    }
     return { persona: null, lookup: "multiple 렌 personas; refuse first-row fallback" };
   }
   return { persona: null, lookup: "name=렌 not found" };
@@ -263,7 +292,8 @@ function main() {
     const gemini = pickFixture(db, character.id, "gemini");
     const personaLoaded = loadPersona(
       db,
-      (opus && opus.selectedPersonaId) || (gemini && gemini.selectedPersonaId)
+      (opus && opus.selectedPersonaId) || (gemini && gemini.selectedPersonaId),
+      character.id
     );
     const persona = personaLoaded.persona;
     const fixtures = {
