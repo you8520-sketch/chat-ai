@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   DEFAULT_SELECTED_AI,
   OPENROUTER_GEMINI_25_PRO_MODEL,
   OPENROUTER_GEMINI_31_PRO_MODEL,
@@ -10,8 +11,10 @@ import {
   SELECTED_AI_OPTIONS,
   USER_SELECTABLE_AI_OPTIONS,
   isCheaperInferenceGemini31ProModel,
+  isCheaperInferenceGemini37FlashModel,
   isCheaperInferenceModel,
   isGemini31ProModel,
+  isGeminiFlashOpenRouterModel,
   isGemini36FlashModel,
   isValidSelectedAI,
   resolveSelectedAI,
@@ -100,6 +103,22 @@ describe("Gemini rate compatibility", () => {
     assert.equal(rates.inputUsdPerM, 2);
     assert.equal(rates.outputUsdPerM, 12);
     assert.equal(selectedAILabel(OPENROUTER_GEMINI_31_PRO_MODEL), "Gemini 3.1 Pro");
+  });
+
+  it("does not treat Gemini 3.7 Flash as Gemini 3.1 Pro or OpenRouter flash", () => {
+    assert.equal(isGemini31ProModel(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL), false);
+    assert.equal(
+      isCheaperInferenceGemini31ProModel(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL),
+      false
+    );
+    assert.equal(
+      isCheaperInferenceGemini37FlashModel(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL),
+      true
+    );
+    assert.equal(isGeminiFlashOpenRouterModel(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL), false);
+    assert.ok(
+      !USER_SELECTABLE_AI_OPTIONS.some((o) => o.id === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL)
+    );
   });
 
   it("default remains DeepSeek V4 Pro", () => {

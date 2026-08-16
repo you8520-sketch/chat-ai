@@ -5,10 +5,12 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
   USER_SELECTABLE_AI_OPTIONS,
   isAnthropicModel,
+  isCheaperInferenceGemini37FlashModel,
   isCheaperInferenceModel,
   resolveSelectedAI,
   selectedAILabel,
@@ -91,6 +93,43 @@ test("Gemini 3.1 Pro Preview is a selectable Cheaper Inference model", () => {
   assert.equal(
     isCheaperInferenceModel(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL),
     true
+  );
+});
+
+test("Gemini 3.7 Flash is a Cheaper Inference model hidden from the public picker", () => {
+  assert.equal(
+    USER_SELECTABLE_AI_OPTIONS.some(
+      (option) => option.id === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL
+    ),
+    false
+  );
+  assert.equal(
+    selectedAIProvider(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL),
+    "cheaperinference"
+  );
+  assert.equal(
+    selectedAILabel(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL),
+    "Gemini 3.7 Flash"
+  );
+  assert.equal(
+    isCheaperInferenceModel(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL),
+    true
+  );
+  assert.equal(
+    isCheaperInferenceGemini37FlashModel(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL),
+    true
+  );
+  assert.equal(
+    isCheaperInferenceGemini37FlashModel(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL),
+    false
+  );
+  assert.equal(
+    resolveSelectedAI(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL),
+    CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL
+  );
+  assert.equal(
+    resolveSelectedAI("google/gemini-3.7-flash"),
+    CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL
   );
 });
 

@@ -74,6 +74,9 @@ export const CHEAPER_INFERENCE_GPT_56_LUNA_MODEL = "gpt-5.6-luna";
 export const CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL =
   "gemini-3.1-pro-preview";
 
+/** Cheaper Inference OpenAI-compatible API — Gemini 3.7 Flash */
+export const CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL = "gemini-3.7-flash";
+
 /** Cheaper Inference — chat selectable + background memory/status/HTML/translation */
 export const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL = "deepseek-v4-flash";
 
@@ -127,6 +130,8 @@ export const CLAUDE_OPUS_5_DISPLAY_NAME = "Claude Opus 5";
 export const GPT_56_LUNA_DISPLAY_NAME = "GPT-5.6 Luna";
 
 export const GEMINI_31_PRO_PREVIEW_DISPLAY_NAME = "Gemini 3.1 Pro Preview";
+
+export const GEMINI_37_FLASH_DISPLAY_NAME = "Gemini 3.7 Flash";
 
 /** @deprecated 기존 영수증 표시 호환용 */
 export const GEMINI_25_PRO_DISPLAY_NAME = "Gemini 2.5 Pro";
@@ -206,6 +211,13 @@ export const SELECTED_AI_OPTIONS = [
     tier: "pro" as const,
     hint: "Google",
   },
+  {
+    id: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+    label: GEMINI_37_FLASH_DISPLAY_NAME,
+    provider: "cheaperinference" as const,
+    tier: "pro" as const,
+    hint: "Google",
+  },
 ] as const satisfies readonly SelectedAIOptionMeta[];
 
 /** Anthropic(Claude) 계열 모델 여부 — OpenRouter 경로 + prompt caching + prefill 적용 기준 */
@@ -244,6 +256,10 @@ export function isCheaperInferenceGemini31ProModel(modelId: string): boolean {
   );
 }
 
+export function isCheaperInferenceGemini37FlashModel(modelId: string): boolean {
+  return modelId.trim().toLowerCase() === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL;
+}
+
 export function isCheaperInferenceDeepSeekV4ProModel(
   modelId: string
 ): boolean {
@@ -267,6 +283,7 @@ export function isCheaperInferenceModel(modelId: string): boolean {
     id === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL ||
     id === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL ||
     id === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL ||
+    id === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL ||
     id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
   );
 }
@@ -278,12 +295,13 @@ export type SelectedAITier = (typeof SELECTED_AI_OPTIONS)[number]["tier"];
 export const DEFAULT_SELECTED_AI: SelectedAI =
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
 
-/** 채팅 모델 선택 UI에만 노출 (Opus·Gemini 3.6 Flash·Luna·DeepSeek V4 Flash는 기본 숨김) */
+/** 채팅 모델 선택 UI에만 노출 (Opus·Gemini 3.6 Flash·Luna·DeepSeek V4 Flash·Gemini 3.7 Flash는 기본 숨김) */
 export const USER_SELECTABLE_AI_OPTIONS = SELECTED_AI_OPTIONS.filter(
   (o) =>
     o.id !== OPENROUTER_GEMINI_36_FLASH_MODEL &&
     o.id !== CHEAPER_INFERENCE_GPT_56_LUNA_MODEL &&
     o.id !== CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL &&
+    o.id !== CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL &&
     (o.id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL ||
       isOpusUserSelectable() ||
       !isClaudeSelectedAI(o.id))
@@ -466,6 +484,8 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   /** 구 Gemini 3.1 slug는 현재 기본 모델로 이전 */
   "gemini-3.1": DEFAULT_SELECTED_AI,
   "gemini-3.1-pro-preview": CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
+  "gemini-3.7-flash": CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+  "google/gemini-3.7-flash": CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   "google/gemini-2.5-pro": OPENROUTER_GEMINI_36_FLASH_MODEL,
   "google/gemini-2.5-pro-preview": OPENROUTER_GEMINI_36_FLASH_MODEL,
   "gemini-3.6-flash": OPENROUTER_GEMINI_36_FLASH_MODEL,

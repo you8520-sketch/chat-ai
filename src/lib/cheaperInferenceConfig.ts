@@ -3,6 +3,7 @@ import {
   isCheaperInferenceDeepSeekV4FlashModel,
   isCheaperInferenceDeepSeekV4ProModel,
   isCheaperInferenceGemini31ProModel,
+  isCheaperInferenceGemini37FlashModel,
   isGpt56LunaModel,
   isGpt56TerraModel,
 } from "@/lib/chatModels";
@@ -79,6 +80,12 @@ export function adaptCheaperInferenceChatBody(
     // Cheaper Inference may default to hidden reasoning. All app calls use
     // visible output only. Gemini 3.1 Pro cannot disable thinking, so use its
     // lowest supported effort; every other compatible model is explicitly off.
+    // Gemini 3.7 Flash: compatibility probe confirmed reasoning_effort=low.
+    // Do not inherit the generic "none" fallback or Gemini 3.1-only extras.
+    if (isCheaperInferenceGemini37FlashModel(adapted.model)) {
+      adapted.reasoning_effort = "low";
+      return adapted;
+    }
     adapted.reasoning_effort = isCheaperInferenceGemini31ProModel(adapted.model)
       ? "low"
       : "none";
