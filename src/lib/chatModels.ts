@@ -166,6 +166,15 @@ export function isOpusUserSelectable(): boolean {
   return process.env.OPENROUTER_OPUS_USER_SELECTABLE?.trim() === "1";
 }
 
+/**
+ * User-chat Claude Opus 5 — TEMPORARY DISABLE.
+ * Prompt cache is not applying on Cheaper Inference; all input is billed full-price.
+ * Re-enable with `OPUS5_USER_ENABLED=1`. Does not delete routing/pricing/cache.
+ */
+export function isOpus5UserEnabled(): boolean {
+  return process.env.OPUS5_USER_ENABLED?.trim() === "1";
+}
+
 export type SelectedAIOptionMeta = {
   id: string;
   label: string;
@@ -324,12 +333,27 @@ export type SelectedAITier = (typeof SELECTED_AI_OPTIONS)[number]["tier"];
 export const DEFAULT_SELECTED_AI: SelectedAI =
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
 
-/** 채팅 모델 선택 UI에만 노출 (Opus·Gemini 3.6 Flash·Luna·DeepSeek V4 Flash는 기본 숨김) */
+/**
+ * Request-time user-chat remap. Does not persist — stored Opus 5 can be restored
+ * when the flag is turned back on.
+ */
+export function resolveUserChatSelectedAI(selectedAI: SelectedAI): SelectedAI {
+  if (
+    !isOpus5UserEnabled() &&
+    selectedAI === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL
+  ) {
+    return DEFAULT_SELECTED_AI;
+  }
+  return selectedAI;
+}
+
+/** 채팅 모델 선택 UI에만 노출 (Opus 5·Opus 4.5·Gemini 3.6 Flash·Luna·DeepSeek V4 Flash는 기본 숨김) */
 export const USER_SELECTABLE_AI_OPTIONS = SELECTED_AI_OPTIONS.filter(
   (o) =>
     o.id !== OPENROUTER_GEMINI_36_FLASH_MODEL &&
     o.id !== CHEAPER_INFERENCE_GPT_56_LUNA_MODEL &&
     o.id !== CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL &&
+    (isOpus5UserEnabled() || o.id !== CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL) &&
     (o.id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL ||
       isOpusUserSelectable() ||
       !isClaudeSelectedAI(o.id))

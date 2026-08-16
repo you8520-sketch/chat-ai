@@ -8,6 +8,7 @@ import {
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   CHEAPER_INFERENCE_GPT_56_LUNA_MODEL,
   CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
+  SELECTED_AI_OPTIONS,
   USER_SELECTABLE_AI_OPTIONS,
   isAnthropicModel,
   isCheaperInferenceGemini37FlashModel,
@@ -17,12 +18,17 @@ import {
   selectedAIProvider,
 } from "./chatModels";
 
-test("Claude Opus 5 is a selectable Cheaper Inference model", () => {
+test("Claude Opus 5 stays registered but is temporarily hidden from the user picker", () => {
   assert.equal(
     USER_SELECTABLE_AI_OPTIONS.some(
       (option) => option.id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL
     ),
-    true
+    false
+  );
+  assert.ok(
+    SELECTED_AI_OPTIONS.some(
+      (option) => option.id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL
+    )
   );
   assert.equal(
     selectedAIProvider(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL),

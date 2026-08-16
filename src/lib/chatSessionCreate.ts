@@ -1,6 +1,6 @@
 import { getDb } from "@/lib/db";
 import { registerCharacterChatUser } from "@/lib/characterEngagementStats";
-import { getUserSelectedAI } from "@/lib/userSelectedAI";
+import { getUserChatSelectedAI } from "@/lib/userSelectedAI";
 import {
   DEFAULT_TARGET_RESPONSE_CHARS,
   normalizeTargetResponseChars,
@@ -29,8 +29,8 @@ export type CreateChatSessionInput = {
 /** 새 채팅방 생성 + 첫 메시지(greeting) 삽입 */
 export function createChatSession(input: CreateChatSessionInput): number {
   const db = getDb();
-  /** 전역 선택 미러 — 라우팅은 users.selected_ai */
-  const selectedAI = getUserSelectedAI(db, input.userId);
+  /** 전역 선택 미러 — 라우팅은 request-time user-chat model (Opus 5 may be remapped) */
+  const selectedAI = getUserChatSelectedAI(db, input.userId);
   const mode = input.mode ?? "safe";
   const targetResponseChars = normalizeTargetResponseChars(
     input.targetResponseChars ?? DEFAULT_TARGET_RESPONSE_CHARS
