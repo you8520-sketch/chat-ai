@@ -8,6 +8,8 @@ import {
   explainOpenRouterDeepSeekTurnCost,
   explainOpenRouterGemini31TurnCost,
   explainOpenRouterGemini37TurnCost,
+  isIncompleteStreamUsageUnavailable,
+  resolveGemini37FlashFinalUserCharge,
   shouldWaiveTurnBilling,
 } from "@/lib/points";
 import {
@@ -38,17 +40,17 @@ describe("Gemini 3.7 Flash billing hook", () => {
     assert.equal(computeOpenRouterTurnCost(22_947, 3_897, modelId), 60);
   });
 
-  it("locks the required example price table", () => {
-    assert.equal(computeOpenRouterTurnCost(20_000, 2_000, modelId), 45);
-    assert.equal(computeOpenRouterTurnCost(30_000, 3_000, modelId), 65);
-    assert.equal(computeOpenRouterTurnCost(40_000, 3_000, modelId), 70);
-    assert.equal(computeOpenRouterTurnCost(50_000, 3_000, modelId), 75);
-    assert.equal(computeOpenRouterTurnCost(53_823, 4_444, modelId), 85);
-    assert.equal(computeOpenRouterTurnCost(70_000, 4_000, modelId), 85);
-    assert.equal(computeOpenRouterTurnCost(100_000, 6_000, modelId), 120);
+  it("locks the required V2 example price table", () => {
+    assert.equal(computeOpenRouterTurnCost(20_000, 2_000, modelId), 35);
+    assert.equal(computeOpenRouterTurnCost(30_000, 3_000, modelId), 61);
+    assert.equal(computeOpenRouterTurnCost(40_000, 3_000, modelId), 62);
+    assert.equal(computeOpenRouterTurnCost(50_000, 3_000, modelId), 63);
+    assert.equal(computeOpenRouterTurnCost(53_823, 4_444, modelId), 68);
+    assert.equal(computeOpenRouterTurnCost(70_000, 4_000, modelId), 65);
+    assert.equal(computeOpenRouterTurnCost(100_000, 6_000, modelId), 83);
   });
 
-  it("same input/output cold vs warm => same 75P user price", () => {
+  it("same input/output cold vs warm => same 63P user price", () => {
     const inputTokens = 50_000;
     const outputTokens = 3_000;
     const cold = computeTurnBilling({
@@ -75,12 +77,12 @@ describe("Gemini 3.7 Flash billing hook", () => {
       apiCompletionTokens: outputTokens,
       userContextChars: 12_000,
     });
-    assert.equal(cold.total, 75);
-    assert.equal(warm.total, 75);
+    assert.equal(cold.total, 63);
+    assert.equal(warm.total, 63);
     assert.equal(cold.contextSurcharge, 0);
     assert.equal(warm.contextSurcharge, 0);
-    assert.equal(cold.gemini37FlashPricing?.totalPoints, 75);
-    assert.equal(warm.gemini37FlashPricing?.totalPoints, 75);
+    assert.equal(cold.gemini37FlashPricing?.totalPoints, 63);
+    assert.equal(warm.gemini37FlashPricing?.totalPoints, 63);
   });
 
   it("failed/waived output stays 0P and has no 3.7 base floor", () => {
@@ -154,8 +156,8 @@ describe("Gemini 3.7 Flash billing hook", () => {
       { outputChars: 2_500 }
     );
     const gemini37 = computeOpenRouterTurnCost(50_000, 3_000, modelId);
-    assert.equal(gemini37, 75);
-    assert.notEqual(opus, 75);
+    assert.equal(gemini37, 63);
+    assert.notEqual(opus, 63);
     const billing = computeOpenRouterTurnBilling({
       modelId: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
       inputTokens: 50_000,
@@ -181,26 +183,26 @@ describe("Gemini 3.7 Flash billing hook", () => {
       { cacheReadTokens: 40_000, cacheWriteTokens: 0 },
       { upstreamCostUsd: 0.02, apiPromptTokens: 50_000, apiCompletionTokens: 3_000 }
     );
-    assert.equal(cold.total, 75);
-    assert.equal(warm.total, 75);
+    assert.equal(cold.total, 63);
+    assert.equal(warm.total, 63);
     assert.ok(cold.rawCostKrw > warm.rawCostKrw);
   });
 
   it("public receipt stays model / tokens / points; admin copy adds the 3.7 breakdown", () => {
     const usage = {
-      cost: 85,
+      cost: 68,
       apiInputTokens: 53_823,
       apiOutputTokens: 4_444,
       modelLabel: "Gemini 3.7 Flash",
       model: modelId,
       provider: "cheaperinference" as const,
       gemini37FlashPricing: {
-        basePoints: 45,
+        basePoints: 35,
         inputTokens: 53_823,
-        inputSurchargePoints: 15,
+        inputSurchargePoints: 3,
         billedOutputTokens: 4_444,
-        outputSurchargePoints: 25,
-        totalPoints: 85,
+        outputSurchargePoints: 30,
+        totalPoints: 68,
       },
     };
     const receipt = buildBillingReceipt(usage);
@@ -208,19 +210,48 @@ describe("Gemini 3.7 Flash billing hook", () => {
     assert.equal(receipt!.modelLabel, "Gemini 3.7 Flash");
     assert.equal(receipt!.inputTokens, 53_823);
     assert.equal(receipt!.outputTokens, 4_444);
-    assert.equal(receipt!.totalCost, 85);
+    assert.equal(receipt!.totalCost, 68);
     assert.equal(receipt!.hasSurcharge, false);
     const publicLike = `모델: ${receipt!.modelLabel}\n입력/출력 토큰: ${receipt!.inputTokens.toLocaleString()} / ${receipt!.outputTokens.toLocaleString()}\n포인트 차감: ${receipt!.totalCost}P`;
     assert.match(publicLike, /모델: Gemini 3\.7 Flash/);
     assert.match(publicLike, /53,823 \/ 4,444/);
-    assert.match(publicLike, /85P/);
+    assert.match(publicLike, /68P/);
     const admin = formatBillingReceiptText(receipt!, {
       gemini37FlashPricing: usage.gemini37FlashPricing,
     });
     assert.match(admin, /Gemini 3\.7 pricing:/);
-    assert.match(admin, /base: 45P/);
-    assert.match(admin, /input surcharge: 15P/);
-    assert.match(admin, /output surcharge: 25P/);
-    assert.match(admin, /main charge: 85P/);
+    assert.match(admin, /base: 35P/);
+    assert.match(admin, /input surcharge: 3P/);
+    assert.match(admin, /output surcharge: 30P/);
+    assert.match(admin, /main charge: 68P/);
+  });
+
+  it("finish=null + usage=0 incomplete stream => final user charge 0P", () => {
+    const partial =
+      "라이크는 복도 끝에서 걸음을 늦추며 렌 쪽을 돌아보았다. 전자 초커가 짧게 울렸고, 그 이상은 스트림이 끊겼다. ".repeat(
+        8
+      );
+    assert.ok(partial.length > 80);
+    assert.equal(
+      isIncompleteStreamUsageUnavailable({
+        finishReason: null,
+        promptTokens: 0,
+        completionTokens: 0,
+      }),
+      true
+    );
+    const owner = resolveGemini37FlashFinalUserCharge({
+      inputTokens: 0,
+      billedOutputTokens: 0,
+      finishReason: null,
+      promptTokens: 0,
+      completionTokens: 0,
+      savedText: partial,
+    });
+    assert.equal(owner.computedPoints, 35);
+    assert.equal(owner.waiverReason, "generation_failure");
+    assert.equal(owner.finalUserPoints, 0);
+    const wouldDeduct = owner.finalUserPoints > 0 ? owner.finalUserPoints : 0;
+    assert.equal(wouldDeduct, 0);
   });
 });

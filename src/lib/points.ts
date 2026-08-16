@@ -1747,6 +1747,17 @@ function resolveForcedAbortWaiverReason(
 }
 
 /** 반복·쓰레기·강제 중단·19+ OpenRouter 실패 응답 — 과금 면제 */
+export function isIncompleteStreamUsageUnavailable(opts: {
+  finishReason?: string | null;
+  promptTokens?: number | null;
+  completionTokens?: number | null;
+}): boolean {
+  const finish = String(opts.finishReason ?? "").trim();
+  const prompt = Math.max(0, Math.round(Number(opts.promptTokens) || 0));
+  const completion = Math.max(0, Math.round(Number(opts.completionTokens) || 0));
+  return finish.length === 0 && prompt === 0 && completion === 0;
+}
+
 export function shouldWaiveTurnBilling(
   text: string,
   opts?: {
@@ -1754,6 +1765,8 @@ export function shouldWaiveTurnBilling(
     degenerationAborted?: boolean;
     generationFailure?: GenerationFailureReason | null;
     unknownError?: boolean;
+    /** finish=null + usage=0 incomplete stream — charge 0P */
+    usageUnavailable?: boolean;
     /** 19+ OpenRouter 턴 — 오류·퇴화·조기중단 시 무조건 0P */
     adultMode?: boolean;
     targetResponseChars?: number | null;
@@ -1761,6 +1774,7 @@ export function shouldWaiveTurnBilling(
 ): BillingWaiverReason | null {
   if (opts?.degenerationAborted) return "degeneration";
   if (opts?.generationFailure) return "generation_failure";
+  if (opts?.usageUnavailable) return "generation_failure";
   if (opts?.unknownError || opts?.forcedAbort) {
     return resolveForcedAbortWaiverReason(text, opts?.targetResponseChars);
   }
@@ -1770,6 +1784,46 @@ export function shouldWaiveTurnBilling(
   if (opts?.adultMode && isDegenerateOutput(text)) return "garbage_output";
 
   return null;
+}
+
+/**
+ * Gemini 3.7 Flash billing owner: price function may still compute base P,
+ * but incomplete-stream / generation-failure / usage-unavailable waives to 0P.
+ * There is no Gemini 3.7 waiver minimum floor.
+ */
+export function resolveGemini37FlashFinalUserCharge(opts: {
+  inputTokens: number;
+  billedOutputTokens: number;
+  finishReason?: string | null;
+  promptTokens?: number | null;
+  completionTokens?: number | null;
+  generationFailure?: GenerationFailureReason | null;
+  savedText?: string;
+  degenerationAborted?: boolean;
+}): {
+  computedPoints: number;
+  waiverReason: BillingWaiverReason | null;
+  finalUserPoints: number;
+} {
+  const computedPoints = computeGemini37FlashUserChargePoints({
+    inputTokens: opts.inputTokens,
+    billedOutputTokens: opts.billedOutputTokens,
+  });
+  const usageUnavailable = isIncompleteStreamUsageUnavailable({
+    finishReason: opts.finishReason,
+    promptTokens: opts.promptTokens ?? opts.inputTokens,
+    completionTokens: opts.completionTokens ?? opts.billedOutputTokens,
+  });
+  const waiverReason = shouldWaiveTurnBilling(opts.savedText ?? "", {
+    generationFailure: opts.generationFailure,
+    degenerationAborted: opts.degenerationAborted,
+    usageUnavailable,
+  });
+  return {
+    computedPoints,
+    waiverReason,
+    finalUserPoints: waiverReason ? 0 : computedPoints,
+  };
 }
 
 function resolveModelWaiverMinimumCharge(

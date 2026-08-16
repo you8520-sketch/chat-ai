@@ -6,16 +6,16 @@
  * are never inputs to the user price.
  */
 
-export const GEMINI37_FLASH_DEFAULT_BASE_POINTS = 45;
+export const GEMINI37_FLASH_DEFAULT_BASE_POINTS = 35;
 export const GEMINI37_FLASH_DEFAULT_INCLUDED_INPUT_TOKENS = 25_000;
 export const GEMINI37_FLASH_DEFAULT_INPUT_STEP_TOKENS = 10_000;
-export const GEMINI37_FLASH_DEFAULT_INPUT_STEP_POINTS = 5;
+export const GEMINI37_FLASH_DEFAULT_INPUT_STEP_POINTS = 1;
 
 export const GEMINI37_FLASH_DEFAULT_OUTPUT_TIER_2500 = 0;
-export const GEMINI37_FLASH_DEFAULT_OUTPUT_TIER_4000 = 15;
-export const GEMINI37_FLASH_DEFAULT_OUTPUT_TIER_5500 = 25;
-export const GEMINI37_FLASH_DEFAULT_OUTPUT_TIER_7000 = 35;
-export const GEMINI37_FLASH_DEFAULT_OUTPUT_TIER_9000 = 45;
+export const GEMINI37_FLASH_DEFAULT_OUTPUT_TIER_4000 = 25;
+export const GEMINI37_FLASH_DEFAULT_OUTPUT_TIER_5500 = 30;
+export const GEMINI37_FLASH_DEFAULT_OUTPUT_TIER_7000 = 40;
+export const GEMINI37_FLASH_DEFAULT_OUTPUT_TIER_9000 = 50;
 export const GEMINI37_FLASH_DEFAULT_OUTPUT_OVER_9000_STEP_TOKENS = 1_500;
 export const GEMINI37_FLASH_DEFAULT_OUTPUT_OVER_9000_STEP_POINTS = 10;
 
@@ -224,4 +224,24 @@ export function formatGemini37FlashAdminPricingLines(
     `- output surcharge: ${breakdown.outputSurchargePoints}P`,
     `- main charge: ${breakdown.totalPoints}P`,
   ];
+}
+
+/** Admin telemetry only. Never feeds user price or auto-adjustment. */
+export function formatGemini37FlashAdminMarginLines(opts: {
+  userPoints: number;
+  actualApiRawCostKrw?: number | null;
+  catalogApiRawCostKrw?: number | null;
+}): string[] {
+  const lines: string[] = [];
+  const userPoints = Math.max(0, opts.userPoints);
+  if (userPoints <= 0) return lines;
+  if (opts.actualApiRawCostKrw != null && Number.isFinite(opts.actualApiRawCostKrw)) {
+    const pct = Math.round((1 - opts.actualApiRawCostKrw / userPoints) * 1000) / 10;
+    lines.push(`- actual realized margin: ${pct}%`);
+  }
+  if (opts.catalogApiRawCostKrw != null && Number.isFinite(opts.catalogApiRawCostKrw)) {
+    const pct = Math.round((1 - opts.catalogApiRawCostKrw / userPoints) * 1000) / 10;
+    lines.push(`- catalog-stress margin: ${pct}%`);
+  }
+  return lines;
 }

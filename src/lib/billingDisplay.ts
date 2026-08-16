@@ -1,5 +1,6 @@
 import {
   billingModelId,
+  CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
   resolveSelectedAI,
   selectedAILabel,
   type SelectedAI,
@@ -18,6 +19,7 @@ import {
 } from "@/lib/exchangeRate";
 import type { Usage } from "@/lib/chatUsage";
 import {
+  formatGemini37FlashAdminMarginLines,
   formatGemini37FlashAdminPricingLines,
   type Gemini37FlashPricingBreakdown,
 } from "@/lib/gemini37FlashPricing";
@@ -366,6 +368,7 @@ export function formatBillingReceiptText(
     apiRawCostSource?: Usage["apiRawCostSource"];
     mainRpCostParts?: MainRpApiCostPartsKrw | null;
     gemini37FlashPricing?: Gemini37FlashPricingBreakdown;
+    catalogApiRawCostKrw?: number | null;
   }
 ): string {
   const lines: string[] = [];
@@ -378,6 +381,19 @@ export function formatBillingReceiptText(
   );
   if (extra?.gemini37FlashPricing) {
     lines.push(...formatGemini37FlashAdminPricingLines(extra.gemini37FlashPricing));
+    const catalogUsd = openRouterUsdCostFromRates({
+      modelId: CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
+      promptTokens: extra.gemini37FlashPricing.inputTokens,
+      outputTokens: extra.gemini37FlashPricing.billedOutputTokens,
+    }).usdCost;
+    const catalogKrw = extra.catalogApiRawCostKrw ?? convertUsdToKrw(catalogUsd);
+    lines.push(
+      ...formatGemini37FlashAdminMarginLines({
+        userPoints: extra.gemini37FlashPricing.totalPoints,
+        actualApiRawCostKrw: extra.mainApiRawCostKrw ?? extra.apiRawCostKrw ?? null,
+        catalogApiRawCostKrw: catalogKrw,
+      })
+    );
   }
   if (extra?.apiReasoningOutputTokens != null && extra.apiReasoningOutputTokens > 0) {
     lines.push(`thinking: ${extra.apiReasoningOutputTokens.toLocaleString()} tokens`);

@@ -40,7 +40,7 @@ import { resolveNarrativePov } from "@/lib/narrativePov";
 import { auditAssembledPrompt, formatPromptAuditLog } from "@/services/promptAudit";
 import { invalidateModelPickerInputSnapshot } from "@/services/modelPickerInputSnapshot";
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
-import { deductPoints, getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
+import { deductPoints, getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, isIncompleteStreamUsageUnavailable, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
 import { createChatSession } from "@/lib/chatSessionCreate";
 import { incrementCharacterTotalTurns } from "@/lib/characterEngagementStats";
 import {
@@ -4014,10 +4014,16 @@ export async function POST(req: Request) {
 
         const forcedAbort = billableStages.some((s) => s.loopAborted);
         const degenerationAborted = billableStages.some((s) => s.degenerationAborted);
+        const usageUnavailable = isIncompleteStreamUsageUnavailable({
+          finishReason: primaryStage?.finishReason,
+          promptTokens: primaryStage?.apiReportedInputTokens ?? 0,
+          completionTokens: primaryStage?.apiOutputTokens ?? 0,
+        });
         const billingWaiverReason = shouldWaiveTurnBilling(savedText, {
             forcedAbort,
             degenerationAborted,
             generationFailure,
+            usageUnavailable,
             adultMode: true,
             targetResponseChars: targetResponseCharsRef,
           });
