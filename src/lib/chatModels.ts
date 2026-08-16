@@ -25,12 +25,29 @@ export const CLAUDE_OPUS_MODEL = OPENROUTER_CLAUDE_DEFAULT;
 /** @deprecated 기존 OpenRouter 선택값·영수증 호환용 */
 export const OPENROUTER_DEEPSEEK_V4_PRO_MODEL = "deepseek/deepseek-v4-pro";
 
-/** Cheaper Inference OpenAI-compatible API — DeepSeek V4 Pro */
-export const CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL = "deepseek-v4-pro";
+/** Cheaper Inference OpenAI-compatible API — DeepSeek V4 Pro (canonical outbound id). */
+export const CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL = "deepseek-v4-pro-0813";
 
-/** Cheaper Inference adult-route canary candidates (not user-selectable). */
-export const CHEAPER_INFERENCE_AION_20_MODEL = "aion-labs.aion-2-0";
+/** Legacy stored/receipt id — never send this as a new provider `model`. */
+export const CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_LEGACY_MODEL = "deepseek-v4-pro";
+
+/** Cheaper Inference adult-route hard-failure fallback (not user-selectable). */
 export const CHEAPER_INFERENCE_GLM_52_MODEL = "glm-5.2";
+
+/** Map stored/env DeepSeek V4 Pro aliases to the canonical outbound id. */
+export function normalizeDeepSeekV4ProModelId(modelId: string): string {
+  const id = modelId.trim();
+  const lower = id.toLowerCase();
+  if (
+    lower === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL ||
+    lower === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_LEGACY_MODEL ||
+    lower === "deepseek-4-pro" ||
+    lower === OPENROUTER_DEEPSEEK_V4_PRO_MODEL
+  ) {
+    return CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
+  }
+  return id;
+}
 
 /** @deprecated legacy background fallback slug — normalized to V4 Flash */
 export const OPENROUTER_DEEPSEEK_V3_MODEL = "deepseek/deepseek-chat-v3-0324";
@@ -84,6 +101,7 @@ export const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL = "deepseek-v4-flash";
 export const OPENROUTER_SIMPLE_POINT_MODELS: readonly string[] = [
   OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_LEGACY_MODEL,
   OPENROUTER_MUSE_SPARK_11_MODEL,
   OPENROUTER_GEMINI_36_FLASH_MODEL,
 ];
@@ -263,9 +281,10 @@ export function isCheaperInferenceGemini37FlashModel(modelId: string): boolean {
 export function isCheaperInferenceDeepSeekV4ProModel(
   modelId: string
 ): boolean {
+  const id = modelId.trim().toLowerCase();
   return (
-    modelId.trim().toLowerCase() ===
-    CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+    id === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL ||
+    id === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_LEGACY_MODEL
   );
 }
 
@@ -278,7 +297,7 @@ export function isCheaperInferenceModel(modelId: string): boolean {
   return (
     id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL ||
     id === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL ||
-    id === CHEAPER_INFERENCE_AION_20_MODEL ||
+    id === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_LEGACY_MODEL ||
     id === CHEAPER_INFERENCE_GLM_52_MODEL ||
     id === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL ||
     id === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL ||
@@ -345,7 +364,8 @@ export function isDeepSeekV4ProModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
   return (
     id === OPENROUTER_DEEPSEEK_V4_PRO_MODEL ||
-    id === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+    id === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL ||
+    id === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_LEGACY_MODEL
   );
 }
 
@@ -428,10 +448,6 @@ export function isGlmModel(modelId: string): boolean {
   );
 }
 
-export function isAion20Model(modelId: string): boolean {
-  return modelId.trim().toLowerCase() === CHEAPER_INFERENCE_AION_20_MODEL;
-}
-
 /** OpenRouter MoonshotAI Kimi 계열 (Kimi K3 등) — UI 제거, 영수증·legacy 보존 */
 export function isKimiModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
@@ -496,6 +512,7 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   "anthropic/claude-opus-latest": CLAUDE_OPUS_MODEL,
   deepseek: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   "deepseek-v4-pro": CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  "deepseek-v4-pro-0813": CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   "deepseek-4-pro": CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   "deepseek/deepseek-v4-pro": CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   /** Qwen 3.7 Max 제거 — 현재 기본 모델로 이전 */

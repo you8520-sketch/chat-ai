@@ -53,11 +53,12 @@ describe("turn length supplement API — disabled for all models", () => {
     assert.equal(budget.canSubCall(), false);
   });
 
-  it("still accepts the legacy aion hard-failure requestKind alias", () => {
+  it("rejects the retired Aion hard-failure requestKind", () => {
     const budget = new TurnApiBudget();
     budget.beforeFetch("cheaperinference-primary-stream");
-    assert.doesNotThrow(() =>
-      budget.beforeFetch("adult-aion-hard-failure-fallback")
+    assert.throws(
+      () => budget.beforeFetch("adult-aion-hard-failure-fallback"),
+      /Max internal API calls exceeded/
     );
   });
 

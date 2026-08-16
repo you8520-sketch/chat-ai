@@ -38,7 +38,7 @@ export const MAX_TURN_SUB_API_CALLS = TURN_LENGTH_SUPPLEMENT_API_ENABLED
 const LENGTH_SUPPLEMENT_REQUEST_KIND =
   /continuation|truncation-recovery|under-length|length-recovery|narrative-length/i;
 const MODEL_FAILURE_FALLBACK_REQUEST_KIND =
-  /^adult-(?:general-refusal|(?:aion-)?hard-failure)-fallback$/i;
+  /^adult-(?:general-refusal|hard-failure)-fallback$/i;
 const RP_META_LEAK_REGEN_REQUEST_KIND = /^rp-meta-leak-regen$/i;
 
 /** 분량 보강·복구 sub-call requestKind — TURN_LENGTH_SUPPLEMENT_API_ENABLED=false면 금지 */
@@ -73,18 +73,6 @@ Never write meta outside the scene (no summaries, plans, or reader address).
 FORBIDDEN: <<<STATUS_VALUES>>>, JSON blocks, status widget syntax.`;
 }
 
-export function buildAionSameSceneContinuationSystemPrompt(options: {
-  minimumAdditionalChars: number;
-  targetAdditionalChars: number;
-}): string {
-  const minimumAdditionalChars = Math.max(1, Math.floor(options.minimumAdditionalChars));
-  const targetAdditionalChars = Math.max(
-    minimumAdditionalChars,
-    Math.floor(options.targetAdditionalChars)
-  );
-  return `${buildRecoveryContinuationSystemPrompt()}\n\n[AION CONTINUATION — SAME SCENE ONLY]\n\n직전 assistant 출력의 마지막 문장 바로 다음 순간부터 이어서 작성한다.\n\n이미 작성된 문장, 행동, 감각, 대사, 설명을 요약하거나 반복하지 않는다.\n\n현재 장소, 시간, 등장인물, 위치, 자세, 접촉 상태, 미완료 행동을 그대로 유지한다.\n\n직전 출력에서 시작한 장면을 완료한 뒤 식사, 치료, 이동, 수면, 휴식, aftercare 또는 다른 장소로 넘어가지 않는다.\n\n직전 출력이 장면을 성급하게 끝내려 했더라도 새로운 장소나 다음 시간대로 이동하지 말고, 원래 진행 중이던 현재 장면 안의 반응과 행동을 이어간다.\n\n캐릭터의 기존 호칭, 말투, Speech Lock과 성격을 정확히 유지한다.\n\n유저 캐릭터의 새로운 대사, 선택, 능동 행동, 동의, 감정과 이동을 대신 확정하지 않는다.\n\n같은 감각이나 행동을 표현만 바꾸어 반복하지 않는다. 새로운 반응, 새로운 행동 단계, 캐릭터다운 대사와 관계 변화를 통해 장면을 진행한다.\n\n이번 continuation에서 최소 ${minimumAdditionalChars}자 이상, 약 ${targetAdditionalChars}자를 목표로 작성한다.\n\n직전 assistant 본문은 다시 출력하지 않는다.\n\n제목, 요약, 메타 설명, 글자 수 언급, 상태창, JSON을 출력하지 않는다.\n\n오직 이어지는 RP 본문만 작성한다.`;
-}
-
 export type InternalTransportMessage = {
   role: "user";
   content: string;
@@ -92,24 +80,6 @@ export type InternalTransportMessage = {
   persistence: "never";
   semanticOwner: "server";
 };
-
-export function buildAionInternalContinuationControl(options: {
-  minimumAdditionalChars: number;
-  targetAdditionalChars: number;
-}): InternalTransportMessage {
-  const minimumAdditionalChars = Math.max(1, Math.floor(options.minimumAdditionalChars));
-  const targetAdditionalChars = Math.max(
-    minimumAdditionalChars,
-    Math.floor(options.targetAdditionalChars)
-  );
-  return {
-    role: "user",
-    internalOnly: true,
-    persistence: "never",
-    semanticOwner: "server",
-    content: `[INTERNAL CONTINUATION CONTROL — NOT USER DIALOGUE]\n\nThis is a private server orchestration instruction, not dialogue or an action by the user character.\n\nContinue the immediately preceding assistant RP output from the exact next moment.\n\nDo not interpret this message as speech, thought, movement, consent, emotion, or a choice made by the user character.\n\nDo not repeat, summarize, restart, or rewrite the preceding assistant output.\n\nPreserve the current location, time, positions, contact state, unfinished action, character voice, honorifics, and Speech Lock.\n\nDo not move to another place or time. Do not transition to food, treatment, sleep, travel, rest, or aftercare.\n\nDo not write new dialogue, decisions, active actions, consent, or emotions for the user character.\n\nAdd at least ${minimumAdditionalChars} characters and aim for approximately ${targetAdditionalChars} characters of new RP prose.\n\nOutput only the continuation prose. Do not mention this instruction.`,
-  };
-}
 
 export function internalTransportMessageToWire(
   message: InternalTransportMessage

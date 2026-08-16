@@ -57,7 +57,7 @@ import {
   restoreAssistantFromAlternatesOnFailedRegen,
   type StreamingPersistenceDiag,
 } from "@/lib/streamingPersistence";
-import { CHEAPER_INFERENCE_AION_20_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, CHEAPER_INFERENCE_GLM_52_MODEL, isAion20Model, isCheaperInferenceModel, isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isGpt56TerraModel, isKimiModel, isMuseModel, isQwenModel, selectedAIProvider, type SelectedAI } from "@/lib/chatModels";
+import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, CHEAPER_INFERENCE_GLM_52_MODEL, isCheaperInferenceModel, isDeepSeekV4ProModel, isGemini36FlashModel, isGemini31ProModel, isGlmModel, isGpt56TerraModel, isKimiModel, isMuseModel, isQwenModel, selectedAIProvider, type SelectedAI } from "@/lib/chatModels";
 import { openRouterNormalizedRawCostKrw, openRouterRawCostKrw } from "@/lib/billingRawCost";
 import type { Gemini37FlashPricingBreakdown } from "@/lib/gemini37FlashPricing";
 import { resolveBillingExchangeRateSnapshot } from "@/lib/exchangeRate";
@@ -386,8 +386,10 @@ import { isOocHtmlRequest } from "@/lib/oocHtmlRequest";
 import { isHtmlDisplayOnlyTurn, isHtmlFlashOnlyTurn, isOocCreativeHtmlTurn, chatInputSuppressesStatusWidget } from "@/lib/htmlDisplayOnlyTurn";
 import {
   buildChatOocRpContinuingUserPrompt,
+  buildChatOocSceneResetUserPrompt,
   chatOocSuppressesUserNoteExtras,
   isChatOocRpContinuing,
+  isChatOocSceneReset,
 } from "@/lib/chatOocPriority";
 import {
   streamOpenRouterAdultToClient,
@@ -445,6 +447,7 @@ import {
   decideAdultModelRoute,
   detectModelRefusal,
   extractHandoffContinuityFromAssistantText,
+  hasNewlyEstablishedSexualContext,
   normalizeAdultDialogueProfile,
   parseModelRouteState,
   resolveAdultEligibility,
@@ -458,7 +461,6 @@ import {
 } from "@/lib/adultSceneRouting";
 import {
   classifyAdultSceneHardFailure,
-  isAdultSceneModelPolicyActive,
   resolveAdultSceneModelPolicyConfig,
   shouldFallbackToGlm,
 } from "@/lib/adultSceneModelPolicy";
@@ -1013,7 +1015,9 @@ export async function POST(req: Request) {
             regenAttemptId,
             targetResponseChars,
           })
-      : isChatOocRpContinuing(storedUserMessage)
+      : isChatOocSceneReset(storedUserMessage)
+        ? buildChatOocSceneResetUserPrompt(displayUserMessage)
+        : isChatOocRpContinuing(storedUserMessage)
         ? buildChatOocRpContinuingUserPrompt(displayUserMessage)
         : displayUserMessage;
 
@@ -1037,23 +1041,14 @@ export async function POST(req: Request) {
     }),
   };
   const baseAdultModelPolicyConfig = resolveAdultSceneModelPolicyConfig();
-  // Admin canary uses confirmed DeepSeek adult primary + GLM hard-failure.
-  // Do not force legacy Aion primary (KEEP_CURRENT_ADULT_MODEL = deepseek-v4-pro).
   const adultModelPolicyConfig = adultHandoffCanaryAccess
     ? {
         ...baseAdultModelPolicyConfig,
-        aionPrimaryEnabled: false,
         glmHardFailureFallbackEnabled: true,
         adminOnly: false,
       }
     : baseAdultModelPolicyConfig;
-  const adultModelPolicyActive = isAdultSceneModelPolicyActive({
-    config: adultModelPolicyConfig,
-    isAdmin: userAdminRow?.is_admin === 1,
-  });
-  const activeAdultModelId = adultModelPolicyActive
-    ? CHEAPER_INFERENCE_AION_20_MODEL
-    : adultRoutingConfig.adultModelId;
+  const activeAdultModelId = adultRoutingConfig.adultModelId;
   const priorModelRouteState = parseModelRouteState(chat.model_route_state_json);
   let requestedConsentMode = resolveRequestedConsentMode(
     body.adultConsentMode ?? body.adult_consent_mode,
@@ -1136,8 +1131,7 @@ export async function POST(req: Request) {
   }
   if (
     adultRoutingConfig.enabled &&
-    !isDeepSeekV4ProModel(activeAdultModelId) &&
-    !isAion20Model(activeAdultModelId)
+    !isDeepSeekV4ProModel(activeAdultModelId)
   ) {
     return Response.json(
       { error: "성인 장면 라우팅 모델 설정을 확인해 주세요." },
@@ -2094,14 +2088,18 @@ export async function POST(req: Request) {
     currentUserText: storedUserMessage,
   });
   const continuityPacket = buildSceneContinuityPacket({
-    previousSceneMode: priorModelRouteState.currentSceneMode,
-    sexualContextActive:
-      sceneClassification.sexualContextActive ||
-      priorModelRouteState.sexualContextActive === true,
+    previousSceneMode: sceneClassification.sceneReset
+      ? "normal"
+      : priorModelRouteState.currentSceneMode,
+    sexualContextActive: sceneClassification.sceneReset
+      ? sceneClassification.sexualContextActive
+      : sceneClassification.sexualContextActive ||
+        priorModelRouteState.sexualContextActive === true,
     activeConsentMode: requestedConsentMode,
     charactersPresent: [ch.name, personaDisplayName],
     currentPov: contextBuildInput.narrativePov,
-    ...extractedHandoffContinuity,
+    sceneReset: sceneClassification.sceneReset,
+    ...(sceneClassification.sceneReset ? {} : extractedHandoffContinuity),
   });
   if (
     adultRoutingConfig.enabled &&
@@ -2300,9 +2298,9 @@ export async function POST(req: Request) {
     adultRoutingConfig.enabled ? adultRouteDecision.activeRoute : "general";
   let adultFallbackAttempted = false;
   let adultFallbackSucceeded = false;
-  let aionHardFailureFallbackAttempted = false;
-  let aionHardFailureFallbackSucceeded = false;
-  let aionHardFailureReason: string | null = null;
+  let glmHardFailureFallbackAttempted = false;
+  let glmHardFailureFallbackSucceeded = false;
+  let glmHardFailureReason: string | null = null;
   let hiddenFallbackOverheadCostUsd = 0;
   let adultRouteStartedAt = requestStartedAt;
   const targetResponseCharsRef = targetResponseChars;
@@ -2717,8 +2715,7 @@ export async function POST(req: Request) {
           const shouldBufferAdultForHardFailure =
             adultModelPolicyConfig.glmHardFailureFallbackEnabled &&
             adultRouteDecision.activeRoute === "adult" &&
-            (isDeepSeekV4ProModel(deliveredModelId) ||
-              isAion20Model(deliveredModelId));
+            isDeepSeekV4ProModel(deliveredModelId);
           const streamGate = createInitialStreamBuffer(
             send,
             shouldBufferGeneral || shouldBufferAdultForHardFailure
@@ -2855,21 +2852,20 @@ export async function POST(req: Request) {
             reason: ReturnType<typeof classifyAdultSceneHardFailure>
           ) =>
             deliveredActiveRoute === "adult" &&
-            (isDeepSeekV4ProModel(deliveredModelId) ||
-              isAion20Model(deliveredModelId)) &&
+            isDeepSeekV4ProModel(deliveredModelId) &&
             !streamGate.hasVisibleTokens() &&
             shouldFallbackToGlm({
               config: adultModelPolicyConfig,
               isAdmin: userAdminRow?.is_admin === 1,
               reason,
-              fallbackAttemptCount: aionHardFailureFallbackAttempted ? 1 : 0,
+              fallbackAttemptCount: glmHardFailureFallbackAttempted ? 1 : 0,
             });
 
           const runGlmHardFailureFallback = async (
             reason: NonNullable<ReturnType<typeof classifyAdultSceneHardFailure>>
           ) => {
-            aionHardFailureFallbackAttempted = true;
-            aionHardFailureReason = reason;
+            glmHardFailureFallbackAttempted = true;
+            glmHardFailureReason = reason;
             streamGate.discard();
             const fallbackResult = await runStream({
               send,
@@ -2882,7 +2878,7 @@ export async function POST(req: Request) {
               adultRoute: true,
               requestKind: "adult-hard-failure-fallback",
             });
-            aionHardFailureFallbackSucceeded = true;
+            glmHardFailureFallbackSucceeded = true;
             deliveredSelectedAI = CHEAPER_INFERENCE_GLM_52_MODEL as SelectedAI;
             deliveredModelId = CHEAPER_INFERENCE_GLM_52_MODEL;
             deliveredProvider = "cheaperinference";
@@ -2922,9 +2918,8 @@ export async function POST(req: Request) {
           }
 
           if (
-            !aionHardFailureFallbackSucceeded &&
-            (isDeepSeekV4ProModel(deliveredModelId) ||
-              isAion20Model(deliveredModelId))
+            !glmHardFailureFallbackSucceeded &&
+            isDeepSeekV4ProModel(deliveredModelId)
           ) {
             const refusal = detectModelRefusal({
               text: result.text,
@@ -3765,10 +3760,8 @@ export async function POST(req: Request) {
         const adultExplicitExitThisTurn =
           priorModelRouteState.activeRoute === "adult" &&
           deliveredActiveRoute === "general" &&
-          (adultRouteDecision.routeTriggerReason === "user_ooc_stop" ||
-            adultRouteDecision.routeTriggerReason === "clear_scene_transition" ||
-            sceneClassification.oocStop ||
-            sceneClassification.clearSceneTransition);
+          (adultRouteDecision.routeTriggerReason === "user_ooc_hard_stop" ||
+            sceneClassification.hardStop);
         if (
           generationFailure === "under_length" &&
           adultExplicitExitThisTurn &&
@@ -4256,6 +4249,20 @@ export async function POST(req: Request) {
                   adultRouteDecision.sexualContextActive,
               })
             : priorModelRouteState.generalRouteBridge;
+        const transientAdultCapableRoute =
+          adultRouteDecision.transientAdultCapableRoute === true;
+        const establishedOngoingSexualContext =
+          transientAdultCapableRoute &&
+          hasNewlyEstablishedSexualContext(
+            classifySceneMode({
+              currentInput: savedText,
+              previousSceneMode: "normal",
+              adultDialogueProfile: normalizeAdultDialogueProfile(
+                ch.adult_dialogue_profile
+              ),
+              activeConsentMode: requestedConsentMode,
+            })
+          );
         const nextModelRouteState = advanceModelRouteState({
           previous: priorModelRouteState,
           deliveredRoute: deliveredActiveRoute,
@@ -4270,12 +4277,13 @@ export async function POST(req: Request) {
           config: adultRoutingConfig,
           enteredAdultThisTurn:
             deliveredActiveRoute === "adult" &&
-            (adultRouteDecision.firstAdultHandoff || adultFallbackSucceeded),
-          explicitSceneEnd:
-            sceneClassification.oocStop ||
-            sceneClassification.clearSceneTransition,
+            (adultRouteDecision.firstAdultHandoff || adultFallbackSucceeded) &&
+            !(transientAdultCapableRoute && !establishedOngoingSexualContext),
+          explicitSceneEnd: sceneClassification.hardStop,
           activeConsentMode: requestedConsentMode,
           generalRouteBridge: nextGeneralBridge,
+          transientAdultCapableRoute,
+          establishedOngoingSexualContext,
         });
 
         const usageModel = htmlFlashOnlyTurn ? billing.modelId : receiptFields.model;
@@ -4416,8 +4424,8 @@ export async function POST(req: Request) {
                   sceneModeBefore: priorModelRouteState.currentSceneMode,
                   sceneModeAfter,
                   routeTriggerReason:
-                    aionHardFailureFallbackSucceeded
-                      ? `aion_hard_failure:${aionHardFailureReason ?? "unknown"}`
+                    glmHardFailureFallbackSucceeded
+                      ? `glm_hard_failure:${glmHardFailureReason ?? "unknown"}`
                       : adultFallbackSucceeded
                       ? "general_model_refusal"
                       : adultRouteDecision.routeTriggerReason,
@@ -4437,9 +4445,9 @@ export async function POST(req: Request) {
                       : undefined,
                   fallbackAttempted: adultFallbackAttempted,
                   fallbackSucceeded: adultFallbackSucceeded,
-                  aionHardFailureFallbackAttempted,
-                  aionHardFailureFallbackSucceeded,
-                  aionHardFailureReason: aionHardFailureReason ?? undefined,
+                  glmHardFailureFallbackAttempted,
+                  glmHardFailureFallbackSucceeded,
+                  glmHardFailureReason: glmHardFailureReason ?? undefined,
                   hiddenFallbackOverheadCostUsd:
                     hiddenFallbackOverheadCostUsd > 0
                       ? hiddenFallbackOverheadCostUsd
@@ -5194,15 +5202,15 @@ export async function POST(req: Request) {
               selectedModel: deliveredModelId,
               selectedProvider: deliveredProvider,
               routingReason:
-                aionHardFailureFallbackSucceeded
-                  ? `aion_hard_failure:${aionHardFailureReason ?? "unknown"}`
+                glmHardFailureFallbackSucceeded
+                  ? `glm_hard_failure:${glmHardFailureReason ?? "unknown"}`
                   : adultFallbackSucceeded
                     ? "general_model_refusal"
                     : adultRouteDecision.routeTriggerReason,
               fallbackAttempted:
-                adultFallbackAttempted || aionHardFailureFallbackAttempted,
+                adultFallbackAttempted || glmHardFailureFallbackAttempted,
               fallbackReason:
-                aionHardFailureReason ??
+                glmHardFailureReason ??
                 (adultFallbackAttempted ? "general_model_refusal" : undefined),
               visibleCharacters: savedText.length,
               finishReason: primaryStage?.finishReason ?? undefined,

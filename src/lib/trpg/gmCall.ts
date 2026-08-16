@@ -1,4 +1,8 @@
-import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL, isCheaperInferenceModel } from "@/lib/chatModels";
+import {
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  isCheaperInferenceModel,
+  normalizeDeepSeekV4ProModelId,
+} from "@/lib/chatModels";
 import {
   buildCheaperInferenceHeaders,
   CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
@@ -19,7 +23,10 @@ const MOCK_GM = `<<<NARRATION>>>
 const MOCK_BOT = `*창가에 붙어 낮게* "…먼저 나가지 마. 내가 볼게."`;
 
 function resolveTrpgProModel(modelId: string): string {
-  return isCheaperInferenceModel(modelId) ? modelId : CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
+  const normalized = normalizeDeepSeekV4ProModelId(modelId);
+  return isCheaperInferenceModel(normalized)
+    ? normalized
+    : CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
 }
 
 function usageFromResponse(

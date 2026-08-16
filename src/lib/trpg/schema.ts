@@ -11,7 +11,7 @@ export function ensureTrpgTables(db: Database.Database): void {
       title TEXT NOT NULL DEFAULT '',
       max_slots INTEGER NOT NULL DEFAULT 4,
       billing_mode TEXT NOT NULL DEFAULT 'split_even',
-      gm_model TEXT NOT NULL DEFAULT 'deepseek-v4-pro',
+      gm_model TEXT NOT NULL DEFAULT 'deepseek-v4-pro-0813',
       status TEXT NOT NULL DEFAULT 'CHARACTER_SETUP',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))

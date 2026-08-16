@@ -176,8 +176,7 @@ it("routes general → adult entry → sticky adult → explicit exit back to ge
       routeTriggerReason: decision.routeTriggerReason,
       config,
       enteredAdultThisTurn: decision.firstAdultHandoff,
-      explicitSceneEnd:
-        classification.oocStop || classification.clearSceneTransition,
+      explicitSceneEnd: classification.hardStop,
     });
   });
 });
