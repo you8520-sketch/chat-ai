@@ -1,9 +1,15 @@
 /**
- * Real production 조태형 explicit adult handoff:
- * Opus 5 / Gemini 3.1 Pro → deepseek-v4-pro-0813 vs qwen-3-8-max
+ * Production 라이크 (real name 조태형) source generation + explicit adult handoff.
  *
- * Exactly 4 generation calls. No retry/continuation/recovery/fallback.
- * No production routing / pricing / Railway / adult-model change.
+ * CALL 1: 라이크 → claude-opus-5 source RP
+ * CALL 2: Opus source → deepseek-v4-pro-0813 adult
+ * CALL 3: Opus source → qwen-3-8-max adult
+ * CALL 4: 라이크 → gemini-3.1-pro-preview source RP
+ * CALL 5: Gemini source → deepseek-v4-pro-0813 adult
+ * CALL 6: Gemini source → qwen-3-8-max adult
+ *
+ * Exactly 6 generation calls. retry/continuation/recovery/fallback = 0.
+ * Past chats are not required. Fake 조태형 / Caspen are forbidden.
  *
  *   node --conditions=react-server --import tsx \
  *     scripts/real-taehyung-explicit-qwen38-vs-deepseek0813-live.ts
@@ -20,10 +26,15 @@ const originalLoad = (Module as unknown as { _load: typeof Module._load })._load
 } as typeof Module._load;
 
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { loadEnvLocal } from "./load-env-local";
+import {
+  PRODUCTION_LIKE_CHARACTER_ID,
+  PRODUCTION_LIKE_REAL_NAME,
+  isProductionLikeTaehyungRecord,
+} from "../src/lib/likeTaehyungIdentity";
 
 loadEnvLocal();
 if (!process.env.NODE_ENV) {
@@ -35,10 +46,25 @@ const OUT_ROOT =
   process.env.OUT_ROOT ??
   "/opt/cursor/artifacts/real-taehyung-explicit-qwen38-vs-deepseek0813";
 const FIXTURES_PATH = join(DOCS, "PRODUCTION_FIXTURES.json");
+const PRODUCTION_URL = "https://chat-ai-production-3e84.up.railway.app/";
 
+const OPUS_SOURCE = "claude-opus-5";
+const GEMINI_SOURCE = "gemini-3.1-pro-preview";
 const DEEPSEEK_REQUESTED = "deepseek-v4-pro-0813";
 const DEEPSEEK_ASSEMBLE = "deepseek-v4-pro";
 const QWEN_REQUESTED = "qwen-3-8-max";
+
+const SOURCE_SEED_USER = `*문을 닫고 들어온 뒤, 복도 소음이 멀어질 때까지 그대로 서 있다. 방 안에는 우리 둘만 남는다.*
+
+오늘은 사람들 없을 때 이렇게 남아 있는 게 더 편하다. …너도 그렇지?
+
+*라이크 쪽으로 한 걸음 다가가 소매 끝을 잡는다. 거리는 가깝고, 그 이상은 아직 기다린다.*`;
+
+const ADULT_HANDOFF_USER = `*잡은 소매에서 손으로 올라가 허리를 감싼다. 몸이 맞닿고, 숨이 가까워진다.*
+
+이대로 더 해도 돼. 피하지 마.
+
+*입술이 닿은 다음, 손을 옷 안으로 밀어 넣으며 더 깊게 밀착한다. 삽입해도 된다는 뜻으로 다리를 벌리고 그를 끌어당긴다.*`;
 
 type ChatMsg = { role: "user" | "assistant" | "system"; content: string };
 
@@ -165,9 +191,7 @@ function extractUsage(usage: Record<string, unknown> | null) {
     reasoning_tokens:
       typeof details.reasoning_tokens === "number" ? details.reasoning_tokens : null,
     cache_read_tokens:
-      typeof promptDetails.cached_tokens === "number"
-        ? promptDetails.cached_tokens
-        : null,
+      typeof promptDetails.cached_tokens === "number" ? promptDetails.cached_tokens : null,
     usage_cost: typeof usage?.cost === "number" ? usage.cost : null,
   };
 }
@@ -186,7 +210,7 @@ function proseDiagnostics(text: string) {
     /직접적인 묘사는 피|자세히 그리지 않|나머지 는 상상에 맡/i.test(text);
   const foreign =
     /[\u3040-\u30ff\u31f0-\u31ff\u4e00-\u9fff]{6,}|[A-Za-z]{40,}/.test(text) &&
-    !/Aegis|Aegis|Sentinel|Guide/.test(text);
+    !/Aegis|Sentinel|Guide/.test(text);
   const explicitCont =
     /(?:삽입|박아|핥아|빨아|사정|오르가슴|성교|성기|음경|질\b|유두)/.test(text);
   let adultCapability = "OK";
@@ -213,8 +237,7 @@ function agencyDiagnostic(text: string) {
     /렌(?:이|은|의).{0,16}(?:쾌감|절정|오르가슴|원했|원했다)(?:을|를|이|가)?/.test(text);
   const longUserAction =
     /렌(?:이|은).{0,40}(?:스스로|먼저|자발적으로).{0,40}(?:했|한다|했다)/.test(text);
-  const hits = [userSpeech, consentForUser, emotionFact, longUserAction].filter(Boolean)
-    .length;
+  const hits = [userSpeech, consentForUser, emotionFact, longUserAction].filter(Boolean).length;
   return {
     newUserDialogue: userSpeech,
     consentDecidedForUser: consentForUser,
@@ -224,50 +247,56 @@ function agencyDiagnostic(text: string) {
   };
 }
 
-function continuityDiagnostic(text: string, sourceAnchor: string) {
-  return {
-    actorPreserved: !/렌(?:이|은).{0,12}태형.{0,8}(?:위로 올라|위에 앉아)/.test(text) ||
-      /태형(?:이|은).{0,12}렌/.test(sourceAnchor),
-    targetPreserved: /렌|태형/.test(text),
-    contactDirectionPreserved: !/반대로|뒤집/.test(text),
-    bodyPositionPreserved: !/갑자기 자세를 바꿔|완전히 뒤집어/.test(text),
-    clothingStatePreserved: true,
-    locationPreserved: true,
-    ongoingActionPreserved: proseDiagnostics(text).explicitAdultContinuation,
-  };
+type Fixtures = {
+  character: Record<string, unknown>;
+  persona: Record<string, unknown> | null;
+  characterLookup?: string;
+  personaLookup?: string;
+};
+
+function tryExtractFixtures(): Fixtures | null {
+  const extracted = spawnSync(process.execPath, [
+    "scripts/real-taehyung-explicit-extract-railway.cjs",
+  ], {
+    encoding: "utf8",
+    env: { ...process.env, TAEHYUNG_EXTRACT_OUT: DOCS },
+  });
+  if (extracted.stdout) process.stdout.write(extracted.stdout);
+  if (extracted.stderr) process.stderr.write(extracted.stderr);
+  if (!existsSync(FIXTURES_PATH)) return null;
+  return JSON.parse(readFileSync(FIXTURES_PATH, "utf8")) as Fixtures;
 }
 
-function loadFixtures() {
-  if (!existsSync(FIXTURES_PATH)) {
-    const extracted = spawnSync(process.execPath, [
-      "scripts/real-taehyung-explicit-extract-railway.cjs",
-    ], {
-      encoding: "utf8",
-      env: { ...process.env, TAEHYUNG_EXTRACT_OUT: DOCS },
+async function probeAccess() {
+  const localDb = "data/app.db";
+  const localStat = existsSync(localDb) ? statSync(localDb) : null;
+  let productionCharacter18 = "UNREACHABLE";
+  try {
+    const res = await fetch(`${PRODUCTION_URL}character/${PRODUCTION_LIKE_CHARACTER_ID}`, {
+      redirect: "follow",
     });
-    if (extracted.stdout) process.stdout.write(extracted.stdout);
-    if (extracted.stderr) process.stderr.write(extracted.stderr);
+    productionCharacter18 = res.redirected || res.url.includes("/login")
+      ? "EXISTS_LOGIN_GATED"
+      : `HTTP_${res.status}`;
+  } catch (err) {
+    productionCharacter18 = `FETCH_ERROR:${err instanceof Error ? err.message : "unknown"}`;
   }
-  if (!existsSync(FIXTURES_PATH)) return null;
-  return JSON.parse(readFileSync(FIXTURES_PATH, "utf8")) as {
-    character: Record<string, unknown>;
-    persona: Record<string, unknown>;
-    opus: null | {
-      history: Array<{ role: string; content: string; model?: string }>;
-      currentUserTurn: string;
-      sourceAssistants: string[];
-      flags: { EXPLICIT_ADULT_SCENE_ACTIVE: boolean; INTIMATE_TRANSITION_ONLY: boolean };
-      memory?: string;
-      currentSummary?: string;
-    };
-    gemini: null | {
-      history: Array<{ role: string; content: string; model?: string }>;
-      currentUserTurn: string;
-      sourceAssistants: string[];
-      flags: { EXPLICIT_ADULT_SCENE_ACTIVE: boolean; INTIMATE_TRANSITION_ONLY: boolean };
-      memory?: string;
-      currentSummary?: string;
-    };
+  return {
+    railway_cli: spawnSync("which", ["railway"], { encoding: "utf8" }).status === 0
+      ? "PRESENT"
+      : "NOT_INSTALLED",
+    RAILWAY_TOKEN: process.env.RAILWAY_TOKEN ? "PRESENT" : "MISSING",
+    OPUS5_SHADOW_DB: process.env.OPUS5_SHADOW_DB || null,
+    TAEHYUNG_DB: process.env.TAEHYUNG_DB || null,
+    production_db_path: "/data/app.db",
+    production_db_exists: existsSync("/data/app.db"),
+    local_app_db_bytes: localStat?.size ?? 0,
+    production_url: PRODUCTION_URL,
+    production_character_18: productionCharacter18,
+    injected_secrets: (process.env.CLOUD_AGENT_INJECTED_SECRET_NAMES || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
   };
 }
 
@@ -278,7 +307,7 @@ async function assembleBundle(opts: {
   persona: Record<string, unknown>;
   history: ChatMsg[];
   currentUserMessage: string;
-  longTermMemory: string;
+  adultHandoff: boolean;
 }) {
   const { loadCharacterChunksForPromptReadOnly } = await import(
     "../src/lib/characterChunks"
@@ -299,11 +328,12 @@ async function assembleBundle(opts: {
   );
 
   const ch = opts.character;
+  const charName = String(ch.name);
   const personaName = String(opts.persona.name ?? "렌");
   const { chunks } = loadCharacterChunksForPromptReadOnly(
     {
-      id: Number(ch._internalId ?? 18),
-      name: String(ch.name),
+      id: Number(ch._internalId ?? PRODUCTION_LIKE_CHARACTER_ID),
+      name: charName,
       gender: String(ch.gender ?? ""),
       system_prompt: String(ch.system_prompt ?? ""),
       world: String(ch.world ?? ""),
@@ -319,45 +349,51 @@ async function assembleBundle(opts: {
     (opts.persona.gender as "male" | "female" | "other") ?? "other",
     String(opts.persona.description ?? "")
   );
-  const adultCfg = resolveAdultRoutingConfig();
-  const handoffVariants = selectAdultHandoffRawVariants(opts.history, {
-    baseExchanges: adultCfg.baseRawExchanges,
-    targetExchanges: adultCfg.handoffTargetRawExchanges,
-    extraRawTokens: adultCfg.handoffExtraRawTokens,
-  });
-  const handoffHistory = handoffVariants.handoff.history;
-  const lastAssistant =
-    [...opts.history]
-      .reverse()
-      .find((m) => m.role === "assistant")
-      ?.content ?? "";
   const narrativePov = resolveNarrativePov({
     mode: "third_person",
     contentKind: "character",
-    mainCharacterName: String(ch.name),
+    mainCharacterName: charName,
   });
-  const extractedHandoffContinuity = extractHandoffContinuityFromAssistantText({
-    text: lastAssistant,
-    characterName: String(ch.name),
-    personaName,
-    currentUserText: opts.currentUserMessage,
-  });
-  const continuityPacket = buildSceneContinuityPacket({
-    previousSceneMode: "explicit",
-    sexualContextActive: true,
-    activeConsentMode: "standard",
-    charactersPresent: [String(ch.name), personaName],
-    currentPov: narrativePov.mode,
-    ...extractedHandoffContinuity,
-  });
+
+  let history = opts.history;
+  let systemExtra = "";
+  let continuityPacket: unknown = null;
+  let handoffVariants: unknown = null;
+  if (opts.adultHandoff) {
+    const adultCfg = resolveAdultRoutingConfig();
+    const variants = selectAdultHandoffRawVariants(opts.history, {
+      baseExchanges: adultCfg.baseRawExchanges,
+      targetExchanges: adultCfg.handoffTargetRawExchanges,
+      extraRawTokens: adultCfg.handoffExtraRawTokens,
+    });
+    handoffVariants = variants;
+    history = variants.handoff.history;
+    const lastAssistant =
+      [...opts.history].reverse().find((m) => m.role === "assistant")?.content ?? "";
+    const extractedHandoffContinuity = extractHandoffContinuityFromAssistantText({
+      text: lastAssistant,
+      characterName: charName,
+      personaName,
+      currentUserText: opts.currentUserMessage,
+    });
+    continuityPacket = buildSceneContinuityPacket({
+      previousSceneMode: "explicit",
+      sexualContextActive: true,
+      activeConsentMode: "standard",
+      charactersPresent: [charName, personaName],
+      currentPov: narrativePov.mode,
+      ...extractedHandoffContinuity,
+    });
+  }
+
   const built = buildContext({
-    charName: String(ch.name),
+    charName,
     chunks,
     userNickname: personaName,
     userPersona,
     userNote: "",
-    longTermMemory: opts.longTermMemory,
-    shortTermHistory: handoffHistory,
+    longTermMemory: "",
+    shortTermHistory: history,
     currentUserMessage: opts.currentUserMessage,
     nsfw: true,
     gender: (ch.gender as "male" | "female" | "other") ?? "other",
@@ -368,15 +404,18 @@ async function assembleBundle(opts: {
     isContinue: false,
     personaDisplayName: personaName,
     targetResponseChars: 3200,
-    completedTurns: Math.max(0, Math.floor((handoffHistory.length - 2) / 2)),
+    completedTurns: Math.max(0, Math.floor((history.length - 2) / 2)),
     provider: "cheaperinference",
     contentKind: "character",
     exampleDialog: String(ch.example_dialog ?? ""),
     userId: 0,
     narrativePov,
-    preserveAdultHandoffRawHistory: true,
+    preserveAdultHandoffRawHistory: opts.adultHandoff,
   });
-  const systemPrompt = appendAdultHandoffPrompt(built.systemPrompt, continuityPacket);
+  const systemPrompt = opts.adultHandoff
+    ? appendAdultHandoffPrompt(built.systemPrompt, continuityPacket as never)
+    : built.systemPrompt;
+  systemExtra = systemPrompt;
   const wire = assemblePrimaryRpRequest({
     system: systemPrompt,
     history: built.history ?? [],
@@ -384,7 +423,7 @@ async function assembleBundle(opts: {
     targetResponseChars: 3200,
     messageOpts: {
       transportProvider: "cheaperinference",
-      charName: String(ch.name),
+      charName,
       personaName,
     },
   });
@@ -395,22 +434,12 @@ async function assembleBundle(opts: {
   });
   adapted.model = opts.requestModelId;
   const messages = adapted.messages as ChatMsg[];
-  const userTail = messages[messages.length - 1]?.content ?? "";
   return {
     requestBody: adapted,
     messages,
-    systemPrompt,
+    systemPrompt: systemExtra,
     continuityPacket,
     handoffVariants,
-    adapters: {
-      xml_wrapping:
-        systemPrompt.includes("<PERSONA>") || systemPrompt.includes("<WORLD_LORE>"),
-      style_reminder: userTail.includes("System Reminder:"),
-      handoff_continuation_instruction: systemPrompt.includes(
-        "직전 assistant 출력의 바로 다음 순간부터 이어 쓴다"
-      ),
-      qwen38_style_prompt_added: false,
-    },
     generation: {
       temperature: adapted.temperature ?? null,
       top_p: adapted.top_p ?? null,
@@ -425,154 +454,185 @@ async function assembleBundle(opts: {
 }
 
 function characterSnapshot(ch: Record<string, unknown>) {
-  const speech = String(ch.speech_profile ?? ch.example_dialog ?? "").slice(0, 800);
   return {
-    name: ch.name,
+    registered_name: ch.name,
+    real_name_in_settings: String(
+      `${ch.system_prompt ?? ""}\n${ch.description ?? ""}\n${ch.world ?? ""}`
+    ).includes(PRODUCTION_LIKE_REAL_NAME),
     gender: ch.gender,
     nsfw: ch.nsfw,
     tagline: ch.tagline,
     description: String(ch.description ?? "").slice(0, 1200),
-    speech_lock_or_examples: speech,
+    greeting: String(ch.greeting ?? "").slice(0, 800),
     world: String(ch.world ?? "").slice(0, 800),
+    example_dialog: String(ch.example_dialog ?? "").slice(0, 800),
+    speech_profile: String(ch.speech_profile ?? "").slice(0, 800),
+    recommended_writing_style: String(ch.recommended_writing_style ?? "").slice(0, 400),
+    status_window_prompt: String(ch.status_window_prompt ?? "").slice(0, 400),
   };
 }
 
-function writePacket(opts: {
-  fixtures: NonNullable<ReturnType<typeof loadFixtures>>;
-  cells: Record<string, { raw: string; meta: Record<string, unknown> }>;
+function accessRequiredDoc(probe: Awaited<ReturnType<typeof probeAccess>>) {
+  return `# ACCESS REQUIRED — production 라이크 snapshot
+
+Past Opus/Gemini chats are no longer a blocker.
+API generation was not run because the real production character/persona snapshot is missing.
+
+## Character to load
+
+\`\`\`text
+PRODUCTION_CHARACTER_DISPLAY_NAME = 라이크
+CHARACTER_REAL_NAME = 조태형
+preferred id = 18
+lookup = name = '라이크' then verify settings contain 조태형
+do not search name = '조태형'
+\`\`\`
+
+## Credentials that would unblock this VM
+
+One of the following is enough. Do not create a new public endpoint. SELECT-only.
+
+1. \`RAILWAY_TOKEN\` for the production Railway project that hosts \`${PRODUCTION_URL}\`, plus permission to \`railway ssh\` and read \`/data/app.db\`.
+2. A readable production SQLite path via \`OPUS5_SHADOW_DB\` or \`TAEHYUNG_DB\` (already SELECT-only in \`scripts/real-taehyung-explicit-extract-railway.cjs\`).
+3. A production login session that can open \`/character/18\` **and** an existing authenticated/internal read path. This VM has no session cookie and \`/character/18\` is login-gated.
+
+Then run:
+
+\`\`\`text
+railway ssh
+node scripts/real-taehyung-explicit-extract-railway.cjs
+\`\`\`
+
+Required SELECT tables:
+
+- \`characters\` — id 18 or verified \`name='라이크'\` whose settings contain \`조태형\`
+- \`user_personas\` — production \`렌\` only if a unique verified row exists
+
+Not required:
+
+- past Opus chats
+- past Gemini chats
+
+## This VM probe
+
+\`\`\`json
+${JSON.stringify(probe, null, 2)}
+\`\`\`
+
+## Forbidden substitutes
+
+\`\`\`text
+SYNTHETIC_TAEHYUNG = FORBIDDEN
+CASPEN = FORBIDDEN
+invented 렌 persona = FORBIDDEN
+\`\`\`
+`;
+}
+
+function writeIncomplete(opts: {
+  probe: Awaited<ReturnType<typeof probeAccess>>;
+  fixtures: Fixtures | null;
+  reason: string;
 }) {
-  const { fixtures, cells } = opts;
-  const opusHist = (fixtures.opus?.history ?? [])
-    .filter((m) => m.role === "assistant" || m.role === "user")
-    .map((m) => `[${m.role}]\n${m.content}`)
-    .join("\n\n");
-  const geminiHist = (fixtures.gemini?.history ?? [])
-    .filter((m) => m.role === "assistant" || m.role === "user")
-    .map((m) => `[${m.role}]\n${m.content}`)
-    .join("\n\n");
-  const md = `# DIRECT_REVIEW_PACKET — REAL PRODUCTION TAEHYUNG EXPLICIT ADULT HANDOFF
+  const summary = {
+    CAPTURE_COMPLETE: false,
+    reason: opts.reason,
+    CHARACTER: "production 라이크",
+    CHARACTER_REAL_NAME: PRODUCTION_LIKE_REAL_NAME,
+    REAL_OPUS_LIKE_TAEHYUNG: "NOT_GENERATED",
+    REAL_GEMINI_LIKE_TAEHYUNG: "NOT_GENERATED",
+    OPUS_FIXTURE_SOURCE: "NOT_REQUIRED",
+    GEMINI_FIXTURE_SOURCE: "NOT_REQUIRED",
+    CHARACTER_SNAPSHOT: opts.fixtures &&
+      isProductionLikeTaehyungRecord({
+        id: opts.fixtures.character._internalId,
+        name: String(opts.fixtures.character.name ?? ""),
+        description: String(opts.fixtures.character.description ?? ""),
+        system_prompt: String(opts.fixtures.character.system_prompt ?? ""),
+        world: String(opts.fixtures.character.world ?? ""),
+        greeting: String(opts.fixtures.character.greeting ?? ""),
+        example_dialog: String(opts.fixtures.character.example_dialog ?? ""),
+        setting_chunks: String(opts.fixtures.character.setting_chunks ?? ""),
+        speech_profile: String(opts.fixtures.character.speech_profile ?? ""),
+      })
+      ? "PRESENT"
+      : "MISSING",
+    PERSONA_SNAPSHOT: opts.fixtures?.persona ? "PRODUCTION_렌" : "MISSING",
+    API_CALLS: 0,
+    retry: 0,
+    continuation: 0,
+    recovery: 0,
+    fallback: 0,
+    CASPEN_FIXTURE: "INVALID",
+    SYNTHETIC_NON_PRODUCTION_CHARACTER: "DO_NOT_USE",
+    railway_status: opts.probe.railway_cli,
+    production_url: PRODUCTION_URL,
+    production_character_18: opts.probe.production_character_18,
+    railway_extract:
+      "railway ssh && node scripts/real-taehyung-explicit-extract-railway.cjs",
+    OPUS_WINNER: "HUMAN_REVIEW_REQUIRED",
+    GEMINI_WINNER: "HUMAN_REVIEW_REQUIRED",
+    FINAL_ADULT_MODEL_WINNER: "HUMAN_REVIEW_REQUIRED",
+  };
+  const accessDoc = accessRequiredDoc(opts.probe);
+  save(DOCS, "CAPTURE_SUMMARY.md", `# CAPTURE SUMMARY\n\n\`\`\`text\n${JSON.stringify(summary, null, 2)}\n\`\`\`\n`);
+  save(DOCS, "RUNTIME_CAPTURE.json", { summary, probe: opts.probe });
+  save(DOCS, "ACCESS_REQUIRED.md", accessDoc);
+  save(OUT_ROOT, "CAPTURE_SUMMARY.md", `# CAPTURE SUMMARY\n\n\`\`\`text\n${JSON.stringify(summary, null, 2)}\n\`\`\`\n`);
+  save(OUT_ROOT, "ACCESS_REQUIRED.md", accessDoc);
+  save(OUT_ROOT, "RUNTIME_CAPTURE.json", { summary, probe: opts.probe });
+  const packet = `# DIRECT_REVIEW_PACKET — REAL PRODUCTION LIKE/TAEHYUNG SOURCE + ADULT HANDOFF
 
 \`\`\`text
 CASPEN_FIXTURE = INVALID
 SYNTHETIC_NON_PRODUCTION_CHARACTER = DO_NOT_USE
-TERRA = NOT_RUN
-CHARACTER = production 조태형
-OPUS_FIXTURE_SOURCE = ${fixtures.opus ? "REAL_PRODUCTION" : "MISSING"}
-GEMINI_FIXTURE_SOURCE = ${fixtures.gemini ? "REAL_PRODUCTION" : "MISSING"}
-API_CALLS = ${cells.opus_deepseek && cells.opus_qwen && cells.gemini_deepseek && cells.gemini_qwen ? 4 : 0}
+CHARACTER = production 라이크
+CHARACTER_REAL_NAME = 조태형
+REAL_OPUS_LIKE_TAEHYUNG = NOT_GENERATED
+REAL_GEMINI_LIKE_TAEHYUNG = NOT_GENERATED
+API_CALLS = 0
 retry = 0
 continuation = 0
 recovery = 0
 fallback = 0
-OPUS_WINNER = HUMAN_REVIEW_REQUIRED
-GEMINI_WINNER = HUMAN_REVIEW_REQUIRED
-FINAL_ADULT_MODEL_WINNER = HUMAN_REVIEW_REQUIRED
-PR #425 = REAL/SYNTHETIC MIXED INTIMATE_TRANSITION TEST
-= explicit adult primary 결정 근거로 사용하지 않음
 \`\`\`
 
-${!fixtures.opus || !fixtures.gemini ? `> CAPTURE INCOMPLETE: live production \`/data/app.db\` was not readable from this VM (Railway CLI unauthorized; no Turso; character/18 is login-gated). No synthetic 조태형 card, no Caspen, and no invented explicit adult user turn were used. API calls were not made.\n` : ""}
+> API generation was not run. Real production 라이크/렌 snapshots are required. See ACCESS_REQUIRED.md.
 
-## OPUS 5 → REAL TAEHYUNG
-
-### Production character snapshot
-\`\`\`json
-${JSON.stringify(characterSnapshot(fixtures.character), null, 2)}
-\`\`\`
-
-### Real source history
-${opusHist || "_NO_OPUS_PRODUCTION_HISTORY_"}
-
-### Real explicit adult-active user turn
-${fixtures.opus?.currentUserTurn || "_NO_OPUS_EXPLICIT_USER_TURN_"}
-
-### DeepSeek V4 Pro 0813
-\`\`\`json
-${JSON.stringify(cells.opus_deepseek?.meta ?? { missing: true }, null, 2)}
-\`\`\`
-
-${cells.opus_deepseek?.raw || "_NO_OUTPUT_"}
-
-### Qwen 3.8 Max
-\`\`\`json
-${JSON.stringify(cells.opus_qwen?.meta ?? { missing: true }, null, 2)}
-\`\`\`
-
-${cells.opus_qwen?.raw || "_NO_OUTPUT_"}
-
-## GEMINI 3.1 PRO → REAL TAEHYUNG
-
-### Production character snapshot
-\`\`\`json
-${JSON.stringify(characterSnapshot(fixtures.character), null, 2)}
-\`\`\`
-
-### Real source history
-${geminiHist || "_NO_GEMINI_PRODUCTION_HISTORY_"}
-
-### Real explicit adult-active user turn
-${fixtures.gemini?.currentUserTurn || "_NO_GEMINI_EXPLICIT_USER_TURN_"}
-
-### DeepSeek V4 Pro 0813
-\`\`\`json
-${JSON.stringify(cells.gemini_deepseek?.meta ?? { missing: true }, null, 2)}
-\`\`\`
-
-${cells.gemini_deepseek?.raw || "_NO_OUTPUT_"}
-
-### Qwen 3.8 Max
-\`\`\`json
-${JSON.stringify(cells.gemini_qwen?.meta ?? { missing: true }, null, 2)}
-\`\`\`
-
-${cells.gemini_qwen?.raw || "_NO_OUTPUT_"}
+${opts.fixtures?.character ? `### Partial character row\n\`\`\`json\n${JSON.stringify(characterSnapshot(opts.fixtures.character), null, 2)}\n\`\`\`\n` : ""}
 `;
-  save(DOCS, "DIRECT_REVIEW_PACKET.md", md);
-  save(OUT_ROOT, "DIRECT_REVIEW_PACKET.md", md);
+  save(DOCS, "DIRECT_REVIEW_PACKET.md", packet);
+  save(OUT_ROOT, "DIRECT_REVIEW_PACKET.md", packet);
+  return summary;
 }
 
 async function main() {
   mkdirSync(DOCS, { recursive: true });
   mkdirSync(OUT_ROOT, { recursive: true });
-  const fixtures = loadFixtures();
-  if (!fixtures?.opus || !fixtures.gemini) {
-    const summary = {
-      CAPTURE_COMPLETE: false,
-      reason: "PRODUCTION_DB_UNAVAILABLE_OR_MISSING_EXPLICIT_SOURCE_CHATS",
-      CHARACTER: "production 조태형",
-      OPUS_FIXTURE_SOURCE: fixtures?.opus ? "REAL_PRODUCTION" : "MISSING",
-      GEMINI_FIXTURE_SOURCE: fixtures?.gemini ? "REAL_PRODUCTION" : "MISSING",
-      OPUS_DEEPSEEK_STATUS: "NOT_RUN",
-      OPUS_QWEN_STATUS: "NOT_RUN",
-      GEMINI_DEEPSEEK_STATUS: "NOT_RUN",
-      GEMINI_QWEN_STATUS: "NOT_RUN",
-      API_CALLS: 0,
-      retry: 0,
-      continuation: 0,
-      recovery: 0,
-      fallback: 0,
-      CASPEN_FIXTURE: "INVALID",
-      SYNTHETIC_NON_PRODUCTION_CHARACTER: "DO_NOT_USE",
-      TERRA: "NOT_RUN",
-      railway_status: "UNAUTHORIZED",
-      production_url: "https://chat-ai-production-3e84.up.railway.app/",
-      production_character_18: "EXISTS_LOGIN_GATED",
-      railway_extract:
-        "railway ssh && node scripts/real-taehyung-explicit-extract-railway.cjs",
-      OPUS_WINNER: "HUMAN_REVIEW_REQUIRED",
-      GEMINI_WINNER: "HUMAN_REVIEW_REQUIRED",
-      FINAL_ADULT_MODEL_WINNER: "HUMAN_REVIEW_REQUIRED",
-    };
-    save(DOCS, "CAPTURE_SUMMARY.md", `# CAPTURE SUMMARY\n\n\`\`\`text\n${JSON.stringify(summary, null, 2)}\n\`\`\`\n`);
-    save(DOCS, "RUNTIME_CAPTURE.json", summary);
-    writePacket({
-      fixtures: fixtures ?? {
-        character: { name: "조태형" },
-        persona: { name: "렌" },
-        opus: null,
-        gemini: null,
-      },
-      cells: {},
+  const probe = await probeAccess();
+  const fixtures = tryExtractFixtures();
+  const characterOk =
+    !!fixtures?.character &&
+    isProductionLikeTaehyungRecord({
+      id: fixtures.character._internalId,
+      name: String(fixtures.character.name ?? ""),
+      description: String(fixtures.character.description ?? ""),
+      system_prompt: String(fixtures.character.system_prompt ?? ""),
+      world: String(fixtures.character.world ?? ""),
+      greeting: String(fixtures.character.greeting ?? ""),
+      example_dialog: String(fixtures.character.example_dialog ?? ""),
+      setting_chunks: String(fixtures.character.setting_chunks ?? ""),
+      speech_profile: String(fixtures.character.speech_profile ?? ""),
+    });
+  const personaOk = Boolean(fixtures?.persona && String(fixtures.persona.name ?? "").includes("렌"));
+
+  if (!characterOk || !personaOk) {
+    const summary = writeIncomplete({
+      probe,
+      fixtures,
+      reason: !characterOk
+        ? "PRODUCTION_LIKE_CHARACTER_SNAPSHOT_MISSING"
+        : "PRODUCTION_REN_PERSONA_SNAPSHOT_MISSING",
     });
     console.log(JSON.stringify(summary, null, 2));
     process.exitCode = 2;
@@ -587,57 +647,77 @@ async function main() {
     "../src/lib/chatDisplayLength"
   );
 
+  const greeting = String(fixtures.character.greeting ?? "").trim();
+  const baseHistory: ChatMsg[] = greeting
+    ? [{ role: "assistant", content: greeting }]
+    : [];
+
   const sources = [
-    { id: "opus" as const, label: "Claude Opus 5", fixture: fixtures.opus },
-    { id: "gemini" as const, label: "Gemini 3.1 Pro Preview", fixture: fixtures.gemini },
+    { id: "opus" as const, label: "REAL_OPUS_LIKE_TAEHYUNG", model: OPUS_SOURCE },
+    { id: "gemini" as const, label: "REAL_GEMINI_LIKE_TAEHYUNG", model: GEMINI_SOURCE },
   ];
   const candidates = [
-    {
-      key: "deepseek" as const,
-      requestModelId: DEEPSEEK_REQUESTED,
-      assembleModelId: DEEPSEEK_ASSEMBLE,
-    },
-    {
-      key: "qwen" as const,
-      requestModelId: QWEN_REQUESTED,
-      assembleModelId: QWEN_REQUESTED,
-    },
+    { key: "deepseek" as const, requestModelId: DEEPSEEK_REQUESTED, assembleModelId: DEEPSEEK_ASSEMBLE },
+    { key: "qwen" as const, requestModelId: QWEN_REQUESTED, assembleModelId: QWEN_REQUESTED },
   ];
 
   let apiCalls = 0;
   const cells: Record<string, { raw: string; meta: Record<string, unknown> }> = {};
-  const assembleHashes: Record<string, string> = {};
-  const fixtureHashes: Record<string, string> = {};
 
   for (const source of sources) {
-    const history: ChatMsg[] = source.fixture.history.map((m) => ({
-      role: m.role as "user" | "assistant",
-      content: m.content,
-    }));
-    const fixtureInputHash = sha256(
-      JSON.stringify({
-        character: fixtures.character,
-        persona: fixtures.persona,
-        history,
-        currentUserTurn: source.fixture.currentUserTurn,
-        memory: source.fixture.memory || "",
-        currentSummary: source.fixture.currentSummary || "",
-      })
+    const sourceBundle = await assembleBundle({
+      assembleModelId: source.model,
+      requestModelId: source.model,
+      character: fixtures.character,
+      persona: fixtures.persona!,
+      history: baseHistory,
+      currentUserMessage: SOURCE_SEED_USER,
+      adultHandoff: false,
+    });
+    console.log(`\n=== CALL ${apiCalls + 1} ${source.label} source ===`);
+    apiCalls += 1;
+    const sourceResp = await streamProvider(
+      CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
+      buildCheaperInferenceHeaders(),
+      sourceBundle.requestBody
     );
+    const sourceDir = join(OUT_ROOT, "live", source.id, "source");
+    const sourceMeta = {
+      call: source.id === "opus" ? 1 : 4,
+      requested_model: source.model,
+      resolved_model: sourceResp.resolved_model,
+      HTTP_status: sourceResp.http_status,
+      finish_reason: sourceResp.finish_reason,
+      visible_chars: visibleAssistantDisplayCharCount(sourceResp.text),
+      latency: sourceResp.latency_s,
+      ...extractUsage(sourceResp.usage),
+      retry: 0,
+      continuation: 0,
+      recovery: 0,
+      fallback: 0,
+      error: sourceResp.error,
+    };
+    save(sourceDir, "provider-raw.txt", sourceResp.text);
+    save(sourceDir, "meta.json", sourceMeta);
+    cells[`${source.id}_source`] = { raw: sourceResp.text, meta: sourceMeta };
+
+    const adultHistory: ChatMsg[] = [
+      ...baseHistory,
+      { role: "user", content: SOURCE_SEED_USER },
+      { role: "assistant", content: sourceResp.text },
+    ];
+
     for (const candidate of candidates) {
       const bundle = await assembleBundle({
         assembleModelId: candidate.assembleModelId,
         requestModelId: candidate.requestModelId,
         character: fixtures.character,
-        persona: fixtures.persona,
-        history,
-        currentUserMessage: source.fixture.currentUserTurn,
-        longTermMemory: source.fixture.currentSummary || source.fixture.memory || "",
+        persona: fixtures.persona!,
+        history: adultHistory,
+        currentUserMessage: ADULT_HANDOFF_USER,
+        adultHandoff: true,
       });
-      fixtureHashes[`${source.id}_${candidate.key}`] = fixtureInputHash;
-      assembleHashes[`${source.id}_${candidate.key}`] = bundle.assemblePromptHash;
-
-      console.log(`\n=== ${source.id} → ${candidate.requestModelId} (${apiCalls + 1}/4) ===`);
+      console.log(`\n=== CALL ${apiCalls + 1} ${source.id} → ${candidate.requestModelId} ===`);
       apiCalls += 1;
       const resp = await streamProvider(
         CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
@@ -646,11 +726,6 @@ async function main() {
       );
       const dir = join(OUT_ROOT, "live", source.id, candidate.key);
       const prose = proseDiagnostics(resp.text);
-      const agency = agencyDiagnostic(resp.text);
-      const continuity = continuityDiagnostic(
-        resp.text,
-        source.fixture.sourceAssistants.slice(-1)[0] || ""
-      );
       const meta = {
         requested_model: candidate.requestModelId,
         resolved_model: resp.resolved_model,
@@ -661,15 +736,8 @@ async function main() {
         dialogue_paragraph_count: prose.dialogue_paragraph_count,
         latency: resp.latency_s,
         ...extractUsage(resp.usage),
-        refusal: prose.refusal,
-        fade_to_black: prose.fade_to_black,
-        evasive_rewrite: prose.evasive_rewrite,
-        foreign_language_contamination: prose.foreign_language_contamination,
-        explicitAdultContinuation: prose.explicitAdultContinuation,
-        adult_capability: prose.adult_capability,
-        agency,
-        continuity,
-        adapters: bundle.adapters,
+        ...prose,
+        agency: agencyDiagnostic(resp.text),
         generation: bundle.generation,
         retry: 0,
         continuation: 0,
@@ -679,44 +747,68 @@ async function main() {
       };
       save(dir, "provider-raw.txt", resp.text);
       save(dir, "meta.json", meta);
-      save(dir, "request-sanitized.json", {
-        model: bundle.requestBody.model,
-        generation: bundle.generation,
-        adapters: bundle.adapters,
-        message_count: bundle.messages.length,
-      });
       cells[`${source.id}_${candidate.key}`] = { raw: resp.text, meta };
     }
   }
 
   const summary = {
-    CAPTURE_COMPLETE: true,
-    CHARACTER: "production 조태형",
-    OPUS_FIXTURE_SOURCE: "REAL_PRODUCTION",
-    GEMINI_FIXTURE_SOURCE: "REAL_PRODUCTION",
-    OPUS_DEEPSEEK_STATUS: cells.opus_deepseek?.meta.HTTP_status ?? null,
-    OPUS_QWEN_STATUS: cells.opus_qwen?.meta.HTTP_status ?? null,
-    GEMINI_DEEPSEEK_STATUS: cells.gemini_deepseek?.meta.HTTP_status ?? null,
-    GEMINI_QWEN_STATUS: cells.gemini_qwen?.meta.HTTP_status ?? null,
+    CAPTURE_COMPLETE: apiCalls === 6,
+    CHARACTER: "production 라이크",
+    CHARACTER_REAL_NAME: PRODUCTION_LIKE_REAL_NAME,
+    REAL_OPUS_LIKE_TAEHYUNG: cells.opus_source ? "GENERATED" : "MISSING",
+    REAL_GEMINI_LIKE_TAEHYUNG: cells.gemini_source ? "GENERATED" : "MISSING",
     API_CALLS: apiCalls,
+    retry: 0,
+    continuation: 0,
+    recovery: 0,
+    fallback: 0,
     OPUS_WINNER: "HUMAN_REVIEW_REQUIRED",
     GEMINI_WINNER: "HUMAN_REVIEW_REQUIRED",
     FINAL_ADULT_MODEL_WINNER: "HUMAN_REVIEW_REQUIRED",
-    prompt_parity: {
-      opus_fixture_input:
-        fixtureHashes.opus_deepseek === fixtureHashes.opus_qwen,
-      gemini_fixture_input:
-        fixtureHashes.gemini_deepseek === fixtureHashes.gemini_qwen,
-      opus_assemble_equal:
-        assembleHashes.opus_deepseek === assembleHashes.opus_qwen,
-      gemini_assemble_equal:
-        assembleHashes.gemini_deepseek === assembleHashes.gemini_qwen,
-      note: "assemble hashes may differ: EXPECTED_PROVIDER_DIFFERENCE from DeepSeek XML/style adapters vs generic Qwen handling. Fixture inputs must match.",
-    },
   };
+  const packet = `# DIRECT_REVIEW_PACKET — REAL PRODUCTION LIKE/TAEHYUNG SOURCE + ADULT HANDOFF
+
+\`\`\`text
+CHARACTER = production 라이크
+CHARACTER_REAL_NAME = 조태형
+REAL_OPUS_LIKE_TAEHYUNG
+REAL_GEMINI_LIKE_TAEHYUNG
+API_CALLS = ${apiCalls}
+retry = 0
+continuation = 0
+recovery = 0
+fallback = 0
+\`\`\`
+
+## Production character snapshot
+\`\`\`json
+${JSON.stringify(characterSnapshot(fixtures.character), null, 2)}
+\`\`\`
+
+## REAL_OPUS_LIKE_TAEHYUNG
+
+${cells.opus_source?.raw || "_NO_SOURCE_"}
+
+### DeepSeek V4 Pro 0813
+${cells.opus_deepseek?.raw || "_NO_OUTPUT_"}
+
+### Qwen 3.8 Max
+${cells.opus_qwen?.raw || "_NO_OUTPUT_"}
+
+## REAL_GEMINI_LIKE_TAEHYUNG
+
+${cells.gemini_source?.raw || "_NO_SOURCE_"}
+
+### DeepSeek V4 Pro 0813
+${cells.gemini_deepseek?.raw || "_NO_OUTPUT_"}
+
+### Qwen 3.8 Max
+${cells.gemini_qwen?.raw || "_NO_OUTPUT_"}
+`;
   save(DOCS, "CAPTURE_SUMMARY.md", `# CAPTURE SUMMARY\n\n\`\`\`text\n${JSON.stringify(summary, null, 2)}\n\`\`\`\n`);
   save(DOCS, "RUNTIME_CAPTURE.json", { summary, cells: Object.fromEntries(Object.entries(cells).map(([k, v]) => [k, v.meta])) });
-  writePacket({ fixtures, cells });
+  save(DOCS, "DIRECT_REVIEW_PACKET.md", packet);
+  save(OUT_ROOT, "DIRECT_REVIEW_PACKET.md", packet);
   console.log(JSON.stringify(summary, null, 2));
 }
 

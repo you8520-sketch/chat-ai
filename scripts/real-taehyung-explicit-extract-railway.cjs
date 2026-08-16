@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * SELECT-only extractor for real production 조태형 explicit-adult fixtures.
- * No INSERT/UPDATE/DELETE, no LLM, no user identifiers in stdout summary.
+ * SELECT-only extractor for production 라이크 (real name 조태형).
+ * Past chat extraction is optional. Character + 렌 persona snapshots are primary.
  *
  *   railway ssh
  *   node scripts/real-taehyung-explicit-extract-railway.cjs
  *
- * Writes fixtures JSON to OPUS5_SHADOW out path or cwd.
+ * INSERT = 0, UPDATE = 0, DELETE = 0
  */
 "use strict";
 
@@ -18,6 +18,9 @@ const DB_PATH = process.env.OPUS5_SHADOW_DB || process.env.TAEHYUNG_DB || "/data
 const OUT_DIR =
   process.env.TAEHYUNG_EXTRACT_OUT ||
   path.join(process.cwd(), "docs/audits/real-taehyung-explicit-qwen38-vs-deepseek0813");
+const KNOWN_ID = 18;
+const DISPLAY_NAME = "라이크";
+const REAL_NAME = "조태형";
 
 const EXPLICIT_ANATOMY =
   /(?:성기|음경|질\b|클리토리스|유두|정액|삽입|penetrat|genital|penis|vagina|clitoris)/i;
@@ -70,9 +73,9 @@ function isExplicitAdult(text) {
   };
 }
 
-function loadCharacter(db) {
+function characterColumns(db) {
   const cols = db.prepare("PRAGMA table_info(characters)").all().map((c) => c.name);
-  const wanted = [
+  return [
     "id",
     "name",
     "tagline",
@@ -95,15 +98,44 @@ function loadCharacter(db) {
     "creator_comment",
     "content_kind",
   ].filter((c) => cols.includes(c));
-  const row = db
-    .prepare(
-      `SELECT ${wanted.join(", ")} FROM characters
-       WHERE name = '조태형' OR name LIKE '조태형%'
-       ORDER BY id ASC LIMIT 1`
-    )
-    .get();
-  if (!row) throw new Error("production character 조태형 not found");
-  return row;
+}
+
+function settingBlob(row) {
+  return [
+    row.description,
+    row.system_prompt,
+    row.world,
+    row.greeting,
+    row.example_dialog,
+    row.setting_chunks,
+    row.speech_profile,
+  ]
+    .map((v) => String(v ?? ""))
+    .join("\n");
+}
+
+function isLikeTaehyung(row) {
+  return String(row?.name || "").trim() === DISPLAY_NAME && settingBlob(row).includes(REAL_NAME);
+}
+
+function loadCharacter(db) {
+  const wanted = characterColumns(db);
+  const sql = `SELECT ${wanted.join(", ")} FROM characters`;
+  const byId = db.prepare(`${sql} WHERE id = ?`).get(KNOWN_ID);
+  if (byId && isLikeTaehyung(byId)) return { row: byId, lookup: "id=18" };
+  if (byId && String(byId.name || "").trim() === DISPLAY_NAME && !settingBlob(byId).includes(REAL_NAME)) {
+    throw new Error("characters.id=18 is named 라이크 but settings do not contain 조태형");
+  }
+
+  const named = db.prepare(`${sql} WHERE name = ? ORDER BY id ASC`).all(DISPLAY_NAME);
+  const verified = named.filter(isLikeTaehyung);
+  if (verified.length === 1) return { row: verified[0], lookup: "name=라이크 unique" };
+  if (verified.length > 1) {
+    const known = verified.find((r) => Number(r.id) === KNOWN_ID);
+    if (known) return { row: known, lookup: "name=라이크 + id=18" };
+    throw new Error("multiple 라이크 rows contain 조태형; refuse first-row fallback");
+  }
+  throw new Error("production character 라이크 (real name 조태형) not found");
 }
 
 function loadPersona(db, chatPersonaId) {
@@ -111,19 +143,27 @@ function loadPersona(db, chatPersonaId) {
     .prepare("SELECT name FROM sqlite_master WHERE type='table'")
     .all()
     .map((r) => r.name);
-  if (!tables.includes("user_personas")) return { name: "렌", description: "", gender: "other" };
+  if (!tables.includes("user_personas")) return { persona: null, lookup: "user_personas missing" };
+  const cols = db.prepare("PRAGMA table_info(user_personas)").all().map((c) => c.name);
+  const wanted = ["id", "name", "description", "gender", "speech_examples"].filter((c) =>
+    cols.includes(c)
+  );
   if (chatPersonaId) {
     const byId = db
-      .prepare("SELECT id, name, description, gender, speech_examples FROM user_personas WHERE id=?")
+      .prepare(`SELECT ${wanted.join(", ")} FROM user_personas WHERE id=?`)
       .get(chatPersonaId);
-    if (byId && String(byId.name || "").includes("렌")) return byId;
+    if (byId && String(byId.name || "").includes("렌")) {
+      return { persona: byId, lookup: "chat.selected_persona_id" };
+    }
   }
-  const byName = db
-    .prepare(
-      "SELECT id, name, description, gender, speech_examples FROM user_personas WHERE name='렌' ORDER BY id DESC LIMIT 1"
-    )
-    .get();
-  return byName || { name: "렌", description: "", gender: "other" };
+  const named = db
+    .prepare(`SELECT ${wanted.join(", ")} FROM user_personas WHERE name=? ORDER BY id DESC`)
+    .all("렌");
+  if (named.length === 1) return { persona: named[0], lookup: "name=렌 unique" };
+  if (named.length > 1) {
+    return { persona: null, lookup: "multiple 렌 personas; refuse first-row fallback" };
+  }
+  return { persona: null, lookup: "name=렌 not found" };
 }
 
 function pickFixture(db, characterId, kind) {
@@ -217,61 +257,60 @@ function main() {
   }
   const db = new Database(DB_PATH, { readonly: true, fileMustExist: true });
   try {
-    const character = loadCharacter(db);
+    const loaded = loadCharacter(db);
+    const character = loaded.row;
     const opus = pickFixture(db, character.id, "opus");
     const gemini = pickFixture(db, character.id, "gemini");
-    const persona = loadPersona(
+    const personaLoaded = loadPersona(
       db,
       (opus && opus.selectedPersonaId) || (gemini && gemini.selectedPersonaId)
     );
+    const persona = personaLoaded.persona;
     const fixtures = {
       extractedAt: new Date().toISOString(),
       dbPath: DB_PATH,
       dbWrite: false,
-      CHARACTER: "production 조태형",
+      CHARACTER: "production 라이크",
+      CHARACTER_REAL_NAME: REAL_NAME,
+      characterLookup: loaded.lookup,
+      personaLookup: personaLoaded.lookup,
+      PAST_CHAT_EXTRACTION: "OPTIONAL_NOT_REQUIRED",
       character: {
         ...character,
         id: "REDACTED",
         _internalId: character.id,
       },
-      persona: {
-        name: persona.name || "렌",
-        description: persona.description || "",
-        gender: persona.gender || "other",
-        speech_examples: persona.speech_examples || "",
-        id: "REDACTED",
-      },
-      opus: opus
+      persona: persona
         ? {
-            ...opus,
-            selectedPersonaId: undefined,
+            name: persona.name || "렌",
+            description: persona.description || "",
+            gender: persona.gender || "other",
+            speech_examples: persona.speech_examples || "",
+            id: "REDACTED",
           }
         : null,
-      gemini: gemini
-        ? {
-            ...gemini,
-            selectedPersonaId: undefined,
-          }
-        : null,
+      opus: opus ? { ...opus, selectedPersonaId: undefined } : null,
+      gemini: gemini ? { ...gemini, selectedPersonaId: undefined } : null,
     };
     fs.mkdirSync(OUT_DIR, { recursive: true });
     const outFile = path.join(OUT_DIR, "PRODUCTION_FIXTURES.json");
     fs.writeFileSync(outFile, `${JSON.stringify(fixtures, null, 2)}\n`);
     const summary = {
       dbWrite: false,
+      CHARACTER: "production 라이크",
+      CHARACTER_REAL_NAME: REAL_NAME,
       characterName: character.name,
       characterInternalIdPresent: true,
-      personaName: fixtures.persona.name,
-      opusFixture: Boolean(opus),
-      geminiFixture: Boolean(gemini),
-      opusHistoryTurns: opus ? opus.history.length : 0,
-      geminiHistoryTurns: gemini ? gemini.history.length : 0,
-      opusExplicit: opus ? opus.flags : null,
-      geminiExplicit: gemini ? gemini.flags : null,
+      verifiedLikeTaehyung: isLikeTaehyung(character),
+      personaName: fixtures.persona ? fixtures.persona.name : null,
+      personaSource: persona ? "PRODUCTION_USER_PERSONAS" : "MISSING",
+      pastOpusChat: Boolean(opus),
+      pastGeminiChat: Boolean(gemini),
+      pastChatRequired: false,
       outFile,
     };
     process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
-    if (!opus || !gemini) {
+    if (!isLikeTaehyung(character) || !persona) {
       process.exitCode = 2;
     }
   } finally {
