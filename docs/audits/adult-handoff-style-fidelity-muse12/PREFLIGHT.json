@@ -1,0 +1,41 @@
+{
+  "preflight": {
+    "deepseek_endpoint_available": true,
+    "deepseek_resolved_slug": "deepseek-v4-pro",
+    "deepseek_models_sample": [
+      "aion-labs.aion-2-0",
+      "claude-fable-5",
+      "claude-haiku-4.5",
+      "claude-opus-4-7-fast",
+      "claude-opus-4-8-fast",
+      "claude-opus-4.5",
+      "claude-opus-4.6",
+      "claude-opus-4.7",
+      "claude-opus-4.8",
+      "claude-opus-5",
+      "claude-opus-5-fast",
+      "claude-sonnet-4.5",
+      "claude-sonnet-4.6",
+      "claude-sonnet-5",
+      "deepseek-v4-flash",
+      "deepseek-v4-flash-0731",
+      "deepseek-v4-pro",
+      "gemini-2.5-flash",
+      "gemini-3-5-flash",
+      "gemini-3-flash-preview"
+    ],
+    "muse12_endpoint_available": true,
+    "muse12_resolved_slug": "meta/muse-spark-1.2",
+    "muse_family_in_catalog": [
+      "meta/muse-spark-1.1",
+      "meta/muse-spark-1.2"
+    ],
+    "openrouter_muse_variants": [
+      "meta/muse-spark-1.1",
+      "meta/muse-spark-1.2"
+    ],
+    "openrouter_models_count": 400,
+    "verdict": "BOTH_AVAILABLE",
+    "live_calls_run": false
+  }
+}
