@@ -25,8 +25,11 @@ export const CLAUDE_OPUS_MODEL = OPENROUTER_CLAUDE_DEFAULT;
 /** @deprecated 기존 OpenRouter 선택값·영수증 호환용 */
 export const OPENROUTER_DEEPSEEK_V4_PRO_MODEL = "deepseek/deepseek-v4-pro";
 
-/** Cheaper Inference OpenAI-compatible API — DeepSeek V4 Pro */
-export const CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL = "deepseek-v4-pro";
+/** Cheaper Inference OpenAI-compatible API — DeepSeek V4 Pro (0813 snapshot) */
+export const CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL = "deepseek-v4-pro-0813";
+
+/** @deprecated undated CI slug — remapped to CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL */
+export const CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL_LEGACY = "deepseek-v4-pro";
 
 /** Cheaper Inference adult-route canary candidates (not user-selectable). */
 export const CHEAPER_INFERENCE_AION_20_MODEL = "aion-labs.aion-2-0";
@@ -75,7 +78,20 @@ export const CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL =
   "gemini-3.1-pro-preview";
 
 /** Cheaper Inference — chat selectable + background memory/status/HTML/translation */
-export const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL = "deepseek-v4-flash";
+export const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL = "deepseek-v4-flash-0731";
+
+/** @deprecated undated CI slug — remapped to CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL */
+export const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL_LEGACY = "deepseek-v4-flash";
+
+const CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_ALIASES = new Set([
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL_LEGACY,
+]);
+
+const CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_ALIASES = new Set([
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL_LEGACY,
+]);
 
 /** OpenRouter models that use the simple per-token point formula (no USD margin). */
 export const OPENROUTER_SIMPLE_POINT_MODELS: readonly string[] = [
@@ -247,27 +263,40 @@ export function isCheaperInferenceGemini31ProModel(modelId: string): boolean {
 export function isCheaperInferenceDeepSeekV4ProModel(
   modelId: string
 ): boolean {
-  return (
-    modelId.trim().toLowerCase() ===
-    CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+  return CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_ALIASES.has(
+    modelId.trim().toLowerCase()
   );
 }
 
 export function isCheaperInferenceDeepSeekV4FlashModel(modelId: string): boolean {
-  return modelId.trim().toLowerCase() === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
+  return CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_ALIASES.has(
+    modelId.trim().toLowerCase()
+  );
+}
+
+/** Normalize legacy/undated CI DeepSeek slugs to the dated snapshot we actually call. */
+export function resolveCheaperInferenceRequestModel(modelId: string): string {
+  const id = modelId.trim();
+  if (isCheaperInferenceDeepSeekV4ProModel(id)) {
+    return CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
+  }
+  if (isCheaperInferenceDeepSeekV4FlashModel(id)) {
+    return CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL;
+  }
+  return id;
 }
 
 export function isCheaperInferenceModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
   return (
     id === CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL ||
-    id === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL ||
+    isCheaperInferenceDeepSeekV4ProModel(id) ||
     id === CHEAPER_INFERENCE_AION_20_MODEL ||
     id === CHEAPER_INFERENCE_GLM_52_MODEL ||
     id === CHEAPER_INFERENCE_GPT_56_TERRA_MODEL ||
     id === CHEAPER_INFERENCE_GPT_56_LUNA_MODEL ||
     id === CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL ||
-    id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL
+    isCheaperInferenceDeepSeekV4FlashModel(id)
   );
 }
 
@@ -306,7 +335,7 @@ export function coerceUserSelectableAI(id: SelectedAI): SelectedAI {
     return DEFAULT_SELECTED_AI;
   }
   // DeepSeek V4 Flash temporarily hidden from picker — keep for background/receipts.
-  if (id === CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL) {
+  if (isCheaperInferenceDeepSeekV4FlashModel(id)) {
     return DEFAULT_SELECTED_AI;
   }
   return id;
@@ -328,7 +357,7 @@ export function isDeepSeekV4ProModel(modelId: string): boolean {
   const id = modelId.trim().toLowerCase();
   return (
     id === OPENROUTER_DEEPSEEK_V4_PRO_MODEL ||
-    id === CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
+    isCheaperInferenceDeepSeekV4ProModel(id)
   );
 }
 
@@ -477,8 +506,12 @@ const LEGACY_TO_SELECTED: Record<string, SelectedAI> = {
   "anthropic/claude-opus-latest": CLAUDE_OPUS_MODEL,
   deepseek: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   "deepseek-v4-pro": CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  "deepseek-v4-pro-0813": CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   "deepseek-4-pro": CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   "deepseek/deepseek-v4-pro": CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  "deepseek-v4-flash": CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+  "deepseek-v4-flash-0731": CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
+  "deepseek/deepseek-v4-flash": CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
   /** Qwen 3.7 Max 제거 — 현재 기본 모델로 이전 */
   qwen: DEFAULT_SELECTED_AI,
   "qwen3.7-max": DEFAULT_SELECTED_AI,
@@ -533,6 +566,12 @@ export function resolveSelectedAI(value: unknown, fallback?: string): SelectedAI
 export function selectedAILabel(id: string): string {
   const opt = SELECTED_AI_OPTIONS.find((o) => o.id === id);
   if (opt) return opt.label;
+  if (isCheaperInferenceDeepSeekV4ProModel(id) || id === OPENROUTER_DEEPSEEK_V4_PRO_MODEL) {
+    return DEEPSEEK_DISPLAY_NAME;
+  }
+  if (isCheaperInferenceDeepSeekV4FlashModel(id) || id.toLowerCase().includes("deepseek-v4-flash")) {
+    return DEEPSEEK_V4_FLASH_DISPLAY_NAME;
+  }
   if (id === OPENROUTER_KIMI_K3_MODEL || isKimiModel(id)) {
     return KIMI_K3_DISPLAY_NAME;
   }

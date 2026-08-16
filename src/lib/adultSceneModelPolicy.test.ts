@@ -26,7 +26,7 @@ test("defaults keep DeepSeek adult primary and Aion primary OFF", () => {
   assert.equal(config.aionPrimaryEnabled, false);
   assert.equal(config.glmHardFailureFallbackEnabled, true);
   assert.equal(config.adminOnly, false);
-  assert.equal(ADULT_SCENE_MODEL_POLICY.primaryModelId, "deepseek-v4-pro");
+  assert.equal(ADULT_SCENE_MODEL_POLICY.primaryModelId, "deepseek-v4-pro-0813");
   assert.equal(ADULT_SCENE_MODEL_POLICY.hardFailureFallbackModelId, "glm-5.2");
 });
 

@@ -144,7 +144,25 @@ export function resolveRpDiagnosticCanary(opts: {
   const models = parseModelAllowlist(process.env[ENV_MODEL_IDS]);
   const modelId = (opts.modelId ?? "").trim().toLowerCase();
   if (!modelId) return null;
-  if (models.length > 0 && !models.includes(modelId)) return null;
+  if (models.length > 0) {
+    const matchesAllowlist = models.some((allowed) => {
+      if (allowed === modelId) return true;
+      if (
+        isCheaperInferenceDeepSeekV4ProModel(allowed) &&
+        isCheaperInferenceDeepSeekV4ProModel(modelId)
+      ) {
+        return true;
+      }
+      if (
+        isCheaperInferenceDeepSeekV4FlashModel(allowed) &&
+        isCheaperInferenceDeepSeekV4FlashModel(modelId)
+      ) {
+        return true;
+      }
+      return false;
+    });
+    if (!matchesAllowlist) return null;
+  }
   if (models.length === 0 && !isCheaperInferenceDeepSeekV4ProModel(modelId)) return null;
 
   if (resolveRpSceneCastMode(opts.contentKind) !== "single_primary") return null;

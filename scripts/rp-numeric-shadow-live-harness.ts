@@ -40,7 +40,7 @@ const EMAIL =
 const PASSWORD =
   process.env.SHADOW_ADMIN_PASSWORD ?? "rp-numeric-shadow-admin-26";
 const CHARACTER_ID = Number(process.env.SHADOW_CHARACTER_ID ?? "19");
-const MODEL = process.env.SHADOW_MODEL ?? "deepseek-v4-pro";
+const MODEL = process.env.SHADOW_MODEL ?? "deepseek-v4-pro-0813";
 const SERVER_LOG =
   process.env.SHADOW_SERVER_LOG ??
   "/opt/cursor/artifacts/rp-numeric-state-shadow-live/server.log";

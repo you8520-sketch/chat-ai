@@ -28,7 +28,7 @@ const OUT_ROOT =
   process.env.OUT_DIR ??
   `/opt/cursor/artifacts/deepseek-common-root-audit/01-postprocess/${VARIANT_LABEL}`;
 const ART_ROOT = process.env.ART_DIR ?? OUT_ROOT;
-const MODEL_UI = process.env.MODEL_UI ?? "deepseek-v4-pro";
+const MODEL_UI = process.env.MODEL_UI ?? "deepseek-v4-pro-0813";
 
 const TURNS = [
   "나는 렌이라고 부르면 돼....나는 본기억이 안나는데....나 알아?(갸웃)",

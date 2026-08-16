@@ -1,11 +1,7 @@
 import { CHARACTER_NAME_LIMIT } from "@/lib/characters";
 import { PROFILE_BIOGRAPHY_LIMIT } from "@/lib/generateProfile";
-import { OPENROUTER_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
-import {
-  OPENROUTER_CHAT_COMPLETIONS_URL,
-  buildOpenRouterHeaders,
-  resolveOpenRouterApiKey,
-} from "@/lib/openRouterConfig";
+import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
+import { callOpenRouterCompletion } from "@/lib/openRouterCompletion";
 
 export type ProfileData = {
   name: string | null;
@@ -15,7 +11,7 @@ export type ProfileData = {
   imageUrl: string | null;
 };
 
-export const FORMAT_PROFILE_MODEL = OPENROUTER_DEEPSEEK_V4_PRO_MODEL;
+export const FORMAT_PROFILE_MODEL = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
 
 const FORMAT_PROMPT = `너는 캐릭터 프로필 **디자인** 편집기야. 사용자 줄글의 **모든 내용을 100% 보존**하면서, 하비 AI 공통 마크다운 레이아웃(## 메인 캐릭터, ## 서브 캐릭터, - **라벨:** 목록)만 적용해 JSON으로 분류해.
 요약·축약·의역·재작성 금지. HTML·인라인 CSS 금지. description에는 원문 전체를 마크다운 디자인만 적용해 넣을 것 (최대 ${PROFILE_BIOGRAPHY_LIMIT.toLocaleString()}자).
@@ -87,33 +83,17 @@ function demoFormatProfile(raw: string): ProfileData {
 }
 
 async function callDeepSeekFormatProfile(text: string): Promise<string> {
-  const key = resolveOpenRouterApiKey();
-  const res = await fetch(OPENROUTER_CHAT_COMPLETIONS_URL, {
-    method: "POST",
-    headers: buildOpenRouterHeaders(key),
-    body: JSON.stringify({
-      model: FORMAT_PROFILE_MODEL,
-      messages: [
-        { role: "system", content: FORMAT_PROMPT },
-        { role: "user", content: text },
-      ],
-      stream: false,
-      temperature: 0.2,
-      max_tokens: 16384,
-    }),
-    signal: AbortSignal.timeout(120_000),
+  const { text: out } = await callOpenRouterCompletion({
+    model: FORMAT_PROFILE_MODEL,
+    system: FORMAT_PROMPT,
+    history: [{ role: "user", content: text }],
+    temperature: 0.2,
+    maxTokens: 16384,
+    disableReasoning: true,
+    requestKind: "format-profile",
+    timeoutMs: 120_000,
   });
-
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`OpenRouter ${res.status}: ${body.slice(0, 240)}`);
-  }
-
-  const data = (await res.json()) as {
-    choices?: { message?: { content?: string } }[];
-  };
-  const out = data.choices?.[0]?.message?.content?.trim() ?? "";
-  if (!out) throw new Error("DeepSeek empty completion");
+  if (!out.trim()) throw new Error("DeepSeek empty completion");
   return out;
 }
 
@@ -121,7 +101,10 @@ export async function formatProfileText(raw: string): Promise<{ data: ProfileDat
   const text = raw.trim();
   if (!text) throw new Error("변환할 텍스트를 입력하세요.");
 
-  if (!process.env.OPENROUTER_API_KEY?.trim()) {
+  if (
+    !process.env.CHEAPER_INFERENCE_API_KEY?.trim() &&
+    !process.env.OPENROUTER_API_KEY?.trim()
+  ) {
     return { data: demoFormatProfile(text), estimated: true };
   }
 

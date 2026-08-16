@@ -421,7 +421,7 @@ async function main() {
 
   const summary = {
     status: "CLOSED_ADULT_TEST_ELIGIBILITY_SMOKE_PASS",
-    FINAL_ADULT_MODEL: "deepseek-v4-pro",
+    FINAL_ADULT_MODEL: "deepseek-v4-pro-0813",
     ADULT_VISIBILITY_ON_RESULT: "eligible — DeepSeek used on adult entry/sticky",
     ADULT_VISIBILITY_OFF_RESULT: "ineligible — DeepSeek adult handoff NOT USED",
     ON_ROUTE_SMOKE: onResults,

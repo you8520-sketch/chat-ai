@@ -4,6 +4,10 @@
  * @see https://api-docs.deepseek.com/quick_start/pricing (DeepSeek V4 Pro cache hit)
  */
 import { resolveCheaperInferenceCatalogPricing } from "@/lib/cheaperInferenceCatalogPricing";
+import {
+  isCheaperInferenceDeepSeekV4FlashModel,
+  isCheaperInferenceDeepSeekV4ProModel,
+} from "@/lib/chatModels";
 
 export type OpenRouterCacheFamily = "anthropic" | "deepseek" | "google" | "openai" | "unknown";
 
@@ -281,7 +285,7 @@ export function resolveOpenRouterModelRates(modelId?: string | null): OpenRouter
   if (id === "claude-opus-5") {
     return withLiveCheaperInferenceRates(id, CHEAPER_INFERENCE_CLAUDE_OPUS_5_RATES);
   }
-  if (id === "deepseek-v4-pro") {
+  if (isCheaperInferenceDeepSeekV4ProModel(id)) {
     return withLiveCheaperInferenceRates(
       id,
       CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_RATES
@@ -302,7 +306,7 @@ export function resolveOpenRouterModelRates(modelId?: string | null): OpenRouter
       CHEAPER_INFERENCE_GEMINI_31_PRO_RATES
     );
   }
-  if (id === "deepseek-v4-flash") {
+  if (isCheaperInferenceDeepSeekV4FlashModel(id)) {
     return withLiveCheaperInferenceRates(
       id,
       CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_RATES
