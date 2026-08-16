@@ -1,0 +1,38 @@
+{
+  "SOURCE_API_CALLS": 0,
+  "GEMINI37_LENGTH_OWNER_COUNT": 1,
+  "location": "user_tail",
+  "gemini37": {
+    "label": "gemini-3.7-flash",
+    "system_model_specific_length_prompt": 0,
+    "rejected_b_sentence": 0,
+    "rejected_c_sentence": 0,
+    "generic_user_tail_length_owner": 1,
+    "user_tail_is_absolute_end": true,
+    "layout_before_length": true,
+    "system_has_user_tail_sentence": 0,
+    "system_chars": 5271,
+    "last_user_chars": 815,
+    "max_tokens": null,
+    "reasoning_effort": "low",
+    "temperature": 0.7
+  },
+  "deepseek_control": {
+    "label": "deepseek-v4-pro",
+    "system_model_specific_length_prompt": 0,
+    "rejected_b_sentence": 0,
+    "rejected_c_sentence": 0,
+    "generic_user_tail_length_owner": 1,
+    "user_tail_is_absolute_end": true,
+    "layout_before_length": true,
+    "system_has_user_tail_sentence": 0,
+    "system_chars": 5335,
+    "last_user_chars": 1094,
+    "max_tokens": null,
+    "reasoning_effort": null,
+    "temperature": 0.92
+  },
+  "user_tail_sentence_identical": true,
+  "user_tail_sentence": "이번 응답은 한국어 3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다. 장면에 필요한 내용이 있으면 더 길게 이어간다. 현재 상호작용을 요약하거나 성급히 닫지 말고, 관찰·행동·대사·감각·심리가 서로 다음 변화를 일으키도록 충분히 전개한다.",
+  "VANILLA_RESTORE_PASS": true
+}

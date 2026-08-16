@@ -341,3 +341,9 @@ valid totals: 178P revenue / 64.846 KRW actual / margin 63.6%
 
 Price table was not modified. userP uses the current Gemini 3.7 V2 formula (report-only).
 
+## Follow-up: SYSTEM owner discarded, vanilla restored
+
+This experiment was not a pure "add SYSTEM owner" test. Vanilla `USER_TAIL_LENGTH_OWNER_SENTENCE` was suppressed for Gemini 3.7 at the same time. Do **not** conclude "Gemini 3.7 shortens when given a length instruction."
+
+The SYSTEM block and the Gemini-3.7-only user-tail suppress are removed. B/C sentences stay rejected. See `VANILLA_RESTORE_AND_OWNER_AUDIT.md`.
+
