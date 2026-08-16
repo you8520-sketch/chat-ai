@@ -117,7 +117,7 @@ describe("Gemini rate compatibility", () => {
     );
     assert.equal(isGeminiFlashOpenRouterModel(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL), false);
     assert.ok(
-      !USER_SELECTABLE_AI_OPTIONS.some((o) => o.id === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL)
+      USER_SELECTABLE_AI_OPTIONS.some((o) => o.id === CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL)
     );
   });
 
