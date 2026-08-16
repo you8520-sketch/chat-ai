@@ -2,8 +2,14 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   computeOpusRollingGrossMargin,
+  isOpusTierPricedModel,
   resolveOpusUserTurnCharge,
 } from "./opusTierPricing";
+import {
+  CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+  CLAUDE_OPUS_MODEL,
+  CLAUDE_OPUS_MODEL_LEGACY,
+} from "@/lib/chatModels";
 import {
   billableOutputChars,
   computeOpenRouterTurnBilling,
@@ -16,6 +22,29 @@ import { usageToOpusPaidTurn } from "./opusMarginTelemetry";
 import type { Usage } from "./chatUsage";
 
 const OPUS = "claude-opus-5";
+
+describe("Opus tier-priced model allowlist", () => {
+  it("accepts production Claude Opus 5", () => {
+    assert.equal(isOpusTierPricedModel(CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL), true);
+    assert.equal(isOpusTierPricedModel("Claude-Opus-5"), true);
+  });
+
+  it("accepts known legacy OpenRouter Opus slugs", () => {
+    assert.equal(isOpusTierPricedModel(CLAUDE_OPUS_MODEL), true);
+    assert.equal(isOpusTierPricedModel(CLAUDE_OPUS_MODEL_LEGACY), true);
+    assert.equal(isOpusTierPricedModel("claude-opus"), true);
+    assert.equal(isOpusTierPricedModel("anthropic/claude-opus-latest"), true);
+  });
+
+  it("rejects unknown or future ids that only contain opus", () => {
+    assert.equal(isOpusTierPricedModel("my-opus-test"), false);
+    assert.equal(isOpusTierPricedModel("future-opus-experimental"), false);
+    assert.equal(isOpusTierPricedModel("not-opus"), false);
+    assert.equal(isOpusTierPricedModel("anthropic/claude-opus-4.6"), false);
+    assert.equal(isOpusTierPricedModel(""), false);
+    assert.equal(isOpusTierPricedModel(null), false);
+  });
+});
 
 describe("Opus output-length tier user pricing", () => {
   const cases = [
@@ -99,6 +128,23 @@ describe("Opus output-length tier user pricing", () => {
     assert.equal(cold.total, 490);
     assert.equal(warm.total, 490);
     assert.ok(cold.rawCostKrw !== warm.rawCostKrw);
+  });
+
+  it("does not apply Opus tiers to unknown opus-like ids", () => {
+    const unknown = computeOpenRouterTurnBilling({
+      modelId: "my-opus-test",
+      inputTokens: 200_000,
+      outputTokens: 4000,
+      outputChars: 9000,
+    });
+    assert.notEqual(unknown.total, 620);
+    const future = computeOpenRouterTurnBilling({
+      modelId: "future-opus-experimental",
+      inputTokens: 200_000,
+      outputTokens: 4000,
+      outputChars: 9000,
+    });
+    assert.notEqual(future.total, 620);
   });
 
   it("computeTurnBilling cheaperinference Opus matches openrouter Opus", () => {

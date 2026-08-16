@@ -3,6 +3,12 @@
  * Per-turn API cost / cache / widget raw cost never enter the user point formula.
  */
 
+import {
+  CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+  CLAUDE_OPUS_MODEL,
+  CLAUDE_OPUS_MODEL_LEGACY,
+} from "@/lib/chatModels";
+
 function envInt(name: string, fallback: number): number {
   const raw = process.env[name]?.trim();
   if (!raw) return fallback;
@@ -35,8 +41,24 @@ export const TARGET_OPUS_GROSS_MARGIN = envFloat(
   envFloat("OPENROUTER_OPUS_GROSS_MARGIN", 0.45)
 );
 
+/**
+ * Explicit Opus tier-pricing allowlist.
+ * Unknown / future ids that merely contain "opus" must not inherit this table.
+ * Legacy slugs are only the ones chatModels already remaps for billing compatibility.
+ */
+export const OPUS_TIER_PRICED_MODEL_IDS = new Set(
+  [
+    CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+    CLAUDE_OPUS_MODEL,
+    CLAUDE_OPUS_MODEL_LEGACY,
+    "claude-opus",
+    "anthropic/claude-opus-latest",
+  ].map((id) => id.trim().toLowerCase())
+);
+
 export function isOpusTierPricedModel(modelId?: string | null): boolean {
-  return /opus/i.test(modelId ?? "");
+  const id = (modelId ?? "").trim().toLowerCase();
+  return id.length > 0 && OPUS_TIER_PRICED_MODEL_IDS.has(id);
 }
 
 export function resolveOpusOutputTierPoints(outputChars: number): number {

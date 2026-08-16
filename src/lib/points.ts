@@ -35,7 +35,7 @@ import {
   HTML_ONLY_TURN_MAX_INPUT_TOKENS,
   HTML_ONLY_TURN_MAX_OUTPUT_TOKENS,
 } from "./htmlVisualCardRecovery";
-import { resolveOpusUserTurnCharge } from "./opusTierPricing";
+import { isOpusTierPricedModel, resolveOpusUserTurnCharge } from "./opusTierPricing";
 
 export type BillingWaiverReason =
   | "over_reasoning"
@@ -685,7 +685,7 @@ export function openRouterUsdCost(
 }
 
 function isOpenRouterOpusModel(modelId?: string): boolean {
-  return /opus/i.test(modelId ?? "");
+  return isOpusTierPricedModel(modelId);
 }
 
 function openRouterCharFloorKrw(outputChars: number, unitChars: number, krwPerUnit: number): number {
