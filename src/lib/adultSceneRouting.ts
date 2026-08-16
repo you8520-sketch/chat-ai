@@ -3,6 +3,7 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   normalizeDeepSeekV4ProModelId,
 } from "@/lib/chatModels";
+import { appendSourceSpecificQwenAdapter } from "@/lib/adultHandoffSourceRouting";
 import {
   classifyChatOocIntent,
   extractOocRoutingText,
@@ -41,6 +42,8 @@ export interface ModelRouteState {
   activeConsentMode: AdultConsentMode;
   sexualContextActive?: boolean;
   generalRouteBridge?: GeneralRouteBridge;
+  adultHandoffSourceModelId?: string;
+  adultHandoffTargetModelId?: string;
 }
 
 export interface GeneralRouteBridge {
@@ -354,6 +357,16 @@ export function parseModelRouteState(value: unknown): ModelRouteState {
             parsed.generalRouteBridge as GeneralRouteBridge
           )
         : undefined,
+    adultHandoffSourceModelId:
+      typeof parsed.adultHandoffSourceModelId === "string" &&
+      parsed.adultHandoffSourceModelId.trim()
+        ? parsed.adultHandoffSourceModelId.trim()
+        : undefined,
+    adultHandoffTargetModelId:
+      typeof parsed.adultHandoffTargetModelId === "string" &&
+      parsed.adultHandoffTargetModelId.trim()
+        ? parsed.adultHandoffTargetModelId.trim()
+        : undefined,
   };
 }
 
@@ -373,6 +386,12 @@ export function serializeModelRouteState(state: ModelRouteState): string {
     sexualContextActive: state.sexualContextActive === true,
     ...(state.generalRouteBridge
       ? { generalRouteBridge: sanitizeGeneralRouteBridge(state.generalRouteBridge) }
+      : {}),
+    ...(state.adultHandoffSourceModelId
+      ? { adultHandoffSourceModelId: state.adultHandoffSourceModelId }
+      : {}),
+    ...(state.adultHandoffTargetModelId
+      ? { adultHandoffTargetModelId: state.adultHandoffTargetModelId }
       : {}),
   });
 }
@@ -1063,6 +1082,8 @@ export function advanceModelRouteState(input: {
   generalRouteBridge?: GeneralRouteBridge;
   transientAdultCapableRoute?: boolean;
   establishedOngoingSexualContext?: boolean;
+  adultHandoffSourceModelId?: string;
+  adultHandoffTargetModelId?: string;
 }): ModelRouteState {
   if (!input.config.enabled) return input.previous;
   if (input.explicitSceneEnd) {
@@ -1113,6 +1134,16 @@ export function advanceModelRouteState(input: {
       sexualContextActive: input.sexualContextActive,
       generalRouteBridge:
         input.generalRouteBridge ?? input.previous.generalRouteBridge,
+      ...(canReturn
+        ? {}
+        : {
+            adultHandoffSourceModelId:
+              input.adultHandoffSourceModelId ??
+              input.previous.adultHandoffSourceModelId,
+            adultHandoffTargetModelId:
+              input.adultHandoffTargetModelId ??
+              input.previous.adultHandoffTargetModelId,
+          }),
     };
   }
 
@@ -1550,9 +1581,10 @@ export function renderSceneContinuityPacket(
 
 export function appendAdultHandoffPrompt(
   systemPrompt: string,
-  packet: SceneContinuityPacket
+  packet: SceneContinuityPacket,
+  opts?: { sourceModelId?: string; adultTargetModelId?: string }
 ): string {
-  return [
+  const common = [
     systemPrompt.trim(),
     renderSceneContinuityPacket(packet),
     packet.sceneReset
@@ -1561,17 +1593,25 @@ export function appendAdultHandoffPrompt(
   ]
     .filter(Boolean)
     .join("\n\n");
+  return appendSourceSpecificQwenAdapter(
+    common,
+    opts?.sourceModelId,
+    opts?.adultTargetModelId
+  );
 }
 
 export function appendAdultHandoffToSystemSplit<T extends {
   systemRulesBlock: string;
   characterSettingsBlock: string;
   dynamicBlock: string;
-}>(split: T | undefined, packet: SceneContinuityPacket): T | undefined {
+}>(
+  split: T | undefined,
+  packet: SceneContinuityPacket,
+  opts?: { sourceModelId?: string; adultTargetModelId?: string }
+): T | undefined {
   if (!split) return undefined;
-  return {
-    ...split,
-    dynamicBlock: [
+  const dynamicBlock = appendSourceSpecificQwenAdapter(
+    [
       split.dynamicBlock.trim(),
       renderSceneContinuityPacket(packet),
       packet.sceneReset
@@ -1580,6 +1620,12 @@ export function appendAdultHandoffToSystemSplit<T extends {
     ]
       .filter(Boolean)
       .join("\n\n"),
+    opts?.sourceModelId,
+    opts?.adultTargetModelId
+  );
+  return {
+    ...split,
+    dynamicBlock,
   };
 }
 

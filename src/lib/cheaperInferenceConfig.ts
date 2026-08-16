@@ -5,6 +5,7 @@ import {
   isCheaperInferenceDeepSeekV4ProModel,
   isCheaperInferenceGemini31ProModel,
   isCheaperInferenceGemini37FlashModel,
+  isCheaperInferenceQwen38MaxModel,
   isGpt56LunaModel,
   isGpt56TerraModel,
   normalizeDeepSeekV4ProModelId,
@@ -91,6 +92,11 @@ export function adaptCheaperInferenceChatBody(
     // Do not inherit the generic "none" fallback or Gemini 3.1-only extras.
     if (isCheaperInferenceGemini37FlashModel(model)) {
       adapted.reasoning_effort = "low";
+      return adapted;
+    }
+    if (isCheaperInferenceQwen38MaxModel(model)) {
+      delete adapted.thinking;
+      adapted.reasoning_effort = "none";
       return adapted;
     }
     adapted.reasoning_effort = isCheaperInferenceGemini31ProModel(model)
