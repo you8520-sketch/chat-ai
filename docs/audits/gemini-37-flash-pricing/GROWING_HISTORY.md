@@ -1,5 +1,7 @@
 # Gemini 3.7 Flash growing-history pricing live test
 
+T11–T20 continuation: `GROWING_HISTORY_T20.md`. Price table unchanged.
+
 ```text
 model = gemini-3.7-flash
 reasoning_effort = low
