@@ -167,6 +167,15 @@ export function buildStatusWidgetExtractReceipt(
   };
 }
 
+/** User-facing widget add-on. Opus bundles widget API cost into the main tier. */
+export function resolveWidgetUserCharge(
+  mainBillingCost: number,
+  widgetCostPoints: number,
+  bundleIntoMainCharge: boolean
+): number {
+  return bundleIntoMainCharge ? mainBillingCost : mainBillingCost + widgetCostPoints;
+}
+
 /** 위젯 추출 API 원가(KRW) → P 올림 + 메인 RP 과금과 합산 */
 export function applyStatusWidgetBillingCharge(
   record: Usage,
@@ -185,9 +194,11 @@ export function applyStatusWidgetBillingCharge(
   const widgetCostPoints = statusWidgetApiCostChargePoints(
     withReceipt.statusWidgetExtract!.apiRawCostKrw
   );
-  const totalCost = opts?.bundleIntoMainCharge
-    ? mainBillingCost
-    : mainBillingCost + widgetCostPoints;
+  const totalCost = resolveWidgetUserCharge(
+    mainBillingCost,
+    widgetCostPoints,
+    opts?.bundleIntoMainCharge === true
+  );
   const stages = withReceipt.stages?.map((s) =>
     s.stage === "상태창 추출" || s.stage.includes("위젯") ? { ...s, cost: widgetCostPoints } : s
   );
@@ -246,5 +257,45 @@ export function appendStatusWidgetExtractToUsageRecord(
       },
     ],
     estimated: record.estimated || widgetReceipt.estimated,
+  };
+}
+
+/**
+ * Production fallback / non-full-receipt path:
+ * attach widget receipt fields for admin accounting, then apply the same
+ * user-charge rule as applyStatusWidgetBillingCharge.
+ */
+export function applyStatusWidgetFallbackReceiptCharge(
+  record: Usage,
+  widgetUsage: TokenUsage,
+  exchangeRate: BillingExchangeRateSnapshot,
+  mainBillingCost: number,
+  billingMeta: StatusWidgetExtractBillingMeta,
+  opts?: { bundleIntoMainCharge?: boolean }
+): { record: Usage; totalCost: number; widgetCostPoints: number } {
+  const widgetReceipt = buildStatusWidgetExtractReceipt(
+    widgetUsage,
+    exchangeRate,
+    billingMeta
+  );
+  const widgetCostPoints = statusWidgetApiCostChargePoints(widgetReceipt.apiRawCostKrw);
+  const totalCost = resolveWidgetUserCharge(
+    mainBillingCost,
+    widgetCostPoints,
+    opts?.bundleIntoMainCharge === true
+  );
+  const mainApiRawCostKrw = record.mainApiRawCostKrw ?? record.apiRawCostKrw ?? 0;
+  return {
+    widgetCostPoints,
+    totalCost,
+    record: {
+      ...record,
+      baseCost: mainBillingCost,
+      widgetCostPoints,
+      cost: totalCost,
+      statusWidgetExtract: widgetReceipt,
+      mainApiRawCostKrw,
+      apiRawCostKrw: mainApiRawCostKrw + widgetReceipt.apiRawCostKrw,
+    },
   };
 }

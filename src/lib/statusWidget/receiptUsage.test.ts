@@ -3,8 +3,10 @@ import { describe, it } from "node:test";
 import {
   appendStatusWidgetExtractToUsageRecord,
   applyStatusWidgetBillingCharge,
+  applyStatusWidgetFallbackReceiptCharge,
   buildStatusWidgetExtractReceipt,
   mergeStatusWidgetExtractUsages,
+  resolveWidgetUserCharge,
   statusWidgetApiCostChargePoints,
   statusWidgetExtractModelLabel,
   type StatusWidgetExtractBillingMeta,
@@ -259,6 +261,52 @@ describe("statusWidget receiptUsage", () => {
     assert.equal(
       out.record.stages?.find((s) => s.stage === "상태창 추출")?.cost,
       out.widgetCostPoints
+    );
+  });
+
+  it("Opus 490P main tier + widget raw cost still charges 490P on both production paths", () => {
+    const exchangeRate = resolveBillingExchangeRateSnapshot();
+    const widgetUsage = {
+      inputTokens: 4252,
+      outputTokens: 120,
+      estimated: false,
+      upstreamCostUsd: 0.002,
+    };
+    const full = applyStatusWidgetBillingCharge(
+      baseUsage({ model: "claude-opus-5", cost: 490, baseCost: 490 }),
+      widgetUsage,
+      exchangeRate,
+      490,
+      FLASH,
+      { bundleIntoMainCharge: true }
+    );
+    const fallback = applyStatusWidgetFallbackReceiptCharge(
+      baseUsage({ model: "claude-opus-5", cost: 490, baseCost: 490 }),
+      widgetUsage,
+      exchangeRate,
+      490,
+      FLASH,
+      { bundleIntoMainCharge: true }
+    );
+    assert.equal(full.totalCost, 490);
+    assert.equal(fallback.totalCost, 490);
+    assert.ok(full.widgetCostPoints > 0);
+    assert.equal(full.widgetCostPoints, fallback.widgetCostPoints);
+    assert.equal(full.record.cost, 490);
+    assert.equal(fallback.record.cost, 490);
+    assert.equal(full.record.widgetCostPoints, full.widgetCostPoints);
+    assert.equal(fallback.record.widgetCostPoints, fallback.widgetCostPoints);
+    assert.ok(full.record.statusWidgetExtract);
+    assert.ok(fallback.record.statusWidgetExtract);
+    assert.ok((full.record.statusWidgetExtract?.apiRawCostKrw ?? 0) > 0);
+    assert.ok((fallback.record.statusWidgetExtract?.apiRawCostKrw ?? 0) > 0);
+    assert.equal(
+      resolveWidgetUserCharge(490, full.widgetCostPoints, true),
+      490
+    );
+    assert.equal(
+      resolveWidgetUserCharge(490, full.widgetCostPoints, false),
+      490 + full.widgetCostPoints
     );
   });
 

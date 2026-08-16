@@ -377,8 +377,7 @@ import {
 } from "@/lib/statusWidget/diagnostics";
 import {
   applyStatusWidgetBillingCharge,
-  buildStatusWidgetExtractReceipt,
-  statusWidgetApiCostChargePoints,
+  applyStatusWidgetFallbackReceiptCharge,
 } from "@/lib/statusWidget/receiptUsage";
 import type { Usage } from "@/lib/chatUsage";
 import { userMessageRequestsStatusWindowOoc } from "@/lib/statusMeta/ooc";
@@ -3937,7 +3936,7 @@ export async function POST(req: Request) {
             cacheWriteTokens: primaryStage?.cacheWriteTokens,
           };
           const opusExplain =
-            deliveredModelId && /opus/i.test(deliveredModelId)
+            deliveredModelId && isOpusTierPricedModel(deliveredModelId)
               ? explainOpenRouterOpusTurnCost(
                   totalInput,
                   totalOutput,
@@ -4406,7 +4405,7 @@ export async function POST(req: Request) {
                       mainApiRawCostKrw: mainOpenRouterApiRawCostKrw,
                     }
                   : {}),
-                ...(deliveredModelId && /opus/i.test(deliveredModelId)
+                ...(deliveredModelId && isOpusTierPricedModel(deliveredModelId)
                   ? {
                       normalizedRawCostKrw: openRouterNormalizedRawCostKrw({
                         promptTokens: apiInputTokens,
@@ -4529,20 +4528,16 @@ export async function POST(req: Request) {
               usageRecord = widgetBilling.record;
               cost = widgetBilling.totalCost;
             } else {
-              const widgetReceipt = buildStatusWidgetExtractReceipt(
+              const widgetBilling = applyStatusWidgetFallbackReceiptCharge(
+                usageRecord,
                 widgetResolved.widgetExtractUsage,
                 billingExchangeRate,
-                widgetResolved.widgetExtractBillingMeta
+                mainBillingCost,
+                widgetResolved.widgetExtractBillingMeta,
+                { bundleIntoMainCharge: isOpusTierPricedModel(deliveredModelId) }
               );
-              const widgetCostPoints = statusWidgetApiCostChargePoints(widgetReceipt.apiRawCostKrw);
-              const bundleWidget = isOpusTierPricedModel(deliveredModelId);
-              cost = bundleWidget ? mainBillingCost : mainBillingCost + widgetCostPoints;
-              usageRecord = {
-                ...usageRecord,
-                baseCost: mainBillingCost,
-                widgetCostPoints,
-                cost,
-              };
+              usageRecord = widgetBilling.record;
+              cost = widgetBilling.totalCost;
             }
           }
         }
@@ -4577,7 +4572,8 @@ export async function POST(req: Request) {
         }
         const internalAdultRouteMeta = usageRecord.adultRouting ?? null;
 
-        // Billing/public base usage (may still include admin receipt fields).
+        // Billing/public base usage. Admin receipts keep widget/raw-cost fields;
+        // public receipts are sanitized before DB/client so reload cannot leak them.
         let baseUsageRecord: Usage = usageRecord;
         if (!showFullBillingReceipt) {
           baseUsageRecord = sanitizeUsageForPublicReceipt(usageRecord);

@@ -14,7 +14,8 @@ describe("/api/chat Muse acceptance client/DB usage split", () => {
   it("builds dbUsageRecord with museAcceptance and clientUsageRecord without it", () => {
     const src = readFileSync(routeUrl, "utf8");
     assert.match(src, /let dbUsageRecord:\s*Usage/);
-    assert.match(src, /const clientUsageRecord\s*=\s*stripMuseAcceptanceFromUsage\(dbUsageRecord\)/);
+    assert.match(src, /const clientUsageRecord\s*=\s*stripAdultRoutingForClient\(/);
+    assert.match(src, /stripMuseAcceptanceFromUsage\(dbUsageRecord\)/);
     assert.match(src, /usageJson:\s*JSON\.stringify\(dbUsageRecord\)/);
     assert.match(src, /usage:\s*clientUsageRecord/);
     // Must not re-attach museAcceptance onto the SSE usage object after strip.
