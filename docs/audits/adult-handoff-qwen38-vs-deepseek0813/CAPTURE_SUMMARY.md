@@ -2,7 +2,7 @@
 
 ```text
 branch = audit/adult-handoff-qwen38-vs-deepseek0813
-commit = PENDING_AFTER_COMMIT
+commit = bca11fd91cdd81c7534b1246fe18da5a61e94d94
 base main sha = 382b6cf29eb512a72258e655c7223985ca0d81c6
 Base URL = https://api.cheaperinference.com/v1
 requested model IDs = deepseek-v4-pro-0813, qwen-3-8-max
