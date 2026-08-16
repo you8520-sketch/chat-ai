@@ -6,7 +6,13 @@ import { CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL } from "@/lib/chatModels";
 /**
  * Telemetry-only. Does not change the V3 price table.
  * User P is computed from the frozen V3 formula; cache/upstream never enter P.
+ * Individual band / turn / last20 margins never retune price.
  */
+
+/** Frozen V3 production-candidate flag. Not a rolling telemetry verdict. */
+export const V3_PRODUCTION_CANDIDATE = true;
+export const PRICE_RETUNE = false;
+export const AUTO_PRICE_CHANGE = false;
 
 export const GEMINI37_LONG_CONTEXT_INPUT_FLOOR = 75_000;
 export const GEMINI37_TELEMETRY_MIN_SAMPLES = 20;
@@ -55,10 +61,21 @@ export type Gemini37RollingTelemetry = {
 };
 
 export type Gemini37TelemetryVerdict =
-  | "V3_PRODUCTION_CANDIDATE"
-  | "LONG_CONTEXT_REVIEW"
-  | "PRICE_HIGH_REVIEW"
-  | "INSUFFICIENT_SAMPLES";
+  | "INSUFFICIENT_SAMPLES"
+  | "URGENT_PRICE_REVIEW"
+  | "LOW_MARGIN_REVIEW"
+  | "PASS"
+  | "HIGH_BUT_ACCEPTABLE"
+  | "PRICE_HIGH_REVIEW";
+
+export type Gemini37ContextShareTelemetry = {
+  turnCount: number;
+  turnSharePct: number | null;
+  revenueP: number;
+  revenueSharePct: number | null;
+  rawApiCostKrw: number;
+  realizedGrossMarginPct: number | null;
+};
 
 export function round1(n: number): number {
   return Math.round(n * 10) / 10;
@@ -159,14 +176,8 @@ export function aggregateGemini37FlashTelemetry(
   >;
   bands: Gemini37BandTelemetry[];
   rolling: Gemini37RollingTelemetry[];
-  longContext: {
-    turnCount: number;
-    turnSharePct: number | null;
-    revenueP: number;
-    revenueSharePct: number | null;
-    rawApiCostKrw: number;
-    realizedGrossMarginPct: number | null;
-  };
+  shortContext: Gemini37ContextShareTelemetry;
+  longContext: Gemini37ContextShareTelemetry;
   overall: Gemini37RollingTelemetry;
   verdict: Gemini37TelemetryVerdict;
 } {
@@ -236,56 +247,67 @@ export function aggregateGemini37FlashTelemetry(
   const overall = roll("all");
   const rolling = [roll("last20", 20), roll("last50", 50), roll("last100", 100), overall];
 
-  const longRows = valid.filter(
-    (row) => row.apiInputTokens > GEMINI37_LONG_CONTEXT_INPUT_FLOOR
-  );
-  const longRevenue = longRows.reduce((sum, row) => sum + row.v3UserP, 0);
-  const longCost = round3(
-    longRows.reduce((sum, row) => sum + row.actualApiCostKrw, 0)
-  );
-  const longContext = {
-    turnCount: longRows.length,
-    turnSharePct:
-      valid.length > 0 ? round1((longRows.length / valid.length) * 100) : null,
-    revenueP: longRevenue,
-    revenueSharePct:
-      overall.revenueP > 0 ? round1((longRevenue / overall.revenueP) * 100) : null,
-    rawApiCostKrw: longCost,
-    realizedGrossMarginPct: realizedGrossMarginPct(longRevenue, longCost),
+  const contextShare = (
+    rows: typeof valid
+  ): Gemini37ContextShareTelemetry => {
+    const revenueP = rows.reduce((sum, row) => sum + row.v3UserP, 0);
+    const rawApiCostKrw = round3(
+      rows.reduce((sum, row) => sum + row.actualApiCostKrw, 0)
+    );
+    return {
+      turnCount: rows.length,
+      turnSharePct:
+        valid.length > 0 ? round1((rows.length / valid.length) * 100) : null,
+      revenueP,
+      revenueSharePct:
+        overall.revenueP > 0 ? round1((revenueP / overall.revenueP) * 100) : null,
+      rawApiCostKrw,
+      realizedGrossMarginPct: realizedGrossMarginPct(revenueP, rawApiCostKrw),
+    };
   };
+
+  const shortContext = contextShare(
+    valid.filter((row) => row.apiInputTokens <= GEMINI37_LONG_CONTEXT_INPUT_FLOOR)
+  );
+  const longContext = contextShare(
+    valid.filter((row) => row.apiInputTokens > GEMINI37_LONG_CONTEXT_INPUT_FLOOR)
+  );
 
   return {
     valid,
     bands: bands.length ? bands : GEMINI37_INPUT_BANDS.map((b) => emptyBand(b.label)),
     rolling,
+    shortContext,
     longContext,
     overall,
     verdict: resolveGemini37TelemetryVerdict({
       overallMarginPct: overall.realizedGrossMarginPct,
       sampleCount: overall.validSampleCount,
-      longContextMarginPct: longContext.realizedGrossMarginPct,
-      longContextTurnSharePct: longContext.turnSharePct,
     }),
   };
 }
 
+export function isGemini37ProductionValidated(sampleCount: number): boolean {
+  return sampleCount >= GEMINI37_TELEMETRY_MIN_SAMPLES;
+}
+
+/**
+ * Rolling verdict from overall margin only.
+ * last20 / last50 / last100, <=75K, and >75K are display-only.
+ * n=0 INSUFFICIENT_SAMPLES is not a price failure.
+ */
 export function resolveGemini37TelemetryVerdict(opts: {
   overallMarginPct: number | null;
   sampleCount: number;
-  longContextMarginPct: number | null;
-  longContextTurnSharePct: number | null;
 }): Gemini37TelemetryVerdict {
   if (opts.sampleCount < GEMINI37_TELEMETRY_MIN_SAMPLES) {
     return "INSUFFICIENT_SAMPLES";
   }
   const overall = opts.overallMarginPct;
   if (overall == null) return "INSUFFICIENT_SAMPLES";
-  if (overall > 60) return "PRICE_HIGH_REVIEW";
-  if (overall >= 55) return "V3_PRODUCTION_CANDIDATE";
-  const longShare = opts.longContextTurnSharePct ?? 0;
-  const longMargin = opts.longContextMarginPct;
-  if (longShare > 0 && (longMargin == null || longMargin < 55)) {
-    return "LONG_CONTEXT_REVIEW";
-  }
-  return "LONG_CONTEXT_REVIEW";
+  if (overall < 50) return "URGENT_PRICE_REVIEW";
+  if (overall < 55) return "LOW_MARGIN_REVIEW";
+  if (overall < 60) return "PASS";
+  if (overall <= 65) return "HIGH_BUT_ACCEPTABLE";
+  return "PRICE_HIGH_REVIEW";
 }

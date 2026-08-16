@@ -5,6 +5,9 @@
  *   + V3 long-context surcharge (apiInputTokens > 75,000 only).
  * cacheRead / cacheWrite / standardInput / upstreamCostUsd / actualApiCostKrw
  * are never inputs to the user price.
+ *
+ * V3 is frozen: PRICE_RETUNE=false, AUTO_PRICE_CHANGE=false.
+ * Telemetry never writes these defaults.
  */
 
 export const GEMINI37_FLASH_DEFAULT_BASE_POINTS = 35;

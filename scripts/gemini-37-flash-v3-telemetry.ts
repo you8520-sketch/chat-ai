@@ -14,7 +14,11 @@ Module._load = function (request, parent, isMain) {
 import fs from "node:fs";
 import path from "node:path";
 import {
+  AUTO_PRICE_CHANGE,
+  PRICE_RETUNE,
+  V3_PRODUCTION_CANDIDATE,
   aggregateGemini37FlashTelemetry,
+  isGemini37ProductionValidated,
   type Gemini37FlashTelemetryReceipt,
 } from "../src/lib/gemini37FlashPricingTelemetry";
 import { getEffectiveKrwPerUsd } from "../src/lib/exchangeRate";
@@ -102,12 +106,43 @@ function renderReport(opts: {
       ),
     ].join("\n");
 
+  const productionValidated = isGemini37ProductionValidated(
+    productionAgg.overall.validSampleCount
+  );
+  const displayBlock = (
+    agg: ReturnType<typeof aggregateGemini37FlashTelemetry>
+  ) => {
+    const last20 = agg.rolling.find((r) => r.window === "last20");
+    const last50 = agg.rolling.find((r) => r.window === "last50");
+    const last100 = agg.rolling.find((r) => r.window === "last100");
+    return [
+      `- last20: n=${last20?.validSampleCount ?? 0}, margin ${last20?.realizedGrossMarginPct ?? "n/a"}%`,
+      `- last50: n=${last50?.validSampleCount ?? 0}, margin ${last50?.realizedGrossMarginPct ?? "n/a"}%`,
+      `- last100: n=${last100?.validSampleCount ?? 0}, margin ${last100?.realizedGrossMarginPct ?? "n/a"}%`,
+      `- <=75K margin: ${agg.shortContext.realizedGrossMarginPct ?? "n/a"}%`,
+      `- >75K margin: ${agg.longContext.realizedGrossMarginPct ?? "n/a"}%`,
+      `- >75K turn share: ${agg.longContext.turnSharePct ?? "n/a"}%`,
+      `- >75K revenue share: ${agg.longContext.revenueSharePct ?? "n/a"}%`,
+      `- overall rolling margin: ${agg.overall.realizedGrossMarginPct ?? "n/a"}%`,
+    ].join("\n");
+  };
+
   return `# Gemini 3.7 Flash V3 telemetry
 
-Telemetry-only. V3 numbers unchanged. No LLM. No auto price change.
+Telemetry-only. V3 numbers frozen. No LLM. No auto price change.
 
 \`krwPerUsd = ${krwPerUsd}\`
 cheap/expensive = actual API KRW >= 70% of catalog list on apiInput+billedOutput.
+
+## Freeze
+
+- V3_PRODUCTION_CANDIDATE=${V3_PRODUCTION_CANDIDATE}
+- PRICE_RETUNE=${PRICE_RETUNE}
+- AUTO_PRICE_CHANGE=${AUTO_PRICE_CHANGE}
+- PRODUCTION_VALIDATED=${productionValidated}
+- PRODUCTION_VERDICT=${productionAgg.verdict}
+
+n=0 production receipts is not a price failure. The model has not received paid traffic yet.
 
 ## Production paid receipts
 
@@ -122,9 +157,10 @@ ${bandTable(productionAgg)}
 
 ${rollingTable(productionAgg)}
 
->75K turn share: ${productionAgg.longContext.turnSharePct ?? "n/a"}%
->75K revenue share: ${productionAgg.longContext.revenueSharePct ?? "n/a"}%
+${displayBlock(productionAgg)}
+
 production verdict: **${productionAgg.verdict}**
+PRODUCTION_VALIDATED=${productionValidated}
 
 ## Live shadow corpus (T1–T30 valid, T11 excluded)
 
@@ -134,11 +170,14 @@ ${bandTable(liveAgg)}
 
 ${rollingTable(liveAgg)}
 
+${displayBlock(liveAgg)}
+
+<=75K: n=${liveAgg.shortContext.turnCount}, margin ${liveAgg.shortContext.realizedGrossMarginPct}%
 >75K: n=${liveAgg.longContext.turnCount}, turn share ${liveAgg.longContext.turnSharePct}%, revenue ${liveAgg.longContext.revenueP}P (${liveAgg.longContext.revenueSharePct}%), cost ${liveAgg.longContext.rawApiCostKrw} KRW, margin ${liveAgg.longContext.realizedGrossMarginPct}%
 
 live-corpus verdict: **${liveAgg.verdict}**
 
-Owner is aggregate rolling margin, not per-turn or per-band 55–60%.
+Owner is overall rolling margin only. last20 / last50 / last100 and band margins are display-only.
 price auto-change = forbidden
 `;
 }
@@ -157,13 +196,24 @@ function main() {
     liveAgg,
     krwPerUsd: LIVE_CORPUS_KRW_PER_USD,
   });
+  const productionValidated = isGemini37ProductionValidated(
+    productionAgg.overall.validSampleCount
+  );
   const payload = {
     krwPerUsd: LIVE_CORPUS_KRW_PER_USD,
+    freeze: {
+      V3_PRODUCTION_CANDIDATE,
+      PRICE_RETUNE,
+      AUTO_PRICE_CHANGE,
+      PRODUCTION_VALIDATED: productionValidated,
+      PRODUCTION_VERDICT: productionAgg.verdict,
+    },
     production,
     productionTelemetry: {
       verdict: productionAgg.verdict,
       bands: productionAgg.bands,
       rolling: productionAgg.rolling,
+      shortContext: productionAgg.shortContext,
       longContext: productionAgg.longContext,
       overall: productionAgg.overall,
     },
@@ -171,6 +221,7 @@ function main() {
       verdict: liveAgg.verdict,
       bands: liveAgg.bands,
       rolling: liveAgg.rolling,
+      shortContext: liveAgg.shortContext,
       longContext: liveAgg.longContext,
       overall: liveAgg.overall,
     },
@@ -185,10 +236,15 @@ function main() {
   console.log(
     JSON.stringify(
       {
+        V3_PRODUCTION_CANDIDATE,
+        PRICE_RETUNE,
+        AUTO_PRICE_CHANGE,
+        PRODUCTION_VALIDATED: productionValidated,
+        PRODUCTION_VERDICT: productionAgg.verdict,
         productionPaid: production.paidGemini37Messages,
-        productionVerdict: productionAgg.verdict,
         liveN: liveAgg.overall.validSampleCount,
         liveOverallMargin: liveAgg.overall.realizedGrossMarginPct,
+        liveShortContext: liveAgg.shortContext,
         liveLongContext: liveAgg.longContext,
         liveRolling: liveAgg.rolling,
         liveVerdict: liveAgg.verdict,

@@ -2,9 +2,13 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { computeGemini37FlashUserChargePoints } from "@/lib/gemini37FlashPricing";
 import {
+  AUTO_PRICE_CHANGE,
+  PRICE_RETUNE,
+  V3_PRODUCTION_CANDIDATE,
   aggregateGemini37FlashTelemetry,
   classifyGemini37InputBand,
   classifyUpstreamCostClass,
+  isGemini37ProductionValidated,
   resolveGemini37TelemetryVerdict,
   type Gemini37FlashTelemetryReceipt,
 } from "@/lib/gemini37FlashPricingTelemetry";
@@ -97,50 +101,105 @@ describe("Gemini 3.7 Flash V3 telemetry-only", () => {
     assert.equal(byBand[">105K"]?.revenueP, 129);
     assert.equal(byBand["75K-85K"]?.cheapUpstreamCount, 1);
     assert.equal(byBand["85K-95K"]?.expensiveUpstreamCount, 1);
+    assert.equal(report.shortContext.turnCount, 1);
+    assert.equal(report.shortContext.turnSharePct, 20);
+    assert.equal(report.shortContext.revenueP, 35);
     assert.equal(report.longContext.turnCount, 4);
     assert.equal(report.longContext.turnSharePct, 80);
     assert.equal(report.longContext.revenueP, 81 + 97 + 113 + 129);
     assert.equal(report.overall.revenueP, 35 + 81 + 97 + 113 + 129);
     assert.equal(report.rolling.find((r) => r.window === "last20")?.validSampleCount, 5);
+    assert.equal(report.rolling.find((r) => r.window === "last50")?.validSampleCount, 5);
+    assert.equal(report.rolling.find((r) => r.window === "last100")?.validSampleCount, 5);
     assert.equal(report.verdict, "INSUFFICIENT_SAMPLES");
   });
 
-  it("uses aggregate rolling margin as the owner verdict", () => {
-    assert.equal(
-      resolveGemini37TelemetryVerdict({
-        overallMarginPct: 56.2,
-        sampleCount: 29,
-        longContextMarginPct: 49.8,
-        longContextTurnSharePct: 34.5,
-      }),
-      "V3_PRODUCTION_CANDIDATE"
-    );
-    assert.equal(
-      resolveGemini37TelemetryVerdict({
-        overallMarginPct: 49.8,
-        sampleCount: 29,
-        longContextMarginPct: 40,
-        longContextTurnSharePct: 40,
-      }),
-      "LONG_CONTEXT_REVIEW"
-    );
-    assert.equal(
-      resolveGemini37TelemetryVerdict({
-        overallMarginPct: 64,
-        sampleCount: 29,
-        longContextMarginPct: 70,
-        longContextTurnSharePct: 20,
-      }),
-      "PRICE_HIGH_REVIEW"
-    );
+  it("freezes V3 as a production candidate without auto price change", () => {
+    assert.equal(V3_PRODUCTION_CANDIDATE, true);
+    assert.equal(PRICE_RETUNE, false);
+    assert.equal(AUTO_PRICE_CHANGE, false);
+    assert.equal(isGemini37ProductionValidated(0), false);
+    assert.equal(isGemini37ProductionValidated(19), false);
+    assert.equal(isGemini37ProductionValidated(20), true);
+  });
+
+  it("uses overall rolling margin only; n=0 is not a price failure", () => {
     assert.equal(
       resolveGemini37TelemetryVerdict({
         overallMarginPct: 56.2,
         sampleCount: 0,
-        longContextMarginPct: null,
-        longContextTurnSharePct: null,
       }),
       "INSUFFICIENT_SAMPLES"
+    );
+    assert.equal(
+      resolveGemini37TelemetryVerdict({
+        overallMarginPct: 56.2,
+        sampleCount: 19,
+      }),
+      "INSUFFICIENT_SAMPLES"
+    );
+    assert.equal(
+      resolveGemini37TelemetryVerdict({
+        overallMarginPct: 49.9,
+        sampleCount: 20,
+      }),
+      "URGENT_PRICE_REVIEW"
+    );
+    assert.equal(
+      resolveGemini37TelemetryVerdict({
+        overallMarginPct: 50,
+        sampleCount: 20,
+      }),
+      "LOW_MARGIN_REVIEW"
+    );
+    assert.equal(
+      resolveGemini37TelemetryVerdict({
+        overallMarginPct: 54.3,
+        sampleCount: 20,
+      }),
+      "LOW_MARGIN_REVIEW"
+    );
+    assert.equal(
+      resolveGemini37TelemetryVerdict({
+        overallMarginPct: 55,
+        sampleCount: 20,
+      }),
+      "PASS"
+    );
+    assert.equal(
+      resolveGemini37TelemetryVerdict({
+        overallMarginPct: 56.2,
+        sampleCount: 29,
+      }),
+      "PASS"
+    );
+    assert.equal(
+      resolveGemini37TelemetryVerdict({
+        overallMarginPct: 59.9,
+        sampleCount: 20,
+      }),
+      "PASS"
+    );
+    assert.equal(
+      resolveGemini37TelemetryVerdict({
+        overallMarginPct: 60,
+        sampleCount: 20,
+      }),
+      "HIGH_BUT_ACCEPTABLE"
+    );
+    assert.equal(
+      resolveGemini37TelemetryVerdict({
+        overallMarginPct: 65,
+        sampleCount: 20,
+      }),
+      "HIGH_BUT_ACCEPTABLE"
+    );
+    assert.equal(
+      resolveGemini37TelemetryVerdict({
+        overallMarginPct: 65.1,
+        sampleCount: 20,
+      }),
+      "PRICE_HIGH_REVIEW"
     );
   });
 });
