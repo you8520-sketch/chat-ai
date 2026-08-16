@@ -1,0 +1,105 @@
+{
+  "dbWrite": false,
+  "recharge": false,
+  "llmCalls": 0,
+  "priceAutoChanged": false,
+  "HUMAN_REVIEW_REQUIRED": true,
+  "dbStatus": "DB_UNAVAILABLE",
+  "sampleTurns": 0,
+  "availableSampleOnly": true,
+  "recommendation": {
+    "action": "AVAILABLE_SAMPLE_ONLY",
+    "note": "표본이 20턴 미만이므로 45% 달성 여부를 확정하지 않는다."
+  },
+  "windows": {
+    "all": {
+      "label": "all",
+      "sampleTurns": 0,
+      "avgOutputChars": null,
+      "avgInputTokens": null,
+      "avgOldCharge": null,
+      "avgNewCharge": null,
+      "totalApiCost": 0,
+      "totalNewRevenue": 0,
+      "newRealizedGrossMarginPct": null,
+      "coldWriteTurnCount": 0,
+      "p50NewCharge": null,
+      "p90NewCharge": null,
+      "maxNewCharge": null,
+      "availableSampleOnly": true,
+      "recommendation": {
+        "action": "AVAILABLE_SAMPLE_ONLY",
+        "note": "표본이 20턴 미만이므로 45% 달성 여부를 확정하지 않는다."
+      }
+    },
+    "last20": {
+      "label": "last20",
+      "sampleTurns": 0,
+      "avgOutputChars": null,
+      "avgInputTokens": null,
+      "avgOldCharge": null,
+      "avgNewCharge": null,
+      "totalApiCost": 0,
+      "totalNewRevenue": 0,
+      "newRealizedGrossMarginPct": null,
+      "coldWriteTurnCount": 0,
+      "p50NewCharge": null,
+      "p90NewCharge": null,
+      "maxNewCharge": null,
+      "availableSampleOnly": true,
+      "recommendation": {
+        "action": "AVAILABLE_SAMPLE_ONLY",
+        "note": "표본이 20턴 미만이므로 45% 달성 여부를 확정하지 않는다."
+      }
+    },
+    "last50": {
+      "label": "last50",
+      "sampleTurns": 0,
+      "avgOutputChars": null,
+      "avgInputTokens": null,
+      "avgOldCharge": null,
+      "avgNewCharge": null,
+      "totalApiCost": 0,
+      "totalNewRevenue": 0,
+      "newRealizedGrossMarginPct": null,
+      "coldWriteTurnCount": 0,
+      "p50NewCharge": null,
+      "p90NewCharge": null,
+      "maxNewCharge": null,
+      "availableSampleOnly": true,
+      "recommendation": {
+        "action": "AVAILABLE_SAMPLE_ONLY",
+        "note": "표본이 20턴 미만이므로 45% 달성 여부를 확정하지 않는다."
+      }
+    },
+    "last100": {
+      "label": "last100",
+      "sampleTurns": 0,
+      "avgOutputChars": null,
+      "avgInputTokens": null,
+      "avgOldCharge": null,
+      "avgNewCharge": null,
+      "totalApiCost": 0,
+      "totalNewRevenue": 0,
+      "newRealizedGrossMarginPct": null,
+      "coldWriteTurnCount": 0,
+      "p50NewCharge": null,
+      "p90NewCharge": null,
+      "maxNewCharge": null,
+      "availableSampleOnly": true,
+      "recommendation": {
+        "action": "AVAILABLE_SAMPLE_ONLY",
+        "note": "표본이 20턴 미만이므로 45% 달성 여부를 확정하지 않는다."
+      }
+    }
+  },
+  "volatility": {
+    "oldChargeRange": null,
+    "newChargeRange": null,
+    "oldP90MinusP10": null,
+    "newP90MinusP10": null,
+    "oldMaxSingleTurnCharge": null,
+    "newMaxSingleTurnCharge": null,
+    "hardCap620AppliedCount": 0
+  }
+}
