@@ -1,8 +1,17 @@
+import {
+  applySelectedModelIdentity,
+  collapsePublicHandoffStages,
+} from "@/lib/adultHandoffDisplay";
 import type { Usage } from "@/lib/chatUsage";
 
 export const BILLING_BREAKDOWN_SYSTEM_RULES_LABEL = "시스템 프롬프트 (고정 규칙)";
 /** Keyword-activated lorebook entries injected this turn */
 export const BILLING_BREAKDOWN_KEYWORD_LOREBOOK_LABEL = "활성화 로어북";
+
+export type StripAdultRoutingOptions = {
+  /** Admin/debug — keep full adultRouting metadata. Public clients never receive it. */
+  keepInternal?: boolean;
+};
 
 function isAdminEmailUser(user: { email: string } & { is_admin?: number }): boolean {
   if (user.is_admin === 1) return true;
@@ -18,6 +27,12 @@ export function canShowFullBillingReceipt(
   user: { email: string } & { is_admin?: number }
 ): boolean {
   return isAdminEmailUser(user);
+}
+
+export function keepInternalAdultRoutingForUser(
+  user: { email: string } & { is_admin?: number }
+): boolean {
+  return canShowFullBillingReceipt(user);
 }
 
 export function filterUsageBreakdownForReceipt(
@@ -54,34 +69,31 @@ export function sanitizeUsageForPublicReceipt(usage: Usage): Usage {
     breakdown: filterUsageBreakdownForReceipt(rest.breakdown, false),
   };
   if (routing?.activeRoute === "adult") {
-    publicUsage.model = routing.userSelectedModel;
-    publicUsage.modelLabel = routing.userSelectedModelLabel;
-    publicUsage.selectedAI = routing.userSelectedModel;
-    publicUsage.provider = routing.userSelectedProvider;
-    publicUsage.stages = publicUsage.stages?.map((stage) => ({
-      ...stage,
-      model: routing.userSelectedModel,
-      stage: "main",
-    }));
+    Object.assign(publicUsage, applySelectedModelIdentity(publicUsage, routing));
+    Object.assign(publicUsage, collapsePublicHandoffStages(publicUsage, routing));
   }
   return publicUsage;
 }
 
-/** Keep admin receipt detail while hiding internal adult route/model identity. */
-export function stripAdultRoutingForClient(usage: Usage): Usage {
+/**
+ * Client serialization — keep selected-model identity on top-level fields.
+ * Public clients never receive adultRouting. Admin/debug may keep the full object.
+ */
+export function stripAdultRoutingForClient(
+  usage: Usage,
+  options?: StripAdultRoutingOptions
+): Usage {
   const routing = usage.adultRouting;
   const { adultRouting: _adultRouting, ...rest } = usage;
-  const client = { ...rest } as Usage;
+  let client = { ...rest } as Usage;
   if (routing?.activeRoute === "adult") {
-    client.model = routing.userSelectedModel;
-    client.modelLabel = routing.userSelectedModelLabel;
-    client.selectedAI = routing.userSelectedModel;
-    client.provider = routing.userSelectedProvider;
-    client.stages = client.stages?.map((stage) => ({
-      ...stage,
-      model: routing.userSelectedModel,
-      stage: "main",
-    }));
+    client = applySelectedModelIdentity(client, routing);
+    if (!options?.keepInternal) {
+      client = collapsePublicHandoffStages(client, routing);
+    }
+  }
+  if (options?.keepInternal && routing) {
+    client.adultRouting = routing;
   }
   return client;
 }

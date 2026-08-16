@@ -96,15 +96,26 @@ export function latestVariantIndexByGenerationSequence(variants: MessageVariant[
   return latestIndex;
 }
 
+export type SerializeVariantsForClientOptions = {
+  keepInternalAdultRouting?: boolean;
+};
+
 /**
  * Client serialization — strips internal Muse acceptance telemetry from every
  * variant.usage. DB/alternates may still store museAcceptance; never expose it.
+ * Adult handoff turns keep a public selected/actual subset for receipts.
  */
-export function serializeVariantsForClient(variants: MessageVariant[], activeVariant: number) {
+export function serializeVariantsForClient(
+  variants: MessageVariant[],
+  activeVariant: number,
+  options?: SerializeVariantsForClientOptions
+) {
   const clientVariants = variants.map((v) => ({
     ...v,
     usage: v.usage
-      ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(v.usage))
+      ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(v.usage), {
+          keepInternal: options?.keepInternalAdultRouting,
+        })
       : null,
   }));
   return { variants: clientVariants, activeVariant, variantCount: clientVariants.length };

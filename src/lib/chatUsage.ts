@@ -136,31 +136,31 @@ export type Usage = {
   usedEnglishCharacterPrompt?: boolean;
   characterPromptLanguage?: "english" | "korean_fallback";
   /**
-   * Server-only adult scene routing telemetry. Public receipt sanitization
-   * removes this object and restores the user's selected model identity.
+   * Adult scene routing telemetry. Public receipts never include this object.
+   * Admin/debug and server metadata keep the full record, including actualModel.
    */
   adultRouting?: {
     activeRoute: "general" | "adult";
-    sceneModeBefore: string;
-    sceneModeAfter: string;
+    sceneModeBefore?: string;
+    sceneModeAfter?: string;
     routeTriggerReason?: string;
-    requestedModel: string;
+    requestedModel?: string;
     actualModel: string;
     actualProvider: string;
     userSelectedModel: string;
     userSelectedModelLabel: string;
-    userSelectedProvider: "gemini" | "openrouter" | "openai" | "cheaperinference";
+    userSelectedProvider?: "gemini" | "openrouter" | "openai" | "cheaperinference";
     rawTurnsIncluded?: number;
     rawTokensIncluded?: number;
-    fallbackAttempted: boolean;
-    fallbackSucceeded: boolean;
+    fallbackAttempted?: boolean;
+    fallbackSucceeded?: boolean;
     glmHardFailureFallbackAttempted?: boolean;
     glmHardFailureFallbackSucceeded?: boolean;
     glmHardFailureReason?: string;
     hiddenFallbackOverheadCostUsd?: number;
     finalDeliveredModelCostUsd?: number;
     totalUpstreamCostUsd?: number;
-    userChargedPoints: number;
+    userChargedPoints?: number;
     latencyMs?: number;
   };
 };
