@@ -1,5 +1,12 @@
 {
   "krwPerUsd": 1443.158,
+  "freeze": {
+    "V3_PRODUCTION_CANDIDATE": true,
+    "PRICE_RETUNE": false,
+    "AUTO_PRICE_CHANGE": false,
+    "PRODUCTION_VALIDATED": false,
+    "PRODUCTION_VERDICT": "INSUFFICIENT_SAMPLES"
+  },
   "production": {
     "extractedAt": "2026-08-16T09:45:00.000Z",
     "source": "railway enchanting-ambition /data/app.db SELECT-only",
@@ -103,6 +110,14 @@
         "realizedGrossMarginPct": null
       }
     ],
+    "shortContext": {
+      "turnCount": 0,
+      "turnSharePct": null,
+      "revenueP": 0,
+      "revenueSharePct": null,
+      "rawApiCostKrw": 0,
+      "realizedGrossMarginPct": null
+    },
     "longContext": {
       "turnCount": 0,
       "turnSharePct": null,
@@ -120,7 +135,7 @@
     }
   },
   "liveShadowTelemetry": {
-    "verdict": "V3_PRODUCTION_CANDIDATE",
+    "verdict": "PASS",
     "bands": [
       {
         "band": "<=75K",
@@ -213,6 +228,14 @@
         "realizedGrossMarginPct": 56.2
       }
     ],
+    "shortContext": {
+      "turnCount": 19,
+      "turnSharePct": 65.5,
+      "revenueP": 1142,
+      "revenueSharePct": 51.9,
+      "rawApiCostKrw": 433.654,
+      "realizedGrossMarginPct": 62
+    },
     "longContext": {
       "turnCount": 10,
       "turnSharePct": 34.5,
