@@ -51,7 +51,7 @@ import { buildAdvancedProseNsfwGuidelines } from "@/lib/advancedProseNsfwGuideli
 import { buildProseStyleXmlBundle } from "@/lib/proseStyleXmlBundle";
 import { resolveProseStyleSection } from "@/lib/proseStyleResolver";
 import { resolveDeepSeekLengthAdapterSection } from "@/lib/sharedNovelProseModelAdapters";
-import { resolveGemini37FlashLengthAdapterSection } from "@/lib/gemini37FlashLengthAdapter";
+import { appendGemini37FlashLengthToUserTurn } from "@/lib/gemini37FlashLengthAdapter";
 import { isSharedNovelProseV2EnabledForUser } from "@/lib/sharedNovelProseV2Policy";
 import { buildRegenerateSystemDirective } from "@/lib/continueNarrative";
 import {
@@ -1149,19 +1149,8 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     );
   }
 
-  // Gemini 3.7 Flash — length sentence only. No style / agency / world extras.
-  const gemini37FlashLengthAdapter = resolveGemini37FlashLengthAdapterSection(
-    input.modelId
-  );
-  if (gemini37FlashLengthAdapter) {
-    pushSection(
-      "rule-gemini37-flash-length-adapter",
-      "Gemini 3.7 Flash length adapter (experiment)",
-      "systemRules",
-      gemini37FlashLengthAdapter,
-      "dynamic"
-    );
-  }
+  // Gemini 3.7 Flash length sentence is user-turn terminal only (C).
+  // Do not inject it into system/model-specific sections.
 
   // Admin-only Muse canary: unknown-information truth priority as the final
   // system section. Independent of M1.
@@ -1420,6 +1409,10 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       userTurnContent = `${userTurnContent.trimEnd()}\n\n${COMMON_LENGTH_OWNER_MINIMAL}`;
     }
   }
+  userTurnContent = appendGemini37FlashLengthToUserTurn(
+    userTurnContent,
+    input.modelId
+  );
   const estimatePayloadTokens = (hist: ContextBuildInput["shortTermHistory"]) =>
     estimateTokens(
       `${systemPrompt}\n${[...hist, { role: "user" as const, content: userTurnContent }]

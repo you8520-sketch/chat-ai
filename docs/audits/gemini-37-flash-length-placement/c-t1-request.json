@@ -1,0 +1,29 @@
+{
+  "reasoning_effort": "low",
+  "max_tokens": null,
+  "model": "gemini-3.7-flash",
+  "systemChars": 6399,
+  "lastUserTail": " continuity may be co-narrated when consistent with [USER CONTROL — COLLABORATIVE INTERACTIVE].\n나는 렌이라고… 본 기억이 안 나는데… 나 알아?\n\n레이아웃: 지문과 \"…\" 대사 사이 빈 줄(\\n\\n) 필수 — 지문 줄 끝에 대사 붙이지 말 것.\n\n이번 응답은 한국어 3,200자 이상을 기본 목표로 하나의 충분히 전개된 장면으로 작성한다. 장면에 필요한 내용이 있으면 더 길게 이어간다. 현재 상호작용을 요약하거나 성급히 닫지 말고, 관찰·행동·대사·감각·심리가 서로 다음 변화를 일으키도록 충분히 전개한다.\n\n현재 장면을 충분히 전개하여 한국어 공백 포함 약 3,200~4,000자 분량으로 완성한다. 짧게 마무리하거나 요약하지 않는다.",
+  "placement": {
+    "systemHasLengthSentence": false,
+    "systemCount": 0,
+    "lastUserCount": 1,
+    "assembledCount": 1,
+    "commonOwnerPresent": true,
+    "terminalLast": true,
+    "commonBeforeTerminal": true,
+    "gemini31AgencyInjected": false,
+    "placementOk": true
+  },
+  "requestPlacement": {
+    "systemHasLengthSentence": false,
+    "systemCount": 0,
+    "lastUserCount": 1,
+    "assembledCount": 1,
+    "commonOwnerPresent": true,
+    "terminalLast": true,
+    "commonBeforeTerminal": true,
+    "gemini31AgencyInjected": false,
+    "placementOk": true
+  }
+}
