@@ -1,0 +1,52 @@
+{
+  "purpose": "Request-shape compatibility only. Not a quality A/B.",
+  "model": "gemini-3.7-flash",
+  "prompt": "Reply with exactly: ok",
+  "max_tokens": 32,
+  "stream": false,
+  "none_not_tested": true,
+  "A": {
+    "label": "A_unspecified",
+    "http_status": 200,
+    "latency_s": 2.022,
+    "requested_model": "gemini-3.7-flash",
+    "resolved_model": "gemini-3.7-flash",
+    "finish_reason": "length",
+    "content": "ok",
+    "reasoning": null,
+    "reasoning_tokens": null,
+    "usage": {
+      "prompt_tokens": 5,
+      "completion_tokens": 60,
+      "total_tokens": 65,
+      "cost": 0.000161,
+      "cost_details": {
+        "upstream_inference_cost": 0.000161
+      }
+    },
+    "error_body": null
+  },
+  "B": {
+    "label": "B_low",
+    "http_status": 200,
+    "latency_s": 1.93,
+    "requested_model": "gemini-3.7-flash",
+    "resolved_model": "gemini-3.7-flash",
+    "finish_reason": "stop",
+    "content": "ok",
+    "reasoning": null,
+    "reasoning_tokens": null,
+    "usage": {
+      "prompt_tokens": 5,
+      "completion_tokens": 1,
+      "total_tokens": 6,
+      "cost": 6e-06,
+      "cost_details": {
+        "upstream_inference_cost": 6e-06
+      }
+    },
+    "error_body": null
+  },
+  "baseline_reasoning_setting": "low",
+  "reason": "low returned HTTP 200 with finish stop and content ok. unspecified also 200 but finish length and 60 completion tokens for ok."
+}

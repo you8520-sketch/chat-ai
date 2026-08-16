@@ -1,0 +1,11 @@
+{
+  "reasoning_effort": "low",
+  "max_tokens": null,
+  "model": "gemini-3.7-flash",
+  "systemChars": 6399,
+  "promptAudit": {
+    "GEMINI_37_MODEL_SPECIFIC_PROMPT_CHARS": 0,
+    "gemini31AgencyInjected": false,
+    "gemini37NamedPromptPresent": false
+  }
+}
