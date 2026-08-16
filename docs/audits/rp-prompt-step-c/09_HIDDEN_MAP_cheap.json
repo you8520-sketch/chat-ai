@@ -1,0 +1,25 @@
+{
+  "note": "Reveal only after scoring seal",
+  "blindMap": {
+    "Gemini_D": {
+      "X": "A",
+      "Y": "B"
+    },
+    "Gemini_N": {
+      "X": "A",
+      "Y": "B"
+    },
+    "DeepSeek_D": {
+      "X": "B",
+      "Y": "A"
+    },
+    "DeepSeek_N": {
+      "X": "A",
+      "Y": "B"
+    }
+  },
+  "arm_meanings": {
+    "A": "production buildWebnovelOutputLayoutRecencyBlock()",
+    "B": "OUTPUT_LAYOUT_SEMANTIC_COMPACT_CANDIDATE"
+  }
+}
