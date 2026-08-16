@@ -4157,6 +4157,21 @@ export async function POST(req: Request) {
             pct: Math.round((s.est / totalEst) * 100),
           }))
           .filter((s) => s.tokens > 0);
+        const splitChars = openRouterSystemSplitRef;
+        const historyChars = historyRef.reduce((n, m) => n + (m.content?.length ?? 0), 0);
+        const currentUserChars = historyRef.at(-1)?.content.length ?? 0;
+        const assembledPromptChars = {
+          system: (systemRef ?? "").length,
+          systemRules: splitChars?.systemRulesBlock.length ?? 0,
+          characterSettings: splitChars?.characterSettingsBlock.length ?? 0,
+          dynamic: splitChars?.dynamicBlock.length ?? 0,
+          history: historyChars,
+          currentUser: currentUserChars,
+          total:
+            (systemRef ?? "").length +
+            Math.max(0, historyChars - currentUserChars) +
+            currentUserChars,
+        };
 
         const stageCosts = billableStages.map((s) => ({ ...s, cost }));
 
@@ -4305,6 +4320,8 @@ export async function POST(req: Request) {
               ? flashHtmlUsage?.estimated ?? flashPromptEstimateTokens > 0
               : billableStages.some((s) => s.estimated),
           breakdown,
+          breakdownAllocation: "estimated_section_allocation",
+          assembledPromptChars,
           stages: stageCosts,
           ...( {
                 apiInputTokens,
