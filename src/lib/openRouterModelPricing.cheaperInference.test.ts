@@ -33,6 +33,9 @@ test("DeepSeek V4 Flash uses the Cheaper Inference catalog rates", () => {
   assert.equal(rates.cacheReadUsdPerM, 0.0196);
   assert.equal(rates.cacheWriteUsdPerM, 0.098);
   assert.equal(rates.outputUsdPerM, 0.196);
+  const dated = resolveOpenRouterModelRates("deepseek-v4-flash-0731");
+  assert.equal(dated.inputUsdPerM, 0.098);
+  assert.equal(dated.outputUsdPerM, 0.196);
 });
 
 test("GPT-5.6 Luna uses the Cheaper Inference catalog rates", () => {

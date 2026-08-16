@@ -149,6 +149,22 @@ describe("canShowFullBillingReceipt", () => {
     assert.equal(sanitized.museAcceptance, undefined);
   });
 
+  it("strips English-layer admin metadata from public receipts", () => {
+    const usage = {
+      input: 10,
+      output: 20,
+      model: "deepseek-v4-pro-0813",
+      route: "safe" as const,
+      cost: 1,
+      breakdown: [],
+      usedEnglishCharacterPrompt: true,
+      characterPromptLanguage: "english",
+    } satisfies Usage;
+    const sanitized = sanitizeUsageForPublicReceipt(usage);
+    assert.equal(sanitized.usedEnglishCharacterPrompt, undefined);
+    assert.equal(sanitized.characterPromptLanguage, undefined);
+  });
+
   it("rewrites handoff identity to the selected model and strips adultRouting for public", () => {
     const usage = {
       input: 10,

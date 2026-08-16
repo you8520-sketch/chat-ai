@@ -339,7 +339,7 @@ export function resolveOpenRouterModelRates(modelId?: string | null): OpenRouter
   if (id === "qwen-3-8-max") {
     return withLiveCheaperInferenceRates(id, CHEAPER_INFERENCE_QWEN_38_MAX_RATES);
   }
-  if (id === "deepseek-v4-flash") {
+  if (id === "deepseek-v4-flash" || id === "deepseek-v4-flash-0731") {
     return withLiveCheaperInferenceRates(
       id,
       CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_RATES

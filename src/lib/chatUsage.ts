@@ -130,6 +130,12 @@ export type Usage = {
    */
   museAcceptance?: Record<string, unknown>;
   /**
+   * Admin/debug — which character prompt layer was assembled this turn.
+   * Public receipt sanitization strips these fields.
+   */
+  usedEnglishCharacterPrompt?: boolean;
+  characterPromptLanguage?: "english" | "korean_fallback";
+  /**
    * Adult scene routing telemetry. Public receipts never include this object.
    * Admin/debug and server metadata keep the full record, including actualModel.
    */

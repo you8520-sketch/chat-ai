@@ -1,11 +1,14 @@
 import crypto from "crypto";
 import { getDb } from "@/lib/db";
 import {
-  callGemini,
-  BACKGROUND_OPENROUTER_MODEL,
+  callPromptTranslation,
   resolveBackgroundTextModelId,
 } from "@/lib/ai";
-import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL } from "@/lib/chatModels";
+import {
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+  isCheaperInferenceModel,
+} from "@/lib/chatModels";
 import { toOpenRouterModelId } from "@/lib/openRouterCompletion";
 import { deserializeCharacterChunks } from "@/utils/characterParser";
 import type { CharacterChunk } from "@/types";
@@ -76,25 +79,49 @@ Output protocol:
 - The input contains numbered segments delimited by ⟦SEG n⟧ ... ⟦/SEG n⟧. Output EVERY segment in the same order with the SAME delimiters, containing only the English translation.
 - Output nothing outside the segment delimiters.`;
 
-const DEFAULT_TRANSLATION_FALLBACK_MODELS = [
-  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_MODEL,
-];
+/** Character-save translation primary — CI Flash dated slug, not background memory. */
+export const DEFAULT_TRANSLATION_PRIMARY_MODEL =
+  CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL;
 
-/** Primary + fallback OpenRouter models for save-time KO→EN translation (deduped). */
-export function resolveTranslationModels(): string[] {
-  const primary =
-    process.env.PROMPT_TRANSLATION_MODEL?.trim() ||
-    process.env.BACKGROUND_MEMORY_MODEL?.trim() ||
-    BACKGROUND_OPENROUTER_MODEL;
-  const fallbacksRaw = process.env.PROMPT_TRANSLATION_FALLBACK_MODELS?.trim();
+/** Distinct CI Pro fallback — same resolved model is not a fallback. */
+export const DEFAULT_TRANSLATION_FALLBACK_MODEL =
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
+
+export const TRANSLATION_BATCH_MAX_CHUNKS = 3;
+export const TRANSLATION_BATCH_MAX_SOURCE_CHARS = 1800;
+export const ENGLISH_BACKFILL_FAILURE_COOLDOWN_MS = 30 * 60 * 1000;
+
+export type EnglishLayerStatus =
+  | "CURRENT"
+  | "STALE"
+  | "MISSING"
+  | "NO_TRANSLATABLE_CONTENT";
+
+export type CharacterPromptLanguage = "english" | "korean_fallback";
+
+/** Distinct provider+model identity — same resolved model is not a fallback. */
+export function translationModelIdentity(modelId: string): string {
+  const resolved = resolveBackgroundTextModelId(modelId);
+  const provider = isCheaperInferenceModel(resolved) ? "cheaperinference" : "openrouter";
+  return `${provider}:${resolved.trim().toLowerCase()}`;
+}
+
+/** Primary + distinct fallback models for save-time KO→EN translation. */
+export function resolveTranslationModels(
+  env: NodeJS.ProcessEnv = process.env
+): string[] {
+  const primary = resolveBackgroundTextModelId(
+    env.PROMPT_TRANSLATION_MODEL?.trim() || DEFAULT_TRANSLATION_PRIMARY_MODEL
+  );
+  const fallbacksRaw = env.PROMPT_TRANSLATION_FALLBACK_MODELS?.trim();
   const fallbacks = fallbacksRaw
     ? fallbacksRaw.split(",").map((s) => s.trim()).filter(Boolean)
-    : DEFAULT_TRANSLATION_FALLBACK_MODELS;
+    : [DEFAULT_TRANSLATION_FALLBACK_MODEL];
   const seen = new Set<string>();
   const out: string[] = [];
   for (const model of [primary, ...fallbacks]) {
     const resolvedModel = resolveBackgroundTextModelId(model);
-    const key = toOpenRouterModelId(resolvedModel);
+    const key = translationModelIdentity(resolvedModel);
     if (!key || seen.has(key)) continue;
     seen.add(key);
     out.push(resolvedModel);
@@ -102,17 +129,28 @@ export function resolveTranslationModels(): string[] {
   return out;
 }
 
+/** True when at least one resolved translation model has a usable transport key. */
+export function hasPromptTranslationTransport(
+  env: NodeJS.ProcessEnv = process.env
+): boolean {
+  return resolveTranslationModels(env).some((model) =>
+    isCheaperInferenceModel(model)
+      ? Boolean(env.CHEAPER_INFERENCE_API_KEY?.trim())
+      : Boolean(env.OPENROUTER_API_KEY?.trim())
+  );
+}
+
 export function hashKoreanChunks(chunks: CharacterChunk[]): string {
   const src = chunks.map((c) => `${c.id}\u0000${c.content}`).join("\u0001");
   return crypto.createHash("sha256").update(src, "utf8").digest("hex");
 }
 
-function isTranslatableChunk(c: CharacterChunk): boolean {
+export function isTranslatableChunk(c: CharacterChunk): boolean {
   // speech chunks (말투/예시 대화) must stay Korean — they anchor the output style.
   return c.category !== "speech" && !!c.content.trim();
 }
 
-function parseSegmentedResponse(text: string, count: number): string[] | null {
+export function parseSegmentedResponse(text: string, count: number): string[] | null {
   const out: string[] = [];
   for (let i = 1; i <= count; i++) {
     const open = text.indexOf(SEG_OPEN(i));
@@ -125,60 +163,110 @@ function parseSegmentedResponse(text: string, count: number): string[] | null {
   return out;
 }
 
+export function splitTranslationBatches(targets: CharacterChunk[]): CharacterChunk[][] {
+  const batches: CharacterChunk[][] = [];
+  let current: CharacterChunk[] = [];
+  let chars = 0;
+  for (const chunk of targets) {
+    const len = chunk.content.length;
+    const wouldExceed =
+      current.length > 0 &&
+      (current.length >= TRANSLATION_BATCH_MAX_CHUNKS ||
+        chars + len > TRANSLATION_BATCH_MAX_SOURCE_CHARS);
+    if (wouldExceed) {
+      batches.push(current);
+      current = [];
+      chars = 0;
+    }
+    current.push(chunk);
+    chars += len;
+  }
+  if (current.length > 0) batches.push(current);
+  return batches;
+}
+
+function buildTranslationPayload(targets: CharacterChunk[]): string {
+  return targets
+    .map((c, i) => `${SEG_OPEN(i + 1)}\n${c.content}\n${SEG_CLOSE(i + 1)}`)
+    .join("\n\n");
+}
+
 /**
- * Translate translatable chunks to English via OpenRouter (primary + fallbacks).
- * Returns the English chunk array (only translated chunks; speech chunks omitted),
- * or null when every model fails.
+ * Translate one bounded batch. Rejects finish=length and incomplete segment sets.
+ * Does not persist.
  */
 async function translateChunksWithModel(
   targets: CharacterChunk[],
-  payload: string,
   modelId: string
 ): Promise<CharacterChunk[] | null> {
-  const { text } = await callGemini(
+  const payload = buildTranslationPayload(targets);
+  const { text, usage } = await callPromptTranslation(
     CHARACTER_TRANSLATION_SYSTEM_PROMPT,
     [{ role: "user", content: payload }],
     modelId
   );
+  const finish = usage.finishReason?.toLowerCase() ?? "";
+  if (finish === "length" || finish === "max_tokens") {
+    console.warn(
+      `[promptTranslation] finish=${finish} (${toOpenRouterModelId(modelId)}) — batch rejected`
+    );
+    return null;
+  }
   const parsed = parseSegmentedResponse(text, targets.length);
   if (!parsed) return null;
   return targets.map((c, i) => ({ ...c, content: parsed[i] }));
 }
 
+/**
+ * Translate translatable chunks to English via distinct primary + fallback models.
+ * Batches so each request stays inside the translation-only output cap.
+ * Returns null when any expected segment fails — never a partial set.
+ */
 export async function translateChunksToEnglish(
   chunks: CharacterChunk[]
 ): Promise<CharacterChunk[] | null> {
   const targets = chunks.filter(isTranslatableChunk);
   if (targets.length === 0) return [];
 
-  const payload = targets
-    .map((c, i) => `${SEG_OPEN(i + 1)}\n${c.content}\n${SEG_CLOSE(i + 1)}`)
-    .join("\n\n");
-
+  const batches = splitTranslationBatches(targets);
   const models = resolveTranslationModels();
-  for (let i = 0; i < models.length; i++) {
-    const model = models[i];
-    try {
-      const result = await translateChunksWithModel(targets, payload, model);
-      if (result) {
-        if (i > 0) {
-          console.log(`[promptTranslation] succeeded with fallback model ${toOpenRouterModelId(model)}`);
+  const translated: CharacterChunk[] = [];
+
+  for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+    const batch = batches[batchIndex]!;
+    let batchResult: CharacterChunk[] | null = null;
+    for (let i = 0; i < models.length; i++) {
+      const model = models[i]!;
+      try {
+        batchResult = await translateChunksWithModel(batch, model);
+        if (batchResult) {
+          if (i > 0) {
+            console.log(
+              `[promptTranslation] batch ${batchIndex + 1}/${batches.length} succeeded with fallback ${toOpenRouterModelId(model)}`
+            );
+          }
+          break;
         }
-        return result;
+        console.warn(
+          `[promptTranslation] segment parse failed (${toOpenRouterModelId(model)}) batch ${batchIndex + 1}/${batches.length}` +
+            (i < models.length - 1 ? " — trying next model" : "")
+        );
+      } catch (e) {
+        console.warn(
+          `[promptTranslation] translation call failed (${toOpenRouterModelId(model)}) batch ${batchIndex + 1}/${batches.length}:`,
+          (e as Error).message + (i < models.length - 1 ? " — trying next model" : "")
+        );
       }
-      console.warn(
-        `[promptTranslation] segment parse failed (${toOpenRouterModelId(model)})` +
-          (i < models.length - 1 ? " — trying next model" : "")
-      );
-    } catch (e) {
-      console.warn(
-        `[promptTranslation] translation call failed (${toOpenRouterModelId(model)}):`,
-        (e as Error).message + (i < models.length - 1 ? " — trying next model" : "")
-      );
     }
+    if (!batchResult) {
+      console.warn(
+        `[promptTranslation] batch ${batchIndex + 1}/${batches.length} failed on all models — keeping Korean fallback, no partial save`
+      );
+      return null;
+    }
+    translated.push(...batchResult);
   }
-  console.warn("[promptTranslation] all translation models failed — keeping Korean fallback");
-  return null;
+  return translated;
 }
 
 /**
@@ -204,6 +292,7 @@ export async function translateAndSaveCharacterPromptEn(
     const english = await translateChunksToEnglish(chunks);
     if (english === null) return false;
 
+    // Atomic: write English layer + Korean hash together only after every segment succeeds.
     db.prepare("UPDATE characters SET setting_chunks_en=?, prompt_translation_hash=? WHERE id=?").run(
       JSON.stringify(english),
       hash,
@@ -232,20 +321,101 @@ export function loadEnglishChunks(
   return parsed.length > 0 ? parsed : null;
 }
 
+export function classifyEnglishLayer(opts: {
+  koreanChunks: CharacterChunk[];
+  settingChunksEn?: string | null;
+  promptTranslationHash?: string | null;
+}): EnglishLayerStatus {
+  const translatable = opts.koreanChunks.filter(isTranslatableChunk);
+  if (translatable.length === 0) return "NO_TRANSLATABLE_CONTENT";
+  const english = loadEnglishChunks(
+    {
+      setting_chunks_en: opts.settingChunksEn,
+      prompt_translation_hash: opts.promptTranslationHash,
+    },
+    opts.koreanChunks
+  );
+  if (english) return "CURRENT";
+  const storedHash = opts.promptTranslationHash?.trim() ?? "";
+  const hasStoredEn = !!opts.settingChunksEn?.trim() && opts.settingChunksEn.trim() !== "[]";
+  if (hasStoredEn && storedHash && storedHash !== hashKoreanChunks(opts.koreanChunks)) {
+    return "STALE";
+  }
+  return "MISSING";
+}
+
+export function characterPromptLanguageFromUsedEnglish(
+  usedEnglish: boolean
+): CharacterPromptLanguage {
+  return usedEnglish ? "english" : "korean_fallback";
+}
+
 // ---------- Opportunistic background backfill (legacy characters) ----------
 const inflightBackfill = new Set<number>();
+const backfillFailedAt = new Map<number, number>();
 
-/** Fire-and-forget background translation for characters without an _en layer. */
+export function resetEnglishBackfillStateForTests(): void {
+  inflightBackfill.clear();
+  backfillFailedAt.clear();
+}
+
+export function markEnglishBackfillFailureForTests(
+  characterId: number,
+  at = Date.now()
+): void {
+  backfillFailedAt.set(characterId, at);
+}
+
+export function canScheduleEnglishBackfill(
+  characterId: number,
+  now = Date.now()
+): boolean {
+  if (!hasPromptTranslationTransport()) return false;
+  if (inflightBackfill.has(characterId)) return false;
+  const failedAt = backfillFailedAt.get(characterId);
+  if (
+    failedAt != null &&
+    now - failedAt < ENGLISH_BACKFILL_FAILURE_COOLDOWN_MS
+  ) {
+    return false;
+  }
+  return true;
+}
+
+/** Fire-and-forget background translation. One in-flight job per character; failed jobs cool down. */
 export function scheduleEnglishBackfill(characterId: number, chunks: CharacterChunk[]): void {
-  if (!process.env.OPENROUTER_API_KEY?.trim()) return;
-  if (inflightBackfill.has(characterId)) return;
+  if (!canScheduleEnglishBackfill(characterId)) {
+    if (
+      hasPromptTranslationTransport() &&
+      !inflightBackfill.has(characterId)
+    ) {
+      console.warn(
+        `[promptTranslation] skip backfill character ${characterId} — cooldown after failure`
+      );
+    }
+    return;
+  }
   inflightBackfill.add(characterId);
   setTimeout(() => {
     translateAndSaveCharacterPromptEn(characterId, chunks)
       .then((ok) => {
-        if (ok) console.log(`[promptTranslation] backfilled English layer for character ${characterId}`);
+        if (ok) {
+          backfillFailedAt.delete(characterId);
+          console.log(`[promptTranslation] backfilled English layer for character ${characterId}`);
+        } else {
+          backfillFailedAt.set(characterId, Date.now());
+          console.warn(
+            `[promptTranslation] backfill failed for character ${characterId} — Korean source kept, stale English unused`
+          );
+        }
       })
-      .catch(() => {})
+      .catch((e) => {
+        backfillFailedAt.set(characterId, Date.now());
+        console.warn(
+          `[promptTranslation] backfill error for character ${characterId}:`,
+          (e as Error).message
+        );
+      })
       .finally(() => inflightBackfill.delete(characterId));
   }, 10);
 }
