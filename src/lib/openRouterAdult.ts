@@ -952,6 +952,30 @@ export function applyAnthropicCacheAndPrefill(
 }
 
 /**
+ * OpenRouter Anthropic: system + history cache and optional assistant prefill.
+ * Cheaper Inference Anthropic: same cache breakpoints, never assistant prefill.
+ * Other transports / non-Anthropic models: no-op.
+ */
+export function applyCacheAndPrefillForTransport(
+  transport: { provider: "openrouter" | "cheaperinference" },
+  messages: OpenRouterChatMessage[],
+  modelId: string,
+  charName?: string,
+  opts?: { recoveryAssistantPrefill?: string; skipAssistantPrefill?: boolean }
+): { messages: OpenRouterChatMessage[]; prefill: string } {
+  if (transport.provider === "openrouter") {
+    return applyAnthropicCacheAndPrefill(messages, modelId, charName, opts);
+  }
+  if (transport.provider === "cheaperinference" && isAnthropicModel(modelId)) {
+    return applyAnthropicCacheAndPrefill(messages, modelId, charName, {
+      ...opts,
+      skipAssistantPrefill: true,
+    });
+  }
+  return { messages, prefill: "" };
+}
+
+/**
  * Prefill echo 방어 — provider가 prefill을 응답 앞에 echo하면 제거.
  * (Anthropic 표준 동작은 echo 없음이지만, OpenRouter 경유 provider 변형 대비)
  */
@@ -1128,10 +1152,7 @@ function requestBodyKeyDiff(
  * Shared primary RP wire assembler (production stream + parity harness).
  * Builds messages via buildOpenRouterMessages, then OpenRouter request body,
  * then CheaperInference adaptation when transport is cheaperinference.
- * Does not apply Anthropic cache/prefill (OpenRouter Anthropic-only overlay).
- */
-/**
- * Wire-body assembler shared by production stream + parity harness.
+ * Cheaper Inference Anthropic also gets history cache_control (no assistant prefill).
  * Does not require API credentials — credentialed transport is resolved at fetch time.
  */
 export function assemblePrimaryRpRequest(opts: {
@@ -1175,6 +1196,18 @@ export function assemblePrimaryRpRequest(opts: {
       role: m.role as "system" | "user" | "assistant",
       content: m.content,
     }));
+  }
+  if (transport.provider === "cheaperinference") {
+    messages = applyCacheAndPrefillForTransport(
+      transport,
+      messages,
+      modelId,
+      opts.messageOpts?.charName,
+      {
+        recoveryAssistantPrefill: opts.messageOpts?.recoveryAssistantPrefill,
+        skipAssistantPrefill: true,
+      }
+    ).messages;
   }
   const requestBodyBeforeAdapt = buildOpenRouterRequestBody(
     modelId,
@@ -1247,18 +1280,18 @@ User explicitly requested inline HTML via OOC. Output allowed: inline HTML with 
     }
 
     // Claude(Anthropic): system 블록 캐싱 + assistant prefill (그 외 모델은 no-op)
-    const { messages, prefill } =
-      transport.provider === "openrouter"
-        ? applyAnthropicCacheAndPrefill(
-            baseMessages,
-            apiModelId,
-            messageOpts?.charName,
-            {
-              recoveryAssistantPrefill: messageOpts?.recoveryAssistantPrefill,
-              skipAssistantPrefill,
-            }
-          )
-        : { messages: baseMessages, prefill: "" };
+    // Cheaper Inference Anthropic은 history cache breakpoint만 적용한다.
+    // assistant prefill은 OpenRouter Claude 전용이며 CI Opus thinking/output을 바꾸지 않는다.
+    const { messages, prefill } = applyCacheAndPrefillForTransport(
+      transport,
+      baseMessages,
+      apiModelId,
+      messageOpts?.charName,
+      {
+        recoveryAssistantPrefill: messageOpts?.recoveryAssistantPrefill,
+        skipAssistantPrefill,
+      }
+    );
   const { requestBody } = assemblePrimaryRpRequest({
     system: effectiveSystem,
     history,
@@ -2191,18 +2224,16 @@ export async function callOpenRouterAdult(
       });
     }
 
-    const { messages, prefill } =
-      transport.provider === "openrouter"
-        ? applyAnthropicCacheAndPrefill(
-            baseMessages,
-            apiModelId,
-            messageOpts?.charName,
-            {
-              recoveryAssistantPrefill: messageOpts?.recoveryAssistantPrefill,
-              skipAssistantPrefill,
-            }
-          )
-        : { messages: baseMessages, prefill: "" };
+    const { messages, prefill } = applyCacheAndPrefillForTransport(
+      transport,
+      baseMessages,
+      apiModelId,
+      messageOpts?.charName,
+      {
+        recoveryAssistantPrefill: messageOpts?.recoveryAssistantPrefill,
+        skipAssistantPrefill,
+      }
+    );
     const requestBody = adaptRequestBodyForTransport(
       buildOpenRouterRequestBody(
         apiModelId,
