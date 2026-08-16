@@ -1,5 +1,8 @@
 import crypto from "node:crypto";
 import { NextResponse } from "next/server";
+import { ensureAdminFinanceTables } from "@/lib/adminFinance";
+import { ensureCharacterImageAlbumTable } from "@/lib/chatImageAlbum";
+import { ensureChatImageGenerationJobSchema } from "@/lib/chatImageGenerationJobs";
 import { getDb } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +11,12 @@ export const maxDuration = 300;
 
 const IDENTIFIER_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const STAGE_PREFIX = "_full_migrate_";
-const INTERNAL_TABLES = new Set(["_schema_flags", "app_meta"]);
+const INTERNAL_TABLES = new Set([
+  "_schema_flags",
+  "_remote_schema_lock",
+  "_remote_schema_state",
+  "app_meta",
+]);
 const CLEAR_ONLY_TABLES = new Set([
   "sessions",
   "web_push_subscriptions",
@@ -25,6 +33,33 @@ type MigrationBody =
   | { action: "stage-insert"; table: string; rows: ExportRow[] }
   | { action: "finalize"; expectedCounts: Record<string, number>; confirmation: string }
   | { action: "cleanup-stage" };
+
+function ensureLazyMigrationTables() {
+  const db = getDb();
+  ensureAdminFinanceTables(db);
+  ensureCharacterImageAlbumTable();
+  ensureChatImageGenerationJobSchema(db);
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS chat_image_generations (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      chat_id INTEGER,
+      character_id INTEGER NOT NULL,
+      persona_id INTEGER NOT NULL,
+      template_id TEXT NOT NULL,
+      model TEXT NOT NULL,
+      options_json TEXT NOT NULL DEFAULT '{}',
+      result_url TEXT NOT NULL,
+      upstream_cost_usd REAL,
+      charged_points INTEGER NOT NULL,
+      deduction_slices TEXT,
+      exchange_rate_krw_per_usd REAL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_chat_image_generations_user_recent
+      ON chat_image_generations(user_id, created_at DESC, id DESC);
+  `);
+}
 
 function authorized(request: Request): boolean {
   const expected = process.env.FULL_DB_MIGRATION_TOKEN?.trim() ?? "";
@@ -183,6 +218,7 @@ function cleanupStageTables(tables: string[]) {
 export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
+    ensureLazyMigrationTables();
     const url = new URL(request.url);
     const mode = url.searchParams.get("mode") ?? "manifest";
     const everyTable = allTables();
@@ -235,6 +271,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   if (!authorized(request)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
+    ensureLazyMigrationTables();
     const body = (await request.json()) as MigrationBody;
     const tables = migratableTables();
 
