@@ -847,7 +847,7 @@ function openRouterOpusPreferredTurnCost(charFloorKrw: number, costPlusMarginKrw
   );
 }
 
-/** OpenRouter — Opus: min(1자×0.142P, 실제원가÷0.55); 원가>0.142P/자이면 (원가+1자×0.135P)/2 */
+/** OpenRouter — Opus uses output-length tiers + coarse input surcharge; other models unchanged. */
 export function computeOpenRouterTurnCost(
   inputTokens: number,
   outputTokens: number,
