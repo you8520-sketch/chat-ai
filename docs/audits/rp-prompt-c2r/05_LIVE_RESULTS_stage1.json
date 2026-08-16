@@ -1,0 +1,512 @@
+{
+  "accounting": {
+    "stage": "C2R_STAGE1_T",
+    "Gemini_successful_calls": 4,
+    "DeepSeek_successful_calls": 4,
+    "transport_aborted": 0,
+    "transport_reissues": 0,
+    "quality_retries": 0,
+    "continuations": 0,
+    "recoveries": 0,
+    "successful_total": 8,
+    "fingerprints": [
+      {
+        "arm": "A",
+        "sha256": "cb2811fd73a8bbee737cf5b07ffb9d2c2fc2db531c5f4f94cd84656e3acd6b58",
+        "chars": 1637,
+        "estimated_tokens": 1474,
+        "changed_clause_ids": [],
+        "first_changed_offset_vs_A": null,
+        "last_changed_offset_vs_A": null
+      },
+      {
+        "arm": "M1",
+        "sha256": "12c59333981439915a96086094d0b7c28357929b538b3cf116ab02fd862cbf83",
+        "chars": 1630,
+        "estimated_tokens": 1467,
+        "changed_clause_ids": [
+          "P02_NARRATION_TRANSLATIONESE",
+          "P07_RHYTHM_SHORT_SENTENCE"
+        ],
+        "first_changed_offset_vs_A": 102,
+        "last_changed_offset_vs_A": 1636
+      },
+      {
+        "arm": "M2",
+        "sha256": "24f058fdd447cdc4cb4e0b730235196e4d786341b58468044da512775d882ba9",
+        "chars": 1610,
+        "estimated_tokens": 1449,
+        "changed_clause_ids": [
+          "P05_SCENE_FLOW_QUIET",
+          "P18_IMMERSIVE_QUIET"
+        ],
+        "first_changed_offset_vs_A": 264,
+        "last_changed_offset_vs_A": 1636
+      },
+      {
+        "arm": "AB",
+        "sha256": "76d0723b9e4c7d6c35ccb678ff8de961fa6d07d52cd304d73582407f30dafd7b",
+        "chars": 1603,
+        "estimated_tokens": 1443,
+        "changed_clause_ids": [
+          "P02_NARRATION_TRANSLATIONESE",
+          "P07_RHYTHM_SHORT_SENTENCE",
+          "P05_SCENE_FLOW_QUIET",
+          "P18_IMMERSIVE_QUIET"
+        ],
+        "first_changed_offset_vs_A": 102,
+        "last_changed_offset_vs_A": 1636
+      }
+    ]
+  },
+  "rows": [
+    {
+      "cell_id": "Gemini_T_A",
+      "fixture": "T",
+      "arm": "A",
+      "modelKey": "Gemini",
+      "modelId": "google/gemini-3.1-pro-preview",
+      "resolved_model": "google/gemini-3.1-pro-preview",
+      "character_id": 10,
+      "user_input": "*멀리서 비명과 금속 마찰음이 겹친다. 렌은 에녹 쪽으로 몸을 낮춘다.* 저쪽이에요. 같이 가요?",
+      "provenance": "C2-R Stage1 — same T fixture as C2 (terra_action T1 / d2-enoch card)",
+      "prose_arm_tokens": 1474,
+      "system_sha256": "bf33ce61c5eddfa22c0d9d81b145f445c6fa7e94f8df7487802fa01e9fa4c0bf",
+      "last_user_sha256": "5da99c515e0dcc6c86854f65c595c0dcf038578670b154deb8bc35ea44631443",
+      "protectedOk": {
+        "layout_A_present": true,
+        "arm_marker": true,
+        "arm_prose": true,
+        "production_absent_when_not_A": true,
+        "canon_top": true,
+        "no_godmodding": true
+      },
+      "finish_reason": "stop",
+      "saw_done": true,
+      "latency_s": 28.62,
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "transport_reissue": 0,
+      "usage": {
+        "input_tokens": 3832,
+        "cached_input_tokens": null,
+        "visible_output_tokens": 1494
+      },
+      "PROVIDER_RAW": {
+        "visible_chars": 380,
+        "total_paragraphs": 5,
+        "dialogue_paragraphs": 2,
+        "narration_paragraphs": 3,
+        "approx_sentences": 15
+      },
+      "FINAL_DISPLAY": {
+        "visible_chars": 380,
+        "total_paragraphs": 5,
+        "dialogue_paragraphs": 2,
+        "narration_paragraphs": 3,
+        "approx_sentences": 15
+      },
+      "agency_severe": 0,
+      "incomplete": false,
+      "metadata_leak": false,
+      "input_echo_regression": false,
+      "language_regression": false,
+      "scene_density_collapse": true,
+      "raw_hash": "06c209853d78c6aba39c17327482b5367e104309a2f2001b436a70a2b2a8c4ca",
+      "final_hash": "06c209853d78c6aba39c17327482b5367e104309a2f2001b436a70a2b2a8c4ca"
+    },
+    {
+      "cell_id": "Gemini_T_M1",
+      "fixture": "T",
+      "arm": "M1",
+      "modelKey": "Gemini",
+      "modelId": "google/gemini-3.1-pro-preview",
+      "resolved_model": "google/gemini-3.1-pro-preview",
+      "character_id": 10,
+      "user_input": "*멀리서 비명과 금속 마찰음이 겹친다. 렌은 에녹 쪽으로 몸을 낮춘다.* 저쪽이에요. 같이 가요?",
+      "provenance": "C2-R Stage1 — same T fixture as C2 (terra_action T1 / d2-enoch card)",
+      "prose_arm_tokens": 1467,
+      "system_sha256": "8ac4c3dcc7739c30e17a531437b0cf5b3908a19badf8c60097bb89b8b97c7f14",
+      "last_user_sha256": "5da99c515e0dcc6c86854f65c595c0dcf038578670b154deb8bc35ea44631443",
+      "protectedOk": {
+        "layout_A_present": true,
+        "arm_marker": true,
+        "arm_prose": true,
+        "production_absent_when_not_A": true,
+        "canon_top": true,
+        "no_godmodding": true
+      },
+      "finish_reason": "stop",
+      "saw_done": true,
+      "latency_s": 67.581,
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "transport_reissue": 0,
+      "usage": {
+        "input_tokens": 3828,
+        "cached_input_tokens": null,
+        "visible_output_tokens": 6346
+      },
+      "PROVIDER_RAW": {
+        "visible_chars": 1679,
+        "total_paragraphs": 14,
+        "dialogue_paragraphs": 4,
+        "narration_paragraphs": 10,
+        "approx_sentences": 60
+      },
+      "FINAL_DISPLAY": {
+        "visible_chars": 1679,
+        "total_paragraphs": 14,
+        "dialogue_paragraphs": 4,
+        "narration_paragraphs": 10,
+        "approx_sentences": 60
+      },
+      "agency_severe": 0,
+      "incomplete": false,
+      "metadata_leak": false,
+      "input_echo_regression": false,
+      "language_regression": false,
+      "scene_density_collapse": false,
+      "raw_hash": "9e134adb0db3cba34b29a1e3a80fdaee3a8c09aab5f739036652d5643ef60509",
+      "final_hash": "9e134adb0db3cba34b29a1e3a80fdaee3a8c09aab5f739036652d5643ef60509"
+    },
+    {
+      "cell_id": "Gemini_T_M2",
+      "fixture": "T",
+      "arm": "M2",
+      "modelKey": "Gemini",
+      "modelId": "google/gemini-3.1-pro-preview",
+      "resolved_model": "google/gemini-3.1-pro-preview",
+      "character_id": 10,
+      "user_input": "*멀리서 비명과 금속 마찰음이 겹친다. 렌은 에녹 쪽으로 몸을 낮춘다.* 저쪽이에요. 같이 가요?",
+      "provenance": "C2-R Stage1 — same T fixture as C2 (terra_action T1 / d2-enoch card)",
+      "prose_arm_tokens": 1449,
+      "system_sha256": "4002d0413926f17e2bdccc6e34f50595fbc0ee34d2eae9ca04c8d27ae03a047a",
+      "last_user_sha256": "5da99c515e0dcc6c86854f65c595c0dcf038578670b154deb8bc35ea44631443",
+      "protectedOk": {
+        "layout_A_present": true,
+        "arm_marker": true,
+        "arm_prose": true,
+        "production_absent_when_not_A": true,
+        "canon_top": true,
+        "no_godmodding": true
+      },
+      "finish_reason": "stop",
+      "saw_done": true,
+      "latency_s": 55.355,
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "transport_reissue": 0,
+      "usage": {
+        "input_tokens": 3810,
+        "cached_input_tokens": null,
+        "visible_output_tokens": 4230
+      },
+      "PROVIDER_RAW": {
+        "visible_chars": 1615,
+        "total_paragraphs": 22,
+        "dialogue_paragraphs": 7,
+        "narration_paragraphs": 15,
+        "approx_sentences": 62
+      },
+      "FINAL_DISPLAY": {
+        "visible_chars": 1615,
+        "total_paragraphs": 22,
+        "dialogue_paragraphs": 7,
+        "narration_paragraphs": 15,
+        "approx_sentences": 62
+      },
+      "agency_severe": 0,
+      "incomplete": false,
+      "metadata_leak": false,
+      "input_echo_regression": false,
+      "language_regression": false,
+      "scene_density_collapse": false,
+      "raw_hash": "2a1225d5a5b84ead99a5022bb22acdca6e183bc1bc321b2bc10be9d6b2a1a941",
+      "final_hash": "c7810f34a6f173c43387d9a68bf4a2a5196ff23e53296a02bef38a591781e431"
+    },
+    {
+      "cell_id": "Gemini_T_AB",
+      "fixture": "T",
+      "arm": "AB",
+      "modelKey": "Gemini",
+      "modelId": "google/gemini-3.1-pro-preview",
+      "resolved_model": "google/gemini-3.1-pro-preview",
+      "character_id": 10,
+      "user_input": "*멀리서 비명과 금속 마찰음이 겹친다. 렌은 에녹 쪽으로 몸을 낮춘다.* 저쪽이에요. 같이 가요?",
+      "provenance": "C2-R Stage1 — same T fixture as C2 (terra_action T1 / d2-enoch card)",
+      "prose_arm_tokens": 1443,
+      "system_sha256": "631cf583a56e521e00ff68b6598503c7a5acd65b486b2acc1e998e61b96190a5",
+      "last_user_sha256": "5da99c515e0dcc6c86854f65c595c0dcf038578670b154deb8bc35ea44631443",
+      "protectedOk": {
+        "layout_A_present": true,
+        "arm_marker": true,
+        "arm_prose": true,
+        "production_absent_when_not_A": true,
+        "canon_top": true,
+        "no_godmodding": true
+      },
+      "finish_reason": "stop",
+      "saw_done": true,
+      "latency_s": 51.996,
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "transport_reissue": 0,
+      "usage": {
+        "input_tokens": 3804,
+        "cached_input_tokens": null,
+        "visible_output_tokens": 3878
+      },
+      "PROVIDER_RAW": {
+        "visible_chars": 1428,
+        "total_paragraphs": 17,
+        "dialogue_paragraphs": 5,
+        "narration_paragraphs": 12,
+        "approx_sentences": 51
+      },
+      "FINAL_DISPLAY": {
+        "visible_chars": 1428,
+        "total_paragraphs": 17,
+        "dialogue_paragraphs": 5,
+        "narration_paragraphs": 12,
+        "approx_sentences": 51
+      },
+      "agency_severe": 0,
+      "incomplete": false,
+      "metadata_leak": false,
+      "input_echo_regression": false,
+      "language_regression": false,
+      "scene_density_collapse": false,
+      "raw_hash": "32f33f18965b9eeeb95631a8bc94cd2495a3335b06b154776b8cb6053ba09440",
+      "final_hash": "d349b7f19e94014f614d6109a325339fa234e8e0d672a6456191889dc9ce48e4"
+    },
+    {
+      "cell_id": "DeepSeek_T_A",
+      "fixture": "T",
+      "arm": "A",
+      "modelKey": "DeepSeek",
+      "modelId": "deepseek/deepseek-v4-pro",
+      "resolved_model": "deepseek/deepseek-v4-pro",
+      "character_id": 10,
+      "user_input": "*멀리서 비명과 금속 마찰음이 겹친다. 렌은 에녹 쪽으로 몸을 낮춘다.* 저쪽이에요. 같이 가요?",
+      "provenance": "C2-R Stage1 — same T fixture as C2 (terra_action T1 / d2-enoch card)",
+      "prose_arm_tokens": 1474,
+      "system_sha256": "6fe95204983eb92a9848bac351204b886c4a040266317a1d16c7622592ac964a",
+      "last_user_sha256": "a3a4cd27f5d5ce60435417746c37bdef84338124d13c824b67be776a052ae347",
+      "protectedOk": {
+        "layout_A_present": true,
+        "arm_marker": true,
+        "arm_prose": true,
+        "production_absent_when_not_A": true,
+        "canon_top": true,
+        "no_godmodding": true
+      },
+      "finish_reason": "stop",
+      "saw_done": true,
+      "latency_s": 28.66,
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "transport_reissue": 0,
+      "usage": {
+        "input_tokens": 4662,
+        "cached_input_tokens": null,
+        "visible_output_tokens": 1343
+      },
+      "PROVIDER_RAW": {
+        "visible_chars": 1364,
+        "total_paragraphs": 24,
+        "dialogue_paragraphs": 9,
+        "narration_paragraphs": 15,
+        "approx_sentences": 64
+      },
+      "FINAL_DISPLAY": {
+        "visible_chars": 1364,
+        "total_paragraphs": 24,
+        "dialogue_paragraphs": 9,
+        "narration_paragraphs": 15,
+        "approx_sentences": 64
+      },
+      "agency_severe": 0,
+      "incomplete": false,
+      "metadata_leak": false,
+      "input_echo_regression": false,
+      "language_regression": false,
+      "scene_density_collapse": false,
+      "raw_hash": "3714bebed554c43ac858ca1dc1360960ac80569f1bdf9e73d64f904d9ec48adf",
+      "final_hash": "3714bebed554c43ac858ca1dc1360960ac80569f1bdf9e73d64f904d9ec48adf"
+    },
+    {
+      "cell_id": "DeepSeek_T_M1",
+      "fixture": "T",
+      "arm": "M1",
+      "modelKey": "DeepSeek",
+      "modelId": "deepseek/deepseek-v4-pro",
+      "resolved_model": "deepseek/deepseek-v4-pro",
+      "character_id": 10,
+      "user_input": "*멀리서 비명과 금속 마찰음이 겹친다. 렌은 에녹 쪽으로 몸을 낮춘다.* 저쪽이에요. 같이 가요?",
+      "provenance": "C2-R Stage1 — same T fixture as C2 (terra_action T1 / d2-enoch card)",
+      "prose_arm_tokens": 1467,
+      "system_sha256": "d8f840c7b52cf01ed382778335362ef0acbc8a38de31293c3b3d0bf032390ddb",
+      "last_user_sha256": "a3a4cd27f5d5ce60435417746c37bdef84338124d13c824b67be776a052ae347",
+      "protectedOk": {
+        "layout_A_present": true,
+        "arm_marker": true,
+        "arm_prose": true,
+        "production_absent_when_not_A": true,
+        "canon_top": true,
+        "no_godmodding": true
+      },
+      "finish_reason": "stop",
+      "saw_done": true,
+      "latency_s": 17.332,
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "transport_reissue": 0,
+      "usage": {
+        "input_tokens": 4654,
+        "cached_input_tokens": null,
+        "visible_output_tokens": 795
+      },
+      "PROVIDER_RAW": {
+        "visible_chars": 769,
+        "total_paragraphs": 15,
+        "dialogue_paragraphs": 5,
+        "narration_paragraphs": 10,
+        "approx_sentences": 45
+      },
+      "FINAL_DISPLAY": {
+        "visible_chars": 769,
+        "total_paragraphs": 15,
+        "dialogue_paragraphs": 5,
+        "narration_paragraphs": 10,
+        "approx_sentences": 45
+      },
+      "agency_severe": 0,
+      "incomplete": false,
+      "metadata_leak": false,
+      "input_echo_regression": false,
+      "language_regression": false,
+      "scene_density_collapse": true,
+      "raw_hash": "3b12c29cd92604783ed8808765100619b8c0d4ac139bf5e6b5847b7d4f0b7fae",
+      "final_hash": "3b12c29cd92604783ed8808765100619b8c0d4ac139bf5e6b5847b7d4f0b7fae"
+    },
+    {
+      "cell_id": "DeepSeek_T_M2",
+      "fixture": "T",
+      "arm": "M2",
+      "modelKey": "DeepSeek",
+      "modelId": "deepseek/deepseek-v4-pro",
+      "resolved_model": "deepseek/deepseek-v4-pro",
+      "character_id": 10,
+      "user_input": "*멀리서 비명과 금속 마찰음이 겹친다. 렌은 에녹 쪽으로 몸을 낮춘다.* 저쪽이에요. 같이 가요?",
+      "provenance": "C2-R Stage1 — same T fixture as C2 (terra_action T1 / d2-enoch card)",
+      "prose_arm_tokens": 1449,
+      "system_sha256": "d8c8afdc22be2fd0c9dc73dd357ffef8688ad41e2ed5c459b6d7f7e4e3dd3e89",
+      "last_user_sha256": "a3a4cd27f5d5ce60435417746c37bdef84338124d13c824b67be776a052ae347",
+      "protectedOk": {
+        "layout_A_present": true,
+        "arm_marker": true,
+        "arm_prose": true,
+        "production_absent_when_not_A": true,
+        "canon_top": true,
+        "no_godmodding": true
+      },
+      "finish_reason": "stop",
+      "saw_done": true,
+      "latency_s": 32.072,
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "transport_reissue": 0,
+      "usage": {
+        "input_tokens": 4641,
+        "cached_input_tokens": null,
+        "visible_output_tokens": 1129
+      },
+      "PROVIDER_RAW": {
+        "visible_chars": 1132,
+        "total_paragraphs": 25,
+        "dialogue_paragraphs": 9,
+        "narration_paragraphs": 16,
+        "approx_sentences": 76
+      },
+      "FINAL_DISPLAY": {
+        "visible_chars": 1132,
+        "total_paragraphs": 25,
+        "dialogue_paragraphs": 9,
+        "narration_paragraphs": 16,
+        "approx_sentences": 76
+      },
+      "agency_severe": 0,
+      "incomplete": false,
+      "metadata_leak": false,
+      "input_echo_regression": false,
+      "language_regression": false,
+      "scene_density_collapse": false,
+      "raw_hash": "f75906578f6b96a65c227422e8526adb281088fdd9d747eb5ea3a671dc480d9b",
+      "final_hash": "f75906578f6b96a65c227422e8526adb281088fdd9d747eb5ea3a671dc480d9b"
+    },
+    {
+      "cell_id": "DeepSeek_T_AB",
+      "fixture": "T",
+      "arm": "AB",
+      "modelKey": "DeepSeek",
+      "modelId": "deepseek/deepseek-v4-pro",
+      "resolved_model": "deepseek/deepseek-v4-pro",
+      "character_id": 10,
+      "user_input": "*멀리서 비명과 금속 마찰음이 겹친다. 렌은 에녹 쪽으로 몸을 낮춘다.* 저쪽이에요. 같이 가요?",
+      "provenance": "C2-R Stage1 — same T fixture as C2 (terra_action T1 / d2-enoch card)",
+      "prose_arm_tokens": 1443,
+      "system_sha256": "a25505acb627b1367666296fc501fde368d12bd2759be5ef0ce146e1e3e8b634",
+      "last_user_sha256": "a3a4cd27f5d5ce60435417746c37bdef84338124d13c824b67be776a052ae347",
+      "protectedOk": {
+        "layout_A_present": true,
+        "arm_marker": true,
+        "arm_prose": true,
+        "production_absent_when_not_A": true,
+        "canon_top": true,
+        "no_godmodding": true
+      },
+      "finish_reason": "error",
+      "saw_done": false,
+      "latency_s": 33.861,
+      "retry": 0,
+      "continuation": 0,
+      "recovery": 0,
+      "transport_reissue": 0,
+      "usage": {
+        "input_tokens": 4812,
+        "cached_input_tokens": null,
+        "visible_output_tokens": 1164
+      },
+      "PROVIDER_RAW": {
+        "visible_chars": 1138,
+        "total_paragraphs": 16,
+        "dialogue_paragraphs": 6,
+        "narration_paragraphs": 10,
+        "approx_sentences": 68
+      },
+      "FINAL_DISPLAY": {
+        "visible_chars": 1138,
+        "total_paragraphs": 16,
+        "dialogue_paragraphs": 6,
+        "narration_paragraphs": 10,
+        "approx_sentences": 68
+      },
+      "agency_severe": 0,
+      "incomplete": true,
+      "metadata_leak": false,
+      "input_echo_regression": false,
+      "language_regression": false,
+      "scene_density_collapse": false,
+      "raw_hash": "23a1e36e704fbcf0e793459185b2c9e8201c346beb44c5eabd733c6fce75a7bd",
+      "final_hash": "198ccfa7b6a9ac3eaa222d9569b30454e275c82faa8c7c5d28b1b57ba14ff9de"
+    }
+  ]
+}
