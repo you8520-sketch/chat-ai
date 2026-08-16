@@ -149,7 +149,7 @@ describe("canShowFullBillingReceipt", () => {
     assert.equal(sanitized.museAcceptance, undefined);
   });
 
-  it("keeps a public adult handoff subset and selected-model identity", () => {
+  it("rewrites handoff identity to the selected model and strips adultRouting for public", () => {
     const usage = {
       input: 10,
       output: 20,
@@ -178,13 +178,13 @@ describe("canShowFullBillingReceipt", () => {
     assert.equal(sanitized.model, "claude-opus-5");
     assert.equal(sanitized.modelLabel, "Claude Opus 5");
     assert.equal(sanitized.selectedAI, "claude-opus-5");
-    assert.equal(sanitized.adultRouting?.actualModel, "qwen-3-8-max");
-    assert.equal(sanitized.adultRouting?.userSelectedModel, "claude-opus-5");
-    assert.equal(sanitized.adultRouting?.glmHardFailureReason, undefined);
+    assert.equal(sanitized.adultRouting, undefined);
     assert.equal(sanitized.cost, 12);
     const client = stripAdultRoutingForClient(usage);
     assert.equal(client.selectedAI, "claude-opus-5");
-    assert.equal(client.adultRouting?.actualModel, "qwen-3-8-max");
-    assert.equal(client.adultRouting?.glmHardFailureReason, undefined);
+    assert.equal(client.adultRouting, undefined);
+    const admin = stripAdultRoutingForClient(usage, { keepInternal: true });
+    assert.equal(admin.adultRouting?.actualModel, "qwen-3-8-max");
+    assert.equal(admin.modelLabel, "Claude Opus 5");
   });
 });

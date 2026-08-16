@@ -91,7 +91,7 @@ export type GenerationContextInput = {
   personaId?: number | null;
   /** Muse-only local acceptance telemetry (no auto-continuation). */
   museAcceptance?: Record<string, unknown>;
-  /** Adult handoff telemetry. Chat clients receive a public subset only. */
+  /** Adult handoff telemetry. Public chat clients never receive this object. */
   adultRouting?: Record<string, unknown>;
   /** PR-S4C — mode/reason only; never secret fact text. */
   personaKnowledgePrompt?: {

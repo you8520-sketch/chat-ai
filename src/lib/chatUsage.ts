@@ -130,8 +130,8 @@ export type Usage = {
    */
   museAcceptance?: Record<string, unknown>;
   /**
-   * Adult scene routing telemetry. Public receipts keep a display subset
-   * (selected vs actual) on handoff turns. Fallback internals stay admin-only.
+   * Adult scene routing telemetry. Public receipts never include this object.
+   * Admin/debug and server metadata keep the full record, including actualModel.
    */
   adultRouting?: {
     activeRoute: "general" | "adult";

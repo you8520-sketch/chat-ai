@@ -15,10 +15,6 @@ import {
   resolveStoredWidgetExtractCallCount,
   type BillingReceipt,
 } from "@/lib/billingDisplay";
-import {
-  ADULT_HANDOFF_POINTS_HINT,
-  resolveAdultHandoffReceiptLines,
-} from "@/lib/adultHandoffDisplay";
 import { filterUsageBreakdownForReceipt } from "@/lib/billingReceiptAccess";
 import type { Usage } from "@/lib/chatUsage";
 import {
@@ -63,28 +59,12 @@ function ReceiptBody({
     usage.statusWidgetExtract?.callCount
   );
 
-  const handoffLines = resolveAdultHandoffReceiptLines(usage);
-
   if (!showFullReceipt) {
     return (
       <div className="space-y-1 text-[11px] leading-relaxed text-zinc-300">
-        {handoffLines ? (
-          <>
-            <p>
-              <span className="text-zinc-500">선택 모델:</span> {handoffLines.selectedModelLabel}
-            </p>
-            <p>
-              <span className="text-zinc-500">실제 처리:</span> {handoffLines.actualModelLabel}
-            </p>
-            <p>
-              <span className="text-zinc-500">사유:</span> {handoffLines.reason}
-            </p>
-          </>
-        ) : (
-          <p>
-            <span className="text-zinc-500">모델:</span> {receipt.modelLabel}
-          </p>
-        )}
+        <p>
+          <span className="text-zinc-500">모델:</span> {receipt.modelLabel}
+        </p>
         <p>
           <span className="text-zinc-500">과금 기준 입력/출력:</span>{" "}
           {receipt.inputTokens.toLocaleString()} / {receipt.outputTokens.toLocaleString()}
@@ -109,11 +89,6 @@ function ReceiptBody({
         ) : (
           <p className="font-semibold text-zinc-100">
             <span className="text-zinc-500">포인트 차감:</span> {formatPoints(receipt.totalCost)} P
-            {handoffLines ? (
-              <span className="block font-normal text-[10px] text-zinc-500">
-                {ADULT_HANDOFF_POINTS_HINT}
-              </span>
-            ) : null}
           </p>
         )}
       </div>
@@ -122,50 +97,9 @@ function ReceiptBody({
 
   return (
     <div className="space-y-1 text-[11px] leading-relaxed text-zinc-300">
-      {handoffLines ? (
-        <>
-          <p>
-            <span className="text-zinc-500">선택 모델:</span> {handoffLines.selectedModelLabel}
-          </p>
-          <p>
-            <span className="text-zinc-500">실제 처리:</span> {handoffLines.actualModelLabel}
-          </p>
-          <p>
-            <span className="text-zinc-500">사유:</span> {handoffLines.reason}
-          </p>
-        </>
-      ) : (
-        <p>
-          <span className="text-zinc-500">모델:</span> {receipt.modelLabel}
-        </p>
-      )}
-      {showFullReceipt && usage.adultRouting && (
-        <div className="mt-1 border-t border-zinc-800 pt-1 text-[10px] text-zinc-500">
-          <p>
-            <span className="text-zinc-600">actualModel:</span> {usage.adultRouting.actualModel}
-          </p>
-          <p>
-            <span className="text-zinc-600">actualProvider:</span>{" "}
-            {usage.adultRouting.actualProvider}
-          </p>
-          <p>
-            <span className="text-zinc-600">selectedModel:</span>{" "}
-            {usage.adultRouting.userSelectedModel}
-          </p>
-          <p>
-            <span className="text-zinc-600">activeRoute:</span> {usage.adultRouting.activeRoute}
-          </p>
-          {usage.adultRouting.glmHardFailureFallbackSucceeded ||
-          usage.adultRouting.fallbackSucceeded ? (
-            <p>
-              <span className="text-zinc-600">internalFallback:</span>{" "}
-              {usage.adultRouting.glmHardFailureReason ??
-                usage.adultRouting.routeTriggerReason ??
-                "hidden"}
-            </p>
-          ) : null}
-        </div>
-      )}
+      <p>
+        <span className="text-zinc-500">모델:</span> {receipt.modelLabel}
+      </p>
       {usage.htmlFlashOnly && (
         <p className="text-[10px] leading-relaxed text-zinc-500">
           HTML 전용 턴 — DeepSeek V4 Flash 단독 호출 (영수증 모델: HTML전용모델). API 원가에 55% 마진 적용. 입력 컨텍스트 최대
@@ -550,7 +484,6 @@ export default function BillingReceiptTooltip({
     const text = formatBillingReceiptText(receipt!, {
       route: usage.route,
       breakdown: usage.breakdown,
-      adultHandoff: resolveAdultHandoffReceiptLines(usage),
       apiRawCostKrw,
       coldStartShieldApplied: usage.coldStartShieldApplied,
       uncappedChargePoints: usage.uncappedChargePoints,

@@ -1,7 +1,6 @@
 import {
   applySelectedModelIdentity,
   collapsePublicHandoffStages,
-  toPublicAdultHandoffRouting,
 } from "@/lib/adultHandoffDisplay";
 import type { Usage } from "@/lib/chatUsage";
 
@@ -10,7 +9,7 @@ export const BILLING_BREAKDOWN_SYSTEM_RULES_LABEL = "시스템 프롬프트 (고
 export const BILLING_BREAKDOWN_KEYWORD_LOREBOOK_LABEL = "활성화 로어북";
 
 export type StripAdultRoutingOptions = {
-  /** Admin/debug — keep fallback internals. Public clients get the handoff subset only. */
+  /** Admin/debug — keep full adultRouting metadata. Public clients never receive it. */
   keepInternal?: boolean;
 };
 
@@ -68,23 +67,15 @@ export function sanitizeUsageForPublicReceipt(usage: Usage): Usage {
     breakdown: filterUsageBreakdownForReceipt(rest.breakdown, false),
   };
   if (routing?.activeRoute === "adult") {
-    Object.assign(
-      publicUsage,
-      applySelectedModelIdentity(publicUsage, routing)
-    );
+    Object.assign(publicUsage, applySelectedModelIdentity(publicUsage, routing));
     Object.assign(publicUsage, collapsePublicHandoffStages(publicUsage, routing));
-    const publicHandoff = toPublicAdultHandoffRouting(routing);
-    if (publicHandoff) {
-      publicUsage.adultRouting = publicHandoff;
-    }
   }
   return publicUsage;
 }
 
 /**
  * Client serialization — keep selected-model identity on top-level fields.
- * Handoff turns expose a public adultRouting subset so receipts can show the
- * actual delivered model. Fallback internals stay admin-only.
+ * Public clients never receive adultRouting. Admin/debug may keep the full object.
  */
 export function stripAdultRoutingForClient(
   usage: Usage,
@@ -101,11 +92,6 @@ export function stripAdultRoutingForClient(
   }
   if (options?.keepInternal && routing) {
     client.adultRouting = routing;
-    return client;
-  }
-  const publicHandoff = toPublicAdultHandoffRouting(routing);
-  if (publicHandoff) {
-    client.adultRouting = publicHandoff;
   }
   return client;
 }
