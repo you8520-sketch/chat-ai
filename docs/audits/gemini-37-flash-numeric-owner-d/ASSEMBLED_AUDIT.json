@@ -1,0 +1,13 @@
+{
+  "SYSTEM_diff": 0,
+  "history_diff": 0,
+  "character_diff": 0,
+  "current_user_diff": 0,
+  "owner_placement_diff": 0,
+  "owner_count": 1,
+  "only_change": "3,200 -> 4,000",
+  "rejected_system_owner": false,
+  "rejected_B_wording": false,
+  "rejected_C_wording": false,
+  "production_default_aim": 3200
+}
