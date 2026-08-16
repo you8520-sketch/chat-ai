@@ -1,4 +1,5 @@
 import type { BillingWaiverReason } from "@/lib/points";
+import type { Gemini37FlashPricingBreakdown } from "@/lib/gemini37FlashPricing";
 
 export type Usage = {
   input: number;
@@ -56,6 +57,8 @@ export type Usage = {
     currentUser: number;
     total: number;
   };
+  /** Gemini 3.7 Flash — admin receipt breakdown (user price ignores cache/upstream). */
+  gemini37FlashPricing?: Gemini37FlashPricingBreakdown;
   /** OpenRouter API 원가 (KRW, 마진 전) */
   apiRawCostKrw?: number;
   /** 공급자 실비 또는 해당 턴의 카탈로그 요율 추정 구분 */

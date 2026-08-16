@@ -4,6 +4,7 @@ import type { User } from "@/lib/auth-types";
 import { isSubscribed } from "@/lib/auth-types";
 import {
   billingModelId,
+  isCheaperInferenceGemini37FlashModel,
   isDeepSeekModel,
   isDeepSeekV4ProModel,
   isGemini36FlashModel,
@@ -24,6 +25,12 @@ import {
   resolveSelectedAI,
 } from "./chatModels";
 import { savedVisibleTextForReceipt } from "./chatRichContent";
+import {
+  computeGemini37FlashUserChargeBreakdown,
+  computeGemini37FlashUserChargePoints,
+  resolveGemini37FlashBilledOutputTokens,
+  type Gemini37FlashPricingBreakdown,
+} from "./gemini37FlashPricing";
 import { resolveResponseLengthTarget, isCatastrophicallyShortResponse, type GenerationFailureReason } from "./responseLength";
 import { isDegenerateOutput } from "./gibberishGuard";
 import { PLANS, type PlanId, FREE_MEMORY_LIMIT, FREE_POINTS_VALID_YEARS } from "./plans";
@@ -910,6 +917,16 @@ export function computeOpenRouterTurnCost(
     ).total;
   }
 
+  if (isCheaperInferenceGemini37FlashModel(modelId ?? "")) {
+    return computeGemini37FlashUserChargePoints({
+      inputTokens: opts?.billingBasis?.apiPromptTokens ?? inputTokens,
+      billedOutputTokens: resolveGemini37FlashBilledOutputTokens({
+        completionTokens: opts?.billingBasis?.apiCompletionTokens ?? outputTokens,
+        reasoningTokens: opts?.reasoningTokens,
+      }),
+    });
+  }
+
   if (isGemini36FlashModel(modelId ?? "")) {
     return explainOpenRouterGemini36TurnCost(
       inputTokens,
@@ -1463,6 +1480,44 @@ export function explainOpenRouterGemini31TurnCost(
   );
 }
 
+/** Cheaper Inference Gemini 3.7 Flash — base + input/output surcharge. Cache is admin-only. */
+export function explainOpenRouterGemini37TurnCost(
+  inputTokens: number,
+  outputTokens: number,
+  modelId: string,
+  cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">,
+  billingBasis?: OpenRouterTurnBillingBasis,
+  reasoningTokens?: number
+): OpenRouterTurnCostBreakdown & {
+  total: number;
+  gemini37FlashPricing: Gemini37FlashPricingBreakdown;
+} {
+  const apiInput = billingBasis?.apiPromptTokens ?? inputTokens;
+  const billedOutput = resolveGemini37FlashBilledOutputTokens({
+    completionTokens: billingBasis?.apiCompletionTokens ?? outputTokens,
+    reasoningTokens,
+  });
+  const gemini37FlashPricing = computeGemini37FlashUserChargeBreakdown({
+    inputTokens: apiInput,
+    billedOutputTokens: billedOutput,
+  });
+  const rawCostKrw = resolveOpenRouterTurnRawCostKrw(
+    apiInput,
+    billedOutput,
+    modelId,
+    cache,
+    billingBasis
+  );
+  return {
+    rawCostKrw,
+    charFloorKrw: 0,
+    costPlusMarginKrw: 0,
+    applied: "cost_plus_margin",
+    total: gemini37FlashPricing.totalPoints,
+    gemini37FlashPricing,
+  };
+}
+
 /** 현재 사용자 선택 Gemini와 과거 3.1 영수증용 과금 상세 */
 export function explainOpenRouterGeminiTurnCost(
   inputTokens: number,
@@ -1471,6 +1526,15 @@ export function explainOpenRouterGeminiTurnCost(
   cache?: Pick<OpenRouterBillingInput, "cacheReadTokens" | "cacheWriteTokens">,
   billingBasis?: OpenRouterTurnBillingBasis
 ): OpenRouterTurnCostBreakdown & { total: number } {
+  if (isCheaperInferenceGemini37FlashModel(modelId)) {
+    return explainOpenRouterGemini37TurnCost(
+      inputTokens,
+      outputTokens,
+      modelId,
+      cache,
+      billingBasis
+    );
+  }
   if (isGemini36FlashModel(modelId)) {
     return explainOpenRouterGemini36TurnCost(
       inputTokens,
@@ -1515,6 +1579,7 @@ export function computeOpenRouterTurnBilling(opts: {
   coldStartShieldApplied?: boolean;
   uncappedChargePoints?: number;
   coldStartCostFloorPoints?: number;
+  gemini37FlashPricing?: Gemini37FlashPricingBreakdown;
 } {
   const cacheRead = Math.max(0, opts.cacheReadTokens ?? 0);
   const cacheWrite = Math.max(0, opts.cacheWriteTokens ?? 0);
@@ -1522,6 +1587,29 @@ export function computeOpenRouterTurnBilling(opts: {
   const outputChars = opts.outputChars ?? 0;
   const modelLabel = opts.modelLabel ?? opts.modelId;
   const messageCount = opts.messageCount ?? 1;
+
+  if (isCheaperInferenceGemini37FlashModel(opts.modelId)) {
+    const apiInput = opts.apiPromptTokens ?? opts.inputTokens;
+    const billedOutput = resolveGemini37FlashBilledOutputTokens({
+      completionTokens: opts.apiCompletionTokens ?? opts.outputTokens,
+      reasoningTokens: opts.reasoningTokens,
+    });
+    const gemini37FlashPricing = computeGemini37FlashUserChargeBreakdown({
+      inputTokens: apiInput,
+      billedOutputTokens: billedOutput,
+    });
+    return {
+      modelId: opts.modelId,
+      baseCost: gemini37FlashPricing.totalPoints,
+      contextSurcharge: 0,
+      multiplier: 1,
+      total: gemini37FlashPricing.totalPoints,
+      cacheReadTokens: cacheRead,
+      cacheWriteTokens: cacheWrite,
+      standardInputTokens,
+      gemini37FlashPricing,
+    };
+  }
 
   const billingBasis: OpenRouterTurnBillingBasis | undefined = isGeminiChatOpenRouterModel(
     opts.modelId
@@ -1936,6 +2024,7 @@ export function computeTurnBilling(opts: {
   contextSurcharge: number;
   multiplier: number;
   total: number;
+  gemini37FlashPricing?: Gemini37FlashPricingBreakdown;
 } {
   if (
     opts.provider === "openrouter" ||
