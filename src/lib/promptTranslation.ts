@@ -232,12 +232,21 @@ export function loadEnglishChunks(
   return parsed.length > 0 ? parsed : null;
 }
 
+/** True when save-time / background KO→EN translation has a usable transport key. */
+export function hasPromptTranslationTransport(
+  env: NodeJS.ProcessEnv = process.env
+): boolean {
+  return Boolean(
+    env.CHEAPER_INFERENCE_API_KEY?.trim() || env.OPENROUTER_API_KEY?.trim()
+  );
+}
+
 // ---------- Opportunistic background backfill (legacy characters) ----------
 const inflightBackfill = new Set<number>();
 
 /** Fire-and-forget background translation for characters without an _en layer. */
 export function scheduleEnglishBackfill(characterId: number, chunks: CharacterChunk[]): void {
-  if (!process.env.OPENROUTER_API_KEY?.trim()) return;
+  if (!hasPromptTranslationTransport()) return;
   if (inflightBackfill.has(characterId)) return;
   inflightBackfill.add(characterId);
   setTimeout(() => {
