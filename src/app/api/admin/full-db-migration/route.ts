@@ -29,6 +29,7 @@ type MigrationBody =
   | { action: "stage-table-start"; table: string }
   | { action: "stage-insert"; table: string; rows: ExportRow[] }
   | { action: "finalize"; expectedCounts: Record<string, number>; confirmation: string }
+  | { action: "cleanup-stage-table"; table: string }
   | { action: "cleanup-stage" };
 
 function authorized(request: Request): boolean {
@@ -245,21 +246,17 @@ export async function POST(request: Request) {
 
     if (body.action === "stage-reset") {
       ensureExpectedTables(body.expectedTables);
-      const db = getDb();
-      cleanupStageTables(tables);
-      for (const table of tables) {
-        const columns = tableColumns(table).map((column) => quoteIdentifier(column.name)).join(", ");
-        db.exec(
-          `CREATE TABLE ${quoteIdentifier(stageName(table))} AS ` +
-            `SELECT ${columns} FROM ${quoteIdentifier(table)} WHERE 0`,
-        );
-      }
-      return NextResponse.json({ ok: true, stagedTables: tables.length });
+      return NextResponse.json({ ok: true, expectedTables: tables.length });
     }
 
     if (body.action === "stage-table-start") {
       const table = validateMigrationTable(body.table);
-      getDb().exec(`DELETE FROM ${quoteIdentifier(stageName(table))}`);
+      const columns = tableColumns(table).map((column) => quoteIdentifier(column.name)).join(", ");
+      getDb().exec(
+        `DROP TABLE IF EXISTS ${quoteIdentifier(stageName(table))}; ` +
+          `CREATE TABLE ${quoteIdentifier(stageName(table))} AS ` +
+          `SELECT ${columns} FROM ${quoteIdentifier(table)} WHERE 0`,
+      );
       return NextResponse.json({ ok: true, table });
     }
 
@@ -277,6 +274,12 @@ export async function POST(request: Request) {
     if (body.action === "cleanup-stage") {
       cleanupStageTables(tables);
       return NextResponse.json({ ok: true });
+    }
+
+    if (body.action === "cleanup-stage-table") {
+      const table = validateMigrationTable(body.table);
+      getDb().exec(`DROP TABLE IF EXISTS ${quoteIdentifier(stageName(table))}`);
+      return NextResponse.json({ ok: true, table });
     }
 
     if (body.action === "finalize") {
@@ -317,7 +320,6 @@ export async function POST(request: Request) {
       if (mismatches.length) throw new Error(`Final count mismatch: ${mismatches.join(",")}`);
       const admin = db.prepare("SELECT id, email, nickname, is_admin FROM users WHERE id=1").get();
       const notice = db.prepare("SELECT * FROM home_popup_notices ORDER BY id LIMIT 1").get();
-      cleanupStageTables(tables);
       return NextResponse.json({ ok: true, counts: actual, admin, notice });
     }
 
