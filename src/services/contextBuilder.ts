@@ -51,7 +51,6 @@ import { buildAdvancedProseNsfwGuidelines } from "@/lib/advancedProseNsfwGuideli
 import { buildProseStyleXmlBundle } from "@/lib/proseStyleXmlBundle";
 import { resolveProseStyleSection } from "@/lib/proseStyleResolver";
 import { resolveDeepSeekLengthAdapterSection } from "@/lib/sharedNovelProseModelAdapters";
-import { resolveGemini37FlashLengthAdapterSection } from "@/lib/gemini37FlashLengthAdapter";
 import { isSharedNovelProseV2EnabledForUser } from "@/lib/sharedNovelProseV2Policy";
 import { buildRegenerateSystemDirective } from "@/lib/continueNarrative";
 import {
@@ -1145,21 +1144,6 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       "DeepSeek length adapter (experiment)",
       "systemRules",
       deepSeekLengthAdapter,
-      "dynamic"
-    );
-  }
-
-  // Gemini 3.7 Flash — SYSTEM length owner only. Generic user-tail owner is
-  // suppressed for this model so GEMINI37_LENGTH_OWNER_COUNT stays 1.
-  const gemini37FlashLengthAdapter = resolveGemini37FlashLengthAdapterSection(
-    input.modelId
-  );
-  if (gemini37FlashLengthAdapter) {
-    pushSection(
-      "rule-gemini37-flash-length-adapter",
-      "Gemini 3.7 Flash length owner (SYSTEM)",
-      "systemRules",
-      gemini37FlashLengthAdapter,
       "dynamic"
     );
   }

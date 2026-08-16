@@ -36,7 +36,6 @@ import {
   DEEPSEEK_COMPACT_FUTURE_INSTRUCTION_BOUNDARY,
   DEEPSEEK_COMPACT_FUTURE_INSTRUCTION_BOUNDARY_MARKER,
 } from "@/lib/deepseekFutureInstructionBoundary";
-import { shouldSuppressGenericUserTailLengthOwner } from "@/lib/gemini37FlashLengthAdapter";
 import type { ContentKind } from "@/lib/simulationMode";
 import type { ChatRuntimeMode } from "@/lib/chatRuntimeMode";
 export * from "./responseLengthConstants";
@@ -657,7 +656,6 @@ export function appendTerraTerminalLengthOwnerToUserTurn(
 /**
  * Current user-turn bottom: layout first, then the terminal owner last.
  * Luna+single_primary → LUNA_TERMINAL_OUTPUT_CONTRACT (length + concentration).
- * Gemini 3.7 Flash → layout only; length is the SYSTEM owner (not user-tail).
  * Opus / Terra / DeepSeek / others → USER_TAIL_LENGTH_OWNER_SENTENCE
  *   (Arm E, Terra completion contract, DeepSeek future boundary retired).
  * Explicit opts.terraTerminalLengthOwner remains a test/canary seam only.
@@ -676,11 +674,7 @@ export function appendCompactTerminalLengthToUserTurn(
     opts?.contentKind,
     opts?.party
   );
-  const suppressGenericLengthOwner =
-    lunaContract == null && shouldSuppressGenericUserTailLengthOwner(opts?.modelId);
-  const terminalLine = suppressGenericLengthOwner
-    ? null
-    : lunaContract ?? USER_TAIL_LENGTH_OWNER_SENTENCE;
+  const terminalLine = lunaContract ?? USER_TAIL_LENGTH_OWNER_SENTENCE;
   const layoutMarker = "지문과 \"…\" 대사 사이 빈 줄";
   const terminalMarkers = [
     "한국어 RP 본문만 3,200~4,200자로 작성한다",
@@ -714,10 +708,6 @@ export function appendCompactTerminalLengthToUserTurn(
     )
     .join("\n")
     .trim();
-  if (!terminalLine) {
-    if (!body) return layoutLine;
-    return `${body}\n\n${layoutLine}`;
-  }
   const mid = `${layoutLine}\n\n${terminalLine}`;
   if (!body) return mid;
   return `${body}\n\n${mid}`;

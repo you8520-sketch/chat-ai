@@ -3,17 +3,16 @@ import { describe, it } from "node:test";
 import {
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL,
-  OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
 } from "@/lib/chatModels";
-import {
-  GEMINI37_FLASH_LENGTH_OWNER_BLOCK,
-  REJECTED_GEMINI37_FLASH_LENGTH_B_SENTENCE,
-  auditGemini37LengthOwners,
-} from "@/lib/gemini37FlashLengthAdapter";
 import { USER_TAIL_LENGTH_OWNER_SENTENCE } from "@/lib/responseLength";
-import { GEMINI31_USER_AGENCY_SUPPLEMENT_TITLE } from "@/lib/gemini31UserAgencyAdapter";
 import { assemblePrimaryRpRequest } from "@/lib/openRouterAdult";
 import { buildContext } from "./contextBuilder";
+
+const REJECTED_SYSTEM_OWNER_TITLE = "[RESPONSE LENGTH — GEMINI 3.7 FLASH]";
+const REJECTED_B_SENTENCE =
+  "현재 장면을 충분히 전개하여 한국어 공백 포함 약 3,200~4,000자 분량으로 완성한다. 짧게 마무리하거나 요약하지 않는다.";
+const REJECTED_C_MARKER = "약 3,200~4,000자 분량으로 완성한다";
 
 function flattenContent(content: unknown): string {
   if (typeof content === "string") return content;
@@ -33,6 +32,17 @@ function flattenContent(content: unknown): string {
   return "";
 }
 
+function countOccurrences(hay: string, needle: string): number {
+  if (!needle) return 0;
+  let count = 0;
+  let index = 0;
+  while ((index = hay.indexOf(needle, index)) !== -1) {
+    count += 1;
+    index += needle.length;
+  }
+  return count;
+}
+
 function baseInput(modelId: string) {
   return {
     charName: "조태형",
@@ -43,45 +53,60 @@ function baseInput(modelId: string) {
     nsfw: false,
     provider: "cheaperinference" as const,
     modelId,
+    targetResponseChars: 3200,
   };
 }
 
-describe("buildContext — Gemini 3.7 Flash SYSTEM length owner", () => {
-  it("injects the SYSTEM owner once and suppresses the generic user-tail owner", () => {
+function lastUserText(built: ReturnType<typeof buildContext>): string {
+  const last = built.history[built.history.length - 1];
+  assert.equal(last?.role, "user");
+  return last!.content;
+}
+
+describe("buildContext — Gemini 3.7 Flash vanilla length restore", () => {
+  it("has no SYSTEM model-specific length owner and one generic user-tail owner", () => {
     const built = buildContext(baseInput(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL));
     const section = built.meta.trackedSections?.find(
       (s) => s.id === "rule-gemini37-flash-length-adapter"
     );
-    const lastUser = built.history[built.history.length - 1];
-    assert.ok(section);
-    assert.equal(section!.category, "systemRules");
-    assert.equal(section!.text, GEMINI37_FLASH_LENGTH_OWNER_BLOCK);
-    assert.ok(built.systemPrompt.includes(GEMINI37_FLASH_LENGTH_OWNER_BLOCK));
-    assert.equal(lastUser?.role, "user");
-    assert.match(lastUser!.content, /지문과 "…" 대사 사이 빈 줄/);
-    assert.equal(lastUser!.content.includes(GEMINI37_FLASH_LENGTH_OWNER_BLOCK), false);
-    assert.equal(lastUser!.content.includes(USER_TAIL_LENGTH_OWNER_SENTENCE), false);
-    assert.equal(
-      lastUser!.content.includes(REJECTED_GEMINI37_FLASH_LENGTH_B_SENTENCE),
-      false
-    );
+    const lastUser = lastUserText(built);
+    assert.equal(section, undefined);
+    assert.equal(built.systemPrompt.includes(REJECTED_SYSTEM_OWNER_TITLE), false);
     assert.equal(built.systemPrompt.includes(USER_TAIL_LENGTH_OWNER_SENTENCE), false);
-    assert.equal(
-      built.systemPrompt.includes(GEMINI31_USER_AGENCY_SUPPLEMENT_TITLE),
-      false
-    );
-
-    const audit = auditGemini37LengthOwners({
-      system: built.systemPrompt ?? "",
-      lastUser: lastUser!.content,
-    });
-    assert.equal(audit.GEMINI37_LENGTH_OWNER_COUNT, 1);
-    assert.equal(audit.location, "system");
-    assert.equal(audit.genericUserTailCount, 0);
-    assert.equal(audit.rejectedBCount, 0);
+    assert.equal(built.systemPrompt.includes(REJECTED_B_SENTENCE), false);
+    assert.equal(lastUser.includes(REJECTED_SYSTEM_OWNER_TITLE), false);
+    assert.equal(lastUser.includes(REJECTED_B_SENTENCE), false);
+    assert.equal(lastUser.includes(REJECTED_C_MARKER), false);
+    assert.equal(countOccurrences(lastUser, USER_TAIL_LENGTH_OWNER_SENTENCE), 1);
+    assert.ok(lastUser.trimEnd().endsWith(USER_TAIL_LENGTH_OWNER_SENTENCE));
+    assert.match(lastUser, /지문과 "…" 대사 사이 빈 줄/);
+    const layoutIdx = lastUser.indexOf("지문과");
+    const lengthIdx = lastUser.indexOf(USER_TAIL_LENGTH_OWNER_SENTENCE);
+    assert.ok(layoutIdx >= 0 && lengthIdx > layoutIdx);
   });
 
-  it("keeps GEMINI37_LENGTH_OWNER_COUNT=1 on the assembled cheaper-inference request", () => {
+  it("matches DeepSeek / Gemini 3.1 user-tail owner placement", () => {
+    const gemini37 = lastUserText(
+      buildContext(baseInput(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL))
+    );
+    const deepseek = lastUserText(
+      buildContext(baseInput(CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL))
+    );
+    const gemini31 = lastUserText(
+      buildContext(baseInput(CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL))
+    );
+    const tailOf = (text: string) => {
+      const idx = text.lastIndexOf(USER_TAIL_LENGTH_OWNER_SENTENCE);
+      return text.slice(idx);
+    };
+    assert.equal(tailOf(gemini37), tailOf(deepseek));
+    assert.equal(tailOf(gemini37), tailOf(gemini31));
+    assert.equal(countOccurrences(gemini37, USER_TAIL_LENGTH_OWNER_SENTENCE), 1);
+    assert.equal(countOccurrences(deepseek, USER_TAIL_LENGTH_OWNER_SENTENCE), 1);
+    assert.equal(countOccurrences(gemini31, USER_TAIL_LENGTH_OWNER_SENTENCE), 1);
+  });
+
+  it("assembled cheaper-inference request keeps vanilla user-tail owner and omits max_tokens", () => {
     const built = buildContext(baseInput(CHEAPER_INFERENCE_GEMINI_37_FLASH_MODEL));
     const assembled = assemblePrimaryRpRequest({
       system: built.systemPrompt ?? "",
@@ -102,37 +127,17 @@ describe("buildContext — Gemini 3.7 Flash SYSTEM length owner", () => {
       .filter((m) => m.role === "system")
       .map((m) => flattenContent(m.content))
       .join("\n");
-    const lastUser = [...messages].reverse().find((m) => m.role === "user");
-    const audit = auditGemini37LengthOwners({
-      system: systemJoined,
-      lastUser: flattenContent(lastUser?.content),
-    });
-    assert.equal(audit.GEMINI37_LENGTH_OWNER_COUNT, 1);
-    assert.equal(audit.location, "system");
-    assert.equal(audit.genericUserTailCount, 0);
+    const lastUser = flattenContent(
+      [...messages].reverse().find((m) => m.role === "user")?.content
+    );
+    assert.equal(countOccurrences(systemJoined, REJECTED_SYSTEM_OWNER_TITLE), 0);
+    assert.equal(countOccurrences(systemJoined, USER_TAIL_LENGTH_OWNER_SENTENCE), 0);
+    assert.equal(countOccurrences(lastUser, USER_TAIL_LENGTH_OWNER_SENTENCE), 1);
+    assert.ok(lastUser.trimEnd().endsWith(USER_TAIL_LENGTH_OWNER_SENTENCE));
     assert.equal((assembled.requestBody as { max_tokens?: unknown }).max_tokens, undefined);
     assert.equal(
       (assembled.requestBody as { reasoning_effort?: unknown }).reasoning_effort,
       "low"
     );
-  });
-
-  it("does not inject the Gemini 3.7 owner for Gemini 3.1 or DeepSeek", () => {
-    for (const modelId of [
-      CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
-      OPENROUTER_DEEPSEEK_V4_PRO_MODEL,
-    ]) {
-      const built = buildContext(baseInput(modelId));
-      const section = built.meta.trackedSections?.find(
-        (s) => s.id === "rule-gemini37-flash-length-adapter"
-      );
-      const lastUser = built.history[built.history.length - 1];
-      assert.equal(section, undefined);
-      assert.equal(
-        built.systemPrompt.includes(GEMINI37_FLASH_LENGTH_OWNER_BLOCK),
-        false
-      );
-      assert.ok(lastUser?.content.includes(USER_TAIL_LENGTH_OWNER_SENTENCE));
-    }
   });
 });
