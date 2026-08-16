@@ -14,7 +14,7 @@ import {
 import { openRouterNormalizedUsdCostFromRates } from "@/lib/openRouterModelPricing";
 
 describe("Opus billing defaults", () => {
-  it("uses 45% gross margin and 0.142P per char cap", () => {
+  it("keeps rolling 45% target and legacy per-char constant", () => {
     assert.equal(OPENROUTER_OPUS_GROSS_MARGIN, 0.45);
     assert.equal(OPENROUTER_OPUS_POINTS_PER_CHAR, 0.142);
   });
@@ -23,7 +23,7 @@ describe("Opus billing defaults", () => {
 describe("Opus billing — no first-turn flat", () => {
   const modelId = "anthropic/claude-opus-4.5";
 
-  it("first turn uses min(char cap, actual-cost margin 45%)", () => {
+  it("first and later turns use the same output-tier price", () => {
     const first = computeTurnBilling({
       provider: "openrouter",
       openRouterModelId: modelId,
@@ -33,11 +33,6 @@ describe("Opus billing — no first-turn flat", () => {
       savedTextChars: 1800,
       completedTurnsBeforeRequest: 0,
     });
-    assert.ok(!("opusFirstTurnFlat" in first));
-    assert.equal(first.total, 234);
-  });
-
-  it("second turn matches same rules as first", () => {
     const second = computeTurnBilling({
       provider: "openrouter",
       openRouterModelId: modelId,
@@ -47,11 +42,13 @@ describe("Opus billing — no first-turn flat", () => {
       savedTextChars: 1800,
       completedTurnsBeforeRequest: 1,
     });
-    assert.equal(second.total, 234);
+    assert.ok(!("opusFirstTurnFlat" in first));
+    assert.equal(first.total, 380);
+    assert.equal(second.total, first.total);
   });
 });
 
-describe("Opus billing with actual-cost margin", () => {
+describe("Opus billing admin cost vs user tier", () => {
   const modelId = "anthropic/claude-opus-4.5";
 
   it("normalized USD treats all prompt tokens at cache-read rate", () => {
@@ -70,51 +67,20 @@ describe("Opus billing with actual-cost margin", () => {
     assert.equal(normalized.usdCost, expectedUsd);
   });
 
-  it("margin charge uses actual API cost, not normalized cache-hit cost", () => {
-    const explain = explainOpenRouterOpusTurnCost(8000, 1500, modelId, 1800, {
+  it("admin raw cost still differs by cache, user total does not", () => {
+    const cold = explainOpenRouterOpusTurnCost(8000, 1500, modelId, 1800, {
       cacheWriteTokens: 5176,
       cacheReadTokens: 0,
     });
-    assert.ok(explain.normalizedRawCostKrw != null);
-    assert.ok(explain.rawCostKrw > explain.normalizedRawCostKrw!);
-    const marginDivisor = 1 - OPENROUTER_OPUS_GROSS_MARGIN;
-    assert.equal(
-      explain.costPlusMarginKrw,
-      Math.ceil(explain.rawCostKrw / marginDivisor - 1e-9)
-    );
-  });
-
-  it("uses (API cost + char cap)/2 when API cost exceeds char cap", () => {
-    const explain = explainOpenRouterOpusTurnCost(8000, 1500, modelId, 100, {
-      cacheWriteTokens: 5176,
+    const warm = explainOpenRouterOpusTurnCost(8000, 1500, modelId, 1800, {
+      cacheWriteTokens: 0,
+      cacheReadTokens: 5176,
     });
-    const blend = opusCostCharCapBlendPoints(explain.rawCostKrw, 100);
-    assert.equal(explain.applied, "cost_blend");
-    assert.equal(explain.total, blend);
-    assert.equal(explain.coldStartCostFloorPoints, blend);
-    assert.ok(explain.total > (explain.uncappedChargePoints ?? 0));
-  });
-
-  it("caps at char rate when margin exceeds char cap and API cost is below char cap", () => {
-    const outputChars = 200;
-    const charCap = Math.ceil(outputChars * OPENROUTER_OPUS_POINTS_PER_CHAR);
-    const actualApiCost = 25;
-    const resolved = resolveOpenRouterOpusTurnCharge(actualApiCost, outputChars);
-    assert.equal(resolved.charCapPoints, charCap);
-    assert.ok(resolved.marginChargePoints > charCap);
-    assert.equal(resolved.applied, "char_floor");
-    assert.equal(resolved.total, charCap);
-  });
-
-  it("1984 chars cold start uses min(char cap, margin) when API cost is below char cap", () => {
-    const outputChars = 1984;
-    const explain = explainOpenRouterOpusTurnCost(8000, 1500, modelId, outputChars, {
-      cacheWriteTokens: 5176,
-    });
-    const charCap = Math.ceil(outputChars * OPENROUTER_OPUS_POINTS_PER_CHAR);
-    assert.ok(explain.rawCostKrw < charCap);
-    assert.equal(explain.total, Math.min(charCap, explain.costPlusMarginKrw));
-    assert.equal(explain.total, 234);
+    assert.equal(cold.applied, "output_tier");
+    assert.equal(cold.total, 380);
+    assert.equal(warm.total, 380);
+    assert.ok(cold.rawCostKrw > warm.rawCostKrw);
+    assert.equal(cold.costPlusMarginKrw, 0);
   });
 
   it("computeOpenRouterTurnBilling matches explain total", () => {
@@ -130,59 +96,22 @@ describe("Opus billing with actual-cost margin", () => {
       cacheWriteTokens: 5176,
     });
     assert.equal(billing.total, explain.total);
+    assert.equal(billing.total, 380);
   });
 });
 
-describe("Opus cost blend", () => {
-  const modelId = "anthropic/claude-opus-4.5";
-
+describe("Opus cost helpers remain diagnostic-only", () => {
   it("detects cold start when cache_write exceeds threshold", () => {
     assert.equal(isOpusColdStartCacheMiss(3000), false);
     assert.equal(isOpusColdStartCacheMiss(3001), true);
   });
 
-  it("long output with API cost below char cap uses margin path", () => {
-    const billing = computeOpenRouterTurnBilling({
-      modelId,
-      inputTokens: 8000,
-      outputTokens: 1500,
-      cacheWriteTokens: 5176,
-      outputChars: 1800,
-      messageCount: 2,
-    });
-    assert.equal(billing.total, 234);
-    assert.ok(!billing.coldStartShieldApplied);
-  });
-
-  it("short output blends API cost with char cap", () => {
-    const billing = computeOpenRouterTurnBilling({
-      modelId,
-      inputTokens: 8000,
-      outputTokens: 1500,
-      cacheWriteTokens: 5176,
-      outputChars: 100,
-      messageCount: 1,
-    });
-    assert.ok(billing.coldStartShieldApplied);
-    assert.equal(
-      billing.total,
-      opusCostCharCapBlendPoints(128.5, 100)
-    );
-  });
-});
-
-describe("Opus cost blend formula", () => {
-  it("ceil (API cost points + chars×0.135P) / 2", () => {
+  it("legacy blend helper is unused by user charge", () => {
     assert.equal(opusCostCharCapBlendPoints(128.5, 100), 72);
-    assert.equal(opusCostCharCapBlendPoints(323, 1984), 296);
-  });
-
-  it("resolveOpenRouterOpusTurnCharge picks blend when actual exceeds 0.142 char cap", () => {
-    const resolved = resolveOpenRouterOpusTurnCharge(323, 1984);
-    const charCap = Math.ceil(1984 * OPENROUTER_OPUS_POINTS_PER_CHAR);
-    assert.equal(resolved.charCapPoints, charCap);
-    assert.ok(resolved.costBlendApplied);
-    assert.equal(resolved.total, 296);
+    const resolved = resolveOpenRouterOpusTurnCharge(323, 1984, 8000);
+    assert.equal(resolved.applied, "output_tier");
+    assert.equal(resolved.total, 380);
+    assert.equal(resolved.costBlendApplied, false);
   });
 });
 
@@ -215,7 +144,7 @@ describe("sumOpenRouterStageOutputTokens — recovery turns", () => {
     assert.equal(sumOpenRouterStageOutputTokens(buggyStages), 4479);
   });
 
-  it("recovery turn final charge unchanged by inflated token count (char cap wins)", () => {
+  it("recovery turn final charge is unchanged by inflated token count", () => {
     const modelId = "anthropic/claude-opus-4.5";
     const inputTokens = 12000;
     const savedTextChars = 2413;
@@ -236,6 +165,6 @@ describe("sumOpenRouterStageOutputTokens — recovery turns", () => {
       completedTurnsBeforeRequest: 0,
     });
     assert.equal(correct.total, inflated.total);
-    assert.equal(correct.total, 343);
+    assert.equal(correct.total, 380);
   });
 });

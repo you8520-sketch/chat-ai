@@ -81,8 +81,17 @@ export type Usage = {
   htmlFlashOnly?: boolean;
   /** 메인 RP OpenRouter 원가 (KRW) — 상태창 추출 분리 표시용 */
   mainApiRawCostKrw?: number;
-  /** 상태창 추출 — API 원가(KRW) 올림 → P (메인 RP 과금과 별도 합산) */
+  /** 상태창 추출 — API 원가(KRW) 올림 → P (메인 RP 과금과 별도 합산; Opus는 사용자 요금에 bundle) */
   widgetCostPoints?: number;
+  /** Admin — Opus output-tier user price breakdown */
+  opusPricing?: {
+    outputChars: number;
+    outputTierPoints: number;
+    inputTokens: number;
+    contextSurchargePoints: number;
+    finalChargePoints: number;
+    widgetBundled: boolean;
+  };
   /** 상태창 추출 — 관리자·데모 영수증 */
   statusWidgetExtract?: {
     model: string;

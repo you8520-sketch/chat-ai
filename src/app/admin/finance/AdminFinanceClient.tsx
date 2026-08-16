@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import type {
   AdminFinanceSummary,
   FinanceMonthlyAdjustments,
 } from "@/lib/adminFinance";
+import type { OpusRollingWindowStats } from "@/lib/opusTierPricing";
 
 function won(value: number) {
   return `${Math.round(value).toLocaleString()}원`;
@@ -56,6 +57,24 @@ export default function AdminFinanceClient({
   const [form, setForm] = useState(initialSummary.adjustments);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const [opusTelemetry, setOpusTelemetry] = useState<{
+    targetGrossMargin: number;
+    sampleSize: number;
+    windows: {
+      last20: OpusRollingWindowStats;
+      last50: OpusRollingWindowStats;
+      last100: OpusRollingWindowStats;
+    };
+  } | null>(null);
+
+  useEffect(() => {
+    void fetch("/api/admin/opus-margin-telemetry")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.windows) setOpusTelemetry(data);
+      })
+      .catch(() => undefined);
+  }, []);
 
   async function loadMonth(monthKey: string) {
     const res = await fetch(`/api/admin/finance?month=${encodeURIComponent(monthKey)}`);
@@ -132,6 +151,53 @@ export default function AdminFinanceClient({
           );
         })}
       </section>
+
+      {opusTelemetry && (
+        <section className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-950/10 p-5">
+          <h2 className="font-bold">Opus rolling gross margin (paid turns)</h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            target {Math.round(opusTelemetry.targetGrossMargin * 100)}% · sample {opusTelemetry.sampleSize} ·
+            per-turn price is not auto-adjusted
+          </p>
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead className="text-xs text-zinc-500">
+                <tr>
+                  <th className="p-2">window</th>
+                  <th className="p-2">turns</th>
+                  <th className="p-2">revenue P</th>
+                  <th className="p-2">API cost</th>
+                  <th className="p-2">realized margin</th>
+                  <th className="p-2">avg charge</th>
+                  <th className="p-2">avg API</th>
+                  <th className="p-2">cold writes</th>
+                  <th className="p-2">avg chars</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(["last20", "last50", "last100"] as const).map((key) => {
+                  const row = opusTelemetry.windows[key];
+                  return (
+                    <tr key={key} className="border-t border-white/10">
+                      <td className="p-2 font-semibold">{key}</td>
+                      <td className="p-2">{row.turns}</td>
+                      <td className="p-2">{row.totalRevenuePoints.toLocaleString()}P</td>
+                      <td className="p-2">{won(row.totalApiCostKrw)}</td>
+                      <td className="p-2">
+                        {row.realizedGrossMarginPct == null ? "—" : `${row.realizedGrossMarginPct}%`}
+                      </td>
+                      <td className="p-2">{row.avgChargePerTurn ?? "—"}</td>
+                      <td className="p-2">{row.avgApiCostPerTurn ?? "—"}</td>
+                      <td className="p-2">{row.coldCacheWriteTurnCount}</td>
+                      <td className="p-2">{row.avgVisibleOutputChars ?? "—"}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       <section className="mt-6 rounded-2xl border border-violet-500/20 bg-violet-950/10 p-5">
         <h2 className="font-bold">DeepSeek V4 Flash · 이번 달 실제 원가</h2>

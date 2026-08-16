@@ -41,6 +41,7 @@ import { auditAssembledPrompt, formatPromptAuditLog } from "@/services/promptAud
 import { invalidateModelPickerInputSnapshot } from "@/services/modelPickerInputSnapshot";
 import { replaceUserPlaceholder } from "@/lib/userPlaceholder";
 import { deductPoints, getPointBalance, MIN_POINTS_TO_CHAT, computeTurnBilling, computeHtmlFlashOnlyTurnBilling, billableOutputTokens, billableOutputChars, shouldWaiveTurnBilling, resolveDeepSeekWaiverMinimumCharge, resolveQwenWaiverMinimumCharge, resolveGlmWaiverMinimumCharge, resolveKimiWaiverMinimumCharge, resolveMuseWaiverMinimumCharge, resolveGemini36WaiverMinimumCharge, resolveGemini31WaiverMinimumCharge, selectBillableStages, sumOpenRouterStageOutputTokens, sumOpenRouterStageReasoningTokens, sumOpenRouterStageUpstreamUsd, billableOpenRouterOutputTokens, resolveTurnBillableInput, explainOpenRouterOpusTurnCost, explainOpenRouterDeepSeekTurnCost, explainOpenRouterGeminiTurnCost, type DeductionSlice } from "@/lib/points";
+import { isOpusTierPricedModel, resolveOpusUserTurnCharge } from "@/lib/opusTierPricing";
 import { createChatSession } from "@/lib/chatSessionCreate";
 import { incrementCharacterTotalTurns } from "@/lib/characterEngagementStats";
 import {
@@ -4297,6 +4298,24 @@ export async function POST(req: Request) {
               })
             : null;
 
+        const opusCharge = isOpusTierPricedModel(deliveredModelId)
+          ? resolveOpusUserTurnCharge({
+              outputChars: billableChars,
+              apiInputTokens: apiInputTokens,
+            })
+          : null;
+        const opusPricing =
+          opusCharge && !billingWaiverReason
+            ? {
+                outputChars: opusCharge.outputChars,
+                outputTierPoints: opusCharge.outputTierPoints,
+                inputTokens: opusCharge.inputTokens,
+                contextSurchargePoints: opusCharge.contextSurchargePoints,
+                finalChargePoints: opusCharge.finalChargePoints,
+                widgetBundled: true,
+              }
+            : undefined;
+
         let usageRecord: Usage = {
           input: totalInput,
           output: totalOutput,
@@ -4322,6 +4341,7 @@ export async function POST(req: Request) {
           breakdown,
           breakdownAllocation: "estimated_section_allocation",
           assembledPromptChars,
+          ...(opusPricing ? { opusPricing } : {}),
           stages: stageCosts,
           ...( {
                 apiInputTokens,
@@ -4503,7 +4523,8 @@ export async function POST(req: Request) {
                 widgetResolved.widgetExtractUsage,
                 billingExchangeRate,
                 mainBillingCost,
-                widgetResolved.widgetExtractBillingMeta
+                widgetResolved.widgetExtractBillingMeta,
+                { bundleIntoMainCharge: isOpusTierPricedModel(deliveredModelId) }
               );
               usageRecord = widgetBilling.record;
               cost = widgetBilling.totalCost;
@@ -4514,10 +4535,12 @@ export async function POST(req: Request) {
                 widgetResolved.widgetExtractBillingMeta
               );
               const widgetCostPoints = statusWidgetApiCostChargePoints(widgetReceipt.apiRawCostKrw);
-              cost = mainBillingCost + widgetCostPoints;
+              const bundleWidget = isOpusTierPricedModel(deliveredModelId);
+              cost = bundleWidget ? mainBillingCost : mainBillingCost + widgetCostPoints;
               usageRecord = {
                 ...usageRecord,
                 baseCost: mainBillingCost,
+                widgetCostPoints,
                 cost,
               };
             }

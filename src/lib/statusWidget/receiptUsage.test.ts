@@ -262,6 +262,22 @@ describe("statusWidget receiptUsage", () => {
     );
   });
 
+  it("Opus bundle keeps user charge at main RP only", () => {
+    const exchangeRate = resolveBillingExchangeRateSnapshot();
+    const out = applyStatusWidgetBillingCharge(
+      baseUsage(),
+      { inputTokens: 4252, outputTokens: 120, estimated: false, upstreamCostUsd: 0.002 },
+      exchangeRate,
+      430,
+      FLASH,
+      { bundleIntoMainCharge: true }
+    );
+    assert.equal(out.totalCost, 430);
+    assert.ok(out.widgetCostPoints > 0);
+    assert.equal(out.record.cost, 430);
+    assert.equal(out.record.widgetCostPoints, out.widgetCostPoints);
+  });
+
   it("model labels", () => {
     assert.equal(
       statusWidgetExtractModelLabel(OPENROUTER_GEMINI_25_FLASH_MODEL),

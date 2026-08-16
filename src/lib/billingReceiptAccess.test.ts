@@ -95,10 +95,19 @@ describe("canShowFullBillingReceipt", () => {
         currentUser: 10,
         total: 160,
       },
+      opusPricing: {
+        outputChars: 3000,
+        outputTierPoints: 430,
+        inputTokens: 50000,
+        contextSurchargePoints: 10,
+        finalChargePoints: 440,
+        widgetBundled: true,
+      },
     } satisfies Usage;
     const sanitized = sanitizeUsageForPublicReceipt(usage);
     assert.equal(sanitized.assembledPromptChars, undefined);
     assert.equal(sanitized.breakdownAllocation, undefined);
+    assert.equal(sanitized.opusPricing, undefined);
     assert.equal(sanitized.statusWidgetExtract, undefined);
     assert.equal(sanitized.statusWidgetExtractDiagnostics, undefined);
     assert.equal(sanitized.widgetCostPoints, undefined);

@@ -173,7 +173,8 @@ export function applyStatusWidgetBillingCharge(
   widgetUsage: TokenUsage,
   exchangeRate: BillingExchangeRateSnapshot,
   mainBillingCost: number,
-  billingMeta: StatusWidgetExtractBillingMeta
+  billingMeta: StatusWidgetExtractBillingMeta,
+  opts?: { bundleIntoMainCharge?: boolean }
 ): { record: Usage; totalCost: number; widgetCostPoints: number } {
   const withReceipt = appendStatusWidgetExtractToUsageRecord(
     record,
@@ -184,7 +185,9 @@ export function applyStatusWidgetBillingCharge(
   const widgetCostPoints = statusWidgetApiCostChargePoints(
     withReceipt.statusWidgetExtract!.apiRawCostKrw
   );
-  const totalCost = mainBillingCost + widgetCostPoints;
+  const totalCost = opts?.bundleIntoMainCharge
+    ? mainBillingCost
+    : mainBillingCost + widgetCostPoints;
   const stages = withReceipt.stages?.map((s) =>
     s.stage === "상태창 추출" || s.stage.includes("위젯") ? { ...s, cost: widgetCostPoints } : s
   );
