@@ -1,0 +1,92 @@
+{
+  "method": "agent_paragraph_attribution",
+  "rows": [
+    {
+      "cell": "Gemini_G5_A_D1",
+      "arm": "A",
+      "visible": 1862,
+      "char_recital": 33,
+      "world_recital": 73,
+      "total_recital": 106,
+      "per_1000": 56.9,
+      "fidelity": "PASS",
+      "active_canon_use": "PASS",
+      "notes": "Strong world ecology dump mid/late; action also present (cover mouth)."
+    },
+    {
+      "cell": "Gemini_G5_A_D2",
+      "arm": "A",
+      "visible": 3475,
+      "char_recital": 28,
+      "world_recital": 116,
+      "total_recital": 144,
+      "per_1000": 41.4,
+      "fidelity": "PASS",
+      "active_canon_use": "PASS",
+      "notes": "Longest A; heavy world-law exposition framed as ecology lecture before action."
+    },
+    {
+      "cell": "Gemini_G5_A_D3",
+      "arm": "A",
+      "visible": 2544,
+      "char_recital": 22,
+      "world_recital": 36,
+      "total_recital": 58,
+      "per_1000": 22.8,
+      "fidelity": "PASS",
+      "active_canon_use": "PASS",
+      "notes": "More action-forward; lighter recital than A_D2."
+    },
+    {
+      "cell": "Gemini_G5_B_D1",
+      "arm": "B",
+      "visible": 1556,
+      "char_recital": 65,
+      "world_recital": 105,
+      "total_recital": 170,
+      "per_1000": 109.3,
+      "fidelity": "PASS",
+      "active_canon_use": "PASS",
+      "notes": "Layered B still lectures gunshot/originals + identity backstory (hair/scar/pod)."
+    },
+    {
+      "cell": "Gemini_G5_B_D2",
+      "arm": "B",
+      "visible": 2029,
+      "char_recital": 0,
+      "world_recital": 48,
+      "total_recital": 48,
+      "per_1000": 23.7,
+      "fidelity": "PASS",
+      "active_canon_use": "PASS",
+      "notes": "Gunshot law used partly as reason not to draw weapon (USE). Still some exposition."
+    },
+    {
+      "cell": "Gemini_G5_B_D3",
+      "arm": "B",
+      "visible": 1774,
+      "char_recital": 29,
+      "world_recital": 27,
+      "total_recital": 56,
+      "per_1000": 31.6,
+      "fidelity": "PASS",
+      "active_canon_use": "PASS",
+      "notes": "Action-forward silence control; residual identity recital."
+    }
+  ],
+  "A_median_recital_per_1000": 41.4,
+  "B_median_recital_per_1000": 31.6,
+  "recital_reduction_pct": 23.7,
+  "A_collapse_lt_1800": 0,
+  "B_collapse_lt_1800": 2,
+  "A_chars_median": 2544,
+  "B_chars_median": 1774,
+  "fidelity_non_inferior": true,
+  "active_canon_non_inferior": true,
+  "stage1_verdict": "FAIL",
+  "fail_reasons": [
+    "recital reduction 23.7% < 30%",
+    "B collapse materially increased",
+    "B median chars < 70% of A"
+  ]
+}
