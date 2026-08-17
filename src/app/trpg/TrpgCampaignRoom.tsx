@@ -116,7 +116,6 @@ export default function TrpgCampaignRoom({
   onHostFill,
   onRetryGm,
   onReroll,
-  onDelete,
   onTitleSaved,
 }: {
   snap: TrpgCampaignSnapshot;
@@ -142,7 +141,6 @@ export default function TrpgCampaignRoom({
   onHostFill: () => void;
   onRetryGm: () => void;
   onReroll: (roundNumber: number) => void;
-  onDelete: () => void;
   onTitleSaved: (title: string) => void;
 }) {
   const [displayPrefs, setDisplayPrefs] = useState<ChatDisplayPrefs>(DEFAULT_CHAT_DISPLAY_PREFS);
@@ -493,17 +491,6 @@ export default function TrpgCampaignRoom({
               className="inline-flex min-h-10 items-center rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 text-sm font-semibold text-rose-100"
             >
               GM 다시 시도
-            </button>
-          ) : null}
-
-          {snap.viewerIsHost ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={onDelete}
-              className="rounded-lg border border-rose-500/30 px-3 py-1.5 text-xs font-semibold text-rose-200 hover:bg-rose-500/10 disabled:opacity-50"
-            >
-              캠페인 삭제
             </button>
           ) : null}
         </div>
