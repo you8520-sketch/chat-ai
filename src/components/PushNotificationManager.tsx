@@ -14,12 +14,18 @@ function urlBase64ToArrayBuffer(value: string): ArrayBuffer {
   return bytes.buffer;
 }
 
+function isIosDevice(): boolean {
+  const ua = navigator.userAgent;
+  const classic = /iphone|ipad|ipod/i.test(ua);
+  const ipadDesktopUa = navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
+  return classic || ipadDesktopUa;
+}
+
 function isIosBrowserMode(): boolean {
-  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
   const standalone =
     window.matchMedia("(display-mode: standalone)").matches ||
     (navigator as Navigator & { standalone?: boolean }).standalone === true;
-  return ios && !standalone;
+  return isIosDevice() && !standalone;
 }
 
 export default function PushNotificationManager() {
@@ -45,7 +51,16 @@ export default function PushNotificationManager() {
       const registration = await navigator.serviceWorker.register("/sw.js");
       const subscription = await registration.pushManager.getSubscription();
       const endpoint = subscription?.endpoint ?? "";
-      const response = await fetch(`/api/push${endpoint ? `?endpoint=${encodeURIComponent(endpoint)}` : ""}`);
+      const response = await fetch(`/api/push${endpoint ? `?endpoint=${encodeURIComponent(endpoint)}` : ""}`, {
+        credentials: "same-origin",
+      });
+      if (response.status === 401) {
+        if (!cancelled) {
+          setState("off");
+          setMessage("이 앱에서 다시 로그인해 주세요. 아이폰은 Safari와 홈 화면 앱의 로그인이 따로입니다.");
+        }
+        return;
+      }
       if (!response.ok) {
         if (!cancelled) setState("off");
         return;
@@ -99,9 +114,14 @@ export default function PushNotificationManager() {
         }));
       const response = await fetch("/api/push", {
         method: "POST",
+        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(subscription.toJSON()),
       });
+      if (response.status === 401) {
+        setMessage("이 앱에서 다시 로그인해 주세요. 아이폰은 Safari와 홈 화면 앱의 로그인이 따로입니다.");
+        return;
+      }
       if (!response.ok) throw new Error("구독 저장 실패");
       setState("on");
       setMessage("중요 알림이 켜졌습니다. 좋아요·댓글 푸시는 아래에서 따로 켤 수 있어요.");
@@ -121,6 +141,7 @@ export default function PushNotificationManager() {
       if (subscription) {
         await fetch("/api/push", {
           method: "DELETE",
+          credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ endpoint: subscription.endpoint }),
         });
@@ -142,11 +163,18 @@ export default function PushNotificationManager() {
     if (kind === "likes") setPushNotifyLikes(next);
     else setPushNotifyComments(next);
     try {
-      const response = await fetch("/api/push", {
+      const response = await fetch("/api/settings", {
         method: "PATCH",
+        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(kind === "likes" ? { pushNotifyLikes: next } : { pushNotifyComments: next }),
       });
+      if (response.status === 401) {
+        if (kind === "likes") setPushNotifyLikes(previous);
+        else setPushNotifyComments(previous);
+        setMessage("이 앱에서 다시 로그인해 주세요. 아이폰은 Safari와 홈 화면 앱의 로그인이 따로입니다.");
+        return;
+      }
       if (!response.ok) throw new Error("pref save failed");
       setMessage(next ? "해당 푸시 알림을 켰습니다." : "해당 푸시 알림을 껐습니다.");
     } catch {

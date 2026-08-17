@@ -36,3 +36,21 @@ export function resolvePublicOrigin(req: Request): string {
 export function googleOAuthCallbackUrl(origin: string): string {
   return `${origin.replace(/\/$/, "")}/api/auth/google/callback`;
 }
+
+function normalizeOrigin(value: string): string | null {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+}
+
+/** CSRF check that compares the browser Origin to the public host, not the internal bind URL. */
+export function isBrowserOriginAllowed(req: Request): boolean {
+  const origin = req.headers.get("origin")?.trim() ?? "";
+  // GET often omits Origin. iOS WKWebView / home-screen PWAs may send the literal "null".
+  if (!origin || origin.toLowerCase() === "null") return true;
+  const browser = normalizeOrigin(origin);
+  const published = normalizeOrigin(resolvePublicOrigin(req));
+  return Boolean(browser && published && browser === published);
+}
