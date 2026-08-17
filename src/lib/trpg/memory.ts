@@ -1,8 +1,15 @@
 import type Database from "better-sqlite3";
 import { parseTrpgBotAction } from "./botActionParse";
 import { clipTrpgChars, loadCampaignLedger, type TrpgCampaignLedger } from "./campaignLedger";
-import { parseJson } from "./store";
 import { loadSheetSnapshots } from "./engineSheets";
+import {
+  buildHorizonPromptSections,
+  loadMemoryEvents,
+  logTrpgMemoryUsage,
+  TRPG_MEMORY_EVENT_FACT_MAX_CHARS,
+  TRPG_MEMORY_EVENTS_PER_SEAL,
+  type TrpgMemoryQuery,
+} from "./memoryHorizon";
 import {
   TRPG_BOT_CONTINUITY_ACTION_CHARS,
   TRPG_BOT_CONTINUITY_MAX_CHARS,
@@ -68,10 +75,29 @@ export function fallbackSealSummary(rounds: TrpgMemoryRound[], maxChars = TRPG_S
 
 export const TRPG_SEAL_SYSTEM = `You compress completed Korean TRPG rounds into durable campaign memory.
 
-Write ONLY a fact recap in 음슴체. Keep cause → action → result.
-Must preserve: promises, quests, NPC standing, items gained/lost and who holds them, injuries, location, unresolved goal, turning-point lines (quote at most one).
-Delete sensory padding, repetition, and dice numbers.
-Korean. ${TRPG_SEAL_SUMMARY_MAX_CHARS} characters max. No JSON. No instructions.`;
+Return JSON only. No markdown. No secrets. No GM notes. No hidden clues. No ending candidates.
+{
+  "summary": "음슴체 fact recap. cause → action → result. Korean. ${TRPG_SEAL_SUMMARY_MAX_CHARS} characters max.",
+  "events": [
+    {
+      "type": "promise",
+      "fact": "한 줄 사실. ${TRPG_MEMORY_EVENT_FACT_MAX_CHARS} characters max.",
+      "actors": ["이름"],
+      "entities": ["장소나 물건"],
+      "keywords": ["핵심어"],
+      "importance": "normal|important|critical",
+      "scope": "party_observed|actor_only|public_world",
+      "round": 4
+    }
+  ]
+}
+
+summary: keep promises, quests, NPC standing, items gained/lost and who holds them, injuries, location, unresolved goal. Delete sensory padding, repetition, and dice numbers.
+events: at most ${TRPG_MEMORY_EVENTS_PER_SEAL}. Only durable facts the table actually saw or a named actor privately experienced.
+type must be one of: relationship, promise, betrayal, reveal, death, injury, item, quest, npc, faction, location, clue, decision, conflict, world_event, other.
+critical: death, betrayal, binding promise, identity reveal, unique item gain/loss, faction join/betrayal, major quest decision, permanent injury, campaign-turning event.
+scope: party_observed if the party saw or heard it; actor_only for a private inner experience; public_world for an openly known world fact.
+Do not invent hidden GM secrets.`;
 
 export function buildTrpgSealUserBlock(rounds: TrpgMemoryRound[]): string {
   const body = rounds
@@ -80,13 +106,16 @@ export function buildTrpgSealUserBlock(rounds: TrpgMemoryRound[]): string {
       return `[ROUND ${r.roundNumber}]\n[ACTIONS]\n${acts}\n[GM]\n${r.gmNarration}`;
     })
     .join("\n\n");
-  return `[SEAL THESE ROUNDS — facts only, ≤${TRPG_SEAL_SUMMARY_MAX_CHARS} chars]\n\n${body}`;
+  return `[SEAL THESE ROUNDS — JSON {summary, events}. summary ≤${TRPG_SEAL_SUMMARY_MAX_CHARS} chars. events ≤${TRPG_MEMORY_EVENTS_PER_SEAL}.]\n\n${body}`;
 }
 
 export function buildTrpgMemoryPromptBlock(opts: {
   structured: TrpgStructuredCampaignMemory;
   sealedSummary: string;
   recentRounds: TrpgMemoryRound[];
+  campaignAnchors?: string;
+  relevantPastEvents?: string;
+  arcMemory?: string;
 }): string {
   const sheets = opts.structured.sheets
     .map((s) => {
@@ -120,6 +149,9 @@ export function buildTrpgMemoryPromptBlock(opts: {
     opts.structured.worldFlags.length ? `flags: ${opts.structured.worldFlags.join("; ")}` : "",
     sealed ? `[SEALED CAMPAIGN SUMMARY]\n${sealed}` : "",
     recent ? `[RECENT ROUNDS — RAW]\n${recent}` : "",
+    opts.campaignAnchors?.trim() ? `[CAMPAIGN ANCHORS]\n${opts.campaignAnchors.trim()}` : "",
+    opts.relevantPastEvents?.trim() ? `[RELEVANT PAST EVENTS]\n${opts.relevantPastEvents.trim()}` : "",
+    opts.arcMemory?.trim() ? `[ARC MEMORY]\n${opts.arcMemory.trim()}` : "",
   ]
     .filter(Boolean)
     .join("\n");
@@ -264,7 +296,36 @@ export function persistRoundSummary(
   ).run(clipTrpgChars(sealed, TRPG_SEALED_PROMPT_MAX_CHARS), roundEnd + 1, campaignId);
 }
 
-export function buildCampaignMemoryPrompt(db: Database.Database, campaignId: number): string {
+export function buildCampaignMemoryQuery(
+  db: Database.Database,
+  campaignId: number,
+  extra?: Partial<TrpgMemoryQuery>
+): TrpgMemoryQuery {
+  const ledger = loadCampaignLedger(db, campaignId);
+  const state = db
+    .prepare(`SELECT round_number FROM trpg_campaign_state WHERE campaign_id=?`)
+    .get(campaignId) as { round_number: number } | undefined;
+  const sheets = loadSheetSnapshots(db, campaignId);
+  return {
+    names: extra?.names ?? sheets.map((sheet) => sheet.name),
+    actionText: extra?.actionText ?? "",
+    location: extra?.location ?? ledger.location,
+    quests: extra?.quests ?? ledger.quests,
+    npcs: extra?.npcs ?? ledger.npcs,
+    inventory: extra?.inventory ?? sheets.flatMap((sheet) => sheet.inventory),
+    worldFlags: extra?.worldFlags ?? ledger.worldFlags,
+    sceneText: extra?.sceneText ?? "",
+    currentRound: extra?.currentRound ?? state?.round_number ?? 0,
+    viewerName: extra?.viewerName,
+    viewerKind: extra?.viewerKind ?? "gm",
+  };
+}
+
+export function buildCampaignMemoryPrompt(
+  db: Database.Database,
+  campaignId: number,
+  extra?: Partial<TrpgMemoryQuery>
+): string {
   const ledger = loadCampaignLedger(db, campaignId);
   const state = db
     .prepare(`SELECT round_number FROM trpg_campaign_state WHERE campaign_id=?`)
@@ -278,6 +339,20 @@ export function buildCampaignMemoryPrompt(db: Database.Database, campaignId: num
     stats: s.stats,
   }));
   const completed = loadCompletedMemoryRounds(db, campaignId);
+  const query = buildCampaignMemoryQuery(db, campaignId, extra);
+  const events = loadMemoryEvents(db, campaignId);
+  const horizon = buildHorizonPromptSections({ events, query });
+  if (events.length > 0 || horizon.relevantCount > 0 || horizon.anchorsCount > 0) {
+    logTrpgMemoryUsage({
+      campaignId,
+      round: query.currentRound,
+      memoryEventsTotal: events.length,
+      anchorsInjected: horizon.anchorsCount,
+      historicalRecalled: horizon.relevantCount,
+      historicalRecalledChars: horizon.relevantChars,
+      botRecalled: 0,
+    });
+  }
   return buildTrpgMemoryPromptBlock({
     structured: {
       roundNumber: state?.round_number ?? 0,
@@ -290,5 +365,8 @@ export function buildCampaignMemoryPrompt(db: Database.Database, campaignId: num
     },
     sealedSummary: loadSealedSummaries(db, campaignId),
     recentRounds: selectRawRecentRounds(completed),
+    campaignAnchors: horizon.anchors,
+    relevantPastEvents: horizon.relevant,
+    arcMemory: horizon.arc,
   });
 }
