@@ -1,0 +1,240 @@
+{
+  "PR": 427,
+  "TOTAL_NEW_QWEN_CALLS": 4,
+  "MUSE_NEW_CALLS": 0,
+  "DEEPSEEK_NEW_CALLS": 0,
+  "GLM_NEW_CALLS": 0,
+  "SOURCE_NEW_CALLS": 0,
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "fallback": 0,
+  "temperature": 0.7,
+  "reasoning_effort": "none",
+  "adapter": "OPUS_QWEN_FRAGMENT_SENTENCE for both sources (byte-identical to n=1)",
+  "gemini31_block_used": false,
+  "existing_n1_unchanged": true,
+  "existing_opus_n1_sha256": "aef51179871abdcd2c367beb49e2f441327482716b5bcdc99b4eb906480be1e3",
+  "existing_gemini_n1_sha256": "647da439d75a1da8cabdb8f28477868d9e5c97a6aee06cea7ada590425013d5b",
+  "last_user_sha256": "783947537587ffdea5b5843b16ff543694c67bb7779c4763eacdf3c6fa40b923",
+  "direct_scores": {
+    "qwen_opus_1": {
+      "file": "QWEN_OPUS_FRAGMENT_MINIMAL.txt",
+      "score": 21,
+      "axes": [5, 5, 4, 2, 5],
+      "late_scene_character_voice": 5,
+      "generic": "LOW",
+      "motif": "HIGH",
+      "dialogue": "HIGH",
+      "stall": false,
+      "foreign_script": false,
+      "user_dialogue_invention": false,
+      "paras_per_1000": 12.733
+    },
+    "qwen_opus_2": {
+      "file": "QWEN_OPUS_FRAGMENT_MINIMAL_2.txt",
+      "score": 19,
+      "axes": [4, 4, 4, 2, 5],
+      "late_scene_character_voice": 3,
+      "generic": "MEDIUM",
+      "motif": "MEDIUM",
+      "dialogue": "MEDIUM",
+      "stall": false,
+      "foreign_script": true,
+      "foreign_script_note": "安抚",
+      "user_dialogue_invention": false,
+      "paras_per_1000": 18.032
+    },
+    "qwen_opus_3": {
+      "file": "QWEN_OPUS_FRAGMENT_MINIMAL_3.txt",
+      "score": 19,
+      "axes": [4, 4, 4, 2, 5],
+      "late_scene_character_voice": 4,
+      "generic": "MEDIUM",
+      "motif": "HIGH",
+      "dialogue": "HIGH",
+      "stall": false,
+      "foreign_script": true,
+      "foreign_script_note": "คำ",
+      "user_dialogue_invention": false,
+      "paras_per_1000": 17.048
+    },
+    "qwen_gemini_1": {
+      "file": "QWEN_GEMINI_FRAGMENT_MINIMAL.txt",
+      "score": 19,
+      "axes": [4, 4, 4, 2, 5],
+      "late_scene_character_voice": 4,
+      "generic": "MEDIUM",
+      "motif": "HIGH",
+      "dialogue": "HIGH",
+      "stall": false,
+      "foreign_script": false,
+      "user_dialogue_invention": false,
+      "paras_per_1000": 14.205
+    },
+    "qwen_gemini_2": {
+      "file": "QWEN_GEMINI_FRAGMENT_MINIMAL_2.txt",
+      "score": 21,
+      "axes": [4, 4, 4, 4, 5],
+      "late_scene_character_voice": 3,
+      "generic": "MEDIUM",
+      "motif": "HIGH",
+      "dialogue": "MEDIUM",
+      "stall": false,
+      "foreign_script": false,
+      "user_dialogue_invention": false,
+      "paras_per_1000": 8.608
+    },
+    "qwen_gemini_3": {
+      "file": "QWEN_GEMINI_FRAGMENT_MINIMAL_3.txt",
+      "score": 21,
+      "axes": [4, 4, 4, 4, 5],
+      "late_scene_character_voice": 3,
+      "generic": "MEDIUM",
+      "motif": "HIGH",
+      "dialogue": "MEDIUM",
+      "stall": false,
+      "foreign_script": false,
+      "user_dialogue_invention": false,
+      "paras_per_1000": 9.186
+    },
+    "muse_opus_positive_1": {
+      "file": "MUSE12_POSITIVE_OPUS.txt",
+      "score": 22,
+      "axes": [4, 4, 5, 4, 5],
+      "late_scene_character_voice": 2,
+      "stall": false
+    },
+    "muse_opus_positive_2": {
+      "file": "MUSE12_FINAL_OPUS_POSITIVE_2.txt",
+      "score": 21,
+      "axes": [4, 4, 4, 4, 5],
+      "late_scene_character_voice": 2,
+      "stall": false
+    },
+    "muse_opus_positive_3": {
+      "file": "MUSE12_FINAL_OPUS_POSITIVE_3.txt",
+      "score": 16,
+      "axes": [4, 4, 3, 3, 2],
+      "late_scene_character_voice": 0,
+      "stall": true
+    },
+    "muse_gemini_vanilla_1": {
+      "file": "MUSE12_GEMINI.txt",
+      "score": 21,
+      "axes": [4, 4, 4, 4, 5],
+      "late_scene_character_voice": 2,
+      "stall": false,
+      "user_dialogue_invention": true
+    },
+    "muse_gemini_vanilla_2": {
+      "file": "MUSE12_FINAL_GEMINI_VANILLA_2.txt",
+      "score": 21,
+      "axes": [4, 4, 4, 4, 5],
+      "late_scene_character_voice": 2,
+      "stall": false
+    },
+    "muse_gemini_vanilla_3": {
+      "file": "MUSE12_FINAL_GEMINI_VANILLA_3.txt",
+      "score": 17,
+      "axes": [4, 4, 3, 4, 2],
+      "late_scene_character_voice": 0,
+      "stall": true,
+      "user_dialogue_invention": true
+    },
+    "muse_gemini_positive_1": {
+      "file": "MUSE12_POSITIVE_GEMINI.txt",
+      "score": 21,
+      "axes": [4, 4, 4, 4, 5],
+      "late_scene_character_voice": 2,
+      "stall": false
+    },
+    "muse_gemini_positive_2": {
+      "file": "MUSE12_FINAL_GEMINI_POSITIVE_2.txt",
+      "score": 21,
+      "axes": [4, 4, 4, 4, 5],
+      "late_scene_character_voice": 3,
+      "stall": false,
+      "foreign_script": true
+    },
+    "muse_gemini_positive_3": {
+      "file": "MUSE12_FINAL_GEMINI_POSITIVE_3.txt",
+      "score": 20,
+      "axes": [4, 3, 4, 4, 5],
+      "late_scene_character_voice": 2,
+      "stall": false
+    }
+  },
+  "n3": {
+    "qwen_opus": {
+      "scores": [21, 19, 19],
+      "AVERAGE_SCORE": 19.67,
+      "MEDIAN_SCORE": 19,
+      "MIN_SCORE": 19,
+      "STALL_RATE": "0/3",
+      "LATE_VOICE": [5, 3, 4],
+      "LATE_VOICE_AVG": 4.0,
+      "AVG_PARAGRAPHS_PER_1000": 15.938
+    },
+    "qwen_gemini": {
+      "scores": [19, 21, 21],
+      "AVERAGE_SCORE": 20.33,
+      "MEDIAN_SCORE": 21,
+      "MIN_SCORE": 19,
+      "STALL_RATE": "0/3",
+      "LATE_VOICE": [4, 3, 3],
+      "LATE_VOICE_AVG": 3.33,
+      "AVG_PARAGRAPHS_PER_1000": 10.666
+    },
+    "muse_opus_positive": {
+      "scores": [22, 21, 16],
+      "AVERAGE_SCORE": 19.67,
+      "MEDIAN_SCORE": 21,
+      "MIN_SCORE": 16,
+      "STALL_RATE": "1/3",
+      "LATE_VOICE": [2, 2, 0],
+      "LATE_VOICE_AVG": 1.33,
+      "AVG_PARAGRAPHS_PER_1000": 10.046
+    },
+    "muse_gemini_vanilla": {
+      "scores": [21, 21, 17],
+      "AVERAGE_SCORE": 19.67,
+      "MEDIAN_SCORE": 21,
+      "MIN_SCORE": 17,
+      "STALL_RATE": "1/3",
+      "LATE_VOICE": [2, 2, 0],
+      "LATE_VOICE_AVG": 1.33,
+      "AVG_PARAGRAPHS_PER_1000": 8.518
+    },
+    "muse_gemini_positive": {
+      "scores": [21, 21, 20],
+      "AVERAGE_SCORE": 20.67,
+      "MEDIAN_SCORE": 21,
+      "MIN_SCORE": 20,
+      "STALL_RATE": "0/3",
+      "LATE_VOICE": [2, 3, 2],
+      "LATE_VOICE_AVG": 2.33,
+      "AVG_PARAGRAPHS_PER_1000": 8.508
+    }
+  },
+  "QWEN_OPUS_SCORES": [21, 19, 19],
+  "QWEN_OPUS_AVG": 19.67,
+  "QWEN_OPUS_MEDIAN": 19,
+  "QWEN_OPUS_MIN": 19,
+  "QWEN_OPUS_STALL_RATE": "0/3",
+  "QWEN_OPUS_LATE_VOICE_AVG": 4.0,
+  "QWEN_GEMINI_SCORES": [19, 21, 21],
+  "QWEN_GEMINI_AVG": 20.33,
+  "QWEN_GEMINI_MEDIAN": 21,
+  "QWEN_GEMINI_MIN": 19,
+  "QWEN_GEMINI_STALL_RATE": "0/3",
+  "QWEN_GEMINI_LATE_VOICE_AVG": 3.33,
+  "OPUS_FINAL_HANDOFF": "QWEN",
+  "GEMINI_FINAL_HANDOFF": "INCONCLUSIVE",
+  "MUSE_FURTHER_PROMPT_TUNING_REQUIRED": false,
+  "PRODUCTION_IMPLEMENTATION_RECOMMENDED": false,
+  "MAIN_MERGED": false,
+  "RAILWAY_DEPLOYED": false,
+  "PRODUCTION_ROUTING_CHANGED": false,
+  "CAPTURE_COMPLETE": true
+}
