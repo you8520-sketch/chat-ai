@@ -4,6 +4,7 @@ import type Database from "better-sqlite3";
 import { after } from "next/server";
 import webpush from "web-push";
 import { getDb } from "@/lib/db";
+import { resolveWebPushVapidConfig } from "@/lib/webPushVapid";
 
 export type WebPushPayload = {
   title: string;
@@ -32,25 +33,20 @@ let expiryInterval: ReturnType<typeof setInterval> | null = null;
 let deliveryRunning = false;
 let vapidFingerprint = "";
 
-function envConfig() {
+export function getWebPushPublicConfig(db?: Database.Database): {
+  enabled: boolean;
+  publicKey: string;
+} {
+  const config = resolveWebPushVapidConfig(db);
   return {
-    publicKey: process.env.WEB_PUSH_VAPID_PUBLIC_KEY?.trim() ?? "",
-    privateKey: process.env.WEB_PUSH_VAPID_PRIVATE_KEY?.trim() ?? "",
-    subject: process.env.WEB_PUSH_SUBJECT?.trim() ?? "",
+    enabled: Boolean(config),
+    publicKey: config?.publicKey ?? "",
   };
 }
 
-export function getWebPushPublicConfig(): { enabled: boolean; publicKey: string } {
-  const config = envConfig();
-  return {
-    enabled: Boolean(config.publicKey && config.privateKey && config.subject),
-    publicKey: config.publicKey,
-  };
-}
-
-function configureVapid(): boolean {
-  const config = envConfig();
-  if (!config.publicKey || !config.privateKey || !config.subject) return false;
+function configureVapid(db?: Database.Database): boolean {
+  const config = resolveWebPushVapidConfig(db);
+  if (!config) return false;
   const fingerprint = `${config.subject}:${config.publicKey}:${config.privateKey.slice(0, 8)}`;
   if (fingerprint !== vapidFingerprint) {
     webpush.setVapidDetails(config.subject, config.publicKey, config.privateKey);
@@ -119,7 +115,7 @@ export function queueUserWebPush(
   eventKey: string,
   payload: WebPushPayload
 ): boolean {
-  if (!getWebPushPublicConfig().enabled) return false;
+  if (!getWebPushPublicConfig(db).enabled) return false;
   if (!insertUserEvent(db, userId, eventKey)) return false;
 
   db.prepare(
@@ -138,7 +134,7 @@ export function queueBroadcastWebPush(
   eventKey: string,
   payload: WebPushPayload
 ): number {
-  if (!getWebPushPublicConfig().enabled) return 0;
+  if (!getWebPushPublicConfig(db).enabled) return 0;
   const users = db
     .prepare("SELECT DISTINCT user_id FROM web_push_subscriptions")
     .all() as { user_id: number }[];
@@ -233,7 +229,7 @@ export function scheduleWebPushDelivery(): void {
 }
 
 export function queueExpiringPointPushes(db: Database.Database): number {
-  if (!getWebPushPublicConfig().enabled) return 0;
+  if (!getWebPushPublicConfig(db).enabled) return 0;
   const rows = db
     .prepare(
       `SELECT pt.user_id,
@@ -274,10 +270,12 @@ export function queueExpiringPointPushes(db: Database.Database): number {
 }
 
 export function startWebPushSchedulers(): void {
-  if (!getWebPushPublicConfig().enabled) {
-    console.warn("[web-push] disabled: WEB_PUSH_VAPID_PUBLIC_KEY, WEB_PUSH_VAPID_PRIVATE_KEY, and WEB_PUSH_SUBJECT are required");
+  const config = resolveWebPushVapidConfig();
+  if (!config) {
+    console.warn("[web-push] disabled: set DISABLE_WEB_PUSH=1 to turn off, or check app_meta VAPID provisioning");
     return;
   }
+  console.info(`[web-push] enabled (source=${config.source})`);
   scheduleWebPushDelivery();
   queueExpiringPointPushes(getDb());
 

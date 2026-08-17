@@ -66,6 +66,7 @@ Production authentication uses an opaque `session` cookie whose token is looked 
 - `WITHDRAWAL_ENCRYPTION_KEY=<fixed 32+ character random value>`
   - Generate once per production environment and keep it fixed across deploys/restarts.
   - This key protects sensitive withdrawal fields. If omitted, production requires `SESSION_SECRET` as the fallback encryption secret, but a dedicated key is recommended.
+- Web Push VAPID keys are optional. If `WEB_PUSH_VAPID_PUBLIC_KEY` / `WEB_PUSH_VAPID_PRIVATE_KEY` are unset, the server generates a pair on first boot and stores it in `app_meta` so settings → 앱 푸시 알림 can be turned on after deploy. Keep the same persistent database; rotating keys invalidates existing device subscriptions. Set `DISABLE_WEB_PUSH=1` to force the feature off.
 
 ### Post-deploy login persistence check
 

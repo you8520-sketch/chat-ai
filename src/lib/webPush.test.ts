@@ -7,6 +7,7 @@ import {
   queueUserWebPush,
   saveWebPushSubscription,
 } from "./webPush";
+import { resetWebPushVapidCache } from "./webPushVapid";
 
 function createDb() {
   const db = new Database(":memory:");
@@ -73,6 +74,7 @@ test.before(() => {
   process.env.WEB_PUSH_VAPID_PRIVATE_KEY = "test-private-key";
   process.env.WEB_PUSH_SUBJECT = "mailto:test@example.com";
   process.env.DISABLE_WEB_PUSH_DELIVERY = "1";
+  resetWebPushVapidCache();
 });
 
 test.after(() => {
@@ -80,6 +82,7 @@ test.after(() => {
   delete process.env.WEB_PUSH_VAPID_PRIVATE_KEY;
   delete process.env.WEB_PUSH_SUBJECT;
   delete process.env.DISABLE_WEB_PUSH_DELIVERY;
+  resetWebPushVapidCache();
 });
 
 test("queues a user event once for every current device", () => {
