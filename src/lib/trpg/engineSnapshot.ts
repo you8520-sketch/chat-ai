@@ -18,6 +18,7 @@ import {
 } from "./store";
 import { purgeUnstartedSoloDrafts } from "./engineDelete";
 import { loadCampaignContext } from "./campaignContext";
+import { parseResolutionOrder, sortByResolutionOrder } from "./initiative";
 import { loadCampaignScenarioAssets } from "./scenarioTemplates";
 import {
   isListedTrpgCampaign,
@@ -100,8 +101,17 @@ function asKind(value: string): TrpgParticipantKind {
   return value === "ai_character" ? "ai_character" : "human";
 }
 
+function loadResolutionOrder(db: Database.Database, roundId: number) {
+  const row = db.prepare(`SELECT input_snapshot_json FROM trpg_rounds WHERE id=?`).get(roundId) as
+    | { input_snapshot_json: string | null }
+    | undefined;
+  return parseResolutionOrder(parseJson(row?.input_snapshot_json, {} as { resolutionOrder?: unknown }));
+}
+
 function loadRolls(db: Database.Database, roundId: number): TrpgPublicRoll[] {
-  return (
+  const order = loadResolutionOrder(db, roundId);
+  return sortByResolutionOrder(
+    (
     db
       .prepare(
         `SELECT r.d20, r.stat_key, r.final_score, r.dc, r.tier, s.participant_id, s.body, s.action_type,
@@ -139,7 +149,9 @@ function loadRolls(db: Database.Database, roundId: number): TrpgPublicRoll[] {
       actionType: row.action_type && isTrpgActionType(row.action_type) ? row.action_type : null,
       kind: asKind(row.kind),
     };
-  });
+  }),
+    order
+  );
 }
 
 function loadActions(
@@ -354,6 +366,15 @@ export function loadTrpgSnapshot(
         }
       : null,
     currentRolls,
+    resolutionOrder: (() => {
+      const current = round ? loadResolutionOrder(db, round.id) : [];
+      if (current.length > 0) return current;
+      if (!round || round.round_number <= 0) return [];
+      const prevId = db
+        .prepare(`SELECT id FROM trpg_rounds WHERE campaign_id=? AND round_number=?`)
+        .get(campaignId, round.round_number - 1) as { id: number } | undefined;
+      return prevId ? loadResolutionOrder(db, prevId.id) : [];
+    })(),
     currentNarration,
     log,
     workType: work.type,
