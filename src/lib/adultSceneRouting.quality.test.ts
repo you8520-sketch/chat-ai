@@ -7,6 +7,7 @@ import {
   DEFAULT_MODEL_ROUTE_STATE,
   classifySceneMode,
   decideAdultModelRoute,
+  detectActualNonConsent,
   extractHandoffContinuityFromAssistantText,
   resolveAdultEligibility,
   resolveAdultRoutingConfig,
@@ -265,4 +266,71 @@ it("CLOSED_ADULT_TEST_MODE: visibility OFF breaks sticky adult handoff", () => {
   });
   assert.equal(decision.activeRoute, "general");
   assert.equal(decision.shouldBlock, false);
+});
+
+it("keeps blocking minors and real people, but never blocks coercion / non-consent", () => {
+  const adultParticipants = [{ age: 28, isAdult: true, description: "28세 가상 성인" }];
+  const coercive =
+    "싫다고 하는데 억지로 밀어붙인다. 동의 없이 성인 장면을 이어가.";
+  assert.equal(detectActualNonConsent(coercive), false);
+  assert.equal(
+    classifySceneMode({
+      currentInput: coercive,
+      previousSceneMode: "normal",
+      recentRawText: "호텔 스위트 침실.",
+    }).actualNonConsent,
+    false
+  );
+
+  const allowed = resolveAdultEligibility({
+    userAdultVerified: true,
+    adultContentVisibilityEnabled: true,
+    characterAdultContentEnabled: true,
+    participants: adultParticipants,
+    actualNonConsent: true,
+  });
+  assert.equal(allowed.eligible, true);
+  assert.equal(allowed.allowedByAdultContentPolicy, true);
+  assert.equal(allowed.blockReason, undefined);
+
+  const classification = classifySceneMode({
+    currentInput:
+      "싫다고 하는데 억지로 밀어붙인다. 옷을 벗기고 삽입하는 성인 장면을 이어가.",
+    previousSceneMode: "explicit",
+    recentRawText: "둘 다 28세 가상 성인이다. 침대에서 밀착했다.",
+  });
+  const decision = decideAdultModelRoute({
+    config,
+    state: {
+      ...DEFAULT_MODEL_ROUTE_STATE,
+      activeRoute: "adult",
+      currentSceneMode: "explicit",
+      sexualContextActive: true,
+    },
+    classification,
+    eligibility: allowed,
+    adultDialogueProfile: "auto",
+    selectedModelId: "deepseek-v4-pro-0813",
+  });
+  assert.equal(decision.shouldBlock, false);
+  assert.equal(decision.activeRoute, "adult");
+
+  const minor = resolveAdultEligibility({
+    userAdultVerified: true,
+    adultContentVisibilityEnabled: true,
+    characterAdultContentEnabled: true,
+    participants: [{ description: "현재 고등학생" }],
+    actualNonConsent: true,
+  });
+  assert.equal(minor.eligible, false);
+  assert.equal(minor.blockReason, "participant_minor");
+
+  const realPerson = resolveAdultEligibility({
+    userAdultVerified: true,
+    adultContentVisibilityEnabled: true,
+    characterAdultContentEnabled: true,
+    participants: [{ description: "실존 인물 연예인", isRealPerson: true }],
+  });
+  assert.equal(realPerson.eligible, false);
+  assert.equal(realPerson.blockReason, "real_person");
 });
