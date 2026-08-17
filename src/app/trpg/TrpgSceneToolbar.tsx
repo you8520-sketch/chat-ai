@@ -4,6 +4,7 @@ import { useState } from "react";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { IconImageSpark, IconRegenerate } from "@/components/ChatToolbarIcons";
 import { formatPoints } from "@/lib/billingDisplay";
+import type { TrpgBillingMode } from "@/lib/trpg/types";
 
 const toolbarBtn =
   "flex h-8 w-8 items-center justify-center rounded-lg text-zinc-400 transition hover:bg-white/[0.08] hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-30";
@@ -14,6 +15,8 @@ export default function TrpgSceneToolbar({
   humanCount,
   botCount,
   billingHint,
+  billingMode,
+  viewerIsHost,
   canReroll,
   canImage,
   busy,
@@ -25,6 +28,8 @@ export default function TrpgSceneToolbar({
   humanCount?: number;
   botCount?: number;
   billingHint?: string;
+  billingMode?: TrpgBillingMode;
+  viewerIsHost?: boolean;
   canReroll: boolean;
   canImage: boolean;
   busy: boolean;
@@ -68,9 +73,12 @@ export default function TrpgSceneToolbar({
             className="text-[11px] tabular-nums text-zinc-400"
             title={billingHint || "GM/AI 이용료 포함"}
           >
-            <span className="font-semibold text-zinc-200">{formatPoints(billedPoints)}P</span>
+            <span className="font-semibold text-zinc-200">{`총 ${formatPoints(billedPoints)}P`}</span>
             {viewerSharePoints != null ? (
-              <span>{` · 내 분담 ${formatPoints(viewerSharePoints)}P`}</span>
+              <span>{` · 내 부담 ${formatPoints(viewerSharePoints)}P`}</span>
+            ) : null}
+            {billingMode === "host_pays" && !viewerIsHost ? (
+              <span>{" · 방장 전액 부담"}</span>
             ) : null}
             {humanCount != null ? <span>{` · 참가 ${humanCount}명`}</span> : null}
             {botCount != null ? <span>{` · AI ${botCount}`}</span> : null}

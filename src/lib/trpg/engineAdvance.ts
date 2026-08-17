@@ -4,12 +4,14 @@ import { parseGenresJson } from "@/lib/characterGenres";
 import { deductPoints, getPointBalance } from "@/lib/points";
 import { paidCreatorRewardSpend, resolveCreatorRewardRate } from "@/lib/creatorPoints";
 import { creditTrpgRoundCreatorRewards, loadTrpgCharacterRoyaltyTargets } from "./creatorRewards";
+import { trpgInsufficientBalanceMessage } from "./billingMode";
 import {
   isTrpgValuePricingEnabled,
   quoteTrpgRoundEconomics,
   scaleCreatorShares,
   toBillingBreakdown,
 } from "./economics";
+import { logTrpgRoundEconomics, observeTrpgRoundEconomics } from "./roundEconomics";
 import { isTrpgActionType, pickStatForAction } from "./actionTypes";
 import { actionNeedsCheck } from "./actionCheck";
 import {
@@ -76,7 +78,7 @@ import {
   type TrpgRoundRow,
 } from "./store";
 import { parseTrpgInputOrigin, type TrpgInputOrigin } from "./replySuggestions";
-import { TRPG_ACTION_MAX_CHARS, TRPG_BOT_ACTION_MAX_CHARS, TRPG_BOT_CARD_FIELD_MAX_CHARS, TRPG_BOT_CARD_PROMPT_MAX_CHARS, TRPG_BOT_SCENE_MAX_CHARS, TRPG_GM_MODEL, type TrpgActionSource, type TrpgBillingMode, type TrpgRoundPhase } from "./types";
+import { DEFAULT_TRPG_BILLING_MODE, TRPG_ACTION_MAX_CHARS, TRPG_BOT_ACTION_MAX_CHARS, TRPG_BOT_CARD_FIELD_MAX_CHARS, TRPG_BOT_CARD_PROMPT_MAX_CHARS, TRPG_BOT_SCENE_MAX_CHARS, TRPG_GM_MODEL, type TrpgActionSource, type TrpgBillingMode, type TrpgRoundPhase } from "./types";
 import { isTrpgRoundPhase } from "./types";
 import type { TrpgCampaignSnapshot } from "./snapshot";
 
@@ -945,16 +947,29 @@ function chargeTrpgCalls(
         hostUserId: campaign.host_user_id,
         mode: campaign.billing_mode as TrpgBillingMode,
       }).map((share) => ({ userId: share.userId, points: share.points, quote: null }));
+  const billingMode = (campaign.billing_mode as TrpgBillingMode) || DEFAULT_TRPG_BILLING_MODE;
   for (const share of payers) {
     if (share.points <= 0) continue;
     if (getPointBalance(share.userId).total < share.points) {
-      throw new Error("포인트가 부족합니다.");
+      throw new Error(
+        trpgInsufficientBalanceMessage({
+          billingMode,
+          hostUserId: campaign.host_user_id,
+          shortUserId: share.userId,
+        })
+      );
     }
   }
+  let paidPointsSpent = 0;
+  let freePointsSpent = 0;
   for (const share of payers) {
     if (share.points <= 0) continue;
     const result = deductPoints(share.userId, share.points, `trpg-round:${roundId}`);
     const paidSpend = paidCreatorRewardSpend(result.slices);
+    paidPointsSpent += paidSpend;
+    freePointsSpent += result.slices.reduce((sum, slice) => {
+      return slice.pointType === "PAID" ? sum : sum + Number(slice.amount ?? 0);
+    }, 0);
     if (valuePricing) {
       const paidRatio = share.points > 0 ? paidSpend / share.points : 0;
       creditTrpgRoundCreatorRewards(db, {
@@ -981,7 +996,22 @@ function chargeTrpgCalls(
     });
   }
   const billedTotal = valuePricing ? quote.roundTotal : addPoints;
-  const breakdown = JSON.stringify(toBillingBreakdown(quote));
+  const actualCreatorCpCredited = (
+    db
+      .prepare(`SELECT COALESCE(SUM(reward_amount),0) AS n FROM trpg_creator_earnings WHERE round_id=?`)
+      .get(roundId) as { n: number }
+  ).n;
+  const breakdownBase = toBillingBreakdown(quote);
+  const economics = observeTrpgRoundEconomics({
+    breakdown: breakdownBase,
+    billingMode,
+    paidPointsSpent,
+    freePointsSpent,
+    actualCreatorCpCredited,
+    calls,
+  });
+  logTrpgRoundEconomics(economics);
+  const breakdown = JSON.stringify({ ...breakdownBase, economics });
   if (opts.addToBilled) {
     db.prepare(
       `UPDATE trpg_rounds

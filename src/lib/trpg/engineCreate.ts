@@ -14,7 +14,7 @@ import { parseCompanionIds } from "./requestIds";
 import { TRPG_SCENARIO_MAX_BOTS } from "./scenarioTypes";
 import { purgeUnstartedSoloDrafts } from "./engineDelete";
 import { clipTrpgChars } from "./campaignLedger";
-import { TRPG_MAX_SLOTS, TRPG_RELATIONSHIP_MAX_CHARS } from "./types";
+import { DEFAULT_TRPG_BILLING_MODE, TRPG_MAX_SLOTS, TRPG_RELATIONSHIP_MAX_CHARS, type TrpgBillingMode } from "./types";
 import { deriveMaxHpFromValues, evenStats, floorStats, suggestBotStats, validateStatAllocation, DEFAULT_TRPG_STAT_DEFS, defsFromKeys, pointPoolFor } from "./stats";
 import { rejectTrpgFork } from "./timeline";
 import type { TrpgHumanPersona } from "./hostPersona";
@@ -149,6 +149,7 @@ export function createTrpgCampaign(
     viewerUserId: number;
     parentCampaignId?: number | null;
     forkFromRound?: number | null;
+    billingMode?: TrpgBillingMode;
   }
 ): number {
   if (opts.parentCampaignId || opts.forkFromRound) rejectTrpgFork();
@@ -261,6 +262,7 @@ export function createTrpgCampaign(
       gmSecret,
       statDefs,
       pointPool,
+      billingMode: opts.billingMode ?? DEFAULT_TRPG_BILLING_MODE,
     });
     insertParticipant(db, {
       campaignId,
@@ -403,6 +405,7 @@ export type TrpgInvitePeek = {
   alreadyJoined: boolean;
   remainingSlots: number;
   canJoin: boolean;
+  billingMode: TrpgBillingMode;
 };
 
 export function peekTrpgInvite(
@@ -421,6 +424,7 @@ export function peekTrpgInvite(
     alreadyJoined,
     remainingSlots,
     canJoin: alreadyJoined || (setup && remainingSlots > 0),
+    billingMode: (campaign.billing_mode as TrpgBillingMode) || DEFAULT_TRPG_BILLING_MODE,
   };
 }
 

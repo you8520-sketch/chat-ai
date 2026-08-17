@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { AppPageShell } from "@/components/AppPageShell";
 import PersonaSelector from "@/components/PersonaSelector";
 import type { PublicPersonaListItem } from "@/lib/userPersonasClient";
+import type { TrpgBillingMode } from "@/lib/trpg/types";
 
 const PERSONA_STORAGE_KEY = "habi:lastPersonaId";
 
@@ -13,11 +14,13 @@ export default function TrpgJoinClient({
   code,
   title,
   remainingSlots,
+  billingMode,
   personas: initialPersonas,
 }: {
   code: string;
   title: string;
   remainingSlots: number;
+  billingMode?: TrpgBillingMode;
   personas: PublicPersonaListItem[];
 }) {
   const router = useRouter();
@@ -83,6 +86,11 @@ export default function TrpgJoinClient({
       <p className="text-sm leading-relaxed text-zinc-400">
         페르소나를 고르면 빈 자리가 그 페르소나로 채워집니다.
       </p>
+      {billingMode === "host_pays" ? (
+        <p className="mt-3 rounded-xl border border-violet-400/20 bg-violet-500/10 px-3 py-2 text-sm text-violet-100">
+          방장이 플레이 비용을 부담하는 방입니다.
+        </p>
+      ) : null}
       {personas.length > 0 ? (
         <div className="mt-4">
           <p className="mb-2 text-sm text-zinc-300">내 페르소나</p>

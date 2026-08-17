@@ -17,7 +17,7 @@ import {
 import { cacheUserChatPrefsClient, loadUserChatPrefsClient, type UserChatPrefs } from "@/lib/userChatPrefs";
 import { loadTrpgDisplayPrefs } from "@/lib/trpg/displayPrefs";
 import { mergeTrpgActionRolls, orphanTrpgRolls } from "@/lib/trpg/actionCardRolls";
-import { formatTrpgRollCompact } from "@/lib/trpg/labels";
+import { formatTrpgRollCompact, trpgBillingModeLabel } from "@/lib/trpg/labels";
 import { parseTrpgSceneSpeech } from "@/lib/trpg/sceneSpeech";
 import type { CharacterAsset } from "@/lib/characterAssets";
 import type { TrpgCampaignSnapshot, TrpgPublicLog, TrpgPublicRoll } from "@/lib/trpg/snapshot";
@@ -118,6 +118,7 @@ export default function TrpgCampaignRoom({
   onRetryGm,
   onReroll,
   onTitleSaved,
+  onBillingModeChange,
 }: {
   snap: TrpgCampaignSnapshot;
   starting: boolean;
@@ -143,6 +144,7 @@ export default function TrpgCampaignRoom({
   onRetryGm: () => void;
   onReroll: (roundNumber: number) => void;
   onTitleSaved: (title: string) => void;
+  onBillingModeChange?: (mode: TrpgCampaignSnapshot["billingMode"]) => void;
 }) {
   const [displayPrefs, setDisplayPrefs] = useState<ChatDisplayPrefs>(DEFAULT_CHAT_DISPLAY_PREFS);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -310,7 +312,14 @@ export default function TrpgCampaignRoom({
                 앨범
               </Link>
               {" · "}라운드 {snap.round.number}
+              {" · "}
+              <span className="rounded-full border border-white/10 bg-white/[0.04] px-2 py-0.5 text-[10px] font-semibold text-zinc-300">
+                {trpgBillingModeLabel(snap.billingMode)}
+              </span>
             </p>
+            {snap.billingMode === "host_pays" && !snap.viewerIsHost ? (
+              <p className="mt-1 text-xs text-violet-200/80">이 방의 플레이 비용은 방장이 부담합니다.</p>
+            ) : null}
           </div>
           <div className="min-[576px]:hidden">
             <button
@@ -328,6 +337,20 @@ export default function TrpgCampaignRoom({
             </button>
           </div>
         </header>
+
+        {snap.viewerIsHost && snap.billingMode === "split_even" && onBillingModeChange ? (
+          <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2">
+            <p className="text-xs text-zinc-400">비용은 지금 균등 부담입니다. 방장 전액 부담으로 바꿀 수 있습니다.</p>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onBillingModeChange("host_pays")}
+              className="mt-2 inline-flex min-h-8 items-center rounded-lg border border-white/10 px-3 text-xs font-semibold text-zinc-100 hover:bg-white/10 disabled:opacity-50"
+            >
+              방장이 전액 부담으로 변경
+            </button>
+          </div>
+        ) : null}
 
         {error ? (
           <p className="mt-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
@@ -388,6 +411,8 @@ export default function TrpgCampaignRoom({
               liveRolls={row.roundNumber === snap.round.number ? snap.currentRolls : []}
               partyHumanCount={snap.partyHumanCount}
               partyBotCount={snap.partyBotCount}
+              viewerIsHost={snap.viewerIsHost}
+              billingMode={row.billingMode ?? snap.billingMode}
               onReroll={() => onReroll(row.roundNumber)}
               onImage={() =>
                 openSceneImage({
@@ -588,6 +613,8 @@ function SceneTurn({
   liveRolls,
   partyHumanCount,
   partyBotCount,
+  viewerIsHost,
+  billingMode,
   onReroll,
   onImage,
 }: {
@@ -604,6 +631,8 @@ function SceneTurn({
   liveRolls: TrpgPublicRoll[];
   partyHumanCount?: number;
   partyBotCount?: number;
+  viewerIsHost: boolean;
+  billingMode?: TrpgCampaignSnapshot["billingMode"];
   onReroll: () => void;
   onImage: () => void;
 }) {
@@ -698,6 +727,8 @@ function SceneTurn({
           humanCount={row.humanCount ?? partyHumanCount}
           botCount={row.botCount ?? partyBotCount}
           billingHint={row.billingHint}
+          billingMode={billingMode}
+          viewerIsHost={viewerIsHost}
           canReroll={canReroll}
           canImage={canImage}
           busy={busy}

@@ -11,6 +11,7 @@ import {
 import { isMockApiMode } from "@/lib/mockApiMode";
 import { adaptTrpgBotChatBody, adaptTrpgGmChatBody, trpgProviderRequestContract } from "./gmClient";
 import type { TrpgModelUsage } from "./billing";
+import { parseProviderUsageCostUsd } from "./roundEconomics";
 import { attachTrpgCallFailureMeta } from "./startFailure";
 import { TRPG_BOT_MAX_TOKENS, TRPG_BOT_MODEL, TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL } from "./types";
 
@@ -53,18 +54,25 @@ function usageFromResponse(
       prompt_tokens?: number;
       completion_tokens?: number;
       prompt_tokens_details?: { cached_tokens?: number };
+      cost?: unknown;
+      total_cost?: unknown;
+      cost_usd?: unknown;
+      total_cost_usd?: unknown;
+      cost_details?: unknown;
     };
   }
 ): TrpgModelUsage | undefined {
   const prompt = Number(data.usage?.prompt_tokens ?? 0);
   const completion = Number(data.usage?.completion_tokens ?? 0);
   const cached = Number(data.usage?.prompt_tokens_details?.cached_tokens ?? 0);
+  const upstreamCostUsd = parseProviderUsageCostUsd(data.usage);
   if (prompt <= 0 && completion <= 0) return undefined;
   return {
     modelId,
     inputTokens: prompt,
     outputTokens: completion,
     cacheReadTokens: cached > 0 ? cached : undefined,
+    upstreamCostUsd,
   };
 }
 
@@ -99,6 +107,11 @@ async function postTrpgChat(opts: {
         prompt_tokens_details?: { cached_tokens?: number };
         completion_tokens_details?: { reasoning_tokens?: unknown };
         reasoning_tokens?: unknown;
+        cost?: unknown;
+        total_cost?: unknown;
+        cost_usd?: unknown;
+        total_cost_usd?: unknown;
+        cost_details?: unknown;
       };
     };
     const reasoningTokens = reasoningTokensFromProviderUsage(data.usage);

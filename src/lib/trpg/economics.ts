@@ -1,7 +1,9 @@
 import { roundCreatorAmount } from "@/lib/creatorShared";
 import type { TrpgCharacterRoyaltyInput, TrpgCreatorRewardShare } from "./creatorRewards";
 import { splitTrpgRoundCost, type TrpgShare } from "./billing";
+import type { TrpgRoundEconomicsObservation } from "./roundEconomics";
 import {
+  DEFAULT_TRPG_BILLING_MODE,
   TRPG_CHARACTER_ROYALTY_RATE,
   TRPG_MAX_BOTS,
   TRPG_PARTY_PREMIUM_CAP,
@@ -115,6 +117,7 @@ export type TrpgRoundEconomicsQuote = {
   humanCount: number;
   botCount: number;
   valuePricingEnabled: boolean;
+  billingMode: TrpgBillingMode;
   perUserShares: TrpgPayerQuote[];
 };
 
@@ -174,6 +177,7 @@ export function quoteTrpgRoundEconomics(opts: {
     humanCount,
     botCount: Math.max(0, opts.botCount),
     valuePricingEnabled: opts.valuePricingEnabled,
+    billingMode: opts.billingMode ?? DEFAULT_TRPG_BILLING_MODE,
     perUserShares,
   };
 }
@@ -199,6 +203,8 @@ export type TrpgBillingBreakdown = {
   humanCount: number;
   botCount: number;
   valuePricingEnabled: boolean;
+  billingMode?: TrpgBillingMode;
+  economics?: TrpgRoundEconomicsObservation;
   perUserShares: Array<{
     userId: number;
     servicePoints: number;
@@ -218,6 +224,7 @@ export function toBillingBreakdown(quote: TrpgRoundEconomicsQuote): TrpgBillingB
     humanCount: quote.humanCount,
     botCount: quote.botCount,
     valuePricingEnabled: quote.valuePricingEnabled,
+    billingMode: quote.billingMode,
     perUserShares: quote.perUserShares.map((row) => ({
       userId: row.userId,
       servicePoints: row.servicePoints,

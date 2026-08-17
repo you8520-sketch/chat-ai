@@ -7,6 +7,7 @@ import { resolveTrpgHumanPersona } from "@/lib/trpg/hostPersona";
 import { parseCompanionIds, parseOptionalId } from "@/lib/trpg/requestIds";
 import { requireTrpgApi, trpgFail } from "@/lib/trpg/requireApi";
 import { assertNoTrpgForkRequest } from "@/lib/trpg/timeline";
+import { parseTrpgBillingMode } from "@/lib/trpg/types";
 
 export async function GET() {
   const gate = await requireTrpgApi();
@@ -29,6 +30,7 @@ export async function POST(req: Request) {
     const templateId = parseOptionalId(body.templateId);
     const personaId = parseOptionalId(body.personaId);
     const title = typeof body.title === "string" ? body.title : null;
+    const billingMode = parseTrpgBillingMode(body.billingMode);
     const hostPersona = resolveTrpgHumanPersona(gate.user.id, gate.user.nickname, personaId);
     const campaignId = createTrpgCampaign(gate.db, {
       hostUserId: gate.user.id,
@@ -39,6 +41,7 @@ export async function POST(req: Request) {
       templateId,
       title,
       viewerUserId: gate.user.id,
+      ...(billingMode ? { billingMode } : {}),
     });
     return NextResponse.json({ ok: true, campaignId });
   } catch (e) {
