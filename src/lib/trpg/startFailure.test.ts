@@ -123,6 +123,22 @@ describe("TRPG start failure classification", () => {
     assert.equal(hostBilling.kind, "billing_insufficient");
     assert.equal(sanitizeTrpgFailureHint(hostBilling), TRPG_HOST_INSUFFICIENT_POINTS_MESSAGE);
 
+    const billingError = buildTrpgRoundErrorJson({
+      error: attachTrpgCallFailureMeta(new Error("UNIQUE constraint failed: trpg_creator_earnings"), {
+        stage: "billing",
+        billingSubstage: "creator_reward",
+        billingErrorCode: "SQLITE_CONSTRAINT",
+      }),
+      reachedOpeningRound: true,
+      gmUsageCount: 1,
+    });
+    assert.equal(billingError.kind, "billing_error");
+    assert.equal(billingError.stage, "billing");
+    assert.equal(billingError.billingSubstage, "creator_reward");
+    assert.equal(billingError.billingErrorCode, "SQLITE_CONSTRAINT");
+    assert.equal(sanitizeTrpgFailureHint(billingError), "라운드 과금 실패 · 제작자 정산 단계");
+    assert.doesNotMatch(sanitizeTrpgFailureHint(billingError), /UNIQUE|trpg_creator_earnings|sk-/);
+
     const parse = buildTrpgRoundErrorJson({
       error: attachTrpgCallFailureMeta(new Error("GM output parse failed"), {
         stage: "gm_output_parse",
@@ -289,13 +305,21 @@ describe("TRPG start failure classification", () => {
     );
   });
 
-  it("documents that ERROR_RECOVERY retry re-enters runGmForRound", () => {
+  it("hides GM retry on billing failures and only recalls GM when no pending result exists", () => {
     const advance = fs.readFileSync("src/lib/trpg/engineAdvance.ts", "utf8");
+    assert.match(advance, /hasPendingGmResult\(db, round.id\)/);
+    assert.match(advance, /applyPendingGmResult/);
     assert.match(advance, /phase === "ERROR_RECOVERY"[\s\S]*runGmForRound/);
-    assert.match(advance, /const \{ text, usage \} = await gmCall/);
     const room = fs.readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
-    assert.match(room, /gmFailureKind === "billing_insufficient"/);
+    assert.match(room, /gmFailureKind === "billing_insufficient" \|\| snap.gmFailureKind === "billing_error"/);
+    assert.match(room, /과금 다시 시도/);
     assert.match(room, /GM 다시 시도/);
+    const billingStart = room.indexOf('gmFailureKind === "billing_insufficient"');
+    const gmRetry = room.indexOf("GM 다시 시도");
+    assert.ok(billingStart >= 0 && gmRetry > billingStart);
+    const billingBlock = room.slice(billingStart, gmRetry);
+    assert.match(billingBlock, /과금 다시 시도/);
+    assert.doesNotMatch(billingBlock, /GM 다시 시도/);
   });
 
   it("records post-GM persist failure as ERROR_RECOVERY class C", async () => {

@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import type Database from "better-sqlite3";
 import { parseGenresJson } from "@/lib/characterGenres";
-import { deductPoints, getPointBalance } from "@/lib/points";
+import { deductPointsOnDb, getPointBalanceOnDb } from "@/lib/points";
 import { paidCreatorRewardSpend, resolveCreatorRewardRate } from "@/lib/creatorPoints";
 import { creditTrpgRoundCreatorRewards, loadTrpgCharacterRoyaltyTargets } from "./creatorRewards";
 import { trpgInsufficientBalanceMessage } from "./billingMode";
@@ -42,7 +42,7 @@ import {
   serializeCampaignDirectorState,
   serializeDirectorDeltaContract,
 } from "./campaignContext";
-import { buildTrpgGmUserBlock, formatTrpgSheetCanon, parseTrpgGmOutput, TRPG_GM_SYSTEM } from "./gmPrompt";
+import { buildTrpgGmUserBlock, formatTrpgSheetCanon, parseTrpgGmOutput, TRPG_GM_SYSTEM, type ParsedTrpgGmOutput } from "./gmPrompt";
 import { serializeTrpgScenarioPlanForGm } from "./scenarioPlan";
 import { ensureCampaignDirectorContext, type TrpgDirectorDeps } from "./sandboxDirector";
 import { loadTrpgSnapshot } from "./engineSnapshot";
@@ -57,6 +57,17 @@ import { sealDroppedTrpgRounds, type TrpgMemoryCall } from "./memorySeal";
 import { nextTrpgRoundWork, tryAcquireGmLock, tryBeginGmGeneration, tryBeginNarrationReroll, type TrpgActorReady } from "./roundLock";
 import { applyValidatedStateDelta } from "./sheetView";
 import { loadSheetSnapshots, persistSheets } from "./engineSheets";
+import {
+  classifyTrpgBillingErrorCode,
+  type TrpgBillingSubstage,
+} from "./billingFailure";
+import {
+  clearPendingGmResult,
+  hasPendingGmResult,
+  loadPendingGmResult,
+  parsedFromPending,
+  savePendingGmResult,
+} from "./pendingGmResult";
 import { attachTrpgCallFailureMeta, buildTrpgRoundErrorJson, type TrpgFailureStage } from "./startFailure";
 import {
   computeResolutionOrder,
@@ -89,6 +100,8 @@ export type TrpgEngineDeps = {
   memoryCall?: TrpgMemoryCall;
   rollD20?: () => number;
   skipBilling?: boolean;
+  /** Test-only. Throws after entering this billing substage. */
+  billingFault?: TrpgBillingSubstage | "after_first_deduction";
 };
 
 function newRequestId(): string {
@@ -347,6 +360,19 @@ export async function advanceTrpgCampaign(
   const phase = asPhase(round.phase);
 
   if (phase === "ERROR_RECOVERY" && campaign.host_user_id === opts.userId && round.round_number > 0) {
+    if (hasPendingGmResult(db, round.id)) {
+      try {
+        const gm = applyPendingGmResult(db, {
+          campaignId: campaign.id,
+          roundId: round.id,
+          deps: opts.deps,
+        });
+        await completeGmRound(db, campaign, round, gm.campaignFinished, opts.deps);
+      } catch (e) {
+        persistGmRoundFailure(db, round.id, e);
+      }
+      return mustSnapshot(db, opts.campaignId, opts.userId);
+    }
     const rid = newRequestId();
     db.prepare(
       `UPDATE trpg_rounds
@@ -800,19 +826,71 @@ async function runGmForRound(
       usedScenarioTags
     );
     stage = "state_validation";
-    const applied = applyValidatedStateDelta(sheets, parsed.delta);
-    const nextSheets = applied.ok ? applied.next : sheets;
-    const roundNumber = (
-      db.prepare(`SELECT round_number FROM trpg_rounds WHERE id=?`).get(opts.roundId) as { round_number: number }
-    ).round_number;
-    stage = "ledger_apply";
-    const ledger = applyCampaignLedger(loadCampaignLedger(db, opts.campaignId), {
-      ...parsed.delta,
-      location: parsed.location || parsed.delta.location || nextSheets[0]?.location || scenario.startLocation,
-      nextRoundContext: parsed.nextRoundContext || parsed.delta.nextRoundContext,
-      campaignFinished: parsed.campaignFinished,
+    applyValidatedStateDelta(sheets, parsed.delta);
+    if (!opts.regenerate) {
+      savePendingGmResult(db, opts.roundId, parsed);
+    }
+    return commitPendingGmResult(db, {
+      campaign,
+      roundId: opts.roundId,
+      opening: opts.opening,
+      regenerate: opts.regenerate === true,
+      parsed,
+      deps: opts.deps,
     });
+  } catch (error) {
+    throw attachTrpgCallFailureMeta(error, { stage });
+  }
+}
 
+function applyPendingGmResult(
+  db: Database.Database,
+  opts: { campaignId: number; roundId: number; deps?: TrpgEngineDeps }
+): { campaignFinished: boolean } {
+  const campaign = loadCampaign(db, opts.campaignId);
+  if (!campaign) throw new Error("캠페인을 찾을 수 없습니다.");
+  const pending = loadPendingGmResult(db, opts.roundId);
+  if (!pending) throw new Error("재사용할 GM 결과가 없습니다.");
+  return commitPendingGmResult(db, {
+    campaign,
+    roundId: opts.roundId,
+    opening: false,
+    regenerate: false,
+    parsed: parsedFromPending(pending),
+    deps: opts.deps,
+  });
+}
+
+function commitPendingGmResult(
+  db: Database.Database,
+  opts: {
+    campaign: TrpgCampaignRow;
+    roundId: number;
+    opening: boolean;
+    regenerate: boolean;
+    parsed: ParsedTrpgGmOutput;
+    deps?: TrpgEngineDeps;
+  }
+): { campaignFinished: boolean } {
+  const campaign = opts.campaign;
+  const parsed = opts.parsed;
+  const scenario = loadScenario(db, campaign.id);
+  const sheets = loadSheetSnapshots(db, campaign.id);
+  const applied = applyValidatedStateDelta(sheets, parsed.delta);
+  const nextSheets = applied.ok ? applied.next : sheets;
+  const roundNumber = (
+    db.prepare(`SELECT round_number FROM trpg_rounds WHERE id=?`).get(opts.roundId) as { round_number: number }
+  ).round_number;
+  const campaignContext = loadCampaignContext(db, campaign.id);
+  const resolvedPlan = resolvedCampaignPlan(campaignContext);
+  let stage: TrpgFailureStage = "ledger_apply";
+  const ledger = applyCampaignLedger(loadCampaignLedger(db, campaign.id), {
+    ...parsed.delta,
+    location: parsed.location || parsed.delta.location || nextSheets[0]?.location || scenario.startLocation,
+    nextRoundContext: parsed.nextRoundContext || parsed.delta.nextRoundContext,
+    campaignFinished: parsed.campaignFinished,
+  });
+  try {
     db.transaction(() => {
       stage = "gm_persist";
       db.prepare(
@@ -825,9 +903,9 @@ async function runGmForRound(
         db.prepare(
           `INSERT OR IGNORE INTO trpg_state_change_log (campaign_id, round_id, idempotency_key, applied_json)
            VALUES (?,?,?,?)`
-        ).run(opts.campaignId, opts.roundId, `delta:${opts.roundId}`, JSON.stringify(parsed.delta));
+        ).run(campaign.id, opts.roundId, `delta:${opts.roundId}`, JSON.stringify(parsed.delta));
       }
-      persistCampaignLedger(db, opts.campaignId, roundNumber, ledger);
+      persistCampaignLedger(db, campaign.id, roundNumber, ledger);
       if (campaignContext && resolvedPlan) {
         stage = "story_progress";
         persistCampaignContext(
@@ -844,8 +922,9 @@ async function runGmForRound(
       setRoundPhase(db, opts.roundId, "APPLYING_STATE");
       if (!opts.opening) {
         stage = "billing";
-        maybeBillRound(db, campaign, opts.roundId, opts.deps?.skipBilling === true);
+        maybeBillRound(db, campaign, opts.roundId, opts.deps);
       }
+      clearPendingGmResult(db, opts.roundId);
       stage = "round_complete";
     })();
     return { campaignFinished: parsed.campaignFinished === true };
@@ -903,7 +982,7 @@ function maybeBillRound(
   db: Database.Database,
   campaign: TrpgCampaignRow,
   roundId: number,
-  skip: boolean
+  deps?: TrpgEngineDeps
 ): void {
   const row = db.prepare(`SELECT COALESCE(billed,0) AS billed FROM trpg_rounds WHERE id=?`).get(roundId) as {
     billed: number;
@@ -912,7 +991,24 @@ function maybeBillRound(
   const calls = loadRoundUsage(db, roundId);
   chargeTrpgCalls(db, campaign, roundId, calls.length ? calls : [TRPG_GM_USAGE_FALLBACK], {
     addToBilled: false,
-    skip,
+    skip: deps?.skipBilling === true,
+    billingFault: deps?.billingFault,
+  });
+}
+
+function throwBillingFault(
+  substage: TrpgBillingSubstage,
+  fault: TrpgEngineDeps["billingFault"],
+  message: string
+): void {
+  if (fault === substage) throw new Error(message);
+}
+
+function attachBillingFailure(error: unknown, substage: TrpgBillingSubstage): Error {
+  return attachTrpgCallFailureMeta(error, {
+    stage: "billing",
+    billingSubstage: substage,
+    billingErrorCode: classifyTrpgBillingErrorCode({ substage, error }),
   });
 }
 
@@ -921,7 +1017,7 @@ function chargeTrpgCalls(
   campaign: TrpgCampaignRow,
   roundId: number,
   calls: TrpgModelUsage[],
-  opts: { addToBilled: boolean; skip: boolean }
+  opts: { addToBilled: boolean; skip: boolean; billingFault?: TrpgEngineDeps["billingFault"] }
 ): void {
   if (opts.skip) {
     if (!opts.addToBilled) {
@@ -929,120 +1025,141 @@ function chargeTrpgCalls(
     }
     return;
   }
-  const addPoints = computeTrpgRoundPoints(calls);
-  if (addPoints <= 0) {
-    if (!opts.addToBilled) {
-      db.prepare(`UPDATE trpg_rounds SET billed=1, billed_points=0 WHERE id=?`).run(roundId);
+  let substage: TrpgBillingSubstage = "pricing_quote";
+  try {
+    throwBillingFault(substage, opts.billingFault, "billing fault: pricing_quote");
+    const addPoints = computeTrpgRoundPoints(calls);
+    if (addPoints <= 0) {
+      if (!opts.addToBilled) {
+        db.prepare(`UPDATE trpg_rounds SET billed=1, billed_points=0 WHERE id=?`).run(roundId);
+      }
+      return;
     }
-    return;
-  }
-  const parts = loadParticipants(db, campaign.id);
-  const humans = parts.filter((p) => p.kind === "human" && p.user_id).map((p) => p.user_id!);
-  const botCount = parts.filter((p) => p.kind === "ai_character").length;
-  const authorUserId = campaign.author_user_id ?? null;
-  const authorRate = authorUserId ? resolveCreatorRewardRate(authorUserId) : 0;
-  const characterCreators = loadTrpgCharacterRoyaltyTargets(db, campaign.id);
-  const valuePricing = isTrpgValuePricingEnabled();
-  const quote = quoteTrpgRoundEconomics({
-    modelSubtotal: addPoints,
-    humanUserIds: humans,
-    hostUserId: campaign.host_user_id,
-    billingMode: campaign.billing_mode as TrpgBillingMode,
-    authorUserId,
-    authorRate,
-    characterSeats: characterCreators,
-    botCount,
-    valuePricingEnabled: valuePricing,
-  });
-  const payers = valuePricing
-    ? quote.perUserShares.map((row) => ({ userId: row.userId, points: row.total, quote: row }))
-    : splitTrpgRoundCost({
-        totalPoints: addPoints,
-        humanUserIds: humans,
-        hostUserId: campaign.host_user_id,
-        mode: campaign.billing_mode as TrpgBillingMode,
-      }).map((share) => ({ userId: share.userId, points: share.points, quote: null }));
-  const billingMode = (campaign.billing_mode as TrpgBillingMode) || DEFAULT_TRPG_BILLING_MODE;
-  for (const share of payers) {
-    if (share.points <= 0) continue;
-    if (getPointBalance(share.userId).total < share.points) {
-      throw attachTrpgCallFailureMeta(
-        new Error(
+    const parts = loadParticipants(db, campaign.id);
+    const humans = parts.filter((p) => p.kind === "human" && p.user_id).map((p) => p.user_id!);
+    const botCount = parts.filter((p) => p.kind === "ai_character").length;
+    const authorUserId = campaign.author_user_id ?? null;
+    const authorRate = authorUserId ? resolveCreatorRewardRate(authorUserId) : 0;
+    const characterCreators = loadTrpgCharacterRoyaltyTargets(db, campaign.id);
+    const valuePricing = isTrpgValuePricingEnabled();
+    const quote = quoteTrpgRoundEconomics({
+      modelSubtotal: addPoints,
+      humanUserIds: humans,
+      hostUserId: campaign.host_user_id,
+      billingMode: campaign.billing_mode as TrpgBillingMode,
+      authorUserId,
+      authorRate,
+      characterSeats: characterCreators,
+      botCount,
+      valuePricingEnabled: valuePricing,
+    });
+    const payers = valuePricing
+      ? quote.perUserShares.map((row) => ({ userId: row.userId, points: row.total, quote: row }))
+      : splitTrpgRoundCost({
+          totalPoints: addPoints,
+          humanUserIds: humans,
+          hostUserId: campaign.host_user_id,
+          mode: campaign.billing_mode as TrpgBillingMode,
+        }).map((share) => ({ userId: share.userId, points: share.points, quote: null }));
+    const billingMode = (campaign.billing_mode as TrpgBillingMode) || DEFAULT_TRPG_BILLING_MODE;
+    substage = "payer_preflight";
+    throwBillingFault(substage, opts.billingFault, "billing fault: payer_preflight");
+    for (const share of payers) {
+      if (share.points <= 0) continue;
+      if (getPointBalanceOnDb(db, share.userId).total < share.points) {
+        throw new Error(
           trpgInsufficientBalanceMessage({
             billingMode,
             hostUserId: campaign.host_user_id,
             shortUserId: share.userId,
           })
-        ),
-        { stage: "billing" }
-      );
+        );
+      }
     }
-  }
-  let paidPointsSpent = 0;
-  let freePointsSpent = 0;
-  for (const share of payers) {
-    if (share.points <= 0) continue;
-    const result = deductPoints(share.userId, share.points, `trpg-round:${roundId}`);
-    const paidSpend = paidCreatorRewardSpend(result.slices);
-    paidPointsSpent += paidSpend;
-    freePointsSpent += result.slices.reduce((sum, slice) => {
-      return slice.pointType === "PAID" ? sum : sum + Number(slice.amount ?? 0);
-    }, 0);
-    if (valuePricing) {
-      const paidRatio = share.points > 0 ? paidSpend / share.points : 0;
-      creditTrpgRoundCreatorRewards(db, {
-        campaignId: campaign.id,
-        roundId,
-        consumerUserId: share.userId,
-        paidSpend,
-        authorUserId,
-        authorRate,
-        characterCreators,
-        shares: scaleCreatorShares(share.quote?.creatorShares ?? [], paidRatio),
-      });
-      continue;
+    let paidPointsSpent = 0;
+    let freePointsSpent = 0;
+    let deductedPayers = 0;
+    substage = "point_deduction";
+    throwBillingFault(substage, opts.billingFault, "billing fault: point_deduction");
+    for (const share of payers) {
+      if (share.points <= 0) continue;
+      substage = "point_deduction";
+      if (opts.billingFault === "after_first_deduction" && deductedPayers >= 1) {
+        throw new Error("billing fault: after_first_deduction");
+      }
+      const result = deductPointsOnDb(db, share.userId, share.points, `trpg-round:${roundId}`);
+      deductedPayers += 1;
+      const paidSpend = paidCreatorRewardSpend(result.slices);
+      paidPointsSpent += paidSpend;
+      freePointsSpent += result.slices.reduce((sum, slice) => {
+        return slice.pointType === "PAID" ? sum : sum + Number(slice.amount ?? 0);
+      }, 0);
+      substage = "creator_reward";
+      if (valuePricing) {
+        const paidRatio = share.points > 0 ? paidSpend / share.points : 0;
+        creditTrpgRoundCreatorRewards(db, {
+          campaignId: campaign.id,
+          roundId,
+          consumerUserId: share.userId,
+          paidSpend,
+          authorUserId,
+          authorRate,
+          characterCreators,
+          shares: scaleCreatorShares(share.quote?.creatorShares ?? [], paidRatio),
+        });
+        throwBillingFault(substage, opts.billingFault, "billing fault: creator_reward");
+        continue;
+      }
+      if (paidSpend > 0) {
+        creditTrpgRoundCreatorRewards(db, {
+          campaignId: campaign.id,
+          roundId,
+          consumerUserId: share.userId,
+          paidSpend,
+          authorUserId,
+          authorRate,
+          characterCreators,
+        });
+      }
+      throwBillingFault(substage, opts.billingFault, "billing fault: creator_reward");
     }
-    if (paidSpend <= 0) continue;
-    creditTrpgRoundCreatorRewards(db, {
-      campaignId: campaign.id,
-      roundId,
-      consumerUserId: share.userId,
-      paidSpend,
-      authorUserId,
-      authorRate,
-      characterCreators,
+    const billedTotal = valuePricing ? quote.roundTotal : addPoints;
+    const actualCreatorCpCredited = (
+      db
+        .prepare(`SELECT COALESCE(SUM(reward_amount),0) AS n FROM trpg_creator_earnings WHERE round_id=?`)
+        .get(roundId) as { n: number }
+    ).n;
+    substage = "economics_observation";
+    throwBillingFault(substage, opts.billingFault, "billing fault: economics_observation");
+    const breakdownBase = toBillingBreakdown(quote);
+    const economics = observeTrpgRoundEconomics({
+      breakdown: breakdownBase,
+      billingMode,
+      paidPointsSpent,
+      freePointsSpent,
+      actualCreatorCpCredited,
+      calls,
     });
+    logTrpgRoundEconomics(economics);
+    const breakdown = JSON.stringify({ ...breakdownBase, economics });
+    substage = "billing_persist";
+    throwBillingFault(substage, opts.billingFault, "billing fault: billing_persist");
+    if (opts.addToBilled) {
+      db.prepare(
+        `UPDATE trpg_rounds
+         SET billed=1, billed_points=COALESCE(billed_points,0)+?, billing_breakdown_json=?
+         WHERE id=?`
+      ).run(billedTotal, breakdown, roundId);
+      return;
+    }
+    db.prepare(`UPDATE trpg_rounds SET billed=1, billed_points=?, billing_breakdown_json=? WHERE id=?`).run(
+      billedTotal,
+      breakdown,
+      roundId
+    );
+  } catch (error) {
+    throw attachBillingFailure(error, substage);
   }
-  const billedTotal = valuePricing ? quote.roundTotal : addPoints;
-  const actualCreatorCpCredited = (
-    db
-      .prepare(`SELECT COALESCE(SUM(reward_amount),0) AS n FROM trpg_creator_earnings WHERE round_id=?`)
-      .get(roundId) as { n: number }
-  ).n;
-  const breakdownBase = toBillingBreakdown(quote);
-  const economics = observeTrpgRoundEconomics({
-    breakdown: breakdownBase,
-    billingMode,
-    paidPointsSpent,
-    freePointsSpent,
-    actualCreatorCpCredited,
-    calls,
-  });
-  logTrpgRoundEconomics(economics);
-  const breakdown = JSON.stringify({ ...breakdownBase, economics });
-  if (opts.addToBilled) {
-    db.prepare(
-      `UPDATE trpg_rounds
-       SET billed=1, billed_points=COALESCE(billed_points,0)+?, billing_breakdown_json=?
-       WHERE id=?`
-    ).run(billedTotal, breakdown, roundId);
-    return;
-  }
-  db.prepare(`UPDATE trpg_rounds SET billed=1, billed_points=?, billing_breakdown_json=? WHERE id=?`).run(
-    billedTotal,
-    breakdown,
-    roundId
-  );
 }
 
 function loadActionsForGm(

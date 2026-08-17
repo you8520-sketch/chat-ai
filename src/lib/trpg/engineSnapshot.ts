@@ -30,6 +30,7 @@ import {
   type TrpgPublicRoll,
   type TrpgReadyState,
 } from "./snapshot";
+import { hasPendingGmResult } from "./pendingGmResult";
 import { parseTrpgStartFailureJson, sanitizeTrpgFailureHint } from "./startFailure";
 import {
   DEFAULT_TRPG_BILLING_MODE,
@@ -408,6 +409,18 @@ export function loadTrpgSnapshot(
       campaign.host_user_id === viewerUserId && phase === "ERROR_RECOVERY"
         ? parseTrpgStartFailureJson(round?.error_json)?.kind ?? null
         : null,
+    gmFailureBillingSubstage:
+      campaign.host_user_id === viewerUserId && phase === "ERROR_RECOVERY"
+        ? parseTrpgStartFailureJson(round?.error_json)?.billingSubstage ?? null
+        : null,
+    gmFailureBillingErrorCode:
+      campaign.host_user_id === viewerUserId && phase === "ERROR_RECOVERY"
+        ? parseTrpgStartFailureJson(round?.error_json)?.billingErrorCode ?? null
+        : null,
+    hasPendingGmResult:
+      campaign.host_user_id === viewerUserId && round?.id
+        ? hasPendingGmResult(db, round.id)
+        : false,
   };
 }
 
