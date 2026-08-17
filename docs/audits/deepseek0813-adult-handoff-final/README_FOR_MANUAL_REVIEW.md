@@ -2,48 +2,60 @@
 
 QUALITY_SCORING_BY_CURSOR: false
 QUALITY_REVIEW_STATUS: PENDING_CHATGPT_MANUAL_REVIEW
+DEEPSEEK_POSITIVE_PROMPT_NOT_PROVABLE: true
+DEEPSEEK0813_LENGTH_RESCUE_TEST_RUN: false
 
-This packet stopped before live DeepSeek calls.
+Preflight stop was accepted. This stage measures current production-equivalent VANILLA only.
 
-## Why live calls did not run
+## Scope
 
-`DEEPSEEK_POSITIVE_PROMPT_NOT_PROVABLE = true`
+- OPUS → DeepSeek V4 Pro 0813 VANILLA: 3 calls
+- GEMINI31 → DeepSeek V4 Pro 0813 VANILLA: 3 calls
+- TOTAL_NEW_DEEPSEEK_CALLS: 6
+- Muse / Qwen / source / GLM new calls: 0
+- retry / continuation / recovery / fallback: 0
+- No Muse/Qwen positive port
+- No invented historical DeepSeek positive
+- No DeepSeek-specific length adapter added for this first 0813 measurement
 
-Repository + prior adult-handoff audits contain:
+VANILLA = current production DeepSeek handoff assembly (`buildContext` + `appendAdultHandoffPrompt` + `assemblePrimaryRpRequest` + `adaptCheaperInferenceChatBody`).
 
-- DeepSeek production common handoff instruction (`DEEPSEEK_HANDOFF_CONTINUATION_INSTRUCTION`) — this is VANILLA
-- Muse-only positive blocks (`[MUSE SOURCE STYLE CONTINUITY — OPUS 5]` / `GEMINI 3.1`)
-- Qwen-only source adapters (`OPUS_QWEN_FRAGMENT_SENTENCE`, `GEMINI31_QWEN_STYLE_CONTINUITY_BLOCK`)
+## Frozen sources
 
-There is no recoverable DeepSeek-specific positive/source-fidelity adapter. A guessed prompt was not written and was not sent.
+- `SOURCE_OPUS.txt` SHA `f49f3f9d489ba75d1485d2840209fbc2c5c87e5d9c6cd208f235a074ed5cf818`
+- `SOURCE_GEMINI31.txt` SHA `e9c618f9c8b5856abf8f392713327807d728091ea01dfb5b6e3eb714123ba64e`
 
-## What is here
+## What Cursor does / does not do
 
-- `SOURCE_OPUS.txt` / `SOURCE_GEMINI31.txt` — frozen source assistant RAW (SHA matched to prior Muse/Qwen audit)
-- `existing-muse-positive/` — Muse Spark 1.2 Positive n=3 RAW, byte-identical copies
-- `EXISTING_MUSE_POSITIVE_REFERENCES.json` — filename / SHA256 / source / condition
-- `POSITIVE_PROMPT_PROVENANCE.json` — search evidence
+Cursor records RAW + numeric metrics only.
+
+Cursor does not score quality, length pass/fail, or declare a winner.
+
+ChatGPT reads RAW and judges completeness / style / character / continuity / length.
+
+## Files
+
+Preflight (kept):
+
+- `POSITIVE_PROMPT_PROVENANCE.json`
 - `PREFLIGHT.json`
+- `EXISTING_MUSE_POSITIVE_REFERENCES.json`
+- `existing-muse-positive/`
 
-## What is not here
+Assembly (this revision):
 
-- DeepSeek Vanilla/Positive RAW (0 new calls)
-- Blind quality/runtime packets
-- Reveal map
-- Quality scores
+- `assembled/`
+- `PROMPT_PARITY.json`
 
-## Manual review axes (ChatGPT only — do not score here)
+After live capture:
 
-A. PURE PROSE QUALITY /5
-B. SOURCE STYLE FIDELITY /5
-C. CHARACTER IDENTITY /5
-D. SCENE CONTINUITY /5
-E. PARAGRAPH / RHYTHM /5
-F. ADULT PROGRESSION /5
-G. LATE-SCENE CHARACTER VOICE /5
-
-Defects for ChatGPT: CONSENT_CHECKPOINT_STALL, USER_SEMANTIC_DIALOGUE_INVENTION, CHARACTER_VOICE_LOSS, GENERIC_ADULT_VOICE, FOREIGN_SCRIPT_CONTAMINATION, REFUSAL, FADE_EVADE, REPETITION, MALFORMED_OUTPUT
-
-Operational axes for ChatGPT after any future live run: TTFT, total latency, completion efficiency, actual cost, finish reliability, terminal usage reliability, incomplete-stream rate.
+- `DS0813_OPUS_VANILLA_{1,2,3}_RAW.txt`
+- `DS0813_GEMINI31_VANILLA_{1,2,3}_RAW.txt`
+- `RUNTIME_METRICS.json`
+- `STRUCTURE_METRICS.json`
+- `BLIND_OPUS_QUALITY.md`
+- `BLIND_GEMINI31_QUALITY.md`
+- `BLIND_RUNTIME.json`
+- `DEEPSEEK0813_VS_MUSE_REVEAL_MAP.json`
 
 Do not treat this file as a production recommendation.
