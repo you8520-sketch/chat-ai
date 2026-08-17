@@ -43,6 +43,7 @@ import { sealDroppedTrpgRounds, type TrpgMemoryCall } from "./memorySeal";
 import { nextTrpgRoundWork, tryAcquireGmLock, tryBeginGmGeneration, tryBeginNarrationReroll, type TrpgActorReady } from "./roundLock";
 import { applyValidatedStateDelta } from "./sheetView";
 import { loadSheetSnapshots, persistSheets } from "./engineSheets";
+import { classifyTrpgStartFailure } from "./startFailure";
 import { statModifier } from "./stats";
 import {
   loadCampaign,
@@ -125,8 +126,13 @@ export async function startTrpgCampaign(
     const round = loadLatestRound(db, opts.campaignId)!;
     await completeGmRound(db, campaign, round, gm.campaignFinished, opts.deps);
   } catch (e) {
+    const failure = classifyTrpgStartFailure({
+      error: e,
+      reachedOpeningRound: true,
+      gmUsageCount: loadRoundUsage(db, roundId).length,
+    });
     db.prepare(`UPDATE trpg_rounds SET phase='ERROR_RECOVERY', error_json=? WHERE id=?`).run(
-      JSON.stringify({ error: (e as Error).message }),
+      JSON.stringify(failure),
       roundId
     );
     throw e;
