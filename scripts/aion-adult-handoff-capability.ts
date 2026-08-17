@@ -36,6 +36,7 @@ const FIXTURES_PATH = join(DOCS, "fixtures", "PRODUCTION_FIXTURES.json");
 const SOURCE_PATH = join(DOCS, "fixtures", "LIKE_ADULT_SOURCE_OPUS.txt");
 const ASSEMBLE_ONLY = process.argv.includes("--assemble-only");
 const OPENROUTER_30MINI_ONLY = process.argv.includes("--openrouter-30mini-only");
+const AION20_CI_MINIMAL = process.argv.includes("--aion20-ci-minimal");
 
 const FROZEN_OPUS_SOURCE_SHA =
   "f49f3f9d489ba75d1485d2840209fbc2c5c87e5d9c6cd208f235a074ed5cf818";
@@ -106,6 +107,30 @@ function save(dir: string, name: string, content: string | object) {
     typeof content === "string" ? content : `${JSON.stringify(content, null, 2)}\n`,
     "utf8"
   );
+}
+
+function sanitizeOutboundBody(body: Record<string, unknown>) {
+  const messages = Array.isArray(body.messages) ? (body.messages as ChatMsg[]) : [];
+  const rest: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(body)) {
+    if (k === "messages") continue;
+    rest[k] = v;
+  }
+  return {
+    keys: Object.keys(body).sort(),
+    fields: rest,
+    message_roles: messages.map((m) => m.role),
+    message_chars: messages.map((m) => m.content.length),
+  };
+}
+
+function applyCiAion20ThinkingOff(body: Record<string, unknown>) {
+  const next = { ...body };
+  delete next.reasoning;
+  delete next.include_reasoning;
+  delete next.reasoning_effort;
+  next.thinking = { type: "disabled" };
+  return next;
 }
 
 function hashMsgs(msgs: ChatMsg[]): string {
@@ -689,12 +714,18 @@ function renderReviewPacket(opts: {
     "",
     "## Axes for ChatGPT (fill; Cursor left blank)",
     "",
-    "PURE_PROSE /5",
+    "REQUESTED_STAGE_COMPLETION",
+    "DUPLICATE_PERMISSION_CHECKPOINT",
+    "CONSENT_STALL",
+    "CHARACTER_SANITIZATION",
+    "USER_AGENCY_VIOLATION",
     "SOURCE_STYLE_FIDELITY /5",
     "CHARACTER_IDENTITY /5",
+    "PROGRESSION /5",
+    "LATE_VOICE /5",
+    "PURE_PROSE /5",
     "SCENE_CONTINUITY /5",
     "PARAGRAPH_RHYTHM /5",
-    "PROGRESSION /5",
     "LATE_SCENE_CHARACTER_VOICE /5",
     "",
     "Defects: REFUSAL, FADE_EVADE, MORALIZING, CHARACTER_SANITIZATION,",
@@ -981,6 +1012,31 @@ async function main() {
     provider: "openrouter",
   });
   save(join(DOCS, "assemble"), "continuity-packet.json", assembled30.continuityPacket);
+  if (AION20_CI_MINIMAL && assembled20) {
+    const preview = applyCiAion20ThinkingOff(assembled20.requestBody);
+    preview.model = ci20!.id;
+    save(join(DOCS, "assemble"), "aion20-ci-minimal-request-wire.json", {
+      ...sanitizeOutboundBody(preview),
+      reasoning_metadata: {
+        provider: "cheaperinference",
+        model: ci20!.id,
+        capabilities_reasoning: true,
+        supported_efforts: null,
+        default_effort: null,
+        default_enabled: null,
+        mandatory: null,
+        prior_reasoning_effort_none: "HTTP 400 invalid_request on AION20_CONSENSUAL_1/2",
+        official_aion20: "reasoning_effort none|low|medium|high, default medium",
+      },
+      reasoning_config: {
+        reasoning_effort: "OMITTED_CI_REJECTED_NONE",
+        thinking: { type: "disabled" },
+        reasoning: null,
+        include_reasoning: null,
+        why: "CI catalog has no supported_efforts. Live CI rejected reasoning_effort=none. Thinking off uses CI production thinking.type=disabled. Official Aion 2.0 none was not resent.",
+      },
+    });
+  }
 
   const samples: Array<{
     id: string;
@@ -1006,12 +1062,115 @@ async function main() {
       console.log(`reuse existing ${existing.id} (not replaced)`);
     }
   }
-
-  if (!ASSEMBLE_ONLY && !OPENROUTER_30MINI_ONLY && aion20CiAvailable && assembled20) {
-    throw new Error("AION20_RECALL_FORBIDDEN_USE_EXISTING_OR_OPENROUTER_30MINI_ONLY");
+  for (const run of [1, 2] as const) {
+    const existing = loadExistingSample(`AION30MINI_CONSENSUAL_${run}`);
+    if (existing) {
+      samples.push(existing);
+      console.log(`reuse existing ${existing.id} (not replaced, 0 new 3.0 Mini calls)`);
+    }
   }
 
-  if (!ASSEMBLE_ONLY) {
+  if (
+    !ASSEMBLE_ONLY &&
+    !OPENROUTER_30MINI_ONLY &&
+    !AION20_CI_MINIMAL &&
+    aion20CiAvailable &&
+    assembled20
+  ) {
+    throw new Error("AION20_RECALL_FORBIDDEN_USE_EXISTING_OR_FLAG");
+  }
+
+  if (!ASSEMBLE_ONLY && AION20_CI_MINIMAL) {
+    if (!assembled20) throw new Error("AION20_CI_ASSEMBLE_MISSING");
+    const {
+      CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
+      buildCheaperInferenceHeaders,
+    } = await import("../src/lib/cheaperInferenceConfig");
+    const { visibleAssistantDisplayCharCount } = await import(
+      "../src/lib/chatDisplayLength"
+    );
+    const requestBody = applyCiAion20ThinkingOff(assembled20.requestBody);
+    requestBody.model = ci20!.id;
+    save(join(DOCS, "assemble"), "aion20-ci-minimal-request-wire.json", {
+      ...sanitizeOutboundBody(requestBody),
+      reasoning_metadata: {
+        provider: "cheaperinference",
+        model: ci20!.id,
+        capabilities_reasoning: true,
+        supported_efforts: null,
+        default_effort: null,
+        default_enabled: null,
+        mandatory: null,
+        prior_reasoning_effort_none: "HTTP 400 invalid_request on AION20_CONSENSUAL_1/2",
+        official_aion20: "reasoning_effort none|low|medium|high, default medium",
+      },
+      reasoning_config: {
+        reasoning_effort: "OMITTED_CI_REJECTED_NONE",
+        thinking: { type: "disabled" },
+        reasoning: null,
+        include_reasoning: null,
+        why: "CI catalog has no supported_efforts. Live CI rejected reasoning_effort=none. Thinking off uses CI production thinking.type=disabled. Official Aion 2.0 none was not resent.",
+      },
+    });
+    for (const run of [1, 2] as const) {
+      const sampleId = `AION20_CI_MINIMAL_${run}`;
+      if (existsSync(join(DOCS, `${sampleId}_RAW.txt`))) {
+        throw new Error(`AION20_CI_MINIMAL_ALREADY_EXISTS_NO_REPLACE:${sampleId}`);
+      }
+      console.log(`\n=== ${sampleId} CI thinking-off (${qualityCalls + 1}/2) ===`);
+      qualityCalls += 1;
+      const resp = await streamProvider(
+        CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
+        buildCheaperInferenceHeaders(),
+        requestBody
+      );
+      const uf = extractUsage(resp.usage);
+      const visible = visibleAssistantDisplayCharCount(resp.text);
+      const runtime = {
+        sample_id: sampleId,
+        http_status: resp.http_status,
+        requested_model: ci20!.id,
+        response_model: resp.resolved_model,
+        provider: "cheaperinference",
+        finish_reason: resp.finish_reason,
+        visible_chars: visible,
+        korean_chars: koreanCharCount(resp.text),
+        ttft_ms: resp.ttft_ms,
+        latency_ms: resp.latency_ms,
+        ...uf,
+        reasoning_stream_observed: resp.reasoning_events > 0,
+        reasoning_events: resp.reasoning_events,
+        reasoning_chars: resp.reasoning_text.length,
+        stream_done: resp.saw_done,
+        incomplete_stream: resp.incomplete_stream,
+        error: resp.error,
+        retry: 0,
+        continuation: 0,
+        recovery: 0,
+        fallback: 0,
+        raw_sha256: sha256(resp.text),
+        prompt_sha: assembled20.promptSha,
+        thinking: { type: "disabled" },
+        reasoning_effort: null,
+      };
+      save(DOCS, `${sampleId}_RAW.txt`, resp.text);
+      save(join(DOCS, "calls", sampleId), "meta.json", runtime);
+      if (resp.reasoning_text) {
+        save(join(DOCS, "calls", sampleId), "reasoning.txt", resp.reasoning_text);
+      }
+      samples.push({ id: sampleId, raw: resp.text, runtime });
+      console.log({
+        id: sampleId,
+        http: resp.http_status,
+        chars: visible,
+        finish: resp.finish_reason,
+        ttft_ms: resp.ttft_ms,
+        latency_ms: resp.latency_ms,
+        cost: uf.usage_cost,
+        error: resp.error,
+      });
+    }
+  } else if (!ASSEMBLE_ONLY && !AION20_CI_MINIMAL) {
     const {
       OPENROUTER_CHAT_COMPLETIONS_URL,
       buildOpenRouterHeaders,
@@ -1078,12 +1237,13 @@ async function main() {
     }
   }
 
-  const a20 = samples.filter((s) => s.id.startsWith("AION20_"));
+  const a20 = samples.filter((s) => s.id.startsWith("AION20_CONSENSUAL_"));
+  const a20min = samples.filter((s) => s.id.startsWith("AION20_CI_MINIMAL_"));
   const a30 = samples.filter((s) => s.id.startsWith("AION30MINI_"));
-  const a20vis = a20.map((s) => s.runtime.visible_chars as number | null);
-  const a20ttft = a20.map((s) => s.runtime.ttft_ms as number | null);
-  const a20lat = a20.map((s) => s.runtime.latency_ms as number | null);
-  const a20cost = a20.map((s) => s.runtime.usage_cost as number | null);
+  const a20vis = a20min.length ? a20min.map((s) => s.runtime.visible_chars as number | null) : a20.map((s) => s.runtime.visible_chars as number | null);
+  const a20ttft = a20min.length ? a20min.map((s) => s.runtime.ttft_ms as number | null) : a20.map((s) => s.runtime.ttft_ms as number | null);
+  const a20lat = a20min.length ? a20min.map((s) => s.runtime.latency_ms as number | null) : a20.map((s) => s.runtime.latency_ms as number | null);
+  const a20cost = a20min.length ? a20min.map((s) => s.runtime.usage_cost as number | null) : a20.map((s) => s.runtime.usage_cost as number | null);
   const a30vis = a30.map((s) => s.runtime.visible_chars as number | null);
   const a30ttft = a30.map((s) => s.runtime.ttft_ms as number | null);
   const a30lat = a30.map((s) => s.runtime.latency_ms as number | null);
@@ -1104,7 +1264,8 @@ async function main() {
     AION30MINI_CI_MODEL_ID: ci30?.id ?? null,
     AION30MINI_OPENROUTER_AVAILABLE: or30 != null,
     AION30MINI_OPENROUTER_MODEL_ID: or30?.id ?? null,
-    AION30MINI_PROVIDER_USED: !ASSEMBLE_ONLY && or30 != null ? "openrouter" : null,
+    AION30MINI_PROVIDER_USED: AION20_CI_MINIMAL ? null : !ASSEMBLE_ONLY && or30 != null ? "openrouter" : null,
+    AION20_CI_MINIMAL_PROBE: AION20_CI_MINIMAL,
     PROVIDER_PARITY: false,
     PROVIDER_PARITY_NOT_AVAILABLE: true,
     FIXTURE_A_PROVEN: true,
@@ -1129,7 +1290,7 @@ async function main() {
     AION30MINI_TTFT: listMetrics(a30ttft),
     AION30MINI_LATENCY: listMetrics(a30lat),
     AION30MINI_COST: listMetrics(a30cost),
-    AION20_REASONING_STREAMS: a20.some((s) => s.runtime.reasoning_stream_observed === true),
+    AION20_REASONING_STREAMS: [...a20, ...a20min].some((s) => s.runtime.reasoning_stream_observed === true),
     AION30MINI_REASONING_STREAMS: a30.some((s) => s.runtime.reasoning_stream_observed === true),
     TERMINAL_USAGE: samples.every((s) => s.runtime.terminal_usage === true),
     INCOMPLETE_STREAMS: samples.filter((s) => s.runtime.incomplete_stream === true).length,
