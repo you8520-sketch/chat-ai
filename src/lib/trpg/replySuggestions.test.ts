@@ -10,7 +10,10 @@ import { ensureTrpgTables } from "./schema";
 import { loadCampaign } from "./store";
 import { TRPG_SCENARIO_DRAFT_MODEL } from "./scenarioDraft";
 import { TRPG_GM_MODEL } from "./types";
+import { adaptCheaperInferenceChatBody } from "@/lib/cheaperInferenceConfig";
 import {
+  adaptTrpgReplySuggestionChatBody,
+  extractReplySuggestionCompletionText,
   parseReplySuggestions,
   requestTrpgReplySuggestions,
   resetTrpgReplySuggestionCooldownForTests,
@@ -94,6 +97,52 @@ describe("TRPG reply suggestions", () => {
       ["investigate", "persuade", "free"]
     );
     assert.throws(() => parseReplySuggestions(JSON.stringify({ suggestions: [{ actionType: "fly", text: "x" }] })));
+  });
+
+  it("keeps Flash suggestion true OFF instead of the RP adapter that strips reasoning_effort", () => {
+    const raw = {
+      model: CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL,
+      messages: [{ role: "user", content: "장면" }],
+      reasoning_effort: "high",
+    };
+    const isolated = adaptTrpgReplySuggestionChatBody(raw);
+    const rp = adaptCheaperInferenceChatBody(raw);
+    assert.deepEqual(isolated.thinking, { type: "disabled" });
+    assert.equal(isolated.reasoning_effort, "none");
+    assert.deepEqual(rp.thinking, { type: "disabled" });
+    assert.equal(rp.reasoning_effort, undefined);
+    assert.equal(raw.reasoning_effort, "high", "input must not be mutated");
+  });
+
+  it("reads suggestion JSON from content parts or reasoning_content", () => {
+    assert.equal(
+      extractReplySuggestionCompletionText({
+        choices: [{ message: { content: [{ type: "text", text: validJson }] } }],
+      }),
+      validJson
+    );
+    assert.equal(
+      extractReplySuggestionCompletionText({
+        choices: [{ message: { content: "", reasoning_content: validJson } }],
+      }),
+      validJson
+    );
+    assert.equal(extractReplySuggestionCompletionText({ choices: [{ message: { content: null } }] }), "");
+  });
+
+  it("accepts action_type aliases and fewer than three valid rows", () => {
+    const parsed = parseReplySuggestions(
+      JSON.stringify({
+        suggestions: [
+          { action_type: "investigate", text: "경첩부터 살핀다." },
+          { actionType: "설득", text: "잠깐, 총부터 내려놓자." },
+        ],
+      })
+    );
+    assert.deepEqual(
+      parsed.map((row) => row.actionType),
+      ["investigate", "persuade"]
+    );
   });
 
   it("allows only the acting human in ACTION_INPUT and rejects a locked draft", async () => {

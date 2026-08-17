@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { requestTrpgReplySuggestions } from "@/lib/trpg/replySuggestions";
 import { campaignIdFromParams, requireTrpgApi, trpgFail } from "@/lib/trpg/requireApi";
 
+export const maxDuration = 60;
+
 type RouteCtx = { params: Promise<{ id: string }> };
 
 export async function POST(_req: Request, ctx: RouteCtx) {
