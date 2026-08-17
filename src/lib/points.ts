@@ -558,8 +558,9 @@ export type PointLogLink = {
   chatId?: number;
 };
 
-/** 만료 임박 순 → 동일 만료면 FREE 우선 → id 순 차감 */
-export function deductPoints(
+/** Same ledger rules as deductPoints, on a caller-owned connection (no nested commit). */
+export function deductPointsOnDb(
+  db: ReturnType<typeof getDb>,
   userId: number,
   amount: number,
   reason: string,
@@ -567,55 +568,68 @@ export function deductPoints(
 ): DeductResult {
   const need = chargePoints(amount);
   if (need <= 0) {
-    const balance = getPointBalance(userId);
-    return { balance, slices: [], total: 0 };
+    return { balance: readBalance(db, userId), slices: [], total: 0 };
   }
 
+  let remaining = need;
+  const slices: DeductionSlice[] = [];
+
+  const rows = db
+    .prepare(
+      `SELECT id, point_type, remaining_amount FROM point_transactions
+       WHERE user_id = ? AND remaining_amount > 0 AND expires_at > datetime('now')
+       ORDER BY expires_at ASC,
+         CASE point_type WHEN 'FREE' THEN 0 ELSE 1 END ASC,
+         id ASC`
+    )
+    .all(userId) as {
+    id: number;
+    point_type: PointType;
+    remaining_amount: number;
+  }[];
+
+  const update = db.prepare("UPDATE point_transactions SET remaining_amount = ? WHERE id = ?");
+
+  for (const row of rows) {
+    if (remaining <= 0) break;
+    const available = roundAmount(row.remaining_amount);
+    if (available <= 0) continue;
+    const take = roundAmount(Math.min(available, remaining));
+    update.run(roundAmount(available - take), row.id);
+    slices.push({ transactionId: row.id, pointType: row.point_type, amount: take });
+    remaining = roundAmount(remaining - take);
+  }
+
+  if (remaining > 0.001) {
+    throw new InsufficientPointsError(readBalance(db, userId));
+  }
+
+  const messageId = link?.messageId ?? null;
+  const chatId = link?.chatId ?? null;
+  db.prepare("INSERT INTO point_logs (user_id, delta, reason, message_id, chat_id) VALUES (?,?,?,?,?)").run(
+    userId,
+    -need,
+    reason,
+    messageId,
+    chatId
+  );
+  syncUserPointsColumn(db, userId);
+  return { balance: readBalance(db, userId), slices, total: need };
+}
+
+/** 만료 임박 순 → 동일 만료면 FREE 우선 → id 순 차감 */
+export function deductPoints(
+  userId: number,
+  amount: number,
+  reason: string,
+  link?: PointLogLink
+): DeductResult {
   const db = getDb();
-  return db.transaction(() => {
-    let remaining = need;
-    const slices: DeductionSlice[] = [];
+  return db.transaction(() => deductPointsOnDb(db, userId, amount, reason, link))();
+}
 
-    const rows = db
-      .prepare(
-        `SELECT id, point_type, remaining_amount FROM point_transactions
-         WHERE user_id = ? AND remaining_amount > 0 AND expires_at > datetime('now')
-         ORDER BY expires_at ASC,
-           CASE point_type WHEN 'FREE' THEN 0 ELSE 1 END ASC,
-           id ASC`
-      )
-      .all(userId) as {
-      id: number;
-      point_type: PointType;
-      remaining_amount: number;
-    }[];
-
-    const update = db.prepare(
-      "UPDATE point_transactions SET remaining_amount = ? WHERE id = ?"
-    );
-
-    for (const row of rows) {
-      if (remaining <= 0) break;
-      const available = roundAmount(row.remaining_amount);
-      if (available <= 0) continue;
-      const take = roundAmount(Math.min(available, remaining));
-      update.run(roundAmount(available - take), row.id);
-      slices.push({ transactionId: row.id, pointType: row.point_type, amount: take });
-      remaining = roundAmount(remaining - take);
-    }
-
-    if (remaining > 0.001) {
-      throw new InsufficientPointsError(readBalance(db, userId));
-    }
-
-    const messageId = link?.messageId ?? null;
-    const chatId = link?.chatId ?? null;
-    db.prepare(
-      "INSERT INTO point_logs (user_id, delta, reason, message_id, chat_id) VALUES (?,?,?,?,?)"
-    ).run(userId, -need, reason, messageId, chatId);
-    syncUserPointsColumn(db, userId);
-    return { balance: readBalance(db, userId), slices, total: need };
-  })();
+export function getPointBalanceOnDb(db: ReturnType<typeof getDb>, userId: number): PointBalance {
+  return readBalance(db, userId);
 }
 
 export function getPointBalance(userId: number): PointBalance {

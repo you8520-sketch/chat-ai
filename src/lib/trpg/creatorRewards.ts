@@ -155,37 +155,35 @@ export function creditTrpgRoundCreatorRewards(
     ? db.prepare("INSERT INTO creator_point_logs (user_id, delta, reason) VALUES (?,?,?)")
     : null;
 
-  db.transaction(() => {
-    for (const share of shares) {
-      const info = insert.run(
-        opts.roundId,
-        opts.campaignId,
-        opts.consumerUserId,
-        share.creatorId,
-        share.role,
-        share.characterId ?? 0,
-        paid,
-        share.reward
-      );
-      if (info.changes === 0) continue;
-      bumpPoints?.run(share.reward, share.creatorId);
-      const pct = Math.round(share.rate * 1000) / 10;
-      let label: string;
-      switch (share.role) {
-        case "author":
-          label = `TRPG 시나리오 수익 ${pct}% (라운드 #${opts.roundId})`;
-          break;
-        case "character":
-          label = `TRPG 캐릭터 수익 ${pct}% (라운드 #${opts.roundId})`;
-          break;
-        default: {
-          const _exhaustive: never = share.role;
-          throw new Error(`unhandled TRPG creator role: ${_exhaustive}`);
-        }
+  for (const share of shares) {
+    const info = insert.run(
+      opts.roundId,
+      opts.campaignId,
+      opts.consumerUserId,
+      share.creatorId,
+      share.role,
+      share.characterId ?? 0,
+      paid,
+      share.reward
+    );
+    if (info.changes === 0) continue;
+    bumpPoints?.run(share.reward, share.creatorId);
+    const pct = Math.round(share.rate * 1000) / 10;
+    let label: string;
+    switch (share.role) {
+      case "author":
+        label = `TRPG 시나리오 수익 ${pct}% (라운드 #${opts.roundId})`;
+        break;
+      case "character":
+        label = `TRPG 캐릭터 수익 ${pct}% (라운드 #${opts.roundId})`;
+        break;
+      default: {
+        const _exhaustive: never = share.role;
+        throw new Error(`unhandled TRPG creator role: ${_exhaustive}`);
       }
-      log?.run(share.creatorId, share.reward, label);
     }
-  })();
+    log?.run(share.creatorId, share.reward, label);
+  }
 
   return shares;
 }

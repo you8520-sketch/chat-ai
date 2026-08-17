@@ -28,6 +28,7 @@ import type { TrpgReplySuggestion } from "@/lib/trpg/replySuggestions";
 import TrpgCampaignTitle from "./TrpgCampaignTitle";
 import TrpgCampaignRail from "./TrpgCampaignRail";
 import TrpgD20 from "./TrpgD20";
+import TrpgDiceOverlay from "./TrpgDiceOverlay";
 import TrpgNamedProse, { TrpgGmTalk } from "./TrpgNamedProse";
 import TrpgSceneToolbar from "./TrpgSceneToolbar";
 import TrpgSelfSheetHud from "./TrpgSelfSheetHud";
@@ -548,11 +549,22 @@ export default function TrpgCampaignRoom({
           {phase === "ERROR_RECOVERY" && snap.viewerIsHost ? (
             <div className="space-y-2">
               <p className="text-sm text-rose-200">{snap.gmFailureHint || "GM 생성 실패"}</p>
-              {snap.gmFailureKind === "billing_insufficient" ? (
-                <p className="text-xs leading-relaxed text-zinc-400">
-                  포인트를 충전한 뒤 다음 라운드에서 다시 진행할 수 있습니다. 같은 GM 응답을 다시
-                  호출하지 않습니다.
-                </p>
+              {snap.gmFailureKind === "billing_insufficient" || snap.gmFailureKind === "billing_error" ? (
+                <>
+                  {snap.gmFailureKind === "billing_insufficient" ? (
+                    <p className="text-xs leading-relaxed text-zinc-400">
+                      포인트를 충전한 뒤 같은 장면을 다시 생성하지 않고 과금만 재시도할 수 있습니다.
+                    </p>
+                  ) : null}
+                  <button
+                    type="button"
+                    disabled={busy || !snap.hasPendingGmResult}
+                    onClick={onRetryGm}
+                    className="inline-flex min-h-10 items-center rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 text-sm font-semibold text-amber-100"
+                  >
+                    과금 다시 시도
+                  </button>
+                </>
               ) : (
                 <button
                   type="button"
@@ -580,6 +592,12 @@ export default function TrpgCampaignRoom({
         characterName={quoteCharacterName}
         disabled={busy || generating}
         onToast={setToast}
+      />
+
+      <TrpgDiceOverlay
+        phase={phase}
+        rolls={snap.currentRolls}
+        resolutionOrder={snap.resolutionOrder}
       />
 
       {toast ? (
