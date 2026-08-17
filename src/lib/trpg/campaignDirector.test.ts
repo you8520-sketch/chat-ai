@@ -3,7 +3,11 @@ import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { EVEN_STATS, createTrpgCampaign, saveTrpgSheet, writeSheet } from "./engineCreate";
 import { advanceTrpgCampaign, startTrpgCampaign, submitTrpgAction, type TrpgEngineDeps } from "./engineAdvance";
-import { loadCampaignContext } from "./campaignContext";
+import {
+  applyCampaignStoryProgress,
+  loadCampaignContext,
+  resolvedCampaignPlan,
+} from "./campaignContext";
 import { insertScenarioTemplate } from "./scenarioTemplates";
 import { ensureTrpgTables } from "./schema";
 import { insertParticipant, loadCampaign } from "./store";
@@ -165,6 +169,49 @@ describe("TRPG sandbox director and plan security", () => {
     assert.equal(seen.filter((row) => row.startsWith("bot:")).length, 1);
     assert.ok(seen.some((row) => row.startsWith("gm:") && row.includes("SECRETPLAN")));
     assert.equal(loadCampaignContext(db, campaignId)?.sourceMode, "scenario");
+    db.close();
+  });
+
+  it("copies authored scenario plans onto directorPlan so endingConditionId resolves", async () => {
+    const db = memoryDb();
+    const templateId = insertScenarioTemplate(db, 7, {
+      title: "폐역",
+      content: "유령 기차를 기다린다.",
+      visibility: "public",
+      scenarioPlan: playablePlan,
+    });
+    const deps: TrpgEngineDeps = {
+      skipBilling: true,
+      directorCall: async () => {
+        throw new Error("scenario campaigns must not call the sandbox director");
+      },
+      gmCall: async () => ({
+        text: `<<<NARRATION>>>
+문이 열린다.
+<<<DELTA>>>
+{"players":[],"location":"문턱","next_round_context":"들어갈지","campaign_finished":false,"storyPhase":"DEVELOPMENT","endingConditionId":"0"}`,
+      }),
+    };
+    const campaignId = createTrpgCampaign(db, {
+      hostUserId: 1,
+      hostNickname: "렌",
+      viewerUserId: 1,
+      templateId,
+    });
+    saveTrpgSheet(db, { campaignId, userId: 1, name: "렌", stats: EVEN_STATS });
+    await startTrpgCampaign(db, { campaignId, userId: 1, deps });
+    const ctx = loadCampaignContext(db, campaignId);
+    assert.equal(ctx?.sourceMode, "scenario");
+    assert.equal(ctx?.directorPlan?.goal, playablePlan.goal);
+    assert.deepEqual(ctx?.directorPlan?.endingConditions, playablePlan.endingConditions);
+    assert.equal(resolvedCampaignPlan(ctx)?.secret, playablePlan.secret);
+    assert.equal(ctx?.endingStatus.endingConditionId, "0");
+    assert.equal(ctx?.endingStatus.endingConditionText, "코어를 봉쇄한다");
+
+    const byText = applyCampaignStoryProgress(ctx!, {
+      endingConditionId: "코어를 봉쇄한다",
+    });
+    assert.equal(byText.endingStatus.endingConditionText, "코어를 봉쇄한다");
     db.close();
   });
 

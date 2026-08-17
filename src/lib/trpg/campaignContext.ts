@@ -188,12 +188,13 @@ export function applyCampaignStoryProgress(
     endingConditionId: opts.endingConditionId || ctx.endingStatus.endingConditionId,
     endingConditionText: ctx.endingStatus.endingConditionText,
   };
-  if (opts.endingConditionId && ctx.directorPlan?.endingConditions.length) {
+  const plan = resolvedCampaignPlan(ctx);
+  if (opts.endingConditionId && plan?.endingConditions.length) {
     const indexed = Number(opts.endingConditionId);
-    if (Number.isInteger(indexed) && ctx.directorPlan.endingConditions[indexed]) {
-      endingStatus.endingConditionText = ctx.directorPlan.endingConditions[indexed];
+    if (Number.isInteger(indexed) && plan.endingConditions[indexed]) {
+      endingStatus.endingConditionText = plan.endingConditions[indexed];
     } else {
-      const match = ctx.directorPlan.endingConditions.find((item) => item === opts.endingConditionId);
+      const match = plan.endingConditions.find((item) => item === opts.endingConditionId);
       if (match) endingStatus.endingConditionText = match;
     }
   }
