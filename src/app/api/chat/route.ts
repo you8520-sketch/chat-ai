@@ -488,6 +488,10 @@ import {
   shouldFallbackQwenHandoffToDeepSeek,
 } from "@/lib/adultHandoffSourceRouting";
 import {
+  resolveAdultHandoffApplied,
+  resolveDeepSeekAdultHandoffUserBlocks,
+} from "@/lib/deepseekAdultHandoff";
+import {
   canUseAdultSceneHandoffAdminCanary,
   detectAdultSceneHandoffPromptLeak,
   recordAdultSceneHandoffCanaryLog,
@@ -1982,6 +1986,13 @@ export async function POST(req: Request) {
       adultRoutingConfig.enabled &&
       adultRouteDecision.activeRoute === "adult" &&
       adultRouteDecision.firstAdultHandoff,
+    deepSeekAdultHandoff: resolveDeepSeekAdultHandoffUserBlocks({
+      adultHandoffActive:
+        adultRoutingConfig.enabled &&
+        adultRouteDecision.activeRoute === "adult",
+      selectedSourceModelId: adultHandoffSourceModelId,
+      resolvedTargetModelId: activeAdultModelId,
+    }),
   };
 
   const assembleContext = <T,>(fn: () => T): T =>
@@ -4606,6 +4617,11 @@ export async function POST(req: Request) {
                   userSelectedModel: selectedAIRef,
                   userSelectedModelLabel: selectedAILabel(selectedAIRef),
                   userSelectedProvider: selectedAIProvider(selectedAIRef),
+                  handoffApplied: resolveAdultHandoffApplied({
+                    adultHandoffActive: deliveredActiveRoute === "adult",
+                    userSelectedModelId: selectedAIRef,
+                    actualTargetModelId: deliveredModelId,
+                  }),
                   rawTurnsIncluded:
                     handoffRawTurnsIncluded > 0
                       ? handoffRawTurnsIncluded

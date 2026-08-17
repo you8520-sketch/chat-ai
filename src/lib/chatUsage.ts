@@ -150,6 +150,8 @@ export type Usage = {
     userSelectedModel: string;
     userSelectedModelLabel: string;
     userSelectedProvider?: "gemini" | "openrouter" | "openai" | "cheaperinference";
+    /** Provenance only — true when adult route remapped away from the selected model. */
+    handoffApplied?: boolean;
     rawTurnsIncluded?: number;
     rawTokensIncluded?: number;
     fallbackAttempted?: boolean;

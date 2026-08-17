@@ -24,6 +24,10 @@ import {
   shouldFallbackQwenHandoffToDeepSeek,
 } from "./adultHandoffSourceRouting";
 import {
+  DEEPSEEK_HANDOFF_SCENE_COMPLETION,
+  HANDOFF_SOURCE_CONTINUITY_STYLE_MIRROR,
+} from "./deepseekAdultHandoff";
+import {
   advanceModelRouteState,
   appendAdultHandoffPrompt,
   classifySceneMode,
@@ -220,6 +224,19 @@ describe("source-specific adult handoff routing", () => {
     assert.equal(result.requestBody.reasoning_effort, undefined);
     assert.equal(result.handoff.includes(OPUS_QWEN_FRAGMENT_SENTENCE), false);
     assert.equal(result.handoff.includes(GEMINI31_QWEN_STYLE_CONTINUITY_BLOCK), false);
+    assert.equal(result.handoff.includes(DEEPSEEK_HANDOFF_SCENE_COMPLETION), false);
+    assert.equal(result.handoff.includes(HANDOFF_SOURCE_CONTINUITY_STYLE_MIRROR), false);
+  });
+
+  it("CASE C2 — DeepSeek-selected adult route stays native and has no new handoff blocks", () => {
+    const result = decideForSource({
+      selectedModelId: CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      currentInput: ADULT_TRIGGER,
+    });
+    assert.equal(result.decision.activeRoute, "adult");
+    assert.equal(result.adultTargetModelId, "deepseek-v4-pro-0813");
+    assert.equal(result.handoff.includes(DEEPSEEK_HANDOFF_SCENE_COMPLETION), false);
+    assert.equal(result.handoff.includes(HANDOFF_SOURCE_CONTINUITY_STYLE_MIRROR), false);
   });
 
   it("CASE D — Gemini 3.7 normal RP stays on Gemini 3.7", () => {
@@ -259,6 +276,8 @@ describe("source-specific adult handoff routing", () => {
     assert.equal(result.adultTargetModelId, "deepseek-v4-pro-0813");
     assert.equal(result.handoff.includes(OPUS_QWEN_FRAGMENT_SENTENCE), false);
     assert.equal(result.handoff.includes(GEMINI31_QWEN_STYLE_CONTINUITY_BLOCK), false);
+    assert.equal(result.handoff.includes(DEEPSEEK_HANDOFF_SCENE_COMPLETION), false);
+    assert.equal(result.handoff.includes(HANDOFF_SOURCE_CONTINUITY_STYLE_MIRROR), false);
     assert.equal(
       resolveAdultHandoffModelForSource(
         CHEAPER_INFERENCE_GPT_56_TERRA_MODEL,
