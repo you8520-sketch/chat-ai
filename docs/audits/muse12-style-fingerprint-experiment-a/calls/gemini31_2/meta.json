@@ -1,0 +1,23 @@
+{
+  "cell": "gemini31_fp_2",
+  "source_id": "gemini31",
+  "n": 2,
+  "raw_file": "GEMINI31_FP_2_RAW.txt",
+  "raw_sha256": "4e382f677246345f7adfa01688b0165f4b6da4235bcb109da0d26efaa27a4afd",
+  "http_status": 200,
+  "finish_reason": "stop",
+  "ttft_ms": 14724,
+  "latency_ms": 45880,
+  "visible_chars": 3683,
+  "input_tokens": 11515,
+  "completion_tokens": 3755,
+  "usage_cost": 0.014798,
+  "reasoning_stream_observed": false,
+  "reasoning_chars": 0,
+  "terminal_usage": true,
+  "incomplete_stream": false,
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "fallback": 0
+}

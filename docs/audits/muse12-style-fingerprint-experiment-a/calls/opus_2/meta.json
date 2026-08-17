@@ -1,0 +1,23 @@
+{
+  "cell": "opus_fp_2",
+  "source_id": "opus",
+  "n": 2,
+  "raw_file": "OPUS_FP_2_RAW.txt",
+  "raw_sha256": "b364b1c02a76527e9a2c95c8984a92e3ed9216a154fa984ae82a6d7996b89987",
+  "http_status": 200,
+  "finish_reason": "stop",
+  "ttft_ms": 21141,
+  "latency_ms": 61736,
+  "visible_chars": 4535,
+  "input_tokens": 12457,
+  "completion_tokens": 4664,
+  "usage_cost": 0.018226,
+  "reasoning_stream_observed": false,
+  "reasoning_chars": 0,
+  "terminal_usage": true,
+  "incomplete_stream": false,
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "fallback": 0
+}
