@@ -1,7 +1,7 @@
 "use client";
 
 import { useId } from "react";
-import type { TrpgD20Tone } from "@/lib/trpg/actionCardUi";
+import { trpgD20ViewModel, type TrpgD20Tone } from "@/lib/trpg/actionCardUi";
 
 const TONE_STYLE: Record<
   TrpgD20Tone,
@@ -70,9 +70,10 @@ export default function TrpgD20({
   const rawId = useId().replace(/:/g, "");
   const bodyId = `trpg-d20-body-${rawId}`;
   const faceId = `trpg-d20-face-${rawId}`;
-  const style = TONE_STYLE[tone];
-  const face = Number.isInteger(value) ? value : 0;
-  const fontSize = face >= 10 ? 21 : 26;
+  const view = trpgD20ViewModel(value, tone);
+  const style = TONE_STYLE[view.tone];
+  const face = view.face;
+  const fontSize = view.fontSize;
   const px = size === "mobile" ? 52 : 76;
 
   return (
@@ -135,7 +136,7 @@ export default function TrpgD20({
         fontFamily="ui-sans-serif, system-ui, sans-serif"
         letterSpacing={face >= 10 ? "-0.04em" : "0"}
       >
-        {face}
+        {view.faceText}
       </text>
     </svg>
   );

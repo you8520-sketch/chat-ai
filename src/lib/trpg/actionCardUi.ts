@@ -42,3 +42,19 @@ export function resolveTrpgD20Tone(d20: number, tier: TrpgSuccessTier): TrpgD20T
 export function isTrpgD20Face(value: number): boolean {
   return Number.isInteger(value) && value >= 1 && value <= 20;
 }
+
+/** Same face string the SVG `<text>` renders. No client roll. */
+export function trpgD20ViewModel(value: number, tone: TrpgD20Tone): {
+  face: number;
+  faceText: string;
+  tone: TrpgD20Tone;
+  fontSize: number;
+} {
+  const face = Number.isInteger(value) ? value : 0;
+  return {
+    face,
+    faceText: String(face),
+    tone,
+    fontSize: face >= 10 ? 21 : 26,
+  };
+}

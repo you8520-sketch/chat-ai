@@ -1,13 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { renderToStaticMarkup } from "react-dom/server";
-import { createElement } from "react";
 import fs from "node:fs";
-import TrpgD20 from "@/app/trpg/TrpgD20";
 import {
   isTrpgD20Face,
   resolveTrpgD20Tone,
   resolveTrpgSpeakerRail,
+  trpgD20ViewModel,
   trpgRollIsSuccess,
   trpgRollOutcomeLabel,
 } from "./actionCardUi";
@@ -40,45 +38,49 @@ describe("TRPG action card rails and d20 visual", () => {
     assert.equal(isTrpgD20Face(21), false);
   });
 
-  it("renders SVG faces 1, 2, 10, 19, 20 from the server value", () => {
+  it("keeps SVG face text identical to the server d20 for 1, 2, 10, 19, 20", () => {
+    const source = fs.readFileSync("src/app/trpg/TrpgD20.tsx", "utf8");
+    assert.match(source, /<svg/);
+    assert.match(source, /view\.faceText/);
+    assert.doesNotMatch(source, /\.png|\.webp|\.jpg|new Image/);
     for (const value of [1, 2, 10, 19, 20] as const) {
       const tone = resolveTrpgD20Tone(value, value >= 10 ? "SUCCESS" : "FAILURE");
-      const html = renderToStaticMarkup(createElement(TrpgD20, { value, tone, size: "desktop" }));
-      assert.match(html, /<svg/);
-      assert.doesNotMatch(html, /<img|png|webp|jpg/i);
-      assert.match(html, new RegExp(`data-trpg-d20-value="${value}"`));
-      assert.match(html, new RegExp(`>${value}<`));
+      const view = trpgD20ViewModel(value, tone);
+      assert.equal(view.face, value);
+      assert.equal(view.faceText, String(value));
       assert.equal(isTrpgD20Face(value), true);
     }
+    assert.equal(trpgD20ViewModel(1, "nat1").faceText, "1");
+    assert.equal(trpgD20ViewModel(20, "nat20").faceText, "20");
   });
 
   it("keeps success, fail, nat1, and nat20 visual states distinct", () => {
-    const success = renderToStaticMarkup(
-      createElement(TrpgD20, { value: 16, tone: "success", size: "desktop" })
-    );
-    const fail = renderToStaticMarkup(createElement(TrpgD20, { value: 2, tone: "fail", size: "desktop" }));
-    const nat20 = renderToStaticMarkup(
-      createElement(TrpgD20, { value: 20, tone: "nat20", size: "desktop" })
-    );
-    const nat1 = renderToStaticMarkup(createElement(TrpgD20, { value: 1, tone: "nat1", size: "desktop" }));
-    assert.match(success, /data-trpg-d20-tone="success"/);
-    assert.match(fail, /data-trpg-d20-tone="fail"/);
-    assert.match(nat20, /data-trpg-d20-tone="nat20"/);
-    assert.match(nat1, /data-trpg-d20-tone="nat1"/);
-    assert.match(nat20, /#d4b45a|#f0d78c/);
-    assert.match(nat1, /#8f3a40|#f0a8a8/);
+    const source = fs.readFileSync("src/app/trpg/TrpgD20.tsx", "utf8");
+    assert.match(source, /nat20:/);
+    assert.match(source, /nat1:/);
+    assert.match(source, /success:/);
+    assert.match(source, /fail:/);
+    assert.match(source, /#d4b45a/);
+    assert.match(source, /#8f3a40/);
+    assert.doesNotMatch(source, /animate-|@keyframes|casino/i);
+    assert.equal(trpgD20ViewModel(16, "success").tone, "success");
+    assert.equal(trpgD20ViewModel(2, "fail").tone, "fail");
+    assert.equal(trpgD20ViewModel(20, "nat20").tone, "nat20");
+    assert.equal(trpgD20ViewModel(1, "nat1").tone, "nat1");
   });
 
   it("does not add image assets or empty dice shells in the action card", () => {
     const d20 = fs.readFileSync("src/app/trpg/TrpgD20.tsx", "utf8");
     const room = fs.readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
-    assert.doesNotMatch(d20, /\.png|\.webp|new Image|dice-1|dice-20/);
+    assert.doesNotMatch(d20, /\.png|\.webp|dice-1|dice-20/);
     assert.match(d20, /<svg/);
+    assert.match(d20, /size === "mobile" \? 52 : 76/);
     assert.match(room, /accent=\{false\}/);
     assert.match(room, /dialogueAccent=\{false\}/);
     assert.match(room, /roll && tone && outcome/);
+    assert.match(room, /sm:hidden/);
     assert.doesNotMatch(room, /DiceActionBody/);
-    const actionBlocks = room.split("data-trpg-action-card");
-    assert.equal((actionBlocks[1]?.match(/<TrpgNamedProse/g) ?? []).length, 1);
+    assert.equal((room.match(/text=\{parsed\.prose \|\| action\.body\}/g) ?? []).length, 1);
+    assert.doesNotMatch(room, /function DiceStrip\([\s\S]*parsed\.prose/);
   });
 });
