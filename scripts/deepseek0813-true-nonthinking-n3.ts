@@ -803,7 +803,7 @@ async function main() {
   save(
     "BLIND_OPUS_TRUE_NONTHINKING_QUALITY.md",
     qualityPacket(
-      "BLIND_OPUS_TRUE_NONTHINKING_QUALITY",
+      "BLIND_OPUS_QUALITY",
       opusRaw,
       opusShuffled.map((c, i) => ({ id: opusIds[i], text: c.text }))
     )
@@ -811,7 +811,7 @@ async function main() {
   save(
     "BLIND_GEMINI31_TRUE_NONTHINKING_QUALITY.md",
     qualityPacket(
-      "BLIND_GEMINI31_TRUE_NONTHINKING_QUALITY",
+      "BLIND_GEMINI31_QUALITY",
       geminiRaw,
       geminiShuffled.map((c, i) => ({ id: geminiIds[i], text: c.text }))
     )

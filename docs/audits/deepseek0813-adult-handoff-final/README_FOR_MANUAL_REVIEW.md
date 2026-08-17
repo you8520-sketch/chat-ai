@@ -69,6 +69,21 @@ Existing 6 VANILLA RAW/SHA/runtime files were not rewritten.
 
 `thinking-off-probe/CURRENT_FINAL_BODY.json` records the production final body after `assemblePrimaryRpRequest` → `adaptCheaperInferenceChatBody`.
 
-Diagnostic override only: keep `thinking: { type: "disabled" }` and add `reasoning_effort: "none"`. Production adapter was not changed.
+Diagnostic override only: keep `thinking: { type: "disabled" }` and add `reasoning_effort: "none"`. The probe itself did not change production main.
 
-Do not treat this file as a production recommendation.
+The accepted adapter change now lives on this audit branch only (DeepSeek V4 Pro). Flash is unchanged. Production main is still unmerged.
+
+## True-nonthinking final capture (audit branch)
+
+Adapter on this branch keeps both `thinking={type:"disabled"}` and `reasoning_effort="none"` for DeepSeek V4 Pro only.
+
+New RAW / blinds live under `true-nonthinking/`. Vanilla 6 remain `DS0813_REASONING_CONTAMINATED_REFERENCE` and are not in the new quality packets.
+
+- `true-nonthinking/DS0813_OPUS_TRUE_NONTHINKING_{1,2,3}_RAW.txt`
+- `true-nonthinking/DS0813_GEMINI31_TRUE_NONTHINKING_{1,2,3}_RAW.txt`
+- `true-nonthinking/BLIND_OPUS_TRUE_NONTHINKING_QUALITY.md`
+- `true-nonthinking/BLIND_GEMINI31_TRUE_NONTHINKING_QUALITY.md`
+- `true-nonthinking/BLIND_TRUE_NONTHINKING_RUNTIME.json`
+- `true-nonthinking/DEEPSEEK0813_TRUE_NONTHINKING_VS_MUSE_REVEAL_MAP.json`
+
+Cursor does not score quality or length. `DEEPSEEK0813_LENGTH_RESCUE_REQUIRED` is for ChatGPT, not Cursor.

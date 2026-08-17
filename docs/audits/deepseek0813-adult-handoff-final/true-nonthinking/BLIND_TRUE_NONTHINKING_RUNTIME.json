@@ -1,0 +1,92 @@
+{
+  "TN-O-A": {
+    "TTFT": 1982,
+    "TOTAL_LATENCY": 64933,
+    "VISIBLE_CHARS": 3721,
+    "COMPLETION_TOKENS": 2906,
+    "COST": 0.002268,
+    "FINISH_REASON": "stop",
+    "REASONING_STREAM_SEEN": false,
+    "REASONING_TEXT_CHARS": 0,
+    "TERMINAL_USAGE_PRESENT": true,
+    "INCOMPLETE_STREAM": false
+  },
+  "TN-O-B": {
+    "note": "existing_reference_no_new_runtime"
+  },
+  "TN-O-C": {
+    "note": "existing_reference_no_new_runtime"
+  },
+  "TN-O-D": {
+    "note": "existing_reference_no_new_runtime"
+  },
+  "TN-O-E": {
+    "TTFT": 2726,
+    "TOTAL_LATENCY": 72847,
+    "VISIBLE_CHARS": 4136,
+    "COMPLETION_TOKENS": 3185,
+    "COST": 0.005845,
+    "FINISH_REASON": "stop",
+    "REASONING_STREAM_SEEN": false,
+    "REASONING_TEXT_CHARS": 0,
+    "TERMINAL_USAGE_PRESENT": true,
+    "INCOMPLETE_STREAM": false
+  },
+  "TN-O-F": {
+    "TTFT": 1866,
+    "TOTAL_LATENCY": 66914,
+    "VISIBLE_CHARS": 3884,
+    "COMPLETION_TOKENS": 2984,
+    "COST": 0.002316,
+    "FINISH_REASON": "stop",
+    "REASONING_STREAM_SEEN": false,
+    "REASONING_TEXT_CHARS": 0,
+    "TERMINAL_USAGE_PRESENT": true,
+    "INCOMPLETE_STREAM": false
+  },
+  "TN-G-A": {
+    "note": "existing_reference_no_new_runtime"
+  },
+  "TN-G-B": {
+    "note": "existing_reference_no_new_runtime"
+  },
+  "TN-G-C": {
+    "TTFT": 1709,
+    "TOTAL_LATENCY": 43677,
+    "VISIBLE_CHARS": 2258,
+    "COMPLETION_TOKENS": 1755,
+    "COST": 0.001505,
+    "FINISH_REASON": "stop",
+    "REASONING_STREAM_SEEN": false,
+    "REASONING_TEXT_CHARS": 0,
+    "TERMINAL_USAGE_PRESENT": true,
+    "INCOMPLETE_STREAM": false
+  },
+  "TN-G-D": {
+    "TTFT": 2005,
+    "TOTAL_LATENCY": 43102,
+    "VISIBLE_CHARS": 2159,
+    "COMPLETION_TOKENS": 1691,
+    "COST": 0.001467,
+    "FINISH_REASON": "stop",
+    "REASONING_STREAM_SEEN": false,
+    "REASONING_TEXT_CHARS": 0,
+    "TERMINAL_USAGE_PRESENT": true,
+    "INCOMPLETE_STREAM": false
+  },
+  "TN-G-E": {
+    "note": "existing_reference_no_new_runtime"
+  },
+  "TN-G-F": {
+    "TTFT": 3042,
+    "TOTAL_LATENCY": 28331,
+    "VISIBLE_CHARS": 1339,
+    "COMPLETION_TOKENS": 1051,
+    "COST": 0.001077,
+    "FINISH_REASON": "stop",
+    "REASONING_STREAM_SEEN": false,
+    "REASONING_TEXT_CHARS": 0,
+    "TERMINAL_USAGE_PRESENT": true,
+    "INCOMPLETE_STREAM": false
+  }
+}

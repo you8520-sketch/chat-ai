@@ -1,0 +1,59 @@
+{
+  "cell": "DS0813_GEMINI31_TRUE_NONTHINKING_1",
+  "source": "gemini31",
+  "condition": "TRUE_NONTHINKING",
+  "sample": 1,
+  "REQUESTED_MODEL": "deepseek-v4-pro-0813",
+  "RESPONSE_MODEL": "deepseek-v4-pro-0813",
+  "HTTP_STATUS": 200,
+  "TTFT_MS": 3042,
+  "TOTAL_LATENCY_MS": 28331,
+  "VISIBLE_CHARS": 1339,
+  "VISIBLE_KOREAN_CHARS": 932,
+  "INPUT_TOKENS": 13973,
+  "COMPLETION_TOKENS": 1051,
+  "REASONING_STREAM_SEEN": false,
+  "REASONING_FIELD": null,
+  "REASONING_FIRST_MS": null,
+  "REASONING_LAST_MS": null,
+  "REASONING_TEXT_CHARS": 0,
+  "REASONING_FIELD_BREAKDOWN": {
+    "delta.reasoning": {
+      "chars": 0,
+      "firstMs": null,
+      "lastMs": null,
+      "chunks": 0
+    },
+    "delta.reasoning_content": {
+      "chars": 0,
+      "firstMs": null,
+      "lastMs": null,
+      "chunks": 0
+    },
+    "message.reasoning": {
+      "chars": 0,
+      "firstMs": null,
+      "lastMs": null,
+      "chunks": 0
+    },
+    "message.reasoning_content": {
+      "chars": 0,
+      "firstMs": null,
+      "lastMs": null,
+      "chunks": 0
+    }
+  },
+  "REASONING_TOKENS_REPORTED": 0,
+  "FINISH_REASON": "stop",
+  "TERMINAL_USAGE_PRESENT": true,
+  "STREAM_DONE_PRESENT": true,
+  "INCOMPLETE_STREAM": false,
+  "ACTUAL_COST_USD": 0.001077,
+  "FALLBACK_COUNT": 0,
+  "RETRY_COUNT": 0,
+  "CONTINUATION_COUNT": 0,
+  "RECOVERY_COUNT": 0,
+  "sourceSha": "e9c618f9c8b5856abf8f392713327807d728091ea01dfb5b6e3eb714123ba64e",
+  "outputSha": "e4a723661f2655023eb4be12b25666994268ba80182939d2e5bc5e5cd9914e20",
+  "error": null
+}
