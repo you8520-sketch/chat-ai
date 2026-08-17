@@ -1,0 +1,93 @@
+{
+  "headSha": "51858ffaefa848f4fd688545bd7f4ed17186b1c3",
+  "model": "glm-5.2",
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "rows": [
+    {
+      "cell": "S4-A",
+      "seed": "S4",
+      "arm": "A",
+      "user": "*물병을 꺼내 내민다* …목마르면 마셔. 나 괜찮으니까.",
+      "invalidTransport": false,
+      "httpStatus": 200,
+      "finishReason": "stop",
+      "latencyMs": 50157,
+      "ttftMs": 2525,
+      "resolvedModel": "glm-5.2",
+      "charsInclSpaces": 3694,
+      "charsExclSpaces": 2774,
+      "paragraphCount": 31,
+      "dialogueParagraphCount": 5,
+      "dialogueRatio": 0.161,
+      "inputTokens": 5594,
+      "outputTokens": 3073,
+      "reasoningTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "usageCostUsd": 0.010987,
+      "sampling": {
+        "temperature": 0.7,
+        "max_tokens": null,
+        "top_p": null,
+        "stream": true
+      },
+      "reasoning": {
+        "reasoning_effort": "none",
+        "reasoning": null,
+        "thinking": null
+      },
+      "assembledChars": {
+        "system": 6399,
+        "history": 1162,
+        "lastUser": 848,
+        "total": 8413,
+        "estimatedInputTokens": 7572
+      },
+      "stabilityPresent": false
+    },
+    {
+      "cell": "S4-B",
+      "seed": "S4",
+      "arm": "B",
+      "user": "*물병을 꺼내 내민다* …목마르면 마셔. 나 괜찮으니까.",
+      "invalidTransport": false,
+      "httpStatus": 200,
+      "finishReason": "stop",
+      "latencyMs": 43767,
+      "ttftMs": 1509,
+      "resolvedModel": "glm-5.2",
+      "charsInclSpaces": 3381,
+      "charsExclSpaces": 2514,
+      "paragraphCount": 27,
+      "dialogueParagraphCount": 7,
+      "dialogueRatio": 0.259,
+      "inputTokens": 5759,
+      "outputTokens": 2892,
+      "reasoningTokens": 0,
+      "cacheReadTokens": 0,
+      "cacheWriteTokens": 0,
+      "usageCostUsd": 0.008682,
+      "sampling": {
+        "temperature": 0.7,
+        "max_tokens": null,
+        "top_p": null,
+        "stream": true
+      },
+      "reasoning": {
+        "reasoning_effort": "none",
+        "reasoning": null,
+        "thinking": null
+      },
+      "assembledChars": {
+        "system": 6619,
+        "history": 1162,
+        "lastUser": 848,
+        "total": 8633,
+        "estimatedInputTokens": 7770
+      },
+      "stabilityPresent": true
+    }
+  ]
+}
