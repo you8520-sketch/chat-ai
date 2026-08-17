@@ -106,6 +106,7 @@ export async function submitProfileComment(input: {
       actorNickname: input.authorName,
       commentId,
       targetType: "creator",
+      targetId: input.targetId,
       targetLabel: "",
       preview: input.content,
     });
@@ -120,6 +121,7 @@ export async function submitProfileComment(input: {
         actorNickname: input.authorName,
         commentId,
         targetType: "character",
+        targetId: input.targetId,
         targetLabel: character.name,
         preview: input.content,
       });

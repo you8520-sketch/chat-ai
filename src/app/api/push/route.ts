@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
 import { getDb } from "@/lib/db";
+import { getPushSocialPrefs, setPushSocialPrefs } from "@/lib/userNotifications";
 import {
   getWebPushPublicConfig,
   hasWebPushSubscription,
@@ -31,11 +32,34 @@ export async function GET(req: Request) {
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
   const endpoint = new URL(req.url).searchParams.get("endpoint") ?? undefined;
   const config = getWebPushPublicConfig();
+  const prefs = getPushSocialPrefs(getDb(), user.id);
   return NextResponse.json({
     enabled: config.enabled,
     publicKey: config.enabled ? config.publicKey : "",
     subscribed: hasWebPushSubscription(getDb(), user.id, endpoint),
+    pushNotifyLikes: prefs.pushNotifyLikes,
+    pushNotifyComments: prefs.pushNotifyComments,
   });
+}
+
+export async function PATCH(req: Request) {
+  const user = await getSessionUser();
+  if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
+  if (!sameOrigin(req)) return NextResponse.json({ error: "잘못된 요청입니다." }, { status: 403 });
+  const body = (await req.json().catch(() => null)) as
+    | { pushNotifyLikes?: unknown; pushNotifyComments?: unknown }
+    | null;
+  if (!body) return NextResponse.json({ error: "잘못된 요청입니다." }, { status: 400 });
+  const likes = typeof body.pushNotifyLikes === "boolean" ? body.pushNotifyLikes : undefined;
+  const comments = typeof body.pushNotifyComments === "boolean" ? body.pushNotifyComments : undefined;
+  if (likes === undefined && comments === undefined) {
+    return NextResponse.json({ error: "변경할 알림 설정이 없습니다." }, { status: 400 });
+  }
+  const prefs = setPushSocialPrefs(getDb(), user.id, {
+    pushNotifyLikes: likes,
+    pushNotifyComments: comments,
+  });
+  return NextResponse.json({ ok: true, ...prefs });
 }
 
 export async function POST(req: Request) {

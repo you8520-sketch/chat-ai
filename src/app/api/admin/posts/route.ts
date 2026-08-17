@@ -3,6 +3,7 @@ import { requireAdminRequest, requireAdminUser } from "@/lib/adminAuth";
 import { isAdminManagedBoard } from "@/lib/boardConfig";
 import { createAdminBoardPost, deleteAdminBoardPost, listPostsByBoard } from "@/lib/boardPosts";
 import { getDb } from "@/lib/db";
+import { notifyBroadcastInApp } from "@/lib/userNotifications";
 import { queueBroadcastWebPush } from "@/lib/webPush";
 
 export async function GET(req: Request) {
@@ -47,8 +48,15 @@ export async function POST(req: Request) {
   const id = createAdminBoardPost(db, board, title, content, admin.id);
   if (board === "notice") {
     const preview = content.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 160);
+    const pushTitle = `새 공지: ${title}`;
+    notifyBroadcastInApp(db, {
+      type: "notice",
+      refId: id,
+      title: pushTitle,
+      body: preview,
+    });
     queueBroadcastWebPush(db, `notice:${id}`, {
-      title: `새 공지: ${title}`,
+      title: pushTitle,
       body: preview,
       url: "/board/notice",
       tag: `notice:${id}`,

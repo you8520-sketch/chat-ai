@@ -1419,6 +1419,10 @@ function migrate(db: Database.Database) {
   addColumn("users", "notify_character_likes", "INTEGER NOT NULL DEFAULT 1");
   /** Creator inbox: notify when someone comments on their profile/character (1=on). */
   addColumn("users", "notify_profile_comments", "INTEGER NOT NULL DEFAULT 1");
+  /** App push: likes default OFF until the user opts in. */
+  addColumn("users", "push_notify_likes", "INTEGER NOT NULL DEFAULT 0");
+  /** App push: comments default OFF until the user opts in. */
+  addColumn("users", "push_notify_comments", "INTEGER NOT NULL DEFAULT 0");
   addColumn("users", "creator_profile_html", "TEXT NOT NULL DEFAULT ''");
   addColumn("users", "creator_notice_html", "TEXT NOT NULL DEFAULT ''");
   db.exec(`
