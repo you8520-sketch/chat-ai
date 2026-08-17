@@ -22,6 +22,24 @@ test("allows a Railway public Origin when the request URL is an internal bind ad
   }
 });
 
+test("allows iOS WKWebView opaque Origin: null", () => {
+  const req = new Request("http://0.0.0.0:8080/api/push", {
+    method: "POST",
+    headers: {
+      origin: "null",
+      "x-forwarded-host": "chat-ai-production-3e84.up.railway.app",
+      "x-forwarded-proto": "https",
+    },
+  });
+  const previous = process.env.NODE_ENV;
+  process.env.NODE_ENV = "production";
+  try {
+    assert.equal(isBrowserOriginAllowed(req), true);
+  } finally {
+    process.env.NODE_ENV = previous;
+  }
+});
+
 test("rejects a foreign Origin even when forwarded host is present", () => {
   const req = new Request("http://0.0.0.0:8080/api/push", {
     method: "PATCH",
