@@ -54,8 +54,10 @@ export function deleteTrpgCampaign(
 }
 
 /**
- * Delete unstarted solo drafts from the DB (not a hide filter).
- * Kept: another human already joined, or host clicked 「캠페인 시작」(a round exists).
+ * Delete other unstarted solo drafts. Call only when the host starts a new
+ * campaign or opens a setup draft — never from lobby list/prefetch or from a
+ * started room poll, or the draft they are configuring disappears.
+ * Kept: `keepCampaignId`, another human already joined, or a round exists.
  */
 export function purgeUnstartedSoloDrafts(
   db: Database.Database,

@@ -420,7 +420,7 @@ describe("TRPG scenarios and catalog", () => {
     db.close();
   });
 
-  it("deletes unstarted solo drafts instead of leaving them hidden", () => {
+  it("deletes leftover solo drafts when starting or opening a setup campaign, not on lobby list", () => {
     const db = memoryDb();
     const first = createTrpgCampaign(db, {
       hostUserId: 1,
@@ -435,7 +435,7 @@ describe("TRPG scenarios and catalog", () => {
     assert.equal(loadCampaign(db, first), null);
     assert.ok(loadCampaign(db, second));
     assert.equal(listTrpgCampaigns(db, 1).length, 0);
-    assert.equal(loadCampaign(db, second), null);
+    assert.ok(loadCampaign(db, second));
 
     const keptId = createTrpgCampaign(db, {
       hostUserId: 1,
@@ -455,13 +455,14 @@ describe("TRPG scenarios and catalog", () => {
     const lobby = listTrpgCampaigns(db, 1);
     assert.equal(lobby.length, 1);
     assert.equal(lobby[0]?.id, keptId);
-    assert.equal(loadCampaign(db, third), null);
+    assert.ok(loadCampaign(db, third));
 
     const current = createTrpgCampaign(db, {
       hostUserId: 1,
       hostNickname: "렌",
       viewerUserId: 1,
     });
+    assert.equal(loadCampaign(db, third), null);
     const leftoverId = Number(
       db
         .prepare(
@@ -480,7 +481,7 @@ describe("TRPG scenarios and catalog", () => {
     const afterRoom = listTrpgCampaigns(db, 1);
     assert.equal(afterRoom.length, 1);
     assert.equal(afterRoom[0]?.id, keptId);
-    assert.equal(loadCampaign(db, current), null);
+    assert.ok(loadCampaign(db, current));
 
     assert.equal(renameTrpgCampaign(db, { campaignId: keptId, userId: 1, title: " 회색 생태권  " }), "회색 생태권");
     assert.equal(loadCampaign(db, keptId)?.title, "회색 생태권");
@@ -494,6 +495,39 @@ describe("TRPG scenarios and catalog", () => {
     );
     deleteTrpgCampaign(db, { campaignId: keptId, userId: 1 });
     assert.equal(listTrpgCampaigns(db, 1).length, 0);
+    db.close();
+  });
+
+  it("does not delete a setup draft when listing the lobby or polling a started room", () => {
+    const db = memoryDb();
+    const started = createTrpgCampaign(db, {
+      hostUserId: 1,
+      hostNickname: "렌",
+      viewerUserId: 1,
+      title: "진행 중",
+    });
+    saveTrpgSheet(db, { campaignId: started, userId: 1, name: "렌", stats: EVEN_STATS });
+    db.prepare(
+      `INSERT INTO trpg_rounds (campaign_id, round_number, phase) VALUES (?, 1, 'ERROR_RECOVERY')`
+    ).run(started);
+    db.prepare(`UPDATE trpg_campaigns SET status='ACTION_INPUT' WHERE id=?`).run(started);
+
+    const draft = createTrpgCampaign(db, {
+      hostUserId: 1,
+      hostNickname: "렌",
+      viewerUserId: 1,
+      title: "새 세계관 초안",
+    });
+    assert.ok(loadCampaign(db, started));
+    assert.ok(loadCampaign(db, draft));
+
+    assert.ok(listTrpgCampaigns(db, 1).some((row) => row.id === started));
+    assert.ok(loadCampaign(db, draft));
+
+    assert.ok(loadTrpgSnapshot(db, started, 1));
+    assert.ok(loadCampaign(db, draft), "started-room poll must not delete the setup draft");
+    assert.ok(loadTrpgSnapshot(db, draft, 1));
+    assert.ok(loadCampaign(db, draft));
     db.close();
   });
 

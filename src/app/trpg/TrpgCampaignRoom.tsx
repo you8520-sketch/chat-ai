@@ -556,14 +556,21 @@ export default function TrpgCampaignRoom({
                       포인트를 충전한 뒤 같은 장면을 다시 생성하지 않고 과금만 재시도할 수 있습니다.
                     </p>
                   ) : null}
-                  <button
-                    type="button"
-                    disabled={busy || !snap.hasPendingGmResult}
-                    onClick={onRetryGm}
-                    className="inline-flex min-h-10 items-center rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 text-sm font-semibold text-amber-100"
-                  >
-                    과금 다시 시도
-                  </button>
+                  {snap.hasPendingGmResult ? (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={onRetryGm}
+                      className="inline-flex min-h-10 items-center rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 text-sm font-semibold text-amber-100"
+                    >
+                      과금 다시 시도
+                    </button>
+                  ) : (
+                    <p className="text-xs leading-relaxed text-zinc-400">
+                      이 라운드는 과금만 다시 시도할 저장 결과가 없습니다. 같은 장면을 다시 만들지
+                      않고는 이어서 진행할 수 없으니, 새 캠페인에서 플레이해 주세요.
+                    </p>
+                  )}
                 </>
               ) : (
                 <button

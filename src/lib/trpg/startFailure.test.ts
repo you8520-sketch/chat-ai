@@ -319,6 +319,8 @@ describe("TRPG start failure classification", () => {
     assert.ok(billingStart >= 0 && gmRetry > billingStart);
     const billingBlock = room.slice(billingStart, gmRetry);
     assert.match(billingBlock, /과금 다시 시도/);
+    assert.match(billingBlock, /hasPendingGmResult/);
+    assert.doesNotMatch(billingBlock, /disabled=\{busy \|\| !snap\.hasPendingGmResult\}/);
     assert.doesNotMatch(billingBlock, /GM 다시 시도/);
   });
 
