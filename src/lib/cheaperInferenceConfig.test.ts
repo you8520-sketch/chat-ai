@@ -156,7 +156,7 @@ test("DeepSeek V4 Flash disables hidden reasoning on CheaperInference", () => {
   );
 });
 
-test("DeepSeek V4 Pro uses the native non-thinking switch on CheaperInference", () => {
+test("DeepSeek V4 Pro uses thinking disabled plus CI reasoning_effort none", () => {
   assert.deepEqual(
     adaptCheaperInferenceChatBody({
       model: "deepseek-v4-pro",
@@ -167,6 +167,7 @@ test("DeepSeek V4 Pro uses the native non-thinking switch on CheaperInference", 
       model: "deepseek-v4-pro-0813",
       messages: [{ role: "user", content: "hello" }],
       thinking: { type: "disabled" },
+      reasoning_effort: "none",
     }
   );
 });
@@ -188,10 +189,29 @@ test("DeepSeek V4 Pro 0813 keeps thinking disabled and never sends the legacy id
   const adapted = adaptCheaperInferenceChatBody({
     model: "deepseek-v4-pro-0813",
     messages: [{ role: "user", content: "hello" }],
+    reasoning: { effort: "none", exclude: true },
+    include_reasoning: false,
     reasoning_effort: "high",
   });
   assert.equal(adapted.model, "deepseek-v4-pro-0813");
   assert.deepEqual(adapted.thinking, { type: "disabled" });
-  assert.equal(adapted.reasoning_effort, undefined);
+  assert.equal(adapted.reasoning_effort, "none");
+  assert.equal(adapted.reasoning, undefined);
+  assert.equal(adapted.include_reasoning, undefined);
   assert.notEqual(adapted.model, "deepseek-v4-pro");
+});
+
+test("DeepSeek V4 Flash body semantics stay thinking-disabled without reasoning_effort", () => {
+  const flash = adaptCheaperInferenceChatBody({
+    model: "deepseek-v4-flash",
+    messages: [{ role: "user", content: "hello" }],
+    reasoning: { effort: "none", exclude: true },
+    include_reasoning: false,
+    reasoning_effort: "none",
+  });
+  assert.equal(flash.model, "deepseek-v4-flash");
+  assert.deepEqual(flash.thinking, { type: "disabled" });
+  assert.equal(flash.reasoning_effort, undefined);
+  assert.equal(flash.reasoning, undefined);
+  assert.equal(flash.include_reasoning, undefined);
 });

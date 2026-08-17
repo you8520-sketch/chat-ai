@@ -25,6 +25,7 @@ describe("TRPG GM call path vs regular chat", () => {
       model: "deepseek-v4-pro-0813",
       messages: [{ role: "user", content: "장면" }],
       thinking: { type: "disabled" },
+      reasoning_effort: "none",
     });
     assert.equal(body.reasoning_effort, "high", "input must not be mutated");
   });
