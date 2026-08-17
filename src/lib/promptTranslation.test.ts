@@ -6,7 +6,13 @@ import {
   CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
 } from "@/lib/chatModels";
 import type { CharacterChunk } from "@/types";
-import { TRANSLATION_MAX_OUTPUT_TOKENS } from "@/lib/ai";
+import {
+  PROMPT_TRANSLATION_REQUEST_KIND,
+  TRANSLATION_MAX_INPUT_TOKENS,
+  TRANSLATION_MAX_OUTPUT_TOKENS,
+  resolveBackgroundMaxInputTokens,
+  resolveBackgroundMaxOutputTokens,
+} from "@/lib/ai";
 import {
   classifyEnglishLayer,
   DEFAULT_TRANSLATION_FALLBACK_MODEL,
@@ -48,8 +54,19 @@ afterEach(() => {
 });
 
 describe("translation model chain", () => {
-  it("uses a translation-only output cap and does not change RP max_tokens", () => {
-    assert.equal(TRANSLATION_MAX_OUTPUT_TOKENS, 8192);
+  it("uses translation-only 20k/15k caps and does not change RP max_tokens", () => {
+    assert.equal(TRANSLATION_MAX_INPUT_TOKENS, 20_000);
+    assert.equal(TRANSLATION_MAX_OUTPUT_TOKENS, 15_000);
+    assert.equal(
+      resolveBackgroundMaxInputTokens(PROMPT_TRANSLATION_REQUEST_KIND),
+      20_000
+    );
+    assert.equal(
+      resolveBackgroundMaxOutputTokens(PROMPT_TRANSLATION_REQUEST_KIND),
+      15_000
+    );
+    assert.equal(resolveBackgroundMaxInputTokens("generateContent"), 12_000);
+    assert.equal(resolveBackgroundMaxOutputTokens("generateContent"), 3072);
   });
 
   it("defaults to distinct CI Flash 0731 primary and CI Pro 0813 fallback", () => {
@@ -245,6 +262,39 @@ describe("atomic translate + save", () => {
       else process.env.CHEAPER_INFERENCE_API_KEY = previousCi;
       if (previousOr === undefined) delete process.env.OPENROUTER_API_KEY;
       else process.env.OPENROUTER_API_KEY = previousOr;
+    }
+  });
+
+  it("sends the 15k translation output cap on the provider request", async () => {
+    const previousFetch = globalThis.fetch;
+    const previousCi = process.env.CHEAPER_INFERENCE_API_KEY;
+    process.env.CHEAPER_INFERENCE_API_KEY = "test-ci";
+    process.env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "test-or";
+    let requestedMaxTokens: number | undefined;
+    globalThis.fetch = (async (_url, init) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as { max_tokens?: number };
+      requestedMaxTokens = body.max_tokens;
+      return new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: { content: "⟦SEG 1⟧\nHello\n⟦/SEG 1⟧" },
+              finish_reason: "stop",
+            },
+          ],
+          usage: { prompt_tokens: 10, completion_tokens: 4 },
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } }
+      );
+    }) as typeof fetch;
+    try {
+      const result = await translateChunksToEnglish([chunk("c-1", "안녕")]);
+      assert.equal(result?.[0]?.content, "Hello");
+      assert.equal(requestedMaxTokens, 15_000);
+    } finally {
+      globalThis.fetch = previousFetch;
+      if (previousCi === undefined) delete process.env.CHEAPER_INFERENCE_API_KEY;
+      else process.env.CHEAPER_INFERENCE_API_KEY = previousCi;
     }
   });
 
