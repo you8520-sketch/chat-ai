@@ -147,10 +147,12 @@ import {
   appendTerraTerminalLengthOwnerToUserTurn,
   buildLengthInstruction,
   resolveResponseLengthTarget,
+  USER_TAIL_LENGTH_OWNER_SENTENCE,
 } from "@/lib/responseLength";
 import { isTerraTerminalLengthOwnerActive } from "@/lib/sharedNovelProseModelAdapters";
 import type { OpenRouterSystemSplit } from "@/lib/openRouterCache";
 import { estimateOpenRouterCacheableTokens, buildOpenRouterDynamicLoreUserPrefix, HISTORY_CACHE_TAIL_EXCLUDE_MESSAGES } from "@/lib/openRouterCache";
+import { appendSourceSpecificMuseAdapterToUserTurn } from "@/lib/adultHandoffSourceRouting";
 import { isCheaperInferenceDeepSeekV4FlashModel, isDeepSeekModel, isDeepSeekV4ProModel, isQwenModel } from "@/lib/chatModels";
 import { DEEPSEEK_APPEARANCE_VARIATION_RULE } from "@/lib/appearanceCompiler";
 import { buildCoNarrationKoreanRule } from "@/lib/openRouterAdult";
@@ -1405,6 +1407,12 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
       userTurnContent = `${userTurnContent.trimEnd()}\n\n${COMMON_LENGTH_OWNER_MINIMAL}`;
     }
   }
+  userTurnContent = appendSourceSpecificMuseAdapterToUserTurn(
+    userTurnContent,
+    input.adultHandoffSourceModelId,
+    input.adultHandoffTargetModelId,
+    USER_TAIL_LENGTH_OWNER_SENTENCE
+  );
   const estimatePayloadTokens = (hist: ContextBuildInput["shortTermHistory"]) =>
     estimateTokens(
       `${systemPrompt}\n${[...hist, { role: "user" as const, content: userTurnContent }]

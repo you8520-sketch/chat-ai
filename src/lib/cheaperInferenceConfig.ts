@@ -5,10 +5,12 @@ import {
   isCheaperInferenceDeepSeekV4ProModel,
   isCheaperInferenceGemini31ProModel,
   isCheaperInferenceGemini37FlashModel,
+  isCheaperInferenceMuseSpark12Model,
   isCheaperInferenceQwen38MaxModel,
   isGpt56LunaModel,
   isGpt56TerraModel,
   normalizeDeepSeekV4ProModelId,
+  normalizeMuseSpark12ModelId,
 } from "@/lib/chatModels";
 
 /** Cheaper Inference OpenAI-compatible API root. */
@@ -97,6 +99,14 @@ export function adaptCheaperInferenceChatBody(
     if (isCheaperInferenceQwen38MaxModel(model)) {
       delete adapted.thinking;
       adapted.reasoning_effort = "none";
+      return adapted;
+    }
+    if (isCheaperInferenceMuseSpark12Model(model)) {
+      adapted.model = normalizeMuseSpark12ModelId(model);
+      delete adapted.thinking;
+      delete adapted.reasoning_effort;
+      delete adapted.reasoning;
+      delete adapted.include_reasoning;
       return adapted;
     }
     adapted.reasoning_effort = isCheaperInferenceGemini31ProModel(model)

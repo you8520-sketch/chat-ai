@@ -162,6 +162,11 @@ export type Usage = {
     totalUpstreamCostUsd?: number;
     userChargedPoints?: number;
     latencyMs?: number;
+    /** Source-model user-charge owner for Muse handoff. Discount is not applied. */
+    userChargeOwner?: string;
+    /** Delivered-model actual-cost owner. Distinct from userChargeOwner. */
+    actualCostOwner?: string;
+    userChargeDiscountPercent?: number | null;
   };
   /**
    * Internal generation semantics. Public receipts never include these fields.

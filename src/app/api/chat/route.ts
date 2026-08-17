@@ -487,6 +487,7 @@ import {
   resolvePersistedAdultHandoffSourceModelId,
   shouldFallbackQwenHandoffToDeepSeek,
 } from "@/lib/adultHandoffSourceRouting";
+import { resolveAdultHandoffChargeModelId } from "@/lib/adultHandoffPricing";
 import {
   canUseAdultSceneHandoffAdminCanary,
   detectAdultSceneHandoffPromptLeak,
@@ -1982,6 +1983,14 @@ export async function POST(req: Request) {
       adultRoutingConfig.enabled &&
       adultRouteDecision.activeRoute === "adult" &&
       adultRouteDecision.firstAdultHandoff,
+    adultHandoffSourceModelId:
+      adultRoutingConfig.enabled && adultRouteDecision.activeRoute === "adult"
+        ? adultHandoffSourceModelId
+        : undefined,
+    adultHandoffTargetModelId:
+      adultRoutingConfig.enabled && adultRouteDecision.activeRoute === "adult"
+        ? activeAdultModelId
+        : undefined,
   };
 
   const assembleContext = <T,>(fn: () => T): T =>
@@ -4007,6 +4016,11 @@ export async function POST(req: Request) {
         const billingProvider = deliveredProvider;
         const receiptFields = stealthReceiptModelFields(selectedAIRef);
 
+        const handoffPricing = resolveAdultHandoffChargeModelId({
+          sourceModelId: adultHandoffSourceModelId,
+          deliveredModelId: deliveredModelId ?? "",
+          activeRoute: deliveredActiveRoute,
+        });
         let totalInput: number;
         let totalOutput: number;
         let billing: {
@@ -4058,7 +4072,7 @@ export async function POST(req: Request) {
           billing = computeTurnBilling({
             provider: billingProvider,
             selectedAI: deliveredSelectedAI,
-            openRouterModelId: deliveredModelId,
+            openRouterModelId: handoffPricing.chargeModelId,
             inputTokens: totalInput,
             outputTokens: totalOutput,
             reasoningTokens: summedApiReasoning,
@@ -4631,6 +4645,13 @@ export async function POST(req: Request) {
                       : undefined,
                   userChargedPoints: cost,
                   latencyMs: Date.now() - adultRouteStartedAt,
+                  ...(handoffPricing.userChargeOwner
+                    ? { userChargeOwner: handoffPricing.userChargeOwner }
+                    : {}),
+                  ...(handoffPricing.actualCostOwner
+                    ? { actualCostOwner: handoffPricing.actualCostOwner }
+                    : {}),
+                  userChargeDiscountPercent: handoffPricing.discountPercent,
                 },
               }
             : {}),
