@@ -1,5 +1,7 @@
 {
   "TRACK": "TURN_OWNERSHIP_T1",
+  "BASE_HEAD": "f77ed3eb25caafe3b5d391252dae5b801aa55c05",
+  "BRANCH_HEAD": "d8c14910bfeaabbb4ad6952dd3a7c8d0edfa75fc",
   "PRIMARY_FIXTURE_PROVEN": false,
   "PRIMARY_LIVE_CALLS": 0,
   "BASELINE_CALLS": 0,
