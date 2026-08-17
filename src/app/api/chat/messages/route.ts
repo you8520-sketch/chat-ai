@@ -29,7 +29,7 @@ import {
   type ChatMessageLike,
 } from "@/lib/chatMessagePagination";
 import { getReportStatusesForMessages } from "@/lib/refund";
-import { readOocSceneClientFlags } from "@/lib/oocSceneRender";
+import { collectStaleOocAdoptionIds, readOocSceneClientFlags } from "@/lib/oocSceneRender";
 
 type DbMessageRow = {
   id: number;
@@ -120,6 +120,25 @@ function mapDbMessageForClient(
   };
 }
 
+function attachCanonAdoptionStale<T extends { id: number; canonAdoptionStale?: boolean }>(
+  mapped: T[],
+  rawMessages: DbMessageRow[]
+): T[] {
+  const staleIds = new Set(
+    collectStaleOocAdoptionIds(
+      rawMessages.map((m) => ({
+        id: m.id,
+        role: m.role,
+        content: m.content,
+        model: m.model,
+        usage: m.usage,
+        generation_status: m.generation_status,
+      }))
+    )
+  );
+  return mapped.map((m) => (staleIds.has(m.id) ? { ...m, canonAdoptionStale: true } : m));
+}
+
 export async function GET(req: Request) {
   const user = await getSessionUser();
   if (!user) return NextResponse.json({ error: "로그인이 필요합니다." }, { status: 401 });
@@ -159,13 +178,16 @@ export async function GET(req: Request) {
   );
   const keepInternalAdultRouting = keepInternalAdultRoutingForUser(user);
 
-  const mapped = rawMessages.map((m) =>
-    mapDbMessageForClient(
-      m,
-      chat.user_note ?? undefined,
-      reportStatusByMessageId.get(m.id) ?? "none",
-      keepInternalAdultRouting
-    )
+  const mapped = attachCanonAdoptionStale(
+    rawMessages.map((m) =>
+      mapDbMessageForClient(
+        m,
+        chat.user_note ?? undefined,
+        reportStatusByMessageId.get(m.id) ?? "none",
+        keepInternalAdultRouting
+      )
+    ),
+    rawMessages
   ) as ChatMessageLike[];
   const safeTurnLimit =
     Number.isFinite(turnLimit) && turnLimit > 0

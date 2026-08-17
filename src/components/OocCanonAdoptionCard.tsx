@@ -4,11 +4,13 @@ import { OOC_CANON_ADOPTION_COPY } from "@/lib/oocSceneRender";
 
 export default function OocCanonAdoptionCard({
   adopted,
+  stale = false,
   busy = false,
   onKeepNoncanonical,
   onAdopt,
 }: {
   adopted: boolean;
+  stale?: boolean;
   busy?: boolean;
   onKeepNoncanonical: () => void;
   onAdopt: () => void;
@@ -17,6 +19,14 @@ export default function OocCanonAdoptionCard({
     return (
       <div className="mt-3 rounded-xl border border-emerald-500/25 bg-emerald-500/8 px-3 py-2 text-xs text-emerald-200">
         ✓ {OOC_CANON_ADOPTION_COPY.adoptedBadge}
+      </div>
+    );
+  }
+
+  if (stale) {
+    return (
+      <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-zinc-400">
+        {OOC_CANON_ADOPTION_COPY.stale}
       </div>
     );
   }

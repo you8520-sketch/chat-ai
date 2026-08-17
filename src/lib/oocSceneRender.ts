@@ -1,6 +1,10 @@
 /**
  * Orthogonal OOC scene-render / canonicality owner.
  *
+ * Workstream status: OOC_SCENE_RENDER / CANON_ISOLATION / CANON_ADOPTION /
+ * STALE_ADOPTION_GUARD = COMPLETE. Historical insertion, adoption undo, and
+ * persisted dismiss metadata are known nonblocking limitations.
+ *
  * ChatOocIntent remains RP-control semantics (none / continuing / reset /
  * unrelated / hard_stop). This module only answers: is this generation a
  * noncanonical sample/IF scene that must not mutate main RP state?
@@ -15,6 +19,7 @@ import {
   extractOocRoutingText,
   messageHasOocMarkers,
 } from "@/lib/chatOocPriority";
+import { isHtmlFlashOnlyTurn } from "@/lib/htmlDisplayOnlyTurn";
 import { extractOocSnippets } from "@/lib/userImpersonationPolicy";
 
 export const OOC_SCENE_RENDER_GENERATION_KIND = "ooc_scene_render" as const;
@@ -53,6 +58,7 @@ export const OOC_CANON_ADOPTION_COPY = {
   keepNoncanonical: "비정사로 유지",
   adopt: "본편에 반영",
   adoptedBadge: "본편에 반영됨",
+  stale: "본편이 이미 진행되어 이 장면은 더 이상 반영할 수 없습니다.",
   deleteProtected: "이 장면은 본편에 반영되어 있습니다.",
   regenBlocked: "본편에 반영된 장면은 재생성할 수 없습니다.",
   variantSwitchBlocked: "본편에 반영된 장면은 다른 버전으로 바꿀 수 없습니다.",
@@ -272,6 +278,7 @@ export type CanonicalMessageRow = {
   model?: string | null;
   user_message_id?: number | null;
   usage?: unknown;
+  generation_status?: string | null;
 };
 
 function rowId(row: CanonicalMessageRow): number | null {
@@ -357,6 +364,121 @@ export function filterCanonicalMessageRows<T extends CanonicalMessageRow>(rows: 
     }
     return true;
   });
+}
+
+function isFinalizedSuccessStatus(status: string | null | undefined): boolean {
+  return FINALIZED_SUCCESS_STATUSES.has((status ?? "completed").toLowerCase());
+}
+
+function isEligibleCanonicalUserContent(content: string | null | undefined): boolean {
+  const trimmed = String(content ?? "").trim();
+  if (!trimmed) return false;
+  if (resolveOocSceneRenderIntent(trimmed)) return false;
+  const intent = classifyChatOocIntent(trimmed);
+  if (intent === "rp_unrelated" || intent === "rp_hard_stop") return false;
+  if (isHtmlFlashOnlyTurn(trimmed)) return false;
+  return true;
+}
+
+function resolveLinkedUserRow<T extends CanonicalMessageRow>(
+  row: T,
+  byId: Map<number, T>,
+  ordered: T[]
+): T | undefined {
+  const parentId = linkedUserId(row);
+  if (parentId != null && byId.has(parentId)) return byId.get(parentId);
+  const id = rowId(row);
+  if (id == null) return undefined;
+  for (let i = ordered.length - 1; i >= 0; i -= 1) {
+    const candidate = ordered[i]!;
+    const candidateId = rowId(candidate);
+    if (candidateId != null && candidateId < id && candidate.role === "user") {
+      return candidate;
+    }
+  }
+  return undefined;
+}
+
+function isCanonicalStoryProgressRow<T extends CanonicalMessageRow>(
+  row: T,
+  byId: Map<number, T>,
+  ordered: T[]
+): boolean {
+  if (row.model === "greeting") return false;
+  if (row.role === "user") return isEligibleCanonicalUserContent(row.content);
+  if (row.role !== "assistant") return false;
+  if (!isFinalizedSuccessStatus(row.generation_status)) return false;
+  if (isCanonAdoptedScene(row.usage)) return true;
+  const parent = resolveLinkedUserRow(row, byId, ordered);
+  if (parent) return isEligibleCanonicalUserContent(parent.content);
+  return isEffectiveCanonEvent(row.usage);
+}
+
+/**
+ * True when effective canonical story progress exists after `afterMessageId`.
+ * Reuses filterCanonicalMessageRows plus existing OOC/HTML/status owners.
+ * Newer non-adopted OOC samples, HTML-only, failed, and excluded OOC do not count.
+ */
+export function hasNewerCanonicalStoryProgress<T extends CanonicalMessageRow>(
+  rows: T[],
+  afterMessageId: number
+): boolean {
+  if (!Number.isSafeInteger(afterMessageId) || afterMessageId <= 0) return false;
+  const canonical = filterCanonicalMessageRows(rows);
+  const byId = new Map<number, T>();
+  for (const row of canonical) {
+    const id = rowId(row);
+    if (id != null) byId.set(id, row);
+  }
+  for (const row of canonical) {
+    const id = rowId(row);
+    if (id == null || id <= afterMessageId) continue;
+    if (isCanonicalStoryProgressRow(row, byId, canonical)) return true;
+  }
+  return false;
+}
+
+export function collectStaleOocAdoptionIds<T extends CanonicalMessageRow>(
+  rows: T[]
+): number[] {
+  const stale: number[] = [];
+  for (const row of rows) {
+    if (row.role !== "assistant") continue;
+    const id = rowId(row);
+    if (id == null) continue;
+    if (!isOocSceneRenderSemantics(readGenerationSemantics(row.usage))) continue;
+    if (isCanonAdoptedScene(row.usage)) continue;
+    if (hasNewerCanonicalStoryProgress(rows, id)) stale.push(id);
+  }
+  return stale;
+}
+
+export function canonicalRowFromClientFlags(input: {
+  id?: number | null;
+  role: string;
+  content?: string | null;
+  model?: string | null;
+  user_message_id?: number | null;
+  oocSceneRender?: boolean;
+  canonAdopted?: boolean;
+  generationStatus?: string | null;
+}): CanonicalMessageRow | null {
+  if (input.id == null || !Number.isSafeInteger(input.id) || input.id <= 0) return null;
+  return {
+    id: input.id,
+    role: input.role,
+    content: input.content ?? "",
+    model: input.model ?? "",
+    user_message_id: input.user_message_id ?? null,
+    generation_status: input.generationStatus ?? null,
+    usage: input.oocSceneRender
+      ? {
+          generationKind: OOC_SCENE_RENDER_GENERATION_KIND,
+          canonical: false,
+          ...(input.canonAdopted ? { canonAdopted: true } : {}),
+        }
+      : null,
+  };
 }
 
 export function buildOocSceneRenderUserPrompt(userMessage: string): string {
@@ -561,6 +683,21 @@ export function adoptOocSceneRenderCore(
         alreadyAdopted: true,
         canonAdoptedAt: existing.canonAdoptedAt ?? "",
         assistantMessageId: row.id,
+      };
+    }
+
+    const historyRows = db
+      .prepare(
+        `SELECT id, role, content, model, user_message_id, usage, generation_status
+         FROM messages WHERE chat_id=? ORDER BY id ASC`
+      )
+      .all(chatId) as CanonicalMessageRow[];
+    if (hasNewerCanonicalStoryProgress(historyRows, row.id)) {
+      return {
+        ok: false,
+        status: 409,
+        code: "CANON_ADOPTION_STALE",
+        error: "이후 본편이 이미 진행되어 이 장면은 본편에 반영할 수 없습니다.",
       };
     }
 

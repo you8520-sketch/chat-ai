@@ -89,6 +89,8 @@ import { partitionPlainStatusBlockForDisplay } from "@/lib/statusMeta/stripArtif
 import { resolveActiveVariantContent } from "@/lib/messageAlternates";
 import type { Usage } from "@/lib/chatUsage";
 import {
+  canonicalRowFromClientFlags,
+  hasNewerCanonicalStoryProgress,
   isOocSceneAdoptionPromptEligible,
   OOC_CANON_ADOPTION_COPY,
 } from "@/lib/oocSceneRender";
@@ -266,9 +268,19 @@ type Msg = {
   oocSceneRender?: boolean;
   /** Server-derived explicit canon adoption. Origin canonical stays false. */
   canonAdopted?: boolean;
+  /** Server/client: newer canonical RP progress exists after this OOC scene. */
+  canonAdoptionStale?: boolean;
   /** UI 전용 — DB 미저장 */
   ephemeral?: boolean;
 };
+
+function isOocCanonAdoptionStale(messages: Msg[], assistantMessageId: number | undefined): boolean {
+  if (assistantMessageId == null) return false;
+  const rows = messages
+    .map((m) => canonicalRowFromClientFlags(m))
+    .filter((row): row is NonNullable<typeof row> => row != null);
+  return hasNewerCanonicalStoryProgress(rows, assistantMessageId);
+}
 
 function isRetryableGenerationStatus(status: string | null | undefined): boolean {
   const s = (status ?? "").toLowerCase();
@@ -3189,9 +3201,20 @@ export default function ChatClient({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ chatId, assistantMessageId }),
       });
-      const data = (await res.json()) as { error?: string; canonAdopted?: boolean };
+      const data = (await res.json()) as {
+        error?: string;
+        code?: string;
+        canonAdopted?: boolean;
+      };
       if (!res.ok) {
-        setToastMsg(data.error || "본편 반영에 실패했습니다.");
+        if (res.status === 409 && data.code === "CANON_ADOPTION_STALE") {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantMessageId ? { ...m, canonAdoptionStale: true } : m
+            )
+          );
+        }
+        setToastMsg(data.error || OOC_CANON_ADOPTION_COPY.stale);
         return;
       }
       setMessages((prev) =>
@@ -4594,6 +4617,10 @@ export default function ChatClient({
                         !dismissedOocAdoptionIds.has(m.id))) ? (
                       <OocCanonAdoptionCard
                         adopted={m.canonAdopted === true}
+                        stale={
+                          m.canonAdopted !== true &&
+                          (m.canonAdoptionStale === true || isOocCanonAdoptionStale(messages, m.id))
+                        }
                         busy={adoptingMessageId === m.id}
                         onKeepNoncanonical={() =>
                           setDismissedOocAdoptionIds((prev) => {

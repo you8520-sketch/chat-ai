@@ -30,7 +30,9 @@ import {
   OOC_CANON_ADOPTION_COPY,
   OOC_SCENE_RENDER_SEMANTICS,
   adoptOocSceneRenderCore,
+  collectStaleOocAdoptionIds,
   filterCanonicalMessageRows,
+  hasNewerCanonicalStoryProgress,
   isCanonAdoptedScene,
   isCanonicalGeneration,
   isEffectiveCanonEvent,
@@ -618,6 +620,10 @@ describe("canon adoption owner helpers", () => {
     assert.equal(OOC_CANON_ADOPTION_COPY.keepNoncanonical, "비정사로 유지");
     assert.equal(OOC_CANON_ADOPTION_COPY.adopt, "본편에 반영");
     assert.equal(OOC_CANON_ADOPTION_COPY.adoptedBadge, "본편에 반영됨");
+    assert.equal(
+      OOC_CANON_ADOPTION_COPY.stale,
+      "본편이 이미 진행되어 이 장면은 더 이상 반영할 수 없습니다."
+    );
     assert.equal(OOC_CANON_ADOPTION_COPY.description.includes("되돌릴 수 있음"), false);
     assert.equal(OOC_CANON_ADOPTION_COPY.description.includes("영구 저장"), false);
     assert.equal(OOC_CANON_ADOPTION_COPY.description.includes("기억에만 저장"), false);
@@ -974,5 +980,285 @@ describe("canon adoption memory / fork / adult continuity", () => {
     assert.equal(isNoncanonicalGeneration(ADOPTED_USAGE), false);
     assert.equal(isCanonAdoptedScene(ADOPTED_USAGE), true);
     assert.equal(isTurnEligibleForMemoryRecord(HOTEL_OOC_USER), false);
+  });
+});
+
+const SECOND_OOC_USER =
+  "OOC: 본편과 별개로 샘플로 둘이 옥상에서 대화하는 장면을 한 번 보여줘.";
+const SECOND_OOC_ASSISTANT = "<옥상 대화 scene>";
+const HTML_ONLY_USER = "OOC: RP 중지. HTML로 내가 입력한 내용만 띄워줘";
+const EXCLUDED_OOC_USER = "OOC: 여기서 RP 끝. 더 이상 장면 진행하지 마.";
+
+function insertUserOnly(
+  db: Database.Database,
+  content: string,
+  usage?: string | null
+): number {
+  const user = db
+    .prepare(`INSERT INTO messages (chat_id, role, content, model, usage) VALUES (1, 'user', ?, '', ?)`)
+    .run(content, usage ?? null);
+  return Number(user.lastInsertRowid);
+}
+
+describe("stale canon adoption guard", () => {
+  it("CASE A: immediate adoption after OOC with no later canon progress succeeds", () => {
+    const db = createAdoptionDb();
+    insertOwnedPair(db, { userContent: CAFE_USER, assistantContent: CAFE_ASSISTANT });
+    const o1 = insertOwnedPair(db, {
+      userContent: HOTEL_OOC_USER,
+      assistantContent: HOTEL_ASSISTANT,
+      usage: OOC_USAGE,
+    });
+    const result = adoptOocSceneRenderCore(db, {
+      chatId: 1,
+      assistantMessageId: o1.assistantId,
+      ownerUserId: 10,
+    });
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    const rows = db
+      .prepare("SELECT id, role, content, usage FROM messages WHERE chat_id=1 ORDER BY id ASC")
+      .all() as Array<{ id: number; role: string; content: string; usage: string | null }>;
+    const filtered = filterCanonicalMessageRows(rows);
+    assert.equal(filtered.some((row) => row.content === HOTEL_ASSISTANT), true);
+    assert.equal(filtered.some((row) => row.content.includes("본편과 별개")), false);
+    assert.equal(JSON.parse(String(rows.find((row) => row.id === o1.assistantId)?.usage)).canonical, false);
+    assert.equal(JSON.parse(String(rows.find((row) => row.id === o1.assistantId)?.usage)).canonAdopted, true);
+  });
+
+  it("CASE B: later canonical RP makes prior OOC adoption stale", () => {
+    const db = createAdoptionDb();
+    insertOwnedPair(db, { userContent: CAFE_USER, assistantContent: CAFE_ASSISTANT });
+    const o1 = insertOwnedPair(db, {
+      userContent: HOTEL_OOC_USER,
+      assistantContent: HOTEL_ASSISTANT,
+      usage: OOC_USAGE,
+    });
+    const c2 = insertOwnedPair(db, { userContent: NEXT_RP_USER, assistantContent: "<본편 계속>" });
+    const result = adoptOocSceneRenderCore(db, {
+      chatId: 1,
+      assistantMessageId: o1.assistantId,
+      ownerUserId: 10,
+    });
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.status, 409);
+    assert.equal(result.code, "CANON_ADOPTION_STALE");
+    assert.match(result.error, /본편이 이미 진행/);
+    assert.equal(result.error.includes("canonical"), false);
+    assert.equal(result.error.includes("stale"), false);
+    const o1Usage = JSON.parse(
+      (db.prepare("SELECT usage FROM messages WHERE id=?").get(o1.assistantId) as { usage: string }).usage
+    ) as Usage;
+    assert.equal(o1Usage.canonAdopted, undefined);
+    assert.equal(o1Usage.canonical, false);
+    const c2Usage = db.prepare("SELECT usage FROM messages WHERE id=?").get(c2.assistantId) as {
+      usage: string | null;
+    };
+    assert.equal(c2Usage.usage, null);
+    const history = db
+      .prepare(
+        "SELECT id, role, content, model, user_message_id, usage, generation_status FROM messages WHERE chat_id=1 ORDER BY id ASC"
+      )
+      .all() as Array<{
+      id: number;
+      role: string;
+      content: string;
+      model: string;
+      user_message_id: number | null;
+      usage: unknown;
+      generation_status: string;
+    }>;
+    assert.equal(hasNewerCanonicalStoryProgress(history, o1.assistantId), true);
+    assert.deepEqual(collectStaleOocAdoptionIds(history), [o1.assistantId]);
+  });
+
+  it("CASE C: newer noncanonical OOC only does not stale an earlier sample", () => {
+    const db = createAdoptionDb();
+    insertOwnedPair(db, { userContent: CAFE_USER, assistantContent: CAFE_ASSISTANT });
+    const o1 = insertOwnedPair(db, {
+      userContent: HOTEL_OOC_USER,
+      assistantContent: HOTEL_ASSISTANT,
+      usage: OOC_USAGE,
+    });
+    insertOwnedPair(db, {
+      userContent: SECOND_OOC_USER,
+      assistantContent: SECOND_OOC_ASSISTANT,
+      usage: OOC_USAGE,
+    });
+    const rows = db
+      .prepare(
+        "SELECT id, role, content, model, user_message_id, usage, generation_status FROM messages WHERE chat_id=1 ORDER BY id ASC"
+      )
+      .all() as Array<{
+      id: number;
+      role: string;
+      content: string;
+      model: string;
+      user_message_id: number | null;
+      usage: unknown;
+      generation_status: string;
+    }>;
+    assert.equal(hasNewerCanonicalStoryProgress(rows, o1.assistantId), false);
+    const result = adoptOocSceneRenderCore(db, {
+      chatId: 1,
+      assistantMessageId: o1.assistantId,
+      ownerUserId: 10,
+    });
+    assert.equal(result.ok, true);
+  });
+
+  it("CASE D: adopted scene is a later canon boundary for older OOC", () => {
+    const db = createAdoptionDb();
+    insertOwnedPair(db, { userContent: CAFE_USER, assistantContent: CAFE_ASSISTANT });
+    const o0 = insertOwnedPair(db, {
+      userContent: SECOND_OOC_USER,
+      assistantContent: SECOND_OOC_ASSISTANT,
+      usage: OOC_USAGE,
+    });
+    const o1 = insertOwnedPair(db, {
+      userContent: HOTEL_OOC_USER,
+      assistantContent: HOTEL_ASSISTANT,
+      usage: OOC_USAGE,
+    });
+    const first = adoptOocSceneRenderCore(db, {
+      chatId: 1,
+      assistantMessageId: o1.assistantId,
+      ownerUserId: 10,
+    });
+    assert.equal(first.ok, true);
+    const late = adoptOocSceneRenderCore(db, {
+      chatId: 1,
+      assistantMessageId: o0.assistantId,
+      ownerUserId: 10,
+    });
+    assert.equal(late.ok, false);
+    if (late.ok) return;
+    assert.equal(late.code, "CANON_ADOPTION_STALE");
+    const o0Usage = JSON.parse(
+      (db.prepare("SELECT usage FROM messages WHERE id=?").get(o0.assistantId) as { usage: string }).usage
+    ) as Usage;
+    assert.equal(o0Usage.canonAdopted, undefined);
+  });
+
+  it("CASE E: failed / HTML-only / excluded OOC after O1 are not canon progress", () => {
+    const db = createAdoptionDb();
+    insertOwnedPair(db, { userContent: CAFE_USER, assistantContent: CAFE_ASSISTANT });
+    const o1 = insertOwnedPair(db, {
+      userContent: HOTEL_OOC_USER,
+      assistantContent: HOTEL_ASSISTANT,
+      usage: OOC_USAGE,
+    });
+    db.prepare(
+      `INSERT INTO messages (chat_id, role, content, model, generation_status)
+       VALUES (1, 'assistant', '<실패 초안>', 'model', 'failed')`
+    ).run();
+    insertOwnedPair(db, {
+      userContent: HTML_ONLY_USER,
+      assistantContent: "<html only>",
+    });
+    insertOwnedPair(db, {
+      userContent: EXCLUDED_OOC_USER,
+      assistantContent: "<rp stopped>",
+    });
+    const rows = db
+      .prepare(
+        "SELECT id, role, content, model, user_message_id, usage, generation_status FROM messages WHERE chat_id=1 ORDER BY id ASC"
+      )
+      .all() as Array<{
+      id: number;
+      role: string;
+      content: string;
+      model: string;
+      user_message_id: number | null;
+      usage: unknown;
+      generation_status: string;
+    }>;
+    assert.equal(hasNewerCanonicalStoryProgress(rows, o1.assistantId), false);
+    const result = adoptOocSceneRenderCore(db, {
+      chatId: 1,
+      assistantMessageId: o1.assistantId,
+      ownerUserId: 10,
+    });
+    assert.equal(result.ok, true);
+  });
+
+  it("CASE F: adopt vs later canonical write keeps one consistent chronology", () => {
+    const dbAdoptFirst = createAdoptionDb();
+    insertOwnedPair(dbAdoptFirst, { userContent: CAFE_USER, assistantContent: CAFE_ASSISTANT });
+    const adopted = insertOwnedPair(dbAdoptFirst, {
+      userContent: HOTEL_OOC_USER,
+      assistantContent: HOTEL_ASSISTANT,
+      usage: OOC_USAGE,
+    });
+    const adoptWon = adoptOocSceneRenderCore(dbAdoptFirst, {
+      chatId: 1,
+      assistantMessageId: adopted.assistantId,
+      ownerUserId: 10,
+    });
+    assert.equal(adoptWon.ok, true);
+    const later = insertOwnedPair(dbAdoptFirst, {
+      userContent: NEXT_RP_USER,
+      assistantContent: "<본편 계속>",
+    });
+    const afterAdopt = filterCanonicalMessageRows(
+      dbAdoptFirst
+        .prepare("SELECT id, role, content, usage FROM messages WHERE chat_id=1 ORDER BY id ASC")
+        .all() as Array<{ id: number; role: string; content: string; usage: unknown }>
+    );
+    assert.equal(afterAdopt.some((row) => row.id === adopted.assistantId), true);
+    assert.equal(afterAdopt.some((row) => row.id === later.assistantId), true);
+    assert.equal(
+      afterAdopt.findIndex((row) => row.id === adopted.assistantId) <
+        afterAdopt.findIndex((row) => row.id === later.assistantId),
+      true
+    );
+
+    const dbCanonFirst = createAdoptionDb();
+    insertOwnedPair(dbCanonFirst, { userContent: CAFE_USER, assistantContent: CAFE_ASSISTANT });
+    const staleTarget = insertOwnedPair(dbCanonFirst, {
+      userContent: HOTEL_OOC_USER,
+      assistantContent: HOTEL_ASSISTANT,
+      usage: OOC_USAGE,
+    });
+    insertUserOnly(dbCanonFirst, NEXT_RP_USER);
+    const canonWon = adoptOocSceneRenderCore(dbCanonFirst, {
+      chatId: 1,
+      assistantMessageId: staleTarget.assistantId,
+      ownerUserId: 10,
+    });
+    assert.equal(canonWon.ok, false);
+    if (!canonWon.ok) assert.equal(canonWon.code, "CANON_ADOPTION_STALE");
+    const staleUsage = JSON.parse(
+      (dbCanonFirst.prepare("SELECT usage FROM messages WHERE id=?").get(staleTarget.assistantId) as {
+        usage: string;
+      }).usage
+    ) as Usage;
+    assert.equal(staleUsage.canonAdopted, undefined);
+  });
+
+  it("CASE G: UI may still show a button but the endpoint stays authoritative", () => {
+    const db = createAdoptionDb();
+    insertOwnedPair(db, { userContent: CAFE_USER, assistantContent: CAFE_ASSISTANT });
+    const o1 = insertOwnedPair(db, {
+      userContent: HOTEL_OOC_USER,
+      assistantContent: HOTEL_ASSISTANT,
+      usage: OOC_USAGE,
+    });
+    insertOwnedPair(db, { userContent: NEXT_RP_USER, assistantContent: "<본편 계속>" });
+    assert.equal(isOocSceneAdoptionPromptEligible({
+      role: "assistant",
+      oocSceneRender: true,
+      canonAdopted: false,
+      generationStatus: "completed",
+      content: HOTEL_ASSISTANT,
+    }), true);
+    const result = adoptOocSceneRenderCore(db, {
+      chatId: 1,
+      assistantMessageId: o1.assistantId,
+      ownerUserId: 10,
+    });
+    assert.equal(result.ok, false);
+    if (!result.ok) assert.equal(result.code, "CANON_ADOPTION_STALE");
   });
 });
