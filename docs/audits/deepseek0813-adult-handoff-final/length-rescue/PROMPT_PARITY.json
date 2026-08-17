@@ -1,0 +1,38 @@
+{
+  "SOURCE_SHA": "e9c618f9c8b5856abf8f392713327807d728091ea01dfb5b6e3eb714123ba64e",
+  "baseline": {
+    "SOURCE_SHA": "e9c618f9c8b5856abf8f392713327807d728091ea01dfb5b6e3eb714123ba64e",
+    "SYSTEM_SHA": "6dee5d7edb03099ecf8bf896a7641da5a0ad25cdd96eb78c433bfe1c024f0080",
+    "HISTORY_SHA": "1f3638a12b03eadc0151ae9df9f8f596e02ea16e6289513edb01753f29831f9d",
+    "LAST_USER_SHA": "12d1190b38c05415e589faea80a5f56f73a7d645605cacfff01afe9ac28a2f6e",
+    "FULL_MESSAGES_SHA": "cd555aeaedf8cc595737a343c9c29f93b49e4bd47dc98fcf2ba779461bd1ba5c"
+  },
+  "rescue": {
+    "SOURCE_SHA": "e9c618f9c8b5856abf8f392713327807d728091ea01dfb5b6e3eb714123ba64e",
+    "SYSTEM_SHA": "6dee5d7edb03099ecf8bf896a7641da5a0ad25cdd96eb78c433bfe1c024f0080",
+    "HISTORY_SHA": "1f3638a12b03eadc0151ae9df9f8f596e02ea16e6289513edb01753f29831f9d",
+    "LAST_USER_SHA": "6f4c40fb4fffb88aca357e8f7de54af516dd4613fe42e848d558c80058326737",
+    "FULL_MESSAGES_SHA": "cdd638860af10c4971d8a67cf33786a9887439e770329b31a1fa87c686f61946"
+  },
+  "NON_LENGTH_PROMPT_PARITY": true,
+  "transport": {
+    "model": "deepseek-v4-pro-0813",
+    "thinking": {
+      "type": "disabled"
+    },
+    "reasoning_effort": "none",
+    "reasoning": {
+      "present": false,
+      "value": "ABSENT"
+    },
+    "include_reasoning": {
+      "present": false,
+      "value": "ABSENT"
+    },
+    "temperature": 0.92,
+    "top_p": 0.92,
+    "stream": true
+  },
+  "historical_length_present_in_rescue": true,
+  "historical_length_present_in_baseline": false
+}

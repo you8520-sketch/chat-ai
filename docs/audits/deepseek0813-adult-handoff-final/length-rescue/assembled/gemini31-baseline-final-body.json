@@ -1,0 +1,40 @@
+{
+  "generation": {
+    "model": "deepseek-v4-pro-0813",
+    "thinking": {
+      "type": "disabled"
+    },
+    "reasoning_effort": "none",
+    "reasoning": {
+      "present": false,
+      "value": "ABSENT"
+    },
+    "include_reasoning": {
+      "present": false,
+      "value": "ABSENT"
+    },
+    "temperature": 0.92,
+    "top_p": 0.92,
+    "stream": true
+  },
+  "shas": {
+    "SOURCE_SHA": "e9c618f9c8b5856abf8f392713327807d728091ea01dfb5b6e3eb714123ba64e",
+    "SYSTEM_SHA": "6dee5d7edb03099ecf8bf896a7641da5a0ad25cdd96eb78c433bfe1c024f0080",
+    "HISTORY_SHA": "1f3638a12b03eadc0151ae9df9f8f596e02ea16e6289513edb01753f29831f9d",
+    "LAST_USER_SHA": "12d1190b38c05415e589faea80a5f56f73a7d645605cacfff01afe9ac28a2f6e",
+    "FULL_MESSAGES_SHA": "cd555aeaedf8cc595737a343c9c29f93b49e4bd47dc98fcf2ba779461bd1ba5c"
+  },
+  "continuityPacket": {
+    "previousSceneMode": "explicit",
+    "sexualContextActive": true,
+    "activeConsentMode": "standard",
+    "location": "복도를 가득 메우고 있던 사람들의 발소리, 무전",
+    "charactersPresent": [
+      "라이크",
+      "렌"
+    ],
+    "currentPov": "third_person",
+    "unfinishedAction": "\"뭐, 정 무서우면 밥 달라고 얌전히 기다리는 대형견 정도로 생각해 주든가.\"",
+    "currentSpeechState": "오늘은 사람들 없을 때 이렇게 남아 있는 게 더 편하다.…너도 그렇지?"
+  }
+}
