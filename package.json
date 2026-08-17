@@ -49,6 +49,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/sharp": "^0.31.1",
+    "@types/three": "^0.170.0",
     "@types/web-push": "^3.6.4",
     "tailwindcss": "^4.1.7",
     "tsx": "^4.22.4",
