@@ -134,9 +134,10 @@ export function creditTrpgRoundCreatorRewards(
     authorUserId: number | null;
     authorRate: number;
     characterCreators: TrpgCharacterRoyaltyInput[];
+    shares?: TrpgCreatorRewardShare[];
   }
 ): TrpgCreatorRewardShare[] {
-  const shares = splitTrpgCreatorRewards(opts);
+  const shares = opts.shares ?? splitTrpgCreatorRewards(opts);
   if (shares.length === 0) return [];
   const paid = roundCreatorAmount(opts.paidSpend);
   const hasUsers = tableExists(db, "users");
@@ -162,7 +163,7 @@ export function creditTrpgRoundCreatorRewards(
         opts.consumerUserId,
         share.creatorId,
         share.role,
-        share.characterId,
+        share.characterId ?? 0,
         paid,
         share.reward
       );

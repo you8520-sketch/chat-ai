@@ -59,6 +59,10 @@ export const TRPG_FORK_FORBIDDEN_MESSAGE =
 export const TRPG_CHARACTER_ROYALTY_RATE = 0.05;
 /** Author tier + character royalties never exceed this share of PAID spend. Character royalties shrink first. */
 export const TRPG_CREATOR_REWARD_CAP_RATE = 0.25;
+/** Value-pricing creator cap: author tier + per-seat character royalties. */
+export const TRPG_VALUE_CREATOR_CAP_RATE = 0.3;
+export const TRPG_PARTY_PREMIUM_PER_EXTRA_HUMAN = 0.1;
+export const TRPG_PARTY_PREMIUM_CAP = 0.3;
 
 export const TRPG_VISIBILITIES = ["public", "private"] as const;
 export type TrpgVisibility = (typeof TRPG_VISIBILITIES)[number];
