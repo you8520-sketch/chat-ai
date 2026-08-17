@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { describe, it, beforeEach } from "node:test";
 import Database from "better-sqlite3";
 import { CHEAPER_INFERENCE_DEEPSEEK_V4_FLASH_0731_MODEL, CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
@@ -99,6 +100,13 @@ describe("TRPG reply suggestions", () => {
       ["investigate", "persuade", "free"]
     );
     assert.throws(() => parseReplySuggestions(JSON.stringify({ suggestions: [{ actionType: "fly", text: "x" }] })));
+  });
+
+  it("scrolls the room down to the suggestion list when examples appear", () => {
+    const room = fs.readFileSync("src/app/trpg/TrpgCampaignRoom.tsx", "utf8");
+    assert.match(room, /suggestionsAnchorRef/);
+    assert.match(room, /scrollIntoView/);
+    assert.match(room, /block: "end"/);
   });
 
   it("keeps Flash suggestion true OFF instead of the RP adapter that strips reasoning_effort", () => {
