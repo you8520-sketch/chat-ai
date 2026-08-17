@@ -41,6 +41,7 @@ export async function POST(req: Request) {
       characterIds: body.characterIds,
       genres: body.genres,
       assets: body.assets,
+      scenarioPlan: body.scenarioPlan,
     });
     const row = loadScenarioTemplate(gate.db, id);
     return NextResponse.json({

@@ -9,6 +9,12 @@ import {
   pointPoolFor,
   validateStatAllocation,
 } from "./stats";
+import {
+  countScenarioPlanChars,
+  hasPlayableScenarioPlan,
+  parseTrpgScenarioPlan,
+  type TrpgScenarioPlan,
+} from "./scenarioPlan";
 import { parseTrpgVisibility, TRPG_MAX_BOTS, type TrpgStatDefinition, type TrpgVisibility } from "./types";
 
 export const TRPG_SCENARIO_TITLE_LIMIT = 80;
@@ -51,6 +57,7 @@ export type TrpgScenarioTemplate = {
   characterIds: number[];
   genres: CharacterGenre[];
   assets: CharacterAsset[];
+  scenarioPlan: TrpgScenarioPlan | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -70,6 +77,7 @@ export type TrpgScenarioTemplateInput = {
   characterIds?: unknown;
   genres?: unknown;
   assets?: unknown;
+  scenarioPlan?: unknown;
 };
 
 function clip(text: string, max: number): string {
@@ -149,11 +157,15 @@ export function normalizeScenarioTemplateInput(input: TrpgScenarioTemplateInput)
   characterIds: number[];
   genres: CharacterGenre[];
   assets: CharacterAsset[];
+  scenarioPlan: TrpgScenarioPlan | null;
 } {
   const title = clip(String(input.title ?? ""), TRPG_SCENARIO_TITLE_LIMIT);
   const content = clip(String(input.content ?? ""), TRPG_SCENARIO_CONTENT_LIMIT);
+  const scenarioPlan = parseTrpgScenarioPlan(input.scenarioPlan);
   if (!title) throw new Error("시나리오 제목을 입력해 주세요.");
-  if (!content) throw new Error("시나리오 본문을 입력해 주세요.");
+  if (!content && !hasPlayableScenarioPlan(scenarioPlan)) {
+    throw new Error("시나리오 본문 또는 이야기 설계(시작 상황·중심 갈등·목표·종료 조건)를 입력해 주세요.");
+  }
   const statKeys = parseStatKeys(input.statKeys);
   const statDefs = defsFromKeys(statKeys);
   const pool = pointPoolFor(statDefs);
@@ -181,6 +193,7 @@ export function normalizeScenarioTemplateInput(input: TrpgScenarioTemplateInput)
     characterIds,
     genres: parseGenresJson(input.genres),
     assets: normalizeScenarioAssets(input.assets),
+    scenarioPlan,
   };
 }
 
@@ -191,6 +204,7 @@ export type TrpgScenarioBundleParts = {
   content?: string;
   secretContent?: string;
   npcs?: unknown;
+  scenarioPlan?: TrpgScenarioPlan | null;
 };
 
 function bundleCharLen(text: string | undefined): number {
@@ -214,6 +228,7 @@ export function countScenarioBundleChars(parts: TrpgScenarioBundleParts): number
     bundleCharLen(parts.summary) +
     bundleCharLen(parts.content) +
     bundleCharLen(parts.secretContent) +
+    countScenarioPlanChars(parts.scenarioPlan) +
     npcChars
   );
 }

@@ -223,6 +223,25 @@ export function ensureTrpgTables(db: Database.Database): void {
   addColumn("trpg_scenario_templates", "genres", "TEXT NOT NULL DEFAULT '[]'");
   addColumn("trpg_scenario_templates", "stat_keys_json", "TEXT NOT NULL DEFAULT '[]'");
   addColumn("trpg_scenario_templates", "assets_json", "TEXT NOT NULL DEFAULT '[]'");
+  addColumn("trpg_scenario_templates", "scenario_plan_json", "TEXT");
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS trpg_campaign_context (
+      campaign_id INTEGER PRIMARY KEY,
+      source_mode TEXT NOT NULL DEFAULT 'none',
+      world_snapshot_json TEXT,
+      scenario_snapshot_json TEXT,
+      director_plan_json TEXT,
+      story_phase TEXT NOT NULL DEFAULT 'INTRO',
+      active_threads_json TEXT NOT NULL DEFAULT '[]',
+      resolved_threads_json TEXT NOT NULL DEFAULT '[]',
+      ending_status_json TEXT NOT NULL DEFAULT '{}',
+      director_error TEXT,
+      director_usage_json TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
 
   db.exec(`
     CREATE TABLE IF NOT EXISTS trpg_creator_earnings (

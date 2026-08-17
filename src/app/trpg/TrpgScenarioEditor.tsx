@@ -16,6 +16,15 @@ import {
   assertScenarioAssetOrientations,
 } from "@/lib/trpg/scenarioAssets";
 import {
+  emptyTrpgScenarioPlan,
+  lintTrpgScenarioPlan,
+  scoreTrpgScenarioReadiness,
+  type TrpgScenarioDifficulty,
+  type TrpgScenarioPlan,
+  type TrpgScenarioPlayLength,
+} from "@/lib/trpg/scenarioPlan";
+import type { TrpgScenarioDraftField, TrpgScenarioDraftMode } from "@/lib/trpg/scenarioDraft";
+import {
   TRPG_SCENARIO_BUNDLE_LIMIT,
   TRPG_SCENARIO_CONTENT_LIMIT,
   TRPG_SCENARIO_MAX_NPCS,
@@ -38,6 +47,31 @@ import type { TrpgVisibility } from "@/lib/trpg/types";
 function emptyNpc(): TrpgScenarioNpc {
   return { name: "", description: "", greeting: "", systemPrompt: "", stats: null };
 }
+
+function listText(items: string[]): string {
+  return items.join("\n");
+}
+
+function parseList(text: string): string[] {
+  return text
+    .split(/\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+const PLAY_LENGTH_LABEL: Record<TrpgScenarioPlayLength, string> = {
+  short: "짧게",
+  medium: "보통",
+  long: "길게",
+  open_ended: "열린 결말",
+};
+
+const DIFFICULTY_LABEL: Record<TrpgScenarioDifficulty, string> = {
+  easy: "쉬움",
+  normal: "보통",
+  hard: "어려움",
+  deadly: "치명적",
+};
 
 export default function TrpgScenarioEditor({
   catalog,
@@ -65,6 +99,15 @@ export default function TrpgScenarioEditor({
   const [npcs, setNpcs] = useState<TrpgScenarioNpc[]>(initial?.npcs?.length ? initial.npcs : []);
   const [genres, setGenres] = useState<CharacterGenre[]>(initial?.genres ?? []);
   const [assets, setAssets] = useState<CharacterAsset[]>(initial?.assets ?? []);
+  const [plan, setPlan] = useState<TrpgScenarioPlan>(initial?.scenarioPlan ?? emptyTrpgScenarioPlan());
+  const [lockedFields, setLockedFields] = useState<TrpgScenarioDraftField[]>([]);
+  const [touchedFields, setTouchedFields] = useState<TrpgScenarioDraftField[]>(() =>
+    initial?.scenarioPlan ? ["difficulty", "playLength"] : []
+  );
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [draftBusy, setDraftBusy] = useState(false);
+  const [readiness, setReadiness] = useState<ReturnType<typeof scoreTrpgScenarioReadiness> | null>(null);
+  const [lintMessages, setLintMessages] = useState<string[]>([]);
   const [files, setFiles] = useState<File[]>([]);
   const [progress, setProgress] = useState("");
   const [busy, setBusy] = useState(false);
@@ -80,13 +123,14 @@ export default function TrpgScenarioEditor({
     content,
     secretContent,
     npcs: namedNpcs,
+    scenarioPlan: plan,
   });
   const bundleOver = bundleUsed > TRPG_SCENARIO_BUNDLE_LIMIT;
   const worldChars = countScenarioBundleChars({
     worldSummary: linkedWorld?.summary,
     worldContent: linkedWorld?.content,
   });
-  const scenarioChars = countScenarioBundleChars({ summary, content });
+  const scenarioChars = countScenarioBundleChars({ summary, content, scenarioPlan: plan });
   const secretChars = countScenarioBundleChars({ secretContent });
   const npcChars = countScenarioBundleChars({ npcs: namedNpcs });
   const contentMax = remainingScenarioFieldMax(
@@ -104,6 +148,21 @@ export default function TrpgScenarioEditor({
     countScenarioBundleChars({ summary }),
     TRPG_SCENARIO_SUMMARY_LIMIT
   );
+  const worldStale =
+    Boolean(plan.provenance?.sourceWorldId) &&
+    linkedWorld &&
+    plan.provenance?.sourceWorldId === linkedWorld.id &&
+    plan.provenance.sourceWorldUpdatedAt &&
+    linkedWorld.updatedAt &&
+    plan.provenance.sourceWorldUpdatedAt !== linkedWorld.updatedAt;
+
+  function patchPlan(partial: Partial<TrpgScenarioPlan>) {
+    setPlan((prev) => ({ ...prev, ...partial }));
+  }
+
+  function toggleLock(field: TrpgScenarioDraftField) {
+    setLockedFields((prev) => (prev.includes(field) ? prev.filter((item) => item !== field) : [...prev, field]));
+  }
 
   function fallbackAssetTag(index: number): string {
     return `장면 ${index + 1}`;
@@ -194,9 +253,7 @@ export default function TrpgScenarioEditor({
       if (accepted.length > 0) commitAssets([...assets, ...accepted]);
       setFiles([]);
       if (rejected > 0) {
-        setError(
-          `${TRPG_SCENARIO_LANDSCAPE_ONLY_ERROR} ${rejected}장은 추가하지 않았습니다.`
-        );
+        setError(`${TRPG_SCENARIO_LANDSCAPE_ONLY_ERROR} ${rejected}장은 추가하지 않았습니다.`);
       }
     } catch {
       setError("에셋 업로드 중 오류가 발생했습니다.");
@@ -215,12 +272,98 @@ export default function TrpgScenarioEditor({
     });
   }
 
+  function markTouched(field: TrpgScenarioDraftField) {
+    setTouchedFields((prev) => (prev.includes(field) ? prev : [...prev, field]));
+  }
+
+  function existingDraft() {
+    return {
+      title,
+      summary,
+      content,
+      secretContent,
+      startLocation,
+      startInventory: inventoryText.split(",").map((s) => s.trim()).filter(Boolean),
+      npcs: namedNpcs,
+      plan,
+      touchedFields,
+    };
+  }
+
+  async function requestDraft(mode: TrpgScenarioDraftMode, selectedFields: TrpgScenarioDraftField[] = []) {
+    if (typeof worldId !== "number") {
+      setError("AI 초안은 세계관을 선택한 뒤에 만들 수 있습니다. 수동 작성은 계속 가능합니다.");
+      return;
+    }
+    if (draftBusy) return;
+    if (mode === "regenerate_all") {
+      const ok = window.confirm("작성한 이야기 항목을 전부 다시 만들까요? 잠근 항목만 유지됩니다.");
+      if (!ok) return;
+    }
+    setDraftBusy(true);
+    setError("");
+    try {
+      const res = await fetch("/api/trpg/scenarios/ai-draft", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          worldId,
+          mode,
+          selectedFields,
+          lockedFields,
+          existingDraft: existingDraft(),
+        }),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        draft?: {
+          title: string;
+          summary: string;
+          startLocation: string;
+          startInventory: string[];
+          npcs: TrpgScenarioNpc[];
+          plan: TrpgScenarioPlan;
+        };
+        lint?: Array<{ message: string }>;
+        readiness?: ReturnType<typeof scoreTrpgScenarioReadiness>;
+      };
+      if (!res.ok) throw new Error(data.error || "AI 초안을 만들지 못했습니다.");
+      if (!data.draft) throw new Error("AI 초안이 비어 있습니다.");
+      setTitle(data.draft.title || title);
+      setSummary(data.draft.summary || summary);
+      setStartLocation(data.draft.startLocation || startLocation);
+      if (data.draft.startInventory.length) setInventoryText(data.draft.startInventory.join(", "));
+      if (data.draft.npcs.length) setNpcs(data.draft.npcs);
+      setPlan(data.draft.plan);
+      setTouchedFields((prev) => [...new Set<TrpgScenarioDraftField>([...prev, "difficulty", "playLength"])]);
+      setReadiness(data.readiness ?? null);
+      setLintMessages((data.lint ?? []).map((item) => item.message));
+      setAdvancedOpen(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "AI 초안에 실패했습니다.");
+    } finally {
+      setDraftBusy(false);
+    }
+  }
+
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (bundleOver) {
       setError(scenarioBundleLimitError(bundleUsed));
       return;
     }
+    const issues = lintTrpgScenarioPlan({
+      plan,
+      title,
+      summary,
+      content,
+      npcs: namedNpcs,
+      startInventory: inventoryText.split(",").map((s) => s.trim()).filter(Boolean),
+      bundleChars: bundleUsed,
+      bundleLimit: TRPG_SCENARIO_BUNDLE_LIMIT,
+    });
+    setLintMessages(issues.map((item) => item.message));
+    setReadiness(scoreTrpgScenarioReadiness(issues, plan));
     setBusy(true);
     setError("");
     const body = {
@@ -237,10 +380,11 @@ export default function TrpgScenarioEditor({
         .filter(Boolean),
       defaultPcStats: null,
       statKeys,
-      npcs: npcs.filter((n) => n.name.trim()),
+      npcs: namedNpcs,
       characterIds: [],
       genres,
       assets,
+      scenarioPlan: plan,
     };
     try {
       const res = await fetch(initial ? `/api/trpg/scenarios/${initial.id}` : "/api/trpg/scenarios", {
@@ -258,11 +402,105 @@ export default function TrpgScenarioEditor({
     }
   }
 
+  function LockButton({ field }: { field: TrpgScenarioDraftField }) {
+    const on = lockedFields.includes(field);
+    return (
+      <button
+        type="button"
+        onClick={() => toggleLock(field)}
+        className={`ml-2 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+          on ? "bg-amber-500/20 text-amber-200" : "border border-white/10 text-zinc-500"
+        }`}
+      >
+        {on ? "잠김" : "잠금"}
+      </button>
+    );
+  }
+
+  function RegenButton({ field, label }: { field: TrpgScenarioDraftField; label: string }) {
+    return (
+      <button
+        type="button"
+        disabled={draftBusy || typeof worldId !== "number"}
+        onClick={() => void requestDraft("regenerate_selected", [field])}
+        className="ml-2 text-[10px] font-semibold text-violet-300 disabled:opacity-40"
+      >
+        {label}만 다시 만들기
+      </button>
+    );
+  }
+
   const form = (
       <form id={embedded ? "studio-trpg-scenario-form" : undefined} onSubmit={(e) => void save(e)} className="space-y-4">
-        <AppSectionCard title="기본">
+        <AppSectionCard title="세계관">
+          <p className="text-sm text-zinc-300">기존 세계관 불러오기</p>
+          <p className="mt-1 text-xs text-zinc-500">
+            세계관만으로도 샌드박스 TRPG는 가능합니다. 시나리오를 만들 때도 세계관을 고르면 AI가 초안을 짤 수 있습니다.
+            세계관 없이 수동 작성도 됩니다.
+          </p>
+          {catalog.myWorlds.length === 0 ? (
+            <p className="mt-2 text-xs text-zinc-500">아직 저장한 세계관 문서가 없습니다.</p>
+          ) : (
+            <select
+              value={worldId}
+              onChange={(e) => setWorldId(e.target.value ? Number(e.target.value) : "")}
+              className="mt-2 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
+            >
+              <option value="">없음 — 시나리오만 직접 작성</option>
+              {catalog.myWorlds.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name}
+                </option>
+              ))}
+            </select>
+          )}
+          {linkedWorld && (linkedWorld.summary.trim() || linkedWorld.content.trim()) ? (
+            <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-xs text-zinc-500">
+              붙을 내용: {linkedWorld.summary.trim() || linkedWorld.content.trim()}
+            </p>
+          ) : null}
+          {worldStale ? (
+            <p className="mt-2 text-xs text-amber-300">이 시나리오 초안 생성 후 세계관이 수정되었습니다.</p>
+          ) : null}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={draftBusy || typeof worldId !== "number"}
+              onClick={() => void requestDraft("fill_empty")}
+              className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {draftBusy ? "초안 작성 중…" : "✨ AI로 시나리오 초안 만들기"}
+            </button>
+            <button
+              type="button"
+              disabled={draftBusy || typeof worldId !== "number"}
+              onClick={() => void requestDraft("regenerate_all")}
+              className="rounded-xl border border-white/15 px-3 py-2 text-xs font-semibold text-zinc-200 disabled:opacity-50"
+            >
+              전체 다시 만들기
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-zinc-500">
+            AI 결과는 바로 저장되지 않습니다. 확인한 뒤 아래 저장을 누르세요. 기본은 빈 항목만 채웁니다.
+          </p>
+          {readiness ? (
+            <div className="mt-3 rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-zinc-300">
+              <p className="font-semibold text-zinc-100">시나리오 준비도 {readiness.score}/10</p>
+              <ul className="mt-1 space-y-0.5">
+                {readiness.checks.map((check) => (
+                  <li key={check.label}>
+                    {check.ok ? "✓" : "⚠"} {check.label}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </AppSectionCard>
+
+        <AppSectionCard title="이야기 설계">
           <label className="block text-sm text-zinc-300">
             제목 *
+            <LockButton field="title" />
             <input
               value={title}
               maxLength={TRPG_SCENARIO_TITLE_LIMIT}
@@ -272,6 +510,7 @@ export default function TrpgScenarioEditor({
           </label>
           <label className="mt-3 block text-sm text-zinc-300">
             한 줄 요약
+            <LockButton field="summary" />
             <input
               value={summary}
               maxLength={summaryMax}
@@ -280,153 +519,228 @@ export default function TrpgScenarioEditor({
             />
           </label>
           <label className="mt-3 block text-sm text-zinc-300">
-            시나리오 본문 *
+            시작 상황
+            <LockButton field="startingSituation" />
+            <RegenButton field="startingSituation" label="시작 상황" />
+            <textarea
+              value={plan.startingSituation}
+              rows={4}
+              onChange={(e) => patchPlan({ startingSituation: e.target.value })}
+              placeholder="예: 북부 성채의 통신이 사흘째 끊긴 가운데, 파티는 마지막 보급대와 함께 폐도시에 진입한다."
+              className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
+            />
+          </label>
+          <label className="mt-3 block text-sm text-zinc-300">
+            중심 갈등
+            <LockButton field="centralConflict" />
+            <RegenButton field="centralConflict" label="중심 갈등" />
+            <textarea
+              value={plan.centralConflict}
+              rows={3}
+              onChange={(e) => patchPlan({ centralConflict: e.target.value })}
+              placeholder="예: 성채를 장악하려는 인간 세력과 도시 코어의 확장이 동시에 진행되고 있다."
+              className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
+            />
+          </label>
+          <label className="mt-3 block text-sm text-zinc-300">
+            목표
+            <LockButton field="goal" />
+            <textarea
+              value={plan.goal}
+              rows={3}
+              onChange={(e) => patchPlan({ goal: e.target.value })}
+              placeholder="한 가지 행동만 강요하지 말고, 파티가 개입할 이유를 적습니다."
+              className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
+            />
+          </label>
+          <label className="mt-3 block text-sm text-zinc-300">
+            비밀 (GM 전용)
+            <LockButton field="secret" />
+            <textarea
+              value={plan.secret}
+              rows={3}
+              onChange={(e) => patchPlan({ secret: e.target.value })}
+              placeholder="플레이어와 AI 캐릭터에게는 절대 직접 보여주지 않습니다."
+              className="mt-1 w-full rounded-xl border border-amber-500/20 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
+            />
+          </label>
+          <label className="mt-3 block text-sm text-zinc-300">
+            종료 조건 (줄마다 하나)
+            <LockButton field="endingConditions" />
+            <textarea
+              value={listText(plan.endingConditions)}
+              rows={4}
+              onChange={(e) => patchPlan({ endingConditions: parseList(e.target.value) })}
+              placeholder={"예: 코어의 확장을 막거나 협상한다\n예: 생존자를 이끌고 철수한다"}
+              className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => setAdvancedOpen((open) => !open)}
+            className="mt-4 text-sm font-semibold text-violet-300"
+          >
+            {advancedOpen ? "고급 설정 접기" : "고급 설정 펼치기"}
+          </button>
+          {advancedOpen ? (
+            <div className="mt-3 space-y-3">
+              <label className="block text-sm text-zinc-300">
+                주요 사건 (강제 순서가 아닌 가능/조건부 사건)
+                <LockButton field="majorEvents" />
+                <RegenButton field="majorEvents" label="사건" />
+                <textarea
+                  value={listText(plan.majorEvents)}
+                  rows={4}
+                  onChange={(e) => patchPlan({ majorEvents: parseList(e.target.value) })}
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
+                />
+              </label>
+              <label className="block text-sm text-zinc-300">
+                단서
+                <LockButton field="clues" />
+                <RegenButton field="clues" label="단서" />
+                <textarea
+                  value={listText(plan.clues)}
+                  rows={4}
+                  onChange={(e) => patchPlan({ clues: parseList(e.target.value) })}
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
+                />
+              </label>
+              <label className="block text-sm text-zinc-300">
+                금지 사건
+                <textarea
+                  value={listText(plan.forbiddenEvents)}
+                  rows={3}
+                  onChange={(e) => patchPlan({ forbiddenEvents: parseList(e.target.value) })}
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
+                />
+              </label>
+              <label className="block text-sm text-zinc-300">
+                보스 (없어도 됩니다)
+                <input
+                  value={plan.boss}
+                  onChange={(e) => patchPlan({ boss: e.target.value })}
+                  className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
+                />
+              </label>
+              <label className="block text-sm text-zinc-300">
+                특별 규칙
+                <textarea
+                  value={listText(plan.specialRules)}
+                  rows={3}
+                  onChange={(e) => patchPlan({ specialRules: parseList(e.target.value) })}
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
+                />
+              </label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block text-sm text-zinc-300">
+                  난이도
+                  <select
+                    value={plan.difficulty}
+                    onChange={(e) => {
+                      markTouched("difficulty");
+                      patchPlan({ difficulty: e.target.value as TrpgScenarioDifficulty });
+                    }}
+                    className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
+                  >
+                    {Object.entries(DIFFICULTY_LABEL).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block text-sm text-zinc-300">
+                  플레이 길이
+                  <select
+                    value={plan.playLength}
+                    onChange={(e) => {
+                      markTouched("playLength");
+                      patchPlan({ playLength: e.target.value as TrpgScenarioPlayLength });
+                    }}
+                    className="mt-1 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
+                  >
+                    {Object.entries(PLAY_LENGTH_LABEL).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+              <label className="block text-sm text-zinc-300">
+                클라이맥스
+                <LockButton field="climax" />
+                <RegenButton field="climax" label="클라이맥스" />
+                <textarea
+                  value={plan.climax}
+                  rows={3}
+                  onChange={(e) => patchPlan({ climax: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
+                />
+              </label>
+              <label className="block text-sm text-zinc-300">
+                엔딩 후보 (고정 분기가 아님)
+                <textarea
+                  value={listText(plan.endingCandidates)}
+                  rows={3}
+                  onChange={(e) => patchPlan({ endingCandidates: parseList(e.target.value) })}
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
+                />
+              </label>
+              <label className="block text-sm text-zinc-300">
+                세력 변화
+                <textarea
+                  value={listText(plan.factionChanges)}
+                  rows={3}
+                  onChange={(e) => patchPlan({ factionChanges: parseList(e.target.value) })}
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
+                />
+              </label>
+              <label className="block text-sm text-zinc-300">
+                GM 연출
+                <textarea
+                  value={plan.gmDirection}
+                  rows={3}
+                  onChange={(e) => patchPlan({ gmDirection: e.target.value })}
+                  placeholder="예: 코즈믹 호러 중심, 전투보다 탐험, 플레이어 결정을 대신하지 않음"
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
+                />
+              </label>
+            </div>
+          ) : null}
+        </AppSectionCard>
+
+        <AppSectionCard title="추가 GM 메모">
+          <label className="block text-sm text-zinc-300">
+            시나리오 본문 (자유 메모 / 레거시)
             <span className="mt-1 block text-xs font-normal text-zinc-500">
-              GM이 이번 캠페인에서 참고하는 공개 설정입니다. 배경·장소·이번 이야기 흐름을 적습니다. 세계관도 여기에
-              적어도 됩니다. 비워 두면 시나리오가 성립하지 않습니다.
+              이야기 설계가 있으면 비워도 됩니다. 예전처럼 본문만 있어도 저장됩니다.
             </span>
             <textarea
               value={content}
               maxLength={contentMax}
-              rows={10}
+              rows={6}
               onChange={(e) => setContent(e.target.value)}
-              placeholder="예: 눈 덮인 북부 공국. 얼음 마법이 흔하다. 한밤의 폐역에서 유령 기차를 기다린다."
+              placeholder="예: 눈 덮인 북부 공국. 얼음 마법이 흔하다."
               className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
             />
           </label>
-          <div className="mt-3">
-            <p className="text-sm text-zinc-300">이미 만든 세계관 재사용 (선택)</p>
-            <p className="mt-1 text-xs font-normal text-zinc-500">
-              GM 전용 비밀이 아닙니다. 「캐릭터·시뮬레이션 세계관」에 이미 써 둔 문서를 여러 시나리오에서 다시 쓸 때만
-              고르세요. 고르면 그 본문이 시나리오 본문 앞에 붙어 GM 세계 설정에 들어갑니다. 안 골라도 됩니다. 세계관은
-              위 본문에 적어도 충분합니다.
-            </p>
-            {catalog.myWorlds.length === 0 ? (
-              <p className="mt-2 text-xs text-zinc-500">아직 저장한 세계관 문서가 없습니다.</p>
-            ) : (
-              <select
-                value={worldId}
-                onChange={(e) => setWorldId(e.target.value ? Number(e.target.value) : "")}
-                className="mt-2 min-h-10 w-full rounded-xl border border-white/10 bg-[#161922] px-3 text-sm text-zinc-100"
-              >
-                <option value="">없음 — 시나리오 본문만 사용</option>
-                {catalog.myWorlds.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name}
-                  </option>
-                ))}
-              </select>
-            )}
-            {linkedWorld && (linkedWorld.summary.trim() || linkedWorld.content.trim()) ? (
-              <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-xs text-zinc-500">
-                붙을 내용: {linkedWorld.summary.trim() || linkedWorld.content.trim()}
-              </p>
-            ) : null}
-          </div>
           <label className="mt-3 block text-sm text-zinc-300">
-            숨겨진 설정 (비밀)
-            <span className="mt-1 block text-xs font-normal text-zinc-500">
-              진범, 반전, GM만 알아야 할 설정. 플레이어 화면·봇 자리에는 안 나갑니다. 공개 시나리오여도 이 칸은 숨깁니다.
-            </span>
+            숨겨진 설정 (추가 GM 비밀 메모)
             <textarea
               value={secretContent}
               maxLength={secretMax}
-              rows={6}
+              rows={4}
               onChange={(e) => setSecretContent(e.target.value)}
-              placeholder="예: 역무원은 이미 죽은 사람이다. 유령 기차의 목적지는 산 자들의 마을이 아니다."
               className="mt-1 w-full rounded-xl border border-amber-500/20 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
             />
           </label>
-          <div className="mt-4 space-y-2">
-            <p className="text-sm text-zinc-300">시나리오 에셋</p>
-            <p className="text-xs text-zinc-500">
-              캐릭터 제작과 같이 이미지를 올리고 태그를 붙입니다. 1번 대표 이미지는 가로·세로 모두
-              가능하고, 나머지 장면 에셋은 가로로 긴 이미지만 사용할 수 있습니다. 진행 중 참여
-              캐릭터가 반응하면 맞는 태그가 본문 가로폭에 맞춰 한 턴에 한 장씩 뜹니다.
-            </p>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
-              multiple
-              hidden
-              onChange={(e) => {
-                pickFiles(e.target.files);
-                e.target.value = "";
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => fileRef.current?.click()}
-              disabled={assets.length + files.length >= TRPG_SCENARIO_MAX_ASSETS}
-              className="w-full min-h-11 rounded-xl border border-dashed border-white/15 bg-[#161922] py-3 text-sm font-semibold text-zinc-200 hover:border-violet-400/40"
-            >
-              + 시나리오 에셋 추가
-              <span className="mt-1 block text-xs font-normal text-zinc-500">
-                {assets.length + files.length} / {TRPG_SCENARIO_MAX_ASSETS}장 · 1번 이후는 가로 이미지
-              </span>
-            </button>
-            {files.length > 0 ? (
-              <button
-                type="button"
-                onClick={() => void tagPendingFiles()}
-                disabled={busy}
-                className="w-full min-h-11 rounded-xl bg-violet-600 py-2.5 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
-              >
-                {progress || `${files.length}장 업로드 · 태깅`}
-              </button>
-            ) : null}
-            {assets.length > 0 ? (
-              <AssetManagerGrid
-                assets={assets}
-                onChange={commitAssets}
-                onRemove={(index) => commitAssets(assets.filter((_, i) => i !== index))}
-                note="1번은 카드 대표. 2번부터는 가로로 긴 장면만 유지됩니다."
-              />
-            ) : null}
-          </div>
-          <p
-            className={`mt-3 text-base font-semibold tabular-nums tracking-tight ${
-              bundleOver ? "text-rose-400" : "text-amber-300"
-            }`}
-          >
-            세계관+시나리오+비밀+NPC {bundleUsed.toLocaleString()} / {TRPG_SCENARIO_BUNDLE_LIMIT.toLocaleString()}자
-          </p>
-          <p className="mt-1 text-xs text-zinc-500">
-            불러온 세계관과 이 시나리오에 추가로 쓰는 본문·숨겨진 설정·NPC를 합쳐{" "}
-            {TRPG_SCENARIO_BUNDLE_LIMIT.toLocaleString()}자입니다. 세계관 {worldChars.toLocaleString()} · 시나리오{" "}
-            {scenarioChars.toLocaleString()} · 비밀 {secretChars.toLocaleString()} · NPC {npcChars.toLocaleString()}
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setVisibility("private")}
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                visibility === "private" ? "bg-violet-600 text-white" : "border border-white/10 text-zinc-300"
-              }`}
-            >
-              비공개
-            </button>
-            <button
-              type="button"
-              onClick={() => setVisibility("public")}
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                visibility === "public" ? "bg-violet-600 text-white" : "border border-white/10 text-zinc-300"
-              }`}
-            >
-              공개 (TRPG 탭)
-            </button>
-          </div>
-          <div className="mt-4">
-            <GenrePicker value={genres} onChange={setGenres} />
-          </div>
         </AppSectionCard>
 
-        <AppSectionCard title="시작 위치 · 상태값">
+        <AppSectionCard title="게임 규칙">
           <p className="mb-3 text-sm text-zinc-400">
-            이 시나리오 시트에 넣을 상태값만 고르세요. 숫자는 참가자가 로비에서 5–15로 배분합니다. AI 캐릭터는 본문으로
-            자동 배분하거나 방장이 로비에서 맞춥니다. 일반 세계관만으로 시작하는 캠페인은 힘·민첩·지능·지혜·매력·체력
-            6종만 씁니다.
+            이 시나리오 시트에 넣을 상태값만 고르세요. 숫자는 참가자가 로비에서 5–15로 배분합니다.
           </p>
           <div className="mb-3 flex flex-wrap gap-1.5">
             {TRPG_STAT_CATALOG.map((entry) => {
@@ -464,10 +778,10 @@ export default function TrpgScenarioEditor({
           </label>
         </AppSectionCard>
 
-        <AppSectionCard title="시나리오 NPC (모브)">
+        <AppSectionCard title="캐릭터 / NPC">
           <p className="mb-3 text-sm text-zinc-400">
-            조연 설정입니다. 이름과 설정만 적어도 됩니다. GM이 참고해서 등장시키며, 적은 글이 채팅에 그대로 붙지는
-            않습니다. 플레이어 자리도 아닙니다. 최대 {TRPG_SCENARIO_MAX_NPCS}명.
+            조연 설정입니다. GM이 참고해서 등장시키며, 플레이어 자리도 아닙니다. 최대 {TRPG_SCENARIO_MAX_NPCS}명.
+            <RegenButton field="npcs" label="NPC" />
           </p>
           {npcs.map((npc, index) => (
             <div key={index} className="mb-3 rounded-xl border border-white/10 p-3">
@@ -489,12 +803,8 @@ export default function TrpgScenarioEditor({
               </label>
               <label className="mt-3 block text-sm text-zinc-300">
                 설정
-                <span className="mt-1 block text-xs font-normal text-zinc-500">
-                  겉모습, 하는 일, 성격. GM 참고용이며 채팅에 그대로 출력되지 않습니다.
-                </span>
                 <textarea
                   value={npc.description}
-                  placeholder="예: 낡은 제복의 역무원. 표를 확인하고 기차를 안내한다."
                   rows={2}
                   maxLength={remainingScenarioFieldMax(
                     bundleUsed,
@@ -511,10 +821,8 @@ export default function TrpgScenarioEditor({
               </label>
               <label className="mt-3 block text-sm text-zinc-300">
                 말투 (선택)
-                <span className="mt-1 block text-xs font-normal text-zinc-500">GM만 봅니다.</span>
                 <textarea
                   value={npc.greeting}
-                  placeholder="예: 짧고 공손하게 말한다."
                   rows={2}
                   maxLength={remainingScenarioFieldMax(
                     bundleUsed,
@@ -531,12 +839,8 @@ export default function TrpgScenarioEditor({
               </label>
               <label className="mt-3 block text-sm text-zinc-300">
                 진행 메모 (선택)
-                <span className="mt-1 block text-xs font-normal text-zinc-500">
-                  GM만 봅니다. 반전이나 등장 타이밍처럼 플레이어에게 숨길 내용.
-                </span>
                 <textarea
                   value={npc.systemPrompt}
-                  placeholder="예: 이미 죽은 사람이다."
                   rows={3}
                   maxLength={remainingScenarioFieldMax(
                     bundleUsed,
@@ -551,15 +855,13 @@ export default function TrpgScenarioEditor({
                   className="mt-1 w-full rounded-xl border border-white/10 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
                 />
               </label>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setNpcs((prev) => prev.filter((_, i) => i !== index))}
-                  className="rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-rose-200"
-                >
-                  삭제
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setNpcs((prev) => prev.filter((_, i) => i !== index))}
+                className="mt-2 rounded-lg border border-white/10 px-3 py-1.5 text-xs font-semibold text-rose-200"
+              >
+                삭제
+              </button>
             </div>
           ))}
           <button
@@ -572,16 +874,113 @@ export default function TrpgScenarioEditor({
           </button>
         </AppSectionCard>
 
-        {error || bundleOver ? (
-          <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
-            {error || scenarioBundleLimitError(bundleUsed)}
+        <AppSectionCard title="표시 및 에셋">
+          <p className="text-xs text-zinc-500">
+            1번 대표 이미지는 가로·세로 모두 가능하고, 나머지 장면 에셋은 가로로 긴 이미지만 사용할 수 있습니다.
           </p>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            multiple
+            hidden
+            onChange={(e) => {
+              pickFiles(e.target.files);
+              e.target.value = "";
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={assets.length + files.length >= TRPG_SCENARIO_MAX_ASSETS}
+            className="mt-3 w-full min-h-11 rounded-xl border border-dashed border-white/15 bg-[#161922] py-3 text-sm font-semibold text-zinc-200 hover:border-violet-400/40"
+          >
+            + 시나리오 에셋 추가
+            <span className="mt-1 block text-xs font-normal text-zinc-500">
+              {assets.length + files.length} / {TRPG_SCENARIO_MAX_ASSETS}장 · 1번 이후는 가로 이미지
+            </span>
+          </button>
+          {files.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => void tagPendingFiles()}
+              disabled={busy}
+              className="mt-2 w-full min-h-11 rounded-xl bg-violet-600 py-2.5 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
+            >
+              {progress || `${files.length}장 업로드 · 태깅`}
+            </button>
+          ) : null}
+          {assets.length > 0 ? (
+            <div className="mt-3">
+              <AssetManagerGrid
+                assets={assets}
+                onChange={commitAssets}
+                onRemove={(index) => commitAssets(assets.filter((_, i) => i !== index))}
+                note="1번은 카드 대표. 2번부터는 가로로 긴 장면만 유지됩니다."
+              />
+            </div>
+          ) : null}
+        </AppSectionCard>
+
+        <AppSectionCard title="공개 설정">
+          <p
+            className={`text-base font-semibold tabular-nums tracking-tight ${
+              bundleOver ? "text-rose-400" : "text-amber-300"
+            }`}
+          >
+            세계관+시나리오+비밀+NPC {bundleUsed.toLocaleString()} / {TRPG_SCENARIO_BUNDLE_LIMIT.toLocaleString()}자
+          </p>
+          <p className="mt-1 text-xs text-zinc-500">
+            불러온 세계관과 이 시나리오에 추가로 쓰는 본문·이야기 설계·숨겨진 설정·NPC를 합쳐{" "}
+            {TRPG_SCENARIO_BUNDLE_LIMIT.toLocaleString()}자입니다. 세계관 {worldChars.toLocaleString()} · 시나리오{" "}
+            {scenarioChars.toLocaleString()} · 비밀 {secretChars.toLocaleString()} · NPC {npcChars.toLocaleString()}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setVisibility("private")}
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                visibility === "private" ? "bg-violet-600 text-white" : "border border-white/10 text-zinc-300"
+              }`}
+            >
+              비공개
+            </button>
+            <button
+              type="button"
+              onClick={() => setVisibility("public")}
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                visibility === "public" ? "bg-violet-600 text-white" : "border border-white/10 text-zinc-300"
+              }`}
+            >
+              공개 (TRPG 탭)
+            </button>
+          </div>
+          <div className="mt-4">
+            <GenrePicker value={genres} onChange={setGenres} />
+          </div>
+        </AppSectionCard>
+
+        {error || bundleOver || lintMessages.length ? (
+          <div className="space-y-2">
+            {error || bundleOver ? (
+              <p className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-200">
+                {error || scenarioBundleLimitError(bundleUsed)}
+              </p>
+            ) : null}
+            {lintMessages.length ? (
+              <ul className="rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">
+                {lintMessages.map((message) => (
+                  <li key={message}>{message}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
         ) : null}
 
         {embedded ? null : (
           <button
             type="submit"
-            disabled={busy || bundleOver}
+            disabled={busy || draftBusy || bundleOver}
             className="inline-flex min-h-10 items-center rounded-xl bg-violet-600 px-4 text-sm font-semibold text-white disabled:opacity-50"
           >
             {busy ? "저장 중…" : "시나리오 저장"}
@@ -598,7 +997,7 @@ export default function TrpgScenarioEditor({
           formId="studio-trpg-scenario-form"
           saveType="submit"
           saveLabel={busy ? "저장 중…" : "시나리오 저장"}
-          saveDisabled={busy || bundleOver}
+          saveDisabled={busy || draftBusy || bundleOver}
           error={error || (bundleOver ? scenarioBundleLimitError(bundleUsed) : null)}
         />
       </div>
@@ -608,7 +1007,7 @@ export default function TrpgScenarioEditor({
   return (
     <AppPageShell
       title={initial ? "TRPG 시나리오 수정" : "TRPG 시나리오 만들기"}
-      description="시나리오 본문이 GM이 참고하는 이번 이야기입니다. 세계관도 본문에 적어도 되고, 이미 만든 세계관 문서는 선택으로 붙일 수 있습니다. 불러온 세계관과 시나리오 본문·숨겨진 설정·NPC는 합쳐 10,000자입니다. 숨겨진 설정만 GM 전용입니다."
+      description="세계관을 고르고 AI로 이야기 초안을 만든 뒤, 확인한 다음 저장하세요. 기존처럼 본문만 적어도 됩니다. 숨겨진 설정과 시나리오 계획은 플레이어·AI 캐릭터에게 보이지 않습니다."
       narrow
     >
       {form}

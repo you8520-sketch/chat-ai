@@ -1,6 +1,7 @@
 /** Isolated TRPG runtime — not used by 1:1 character chat. */
 
 import { CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL } from "@/lib/chatModels";
+import type { TrpgStoryPhase } from "./scenarioPlan";
 
 export const TRPG_GM_MODEL = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
 export const TRPG_MAX_SLOTS = 4;
@@ -171,6 +172,11 @@ export type TrpgStateDelta = {
   npcsRemove?: string[];
   flagsAdd?: string[];
   flagsRemove?: string[];
+  /** Optional story metadata. Never a round-phase substitute. */
+  storyPhase?: TrpgStoryPhase;
+  threadsAdd?: string[];
+  threadsResolve?: string[];
+  endingConditionId?: string;
 };
 
 export function assertNeverTrpg(x: never, label: string): never {

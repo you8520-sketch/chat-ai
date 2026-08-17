@@ -73,6 +73,7 @@ describe("TRPG catalog browse", () => {
       characterIds: [],
       genres: ["공포/추리"],
       assets: [],
+      scenarioPlan: null,
       createdAt: "",
       updatedAt: "",
     };
@@ -132,6 +133,7 @@ describe("TRPG catalog browse", () => {
       characterIds: [],
       genres: [],
       assets: [],
+      scenarioPlan: null,
       createdAt: "2026-08-05 00:00:00",
       updatedAt: "2026-08-05 12:00:00",
     };
