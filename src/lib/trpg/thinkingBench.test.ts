@@ -2,7 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { THINKING_BENCH_CASES, thinkingBenchCaseById } from "./thinkingBench/fixtures";
 import { evaluateThinkingBenchOutput } from "./thinkingBench/quality";
-import { countKoreanChars, extractRawUsage, median } from "./thinkingBench/usage";
+import {
+  THINKING_BENCH_COMPLEX_CASE_IDS,
+  buildThinkingBenchChatBody,
+} from "./thinkingBench/request";
+import { countKoreanChars, extractRawUsage, median, visibleCompletionTokens } from "./thinkingBench/usage";
 import { TRPG_GM_SYSTEM } from "./gmPrompt";
 import { TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL } from "./types";
 
@@ -41,6 +45,43 @@ describe("TRPG GM thinking bench fixtures", () => {
     assert.match(c6.user, /이야기 단계: ESCALATION/);
     assert.equal(TRPG_GM_MODEL, "deepseek-v4-pro-0813");
     assert.equal(TRPG_GM_MAX_TOKENS, 12288);
+    assert.deepEqual([...THINKING_BENCH_COMPLEX_CASE_IDS], [
+      "case2_authored_opening",
+      "case5_two_bots",
+      "case6_complex_scenario",
+    ]);
+  });
+
+  it("sends true OFF as thinking.disabled + reasoning_effort.none and never drops the effort field", () => {
+    const fixture = thinkingBenchCaseById("case5_two_bots");
+    const on = buildThinkingBenchChatBody({
+      system: fixture.system,
+      user: fixture.user,
+      arm: "on",
+      stream: true,
+    });
+    const off = buildThinkingBenchChatBody({
+      system: fixture.system,
+      user: fixture.user,
+      arm: "true_off",
+      stream: true,
+    });
+    const mis = buildThinkingBenchChatBody({
+      system: fixture.system,
+      user: fixture.user,
+      arm: "misconfigured_disabled",
+      stream: true,
+    });
+    assert.deepEqual(on.thinking, { type: "enabled" });
+    assert.equal("reasoning_effort" in on, false);
+    assert.deepEqual(off.thinking, { type: "disabled" });
+    assert.equal(off.reasoning_effort, "none");
+    assert.deepEqual(mis.thinking, { type: "disabled" });
+    assert.equal("reasoning_effort" in mis, false);
+    assert.equal(on.model, off.model);
+    assert.equal(on.max_tokens, off.max_tokens);
+    assert.equal(on.temperature, off.temperature);
+    assert.deepEqual(on.messages, off.messages);
   });
 });
 
@@ -94,6 +135,9 @@ describe("TRPG GM thinking bench usage logger", () => {
     assert.equal(usage.completion_tokens, 20);
     assert.equal(usage.cached_tokens, 3);
     assert.equal(usage.reasoning_tokens, "unavailable");
+    assert.equal(usage.visible_completion_tokens, "unavailable");
+    assert.equal(visibleCompletionTokens(20, 5), 15);
+    assert.equal(visibleCompletionTokens(20, 0), 20);
     assert.equal(usage.extra.mystery_field, 7);
     assert.equal(countKoreanChars("안녕 hello"), 2);
     assert.equal(median([90, 10, 20]), 20);

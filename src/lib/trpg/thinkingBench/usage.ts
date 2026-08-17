@@ -47,15 +47,28 @@ export function extractRawUsage(payload: unknown): RawUsageRecord {
     if (!KNOWN_USAGE_KEYS.has(key)) extra[key] = value;
   }
   if (typeof usage.total_tokens === "number") extra.total_tokens = usage.total_tokens;
+  const promptTokens = asUsageField(usage.prompt_tokens);
+  const completionTokens = asUsageField(usage.completion_tokens);
+  const reasoningTokens = pickReasoningTokens(usage);
   return {
-    prompt_tokens: asUsageField(usage.prompt_tokens),
-    completion_tokens: asUsageField(usage.completion_tokens),
+    prompt_tokens: promptTokens,
+    completion_tokens: completionTokens,
     cached_tokens: asUsageField(usage.cached_tokens ?? cachedFromDetails),
-    reasoning_tokens: pickReasoningTokens(usage),
+    reasoning_tokens: reasoningTokens,
+    visible_completion_tokens: visibleCompletionTokens(completionTokens, reasoningTokens),
     completion_tokens_details: usage.completion_tokens_details ?? "unavailable",
     cost: usage.cost ?? usage.total_cost ?? root.cost ?? "unavailable",
     extra,
   };
+}
+
+export function visibleCompletionTokens(
+  completion: UsageField,
+  reasoning: UsageField
+): UsageField {
+  if (typeof completion !== "number") return "unavailable";
+  if (typeof reasoning !== "number") return "unavailable";
+  return Math.max(0, completion - reasoning);
 }
 
 export function countKoreanChars(text: string): number {

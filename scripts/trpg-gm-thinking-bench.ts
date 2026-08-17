@@ -1,28 +1,45 @@
 /**
- * Isolated TRPG GM Thinking ON/OFF harness.
+ * Isolated TRPG GM Thinking ON vs TRUE OFF harness.
  * Does not write campaign state, HP, inventory, billing, rewards, or memory.
  * Does not import or call the production GM runtime (callTrpgGm / adaptTrpgGmChatBody).
+ *
+ * TRUE OFF contract (provider-verified):
+ *   thinking: { type: "disabled" }
+ *   reasoning_effort: "none"
+ * thinking.disabled alone is MISCONFIGURED_DISABLED and is not an OFF sample.
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL, buildCheaperInferenceHeaders } from "@/lib/cheaperInferenceConfig";
 import { THINKING_BENCH_CASES } from "@/lib/trpg/thinkingBench/fixtures";
 import { evaluateThinkingBenchOutput } from "@/lib/trpg/thinkingBench/quality";
+import {
+  THINKING_BENCH_COMPLEX_CASE_IDS,
+  THINKING_BENCH_TIMEOUT_MS,
+  buildThinkingBenchChatBody,
+  thinkingModeForArm,
+} from "@/lib/trpg/thinkingBench/request";
 import { average, countKoreanChars, extractRawUsage, median } from "@/lib/trpg/thinkingBench/usage";
-import type { ThinkingBenchCallRecord, ThinkingMode } from "@/lib/trpg/thinkingBench/types";
-import { TRPG_GM_MAX_TOKENS, TRPG_GM_MODEL } from "@/lib/trpg/types";
+import type { ThinkingBenchArm, ThinkingBenchCallRecord } from "@/lib/trpg/thinkingBench/types";
 import { loadEnvLocal } from "./load-env-local";
 
-const TIMEOUT_MS = 180_000;
-const TEMPERATURE = 0.7;
 const ARTIFACT_DIR = "/opt/cursor/artifacts/trpg_gm_thinking_bench";
 const LOCAL_DIR = resolve(process.cwd(), "tmp-trpg-gm-thinking-bench");
 
-function parseArgs(argv: string[]): { dryRun: boolean; caseIds: string[] | null } {
+function parseArgs(argv: string[]): {
+  dryRun: boolean;
+  all: boolean;
+  includeMisconfigured: boolean;
+  caseIds: string[] | null;
+} {
   let dryRun = false;
+  let all = false;
+  let includeMisconfigured = false;
   let caseIds: string[] | null = null;
   for (const arg of argv) {
     if (arg === "--dry-run") dryRun = true;
+    if (arg === "--all") all = true;
+    if (arg === "--include-misconfigured") includeMisconfigured = true;
     if (arg.startsWith("--cases=")) {
       caseIds = arg
         .slice("--cases=".length)
@@ -31,7 +48,7 @@ function parseArgs(argv: string[]): { dryRun: boolean; caseIds: string[] | null 
         .filter(Boolean);
     }
   }
-  return { dryRun, caseIds };
+  return { dryRun, all, includeMisconfigured, caseIds };
 }
 
 function ensureDirs(): void {
@@ -44,62 +61,132 @@ function writeBoth(name: string, body: string): void {
   writeFileSync(resolve(LOCAL_DIR, name), body, "utf8");
 }
 
-function buildBody(opts: { system: string; user: string; thinking: ThinkingMode }): Record<string, unknown> {
+function firstVisiblePiece(delta: Record<string, unknown>): string {
+  if (typeof delta.content === "string" && delta.content) return delta.content;
+  if (Array.isArray(delta.content)) {
+    return delta.content
+      .map((part) => {
+        if (typeof part === "string") return part;
+        if (part && typeof part === "object" && typeof (part as { text?: unknown }).text === "string") {
+          return String((part as { text: string }).text);
+        }
+        return "";
+      })
+      .join("");
+  }
+  return "";
+}
+
+async function readSse(res: Response, started: number): Promise<{
+  text: string;
+  ttftMs: number | null;
+  payload: Record<string, unknown>;
+}> {
+  if (!res.body) {
+    return { text: "", ttftMs: null, payload: { error: "missing body" } };
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let text = "";
+  let ttftMs: number | null = null;
+  let usage: unknown = null;
+  let lastEvent: Record<string, unknown> = {};
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed.startsWith("data:")) continue;
+      const data = trimmed.slice(5).trim();
+      if (!data || data === "[DONE]") continue;
+      let ev: Record<string, unknown>;
+      try {
+        ev = JSON.parse(data) as Record<string, unknown>;
+      } catch {
+        continue;
+      }
+      lastEvent = ev;
+      if (ev.usage) usage = ev.usage;
+      const choice0 = Array.isArray(ev.choices) ? ev.choices[0] : null;
+      const choice =
+        choice0 && typeof choice0 === "object" ? (choice0 as Record<string, unknown>) : {};
+      const delta = (choice.delta ?? {}) as Record<string, unknown>;
+      const piece = firstVisiblePiece(delta);
+      if (piece) {
+        if (ttftMs == null) ttftMs = Date.now() - started;
+        text += piece;
+      }
+    }
+  }
   return {
-    model: TRPG_GM_MODEL,
-    messages: [
-      { role: "system", content: opts.system },
-      { role: "user", content: opts.user },
-    ],
-    stream: false,
-    temperature: TEMPERATURE,
-    max_tokens: TRPG_GM_MAX_TOKENS,
-    thinking: { type: opts.thinking },
+    text: text.trim(),
+    ttftMs,
+    payload: { ...lastEvent, usage: usage ?? lastEvent.usage ?? null },
   };
 }
 
 async function callOnce(opts: {
   system: string;
   user: string;
-  thinking: ThinkingMode;
+  arm: ThinkingBenchArm;
 }): Promise<{
   httpStatus: number | null;
   text: string;
+  ttftMs: number | null;
   latencyMs: number;
   payload: unknown;
+  requestBody: Record<string, unknown>;
   error?: string;
 }> {
+  const requestBody = buildThinkingBenchChatBody({
+    system: opts.system,
+    user: opts.user,
+    arm: opts.arm,
+    stream: true,
+  });
   const started = Date.now();
   try {
     const res = await fetch(CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL, {
       method: "POST",
       headers: buildCheaperInferenceHeaders(),
-      body: JSON.stringify(buildBody(opts)),
-      signal: AbortSignal.timeout(TIMEOUT_MS),
+      body: JSON.stringify(requestBody),
+      signal: AbortSignal.timeout(THINKING_BENCH_TIMEOUT_MS),
     });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      return {
+        httpStatus: res.status,
+        text: "",
+        ttftMs: null,
+        latencyMs: Date.now() - started,
+        payload: { error: errText.slice(0, 800) },
+        requestBody,
+        error: `http ${res.status}`,
+      };
+    }
+    const streamed = await readSse(res, started);
     const latencyMs = Date.now() - started;
-    const payload = (await res.json().catch(async () => ({ raw: await res.text().catch(() => "") }))) as Record<
-      string,
-      unknown
-    >;
-    const text =
-      typeof (payload as { choices?: { message?: { content?: string } }[] }).choices?.[0]?.message?.content ===
-      "string"
-        ? String((payload as { choices: { message?: { content?: string } }[] }).choices[0].message?.content ?? "").trim()
-        : "";
     return {
       httpStatus: res.status,
-      text,
+      text: streamed.text,
+      ttftMs: streamed.ttftMs,
       latencyMs,
-      payload,
-      error: res.ok && text ? undefined : `http ${res.status} empty=${text.length === 0}`,
+      payload: streamed.payload,
+      requestBody,
+      error: streamed.text ? undefined : `http ${res.status} empty=true`,
     };
   } catch (error) {
     return {
       httpStatus: null,
       text: "",
+      ttftMs: null,
       latencyMs: Date.now() - started,
       payload: null,
+      requestBody,
       error: error instanceof Error ? error.message : String(error),
     };
   }
@@ -109,51 +196,59 @@ function numericOrEmpty(value: number | "unavailable"): number[] {
   return typeof value === "number" ? [value] : [];
 }
 
+function qualityErrorCount(record: ThinkingBenchCallRecord): number {
+  return (
+    (record.parseSuccess ? 0 : 1) +
+    record.actionOmissions +
+    record.diceContradictions +
+    record.stateErrors +
+    record.agencyErrors
+  );
+}
+
 function summarize(records: ThinkingBenchCallRecord[]): Record<string, unknown> {
-  const on = records.filter((r) => r.thinking === "enabled");
-  const off = records.filter((r) => r.thinking === "disabled");
-  const onLat = on.map((r) => r.wallLatencyMs);
-  const offLat = off.map((r) => r.wallLatencyMs);
-  const onMed = median(onLat);
-  const offMed = median(offLat);
-  const latencyChangePercent =
-    onMed != null && offMed != null && onMed > 0 ? ((offMed - onMed) / onMed) * 100 : null;
-  const onReasoning = on.map((r) => r.usage.reasoning_tokens);
-  const offReasoning = off.map((r) => r.usage.reasoning_tokens);
-  const reasoningSummary = (values: Array<number | "unavailable">) => {
-    if (values.every((v) => v === "unavailable")) return "unavailable";
-    const nums = values.filter((v): v is number => typeof v === "number");
-    return {
-      available: nums.length,
-      unavailable: values.length - nums.length,
-      average: average(nums),
-    };
+  const on = records.filter((r) => r.arm === "on");
+  const off = records.filter((r) => r.arm === "true_off");
+  const mis = records.filter((r) => r.arm === "misconfigured_disabled");
+  const reasoningRate = (rows: ThinkingBenchCallRecord[]) => {
+    const known = rows.filter((r) => typeof r.usage.reasoning_tokens === "number");
+    if (known.length === 0) return "unavailable";
+    const withReasoning = known.filter((r) => (r.usage.reasoning_tokens as number) > 0).length;
+    return `${withReasoning}/${known.length}`;
   };
+  const onTtft = on.map((r) => r.ttftMs).filter((n): n is number => n != null);
+  const offTtft = off.map((r) => r.ttftMs).filter((n): n is number => n != null);
   return {
-    THINKING_BENCH_CASES: THINKING_BENCH_CASES.length,
-    THINKING_ON_CALLS: on.length,
-    THINKING_OFF_CALLS: off.length,
-    ON_SUCCESS: `${on.filter((r) => r.success).length}/${on.length}`,
-    OFF_SUCCESS: `${off.filter((r) => r.success).length}/${off.length}`,
-    ON_MEDIAN_LATENCY_MS: onMed,
-    OFF_MEDIAN_LATENCY_MS: offMed,
-    LATENCY_CHANGE_PERCENT: latencyChangePercent,
+    PROVIDER_TRUE_OFF_CONTRACT: "thinking.disabled + reasoning_effort.none",
+    MISCONFIGURED_DISABLED_NOTE:
+      "thinking.disabled without reasoning_effort.none is not an OFF sample",
+    MISCONFIGURED_DISABLED_CALLS: mis.length,
+    THINKING_BENCH_CASES: new Set(records.map((r) => r.caseId)).size,
+    GM_ON_COMPLEX_CASES: `${on.filter((r) => r.success).length}/${on.length}`,
+    GM_TRUE_OFF_COMPLEX_CASES: `${off.filter((r) => r.success).length}/${off.length}`,
+    GM_ON_MEDIAN_TTFT: median(onTtft),
+    GM_TRUE_OFF_MEDIAN_TTFT: median(offTtft),
+    GM_ON_MEDIAN_TOTAL_LATENCY: median(on.map((r) => r.wallLatencyMs)),
+    GM_TRUE_OFF_MEDIAN_TOTAL_LATENCY: median(off.map((r) => r.wallLatencyMs)),
+    ON_REASONING_RATE: reasoningRate(on),
+    TRUE_OFF_REASONING_RATE: reasoningRate(off),
+    MISCONFIGURED_DISABLED_REASONING_RATE: mis.length ? reasoningRate(mis) : "not_run_this_harness",
     ON_AVG_VISIBLE_CHARS: average(on.map((r) => r.responseChars)),
     OFF_AVG_VISIBLE_CHARS: average(off.map((r) => r.responseChars)),
-    ON_AVG_COMPLETION_TOKENS: average(on.flatMap((r) => numericOrEmpty(r.usage.completion_tokens))),
-    OFF_AVG_COMPLETION_TOKENS: average(off.flatMap((r) => numericOrEmpty(r.usage.completion_tokens))),
-    ON_REASONING_TOKENS: reasoningSummary(onReasoning),
-    OFF_REASONING_TOKENS: reasoningSummary(offReasoning),
+    ON_AVG_VISIBLE_COMPLETION_TOKENS: average(on.flatMap((r) => numericOrEmpty(r.usage.visible_completion_tokens))),
+    OFF_AVG_VISIBLE_COMPLETION_TOKENS: average(off.flatMap((r) => numericOrEmpty(r.usage.visible_completion_tokens))),
     ON_PARSE_FAILURES: on.filter((r) => !r.parseSuccess).length,
     OFF_PARSE_FAILURES: off.filter((r) => !r.parseSuccess).length,
-    ON_ACTION_OMISSIONS: on.reduce((n, r) => n + r.quality.actionOmissions.length, 0),
-    OFF_ACTION_OMISSIONS: off.reduce((n, r) => n + r.quality.actionOmissions.length, 0),
-    ON_DICE_CONTRADICTIONS: on.reduce((n, r) => n + r.quality.diceContradictions.length, 0),
-    OFF_DICE_CONTRADICTIONS: off.reduce((n, r) => n + r.quality.diceContradictions.length, 0),
-    ON_STATE_ERRORS: on.reduce((n, r) => n + r.quality.stateErrors.length, 0),
-    OFF_STATE_ERRORS: off.reduce((n, r) => n + r.quality.stateErrors.length, 0),
-    ON_AGENCY_ERRORS: on.reduce((n, r) => n + r.quality.agencyErrors.length, 0),
-    OFF_AGENCY_ERRORS: off.reduce((n, r) => n + r.quality.agencyErrors.length, 0),
+    ON_ACTION_OMISSIONS: on.reduce((n, r) => n + r.actionOmissions, 0),
+    OFF_ACTION_OMISSIONS: off.reduce((n, r) => n + r.actionOmissions, 0),
+    ON_DICE_CONTRADICTIONS: on.reduce((n, r) => n + r.diceContradictions, 0),
+    OFF_DICE_CONTRADICTIONS: off.reduce((n, r) => n + r.diceContradictions, 0),
+    ON_STATE_ERRORS: on.reduce((n, r) => n + r.stateErrors, 0),
+    OFF_STATE_ERRORS: off.reduce((n, r) => n + r.stateErrors, 0),
+    ON_AGENCY_ERRORS: on.reduce((n, r) => n + r.agencyErrors, 0),
+    OFF_AGENCY_ERRORS: off.reduce((n, r) => n + r.agencyErrors, 0),
+    GM_ON_QUALITY_ERRORS: on.reduce((n, r) => n + qualityErrorCount(r), 0),
+    GM_TRUE_OFF_QUALITY_ERRORS: off.reduce((n, r) => n + qualityErrorCount(r), 0),
   };
 }
 
@@ -161,10 +256,16 @@ async function main(): Promise<void> {
   loadEnvLocal();
   const args = parseArgs(process.argv.slice(2));
   ensureDirs();
-  const cases = args.caseIds
-    ? THINKING_BENCH_CASES.filter((row) => args.caseIds?.includes(row.id))
-    : THINKING_BENCH_CASES;
+  const selectedIds = args.caseIds
+    ? args.caseIds
+    : args.all
+      ? THINKING_BENCH_CASES.map((row) => row.id)
+      : [...THINKING_BENCH_COMPLEX_CASE_IDS];
+  const cases = THINKING_BENCH_CASES.filter((row) => selectedIds.includes(row.id));
   if (cases.length === 0) throw new Error("no matching cases");
+  const arms: ThinkingBenchArm[] = args.includeMisconfigured
+    ? ["on", "true_off", "misconfigured_disabled"]
+    : ["on", "true_off"];
 
   const fixtureDump = cases.map((row) => ({
     id: row.id,
@@ -183,45 +284,57 @@ async function main(): Promise<void> {
     for (const row of cases) {
       writeBoth(`${row.id}.system.txt`, row.system);
       writeBoth(`${row.id}.user.txt`, row.user);
+      writeBoth(
+        `${row.id}.true_off.body.json`,
+        JSON.stringify(buildThinkingBenchChatBody({ system: row.system, user: row.user, arm: "true_off", stream: true }), null, 2)
+      );
     }
-    console.log(`dry-run wrote ${cases.length} fixtures`);
+    console.log(`dry-run wrote ${cases.length} fixtures; arms=${arms.join(",")}`);
     return;
   }
 
   const records: ThinkingBenchCallRecord[] = [];
-  const blindKey: Record<string, { A: ThinkingMode; B: ThinkingMode }> = {};
+  const blindKey: Record<string, { A: ThinkingBenchArm; B: ThinkingBenchArm }> = {};
   let pairFlip = false;
 
   for (const fixture of cases) {
-    const pair: Record<ThinkingMode, string> = { enabled: "", disabled: "" };
-    for (const thinking of ["enabled", "disabled"] as const) {
-      console.log(`calling ${fixture.id} thinking=${thinking}`);
+    const pair: Partial<Record<ThinkingBenchArm, string>> = {};
+    for (const arm of arms) {
+      console.log(`calling ${fixture.id} arm=${arm}`);
       const result = await callOnce({
         system: fixture.system,
         user: fixture.user,
-        thinking,
+        arm,
       });
       const quality = evaluateThinkingBenchOutput({ fixture, rawText: result.text });
       const record: ThinkingBenchCallRecord = {
         caseId: fixture.id,
-        thinking,
+        arm,
+        thinking: thinkingModeForArm(arm),
         httpStatus: result.httpStatus,
         success: Boolean(result.httpStatus === 200 && result.text && !result.error),
+        ttftMs: result.ttftMs,
         wallLatencyMs: result.latencyMs,
         responseChars: result.text.length,
         koreanChars: countKoreanChars(result.text),
         usage: extractRawUsage(result.payload),
         parseSuccess: quality.parseSuccess,
+        actionOmissions: quality.actionOmissions.length,
+        diceContradictions: quality.diceContradictions.length,
+        stateErrors: quality.stateErrors.length,
+        agencyErrors: quality.agencyErrors.length,
         quality,
         error: result.error,
       };
       records.push(record);
-      pair[thinking] = result.text;
+      pair[arm] = result.text;
       writeBoth(
-        `${fixture.id}.${thinking}.json`,
+        `${fixture.id}.${arm}.json`,
         JSON.stringify(
           {
             record,
+            requestThinking: result.requestBody.thinking,
+            requestReasoningEffort: result.requestBody.reasoning_effort ?? null,
             rawUsage: (result.payload as { usage?: unknown } | null)?.usage ?? null,
             text: result.text,
           },
@@ -232,18 +345,18 @@ async function main(): Promise<void> {
       writeBoth("partial_summary.json", JSON.stringify({ records, summary: summarize(records) }, null, 2));
     }
 
-    const labels: { A: ThinkingMode; B: ThinkingMode } = pairFlip
-      ? { A: "disabled", B: "enabled" }
-      : { A: "enabled", B: "disabled" };
+    const labels: { A: ThinkingBenchArm; B: ThinkingBenchArm } = pairFlip
+      ? { A: "true_off", B: "on" }
+      : { A: "on", B: "true_off" };
     pairFlip = !pairFlip;
     blindKey[fixture.id] = labels;
     writeBoth(
       `${fixture.id}.blind_A.md`,
-      `# ${fixture.title}\n\n- label: hidden\n- score 1-5: korean, coherence, weave, tension, repetition, setting, next-action room, overall\n\n${pair[labels.A]}\n`
+      `# ${fixture.title}\n\n- label: hidden\n- score 1-5: korean, coherence, weave, tension, repetition, setting, next-action room, overall\n\n${pair[labels.A] ?? ""}\n`
     );
     writeBoth(
       `${fixture.id}.blind_B.md`,
-      `# ${fixture.title}\n\n- label: hidden\n- score 1-5: korean, coherence, weave, tension, repetition, setting, next-action room, overall\n\n${pair[labels.B]}\n`
+      `# ${fixture.title}\n\n- label: hidden\n- score 1-5: korean, coherence, weave, tension, repetition, setting, next-action room, overall\n\n${pair[labels.B] ?? ""}\n`
     );
   }
 
