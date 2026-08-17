@@ -901,6 +901,9 @@ async function runRpCalls(probe: Awaited<ReturnType<typeof probeTransport>>) {
       rows.push(row);
       rawByCell[cell] = resp.text;
       saveBoth(`raw/${cell}.txt`, resp.text || "");
+      if (resp.reasoningText) {
+        saveBoth(`raw/${cell}.reasoning.txt`, resp.reasoningText);
+      }
       saveBoth(`calls/${cell}.json`, row);
       console.log(
         JSON.stringify({
