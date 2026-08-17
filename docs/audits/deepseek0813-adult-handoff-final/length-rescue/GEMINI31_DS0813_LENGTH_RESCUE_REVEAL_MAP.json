@@ -1,0 +1,41 @@
+{
+  "note": "Do not consult before quality scoring.",
+  "mapping": {
+    "FINAL-G-A": {
+      "kind": "existing_muse_positive",
+      "path": "existing-muse-positive/MUSE12_FINAL_GEMINI_POSITIVE_3.txt"
+    },
+    "FINAL-G-B": {
+      "kind": "existing_muse_positive",
+      "path": "existing-muse-positive/MUSE12_FINAL_GEMINI_POSITIVE_2.txt"
+    },
+    "FINAL-G-C": {
+      "kind": "ds0813_true_nonthinking_length_rescue",
+      "path": "length-rescue/DS0813_GEMINI31_LENGTH_RESCUE_2_RAW.txt"
+    },
+    "FINAL-G-D": {
+      "kind": "ds0813_true_nonthinking_baseline",
+      "path": "true-nonthinking/DS0813_GEMINI31_TRUE_NONTHINKING_3_RAW.txt"
+    },
+    "FINAL-G-E": {
+      "kind": "ds0813_true_nonthinking_baseline",
+      "path": "true-nonthinking/DS0813_GEMINI31_TRUE_NONTHINKING_2_RAW.txt"
+    },
+    "FINAL-G-F": {
+      "kind": "ds0813_true_nonthinking_baseline",
+      "path": "true-nonthinking/DS0813_GEMINI31_TRUE_NONTHINKING_1_RAW.txt"
+    },
+    "FINAL-G-G": {
+      "kind": "ds0813_true_nonthinking_length_rescue",
+      "path": "length-rescue/DS0813_GEMINI31_LENGTH_RESCUE_1_RAW.txt"
+    },
+    "FINAL-G-H": {
+      "kind": "existing_muse_positive",
+      "path": "existing-muse-positive/MUSE12_POSITIVE_GEMINI.txt"
+    },
+    "FINAL-G-I": {
+      "kind": "ds0813_true_nonthinking_length_rescue",
+      "path": "length-rescue/DS0813_GEMINI31_LENGTH_RESCUE_3_RAW.txt"
+    }
+  }
+}

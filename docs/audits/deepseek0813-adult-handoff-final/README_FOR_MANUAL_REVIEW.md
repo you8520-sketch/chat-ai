@@ -86,4 +86,10 @@ New RAW / blinds live under `true-nonthinking/`. Vanilla 6 remain `DS0813_REASON
 - `true-nonthinking/BLIND_TRUE_NONTHINKING_RUNTIME.json`
 - `true-nonthinking/DEEPSEEK0813_TRUE_NONTHINKING_VS_MUSE_REVEAL_MAP.json`
 
-Cursor does not score quality or length. `DEEPSEEK0813_LENGTH_RESCUE_REQUIRED` is for ChatGPT, not Cursor.
+Cursor does not score quality or length.
+
+## Gemini 3.1 length-rescue (audit branch)
+
+Historical DeepSeek-specific length instruction restored for Gemini 3.1 only: `DEEPSEEK_LENGTH_SINGLE_CALL_BLOCK`.
+
+New files live under `length-rescue/`. Vanilla 6, thinking-off probe 3, and true-nonthinking 6 remain frozen. Opus was not retested. Cursor does not score quality, length success/failure, or progression.
