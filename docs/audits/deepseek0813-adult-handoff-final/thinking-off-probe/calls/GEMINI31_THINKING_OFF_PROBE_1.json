@@ -1,0 +1,53 @@
+{
+  "cell": "GEMINI31_THINKING_OFF_PROBE_1",
+  "HTTP_STATUS": 200,
+  "TTFT_MS": 3615,
+  "TOTAL_LATENCY_MS": 45425,
+  "VISIBLE_CHARS": 2541,
+  "REASONING_STREAM_SEEN": false,
+  "REASONING_FIELD": null,
+  "REASONING_FIRST_MS": null,
+  "REASONING_LAST_MS": null,
+  "REASONING_TEXT_CHARS": 0,
+  "REASONING_FIELD_BREAKDOWN": {
+    "delta.reasoning": {
+      "chars": 0,
+      "firstMs": null,
+      "lastMs": null,
+      "chunks": 0
+    },
+    "delta.reasoning_content": {
+      "chars": 0,
+      "firstMs": null,
+      "lastMs": null,
+      "chunks": 0
+    },
+    "message.reasoning": {
+      "chars": 0,
+      "firstMs": null,
+      "lastMs": null,
+      "chunks": 0
+    },
+    "message.reasoning_content": {
+      "chars": 0,
+      "firstMs": null,
+      "lastMs": null,
+      "chunks": 0
+    }
+  },
+  "INPUT_TOKENS": 13973,
+  "COMPLETION_TOKENS": 2022,
+  "REASONING_TOKENS_REPORTED": 0,
+  "FINISH_REASON": "stop",
+  "TERMINAL_USAGE_PRESENT": true,
+  "STREAM_DONE_PRESENT": true,
+  "INCOMPLETE_STREAM": false,
+  "ACTUAL_COST_USD": 0.005536,
+  "RESPONSE_MODEL": "deepseek-v4-pro-0813",
+  "FALLBACK_COUNT": 0,
+  "RETRY_COUNT": 0,
+  "CONTINUATION_COUNT": 0,
+  "RECOVERY_COUNT": 0,
+  "outputSha": "8844d2ea20d9b35e1cad6d93f07983b2d489be226e331df5c09aa526287d263c",
+  "error": null
+}

@@ -63,4 +63,12 @@ Live capture:
 - `DEEPSEEK0813_VS_MUSE_REVEAL_MAP.json`
 - `calls/`
 
+## Thinking-off compatibility probe
+
+Existing 6 VANILLA RAW/SHA/runtime files were not rewritten.
+
+`thinking-off-probe/CURRENT_FINAL_BODY.json` records the production final body after `assemblePrimaryRpRequest` → `adaptCheaperInferenceChatBody`.
+
+Diagnostic override only: keep `thinking: { type: "disabled" }` and add `reasoning_effort: "none"`. Production adapter was not changed.
+
 Do not treat this file as a production recommendation.

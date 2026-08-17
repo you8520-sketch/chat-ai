@@ -1,0 +1,20 @@
+{
+  "note": "Diagnostic override only. Not a production adapter change.",
+  "PROBE_OVERRIDE": {
+    "thinking": {
+      "type": "disabled"
+    },
+    "reasoning_effort": "none"
+  },
+  "keysChangedFromProductionFinalBody": [
+    "reasoning_effort"
+  ],
+  "probeThinking": {
+    "type": "disabled"
+  },
+  "probeReasoningEffort": "none",
+  "productionReasoningEffort": {
+    "present": false,
+    "value": "ABSENT"
+  }
+}
