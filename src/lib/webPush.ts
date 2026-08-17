@@ -11,7 +11,15 @@ export type WebPushPayload = {
   body: string;
   url: string;
   tag: string;
-  kind: "notice" | "event" | "points" | "point_expiry" | "character_review" | "support_result";
+  kind:
+    | "notice"
+    | "event"
+    | "points"
+    | "point_expiry"
+    | "character_review"
+    | "support_result"
+    | "character_like"
+    | "comment";
 };
 
 type StoredSubscription = {
@@ -229,7 +237,6 @@ export function scheduleWebPushDelivery(): void {
 }
 
 export function queueExpiringPointPushes(db: Database.Database): number {
-  if (!getWebPushPublicConfig(db).enabled) return 0;
   const rows = db
     .prepare(
       `SELECT pt.user_id,
@@ -239,9 +246,6 @@ export function queueExpiringPointPushes(db: Database.Database): number {
         WHERE pt.remaining_amount > 0
           AND pt.expires_at > datetime('now')
           AND pt.expires_at <= datetime('now', '+3 days')
-          AND EXISTS (
-            SELECT 1 FROM web_push_subscriptions s WHERE s.user_id=pt.user_id
-          )
         GROUP BY pt.user_id`
     )
     .all() as { user_id: number; total: number; nearest_expires_at: string }[];
@@ -250,21 +254,25 @@ export function queueExpiringPointPushes(db: Database.Database): number {
   for (const row of rows) {
     const eventKey = `point-expiry:${row.nearest_expires_at}`;
     const body = `3일 이내 ${Number(row.total).toLocaleString()}P가 소멸될 예정입니다.`;
-    if (
-      queueUserWebPush(db, row.user_id, eventKey, {
-        title: "포인트 소멸 예정",
-        body,
-        url: "/points",
-        tag: eventKey,
-        kind: "point_expiry",
-      })
-    ) {
-      db.prepare(
-        `INSERT INTO user_notifications (user_id, type, ref_id, title, body)
-         VALUES (?, 'point_expiring', 0, '포인트 소멸 예정', ?)`
-      ).run(row.user_id, body);
-      queued += 1;
-    }
+    const already = db
+      .prepare(
+        `SELECT 1 AS ok FROM user_notifications
+          WHERE user_id=? AND type='point_expiring' AND body=?`
+      )
+      .get(row.user_id, body) as { ok: number } | undefined;
+    if (already) continue;
+    db.prepare(
+      `INSERT INTO user_notifications (user_id, type, ref_id, title, body)
+       VALUES (?, 'point_expiring', 0, '포인트 소멸 예정', ?)`
+    ).run(row.user_id, body);
+    queueUserWebPush(db, row.user_id, eventKey, {
+      title: "포인트 소멸 예정",
+      body,
+      url: "/points",
+      tag: eventKey,
+      kind: "point_expiry",
+    });
+    queued += 1;
   }
   return queued;
 }

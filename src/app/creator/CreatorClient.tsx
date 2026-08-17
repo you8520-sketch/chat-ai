@@ -597,7 +597,7 @@ export default function CreatorClient({ initial }: { initial: CreatorDashboard }
             <h2 className={studioType.sectionTitle}>알림 받기</h2>
             <p className={cn(studioType.caption, "mt-1")}>
               좋아요·댓글이 달렸을 때 알림함으로 받을지 선택합니다. OFF해도 좋아요·댓글 기능 자체는
-              유지됩니다.
+              유지됩니다. 앱 푸시로 받을지는 설정에서 따로 켤 수 있고, 기본은 꺼져 있습니다.
             </p>
             <div className="mt-4">
               <CreatorNotificationPrefs
