@@ -1,6 +1,6 @@
 import { getDb } from "@/lib/db";
 import { OPENING_TURN_USER } from "@/lib/chatGreetingContext";
-import { filterCanonicalMessageRows } from "@/lib/oocSceneRender";
+import { filterCanonicalMessageRows, isCanonAdoptedScene } from "@/lib/oocSceneRender";
 import type Database from "better-sqlite3";
 import {
   getMemorySourceBoundary,
@@ -15,6 +15,7 @@ export type ChatTurnWithMessageIds = {
   assistant: string;
   userMessageId: number | null;
   assistantMessageId: number;
+  assistantOnly?: boolean;
 };
 
 type ChatMessageRow = {
@@ -70,7 +71,20 @@ function pairChatTurnsWithMessageIds(rows: ChatMessageRow[]): ChatTurnWithMessag
       : null;
     const sourceUserId = linkedId != null && userById.has(linkedId) ? linkedId : pendingUserId;
     const sourceUser = sourceUserId != null ? userById.get(sourceUserId) ?? pendingUser : pendingUser;
-    if (sourceUser == null || sourceUserId == null) continue;
+    if (sourceUser == null || sourceUserId == null) {
+      if (isCanonAdoptedScene(row.usage)) {
+        playableTurnNumber += 1;
+        turns.push({
+          turnNumber: playableTurnNumber,
+          user: "",
+          assistant: row.content,
+          userMessageId: null,
+          assistantMessageId: row.id,
+          assistantOnly: true,
+        });
+      }
+      continue;
+    }
     playableTurnNumber += 1;
     turns.push({
       turnNumber: playableTurnNumber,
@@ -110,7 +124,10 @@ export function loadMemoryEligibleChatTurnsWithMessageIdsCore(
     .filter(
       (turn) =>
         turn.turnNumber > 0 &&
-        isMemorySourceEligible({ sourceUserMessageId: turn.userMessageId, boundary })
+        isMemorySourceEligible({
+          sourceUserMessageId: turn.userMessageId ?? turn.assistantMessageId,
+          boundary,
+        })
     )
     .map((turn) => ({ ...turn, turnNumber: ++memoryTurnNumber }));
 }
@@ -162,7 +179,15 @@ export function countMemoryEligibleCompletedTurnsCore(
         ? Number(row.user_message_id)
         : null;
     const sourceUserId = linkedId != null && userIds.has(linkedId) ? linkedId : pendingUserId;
-    if (sourceUserId == null) continue;
+    if (sourceUserId == null) {
+      if (
+        isCanonAdoptedScene(row.usage) &&
+        isMemorySourceEligible({ sourceUserMessageId: row.id, boundary })
+      ) {
+        count += 1;
+      }
+      continue;
+    }
     if (isMemorySourceEligible({ sourceUserMessageId: sourceUserId, boundary })) {
       count += 1;
     }
@@ -178,7 +203,9 @@ export function resolveMemoryEligibleTurnNumberCore(
   sourceUserMessageId: number
 ): number | null {
   const turn = loadMemoryEligibleChatTurnsWithMessageIdsCore(db, chatId).find(
-    (candidate) => candidate.userMessageId === sourceUserMessageId
+    (candidate) =>
+      candidate.userMessageId === sourceUserMessageId ||
+      candidate.assistantMessageId === sourceUserMessageId
   );
   return turn?.turnNumber ?? null;
 }

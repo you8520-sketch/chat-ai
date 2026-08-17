@@ -1,6 +1,8 @@
+import { isCanonAdoptedScene } from "@/lib/oocSceneRender";
+
 const FORK_MEMORY_BATCH_TURNS = 6;
 
-type MessageRow = { id: number; role: string; model: string };
+type MessageRow = { id: number; role: string; model: string; usage?: unknown };
 
 /** 분기 시점까지 완료된 대화 턴 수 (인사말 assistant 제외) */
 export function countCompletedTurnsUpToMessageId(
@@ -18,6 +20,8 @@ export function countCompletedTurnsUpToMessageId(
       if (pendingUser) {
         count += 1;
         pendingUser = false;
+      } else if (isCanonAdoptedScene(row.usage)) {
+        count += 1;
       }
     }
   }
@@ -43,6 +47,11 @@ export function countMemoryEligibleCompletedTurnsUpToMessageId(
       if (pendingUserId != null) {
         if (pendingUserId > resetAfterMessageId) count += 1;
         pendingUserId = null;
+      } else if (
+        isCanonAdoptedScene(row.usage) &&
+        row.id > resetAfterMessageId
+      ) {
+        count += 1;
       }
     }
   }

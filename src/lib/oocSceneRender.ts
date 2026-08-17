@@ -27,6 +27,13 @@ export type GenerationKind =
 export type GenerationSemantics = {
   generationKind: GenerationKind;
   canonical: boolean;
+  canonAdopted?: boolean;
+  canonAdoptedAt?: string;
+};
+
+export type CanonAdoption = {
+  canonAdopted: boolean;
+  canonAdoptedAt?: string;
 };
 
 export const CANONICAL_GENERATION_SEMANTICS: GenerationSemantics = {
@@ -38,6 +45,24 @@ export const OOC_SCENE_RENDER_SEMANTICS: GenerationSemantics = {
   generationKind: OOC_SCENE_RENDER_GENERATION_KIND,
   canonical: false,
 };
+
+export const OOC_CANON_ADOPTION_COPY = {
+  title: "이 장면을 본편에 반영할까요?",
+  description:
+    "반영하면 이후 대화와 기억에서 실제로 일어난 사건으로 취급되며, 다음 대화는 이 장면 직후부터 이어집니다. 반영하지 않으면 비정사 장면으로 유지됩니다.",
+  keepNoncanonical: "비정사로 유지",
+  adopt: "본편에 반영",
+  adoptedBadge: "본편에 반영됨",
+  deleteProtected: "이 장면은 본편에 반영되어 있습니다.",
+  regenBlocked: "본편에 반영된 장면은 재생성할 수 없습니다.",
+  variantSwitchBlocked: "본편에 반영된 장면은 다른 버전으로 바꿀 수 없습니다.",
+} as const;
+
+const FINALIZED_SUCCESS_STATUSES = new Set([
+  "completed",
+  "ok",
+  "completed_with_postprocess_error",
+]);
 
 const STRONG_ISOLATION =
   /본편과\s*별개|본편과\s*무관|RP와\s*별개|알피와\s*별개|(?:RP|알피|본편)에(?:는)?\s*반영하지|기억(?:이나|\/|과)?\s*설정에(?:는)?\s*반영하지|실제\s*진행은\s*아니|비정사로|샘플\s*장면|예시\s*장면|가정\s*상황으로|IF\s*상황으로/i;
@@ -115,32 +140,64 @@ export function shouldCommitCanonicalTurnState(
   return !isOocSceneRenderSemantics(semantics);
 }
 
+function originOocSemantics(adoption: CanonAdoption): GenerationSemantics {
+  if (!adoption.canonAdopted) return OOC_SCENE_RENDER_SEMANTICS;
+  return {
+    generationKind: OOC_SCENE_RENDER_GENERATION_KIND,
+    canonical: false,
+    canonAdopted: true,
+    ...(adoption.canonAdoptedAt ? { canonAdoptedAt: adoption.canonAdoptedAt } : {}),
+  };
+}
+
+export function readCanonAdoption(usage: unknown): CanonAdoption {
+  const record = parseUsageObject(usage);
+  if (!record) return { canonAdopted: false };
+  return readCanonAdoptionFromRecord(record);
+}
+
+function readCanonAdoptionFromRecord(record: Record<string, unknown>): CanonAdoption {
+  if (record.canonAdopted !== true) return { canonAdopted: false };
+  return {
+    canonAdopted: true,
+    ...(typeof record.canonAdoptedAt === "string" && record.canonAdoptedAt.trim()
+      ? { canonAdoptedAt: record.canonAdoptedAt }
+      : {}),
+  };
+}
+
 export function readGenerationSemantics(usage: unknown): GenerationSemantics | null {
-  if (!usage) return null;
-  let parsed: unknown = usage;
-  if (typeof usage === "string") {
-    const trimmed = usage.trim();
-    if (!trimmed) return null;
-    try {
-      parsed = JSON.parse(trimmed);
-    } catch {
-      return null;
-    }
-  }
-  if (!parsed || typeof parsed !== "object") return null;
-  const record = parsed as { generationKind?: unknown; canonical?: unknown };
+  const record = parseUsageObject(usage);
+  if (!record) return null;
+  const adoption = readCanonAdoptionFromRecord(record);
   if (record.generationKind === OOC_SCENE_RENDER_GENERATION_KIND) {
-    return OOC_SCENE_RENDER_SEMANTICS;
+    return originOocSemantics(adoption);
   }
   if (record.generationKind === CANONICAL_GENERATION_KIND || record.canonical === true) {
     return CANONICAL_GENERATION_SEMANTICS;
   }
-  if (record.canonical === false) return OOC_SCENE_RENDER_SEMANTICS;
+  if (record.canonical === false) return originOocSemantics(adoption);
   return null;
 }
 
+export function isOriginOocSceneRender(usage: unknown): boolean {
+  return readGenerationSemantics(usage)?.generationKind === OOC_SCENE_RENDER_GENERATION_KIND;
+}
+
+export function isCanonAdoptedScene(usage: unknown): boolean {
+  const semantics = readGenerationSemantics(usage);
+  return isOocSceneRenderSemantics(semantics) && semantics?.canonAdopted === true;
+}
+
+export function isEffectiveCanonEvent(usage: unknown): boolean {
+  const semantics = readGenerationSemantics(usage);
+  if (!semantics) return true;
+  if (semantics.canonical === true) return true;
+  return isCanonAdoptedScene(usage);
+}
+
 export function isNoncanonicalGeneration(usage: unknown): boolean {
-  return isOocSceneRenderSemantics(readGenerationSemantics(usage));
+  return isOriginOocSceneRender(usage) && !isCanonAdoptedScene(usage);
 }
 
 export function isCanonicalGeneration(usage: unknown): boolean {
@@ -149,14 +206,54 @@ export function isCanonicalGeneration(usage: unknown): boolean {
   return semantics.canonical === true;
 }
 
+export function readOocSceneClientFlags(usage: unknown): {
+  oocSceneRender: boolean;
+  canonAdopted: boolean;
+} {
+  return {
+    oocSceneRender: isOriginOocSceneRender(usage),
+    canonAdopted: isCanonAdoptedScene(usage),
+  };
+}
+
+export function isOocSceneAdoptionPromptEligible(input: {
+  role?: string | null;
+  oocSceneRender?: boolean;
+  canonAdopted?: boolean;
+  generationStatus?: string | null;
+  content?: string | null;
+}): boolean {
+  if (input.role != null && input.role !== "assistant") return false;
+  if (!input.oocSceneRender || input.canonAdopted) return false;
+  if (!String(input.content ?? "").trim()) return false;
+  const status = (input.generationStatus ?? "completed").toLowerCase();
+  if (status === "generating" || status === "submitted") return false;
+  if (status === "failed" || status === "failed_partial" || status === "interrupted") {
+    return false;
+  }
+  return FINALIZED_SUCCESS_STATUSES.has(status);
+}
+
 export function mergeGenerationSemantics<T extends object>(
   usage: T,
   semantics: GenerationSemantics
 ): T & GenerationSemantics {
+  const existingAdoption = readCanonAdoption(usage);
+  const adopted = semantics.canonAdopted === true || existingAdoption.canonAdopted;
+  const adoptedAt =
+    semantics.canonAdopted === true
+      ? semantics.canonAdoptedAt ?? existingAdoption.canonAdoptedAt
+      : existingAdoption.canonAdoptedAt;
   return {
     ...usage,
     generationKind: semantics.generationKind,
     canonical: semantics.canonical,
+    ...(adopted
+      ? {
+          canonAdopted: true as const,
+          ...(adoptedAt ? { canonAdoptedAt: adoptedAt } : {}),
+        }
+      : {}),
   };
 }
 
@@ -187,9 +284,17 @@ function linkedUserId(row: CanonicalMessageRow): number | null {
     : null;
 }
 
+function isOriginOocUserRow(row: CanonicalMessageRow): boolean {
+  return (
+    isOriginOocSceneRender(row.usage) ||
+    (row.role === "user" && resolveOocSceneRenderIntent(row.content ?? ""))
+  );
+}
+
 /**
- * Drop a noncanonical assistant together with its parent user (pair).
- * Also drops an orphan user that already carries noncanonical usage/intent.
+ * Drop a noncanonical OOC pair from canon history.
+ * Parent OOC user is always dropped.
+ * Assistant is dropped unless the user later adopted that scene.
  */
 export function filterCanonicalMessageRows<T extends CanonicalMessageRow>(rows: T[]): T[] {
   const byId = new Map<number, T>();
@@ -201,37 +306,43 @@ export function filterCanonicalMessageRows<T extends CanonicalMessageRow>(rows: 
   const dropUserIds = new Set<number>();
   const dropAssistantIds = new Set<number>();
 
-  const markNoncanonical = (row: T) => {
-    const id = rowId(row);
-    if (row.role === "user" && id != null) dropUserIds.add(id);
+  const markParentUserDrop = (row: T) => {
+    if (row.role === "user") {
+      const id = rowId(row);
+      if (id != null) dropUserIds.add(id);
+    }
     if (row.role === "assistant") {
-      if (id != null) dropAssistantIds.add(id);
       const parentId = linkedUserId(row);
       if (parentId != null) dropUserIds.add(parentId);
     }
   };
 
+  const markAssistantDrop = (row: T) => {
+    if (row.role !== "assistant" || isCanonAdoptedScene(row.usage)) return;
+    const id = rowId(row);
+    if (id != null) dropAssistantIds.add(id);
+    markParentUserDrop(row);
+  };
+
   for (const row of rows) {
-    if (isNoncanonicalGeneration(row.usage)) {
-      markNoncanonical(row);
-      continue;
-    }
-    if (row.role === "user" && resolveOocSceneRenderIntent(row.content ?? "")) {
-      markNoncanonical(row);
+    if (isOriginOocUserRow(row) || isNoncanonicalGeneration(row.usage)) {
+      markParentUserDrop(row);
+      markAssistantDrop(row);
     }
   }
 
   for (const row of rows) {
     if (row.role !== "assistant") continue;
+    if (isCanonAdoptedScene(row.usage)) continue;
     const parentId = linkedUserId(row);
     const parent = parentId != null ? byId.get(parentId) : undefined;
     if (
       parent &&
       (dropUserIds.has(parentId!) ||
-        isNoncanonicalGeneration(parent.usage) ||
-        resolveOocSceneRenderIntent(parent.content ?? ""))
+        isOriginOocUserRow(parent) ||
+        isNoncanonicalGeneration(parent.usage))
     ) {
-      markNoncanonical(row);
+      markAssistantDrop(row);
     }
   }
 
@@ -239,6 +350,7 @@ export function filterCanonicalMessageRows<T extends CanonicalMessageRow>(rows: 
     const id = rowId(row);
     if (row.role === "user" && id != null && dropUserIds.has(id)) return false;
     if (row.role === "assistant") {
+      if (isCanonAdoptedScene(row.usage)) return true;
       if (id != null && dropAssistantIds.has(id)) return false;
       const parentId = linkedUserId(row);
       if (parentId != null && dropUserIds.has(parentId)) return false;
@@ -305,4 +417,171 @@ export function persistGenerationSemanticsOnMessages(
     const merged = mergeGenerationSemantics(existing, opts.semantics);
     db.prepare("UPDATE messages SET usage=? WHERE id=?").run(JSON.stringify(merged), id);
   }
+}
+
+export function adoptOocSceneRenderUsage(
+  storedUsage: unknown,
+  adoptedAt: string
+): Record<string, unknown> {
+  const existing = parseUsageObject(storedUsage) ?? {};
+  const current = readCanonAdoptionFromRecord(existing);
+  return {
+    ...existing,
+    generationKind: OOC_SCENE_RENDER_GENERATION_KIND,
+    canonical: false,
+    canonAdopted: true,
+    canonAdoptedAt: current.canonAdopted ? (current.canonAdoptedAt ?? adoptedAt) : adoptedAt,
+  };
+}
+
+export type AdoptOocSceneRenderResult =
+  | {
+      ok: true;
+      alreadyAdopted: boolean;
+      canonAdoptedAt: string;
+      assistantMessageId: number;
+    }
+  | { ok: false; status: number; code: string; error: string };
+
+export function isOocSceneAdoptionEligibleRow(row: {
+  role?: string | null;
+  model?: string | null;
+  content?: string | null;
+  generation_status?: string | null;
+  usage?: unknown;
+}): { ok: true } | { ok: false; code: string; error: string } {
+  if (row.role !== "assistant") {
+    return { ok: false, code: "not_assistant", error: "AI 장면만 본편에 반영할 수 있습니다." };
+  }
+  if (row.model === "greeting") {
+    return { ok: false, code: "greeting", error: "인사말은 본편에 반영할 수 없습니다." };
+  }
+  if (!isOocSceneRenderSemantics(readGenerationSemantics(row.usage))) {
+    return {
+      ok: false,
+      code: "not_ooc_scene_render",
+      error: "비정사 OOC 장면만 본편에 반영할 수 있습니다.",
+    };
+  }
+  const status = (row.generation_status ?? "completed").toLowerCase();
+  if (!FINALIZED_SUCCESS_STATUSES.has(status)) {
+    return {
+      ok: false,
+      code: "not_finalized",
+      error: "완료된 장면만 본편에 반영할 수 있습니다.",
+    };
+  }
+  if (!String(row.content ?? "").trim()) {
+    return { ok: false, code: "empty_output", error: "빈 출력은 본편에 반영할 수 없습니다." };
+  }
+  return { ok: true };
+}
+
+function writeActiveVariantAdoption(
+  alternatesJson: string | null | undefined,
+  activeVariant: number | null | undefined,
+  nextUsage: Record<string, unknown>
+): string | null {
+  if (!alternatesJson || alternatesJson === "[]") return alternatesJson ?? "[]";
+  try {
+    const variants = JSON.parse(alternatesJson) as Array<{ usage?: unknown }>;
+    if (!Array.isArray(variants) || variants.length === 0) return alternatesJson;
+    let idx = activeVariant ?? variants.length - 1;
+    if (idx < 0) idx = 0;
+    if (idx >= variants.length) idx = variants.length - 1;
+    variants[idx] = { ...variants[idx], usage: nextUsage };
+    return JSON.stringify(variants);
+  } catch {
+    return alternatesJson;
+  }
+}
+
+export function adoptOocSceneRenderCore(
+  db: Database.Database,
+  opts: {
+    chatId: number;
+    assistantMessageId: number;
+    ownerUserId: number;
+    now?: string;
+  }
+): AdoptOocSceneRenderResult {
+  const chatId = Number(opts.chatId);
+  const assistantMessageId = Number(opts.assistantMessageId);
+  const ownerUserId = Number(opts.ownerUserId);
+  if (
+    !Number.isSafeInteger(chatId) ||
+    chatId <= 0 ||
+    !Number.isSafeInteger(assistantMessageId) ||
+    assistantMessageId <= 0 ||
+    !Number.isSafeInteger(ownerUserId) ||
+    ownerUserId <= 0
+  ) {
+    return { ok: false, status: 400, code: "invalid_request", error: "요청이 올바르지 않습니다." };
+  }
+
+  const run = db.transaction((): AdoptOocSceneRenderResult => {
+    const chat = db
+      .prepare("SELECT id FROM chats WHERE id=? AND user_id=?")
+      .get(chatId, ownerUserId) as { id: number } | undefined;
+    if (!chat) {
+      return { ok: false, status: 404, code: "not_found", error: "채팅방을 찾을 수 없습니다." };
+    }
+
+    const row = db
+      .prepare(
+        `SELECT id, chat_id, role, content, model, usage, generation_status, alternates, active_variant
+         FROM messages WHERE id=? AND chat_id=?`
+      )
+      .get(assistantMessageId, chatId) as
+      | {
+          id: number;
+          chat_id: number;
+          role: string;
+          content: string;
+          model: string;
+          usage: unknown;
+          generation_status: string | null;
+          alternates: string | null;
+          active_variant: number | null;
+        }
+      | undefined;
+    if (!row) {
+      return { ok: false, status: 404, code: "not_found", error: "메시지를 찾을 수 없습니다." };
+    }
+
+    const eligible = isOocSceneAdoptionEligibleRow(row);
+    if (!eligible.ok) {
+      return { ok: false, status: 400, code: eligible.code, error: eligible.error };
+    }
+
+    const existing = readCanonAdoption(row.usage);
+    if (existing.canonAdopted) {
+      return {
+        ok: true,
+        alreadyAdopted: true,
+        canonAdoptedAt: existing.canonAdoptedAt ?? "",
+        assistantMessageId: row.id,
+      };
+    }
+
+    const adoptedAt = opts.now ?? new Date().toISOString();
+    const nextUsage = adoptOocSceneRenderUsage(row.usage, adoptedAt);
+    const nextAlternates = writeActiveVariantAdoption(
+      row.alternates,
+      row.active_variant,
+      nextUsage
+    );
+    db.prepare(
+      "UPDATE messages SET usage=?, alternates=?, updated_at=datetime('now') WHERE id=? AND chat_id=?"
+    ).run(JSON.stringify(nextUsage), nextAlternates, row.id, chatId);
+
+    return {
+      ok: true,
+      alreadyAdopted: false,
+      canonAdoptedAt: adoptedAt,
+      assistantMessageId: row.id,
+    };
+  });
+
+  return run.immediate();
 }

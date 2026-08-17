@@ -214,9 +214,13 @@ describe("canShowFullBillingReceipt", () => {
       breakdown: [],
       generationKind: "ooc_scene_render" as const,
       canonical: false,
+      canonAdopted: true,
+      canonAdoptedAt: "2026-01-01T00:00:00.000Z",
     } satisfies Usage;
     const sanitized = sanitizeUsageForPublicReceipt(usage);
     assert.equal(sanitized.generationKind, undefined);
     assert.equal(sanitized.canonical, undefined);
+    assert.equal(sanitized.canonAdopted, undefined);
+    assert.equal(sanitized.canonAdoptedAt, undefined);
   });
 });

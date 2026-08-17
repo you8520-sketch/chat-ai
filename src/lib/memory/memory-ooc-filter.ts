@@ -12,7 +12,7 @@ export function isTurnEligibleForMemoryRecord(userMessage: string): boolean {
 export function filterTurnsForMemorySummary(
   turns: DialogueTurn[]
 ): DialogueTurn[] {
-  return turns.filter((t) => isTurnEligibleForMemoryRecord(t.user));
+  return turns.filter((t) => t.assistantOnly === true || isTurnEligibleForMemoryRecord(t.user));
 }
 
 const OOC_PAREN_RE = /[\(（]\s*OOC\s*[:\：][^)）]*[\)）]/gi;

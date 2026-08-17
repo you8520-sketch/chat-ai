@@ -16,6 +16,7 @@ import {
   isClearlyTemporaryEpisodicFact,
 } from "@/lib/episodicMemoryTemporal";
 import {
+  isCanonAdoptedScene,
   isNoncanonicalGeneration,
   resolveOocSceneRenderIntent,
 } from "@/lib/oocSceneRender";
@@ -667,13 +668,15 @@ function sourceMessageIsNoncanonical(
   if (sourceUserMessageId == null) return false;
   try {
     const row = db
-      .prepare("SELECT usage, content FROM messages WHERE id=? AND chat_id=? AND role='user'")
+      .prepare("SELECT usage, content, role FROM messages WHERE id=? AND chat_id=?")
       .get(sourceUserMessageId, chatId) as
-      | { usage?: unknown; content?: string }
+      | { usage?: unknown; content?: string; role?: string }
       | undefined;
     if (!row) return false;
+    if (row.role === "assistant" && isCanonAdoptedScene(row.usage)) return false;
     if (isNoncanonicalGeneration(row.usage)) return true;
-    return resolveOocSceneRenderIntent(row.content ?? "");
+    if (row.role === "user") return resolveOocSceneRenderIntent(row.content ?? "");
+    return false;
   } catch {
     return false;
   }

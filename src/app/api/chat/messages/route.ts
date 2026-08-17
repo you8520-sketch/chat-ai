@@ -29,6 +29,7 @@ import {
   type ChatMessageLike,
 } from "@/lib/chatMessagePagination";
 import { getReportStatusesForMessages } from "@/lib/refund";
+import { readOocSceneClientFlags } from "@/lib/oocSceneRender";
 
 type DbMessageRow = {
   id: number;
@@ -60,6 +61,7 @@ function mapDbMessageForClient(
   });
   const rowUsage = m.usage ? (JSON.parse(m.usage) as Usage) : null;
   const activeUsage = variants[activeVariant]?.usage ?? rowUsage;
+  const oocFlags = readOocSceneClientFlags(activeUsage ?? rowUsage);
   const clientUsage = activeUsage
     ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(activeUsage), {
         keepInternal: keepInternalAdultRouting,
@@ -113,6 +115,8 @@ function mapDbMessageForClient(
     requestId: m.request_id ?? undefined,
     generationStatus: m.generation_status ?? undefined,
     reportStatus,
+    oocSceneRender: oocFlags.oocSceneRender,
+    canonAdopted: oocFlags.canonAdopted,
   };
 }
 

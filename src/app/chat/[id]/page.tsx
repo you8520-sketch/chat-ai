@@ -22,6 +22,7 @@ import {
   resolveUserNoteStatusWindowPolicy,
 } from "@/lib/statusWindowNotePolicy";
 import type { Usage } from "@/lib/chatUsage";
+import { readOocSceneClientFlags } from "@/lib/oocSceneRender";
 import ChatClient from "./ChatClient";
 
 import { consumeSelectedAiEntryNotice } from "@/lib/userSelectedAI";
@@ -343,6 +344,7 @@ export default async function ChatPage({
     });
     const rowUsage = m.usage ? (JSON.parse(m.usage) as Usage) : null;
     const activeUsage = variants[activeVariant]?.usage ?? rowUsage;
+    const oocFlags = readOocSceneClientFlags(activeUsage ?? rowUsage);
     const clientUsage = activeUsage
       ? stripAdultRoutingForClient(stripMuseAcceptanceFromUsage(activeUsage), {
           keepInternal: showFullBillingReceipt,
@@ -404,6 +406,8 @@ export default async function ChatPage({
       requestId: m.request_id ?? undefined,
       generationStatus: m.generation_status ?? undefined,
       reportStatus: reportStatusByMessageId.get(m.id) ?? "none",
+      oocSceneRender: oocFlags.oocSceneRender,
+      canonAdopted: oocFlags.canonAdopted,
     };
   });
 

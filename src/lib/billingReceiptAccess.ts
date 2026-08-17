@@ -64,8 +64,12 @@ export function sanitizeUsageForPublicReceipt(usage: Usage): Usage {
     characterPromptLanguage: _characterPromptLanguage,
     generationKind: _generationKind,
     canonical: _canonical,
+    canonAdopted: _canonAdopted,
+    canonAdoptedAt: _canonAdoptedAt,
     ...rest
   } = usage;
+  void _canonAdopted;
+  void _canonAdoptedAt;
   const publicUsage: Usage = {
     ...rest,
     breakdown: filterUsageBreakdownForReceipt(rest.breakdown, false),
@@ -90,8 +94,12 @@ export function stripAdultRoutingForClient(
     adultRouting: _adultRouting,
     generationKind: _generationKind,
     canonical: _canonical,
+    canonAdopted: _canonAdopted,
+    canonAdoptedAt: _canonAdoptedAt,
     ...rest
   } = usage;
+  void _canonAdopted;
+  void _canonAdoptedAt;
   let client = { ...rest } as Usage;
   if (routing?.activeRoute === "adult") {
     client = applySelectedModelIdentity(client, routing);
@@ -103,6 +111,8 @@ export function stripAdultRoutingForClient(
     if (routing) client.adultRouting = routing;
     if (usage.generationKind) client.generationKind = usage.generationKind;
     if (usage.canonical != null) client.canonical = usage.canonical;
+    if (usage.canonAdopted != null) client.canonAdopted = usage.canonAdopted;
+    if (usage.canonAdoptedAt) client.canonAdoptedAt = usage.canonAdoptedAt;
   }
   return client;
 }

@@ -64,6 +64,20 @@ describe("filterTurnsForMemorySummary", () => {
     ];
     assert.equal(filterTurnsForMemorySummary(turns).length, 2);
   });
+
+  it("keeps adopted assistant-only canon events", () => {
+    const turns = [
+      { user: "카페에 들어간다.", assistant: "문을 연다." },
+      {
+        user: "",
+        assistant: "호텔에서 키스했다.",
+        assistantOnly: true,
+      },
+    ];
+    const filtered = filterTurnsForMemorySummary(turns);
+    assert.equal(filtered.length, 2);
+    assert.equal(filtered[1]!.assistant, "호텔에서 키스했다.");
+  });
 });
 
 describe("stripOocFromMemorySummary", () => {

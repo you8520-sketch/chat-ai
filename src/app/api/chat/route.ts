@@ -394,13 +394,16 @@ import {
 import {
   buildOocSceneRenderUserPrompt,
   filterCanonicalMessageRows,
+  isCanonAdoptedScene,
   isOocSceneRenderSemantics,
   mergeGenerationSemantics,
   nextPersistedModelRouteState,
   persistGenerationSemanticsOnMessages,
   readGenerationSemantics,
+  readOocSceneClientFlags,
   resolveGenerationSemantics,
   shouldCommitCanonicalTurnState,
+  OOC_CANON_ADOPTION_COPY,
   type GenerationSemantics,
 } from "@/lib/oocSceneRender";
 import {
@@ -989,13 +992,30 @@ export async function POST(req: Request) {
         : null,
   });
   const oocSceneRenderTurn = isOocSceneRenderSemantics(generationSemantics);
+  if (regenerateMessageId != null) {
+    const regenRow = msgRowsWithId.find((row) => row.id === regenerateMessageId);
+    if (isCanonAdoptedScene(regenRow?.usage)) {
+      return Response.json(
+        {
+          error: OOC_CANON_ADOPTION_COPY.regenBlocked,
+          code: "ooc_canon_adopted_regen_blocked",
+        },
+        { status: 409 }
+      );
+    }
+  }
   const msgRowsSource = filterCanonicalMessageRows(
     regenerationBoundaryForHistory
       ? regenerationBoundaryForHistory.historyRows
       : filterOutMessageIds(msgRowsWithId, [...regenerateHistoryDropIds])
   );
   const msgRows = msgRowsSource.map(
-    ({ role, content, model }) => ({ role, content, model: model ?? undefined })
+    ({ role, content, model, usage }) => ({
+      role,
+      content,
+      model: model ?? undefined,
+      usage,
+    })
   );
   const dialogueTurns = messagesToTurns(msgRows);
   const playableTurnCount = countPlayableTurns(dialogueTurns);
@@ -1115,7 +1135,9 @@ export async function POST(req: Request) {
 
   const recentRawForSceneClassification = turnsForRecentHistory
     .slice(-3)
-    .flatMap((turn) => [turn.user, turn.assistant])
+    .flatMap((turn) =>
+      turn.assistantOnly ? [turn.assistant] : [turn.user, turn.assistant]
+    )
     .join("\n");
   const sceneClassification = classifySceneMode({
     currentInput: storedUserMessage,
@@ -2696,11 +2718,12 @@ export async function POST(req: Request) {
             | { content: string; usage: string | null }
             | undefined;
           const content = row?.content ?? "";
-          const usage = row?.usage
+          const rawCompletedUsage = row?.usage
+            ? (JSON.parse(row.usage) as Usage)
+            : null;
+          const usage = rawCompletedUsage
             ? stripAdultRoutingForClient(
-                stripMuseAcceptanceFromUsage(
-                  JSON.parse(row.usage) as Usage
-                ),
+                stripMuseAcceptanceFromUsage(rawCompletedUsage),
                 { keepInternal: showFullBillingReceipt }
               )
             : null;
@@ -2714,6 +2737,7 @@ export async function POST(req: Request) {
             finalContent: content,
             usage,
             alreadyCompleted: true,
+            ...readOocSceneClientFlags(rawCompletedUsage),
           });
           persistenceDiag.finalized = true;
           persistenceDiag.recoveredOnLoad = true;
@@ -4765,6 +4789,7 @@ export async function POST(req: Request) {
           dbUsageRecord = mergeGenerationSemantics(dbUsageRecord, generationSemantics);
         }
         usageRecord = dbUsageRecord;
+        const oocClientFlags = readOocSceneClientFlags(dbUsageRecord);
         const variantUsageRecord: Usage = internalAdultRouteMeta
           ? { ...dbUsageRecord, adultRouting: internalAdultRouteMeta }
           : dbUsageRecord;
@@ -5559,6 +5584,7 @@ export async function POST(req: Request) {
             ? stripExtractedFactsForClient(statusWidgetValuesPayload)
             : null,
           generationStatus: persistedGenerationStatus,
+          ...oocClientFlags,
           htmlFlashTurn: (htmlVisualCardPolicyRef.enabled || chatOocRpUnrelated) && htmlFlashOnlyTurn,
           showStatusMarkdown: userMessageRequestsStatusWindowOoc(policyUserMessageRef),
           finalContent: savedText,

@@ -16,6 +16,7 @@ import { reconcileMemoryAfterTurnDelete } from "@/lib/memory/memory-reconcile";
 import { resolveMemoryTier } from "@/lib/memory/memory-manager";
 import { isMemoryFeatureEnabled } from "@/lib/memory/memory-feature";
 import { countChatTurns } from "@/lib/memory/memory-turn-loader";
+import { isCanonAdoptedScene, OOC_CANON_ADOPTION_COPY } from "@/lib/oocSceneRender";
 
 export async function DELETE(req: Request) {
   const user = await getSessionUser();
@@ -57,6 +58,21 @@ export async function DELETE(req: Request) {
   const lastTurn = getLastTurnMessageIds(cId);
   if (!lastTurn) {
     return NextResponse.json({ error: "삭제할 대화 턴이 없습니다." }, { status: 400 });
+  }
+
+  if (lastTurn.assistantId != null) {
+    const adoptedRow = db
+      .prepare("SELECT usage FROM messages WHERE id=? AND chat_id=?")
+      .get(lastTurn.assistantId, cId) as { usage?: unknown } | undefined;
+    if (isCanonAdoptedScene(adoptedRow?.usage)) {
+      return NextResponse.json(
+        {
+          error: OOC_CANON_ADOPTION_COPY.deleteProtected,
+          code: "ooc_canon_adopted_delete_blocked",
+        },
+        { status: 409 }
+      );
+    }
   }
 
   if (

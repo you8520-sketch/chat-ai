@@ -39,6 +39,7 @@ import AdultHandoffModelNotice from "@/components/AdultHandoffModelNotice";
 import FloatingPointsDeduction from "@/components/FloatingPointsDeduction";
 import BookmarksPanel from "@/components/BookmarksPanel";
 import MessageBubbleToolbar from "@/components/MessageBubbleToolbar";
+import OocCanonAdoptionCard from "@/components/OocCanonAdoptionCard";
 import ReportRefundButton from "@/components/ReportRefundButton";
 import ChatSelectionQuoteToolbar from "@/components/ChatSelectionQuoteToolbar";
 import MessageVariantPicker from "@/components/MessageVariantPicker";
@@ -87,6 +88,10 @@ import { shouldShowStatusMetaCard, chatUsesHtmlVisualStatusWindow } from "@/lib/
 import { partitionPlainStatusBlockForDisplay } from "@/lib/statusMeta/stripArtifacts";
 import { resolveActiveVariantContent } from "@/lib/messageAlternates";
 import type { Usage } from "@/lib/chatUsage";
+import {
+  isOocSceneAdoptionPromptEligible,
+  OOC_CANON_ADOPTION_COPY,
+} from "@/lib/oocSceneRender";
 import { dispatchPointsDeducted } from "@/lib/pointsEvents";
 import {
   USER_SELECTABLE_AI_OPTIONS,
@@ -257,6 +262,10 @@ type Msg = {
   requestId?: string;
   /** Streaming durability — messages.generation_status */
   generationStatus?: GenerationStatus | string;
+  /** Server-derived OOC scene-render flag. Not taken from public usage. */
+  oocSceneRender?: boolean;
+  /** Server-derived explicit canon adoption. Origin canonical stays false. */
+  canonAdopted?: boolean;
   /** UI 전용 — DB 미저장 */
   ephemeral?: boolean;
 };
@@ -857,6 +866,10 @@ export default function ChatClient({
       : "font-medium text-zinc-500 hover:text-zinc-300"
   }`;
   const [messages, setMessages] = useState<Msg[]>(initialMessages);
+  const [dismissedOocAdoptionIds, setDismissedOocAdoptionIds] = useState<Set<number>>(
+    () => new Set()
+  );
+  const [adoptingMessageId, setAdoptingMessageId] = useState<number | null>(null);
   const statusMetaPollStartedRef = useRef<Set<number>>(new Set());
   const suggestedRepliesPollStartedRef = useRef<Set<number>>(new Set());
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -2157,6 +2170,8 @@ export default function ChatClient({
       statusWidgetTurnActive?: boolean;
       statusWidgetValues?: ParsedStatusWidgetTurnValues | null;
       generationStatus?: GenerationStatus | string;
+      oocSceneRender?: boolean;
+      canonAdopted?: boolean;
     } | null = null;
 
     /** reset 후 첫 청크까지 기존 텍스트 유지 — "초안 작성 중" 깜빡임 방지 */
@@ -2457,6 +2472,8 @@ export default function ChatClient({
             suggestedRepliesFailed: false,
             createdAt: new Date().toISOString(),
             reportStatus: "none",
+            oocSceneRender: data.oocSceneRender === true,
+            canonAdopted: data.canonAdopted === true,
           };
           if (data.finalContent) applyEmotionRef.current(data.finalContent);
           clearChatStreamDraft(character.id, data.chatId ?? chatId);
@@ -3163,6 +3180,32 @@ export default function ChatClient({
     }
   }
 
+  async function adoptOocScene(assistantMessageId: number) {
+    if (!chatId || adoptingMessageId != null) return;
+    setAdoptingMessageId(assistantMessageId);
+    try {
+      const res = await fetch("/api/chat/ooc-scene/adopt", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chatId, assistantMessageId }),
+      });
+      const data = (await res.json()) as { error?: string; canonAdopted?: boolean };
+      if (!res.ok) {
+        setToastMsg(data.error || "본편 반영에 실패했습니다.");
+        return;
+      }
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === assistantMessageId ? { ...m, oocSceneRender: true, canonAdopted: true } : m
+        )
+      );
+    } catch {
+      setToastMsg("네트워크 오류가 발생했습니다.");
+    } finally {
+      setAdoptingMessageId(null);
+    }
+  }
+
   async function regenerate(targetAssistantMessageId?: number) {
     if (inFlightRef.current) {
       setToastMsg("이미 응답을 생성 중입니다. 잠시만 기다려 주세요.");
@@ -3179,6 +3222,10 @@ export default function ChatClient({
     const prevAssistant = messages[targetAssistantIdx];
     if (!prevAssistant || prevAssistant.role !== "assistant") {
       setToastMsg("재생성할 AI 답변이 없습니다.");
+      return;
+    }
+    if (prevAssistant.canonAdopted) {
+      setToastMsg(OOC_CANON_ADOPTION_COPY.regenBlocked);
       return;
     }
     if (!(await flushChatSettings())) return;
@@ -3738,8 +3785,8 @@ export default function ChatClient({
           usage={resolveActiveUsage(m.usage, m.variants, m.activeVariant)}
           isRefunded={m.isRefunded}
           bookmarked={bookmarkedIds.has(m.id!)}
-          showDelete={opts.onLastTurn}
-          showRegenerate={i === lastAssistantIdx && !inputLocked}
+          showDelete={opts.onLastTurn && !m.canonAdopted}
+          showRegenerate={i === lastAssistantIdx && !inputLocked && !m.canonAdopted}
           showFork
           disabled={inputLocked}
           showReportRefund={showReportRefund}
@@ -4512,6 +4559,7 @@ export default function ChatClient({
                           )}
                           {i === lastAssistantIdx &&
                             !loading &&
+                            !m.canonAdopted &&
                             isRetryableGenerationStatus(m.generationStatus) && (
                               <div className="mt-3 flex justify-center gap-2">
                                 <button
@@ -4533,6 +4581,30 @@ export default function ChatClient({
                         </>
                       );
                     })()}
+                    {!isEditing &&
+                    m.id != null &&
+                    (m.canonAdopted ||
+                      (isOocSceneAdoptionPromptEligible({
+                        role: m.role,
+                        oocSceneRender: m.oocSceneRender,
+                        canonAdopted: m.canonAdopted,
+                        generationStatus: m.generationStatus,
+                        content: m.content,
+                      }) &&
+                        !dismissedOocAdoptionIds.has(m.id))) ? (
+                      <OocCanonAdoptionCard
+                        adopted={m.canonAdopted === true}
+                        busy={adoptingMessageId === m.id}
+                        onKeepNoncanonical={() =>
+                          setDismissedOocAdoptionIds((prev) => {
+                            const next = new Set(prev);
+                            next.add(m.id!);
+                            return next;
+                          })
+                        }
+                        onAdopt={() => void adoptOocScene(m.id!)}
+                      />
+                    ) : null}
                     {renderAssistantMessageFooter(m, i, {
                       isEditing,
                       showToolbar,

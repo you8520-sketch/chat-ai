@@ -169,4 +169,6 @@ export type Usage = {
    */
   generationKind?: "ooc_scene_render" | "canonical";
   canonical?: boolean;
+  canonAdopted?: boolean;
+  canonAdoptedAt?: string;
 };
