@@ -246,18 +246,11 @@ async function streamProvider(
     reasoningEvents: 0,
   };
   try {
-    const { Agent } = await import("undici");
-    const dispatcher = new Agent({
-      headersTimeout: 10 * 60_000,
-      bodyTimeout: 0,
-      connectTimeout: 60_000,
-    });
     const res = await fetch(endpoint, {
       method: "POST",
       headers,
       body: JSON.stringify(body),
-      // @ts-expect-error Node fetch undici dispatcher
-      dispatcher,
+      signal: AbortSignal.timeout(10 * 60_000),
     });
     if (!res.ok) {
       return {
