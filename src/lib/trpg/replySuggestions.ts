@@ -1,12 +1,11 @@
 import type Database from "better-sqlite3";
 import {
-  adaptCheaperInferenceChatBody,
   buildCheaperInferenceHeaders,
   CHEAPER_INFERENCE_CHAT_COMPLETIONS_URL,
   resolveCheaperInferenceApiKey,
 } from "@/lib/cheaperInferenceConfig";
 import { isMockApiMode } from "@/lib/mockApiMode";
-import { isTrpgActionType, TRPG_ACTION_TYPES, type TrpgActionType } from "./actionTypes";
+import { actionTypeLabelKo, isTrpgActionType, TRPG_ACTION_TYPES, type TrpgActionType } from "./actionTypes";
 import { clipTrpgChars } from "./clip";
 import { parseHumanPersona, type TrpgHumanPersona } from "./hostPersona";
 import { TRPG_SCENARIO_DRAFT_MODEL } from "./scenarioDraft";
@@ -15,7 +14,7 @@ import { loadCampaign, loadLatestRound, loadParticipants } from "./store";
 import { TRPG_ACTION_MAX_CHARS } from "./types";
 
 export const TRPG_REPLY_SUGGESTION_MODEL = TRPG_SCENARIO_DRAFT_MODEL;
-export const TRPG_REPLY_SUGGESTION_MAX_TOKENS = 512;
+export const TRPG_REPLY_SUGGESTION_MAX_TOKENS = 1000;
 export const TRPG_REPLY_SUGGESTION_TIMEOUT_MS = 45_000;
 export const TRPG_REPLY_SUGGESTION_COOLDOWN_MS = 4_000;
 export const TRPG_REPLY_STYLE_MAX_CHARS = 1200;
@@ -168,6 +167,85 @@ Output:
   return { system, user };
 }
 
+const ACTION_TYPE_ALIASES: Record<string, TrpgActionType> = Object.fromEntries(
+  TRPG_ACTION_TYPES.flatMap((kind) => {
+    const pairs: Array<[string, TrpgActionType]> = [
+      [kind, kind],
+      [kind.replaceAll("_", "-"), kind],
+      [kind.replaceAll("_", " "), kind],
+      [actionTypeLabelKo(kind), kind],
+    ];
+    return pairs;
+  })
+) as Record<string, TrpgActionType>;
+
+function coerceActionType(value: unknown): TrpgActionType | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (isTrpgActionType(trimmed)) return trimmed;
+  const lower = trimmed.toLowerCase();
+  if (isTrpgActionType(lower)) return lower;
+  return ACTION_TYPE_ALIASES[trimmed] ?? ACTION_TYPE_ALIASES[lower] ?? null;
+}
+
+function readSuggestionActionType(row: Record<string, unknown>): TrpgActionType | null {
+  return coerceActionType(row.actionType ?? row.action_type ?? row.type);
+}
+
+function messageContentToText(content: unknown): string {
+  if (content == null) return "";
+  if (typeof content === "string") return content.trim();
+  if (Array.isArray(content)) {
+    return content.map(messageContentToText).filter(Boolean).join("\n").trim();
+  }
+  if (typeof content === "object") {
+    const row = content as { text?: unknown; content?: unknown };
+    if (typeof row.text === "string") return row.text.trim();
+    if (row.content != null && row.content !== content) return messageContentToText(row.content);
+  }
+  return "";
+}
+
+/**
+ * Flash/Pro completions sometimes put the visible JSON in content parts or
+ * `reasoning_content` instead of a plain `message.content` string.
+ */
+export function extractReplySuggestionCompletionText(data: unknown): string {
+  if (!data || typeof data !== "object") return "";
+  const choices = (data as { choices?: unknown }).choices;
+  const first = Array.isArray(choices) ? choices[0] : null;
+  const message = first && typeof first === "object" ? (first as { message?: unknown }).message : null;
+  if (!message || typeof message !== "object") return "";
+  const row = message as { content?: unknown; reasoning_content?: unknown; reasoning?: unknown };
+  return (
+    messageContentToText(row.content) ||
+    messageContentToText(row.reasoning_content) ||
+    messageContentToText(row.reasoning)
+  );
+}
+
+/**
+ * Isolated from RP `adaptCheaperInferenceChatBody`, which deletes
+ * `reasoning_effort` for DeepSeek V4 Flash/Pro. `thinking.disabled` alone
+ * does not actually turn reasoning off on this family, so the 1000-token
+ * suggestion call spends the budget on hidden thinking and returns empty
+ * visible content — the room then stays on 「예시 만드는 중…」 or comes
+ * back with no list.
+ */
+export function adaptTrpgReplySuggestionChatBody(body: Record<string, unknown>): Record<string, unknown> {
+  const adapted = { ...body };
+  delete adapted.session_id;
+  delete adapted.frequency_penalty;
+  delete adapted.presence_penalty;
+  delete adapted.repetition_penalty;
+  delete adapted.include_reasoning;
+  delete adapted.reasoning;
+  adapted.thinking = { type: "disabled" };
+  adapted.reasoning_effort = "none";
+  return adapted;
+}
+
 export function parseReplySuggestions(raw: string): TrpgReplySuggestion[] {
   let parsed: unknown = null;
   try {
@@ -191,14 +269,14 @@ export function parseReplySuggestions(raw: string): TrpgReplySuggestion[] {
   const out: TrpgReplySuggestion[] = [];
   for (const item of rows) {
     if (!item || typeof item !== "object" || Array.isArray(item)) continue;
-    const row = item as { actionType?: unknown; text?: unknown };
-    const actionType = typeof row.actionType === "string" && isTrpgActionType(row.actionType) ? row.actionType : null;
-    const text = clipTrpgChars(String(row.text ?? ""), TRPG_ACTION_MAX_CHARS);
+    const row = item as Record<string, unknown>;
+    const actionType = readSuggestionActionType(row);
+    const text = clipTrpgChars(String(row.text ?? row.body ?? ""), TRPG_ACTION_MAX_CHARS);
     if (!actionType || !text) continue;
     out.push({ actionType, text });
     if (out.length === 3) break;
   }
-  if (out.length !== 3) throw new Error("행동 예시는 3개여야 합니다.");
+  if (out.length < 1) throw new Error("행동 예시를 읽지 못했습니다.");
   return out;
 }
 
@@ -218,7 +296,7 @@ export async function callTrpgReplySuggestionModel(opts: {
   if (isMockApiMode()) {
     return { text: MOCK_SUGGESTIONS, model };
   }
-  const body = adaptCheaperInferenceChatBody({
+  const body = adaptTrpgReplySuggestionChatBody({
     model,
     messages: [
       { role: "system", content: opts.system },
@@ -240,10 +318,10 @@ export async function callTrpgReplySuggestionModel(opts: {
     throw new Error(`[TRPG reply] ${res.status}: ${errText.slice(0, 240)}`);
   }
   const data = (await res.json()) as {
-    choices?: { message?: { content?: string } }[];
+    choices?: { message?: { content?: unknown; reasoning_content?: unknown } }[];
     usage?: { prompt_tokens?: number; completion_tokens?: number };
   };
-  const text = data.choices?.[0]?.message?.content?.trim() ?? "";
+  const text = extractReplySuggestionCompletionText(data);
   if (!text) throw new Error("[TRPG reply] empty completion");
   return {
     text,

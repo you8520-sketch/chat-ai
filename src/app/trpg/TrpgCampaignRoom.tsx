@@ -104,6 +104,7 @@ export default function TrpgCampaignRoom({
   hostFill,
   suggestions,
   suggestionsBusy,
+  suggestionsError,
   onActionTypeChange,
   onActionBodyChange,
   onPartyBodyChange,
@@ -132,6 +133,7 @@ export default function TrpgCampaignRoom({
   onHostFillChange: (value: string) => void;
   suggestions: TrpgReplySuggestion[];
   suggestionsBusy: boolean;
+  suggestionsError: string;
   onRequestSuggestions: () => void;
   onPickSuggestion: (suggestion: TrpgReplySuggestion) => void;
   onSendAction: () => void;
@@ -426,6 +428,9 @@ export default function TrpgCampaignRoom({
                   행동 제출
                 </button>
               </div>
+              {suggestionsError ? (
+                <p className="mt-2 text-sm text-rose-200">{suggestionsError}</p>
+              ) : null}
               {suggestions.length > 0 ? (
                 <ul className="mt-3 space-y-2">
                   {suggestions.map((item) => (
