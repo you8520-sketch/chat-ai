@@ -205,6 +205,7 @@ export function ensureTrpgTables(db: Database.Database): void {
   addColumn("trpg_campaign_state", "next_round_context", "TEXT NOT NULL DEFAULT ''");
   addColumn("trpg_participants", "persona_json", "TEXT NOT NULL DEFAULT ''");
   addColumn("trpg_action_submissions", "input_origin", "TEXT NOT NULL DEFAULT 'manual'");
+  addColumn("trpg_rounds", "billing_breakdown_json", "TEXT");
   addColumn("trpg_scenarios", "default_pc_stats_json", "TEXT NOT NULL DEFAULT ''");
   db.exec(
     `CREATE UNIQUE INDEX IF NOT EXISTS idx_trpg_campaigns_invite
@@ -280,7 +281,7 @@ export function ensureTrpgTables(db: Database.Database): void {
       points_spent INTEGER NOT NULL,
       reward_amount REAL NOT NULL,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      UNIQUE(round_id, consumer_user_id, creator_id, role)
+      UNIQUE(round_id, consumer_user_id, creator_id, role, character_id)
     );
     CREATE INDEX IF NOT EXISTS idx_trpg_creator_earnings_round
       ON trpg_creator_earnings(round_id, consumer_user_id);
@@ -296,6 +297,7 @@ export function ensureTrpgTables(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_trpg_party_messages_campaign
       ON trpg_party_messages(campaign_id, id DESC);
   `);
+  migrateTrpgCreatorEarningsUnique(db);
 }
 
 function tableExists(db: Database.Database, name: string): boolean {
@@ -303,4 +305,40 @@ function tableExists(db: Database.Database, name: string): boolean {
     .prepare(`SELECT 1 AS ok FROM sqlite_master WHERE type='table' AND name=?`)
     .get(name) as { ok: number } | undefined;
   return Boolean(row);
+}
+
+function migrateTrpgCreatorEarningsUnique(db: Database.Database): void {
+  if (!tableExists(db, "trpg_creator_earnings")) return;
+  const sql =
+    (
+      db.prepare(`SELECT sql FROM sqlite_master WHERE type='table' AND name='trpg_creator_earnings'`).get() as
+        | { sql: string }
+        | undefined
+    )?.sql ?? "";
+  if (sql.includes("UNIQUE(round_id, consumer_user_id, creator_id, role, character_id)")) return;
+  if (!sql.includes("UNIQUE(round_id, consumer_user_id, creator_id, role)")) return;
+  db.exec(`
+    ALTER TABLE trpg_creator_earnings RENAME TO trpg_creator_earnings_legacy;
+    CREATE TABLE trpg_creator_earnings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      round_id INTEGER NOT NULL,
+      campaign_id INTEGER NOT NULL,
+      consumer_user_id INTEGER NOT NULL,
+      creator_id INTEGER NOT NULL,
+      role TEXT NOT NULL,
+      character_id INTEGER,
+      points_spent INTEGER NOT NULL,
+      reward_amount REAL NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      UNIQUE(round_id, consumer_user_id, creator_id, role, character_id)
+    );
+    INSERT INTO trpg_creator_earnings (
+      id, round_id, campaign_id, consumer_user_id, creator_id, role, character_id, points_spent, reward_amount, created_at
+    )
+    SELECT id, round_id, campaign_id, consumer_user_id, creator_id, role, character_id, points_spent, reward_amount, created_at
+    FROM trpg_creator_earnings_legacy;
+    DROP TABLE trpg_creator_earnings_legacy;
+    CREATE INDEX IF NOT EXISTS idx_trpg_creator_earnings_round
+      ON trpg_creator_earnings(round_id, consumer_user_id);
+  `);
 }

@@ -552,6 +552,14 @@ describe("TRPG campaign loop", () => {
       await advanceTrpgCampaign(db, { campaignId, userId: 1, deps });
     }
     assert.equal(seals, 1);
+    const usageRows = db
+      .prepare(`SELECT usage_json FROM trpg_rounds WHERE campaign_id=? AND usage_json IS NOT NULL`)
+      .all(campaignId) as Array<{ usage_json: string }>;
+    assert.ok(usageRows.length > 0);
+    for (const row of usageRows) {
+      const calls = JSON.parse(row.usage_json) as Array<{ modelId?: string }>;
+      assert.ok(calls.length >= 1 && calls.length <= 2, "usage is GM and optional bot only");
+    }
     let nextUser = "";
     const follow: TrpgEngineDeps = {
       ...deps,

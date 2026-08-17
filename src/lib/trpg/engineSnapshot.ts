@@ -8,6 +8,7 @@ import { loadTrpgPartyChat } from "./partyChat";
 import { trpgInvitePath } from "./invite";
 import { parseHumanPersona } from "./hostPersona";
 import { splitTrpgRoundCost } from "./billing";
+import { parseBillingBreakdown } from "./economics";
 import {
   loadCampaign,
   loadLatestRound,
@@ -374,6 +375,8 @@ export function loadTrpgSnapshot(
     log,
     workType: work.type,
     lastBilledPoints: lastBilled?.billed_points ?? null,
+    partyHumanCount: parts.filter((p) => p.kind === "human").length,
+    partyBotCount: parts.filter((p) => p.kind === "ai_character").length,
     gmGrossMargin: TRPG_GM_GROSS_MARGIN,
     botGrossMargin: TRPG_BOT_GROSS_MARGIN,
     partyChat: opts?.includePartyChat === false ? [] : loadTrpgPartyChat(db, campaignId, viewerUserId),
@@ -449,7 +452,8 @@ function loadLog(
 ): TrpgPublicLog[] {
   const rounds = db
     .prepare(
-      `SELECT id, round_number, phase, COALESCE(billed,0) AS billed, COALESCE(billed_points,0) AS billed_points
+      `SELECT id, round_number, phase, COALESCE(billed,0) AS billed, COALESCE(billed_points,0) AS billed_points,
+              billing_breakdown_json
        FROM trpg_rounds WHERE campaign_id=? ORDER BY round_number ASC`
     )
     .all(campaignId) as Array<{
@@ -458,21 +462,30 @@ function loadLog(
     phase: string;
     billed: number;
     billed_points: number;
+    billing_breakdown_json?: string | null;
   }>;
   return rounds.map((row) => {
     const gm = db
       .prepare(`SELECT narration FROM trpg_gm_messages WHERE round_id=?`)
       .get(row.id) as { narration: string } | undefined;
     const billedPoints = gm?.narration || row.billed === 1 ? row.billed_points : null;
+    const breakdown = parseBillingBreakdown(row.billing_breakdown_json);
     const viewerSharePoints =
       billedPoints == null
         ? null
-        : splitTrpgRoundCost({
+        : breakdown?.perUserShares.find((share) => share.userId === billing.viewerUserId)?.total ??
+          splitTrpgRoundCost({
             totalPoints: billedPoints,
             humanUserIds: billing.humanUserIds,
             hostUserId: billing.hostUserId,
             mode: billing.mode,
-          }).find((share) => share.userId === billing.viewerUserId)?.points ?? 0;
+          }).find((share) => share.userId === billing.viewerUserId)?.points ??
+          0;
+    const hint = breakdown?.valuePricingEnabled
+      ? "GM/AI 이용료 포함 · 제작자 지원 포함"
+      : breakdown
+        ? "GM/AI 이용료 포함"
+        : undefined;
     return {
       roundNumber: row.round_number,
       rolls: loadRolls(db, row.id),
@@ -480,6 +493,9 @@ function loadLog(
       actions: loadActions(db, row.id, viewerParticipantId),
       billedPoints,
       viewerSharePoints,
+      humanCount: breakdown?.humanCount,
+      botCount: breakdown?.botCount,
+      billingHint: hint,
     };
   });
 }

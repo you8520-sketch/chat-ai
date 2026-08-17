@@ -386,6 +386,8 @@ export default function TrpgCampaignRoom({
               scenarioAssets={snap.scenarioAssets ?? []}
               isFreshLogKey={isFreshLogKey}
               liveRolls={row.roundNumber === snap.round.number ? snap.currentRolls : []}
+              partyHumanCount={snap.partyHumanCount}
+              partyBotCount={snap.partyBotCount}
               onReroll={() => onReroll(row.roundNumber)}
               onImage={() =>
                 openSceneImage({
@@ -584,6 +586,8 @@ function SceneTurn({
   scenarioAssets,
   isFreshLogKey,
   liveRolls,
+  partyHumanCount,
+  partyBotCount,
   onReroll,
   onImage,
 }: {
@@ -598,6 +602,8 @@ function SceneTurn({
   scenarioAssets: CharacterAsset[];
   isFreshLogKey: (key: string) => boolean;
   liveRolls: TrpgPublicRoll[];
+  partyHumanCount?: number;
+  partyBotCount?: number;
   onReroll: () => void;
   onImage: () => void;
 }) {
@@ -689,6 +695,9 @@ function SceneTurn({
         <TrpgSceneToolbar
           billedPoints={row.billedPoints}
           viewerSharePoints={row.viewerSharePoints}
+          humanCount={row.humanCount ?? partyHumanCount}
+          botCount={row.botCount ?? partyBotCount}
+          billingHint={row.billingHint}
           canReroll={canReroll}
           canImage={canImage}
           busy={busy}

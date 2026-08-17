@@ -11,6 +11,9 @@ const toolbarBtn =
 export default function TrpgSceneToolbar({
   billedPoints,
   viewerSharePoints,
+  humanCount,
+  botCount,
+  billingHint,
   canReroll,
   canImage,
   busy,
@@ -19,6 +22,9 @@ export default function TrpgSceneToolbar({
 }: {
   billedPoints: number | null;
   viewerSharePoints: number | null;
+  humanCount?: number;
+  botCount?: number;
+  billingHint?: string;
   canReroll: boolean;
   canImage: boolean;
   busy: boolean;
@@ -58,11 +64,16 @@ export default function TrpgSceneToolbar({
           ) : null}
         </div>
         {showPoints ? (
-          <p className="text-[11px] tabular-nums text-zinc-400">
+          <p
+            className="text-[11px] tabular-nums text-zinc-400"
+            title={billingHint || "GM/AI 이용료 포함"}
+          >
             <span className="font-semibold text-zinc-200">{formatPoints(billedPoints)}P</span>
             {viewerSharePoints != null ? (
               <span>{` · 내 분담 ${formatPoints(viewerSharePoints)}P`}</span>
             ) : null}
+            {humanCount != null ? <span>{` · 참가 ${humanCount}명`}</span> : null}
+            {botCount != null ? <span>{` · AI ${botCount}`}</span> : null}
           </p>
         ) : null}
       </div>

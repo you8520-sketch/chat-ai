@@ -66,6 +66,9 @@ export type TrpgPublicLog = {
   actions: TrpgPublicAction[];
   billedPoints: number | null;
   viewerSharePoints: number | null;
+  humanCount?: number;
+  botCount?: number;
+  billingHint?: string;
 };
 
 export type TrpgPartyChatMessage = {
@@ -118,6 +121,8 @@ export type TrpgCampaignSnapshot = {
   log: TrpgPublicLog[];
   workType: string;
   lastBilledPoints: number | null;
+  partyHumanCount: number;
+  partyBotCount: number;
   gmGrossMargin: number;
   botGrossMargin: number;
   partyChat: TrpgPartyChatMessage[];

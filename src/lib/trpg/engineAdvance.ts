@@ -4,6 +4,12 @@ import { parseGenresJson } from "@/lib/characterGenres";
 import { deductPoints, getPointBalance } from "@/lib/points";
 import { paidCreatorRewardSpend, resolveCreatorRewardRate } from "@/lib/creatorPoints";
 import { creditTrpgRoundCreatorRewards, loadTrpgCharacterRoyaltyTargets } from "./creatorRewards";
+import {
+  isTrpgValuePricingEnabled,
+  quoteTrpgRoundEconomics,
+  scaleCreatorShares,
+  toBillingBreakdown,
+} from "./economics";
 import { isTrpgActionType, pickStatForAction } from "./actionTypes";
 import { actionNeedsCheck } from "./actionCheck";
 import {
@@ -913,46 +919,82 @@ function chargeTrpgCalls(
     }
     return;
   }
-  const humans = loadParticipants(db, campaign.id)
-    .filter((p) => p.kind === "human" && p.user_id)
-    .map((p) => p.user_id!);
-  const shares = splitTrpgRoundCost({
-    totalPoints: addPoints,
+  const parts = loadParticipants(db, campaign.id);
+  const humans = parts.filter((p) => p.kind === "human" && p.user_id).map((p) => p.user_id!);
+  const botCount = parts.filter((p) => p.kind === "ai_character").length;
+  const authorUserId = campaign.author_user_id ?? null;
+  const authorRate = authorUserId ? resolveCreatorRewardRate(authorUserId) : 0;
+  const characterCreators = loadTrpgCharacterRoyaltyTargets(db, campaign.id);
+  const valuePricing = isTrpgValuePricingEnabled();
+  const quote = quoteTrpgRoundEconomics({
+    modelSubtotal: addPoints,
     humanUserIds: humans,
     hostUserId: campaign.host_user_id,
-    mode: campaign.billing_mode as TrpgBillingMode,
+    billingMode: campaign.billing_mode as TrpgBillingMode,
+    authorUserId,
+    authorRate,
+    characterSeats: characterCreators,
+    botCount,
+    valuePricingEnabled: valuePricing,
   });
-  for (const share of shares) {
+  const payers = valuePricing
+    ? quote.perUserShares.map((row) => ({ userId: row.userId, points: row.total, quote: row }))
+    : splitTrpgRoundCost({
+        totalPoints: addPoints,
+        humanUserIds: humans,
+        hostUserId: campaign.host_user_id,
+        mode: campaign.billing_mode as TrpgBillingMode,
+      }).map((share) => ({ userId: share.userId, points: share.points, quote: null }));
+  for (const share of payers) {
     if (share.points <= 0) continue;
     if (getPointBalance(share.userId).total < share.points) {
       throw new Error("포인트가 부족합니다.");
     }
   }
-  for (const share of shares) {
+  for (const share of payers) {
     if (share.points <= 0) continue;
     const result = deductPoints(share.userId, share.points, `trpg-round:${roundId}`);
     const paidSpend = paidCreatorRewardSpend(result.slices);
+    if (valuePricing) {
+      const paidRatio = share.points > 0 ? paidSpend / share.points : 0;
+      creditTrpgRoundCreatorRewards(db, {
+        campaignId: campaign.id,
+        roundId,
+        consumerUserId: share.userId,
+        paidSpend,
+        authorUserId,
+        authorRate,
+        characterCreators,
+        shares: scaleCreatorShares(share.quote?.creatorShares ?? [], paidRatio),
+      });
+      continue;
+    }
     if (paidSpend <= 0) continue;
-    const authorUserId = campaign.author_user_id ?? null;
     creditTrpgRoundCreatorRewards(db, {
       campaignId: campaign.id,
       roundId,
       consumerUserId: share.userId,
       paidSpend,
       authorUserId,
-      authorRate: authorUserId ? resolveCreatorRewardRate(authorUserId) : 0,
-      characterCreators: loadTrpgCharacterRoyaltyTargets(db, campaign.id),
+      authorRate,
+      characterCreators,
     });
   }
+  const billedTotal = valuePricing ? quote.roundTotal : addPoints;
+  const breakdown = JSON.stringify(toBillingBreakdown(quote));
   if (opts.addToBilled) {
     db.prepare(
       `UPDATE trpg_rounds
-       SET billed=1, billed_points=COALESCE(billed_points,0)+?
+       SET billed=1, billed_points=COALESCE(billed_points,0)+?, billing_breakdown_json=?
        WHERE id=?`
-    ).run(addPoints, roundId);
+    ).run(billedTotal, breakdown, roundId);
     return;
   }
-  db.prepare(`UPDATE trpg_rounds SET billed=1, billed_points=? WHERE id=?`).run(addPoints, roundId);
+  db.prepare(`UPDATE trpg_rounds SET billed=1, billed_points=?, billing_breakdown_json=? WHERE id=?`).run(
+    billedTotal,
+    breakdown,
+    roundId
+  );
 }
 
 function loadActionsForGm(
