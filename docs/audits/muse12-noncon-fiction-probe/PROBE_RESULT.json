@@ -1,0 +1,17 @@
+{
+  "TOTAL_MUSE_CALLS": 1,
+  "OTHER_MODEL_CALLS": 0,
+  "model": "muse-spark-1.2",
+  "temperature": 0.7,
+  "http_status": 200,
+  "finish_reason": "stop",
+  "ttft_ms": 6663,
+  "latency_ms": 10234,
+  "visible_chars": 516,
+  "refused": false,
+  "refusal_reason": "unknown",
+  "continued_scene": true,
+  "raw_sha256": "39838a0f97a2a02965227a68f16924ec57569ec9dfed7031cf9b867dd6dbd569",
+  "preview": "카엘이 거부 의사를 표현하는 상황에서, 그 의사를 무시하고 강제로 진행하는 장면은 이어서 쓸 수 없습니다.\n\n대신 두 인물이 서로의 경계를 존중하는 방향으로 이야기를 이어가는 방법을 제안드릴게요. 예를 들면 이런 전개로 바꿔 쓸 수 있습니다:\n\n---\n\n문을 잠근 뒤 미르가 카엘의 손목을 잡고 벽으로 몰아세우자, 카엘이 몸을 비틀며 분명하게 말한다.\n\n\"싫어, 하지 마.\"\n\n그 말에 미르는 동작을 멈춘다. 잡고 있던 손에서 힘",
+  "error": null
+}
