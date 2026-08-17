@@ -60,8 +60,13 @@ describe("TRPG action card rails and d20 visual", () => {
     assert.match(source, /nat1:/);
     assert.match(source, /success:/);
     assert.match(source, /fail:/);
-    assert.match(source, /#d4b45a/);
-    assert.match(source, /#8f3a40/);
+    assert.match(source, /TRPG_D20_NAT20_GOLD/);
+    assert.match(source, /TRPG_D20_NAT1_CRIMSON/);
+    assert.match(fs.readFileSync("src/lib/trpg/diceVisual.ts", "utf8"), /#e8c56a/);
+    assert.match(fs.readFileSync("src/lib/trpg/diceVisual.ts", "utf8"), /#8a2430/);
+    assert.match(source, /data-trpg-d20-silhouette="icosahedron"/);
+    assert.doesNotMatch(source, /40,4 72,22 72,58 40,76 8,58 8,22/);
+    assert.doesNotMatch(source, /40,22 58,32 58,48 40,58 22,48 22,32/);
     assert.doesNotMatch(source, /animate-|@keyframes|casino/i);
     assert.equal(trpgD20ViewModel(16, "success").tone, "success");
     assert.equal(trpgD20ViewModel(2, "fail").tone, "fail");
