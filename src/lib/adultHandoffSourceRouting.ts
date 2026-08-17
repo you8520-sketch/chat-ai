@@ -12,6 +12,10 @@ import {
   normalizeDeepSeekV4ProModelId,
 } from "@/lib/chatModels";
 import type { AdultSceneHardFailureReason } from "@/lib/adultSceneModelPolicy";
+import {
+  resolveMuseSourceStyleFingerprintBlock,
+  stripMuseSourceStyleFingerprint,
+} from "@/lib/museSourceStyleFingerprint";
 
 export type AdultHandoffIdentityState = {
   adultHandoffSourceModelId?: string;
@@ -135,25 +139,28 @@ export function appendSourceSpecificMuseAdapterToUserTurn(
   userTurnContent: string,
   sourceModelId?: string,
   adultTargetModelId?: string,
-  terminalOwner?: string
+  terminalOwner?: string,
+  lastVisibleCanonicalAssistantRaw?: string
 ): string {
   const adapter = resolveSourceSpecificMuseAdapter(sourceModelId, adultTargetModelId);
   if (!adapter) return userTurnContent;
-  if (userTurnContent.includes(adapter)) {
-    if (terminalOwner && userTurnContent.includes(terminalOwner)) {
-      const withoutTerminal = userTurnContent.split(terminalOwner).join("").trimEnd();
-      if (withoutTerminal.endsWith(adapter) || withoutTerminal.includes(adapter)) {
-        const withoutAdapter = withoutTerminal.split(adapter).join("").trimEnd();
-        return `${withoutAdapter}\n\n${adapter}\n\n${terminalOwner}`;
-      }
-    }
-    return userTurnContent;
+  const fingerprint = resolveMuseSourceStyleFingerprintBlock({
+    lastVisibleCanonicalAssistantRaw,
+    adultTargetModelId,
+  });
+  let body = userTurnContent;
+  if (terminalOwner && body.includes(terminalOwner)) {
+    body = body.split(terminalOwner).join("").trimEnd();
   }
-  if (terminalOwner && userTurnContent.includes(terminalOwner)) {
-    const withoutTerminal = userTurnContent.split(terminalOwner).join("").trimEnd();
-    return `${withoutTerminal}\n\n${adapter}\n\n${terminalOwner}`;
+  body = stripMuseSourceStyleFingerprint(body);
+  if (body.includes(adapter)) {
+    body = body.split(adapter).join("").trimEnd();
   }
-  return `${userTurnContent.trimEnd()}\n\n${adapter}`;
+  const parts = [body.trimEnd()];
+  if (fingerprint) parts.push(fingerprint);
+  parts.push(adapter);
+  if (terminalOwner) parts.push(terminalOwner);
+  return parts.filter(Boolean).join("\n\n");
 }
 
 export function resolveSourceSpecificQwenAdapter(

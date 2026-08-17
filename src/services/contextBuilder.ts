@@ -153,6 +153,7 @@ import { isTerraTerminalLengthOwnerActive } from "@/lib/sharedNovelProseModelAda
 import type { OpenRouterSystemSplit } from "@/lib/openRouterCache";
 import { estimateOpenRouterCacheableTokens, buildOpenRouterDynamicLoreUserPrefix, HISTORY_CACHE_TAIL_EXCLUDE_MESSAGES } from "@/lib/openRouterCache";
 import { appendSourceSpecificMuseAdapterToUserTurn } from "@/lib/adultHandoffSourceRouting";
+import { lastAssistantRawFromHistory } from "@/lib/museSourceStyleFingerprint";
 import { isCheaperInferenceDeepSeekV4FlashModel, isDeepSeekModel, isDeepSeekV4ProModel, isQwenModel } from "@/lib/chatModels";
 import { DEEPSEEK_APPEARANCE_VARIATION_RULE } from "@/lib/appearanceCompiler";
 import { buildCoNarrationKoreanRule } from "@/lib/openRouterAdult";
@@ -1411,7 +1412,8 @@ export function buildContext(input: ContextBuildInput): BuiltContext {
     userTurnContent,
     input.adultHandoffSourceModelId,
     input.adultHandoffTargetModelId,
-    USER_TAIL_LENGTH_OWNER_SENTENCE
+    USER_TAIL_LENGTH_OWNER_SENTENCE,
+    lastAssistantRawFromHistory(input.shortTermHistory)
   );
   const estimatePayloadTokens = (hist: ContextBuildInput["shortTermHistory"]) =>
     estimateTokens(

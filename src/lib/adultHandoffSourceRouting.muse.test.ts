@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import { adaptCheaperInferenceChatBody } from "./cheaperInferenceConfig";
 import {
   CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+  CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
   CHEAPER_INFERENCE_GEMINI_31_PRO_PREVIEW_MODEL,
   CHEAPER_INFERENCE_MUSE_SPARK_12_MODEL,
   CHEAPER_INFERENCE_QWEN_38_MAX_MODEL,
@@ -22,6 +23,7 @@ import {
 } from "./adultHandoffSourceRouting";
 import { appendAdultHandoffPrompt } from "./adultSceneRouting";
 import { USER_TAIL_LENGTH_OWNER_SENTENCE } from "./responseLength";
+import { MUSE_SOURCE_STYLE_FINGERPRINT_HEADER } from "./museSourceStyleFingerprint";
 
 const LIKE_SPECIFIC_V1_PHRASES = [
   "미세한 환경음과 거리감",
@@ -154,5 +156,65 @@ describe("Muse Spark 1.2 production continuity candidate", () => {
     assert.equal(Object.prototype.hasOwnProperty.call(adapted, "thinking"), false);
     assert.equal(isCheaperInferenceMuseSpark12Model(adapted.model as string), true);
     assert.equal(selectedAILabel(CHEAPER_INFERENCE_MUSE_SPARK_12_MODEL), "Muse Spark 1.2");
+  });
+
+  it("places fingerprint once before Generic Mirror and keeps terminal last", () => {
+    const lastRaw = Array.from({ length: 12 }, (_, i) => {
+      let p = `문단 ${i}. 창밖 공기가 조금 달라졌다. `;
+      while (p.length < 180) p += "이어지는 서술 문장이다. ";
+      return p;
+    }).join("\n\n");
+    const once = appendSourceSpecificMuseAdapterToUserTurn(
+      "이대로 더 해도 돼.",
+      CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+      CHEAPER_INFERENCE_MUSE_SPARK_12_MODEL,
+      USER_TAIL_LENGTH_OWNER_SENTENCE,
+      lastRaw
+    );
+    const twice = appendSourceSpecificMuseAdapterToUserTurn(
+      once,
+      CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+      CHEAPER_INFERENCE_MUSE_SPARK_12_MODEL,
+      USER_TAIL_LENGTH_OWNER_SENTENCE,
+      lastRaw
+    );
+    assert.equal(once.split(MUSE_SOURCE_STYLE_FINGERPRINT_HEADER).length - 1, 1);
+    assert.equal(once.split(MUSE_SOURCE_CONTINUITY_STYLE_MIRROR).length - 1, 1);
+    assert.equal(twice, once);
+    assert.ok(
+      once.indexOf(MUSE_SOURCE_STYLE_FINGERPRINT_HEADER) <
+        once.indexOf(MUSE_SOURCE_CONTINUITY_STYLE_MIRROR)
+    );
+    assert.ok(
+      once.indexOf(MUSE_SOURCE_CONTINUITY_STYLE_MIRROR) <
+        once.indexOf(USER_TAIL_LENGTH_OWNER_SENTENCE)
+    );
+    assert.ok(once.trimEnd().endsWith(USER_TAIL_LENGTH_OWNER_SENTENCE));
+  });
+
+  it("does not leak fingerprint onto Qwen or DeepSeek targets", () => {
+    const lastRaw = Array.from({ length: 12 }, (_, i) => {
+      let p = `문단 ${i}. 창밖 공기가 조금 달라졌다. `;
+      while (p.length < 180) p += "이어지는 서술 문장이다. ";
+      return p;
+    }).join("\n\n");
+    const qwen = appendSourceSpecificMuseAdapterToUserTurn(
+      "이대로 더 해도 돼.",
+      CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+      CHEAPER_INFERENCE_QWEN_38_MAX_MODEL,
+      USER_TAIL_LENGTH_OWNER_SENTENCE,
+      lastRaw
+    );
+    const deepseek = appendSourceSpecificMuseAdapterToUserTurn(
+      "이대로 더 해도 돼.",
+      CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+      CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL,
+      USER_TAIL_LENGTH_OWNER_SENTENCE,
+      lastRaw
+    );
+    assert.equal(qwen.includes(MUSE_SOURCE_STYLE_FINGERPRINT_HEADER), false);
+    assert.equal(deepseek.includes(MUSE_SOURCE_STYLE_FINGERPRINT_HEADER), false);
+    assert.equal(qwen.includes(MUSE_SOURCE_CONTINUITY_STYLE_MIRROR), false);
+    assert.equal(deepseek.includes(MUSE_SOURCE_CONTINUITY_STYLE_MIRROR), false);
   });
 });

@@ -20,6 +20,7 @@ import {
   MUSE_SOURCE_CONTINUITY_STYLE_MIRROR,
   OPUS_QWEN_FRAGMENT_SENTENCE,
 } from "@/lib/adultHandoffSourceRouting";
+import { MUSE_SOURCE_STYLE_FINGERPRINT_HEADER } from "@/lib/museSourceStyleFingerprint";
 import { USER_TAIL_LENGTH_OWNER_SENTENCE } from "@/lib/responseLength";
 import type { CharacterChunk } from "@/types";
 
@@ -101,5 +102,35 @@ describe("buildContext — Muse source continuity on current-user recency", () =
     });
     const user = built.history.at(-1)?.content ?? "";
     assert.equal(user.includes(MUSE_SOURCE_CONTINUITY_STYLE_MIRROR), false);
+    assert.equal(user.includes(MUSE_SOURCE_STYLE_FINGERPRINT_HEADER), false);
+  });
+
+  it("places the source fingerprint before Generic Mirror when last assistant is long", () => {
+    const lastAssistant = Array.from({ length: 12 }, (_, i) => {
+      let p = `문단 ${i}. 창밖 공기가 조금 달라졌다. `;
+      while (p.length < 180) p += "이어지는 서술 문장이다. ";
+      return p;
+    }).join("\n\n");
+    const built = buildContext({
+      charName: "Test",
+      chunks: [sampleChunk],
+      userNickname: "User",
+      shortTermHistory: [{ role: "assistant", content: lastAssistant }],
+      currentUserMessage: "이대로 더 해도 돼.",
+      nsfw: true,
+      modelId: CHEAPER_INFERENCE_MUSE_SPARK_12_MODEL,
+      provider: "cheaperinference",
+      adultHandoffSourceModelId: CHEAPER_INFERENCE_CLAUDE_OPUS_5_MODEL,
+      adultHandoffTargetModelId: CHEAPER_INFERENCE_MUSE_SPARK_12_MODEL,
+    });
+    const user = built.history.at(-1)?.content ?? "";
+    assert.equal(user.split(MUSE_SOURCE_STYLE_FINGERPRINT_HEADER).length - 1, 1);
+    assert.equal(user.split(MUSE_SOURCE_CONTINUITY_STYLE_MIRROR).length - 1, 1);
+    assert.ok(
+      user.indexOf(MUSE_SOURCE_STYLE_FINGERPRINT_HEADER) <
+        user.indexOf(MUSE_SOURCE_CONTINUITY_STYLE_MIRROR)
+    );
+    assert.ok(user.trimEnd().endsWith(USER_TAIL_LENGTH_OWNER_SENTENCE));
+    assert.equal(built.systemPrompt.includes(MUSE_SOURCE_STYLE_FINGERPRINT_HEADER), false);
   });
 });
