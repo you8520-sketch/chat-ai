@@ -335,7 +335,7 @@ export default function TrpgScenarioEditor({
       if (data.draft.startInventory.length) setInventoryText(data.draft.startInventory.join(", "));
       if (data.draft.npcs.length) setNpcs(data.draft.npcs);
       setPlan(data.draft.plan);
-      setTouchedFields((prev) => [...new Set([...prev, "difficulty", "playLength"])]);
+      setTouchedFields((prev) => [...new Set<TrpgScenarioDraftField>([...prev, "difficulty", "playLength"])]);
       setReadiness(data.readiness ?? null);
       setLintMessages((data.lint ?? []).map((item) => item.message));
       setAdvancedOpen(true);
