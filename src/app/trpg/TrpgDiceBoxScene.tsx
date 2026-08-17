@@ -34,14 +34,21 @@ function colorsetForTone(tone: TrpgD20Tone) {
   };
 }
 
+function renderBox(box: DiceBox) {
+  box.renderer.render(box.scene, box.camera);
+}
+
 function applyWideCamera(box: DiceBox) {
-  box.camera.position.set(0, -520, 780);
+  const far = box.cameraHeight.far;
+  box.camera.position.set(0, -far * 0.16, far);
   box.camera.lookAt(0, 0, 0);
+  renderBox(box);
 }
 
 function applyCloseCamera(box: DiceBox, target: { x: number; y: number; z: number }) {
-  box.camera.position.set(target.x + 36, target.y - 210, 320);
-  box.camera.lookAt(target.x, target.y, 28);
+  box.camera.position.set(target.x + 70, target.y - 380, 560);
+  box.camera.lookAt(target.x, target.y, 36);
+  renderBox(box);
 }
 
 export default function TrpgDiceBoxScene({

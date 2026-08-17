@@ -55,6 +55,7 @@ declare module "@3d-dice/dice-box-threejs" {
     renderer: {
       dispose: () => void;
       domElement: HTMLCanvasElement;
+      render: (scene: unknown, camera: unknown) => void;
     };
     desk: { receiveShadow: boolean };
     diceList: Array<{ position: { x: number; y: number; z: number } }>;

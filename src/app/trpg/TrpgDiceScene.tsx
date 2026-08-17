@@ -177,9 +177,9 @@ export default function TrpgDiceScene({
     host.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(34, width / height, 0.1, 40);
-    camera.position.set(0.2, 1.62, 3.35);
-    camera.lookAt(0, 0.12, 0);
+    const camera = new THREE.PerspectiveCamera(36, width / height, 0.1, 40);
+    camera.position.set(0.28, 1.95, 4.15);
+    camera.lookAt(0, 0.05, 0);
 
     const key = new THREE.DirectionalLight(0xf3efe6, reducedQuality ? 1.15 : 1.7);
     key.position.set(-2.4, 3.4, 2.6);
