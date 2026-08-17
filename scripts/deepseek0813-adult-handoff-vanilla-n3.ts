@@ -697,7 +697,8 @@ async function main() {
         VISIBLE_KOREAN_CHARS: countKoreanChars(resp.text),
         INPUT_TOKENS: usage.promptTokens || null,
         COMPLETION_TOKENS: usage.completionTokens || null,
-        REASONING_TOKENS: usage.reasoningTokens || null,
+        REASONING_TOKENS:
+          usage.reasoningTokens > 0 ? usage.reasoningTokens : resp.usageRaw != null ? 0 : null,
         CACHE_READ_TOKENS: usage.cacheReadTokens || null,
         CACHE_WRITE_TOKENS: usage.cacheWriteTokens || null,
         ACTUAL_COST_USD: actualCost,
@@ -889,14 +890,14 @@ async function main() {
     const row = rows.find((r) => r.cell === c.runtimeCell);
     runtimeBlind[opusIds[i]] = row
       ? pickRuntime(row)
-      : { note: "existing_muse_positive_no_new_runtime" };
+      : { note: "existing_reference_no_new_runtime" };
   });
   geminiShuffled.forEach((c, i) => {
     reveal[geminiIds[i]] = { kind: c.kind, path: c.path, runtimeCell: c.runtimeCell };
     const row = rows.find((r) => r.cell === c.runtimeCell);
     runtimeBlind[geminiIds[i]] = row
       ? pickRuntime(row)
-      : { note: "existing_muse_positive_no_new_runtime" };
+      : { note: "existing_reference_no_new_runtime" };
   });
   save("DEEPSEEK0813_VS_MUSE_REVEAL_MAP.json", {
     note: "Do not consult before quality scoring.",

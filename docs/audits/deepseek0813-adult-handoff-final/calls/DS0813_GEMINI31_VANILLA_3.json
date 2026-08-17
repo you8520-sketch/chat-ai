@@ -1,0 +1,82 @@
+{
+  "cell": "DS0813_GEMINI31_VANILLA_3",
+  "source": "gemini31",
+  "condition": "VANILLA",
+  "sample": 3,
+  "REQUESTED_MODEL": "deepseek-v4-pro-0813",
+  "RESOLVED_MODEL": "deepseek-v4-pro-0813",
+  "RESPONSE_MODEL": "deepseek-v4-pro-0813",
+  "HTTP_STATUS": 200,
+  "REQUEST_START_TIMESTAMP": "2026-08-17T05:48:30.555Z",
+  "FIRST_VISIBLE_TOKEN_TIMESTAMP": "2026-08-17T05:50:04.850Z",
+  "STREAM_END_TIMESTAMP": "2026-08-17T05:50:28.444Z",
+  "TTFT_MS": 94295,
+  "TOTAL_LATENCY_MS": 117889,
+  "VISIBLE_CHARS": 2592,
+  "VISIBLE_KOREAN_CHARS": 1802,
+  "INPUT_TOKENS": 14052,
+  "COMPLETION_TOKENS": 7121,
+  "REASONING_TOKENS": null,
+  "CACHE_READ_TOKENS": null,
+  "CACHE_WRITE_TOKENS": null,
+  "ACTUAL_COST_USD": 0.004657,
+  "UPSTREAM_INFERENCE_COST_USD": 0.004657,
+  "COST_PER_1000_VISIBLE_CHARS": 0.001796682098765432,
+  "CHARS_PER_COMPLETION_TOKEN": 0.3639938210925432,
+  "COMPLETION_TOKENS_PER_1000_VISIBLE_CHARS": 2747.2993827160494,
+  "FINISH_REASON": "stop",
+  "TERMINAL_USAGE_PRESENT": true,
+  "STREAM_DONE_PRESENT": true,
+  "INCOMPLETE_STREAM": false,
+  "REASONING_STREAM_SEEN": true,
+  "REASONING_TEXT_CHARS": 15126,
+  "REASONING_TOKENS_REPORTED": 0,
+  "FALLBACK_COUNT": 0,
+  "RETRY_COUNT": 0,
+  "CONTINUATION_COUNT": 0,
+  "RECOVERY_COUNT": 0,
+  "generation": {
+    "temperature": 0.92,
+    "top_p": 0.92,
+    "max_tokens": null,
+    "thinking": {
+      "type": "disabled"
+    },
+    "reasoning_effort": null,
+    "stream": true,
+    "model": "deepseek-v4-pro-0813"
+  },
+  "sourceSha": "e9c618f9c8b5856abf8f392713327807d728091ea01dfb5b6e3eb714123ba64e",
+  "outputSha": "645a61d92ff597ce4b1afc9f37ada5e93924f41e288de3f561c4b523fd0063c2",
+  "structure": {
+    "PARAGRAPH_COUNT": 19,
+    "PARAGRAPHS_PER_1000_CHARS": 7.330246913580247,
+    "ONE_SENTENCE_PARAGRAPH_COUNT": 7,
+    "ONE_SENTENCE_PARAGRAPH_SHARE": 0.3684210526315789,
+    "AVG_PARAGRAPH_CHARS": 134.52631578947367,
+    "MEDIAN_PARAGRAPH_CHARS": 149,
+    "DIALOGUE_BLOCK_COUNT": 8,
+    "DIALOGUE_BLOCKS_PER_1000_CHARS": 3.0864197530864197,
+    "AVG_DIALOGUE_BLOCK_CHARS": 17.875,
+    "ADJACENT_SAME_SPEAKER_DIALOGUE_BLOCKS": 0,
+    "SENTENCE_COUNT": 72,
+    "AVG_SENTENCES_PER_PARAGRAPH": 3.789473684210526
+  },
+  "mechanical": {
+    "EMPTY_OUTPUT": false,
+    "FOREIGN_SCRIPT_HITS": 0,
+    "REFUSAL_MARKER": false,
+    "META_LEAK_MARKER": false,
+    "REPETITION_LOOP_DETECTED": false
+  },
+  "usageRaw": {
+    "prompt_tokens": 14052,
+    "completion_tokens": 7121,
+    "total_tokens": 21173,
+    "cost": 0.004657,
+    "cost_details": {
+      "upstream_inference_cost": 0.004657
+    }
+  },
+  "error": null
+}

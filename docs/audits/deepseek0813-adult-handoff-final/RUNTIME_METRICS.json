@@ -1,10 +1,723 @@
 {
-  "computed": false,
-  "TOTAL_NEW_DEEPSEEK_CALLS": 0,
-  "HTTP_RESULTS": [],
-  "FINISH_REASONS": [],
-  "TERMINAL_USAGE_PRESENT": [],
-  "INCOMPLETE_STREAMS": [],
-  "REASONING_STREAM_SEEN": [],
-  "REASONING_TOKENS_REPORTED": []
+  "headSha": "c55864cf52128dc1e909cc6defb20a85ec33222d",
+  "model": "deepseek-v4-pro-0813",
+  "provider": "cheaperinference",
+  "endpoint": "https://api.cheaperinference.com/v1/chat/completions",
+  "timeoutMs": 240000,
+  "DEEPSEEK0813_LENGTH_RESCUE_TEST_RUN": false,
+  "DEEPSEEK_POSITIVE_PROMPT_NOT_PROVABLE": true,
+  "rows": [
+    {
+      "cell": "DS0813_OPUS_VANILLA_1",
+      "source": "opus",
+      "condition": "VANILLA",
+      "sample": 1,
+      "REQUESTED_MODEL": "deepseek-v4-pro-0813",
+      "RESOLVED_MODEL": "deepseek-v4-pro-0813",
+      "RESPONSE_MODEL": "deepseek-v4-pro-0813",
+      "HTTP_STATUS": 200,
+      "REQUEST_START_TIMESTAMP": "2026-08-17T05:36:37.818Z",
+      "FIRST_VISIBLE_TOKEN_TIMESTAMP": "2026-08-17T05:36:41.931Z",
+      "STREAM_END_TIMESTAMP": "2026-08-17T05:38:12.106Z",
+      "TTFT_MS": 4113,
+      "TOTAL_LATENCY_MS": 94288,
+      "VISIBLE_CHARS": 4771,
+      "VISIBLE_KOREAN_CHARS": 3265,
+      "INPUT_TOKENS": 15290,
+      "COMPLETION_TOKENS": 3648,
+      "REASONING_TOKENS": null,
+      "CACHE_READ_TOKENS": null,
+      "CACHE_WRITE_TOKENS": null,
+      "ACTUAL_COST_USD": 0.006931,
+      "UPSTREAM_INFERENCE_COST_USD": 0.006931,
+      "COST_PER_1000_VISIBLE_CHARS": 0.001452735275623559,
+      "CHARS_PER_COMPLETION_TOKEN": 1.3078399122807018,
+      "COMPLETION_TOKENS_PER_1000_VISIBLE_CHARS": 764.6195766086774,
+      "FINISH_REASON": "stop",
+      "TERMINAL_USAGE_PRESENT": true,
+      "STREAM_DONE_PRESENT": true,
+      "INCOMPLETE_STREAM": false,
+      "REASONING_STREAM_SEEN": false,
+      "REASONING_TEXT_CHARS": 0,
+      "REASONING_TOKENS_REPORTED": 0,
+      "FALLBACK_COUNT": 0,
+      "RETRY_COUNT": 0,
+      "CONTINUATION_COUNT": 0,
+      "RECOVERY_COUNT": 0,
+      "generation": {
+        "temperature": 0.92,
+        "top_p": 0.92,
+        "max_tokens": null,
+        "thinking": {
+          "type": "disabled"
+        },
+        "reasoning_effort": null,
+        "stream": true,
+        "model": "deepseek-v4-pro-0813"
+      },
+      "sourceSha": "f49f3f9d489ba75d1485d2840209fbc2c5c87e5d9c6cd208f235a074ed5cf818",
+      "outputSha": "5687cdb2f7d2d6cfeed3dab3ef7d96f978da1d8b5a97765cc991e97c1828f819",
+      "structure": {
+        "PARAGRAPH_COUNT": 57,
+        "PARAGRAPHS_PER_1000_CHARS": 11.947180884510585,
+        "ONE_SENTENCE_PARAGRAPH_COUNT": 27,
+        "ONE_SENTENCE_PARAGRAPH_SHARE": 0.47368421052631576,
+        "AVG_PARAGRAPH_CHARS": 81.73684210526316,
+        "MEDIAN_PARAGRAPH_CHARS": 39,
+        "DIALOGUE_BLOCK_COUNT": 26,
+        "DIALOGUE_BLOCKS_PER_1000_CHARS": 5.449591280653951,
+        "AVG_DIALOGUE_BLOCK_CHARS": 21,
+        "ADJACENT_SAME_SPEAKER_DIALOGUE_BLOCKS": 0,
+        "SENTENCE_COUNT": 155,
+        "AVG_SENTENCES_PER_PARAGRAPH": 2.719298245614035
+      },
+      "mechanical": {
+        "EMPTY_OUTPUT": false,
+        "FOREIGN_SCRIPT_HITS": 0,
+        "REFUSAL_MARKER": false,
+        "META_LEAK_MARKER": false,
+        "REPETITION_LOOP_DETECTED": false
+      },
+      "usageRaw": {
+        "prompt_tokens": 15290,
+        "completion_tokens": 3648,
+        "total_tokens": 18938,
+        "cost": 0.006931,
+        "cost_details": {
+          "upstream_inference_cost": 0.006931
+        }
+      },
+      "error": null
+    },
+    {
+      "cell": "DS0813_OPUS_VANILLA_2",
+      "source": "opus",
+      "condition": "VANILLA",
+      "sample": 2,
+      "REQUESTED_MODEL": "deepseek-v4-pro-0813",
+      "RESOLVED_MODEL": "deepseek-v4-pro-0813",
+      "RESPONSE_MODEL": "deepseek-v4-pro-0813",
+      "HTTP_STATUS": 200,
+      "REQUEST_START_TIMESTAMP": "2026-08-17T05:38:12.869Z",
+      "FIRST_VISIBLE_TOKEN_TIMESTAMP": "2026-08-17T05:40:10.785Z",
+      "STREAM_END_TIMESTAMP": "2026-08-17T05:41:30.169Z",
+      "TTFT_MS": 117916,
+      "TOTAL_LATENCY_MS": 197300,
+      "VISIBLE_CHARS": 5061,
+      "VISIBLE_KOREAN_CHARS": 3466,
+      "INPUT_TOKENS": 15290,
+      "COMPLETION_TOKENS": 9187,
+      "REASONING_TOKENS": null,
+      "CACHE_READ_TOKENS": null,
+      "CACHE_WRITE_TOKENS": null,
+      "ACTUAL_COST_USD": 0.005928,
+      "UPSTREAM_INFERENCE_COST_USD": 0.005928,
+      "COST_PER_1000_VISIBLE_CHARS": 0.001171310017783047,
+      "CHARS_PER_COMPLETION_TOKEN": 0.5508871231087407,
+      "COMPLETION_TOKENS_PER_1000_VISIBLE_CHARS": 1815.2539023908319,
+      "FINISH_REASON": "stop",
+      "TERMINAL_USAGE_PRESENT": true,
+      "STREAM_DONE_PRESENT": true,
+      "INCOMPLETE_STREAM": false,
+      "REASONING_STREAM_SEEN": true,
+      "REASONING_TEXT_CHARS": 7323,
+      "REASONING_TOKENS_REPORTED": 0,
+      "FALLBACK_COUNT": 0,
+      "RETRY_COUNT": 0,
+      "CONTINUATION_COUNT": 0,
+      "RECOVERY_COUNT": 0,
+      "generation": {
+        "temperature": 0.92,
+        "top_p": 0.92,
+        "max_tokens": null,
+        "thinking": {
+          "type": "disabled"
+        },
+        "reasoning_effort": null,
+        "stream": true,
+        "model": "deepseek-v4-pro-0813"
+      },
+      "sourceSha": "f49f3f9d489ba75d1485d2840209fbc2c5c87e5d9c6cd208f235a074ed5cf818",
+      "outputSha": "2157309876de55e9f4724cfe710c0f88c0a88d45ef4dd1777b5e2a90618f16d9",
+      "structure": {
+        "PARAGRAPH_COUNT": 50,
+        "PARAGRAPHS_PER_1000_CHARS": 9.879470460383324,
+        "ONE_SENTENCE_PARAGRAPH_COUNT": 17,
+        "ONE_SENTENCE_PARAGRAPH_SHARE": 0.34,
+        "AVG_PARAGRAPH_CHARS": 99.26,
+        "MEDIAN_PARAGRAPH_CHARS": 45,
+        "DIALOGUE_BLOCK_COUNT": 22,
+        "DIALOGUE_BLOCKS_PER_1000_CHARS": 4.346967002568663,
+        "AVG_DIALOGUE_BLOCK_CHARS": 16.59090909090909,
+        "ADJACENT_SAME_SPEAKER_DIALOGUE_BLOCKS": 0,
+        "SENTENCE_COUNT": 186,
+        "AVG_SENTENCES_PER_PARAGRAPH": 3.72
+      },
+      "mechanical": {
+        "EMPTY_OUTPUT": false,
+        "FOREIGN_SCRIPT_HITS": 0,
+        "REFUSAL_MARKER": false,
+        "META_LEAK_MARKER": false,
+        "REPETITION_LOOP_DETECTED": false
+      },
+      "usageRaw": {
+        "prompt_tokens": 15290,
+        "completion_tokens": 9187,
+        "total_tokens": 24477,
+        "cost": 0.005928,
+        "cost_details": {
+          "upstream_inference_cost": 0.005928
+        }
+      },
+      "error": null
+    },
+    {
+      "cell": "DS0813_OPUS_VANILLA_3",
+      "source": "opus",
+      "condition": "VANILLA",
+      "sample": 3,
+      "REQUESTED_MODEL": "deepseek-v4-pro-0813",
+      "RESOLVED_MODEL": "deepseek-v4-pro-0813",
+      "RESPONSE_MODEL": "deepseek-v4-pro-0813",
+      "HTTP_STATUS": 200,
+      "REQUEST_START_TIMESTAMP": "2026-08-17T05:41:31.468Z",
+      "FIRST_VISIBLE_TOKEN_TIMESTAMP": "2026-08-17T05:42:09.673Z",
+      "STREAM_END_TIMESTAMP": "2026-08-17T05:43:41.877Z",
+      "TTFT_MS": 38205,
+      "TOTAL_LATENCY_MS": 130409,
+      "VISIBLE_CHARS": 6027,
+      "VISIBLE_KOREAN_CHARS": 4131,
+      "INPUT_TOKENS": 15290,
+      "COMPLETION_TOKENS": 6435,
+      "REASONING_TOKENS": null,
+      "CACHE_READ_TOKENS": null,
+      "CACHE_WRITE_TOKENS": null,
+      "ACTUAL_COST_USD": 0.004252,
+      "UPSTREAM_INFERENCE_COST_USD": 0.004252,
+      "COST_PER_1000_VISIBLE_CHARS": 0.0007054919528787124,
+      "CHARS_PER_COMPLETION_TOKEN": 0.9365967365967366,
+      "COMPLETION_TOKENS_PER_1000_VISIBLE_CHARS": 1067.6953708312594,
+      "FINISH_REASON": "stop",
+      "TERMINAL_USAGE_PRESENT": true,
+      "STREAM_DONE_PRESENT": true,
+      "INCOMPLETE_STREAM": false,
+      "REASONING_STREAM_SEEN": true,
+      "REASONING_TEXT_CHARS": 6173,
+      "REASONING_TOKENS_REPORTED": 0,
+      "FALLBACK_COUNT": 0,
+      "RETRY_COUNT": 0,
+      "CONTINUATION_COUNT": 0,
+      "RECOVERY_COUNT": 0,
+      "generation": {
+        "temperature": 0.92,
+        "top_p": 0.92,
+        "max_tokens": null,
+        "thinking": {
+          "type": "disabled"
+        },
+        "reasoning_effort": null,
+        "stream": true,
+        "model": "deepseek-v4-pro-0813"
+      },
+      "sourceSha": "f49f3f9d489ba75d1485d2840209fbc2c5c87e5d9c6cd208f235a074ed5cf818",
+      "outputSha": "1b122b32d63b767d9425f97b844e1dd07ea879f70584bcfc91031347b3d629fd",
+      "structure": {
+        "PARAGRAPH_COUNT": 61,
+        "PARAGRAPHS_PER_1000_CHARS": 10.12112161937946,
+        "ONE_SENTENCE_PARAGRAPH_COUNT": 20,
+        "ONE_SENTENCE_PARAGRAPH_SHARE": 0.32786885245901637,
+        "AVG_PARAGRAPH_CHARS": 96.8360655737705,
+        "MEDIAN_PARAGRAPH_CHARS": 46,
+        "DIALOGUE_BLOCK_COUNT": 25,
+        "DIALOGUE_BLOCKS_PER_1000_CHARS": 4.148000663680106,
+        "AVG_DIALOGUE_BLOCK_CHARS": 20.28,
+        "ADJACENT_SAME_SPEAKER_DIALOGUE_BLOCKS": 0,
+        "SENTENCE_COUNT": 220,
+        "AVG_SENTENCES_PER_PARAGRAPH": 3.6065573770491803
+      },
+      "mechanical": {
+        "EMPTY_OUTPUT": false,
+        "FOREIGN_SCRIPT_HITS": 0,
+        "REFUSAL_MARKER": false,
+        "META_LEAK_MARKER": false,
+        "REPETITION_LOOP_DETECTED": false
+      },
+      "usageRaw": {
+        "prompt_tokens": 15290,
+        "completion_tokens": 6435,
+        "total_tokens": 21725,
+        "cost": 0.004252,
+        "cost_details": {
+          "upstream_inference_cost": 0.004252
+        }
+      },
+      "error": null
+    },
+    {
+      "cell": "DS0813_GEMINI31_VANILLA_1",
+      "source": "gemini31",
+      "condition": "VANILLA",
+      "sample": 1,
+      "REQUESTED_MODEL": "deepseek-v4-pro-0813",
+      "RESOLVED_MODEL": "deepseek-v4-pro-0813",
+      "RESPONSE_MODEL": "deepseek-v4-pro-0813",
+      "HTTP_STATUS": 200,
+      "REQUEST_START_TIMESTAMP": "2026-08-17T05:43:43.066Z",
+      "FIRST_VISIBLE_TOKEN_TIMESTAMP": "2026-08-17T05:44:23.321Z",
+      "STREAM_END_TIMESTAMP": "2026-08-17T05:45:29.154Z",
+      "TTFT_MS": 40255,
+      "TOTAL_LATENCY_MS": 106088,
+      "VISIBLE_CHARS": 4085,
+      "VISIBLE_KOREAN_CHARS": 2795,
+      "INPUT_TOKENS": 14052,
+      "COMPLETION_TOKENS": 5009,
+      "REASONING_TOKENS": null,
+      "CACHE_READ_TOKENS": null,
+      "CACHE_WRITE_TOKENS": null,
+      "ACTUAL_COST_USD": 0.006533,
+      "UPSTREAM_INFERENCE_COST_USD": 0.006533,
+      "COST_PER_1000_VISIBLE_CHARS": 0.0015992656058751529,
+      "CHARS_PER_COMPLETION_TOKEN": 0.8155320423238172,
+      "COMPLETION_TOKENS_PER_1000_VISIBLE_CHARS": 1226.1933904528764,
+      "FINISH_REASON": "stop",
+      "TERMINAL_USAGE_PRESENT": true,
+      "STREAM_DONE_PRESENT": true,
+      "INCOMPLETE_STREAM": false,
+      "REASONING_STREAM_SEEN": true,
+      "REASONING_TEXT_CHARS": 6552,
+      "REASONING_TOKENS_REPORTED": 0,
+      "FALLBACK_COUNT": 0,
+      "RETRY_COUNT": 0,
+      "CONTINUATION_COUNT": 0,
+      "RECOVERY_COUNT": 0,
+      "generation": {
+        "temperature": 0.92,
+        "top_p": 0.92,
+        "max_tokens": null,
+        "thinking": {
+          "type": "disabled"
+        },
+        "reasoning_effort": null,
+        "stream": true,
+        "model": "deepseek-v4-pro-0813"
+      },
+      "sourceSha": "e9c618f9c8b5856abf8f392713327807d728091ea01dfb5b6e3eb714123ba64e",
+      "outputSha": "623b8cf37ed1c4b2c544775fa7dbf858fbea45cd4439d9f648d8ec995d85e5fb",
+      "structure": {
+        "PARAGRAPH_COUNT": 41,
+        "PARAGRAPHS_PER_1000_CHARS": 10.036719706242351,
+        "ONE_SENTENCE_PARAGRAPH_COUNT": 10,
+        "ONE_SENTENCE_PARAGRAPH_SHARE": 0.24390243902439024,
+        "AVG_PARAGRAPH_CHARS": 97.48780487804878,
+        "MEDIAN_PARAGRAPH_CHARS": 60,
+        "DIALOGUE_BLOCK_COUNT": 18,
+        "DIALOGUE_BLOCKS_PER_1000_CHARS": 4.406364749082008,
+        "AVG_DIALOGUE_BLOCK_CHARS": 19.055555555555557,
+        "ADJACENT_SAME_SPEAKER_DIALOGUE_BLOCKS": 0,
+        "SENTENCE_COUNT": 131,
+        "AVG_SENTENCES_PER_PARAGRAPH": 3.1951219512195124
+      },
+      "mechanical": {
+        "EMPTY_OUTPUT": false,
+        "FOREIGN_SCRIPT_HITS": 0,
+        "REFUSAL_MARKER": false,
+        "META_LEAK_MARKER": false,
+        "REPETITION_LOOP_DETECTED": false
+      },
+      "usageRaw": {
+        "prompt_tokens": 14052,
+        "completion_tokens": 5009,
+        "total_tokens": 19061,
+        "cost": 0.006533,
+        "cost_details": {
+          "upstream_inference_cost": 0.006533
+        }
+      },
+      "error": null
+    },
+    {
+      "cell": "DS0813_GEMINI31_VANILLA_2",
+      "source": "gemini31",
+      "condition": "VANILLA",
+      "sample": 2,
+      "REQUESTED_MODEL": "deepseek-v4-pro-0813",
+      "RESOLVED_MODEL": "deepseek-v4-pro-0813",
+      "RESPONSE_MODEL": "deepseek-v4-pro-0813",
+      "HTTP_STATUS": 200,
+      "REQUEST_START_TIMESTAMP": "2026-08-17T05:45:30.301Z",
+      "FIRST_VISIBLE_TOKEN_TIMESTAMP": "2026-08-17T05:46:48.360Z",
+      "STREAM_END_TIMESTAMP": "2026-08-17T05:48:29.353Z",
+      "TTFT_MS": 78059,
+      "TOTAL_LATENCY_MS": 179052,
+      "VISIBLE_CHARS": 5929,
+      "VISIBLE_KOREAN_CHARS": 4125,
+      "INPUT_TOKENS": 14052,
+      "COMPLETION_TOKENS": 8912,
+      "REASONING_TOKENS": null,
+      "CACHE_READ_TOKENS": null,
+      "CACHE_WRITE_TOKENS": null,
+      "ACTUAL_COST_USD": 0.005747,
+      "UPSTREAM_INFERENCE_COST_USD": 0.005747,
+      "COST_PER_1000_VISIBLE_CHARS": 0.0009693034238488784,
+      "CHARS_PER_COMPLETION_TOKEN": 0.6652827648114902,
+      "COMPLETION_TOKENS_PER_1000_VISIBLE_CHARS": 1503.1202563670097,
+      "FINISH_REASON": "stop",
+      "TERMINAL_USAGE_PRESENT": true,
+      "STREAM_DONE_PRESENT": true,
+      "INCOMPLETE_STREAM": false,
+      "REASONING_STREAM_SEEN": true,
+      "REASONING_TEXT_CHARS": 6066,
+      "REASONING_TOKENS_REPORTED": 0,
+      "FALLBACK_COUNT": 0,
+      "RETRY_COUNT": 0,
+      "CONTINUATION_COUNT": 0,
+      "RECOVERY_COUNT": 0,
+      "generation": {
+        "temperature": 0.92,
+        "top_p": 0.92,
+        "max_tokens": null,
+        "thinking": {
+          "type": "disabled"
+        },
+        "reasoning_effort": null,
+        "stream": true,
+        "model": "deepseek-v4-pro-0813"
+      },
+      "sourceSha": "e9c618f9c8b5856abf8f392713327807d728091ea01dfb5b6e3eb714123ba64e",
+      "outputSha": "f1e24649ba844ea2086b23772107b746a8f6e5eec81ef9a89fb22a8b9884c2e1",
+      "structure": {
+        "PARAGRAPH_COUNT": 46,
+        "PARAGRAPHS_PER_1000_CHARS": 7.758475290942823,
+        "ONE_SENTENCE_PARAGRAPH_COUNT": 10,
+        "ONE_SENTENCE_PARAGRAPH_SHARE": 0.21739130434782608,
+        "AVG_PARAGRAPH_CHARS": 126.93478260869566,
+        "MEDIAN_PARAGRAPH_CHARS": 118,
+        "DIALOGUE_BLOCK_COUNT": 18,
+        "DIALOGUE_BLOCKS_PER_1000_CHARS": 3.035925113847192,
+        "AVG_DIALOGUE_BLOCK_CHARS": 29.444444444444443,
+        "ADJACENT_SAME_SPEAKER_DIALOGUE_BLOCKS": 0,
+        "SENTENCE_COUNT": 147,
+        "AVG_SENTENCES_PER_PARAGRAPH": 3.1956521739130435
+      },
+      "mechanical": {
+        "EMPTY_OUTPUT": false,
+        "FOREIGN_SCRIPT_HITS": 0,
+        "REFUSAL_MARKER": false,
+        "META_LEAK_MARKER": false,
+        "REPETITION_LOOP_DETECTED": false
+      },
+      "usageRaw": {
+        "prompt_tokens": 14052,
+        "completion_tokens": 8912,
+        "total_tokens": 22964,
+        "cost": 0.005747,
+        "cost_details": {
+          "upstream_inference_cost": 0.005747
+        }
+      },
+      "error": null
+    },
+    {
+      "cell": "DS0813_GEMINI31_VANILLA_3",
+      "source": "gemini31",
+      "condition": "VANILLA",
+      "sample": 3,
+      "REQUESTED_MODEL": "deepseek-v4-pro-0813",
+      "RESOLVED_MODEL": "deepseek-v4-pro-0813",
+      "RESPONSE_MODEL": "deepseek-v4-pro-0813",
+      "HTTP_STATUS": 200,
+      "REQUEST_START_TIMESTAMP": "2026-08-17T05:48:30.555Z",
+      "FIRST_VISIBLE_TOKEN_TIMESTAMP": "2026-08-17T05:50:04.850Z",
+      "STREAM_END_TIMESTAMP": "2026-08-17T05:50:28.444Z",
+      "TTFT_MS": 94295,
+      "TOTAL_LATENCY_MS": 117889,
+      "VISIBLE_CHARS": 2592,
+      "VISIBLE_KOREAN_CHARS": 1802,
+      "INPUT_TOKENS": 14052,
+      "COMPLETION_TOKENS": 7121,
+      "REASONING_TOKENS": null,
+      "CACHE_READ_TOKENS": null,
+      "CACHE_WRITE_TOKENS": null,
+      "ACTUAL_COST_USD": 0.004657,
+      "UPSTREAM_INFERENCE_COST_USD": 0.004657,
+      "COST_PER_1000_VISIBLE_CHARS": 0.001796682098765432,
+      "CHARS_PER_COMPLETION_TOKEN": 0.3639938210925432,
+      "COMPLETION_TOKENS_PER_1000_VISIBLE_CHARS": 2747.2993827160494,
+      "FINISH_REASON": "stop",
+      "TERMINAL_USAGE_PRESENT": true,
+      "STREAM_DONE_PRESENT": true,
+      "INCOMPLETE_STREAM": false,
+      "REASONING_STREAM_SEEN": true,
+      "REASONING_TEXT_CHARS": 15126,
+      "REASONING_TOKENS_REPORTED": 0,
+      "FALLBACK_COUNT": 0,
+      "RETRY_COUNT": 0,
+      "CONTINUATION_COUNT": 0,
+      "RECOVERY_COUNT": 0,
+      "generation": {
+        "temperature": 0.92,
+        "top_p": 0.92,
+        "max_tokens": null,
+        "thinking": {
+          "type": "disabled"
+        },
+        "reasoning_effort": null,
+        "stream": true,
+        "model": "deepseek-v4-pro-0813"
+      },
+      "sourceSha": "e9c618f9c8b5856abf8f392713327807d728091ea01dfb5b6e3eb714123ba64e",
+      "outputSha": "645a61d92ff597ce4b1afc9f37ada5e93924f41e288de3f561c4b523fd0063c2",
+      "structure": {
+        "PARAGRAPH_COUNT": 19,
+        "PARAGRAPHS_PER_1000_CHARS": 7.330246913580247,
+        "ONE_SENTENCE_PARAGRAPH_COUNT": 7,
+        "ONE_SENTENCE_PARAGRAPH_SHARE": 0.3684210526315789,
+        "AVG_PARAGRAPH_CHARS": 134.52631578947367,
+        "MEDIAN_PARAGRAPH_CHARS": 149,
+        "DIALOGUE_BLOCK_COUNT": 8,
+        "DIALOGUE_BLOCKS_PER_1000_CHARS": 3.0864197530864197,
+        "AVG_DIALOGUE_BLOCK_CHARS": 17.875,
+        "ADJACENT_SAME_SPEAKER_DIALOGUE_BLOCKS": 0,
+        "SENTENCE_COUNT": 72,
+        "AVG_SENTENCES_PER_PARAGRAPH": 3.789473684210526
+      },
+      "mechanical": {
+        "EMPTY_OUTPUT": false,
+        "FOREIGN_SCRIPT_HITS": 0,
+        "REFUSAL_MARKER": false,
+        "META_LEAK_MARKER": false,
+        "REPETITION_LOOP_DETECTED": false
+      },
+      "usageRaw": {
+        "prompt_tokens": 14052,
+        "completion_tokens": 7121,
+        "total_tokens": 21173,
+        "cost": 0.004657,
+        "cost_details": {
+          "upstream_inference_cost": 0.004657
+        }
+      },
+      "error": null
+    }
+  ],
+  "OPUS_DS0813": {
+    "HTTP": [
+      200,
+      200,
+      200
+    ],
+    "FINISH": [
+      "stop",
+      "stop",
+      "stop"
+    ],
+    "VISIBLE_CHARS": {
+      "run": [
+        4771,
+        5061,
+        6027
+      ],
+      "min": 4771,
+      "median": 5061,
+      "mean": 5286.333333333333,
+      "max": 6027
+    },
+    "TTFT": {
+      "run": [
+        4113,
+        117916,
+        38205
+      ],
+      "min": 4113,
+      "median": 38205,
+      "mean": 53411.333333333336,
+      "max": 117916
+    },
+    "LATENCY": {
+      "run": [
+        94288,
+        197300,
+        130409
+      ],
+      "min": 94288,
+      "median": 130409,
+      "mean": 140665.66666666666,
+      "max": 197300
+    },
+    "COMPLETION_TOKENS": {
+      "run": [
+        3648,
+        9187,
+        6435
+      ],
+      "min": 3648,
+      "median": 6435,
+      "mean": 6423.333333333333,
+      "max": 9187
+    },
+    "REASONING": [
+      {
+        "seen": false,
+        "textChars": 0,
+        "tokens": 0
+      },
+      {
+        "seen": true,
+        "textChars": 7323,
+        "tokens": 0
+      },
+      {
+        "seen": true,
+        "textChars": 6173,
+        "tokens": 0
+      }
+    ],
+    "COST": {
+      "run": [
+        0.006931,
+        0.005928,
+        0.004252
+      ],
+      "min": 0.004252,
+      "median": 0.005928,
+      "mean": 0.005703666666666666,
+      "max": 0.006931
+    }
+  },
+  "GEMINI31_DS0813": {
+    "HTTP": [
+      200,
+      200,
+      200
+    ],
+    "FINISH": [
+      "stop",
+      "stop",
+      "stop"
+    ],
+    "VISIBLE_CHARS": {
+      "run": [
+        4085,
+        5929,
+        2592
+      ],
+      "min": 2592,
+      "median": 4085,
+      "mean": 4202,
+      "max": 5929
+    },
+    "TTFT": {
+      "run": [
+        40255,
+        78059,
+        94295
+      ],
+      "min": 40255,
+      "median": 78059,
+      "mean": 70869.66666666667,
+      "max": 94295
+    },
+    "LATENCY": {
+      "run": [
+        106088,
+        179052,
+        117889
+      ],
+      "min": 106088,
+      "median": 117889,
+      "mean": 134343,
+      "max": 179052
+    },
+    "COMPLETION_TOKENS": {
+      "run": [
+        5009,
+        8912,
+        7121
+      ],
+      "min": 5009,
+      "median": 7121,
+      "mean": 7014,
+      "max": 8912
+    },
+    "REASONING": [
+      {
+        "seen": true,
+        "textChars": 6552,
+        "tokens": 0
+      },
+      {
+        "seen": true,
+        "textChars": 6066,
+        "tokens": 0
+      },
+      {
+        "seen": true,
+        "textChars": 15126,
+        "tokens": 0
+      }
+    ],
+    "COST": {
+      "run": [
+        0.006533,
+        0.005747,
+        0.004657
+      ],
+      "min": 0.004657,
+      "median": 0.005747,
+      "mean": 0.005645666666666667,
+      "max": 0.006533
+    }
+  },
+  "TERMINAL_USAGE_PRESENT": [
+    {
+      "cell": "DS0813_OPUS_VANILLA_1",
+      "present": true
+    },
+    {
+      "cell": "DS0813_OPUS_VANILLA_2",
+      "present": true
+    },
+    {
+      "cell": "DS0813_OPUS_VANILLA_3",
+      "present": true
+    },
+    {
+      "cell": "DS0813_GEMINI31_VANILLA_1",
+      "present": true
+    },
+    {
+      "cell": "DS0813_GEMINI31_VANILLA_2",
+      "present": true
+    },
+    {
+      "cell": "DS0813_GEMINI31_VANILLA_3",
+      "present": true
+    }
+  ],
+  "INCOMPLETE_STREAMS": [
+    {
+      "cell": "DS0813_OPUS_VANILLA_1",
+      "incomplete": false
+    },
+    {
+      "cell": "DS0813_OPUS_VANILLA_2",
+      "incomplete": false
+    },
+    {
+      "cell": "DS0813_OPUS_VANILLA_3",
+      "incomplete": false
+    },
+    {
+      "cell": "DS0813_GEMINI31_VANILLA_1",
+      "incomplete": false
+    },
+    {
+      "cell": "DS0813_GEMINI31_VANILLA_2",
+      "incomplete": false
+    },
+    {
+      "cell": "DS0813_GEMINI31_VANILLA_3",
+      "incomplete": false
+    }
+  ]
 }

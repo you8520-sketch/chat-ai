@@ -1,0 +1,65 @@
+{
+  "note": "Do not consult before quality scoring.",
+  "mapping": {
+    "O-A": {
+      "kind": "ds0813_vanilla",
+      "path": "DS0813_OPUS_VANILLA_3_RAW.txt",
+      "runtimeCell": "DS0813_OPUS_VANILLA_3"
+    },
+    "O-B": {
+      "kind": "ds0813_vanilla",
+      "path": "DS0813_OPUS_VANILLA_2_RAW.txt",
+      "runtimeCell": "DS0813_OPUS_VANILLA_2"
+    },
+    "O-C": {
+      "kind": "muse_positive_existing",
+      "path": "existing-muse-positive/MUSE12_FINAL_OPUS_POSITIVE_3.txt",
+      "runtimeCell": "MUSE_OPUS_POSITIVE_3"
+    },
+    "O-D": {
+      "kind": "ds0813_vanilla",
+      "path": "DS0813_OPUS_VANILLA_1_RAW.txt",
+      "runtimeCell": "DS0813_OPUS_VANILLA_1"
+    },
+    "O-E": {
+      "kind": "muse_positive_existing",
+      "path": "existing-muse-positive/MUSE12_FINAL_OPUS_POSITIVE_2.txt",
+      "runtimeCell": "MUSE_OPUS_POSITIVE_2"
+    },
+    "O-F": {
+      "kind": "muse_positive_existing",
+      "path": "existing-muse-positive/MUSE12_POSITIVE_OPUS.txt",
+      "runtimeCell": "MUSE_OPUS_POSITIVE_1"
+    },
+    "G-A": {
+      "kind": "ds0813_vanilla",
+      "path": "DS0813_GEMINI31_VANILLA_3_RAW.txt",
+      "runtimeCell": "DS0813_GEMINI31_VANILLA_3"
+    },
+    "G-B": {
+      "kind": "muse_positive_existing",
+      "path": "existing-muse-positive/MUSE12_FINAL_GEMINI_POSITIVE_3.txt",
+      "runtimeCell": "MUSE_GEMINI_POSITIVE_3"
+    },
+    "G-C": {
+      "kind": "muse_positive_existing",
+      "path": "existing-muse-positive/MUSE12_FINAL_GEMINI_POSITIVE_2.txt",
+      "runtimeCell": "MUSE_GEMINI_POSITIVE_2"
+    },
+    "G-D": {
+      "kind": "muse_positive_existing",
+      "path": "existing-muse-positive/MUSE12_POSITIVE_GEMINI.txt",
+      "runtimeCell": "MUSE_GEMINI_POSITIVE_1"
+    },
+    "G-E": {
+      "kind": "ds0813_vanilla",
+      "path": "DS0813_GEMINI31_VANILLA_2_RAW.txt",
+      "runtimeCell": "DS0813_GEMINI31_VANILLA_2"
+    },
+    "G-F": {
+      "kind": "ds0813_vanilla",
+      "path": "DS0813_GEMINI31_VANILLA_1_RAW.txt",
+      "runtimeCell": "DS0813_GEMINI31_VANILLA_1"
+    }
+  }
+}
