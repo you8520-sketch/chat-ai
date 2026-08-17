@@ -1,0 +1,131 @@
+{
+  "FINAL-G-A": {
+    "VISIBLE_CHARS": 3646,
+    "TTFT": 13832,
+    "TOTAL_LATENCY": 40481,
+    "COMPLETION_TOKENS": 3931,
+    "REASONING": {
+      "STREAM_SEEN": null,
+      "TEXT_CHARS": null
+    },
+    "COST": 0.015539,
+    "FINISH_REASON": "stop",
+    "TERMINAL_USAGE": true,
+    "INCOMPLETE_STREAM": false,
+    "note": "existing_reference_no_new_call"
+  },
+  "FINAL-G-B": {
+    "VISIBLE_CHARS": 5460,
+    "TTFT": 14148,
+    "TOTAL_LATENCY": 50510,
+    "COMPLETION_TOKENS": 4965,
+    "REASONING": {
+      "STREAM_SEEN": null,
+      "TEXT_CHARS": null
+    },
+    "COST": 0.019274,
+    "FINISH_REASON": "stop",
+    "TERMINAL_USAGE": true,
+    "INCOMPLETE_STREAM": false,
+    "note": "existing_reference_no_new_call"
+  },
+  "FINAL-G-C": {
+    "VISIBLE_CHARS": 4939,
+    "TTFT": 61297,
+    "TOTAL_LATENCY": 152809,
+    "COMPLETION_TOKENS": 6573,
+    "REASONING": {
+      "STREAM_SEEN": true,
+      "TEXT_CHARS": 9588
+    },
+    "COST": 0.004445,
+    "FINISH_REASON": "stop",
+    "TERMINAL_USAGE": true,
+    "INCOMPLETE_STREAM": false
+  },
+  "FINAL-G-D": {
+    "VISIBLE_CHARS": 2159,
+    "TTFT": 2005,
+    "TOTAL_LATENCY": 43102,
+    "COMPLETION_TOKENS": 1691,
+    "REASONING": {
+      "STREAM_SEEN": false,
+      "TEXT_CHARS": 0
+    },
+    "COST": 0.001467,
+    "FINISH_REASON": "stop",
+    "TERMINAL_USAGE": true,
+    "INCOMPLETE_STREAM": false
+  },
+  "FINAL-G-E": {
+    "VISIBLE_CHARS": 2258,
+    "TTFT": 1709,
+    "TOTAL_LATENCY": 43677,
+    "COMPLETION_TOKENS": 1755,
+    "REASONING": {
+      "STREAM_SEEN": false,
+      "TEXT_CHARS": 0
+    },
+    "COST": 0.001505,
+    "FINISH_REASON": "stop",
+    "TERMINAL_USAGE": true,
+    "INCOMPLETE_STREAM": false
+  },
+  "FINAL-G-F": {
+    "VISIBLE_CHARS": 1339,
+    "TTFT": 3042,
+    "TOTAL_LATENCY": 28331,
+    "COMPLETION_TOKENS": 1051,
+    "REASONING": {
+      "STREAM_SEEN": false,
+      "TEXT_CHARS": 0
+    },
+    "COST": 0.001077,
+    "FINISH_REASON": "stop",
+    "TERMINAL_USAGE": true,
+    "INCOMPLETE_STREAM": false
+  },
+  "FINAL-G-G": {
+    "VISIBLE_CHARS": 3893,
+    "TTFT": 48589,
+    "TOTAL_LATENCY": 118732,
+    "COMPLETION_TOKENS": 5364,
+    "REASONING": {
+      "STREAM_SEEN": true,
+      "TEXT_CHARS": 8008
+    },
+    "COST": 0.007612,
+    "FINISH_REASON": "stop",
+    "TERMINAL_USAGE": true,
+    "INCOMPLETE_STREAM": false
+  },
+  "FINAL-G-H": {
+    "VISIBLE_CHARS": 4306,
+    "TTFT": 12117,
+    "TOTAL_LATENCY": 36853,
+    "COMPLETION_TOKENS": 4256,
+    "REASONING": {
+      "STREAM_SEEN": null,
+      "TEXT_CHARS": null
+    },
+    "COST": 0.027286,
+    "FINISH_REASON": "stop",
+    "TERMINAL_USAGE": true,
+    "INCOMPLETE_STREAM": false,
+    "note": "existing_reference_no_new_call"
+  },
+  "FINAL-G-I": {
+    "VISIBLE_CHARS": 3821,
+    "TTFT": 13197,
+    "TOTAL_LATENCY": 82798,
+    "COMPLETION_TOKENS": 3533,
+    "REASONING": {
+      "STREAM_SEEN": true,
+      "TEXT_CHARS": 819
+    },
+    "COST": 0.002594,
+    "FINISH_REASON": "stop",
+    "TERMINAL_USAGE": true,
+    "INCOMPLETE_STREAM": false
+  }
+}

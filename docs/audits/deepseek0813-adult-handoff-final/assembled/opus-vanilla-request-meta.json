@@ -1,0 +1,64 @@
+{
+  "source": "opus",
+  "generation": {
+    "temperature": 0.92,
+    "top_p": 0.92,
+    "max_tokens": null,
+    "thinking": {
+      "type": "disabled"
+    },
+    "reasoning_effort": null,
+    "stream": true,
+    "model": "deepseek-v4-pro-0813"
+  },
+  "shas": {
+    "system": "96abfcac392a30a3b6c005787c1520d353ceec2ad27cd43f7f3078e53f4208f9",
+    "lastUser": "12d1190b38c05415e589faea80a5f56f73a7d645605cacfff01afe9ac28a2f6e",
+    "fullMessages": "9752a080713d2c99a49ef223e5c56b51319c8c16dfd5349f6512035403c2a2ff",
+    "requestBodyRelevant": "14f270e95da7c1901285bc8dd5b228ef434f6dd0c0345969547d18abbac2a0ca"
+  },
+  "flags": {
+    "styleReminderPresent": true,
+    "handoffInstructionPresent": true,
+    "forbidden": {
+      "musePositiveOpus": false,
+      "musePositiveGemini": false,
+      "opusQwenFragment": false,
+      "geminiQwenBlock": false,
+      "deepseekLengthSingleCall": false,
+      "deepseekShortHistoryExtra": false
+    },
+    "forbiddenAny": false
+  },
+  "promptSize": {
+    "systemChars": 17430,
+    "lastUserChars": 1252,
+    "assembledChars": 23213,
+    "estimatedInputTokens": 20892
+  },
+  "adaptationKeyDiff": {
+    "removed": [
+      "frequency_penalty",
+      "include_reasoning",
+      "presence_penalty",
+      "reasoning"
+    ],
+    "added": [
+      "thinking"
+    ],
+    "changed": []
+  },
+  "continuityPacket": {
+    "previousSceneMode": "explicit",
+    "sexualContextActive": true,
+    "activeConsentMode": "standard",
+    "location": "복도의 소음이 한 겹씩 벗겨져 나갔다",
+    "charactersPresent": [
+      "라이크",
+      "렌"
+    ],
+    "currentPov": "third_person",
+    "unfinishedAction": "블라인드 줄무늬가 바닥에서 벽으로 기어 올라가기 시작했다.",
+    "currentSpeechState": "오늘은 사람들 없을 때 이렇게 남아 있는 게 더 편하다.…너도 그렇지?"
+  }
+}

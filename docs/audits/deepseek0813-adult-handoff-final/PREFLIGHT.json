@@ -1,0 +1,18 @@
+{
+  "DEEPSEEK_0813_EXACT_MODEL": "deepseek-v4-pro-0813",
+  "DEEPSEEK_0813_PROVIDER": "cheaperinference",
+  "THINKING_DISABLED_ASSEMBLY": true,
+  "THINKING_CONFIG": { "type": "disabled" },
+  "PRODUCTION_BUILDER_REUSED": false,
+  "PRODUCTION_BUILDER_REUSED_NOTE": "Assembly functions exist on main (assemblePrimaryRpRequest + adaptCheaperInferenceChatBody). Live assembly was not executed because the positive provenance gate failed.",
+  "OPUS_SOURCE_SHA": "f49f3f9d489ba75d1485d2840209fbc2c5c87e5d9c6cd208f235a074ed5cf818",
+  "GEMINI31_SOURCE_SHA": "e9c618f9c8b5856abf8f392713327807d728091ea01dfb5b6e3eb714123ba64e",
+  "POSITIVE_PROMPT_PROVENANCE": "NOT_PROVABLE",
+  "POSITIVE_PROMPT_SHA": null,
+  "VANILLA_POSITIVE_ONLY_DIFF": "NOT_COMPUTED — no DeepSeek positive text to diff",
+  "EXISTING_MUSE_OPUS_POSITIVE_RAW_COUNT": 3,
+  "EXISTING_MUSE_GEMINI_POSITIVE_RAW_COUNT": 3,
+  "LIVE_CALLS_ALLOWED": false,
+  "DEEPSEEK_POSITIVE_PROMPT_NOT_PROVABLE": true,
+  "LIVE_CALLS_NOT_RUN": true
+}

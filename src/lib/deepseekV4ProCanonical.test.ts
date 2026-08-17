@@ -72,7 +72,9 @@ describe("DeepSeek V4 Pro 0813 canonicalization", () => {
     });
     assert.equal(adapted.model, "deepseek-v4-pro-0813");
     assert.deepEqual(adapted.thinking, { type: "disabled" });
-    assert.equal(adapted.reasoning_effort, undefined);
+    assert.equal(adapted.reasoning_effort, "none");
+    assert.equal(adapted.reasoning, undefined);
+    assert.equal(adapted.include_reasoning, undefined);
     assert.equal(adapted.model === "deepseek-v4-pro", false);
   });
 
@@ -83,6 +85,7 @@ describe("DeepSeek V4 Pro 0813 canonicalization", () => {
     });
     assert.equal(adapted.model, "deepseek-v4-pro-0813");
     assert.deepEqual(adapted.thinking, { type: "disabled" });
+    assert.equal(adapted.reasoning_effort, "none");
   });
 });
 

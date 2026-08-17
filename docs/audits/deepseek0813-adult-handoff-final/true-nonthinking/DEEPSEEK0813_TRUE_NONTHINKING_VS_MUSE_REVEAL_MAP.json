@@ -1,0 +1,65 @@
+{
+  "note": "Do not consult before quality scoring.",
+  "mapping": {
+    "TN-O-A": {
+      "kind": "ds0813_true_nonthinking",
+      "path": "DS0813_OPUS_TRUE_NONTHINKING_3_RAW.txt",
+      "runtimeCell": "DS0813_OPUS_TRUE_NONTHINKING_3"
+    },
+    "TN-O-B": {
+      "kind": "existing_reference",
+      "path": "existing-muse-positive/MUSE12_FINAL_OPUS_POSITIVE_3.txt",
+      "runtimeCell": "EXISTING_REFERENCE_OPUS_3"
+    },
+    "TN-O-C": {
+      "kind": "existing_reference",
+      "path": "existing-muse-positive/MUSE12_POSITIVE_OPUS.txt",
+      "runtimeCell": "EXISTING_REFERENCE_OPUS_1"
+    },
+    "TN-O-D": {
+      "kind": "existing_reference",
+      "path": "existing-muse-positive/MUSE12_FINAL_OPUS_POSITIVE_2.txt",
+      "runtimeCell": "EXISTING_REFERENCE_OPUS_2"
+    },
+    "TN-O-E": {
+      "kind": "ds0813_true_nonthinking",
+      "path": "DS0813_OPUS_TRUE_NONTHINKING_1_RAW.txt",
+      "runtimeCell": "DS0813_OPUS_TRUE_NONTHINKING_1"
+    },
+    "TN-O-F": {
+      "kind": "ds0813_true_nonthinking",
+      "path": "DS0813_OPUS_TRUE_NONTHINKING_2_RAW.txt",
+      "runtimeCell": "DS0813_OPUS_TRUE_NONTHINKING_2"
+    },
+    "TN-G-A": {
+      "kind": "existing_reference",
+      "path": "existing-muse-positive/MUSE12_POSITIVE_GEMINI.txt",
+      "runtimeCell": "EXISTING_REFERENCE_GEMINI_1"
+    },
+    "TN-G-B": {
+      "kind": "existing_reference",
+      "path": "existing-muse-positive/MUSE12_FINAL_GEMINI_POSITIVE_3.txt",
+      "runtimeCell": "EXISTING_REFERENCE_GEMINI_3"
+    },
+    "TN-G-C": {
+      "kind": "ds0813_true_nonthinking",
+      "path": "DS0813_GEMINI31_TRUE_NONTHINKING_2_RAW.txt",
+      "runtimeCell": "DS0813_GEMINI31_TRUE_NONTHINKING_2"
+    },
+    "TN-G-D": {
+      "kind": "ds0813_true_nonthinking",
+      "path": "DS0813_GEMINI31_TRUE_NONTHINKING_3_RAW.txt",
+      "runtimeCell": "DS0813_GEMINI31_TRUE_NONTHINKING_3"
+    },
+    "TN-G-E": {
+      "kind": "existing_reference",
+      "path": "existing-muse-positive/MUSE12_FINAL_GEMINI_POSITIVE_2.txt",
+      "runtimeCell": "EXISTING_REFERENCE_GEMINI_2"
+    },
+    "TN-G-F": {
+      "kind": "ds0813_true_nonthinking",
+      "path": "DS0813_GEMINI31_TRUE_NONTHINKING_1_RAW.txt",
+      "runtimeCell": "DS0813_GEMINI31_TRUE_NONTHINKING_1"
+    }
+  }
+}

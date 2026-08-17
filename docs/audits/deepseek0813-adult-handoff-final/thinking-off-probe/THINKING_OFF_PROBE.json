@@ -1,0 +1,269 @@
+{
+  "DEEPSEEK0813_THINKING_OFF_PROBE_COMPLETE": true,
+  "CURRENT_BODY_THINKING": {
+    "type": "disabled"
+  },
+  "CURRENT_BODY_REASONING_EFFORT": {
+    "present": false,
+    "value": "ABSENT"
+  },
+  "PROBE_OVERRIDE": {
+    "thinking": {
+      "type": "disabled"
+    },
+    "reasoning_effort": "none"
+  },
+  "PROBE_CALLS": 3,
+  "HTTP": [
+    200,
+    200,
+    200
+  ],
+  "REASONING_STREAM_SEEN": [
+    false,
+    false,
+    false
+  ],
+  "REASONING_FIELD": [
+    null,
+    null,
+    null
+  ],
+  "REASONING_CHARS": [
+    0,
+    0,
+    0
+  ],
+  "TTFT": [
+    3615,
+    1825,
+    1544
+  ],
+  "TOTAL_LATENCY": [
+    45425,
+    61924,
+    53581
+  ],
+  "VISIBLE_CHARS": [
+    2541,
+    3527,
+    3005
+  ],
+  "COMPLETION_TOKENS": [
+    2022,
+    2852,
+    2405
+  ],
+  "FINISH_REASON": [
+    "stop",
+    "stop",
+    "stop"
+  ],
+  "TERMINAL_USAGE": [
+    true,
+    true,
+    true
+  ],
+  "COST": [
+    0.005536,
+    0.002032,
+    0.00176
+  ],
+  "REFERENCE_GEMINI_TTFT": [
+    40255,
+    78059,
+    94295
+  ],
+  "REFERENCE_GEMINI_REASONING_CHARS": [
+    6552,
+    6066,
+    15126
+  ],
+  "REFERENCE_GEMINI_VISIBLE_CHARS": [
+    4085,
+    5929,
+    2592
+  ],
+  "REFERENCE_GEMINI_LATENCY": [
+    106088,
+    179052,
+    117889
+  ],
+  "CI_REASONING_NONE_UNSUPPORTED": false,
+  "CI_REASONING_NONE_ACCEPTED_BUT_INEFFECTIVE": false,
+  "STOP_REASON": null,
+  "DS0813_VANILLA_LENGTH": "OBSERVED_ONLY",
+  "DS0813_LENGTH_RESCUE_REQUIRED": "NOT_YET",
+  "DS0813_THINKING_OFF_REQUESTED": true,
+  "DS0813_REASONING_ACTUALLY_OBSERVED": "5/6",
+  "DS0813_TRUE_NONTHINKING_CONFIRMED": false,
+  "PROBE_REASONING_STREAM_ZERO": "3/3",
+  "PRODUCTION_ASSEMBLY_STILL_OMITS_REASONING_EFFORT": true,
+  "QUALITY_SCORING_BY_CURSOR": false,
+  "PRODUCTION_CHANGED": false,
+  "MAIN_MERGED": false,
+  "RAILWAY_DEPLOYED": false,
+  "frozenRawsUntouched": true,
+  "liveHeadSha": "762ca3661c073e3edb7503303b3cd8cbd12e0205",
+  "rows": [
+    {
+      "cell": "GEMINI31_THINKING_OFF_PROBE_1",
+      "HTTP_STATUS": 200,
+      "TTFT_MS": 3615,
+      "TOTAL_LATENCY_MS": 45425,
+      "VISIBLE_CHARS": 2541,
+      "REASONING_STREAM_SEEN": false,
+      "REASONING_FIELD": null,
+      "REASONING_FIRST_MS": null,
+      "REASONING_LAST_MS": null,
+      "REASONING_TEXT_CHARS": 0,
+      "REASONING_FIELD_BREAKDOWN": {
+        "delta.reasoning": {
+          "chars": 0,
+          "firstMs": null,
+          "lastMs": null,
+          "chunks": 0
+        },
+        "delta.reasoning_content": {
+          "chars": 0,
+          "firstMs": null,
+          "lastMs": null,
+          "chunks": 0
+        },
+        "message.reasoning": {
+          "chars": 0,
+          "firstMs": null,
+          "lastMs": null,
+          "chunks": 0
+        },
+        "message.reasoning_content": {
+          "chars": 0,
+          "firstMs": null,
+          "lastMs": null,
+          "chunks": 0
+        }
+      },
+      "INPUT_TOKENS": 13973,
+      "COMPLETION_TOKENS": 2022,
+      "REASONING_TOKENS_REPORTED": 0,
+      "FINISH_REASON": "stop",
+      "TERMINAL_USAGE_PRESENT": true,
+      "STREAM_DONE_PRESENT": true,
+      "INCOMPLETE_STREAM": false,
+      "ACTUAL_COST_USD": 0.005536,
+      "RESPONSE_MODEL": "deepseek-v4-pro-0813",
+      "FALLBACK_COUNT": 0,
+      "RETRY_COUNT": 0,
+      "CONTINUATION_COUNT": 0,
+      "RECOVERY_COUNT": 0,
+      "outputSha": "8844d2ea20d9b35e1cad6d93f07983b2d489be226e331df5c09aa526287d263c",
+      "error": null
+    },
+    {
+      "cell": "GEMINI31_THINKING_OFF_PROBE_2",
+      "HTTP_STATUS": 200,
+      "TTFT_MS": 1825,
+      "TOTAL_LATENCY_MS": 61924,
+      "VISIBLE_CHARS": 3527,
+      "REASONING_STREAM_SEEN": false,
+      "REASONING_FIELD": null,
+      "REASONING_FIRST_MS": null,
+      "REASONING_LAST_MS": null,
+      "REASONING_TEXT_CHARS": 0,
+      "REASONING_FIELD_BREAKDOWN": {
+        "delta.reasoning": {
+          "chars": 0,
+          "firstMs": null,
+          "lastMs": null,
+          "chunks": 0
+        },
+        "delta.reasoning_content": {
+          "chars": 0,
+          "firstMs": null,
+          "lastMs": null,
+          "chunks": 0
+        },
+        "message.reasoning": {
+          "chars": 0,
+          "firstMs": null,
+          "lastMs": null,
+          "chunks": 0
+        },
+        "message.reasoning_content": {
+          "chars": 0,
+          "firstMs": null,
+          "lastMs": null,
+          "chunks": 0
+        }
+      },
+      "INPUT_TOKENS": 13973,
+      "COMPLETION_TOKENS": 2852,
+      "REASONING_TOKENS_REPORTED": 0,
+      "FINISH_REASON": "stop",
+      "TERMINAL_USAGE_PRESENT": true,
+      "STREAM_DONE_PRESENT": true,
+      "INCOMPLETE_STREAM": false,
+      "ACTUAL_COST_USD": 0.002032,
+      "RESPONSE_MODEL": "deepseek-v4-pro-0813",
+      "FALLBACK_COUNT": 0,
+      "RETRY_COUNT": 0,
+      "CONTINUATION_COUNT": 0,
+      "RECOVERY_COUNT": 0,
+      "outputSha": "acb5fdfdd556e1a5eaa4b06f184d4404278503589be9a98b84b365013c6d6686",
+      "error": null
+    },
+    {
+      "cell": "GEMINI31_THINKING_OFF_PROBE_3",
+      "HTTP_STATUS": 200,
+      "TTFT_MS": 1544,
+      "TOTAL_LATENCY_MS": 53581,
+      "VISIBLE_CHARS": 3005,
+      "REASONING_STREAM_SEEN": false,
+      "REASONING_FIELD": null,
+      "REASONING_FIRST_MS": null,
+      "REASONING_LAST_MS": null,
+      "REASONING_TEXT_CHARS": 0,
+      "REASONING_FIELD_BREAKDOWN": {
+        "delta.reasoning": {
+          "chars": 0,
+          "firstMs": null,
+          "lastMs": null,
+          "chunks": 0
+        },
+        "delta.reasoning_content": {
+          "chars": 0,
+          "firstMs": null,
+          "lastMs": null,
+          "chunks": 0
+        },
+        "message.reasoning": {
+          "chars": 0,
+          "firstMs": null,
+          "lastMs": null,
+          "chunks": 0
+        },
+        "message.reasoning_content": {
+          "chars": 0,
+          "firstMs": null,
+          "lastMs": null,
+          "chunks": 0
+        }
+      },
+      "INPUT_TOKENS": 13973,
+      "COMPLETION_TOKENS": 2405,
+      "REASONING_TOKENS_REPORTED": 0,
+      "FINISH_REASON": "stop",
+      "TERMINAL_USAGE_PRESENT": true,
+      "STREAM_DONE_PRESENT": true,
+      "INCOMPLETE_STREAM": false,
+      "ACTUAL_COST_USD": 0.00176,
+      "RESPONSE_MODEL": "deepseek-v4-pro-0813",
+      "FALLBACK_COUNT": 0,
+      "RETRY_COUNT": 0,
+      "CONTINUATION_COUNT": 0,
+      "RECOVERY_COUNT": 0,
+      "outputSha": "37e087ee08cced33cacee156be6358d4044614d44d8823a5e7b0e6011fe8cd72",
+      "error": null
+    }
+  ]
+}

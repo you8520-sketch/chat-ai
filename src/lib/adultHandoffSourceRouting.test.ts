@@ -217,7 +217,7 @@ describe("source-specific adult handoff routing", () => {
     assert.equal(result.adultTargetModelId, "deepseek-v4-pro-0813");
     assert.equal(result.requestBody.model, "deepseek-v4-pro-0813");
     assert.deepEqual(result.requestBody.thinking, { type: "disabled" });
-    assert.equal(result.requestBody.reasoning_effort, undefined);
+    assert.equal(result.requestBody.reasoning_effort, "none");
     assert.equal(result.handoff.includes(OPUS_QWEN_FRAGMENT_SENTENCE), false);
     assert.equal(result.handoff.includes(GEMINI31_QWEN_STYLE_CONTINUITY_BLOCK), false);
   });

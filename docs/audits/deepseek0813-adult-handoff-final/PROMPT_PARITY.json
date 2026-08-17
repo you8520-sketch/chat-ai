@@ -1,0 +1,70 @@
+{
+  "computed": true,
+  "note": "Vanilla only. No DeepSeek positive. Same fixture except source RAW / continuity packet.",
+  "sources": [
+    {
+      "source": "opus",
+      "sourceSha": "f49f3f9d489ba75d1485d2840209fbc2c5c87e5d9c6cd208f235a074ed5cf818",
+      "system": "96abfcac392a30a3b6c005787c1520d353ceec2ad27cd43f7f3078e53f4208f9",
+      "lastUser": "12d1190b38c05415e589faea80a5f56f73a7d645605cacfff01afe9ac28a2f6e",
+      "fullMessages": "9752a080713d2c99a49ef223e5c56b51319c8c16dfd5349f6512035403c2a2ff",
+      "requestBodyRelevant": "14f270e95da7c1901285bc8dd5b228ef434f6dd0c0345969547d18abbac2a0ca",
+      "generation": {
+        "temperature": 0.92,
+        "top_p": 0.92,
+        "max_tokens": null,
+        "thinking": {
+          "type": "disabled"
+        },
+        "reasoning_effort": null,
+        "stream": true,
+        "model": "deepseek-v4-pro-0813"
+      },
+      "flags": {
+        "styleReminderPresent": true,
+        "handoffInstructionPresent": true,
+        "forbidden": {
+          "musePositiveOpus": false,
+          "musePositiveGemini": false,
+          "opusQwenFragment": false,
+          "geminiQwenBlock": false,
+          "deepseekLengthSingleCall": false,
+          "deepseekShortHistoryExtra": false
+        },
+        "forbiddenAny": false
+      }
+    },
+    {
+      "source": "gemini31",
+      "sourceSha": "e9c618f9c8b5856abf8f392713327807d728091ea01dfb5b6e3eb714123ba64e",
+      "system": "6dee5d7edb03099ecf8bf896a7641da5a0ad25cdd96eb78c433bfe1c024f0080",
+      "lastUser": "12d1190b38c05415e589faea80a5f56f73a7d645605cacfff01afe9ac28a2f6e",
+      "fullMessages": "cd555aeaedf8cc595737a343c9c29f93b49e4bd47dc98fcf2ba779461bd1ba5c",
+      "requestBodyRelevant": "bd26a233e21983feb86955a7a674b57e1d85ba146afe1c945694766ef7cd0468",
+      "generation": {
+        "temperature": 0.92,
+        "top_p": 0.92,
+        "max_tokens": null,
+        "thinking": {
+          "type": "disabled"
+        },
+        "reasoning_effort": null,
+        "stream": true,
+        "model": "deepseek-v4-pro-0813"
+      },
+      "flags": {
+        "styleReminderPresent": true,
+        "handoffInstructionPresent": true,
+        "forbidden": {
+          "musePositiveOpus": false,
+          "musePositiveGemini": false,
+          "opusQwenFragment": false,
+          "geminiQwenBlock": false,
+          "deepseekLengthSingleCall": false,
+          "deepseekShortHistoryExtra": false
+        },
+        "forbiddenAny": false
+      }
+    }
+  ]
+}

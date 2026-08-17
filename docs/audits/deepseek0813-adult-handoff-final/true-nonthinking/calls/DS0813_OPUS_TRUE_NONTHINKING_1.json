@@ -1,0 +1,59 @@
+{
+  "cell": "DS0813_OPUS_TRUE_NONTHINKING_1",
+  "source": "opus",
+  "condition": "TRUE_NONTHINKING",
+  "sample": 1,
+  "REQUESTED_MODEL": "deepseek-v4-pro-0813",
+  "RESPONSE_MODEL": "deepseek-v4-pro-0813",
+  "HTTP_STATUS": 200,
+  "TTFT_MS": 2726,
+  "TOTAL_LATENCY_MS": 72847,
+  "VISIBLE_CHARS": 4136,
+  "VISIBLE_KOREAN_CHARS": 2796,
+  "INPUT_TOKENS": 15211,
+  "COMPLETION_TOKENS": 3185,
+  "REASONING_STREAM_SEEN": false,
+  "REASONING_FIELD": null,
+  "REASONING_FIRST_MS": null,
+  "REASONING_LAST_MS": null,
+  "REASONING_TEXT_CHARS": 0,
+  "REASONING_FIELD_BREAKDOWN": {
+    "delta.reasoning": {
+      "chars": 0,
+      "firstMs": null,
+      "lastMs": null,
+      "chunks": 0
+    },
+    "delta.reasoning_content": {
+      "chars": 0,
+      "firstMs": null,
+      "lastMs": null,
+      "chunks": 0
+    },
+    "message.reasoning": {
+      "chars": 0,
+      "firstMs": null,
+      "lastMs": null,
+      "chunks": 0
+    },
+    "message.reasoning_content": {
+      "chars": 0,
+      "firstMs": null,
+      "lastMs": null,
+      "chunks": 0
+    }
+  },
+  "REASONING_TOKENS_REPORTED": 0,
+  "FINISH_REASON": "stop",
+  "TERMINAL_USAGE_PRESENT": true,
+  "STREAM_DONE_PRESENT": true,
+  "INCOMPLETE_STREAM": false,
+  "ACTUAL_COST_USD": 0.005845,
+  "FALLBACK_COUNT": 0,
+  "RETRY_COUNT": 0,
+  "CONTINUATION_COUNT": 0,
+  "RECOVERY_COUNT": 0,
+  "sourceSha": "f49f3f9d489ba75d1485d2840209fbc2c5c87e5d9c6cd208f235a074ed5cf818",
+  "outputSha": "f383c7fba92fa2ed661f7b2b1de20375abb17307eef4c7eaca6eb871400e84e2",
+  "error": null
+}

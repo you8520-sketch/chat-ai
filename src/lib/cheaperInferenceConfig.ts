@@ -57,13 +57,16 @@ export function adaptCheaperInferenceChatBody(
   if (typeof adapted.model === "string") {
     const model = normalizeDeepSeekV4ProModelId(adapted.model);
     adapted.model = model;
-    if (
-      isCheaperInferenceDeepSeekV4FlashModel(model) ||
-      isCheaperInferenceDeepSeekV4ProModel(model)
-    ) {
-      if (isCheaperInferenceDeepSeekV4ProModel(model)) {
-        adapted.model = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
-      }
+    if (isCheaperInferenceDeepSeekV4ProModel(model)) {
+      // Cheaper Inference DS0813: thinking-disabled alone can still emit a
+      // reasoning stream. Keep both official DeepSeek OFF and the CI
+      // reasoning_effort alias. Do not send OpenRouter `reasoning`.
+      adapted.model = CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL;
+      adapted.thinking = { type: "disabled" };
+      adapted.reasoning_effort = "none";
+      return adapted;
+    }
+    if (isCheaperInferenceDeepSeekV4FlashModel(model)) {
       delete adapted.reasoning_effort;
       adapted.thinking = { type: "disabled" };
       return adapted;

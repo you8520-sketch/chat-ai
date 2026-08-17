@@ -1,0 +1,92 @@
+{
+  "O-A": {
+    "TTFT": 38205,
+    "TOTAL_LATENCY": 130409,
+    "VISIBLE_CHARS": 6027,
+    "INPUT_TOKENS": 15290,
+    "COMPLETION_TOKENS": 6435,
+    "REASONING_TOKENS": null,
+    "COST": 0.004252,
+    "FINISH_REASON": "stop",
+    "TERMINAL_USAGE_PRESENT": true,
+    "INCOMPLETE_STREAM": false
+  },
+  "O-B": {
+    "TTFT": 117916,
+    "TOTAL_LATENCY": 197300,
+    "VISIBLE_CHARS": 5061,
+    "INPUT_TOKENS": 15290,
+    "COMPLETION_TOKENS": 9187,
+    "REASONING_TOKENS": null,
+    "COST": 0.005928,
+    "FINISH_REASON": "stop",
+    "TERMINAL_USAGE_PRESENT": true,
+    "INCOMPLETE_STREAM": false
+  },
+  "O-C": {
+    "note": "existing_reference_no_new_runtime"
+  },
+  "O-D": {
+    "TTFT": 4113,
+    "TOTAL_LATENCY": 94288,
+    "VISIBLE_CHARS": 4771,
+    "INPUT_TOKENS": 15290,
+    "COMPLETION_TOKENS": 3648,
+    "REASONING_TOKENS": null,
+    "COST": 0.006931,
+    "FINISH_REASON": "stop",
+    "TERMINAL_USAGE_PRESENT": true,
+    "INCOMPLETE_STREAM": false
+  },
+  "O-E": {
+    "note": "existing_reference_no_new_runtime"
+  },
+  "O-F": {
+    "note": "existing_reference_no_new_runtime"
+  },
+  "G-A": {
+    "TTFT": 94295,
+    "TOTAL_LATENCY": 117889,
+    "VISIBLE_CHARS": 2592,
+    "INPUT_TOKENS": 14052,
+    "COMPLETION_TOKENS": 7121,
+    "REASONING_TOKENS": null,
+    "COST": 0.004657,
+    "FINISH_REASON": "stop",
+    "TERMINAL_USAGE_PRESENT": true,
+    "INCOMPLETE_STREAM": false
+  },
+  "G-B": {
+    "note": "existing_reference_no_new_runtime"
+  },
+  "G-C": {
+    "note": "existing_reference_no_new_runtime"
+  },
+  "G-D": {
+    "note": "existing_reference_no_new_runtime"
+  },
+  "G-E": {
+    "TTFT": 78059,
+    "TOTAL_LATENCY": 179052,
+    "VISIBLE_CHARS": 5929,
+    "INPUT_TOKENS": 14052,
+    "COMPLETION_TOKENS": 8912,
+    "REASONING_TOKENS": null,
+    "COST": 0.005747,
+    "FINISH_REASON": "stop",
+    "TERMINAL_USAGE_PRESENT": true,
+    "INCOMPLETE_STREAM": false
+  },
+  "G-F": {
+    "TTFT": 40255,
+    "TOTAL_LATENCY": 106088,
+    "VISIBLE_CHARS": 4085,
+    "INPUT_TOKENS": 14052,
+    "COMPLETION_TOKENS": 5009,
+    "REASONING_TOKENS": null,
+    "COST": 0.006533,
+    "FINISH_REASON": "stop",
+    "TERMINAL_USAGE_PRESENT": true,
+    "INCOMPLETE_STREAM": false
+  }
+}

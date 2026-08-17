@@ -1,0 +1,30 @@
+# Gemini 3.1 → DS0813 length-rescue — ChatGPT manual review
+
+QUALITY_SCORING_BY_CURSOR: false
+QUALITY_REVIEW_STATUS: PENDING_CHATGPT_MANUAL_REVIEW
+OPUS_WORKSTREAM_REOPENED: false
+PRODUCTION_CHANGED: false
+MAIN_MERGED: false
+RAILWAY_DEPLOYED: false
+
+Cursor recorded RAW + numeric metrics only. Cursor does not score quality, length success/failure, progression, or declare a winner.
+
+## ChatGPT manual axes (do not score here)
+
+A. PURE PROSE QUALITY /5
+B. SOURCE STYLE FIDELITY /5
+C. CHARACTER IDENTITY /5
+D. SCENE CONTINUITY /5
+E. PARAGRAPH / RHYTHM /5
+F. ADULT PROGRESSION /5
+G. LATE-SCENE CHARACTER VOICE /5
+
+Defects to inspect in RAW: CONSENT_CHECKPOINT_STALL, USER_SEMANTIC_DIALOGUE_INVENTION, GENERIC_ADULT_VOICE, CHARACTER_VOICE_LOSS, FOREIGN_SCRIPT_CONTAMINATION, REFUSAL, FADE_EVADE, REPETITION, MALFORMED_OUTPUT.
+
+## Packets
+
+- `BLIND_GEMINI31_FINAL_9_QUALITY.md`
+- `BLIND_GEMINI31_FINAL_9_RUNTIME.json`
+- `GEMINI31_DS0813_LENGTH_RESCUE_REVEAL_MAP.json` (after scoring only)
+
+No Length V2 / V3 or extra prompt was added after these 3 calls.
