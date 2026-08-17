@@ -157,7 +157,7 @@ Rules:
 - Never output success as already done.
 
 Output:
-{"suggestions":[{"actionType":"investigate","stage":"문을 바로 열지 않고 경첩과 바닥의 먼지를 손가락으로 훑는다.","speech":"잠깐. 손대지 마. 내가 먼저 볼게."},{"actionType":"persuade","stage":"한 손을 들어 상대의 총구를 옆으로 밀어 내려 보이게 한다.","speech":"잠깐. 서로 총부터 내려놓고 얘기하지."},{"actionType":"free","stage":"한 발 물러서서 동료 쪽을 돌아본다.","speech":"어떻게 할래. 네가 먼저 말해."}]}`;
+{"suggestions":[{"actionType":"investigate","stage":"문을 바로 열지 않고 무릎을 낮춘 채 경첩과 문틈, 바닥의 먼지를 손가락으로 천천히 훑어 최근 드나든 흔적이 있는지부터 확인한다.","speech":"잠깐. 손대지 마. 내가 먼저 볼게. 여기 자국이 이상해."},{"actionType":"persuade","stage":"한 손을 천천히 들어 상대의 총구를 옆으로 밀어 내려 보이게 한 뒤, 시선은 눈과 손끝에만 두고 한 발 다가선다.","speech":"잠깐. 서로 총부터 내려놓고 얘기하지. 여기서 쏘면 둘 다 끝이야."},{"actionType":"free","stage":"한 발 물러서서 동료 쪽을 돌아본 뒤, 출구와 상대의 위치를 눈으로 한 번 더 가늠하며 목소리를 낮춘다.","speech":"어떻게 할래. 네가 먼저 말해. 나는 네 뒤를 맞출게."}]}`;
 
   const persona = opts.persona;
   const self = opts.self;
@@ -340,18 +340,18 @@ const MOCK_SUGGESTIONS = JSON.stringify({
   suggestions: [
     {
       actionType: "investigate",
-      stage: "문을 바로 열지 않고 경첩과 바닥의 먼지를 손가락으로 훑는다.",
-      speech: "잠깐. 손대지 마. 내가 먼저 볼게.",
+      stage: "문을 바로 열지 않고 무릎을 낮춘 채 경첩과 문틈, 바닥의 먼지를 손가락으로 천천히 훑어 최근 드나든 흔적이 있는지부터 확인한다.",
+      speech: "잠깐. 손대지 마. 내가 먼저 볼게. 여기 자국이 이상해.",
     },
     {
       actionType: "persuade",
-      stage: "한 손을 들어 상대의 총구를 옆으로 밀어 내려 보이게 한다.",
-      speech: "잠깐. 서로 총부터 내려놓고 얘기하지.",
+      stage: "한 손을 천천히 들어 상대의 총구를 옆으로 밀어 내려 보이게 한 뒤, 시선은 눈과 손끝에만 두고 한 발 다가선다.",
+      speech: "잠깐. 서로 총부터 내려놓고 얘기하지. 여기서 쏘면 둘 다 끝이야.",
     },
     {
       actionType: "free",
-      stage: "한 발 물러서서 동료 쪽을 돌아본다.",
-      speech: "어떻게 할래. 네가 먼저 말해.",
+      stage: "한 발 물러서서 동료 쪽을 돌아본 뒤, 출구와 상대의 위치를 눈으로 한 번 더 가늠하며 목소리를 낮춘다.",
+      speech: "어떻게 할래. 네가 먼저 말해. 나는 네 뒤를 맞출게.",
     },
   ],
 });

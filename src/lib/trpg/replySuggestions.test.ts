@@ -110,6 +110,18 @@ describe("TRPG reply suggestions", () => {
       system,
       new RegExp(`${TRPG_REPLY_SUGGESTION_AIM_MIN_CHARS}–${TRPG_REPLY_SUGGESTION_AIM_MAX_CHARS}`)
     );
+    const sample = system.match(/\{"suggestions":\[.*\]\}/);
+    assert.ok(sample, "system prompt must include a JSON few-shot");
+    const parsed = parseReplySuggestions(sample[0]);
+    for (const row of parsed) {
+      const n = Array.from(row.text).length;
+      assert.ok(
+        n >= TRPG_REPLY_SUGGESTION_AIM_MIN_CHARS && n <= TRPG_REPLY_SUGGESTION_AIM_MAX_CHARS,
+        `few-shot "${row.text}" is ${n} chars`
+      );
+      assert.ok(row.stage, "few-shot must include 지문");
+      assert.ok(row.speech, "few-shot must include 대사");
+    }
   });
 
   it("parses exactly three valid action types", () => {
