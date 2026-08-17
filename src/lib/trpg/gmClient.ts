@@ -6,7 +6,8 @@ import {
 
 /**
  * TRPG GM body adapter — isolated from RP `adaptCheaperInferenceChatBody`.
- * Regular chat keeps DeepSeek thinking disabled; GM Pro turns thinking on.
+ * DeepSeek V4 Pro 0813 does not disable reasoning from `thinking.disabled`
+ * alone. True OFF is both fields together.
  */
 export function adaptTrpgGmChatBody(body: Record<string, unknown>): Record<string, unknown> {
   const adapted = { ...body };
@@ -21,14 +22,9 @@ export function adaptTrpgGmChatBody(body: Record<string, unknown>): Record<strin
     adapted.model = isCheaperInferenceDeepSeekV4ProModel(model)
       ? CHEAPER_INFERENCE_DEEPSEEK_V4_PRO_MODEL
       : model;
-    if (isCheaperInferenceDeepSeekV4ProModel(model)) {
-      delete adapted.reasoning_effort;
-      adapted.thinking = { type: "enabled" };
-      return adapted;
-    }
   }
-
-  adapted.thinking = { type: "enabled" };
+  adapted.thinking = { type: "disabled" };
+  adapted.reasoning_effort = "none";
   return adapted;
 }
 
