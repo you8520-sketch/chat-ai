@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import Database from "better-sqlite3";
 import { CREATOR_REWARD_RATE_EXCLUSIVE } from "@/lib/creatorShared";
+import { computeTrpgRoundPoints, splitTrpgRoundCost, TRPG_BOT_USAGE_FALLBACK, TRPG_GM_USAGE_FALLBACK } from "./billing";
 import { creditTrpgRoundCreatorRewards, splitTrpgCreatorRewards } from "./creatorRewards";
+import { persistMemoryEvents } from "./memoryHorizon";
 import { ensureTrpgTables } from "./schema";
 import {
   computeTrpgServiceSubtotal,
@@ -202,6 +204,64 @@ describe("TRPG value economics", () => {
     assert.equal(first.length, 3);
     assert.equal(rows.n, 3);
     assert.equal(rows.s, 30);
+    db.close();
+  });
+
+  it("keeps model subtotal and flag-off charge identical after memory events exist", () => {
+    const db = new Database(":memory:");
+    ensureTrpgTables(db);
+    db.prepare(`INSERT INTO trpg_campaigns (host_user_id, title) VALUES (1, '교차')`).run();
+    const campaignId = Number((db.prepare(`SELECT id FROM trpg_campaigns`).get() as { id: number }).id);
+    persistMemoryEvents(db, {
+      campaignId,
+      roundStart: 0,
+      roundEnd: 3,
+      events: [
+        {
+          type: "promise",
+          fact: "과거 약속",
+          actors: ["PC-A"],
+          entities: ["장소-A"],
+          keywords: ["약속"],
+          importance: "critical",
+          scope: "party_observed",
+        },
+      ],
+    });
+    const stored = db.prepare(`SELECT COUNT(*) AS n FROM trpg_memory_events WHERE campaign_id=?`).get(campaignId) as {
+      n: number;
+    };
+    assert.equal(stored.n, 1);
+    const gmOnly = computeTrpgRoundPoints([TRPG_GM_USAGE_FALLBACK]);
+    const oneBot = computeTrpgRoundPoints([TRPG_GM_USAGE_FALLBACK, TRPG_BOT_USAGE_FALLBACK]);
+    const twoBot = computeTrpgRoundPoints([
+      TRPG_GM_USAGE_FALLBACK,
+      TRPG_BOT_USAGE_FALLBACK,
+      TRPG_BOT_USAGE_FALLBACK,
+    ]);
+    assert.ok(gmOnly > 0);
+    assert.equal(oneBot, gmOnly + computeTrpgRoundPoints([TRPG_BOT_USAGE_FALLBACK]));
+    assert.equal(twoBot, gmOnly + computeTrpgRoundPoints([TRPG_BOT_USAGE_FALLBACK]) * 2);
+    for (const humans of [1, 2, 3, 4]) {
+      const ids = Array.from({ length: humans }, (_, i) => i + 1);
+      const off = quoteTrpgRoundEconomics({
+        modelSubtotal: oneBot,
+        humanUserIds: ids,
+        hostUserId: 1,
+        authorUserId: 9,
+        authorRate: CREATOR_REWARD_RATE_EXCLUSIVE,
+        characterSeats: [{ creatorId: 3, characterId: 10, official: 0 }],
+        botCount: 1,
+        valuePricingEnabled: false,
+      });
+      assert.equal(off.roundTotal, oneBot);
+      assert.equal(off.partyPremiumPoints, 0);
+      assert.equal(off.creatorFundingPoints, 0);
+      assert.deepEqual(
+        off.perUserShares.map((row) => ({ userId: row.userId, points: row.total })),
+        splitTrpgRoundCost({ totalPoints: oneBot, humanUserIds: ids, hostUserId: 1 })
+      );
+    }
     db.close();
   });
 
