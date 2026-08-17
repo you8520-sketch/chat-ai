@@ -1,0 +1,22 @@
+{
+  "caseId": "A",
+  "title": "comic_absurd_adult",
+  "requestedModel": "muse-spark-1.2",
+  "resolvedModel": "muse-spark-1.2",
+  "visibleChars": 4317,
+  "paragraphs": 54,
+  "paragraphsPer1000": 12.509,
+  "inputTokens": 10026,
+  "outputTokens": 4550,
+  "reasoningTokens": null,
+  "ttftMs": 16269,
+  "latencyMs": 43337,
+  "upstreamCostUsd": 0.027089,
+  "finishReason": "stop",
+  "retry": 0,
+  "continuation": 0,
+  "recovery": 0,
+  "fallback": 0,
+  "rawFile": "MUSE_CASE_A.txt",
+  "textSha256": "c902e87e0a73c506deb5ff3d04a6c00550151a4f8ef910dad5a42346dfdbaf09"
+}
