@@ -323,6 +323,19 @@ export default function TrpgCampaignRoom({
             </p>
           ) : null}
 
+          {(snap.resolutionOrder ?? []).length > 0 ? (
+            <AppSectionCard title="행동 순서">
+              <ol className="space-y-1 text-sm text-zinc-300">
+                {(snap.resolutionOrder ?? []).map((entry, index) => (
+                  <li key={entry.participantId} className="tabular-nums">
+                    {index + 1} {entry.name} ·{" "}
+                    {entry.statKey ? `${entry.statLabel} ${entry.statValue}` : `슬롯 ${entry.slotIndex}`}
+                  </li>
+                ))}
+              </ol>
+            </AppSectionCard>
+          ) : null}
+
           {snap.currentRolls.length > 0 && !sceneRows.some((row) => row.rolls.length > 0) ? (
             <AppSectionCard title="주사위">
               <DiceStrip rolls={snap.currentRolls} statDefs={snap.statDefs} />

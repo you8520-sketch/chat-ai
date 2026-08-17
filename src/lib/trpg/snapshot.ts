@@ -1,5 +1,6 @@
 import type { CharacterAsset } from "@/lib/characterAssets";
 import type { TrpgActionType } from "./actionTypes";
+import type { TrpgResolutionOrderEntry } from "./initiative";
 import type { TrpgSheetHudCard } from "./sheetView";
 import type {
   TrpgActionSource,
@@ -112,6 +113,7 @@ export type TrpgCampaignSnapshot = {
     locked: boolean;
   } | null;
   currentRolls: TrpgPublicRoll[];
+  resolutionOrder?: TrpgResolutionOrderEntry[];
   currentNarration: string | null;
   log: TrpgPublicLog[];
   workType: string;

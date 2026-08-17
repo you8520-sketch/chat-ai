@@ -43,6 +43,12 @@ import { sealDroppedTrpgRounds, type TrpgMemoryCall } from "./memorySeal";
 import { nextTrpgRoundWork, tryAcquireGmLock, tryBeginGmGeneration, tryBeginNarrationReroll, type TrpgActorReady } from "./roundLock";
 import { applyValidatedStateDelta } from "./sheetView";
 import { loadSheetSnapshots, persistSheets } from "./engineSheets";
+import {
+  computeResolutionOrder,
+  formatResolutionOrderBlock,
+  parseResolutionOrder,
+  sortByResolutionOrder,
+} from "./initiative";
 import { statModifier } from "./stats";
 import {
   loadCampaign,
@@ -582,8 +588,25 @@ function persistRolls(
       );
     }
     setRoundPhase(db, roundId, "ROLLING");
+    const parts = loadParticipants(db, campaignId);
+    const sheets = loadSheetSnapshots(db, campaignId);
+    const resolutionOrder = computeResolutionOrder(
+      parts.map((part) => {
+        const sheet = sheets.find((row) => row.participantId === part.id);
+        return {
+          participantId: part.id,
+          name: sheet?.name || part.display_name,
+          slotIndex: part.slot_index,
+          stats: sheet?.stats ?? {},
+        };
+      }),
+      scenario.statDefs
+    );
     db.prepare(`UPDATE trpg_rounds SET input_snapshot_json=? WHERE id=?`).run(
-      JSON.stringify({ submissions: subs.map((s) => ({ id: s.id, body: s.body })) }),
+      JSON.stringify({
+        submissions: subs.map((s) => ({ id: s.id, body: s.body })),
+        resolutionOrder,
+      }),
       roundId
     );
   })();
@@ -628,7 +651,14 @@ async function runGmForRound(
   if (!campaign) throw new Error("캠페인을 찾을 수 없습니다.");
   const scenario = loadScenario(db, opts.campaignId);
   const memory = buildCampaignMemoryPrompt(db, opts.campaignId);
-  const actions = loadActionsForGm(db, opts.roundId, scenario.statDefs);
+  const storedSnapshot = parseJson(
+    (db.prepare(`SELECT input_snapshot_json FROM trpg_rounds WHERE id=?`).get(opts.roundId) as
+      | { input_snapshot_json: string | null }
+      | undefined)?.input_snapshot_json,
+    {} as { resolutionOrder?: unknown }
+  );
+  const resolutionOrder = parseResolutionOrder(storedSnapshot);
+  const actions = sortByResolutionOrder(loadActionsForGm(db, opts.roundId, scenario.statDefs), resolutionOrder);
   const playerPersonas = loadParticipants(db, opts.campaignId)
     .filter((p) => p.kind === "human")
     .map((p) => {
@@ -683,6 +713,7 @@ async function runGmForRound(
     scenarioAssetPrompt: buildScenarioAssetTagPrompt(scenarioAssets),
     scenarioPlanBlock,
     storyDirectorBlock,
+    resolutionOrderBlock: formatResolutionOrderBlock(resolutionOrder),
     actions,
   });
   const gmCall = opts.deps?.gmCall ?? callTrpgGm;
