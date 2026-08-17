@@ -2,6 +2,8 @@
 
 import { useMemo } from "react";
 import NovelText from "@/components/NovelText";
+import TaggedNovelText from "@/components/TaggedNovelText";
+import type { CharacterAsset } from "@/lib/characterAssets";
 import type { ChatDisplayPrefs } from "@/lib/chatDisplayPrefs";
 import {
   parseMarkdownPipeTable,
@@ -92,6 +94,9 @@ export default function ChatRichBlocks({
   paragraphMode = "ai",
   proseOnly = false,
   streaming = false,
+  inlineAssets,
+  viewerIsCreator = false,
+  unlockedUrls,
 }: {
   content: string;
   display?: Pick<
@@ -102,6 +107,9 @@ export default function ChatRichBlocks({
   /** 상태창은 StatusMetaCard — 본문에서 표/HTML 블록 제외 */
   proseOnly?: boolean;
   streaming?: boolean;
+  inlineAssets?: CharacterAsset[];
+  viewerIsCreator?: boolean;
+  unlockedUrls?: ReadonlySet<string>;
 }) {
   const displayContent = useMemo(() => {
     if (!streaming) return content;
@@ -128,6 +136,20 @@ export default function ChatRichBlocks({
       ))}
       {body.map((block, i) => {
         if (block.kind === "novel") {
+          if (inlineAssets && inlineAssets.length > 0) {
+            return (
+              <TaggedNovelText
+                key={`novel-${i}`}
+                content={block.text}
+                assets={inlineAssets}
+                display={display}
+                paragraphMode={paragraphMode}
+                streaming={streaming}
+                viewerIsCreator={viewerIsCreator}
+                unlockedUrls={unlockedUrls}
+              />
+            );
+          }
           return (
             <NovelText
               key={`novel-${i}`}

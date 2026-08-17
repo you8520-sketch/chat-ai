@@ -1,7 +1,10 @@
 "use client";
 
 import NovelText from "@/components/NovelText";
+import TaggedNovelText from "@/components/TaggedNovelText";
+import type { CharacterAsset } from "@/lib/characterAssets";
 import type { ChatDisplayPrefs } from "@/lib/chatDisplayPrefs";
+import { useRevealedText } from "./useRevealedText";
 
 const quoteSelectStyle = {
   userSelect: "text" as const,
@@ -10,8 +13,17 @@ const quoteSelectStyle = {
   WebkitTouchCallout: "default" as const,
 };
 
-export function TrpgGmTalk({ text }: { text: string }) {
-  const body = text.trim();
+export function TrpgGmTalk({
+  text,
+  assets = [],
+  reveal = false,
+}: {
+  text: string;
+  assets?: CharacterAsset[];
+  reveal?: boolean;
+}) {
+  const shown = useRevealedText(text, reveal);
+  const body = shown.trim();
   if (!body) return null;
   return (
     <div
@@ -19,7 +31,7 @@ export function TrpgGmTalk({ text }: { text: string }) {
       data-quote-assistant
       style={quoteSelectStyle}
     >
-      <p
+      <div
         className="whitespace-pre-wrap leading-relaxed"
         style={{
           fontSize: "var(--font-size-chat)",
@@ -28,8 +40,18 @@ export function TrpgGmTalk({ text }: { text: string }) {
         }}
       >
         <span className="not-italic font-bold text-sky-300">GM:</span>{" "}
-        <span className="italic font-semibold text-sky-100/85">{body}</span>
-      </p>
+        {assets.length > 0 ? (
+          <TaggedNovelText
+            content={body}
+            assets={assets}
+            variant="character"
+            paragraphMode="author"
+            streaming={reveal}
+          />
+        ) : (
+          <span className="italic font-semibold text-sky-100/85">{body}</span>
+        )}
+      </div>
     </div>
   );
 }
@@ -41,6 +63,8 @@ export default function TrpgNamedProse({
   variant,
   display,
   accent,
+  assets = [],
+  reveal = false,
 }: {
   name?: string | null;
   hint?: string;
@@ -49,8 +73,11 @@ export default function TrpgNamedProse({
   display: ChatDisplayPrefs;
   /** Left rail. Defaults to on when a speaker name is shown — never on plain narration. */
   accent?: boolean;
+  assets?: CharacterAsset[];
+  reveal?: boolean;
 }) {
-  if (!text.trim()) return null;
+  const shown = useRevealedText(text, reveal);
+  if (!shown.trim()) return null;
   const labeled = Boolean(name?.trim());
   const showRail = accent ?? labeled;
   const rail = showRail
@@ -73,12 +100,23 @@ export default function TrpgNamedProse({
         data-quote-assistant
         style={quoteSelectStyle}
       >
-        <NovelText
-          content={text}
-          display={display}
-          variant={variant}
-          paragraphMode="author"
-        />
+        {assets.length > 0 ? (
+          <TaggedNovelText
+            content={shown}
+            assets={assets}
+            display={display}
+            variant={variant}
+            paragraphMode="author"
+            streaming={reveal}
+          />
+        ) : (
+          <NovelText
+            content={shown}
+            display={display}
+            variant={variant}
+            paragraphMode="author"
+          />
+        )}
       </div>
     </div>
   );

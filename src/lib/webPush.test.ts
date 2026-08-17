@@ -120,6 +120,22 @@ test("broadcast queues only subscribed users", () => {
   db.close();
 });
 
+test("point expiry reminder is created once even without a push subscription", () => {
+  const db = createDb();
+  db.prepare(
+    `INSERT INTO point_transactions (user_id, point_type, remaining_amount, expires_at)
+     VALUES (9, 'FREE', 800, datetime('now', '+2 days'))`
+  ).run();
+
+  assert.equal(queueExpiringPointPushes(db), 1);
+  assert.equal(queueExpiringPointPushes(db), 0);
+  const notifications = db
+    .prepare("SELECT COUNT(*) AS c FROM user_notifications WHERE type='point_expiring' AND user_id=9")
+    .get() as { c: number };
+  assert.equal(notifications.c, 1);
+  db.close();
+});
+
 test("point expiry reminder is created once per nearest expiry", () => {
   const db = createDb();
   saveWebPushSubscription(db, 3, {

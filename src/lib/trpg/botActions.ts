@@ -28,6 +28,7 @@ export type TrpgBotActionContext = {
   speakIndex?: number;
   speakCount?: number;
   relationshipBrief?: string;
+  scenarioAssetPrompt?: string;
 };
 
 export type TrpgBotSpeakOrder = { id: number; name: string };
@@ -127,6 +128,7 @@ export function buildTrpgBotActionUserBlock(ctx: TrpgBotActionContext): string {
     `[PREVIOUS GM SCENE]\n${scene}`,
     `[HUMAN ACTIONS THIS ROUND — already locked]\n${humans}`,
     `[EARLIER COMPANION ACTIONS THIS ROUND]\n${earlier}`,
+    ctx.scenarioAssetPrompt?.trim() ?? "",
   ]
     .filter(Boolean)
     .join("\n\n");

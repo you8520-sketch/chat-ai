@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdminUser } from "@/lib/adminAuth";
 import { getDb } from "@/lib/db";
 import { getHomePopupNotice, saveHomePopupNotice } from "@/lib/homePopupNotice";
+import { notifyBroadcastInApp } from "@/lib/userNotifications";
 import { queueBroadcastWebPush } from "@/lib/webPush";
 
 export async function GET() {
@@ -40,9 +41,17 @@ export async function POST(req: Request) {
     previous.starts_at !== notice.starts_at ||
     previous.ends_at !== notice.ends_at;
   if (notice.enabled === 1 && changed) {
+    const title = notice.title || "새 이벤트·소식";
+    const body = notice.content.replace(/\s+/g, " ").trim().slice(0, 160);
+    notifyBroadcastInApp(db, {
+      type: "event",
+      refId: 1,
+      title,
+      body,
+    });
     queueBroadcastWebPush(db, `event:${notice.updated_at}`, {
-      title: notice.title || "새 이벤트·소식",
-      body: notice.content.replace(/\s+/g, " ").trim().slice(0, 160),
+      title,
+      body,
       url: "/",
       tag: `event:${notice.updated_at}`,
       kind: "event",

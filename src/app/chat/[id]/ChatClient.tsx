@@ -56,14 +56,17 @@ import {
   findAssetByTag,
   findAssetsByTag,
   getDefaultChatAsset,
+  isWideInlineAsset,
+  portraitChatAssets,
   shouldBlurAssetForViewer,
   type CharacterAsset,
 } from "@/lib/characterAssets";
 import {
   resolveEmotionTag,
   stripEmotionTag,
-  stripEmotionTagsForDisplay,
 } from "@/lib/emotionTag";
+import { displayBodyEmotionTags, lastPortraitEmotionAsset, mergeAssetSizes } from "@/lib/inlineTaggedAssets";
+import { measureImageUrl } from "@/lib/measureImageSize";
 import {
   loadUnlockedCharacterAssetUrls,
   saveCharacterAssetAlbum,
@@ -761,14 +764,16 @@ function scanMessagesForPortrait(
 
   for (const m of msgs) {
     if (m.role !== "assistant" || !m.content.trim()) continue;
+    const portrait = lastPortraitEmotionAsset(m.content, assets);
     const { tag } = stripEmotionTag(m.content);
-    if (!tag) continue;
-    const resolved = resolveEmotionTag(tag, allowed);
-    if (!resolved) continue;
-    const asset = findAssetByTag(assets, resolved);
+    const trailing = tag ? resolveEmotionTag(tag, allowed) : null;
+    const trailingAsset = trailing ? findAssetByTag(assets, trailing) : null;
+    const asset =
+      portrait ??
+      (trailingAsset && !isWideInlineAsset(trailingAsset) ? trailingAsset : null);
     if (!asset) continue;
     if (!isCharacterCreator) {
-      for (const matched of findAssetsByTag(assets, resolved)) {
+      for (const matched of findAssetsByTag(assets, asset.tag)) {
         if (matched.viewerBlur) unlocked.add(matched.url);
       }
     }
@@ -927,7 +932,42 @@ export default function ChatClient({
     const timer = window.setInterval(update, 1000);
     return () => window.clearInterval(timer);
   }, [loading, generationStartedAt]);
-  const defaultChatAsset = useMemo(() => getDefaultChatAsset(assets), [assets]);
+  const [assetSizeOverrides, setAssetSizeOverrides] = useState<
+    Map<string, { width: number; height: number }>
+  >(() => new Map());
+  const resolvedAssets = useMemo(
+    () => mergeAssetSizes(assets, assetSizeOverrides),
+    [assets, assetSizeOverrides]
+  );
+  const defaultChatAsset = useMemo(() => getDefaultChatAsset(resolvedAssets), [resolvedAssets]);
+  const portraitAssets = useMemo(() => portraitChatAssets(resolvedAssets), [resolvedAssets]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const missing = assets.filter((asset) => !asset.width || !asset.height);
+    if (missing.length === 0) return;
+    void Promise.all(
+      missing.map(async (asset) => {
+        const size = await measureImageUrl(asset.url);
+        return size ? ([asset.url, size] as const) : null;
+      })
+    ).then((rows) => {
+      if (cancelled) return;
+      const next = new Map<string, { width: number; height: number }>();
+      for (const row of rows) {
+        if (row) next.set(row[0], row[1]);
+      }
+      if (next.size === 0) return;
+      setAssetSizeOverrides((prev) => {
+        const merged = new Map(prev);
+        for (const [url, size] of next) merged.set(url, size);
+        return merged;
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [assets]);
   const initialPortrait = useMemo(
     () => scanMessagesForPortrait(initialMessages, assets, isCharacterCreator),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 입장·채팅방 전환 시에만 스캔
@@ -1449,31 +1489,38 @@ export default function ChatClient({
   }, [character.id, router]);
 
   applyEmotionRef.current = (text: string, showUnlockNotice = true) => {
+    if (resolvedAssets.length === 0) return;
+    const allowed = resolvedAssets.filter((a) => a.chat !== false).map((a) => a.tag);
+    const portrait = lastPortraitEmotionAsset(text, resolvedAssets);
     const { tag } = stripEmotionTag(text);
-    if (!tag || assets.length === 0) return;
-    const allowed = assets.filter((a) => a.chat !== false).map((a) => a.tag);
-    const resolved = resolveEmotionTag(tag, allowed);
-    if (!resolved) return;
-    const asset = findAssetByTag(assets, resolved);
-    if (!asset) return;
+    const trailing = tag ? resolveEmotionTag(tag, allowed) : null;
+    const trailingAsset = trailing ? findAssetByTag(resolvedAssets, trailing) : null;
+    const unlockTargets = [
+      ...new Set(
+        [...(portrait ? [portrait] : []), ...(trailingAsset ? [trailingAsset] : [])].map((a) => a.url)
+      ),
+    ]
+      .map((url) => assetByUrl(resolvedAssets, url))
+      .filter((a): a is CharacterAsset => Boolean(a));
 
-    const wasLocked =
-      !isCharacterCreator &&
-      asset.viewerBlur === true &&
-      !unlockedUrlsRef.current.has(asset.url);
-
-    if (wasLocked) {
+    for (const asset of unlockTargets) {
+      const wasLocked =
+        !isCharacterCreator &&
+        asset.viewerBlur === true &&
+        !unlockedUrlsRef.current.has(asset.url);
+      if (!wasLocked) continue;
       unlockedUrlsRef.current.add(asset.url);
       saveUnlockedCharacterAssetUrls(character.id, unlockedUrlsRef.current);
       setUnlockedUrls(new Set(unlockedUrlsRef.current));
       if (showUnlockNotice) {
-        setToastMsg(`「${asset.tag}」 표정 이미지가 해금되었습니다`);
+        setToastMsg(`「${asset.tag}」 이미지가 해금되었습니다`);
       }
     }
 
     if (portraitPinnedRef.current) return;
-    setActivePortraitUrl(asset.url);
-    setActivePortraitTag(asset.tag);
+    if (!portrait) return;
+    setActivePortraitUrl(portrait.url);
+    setActivePortraitTag(portrait.tag);
   };
 
   const handlePortraitSelected = useCallback((asset: CharacterAsset) => {
@@ -3988,8 +4035,12 @@ export default function ChatClient({
   }
 
   const showCharacterPortrait = displayPrefs.showCharacterPortrait;
-  const mobilePortraitUrl = activePortraitUrl ?? defaultChatAsset?.url ?? null;
-  const mobilePortraitAsset = assetByUrl(assets, mobilePortraitUrl) ?? defaultChatAsset;
+  const mobilePortraitUrl = (() => {
+    const active = assetByUrl(resolvedAssets, activePortraitUrl);
+    if (active && !isWideInlineAsset(active)) return active.url;
+    return defaultChatAsset?.url ?? null;
+  })();
+  const mobilePortraitAsset = assetByUrl(resolvedAssets, mobilePortraitUrl) ?? defaultChatAsset;
   const mobilePortraitBlur = shouldBlurAssetForViewer(
     mobilePortraitAsset ?? undefined,
     isCharacterCreator,
@@ -4161,7 +4212,7 @@ export default function ChatClient({
               characterName={character.name}
               emoji={character.emoji}
               hue={character.hue}
-              assets={assets}
+              assets={portraitAssets}
               defaultAsset={defaultChatAsset}
               activeUrl={activePortraitUrl}
               unlockedUrls={unlockedUrls}
@@ -4444,9 +4495,13 @@ export default function ChatClient({
                       const displayBody = stripIncompleteStatusWidgetTail(
                         stripRepeatedTrailingQuoteMarks(
                           stripRpMetaPreamble(
-                            stripEmotionTagsForDisplay(
+                            displayBodyEmotionTags(
                               stripInternalTagLeakage(variantContent),
-                              { streaming: isStreamingThisMessage }
+                              resolvedAssets,
+                              {
+                                streaming: isStreamingThisMessage,
+                                assetsEnabled: showCharacterPortrait,
+                              }
                             )
                           )
                         )
@@ -4563,6 +4618,9 @@ export default function ChatClient({
                               paragraphMode={m.model === "greeting" ? "author" : "ai"}
                               proseOnly={m.model !== "greeting"}
                               streaming={isStreamingThisMessage}
+                              inlineAssets={showCharacterPortrait ? resolvedAssets : undefined}
+                              viewerIsCreator={isCharacterCreator}
+                              unlockedUrls={unlockedUrls}
                             />
                           </div>
                           {widgetsBottom.map((w) => (
@@ -4728,7 +4786,7 @@ export default function ChatClient({
                 type="button"
                 onClick={sendContinue}
                 disabled={inputLocked || !canContinue}
-                title="AI 답변 직후 서사를 이어갑니다"
+                title="AI 답변 직후 서사를 이어갑니다. 유저 행동·대사도 함께 출력됩니다."
                 className="rounded-md border border-violet-500/40 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-200 disabled:opacity-40"
               >
                 자동진행
@@ -4751,13 +4809,7 @@ export default function ChatClient({
             >
               {input.length.toLocaleString()} / {CHAT_MESSAGE_MAX.toLocaleString()}자
             </span>
-            <span className="text-[10px] text-zinc-500"> · Ctrl+Enter 전송</span>
-            {canContinue && !loading && (
-              <span className="text-[10px] text-violet-400/80">
-                {" "}
-                · 자동진행: 유저의 행동과 대사도 함께 출력됩니다
-              </span>
-            )}
+            <span className="hidden text-[10px] text-zinc-500 min-[576px]:inline"> · Ctrl+Enter 전송</span>
           </p>
         </div>
       </div>

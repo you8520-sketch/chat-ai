@@ -232,7 +232,8 @@ export function buildTrpgGmUserBlock(opts: {
   playerPersonas?: string;
   sheetCanon?: string;
   genres?: readonly string[];
-  relationshipBrief?: string;
+    relationshipBrief?: string;
+  scenarioAssetPrompt?: string;
   actions: Array<{
     participantId: number;
     name: string;
@@ -292,6 +293,7 @@ export function buildTrpgGmUserBlock(opts: {
       : "",
     opts.memoryBlock,
     actionBlock,
+    opts.scenarioAssetPrompt?.trim() ?? "",
   ]
     .filter(Boolean)
     .join("\n\n");

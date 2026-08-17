@@ -16,7 +16,9 @@ export type UserNotificationType =
   | "report_result"
   | "character_like"
   | "profile_comment"
-  | "post_comment";
+  | "post_comment"
+  | "notice"
+  | "event";
 
 export type UserNotificationRow = {
   id: number;
@@ -233,8 +235,14 @@ export function notificationHref(n: UserNotificationRow): string {
       return `/character/${n.ref_id}`;
     case "report_result":
       return "/notifications";
-    default:
-      return "/notifications";
+    case "notice":
+      return "/board/notice";
+    case "event":
+      return "/";
+    default: {
+      const _exhaustive: never = n.type;
+      return _exhaustive;
+    }
   }
 }
 
@@ -267,9 +275,31 @@ export function notificationIcon(type: UserNotificationType): string {
     case "profile_comment":
     case "post_comment":
       return "💬";
-    default:
-      return "🔔";
+    case "notice":
+      return "📢";
+    case "event":
+      return "🎉";
+    default: {
+      const _exhaustive: never = type;
+      return _exhaustive;
+    }
   }
+}
+
+function userFlagOn(
+  db: Database.Database,
+  userId: number,
+  column:
+    | "notify_character_likes"
+    | "notify_profile_comments"
+    | "push_notify_likes"
+    | "push_notify_comments",
+  fallback: number
+): boolean {
+  const row = db
+    .prepare(`SELECT ${column} AS enabled FROM users WHERE id=?`)
+    .get(userId) as { enabled: number } | undefined;
+  return (row?.enabled ?? fallback) !== 0;
 }
 
 function creatorNotifyPrefOn(
@@ -277,10 +307,62 @@ function creatorNotifyPrefOn(
   creatorId: number,
   column: "notify_character_likes" | "notify_profile_comments"
 ): boolean {
+  return userFlagOn(db, creatorId, column, 1);
+}
+
+function pushNotifyPrefOn(
+  db: Database.Database,
+  userId: number,
+  column: "push_notify_likes" | "push_notify_comments"
+): boolean {
+  return userFlagOn(db, userId, column, 0);
+}
+
+export function getPushSocialPrefs(
+  db: Database.Database,
+  userId: number
+): { pushNotifyLikes: boolean; pushNotifyComments: boolean } {
   const row = db
-    .prepare(`SELECT ${column} AS enabled FROM users WHERE id=?`)
-    .get(creatorId) as { enabled: number } | undefined;
-  return (row?.enabled ?? 1) !== 0;
+    .prepare("SELECT push_notify_likes, push_notify_comments FROM users WHERE id=?")
+    .get(userId) as { push_notify_likes: number; push_notify_comments: number } | undefined;
+  return {
+    pushNotifyLikes: (row?.push_notify_likes ?? 0) !== 0,
+    pushNotifyComments: (row?.push_notify_comments ?? 0) !== 0,
+  };
+}
+
+export function setPushSocialPrefs(
+  db: Database.Database,
+  userId: number,
+  input: { pushNotifyLikes?: boolean; pushNotifyComments?: boolean }
+): { pushNotifyLikes: boolean; pushNotifyComments: boolean } {
+  const current = getPushSocialPrefs(db, userId);
+  const likes = input.pushNotifyLikes ?? current.pushNotifyLikes;
+  const comments = input.pushNotifyComments ?? current.pushNotifyComments;
+  db.prepare("UPDATE users SET push_notify_likes=?, push_notify_comments=? WHERE id=?").run(
+    likes ? 1 : 0,
+    comments ? 1 : 0,
+    userId
+  );
+  return { pushNotifyLikes: likes, pushNotifyComments: comments };
+}
+
+export function notifyBroadcastInApp(
+  db: Database.Database,
+  input: {
+    type: "notice" | "event";
+    refId: number;
+    title: string;
+    body: string;
+  }
+): number {
+  const result = db
+    .prepare(
+      `INSERT INTO user_notifications (user_id, type, ref_id, title, body)
+       SELECT id, ?, ?, ?, ? FROM users`
+    )
+    .run(input.type, input.refId, input.title, input.body);
+  return Number(result.changes);
 }
 
 /** Notify character creator when someone likes their character (respects notify_character_likes). */
@@ -296,15 +378,37 @@ export function notifyCharacterLiked(
 ) {
   const creatorId = opts.creatorId ?? 0;
   if (creatorId <= 0 || creatorId === opts.actorId) return;
-  if (!creatorNotifyPrefOn(db, creatorId, "notify_character_likes")) return;
+  const inApp = creatorNotifyPrefOn(db, creatorId, "notify_character_likes");
+  const push = pushNotifyPrefOn(db, creatorId, "push_notify_likes");
+  if (!inApp && !push) return;
 
-  insertNotification(db, {
-    userId: creatorId,
-    type: "character_like",
-    refId: opts.characterId,
-    actorId: opts.actorId,
-    title: "새 좋아요",
-    body: `@${opts.actorNickname}님이 「${opts.characterName}」에 좋아요를 눌렀습니다.`,
+  const title = "새 좋아요";
+  const body = `@${opts.actorNickname}님이 「${opts.characterName}」에 좋아요를 눌렀습니다.`;
+  const pushPayload = push
+    ? {
+        url: `/character/${opts.characterId}`,
+        tag: `character-like:${opts.characterId}:${opts.actorId}`,
+        kind: "character_like" as const,
+      }
+    : undefined;
+  if (inApp) {
+    insertNotification(db, {
+      userId: creatorId,
+      type: "character_like",
+      refId: opts.characterId,
+      actorId: opts.actorId,
+      title,
+      body,
+      push: pushPayload,
+    });
+    return;
+  }
+  queueUserWebPush(db, creatorId, `character-like:${opts.characterId}:${opts.actorId}:${Date.now()}`, {
+    title,
+    body,
+    url: `/character/${opts.characterId}`,
+    tag: `character-like:${opts.characterId}:${opts.actorId}`,
+    kind: "character_like",
   });
 }
 
@@ -317,26 +421,55 @@ export function notifyProfileCommentReceived(
     actorNickname: string;
     commentId: number;
     targetType: "creator" | "character";
+    targetId?: number;
     targetLabel: string;
     preview: string;
   }
 ) {
   const recipientId = opts.recipientId ?? 0;
   if (recipientId <= 0 || recipientId === opts.actorId) return;
-  if (!creatorNotifyPrefOn(db, recipientId, "notify_profile_comments")) return;
+  const inApp = creatorNotifyPrefOn(db, recipientId, "notify_profile_comments");
+  const push = pushNotifyPrefOn(db, recipientId, "push_notify_comments");
+  if (!inApp && !push) return;
 
   const preview = opts.preview.replace(/\s+/g, " ").trim().slice(0, 80);
   const where =
     opts.targetType === "character" ? `「${opts.targetLabel}」` : "크리에이터 프로필";
-  insertNotification(db, {
-    userId: recipientId,
-    type: "profile_comment",
-    refId: opts.commentId,
-    actorId: opts.actorId,
-    title: "새 댓글",
-    body: `@${opts.actorNickname}님이 ${where}에 댓글을 남겼습니다.${preview ? ` ${preview}` : ""}${
-      opts.preview.length > 80 ? "…" : ""
-    }`,
+  const title = "새 댓글";
+  const body = `@${opts.actorNickname}님이 ${where}에 댓글을 남겼습니다.${preview ? ` ${preview}` : ""}${
+    opts.preview.length > 80 ? "…" : ""
+  }`;
+  const url =
+    opts.targetType === "character" && opts.targetId
+      ? `/character/${opts.targetId}`
+      : opts.targetType === "creator" && opts.targetId
+        ? `/creator/${opts.targetId}`
+        : "/notifications";
+  const pushPayload = push
+    ? {
+        url,
+        tag: `profile-comment:${opts.commentId}`,
+        kind: "comment" as const,
+      }
+    : undefined;
+  if (inApp) {
+    insertNotification(db, {
+      userId: recipientId,
+      type: "profile_comment",
+      refId: opts.commentId,
+      actorId: opts.actorId,
+      title,
+      body,
+      push: pushPayload,
+    });
+    return;
+  }
+  queueUserWebPush(db, recipientId, `profile-comment:${opts.commentId}`, {
+    title,
+    body,
+    url,
+    tag: `profile-comment:${opts.commentId}`,
+    kind: "comment",
   });
 }
 
@@ -354,6 +487,7 @@ export function notifyPostCommentReceived(
 ) {
   const recipientId = opts.recipientId ?? 0;
   if (recipientId <= 0 || recipientId === opts.actorId) return;
+  const push = pushNotifyPrefOn(db, recipientId, "push_notify_comments");
 
   const preview = opts.preview.replace(/\s+/g, " ").trim().slice(0, 80);
   insertNotification(db, {
@@ -365,6 +499,13 @@ export function notifyPostCommentReceived(
     body: `@${opts.actorNickname}님이 「${opts.postTitle}」에 댓글을 남겼습니다.${preview ? ` ${preview}` : ""}${
       opts.preview.length > 80 ? "…" : ""
     }`,
+    push: push
+      ? {
+          url: `/board/info?post=${opts.postId}#post-${opts.postId}`,
+          tag: `post-comment:${opts.postId}`,
+          kind: "comment",
+        }
+      : undefined,
   });
 }
 

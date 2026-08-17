@@ -53,6 +53,7 @@ export async function PATCH(req: Request, ctx: RouteCtx) {
       npcs: body.npcs,
       characterIds: body.characterIds,
       genres: body.genres,
+      assets: body.assets,
     });
     const row = loadScenarioTemplate(gate.db, id);
     return NextResponse.json({

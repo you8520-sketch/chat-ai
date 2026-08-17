@@ -3,6 +3,7 @@ import { canUseCharacterInTrpg, type CharacterAccessRow } from "@/lib/characterV
 import { parseGenresJson } from "@/lib/characterGenres";
 import { defsFromKeys, parseStatKeys } from "./stats";
 import { parseJson } from "./store";
+import { parseScenarioAssets } from "./scenarioAssets";
 import {
   assertScenarioBundleLimit,
   countScenarioBundleChars,
@@ -56,6 +57,7 @@ export type TrpgScenarioTemplateRow = {
   npcs_json: string;
   character_ids_json: string;
   genres: string | null;
+  assets_json?: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -82,6 +84,7 @@ export function rowToScenarioTemplate(
     npcs: parseScenarioNpcs(parseJson(row.npcs_json, [] as unknown[]), statDefs),
     characterIds: parseCharacterIds(parseJson(row.character_ids_json, [] as unknown[])),
     genres: parseGenresJson(row.genres),
+    assets: parseScenarioAssets(row.assets_json),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -93,6 +96,15 @@ export function canAccessTrpgScenarioTemplate(
 ): boolean {
   if (row.creator_id === viewerUserId) return true;
   return parseTrpgVisibility(row.visibility) === "public";
+}
+
+export function loadCampaignScenarioAssets(
+  db: Database.Database,
+  templateId: number | null | undefined
+): import("@/lib/characterAssets").CharacterAsset[] {
+  if (!templateId) return [];
+  const row = loadScenarioTemplate(db, templateId);
+  return row ? parseScenarioAssets(row.assets_json) : [];
 }
 
 export function loadScenarioTemplate(
@@ -176,8 +188,8 @@ export function insertScenarioTemplate(
     .prepare(
       `INSERT INTO trpg_scenario_templates
         (creator_id, world_id, title, summary, content, secret_content, visibility, start_location,
-         start_inventory_json, default_pc_stats_json, stat_keys_json, npcs_json, character_ids_json, genres, updated_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))`
+         start_inventory_json, default_pc_stats_json, stat_keys_json, npcs_json, character_ids_json, genres, assets_json, updated_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))`
     )
     .run(
       creatorId,
@@ -193,7 +205,8 @@ export function insertScenarioTemplate(
       JSON.stringify(n.statKeys),
       JSON.stringify(n.npcs),
       JSON.stringify(n.characterIds),
-      JSON.stringify(n.genres)
+      JSON.stringify(n.genres),
+      JSON.stringify(n.assets)
     );
   return Number(info.lastInsertRowid);
 }
@@ -215,6 +228,7 @@ export function updateScenarioTemplate(
     `UPDATE trpg_scenario_templates
      SET world_id=?, title=?, summary=?, content=?, secret_content=?, visibility=?, start_location=?,
          start_inventory_json=?, default_pc_stats_json=?, stat_keys_json=?, npcs_json=?, character_ids_json=?, genres=?,
+         assets_json=?,
          updated_at=datetime('now')
      WHERE id=? AND creator_id=?`
   ).run(
@@ -231,6 +245,7 @@ export function updateScenarioTemplate(
     JSON.stringify(n.npcs),
     JSON.stringify(n.characterIds),
     JSON.stringify(n.genres),
+    JSON.stringify(n.assets),
     id,
     creatorId
   );

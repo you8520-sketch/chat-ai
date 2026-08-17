@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { getSessionUser } from "@/lib/auth";
+import { setPushSocialPrefs } from "@/lib/userNotifications";
 
 // 내 설정 변경: 닉네임 / 취향(pref) / 성인 캐릭터 표시(nsfw_on)
 export async function PATCH(req: Request) {
@@ -30,6 +31,18 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "성인인증 후 사용할 수 있습니다.", needVerify: true }, { status: 403 });
     }
     db.prepare("UPDATE users SET nsfw_on=? WHERE id=?").run(body.nsfw_on ? 1 : 0, user.id);
+  }
+
+  if (body.pushNotifyLikes !== undefined || body.pushNotifyComments !== undefined) {
+    const likes = typeof body.pushNotifyLikes === "boolean" ? body.pushNotifyLikes : undefined;
+    const comments = typeof body.pushNotifyComments === "boolean" ? body.pushNotifyComments : undefined;
+    if (likes === undefined && comments === undefined) {
+      return NextResponse.json({ error: "변경할 알림 설정이 없습니다." }, { status: 400 });
+    }
+    setPushSocialPrefs(db, user.id, {
+      pushNotifyLikes: likes,
+      pushNotifyComments: comments,
+    });
   }
 
   return NextResponse.json({ ok: true });

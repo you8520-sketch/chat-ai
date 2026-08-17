@@ -1,4 +1,6 @@
+import type { CharacterAsset } from "@/lib/characterAssets";
 import { parseGenresJson, type CharacterGenre } from "@/lib/characterGenres";
+import { normalizeScenarioAssets } from "./scenarioAssets";
 import {
   DEFAULT_TRPG_STAT_DEFS,
   defsFromKeys,
@@ -48,6 +50,7 @@ export type TrpgScenarioTemplate = {
   npcs: TrpgScenarioNpc[];
   characterIds: number[];
   genres: CharacterGenre[];
+  assets: CharacterAsset[];
   createdAt: string;
   updatedAt: string;
 };
@@ -66,6 +69,7 @@ export type TrpgScenarioTemplateInput = {
   npcs?: unknown;
   characterIds?: unknown;
   genres?: unknown;
+  assets?: unknown;
 };
 
 function clip(text: string, max: number): string {
@@ -144,6 +148,7 @@ export function normalizeScenarioTemplateInput(input: TrpgScenarioTemplateInput)
   npcs: TrpgScenarioNpc[];
   characterIds: number[];
   genres: CharacterGenre[];
+  assets: CharacterAsset[];
 } {
   const title = clip(String(input.title ?? ""), TRPG_SCENARIO_TITLE_LIMIT);
   const content = clip(String(input.content ?? ""), TRPG_SCENARIO_CONTENT_LIMIT);
@@ -175,6 +180,7 @@ export function normalizeScenarioTemplateInput(input: TrpgScenarioTemplateInput)
     npcs,
     characterIds,
     genres: parseGenresJson(input.genres),
+    assets: normalizeScenarioAssets(input.assets),
   };
 }
 

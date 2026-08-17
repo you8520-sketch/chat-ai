@@ -196,7 +196,12 @@ function trimBackgroundPayload(
   return { system: sys, history: hist };
 }
 
-function resolveBackgroundMaxInputTokens(requestKind: string): number {
+/** Translation-only caps. Never used for RP main max_tokens. */
+export const PROMPT_TRANSLATION_REQUEST_KIND = "background-prompt-translation";
+export const TRANSLATION_MAX_INPUT_TOKENS = 20_000;
+export const TRANSLATION_MAX_OUTPUT_TOKENS = 15_000;
+
+export function resolveBackgroundMaxInputTokens(requestKind: string): number {
   if (/background-html-visual-card/i.test(requestKind)) {
     return HTML_ONLY_TURN_MAX_INPUT_TOKENS;
   }
@@ -205,14 +210,13 @@ function resolveBackgroundMaxInputTokens(requestKind: string): number {
   }
   // Scene briefs must read the full selected turn, which can exceed 5k chars.
   if (/background-chat-image-scene-brief/i.test(requestKind)) return 48_000;
+  if (/background-prompt-translation/i.test(requestKind)) {
+    return TRANSLATION_MAX_INPUT_TOKENS;
+  }
   return BACKGROUND_MAX_INPUT_TOKENS;
 }
 
-/** Translation-only output cap. Never used for RP main max_tokens. */
-export const PROMPT_TRANSLATION_REQUEST_KIND = "background-prompt-translation";
-export const TRANSLATION_MAX_OUTPUT_TOKENS = 8192;
-
-function resolveBackgroundMaxOutputTokens(requestKind: string): number {
+export function resolveBackgroundMaxOutputTokens(requestKind: string): number {
   if (/background-lorebook-compact/i.test(requestKind)) return 3500;
   // V4 Flash reports internal reasoning inside completion_tokens, so leave
   // enough room for the requested structured result after thinking.
