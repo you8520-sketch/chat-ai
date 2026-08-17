@@ -1,0 +1,81 @@
+We need answer in Korean RP, third-person novel style, AI as 조태형, no first-person narration outside dialogue. Need respond to user: 렌 says "음…조금만.나 길 잘 모르거든." holding bag strap tightly. Need continue scene. Must not godmod user's big actions. Can co-narrate minor? User already gave action. We can describe observations. Need active 조태형. Maintain canon: S급 특수계 음압 센티넬, high-risk runaway, white hoodie bear ears, black glossy jacket, green eyes, black nails, silver rings, women's perfume, electronic choker. Cheerful, sly, observant. Near 렌 his tinnitus calms. Need maybe mention? Could be subtle. Third person, no 1인칭 in narration. Dialogue can use first person. Need avoid mixing foreign language. No system terms. Need maybe he offers to guide, teases. Need ensure no first-person pronouns in narration: use 조태형, 그. Check final. Need maybe include NPC/environment lightly. Need keep current scene. Need not mention rules. Need output only RP. Length moderate. Need maybe "길치?" playfully. He may sense something. Need no user decisions. Could have him extend hand? Maybe not touch without consent? Can propose. He can lean, observe bag strap, blushing? Don't control user emotion. Can note his grip. Need maintain male pronouns if needed. Perhaps no pronouns. Let's craft.
+
+Need ensure third-person: "조태형의 녹색 눈이..." Dialogue: “아, 길?” etc. No narration first person. Need maybe include electronic choker, perfume? Could mention faint scent. Need not overdo setting. Need active: he laughs, pushes off desk, offers to accompany. Could say “그럼 잘 됐네. 내가 안내해 줄까?” Need not say honorific style. He likely casual? Canon? 낙천적이고 능청. Maybe casual to newcomer? He used 반말? Previous: “신입이야?” so casual. Keep one register in his dialogue: casual. No mixing. Need maybe use “너” but not too much. He asks name? User didn't answer. He can notice evasion. But don't force. Could say “길 잃으면 큰일 나는데.” He can walk beside. Need not decide user follows. Can start walking? Could take half step. Need ask? Active: “어디 가려던 데였어?” Maybe he offers. Need maintain no godmod. Let's draft:
+
+가방 끈을 꼭 쥔 손끝에 조태형의 시선이 잠깐 걸렸다. 금세 알아챈 듯 눈매가 더 가늘게 휘었다. 로비 인파가 둘 옆으로 흘러갔다.
+
+“길?”
+
+낮게 되물은 조태형이 데스크에서 몸을 떼었다. 유광 블랙 재킷이 어깨 움직임에 따라 살짝 빛났다. 흰 후드티의 곰 귀가 흔들렸다.
+
+“그럼 더더욱 혼자 두면 안 되겠네. 여기 구조 은근 복잡하거든. 잘못 들어가면 동기화 챔버 앞에서 멍하니 서 있게 돼.”
+
+장난기 섞인 말투였지만, 발걸음은 이미 렌의 보조에 맞게 반 박자 늦춰지고 있었다. 검은 네일의 손가락이 은반지를 느슨하게 돌렸다. 옅은 여자 향수 냄새가 스쳤다.
+
+“괜찮으면 데려다줄게. 어디였는데?”
+
+녹색 눈이 렌의 얼굴을 슬쩍 살폈다.
+
+“아, 아직 이름도 안 알려줬지. 조태형. 특수계. 넌?”
+
+목의 전자 초커가 조명 아래 차갑게 반짝였다.
+
+Need ensure no first-person outside dialogue. “데려다줄게” dialogue okay. No first-person narration. Good. But "녀" no. Need maybe "그" not necessary. Need maybe not say "특수계" overly setting? It's okay as self-intro but maybe no job listing? Rule says 현재 장면과 무관한 직업·등급·과거사·설정 나열 금지. But he can introduce name and maybe 소속? Maybe avoid 등급/직업 listing. Could just say “조태형.” Maybe “여기 사람” etc. But character canon says he is S급 special. Don't list. Need maybe not mention "특수계". Let's remove. He can say “조태형. 길 안내 정도는 해 줄 수 있어.” But active. Need maybe ask destination. The user said 길 잘 모르거든. He can guide. Need maybe include his tinnitus calming? Could be subtle: near 렌, ear ringing quiet. But maybe too much? Could be internal observation in third person: "이상하게, 렌 곁에 서자 이명이 한 겍 가라앉았다." But need know name? He doesn't know yet. Could say "이름 모를 상대 곁". But user persona is 렌; character may not know. Could use "그" but not name? We can refer as 렌 in narration? Since user persona name is known to AI but character may not. It's okay to call "렌" in narration? Usually yes if user persona. But if character hasn't learned name, narration can still use name. But maybe safer use "상대" but rule says don't repeatedly use 상대방. Could use "그" or omit. Need avoid "상대" as default. Use "렌"? The character hasn't heard name, but narrator can know. However [A] doesn't know? Narration from AI can use user's persona name? Usually yes. But for knowledge boundary, [A] doesn't know meta? But user persona name is known to AI? It says USER_PERSONA is [B]. Could use 렌 in narration. But if character hasn't learned, dialogue shouldn't call him 렌. The previous AI didn't know name. We can use "그" or no name. Let's use "그" sparingly. Need male. Good.
+
+Potential issue: "여자 향수 냄새" could be odd but canon. Include maybe. Need maintain no foreign words. "챔버" maybe foreign? It's setting term? Could be Korean? 동기화 챔버 is in canon. It's okay? Foreign word? It says no foreign language mixed except proper nouns/skill names. 챔버 is loanword but Korean transcription. Probably okay. But maybe avoid. Use "동기화실"? Canon says 동기화 챔버. Could use it. But maybe not necessary.
+
+Need maybe respond to "조금만" meaning wait? He says okay. Could respect: "조금만?" He may slow down. Need not invade. Let's craft polished.
+
+Need check: third-person no first person. Dialogue contains "내가" maybe okay. But if we include "내가" in dialogue okay. But maybe avoid? It's allowed. Need one register: casual. Dialogue: “길?” “그럼 더더욱 혼자 두면 안 되겠네.” “여기 구조 은근 복잡하거든.” “잘못 들어가면 동기화 챔버 앞에서 멍하니 서 있게 돼.” “괜찮으면 데려다줄게.” “어디 가려던 데였어?” “아, 아직 이름도 안 알려줬지. 조태형.” “넌?” All casual. Good.
+
+Need maybe too direct asking name? Good. Need maybe not force. Could add “말하기 싫으면 말고.” But maybe too much. Active but respectful. Could say “이름은 나중에 알려줘도 돼.” But then not pressing. Need maybe user can answer. Let's include.
+
+Need maybe mention 초커. Good.
+
+Need ensure no hidden system. Final only RP. Need maybe 4-6 paragraphs. Let's produce.
+
+Double-check first-person outside dialogue: none. Words: "조태형의", "그", no 나. In dialogue: "내가" maybe? If I include “내가 안내해 줄까?” That's first person in dialogue allowed. But maybe keep no first-person in narration. Good.
+
+Need maybe no stage directions. Good.
+
+Potential issue: "렌" maybe not used. If not, okay. Need maybe user action: 가방 끈 꼭 쥐고. We can observe. Good.
+
+Let's final in Korean. Ensure no English. Use “에이지스” proper. Maybe okay.
+
+Final:
+가방 끈을 꼭 쥔 손끝에 조태형의 시선이 잠깐 걸렸다. 그는 금세有趣한 듯... Need no Chinese. Let's write.
+
+Need ensure "그" refers to 조태형 or user? Ambiguous. Use 조태형 for AI, and "그" maybe user? Better: "조태형" for AI, "렌" for user? We can use "렌" in narration. Since user persona. But if character hasn't learned name, narrator can still. Let's use "렌" sparingly. Is it okay? Yes. But if knowledge boundary? Narrator is not character. It can use known user name. It won't violate. Let's do.
+
+Paragraph:
+가방 끈을 꼭 쥔 렌의 손끝에 조태형의 시선이 잠깐 걸렸다. 녹색 눈이 장난기 어린 채로 더 가늘게 휘었다. 로비의 인파가 두 사람 옆으로 바쁘게 흘러갔다.
+
+“길?”
+
+낮게 되물은 조태형이 데스크에서 몸을 떼었다. 유광 블랙 재킷이 어깨 움직임에 따라 살짝 빛났고, 흰 후드티의 곰 귀가 흔들렸다.
+
+“그럼 더더욱 혼자 두면 안 되겠네. 여기 구조 은근 복잡하거든. 잘못 들어가면 동기화 챔버 앞에서 멍하니 서 있게 돼.”
+
+장난기 섞인 말투였지만, 발걸음은 이미 렌의 보조에 맞게 반 박자 늦춰지고 있었다. 검은 네일이 박힌 손가락이 은반지를 느슨하게 돌렸다. 옅은 여자 향수 냄새가 스쳤다.
+
+“괜찮으면 데려다줄게. 어디 가려던 데였어?”
+
+조태형의 시선이 렌의 얼굴을 슬쩍 살폈다. 목에 감긴 전자 초커가 조명 아래 차갑게 반짝였다.
+
+“아, 아직 이름도 안 알려줬지. 조태형.”
+
+그가 한쪽 입꼬리를 비스듬히 올렸다.
+
+“말하기 싫으면 나중에 알려줘도 돼. 대신 길은 확실히 잡아 줄게.”
+
+Need check: "그가" refers to 조태형. Good. No first-person. Good. But "데려다줄게" could imply he decides to accompany, but asks "괜찮으면". Good.
+
+Could include his tinnitus calming? Maybe add subtle: "이상하게, 곁에 서자 귓속을 긁던 이명이 조금 가라앉았다." But then uses "곁" maybe. It would show canon. But maybe too early. Could add after step: "가까이 선 순간, 조태형의 표정에서 아주 잠깐 장난기가 옅어졌다. 렌 곁에서는 늘 그랬다. 귓속을 긁던 이명이 조용해졌다." But uses 늘? Maybe if first meeting? It says near 렌 calms. Could be first time? If first, "이상하게". But need not reveal too much. Add subtle. But need not overdo. Let's include maybe: "가까이 선 순간, 조태형의 눈매가 아주 잠깐 부드러워졌다. 렌 곁에 서면 이상하게 귓속을 긁던 이명이 가라앉았다." But if he doesn't know why, okay. However user may not want meta? It's character internal, okay. But maybe too intimate. Could include. Need third-person. No first-person. Good.
+
+Need maybe not use "늘" if first. Use "이상하게". Let's integrate.
+
+Final maybe with that. Ensure not too long. Need maybe no "user" etc. Good.
+
+One more check: [NO STAGE DIRECTIONS] no explaining writing. Good. [SPEECH METADATA] no mention. Good.
+
+Let's final.
