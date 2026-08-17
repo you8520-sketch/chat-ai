@@ -1,3 +1,4 @@
+import type { CharacterAsset } from "@/lib/characterAssets";
 import type { TrpgActionType } from "./actionTypes";
 import type { TrpgSheetHudCard } from "./sheetView";
 import type {
@@ -121,6 +122,7 @@ export type TrpgCampaignSnapshot = {
   /** Latest GM scene the host may reroll, or null. */
   canRerollRoundNumber: number | null;
   narrationRerolling: boolean;
+  scenarioAssets: CharacterAsset[];
 };
 
 export function isListedTrpgCampaign(snap: TrpgCampaignSnapshot): boolean {

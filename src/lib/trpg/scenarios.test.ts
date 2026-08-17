@@ -571,6 +571,40 @@ describe("TRPG scenarios and catalog", () => {
     db.close();
   });
 
+  it("stores landscape scenario assets and exposes them on the campaign snapshot", () => {
+    const db = memoryDb();
+    const templateId = insertScenarioTemplate(db, 1, {
+      title: "에셋 시나리오",
+      content: "폐역에서 시작한다.",
+      assets: [
+        { url: "/uploads/cover.webp", tag: "표지", width: 800, height: 1200 },
+        { url: "/uploads/hall.webp", tag: "대합실", width: 1600, height: 900 },
+      ],
+    });
+    const campaignId = createTrpgCampaign(db, {
+      hostUserId: 1,
+      hostNickname: "렌",
+      viewerUserId: 1,
+      templateId,
+    });
+    const snap = loadTrpgSnapshot(db, campaignId, 1);
+    assert.equal(snap?.scenarioAssets.length, 2);
+    assert.equal(snap?.scenarioAssets[1]?.tag, "대합실");
+    assert.throws(
+      () =>
+        insertScenarioTemplate(db, 1, {
+          title: "세로 금지",
+          content: "본문입니다.",
+          assets: [
+            { url: "/uploads/cover.webp", tag: "표지", width: 800, height: 1200 },
+            { url: "/uploads/tall.webp", tag: "초상", width: 800, height: 1200 },
+          ],
+        }),
+      /가로로 긴 이미지/
+    );
+    db.close();
+  });
+
   it("rejects a scenario whose world, prose, secrets, and NPCs exceed 10,000 characters", () => {
     const db = memoryDb();
     const worldBody = "한".repeat(7000);

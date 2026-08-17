@@ -3,8 +3,10 @@ import { describe, it } from "node:test";
 
 import {
   buildEmotionTagPrompt,
+  collectEmotionTags,
   resolveEmotionTag,
   sanitizeEmotionTagInText,
+  splitProseWithEmotionTags,
   stripEmotionTagsForDisplay,
   stripTrailingEmotionTagStreamCandidate,
 } from "@/lib/emotionTag";
@@ -33,6 +35,29 @@ describe("sanitizeEmotionTagInText", () => {
   it("keeps allowed exact tag", () => {
     const out = sanitizeEmotionTagInText("본문.\n[태그: 부끄러움]", ["부끄러움", "무표정"]);
     assert.equal(out, "본문.\n[태그: 부끄러움]");
+  });
+
+  it("keeps mid-body allowed tags and drops invented ones", () => {
+    const out = sanitizeEmotionTagInText(
+      "문이 열린다.\n[태그: 거리]\n그녀가 웃는다.\n[태그: 슬픔]",
+      ["거리", "미소"]
+    );
+    assert.match(out, /\[태그: 거리\]/);
+    assert.equal(out.includes("[태그: 슬픔]"), false);
+  });
+});
+
+describe("mid-body emotion tags", () => {
+  it("collects every complete tag", () => {
+    assert.deepEqual(collectEmotionTags("앞 [태그: 거리] 뒤 [태그: 미소]"), ["거리", "미소"]);
+  });
+
+  it("splits prose around tags", () => {
+    const parts = splitProseWithEmotionTags("앞\n[태그: 거리]\n뒤");
+    assert.deepEqual(
+      parts.map((p) => (p.kind === "tag" ? p.tag : p.text.trim())),
+      ["앞", "거리", "뒤"]
+    );
   });
 });
 
@@ -73,7 +98,7 @@ describe("buildEmotionTagPrompt", () => {
   it("lists unique tags and requires scene-matched choice", () => {
     const block = buildEmotionTagPrompt(["진지함", "부끄러움", "침대에 누움", "진지함"]);
     assert.match(block, /진지함, 부끄러움, 침대에 누움/);
-    assert.match(block, /final moment of this turn/);
+    assert.match(block, /in the body at the moment/);
     assert.match(block, /FORBIDDEN: any tag not in the list/);
     assert.match(block, /\[태그: tagname\]/);
   });

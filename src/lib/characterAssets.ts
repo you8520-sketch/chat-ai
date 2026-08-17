@@ -1,3 +1,5 @@
+export type AssetOrientation = "landscape" | "portrait" | "square";
+
 export type CharacterAsset = {
   url: string;
   tag: string;
@@ -12,7 +14,66 @@ export type CharacterAsset = {
   /** 에셋 태깅 검열: 공개 불가(미성년·성기 노출 등) */
   moderationReject?: boolean;
   moderationReason?: string;
+  width?: number;
+  height?: number;
+  orientation?: AssetOrientation;
 };
+
+export function orientationFromSize(
+  width?: number | null,
+  height?: number | null
+): AssetOrientation | null {
+  const w = Number(width);
+  const h = Number(height);
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return null;
+  if (w > h) return "landscape";
+  if (h > w) return "portrait";
+  return "square";
+}
+
+export function withAssetSize(
+  asset: CharacterAsset,
+  width?: number | null,
+  height?: number | null
+): CharacterAsset {
+  const w = Number(width);
+  const h = Number(height);
+  if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) return asset;
+  const orientation = orientationFromSize(w, h);
+  return {
+    ...asset,
+    width: Math.round(w),
+    height: Math.round(h),
+    ...(orientation ? { orientation } : {}),
+  };
+}
+
+/** 가로로 긴 에셋만 본문 인라인. 정사각·세로는 좌측/배경 초상. 크기 미확인은 세로로 취급. */
+export function isWideInlineAsset(asset: Pick<CharacterAsset, "width" | "height" | "orientation">): boolean {
+  const orientation = asset.orientation ?? orientationFromSize(asset.width, asset.height);
+  return orientation === "landscape";
+}
+
+export function isPortraitDisplayAsset(
+  asset: Pick<CharacterAsset, "width" | "height" | "orientation">
+): boolean {
+  return !isWideInlineAsset(asset);
+}
+
+function optionalSizeFields(raw: Partial<CharacterAsset>): Pick<CharacterAsset, "width" | "height" | "orientation"> {
+  const width = Number(raw.width);
+  const height = Number(raw.height);
+  const stored =
+    raw.orientation === "landscape" || raw.orientation === "portrait" || raw.orientation === "square"
+      ? raw.orientation
+      : null;
+  const orientation = stored ?? orientationFromSize(width, height);
+  return {
+    ...(Number.isFinite(width) && width > 0 ? { width: Math.round(width) } : {}),
+    ...(Number.isFinite(height) && height > 0 ? { height: Math.round(height) } : {}),
+    ...(orientation ? { orientation } : {}),
+  };
+}
 
 export const EMOTION_TAGS = [
   "기쁨",
@@ -46,6 +107,7 @@ function normalizeAsset(raw: Partial<CharacterAsset>, index: number): CharacterA
     ...(typeof raw.moderationReason === "string" && raw.moderationReason.trim()
       ? { moderationReason: raw.moderationReason.trim().slice(0, 200) }
       : {}),
+    ...optionalSizeFields(raw),
   };
 }
 
@@ -127,13 +189,17 @@ export function findAssetUrl(assets: CharacterAsset[], tag: string): string | nu
   return findAssetByTag(assets, tag)?.url ?? null;
 }
 
-/** 대화 기본(입장) 에셋 — chat 풀의 첫 번째, 가림 없는 것 우선 */
+/** 대화 기본(입장) 에셋 — 세로 초상만. chat 풀의 첫 번째, 가림 없는 것 우선 */
 export function getDefaultChatAsset(assets: CharacterAsset[]): CharacterAsset | null {
-  const pool = chatAssets(assets);
+  const pool = chatAssets(assets).filter((a) => isPortraitDisplayAsset(a));
   if (pool.length > 0) {
-    return pool.find((a) => a.viewerBlur !== true) ?? pool[0];
+    return pool.find((a) => a.viewerBlur !== true) ?? pool[0] ?? null;
   }
-  return assets[0] ?? null;
+  return null;
+}
+
+export function portraitChatAssets(assets: CharacterAsset[]): CharacterAsset[] {
+  return chatAssets(assets).filter((a) => isPortraitDisplayAsset(a));
 }
 
 /** 새 에셋 추가 시 기본 플래그 — 전부 소개·대화 포함, 첫 장만 비가림 */

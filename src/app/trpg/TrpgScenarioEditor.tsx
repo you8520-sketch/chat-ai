@@ -1,12 +1,20 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { AppPageShell, AppSectionCard } from "@/components/AppPageShell";
+import AssetManagerGrid from "@/components/AssetManagerGrid";
 import GenrePicker from "@/components/GenrePicker";
 import StudioSaveBar from "@/components/studio/StudioSaveBar";
-import type { TrpgCatalog } from "@/lib/trpg/catalog";
+import { defaultAssetFlags, withAssetSize, type CharacterAsset } from "@/lib/characterAssets";
 import type { CharacterGenre } from "@/lib/characterGenres";
+import { measureImageUrl } from "@/lib/measureImageSize";
+import type { TrpgCatalog } from "@/lib/trpg/catalog";
+import {
+  TRPG_SCENARIO_LANDSCAPE_ONLY_ERROR,
+  TRPG_SCENARIO_MAX_ASSETS,
+  assertScenarioAssetOrientations,
+} from "@/lib/trpg/scenarioAssets";
 import {
   TRPG_SCENARIO_BUNDLE_LIMIT,
   TRPG_SCENARIO_CONTENT_LIMIT,
@@ -56,8 +64,12 @@ export default function TrpgScenarioEditor({
   );
   const [npcs, setNpcs] = useState<TrpgScenarioNpc[]>(initial?.npcs?.length ? initial.npcs : []);
   const [genres, setGenres] = useState<CharacterGenre[]>(initial?.genres ?? []);
+  const [assets, setAssets] = useState<CharacterAsset[]>(initial?.assets ?? []);
+  const [files, setFiles] = useState<File[]>([]);
+  const [progress, setProgress] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const namedNpcs = npcs.filter((n) => n.name.trim());
   const linkedWorld = typeof worldId === "number" ? catalog.myWorlds.find((w) => w.id === worldId) : undefined;
@@ -93,6 +105,107 @@ export default function TrpgScenarioEditor({
     TRPG_SCENARIO_SUMMARY_LIMIT
   );
 
+  function fallbackAssetTag(index: number): string {
+    return `장면 ${index + 1}`;
+  }
+
+  function commitAssets(next: CharacterAsset[]) {
+    try {
+      assertScenarioAssetOrientations(next);
+      setAssets(next);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : TRPG_SCENARIO_LANDSCAPE_ONLY_ERROR);
+    }
+  }
+
+  function pickFiles(list: FileList | null) {
+    if (!list) return;
+    const room = TRPG_SCENARIO_MAX_ASSETS - assets.length;
+    setFiles([...files, ...Array.from(list)].slice(0, room));
+  }
+
+  async function tagPendingFiles() {
+    if (files.length === 0) return;
+    setBusy(true);
+    setError("");
+    setProgress(`에셋 ${files.length}장 업로드 중…`);
+    try {
+      const fd = new FormData();
+      files.forEach((f) => fd.append("files", f));
+      const up = await fetch("/api/upload", { method: "POST", body: fd });
+      const upData = (await up.json()) as { urls?: unknown; error?: string };
+      if (!up.ok) {
+        setError(upData.error || "에셋 업로드에 실패했습니다.");
+        return;
+      }
+      const uploadedUrls = Array.isArray(upData.urls)
+        ? upData.urls.filter((url: unknown): url is string => typeof url === "string" && url.trim().length > 0)
+        : [];
+      if (uploadedUrls.length === 0) {
+        setError("업로드된 이미지 URL을 확인하지 못했습니다.");
+        return;
+      }
+      setProgress("이미지 장면 태그 분석 중…");
+      let taggedAssets: Array<{ url: string; tag: string }> = [];
+      try {
+        const tagRes = await fetch("/api/assets/tag", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ urls: uploadedUrls }),
+        });
+        const tagData = (await tagRes.json()) as { assets?: unknown };
+        if (tagRes.ok && Array.isArray(tagData.assets)) {
+          taggedAssets = tagData.assets.filter(
+            (a: unknown): a is { url: string; tag: string } =>
+              !!a &&
+              typeof a === "object" &&
+              typeof (a as { url?: unknown }).url === "string" &&
+              typeof (a as { tag?: unknown }).tag === "string"
+          );
+        }
+      } catch {
+        /* fallback tags below */
+      }
+      const byUrl = new Map(taggedAssets.map((asset) => [asset.url, asset]));
+      const measured = await Promise.all(uploadedUrls.map((url) => measureImageUrl(url)));
+      const accepted: CharacterAsset[] = [];
+      let rejected = 0;
+      uploadedUrls.forEach((url, i) => {
+        const index = assets.length + accepted.length;
+        const sized = withAssetSize(
+          {
+            url,
+            tag: byUrl.get(url)?.tag.trim() || fallbackAssetTag(index),
+            ...defaultAssetFlags(assets, i),
+          },
+          measured[i]?.width,
+          measured[i]?.height
+        );
+        if (index > 0 && !sized.orientation) {
+          rejected += 1;
+          return;
+        }
+        if (index > 0 && sized.orientation !== "landscape") {
+          rejected += 1;
+          return;
+        }
+        accepted.push(sized);
+      });
+      if (accepted.length > 0) commitAssets([...assets, ...accepted]);
+      setFiles([]);
+      if (rejected > 0) {
+        setError(
+          `${TRPG_SCENARIO_LANDSCAPE_ONLY_ERROR} ${rejected}장은 추가하지 않았습니다.`
+        );
+      }
+    } catch {
+      setError("에셋 업로드 중 오류가 발생했습니다.");
+    } finally {
+      setBusy(false);
+      setProgress("");
+    }
+  }
+
   function toggleStatKey(key: string) {
     setStatKeys((prev) => {
       const on = prev.includes(key);
@@ -127,6 +240,7 @@ export default function TrpgScenarioEditor({
       npcs: npcs.filter((n) => n.name.trim()),
       characterIds: [],
       genres,
+      assets,
     };
     try {
       const res = await fetch(initial ? `/api/trpg/scenarios/${initial.id}` : "/api/trpg/scenarios", {
@@ -223,6 +337,54 @@ export default function TrpgScenarioEditor({
               className="mt-1 w-full rounded-xl border border-amber-500/20 bg-[#161922] px-3 py-2 text-sm text-zinc-100"
             />
           </label>
+          <div className="mt-4 space-y-2">
+            <p className="text-sm text-zinc-300">시나리오 에셋</p>
+            <p className="text-xs text-zinc-500">
+              캐릭터 제작과 같이 이미지를 올리고 태그를 붙입니다. 1번 대표 이미지는 가로·세로 모두
+              가능하고, 나머지 장면 에셋은 가로로 긴 이미지만 사용할 수 있습니다. 진행 중 참여
+              캐릭터가 반응하면 맞는 태그가 본문 가로폭에 맞춰 한 턴에 한 장씩 뜹니다.
+            </p>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              multiple
+              hidden
+              onChange={(e) => {
+                pickFiles(e.target.files);
+                e.target.value = "";
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={assets.length + files.length >= TRPG_SCENARIO_MAX_ASSETS}
+              className="w-full min-h-11 rounded-xl border border-dashed border-white/15 bg-[#161922] py-3 text-sm font-semibold text-zinc-200 hover:border-violet-400/40"
+            >
+              + 시나리오 에셋 추가
+              <span className="mt-1 block text-xs font-normal text-zinc-500">
+                {assets.length + files.length} / {TRPG_SCENARIO_MAX_ASSETS}장 · 1번 이후는 가로 이미지
+              </span>
+            </button>
+            {files.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => void tagPendingFiles()}
+                disabled={busy}
+                className="w-full min-h-11 rounded-xl bg-violet-600 py-2.5 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
+              >
+                {progress || `${files.length}장 업로드 · 태깅`}
+              </button>
+            ) : null}
+            {assets.length > 0 ? (
+              <AssetManagerGrid
+                assets={assets}
+                onChange={commitAssets}
+                onRemove={(index) => commitAssets(assets.filter((_, i) => i !== index))}
+                note="1번은 카드 대표. 2번부터는 가로로 긴 장면만 유지됩니다."
+              />
+            ) : null}
+          </div>
           <p
             className={`mt-3 text-base font-semibold tabular-nums tracking-tight ${
               bundleOver ? "text-rose-400" : "text-amber-300"

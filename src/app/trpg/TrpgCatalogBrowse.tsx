@@ -71,6 +71,7 @@ function ScenarioCardRow({
       genres={scenario.genres}
       badge={mine ? (scenario.visibility === "public" ? "내 것" : "내 것 · 비공개") : undefined}
       emoji="📜"
+      coverUrl={scenario.assets[0]?.url}
       selected={selected}
       onSelect={onSelect}
       editHref={mine ? `/trpg/scenarios/${scenario.id}` : undefined}

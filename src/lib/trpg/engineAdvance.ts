@@ -19,7 +19,12 @@ import { resolveTrpgRoll, rollServerD20 } from "./dice";
 import { assertCanStart } from "./engineCreate";
 import { callTrpgBot, callTrpgGm } from "./gmCall";
 import { formatTrpgPlayerPersonaBlock, parseHumanPersona } from "./hostPersona";
-import { loadScenarioTemplate } from "./scenarioTemplates";
+import {
+  applyScenarioAssetTagsToTurnText,
+  buildScenarioAssetTagPrompt,
+  collectUsedScenarioTags,
+} from "./scenarioAssets";
+import { loadCampaignScenarioAssets, loadScenarioTemplate } from "./scenarioTemplates";
 import { buildTrpgGmUserBlock, formatTrpgSheetCanon, parseTrpgGmOutput, TRPG_GM_SYSTEM } from "./gmPrompt";
 import { loadTrpgSnapshot } from "./engineSnapshot";
 import { buildCampaignMemoryPrompt, buildTrpgBotMemoryBlock } from "./memory";
@@ -403,6 +408,12 @@ async function generateBotActions(
     previousGmNarration: prev,
   });
   const earlier: Array<{ name: string; text: string }> = [];
+  const scenarioAssets = loadCampaignScenarioAssets(db, opts.campaign.template_id);
+  const scenarioAssetPrompt = buildScenarioAssetTagPrompt(scenarioAssets);
+  const usedScenarioTags = collectUsedScenarioTags(
+    humans.map((h) => h.body),
+    scenarioAssets
+  );
 
   for (const turn of ordered) {
     const bot = parts.find((p) => p.id === turn.id);
@@ -466,11 +477,13 @@ async function generateBotActions(
       speakIndex: earlier.length + 1,
       speakCount: ordered.length,
       relationshipBrief: opts.campaign.relationship_brief ?? "",
+      scenarioAssetPrompt,
     });
     const { text, usage } = await botCall(TRPG_BOT_SYSTEM, user);
-    const body =
+    const rawBody =
       sanitizeBotActionText(text, TRPG_BOT_ACTION_MAX_CHARS) ||
       `${bot.display_name}은 상황을 살피며 한 발 다가선다.`;
+    const body = applyScenarioAssetTagsToTurnText(rawBody, scenarioAssets, usedScenarioTags);
     upsertLockedAction(db, opts.roundId, bot.id, body, "free", null, "bot_model");
     appendRoundUsage(db, opts.roundId, usage ?? TRPG_BOT_USAGE_FALLBACK);
     earlier.push({ name: bot.display_name, text: body });
@@ -612,6 +625,11 @@ async function runGmForRound(
     defs: scenario.statDefs,
     sheets: sheets.map((s) => ({ name: s.name, stats: s.stats })),
   });
+  const scenarioAssets = loadCampaignScenarioAssets(db, campaign.template_id);
+  const usedScenarioTags = collectUsedScenarioTags(
+    actions.map((a) => a.body),
+    scenarioAssets
+  );
   const user = buildTrpgGmUserBlock({
     worldBrief: campaign.world_brief,
     gmSecret: campaign.gm_secret ?? "",
@@ -622,12 +640,18 @@ async function runGmForRound(
     sheetCanon,
     genres: loadCampaignGenres(db, campaign),
     relationshipBrief: campaign.relationship_brief ?? "",
+    scenarioAssetPrompt: buildScenarioAssetTagPrompt(scenarioAssets),
     actions,
   });
   const gmCall = opts.deps?.gmCall ?? callTrpgGm;
   const { text, usage } = await gmCall({ system: TRPG_GM_SYSTEM, user });
   appendRoundUsage(db, opts.roundId, usage ?? TRPG_GM_USAGE_FALLBACK);
   const parsed = parseTrpgGmOutput(text);
+  parsed.narration = applyScenarioAssetTagsToTurnText(
+    parsed.narration,
+    scenarioAssets,
+    usedScenarioTags
+  );
   const applied = applyValidatedStateDelta(sheets, parsed.delta);
   const nextSheets = applied.ok ? applied.next : sheets;
   const roundNumber = (

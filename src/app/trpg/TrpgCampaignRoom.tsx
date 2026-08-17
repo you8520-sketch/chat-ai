@@ -18,6 +18,7 @@ import { cacheUserChatPrefsClient, loadUserChatPrefsClient, type UserChatPrefs }
 import { loadTrpgDisplayPrefs } from "@/lib/trpg/displayPrefs";
 import { successLabelKo } from "@/lib/trpg/labels";
 import { isTrpgQuotedSpeech, parseTrpgSceneSpeech } from "@/lib/trpg/sceneSpeech";
+import type { CharacterAsset } from "@/lib/characterAssets";
 import type { TrpgCampaignSnapshot, TrpgPublicLog, TrpgPublicRoll } from "@/lib/trpg/snapshot";
 import type { TrpgStatDefinition } from "@/lib/trpg/types";
 import { TRPG_ACTION_MAX_CHARS } from "@/lib/trpg/types";
@@ -26,6 +27,7 @@ import TrpgCampaignRail from "./TrpgCampaignRail";
 import TrpgNamedProse, { TrpgGmTalk } from "./TrpgNamedProse";
 import TrpgSceneToolbar from "./TrpgSceneToolbar";
 import TrpgSelfSheetHud from "./TrpgSelfSheetHud";
+import { trpgLogRevealKeys, useRevealedText } from "./useRevealedText";
 
 function imageCharacterId(snap: TrpgCampaignSnapshot): number | null {
   const companion = snap.participants.find((p) => p.kind === "ai_character" && p.characterId);
@@ -151,6 +153,11 @@ export default function TrpgCampaignRoom({
   const partyNames = partyDisplayNames(snap);
   const selfSheet = snap.sheets.find((card) => card.isSelf);
   const sceneRows = snap.log.filter((row) => row.narration || row.actions.some((a) => a.revealed && a.body));
+  const seenLogKeysRef = useRef<Set<string> | null>(null);
+  if (seenLogKeysRef.current === null) {
+    seenLogKeysRef.current = new Set(trpgLogRevealKeys(snap.log));
+  }
+  const isFreshLogKey = (key: string) => !seenLogKeysRef.current!.has(key);
   const waitingOpening =
     sceneRows.length === 0 &&
     (starting || generating || phase === "ROLLING" || phase === "GENERATING_NARRATION" || phase === "NONE");
@@ -336,6 +343,8 @@ export default function TrpgCampaignRoom({
               canReroll={snap.canRerollRoundNumber === row.roundNumber && !generating}
               canImage={Boolean(imageId) && Boolean(row.narration)}
               busy={busy || generating}
+              scenarioAssets={snap.scenarioAssets ?? []}
+              isFreshLogKey={isFreshLogKey}
               onReroll={() => onReroll(row.roundNumber)}
               onImage={() =>
                 openSceneImage({
@@ -494,6 +503,8 @@ function SceneTurn({
   canReroll,
   canImage,
   busy,
+  scenarioAssets,
+  isFreshLogKey,
   onReroll,
   onImage,
 }: {
@@ -505,10 +516,14 @@ function SceneTurn({
   canReroll: boolean;
   canImage: boolean;
   busy: boolean;
+  scenarioAssets: CharacterAsset[];
+  isFreshLogKey: (key: string) => boolean;
   onReroll: () => void;
   onImage: () => void;
 }) {
-  const beats = row.narration ? parseTrpgSceneSpeech(row.narration, knownNames) : [];
+  const revealNarration = isFreshLogKey(`n:${row.roundNumber}`);
+  const shownNarration = useRevealedText(row.narration ?? "", revealNarration);
+  const beats = shownNarration ? parseTrpgSceneSpeech(shownNarration, knownNames) : [];
   const rolledIds = new Set(row.rolls.map((roll) => roll.participantId));
   const visibleActions = row.actions.filter(
     (a) => a.revealed && a.body.trim() && !rolledIds.has(a.participantId)
@@ -538,6 +553,11 @@ function SceneTurn({
                 text={parsed.prose || action.body}
                 variant={action.kind === "human" ? "user" : "character"}
                 display={display}
+                assets={scenarioAssets}
+                reveal={
+                  action.kind === "ai_character" &&
+                  isFreshLogKey(`a:${row.roundNumber}:${action.participantId}`)
+                }
               />
               {parsed.intent ? (
                 <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">{parsed.intent}</p>
@@ -548,7 +568,11 @@ function SceneTurn({
         {row.rolls.length > 0 ? <DiceStrip rolls={row.rolls} statDefs={statDefs} /> : null}
         {beats.map((beat, i) =>
           beat.speaker === "GM" ? (
-            <TrpgGmTalk key={`${row.roundNumber}-gm-${i}`} text={beat.text} />
+            <TrpgGmTalk
+              key={`${row.roundNumber}-gm-${i}`}
+              text={beat.text}
+              assets={scenarioAssets}
+            />
           ) : (
             <TrpgNamedProse
               key={`${row.roundNumber}-gm-${i}`}
@@ -557,6 +581,7 @@ function SceneTurn({
               variant={speechVariant(beat.speaker, selfNames)}
               accent={Boolean(beat.speaker) || isTrpgQuotedSpeech(beat.text)}
               display={display}
+              assets={scenarioAssets}
             />
           )
         )}

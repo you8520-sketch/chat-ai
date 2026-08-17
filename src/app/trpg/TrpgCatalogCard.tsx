@@ -58,12 +58,10 @@ export default function TrpgCatalogCard({
                 }
           }
         >
-          {kind === "world" ? (
-            coverUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={coverUrl} alt="" className="h-full w-full object-cover" />
-            ) : null
-          ) : (
+          {coverUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={coverUrl} alt="" className="h-full w-full object-cover" />
+          ) : kind === "world" ? null : (
             <span className="flex h-full w-full items-center justify-center text-5xl sm:text-6xl">{emoji}</span>
           )}
           <span className="pointer-events-none absolute inset-2.5 z-[2] rounded-[0.55rem] border border-white/15 transition duration-300 group-hover/card:border-violet-200/30" />

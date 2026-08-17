@@ -40,6 +40,7 @@ export async function POST(req: Request) {
       npcs: body.npcs,
       characterIds: body.characterIds,
       genres: body.genres,
+      assets: body.assets,
     });
     const row = loadScenarioTemplate(gate.db, id);
     return NextResponse.json({
