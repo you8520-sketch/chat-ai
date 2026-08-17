@@ -1,0 +1,72 @@
+{
+  "DEEPSEEK_POSITIVE_PROMPT_NOT_PROVABLE": true,
+  "LIVE_CALLS_NOT_RUN": true,
+  "reason": "No historical DeepSeek-specific source-fidelity positive/source-specific adapter exists in this repository or in the adult-handoff audit branches. Inventing or porting Muse/Qwen positive text is forbidden.",
+  "searched": {
+    "strings": [
+      "DEEPSEEK SOURCE STYLE",
+      "resolveSourceSpecificDeepSeek",
+      "deepseekPositiveBlock",
+      "DEEPSEEK_POSITIVE"
+    ],
+    "git_log_S_DEEPSEEK_SOURCE_STYLE": [],
+    "git_log_S_resolveSourceSpecificDeepSeek": [],
+    "branches": [
+      "origin/audit/real-taehyung-explicit-qwen38-vs-deepseek0813",
+      "origin/audit/adult-handoff-qwen38-vs-deepseek0813",
+      "origin/cursor/adult-handoff-style-fidelity-muse12-6a91",
+      "origin/cursor/deepseek-common-root-audit-6a91",
+      "origin/cursor/deepseek-fragment-audit-v2-6a91",
+      "origin/main"
+    ],
+    "commits_inspected": [
+      "bca11fd91cdd81c7534b1246fe18da5a61e94d94",
+      "0262a96",
+      "d822d46",
+      "e18e32f0357f1bc037ffbffd854839ec08d7b2b0",
+      "ed1a38686cb8e2d3d25d4ef010d26cd541e9a5e7",
+      "0296709",
+      "0cfb9a2",
+      "67b6e2c"
+    ]
+  },
+  "what_exists_instead": {
+    "deepseek_production_common_handoff_instruction": {
+      "name": "DEEPSEEK_HANDOFF_CONTINUATION_INSTRUCTION",
+      "file": "src/lib/adultSceneRouting.ts",
+      "placement": "system (appendAdultHandoffPrompt / appendAdultHandoffToSystemSplit)",
+      "source_specific": false,
+      "classification_for_this_audit": "VANILLA common handoff owner — not a DeepSeek positive adapter"
+    },
+    "deepseek_production_style_reminder": {
+      "name": "DEEPSEEK_BOTTOM_REMINDER_STYLE_ONLY",
+      "file": "src/lib/deepseekPromptStructure.ts",
+      "placement": "last-user prepend when DeepSeek extras mode is full",
+      "source_specific": false,
+      "classification_for_this_audit": "VANILLA production DeepSeek extras — not a positive adapter"
+    },
+    "qwen_source_specific_adapters": {
+      "file": "src/lib/adultHandoffSourceRouting.ts",
+      "opus": "OPUS_QWEN_FRAGMENT_SENTENCE",
+      "gemini31": "GEMINI31_QWEN_STYLE_CONTINUITY_BLOCK",
+      "applies_when_target_is_qwen_only": true,
+      "forbidden_to_port_to_deepseek": true
+    },
+    "muse_source_specific_positive_blocks": {
+      "file_on_audit_branch": "scripts/real-taehyung-explicit-muse12-positive.ts",
+      "commit": "e18e32f0357f1bc037ffbffd854839ec08d7b2b0",
+      "placement": "last-user append",
+      "opus_title": "[MUSE SOURCE STYLE CONTINUITY — OPUS 5]",
+      "gemini31_title": "[MUSE SOURCE STYLE CONTINUITY — GEMINI 3.1]",
+      "forbidden_to_port_to_deepseek": true
+    }
+  },
+  "file": null,
+  "commit_ref": null,
+  "exact_text_sha256": null,
+  "placement": null,
+  "occurrences": 0,
+  "opus_source_positive_exists": false,
+  "gemini31_source_positive_exists": false,
+  "shared_deepseek_positive_exists": false
+}

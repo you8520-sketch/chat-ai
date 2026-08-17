@@ -1,0 +1,71 @@
+{
+  "note": "Existing Muse Spark 1.2 Positive n=3 RAW. Copied byte-identical. Not modified. No new Muse calls.",
+  "source_branch": "origin/audit/real-taehyung-explicit-qwen38-vs-deepseek0813",
+  "source_dir": "docs/audits/real-taehyung-explicit-qwen38-vs-deepseek0813",
+  "EXISTING_MUSE_OPUS_POSITIVE_RAW_COUNT": 3,
+  "EXISTING_MUSE_GEMINI_POSITIVE_RAW_COUNT": 3,
+  "frozen_source_sha256": {
+    "opus": "f49f3f9d489ba75d1485d2840209fbc2c5c87e5d9c6cd208f235a074ed5cf818",
+    "gemini31": "e9c618f9c8b5856abf8f392713327807d728091ea01dfb5b6e3eb714123ba64e"
+  },
+  "items": [
+    {
+      "filename": "MUSE12_POSITIVE_OPUS.txt",
+      "sha256": "c63a257a57f1e0f062719b9953cfb0aa662b5718836df734591250d70b3a473d",
+      "source": "opus",
+      "condition": "muse_spark_1.2_positive",
+      "sample": 1,
+      "copied_to": "docs/audits/deepseek0813-adult-handoff-final/existing-muse-positive/MUSE12_POSITIVE_OPUS.txt"
+    },
+    {
+      "filename": "MUSE12_FINAL_OPUS_POSITIVE_2.txt",
+      "sha256": "1f561ed45ffc02b3dd33dfd6b6679d55a8a6da3cdf3d638580fca68293f77de4",
+      "source": "opus",
+      "condition": "muse_spark_1.2_positive",
+      "sample": 2,
+      "copied_to": "docs/audits/deepseek0813-adult-handoff-final/existing-muse-positive/MUSE12_FINAL_OPUS_POSITIVE_2.txt"
+    },
+    {
+      "filename": "MUSE12_FINAL_OPUS_POSITIVE_3.txt",
+      "sha256": "f409fd35e58eaef98a5314bea30024a3f627714cca61e30f2fc0407ec1bef647",
+      "source": "opus",
+      "condition": "muse_spark_1.2_positive",
+      "sample": 3,
+      "copied_to": "docs/audits/deepseek0813-adult-handoff-final/existing-muse-positive/MUSE12_FINAL_OPUS_POSITIVE_3.txt"
+    },
+    {
+      "filename": "MUSE12_POSITIVE_GEMINI.txt",
+      "sha256": "3a6564d821e8e6d018d41e759de2971f2d4741e55143e68d45e7b277a2550a97",
+      "source": "gemini31",
+      "condition": "muse_spark_1.2_positive",
+      "sample": 1,
+      "copied_to": "docs/audits/deepseek0813-adult-handoff-final/existing-muse-positive/MUSE12_POSITIVE_GEMINI.txt"
+    },
+    {
+      "filename": "MUSE12_FINAL_GEMINI_POSITIVE_2.txt",
+      "sha256": "0d91cf0032636a2cfa45e0d02d2cd4503554351802850843e4175c5844a5bbaf",
+      "source": "gemini31",
+      "condition": "muse_spark_1.2_positive",
+      "sample": 2,
+      "copied_to": "docs/audits/deepseek0813-adult-handoff-final/existing-muse-positive/MUSE12_FINAL_GEMINI_POSITIVE_2.txt"
+    },
+    {
+      "filename": "MUSE12_FINAL_GEMINI_POSITIVE_3.txt",
+      "sha256": "365748e3fa4f395a609dd209e445d4c2fba051827ba2814a3286712e0d302bc9",
+      "source": "gemini31",
+      "condition": "muse_spark_1.2_positive",
+      "sample": 3,
+      "copied_to": "docs/audits/deepseek0813-adult-handoff-final/existing-muse-positive/MUSE12_FINAL_GEMINI_POSITIVE_3.txt"
+    }
+  ],
+  "existing_runtime_copied_from_prior_summaries_only": {
+    "note": "Numbers copied from prior Muse summaries. Not a winner declaration.",
+    "opus_positive_n1": {
+      "visible_chars": 6002,
+      "ttft_ms": 12129,
+      "latency_ms": 43491,
+      "output_tokens": 5439,
+      "usage_cost": 0.032568
+    }
+  }
+}
